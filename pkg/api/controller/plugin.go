@@ -1,28 +1,28 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package controller
 
 import (
+	"net/http"
+
 	"github.com/goodrain/rainbond/pkg/api/handler"
 	"github.com/goodrain/rainbond/pkg/api/middleware"
-	"net/http"
 
 	"github.com/go-chi/chi"
 
@@ -39,6 +39,8 @@ func (t *TenantStruct) PluginAction(w http.ResponseWriter, r *http.Request) {
 		t.DeletePlugin(w, r)
 	case "POST":
 		t.CreatePlugin(w, r)
+	case "GET":
+		t.GetPlugins(w, r)
 	}
 }
 
@@ -141,6 +143,37 @@ func (t *TenantStruct) DeletePlugin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
+}
+
+//GetPlugins GetPlugins
+func (t *TenantStruct) GetPlugins(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation GET /v2/tenants/{tenant_name}/plugin v2 GetPlugins
+	//
+	// 获取当前租户下所有的可用插件
+	//
+	// get plugins
+	//
+	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//       "$ref": "#/responses/commandResponse"
+	//     description: 统一返回格式
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	plugins, err := handler.GetPluginManager().GetPlugins(tenantID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, plugins)
 }
 
 //PluginDefaultENV PluginDefaultENV
@@ -408,21 +441,30 @@ func (t *TenantStruct) updatePluginSet(w http.ResponseWriter, r *http.Request) {
 	// update plugin setting
 	//
 	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
 	// produces:
 	// - application/json
 	// - application/xml
-	// parameters:
-	// - name: tenant_name
-	//   in: path
-	//   description: tenant name
-	//   required: true
-	//   type: string
 	//
 	// responses:
 	//   default:
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
+	var pss api_model.PluginSetStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &pss.Body, nil)
+	if !ok {
+		return
+	}
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	if err := handler.GetServiceManager().UpdateTenantServicePluginRelation(serviceID, &pss); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
 }
 
 func (t *TenantStruct) addPluginSet(w http.ResponseWriter, r *http.Request) {
@@ -433,40 +475,47 @@ func (t *TenantStruct) addPluginSet(w http.ResponseWriter, r *http.Request) {
 	// add plugin setting
 	//
 	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
 	// produces:
 	// - application/json
 	// - application/xml
-	// parameters:
-	// - name: tenant_name
-	//   in: path
-	//   description: tenant name
-	//   required: true
-	//   type: string
 	//
 	// responses:
 	//   default:
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
+	var pss api_model.PluginSetStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &pss.Body, nil)
+	if !ok {
+		return
+	}
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	if err := handler.GetServiceManager().SetTenantServicePluginRelation(serviceID, &pss); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
 }
 
 func (t *TenantStruct) getPluginSet(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/plugin v2 getPluginSet
+	// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/plugin v2 getPluginSet
 	//
 	// 获取插件设定
 	//
 	// get plugin setting
 	//
 	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
 	// produces:
 	// - application/json
 	// - application/xml
-	// parameters:
-	// - name: tenant_name
-	//   in: path
-	//   description: tenant name
-	//   required: true
-	//   type: string
 	//
 	// responses:
 	//   default:
@@ -474,7 +523,7 @@ func (t *TenantStruct) getPluginSet(w http.ResponseWriter, r *http.Request) {
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	gps, err := handler.GetServiceManager().TenantServicePluginSet(serviceID)
+	gps, err := handler.GetServiceManager().GetTenantServicePluginRelation(serviceID)
 	if err != nil {
 		err.Handle(r, w)
 		return
@@ -492,15 +541,13 @@ func (t *TenantStruct) DeletePluginRelation(w http.ResponseWriter, r *http.Reque
 	// delete plugin relation
 	//
 	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
 	// produces:
 	// - application/json
 	// - application/xml
-	// parameters:
-	// - name: tenant_name
-	//   in: path
-	//   description: tenant name
-	//   required: true
-	//   type: string
 	//
 	// responses:
 	//   default:
@@ -514,4 +561,35 @@ func (t *TenantStruct) DeletePluginRelation(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
+}
+
+//GetPluginEnvWhichCanBeSet GetPluginEnvWhichCanBeSets
+func (t *TenantStruct) GetPluginEnvWhichCanBeSet(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation GET /v2/tenants/{tenant_name}/plugin/{plugin_id}/envs v2 getPluginEnv
+	//
+	// 获取可以修改的plugin env
+	//
+	// get plugin env
+	//
+	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//       "$ref": "#/responses/commandResponse"
+	//     description: 统一返回格式
+	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
+	envs, err := handler.GetPluginManager().GetDefaultEnvWhichCanBeSet(pluginID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, envs)
 }

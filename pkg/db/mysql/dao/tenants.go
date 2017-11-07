@@ -1,30 +1,30 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package dao
 
 import (
-	"github.com/goodrain/rainbond/pkg/db/model"
 	"fmt"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/goodrain/rainbond/pkg/db/model"
 
 	"github.com/Sirupsen/logrus"
 
@@ -1134,6 +1134,15 @@ func (t *PluginDaoImpl) DeletePluginByID(id string) error {
 	return nil
 }
 
+//GetPluginsByTenantID GetPluginsByTenantID
+func (t *PluginDaoImpl) GetPluginsByTenantID(tenantID string) ([]*model.TenantPlugin, error) {
+	var plugins []*model.TenantPlugin
+	if err := t.DB.Where("tenant_id=?", tenantID).Find(&plugins).Error; err != nil {
+		return nil, err
+	}
+	return plugins, nil
+}
+
 //PluginDefaultENVDaoImpl PluginDefaultENVDaoImpl
 type PluginDefaultENVDaoImpl struct {
 	DB *gorm.DB
@@ -1191,6 +1200,15 @@ func (t *PluginDefaultENVDaoImpl) DeleteAllDefaultENVByPluginID(id string) error
 		return err
 	}
 	return nil
+}
+
+//GetDefaultEnvWhichCanBeSetByPluginID GetDefaultEnvWhichCanBeSetByPluginID
+func (t *PluginDefaultENVDaoImpl) GetDefaultEnvWhichCanBeSetByPluginID(pluginID string) ([]*model.TenantPluginDefaultENV, error) {
+	var envs []*model.TenantPluginDefaultENV
+	if err := t.DB.Where("plugin_id=? and Change=1", pluginID).Find(&envs).Error; err != nil {
+		return nil, err
+	}
+	return envs, nil
 }
 
 //PluginBuildVersionDaoImpl PluginBuildVersionDaoImpl
@@ -1397,4 +1415,16 @@ func (t *TenantServicePluginRelationDaoImpl) GetALLRelationByServiceID(serviceID
 		return nil, err
 	}
 	return relations, nil
+}
+
+//GetRelateionByServiceIDAndPluginID GetRelateionByServiceIDAndPluginID
+func (t *TenantServicePluginRelationDaoImpl) GetRelateionByServiceIDAndPluginID(serviceID, pluginID string) (*model.TenantServicePluginRelation, error) {
+	relation := &model.TenantServicePluginRelation{
+		PluginID:  pluginID,
+		ServiceID: serviceID,
+	}
+	if err := t.DB.Where("plugin_id=? and service_id=?", pluginID, serviceID).Find(relation).Error; err != nil {
+		return nil, err
+	}
+	return relation, nil
 }

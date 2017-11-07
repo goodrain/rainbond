@@ -1146,6 +1146,30 @@
       }
     },
     "/v2/tenants/{tenant_name}/plugin": {
+      "get": {
+        "description": "get plugins",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取当前租户下所有的可用插件",
+        "operationId": "GetPlugins",
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
       "post": {
         "description": "create plugin",
         "consumes": [
@@ -1431,7 +1455,8 @@
               "required": [
                 "event_id",
                 "kind",
-                "deploy_version"
+                "deploy_version",
+                "info"
               ],
               "properties": {
                 "deploy_version": {
@@ -1453,6 +1478,11 @@
                   "description": "镜像地址\nin: body",
                   "type": "string",
                   "x-go-name": "ImageURL"
+                },
+                "info": {
+                  "description": "版本信息, 协助选择插件版本\nin:body",
+                  "type": "string",
+                  "x-go-name": "Info"
                 },
                 "kind": {
                   "description": "插件构建类型, image/dockerfile\nin: body",
@@ -1782,6 +1812,48 @@
             "x-go-name": "ENVName",
             "description": "配置项名称",
             "name": "env_name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/plugin/{plugin_id}/envs": {
+      "get": {
+        "description": "get plugin env",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取可以修改的plugin env",
+        "operationId": "getPluginEnv",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "PluginID",
+            "name": "plugin_id",
             "in": "path",
             "required": true
           }
@@ -3296,6 +3368,234 @@
                 }
               }
             }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/plugin": {
+      "get": {
+        "description": "get plugin setting",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取插件设定",
+        "operationId": "getPluginSet",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "put": {
+        "description": "update plugin setting",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "更新插件设定",
+        "operationId": "updatePluginSet",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "plugin_id",
+                "version_id"
+              ],
+              "properties": {
+                "plugin_id": {
+                  "description": "插件id\nin: body",
+                  "type": "string",
+                  "x-go-name": "PluginID"
+                },
+                "switch": {
+                  "description": "开关\nin: body",
+                  "type": "boolean",
+                  "x-go-name": "Switch"
+                },
+                "version_id": {
+                  "description": "插件版本\nin: body",
+                  "type": "string",
+                  "x-go-name": "VersionID"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "add plugin setting",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "添加插件设定",
+        "operationId": "addPluginSet",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "plugin_id",
+                "version_id"
+              ],
+              "properties": {
+                "plugin_id": {
+                  "description": "插件id\nin: body",
+                  "type": "string",
+                  "x-go-name": "PluginID"
+                },
+                "switch": {
+                  "description": "开关\nin: body",
+                  "type": "boolean",
+                  "x-go-name": "Switch"
+                },
+                "version_id": {
+                  "description": "插件版本\nin: body",
+                  "type": "string",
+                  "x-go-name": "VersionID"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}": {
+      "post": {
+        "description": "delete plugin relation",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "删除插件依赖",
+        "operationId": "deletePluginRelation",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "PluginID",
+            "description": "插件id",
+            "name": "plugin_id",
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -5026,7 +5326,7 @@
           "x-go-name": "ShareID"
         }
       },
-      "x-go-package": "acp_api/pkg/model"
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
     },
     "PluginDefaultENV": {
       "description": "PluginDefaultENV 插件默认环境变量",
@@ -5036,6 +5336,11 @@
         "env_value"
       ],
       "properties": {
+        "change": {
+          "description": "是否可以被使用者修改\nin :path",
+          "type": "boolean",
+          "x-go-name": "Change"
+        },
         "env_name": {
           "description": "配置项名称\nin: path",
           "type": "string",
@@ -5052,7 +5357,7 @@
           "x-go-name": "PluginID"
         }
       },
-      "x-go-package": "acp_api/pkg/model"
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
     },
     "SlugShare": {
       "description": "SlugShare Slug 类型",
@@ -5099,7 +5404,7 @@
           "x-go-name": "TenantID"
         }
       },
-      "x-go-package": "acp_api/pkg/model"
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
     },
     "TenantServiceEnvVar": {
       "description": "TenantServiceEnvVar  应用环境变量",
@@ -5144,7 +5449,7 @@
           "x-go-name": "TenantID"
         }
       },
-      "x-go-package": "acp_core/pkg/db/model"
+      "x-go-package": "github.com/goodrain/rainbond/pkg/db/model"
     },
     "TenantServiceRelation": {
       "description": "TenantServiceRelation 应用依赖关系",
@@ -5177,7 +5482,7 @@
           "x-go-name": "TenantID"
         }
       },
-      "x-go-package": "acp_core/pkg/db/model"
+      "x-go-package": "github.com/goodrain/rainbond/pkg/db/model"
     },
     "TenantServiceVolume": {
       "description": "TenantServiceVolume 应用持久化纪录",
@@ -5223,7 +5528,7 @@
           "x-go-name": "VolumeType"
         }
       },
-      "x-go-package": "acp_core/pkg/db/model"
+      "x-go-package": "github.com/goodrain/rainbond/pkg/db/model"
     },
     "TenantServicesPort": {
       "description": "TenantServicesPort 应用端口信息",
@@ -5268,7 +5573,7 @@
           "x-go-name": "TenantID"
         }
       },
-      "x-go-package": "acp_api/pkg/model"
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
     },
     "Values": {
       "description": "It is typically used for query parameters and form values.\nUnlike in the http.Header map, the keys in a Values map\nare case-sensitive.",
