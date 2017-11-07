@@ -1,0 +1,3602 @@
+{
+  "swagger": "2.0",
+  "paths": {
+    "/license": {
+      "post": {
+        "description": "post license \u0026 get token",
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "license"
+        ],
+        "summary": "提交license",
+        "operationId": "SendLicense",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "license",
+            "name": "license",
+            "in": "form",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"bean\":\"{\\\"token\\\": \\\"Q3E5OXdoZDZDX3drN0QtV2gtVmpRaGtlcHJQYmFK\\\"}\"}"
+          }
+        }
+      }
+    },
+    "/v2/job": {
+      "get": {
+        "description": "get job list",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取job列表",
+        "operationId": "JobList",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "node name",
+            "name": "node",
+            "in": "form"
+          },
+          {
+            "type": "string",
+            "format": "string",
+            "description": "group name",
+            "name": "group",
+            "in": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"ok\":true}"
+          }
+        }
+      },
+      "put": {
+        "description": "add or update job",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "添加或者更新job",
+        "operationId": "UpdateJob",
+        "parameters": [
+          {
+            "type": "json",
+            "format": "string",
+            "description": "{\"id\":\"\",\"kind\":0,\"name\":\"aac\",\"oldGroup\":\"\",\"group\":\"default\",\"user\":\"\",\"cmd\":\"echo \\\"hello \\\"\u003e/tmp/aac.txt\",\"pause\":true,\"parallels\":0,\"timeout\":0,\"interval\":0,\"retry\":0,\"rules\":[{\"id\":\"NEW0.5930536330436825\",\"nids\":[\"172.16.0.118\"],\"timer\":\"* 5 * * * *\",\"exclude_nids\":[\"172.16.0.131\"]}],\"fail_notify\":false,\"to\":[]}",
+            "name": "job",
+            "in": "body",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"ok\":true}"
+          }
+        }
+      }
+    },
+    "/v2/job/group": {
+      "get": {
+        "description": "get all groups",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取所有job的group",
+        "operationId": "GetAllGroup",
+        "responses": {
+          "200": {
+            "description": "[\"group1\",...]"
+          }
+        }
+      }
+    },
+    "/v2/job/{id}/group/{group}": {
+      "get": {
+        "description": "get job by group and id",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取 job",
+        "operationId": "GetJob",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "group name",
+            "name": "group",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "string",
+            "description": "job id",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"id\":\"\",\"kind\":0,\"name\":\"aac\",\"group\":\"default\",\"user\":\"\",\"cmd\":\"echo \\\"hello \\\"\u003e/tmp/aac.txt\",\"pause\":true,\"parallels\":0,\"timeout\":0,\"interval\":0,\"retry\":0,\"rules\":[{\"id\":\"NEW0.5930536330436825\",\"nids\":[\"172.16.0.118\"],\"timer\":\"* 5 * * * *\",\"exclude_nids\":[\"172.16.0.131\"]}],\"fail_notify\":false,\"to\":[]}"
+          }
+        }
+      },
+      "post": {
+        "description": "change job status",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "更改 job 状态",
+        "operationId": "ChangeJobStatus",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "group name",
+            "name": "group",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "string",
+            "description": "job id",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "string",
+            "description": "{\"id\":\"\",\"kind\":0,\"name\":\"aac\",\"group\":\"default\",\"user\":\"\",\"cmd\":\"echo \\\"hello \\\"\u003e/tmp/aac.txt\",\"pause\":true,\"parallels\":0,\"timeout\":0,\"interval\":0,\"retry\":0,\"rules\":[{\"id\":\"NEW0.5930536330436825\",\"nids\":[\"172.16.0.118\"],\"timer\":\"* 5 * * * *\",\"exclude_nids\":[\"172.16.0.131\"]}],\"fail_notify\":false,\"to\":[]}",
+            "in": "body",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"id\":\"\",\"kind\":0,\"name\":\"aac\",\"group\":\"default\",\"user\":\"\",\"cmd\":\"echo \\\"hello \\\"\u003e/tmp/aac.txt\",\"pause\":true,\"parallels\":0,\"timeout\":0,\"interval\":0,\"retry\":0,\"rules\":[{\"id\":\"NEW0.5930536330436825\",\"nids\":[\"172.16.0.118\"],\"timer\":\"* 5 * * * *\",\"exclude_nids\":[\"172.16.0.131\"]}],\"fail_notify\":false,\"to\":[]}"
+          }
+        }
+      },
+      "delete": {
+        "description": "delete job by group and id",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "删除 job",
+        "operationId": "DeleteJob",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "group name",
+            "name": "group",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "string",
+            "description": "job id",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"ok\":true}"
+          }
+        }
+      }
+    },
+    "/v2/job/{id}/group/{group}/node/{name}": {
+      "put": {
+        "description": "execute job",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "立即在 node上 执行一次指定group/id 的job",
+        "operationId": "JobExecute",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "group name",
+            "name": "group",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "string",
+            "description": "job id",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "string",
+            "description": "node name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"ok\":true}"
+          }
+        }
+      }
+    },
+    "/v2/job/{id}/groups/{group}/nodes": {
+      "get": {
+        "description": "get job runnable nodes",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取job的可执行节点",
+        "operationId": "GetJobNodes",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "group name",
+            "name": "group",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "string",
+            "description": "job id",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "[\"10.1.1.2\",...]"
+          }
+        }
+      }
+    },
+    "/v2/nodes": {
+      "get": {
+        "description": "get node list info from etcd",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "从etcd获取节点简单列表信息",
+        "operationId": "GetNodeList",
+        "responses": {
+          "200": {
+            "description": "{\"code\":200,\"msg\":\"success\",\"msgcn\":\"成功\",\"body\":{\"list\":[{\"uuid\":\"915f2c95-b723-4c88-9860-dbe33f4f51ac\",\"host_name\":\"10.0.55.73\",\"internal_ip\":\"10.0.55.73\",\"external_ip\":\"10.0.55.73\",\"available_memory\":16267956,\"available_cpu\":4,\"role\":\"compute\",\"status\":\"create\",\"labels\":{\"key1\":\"value1\"},\"unschedulable\":false},{\"uuid\":\"1234c95-b723-4c88-9860-dbe33f4f51ac\",\"host_name\":\"10.0.55.73\",\"internal_ip\":\"10.0.55.73\",\"external_ip\":\"10.0.55.73\",\"available_memory\":16267956,\"available_cpu\":4,\"role\":\"\",\"status\":\"running\",\"labels\":{\"key1\":\"value4\"},\"unschedulable\":false}]}}"
+          }
+        }
+      },
+      "post": {
+        "description": "add new node info to etcd",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "添加新节点到etcd",
+        "operationId": "New",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "json",
+            "description": "{\"uuid\":\"757755e4-99e4-11e7-bab9-00163e020ab5\",\"host_name\":\"10.0.55.73\",\"internal_ip\":\"10.0.55.73\",\"external_ip\":\"10.0.55.73\",\"available_memory\":16,\"available_cpu\":4,\"role\":\"\",\"status\":\"offline\",\"labels\":{\"key1\":\"value1\"},\"unschedulable\":false}",
+            "in": "body",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"code\":200,\"msg\":\"success\",\"msgcn\":\"成功\",\"body\":nil}"
+          }
+        }
+      }
+    },
+    "/v2/nodes/basic/{node}": {
+      "get": {
+        "description": "get node basic info from etcd",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "从服务器获取节点基本信息",
+        "operationId": "GetNodeBasic",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "nodeuid",
+            "name": "node",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"code\":200,\"msg\":\"success\",\"msgcn\":\"成功\",\"body\":{\"list\":null,\"bean\":{{\"uuid\":\"757755e4-99e4-11e7-bab9-00163e020ab5\",\"host_name\":\"10.0.55.73\",\"internal_ip\":\"10.0.55.73\",\"external_ip\":\"10.0.55.73\",\"available_memory\":16,\"available_cpu\":4,\"role\":\"\",\"status\":\"offline\",\"labels\":{\"key1\":\"value1\"},\"unschedulable\":false}}}}"
+          }
+        }
+      }
+    },
+    "/v2/nodes/details/{node}": {
+      "get": {
+        "description": "get node details info from k8s",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "从服务器获取节点详细信息",
+        "operationId": "GetNodeDetails",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "nodeuid",
+            "name": "node",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"code\":200,\"msg\":\"success\",\"msgcn\":\"成功\",\"body\":{\"list\":null,\"bean\":{\"name\":\"10.0.55.73\",\"role\":\"\",\"labels\":{\"key1\":\"value1\"},\"annotations\":{\"node.alpha.kubernetes.io/ttl\":\"0\",\"volumes.kubernetes.io/controller-managed-attach-detach\":\"true\"},\"creationtimestamp\":\"2017-09-19 11:23:09 +0800 CST\",\"conditions\":[{\"type\":\"OutOfDisk\",\"status\":\"False\",\"lastHeartbeatTime\":\"2017-09-20T01:37:25Z\",\"lastTransitionTime\":\"2017-09-19T03:23:18Z\",\"reason\":\"KubeletHasSufficientDisk\",\"message\":\"kubelet has sufficient disk space available\"},{\"type\":\"MemoryPressure\",\"status\":\"False\",\"lastHeartbeatTime\":\"2017-09-20T01:37:25Z\",\"lastTransitionTime\":\"2017-09-19T03:23:18Z\",\"reason\":\"KubeletHasSufficientMemory\",\"message\":\"kubelet has sufficient memory available\"},{\"type\":\"DiskPressure\",\"status\":\"False\",\"lastHeartbeatTime\":\"2017-09-20T01:37:25Z\",\"lastTransitionTime\":\"2017-09-19T03:23:18Z\",\"reason\":\"KubeletHasNoDiskPressure\",\"message\":\"kubelet has no disk pressure\"},{\"type\":\"Ready\",\"status\":\"True\",\"lastHeartbeatTime\":\"2017-09-20T01:37:25Z\",\"lastTransitionTime\":\"2017-09-19T10:59:55Z\",\"reason\":\"KubeletReady\",\"message\":\"kubelet is posting ready status\"}],\"addresses\":{\"Hostname\":\"10.0.55.73\",\"InternalIP\":\"10.0.55.73\",\"LegacyHostIP\":\"10.0.55.73\"},\"capacity\":{\"cpu\":\"4\",\"memory\":\"15886\",\"pods\":\"10k\"},\"allocatable\":{\"cpu\":\"4\",\"memory\":\"15786\",\"pods\":\"10k\"},\"systeminfo\":{\"machineID\":\"df39b3efbcee4d5c84b2feab34009235\",\"systemUUID\":\"08A7D00A-C4B6-4AB7-8D8D-DA14C104A4DC\",\"bootID\":\"b4cd3c6c-e18d-43ae-9f11-3125110e9179\",\"kernelVersion\":\"3.10.0-514.21.2.el7.x86_64\",\"osImage\":\"CentOS Linux 7 (Core)\",\"containerRuntimeVersion\":\"docker://1.12.6\",\"kubeletVersion\":\"v1.6.4-66+4fd15729100998-dirty\",\"kubeProxyVersion\":\"v1.6.4-66+4fd15729100998-dirty\",\"operatingSystem\":\"linux\",\"architecture\":\"amd64\"},\"externalid\":\"10.0.55.73\",\"nonterminatedpods\":[{\"namespace\":\"1b56aa1ed27b4289b6f108e551545f29\",\"id\":\"gr04bff0\",\"name\":\"c0dd44112bd39ff7dda3ac3a47e619ea-3m1m8\",\"cpurequest\":\"80m\",\"cpurequestr\":\"2\",\"cpulimits\":\"120m\",\"cpulimitsr\":\"3\",\"memoryrequests\":\"268435456\",\"memoryrequestsr\":\"0\",\"memorylimits\":\"268435456\",\"memorylimitsr\":\"0\"},{\"namespace\":\"1b56aa1ed27b4289b6f108e551545f29\",\"id\":\"gr04bff0\",\"name\":\"c0dd44112bd39ff7dda3ac3a47e619ea-bxfmc\",\"cpurequest\":\"80m\",\"cpurequestr\":\"2\",\"cpulimits\":\"120m\",\"cpulimitsr\":\"3\",\"memoryrequests\":\"268435456\",\"memoryrequestsr\":\"0\",\"memorylimits\":\"268435456\",\"memorylimitsr\":\"0\"},{\"namespace\":\"1b56aa1ed27b4289b6f108e551545f29\",\"id\":\"\",\"name\":\"web-0\",\"cpurequest\":\"0\",\"cpurequestr\":\"0\",\"cpulimits\":\"0\",\"cpulimitsr\":\"0\",\"memoryrequests\":\"0\",\"memoryrequestsr\":\"0\",\"memorylimits\":\"0\",\"memorylimitsr\":\"0\"},{\"namespace\":\"1b56aa1ed27b4289b6f108e551545f29\",\"id\":\"\",\"name\":\"web-1\",\"cpurequest\":\"0\",\"cpurequestr\":\"0\",\"cpulimits\":\"0\",\"cpulimitsr\":\"0\",\"memoryrequests\":\"0\",\"memoryrequestsr\":\"0\",\"memorylimits\":\"0\",\"memorylimitsr\":\"0\"},{\"namespace\":\"232bd923d3794b979974bb21b863608b\",\"id\":\"gr184a0b\",\"name\":\"bc74e3d2cc734ce1a81f0a1903286e35-g4p31\",\"cpurequest\":\"480m\",\"cpurequestr\":\"12\",\"cpulimits\":\"1780m\",\"cpulimitsr\":\"44\",\"memoryrequests\":\"2Gi\",\"memoryrequestsr\":\"12\",\"memorylimits\":\"2Gi\",\"memorylimitsr\":\"12\"},{\"namespace\":\"232bd923d3794b979974bb21b863608b\",\"id\":\"gr868196\",\"name\":\"d2fa251096c9452ba25d081d861265d9-mdqln\",\"cpurequest\":\"120m\",\"cpurequestr\":\"3\",\"cpulimits\":\"640m\",\"cpulimitsr\":\"16\",\"memoryrequests\":\"512Mi\",\"memoryrequestsr\":\"3\",\"memorylimits\":\"512Mi\",\"memorylimitsr\":\"3\"}],\"allocatedresources\":{\"CPULimits\":\"2660\",\"CPULimitsR\":\"66\",\"CPURequests\":\"760\",\"CPURequestsR\":\"19\",\"MemoryLimits\":\"3072\",\"MemoryLimitsR\":\"15\",\"MemoryRequests\":\"3072\",\"MemoryRequestsR\":\"15\"},\"events\":null}}}"
+          }
+        }
+      }
+    },
+    "/v2/nodes/init": {
+      "put": {
+        "description": "try to basicly init",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "完成基础初始化",
+        "operationId": "init",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "10.0.55.73",
+            "name": "ip",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"bean\":{\"List\":[{\"JobSEQ\":\"asdfsa-sdfasdf-asdf\",\"JobId\":\"online_init\",\"JobName\":\"init\",\"JobResult\":0}],\"Result\":false}}"
+          }
+        }
+      }
+    },
+    "/v2/nodes/login": {
+      "put": {
+        "description": "try to connect to ssh",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "尝试通过SSH链接远程服务器",
+        "operationId": "login",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "hostport",
+                "type",
+                "hosttype"
+              ],
+              "properties": {
+                "hostport": {
+                  "description": "ip:端口\nin: body",
+                  "type": "string",
+                  "x-go-name": "HostPort"
+                },
+                "hosttype": {
+                  "description": "节点类型\nin: body",
+                  "type": "string",
+                  "x-go-name": "HostType"
+                },
+                "pwd": {
+                  "description": "root密码\nin: body",
+                  "type": "string",
+                  "x-go-name": "RootPwd"
+                },
+                "type": {
+                  "description": "登录类型\nin: body",
+                  "type": "boolean",
+                  "x-go-name": "LoginType"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"bean\":{\"hostport\":\"10.0.55.73:22\",\"type\":true,\"result\":\"success\"}}"
+          }
+        }
+      }
+    },
+    "/v2/nodes/{ip}/install": {
+      "put": {
+        "description": "check job status",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "开始安装",
+        "operationId": "StartBuildInJobs",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "10.0.55.73",
+            "name": "ip",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"bean\":{\"List\":[{\"JobSEQ\":\"asdfsa-sdfasdf-asdf\",\"JobId\":\"online_init\",\"JobName\":\"init\",\"JobResult\":3}],\"Result\":false}}"
+          }
+        }
+      }
+    },
+    "/v2/nodes/{ip}/install/status": {
+      "get": {
+        "description": "check job status",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "检查job状态",
+        "operationId": "CheckJobGetStatus",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "10.0.55.73",
+            "name": "ip",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"bean\":{\"List\":[{\"JobSEQ\":\"asdfsa-sdfasdf-asdf\",\"JobId\":\"online_init\",\"JobName\":\"init\",\"JobResult\":0}],\"Result\":false}}"
+          }
+        }
+      }
+    },
+    "/v2/nodes/{node}": {
+      "put": {
+        "description": "add node",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "重新上线计算节点",
+        "operationId": "AddNode",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "nodeuid",
+            "name": "node",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"code\":200,\"msg\":\"success\",\"msgcn\":\"成功\",\"body\":nil}"
+          }
+        }
+      },
+      "post": {
+        "description": "update",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "更新node",
+        "operationId": "UpdateNode",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "nodeuid",
+            "name": "node",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "string",
+            "description": "{\"uuid\": \"ccc\", \"Status\":\"create\",\"host_name\": \"10.0.55.73\", \"internal_ip\": \"10.0.55.73\", \"external_ip\": \"10.0.55.73\", \"available_memory\": 16267956, \"available_cpu\": 4, \"role\": \"\", \"labels\": {\"key1\": \"value1\"}, \"unschedulable\": false}",
+            "in": "body",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"code\":200,\"msg\":\"success\",\"msgcn\":\"成功\",\"body\":{\"list\":[{\"uuid\":\"1234c95-b723-4c88-9860-dbe33f4f51ac\",\"host_name\":\"10.0.55.73\",\"internal_ip\":\"10.0.55.73\",\"external_ip\":\"10.0.55.73\",\"available_memory\":16267956,\"available_cpu\":4,\"role\":\"\",\"status\":\"running\",\"labels\":{\"key1\":\"value4\"},\"unschedulable\":false}]}}"
+          }
+        }
+      },
+      "delete": {
+        "description": "delete node from etcd",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "从etcd 删除计算节点",
+        "operationId": "DeleteFromDB",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "nodeuid",
+            "name": "node",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"code\":200,\"msg\":\"success\",\"msgcn\":\"成功\",\"body\":nil}"
+          }
+        }
+      }
+    },
+    "/v2/nodes/{node}/down": {
+      "post": {
+        "description": "offline node",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "下线计算节点",
+        "operationId": "DeleteNode",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "nodeuid",
+            "name": "node",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"code\":200,\"msg\":\"success\",\"msgcn\":\"成功\",\"body\":nil}"
+          }
+        }
+      }
+    },
+    "/v2/nodes/{node}/label": {
+      "post": {
+        "description": "add label to node",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "为node添加label",
+        "operationId": "AddLabel",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "nodeuid",
+            "name": "node",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "string",
+            "description": "[{\"LKey\":\"key1\",\"LValue\":\"value1\"},{\"LKey2\":\"key2\",\"LValue2\":\"value2\"}]",
+            "in": "body",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"code\":200,\"msg\":\"success\",\"msgcn\":\"成功\",\"body\":nil}"
+          }
+        }
+      }
+    },
+    "/v2/nodes/{node}/reschedulable": {
+      "put": {
+        "description": "make node schedulable",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "使节点可调度",
+        "operationId": "UnCordon",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "nodeuid",
+            "name": "node",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"code\":200,\"msg\":\"success\",\"msgcn\":\"成功\",\"body\":nil}"
+          }
+        }
+      }
+    },
+    "/v2/nodes/{node}/unschedulable": {
+      "put": {
+        "description": "make node unschedulable",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "使节点不可调度",
+        "operationId": "Cordon",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "nodeuid",
+            "name": "node",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{\"code\":200,\"msg\":\"success\",\"msgcn\":\"成功\",\"body\":nil}"
+          }
+        }
+      }
+    },
+    "/v2/resources/tenants": {
+      "get": {
+        "description": "add tenant",
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "全部租户资源使用情况  **完成",
+        "operationId": "allTenantResources",
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/show": {
+      "get": {
+        "description": "show api version",
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "显示当前的api version 信息",
+        "operationId": "getApiVersion",
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants": {
+      "post": {
+        "description": "add tenant",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "添加租户信息  **完成",
+        "operationId": "addTenant",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "tenant_id",
+                "tenant_name"
+              ],
+              "properties": {
+                "tenant_id": {
+                  "description": "the tenant id\nin: body",
+                  "type": "string",
+                  "x-go-name": "TenantID"
+                },
+                "tenant_name": {
+                  "description": "the tenant name\nin: body",
+                  "type": "string",
+                  "x-go-name": "TenantName"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/resources": {
+      "get": {
+        "description": "get tenant resources",
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "指定租户资源使用情况  **完成",
+        "operationId": "singletenantResources",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "tenant name",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services": {
+      "get": {
+        "description": "get services info in tenant  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取租户所有应用信息",
+        "operationId": "getServiceInfo",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "create service   **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "创建应用",
+        "operationId": "createService",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "tenant_id",
+                "service_id",
+                "service_alias"
+              ],
+              "properties": {
+                "category": {
+                  "description": "服务分类：application,cache,store\nin: body",
+                  "type": "string",
+                  "x-go-name": "Category"
+                },
+                "code_from": {
+                  "description": "代码来源:gitlab,github\nin: body",
+                  "type": "string",
+                  "x-go-name": "CodeFrom"
+                },
+                "comment": {
+                  "description": "服务描述\nin: body",
+                  "type": "string",
+                  "x-go-name": "Comment"
+                },
+                "container_cmd": {
+                  "description": "容器启动命令\nin: body",
+                  "type": "string",
+                  "x-go-name": "ContainerCMD"
+                },
+                "container_cpu": {
+                  "description": "容器CPU权重\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "ContainerCPU"
+                },
+                "container_env": {
+                  "description": "容器环境变量\nin: body",
+                  "type": "string",
+                  "x-go-name": "ContainerEnv"
+                },
+                "container_memory": {
+                  "description": "容器最大内存\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "ContainerMemory"
+                },
+                "cur_status": {
+                  "description": "服务当前状态：undeploy,running,closed,unusual,starting,checking,stoping\nin: body",
+                  "type": "string",
+                  "x-go-name": "CurStatus"
+                },
+                "depend_ids": {
+                  "description": "依赖id, 格式: []struct TenantServiceRelation\nin: body",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/TenantServiceRelation"
+                  },
+                  "x-go-name": "DependIDs"
+                },
+                "deploy_version": {
+                  "description": "部署版本\nin: body",
+                  "type": "string",
+                  "x-go-name": "DeployVersion"
+                },
+                "envs_info": {
+                  "description": "环境变量信息, 格式: []struct TenantServiceEnvVar\nin: body",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/TenantServiceEnvVar"
+                  },
+                  "x-go-name": "EnvsInfo"
+                },
+                "event_id": {
+                  "description": "最新操作ID\nin: body",
+                  "type": "string",
+                  "x-go-name": "EventID"
+                },
+                "extend_method": {
+                  "description": "扩容方式；0:无状态；1:有状态；2:分区\nin: body",
+                  "type": "string",
+                  "x-go-name": "ExtendMethod"
+                },
+                "host_path": {
+                  "description": "宿主机目录\nin: body",
+                  "type": "string",
+                  "x-go-name": "HostPath"
+                },
+                "image_name": {
+                  "description": "镜像名称\nin: body",
+                  "type": "string",
+                  "x-go-name": "ImageName"
+                },
+                "namespace": {
+                  "description": "镜像来源\nin: body",
+                  "type": "string",
+                  "x-go-name": "Namespace"
+                },
+                "node_label": {
+                  "description": "节点标签,格式: v1,v2\nin: body",
+                  "type": "string",
+                  "x-go-name": "NodeLabel"
+                },
+                "operator": {
+                  "description": "操作人\nin: body",
+                  "type": "string",
+                  "x-go-name": "Operator"
+                },
+                "port_type": {
+                  "description": "端口类型，one_outer;dif_protocol;multi_outer\nin: body",
+                  "type": "string",
+                  "x-go-name": "PortType"
+                },
+                "ports_info": {
+                  "description": "端口信息, 格式: []struct TenantServicesPort\nin: body",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/TenantServicesPort"
+                  },
+                  "x-go-name": "PortsInfo"
+                },
+                "replicas": {
+                  "description": "节点数\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "Replicas"
+                },
+                "service_alias": {
+                  "description": "服务别名\nin: body",
+                  "type": "string",
+                  "x-go-name": "ServiceAlias"
+                },
+                "service_id": {
+                  "description": "应用id\nin: body",
+                  "type": "string",
+                  "x-go-name": "ServiceID"
+                },
+                "service_key": {
+                  "description": "服务key\nin: body",
+                  "type": "string",
+                  "x-go-name": "ServiceKey"
+                },
+                "service_label": {
+                  "description": "应用标签,value\nin: body",
+                  "type": "string",
+                  "x-go-name": "ServiceLabel"
+                },
+                "service_origin": {
+                  "description": "服务创建类型cloud云市服务,assistant云帮服务\nin: body",
+                  "type": "string",
+                  "x-go-name": "ServiceOrigin"
+                },
+                "service_type": {
+                  "description": "服务类型\nin: body",
+                  "type": "string",
+                  "x-go-name": "ServiceType"
+                },
+                "service_version": {
+                  "description": "服务版本\nin: body",
+                  "type": "string",
+                  "x-go-name": "ServiceVersion"
+                },
+                "tenant_id": {
+                  "description": "租户id\nin: body",
+                  "type": "string",
+                  "x-go-name": "TenantID"
+                },
+                "update_time": {
+                  "description": "更新时间\nin: body",
+                  "x-go-name": "UpdateTime"
+                },
+                "volume_mount_path": {
+                  "description": "容器挂载目录\nin: body",
+                  "type": "string",
+                  "x-go-name": "VolumeMountPath"
+                },
+                "volume_path": {
+                  "description": "卷名字\nin: body",
+                  "type": "string",
+                  "x-go-name": "VolumePath"
+                },
+                "volume_type": {
+                  "description": "共享类型shared、exclusive\nin: body",
+                  "type": "string",
+                  "x-go-name": "VolumeType"
+                },
+                "volumes_info": {
+                  "description": "持久化目录信息, 格式: []struct TenantServiceVolume\nin: body",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/TenantServiceVolume"
+                  },
+                  "x-go-name": "VolumesInfo"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}": {
+      "get": {
+        "description": "get service info  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取应用信息",
+        "operationId": "getService",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "delete service",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "删除应用",
+        "operationId": "deleteService",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/build": {
+      "post": {
+        "description": "service build  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "应用构建",
+        "operationId": "serviceBuild",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "event_id",
+                "kind",
+                "action",
+                "image_url",
+                "deploy_version",
+                "git_url"
+              ],
+              "properties": {
+                "action": {
+                  "description": "后续动作\nin: body",
+                  "type": "string",
+                  "x-go-name": "Action"
+                },
+                "deploy_version": {
+                  "description": "部署的版本号\nin: body",
+                  "type": "string",
+                  "x-go-name": "DeployVersion"
+                },
+                "envs": {
+                  "description": "伸缩数量\nin: body",
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "x-go-name": "ENVS"
+                },
+                "event_id": {
+                  "description": "the event id\nin: body",
+                  "type": "string",
+                  "x-go-name": "EventID"
+                },
+                "git_url": {
+                  "description": "伸缩数量\nin: body",
+                  "type": "string",
+                  "x-go-name": "GitURL"
+                },
+                "image_url": {
+                  "description": "镜像地址\nin: body",
+                  "type": "string",
+                  "x-go-name": "ImageURL"
+                },
+                "kind": {
+                  "description": "应用类型\nin: body",
+                  "type": "string",
+                  "x-go-name": "Kind"
+                },
+                "operator": {
+                  "description": "操作人员\nin: body",
+                  "type": "string",
+                  "x-go-name": "Operator"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/code-check": {
+      "post": {
+        "description": "check  code  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "应用代码检测",
+        "operationId": "checkCode",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "task"
+              ],
+              "properties": {
+                "task": {
+                  "description": "codecheck任务消息体，与原接口一致\nin: body",
+                  "type": "string",
+                  "x-go-name": "Task"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/dependency": {
+      "post": {
+        "description": "add dependency  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "增加应用依赖关系",
+        "operationId": "addDependency",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "dep_service_id"
+              ],
+              "properties": {
+                "dep_order": {
+                  "description": "不明，默认传 1, 可以不传\nin: body",
+                  "type": "string",
+                  "x-go-name": "DepOrder"
+                },
+                "dep_service_id": {
+                  "description": "被依赖的应用id\nin: body",
+                  "type": "string",
+                  "x-go-name": "DepServiceID"
+                },
+                "dep_service_type": {
+                  "description": "被依赖的应用类型,添加时需要传值, 删除时不需要传值\nin: body",
+                  "type": "string",
+                  "x-go-name": "DepServiceType"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "delete dependency  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "删除应用依赖关系",
+        "operationId": "deleteDependency",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "dep_service_id"
+              ],
+              "properties": {
+                "dep_order": {
+                  "description": "不明，默认传 1, 可以不传\nin: body",
+                  "type": "string",
+                  "x-go-name": "DepOrder"
+                },
+                "dep_service_id": {
+                  "description": "被依赖的应用id\nin: body",
+                  "type": "string",
+                  "x-go-name": "DepServiceID"
+                },
+                "dep_service_type": {
+                  "description": "被依赖的应用类型,添加时需要传值, 删除时不需要传值\nin: body",
+                  "type": "string",
+                  "x-go-name": "DepServiceType"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/env": {
+      "post": {
+        "description": "add env var  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "增加环境变量",
+        "operationId": "addEnv",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "env_name"
+              ],
+              "properties": {
+                "container_port": {
+                  "description": "端口\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "ContainerPort"
+                },
+                "env_name": {
+                  "description": "变量名称\nin: body",
+                  "type": "string",
+                  "x-go-name": "AttrName"
+                },
+                "env_value": {
+                  "description": "变量值, 增加时需要传值, 删除时可以不传\nin: body",
+                  "type": "string",
+                  "x-go-name": "AttrValue"
+                },
+                "is_change": {
+                  "description": "是否可以修改\nin: body",
+                  "type": "boolean",
+                  "x-go-name": "IsChange"
+                },
+                "name": {
+                  "description": "name\nin: body",
+                  "type": "string",
+                  "x-go-name": "Name"
+                },
+                "scope": {
+                  "description": "应用范围: inner or outer\nin: body",
+                  "type": "string",
+                  "x-go-name": "Scope"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "delete env var  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "删除环境变量",
+        "operationId": "deleteEnv",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "env_name"
+              ],
+              "properties": {
+                "container_port": {
+                  "description": "端口\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "ContainerPort"
+                },
+                "env_name": {
+                  "description": "变量名称\nin: body",
+                  "type": "string",
+                  "x-go-name": "AttrName"
+                },
+                "env_value": {
+                  "description": "变量值, 增加时需要传值, 删除时可以不传\nin: body",
+                  "type": "string",
+                  "x-go-name": "AttrValue"
+                },
+                "is_change": {
+                  "description": "是否可以修改\nin: body",
+                  "type": "boolean",
+                  "x-go-name": "IsChange"
+                },
+                "name": {
+                  "description": "name\nin: body",
+                  "type": "string",
+                  "x-go-name": "Name"
+                },
+                "scope": {
+                  "description": "应用范围: inner or outer\nin: body",
+                  "type": "string",
+                  "x-go-name": "Scope"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/horizontal": {
+      "put": {
+        "description": "service horizontal  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "应用水平伸缩",
+        "operationId": "horizontalService",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "event_id"
+              ],
+              "properties": {
+                "event_id": {
+                  "description": "the event id\nin: body",
+                  "type": "string",
+                  "x-go-name": "EventID"
+                },
+                "node_num": {
+                  "description": "伸缩数量\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "NodeNUM"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/language": {
+      "post": {
+        "description": "set language  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "设置应用语言",
+        "operationId": "setLanguage",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "event_id",
+                "language"
+              ],
+              "properties": {
+                "event_id": {
+                  "description": "the tenant id\nin: body",
+                  "type": "string",
+                  "x-go-name": "EventID"
+                },
+                "language": {
+                  "description": "the language\nin: body",
+                  "type": "string",
+                  "x-go-name": "Language"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/node-label": {
+      "post": {
+        "description": "add node label  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "添加节点标签",
+        "operationId": "addNodeLabel",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "label_values"
+              ],
+              "properties": {
+                "label_values": {
+                  "description": "标签值,格式为\"[v1, v2, v3]\"\nin: bod",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "x-go-name": "LabelValues"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "delete node label  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "删除节点标签",
+        "operationId": "deleteNodeLabel",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "label_values"
+              ],
+              "properties": {
+                "label_values": {
+                  "description": "标签值,格式为\"[v1, v2, v3]\"\nin: bod",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "x-go-name": "LabelValues"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/pods": {
+      "get": {
+        "description": "get pods info    **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取pods信息",
+        "operationId": "getPodsInfo",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/ports": {
+      "post": {
+        "description": "add port  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "增加应用端口,默认关闭对内和对外选项，需要开启使用相应接口",
+        "operationId": "addPort",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "container_port",
+                "mapping_port",
+                "protocol",
+                "port_alias"
+              ],
+              "properties": {
+                "container_port": {
+                  "description": "the container port for this serviceport\nin: body",
+                  "type": "integer",
+                  "format": "int32",
+                  "x-go-name": "ContainerPort"
+                },
+                "is_inner_service": {
+                  "description": "是否开启对内服务\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "Inner"
+                },
+                "is_outer_service": {
+                  "description": "是否开启对外服务\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "Outer"
+                },
+                "mapping_port": {
+                  "description": "the mapping port for this serviceport\nin: body",
+                  "type": "integer",
+                  "format": "int32",
+                  "x-go-name": "MappingPort"
+                },
+                "port_alias": {
+                  "description": "the port alias for this serviceport\nin: body",
+                  "type": "string",
+                  "x-go-name": "PortAlias"
+                },
+                "protocol": {
+                  "description": "the protocol for this serviceport\nin: body",
+                  "type": "string",
+                  "x-go-name": "Protocol"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}": {
+      "delete": {
+        "description": "delete port  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "删除端口变量",
+        "operationId": "deletPort",
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}/inner": {
+      "post": {
+        "description": "add port  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "开关对内服务，应用无需重启，自动生效",
+        "operationId": "PortInnerController",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "Port",
+            "name": "port",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "operation"
+              ],
+              "properties": {
+                "operation": {
+                  "description": "操作值 `close` or `open`\nin: body",
+                  "type": "string",
+                  "x-go-name": "Operation"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}/outer": {
+      "post": {
+        "description": "add port  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "开关端口对外服务，应用无需重启自动生效",
+        "operationId": "PortOuterController",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "Port",
+            "name": "port",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "operation"
+              ],
+              "properties": {
+                "operation": {
+                  "description": "操作值 `close` or `open`\nin: body",
+                  "type": "string",
+                  "x-go-name": "Operation"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/probe": {
+      "put": {
+        "description": "update probe  ** 完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "更新应用探针信息",
+        "operationId": "updateProbe",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "probe_id"
+              ],
+              "properties": {
+                "cmd": {
+                  "description": "运行命令\nin: body",
+                  "type": "string",
+                  "x-go-name": "Cmd"
+                },
+                "failure_threshold": {
+                  "description": "标志为失败的检测次数\nin: body",
+                  "type": "string",
+                  "x-go-name": "FailureThreshold"
+                },
+                "http_header": {
+                  "description": "http请求头,key=value,key2=value2\nin: body",
+                  "type": "string",
+                  "x-go-name": "HTTPHeader"
+                },
+                "initial_delay_second": {
+                  "description": "初始化等候时间, 默认为1\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "InitialDelaySecond"
+                },
+                "is_used": {
+                  "description": "是否启用\nin: body",
+                  "type": "string",
+                  "x-go-name": "IsUsed"
+                },
+                "mode": {
+                  "description": "mode\nin: body",
+                  "type": "string",
+                  "x-go-name": "Mode"
+                },
+                "path": {
+                  "description": "path\nin: body",
+                  "type": "string",
+                  "x-go-name": "Path"
+                },
+                "period_second": {
+                  "description": "检测间隔时间, 默认为3\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "PeriodSecond"
+                },
+                "port": {
+                  "description": "端口, 默认为80\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "Port"
+                },
+                "probe_id": {
+                  "description": "探针id\nin: body",
+                  "type": "string",
+                  "x-go-name": "ProbeID"
+                },
+                "scheme": {
+                  "description": "mode\nin: body",
+                  "type": "string",
+                  "x-go-name": "Scheme"
+                },
+                "success_threshold": {
+                  "description": "标志为成功的检测次数\nin: body",
+                  "type": "string",
+                  "x-go-name": "SuccessThreshold"
+                },
+                "timeout_second": {
+                  "description": "检测超时时间, 默认为30\nin: body",
+                  "type": "string",
+                  "x-go-name": "TimeoutSecond"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "add probe  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "增加应用探针",
+        "operationId": "addProbe",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "probe_id"
+              ],
+              "properties": {
+                "cmd": {
+                  "description": "运行命令\nin: body",
+                  "type": "string",
+                  "x-go-name": "Cmd"
+                },
+                "failure_threshold": {
+                  "description": "标志为失败的检测次数\nin: body",
+                  "type": "string",
+                  "x-go-name": "FailureThreshold"
+                },
+                "http_header": {
+                  "description": "http请求头,key=value,key2=value2\nin: body",
+                  "type": "string",
+                  "x-go-name": "HTTPHeader"
+                },
+                "initial_delay_second": {
+                  "description": "初始化等候时间, 默认为1\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "InitialDelaySecond"
+                },
+                "is_used": {
+                  "description": "是否启用\nin: body",
+                  "type": "string",
+                  "x-go-name": "IsUsed"
+                },
+                "mode": {
+                  "description": "mode\nin: body",
+                  "type": "string",
+                  "x-go-name": "Mode"
+                },
+                "path": {
+                  "description": "path\nin: body",
+                  "type": "string",
+                  "x-go-name": "Path"
+                },
+                "period_second": {
+                  "description": "检测间隔时间, 默认为3\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "PeriodSecond"
+                },
+                "port": {
+                  "description": "端口, 默认为80\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "Port"
+                },
+                "probe_id": {
+                  "description": "探针id\nin: body",
+                  "type": "string",
+                  "x-go-name": "ProbeID"
+                },
+                "scheme": {
+                  "description": "mode\nin: body",
+                  "type": "string",
+                  "x-go-name": "Scheme"
+                },
+                "success_threshold": {
+                  "description": "标志为成功的检测次数\nin: body",
+                  "type": "string",
+                  "x-go-name": "SuccessThreshold"
+                },
+                "timeout_second": {
+                  "description": "检测超时时间, 默认为30\nin: body",
+                  "type": "string",
+                  "x-go-name": "TimeoutSecond"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "delete probe  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "删除应用探针",
+        "operationId": "deleteProbe",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "probe_id"
+              ],
+              "properties": {
+                "probe_id": {
+                  "description": "探针id\nin: body",
+                  "type": "string",
+                  "x-go-name": "ProbeID"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/restart": {
+      "post": {
+        "description": "restart service  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "重启应用",
+        "operationId": "restartService",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "event_id"
+              ],
+              "properties": {
+                "event_id": {
+                  "description": "the tenant id\nin: body",
+                  "type": "string",
+                  "x-go-name": "EventID"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/rollback": {
+      "post": {
+        "description": "service rollback  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "应用版本回滚",
+        "operationId": "rollback",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "event_id",
+                "deploy_version"
+              ],
+              "properties": {
+                "deploy_version": {
+                  "description": "回滚到的版本号\nin: body",
+                  "type": "string",
+                  "x-go-name": "DeployVersion"
+                },
+                "event_id": {
+                  "description": "event_id\nin: body",
+                  "type": "string",
+                  "x-go-name": "EventID"
+                },
+                "operator": {
+                  "description": "操作人\nin: body",
+                  "type": "string",
+                  "x-go-name": "Operator"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/service-label": {
+      "put": {
+        "description": "delete service label  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "删除应用标签",
+        "operationId": "updateServiceLabel",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "label_value"
+              ],
+              "properties": {
+                "label_value": {
+                  "description": "标签值,格式为\"v1\"\nin: bod",
+                  "type": "string",
+                  "x-go-name": "LabelValue"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "add service label  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "添加应用标签",
+        "operationId": "addServiceLabel",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "label_value"
+              ],
+              "properties": {
+                "label_value": {
+                  "description": "标签值,格式为\"v1\"\nin: bod",
+                  "type": "string",
+                  "x-go-name": "LabelValue"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/start": {
+      "post": {
+        "description": "start service  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "启动应用",
+        "operationId": "startService",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "event_id"
+              ],
+              "properties": {
+                "event_id": {
+                  "description": "the tenant id\nin: body",
+                  "type": "string",
+                  "x-go-name": "EventID"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/status": {
+      "get": {
+        "description": "get service status",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取应用状态",
+        "operationId": "serviceStatus",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/stop": {
+      "post": {
+        "description": "stop service  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "关闭应用",
+        "operationId": "stopService",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "event_id"
+              ],
+              "properties": {
+                "event_id": {
+                  "description": "the tenant id\nin: body",
+                  "type": "string",
+                  "x-go-name": "EventID"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/upgrade": {
+      "post": {
+        "description": "upgrade service  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "升级应用",
+        "operationId": "upgradeService",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "event_id",
+                "deploy_version"
+              ],
+              "properties": {
+                "deploy_version": {
+                  "description": "版本号\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "DeployVersion"
+                },
+                "event_id": {
+                  "description": "the event id\nin: body",
+                  "type": "string",
+                  "x-go-name": "EventID"
+                },
+                "operator": {
+                  "description": "操作人员\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "Operator"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/vertical": {
+      "put": {
+        "description": "service vertical  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "应用垂直伸缩",
+        "operationId": "verticalService",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "event_id"
+              ],
+              "properties": {
+                "container_cpu": {
+                  "description": "cpu数量\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "ContainerCPU"
+                },
+                "container_memory": {
+                  "description": "内存大小\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "ContainerMemory"
+                },
+                "event_id": {
+                  "description": "the event id\nin: body",
+                  "type": "string",
+                  "x-go-name": "EventID"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/volume": {
+      "post": {
+        "description": "add volume  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "增加应用持久化信息",
+        "operationId": "addVolume",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "category",
+                "host_path",
+                "volume_path"
+              ],
+              "properties": {
+                "category": {
+                  "description": "类型 \"application;app_publish\"\nin: body",
+                  "type": "string",
+                  "x-go-name": "Category"
+                },
+                "host_path": {
+                  "description": "挂载宿主机位置\nin: body",
+                  "type": "string",
+                  "x-go-name": "HostPath"
+                },
+                "volume_path": {
+                  "description": "容器挂载目录\nin: body",
+                  "type": "string",
+                  "x-go-name": "VolumePath"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "delete volume  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "删除应用持久化信息",
+        "operationId": "deleteVolume",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "category",
+                "host_path",
+                "volume_path"
+              ],
+              "properties": {
+                "category": {
+                  "description": "类型 \"application;app_publish\"\nin: body",
+                  "type": "string",
+                  "x-go-name": "Category"
+                },
+                "host_path": {
+                  "description": "挂载宿主机位置\nin: body",
+                  "type": "string",
+                  "x-go-name": "HostPath"
+                },
+                "volume_path": {
+                  "description": "容器挂载目录\nin: body",
+                  "type": "string",
+                  "x-go-name": "VolumePath"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/volume-dependency": {
+      "post": {
+        "description": "add volume dependency    **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "增加应用持久化依赖",
+        "operationId": "addVolumeDependency",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "depend_service_id",
+                "mnt_name",
+                "mnt_dir"
+              ],
+              "properties": {
+                "depend_service_id": {
+                  "description": "依赖的服务id\nin: body",
+                  "type": "string",
+                  "x-go-name": "DependServiceID"
+                },
+                "mnt_dir": {
+                  "description": "挂载目录\nin: body",
+                  "type": "string",
+                  "x-go-name": "MntDir"
+                },
+                "mnt_name": {
+                  "description": "挂载容器内目录名称\nin: body",
+                  "type": "string",
+                  "x-go-name": "MntName"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "delete volume dependency  **完成",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "删除应用持久化依赖",
+        "operationId": "deleteVolumeDependency",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "depend_service_id",
+                "mnt_name",
+                "mnt_dir"
+              ],
+              "properties": {
+                "depend_service_id": {
+                  "description": "依赖的服务id\nin: body",
+                  "type": "string",
+                  "x-go-name": "DependServiceID"
+                },
+                "mnt_dir": {
+                  "description": "挂载目录\nin: body",
+                  "type": "string",
+                  "x-go-name": "MntDir"
+                },
+                "mnt_name": {
+                  "description": "挂载容器内目录名称\nin: body",
+                  "type": "string",
+                  "x-go-name": "MntName"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services_status": {
+      "post": {
+        "description": "get service statuslist",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取应用状态",
+        "operationId": "serviceStatuslist",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "service_ids"
+              ],
+              "properties": {
+                "service_ids": {
+                  "description": "需要获取状态的服务ID列表,若不指定，返回租户所有应用的状态\nin: body",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "x-go-name": "ServiceIDs"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "TenantServiceEnvVar": {
+      "description": "TenantServiceEnvVar  应用环境变量",
+      "type": "object",
+      "properties": {
+        "AttrName": {
+          "type": "string"
+        },
+        "AttrValue": {
+          "type": "string"
+        },
+        "ContainerPort": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "CreatedAt": {},
+        "ID": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "IsChange": {
+          "type": "boolean"
+        },
+        "Name": {
+          "type": "string"
+        },
+        "Scope": {
+          "type": "string"
+        },
+        "ServiceID": {
+          "type": "string"
+        },
+        "TenantID": {
+          "type": "string"
+        }
+      },
+      "x-go-package": "acp_core/pkg/db/model"
+    },
+    "TenantServiceRelation": {
+      "description": "TenantServiceRelation 应用依赖关系",
+      "type": "object",
+      "properties": {
+        "CreatedAt": {},
+        "DependOrder": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "DependServiceID": {
+          "type": "string"
+        },
+        "DependServiceType": {
+          "type": "string"
+        },
+        "ID": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "ServiceID": {
+          "type": "string"
+        },
+        "TenantID": {
+          "type": "string"
+        }
+      },
+      "x-go-package": "acp_core/pkg/db/model"
+    },
+    "TenantServiceVolume": {
+      "description": "TenantServiceVolume 应用持久化纪录",
+      "type": "object",
+      "properties": {
+        "CreatedAt": {},
+        "ID": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "category": {
+          "type": "string",
+          "x-go-name": "Category"
+        },
+        "host_path": {
+          "type": "string",
+          "x-go-name": "HostPath"
+        },
+        "is_read_only": {
+          "type": "boolean",
+          "x-go-name": "IsReadOnly"
+        },
+        "service_id": {
+          "type": "string",
+          "x-go-name": "ServiceID"
+        },
+        "volume_path": {
+          "type": "string",
+          "x-go-name": "VolumePath"
+        }
+      },
+      "x-go-package": "acp_core/pkg/db/model"
+    },
+    "TenantServicesPort": {
+      "description": "TenantServicesPort 应用端口信息",
+      "type": "object",
+      "properties": {
+        "ContainerPort": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "CreatedAt": {},
+        "ID": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "IsInnerService": {
+          "type": "boolean"
+        },
+        "IsOuterService": {
+          "type": "boolean"
+        },
+        "MappingPort": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "PortAlias": {
+          "type": "string"
+        },
+        "Protocol": {
+          "type": "string"
+        },
+        "ServiceID": {
+          "type": "string"
+        },
+        "TenantID": {
+          "type": "string"
+        }
+      },
+      "x-go-package": "acp_core/pkg/db/model"
+    },
+    "Values": {
+      "description": "It is typically used for query parameters and form values.\nUnlike in the http.Header map, the keys in a Values map\nare case-sensitive.",
+      "type": "object",
+      "title": "Values maps a string key to a list of values.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "x-go-package": "net/url"
+    }
+  },
+  "responses": {
+    "commandResponse": {
+      "description": "CommandResponse api统一返回结构",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "bean": {
+            "description": "单资源实体",
+            "type": "object",
+            "x-go-name": "Bean"
+          },
+          "list": {
+            "description": "资源列表",
+            "type": "object",
+            "x-go-name": "List"
+          },
+          "msg": {
+            "description": "API错误信息",
+            "type": "string",
+            "x-go-name": "Msg"
+          },
+          "number": {
+            "description": "数据集总数",
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "ListAllNumber"
+          },
+          "page": {
+            "description": "当前页码数",
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "Page"
+          },
+          "validation_error": {
+            "$ref": "#/definitions/Values"
+          }
+        }
+      }
+    }
+  }
+}

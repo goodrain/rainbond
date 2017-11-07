@@ -1,0 +1,10 @@
+prefix=/usr/local/libzmq
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libzmq
+Description: 0MQ c++ library
+Version: 4.0.4
+Libs: -L${libdir} -lzmq
+Cflags: -I${includedir}

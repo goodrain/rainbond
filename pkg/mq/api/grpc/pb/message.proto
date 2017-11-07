@@ -1,0 +1,36 @@
+syntax = "proto3";
+package pb;
+
+service TaskQueue {
+  rpc Enqueue (EnqueueRequest) returns (TaskReply) {}
+  rpc Topics (TopicRequest) returns (TaskReply) {}
+  rpc Dequeue (DequeueRequest) returns (TaskMessage) {}
+}
+
+message TaskMessage {
+  string task_type = 1;
+  bytes task_body = 2;
+  string create_time = 3;
+  string user = 4;
+}
+
+message EnqueueRequest {
+  string topic = 1;
+  TaskMessage message = 2;
+}
+
+message DequeueRequest {
+  string topic = 1;
+  string client_host = 2;
+}
+
+message TaskReply {
+  string status = 1;
+  string message = 2;
+  repeated string topics = 3;
+}
+
+message TopicRequest{
+
+}
+

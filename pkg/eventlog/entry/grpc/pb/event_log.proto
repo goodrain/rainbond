@@ -1,0 +1,16 @@
+syntax = "proto3";
+package pb;
+
+service EventLog {
+  rpc Log (stream LogMessage) returns (Reply) {}
+}
+
+
+message LogMessage {
+  bytes log = 1;
+}
+
+message Reply {
+  string status = 1;
+  string message = 2;
+}

@@ -1,0 +1,204 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com\twinj\uuid\savers\filesystem.go (100.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package savers
+
+/****************
+ * Date: 30/05/16
+ * Time: 5:48 PM
+ ***************/
+
+import (
+        "encoding/gob"
+        "github.com/twinj/uuid"
+        "log"
+        "os"
+        "path"
+        "time"
+)
+
+var _ uuid.Saver = &amp;FileSystemSaver{}
+
+// This implements the Saver interface for UUIDs
+type FileSystemSaver struct {
+        // A file to save the state to
+        // Used gob format on uuid.State entity
+        file   *os.File
+
+        // Preferred location for the store
+        Path   string
+
+        // Whether to log each save
+        Report bool
+
+        // The amount of time between each save call
+        time.Duration
+
+        // The next time to save
+        uuid.Timestamp
+}
+
+func (o *FileSystemSaver) Save(pStore *uuid.Store) <span class="cov8" title="1">{
+
+        if pStore.Timestamp &gt;= o.Timestamp </span><span class="cov8" title="1">{
+                err := o.openAndDo(o.encode, pStore)
+                if err == nil </span><span class="cov8" title="1">{
+                        if o.Report </span><span class="cov8" title="1">{
+                                log.Printf("UUID Saved State Storage: %s", pStore)
+                        }</span>
+                }
+                <span class="cov8" title="1">o.Timestamp = pStore.Add(o.Duration)</span>
+        }
+}
+
+func (o *FileSystemSaver) Read() (err error, store uuid.Store) <span class="cov8" title="1">{
+        store = uuid.Store{}
+        gob.Register(&amp;uuid.Store{})
+
+        if _, err = os.Stat(o.Path); os.IsNotExist(err) </span><span class="cov8" title="1">{
+                dir, file := path.Split(o.Path)
+                if dir == "" || dir == "/" </span><span class="cov8" title="1">{
+                        dir = os.TempDir()
+                }</span>
+                <span class="cov8" title="1">o.Path = path.Join(dir, file)
+
+                err = os.MkdirAll(dir, os.ModeDir | 0755)
+                if err == nil </span><span class="cov8" title="1">{
+                        // If new encode blank store
+                        err = o.openAndDo(o.encode, &amp;store)
+                        if err == nil </span><span class="cov8" title="1">{
+                                log.Println("uuid.FileSystemSaver created", o.Path)
+                        }</span>
+                }
+                <span class="cov8" title="1">log.Println("uuid.FileSystemSaver.Read: error will autogenerate", err)
+                return</span>
+        }
+
+        <span class="cov8" title="1">o.openAndDo(o.decode, &amp;store)
+        return</span>
+}
+
+func (o *FileSystemSaver) openAndDo(fDo func (*uuid.Store), pStore *uuid.Store) (err error) <span class="cov8" title="1">{
+        o.file, err = os.OpenFile(o.Path, os.O_RDWR|os.O_CREATE, os.ModeExclusive)
+        defer o.file.Close()
+        if err == nil </span><span class="cov8" title="1">{
+                fDo(pStore)
+        }</span><span class="cov8" title="1"> else {
+                log.Println("uuid.FileSystemSaver.openAndDo error:", err)
+        }</span>
+        <span class="cov8" title="1">return</span>
+}
+
+func (o *FileSystemSaver) encode(pStore *uuid.Store) <span class="cov8" title="1">{
+        // ensure reader state is ready for use
+        enc := gob.NewEncoder(o.file)
+        // swallow error for encode as its only for cyclic pointers
+        enc.Encode(pStore)
+}</span>
+
+func (o *FileSystemSaver) decode(pStore *uuid.Store) <span class="cov8" title="1">{
+        // ensure reader state is ready for use
+        o.file.Seek(0, 0)
+        dec := gob.NewDecoder(o.file)
+        // swallow error for encode as its only for cyclic pointers
+        dec.Decode(pStore)
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
