@@ -59,6 +59,7 @@ type Job struct {
 	ID      string     `json:"id"`
 	TaskID  string     `json:"taskID"`
 	EventID string     `json:"event_id"`
+	IsOnce  bool       `json:"is_once"` //是否为单节点执行一次任务（例如安装任务）
 	Name    string     `json:"name"`
 	Group   string     `json:"group"`
 	Command string     `json:"cmd"`
@@ -412,7 +413,6 @@ func GetJobFromKv(kv *mvccpb.KeyValue) (job *Job, err error) {
 		err = fmt.Errorf("job[%s] umarshal err: %s", string(kv.Key), err.Error())
 		return
 	}
-
 	err = job.Valid()
 	job.alone()
 	return
@@ -445,8 +445,8 @@ func (j *Job) CountRunning() (int64, error) {
 	return resp.Count, nil
 }
 
-//getErrorLog 从错误输出获取日志
-func getErrorLog(job *Job, read io.ReadCloser) {
+//handleJobLog 从标准输出获取日志
+func handleJobLog(job *Job, read io.ReadCloser) {
 	if job.EventID != "" {
 		logger := event.GetManager().GetLogger(job.EventID)
 		defer event.GetManager().ReleaseLogger(logger)
@@ -473,10 +473,12 @@ func (j *Job) Run(nid string) bool {
 	start := time.Now()
 	cmd = exec.Command(j.cmd[0], j.cmd[1:]...)
 	cmd.SysProcAttr = sysProcAttr
-	stderr, _ := cmd.StderrPipe()
+
+	//从执行任务的标准输出获取日志，错误输出获取最终结果
+	stderr, _ := cmd.StdoutPipe()
 	var b bytes.Buffer
-	cmd.Stdout = &b
-	go getErrorLog(j, stderr)
+	cmd.Stderr = &b
+	go handleJobLog(j, stderr)
 
 	if err := cmd.Start(); err != nil {
 		logrus.Warnf("job exec failed,details :%s", err.Error())

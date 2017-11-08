@@ -19,11 +19,9 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -56,9 +54,10 @@ type NodeServer struct {
 	*store.Client
 	*model.HostNode
 	*cron.Cron
-	jobs    Jobs // 和结点相关的任务
-	jobLock sync.Mutex
-	cmds    map[string]*job.Cmd
+	jobs     Jobs // 和结点相关的任务
+	onceJobs Jobs //记录执行的单任务
+	jobLock  sync.Mutex
+	cmds     map[string]*job.Cmd
 	// 删除的 job id，用于 group 更新
 	delIDs     map[string]bool
 	ttl        int64
@@ -117,11 +116,11 @@ func (n *NodeServer) Run() (err error) {
 	go n.watchJobs()
 	go n.watchOnce()
 	//可以在n里面加一个channel，用于锁定
-	go n.watchBuildIn()
-	err = job.RegWorkerInstallJobs()
-	if err != nil {
-		logrus.Errorf("reg build-in jobs failed,details: %s", err.Error())
-	}
+	// go n.watchBuildIn()
+	// err = job.RegWorkerInstallJobs()
+	// if err != nil {
+	// 	logrus.Errorf("reg build-in jobs failed,details: %s", err.Error())
+	// }
 	return
 }
 func (n *NodeServer) loadJobs() (err error) {
@@ -259,11 +258,13 @@ func (n *NodeServer) watchOnce() {
 		for _, ev := range wresp.Events {
 			switch {
 			case ev.IsCreate(), ev.IsModify():
-				if len(ev.Kv.Value) != 0 && string(ev.Kv.Value) != n.ID {
+				j, err := job.GetJobFromKv(ev.Kv)
+				if err != nil {
+					logrus.Warnf("err: %s, kv: %s", err.Error(), ev.Kv.String())
 					continue
 				}
-				j, ok := n.jobs[job.GetIDFromKey(string(ev.Kv.Key))]
-				if !ok || !j.IsRunOn(n.HostNode) {
+				j.Init(n.ID)
+				if !j.IsRunOn(n.HostNode) {
 					continue
 				}
 				go j.RunWithRecovery()
@@ -274,56 +275,56 @@ func (n *NodeServer) watchOnce() {
 func (n *NodeServer) watchBuildIn() {
 
 	//todo 在这里给<-channel,如果没有，立刻返回,可以用无循环switch，default实现
-	rch := job.WatchBuildIn()
-	for wresp := range rch {
-		for _, ev := range wresp.Events {
-			switch {
-			case ev.IsCreate() || ev.IsModify():
-				canRun := store.DefalutClient.IsRunnable("/acp_node/runnable/" + n.ID)
-				if !canRun {
-					logrus.Infof("job can't run on node %s,skip", n.ID)
-					continue
-				}
+	// rch := job.WatchBuildIn()
+	// for wresp := range rch {
+	// 	for _, ev := range wresp.Events {
+	// 		switch {
+	// 		case ev.IsCreate() || ev.IsModify():
+	// 			canRun := store.DefalutClient.IsRunnable("/acp_node/runnable/" + n.ID)
+	// 			if !canRun {
+	// 				logrus.Infof("job can't run on node %s,skip", n.ID)
+	// 				continue
+	// 			}
 
-				logrus.Infof("new build-in job to run ,key is %s,local ip is %s", ev.Kv.Key, n.ID)
-				job := &job.Job{}
-				k := string(ev.Kv.Key)
-				paths := strings.Split(k, "/")
+	// 			logrus.Infof("new build-in job to run ,key is %s,local ip is %s", ev.Kv.Key, n.ID)
+	// 			job := &job.Job{}
+	// 			k := string(ev.Kv.Key)
+	// 			paths := strings.Split(k, "/")
 
-				ps := strings.Split(paths[len(paths)-1], "-")
-				buildInJobId := ps[0]
-				jobResp, err := store.DefalutClient.Get(conf.Config.BuildIn + buildInJobId)
-				if err != nil {
-					logrus.Warnf("get build-in job failed")
-				}
-				json.Unmarshal(jobResp.Kvs[0].Value, job)
+	// 			ps := strings.Split(paths[len(paths)-1], "-")
+	// 			buildInJobId := ps[0]
+	// 			jobResp, err := store.DefalutClient.Get(conf.Config.BuildIn + buildInJobId)
+	// 			if err != nil {
+	// 				logrus.Warnf("get build-in job failed")
+	// 			}
+	// 			json.Unmarshal(jobResp.Kvs[0].Value, job)
 
-				job.Init(n.ID)
-				//job.Check()
-				err = job.ResolveShell()
-				if err != nil {
-					logrus.Infof("resolve shell to runnable failed , details %s", err.Error())
-				}
-				n.addJob(job)
+	// 			job.Init(n.ID)
+	// 			//job.Check()
+	// 			err = job.ResolveShell()
+	// 			if err != nil {
+	// 				logrus.Infof("resolve shell to runnable failed , details %s", err.Error())
+	// 			}
+	// 			n.addJob(job)
 
-				//logrus.Infof("is ok? %v and is job runing on %v",ok,job.IsRunOn(n.ID, n.groups))
-				////if !ok || !job.IsRunOn(n.ID, n.groups) {
-				////	continue
-				////}
-				for _, v := range job.Rules {
-					for _, v2 := range v.NodeIDs {
-						if v2 == n.ID {
-							logrus.Infof("prepare run new build-in job")
-							go job.RunBuildInWithRecovery(n.ID)
-							go n.watchBuildIn()
-							return
-						}
-					}
-				}
+	// 			//logrus.Infof("is ok? %v and is job runing on %v",ok,job.IsRunOn(n.ID, n.groups))
+	// 			////if !ok || !job.IsRunOn(n.ID, n.groups) {
+	// 			////	continue
+	// 			////}
+	// 			for _, v := range job.Rules {
+	// 				for _, v2 := range v.NodeIDs {
+	// 					if v2 == n.ID {
+	// 						logrus.Infof("prepare run new build-in job")
+	// 						go job.RunBuildInWithRecovery(n.ID)
+	// 						go n.watchBuildIn()
+	// 						return
+	// 					}
+	// 				}
+	// 			}
 
-			}
-		}
-	}
+	// 		}
+	// 	}
+	// }
 }
 
 //Stop 停止服务
@@ -385,13 +386,14 @@ func NewNodeServer(cfg *conf.Conf) (*NodeServer, error) {
 				PID: strconv.Itoa(os.Getpid()),
 			},
 		},
-		Cron:   cron.New(),
-		jobs:   make(Jobs, 8),
-		cmds:   make(map[string]*job.Cmd),
-		delIDs: make(map[string]bool, 8),
-		Conf:   cfg,
-		ttl:    cfg.TTL,
-		done:   make(chan struct{}),
+		Cron:     cron.New(),
+		jobs:     make(Jobs, 8),
+		onceJobs: make(Jobs, 8),
+		cmds:     make(map[string]*job.Cmd),
+		delIDs:   make(map[string]bool, 8),
+		Conf:     cfg,
+		ttl:      cfg.TTL,
+		done:     make(chan struct{}),
 	}
 	return n, nil
 }

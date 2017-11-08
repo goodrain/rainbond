@@ -23,31 +23,15 @@ import (
 
 	conf "github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
-
-	"github.com/Sirupsen/logrus"
 )
 
-// 马上执行 job 任务
-// 注册到 /cronsun/once/group/<jobID>
-// value
-// 若执行单个结点，则值为 NodeID
-// 若 job 所在的结点都需执行，则值为空 ""
-func PutOnce(group, jobID, nodeID string) error {
-	_, err := store.DefalutClient.Put(conf.Config.Once+group+"/"+jobID, nodeID)
-	return err
-}
-func PutBuildIn(jobID, nodeID string) error {
-	logrus.Infof("put build in job to watch,%s", jobID+"-"+nodeID)
-	_, err := store.DefalutClient.Put(conf.Config.BuildInExec+jobID+"-"+nodeID, nodeID)
+//PutOnce 添加立即执行的任务，只执行一次，执行完成后删除
+func PutOnce(j *Job) error {
+	_, err := store.DefalutClient.Put(conf.Config.Once+"/"+j.ID, j.String())
 	return err
 }
 
+//WatchOnce 监听任务
 func WatchOnce() client.WatchChan {
 	return store.DefalutClient.Watch(conf.Config.Once, client.WithPrefix())
-}
-func WatchBuildIn() client.WatchChan {
-	return store.DefalutClient.Watch(conf.Config.BuildInExec, client.WithPrefix())
-}
-func WatchBuildInLog() client.WatchChan {
-	return store.DefalutClient.Watch(conf.Config.JobLog+BuildIn_JobLog, client.WithPrefix())
 }

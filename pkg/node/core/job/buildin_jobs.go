@@ -40,6 +40,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+//TODO:
+//当前文件代码即将删除
 var (
 	CanRunJob chan string
 )
@@ -285,46 +287,46 @@ func CheckJobGetStatus(node string) (*JobList, error) {
 	return jl, nil
 }
 func watchRealBuildInLog(ch chan *ExecutionRecord) {
-	rch := WatchBuildInLog()
-	joblog := &ExecutionRecord{}
-onedone:
-	for wresp := range rch {
-		for _, ev := range wresp.Events {
-			switch {
-			case ev.IsCreate() || ev.IsModify():
-				logrus.Infof("find a job executed,log created")
-				json.Unmarshal(ev.Kv.Value, joblog)
-				ch <- joblog
+	// 	rch := WatchBuildInLog()
+	// 	joblog := &ExecutionRecord{}
+	// onedone:
+	// 	for wresp := range rch {
+	// 		for _, ev := range wresp.Events {
+	// 			switch {
+	// 			case ev.IsCreate() || ev.IsModify():
+	// 				logrus.Infof("find a job executed,log created")
+	// 				json.Unmarshal(ev.Kv.Value, joblog)
+	// 				ch <- joblog
 
-				break onedone
-			}
-		}
-	}
-	logrus.Infof("job done ,find log,break watch")
+	// 				break onedone
+	// 			}
+	// 		}
+	// 	}
+	// 	logrus.Infof("job done ,find log,break watch")
 }
 func watchBuildInJobLog(ch chan map[string]string) {
-	rch := WatchBuildInLog()
-	joblog := &ExecutionRecord{}
-onedone:
-	for wresp := range rch {
-		for _, ev := range wresp.Events {
-			switch {
-			case ev.IsCreate() || ev.IsModify():
-				logrus.Infof("find a job executed,log created")
-				json.Unmarshal(ev.Kv.Value, joblog)
-				a := make(map[string]string)
+	// 	rch := WatchBuildInLog()
+	// 	joblog := &ExecutionRecord{}
+	// onedone:
+	// 	for wresp := range rch {
+	// 		for _, ev := range wresp.Events {
+	// 			switch {
+	// 			case ev.IsCreate() || ev.IsModify():
+	// 				logrus.Infof("find a job executed,log created")
+	// 				json.Unmarshal(ev.Kv.Value, joblog)
+	// 				a := make(map[string]string)
 
-				a["output"] = joblog.Output
-				a["name"] = joblog.Name
-				a["result"] = strconv.FormatBool(joblog.Success)
-				a["node"] = joblog.Node
-				a["jobid"] = joblog.JobID
-				logrus.Infof("a job execute done,job log is %v", a)
-				ch <- a
-				break onedone
-			}
-		}
-	}
+	// 				a["output"] = joblog.Output
+	// 				a["name"] = joblog.Name
+	// 				a["result"] = strconv.FormatBool(joblog.Success)
+	// 				a["node"] = joblog.Node
+	// 				a["jobid"] = joblog.JobID
+	// 				logrus.Infof("a job execute done,job log is %v", a)
+	// 				ch <- a
+	// 				break onedone
+	// 			}
+	// 		}
+	// 	}
 }
 func RunBuildJobs(node string, done chan *JobList, doneOne chan *BuildInJob) error {
 	//jl, err := CheckJobGetStatus(node)
@@ -384,9 +386,9 @@ func RunBuildJobs(node string, done chan *JobList, doneOne chan *BuildInJob) err
 		logger.Info("prepare running job "+v.JobName, map[string]string{"jobId": v.JobId, "status": strconv.Itoa(v.JobResult)})
 		event.GetManager().ReleaseLogger(logger)
 
-		if err = PutBuildIn(jobId, node); err != nil {
-			logrus.Errorf("can't put job to a watched etcd path,details %s", err.Error())
-		}
+		// if err = PutBuildIn(jobId, node); err != nil {
+		// 	logrus.Errorf("can't put job to a watched etcd path,details %s", err.Error())
+		// }
 
 		joblog := <-ch
 		logrus.Infof("job %s done", jobId)
@@ -1423,9 +1425,9 @@ func RunCheckInstallJob(node, jobId string) (string, error) {
 	go watchBuildInJobLog(ch)
 
 	//todo 这里是执行
-	if err := PutBuildIn(jobId, node); err != nil {
-		logrus.Errorf("can't put job to a watched etcd path,details %s", err.Error())
-	}
+	// if err := PutBuildIn(jobId, node); err != nil {
+	// 	logrus.Errorf("can't put job to a watched etcd path,details %s", err.Error())
+	// }
 	//此处获得job的output
 	result := <-ch
 	logrus.Infof("job output result is,%s", result)
