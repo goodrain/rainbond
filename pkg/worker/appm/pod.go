@@ -1,32 +1,32 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package appm
 
 import (
+	"fmt"
+	"os"
+	"strings"
+
 	"github.com/goodrain/rainbond/pkg/db"
 	"github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/goodrain/rainbond/pkg/util"
-	"fmt"
-	"os"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 
@@ -42,6 +42,7 @@ type PodTemplateSpecBuild struct {
 	needProxy          bool
 	service            *model.TenantServices
 	tenant             *model.Tenants
+	pluginsRelation    []*model.TenantServicePluginRelation
 	dbmanager          db.Manager
 	logger             event.Logger
 	localScheduler     bool
@@ -59,14 +60,19 @@ func PodTemplateSpecBuilder(serviceID string, logger event.Logger) (*PodTemplate
 	if err != nil {
 		return nil, fmt.Errorf("find tenant error. %v", err.Error())
 	}
+	pluginRelations, err := dbmanager.TenantServicePluginRelationDao().GetALLRelationByServiceID(serviceID)
+	if err != nil {
+		return nil, fmt.Errorf("find plugins error. %v", err.Error())
+	}
 	return &PodTemplateSpecBuild{
-		serviceID:   serviceID,
-		eventID:     logger.Event(),
-		dbmanager:   dbmanager,
-		service:     service,
-		tenant:      tenant,
-		logger:      logger,
-		volumeMount: make(map[string]string),
+		serviceID:       serviceID,
+		eventID:         logger.Event(),
+		dbmanager:       dbmanager,
+		pluginsRelation: pluginRelations,
+		service:         service,
+		tenant:          tenant,
+		logger:          logger,
+		volumeMount:     make(map[string]string),
 	}, nil
 }
 
@@ -93,9 +99,18 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create volume in pod template error :%v", err.Error())
 	}
-	//step3:构建容器定义
+	//step3.0:构建initContainer
+	initContainers, plugincontainers, err := p.createPluginsContainer(envs)
+	if err != nil {
+		return nil, fmt.Errorf("create plugin container error. %v", err.Error())
+	}
+	//step3.1:构建容器定义
 	containers := p.createContainer(volumeMounts, envs)
-
+	if len(plugincontainers) != 0 {
+		for _, plugin := range plugincontainers {
+			containers = append(containers, plugin)
+		}
+	}
 	//step4:Node selector
 	nodeSelector := p.createNodeSelector()
 	//step5:pod 亲和性
@@ -106,12 +121,24 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 		NodeSelector: nodeSelector,
 		Affinity:     p.createAffinity(),
 	}
+	if len(initContainers) != 0 {
+		podSpec.InitContainers = initContainers
+	}
+
 	//step6:构建pod label
 	labels := map[string]string{
 		"name":        p.service.ServiceAlias,
 		"version":     p.service.DeployVersion,
 		"tenant_name": p.tenant.Name,
 		"event_id":    p.eventID,
+	}
+	//step7:插件启动排序
+	pid, err := p.sortPlugins()
+	if err != nil {
+		return nil, fmt.Errorf("sort plugin errro. %v", err.Error())
+	}
+	for k, v := range pid {
+		labels[fmt.Sprintf("f%d", k)] = v
 	}
 	//设置为本地调度，调度器会识别此label
 	//只要statefulset应用支持本地调度
@@ -245,34 +272,37 @@ func (p *PodTemplateSpecBuild) createContainer(volumeMounts []v1.VolumeMount, en
 		Args:                   p.createArgs(),
 	}
 	containers = append(containers, c1)
-	//构建proxy容器
-	if p.needProxy {
-		var AppPropertyHeighten bool
-		for _, e := range *envs {
-			if e.Name == "SEVEN_LEVEL" {
-				AppPropertyHeighten = true
-				break
+
+	/*
+		//构建proxy容器
+		if p.needProxy {
+			var AppPropertyHeighten bool
+			for _, e := range *envs {
+				if e.Name == "SEVEN_LEVEL" {
+					AppPropertyHeighten = true
+					break
+				}
 			}
+			c2 := v1.Container{
+				Name: "adapter-" + p.serviceID[len(p.serviceID)-20:],
+				VolumeMounts: []v1.VolumeMount{v1.VolumeMount{
+					MountPath: "/etc/kubernetes",
+					Name:      "kube-config",
+					ReadOnly:  true,
+				}},
+				TerminationMessagePath: "",
+				Env:       *envs,
+				Resources: p.createAdapterResources(50, 20),
+			}
+			//应用性能增强打开
+			if AppPropertyHeighten {
+				c2.Image = "goodrain.me/mid_rain"
+			} else {
+				c2.Image = "goodrain.me/adapter"
+			}
+			containers = append(containers, c2)
 		}
-		c2 := v1.Container{
-			Name: "adapter-" + p.serviceID[len(p.serviceID)-20:],
-			VolumeMounts: []v1.VolumeMount{v1.VolumeMount{
-				MountPath: "/etc/kubernetes",
-				Name:      "kube-config",
-				ReadOnly:  true,
-			}},
-			TerminationMessagePath: "",
-			Env:       *envs,
-			Resources: p.createAdapterResources(50, 20),
-		}
-		//应用性能增强打开
-		if AppPropertyHeighten {
-			c2.Image = "goodrain.me/mid_rain"
-		} else {
-			c2.Image = "goodrain.me/adapter"
-		}
-		containers = append(containers, c2)
-	}
+	*/
 	//构建日志收集容器
 	var LogMatch bool
 	for _, e := range *envs {
@@ -657,6 +687,148 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 		envs = append(envs, v1.EnvVar{Name: e.AttrName, Value: e.AttrValue})
 	}
 	return &envs, nil
+}
+
+func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]v1.Container, []v1.Container, error) {
+	var containers []v1.Container
+	var initContainers []v1.Container
+	if len(p.pluginsRelation) == 0 {
+		return nil, containers, nil
+	}
+	netPlugin := false
+	for _, pluginR := range p.pluginsRelation {
+		//是否启动插件
+		if pluginR.Switch == false {
+			continue
+		}
+		versionInfo, err := p.dbmanager.TenantPluginBuildVersionDao().GetBuildVersionByVersionID(pluginR.PluginID, pluginR.VersionID)
+		if err != nil {
+			return nil, nil, err
+		}
+		envs, err := p.createPluginEnvs(pluginR.PluginID)
+		if err != nil {
+			return nil, nil, err
+		}
+		args, err := p.createPluginArgs(pluginR.PluginID)
+		if err != nil {
+			return nil, nil, err
+		}
+		pc := v1.Container{
+			Name:                   pluginR.PluginID,
+			Image:                  versionInfo.BuildLocalImage,
+			Env:                    *envs,
+			Resources:              p.createAdapterResources(200, 50),
+			TerminationMessagePath: "",
+			Args: args,
+		}
+		pluginModel, err := p.getPluginModel(pluginR.PluginID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if pluginModel == model.InitPlugin {
+			initContainers = append(initContainers, pc)
+			continue
+		}
+		if pluginModel == model.NetPlugin {
+			netPlugin = true
+		}
+		containers = append(containers, pc)
+	}
+	//构建proxy容器
+	if p.needProxy && !netPlugin {
+		c2 := v1.Container{
+			Name: "adapter-" + p.serviceID[len(p.serviceID)-20:],
+			VolumeMounts: []v1.VolumeMount{v1.VolumeMount{
+				MountPath: "/etc/kubernetes",
+				Name:      "kube-config",
+				ReadOnly:  true,
+			}},
+			TerminationMessagePath: "",
+			Env:       *mainEnvs,
+			Image:     "goodrain.me/adapter",
+			Resources: p.createAdapterResources(50, 20),
+		}
+		containers = append(containers, c2)
+	}
+	return initContainers, containers, nil
+}
+
+func (p *PodTemplateSpecBuild) getPluginModel(pluginID string) (string, error) {
+	plugin, err := p.dbmanager.TenantPluginDao().GetPluginByID(pluginID)
+	if err != nil {
+		return "", err
+	}
+	return plugin.PluginModel, nil
+}
+
+func (p *PodTemplateSpecBuild) createPluginArgs(pluginID string) ([]string, error) {
+	plugin, err := p.dbmanager.TenantPluginDao().GetPluginByID(pluginID)
+	if err != nil {
+		return nil, err
+	}
+	if plugin.PluginCMD == "" {
+		return nil, nil
+	}
+	return strings.Split(plugin.PluginCMD, " "), nil
+}
+
+//container envs
+func (p *PodTemplateSpecBuild) createPluginEnvs(pluginID string) (*[]v1.EnvVar, error) {
+	defaultEnvs, err := p.dbmanager.TenantPluginDefaultENVDao().GetDefaultENVSByPluginIDCantBeSet(pluginID)
+	if err != nil {
+		return nil, err
+	}
+	versionEnvs, err := p.dbmanager.TenantPluginVersionENVDao().GetVersionEnvByServiceID(p.serviceID, pluginID)
+	if err != nil {
+		return nil, err
+	}
+	var envs []v1.EnvVar
+	for _, e := range defaultEnvs {
+		envs = append(envs, v1.EnvVar{Name: e.ENVName, Value: e.ENVValue})
+	}
+	for _, e := range versionEnvs {
+		envs = append(envs, v1.EnvVar{Name: e.EnvName, Value: e.EnvValue})
+	}
+	//TODO: 在哪些情况下需要注入主容器的环境变量
+	return &envs, nil
+}
+
+func (p *PodTemplateSpecBuild) sortPlugins() ([]string, error) {
+	var pid []string
+	var mid []int
+	//TODO: 目前同种插件只能出现一个
+	for _, plugin := range p.pluginsRelation {
+		pi, err := p.dbmanager.TenantPluginDao().GetPluginByID(plugin.PluginID)
+		if err != nil {
+			return nil, err
+		}
+		pid = append(pid, plugin.PluginID)
+		mid = append(mid, p.pluginWeight(pi.PluginModel))
+	}
+	for i := 0; i < len(p.pluginsRelation); i++ {
+		for j := i + 1; j < len(p.pluginsRelation); j++ {
+			if mid[i] < mid[j] {
+				tmpM := mid[i]
+				mid[i] = mid[j]
+				mid[j] = tmpM
+				tmpP := pid[i]
+				pid[i] = pid[j]
+				pid[j] = tmpP
+			}
+		}
+	}
+	return pid, nil
+}
+
+func (p *PodTemplateSpecBuild) pluginWeight(pluginModel string) int {
+	switch pluginModel {
+	case model.NetPlugin:
+		return 9
+	case model.GeneralPlugin:
+		return 1
+	default:
+		return 0
+	}
 }
 
 var memoryLabels = map[int]string{

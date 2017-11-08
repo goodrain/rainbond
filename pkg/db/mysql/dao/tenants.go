@@ -1180,6 +1180,24 @@ func (t *PluginDefaultENVDaoImpl) GetDefaultENVByName(name string) (*model.Tenan
 	return &env, nil
 }
 
+//GetDefaultENVSByPluginID GetDefaultENVSByPluginID
+func (t *PluginDefaultENVDaoImpl) GetDefaultENVSByPluginID(pluginID string) ([]*model.TenantPluginDefaultENV, error) {
+	var envs []*model.TenantPluginDefaultENV
+	if err := t.DB.Where("plugin_id=?", pluginID).Find(&envs).Error; err != nil {
+		return nil, err
+	}
+	return envs, nil
+}
+
+//GetDefaultENVSByPluginIDCantBeSet GetDefaultENVSByPluginIDCantBeSet
+func (t *PluginDefaultENVDaoImpl) GetDefaultENVSByPluginIDCantBeSet(pluginID string) ([]*model.TenantPluginDefaultENV, error) {
+	var envs []*model.TenantPluginDefaultENV
+	if err := t.DB.Where("plugin_id=? and Change=0", pluginID).Find(&envs).Error; err != nil {
+		return nil, err
+	}
+	return envs, nil
+}
+
 //DeleteDefaultENVByName DeleteDefaultENVByName
 func (t *PluginDefaultENVDaoImpl) DeleteDefaultENVByName(name string) error {
 	relation := &model.TenantPluginDefaultENV{

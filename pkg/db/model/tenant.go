@@ -378,6 +378,10 @@ type TenantPlugin struct {
 	PluginName string `gorm:"column:plugin_name;size:32"`
 	//插件用途描述
 	PluginInfo string `gorm:"column:plugin_info:size:100"`
+	//插件CPU权重
+	PluginCPU int `gorm:"column:plugin_cpu;default:500" json:"plugin_cpu"`
+	//插件最大内存
+	PluginMemory int `gorm:"column:plugin_memory;default:128" json:"plugin_memory"`
 	//插件docker地址
 	ImageURL string `gorm:"column:image_url"`
 	//插件goodrain地址
@@ -504,3 +508,14 @@ var LabelKeyServiceAffinity = "service-affinity"
 
 //LabelKeyServiceAntyAffinity 应用反亲和标签
 var LabelKeyServiceAntyAffinity = "service-anti-affinity"
+
+//Plugin model 插件标签
+
+//InitPlugin 初始化插件
+var InitPlugin = "init-plugin"
+
+//NetPlugin 网络插件
+var NetPlugin = "net-plugin"
+
+//GeneralPlugin 一般插件,默认分类,优先级最低
+var GeneralPlugin = "general-plugin"
