@@ -57,6 +57,7 @@ const (
 //Job 需要执行的任务
 type Job struct {
 	ID      string     `json:"id"`
+	TaskID  string     `json:"taskID"`
 	EventID string     `json:"event_id"`
 	Name    string     `json:"name"`
 	Group   string     `json:"group"`
@@ -437,7 +438,7 @@ func (j *Job) String() string {
 
 //CountRunning 获取结点正在执行任务的数量
 func (j *Job) CountRunning() (int64, error) {
-	resp, err := store.DefalutClient.Get(conf.Config.Proc+j.runOn+"/"+j.Group+"/"+j.ID, client.WithPrefix(), client.WithCountOnly())
+	resp, err := store.DefalutClient.Get(conf.Config.Proc+j.runOn+"/"+j.ID, client.WithPrefix(), client.WithCountOnly())
 	if err != nil {
 		return 0, err
 	}

@@ -18,7 +18,17 @@
 
 package job
 
-import "time"
+import (
+	"time"
+
+	"github.com/pquerna/ffjson/ffjson"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/pkg/node/core/store"
+
+	"github.com/twinj/uuid"
+)
 
 const (
 	Coll_JobLog       = "job_log"
@@ -29,16 +39,23 @@ const (
 
 //ExecutionRecord 任务执行记录
 type ExecutionRecord struct {
-	ID        string    `json:"id"`
-	JobID     string    `json:"job_id"`            // 任务 Id，索引
-	User      string    `json:"user"`              // 执行此次任务的用户
-	Name      string    `json:"name"`              // 任务名称
-	Node      string    `json:"node"`              // 运行此次任务的节点 ip，索引
-	Command   string    `json:"command,omitempty"` // 执行的命令，包括参数
-	Output    string    `json:"output,omitempty"`  // 任务输出的所有内容
-	Success   bool      `json:"success"`           // 是否执行成功
-	BeginTime time.Time `json:"beginTime"`         // 任务开始执行时间，精确到毫秒，索引
-	EndTime   time.Time `json:"endTime"`           // 任务执行完毕时间，精确到毫秒
+	ID         string    `json:"id"`
+	JobID      string    `json:"job_id"`            // 任务 Id，索引
+	User       string    `json:"user"`              // 执行此次任务的用户
+	Name       string    `json:"name"`              // 任务名称
+	Node       string    `json:"node"`              // 运行此次任务的节点 ip，索引
+	Command    string    `json:"command,omitempty"` // 执行的命令，包括参数
+	Output     string    `json:"output,omitempty"`  // 任务输出的所有内容
+	Success    bool      `json:"success"`           // 是否执行成功
+	BeginTime  time.Time `json:"beginTime"`         // 任务开始执行时间，精确到毫秒，索引
+	EndTime    time.Time `json:"endTime"`           // 任务执行完毕时间，精确到毫秒
+	IsHandle   bool      `json:"is_handle"`         //是否已经处理
+	HandleTime time.Time `json:"handle_time"`       //处理时间
+}
+
+func (e ExecutionRecord) String() string {
+	body, _ := ffjson.Marshal(e)
+	return string(body)
 }
 
 //GetExecutionRecordByID 获取执行记录
@@ -51,7 +68,64 @@ func GetJobExecutionRecords(JobID string) ([]*ExecutionRecord, error) {
 	return nil, nil
 }
 
+//WatchExecutionRecords watch ExecutionRecords
+func WatchExecutionRecords() {
+
+}
+
+//IsHandleRight 是否具有处理结果权限
+func (e ExecutionRecord) IsHandleRight() bool {
+	if e.IsHandle {
+		return false
+	}
+	resp, err := store.DefalutClient.Grant(5)
+	if err != nil {
+		logrus.Infof("execution record[%s] didn't get a lock, err: %s", e.ID, err.Error())
+		return false
+	}
+	ok, err := store.DefalutClient.GetLock(e.ID, resp.ID)
+	if err != nil {
+		logrus.Infof("execution record[%s] didn't get a lock, err: %s", e.ID, err.Error())
+		return false
+	}
+	return ok
+}
+
+//CompleteHandle 完成处理记录
+//master节点处理完成后调用
+func (e ExecutionRecord) CompleteHandle() {
+	e.HandleTime = time.Now()
+	e.IsHandle = true
+	_, err := store.DefalutClient.Put(option.Config.ExecutionRecordPath+"/"+e.JobID+"/"+e.ID, e.String())
+	if err != nil {
+		logrus.Error("put exec record to etcd in complete handle error.", err.Error())
+	}
+}
+
+//ParseExecutionRecord 解析
+func ParseExecutionRecord(body []byte) (e ExecutionRecord) {
+	ffjson.Unmarshal(body, &e)
+	return
+}
+
 //CreateExecutionRecord 创建存储记录
 func CreateExecutionRecord(j *Job, t time.Time, rs string, success bool) {
-
+	//存储执行记录，master端获取结果，并处理结果
+	//例如 检测任务，安装任务等
+	record := ExecutionRecord{
+		ID:        uuid.NewV4().String(),
+		JobID:     j.ID,
+		User:      j.User,
+		Name:      j.Name,
+		Node:      j.runOn,
+		Command:   j.Command,
+		Output:    rs,
+		Success:   success,
+		BeginTime: t,
+		EndTime:   time.Now(),
+	}
+	_, err := store.DefalutClient.Put(option.Config.ExecutionRecordPath+"/"+record.JobID+"/"+record.ID, record.String())
+	if err != nil {
+		logrus.Error("put exec record to etcd error.", err.Error())
+	}
 }

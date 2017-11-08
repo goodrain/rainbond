@@ -59,7 +59,8 @@ type Task struct {
 	TempID string    `json:"temp_id,omitempty" validate:"temp_id|uuid"`
 	Temp   *TaskTemp `json:"temp,omitempty"`
 	//执行的节点
-	Nodes []string `json:"nodes"`
+	Nodes  []string          `json:"nodes"`
+	Labels map[string]string `json:"labels"`
 	//每个执行节点执行状态
 	Status       map[string]TaskStatus `json:"status,omitempty"`
 	CreateTime   time.Time             `json:"create_time"`
@@ -67,7 +68,7 @@ type Task struct {
 	CompleteTime time.Time             `json:"complete_time"`
 	ResultPath   string                `json:"result_path"`
 	EventID      string                `json:"event_id"`
-	OutPut       *TaskOutPut           `json:"out_put"`
+	OutPut       []*TaskOutPut         `json:"out_put"`
 }
 
 func (t Task) String() string {
@@ -101,9 +102,25 @@ func SendTask(tasks ...*Task) error {
 
 //TaskOutPut 任务输出
 type TaskOutPut struct {
+	NodeID string            `json:"node_id"`
 	Global map[string]string `json:"global"`
 	Inner  map[string]string `json:"inner"`
-	Status string            `json:"status"`
+	//返回数据类型，检测结果类(check) 执行安装类 (install) 普通类 (common)
+	Type   string             `json:"type"`
+	Status []TaskOutPutStatus `json:"status"`
+}
+
+//ParseTaskOutPut json parse
+func ParseTaskOutPut(body string) (t TaskOutPut, err error) {
+	err = ffjson.Unmarshal([]byte(body), &t)
+	return
+}
+
+//TaskOutPutStatus 输出数据
+type TaskOutPutStatus struct {
+	Name            string `json:"name"`
+	ConditionType   string `json:"condition_type"`
+	ConditionStatus string `json:"condition_status"`
 }
 
 //TaskStatus 任务状态

@@ -76,23 +76,23 @@ type Conf struct {
 	Master      string // master node 注册地址
 	Proc        string // 当前执行任务路径//不知道干吗的
 	//任务执行公共路径，后续跟节点ID
-	TaskPath         string
-	Cmd              string // 节点执行任务保存路径
-	Once             string // 马上执行任务路径//立即执行任务保存地址
-	Lock             string // job lock 路径
-	Group            string // 节点分组
-	Noticer          string // 通知
-	EventLogServer   []string
-	JobLog           string
-	ConfigPath       string
-	ConfigStorage    string
-	K8SNode          string
-	BuildIn          string
-	BuildInExec      string
-	CompJobStatus    string
-	FailTime         int
-	CheckIntervalSec int
-	InstalledMarker  string
+	TaskPath            string
+	Cmd                 string // 节点执行任务保存路径
+	Once                string // 马上执行任务路径//立即执行任务保存地址
+	Lock                string // job lock 路径
+	Group               string // 节点分组
+	Noticer             string // 通知
+	EventLogServer      []string
+	ExecutionRecordPath string
+	ConfigPath          string
+	ConfigStorage       string
+	K8SNode             string
+	BuildIn             string
+	BuildInExec         string
+	CompJobStatus       string
+	FailTime            int
+	CheckIntervalSec    int
+	InstalledMarker     string
 
 	TTL        int64 // 节点超时时间，单位秒
 	ReqTimeout int   // 请求超时时间，单位秒
@@ -118,7 +118,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.Node, "nodePath", "/acp_node/node/", "the path of node in etcd")
 	fs.StringVar(&a.Master, "masterPath", "/acp_node/master/", "the path of master node in etcd")
 	fs.StringVar(&a.Proc, "procPath", "/acp_node/proc/", "the path of proc in etcd")
-	fs.StringVar(&a.JobLog, "jobLog", "/acp_node/joblog/", "the path of job log")
+	fs.StringVar(&a.ExecutionRecordPath, "execRecordPath", "/acp_node/exec_record/", "the path of job exec record")
 	fs.StringSliceVar(&a.EventLogServer, "event-log-server", []string{"127.0.0.1:6367"}, "host:port slice of event log server")
 	fs.StringVar(&a.K8SNode, "k8sNode", "/store/nodes/", "the path of k8s node")
 	fs.StringVar(&a.InstalledMarker, "installed-marker", "/etc/acp_node/check/install/success", "the path of a file for check node is installed")
