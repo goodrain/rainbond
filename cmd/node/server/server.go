@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -23,10 +22,10 @@ import (
 	"fmt"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/pkg/node/core"
+	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
-	"github.com/goodrain/rainbond/pkg/node/node"
+	"github.com/goodrain/rainbond/pkg/node/server"
 
 	"github.com/Sirupsen/logrus"
 
@@ -63,7 +62,7 @@ func Run(c *option.Conf) error {
 			c.K8SConfPath)
 	}
 
-	s, err := node.NewNodeServer(c) //todo 配置文件 done
+	s, err := server.NewNodeServer(c) //todo 配置文件 done
 	if err != nil {
 		return err
 	}
@@ -77,12 +76,8 @@ func Run(c *option.Conf) error {
 		return err
 	}
 	logrus.Info("node registe success")
-	if err := core.StartProc(); err != nil {
+	if err := job.StartProc(); err != nil {
 		logrus.Warnf("[process key will not timeout]proc lease id set err: %s", err.Error())
-	}
-	if s.RunMode == "master" {
-		s.Reg()
-		go s.RegKeepAlive()
 	}
 	if err := s.Run(); err != nil {
 		logrus.Errorf(err.Error())
@@ -90,10 +85,10 @@ func Run(c *option.Conf) error {
 	}
 	// 注册退出事件
 	//todo conf.Exit cronsun.exit 重写
-	event.On(event.EXIT, s.Stop, option.Exit, core.Exit)
+	event.On(event.EXIT, s.Stop, option.Exit, job.Exit)
 	// 注册监听配置更新事件
 	//todo cronsun.Reload重写
-	event.On(event.WAIT, core.Reload)
+	event.On(event.WAIT, job.Reload)
 	// 监听退出信号
 	event.Wait()
 	// 处理退出事件

@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -21,15 +20,16 @@ package controller
 
 import (
 	conf "github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/pkg/node/core"
+	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
 
-	api "github.com/goodrain/rainbond/pkg/util/http"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
+
+	api "github.com/goodrain/rainbond/pkg/util/http"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
@@ -38,14 +38,16 @@ import (
 	//"k8s.io/client-go/pkg/api/v1"
 	"github.com/coreos/etcd/client"
 	//"k8s.io/apimachinery/pkg/types"
-	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"io/ioutil"
 	"strconv"
 
+	"github.com/goodrain/rainbond/pkg/node/api/model"
+
 	"github.com/coreos/etcd/clientv3"
 
-	"github.com/goodrain/rainbond/pkg/util"
 	"bytes"
+
+	"github.com/goodrain/rainbond/pkg/util"
 )
 
 func LoginCompute(w http.ResponseWriter, r *http.Request) {
@@ -55,7 +57,7 @@ func LoginCompute(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	err := decoder.Decode(loginInfo)
 
-	_, err = core.UnifiedLogin(loginInfo)
+	_, err = job.UnifiedLogin(loginInfo)
 	if err != nil {
 		logrus.Errorf("login remote host failed,details %s", err.Error())
 		api.ReturnError(r, w, http.StatusBadRequest, err.Error())
@@ -76,7 +78,7 @@ func LoginCompute(w http.ResponseWriter, r *http.Request) {
 		api.ReturnError(r, w, 400, "already installed")
 		return
 	}
-	cli2, err := core.UnifiedLogin(loginInfo)
+	cli2, err := job.UnifiedLogin(loginInfo)
 	if err != nil {
 		logrus.Errorf("login remote host failed,details %s", err.Error())
 		api.ReturnError(r, w, http.StatusBadRequest, err.Error())
@@ -129,11 +131,11 @@ func LoginCompute(w http.ResponseWriter, r *http.Request) {
 	//sess.Run()
 
 	cnode := &model.HostNode{
-		UUID:            nodeIP,
+		ID:              nodeIP,
 		HostName:        nodeIP,
 		InternalIP:      nodeIP,
 		ExternalIP:      nodeIP,
-		Role:            loginInfo.HostType,
+		Role:            []string{loginInfo.HostType},
 		Status:          "installing",
 		Unschedulable:   false,
 		Labels:          nil,
@@ -152,15 +154,15 @@ func LoginCompute(w http.ResponseWriter, r *http.Request) {
 
 	api.ReturnSuccess(r, w, result)
 }
-func newComputeNodeToInstall(node string) (*core.JobList, error) {
+func newComputeNodeToInstall(node string) (*job.JobList, error) {
 
 	//这里改成所有
-	jobs, err := core.GetBuildinJobs() //状态为未安装
+	jobs, err := job.GetBuildinJobs() //状态为未安装
 	if err != nil {
 		return nil, err
 	}
 	logrus.Infof("added new node %s to jobs", node)
-	err = core.AddNewNodeToJobs(jobs, node)
+	err = job.AddNewNodeToJobs(jobs, node)
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +232,7 @@ func asyncInit(login *model.Login, nodeIp string) {
 	//save initing to etcd
 	store.DefalutClient.Put(conf.Config.InitStatus+nodeIp, "initing")
 	logrus.Infof("changing init stauts to initing ")
-	_, err := core.PrepareState(login)
+	_, err := job.PrepareState(login)
 	if err != nil {
 		logrus.Errorf("async prepare stage failed,details %s", err.Error())
 		//save error to etcd
@@ -245,7 +247,7 @@ func asyncInit(login *model.Login, nodeIp string) {
 }
 func CheckJobGetStatus(w http.ResponseWriter, r *http.Request) {
 	nodeIP := strings.TrimSpace(chi.URLParam(r, "ip"))
-	jl, err := core.GetJobStatusByNodeIP(nodeIP)
+	jl, err := job.GetJobStatusByNodeIP(nodeIP)
 	if err != nil {
 		logrus.Warnf("get job status failed")
 		api.ReturnError(r, w, http.StatusInternalServerError, err.Error())
@@ -256,11 +258,11 @@ func CheckJobGetStatus(w http.ResponseWriter, r *http.Request) {
 func StartBuildInJobs(w http.ResponseWriter, r *http.Request) {
 	nodeIP := strings.TrimSpace(chi.URLParam(r, "ip"))
 	logrus.Infof("node start install %s", nodeIP)
-	done := make(chan *core.JobList)
-	doneOne := make(chan *core.BuildInJob)
+	done := make(chan *job.JobList)
+	doneOne := make(chan *job.BuildInJob)
 	store.DefalutClient.NewRunnable("/acp_node/runnable/"+nodeIP, nodeIP)
 	logrus.Infof("adding install runnable to node ip %s", nodeIP)
-	jl, err := core.GetJobStatusByNodeIP(nodeIP)
+	jl, err := job.GetJobStatusByNodeIP(nodeIP)
 	if err != nil {
 		logrus.Warnf("get job status failed")
 		api.ReturnError(r, w, http.StatusInternalServerError, err.Error())
@@ -273,9 +275,9 @@ func StartBuildInJobs(w http.ResponseWriter, r *http.Request) {
 	for _, v := range jl.List {
 		v.JobSEQ = jl.SEQ
 	}
-	core.UpdateNodeJobStatus(nodeIP, jl.List)
+	job.UpdateNodeJobStatus(nodeIP, jl.List)
 	//core.CanRunJob<-nodeIP
-	go core.RunBuildJobs(nodeIP, done, doneOne)
+	go job.RunBuildJobs(nodeIP, done, doneOne)
 	api.ReturnSuccess(r, w, jl)
 }
 func Cordon(w http.ResponseWriter, r *http.Request) {
@@ -697,8 +699,8 @@ func New(w http.ResponseWriter, r *http.Request) {
 		outJSONWithCode(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	logrus.Info("adding a new node info to etcd who's id is %s", node.UUID)
-	k8s.AddSource(conf.Config.K8SNode+node.UUID, node)
+	logrus.Info("adding a new node info to etcd who's id is %s", node.ID)
+	k8s.AddSource(conf.Config.K8SNode+node.ID, node)
 	outRespSuccess(w, nil, nil)
 }
 
@@ -766,11 +768,11 @@ func GetNodeList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, v := range nodes {
-		if status, ok := m[v.UUID]; ok {
-			logrus.Infof("updating node %s 's status to %s", v.UUID, status)
+		if status, ok := m[v.ID]; ok {
+			logrus.Infof("updating node %s 's status to %s", v.ID, status)
 			if v.Status != "unschedulable" {
 				v.Status = status
-				k8s.AddSource(conf.Config.K8SNode+v.UUID, v)
+				k8s.AddSource(conf.Config.K8SNode+v.ID, v)
 			}
 		}
 	}
@@ -855,8 +857,7 @@ func AddNode(w http.ResponseWriter, r *http.Request) {
 		outRespDetails(w, http.StatusBadRequest, "error get node from etcd ", "etcd获取节点信息失败", nil, nil)
 		return
 	}
-	if node.Status == "offline" && node.Role == "tree" {
-
+	if node.Status == "offline" && node.Role.HasRule("tree") {
 		_, err := k8s.K8S.Core().Nodes().Get(node.HostName, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
@@ -881,12 +882,12 @@ func AddNode(w http.ResponseWriter, r *http.Request) {
 					outRespDetails(w, 500, "get node resource failed "+err.Error(), "etcd获取node资源失败", nil, nil)
 					return
 				}
-				hostNode.UUID = string(realK8SNode.UID)
+				hostNode.ID = string(realK8SNode.UID)
 				hostNode.Status = "running"
 				//更改状态
 				data, _ := json.Marshal(hostNode)
 				logrus.Infof("adding node :%s online ,updated to %s ", string(realK8SNode.UID), string(data))
-				err = k8s.AddSource(conf.Config.K8SNode+hostNode.UUID, hostNode)
+				err = k8s.AddSource(conf.Config.K8SNode+hostNode.ID, hostNode)
 				if err != nil {
 					outRespDetails(w, 500, "add new node failed "+err.Error(), "添加新node信息失败", nil, nil)
 					return

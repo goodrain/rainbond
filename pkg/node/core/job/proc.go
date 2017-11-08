@@ -1,23 +1,22 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package core
+package job
 
 import (
 	"fmt"
@@ -40,7 +39,7 @@ var (
 // 维持 lease id 服务
 func StartProc() error {
 	lID = &leaseID{
-		ttl:  conf.Config.ProcTtl,
+		ttl:  conf.Config.ProcTTL,
 		lk:   new(sync.RWMutex),
 		done: make(chan struct{}),
 	}
@@ -55,13 +54,13 @@ func StartProc() error {
 }
 
 func Reload(i interface{}) {
-	if lID.ttl == conf.Config.ProcTtl {
+	if lID.ttl == conf.Config.ProcTTL {
 		return
 	}
 
 	close(lID.done)
-	lID.done, lID.ttl = make(chan struct{}), conf.Config.ProcTtl
-	if conf.Config.ProcTtl == 0 {
+	lID.done, lID.ttl = make(chan struct{}), conf.Config.ProcTTL
+	if conf.Config.ProcTTL == 0 {
 		return
 	}
 
@@ -184,16 +183,6 @@ func (p *Process) Val() string {
 	return p.Time.Format(time.RFC3339)
 }
 
-// 获取结点正在执行任务的数量
-func (j *Job) CountRunning() (int64, error) {
-	resp, err := store.DefalutClient.Get(conf.Config.Proc+j.runOn+"/"+j.Group+"/"+j.ID, client.WithPrefix(), client.WithCountOnly())
-	if err != nil {
-		return 0, err
-	}
-
-	return resp.Count, nil
-}
-
 // put 出错也进行 del 操作
 // 有可能某种原因，put 命令已经发送到 etcd server
 // 目前已知的 deadline 会出现此情况
@@ -230,18 +219,15 @@ func (p *Process) Start() {
 	if p == nil {
 		return
 	}
-
 	if !atomic.CompareAndSwapInt32(&p.running, 0, 1) {
 		return
 	}
-
 	if conf.Config.ProcReq == 0 {
 		if err := p.put(); err != nil {
 			logrus.Warnf("proc put[%s] err: %s", p.Key(), err.Error())
 		}
 		return
 	}
-
 	p.done = make(chan struct{})
 	p.wg.Add(1)
 	go func() {

@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -69,17 +68,16 @@ func Init() error {
 type Conf struct {
 	APIAddr     string //api server listen port
 	K8SConfPath string //absolute path to the kubeconfig file
-
-	LogLevel   string
-	RunMode    string //master,node
-	Service    string //服务注册与发现
-	InitStatus string
-	Node       string // compute node 注册地址
-	Master     string // master node 注册地址
-	Proc       string // 当前执行任务路径//不知道干吗的
+	LogLevel    string
+	RunMode     string //master,node
+	Service     string //服务注册与发现
+	InitStatus  string
+	Node        string // compute node 注册地址
+	Master      string // master node 注册地址
+	Proc        string // 当前执行任务路径//不知道干吗的
 	//任务执行公共路径，后续跟节点ID
 	TaskPath         string
-	Cmd              string // cmd 路径//任务保存地址
+	Cmd              string // 节点执行任务保存路径
 	Once             string // 马上执行任务路径//立即执行任务保存地址
 	Lock             string // job lock 路径
 	Group            string // 节点分组
@@ -96,31 +94,26 @@ type Conf struct {
 	CheckIntervalSec int
 	InstalledMarker  string
 
-	Ttl        int64 // 节点超时时间，单位秒
+	TTL        int64 // 节点超时时间，单位秒
 	ReqTimeout int   // 请求超时时间，单位秒
 	// 执行任务信息过期时间，单位秒
 	// 0 为不过期
-	ProcTtl int64
+	ProcTTL int64
 	// 记录任务执行中的信息的执行时间阀值，单位秒
 	// 0 为不限制
 	ProcReq int64
 	// 单机任务锁过期时间，单位秒
 	// 默认 300
-	LockTtl int64
+	LockTTL int64
 
 	Etcd client.Config
-	//Mgo  *db.Config
-	Web *webConfig
 	//Mail *MailConf
 	//
 	//Security *Security
-
-	//todo  配置
 }
 
 //AddFlags AddFlags
 func (a *Conf) AddFlags(fs *pflag.FlagSet) {
-
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the log level")
 	fs.StringVar(&a.Node, "nodePath", "/acp_node/node/", "the path of node in etcd")
 	fs.StringVar(&a.Master, "masterPath", "/acp_node/master/", "the path of master node in etcd")
@@ -128,7 +121,6 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.JobLog, "jobLog", "/acp_node/joblog/", "the path of job log")
 	fs.StringSliceVar(&a.EventLogServer, "event-log-server", []string{"127.0.0.1:6367"}, "host:port slice of event log server")
 	fs.StringVar(&a.K8SNode, "k8sNode", "/store/nodes/", "the path of k8s node")
-
 	fs.StringVar(&a.InstalledMarker, "installed-marker", "/etc/acp_node/check/install/success", "the path of a file for check node is installed")
 	fs.StringVar(&a.BuildIn, "build-in-jobs", "/store/buildin/", "the path of build-in job")
 	fs.StringVar(&a.CompJobStatus, "jobStatus", "/store/jobStatus/", "the path of tree node install status")
@@ -137,7 +129,6 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.ConfigStorage, "ConfigStorage", "/acp_node/acp_configs/", "the path of config to store(new)")
 	fs.StringVar(&a.InitStatus, "init-status", "/acp_node/init_status/", "the path of init status to store")
 	fs.StringVar(&a.Service, "servicePath", "/traefik/backends", "the path of service info to store")
-
 	fs.StringVar(&a.Cmd, "cmdPath", "/acp_node/cmd/", "the path of cmd in etcd")
 	fs.StringVar(&a.Once, "oncePath", "/acp_node/once/", "the path of once in etcd")
 	fs.StringVar(&a.Lock, "lockPath", "/acp_node/lock/", "the path of lock in etcd")
@@ -147,13 +138,10 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&a.Etcd.Endpoints, "etcd", []string{"http://127.0.0.1:2379"}, "the path of node in etcd")
 	fs.DurationVar(&a.Etcd.DialTimeout, "etcd-dialTimeOut", 2*time.Second, "etcd cluster dialTimeOut.")
 	fs.IntVar(&a.ReqTimeout, "reqTimeOut", 2, "req TimeOut.")
-
-	fs.Int64Var(&a.Ttl, "ttl", 10, "node timeout second")
-	fs.Int64Var(&a.ProcTtl, "procttl", 600, "proc ttl")
+	fs.Int64Var(&a.TTL, "ttl", 10, "node timeout second")
+	fs.Int64Var(&a.ProcTTL, "procttl", 600, "proc ttl")
 	fs.Int64Var(&a.ProcReq, "procreq", 5, "proc req")
-	fs.Int64Var(&a.LockTtl, "lockttl", 600, "lock ttl")
-	//fs.StringVar(&a.EtcdPrefix, "etcd-prefix", "/entrance", "the etcd data save key prefix ")
-	//fs.StringVar(&a.ClusterName, "cluster-name", "", "the instance name in cluster ")
+	fs.Int64Var(&a.LockTTL, "lockttl", 600, "lock ttl")
 	fs.StringVar(&a.APIAddr, "api-addr", ":6100", "the api server listen address")
 	fs.StringVar(&a.K8SConfPath, "kube-conf", "", "absolute path to the kubeconfig file  ./kubeconfig")
 	//fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")
@@ -207,11 +195,11 @@ func (c *Conf) parse() error {
 	if c.Etcd.DialTimeout > 0 {
 		c.Etcd.DialTimeout *= time.Second
 	}
-	if c.Ttl <= 0 {
-		c.Ttl = 10
+	if c.TTL <= 0 {
+		c.TTL = 10
 	}
-	if c.LockTtl < 2 {
-		c.LockTtl = 300
+	if c.LockTTL < 2 {
+		c.LockTTL = 300
 	}
 	//if c.Mail.Keepalive <= 0 {
 	//	c.Mail.Keepalive = 30

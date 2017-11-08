@@ -1,31 +1,24 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package core
+package job
 
 import (
-	"github.com/goodrain/rainbond/pkg/event"
-	"github.com/goodrain/rainbond/pkg/util"
-	conf "github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/pkg/node/api/model"
-	"github.com/goodrain/rainbond/pkg/node/core/k8s"
-	"github.com/goodrain/rainbond/pkg/node/core/store"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -34,6 +27,13 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	conf "github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/pkg/event"
+	"github.com/goodrain/rainbond/pkg/node/api/model"
+	"github.com/goodrain/rainbond/pkg/node/core/k8s"
+	"github.com/goodrain/rainbond/pkg/node/core/store"
+	"github.com/goodrain/rainbond/pkg/util"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
@@ -284,9 +284,9 @@ func CheckJobGetStatus(node string) (*JobList, error) {
 	}
 	return jl, nil
 }
-func watchRealBuildInLog(ch chan *JobLog) {
+func watchRealBuildInLog(ch chan *ExecutionRecord) {
 	rch := WatchBuildInLog()
-	joblog := &JobLog{}
+	joblog := &ExecutionRecord{}
 onedone:
 	for wresp := range rch {
 		for _, ev := range wresp.Events {
@@ -304,7 +304,7 @@ onedone:
 }
 func watchBuildInJobLog(ch chan map[string]string) {
 	rch := WatchBuildInLog()
-	joblog := &JobLog{}
+	joblog := &ExecutionRecord{}
 onedone:
 	for wresp := range rch {
 		for _, ev := range wresp.Events {
@@ -318,7 +318,7 @@ onedone:
 				a["name"] = joblog.Name
 				a["result"] = strconv.FormatBool(joblog.Success)
 				a["node"] = joblog.Node
-				a["jobid"] = joblog.JobId
+				a["jobid"] = joblog.JobID
 				logrus.Infof("a job execute done,job log is %v", a)
 				ch <- a
 				break onedone
@@ -368,7 +368,7 @@ func RunBuildJobs(node string, done chan *JobList, doneOne chan *BuildInJob) err
 		netStatus := strings.Split(jobId, "_")[0]
 		logrus.Infof("prepare to run build-in jobs for node %s,network status is %s,component is %s", node, netStatus, job.Name)
 
-		ch := make(chan *JobLog)
+		ch := make(chan *ExecutionRecord)
 		go watchRealBuildInLog(ch)
 		logrus.Infof("wait for job %s done", jobId)
 		//在这加入参数吧
@@ -556,10 +556,9 @@ func addToKubernetes(uid string) error {
 
 		return err
 	}
-	//rawUUID:=cnode.UUID
 	data, _ := json.Marshal(cnode)
 	logrus.Infof("adding node :%s online ,updated to %s ", string(realK8SNode.UID), string(data))
-	cnode.UUID = string(realK8SNode.UID)
+	cnode.ID = string(realK8SNode.UID)
 	//防止下面更新内存cpu时获取不到
 	err = k8s.AddSource(conf.Config.K8SNode+uid, cnode)
 	if err != nil {
@@ -757,7 +756,7 @@ func updateNodeDB(node, engStatus string) error {
 			logrus.Errorf("error get kubernetes node ")
 		}
 		uid := string(kn.UID)
-		cnode.UUID = uid
+		cnode.ID = uid
 		err = k8s.AddSource(conf.Config.K8SNode+uid, cnode)
 		if err != nil {
 			logrus.Errorf("add source to db failed,details %s", err.Error())
@@ -773,9 +772,7 @@ func updateNodeDB(node, engStatus string) error {
 			return err
 		}
 	}
-
 	return nil
-	//cnode.UUID = string(realK8SNode.UID)
 
 	//更改状态
 
@@ -1112,7 +1109,6 @@ func makeJob(id, name, command string) (*Job, error) {
 	job1.To = []string{}
 	rule := &JobRule{}
 	rule.ID = ""
-	rule.GroupIDs = []string{}
 	rule.NodeIDs = []string{}
 	rule.ExcludeNodeIDs = []string{}
 	rule.Timer = "0 0/60 * * ?"

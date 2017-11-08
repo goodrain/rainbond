@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -24,6 +23,7 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+	"strings"
 
 	"k8s.io/client-go/pkg/api/v1"
 
@@ -35,18 +35,34 @@ import (
 
 //HostNode 集群节点实体
 type HostNode struct {
-	UUID            string            `json:"uuid"`
+	ID              string            `json:"uuid"`
 	HostName        string            `json:"host_name"`
 	InternalIP      string            `json:"internal_ip"`
 	ExternalIP      string            `json:"external_ip"`
 	AvailableMemory int64             `json:"available_memory"`
 	AvailableCPU    int64             `json:"available_cpu"`
-	Role            []string          `json:"role"`          //节点属性 compute manage storage
+	Role            HostRule          `json:"role"`          //节点属性 compute manage storage
 	Status          string            `json:"status"`        //节点状态 create,init,running,stop,delete
 	Labels          map[string]string `json:"labels"`        //节点标签 内置标签+用户自定义标签
 	Unschedulable   bool              `json:"unschedulable"` //不可调度
 	NodeStatus      *v1.NodeStatus    `json:"node_status,omitempty"`
 	ClusterNode
+}
+
+//HostRule 节点角色
+type HostRule []string
+
+//HasRule 是否具有什么角色
+func (h HostRule) HasRule(rule string) bool {
+	for _, v := range h {
+		if v == rule {
+			return true
+		}
+	}
+	return false
+}
+func (h HostRule) String()string{
+	return strings.Join(h,",")
 }
 
 //NodeConditionType NodeConditionType
@@ -95,7 +111,6 @@ type NodeCondition struct {
 
 // ClusterNode 集群节点实体
 type ClusterNode struct {
-	ID         string          `json:"id"`  // ip
 	PID        string          `json:"pid"` // 进程 pid
 	Version    string          `json:"version"`
 	UpTime     time.Time       `json:"up"`        // 启动时间
@@ -105,28 +120,28 @@ type ClusterNode struct {
 	Conditions []NodeCondition `json:"conditions"`
 }
 
-func (n *ClusterNode) String() string {
+func (n *HostNode) String() string {
 	return "node[" + n.ID + "] pid[" + n.PID + "]"
 }
 
 //Put 节点更新
-func (n *ClusterNode) Put(opts ...client.OpOption) (*client.PutResponse, error) {
+func (n *HostNode) Put(opts ...client.OpOption) (*client.PutResponse, error) {
 	return store.DefalutClient.Put(conf.Config.Node+n.ID, n.PID, opts...)
 }
 
 //PutMaster 注册管理节点
-func (n *ClusterNode) PutMaster(opts ...client.OpOption) (*client.PutResponse, error) {
+func (n *HostNode) PutMaster(opts ...client.OpOption) (*client.PutResponse, error) {
 	return store.DefalutClient.Put(conf.Config.Master+n.ID, n.PID, opts...)
 }
 
 //Del 删除
-func (n *ClusterNode) Del() (*client.DeleteResponse, error) {
+func (n *HostNode) Del() (*client.DeleteResponse, error) {
 	return store.DefalutClient.Delete(conf.Config.Node + n.ID)
 }
 
 // Exist 判断 node 是否已注册到 etcd
 // 存在则返回进行 pid，不存在返回 -1
-func (n *ClusterNode) Exist() (pid int, err error) {
+func (n *HostNode) Exist() (pid int, err error) {
 	resp, err := store.DefalutClient.Get(conf.Config.Node + n.ID)
 	if err != nil {
 		return
@@ -157,12 +172,12 @@ func (n *ClusterNode) Exist() (pid int, err error) {
 }
 
 //GetNodes 获取节点
-func GetNodes() (nodes []*ClusterNode, err error) {
+func GetNodes() (nodes []*HostNode, err error) {
 	return nil, nil
 }
 
 // Down 节点下线
-func (n *ClusterNode) Down() {
+func (n *HostNode) Down() {
 	n.Alived, n.DownTime = false, time.Now()
 	//if err := mgoDB.Upsert(Coll_Node, bson.M{"_id": n.ID}, n); err != nil {
 	//	logrus.Errorf(err.Error())

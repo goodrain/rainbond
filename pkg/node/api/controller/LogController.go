@@ -1,51 +1,28 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package controller
 
-import (
-	"github.com/goodrain/rainbond/pkg/node/core"
-
-	"net/http"
-
-	"github.com/go-chi/chi"
-)
+import "net/http"
 
 func GetAllJobLog(w http.ResponseWriter, r *http.Request) {
-	list,count,err:=core.GetJobLogList()
-	if err!=nil {
 
-	}
-	a:=struct {
-		List []*core.JobLog
-		Count int
-	}{}
-	a.Count=count
-	a.List=list
-	outJSON(w,a)
 }
 func GetLogById(w http.ResponseWriter, r *http.Request) {
-	id:=chi.URLParam(r,"id")
-	log,err:=core.GetJobLogById(id)
-	if err != nil {
 
-	}
-	outJSON(w,log)
 }
-

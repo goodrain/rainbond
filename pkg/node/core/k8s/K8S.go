@@ -1,28 +1,24 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package k8s
 
 import (
-	conf "github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/pkg/node/api/model"
-	"github.com/goodrain/rainbond/pkg/node/core/store"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,6 +26,10 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	conf "github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/pkg/node/api/model"
+	"github.com/goodrain/rainbond/pkg/node/core/store"
 
 	"github.com/Sirupsen/logrus"
 	v3 "github.com/coreos/etcd/clientv3"
@@ -675,9 +675,8 @@ func CreateK8sNode(node *model.HostNode) (*v1.Node, error) {
 		Address: node.ExternalIP,
 	}
 	k8sNode := &v1.Node{
-
 		ObjectMeta: metav1.ObjectMeta{
-			UID:    types.UID(node.UUID), //todo 不知道create的时候用不用这个
+			UID:    types.UID(node.ID), //todo 不知道create的时候用不用这个
 			Name:   node.HostName,
 			Labels: node.Labels,
 		},
