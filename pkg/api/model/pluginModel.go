@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -181,6 +180,10 @@ type PluginDefaultENV struct {
 	//in: path
 	//required: true
 	ENVValue string `json:"env_value" validate:"env_value"`
+	//是否可以被使用者修改
+	//in :path
+	//required: false
+	Change bool `json:"change" validate:"change|bool"`
 }
 
 //BuildPluginStruct BuildPluginStruct
@@ -277,6 +280,10 @@ type PluginSetStruct struct {
 		// in: body
 		// required: true
 		VersionID string `json:"version_id" validate:"version_id"`
+		// 开关
+		// in: body
+		//required: false
+		Switch bool `json:"switch" validate:"switch|bool"`
 	}
 }
 
@@ -301,6 +308,17 @@ type DeletePluginSetStruct struct {
 	// required: true
 	ServiceAlias string `json:"service_alias"`
 	// 插件id
+	// in: path
+	// required: true
+	PluginID string `json:"plugin_id"`
+}
+
+//GetPluginEnvStruct GetPluginEnvStruct
+//swagger:parameters getPluginEnv
+type GetPluginEnvStruct struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
 	// in: path
 	// required: true
 	PluginID string `json:"plugin_id"`

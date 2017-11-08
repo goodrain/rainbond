@@ -89,6 +89,7 @@ func (p *PluginAction) CreatePluginAct(cps *api_model.CreatePluginStruct) *util.
 			PluginID: cps.Body.PluginID,
 			ENVName:  env.ENVName,
 			ENVValue: env.ENVValue,
+			Change:   env.Change,
 		}
 		err := db.GetManager().TenantPluginDefaultENVDaoTransactions(tx).AddModel(vis)
 		if err != nil {
@@ -147,6 +148,15 @@ func (p *PluginAction) DeletePluginAct(pluginID string) *util.APIHandleError {
 	return nil
 }
 
+//GetPlugins 获取当前租户下所有的plugins
+func (p *PluginAction) GetPlugins(tenantID string) ([]*dbmodel.TenantPlugin, *util.APIHandleError) {
+	plugins, err := db.GetManager().TenantPluginDao().GetPluginsByTenantID(tenantID)
+	if err != nil {
+		return nil, util.CreateAPIHandleErrorFromDBError("get plugins by tenant id", err)
+	}
+	return plugins, nil
+}
+
 //AddDefaultEnv AddDefaultEnv
 func (p *PluginAction) AddDefaultEnv(est *api_model.ENVStruct) *util.APIHandleError {
 	tx := db.GetManager().Begin()
@@ -155,6 +165,7 @@ func (p *PluginAction) AddDefaultEnv(est *api_model.ENVStruct) *util.APIHandleEr
 			PluginID: est.PluginID,
 			ENVName:  env.ENVName,
 			ENVValue: env.ENVValue,
+			Change:   env.Change,
 		}
 		err := db.GetManager().TenantPluginDefaultENVDaoTransactions(tx).AddModel(vis)
 		if err != nil {
@@ -175,6 +186,7 @@ func (p *PluginAction) UpdateDefaultEnv(est *api_model.ENVStruct) *util.APIHandl
 		vis := &dbmodel.TenantPluginDefaultENV{
 			ENVName:  env.ENVName,
 			ENVValue: env.ENVValue,
+			Change:   env.Change,
 		}
 		err := db.GetManager().TenantPluginDefaultENVDao().UpdateModel(vis)
 		if err != nil {
@@ -190,6 +202,15 @@ func (p *PluginAction) DeleteDefaultEnv(name string) *util.APIHandleError {
 		return util.CreateAPIHandleErrorFromDBError(fmt.Sprintf("delete default env %s", name), err)
 	}
 	return nil
+}
+
+//GetDefaultEnvWhichCanBeSet GetDefaultEnvWhichCanBeSet
+func (p *PluginAction) GetDefaultEnvWhichCanBeSet(pluginID string) ([]*dbmodel.TenantPluginDefaultENV, *util.APIHandleError) {
+	envs, err := db.GetManager().TenantPluginDefaultENVDao().GetDefaultEnvWhichCanBeSetByPluginID(pluginID)
+	if err != nil {
+		return nil, util.CreateAPIHandleErrorFromDBError("get default env", err)
+	}
+	return envs, nil
 }
 
 //BuildPluginManual BuildPluginManual

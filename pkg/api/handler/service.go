@@ -1414,8 +1414,8 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	return nil
 }
 
-//TenantServicePluginSet TenantServicePluginSet
-func (s *ServiceAction) TenantServicePluginSet(serviceID string) ([]*dbmodel.TenantServicePluginRelation, *util.APIHandleError) {
+//GetTenantServicePluginRelation GetTenantServicePluginRelation
+func (s *ServiceAction) GetTenantServicePluginRelation(serviceID string) ([]*dbmodel.TenantServicePluginRelation, *util.APIHandleError) {
 	gps, err := db.GetManager().TenantServicePluginRelationDao().GetALLRelationByServiceID(serviceID)
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("get service relation by ID", err)
@@ -1437,6 +1437,33 @@ func (s *ServiceAction) TenantServiceDeletePluginRelation(serviceID, pluginID st
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return util.CreateAPIHandleErrorFromDBError("commit delete err", err)
+	}
+	return nil
+}
+
+//SetTenantServicePluginRelation SetTenantServicePluginRelation
+func (s *ServiceAction) SetTenantServicePluginRelation(serviceID string, pss *api_model.PluginSetStruct) *util.APIHandleError {
+	relation := &dbmodel.TenantServicePluginRelation{
+		VersionID: pss.Body.VersionID,
+		ServiceID: serviceID,
+		PluginID:  pss.Body.PluginID,
+	}
+	if err := db.GetManager().TenantServicePluginRelationDao().AddModel(relation); err != nil {
+		return util.CreateAPIHandleErrorFromDBError("set service plugin relation", err)
+	}
+	return nil
+}
+
+//UpdateTenantServicePluginRelation UpdateTenantServicePluginRelation
+func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss *api_model.PluginSetStruct) *util.APIHandleError {
+	relation, err := db.GetManager().TenantServicePluginRelationDao().GetRelateionByServiceIDAndPluginID(serviceID, pss.Body.PluginID)
+	if err != nil {
+		return util.CreateAPIHandleErrorFromDBError("get relation by serviceid and pluginid", err)
+	}
+	relation.VersionID = pss.Body.VersionID
+	err = db.GetManager().TenantServicePluginRelationDao().UpdateModel(relation)
+	if err != nil {
+		return util.CreateAPIHandleErrorFromDBError("update relation between plugin and service", err)
 	}
 	return nil
 }

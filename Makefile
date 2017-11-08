@@ -9,8 +9,11 @@ build-worker:
 clean:
 	@rm -rf ./build/mq/${BASE_NAME}_mq
 	@rm -rf ./build/worker/${BASE_NAME}_worker
+	@rm -rf ./build/api/${BASE_NAME}_api
 build-in-container:
 	@docker run -v `pwd`:/go/src/${BASE_NAME}_worker -w /go/src/${BASE_NAME}_worker -it golang:1.7.3 bash
+run-api:build-api
+	./build/api/${BASE_NAME}_api --log-level=debug --mysql="admin:admin@tcp(127.0.0.1:3306)/region" --kube-config="`PWD`/admin.kubeconfig"
 run-mq:build-mq
 	./build/mq/${BASE_NAME}_mq --log-level=debug
 run-worker:build-worker
@@ -29,7 +32,10 @@ run-eventlog:build-eventlog
 	 --message.dockerlog.handle.core.number=2 \
 	 --message.garbage.file="/tmp/garbage.log" \
 	 --docker.log.homepath="/Users/qingguo/tmp"
-    
+
+doc:
+	@cd cmd/api && swagger generate spec -o ../../build/api/html/swagger.json
+
 build-builder:
 	go build ${GO_LDFLAGS} -o ./build/builder/${BASE_NAME}_builder ./cmd/builder
 build-mqcli:
