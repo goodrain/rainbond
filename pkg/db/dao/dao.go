@@ -94,6 +94,8 @@ type TenantPluginDao interface {
 type TenantPluginDefaultENVDao interface {
 	Dao
 	GetDefaultENVByName(ENVName string) (*model.TenantPluginDefaultENV, error)
+	GetDefaultENVSByPluginID(pluginID string) ([]*model.TenantPluginDefaultENV, error)
+	GetDefaultENVSByPluginIDCantBeSet(pluginID string) ([]*model.TenantPluginDefaultENV, error)
 	DeleteDefaultENVByName(ENVName string) error
 	DeleteAllDefaultENVByPluginID(PluginID string) error
 	GetDefaultEnvWhichCanBeSetByPluginID(pluginID string) ([]*model.TenantPluginDefaultENV, error)

@@ -205,6 +205,14 @@ type BuildPluginStruct struct {
 		// in: body
 		// required: true
 		Kind string `json:"kind" validate:"kind|required"`
+		// 插件CPU权重, 默认500
+		// in: body
+		// required: false
+		PluginCPU int `json:"plugin_cpu" validate:"plugin_cpu"`
+		// 插件最大内存, 默认128
+		// in: body
+		// required: false
+		PluginMemory int `json:"plugin_memory" validate:"plugin_memory"`
 		// 镜像地址
 		// in: body
 		// required: false
