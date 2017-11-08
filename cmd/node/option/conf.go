@@ -84,8 +84,7 @@ type Conf struct {
 	Noticer             string // 通知
 	EventLogServer      []string
 	ExecutionRecordPath string
-	ConfigPath          string
-	ConfigStorage       string
+	ConfigStoragePath   string
 	K8SNode             string
 	BuildIn             string
 	BuildInExec         string
@@ -107,9 +106,6 @@ type Conf struct {
 	LockTTL int64
 
 	Etcd client.Config
-	//Mail *MailConf
-	//
-	//Security *Security
 }
 
 //AddFlags AddFlags
@@ -125,8 +121,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.BuildIn, "build-in-jobs", "/store/buildin/", "the path of build-in job")
 	fs.StringVar(&a.CompJobStatus, "jobStatus", "/store/jobStatus/", "the path of tree node install status")
 	fs.StringVar(&a.BuildInExec, "build-in-exec", "/acp_node/exec_buildin/", "the path of build-in job to watch")
-	fs.StringVar(&a.ConfigPath, "configPath", "/acp_node/config/", "the path of config to store")
-	fs.StringVar(&a.ConfigStorage, "ConfigStorage", "/acp_node/acp_configs/", "the path of config to store(new)")
+	fs.StringVar(&a.ConfigStoragePath, "config-path", "/acp_node/acp_configs", "the path of config to store(new)")
 	fs.StringVar(&a.InitStatus, "init-status", "/acp_node/init_status/", "the path of init status to store")
 	fs.StringVar(&a.Service, "servicePath", "/traefik/backends", "the path of service info to store")
 	fs.StringVar(&a.Cmd, "cmdPath", "/acp_node/cmd/", "the path of cmd in etcd")

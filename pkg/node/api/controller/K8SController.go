@@ -150,48 +150,48 @@ func LoginCompute(w http.ResponseWriter, r *http.Request) {
 	}
 	//k8s.AddSource(conf.Config.K8SNode+node.UUID, node)
 	b, _ := json.Marshal(loginInfo)
-	store.DefalutClient.Put(conf.Config.ConfigPath+"login/"+strings.Split(loginInfo.HostPort, ":")[0], string(b))
+	store.DefalutClient.Put(conf.Config.ConfigStoragePath+"login/"+strings.Split(loginInfo.HostPort, ":")[0], string(b))
 
 	api.ReturnSuccess(r, w, result)
 }
 func newComputeNodeToInstall(node string) (*job.JobList, error) {
 
 	//这里改成所有
-	jobs, err := job.GetBuildinJobs() //状态为未安装
-	if err != nil {
-		return nil, err
-	}
-	logrus.Infof("added new node %s to jobs", node)
-	err = job.AddNewNodeToJobs(jobs, node)
-	if err != nil {
-		return nil, err
-	}
+	// jobs, err := job.GetBuildinJobs() //状态为未安装
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// logrus.Infof("added new node %s to jobs", node)
+	// err = job.AddNewNodeToJobs(jobs, node)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	return nil, nil
 }
 func NodeInit(w http.ResponseWriter, r *http.Request) {
-	nodeIP := strings.TrimSpace(chi.URLParam(r, "ip"))
-	logrus.Infof("init node whose ip is %s", nodeIP)
-	loginInfo := new(model.Login)
-	resp, err := store.DefalutClient.Get(conf.Config.ConfigPath + "login/" + nodeIP)
-	if err != nil {
-		logrus.Errorf("prepare stage  failed,get login info failed,details %s", err.Error())
-		api.ReturnError(r, w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if resp.Count > 0 {
-		err := json.Unmarshal(resp.Kvs[0].Value, loginInfo)
-		if err != nil {
-			logrus.Errorf("decode request failed,details %s", err.Error())
-			api.ReturnError(r, w, http.StatusBadRequest, err.Error())
-			return
-		}
-	} else {
-		logrus.Errorf("prepare stage failed,get login info failed,details %s", err.Error())
-		api.ReturnError(r, w, http.StatusBadRequest, err.Error())
-		return
-	}
-	logrus.Infof("starting new goruntine to init")
-	go asyncInit(loginInfo, nodeIP)
+	// nodeIP := strings.TrimSpace(chi.URLParam(r, "ip"))
+	// logrus.Infof("init node whose ip is %s", nodeIP)
+	// loginInfo := new(model.Login)
+	// resp, err := store.DefalutClient.Get(conf.Config.ConfigPath + "login/" + nodeIP)
+	// if err != nil {
+	// 	logrus.Errorf("prepare stage  failed,get login info failed,details %s", err.Error())
+	// 	api.ReturnError(r, w, http.StatusBadRequest, err.Error())
+	// 	return
+	// }
+	// if resp.Count > 0 {
+	// 	err := json.Unmarshal(resp.Kvs[0].Value, loginInfo)
+	// 	if err != nil {
+	// 		logrus.Errorf("decode request failed,details %s", err.Error())
+	// 		api.ReturnError(r, w, http.StatusBadRequest, err.Error())
+	// 		return
+	// 	}
+	// } else {
+	// 	logrus.Errorf("prepare stage failed,get login info failed,details %s", err.Error())
+	// 	api.ReturnError(r, w, http.StatusBadRequest, err.Error())
+	// 	return
+	// }
+	// logrus.Infof("starting new goruntine to init")
+	// go asyncInit(loginInfo, nodeIP)
 
 	api.ReturnSuccess(r, w, nil)
 }
@@ -230,19 +230,19 @@ type InitStatus struct {
 
 func asyncInit(login *model.Login, nodeIp string) {
 	//save initing to etcd
-	store.DefalutClient.Put(conf.Config.InitStatus+nodeIp, "initing")
-	logrus.Infof("changing init stauts to initing ")
-	_, err := job.PrepareState(login)
-	if err != nil {
-		logrus.Errorf("async prepare stage failed,details %s", err.Error())
-		//save error to etcd
-		store.DefalutClient.Put(conf.Config.InitStatus+nodeIp, "failed|"+err.Error())
+	// store.DefalutClient.Put(conf.Config.InitStatus+nodeIp, "initing")
+	// logrus.Infof("changing init stauts to initing ")
+	// _, err := job.PrepareState(login)
+	// if err != nil {
+	// 	logrus.Errorf("async prepare stage failed,details %s", err.Error())
+	// 	//save error to etcd
+	// 	store.DefalutClient.Put(conf.Config.InitStatus+nodeIp, "failed|"+err.Error())
 
-		//api.ReturnError(r,w,http.StatusBadRequest,err.Error())
-		return
-	}
-	//save init success to etcd
-	logrus.Infof("changing init stauts to success ")
+	// 	//api.ReturnError(r,w,http.StatusBadRequest,err.Error())
+	// 	return
+	// }
+	// //save init success to etcd
+	// logrus.Infof("changing init stauts to success ")
 	store.DefalutClient.Put(conf.Config.InitStatus+nodeIp, "success")
 }
 func CheckJobGetStatus(w http.ResponseWriter, r *http.Request) {

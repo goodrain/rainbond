@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -63,6 +64,8 @@ type Job struct {
 	Name    string     `json:"name"`
 	Group   string     `json:"group"`
 	Command string     `json:"cmd"`
+	Stdin   string     `json:"stdin"`
+	Envs    []string   `json:"envs"`
 	User    string     `json:"user"`
 	Rules   []*JobRule `json:"rules"`
 	Pause   bool       `json:"pause"`   // 可手工控制的状态
@@ -473,7 +476,12 @@ func (j *Job) Run(nid string) bool {
 	start := time.Now()
 	cmd = exec.Command(j.cmd[0], j.cmd[1:]...)
 	cmd.SysProcAttr = sysProcAttr
-
+	//注入环境变量
+	cmd.Env = append(os.Environ(), j.Envs...)
+	//注入标准输入
+	if j.Stdin != "" {
+		cmd.Stdin = bytes.NewBuffer([]byte(j.Stdin))
+	}
 	//从执行任务的标准输出获取日志，错误输出获取最终结果
 	stderr, _ := cmd.StdoutPipe()
 	var b bytes.Buffer

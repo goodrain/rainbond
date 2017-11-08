@@ -16,9 +16,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package server
+package masterserver
 
-import "github.com/goodrain/rainbond/pkg/node/core/job"
+import (
+	"github.com/goodrain/rainbond/pkg/node/api/model"
+	"github.com/goodrain/rainbond/pkg/node/core/store"
+)
 
-//Jobs jobs
-type Jobs map[string]*job.Job
+//MasterServer 主节点服务
+type MasterServer struct {
+	*store.Client
+	*model.HostNode
+}

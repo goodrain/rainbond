@@ -21,7 +21,6 @@ package job
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"net/http"
 	"os/exec"
@@ -33,11 +32,9 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
-	"github.com/goodrain/rainbond/pkg/util"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 //TODO:
@@ -46,201 +43,201 @@ var (
 	CanRunJob chan string
 )
 
-func PrepareState(loginInfo *model.Login) (*JobList, error) {
-	cli, err := UnifiedLogin(loginInfo)
-	if err != nil {
-		logrus.Errorf("login to target host failed,details %s", err.Error())
-		return nil, err
-	}
+// func PrepareState(loginInfo *model.Login) (*JobList, error) {
+// 	cli, err := UnifiedLogin(loginInfo)
+// 	if err != nil {
+// 		logrus.Errorf("login to target host failed,details %s", err.Error())
+// 		return nil, err
+// 	}
 
-	resp, err := store.DefalutClient.Get(conf.Config.ConfigPath, clientv3.WithPrefix())
-	if err != nil {
-		logrus.Errorf("get acp_config from etcd failed,details %s", err.Error())
-		return nil, err
-	}
-	netStatus := "online"
-	for _, v := range resp.Kvs {
-		logrus.Infof("get net state from db,now is %s", v.Key)
-		if string(v.Key) == "netStatus" {
-			netStatus = string(v.Value)
-			break
-		}
-	}
-	toInstall := ""
-	if netStatus == "online" {
-		sess, err := cli.NewSession()
-		if err != nil {
-			logrus.Errorf("get remote host ssh session failed,details %s", err.Error())
-			return nil, err
-		}
-		buf := bytes.NewBuffer(nil)
-		cmd := "bash -c   \"$(curl -s repo.goodrain.com/node_actions/compute/prepare/check.sh)\""
+// 	resp, err := store.DefalutClient.Get(conf.Config.ConfigPath, clientv3.WithPrefix())
+// 	if err != nil {
+// 		logrus.Errorf("get acp_config from etcd failed,details %s", err.Error())
+// 		return nil, err
+// 	}
+// 	netStatus := "online"
+// 	for _, v := range resp.Kvs {
+// 		logrus.Infof("get net state from db,now is %s", v.Key)
+// 		if string(v.Key) == "netStatus" {
+// 			netStatus = string(v.Value)
+// 			break
+// 		}
+// 	}
+// 	toInstall := ""
+// 	if netStatus == "online" {
+// 		sess, err := cli.NewSession()
+// 		if err != nil {
+// 			logrus.Errorf("get remote host ssh session failed,details %s", err.Error())
+// 			return nil, err
+// 		}
+// 		buf := bytes.NewBuffer(nil)
+// 		cmd := "bash -c   \"$(curl -s repo.goodrain.com/node_actions/compute/prepare/check.sh)\""
 
-		sess.Stdout = buf
-		logrus.Infof("prepare run check installation cmd ,details %s", cmd)
-		err = sess.Run(cmd)
-		sess.Close()
-		if err != nil {
-			logrus.Errorf("run command %s on host ssh session failed,details %s", cmd, err.Error())
-			return nil, err
-		}
-		logrus.Infof("check result is %s", buf)
-		n := strings.Split(buf.String(), "\n")[0]
-		infos := strings.Split(n, ":")
-		system := infos[0]
-		host := loginInfo.HostPort[0:len(loginInfo.HostPort)]
+// 		sess.Stdout = buf
+// 		logrus.Infof("prepare run check installation cmd ,details %s", cmd)
+// 		err = sess.Run(cmd)
+// 		sess.Close()
+// 		if err != nil {
+// 			logrus.Errorf("run command %s on host ssh session failed,details %s", cmd, err.Error())
+// 			return nil, err
+// 		}
+// 		logrus.Infof("check result is %s", buf)
+// 		n := strings.Split(buf.String(), "\n")[0]
+// 		infos := strings.Split(n, ":")
+// 		system := infos[0]
+// 		host := loginInfo.HostPort[0:len(loginInfo.HostPort)]
 
-		err = UpdateMultiConfig(SYSTEM, host, system)
-		if err != nil {
-			logrus.Warnf("update config %s to %s failed,details %s", SYSTEM, system, err.Error())
-		}
-		toInstall = infos[1]
+// 		err = UpdateMultiConfig(SYSTEM, host, system)
+// 		if err != nil {
+// 			logrus.Warnf("update config %s to %s failed,details %s", SYSTEM, system, err.Error())
+// 		}
+// 		toInstall = infos[1]
 
-		inited := inited(toInstall)
-		logrus.Infof("target system is %s ,is this system inited result is %v,needed component is %v", system, inited, toInstall)
-		if !inited {
-			//执行init
-			buf := bytes.NewBuffer(nil)
-			mip, err := GetMIp()
-			if err != nil {
-				logrus.Errorf("error get master ip,details %s", err.Error())
-				return nil, err
-			}
-			//mip:="10.0.55.72"
-			cmd := "bash -c \"set " + system + " " + GetInstallTypeOrDefault() + " " + GetRepoVersionOrDefault() + " " + mip + ";$(curl -s repo.goodrain.com/node_actions/compute/init/init_compute.sh)\""
-			//cmd := "bash -c \"set "+system+" "+"default"+" " +"3.4"+" "+mip+";$(curl -s repo.goodrain.com/node_actions/compute/init/init_compute.sh)\""
+// 		inited := inited(toInstall)
+// 		logrus.Infof("target system is %s ,is this system inited result is %v,needed component is %v", system, inited, toInstall)
+// 		if !inited {
+// 			//执行init
+// 			buf := bytes.NewBuffer(nil)
+// 			mip, err := GetMIp()
+// 			if err != nil {
+// 				logrus.Errorf("error get master ip,details %s", err.Error())
+// 				return nil, err
+// 			}
+// 			//mip:="10.0.55.72"
+// 			cmd := "bash -c \"set " + system + " " + GetInstallTypeOrDefault() + " " + GetRepoVersionOrDefault() + " " + mip + ";$(curl -s repo.goodrain.com/node_actions/compute/init/init_compute.sh)\""
+// 			//cmd := "bash -c \"set "+system+" "+"default"+" " +"3.4"+" "+mip+";$(curl -s repo.goodrain.com/node_actions/compute/init/init_compute.sh)\""
 
-			logrus.Infof("executing init cmd,details %s", cmd)
-			sess, err := cli.NewSession()
-			if err != nil {
-				logrus.Errorf("get remote host ssh session failed,details %s", err.Error())
-				return nil, err
-			}
-			sess.Stdout = buf
-			err = sess.Run(cmd)
-			sess.Close()
-			if err != nil {
-				logrus.Errorf("run init script, run command %s on host ssh session failed,details %s", cmd, err.Error())
-				return nil, err
-			}
-		}
-		etcd, err := GetETCDIp()
-		if err != nil {
-			logrus.Errorf("err get etcd ip args,details %s", err.Error())
-			return nil, err
-		}
-		cmd = "bash -c \"set " + system + " " + etcd + ";$(curl -s repo.goodrain.com/node_actions/compute/acp_node/acp_node.sh)\""
-		logrus.Infof("installing acp_node, using cmd : %s", cmd)
-		sess, err = cli.NewSession()
-		bufACP := bytes.NewBuffer(nil)
-		sess.Stdout = bufACP
-		err = sess.Run(cmd)
-		if err != nil {
-			logrus.Errorf("install acp_node, run command %s on host ssh session failed,details %s", cmd, err.Error())
-			return nil, err
-		}
-		logrus.Infof("install acp_node stdout is %s", bufACP.String())
-		sess.Close()
-		logrus.Infof("在线安装acp_node成功")
-	} else {
-		sess, err := cli.NewSession()
-		if err != nil {
-			logrus.Errorf("get remote host ssh session failed,details %s", err.Error())
-			return nil, err
-		}
-		buf := bytes.NewBuffer(nil)
-		cmd := "bash /usr/local/acp-node/compute/prepare/check.sh"
-		sess.Stdout = buf
-		logrus.Infof("prepare run check installation cmd ,details %s", cmd)
-		err = sess.Run(cmd)
-		if err != nil {
-			logrus.Errorf("run command %s on host ssh session failed,details %s", cmd, err.Error())
-			return nil, err
-		}
-		sess.Close()
-		logrus.Infof("check result is %s", buf)
-		infos := strings.Split(buf.String(), ":")
-		system := infos[0]
-		toInstall = infos[1]
-		host := loginInfo.HostPort[0:len(loginInfo.HostPort)]
-		//记录主机系统
-		err = UpdateMultiConfig(SYSTEM, host, system)
-		inited := inited(toInstall)
-		logrus.Infof("target system is %s ,is this system inited result is %v,needed component is %v", system, inited, toInstall)
-		if inited {
-			//执行init
-			mip, err := GetMIp()
-			if err != nil {
-				logrus.Errorf("error get master ip,details %s", err.Error())
-				return nil, err
-			}
-			cmd = "bash /usr/local/acp-node/compute/init/init_compute.sh " + system + " " + GetInstallTypeOrDefault() + " " + GetRepoVersionOrDefault() + " " + mip
-			logrus.Infof("locally executing init cmd,details %s", cmd)
-			sess, err := cli.NewSession()
-			if err != nil {
-				logrus.Errorf("get remote host ssh session failed,details %s", err.Error())
-				return nil, err
-			}
+// 			logrus.Infof("executing init cmd,details %s", cmd)
+// 			sess, err := cli.NewSession()
+// 			if err != nil {
+// 				logrus.Errorf("get remote host ssh session failed,details %s", err.Error())
+// 				return nil, err
+// 			}
+// 			sess.Stdout = buf
+// 			err = sess.Run(cmd)
+// 			sess.Close()
+// 			if err != nil {
+// 				logrus.Errorf("run init script, run command %s on host ssh session failed,details %s", cmd, err.Error())
+// 				return nil, err
+// 			}
+// 		}
+// 		etcd, err := GetETCDIp()
+// 		if err != nil {
+// 			logrus.Errorf("err get etcd ip args,details %s", err.Error())
+// 			return nil, err
+// 		}
+// 		cmd = "bash -c \"set " + system + " " + etcd + ";$(curl -s repo.goodrain.com/node_actions/compute/acp_node/acp_node.sh)\""
+// 		logrus.Infof("installing acp_node, using cmd : %s", cmd)
+// 		sess, err = cli.NewSession()
+// 		bufACP := bytes.NewBuffer(nil)
+// 		sess.Stdout = bufACP
+// 		err = sess.Run(cmd)
+// 		if err != nil {
+// 			logrus.Errorf("install acp_node, run command %s on host ssh session failed,details %s", cmd, err.Error())
+// 			return nil, err
+// 		}
+// 		logrus.Infof("install acp_node stdout is %s", bufACP.String())
+// 		sess.Close()
+// 		logrus.Infof("在线安装acp_node成功")
+// 	} else {
+// 		sess, err := cli.NewSession()
+// 		if err != nil {
+// 			logrus.Errorf("get remote host ssh session failed,details %s", err.Error())
+// 			return nil, err
+// 		}
+// 		buf := bytes.NewBuffer(nil)
+// 		cmd := "bash /usr/local/acp-node/compute/prepare/check.sh"
+// 		sess.Stdout = buf
+// 		logrus.Infof("prepare run check installation cmd ,details %s", cmd)
+// 		err = sess.Run(cmd)
+// 		if err != nil {
+// 			logrus.Errorf("run command %s on host ssh session failed,details %s", cmd, err.Error())
+// 			return nil, err
+// 		}
+// 		sess.Close()
+// 		logrus.Infof("check result is %s", buf)
+// 		infos := strings.Split(buf.String(), ":")
+// 		system := infos[0]
+// 		toInstall = infos[1]
+// 		host := loginInfo.HostPort[0:len(loginInfo.HostPort)]
+// 		//记录主机系统
+// 		err = UpdateMultiConfig(SYSTEM, host, system)
+// 		inited := inited(toInstall)
+// 		logrus.Infof("target system is %s ,is this system inited result is %v,needed component is %v", system, inited, toInstall)
+// 		if inited {
+// 			//执行init
+// 			mip, err := GetMIp()
+// 			if err != nil {
+// 				logrus.Errorf("error get master ip,details %s", err.Error())
+// 				return nil, err
+// 			}
+// 			cmd = "bash /usr/local/acp-node/compute/init/init_compute.sh " + system + " " + GetInstallTypeOrDefault() + " " + GetRepoVersionOrDefault() + " " + mip
+// 			logrus.Infof("locally executing init cmd,details %s", cmd)
+// 			sess, err := cli.NewSession()
+// 			if err != nil {
+// 				logrus.Errorf("get remote host ssh session failed,details %s", err.Error())
+// 				return nil, err
+// 			}
 
-			err = sess.Run(cmd)
-			sess.Close()
-			if err != nil {
-				logrus.Errorf("run command %s on host ssh session failed,details %s", cmd, err.Error())
-				return nil, err
-			}
-		}
-		etcd, err := GetETCDIp()
-		if err != nil {
-			logrus.Errorf("err get etcd ip args,details %s", err.Error())
-			return nil, err
-		}
-		cmd = "bash /usr/local/acp-node/compute/acp_node/acp_node.sh " + system + " " + etcd
-		logrus.Infof("installing acp_node,using command %s", cmd)
-		sess, err = cli.NewSession()
-		err = sess.Run(cmd)
-		if err != nil {
-			logrus.Errorf("run command %s on host ssh session failed,details %s", cmd, err.Error())
-			return nil, err
-		}
-		sess.Close()
-		logrus.Infof("离线安装acp_node成功")
-	}
+// 			err = sess.Run(cmd)
+// 			sess.Close()
+// 			if err != nil {
+// 				logrus.Errorf("run command %s on host ssh session failed,details %s", cmd, err.Error())
+// 				return nil, err
+// 			}
+// 		}
+// 		etcd, err := GetETCDIp()
+// 		if err != nil {
+// 			logrus.Errorf("err get etcd ip args,details %s", err.Error())
+// 			return nil, err
+// 		}
+// 		cmd = "bash /usr/local/acp-node/compute/acp_node/acp_node.sh " + system + " " + etcd
+// 		logrus.Infof("installing acp_node,using command %s", cmd)
+// 		sess, err = cli.NewSession()
+// 		err = sess.Run(cmd)
+// 		if err != nil {
+// 			logrus.Errorf("run command %s on host ssh session failed,details %s", cmd, err.Error())
+// 			return nil, err
+// 		}
+// 		sess.Close()
+// 		logrus.Infof("离线安装acp_node成功")
+// 	}
 
-	host := strings.Split(loginInfo.HostPort, ":")[0]
+// 	host := strings.Split(loginInfo.HostPort, ":")[0]
 
-	toInstall = strings.Replace(toInstall, "\n", "", -1)
-	toInstalls := strings.Split(toInstall, " ")
-	eventId := util.NewUUID()
-	logrus.Infof("need to install component :%v", toInstalls)
-	//todo 注册需要安装的组件 初始状态注册到etcd中 done
-	//todo 此处需要获取在线／离线 done
-	jobs, err := GetBuildinJobs()
-	for _, v := range jobs {
-		v.JobSEQ = eventId
-	}
+// 	toInstall = strings.Replace(toInstall, "\n", "", -1)
+// 	toInstalls := strings.Split(toInstall, " ")
+// 	eventId := util.NewUUID()
+// 	logrus.Infof("need to install component :%v", toInstalls)
+// 	//todo 注册需要安装的组件 初始状态注册到etcd中 done
+// 	//todo 此处需要获取在线／离线 done
+// 	jobs, err := GetBuildinJobs()
+// 	for _, v := range jobs {
+// 		v.JobSEQ = eventId
+// 	}
 
-	if err != nil {
-		return nil, err
-	}
-	//注册需要运行的job
-	err = UpdateNodeJobStatus(host, filterNeededJobs(jobs, netStatus, toInstalls))
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	//注册需要运行的job
+// 	err = UpdateNodeJobStatus(host, filterNeededJobs(jobs, netStatus, toInstalls))
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	jl, err := GetBuildInJobWithStatusForNode(toInstalls, host)
-	if err != nil {
-		logrus.Warnf("error get build-in jobs for node %s ,details: %s", host, err.Error())
-		return nil, err
-	}
-	jl.SEQ = eventId
-	_, err = store.DefalutClient.Put(conf.Config.ConfigPath+"result_log/"+host, jl.SEQ)
-	if err != nil {
-		logrus.Warnf("can't set job's total done event id,details:%s", err.Error())
-	}
-	logrus.Infof("prepare return job list status ,details:%v", jl)
-	return jl, nil
-}
+// 	jl, err := GetBuildInJobWithStatusForNode(toInstalls, host)
+// 	if err != nil {
+// 		logrus.Warnf("error get build-in jobs for node %s ,details: %s", host, err.Error())
+// 		return nil, err
+// 	}
+// 	jl.SEQ = eventId
+// 	_, err = store.DefalutClient.Put(conf.Config.ConfigPath+"result_log/"+host, jl.SEQ)
+// 	if err != nil {
+// 		logrus.Warnf("can't set job's total done event id,details:%s", err.Error())
+// 	}
+// 	logrus.Infof("prepare return job list status ,details:%v", jl)
+// 	return jl, nil
+// }
 func inited(toInstall string) bool {
 	inited := true
 	toInstalls := strings.Split(toInstall, " ")
@@ -611,169 +608,170 @@ func addToNet(node string) error {
 	return nil
 }
 func GetLoginInfoByNode(node string) (*model.Login, error) {
-	resp, err := store.DefalutClient.Get(conf.Config.ConfigPath + "login/" + node)
-	if err != nil {
-		logrus.Errorf("error get response by key %s", conf.Config.ConfigPath+"login/"+node)
-		return nil, err
-	}
-	if resp.Count <= 0 {
-		return nil, errors.New("get nothing from etcd")
-	}
-	v := resp.Kvs[0].Value
-	result := &model.Login{}
-	err = json.Unmarshal(v, result)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	// resp, err := store.DefalutClient.Get(conf.Config.ConfigPath + "login/" + node)
+	// if err != nil {
+	// 	logrus.Errorf("error get response by key %s", conf.Config.ConfigPath+"login/"+node)
+	// 	return nil, err
+	// }
+	// if resp.Count <= 0 {
+	// 	return nil, errors.New("get nothing from etcd")
+	// }
+	// v := resp.Kvs[0].Value
+	// result := &model.Login{}
+	// err = json.Unmarshal(v, result)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	return nil, nil
 }
 func getNetWorkArgs(loginInfo *model.Login) ([]string, error) {
 
-	cli, err := UnifiedLogin(loginInfo)
-	if err != nil {
-		logrus.Errorf("login remote host failed,details %s", err.Error())
+	// cli, err := UnifiedLogin(loginInfo)
+	// if err != nil {
+	// 	logrus.Errorf("login remote host failed,details %s", err.Error())
 
-		return nil, err
-	}
-	sess, err := cli.NewSession()
-	if err != nil {
-		logrus.Errorf("get remote host ssh session failed,details %s", err.Error())
-		return nil, err
-	}
-	defer sess.Close()
-	buf := bytes.NewBuffer(nil)
-	sess.Stdout = buf
-	err = sess.Run("cat /etc/midonet_host_id.properties | grep 'host_uuid' | awk -F '=' '{print $2}'")
-	if err != nil {
-		logrus.Errorf("error run cmd %s ,details %s", "cat /etc/midonet_host_id.properties | grep 'host_uuid' | awk -F '=' '{print $2}'", err.Error())
-		return nil, err
-	}
-	uids := buf.String()
+	// 	return nil, err
+	// }
+	// sess, err := cli.NewSession()
+	// if err != nil {
+	// 	logrus.Errorf("get remote host ssh session failed,details %s", err.Error())
+	// 	return nil, err
+	// }
+	// defer sess.Close()
+	// buf := bytes.NewBuffer(nil)
+	// sess.Stdout = buf
+	// err = sess.Run("cat /etc/midonet_host_id.properties | grep 'host_uuid' | awk -F '=' '{print $2}'")
+	// if err != nil {
+	// 	logrus.Errorf("error run cmd %s ,details %s", "cat /etc/midonet_host_id.properties | grep 'host_uuid' | awk -F '=' '{print $2}'", err.Error())
+	// 	return nil, err
+	// }
+	// uids := buf.String()
 
-	logrus.Infof("get midonet host id is %s", uids)
-	hostUid := uids
-	hostIp := strings.Split(loginInfo.HostPort, ":")[0]
-	hostUid = strings.Split(hostUid, "\n")[0]
-	mysqlIp, err := GetMysqlIp()
-	if err != nil {
-		logrus.Errorf("error get config mysql ip details %s", err.Error())
-		return nil, err
-	}
-	mysqlUser, err := GetMysqlUser()
-	if err != nil {
-		logrus.Errorf("error get config mysql ip details %s", err.Error())
-		return nil, err
-	}
-	mysqlPwd, err := GetMySqlPwd()
-	if err != nil {
-		logrus.Errorf("error get config mysql ip details %s", err.Error())
-		return nil, err
-	}
-	return []string{hostUid, hostIp, mysqlIp, mysqlUser, mysqlPwd}, nil
+	// logrus.Infof("get midonet host id is %s", uids)
+	// hostUid := uids
+	// hostIp := strings.Split(loginInfo.HostPort, ":")[0]
+	// hostUid = strings.Split(hostUid, "\n")[0]
+	// mysqlIp, err := GetMysqlIp()
+	// if err != nil {
+	// 	logrus.Errorf("error get config mysql ip details %s", err.Error())
+	// 	return nil, err
+	// }
+	// mysqlUser, err := GetMysqlUser()
+	// if err != nil {
+	// 	logrus.Errorf("error get config mysql ip details %s", err.Error())
+	// 	return nil, err
+	// }
+	// mysqlPwd, err := GetMySqlPwd()
+	// if err != nil {
+	// 	logrus.Errorf("error get config mysql ip details %s", err.Error())
+	// 	return nil, err
+	// }
+	// return []string{hostUid, hostIp, mysqlIp, mysqlUser, mysqlPwd}, nil
+	return nil, nil
 }
 func updateNodeDB(node, engStatus string) error {
 
-	cnode, err := k8s.GetSource(conf.Config.K8SNode + node)
-	if err != nil {
-		logrus.Infof("get source from etcd failed,details %s", err)
-		return err
-	}
-	loginInfo := new(model.Login)
-	resp, err := store.DefalutClient.Get(conf.Config.ConfigPath + "login/" + node)
-	if err != nil {
-		logrus.Errorf("prepare stage  failed,get login info failed,details %s", err.Error())
+	// cnode, err := k8s.GetSource(conf.Config.K8SNode + node)
+	// if err != nil {
+	// 	logrus.Infof("get source from etcd failed,details %s", err)
+	// 	return err
+	// }
+	// loginInfo := new(model.Login)
+	// resp, err := store.DefalutClient.Get(conf.Config.ConfigPath + "login/" + node)
+	// if err != nil {
+	// 	logrus.Errorf("prepare stage  failed,get login info failed,details %s", err.Error())
 
-		return err
-	}
-	if resp.Count > 0 {
-		err := json.Unmarshal(resp.Kvs[0].Value, loginInfo)
-		if err != nil {
-			logrus.Errorf("decode request failed,details %s", err.Error())
+	// 	return err
+	// }
+	// if resp.Count > 0 {
+	// 	err := json.Unmarshal(resp.Kvs[0].Value, loginInfo)
+	// 	if err != nil {
+	// 		logrus.Errorf("decode request failed,details %s", err.Error())
 
-			return err
-		}
-	} else {
-		logrus.Errorf("prepare stage failed,get login info failed,details %s", err.Error())
+	// 		return err
+	// 	}
+	// } else {
+	// 	logrus.Errorf("prepare stage failed,get login info failed,details %s", err.Error())
 
-		return err
-	}
+	// 	return err
+	// }
 
-	cli, err := UnifiedLogin(loginInfo)
-	if err != nil {
-		logrus.Errorf("login to target host failed,details %s", err.Error())
-		return err
-	}
-	sess, err := cli.NewSession()
-	if err != nil {
-		logrus.Errorf("get remote host ssh session failed,details %s", err.Error())
-		return err
-	}
-	buf := bytes.NewBuffer(nil)
-	cmd := "free -mt | grep 'Mem' | awk '{print $2/1000 }'"
+	// cli, err := UnifiedLogin(loginInfo)
+	// if err != nil {
+	// 	logrus.Errorf("login to target host failed,details %s", err.Error())
+	// 	return err
+	// }
+	// sess, err := cli.NewSession()
+	// if err != nil {
+	// 	logrus.Errorf("get remote host ssh session failed,details %s", err.Error())
+	// 	return err
+	// }
+	// buf := bytes.NewBuffer(nil)
+	// cmd := "free -mt | grep 'Mem' | awk '{print $2/1000 }'"
 
-	sess.Stdout = buf
-	logrus.Infof("prepare run check mem cmd ,details %s", cmd)
-	err = sess.Run(cmd)
-	sess.Close()
-	if err != nil {
-		logrus.Errorf("run command %s on host ssh session failed,details %s", cmd, err.Error())
-		return err
-	}
-	res := buf.String()
+	// sess.Stdout = buf
+	// logrus.Infof("prepare run check mem cmd ,details %s", cmd)
+	// err = sess.Run(cmd)
+	// sess.Close()
+	// if err != nil {
+	// 	logrus.Errorf("run command %s on host ssh session failed,details %s", cmd, err.Error())
+	// 	return err
+	// }
+	// res := buf.String()
 
-	gb, err := strconv.Atoi(strings.Split(res, ".")[0])
-	logrus.Infof("get remote node memory gb size is %s", buf.String())
+	// gb, err := strconv.Atoi(strings.Split(res, ".")[0])
+	// logrus.Infof("get remote node memory gb size is %s", buf.String())
 
-	sessc, err := cli.NewSession()
-	if err != nil {
-		logrus.Errorf("get remote host ssh session failed,details %s", err.Error())
-		return err
-	}
-	bufcpu := bytes.NewBuffer(nil)
-	cmdcpu := "cat /proc/cpuinfo| grep 'processor'| wc -l"
+	// sessc, err := cli.NewSession()
+	// if err != nil {
+	// 	logrus.Errorf("get remote host ssh session failed,details %s", err.Error())
+	// 	return err
+	// }
+	// bufcpu := bytes.NewBuffer(nil)
+	// cmdcpu := "cat /proc/cpuinfo| grep 'processor'| wc -l"
 
-	sessc.Stdout = bufcpu
-	logrus.Infof("prepare run check mem cmd ,details %s", cmd)
-	err = sessc.Run(cmdcpu)
-	sessc.Close()
-	if err != nil {
-		logrus.Errorf("run command %s on host ssh session failed,details %s", cmd, err.Error())
-		return err
-	}
-	resc := bufcpu.String()
-	cpu, err := strconv.Atoi(strings.Replace(resc, "\n", "", -1))
-	logrus.Infof("get remote node memory kb size is %s", resc)
-	if err != nil {
-		logrus.Infof("error get remote mem info")
-		return err
-	}
-	cnode.AvailableMemory = int64(gb - 5)
-	cnode.AvailableCPU = int64(cpu)
-	cnode.Status = engStatus
-	logrus.Infof("update node mem to %d,status to %s", cnode.AvailableMemory, cnode.Status)
+	// sessc.Stdout = bufcpu
+	// logrus.Infof("prepare run check mem cmd ,details %s", cmd)
+	// err = sessc.Run(cmdcpu)
+	// sessc.Close()
+	// if err != nil {
+	// 	logrus.Errorf("run command %s on host ssh session failed,details %s", cmd, err.Error())
+	// 	return err
+	// }
+	// resc := bufcpu.String()
+	// cpu, err := strconv.Atoi(strings.Replace(resc, "\n", "", -1))
+	// logrus.Infof("get remote node memory kb size is %s", resc)
+	// if err != nil {
+	// 	logrus.Infof("error get remote mem info")
+	// 	return err
+	// }
+	// cnode.AvailableMemory = int64(gb - 5)
+	// cnode.AvailableCPU = int64(cpu)
+	// cnode.Status = engStatus
+	// logrus.Infof("update node mem to %d,status to %s", cnode.AvailableMemory, cnode.Status)
 
-	if engStatus == "running" {
-		kn, err := k8s.K8S.Core().Nodes().Get(node, v1.GetOptions{})
-		if err != nil {
-			logrus.Errorf("error get kubernetes node ")
-		}
-		uid := string(kn.UID)
-		cnode.ID = uid
-		err = k8s.AddSource(conf.Config.K8SNode+uid, cnode)
-		if err != nil {
-			logrus.Errorf("add source to db failed,details %s", err.Error())
-			cnode.Status = "failed"
-			return err
-		}
-		k8s.DeleteSource(conf.Config.K8SNode + node)
-	} else {
-		err = k8s.AddSource(conf.Config.K8SNode+node, cnode)
-		if err != nil {
-			logrus.Errorf("add source to db failed,details %s", err.Error())
-			cnode.Status = "failed"
-			return err
-		}
-	}
+	// if engStatus == "running" {
+	// 	kn, err := k8s.K8S.Core().Nodes().Get(node, v1.GetOptions{})
+	// 	if err != nil {
+	// 		logrus.Errorf("error get kubernetes node ")
+	// 	}
+	// 	uid := string(kn.UID)
+	// 	cnode.ID = uid
+	// 	err = k8s.AddSource(conf.Config.K8SNode+uid, cnode)
+	// 	if err != nil {
+	// 		logrus.Errorf("add source to db failed,details %s", err.Error())
+	// 		cnode.Status = "failed"
+	// 		return err
+	// 	}
+	// 	k8s.DeleteSource(conf.Config.K8SNode + node)
+	// } else {
+	// 	err = k8s.AddSource(conf.Config.K8SNode+node, cnode)
+	// 	if err != nil {
+	// 		logrus.Errorf("add source to db failed,details %s", err.Error())
+	// 		cnode.Status = "failed"
+	// 		return err
+	// 	}
+	// }
 	return nil
 
 	//更改状态
@@ -796,229 +794,229 @@ func removeCMDFromJob(job *Job, rawCmd string) {
 }
 func getOrderdArgsByJobName(node string, job *Job) (string, string, error) {
 	//todo
-	rawCmd := job.Command
-	res, err := store.DefalutClient.Get(conf.Config.ConfigPath+SYSTEM+"/"+node, clientv3.WithPrefix())
-	logrus.Infof("geting system info from etcd by key %s", conf.Config.ConfigPath+SYSTEM+"/"+node)
-	if err != nil {
-		logrus.Errorf("get node %s's system failed,details,%s", node, err.Error())
-		return "", "", err
-	}
-	if res.Count <= 0 {
-		logrus.Infof("get nothing from etcd")
-		return "", "", errors.New("get system info failed")
-	}
-	system := string(res.Kvs[0].Value)
-	if strings.Contains(job.ID, "online") {
-		resp, err := http.Get(job.Command)
-		if err != nil {
-			logrus.Infof("download shell failed,details %s", err.Error())
-			return "", "", err
-		}
-		defer resp.Body.Close()
-		b, _ := ioutil.ReadAll(resp.Body)
-		if job.Name == JOB_NFS {
-			nfsHost, err := GetNFSHost()
-			if err != nil {
-				logrus.Errorf("err get nfs host args,details %s", err.Error())
-				return "", "", err
-			}
-			//nfsDest,err:=GetNFSDest()
-			//if err!=nil {
-			//	logrus.Errorf("err get nfs dest args,details %s",err.Error())
-			//	return "","",err
-			//}
-			nfsEndPoint, err := GetNFSEndPoint()
-			if err != nil {
-				logrus.Errorf("err get nfs endpoint args,details %s", err.Error())
-				return "", "", err
-			}
-			args := []string{system, GetStorageModeOrDefault(), nfsHost, nfsEndPoint}
+	// rawCmd := job.Command
+	// res, err := store.DefalutClient.Get(conf.Config.ConfigPath+SYSTEM+"/"+node, clientv3.WithPrefix())
+	// logrus.Infof("geting system info from etcd by key %s", conf.Config.ConfigPath+SYSTEM+"/"+node)
+	// if err != nil {
+	// 	logrus.Errorf("get node %s's system failed,details,%s", node, err.Error())
+	// 	return "", "", err
+	// }
+	// if res.Count <= 0 {
+	// 	logrus.Infof("get nothing from etcd")
+	// 	return "", "", errors.New("get system info failed")
+	// }
+	// system := string(res.Kvs[0].Value)
+	// if strings.Contains(job.ID, "online") {
+	// 	resp, err := http.Get(job.Command)
+	// 	if err != nil {
+	// 		logrus.Infof("download shell failed,details %s", err.Error())
+	// 		return "", "", err
+	// 	}
+	// 	defer resp.Body.Close()
+	// 	b, _ := ioutil.ReadAll(resp.Body)
+	// 	if job.Name == JOB_NFS {
+	// 		nfsHost, err := GetNFSHost()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get nfs host args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
+	// 		//nfsDest,err:=GetNFSDest()
+	// 		//if err!=nil {
+	// 		//	logrus.Errorf("err get nfs dest args,details %s",err.Error())
+	// 		//	return "","",err
+	// 		//}
+	// 		nfsEndPoint, err := GetNFSEndPoint()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get nfs endpoint args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
+	// 		args := []string{system, GetStorageModeOrDefault(), nfsHost, nfsEndPoint}
 
-			argStr := appendArgs(args, b)
-			return rawCmd, argStr, nil
-		} else if job.Name == JOB_NETWORK {
+	// 		argStr := appendArgs(args, b)
+	// 		return rawCmd, argStr, nil
+	// 	} else if job.Name == JOB_NETWORK {
 
-			//CASSANDRA_IP=$4 #cassandra service eg: 10.0.1.14 所有cassandra,逗号分隔
-			zkHosts, err := GetZKHosts()
-			if err != nil {
-				logrus.Errorf("err get zk host args,details %s", err.Error())
-				return "", "", err
-			}
-			cassandraIp, err := GetCASSANDRAIP()
-			if err != nil {
-				logrus.Errorf("err get cassandra ip args,details %s", err.Error())
-				return "", "", err
-			}
-			etcdIp, err := GetETCDIp()
-			if err != nil {
-				logrus.Errorf("err get etcd ip args,details %s", err.Error())
-				return "", "", err
-			}
-			mode := GetNetWorkMode()
-			args := []string{}
-			args = []string{system, node, mode, zkHosts, cassandraIp, etcdIp}
+	// 		//CASSANDRA_IP=$4 #cassandra service eg: 10.0.1.14 所有cassandra,逗号分隔
+	// 		zkHosts, err := GetZKHosts()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get zk host args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
+	// 		cassandraIp, err := GetCASSANDRAIP()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get cassandra ip args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
+	// 		etcdIp, err := GetETCDIp()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get etcd ip args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
+	// 		mode := GetNetWorkMode()
+	// 		args := []string{}
+	// 		args = []string{system, node, mode, zkHosts, cassandraIp, etcdIp}
 
-			argStr := appendArgs(args, b)
-			return rawCmd, argStr, nil
-		} else if job.Name == JOB_DOCKER {
-			args := []string{system}
-			argStr := appendArgs(args, b)
-			//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
-			return rawCmd, argStr, nil
-		} else if job.Name == JOB_SYNC_IMAGES {
-			//INSTALL_TYPE=$1
-			//ACP_VERSION=$2 # ACP版本
-			args := []string{GetInstallTypeOrDefault(), getACPVersionOrDefault()}
-			argStr := appendArgs(args, b)
-			//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
-			return rawCmd, argStr, nil
-		} else if job.Name == JOB_TENGINE {
-			//OS_TYPE=$1
-			//HOST_IP=$2
-			//DNS=$3
-			ver := getACPVersionOrDefault()
-			etcd, err := GetETCDIp()
-			if err != nil {
-				logrus.Errorf("err get dns ip args,details %s", err.Error())
-				return "", "", err
-			}
-			k8sapi, err := GetK8SIp()
-			if err != nil {
-				logrus.Errorf("err get k8sapi args,details %s", err.Error())
-				return "", "", err
-			}
+	// 		argStr := appendArgs(args, b)
+	// 		return rawCmd, argStr, nil
+	// 	} else if job.Name == JOB_DOCKER {
+	// 		args := []string{system}
+	// 		argStr := appendArgs(args, b)
+	// 		//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
+	// 		return rawCmd, argStr, nil
+	// 	} else if job.Name == JOB_SYNC_IMAGES {
+	// 		//INSTALL_TYPE=$1
+	// 		//ACP_VERSION=$2 # ACP版本
+	// 		args := []string{GetInstallTypeOrDefault(), getACPVersionOrDefault()}
+	// 		argStr := appendArgs(args, b)
+	// 		//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
+	// 		return rawCmd, argStr, nil
+	// 	} else if job.Name == JOB_TENGINE {
+	// 		//OS_TYPE=$1
+	// 		//HOST_IP=$2
+	// 		//DNS=$3
+	// 		ver := getACPVersionOrDefault()
+	// 		etcd, err := GetETCDIp()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get dns ip args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
+	// 		k8sapi, err := GetK8SIp()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get k8sapi args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
 
-			masterip, err := GetMIp()
-			if err != nil {
-				logrus.Errorf("err get master ip args,details %s", err.Error())
-				return "", "", err
-			}
+	// 		masterip, err := GetMIp()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get master ip args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
 
-			args := []string{ver, etcd, k8sapi, masterip}
+	// 		args := []string{ver, etcd, k8sapi, masterip}
 
-			argStr := appendArgs(args, b)
-			//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
-			return rawCmd, argStr, nil
-		} else if job.Name == JOB_KUBELET {
-			//OS_TYPE=$1
-			//HOST_IP=$2
-			//DNS=$3
-			dns, err := GetDNS()
-			if err != nil {
-				logrus.Errorf("err get dns ip args,details %s", err.Error())
-				return "", "", err
-			}
-			args := []string{system, node, dns}
+	// 		argStr := appendArgs(args, b)
+	// 		//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
+	// 		return rawCmd, argStr, nil
+	// 	} else if job.Name == JOB_KUBELET {
+	// 		//OS_TYPE=$1
+	// 		//HOST_IP=$2
+	// 		//DNS=$3
+	// 		dns, err := GetDNS()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get dns ip args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
+	// 		args := []string{system, node, dns}
 
-			argStr := appendArgs(args, b)
-			//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
-			return rawCmd, argStr, nil
-		} else if job.Name == JOB_PRISM {
-			//ACP_VERSION=$1
-			//ZMQ_SUB=$2
-			//ZMQ_TO=$3 #dalaran_cep host:port
-			zmqSub, err := GetZMQSub()
-			if err != nil {
-				logrus.Errorf("err get dns ip args,details %s", err.Error())
-				return "", "", err
-			}
-			zmqTo, err := GetZMQTo()
-			if err != nil {
-				logrus.Errorf("err get dns ip args,details %s", err.Error())
-				return "", "", err
-			}
-			args := []string{getACPVersionOrDefault(), zmqSub, zmqTo}
-			argStr := appendArgs(args, b)
-			//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
-			return rawCmd, argStr, nil
-		}
-	} else {
-		if job.Name == JOB_NFS {
-			nfsHost, err := GetNFSHost()
-			if err != nil {
-				logrus.Errorf("err get nfs host args,details %s", err.Error())
-				return "", "", err
-			}
-			nfsEndPoint, err := GetNFSEndPoint()
-			if err != nil {
-				logrus.Errorf("err get nfs endpoint args,details %s", err.Error())
-				return "", "", err
-			}
+	// 		argStr := appendArgs(args, b)
+	// 		//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
+	// 		return rawCmd, argStr, nil
+	// 	} else if job.Name == JOB_PRISM {
+	// 		//ACP_VERSION=$1
+	// 		//ZMQ_SUB=$2
+	// 		//ZMQ_TO=$3 #dalaran_cep host:port
+	// 		zmqSub, err := GetZMQSub()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get dns ip args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
+	// 		zmqTo, err := GetZMQTo()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get dns ip args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
+	// 		args := []string{getACPVersionOrDefault(), zmqSub, zmqTo}
+	// 		argStr := appendArgs(args, b)
+	// 		//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
+	// 		return rawCmd, argStr, nil
+	// 	}
+	// } else {
+	// 	if job.Name == JOB_NFS {
+	// 		nfsHost, err := GetNFSHost()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get nfs host args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
+	// 		nfsEndPoint, err := GetNFSEndPoint()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get nfs endpoint args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
 
-			args := []string{system, GetStorageModeOrDefault(), nfsHost, nfsEndPoint}
+	// 		args := []string{system, GetStorageModeOrDefault(), nfsHost, nfsEndPoint}
 
-			argStr := stringArgs(args)
-			argStr = "bash " + job.Command + argStr
-			//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
-			return rawCmd, argStr, nil
-		} else if job.Name == JOB_NETWORK {
-			//CASSANDRA_IP=$4 #cassandra service eg: 10.0.1.14 所有cassandra,逗号分隔
-			zkHosts, err := GetZKHosts()
-			if err != nil {
-				logrus.Errorf("err get zk host args,details %s", err.Error())
-				return "", "", err
-			}
-			cassandraIp, err := GetCASSANDRAIP()
-			if err != nil {
-				logrus.Errorf("err get cassandra ip args,details %s", err.Error())
-				return "", "", err
-			}
+	// 		argStr := stringArgs(args)
+	// 		argStr = "bash " + job.Command + argStr
+	// 		//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
+	// 		return rawCmd, argStr, nil
+	// 	} else if job.Name == JOB_NETWORK {
+	// 		//CASSANDRA_IP=$4 #cassandra service eg: 10.0.1.14 所有cassandra,逗号分隔
+	// 		zkHosts, err := GetZKHosts()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get zk host args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
+	// 		cassandraIp, err := GetCASSANDRAIP()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get cassandra ip args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
 
-			args := []string{system, node, GetNetWorkMode(), zkHosts, cassandraIp}
-			argStr := stringArgs(args)
-			argStr = "bash " + job.Command + argStr
-			//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
-			return rawCmd, argStr, nil
-		} else if job.Name == JOB_DOCKER {
-			args := []string{system}
-			argStr := stringArgs(args)
-			argStr = "bash " + job.Command + argStr
-			//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
-			return rawCmd, argStr, nil
-		} else if job.Name == JOB_SYNC_IMAGES {
-			//INSTALL_TYPE=$1
-			//ACP_VERSION=$2 # ACP版本
+	// 		args := []string{system, node, GetNetWorkMode(), zkHosts, cassandraIp}
+	// 		argStr := stringArgs(args)
+	// 		argStr = "bash " + job.Command + argStr
+	// 		//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
+	// 		return rawCmd, argStr, nil
+	// 	} else if job.Name == JOB_DOCKER {
+	// 		args := []string{system}
+	// 		argStr := stringArgs(args)
+	// 		argStr = "bash " + job.Command + argStr
+	// 		//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
+	// 		return rawCmd, argStr, nil
+	// 	} else if job.Name == JOB_SYNC_IMAGES {
+	// 		//INSTALL_TYPE=$1
+	// 		//ACP_VERSION=$2 # ACP版本
 
-			args := []string{GetInstallTypeOrDefault(), getACPVersionOrDefault()}
-			argStr := stringArgs(args)
-			argStr = "bash " + job.Command + argStr
-			//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
-			return rawCmd, argStr, nil
-		} else if job.Name == JOB_KUBELET {
-			//OS_TYPE=$1
-			//HOST_IP=$2
-			//DNS=$3
-			dns, err := GetDNS()
-			if err != nil {
-				logrus.Errorf("err get dns ip args,details %s", err.Error())
-				return "", "", err
-			}
-			args := []string{system, node, dns}
-			argStr := stringArgs(args)
-			argStr = "bash " + job.Command + argStr
-			//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
-			return rawCmd, argStr, nil
-		} else if job.Name == JOB_PRISM {
-			//ACP_VERSION=$1
-			//ZMQ_SUB=$2
-			//ZMQ_TO=$3 #dalaran_cep host:port
-			zmqSub, err := GetZMQSub()
-			if err != nil {
-				logrus.Errorf("err get dns ip args,details %s", err.Error())
-				return "", "", err
-			}
-			zmqTo, err := GetZMQTo()
-			if err != nil {
-				logrus.Errorf("err get dns ip args,details %s", err.Error())
-				return "", "", err
-			}
-			args := []string{getACPVersionOrDefault(), zmqSub, zmqTo}
-			argStr := stringArgs(args)
-			argStr = "bash " + job.Command + argStr
-			//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
-			return rawCmd, argStr, nil
-		}
-	}
+	// 		args := []string{GetInstallTypeOrDefault(), getACPVersionOrDefault()}
+	// 		argStr := stringArgs(args)
+	// 		argStr = "bash " + job.Command + argStr
+	// 		//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
+	// 		return rawCmd, argStr, nil
+	// 	} else if job.Name == JOB_KUBELET {
+	// 		//OS_TYPE=$1
+	// 		//HOST_IP=$2
+	// 		//DNS=$3
+	// 		dns, err := GetDNS()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get dns ip args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
+	// 		args := []string{system, node, dns}
+	// 		argStr := stringArgs(args)
+	// 		argStr = "bash " + job.Command + argStr
+	// 		//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
+	// 		return rawCmd, argStr, nil
+	// 	} else if job.Name == JOB_PRISM {
+	// 		//ACP_VERSION=$1
+	// 		//ZMQ_SUB=$2
+	// 		//ZMQ_TO=$3 #dalaran_cep host:port
+	// 		zmqSub, err := GetZMQSub()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get dns ip args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
+	// 		zmqTo, err := GetZMQTo()
+	// 		if err != nil {
+	// 			logrus.Errorf("err get dns ip args,details %s", err.Error())
+	// 			return "", "", err
+	// 		}
+	// 		args := []string{getACPVersionOrDefault(), zmqSub, zmqTo}
+	// 		argStr := stringArgs(args)
+	// 		argStr = "bash " + job.Command + argStr
+	// 		//logrus.Infof("add args to command,before is %s,after is %s",rawCmd,argStr)
+	// 		return rawCmd, argStr, nil
+	// 	}
+	// }
 	return "", "", nil
 
 }
@@ -1048,50 +1046,50 @@ func updateBuildInJob(buildinJob *BuildInJob, status int) {
 	//save to etcd state
 }
 func RegWorkerInstallJobs() error {
-	//ids := []string{ JOB_NFS, JOB_DOCKER,JOB_NETWORK ,JOB_KUBELET, JOB_PRISM}
-	ids := []string{JOB_NFS, JOB_DOCKER, JOB_NETWORK, JOB_TENGINE, JOB_SYNC_IMAGES, JOB_KUBELET, JOB_PRISM}
-	//exist, err := checkBuildInJobsExists()
-	//if err != nil {
-	//	logrus.Warnf("error get resp from etcd with given key: %s", conf.Config.BuildIn)
-	//	return err
-	//}
-	logrus.Infof("first master node,registing build-in job to etcd")
-	//event.GetManager().GetLogger(uuid.NewV4().String()).Info("master registing build-in jobs ",nil)
-	m := make(map[string]string)
-	//map中key,value顺序随意，key要和ids相同
-	//value为安装此模块要执行的命令
+	// //ids := []string{ JOB_NFS, JOB_DOCKER,JOB_NETWORK ,JOB_KUBELET, JOB_PRISM}
+	// ids := []string{JOB_NFS, JOB_DOCKER, JOB_NETWORK, JOB_TENGINE, JOB_SYNC_IMAGES, JOB_KUBELET, JOB_PRISM}
+	// //exist, err := checkBuildInJobsExists()
+	// //if err != nil {
+	// //	logrus.Warnf("error get resp from etcd with given key: %s", conf.Config.BuildIn)
+	// //	return err
+	// //}
+	// logrus.Infof("first master node,registing build-in job to etcd")
+	// //event.GetManager().GetLogger(uuid.NewV4().String()).Info("master registing build-in jobs ",nil)
+	// m := make(map[string]string)
+	// //map中key,value顺序随意，key要和ids相同
+	// //value为安装此模块要执行的命令
 
-	m[JOB_NFS] = "http://repo.goodrain.com/node_actions/compute/nfs/set_mount.sh"
-	m[JOB_NETWORK] = "http://repo.goodrain.com/node_actions/compute/network/set_network_node.sh"
-	m[JOB_DOCKER] = "http://repo.goodrain.com/node_actions/compute/docker/install_docker.sh"
-	m[JOB_TENGINE] = "http://repo.goodrain.com/node_actions/compute/tengine/compute_tengine.sh"
-	m[JOB_SYNC_IMAGES] = "http://repo.goodrain.com/node_actions/compute/sync_images/sync_images.sh"
-	m[JOB_KUBELET] = "http://repo.goodrain.com/node_actions/compute/kubelet/kubelet.sh"
-	m[JOB_PRISM] = "http://repo.goodrain.com/node_actions/compute/prism/prism.sh"
-	for _, v := range ids {
-		c := m[v]
-		j, err := makeJob("online_"+v, v, c)
-		if err != nil {
-			return err
-		}
-		v, _ := json.Marshal(j)
-		logrus.Infof("making new job ,details %s", v)
-	}
-	m[JOB_NFS] = "/usr/local/acp-node/nfs/set_mount.sh"
-	m[JOB_NETWORK] = "/usr/local/acp-node/network/set_network_node.sh"
-	m[JOB_DOCKER] = "/usr/local/acp-node/compute/docker/install_docker.sh"
-	m[JOB_TENGINE] = "/usr/local/acp-node/compute/tengine/compute_tengine.sh"
-	m[JOB_SYNC_IMAGES] = "/usr/local/acp-node/compute/sync_images/sync_images.sh"
-	m[JOB_KUBELET] = "/usr/local/acp-node/compute/kubelet/kubelet.sh"
-	m[JOB_PRISM] = "/usr/local/acp-node/compute/prism/prism.sh"
+	// m[JOB_NFS] = "http://repo.goodrain.com/node_actions/compute/nfs/set_mount.sh"
+	// m[JOB_NETWORK] = "http://repo.goodrain.com/node_actions/compute/network/set_network_node.sh"
+	// m[JOB_DOCKER] = "http://repo.goodrain.com/node_actions/compute/docker/install_docker.sh"
+	// m[JOB_TENGINE] = "http://repo.goodrain.com/node_actions/compute/tengine/compute_tengine.sh"
+	// m[JOB_SYNC_IMAGES] = "http://repo.goodrain.com/node_actions/compute/sync_images/sync_images.sh"
+	// m[JOB_KUBELET] = "http://repo.goodrain.com/node_actions/compute/kubelet/kubelet.sh"
+	// m[JOB_PRISM] = "http://repo.goodrain.com/node_actions/compute/prism/prism.sh"
+	// for _, v := range ids {
+	// 	c := m[v]
+	// 	j, err := makeJob("online_"+v, v, c)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	v, _ := json.Marshal(j)
+	// 	logrus.Infof("making new job ,details %s", v)
+	// }
+	// m[JOB_NFS] = "/usr/local/acp-node/nfs/set_mount.sh"
+	// m[JOB_NETWORK] = "/usr/local/acp-node/network/set_network_node.sh"
+	// m[JOB_DOCKER] = "/usr/local/acp-node/compute/docker/install_docker.sh"
+	// m[JOB_TENGINE] = "/usr/local/acp-node/compute/tengine/compute_tengine.sh"
+	// m[JOB_SYNC_IMAGES] = "/usr/local/acp-node/compute/sync_images/sync_images.sh"
+	// m[JOB_KUBELET] = "/usr/local/acp-node/compute/kubelet/kubelet.sh"
+	// m[JOB_PRISM] = "/usr/local/acp-node/compute/prism/prism.sh"
 
-	for _, v := range ids {
-		c := m[v]
-		_, err := makeJob("offline_"+v, v, c)
-		if err != nil {
-			return err
-		}
-	}
+	// for _, v := range ids {
+	// 	c := m[v]
+	// 	_, err := makeJob("offline_"+v, v, c)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
 	return nil
 }
 
@@ -1186,41 +1184,41 @@ func GetBuildinJobs() ([]*BuildInJob, error) {
 }
 func getCnName(name string) string {
 
-	switch name {
-	case JOB_NFS:
-		return "存储"
-	case JOB_DOCKER:
-		return "Docker"
-	case JOB_NETWORK:
-		return "网络"
-	case JOB_TENGINE:
-		return "代理"
-	case JOB_SYNC_IMAGES:
-		return "镜像"
-	case JOB_KUBELET:
-		return "Kubernetes-Kubelet"
-	case JOB_PRISM:
-		return "监控"
-	}
+	// switch name {
+	// case JOB_NFS:
+	// 	return "存储"
+	// case JOB_DOCKER:
+	// 	return "Docker"
+	// case JOB_NETWORK:
+	// 	return "网络"
+	// case JOB_TENGINE:
+	// 	return "代理"
+	// case JOB_SYNC_IMAGES:
+	// 	return "镜像"
+	// case JOB_KUBELET:
+	// 	return "Kubernetes-Kubelet"
+	// case JOB_PRISM:
+	// 	return "监控"
+	// }
 	return "组件"
 }
 func getDescribe(name string) string {
-	switch name {
-	case JOB_NFS:
-		return "正在安装存储"
-	case JOB_DOCKER:
-		return "正在安装Docker"
-	case JOB_NETWORK:
-		return "正在安装网络"
-	case JOB_TENGINE:
-		return "正在安装代理"
-	case JOB_SYNC_IMAGES:
-		return "正在同步镜像"
-	case JOB_KUBELET:
-		return "正在安装Kubernetes-Kubelet"
-	case JOB_PRISM:
-		return "正在安装监控"
-	}
+	// switch name {
+	// case JOB_NFS:
+	// 	return "正在安装存储"
+	// case JOB_DOCKER:
+	// 	return "正在安装Docker"
+	// case JOB_NETWORK:
+	// 	return "正在安装网络"
+	// case JOB_TENGINE:
+	// 	return "正在安装代理"
+	// case JOB_SYNC_IMAGES:
+	// 	return "正在同步镜像"
+	// case JOB_KUBELET:
+	// 	return "正在安装Kubernetes-Kubelet"
+	// case JOB_PRISM:
+	// 	return "正在安装监控"
+	// }
 	return "正在处理组件"
 }
 func GetBuildInJobWithStatusForNode(toInstall []string, node string) (*JobList, error) {
@@ -1256,78 +1254,78 @@ func GetBuildInJobWithStatusForNode(toInstall []string, node string) (*JobList, 
 	return result, nil
 }
 func GetJobStatusByNodeIP(ip string) (*JobList, error) {
-	status := 0
-	resp, err := store.DefalutClient.Get(conf.Config.CompJobStatus+ip, clientv3.WithPrefix())
-	if err != nil {
-		logrus.Warnf("err getting resp from etcd with given key: %s", conf.Config.CompJobStatus+ip)
-		return nil, err
-	}
-	result := &JobList{}
-	jobs := []*BuildInJob{}
-	for _, v := range resp.Kvs {
-		BIJob := &BuildInJob{}
-		err = json.Unmarshal(v.Value, BIJob)
-		if err != nil {
-			logrus.Warnf("err unmarshal build in job ,details : %s", err.Error())
-			return nil, err
-		}
-		jobs = append(jobs, BIJob)
-	}
-	ids := []string{JOB_NFS, JOB_DOCKER, JOB_NETWORK, JOB_TENGINE, JOB_SYNC_IMAGES, JOB_KUBELET, JOB_PRISM}
-	r := []*BuildInJob{}
-	for _, v := range ids {
-		for _, v2 := range jobs {
-			if v == v2.JobName {
+	// 	status := 0
+	// 	resp, err := store.DefalutClient.Get(conf.Config.CompJobStatus+ip, clientv3.WithPrefix())
+	// 	if err != nil {
+	// 		logrus.Warnf("err getting resp from etcd with given key: %s", conf.Config.CompJobStatus+ip)
+	// 		return nil, err
+	// 	}
+	// 	result := &JobList{}
+	// 	jobs := []*BuildInJob{}
+	// 	for _, v := range resp.Kvs {
+	// 		BIJob := &BuildInJob{}
+	// 		err = json.Unmarshal(v.Value, BIJob)
+	// 		if err != nil {
+	// 			logrus.Warnf("err unmarshal build in job ,details : %s", err.Error())
+	// 			return nil, err
+	// 		}
+	// 		jobs = append(jobs, BIJob)
+	// 	}
+	// 	ids := []string{JOB_NFS, JOB_DOCKER, JOB_NETWORK, JOB_TENGINE, JOB_SYNC_IMAGES, JOB_KUBELET, JOB_PRISM}
+	// 	r := []*BuildInJob{}
+	// 	for _, v := range ids {
+	// 		for _, v2 := range jobs {
+	// 			if v == v2.JobName {
 
-				r = append(r, v2)
-			}
-		}
-	}
-	result.List = r
-	b := false
-	for _, v := range result.List {
-		if v.JobResult == 1 {
-			b = true
-		} else {
-			b = false
-			break
-		}
-	}
+	// 				r = append(r, v2)
+	// 			}
+	// 		}
+	// 	}
+	// 	result.List = r
+	// 	b := false
+	// 	for _, v := range result.List {
+	// 		if v.JobResult == 1 {
+	// 			b = true
+	// 		} else {
+	// 			b = false
+	// 			break
+	// 		}
+	// 	}
 
-	if len(result.List) == 0 {
-		b = true
-		status = 4
-	} else {
-		if b {
-			status = 1
-		}
-	}
-	for _, v := range result.List {
-		if v.JobResult == 3 {
-			status = 3
-			break
-		}
-		if v.JobResult == 2 {
-			status = 2
-			break
-		}
-	}
+	// 	if len(result.List) == 0 {
+	// 		b = true
+	// 		status = 4
+	// 	} else {
+	// 		if b {
+	// 			status = 1
+	// 		}
+	// 	}
+	// 	for _, v := range result.List {
+	// 		if v.JobResult == 3 {
+	// 			status = 3
+	// 			break
+	// 		}
+	// 		if v.JobResult == 2 {
+	// 			status = 2
+	// 			break
+	// 		}
+	// 	}
 
-	result.Result = b
-	result.Status = status
-	return result, nil
-}
+	// 	result.Result = b
+	// 	result.Status = status
+	// 	return result, nil
+	// }
 
-//为build-in job添加 nid(新添加的计算节点，使node可以在上面执行）
-func AddNewNodeToJobs(jobs []*BuildInJob, node string) error {
-	for _, v := range jobs {
-		coreJobId := v.JobId
-		err := changeBIJobNID(coreJobId, node)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	// //为build-in job添加 nid(新添加的计算节点，使node可以在上面执行）
+	// func AddNewNodeToJobs(jobs []*BuildInJob, node string) error {
+	// 	for _, v := range jobs {
+	// 		coreJobId := v.JobId
+	// 		err := changeBIJobNID(coreJobId, node)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 	}
+	return nil, nil
 }
 func RemoveRepByMap(slc []string) []string {
 	result := []string{}
@@ -1435,19 +1433,19 @@ func RunCheckInstallJob(node, jobId string) (string, error) {
 }
 
 func UpdateNodeJobStatus(node string, jobs []*BuildInJob) error {
-	for _, v := range jobs {
-		//此时 所有build-in job 已经更新了nid,可以在新的node上执行了
-		jobB, err := json.Marshal(v)
-		if err != nil {
-			return err
-		}
-		//为新的计算节点注册 build-in job状态表   /&*^%/128.3.4.5/id1/job1
-		_, err = store.DefalutClient.Put(conf.Config.CompJobStatus+node+"/"+v.JobId, string(jobB))
-		logrus.Infof("update job to %s", string(jobB))
-		if err != nil {
-			return err
-		}
-	}
+	// for _, v := range jobs {
+	// 	//此时 所有build-in job 已经更新了nid,可以在新的node上执行了
+	// 	jobB, err := json.Marshal(v)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	//为新的计算节点注册 build-in job状态表   /&*^%/128.3.4.5/id1/job1
+	// 	_, err = store.DefalutClient.Put(conf.Config.CompJobStatus+node+"/"+v.JobId, string(jobB))
+	// 	logrus.Infof("update job to %s", string(jobB))
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
 	return nil
 }
 

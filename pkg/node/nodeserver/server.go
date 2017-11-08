@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package server
+package nodeserver
 
 import (
 	"fmt"
@@ -257,7 +257,7 @@ func (n *NodeServer) watchOnce() {
 	for wresp := range rch {
 		for _, ev := range wresp.Events {
 			switch {
-			case ev.IsCreate(), ev.IsModify():
+			case ev.IsCreate():
 				j, err := job.GetJobFromKv(ev.Kv)
 				if err != nil {
 					logrus.Warnf("err: %s, kv: %s", err.Error(), ev.Kv.String())
@@ -265,6 +265,9 @@ func (n *NodeServer) watchOnce() {
 				}
 				j.Init(n.ID)
 				if !j.IsRunOn(n.HostNode) {
+					continue
+				}
+				if !j.IsOnce {
 					continue
 				}
 				go j.RunWithRecovery()

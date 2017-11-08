@@ -19,6 +19,8 @@
 package model
 
 import (
+	"github.com/Sirupsen/logrus"
+	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/pquerna/ffjson/ffjson"
 	"k8s.io/client-go/pkg/api/v1"
 )
@@ -57,31 +59,57 @@ type ConfigUnit struct {
 	Name   string `json:"name" validate:"name|required"`
 	CNName string `json:"cn_name" validate:"cn_name"`
 	//类型 例如:midonet
-	Type string `json:"type" validate:"name|required"`
+	Value     interface{} `json:"value" validate:"value|required"`
+	ValueType string      `json:"value_type"`
 	//可选类型 类型名称和需要的配置项
-	OptionalType map[string][]map[string]string `json:"optional_type,omitempty"`
-	Opts         map[string]interface{}         `json:"opts"`
+	OptionalValue []string                `json:"optional_value,omitempty"`
+	DependConfig  map[string][]ConfigUnit `json:"depend_config,omitempty"`
 	//是否用户可配置
 	IsConfigurable bool `json:"is_configurable"`
 }
 
+func (c ConfigUnit) String() string {
+	res, _ := ffjson.Marshal(&c)
+	return string(res)
+}
+
 //GlobalConfig 全局配置
 type GlobalConfig struct {
-	NetWork            ConfigUnit `json:"network"`
-	Storage            ConfigUnit `json:"storage"`
-	Etcd               ConfigUnit `json:"etcd"`
-	ManagerDB          ConfigUnit `json:"manager_db"`
-	KubeAPI            ConfigUnit `json:"kube_api"`
-	DNS                ConfigUnit `json:"dns"`
-	ManagerNodeAddress ConfigUnit `json:"mananger_node_addr"`
-	ExportLB           ConfigUnit `json:"export_lb"`
-	Install            ConfigUnit `json:"install"`
+	Configs map[string]*ConfigUnit `json:"configs"`
 }
 
 //String String
-func (g GlobalConfig) String() string {
-	res, _ := ffjson.Marshal(&g)
+func (g *GlobalConfig) String() string {
+	res, _ := ffjson.Marshal(g)
 	return string(res)
+}
+
+//Add 添加配置
+func (g *GlobalConfig) Add(c ConfigUnit) {
+	//具有依赖配置
+	if c.DependConfig != nil || len(c.DependConfig) > 0 {
+		if c.ValueType == "string" || c.ValueType == "" {
+			if value, ok := c.Value.(string); ok {
+				for _, dc := range c.DependConfig[value] {
+					g.Add(dc)
+				}
+			}
+		}
+	}
+	logrus.Debugf("add datacenter config %f", c.Name)
+	g.Configs[c.Name] = &c
+}
+
+//Get 获取配置
+func (g *GlobalConfig) Get(name string) ConfigUnit {
+	return *g.Configs[name]
+}
+
+//Delete 删除配置
+func (g *GlobalConfig) Delete(Name string) {
+	if _, ok := g.Configs[Name]; ok {
+		delete(g.Configs, Name)
+	}
 }
 
 //Bytes Bytes
@@ -92,134 +120,106 @@ func (g GlobalConfig) Bytes() []byte {
 
 //CreateDefaultGlobalConfig 生成默认配置
 func CreateDefaultGlobalConfig() *GlobalConfig {
-	var gconfig GlobalConfig
-	gconfig.NetWork = ConfigUnit{
-		Name:   "network",
-		CNName: "集群网络",
-		Type:   "calico",
-		OptionalType: map[string][]map[string]string{
-			"calico": []map[string]string{map[string]string{"name": "ETCD_ADDRS", "name_cn": "ETCD地址", "value_type": "string"}},
-			"midonet": []map[string]string{
-				map[string]string{"name": "CASSANDRA_ADDRS", "name_cn": "CASSANDRA地址", "value_type": "array"},
-				map[string]string{"name": "ZOOKEEPER_ADDRS", "name_cn": "ZOOKEEPER地址", "value_type": "array"},
-				map[string]string{"name": "LB_CIDR", "name_cn": "负载均衡所在网段", "value_type": "string"},
+	gconfig := &GlobalConfig{
+		Configs: make(map[string]*ConfigUnit),
+	}
+	gconfig.Add(ConfigUnit{
+		Name:      "NETWORK_MODE",
+		CNName:    "集群网络模式",
+		Value:     "calico",
+		ValueType: "string",
+		DependConfig: map[string][]ConfigUnit{
+			"calico": []ConfigUnit{ConfigUnit{Name: "ETCD_ADDRS", CNName: "ETCD地址", ValueType: "array"}},
+			"midonet": []ConfigUnit{
+				ConfigUnit{Name: "CASSANDRA_ADDRS", CNName: "CASSANDRA地址", ValueType: "array"},
+				ConfigUnit{Name: "ZOOKEEPER_ADDRS", CNName: "ZOOKEEPER地址", ValueType: "array"},
+				ConfigUnit{Name: "LB_CIDR", CNName: "负载均衡所在网段", ValueType: "string"},
 			}},
 		IsConfigurable: true,
-		Opts:           make(map[string]interface{}),
-	}
-	gconfig.Storage = ConfigUnit{
-		Name:   "storage",
-		Type:   "nfs",
-		CNName: "默认共享存储",
-		OptionalType: map[string][]map[string]string{
-			"nfs": []map[string]string{
-				map[string]string{"name": "NFS_SERVERS", "name_cn": "NFS服务端地址列表", "value_type": "array"},
-				map[string]string{"name": "NFS_ENDPOINT", "name_cn": "NFS挂载端点", "value_type": "string"},
+	})
+	gconfig.Add(ConfigUnit{
+		Name:   "STORAGE_MODE",
+		Value:  "nfs",
+		CNName: "默认共享存储模式",
+		DependConfig: map[string][]ConfigUnit{
+			"nfs": []ConfigUnit{
+				ConfigUnit{Name: "NFS_SERVERS", CNName: "NFS服务端地址列表", ValueType: "array"},
+				ConfigUnit{Name: "NFS_ENDPOINT", CNName: "NFS挂载端点", ValueType: "string"},
 			},
-			"clusterfs": []map[string]string{},
+			"clusterfs": []ConfigUnit{},
 		},
 		IsConfigurable: true,
-		Opts:           make(map[string]interface{}),
-	}
-	gconfig.ManagerDB = ConfigUnit{
-		Name:   "manager_db",
-		Type:   "mysql",
-		CNName: "管理节点数据库类型",
-		OptionalType: map[string][]map[string]string{
-			"mysql": []map[string]string{
-				map[string]string{"name": "MYSQL_HOST", "name_cn": "Mysql数据库地址", "value_type": "string"},
-				map[string]string{"name": "MYSQL_PASS", "name_cn": "Mysql数据库密码", "value_type": "string"},
-				map[string]string{"name": "MYSQL_USER", "name_cn": "Mysql数据库用户名", "value_type": "string"},
+	})
+	gconfig.Add(ConfigUnit{
+		Name:          "DB_MODE",
+		Value:         "mysql",
+		CNName:        "管理节点数据库类型",
+		OptionalValue: []string{"mysql", "cockroachdb"},
+		DependConfig: map[string][]ConfigUnit{
+			"mysql": []ConfigUnit{
+				ConfigUnit{Name: "MYSQL_HOST", CNName: "Mysql数据库地址", ValueType: "string"},
+				ConfigUnit{Name: "MYSQL_PASS", CNName: "Mysql数据库密码", ValueType: "string"},
+				ConfigUnit{Name: "MYSQL_USER", CNName: "Mysql数据库用户名", ValueType: "string"},
 			},
-			"cockroachdb": []map[string]string{
-				map[string]string{"name": "COCKROACH_HOST", "name_cn": "Mysql数据库地址", "value_type": "array"},
-				map[string]string{"name": "COCKROACH_PASS", "name_cn": "Mysql数据库密码", "value_type": "string"},
-				map[string]string{"name": "COCKROACH_USER", "name_cn": "Mysql数据库用户名", "value_type": "string"},
-			},
-		},
-		IsConfigurable: true,
-		Opts:           make(map[string]interface{}),
-	}
-	gconfig.ExportLB = ConfigUnit{
-		Name:   "export_lb",
-		Type:   "nginx",
-		CNName: "边缘负载均衡",
-		OptionalType: map[string][]map[string]string{
-			"nginx": []map[string]string{
-				map[string]string{"name": "DOMAIN", "name_cn": "应用域名", "value_type": "string"},
-				map[string]string{"name": "INSTALL_NODE", "name_cn": "安装节点", "value_type": "array"},
+			"cockroachdb": []ConfigUnit{
+				ConfigUnit{Name: "COCKROACH_HOST", CNName: "Mysql数据库地址", ValueType: "array"},
+				ConfigUnit{Name: "COCKROACH_PASS", CNName: "Mysql数据库密码", ValueType: "string"},
+				ConfigUnit{Name: "COCKROACH_USER", CNName: "Mysql数据库用户名", ValueType: "string"},
 			},
 		},
 		IsConfigurable: true,
-		Opts:           make(map[string]interface{}),
-	}
-	gconfig.Install = ConfigUnit{
-		Name:   "install",
-		Type:   "online",
-		CNName: "安装模式",
-		OptionalType: map[string][]map[string]string{
-			"online":  []map[string]string{},
-			"offline": []map[string]string{},
-		},
+	})
+	gconfig.Add(ConfigUnit{
+		Name:           "LB_MODE",
+		Value:          "nginx",
+		ValueType:      "string",
+		CNName:         "边缘负载均衡",
+		OptionalValue:  []string{"nginx", "zeus"},
 		IsConfigurable: true,
-		Opts:           make(map[string]interface{}),
-	}
-	gconfig.DNS = ConfigUnit{
-		Name:   "dns",
-		Type:   "gr-dns",
-		CNName: "集群DNS服务",
-		OptionalType: map[string][]map[string]string{
-			"gr-dns": []map[string]string{
-				map[string]string{"name": "DNS_HOST", "name_cn": "DNS服务地址", "value_type": "array"},
-			},
-		},
-		Opts: make(map[string]interface{}),
-	}
-	gconfig.Etcd = ConfigUnit{
-		Name:   "etcd",
-		Type:   "etcd",
-		CNName: "集群ETCD服务",
-		OptionalType: map[string][]map[string]string{
-			"etcd": []map[string]string{
-				map[string]string{"name": "ETCD_ADDR", "name_cn": "ETCD服务地址", "value_type": "array"},
-			},
-		},
-		Opts: make(map[string]interface{}),
-	}
-	gconfig.KubeAPI = ConfigUnit{
-		Name:   "kube-api",
-		Type:   "kube-api",
-		CNName: "KubernetesAPI服务",
-		OptionalType: map[string][]map[string]string{
-			"kube-api": []map[string]string{
-				map[string]string{"name": "KUBE_ADDR", "name_cn": "KUBE-API服务地址", "value_type": "array"},
-			},
-		},
-		Opts: make(map[string]interface{}),
-	}
-	gconfig.ManagerNodeAddress = ConfigUnit{
-		Name:   "mananger-node-address",
-		Type:   "hostIP",
-		CNName: "管理节点",
-		OptionalType: map[string][]map[string]string{
-			"hostIP": []map[string]string{
-				map[string]string{"name": "NODE_LIST", "name_cn": "管理节点地址", "value_type": "array"},
-				map[string]string{"name": "API_PORT", "name_cn": "API端口", "value_type": "int"},
-			},
-		},
-		Opts: make(map[string]interface{}),
-	}
-	return &gconfig
+	})
+	gconfig.Add(ConfigUnit{Name: "DOMAIN", CNName: "应用域名", ValueType: "string"})
+	gconfig.Add(ConfigUnit{Name: "INSTALL_NODE", CNName: "安装节点", ValueType: "array"})
+	gconfig.Add(ConfigUnit{
+		Name:           "INSTALL_MODE",
+		Value:          "online",
+		ValueType:      "string",
+		CNName:         "安装模式",
+		OptionalValue:  []string{"online", "offine"},
+		IsConfigurable: true,
+	})
+	gconfig.Add(ConfigUnit{
+		Name:      "DNS_SERVER",
+		Value:     []string{},
+		CNName:    "集群DNS服务",
+		ValueType: "array",
+	})
+	gconfig.Add(ConfigUnit{
+		Name:      "KUBE_API",
+		Value:     []string{},
+		ValueType: "array",
+		CNName:    "KubernetesAPI服务",
+	})
+	gconfig.Add(ConfigUnit{
+		Name:      "MANAGE_NODE_ADDRESS",
+		Value:     []string{},
+		ValueType: "array",
+		CNName:    "管理节点",
+	})
+	return gconfig
 }
 
 //CreateGlobalConfig 生成配置
-func CreateGlobalConfig(data []byte) (*GlobalConfig, error) {
-	var dgc GlobalConfig
-	err := ffjson.Unmarshal(data, &dgc)
-	if err != nil {
-		return nil, err
+func CreateGlobalConfig(kvs []*mvccpb.KeyValue) (*GlobalConfig, error) {
+	dgc := &GlobalConfig{
+		Configs: make(map[string]*ConfigUnit),
 	}
-	return &dgc, nil
+	for _, kv := range kvs {
+		var cn ConfigUnit
+		if err := ffjson.Unmarshal(kv.Value, &cn); err == nil {
+			dgc.Add(cn)
+		}
+	}
+	return dgc, nil
 }
 
 type LoginResult struct {
@@ -246,7 +246,7 @@ type ResponseBody struct {
 type Pods struct {
 	Namespace       string `json:"namespace"`
 	Id              string `json:"id"`
-	Name            string `json:"name"`
+	Name            string `json:Name`
 	CPURequests     string `json:"cpurequest"`
 	CPURequestsR    string `json:"cpurequestr"`
 	CPULimits       string `json:"cpulimits"`

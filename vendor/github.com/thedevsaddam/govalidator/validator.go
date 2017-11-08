@@ -1,17 +1,15 @@
-package govalidator
+package validator
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strings"
 )
 
 const (
-	tagIdentifier = "json" //tagName idetify the struct tag for govalidator
-	tagSeparator  = "|"    //tagSeparator use to separate tags in struct
+	tagIdentifier = "validate" //tagName idetify the struct tag for govalidator
+	tagSeparator  = "|"        //tagSeparator use to separate tags in struct
 )
 
 type (
@@ -23,9 +21,9 @@ type (
 		Data            interface{} // Data represents structure for JSON body
 		Request         *http.Request
 		RequiredDefault bool    // RequiredDefault represents if all the fields are by default required or not
+		UniqueKey       bool    // UniqueKey set prefix (type name) in  field name for ValidateJSON
 		Rules           MapData // Rules represents rules for form-data/x-url-encoded/query params data
 		Messages        MapData // Messages represents custom/localize message for rules
-		TagIdentifier   string  //TagIdentifier represents struct tag identifier, e.g: json or validate etc
 	}
 
 	// Validator represents a validator with options
@@ -63,21 +61,14 @@ func (v *Validator) SetDefaultRequired(required bool) {
 	v.Opts.RequiredDefault = required
 }
 
-// SetTagIdentifier change the default tag identifier (json) to your custom tag.
-func (v *Validator) SetTagIdentifier(identifier string) {
-	v.Opts.TagIdentifier = identifier
-}
-
 // Validate validate request data like form-data, x-www-form-urlencoded and query params
 // see example in README.md file
-// ref: https://github.com/thedevsaddam/govalidator#example
 func (v *Validator) Validate() url.Values {
 	// if request object and rules not passed rise a panic
 	if len(v.Opts.Rules) == 0 || v.Opts.Request == nil {
 		panic(errValidateArgsMismatch)
 	}
 	errsBag := url.Values{}
-
 	// clean rules
 	v.keepRequiredField()
 
@@ -85,11 +76,18 @@ func (v *Validator) Validate() url.Values {
 		reqVal := strings.TrimSpace(v.parseAndGetVal(field))
 		for _, rule := range rules {
 			if !isRuleExist(rule) {
-				panic(fmt.Errorf("govalidator: %s is not a valid rule", rule))
+				panic(fmt.Errorf("validator: %s is not a valid rule", rule))
 			}
-			msg := v.getCustomMessage(field, rule)
+			v := fieldValidator{
+				errsBag: errsBag,
+				field:   field,
+				value:   reqVal,
+				rule:    rule,
+				message: v.getCustomMessage(field, rule),
+			}
+			v.run()
 			// validate if custom rules exist
-			validateCustomRules(field, rule, msg, reqVal, errsBag)
+			validateCustomRules(field, reqVal, rule, errsBag)
 		}
 	}
 
@@ -104,7 +102,6 @@ func (v *Validator) parseAndGetVal(key string) string {
 }
 
 // keepRequiredField remove non required rules field from rules if requiredDefault field is false
-// and if the input data is empty for this field
 func (v *Validator) keepRequiredField() {
 	v.Opts.Request.ParseMultipartForm(1024)
 	//r.ParseForm()
@@ -112,62 +109,6 @@ func (v *Validator) keepRequiredField() {
 	if !v.Opts.RequiredDefault {
 		for k, r := range v.Opts.Rules {
 			if _, ok := inputs[k]; !ok {
-				if !isContainRequiredField(r) {
-					delete(v.Opts.Rules, k)
-				}
-			}
-		}
-	}
-}
-
-// ValidateJSON validate request data from JSON body to Go struct
-// see example in README.md file
-func (v *Validator) ValidateJSON() url.Values {
-	if len(v.Opts.Rules) == 0 || v.Opts.Request == nil {
-		panic(errValidateArgsMismatch)
-	}
-	if reflect.TypeOf(v.Opts.Data).Kind() != reflect.Ptr {
-		panic(errRequirePtr)
-	}
-	errsBag := url.Values{}
-
-	defer v.Opts.Request.Body.Close()
-	err := json.NewDecoder(v.Opts.Request.Body).Decode(v.Opts.Data)
-	if err != nil {
-		errsBag.Add("_error", err.Error())
-		return errsBag
-	}
-	r := roller{}
-	r.setTagIdentifier(tagIdentifier)
-	if v.Opts.TagIdentifier != "" {
-		r.setTagIdentifier(v.Opts.TagIdentifier)
-	}
-	r.setTagSeparator(tagSeparator)
-	r.start(v.Opts.Data)
-
-	//clean if the key is not exist or value is empty or zero value
-	v.keepJSONRequiredField(r.getFlatMap())
-
-	for field, rules := range v.Opts.Rules {
-		value, _ := r.getFlatVal(field)
-		for _, rule := range rules {
-			if !isRuleExist(rule) {
-				panic(fmt.Errorf("validator: %s is not a valid rule", rule))
-			}
-			msg := v.getCustomMessage(field, rule)
-			validateCustomRules(field, rule, msg, value, errsBag)
-		}
-	}
-
-	return errsBag
-}
-
-// keepJSONRequiredField remove non required rules field from rules if requiredDefault field is false
-// and if the input data is empty for this field
-func (v *Validator) keepJSONRequiredField(inputs map[string]interface{}) {
-	if !v.Opts.RequiredDefault {
-		for k, r := range v.Opts.Rules {
-			if val, _ := inputs[k]; isEmpty(val) { // TODO: need to write test to check it working fine
 				if !isContainRequiredField(r) {
 					delete(v.Opts.Rules, k)
 				}

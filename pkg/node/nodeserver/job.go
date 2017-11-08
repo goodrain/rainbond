@@ -16,23 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package job
+package nodeserver
 
-import (
-	client "github.com/coreos/etcd/clientv3"
+import "github.com/goodrain/rainbond/pkg/node/core/job"
 
-	conf "github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/pkg/node/core/store"
-)
-
-//PutOnce 添加立即执行的任务，只执行一次，执行完成后删除
-//也可以更新job状态。node节点不监听更改事件
-func PutOnce(j *Job) error {
-	_, err := store.DefalutClient.Put(conf.Config.Once+"/"+j.ID, j.String())
-	return err
-}
-
-//WatchOnce 监听任务
-func WatchOnce() client.WatchChan {
-	return store.DefalutClient.Watch(conf.Config.Once, client.WithPrefix())
-}
+//Jobs jobs
+type Jobs map[string]*job.Job

@@ -128,4 +128,12 @@ func CreateExecutionRecord(j *Job, t time.Time, rs string, success bool) {
 	if err != nil {
 		logrus.Error("put exec record to etcd error.", err.Error())
 	}
+	//单次执行job,更新job rule，将已执行节点加入到排除节点范围
+	if j.IsOnce {
+		for _, rule := range j.Rules {
+			rule.ExcludeNodeIDs = append(rule.ExcludeNodeIDs, j.runOn)
+		}
+		//更新job
+		PutOnce(j)
+	}
 }

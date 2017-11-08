@@ -22,10 +22,11 @@ import (
 	"fmt"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/pkg/node/api/controller"
 	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
-	"github.com/goodrain/rainbond/pkg/node/server"
+	"github.com/goodrain/rainbond/pkg/node/nodeserver"
 
 	"github.com/Sirupsen/logrus"
 
@@ -62,15 +63,10 @@ func Run(c *option.Conf) error {
 			c.K8SConfPath)
 	}
 
-	s, err := server.NewNodeServer(c) //todo 配置文件 done
+	s, err := nodeserver.NewNodeServer(c) //todo 配置文件 done
 	if err != nil {
 		return err
 	}
-
-	apiManager := api.NewManager(*s.Conf)
-	apiManager.Start(errChan)
-	defer apiManager.Stop()
-
 	if err := s.Register(); err != nil {
 		logrus.Error(err.Error())
 		return err
@@ -83,9 +79,15 @@ func Run(c *option.Conf) error {
 		logrus.Errorf(err.Error())
 		return err
 	}
+	if c.RunMode == "master" {
+
+	}
+	apiManager := api.NewManager(*s.Conf)
+	apiManager.Start(errChan)
+	defer apiManager.Stop()
 	// 注册退出事件
 	//todo conf.Exit cronsun.exit 重写
-	event.On(event.EXIT, s.Stop, option.Exit, job.Exit)
+	event.On(event.EXIT, s.Stop, option.Exit, job.Exit, controller.Exist)
 	// 注册监听配置更新事件
 	//todo cronsun.Reload重写
 	event.On(event.WAIT, job.Reload)

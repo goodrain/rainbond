@@ -1,153 +1,103 @@
-package govalidator
+package validator
 
 import (
-	"encoding/json"
-	"regexp"
+	"fmt"
+	"reflect"
+	"strings"
 )
 
-// isAlpha check the input is letters (a-z,A-Z) or not
-func isAlpha(str string) bool {
-	return regexAlpha.MatchString(str)
-}
-
-// isAlphaDash check the input is letters, number with dash and underscore
-func isAlphaDash(str string) bool {
-	return regexAlphaDash.MatchString(str)
-}
-
-// isAlphaNumeric check the input is alpha numeric or not
-func isAlphaNumeric(str string) bool {
-	return regexAlphaNumeric.MatchString(str)
-}
-
-// isBoolean check the input contains boolean type values
-// in this case: "0", "1", "true", "false", "True", "False"
-func isBoolean(str string) bool {
-	bools := []string{"0", "1", "true", "false", "True", "False"}
-	for _, b := range bools {
-		if b == str {
+// containsRequiredField check rules contain any required field
+func isContainRequiredField(rules []string) bool {
+	for _, rule := range rules {
+		if rule == "required" {
 			return true
 		}
 	}
 	return false
 }
 
-//isCreditCard check the provided card number is a valid
-//  Visa, MasterCard, American Express, Diners Club, Discover or JCB card
-func isCreditCard(card string) bool {
-	return regexCreditCard.MatchString(card)
-}
-
-// isCoordinate is a valid Coordinate or not
-func isCoordinate(str string) bool {
-	return regexCoordinate.MatchString(str)
-}
-
-// isCSSColor is a valid CSS color value (hex, rgb, rgba, hsl, hsla) etc like #909, #00aaff, rgb(255,122,122)
-func isCSSColor(str string) bool {
-	return regexCSSColor.MatchString(str)
-}
-
-// isDate check the date string is valid or not
-func isDate(date string) bool {
-	return regexDate.MatchString(date)
-}
-
-// isDateDDMMYY check the date string is valid or not
-func isDateDDMMYY(date string) bool {
-	return regexDateDDMMYY.MatchString(date)
-}
-
-// isEmail check a email is valid or not
-func isEmail(email string) bool {
-	return regexEmail.MatchString(email)
-}
-
-// isFloat check the input string is a float or not
-func isFloat(str string) bool {
-	return regexFloat.MatchString(str)
-}
-
-// isIn check if the niddle exist in the haystack
-func isIn(haystack []string, niddle string) bool {
-	for _, h := range haystack {
-		if h == niddle {
-			return true
-		}
+// callMethodByName call a method by its name
+func callMethodByName(myClass interface{}, funcName string, params ...interface{}) (out []reflect.Value, err error) {
+	myClassValue := reflect.ValueOf(myClass)
+	m := myClassValue.MethodByName(funcName)
+	if !m.IsValid() {
+		return make([]reflect.Value, 0), fmt.Errorf("Method not found \"%s\"", funcName)
 	}
-	return false
+	in := make([]reflect.Value, len(params))
+	for i, param := range params {
+		in[i] = reflect.ValueOf(param)
+	}
+	out = m.Call(in)
+	return
 }
 
-// isJSON check wheather the input string is a valid json or not
-func isJSON(str string) bool {
-	var data interface{}
-	err := json.Unmarshal([]byte(str), &data)
-	if err != nil {
+// isRuleExist check if the provided rule name is exist or not
+func isRuleExist(rule string) bool {
+	if strings.Contains(rule, ":") {
+		rule = strings.Split(rule, ":")[0]
+	}
+	if _, ok := rmMap[rule]; ok {
+		return true
+	} else if _, ok := customRules[rule]; ok {
+		return true
+	} else {
 		return false
 	}
-	return true
 }
 
-// isNumeric check the provided input string is numeric or not
-func isNumeric(str string) bool {
-	return regexNumeric.MatchString(str)
+// dField describe a single field for both nested and non-nested struct field
+type dField struct {
+	field         string
+	originalValue interface{}
+	value         string
+	rules         []string
 }
 
-// isLatitude check the provided input string is a valid latitude or not
-func isLatitude(str string) bool {
-	return regexLatitude.MatchString(str)
+// deepFields traverse through the nested/embedded struct if exist
+// return a slice of dField
+func deepFields(iface interface{}, tagIdentifier, tagSeparator string, UniqueKey bool) []dField {
+	fields := make([]dField, 0)
+	ifv := reflect.ValueOf(iface)
+	ift := reflect.TypeOf(iface)
+	if ift.Kind() == reflect.Ptr {
+		ifv = ifv.Elem()
+		ift = ift.Elem()
+	}
+
+	for i := 0; i < ift.NumField(); i++ {
+		v := ifv.Field(i)
+		rfv := ift.Field(i)
+
+		switch v.Kind() {
+		case reflect.Struct:
+			fields = append(fields, deepFields(v.Interface(), tagIdentifier, tagSeparator, UniqueKey)...)
+		default:
+			tags := strings.Split(rfv.Tag.Get(tagIdentifier), tagSeparator)
+			fieldName := tags[0]
+			value := fmt.Sprintf("%v", v)
+			rules := tags[1:]
+			if UniqueKey {
+				fields = append(fields, dField{field: ift.Name() + "." + fieldName, originalValue: v.Interface(), value: value, rules: rules})
+			} else {
+				fields = append(fields, dField{field: fieldName, originalValue: v.Interface(), value: value, rules: rules})
+			}
+		}
+	}
+	return fields
 }
 
-// isLongitude check the provided input string is a valid longitude or not
-func isLongitude(str string) bool {
-	return regexLongitude.MatchString(str)
+// keepRequiredFields remove the rules which does not contain requried field if SetDefaultRequired is false
+func keepRequiredFields(dfs []dField) []dField {
+	fields := make([]dField, 0)
+	for _, f := range dfs {
+		if !isZeroOfUnderlyingType(f.originalValue) || isContainRequiredField(f.rules) { // TODO: need to update the logic
+			fields = append(fields, f)
+		}
+	}
+	return fields
 }
 
-// isIP check the provided input string is a valid IP address or not
-func isIP(str string) bool {
-	return regexIP.MatchString(str)
-}
-
-// isIPV4 check the provided input string is a valid IP address version 4 or not
-// Ref: https://en.wikipedia.org/wiki/IPv4
-func isIPV4(str string) bool {
-	return regexIPV4.MatchString(str)
-}
-
-// isIPV6 check the provided input string is a valid IP address version 6 or not
-// Ref: https://en.wikipedia.org/wiki/IPv6
-func isIPV6(str string) bool {
-	return regexIPV6.MatchString(str)
-}
-
-// isMatchedRegex match the regular expression string provided in first argument
-// with second argument which is also a string
-func isMatchedRegex(rxStr, str string) bool {
-	rx := regexp.MustCompile(rxStr)
-	return rx.MatchString(str)
-}
-
-// isURL check a URL is valid or not
-func isURL(url string) bool {
-	return regexURL.MatchString(url)
-}
-
-// isUUID check the provided string is valid UUID or not
-func isUUID(str string) bool {
-	return regexUUID.MatchString(str)
-}
-
-// isUUID3 check the provided string is valid UUID version 3 or not
-func isUUID3(str string) bool {
-	return regexUUID3.MatchString(str)
-}
-
-// isUUID4 check the provided string is valid UUID version 4 or not
-func isUUID4(str string) bool {
-	return regexUUID4.MatchString(str)
-}
-
-// isUUID5 check the provided string is valid UUID version 5 or not
-func isUUID5(str string) bool {
-	return regexUUID5.MatchString(str)
+// isZeroOfUnderlyingType detect if the provided type is in its zero value state
+func isZeroOfUnderlyingType(x interface{}) bool {
+	return reflect.DeepEqual(x, reflect.Zero(reflect.TypeOf(x)).Interface())
 }

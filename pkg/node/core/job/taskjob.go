@@ -18,17 +18,9 @@
 
 package job
 
-import (
-	"testing"
+import "github.com/goodrain/rainbond/pkg/node/api/model"
 
-	"github.com/Sirupsen/logrus"
-)
-
-func TestGetmip(t *testing.T) {
-	ip, err := GetMIp()
-	if err != nil {
-		logrus.Infof(err.Error())
-	}
-	logrus.Infof(ip)
-
+//CreateJobFromTask 从task创建job
+func CreateJobFromTask(task *model.Task) *Job {
+	return nil
 }

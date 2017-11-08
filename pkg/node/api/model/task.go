@@ -43,8 +43,9 @@ type TaskTemp struct {
 	Timeout int               `json:"timeout|required|numeric"`
 	//OutPutChan
 	//结果输出通道，错误输出OR标准输出
-	OutPutChan string    `json:"out_put_chan" validate:"out_put_chan|required|in:stdout,stderr"`
-	CreateTime time.Time `json:"create_time"`
+	OutPutChan string            `json:"out_put_chan" validate:"out_put_chan|required|in:stdout,stderr"`
+	CreateTime time.Time         `json:"create_time"`
+	Labels     map[string]string `json:"labels"`
 }
 
 func (t TaskTemp) String() string {
@@ -59,8 +60,7 @@ type Task struct {
 	TempID string    `json:"temp_id,omitempty" validate:"temp_id|uuid"`
 	Temp   *TaskTemp `json:"temp,omitempty"`
 	//执行的节点
-	Nodes  []string          `json:"nodes"`
-	Labels map[string]string `json:"labels"`
+	Nodes []string `json:"nodes"`
 	//每个执行节点执行状态
 	Status       map[string]TaskStatus `json:"status,omitempty"`
 	CreateTime   time.Time             `json:"create_time"`
