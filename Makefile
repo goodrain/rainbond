@@ -9,6 +9,7 @@ build-worker:
 clean:
 	@rm -rf ./build/mq/${BASE_NAME}_mq
 	@rm -rf ./build/worker/${BASE_NAME}_worker
+	@rm -rf ./build/api/${BASE_NAME}_api
 build-in-container:
 	@docker run -v `pwd`:/go/src/${BASE_NAME}_worker -w /go/src/${BASE_NAME}_worker -it golang:1.7.3 bash
 run-api:build-api
