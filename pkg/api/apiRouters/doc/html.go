@@ -34,7 +34,7 @@ func Routes() chi.Router {
 	r := chi.NewRouter()
 	workDir, _ := os.Getwd()
 	//logrus.Debugf("workdir is %v", workDir)
-	filesDir := filepath.Join(workDir, "build/api/html")
+	filesDir := filepath.Join(workDir, "html")
 	logrus.Debugf("filesdir is %v", filesDir)
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("/docs"))

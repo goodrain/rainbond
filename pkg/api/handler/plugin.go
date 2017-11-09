@@ -265,6 +265,7 @@ func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *
 		Kind:      b.Body.Kind,
 		BaseImage: b.Body.ImageURL,
 		BuildTime: time.Now().Format(time.RFC3339),
+		Info:      b.Body.Info,
 		Status:    "building",
 	}
 	tx := db.GetManager().Begin()
