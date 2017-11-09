@@ -89,7 +89,7 @@ func (p *PluginAction) CreatePluginAct(cps *api_model.CreatePluginStruct) *util.
 			PluginID: cps.Body.PluginID,
 			ENVName:  env.ENVName,
 			ENVValue: env.ENVValue,
-			Change:   env.Change,
+			IsChange: env.IsChange,
 		}
 		err := db.GetManager().TenantPluginDefaultENVDaoTransactions(tx).AddModel(vis)
 		if err != nil {
@@ -165,7 +165,7 @@ func (p *PluginAction) AddDefaultEnv(est *api_model.ENVStruct) *util.APIHandleEr
 			PluginID: est.PluginID,
 			ENVName:  env.ENVName,
 			ENVValue: env.ENVValue,
-			Change:   env.Change,
+			IsChange: env.IsChange,
 		}
 		err := db.GetManager().TenantPluginDefaultENVDaoTransactions(tx).AddModel(vis)
 		if err != nil {
@@ -186,7 +186,7 @@ func (p *PluginAction) UpdateDefaultEnv(est *api_model.ENVStruct) *util.APIHandl
 		vis := &dbmodel.TenantPluginDefaultENV{
 			ENVName:  env.ENVName,
 			ENVValue: env.ENVValue,
-			Change:   env.Change,
+			IsChange: env.IsChange,
 		}
 		err := db.GetManager().TenantPluginDefaultENVDao().UpdateModel(vis)
 		if err != nil {
