@@ -3,7 +3,7 @@
 <img src="https://github.com/goodrain/rainbond/raw/master/docs/logo.png" width="200">
 
 ----
-云帮是国内第一个开源的企业级应用管理平台(无服务器PasS)，集CI/CD自动化应用构建系统，原生支持微服务架构的应用管理系统和全自动的计算资源管理系统于一身。是以应用为中心理念的最佳实践。
+云帮是国内第一个开源的企业级应用管理平台(无服务器PaaS)，集CI/CD自动化应用构建系统，原生支持微服务架构的应用管理系统和全自动的计算资源管理系统于一身。是以应用为中心理念的最佳实践。
 
 云帮得益于[Kubernetes](https://github.com/kubernetes/kubernetes),[Docker](https://github.com/moby/moby)等容器生态开源项目，结合好雨云多年的公有云生产运营经验。成为国内理念最新的云应用平台。我们选择开源，拥抱社区。吸收社区最好的想法和实践打造云帮项目，让更多的用户和企业拥抱以应用为中心的云计算平台。
 

@@ -19,34 +19,17 @@
 package exector
 
 import (
-	"bufio"
 	"fmt"
-	"io"
-	"os/exec"
 	"testing"
 )
 
-func TestExec(t *testing.T) {
-	cmd := exec.Command("ping", "127.0.0.1", "-t", "10")
-	stdout, _ := cmd.StdoutPipe()
-	cmd.Start()
-	reader := bufio.NewReader(stdout)
-	go func() {
-		for {
-			line, err2 := reader.ReadString('\n')
-			if err2 != nil || io.EOF == err2 {
-				break
-			}
-			fmt.Print(line)
-		}
-	}()
-	cmd.Wait()
-}
-
-func TestLog(t *testing.T) {
-	mm := []string{"127.0.0.1", "-t", "100"}
-	err := ShowExec("ping", mm)
+func TestSetTag(t *testing.T) {
+	curR := "goodrain.me"
+	image := "alpine"
+	alias := "gr123123"
+	mm, err := setTag(curR, image, alias)
 	if err != nil {
-		fmt.Println(err)
+		t.Error(err)
 	}
+	fmt.Println(mm)
 }
