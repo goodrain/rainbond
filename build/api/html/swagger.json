@@ -3571,7 +3571,7 @@
       }
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}": {
-      "post": {
+      "delete": {
         "description": "delete plugin relation",
         "consumes": [
           "application/json",
@@ -5348,11 +5348,6 @@
         "env_value"
       ],
       "properties": {
-        "change": {
-          "description": "是否可以被使用者修改\nin :path",
-          "type": "boolean",
-          "x-go-name": "Change"
-        },
         "env_name": {
           "description": "配置项名称\nin: path",
           "type": "string",
@@ -5362,6 +5357,11 @@
           "description": "配置项值\nin: path",
           "type": "string",
           "x-go-name": "ENVValue"
+        },
+        "is_change": {
+          "description": "是否可以被使用者修改\nin :path",
+          "type": "boolean",
+          "x-go-name": "IsChange"
         },
         "plugin_id": {
           "description": "对应插件id\nin: path",

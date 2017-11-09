@@ -534,7 +534,7 @@ func (t *TenantStruct) getPluginSet(w http.ResponseWriter, r *http.Request) {
 
 //DeletePluginRelation DeletePluginRelation
 func (t *TenantStruct) DeletePluginRelation(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id} v2 deletePluginRelation
+	// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id} v2 deletePluginRelation
 	//
 	// 删除插件依赖
 	//
@@ -554,7 +554,7 @@ func (t *TenantStruct) DeletePluginRelation(w http.ResponseWriter, r *http.Reque
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
+	pluginID := chi.URLParam(r, "plugin_id")
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	if err := handler.GetServiceManager().TenantServiceDeletePluginRelation(serviceID, pluginID); err != nil {
 		err.Handle(r, w)

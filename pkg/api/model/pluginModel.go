@@ -183,7 +183,7 @@ type PluginDefaultENV struct {
 	//是否可以被使用者修改
 	//in :path
 	//required: false
-	Change bool `json:"change" validate:"change|bool"`
+	IsChange bool `json:"is_change" validate:"is_change|bool"`
 }
 
 //BuildPluginStruct BuildPluginStruct

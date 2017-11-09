@@ -1447,6 +1447,7 @@ func (s *ServiceAction) SetTenantServicePluginRelation(serviceID string, pss *ap
 		VersionID: pss.Body.VersionID,
 		ServiceID: serviceID,
 		PluginID:  pss.Body.PluginID,
+		Switch:    pss.Body.Switch,
 	}
 	if err := db.GetManager().TenantServicePluginRelationDao().AddModel(relation); err != nil {
 		return util.CreateAPIHandleErrorFromDBError("set service plugin relation", err)
@@ -1461,6 +1462,7 @@ func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss 
 		return util.CreateAPIHandleErrorFromDBError("get relation by serviceid and pluginid", err)
 	}
 	relation.VersionID = pss.Body.VersionID
+	relation.Switch = pss.Body.Switch
 	err = db.GetManager().TenantServicePluginRelationDao().UpdateModel(relation)
 	if err != nil {
 		return util.CreateAPIHandleErrorFromDBError("update relation between plugin and service", err)
