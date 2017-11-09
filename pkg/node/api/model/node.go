@@ -19,15 +19,15 @@
 package model
 
 import (
-	"os"
-	"strconv"
-	"syscall"
-	"time"
 	"strings"
+	"time"
 
 	"k8s.io/client-go/pkg/api/v1"
 
+	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
+	"github.com/coreos/etcd/mvcc/mvccpb"
+	"github.com/pquerna/ffjson/ffjson"
 
 	conf "github.com/goodrain/rainbond/cmd/node/option"
 	store "github.com/goodrain/rainbond/pkg/node/core/store"
@@ -39,6 +39,7 @@ type HostNode struct {
 	HostName        string            `json:"host_name"`
 	InternalIP      string            `json:"internal_ip"`
 	ExternalIP      string            `json:"external_ip"`
+	RootPass        string            `json:"root_pass,omitempty"`
 	AvailableMemory int64             `json:"available_memory"`
 	AvailableCPU    int64             `json:"available_cpu"`
 	Role            HostRule          `json:"role"`          //节点属性 compute manage storage
@@ -47,6 +48,44 @@ type HostNode struct {
 	Unschedulable   bool              `json:"unschedulable"` //不可调度
 	NodeStatus      *v1.NodeStatus    `json:"node_status,omitempty"`
 	ClusterNode
+}
+
+//GetNodeFromKV 从etcd解析node信息
+func GetNodeFromKV(kv *mvccpb.KeyValue) *HostNode {
+	var node HostNode
+	if err := ffjson.Unmarshal(kv.Value, &node); err != nil {
+		logrus.Error("parse node info error:", err.Error())
+		return nil
+	}
+	return &node
+}
+
+//UpdataK8sCondition 更新k8s节点的状态到rainbond节点
+func (h *HostNode) UpdataK8sCondition(conditions []v1.NodeCondition) {
+	for _, con := range conditions {
+		rbcon := NodeCondition{
+			Type:               NodeConditionType(con.Type),
+			Status:             ConditionStatus(con.Status),
+			LastHeartbeatTime:  con.LastHeartbeatTime.Time,
+			LastTransitionTime: con.LastTransitionTime.Time,
+			Reason:             con.Reason,
+			Message:            con.Message,
+		}
+		h.UpdataCondition(rbcon)
+	}
+}
+
+//UpdataCondition 更新状态
+func (h *HostNode) UpdataCondition(conditions ...NodeCondition) {
+	for _, newcon := range conditions {
+		for i, con := range h.Conditions {
+			if con.Type == newcon.Type {
+				h.Conditions[i] = newcon
+				continue
+			}
+		}
+		h.Conditions = append(h.Conditions, newcon)
+	}
 }
 
 //HostRule 节点角色
@@ -61,8 +100,8 @@ func (h HostRule) HasRule(rule string) bool {
 	}
 	return false
 }
-func (h HostRule) String()string{
-	return strings.Join(h,",")
+func (h HostRule) String() string {
+	return strings.Join(h, ",")
 }
 
 //NodeConditionType NodeConditionType
@@ -120,55 +159,25 @@ type ClusterNode struct {
 	Conditions []NodeCondition `json:"conditions"`
 }
 
-func (n *HostNode) String() string {
-	return "node[" + n.ID + "] pid[" + n.PID + "]"
+//String string
+func (h *HostNode) String() string {
+	res, _ := ffjson.Marshal(h)
+	return string(res)
 }
 
-//Put 节点更新
-func (n *HostNode) Put(opts ...client.OpOption) (*client.PutResponse, error) {
-	return store.DefalutClient.Put(conf.Config.Node+n.ID, n.PID, opts...)
+//Put 节点上线更新
+func (h *HostNode) Put(opts ...client.OpOption) (*client.PutResponse, error) {
+	return store.DefalutClient.Put(conf.Config.OnlineNodePath+"/"+h.ID, h.PID, opts...)
 }
 
-//PutMaster 注册管理节点
-func (n *HostNode) PutMaster(opts ...client.OpOption) (*client.PutResponse, error) {
-	return store.DefalutClient.Put(conf.Config.Master+n.ID, n.PID, opts...)
+//Update 更新节点信息，由节点启动时调用
+func (h *HostNode) Update() (*client.PutResponse, error) {
+	return store.DefalutClient.Put(conf.Config.NodePath+"/"+h.ID, h.String())
 }
 
 //Del 删除
-func (n *HostNode) Del() (*client.DeleteResponse, error) {
-	return store.DefalutClient.Delete(conf.Config.Node + n.ID)
-}
-
-// Exist 判断 node 是否已注册到 etcd
-// 存在则返回进行 pid，不存在返回 -1
-func (n *HostNode) Exist() (pid int, err error) {
-	resp, err := store.DefalutClient.Get(conf.Config.Node + n.ID)
-	if err != nil {
-		return
-	}
-
-	if len(resp.Kvs) == 0 {
-		return -1, nil
-	}
-
-	if pid, err = strconv.Atoi(string(resp.Kvs[0].Value)); err != nil {
-		if _, err = store.DefalutClient.Delete(conf.Config.Node + n.ID); err != nil {
-			return
-		}
-		return -1, nil
-	}
-
-	p, err := os.FindProcess(pid)
-	if err != nil {
-		return -1, nil
-	}
-
-	// TODO: 暂时不考虑 linux/unix 以外的系统
-	if p != nil && p.Signal(syscall.Signal(0)) == nil {
-		return
-	}
-
-	return -1, nil
+func (h *HostNode) Del() (*client.DeleteResponse, error) {
+	return store.DefalutClient.Delete(conf.Config.OnlineNodePath + h.ID)
 }
 
 //GetNodes 获取节点

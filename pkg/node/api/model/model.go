@@ -96,7 +96,7 @@ func (g *GlobalConfig) Add(c ConfigUnit) {
 			}
 		}
 	}
-	logrus.Debugf("add datacenter config %f", c.Name)
+	logrus.Debugf("add datacenter config %s", c.Name)
 	g.Configs[c.Name] = &c
 }
 

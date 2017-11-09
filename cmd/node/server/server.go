@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
+	"github.com/goodrain/rainbond/pkg/node/masterserver"
 	"github.com/goodrain/rainbond/pkg/node/nodeserver"
 
 	"github.com/Sirupsen/logrus"
@@ -67,30 +68,32 @@ func Run(c *option.Conf) error {
 	if err != nil {
 		return err
 	}
-	if err := s.Register(); err != nil {
-		logrus.Error(err.Error())
-		return err
-	}
-	logrus.Info("node registe success")
-	if err := job.StartProc(); err != nil {
-		logrus.Warnf("[process key will not timeout]proc lease id set err: %s", err.Error())
-	}
 	if err := s.Run(); err != nil {
 		logrus.Errorf(err.Error())
 		return err
 	}
+	//master服务在node服务之后启动
+	var ms *masterserver.MasterServer
 	if c.RunMode == "master" {
-
+		ms, err = masterserver.NewMasterServer(s.HostNode, k8s.K8S.Clientset)
+		if err != nil {
+			logrus.Errorf(err.Error())
+			return err
+		}
+		if err := ms.Start(); err != nil {
+			logrus.Errorf(err.Error())
+			return err
+		}
+		event.On(event.EXIT, ms.Stop)
 	}
-	apiManager := api.NewManager(*s.Conf)
+	//启动API服务
+	apiManager := api.NewManager(*s.Conf, s.HostNode, ms)
 	apiManager.Start(errChan)
 	defer apiManager.Stop()
+
 	// 注册退出事件
 	//todo conf.Exit cronsun.exit 重写
 	event.On(event.EXIT, s.Stop, option.Exit, job.Exit, controller.Exist)
-	// 注册监听配置更新事件
-	//todo cronsun.Reload重写
-	event.On(event.WAIT, job.Reload)
 	// 监听退出信号
 	event.Wait()
 	// 处理退出事件

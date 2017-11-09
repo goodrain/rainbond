@@ -61,8 +61,17 @@ func (d *DataCenterConfig) Start() {
 	if err != nil {
 		logrus.Error("load datacenter config error.", err.Error())
 	}
-	for _, kv := range res.Kvs {
-		d.PutConfigKV(kv)
+	if len(res.Kvs) < 1 {
+		dgc := model.CreateDefaultGlobalConfig()
+		err := d.PutDataCenterConfig(dgc)
+		if err != nil {
+			logrus.Error("put datacenter config error,", err.Error())
+		}
+		d.config = dgc
+	} else {
+		for _, kv := range res.Kvs {
+			d.PutConfigKV(kv)
+		}
 	}
 	go func() {
 		logrus.Info("datacenter config listener start")
@@ -93,15 +102,6 @@ func (d *DataCenterConfig) Stop() {
 
 //GetDataCenterConfig 获取配置
 func (d *DataCenterConfig) GetDataCenterConfig() (*model.GlobalConfig, error) {
-	if len(d.config.Configs) < 1 {
-		dgc := model.CreateDefaultGlobalConfig()
-		err := d.PutDataCenterConfig(dgc)
-		if err != nil {
-			logrus.Error("put datacenter config error,", err.Error())
-			return nil, err
-		}
-		d.config = dgc
-	}
 	return d.config, nil
 }
 

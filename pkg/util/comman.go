@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -21,11 +20,14 @@ package util
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/twinj/uuid"
 )
 
 //CheckAndCreateDir check and create dir
@@ -86,4 +88,33 @@ func CmdRunWithTimeout(cmd *exec.Cmd, timeout time.Duration) (bool, error) {
 	case err = <-done:
 		return false, err
 	}
+}
+
+//ReadHostID 读取当前机器ID
+//ID是节点的唯一标识，acp_node将把ID与机器信息的绑定关系维护于etcd中
+func ReadHostID(filePath string) (string, error) {
+	if filePath == "" {
+		filePath = "/etc/goodrain/host_uuid.conf"
+	}
+	_, err := os.Stat(filePath)
+	if err != nil {
+		if strings.HasSuffix(err.Error(), "no such file or directory") {
+			uid := uuid.NewV4().String()
+			err = ioutil.WriteFile(filePath, []byte("host_uuid="+uid), 0777)
+			if err != nil {
+				logrus.Error("Write host_uuid file error.", err.Error())
+			}
+			return uid, nil
+		}
+		return "", err
+	}
+	body, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+	info := strings.Split(strings.TrimSpace(string(body)), "=")
+	if len(info) == 2 {
+		return info[1], nil
+	}
+	return "", fmt.Errorf("Invalid host uuid from file")
 }

@@ -16,38 +16,43 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package controller
+package service
 
 import (
+	"fmt"
+
 	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/pkg/node/core/config"
-	"github.com/goodrain/rainbond/pkg/node/core/service"
+	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/masterserver"
+	"github.com/goodrain/rainbond/pkg/node/utils"
 )
 
-var datacenterConfig *config.DataCenterConfig
-var taskService *service.TaskService
-var taskTempService *service.TaskTempService
-var taskGroupService *service.TaskGroupService
-var appService *service.AppService
-var nodeService *service.NodeService
-
-//Init 初始化
-func Init(c *option.Conf, ms *masterserver.MasterServer) {
-	datacenterConfig = config.CreateDataCenterConfig(c)
-	//监控配置变化启动
-	datacenterConfig.Start()
-
-	taskService = service.CreateTaskService(c)
-	taskTempService = service.CreateTaskTempService(c)
-	taskGroupService = service.CreateTaskGroupService(c)
-	appService = service.CreateAppService(c)
-	nodeService = service.CreateNodeService(c, ms.Cluster)
+//NodeService node service
+type NodeService struct {
+	c           *option.Conf
+	nodecluster *masterserver.NodeCluster
 }
 
-//Exist 退出
-func Exist(i interface{}) {
-	if datacenterConfig != nil {
-		datacenterConfig.Stop()
+//CreateNodeService create
+func CreateNodeService(c *option.Conf, nodecluster *masterserver.NodeCluster) *NodeService {
+	return &NodeService{
+		c:           c,
+		nodecluster: nodecluster,
 	}
+}
+
+//AddNode add node
+func (n *NodeService) AddNode(node *model.HostNode) *utils.APIHandleError {
+	if n.nodecluster == nil {
+		return utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
+	}
+	return nil
+}
+
+//GetAllNode get all node
+func (n *NodeService) GetAllNode() ([]*model.HostNode, *utils.APIHandleError) {
+	if n.nodecluster == nil {
+		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
+	}
+	return n.nodecluster.GetAllNode(), nil
 }
