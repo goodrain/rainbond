@@ -13,7 +13,7 @@ RUN curl $PKG_URL/labor_docker.tar.gz | tar -xzC /usr/bin/ \
     && echo 'rain ALL = (root) NOPASSWD:/usr/bin/docker' > /etc/sudoers.d/rain \
     && curl https://bootstrap.pypa.io/get-pip.py | python -
 
-ADD acp_builder /run/acp_builder
+ADD rainbond_builder /run/rainbond_builder
 ADD plugins /run/plugins
 
 ENV REGION_TAG labor
@@ -41,4 +41,4 @@ WORKDIR $WORK_DIR
 
 USER rain
 
-CMD ["/run/acp_builder"]
+CMD ["/run/rainbond_builder"]
