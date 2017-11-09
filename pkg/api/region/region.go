@@ -14,11 +14,6 @@ import (
 var regionAPI, token string
 var region *Region
 
-func newTengant(r *Region) *Tenant {
-	return & Tenant{
-	}
-}
-
 
 type Region struct {
 	regionAPI string
@@ -55,13 +50,14 @@ func (t *Tenant)Services() ServiceInterface {
 }
 
 type ServiceInterface interface {
-	Get(name string) *Services
+	Get(name string) *model.ServiceStruct
 	List() []model.ServiceStruct
 	Stop(serviceAlisa ,eventID string) error
+	Start(serviceAlisa ,eventID string) error
 }
 
 
-func (s *Services)Get(name string) *Services {
+func (s *Services)Get(name string) *model.ServiceStruct {
 	return nil
 }
 
@@ -98,7 +94,18 @@ func (s *Services)List() []model.ServiceStruct {
 func (s *Services)Stop(name ,eventID string) error {
 
 	data := []byte(`{"event_id":"` + eventID + `"}`)
-	_,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services"+s.model.ServiceAlias+"/stop","POST",data)
+	_,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services"+name+"/stop","POST",data)
+	//request, err := http.NewRequest("POST", regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services"+s.model.ServiceAlias+"/stop", bytes.NewBuffer(data))
+	if err!=nil {
+		return err
+	}
+
+	return nil
+}
+func (s *Services)Start(name ,eventID string) error {
+
+	data := []byte(`{"event_id":"` + eventID + `"}`)
+	_,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services"+name+"/start","POST",data)
 	//request, err := http.NewRequest("POST", regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services"+s.model.ServiceAlias+"/stop", bytes.NewBuffer(data))
 	if err!=nil {
 		return err
