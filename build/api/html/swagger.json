@@ -1852,7 +1852,7 @@
         "tags": [
           "v2"
         ],
-        "summary": "获取可以修改的plugin env",
+        "summary": "获取插件设定的env",
         "operationId": "getPluginEnv",
         "parameters": [
           {
@@ -3608,6 +3608,201 @@
             "name": "plugin_id",
             "in": "path",
             "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/envs": {
+      "get": {
+        "description": "get version env",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取可配置的env; 从service plugin对应中取, 若不存在则返回默认可修改的变量",
+        "operationId": "getVersionEnvs",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "PluginID",
+            "description": "插件id",
+            "name": "plugin_id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/setenv": {
+      "post": {
+        "description": "set version env",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "设置用户可配的环境变量",
+        "operationId": "setVersionEnv",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "PluginID",
+            "description": "插件id",
+            "name": "plugin_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "envs"
+              ],
+              "properties": {
+                "envs": {
+                  "description": "环境变量\nin: body",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/VersionEnv"
+                  },
+                  "x-go-name": "Envs"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/setenv/{env_name}": {
+      "put": {
+        "description": "update version env",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "修改用户可配的环境变量",
+        "operationId": "updateVersionEnv",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "PluginID",
+            "description": "插件id",
+            "name": "plugin_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "EnvName",
+            "description": "变量名",
+            "name": "env_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "env_value"
+              ],
+              "properties": {
+                "env_value": {
+                  "description": "变量值\nin: body",
+                  "type": "string",
+                  "x-go-name": "EnvValue"
+                }
+              }
+            }
           }
         ],
         "responses": {
@@ -5598,6 +5793,27 @@
         }
       },
       "x-go-package": "net/url"
+    },
+    "VersionEnv": {
+      "description": "VersionEnv VersionEnv",
+      "type": "object",
+      "required": [
+        "env_name",
+        "env_value"
+      ],
+      "properties": {
+        "env_name": {
+          "description": "变量名\nin:body",
+          "type": "string",
+          "x-go-name": "EnvName"
+        },
+        "env_value": {
+          "description": "变量值\nin:body",
+          "type": "string",
+          "x-go-name": "EnvValue"
+        }
+      },
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
     }
   },
   "responses": {

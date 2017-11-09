@@ -93,10 +93,10 @@ type TenantPluginDao interface {
 //TenantPluginDefaultENVDao TenantPluginDefaultENVDao
 type TenantPluginDefaultENVDao interface {
 	Dao
-	GetDefaultENVByName(ENVName string) (*model.TenantPluginDefaultENV, error)
+	GetDefaultENVByName(pluginID, ENVName string) (*model.TenantPluginDefaultENV, error)
 	GetDefaultENVSByPluginID(pluginID string) ([]*model.TenantPluginDefaultENV, error)
 	GetDefaultENVSByPluginIDCantBeSet(pluginID string) ([]*model.TenantPluginDefaultENV, error)
-	DeleteDefaultENVByName(ENVName string) error
+	DeleteDefaultENVByName(pluginID, ENVName string) error
 	DeleteAllDefaultENVByPluginID(PluginID string) error
 	GetDefaultEnvWhichCanBeSetByPluginID(pluginID string) ([]*model.TenantPluginDefaultENV, error)
 }
@@ -117,6 +117,7 @@ type TenantPluginVersionEnvDao interface {
 	DeleteEnvByPluginID(serviceID, pluginID string) error
 	DeleteEnvByServiceID(serviceID string) error
 	GetVersionEnvByServiceID(serviceID string, pluginID string) ([]*model.TenantPluginVersionEnv, error)
+	GetVersionEnvByEnvName(serviceID, pluginID, envName string) (*model.TenantPluginVersionEnv, error)
 }
 
 //TenantServicePluginRelationDao TenantServicePluginRelationDao
