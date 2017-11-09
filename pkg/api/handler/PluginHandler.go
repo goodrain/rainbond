@@ -33,12 +33,13 @@ type PluginHandler interface {
 	GetPlugins(tenantID string) ([]*dbmodel.TenantPlugin, *util.APIHandleError)
 	AddDefaultEnv(est *api_model.ENVStruct) *util.APIHandleError
 	UpdateDefaultEnv(est *api_model.ENVStruct) *util.APIHandleError
-	DeleteDefaultEnv(ENVName string) *util.APIHandleError
+	DeleteDefaultEnv(pluginID, ENVName string) *util.APIHandleError
 	BuildPluginManual(bps *api_model.BuildPluginStruct) (string, *util.APIHandleError)
 	GetAllPluginBuildVersions(pluginID string) ([]*dbmodel.TenantPluginBuildVersion, *util.APIHandleError)
 	GetPluginBuildVersion(pluginID, versionID string) (*dbmodel.TenantPluginBuildVersion, *util.APIHandleError)
 	DeletePluginBuildVersion(pluginID, versionID string) *util.APIHandleError
-	GetDefaultEnvWhichCanBeSet(pluginID string) ([]*dbmodel.TenantPluginDefaultENV, *util.APIHandleError)
+	GetDefaultEnv(pluginID string) ([]*dbmodel.TenantPluginDefaultENV, *util.APIHandleError)
+	GetEnvsWhichCanBeSet(serviceID, pluginID string) (interface{}, *util.APIHandleError)
 }
 
 var defaultPluginHandler PluginHandler

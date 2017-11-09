@@ -1470,6 +1470,41 @@ func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss 
 	return nil
 }
 
+//SetVersionEnv SetVersionEnv
+func (s *ServiceAction) SetVersionEnv(serviecID, pluginID string, sve *api_model.SetVersionEnv) *util.APIHandleError {
+	tx := db.GetManager().Begin()
+	for _, env := range sve.Body.Envs {
+		tpv := &dbmodel.TenantPluginVersionEnv{
+			PluginID:  pluginID,
+			ServiceID: serviecID,
+			EnvName:   env.EnvName,
+			EnvValue:  env.EnvValue,
+		}
+		if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).AddModel(tpv); err != nil {
+			tx.Rollback()
+			return util.CreateAPIHandleErrorFromDBError("set version env", err)
+		}
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleErrorFromDBError("commit set version env", err)
+	}
+	return nil
+}
+
+//UpdateVersionEnv UpdateVersionEnv
+func (s *ServiceAction) UpdateVersionEnv(serviceID string, uve *api_model.UpdateVersionEnv) *util.APIHandleError {
+	env, err := db.GetManager().TenantPluginVersionENVDao().GetVersionEnvByEnvName(serviceID, uve.PluginID, uve.EnvName)
+	if err != nil {
+		return util.CreateAPIHandleErrorFromDBError("update get version env", err)
+	}
+	env.EnvValue = uve.Body.EnvValue
+	if err := db.GetManager().TenantPluginVersionENVDao().UpdateModel(env); err != nil {
+		return util.CreateAPIHandleErrorFromDBError("update version env", err)
+	}
+	return nil
+}
+
 //TransStatus trans service status
 func TransStatus(eStatus string) string {
 	switch eStatus {

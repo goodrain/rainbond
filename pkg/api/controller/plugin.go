@@ -244,8 +244,9 @@ func (t *TenantStruct) DeleteDefaultENV(w http.ResponseWriter, r *http.Request) 
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
+	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
 	envName := chi.URLParam(r, "env_name")
-	if err := handler.GetPluginManager().DeleteDefaultEnv(envName); err != nil {
+	if err := handler.GetPluginManager().DeleteDefaultEnv(pluginID, envName); err != nil {
 		err.Handle(r, w)
 		return
 	}
@@ -563,11 +564,11 @@ func (t *TenantStruct) DeletePluginRelation(w http.ResponseWriter, r *http.Reque
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//GetPluginEnvWhichCanBeSet GetPluginEnvWhichCanBeSets
-func (t *TenantStruct) GetPluginEnvWhichCanBeSet(w http.ResponseWriter, r *http.Request) {
+//GetDefaultEnvs GetDefaultEnvs
+func (t *TenantStruct) GetDefaultEnvs(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants/{tenant_name}/plugin/{plugin_id}/envs v2 getPluginEnv
 	//
-	// 获取可以修改的plugin env
+	// 获取插件设定的env
 	//
 	// get plugin env
 	//
@@ -586,10 +587,117 @@ func (t *TenantStruct) GetPluginEnvWhichCanBeSet(w http.ResponseWriter, r *http.
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
-	envs, err := handler.GetPluginManager().GetDefaultEnvWhichCanBeSet(pluginID)
+	envs, err := handler.GetPluginManager().GetDefaultEnv(pluginID)
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
 	httputil.ReturnSuccess(r, w, envs)
+}
+
+//GetEnvsWhichCanBeSet GetEnvsWhichCanBeSet
+func (t *TenantStruct) GetEnvsWhichCanBeSet(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_id}/plugin/{plugin_id}/envs v2 getVersionEnvs
+	//
+	// 获取可配置的env; 从service plugin对应中取, 若不存在则返回默认可修改的变量
+	//
+	// get version env
+	//
+	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//       "$ref": "#/responses/commandResponse"
+	//     description: 统一返回格式
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	pluginID := chi.URLParam(r, "plugin_id")
+	envs, err := handler.GetPluginManager().GetEnvsWhichCanBeSet(serviceID, pluginID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, envs)
+}
+
+//SetVersionEnv SetVersionEnv
+func (t *TenantStruct) SetVersionEnv(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_id}/plugin/{plugin_id}/setenv v2 setVersionEnv
+	//
+	// 设置用户可配的环境变量
+	//
+	// set version env
+	//
+	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//       "$ref": "#/responses/commandResponse"
+	//     description: 统一返回格式
+	var sve api_model.SetVersionEnv
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &sve.Body, nil)
+	if !ok {
+		return
+	}
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	pluginID := chi.URLParam(r, "plugin_id")
+	if err := handler.GetServiceManager().SetVersionEnv(serviceID, pluginID, &sve); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+//UpdateVersionEnv UpdateVersionEnv
+func (t *TenantStruct) UpdateVersionEnv(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_id}/plugin/{plugin_id}/setenv/{env_name} v2 updateVersionEnv
+	//
+	// 修改用户可配的环境变量
+	//
+	// update version env
+	//
+	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//       "$ref": "#/responses/commandResponse"
+	//     description: 统一返回格式
+	var uve api_model.UpdateVersionEnv
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &uve.Body, nil)
+	if !ok {
+		return
+	}
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	pluginID := chi.URLParam(r, "plugin_id")
+	envName := chi.URLParam(r, "env_name")
+	uve.PluginID = pluginID
+	uve.EnvName = envName
+	if err := handler.GetServiceManager().UpdateVersionEnv(serviceID, &uve); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
 }
