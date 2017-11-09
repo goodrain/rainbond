@@ -3571,7 +3571,7 @@
       }
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}": {
-      "post": {
+      "delete": {
         "description": "delete plugin relation",
         "consumes": [
           "application/json",
