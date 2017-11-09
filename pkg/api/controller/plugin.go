@@ -564,8 +564,8 @@ func (t *TenantStruct) DeletePluginRelation(w http.ResponseWriter, r *http.Reque
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//GetDefaultEnvs GetDefaultEnvs
-func (t *TenantStruct) GetDefaultEnvs(w http.ResponseWriter, r *http.Request) {
+//GetPluginDefaultEnvs GetPluginDefaultEnvs
+func (t *TenantStruct) GetPluginDefaultEnvs(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants/{tenant_name}/plugin/{plugin_id}/envs v2 getPluginEnv
 	//
 	// 获取插件设定的env
@@ -595,9 +595,9 @@ func (t *TenantStruct) GetDefaultEnvs(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, envs)
 }
 
-//GetEnvsWhichCanBeSet GetEnvsWhichCanBeSet
-func (t *TenantStruct) GetEnvsWhichCanBeSet(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_id}/plugin/{plugin_id}/envs v2 getVersionEnvs
+//GePluginEnvWhichCanBeSet GePluginEnvWhichCanBeSet
+func (t *TenantStruct) GePluginEnvWhichCanBeSet(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/envs v2 getVersionEnvs
 	//
 	// 获取可配置的env; 从service plugin对应中取, 若不存在则返回默认可修改的变量
 	//
@@ -629,7 +629,7 @@ func (t *TenantStruct) GetEnvsWhichCanBeSet(w http.ResponseWriter, r *http.Reque
 
 //SetVersionEnv SetVersionEnv
 func (t *TenantStruct) SetVersionEnv(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_id}/plugin/{plugin_id}/setenv v2 setVersionEnv
+	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/setenv v2 setVersionEnv
 	//
 	// 设置用户可配的环境变量
 	//
@@ -665,7 +665,7 @@ func (t *TenantStruct) SetVersionEnv(w http.ResponseWriter, r *http.Request) {
 
 //UpdateVersionEnv UpdateVersionEnv
 func (t *TenantStruct) UpdateVersionEnv(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_id}/plugin/{plugin_id}/setenv/{env_name} v2 updateVersionEnv
+	// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/setenv/{env_name} v2 updateVersionEnv
 	//
 	// 修改用户可配的环境变量
 	//

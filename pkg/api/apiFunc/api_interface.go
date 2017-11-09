@@ -100,8 +100,8 @@ type PluginInterface interface {
 	//plugin
 	PluginSet(w http.ResponseWriter, r *http.Request)
 	DeletePluginRelation(w http.ResponseWriter, r *http.Request)
-	GetPluginEnvWhichCanBeSet(w http.ResponseWriter, r *http.Request)
+	GePluginEnvWhichCanBeSet(w http.ResponseWriter, r *http.Request)
 	SetVersionEnv(w http.ResponseWriter, r *http.Request)
-	GetDefaultEnvs(w http.ResponseWriter, r *http.Request)
-	GetEnvsWhichCanBeSet(w http.ResponseWriter, r *http.Request)
+	UpdateVersionEnv(w http.ResponseWriter, r *http.Request)
+	GetPluginDefaultEnvs(w http.ResponseWriter, r *http.Request)
 }

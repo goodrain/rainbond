@@ -36,7 +36,7 @@ func (v2 *V2) pluginRouter() chi.Router {
 	r.Delete("/", controller.GetManager().PluginAction)
 	r.Post("/build", controller.GetManager().PluginBuild)
 	r.Post("/default-env", controller.GetManager().PluginDefaultENV)
-	r.Get("/default-env", controller.GetManager().GetDefaultEnvs)
+	r.Get("/default-env", controller.GetManager().GetPluginDefaultEnvs)
 	r.Put("/default-env/{env_name}", controller.GetManager().PluginDefaultENV)
 	r.Delete("/default-env/{env_name}", controller.GetManager().PluginDefaultENV)
 	//get this plugin all build version

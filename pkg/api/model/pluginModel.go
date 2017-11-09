@@ -332,6 +332,21 @@ type GetPluginEnvStruct struct {
 	PluginID string `json:"plugin_id"`
 }
 
+//GetVersionEnvStruct GetVersionEnvStruct
+//swagger:parameters getVersionEnvs
+type GetVersionEnvStruct struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
+	// in: path
+	// required: true
+	ServiceAlias string `json:"service_alias"`
+	// 插件id
+	// in: path
+	// required: true
+	PluginID string `json:"plugin_id"`
+}
+
 //SetVersionEnv SetVersionEnv
 //swagger:parameters setVersionEnv
 type SetVersionEnv struct {
