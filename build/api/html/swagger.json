@@ -1494,6 +1494,18 @@
                   "type": "string",
                   "x-go-name": "Operator"
                 },
+                "plugin_cpu": {
+                  "description": "插件CPU权重, 默认500\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "PluginCPU"
+                },
+                "plugin_memory": {
+                  "description": "插件最大内存, 默认128\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "PluginMemory"
+                },
                 "repo_url": {
                   "description": "git地址 带版本\nin: body",
                   "type": "string",
