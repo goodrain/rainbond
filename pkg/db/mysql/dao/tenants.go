@@ -1192,7 +1192,7 @@ func (t *PluginDefaultENVDaoImpl) GetDefaultENVSByPluginID(pluginID string) ([]*
 //GetDefaultENVSByPluginIDCantBeSet GetDefaultENVSByPluginIDCantBeSet
 func (t *PluginDefaultENVDaoImpl) GetDefaultENVSByPluginIDCantBeSet(pluginID string) ([]*model.TenantPluginDefaultENV, error) {
 	var envs []*model.TenantPluginDefaultENV
-	if err := t.DB.Where("plugin_id=? and Change=0", pluginID).Find(&envs).Error; err != nil {
+	if err := t.DB.Where("plugin_id=? and change=0", pluginID).Find(&envs).Error; err != nil {
 		return nil, err
 	}
 	return envs, nil
@@ -1223,7 +1223,7 @@ func (t *PluginDefaultENVDaoImpl) DeleteAllDefaultENVByPluginID(id string) error
 //GetDefaultEnvWhichCanBeSetByPluginID GetDefaultEnvWhichCanBeSetByPluginID
 func (t *PluginDefaultENVDaoImpl) GetDefaultEnvWhichCanBeSetByPluginID(pluginID string) ([]*model.TenantPluginDefaultENV, error) {
 	var envs []*model.TenantPluginDefaultENV
-	if err := t.DB.Where("plugin_id=? and Change=1", pluginID).Find(&envs).Error; err != nil {
+	if err := t.DB.Where("plugin_id=? and change=1", pluginID).Find(&envs).Error; err != nil {
 		return nil, err
 	}
 	return envs, nil
