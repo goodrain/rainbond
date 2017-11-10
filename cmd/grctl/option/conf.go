@@ -29,12 +29,17 @@ import (
 )
 var config Config
 type Config struct {
-	//RegionMysql   *RegionMysql `json:"RegionMysql"`
+	RegionMysql   *RegionMysql `json:"RegionMysql"`
 	Kubernets     *Kubernets   `json:"Kubernets"`
 	RegionAPI     *RegionAPI   `json:"RegionAPI"`
-	//DockerLogPath string       `json:"DockerLogPath"`
+	DockerLogPath string       `json:"DockerLogPath"`
 }
-
+type RegionMysql struct {
+	URL      string `json:"URL"`
+	Pass     string `json:"Pass"`
+	User     string `json:"User"`
+	Database string `json:"Database"`
+}
 type Kubernets struct {
 	Master string
 }

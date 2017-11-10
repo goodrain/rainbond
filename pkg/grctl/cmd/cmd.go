@@ -34,6 +34,9 @@ func GetCmds() []cli.Command {
 	cmds=append(cmds,NewCmdTenantRes())
 	cmds=append(cmds,NewCmdNode())
 	cmds=append(cmds,NewCmdNodeRes())
+	cmds=append(cmds,NewCmdExec())
+	cmds=append(cmds,NewCmdLog())
+	cmds=append(cmds,NewCmdEvent())
 	//todo
 	return cmds
 }
@@ -43,12 +46,14 @@ func Common(c *cli.Context) {
 		logrus.Error("Load config file error.", err.Error())
 		os.Exit(1)
 	}
-	//if err := db.InitDB(*config.RegionMysql); err != nil {
+	//if err := clients.InitDB(*config.RegionMysql); err != nil {
 	//	os.Exit(1)
 	//}
+
 	if err := clients.InitClient(*config.Kubernets); err != nil {
 		os.Exit(1)
 	}
 	//clients.SetInfo(config.RegionAPI.URL, config.RegionAPI.Token)
 	clients.InitRegionClient(*config.RegionAPI)
+
 }

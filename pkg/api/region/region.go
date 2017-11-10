@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/api/model"
 
 	"bytes"
+	"github.com/Sirupsen/logrus"
 )
 
 var regionAPI, token string
@@ -71,15 +72,44 @@ type ServiceInterface interface {
 	List() []model.ServiceStruct
 	Stop(serviceAlisa ,eventID string) error
 	Start(serviceAlisa ,eventID string) error
+	EventLog(serviceAlisa,eventID,level string) (*model.DataLog,error)
 }
 
 
 func (s *Services)Get(name string) *model.ServiceStruct {
-	return nil
+	resp,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name,"GET",nil)
+	if err != nil {
+		logrus.Errorf("获取服务失败，details %s",err.Error())
+	}
+	ss:=beanServiceStruct{}
+	json.Unmarshal(resp,&ss)
+
+	return &ss.bean
+}
+func (s *Services)EventLog(serviceAlisa,eventID,level string) (*model.DataLog,error) {
+	//{
+	//	"event_id": "string",
+	//	"level": "string"
+	//}
+	data := []byte(`{"event_id":"` + eventID + `","level":"`+level+`"}`)
+	//POST /v2/tenants/{tenant_name}/services/{service_alias}/event-log v2 logByAction
+	resp,err:=DoRequest("/v2/tenants/"+" "+"/services/"+" "+"/event-log","POST",data)
+	if err!=nil {
+		return nil,err
+	}
+	bean:=beanDataLog{}
+	json.Unmarshal(resp,&bean)
+	return &bean.bean,nil
 }
 
 type listServices struct {
 	list []model.ServiceStruct `json:"list"`
+}
+type beanDataLog struct {
+	bean model.DataLog `json:"bean"`
+}
+type beanServiceStruct struct {
+	bean model.ServiceStruct `json:"bean"`
 }
 func (s *Services)List() []model.ServiceStruct {
 
@@ -111,7 +141,7 @@ func (s *Services)List() []model.ServiceStruct {
 func (s *Services)Stop(name ,eventID string) error {
 
 	data := []byte(`{"event_id":"` + eventID + `"}`)
-	_,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services"+name+"/stop","POST",data)
+	_,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name+"/stop","POST",data)
 	//request, err := http.NewRequest("POST", regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services"+s.model.ServiceAlias+"/stop", bytes.NewBuffer(data))
 	if err!=nil {
 		return err
@@ -122,7 +152,7 @@ func (s *Services)Stop(name ,eventID string) error {
 func (s *Services)Start(name ,eventID string) error {
 
 	data := []byte(`{"event_id":"` + eventID + `"}`)
-	_,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services"+name+"/start","POST",data)
+	_,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name+"/start","POST",data)
 	//request, err := http.NewRequest("POST", regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services"+s.model.ServiceAlias+"/stop", bytes.NewBuffer(data))
 	if err!=nil {
 		return err
