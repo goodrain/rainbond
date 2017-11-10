@@ -48,8 +48,10 @@ build-entrance:
 	go build ${GO_LDFLAGS} -o ./build/entrance/${BASE_NAME}_entrance ./cmd/entrance	
 build-eventlog:
 	go build ${GO_LDFLAGS} -o ./build/eventlog/${BASE_NAME}_eventlog ./cmd/eventlog
+build-grctl:
+	go build ${GO_LDFLAGS} -o ./build/grctl/${BASE_NAME}_grctl ./cmd/grctl
 build-api:
-	go build ${GO_LDFLAGS} -o ./build/api/${BASE_NAME}_api ./cmd/api	
+	go build ${GO_LDFLAGS} -o ./build/api/${BASE_NAME}_api ./cmd/api
 
 build-image-worker:
 	@echo "🐳 $@"
