@@ -55,8 +55,9 @@ func Routers(mode string) *chi.Mux {
 			})
 			r.Route("/nodes", func(r chi.Router) {
 				r.Get("/resources", controller.Resources)
-				r.Get("/", controller.GetNodeList)
-				r.Post("/", controller.New) //用于未注册第一个node的情况
+				r.Get("/", controller.GetNodes)
+				r.Get("/{rule}", controller.GetRuleNodes)
+				r.Post("/", controller.NewNode) //增加一个节点
 				r.Get("/{node}/details", controller.GetNodeDetails)
 				r.Get("/{node}/basic", controller.GetNodeBasic)
 				r.Post("/{node}/down", controller.DeleteNode)
@@ -74,33 +75,7 @@ func Routers(mode string) *chi.Mux {
 				r.Get("/{ip}/init/status", controller.CheckInitStatus)
 				r.Get("/{ip}/install/status", controller.CheckJobGetStatus)
 				r.Put("/{ip}/install", controller.StartBuildInJobs)
-
-				// Subrouters:
-				// r.Route("/group", func(r chi.Router) {
-				// 	//r.Use(ArticleCtx)
-				// 	r.Get("/", controller.GetGroups)             //select
-				// 	r.Get("/{id}", controller.GetGroupByGroupId) //select
-				// 	r.Put("/", controller.UpdateGroup)           //add                                   // PUT /articles/123
-				// 	r.Delete("/{id}", controller.DeleteGroup)    //delete                             // DELETE /articles/123
-				// })
 			})
-
-			// r.Route("/job", func(r chi.Router) {
-			// 	r.Get("/", controller.JobList)
-			// 	r.Put("/", controller.UpdateJob)
-			// 	//r.Get("/executing", controller.GetExecutingJob)
-
-			// 	r.Route("/{group}-{id}", func(r chi.Router) {
-			// 		r.Post("/", controller.ChangeJobStatus)
-			// 		r.Get("/", controller.GetJob)
-			// 		r.Delete("/", controller.DeleteJob)
-			// 		r.Get("/nodes", controller.GetJobNodes)
-			// 		r.Put("/execute/{name}", controller.JobExecute)
-			// 	})
-			// 	r.Route("/group", func(r chi.Router) {
-			// 		r.Get("/", controller.GetALLGroup)
-			// 	})
-			// })
 
 			//TODO:
 			//任务执行框架相关API
@@ -120,7 +95,7 @@ func Routers(mode string) *chi.Mux {
 				r.Delete("/{temp_id}", controller.DeleteTaskTemp)
 			})
 			//任务组
-			r.Route("/groups", func(r chi.Router) {
+			r.Route("/taskgroups", func(r chi.Router) {
 				r.Post("/", controller.CreateTaskGroup)
 				r.Get("/", controller.GetTaskGroups)
 				r.Get("/{group_id}", controller.GetTaskGroup)

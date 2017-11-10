@@ -32,6 +32,10 @@ $cd rainbond
 $make all-image
 ```
 我们欢迎社区贡献者的加入[贡献代码说明]()
+## 云帮架构
+
+<img src="./rainbond_architecture.png">
+
 ## 社区支持
 ### 云帮用户交流群：
 - 477016432(1群)  

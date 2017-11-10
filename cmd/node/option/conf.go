@@ -30,8 +30,6 @@ import (
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/fsnotify/fsnotify"
 
-	"github.com/goodrain/rainbond/pkg/node/event"
-
 	"github.com/spf13/pflag"
 )
 
@@ -57,24 +55,27 @@ func Init() error {
 	if err := Config.parse(); err != nil {
 		return err
 	}
-	if err := Config.watch(); err != nil {
-		return err
-	}
+	// if err := Config.watch(); err != nil {
+	// 	return err
+	// }
 	initialized = true
 	return nil
 }
 
 //Conf Conf
 type Conf struct {
-	APIAddr     string //api server listen port
-	K8SConfPath string //absolute path to the kubeconfig file
-	LogLevel    string
-	RunMode     string //master,node
-	Service     string //服务注册与发现
-	InitStatus  string
-	Node        string // compute node 注册地址
-	Master      string // master node 注册地址
-	Proc        string // 当前执行任务路径//不知道干吗的
+	APIAddr        string //api server listen port
+	K8SConfPath    string //absolute path to the kubeconfig file
+	LogLevel       string
+	HostIDFile     string
+	HostIP         string
+	RunMode        string //ACP_NODE 运行模式:master,node
+	NodeRule       string //节点属性 compute manage storage
+	Service        string //服务注册与发现
+	InitStatus     string
+	NodePath       string //永久节点信息存储路径
+	OnlineNodePath string //上线节点信息存储路径
+	Proc           string // 当前节点正在执行任务存储路径
 	//任务执行公共路径，后续跟节点ID
 	TaskPath            string
 	Cmd                 string // 节点执行任务保存路径
@@ -111,9 +112,11 @@ type Conf struct {
 //AddFlags AddFlags
 func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the log level")
-	fs.StringVar(&a.Node, "nodePath", "/acp_node/node/", "the path of node in etcd")
-	fs.StringVar(&a.Master, "masterPath", "/acp_node/master/", "the path of master node in etcd")
-	fs.StringVar(&a.Proc, "procPath", "/acp_node/proc/", "the path of proc in etcd")
+	fs.StringVar(&a.NodePath, "nodePath", "/rainbond/nodes/", "the path of node in etcd")
+	fs.StringVar(&a.HostIDFile, "nodeid-file", "/etc/goodrain/host_uuid.conf", "the unique ID for this node. Just specify, don't modify")
+	fs.StringVar(&a.OnlineNodePath, "onlineNodePath", "/rainbond/onlinenodes/", "the path of master node in etcd")
+	fs.StringVar(&a.Proc, "procPath", "/rainbond/proc/", "the path of proc in etcd")
+	fs.StringVar(&a.HostIP, "hostIP", "", "the host ip you can define. default get ip from eth0")
 	fs.StringVar(&a.ExecutionRecordPath, "execRecordPath", "/acp_node/exec_record/", "the path of job exec record")
 	fs.StringSliceVar(&a.EventLogServer, "event-log-server", []string{"127.0.0.1:6367"}, "host:port slice of event log server")
 	fs.StringVar(&a.K8SNode, "k8sNode", "/store/nodes/", "the path of k8s node")
@@ -140,7 +143,8 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.APIAddr, "api-addr", ":6100", "the api server listen address")
 	fs.StringVar(&a.K8SConfPath, "kube-conf", "", "absolute path to the kubeconfig file  ./kubeconfig")
 	//fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")
-	fs.StringVar(&a.RunMode, "run-mode", "worker", "the entrance run mode,could be 'worker' or 'master'")
+	fs.StringVar(&a.RunMode, "run-mode", "worker", "the acp_node run mode,could be 'worker' or 'master'")
+	fs.StringVar(&a.NodeRule, "noderule", "compute", "current node rule,maybe is `compute` `manage` `storage` ")
 	//fs.StringSliceVar(&a.EventServerAddress, "event-servers", []string{"http://127.0.0.1:6363"}, "event message server address.")
 }
 
@@ -196,16 +200,8 @@ func (c *Conf) parse() error {
 	if c.LockTTL < 2 {
 		c.LockTTL = 300
 	}
-	//if c.Mail.Keepalive <= 0 {
-	//	c.Mail.Keepalive = 30
-	//}
-	//if c.Mgo.Timeout <= 0 {
-	//	c.Mgo.Timeout = 10 * time.Second
-	//} else {
-	//	c.Mgo.Timeout *= time.Second
-	//}
 
-	c.Node = cleanKeyPrefix(c.Node)
+	c.NodePath = cleanKeyPrefix(c.NodePath)
 	c.Proc = cleanKeyPrefix(c.Proc)
 	c.Cmd = cleanKeyPrefix(c.Cmd)
 	c.Once = cleanKeyPrefix(c.Once)
@@ -216,61 +212,41 @@ func (c *Conf) parse() error {
 	return nil
 }
 
-func (c *Conf) watch() error {
-	var err error
-	watcher, err = fsnotify.NewWatcher()
-	if err != nil {
-		return err
-	}
+// func (c *Conf) watch() error {
+// 	var err error
+// 	watcher, err = fsnotify.NewWatcher()
+// 	if err != nil {
+// 		return err
+// 	}
 
-	go func() {
-		duration := 3 * time.Second
-		timer, update := time.NewTimer(duration), false
-		for {
-			select {
-			case <-exitChan:
-				return
-			case event := <-watcher.Events:
-				// 保存文件时会产生多个事件
-				if event.Op&(fsnotify.Write|fsnotify.Chmod) > 0 {
-					update = true
-				}
-				timer.Reset(duration)
-			case <-timer.C:
-				if update {
-					c.reload()
-					event.Emit(event.WAIT, nil)
-					update = false
-				}
-				timer.Reset(duration)
-			case err := <-watcher.Errors:
-				logrus.Warnf("config watcher err: %v", err)
-			}
-		}
-	}()
+// 	go func() {
+// 		duration := 3 * time.Second
+// 		timer, update := time.NewTimer(duration), false
+// 		for {
+// 			select {
+// 			case <-exitChan:
+// 				return
+// 			case event := <-watcher.Events:
+// 				// 保存文件时会产生多个事件
+// 				if event.Op&(fsnotify.Write|fsnotify.Chmod) > 0 {
+// 					update = true
+// 				}
+// 				timer.Reset(duration)
+// 			case <-timer.C:
+// 				if update {
+// 					c.reload()
+// 					event.Emit(event.WAIT, nil)
+// 					update = false
+// 				}
+// 				timer.Reset(duration)
+// 			case err := <-watcher.Errors:
+// 				logrus.Warnf("config watcher err: %v", err)
+// 			}
+// 		}
+// 	}()
 
-	return watcher.Add(*confFile)
-}
-
-// 重新加载配置项
-// 注：与系统资源相关的选项不生效，需重启程序
-// Etcd
-// Mgo
-// Web
-func (c *Conf) reload() {
-	cf := new(Conf)
-	if err := cf.parse(); err != nil {
-		logrus.Warnf("config file reload err: %s", err.Error())
-		return
-	}
-
-	// etcd key 选项需要重启
-	cf.Node, cf.Proc, cf.Cmd, cf.Once, cf.Lock, cf.Group, cf.Noticer = c.Node, c.Proc, c.Cmd, c.Once, c.Lock, c.Group, c.Noticer
-
-	*c = *cf
-	logrus.Infof("config file[%s] reload success", *confFile)
-	return
-}
+// 	return watcher.Add(*confFile)
+// }
 
 func Exit(i interface{}) {
 	close(exitChan)

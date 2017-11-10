@@ -183,7 +183,7 @@ type PluginDefaultENV struct {
 	//是否可以被使用者修改
 	//in :path
 	//required: false
-	Change bool `json:"change" validate:"change|bool"`
+	IsChange bool `json:"is_change" validate:"is_change|bool"`
 }
 
 //BuildPluginStruct BuildPluginStruct
@@ -295,6 +295,14 @@ type PluginSetStruct struct {
 	}
 }
 
+//GetPluginsStruct GetPluginsStruct
+//swagger:parameters getPlugins
+type GetPluginsStruct struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
+}
+
 //GetPluginSetStruct GetPluginSetStruct
 //swagger:parameters getPluginSet
 type GetPluginSetStruct struct {
@@ -330,4 +338,79 @@ type GetPluginEnvStruct struct {
 	// in: path
 	// required: true
 	PluginID string `json:"plugin_id"`
+}
+
+//GetVersionEnvStruct GetVersionEnvStruct
+//swagger:parameters getVersionEnvs
+type GetVersionEnvStruct struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
+	// in: path
+	// required: true
+	ServiceAlias string `json:"service_alias"`
+	// 插件id
+	// in: path
+	// required: true
+	PluginID string `json:"plugin_id"`
+}
+
+//SetVersionEnv SetVersionEnv
+//swagger:parameters setVersionEnv
+type SetVersionEnv struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
+	// in: path
+	// required: true
+	ServiceAlias string `json:"service_alias"`
+	// 插件id
+	// in: path
+	// required: true
+	PluginID string `json:"plugin_id"`
+	//in: body
+	Body struct {
+		// 环境变量
+		// in: body
+		// required: true
+		Envs []*VersionEnv `json:"envs"`
+	}
+}
+
+//VersionEnv VersionEnv
+type VersionEnv struct {
+	//变量名
+	//in:body
+	//required: true
+	EnvName string `json:"env_name" validate:"env_name"`
+	//变量值
+	//in:body
+	//required: true
+	EnvValue string `json:"env_value" validate:"env_value"`
+}
+
+//UpdateVersionEnv UpdateVersionEnv
+//swagger:parameters updateVersionEnv
+type UpdateVersionEnv struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
+	// in: path
+	// required: true
+	ServiceAlias string `json:"service_alias"`
+	// 插件id
+	// in: path
+	// required: true
+	PluginID string `json:"plugin_id"`
+	// 变量名
+	// in: path
+	// required: true
+	EnvName string `json:"env_name"`
+	//in: body
+	Body struct {
+		// 变量值
+		// in: body
+		// required: true
+		EnvValue string `json:"env_value" validate:"env_value"`
+	}
 }

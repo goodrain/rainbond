@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -36,11 +35,12 @@ limitations under the License.
 */
 
 import (
-	"github.com/goodrain/rainbond/pkg/db"
-	"github.com/goodrain/rainbond/pkg/event"
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/goodrain/rainbond/pkg/db"
+	"github.com/goodrain/rainbond/pkg/event"
 
 	"github.com/pquerna/ffjson/ffjson"
 
@@ -171,6 +171,8 @@ func setTag(curRegistry string, image string, alias string) (string, error) {
 		nn := strings.Split(mm[len(mm)-1], ":")
 		tag = nn[1]
 		iName = nn[0]
+	} else {
+		iName = image
 	}
 	curImage := fmt.Sprintf("%s/%s:%s", curRegistry, iName, tag+"_"+alias)
 	_, err := exec.Command("sudo", "-P", "docker", "tag", image, curImage).Output()

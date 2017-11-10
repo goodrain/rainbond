@@ -668,42 +668,6 @@ func GetNodeBasic(w http.ResponseWriter, r *http.Request) {
 	outRespSuccess(w, hostnode, nil)
 }
 
-func New(w http.ResponseWriter, r *http.Request) {
-
-	// swagger:operation POST /v2/node v2 New
-	//
-	// 添加新节点到etcd
-	//
-	// add new node info to etcd
-	//
-	// ---
-	// produces:
-	// - application/json
-	// parameters:
-	// - name:
-	//   in: body
-	//   description: '{"uuid":"757755e4-99e4-11e7-bab9-00163e020ab5","host_name":"10.0.55.73","internal_ip":"10.0.55.73","external_ip":"10.0.55.73","available_memory":16,"available_cpu":4,"role":"","status":"offline","labels":{"key1":"value1"},"unschedulable":false}'
-	//   required: true
-	//   type: string
-	//   format: json
-	// Responses:
-	//   '200':
-	//    description: '[{"uuid": "ccc", "status":"create","host_name": "10.0.55.73", "internal_ip": "10.0.55.73", "external_ip": "10.0.55.73", "available_memory": 16267956, "available_cpu": 4, "role": "", "labels": {"key1": "value1"}, "unschedulable": false},{}]'
-
-	node := new(model.HostNode)
-	decoder := json.NewDecoder(r.Body)
-	defer r.Body.Close()
-	err := decoder.Decode(node)
-
-	if err != nil {
-		outJSONWithCode(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	logrus.Info("adding a new node info to etcd who's id is %s", node.ID)
-	k8s.AddSource(conf.Config.K8SNode+node.ID, node)
-	outRespSuccess(w, nil, nil)
-}
-
 func Resources(w http.ResponseWriter, r *http.Request) {
 	nodeList, err := k8s.K8S.Core().Nodes().List(metav1.ListOptions{})
 	if err != nil {
@@ -728,59 +692,6 @@ func Resources(w http.ResponseWriter, r *http.Request) {
 	result.MemR = memR
 	logrus.Infof("get cpu %v and mem %v", cpuR, memR)
 	api.ReturnSuccess(r, w, result)
-}
-func GetNodeList(w http.ResponseWriter, r *http.Request) {
-
-	// swagger:operation GET /v2/node v2 GetNodeList
-	//
-	// 从etcd获取节点简单列表信息
-	//
-	// get node list info from etcd
-	//
-	// ---
-	// produces:
-	// - application/json
-	//
-	// Responses:
-	//   '200':
-	//    description: '[{"uuid": "ccc", "status":"create","host_name": "10.0.55.73", "internal_ip": "10.0.55.73", "external_ip": "10.0.55.73", "available_memory": 16267956, "available_cpu": 4, "role": "", "labels": {"key1": "value1"}, "unschedulable": false},{}]'
-
-	nodes, err := k8s.GetSourceList()
-	logrus.Info("getting all node from etcd")
-	if err != nil {
-		outRespDetails(w, 500, "found error", "查找node失败", nil, nil)
-		return
-	}
-
-	m := make(map[string]string)
-
-	ns, err := k8s.K8S.Core().Nodes().List(metav1.ListOptions{})
-	for _, v := range ns.Items {
-		for _, c := range v.Status.Conditions {
-			if c.Status == "True" {
-				t := string(c.Type)
-				if t == "Ready" {
-					t = "running"
-				}
-				m[string(v.UID)] = t
-			}
-		}
-	}
-
-	for _, v := range nodes {
-		if status, ok := m[v.ID]; ok {
-			logrus.Infof("updating node %s 's status to %s", v.ID, status)
-			if v.Status != "unschedulable" {
-				v.Status = status
-				k8s.AddSource(conf.Config.K8SNode+v.ID, v)
-			}
-		}
-	}
-	result := []interface{}{}
-	for _, v := range nodes {
-		result = append(result, v)
-	}
-	outRespSuccess(w, nil, result)
 }
 
 func UpdateNode(w http.ResponseWriter, r *http.Request) {

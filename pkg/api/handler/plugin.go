@@ -89,7 +89,7 @@ func (p *PluginAction) CreatePluginAct(cps *api_model.CreatePluginStruct) *util.
 			PluginID: cps.Body.PluginID,
 			ENVName:  env.ENVName,
 			ENVValue: env.ENVValue,
-			Change:   env.Change,
+			IsChange: env.IsChange,
 		}
 		err := db.GetManager().TenantPluginDefaultENVDaoTransactions(tx).AddModel(vis)
 		if err != nil {
@@ -165,7 +165,7 @@ func (p *PluginAction) AddDefaultEnv(est *api_model.ENVStruct) *util.APIHandleEr
 			PluginID: est.PluginID,
 			ENVName:  env.ENVName,
 			ENVValue: env.ENVValue,
-			Change:   env.Change,
+			IsChange: env.IsChange,
 		}
 		err := db.GetManager().TenantPluginDefaultENVDaoTransactions(tx).AddModel(vis)
 		if err != nil {
@@ -186,7 +186,7 @@ func (p *PluginAction) UpdateDefaultEnv(est *api_model.ENVStruct) *util.APIHandl
 		vis := &dbmodel.TenantPluginDefaultENV{
 			ENVName:  env.ENVName,
 			ENVValue: env.ENVValue,
-			Change:   env.Change,
+			IsChange: env.IsChange,
 		}
 		err := db.GetManager().TenantPluginDefaultENVDao().UpdateModel(vis)
 		if err != nil {
@@ -197,20 +197,36 @@ func (p *PluginAction) UpdateDefaultEnv(est *api_model.ENVStruct) *util.APIHandl
 }
 
 //DeleteDefaultEnv DeleteDefaultEnv
-func (p *PluginAction) DeleteDefaultEnv(name string) *util.APIHandleError {
-	if err := db.GetManager().TenantPluginDefaultENVDao().DeleteDefaultENVByName(name); err != nil {
+func (p *PluginAction) DeleteDefaultEnv(pluginID, name string) *util.APIHandleError {
+	if err := db.GetManager().TenantPluginDefaultENVDao().DeleteDefaultENVByName(pluginID, name); err != nil {
 		return util.CreateAPIHandleErrorFromDBError(fmt.Sprintf("delete default env %s", name), err)
 	}
 	return nil
 }
 
-//GetDefaultEnvWhichCanBeSet GetDefaultEnvWhichCanBeSet
-func (p *PluginAction) GetDefaultEnvWhichCanBeSet(pluginID string) ([]*dbmodel.TenantPluginDefaultENV, *util.APIHandleError) {
-	envs, err := db.GetManager().TenantPluginDefaultENVDao().GetDefaultEnvWhichCanBeSetByPluginID(pluginID)
+//GetDefaultEnv GetDefaultEnv
+func (p *PluginAction) GetDefaultEnv(pluginID string) ([]*dbmodel.TenantPluginDefaultENV, *util.APIHandleError) {
+	envs, err := db.GetManager().TenantPluginDefaultENVDao().GetDefaultENVSByPluginID(pluginID)
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("get default env", err)
 	}
 	return envs, nil
+}
+
+//GetEnvsWhichCanBeSet GetEnvsWhichCanBeSet
+func (p *PluginAction) GetEnvsWhichCanBeSet(serviceID, pluginID string) (interface{}, *util.APIHandleError) {
+	envs, err := db.GetManager().TenantPluginVersionENVDao().GetVersionEnvByServiceID(serviceID, pluginID)
+	if err != nil {
+		return nil, util.CreateAPIHandleErrorFromDBError("get envs which can be set", err)
+	}
+	if len(envs) > 0 {
+		return envs, nil
+	}
+	envD, errD := db.GetManager().TenantPluginDefaultENVDao().GetDefaultENVSByPluginIDCantBeSet(pluginID)
+	if errD != nil {
+		return nil, util.CreateAPIHandleErrorFromDBError("get envs which can be set", errD)
+	}
+	return envD, nil
 }
 
 //BuildPluginManual BuildPluginManual
@@ -265,6 +281,7 @@ func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *
 		Kind:      b.Body.Kind,
 		BaseImage: b.Body.ImageURL,
 		BuildTime: time.Now().Format(time.RFC3339),
+		Info:      b.Body.Info,
 		Status:    "building",
 	}
 	tx := db.GetManager().Begin()

@@ -416,7 +416,7 @@ type TenantPluginDefaultENV struct {
 	//配置项值
 	ENVValue string `gorm:"column:env_value"`
 	//使用人是否可改
-	Change bool `gorm:"column:change;default:false"`
+	IsChange bool `gorm:"column:is_change;default:false"`
 }
 
 //TableName 表名

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,8 +30,9 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
-	"github.com/goodrain/rainbond/pkg/node/utils"
+	"github.com/goodrain/rainbond/pkg/util"
 	"github.com/robfig/cron"
+	"github.com/shunfei/cronsun/utils"
 
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
@@ -68,36 +70,18 @@ type NodeServer struct {
 	*conf.Conf
 }
 
-//Register 注册节点
-func (n *NodeServer) Register() (err error) {
-	pid, err := n.HostNode.Exist()
-	if err != nil {
-		return
-	}
-	if pid != -1 {
-		return fmt.Errorf("node[%s] pid[%d] exist", n.HostNode.ID, pid)
-	}
-	logrus.Info("creating new node ", n.HostNode.ID)
-	return n.set()
-}
-
 func (n *NodeServer) set() error {
 	resp, err := n.Client.Grant(n.ttl + 2)
 	if err != nil {
 		return err
 	}
-	if n.RunMode == "master" {
-		//n.Node.Put()
-		n.HostNode.PutMaster(client.WithLease(resp.ID))
-		if _, err := n.Client.Put(n.httpKey(), n.httpValue(), client.WithLease(resp.ID)); err != nil {
-			return err
-		}
+	if _, err = n.HostNode.Update(); err != nil {
+		return err
 	}
 	if _, err = n.HostNode.Put(client.WithLease(resp.ID)); err != nil {
 		return err
 	}
 	n.lID = resp.ID
-
 	return nil
 }
 
@@ -115,12 +99,10 @@ func (n *NodeServer) Run() (err error) {
 	n.Cron.Start()
 	go n.watchJobs()
 	go n.watchOnce()
-	//可以在n里面加一个channel，用于锁定
-	// go n.watchBuildIn()
-	// err = job.RegWorkerInstallJobs()
-	// if err != nil {
-	// 	logrus.Errorf("reg build-in jobs failed,details: %s", err.Error())
-	// }
+	logrus.Info("node registe success")
+	if err := job.StartProc(); err != nil {
+		logrus.Warnf("[process key will not timeout]proc lease id set err: %s", err.Error())
+	}
 	return
 }
 func (n *NodeServer) loadJobs() (err error) {
@@ -353,42 +335,28 @@ func (n *NodeServer) keepAlive() {
 					timer.Reset(duration)
 					continue
 				}
-
-				logrus.Warnf("%s lid[%x] keepAlive err: %s, try to reset...", n.String(), n.lID, err.Error())
+				logrus.Warnf("%s lid[%x] keepAlive err: %s, try to reset...", n.HostName, n.lID, err.Error())
 				n.lID = 0
 			}
-
 			if err := n.set(); err != nil {
-				logrus.Warnf("%s set lid err: %s, try to reset after %d seconds...", n.String(), err.Error(), n.ttl)
+				logrus.Warnf("%s set lid err: %s, try to reset after %d seconds...", n.HostName, err.Error(), n.ttl)
 			} else {
-				logrus.Infof("%s set lid[%x] success", n.String(), n.lID)
+				logrus.Infof("%s set lid[%x] success", n.HostName, n.lID)
 			}
 			timer.Reset(duration)
 		}
 	}
 }
-func (n *NodeServer) httpKey() string {
-	return fmt.Sprintf("/traefik/backends/acp_node/servers/%s/url", n.ID)
-}
-func (n *NodeServer) httpValue() string {
-	return n.ID + conf.Config.APIAddr
-}
 
 //NewNodeServer new server
 func NewNodeServer(cfg *conf.Conf) (*NodeServer, error) {
-	ip, err := utils.LocalIP()
+	currentNode, err := GetCurrentNode(cfg)
 	if err != nil {
 		return nil, err
 	}
 	n := &NodeServer{
-		Client: store.DefalutClient,
-		//TODO:获取节点信息
-		HostNode: &model.HostNode{
-			ID: ip.String(),
-			ClusterNode: model.ClusterNode{
-				PID: strconv.Itoa(os.Getpid()),
-			},
-		},
+		Client:   store.DefalutClient,
+		HostNode: currentNode,
 		Cron:     cron.New(),
 		jobs:     make(Jobs, 8),
 		onceJobs: make(Jobs, 8),
@@ -399,4 +367,58 @@ func NewNodeServer(cfg *conf.Conf) (*NodeServer, error) {
 		done:     make(chan struct{}),
 	}
 	return n, nil
+}
+
+//GetCurrentNode 获取当前节点
+func GetCurrentNode(cfg *conf.Conf) (*model.HostNode, error) {
+	uid, err := util.ReadHostID(cfg.HostIDFile)
+	if err != nil {
+		return nil, fmt.Errorf("Get host id error:%s", err.Error())
+	}
+	res, err := store.DefalutClient.Get(cfg.NodePath + "/" + uid)
+	if err != nil {
+		return nil, fmt.Errorf("Get host info error:%s", err.Error())
+	}
+	var node model.HostNode
+	if res.Count == 0 {
+		if cfg.HostIP == "" {
+			ip, err := utils.LocalIP()
+			if err != nil {
+				return nil, err
+			}
+			cfg.HostIP = ip.String()
+		}
+		node = CreateNode(cfg, uid, cfg.HostIP)
+	} else {
+		n := model.GetNodeFromKV(res.Kvs[0])
+		if n == nil {
+			return nil, fmt.Errorf("Get node info from etcd error")
+		}
+		node = *n
+	}
+	node.Role = strings.Split(cfg.NodeRule, ",")
+	if node.Labels == nil || len(node.Labels) < 1 {
+		node.Labels = map[string]string{}
+	}
+	for _, rule := range node.Role {
+		node.Labels["rainbond_node_rule_"+rule] = "true"
+	}
+	node.Labels["rainbond_node_hostname"] = node.HostName
+	node.Labels["rainbond_node_ip"] = node.InternalIP
+	return &node, nil
+}
+
+//CreateNode 创建节点信息
+func CreateNode(cfg *conf.Conf, nodeID, ip string) model.HostNode {
+	hostname, _ := os.Hostname()
+	HostNode := model.HostNode{
+		ID: nodeID,
+		ClusterNode: model.ClusterNode{
+			PID: strconv.Itoa(os.Getpid()),
+		},
+		InternalIP: ip,
+		ExternalIP: ip,
+		HostName:   hostname,
+	}
+	return HostNode
 }

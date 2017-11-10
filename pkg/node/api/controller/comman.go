@@ -22,6 +22,7 @@ import (
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/core/config"
 	"github.com/goodrain/rainbond/pkg/node/core/service"
+	"github.com/goodrain/rainbond/pkg/node/masterserver"
 )
 
 var datacenterConfig *config.DataCenterConfig
@@ -29,9 +30,10 @@ var taskService *service.TaskService
 var taskTempService *service.TaskTempService
 var taskGroupService *service.TaskGroupService
 var appService *service.AppService
+var nodeService *service.NodeService
 
 //Init 初始化
-func Init(c *option.Conf) {
+func Init(c *option.Conf, ms *masterserver.MasterServer) {
 	datacenterConfig = config.CreateDataCenterConfig(c)
 	//监控配置变化启动
 	datacenterConfig.Start()
@@ -40,6 +42,7 @@ func Init(c *option.Conf) {
 	taskTempService = service.CreateTaskTempService(c)
 	taskGroupService = service.CreateTaskGroupService(c)
 	appService = service.CreateAppService(c)
+	nodeService = service.CreateNodeService(c, ms.Cluster)
 }
 
 //Exist 退出

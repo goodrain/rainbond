@@ -33,7 +33,10 @@ run-eventlog:build-eventlog
 	 --message.garbage.file="/tmp/garbage.log" \
 	 --docker.log.homepath="/Users/qingguo/tmp"
 run-node:build-node
-	./build/node/${BASE_NAME}_node --run-mode=master --kube-conf=`pwd`/admin.kubeconfig
+	./build/node/${BASE_NAME}_node \
+	 --run-mode=master --kube-conf=`pwd`/admin.kubeconfig \
+	 --nodeid-file=`pwd`/host_id.conf \
+	 --log-level=debug
 
 doc:
 	@cd cmd/api && swagger generate spec -o ../../build/api/html/swagger.json

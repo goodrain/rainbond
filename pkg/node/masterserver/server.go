@@ -19,6 +19,10 @@
 package masterserver
 
 import (
+	"context"
+
+	"k8s.io/client-go/kubernetes"
+
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
 )
@@ -27,4 +31,37 @@ import (
 type MasterServer struct {
 	*store.Client
 	*model.HostNode
+	Cluster *NodeCluster
+	ctx     context.Context
+	cancel  context.CancelFunc
+}
+
+//NewMasterServer 创建master节点
+func NewMasterServer(node *model.HostNode, k8sClient *kubernetes.Clientset) (*MasterServer, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cluster, err := CreateNodeCluster(k8sClient)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	ms := &MasterServer{
+		Client:   store.DefalutClient,
+		HostNode: node,
+		Cluster:  cluster,
+		ctx:      ctx,
+		cancel:   cancel,
+	}
+	return ms, nil
+}
+
+//Start 启动
+func (m *MasterServer) Start() error {
+	m.Cluster.Start()
+	return nil
+}
+
+//Stop 停止
+func (m *MasterServer) Stop(i interface{}) {
+	m.Cluster.Stop(i)
+	m.cancel()
 }
