@@ -25,14 +25,14 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-var client *kubernetes.Clientset
+var K8SClient *kubernetes.Clientset
 
 func InitClient(kube option.Kubernets) error {
 	var config rest.Config
 	config.Host = kube.Master
 	// creates the clientset
 	var err error
-	client, err = kubernetes.NewForConfig(&config)
+	K8SClient, err = kubernetes.NewForConfig(&config)
 	if err != nil {
 		logrus.Error("Create kubernetes client error.", err.Error())
 		return err

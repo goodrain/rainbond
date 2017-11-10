@@ -32,6 +32,8 @@ func GetCmds() []cli.Command {
 	cmds=append(cmds,NewCmdStopService())
 	cmds=append(cmds,NewCmdTenant())
 	cmds=append(cmds,NewCmdTenantRes())
+	cmds=append(cmds,NewCmdNode())
+	cmds=append(cmds,NewCmdNodeRes())
 	//todo
 	return cmds
 }
