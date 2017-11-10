@@ -9,15 +9,8 @@ import (
 
 func NewCmdBatchStop() cli.Command {
 	c:=cli.Command{
-		Name: "get",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  "url",
-				Value: "",
-				Usage: "URL of the app. eg. https://user.goodrain.com/apps/goodrain/dev-debug/detail/",
-			},
-		},
-		Usage: "获取应用运行详细信息。grctl get PATH",
+		Name:  "batchstop",
+		Usage: "批量停止租户应用。grctl batchstop tenant_name",
 		Action: func(c *cli.Context) error {
 			Common(c)
 			return stopTenantService(c)

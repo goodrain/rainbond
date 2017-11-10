@@ -1,19 +1,19 @@
 package cmd
 import (
 	"github.com/urfave/cli"
-	"rainbond/cmd/grctl/server"
 	"github.com/Sirupsen/logrus"
 	"os"
 	conf "rainbond/cmd/grctl/option"
 	"rainbond/pkg/grctl/clients"
 )
 
-func init() {
-	server.App=cli.NewApp()
-}
 func GetCmds() []cli.Command {
 	cmds:=[]cli.Command{}
 	cmds=append(cmds,NewCmdBatchStop())
+	cmds=append(cmds,NewCmdStartService())
+	cmds=append(cmds,NewCmdStopService())
+	cmds=append(cmds,NewCmdTenant())
+	cmds=append(cmds,NewCmdTenantRes())
 	//todo
 	return cmds
 }

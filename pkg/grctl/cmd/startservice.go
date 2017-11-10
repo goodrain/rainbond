@@ -3,7 +3,6 @@ import (
 	"github.com/urfave/cli"
 	"github.com/Sirupsen/logrus"
 	"rainbond/pkg/grctl/clients"
-	"fmt"
 	"strings"
 	"errors"
 )
@@ -11,18 +10,22 @@ import (
 
 func NewCmdStartService() cli.Command {
 	c:=cli.Command{
-		Name: "get",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  "url",
-				Value: "",
-				Usage: "URL of the app. eg. https://user.goodrain.com/apps/goodrain/dev-debug/detail/",
-			},
-		},
-		Usage: "获取应用运行详细信息。grctl get PATH",
+		Name:  "start",
+		Usage: "启动应用 grctl start goodrain/gra564a1 eventID",
 		Action: func(c *cli.Context) error {
 			Common(c)
-			return stopTenantService(c)
+			return startService(c)
+		},
+	}
+	return c
+}
+func NewCmdStopService() cli.Command {
+	c:=cli.Command{
+		Name:  "stop",
+		Usage: "启动应用 grctl stop goodrain/gra564a1 eventID",
+		Action: func(c *cli.Context) error {
+			Common(c)
+			return stopService(c)
 		},
 	}
 	return c

@@ -10,6 +10,7 @@ import (
 //var App *cli.App=cli.NewApp()
 var App *cli.App
 func Run() error {
+	App=cli.NewApp()
 	App.Flags = []cli.Flag {
 		cli.StringFlag{
 			Name: "config, c",

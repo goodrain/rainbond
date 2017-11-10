@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io/ioutil"
 	"encoding/json"
-	"rainbond/cmd/grctl/option"
 	"acp_api/pkg/model"
 
 	"bytes"
@@ -191,7 +190,4 @@ func SetInfo(region, t string) {
 	regionAPI = region
 	token = t
 }
-func SetRegionInfo(config *option.RegionAPI) {
-	regionAPI = config.URL
-	token = config.Token
-}
+

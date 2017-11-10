@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"encoding/json"
 	"strings"
-	"rainbond/pkg/grctl/clients"
+	"rainbond/pkg/api/region"
 )
 var config Config
 type Config struct {
@@ -57,7 +57,7 @@ func LoadConfigByRegion(c Config, ctx *cli.Context) (Config, error) {
 			Token: "",
 		}
 	}
-	data, err := clients.LoadConfig(c.RegionAPI.URL, c.RegionAPI.Token)
+	data, err := region.LoadConfig(c.RegionAPI.URL, c.RegionAPI.Token)
 	if err != nil {
 		logrus.Error("Get config from region error.", err.Error())
 		os.Exit(1)
