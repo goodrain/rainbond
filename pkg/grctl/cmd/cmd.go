@@ -17,27 +17,31 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package cmd
+
 import (
-	"github.com/urfave/cli"
-	"github.com/Sirupsen/logrus"
 	"os"
+
+	"github.com/Sirupsen/logrus"
 	conf "github.com/goodrain/rainbond/cmd/grctl/option"
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
+	"github.com/urfave/cli"
 )
 
+//GetCmds GetCmds
 func GetCmds() []cli.Command {
-	cmds:=[]cli.Command{}
-	cmds=append(cmds,NewCmdBatchStop())
-	cmds=append(cmds,NewCmdStartService())
-	cmds=append(cmds,NewCmdStopService())
-	cmds=append(cmds,NewCmdTenant())
-	cmds=append(cmds,NewCmdTenantRes())
-	cmds=append(cmds,NewCmdNode())
-	cmds=append(cmds,NewCmdNodeRes())
-	cmds=append(cmds,NewCmdExec())
-	cmds=append(cmds,NewCmdLog())
-	cmds=append(cmds,NewCmdEvent())
-	cmds=append(cmds,NewCmdGet())
+	cmds := []cli.Command{}
+	cmds = append(cmds, NewCmdBatchStop())
+	cmds = append(cmds, NewCmdStartService())
+	cmds = append(cmds, NewCmdStopService())
+	cmds = append(cmds, NewCmdTenant())
+	cmds = append(cmds, NewCmdTenantRes())
+	cmds = append(cmds, NewCmdNode())
+	cmds = append(cmds, NewCmdNodeRes())
+	cmds = append(cmds, NewCmdExec())
+	cmds = append(cmds, NewCmdLog())
+	cmds = append(cmds, NewCmdEvent())
+	cmds = append(cmds, NewCmdGet())
+	//cmds = append(cmds, NewCmdPlugin())
 	//todo
 	return cmds
 }
