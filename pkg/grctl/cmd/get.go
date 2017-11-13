@@ -30,6 +30,8 @@ import (
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"github.com/gosuri/uitable"
 	"time"
+	//"encoding/json"
+	//"encoding/json"
 )
 
 func NewCmdGet() cli.Command {
@@ -117,28 +119,41 @@ func getAppInfoV2(c *cli.Context)error  {
 	table.AddRow("RcName:", rcMap["Name"])
 	table.AddRow("RcCreateTime:", rcMap["Date"])
 	table.AddRow("PodNumber:", rcMap["Replicas"])
-	serviceOption := metav1.ListOptions{LabelSelector: "name=" + serviceAlias + "Service"}
+	serviceOption := metav1.ListOptions{}
+	//grf1cdd7Service
+	//serviceOption := metav1.ListOptions{LabelSelector: "spec.selector.name="+"gr2a2e1b" }
 	services, err := clients.K8SClient.Core().Services(tenantID).List(serviceOption)
+	serviceTable := termtables.CreateTable()
+	serviceTable.AddHeaders( "Name", "IP", "Port")
 
 	var serviceMap = make(map[string]string)
 	for _, service := range services.Items {
-		fmt.Sprintln(service)
-		serviceMap["Name"] = service.Name
-		var ports string
-		if service.Spec.Ports != nil && len(service.Spec.Ports) > 0 {
-			for _, p := range service.Spec.Ports {
-				ports += fmt.Sprintf("(%s:%s)", p.Protocol, p.TargetPort.String())
+		if service.Spec.Selector["name"]==serviceAlias {
+			//b,_:=json.Marshal(service)
+			//logrus.Infof(string(b))
+			//fmt.Sprintln(service)
+			serviceMap["Name"] = service.Name
+			var ports string
+			if service.Spec.Ports != nil && len(service.Spec.Ports) > 0 {
+				for _, p := range service.Spec.Ports {
+					ports += fmt.Sprintf("(%s:%s)", p.Protocol, p.TargetPort.String())
+				}
 			}
+			serviceMap["Ports"] = ports
+			serviceMap["ClusterIP"] = service.Spec.ClusterIP
+			serviceTable.AddRow(service.Name, service.Spec.ClusterIP,ports )
 		}
-		serviceMap["Ports"] = ports
-		serviceMap["ClusterIP"] = service.Spec.ClusterIP
+
 	}
-	if serviceMap!=nil {
-		table.AddRow("K8sServiceName:", serviceMap["Name"])
-		table.AddRow("K8sServiceClusterIP:", serviceMap["ClusterIP"])
-		table.AddRow("K8sServicePorts:", serviceMap["Ports"])
-	}
+	table.AddRow("Services:", "")
 	fmt.Println(table)
+	fmt.Println(serviceTable.Render())
+	//if serviceMap!=nil {
+	//	table.AddRow("K8sServiceName:", serviceMap["Name"])
+	//	table.AddRow("K8sServiceClusterIP:", serviceMap["ClusterIP"])
+	//	table.AddRow("K8sServicePorts:", serviceMap["Ports"])
+	//}
+
 	pods, err := clients.K8SClient.Core().Pods(tenantID).List(option)
 	if err != nil {
 
@@ -158,8 +173,24 @@ func getAppInfoV2(c *cli.Context)error  {
 		table.AddRow("PodIP:", pod.Status.PodIP)
 		table.AddRow("PodHostIP:", pod.Status.HostIP)
 		table.AddRow("PodHostName:", pod.Spec.NodeName)
-		if pod.Spec.Volumes != nil && len(pod.Spec.Volumes) > 0 && pod.Spec.Volumes[0].HostPath != nil {
-			table.AddRow("PodVolumePath:", pod.Spec.Volumes[0].HostPath.Path)
+		if pod.Spec.Volumes != nil && len(pod.Spec.Volumes) > 0  {
+			value:=""
+			for _,v:=range pod.Spec.Volumes {
+				if v.HostPath != nil {
+					value+=v.HostPath.Path
+					for _,vc:=range pod.Spec.Containers {
+						m:=vc.VolumeMounts
+						for _,v2:=range m {
+							if v2.Name == v.Name {
+								value+=":"+string(v2.MountPath)
+							}
+						}
+					}
+					value+="\n"
+				}
+			}
+			table.AddRow("PodVolumePath:", value)
+
 		}
 		if pod.Status.StartTime != nil {
 			table.AddRow("PodStratTime:", pod.Status.StartTime.Format(time.RFC3339))

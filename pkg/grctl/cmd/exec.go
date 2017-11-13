@@ -39,9 +39,10 @@ func NewCmdExec() cli.Command {
 
 // grctl exec NAMESPACE POD_ID COMMAND
 func execContainer(c *cli.Context) error {
-	podID := c.Args().Get(1)
+	//podID := c.Args().Get(1)
 	args := c.Args().Tail()
 	tenantID:=c.Args().First()
+
 
 	//podID := c.Args().First()
 	//args := c.Args().Tail()
@@ -58,8 +59,8 @@ func execContainer(c *cli.Context) error {
 	if len(args) == 0 {
 		args = []string{"bash"}
 	}
-	logrus.Infof("using namespace %s,podid %s",tenantID,podID)
-	defaultArgs := []string{kubeCtrl, "exec", "-it", "--namespace=" + tenantID, podID}
+	//logrus.Infof("using namespace %s,podid %s",tenantID)
+	defaultArgs := []string{kubeCtrl, "exec", "-it", "--namespace=" + tenantID}
 	args = append(defaultArgs, args...)
 	//logrus.Info(args)
 	cmd := exec.Cmd{
