@@ -75,7 +75,7 @@ type ServiceInterface interface {
 	List() []model.ServiceStruct
 	Stop(serviceAlisa ,eventID string) error
 	Start(serviceAlisa ,eventID string) error
-	EventLog(serviceAlisa,eventID,level string) (*model.DataLog,error)
+	EventLog(serviceAlisa,eventID,level string) ([]model.MessageData,error)
 }
 
 
@@ -100,20 +100,28 @@ func (s *Services)Get(name string) map[string]string {
 
 	return m
 }
-func (s *Services)EventLog(serviceAlisa,eventID,level string) (*model.DataLog,error) {
+func (s *Services)EventLog(serviceAlisa,eventID,level string) ([]model.MessageData,error) {
 	//{
 	//	"event_id": "string",
 	//	"level": "string"
 	//}
 	data := []byte(`{"event_id":"` + eventID + `","level":"`+level+`"}`)
 	//POST /v2/tenants/{tenant_name}/services/{service_alias}/event-log v2 logByAction
-	resp,err:=DoRequest("/v2/tenants/"+" "+"/services/"+" "+"/event-log","POST",data)
+	resp,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+serviceAlisa+"/event-log","POST",data)
+	//logrus.Infof("event log url is %s","/v2/tenants/"+s.tenant.tenantID+"/services/"+serviceAlisa+"/event-log")
 	if err!=nil {
 		return nil,err
 	}
-	bean:=beanDataLog{}
-	json.Unmarshal(resp,&bean)
-	return &bean.bean,nil
+
+
+	dlj,err:=simplejson.NewJson(resp)
+	arr,_:=dlj.Get("list").Array()
+
+	a,_:=json.Marshal(arr)
+	ss:=[]model.MessageData{}
+	json.Unmarshal(a,&ss)
+
+	return ss,nil
 }
 
 type listServices struct {

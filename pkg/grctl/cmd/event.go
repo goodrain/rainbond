@@ -23,14 +23,12 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/gorilla/websocket"
 	"fmt"
-	"compress/zlib"
-	"bytes"
-	"io"
 	"net/url"
 	"strings"
 
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"encoding/json"
+
 )
 
 func NewCmdEvent() cli.Command {
@@ -46,7 +44,7 @@ func NewCmdEvent() cli.Command {
 				Usage: "event log server address",
 			},
 		},
-		Usage: "获取某个操作的日志",
+		Usage: "获取某个操作的日志 grctl event eventID 123/gr2a2e1b ",
 		Action: func(c *cli.Context) error {
 			Common(c)
 			return getEventLog(c)
@@ -55,7 +53,34 @@ func NewCmdEvent() cli.Command {
 	return c
 }
 
+func GetEventLogf(eventID ,server string) {
 
+	//if c.String("event_log_server") != "" {
+	//	server = c.String("event_log_server")
+	//}
+	u := url.URL{Scheme: "ws", Host: server, Path: "event_log"}
+	logrus.Infof("connecting to %s", u.String())
+	con, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	if err != nil {
+		logrus.Errorf("dial websocket endpoint %s error. %s", u.String(), err.Error())
+		//return err
+	}
+	defer con.Close()
+
+	con.WriteMessage(websocket.TextMessage, []byte("event_id="+eventID))
+	defer con.Close()
+	for {
+		_, message, err := con.ReadMessage()
+		if err != nil {
+			logrus.Println("read proxy websocket message error: ", err)
+			return
+		}
+		time := gjson.GetBytes(message, "time").String()
+		m := gjson.GetBytes(message, "message").String()
+		level := gjson.GetBytes(message, "level").String()
+		fmt.Printf("[%s](%s) %s \n", strings.ToUpper(level), time, m)
+	}
+}
 func getEventLog(c *cli.Context) error {
 	eventID := c.Args().First()
 	if c.Bool("f") {
@@ -88,40 +113,18 @@ func getEventLog(c *cli.Context) error {
 			fmt.Printf("[%s](%s) %s \n", strings.ToUpper(level), time, m)
 		}
 	} else {
-		dl,err:=clients.RegionClient.Tenants().Get("").Services().EventLog("",eventID,"debug")
+		ts:=c.Args().Get(1)
+		tas:=strings.Split(ts,"/")
+		dl,err:=clients.RegionClient.Tenants().Get(tas[0]).Services().EventLog(tas[1],eventID,"debug")
 		if err != nil {
 			return err
 		}
-		by,err:=json.Marshal(dl)
-		fmt.Println(string(by))
-		//todo
-		//resule, err := clients.FindLogByEventID(eventID)
-		//if err != nil {
-		//	return err
-		//}
-		//for _, r := range resule {
-		//	data := r["message"]
-		//	message, err := uncompress([]byte(data.(string)))
-		//	if err != nil {
-		//		logrus.Error("解压日志出错。" + err.Error())
-		//		continue
-		//	}
-		//	result := gjson.Parse(string(message)).Array()
-		//	for _, r := range result {
-		//		fmt.Println(r.String())
-		//	}
-		//}
+
+		for _,v:=range dl{
+			aa,_:=json.Marshal(v)
+			fmt.Println(string(aa))
+		}
 	}
 	return nil
-}
-func uncompress(source []byte) (re []byte, err error) {
-	r, err := zlib.NewReader(bytes.NewReader(source))
-	if err != nil {
-		return nil, err
-	}
-	var buffer bytes.Buffer
-	io.Copy(&buffer, r)
-	r.Close()
-	return buffer.Bytes(), nil
 }
 

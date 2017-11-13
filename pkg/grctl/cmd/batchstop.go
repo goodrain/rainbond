@@ -29,6 +29,16 @@ func NewCmdBatchStop() cli.Command {
 	c:=cli.Command{
 		Name:  "batchstop",
 		Usage: "批量停止租户应用。grctl batchstop tenant_name",
+		Flags: []cli.Flag{
+			cli.BoolFlag{
+				Name:  "f",
+				Usage: "添加此参数日志持续输出。",
+			},
+			cli.StringFlag{
+				Name:  "event_log_server",
+				Usage: "event log server address",
+			},
+		},
 		Action: func(c *cli.Context) error {
 			Common(c)
 			return stopTenantService(c)
@@ -46,6 +56,13 @@ func stopTenantService(c *cli.Context) error  {
 
 	for _,service:=range services{
 		err:=clients.RegionClient.Tenants().Get(tenantID).Services().Stop(service.ServiceAlias,eventID)
+		if c.Bool("f") {
+			server := "127.0.0.1:6363"
+			if c.String("event_log_server") != "" {
+				server = c.String("event_log_server")
+			}
+			GetEventLogf(eventID,server)
+		}
 		//err = region.StopService(service["service_id"].(string), service["deploy_version"].(string))
 		if err != nil {
 			logrus.Error("停止应用失败:" + err.Error())
