@@ -37,6 +37,7 @@ func GetCmds() []cli.Command {
 	cmds=append(cmds,NewCmdExec())
 	cmds=append(cmds,NewCmdLog())
 	cmds=append(cmds,NewCmdEvent())
+	cmds=append(cmds,NewCmdGet())
 	//todo
 	return cmds
 }

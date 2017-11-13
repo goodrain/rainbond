@@ -32,7 +32,7 @@ import (
 func NewCmdNode() cli.Command {
 	c:=cli.Command{
 		Name:  "node",
-		Usage: "批量停止租户应用。grctl node",
+		Usage: "获取节点信息。grctl node",
 		Action: func(c *cli.Context) error {
 			Common(c)
 			return getNode(c)
@@ -67,7 +67,7 @@ func getNodeWithResource(c *cli.Context) error {
 		capMem:=v.Status.Capacity.Memory().Value()
 		allocCPU:=v.Status.Allocatable.Cpu().Value()
 		allocMem:=v.Status.Allocatable.Memory().Value()
-		table.AddRow(v.Name,v.Status.NodeInfo.KubeletVersion,capCPU,allocCPU,capCPU-allocCPU,capMem/1024,allocMem/1024,capMem/1024-allocMem/1024)
+		table.AddRow(v.Name,v.Status.NodeInfo.KubeletVersion,capCPU,allocCPU,capCPU-allocCPU,capMem/1024/1024,allocMem/1024/1024,capMem/1024/1024-allocMem/1024/1024)
 	}
 	fmt.Println(table.Render())
 	return nil
@@ -86,8 +86,8 @@ func getNode(c *cli.Context) error {
 		cs:=v.Status.Conditions
 		status:="unknown"
 		for _,cv:=range cs{
-			status:=string(cv.Status)
-			if strings.Contains(status,"True"){
+			status=string(cv.Status)
+			if strings.Contains(status,"rue"){
 				status=string(cv.Type)
 				break
 			}

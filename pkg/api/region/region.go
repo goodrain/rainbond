@@ -27,6 +27,9 @@ import (
 
 	"bytes"
 	"github.com/Sirupsen/logrus"
+	//api "github.com/goodrain/rainbond/pkg/util/http"
+	//"github.com/bitly/go-simplejson"
+	"github.com/bitly/go-simplejson"
 )
 
 var regionAPI, token string
@@ -68,7 +71,7 @@ func (t *Tenant)Services() ServiceInterface {
 }
 
 type ServiceInterface interface {
-	Get(name string) *model.ServiceStruct
+	Get(name string) map[string]string
 	List() []model.ServiceStruct
 	Stop(serviceAlisa ,eventID string) error
 	Start(serviceAlisa ,eventID string) error
@@ -76,15 +79,26 @@ type ServiceInterface interface {
 }
 
 
-func (s *Services)Get(name string) *model.ServiceStruct {
+func (s *Services)Get(name string) map[string]string {
 	resp,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name,"GET",nil)
 	if err != nil {
 		logrus.Errorf("获取服务失败，details %s",err.Error())
+		return nil
 	}
-	ss:=beanServiceStruct{}
-	json.Unmarshal(resp,&ss)
 
-	return &ss.bean
+	j,_:=simplejson.NewJson(resp)
+	m:=make(map[string]string)
+	bean:=j.Get("bean")
+	sa,err:=bean.Get("serviceAlias").String()
+	si,err:=bean.Get("serviceId").String()
+	ti,err:=bean.Get("tenantId").String()
+	tn,err:=bean.Get("tenantName").String()
+	m["serviceAlias"]=sa
+	m["serviceId"]=si
+	m["tenantId"]=ti
+	m["tenantName"]=tn
+
+	return m
 }
 func (s *Services)EventLog(serviceAlisa,eventID,level string) (*model.DataLog,error) {
 	//{
@@ -113,30 +127,42 @@ type beanServiceStruct struct {
 }
 func (s *Services)List() []model.ServiceStruct {
 
-	request, err := http.NewRequest("GET", regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services", nil)
+	request, err := http.NewRequest("GET", region.regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services", nil)
 	if err != nil {
 		//return err
+		logrus.Errorf("error create request for region server,details %s",err.Error())
+		return nil
 	}
 	request.Header.Set("Content-Type", "application/json")
-	if token != "" {
-		request.Header.Set("Authorization", "Token "+token)
+	if region.token != "" {
+		request.Header.Set("Authorization", "Token "+region.token)
 	}
 
 	res, err := http.DefaultClient.Do(request)
 	if err != nil {
 		//return nil, err
+		logrus.Errorf("error connect to region server,details %s",err.Error())
+		return nil
 	}
-	defer res.Body.Close()
+	//de := json.NewDecoder(res.Body)
+
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		//return nil, err
+		logrus.Errorf("error read response region server,details %s",err.Error())
+		return nil
 	}
-	list:=listServices{}
-	if err := json.Unmarshal(data, &list); err != nil {
-		//return nil, err
-	}
+	j,_:=simplejson.NewJson(data)
+	arr,_:=j.Get("list").Array()
+	b2,_:=json.Marshal(arr)
 
-	return list.list
+	ss:=[]model.ServiceStruct{}
+
+	json.Unmarshal(b2,&ss)
+
+	defer res.Body.Close()
+	return ss
+
 }
 func (s *Services)Stop(name ,eventID string) error {
 
@@ -162,13 +188,13 @@ func (s *Services)Start(name ,eventID string) error {
 }
 
 func DoRequest(url ,method string, body []byte) ([]byte,error) {
-	request, err := http.NewRequest(method, regionAPI+url, bytes.NewBuffer(body))
+	request, err := http.NewRequest(method, region.regionAPI+url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil,err
 	}
 	request.Header.Set("Content-Type", "application/json")
-	if token != "" {
-		request.Header.Set("Authorization", "Token "+token)
+	if region.token != "" {
+		request.Header.Set("Authorization", "Token "+region.token)
 	}
 
 	res, err := http.DefaultClient.Do(request)

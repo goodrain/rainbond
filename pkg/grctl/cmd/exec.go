@@ -58,6 +58,7 @@ func execContainer(c *cli.Context) error {
 	if len(args) == 0 {
 		args = []string{"bash"}
 	}
+	logrus.Infof("using namespace %s,podid %s",tenantID,podID)
 	defaultArgs := []string{kubeCtrl, "exec", "-it", "--namespace=" + tenantID, podID}
 	args = append(defaultArgs, args...)
 	//logrus.Info(args)

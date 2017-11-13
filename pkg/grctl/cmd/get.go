@@ -91,25 +91,13 @@ func getAppInfoV2(c *cli.Context)error  {
 
 	table := uitable.New()
 	table.Wrap = true // wrap columns
-	tenantID :=service.TenantID
-	serviceID:=service.ServiceID
-	volumes:=service.VolumePath
+	tenantID :=service["tenantId"]
+	serviceID:=service["serviceId"]
+	//volumes:=service[""]
 
-	//for _,item:=range result{
-	//	tenantID=item["tenant_id"].(string)
-	//
-	//	serviceIds+=item["service_id"].(string)
-	//	volumes+=item["volume_path"].(string)
-	//	if i < len(result) {
-	//		serviceIds+=" & "
-	//		volumes+=" & "
-	//		i++
-	//	}
-	//
-	//}
 	table.AddRow("Namespace:", tenantID)
 	table.AddRow("ServiceID:", serviceID)
-	table.AddRow("Volume:", volumes)
+	//table.AddRow("Volume:", volumes)
 
 	option := metav1.ListOptions{LabelSelector: "name=" + serviceAlias}
 	rcList,err:=clients.K8SClient.Core().ReplicationControllers(tenantID).List(option)
