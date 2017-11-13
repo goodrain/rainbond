@@ -135,7 +135,7 @@ class RepoBuilder():
                         step="callback")
                     logger.exception('build_work.main', e)
                 result = False
-        logger.exception('build_work.main', "git clone num=" + str(num))
+        logger.info('build_work.main', "git clone num=" + str(num))
         return result
 
     def get_commit_info(self):

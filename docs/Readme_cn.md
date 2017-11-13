@@ -1,6 +1,6 @@
 # 云帮
 
-<img src="https://github.com/goodrain/rainbond/raw/master/docs/logo.png" width="200">
+<img src="https://github.com/goodrain/rainbond/raw/master/docs/logo.png">
 
 ----
 云帮是国内第一个开源的企业级应用管理平台(无服务器PaaS)，集CI/CD自动化应用构建系统，原生支持微服务架构的应用管理系统和全自动的计算资源管理系统于一身。是以应用为中心理念的最佳实践。

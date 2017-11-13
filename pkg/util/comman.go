@@ -21,6 +21,7 @@ package util
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -117,4 +118,42 @@ func ReadHostID(filePath string) (string, error) {
 		return info[1], nil
 	}
 	return "", fmt.Errorf("Invalid host uuid from file")
+}
+
+//LocalIP 获取本机 ip
+// 获取第一个非 loopback ip
+func LocalIP() (net.IP, error) {
+	tables, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range tables {
+		addrs, err := t.Addrs()
+		if err != nil {
+			return nil, err
+		}
+		for _, a := range addrs {
+			ipnet, ok := a.(*net.IPNet)
+			if !ok || ipnet.IP.IsLoopback() {
+				continue
+			}
+			if v4 := ipnet.IP.To4(); v4 != nil {
+				return v4, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("cannot find local IP address")
+}
+
+//GetIDFromKey 从 etcd 的 key 中取 id
+func GetIDFromKey(key string) string {
+	index := strings.LastIndex(key, "/")
+	if index < 0 {
+		return ""
+	}
+	if strings.Contains(key, "-") { //build in任务，为了给不同node做一个区分
+		return strings.Split(key[index+1:], "-")[0]
+	}
+
+	return key[index+1:]
 }

@@ -33,13 +33,40 @@ import (
 	store "github.com/goodrain/rainbond/pkg/node/core/store"
 )
 
+//APIHostNode api host node
+type APIHostNode struct {
+	ID         string            `json:"uuid" validate:"uuid"`
+	HostName   string            `json:"host_name" validate:"host_name"`
+	InternalIP string            `json:"internal_ip" validate:"internal_ip|ip"`
+	ExternalIP string            `json:"external_ip" validate:"external_ip|ip"`
+	RootPass   string            `json:"root_pass,omitempty"`
+	Role       []string          `json:"role" validate:"role|required"`
+	Labels     map[string]string `json:"labels"`
+}
+
+//Clone Clone
+func (a APIHostNode) Clone() *HostNode {
+	hn := &HostNode{
+		ID:         a.ID,
+		HostName:   a.HostName,
+		InternalIP: a.InternalIP,
+		ExternalIP: a.ExternalIP,
+		RootPass:   a.RootPass,
+		Role:       a.Role,
+		Labels:     a.Labels,
+	}
+	return hn
+}
+
 //HostNode 集群节点实体
 type HostNode struct {
 	ID              string            `json:"uuid"`
 	HostName        string            `json:"host_name"`
+	CreateTime      time.Time         `json:"create_time"`
 	InternalIP      string            `json:"internal_ip"`
 	ExternalIP      string            `json:"external_ip"`
 	RootPass        string            `json:"root_pass,omitempty"`
+	KeyPath         string            `json:"key_path,omitempty"` //管理节点key文件路径
 	AvailableMemory int64             `json:"available_memory"`
 	AvailableCPU    int64             `json:"available_cpu"`
 	Role            HostRule          `json:"role"`          //节点属性 compute manage storage
@@ -78,18 +105,33 @@ func (h *HostNode) UpdataK8sCondition(conditions []v1.NodeCondition) {
 //UpdataCondition 更新状态
 func (h *HostNode) UpdataCondition(conditions ...NodeCondition) {
 	for _, newcon := range conditions {
+		var update bool
 		for i, con := range h.Conditions {
-			if con.Type == newcon.Type {
+			if con.Type.Compare(newcon.Type) {
 				h.Conditions[i] = newcon
-				continue
+				update = true
 			}
 		}
-		h.Conditions = append(h.Conditions, newcon)
+		if !update {
+			h.Conditions = append(h.Conditions, newcon)
+		}
 	}
 }
 
 //HostRule 节点角色
 type HostRule []string
+
+//ComputeNode 计算节点
+var ComputeNode = "compute"
+
+//ManageNode 管理节点
+var ManageNode = "manage"
+
+//StorageNode 存储节点
+var StorageNode = "storage"
+
+//LBNode 边缘负载均衡节点
+var LBNode = "lb"
 
 //HasRule 是否具有什么角色
 func (h HostRule) HasRule(rule string) bool {
@@ -113,7 +155,14 @@ const (
 	NodeReady NodeConditionType = "Ready"
 	// InstallNotReady means  the installation task was not completed in this node.
 	InstallNotReady NodeConditionType = "InstallNotReady"
+	// NodeInit means node already install rainbond node and regist
+	NodeInit NodeConditionType = "NodeInit"
 )
+
+//Compare 比较
+func (nt NodeConditionType) Compare(ent NodeConditionType) bool {
+	return string(nt) == string(ent)
+}
 
 //ConditionStatus ConditionStatus
 type ConditionStatus string
@@ -175,6 +224,11 @@ func (h *HostNode) Update() (*client.PutResponse, error) {
 	return store.DefalutClient.Put(conf.Config.NodePath+"/"+h.ID, h.String())
 }
 
+//DeleteNode 删除节点
+func (h *HostNode) DeleteNode() (*client.DeleteResponse, error) {
+	return store.DefalutClient.Delete(conf.Config.NodePath + "/" + h.ID)
+}
+
 //Del 删除
 func (h *HostNode) Del() (*client.DeleteResponse, error) {
 	return store.DefalutClient.Delete(conf.Config.OnlineNodePath + h.ID)
@@ -186,9 +240,7 @@ func GetNodes() (nodes []*HostNode, err error) {
 }
 
 // Down 节点下线
-func (n *HostNode) Down() {
-	n.Alived, n.DownTime = false, time.Now()
-	//if err := mgoDB.Upsert(Coll_Node, bson.M{"_id": n.ID}, n); err != nil {
-	//	logrus.Errorf(err.Error())
-	//}
+func (h *HostNode) Down() {
+	h.Alived, h.DownTime = false, time.Now()
+	h.Update()
 }

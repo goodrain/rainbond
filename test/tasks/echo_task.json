@@ -1,0 +1,11 @@
+{
+    "name": "echo",
+    "temp": {
+        "name": "echo-temp",
+        "shell": {
+            "cmd": ["echo", "\"mysql host is:${MYSQL_HOST}\""]
+        }
+    },
+    "event_id": "xxx",
+    "timer": "@every 1m"
+}

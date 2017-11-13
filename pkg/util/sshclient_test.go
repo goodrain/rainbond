@@ -16,34 +16,22 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package config
+package util
 
 import (
-	"os"
+	"bytes"
 	"testing"
 
-	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/pkg/node/core/store"
-
 	"github.com/Sirupsen/logrus"
-
-	"github.com/coreos/etcd/clientv3"
 )
 
-func init() {
-	err := store.NewClient(&option.Conf{Etcd: clientv3.Config{
-		Endpoints: []string{"127.0.0.1:2379"},
-	}})
-	if err != nil {
-		logrus.Error(err.Error())
-		os.Exit(1)
+func TestSSHClient(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	client := NewSSHClient("172.16.100.105", "root", "", "/usr/bin/whoami", 22, &stdout, &stderr)
+	if err := client.Connection(); err != nil {
+		logrus.Error("init endpoint node error:", err.Error())
+		return
 	}
-}
-func TestGetDataCenterConfig(t *testing.T) {
-	c := DataCenterConfig{options: &option.Conf{
-		ConfigStoragePath: "/rainbond/acp_configs",
-	}}
-	gc, err := c.GetDataCenterConfig()
-	t.Log(gc.String())
-	t.Fatal(err)
+	logrus.Info(stdout.String())
 }

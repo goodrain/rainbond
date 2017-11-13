@@ -16,14 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 当前包处理集群节点的管理
 package masterserver
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/pquerna/ffjson/ffjson"
@@ -37,29 +44,32 @@ import (
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
+	"github.com/goodrain/rainbond/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
 //NodeCluster 节点管理器
 type NodeCluster struct {
-	ctx       context.Context
-	cancel    context.CancelFunc
-	nodes     map[string]*model.HostNode
-	lock      sync.Mutex
-	client    *store.Client
-	k8sClient *kubernetes.Clientset
+	ctx          context.Context
+	cancel       context.CancelFunc
+	nodes        map[string]*model.HostNode
+	lock         sync.Mutex
+	client       *store.Client
+	k8sClient    *kubernetes.Clientset
+	checkInstall chan *model.HostNode
 }
 
 //CreateNodeCluster 创建节点管理器
 func CreateNodeCluster(k8sClient *kubernetes.Clientset) (*NodeCluster, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	nc := NodeCluster{
-		ctx:       ctx,
-		cancel:    cancel,
-		nodes:     make(map[string]*model.HostNode, 5),
-		client:    store.DefalutClient,
-		k8sClient: k8sClient,
+		ctx:          ctx,
+		cancel:       cancel,
+		nodes:        make(map[string]*model.HostNode, 5),
+		client:       store.DefalutClient,
+		k8sClient:    k8sClient,
+		checkInstall: make(chan *model.HostNode, 4),
 	}
 	if err := nc.loadNodes(); err != nil {
 		return nil, err
@@ -71,6 +81,7 @@ func CreateNodeCluster(k8sClient *kubernetes.Clientset) (*NodeCluster, error) {
 func (n *NodeCluster) Start() {
 	go n.watchNodes()
 	go n.watchK8sNodes()
+	go n.worker()
 }
 
 //Stop 停止
@@ -112,10 +123,23 @@ func (n *NodeCluster) loadNodes() error {
 			cn.UpdataK8sCondition(node.Status.Conditions)
 			n.UpdateNode(cn)
 		} else {
-			logrus.Warning("k8s node %s can not exist in rainbond cluster.", node.Name)
+			logrus.Warningf("k8s node %s can not exist in rainbond cluster.", node.Name)
 		}
 	}
 	return nil
+}
+
+func (n *NodeCluster) worker() {
+	for {
+		select {
+		case newNode := <-n.checkInstall:
+			go n.checkNodeInstall(newNode)
+		//其他异步任务
+
+		case <-n.ctx.Done():
+			return
+		}
+	}
 }
 
 //UpdateNode 更新节点信息
@@ -195,9 +219,14 @@ func (n *NodeCluster) watchK8sNodes() {
 			time.Sleep(time.Second * 5)
 		}
 		defer wc.Stop()
+	loop:
 		for {
 			select {
-			case event := <-wc.ResultChan():
+			case event, ok := <-wc.ResultChan():
+				if !ok {
+					time.Sleep(time.Second * 3)
+					break loop
+				}
 				switch {
 				case event.Type == watch.Added, event.Type == watch.Modified:
 					if node, ok := event.Object.(*v1.Node); ok {
@@ -229,6 +258,41 @@ func (n *NodeCluster) InstallNode() {
 
 }
 
+//CheckNodeInstall 简称节点是否安装 rainbond node
+//如果未安装，尝试安装
+func (n *NodeCluster) CheckNodeInstall(node *model.HostNode) {
+	n.checkInstall <- node
+}
+func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
+	initCondition := model.NodeCondition{
+		Type: model.NodeInit,
+	}
+	defer func() {
+		node.UpdataCondition(initCondition)
+		n.UpdateNode(node)
+	}()
+	errorCondition := func(reason string, err error) {
+		initCondition.Status = model.ConditionFalse
+		initCondition.LastTransitionTime = time.Now()
+		initCondition.LastHeartbeatTime = time.Now()
+		initCondition.Reason = reason
+		if err != nil {
+			initCondition.Message = err.Error()
+		}
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	client := util.NewSSHClient(node.InternalIP, "root", node.RootPass, "/usr/bin/whoami", 22, &stdout, &stderr)
+	if err := client.Connection(); err != nil {
+		logrus.Error("init endpoint node error:", err.Error())
+		errorCondition("SSH登陆初始化目标节点失败", err)
+		return
+	}
+	//TODO:
+	//处理安装结果
+	logrus.Info(stdout.String())
+}
+
 //GetAllNode 获取全部节点
 func (n *NodeCluster) GetAllNode() (nodes []*model.HostNode) {
 	n.lock.Lock()
@@ -254,4 +318,53 @@ func (n *NodeCluster) RemoveNode(node *model.HostNode) {
 	if _, ok := n.nodes[node.ID]; ok {
 		delete(n.nodes, node.ID)
 	}
+}
+
+//NewSSHClientByPublicKey 创建ssh客户端
+func NewSSHClientByPublicKey(hostport string, username string) (*ssh.Client, error) {
+	sock, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
+	if err != nil {
+		logrus.Errorf("error login,details: %s", err.Error())
+		return nil, err
+	}
+	agent := agent.NewClient(sock)
+	signers, err := agent.Signers()
+	if err != nil {
+		logrus.Errorf("error login,details: %s", err.Error())
+		return nil, err
+	}
+	auths := []ssh.AuthMethod{ssh.PublicKeys(signers...)}
+	cfg := &ssh.ClientConfig{
+		User: username,
+		Auth: auths,
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
+		},
+	}
+	cfg.SetDefaults()
+	client, err := ssh.Dial("tcp", hostport, cfg)
+	if err != nil {
+		logrus.Infof("error login,details: %s", err.Error())
+		return nil, err
+	}
+	return client, nil
+}
+
+//NewSSHClientByUserPass 创建ssh客户端
+func NewSSHClientByUserPass(hostport string, username, password string) (*ssh.Client, error) {
+	config := &ssh.ClientConfig{
+		User: username,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(password),
+		},
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
+		},
+	}
+	client, err := ssh.Dial("tcp", hostport, config)
+	if err != nil {
+		logrus.Errorf("failed to connect %s use username %s ,error: %s", hostport, username, err.Error())
+		return nil, err
+	}
+	return client, nil
 }

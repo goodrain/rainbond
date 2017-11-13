@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/goodrain/rainbond/pkg/node/api/model"
+	"github.com/goodrain/rainbond/pkg/node/core/config"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
 )
 
@@ -31,13 +32,16 @@ import (
 type MasterServer struct {
 	*store.Client
 	*model.HostNode
-	Cluster *NodeCluster
-	ctx     context.Context
-	cancel  context.CancelFunc
+	Cluster          *NodeCluster
+	taskEngine       *TaskEngine
+	ctx              context.Context
+	cancel           context.CancelFunc
+	datacenterConfig *config.DataCenterConfig
 }
 
 //NewMasterServer 创建master节点
 func NewMasterServer(node *model.HostNode, k8sClient *kubernetes.Clientset) (*MasterServer, error) {
+	datacenterConfig := config.CreateDataCenterConfig()
 	ctx, cancel := context.WithCancel(context.Background())
 	cluster, err := CreateNodeCluster(k8sClient)
 	if err != nil {
@@ -45,11 +49,13 @@ func NewMasterServer(node *model.HostNode, k8sClient *kubernetes.Clientset) (*Ma
 		return nil, err
 	}
 	ms := &MasterServer{
-		Client:   store.DefalutClient,
-		HostNode: node,
-		Cluster:  cluster,
-		ctx:      ctx,
-		cancel:   cancel,
+		Client:           store.DefalutClient,
+		taskEngine:       CreateTaskEngine(),
+		HostNode:         node,
+		Cluster:          cluster,
+		ctx:              ctx,
+		cancel:           cancel,
+		datacenterConfig: datacenterConfig,
 	}
 	return ms, nil
 }
@@ -57,11 +63,15 @@ func NewMasterServer(node *model.HostNode, k8sClient *kubernetes.Clientset) (*Ma
 //Start 启动
 func (m *MasterServer) Start() error {
 	m.Cluster.Start()
+	m.taskEngine.Start()
+	//监控配置变化启动
+	m.datacenterConfig.Start()
 	return nil
 }
 
 //Stop 停止
 func (m *MasterServer) Stop(i interface{}) {
 	m.Cluster.Stop(i)
+	m.taskEngine.Stop()
 	m.cancel()
 }

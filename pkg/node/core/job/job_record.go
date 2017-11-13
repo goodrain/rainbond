@@ -30,22 +30,16 @@ import (
 	"github.com/twinj/uuid"
 )
 
-const (
-	Coll_JobLog       = "job_log"
-	BuildIn_JobLog    = "buildIn_log"
-	Coll_JobLatestLog = "job_latest_log"
-	Coll_Stat         = "stat"
-)
-
 //ExecutionRecord 任务执行记录
 type ExecutionRecord struct {
 	ID         string    `json:"id"`
-	JobID      string    `json:"job_id"`            // 任务 Id，索引
+	JobID      string    `json:"job_id"` // 任务 Id，索引
+	TaskID     string    `json:"task_id"`
 	User       string    `json:"user"`              // 执行此次任务的用户
 	Name       string    `json:"name"`              // 任务名称
 	Node       string    `json:"node"`              // 运行此次任务的节点 ip，索引
 	Command    string    `json:"command,omitempty"` // 执行的命令，包括参数
-	Output     string    `json:"output,omitempty"`  // 任务输出的所有内容
+	Output     string    `json:"output"`            // 任务输出的所有内容
 	Success    bool      `json:"success"`           // 是否执行成功
 	BeginTime  time.Time `json:"beginTime"`         // 任务开始执行时间，精确到毫秒，索引
 	EndTime    time.Time `json:"endTime"`           // 任务执行完毕时间，精确到毫秒
@@ -115,6 +109,7 @@ func CreateExecutionRecord(j *Job, t time.Time, rs string, success bool) {
 	record := ExecutionRecord{
 		ID:        uuid.NewV4().String(),
 		JobID:     j.ID,
+		TaskID:    j.TaskID,
 		User:      j.User,
 		Name:      j.Name,
 		Node:      j.runOn,

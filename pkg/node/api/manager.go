@@ -73,7 +73,7 @@ func (m *Manager) Start(errChan chan error) {
 
 	go func() {
 		if err := http.ListenAndServe(m.conf.APIAddr, m.router); err != nil {
-			logrus.Error("entrance api listen error.", err.Error())
+			logrus.Error("rainbond node api listen error.", err.Error())
 			errChan <- err
 		}
 	}()

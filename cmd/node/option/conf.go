@@ -64,20 +64,19 @@ func Init() error {
 
 //Conf Conf
 type Conf struct {
-	APIAddr        string //api server listen port
-	K8SConfPath    string //absolute path to the kubeconfig file
-	LogLevel       string
-	HostIDFile     string
-	HostIP         string
-	RunMode        string //ACP_NODE 运行模式:master,node
-	NodeRule       string //节点属性 compute manage storage
-	Service        string //服务注册与发现
-	InitStatus     string
-	NodePath       string //永久节点信息存储路径
-	OnlineNodePath string //上线节点信息存储路径
-	Proc           string // 当前节点正在执行任务存储路径
-	//任务执行公共路径，后续跟节点ID
-	TaskPath            string
+	APIAddr             string //api server listen port
+	K8SConfPath         string //absolute path to the kubeconfig file
+	LogLevel            string
+	HostIDFile          string
+	HostIP              string
+	RunMode             string //ACP_NODE 运行模式:master,node
+	NodeRule            string //节点属性 compute manage storage
+	Service             string //服务注册与发现
+	InitStatus          string
+	NodePath            string //永久节点信息存储路径
+	OnlineNodePath      string //上线节点信息存储路径
+	Proc                string // 当前节点正在执行任务存储路径
+	StaticTaskPath      string // 配置静态task文件宿主机路径
 	Cmd                 string // 节点执行任务保存路径
 	Once                string // 马上执行任务路径//立即执行任务保存地址
 	Lock                string // job lock 路径
@@ -124,7 +123,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.BuildIn, "build-in-jobs", "/store/buildin/", "the path of build-in job")
 	fs.StringVar(&a.CompJobStatus, "jobStatus", "/store/jobStatus/", "the path of tree node install status")
 	fs.StringVar(&a.BuildInExec, "build-in-exec", "/acp_node/exec_buildin/", "the path of build-in job to watch")
-	fs.StringVar(&a.ConfigStoragePath, "config-path", "/acp_node/acp_configs", "the path of config to store(new)")
+	fs.StringVar(&a.ConfigStoragePath, "config-path", "/rainbond/acp_configs", "the path of config to store(new)")
 	fs.StringVar(&a.InitStatus, "init-status", "/acp_node/init_status/", "the path of init status to store")
 	fs.StringVar(&a.Service, "servicePath", "/traefik/backends", "the path of service info to store")
 	fs.StringVar(&a.Cmd, "cmdPath", "/acp_node/cmd/", "the path of cmd in etcd")
@@ -141,6 +140,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.Int64Var(&a.ProcReq, "procreq", 5, "proc req")
 	fs.Int64Var(&a.LockTTL, "lockttl", 600, "lock ttl")
 	fs.StringVar(&a.APIAddr, "api-addr", ":6100", "the api server listen address")
+	fs.StringVar(&a.StaticTaskPath, "static-task-path", "/etc/goodrain/rainbond-node", "the file path of static task")
 	fs.StringVar(&a.K8SConfPath, "kube-conf", "", "absolute path to the kubeconfig file  ./kubeconfig")
 	//fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")
 	fs.StringVar(&a.RunMode, "run-mode", "worker", "the acp_node run mode,could be 'worker' or 'master'")

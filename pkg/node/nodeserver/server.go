@@ -32,7 +32,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/core/store"
 	"github.com/goodrain/rainbond/pkg/util"
 	"github.com/robfig/cron"
-	"github.com/shunfei/cronsun/utils"
 
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
@@ -246,8 +245,10 @@ func (n *NodeServer) watchOnce() {
 					continue
 				}
 				j.Init(n.ID)
-				if !j.IsRunOn(n.HostNode) {
-					continue
+				if j.Rules != nil {
+					if !j.IsRunOn(n.HostNode) {
+						continue
+					}
 				}
 				if !j.IsOnce {
 					continue
@@ -382,7 +383,7 @@ func GetCurrentNode(cfg *conf.Conf) (*model.HostNode, error) {
 	var node model.HostNode
 	if res.Count == 0 {
 		if cfg.HostIP == "" {
-			ip, err := utils.LocalIP()
+			ip, err := util.LocalIP()
 			if err != nil {
 				return nil, err
 			}
@@ -405,6 +406,12 @@ func GetCurrentNode(cfg *conf.Conf) (*model.HostNode, error) {
 	}
 	node.Labels["rainbond_node_hostname"] = node.HostName
 	node.Labels["rainbond_node_ip"] = node.InternalIP
+	node.UpdataCondition(model.NodeCondition{
+		Type:               model.NodeInit,
+		Status:             model.ConditionTrue,
+		LastHeartbeatTime:  time.Now(),
+		LastTransitionTime: time.Now(),
+	})
 	return &node, nil
 }
 
@@ -414,11 +421,13 @@ func CreateNode(cfg *conf.Conf, nodeID, ip string) model.HostNode {
 	HostNode := model.HostNode{
 		ID: nodeID,
 		ClusterNode: model.ClusterNode{
-			PID: strconv.Itoa(os.Getpid()),
+			PID:        strconv.Itoa(os.Getpid()),
+			Conditions: make([]model.NodeCondition, 0),
 		},
 		InternalIP: ip,
 		ExternalIP: ip,
 		HostName:   hostname,
+		CreateTime: time.Now(),
 	}
 	return HostNode
 }

@@ -18,9 +18,62 @@
 
 package job
 
-import "github.com/goodrain/rainbond/pkg/node/api/model"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/goodrain/rainbond/pkg/node/api/model"
+	"github.com/goodrain/rainbond/pkg/node/core/config"
+	"github.com/twinj/uuid"
+)
 
 //CreateJobFromTask 从task创建job
-func CreateJobFromTask(task *model.Task) *Job {
-	return nil
+func CreateJobFromTask(task *model.Task, groupCtx *config.GroupContext) (*Job, error) {
+	if task.Temp == nil {
+		return nil, fmt.Errorf("task temp is nil, can not build job")
+	}
+	command, err := config.ResettingArray(groupCtx, task.Temp.Shell.Cmd)
+	if err != nil {
+		return nil, err
+	}
+	stdin, err := config.ResettingString(groupCtx, task.Temp.Input)
+	if err != nil {
+		return nil, err
+	}
+	envMaps, err := config.ResettingMap(groupCtx, task.Temp.Envs)
+	if err != nil {
+		return nil, err
+	}
+	var envs []string
+	for k, v := range envMaps {
+		envs = append(envs, fmt.Sprintf("%s=%s", k, v))
+	}
+	var rules []*JobRule
+	if !task.IsOnce {
+		if task.Timer == "" {
+			return nil, fmt.Errorf("timer can not be empty")
+		}
+		rule := &JobRule{
+			Labels:  task.Temp.Labels,
+			NodeIDs: task.Nodes,
+			ID:      uuid.NewV4().String(),
+			Timer:   task.Timer,
+		}
+		rules = append(rules, rule)
+	}
+	job := &Job{
+		ID:       uuid.NewV4().String(),
+		TaskID:   task.ID,
+		EventID:  task.EventID,
+		IsOnce:   task.IsOnce,
+		Name:     task.Name,
+		Command:  strings.Join(command, " "),
+		Stdin:    stdin,
+		Envs:     envs,
+		Rules:    rules,
+		Timeout:  task.TimeOut,
+		Retry:    task.Retry,
+		Interval: task.Interval,
+	}
+	return job, nil
 }

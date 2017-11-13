@@ -101,8 +101,8 @@ func (g *GlobalConfig) Add(c ConfigUnit) {
 }
 
 //Get 获取配置
-func (g *GlobalConfig) Get(name string) ConfigUnit {
-	return *g.Configs[name]
+func (g *GlobalConfig) Get(name string) *ConfigUnit {
+	return g.Configs[name]
 }
 
 //Delete 删除配置
@@ -157,9 +157,9 @@ func CreateDefaultGlobalConfig() *GlobalConfig {
 		OptionalValue: []string{"mysql", "cockroachdb"},
 		DependConfig: map[string][]ConfigUnit{
 			"mysql": []ConfigUnit{
-				ConfigUnit{Name: "MYSQL_HOST", CNName: "Mysql数据库地址", ValueType: "string"},
-				ConfigUnit{Name: "MYSQL_PASS", CNName: "Mysql数据库密码", ValueType: "string"},
-				ConfigUnit{Name: "MYSQL_USER", CNName: "Mysql数据库用户名", ValueType: "string"},
+				ConfigUnit{Name: "MYSQL_HOST", CNName: "Mysql数据库地址", ValueType: "string", Value: "127.0.0.1"},
+				ConfigUnit{Name: "MYSQL_PASS", CNName: "Mysql数据库密码", ValueType: "string", Value: ""},
+				ConfigUnit{Name: "MYSQL_USER", CNName: "Mysql数据库用户名", ValueType: "string", Value: ""},
 			},
 			"cockroachdb": []ConfigUnit{
 				ConfigUnit{Name: "COCKROACH_HOST", CNName: "Mysql数据库地址", ValueType: "array"},

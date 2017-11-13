@@ -1072,7 +1072,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, ac
 				if err != nil {
 					return util.CreateAPIHandleErrorFromDBError("service type", err)
 				}
-				if serviceType.LabelValue != "有状态应用" {
+				if serviceType == nil || serviceType.LabelValue != core_util.StatefulServiceType {
 					return util.CreateAPIHandleError(400, fmt.Errorf("应用类型不为有状态应用.不支持本地存储"))
 				}
 				tsv.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, tenantID, tsv.ServiceID, tsv.VolumePath)

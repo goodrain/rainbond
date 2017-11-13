@@ -20,11 +20,13 @@ package service
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/masterserver"
 	"github.com/goodrain/rainbond/pkg/node/utils"
+	"github.com/twinj/uuid"
 )
 
 //NodeService node service
@@ -42,9 +44,47 @@ func CreateNodeService(c *option.Conf, nodecluster *masterserver.NodeCluster) *N
 }
 
 //AddNode add node
-func (n *NodeService) AddNode(node *model.HostNode) *utils.APIHandleError {
+func (n *NodeService) AddNode(node *model.APIHostNode) *utils.APIHandleError {
 	if n.nodecluster == nil {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
+	}
+	if node.ID == "" {
+		node.ID = uuid.NewV4().String()
+	}
+	if node.InternalIP == "" {
+		return utils.CreateAPIHandleError(400, fmt.Errorf("node internal ip can not be empty"))
+	}
+	existNode := n.nodecluster.GetAllNode()
+	for _, en := range existNode {
+		if node.InternalIP == en.InternalIP {
+			return utils.CreateAPIHandleError(400, fmt.Errorf("node internal ip %s is exist", node.InternalIP))
+		}
+	}
+	rbnode := node.Clone()
+	rbnode.CreateTime = time.Now()
+	rbnode.Conditions = make([]model.NodeCondition, 0)
+	if _, err := rbnode.Update(); err != nil {
+		return utils.CreateAPIHandleErrorFromDBError("save node", err)
+	}
+	//判断是否需要安装
+	n.nodecluster.CheckNodeInstall(rbnode)
+	return nil
+}
+
+//DeleteNode 删除节点信息
+//只有节点状态属于（离线状态）才能删除
+func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
+	node := n.nodecluster.GetNode(nodeID)
+	if node.Alived {
+		return utils.CreateAPIHandleError(400, fmt.Errorf("node is online, can not delete"))
+	}
+	//TODO:计算节点，判断节点是否下线
+	if node.Role.HasRule(model.ComputeNode) {
+
+	}
+	_, err := node.DeleteNode()
+	if err != nil {
+		return utils.CreateAPIHandleErrorFromDBError("delete node", err)
 	}
 	return nil
 }

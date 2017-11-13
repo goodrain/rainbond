@@ -15,36 +15,40 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
-
-package controller
+package config
 
 import (
+	"testing"
+
 	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/pkg/node/core/config"
-	"github.com/goodrain/rainbond/pkg/node/core/service"
-	"github.com/goodrain/rainbond/pkg/node/masterserver"
 )
 
-var datacenterConfig *config.DataCenterConfig
-var taskService *service.TaskService
-var taskTempService *service.TaskTempService
-var taskGroupService *service.TaskGroupService
-var appService *service.AppService
-var nodeService *service.NodeService
-
-//Init 初始化
-func Init(c *option.Conf, ms *masterserver.MasterServer) {
-	datacenterConfig = config.GetDataCenterConfig()
-	taskService = service.CreateTaskService(c)
-	taskTempService = service.CreateTaskTempService(c)
-	taskGroupService = service.CreateTaskGroupService(c)
-	appService = service.CreateAppService(c)
-	nodeService = service.CreateNodeService(c, ms.Cluster)
+func TestResettingArray(t *testing.T) {
+	c := CreateDataCenterConfig(&option.Conf{
+		ConfigStoragePath: "/rainbond/acp_configs",
+	})
+	c.Start()
+	defer c.Stop()
+	groupCtx := NewGroupContext()
+	groupCtx.Add("SADAS", "Test")
+	result, err := ResettingArray(groupCtx, []string{"Sdd${sadas}asd", "${MYSQL_HOST}", "12_${MYSQL_PASS}_sd"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(result)
 }
 
-//Exist 退出
-func Exist(i interface{}) {
-	if datacenterConfig != nil {
-		datacenterConfig.Stop()
+func TestResettingString(t *testing.T) {
+	c := CreateDataCenterConfig(&option.Conf{
+		ConfigStoragePath: "/rainbond/acp_configs",
+	})
+	c.Start()
+	defer c.Stop()
+	groupCtx := NewGroupContext()
+	groupCtx.Add("SADAS", "Test")
+	result, err := ResettingString(nil, "${MYSQL_HOST}Sdd${sadas}asd")
+	if err != nil {
+		t.Fatal(err)
 	}
+	t.Log(result)
 }

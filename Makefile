@@ -36,6 +36,7 @@ run-node:build-node
 	./build/node/${BASE_NAME}_node \
 	 --run-mode=master --kube-conf=`pwd`/admin.kubeconfig \
 	 --nodeid-file=`pwd`/host_id.conf \
+	 --static-task-path=`pwd`/test/tasks \
 	 --log-level=debug
 
 doc:

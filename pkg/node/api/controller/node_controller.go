@@ -32,7 +32,7 @@ import (
 
 //NewNode 创建一个节点
 func NewNode(w http.ResponseWriter, r *http.Request) {
-	var node model.HostNode
+	var node model.APIHostNode
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &node, nil); !ok {
 		return
 	}
@@ -41,6 +41,22 @@ func NewNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
+}
+
+//NewMultipleNode 多节点添加操作
+func NewMultipleNode(w http.ResponseWriter, r *http.Request) {
+	var nodes []model.APIHostNode
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &nodes, nil); !ok {
+		return
+	}
+	var successnodes []model.APIHostNode
+	for _, node := range nodes {
+		if err := nodeService.AddNode(&node); err != nil {
+			continue
+		}
+		successnodes = append(successnodes, node)
+	}
+	httputil.ReturnSuccess(r, w, successnodes)
 }
 
 //GetNodes 获取全部节点
@@ -72,6 +88,17 @@ func GetRuleNodes(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	httputil.ReturnSuccess(r, w, masternodes)
+}
+
+//DeleteRainbondNode 节点删除
+func DeleteRainbondNode(w http.ResponseWriter, r *http.Request) {
+	nodeID := chi.URLParam(r, "node_id")
+	err := nodeService.DeleteNode(nodeID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
 }
 
 //临时存在

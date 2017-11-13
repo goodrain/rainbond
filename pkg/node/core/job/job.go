@@ -409,6 +409,15 @@ func WatchJobs() client.WatchChan {
 	return store.DefalutClient.Watch(conf.Config.Cmd, client.WithPrefix())
 }
 
+//AddJob 添加job
+func AddJob(j *Job) error {
+	_, err := store.DefalutClient.Put(conf.Config.Cmd+"/"+j.ID, j.String())
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 //GetJobFromKv Create job from etcd value
 func GetJobFromKv(kv *mvccpb.KeyValue) (job *Job, err error) {
 	job = new(Job)
@@ -643,6 +652,9 @@ func (j *Job) Cmds(node *model.HostNode) (cmds map[string]*Cmd) {
 //IsRunOn  是否在本节点执行
 //只要有一个rule满足条件即可
 func (j Job) IsRunOn(node *model.HostNode) bool {
+	if j.Rules == nil || len(j.Rules) == 0 {
+		return false
+	}
 	for _, r := range j.Rules {
 		if r.included(node) {
 			return true

@@ -27,8 +27,8 @@ import (
 
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
-	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
+	"github.com/goodrain/rainbond/pkg/util"
 
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
@@ -42,37 +42,48 @@ type DataCenterConfig struct {
 	cancel  context.CancelFunc
 }
 
+var dataCenterConfig *DataCenterConfig
+
+//GetDataCenterConfig 获取
+func GetDataCenterConfig() *DataCenterConfig {
+	if dataCenterConfig == nil {
+		return CreateDataCenterConfig()
+	}
+	return dataCenterConfig
+}
+
 //CreateDataCenterConfig 创建
-func CreateDataCenterConfig(options *option.Conf) *DataCenterConfig {
+func CreateDataCenterConfig() *DataCenterConfig {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &DataCenterConfig{
-		options: options,
+	dataCenterConfig = &DataCenterConfig{
+		options: option.Config,
 		ctx:     ctx,
 		cancel:  cancel,
 		config: &model.GlobalConfig{
 			Configs: make(map[string]*model.ConfigUnit),
 		},
 	}
-}
-
-//Start 启动，监听配置变化
-func (d *DataCenterConfig) Start() {
-	res, err := store.DefalutClient.Get(d.options.ConfigStoragePath+"/global", client.WithPrefix())
+	res, err := store.DefalutClient.Get(dataCenterConfig.options.ConfigStoragePath+"/global", client.WithPrefix())
 	if err != nil {
 		logrus.Error("load datacenter config error.", err.Error())
 	}
 	if len(res.Kvs) < 1 {
 		dgc := model.CreateDefaultGlobalConfig()
-		err := d.PutDataCenterConfig(dgc)
+		err := dataCenterConfig.PutDataCenterConfig(dgc)
 		if err != nil {
 			logrus.Error("put datacenter config error,", err.Error())
 		}
-		d.config = dgc
+		dataCenterConfig.config = dgc
 	} else {
 		for _, kv := range res.Kvs {
-			d.PutConfigKV(kv)
+			dataCenterConfig.PutConfigKV(kv)
 		}
 	}
+	return dataCenterConfig
+}
+
+//Start 启动，监听配置变化
+func (d *DataCenterConfig) Start() {
 	go func() {
 		logrus.Info("datacenter config listener start")
 		ch := store.DefalutClient.Watch(d.options.ConfigStoragePath+"/global", client.WithPrefix())
@@ -86,7 +97,7 @@ func (d *DataCenterConfig) Start() {
 					case e.IsCreate(), e.IsModify():
 						d.PutConfigKV(e.Kv)
 					case e.Type == client.EventTypeDelete:
-						d.DeleteConfig(job.GetIDFromKey(string(e.Kv.Key)))
+						d.DeleteConfig(util.GetIDFromKey(string(e.Kv.Key)))
 					}
 				}
 			}
@@ -118,7 +129,7 @@ func (d *DataCenterConfig) PutDataCenterConfig(c *model.GlobalConfig) (err error
 }
 
 //GetConfig 获取全局配置
-func (d *DataCenterConfig) GetConfig(name string) model.ConfigUnit {
+func (d *DataCenterConfig) GetConfig(name string) *model.ConfigUnit {
 	return d.config.Get(name)
 }
 

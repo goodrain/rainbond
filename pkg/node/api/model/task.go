@@ -21,14 +21,12 @@ package model
 import (
 	"time"
 
-	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/pkg/node/core/store"
 	"github.com/pquerna/ffjson/ffjson"
 )
 
 //Shell 执行脚本配置
 type Shell struct {
-	Cmd []string
+	Cmd []string `json:"cmd"`
 }
 
 //TaskTemp 任务模版
@@ -61,6 +59,16 @@ type Task struct {
 	Temp   *TaskTemp `json:"temp,omitempty"`
 	//执行的节点
 	Nodes []string `json:"nodes"`
+	//执行时间定义
+	//例如每30分钟执行一次:@every 30m
+	Timer   string `json:"timer"`
+	TimeOut int64  `json:"time_out"`
+	// 执行任务失败重试次数
+	// 默认为 0，不重试
+	Retry int `json:"retry"`
+	// 执行任务失败重试时间间隔
+	// 单位秒，如果不大于 0 则马上重试
+	Interval int `json:"interval"`
 	//每个执行节点执行状态
 	Status       map[string]TaskStatus `json:"status,omitempty"`
 	CreateTime   time.Time             `json:"create_time"`
@@ -68,6 +76,7 @@ type Task struct {
 	CompleteTime time.Time             `json:"complete_time"`
 	ResultPath   string                `json:"result_path"`
 	EventID      string                `json:"event_id"`
+	IsOnce       bool                  `json:"is_once"`
 	OutPut       []*TaskOutPut         `json:"out_put"`
 }
 
@@ -87,17 +96,6 @@ func (t Task) CanBeDelete() bool {
 		}
 	}
 	return true
-}
-
-//SendTask 发送任务
-func SendTask(tasks ...*Task) error {
-	for _, task := range tasks {
-		_, err := store.DefalutClient.Put(option.Config.TaskPath+"/"+task.ID, task.String())
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 //TaskOutPut 任务输出
