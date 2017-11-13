@@ -1160,7 +1160,16 @@
           "v2"
         ],
         "summary": "获取当前租户下所有的可用插件",
-        "operationId": "GetPlugins",
+        "operationId": "getPlugins",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          }
+        ],
         "responses": {
           "default": {
             "description": "统一返回格式",

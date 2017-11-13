@@ -295,6 +295,14 @@ type PluginSetStruct struct {
 	}
 }
 
+//GetPluginsStruct GetPluginsStruct
+//swagger:parameters getPlugins
+type GetPluginsStruct struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
+}
+
 //GetPluginSetStruct GetPluginSetStruct
 //swagger:parameters getPluginSet
 type GetPluginSetStruct struct {

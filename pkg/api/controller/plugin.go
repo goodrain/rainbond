@@ -147,7 +147,7 @@ func (t *TenantStruct) DeletePlugin(w http.ResponseWriter, r *http.Request) {
 
 //GetPlugins GetPlugins
 func (t *TenantStruct) GetPlugins(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation GET /v2/tenants/{tenant_name}/plugin v2 GetPlugins
+	// swagger:operation GET /v2/tenants/{tenant_name}/plugin v2 getPlugins
 	//
 	// 获取当前租户下所有的可用插件
 	//
