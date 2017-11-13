@@ -34,6 +34,7 @@ import (
 	eventLog "github.com/goodrain/rainbond/pkg/event"
 
 	"github.com/goodrain/rainbond/pkg/node/api"
+	"github.com/goodrain/rainbond/pkg/node/api/handler"
 	"github.com/goodrain/rainbond/pkg/node/event"
 )
 
@@ -85,6 +86,10 @@ func Run(c *option.Conf) error {
 			return err
 		}
 		event.On(event.EXIT, ms.Stop)
+	}
+	//初始化discoverManager
+	if err := handler.CreateDiscoverManger(c); err != nil {
+		return err
 	}
 	//启动API服务
 	apiManager := api.NewManager(*s.Conf, s.HostNode, ms)

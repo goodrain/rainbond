@@ -39,9 +39,9 @@ func Routers(mode string) *chi.Mux {
 	r.Use(middleware.Recoverer)
 	//request time out
 	r.Use(middleware.Timeout(time.Second * 5))
+	r.Mount("/v1", DisconverRoutes())
 	r.Route("/v2", func(r chi.Router) {
 		r.Get("/ping", controller.Ping)
-
 		r.Route("/apps", func(r chi.Router) {
 			r.Get("/{app_name}/register", controller.APPRegister)
 			r.Get("/{app_name}/discover", controller.APPDiscover)
