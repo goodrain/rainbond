@@ -42,12 +42,13 @@ func CreateDiscoverActionManager(conf *option.Conf) (*DiscoverAction, error) {
 //DiscoverService DiscoverService
 func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *util.APIHandleError) {
 	mm := strings.Split(serviceInfo, "_")
-	if len(mm) != 3 {
+	if len(mm) != 4 {
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
 	}
 	tenantName := mm[0]
 	serviceAlias := mm[1]
-	//deployVersion := mm[2]
+	dPort := mm[2]
+	//deployVersion := mm[3]
 
 	namespace, err := d.ToolsGetTenantUUID(tenantName)
 	if err != nil {
@@ -75,7 +76,10 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *
 		if len(addressList) == 0 {
 			addressList = item.Subsets[0].NotReadyAddresses
 		}
-		//port := item.Subsets[0].Ports[0].Port
+		port := item.Subsets[0].Ports[0].Port
+		if dPort != fmt.Sprintf("%d", port) {
+			continue
+		}
 		toport := services.Items[key].Spec.Ports[0].Port
 		for _, ip := range addressList {
 			sdsP := &node_model.PieceSDS{
@@ -89,6 +93,119 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *
 		Hosts: sdsL,
 	}
 	return sds, nil
+}
+
+//DiscoverListeners DiscoverListeners
+func (d *DiscoverAction) DiscoverListeners(tenantName, serviceCluster string) (*node_model.LDS, *util.APIHandleError) {
+	mm := strings.Split(serviceCluster, "_")
+	if len(mm) == 0 {
+		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
+	}
+	namespace, err := d.ToolsGetTenantUUID(tenantName)
+	if err != nil {
+		return nil, util.CreateAPIHandleErrorFromDBError("get tenant uuid ", err)
+	}
+	var ldsL []*node_model.PieceLDS
+	for _, serviceAlias := range mm {
+		labelname := fmt.Sprintf("name=%sService", serviceAlias)
+		endpoint, err := k8s.K8S.Core().Endpoints(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+		if err != nil {
+			return nil, util.CreateAPIHandleError(500, err)
+		}
+		services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+		if err != nil {
+			return nil, util.CreateAPIHandleError(500, err)
+		}
+		if len(endpoint.Items) == 0 {
+			continue
+		}
+		for _, service := range services.Items {
+			//protocol, ok := service.Labels["protocol"]
+			// if ok && protocol == "http" {
+			// 	//TODO: HTTP inner的protocol添加资源时需要label
+			// 	hsf := &node_model.HTTPSingleFileter{
+			// 		Type: "decoder",
+			// 		Name: "router",
+			// 	}
+			// 	prs := &node_model.PieceHTTPRoutes{
+			// 		TimeoutMS: 0,
+			// 		Prefix:    "/",
+			// 		Cluster:   "",
+			// 	}
+			// 	continue
+			// }
+			//TODO: TCP
+			for _, port := range service.Spec.Ports {
+				switch port.Protocol {
+				case "TCP":
+					ptr := &node_model.PieceTCPRoute{
+						Cluster: fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
+					}
+					lrs := &node_model.LDSTCPRoutes{
+						Routes: []*node_model.PieceTCPRoute{ptr},
+					}
+					lcg := &node_model.LDSTCPConfig{
+						StatPrefix:  fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
+						RouteConfig: lrs,
+					}
+					lfs := &node_model.LDSFilters{
+						Name:   "tcp_proxy",
+						Config: lcg,
+					}
+					plds := &node_model.PieceLDS{
+						Name:    fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
+						Address: fmt.Sprintf("tcp://0.0.0.0:%v", port.TargetPort),
+						Filters: []*node_model.LDSFilters{lfs},
+					}
+					ldsL = append(ldsL, plds)
+					continue
+				case "HTTP":
+					hsf := &node_model.HTTPSingleFileter{
+						Type: "decoder",
+						Name: "router",
+					}
+					prs := &node_model.PieceHTTPRoutes{
+						TimeoutMS: 0,
+						Prefix:    "/",
+						Cluster:   fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
+					}
+					domain, ok := service.Labels["domain"]
+					if !ok {
+						domain = "*"
+					}
+					pvh := &node_model.PieceHTTPVirtualHost{
+						Name:    fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
+						Domains: []string{domain},
+						Routes:  []*node_model.PieceHTTPRoutes{prs},
+					}
+					rcg := &node_model.RouteConfig{
+						VirtualHosts: []*node_model.PieceHTTPVirtualHost{pvh},
+					}
+					lhc := &node_model.LDSHTTPConfig{
+						CodecType:   "auto",
+						StatPrefix:  "ingress_http",
+						RouteConfig: rcg,
+						Filters:     []*node_model.HTTPSingleFileter{hsf},
+					}
+					lfs := &node_model.LDSFilters{
+						Name:   "http_connection_manager",
+						Config: lhc,
+					}
+					plds := &node_model.PieceLDS{
+						Name:    fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
+						Address: fmt.Sprintf("tcp://0.0.0.0:%v", port.TargetPort),
+						Filters: []*node_model.LDSFilters{lfs},
+					}
+					ldsL = append(ldsL, plds)
+					continue
+				}
+			}
+		}
+	}
+	lds := &node_model.LDS{
+		Listeners: ldsL,
+	}
+	return lds, nil
 }
 
 //ToolsGetTenantUUID GetTenantUUID

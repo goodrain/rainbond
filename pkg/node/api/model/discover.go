@@ -59,53 +59,67 @@ type cdsHealthCheckt struct {
 
 //LDS struct
 type LDS struct {
-	Name    string        `json:"name"`
-	Address string        `json:"address"`
-	Filters []*ldsFilters `json:"filters"`
+	Listeners []*PieceLDS `json:"listeners"`
 }
 
-type ldsFilters struct {
+//PieceLDS struct
+type PieceLDS struct {
+	Name    string        `json:"name"`
+	Address string        `json:"address"`
+	Filters []*LDSFilters `json:"filters"`
+}
+
+//LDSFilters LDSFilters
+type LDSFilters struct {
 	Name   string      `json:"name"`
 	Config interface{} `json:"config"`
 }
 
-type ldsTCPConfig struct {
+//LDSTCPConfig LDSTCPConfig
+type LDSTCPConfig struct {
 	StatPrefix  string        `json:"stat_prefix"`
-	RouteConfig *ldsTCPRoutes `json:"route_config"`
+	RouteConfig *LDSTCPRoutes `json:"route_config"`
 }
 
-type ldsTCPRoutes struct {
-	Routes []*pieceTCPRoute `json:"routes"`
+//LDSTCPRoutes LDSTCPRoutes
+type LDSTCPRoutes struct {
+	Routes []*PieceTCPRoute `json:"routes"`
 }
 
-type pieceTCPRoute struct {
+//PieceTCPRoute PieceTCPRoute
+type PieceTCPRoute struct {
 	Cluster string `json:"cluster"`
 }
 
-type ldsHTTPConfig struct {
+//LDSHTTPConfig LDSHTTPConfig
+type LDSHTTPConfig struct {
 	CodecType   string               `json:"codec_type"`
 	StatPrefix  string               `json:"stat_prefix"`
-	RouteConfig *routeConfig         `json:"route_config"`
-	Filters     []*httpSingleFileter `json:"filters"`
+	RouteConfig *RouteConfig         `json:"route_config"`
+	Filters     []*HTTPSingleFileter `json:"filters"`
 }
 
-type routeConfig struct {
-	VirtualHosts []*pieceHTTPVirtualHost `json:"virtual_hosts"`
+//RouteConfig RouteConfig
+type RouteConfig struct {
+	VirtualHosts []*PieceHTTPVirtualHost `json:"virtual_hosts"`
 }
 
-type pieceHTTPVirtualHost struct {
+//PieceHTTPVirtualHost PieceHTTPVirtualHost
+type PieceHTTPVirtualHost struct {
 	Name    string             `json:"name"`
-	Domains string             `json:"domains"`
-	Routes  []*pieceHTTPRoutes `json:"routes"`
+	Domains []string           `json:"domains"`
+	Routes  []*PieceHTTPRoutes `json:"routes"`
 }
 
-type pieceHTTPRoutes struct {
+//PieceHTTPRoutes PieceHTTPRoutes
+type PieceHTTPRoutes struct {
 	TimeoutMS int    `json:"timeout_ms"`
 	Prefix    string `json:"prefix"`
 	Cluster   string `json:"cluster"`
 }
 
-type httpSingleFileter struct {
+//HTTPSingleFileter HttpSingleFileter
+type HTTPSingleFileter struct {
 	Type   string            `json:"type"`
 	Name   string            `json:"name"`
 	Config map[string]string `json:"config"`

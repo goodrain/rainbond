@@ -21,12 +21,10 @@ package controller
 import (
 	"net/http"
 
-	"github.com/pquerna/ffjson/ffjson"
-
 	"github.com/go-chi/chi"
-
 	"github.com/goodrain/rainbond/pkg/api/util"
 	"github.com/goodrain/rainbond/pkg/node/api/handler"
+	"github.com/pquerna/ffjson/ffjson"
 )
 
 //ServiceDiscover service discover service
@@ -45,4 +43,22 @@ func ServiceDiscover(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(200)
 	w.Write([]byte(sdsJ))
+}
+
+//ListenerDiscover ListenerDiscover
+func ListenerDiscover(w http.ResponseWriter, r *http.Request) {
+	tenantName := chi.URLParam(r, "tenant_name")
+	serviceNodes := chi.URLParam(r, "service_nodes")
+	lds, err := handler.GetDiscoverManager().DiscoverListeners(tenantName, serviceNodes)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	ldsJ, errJ := ffjson.Marshal(lds)
+	if errJ != nil {
+		util.CreateAPIHandleError(500, errJ).Handle(r, w)
+		return
+	}
+	w.WriteHeader(200)
+	w.Write([]byte(ldsJ))
 }

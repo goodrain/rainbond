@@ -27,6 +27,7 @@ import (
 //DiscoverHandler DiscoverHandler
 type DiscoverHandler interface {
 	DiscoverService(serviceInfo string) (*node_model.SDS, *util.APIHandleError)
+	DiscoverListeners(tenantName, serviceCluster string) (*node_model.LDS, *util.APIHandleError)
 }
 
 var defaultDiscoverHandler DiscoverHandler
