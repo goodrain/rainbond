@@ -31,10 +31,19 @@ $git clone github.com/goodrain/rainbond
 $cd rainbond
 $make all-image
 ```
-我们欢迎社区贡献者的加入[贡献代码说明]()
-## 云帮架构
+##### BUG提交
+使用或者学习云帮过程中遇到BUG，请异步[ISSUES](https://github.com/goodrain/rainbond/issues),首先查找类似BUG及其修复方案，若无类似问题你可以创建Issue。
 
-<img src="./rainbond_architecture.png">
+## [云帮架构]()
+
+### 架构总图   
+<img src="./rainbond_architecture.png" href="">
+### 云帮构成
+云帮由[云帮数据中心](https://github.com/goodrain/rainbond) [云帮应用控制台](https://github.com/goodrain/rainbond-ui) 云帮资源控制台(企业版提供)构成。并与好雨云市进行无缝对接，实现超融合计算池。    
+* [云帮数据中心]()    
+云帮数据中心由[一系列分布式组件]()构成，面向资源抽象云帮节点，面向应用抽象存储，网络以及计算资源。本着插件化，分布式，软件定义一切的设计原则，在任何计算环境（公有云，私有云，IDC，行业计算）之上构建统一的应用运行环境。    
+* [云帮应用控制台]()    
+云帮应用控制台是一个Web控制台，对接多个云帮数据中心，提供应用的全生命周期管理功能。    
 
 ## 社区支持
 ### 云帮用户交流群：
