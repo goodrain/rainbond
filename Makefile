@@ -11,6 +11,7 @@ clean:
 	@rm -rf ./build/worker/${BASE_NAME}_worker
 	@rm -rf ./build/api/${BASE_NAME}_api
 	@rm -rf ./build/node/${BASE_NAME}_node
+	@rm -rf ./build/builder/${BASE_NAME}_builder
 build-in-container:
 	@docker run -v `pwd`:/go/src/${BASE_NAME}_worker -w /go/src/${BASE_NAME}_worker -it golang:1.7.3 bash
 run-api:build-api

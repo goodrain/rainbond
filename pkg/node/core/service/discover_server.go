@@ -49,19 +49,11 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *
 	if len(mm) < 3 {
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
 	}
-	tenantName := mm[0]
+	namespace := mm[0]
 	serviceAlias := mm[1]
 	dPort := mm[2]
 	//deployVersion := mm[3]
 
-	namespace, err := d.ToolsGetTenantUUID(tenantName)
-	if err != nil {
-		return nil, util.CreateAPIHandleErrorFromDBError("get tenant uuid ", err)
-	}
-	// serviceID, err := d.ToolsGetServiceID(uuid, serviceAlias)
-	// if err != nil {
-	// return nil, util.CreateAPIHandleErrorFromDBError("get service id ", err)
-	// }
 	labelname := fmt.Sprintf("name=%sService", serviceAlias)
 	endpoint, err := k8s.K8S.Core().Endpoints(namespace).List(metav1.ListOptions{LabelSelector: labelname})
 	if err != nil {
@@ -100,14 +92,10 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *
 }
 
 //DiscoverListeners DiscoverListeners
-func (d *DiscoverAction) DiscoverListeners(tenantName, serviceCluster string) (*node_model.LDS, *util.APIHandleError) {
+func (d *DiscoverAction) DiscoverListeners(namespace, serviceCluster string) (*node_model.LDS, *util.APIHandleError) {
 	mm := strings.Split(serviceCluster, "_")
 	if len(mm) == 0 {
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
-	}
-	namespace, err := d.ToolsGetTenantUUID(tenantName)
-	if err != nil {
-		return nil, util.CreateAPIHandleErrorFromDBError("get tenant uuid ", err)
 	}
 	var ldsL []*node_model.PieceLDS
 	for _, serviceAlias := range mm {
@@ -143,13 +131,13 @@ func (d *DiscoverAction) DiscoverListeners(tenantName, serviceCluster string) (*
 				switch port.Protocol {
 				case "TCP":
 					ptr := &node_model.PieceTCPRoute{
-						Cluster: fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
+						Cluster: fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
 					}
 					lrs := &node_model.LDSTCPRoutes{
 						Routes: []*node_model.PieceTCPRoute{ptr},
 					}
 					lcg := &node_model.LDSTCPConfig{
-						StatPrefix:  fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
+						StatPrefix:  fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
 						RouteConfig: lrs,
 					}
 					lfs := &node_model.LDSFilters{
@@ -157,7 +145,7 @@ func (d *DiscoverAction) DiscoverListeners(tenantName, serviceCluster string) (*
 						Config: lcg,
 					}
 					plds := &node_model.PieceLDS{
-						Name:    fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
+						Name:    fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
 						Address: fmt.Sprintf("tcp://0.0.0.0:%v", port.Port),
 						Filters: []*node_model.LDSFilters{lfs},
 					}
@@ -171,14 +159,14 @@ func (d *DiscoverAction) DiscoverListeners(tenantName, serviceCluster string) (*
 					prs := &node_model.PieceHTTPRoutes{
 						TimeoutMS: 0,
 						Prefix:    "/",
-						Cluster:   fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
+						Cluster:   fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
 					}
 					domain, ok := service.Labels["domain"]
 					if !ok {
 						domain = "*"
 					}
 					pvh := &node_model.PieceHTTPVirtualHost{
-						Name:    fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
+						Name:    fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
 						Domains: []string{domain},
 						Routes:  []*node_model.PieceHTTPRoutes{prs},
 					}
@@ -196,7 +184,7 @@ func (d *DiscoverAction) DiscoverListeners(tenantName, serviceCluster string) (*
 						Config: lhc,
 					}
 					plds := &node_model.PieceLDS{
-						Name:    fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
+						Name:    fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
 						Address: fmt.Sprintf("tcp://0.0.0.0:%v", port.TargetPort),
 						Filters: []*node_model.LDSFilters{lfs},
 					}
@@ -213,14 +201,10 @@ func (d *DiscoverAction) DiscoverListeners(tenantName, serviceCluster string) (*
 }
 
 //DiscoverClusters DiscoverClusters
-func (d *DiscoverAction) DiscoverClusters(tenantName, serviceCluster string) (*node_model.CDS, *util.APIHandleError) {
+func (d *DiscoverAction) DiscoverClusters(namespace, serviceCluster string) (*node_model.CDS, *util.APIHandleError) {
 	mm := strings.Split(serviceCluster, "_")
 	if len(mm) == 0 {
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
-	}
-	namespace, err := d.ToolsGetTenantUUID(tenantName)
-	if err != nil {
-		return nil, util.CreateAPIHandleErrorFromDBError("get tenant uuid ", err)
 	}
 	var cdsL []*node_model.PieceCDS
 	for _, serviceAlias := range mm {
@@ -232,11 +216,11 @@ func (d *DiscoverAction) DiscoverClusters(tenantName, serviceCluster string) (*n
 		for _, service := range services.Items {
 			for _, port := range service.Spec.Ports {
 				pcds := &node_model.PieceCDS{
-					Name:             fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
+					Name:             fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
 					Type:             "sds",
 					ConnectTimeoutMS: 250,
 					LBType:           "round_robin",
-					ServiceName:      fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
+					ServiceName:      fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
 				}
 				cdsL = append(cdsL, pcds)
 				continue

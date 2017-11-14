@@ -39,7 +39,7 @@ func DisconverRoutes() chi.Router {
 func ListenersRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/ping", controller.Ping)
-	r.Get("/{tenant_name}/{service_nodes}", controller.ListenerDiscover)
+	r.Get("/{tenant_id}/{service_nodes}", controller.ListenerDiscover)
 	return r
 }
 
@@ -48,7 +48,7 @@ func ListenersRoutes() chi.Router {
 func ClustersRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/ping", controller.Ping)
-	r.Get("/{tenant_name}/{service_nodes}", controller.ClusterDiscover)
+	r.Get("/{tenant_id}/{service_nodes}", controller.ClusterDiscover)
 	return r
 }
 

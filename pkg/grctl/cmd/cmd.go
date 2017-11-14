@@ -56,7 +56,8 @@ func Common(c *cli.Context) {
 	//}
 
 	if err := clients.InitClient(*config.Kubernets); err != nil {
-		os.Exit(1)
+		//os.Exit(1)
+		logrus.Infof("error config k8s,details %s",err.Error())
 	}
 	//clients.SetInfo(config.RegionAPI.URL, config.RegionAPI.Token)
 	clients.InitRegionClient(*config.RegionAPI)

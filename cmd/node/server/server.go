@@ -86,17 +86,7 @@ func Run(c *option.Conf) error {
 		}
 		event.On(event.EXIT, ms.Stop)
 	}
-	//mysql init
-	// dbconfig := config.Config{
-	// 	DBType:              c.DBType,
-	// 	MysqlConnectionInfo: c.DBConnectionInfo,
-	// }
-	// if err := db.CreateManager(dbconfig); err != nil {
-	// 	logrus.Warnf("create db manager error, %v", err)
-	// 	logrus.Warnf("Ignore this db error for node main functions, but discover services in this node will not work.")
-	// 	//return err
-	// }
-	// defer db.CloseManager()
+
 	//启动API服务
 	apiManager := api.NewManager(*s.Conf, s.HostNode, ms)
 	apiManager.Start(errChan)

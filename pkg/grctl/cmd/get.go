@@ -148,70 +148,89 @@ func getAppInfoV2(c *cli.Context)error  {
 	table.AddRow("Services:", "")
 	fmt.Println(table)
 	fmt.Println(serviceTable.Render())
-	//if serviceMap!=nil {
-	//	table.AddRow("K8sServiceName:", serviceMap["Name"])
-	//	table.AddRow("K8sServiceClusterIP:", serviceMap["ClusterIP"])
-	//	table.AddRow("K8sServicePorts:", serviceMap["Ports"])
-	//}
 
-	pods, err := clients.K8SClient.Core().Pods(tenantID).List(option)
-	if err != nil {
+	//"ServiceID": "92fdfe7e22639be491953c1fd92a2e1b",
+	//	"ReplicationID": "695cdb83147041bd9b2777659e981a9a",
+	//	"ReplicationType": "replicationcontroller",
+	//	"PodName": "695cdb83147041bd9b2777659e981a9a-gh4pn"
 
-	}
-
-	for i, pod := range pods.Items {
-
-		table := uitable.New()
-		table.Wrap = true // wrap columns
-		fmt.Printf("-------------------Pod_%d-----------------------\n", i)
-		table.AddRow("PodName:", pod.Name)
-		status := ""
-		for _, con := range pod.Status.Conditions {
-			status += fmt.Sprintf("%s : %s", con.Type, con.Status) + "  "
+	if clients.K8SClient == nil {
+		ps,err:=clients.RegionClient.Tenants().Get(tenantName).Services().Pods(serviceAlias)
+		if err != nil {
+			return err
 		}
-		table.AddRow("PodStatus:", status)
-		table.AddRow("PodIP:", pod.Status.PodIP)
-		table.AddRow("PodHostIP:", pod.Status.HostIP)
-		table.AddRow("PodHostName:", pod.Spec.NodeName)
-		if pod.Spec.Volumes != nil && len(pod.Spec.Volumes) > 0  {
-			value:=""
-			for _,v:=range pod.Spec.Volumes {
-				if v.HostPath != nil {
-					value+=v.HostPath.Path
-					for _,vc:=range pod.Spec.Containers {
-						m:=vc.VolumeMounts
-						for _,v2:=range m {
-							if v2.Name == v.Name {
-								value+=":"+string(v2.MountPath)
+		for i,v:=range ps{
+
+			table := uitable.New()
+			table.Wrap = true // wrap columns
+			fmt.Printf("-------------------Pod_%d-----------------------\n", i)
+			table.AddRow("PodName:", 	v.PodName)
+			table.AddRow("ServiceID:", 	v.ServiceID)
+			table.AddRow("ReplicationType:", 	v.ReplicationType)
+			table.AddRow("ReplicationID:", 	v.ReplicationID)
+
+			fmt.Println(table)
+		}
+	}else{
+
+		pods, err := clients.K8SClient.Core().Pods(tenantID).List(option)
+		if err != nil {
+			return err
+		}
+		for i, pod := range pods.Items {
+
+			table := uitable.New()
+			table.Wrap = true // wrap columns
+			fmt.Printf("-------------------Pod_%d-----------------------\n", i)
+			table.AddRow("PodName:", pod.Name)
+			status := ""
+			for _, con := range pod.Status.Conditions {
+				status += fmt.Sprintf("%s : %s", con.Type, con.Status) + "  "
+			}
+			table.AddRow("PodStatus:", status)
+			table.AddRow("PodIP:", pod.Status.PodIP)
+			table.AddRow("PodHostIP:", pod.Status.HostIP)
+			table.AddRow("PodHostName:", pod.Spec.NodeName)
+			if pod.Spec.Volumes != nil && len(pod.Spec.Volumes) > 0  {
+				value:=""
+				for _,v:=range pod.Spec.Volumes {
+					if v.HostPath != nil {
+						value+=v.HostPath.Path
+						for _,vc:=range pod.Spec.Containers {
+							m:=vc.VolumeMounts
+							for _,v2:=range m {
+								if v2.Name == v.Name {
+									value+=":"+string(v2.MountPath)
+								}
 							}
 						}
+						value+="\n"
 					}
-					value+="\n"
 				}
-			}
-			table.AddRow("PodVolumePath:", value)
+				table.AddRow("PodVolumePath:", value)
 
-		}
-		if pod.Status.StartTime != nil {
-			table.AddRow("PodStratTime:", pod.Status.StartTime.Format(time.RFC3339))
-		}
-		table.AddRow("Containers:", "")
-		fmt.Println(table)
-		containerTable := termtables.CreateTable()
-		containerTable.AddHeaders("ID", "Name", "Image", "State")
-		for j := 0; j < len(pod.Status.ContainerStatuses); j++ {
-			var t string
-			con := pod.Status.ContainerStatuses[j]
-			if con.State.Running != nil {
-				t = con.State.Running.StartedAt.Format(time.RFC3339)
 			}
-			var conID string
-			if con.ContainerID != "" {
-				conID = con.ContainerID[9:21]
+			if pod.Status.StartTime != nil {
+				table.AddRow("PodStratTime:", pod.Status.StartTime.Format(time.RFC3339))
 			}
-			containerTable.AddRow(conID, con.Name, con.Image, t)
+			table.AddRow("Containers:", "")
+			fmt.Println(table)
+			containerTable := termtables.CreateTable()
+			containerTable.AddHeaders("ID", "Name", "Image", "State")
+			for j := 0; j < len(pod.Status.ContainerStatuses); j++ {
+				var t string
+				con := pod.Status.ContainerStatuses[j]
+				if con.State.Running != nil {
+					t = con.State.Running.StartedAt.Format(time.RFC3339)
+				}
+				var conID string
+				if con.ContainerID != "" {
+					conID = con.ContainerID[9:21]
+				}
+				containerTable.AddRow(conID, con.Name, con.Image, t)
+			}
+			fmt.Println(containerTable.Render())
 		}
-		fmt.Println(containerTable.Render())
 	}
 	return nil
 }
