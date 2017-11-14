@@ -46,7 +46,7 @@ func ServiceDiscover(w http.ResponseWriter, r *http.Request) {
 
 //ListenerDiscover ListenerDiscover
 func ListenerDiscover(w http.ResponseWriter, r *http.Request) {
-	tenantName := chi.URLParam(r, "tenant_name")
+	tenantName := chi.URLParam(r, "tenant_id")
 	serviceNodes := chi.URLParam(r, "service_nodes")
 	lds, err := discoverService.DiscoverListeners(tenantName, serviceNodes)
 	if err != nil {
@@ -64,7 +64,7 @@ func ListenerDiscover(w http.ResponseWriter, r *http.Request) {
 
 //ClusterDiscover ClusterDiscover
 func ClusterDiscover(w http.ResponseWriter, r *http.Request) {
-	tenantName := chi.URLParam(r, "tenant_name")
+	tenantName := chi.URLParam(r, "tenant_id")
 	serviceNodes := chi.URLParam(r, "service_nodes")
 	cds, err := discoverService.DiscoverClusters(tenantName, serviceNodes)
 	if err != nil {

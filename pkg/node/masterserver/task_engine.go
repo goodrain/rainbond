@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-// 当前包处理任务的执行，结果处理，任务自动调度
 package masterserver
 
 import (
@@ -26,7 +25,9 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/goodrain/rainbond/pkg/node/core/config"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
 
 	"github.com/pquerna/ffjson/ffjson"
@@ -40,22 +41,33 @@ import (
 )
 
 //TaskEngine 任务引擎
+// 处理任务的执行，结果处理，任务自动调度
+// TODO:执行记录清理工作
 type TaskEngine struct {
-	ctx        context.Context
-	cancel     context.CancelFunc
-	config     *option.Conf
-	statics    map[string]*model.Task
-	staticLock sync.Mutex
+	ctx              context.Context
+	cancel           context.CancelFunc
+	config           *option.Conf
+	statics          map[string]*model.Task
+	staticLock       sync.Mutex
+	dataCenterConfig *config.DataCenterConfig
+	groups           map[string]*model.TaskGroup
+	groupContexts    map[string]*config.GroupContext
+	groupLock        sync.Mutex
+	nodeCluster      *NodeCluster
 }
 
 //CreateTaskEngine 创建task管理引擎
-func CreateTaskEngine() *TaskEngine {
+func CreateTaskEngine(nodeCluster *NodeCluster) *TaskEngine {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &TaskEngine{
-		ctx:     ctx,
-		cancel:  cancel,
-		statics: make(map[string]*model.Task),
-		config:  option.Config,
+		ctx:              ctx,
+		cancel:           cancel,
+		statics:          make(map[string]*model.Task),
+		config:           option.Config,
+		dataCenterConfig: config.GetDataCenterConfig(),
+		groups:           make(map[string]*model.TaskGroup),
+		groupContexts:    make(map[string]*config.GroupContext),
+		nodeCluster:      nodeCluster,
 	}
 }
 
@@ -63,6 +75,7 @@ func CreateTaskEngine() *TaskEngine {
 func (t *TaskEngine) Start() {
 	logrus.Info("task engine start")
 	go t.LoadStaticTask()
+	go t.HandleJobRecord()
 }
 
 //Stop 启动
@@ -124,23 +137,8 @@ func (t *TaskEngine) loadFile(path string) {
 	t.staticLock.Lock()
 	defer t.staticLock.Unlock()
 	t.statics[task.Name] = &task
-	logrus.Infof("Load a static task %s, start run it.", task.Name)
-	j, err := job.CreateJobFromTask(&task, nil)
-	if err != nil {
-		logrus.Errorf("run task %s error.%s", task.Name, err.Error())
-		return
-	}
-	if j.IsOnce {
-		if err := job.PutOnce(j); err != nil {
-			logrus.Errorf("run task %s error.%s", task.Name, err.Error())
-			return
-		}
-	} else {
-		if err := job.AddJob(j); err != nil {
-			logrus.Errorf("run task %s error.%s", task.Name, err.Error())
-			return
-		}
-	}
+	t.AddTask(&task)
+	logrus.Infof("Load a static task %s.", task.Name)
 }
 
 //GetTask gettask
@@ -159,19 +157,191 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 	return &task
 }
 
+//StopTask 停止任务，即删除任务对应的JOB
+func (t *TaskEngine) StopTask(task *model.Task) {
+	if task.JobID != "" {
+		if task.IsOnce {
+			_, err := store.DefalutClient.Delete(t.config.Once + "/" + task.JobID)
+			if err != nil {
+				logrus.Errorf("stop task %s error.%s", task.Name, err.Error())
+			}
+		} else {
+			_, err := store.DefalutClient.Delete(t.config.Cmd + "/" + task.JobID)
+			if err != nil {
+				logrus.Errorf("stop task %s error.%s", task.Name, err.Error())
+			}
+		}
+	}
+}
+
+//AddTask 添加task
+func (t *TaskEngine) AddTask(task *model.Task) error {
+	oldTask := t.GetTask(task.ID)
+	if oldTask != nil {
+		if oldTask.JobID != "" {
+			task.JobID = oldTask.JobID
+			task.Status = oldTask.Status
+			task.OutPut = oldTask.OutPut
+		}
+	}
+	task.Status = map[string]model.TaskStatus{}
+	for _, n := range task.Nodes {
+		task.Status[n] = model.TaskStatus{
+			Status: "create",
+		}
+	}
+	task.CreateTime = time.Now()
+	if task.Scheduler.Mode == "" {
+		task.Scheduler.Mode = "Passive"
+	}
+	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, task.String())
+	if err != nil {
+		return err
+	}
+	if task.Scheduler.Mode == "Intime" {
+		t.ScheduleTask(task.ID)
+	}
+	return nil
+}
+
+//UpdateTask 更新task
+func (t *TaskEngine) UpdateTask(task *model.Task) {
+	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, task.String())
+	if err != nil {
+		logrus.Errorf("update task error,%s", err.Error())
+	}
+}
+
+//GetTaskGroup 获取taskgroup
+func (t *TaskEngine) GetTaskGroup(taskGroupID string) *model.TaskGroup {
+	res, err := store.DefalutClient.Get("/store/taskgroups/" + taskGroupID)
+	if err != nil {
+		return nil
+	}
+	if res.Count < 1 {
+		return nil
+	}
+	var group model.TaskGroup
+	if err := ffjson.Unmarshal(res.Kvs[0].Value, &group); err != nil {
+		return nil
+	}
+	return &group
+}
+
 //handleJobRecord 处理
 func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 	task := t.GetTask(er.TaskID)
 	if task == nil {
-		er.CompleteHandle()
+		return
 	}
 	output, err := model.ParseTaskOutPut(er.Output)
 	if err != nil {
-		logrus.Error("parse task out put error,", err.Error())
+		er.CompleteHandle()
 		return
 	}
 	if output.Global != nil && len(output.Global) > 0 {
+		for k, v := range output.Global {
+			err := t.dataCenterConfig.PutConfig(&model.ConfigUnit{
+				Name:           strings.ToUpper(k),
+				Value:          v,
+				ValueType:      "string",
+				IsConfigurable: false,
+			})
+			if err != nil {
+				logrus.Errorf("save datacenter config %s=%s error.%s", k, v, err.Error())
+			}
+		}
+	}
+	//groupID不为空，处理group连环操作
+	if output.Inner != nil && len(output.Inner) > 0 && task.GroupID != "" {
+		t.AddGroupConfig(task.GroupID, output.Inner)
+	}
+	for _, status := range output.Status {
+		//install or check类型结果写入节点
+		if output.Type == "install" || output.Type == "check" {
+			t.nodeCluster.UpdateNodeCondition(er.Node, status.ConditionType, status.ConditionStatus)
+			if status.NextTask != nil && len(status.NextTask) > 0 {
+				t.ScheduleTask(status.NextTask...)
+			}
+		}
+	}
+	task.OutPut = append(task.OutPut, &output)
+	taskStatus := model.TaskStatus{
+		StartTime:    er.BeginTime,
+		EndTime:      er.EndTime,
+		CompleStatus: "",
+	}
+	if er.Success {
+		taskStatus.CompleStatus = "Success"
+	} else {
+		taskStatus.CompleStatus = "Failure"
+	}
+	task.Status[output.NodeID] = taskStatus
+	t.UpdateTask(task)
+	er.CompleteHandle()
+}
 
+//ScheduleTask 调度执行指定task
+func (t *TaskEngine) ScheduleTask(nextTask ...string) {
+	for _, taskID := range nextTask {
+		task := t.GetTask(taskID)
+		if task == nil {
+			continue
+		}
+		if task.JobID != "" {
+			t.StopTask(task)
+		}
+		j, err := job.CreateJobFromTask(task, nil)
+		if err != nil {
+			task.Scheduler.Status = "Failure"
+			task.Scheduler.Message = err.Error()
+			t.UpdateTask(task)
+			logrus.Errorf("run task %s error.%s", task.Name, err.Error())
+			return
+		}
+		if j.IsOnce {
+			if err := job.PutOnce(j); err != nil {
+				task.Scheduler.Status = "Failure"
+				task.Scheduler.Message = err.Error()
+				t.UpdateTask(task)
+				logrus.Errorf("run task %s error.%s", task.Name, err.Error())
+				return
+			}
+		} else {
+			if err := job.AddJob(j); err != nil {
+				task.Scheduler.Status = "Failure"
+				task.Scheduler.Message = err.Error()
+				t.UpdateTask(task)
+				logrus.Errorf("run task %s error.%s", task.Name, err.Error())
+				return
+			}
+		}
+		task.JobID = j.ID
+		t.UpdateTask(task)
+	}
+}
+
+//ScheduleGroup 调度执行指定task
+func (t *TaskEngine) ScheduleGroup(nextGroups ...string) {
+	for _, groupID := range nextGroups {
+		_ = t.GetTaskGroup(groupID)
+	}
+}
+
+//AddGroupConfig 添加组会话配置
+func (t *TaskEngine) AddGroupConfig(groupID string, configs map[string]string) {
+	t.groupLock.Lock()
+	defer t.groupLock.Unlock()
+	if ctx, ok := t.groupContexts[groupID]; ok {
+		for k, v := range configs {
+			ctx.Add(k, v)
+		}
+	} else {
+		ctx := config.NewGroupContext()
+		for k, v := range configs {
+			ctx.Add(k, v)
+		}
+		t.groupContexts[groupID] = ctx
 	}
 }
 

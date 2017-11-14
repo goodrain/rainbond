@@ -22,6 +22,8 @@ import (
 	"fmt"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/pkg/db"
+	"github.com/goodrain/rainbond/pkg/db/config"
 	"github.com/goodrain/rainbond/pkg/node/api/controller"
 	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
@@ -86,6 +88,17 @@ func Run(c *option.Conf) error {
 		}
 		event.On(event.EXIT, ms.Stop)
 	}
+	//mysql init
+	dbconfig := config.Config{
+		DBType:              c.DBType,
+		MysqlConnectionInfo: c.DBConnectionInfo,
+	}
+	if err := db.CreateManager(dbconfig); err != nil {
+		logrus.Warnf("create db manager error, %v", err)
+		logrus.Warnf("Ignore this db error for node main functions, but discover services in this node may be influenced.")
+		//return err
+	}
+	defer db.CloseManager()
 	//启动API服务
 	apiManager := api.NewManager(*s.Conf, s.HostNode, ms)
 	apiManager.Start(errChan)

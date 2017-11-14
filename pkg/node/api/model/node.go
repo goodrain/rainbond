@@ -104,18 +104,31 @@ func (h *HostNode) UpdataK8sCondition(conditions []v1.NodeCondition) {
 
 //UpdataCondition 更新状态
 func (h *HostNode) UpdataCondition(conditions ...NodeCondition) {
+	var ready = ConditionTrue
 	for _, newcon := range conditions {
+		if newcon.Status != ConditionTrue {
+			ready = ConditionFalse
+		}
 		var update bool
 		for i, con := range h.Conditions {
 			if con.Type.Compare(newcon.Type) {
 				h.Conditions[i] = newcon
 				update = true
 			}
+			if con.Type == NodeReady {
+				con.Status = ready
+				con.LastTransitionTime = time.Now()
+				con.LastHeartbeatTime = time.Now()
+				con.Reason = newcon.Reason
+				con.Message = newcon.Message
+				h.Conditions[i] = con
+			}
 		}
 		if !update {
 			h.Conditions = append(h.Conditions, newcon)
 		}
 	}
+
 }
 
 //HostRule 节点角色
