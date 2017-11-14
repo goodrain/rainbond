@@ -95,7 +95,7 @@ func Run(c *option.Conf) error {
 	}
 	if err := db.CreateManager(dbconfig); err != nil {
 		logrus.Warnf("create db manager error, %v", err)
-		logrus.Warnf("Ignore this db error for node main functions, but discover services in this node will not work.")
+		logrus.Warnf("Ignore this db error for node main functions, but discover services in this node may be influenced.")
 		//return err
 	}
 	defer db.CloseManager()
