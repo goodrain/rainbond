@@ -46,7 +46,7 @@ func CreateDiscoverActionManager(conf *option.Conf) *DiscoverAction {
 //DiscoverService DiscoverService
 func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *util.APIHandleError) {
 	mm := strings.Split(serviceInfo, "_")
-	if len(mm) != 4 {
+	if len(mm) < 3 {
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
 	}
 	tenantName := mm[0]
@@ -158,7 +158,7 @@ func (d *DiscoverAction) DiscoverListeners(tenantName, serviceCluster string) (*
 					}
 					plds := &node_model.PieceLDS{
 						Name:    fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
-						Address: fmt.Sprintf("tcp://0.0.0.0:%v", port.TargetPort),
+						Address: fmt.Sprintf("tcp://0.0.0.0:%v", port.Port),
 						Filters: []*node_model.LDSFilters{lfs},
 					}
 					ldsL = append(ldsL, plds)
