@@ -48,6 +48,7 @@ func ListenersRoutes() chi.Router {
 func ClustersRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/ping", controller.Ping)
+	r.Get("/{tenant_name}/{service_nodes}", controller.ClusterDiscover)
 	return r
 }
 

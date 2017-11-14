@@ -38,6 +38,11 @@ type sdsTags struct {
 
 //CDS struct
 type CDS struct {
+	Clusters []*PieceCDS `json:"clusters"`
+}
+
+//PieceCDS struct
+type PieceCDS struct {
 	Name             string `json:"name"`
 	Type             string `json:"type"`
 	ConnectTimeoutMS int    `json:"connect_timeout_ms"`

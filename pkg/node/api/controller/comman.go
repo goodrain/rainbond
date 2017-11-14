@@ -31,6 +31,7 @@ var taskTempService *service.TaskTempService
 var taskGroupService *service.TaskGroupService
 var appService *service.AppService
 var nodeService *service.NodeService
+var discoverService *service.DiscoverAction
 
 //Init 初始化
 func Init(c *option.Conf, ms *masterserver.MasterServer) {
@@ -40,6 +41,7 @@ func Init(c *option.Conf, ms *masterserver.MasterServer) {
 	taskGroupService = service.CreateTaskGroupService(c, ms)
 	appService = service.CreateAppService(c)
 	nodeService = service.CreateNodeService(c, ms.Cluster)
+	discoverService = service.CreateDiscoverActionManager(c)
 }
 
 //Exist 退出

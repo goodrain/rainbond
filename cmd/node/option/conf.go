@@ -92,6 +92,8 @@ type Conf struct {
 	FailTime            int
 	CheckIntervalSec    int
 	InstalledMarker     string
+	DBType              string
+	DBConnectionInfo    string
 
 	TTL        int64 // 节点超时时间，单位秒
 	ReqTimeout int   // 请求超时时间，单位秒
@@ -146,6 +148,8 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.RunMode, "run-mode", "worker", "the acp_node run mode,could be 'worker' or 'master'")
 	fs.StringVar(&a.NodeRule, "noderule", "compute", "current node rule,maybe is `compute` `manage` `storage` ")
 	//fs.StringSliceVar(&a.EventServerAddress, "event-servers", []string{"http://127.0.0.1:6363"}, "event message server address.")
+	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
+	fs.StringVar(&a.DBConnectionInfo, "mysql", "admin:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
 }
 
 //SetLog 设置log

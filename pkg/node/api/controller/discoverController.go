@@ -23,7 +23,6 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/pkg/api/util"
-	"github.com/goodrain/rainbond/pkg/node/api/handler"
 	"github.com/pquerna/ffjson/ffjson"
 )
 
@@ -31,7 +30,7 @@ import (
 func ServiceDiscover(w http.ResponseWriter, r *http.Request) {
 	serviceInfo := chi.URLParam(r, "service_name")
 	//eg: serviceInfo := test_gr123456_201711031246
-	sds, err := handler.GetDiscoverManager().DiscoverService(serviceInfo)
+	sds, err := discoverService.DiscoverService(serviceInfo)
 	if err != nil {
 		err.Handle(r, w)
 		return
@@ -49,7 +48,7 @@ func ServiceDiscover(w http.ResponseWriter, r *http.Request) {
 func ListenerDiscover(w http.ResponseWriter, r *http.Request) {
 	tenantName := chi.URLParam(r, "tenant_name")
 	serviceNodes := chi.URLParam(r, "service_nodes")
-	lds, err := handler.GetDiscoverManager().DiscoverListeners(tenantName, serviceNodes)
+	lds, err := discoverService.DiscoverListeners(tenantName, serviceNodes)
 	if err != nil {
 		err.Handle(r, w)
 		return
@@ -61,4 +60,22 @@ func ListenerDiscover(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(200)
 	w.Write([]byte(ldsJ))
+}
+
+//ClusterDiscover ClusterDiscover
+func ClusterDiscover(w http.ResponseWriter, r *http.Request) {
+	tenantName := chi.URLParam(r, "tenant_name")
+	serviceNodes := chi.URLParam(r, "service_nodes")
+	cds, err := discoverService.DiscoverClusters(tenantName, serviceNodes)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	cdsJ, errJ := ffjson.Marshal(cds)
+	if errJ != nil {
+		util.CreateAPIHandleError(500, errJ).Handle(r, w)
+		return
+	}
+	w.WriteHeader(200)
+	w.Write([]byte(cdsJ))
 }
