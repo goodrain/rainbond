@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package handler
+package service
 
 import (
 	"fmt"
@@ -32,11 +32,15 @@ import (
 )
 
 //DiscoverAction DiscoverAction
-type DiscoverAction struct{}
+type DiscoverAction struct {
+	conf *option.Conf
+}
 
 //CreateDiscoverActionManager CreateDiscoverActionManager
-func CreateDiscoverActionManager(conf *option.Conf) (*DiscoverAction, error) {
-	return &DiscoverAction{}, nil
+func CreateDiscoverActionManager(conf *option.Conf) *DiscoverAction {
+	return &DiscoverAction{
+		conf: conf,
+	}
 }
 
 //DiscoverService DiscoverService
