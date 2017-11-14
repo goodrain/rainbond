@@ -124,6 +124,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.TenantPluginBuildVersion{})
 	m.models = append(m.models, &model.TenantServicePluginRelation{})
 	m.models = append(m.models, &model.TenantPluginVersionEnv{})
+	m.models = append(m.models, &model.CodeCheckResult{})
 }
 
 //CheckTable 检测表结构

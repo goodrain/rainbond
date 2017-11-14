@@ -336,6 +336,22 @@ func (m *Manager) TenantServicePluginRelationDaoTransactions(db *gorm.DB) dao.Te
 	}
 }
 
+//TenantServicePluginRelationDao TenantServicePluginRelationDao
+func (m *Manager) CodeCheckResultDao() dao.CodeCheckResultDao {
+	return &mysqldao.CodeCheckResultDaoImpl{
+		DB: m.db,
+	}
+}
+
+//TenantServicePluginRelationDaoTransactions TenantServicePluginRelationDaoTransactions
+func (m *Manager) CodeCheckResultDaoTransactions(db *gorm.DB) dao.CodeCheckResultDao {
+	return &mysqldao.CodeCheckResultDaoImpl{
+		DB: db,
+	}
+}
+
+
+
 //LocalSchedulerDao 本地调度信息
 func (m *Manager) LocalSchedulerDao() dao.LocalSchedulerDao {
 	return &mysqldao.LocalSchedulerDaoImpl{

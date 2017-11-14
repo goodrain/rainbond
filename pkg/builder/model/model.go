@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -40,3 +39,33 @@ type BuildPluginVersion struct {
 	CreateTime  string `json:"create_time"`
 	Repo        string `json:"repo"`
 }
+
+//CodeCheckResult CodeCheckResult
+type CodeCheckResult struct {
+	ServiceID    string `json:"service_id"`
+	Condition    string `json:"condition"`
+	CheckType    string `json:"check_type"`
+	GitURL       string `json:"git_url"`
+	CodeVersion  string `json:"code_version"`
+	GitProjectId string `json:"git_project_id"`
+	CodeFrom     string `json:"code_from"`
+	URLRepos     string `json:"url_repos"`
+
+	DockerFileReady bool              `json:"docker_file_ready,omitempty"`
+	InnerPort       string            `json:"inner_port,omitempty"`
+	VolumeMountPath string            `json:"volume_mount_path,omitempty"`
+	BuildImageName  string            `json:"image,omitempty"`
+	PortList        map[string]string `json:"port_list,omitempty"`
+	VolumeList      []string          `json:"volume_list,omitempty"`
+
+	//DFR          *DockerFileResult `json:"dockerfile,omitempty"`
+}
+
+//DockerFileResult DockerFileResult
+//type DockerFileResult struct {
+//	InnerPort       string            `json:"inner_port"`
+//	VolumeMountPath string            `json:"volume_mount_path"`
+//	BuildImageName  string            `json:"image"`
+//	PortList        map[string]string `json:"port_list"`
+//	VolumeList      []string          `json:"volume_list"`
+//}

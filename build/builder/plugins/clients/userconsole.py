@@ -18,7 +18,10 @@ class UserConsoleAPI(BaseHttpClient):
             self.base_url = conf["url"]
     
     def update_service(self, service_id, body):
-        url = self.base_url + '/api/services/{0}'.format(service_id)
+        #todo 127.0.0.1:3333/api/codecheck
+
+        # url = self.base_url + '/api/services/{0}'.format(service_id)
+        url = 'http://127.0.0.1:3228/api/codecheck/{0}'.format(service_id)
         res, body = self._put(url, self.default_headers, body)
     
     def update_service_prop(self, service_id, body):
@@ -53,7 +56,9 @@ class UserConsoleAPI(BaseHttpClient):
         return res, body
     
     def code_check(self, body):
-        url = self.base_url + '/api/tenants/services/codecheck'
+        #todo 127.0.0.1:3333/api/codecheck
+        # url = self.base_url + '/api/tenants/services/codecheck'
+        url = 'http://127.0.0.1:3228/api/codecheck'
         res, body = self._post(url, self.default_headers, body)
         return res, body
     

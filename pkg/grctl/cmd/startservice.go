@@ -51,7 +51,7 @@ func NewCmdStartService() cli.Command {
 func NewCmdStopService() cli.Command {
 	c:=cli.Command{
 		Name:  "stop",
-		Usage: "启动应用 grctl stop goodrain/gra564a1 eventID",
+		Usage: "停止应用 grctl stop goodrain/gra564a1 eventID",
 		Flags: []cli.Flag{
 			cli.BoolFlag{
 				Name:  "f",

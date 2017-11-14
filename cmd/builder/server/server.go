@@ -47,10 +47,14 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+	"net/http"
+	"github.com/goodrain/rainbond/pkg/builder/api"
 )
 
 //Run start run
 func Run(s *option.Builder) error {
+	r:=api.APIServer()
+	go http.ListenAndServe(":3228", r)
 	errChan := make(chan error)
 	//init mysql
 	dbconfig := config.Config{

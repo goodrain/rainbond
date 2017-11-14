@@ -251,3 +251,8 @@ type ServiceStatusDao interface {
 	GetTenantStatus(tenantID string) ([]*model.TenantServiceStatus, error)
 	GetTenantServicesStatus(serviceIDs []string) ([]*model.TenantServiceStatus, error)
 }
+//CodeCheckResultDao service status
+type CodeCheckResultDao interface {
+	Dao
+	GetCodeCheckResult(serviceID string) (*model.CodeCheckResult, error)
+}

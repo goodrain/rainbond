@@ -75,6 +75,10 @@ type Manager interface {
 	TenantPluginVersionENVDaoTransactions(db *gorm.DB) dao.TenantPluginVersionEnvDao
 	TenantServicePluginRelationDao() dao.TenantServicePluginRelationDao
 	TenantServicePluginRelationDaoTransactions(db *gorm.DB) dao.TenantServicePluginRelationDao
+
+
+	CodeCheckResultDao() dao.CodeCheckResultDao
+	CodeCheckResultDaoTransactions(db *gorm.DB) dao.CodeCheckResultDao
 }
 
 var defaultManager Manager

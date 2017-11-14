@@ -24,7 +24,7 @@ import (
 	"io/ioutil"
 	"encoding/json"
 	"github.com/goodrain/rainbond/pkg/api/model"
-
+	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 	"bytes"
 	"github.com/Sirupsen/logrus"
 	//api "github.com/goodrain/rainbond/pkg/util/http"
@@ -72,13 +72,29 @@ func (t *Tenant)Services() ServiceInterface {
 
 type ServiceInterface interface {
 	Get(name string) map[string]string
+	Pods(serviceAlisa string) ([]*dbmodel.K8sPod,error)
 	List() []model.ServiceStruct
 	Stop(serviceAlisa ,eventID string) error
 	Start(serviceAlisa ,eventID string) error
 	EventLog(serviceAlisa,eventID,level string) ([]model.MessageData,error)
 }
 
+func (s *Services)Pods(serviceAlisa string) ([]*dbmodel.K8sPod,error) {
+	resp,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+serviceAlisa+"/pods","GET",nil)
+	if err != nil {
+		logrus.Errorf("获取pods失败，details %s",err.Error())
+		return nil,err
+	}
 
+	j,_:=simplejson.NewJson(resp)
+	arr,err:=j.Get("list").Array()
+
+	jsonA,_:=json.Marshal(arr)
+	pods:=[]*dbmodel.K8sPod{}
+	json.Unmarshal(jsonA,&pods)
+
+	return pods,err
+}
 func (s *Services)Get(name string) map[string]string {
 	resp,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name,"GET",nil)
 	if err != nil {
