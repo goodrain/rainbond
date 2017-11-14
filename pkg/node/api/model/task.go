@@ -130,6 +130,7 @@ type TaskOutPutStatus struct {
 	ConditionType   string   `json:"condition_type"`
 	ConditionStatus string   `json:"condition_status"`
 	NextTask        []string `json:"next_tasks"`
+	NextGroups      []string `json:"next_groups"`
 }
 
 //TaskStatus 任务状态
