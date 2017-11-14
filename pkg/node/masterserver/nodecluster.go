@@ -23,14 +23,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"net"
-	"os"
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/agent"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/pquerna/ffjson/ffjson"
@@ -320,51 +315,15 @@ func (n *NodeCluster) RemoveNode(node *model.HostNode) {
 	}
 }
 
-//NewSSHClientByPublicKey 创建ssh客户端
-func NewSSHClientByPublicKey(hostport string, username string) (*ssh.Client, error) {
-	sock, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
-	if err != nil {
-		logrus.Errorf("error login,details: %s", err.Error())
-		return nil, err
-	}
-	agent := agent.NewClient(sock)
-	signers, err := agent.Signers()
-	if err != nil {
-		logrus.Errorf("error login,details: %s", err.Error())
-		return nil, err
-	}
-	auths := []ssh.AuthMethod{ssh.PublicKeys(signers...)}
-	cfg := &ssh.ClientConfig{
-		User: username,
-		Auth: auths,
-		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-			return nil
-		},
-	}
-	cfg.SetDefaults()
-	client, err := ssh.Dial("tcp", hostport, cfg)
-	if err != nil {
-		logrus.Infof("error login,details: %s", err.Error())
-		return nil, err
-	}
-	return client, nil
-}
-
-//NewSSHClientByUserPass 创建ssh客户端
-func NewSSHClientByUserPass(hostport string, username, password string) (*ssh.Client, error) {
-	config := &ssh.ClientConfig{
-		User: username,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(password),
-		},
-		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-			return nil
-		},
-	}
-	client, err := ssh.Dial("tcp", hostport, config)
-	if err != nil {
-		logrus.Errorf("failed to connect %s use username %s ,error: %s", hostport, username, err.Error())
-		return nil, err
-	}
-	return client, nil
+//UpdateNodeCondition 更新节点状态
+func (n *NodeCluster) UpdateNodeCondition(nodeID, ctype, cvalue string) {
+	node := n.GetNode(nodeID)
+	node.UpdataCondition(model.NodeCondition{
+		Type:               model.NodeConditionType(ctype),
+		Status:             model.ConditionStatus(cvalue),
+		LastHeartbeatTime:  time.Now(),
+		LastTransitionTime: time.Now(),
+		Message:            "",
+		Reason:             "",
+	})
 }

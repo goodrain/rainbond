@@ -62,11 +62,6 @@ func GetJobExecutionRecords(JobID string) ([]*ExecutionRecord, error) {
 	return nil, nil
 }
 
-//WatchExecutionRecords watch ExecutionRecords
-func WatchExecutionRecords() {
-
-}
-
 //IsHandleRight 是否具有处理结果权限
 func (e ExecutionRecord) IsHandleRight() bool {
 	if e.IsHandle {
@@ -125,8 +120,12 @@ func CreateExecutionRecord(j *Job, t time.Time, rs string, success bool) {
 	}
 	//单次执行job,更新job rule，将已执行节点加入到排除节点范围
 	if j.IsOnce {
-		for _, rule := range j.Rules {
-			rule.ExcludeNodeIDs = append(rule.ExcludeNodeIDs, j.runOn)
+		if j.Rules != nil {
+			for _, rule := range j.Rules {
+				rule.ExcludeNodeIDs = append(rule.ExcludeNodeIDs, j.runOn)
+			}
+		} else {
+			j.Rules = append(j.Rules, &JobRule{ExcludeNodeIDs: []string{j.runOn}})
 		}
 		//更新job
 		PutOnce(j)

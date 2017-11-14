@@ -35,9 +35,9 @@ var nodeService *service.NodeService
 //Init 初始化
 func Init(c *option.Conf, ms *masterserver.MasterServer) {
 	datacenterConfig = config.GetDataCenterConfig()
-	taskService = service.CreateTaskService(c)
+	taskService = service.CreateTaskService(c, ms)
 	taskTempService = service.CreateTaskTempService(c)
-	taskGroupService = service.CreateTaskGroupService(c)
+	taskGroupService = service.CreateTaskGroupService(c, ms)
 	appService = service.CreateAppService(c)
 	nodeService = service.CreateNodeService(c, ms.Cluster)
 }

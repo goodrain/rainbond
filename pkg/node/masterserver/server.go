@@ -33,7 +33,7 @@ type MasterServer struct {
 	*store.Client
 	*model.HostNode
 	Cluster          *NodeCluster
-	taskEngine       *TaskEngine
+	TaskEngine       *TaskEngine
 	ctx              context.Context
 	cancel           context.CancelFunc
 	datacenterConfig *config.DataCenterConfig
@@ -50,7 +50,7 @@ func NewMasterServer(node *model.HostNode, k8sClient *kubernetes.Clientset) (*Ma
 	}
 	ms := &MasterServer{
 		Client:           store.DefalutClient,
-		taskEngine:       CreateTaskEngine(),
+		TaskEngine:       CreateTaskEngine(cluster),
 		HostNode:         node,
 		Cluster:          cluster,
 		ctx:              ctx,
@@ -63,7 +63,7 @@ func NewMasterServer(node *model.HostNode, k8sClient *kubernetes.Clientset) (*Ma
 //Start 启动
 func (m *MasterServer) Start() error {
 	m.Cluster.Start()
-	m.taskEngine.Start()
+	m.TaskEngine.Start()
 	//监控配置变化启动
 	m.datacenterConfig.Start()
 	return nil
@@ -72,6 +72,6 @@ func (m *MasterServer) Start() error {
 //Stop 停止
 func (m *MasterServer) Stop(i interface{}) {
 	m.Cluster.Stop(i)
-	m.taskEngine.Stop()
+	m.TaskEngine.Stop()
 	m.cancel()
 }

@@ -53,10 +53,12 @@ func (t TaskTemp) String() string {
 
 //Task 任务
 type Task struct {
-	Name   string    `json:"name" validate:"name|required"`
-	ID     string    `json:"id" validate:"id|uuid"`
-	TempID string    `json:"temp_id,omitempty" validate:"temp_id|uuid"`
-	Temp   *TaskTemp `json:"temp,omitempty"`
+	Name    string    `json:"name" validate:"name|required"`
+	ID      string    `json:"id" validate:"id|uuid"`
+	JobID   string    `json:"job_id"`
+	TempID  string    `json:"temp_id,omitempty" validate:"temp_id|uuid"`
+	Temp    *TaskTemp `json:"temp,omitempty"`
+	GroupID string    `json:"group_id,omitempty"`
 	//执行的节点
 	Nodes []string `json:"nodes"`
 	//执行时间定义
@@ -71,6 +73,7 @@ type Task struct {
 	Interval int `json:"interval"`
 	//每个执行节点执行状态
 	Status       map[string]TaskStatus `json:"status,omitempty"`
+	Scheduler    Scheduler             `json:"scheduler"`
 	CreateTime   time.Time             `json:"create_time"`
 	StartTime    time.Time             `json:"start_time"`
 	CompleteTime time.Time             `json:"complete_time"`
@@ -98,6 +101,13 @@ func (t Task) CanBeDelete() bool {
 	return true
 }
 
+//Scheduler 调度状态
+type Scheduler struct {
+	Mode    string `json:"mode"` //立即调度（Intime），触发调度（Passive）
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
 //TaskOutPut 任务输出
 type TaskOutPut struct {
 	NodeID string            `json:"node_id"`
@@ -116,9 +126,10 @@ func ParseTaskOutPut(body string) (t TaskOutPut, err error) {
 
 //TaskOutPutStatus 输出数据
 type TaskOutPutStatus struct {
-	Name            string `json:"name"`
-	ConditionType   string `json:"condition_type"`
-	ConditionStatus string `json:"condition_status"`
+	Name            string   `json:"name"`
+	ConditionType   string   `json:"condition_type"`
+	ConditionStatus string   `json:"condition_status"`
+	NextTask        []string `json:"next_tasks"`
 }
 
 //TaskStatus 任务状态

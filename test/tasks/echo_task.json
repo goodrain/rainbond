@@ -1,5 +1,6 @@
 {
     "name": "echo",
+    "id": "ehco",
     "temp": {
         "name": "echo-temp",
         "shell": {

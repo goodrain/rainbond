@@ -24,8 +24,8 @@ import (
 
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
-	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
+	"github.com/goodrain/rainbond/pkg/node/masterserver"
 	"github.com/goodrain/rainbond/pkg/node/utils"
 
 	"github.com/Sirupsen/logrus"
@@ -40,16 +40,18 @@ import (
 type TaskService struct {
 	SavePath string
 	conf     *option.Conf
+	ms       *masterserver.MasterServer
 }
 
 var taskService *TaskService
 
 //CreateTaskService 创建Task service
-func CreateTaskService(c *option.Conf) *TaskService {
+func CreateTaskService(c *option.Conf, ms *masterserver.MasterServer) *TaskService {
 	if taskService == nil {
 		taskService = &TaskService{
 			SavePath: "/store/tasks",
 			conf:     c,
+			ms:       ms,
 		}
 	}
 	return taskService
@@ -168,13 +170,7 @@ func (ts *TaskService) ExecTask(taskID string) *utils.APIHandleError {
 		// }
 		return utils.CreateAPIHandleError(400, fmt.Errorf("Single task exec can not have depend task"))
 	}
-	j, er := job.CreateJobFromTask(t, nil)
-	if er != nil {
-		return utils.CreateAPIHandleError(500, err)
-	}
-	if err := job.AddJob(j); err != nil {
-		return utils.CreateAPIHandleError(500, err)
-	}
+	ts.ms.TaskEngine.ScheduleTask(t.ID)
 	return nil
 }
 
@@ -249,16 +245,18 @@ func (ts *TaskTempService) DeleteTaskTemp(tempID string) *utils.APIHandleError {
 type TaskGroupService struct {
 	SavePath string
 	conf     *option.Conf
+	ms       *masterserver.MasterServer
 }
 
 var taskGroupService *TaskGroupService
 
 //CreateTaskGroupService 创建Task group service
-func CreateTaskGroupService(c *option.Conf) *TaskGroupService {
+func CreateTaskGroupService(c *option.Conf, ms *masterserver.MasterServer) *TaskGroupService {
 	if taskGroupService == nil {
 		taskGroupService = &TaskGroupService{
 			SavePath: "/store/taskgroups",
 			conf:     c,
+			ms:       ms,
 		}
 	}
 	return taskGroupService
@@ -352,8 +350,7 @@ func (ts *TaskGroupService) ExecTaskGroup(taskGroupID string) *utils.APIHandleEr
 	if err != nil {
 		return err
 	}
-	for _, task := range t.Tasks {
-		_ = task
-	}
+	//TODO:增加执行判断
+	ts.ms.TaskEngine.ScheduleGroup(t.ID)
 	return nil
 }

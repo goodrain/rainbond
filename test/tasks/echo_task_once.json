@@ -1,0 +1,15 @@
+{
+    "name": "echo-once",
+    "id": "echo-once",
+    "temp": {
+        "name": "echo-once-temp",
+        "shell": {
+            "cmd": ["echo", "\"mysql host is:${MYSQL_HOST}\""]
+        }
+    },
+    "event_id": "xyxyxyxyxy",
+    "is_once": true,
+    "scheduler": {
+        "mode": "Intime"
+    }
+}
