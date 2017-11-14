@@ -705,7 +705,7 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]
 		if err != nil {
 			return nil, nil, err
 		}
-		envs, err := p.createPluginEnvs(pluginR.PluginID)
+		envs, err := p.createPluginEnvs(pluginR.PluginID, mainEnvs)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -773,7 +773,7 @@ func (p *PodTemplateSpecBuild) createPluginArgs(pluginID string) ([]string, erro
 }
 
 //container envs
-func (p *PodTemplateSpecBuild) createPluginEnvs(pluginID string) (*[]v1.EnvVar, error) {
+func (p *PodTemplateSpecBuild) createPluginEnvs(pluginID string, mainEnvs *[]v1.EnvVar) (*[]v1.EnvVar, error) {
 	defaultEnvs, err := p.dbmanager.TenantPluginDefaultENVDao().GetDefaultENVSByPluginIDCantBeSet(pluginID)
 	if err != nil {
 		return nil, err
@@ -788,6 +788,9 @@ func (p *PodTemplateSpecBuild) createPluginEnvs(pluginID string) (*[]v1.EnvVar, 
 	}
 	for _, e := range versionEnvs {
 		envs = append(envs, v1.EnvVar{Name: e.EnvName, Value: e.EnvValue})
+	}
+	for _, e := range *mainEnvs {
+		envs = append(envs, e)
 	}
 	//TODO: 在哪些情况下需要注入主容器的环境变量
 	return &envs, nil
