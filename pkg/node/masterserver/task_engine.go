@@ -182,7 +182,11 @@ func (t *TaskEngine) AddTask(task *model.Task) error {
 			task.JobID = oldTask.JobID
 			task.Status = oldTask.Status
 			task.OutPut = oldTask.OutPut
+			task.EventID = oldTask.EventID
 		}
+	}
+	if task.EventID == "" {
+		task.EventID = task.ID
 	}
 	task.Status = map[string]model.TaskStatus{}
 	for _, n := range task.Nodes {
@@ -234,49 +238,56 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 	if task == nil {
 		return
 	}
-	output, err := model.ParseTaskOutPut(er.Output)
-	if err != nil {
-		er.CompleteHandle()
-		return
-	}
-	if output.Global != nil && len(output.Global) > 0 {
-		for k, v := range output.Global {
-			err := t.dataCenterConfig.PutConfig(&model.ConfigUnit{
-				Name:           strings.ToUpper(k),
-				Value:          v,
-				ValueType:      "string",
-				IsConfigurable: false,
-			})
-			if err != nil {
-				logrus.Errorf("save datacenter config %s=%s error.%s", k, v, err.Error())
-			}
-		}
-	}
-	//groupID不为空，处理group连环操作
-	if output.Inner != nil && len(output.Inner) > 0 && task.GroupID != "" {
-		t.AddGroupConfig(task.GroupID, output.Inner)
-	}
-	for _, status := range output.Status {
-		//install or check类型结果写入节点
-		if output.Type == "install" || output.Type == "check" {
-			t.nodeCluster.UpdateNodeCondition(er.Node, status.ConditionType, status.ConditionStatus)
-			if status.NextTask != nil && len(status.NextTask) > 0 {
-				t.ScheduleTask(status.NextTask...)
-			}
-		}
-	}
-	task.OutPut = append(task.OutPut, &output)
 	taskStatus := model.TaskStatus{
 		StartTime:    er.BeginTime,
 		EndTime:      er.EndTime,
 		CompleStatus: "",
+	}
+	output, err := model.ParseTaskOutPut(er.Output)
+	if err != nil {
+		taskStatus.Status = "Parse task output error"
+		logrus.Warning("parse task output error:", err.Error())
+	} else {
+		if output.Global != nil && len(output.Global) > 0 {
+			for k, v := range output.Global {
+				err := t.dataCenterConfig.PutConfig(&model.ConfigUnit{
+					Name:           strings.ToUpper(k),
+					Value:          v,
+					ValueType:      "string",
+					IsConfigurable: false,
+				})
+				if err != nil {
+					logrus.Errorf("save datacenter config %s=%s error.%s", k, v, err.Error())
+				}
+			}
+		}
+		//groupID不为空，处理group连环操作
+		if output.Inner != nil && len(output.Inner) > 0 && task.GroupID != "" {
+			t.AddGroupConfig(task.GroupID, output.Inner)
+		}
+		for _, status := range output.Status {
+			//install or check类型结果写入节点
+			if output.Type == "install" || output.Type == "check" {
+				t.nodeCluster.UpdateNodeCondition(er.Node, status.ConditionType, status.ConditionStatus)
+				if status.NextTask != nil && len(status.NextTask) > 0 {
+					t.ScheduleTask(status.NextTask...)
+				}
+				if status.NextGroups != nil && len(status.NextGroups) > 0 {
+					t.ScheduleGroup(status.NextGroups...)
+				}
+			}
+		}
+		task.OutPut = append(task.OutPut, &output)
 	}
 	if er.Success {
 		taskStatus.CompleStatus = "Success"
 	} else {
 		taskStatus.CompleStatus = "Failure"
 	}
-	task.Status[output.NodeID] = taskStatus
+	if task.Status == nil {
+		task.Status = make(map[string]model.TaskStatus)
+	}
+	task.Status[er.Node] = taskStatus
 	t.UpdateTask(task)
 	er.CompleteHandle()
 }

@@ -318,6 +318,9 @@ func (n *NodeCluster) RemoveNode(node *model.HostNode) {
 //UpdateNodeCondition 更新节点状态
 func (n *NodeCluster) UpdateNodeCondition(nodeID, ctype, cvalue string) {
 	node := n.GetNode(nodeID)
+	if node == nil {
+		return
+	}
 	node.UpdataCondition(model.NodeCondition{
 		Type:               model.NodeConditionType(ctype),
 		Status:             model.ConditionStatus(cvalue),
