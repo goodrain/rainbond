@@ -24,7 +24,6 @@ import (
 
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/api/util"
-	"github.com/goodrain/rainbond/pkg/db"
 	node_model "github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -231,24 +230,6 @@ func (d *DiscoverAction) DiscoverClusters(namespace, serviceCluster string) (*no
 		Clusters: cdsL,
 	}
 	return cds, nil
-}
-
-//ToolsGetTenantUUID GetTenantUUID
-func (d *DiscoverAction) ToolsGetTenantUUID(namespace string) (string, error) {
-	tenants, err := db.GetManager().TenantDao().GetTenantIDByName(namespace)
-	if err != nil {
-		return "", err
-	}
-	return tenants.UUID, nil
-}
-
-//ToolsGetServiceID GetServiceID
-func (d *DiscoverAction) ToolsGetServiceID(uuid, serviceAlias string) (string, error) {
-	services, err := db.GetManager().TenantServiceDao().GetServiceByTenantIDAndServiceAlias(uuid, serviceAlias)
-	if err != nil {
-		return "", err
-	}
-	return services.ServiceID, nil
 }
 
 //ToolsGetK8SServiceList GetK8SServiceList
