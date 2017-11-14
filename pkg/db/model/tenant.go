@@ -514,8 +514,11 @@ var LabelKeyServiceAntyAffinity = "service-anti-affinity"
 //InitPlugin 初始化插件
 var InitPlugin = "init-plugin"
 
-//NetPlugin 网络插件
-var NetPlugin = "net-plugin"
+//UpNetPlugin 上游网络插件
+var UpNetPlugin = "upnet-plugin"
+
+//DownNetPlugin 下游网络插件
+var DownNetPlugin = "downnet-plugin"
 
 //GeneralPlugin 一般插件,默认分类,优先级最低
 var GeneralPlugin = "general-plugin"

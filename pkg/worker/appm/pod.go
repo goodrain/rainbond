@@ -729,7 +729,7 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]
 			initContainers = append(initContainers, pc)
 			continue
 		}
-		if pluginModel == model.NetPlugin {
+		if pluginModel == model.UpNetPlugin || pluginModel == model.DownNetPlugin {
 			netPlugin = true
 		}
 		containers = append(containers, pc)
@@ -822,8 +822,10 @@ func (p *PodTemplateSpecBuild) sortPlugins() ([]string, error) {
 
 func (p *PodTemplateSpecBuild) pluginWeight(pluginModel string) int {
 	switch pluginModel {
-	case model.NetPlugin:
+	case model.UpNetPlugin:
 		return 9
+	case model.DownNetPlugin:
+		return 8
 	case model.GeneralPlugin:
 		return 1
 	default:
