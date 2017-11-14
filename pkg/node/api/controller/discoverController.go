@@ -62,3 +62,21 @@ func ListenerDiscover(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 	w.Write([]byte(ldsJ))
 }
+
+//ClusterDiscover ClusterDiscover
+func ClusterDiscover(w http.ResponseWriter, r *http.Request) {
+	tenantName := chi.URLParam(r, "tenant_name")
+	serviceNodes := chi.URLParam(r, "service_nodes")
+	cds, err := handler.GetDiscoverManager().DiscoverClusters(tenantName, serviceNodes)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	cdsJ, errJ := ffjson.Marshal(cds)
+	if errJ != nil {
+		util.CreateAPIHandleError(500, errJ).Handle(r, w)
+		return
+	}
+	w.WriteHeader(200)
+	w.Write([]byte(cdsJ))
+}

@@ -208,6 +208,43 @@ func (d *DiscoverAction) DiscoverListeners(tenantName, serviceCluster string) (*
 	return lds, nil
 }
 
+//DiscoverClusters DiscoverClusters
+func (d *DiscoverAction) DiscoverClusters(tenantName, serviceCluster string) (*node_model.CDS, *util.APIHandleError) {
+	mm := strings.Split(serviceCluster, "_")
+	if len(mm) == 0 {
+		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
+	}
+	namespace, err := d.ToolsGetTenantUUID(tenantName)
+	if err != nil {
+		return nil, util.CreateAPIHandleErrorFromDBError("get tenant uuid ", err)
+	}
+	var cdsL []*node_model.PieceCDS
+	for _, serviceAlias := range mm {
+		labelname := fmt.Sprintf("name=%sService", serviceAlias)
+		services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+		if err != nil {
+			return nil, util.CreateAPIHandleError(500, err)
+		}
+		for _, service := range services.Items {
+			for _, port := range service.Spec.Ports {
+				pcds := &node_model.PieceCDS{
+					Name:             fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
+					Type:             "sds",
+					ConnectTimeoutMS: 250,
+					LBType:           "round_robin",
+					ServiceName:      fmt.Sprintf("%s_%s_%v", tenantName, serviceAlias, port.Port),
+				}
+				cdsL = append(cdsL, pcds)
+				continue
+			}
+		}
+	}
+	cds := &node_model.CDS{
+		Clusters: cdsL,
+	}
+	return cds, nil
+}
+
 //ToolsGetTenantUUID GetTenantUUID
 func (d *DiscoverAction) ToolsGetTenantUUID(namespace string) (string, error) {
 	tenants, err := db.GetManager().TenantDao().GetTenantIDByName(namespace)
