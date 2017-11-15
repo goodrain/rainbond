@@ -1,0 +1,41 @@
+
+#Mr Developer
+.mr.developer.cfg
+
+# Godeps workspace
+/Godeps/_workspace
+
+.DS_Store
+tags
+
+# direnv .envrc files
+.envrc
+
+# make-related metadata
+/.make/
+
+# precommit temporary directories created by ./hack/verify-generated-docs.sh and ./hack/lib/util.sh
+/_tmp/
+/doc_tmp/
+
+# User cluster configs
+.kubeconfig
+
+#Emacs
+.#*
+venv/
+
+# VS-code
+.vscode/
+
+# Pycharm
+.idea/
+
+# Eclipse files
+.classpath
+.project
+.settings/**
+
+
+# OSX leaves these everywhere on SMB shares
+._*

@@ -33,11 +33,12 @@ import (
 
 	"golang.org/x/net/context"
 
-	grpcserver "github.com/goodrain/rainbond/pkg/mq/api/grpc/server"
+	_ "net/http/pprof"
 
 	"github.com/Sirupsen/logrus"
 	restful "github.com/emicklei/go-restful"
 	swagger "github.com/emicklei/go-restful-swagger12"
+	grpcserver "github.com/goodrain/rainbond/pkg/mq/api/grpc/server"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
@@ -101,6 +102,11 @@ func NewManager(c option.Config) (*Manager, error) {
 		conf:     c,
 		actionMQ: actionMQ,
 	}
+	go func() {
+		if err := http.ListenAndServe(":6301", nil); err != nil {
+			logrus.Error("mq pprof listen error.", err.Error())
+		}
+	}()
 	if c.RunMode == "http" {
 		wsContainer := restful.NewContainer()
 		server := &http.Server{Addr: c.APIAddr, Handler: wsContainer}
