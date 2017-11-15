@@ -65,12 +65,6 @@ Rainbond Application Console is Web console that interfaces with multiple Rainbo
 - 453475798(Group 2)  
 - 419331946(Group 3)
 
-### Rainbond WeChat Group
-
-> Contact Rainbond to join groups:
-
-<img src="http://ojfzu47n9.bkt.clouddn.com/2017032214901508126968.jpg" width="30%" />
-
 ### Documentation
 
 - [Development](http://doc.goodrain.com/cloudbang-community-install/247616)
