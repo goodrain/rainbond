@@ -1,6 +1,6 @@
 # 云帮
 
-< img src="https://github.com/goodrain/rainbond/raw/master/docs/rainbond_logo.png">
+<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_logo.png">
 
 ----
 云帮（Rainbond）是国内首个开源企业级应用管理平台(无服务器PaaS)，集CI/CD自动化应用构建系统、微服务架构应用管理系统、全自动计算资源管理系统于一身，提供“以应用为中心”理念的最佳实践。
@@ -43,7 +43,7 @@ $make all-image
 
 ### 架构总图   
 
-< img src="./rainbond_architecture.png" href="">
+<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_architecture.png" href="">
 
 ### 云帮构成
 
@@ -69,7 +69,7 @@ $make all-image
 
 > 联系云帮小秘书邀请入群：
 
-< img src="http://ojfzu47n9.bkt.clouddn.com/2017032214901508126968.jpg" width="30%" />
+<img src="http://ojfzu47n9.bkt.clouddn.com/2017032214901508126968.jpg" width="30%" />
 
 ### 文档支持
 
