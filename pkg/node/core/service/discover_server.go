@@ -129,20 +129,20 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 			if !ok || inner != "inner" {
 				continue
 			}
-			port := service.Spec.Ports[0]
+			port := service.Spec.Ports[0].Port
 			portProtocol, ok := service.Labels["port_protocol"]
 			if ok {
 				logrus.Debugf("port protocol is %s", portProtocol)
 				switch portProtocol {
 				case "stream":
 					ptr := &node_model.PieceTCPRoute{
-						Cluster: fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
+						Cluster: fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
 					}
 					lrs := &node_model.LDSTCPRoutes{
 						Routes: []*node_model.PieceTCPRoute{ptr},
 					}
 					lcg := &node_model.LDSTCPConfig{
-						StatPrefix:  fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
+						StatPrefix:  fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
 						RouteConfig: lrs,
 					}
 					lfs := &node_model.LDSFilters{
@@ -150,8 +150,8 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 						Config: lcg,
 					}
 					plds := &node_model.PieceLDS{
-						Name:    fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
-						Address: fmt.Sprintf("tcp://0.0.0.0:%v", port.Port),
+						Name:    fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
+						Address: fmt.Sprintf("tcp://0.0.0.0:%d", port),
 						Filters: []*node_model.LDSFilters{lfs},
 					}
 					ldsL = append(ldsL, plds)
@@ -164,7 +164,7 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 					prs := &node_model.PieceHTTPRoutes{
 						TimeoutMS: 0,
 						Prefix:    d.ToolsGetRouterItem(serviceAlias, node_model.PREFIX, envs),
-						Cluster:   fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
+						Cluster:   fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
 					}
 					envHeaders := d.ToolsGetRouterItem(serviceAlias, node_model.HEADERS, envs)
 					var headers []*node_model.PieceHeader
@@ -184,7 +184,7 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 					}
 					pvh := &node_model.PieceHTTPVirtualHost{
 						//TODO: 目前支持自定义一个domain
-						Name:    fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
+						Name:    fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
 						Domains: []string{d.ToolsGetRouterItem(serviceAlias, node_model.DOMAINS, envs)},
 						Routes:  []*node_model.PieceHTTPRoutes{prs},
 					}
@@ -202,8 +202,8 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 						Config: lhc,
 					}
 					plds := &node_model.PieceLDS{
-						Name:    fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
-						Address: fmt.Sprintf("tcp://0.0.0.0:%v", port.TargetPort),
+						Name:    fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
+						Address: fmt.Sprintf("tcp://0.0.0.0:%d", port),
 						Filters: []*node_model.LDSFilters{lfs},
 					}
 					ldsL = append(ldsL, plds)
@@ -286,7 +286,9 @@ func (d *DiscoverAction) ToolsGetK8SServiceList(uuid string) (*v1.ServiceList, e
 
 //ToolsGetMainPodEnvs ToolsGetMainPodEnvs
 func (d *DiscoverAction) ToolsGetMainPodEnvs(namespace, serviceAlias string) (*[]v1.EnvVar, *util.APIHandleError) {
-	pods, err := k8s.K8S.Core().Pods(namespace).List(metav1.ListOptions{LabelSelector: serviceAlias})
+	labelname := fmt.Sprintf("name=%s", serviceAlias)
+	pods, err := k8s.K8S.Core().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+	logrus.Debugf("service_alias %s pod is %v", serviceAlias, pods)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
