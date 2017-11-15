@@ -234,7 +234,7 @@ func (p *PluginAction) GetEnvsWhichCanBeSet(serviceID, pluginID string) (interfa
 	if len(envs) > 0 {
 		return envs, nil
 	}
-	envD, errD := db.GetManager().TenantPluginDefaultENVDao().GetDefaultENVSByPluginIDCantBeSet(pluginID)
+	envD, errD := db.GetManager().TenantPluginDefaultENVDao().GetDefaultEnvWhichCanBeSetByPluginID(pluginID)
 	if errD != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("get envs which can be set", errD)
 	}

@@ -330,7 +330,7 @@ type DeletePluginSetStruct struct {
 }
 
 //GetPluginEnvStruct GetPluginEnvStruct
-//swagger:parameters getPluginEnv
+//swagger:parameters getPluginEnv, getPluginDefaultEnv
 type GetPluginEnvStruct struct {
 	// in: path
 	// required: true
