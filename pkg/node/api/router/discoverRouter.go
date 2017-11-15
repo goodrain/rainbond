@@ -66,7 +66,7 @@ func RegistrationRoutes() chi.Router {
 //GET /v1/routes/(string: route_config_name)/(string: service_cluster)/(string: service_node)
 func RoutesRouters() chi.Router {
 	r := chi.NewRouter()
-	r.Get("ping", controller.Ping)
+	r.Get("/ping", controller.Ping)
 	r.Get("/{route_config}/{tenant_service}/{service_nodes}", controller.RoutesDiscover)
 	return r
 }

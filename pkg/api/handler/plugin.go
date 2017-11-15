@@ -357,6 +357,7 @@ func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plu
 		Kind:      b.Body.Kind,
 		Repo:      b.Body.RepoURL,
 		GitURL:    b.Body.GitURL,
+		Info:      b.Body.Info,
 		BuildTime: time.Now().Format(time.RFC3339),
 		Status:    "building",
 	}
