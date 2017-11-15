@@ -56,7 +56,8 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *
 	//deployVersion := mm[3]
 
 	labelname := fmt.Sprintf("name=%sService", serviceAlias)
-	endpoint, err := k8s.K8S.Core().Endpoints(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+	endpoints, err := k8s.K8S.Core().Endpoints(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+	logrus.Debugf("labelname is %s, endpoints is %v, items is %v", labelname, endpoints, endpoints.Items)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
@@ -64,11 +65,11 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *
 	if err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
-	if len(endpoint.Items) == 0 {
+	if len(endpoints.Items) == 0 {
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("have no endpoints"))
 	}
 	var sdsL []*node_model.PieceSDS
-	for key, item := range endpoint.Items {
+	for key, item := range endpoints.Items {
 		addressList := item.Subsets[0].Addresses
 		if len(addressList) == 0 {
 			addressList = item.Subsets[0].NotReadyAddresses
@@ -158,13 +159,15 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 					continue
 				case "http":
 					hsf := &node_model.HTTPSingleFileter{
-						Type: "decoder",
-						Name: "router",
+						Type:   "decoder",
+						Name:   "router",
+						Config: make(map[string]string),
 					}
 					prs := &node_model.PieceHTTPRoutes{
 						TimeoutMS: 0,
 						Prefix:    d.ToolsGetRouterItem(serviceAlias, node_model.PREFIX, envs),
 						Cluster:   fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
+						Headers:   []*node_model.PieceHeader{},
 					}
 					envHeaders := d.ToolsGetRouterItem(serviceAlias, node_model.HEADERS, envs)
 					var headers []*node_model.PieceHeader
@@ -178,10 +181,14 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 							}
 							headers = append(headers, header)
 						}
+					} else {
+						header := &node_model.PieceHeader{
+							Name:  "default",
+							Value: "default",
+						}
+						headers = append(headers, header)
 					}
-					if len(headers) != 0 {
-						prs.Headers = headers
-					}
+					prs.Headers = headers
 					pvh := &node_model.PieceHTTPVirtualHost{
 						//TODO: 目前支持自定义一个domain
 						Name:    fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
