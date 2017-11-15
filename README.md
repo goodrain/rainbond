@@ -1,6 +1,6 @@
 # Rainbond
 
-<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_logo.png">
+<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_logo.png" width="30%">
 
 ----
 Rainbond is the first opensource enterprise application management platform (serverless PaaS) in China. It integrates CI/CD automation application building system, microservice architecture application management system and fully-automatic computing resource management system, to provide best practice of application-centic philosophy.
@@ -43,7 +43,7 @@ Bug found in learning and using, please visit [ISSUES](https://github.com/goodra
 
 ### Architecture
 
-<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_architecture.png" href="">
+<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_architecture.png" >
 
 ### Rainbond Structure
 
@@ -69,7 +69,7 @@ Rainbond Application Console is Web console that interfaces with multiple Rainbo
 
 > Contact Rainbond to join groups:
 
-< img src="http://ojfzu47n9.bkt.clouddn.com/2017032214901508126968.jpg" width="30%" />
+<img src="http://ojfzu47n9.bkt.clouddn.com/2017032214901508126968.jpg" width="30%" />
 
 ### Documentation
 

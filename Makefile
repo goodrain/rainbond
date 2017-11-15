@@ -43,7 +43,10 @@ run-node:build-node
 
 doc:
 	@cd cmd/api && swagger generate spec -o ../../build/api/html/swagger.json
-
+all: build-builder build-node build-entrance build-eventlog build-grctl build-api
+all-image: build-image-worker  build-image-mq build-image-builder build-image-entrance build-image-eventlog build-image-api
+build-worker:
+	go build ${GO_LDFLAGS} -o ./build/builder/${BASE_NAME}_worker ./cmd/worker
 build-builder:
 	go build ${GO_LDFLAGS} -o ./build/builder/${BASE_NAME}_builder ./cmd/builder
 build-mqcli:
@@ -97,7 +100,6 @@ build-image-api:
 	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/api/${BASE_NAME}_api ./cmd/api
 	@docker build -t hub.goodrain.com/dc-deploy/${BASE_NAME}_api:${VERSION} ./build/api
 	@rm -f ./build/api/${BASE_NAME}_api	
-build-image:build-image-worker build-image-mq build-image-builder build-image-eventlog build-image-entrance build-image-node
 push-image:
 	docker push hub.goodrain.com/dc-deploy/${BASE_NAME}_eventlog:${VERSION}
 	docker push hub.goodrain.com/dc-deploy/${BASE_NAME}_entrance:${VERSION}
