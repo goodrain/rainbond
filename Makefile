@@ -2,18 +2,13 @@ GO_LDFLAGS=-ldflags " -w"
 VERSION=3.4
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
-build-mq:
-	go build ${GO_LDFLAGS} -o ./build/mq/${BASE_NAME}_mq ./cmd/mq
-build-worker:
-	go build ${GO_LDFLAGS} -o ./build/worker/${BASE_NAME}_worker ./cmd/worker	
 clean:
 	@rm -rf ./build/mq/${BASE_NAME}_mq
 	@rm -rf ./build/worker/${BASE_NAME}_worker
 	@rm -rf ./build/api/${BASE_NAME}_api
 	@rm -rf ./build/node/${BASE_NAME}_node
 	@rm -rf ./build/builder/${BASE_NAME}_builder
-build-in-container:
-	@docker run -v `pwd`:/go/src/${BASE_NAME}_worker -w /go/src/${BASE_NAME}_worker -it golang:1.7.3 bash
+
 run-api:build-api
 	./build/api/${BASE_NAME}_api --log-level=debug --mysql="admin:admin@tcp(127.0.0.1:3306)/region" --kube-config="`PWD`/admin.kubeconfig"
 run-mq:build-mq
@@ -36,15 +31,16 @@ run-eventlog:build-eventlog
 	 --docker.log.homepath="/Users/qingguo/tmp"
 run-node:build-node
 	./build/node/${BASE_NAME}_node \
-	 --run-mode=master --kube-conf=`pwd`/admin.kubeconfig \
-	 --nodeid-file=`pwd`/host_id.conf \
+	 --run-mode=master --kube-conf=`pwd`/test/admin.kubeconfig \
+	 --nodeid-file=`pwd`/test/host_id.conf \
 	 --static-task-path=`pwd`/test/tasks \
 	 --log-level=debug
 
 doc:
 	@cd cmd/api && swagger generate spec -o ../../build/api/html/swagger.json
 all: build-builder build-node build-entrance build-eventlog build-grctl build-api
-all-image: build-image-worker  build-image-mq build-image-builder build-image-entrance build-image-eventlog build-image-api
+build-mq:
+	go build ${GO_LDFLAGS} -o ./build/mq/${BASE_NAME}_mq ./cmd/mq
 build-worker:
 	go build ${GO_LDFLAGS} -o ./build/builder/${BASE_NAME}_worker ./cmd/worker
 build-builder:
@@ -61,7 +57,8 @@ build-grctl:
 	go build ${GO_LDFLAGS} -o ./build/grctl/${BASE_NAME}_grctl ./cmd/grctl
 build-api:
 	go build ${GO_LDFLAGS} -o ./build/api/${BASE_NAME}_api ./cmd/api
-
+	
+all-image: build-image-worker  build-image-mq build-image-builder build-image-entrance build-image-eventlog build-image-api
 build-image-worker:
 	@echo "🐳 $@"
 	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/worker/${BASE_NAME}_worker ./cmd/worker
