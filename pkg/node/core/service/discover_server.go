@@ -132,8 +132,9 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 			port := service.Spec.Ports[0]
 			portProtocol, ok := service.Labels["port_protocol"]
 			if ok {
+				logrus.Debugf("port protocol is %s", portProtocol)
 				switch portProtocol {
-				case "TCP":
+				case "stream":
 					ptr := &node_model.PieceTCPRoute{
 						Cluster: fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
 					}
@@ -155,7 +156,7 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 					}
 					ldsL = append(ldsL, plds)
 					continue
-				case "HTTP":
+				case "http":
 					hsf := &node_model.HTTPSingleFileter{
 						Type: "decoder",
 						Name: "router",
