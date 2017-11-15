@@ -20,8 +20,10 @@ package service
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/api/util"
 	node_model "github.com/goodrain/rainbond/pkg/node/api/model"
@@ -91,7 +93,18 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *
 }
 
 //DiscoverListeners DiscoverListeners
-func (d *DiscoverAction) DiscoverListeners(namespace, serviceCluster string) (*node_model.LDS, *util.APIHandleError) {
+func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string) (*node_model.LDS, *util.APIHandleError) {
+	nn := strings.Split(tenantService, "_")
+	if len(nn) != 2 {
+		return nil, util.CreateAPIHandleError(400,
+			fmt.Errorf("namesapces and service_alias not in good format"))
+	}
+	namespace := nn[0]
+	serviceAlias := nn[1]
+	envs, err := d.ToolsGetMainPodEnvs(namespace, serviceAlias)
+	if err != nil {
+		return nil, err
+	}
 	mm := strings.Split(serviceCluster, "_")
 	if len(mm) == 0 {
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
@@ -111,32 +124,25 @@ func (d *DiscoverAction) DiscoverListeners(namespace, serviceCluster string) (*n
 			continue
 		}
 		for _, service := range services.Items {
-			//protocol, ok := service.Labels["protocol"]
-			// if ok && protocol == "http" {
-			// 	//TODO: HTTP inner的protocol添加资源时需要label
-			// 	hsf := &node_model.HTTPSingleFileter{
-			// 		Type: "decoder",
-			// 		Name: "router",
-			// 	}
-			// 	prs := &node_model.PieceHTTPRoutes{
-			// 		TimeoutMS: 0,
-			// 		Prefix:    "/",
-			// 		Cluster:   "",
-			// 	}
-			// 	continue
-			// }
-			//TODO: TCP
-			for _, port := range service.Spec.Ports {
-				switch port.Protocol {
-				case "TCP":
+			//TODO: HTTP inner的protocol添加资源时需要label
+			inner, ok := service.Labels["service_type"]
+			if !ok || inner != "inner" {
+				continue
+			}
+			port := service.Spec.Ports[0].Port
+			portProtocol, ok := service.Labels["port_protocol"]
+			if ok {
+				logrus.Debugf("port protocol is %s", portProtocol)
+				switch portProtocol {
+				case "stream":
 					ptr := &node_model.PieceTCPRoute{
-						Cluster: fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
+						Cluster: fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
 					}
 					lrs := &node_model.LDSTCPRoutes{
 						Routes: []*node_model.PieceTCPRoute{ptr},
 					}
 					lcg := &node_model.LDSTCPConfig{
-						StatPrefix:  fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
+						StatPrefix:  fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
 						RouteConfig: lrs,
 					}
 					lfs := &node_model.LDSFilters{
@@ -144,29 +150,42 @@ func (d *DiscoverAction) DiscoverListeners(namespace, serviceCluster string) (*n
 						Config: lcg,
 					}
 					plds := &node_model.PieceLDS{
-						Name:    fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
-						Address: fmt.Sprintf("tcp://0.0.0.0:%v", port.Port),
+						Name:    fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
+						Address: fmt.Sprintf("tcp://0.0.0.0:%d", port),
 						Filters: []*node_model.LDSFilters{lfs},
 					}
 					ldsL = append(ldsL, plds)
 					continue
-				case "HTTP":
+				case "http":
 					hsf := &node_model.HTTPSingleFileter{
 						Type: "decoder",
 						Name: "router",
 					}
 					prs := &node_model.PieceHTTPRoutes{
 						TimeoutMS: 0,
-						Prefix:    "/",
-						Cluster:   fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
+						Prefix:    d.ToolsGetRouterItem(serviceAlias, node_model.PREFIX, envs),
+						Cluster:   fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
 					}
-					domain, ok := service.Labels["domain"]
-					if !ok {
-						domain = "*"
+					envHeaders := d.ToolsGetRouterItem(serviceAlias, node_model.HEADERS, envs)
+					var headers []*node_model.PieceHeader
+					if envHeaders != "" {
+						mm := strings.Split(envHeaders, ",")
+						for _, h := range mm {
+							nn := strings.Split(h, ":")
+							header := &node_model.PieceHeader{
+								Name:  nn[0],
+								Value: nn[1],
+							}
+							headers = append(headers, header)
+						}
+					}
+					if len(headers) != 0 {
+						prs.Headers = headers
 					}
 					pvh := &node_model.PieceHTTPVirtualHost{
-						Name:    fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
-						Domains: []string{domain},
+						//TODO: 目前支持自定义一个domain
+						Name:    fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
+						Domains: []string{d.ToolsGetRouterItem(serviceAlias, node_model.DOMAINS, envs)},
 						Routes:  []*node_model.PieceHTTPRoutes{prs},
 					}
 					rcg := &node_model.RouteConfig{
@@ -183,8 +202,8 @@ func (d *DiscoverAction) DiscoverListeners(namespace, serviceCluster string) (*n
 						Config: lhc,
 					}
 					plds := &node_model.PieceLDS{
-						Name:    fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
-						Address: fmt.Sprintf("tcp://0.0.0.0:%v", port.TargetPort),
+						Name:    fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
+						Address: fmt.Sprintf("tcp://0.0.0.0:%d", port),
 						Filters: []*node_model.LDSFilters{lfs},
 					}
 					ldsL = append(ldsL, plds)
@@ -200,7 +219,17 @@ func (d *DiscoverAction) DiscoverListeners(namespace, serviceCluster string) (*n
 }
 
 //DiscoverClusters DiscoverClusters
-func (d *DiscoverAction) DiscoverClusters(namespace, serviceCluster string) (*node_model.CDS, *util.APIHandleError) {
+func (d *DiscoverAction) DiscoverClusters(tenantService, serviceCluster string) (*node_model.CDS, *util.APIHandleError) {
+	nn := strings.Split(tenantService, "_")
+	if len(nn) != 2 {
+		return nil, util.CreateAPIHandleError(400, fmt.Errorf("namesapces and service_alias not in good format"))
+	}
+	namespace := nn[0]
+	serviceAlias := nn[1]
+	envs, err := d.ToolsGetMainPodEnvs(namespace, serviceAlias)
+	if err != nil {
+		return nil, err
+	}
 	mm := strings.Split(serviceCluster, "_")
 	if len(mm) == 0 {
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
@@ -213,17 +242,31 @@ func (d *DiscoverAction) DiscoverClusters(namespace, serviceCluster string) (*no
 			return nil, util.CreateAPIHandleError(500, err)
 		}
 		for _, service := range services.Items {
-			for _, port := range service.Spec.Ports {
-				pcds := &node_model.PieceCDS{
-					Name:             fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
-					Type:             "sds",
-					ConnectTimeoutMS: 250,
-					LBType:           "round_robin",
-					ServiceName:      fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
-				}
-				cdsL = append(cdsL, pcds)
+			inner, ok := service.Labels["service_type"]
+			if !ok || inner != "inner" {
 				continue
 			}
+			circuits, errC := strconv.Atoi(d.ToolsGetRouterItem(serviceAlias, node_model.LIMITS, envs))
+			if errC != nil {
+				circuits = 1024
+				logrus.Warnf("strconv circuit error, ignore this error and set circuits to 1024")
+			}
+			cb := &node_model.CircuitBreakers{
+				Default: &node_model.MaxConnections{
+					MaxConnections: circuits,
+				},
+			}
+			port := service.Spec.Ports[0]
+			pcds := &node_model.PieceCDS{
+				Name:             fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
+				Type:             "sds",
+				ConnectTimeoutMS: 250,
+				LBType:           "round_robin",
+				ServiceName:      fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
+				CircuitBreakers:  cb,
+			}
+			cdsL = append(cdsL, pcds)
+			continue
 		}
 	}
 	cds := &node_model.CDS{
@@ -239,4 +282,81 @@ func (d *DiscoverAction) ToolsGetK8SServiceList(uuid string) (*v1.ServiceList, e
 		return nil, err
 	}
 	return serviceList, nil
+}
+
+//ToolsGetMainPodEnvs ToolsGetMainPodEnvs
+func (d *DiscoverAction) ToolsGetMainPodEnvs(namespace, serviceAlias string) (*[]v1.EnvVar, *util.APIHandleError) {
+	labelname := fmt.Sprintf("name=%s", serviceAlias)
+	pods, err := k8s.K8S.Core().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+	logrus.Debugf("service_alias %s pod is %v", serviceAlias, pods)
+	if err != nil {
+		return nil, util.CreateAPIHandleError(500, err)
+	}
+	if len(pods.Items) == 0 {
+		return nil,
+			util.CreateAPIHandleError(404, fmt.Errorf("have no pod for discover"))
+	}
+	if len(pods.Items[0].Spec.Containers) < 2 {
+		return nil,
+			util.CreateAPIHandleError(404, fmt.Errorf("have no net plugins for discover"))
+	}
+	for _, c := range pods.Items[0].Spec.Containers {
+		for _, e := range c.Env {
+			if e.Name == "PLUGIN_MOEL" && strings.Contains(e.Value, "net-plugin") {
+				return &c.Env, nil
+			}
+		}
+	}
+	return nil, util.CreateAPIHandleError(404, fmt.Errorf("have no envs for plugin"))
+}
+
+//ToolsBuildPieceLDS ToolsBuildPieceLDS
+func (d *DiscoverAction) ToolsBuildPieceLDS() {}
+
+//ToolsGetRouterItem ToolsGetRouterItem
+func (d *DiscoverAction) ToolsGetRouterItem(destAlias, kind string, envs *[]v1.EnvVar) string {
+	switch kind {
+	case node_model.PREFIX:
+		ename := fmt.Sprintf("PREFIX_%s", destAlias)
+		for _, e := range *envs {
+			if e.Name == ename {
+				return e.Value
+			}
+		}
+		return "/"
+	case node_model.LIMITS:
+		ename := fmt.Sprintf("LIMIT_%s", destAlias)
+		for _, e := range *envs {
+			if e.Name == ename {
+				return e.Value
+			}
+		}
+		return "1024"
+	case node_model.HEADERS:
+		ename := fmt.Sprintf("HEADER_%s", destAlias)
+		for _, e := range *envs {
+			if e.Name == ename {
+				return e.Value
+			}
+		}
+		return ""
+	case node_model.DOMAINS:
+		ename := fmt.Sprintf("DOMAIN_%s", destAlias)
+		for _, e := range *envs {
+			if e.Name == ename {
+				return e.Value
+			}
+		}
+		return "*"
+	}
+	return ""
+}
+
+func getEnvValue(ename string, envs *[]v1.EnvVar) string {
+	for _, e := range *envs {
+		if e.Name == ename {
+			return e.Value
+		}
+	}
+	return ""
 }

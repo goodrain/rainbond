@@ -1678,6 +1678,30 @@
       }
     },
     "/v2/tenants/{tenant_name}/plugin/{plugin_id}/default-env": {
+      "get": {
+        "description": "get plugin env",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取插件默认设定的env",
+        "operationId": "getPluginDefaultEnv",
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
       "put": {
         "description": "update default env",
         "consumes": [
@@ -1833,48 +1857,6 @@
             "x-go-name": "ENVName",
             "description": "配置项名称",
             "name": "env_name",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": "统一返回格式",
-            "schema": {
-              "$ref": "#/responses/commandResponse"
-            }
-          }
-        }
-      }
-    },
-    "/v2/tenants/{tenant_name}/plugin/{plugin_id}/envs": {
-      "get": {
-        "description": "get plugin env",
-        "consumes": [
-          "application/json",
-          "application/x-protobuf"
-        ],
-        "produces": [
-          "application/json",
-          "application/xml"
-        ],
-        "tags": [
-          "v2"
-        ],
-        "summary": "获取插件设定的env",
-        "operationId": "getPluginEnv",
-        "parameters": [
-          {
-            "type": "string",
-            "x-go-name": "TenantName",
-            "name": "tenant_name",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "x-go-name": "PluginID",
-            "name": "plugin_id",
             "in": "path",
             "required": true
           }

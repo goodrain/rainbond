@@ -21,6 +21,7 @@ package controller
 import (
 	"net/http"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/pkg/api/util"
 	"github.com/pquerna/ffjson/ffjson"
@@ -46,9 +47,9 @@ func ServiceDiscover(w http.ResponseWriter, r *http.Request) {
 
 //ListenerDiscover ListenerDiscover
 func ListenerDiscover(w http.ResponseWriter, r *http.Request) {
-	tenantName := chi.URLParam(r, "tenant_id")
+	tenantService := chi.URLParam(r, "tenant_service")
 	serviceNodes := chi.URLParam(r, "service_nodes")
-	lds, err := discoverService.DiscoverListeners(tenantName, serviceNodes)
+	lds, err := discoverService.DiscoverListeners(tenantService, serviceNodes)
 	if err != nil {
 		err.Handle(r, w)
 		return
@@ -64,9 +65,9 @@ func ListenerDiscover(w http.ResponseWriter, r *http.Request) {
 
 //ClusterDiscover ClusterDiscover
 func ClusterDiscover(w http.ResponseWriter, r *http.Request) {
-	tenantName := chi.URLParam(r, "tenant_id")
+	tenantService := chi.URLParam(r, "tenant_service")
 	serviceNodes := chi.URLParam(r, "service_nodes")
-	cds, err := discoverService.DiscoverClusters(tenantName, serviceNodes)
+	cds, err := discoverService.DiscoverClusters(tenantService, serviceNodes)
 	if err != nil {
 		err.Handle(r, w)
 		return
@@ -78,4 +79,13 @@ func ClusterDiscover(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(200)
 	w.Write([]byte(cdsJ))
+}
+
+//RoutesDiscover RoutesDiscover
+func RoutesDiscover(w http.ResponseWriter, r *http.Request) {
+	namespace := chi.URLParam(r, "tenant_id")
+	serviceNodes := chi.URLParam(r, "service_nodes")
+	routeConfig := chi.URLParam(r, "route_config")
+	logrus.Debugf("route_config is %s, namespace %s, serviceNodes %s", routeConfig, namespace, serviceNodes)
+	w.WriteHeader(200)
 }
