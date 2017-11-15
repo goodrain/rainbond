@@ -251,8 +251,14 @@ type ServiceStatusDao interface {
 	GetTenantStatus(tenantID string) ([]*model.TenantServiceStatus, error)
 	GetTenantServicesStatus(serviceIDs []string) ([]*model.TenantServiceStatus, error)
 }
-//CodeCheckResultDao service status
+//CodeCheckResultDao CodeCheckResultDao
 type CodeCheckResultDao interface {
 	Dao
 	GetCodeCheckResult(serviceID string) (*model.CodeCheckResult, error)
+}
+
+//AppPublishDao AppPublishDao
+type AppPublishDao interface {
+	Dao
+	GetAppPublish(shareID string) (*model.AppPublish, error)
 }

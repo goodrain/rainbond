@@ -79,6 +79,9 @@ type Manager interface {
 
 	CodeCheckResultDao() dao.CodeCheckResultDao
 	CodeCheckResultDaoTransactions(db *gorm.DB) dao.CodeCheckResultDao
+
+	AppPublishDao() dao.AppPublishDao
+	AppPublishDaoTransactions(db *gorm.DB) dao.AppPublishDao
 }
 
 var defaultManager Manager

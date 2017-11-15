@@ -61,11 +61,13 @@ type CodeCheckResult struct {
 	//DFR          *DockerFileResult `json:"dockerfile,omitempty"`
 }
 
-//DockerFileResult DockerFileResult
-//type DockerFileResult struct {
-//	InnerPort       string            `json:"inner_port"`
-//	VolumeMountPath string            `json:"volume_mount_path"`
-//	BuildImageName  string            `json:"image"`
-//	PortList        map[string]string `json:"port_list"`
-//	VolumeList      []string          `json:"volume_list"`
-//}
+//AppPublish AppPublish
+type AppPublish struct {
+	ServiceKey string `json:"service_key"`
+	AppVersion string `json:"app_version"`
+	Image      string `json:"image"`
+	Slug       string `json:"slug"`
+	DestYS     bool `json:"dest_ys"`
+	DestYB     bool `json:"dest_yb"`
+	ShareID    string `json:"share_id"`
+}

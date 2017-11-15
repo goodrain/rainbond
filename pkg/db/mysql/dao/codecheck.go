@@ -65,7 +65,7 @@ func update(target,old *model.CodeCheckResult) {
 	//o,_:=json.Marshal(old)
 	//t,_:=json.Marshal(target)
 	//logrus.Infof("before update,stared is %s,target is ",string(o),string(t))
-	if target.DockerFileReady&&target.DockerFileReady!=old.DockerFileReady {
+	if target.DockerFileReady!=old.DockerFileReady {
 
 		old.DockerFileReady=!old.DockerFileReady
 	}

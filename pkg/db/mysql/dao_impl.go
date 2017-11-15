@@ -350,7 +350,19 @@ func (m *Manager) CodeCheckResultDaoTransactions(db *gorm.DB) dao.CodeCheckResul
 	}
 }
 
+//TenantServicePluginRelationDao TenantServicePluginRelationDao
+func (m *Manager) AppPublishDao() dao.AppPublishDao {
+	return &mysqldao.AppPublishDaoImpl{
+		DB: m.db,
+	}
+}
 
+//TenantServicePluginRelationDaoTransactions TenantServicePluginRelationDaoTransactions
+func (m *Manager) AppPublishDaoTransactions(db *gorm.DB) dao.AppPublishDao {
+	return &mysqldao.AppPublishDaoImpl{
+		DB: db,
+	}
+}
 
 //LocalSchedulerDao 本地调度信息
 func (m *Manager) LocalSchedulerDao() dao.LocalSchedulerDao {
