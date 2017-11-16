@@ -405,13 +405,13 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 					}
 					if status.NextTask != nil && len(status.NextTask) > 0 {
 						for _, taskID := range status.NextTask {
-							task := t.GetTask(taskID)
+							nexttask := t.GetTask(taskID)
 							if task == nil {
 								logrus.Warningf("task(%s) request exec task(%s) not found", task.ID, taskID)
 								continue
 							}
 							//由哪个节点发起的执行请求，当前task只在此节点执行
-							t.ScheduleTask([]string{output.NodeID}, task)
+							t.ScheduleTask([]string{output.NodeID}, nexttask)
 						}
 					}
 					if status.NextGroups != nil && len(status.NextGroups) > 0 {
