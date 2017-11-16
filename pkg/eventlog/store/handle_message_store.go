@@ -295,6 +295,7 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					event.EventID = eventID
 					event.Status = status
 					event.Message = message
+					logrus.Infof("call back ,status is %s",status)
 					err := cdb.GetManager().EventLogDao().UpdateModel(&event)
 					if err != nil {
 						logrus.Errorf("update event failed,details:%s", err.Error())
