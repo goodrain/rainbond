@@ -1,36 +1,34 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package server
 
 import (
-	"github.com/goodrain/rainbond/cmd/api/option"
-	"github.com/goodrain/rainbond/pkg/api/singleton"
 	"context"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/goodrain/rainbond/cmd/api/option"
+
 	"github.com/goodrain/rainbond/pkg/api/apiRouters/doc"
 	"github.com/goodrain/rainbond/pkg/api/apiRouters/license"
 
-	"github.com/goodrain/rainbond/pkg/api/apiRouters/version1"
 	"github.com/goodrain/rainbond/pkg/api/apiRouters/version2"
 
 	"github.com/goodrain/rainbond/pkg/api/apiRouters/websocket"
@@ -108,22 +106,21 @@ func (m *Manager) Stop() error {
 
 //Run run
 func (m *Manager) Run() {
-	v1FuncAPI, s, err := singleton.NewV1Singleton(m.conf)
-	if err != nil {
-		logrus.Errorf("V1 create manager error. %v", err)
-	}
-	v1R := &version1.V1Routes{
-		ServiceStruct: s,
-		APIFuncV1:     v1FuncAPI,
-	}
+	// v1FuncAPI, s, err := singleton.NewV1Singleton(m.conf)
+	// if err != nil {
+	// 	logrus.Errorf("V1 create manager error. %v", err)
+	// }
+	// v1R := &version1.V1Routes{
+	// 	ServiceStruct: s,
+	// 	APIFuncV1:     v1FuncAPI,
+	// }
 	v2R := &version2.V2{}
 	//swagger 路由
-	m.r.Mount("/v1", v1R.Routes())
+	//m.r.Mount("/v1", v1R.Routes())
 	m.r.Mount("/v2", v2R.Routes())
 	m.r.Mount("/", doc.Routes())
 	m.r.Mount("/license", license.Routes())
-	//m.r.Mount("/func/", rootFunc.Routes())
-	m.r.NotFound(v1R.UnFoundRequest)
+	//m.r.NotFound(v1R.UnFoundRequest)
 	//开启对浏览器的websocket服务和文件服务
 	go func() {
 		websocketRouter := chi.NewRouter()

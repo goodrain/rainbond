@@ -45,3 +45,19 @@ func (v2 *V2) pluginRouter() chi.Router {
 	r.Delete("/build-version/{version_id}", controller.GetManager().DeletePluginBuildVersion)
 	return r
 }
+
+func (v2 *V2) serviceRelatePluginRouter() chi.Router {
+	r := chi.NewRouter()
+	//插件
+	//service relate plugin
+	// v2/tenant/tenant_name/services/service_alias/plugin/xxx
+	r.Post("/", controller.GetManager().PluginSet)
+	r.Put("/", controller.GetManager().PluginSet)
+	r.Get("/", controller.GetManager().PluginSet)
+	r.Delete("/{plugin_id}", controller.GetManager().DeletePluginRelation)
+	// plugin enable set env,包含普通设置和预设可修改部分
+	r.Post("/{plugin_id}/setenv", controller.GetManager().SetVersionEnv)
+	r.Put("/{plugin_id}/setenv/{env_name}", controller.GetManager().UpdateVersionEnv)
+	r.Get("/{plugin_id}/envs", controller.GetManager().GePluginEnvWhichCanBeSet)
+	return r
+}

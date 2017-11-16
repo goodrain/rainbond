@@ -105,3 +105,11 @@ type PluginInterface interface {
 	UpdateVersionEnv(w http.ResponseWriter, r *http.Request)
 	GetPluginDefaultEnvs(w http.ResponseWriter, r *http.Request)
 }
+
+//RulesInterface RulesInterface
+type RulesInterface interface {
+	SetDownStreamRule(w http.ResponseWriter, r *http.Request)
+	GetDownStreamRule(w http.ResponseWriter, r *http.Request)
+	DeleteDownStreamRule(w http.ResponseWriter, r *http.Request)
+	UpdateDownStreamRule(w http.ResponseWriter, r *http.Request)
+}

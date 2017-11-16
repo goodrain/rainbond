@@ -164,15 +164,10 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Delete("/domains/{domain_name}", controller.GetManager().Entrance)
 
 	//插件
-	// add plugin
-	r.Post("/plugin", controller.GetManager().PluginSet)
-	r.Put("/plugin", controller.GetManager().PluginSet)
-	r.Get("/plugin", controller.GetManager().PluginSet)
-	r.Delete("/plugin/{plugin_id}", controller.GetManager().DeletePluginRelation)
-	// plugin enable set env,包含普通设置和预设可修改部分
-	r.Post("/plugin/{plugin_id}/setenv", controller.GetManager().SetVersionEnv)
-	r.Put("/plugin/{plugin_id}/setenv/{env_name}", controller.GetManager().UpdateVersionEnv)
-	r.Get("/plugin/{plugin_id}/envs", controller.GetManager().GePluginEnvWhichCanBeSet)
+	r.Mount("/plugin", v2.serviceRelatePluginRouter())
+
+	//rule
+	r.Mount("/net-rule", v2.rulesRouter())
 	return r
 }
 

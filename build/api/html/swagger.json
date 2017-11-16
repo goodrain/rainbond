@@ -933,6 +933,227 @@
         }
       }
     },
+    "/v2/tenant/{tenant_name}/services/{service_alias}/net-rule/downstream": {
+      "post": {
+        "description": "set NetDownStreamRuleStruct",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "设置下游网络规则",
+        "operationId": "setNetDownStreamRuleStruct",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "dest_service",
+                "dest_service_alias",
+                "port",
+                "protocol",
+                "rules"
+              ],
+              "properties": {
+                "dest_service": {
+                  "description": "in: body",
+                  "type": "string",
+                  "x-go-name": "DestService"
+                },
+                "dest_service_alias": {
+                  "description": "下游服务别名\nin: body",
+                  "type": "string",
+                  "x-go-name": "DestServiceAlias"
+                },
+                "port": {
+                  "description": "端口\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "Port"
+                },
+                "protocol": {
+                  "description": "协议\nin: body",
+                  "type": "string",
+                  "x-go-name": "Protocol"
+                },
+                "rules": {
+                  "$ref": "#/definitions/NetDownStreamRules"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenant/{tenant_name}/services/{service_alias}/net-rule/downstream/{dest_service_alias}/{port}": {
+      "get": {
+        "description": "set NetDownStreamRuleStruct",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取下游网络规则",
+        "operationId": "getNetDownStreamRuleStruct",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "DestServiceAlias",
+            "name": "dest_service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "Port",
+            "name": "port",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "put": {
+        "description": "update NetDownStreamRuleStruct",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "更新下游网络规则",
+        "operationId": "updateNetDownStreamRuleStruct",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "DestServiceAlias",
+            "name": "dest_service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "Port",
+            "name": "port",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "dest_service",
+                "protocol",
+                "rules"
+              ],
+              "properties": {
+                "dest_service": {
+                  "description": "in: body",
+                  "type": "string",
+                  "x-go-name": "DestService"
+                },
+                "protocol": {
+                  "description": "协议\nin: body",
+                  "type": "string",
+                  "x-go-name": "Protocol"
+                },
+                "rules": {
+                  "$ref": "#/definitions/NetDownStreamRules"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
     "/v2/tenants": {
       "post": {
         "description": "add tenant",
@@ -5522,6 +5743,38 @@
         "share_id": {
           "type": "string",
           "x-go-name": "ShareID"
+        }
+      },
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+    },
+    "NetDownStreamRules": {
+      "description": "NetDownStreamRules NetDownStreamRules",
+      "type": "object",
+      "properties": {
+        "domain": {
+          "description": "域名转发\nin: body",
+          "type": "string",
+          "x-go-name": "Domain"
+        },
+        "header": {
+          "description": "请求头\nin: body",
+          "type": "string",
+          "x-go-name": "Header"
+        },
+        "limit": {
+          "description": "限流值\nin:body",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Limit"
+        },
+        "prefix": {
+          "description": "path规则\nin: body",
+          "type": "string",
+          "x-go-name": "Prefix"
+        },
+        "service_id": {
+          "type": "string",
+          "x-go-name": "ServiceID"
         }
       },
       "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
