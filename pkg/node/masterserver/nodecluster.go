@@ -91,7 +91,7 @@ func (n *NodeCluster) loadNodes() error {
 	}
 	for _, kv := range res.Kvs {
 		if node := n.getNodeFromKV(kv); node != nil {
-			n.AddNode(node)
+			n.CacheNode(node)
 		}
 	}
 	//加载rainbond节点在线信息
@@ -149,6 +149,7 @@ func (n *NodeCluster) UpdateNode(node *model.HostNode) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	n.nodes[node.ID] = node
+	logrus.Debugf("Update node %s info to etcd", node.ID)
 	n.client.Put(option.Config.NodePath+"/"+node.ID, node.String())
 }
 func (n *NodeCluster) getNodeFromKV(kv *mvccpb.KeyValue) *model.HostNode {
@@ -189,7 +190,7 @@ func (n *NodeCluster) watchNodes() {
 				switch {
 				case ev.IsCreate(), ev.IsModify():
 					if node := n.getNodeFromKV(ev.Kv); node != nil {
-						n.AddNode(node)
+						n.CacheNode(node)
 					}
 				case ev.Type == client.EventTypeDelete:
 					if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
@@ -295,7 +296,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	client := util.NewSSHClient(node.InternalIP, "root", node.RootPass, "/usr/bin/whoami", 22, &stdout, &stderr)
+	client := util.NewSSHClient(node.InternalIP, "root", node.RootPass, "", 22, &stdout, &stderr)
 	if err := client.Connection(); err != nil {
 		logrus.Error("init endpoint node error:", err.Error())
 		errorCondition("SSH登陆初始化目标节点失败", err)
@@ -316,8 +317,8 @@ func (n *NodeCluster) GetAllNode() (nodes []*model.HostNode) {
 	return
 }
 
-//AddNode 添加节点到缓存
-func (n *NodeCluster) AddNode(node *model.HostNode) {
+//CacheNode 添加节点到缓存
+func (n *NodeCluster) CacheNode(node *model.HostNode) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	logrus.Debugf("add or update a rainbon node id:%s hostname:%s ip:%s", node.ID, node.HostName, node.InternalIP)
