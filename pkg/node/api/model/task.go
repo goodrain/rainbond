@@ -34,17 +34,29 @@ type TaskTemp struct {
 	Name    string            `json:"name" validate:"name|required"`
 	ID      string            `json:"id" validate:"id|uuid"`
 	Shell   Shell             `json:"shell"`
-	Envs    map[string]string `json:"envs"`
-	Input   string            `json:"input"`
-	Args    []string          `json:"args"`
-	Depends []string          `json:"depends"`
-	Timeout int               `json:"timeout|required|numeric"`
+	Envs    map[string]string `json:"envs,omitempty"`
+	Input   string            `json:"input,omitempty"`
+	Args    []string          `json:"args,omitempty"`
+	Depends []DependStrategy  `json:"depends,omitempty"`
+	Timeout int               `json:"timeout" validate:"timeout|required|numeric"`
 	//OutPutChan
 	//结果输出通道，错误输出OR标准输出
 	OutPutChan string            `json:"out_put_chan" validate:"out_put_chan|required|in:stdout,stderr"`
 	CreateTime time.Time         `json:"create_time"`
-	Labels     map[string]string `json:"labels"`
+	Labels     map[string]string `json:"labels,omitempty"`
 }
+
+//DependStrategy 依赖策略
+type DependStrategy struct {
+	DependTaskID      string `json:"depend_task_id"`
+	DetermineStrategy string `json:"strategy"`
+}
+
+//AtLeastOnceStrategy 至少已执行一次
+var AtLeastOnceStrategy = "AtLeastOnce"
+
+//SameNodeStrategy 相同节点已执行
+var SameNodeStrategy = "SameNode"
 
 func (t TaskTemp) String() string {
 	res, _ := ffjson.Marshal(&t)
@@ -88,6 +100,17 @@ func (t Task) String() string {
 	return string(res)
 }
 
+//UpdataOutPut 更新状态
+func (t *Task) UpdataOutPut(output TaskOutPut) {
+	for _, oldOut := range t.OutPut {
+		if oldOut.NodeID == output.NodeID {
+			*oldOut = output
+			return
+		}
+	}
+	t.OutPut = append(t.OutPut, &output)
+}
+
 //CanBeDelete 能否被删除
 func (t Task) CanBeDelete() bool {
 	if t.Status == nil || len(t.Status) == 0 {
@@ -116,10 +139,12 @@ type TaskOutPut struct {
 	//返回数据类型，检测结果类(check) 执行安装类 (install) 普通类 (common)
 	Type   string             `json:"type"`
 	Status []TaskOutPutStatus `json:"status"`
+	Body   string             `json:"body"`
 }
 
 //ParseTaskOutPut json parse
 func ParseTaskOutPut(body string) (t TaskOutPut, err error) {
+	t.Body = body
 	err = ffjson.Unmarshal([]byte(body), &t)
 	return
 }
@@ -129,8 +154,8 @@ type TaskOutPutStatus struct {
 	Name            string   `json:"name"`
 	ConditionType   string   `json:"condition_type"`
 	ConditionStatus string   `json:"condition_status"`
-	NextTask        []string `json:"next_tasks"`
-	NextGroups      []string `json:"next_groups"`
+	NextTask        []string `json:"next_tasks,omitempty"`
+	NextGroups      []string `json:"next_groups,omitempty"`
 }
 
 //TaskStatus 任务状态

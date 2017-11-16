@@ -116,7 +116,7 @@ func (h *HostNode) UpdataCondition(conditions ...NodeCondition) {
 					h.Conditions[i] = newcon
 					update = true
 				}
-				if con.Type == NodeReady {
+				if con.Type.Compare(NodeReady) {
 					con.Status = ready
 					con.LastTransitionTime = time.Now()
 					con.LastHeartbeatTime = time.Now()

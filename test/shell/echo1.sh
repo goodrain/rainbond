@@ -1,0 +1,1 @@
+echo "{\"inner\":{\"HOME_PATH\":\"/home\"},\"type\":\"check\",\"status\":[{\"next_tasks\":[\"echo2\"]}]}" >&2
