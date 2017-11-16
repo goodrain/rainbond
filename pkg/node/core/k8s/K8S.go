@@ -27,6 +27,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pquerna/ffjson/ffjson"
+
 	conf "github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
@@ -73,37 +75,38 @@ type fatal struct {
 	string
 }
 
+//GetNodeByName get node
 func GetNodeByName(nodename string) (*v1.Node, error) {
 	opt := metav1.GetOptions{}
 	return K8S.Clientset.CoreV1().Nodes().Get(nodename, opt)
 }
 
-func CordonOrUnCordon(node *v1.Node, drain bool) (*v1.Node, error) {
-
-	nodeName := node.GetName()
-
-	// node.Spec.Unschedulable=drain
-	// patchSet := node
-	// //patchSet.Spec.Unschedulable = drain
-	// fmt.Printf("making unschedulable %s",drain)
-	// patchSetInJSON, err := json.Marshal(patchSet)
-	// if err != nil {
-	// 	logrus.Errorf("patch node %s fail,details : %s", nodeName, err.Error())
-	// 	return nil, err
-	// }
+//CordonOrUnCordon 节点是否调度属性处理
+// drain:true 不可调度
+func CordonOrUnCordon(nodeName string, drain bool) (*v1.Node, error) {
 	data := fmt.Sprintf(`{"spec":{"unschedulable":%t}}`, drain)
 	node, err := K8S.Clientset.CoreV1().Nodes().Patch(nodeName, types.StrategicMergePatchType, []byte(data))
 	if err != nil {
 		return node, err
 	}
-	hostnode, err := GetSource(conf.Config.K8SNode + string(node.UID))
+	return node, nil
+}
+
+//UpdateLabels update lables
+func UpdateLabels(nodeName string, labels map[string]string) (*v1.Node, error) {
+	labelStr, err := ffjson.Marshal(labels)
+	if err != nil {
+		return nil, err
+	}
+	data := fmt.Sprintf(`{"metadata":{"labels":%s}}`, string(labelStr))
+	node, err := K8S.Clientset.CoreV1().Nodes().Patch(nodeName, types.StrategicMergePatchType, []byte(data))
 	if err != nil {
 		return node, err
 	}
-	hostnode.Unschedulable = drain
-	err = AddSource(conf.Config.K8SNode+string(node.UID), hostnode)
-	return node, err
+	return node, nil
 }
+
+//DeleteOrEvictPodsSimple 驱逐Pod
 func DeleteOrEvictPodsSimple(nodeName string) error {
 	pods, err := getPodsToDeletion(nodeName)
 	if err != nil {
@@ -111,23 +114,15 @@ func DeleteOrEvictPodsSimple(nodeName string) error {
 		return err
 	}
 	policyGroupVersion, err := SupportEviction(K8S.Clientset)
+	if err != nil {
+		return err
+	}
+	if policyGroupVersion == "" {
+		return fmt.Errorf("the server can not support eviction subresource")
+	}
 	for _, v := range pods {
 		evictPod(v, policyGroupVersion)
 	}
-
-	//err = deleteOrEvictPods(pods)
-	//if err != nil {
-	//	logrus.Infof("delete or evict %s 's pods failed ",nodeName)
-	//	pendingPods, newErr := getPodsToDeletion(nodeName)
-	//	if newErr != nil {
-	//		return newErr
-	//	}
-	//	//fmt.Fprintf(o.ErrOut, "There are pending pods when an error occurred: %v\n", err)
-	//	for _, pendingPod := range pendingPods {
-	//		fmt.Fprintf(os.Stdout, "%s/%s\n", "pod", pendingPod.Name)
-	//	}
-	//}
-	//return err
 	return nil
 }
 
@@ -215,6 +210,7 @@ func deletePod(pod v1.Pod) error {
 	return K8S.Clientset.CoreV1().Pods(pod.Namespace).Delete(pod.Name, deleteOptions)
 }
 
+//evictPod 驱离POD
 func evictPod(pod v1.Pod, policyGroupVersion string) error {
 	deleteOptions := &metav1.DeleteOptions{}
 	//if o.GracePeriodSeconds >= 0 {
@@ -506,54 +502,34 @@ func (ps podStatuses) Message() string {
 	return strings.Join(msgs, "; ")
 }
 
-func DeleteNode(nodeUID string) (*model.HostNode, error) {
-
-	hostNode, err := GetSource(conf.Config.K8SNode + nodeUID)
-	if err != nil {
-		logrus.Infof("getmodel.HostNodeByUID %s failed ", nodeUID)
-		return nil, err
-	}
-	nodename := hostNode.HostName
-	node, err := GetNodeByName(nodename)
+//DeleteNode  k8s节点下线
+func DeleteNode(nodename string) error {
+	_, err := GetNodeByName(nodename)
 	if err != nil {
 		logrus.Infof("get k8s node %s failed ", nodename)
-		return nil, err
+		return err
 	}
-	node, err = CordonOrUnCordon(node, true)
+	//节点禁止调度
+	_, err = CordonOrUnCordon(nodename, true)
 	if err != nil {
 		logrus.Infof("cordon node %s failed ", nodename)
-		return nil, err
+		return err
 	}
+	//节点pod驱离
 	err = DeleteOrEvictPodsSimple(nodename)
 	if err != nil {
 		logrus.Infof("delete or evict pods of node  %s failed ", nodename)
-		return nil, err
+		return err
 	}
-
+	//删除节点
 	err = deleteNodeWithoutPods(nodename)
 	if err != nil {
 		logrus.Infof("delete node with given name failed  %s failed ", nodename)
-		return nil, err
-	}
-	//k8s node 下线之后改变etcd中的状态，不另外存储，使用此数据 重新上线
-	hostNode.Status = "offline"
-	//更改状态
-	err = AddSource(conf.Config.K8SNode+nodeUID, hostNode)
-	if err != nil {
-		logrus.Infof("update node info with given nodeuid failed  %s failed ", nodeUID)
-		return nil, err
-	}
-	return hostNode, nil
-}
-func DeleteNodeFromDB(node *v1.Node) error {
-	err := DeleteSource(conf.Config.K8SNode + string(node.UID))
-	if err != nil {
-		//从etcd中删除node的注册信息失败
-		err = errors.New("err occured while delete node registe info in etcd. err: " + err.Error())
 		return err
 	}
 	return nil
 }
+
 func deleteNodeWithoutPods(name string) error {
 	opt := &metav1.DeleteOptions{}
 	err := K8S.Clientset.Nodes().Delete(name, opt)
@@ -563,31 +539,37 @@ func deleteNodeWithoutPods(name string) error {
 	return nil
 }
 
-func ReUpNode(k8sNodename string) (bool, error) {
-	//通过etcd存储的/delNode/kusNodename 获取  命令执行系统中的 name,然后新建一个job(不走API）
-	//todo 通过命令执行系统 执行如下命令
-	//kubeadm reset
-	//kubeadm join ...
-
-	//kubelet --api_servers=http://<API_SERVER_IP>:8080 --v=2 --enable_server --allow-privileged
-	//kube-proxy --master=http://<API_SERVER_IP>:8080 --v=2
-	node := v1.Node{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "NODE",
-		},
+//CreatK8sNodeFromRainbonNode 创建k8s node
+func CreatK8sNodeFromRainbonNode(rainbondNode *model.HostNode) (*v1.Node, error) {
+	capacity := make(v1.ResourceList)
+	capacity[v1.ResourceCPU] = *resource.NewQuantity(rainbondNode.AvailableCPU, resource.BinarySI)
+	capacity[v1.ResourceMemory] = *resource.NewQuantity(rainbondNode.AvailableMemory, resource.BinarySI)
+	node := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: k8sNodename,
+			Name:   rainbondNode.ID,
+			Labels: rainbondNode.Labels,
 		},
-		Spec:   v1.NodeSpec{},
-		Status: v1.NodeStatus{},
+		Spec: v1.NodeSpec{
+			Unschedulable: rainbondNode.Unschedulable,
+		},
+		Status: v1.NodeStatus{
+			Capacity:    capacity,
+			Allocatable: capacity,
+			Addresses: []v1.NodeAddress{
+				v1.NodeAddress{Type: v1.NodeHostName, Address: rainbondNode.HostName},
+				v1.NodeAddress{Type: v1.NodeInternalIP, Address: rainbondNode.InternalIP},
+				v1.NodeAddress{Type: v1.NodeExternalIP, Address: rainbondNode.ExternalIP},
+			},
+		},
 	}
-	savedNode, err := K8S.Clientset.Nodes().Create(&node)
+	savedNode, err := K8S.Clientset.Nodes().Create(node)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	logrus.Info("creating new node success , details: %v ", savedNode)
-	return true, nil
+	return node, nil
 }
+
 func LabelMulti(k8sNodeName string, keys []string) error {
 	opt := metav1.GetOptions{}
 	patchSet, err := K8S.Clientset.Nodes().Get(k8sNodeName, opt)

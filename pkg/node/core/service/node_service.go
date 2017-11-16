@@ -24,6 +24,7 @@ import (
 
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
+	"github.com/goodrain/rainbond/pkg/node/core/k8s"
 	"github.com/goodrain/rainbond/pkg/node/masterserver"
 	"github.com/goodrain/rainbond/pkg/node/utils"
 	"github.com/twinj/uuid"
@@ -80,7 +81,9 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 	}
 	//TODO:计算节点，判断节点是否下线
 	if node.Role.HasRule(model.ComputeNode) {
-
+		if node.NodeStatus != nil {
+			return utils.CreateAPIHandleError(400, fmt.Errorf("node is k8s compute node, can not delete"))
+		}
 	}
 	_, err := node.DeleteNode()
 	if err != nil {
@@ -89,10 +92,100 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 	return nil
 }
 
+//GetNode 获取node
+func (n *NodeService) GetNode(nodeID string) (*model.HostNode, *utils.APIHandleError) {
+	node := n.nodecluster.GetNode(nodeID)
+	if node == nil {
+		return nil, utils.CreateAPIHandleError(404, fmt.Errorf("node no found"))
+	}
+	return node, nil
+}
+
 //GetAllNode get all node
 func (n *NodeService) GetAllNode() ([]*model.HostNode, *utils.APIHandleError) {
 	if n.nodecluster == nil {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
 	}
 	return n.nodecluster.GetAllNode(), nil
+}
+
+//CordonNode 设置节点不可调度熟悉
+func (n *NodeService) CordonNode(nodeID string, unschedulable bool) *utils.APIHandleError {
+	hostNode, apierr := n.GetNode(nodeID)
+	if apierr != nil {
+		return apierr
+	}
+	if !hostNode.Role.HasRule(model.ComputeNode) {
+		return utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
+	}
+	//更新节点状态
+	hostNode.Unschedulable = unschedulable
+	if unschedulable {
+		hostNode.Status = "unschedulable"
+	}
+	//k8s节点存在
+	if hostNode.NodeStatus != nil {
+		//true表示drain，不可调度
+		node, err := k8s.CordonOrUnCordon(hostNode.ID, true)
+		if err != nil {
+			return utils.CreateAPIHandleError(500, fmt.Errorf("set node schedulable info error,%s", err.Error()))
+		}
+		hostNode.NodeStatus = &node.Status
+	}
+	n.nodecluster.UpdateNode(hostNode)
+	return nil
+}
+
+//PutNodeLabel 更新node label
+func (n *NodeService) PutNodeLabel(nodeID string, labels map[string]string) *utils.APIHandleError {
+	hostNode, apierr := n.GetNode(nodeID)
+	if apierr != nil {
+		return apierr
+	}
+	if hostNode.Role.HasRule(model.ComputeNode) && hostNode.NodeStatus != nil {
+		node, err := k8s.UpdateLabels(nodeID, labels)
+		if err != nil {
+			return utils.CreateAPIHandleError(500, fmt.Errorf("update k8s node labels error,%s", err.Error()))
+		}
+		hostNode.NodeStatus = &node.Status
+	}
+	hostNode.Labels = labels
+	n.nodecluster.UpdateNode(hostNode)
+	return nil
+}
+
+//DownNode 节点下线
+func (n *NodeService) DownNode(nodeID string) (*model.HostNode, *utils.APIHandleError) {
+	hostNode, apierr := n.GetNode(nodeID)
+	if apierr != nil {
+		return nil, apierr
+	}
+	if !hostNode.Role.HasRule(model.ComputeNode) || hostNode.NodeStatus == nil {
+		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node is not k8s node or it not up"))
+	}
+	err := k8s.DeleteNode(hostNode.ID)
+	if err != nil {
+		return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node down error,%s", err.Error()))
+	}
+	hostNode.NodeStatus = nil
+	n.nodecluster.UpdateNode(hostNode)
+	return hostNode, nil
+}
+
+//UpNode 节点上线
+func (n *NodeService) UpNode(nodeID string) (*model.HostNode, *utils.APIHandleError) {
+	hostNode, apierr := n.GetNode(nodeID)
+	if apierr != nil {
+		return nil, apierr
+	}
+	if !hostNode.Role.HasRule(model.ComputeNode) || hostNode.NodeStatus != nil {
+		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node is not k8s node or it not up"))
+	}
+	node, err := k8s.CreatK8sNodeFromRainbonNode(hostNode)
+	if err != nil {
+		return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node up error,%s", err.Error()))
+	}
+	hostNode.NodeStatus = &node.Status
+	n.nodecluster.UpdateNode(hostNode)
+	return hostNode, nil
 }
