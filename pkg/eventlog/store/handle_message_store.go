@@ -291,7 +291,16 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					webhook.GetManager().RunWebhookWithParameter(webhook.UpDateEventStatus, nil,
 						map[string]interface{}{"event_id": eventID, "status": status, "message": message})
 						//todo update db
-						logrus.Infof("----dont forget to delete this line,stand for callback")
+						for k:=0;k<100;k++{
+							logrus.Infof("-------------------callbacking")
+							logrus.Infof("-------------------callbacking")
+							logrus.Infof("-------------------callbacking")
+							logrus.Infof("-------------------callbacking")
+							logrus.Infof("-------------------callbacking")
+							logrus.Infof("-------------------callbacking")
+							logrus.Infof("-------------------callbacking")
+						}
+
 						event:=model.ServiceEvent{}
 						event.EventID=eventID
 						event.Status=status
