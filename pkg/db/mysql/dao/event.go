@@ -25,6 +25,8 @@ import (
 	"github.com/jinzhu/gorm"
 	"fmt"
 	"time"
+	"github.com/Sirupsen/logrus"
+	"encoding/json"
 )
 
 
@@ -51,6 +53,8 @@ func (c *EventDaoImpl) UpdateModel(mo model.Interface) error {
 	var oldResult model.ServiceEvent
 	if ok := c.DB.Where("event_id=?", result.EventID).Find(&oldResult).RecordNotFound(); !ok {
 		finalUpdateEvent(result,&oldResult)
+		b,_:=json.Marshal(oldResult)
+		logrus.Infof("saving to even %s",string(b))
 		if err := c.DB.Save(oldResult).Error; err != nil {
 			return err
 		}
