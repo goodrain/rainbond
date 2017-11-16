@@ -43,12 +43,23 @@ type CDS struct {
 
 //PieceCDS struct
 type PieceCDS struct {
-	Name             string `json:"name"`
-	Type             string `json:"type"`
-	ConnectTimeoutMS int    `json:"connect_timeout_ms"`
-	LBType           string `json:"lb_type"`
-	ServiceName      string `json:"service_name"`
+	Name             string           `json:"name"`
+	Type             string           `json:"type"`
+	ConnectTimeoutMS int              `json:"connect_timeout_ms"`
+	LBType           string           `json:"lb_type"`
+	ServiceName      string           `json:"service_name"`
+	CircuitBreakers  *CircuitBreakers `json:"circuit_breakers"`
 	//HealthCheck      cdsHealthCheckt `json:"health_check"`
+}
+
+//MaxConnections circuit
+type MaxConnections struct {
+	MaxConnections int `json:"max_connections"`
+}
+
+//CircuitBreakers circuit
+type CircuitBreakers struct {
+	Default *MaxConnections `json:"default"`
 }
 
 type cdsHealthCheckt struct {
@@ -118,9 +129,16 @@ type PieceHTTPVirtualHost struct {
 
 //PieceHTTPRoutes PieceHTTPRoutes
 type PieceHTTPRoutes struct {
-	TimeoutMS int    `json:"timeout_ms"`
-	Prefix    string `json:"prefix"`
-	Cluster   string `json:"cluster"`
+	TimeoutMS int            `json:"timeout_ms"`
+	Prefix    string         `json:"prefix"`
+	Cluster   string         `json:"cluster"`
+	Headers   []*PieceHeader `json:"headers"`
+}
+
+//PieceHeader PieceHeader
+type PieceHeader struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 //HTTPSingleFileter HttpSingleFileter
@@ -129,3 +147,14 @@ type HTTPSingleFileter struct {
 	Name   string            `json:"name"`
 	Config map[string]string `json:"config"`
 }
+
+const (
+	//PREFIX PREFIX
+	PREFIX string = "PREFIX"
+	//HEADERS HEADERS
+	HEADERS string = "HEADERS"
+	//DOMAINS DOMAINS
+	DOMAINS string = "DOMAINS"
+	//LIMITS LIMITS
+	LIMITS string = "LIMITS"
+)

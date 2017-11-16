@@ -116,8 +116,9 @@ func (k *K8sServiceBuild) createInnerService(port *model.TenantServicesPort) *v1
 	var service v1.Service
 	service.Name = fmt.Sprintf("service-%d-%d", port.ID, port.ContainerPort)
 	service.Labels = map[string]string{
-		"service_type": "inner",
-		"name":         k.service.ServiceAlias + "Service",
+		"service_type":  "inner",
+		"name":          k.service.ServiceAlias + "Service",
+		"port_protocol": port.Protocol,
 	}
 	var servicePort v1.ServicePort
 	if port.Protocol == "udp" {
