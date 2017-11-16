@@ -237,7 +237,7 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logger.Info("应用启动任务发送成功 ", map[string]string{"step": "start-service", "status": "starting"})
-	w.WriteHeader(200)
+	httputil.ReturnSuccess(r,w,sEvent)
 	return
 }
 
@@ -292,7 +292,7 @@ func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logger.Info("应用停止任务发送成功 ", map[string]string{"step": "stop-service", "status": "starting"})
-	w.WriteHeader(200)
+	httputil.ReturnSuccess(r,w,sEvent)
 }
 
 //RestartService RestartService
@@ -346,7 +346,7 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logger.Info("应用重启任务发送成功 ", map[string]string{"step": "restart-service", "status": "starting"})
-	w.WriteHeader(200)
+	httputil.ReturnSuccess(r,w,sEvent)
 	return
 }
 
@@ -406,7 +406,7 @@ func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logger.Info("应用垂直升级任务发送成功 ", map[string]string{"step": "vertical-service", "status": "starting"})
-	w.WriteHeader(200)
+	httputil.ReturnSuccess(r,w,sEvent)
 }
 
 //HorizontalService HorizontalService
@@ -461,7 +461,7 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	logger.Info("应用水平升级任务发送成功 ", map[string]string{"step": "horizontal-service", "status": "starting"})
-	w.WriteHeader(200)
+	httputil.ReturnSuccess(r,w,sEvent)
 }
 
 //BuildService BuildService
@@ -501,6 +501,7 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
 	build.Body.TenantName = tenantName
 	build.Body.ServiceAlias = serviceAlias
+	//todo add event
 	if err := handler.GetServiceManager().ServiceBuild(tenantID, serviceID, &build); err != nil {
 		logrus.Debugf("build service error")
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("build service error, %v", err))
@@ -574,7 +575,7 @@ func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logger.Info("应用升级任务发送成功 ", map[string]string{"step": "upgrade-service", "status": "starting"})
-	w.WriteHeader(200)
+	httputil.ReturnSuccess(r,w,sEvent)
 }
 
 //CheckCode CheckCode
@@ -714,6 +715,6 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logger.Info("应用回滚任务发送成功 ", map[string]string{"step": "rollback-service", "status": "starting"})
-	httputil.ReturnSuccess(r, w, nil)
+	httputil.ReturnSuccess(r, w, sEvent)
 	return
 }
