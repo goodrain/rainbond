@@ -295,11 +295,9 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					event.EventID = eventID
 					event.Status = status
 					event.Message = message
-					logrus.Infof("call back ,status is %s",status)
-					err := cdb.GetManager().EventLogDao().UpdateModel(&event)
-					if err != nil {
-						logrus.Errorf("update event failed,details:%s", err.Error())
-					}
+					logrus.Infof("updating event %s's status: %s",eventID,status)
+					cdb.GetManager().ServiceEventDao().UpdateModel(&event)
+
 
 				}
 			}
@@ -313,7 +311,7 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					event := model.ServiceEvent{}
 					event.EventID = eventID
 					event.CodeVersion = codeVersion
-					cdb.GetManager().EventLogDao().UpdateModel(&event)
+					cdb.GetManager().ServiceEventDao().UpdateModel(&event)
 
 					h.log.Infof("run web hook update code version .event_id %s code_version %s", eventID, codeVersion)
 				}
