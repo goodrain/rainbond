@@ -28,6 +28,7 @@ type CodeCheckResult struct {
 	Model
 	ServiceID       string `gorm:"column:service_id;size:70"`
 	Condition       string `gorm:"column:condition"`
+	Language        string `gorm:"column:language"`
 	CheckType       string `gorm:"column:check_type"`
 	GitURL          string `gorm:"column:git_url"`
 	CodeVersion     string `gorm:"column:code_version"`

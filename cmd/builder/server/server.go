@@ -53,8 +53,6 @@ import (
 
 //Run start run
 func Run(s *option.Builder) error {
-	r:=api.APIServer()
-	go http.ListenAndServe(":3228", r)
 	errChan := make(chan error)
 	//init mysql
 	dbconfig := config.Config{
@@ -83,6 +81,19 @@ func Run(s *option.Builder) error {
 		return err
 	}
 	defer dis.Stop()
+
+	r:=api.APIServer()
+	go http.ListenAndServe(":"+string(s.APIPort), r)
+
+
+	//service reg
+	discoverManager, errD := discover.NewDiscoverManager(s.Config)
+	if errD != nil {
+		return errD
+	}
+	discoverManager.Start()
+	defer discoverManager.CancelIP()
+
 	logrus.Info("builder begin running...")
 	//step finally: listen Signal
 	term := make(chan os.Signal)

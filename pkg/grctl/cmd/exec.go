@@ -22,13 +22,15 @@ import (
 	"github.com/Sirupsen/logrus"
 	"os"
 	"os/exec"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/goodrain/rainbond/pkg/grctl/clients"
 
 )
 
 func NewCmdExec() cli.Command {
 	c:=cli.Command{
 		Name:  "exec",
-		Usage: "进入容器方法。grctl exec NAMESPACE POD_NAME COMMAND ",
+		Usage: "进入容器方法。grctl exec POD_NAME COMMAND ",
 		Action: func(c *cli.Context) error {
 			Common(c)
 			return execContainer(c)
@@ -37,14 +39,14 @@ func NewCmdExec() cli.Command {
 	return c
 }
 
-// grctl exec NAMESPACE POD_ID COMMAND
+// grctl exec POD_ID COMMAND
 func execContainer(c *cli.Context) error {
 	//podID := c.Args().Get(1)
 	args := c.Args().Tail()
-	tenantID:=c.Args().First()
+	tenantID:=""
 
 
-	//podID := c.Args().First()
+	podName := c.Args().First()
 	//args := c.Args().Tail()
 	//tenantID, err := clients.FindNamespaceByPod(podID)
 
@@ -59,8 +61,18 @@ func execContainer(c *cli.Context) error {
 	if len(args) == 0 {
 		args = []string{"bash"}
 	}
-	//logrus.Infof("using namespace %s,podid %s",tenantID)
-	defaultArgs := []string{kubeCtrl, "exec", "-it", "--namespace=" + tenantID}
+	pl,err:=clients.K8SClient.Core().Pods("").List(metav1.ListOptions{})
+	if err != nil {
+		logrus.Errorf("error get pods by nil namespace")
+		return err
+	}
+	for _,v:=range pl.Items {
+		if v.Name == podName {
+			tenantID=v.Namespace
+			break
+		}
+	}
+	defaultArgs := []string{kubeCtrl, "exec", "-it", "--namespace=" + tenantID,podName}
 	args = append(defaultArgs, args...)
 	//logrus.Info(args)
 	cmd := exec.Cmd{

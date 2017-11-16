@@ -35,6 +35,7 @@ type Config struct {
 	EventLogServers      []string
 	KubeConfig           string
 	MaxTasks             int
+	APIPort              int
 	MQAPI                string
 	DockerEndpoint       string
 }
@@ -63,6 +64,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"127.0.0.1:6367"}, "event log server address. simple lb")
 	fs.StringVar(&a.KubeConfig, "kube-config", "/etc/goodrain/kubernetes/admin.kubeconfig", "kubernetes api server config file")
 	fs.IntVar(&a.MaxTasks, "max-tasks", 50, "the max tasks for per node")
+	fs.IntVar(&a.APIPort, "api-port", 3228, "the port for api server")
 	fs.StringVar(&a.MQAPI, "mq-api", "127.0.0.1:6300", "acp_mq api")
 	fs.StringVar(&a.RunMode, "run", "sync", "sync data when worker start")
 	fs.StringVar(&a.DockerEndpoint, "dockerd", "127.0.0.1:2376", "dockerd endpoint")

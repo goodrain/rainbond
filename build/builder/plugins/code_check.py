@@ -134,8 +134,15 @@ class CodeCheck():
         logger.info('mq_work.service_event',
                     "service_id=" + service_id + ";condition=" + condition)
         res, body = self.user_cs_client.code_check(json.dumps(body))
+        code_check_region(self,json.dumps(body))
 
 
+def code_check_region(self, body):
+    #todo 127.0.0.1:3333/api/codecheck
+    # url = self.base_url + '/api/tenants/services/codecheck'
+    url = 'http://127.0.0.1:3228/api/codecheck'
+    res, body = self._post(url, self.default_headers, body)
+    return res, body
 def main():
     body = ""
     for line in fileinput.input():  # read task from stdin

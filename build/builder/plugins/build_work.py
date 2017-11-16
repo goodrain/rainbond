@@ -322,6 +322,7 @@ class RepoBuilder():
         h = self.user_cs_client
         try:
             h.update_service(self.service_id, json.dumps(update_items))
+            update_service_region(self,self.service_id,json.dumps(update_items))
         except h.CallApiError, e:
             self.log.error(
                 "网络异常，更新应用镜像名称失败. {}".format(e.message),
@@ -459,7 +460,11 @@ class RepoBuilder():
             logger.exception('build_work.main', e)
             raise e
 
-
+def update_service_region(self, service_id, body):
+    #todo 127.0.0.1:3333/api/codecheck
+    # url = self.base_url + '/api/services/{0}'.format(service_id)
+    url = 'http://127.0.0.1:3228/api/codecheck/{0}'.format(service_id)
+    res, body = self._put(url, self.default_headers, body)
 def main():
     body = ""
     for line in fileinput.input():  # read task from stdin

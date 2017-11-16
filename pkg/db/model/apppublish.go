@@ -1,3 +1,4 @@
+
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
@@ -15,28 +16,23 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
-package api
 
-import (
-	"github.com/go-chi/chi"
-	"github.com/goodrain/rainbond/pkg/builder/api/controller"
-)
+package model
+//AppPublish AppPublish
+type AppPublish struct {
+	Model
+	ServiceKey string `gorm:"column:service_key;size:70"`
+	AppVersion string `gorm:"column:app_version;size:70"`
+	Image      string `gorm:"column:image;size:70"`
+	Slug       string `gorm:"column:slug;size:70"`
+	DestYS     bool `gorm:"column:dest_ys"`
+	DestYB     bool `gorm:"column:dest_yb"`
+	ShareID    string `gorm:"column:share_id;size:70"`
+}
 
-func APIServer() *chi.Mux {
-	r := chi.NewRouter()
 
-	r.Route("/v2/builder", func(r chi.Router) {
-		//r.Get("/ping", controller.Ping)
-		r.Route("/codecheck", func(r chi.Router) {
-			r.Post("/", controller.AddCodeCheck)
-			r.Put("/{serviceID}", controller.Update)
-			r.Get("/{serviceID}", controller.GetCodeCheck)
-		})
-		r.Route("/publish", func(r chi.Router) {
-			r.Get("/{shareID}",controller.GetAppPublish)
-			r.Post("/",controller.AddAppPublish)
-		})
-	})
-	return r
+//TableName 表名
+func (t *AppPublish) TableName() string {
+	return "app_publish"
 }
 
