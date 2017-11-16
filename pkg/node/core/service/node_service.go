@@ -126,7 +126,7 @@ func (n *NodeService) CordonNode(nodeID string, unschedulable bool) *utils.APIHa
 	//k8s节点存在
 	if hostNode.NodeStatus != nil {
 		//true表示drain，不可调度
-		node, err := k8s.CordonOrUnCordon(hostNode.ID, true)
+		node, err := k8s.CordonOrUnCordon(hostNode.ID, unschedulable)
 		if err != nil {
 			return utils.CreateAPIHandleError(500, fmt.Errorf("set node schedulable info error,%s", err.Error()))
 		}
@@ -179,7 +179,7 @@ func (n *NodeService) UpNode(nodeID string) (*model.HostNode, *utils.APIHandleEr
 		return nil, apierr
 	}
 	if !hostNode.Role.HasRule(model.ComputeNode) || hostNode.NodeStatus != nil {
-		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node is not k8s node or it not up"))
+		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node is not k8s node or it not down"))
 	}
 	node, err := k8s.CreatK8sNodeFromRainbonNode(hostNode)
 	if err != nil {

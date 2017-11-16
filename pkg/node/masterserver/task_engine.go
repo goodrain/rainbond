@@ -304,6 +304,9 @@ func (t *TaskEngine) AddTask(task *model.Task) error {
 	if task.Scheduler.Mode == "" {
 		task.Scheduler.Mode = "Passive"
 	}
+	if task.Temp == nil {
+
+	}
 	t.CacheTask(task)
 	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, task.String())
 	if err != nil {
@@ -364,7 +367,12 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 		CompleStatus: "",
 	}
 	if er.Output != "" {
-		output, err := model.ParseTaskOutPut(er.Output)
+		index := strings.Index(er.Output, "{")
+		jsonOutPut := er.Output
+		if index > -1 {
+			jsonOutPut = er.Output[index:]
+		}
+		output, err := model.ParseTaskOutPut(jsonOutPut)
 		if err != nil {
 			taskStatus.Status = "Parse task output error"
 			logrus.Warning("parse task output error:", err.Error())
@@ -399,6 +407,7 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 						for _, taskID := range status.NextTask {
 							task := t.GetTask(taskID)
 							if task == nil {
+								logrus.Warningf("task(%s) request exec task(%s) not found", task.ID, taskID)
 								continue
 							}
 							//由哪个节点发起的执行请求，当前task只在此节点执行

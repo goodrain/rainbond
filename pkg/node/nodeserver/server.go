@@ -69,7 +69,8 @@ type NodeServer struct {
 	*conf.Conf
 }
 
-func (n *NodeServer) set() error {
+//Regist 节点注册
+func (n *NodeServer) Regist() error {
 	resp, err := n.Client.Grant(n.ttl + 2)
 	if err != nil {
 		return err
@@ -86,6 +87,7 @@ func (n *NodeServer) set() error {
 
 //Run 启动
 func (n *NodeServer) Run() (err error) {
+	n.Regist()
 	go n.keepAlive()
 	defer func() {
 		if err != nil {
@@ -339,7 +341,7 @@ func (n *NodeServer) keepAlive() {
 				logrus.Warnf("%s lid[%x] keepAlive err: %s, try to reset...", n.HostName, n.lID, err.Error())
 				n.lID = 0
 			}
-			if err := n.set(); err != nil {
+			if err := n.Regist(); err != nil {
 				logrus.Warnf("%s set lid err: %s, try to reset after %d seconds...", n.HostName, err.Error(), n.ttl)
 			} else {
 				logrus.Infof("%s set lid[%x] success", n.HostName, n.lID)
