@@ -170,7 +170,7 @@ func (ts *TaskService) ExecTask(taskID string) *utils.APIHandleError {
 		// }
 		return utils.CreateAPIHandleError(400, fmt.Errorf("Single task exec can not have depend task"))
 	}
-	ts.ms.TaskEngine.ScheduleTask(t.ID)
+	ts.ms.TaskEngine.ScheduleTask(nil, t)
 	return nil
 }
 
@@ -351,6 +351,6 @@ func (ts *TaskGroupService) ExecTaskGroup(taskGroupID string) *utils.APIHandleEr
 		return err
 	}
 	//TODO:增加执行判断
-	ts.ms.TaskEngine.ScheduleGroup(t.ID)
+	ts.ms.TaskEngine.ScheduleGroup(nil, t)
 	return nil
 }

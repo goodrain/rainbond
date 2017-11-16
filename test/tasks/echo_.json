@@ -4,7 +4,7 @@
     "temp": {
         "name": "echo-temp",
         "shell": {
-            "cmd": ["echo", "\"mysql host is:${MYSQL_HOST}\""]
+            "cmd": ["echo", "\"mysql host is:${MYSQL_HOST} dependsss\""]
         }
     },
     "event_id": "xxx",

@@ -20,40 +20,57 @@ package config
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/pkg/node/core/store"
 )
 
 //GroupContext 组任务会话
 type GroupContext struct {
-	configs map[interface{}]interface{}
 	ctx     context.Context
+	groupID string
 }
 
 //NewGroupContext 创建组配置会话
-func NewGroupContext() *GroupContext {
+func NewGroupContext(groupID string) *GroupContext {
 	return &GroupContext{
-		configs: make(map[interface{}]interface{}),
 		ctx:     context.Background(),
+		groupID: groupID,
 	}
 }
 
 //Add 添加配置项
 func (g *GroupContext) Add(k, v interface{}) {
 	g.ctx = context.WithValue(g.ctx, k, v)
-	g.configs[k] = v
+	store.DefalutClient.Put(fmt.Sprintf("%s/group/%s/%s", option.Config.ConfigStoragePath, g.groupID, k), v.(string))
 }
 
 //Get get
 func (g *GroupContext) Get(k interface{}) interface{} {
-	return g.ctx.Value(k)
+	if v := g.ctx.Value(k); v != nil {
+		return v
+	}
+	res, _ := store.DefalutClient.Get(fmt.Sprintf("%s/group/%s/%s", option.Config.ConfigStoragePath, g.groupID, k))
+	if res.Count > 0 {
+		return string(res.Kvs[0].Value)
+	}
+	return ""
 }
 
 //GetString get
 func (g *GroupContext) GetString(k interface{}) string {
-	return g.ctx.Value(k).(string)
+	if v := g.ctx.Value(k); v != nil {
+		return v.(string)
+	}
+	res, _ := store.DefalutClient.Get(fmt.Sprintf("%s/group/%s/%s", option.Config.ConfigStoragePath, g.groupID, k))
+	if res.Count > 0 {
+		return string(res.Kvs[0].Value)
+	}
+	return ""
 }
 
 var reg = regexp.MustCompile(`(?U)\$\{.*\}`)
