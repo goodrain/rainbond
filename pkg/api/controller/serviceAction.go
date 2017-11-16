@@ -42,6 +42,7 @@ const TIMELAYOUT  = "2006-01-02T15:04:05"
 
 func createEvent(serviceID,optType,tenantID,deployVersion string) (*dbmodel.ServiceEvent,int,error)  {
 	eventID:=tutil.NewUUID()
+	logrus.Infof("creating event,id is %s",eventID)
 	event:=dbmodel.ServiceEvent{}
 	event.EventID=eventID
 	event.ServiceID=serviceID
@@ -88,7 +89,7 @@ func createEvent(serviceID,optType,tenantID,deployVersion string) (*dbmodel.Serv
 func autoTimeOut(event *dbmodel.ServiceEvent) {
 	var timer *time.Timer
 	//todo if 构建
-	if event.OptType=="" {
+	if event.OptType=="build" {
 		timer=time.NewTimer(3*time.Minute)
 	}else {
 		timer=time.NewTimer(30*time.Second)
@@ -105,7 +106,10 @@ func autoTimeOut(event *dbmodel.ServiceEvent) {
 			if e.FinalStatus == "" {
 				//未完成
 				e.FinalStatus = "timeout"
+				logrus.Warnf("event id:%s time out,",event.EventID)
 				err=db.GetManager().ServiceEventDao().UpdateModel(e)
+				return
+			}else {
 				return
 			}
 
@@ -237,7 +241,7 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logger.Info("应用启动任务发送成功 ", map[string]string{"step": "start-service", "status": "starting"})
-	w.WriteHeader(200)
+	httputil.ReturnSuccess(r,w,sEvent)
 	return
 }
 
@@ -292,7 +296,7 @@ func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logger.Info("应用停止任务发送成功 ", map[string]string{"step": "stop-service", "status": "starting"})
-	w.WriteHeader(200)
+	httputil.ReturnSuccess(r,w,sEvent)
 }
 
 //RestartService RestartService
@@ -346,7 +350,7 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logger.Info("应用重启任务发送成功 ", map[string]string{"step": "restart-service", "status": "starting"})
-	w.WriteHeader(200)
+	httputil.ReturnSuccess(r,w,sEvent)
 	return
 }
 
@@ -406,7 +410,7 @@ func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logger.Info("应用垂直升级任务发送成功 ", map[string]string{"step": "vertical-service", "status": "starting"})
-	w.WriteHeader(200)
+	httputil.ReturnSuccess(r,w,sEvent)
 }
 
 //HorizontalService HorizontalService
@@ -461,7 +465,7 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	logger.Info("应用水平升级任务发送成功 ", map[string]string{"step": "horizontal-service", "status": "starting"})
-	w.WriteHeader(200)
+	httputil.ReturnSuccess(r,w,sEvent)
 }
 
 //BuildService BuildService
@@ -501,6 +505,7 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
 	build.Body.TenantName = tenantName
 	build.Body.ServiceAlias = serviceAlias
+	//todo add event
 	if err := handler.GetServiceManager().ServiceBuild(tenantID, serviceID, &build); err != nil {
 		logrus.Debugf("build service error")
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("build service error, %v", err))
@@ -574,7 +579,7 @@ func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logger.Info("应用升级任务发送成功 ", map[string]string{"step": "upgrade-service", "status": "starting"})
-	w.WriteHeader(200)
+	httputil.ReturnSuccess(r,w,sEvent)
 }
 
 //CheckCode CheckCode
@@ -714,6 +719,6 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logger.Info("应用回滚任务发送成功 ", map[string]string{"step": "rollback-service", "status": "starting"})
-	httputil.ReturnSuccess(r, w, nil)
+	httputil.ReturnSuccess(r, w, sEvent)
 	return
 }
