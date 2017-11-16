@@ -89,7 +89,7 @@ func createEvent(serviceID,optType,tenantID,deployVersion string) (*dbmodel.Serv
 func autoTimeOut(event *dbmodel.ServiceEvent) {
 	var timer *time.Timer
 	//todo if 构建
-	if event.OptType=="" {
+	if event.OptType=="build" {
 		timer=time.NewTimer(3*time.Minute)
 	}else {
 		timer=time.NewTimer(30*time.Second)
@@ -106,7 +106,10 @@ func autoTimeOut(event *dbmodel.ServiceEvent) {
 			if e.FinalStatus == "" {
 				//未完成
 				e.FinalStatus = "timeout"
+				logrus.Warnf("event id:%s time out,",event.EventID)
 				err=db.GetManager().ServiceEventDao().UpdateModel(e)
+				return
+			}else {
 				return
 			}
 
