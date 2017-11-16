@@ -9,6 +9,7 @@ import (
 )
 
 func CreateDBManager(conf conf.DBConf) error {
+	logrus.Infof("creating dbmanager ,details %s",conf)
 	var tryTime time.Duration
 	tryTime = 0
 	var err error

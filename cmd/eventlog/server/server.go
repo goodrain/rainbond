@@ -185,7 +185,7 @@ func (s *LogServer) Run() error {
 
 	//init new db
 	if err := db.CreateDBManager(s.Conf.EventStore.DB); err != nil {
-		logrus.Debugf("create db manager error, %v", err)
+		logrus.Infof("create db manager error, %v", err)
 		return err
 	}
 
