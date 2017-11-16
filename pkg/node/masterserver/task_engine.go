@@ -457,7 +457,12 @@ func (t *TaskEngine) waitScheduleTask(nodes []string, task *model.Task) {
 					}
 					if dep.DetermineStrategy == model.AtLeastOnceStrategy {
 						if len(depTask.Status) > 0 {
-							result = result && true
+							for _, status := range depTask.Status {
+								if status.CompleStatus == "Success" {
+									result = result && true
+									continue
+								}
+							}
 						}
 					}
 					if dep.DetermineStrategy == model.SameNodeStrategy {
@@ -469,15 +474,16 @@ func (t *TaskEngine) waitScheduleTask(nodes []string, task *model.Task) {
 						}
 						if nodes != nil {
 							for _, node := range nodes {
-								if nodestatus, ok := depTask.Status[node]; !ok || nodestatus.EndTime.IsZero() {
+								if nodestatus, ok := depTask.Status[node]; ok && nodestatus.CompleStatus == "Success" {
+									result = result && true
+									continue
+								} else {
 									result = result && false
-									task.Scheduler.Message = fmt.Sprintf("depend task %s is not complete in node %s", depTask.ID, node)
-									task.Scheduler.Status = "Waiting"
 									return false
 								}
 							}
 						} else {
-							return true
+							result = result && true
 						}
 					}
 				} else {
@@ -529,6 +535,7 @@ func (t *TaskEngine) waitScheduleTask(nodes []string, task *model.Task) {
 			task.StartTime = time.Now()
 			task.Scheduler.Status = "Success"
 			task.Scheduler.Message = "scheduler success"
+			task.Scheduler.SchedulerTime = time.Now()
 			t.UpdateTask(task)
 			return
 		}

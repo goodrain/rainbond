@@ -126,9 +126,10 @@ func (t Task) CanBeDelete() bool {
 
 //Scheduler 调度状态
 type Scheduler struct {
-	Mode    string `json:"mode"` //立即调度（Intime），触发调度（Passive）
-	Status  string `json:"status"`
-	Message string `json:"message"`
+	Mode          string    `json:"mode"` //立即调度（Intime），触发调度（Passive）
+	Status        string    `json:"status"`
+	Message       string    `json:"message"`
+	SchedulerTime time.Time `json:"scheduler_time"` //调度时间
 }
 
 //TaskOutPut 任务输出
@@ -137,9 +138,10 @@ type TaskOutPut struct {
 	Global map[string]string `json:"global"`
 	Inner  map[string]string `json:"inner"`
 	//返回数据类型，检测结果类(check) 执行安装类 (install) 普通类 (common)
-	Type   string             `json:"type"`
-	Status []TaskOutPutStatus `json:"status"`
-	Body   string             `json:"body"`
+	Type       string             `json:"type"`
+	Status     []TaskOutPutStatus `json:"status"`
+	ExecStatus string             `json:"exec_status"`
+	Body       string             `json:"body"`
 }
 
 //ParseTaskOutPut json parse
