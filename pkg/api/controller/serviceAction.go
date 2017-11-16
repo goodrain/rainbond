@@ -42,6 +42,7 @@ const TIMELAYOUT  = "2006-01-02T15:04:05"
 
 func createEvent(serviceID,optType,tenantID,deployVersion string) (*dbmodel.ServiceEvent,int,error)  {
 	eventID:=tutil.NewUUID()
+	logrus.Infof("creating event,id is %s",eventID)
 	event:=dbmodel.ServiceEvent{}
 	event.EventID=eventID
 	event.ServiceID=serviceID

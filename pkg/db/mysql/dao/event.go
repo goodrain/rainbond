@@ -31,7 +31,7 @@ import (
 //AddModel AddModel
 func (c *EventDaoImpl) AddModel(mo model.Interface) error {
 	result := mo.(*model.ServiceEvent)
-	var oldResult model.AppPublish
+	var oldResult model.ServiceEvent
 	if ok := c.DB.Where("event_id=?", result.EventID).Find(&oldResult).RecordNotFound(); ok {
 		if err := c.DB.Create(result).Error; err != nil {
 			return err
