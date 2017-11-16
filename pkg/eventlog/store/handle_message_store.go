@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -24,12 +23,12 @@ import (
 	"sync"
 	"time"
 
+	cdb "github.com/goodrain/rainbond/pkg/db"
+	"github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/eventlog/conf"
 	"github.com/goodrain/rainbond/pkg/eventlog/db"
 	"github.com/goodrain/rainbond/pkg/eventlog/exit/webhook"
 	"github.com/goodrain/rainbond/pkg/eventlog/util"
-	cdb "github.com/goodrain/rainbond/pkg/db"
-	"github.com/goodrain/rainbond/pkg/db/model"
 	"golang.org/x/net/context"
 
 	"fmt"
@@ -290,15 +289,16 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					message := event[3]
 					webhook.GetManager().RunWebhookWithParameter(webhook.UpDateEventStatus, nil,
 						map[string]interface{}{"event_id": eventID, "status": status, "message": message})
-						//todo update db
+					//todo update db
 
-						event:=model.ServiceEvent{}
-						event.EventID=eventID
-						event.Status=status
-						event.Message=message
-
-						logrus.Infof("-----------%s",status)
-						cdb.GetManager().EventLogDao().UpdateModel(&event)
+					event := model.ServiceEvent{}
+					event.EventID = eventID
+					event.Status = status
+					event.Message = message
+					err := cdb.GetManager().EventLogDao().UpdateModel(&event)
+					if err != nil {
+						logrus.Errorf("update event failed,details:%s", err.Error())
+					}
 
 				}
 			}
@@ -309,9 +309,9 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					webhook.GetManager().RunWebhookWithParameter(webhook.UpdateEventCodeVersion, nil,
 						map[string]interface{}{"event_id": eventID, "code_version": codeVersion})
 
-					event:=model.ServiceEvent{}
-					event.EventID=eventID
-					event.CodeVersion=codeVersion
+					event := model.ServiceEvent{}
+					event.EventID = eventID
+					event.CodeVersion = codeVersion
 					cdb.GetManager().EventLogDao().UpdateModel(&event)
 
 					h.log.Infof("run web hook update code version .event_id %s code_version %s", eventID, codeVersion)
