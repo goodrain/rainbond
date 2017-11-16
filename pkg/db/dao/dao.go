@@ -262,3 +262,10 @@ type AppPublishDao interface {
 	Dao
 	GetAppPublish(shareID string) (*model.AppPublish, error)
 }
+
+//AppPublishDao AppPublishDao
+type EventDao interface {
+	Dao
+	GetEventByEventID(eventID string) (*model.ServiceEvent, error)
+	GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error)
+}

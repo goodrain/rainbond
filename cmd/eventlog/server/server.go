@@ -37,6 +37,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"github.com/goodrain/rainbond/pkg/eventlog/db"
 )
 
 type LogServer struct {
@@ -181,6 +182,13 @@ func (s *LogServer) Run() error {
 	if err := webhook.InitManager(s.Conf.WebHook, log.WithField("module", "WebHook")); err != nil {
 		return err
 	}
+
+	//init new db
+	if err := db.CreateDBManager(s.Conf.EventStore.DB); err != nil {
+		logrus.Debugf("create db manager error, %v", err)
+		return err
+	}
+
 	storeManager, err := store.NewManager(s.Conf.EventStore, log.WithField("module", "MessageStore"))
 	if err != nil {
 		return err

@@ -25,7 +25,7 @@ import (
 func APIServer() *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Route("/api", func(r chi.Router) {
+	r.Route("/v2/builder", func(r chi.Router) {
 		//r.Get("/ping", controller.Ping)
 		r.Route("/codecheck", func(r chi.Router) {
 			r.Post("/", controller.AddCodeCheck)
@@ -36,8 +36,6 @@ func APIServer() *chi.Mux {
 			r.Get("/{shareID}",controller.GetAppPublish)
 			r.Post("/",controller.AddAppPublish)
 		})
-
-
 	})
 	return r
 }

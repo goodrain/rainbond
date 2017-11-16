@@ -28,7 +28,8 @@ import (
 	"github.com/goodrain/rainbond/pkg/eventlog/db"
 	"github.com/goodrain/rainbond/pkg/eventlog/exit/webhook"
 	"github.com/goodrain/rainbond/pkg/eventlog/util"
-
+	cdb "github.com/goodrain/rainbond/pkg/db"
+	"github.com/goodrain/rainbond/pkg/db/model"
 	"golang.org/x/net/context"
 
 	"fmt"
@@ -289,6 +290,14 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					message := event[3]
 					webhook.GetManager().RunWebhookWithParameter(webhook.UpDateEventStatus, nil,
 						map[string]interface{}{"event_id": eventID, "status": status, "message": message})
+						//todo update db
+
+						event:=model.ServiceEvent{}
+						event.EventID=eventID
+						event.Status=status
+						event.Message=message
+						cdb.GetManager().EventLogDao().UpdateModel(&event)
+
 				}
 			}
 			if event[0] == "code-version" { //代码版本
@@ -297,6 +306,12 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					codeVersion := strings.TrimSpace(event[2])
 					webhook.GetManager().RunWebhookWithParameter(webhook.UpdateEventCodeVersion, nil,
 						map[string]interface{}{"event_id": eventID, "code_version": codeVersion})
+
+					event:=model.ServiceEvent{}
+					event.EventID=eventID
+					event.CodeVersion=codeVersion
+					cdb.GetManager().EventLogDao().UpdateModel(&event)
+
 					h.log.Infof("run web hook update code version .event_id %s code_version %s", eventID, codeVersion)
 				}
 			}

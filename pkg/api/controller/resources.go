@@ -405,7 +405,6 @@ func (t *TenantStruct) SetLanguage(w http.ResponseWriter, r *http.Request) {
 	//     description: 统一返回格式
 	logrus.Debugf("trans language set service")
 	rules := validator.MapData{
-		"event_id": []string{"required"},
 		"language": []string{"required"},
 	}
 	langS := &api_model.LanguageSet{}

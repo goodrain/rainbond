@@ -82,6 +82,9 @@ type Manager interface {
 
 	AppPublishDao() dao.AppPublishDao
 	AppPublishDaoTransactions(db *gorm.DB) dao.AppPublishDao
+
+	ServiceEventDao() dao.EventDao
+	ServiceEventDaoTransactions(db *gorm.DB) dao.EventDao
 }
 
 var defaultManager Manager
