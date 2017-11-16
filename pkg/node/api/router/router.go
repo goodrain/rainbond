@@ -60,18 +60,15 @@ func Routers(mode string) *chi.Mux {
 				r.Post("/", controller.NewNode)                       //增加一个节点
 				r.Post("/multiple", controller.NewMultipleNode)       //增加多个节点
 				r.Delete("/{node_id}", controller.DeleteRainbondNode) //删除一个节点
+				r.Get("/{node_id}", controller.GetNode)
+				r.Put("/{node_id}/unschedulable", controller.Cordon)
+				r.Put("/{node_id}/reschedulable", controller.UnCordon)
+				r.Put("/{node_id}/labels", controller.PutLabel)
+				r.Post("/{node_id}/down", controller.DownNode) //节点下线
+				r.Post("/{node_id}/up", controller.UpNode)     //节点上线
 
 				//历史API
 				r.Get("/{node}/details", controller.GetNodeDetails)
-				r.Get("/{node}/basic", controller.GetNodeBasic)
-				r.Post("/{node}/down", controller.DeleteNode)
-				r.Put("/{node}", controller.AddNode)
-				r.Post("/{node}", controller.UpdateNode)
-				//r.Put("/{node}",nil)
-				r.Put("/{node}/unschedulable", controller.Cordon)
-				r.Put("/{node}/reschedulable", controller.UnCordon)
-				r.Post("/{node}/label", controller.AddLabel)
-
 				r.Put("/login", controller.LoginCompute)
 				//此处会安装
 				r.Put("/{ip}/init", controller.NodeInit)

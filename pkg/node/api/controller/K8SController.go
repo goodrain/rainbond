@@ -38,7 +38,7 @@ import (
 	//"k8s.io/client-go/pkg/api/v1"
 	"github.com/coreos/etcd/client"
 	//"k8s.io/apimachinery/pkg/types"
-	"io/ioutil"
+
 	"strconv"
 
 	"github.com/goodrain/rainbond/pkg/node/api/model"
@@ -280,155 +280,6 @@ func StartBuildInJobs(w http.ResponseWriter, r *http.Request) {
 	go job.RunBuildJobs(nodeIP, done, doneOne)
 	api.ReturnSuccess(r, w, jl)
 }
-func Cordon(w http.ResponseWriter, r *http.Request) {
-
-	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
-	hostNode, err := k8s.GetSource(conf.Config.K8SNode + nodeUID)
-	if err != nil {
-		logrus.Errorf("can't found hostnode with given uid %s ,%s", nodeUID, err.Error())
-		outRespDetails(w, 500, "error get node from etcd "+err.Error(), "etcd 查找node失败", nil, nil)
-		return
-	}
-	//更新节点状态
-	hostNode.Status = "unschedulable"
-	err = k8s.AddSource(conf.Config.K8SNode+nodeUID, hostNode)
-
-	if err != nil {
-		logrus.Errorf("update node status failed with given uid %s ,%s", nodeUID, err.Error())
-		outRespDetails(w, 500, "update node status failed ， "+err.Error(), "更新状态失败", nil, nil)
-		return
-	}
-
-	nodeName := hostNode.HostName
-	node, err := k8s.GetNodeByName(nodeName)
-	if err != nil {
-		logrus.Errorf("can't found node with given name %s ,%s", nodeName, err.Error())
-		outRespDetails(w, 500, fmt.Sprintf("can't found node with given name %s ,%s", nodeName, err.Error()), "找不到指定的节点", nil, nil)
-		return
-	}
-	//true表示drain，不可调度
-	node, err = k8s.CordonOrUnCordon(node, true)
-	if err != nil {
-		logrus.Errorf("patch node %s to unschedulable faild ,%s", nodeName, err.Error())
-		outRespDetails(w, 500, "error cordon  "+err.Error(), "设置不可调度失败", nil, nil)
-		return
-	}
-	logrus.Debugf("making node %s unschedulable", nodeUID)
-	outRespSuccess(w, nil, nil)
-}
-func UnCordon(w http.ResponseWriter, r *http.Request) {
-
-	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
-	hostNode, err := k8s.GetSource(conf.Config.K8SNode + nodeUID)
-	if err != nil {
-		logrus.Errorf("can't found hostnode with given uid %s ,%s", nodeUID, err.Error())
-		outRespDetails(w, 500, "error get node from etcd "+err.Error(), "etcd 查找node失败", nil, nil)
-		return
-	}
-
-	hostNode.Status = "running"
-	err = k8s.AddSource(conf.Config.K8SNode+nodeUID, hostNode)
-
-	if err != nil {
-		logrus.Errorf("update node status failed with given uid %s ,%s", nodeUID, err.Error())
-		outRespDetails(w, 500, "update node status failed ， "+err.Error(), "更新状态失败", nil, nil)
-		return
-	}
-	nodeName := hostNode.HostName
-	node, err := k8s.GetNodeByName(nodeName)
-	if err != nil {
-		logrus.Errorf("can't found node with given name %s ,%s", nodeName, err.Error())
-		outRespDetails(w, 500, fmt.Sprintf("can't found node with given name %s ,%s", nodeName, err.Error()), "找不到指定的节点", nil, nil)
-		return
-	}
-	node, err = k8s.CordonOrUnCordon(node, false)
-	if err != nil {
-		logrus.Errorf("patch node %s to reschedulable faild ,%s", nodeName, err.Error())
-		outRespDetails(w, 500, "error uncordon  "+err.Error(), "设置可调度失败", nil, nil)
-		return
-	}
-	logrus.Debugf("making node %s reschedulable", nodeUID)
-	outRespSuccess(w, nil, nil)
-}
-func DeleteFromDB(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation DELETE /v2/node/{name} v2 DeleteFromDB
-	//
-	// 从etcd 删除计算节点
-	//
-	// delete node from etcd
-	//
-	// ---
-	// produces:
-	// - application/json
-	// parameters:
-	// - name: name
-	//   in: path
-	//   description: nodeuid
-	//   required: true
-	//   type: string
-	//   format: string
-	//
-	// Responses:
-	//   '200':
-	//    description: '{"ok":true}'
-
-	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
-	err := k8s.DeleteSource(conf.Config.K8SNode + nodeUID)
-	if err != nil {
-		outRespDetails(w, 500, "delete node failed from db "+nodeUID+" "+err.Error(), "从etcd删除节点失败", nil, nil)
-		return
-	}
-	logrus.Debugf("deleting node %s from etcd", nodeUID)
-	outRespSuccess(w, nil, nil)
-}
-func DeleteNode(w http.ResponseWriter, r *http.Request) {
-
-	// swagger:operation POST /v2/node/{node}/down v2 DeleteNode
-	//
-	// 下线计算节点
-	//
-	// offline node
-	//
-	// ---
-	// produces:
-	// - application/json
-	// parameters:
-	// - name: name
-	//   in: path
-	//   description: nodeuid
-	//   required: true
-	//   type: string
-	//   format: string
-	//
-	// Responses:
-	//   '200':
-	//    description: '{"ok":true}'
-
-	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
-
-	_, err := k8s.DeleteNode(nodeUID)
-	if err != nil {
-		outRespDetails(w, 500, "error delete node "+nodeUID+" from core "+err.Error(), "删除节点失败", nil, nil)
-		return
-	}
-	logrus.Debugf("node %s is offing line", nodeUID)
-	outRespSuccess(w, nil, nil)
-}
-
-//func ReUpNode(w http.ResponseWriter, r *http.Request) {
-//	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
-//	hostNode,err:=core.GetSource(conf.Config.K8SNode+nodeUID)
-//	if err != nil {
-//		outRespDetails(w,500,"error get node "+nodeUID+" from etcd "+err.Error(),"找不到指定节点" ,nil,nil)
-//		return
-//	}
-//	_,err=core.ReUpNode(hostNode.HostName)
-//	if err!=nil {
-//		outRespDetails(w,500,"error reup node "+nodeUID+" "+err.Error(),"节点上线失败" ,nil,nil)
-//		return
-//	}
-//	outRespSuccess(w,nil,nil)
-//}
 
 func GetNodeDetails(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
@@ -619,7 +470,6 @@ func getCpuInt(v string) int {
 		v, _ := strconv.Atoi(v)
 		return v
 	}
-
 }
 
 func getFinalRate(cpu bool, value string, capCpu, capMemMB string) (result string) {
@@ -817,46 +667,6 @@ func AddNode(w http.ResponseWriter, r *http.Request) {
 	outRespSuccess(w, nil, nil)
 }
 
-func AddLabel(w http.ResponseWriter, r *http.Request) {
-
-	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
-	hostNode, err := k8s.GetSource(conf.Config.K8SNode + nodeUID)
-	if err != nil {
-		logrus.Errorf("can't found hostnode with given uid %s ,%s", nodeUID, err.Error())
-		outRespDetails(w, 500, "save node info failed "+err.Error(), "存储节点信息失败", nil, nil)
-
-		return
-	}
-	nodeName := hostNode.HostName
-
-	type label struct {
-		LKey   string
-		LValue string
-	}
-
-	var arr []string
-	bytesJ, err := ioutil.ReadAll(r.Body)
-
-	if err := json.Unmarshal(bytesJ, &arr); err != nil {
-		logrus.Infof("error unmarshal labels details %s", err.Error())
-		outRespDetails(w, 400, "param error "+err.Error(), "参数错误", nil, nil)
-		return
-	}
-	logrus.Infof("adding labels %v to k8s node %s", arr, nodeUID)
-	hostNode.Labels = map[string]string{}
-	err = k8s.LabelMulti(nodeName, arr)
-	for _, l := range arr {
-		hostNode.Labels[l] = "default"
-	}
-	logrus.Infof("adding labels %v to core node %s", arr, hostNode.HostName)
-	err = k8s.AddSource(conf.Config.K8SNode+nodeUID, hostNode)
-	if err != nil {
-		outRespDetails(w, 500, "adding node info to etcd failed "+err.Error(), "更新etcd失败", nil, nil)
-		return
-	}
-	logrus.Debugf("updating labels %v to etcd ", arr)
-	outRespSuccess(w, nil, nil)
-}
 func outSuccess(w http.ResponseWriter) {
 	s := `{"ok":true}`
 	w.WriteHeader(200)

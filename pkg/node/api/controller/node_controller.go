@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi"
 
@@ -69,6 +70,17 @@ func GetNodes(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nodes)
 }
 
+//GetNode 获取一个节点详情
+func GetNode(w http.ResponseWriter, r *http.Request) {
+	nodeID := chi.URLParam(r, "node_id")
+	node, err := nodeService.GetNode(nodeID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, node)
+}
+
 //GetRuleNodes 获取分角色节点
 func GetRuleNodes(w http.ResponseWriter, r *http.Request) {
 	rule := chi.URLParam(r, "rule")
@@ -99,6 +111,69 @@ func DeleteRainbondNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
+}
+
+//Cordon 不可调度
+func Cordon(w http.ResponseWriter, r *http.Request) {
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	if err := nodeService.CordonNode(nodeUID, true); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+//UnCordon 可调度
+func UnCordon(w http.ResponseWriter, r *http.Request) {
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	if err := nodeService.CordonNode(nodeUID, false); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+//PutLabel 更新节点标签
+func PutLabel(w http.ResponseWriter, r *http.Request) {
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	labels, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, nil, nil)
+	if !ok {
+		return
+	}
+	var label = make(map[string]string, len(labels))
+	for k, v := range labels {
+		if value, ok := v.(string); ok {
+			label[k] = value
+		}
+	}
+	err := nodeService.PutNodeLabel(nodeUID, label)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+//DownNode 节点下线，计算节点操作
+func DownNode(w http.ResponseWriter, r *http.Request) {
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	node, err := nodeService.DownNode(nodeUID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, node)
+}
+
+//UpNode 节点上线，计算节点操作
+func UpNode(w http.ResponseWriter, r *http.Request) {
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	node, err := nodeService.UpNode(nodeUID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, node)
 }
 
 //临时存在
