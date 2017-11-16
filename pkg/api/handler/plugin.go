@@ -97,6 +97,18 @@ func (p *PluginAction) CreatePluginAct(cps *api_model.CreatePluginStruct) *util.
 			return util.CreateAPIHandleErrorFromDBError(fmt.Sprintf("add default env %s", env.ENVName), err)
 		}
 	}
+	//添加默认plugin model env
+	vis := &dbmodel.TenantPluginDefaultENV{
+		PluginID: cps.Body.PluginID,
+		ENVName:  "PLUGIN_MOEL",
+		ENVValue: cps.Body.PluginModel,
+		IsChange: false,
+	}
+	err = db.GetManager().TenantPluginDefaultENVDaoTransactions(tx).AddModel(vis)
+	if err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleErrorFromDBError("add default env PLUGIN_MOEL", err)
+	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return util.CreateAPIHandleErrorFromDBError("commit create plugin transactions", err)
@@ -222,7 +234,7 @@ func (p *PluginAction) GetEnvsWhichCanBeSet(serviceID, pluginID string) (interfa
 	if len(envs) > 0 {
 		return envs, nil
 	}
-	envD, errD := db.GetManager().TenantPluginDefaultENVDao().GetDefaultENVSByPluginIDCantBeSet(pluginID)
+	envD, errD := db.GetManager().TenantPluginDefaultENVDao().GetDefaultEnvWhichCanBeSetByPluginID(pluginID)
 	if errD != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("get envs which can be set", errD)
 	}
@@ -345,6 +357,7 @@ func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plu
 		Kind:      b.Body.Kind,
 		Repo:      b.Body.RepoURL,
 		GitURL:    b.Body.GitURL,
+		Info:      b.Body.Info,
 		BuildTime: time.Now().Format(time.RFC3339),
 		Status:    "building",
 	}

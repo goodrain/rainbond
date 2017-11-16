@@ -21,6 +21,7 @@ package controller
 import (
 	"net/http"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/api/handler"
 	"github.com/goodrain/rainbond/pkg/api/middleware"
 
@@ -566,9 +567,9 @@ func (t *TenantStruct) DeletePluginRelation(w http.ResponseWriter, r *http.Reque
 
 //GetPluginDefaultEnvs GetPluginDefaultEnvs
 func (t *TenantStruct) GetPluginDefaultEnvs(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation GET /v2/tenants/{tenant_name}/plugin/{plugin_id}/envs v2 getPluginEnv
+	// swagger:operation GET /v2/tenants/{tenant_name}/plugin/{plugin_id}/default-env v2 getPluginDefaultEnv
 	//
-	// 获取插件设定的env
+	// 获取插件默认设定的env
 	//
 	// get plugin env
 	//
@@ -619,6 +620,7 @@ func (t *TenantStruct) GePluginEnvWhichCanBeSet(w http.ResponseWriter, r *http.R
 	//     description: 统一返回格式
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	pluginID := chi.URLParam(r, "plugin_id")
+	logrus.Debugf("plugin_Id is %s", pluginID)
 	envs, err := handler.GetPluginManager().GetEnvsWhichCanBeSet(serviceID, pluginID)
 	if err != nil {
 		err.Handle(r, w)

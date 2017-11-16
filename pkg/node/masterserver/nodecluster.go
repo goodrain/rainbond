@@ -108,19 +108,26 @@ func (n *NodeCluster) loadNodes() error {
 		}
 	}
 	//加载k8s节点信息
-	list, err := n.k8sClient.Core().Nodes().List(metav1.ListOptions{})
-	if err != nil {
-		return fmt.Errorf("load k8s nodes from k8s api error:%s", err.Error())
-	}
-	for _, node := range list.Items {
-		if cn, ok := n.nodes[node.Name]; ok {
-			cn.NodeStatus = &node.Status
-			cn.UpdataK8sCondition(node.Status.Conditions)
-			n.UpdateNode(cn)
-		} else {
-			logrus.Warningf("k8s node %s can not exist in rainbond cluster.", node.Name)
+	go func() {
+		for {
+			list, err := n.k8sClient.Core().Nodes().List(metav1.ListOptions{})
+			if err != nil {
+				logrus.Warnf("load k8s nodes from k8s api error:%s", err.Error())
+				time.Sleep(time.Second * 3)
+				continue
+			}
+			for _, node := range list.Items {
+				if cn, ok := n.nodes[node.Name]; ok {
+					cn.NodeStatus = &node.Status
+					cn.UpdataK8sCondition(node.Status.Conditions)
+					n.UpdateNode(cn)
+				} else {
+					logrus.Warningf("k8s node %s can not exist in rainbond cluster.", node.Name)
+				}
+			}
+			return
 		}
-	}
+	}()
 	return nil
 }
 
@@ -139,6 +146,9 @@ func (n *NodeCluster) worker() {
 
 //UpdateNode 更新节点信息
 func (n *NodeCluster) UpdateNode(node *model.HostNode) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+	n.nodes[node.ID] = node
 	n.client.Put(option.Config.NodePath+"/"+node.ID, node.String())
 }
 func (n *NodeCluster) getNodeFromKV(kv *mvccpb.KeyValue) *model.HostNode {
@@ -160,6 +170,8 @@ func (n *NodeCluster) getNodeFromKey(key string) *model.HostNode {
 
 //GetNode 从缓存获取节点信息
 func (n *NodeCluster) GetNode(id string) *model.HostNode {
+	n.lock.Lock()
+	defer n.lock.Unlock()
 	if node, ok := n.nodes[id]; ok {
 		return node
 	}
@@ -210,10 +222,15 @@ func (n *NodeCluster) watchK8sNodes() {
 	for {
 		wc, err := n.k8sClient.Core().Nodes().Watch(metav1.ListOptions{})
 		if err != nil {
-			logrus.Error("watch k8s node error.", err.Error())
+			logrus.Warningf("watch k8s node error.", err.Error())
 			time.Sleep(time.Second * 5)
+			continue
 		}
-		defer wc.Stop()
+		defer func() {
+			if wc != nil {
+				wc.Stop()
+			}
+		}()
 	loop:
 		for {
 			select {
@@ -225,6 +242,7 @@ func (n *NodeCluster) watchK8sNodes() {
 				switch {
 				case event.Type == watch.Added, event.Type == watch.Modified:
 					if node, ok := event.Object.(*v1.Node); ok {
+						//k8s node name is rainbond node id
 						if rbnode := n.GetNode(node.Name); rbnode != nil {
 							rbnode.NodeStatus = &node.Status
 							rbnode.UpdataK8sCondition(node.Status.Conditions)
@@ -318,6 +336,9 @@ func (n *NodeCluster) RemoveNode(node *model.HostNode) {
 //UpdateNodeCondition 更新节点状态
 func (n *NodeCluster) UpdateNodeCondition(nodeID, ctype, cvalue string) {
 	node := n.GetNode(nodeID)
+	if node == nil {
+		return
+	}
 	node.UpdataCondition(model.NodeCondition{
 		Type:               model.NodeConditionType(ctype),
 		Status:             model.ConditionStatus(cvalue),
@@ -326,4 +347,5 @@ func (n *NodeCluster) UpdateNodeCondition(nodeID, ctype, cvalue string) {
 		Message:            "",
 		Reason:             "",
 	})
+	n.UpdateNode(node)
 }

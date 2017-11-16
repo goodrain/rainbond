@@ -16,28 +16,26 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package handler
+package masterserver
 
 import (
-	"fmt"
 	"testing"
+
+	"github.com/goodrain/rainbond/pkg/node/api/model"
 )
 
-func TestLicense(t *testing.T) {
-	licenseStr := "0QFGbwit-"
-	text, err := decrypt(key, licenseStr)
-	if err != nil {
-		fmt.Println("decrypt err")
+func TestGroupWorker(t *testing.T) {
+	taskEngine := CreateTaskEngine(nil)
+	group := &model.TaskGroup{
+		Tasks: []*model.Task{
+			&model.Task{ID: "1", Temp: &model.TaskTemp{Depends: []model.DependStrategy{model.DependStrategy{DependTaskID: "5"}}}},
+			&model.Task{ID: "2", Temp: &model.TaskTemp{Depends: []model.DependStrategy{model.DependStrategy{DependTaskID: "5"}}}},
+			&model.Task{ID: "3", Temp: &model.TaskTemp{Depends: []model.DependStrategy{model.DependStrategy{DependTaskID: "5"}}}},
+			&model.Task{ID: "4", Temp: &model.TaskTemp{Depends: []model.DependStrategy{}}},
+			&model.Task{ID: "5", Temp: &model.TaskTemp{}},
+			&model.Task{ID: "6", Temp: &model.TaskTemp{}},
+			&model.Task{ID: "7", Temp: &model.TaskTemp{}},
+		},
 	}
-	fmt.Printf("license text: %s", text)
-}
-
-func TestToken(t *testing.T) {
-	licenseStr := "0QFGbwit-"
-	token, err := BasePack([]byte(licenseStr))
-	if err != nil {
-		fmt.Printf("error")
-	}
-	fmt.Printf("token is: %v\n", token)
-	fmt.Printf("len is %v\n", len(token))
+	taskEngine.ScheduleGroup(nil, group)
 }

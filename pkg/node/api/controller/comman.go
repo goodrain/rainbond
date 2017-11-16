@@ -40,7 +40,9 @@ func Init(c *option.Conf, ms *masterserver.MasterServer) {
 	taskTempService = service.CreateTaskTempService(c)
 	taskGroupService = service.CreateTaskGroupService(c, ms)
 	appService = service.CreateAppService(c)
-	nodeService = service.CreateNodeService(c, ms.Cluster)
+	if ms != nil {
+		nodeService = service.CreateNodeService(c, ms.Cluster)
+	}
 	discoverService = service.CreateDiscoverActionManager(c)
 }
 

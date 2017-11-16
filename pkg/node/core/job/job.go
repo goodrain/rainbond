@@ -307,14 +307,13 @@ func (j *JobRule) Valid() error {
 		return nil
 	}
 
-	if len(j.Timer) == 0 {
-		return utils.ErrNilRule
+	if len(j.Timer) > 0 {
+		sch, err := cron.Parse(j.Timer)
+		if err != nil {
+			return fmt.Errorf("invalid JobRule[%s], parse err: %s", j.Timer, err.Error())
+		}
+		j.Schedule = sch
 	}
-	sch, err := cron.Parse(j.Timer)
-	if err != nil {
-		return fmt.Errorf("invalid JobRule[%s], parse err: %s", j.Timer, err.Error())
-	}
-	j.Schedule = sch
 	return nil
 }
 
@@ -326,19 +325,23 @@ func (j *JobRule) included(node *model.HostNode) bool {
 			return false
 		}
 	}
-	//是否属于允许节点
-	for _, id := range j.NodeIDs {
-		if id == node.ID {
-			return true
+	if j.NodeIDs != nil && len(j.NodeIDs) > 0 {
+		//是否属于允许节点
+		for _, id := range j.NodeIDs {
+			if id == node.ID {
+				return true
+			}
 		}
-	}
-	//是否匹配label
-	for k, v := range j.Labels {
-		if nodev := node.Labels[k]; nodev != v {
-			return false
+	} else {
+		//是否匹配label
+		for k, v := range j.Labels {
+			if nodev := node.Labels[k]; nodev != v {
+				return false
+			}
 		}
+		return true
 	}
-	return true
+	return false
 }
 
 //GetJob get job

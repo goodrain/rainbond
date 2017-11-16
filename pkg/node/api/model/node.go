@@ -110,18 +110,20 @@ func (h *HostNode) UpdataCondition(conditions ...NodeCondition) {
 			ready = ConditionFalse
 		}
 		var update bool
-		for i, con := range h.Conditions {
-			if con.Type.Compare(newcon.Type) {
-				h.Conditions[i] = newcon
-				update = true
-			}
-			if con.Type == NodeReady {
-				con.Status = ready
-				con.LastTransitionTime = time.Now()
-				con.LastHeartbeatTime = time.Now()
-				con.Reason = newcon.Reason
-				con.Message = newcon.Message
-				h.Conditions[i] = con
+		if h.Conditions != nil {
+			for i, con := range h.Conditions {
+				if con.Type.Compare(newcon.Type) {
+					h.Conditions[i] = newcon
+					update = true
+				}
+				if con.Type.Compare(NodeReady) {
+					con.Status = ready
+					con.LastTransitionTime = time.Now()
+					con.LastHeartbeatTime = time.Now()
+					con.Reason = newcon.Reason
+					con.Message = newcon.Message
+					h.Conditions[i] = con
+				}
 			}
 		}
 		if !update {
