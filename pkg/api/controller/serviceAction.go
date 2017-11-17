@@ -40,8 +40,11 @@ import (
 const TIMELAYOUT  = "2006-01-02T15:04:05"
 
 
-func createEvent(serviceID,optType,tenantID,deployVersion string) (*dbmodel.ServiceEvent,int,error)  {
-	eventID:=tutil.NewUUID()
+func createEvent(eventID,serviceID,optType,tenantID,deployVersion string) (*dbmodel.ServiceEvent,int,error)  {
+	if eventID=="" {
+		eventID=tutil.NewUUID()
+	}
+
 	logrus.Infof("creating event,id is %s",eventID)
 	event:=dbmodel.ServiceEvent{}
 	event.EventID=eventID
@@ -144,6 +147,12 @@ func checkCanAddEvent(s string) (int,error){
 		return 0,nil
 	}
 }
+func getOrNilEventID(data map[string]interface{}) string{
+	if eventID,ok := data["event_id"];ok {
+		return eventID.(string)
+	}
+	return ""
+}
 func checkEventTimeOut(event *dbmodel.ServiceEvent) (bool,error) {
 	startTime := event.StartTime
 	start,err:=time.Parse(TIMELAYOUT,startTime)
@@ -210,19 +219,19 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 	//     description: 统一返回格式
 
 	//logrus.Debugf("trans start service")
-	//rules := validator.MapData{
-	//	"event_id": []string{"required"},
-	//}
-	//_, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
-	//if !ok {
-	//	return
-	//}
+	rules := validator.MapData{
+		"event_id": []string{},
+	}
+	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
+	if !ok {
+		return
+	}
 
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 
 
-	sEvent,status,err:=createEvent(serviceID,"start",tenantID,"")
+	sEvent,status,err:=createEvent(getOrNilEventID(data),serviceID,"start",tenantID,"")
 	handleStatus(status,err,w,r)
 
 	eventID := sEvent.EventID
@@ -269,16 +278,16 @@ func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
 	//     description: 统一返回格式
 
 	logrus.Debugf("trans stop service")
-	//rules := validator.MapData{
-	//	//"event_id": []string{"required"},
-	//}
-	//_, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
-	//if !ok {
-	//	return
-	//}
+	rules := validator.MapData{
+		"event_id": []string{},
+	}
+	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
+	if !ok {
+		return
+	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	sEvent,status,err:=createEvent(serviceID,"stop",tenantID,"")
+	sEvent,status,err:=createEvent(getOrNilEventID(data),serviceID,"stop",tenantID,"")
 	handleStatus(status,err,w,r)
 	//save event
 	eventID := sEvent.EventID
@@ -323,16 +332,16 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 	//     description: 统一返回格式
 
 	logrus.Debugf("trans restart service")
-	//rules := validator.MapData{
-	//	"event_id": []string{"required"},
-	//}
-	//_, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
-	//if !ok {
-	//	return
-	//}
+	rules := validator.MapData{
+		"event_id": []string{},
+	}
+	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
+	if !ok {
+		return
+	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	sEvent,status,err:=createEvent(serviceID,"restart",tenantID,"")
+	sEvent,status,err:=createEvent(getOrNilEventID(data),serviceID,"restart",tenantID,"")
 	handleStatus(status,err,w,r)
 	//save event
 	eventID := sEvent.EventID
@@ -389,7 +398,7 @@ func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	sEvent,status,err:=createEvent(serviceID,"update",tenantID,"")
+	sEvent,status,err:=createEvent(getOrNilEventID(data),serviceID,"update",tenantID,"")
 	handleStatus(status,err,w,r)
 
 	eventID := sEvent.EventID
@@ -446,7 +455,7 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	sEvent,status,err:=createEvent(serviceID,"update",tenantID,"")
+	sEvent,status,err:=createEvent(getOrNilEventID(data),serviceID,"update",tenantID,"")
 	handleStatus(status,err,w,r)
 	//save event
 	eventID := sEvent.EventID
@@ -505,7 +514,10 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
 	build.Body.TenantName = tenantName
 	build.Body.ServiceAlias = serviceAlias
-	//todo add event
+
+	sEvent,status,err:=createEvent(build.Body.EventID,serviceID,"build",tenantID,build.Body.DeployVersion)
+	handleStatus(status,err,w,r)
+	build.Body.EventID=sEvent.EventID
 	if err := handler.GetServiceManager().ServiceBuild(tenantID, serviceID, &build); err != nil {
 		logrus.Debugf("build service error")
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("build service error, %v", err))
@@ -559,7 +571,7 @@ func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 
-	sEvent,status,err:=createEvent(serviceID,"update",tenantID,data["deploy_version"].(string))
+	sEvent,status,err:=createEvent(getOrNilEventID(data),serviceID,"update",tenantID,data["deploy_version"].(string))
 	handleStatus(status,err,w,r)
 
 	eventID := sEvent.EventID
@@ -696,7 +708,8 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	sEvent,status,err:=createEvent(serviceID,"rollback",tenantID,data["deploy_version"].(string))
+	//todo
+	sEvent,status,err:=createEvent(getOrNilEventID(data),serviceID,"rollback",tenantID,data["deploy_version"].(string))
 	handleStatus(status,err,w,r)
 	eventID := sEvent.EventID
 	logger := event.GetManager().GetLogger(eventID)
@@ -705,7 +718,6 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 		TenantID:      tenantID,
 		ServiceID:     serviceID,
 		EventID:       eventID,
-		//EventID:       data["event_id"].(string),
 		//todo
 		DeployVersion: data["deploy_version"].(string),
 	}
