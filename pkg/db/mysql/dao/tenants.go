@@ -555,10 +555,11 @@ func (t *TenantServiceEnvVarDaoImpl) GetEnv(serviceID, envName string) (*model.T
 
 //DELServiceEnvsByServiceID 通过serviceID 删除envs
 func (t *TenantServiceEnvVarDaoImpl) DELServiceEnvsByServiceID(serviceID string) error {
-	env := &model.TenantServiceEnvVar{
-		ServiceID: serviceID,
+	var env model.TenantServiceEnvVar
+	if err := t.DB.Where("service_id=?", serviceID).Find(&env).Error; err != nil {
+		return err
 	}
-	if err := t.DB.Where("service_id=?", serviceID).Delete(env).Error; err != nil {
+	if err := t.DB.Where("service_id=?", serviceID).Delete(&env).Error; err != nil {
 		return err
 	}
 	return nil

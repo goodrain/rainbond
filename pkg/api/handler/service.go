@@ -1352,21 +1352,21 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	//删除tenant_system_pause
 	//删除tenant_service_relation
 	if err := db.GetManager().TenantServiceMountRelationDaoTransactions(tx).DELTenantServiceMountRelationByServiceID(serviceID); err != nil {
-		if err != gorm.ErrRecordNotFound {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			tx.Rollback()
 			return err
 		}
 	}
 	//删除tenant_service_evn_var
 	if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).DELServiceEnvsByServiceID(serviceID); err != nil {
-		if err != gorm.ErrRecordNotFound {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			tx.Rollback()
 			return err
 		}
 	}
 	//删除tenant_services_port
 	if err := db.GetManager().TenantServicesPortDaoTransactions(tx).DELPortsByServiceID(serviceID); err != nil {
-		if err != gorm.ErrRecordNotFound {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			tx.Rollback()
 			return err
 		}
@@ -1374,35 +1374,35 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	//删除clear net bridge
 	//删除tenant_service_mnt_relation
 	if err := db.GetManager().TenantServiceRelationDaoTransactions(tx).DELRelationsByServiceID(serviceID); err != nil {
-		if err != gorm.ErrRecordNotFound {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			tx.Rollback()
 			return err
 		}
 	}
 	//删除tenant_lb_mapping_port
 	if err := db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).DELServiceLBMappingPortByServiceID(serviceID); err != nil {
-		if err != gorm.ErrRecordNotFound {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			tx.Rollback()
 			return err
 		}
 	}
 	//删除tenant_service_volume
 	if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteTenantServiceVolumesByServiceID(serviceID); err != nil {
-		if err != gorm.ErrRecordNotFound {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			tx.Rollback()
 			return err
 		}
 	}
 	//删除tenant_service_pod
 	if err := db.GetManager().K8sPodDaoTransactions(tx).DeleteK8sPod(serviceID); err != nil {
-		if err != gorm.ErrRecordNotFound {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			tx.Rollback()
 			return err
 		}
 	}
 	//删除service_probe
 	if err := db.GetManager().ServiceProbeDaoTransactions(tx).DELServiceProbesByServiceID(serviceID); err != nil {
-		if err != gorm.ErrRecordNotFound {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			tx.Rollback()
 			return err
 		}
