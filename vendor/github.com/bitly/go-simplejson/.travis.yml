@@ -1,0 +1,28 @@
+sudo: false
+
+language: go
+
+go:
+  - 1.2.x
+  - 1.3.x
+  - 1.4.x
+  - 1.6.x
+  - 1.7.x
+  - tip
+
+os:
+  - linux
+
+matrix:
+  fast_finish: true
+  allow_failures:
+    - go: tip
+
+before_install:
+  - go get -v github.com/bmizerany/assert
+
+script:
+  - go test -v ./...
+
+notifications:
+  email: false

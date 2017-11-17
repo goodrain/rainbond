@@ -4,7 +4,7 @@ Version: %{_version}
 Release: %{_release}
 License: GPL
 Group: goodrain
-Source: gr-rainbond-node-%{version}.tar.gz
+Source: gr-rainbond-%{version}.tar.gz
 Packager: ysicing
 BuildRoot: /root/rpmbuild
 
@@ -12,7 +12,7 @@ BuildRoot: /root/rpmbuild
 rainbond-node 
 
 %prep
-%setup -n gr-rainbond-node-%{version}
+%setup -n gr-rainbond-%{version}
 
 %build
 

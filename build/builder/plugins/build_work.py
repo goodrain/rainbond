@@ -463,7 +463,7 @@ class RepoBuilder():
 def update_service_region(self, service_id, body):
     #todo 127.0.0.1:3333/api/codecheck
     # url = self.base_url + '/api/services/{0}'.format(service_id)
-    url = 'http://127.0.0.1:3228/api/codecheck/{0}'.format(service_id)
+    url = 'http://127.0.0.1:3228/v2/builder/codecheck/{0}'.format(service_id)
     res, body = self._put(url, self.default_headers, body)
 def main():
     body = ""
