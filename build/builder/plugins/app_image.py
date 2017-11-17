@@ -27,7 +27,11 @@ if os.access("/var/run/docker.sock", os.W_OK):
 else:
     DOCKER_BIN = "sudo -P docker"
 
-
+def service_publish_success_region(self, body):
+    # url = self.base_url + '/api/tenants/services/publish'
+    url = 'http://127.0.0.1:3228/v2/publish'
+    res, body = self._post(url, self.default_headers, body)
+    return res, body
 class AppImage():
     def __init__(self, job, *args, **kwargs):
         self.job = job
@@ -122,6 +126,7 @@ class AppImage():
                             data["share_id"] = share_id
                         self.user_cs_client.service_publish_success(
                             json.dumps(data))
+                        service_publish_success_region(self,json.dumps(data))
                         self.log.info(
                             "云帮应用发布完毕", step="last", status="success")
                     except (shell.ExecException, Exception), e:
@@ -143,6 +148,7 @@ class AppImage():
                         data["share_id"] = share_id
                     self.user_cs_client.service_publish_success(
                         json.dumps(data))
+                    service_publish_success_region(self,json.dumps(data))
                     self.log.info("云帮应用发布完毕", step="last", status="success")
         elif dest == "ys":
             # 当前有镜像并且云市的image数据中心开启
@@ -191,6 +197,7 @@ class AppImage():
                         data["share_id"] = share_id
                     self.user_cs_client.service_publish_success(
                         json.dumps(data))
+                    service_publish_success_region(self,json.dumps(data))
                     self.log.info("云市应用发布完毕", step="last", status="success")
                 except (shell.ExecException, Exception), e:
                     logger.exception("mq_work.app_image", e)

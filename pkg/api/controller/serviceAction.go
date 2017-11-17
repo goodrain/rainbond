@@ -518,6 +518,7 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	sEvent,status,err:=createEvent(build.Body.EventID,serviceID,"build",tenantID,build.Body.DeployVersion)
 	handleStatus(status,err,w,r)
 
+	//createBuildInfo
 
 	build.Body.EventID=sEvent.EventID
 	if err := handler.GetServiceManager().ServiceBuild(tenantID, serviceID, &build); err != nil {
@@ -526,7 +527,8 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logrus.Debugf("equeue mq build task success")
-	w.WriteHeader(200)
+	httputil.ReturnSuccess(r,w,sEvent)
+	//w.WriteHeader(200)
 }
 
 //BuildList BuildList

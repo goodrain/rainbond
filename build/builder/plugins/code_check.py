@@ -140,7 +140,7 @@ class CodeCheck():
 def code_check_region(self, body):
     #todo 127.0.0.1:3333/api/codecheck
     # url = self.base_url + '/api/tenants/services/codecheck'
-    url = 'http://127.0.0.1:3228/api/codecheck'
+    url = 'http://127.0.0.1:3228/v2/builder/codecheck'
     res, body = self._post(url, self.default_headers, body)
     return res, body
 def main():
