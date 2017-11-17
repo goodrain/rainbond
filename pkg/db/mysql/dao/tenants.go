@@ -573,7 +573,7 @@ type TenantServiceMountRelationDaoImpl struct {
 func (t *TenantServiceMountRelationDaoImpl) AddModel(mo model.Interface) error {
 	relation := mo.(*model.TenantServiceMountRelation)
 	var oldRelation model.TenantServiceMountRelation
-	if ok := t.DB.Where("service_id = ? and dep_service_id = ?", relation.ServiceID, relation.DependServiceID).Find(&oldRelation).RecordNotFound(); ok {
+	if ok := t.DB.Where("service_id = ? and dep_service_id = ? and volume_name=?", relation.ServiceID, relation.DependServiceID, relation.VolumeName).Find(&oldRelation).RecordNotFound(); ok {
 		if err := t.DB.Create(relation).Error; err != nil {
 			return err
 		}
