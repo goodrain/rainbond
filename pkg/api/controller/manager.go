@@ -42,6 +42,7 @@ type V2Manager interface {
 	apiFunc.ServiceInterface
 	apiFunc.LogInterface
 	apiFunc.PluginInterface
+	apiFunc.RulesInterface
 }
 
 var defaultV2Manager V2Manager

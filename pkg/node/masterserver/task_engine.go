@@ -364,7 +364,7 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 	taskStatus := model.TaskStatus{
 		StartTime:    er.BeginTime,
 		EndTime:      er.EndTime,
-		CompleStatus: "",
+		CompleStatus: "Failure",
 	}
 	if er.Output != "" {
 		index := strings.Index(er.Output, "{")
@@ -425,13 +425,9 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 					}
 				}
 			}
+			taskStatus.CompleStatus = output.ExecStatus
 		}
 		task.UpdataOutPut(output)
-	}
-	if er.Success {
-		taskStatus.CompleStatus = "Success"
-	} else {
-		taskStatus.CompleStatus = "Failure"
 	}
 	if task.Status == nil {
 		task.Status = make(map[string]model.TaskStatus)
