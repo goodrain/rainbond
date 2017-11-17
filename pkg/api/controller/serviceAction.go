@@ -137,7 +137,7 @@ func checkCanAddEvent(s string) (int,error){
 		}
 		if timeOut {
 			//未完成，超时
-			return 1,nil
+			return 0,nil
 		}else{
 			//未完成，未超时
 			return 2,nil
@@ -517,6 +517,8 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 
 	sEvent,status,err:=createEvent(build.Body.EventID,serviceID,"build",tenantID,build.Body.DeployVersion)
 	handleStatus(status,err,w,r)
+
+
 	build.Body.EventID=sEvent.EventID
 	if err := handler.GetServiceManager().ServiceBuild(tenantID, serviceID, &build); err != nil {
 		logrus.Debugf("build service error")
