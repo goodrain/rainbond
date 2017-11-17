@@ -154,23 +154,32 @@ func (ts *TaskService) DeleteTask(taskID string) *utils.APIHandleError {
 }
 
 //ExecTask 执行任务API处理
-func (ts *TaskService) ExecTask(taskID string) *utils.APIHandleError {
+func (ts *TaskService) ExecTask(taskID string, nodes []string) *utils.APIHandleError {
 	t, err := ts.GetTask(taskID)
 	if err != nil {
 		return err
 	}
 	//var depTasks []*model.Task
 	if len(t.Temp.Depends) > 0 {
-		// for _, dep := range t.Temp.Depends {
-		// 	t, err := ts.GetTask(dep)
-		// 	if err != nil || t == nil {
-		// 		return utils.CreateAPIHandleError(400, fmt.Errorf("depend task %s not found", dep))
-		// 	}
-		// 	depTasks = append(depTasks, t)
-		// }
-		return utils.CreateAPIHandleError(400, fmt.Errorf("Single task exec can not have depend task"))
+		for _, dep := range t.Temp.Depends {
+			_, err := ts.GetTask(dep.DependTaskID)
+			if err != nil || t == nil {
+				return utils.CreateAPIHandleError(400, fmt.Errorf("depend task %s not found", dep))
+			}
+		}
 	}
-	ts.ms.TaskEngine.ScheduleTask(nil, t)
+	if nodes == nil || len(nodes) == 0 {
+		ts.ms.TaskEngine.PutSchedul(taskID, "")
+	} else {
+		for _, node := range nodes {
+			if n := ts.ms.Cluster.GetNode(node); n == nil {
+				return utils.CreateAPIHandleError(400, fmt.Errorf(" exec node  %s not found", node))
+			}
+		}
+		for _, node := range nodes {
+			ts.ms.TaskEngine.PutSchedul(taskID, node)
+		}
+	}
 	return nil
 }
 

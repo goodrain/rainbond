@@ -37,9 +37,6 @@
             }]
         },
         "event_id": "xyxyxyxyxy",
-        "is_once": true,
-        "scheduler": {
-            "mode": "Intime"
-        }
+        "is_once": true
     }]
 }

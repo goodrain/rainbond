@@ -350,3 +350,23 @@ func (n *NodeCluster) UpdateNodeCondition(nodeID, ctype, cvalue string) {
 	})
 	n.UpdateNode(node)
 }
+
+//GetLabelsNode 返回匹配labels的节点ID
+func (n *NodeCluster) GetLabelsNode(labels map[string]string) []string {
+	var nodes []string
+	for _, node := range n.nodes {
+		if checkLables(node, labels) {
+			nodes = append(nodes, node.ID)
+		}
+	}
+	return nodes
+}
+
+func checkLables(node *model.HostNode, labels map[string]string) bool {
+	for k, v := range labels {
+		if nodev := node.Labels[k]; nodev != v {
+			return false
+		}
+	}
+	return true
+}

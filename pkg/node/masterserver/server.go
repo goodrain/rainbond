@@ -50,7 +50,7 @@ func NewMasterServer(node *model.HostNode, k8sClient *kubernetes.Clientset) (*Ma
 	}
 	ms := &MasterServer{
 		Client:           store.DefalutClient,
-		TaskEngine:       CreateTaskEngine(cluster),
+		TaskEngine:       CreateTaskEngine(cluster, node),
 		HostNode:         node,
 		Cluster:          cluster,
 		ctx:              ctx,

@@ -1,25 +1,25 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package store
 
 import (
+	"errors"
 	"strings"
 	"time"
 
@@ -60,6 +60,26 @@ func NewClient(cfg *conf.Conf) (err error) {
 	logrus.Infof("init etcd client, endpoint is:%+x", cfg.Etcd.Endpoints)
 	DefalutClient = c
 	return
+}
+
+//ErrKeyExists key exist error
+var ErrKeyExists = errors.New("key already exists")
+
+// Post attempts to create the given key, only succeeding if the key did
+// not yet exist.
+func (c *Client) Post(key, val string, opts ...client.OpOption) (*client.PutResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
+	defer cancel()
+	cmp := client.Compare(client.Version(key), "=", 0)
+	req := client.OpPut(key, val, opts...)
+	txnresp, err := c.Client.Txn(ctx).If(cmp).Then(req).Commit()
+	if err != nil {
+		return nil, err
+	}
+	if !txnresp.Succeeded {
+		return nil, ErrKeyExists
+	}
+	return txnresp.ToOpResponse().Put(), nil
 }
 
 //Put etcd v3 Put

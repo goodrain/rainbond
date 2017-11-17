@@ -67,7 +67,6 @@ func (t TaskTemp) String() string {
 type Task struct {
 	Name    string    `json:"name" validate:"name|required"`
 	ID      string    `json:"id" validate:"id|uuid"`
-	JobID   string    `json:"job_id"`
 	TempID  string    `json:"temp_id,omitempty" validate:"temp_id|uuid"`
 	Temp    *TaskTemp `json:"temp,omitempty"`
 	GroupID string    `json:"group_id,omitempty"`
@@ -83,6 +82,8 @@ type Task struct {
 	// 执行任务失败重试时间间隔
 	// 单位秒，如果不大于 0 则马上重试
 	Interval int `json:"interval"`
+	//ExecCount 执行次数
+	ExecCount int `json:"exec_count"`
 	//每个执行节点执行状态
 	Status       map[string]TaskStatus `json:"status,omitempty"`
 	Scheduler    Scheduler             `json:"scheduler"`
@@ -102,11 +103,16 @@ func (t Task) String() string {
 
 //UpdataOutPut 更新状态
 func (t *Task) UpdataOutPut(output TaskOutPut) {
-	for _, oldOut := range t.OutPut {
+	updateIndex := -1
+	for i, oldOut := range t.OutPut {
 		if oldOut.NodeID == output.NodeID {
-			*oldOut = output
-			return
+			updateIndex = i
+			break
 		}
+	}
+	if updateIndex != -1 {
+		t.OutPut[updateIndex] = &output
+		return
 	}
 	t.OutPut = append(t.OutPut, &output)
 }
@@ -126,11 +132,8 @@ func (t Task) CanBeDelete() bool {
 
 //Scheduler 调度状态
 type Scheduler struct {
-	Mode            string    `json:"mode"` //立即调度（Intime），触发调度（Passive）
-	Status          string    `json:"status"`
-	Message         string    `json:"message"`
-	SchedulerTime   time.Time `json:"scheduler_time"`   //调度时间
-	SchedulerMaster string    `json:"scheduler_master"` //调度的管理节点
+	Mode   string                     `json:"mode"` //立即调度（Intime），触发调度（Passive）
+	Status map[string]SchedulerStatus `json:"status"`
 }
 
 //SchedulerStatus 调度状态
@@ -144,6 +147,7 @@ type SchedulerStatus struct {
 //TaskOutPut 任务输出
 type TaskOutPut struct {
 	NodeID string            `json:"node_id"`
+	JobID  string            `json:"job_id"`
 	Global map[string]string `json:"global"`
 	Inner  map[string]string `json:"inner"`
 	//返回数据类型，检测结果类(check) 执行安装类 (install) 普通类 (common)
@@ -162,8 +166,10 @@ func ParseTaskOutPut(body string) (t TaskOutPut, err error) {
 
 //TaskOutPutStatus 输出数据
 type TaskOutPutStatus struct {
-	Name            string   `json:"name"`
-	ConditionType   string   `json:"condition_type"`
+	Name string `json:"name"`
+	//节点属性
+	ConditionType string `json:"condition_type"`
+	//节点属性值
 	ConditionStatus string   `json:"condition_status"`
 	NextTask        []string `json:"next_tasks,omitempty"`
 	NextGroups      []string `json:"next_groups,omitempty"`
@@ -171,6 +177,7 @@ type TaskOutPutStatus struct {
 
 //TaskStatus 任务状态
 type TaskStatus struct {
+	JobID        string    `json:"job_id"`
 	Status       string    `json:"status"` //执行状态，create init exec complete timeout
 	StartTime    time.Time `json:"start_time"`
 	EndTime      time.Time `json:"end_time"`
