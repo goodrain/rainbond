@@ -2,7 +2,7 @@
 set -o errexit
 
 # define package name
-PROGRAM="gr-rainbond-node"
+PROGRAM="gr-rainbond"
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 releasedir=./.release
@@ -40,9 +40,11 @@ function prepare() {
 }
 
 function build() {
-	echo "---> build image"
-    docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o ./build/node/${BASE_NAME}-node ./cmd/node
-    mv $PWD/build/node/${BASE_NAME}-node $releasedir/dist/usr/local/bin/
+	echo "---> Build Binary For ACP"
+	echo "build rainbond-node"
+    docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/${BASE_NAME}-node ./cmd/node
+	echo "build rainbond-grctl"
+	docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/${BASE_NAME}-grctl ./cmd/grctl
 }
 
 function build::rpm() {
