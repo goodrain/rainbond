@@ -80,6 +80,10 @@ func Run(s *option.APIServer) error {
 	if err := handler.CreateNetRulesHandler(s.Config); err != nil {
 		logrus.Errorf("create net-rule manager error, %v", err)
 	}
+	//创建sources manager
+	if err := handler.CreateSourcesHandler(s.Config); err != nil {
+		logrus.Errorf("create sources manager error, %v", err)
+	}
 	//创建license manager
 	// if err := handler.CreateLicenseManger(); err != nil {
 	// 	logrus.Errorf("create tenant manager error, %v", err)

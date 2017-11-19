@@ -19,28 +19,40 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/node/option"
+	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
 	node_model "github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
+	"github.com/pquerna/ffjson/ffjson"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/client-go/pkg/api/v1"
 )
 
 //DiscoverAction DiscoverAction
 type DiscoverAction struct {
-	conf *option.Conf
+	conf    *option.Conf
+	etcdCli *clientv3.Client
 }
 
 //CreateDiscoverActionManager CreateDiscoverActionManager
 func CreateDiscoverActionManager(conf *option.Conf) *DiscoverAction {
+	cli, err := clientv3.New(conf.Etcd)
+	if err != nil {
+		logrus.Errorf("create etcd client v3 error, %v", err)
+		return nil
+	}
 	return &DiscoverAction{
-		conf: conf,
+		conf:    conf,
+		etcdCli: cli,
 	}
 }
 
@@ -282,6 +294,28 @@ func (d *DiscoverAction) DiscoverClusters(tenantService, serviceCluster string) 
 	return cds, nil
 }
 
+//GetSourcesEnv GetSourcesEnv
+func (d *DiscoverAction) GetSourcesEnv(namespace, sourceAlias, envName string) (*api_model.SourceSpec, *util.APIHandleError) {
+	k := fmt.Sprintf("/sources/%s/%s/%s", namespace, sourceAlias, envName)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	resp, err := d.etcdCli.Get(ctx, k)
+	cancel()
+	if err != nil {
+		logrus.Errorf("get etcd value error, %v", err)
+		return nil, util.CreateAPIHandleError(500, err)
+	}
+	if resp.Count != 0 {
+		v := resp.Kvs[0].Value
+		var ss api_model.SourceSpec
+		if err := ffjson.Unmarshal(v, &ss); err != nil {
+			logrus.Errorf("unmashal etcd v error, %v", err)
+			return nil, util.CreateAPIHandleError(500, err)
+		}
+		return &ss, nil
+	}
+	return nil, nil
+}
+
 //ToolsGetK8SServiceList GetK8SServiceList
 func (d *DiscoverAction) ToolsGetK8SServiceList(uuid string) (*v1.ServiceList, error) {
 	serviceList, err := k8s.K8S.Core().Services(uuid).List(metav1.ListOptions{})
@@ -292,7 +326,9 @@ func (d *DiscoverAction) ToolsGetK8SServiceList(uuid string) (*v1.ServiceList, e
 }
 
 //ToolsGetMainPodEnvs ToolsGetMainPodEnvs
-func (d *DiscoverAction) ToolsGetMainPodEnvs(namespace, serviceAlias string) (*[]v1.EnvVar, *util.APIHandleError) {
+func (d *DiscoverAction) ToolsGetMainPodEnvs(namespace, serviceAlias string) (
+	*[]v1.EnvVar,
+	*util.APIHandleError) {
 	labelname := fmt.Sprintf("name=%s", serviceAlias)
 	pods, err := k8s.K8S.Core().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelname})
 	logrus.Debugf("service_alias %s pod is %v", serviceAlias, pods)

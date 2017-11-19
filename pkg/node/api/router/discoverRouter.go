@@ -32,6 +32,7 @@ func DisconverRoutes() chi.Router {
 	r.Mount("/clusters", ClustersRoutes())
 	r.Mount("/registration", RegistrationRoutes())
 	r.Mount("/routes", RoutesRouters())
+	r.Mount("/sources", SourcesRoutes())
 	return r
 }
 
@@ -68,5 +69,13 @@ func RoutesRouters() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/ping", controller.Ping)
 	r.Get("/{route_config}/{tenant_service}/{service_nodes}", controller.RoutesDiscover)
+	return r
+}
+
+//SourcesRoutes SourcesRoutes
+//GET /v1/sources/(string: tenant_id)/(string: source_alias)/(string: env_name)
+func SourcesRoutes() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/{tenant_id}/{source_alias}/{env_name}", controller.SourcesEnv)
 	return r
 }

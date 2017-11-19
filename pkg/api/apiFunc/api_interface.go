@@ -113,3 +113,8 @@ type RulesInterface interface {
 	DeleteDownStreamRule(w http.ResponseWriter, r *http.Request)
 	UpdateDownStreamRule(w http.ResponseWriter, r *http.Request)
 }
+
+//SourcesInterface SourcesInterface
+type SourcesInterface interface {
+	SetDefineSource(w http.ResponseWriter, r *http.Request)
+}

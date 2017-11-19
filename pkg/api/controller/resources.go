@@ -1,34 +1,34 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package controller
 
 import (
-	"github.com/goodrain/rainbond/pkg/api/middleware"
-	api_model "github.com/goodrain/rainbond/pkg/api/model"
-	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/goodrain/rainbond/pkg/api/middleware"
+	api_model "github.com/goodrain/rainbond/pkg/api/model"
+	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 
 	"github.com/pquerna/ffjson/ffjson"
 
@@ -729,28 +729,27 @@ func (t *TenantStruct) GetSingleServiceInfo(w http.ResponseWriter, r *http.Reque
 }
 
 //DeleteSingleServiceInfo DeleteService
+// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias} v2 deleteService
+//
+// 删除应用
+//
+// delete service
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) DeleteSingleServiceInfo(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias} v2 deleteService
-	//
-	// 删除应用
-	//
-	// delete service
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	if err := handler.GetServiceManager().TransServieToDelete(serviceID); err != nil {
 		if err == fmt.Errorf("unclosed") {
@@ -774,29 +773,27 @@ func (t *TenantStruct) Dependency(w http.ResponseWriter, r *http.Request) {
 }
 
 //AddDependency AddDependency
+// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/dependency v2 addDependency
+//
+// 增加应用依赖关系
+//
+// add dependency  **完成
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) AddDependency(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/dependency v2 addDependency
-	//
-	// 增加应用依赖关系
-	//
-	// add dependency  **完成
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	logrus.Debugf("trans add depend service ")
 	rules := validator.MapData{
 		"dep_service_id":   []string{"required"},
 		"dep_service_type": []string{"required"},
@@ -820,28 +817,27 @@ func (t *TenantStruct) AddDependency(w http.ResponseWriter, r *http.Request) {
 }
 
 //DeleteDependency DeleteDependency
+// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/dependency v2 deleteDependency
+//
+// 删除应用依赖关系
+//
+// delete dependency  **完成
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) DeleteDependency(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/dependency v2 deleteDependency
-	//
-	// 删除应用依赖关系
-	//
-	// delete dependency  **完成
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
 	logrus.Debugf("trans delete depend service ")
 	rules := validator.MapData{
 		"dep_service_id":   []string{"required"},
@@ -875,29 +871,27 @@ func (t *TenantStruct) Env(w http.ResponseWriter, r *http.Request) {
 }
 
 //AddEnv AddEnv
+// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/env v2 addEnv
+//
+// 增加环境变量
+//
+// add env var  **完成
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) AddEnv(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/env v2 addEnv
-	//
-	// 增加环境变量
-	//
-	// add env var  **完成
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	logrus.Debugf("trans add env service ")
 	var envM api_model.AddTenantServiceEnvVar
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &envM, nil) {
 		return
@@ -922,29 +916,27 @@ func (t *TenantStruct) AddEnv(w http.ResponseWriter, r *http.Request) {
 }
 
 //DeleteEnv DeleteEnv
+// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/env v2 deleteEnv
+//
+// 删除环境变量
+//
+// delete env var  **完成
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) DeleteEnv(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/env v2 deleteEnv
-	//
-	// 删除环境变量
-	//
-	// delete env var  **完成
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	logrus.Debugf("trans delete env service ")
 	var envM api_model.DelTenantServiceEnvVar
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &envM, nil) {
 		return
@@ -987,27 +979,27 @@ func (t *TenantStruct) Ports(w http.ResponseWriter, r *http.Request) {
 }
 
 //AddPortVar PortVar
+// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/ports v2 addPort
+//
+// 增加应用端口,默认关闭对内和对外选项，需要开启使用相应接口
+//
+// add port  **完成
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) addPortController(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/ports v2 addPort
-	//
-	// 增加应用端口,默认关闭对内和对外选项，需要开启使用相应接口
-	//
-	// add port  **完成
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	var ports api_model.ServicePorts
@@ -1023,27 +1015,27 @@ func (t *TenantStruct) addPortController(w http.ResponseWriter, r *http.Request)
 }
 
 //UpdatePortVar PortVar
+// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports v2 updatePort
+//
+// 更新应用端口信息
+//
+// update port  **完成
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) updatePortController(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports v2 updatePort
-	//
-	// 更新应用端口信息
-	//
-	// update port  **完成
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	var ports api_model.ServicePorts
@@ -1059,27 +1051,27 @@ func (t *TenantStruct) updatePortController(w http.ResponseWriter, r *http.Reque
 }
 
 //PortOuterController 开关端口对外服务
+// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}/outer v2 PortOuterController
+//
+// 开关端口对外服务，应用无需重启自动生效
+//
+// add port  **完成
+//
+// ---
+// Consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}/outer v2 PortOuterController
-	//
-	// 开关端口对外服务，应用无需重启自动生效
-	//
-	// add port  **完成
-	//
-	// ---
-	// Consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	var data api_model.ServicePortInnerOrOuter
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &(data.Body), nil) {
 		return
@@ -1123,27 +1115,27 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 }
 
 //PortInnerController 开关端口对内服务
+// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}/inner v2 PortInnerController
+//
+// 开关对内服务，应用无需重启，自动生效
+//
+// add port  **完成
+//
+// ---
+// Consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}/inner v2 PortInnerController
-	//
-	// 开关对内服务，应用无需重启，自动生效
-	//
-	// add port  **完成
-	//
-	// ---
-	// Consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	var data api_model.ServicePortInnerOrOuter
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &(data.Body), nil) {
 		return
@@ -1172,27 +1164,27 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 }
 
 //DeletePortVar PortVar
+// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port} v2 deletePort
+//
+// 删除端口变量
+//
+// delete port  **完成
+//
+// ---
+// Consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) deletePortController(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port} v2 deletePort
-	//
-	// 删除端口变量
-	//
-	// delete port  **完成
-	//
-	// ---
-	// Consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	portStr := chi.URLParam(r, "port")
@@ -1220,27 +1212,27 @@ func (t *TenantStruct) deletePortController(w http.ResponseWriter, r *http.Reque
 }
 
 //Pods pods
+// swagger:operation GET  /v2/tenants/{tenant_name}/services/{service_alias}/pods v2 getPodsInfo
+//
+// 获取pods信息
+//
+// get pods info    **完成
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) Pods(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation GET  /v2/tenants/{tenant_name}/services/{service_alias}/pods v2 getPodsInfo
-	//
-	// 获取pods信息
-	//
-	// get pods info    **完成
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	pods, err := handler.GetServiceManager().GetPods(serviceID)
 	if err != nil {
