@@ -57,6 +57,8 @@ build-grctl:
 	go build ${GO_LDFLAGS} -o ./build/grctl/${BASE_NAME}_grctl ./cmd/grctl
 build-api:
 	go build ${GO_LDFLAGS} -o ./build/api/${BASE_NAME}_api ./cmd/api
+build-webcli:
+	go build ${GO_LDFLAGS} -o ./build/webcli/${BASE_NAME}_webcli ./cmd/webcli	
 	
 all-image: build-image-worker  build-image-mq build-image-builder build-image-entrance build-image-eventlog build-image-api
 build-image-worker:
@@ -97,12 +99,19 @@ build-image-api:
 	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/api/${BASE_NAME}_api ./cmd/api
 	@docker build -t hub.goodrain.com/dc-deploy/${BASE_NAME}_api:${VERSION} ./build/api
 	@rm -f ./build/api/${BASE_NAME}_api	
+build-image-webcli:
+	@echo "🐳 $@"
+	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/webcli/${BASE_NAME}_webcli ./cmd/webcli
+	@docker build -t hub.goodrain.com/dc-deploy/${BASE_NAME}_webcli:${VERSION} ./build/webcli
+	@rm -f ./build/webcli/${BASE_NAME}_webcli
 push-image:
 	docker push hub.goodrain.com/dc-deploy/${BASE_NAME}_eventlog:${VERSION}
 	docker push hub.goodrain.com/dc-deploy/${BASE_NAME}_entrance:${VERSION}
 	docker push hub.goodrain.com/dc-deploy/${BASE_NAME}_chaos:${VERSION}
 	docker push hub.goodrain.com/dc-deploy/${BASE_NAME}_mq:${VERSION}
 	docker push hub.goodrain.com/dc-deploy/${BASE_NAME}_worker:${VERSION}
+	docker push hub.goodrain.com/dc-deploy/${BASE_NAME}_webcli:${VERSION}
+	docker push hub.goodrain.com/dc-deploy/${BASE_NAME}_api:${VERSION}
 
 
 
