@@ -20,6 +20,7 @@ package service
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -98,7 +99,9 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *
 }
 
 //DiscoverListeners lds
-func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string) (*node_model.LDS, *util.APIHandleError) {
+func (d *DiscoverAction) DiscoverListeners(
+	tenantService,
+	serviceCluster string) (*node_model.LDS, *util.APIHandleError) {
 	nn := strings.Split(tenantService, "_")
 	if len(nn) != 2 {
 		return nil, util.CreateAPIHandleError(400,
@@ -111,8 +114,6 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
 	}
 
-	var httpPort int32
-	httpPort = 80
 	//TODO: console控制尽量不把小于1000的端口给用户使用
 	var vhL []*node_model.PieceHTTPVirtualHost
 	var ldsL []*node_model.PieceLDS
@@ -136,9 +137,6 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 				continue
 			}
 			port := service.Spec.Ports[0].Port
-			if port == httpPort {
-				httpPort++
-			}
 			portProtocol, ok := service.Labels["port_protocol"]
 			if ok {
 				logrus.Debugf("port protocol is %s", portProtocol)
@@ -198,6 +196,11 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 		}
 	}
 	if len(vhL) != 0 {
+		httpPort, err := d.ToolsGetHTTPPort(namespace, "downStream", serviceAlias)
+		if err != nil {
+			logrus.Errorf("get http port error, %v", err)
+			return nil, util.CreateAPIHandleError(500, err)
+		}
 		hsf := &node_model.HTTPSingleFileter{
 			Type:   "decoder",
 			Name:   "router",
@@ -218,6 +221,7 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 			Address: fmt.Sprintf("tcp://0.0.0.0:%d", httpPort),
 			Filters: []*node_model.LDSFilters{lfs},
 		}
+		//修改http-port console 完成
 		ldsL = append(ldsL, plds)
 	}
 	lds := &node_model.LDS{
@@ -290,7 +294,7 @@ func (d *DiscoverAction) DiscoverClusters(
 
 //GetSourcesEnv rds
 func (d *DiscoverAction) GetSourcesEnv(namespace, sourceAlias, envName string) (*api_model.SourceSpec, *util.APIHandleError) {
-	k := fmt.Sprintf("/sources/%s/%s/%s", namespace, sourceAlias, envName)
+	k := fmt.Sprintf("/sources/define/%s/%s/%s", namespace, sourceAlias, envName)
 	resp, err := d.etcdCli.Get(k)
 	if err != nil {
 		logrus.Errorf("get etcd value error, %v", err)
@@ -395,4 +399,23 @@ func ToolsGetEnvValue(ename string, envs *[]v1.EnvVar) string {
 		}
 	}
 	return ""
+}
+
+//ToolsGetHTTPPort ToolsGetHTTPPort
+func (d *DiscoverAction) ToolsGetHTTPPort(namespace, sourceAlias, serviceAlias string) (int, error) {
+	key := fmt.Sprintf("/sources/define/%s/%s/%s_http_port", namespace, sourceAlias, serviceAlias)
+	resp, err := d.etcdCli.Get(key)
+	if err != nil {
+		logrus.Errorf("get service %s http port error, %v", serviceAlias, err)
+		return 0, err
+	}
+	if resp.Count != 0 {
+		v := resp.Kvs[0].Value
+		port, err := strconv.Atoi(string(v))
+		if err != nil {
+			return 0, err
+		}
+		return port, nil
+	}
+	return 0, nil
 }
