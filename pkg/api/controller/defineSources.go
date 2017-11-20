@@ -28,7 +28,7 @@ import (
 )
 
 //SetDefineSource SetDefineSource
-// swagger:operation POST /v2/tenant/{tenant_name}/sources/{source-type} v2 SetDefineSource
+// swagger:operation POST /v2/tenant/{tenant_name}/sources/{source_alias} v2 setDefineSource
 //
 // 设置自定义资源
 //
@@ -64,4 +64,112 @@ func (t *TenantStruct) SetDefineSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
+}
+
+//UpdateDefineSource UpdateDefineSource
+// swagger:operation PUT /v2/tenant/{tenant_name}/sources/{source_alias}/{env_name} v2 updateDefineSource
+//
+// 更新自定义资源
+//
+// set defineSource
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func (t *TenantStruct) UpdateDefineSource(w http.ResponseWriter, r *http.Request) {
+	var ss api_model.SetDefineSourcesStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ss.Body, nil)
+	if !ok {
+		return
+	}
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	//source_alis need legal checking, cant includ "/"
+	sourceAlias := r.Context().Value(middleware.ContextKey("source_alias")).(string)
+	envName := r.Context().Value(middleware.ContextKey("env_name")).(string)
+	ss.Body.SourceSpec.Alias = sourceAlias
+	ss.Body.SourceSpec.SourceBody.EnvName = envName
+	if err := handler.GetSourcesManager().UpdateDefineSources(tenantID, &ss); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+//DeleteDefineSource DeleteDefineSource
+// swagger:operation DELETE /v2/tenant/{tenant_name}/sources/{source_alias}/{env_name} v2 deleteDefineSource
+//
+// 设置自定义资源
+//
+// set defineSource
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func (t *TenantStruct) DeleteDefineSource(w http.ResponseWriter, r *http.Request) {
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	//source_alis need legal checking, cant includ "/"
+	sourceAlias := r.Context().Value(middleware.ContextKey("source_alias")).(string)
+	envName := r.Context().Value(middleware.ContextKey("env_name")).(string)
+	if err := handler.GetSourcesManager().DeleteDefineSources(tenantID, sourceAlias, envName); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+//GetDefineSource GetDefineSource
+// swagger:operation GET /v2/tenant/{tenant_name}/sources/{source_alias}/{env_name} v2 getDefineSource
+//
+// 设置自定义资源
+//
+// set defineSource
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func (t *TenantStruct) GetDefineSource(w http.ResponseWriter, r *http.Request) {
+	//work for console only.
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	//source_alis need legal checking, cant includ "/"
+	sourceAlias := r.Context().Value(middleware.ContextKey("source_alias")).(string)
+	envName := r.Context().Value(middleware.ContextKey("env_name")).(string)
+	ss, err := handler.GetSourcesManager().GetDefineSources(tenantID, sourceAlias, envName)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, ss)
 }

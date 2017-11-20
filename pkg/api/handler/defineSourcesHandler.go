@@ -29,6 +29,17 @@ type SourcesHandler interface {
 	CreateDefineSources(
 		tenantID string,
 		ss *api_model.SetDefineSourcesStruct) *util.APIHandleError
+	DeleteDefineSources(
+		tenantID,
+		sourceAlias,
+		envName string) *util.APIHandleError
+	GetDefineSources(
+		tenantID,
+		sourceAlias,
+		envName string) (*api_model.SourceSpec, *util.APIHandleError)
+	UpdateDefineSources(
+		tenantID string,
+		ss *api_model.SetDefineSourcesStruct) *util.APIHandleError
 }
 
 var defaultSourcesHandler SourcesHandler
