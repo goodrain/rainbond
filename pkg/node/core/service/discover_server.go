@@ -19,19 +19,17 @@
 package service
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
 	node_model "github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
+	"github.com/goodrain/rainbond/pkg/node/core/store"
 	"github.com/pquerna/ffjson/ffjson"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/client-go/pkg/api/v1"
@@ -40,23 +38,18 @@ import (
 //DiscoverAction DiscoverAction
 type DiscoverAction struct {
 	conf    *option.Conf
-	etcdCli *clientv3.Client
+	etcdCli *store.Client
 }
 
 //CreateDiscoverActionManager CreateDiscoverActionManager
 func CreateDiscoverActionManager(conf *option.Conf) *DiscoverAction {
-	cli, err := clientv3.New(conf.Etcd)
-	if err != nil {
-		logrus.Errorf("create etcd client v3 error, %v", err)
-		return nil
-	}
 	return &DiscoverAction{
 		conf:    conf,
-		etcdCli: cli,
+		etcdCli: store.DefalutClient,
 	}
 }
 
-//DiscoverService DiscoverService
+//DiscoverService sds
 func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *util.APIHandleError) {
 	mm := strings.Split(serviceInfo, "_")
 	if len(mm) < 3 {
@@ -105,8 +98,10 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *
 	return sds, nil
 }
 
-//DiscoverListeners DiscoverListeners
-func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string) (*node_model.LDS, *util.APIHandleError) {
+//DiscoverListeners lds
+func (d *DiscoverAction) DiscoverListeners(
+	tenantService,
+	serviceCluster string) (*node_model.LDS, *util.APIHandleError) {
 	nn := strings.Split(tenantService, "_")
 	if len(nn) != 2 {
 		return nil, util.CreateAPIHandleError(400,
@@ -114,17 +109,16 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 	}
 	namespace := nn[0]
 	serviceAlias := nn[1]
-	envs, err := d.ToolsGetMainPodEnvs(namespace, serviceAlias)
-	if err != nil {
-		return nil, err
-	}
 	mm := strings.Split(serviceCluster, "_")
 	if len(mm) == 0 {
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
 	}
+
+	//TODO: console控制尽量不把小于1000的端口给用户使用
+	var vhL []*node_model.PieceHTTPVirtualHost
 	var ldsL []*node_model.PieceLDS
-	for _, serviceAlias := range mm {
-		labelname := fmt.Sprintf("name=%sService", serviceAlias)
+	for _, destServiceAlias := range mm {
+		labelname := fmt.Sprintf("name=%sService", destServiceAlias)
 		endpoint, err := k8s.K8S.Core().Endpoints(namespace).List(metav1.ListOptions{LabelSelector: labelname})
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
@@ -149,13 +143,13 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 				switch portProtocol {
 				case "stream":
 					ptr := &node_model.PieceTCPRoute{
-						Cluster: fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
+						Cluster: fmt.Sprintf("%s_%s_%d", namespace, destServiceAlias, port),
 					}
 					lrs := &node_model.LDSTCPRoutes{
 						Routes: []*node_model.PieceTCPRoute{ptr},
 					}
 					lcg := &node_model.LDSTCPConfig{
-						StatPrefix:  fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
+						StatPrefix:  fmt.Sprintf("%s_%s_%d", namespace, destServiceAlias, port),
 						RouteConfig: lrs,
 					}
 					lfs := &node_model.LDSFilters{
@@ -163,73 +157,72 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 						Config: lcg,
 					}
 					plds := &node_model.PieceLDS{
-						Name:    fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
+						Name:    fmt.Sprintf("%s_%s_%d", namespace, destServiceAlias, port),
 						Address: fmt.Sprintf("tcp://0.0.0.0:%d", port),
 						Filters: []*node_model.LDSFilters{lfs},
 					}
 					ldsL = append(ldsL, plds)
 					continue
 				case "http":
-					hsf := &node_model.HTTPSingleFileter{
-						Type:   "decoder",
-						Name:   "router",
-						Config: make(map[string]string),
+					envName := fmt.Sprintf("%s_%d", destServiceAlias, port)
+					ss, err := d.GetSourcesEnv(namespace, "downStream", envName)
+					if err != nil {
+						logrus.Warnf("get env %s error, %v", envName, err)
+						continue
+					}
+					var sr api_model.NetDownStreamRules
+					if err := ffjson.Unmarshal([]byte(ss.SourceBody.EnvVal), &sr); err != nil {
+						logrus.Warnf("unmashal downstream rules error, %v", err)
+						continue
 					}
 					prs := &node_model.PieceHTTPRoutes{
 						TimeoutMS: 0,
-						Prefix:    d.ToolsGetRouterItem(serviceAlias, node_model.PREFIX, envs),
-						Cluster:   fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
-						Headers:   []*node_model.PieceHeader{},
+						Prefix:    d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, &sr).(string),
+						Cluster:   fmt.Sprintf("%s_%s_%d", namespace, destServiceAlias, port),
+						Headers: d.ToolsGetRouterItem(destServiceAlias,
+							node_model.HEADERS, &sr).([]*node_model.PieceHeader),
 					}
-					envHeaders := d.ToolsGetRouterItem(serviceAlias, node_model.HEADERS, envs)
-					var headers []*node_model.PieceHeader
-					if envHeaders != "" {
-						mm := strings.Split(envHeaders, ",")
-						for _, h := range mm {
-							nn := strings.Split(h, ":")
-							header := &node_model.PieceHeader{
-								Name:  nn[0],
-								Value: nn[1],
-							}
-							headers = append(headers, header)
-						}
-					} else {
-						header := &node_model.PieceHeader{
-							Name:  "default",
-							Value: "default",
-						}
-						headers = append(headers, header)
-					}
-					prs.Headers = headers
 					pvh := &node_model.PieceHTTPVirtualHost{
-						//TODO: 目前支持自定义一个domain
-						Name:    fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
-						Domains: []string{d.ToolsGetRouterItem(serviceAlias, node_model.DOMAINS, envs)},
+						Name:    fmt.Sprintf("%s_%s_%d", namespace, destServiceAlias, port),
+						Domains: d.ToolsGetRouterItem(destServiceAlias, node_model.DOMAINS, &sr).([]string),
 						Routes:  []*node_model.PieceHTTPRoutes{prs},
 					}
-					rcg := &node_model.RouteConfig{
-						VirtualHosts: []*node_model.PieceHTTPVirtualHost{pvh},
-					}
-					lhc := &node_model.LDSHTTPConfig{
-						CodecType:   "auto",
-						StatPrefix:  "ingress_http",
-						RouteConfig: rcg,
-						Filters:     []*node_model.HTTPSingleFileter{hsf},
-					}
-					lfs := &node_model.LDSFilters{
-						Name:   "http_connection_manager",
-						Config: lhc,
-					}
-					plds := &node_model.PieceLDS{
-						Name:    fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port),
-						Address: fmt.Sprintf("tcp://0.0.0.0:%d", port),
-						Filters: []*node_model.LDSFilters{lfs},
-					}
-					ldsL = append(ldsL, plds)
+					vhL = append(vhL, pvh)
+					continue
+				default:
 					continue
 				}
 			}
 		}
+	}
+	if len(vhL) != 0 {
+		httpPort, err := d.ToolsGetHTTPPort(namespace, "downStream", serviceAlias)
+		if err != nil {
+			logrus.Errorf("get http port error, %v", err)
+			return nil, util.CreateAPIHandleError(500, err)
+		}
+		hsf := &node_model.HTTPSingleFileter{
+			Type:   "decoder",
+			Name:   "router",
+			Config: make(map[string]string),
+		}
+		lhc := &node_model.LDSHTTPConfig{
+			CodecType:  "auto",
+			StatPrefix: "ingress_http",
+			//RouteConfig: rcg,
+			Filters: []*node_model.HTTPSingleFileter{hsf},
+		}
+		lfs := &node_model.LDSFilters{
+			Name:   "http_connection_manager",
+			Config: lhc,
+		}
+		plds := &node_model.PieceLDS{
+			Name:    fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias),
+			Address: fmt.Sprintf("tcp://0.0.0.0:%d", httpPort),
+			Filters: []*node_model.LDSFilters{lfs},
+		}
+		//修改http-port console 完成
+		ldsL = append(ldsL, plds)
 	}
 	lds := &node_model.LDS{
 		Listeners: ldsL,
@@ -237,25 +230,23 @@ func (d *DiscoverAction) DiscoverListeners(tenantService, serviceCluster string)
 	return lds, nil
 }
 
-//DiscoverClusters DiscoverClusters
-func (d *DiscoverAction) DiscoverClusters(tenantService, serviceCluster string) (*node_model.CDS, *util.APIHandleError) {
+//DiscoverClusters cds
+func (d *DiscoverAction) DiscoverClusters(
+	tenantService,
+	serviceCluster string) (*node_model.CDS, *util.APIHandleError) {
 	nn := strings.Split(tenantService, "_")
 	if len(nn) != 2 {
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("namesapces and service_alias not in good format"))
 	}
 	namespace := nn[0]
-	serviceAlias := nn[1]
-	envs, err := d.ToolsGetMainPodEnvs(namespace, serviceAlias)
-	if err != nil {
-		return nil, err
-	}
+	//serviceAlias := nn[1]
 	mm := strings.Split(serviceCluster, "_")
 	if len(mm) == 0 {
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
 	}
 	var cdsL []*node_model.PieceCDS
-	for _, serviceAlias := range mm {
-		labelname := fmt.Sprintf("name=%sService", serviceAlias)
+	for _, destServiceAlias := range mm {
+		labelname := fmt.Sprintf("name=%sService", destServiceAlias)
 		services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
@@ -265,23 +256,30 @@ func (d *DiscoverAction) DiscoverClusters(tenantService, serviceCluster string) 
 			if !ok || inner != "inner" {
 				continue
 			}
-			circuits, errC := strconv.Atoi(d.ToolsGetRouterItem(serviceAlias, node_model.LIMITS, envs))
-			if errC != nil {
-				circuits = 1024
-				logrus.Warnf("strconv circuit error, ignore this error and set circuits to 1024")
+			port := service.Spec.Ports[0]
+			envName := fmt.Sprintf("%s_%d", destServiceAlias, port.Port)
+			ss, err := d.GetSourcesEnv(namespace, "downStream", envName)
+			if err != nil {
+				logrus.Warnf("get env %s error, %v", envName, err)
+				continue
 			}
+			var sr api_model.NetDownStreamRules
+			if err := ffjson.Unmarshal([]byte(ss.SourceBody.EnvVal), &sr); err != nil {
+				logrus.Warnf("unmashal downstream rules error, %v", err)
+				continue
+			}
+			circuits := d.ToolsGetRouterItem(destServiceAlias, node_model.LIMITS, &sr).(int)
 			cb := &node_model.CircuitBreakers{
 				Default: &node_model.MaxConnections{
 					MaxConnections: circuits,
 				},
 			}
-			port := service.Spec.Ports[0]
 			pcds := &node_model.PieceCDS{
-				Name:             fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
+				Name:             fmt.Sprintf("%s_%s_%v", namespace, destServiceAlias, port.Port),
 				Type:             "sds",
 				ConnectTimeoutMS: 250,
 				LBType:           "round_robin",
-				ServiceName:      fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
+				ServiceName:      fmt.Sprintf("%s_%s_%v", namespace, destServiceAlias, port.Port),
 				CircuitBreakers:  cb,
 			}
 			cdsL = append(cdsL, pcds)
@@ -294,26 +292,24 @@ func (d *DiscoverAction) DiscoverClusters(tenantService, serviceCluster string) 
 	return cds, nil
 }
 
-//GetSourcesEnv GetSourcesEnv
+//GetSourcesEnv rds
 func (d *DiscoverAction) GetSourcesEnv(namespace, sourceAlias, envName string) (*api_model.SourceSpec, *util.APIHandleError) {
-	k := fmt.Sprintf("/sources/%s/%s/%s", namespace, sourceAlias, envName)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	resp, err := d.etcdCli.Get(ctx, k)
-	cancel()
+	k := fmt.Sprintf("/sources/define/%s/%s/%s", namespace, sourceAlias, envName)
+	resp, err := d.etcdCli.Get(k)
 	if err != nil {
 		logrus.Errorf("get etcd value error, %v", err)
 		return nil, util.CreateAPIHandleError(500, err)
 	}
+	var ss api_model.SourceSpec
 	if resp.Count != 0 {
 		v := resp.Kvs[0].Value
-		var ss api_model.SourceSpec
 		if err := ffjson.Unmarshal(v, &ss); err != nil {
 			logrus.Errorf("unmashal etcd v error, %v", err)
 			return nil, util.CreateAPIHandleError(500, err)
 		}
 		return &ss, nil
 	}
-	return nil, nil
+	return &ss, nil
 }
 
 //ToolsGetK8SServiceList GetK8SServiceList
@@ -357,49 +353,69 @@ func (d *DiscoverAction) ToolsGetMainPodEnvs(namespace, serviceAlias string) (
 func (d *DiscoverAction) ToolsBuildPieceLDS() {}
 
 //ToolsGetRouterItem ToolsGetRouterItem
-func (d *DiscoverAction) ToolsGetRouterItem(destAlias, kind string, envs *[]v1.EnvVar) string {
+func (d *DiscoverAction) ToolsGetRouterItem(destAlias, kind string, sr *api_model.NetDownStreamRules) interface{} {
 	switch kind {
 	case node_model.PREFIX:
-		ename := fmt.Sprintf("PREFIX_%s", destAlias)
-		for _, e := range *envs {
-			if e.Name == ename {
-				return e.Value
-			}
+		if sr.Prefix != "" {
+			return sr.Prefix
 		}
 		return "/"
 	case node_model.LIMITS:
-		ename := fmt.Sprintf("LIMIT_%s", destAlias)
-		for _, e := range *envs {
-			if e.Name == ename {
-				return e.Value
-			}
+		if sr.Limit != 0 {
+			return sr.Limit
 		}
-		return "1024"
+		return 1024
 	case node_model.HEADERS:
-		ename := fmt.Sprintf("HEADER_%s", destAlias)
-		for _, e := range *envs {
-			if e.Name == ename {
-				return e.Value
+		var phL []*node_model.PieceHeader
+		if sr.Header != nil {
+			for _, h := range sr.Header {
+				ph := &node_model.PieceHeader{
+					Name:  h.Key,
+					Value: h.Value,
+				}
+				phL = append(phL, ph)
 			}
 		}
-		return ""
+		ph := &node_model.PieceHeader{
+			Name:  "host",
+			Value: sr.ServiceAlias,
+		}
+		phL = append(phL, ph)
+		return phL
 	case node_model.DOMAINS:
-		ename := fmt.Sprintf("DOMAIN_%s", destAlias)
-		for _, e := range *envs {
-			if e.Name == ename {
-				return e.Value
-			}
+		if sr.Domain != nil {
+			return sr.Domain
 		}
-		return "*"
+		return []string{sr.ServiceAlias}
 	}
 	return ""
 }
 
-func getEnvValue(ename string, envs *[]v1.EnvVar) string {
+//ToolsGetEnvValue ToolsGetEnvValue
+func ToolsGetEnvValue(ename string, envs *[]v1.EnvVar) string {
 	for _, e := range *envs {
 		if e.Name == ename {
 			return e.Value
 		}
 	}
 	return ""
+}
+
+//ToolsGetHTTPPort ToolsGetHTTPPort
+func (d *DiscoverAction) ToolsGetHTTPPort(namespace, sourceAlias, serviceAlias string) (int, error) {
+	key := fmt.Sprintf("/sources/define/%s/%s/%s_http_port", namespace, sourceAlias, serviceAlias)
+	resp, err := d.etcdCli.Get(key)
+	if err != nil {
+		logrus.Errorf("get service %s http port error, %v", serviceAlias, err)
+		return 0, err
+	}
+	if resp.Count != 0 {
+		v := resp.Kvs[0].Value
+		port, err := strconv.Atoi(string(v))
+		if err != nil {
+			return 0, err
+		}
+		return port, nil
+	}
+	return 0, nil
 }

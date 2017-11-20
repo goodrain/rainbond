@@ -1154,6 +1154,229 @@
         }
       }
     },
+    "/v2/tenant/{tenant_name}/sources/{source_alias}": {
+      "post": {
+        "description": "set defineSource",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "设置自定义资源",
+        "operationId": "setDefineSource",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "SourceAlias",
+            "name": "source_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "source_spec"
+              ],
+              "properties": {
+                "source_spec": {
+                  "$ref": "#/definitions/SourceSpec"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenant/{tenant_name}/sources/{source_alias}/{env_name}": {
+      "get": {
+        "description": "set defineSource",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "设置自定义资源",
+        "operationId": "getDefineSource",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "SourceAlias",
+            "name": "source_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "EnvName",
+            "name": "env_name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "put": {
+        "description": "set defineSource",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "更新自定义资源",
+        "operationId": "updateDefineSource",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "SourceAlias",
+            "name": "source_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "source_spec"
+              ],
+              "properties": {
+                "source_spec": {
+                  "$ref": "#/definitions/SourceSpec"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "set defineSource",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "设置自定义资源",
+        "operationId": "deleteDefineSource",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "SourceAlias",
+            "name": "source_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "EnvName",
+            "name": "env_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "source_spec"
+              ],
+              "properties": {
+                "source_spec": {
+                  "$ref": "#/definitions/SourceSpec"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
     "/v2/tenants": {
       "post": {
         "description": "add tenant",
@@ -5708,6 +5931,39 @@
     }
   },
   "definitions": {
+    "Addition": {
+      "description": "Addition 存储附加信息",
+      "type": "object",
+      "properties": {
+        "desc": {
+          "type": "string",
+          "x-go-name": "Desc"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Item"
+          },
+          "x-go-name": "Items"
+        }
+      },
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+    },
+    "HeaderRules": {
+      "description": "HeaderRules HeaderRules",
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "x-go-name": "Key"
+        },
+        "value": {
+          "type": "string",
+          "x-go-name": "Value"
+        }
+      },
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+    },
     "ImageShare": {
       "description": "ImageShare image 类型",
       "type": "object",
@@ -5747,19 +6003,45 @@
       },
       "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
     },
+    "Item": {
+      "description": "Item source值,键值对形式",
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "x-go-name": "Key"
+        },
+        "value": {
+          "type": "object",
+          "x-go-name": "Value"
+        }
+      },
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+    },
     "NetDownStreamRules": {
       "description": "NetDownStreamRules NetDownStreamRules",
       "type": "object",
       "properties": {
         "domain": {
           "description": "域名转发\nin: body",
-          "type": "string",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
           "x-go-name": "Domain"
         },
         "header": {
           "description": "请求头\nin: body",
-          "type": "string",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/HeaderRules"
+          },
           "x-go-name": "Header"
+        },
+        "http_port": {
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "HTTPPort"
         },
         "limit": {
           "description": "限流值\nin:body",
@@ -5771,6 +6053,10 @@
           "description": "path规则\nin: body",
           "type": "string",
           "x-go-name": "Prefix"
+        },
+        "service_alias": {
+          "type": "string",
+          "x-go-name": "ServiceAlias"
         },
         "service_id": {
           "type": "string",
@@ -5853,6 +6139,54 @@
         "tenant_id": {
           "type": "string",
           "x-go-name": "TenantID"
+        }
+      },
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+    },
+    "SourceSpec": {
+      "description": "SourceSpec SourceSpec",
+      "type": "object",
+      "properties": {
+        "additons": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Addition"
+          },
+          "x-go-name": "Additions"
+        },
+        "create_time": {
+          "type": "string",
+          "x-go-name": "CreateTime"
+        },
+        "operator": {
+          "type": "string",
+          "x-go-name": "Operator"
+        },
+        "source_alias": {
+          "type": "string",
+          "x-go-name": "Alias"
+        },
+        "source_body": {
+          "$ref": "#/definitions/SoureBody"
+        },
+        "source_info": {
+          "type": "string",
+          "x-go-name": "Info"
+        }
+      },
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+    },
+    "SoureBody": {
+      "description": "SoureBody SoureBody",
+      "type": "object",
+      "properties": {
+        "env_name": {
+          "type": "string",
+          "x-go-name": "EnvName"
+        },
+        "env_value": {
+          "type": "string",
+          "x-go-name": "EnvVal"
         }
       },
       "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"

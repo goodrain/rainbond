@@ -517,6 +517,7 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 		output.JobID = er.JobID
 		if err != nil {
 			taskStatus.Status = "Parse task output error"
+			taskStatus.CompleStatus = "Unknow"
 			logrus.Warning("parse task output error:", err.Error())
 			output.NodeID = er.Node
 		} else {
@@ -659,7 +660,7 @@ func (t *TaskEngine) waitScheduleTask(taskSchedulerInfo *TaskSchedulerInfo, task
 						if nodestatus, ok := depTask.Status[taskSchedulerInfo.Node]; ok && nodestatus.CompleStatus == "Success" {
 							result[i] = true
 							continue
-						} else if ok && nodestatus.CompleStatus != "Success" {
+						} else if ok && nodestatus.CompleStatus != "" {
 							taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s Condition cannot be satisfied", depTask.ID)
 							taskSchedulerInfo.Status.Status = "Failure"
 							task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
