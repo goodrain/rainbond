@@ -127,6 +127,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.CodeCheckResult{})
 	m.models = append(m.models, &model.AppPublish{})
 	m.models = append(m.models, &model.ServiceEvent{})
+	m.models = append(m.models, &model.VersionInfo{})
 }
 
 //CheckTable 检测表结构

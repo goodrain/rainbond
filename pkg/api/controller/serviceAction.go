@@ -82,7 +82,6 @@ func createEvent(eventID, serviceID, optType, tenantID, deployVersion string) (*
 	}
 	if status == 0 {
 		db.GetManager().ServiceEventDao().AddModel(&event)
-		//todo add timmer auto timeout
 		go autoTimeOut(&event)
 		return &event, status, nil
 	} else {
@@ -91,7 +90,6 @@ func createEvent(eventID, serviceID, optType, tenantID, deployVersion string) (*
 }
 func autoTimeOut(event *dbmodel.ServiceEvent) {
 	var timer *time.Timer
-	//todo if 构建
 	if event.OptType == "build" {
 		timer = time.NewTimer(3 * time.Minute)
 	} else {
@@ -197,27 +195,27 @@ func handleStatus(status int, err error, w http.ResponseWriter, r *http.Request)
 }
 
 //StartService StartService
+// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/start  v2 startService
+//
+// 启动应用
+//
+// start service  **完成
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/start  v2 startService
-	//
-	// 启动应用
-	//
-	// start service  **完成
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 
 	//logrus.Debugf("trans start service")
 	rules := validator.MapData{
@@ -255,29 +253,27 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 }
 
 //StopService StopService
+// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/stop v2 stopService
+//
+// 关闭应用
+//
+// stop service  **完成
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/stop v2 stopService
-	//
-	// 关闭应用
-	//
-	// stop service  **完成
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	logrus.Debugf("trans stop service")
 	rules := validator.MapData{
 		"event_id": []string{},
 	}
@@ -309,29 +305,27 @@ func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
 }
 
 //RestartService RestartService
+// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/restart v2 restartService
+//
+// 重启应用
+//
+// restart service  **完成
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/restart v2 restartService
-	//
-	// 重启应用
-	//
-	// restart service  **完成
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	logrus.Debugf("trans restart service")
 	rules := validator.MapData{
 		"event_id": []string{},
 	}
@@ -364,31 +358,29 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 }
 
 //VerticalService VerticalService
+// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/vertical v2 verticalService
+//
+// 应用垂直伸缩
+//
+// service vertical  **完成
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/vertical v2 verticalService
-	//
-	// 应用垂直伸缩
-	//
-	// service vertical  **完成
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	logrus.Debugf("trans vertical service")
 	rules := validator.MapData{
-		//"event_id":         []string{"required"},
+		"event_id":         []string{},
 		"container_cpu":    []string{"required"},
 		"container_memory": []string{"required"},
 	}
@@ -423,29 +415,27 @@ func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 }
 
 //HorizontalService HorizontalService
+// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/horizontal v2 horizontalService
+//
+// 应用水平伸缩
+//
+// service horizontal  **完成
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/horizontal v2 horizontalService
-	//
-	// 应用水平伸缩
-	//
-	// service horizontal  **完成
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	logrus.Debugf("trans horizontal service")
 	rules := validator.MapData{
 		"node_num": []string{"required"},
 	}
@@ -478,30 +468,28 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 }
 
 //BuildService BuildService
+// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/build v2 serviceBuild
+//
+// 应用构建
+//
+// service build  **完成
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/build v2 serviceBuild
-	//
-	// 应用构建
-	//
-	// service build  **完成
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 
-	//TODO: action
-	logrus.Debugf("trans build service")
 	var build api_model.BuildServiceStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build.Body, nil)
 	if !ok {
@@ -519,6 +507,12 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	handleStatus(status, err, w, r)
 
 	//createBuildInfo
+	version:=dbmodel.VersionInfo{}
+
+	version.EventID=sEvent.EventID
+	version.ServiceID=serviceID
+	version.GitURL=build.Body.RepoURL
+
 
 	build.Body.EventID = sEvent.EventID
 	if err := handler.GetServiceManager().ServiceBuild(tenantID, serviceID, &build); err != nil {
@@ -542,28 +536,27 @@ func (t *TenantStruct) DeployService(w http.ResponseWriter, r *http.Request) {
 }
 
 //UpgradeService UpgradeService
+// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/upgrade v2 upgradeService
+//
+// 升级应用
+//
+// upgrade service  **完成
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/upgrade v2 upgradeService
-	//
-	// 升级应用
-	//
-	// upgrade service  **完成
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-	logrus.Debugf("trans upgrade service")
 	rules := validator.MapData{
 		//todo
 		"deploy_version": []string{"required"},
@@ -599,29 +592,28 @@ func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 }
 
 //CheckCode CheckCode
+// swagger:operation POST /v2/tenants/{tenant_name}/code-check v2 checkCode
+//
+// 应用代码检测
+//
+// check  code  **完成
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) CheckCode(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/code-check v2 checkCode
-	//
-	// 应用代码检测
-	//
-	// check  code  **完成
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 
-	logrus.Debugf("trans code check service")
 	var ccs api_model.CheckCodeStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ccs.Body, nil)
 	if !ok {
@@ -679,29 +671,27 @@ func (t *TenantStruct) ShareCloud(w http.ResponseWriter, r *http.Request) {
 }
 
 //RollBack RollBack
+// swagger:operation Post /v2/tenants/{tenant_name}/services/{service_alias}/rollback v2 rollback
+//
+// 应用版本回滚
+//
+// service rollback  **完成
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation Post /v2/tenants/{tenant_name}/services/{service_alias}/rollback v2 rollback
-	//
-	// 应用版本回滚
-	//
-	// service rollback  **完成
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	logrus.Debugf("trans rollback service ")
 	rules := validator.MapData{
 		"deploy_version": []string{"required"},
 		"operator":       []string{},

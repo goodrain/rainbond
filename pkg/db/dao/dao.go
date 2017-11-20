@@ -269,3 +269,10 @@ type EventDao interface {
 	GetEventByEventID(eventID string) (*model.ServiceEvent, error)
 	GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error)
 }
+
+//VersionInfoDao VersionInfoDao
+type VersionInfoDao interface {
+	Dao
+	GetVersionByEventID(eventID string) (*model.VersionInfo, error)
+	GetVersionByBuildVersion(buildVersion string) ([]*model.VersionInfo, error)
+}

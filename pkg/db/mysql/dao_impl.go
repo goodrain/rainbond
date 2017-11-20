@@ -364,16 +364,29 @@ func (m *Manager) AppPublishDaoTransactions(db *gorm.DB) dao.AppPublishDao {
 	}
 }
 
-//TenantServicePluginRelationDao TenantServicePluginRelationDao
+//ServiceEventDao TenantServicePluginRelationDao
 func (m *Manager) ServiceEventDao() dao.EventDao {
 	return &mysqldao.EventDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantServicePluginRelationDaoTransactions TenantServicePluginRelationDaoTransactions
+//ServiceEventDaoTransactions TenantServicePluginRelationDaoTransactions
 func (m *Manager) ServiceEventDaoTransactions(db *gorm.DB) dao.EventDao {
 	return &mysqldao.EventDaoImpl{
+		DB: db,
+	}
+}
+
+//ServiceEventDao TenantServicePluginRelationDao
+func (m *Manager) VersionInfoDao() dao.VersionInfoDao {
+	return &mysqldao.VersionInfoDaoImpl{
+		DB: m.db,
+	}
+}
+//ServiceEventDaoTransactions TenantServicePluginRelationDaoTransactions
+func (m *Manager) VersionInfoDaoTransactions(db *gorm.DB) dao.VersionInfoDao {
+	return &mysqldao.VersionInfoDaoImpl{
 		DB: db,
 	}
 }

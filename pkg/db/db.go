@@ -85,6 +85,9 @@ type Manager interface {
 
 	ServiceEventDao() dao.EventDao
 	ServiceEventDaoTransactions(db *gorm.DB) dao.EventDao
+
+	VersionInfoDao() dao.VersionInfoDao
+	VersionInfoDaoTransactions(db *gorm.DB) dao.VersionInfoDao
 }
 
 var defaultManager Manager

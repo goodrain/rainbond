@@ -567,7 +567,7 @@ type StartServiceStruct struct {
 	Body struct {
 		// the tenant id
 		// in: body
-		// required: true
+		// required: false
 		EventID string `json:"event_id"`
 	}
 }
@@ -585,7 +585,7 @@ type VerticalServiceStruct struct {
 	Body struct {
 		// the event id
 		// in: body
-		// required: true
+		// required: false
 		EventID string `json:"event_id"`
 		// cpu数量
 		// in: body
@@ -611,7 +611,7 @@ type HorizontalServiceStruct struct {
 	Body struct {
 		// the event id
 		// in: body
-		// required: true
+		// required: false
 		EventID string `json:"event_id"`
 		// 伸缩数量
 		// in: body
@@ -633,7 +633,7 @@ type BuildServiceStruct struct {
 	Body struct {
 		// the event id
 		// in: body
-		// required: true
+		// required: false
 		EventID string `json:"event_id" validate:"event_id|required"`
 		// 变量
 		// in: body
@@ -700,7 +700,7 @@ type UpgradeServiceStruct struct {
 	Body struct {
 		// the event id
 		// in: body
-		// required: true
+		// required: false
 		EventID string `json:"event_id"`
 		// 版本号
 		// in: body
@@ -953,7 +953,7 @@ type RollBackStruct struct {
 	Body struct {
 		// event_id
 		// in: body
-		// required: true
+		// required: false
 		EventID string `json:"event_id"`
 		// 回滚到的版本号
 		// in: body
