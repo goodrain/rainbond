@@ -517,6 +517,7 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 		output.JobID = er.JobID
 		if err != nil {
 			taskStatus.Status = "Parse task output error"
+			taskStatus.CompleStatus = "Unknow"
 			logrus.Warning("parse task output error:", err.Error())
 			output.NodeID = er.Node
 		} else {
