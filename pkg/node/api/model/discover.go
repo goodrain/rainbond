@@ -157,4 +157,8 @@ const (
 	DOMAINS string = "DOMAINS"
 	//LIMITS LIMITS
 	LIMITS string = "LIMITS"
+	//UPSTREAM upStream
+	UPSTREAM string = "upStream"
+	//DOWNSTREAM downStream
+	DOWNSTREAM string = "downStream"
 )
