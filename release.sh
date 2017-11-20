@@ -52,6 +52,11 @@ function build::rpm() {
 	source "hack/build-rpm.sh"
 }
 
+function build::deb() {
+	echo "---> Make Build DEB"
+	source "hack/build-deb.sh"
+}
+
 case $1 in
 	build)
 		prepare
@@ -60,9 +65,13 @@ case $1 in
 	rpm)
 		build::rpm
 	;;
+	deb)
+		build::deb
+	;;
 	*)
 		prepare
 		build
 		build::rpm
+		build::deb
 	;;
 esac

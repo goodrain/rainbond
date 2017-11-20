@@ -89,3 +89,17 @@ func RoutesDiscover(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("route_config is %s, namespace %s, serviceNodes %s", routeConfig, namespace, serviceNodes)
 	w.WriteHeader(200)
 }
+
+//SourcesEnv SourcesEnv
+func SourcesEnv(w http.ResponseWriter, r *http.Request) {
+	namespace := chi.URLParam(r, "tenant_id")
+	sourceAlias := chi.URLParam(r, "source_alias")
+	envName := chi.URLParam(r, "env_name")
+	ss, err := discoverService.GetSourcesEnv(namespace, sourceAlias, envName)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	w.WriteHeader(200)
+	w.Write([]byte(ss.SourceBody.EnvVal))
+}
