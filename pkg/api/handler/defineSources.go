@@ -79,6 +79,80 @@ func (s *SourcesAction) CreateDefineSources(
 	return nil
 }
 
+//UpdateDefineSources UpdateDefineSources
+func (s *SourcesAction) UpdateDefineSources(
+	tenantID string, ss *api_model.SetDefineSourcesStruct) *util.APIHandleError {
+
+	sourceAlias := ss.Body.SourceSpec.Alias
+	k := fmt.Sprintf("/sources/define/%s/%s/%s",
+		tenantID,
+		sourceAlias,
+		ss.Body.SourceSpec.SourceBody.EnvName)
+	if !CheckKeyIfExist(s.etcdCli, k) {
+		return util.CreateAPIHandleError(404,
+			fmt.Errorf("key %v is not exist", ss.Body.SourceSpec.SourceBody.EnvName))
+	}
+	v, err := ffjson.Marshal(ss.Body.SourceSpec)
+	if err != nil {
+		logrus.Errorf("mashal etcd value error, %v", err)
+		return util.CreateAPIHandleError(500, err)
+	}
+	_, err = s.etcdCli.Put(context.TODO(), k, string(v))
+	if err != nil {
+		logrus.Errorf("put k %s into etcd error, %v", k, err)
+		return util.CreateAPIHandleError(500, err)
+	}
+	//TODO: store mysql
+	return nil
+}
+
+//DeleteDefineSources DeleteDefineSources
+func (s *SourcesAction) DeleteDefineSources(tenantID, sourceAlias, envName string) *util.APIHandleError {
+	k := fmt.Sprintf(
+		"/sources/define/%s/%s/%s",
+		tenantID,
+		sourceAlias,
+		envName)
+	if !CheckKeyIfExist(s.etcdCli, k) {
+		return util.CreateAPIHandleError(404,
+			fmt.Errorf("key %v is not exist", envName))
+	}
+	_, err := s.etcdCli.Delete(context.TODO(), k)
+	if err != nil {
+		logrus.Errorf("delete k %s from etcd error, %v", k, err)
+		return util.CreateAPIHandleError(500, err)
+	}
+	return nil
+}
+
+//GetDefineSources GetDefineSources
+func (s *SourcesAction) GetDefineSources(
+	tenantID,
+	sourceAlias,
+	envName string) (*api_model.SourceSpec, *util.APIHandleError) {
+	k := fmt.Sprintf(
+		"/sources/define/%s/%s/%s",
+		tenantID,
+		sourceAlias,
+		envName)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	resp, err := s.etcdCli.Get(ctx, k)
+	cancel()
+	if err != nil {
+		logrus.Errorf("get etcd k %s error, %v", k, err)
+		return nil, util.CreateAPIHandleError(500, err)
+	}
+	if resp.Count == 0 {
+		return nil, util.CreateAPIHandleError(404, fmt.Errorf("k %s is not exist", k))
+	}
+	v := resp.Kvs[0].Value
+	var ss api_model.SourceSpec
+	if err := ffjson.Unmarshal(v, &ss); err != nil {
+		return nil, util.CreateAPIHandleError(500, err)
+	}
+	return &ss, nil
+}
+
 //CheckKeyIfExist CheckKeyIfExist
 func CheckKeyIfExist(etcdCli *clientv3.Client, k string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

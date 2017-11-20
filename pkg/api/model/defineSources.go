@@ -19,14 +19,48 @@
 package model
 
 //SetDefineSourcesStruct SetDefineSourcesStruct
-//swagger:parameters
+//swagger:parameters setDefineSource updateDefineSource
 type SetDefineSourcesStruct struct {
 	// in: path
 	// required: true
-	TenantName string `json:"tenant_name"`
+	TenantName string `json:"tenant_name" validate:"tenant_name"`
 	// in: path
 	// required: true
-	ServiceAlias string `json:"service_alias"`
+	SourceAlias string `json:"source_alias" validate:"source_alias"`
+	// in: body
+	Body struct {
+		//in: body
+		//required: true
+		SourceSpec *SourceSpec `json:"source_spec" validate:"source_spec"`
+	}
+}
+
+//DeleteDefineSourcesStruct DeleteDefineSourcesStruct
+//swagger:parameters deleteDefineSource getDefineSource
+type DeleteDefineSourcesStruct struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name" validate:"tenant_name"`
+	// in: path
+	// required: true
+	SourceAlias string `json:"source_alias" validate:"source_alias"`
+	// in: path
+	// required: true
+	EnvName string `json:"env_name" validate:"env_name"`
+}
+
+//UpdateDefineSourcesStruct UpdateDefineSourcesStruct
+//swagger:parameters deleteDefineSource updateDefineSourcesStruct
+type UpdateDefineSourcesStruct struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name" validate:"tenant_name"`
+	// in: path
+	// required: true
+	SourceAlias string `json:"source_alias" validate:"source_alias"`
+	// in: path
+	// required: true
+	EnvName string `json:"env_name" validate:"env_name"`
 	// in: body
 	Body struct {
 		//in: body

@@ -30,6 +30,9 @@ func (v2 *V2) defineSourcesRouter() chi.Router {
 	// url: v2/tenant/{tenant_name}/sources/{source_alias}/env-name
 	// --- ---
 	r.Post("/{source_alias}", controller.GetManager().SetDefineSource)
+	r.Delete("/{source_alias}/{env_name}", controller.GetManager().DeleteDefineSource)
+	r.Get("/{source_alias}/{env_name}", controller.GetManager().GetDefineSource)
+	r.Put("/{source_alias}/{env_name}", controller.GetManager().UpdateDefineSource)
 	return r
 }
 
