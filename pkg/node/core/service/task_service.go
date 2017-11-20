@@ -183,6 +183,11 @@ func (ts *TaskService) ExecTask(taskID string, nodes []string) *utils.APIHandleE
 	return nil
 }
 
+//ReloadStaticTasks reload task
+func (ts *TaskService) ReloadStaticTasks() {
+	ts.ms.TaskEngine.LoadStaticTask()
+}
+
 //TaskTempService 任务模版
 type TaskTempService struct {
 	SavePath string

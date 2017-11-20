@@ -105,6 +105,10 @@ func Routers(mode string) *chi.Mux {
 			})
 		}
 	})
+	//重新加载task文件
+	if mode == "master" {
+		r.Put("/-/taskreload", controller.ReloadStaticTasks)
+	}
 
 	return r
 }

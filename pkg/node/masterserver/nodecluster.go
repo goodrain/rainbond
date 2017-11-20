@@ -149,7 +149,6 @@ func (n *NodeCluster) UpdateNode(node *model.HostNode) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	n.nodes[node.ID] = node
-	logrus.Debugf("Update node %s info to etcd", node.ID)
 	n.client.Put(option.Config.NodePath+"/"+node.ID, node.String())
 }
 func (n *NodeCluster) getNodeFromKV(kv *mvccpb.KeyValue) *model.HostNode {

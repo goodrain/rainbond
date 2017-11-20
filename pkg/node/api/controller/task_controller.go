@@ -115,3 +115,9 @@ func DeleteTask(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
+
+//ReloadStaticTasks 重新加载静态文件
+func ReloadStaticTasks(w http.ResponseWriter, r *http.Request) {
+	taskService.ReloadStaticTasks()
+	httputil.ReturnSuccess(r, w, nil)
+}
