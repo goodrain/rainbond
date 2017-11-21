@@ -38,6 +38,7 @@ import (
 	validator "github.com/thedevsaddam/govalidator"
 )
 
+//TIMELAYOUT timelayout
 const TIMELAYOUT = "2006-01-02T15:04:05"
 
 func createEvent(eventID, serviceID, optType, tenantID, deployVersion string) (*dbmodel.ServiceEvent, int, error) {
@@ -84,9 +85,8 @@ func createEvent(eventID, serviceID, optType, tenantID, deployVersion string) (*
 		db.GetManager().ServiceEventDao().AddModel(&event)
 		go autoTimeOut(&event)
 		return &event, status, nil
-	} else {
-		return nil, status, nil
 	}
+	return nil, status, nil
 }
 func autoTimeOut(event *dbmodel.ServiceEvent) {
 	var timer *time.Timer
@@ -110,10 +110,8 @@ func autoTimeOut(event *dbmodel.ServiceEvent) {
 				logrus.Warnf("event id:%s time out,", event.EventID)
 				err = db.GetManager().ServiceEventDao().UpdateModel(e)
 				return
-			} else {
-				return
 			}
-
+			return
 		}
 	}
 }
@@ -136,14 +134,12 @@ func checkCanAddEvent(s string) (int, error) {
 		if timeOut {
 			//未完成，超时
 			return 0, nil
-		} else {
-			//未完成，未超时
-			return 2, nil
 		}
-	} else {
-		//已完成
-		return 0, nil
+		//未完成，未超时
+		return 2, nil
 	}
+	//已完成
+	return 0, nil
 }
 func getOrNilEventID(data map[string]interface{}) string {
 	if eventID, ok := data["event_id"]; ok {
@@ -181,10 +177,6 @@ func checkEventTimeOut(event *dbmodel.ServiceEvent) (bool, error) {
 func handleStatus(status int, err error, w http.ResponseWriter, r *http.Request) {
 	if status != 0 {
 		logrus.Error("应用启动任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
-		if status == 1 {
-			httputil.ReturnError(r, w, 400, "last time out .")
-			return
-		}
 		if status == 2 {
 			httputil.ReturnError(r, w, 400, "last event unfinish.")
 			return
@@ -507,12 +499,23 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	handleStatus(status, err, w, r)
 
 	//createBuildInfo
-	version:=dbmodel.VersionInfo{}
+	//version:=dbmodel.VersionInfo{}
+	//
+	//version.EventID=sEvent.EventID
+	//version.ServiceID=serviceID
+	//version.GitURL=build.Body.RepoURL
+	//version.DeliveredPath
 
-	version.EventID=sEvent.EventID
-	version.ServiceID=serviceID
-	version.GitURL=build.Body.RepoURL
-
+	//EventID string `json:"event_id" validate:"event_id|required"`
+	//ENVS map[string]string `json:"envs" validate:"envs"`
+	//Kind string `json:"kind" validate:"kind|required"`
+	//Action string `json:"action" validate:"action"`
+	//ImageURL string `json:"image_url" validate:"image_url"`
+	//DeployVersion string `json:"deploy_version" validate:"deploy_version|required"`
+	//RepoURL string `json:"repo_url" validate:"repo_url"`
+	//Operator     string `json:"operator" validate:"operator"`
+	//TenantName   string `json:"tenant_name"`
+	//ServiceAlias string `json:"service_alias"`
 
 	build.Body.EventID = sEvent.EventID
 	if err := handler.GetServiceManager().ServiceBuild(tenantID, serviceID, &build); err != nil {
