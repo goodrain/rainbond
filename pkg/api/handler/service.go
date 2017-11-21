@@ -506,7 +506,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 					if err != nil {
 						return util.CreateAPIHandleErrorFromDBError("service type", err)
 					}
-					if serviceType.LabelValue != "有状态应用" {
+					if serviceType.LabelValue != core_util.StatefulServiceType {
 						return util.CreateAPIHandleError(400, fmt.Errorf("应用类型不为有状态应用.不支持本地存储"))
 					}
 					volumn.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, sc.TenantID, volumn.ServiceID, volumn.VolumePath)
