@@ -389,7 +389,7 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 		}
 		ph := &node_model.PieceHeader{
 			Name:  "host",
-			Value: sr.ServiceAlias,
+			Value: destAlias,
 		}
 		phL = append(phL, ph)
 		return phL
@@ -397,7 +397,7 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 		if sr.Domain != nil {
 			return sr.Domain
 		}
-		return []string{sr.ServiceAlias}
+		return []string{destAlias}
 	}
 	return ""
 }
