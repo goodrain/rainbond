@@ -205,8 +205,12 @@ func (d *DiscoverAction) DiscoverListeners(
 		var sr int
 		httpPort, err := d.ToolsGetStreamRules(namespace, node_model.DOWNSTREAM, envName, &sr)
 		if err != nil {
-			logrus.Errorf("get http port error, %v", err)
-			return nil, util.CreateAPIHandleError(500, err)
+			if strings.Contains(err.Error(), "is not exist") {
+				httpPort = 80
+			} else {
+				logrus.Errorf("get http port error, %v", err)
+				return nil, util.CreateAPIHandleError(500, err)
+			}
 		}
 		hsf := &node_model.HTTPSingleFileter{
 			Type:   "decoder",
@@ -415,6 +419,9 @@ func (d *DiscoverAction) ToolsGetStreamRules(
 			logrus.Errorf("unmashal etcd v error, %v", err)
 			return nil, util.CreateAPIHandleError(500, err)
 		}
+	} else {
+		logrus.Errorf("key %s is not exist,", envName)
+		return nil, util.CreateAPIHandleError(404, fmt.Errorf("key %s is not exist, ", envName))
 	}
 	if err := ffjson.Unmarshal([]byte(ss.SourceBody.EnvVal), rule); err != nil {
 		logrus.Errorf("umashal value error, %v", err)
