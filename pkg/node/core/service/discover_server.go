@@ -20,7 +20,6 @@ package service
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -100,8 +99,7 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *
 
 //DiscoverListeners lds
 func (d *DiscoverAction) DiscoverListeners(
-	tenantService,
-	serviceCluster string) (*node_model.LDS, *util.APIHandleError) {
+	tenantService, serviceCluster string) (*node_model.LDS, *util.APIHandleError) {
 	nn := strings.Split(tenantService, "_")
 	if len(nn) != 2 {
 		return nil, util.CreateAPIHandleError(400,
@@ -113,7 +111,6 @@ func (d *DiscoverAction) DiscoverListeners(
 	if len(mm) == 0 {
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
 	}
-
 	//TODO: console控制尽量不把小于1000的端口给用户使用
 	var vhL []*node_model.PieceHTTPVirtualHost
 	var ldsL []*node_model.PieceLDS
@@ -161,20 +158,28 @@ func (d *DiscoverAction) DiscoverListeners(
 						Address: fmt.Sprintf("tcp://0.0.0.0:%d", port),
 						Filters: []*node_model.LDSFilters{lfs},
 					}
+					//TODO:front model/upsteam
+					if destServiceAlias == serviceAlias {
+						envName := fmt.Sprintf("%s_%d", serviceAlias, port)
+						var sr api_model.NetUpStreamRules
+						mr, err := d.ToolsGetStreamRules(namespace, node_model.UPSTREAM, envName, &sr)
+						if err != nil {
+							return nil, util.CreateAPIHandleError(500, err)
+						}
+						sr = mr.(api_model.NetUpStreamRules)
+						plds.Address = fmt.Sprintf("tcp://0.0.0.0:%d", sr.MapPort)
+					}
 					ldsL = append(ldsL, plds)
 					continue
 				case "http":
 					envName := fmt.Sprintf("%s_%d", destServiceAlias, port)
-					ss, err := d.GetSourcesEnv(namespace, "downStream", envName)
+					var sr api_model.NetDownStreamRules
+					mr, err := d.ToolsGetStreamRules(namespace, node_model.DOWNSTREAM, envName, &sr)
 					if err != nil {
 						logrus.Warnf("get env %s error, %v", envName, err)
 						continue
 					}
-					var sr api_model.NetDownStreamRules
-					if err := ffjson.Unmarshal([]byte(ss.SourceBody.EnvVal), &sr); err != nil {
-						logrus.Warnf("unmashal downstream rules error, %v", err)
-						continue
-					}
+					sr = mr.(api_model.NetDownStreamRules)
 					prs := &node_model.PieceHTTPRoutes{
 						TimeoutMS: 0,
 						Prefix:    d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, &sr).(string),
@@ -196,10 +201,16 @@ func (d *DiscoverAction) DiscoverListeners(
 		}
 	}
 	if len(vhL) != 0 {
-		httpPort, err := d.ToolsGetHTTPPort(namespace, "downStream", serviceAlias)
+		envName := fmt.Sprintf("%s_http_port", serviceAlias)
+		var sr int
+		httpPort, err := d.ToolsGetStreamRules(namespace, node_model.DOWNSTREAM, envName, &sr)
 		if err != nil {
-			logrus.Errorf("get http port error, %v", err)
-			return nil, util.CreateAPIHandleError(500, err)
+			if strings.Contains(err.Error(), "is not exist") {
+				httpPort = 80
+			} else {
+				logrus.Errorf("get http port error, %v", err)
+				return nil, util.CreateAPIHandleError(500, err)
+			}
 		}
 		hsf := &node_model.HTTPSingleFileter{
 			Type:   "decoder",
@@ -218,7 +229,7 @@ func (d *DiscoverAction) DiscoverListeners(
 		}
 		plds := &node_model.PieceLDS{
 			Name:    fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias),
-			Address: fmt.Sprintf("tcp://0.0.0.0:%d", httpPort),
+			Address: fmt.Sprintf("tcp://0.0.0.0:%d", httpPort.(int)),
 			Filters: []*node_model.LDSFilters{lfs},
 		}
 		//修改http-port console 完成
@@ -258,17 +269,14 @@ func (d *DiscoverAction) DiscoverClusters(
 			}
 			port := service.Spec.Ports[0]
 			envName := fmt.Sprintf("%s_%d", destServiceAlias, port.Port)
-			ss, err := d.GetSourcesEnv(namespace, "downStream", envName)
-			if err != nil {
-				logrus.Warnf("get env %s error, %v", envName, err)
-				continue
-			}
 			var sr api_model.NetDownStreamRules
-			if err := ffjson.Unmarshal([]byte(ss.SourceBody.EnvVal), &sr); err != nil {
-				logrus.Warnf("unmashal downstream rules error, %v", err)
+			mr, err := d.ToolsGetStreamRules(namespace, node_model.DOWNSTREAM, envName, &sr)
+			if err != nil {
+				logrus.Warnf("trans k %v error, %v", envName, err)
 				continue
 			}
-			circuits := d.ToolsGetRouterItem(destServiceAlias, node_model.LIMITS, &sr).(int)
+			mc := mr.(*api_model.NetDownStreamRules)
+			circuits := d.ToolsGetRouterItem(destServiceAlias, node_model.LIMITS, mc).(int)
 			cb := &node_model.CircuitBreakers{
 				Default: &node_model.MaxConnections{
 					MaxConnections: circuits,
@@ -292,8 +300,9 @@ func (d *DiscoverAction) DiscoverClusters(
 	return cds, nil
 }
 
-//GetSourcesEnv rds
-func (d *DiscoverAction) GetSourcesEnv(namespace, sourceAlias, envName string) (*api_model.SourceSpec, *util.APIHandleError) {
+//ToolsGetSourcesEnv rds
+func (d *DiscoverAction) ToolsGetSourcesEnv(
+	namespace, sourceAlias, envName string) (*api_model.SourceSpec, *util.APIHandleError) {
 	k := fmt.Sprintf("/sources/define/%s/%s/%s", namespace, sourceAlias, envName)
 	resp, err := d.etcdCli.Get(k)
 	if err != nil {
@@ -353,7 +362,9 @@ func (d *DiscoverAction) ToolsGetMainPodEnvs(namespace, serviceAlias string) (
 func (d *DiscoverAction) ToolsBuildPieceLDS() {}
 
 //ToolsGetRouterItem ToolsGetRouterItem
-func (d *DiscoverAction) ToolsGetRouterItem(destAlias, kind string, sr *api_model.NetDownStreamRules) interface{} {
+func (d *DiscoverAction) ToolsGetRouterItem(
+	destAlias, kind string,
+	sr *api_model.NetDownStreamRules) interface{} {
 	switch kind {
 	case node_model.PREFIX:
 		if sr.Prefix != "" {
@@ -378,7 +389,7 @@ func (d *DiscoverAction) ToolsGetRouterItem(destAlias, kind string, sr *api_mode
 		}
 		ph := &node_model.PieceHeader{
 			Name:  "host",
-			Value: sr.ServiceAlias,
+			Value: destAlias,
 		}
 		phL = append(phL, ph)
 		return phL
@@ -386,36 +397,35 @@ func (d *DiscoverAction) ToolsGetRouterItem(destAlias, kind string, sr *api_mode
 		if sr.Domain != nil {
 			return sr.Domain
 		}
-		return []string{sr.ServiceAlias}
+		return []string{destAlias}
 	}
 	return ""
 }
 
-//ToolsGetEnvValue ToolsGetEnvValue
-func ToolsGetEnvValue(ename string, envs *[]v1.EnvVar) string {
-	for _, e := range *envs {
-		if e.Name == ename {
-			return e.Value
-		}
-	}
-	return ""
-}
-
-//ToolsGetHTTPPort ToolsGetHTTPPort
-func (d *DiscoverAction) ToolsGetHTTPPort(namespace, sourceAlias, serviceAlias string) (int, error) {
-	key := fmt.Sprintf("/sources/define/%s/%s/%s_http_port", namespace, sourceAlias, serviceAlias)
-	resp, err := d.etcdCli.Get(key)
+//ToolsGetStreamRules ToolsStreamRules
+func (d *DiscoverAction) ToolsGetStreamRules(
+	namespace, sourceAlias, envName string,
+	rule interface{}) (interface{}, error) {
+	k := fmt.Sprintf("/sources/define/%s/%s/%s", namespace, sourceAlias, envName)
+	resp, err := d.etcdCli.Get(k)
 	if err != nil {
-		logrus.Errorf("get service %s http port error, %v", serviceAlias, err)
-		return 0, err
+		logrus.Errorf("get etcd value error, %v", err)
+		return nil, util.CreateAPIHandleError(500, err)
 	}
+	var ss api_model.SourceSpec
 	if resp.Count != 0 {
 		v := resp.Kvs[0].Value
-		port, err := strconv.Atoi(string(v))
-		if err != nil {
-			return 0, err
+		if err := ffjson.Unmarshal(v, &ss); err != nil {
+			logrus.Errorf("unmashal etcd v error, %v", err)
+			return nil, util.CreateAPIHandleError(500, err)
 		}
-		return port, nil
+	} else {
+		logrus.Errorf("key %s is not exist,", envName)
+		return nil, util.CreateAPIHandleError(404, fmt.Errorf("key %s is not exist, ", envName))
 	}
-	return 0, nil
+	if err := ffjson.Unmarshal([]byte(ss.SourceBody.EnvVal), rule); err != nil {
+		logrus.Errorf("umashal value error, %v", err)
+		return nil, err
+	}
+	return rule, nil
 }

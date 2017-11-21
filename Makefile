@@ -60,7 +60,7 @@ build-api:
 build-webcli:
 	go build ${GO_LDFLAGS} -o ./build/webcli/${BASE_NAME}_webcli ./cmd/webcli	
 	
-all-image: build-image-worker  build-image-mq build-image-builder build-image-entrance build-image-eventlog build-image-api
+all-image: build-image-worker  build-image-mq build-image-builder build-image-entrance build-image-eventlog build-image-api build-image-webcli
 build-image-worker:
 	@echo "🐳 $@"
 	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/worker/${BASE_NAME}_worker ./cmd/worker

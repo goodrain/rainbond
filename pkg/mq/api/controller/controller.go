@@ -1,25 +1,25 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package controller
 
 import (
+	"context"
 	"io/ioutil"
 	"strings"
 
@@ -152,7 +152,9 @@ func (u *MQSource) enqueue(request *restful.Request, response *restful.Response)
 		NewFaliResponse(400, "request body error."+err.Error(), "读取数据错误，数据不合法", response)
 		return
 	}
-	err = u.mq.Enqueue(request.Request.Context(), topic, string(body))
+	ctx, cancel := context.WithCancel(request.Request.Context())
+	defer cancel()
+	err = u.mq.Enqueue(ctx, topic, string(body))
 	if err != nil {
 		NewFaliResponse(500, "enqueue error."+err.Error(), "消息入队列错误", response)
 		return
@@ -167,7 +169,9 @@ func (u *MQSource) dequeue(request *restful.Request, response *restful.Response)
 		NewFaliResponse(400, "topic can not be empty or topic is not define", "主题不能为空或者当前主题未注册", response)
 		return
 	}
-	value, err := u.mq.Dequeue(request.Request.Context(), topic)
+	ctx, cancel := context.WithCancel(request.Request.Context())
+	defer cancel()
+	value, err := u.mq.Dequeue(ctx, topic)
 	if err != nil {
 		NewFaliResponse(500, "dequeue error."+err.Error(), "消息出队列错误", response)
 		return
