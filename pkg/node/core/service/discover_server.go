@@ -175,7 +175,7 @@ func (d *DiscoverAction) DiscoverListeners(
 					envName := fmt.Sprintf("%s_%d", destServiceAlias, port)
 					var sr api_model.NetDownStreamRules
 					mr, err := d.ToolsGetStreamRules(namespace, node_model.DOWNSTREAM, envName, &sr)
-					if err != nil {
+					if err != nil && !strings.Contains(err.Error(), "is not exist") {
 						logrus.Warnf("get env %s error, %v", envName, err)
 						continue
 					}
@@ -271,7 +271,7 @@ func (d *DiscoverAction) DiscoverClusters(
 			envName := fmt.Sprintf("%s_%d", destServiceAlias, port.Port)
 			var sr api_model.NetDownStreamRules
 			mr, err := d.ToolsGetStreamRules(namespace, node_model.DOWNSTREAM, envName, &sr)
-			if err != nil {
+			if err != nil && !strings.Contains(err.Error(), "is not exist") {
 				logrus.Warnf("trans k %v error, %v", envName, err)
 				continue
 			}
