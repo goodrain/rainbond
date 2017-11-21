@@ -31,7 +31,7 @@ $make all
 ##### Docker
 
 ```
-$git clone github.com/goodrain/rainbond
+$git clone https://github.com/goodrain/rainbond.git
 $cd rainbond
 $make all-image
 ```
