@@ -95,7 +95,7 @@ func SourcesEnv(w http.ResponseWriter, r *http.Request) {
 	namespace := chi.URLParam(r, "tenant_id")
 	sourceAlias := chi.URLParam(r, "source_alias")
 	envName := chi.URLParam(r, "env_name")
-	ss, err := discoverService.GetSourcesEnv(namespace, sourceAlias, envName)
+	ss, err := discoverService.ToolsGetSourcesEnv(namespace, sourceAlias, envName)
 	if err != nil {
 		err.Handle(r, w)
 		return

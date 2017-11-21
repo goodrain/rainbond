@@ -80,27 +80,13 @@ type NetDownStreamRules struct {
 	Prefix       string `json:"prefix" validate:"prefix"`
 	ServiceAlias string `json:"service_alias"`
 	ServiceID    string `json:"service_id" validate:"service_id"`
-	HTTPPort     int32  `json:"http_port"`
 }
 
 //NetUpStreamRules NetUpStreamRules
 type NetUpStreamRules struct {
-	Limit int `json:"limit" validate:"limit|numeric_between:0,1024"`
-	//请求头
-	//in: body
-	//required: false
-	Header []HeaderRules `json:"header" validate:"header"`
-	//域名转发
-	//in: body
-	//required: false
-	Domain []string `json:"domain" validate:"domain"`
-	//path规则
-	//in: body
-	//required: false
-	Prefix       string `json:"prefix" validate:"prefix"`
-	ServiceAlias string `json:"service_alias"`
-	ServiceID    string `json:"service_id" validate:"service_id"`
-	HTTPPort     int32  `json:"http_port"`
+	NetDownStreamRules
+	SourcePort int32 `json:"source_port"`
+	MapPort    int32 `json:"map_port"`
 }
 
 //HeaderRules HeaderRules

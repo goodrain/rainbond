@@ -23,9 +23,11 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"github.com/apcera/termtables"
 	"fmt"
 	"strings"
+	"strconv"
 )
 
 
@@ -60,14 +62,40 @@ func getNodeWithResource(c *cli.Context) error {
 		logrus.Errorf("获取节点列表失败,details: %s",err.Error())
 		return err
 	}
+
+
 	table := termtables.CreateTable()
 	table.AddHeaders("NodeName", "Version", "CapCPU(核)", "AllocatableCPU(核)","UsedCPU(核)", "CapMemory(M)","AllocatableMemory(M)","UsedMemory(M)")
 	for _,v:=range ns.Items {
+
+		podList, err := clients.K8SClient.Core().Pods(metav1.NamespaceAll).List(metav1.ListOptions{FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": v.Name}).String()})
+		if err != nil {
+
+		}
+		var cpuPerNode=0
+		memPerNode:=0
+		for _,p:=range podList.Items{
+			status:=string(p.Status.Phase)
+
+			if status!="Running" {
+				continue
+			}
+			memPerPod:=0
+
+			memPerPod+=int(p.Spec.Containers[0].Resources.Requests.Memory().Value())
+			cpuOfPod:=p.Spec.Containers[0].Resources.Requests.Cpu().String()
+			if strings.Contains(cpuOfPod,"m") {
+				cpuOfPod=strings.Replace(cpuOfPod,"m","",-1)
+			}
+			cpuI,_:=strconv.Atoi(cpuOfPod)
+			cpuPerNode+=cpuI
+			memPerNode+=memPerPod
+		}
 		capCPU:=v.Status.Capacity.Cpu().Value()
 		capMem:=v.Status.Capacity.Memory().Value()
 		allocCPU:=v.Status.Allocatable.Cpu().Value()
 		allocMem:=v.Status.Allocatable.Memory().Value()
-		table.AddRow(v.Name,v.Status.NodeInfo.KubeletVersion,capCPU,allocCPU,capCPU-allocCPU,capMem/1024/1024,allocMem/1024/1024,capMem/1024/1024-allocMem/1024/1024)
+		table.AddRow(v.Name,v.Status.NodeInfo.KubeletVersion,capCPU,allocCPU,float32(cpuPerNode)/1000,capMem/1024/1024,allocMem/1024/1024,memPerNode/1024/1024)
 	}
 	fmt.Println(table.Render())
 	return nil

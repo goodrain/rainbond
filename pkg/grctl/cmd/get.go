@@ -89,7 +89,10 @@ func getAppInfoV2(c *cli.Context)error  {
 	//	logrus.Error("Don't Find the service info .", err.Error())
 	//	return err
 	//}
-
+	if service==nil {
+		fmt.Println("not found")
+		return nil
+	}
 
 	table := uitable.New()
 	table.Wrap = true // wrap columns
