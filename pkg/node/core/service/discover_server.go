@@ -179,13 +179,15 @@ func (d *DiscoverAction) DiscoverListeners(
 						logrus.Warnf("get env %s error, %v", envName, err)
 						continue
 					}
-					sr = mr.(api_model.NetDownStreamRules)
+					if mr != nil {
+						sr = mr.(api_model.NetDownStreamRules)
+					}
 					prs := &node_model.PieceHTTPRoutes{
 						TimeoutMS: 0,
 						Prefix:    d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, &sr).(string),
 						Cluster:   fmt.Sprintf("%s_%s_%d", namespace, destServiceAlias, port),
-						Headers: d.ToolsGetRouterItem(destServiceAlias,
-							node_model.HEADERS, &sr).([]*node_model.PieceHeader),
+						//Headers: d.ToolsGetRouterItem(destServiceAlias,
+						//	node_model.HEADERS, &sr).([]*node_model.PieceHeader),
 					}
 					pvh := &node_model.PieceHTTPVirtualHost{
 						Name:    fmt.Sprintf("%s_%s_%d", namespace, destServiceAlias, port),
@@ -212,16 +214,22 @@ func (d *DiscoverAction) DiscoverListeners(
 				return nil, util.CreateAPIHandleError(500, err)
 			}
 		}
+		if httpPort == nil {
+			httpPort = 80
+		}
 		hsf := &node_model.HTTPSingleFileter{
 			Type:   "decoder",
 			Name:   "router",
 			Config: make(map[string]string),
 		}
+		rcg := &node_model.RouteConfig{
+			VirtualHosts: vhL,
+		}
 		lhc := &node_model.LDSHTTPConfig{
-			CodecType:  "auto",
-			StatPrefix: "ingress_http",
-			//RouteConfig: rcg,
-			Filters: []*node_model.HTTPSingleFileter{hsf},
+			CodecType:   "auto",
+			StatPrefix:  "ingress_http",
+			RouteConfig: rcg,
+			Filters:     []*node_model.HTTPSingleFileter{hsf},
 		}
 		lfs := &node_model.LDSFilters{
 			Name:   "http_connection_manager",
@@ -275,8 +283,10 @@ func (d *DiscoverAction) DiscoverClusters(
 				logrus.Warnf("trans k %v error, %v", envName, err)
 				continue
 			}
-			mc := mr.(*api_model.NetDownStreamRules)
-			circuits := d.ToolsGetRouterItem(destServiceAlias, node_model.LIMITS, mc).(int)
+			if mr != nil {
+				sr = mr.(api_model.NetDownStreamRules)
+			}
+			circuits := d.ToolsGetRouterItem(destServiceAlias, node_model.LIMITS, &sr).(int)
 			cb := &node_model.CircuitBreakers{
 				Default: &node_model.MaxConnections{
 					MaxConnections: circuits,
@@ -373,6 +383,9 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 		return "/"
 	case node_model.LIMITS:
 		if sr.Limit != 0 {
+			if sr.Limit == 1025 {
+				return 0
+			}
 			return sr.Limit
 		}
 		return 1024
@@ -388,8 +401,8 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 			}
 		}
 		ph := &node_model.PieceHeader{
-			Name:  "host",
-			Value: destAlias,
+			Name:  "Connection",
+			Value: "keep-alive",
 		}
 		phL = append(phL, ph)
 		return phL
@@ -397,7 +410,7 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 		if sr.Domain != nil {
 			return sr.Domain
 		}
-		return []string{destAlias}
+		return []string{"*"}
 	}
 	return ""
 }
@@ -420,8 +433,8 @@ func (d *DiscoverAction) ToolsGetStreamRules(
 			return nil, util.CreateAPIHandleError(500, err)
 		}
 	} else {
-		logrus.Errorf("key %s is not exist,", envName)
-		return nil, util.CreateAPIHandleError(404, fmt.Errorf("key %s is not exist, ", envName))
+		logrus.Debugf("key %s is not exist,", envName)
+		return nil, nil
 	}
 	if err := ffjson.Unmarshal([]byte(ss.SourceBody.EnvVal), rule); err != nil {
 		logrus.Errorf("umashal value error, %v", err)
