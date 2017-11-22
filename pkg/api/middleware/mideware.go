@@ -137,6 +137,18 @@ func Proxy(next http.Handler) http.Handler {
 			GetNodeProxy().Proxy(w, r)
 			return
 		}
+		if strings.HasPrefix(r.RequestURI, "/v2/tasktemps") {
+			GetNodeProxy().Proxy(w, r)
+			return
+		}
+		if strings.HasPrefix(r.RequestURI, "/v2/taskgroups") {
+			GetNodeProxy().Proxy(w, r)
+			return
+		}
+		if strings.HasPrefix(r.RequestURI, "/v2/configs") {
+			GetNodeProxy().Proxy(w, r)
+			return
+		}
 		next.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(fn)
