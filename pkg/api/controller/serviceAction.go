@@ -123,6 +123,7 @@ func checkCanAddEvent(s string) (int, error) {
 	if err != nil {
 		return 3, err
 	}
+	logrus.Infof("get %d event from mysql by service %s",len(events),s)
 	if len(events) == 0 {
 		//service 首个event
 		return 0, nil
@@ -139,8 +140,7 @@ func checkCanAddEvent(s string) (int, error) {
 			return 0, nil
 		}
 		//未完成，未超时
-		b,_:=json.Marshal(latestEvent)
-		logrus.Warnf("service %s 's last event is %s",s,string(b))
+
 		return 2, nil
 	}
 	//已完成
