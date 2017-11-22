@@ -289,7 +289,7 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					message := event[3]
 					webhook.GetManager().RunWebhookWithParameter(webhook.UpDateEventStatus, nil,
 						map[string]interface{}{"event_id": eventID, "status": status, "message": message})
-					//todo update db
+
 
 					event := model.ServiceEvent{}
 					event.EventID = eventID
@@ -298,7 +298,7 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					logrus.Infof("updating event %s's status: %s",eventID,status)
 					cdb.GetManager().ServiceEventDao().UpdateModel(&event)
 
-
+					//todo  get version_info by event_id ,update final_status,optional delete
 				}
 			}
 			if event[0] == "code-version" { //代码版本

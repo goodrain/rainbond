@@ -31,5 +31,5 @@ class RegionBackAPI(BaseHttpClient):
 
 
     def update_service_region(self, service_id, body):
-        url = self.base_url+'/codecheck/{0}'.format(service_id)
+        url = self.base_url+'/codecheck/service/{0}'.format(service_id)
         res, body = self._put(url, self.default_headers, body)

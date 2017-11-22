@@ -504,12 +504,18 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 
 
 	////createBuildInfo
-	//version:=dbmodel.VersionInfo{}
-	//
-	//version.EventID=sEvent.EventID
-	//version.ServiceID=serviceID
-	//version.GitURL=build.Body.RepoURL
+	version:=dbmodel.VersionInfo{}
+
+	version.EventID=sEvent.EventID
+	version.ServiceID=serviceID
+	version.RepoURL=build.Body.RepoURL
+	version.DeliveredType=build.Body.Kind
+	version.CodeVersion=""
+	version.BuildVersion=build.Body.DeployVersion
+	//save
 	//version.DeliveredPath
+	//version.FinalStatus
+	//need update
 
 	//EventID string `json:"event_id" validate:"event_id|required"`
 	//ENVS map[string]string `json:"envs" validate:"envs"`

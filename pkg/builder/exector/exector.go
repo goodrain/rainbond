@@ -145,7 +145,8 @@ func (e *exectorManager) imageManual(in []byte) {
 		defer event.GetManager().ReleaseLogger(logger)
 		logrus.Info("start exec image manual worker")
 		for i := 0; i < 3; i++ {
-			_, err := w.run(time.Minute * 30)
+			c, err := w.run(time.Minute * 30)
+			fmt.Printf("out put is ------------%s",string(c))
 			if err != nil {
 				logrus.Errorf("exec image manual python shell error:%s", err.Error())
 				if i < 3 {
