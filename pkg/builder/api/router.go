@@ -25,17 +25,14 @@ import (
 func APIServer() *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Route("/v2/builder", func(r chi.Router) {
-		//r.Get("/ping", controller.Ping)
-		r.Route("/codecheck", func(r chi.Router) {
-			r.Post("/", controller.AddCodeCheck)
-			r.Put("/service/{serviceID}", controller.Update)
-			r.Get("/service/{serviceID}", controller.GetCodeCheck)
-		})
-		r.Route("/publish", func(r chi.Router) {
-			r.Get("/service/{serviceKey}/version/{appVersion}",controller.GetAppPublish)
-			r.Post("/",controller.AddAppPublish)
-		})
+	r.Route("/codecheck", func(r chi.Router) {
+		r.Post("/", controller.AddCodeCheck)
+		r.Put("/service/{serviceID}", controller.Update)
+		r.Get("/service/{serviceID}", controller.GetCodeCheck)
+	})
+	r.Route("/publish", func(r chi.Router) {
+		r.Get("/service/{serviceKey}/version/{appVersion}",controller.GetAppPublish)
+		r.Post("/",controller.AddAppPublish)
 	})
 	return r
 }
