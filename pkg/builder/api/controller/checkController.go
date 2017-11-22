@@ -33,8 +33,9 @@ import (
 )
 
 func AddCodeCheck(w http.ResponseWriter, r *http.Request) {
-	b,_:=ioutil.ReadAll(r.Body)
-	logrus.Infof("request recive %s",string(b))
+	//b,_:=ioutil.ReadAll(r.Body)
+	//{\"url_repos\": \"https://github.com/bay1ts/zk_cluster_mini.git\", \"check_type\": \"first_check\", \"code_from\": \"gitlab_manual\", \"service_id\": \"c24dea8300b9401b1461dd975768881a\", \"code_version\": \"master\", \"git_project_id\": 0, \"condition\": \"{\\\"language\\\":\\\"docker\\\",\\\"runtimes\\\":\\\"false\\\", \\\"dependencies\\\":\\\"false\\\",\\\"procfile\\\":\\\"false\\\"}\", \"git_url\": \"--branch master --depth 1 https://github.com/bay1ts/zk_cluster_mini.git\"}
+	//logrus.Infof("request recive %s",string(b))
 	result := new(model.CodeCheckResult)
 	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()
