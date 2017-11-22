@@ -34,7 +34,7 @@ function prepare() {
     cd $releasedir/tmp
     rm -rf .git
     
-    tar zcvf ../dist/usr/share/gr-rainbond-node/gaops/gaops.tgz ./
+    tar zcf  ../dist/usr/share/gr-rainbond-node/gaops/gaops.tgz ./ 
     cd $path
     rm -rf $releasedir/tmp
 }

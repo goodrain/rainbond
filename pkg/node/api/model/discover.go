@@ -129,10 +129,10 @@ type PieceHTTPVirtualHost struct {
 
 //PieceHTTPRoutes PieceHTTPRoutes
 type PieceHTTPRoutes struct {
-	TimeoutMS int            `json:"timeout_ms"`
-	Prefix    string         `json:"prefix"`
-	Cluster   string         `json:"cluster"`
-	Headers   []*PieceHeader `json:"headers"`
+	TimeoutMS int    `json:"timeout_ms"`
+	Prefix    string `json:"prefix"`
+	Cluster   string `json:"cluster"`
+	//Headers   []*PieceHeader `json:"headers"`
 }
 
 //PieceHeader PieceHeader
