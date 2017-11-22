@@ -6,7 +6,7 @@ BASE_DOCKER=./hack/contrib/docker
 BIN_PATH=./_output/${VERSION}
 
 default: help
-all: build pkg images ## build linux binaries, build linux packages, build images for docker
+all: build pkgs images ## build linux binaries, build linux packages, build images for docker
 
 clean: 
 	@rm -rf ${BIN_PATH}/*
@@ -34,12 +34,10 @@ build-webcli:
 	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-webcli ./cmd/webcli
 	
 deb: ## build the deb packages
-	@bash ./release.sh build
 	@bash ./release.sh deb
 rpm: ## build the rpm packages
-	@bash ./release.sh build
 	@bash ./release.sh rpm
-pkg: 
+pkgs:
 	@bash ./release.sh pkg
 	
 images: build-image-worker  build-image-mq build-image-chaos build-image-entrance build-image-eventlog build-image-api build-image-webcli ## build all images
@@ -70,14 +68,23 @@ build-image-api:
 build-image-webcli:
 	@echo "🐳 $@"
 	@bash ./release.sh webcli
-push-image: 
-	docker push hub.goodrain.com/${BASE_NAME}/rbd-eventlog:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/rbd-entrance:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/rbd-chaos:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/rbd-mq:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/rbd-worker:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/rbd-webcli:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/rbd-api:${VERSION}
+push-gr-image: 
+	@docker push hub.goodrain.com/${BASE_NAME}/rbd-eventlog:${VERSION}
+	@docker push hub.goodrain.com/${BASE_NAME}/rbd-entrance:${VERSION}
+	@docker push hub.goodrain.com/${BASE_NAME}/rbd-chaos:${VERSION}
+	@docker push hub.goodrain.com/${BASE_NAME}/rbd-mq:${VERSION}
+	@docker push hub.goodrain.com/${BASE_NAME}/rbd-worker:${VERSION}
+	@docker push hub.goodrain.com/${BASE_NAME}/rbd-webcli:${VERSION}
+	@docker push hub.goodrain.com/${BASE_NAME}/rbd-api:${VERSION}
+
+push-hub-image:
+	@docker push ${BASE_NAME}/rbd-eventlog:${VERSION}
+	@docker push ${BASE_NAME}/rbd-entrance:${VERSION}
+	@docker push ${BASE_NAME}/rbd-chaos:${VERSION}
+	@docker push ${BASE_NAME}/rbd-mq:${VERSION}
+	@docker push ${BASE_NAME}/rbd-worker:${VERSION}
+	@docker push ${BASE_NAME}/rbd-webcli:${VERSION}
+	@docker push ${BASE_NAME}/rbd-api:${VERSION}
 
 run-api:build-api
 	${BIN_PATH}/${BASE_NAME}-api --log-level=debug --mysql="admin:admin@tcp(127.0.0.1:3306)/region" --kube-config="`PWD`/admin.kubeconfig"

@@ -6,7 +6,7 @@ set -e
 	for release_dir in $(find hack/deb/* -maxdepth 0 -type d)
 	do
 		release=${release_dir##*/}
-		debbuildRelease=${buildRelease}-${GIT_CM}~${release}
+		debbuildRelease=${buildRelease}~${release}
 		RELEASE_PATH=$debbuild_root/$release/${PROGRAM}-${VERSION}-${debbuildRelease}
 		
 		rm -rf $debbuild_root/$release
