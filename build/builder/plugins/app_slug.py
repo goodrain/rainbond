@@ -7,6 +7,7 @@ from clients.region import RegionAPI
 from clients.alioss import OssAPI
 from clients.etcdcli import TaskLocker
 from clients.userconsole import UserConsoleAPI
+from clients.region_api import RegionBackAPI
 from clients.acp_api import ACPAPI
 from clients.ftputils import FTPUtils
 from utils.crypt import get_md5
@@ -21,16 +22,13 @@ with open("plugins/config.json", 'r') as load_f:
 logging.config.dictConfig(settings.get_logging(load_dict))
 logger = logging.getLogger('default')
 
-def service_publish_success_region(self, body):
-    # url = self.base_url + '/api/tenants/services/publish'
-    url = 'http://127.0.0.1:3228/v2/builder/publish'
-    res, body = self._post(url, self.default_headers, body)
-    return res, body
+
 class AppSlug():
     def __init__(self, job, *args, **kwargs):
         self.job = job
         self.configs = kwargs.get("config")
         self.region_api = RegionAPI(conf=self.configs['region'])
+        self.region_client = RegionBackAPI()
         self.oss_api = OssAPI(conf=self.configs['oss']['ali_shanghai'])
         self.locker = TaskLocker(conf=self.configs['etcd'])
         self.user_cs_client = UserConsoleAPI(conf=self.configs['userconsole'])
@@ -188,7 +186,7 @@ class AppSlug():
                         data['share_id'] = share_id
                     self.user_cs_client.service_publish_success(
                         json.dumps(data))
-                    service_publish_success_region(self,json.dumps(data))
+                    self.region_client.service_publish_success_region(self,json.dumps(data))
                     self.log.info("云帮应用本地发布完毕", step="last", status="success")
                 except Exception as e:
                     logger.error("mq_work.app_slug",
@@ -208,7 +206,7 @@ class AppSlug():
                 if share_id is not None:
                     data['share_id'] = share_id
                 self.user_cs_client.service_publish_success(json.dumps(data))
-                service_publish_success_region(self,json.dumps(data))
+                self.region_client.service_publish_success_region(self,json.dumps(data))
                 self.log.info("云帮应用本地发布完毕", step="last", status="success")
         elif dest == "ys":
             if self.is_oss_ftp:
@@ -228,7 +226,7 @@ class AppSlug():
                         data['share_id'] = share_id
                     self.user_cs_client.service_publish_success(
                         json.dumps(data))
-                    service_publish_success_region(self,json.dumps(data))
+                    self.region_client.service_publish_success_region(self,json.dumps(data))
                 except Exception as e:
                     logger.error("mq_work.app_slug",
                                  "*******ftp upload failed, {0}".format(e))
@@ -244,7 +242,7 @@ class AppSlug():
                 if share_id is not None:
                     data['share_id'] = share_id
                 self.user_cs_client.service_publish_success(json.dumps(data))
-                service_publish_success_region(self,json.dumps(data))
+                self.region_client.service_publish_success_region(self,json.dumps(data))
                 self.log.info("云市应用发布完毕", step="last", status="success")
 
     def _download_ftp(self, service_key, app_version, namespace, is_md5=False):

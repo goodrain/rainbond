@@ -4,6 +4,7 @@ import json
 from utils.shell import Executer as shell
 from clients.region import RegionAPI
 from clients.registry import RegistryAPI
+from clients.region_api import RegionBackAPI
 from clients.etcdcli import TaskLocker
 from clients.hubimageutils import HubUtils
 from clients.userconsole import UserConsoleAPI
@@ -27,16 +28,13 @@ if os.access("/var/run/docker.sock", os.W_OK):
 else:
     DOCKER_BIN = "sudo -P docker"
 
-def service_publish_success_region(self, body):
-    # url = self.base_url + '/api/tenants/services/publish'
-    url = 'http://127.0.0.1:3228/v2/publish'
-    res, body = self._post(url, self.default_headers, body)
-    return res, body
+
 class AppImage():
     def __init__(self, job, *args, **kwargs):
         self.job = job
         self.configs = kwargs.get("config")
         self.region_api = RegionAPI(conf=self.configs["region"])
+        self.region_client = RegionBackAPI()
         self.api = ACPAPI(conf=self.configs['region'])
         image_config = self.configs["publish"]["image"]
         self.region_registry = RegistryAPI(
@@ -126,7 +124,7 @@ class AppImage():
                             data["share_id"] = share_id
                         self.user_cs_client.service_publish_success(
                             json.dumps(data))
-                        service_publish_success_region(self,json.dumps(data))
+                        self.region_client.service_publish_success_region(self,json.dumps(data))
                         self.log.info(
                             "云帮应用发布完毕", step="last", status="success")
                     except (shell.ExecException, Exception), e:
@@ -148,7 +146,7 @@ class AppImage():
                         data["share_id"] = share_id
                     self.user_cs_client.service_publish_success(
                         json.dumps(data))
-                    service_publish_success_region(self,json.dumps(data))
+                    self.region_client.service_publish_success_region(self,json.dumps(data))
                     self.log.info("云帮应用发布完毕", step="last", status="success")
         elif dest == "ys":
             # 当前有镜像并且云市的image数据中心开启
@@ -197,7 +195,7 @@ class AppImage():
                         data["share_id"] = share_id
                     self.user_cs_client.service_publish_success(
                         json.dumps(data))
-                    service_publish_success_region(self,json.dumps(data))
+                    self.region_client.service_publish_success_region(self,json.dumps(data))
                     self.log.info("云市应用发布完毕", step="last", status="success")
                 except (shell.ExecException, Exception), e:
                     logger.exception("mq_work.app_image", e)
