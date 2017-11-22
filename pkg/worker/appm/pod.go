@@ -692,7 +692,7 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]v1.Container, []v1.Container, error) {
 	var containers []v1.Container
 	var initContainers []v1.Container
-	if len(p.pluginsRelation) == 0 {
+	if len(p.pluginsRelation) == 0 && !p.needProxy {
 		return nil, containers, nil
 	}
 	netPlugin := false

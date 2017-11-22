@@ -8,6 +8,7 @@ clean:
 	@rm -rf ./build/api/${BASE_NAME}_api
 	@rm -rf ./build/node/${BASE_NAME}_node
 	@rm -rf ./build/builder/${BASE_NAME}_builder
+	@rm -rf ./release/
 
 run-api:build-api
 	./build/api/${BASE_NAME}_api --log-level=debug --mysql="admin:admin@tcp(127.0.0.1:3306)/region" --kube-config="`PWD`/admin.kubeconfig"
@@ -58,23 +59,32 @@ build-grctl:
 build-api:
 	go build ${GO_LDFLAGS} -o ./build/api/${BASE_NAME}_api ./cmd/api
 build-webcli:
-	go build ${GO_LDFLAGS} -o ./build/webcli/${BASE_NAME}_webcli ./cmd/webcli	
+	go build ${GO_LDFLAGS} -o ./build/webcli/${BASE_NAME}_webcli ./cmd/webcli
+	
+build-deb:
+	@bash ./release.sh build
+	@bash ./release.sh deb
+build-rpm:
+	@bash ./release.sh build
+	@bash ./release.sh rpm
+build-pkg:
+	@bash ./release.sh
 	
 all-image: build-image-worker  build-image-mq build-image-builder build-image-entrance build-image-eventlog build-image-api build-image-webcli
 build-image-worker:
 	@echo "🐳 $@"
 	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/worker/${BASE_NAME}_worker ./cmd/worker
-	@docker build -t hub.goodrain.com/dc-deploy/${BASE_NAME}_worker:${VERSION} ./build/worker
+	@docker build -t hub.goodrain.com/${BASE_NAME}/worker:${VERSION} ./build/worker
 	@rm -f ./build/worker/${BASE_NAME}_worker
 build-image-mq:
 	@echo "🐳 $@"
 	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/mq/${BASE_NAME}_mq ./cmd/mq
-	@docker build -t hub.goodrain.com/dc-deploy/${BASE_NAME}_mq:${VERSION} ./build/mq
+	@docker build -t hub.goodrain.com/${BASE_NAME}/mq:${VERSION} ./build/mq
 	@rm -f ./build/mq/${BASE_NAME}_mq
 build-image-builder:
 	@echo "🐳 $@"
 	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/builder/${BASE_NAME}_builder ./cmd/builder
-	@docker build -t hub.goodrain.com/dc-deploy/${BASE_NAME}_chaos:${VERSION} ./build/builder
+	@docker build -t hub.goodrain.com/${BASE_NAME}/chaos:${VERSION} ./build/builder
 	@rm -f ./build/builder/${BASE_NAME}_builder
 build-image-node:
 	@echo "🐳 $@"
@@ -83,7 +93,7 @@ build-image-entrance:
 	@echo "🐳 $@"
 	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/entrance/${BASE_NAME}_entrance ./cmd/entrance
 	@cp -r ./build/dist ./build/entrance/dist
-	@docker build -t hub.goodrain.com/dc-deploy/${BASE_NAME}_entrance:${VERSION} ./build/entrance
+	@docker build -t hub.goodrain.com/${BASE_NAME}/entrance:${VERSION} ./build/entrance
 	@rm -rf ./build/entrance/dist
 	@rm -f ./build/entrance/${BASE_NAME}_entrance
 build-image-eventlog:
@@ -92,27 +102,26 @@ build-image-eventlog:
 	@echo "building..."
 	@docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} goodraim.me/event-build:v1 go build  ${GO_LDFLAGS}  -o ./build/eventlog/${BASE_NAME}_eventlog ./cmd/eventlog
 	@echo "build done."
-	@docker build -t hub.goodrain.com/dc-deploy/${BASE_NAME}_eventlog:${VERSION} ./build/eventlog
+	@docker build -t hub.goodrain.com/${BASE_NAME}/eventlog:${VERSION} ./build/eventlog
 	@rm -f ./build/entrance/${BASE_NAME}_eventlog
 build-image-api:
 	@echo "🐳 $@"
 	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/api/${BASE_NAME}_api ./cmd/api
-	@docker build -t hub.goodrain.com/dc-deploy/${BASE_NAME}_api:${VERSION} ./build/api
+	@docker build -t hub.goodrain.com/${BASE_NAME}/api:${VERSION} ./build/api
 	@rm -f ./build/api/${BASE_NAME}_api	
 build-image-webcli:
 	@echo "🐳 $@"
 	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/webcli/${BASE_NAME}_webcli ./cmd/webcli
-	@docker build -t hub.goodrain.com/dc-deploy/${BASE_NAME}_webcli:${VERSION} ./build/webcli
+	@docker build -t hub.goodrain.com/${BASE_NAME}/webcli:${VERSION} ./build/webcli
 	@rm -f ./build/webcli/${BASE_NAME}_webcli
 push-image:
-	docker push hub.goodrain.com/dc-deploy/${BASE_NAME}_eventlog:${VERSION}
-	docker push hub.goodrain.com/dc-deploy/${BASE_NAME}_entrance:${VERSION}
-	docker push hub.goodrain.com/dc-deploy/${BASE_NAME}_chaos:${VERSION}
-	docker push hub.goodrain.com/dc-deploy/${BASE_NAME}_mq:${VERSION}
-	docker push hub.goodrain.com/dc-deploy/${BASE_NAME}_worker:${VERSION}
-	docker push hub.goodrain.com/dc-deploy/${BASE_NAME}_webcli:${VERSION}
-	docker push hub.goodrain.com/dc-deploy/${BASE_NAME}_api:${VERSION}
-
+	docker push hub.goodrain.com/${BASE_NAME}/eventlog:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/entrance:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/chaos:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/mq:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/worker:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/webcli:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/api:${VERSION}
 
 
 	

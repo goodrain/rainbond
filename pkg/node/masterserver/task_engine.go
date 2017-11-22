@@ -674,7 +674,7 @@ func (t *TaskEngine) waitScheduleTask(taskSchedulerInfo *TaskSchedulerInfo, task
 						}
 					}
 				} else {
-					taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s is not found", depTask.ID)
+					taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s is not found", dep.DependTaskID)
 					taskSchedulerInfo.Status.Status = "Failure"
 					task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
 					result[i] = false
