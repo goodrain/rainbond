@@ -79,8 +79,10 @@ func createEvent(eventID, serviceID, optType, tenantID, deployVersion string) (*
 
 	status, err := checkCanAddEvent(serviceID)
 	if err != nil {
+		logrus.Errorf("error check event")
 		return nil, status, nil
 	}
+	logrus.Infof("check add event status is %d",status)
 	if status == 0 {
 		db.GetManager().ServiceEventDao().AddModel(&event)
 		go autoTimeOut(&event)
@@ -209,7 +211,7 @@ func handleStatus(status int, err error, w http.ResponseWriter, r *http.Request)
 //     description: 统一返回格式
 func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 
-	//logrus.Debugf("trans start service")
+	logrus.Debugf("trans start service")
 	rules := validator.MapData{
 		"event_id": []string{},
 	}
