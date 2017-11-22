@@ -36,6 +36,7 @@ import (
 	tutil "github.com/goodrain/rainbond/pkg/util"
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 	validator "github.com/thedevsaddam/govalidator"
+	"encoding/json"
 )
 
 //TIMELAYOUT timelayout
@@ -138,6 +139,8 @@ func checkCanAddEvent(s string) (int, error) {
 			return 0, nil
 		}
 		//未完成，未超时
+		b,_:=json.Marshal(latestEvent)
+		logrus.Warnf("service %s 's last event is %s",s,string(b))
 		return 2, nil
 	}
 	//已完成
