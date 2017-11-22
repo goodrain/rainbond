@@ -135,7 +135,7 @@ class CodeCheck():
         }
         logger.info('mq_work.service_event',
                     "service_id=" + service_id + ";condition=" + condition)
-        res, body = self.user_cs_client.code_check(json.dumps(body))
+        res, bodyres = self.user_cs_client.code_check(json.dumps(body))
         self.region_client.code_check_region(json.dumps(body))
 
 
