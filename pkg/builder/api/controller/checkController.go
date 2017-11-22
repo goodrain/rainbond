@@ -29,9 +29,12 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
+	"io/ioutil"
 )
 
 func AddCodeCheck(w http.ResponseWriter, r *http.Request) {
+	b,_:=ioutil.ReadAll(r.Body)
+	logrus.Infof("request recive %s",string(b))
 	result := new(model.CodeCheckResult)
 	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()

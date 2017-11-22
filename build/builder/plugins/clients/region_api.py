@@ -26,4 +26,5 @@ class RegionBackAPI(BaseHttpClient):
         # url = self.base_url + '/api/tenants/services/codecheck'
         url = self.base_url+'/codecheck'
         res, body = self._post(url, self.default_headers, body)
+        print body
         return res, body
