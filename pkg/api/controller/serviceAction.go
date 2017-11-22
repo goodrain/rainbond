@@ -176,7 +176,7 @@ func checkEventTimeOut(event *dbmodel.ServiceEvent) (bool, error) {
 
 func handleStatus(status int, err error, w http.ResponseWriter, r *http.Request) {
 	if status != 0 {
-		logrus.Error("应用启动任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
+		//logrus.Error("应用启动任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 		if status == 2 {
 			httputil.ReturnError(r, w, 400, "last event unfinish.")
 			return

@@ -53,7 +53,6 @@ func NewCmdInit() cli.Command {
 		},
 		Usage: "初始化集群。grctl init cluster",
 		Action: func(c *cli.Context) error {
-			Common(c)
 			return initCluster(c)
 		},
 	}
