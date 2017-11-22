@@ -10,11 +10,6 @@ class RegionBackAPI(BaseHttpClient):
         super(RegionBackAPI, self).__init__()
         self._name = 'region'
         self.default_headers = {"Content-Type": "application/json"}
-        if conf["token"] is not None:
-            self.default_headers.update({
-                "Authorization":
-                    "Token {}".format(conf["token"])
-            })
         if conf is None:
             self.base_url = "http://localhost:3228/v2/builder"
         else:
@@ -31,6 +26,6 @@ class RegionBackAPI(BaseHttpClient):
     def code_check_region(self, body):
 
         # url = self.base_url + '/api/tenants/services/codecheck'
-        url = 'http://127.0.0.1:3228/v2/builder/codecheck'
+        url = self.base_url+'/builder/codecheck'
         res, body = self._post(url, self.default_headers, body)
         return res, body
