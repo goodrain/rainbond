@@ -19,23 +19,25 @@
 package cmd
 
 import (
-	"github.com/urfave/cli"
-	"fmt"
-	"github.com/apcera/termtables"
-	"net/url"
-	"github.com/Sirupsen/logrus"
-	"strings"
 	"errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"fmt"
+	"net/url"
+	"strings"
+	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/apcera/termtables"
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"github.com/gosuri/uitable"
-	"time"
+	"github.com/urfave/cli"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	//"encoding/json"
 	//"encoding/json"
 )
 
+//NewCmdGet NewCmdGet
 func NewCmdGet() cli.Command {
-	c:=cli.Command{
+	c := cli.Command{
 		Name: "get",
 		Flags: []cli.Flag{
 			cli.StringFlag{
@@ -52,7 +54,7 @@ func NewCmdGet() cli.Command {
 	}
 	return c
 }
-func getAppInfoV2(c *cli.Context)error  {
+func getAppInfoV2(c *cli.Context) error {
 	value := c.Args().First()
 	// https://user.goodrain.com/apps/goodrain/dev-debug/detail/
 	var tenantName, serviceAlias string
@@ -83,21 +85,21 @@ func getAppInfoV2(c *cli.Context)error  {
 	} else {
 		serviceAlias = value
 	}
-	service:=clients.RegionClient.Tenants().Get(tenantName).Services().Get(serviceAlias)
+	service := clients.RegionClient.Tenants().Get(tenantName).Services().Get(serviceAlias)
 	//result, err := db.FindTenantServiceMulti(tenantName, serviceAlias)
 	//if err != nil {
 	//	logrus.Error("Don't Find the service info .", err.Error())
 	//	return err
 	//}
-	if service==nil {
+	if service == nil {
 		fmt.Println("not found")
 		return nil
 	}
 
 	table := uitable.New()
 	table.Wrap = true // wrap columns
-	tenantID :=service["tenantId"]
-	serviceID:=service["serviceId"]
+	tenantID := service["tenantId"]
+	serviceID := service["serviceId"]
 	//volumes:=service[""]
 
 	table.AddRow("Namespace:", tenantID)
@@ -105,14 +107,14 @@ func getAppInfoV2(c *cli.Context)error  {
 	//table.AddRow("Volume:", volumes)
 
 	option := metav1.ListOptions{LabelSelector: "name=" + serviceAlias}
-	ps,err:=clients.RegionClient.Tenants().Get(tenantName).Services().Pods(serviceAlias)
+	ps, err := clients.RegionClient.Tenants().Get(tenantName).Services().Pods(serviceAlias)
 	if err != nil {
-		logrus.Errorf("error get pods info ,details %s",err.Error())
+		logrus.Errorf("error get pods info ,details %s", err.Error())
 		return err
 	}
 
 	var rcMap = make(map[string]string)
-	for _,v:=range ps{
+	for _, v := range ps {
 		rcMap["Type"] = v.ReplicationType
 		rcMap["ID"] = v.ReplicationID
 		break
@@ -125,16 +127,16 @@ func getAppInfoV2(c *cli.Context)error  {
 
 	services, err := clients.K8SClient.Core().Services(tenantID).List(serviceOption)
 	if err != nil {
-		logrus.Errorf("err get service by namespace %s,details %s",tenantID,err.Error())
+		logrus.Errorf("err get service by namespace %s,details %s", tenantID, err.Error())
 		return err
 	}
 
 	serviceTable := termtables.CreateTable()
-	serviceTable.AddHeaders( "Name", "IP", "Port")
+	serviceTable.AddHeaders("Name", "IP", "Port")
 
 	var serviceMap = make(map[string]string)
 	for _, service := range services.Items {
-		if service.Spec.Selector["name"]==serviceAlias {
+		if service.Spec.Selector["name"] == serviceAlias {
 			serviceMap["Name"] = service.Name
 			var ports string
 			if service.Spec.Ports != nil && len(service.Spec.Ports) > 0 {
@@ -144,7 +146,7 @@ func getAppInfoV2(c *cli.Context)error  {
 			}
 			serviceMap["Ports"] = ports
 			serviceMap["ClusterIP"] = service.Spec.ClusterIP
-			serviceTable.AddRow(service.Name, service.Spec.ClusterIP,ports )
+			serviceTable.AddRow(service.Name, service.Spec.ClusterIP, ports)
 		}
 	}
 	table.AddRow("Services:", "")
@@ -158,19 +160,19 @@ func getAppInfoV2(c *cli.Context)error  {
 
 	if clients.K8SClient == nil {
 
-		for i,v:=range ps{
+		for i, v := range ps {
 
 			table := uitable.New()
 			table.Wrap = true // wrap columns
 			fmt.Printf("-------------------Pod_%d-----------------------\n", i)
-			table.AddRow("PodName:", 	v.PodName)
-			table.AddRow("ServiceID:", 	v.ServiceID)
-			table.AddRow("ReplicationType:", 	v.ReplicationType)
-			table.AddRow("ReplicationID:", 	v.ReplicationID)
+			table.AddRow("PodName:", v.PodName)
+			table.AddRow("ServiceID:", v.ServiceID)
+			table.AddRow("ReplicationType:", v.ReplicationType)
+			table.AddRow("ReplicationID:", v.ReplicationID)
 
 			fmt.Println(table)
 		}
-	}else{
+	} else {
 
 		pods, err := clients.K8SClient.Core().Pods(tenantID).List(option)
 		if err != nil {
@@ -190,20 +192,20 @@ func getAppInfoV2(c *cli.Context)error  {
 			table.AddRow("PodIP:", pod.Status.PodIP)
 			table.AddRow("PodHostIP:", pod.Status.HostIP)
 			table.AddRow("PodHostName:", pod.Spec.NodeName)
-			if pod.Spec.Volumes != nil && len(pod.Spec.Volumes) > 0  {
-				value:=""
-				for _,v:=range pod.Spec.Volumes {
+			if pod.Spec.Volumes != nil && len(pod.Spec.Volumes) > 0 {
+				value := ""
+				for _, v := range pod.Spec.Volumes {
 					if v.HostPath != nil {
-						value+=v.HostPath.Path
-						for _,vc:=range pod.Spec.Containers {
-							m:=vc.VolumeMounts
-							for _,v2:=range m {
+						value += v.HostPath.Path
+						for _, vc := range pod.Spec.Containers {
+							m := vc.VolumeMounts
+							for _, v2 := range m {
 								if v2.Name == v.Name {
-									value+=":"+string(v2.MountPath)
+									value += ":" + string(v2.MountPath)
 								}
 							}
 						}
-						value+="\n"
+						value += "\n"
 					}
 				}
 				table.AddRow("PodVolumePath:", value)

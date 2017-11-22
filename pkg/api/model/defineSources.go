@@ -19,7 +19,7 @@
 package model
 
 //SetDefineSourcesStruct SetDefineSourcesStruct
-//swagger:parameters setDefineSource updateDefineSource
+//swagger:parameters setDefineSource
 type SetDefineSourcesStruct struct {
 	// in: path
 	// required: true
@@ -50,7 +50,7 @@ type DeleteDefineSourcesStruct struct {
 }
 
 //UpdateDefineSourcesStruct UpdateDefineSourcesStruct
-//swagger:parameters deleteDefineSource updateDefineSourcesStruct
+//swagger:parameters deleteDefineSource updateDefineSource
 type UpdateDefineSourcesStruct struct {
 	// in: path
 	// required: true

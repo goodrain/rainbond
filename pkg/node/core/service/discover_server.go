@@ -410,7 +410,10 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 		if sr.Domain != nil {
 			return sr.Domain
 		}
-		return []string{"*"}
+		if sr.ServiceAlias != "" {
+			return []string{destAlias, sr.ServiceAlias}
+		}
+		return []string{destAlias}
 	}
 	return ""
 }
