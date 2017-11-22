@@ -15,7 +15,7 @@
 
 1. [安装云帮数据中心]().
 2. [安装云帮应用控制台]().
-3. [创建你的第一个应用]().
+3. [创建你的第一个应用](http://www.rainbond.com/docs/stable/getting-started/how-to-create-app.html).
 
 ## 快速构建
 
@@ -39,21 +39,21 @@ $make all-image
 
 在学习和使用中发现Bug，请移步[ISSUES](https://github.com/goodrain/rainbond/issues)，查找类似Bug及其修复方案。若无类似问题，请新建Issue。
 
-## [云帮架构]()
+## [云帮架构](http://www.rainbond.com/docs/stable/getting-started/architecture.html)
 
 ### 架构总图   
 
-<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_architecture.png" href="">
+<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_architecture.png" href="http://www.rainbond.com/docs/stable/getting-started/architecture.html">
 
 ### 云帮构成
 
 云帮由[云帮数据中心](https://github.com/goodrain/rainbond) 和[云帮应用控制台](https://github.com/goodrain/rainbond-ui) 云帮资源控制台(企业版提供)构成，并无缝对接好雨云市，以此实现超融合计算池。
 
-* [云帮数据中心]()    
+* [云帮数据中心](https://github.com/goodrain/rainbond)    
 
-云帮数据中心由[一系列分布式组件]()构成，面向资源抽象云帮节点，面向应用抽象存储、网络以及计算资源。本着插件化、分布式、软件定义一切的设计原则，云帮可在任何计算环境（公有云，私有云，IDC，行业计算）之上构建统一的应用运行环境。
+云帮数据中心由[一系列分布式组件](http://www.rainbond.com/docs/stable/platform-maintenance/add-management-node/component-introduction/overview.html)构成，面向资源抽象云帮节点，面向应用抽象存储、网络以及计算资源。本着插件化、分布式、软件定义一切的设计原则，云帮可在任何计算环境（公有云，私有云，IDC，行业计算）之上构建统一的应用运行环境。
 
-* [云帮应用控制台]()
+* [云帮应用控制台](https://github.com/goodrain/rainbond-ui)
 
 云帮应用控制台是一个Web控制台，对接多个云帮数据中心，提供应用的全生命周期管理功能。    
 
@@ -68,8 +68,7 @@ $make all-image
 ### 文档支持
 
 - [云帮开发文档](http://doc.goodrain.com/cloudbang-community-install/247616)
-- [安装文档](http://doc.goodrain.com/cloudbang-community-install/247616)
-- [使用文档](http://doc.goodrain.com/usage)
-- [平台维护](http://doc.goodrain.com/cloudbang-community-install/215655)
-- [企业版功能介绍](http://doc.goodrain.com/cloudbang-enterprise)
+- [安装文档](http://www.rainbond.com/docs/stable/getting-started/pre-install.html)
+- [使用文档](http://www.rainbond.com/docs/stable/user-app-docs/addapp/addapp-image.html)
+- [平台维护](http://www.rainbond.com/docs/stable/platform-maintenance/overview/overview.html)
 
