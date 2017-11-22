@@ -17,7 +17,7 @@ build-mq:
 build-worker:
 	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-worker ./cmd/worker
 build-chaos:
-	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-builder ./cmd/builder
+	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-chaos ./cmd/chaos
 build-mqcli:
 	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-mqcli ./cmd/mqcli
 build-node:
@@ -71,13 +71,13 @@ build-image-webcli:
 	@echo "🐳 $@"
 	@bash ./release.sh webcli
 push-image: 
-	docker push hub.goodrain.com/${BASE_NAME}/eventlog:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/entrance:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/chaos:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/mq:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/worker:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/webcli:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/api:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/rbd-eventlog:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/rbd-entrance:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/rbd-chaos:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/rbd-mq:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/rbd-worker:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/rbd-webcli:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/rbd-api:${VERSION}
 
 run-api:build-api
 	${BIN_PATH}/${BASE_NAME}-api --log-level=debug --mysql="admin:admin@tcp(127.0.0.1:3306)/region" --kube-config="`PWD`/admin.kubeconfig"
@@ -89,8 +89,8 @@ run-worker:build-worker
 	--db-type=cockroachdb \
 	--mysql="postgresql://root@localhost:26257/region" \
 	--kube-config=./admin.kubeconfig
-run-builder:build-builder
-	${BIN_PATH}/${BASE_NAME}-builder
+run-chaos:build-chaos
+	${BIN_PATH}/${BASE_NAME}-chaos
 run-eventlog:build-eventlog
 	${BIN_PATH}/${BASE_NAME}-eventlog \
 	 --log.level=debug --discover.etcd.addr=http://127.0.0.1:2379 \

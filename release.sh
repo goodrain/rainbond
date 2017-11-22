@@ -68,11 +68,11 @@ function build::image() {
 		docker build -t goodraim.me/event-build:v1 ${DOCKER_PATH}/build
 		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} goodraim.me/event-build:v1 go build  -ldflags '-w -s'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/eventlog
 	else
-		docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/node
+		docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
 	fi
 	cd  ${DOCKER_PATH}
 	sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
-	docker build -t hub.goodrain.com/${BASE_NAME}/$1:${VERSION} -f Dockerfile.release .
+	docker build -t hub.goodrain.com/${BASE_NAME}/rbd-$1:${VERSION} -f Dockerfile.release .
 	rm -f ./Dockerfile.release
 	rm -f ./${BASE_NAME}-$1
 }
