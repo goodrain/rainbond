@@ -29,7 +29,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
-	"io/ioutil"
 )
 
 func AddCodeCheck(w http.ResponseWriter, r *http.Request) {
