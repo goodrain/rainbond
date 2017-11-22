@@ -37,6 +37,7 @@ import (
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 	validator "github.com/thedevsaddam/govalidator"
 
+	"encoding/json"
 )
 
 //TIMELAYOUT timelayout
@@ -83,7 +84,6 @@ func createEvent(eventID, serviceID, optType, tenantID, deployVersion string) (*
 		logrus.Errorf("error check event")
 		return nil, status, nil
 	}
-	logrus.Infof("check add event status is %d",status)
 	if status == 0 {
 		db.GetManager().ServiceEventDao().AddModel(&event)
 		go autoTimeOut(&event)
@@ -123,7 +123,8 @@ func checkCanAddEvent(s string) (int, error) {
 	if err != nil {
 		return 3, err
 	}
-	logrus.Infof("get %d event from mysql by service %s",len(events),s)
+	b,_:=json.Marshal(events)
+	logrus.Infof("get %d event from mysql by service %s,details is %s",len(events),s,string(b))
 	if len(events) == 0 {
 		//service 首个event
 		return 0, nil
