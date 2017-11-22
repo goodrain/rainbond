@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"strings"
 	"strconv"
+	"encoding/json"
 )
 
 
@@ -43,6 +44,72 @@ func NewCmdNode() cli.Command {
 	return c
 }
 
+func NewCmdRegionNode() cli.Command {
+	c:=cli.Command{
+		Name:  "region_node",
+		Usage: "节点管理。grctl region_node",
+		Subcommands:[]cli.Command{
+			{
+				Name:  "up",
+				Usage: "up hostID",
+				Action: func(c *cli.Context) error {
+					id:=c.Args().First()
+					clients.NodeClient.Nodes().Get(id).Up()
+					return nil
+				},
+			},
+			{
+				Name:  "down",
+				Usage: "down hostID",
+				Action: func(c *cli.Context) error {
+					id:=c.Args().First()
+					clients.NodeClient.Nodes().Get(id).Down()
+					return nil
+				},
+			},
+			{
+				Name:  "get",
+				Usage: "get hostID",
+				Action: func(c *cli.Context) error {
+					id:=c.Args().First()
+					n:=clients.NodeClient.Nodes().Get(id)
+					b,_:=json.Marshal(n)
+					fmt.Println(string(b))
+					return nil
+				},
+			},
+			{
+				Name:  "list",
+				Usage: "list",
+				Action: func(c *cli.Context) error {
+					list:=clients.NodeClient.Nodes().List()
+					b,_:=json.Marshal(list)
+					fmt.Println(string(b))
+					return nil
+				},
+			},
+			{
+				Name:  "unscheduable",
+				Usage: "unscheduable hostID",
+				Action: func(c *cli.Context) error {
+					id:=c.Args().First()
+					clients.NodeClient.Nodes().Get(id).UnSchedulable()
+					return nil
+				},
+			},
+			{
+				Name:  "rescheduable",
+				Usage: "rescheduable hostID",
+				Action: func(c *cli.Context) error {
+					id:=c.Args().First()
+					clients.NodeClient.Nodes().Get(id).ReSchedulable()
+					return nil
+				},
+			},
+		},
+	}
+	return c
+}
 
 func NewCmdNodeRes() cli.Command {
 	c:=cli.Command{

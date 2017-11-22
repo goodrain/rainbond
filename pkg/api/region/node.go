@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"encoding/json"
 	"github.com/bitly/go-simplejson"
+	"github.com/Sirupsen/logrus"
 )
 var nodeServer *RNodeServer
 
@@ -34,7 +35,8 @@ type Task struct {
 	taskID string
 }
 type Node struct {
-
+	id string
+	node *model.HostNode
 }
 type TaskInterface interface {
 	Get(name string) (*Task)
@@ -42,13 +44,61 @@ type TaskInterface interface {
 }
 type NodeInterface interface {
 	Add(node *model.APIHostNode)
+	Get(node string) *Node
+	List() []*model.HostNode
+	Up()
+	Down()
+	UnSchedulable()
+	ReSchedulable()
 }
 
 func (t *Node)Add(node *model.APIHostNode) {
 	body,_:=json.Marshal(node)
 	Request("/nodes/","POST",body)
 }
-
+func (t *Node)Up() {
+	Request("/nodes/"+t.id+"/up","POST",nil)
+}
+func (t *Node)Down() {
+	Request("/nodes/"+t.id+"/down","POST",nil)
+}
+func (t *Node)UnSchedulable() {
+	Request("/nodes/"+t.id+"/unschedulable","PUT",nil)
+}
+func (t *Node)ReSchedulable() {
+	Request("/nodes/"+t.id+"/reschedulable","PUT",nil)
+}
+func (t *Node)Get(node string) *Node {
+	body,_,err:=Request("/nodes/"+node,"GET",nil)
+	if err != nil {
+		return nil
+	}
+	t.id=node
+	var stored model.HostNode
+	err=json.Unmarshal(body,&node)
+	if err != nil {
+		return nil
+	}
+	t.node=&stored
+	return t
+}
+func (t *Node)List() []*model.HostNode {
+	body,_,_:=Request("/nodes","GET",nil)
+	j,_:=simplejson.NewJson(body)
+	nodeArr,err:=j.Get("list").Array()
+	if err != nil {
+		logrus.Infof("error occurd,details %s",err.Error())
+		return nil
+	}
+	jsonA, _ := json.Marshal(nodeArr)
+	nodes := []*model.HostNode{}
+	err=json.Unmarshal(jsonA, &nodes)
+	if err != nil {
+		logrus.Infof("error occurd,details %s",err.Error())
+		return nil
+	}
+	return nodes
+}
 func (t *Task)Get(id string) (*Task) {
 	return &Task{
 		taskID:id,

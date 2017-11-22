@@ -85,6 +85,7 @@ func createEvent(eventID, serviceID, optType, tenantID, deployVersion string) (*
 		return nil, status, nil
 	}
 	if status == 0 {
+		//todo check if exist,update
 		db.GetManager().ServiceEventDao().AddModel(&event)
 		go autoTimeOut(&event)
 		return &event, status, nil

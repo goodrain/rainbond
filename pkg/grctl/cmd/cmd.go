@@ -48,6 +48,7 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdCheckManageServices())
 	cmds = append(cmds, NewCmdCheckManageBaseServices())
 	cmds = append(cmds, NewCmdSources())
+	cmds = append(cmds, NewCmdRegionNode())
 	//cmds = append(cmds, NewCmdPlugin())
 	//todo
 	return cmds
