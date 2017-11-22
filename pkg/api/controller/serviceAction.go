@@ -36,7 +36,6 @@ import (
 	tutil "github.com/goodrain/rainbond/pkg/util"
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 	validator "github.com/thedevsaddam/govalidator"
-	"encoding/json"
 )
 
 //TIMELAYOUT timelayout
@@ -498,11 +497,7 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 
 	sEvent, status, err := createEvent(build.Body.EventID, serviceID, "build", tenantID, build.Body.DeployVersion)
 	handleStatus(status, err, w, r)
-
-	b,_:=json.Marshal(build)
-	logrus.Infof("-------build info is %s",string(b))
-
-
+	//{\"tenant_name\":\"\",\"service_alias\":\"\",\"Body\":{\"event_id\":\"c19aa41c357a4d9e9ca38ab7f2a44961\",\"envs\":{},\"kind\":\"source\",\"action\":\"deploy\",\"image_url\":\"\",\"deploy_version\":\"20171122154417\",\"repo_url\":\"--branch master --depth 1 https://github.com/bay1ts/zk_cluster_mini.git\",\"operator\":\"bay1ts\",\"tenant_name\":\"bay1ts-test\",\"service_alias\":\"gr21ea6b\"}}
 	////createBuildInfo
 	version:=dbmodel.VersionInfo{}
 

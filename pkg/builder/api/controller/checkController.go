@@ -106,16 +106,19 @@ func convertModelToDB(result *model.CodeCheckResult) *dbmodel.CodeCheckResult {
 	r.GitProjectId=result.GitProjectId
 	r.GitURL=result.GitURL
 	r.URLRepos=result.URLRepos
-	bs:=[]byte(result.Condition)
-	l,err:=simplejson.NewJson(bs)
-	if err != nil {
 
+	if result.Condition != "" {
+		bs:=[]byte(result.Condition)
+		l,err:=simplejson.NewJson(bs)
+		if err != nil {
+			logrus.Errorf("error get condition,details %s",err.Error())
+		}
+		language,err:=l.Get("language").String()
+		if err != nil {
+			logrus.Errorf("error get language,details %s",err.Error())
+		}
+		r.Language=language
 	}
-	language,err:=l.Get("language").String()
-	if err != nil {
-
-	}
-	r.Language=language
 	r.BuildImageName=result.BuildImageName
 	r.InnerPort=result.InnerPort
 	pl,_:=json.Marshal(result.PortList)
