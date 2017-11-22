@@ -21,6 +21,7 @@ package controller
 import (
 	"net/http"
 
+	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/pkg/api/handler"
 	"github.com/goodrain/rainbond/pkg/api/middleware"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
@@ -28,7 +29,7 @@ import (
 )
 
 //SetDefineSource SetDefineSource
-// swagger:operation POST /v2/tenant/{tenant_name}/sources/{source_alias} v2 setDefineSource
+// swagger:operation POST /v2/tenants/{tenant_name}/sources/{source_alias} v2 setDefineSource
 //
 // 设置自定义资源
 //
@@ -67,7 +68,7 @@ func (t *TenantStruct) SetDefineSource(w http.ResponseWriter, r *http.Request) {
 }
 
 //UpdateDefineSource UpdateDefineSource
-// swagger:operation PUT /v2/tenant/{tenant_name}/sources/{source_alias}/{env_name} v2 updateDefineSource
+// swagger:operation PUT /v2/tenants/{tenant_name}/sources/{source_alias}/{env_name} v2 updateDefineSource
 //
 // 更新自定义资源
 //
@@ -107,7 +108,7 @@ func (t *TenantStruct) UpdateDefineSource(w http.ResponseWriter, r *http.Request
 }
 
 //DeleteDefineSource DeleteDefineSource
-// swagger:operation DELETE /v2/tenant/{tenant_name}/sources/{source_alias}/{env_name} v2 deleteDefineSource
+// swagger:operation DELETE /v2/tenants/{tenant_name}/sources/{source_alias}/{env_name} v2 deleteDefineSource
 //
 // 设置自定义资源
 //
@@ -130,7 +131,7 @@ func (t *TenantStruct) UpdateDefineSource(w http.ResponseWriter, r *http.Request
 func (t *TenantStruct) DeleteDefineSource(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	//source_alis need legal checking, cant includ "/"
-	sourceAlias := r.Context().Value(middleware.ContextKey("source_alias")).(string)
+	sourceAlias := chi.URLParam(r, "source_alias")
 	envName := r.Context().Value(middleware.ContextKey("env_name")).(string)
 	if err := handler.GetSourcesManager().DeleteDefineSources(tenantID, sourceAlias, envName); err != nil {
 		err.Handle(r, w)
@@ -140,7 +141,7 @@ func (t *TenantStruct) DeleteDefineSource(w http.ResponseWriter, r *http.Request
 }
 
 //GetDefineSource GetDefineSource
-// swagger:operation GET /v2/tenant/{tenant_name}/sources/{source_alias}/{env_name} v2 getDefineSource
+// swagger:operation GET /v2/tenants/{tenant_name}/sources/{source_alias}/{env_name} v2 getDefineSource
 //
 // 设置自定义资源
 //
@@ -164,8 +165,8 @@ func (t *TenantStruct) GetDefineSource(w http.ResponseWriter, r *http.Request) {
 	//work for console only.
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	//source_alis need legal checking, cant includ "/"
-	sourceAlias := r.Context().Value(middleware.ContextKey("source_alias")).(string)
-	envName := r.Context().Value(middleware.ContextKey("env_name")).(string)
+	sourceAlias := chi.URLParam(r, "source_alias")
+	envName := chi.URLParam(r, "env_name")
 	ss, err := handler.GetSourcesManager().GetDefineSources(tenantID, sourceAlias, envName)
 	if err != nil {
 		err.Handle(r, w)
