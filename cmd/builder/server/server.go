@@ -83,7 +83,7 @@ func Run(s *option.Builder) error {
 	defer dis.Stop()
 
 	r:=api.APIServer()
-	go http.ListenAndServe(":3228", r)
+	go http.ListenAndServe(":"+string(s.APIPort), r)
 
 
 	//service reg

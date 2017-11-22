@@ -29,11 +29,11 @@ func APIServer() *chi.Mux {
 		//r.Get("/ping", controller.Ping)
 		r.Route("/codecheck", func(r chi.Router) {
 			r.Post("/", controller.AddCodeCheck)
-			r.Put("/{serviceID}", controller.Update)
-			r.Get("/{serviceID}", controller.GetCodeCheck)
+			r.Put("/service/{serviceID}", controller.Update)
+			r.Get("/service/{serviceID}", controller.GetCodeCheck)
 		})
 		r.Route("/publish", func(r chi.Router) {
-			r.Get("/{serviceKey}/{appVersion}",controller.GetAppPublish)
+			r.Get("/service/{serviceKey}/version/{appVersion}",controller.GetAppPublish)
 			r.Post("/",controller.AddAppPublish)
 		})
 	})

@@ -23,7 +23,7 @@ logger = logging.getLogger('default')
 
 def service_publish_success_region(self, body):
     # url = self.base_url + '/api/tenants/services/publish'
-    url = 'http://127.0.0.1:3228/v2/publish'
+    url = 'http://127.0.0.1:3228/v2/builder/publish'
     res, body = self._post(url, self.default_headers, body)
     return res, body
 class AppSlug():
