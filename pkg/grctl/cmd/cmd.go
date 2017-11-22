@@ -58,7 +58,6 @@ func Common(c *cli.Context) {
 	config, err := conf.LoadConfig(c)
 	if err != nil {
 		logrus.Warnf("Load config file error.", err.Error())
-		return
 	}
 
 	if err := clients.InitClient(*config.Kubernets); err != nil {
