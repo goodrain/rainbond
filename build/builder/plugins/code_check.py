@@ -7,6 +7,7 @@ import sys
 
 from clients.region import RegionAPI
 from clients.userconsole import UserConsoleAPI
+from clients.region_api import RegionBackAPI
 from utils.shell import Executer
 from clients.etcdcli import TaskLocker
 from utils.log import EventLog
@@ -29,6 +30,7 @@ class CodeCheck():
         self.job = job
         self.configs = kwargs.get("config")
         self.user_cs_client = UserConsoleAPI(conf=self.configs['userconsole'])
+        self.region_client = RegionBackAPI()
         task = json.loads(self.job.body)
         self.base_dir = kwargs.get('base_dir')
         for k in ('tenant_id', 'service_id', 'action'):
@@ -137,12 +139,7 @@ class CodeCheck():
         code_check_region(self,json.dumps(body))
 
 
-def code_check_region(self, body):
-    #todo 127.0.0.1:3333/api/codecheck
-    # url = self.base_url + '/api/tenants/services/codecheck'
-    url = 'http://127.0.0.1:3228/v2/builder/codecheck'
-    res, body = self._post(url, self.default_headers, body)
-    return res, body
+
 def main():
     body = ""
     for line in fileinput.input():  # read task from stdin
