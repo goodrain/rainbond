@@ -1,130 +1,104 @@
-GO_LDFLAGS=-ldflags " -w"
-VERSION=3.4
+#!/bin/bash
+set -o errexit
+
+# define package name
+PROGRAM="gr-rainbond"
 WORK_DIR=/go/src/github.com/goodrain/rainbond
+DOCKER_PATH=./hack/contrib/docker/$1
 BASE_NAME=rainbond
-clean:
-	@rm -rf ./build/mq/${BASE_NAME}_mq
-	@rm -rf ./build/worker/${BASE_NAME}_worker
-	@rm -rf ./build/api/${BASE_NAME}_api
-	@rm -rf ./build/node/${BASE_NAME}_node
-	@rm -rf ./build/builder/${BASE_NAME}_builder
-	@rm -rf ./release/
+releasedir=./.release
+distdir=${releasedir}/dist
+gaops='git@code.goodrain.com:goodrain/gaops.git'
 
-run-api:build-api
-	./build/api/${BASE_NAME}_api --log-level=debug --mysql="admin:admin@tcp(127.0.0.1:3306)/region" --kube-config="`PWD`/admin.kubeconfig"
-run-mq:build-mq
-	./build/mq/${BASE_NAME}_mq --log-level=debug
-run-worker:build-worker
-	CUR_NET=midonet EX_DOMAIN=test-ali.goodrain.net:10080 ./build/worker/${BASE_NAME}_worker \
-	--log-level=debug  \
-	--db-type=cockroachdb \
-	--mysql="postgresql://root@localhost:26257/region" \
-	--kube-config=./admin.kubeconfig
-run-builder:build-builder
-	./build/builder/${BASE_NAME}_builder
-run-eventlog:build-eventlog
-	./build/eventlog/${BASE_NAME}_eventlog \
-	 --log.level=debug --discover.etcd.addr=http://127.0.0.1:2379 \
-	 --db.url="root:admin@tcp(127.0.0.1:3306)/event" \
-	 --dockerlog.mode=stream \
-	 --message.dockerlog.handle.core.number=2 \
-	 --message.garbage.file="/tmp/garbage.log" \
-	 --docker.log.homepath="/Users/qingguo/tmp"
-run-node:build-node
-	./build/node/${BASE_NAME}_node \
-	 --run-mode=master --kube-conf=`pwd`/test/admin.kubeconfig \
-	 --nodeid-file=`pwd`/test/host_id.conf \
-	 --static-task-path=`pwd`/test/tasks \
-	 --log-level=debug
 
-doc:
-	@cd cmd/api && swagger generate spec -o ../../build/api/html/swagger.json
-all: build-builder build-node build-entrance build-eventlog build-grctl build-api
-build-mq:
-	go build ${GO_LDFLAGS} -o ./build/mq/${BASE_NAME}_mq ./cmd/mq
-build-worker:
-	go build ${GO_LDFLAGS} -o ./build/builder/${BASE_NAME}_worker ./cmd/worker
-build-builder:
-	go build ${GO_LDFLAGS} -o ./build/builder/${BASE_NAME}_builder ./cmd/builder
-build-mqcli:
-	go build ${GO_LDFLAGS} -o ./build/mqcli/${BASE_NAME}_mqcli ./cmd/mqcli
-build-node:
-	go build ${GO_LDFLAGS} -o ./build/node/${BASE_NAME}_node ./cmd/node
-build-entrance:
-	go build ${GO_LDFLAGS} -o ./build/entrance/${BASE_NAME}_entrance ./cmd/entrance	
-build-eventlog:
-	go build ${GO_LDFLAGS} -o ./build/eventlog/${BASE_NAME}_eventlog ./cmd/eventlog
-build-grctl:
-	go build ${GO_LDFLAGS} -o ./build/grctl/${BASE_NAME}_grctl ./cmd/grctl
-build-api:
-	go build ${GO_LDFLAGS} -o ./build/api/${BASE_NAME}_api ./cmd/api
-build-webcli:
-	go build ${GO_LDFLAGS} -o ./build/webcli/${BASE_NAME}_webcli ./cmd/webcli
+gitDescribe=$(git describe --tag|sed 's/^v//')
+describe_items=($(echo $gitDescribe | tr '-' ' '))
+describe_len=${#describe_items[@]}
+VERSION=${describe_items[0]}
+git_commit=$(git log -n 1 --pretty --format=%h)
+if [ $describe_len -ge 3 ];then
+    buildRelease=${describe_items[-2]}.${describe_items[-1]}
+else
+    buildRelease=0.$git_commit
+fi
+if [ -z "$VERSION" ];then
+    VERSION=3.4
+fi
+
+function prepare() {
+	rm -rf $releasedir
+    mkdir -pv $releasedir/{tmp,dist}
+    path=$PWD
+    git clone $gaops  $releasedir/tmp
+    [ ! -d "$distdir/usr/local/" ] && mkdir -p $distdir/usr/local/bin
+    [ ! -d "$distdir/usr/share/gr-rainbond-node/gaops/" ] && mkdir -pv $distdir/usr/share/gr-rainbond-node/gaops
+    cd $releasedir/tmp
+    rm -rf .git
+    
+    tar zcf  ../dist/usr/share/gr-rainbond-node/gaops/gaops.tgz ./ 
+    cd $path
+    rm -rf $releasedir/tmp
+}
+
+function build() {
+	echo "---> Build Binary For ACP"
+	echo "build rainbond-node"
+    docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/${BASE_NAME}-node ./cmd/node
+	echo "build rainbond-grctl"
+	docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/${BASE_NAME}-grctl ./cmd/grctl
+}
+
+function build::rpm() {
+	echo "---> Make Build RPM"
+	source "hack/build-rpm.sh"
+}
+
+function build::deb() {
+	echo "---> Make Build DEB"
+	source "hack/build-deb.sh"
+}
+
+function build::image() {
+	echo "---> Build Image:$1 FOR ACP"
 	
-build-deb:
-	@bash ./release.sh build
-	@bash ./release.sh deb
-build-rpm:
-	@bash ./release.sh build
-	@bash ./release.sh rpm
-build-pkg:
-	@bash ./release.sh
-	
-all-image: build-image-worker  build-image-mq build-image-builder build-image-entrance build-image-eventlog build-image-api build-image-webcli
-build-image-worker:
-	@echo "🐳 $@"
-	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/worker/${BASE_NAME}_worker ./cmd/worker
-	@docker build -t hub.goodrain.com/${BASE_NAME}/worker:${VERSION} ./build/worker
-	@rm -f ./build/worker/${BASE_NAME}_worker
-build-image-mq:
-	@echo "🐳 $@"
-	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/mq/${BASE_NAME}_mq ./cmd/mq
-	@docker build -t hub.goodrain.com/${BASE_NAME}/mq:${VERSION} ./build/mq
-	@rm -f ./build/mq/${BASE_NAME}_mq
-build-image-builder:
-	@echo "🐳 $@"
-	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/builder/${BASE_NAME}_builder ./cmd/builder
-	@docker build -t hub.goodrain.com/${BASE_NAME}/chaos:${VERSION} ./build/builder
-	@rm -f ./build/builder/${BASE_NAME}_builder
-build-image-node:
-	@echo "🐳 $@"
-	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/node/${BASE_NAME}_node ./cmd/node
-build-image-entrance:
-	@echo "🐳 $@"
-	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/entrance/${BASE_NAME}_entrance ./cmd/entrance
-	@cp -r ./build/dist ./build/entrance/dist
-	@docker build -t hub.goodrain.com/${BASE_NAME}/entrance:${VERSION} ./build/entrance
-	@rm -rf ./build/entrance/dist
-	@rm -f ./build/entrance/${BASE_NAME}_entrance
-build-image-eventlog:
-	@echo "🐳 $@"
-	@docker build -t goodraim.me/event-build:v1 ./build/eventlog/build
-	@echo "building..."
-	@docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} goodraim.me/event-build:v1 go build  ${GO_LDFLAGS}  -o ./build/eventlog/${BASE_NAME}_eventlog ./cmd/eventlog
-	@echo "build done."
-	@docker build -t hub.goodrain.com/${BASE_NAME}/eventlog:${VERSION} ./build/eventlog
-	@rm -f ./build/entrance/${BASE_NAME}_eventlog
-build-image-api:
-	@echo "🐳 $@"
-	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/api/${BASE_NAME}_api ./cmd/api
-	@docker build -t hub.goodrain.com/${BASE_NAME}/api:${VERSION} ./build/api
-	@rm -f ./build/api/${BASE_NAME}_api	
-build-image-webcli:
-	@echo "🐳 $@"
-	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/webcli/${BASE_NAME}_webcli ./cmd/webcli
-	@docker build -t hub.goodrain.com/${BASE_NAME}/webcli:${VERSION} ./build/webcli
-	@rm -f ./build/webcli/${BASE_NAME}_webcli
-push-image:
-	docker push hub.goodrain.com/${BASE_NAME}/eventlog:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/entrance:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/chaos:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/mq:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/worker:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/webcli:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/api:${VERSION}
+	git_commit=$(git log -n 1 --pretty --format=%h)
+    branch_info=($(git branch | grep '^*' | cut -d ' ' -f 2 | tr '-' " "))
+    release_desc=${branch_info}-${VERSION}-${buildRelease}
+	if [ "$1" = "eventlog" ];then
+		docker build -t goodraim.me/event-build:v1 ${DOCKER_PATH}/build
+		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} goodraim.me/event-build:v1 go build  -ldflags '-w -s'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/eventlog
+	else
+		docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/node
+	fi
+	cd  ${DOCKER_PATH}
+	sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
+	docker build -t hub.goodrain.com/${BASE_NAME}/$1:${VERSION} -f Dockerfile.release .
+	rm -f ./Dockerfile.release
+	rm -f ./${BASE_NAME}-$1
+}
 
-
-	
-
-
-
+case $1 in
+	build)
+		prepare
+		build
+	;;
+	rpm)
+		prepare
+		build
+		build::rpm
+	;;
+	deb)
+		prepare
+		build
+		build::deb
+	;;
+	pkg)
+		prepare
+		build
+		build::rpm
+		build::deb
+	;;
+	*)
+		build::image $1
+	;;
+esac
