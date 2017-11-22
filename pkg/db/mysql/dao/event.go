@@ -46,6 +46,7 @@ func (c *EventDaoImpl) AddModel(mo model.Interface) error {
 
 
 
+
 //UpdateModel UpdateModel
 func (c *EventDaoImpl) UpdateModel(mo model.Interface) error {
 	result := mo.(*model.ServiceEvent)

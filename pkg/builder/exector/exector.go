@@ -202,6 +202,7 @@ func (e *exectorManager) appBuild(in []byte) {
 					logger.Info("应用编译构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
+				logger.Info("应用编译构建任务执行成功", map[string]string{"step": "callback", "status": "success"})
 				break
 			}
 		}
