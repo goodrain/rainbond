@@ -21,9 +21,7 @@ package dao
 
 import (
 	"github.com/goodrain/rainbond/pkg/db/model"
-
 	"github.com/jinzhu/gorm"
-	"fmt"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -40,8 +38,8 @@ func (c *EventDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		fmt.Errorf("event result is exist")
-		return nil
+		logrus.Infoln("event result is exist")
+		return c.UpdateModel(mo)
 	}
 	return nil
 }
@@ -67,6 +65,10 @@ func finalUpdateEvent(target *model.ServiceEvent, old *model.ServiceEvent) {
 	if target.CodeVersion!="" {
 		old.CodeVersion=target.CodeVersion
 	}
+	if target.OptType!="" {
+		old.OptType=target.OptType
+	}
+
 	if target.Status!="" {
 		old.Status=target.Status
 	}
