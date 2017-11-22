@@ -1290,6 +1290,13 @@
             "required": true
           },
           {
+            "type": "string",
+            "x-go-name": "EnvName",
+            "name": "env_name",
+            "in": "path",
+            "required": true
+          },
+          {
             "name": "Body",
             "in": "body",
             "schema": {
@@ -2789,7 +2796,6 @@
             "schema": {
               "type": "object",
               "required": [
-                "event_id",
                 "kind",
                 "deploy_version"
               ],
@@ -3434,9 +3440,6 @@
             "in": "body",
             "schema": {
               "type": "object",
-              "required": [
-                "event_id"
-              ],
               "properties": {
                 "event_id": {
                   "description": "the event id\nin: body",
@@ -4932,9 +4935,6 @@
             "in": "body",
             "schema": {
               "type": "object",
-              "required": [
-                "event_id"
-              ],
               "properties": {
                 "event_id": {
                   "description": "the tenant id\nin: body",
@@ -4992,7 +4992,6 @@
             "schema": {
               "type": "object",
               "required": [
-                "event_id",
                 "deploy_version"
               ],
               "properties": {
@@ -5177,9 +5176,6 @@
             "in": "body",
             "schema": {
               "type": "object",
-              "required": [
-                "event_id"
-              ],
               "properties": {
                 "event_id": {
                   "description": "the tenant id\nin: body",
@@ -5278,9 +5274,6 @@
             "in": "body",
             "schema": {
               "type": "object",
-              "required": [
-                "event_id"
-              ],
               "properties": {
                 "event_id": {
                   "description": "the tenant id\nin: body",
@@ -5338,7 +5331,6 @@
             "schema": {
               "type": "object",
               "required": [
-                "event_id",
                 "deploy_version"
               ],
               "properties": {
@@ -5409,9 +5401,6 @@
             "in": "body",
             "schema": {
               "type": "object",
-              "required": [
-                "event_id"
-              ],
               "properties": {
                 "container_cpu": {
                   "description": "cpu数量\nin: body",
@@ -6037,11 +6026,6 @@
             "$ref": "#/definitions/HeaderRules"
           },
           "x-go-name": "Header"
-        },
-        "http_port": {
-          "type": "integer",
-          "format": "int32",
-          "x-go-name": "HTTPPort"
         },
         "limit": {
           "description": "限流值\nin:body",

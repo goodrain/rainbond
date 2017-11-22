@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -22,6 +21,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/jinzhu/gorm"
 
@@ -122,6 +122,34 @@ func SetLog(next http.Handler) http.Handler {
 			ctx := context.WithValue(r.Context(), ContextKey("logger"), logger)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
+	}
+	return http.HandlerFunc(fn)
+}
+
+//Proxy 反向代理中间件
+func Proxy(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.RequestURI, "/v2/nodes") {
+			GetNodeProxy().Proxy(w, r)
+			return
+		}
+		if strings.HasPrefix(r.RequestURI, "/v2/tasks") {
+			GetNodeProxy().Proxy(w, r)
+			return
+		}
+		if strings.HasPrefix(r.RequestURI, "/v2/tasktemps") {
+			GetNodeProxy().Proxy(w, r)
+			return
+		}
+		if strings.HasPrefix(r.RequestURI, "/v2/taskgroups") {
+			GetNodeProxy().Proxy(w, r)
+			return
+		}
+		if strings.HasPrefix(r.RequestURI, "/v2/configs") {
+			GetNodeProxy().Proxy(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(fn)
 }

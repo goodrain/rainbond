@@ -19,8 +19,6 @@
 package cmd
 
 import (
-	//"os"
-
 	"github.com/Sirupsen/logrus"
 	conf "github.com/goodrain/rainbond/cmd/grctl/option"
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
@@ -41,34 +39,30 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdLog())
 	cmds = append(cmds, NewCmdEvent())
 	cmds = append(cmds, NewCmdGet())
-
-
 	cmds = append(cmds, NewCmdInit())
-
 	cmds = append(cmds, NewCmdAddNode())
-
 	cmds = append(cmds, NewCmdCheckComputeServices())
 	cmds = append(cmds, NewCmdComputeGroup())
-
 	cmds = append(cmds, NewCmdBaseManageGroup())
 	cmds = append(cmds, NewCmdManageGroup())
 	cmds = append(cmds, NewCmdCheckManageServices())
 	cmds = append(cmds, NewCmdCheckManageBaseServices())
-
+	cmds = append(cmds, NewCmdSources())
 	//cmds = append(cmds, NewCmdPlugin())
 	//todo
 	return cmds
 }
+
+//Common Common
 func Common(c *cli.Context) {
 	config, err := conf.LoadConfig(c)
 	if err != nil {
 		logrus.Warnf("Load config file error.", err.Error())
-		//os.Exit(1)
 		return
 	}
 
 	if err := clients.InitClient(*config.Kubernets); err != nil {
-		logrus.Warnf("error config k8s")
+		logrus.Errorf("error config k8s,details %s", err.Error())
 	}
 	//clients.SetInfo(config.RegionAPI.URL, config.RegionAPI.Token)
 	if err := clients.InitRegionClient(*config.RegionAPI); err != nil {
@@ -77,7 +71,5 @@ func Common(c *cli.Context) {
 	if err := clients.InitNodeClient("http://127.0.0.1:6100"); err != nil {
 		logrus.Warnf("error config region")
 	}
-
-
 
 }

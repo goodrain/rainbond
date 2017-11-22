@@ -17,7 +17,7 @@ build-mq:
 build-worker:
 	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-worker ./cmd/worker
 build-chaos:
-	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-chaos ./cmd/chaos
+	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-chaos ./cmd/builder
 build-mqcli:
 	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-mqcli ./cmd/mqcli
 build-node:
