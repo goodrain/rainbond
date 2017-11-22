@@ -253,39 +253,42 @@ func GetRegion() *Region {
 }
 
 func LoadConfig(regionAPI, token string) (map[string]map[string]interface{}, error) {
-	if regionAPI == "" {
-		return nil, errors.New("region api url can not be empty")
+	if regionAPI != "" {
+		//return nil, errors.New("region api url can not be empty")
+		//return nil, errors.New("region api url can not be empty")
+		//todo
+		request, err := http.NewRequest("GET", regionAPI+"/v1/config", nil)
+		if err != nil {
+			return nil, err
+		}
+		request.Header.Set("Content-Type", "application/json")
+		if token != "" {
+			request.Header.Set("Authorization", "Token "+token)
+		}
+		res, err := http.DefaultClient.Do(request)
+		if err != nil {
+			return nil, err
+		}
+		defer res.Body.Close()
+		data, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return nil, err
+		}
+		config := make(map[string]map[string]interface{})
+		if err := json.Unmarshal([]byte(data), &config); err != nil {
+			return nil, err
+		}
+		//{"k8s":{"url":"http://10.0.55.72:8181/api/v1","apitype":"kubernetes api"},
+		//  "db":{"ENGINE":"django.db.backends.mysql",
+		//               "AUTOCOMMIT":true,"ATOMIC_REQUESTS":false,"NAME":"region","CONN_MAX_AGE":0,
+		//"TIME_ZONE":"Asia/Shanghai","OPTIONS":{},
+		// "HOST":"10.0.55.72","USER":"writer1",
+		// "TEST":{"COLLATION":null,"CHARSET":null,"NAME":null,"MIRROR":null},
+		// "PASSWORD":"CeRYK8UzWD","PORT":"3306"}}
+		return config, nil
 	}
-	//todo
-	request, err := http.NewRequest("GET", regionAPI+"/v1/config", nil)
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Set("Content-Type", "application/json")
-	if token != "" {
-		request.Header.Set("Authorization", "Token "+token)
-	}
-	res, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-	data, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	config := make(map[string]map[string]interface{})
-	if err := json.Unmarshal([]byte(data), &config); err != nil {
-		return nil, err
-	}
-	//{"k8s":{"url":"http://10.0.55.72:8181/api/v1","apitype":"kubernetes api"},
-	//  "db":{"ENGINE":"django.db.backends.mysql",
-	//               "AUTOCOMMIT":true,"ATOMIC_REQUESTS":false,"NAME":"region","CONN_MAX_AGE":0,
-	//"TIME_ZONE":"Asia/Shanghai","OPTIONS":{},
-	// "HOST":"10.0.55.72","USER":"writer1",
-	// "TEST":{"COLLATION":null,"CHARSET":null,"NAME":null,"MIRROR":null},
-	// "PASSWORD":"CeRYK8UzWD","PORT":"3306"}}
-	return config, nil
+	return nil, errors.New("wrong region api ")
+
 }
 
 //SetInfo 设置

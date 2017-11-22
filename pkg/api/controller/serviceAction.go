@@ -36,6 +36,7 @@ import (
 	tutil "github.com/goodrain/rainbond/pkg/util"
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 	validator "github.com/thedevsaddam/govalidator"
+	"encoding/json"
 )
 
 //TIMELAYOUT timelayout
@@ -498,7 +499,11 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	sEvent, status, err := createEvent(build.Body.EventID, serviceID, "build", tenantID, build.Body.DeployVersion)
 	handleStatus(status, err, w, r)
 
-	//createBuildInfo
+	b,_:=json.Marshal(build)
+	logrus.Infof("-------build info is %s",string(b))
+
+
+	////createBuildInfo
 	//version:=dbmodel.VersionInfo{}
 	//
 	//version.EventID=sEvent.EventID

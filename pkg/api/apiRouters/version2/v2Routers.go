@@ -20,7 +20,7 @@ package version2
 
 import (
 	"github.com/goodrain/rainbond/pkg/api/controller"
-
+	builder_controller "github.com/goodrain/rainbond/pkg/builder/api"
 	"github.com/goodrain/rainbond/pkg/api/middleware"
 
 	"github.com/go-chi/chi"
@@ -41,6 +41,7 @@ func (v2 *V2) Routes() chi.Router {
 	r.Mount("/cluster", v2.clusterRouter())
 	r.Mount("/resources", v2.resourcesRouter())
 	r.Mount("/prometheus", v2.prometheusRouter())
+	r.Mount("/builder",builder_controller.APIServer())
 	return r
 }
 

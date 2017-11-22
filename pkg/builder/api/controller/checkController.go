@@ -29,18 +29,34 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
+	"io/ioutil"
 )
 
 func AddCodeCheck(w http.ResponseWriter, r *http.Request) {
+	//b,_:=ioutil.ReadAll(r.Body)
+	//{\"url_repos\": \"https://github.com/bay1ts/zk_cluster_mini.git\", \"check_type\": \"first_check\", \"code_from\": \"gitlab_manual\", \"service_id\": \"c24dea8300b9401b1461dd975768881a\", \"code_version\": \"master\", \"git_project_id\": 0, \"condition\": \"{\\\"language\\\":\\\"docker\\\",\\\"runtimes\\\":\\\"false\\\", \\\"dependencies\\\":\\\"false\\\",\\\"procfile\\\":\\\"false\\\"}\", \"git_url\": \"--branch master --depth 1 https://github.com/bay1ts/zk_cluster_mini.git\"}
+	//logrus.Infof("request recive %s",string(b))
 	result := new(model.CodeCheckResult)
-	decoder := json.NewDecoder(r.Body)
-	defer r.Body.Close()
-	err := decoder.Decode(result)
+
+	b,_:=ioutil.ReadAll(r.Body)
+	j,err:=simplejson.NewJson(b)
 	if err != nil {
 		logrus.Errorf("error decode json,details %s",err.Error())
 		httputil.ReturnError(r,w,400,"bad request")
 		return
 	}
+	result.URLRepos,_=j.Get("url_repos").String()
+	result.CheckType,_=j.Get("check_type").String()
+	result.CodeFrom,_=j.Get("code_from").String()
+	result.ServiceID,_=j.Get("service_id").String()
+	result.CodeVersion,_=j.Get("code_version").String()
+	result.GitProjectId,_=j.Get("git_project_id").String()
+	result.Condition,_=j.Get("condition").String()
+	result.GitURL,_=j.Get("git_url").String()
+
+	defer r.Body.Close()
+
+
 	dbmodel:=convertModelToDB(result)
 	//checkAndGet
 	db.GetManager().CodeCheckResultDao().AddModel(dbmodel)
@@ -49,14 +65,31 @@ func AddCodeCheck(w http.ResponseWriter, r *http.Request) {
 func Update(w http.ResponseWriter, r *http.Request) {
 	serviceID := strings.TrimSpace(chi.URLParam(r, "serviceID"))
 	result := new(model.CodeCheckResult)
-	decoder := json.NewDecoder(r.Body)
+
+	b,_:=ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
-	err := decoder.Decode(result)
+	logrus.Infof("update receive %s",string(b))
+	j,err:=simplejson.NewJson(b)
 	if err != nil {
 		logrus.Errorf("error decode json,details %s",err.Error())
 		httputil.ReturnError(r,w,400,"bad request")
 		return
 	}
+	result.BuildImageName,_=j.Get("image").String()
+	portList,err:=j.Get("port_list").Map()
+	if err != nil {
+		portList=make(map[string]interface{})
+	}
+	volumeList,err:=j.Get("volume_list").StringArray()
+	if err != nil {
+		volumeList=nil
+	}
+	strMap:=make(map[string]string)
+	for k,v:=range portList {
+		strMap[k]=v.(string)
+	}
+	result.VolumeList=volumeList
+	result.PortList=strMap
 	result.ServiceID=serviceID
 	dbmodel:=convertModelToDB(result)
 	dbmodel.DockerFileReady=true

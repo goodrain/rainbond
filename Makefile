@@ -2,28 +2,97 @@ GO_LDFLAGS=-ldflags " -w"
 VERSION=3.4
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
-clean:
-	@rm -rf ./build/mq/${BASE_NAME}_mq
-	@rm -rf ./build/worker/${BASE_NAME}_worker
-	@rm -rf ./build/api/${BASE_NAME}_api
-	@rm -rf ./build/node/${BASE_NAME}_node
-	@rm -rf ./build/builder/${BASE_NAME}_builder
-	@rm -rf ./release/
+BASE_DOCKER=./hack/contrib/docker
+BIN_PATH=./_output/${VERSION}
+
+default: help
+all: build pkg images ## build linux binaries, build linux packages, build images for docker
+
+clean: 
+	@rm -rf ${BIN_PATH}/*
+
+build: build-mq build-worker build-chaos build-mqcli build-node build-entrance build-eventlog build-webcli build-grctl build-api ## build all binaries
+build-mq:
+	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-mq ./cmd/mq
+build-worker:
+	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-worker ./cmd/worker
+build-chaos:
+	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-chaos ./cmd/builder
+build-mqcli:
+	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-mqcli ./cmd/mqcli
+build-node:
+	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-node ./cmd/node
+build-entrance:
+	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-entrance ./cmd/entrance	
+build-eventlog:
+	go build ${GO_LDFLAGS} -o .${BIN_PATH}/${BASE_NAME}-eventlog ./cmd/eventlog
+build-grctl:
+	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-grctl ./cmd/grctl
+build-api:
+	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-api ./cmd/api
+build-webcli:
+	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-webcli ./cmd/webcli
+	
+deb: ## build the deb packages
+	@bash ./release.sh build
+	@bash ./release.sh deb
+rpm: ## build the rpm packages
+	@bash ./release.sh build
+	@bash ./release.sh rpm
+pkg: 
+	@bash ./release.sh pkg
+	
+images: build-image-worker  build-image-mq build-image-chaos build-image-entrance build-image-eventlog build-image-api build-image-webcli ## build all images
+build-image-worker:
+	@echo "🐳 $@"
+	@bash ./release.sh worker
+build-image-mq:
+	@echo "🐳 $@"
+	@bash ./release.sh mq
+build-image-chaos:
+	@echo "🐳 $@"
+	@bash ./release.sh chaos
+#build-image-node:
+#	@echo "🐳 $@"
+#	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ${BASE_DOCKER}/node/${BASE_NAME}-node ./cmd/node
+build-image-entrance:
+	@echo "🐳 $@"
+	@cp -r ${BASE_DOCKER}/dist ${BASE_DOCKER}/entrance/dist
+	@bash ./release.sh entrance
+	@rm -rf ${BASE_DOCKER}/entrance/dist
+	
+build-image-eventlog:
+	@echo "🐳 $@"
+	@bash ./release.sh eventlog
+build-image-api:
+	@echo "🐳 $@"
+	@bash ./release.sh api
+build-image-webcli:
+	@echo "🐳 $@"
+	@bash ./release.sh webcli
+push-image: 
+	docker push hub.goodrain.com/${BASE_NAME}/rbd-eventlog:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/rbd-entrance:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/rbd-chaos:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/rbd-mq:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/rbd-worker:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/rbd-webcli:${VERSION}
+	docker push hub.goodrain.com/${BASE_NAME}/rbd-api:${VERSION}
 
 run-api:build-api
-	./build/api/${BASE_NAME}_api --log-level=debug --mysql="admin:admin@tcp(127.0.0.1:3306)/region" --kube-config="`PWD`/admin.kubeconfig"
+	${BIN_PATH}/${BASE_NAME}-api --log-level=debug --mysql="admin:admin@tcp(127.0.0.1:3306)/region" --kube-config="`PWD`/admin.kubeconfig"
 run-mq:build-mq
-	./build/mq/${BASE_NAME}_mq --log-level=debug
+	${BIN_PATH}/${BASE_NAME}-mq --log-level=debug
 run-worker:build-worker
-	CUR_NET=midonet EX_DOMAIN=test-ali.goodrain.net:10080 ./build/worker/${BASE_NAME}_worker \
+	CUR_NET=midonet EX_DOMAIN=test-ali.goodrain.net:10080 ${BIN_PATH}/${BASE_NAME}-worker \
 	--log-level=debug  \
 	--db-type=cockroachdb \
 	--mysql="postgresql://root@localhost:26257/region" \
 	--kube-config=./admin.kubeconfig
-run-builder:build-builder
-	./build/builder/${BASE_NAME}_builder
+run-chaos:build-chaos
+	${BIN_PATH}/${BASE_NAME}-chaos
 run-eventlog:build-eventlog
-	./build/eventlog/${BASE_NAME}_eventlog \
+	${BIN_PATH}/${BASE_NAME}-eventlog \
 	 --log.level=debug --discover.etcd.addr=http://127.0.0.1:2379 \
 	 --db.url="root:admin@tcp(127.0.0.1:3306)/event" \
 	 --dockerlog.mode=stream \
@@ -31,100 +100,22 @@ run-eventlog:build-eventlog
 	 --message.garbage.file="/tmp/garbage.log" \
 	 --docker.log.homepath="/Users/qingguo/tmp"
 run-node:build-node
-	./build/node/${BASE_NAME}_node \
+	${BIN_PATH}/${BASE_NAME}-node \
 	 --run-mode=master --kube-conf=`pwd`/test/admin.kubeconfig \
 	 --nodeid-file=`pwd`/test/host_id.conf \
 	 --static-task-path=`pwd`/test/tasks \
 	 --log-level=debug
 
-doc:
-	@cd cmd/api && swagger generate spec -o ../../build/api/html/swagger.json
-all: build-builder build-node build-entrance build-eventlog build-grctl build-api
-build-mq:
-	go build ${GO_LDFLAGS} -o ./build/mq/${BASE_NAME}_mq ./cmd/mq
-build-worker:
-	go build ${GO_LDFLAGS} -o ./build/builder/${BASE_NAME}_worker ./cmd/worker
-build-builder:
-	go build ${GO_LDFLAGS} -o ./build/builder/${BASE_NAME}_builder ./cmd/builder
-build-mqcli:
-	go build ${GO_LDFLAGS} -o ./build/mqcli/${BASE_NAME}_mqcli ./cmd/mqcli
-build-node:
-	go build ${GO_LDFLAGS} -o ./build/node/${BASE_NAME}_node ./cmd/node
-build-entrance:
-	go build ${GO_LDFLAGS} -o ./build/entrance/${BASE_NAME}_entrance ./cmd/entrance	
-build-eventlog:
-	go build ${GO_LDFLAGS} -o ./build/eventlog/${BASE_NAME}_eventlog ./cmd/eventlog
-build-grctl:
-	go build ${GO_LDFLAGS} -o ./build/grctl/${BASE_NAME}_grctl ./cmd/grctl
-build-api:
-	go build ${GO_LDFLAGS} -o ./build/api/${BASE_NAME}_api ./cmd/api
-build-webcli:
-	go build ${GO_LDFLAGS} -o ./build/webcli/${BASE_NAME}_webcli ./cmd/webcli
-	
-build-deb:
-	@bash ./release.sh build
-	@bash ./release.sh deb
-build-rpm:
-	@bash ./release.sh build
-	@bash ./release.sh rpm
-build-pkg:
-	@bash ./release.sh
-	
-all-image: build-image-worker  build-image-mq build-image-builder build-image-entrance build-image-eventlog build-image-api build-image-webcli
-build-image-worker:
-	@echo "🐳 $@"
-	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/worker/${BASE_NAME}_worker ./cmd/worker
-	@docker build -t hub.goodrain.com/${BASE_NAME}/worker:${VERSION} ./build/worker
-	@rm -f ./build/worker/${BASE_NAME}_worker
-build-image-mq:
-	@echo "🐳 $@"
-	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/mq/${BASE_NAME}_mq ./cmd/mq
-	@docker build -t hub.goodrain.com/${BASE_NAME}/mq:${VERSION} ./build/mq
-	@rm -f ./build/mq/${BASE_NAME}_mq
-build-image-builder:
-	@echo "🐳 $@"
-	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/builder/${BASE_NAME}_builder ./cmd/builder
-	@docker build -t hub.goodrain.com/${BASE_NAME}/chaos:${VERSION} ./build/builder
-	@rm -f ./build/builder/${BASE_NAME}_builder
-build-image-node:
-	@echo "🐳 $@"
-	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/node/${BASE_NAME}_node ./cmd/node
-build-image-entrance:
-	@echo "🐳 $@"
-	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/entrance/${BASE_NAME}_entrance ./cmd/entrance
-	@cp -r ./build/dist ./build/entrance/dist
-	@docker build -t hub.goodrain.com/${BASE_NAME}/entrance:${VERSION} ./build/entrance
-	@rm -rf ./build/entrance/dist
-	@rm -f ./build/entrance/${BASE_NAME}_entrance
-build-image-eventlog:
-	@echo "🐳 $@"
-	@docker build -t goodraim.me/event-build:v1 ./build/eventlog/build
-	@echo "building..."
-	@docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} goodraim.me/event-build:v1 go build  ${GO_LDFLAGS}  -o ./build/eventlog/${BASE_NAME}_eventlog ./cmd/eventlog
-	@echo "build done."
-	@docker build -t hub.goodrain.com/${BASE_NAME}/eventlog:${VERSION} ./build/eventlog
-	@rm -f ./build/entrance/${BASE_NAME}_eventlog
-build-image-api:
-	@echo "🐳 $@"
-	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/api/${BASE_NAME}_api ./cmd/api
-	@docker build -t hub.goodrain.com/${BASE_NAME}/api:${VERSION} ./build/api
-	@rm -f ./build/api/${BASE_NAME}_api	
-build-image-webcli:
-	@echo "🐳 $@"
-	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ./build/webcli/${BASE_NAME}_webcli ./cmd/webcli
-	@docker build -t hub.goodrain.com/${BASE_NAME}/webcli:${VERSION} ./build/webcli
-	@rm -f ./build/webcli/${BASE_NAME}_webcli
-push-image:
-	docker push hub.goodrain.com/${BASE_NAME}/eventlog:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/entrance:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/chaos:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/mq:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/worker:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/webcli:${VERSION}
-	docker push hub.goodrain.com/${BASE_NAME}/api:${VERSION}
+docs: ## build the docs 
+	@cd cmd/api && swagger generate spec -o ../../hack/contrib/docker/api/html/swagger.json
 
-
-	
-
-
-
+help: ## this help
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@echo "\033[32m ❗❗❗ eventlog,entrance,chaos,mq,worker,webcli,api not support deb/rpm \033[0m"
+	@echo "\033[32m ❗❗❗ node,grctl not support image \033[0m"
+	@echo "\033[32m  plugin: node,grctl,eventlog,entrance,chaos,mq,worker,webcli,api  \033[0m"
+	@echo "\033[32m   \033[0m"
+	@echo "\033[36m 🤔 single plugin,how to work?   \033[0m"
+	@echo "\033[01;34mmake build-<plugin>\033[0m Just like: make build-mq"
+	@echo "\033[01;34mmake build-image-<plugin>\033[0m Just like: make build-image-mq"
+	@echo "\033[01;34mmake run-<plugin>\033[0m Just like: make run-mq"

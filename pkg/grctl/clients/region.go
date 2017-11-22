@@ -25,6 +25,7 @@ import (
 
 
 var RegionClient *region.Region
+var NodeClient *region.RNodeServer
 
 func InitRegionClient(reg option.RegionAPI) error {
 	region.NewRegion(reg.URL,reg.Token,reg.Type)
@@ -32,3 +33,8 @@ func InitRegionClient(reg option.RegionAPI) error {
 	return nil
 }
 
+func InitNodeClient(nodeAPI string) error {
+	region.NewNode(nodeAPI)
+	NodeClient=region.GetNode()
+	return nil
+}
