@@ -52,6 +52,8 @@ type Manager struct {
 //NewManager newManager
 func NewManager(c option.Config) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
+	//初始化 middleware
+	apimiddleware.InitProxy(c)
 	//controller.CreateV2RouterManager(c)
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID) //每个请求的上下文中注册一个id
@@ -69,6 +71,7 @@ func NewManager(c option.Config) *Manager {
 	}
 	//simple api version
 	r.Use(apimiddleware.APIVersion)
+	r.Use(apimiddleware.Proxy)
 	return &Manager{
 		ctx:      ctx,
 		cancel:   cancel,
