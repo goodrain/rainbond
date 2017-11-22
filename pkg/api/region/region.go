@@ -19,29 +19,31 @@
 package region
 
 import (
-	"net/http"
+	"bytes"
+	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"encoding/json"
+	"net/http"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/api/model"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
-	"bytes"
-	"github.com/Sirupsen/logrus"
 	//api "github.com/goodrain/rainbond/pkg/util/http"
 	//"github.com/bitly/go-simplejson"
 	"github.com/bitly/go-simplejson"
+	api_model "github.com/goodrain/rainbond/pkg/api/model"
 )
 
 var regionAPI, token string
 var region *Region
 
-
 type Region struct {
 	regionAPI string
-	token string
-	authType string
+	token     string
+	authType  string
 }
-func (r *Region)Tenants() TenantInterface {
+
+func (r *Region) Tenants() TenantInterface {
 	return &Tenant{}
 }
 
@@ -50,96 +52,99 @@ type Tenant struct {
 }
 type Services struct {
 	tenant *Tenant
-	model model.ServiceStruct
+	model  model.ServiceStruct
 }
+
+//TenantInterface TenantInterface
 type TenantInterface interface {
 	Get(name string) *Tenant
 	Services() ServiceInterface
+	DefineSources(ss *api_model.SourceSpec) DefineSourcesInterface
 }
-func (t *Tenant)Get(name string) *Tenant {
+
+func (t *Tenant) Get(name string) *Tenant {
 	return &Tenant{
-		tenantID:name,
+		tenantID: name,
 	}
 }
-func (t *Tenant)Delete(name string) error {
+func (t *Tenant) Delete(name string) error {
 	return nil
 }
-func (t *Tenant)Services() ServiceInterface {
+func (t *Tenant) Services() ServiceInterface {
 	return &Services{
-		tenant:t,
+		tenant: t,
 	}
 }
 
 type ServiceInterface interface {
 	Get(name string) map[string]string
-	Pods(serviceAlisa string) ([]*dbmodel.K8sPod,error)
+	Pods(serviceAlisa string) ([]*dbmodel.K8sPod, error)
 	List() []model.ServiceStruct
-	Stop(serviceAlisa ,eventID string) error
-	Start(serviceAlisa ,eventID string) error
-	EventLog(serviceAlisa,eventID,level string) ([]model.MessageData,error)
+	Stop(serviceAlisa, eventID string) error
+	Start(serviceAlisa, eventID string) error
+	EventLog(serviceAlisa, eventID, level string) ([]model.MessageData, error)
 }
 
-func (s *Services)Pods(serviceAlisa string) ([]*dbmodel.K8sPod,error) {
-	resp,_,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+serviceAlisa+"/pods","GET",nil)
+func (s *Services) Pods(serviceAlisa string) ([]*dbmodel.K8sPod, error) {
+	resp, _, err := DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+serviceAlisa+"/pods", "GET", nil)
 	if err != nil {
-		logrus.Errorf("获取pods失败，details %s",err.Error())
-		return nil,err
+		logrus.Errorf("获取pods失败，details %s", err.Error())
+		return nil, err
 	}
 
-	j,_:=simplejson.NewJson(resp)
-	arr,err:=j.Get("list").Array()
+	j, _ := simplejson.NewJson(resp)
+	arr, err := j.Get("list").Array()
 
-	jsonA,_:=json.Marshal(arr)
-	pods:=[]*dbmodel.K8sPod{}
-	json.Unmarshal(jsonA,&pods)
+	jsonA, _ := json.Marshal(arr)
+	pods := []*dbmodel.K8sPod{}
+	json.Unmarshal(jsonA, &pods)
 
-	return pods,err
+	return pods, err
 }
-func (s *Services)Get(name string) map[string]string {
-	resp,status,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name,"GET",nil)
+func (s *Services) Get(name string) map[string]string {
+	resp, status, err := DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name, "GET", nil)
 	if err != nil {
-		logrus.Errorf("获取服务失败，details %s",err.Error())
+		logrus.Errorf("获取服务失败，details %s", err.Error())
 		return nil
 	}
-	if status==404 {
+	if status == 404 {
 		return nil
 	}
-	j,_:=simplejson.NewJson(resp)
-	m:=make(map[string]string)
-	bean:=j.Get("bean")
-	sa,err:=bean.Get("serviceAlias").String()
-	si,err:=bean.Get("serviceId").String()
-	ti,err:=bean.Get("tenantId").String()
-	tn,err:=bean.Get("tenantName").String()
-	m["serviceAlias"]=sa
-	m["serviceId"]=si
-	m["tenantId"]=ti
-	m["tenantName"]=tn
+	j, _ := simplejson.NewJson(resp)
+	m := make(map[string]string)
+	bean := j.Get("bean")
+	sa, err := bean.Get("serviceAlias").String()
+	si, err := bean.Get("serviceId").String()
+	ti, err := bean.Get("tenantId").String()
+	tn, err := bean.Get("tenantName").String()
+	m["serviceAlias"] = sa
+	m["serviceId"] = si
+	m["tenantId"] = ti
+	m["tenantName"] = tn
 
 	return m
 }
-func (s *Services)EventLog(serviceAlisa,eventID,level string) ([]model.MessageData,error) {
+func (s *Services) EventLog(serviceAlisa, eventID, level string) ([]model.MessageData, error) {
 	//{
 	//	"event_id": "string",
 	//	"level": "string"
 	//}
-	data := []byte(`{"event_id":"` + eventID + `","level":"`+level+`"}`)
+	data := []byte(`{"event_id":"` + eventID + `","level":"` + level + `"}`)
 	//POST /v2/tenants/{tenant_name}/services/{service_alias}/event-log v2 logByAction
-	resp,_,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+serviceAlisa+"/event-log","POST",data)
+	resp, _, err := DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+serviceAlisa+"/event-log", "POST", data)
 	//logrus.Infof("event log url is %s","/v2/tenants/"+s.tenant.tenantID+"/services/"+serviceAlisa+"/event-log")
-	if err!=nil {
-		return nil,err
+	if err != nil {
+		return nil, err
 	}
 
+	dlj, err := simplejson.NewJson(resp)
+	arr, _ := dlj.Get("list").Array()
 
-	dlj,err:=simplejson.NewJson(resp)
-	arr,_:=dlj.Get("list").Array()
+	a, _ := json.Marshal(arr)
+	ss := []model.MessageData{}
+	json.Unmarshal(a, &ss)
 
-	a,_:=json.Marshal(arr)
-	ss:=[]model.MessageData{}
-	json.Unmarshal(a,&ss)
-
-	return ss,nil
+	return ss, nil
 }
 
 type listServices struct {
@@ -151,12 +156,13 @@ type beanDataLog struct {
 type beanServiceStruct struct {
 	bean model.ServiceStruct `json:"bean"`
 }
-func (s *Services)List() []model.ServiceStruct {
+
+func (s *Services) List() []model.ServiceStruct {
 
 	request, err := http.NewRequest("GET", region.regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services", nil)
 	if err != nil {
 		//return err
-		logrus.Errorf("error create request for region server,details %s",err.Error())
+		logrus.Errorf("error create request for region server,details %s", err.Error())
 		return nil
 	}
 	request.Header.Set("Content-Type", "application/json")
@@ -167,7 +173,7 @@ func (s *Services)List() []model.ServiceStruct {
 	res, err := http.DefaultClient.Do(request)
 	if err != nil {
 		//return nil, err
-		logrus.Errorf("error connect to region server,details %s",err.Error())
+		logrus.Errorf("error connect to region server,details %s", err.Error())
 		return nil
 	}
 	//de := json.NewDecoder(res.Body)
@@ -175,48 +181,48 @@ func (s *Services)List() []model.ServiceStruct {
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		//return nil, err
-		logrus.Errorf("error read response region server,details %s",err.Error())
+		logrus.Errorf("error read response region server,details %s", err.Error())
 		return nil
 	}
-	j,_:=simplejson.NewJson(data)
-	arr,_:=j.Get("list").Array()
-	b2,_:=json.Marshal(arr)
+	j, _ := simplejson.NewJson(data)
+	arr, _ := j.Get("list").Array()
+	b2, _ := json.Marshal(arr)
 
-	ss:=[]model.ServiceStruct{}
+	ss := []model.ServiceStruct{}
 
-	json.Unmarshal(b2,&ss)
+	json.Unmarshal(b2, &ss)
 
 	defer res.Body.Close()
 	return ss
 
 }
-func (s *Services)Stop(name ,eventID string) error {
+func (s *Services) Stop(name, eventID string) error {
 
 	data := []byte(`{"event_id":"` + eventID + `"}`)
-	_,_,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name+"/stop","POST",data)
+	_, _, err := DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name+"/stop", "POST", data)
 	//request, err := http.NewRequest("POST", regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services"+s.model.ServiceAlias+"/stop", bytes.NewBuffer(data))
-	if err!=nil {
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
-func (s *Services)Start(name ,eventID string) error {
+func (s *Services) Start(name, eventID string) error {
 
 	data := []byte(`{"event_id":"` + eventID + `"}`)
-	_,_,err:=DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name+"/start","POST",data)
+	_, _, err := DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name+"/start", "POST", data)
 	//request, err := http.NewRequest("POST", regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services"+s.model.ServiceAlias+"/stop", bytes.NewBuffer(data))
-	if err!=nil {
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func DoRequest(url ,method string, body []byte) ([]byte,int,error) {
+func DoRequest(url, method string, body []byte) ([]byte, int, error) {
 	request, err := http.NewRequest(method, region.regionAPI+url, bytes.NewBuffer(body))
 	if err != nil {
-		return nil,500,err
+		return nil, 500, err
 	}
 	request.Header.Set("Content-Type", "application/json")
 	if region.token != "" {
@@ -225,19 +231,19 @@ func DoRequest(url ,method string, body []byte) ([]byte,int,error) {
 
 	res, err := http.DefaultClient.Do(request)
 	if err != nil {
-		return nil, 500,err
+		return nil, 500, err
 	}
 
 	data, err := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
-	return data,res.StatusCode,err
+	return data, res.StatusCode, err
 }
-func NewRegion(regionAPI,token,authType string) *Region {
-	if region==nil {
-		region=&Region{
-			regionAPI:regionAPI,
-			token:token,
-			authType:authType,
+func NewRegion(regionAPI, token, authType string) *Region {
+	if region == nil {
+		region = &Region{
+			regionAPI: regionAPI,
+			token:     token,
+			authType:  authType,
 		}
 	}
 	return region
@@ -245,9 +251,6 @@ func NewRegion(regionAPI,token,authType string) *Region {
 func GetRegion() *Region {
 	return region
 }
-
-
-
 
 func LoadConfig(regionAPI, token string) (map[string]map[string]interface{}, error) {
 	if regionAPI == "" {
@@ -290,4 +293,3 @@ func SetInfo(region, t string) {
 	regionAPI = region
 	token = t
 }
-

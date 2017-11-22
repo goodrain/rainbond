@@ -41,10 +41,13 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdLog())
 	cmds = append(cmds, NewCmdEvent())
 	cmds = append(cmds, NewCmdGet())
-	//cmds = append(cmds, NewCmdPlugin())
+	cmds = append(cmds, NewCmdSources())
+	//cmds = append(cmds, NewCmdPlugin()
 	//todo
 	return cmds
 }
+
+//Common Common
 func Common(c *cli.Context) {
 	config, err := conf.LoadConfig(c)
 	if err != nil {
@@ -57,7 +60,7 @@ func Common(c *cli.Context) {
 
 	if err := clients.InitClient(*config.Kubernets); err != nil {
 		//os.Exit(1)
-		logrus.Infof("error config k8s,details %s",err.Error())
+		logrus.Infof("error config k8s,details %s", err.Error())
 	}
 	//clients.SetInfo(config.RegionAPI.URL, config.RegionAPI.Token)
 	clients.InitRegionClient(*config.RegionAPI)
