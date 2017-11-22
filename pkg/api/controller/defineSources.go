@@ -57,7 +57,7 @@ func (t *TenantStruct) SetDefineSource(w http.ResponseWriter, r *http.Request) {
 	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	//source_alis need legal checking, cant includ "/"
-	sourceAlias := r.Context().Value(middleware.ContextKey("source_alias")).(string)
+	sourceAlias := chi.URLParam(r, "source_alias")
 	ss.Body.SourceSpec.Alias = sourceAlias
 
 	if err := handler.GetSourcesManager().CreateDefineSources(tenantID, &ss); err != nil {
@@ -96,8 +96,8 @@ func (t *TenantStruct) UpdateDefineSource(w http.ResponseWriter, r *http.Request
 	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	//source_alis need legal checking, cant includ "/"
-	sourceAlias := r.Context().Value(middleware.ContextKey("source_alias")).(string)
-	envName := r.Context().Value(middleware.ContextKey("env_name")).(string)
+	sourceAlias := chi.URLParam(r, "source_alias")
+	envName := chi.URLParam(r, "env_name")
 	ss.Body.SourceSpec.Alias = sourceAlias
 	ss.Body.SourceSpec.SourceBody.EnvName = envName
 	if err := handler.GetSourcesManager().UpdateDefineSources(tenantID, &ss); err != nil {
@@ -132,7 +132,7 @@ func (t *TenantStruct) DeleteDefineSource(w http.ResponseWriter, r *http.Request
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	//source_alis need legal checking, cant includ "/"
 	sourceAlias := chi.URLParam(r, "source_alias")
-	envName := r.Context().Value(middleware.ContextKey("env_name")).(string)
+	envName := chi.URLParam(r, "env_name")
 	if err := handler.GetSourcesManager().DeleteDefineSources(tenantID, sourceAlias, envName); err != nil {
 		err.Handle(r, w)
 		return
