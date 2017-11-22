@@ -445,7 +445,9 @@ class RepoBuilder():
 
                 success = build_func()
                 if success:
-                    self.log.info("构建完成。", step="build-worker")
+                    # self.log.info("构建完成。", step="build-worker")
+                    self.log.info("构建完成。", step="callback",status="success")
+
                     ok = self.feedback()
                     if not ok:
                         self.log.error(
