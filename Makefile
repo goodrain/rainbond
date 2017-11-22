@@ -106,7 +106,7 @@ run-node:build-node
 	 --static-task-path=`pwd`/test/tasks \
 	 --log-level=debug
 
-docs: ## build the docs 
+doc: ## build the docs 
 	@cd cmd/api && swagger generate spec -o ../../hack/contrib/docker/api/html/swagger.json
 
 help: ## this help
