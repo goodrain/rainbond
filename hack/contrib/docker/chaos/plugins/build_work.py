@@ -19,6 +19,7 @@ import fileinput
 from utils.shell import Executer as shell
 from utils.docker import DockerfileItem
 from clients.region import RegionAPI
+from clients.region_api import RegionBackAPI
 from clients.acp_api import ACPAPI
 from clients.userconsole import UserConsoleAPI
 
@@ -56,6 +57,7 @@ class RepoBuilder():
         self.api = ACPAPI(conf=self.configs['region'])
         self.user_cs_client = UserConsoleAPI(conf=self.configs['userconsole'])
         self.repo_url = task['repo_url']
+        self.region_client = RegionBackAPI()
         self.tenant_id = task['tenant_id']
         self.service_id = task['service_id']
         self.tenant_name = task['tenant_name']
@@ -186,17 +188,17 @@ class RepoBuilder():
                 entrypoint_cmd = ' '.join(entrypoint)
                 shell.call(
                     '''sed -i -e 's#_type_#ENTRYPOINT#' -e 's#^_entrypoint_#'{0}'#' .goodrain/init'''.
-                    format(pipes.quote(entrypoint_cmd)),
+                        format(pipes.quote(entrypoint_cmd)),
                     cwd=self.source_dir)
                 if cmd is not None:
                     shell.call(
                         '''sed -i -e 's#^_cmd_#'{0}'#' .goodrain/init'''.
-                        format(pipes.quote(cmd)),
+                            format(pipes.quote(cmd)),
                         cwd=self.source_dir)
             else:
                 shell.call(
                     '''sed -i -e 's#_type_#CMD#' -e 's#^_cmd_#'{0}'#' .goodrain/init'''.
-                    format(pipes.quote(cmd)),
+                        format(pipes.quote(cmd)),
                     cwd=self.source_dir)
             return True
         except (shell.ExecException, OSError), e:
@@ -231,9 +233,9 @@ class RepoBuilder():
             inner_port = inner_port.replace('"', '')
 
         return {
-            "inner_port": inner_port,
-            "volume_mount_path": volume_mount_path
-        }, entrypoint, cmd
+                   "inner_port": inner_port,
+                   "volume_mount_path": volume_mount_path
+               }, entrypoint, cmd
 
     def build_image(self):
         # self.write_build_log(u"开始编译Dockerfile")
@@ -322,7 +324,7 @@ class RepoBuilder():
         h = self.user_cs_client
         try:
             h.update_service(self.service_id, json.dumps(update_items))
-            update_service_region(self,self.service_id,json.dumps(update_items))
+            self.region_client.update_service_region(self.service_id,json.dumps(update_items))
         except h.CallApiError, e:
             self.log.error(
                 "网络异常，更新应用镜像名称失败. {}".format(e.message),

@@ -40,6 +40,11 @@ func AddCodeCheck(w http.ResponseWriter, r *http.Request) {
 
 	b,_:=ioutil.ReadAll(r.Body)
 	j,err:=simplejson.NewJson(b)
+	if err != nil {
+		logrus.Errorf("error decode json,details %s",err.Error())
+		httputil.ReturnError(r,w,400,"bad request")
+		return
+	}
 	result.URLRepos,_=j.Get("url_repos").String()
 	result.CheckType,_=j.Get("check_type").String()
 	result.CodeFrom,_=j.Get("code_from").String()
@@ -51,11 +56,7 @@ func AddCodeCheck(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 
-	if err != nil {
-		logrus.Errorf("error decode json,details %s",err.Error())
-		httputil.ReturnError(r,w,400,"bad request")
-		return
-	}
+
 	dbmodel:=convertModelToDB(result)
 	//checkAndGet
 	db.GetManager().CodeCheckResultDao().AddModel(dbmodel)
@@ -64,14 +65,31 @@ func AddCodeCheck(w http.ResponseWriter, r *http.Request) {
 func Update(w http.ResponseWriter, r *http.Request) {
 	serviceID := strings.TrimSpace(chi.URLParam(r, "serviceID"))
 	result := new(model.CodeCheckResult)
-	decoder := json.NewDecoder(r.Body)
+
+	b,_:=ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
-	err := decoder.Decode(result)
+	logrus.Infof("update receive %s",string(b))
+	j,err:=simplejson.NewJson(b)
 	if err != nil {
 		logrus.Errorf("error decode json,details %s",err.Error())
 		httputil.ReturnError(r,w,400,"bad request")
 		return
 	}
+	result.BuildImageName,_=j.Get("image").String()
+	portList,err:=j.Get("port_list").Map()
+	if err != nil {
+		portList=make(map[string]interface{})
+	}
+	volumeList,err:=j.Get("volume_list").StringArray()
+	if err != nil {
+		volumeList=nil
+	}
+	strMap:=make(map[string]string)
+	for k,v:=range portList {
+		strMap[k]=v.(string)
+	}
+	result.VolumeList=volumeList
+	result.PortList=strMap
 	result.ServiceID=serviceID
 	dbmodel:=convertModelToDB(result)
 	dbmodel.DockerFileReady=true
