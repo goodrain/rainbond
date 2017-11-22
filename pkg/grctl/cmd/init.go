@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"io/ioutil"
 	"strings"
+	"os"
 )
 
 func NewCmdInit() cli.Command {
@@ -89,8 +90,8 @@ func initCluster(c *cli.Context) error {
 	}
 	//logrus.Infof("args is %s,len is %d",arg,len(arg))
 	cmd := exec.Command("bash", "-c",arg+string(b))
-	cmd.Stderr=nil
-	go cmd.Run()
+	cmd.Stderr=os.Stderr
+	cmd.Run()
 	return nil
 }
 
