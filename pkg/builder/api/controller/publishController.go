@@ -30,10 +30,11 @@ import (
 )
 
 func GetAppPublish(w http.ResponseWriter, r *http.Request) {
-	shareID := strings.TrimSpace(chi.URLParam(r, "shareID"))
-	appp,err:=db.GetManager().AppPublishDao().GetAppPublish(shareID)
+	serviceKey := strings.TrimSpace(chi.URLParam(r, "serviceKey"))
+	appVersion := strings.TrimSpace(chi.URLParam(r, "appVersion"))
+	appp,err:=db.GetManager().AppPublishDao().GetAppPublish(serviceKey,appVersion)
 	if err != nil {
-
+		httputil.ReturnError(r,w,404,err.Error())
 	}
 	httputil.ReturnSuccess(r, w, appp)
 }

@@ -91,9 +91,9 @@ func updateApp(target,old *model.CodeCheckResult) {
 	//logrus.Infof("after update,%s,%s",string(o2),string(t2))
 }
 //GetEventLogMessages get event log message
-func (c *AppPublishDaoImpl) GetAppPublish(serviceID string) (*model.AppPublish, error) {
+func (c *AppPublishDaoImpl) GetAppPublish(serviceKey,appVersion string) (*model.AppPublish, error) {
 	var result model.AppPublish
-	if err := c.DB.Where("service_id=?", serviceID).Find(&result).Error; err != nil {
+	if err := c.DB.Where("service_key = ? and app_version =?", serviceKey,appVersion).Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			//return messageRaw, nil
 		}

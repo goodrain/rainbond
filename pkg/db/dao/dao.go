@@ -260,7 +260,7 @@ type CodeCheckResultDao interface {
 //AppPublishDao AppPublishDao
 type AppPublishDao interface {
 	Dao
-	GetAppPublish(shareID string) (*model.AppPublish, error)
+	GetAppPublish(serviceKey,appVersion string) (*model.AppPublish, error)
 }
 
 //AppPublishDao AppPublishDao
