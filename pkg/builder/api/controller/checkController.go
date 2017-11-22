@@ -49,14 +49,8 @@ func AddCodeCheck(w http.ResponseWriter, r *http.Request) {
 	result.Condition,_=j.Get("condition").String()
 	result.GitURL,_=j.Get("git_url").String()
 
-	strB:=string(b)
-	logrus.Infof("before handle is %s",strB)
-	newStr:=strings.Replace(strB,"\\","",-1)
-	logrus.Infof("after is %s",newStr)
 	defer r.Body.Close()
-	//err:=json.Unmarshal([]byte(newStr),result)
-	//decoder := json.NewDecoder(r.Body)
-	//err := decoder.Decode(result)
+
 	if err != nil {
 		logrus.Errorf("error decode json,details %s",err.Error())
 		httputil.ReturnError(r,w,400,"bad request")
