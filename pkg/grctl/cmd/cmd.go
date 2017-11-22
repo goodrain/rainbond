@@ -19,7 +19,7 @@
 package cmd
 
 import (
-	"os"
+	//"os"
 
 	"github.com/Sirupsen/logrus"
 	conf "github.com/goodrain/rainbond/cmd/grctl/option"
@@ -41,6 +41,20 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdLog())
 	cmds = append(cmds, NewCmdEvent())
 	cmds = append(cmds, NewCmdGet())
+
+
+	cmds = append(cmds, NewCmdInit())
+
+	cmds = append(cmds, NewCmdAddNode())
+
+	cmds = append(cmds, NewCmdCheckComputeServices())
+	cmds = append(cmds, NewCmdComputeGroup())
+
+	cmds = append(cmds, NewCmdBaseManageGroup())
+	cmds = append(cmds, NewCmdManageGroup())
+	cmds = append(cmds, NewCmdCheckManageServices())
+	cmds = append(cmds, NewCmdCheckManageBaseServices())
+
 	//cmds = append(cmds, NewCmdPlugin())
 	//todo
 	return cmds
@@ -48,18 +62,22 @@ func GetCmds() []cli.Command {
 func Common(c *cli.Context) {
 	config, err := conf.LoadConfig(c)
 	if err != nil {
-		logrus.Error("Load config file error.", err.Error())
-		os.Exit(1)
+		logrus.Warnf("Load config file error.", err.Error())
+		//os.Exit(1)
+		return
 	}
-	//if err := clients.InitDB(*config.RegionMysql); err != nil {
-	//	os.Exit(1)
-	//}
 
 	if err := clients.InitClient(*config.Kubernets); err != nil {
-		//os.Exit(1)
-		logrus.Infof("error config k8s,details %s",err.Error())
+		logrus.Warnf("error config k8s")
 	}
 	//clients.SetInfo(config.RegionAPI.URL, config.RegionAPI.Token)
-	clients.InitRegionClient(*config.RegionAPI)
+	if err := clients.InitRegionClient(*config.RegionAPI); err != nil {
+		logrus.Warnf("error config region")
+	}
+	if err := clients.InitNodeClient("http://127.0.0.1:6100"); err != nil {
+		logrus.Warnf("error config region")
+	}
+
+
 
 }

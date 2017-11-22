@@ -105,36 +105,36 @@ func getAppInfoV2(c *cli.Context)error  {
 	//table.AddRow("Volume:", volumes)
 
 	option := metav1.ListOptions{LabelSelector: "name=" + serviceAlias}
-	rcList,err:=clients.K8SClient.Core().ReplicationControllers(tenantID).List(option)
-	//info, pods, err := kubernetes.GetServiceInfo(tenantID, serviceAlias)
+	ps,err:=clients.RegionClient.Tenants().Get(tenantName).Services().Pods(serviceAlias)
 	if err != nil {
-		logrus.Error("Don't Find the ReplicationController info .", err.Error())
+		logrus.Errorf("error get pods info ,details %s",err.Error())
 		return err
 	}
-	var rcMap = make(map[string]string)
-	for _, rc := range rcList.Items {
-		rcMap["Name"] = rc.Name
-		rcMap["Namespace"] = rc.Namespace
-		rcMap["Replicas"] = fmt.Sprintf("%d/%d", rc.Status.ReadyReplicas, rc.Status.Replicas)
-		rcMap["Date"] = rc.CreationTimestamp.Format(time.RFC3339)
-	}
 
-	table.AddRow("RcName:", rcMap["Name"])
-	table.AddRow("RcCreateTime:", rcMap["Date"])
-	table.AddRow("PodNumber:", rcMap["Replicas"])
+	var rcMap = make(map[string]string)
+	for _,v:=range ps{
+		rcMap["Type"] = v.ReplicationType
+		rcMap["ID"] = v.ReplicationID
+		break
+	}
+	table.AddRow("ReplicationType:", rcMap["Type"])
+	table.AddRow("ReplicationID:", rcMap["ID"])
 	serviceOption := metav1.ListOptions{}
 	//grf1cdd7Service
 	//serviceOption := metav1.ListOptions{LabelSelector: "spec.selector.name="+"gr2a2e1b" }
+
 	services, err := clients.K8SClient.Core().Services(tenantID).List(serviceOption)
+	if err != nil {
+		logrus.Errorf("err get service by namespace %s,details %s",tenantID,err.Error())
+		return err
+	}
+
 	serviceTable := termtables.CreateTable()
 	serviceTable.AddHeaders( "Name", "IP", "Port")
 
 	var serviceMap = make(map[string]string)
 	for _, service := range services.Items {
 		if service.Spec.Selector["name"]==serviceAlias {
-			//b,_:=json.Marshal(service)
-			//logrus.Infof(string(b))
-			//fmt.Sprintln(service)
 			serviceMap["Name"] = service.Name
 			var ports string
 			if service.Spec.Ports != nil && len(service.Spec.Ports) > 0 {
@@ -146,7 +146,6 @@ func getAppInfoV2(c *cli.Context)error  {
 			serviceMap["ClusterIP"] = service.Spec.ClusterIP
 			serviceTable.AddRow(service.Name, service.Spec.ClusterIP,ports )
 		}
-
 	}
 	table.AddRow("Services:", "")
 	fmt.Println(table)
@@ -158,10 +157,7 @@ func getAppInfoV2(c *cli.Context)error  {
 	//	"PodName": "695cdb83147041bd9b2777659e981a9a-gh4pn"
 
 	if clients.K8SClient == nil {
-		ps,err:=clients.RegionClient.Tenants().Get(tenantName).Services().Pods(serviceAlias)
-		if err != nil {
-			return err
-		}
+
 		for i,v:=range ps{
 
 			table := uitable.New()

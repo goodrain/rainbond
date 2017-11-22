@@ -38,6 +38,7 @@ type V2Manager interface {
 	Entrance(w http.ResponseWriter, r *http.Request)
 	TsdbQuery(w http.ResponseWriter, r *http.Request)
 
+
 	apiFunc.TenantInterface
 	apiFunc.ServiceInterface
 	apiFunc.LogInterface
