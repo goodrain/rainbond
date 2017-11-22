@@ -37,12 +37,24 @@ func AddCodeCheck(w http.ResponseWriter, r *http.Request) {
 	//{\"url_repos\": \"https://github.com/bay1ts/zk_cluster_mini.git\", \"check_type\": \"first_check\", \"code_from\": \"gitlab_manual\", \"service_id\": \"c24dea8300b9401b1461dd975768881a\", \"code_version\": \"master\", \"git_project_id\": 0, \"condition\": \"{\\\"language\\\":\\\"docker\\\",\\\"runtimes\\\":\\\"false\\\", \\\"dependencies\\\":\\\"false\\\",\\\"procfile\\\":\\\"false\\\"}\", \"git_url\": \"--branch master --depth 1 https://github.com/bay1ts/zk_cluster_mini.git\"}
 	//logrus.Infof("request recive %s",string(b))
 	result := new(model.CodeCheckResult)
+
 	b,_:=ioutil.ReadAll(r.Body)
+	j,err:=simplejson.NewJson(b)
+	result.URLRepos,_=j.Get("url_repos").String()
+	result.CheckType,_=j.Get("check_type").String()
+	result.CodeFrom,_=j.Get("code_from").String()
+	result.ServiceID,_=j.Get("service_id").String()
+	result.CodeVersion,_=j.Get("code_version").String()
+	result.GitProjectId,_=j.Get("git_project_id").String()
+	result.Condition,_=j.Get("condition").String()
+	result.GitURL,_=j.Get("git_url").String()
+
 	strB:=string(b)
+	logrus.Infof("before handle is %s",strB)
 	newStr:=strings.Replace(strB,"\\","",-1)
-	logrus.Info("receive json %s",newStr)
+	logrus.Infof("after is %s",newStr)
 	defer r.Body.Close()
-	err:=json.Unmarshal([]byte(newStr),result)
+	//err:=json.Unmarshal([]byte(newStr),result)
 	//decoder := json.NewDecoder(r.Body)
 	//err := decoder.Decode(result)
 	if err != nil {
