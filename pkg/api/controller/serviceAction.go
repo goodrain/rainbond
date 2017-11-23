@@ -510,12 +510,10 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	//{\"tenant_name\":\"\",\"service_alias\":\"\",\"Body\":{\"event_id\":\"c19aa41c357a4d9e9ca38ab7f2a44961\",\"envs\":{},\"kind\":\"source\",\"action\":\"deploy\",\"image_url\":\"\",\"deploy_version\":\"20171122154417\",\"repo_url\":\"--branch master --depth 1 https://github.com/bay1ts/zk_cluster_mini.git\",\"operator\":\"bay1ts\",\"tenant_name\":\"bay1ts-test\",\"service_alias\":\"gr21ea6b\"}}
 	////createBuildInfo
 	version:=dbmodel.VersionInfo{}
-
 	version.EventID=sEvent.EventID
 	version.ServiceID=serviceID
 	version.RepoURL=build.Body.RepoURL
 	version.DeliveredType=build.Body.Kind
-	version.CodeVersion=""
 	version.BuildVersion=build.Body.DeployVersion
 	db.GetManager().VersionInfoDao().AddModel(&version)
 	//save

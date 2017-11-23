@@ -59,8 +59,12 @@ func NewCmdNode() cli.Command {
 				Usage: "list",
 				Action: func(c *cli.Context) error {
 					list:=clients.NodeClient.Nodes().List()
-					b,_:=json.Marshal(list)
-					fmt.Println(string(b))
+					serviceTable := termtables.CreateTable()
+					serviceTable.AddHeaders("uid", "IP", "HostName","role","alived","unschedulable")
+					for _,v:=range list{
+						serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,v.Unschedulable)
+					}
+					fmt.Println(serviceTable.Render())
 					return nil
 				},
 			},
