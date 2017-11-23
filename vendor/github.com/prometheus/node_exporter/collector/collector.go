@@ -21,7 +21,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 // Namespace defines the common namespace to be used by all metrics.
@@ -57,21 +56,21 @@ var (
 )
 
 func registerCollector(collector string, isDefaultEnabled bool, factory func() (Collector, error)) {
-	var helpDefaultState string
-	if isDefaultEnabled {
-		helpDefaultState = "enabled"
-	} else {
-		helpDefaultState = "disabled"
-	}
+	// var helpDefaultState string
+	// if isDefaultEnabled {
+	// 	helpDefaultState = "enabled"
+	// } else {
+	// 	helpDefaultState = "disabled"
+	// }
 
-	flagName := fmt.Sprintf("collector.%s", collector)
-	flagHelp := fmt.Sprintf("Enable the %s collector (default: %s).", collector, helpDefaultState)
-	defaultValue := fmt.Sprintf("%v", isDefaultEnabled)
+	// flagName := fmt.Sprintf("collector.%s", collector)
+	// flagHelp := fmt.Sprintf("Enable the %s collector (default: %s).", collector, helpDefaultState)
+	// defaultValue := fmt.Sprintf("%v", isDefaultEnabled)
 
-	flag := kingpin.Flag(flagName, flagHelp).Default(defaultValue).Bool()
-	collectorState[collector] = flag
-
+	// flag := kingpin.Flag(flagName, flagHelp).Default(defaultValue).Bool()
+	collectorState[collector] = &isDefaultEnabled
 	factories[collector] = factory
+	fmt.Println(&collectorState)
 }
 
 // NodeCollector implements the prometheus.Collector interface.
@@ -82,6 +81,7 @@ type nodeCollector struct {
 // NewNodeCollector creates a new NodeCollector
 func NewNodeCollector(filters ...string) (*nodeCollector, error) {
 	f := make(map[string]bool)
+	fmt.Println(&collectorState)
 	for _, filter := range filters {
 		enabled, exist := collectorState[filter]
 		if !exist {
