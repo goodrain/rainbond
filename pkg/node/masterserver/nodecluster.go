@@ -245,6 +245,7 @@ func (n *NodeCluster) watchK8sNodes() {
 						//k8s node name is rainbond node id
 						if rbnode := n.GetNode(node.Name); rbnode != nil {
 							rbnode.NodeStatus = &node.Status
+							rbnode.NodeStatus.Images = nil
 							rbnode.UpdataK8sCondition(node.Status.Conditions)
 							n.UpdateNode(rbnode)
 						}

@@ -207,9 +207,10 @@ func (m *metricVec) Reset() {
 }
 
 func (m *metricVec) hashLabelValues(vals []string) (uint64, error) {
-	if len(vals) != len(m.desc.variableLabels) {
-		return 0, errInconsistentCardinality
+	if err := validateLabelValues(vals, len(m.desc.variableLabels)); err != nil {
+		return 0, err
 	}
+
 	h := hashNew()
 	for _, val := range vals {
 		h = m.hashAdd(h, val)
@@ -219,9 +220,10 @@ func (m *metricVec) hashLabelValues(vals []string) (uint64, error) {
 }
 
 func (m *metricVec) hashLabels(labels Labels) (uint64, error) {
-	if len(labels) != len(m.desc.variableLabels) {
-		return 0, errInconsistentCardinality
+	if err := validateValuesInLabels(labels, len(m.desc.variableLabels)); err != nil {
+		return 0, err
 	}
+
 	h := hashNew()
 	for _, label := range m.desc.variableLabels {
 		val, ok := labels[label]

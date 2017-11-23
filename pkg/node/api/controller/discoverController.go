@@ -101,5 +101,7 @@ func SourcesEnv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(200)
-	w.Write([]byte(ss.SourceBody.EnvVal))
+	if value, ok := ss.SourceBody.EnvVal.(string); ok {
+		w.Write([]byte(value))
+	}
 }

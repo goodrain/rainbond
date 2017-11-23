@@ -81,8 +81,8 @@ type SourceSpec struct {
 
 //SoureBody SoureBody
 type SoureBody struct {
-	EnvName string `json:"env_name" validate:"env_name"`
-	EnvVal  string `json:"env_value" validate:"env_value"`
+	EnvName string      `json:"env_name" validate:"env_name"`
+	EnvVal  interface{} `json:"env_value" validate:"env_value"`
 	//json format
 }
 
