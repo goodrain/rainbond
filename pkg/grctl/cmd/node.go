@@ -30,73 +30,24 @@ import (
 	"strings"
 	"strconv"
 	"encoding/json"
+	"errors"
 )
 
 
 func NewCmdNode() cli.Command {
 	c:=cli.Command{
 		Name:  "node",
-		Usage: "获取节点信息。grctl node",
-		Action: func(c *cli.Context) error {
-			Common(c)
-			return getNode(c)
-		},
-	}
-	return c
-}
-
-
-func NewCmdAddNode() cli.Command {
-	c:=cli.Command{
-		Name:  "add_node",
-		Usage: "添加节点。grctl add_node '{}'(jsoned host node)",
-		Action: func(c *cli.Context) error {
-			return addNode(c)
-		},
-	}
-	return c
-}
-func addNode(c *cli.Context) error{
-
-	jsoned:=c.Args().First()
-	var node model.APIHostNode
-	err:=json.Unmarshal([]byte(jsoned),&node)
-	if err != nil {
-		logrus.Errorf("error unmarshal input json host node")
-		return err
-	}
-	clients.NodeClient.Nodes().Add(&node)
-	return nil
-}
-
-func NewCmdRegionNode() cli.Command {
-	c:=cli.Command{
-		Name:  "region_node",
-		Usage: "节点管理。grctl region_node",
+		Usage: "节点。grctl node",
 		Subcommands:[]cli.Command{
-			{
-				Name:  "up",
-				Usage: "up hostID",
-				Action: func(c *cli.Context) error {
-					id:=c.Args().First()
-					clients.NodeClient.Nodes().Get(id).Up()
-					return nil
-				},
-			},
-			{
-				Name:  "down",
-				Usage: "down hostID",
-				Action: func(c *cli.Context) error {
-					id:=c.Args().First()
-					clients.NodeClient.Nodes().Get(id).Down()
-					return nil
-				},
-			},
 			{
 				Name:  "get",
 				Usage: "get hostID",
 				Action: func(c *cli.Context) error {
 					id:=c.Args().First()
+					if id == "" {
+						logrus.Errorf("need hostID")
+						return nil
+					}
 					n:=clients.NodeClient.Nodes().Get(id)
 					b,_:=json.Marshal(n)
 					fmt.Println(string(b))
@@ -114,10 +65,40 @@ func NewCmdRegionNode() cli.Command {
 				},
 			},
 			{
+				Name:  "up",
+				Usage: "up hostID",
+				Action: func(c *cli.Context) error {
+					id:=c.Args().First()
+					if id == "" {
+						logrus.Errorf("need hostID")
+						return nil
+					}
+					clients.NodeClient.Nodes().Get(id).Up()
+					return nil
+				},
+			},
+			{
+				Name:  "down",
+				Usage: "down hostID",
+				Action: func(c *cli.Context) error {
+					id:=c.Args().First()
+					if id == "" {
+						logrus.Errorf("need hostID")
+						return nil
+					}
+					clients.NodeClient.Nodes().Get(id).Down()
+					return nil
+				},
+			},
+			{
 				Name:  "unscheduable",
 				Usage: "unscheduable hostID",
 				Action: func(c *cli.Context) error {
 					id:=c.Args().First()
+					if id == "" {
+						logrus.Errorf("need hostID")
+						return nil
+					}
 					clients.NodeClient.Nodes().Get(id).UnSchedulable()
 					return nil
 				},
@@ -127,8 +108,56 @@ func NewCmdRegionNode() cli.Command {
 				Usage: "rescheduable hostID",
 				Action: func(c *cli.Context) error {
 					id:=c.Args().First()
+					if id == "" {
+						logrus.Errorf("need hostID")
+						return nil
+					}
 					clients.NodeClient.Nodes().Get(id).ReSchedulable()
 					return nil
+				},
+			},
+			{
+				Name:  "add",
+				Usage: "add 添加节点",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "Hostname,hn",
+						Value:"",
+						Usage: "Hostname",
+					},
+					cli.StringFlag{
+						Name:  "InternalIP,i",
+						Value:"",
+						Usage: "InternalIP",
+					},
+					cli.StringFlag{
+						Name:  "ExternalIP,e",
+						Value:"",
+						Usage: "ExternalIP",
+					},
+					cli.StringFlag{
+						Name:  "RootPass,p",
+						Value:"",
+						Usage: "RootPass",
+					},
+					cli.StringSliceFlag{
+						Name:  "Role,r",
+						Usage: "Role|required",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					var node model.APIHostNode
+					if c.IsSet("Role"){
+						node.Role=c.StringSlice("Role")
+						node.InternalIP=c.String("InternalIP")
+						node.HostName=c.String("HostName")
+						node.ExternalIP=c.String("ExternalIP")
+						node.RootPass=c.String("RootPass")
+						clients.NodeClient.Nodes().Add(&node)
+						return nil
+					}
+
+					return errors.New("role must not null")
 				},
 			},
 		},

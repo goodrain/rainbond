@@ -40,15 +40,18 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdEvent())
 	cmds = append(cmds, NewCmdGet())
 	cmds = append(cmds, NewCmdInit())
-	cmds = append(cmds, NewCmdAddNode())
-	cmds = append(cmds, NewCmdCheckComputeServices())
-	cmds = append(cmds, NewCmdComputeGroup())
-	cmds = append(cmds, NewCmdBaseManageGroup())
-	cmds = append(cmds, NewCmdManageGroup())
-	cmds = append(cmds, NewCmdCheckManageServices())
-	cmds = append(cmds, NewCmdCheckManageBaseServices())
+	//cmds = append(cmds, NewCmdAddNode())
+
+	//cmds = append(cmds, NewCmdComputeGroup())
+	cmds = append(cmds, NewCmdInstall())
+	cmds = append(cmds, NewCmdStatus())
+
+	//cmds = append(cmds, NewCmdBaseManageGroup())
+	//cmds = append(cmds, NewCmdManageGroup())
+
 	cmds = append(cmds, NewCmdSources())
-	cmds = append(cmds, NewCmdRegionNode())
+	//cmds = append(cmds, NewCmdRegionNode())
+	//cmds = append(cmds, NewCmdTest())
 	//cmds = append(cmds, NewCmdPlugin())
 	//todo
 	return cmds

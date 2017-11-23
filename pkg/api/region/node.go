@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"github.com/bitly/go-simplejson"
 	"github.com/Sirupsen/logrus"
+	"fmt"
 )
 var nodeServer *RNodeServer
 
@@ -111,8 +112,14 @@ func (t *Task)Exec(nodes []string ) error {
 	}
 	nodesBody.Nodes=nodes
 	body,_:=json.Marshal(nodesBody)
-
-	_,_,err:=Request("/tasks/"+taskId+"/exec","POST",body)
+	url:="/tasks/"+taskId+"/exec"
+	resp,code,err:=Request(url,"POST",body)
+	if code != 200 {
+		fmt.Println("executing failed:"+string(resp))
+	}
+	if err!=nil {
+		return err
+	}
 	return err
 }
 type TaskStatus struct {
@@ -120,17 +127,23 @@ type TaskStatus struct {
 }
 func (t *Task)Status() (*TaskStatus,error) {
 	taskId:=t.taskID
-	resp,_,_:=Request("/tasks/"+taskId+"/status","GET",nil)
-	j,_:=simplejson.NewJson(resp)
-	bean,_:=j.Get("bean").Bytes()
-
-
-	var status TaskStatus
-	err:=json.Unmarshal(bean,&status)
+	resp,code,err:=Request("/tasks/"+taskId+"/status","GET",nil)
 	if err != nil {
+		logrus.Errorf("error execute status request,details %s",err.Error())
 		return nil,err
 	}
-	return &status,nil
+	if code == 200 {
+		j,_:=simplejson.NewJson(resp)
+		bean,_:=j.Get("bean").Bytes()
+		var status TaskStatus
+		err=json.Unmarshal(bean,&status)
+		if err != nil {
+			logrus.Errorf("error unmarshal response,details %s",err.Error())
+			return nil,err
+		}
+		return &status,nil
+	}
+	return nil,nil
 }
 func Request(url ,method string, body []byte) ([]byte,int,error) {
 	request, err := http.NewRequest(method, "http://127.0.0.1:6100/v2"+url, bytes.NewBuffer(body))
@@ -138,9 +151,6 @@ func Request(url ,method string, body []byte) ([]byte,int,error) {
 		return nil,500,err
 	}
 	request.Header.Set("Content-Type", "application/json")
-	if region.token != "" {
-		request.Header.Set("Authorization", "Token "+region.token)
-	}
 
 	res, err := http.DefaultClient.Do(request)
 	if err != nil {
