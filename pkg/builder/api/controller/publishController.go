@@ -24,7 +24,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/db"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
-	validator "github.com/thedevsaddam/govalidator"
 	"github.com/go-chi/chi"
 	"strings"
 	"github.com/bitly/go-simplejson"
@@ -42,25 +41,25 @@ func GetAppPublish(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateDeliveredPath(w http.ResponseWriter, r *http.Request) {
-	rules := validator.MapData{
-		"type": []string{"required"},
-		"event_id": []string{"required"},
-		"path": []string{"required"},
-	}
-	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
-	if !ok {
+	in,err:=ioutil.ReadAll(r.Body)
+	if err != nil {
 		return
 	}
-	deliveredType:=data["type"].(string)
-	eventID:=data["event_id"].(string)
-	deliveredPath:=data["path"].(string)
-	version,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+	json,err:=simplejson.NewJson(in)
+	event,_:=json.Get("event_id").String()
+	dt,_:=json.Get("type").String()
+	dp,_:=json.Get("path").String()
+
+	version,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(event)
 	if err != nil {
 		httputil.ReturnError(r,w,404,err.Error())
 	}
-	version.DeliveredType=deliveredType
-	version.DeliveredPath=deliveredPath
-	db.GetManager().VersionInfoDao().UpdateModel(version)
+	version.DeliveredType=dt
+	version.DeliveredPath=dp
+	err=db.GetManager().VersionInfoDao().UpdateModel(version)
+	if err != nil {
+		httputil.ReturnError(r,w,500,err.Error())
+	}
 	httputil.ReturnSuccess(r, w, nil)
 }
 
