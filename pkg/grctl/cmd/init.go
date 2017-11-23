@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"io/ioutil"
 	"strings"
+	"os"
 )
 
 func NewCmdInit() cli.Command {
@@ -53,7 +54,6 @@ func NewCmdInit() cli.Command {
 		},
 		Usage: "初始化集群。grctl init cluster",
 		Action: func(c *cli.Context) error {
-			Common(c)
 			return initCluster(c)
 		},
 	}
@@ -90,8 +90,8 @@ func initCluster(c *cli.Context) error {
 	}
 	//logrus.Infof("args is %s,len is %d",arg,len(arg))
 	cmd := exec.Command("bash", "-c",arg+string(b))
-	cmd.Stderr=nil
-	go cmd.Run()
+	cmd.Stderr=os.Stderr
+	cmd.Run()
 	return nil
 }
 

@@ -26,6 +26,8 @@ import (
 	"github.com/goodrain/rainbond/pkg/db/config"
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/goodrain/rainbond/pkg/mq/api/grpc/pb"
+	"github.com/goodrain/rainbond/pkg/db"
+	"github.com/goodrain/rainbond/pkg/db/model"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
@@ -92,10 +94,12 @@ const pluginDockerfile = "plugins/plugin_dockerfile.pyc"
 
 func (e *exectorManager) appImage(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
+	v,_:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+	v.FinalStatus="success"
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("应用镜像构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	w := NewWorker(appImage, "", nil, in)
-	go func() {
+	go func(v *model.VersionInfo) {
 		logrus.Info("start exec app image worker")
 		defer event.GetManager().ReleaseLogger(logger)
 		for i := 0; i < 3; i++ {
@@ -106,19 +110,25 @@ func (e *exectorManager) appImage(in []byte) {
 					logger.Info("应用镜像构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("应用镜像构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
+					v.FinalStatus="failure"
+					db.GetManager().VersionInfoDao().UpdateModel(v)
 				}
 			} else {
 				break
 			}
 		}
-	}()
+	}(v)
+	db.GetManager().VersionInfoDao().UpdateModel(v)
 }
 func (e *exectorManager) appSlug(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
+	v,_:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+	v.FinalStatus="success"
+
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("应用代码包构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	w := NewWorker(appSlug, "", nil, in)
-	go func() {
+	go func(v *model.VersionInfo) {
 		logrus.Info("start exec app slug worker")
 		defer event.GetManager().ReleaseLogger(logger)
 		for i := 0; i < 3; i++ {
@@ -129,19 +139,26 @@ func (e *exectorManager) appSlug(in []byte) {
 					logger.Info("应用代码包构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("应用代码包构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
+					v.FinalStatus="failure"
+					db.GetManager().VersionInfoDao().UpdateModel(v)
 				}
 			} else {
 				break
 			}
 		}
-	}()
+	}(v)
+	db.GetManager().VersionInfoDao().UpdateModel(v)
 }
 func (e *exectorManager) imageManual(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
+
+	v,_:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+	v.FinalStatus="success"
+
 	logger.Info("应用镜像构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	w := NewWorker(imageManual, "", nil, in)
-	go func() {
+	go func(v *model.VersionInfo) {
 		defer event.GetManager().ReleaseLogger(logger)
 		logrus.Info("start exec image manual worker")
 		for i := 0; i < 3; i++ {
@@ -152,16 +169,21 @@ func (e *exectorManager) imageManual(in []byte) {
 					logger.Info("应用镜像构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("应用镜像构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
+					v.FinalStatus="failure"
+					db.GetManager().VersionInfoDao().UpdateModel(v)
 				}
 			} else {
 				break
 			}
 		}
-	}()
+	}(v)
+	db.GetManager().VersionInfoDao().UpdateModel(v)
 }
 func (e *exectorManager) codeCheck(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
+
+
 	logger.Info("应用代码检测任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	w := NewWorker(codeCheck, "", nil, in)
 	go func() {
@@ -184,11 +206,15 @@ func (e *exectorManager) codeCheck(in []byte) {
 }
 func (e *exectorManager) appBuild(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
+
+	v,_:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+	v.FinalStatus="success"
+
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("应用编译构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 
 	w := NewWorker(appBuild, "", nil, in)
-	go func() {
+	go func(v *model.VersionInfo) {
 		logrus.Info("start exec build app worker")
 		defer event.GetManager().ReleaseLogger(logger)
 		for i := 0; i < 3; i++ {
@@ -201,10 +227,15 @@ func (e *exectorManager) appBuild(in []byte) {
 					logger.Info("应用编译构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
+				logrus.Infof("build task success,eventID is %s",eventID)
+				//logger.Info("应用编译构建任务执行成功", map[string]string{"step": "callback", "status": "success"})
+				v.FinalStatus="failure"
+				db.GetManager().VersionInfoDao().UpdateModel(v)
 				break
 			}
 		}
-	}()
+	}(v)
+	db.GetManager().VersionInfoDao().UpdateModel(v)
 }
 
 func (e *exectorManager) pluginImageBuild1(in []byte) {

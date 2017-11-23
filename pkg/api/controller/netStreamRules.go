@@ -28,7 +28,7 @@ import (
 )
 
 //SetDownStreamRule 设置下游规则
-// swagger:operation POST /v2/tenant/{tenant_name}/services/{service_alias}/net-rule/downstream v2 setNetDownStreamRuleStruct
+// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/net-rule/downstream v2 setNetDownStreamRuleStruct
 //
 // 设置下游网络规则
 //
@@ -69,7 +69,7 @@ func (t *TenantStruct) SetDownStreamRule(w http.ResponseWriter, r *http.Request)
 }
 
 //GetDownStreamRule 获取下游规则
-// swagger:operation GET /v2/tenant/{tenant_name}/services/{service_alias}/net-rule/downstream/{dest_service_alias}/{port} v2 getNetDownStreamRuleStruct
+// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/net-rule/downstream/{dest_service_alias}/{port} v2 getNetDownStreamRuleStruct
 //
 // 获取下游网络规则
 //
@@ -111,7 +111,7 @@ func (t *TenantStruct) GetDownStreamRule(w http.ResponseWriter, r *http.Request)
 func (t *TenantStruct) DeleteDownStreamRule(w http.ResponseWriter, r *http.Request) {}
 
 //UpdateDownStreamRule 更新下游规则
-// swagger:operation PUT /v2/tenant/{tenant_name}/services/{service_alias}/net-rule/downstream/{dest_service_alias}/{port} v2 updateNetDownStreamRuleStruct
+// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/net-rule/downstream/{dest_service_alias}/{port} v2 updateNetDownStreamRuleStruct
 //
 // 更新下游网络规则
 //

@@ -21,12 +21,13 @@ import (
 	"github.com/Sirupsen/logrus"
 	"net/http"
 	"github.com/goodrain/rainbond/pkg/builder/model"
-	"encoding/json"
 	"github.com/goodrain/rainbond/pkg/db"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 	"github.com/go-chi/chi"
 	"strings"
+	"github.com/bitly/go-simplejson"
+	"io/ioutil"
 )
 
 func GetAppPublish(w http.ResponseWriter, r *http.Request) {
@@ -40,14 +41,26 @@ func GetAppPublish(w http.ResponseWriter, r *http.Request) {
 }
 func AddAppPublish(w http.ResponseWriter, r *http.Request) {
 	result := new(model.AppPublish)
-	decoder := json.NewDecoder(r.Body)
+
+
+	b,_:=ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
-	err := decoder.Decode(result)
+	j,err:=simplejson.NewJson(b)
 	if err != nil {
 		logrus.Errorf("error decode json,details %s",err.Error())
 		httputil.ReturnError(r,w,400,"bad request")
 		return
 	}
+
+	result.AppVersion,_=j.Get("app_version").String()
+	result.ServiceKey,_=j.Get("service_key").String()
+	result.Slug,_=j.Get("slug").String()
+	result.Image,_=j.Get("image").String()
+	result.DestYS,_=j.Get("dest_ys").Bool()
+	result.DestYB,_=j.Get("dest_yb").Bool()
+	result.ShareID,_=j.Get("share_id").String()
+
+
 	dbmodel:=convertPublishToDB(result)
 	//checkAndGet
 	db.GetManager().AppPublishDao().AddModel(dbmodel)

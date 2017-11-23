@@ -36,6 +36,7 @@ import (
 	tutil "github.com/goodrain/rainbond/pkg/util"
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 	validator "github.com/thedevsaddam/govalidator"
+
 	"encoding/json"
 )
 
@@ -78,11 +79,13 @@ func createEvent(eventID, serviceID, optType, tenantID, deployVersion string) (*
 	event.DeployVersion = version
 	event.OldDeployVersion = oldDeployVersion
 
-	status, err := checkCanAddEvent(serviceID)
+	status, err := checkCanAddEvent(serviceID,event.EventID)
 	if err != nil {
+		logrus.Errorf("error check event")
 		return nil, status, nil
 	}
 	if status == 0 {
+		//todo check if exist,update
 		db.GetManager().ServiceEventDao().AddModel(&event)
 		go autoTimeOut(&event)
 		return &event, status, nil
@@ -116,16 +119,22 @@ func autoTimeOut(event *dbmodel.ServiceEvent) {
 		}
 	}
 }
-func checkCanAddEvent(s string) (int, error) {
+func checkCanAddEvent(s ,eventID string) (int, error) {
 	events, err := db.GetManager().ServiceEventDao().GetEventByServiceID(s)
+
 	if err != nil {
 		return 3, err
 	}
+	b,_:=json.Marshal(events)
+	logrus.Infof("get %d event from mysql by service %s,details is %s",len(events),s,string(b))
 	if len(events) == 0 {
 		//service 首个event
 		return 0, nil
 	}
 	latestEvent := events[0]
+	if latestEvent.EventID==eventID {
+		return 0,nil
+	}
 	if latestEvent.FinalStatus == "" {
 		//未完成
 		timeOut, err := checkEventTimeOut(latestEvent)
@@ -137,6 +146,7 @@ func checkCanAddEvent(s string) (int, error) {
 			return 0, nil
 		}
 		//未完成，未超时
+
 		return 2, nil
 	}
 	//已完成
@@ -177,7 +187,7 @@ func checkEventTimeOut(event *dbmodel.ServiceEvent) (bool, error) {
 
 func handleStatus(status int, err error, w http.ResponseWriter, r *http.Request) {
 	if status != 0 {
-		logrus.Error("应用启动任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
+		//logrus.Error("应用启动任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 		if status == 2 {
 			httputil.ReturnError(r, w, 400, "last event unfinish.")
 			return
@@ -210,7 +220,7 @@ func handleStatus(status int, err error, w http.ResponseWriter, r *http.Request)
 //     description: 统一返回格式
 func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 
-	//logrus.Debugf("trans start service")
+	logrus.Debugf("trans start service")
 	rules := validator.MapData{
 		"event_id": []string{},
 	}
@@ -498,18 +508,21 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 
 	sEvent, status, err := createEvent(build.Body.EventID, serviceID, "build", tenantID, build.Body.DeployVersion)
 	handleStatus(status, err, w, r)
-
-	b,_:=json.Marshal(build)
-	logrus.Infof("-------build info is %s",string(b))
-
-
+	//{\"tenant_name\":\"\",\"service_alias\":\"\",\"Body\":{\"event_id\":\"c19aa41c357a4d9e9ca38ab7f2a44961\",\"envs\":{},\"kind\":\"source\",\"action\":\"deploy\",\"image_url\":\"\",\"deploy_version\":\"20171122154417\",\"repo_url\":\"--branch master --depth 1 https://github.com/bay1ts/zk_cluster_mini.git\",\"operator\":\"bay1ts\",\"tenant_name\":\"bay1ts-test\",\"service_alias\":\"gr21ea6b\"}}
 	////createBuildInfo
-	//version:=dbmodel.VersionInfo{}
-	//
-	//version.EventID=sEvent.EventID
-	//version.ServiceID=serviceID
-	//version.GitURL=build.Body.RepoURL
+	version:=dbmodel.VersionInfo{}
+
+	version.EventID=sEvent.EventID
+	version.ServiceID=serviceID
+	version.RepoURL=build.Body.RepoURL
+	version.DeliveredType=build.Body.Kind
+	version.CodeVersion=""
+	version.BuildVersion=build.Body.DeployVersion
+	db.GetManager().VersionInfoDao().AddModel(&version)
+	//save
 	//version.DeliveredPath
+	//version.FinalStatus
+	//need update
 
 	//EventID string `json:"event_id" validate:"event_id|required"`
 	//ENVS map[string]string `json:"envs" validate:"envs"`

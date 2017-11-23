@@ -48,6 +48,7 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdCheckManageServices())
 	cmds = append(cmds, NewCmdCheckManageBaseServices())
 	cmds = append(cmds, NewCmdSources())
+	cmds = append(cmds, NewCmdRegionNode())
 	//cmds = append(cmds, NewCmdPlugin())
 	//todo
 	return cmds
@@ -58,7 +59,6 @@ func Common(c *cli.Context) {
 	config, err := conf.LoadConfig(c)
 	if err != nil {
 		logrus.Warnf("Load config file error.", err.Error())
-		return
 	}
 
 	if err := clients.InitClient(*config.Kubernets); err != nil {

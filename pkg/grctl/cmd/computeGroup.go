@@ -30,7 +30,6 @@ func NewCmdAddNode() cli.Command {
 		Name:  "add_node",
 		Usage: "添加节点。grctl add_node '{}'(jsoned host node)",
 		Action: func(c *cli.Context) error {
-			Common(c)
 			return addNode(c)
 		},
 	}

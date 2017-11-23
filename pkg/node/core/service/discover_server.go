@@ -439,7 +439,7 @@ func (d *DiscoverAction) ToolsGetStreamRules(
 		logrus.Debugf("key %s is not exist,", envName)
 		return nil, nil
 	}
-	if err := ffjson.Unmarshal([]byte(ss.SourceBody.EnvVal), rule); err != nil {
+	if err := ffjson.Unmarshal([]byte(ss.SourceBody.EnvVal.(string)), &rule); err != nil {
 		logrus.Errorf("umashal value error, %v", err)
 		return nil, err
 	}

@@ -21,11 +21,11 @@ package dao
 
 import (
 	"github.com/goodrain/rainbond/pkg/db/model"
-
 	"github.com/jinzhu/gorm"
-	"fmt"
 	"time"
 
+	"github.com/Sirupsen/logrus"
+	"encoding/json"
 )
 
 
@@ -38,11 +38,12 @@ func (c *EventDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		fmt.Errorf("event result is exist")
-		return nil
+		logrus.Infoln("event result is exist")
+		return c.UpdateModel(mo)
 	}
 	return nil
 }
+
 
 
 
@@ -53,6 +54,8 @@ func (c *EventDaoImpl) UpdateModel(mo model.Interface) error {
 	var oldResult model.ServiceEvent
 	if ok := c.DB.Where("event_id=?", result.EventID).Find(&oldResult).RecordNotFound(); !ok {
 		finalUpdateEvent(result,&oldResult)
+		oldB,_:=json.Marshal(oldResult)
+		logrus.Infof("update event to %s",string(oldB))
 		if err := c.DB.Save(oldResult).Error; err != nil {
 			return err
 		}
@@ -62,22 +65,25 @@ func (c *EventDaoImpl) UpdateModel(mo model.Interface) error {
 func finalUpdateEvent(target *model.ServiceEvent, old *model.ServiceEvent) {
 	if target.CodeVersion!="" {
 		old.CodeVersion=target.CodeVersion
-	}else{
-		if target.Status!="" {
-			old.Status=target.Status
-		}
-		if target.Message!="" {
-			old.Message=target.Message
-		}
-		old.FinalStatus = "complete"
-		if target.FinalStatus!="" {
-			old.FinalStatus=target.FinalStatus
-		}
+	}
+	if target.OptType!="" {
+		old.OptType=target.OptType
+	}
 
-		old.EndTime = time.Now().String()
-		if old.Status == "failure" && old.OptType == "callback"{
-			old.DeployVersion = old.OldDeployVersion
-		}
+	if target.Status!="" {
+		old.Status=target.Status
+	}
+	if target.Message!="" {
+		old.Message=target.Message
+	}
+	old.FinalStatus = "complete"
+	if target.FinalStatus!="" {
+		old.FinalStatus=target.FinalStatus
+	}
+
+	old.EndTime = time.Now().String()
+	if old.Status == "failure" && old.OptType == "callback"{
+		old.DeployVersion = old.OldDeployVersion
 	}
 }
 //EventLogMessageDaoImpl EventLogMessageDaoImpl

@@ -43,3 +43,4 @@ venv/
 # build for rainbond
 
 .release/
+_output/
