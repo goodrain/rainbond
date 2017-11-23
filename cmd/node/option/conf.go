@@ -27,6 +27,7 @@ import (
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/goodrain/rainbond/pkg/node/utils"
+	"github.com/prometheus/node_exporter/collector"
 
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
@@ -58,6 +59,15 @@ func Init() error {
 		return err
 	}
 	kingpin.Parse()
+	// This instance is only used to check collector creation and logging.
+	nc, err := collector.NewNodeCollector()
+	if err != nil {
+		logrus.Fatalf("Couldn't create collector: %s", err)
+	}
+	logrus.Infof("Enabled collectors:")
+	for n := range nc.Collectors {
+		logrus.Infof(" - %s", n)
+	}
 	// if err := Config.watch(); err != nil {
 	// 	return err
 	// }

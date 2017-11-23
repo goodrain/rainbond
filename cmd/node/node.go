@@ -22,23 +22,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/cmd/node/server"
-	"github.com/prometheus/node_exporter/collector"
 )
 
 func main() {
-	// This instance is only used to check collector creation and logging.
-	nc, err := collector.NewNodeCollector()
-	if err != nil {
-		logrus.Fatalf("Couldn't create collector: %s", err)
-	}
-	logrus.Infof("Enabled collectors:")
-	for n := range nc.Collectors {
-		logrus.Infof(" - %s", n)
-	}
-
 	option.Init()
 	if err := server.Run(option.Config); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
