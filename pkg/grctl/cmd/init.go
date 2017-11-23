@@ -24,7 +24,9 @@ import (
 	"net/http"
 	"io/ioutil"
 	"strings"
-	"os"
+	"bytes"
+	"runtime"
+	"fmt"
 )
 
 func NewCmdInit() cli.Command {
@@ -76,6 +78,7 @@ func initCluster(c *cli.Context) error {
 	//默认为管理节点 在线安装3.4版本的etcd
 	if err != nil {
 		logrus.Errorf("error get init script,details %s",err.Error())
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -90,8 +93,25 @@ func initCluster(c *cli.Context) error {
 	}
 	//logrus.Infof("args is %s,len is %d",arg,len(arg))
 	cmd := exec.Command("bash", "-c",arg+string(b))
-	cmd.Stderr=os.Stderr
-	cmd.Run()
+
+	go func(c *exec.Cmd) {
+		defer func() {
+			if r := recover(); r != nil {
+				const size = 64 << 10
+				buf := make([]byte, size)
+				buf = buf[:runtime.Stack(buf, false)]
+				logrus.Warnf("panic running job: %v\n%s", r, buf)
+			}
+		}()
+		buf:=bytes.NewBuffer(nil)
+		cmd.Stderr=buf
+		c.Run()
+		out:=buf.String()
+		arr:=strings.SplitN(out,"{",2)
+		arr[1]="{"+arr[1]
+		json:=arr[1]
+		fmt.Println(json)
+	}(cmd)
 	return nil
 }
 

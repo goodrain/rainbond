@@ -26,52 +26,28 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"github.com/apcera/termtables"
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"strings"
 	"strconv"
 	"encoding/json"
+	"errors"
 )
 
 
 func NewCmdNode() cli.Command {
 	c:=cli.Command{
 		Name:  "node",
-		Usage: "获取节点信息。grctl node",
-		Action: func(c *cli.Context) error {
-			Common(c)
-			return getNode(c)
-		},
-	}
-	return c
-}
-
-func NewCmdRegionNode() cli.Command {
-	c:=cli.Command{
-		Name:  "region_node",
-		Usage: "节点管理。grctl region_node",
+		Usage: "节点。grctl node",
 		Subcommands:[]cli.Command{
-			{
-				Name:  "up",
-				Usage: "up hostID",
-				Action: func(c *cli.Context) error {
-					id:=c.Args().First()
-					clients.NodeClient.Nodes().Get(id).Up()
-					return nil
-				},
-			},
-			{
-				Name:  "down",
-				Usage: "down hostID",
-				Action: func(c *cli.Context) error {
-					id:=c.Args().First()
-					clients.NodeClient.Nodes().Get(id).Down()
-					return nil
-				},
-			},
 			{
 				Name:  "get",
 				Usage: "get hostID",
 				Action: func(c *cli.Context) error {
 					id:=c.Args().First()
+					if id == "" {
+						logrus.Errorf("need hostID")
+						return nil
+					}
 					n:=clients.NodeClient.Nodes().Get(id)
 					b,_:=json.Marshal(n)
 					fmt.Println(string(b))
@@ -83,8 +59,38 @@ func NewCmdRegionNode() cli.Command {
 				Usage: "list",
 				Action: func(c *cli.Context) error {
 					list:=clients.NodeClient.Nodes().List()
-					b,_:=json.Marshal(list)
-					fmt.Println(string(b))
+					serviceTable := termtables.CreateTable()
+					serviceTable.AddHeaders("uid", "IP", "HostName","role","alived","unschedulable")
+					for _,v:=range list{
+						serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,v.Unschedulable)
+					}
+					fmt.Println(serviceTable.Render())
+					return nil
+				},
+			},
+			{
+				Name:  "up",
+				Usage: "up hostID",
+				Action: func(c *cli.Context) error {
+					id:=c.Args().First()
+					if id == "" {
+						logrus.Errorf("need hostID")
+						return nil
+					}
+					clients.NodeClient.Nodes().Get(id).Up()
+					return nil
+				},
+			},
+			{
+				Name:  "down",
+				Usage: "down hostID",
+				Action: func(c *cli.Context) error {
+					id:=c.Args().First()
+					if id == "" {
+						logrus.Errorf("need hostID")
+						return nil
+					}
+					clients.NodeClient.Nodes().Get(id).Down()
 					return nil
 				},
 			},
@@ -93,6 +99,10 @@ func NewCmdRegionNode() cli.Command {
 				Usage: "unscheduable hostID",
 				Action: func(c *cli.Context) error {
 					id:=c.Args().First()
+					if id == "" {
+						logrus.Errorf("need hostID")
+						return nil
+					}
 					clients.NodeClient.Nodes().Get(id).UnSchedulable()
 					return nil
 				},
@@ -102,8 +112,56 @@ func NewCmdRegionNode() cli.Command {
 				Usage: "rescheduable hostID",
 				Action: func(c *cli.Context) error {
 					id:=c.Args().First()
+					if id == "" {
+						logrus.Errorf("need hostID")
+						return nil
+					}
 					clients.NodeClient.Nodes().Get(id).ReSchedulable()
 					return nil
+				},
+			},
+			{
+				Name:  "add",
+				Usage: "add 添加节点",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "Hostname,hn",
+						Value:"",
+						Usage: "Hostname",
+					},
+					cli.StringFlag{
+						Name:  "InternalIP,i",
+						Value:"",
+						Usage: "InternalIP",
+					},
+					cli.StringFlag{
+						Name:  "ExternalIP,e",
+						Value:"",
+						Usage: "ExternalIP",
+					},
+					cli.StringFlag{
+						Name:  "RootPass,p",
+						Value:"",
+						Usage: "RootPass",
+					},
+					cli.StringSliceFlag{
+						Name:  "Role,r",
+						Usage: "Role|required",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					var node model.APIHostNode
+					if c.IsSet("Role"){
+						node.Role=c.StringSlice("Role")
+						node.InternalIP=c.String("InternalIP")
+						node.HostName=c.String("HostName")
+						node.ExternalIP=c.String("ExternalIP")
+						node.RootPass=c.String("RootPass")
+						clients.NodeClient.Nodes().Add(&node)
+						return nil
+					}
+
+					return errors.New("role must not null")
 				},
 			},
 		},

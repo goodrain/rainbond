@@ -85,7 +85,6 @@ func createEvent(eventID, serviceID, optType, tenantID, deployVersion string) (*
 		return nil, status, nil
 	}
 	if status == 0 {
-		//todo check if exist,update
 		db.GetManager().ServiceEventDao().AddModel(&event)
 		go autoTimeOut(&event)
 		return &event, status, nil
@@ -511,12 +510,10 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	//{\"tenant_name\":\"\",\"service_alias\":\"\",\"Body\":{\"event_id\":\"c19aa41c357a4d9e9ca38ab7f2a44961\",\"envs\":{},\"kind\":\"source\",\"action\":\"deploy\",\"image_url\":\"\",\"deploy_version\":\"20171122154417\",\"repo_url\":\"--branch master --depth 1 https://github.com/bay1ts/zk_cluster_mini.git\",\"operator\":\"bay1ts\",\"tenant_name\":\"bay1ts-test\",\"service_alias\":\"gr21ea6b\"}}
 	////createBuildInfo
 	version:=dbmodel.VersionInfo{}
-
 	version.EventID=sEvent.EventID
 	version.ServiceID=serviceID
 	version.RepoURL=build.Body.RepoURL
 	version.DeliveredType=build.Body.Kind
-	version.CodeVersion=""
 	version.BuildVersion=build.Body.DeployVersion
 	db.GetManager().VersionInfoDao().AddModel(&version)
 	//save
@@ -579,7 +576,6 @@ func (t *TenantStruct) DeployService(w http.ResponseWriter, r *http.Request) {
 //     description: 统一返回格式
 func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 	rules := validator.MapData{
-		//todo
 		"deploy_version": []string{"required"},
 	}
 	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
@@ -723,7 +719,6 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	//todo
 	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "rollback", tenantID, data["deploy_version"].(string))
 	handleStatus(status, err, w, r)
 	eventID := sEvent.EventID

@@ -8,13 +8,14 @@ import (
 	"encoding/json"
 	"github.com/bitly/go-simplejson"
 	"github.com/Sirupsen/logrus"
+	"fmt"
 )
 var nodeServer *RNodeServer
 
 func NewNode(nodeAPI string)  {
 	if nodeServer==nil {
 		nodeServer=&RNodeServer{
-			nodeAPI:nodeAPI,
+			NodeAPI:nodeAPI,
 		}
 	}
 }
@@ -22,7 +23,7 @@ func GetNode() *RNodeServer {
 	return nodeServer
 }
 type RNodeServer struct {
-	nodeAPI string
+	NodeAPI string
 }
 
 func (r *RNodeServer)Tasks() TaskInterface {
@@ -32,11 +33,11 @@ func (r *RNodeServer)Nodes() NodeInterface {
 	return &Node{}
 }
 type Task struct {
-	taskID string
+	TaskID string  `json:"task_id"`
 }
 type Node struct {
-	id string
-	node *model.HostNode
+	Id string
+	Node *model.HostNode `json:"node"`
 }
 type TaskInterface interface {
 	Get(name string) (*Task)
@@ -54,36 +55,52 @@ type NodeInterface interface {
 
 func (t *Node)Add(node *model.APIHostNode) {
 	body,_:=json.Marshal(node)
-	Request("/nodes/","POST",body)
+	nodeServer.Request("/nodes/","POST",body)
 }
 func (t *Node)Up() {
-	Request("/nodes/"+t.id+"/up","POST",nil)
+	nodeServer.Request("/nodes/"+t.Id+"/up","POST",nil)
 }
 func (t *Node)Down() {
-	Request("/nodes/"+t.id+"/down","POST",nil)
+	nodeServer.Request("/nodes/"+t.Id+"/down","POST",nil)
 }
 func (t *Node)UnSchedulable() {
-	Request("/nodes/"+t.id+"/unschedulable","PUT",nil)
+	nodeServer.Request("/nodes/"+t.Id+"/unschedulable","PUT",nil)
 }
 func (t *Node)ReSchedulable() {
-	Request("/nodes/"+t.id+"/reschedulable","PUT",nil)
+	nodeServer.Request("/nodes/"+t.Id+"/reschedulable","PUT",nil)
 }
 func (t *Node)Get(node string) *Node {
-	body,_,err:=Request("/nodes/"+node,"GET",nil)
+	body,_,err:=nodeServer.Request("/nodes/"+node,"GET",nil)
 	if err != nil {
+		logrus.Errorf("error get node %s,details %s",node,err.Error())
 		return nil
 	}
-	t.id=node
+	t.Id=node
 	var stored model.HostNode
-	err=json.Unmarshal(body,&node)
+	j,err:=simplejson.NewJson(body)
 	if err != nil {
+		logrus.Errorf("error get node %s 's json,details %s",node,err.Error())
 		return nil
 	}
-	t.node=&stored
+	bean:=j.Get("bean")
+	n,err:=json.Marshal(bean)
+	if err != nil {
+		logrus.Errorf("error get bean from response,details %s",err.Error())
+		return nil
+	}
+	err=json.Unmarshal([]byte(n),&stored)
+	if err != nil {
+		logrus.Errorf("error unmarshal node %s,details %s",node,err.Error())
+		return nil
+	}
+	t.Node=&stored
 	return t
 }
 func (t *Node)List() []*model.HostNode {
-	body,_,_:=Request("/nodes","GET",nil)
+	body,_,err:=nodeServer.Request("/nodes","GET",nil)
+	if err != nil {
+		logrus.Errorf("error get nodes ,details %s",err.Error())
+	}
 	j,_:=simplejson.NewJson(body)
 	nodeArr,err:=j.Get("list").Array()
 	if err != nil {
@@ -101,46 +118,56 @@ func (t *Node)List() []*model.HostNode {
 }
 func (t *Task)Get(id string) (*Task) {
 	return &Task{
-		taskID:id,
+		TaskID:id,
 	}
 }
 func (t *Task)Exec(nodes []string ) error {
-	taskId:=t.taskID
+	taskId:=t.TaskID
 	var nodesBody struct {
 		Nodes []string `json:"nodes"`
 	}
 	nodesBody.Nodes=nodes
 	body,_:=json.Marshal(nodesBody)
-
-	_,_,err:=Request("/tasks/"+taskId+"/exec","POST",body)
+	url:="/tasks/"+taskId+"/exec"
+	resp,code,err:=nodeServer.Request(url,"POST",body)
+	if code != 200 {
+		fmt.Println("executing failed:"+string(resp))
+	}
+	if err!=nil {
+		return err
+	}
 	return err
 }
 type TaskStatus struct {
 	Status map[string]model.TaskStatus `json:"status,omitempty"`
 }
 func (t *Task)Status() (*TaskStatus,error) {
-	taskId:=t.taskID
-	resp,_,_:=Request("/tasks/"+taskId+"/status","GET",nil)
-	j,_:=simplejson.NewJson(resp)
-	bean,_:=j.Get("bean").Bytes()
-
-
-	var status TaskStatus
-	err:=json.Unmarshal(bean,&status)
+	taskId:=t.TaskID
+	resp,code,err:=nodeServer.Request("/tasks/"+taskId+"/status","GET",nil)
 	if err != nil {
+		logrus.Errorf("error execute status Request,details %s",err.Error())
 		return nil,err
 	}
-	return &status,nil
+	if code == 200 {
+		j,_:=simplejson.NewJson(resp)
+		bean,_:=j.Get("bean").Bytes()
+		var status TaskStatus
+		err=json.Unmarshal(bean,&status)
+		if err != nil {
+			logrus.Errorf("error unmarshal response,details %s",err.Error())
+			return nil,err
+		}
+		return &status,nil
+	}
+	return nil,nil
 }
-func Request(url ,method string, body []byte) ([]byte,int,error) {
-	request, err := http.NewRequest(method, "http://127.0.0.1:6100/v2"+url, bytes.NewBuffer(body))
+func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error) {
+	logrus.Infof("requesting url: %s by method :%s",r.NodeAPI+url,method)
+	request, err := http.NewRequest(method, r.NodeAPI+url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil,500,err
 	}
 	request.Header.Set("Content-Type", "application/json")
-	if region.token != "" {
-		request.Header.Set("Authorization", "Token "+region.token)
-	}
 
 	res, err := http.DefaultClient.Do(request)
 	if err != nil {

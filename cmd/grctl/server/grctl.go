@@ -23,6 +23,8 @@ import (
 	"sort"
 	"github.com/urfave/cli"
 	"github.com/goodrain/rainbond/pkg/grctl/cmd"
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/pkg/grctl/clients"
 )
 
 //var App *cli.App=cli.NewApp()
@@ -39,6 +41,9 @@ func Run() error {
 	sort.Sort(cli.FlagsByName(App.Flags))
 	sort.Sort(cli.CommandsByName(App.Commands))
 	App.Commands=cmd.GetCmds()
+	if err := clients.InitNodeClient("http://test.goodrain.com:8888/v2"); err != nil {
+		logrus.Warnf("error config region")
+	}
 
 	return App.Run(os.Args)
 }
