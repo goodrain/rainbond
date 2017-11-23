@@ -29,6 +29,8 @@ type VersionInfo struct {
 	DeliveredPath string `gorm:"column:delivered_path;size:40"` //交付物path
 	RepoURL        string `gorm:"column:repo_url;size:100"`
 	CodeVersion   string `gorm:"column:code_version;size:40"`
+	CommitMsg   string `gorm:"column:code_commit_msg;size:40"`
+	Author   string `gorm:"column:code_commit_author;size:40"`
 	FinalStatus string `gorm:"column:final_status;size:40"`
 
 }

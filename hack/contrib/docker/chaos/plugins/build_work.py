@@ -284,6 +284,12 @@ class RepoBuilder():
         build_image_name = build_image_name.lower()
         self.log.debug(
             "构建镜像名称为{0}".format(build_image_name), step="build_image")
+
+
+        #build_image_name=""
+
+
+
         no_cache = self.build_envs.pop('NO_CACHE', False)
         if no_cache:
             build_cmd = "{0} build -t {1} --no-cache .".format(
@@ -340,7 +346,7 @@ class RepoBuilder():
         repos = self.repo_url.split(" ")
 
         self.log.debug("repos=" + repos[1], step="build_code")
-
+        #master
         no_cache = self.build_envs.pop('NO_CACHE', False)
         if no_cache:
             try:
@@ -384,7 +390,10 @@ class RepoBuilder():
                 step="build_code",
                 status="failure")
             return False
-
+        self.log.debug(package_name, step="build_code")
+        self.log.debug(self.tgz_dir, step="build_code")
+        self.log.debug(self.build_name, step="build_code")
+        self.log.debug(self.build_cmd, step="build_code")
         try:
             package_size = os.path.getsize(package_name)
             if package_size == 0:
@@ -428,6 +437,7 @@ class RepoBuilder():
             self.prepare()
             if self.clone():
                 commit_info = self.get_commit_info()
+                #can req api to update code info
                 self.log.info("代码拉取成功。", step="build-worker")
                 self.log.info(
                     "版本:{0} 上传者:{1} Commit:{2} ".format(
