@@ -24,12 +24,21 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/common/version"
+	"github.com/prometheus/node_exporter/collector"
 
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 )
+
+func init() {
+	prometheus.MustRegister(version.NewCollector("node_exporter"))
+}
 
 //NewNode 创建一个节点
 func NewNode(w http.ResponseWriter, r *http.Request) {
@@ -174,6 +183,39 @@ func UpNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, node)
+}
+
+//NodeExporter 节点监控
+func NodeExporter(w http.ResponseWriter, r *http.Request) {
+	// filters := r.URL.Query()["collect[]"]
+	// logrus.Debugln("collect query:", filters)
+	filters := []string{"cpu", "diskstats", "filesystem", "ipvs", "loadavg", "meminfo", "netdev", "netstat", "uname", "mountstats", "nfs"}
+	nc, err := collector.NewNodeCollector(filters...)
+	if err != nil {
+		logrus.Warnln("Couldn't create", err)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("Couldn't create %s", err)))
+		return
+	}
+	registry := prometheus.NewRegistry()
+	err = registry.Register(nc)
+	if err != nil {
+		logrus.Errorln("Couldn't register collector:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf("Couldn't register collector: %s", err)))
+		return
+	}
+	gatherers := prometheus.Gatherers{
+		prometheus.DefaultGatherer,
+		registry,
+	}
+	// Delegate http serving to Prometheus client library, which will call collector.Collect.
+	h := promhttp.HandlerFor(gatherers,
+		promhttp.HandlerOpts{
+			ErrorLog:      logrus.StandardLogger(),
+			ErrorHandling: promhttp.ContinueOnError,
+		})
+	h.ServeHTTP(w, r)
 }
 
 //临时存在
