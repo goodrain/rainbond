@@ -24,8 +24,6 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"encoding/json"
 )
 
 
