@@ -31,14 +31,21 @@ import (
 func (t *Tenant) DefineSources(ss *api_model.SourceSpec) DefineSourcesInterface {
 	return &DefineSources{
 		tenant: t,
-		model:  ss,
+		Model: Body{
+			SourceSpec: ss,
+		},
 	}
 }
 
 //DefineSources DefineSources
 type DefineSources struct {
 	tenant *Tenant
-	model  *api_model.SourceSpec
+	Model  Body
+}
+
+//Body Body
+type Body struct {
+	SourceSpec *api_model.SourceSpec `json:"source_spec"`
 }
 
 //DefineSourcesInterface DefineSourcesInterface
@@ -52,19 +59,20 @@ type DefineSourcesInterface interface {
 //GetSource GetSource
 func (d *DefineSources) GetSource(sourceAlias string) ([]byte, error) {
 	resp, status, err := DoRequest(
-		fmt.Sprintf("/v2/tenants/%s/sources/%s/%s", d.tenant.tenantID, d.model.Alias, d.model.SourceBody.EnvName),
+		fmt.Sprintf("/v2/tenants/%s/sources/%s/%s",
+			d.tenant.tenantID, d.Model.SourceSpec.Alias, d.Model.SourceSpec.SourceBody.EnvName),
 		"GET",
 		nil,
 	)
 	if err != nil {
-		logrus.Errorf("get define source %s error, %v", d.model.SourceBody.EnvName, err)
+		logrus.Errorf("get define source %s error, %v", d.Model.SourceSpec.SourceBody.EnvName, err)
 		return nil, err
 	}
 	if status > 400 {
 		if status == 404 {
-			return nil, fmt.Errorf("source %s is not exist", d.model.SourceBody.EnvName)
+			return nil, fmt.Errorf("source %s is not exist", d.Model.SourceSpec.SourceBody.EnvName)
 		}
-		return nil, fmt.Errorf("get define source %s failed", d.model.SourceBody.EnvName)
+		return nil, fmt.Errorf("get define source %s failed", d.Model.SourceSpec.SourceBody.EnvName)
 	}
 	//valJ, err := simplejson.NewJson(resp)
 	return resp, nil
@@ -72,12 +80,13 @@ func (d *DefineSources) GetSource(sourceAlias string) ([]byte, error) {
 
 //PostSource PostSource
 func (d *DefineSources) PostSource(sourceAlias string) error {
-	data, err := ffjson.Marshal(d.model)
+	data, err := ffjson.Marshal(d.Model)
 	if err != nil {
 		return err
 	}
 	_, status, err := DoRequest(
-		fmt.Sprintf("/v2/tenants/%s/sources/%s", d.tenant.tenantID, d.model.Alias),
+		fmt.Sprintf("/v2/tenants/%s/sources/%s",
+			d.tenant.tenantID, d.Model.SourceSpec.Alias),
 		"POST",
 		data,
 	)
@@ -94,12 +103,13 @@ func (d *DefineSources) PostSource(sourceAlias string) error {
 
 //PutSource PutSource
 func (d *DefineSources) PutSource(sourceAlias string) error {
-	data, err := ffjson.Marshal(d.model)
+	data, err := ffjson.Marshal(d.Model)
 	if err != nil {
 		return err
 	}
 	_, status, err := DoRequest(
-		fmt.Sprintf("/v2/tenants/%s/sources/%s/%s", d.tenant.tenantID, d.model.Alias, d.model.SourceBody.EnvName),
+		fmt.Sprintf("/v2/tenants/%s/sources/%s/%s",
+			d.tenant.tenantID, d.Model.SourceSpec.Alias, d.Model.SourceSpec.SourceBody.EnvName),
 		"PUT",
 		data,
 	)
@@ -117,7 +127,8 @@ func (d *DefineSources) PutSource(sourceAlias string) error {
 //DeleteSource DeleteSource
 func (d *DefineSources) DeleteSource(sourceAlias string) error {
 	_, status, err := DoRequest(
-		fmt.Sprintf("/v2/tenants/%s/sources/%s/%s", d.tenant.tenantID, d.model.Alias, d.model.SourceBody.EnvName),
+		fmt.Sprintf("/v2/tenants/%s/sources/%s/%s",
+			d.tenant.tenantID, d.Model.SourceSpec.Alias, d.Model.SourceSpec.SourceBody.EnvName),
 		"DELETE",
 		nil,
 	)
@@ -126,7 +137,7 @@ func (d *DefineSources) DeleteSource(sourceAlias string) error {
 		return err
 	}
 	if status > 400 {
-		logrus.Errorf("delete define source %s error", d.model.SourceBody.EnvName)
+		logrus.Errorf("delete define source %s error", d.Model.SourceSpec.SourceBody.EnvName)
 	}
 	return nil
 }

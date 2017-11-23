@@ -120,7 +120,6 @@ func NewCmdSources() cli.Command {
 
 func sourcesAction(c *cli.Context, action string) error {
 	Common(c)
-	fmt.Printf("actions is %v\n", action)
 	switch action {
 	case "create", "-c":
 		return createSource(c)
@@ -171,6 +170,7 @@ func createSource(c *cli.Context) error {
 	if err := clients.RegionClient.Tenants().Get(tenantName).DefineSources(ss).PostSource(sourceAlias); err != nil {
 		return err
 	}
+	fmt.Printf("create %s success\n", envName)
 	return nil
 }
 
@@ -200,6 +200,7 @@ func updateSource(c *cli.Context) error {
 	if err := clients.RegionClient.Tenants().Get(tenantName).DefineSources(ss).PutSource(sourceAlias); err != nil {
 		return err
 	}
+	fmt.Printf("update %s success\n", envName)
 	return nil
 }
 
@@ -224,6 +225,7 @@ func deleteSource(c *cli.Context) error {
 	if err := clients.RegionClient.Tenants().Get(tenantName).DefineSources(ss).DeleteSource(sourceAlias); err != nil {
 		return err
 	}
+	fmt.Printf("delete %s success\n", envName)
 	return nil
 }
 
