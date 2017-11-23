@@ -20,6 +20,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -32,43 +33,94 @@ import (
 //NewCmdSources 资源相关操作
 func NewCmdSources() cli.Command {
 	c := cli.Command{
-		Name: "sources",
-		Flags: []cli.Flag{
-			cli.BoolFlag{
-				Name:  "create, c",
-				Usage: "创建自定义资源。 grctl sources -c NAMESPACE SOURCE_ALIAS -k ENV_NAME -v ENV_VALUE",
+		Name:  "sources",
+		Usage: "自定义资源相关操作。grctl plugin [create/delete/update/get] -g NAMESPACE/SOURCEALIAS [commands] [sources]",
+		Subcommands: []cli.Command{
+			{
+				Name:  "create",
+				Usage: "创建自定义资源。 grctl sources create -g NAMESPACE/SOURCEALIAS -k ENVNAME -v ENVVALUE",
+				Action: func(c *cli.Context) error {
+					return sourcesAction(c, "create")
+				},
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "group, g",
+						Usage: "--group/-g NAMESPACE/SOURCEALIAS",
+					},
+					cli.StringFlag{
+						Name:  "key, k",
+						Usage: "自定义资源名，-k ENVNAME",
+					},
+					cli.StringFlag{
+						Name:  "value, v",
+						Usage: "自定义资源值，-v ENVVALUE",
+					},
+				},
 			},
-			cli.BoolFlag{
-				Name:  "update, u",
-				Usage: "更新自定义资源。 grctl sources -u NAMESPACE SOURCE_ALIAS -k ENV_NAME -v ENV_VALUE",
+			{
+				Name:  "update",
+				Usage: "更新自定义资源。 grctl sources update -g NAMESPACE/SOURCEALIAS -k ENVNAME -v ENVVALUE",
+				Action: func(c *cli.Context) error {
+					return sourcesAction(c, "update")
+				},
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "group, g",
+						Usage: "--group/-g NAMESPACE/SOURCEALIAS",
+					},
+					cli.StringFlag{
+						Name:  "key, k",
+						Usage: "自定义资源名，-k ENVNAME",
+					},
+					cli.StringFlag{
+						Name:  "value, v",
+						Usage: "自定义资源值，-v ENVVALUE",
+					},
+				},
 			},
-			cli.BoolFlag{
-				Name:  "delete, d",
-				Usage: "删除自定义资源。 grctl sources -d NAMESPACE SOURCE_ALIAS -k ENV_NAME",
+			{
+				Name:  "delete",
+				Usage: "删除自定义资源。 grctl sources delete -g NAMESPACE/SOURCEALIAS -k ENVNAME",
+				Action: func(c *cli.Context) error {
+					return sourcesAction(c, "delete")
+				},
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "group, g",
+						Usage: "--group/-g NAMESPACE/SOURCEALIAS",
+					},
+					cli.StringFlag{
+						Name:  "key, k",
+						Usage: "自定义资源名，-k ENVNAME",
+					},
+				},
 			},
-			cli.BoolFlag{
-				Name:  "get, g",
-				Usage: "获取自定义资源。 grctl sources -g NAMESPACE SOURCE_ALIAS -k ENV_NAME",
+			{
+				Name:  "get",
+				Usage: "获取自定义资源。 grctl sources get -g NAMESPACE/SOURCEALIAS -k ENVNAME",
+				Action: func(c *cli.Context) error {
+
+					return sourcesAction(c, "get")
+				},
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "group, g",
+						Usage: "--group/-g NAMESPACE/SOURCEALIAS",
+					},
+					cli.StringFlag{
+						Name:  "key, k",
+						Usage: "自定义资源名，-k ENVNAME",
+					},
+				},
 			},
-			cli.StringFlag{
-				Name:  "k",
-				Usage: "自定义资源名。-k ENV_NAME",
-			},
-			cli.StringFlag{
-				Name:  "v",
-				Usage: "-v ENV_VALUE",
-			},
-		},
-		Usage: "自定义资源相关操作。grctl plugin [create/delete/update/get] NAMESPACE SOURCE_ALIAS [commands] [sources]",
-		Action: func(c *cli.Context) error {
-			Common(c)
-			return sourcesAction(c)
 		},
 	}
 	return c
 }
-func sourcesAction(c *cli.Context) error {
-	action := c.Args().First()
+
+func sourcesAction(c *cli.Context, action string) error {
+	Common(c)
+	fmt.Printf("actions is %v\n", action)
 	switch action {
 	case "create", "-c":
 		return createSource(c)
@@ -83,22 +135,29 @@ func sourcesAction(c *cli.Context) error {
 }
 
 func getSourceItems(c *cli.Context, lens int) (string, string, error) {
+	fmt.Printf("len is %v\n", len(c.Args()))
 	if len(c.Args()) != lens {
 		return "", "", fmt.Errorf("Commands nums wrong, need %d args", lens)
 	}
 	tenantName := c.Args().Get(1)
 	sourceAlias := c.Args().Get(2)
+	logrus.Debugf("tenant_name %s, source_alias %s", tenantName, sourceAlias)
 	return tenantName, sourceAlias, nil
 }
 
 func createSource(c *cli.Context) error {
-	fmt.Println("create source success.")
-	tenantName, sourceAlias, err := getSourceItems(c, 7)
+	tenantName, sourceAlias, err := checkoutGroup(c)
 	if err != nil {
-		logrus.Errorf("params error, %v", err)
+		return err
 	}
-	envName := c.String("k")
-	envVal := c.String("v")
+	envName, err := checkoutKV(c, "key")
+	if err != nil {
+		return err
+	}
+	envVal, err := checkoutKV(c, "value")
+	if err != nil {
+		return err
+	}
 	sb := &api_model.SoureBody{
 		EnvName: envName,
 		EnvVal:  envVal,
@@ -116,13 +175,18 @@ func createSource(c *cli.Context) error {
 }
 
 func updateSource(c *cli.Context) error {
-	fmt.Println("update source success.")
-	tenantName, sourceAlias, err := getSourceItems(c, 7)
+	tenantName, sourceAlias, err := checkoutGroup(c)
 	if err != nil {
-		logrus.Errorf("params error, %v", err)
+		return err
 	}
-	envName := c.String("k")
-	envVal := c.String("v")
+	envName, err := checkoutKV(c, "key")
+	if err != nil {
+		return err
+	}
+	envVal, err := checkoutKV(c, "value")
+	if err != nil {
+		return err
+	}
 	sb := &api_model.SoureBody{
 		EnvName: envName,
 		EnvVal:  envVal,
@@ -140,12 +204,14 @@ func updateSource(c *cli.Context) error {
 }
 
 func deleteSource(c *cli.Context) error {
-	fmt.Println("delete source success.")
-	tenantName, sourceAlias, err := getSourceItems(c, 5)
+	tenantName, sourceAlias, err := checkoutGroup(c)
 	if err != nil {
-		logrus.Errorf("params error, %v", err)
+		return err
 	}
-	envName := c.String("k")
+	envName, err := checkoutKV(c, "key")
+	if err != nil {
+		return err
+	}
 	sb := &api_model.SoureBody{
 		EnvName: envName,
 	}
@@ -162,12 +228,14 @@ func deleteSource(c *cli.Context) error {
 }
 
 func getSource(c *cli.Context) error {
-	fmt.Println("get source success.")
-	tenantName, sourceAlias, err := getSourceItems(c, 5)
+	tenantName, sourceAlias, err := checkoutGroup(c)
 	if err != nil {
-		logrus.Errorf("params error, %v", err)
+		return err
 	}
-	envName := c.String("k")
+	envName, err := checkoutKV(c, "key")
+	if err != nil {
+		return err
+	}
 	sb := &api_model.SoureBody{
 		EnvName: envName,
 	}
@@ -190,4 +258,28 @@ func getSource(c *cli.Context) error {
 		fmt.Printf("resp is %v", string(resp))
 	}
 	return nil
+}
+
+func checkoutGroup(c *cli.Context) (string, string, error) {
+	group := c.String("group")
+	if group == "" {
+		logrus.Errorf("Incorrect Usage: flag provided but not defined: -group")
+		return "", "", fmt.Errorf("have no group set, -g TENANTID/SOURCEALIAS")
+	}
+	if strings.Contains(group, "/") {
+		mm := strings.Split(group, "/")
+		tenantName, sourceAlias := mm[0], mm[1]
+		return tenantName, sourceAlias, nil
+	}
+	logrus.Errorf("format Error, group format must in: -g TENANTID/SOURCEALIAS ")
+	return "", "", fmt.Errorf("group format wrong")
+}
+
+func checkoutKV(c *cli.Context, kind string) (string, error) {
+	value := c.String(kind)
+	if value == "" {
+		logrus.Errorf("need %s, --%s ARGV", kind, kind)
+		return "", fmt.Errorf("have no %s", kind)
+	}
+	return value, nil
 }
