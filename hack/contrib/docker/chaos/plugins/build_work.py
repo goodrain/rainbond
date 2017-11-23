@@ -330,7 +330,7 @@ class RepoBuilder():
         h = self.user_cs_client
         try:
             h.update_service(self.service_id, json.dumps(update_items))
-            self.region_client.updte_service_region(self.service_id,json.dumps(update_items))a
+            self.region_client.updte_service_region(self.service_id,json.dumps(update_items))
         except h.CallApiError, e:
             self.log.error(
                 "网络异常，更新应用镜像名称失败. {}".format(e.message),
@@ -343,7 +343,7 @@ class RepoBuilder():
             "path": build_image_name,
             "event_id": self.event_id
         }
-        # self.region_client.update_version_region(json.dumps(version_body))
+        self.region_client.update_version_region(json.dumps(version_body))
         return True
 
     def build_code(self):
@@ -417,7 +417,7 @@ class RepoBuilder():
             "path": package_name,
             "event_id": self.event_id
         }
-        # self.region_client.update_version_region(json.dumps(version_body))
+        self.region_client.update_version_region(json.dumps(version_body))
         return True
 
     def feedback(self):
