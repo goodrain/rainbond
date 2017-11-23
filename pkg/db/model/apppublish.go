@@ -23,8 +23,9 @@ type AppPublish struct {
 	Model
 	ServiceKey string `gorm:"column:service_key;size:70"`
 	AppVersion string `gorm:"column:app_version;size:70"`
-	Image      string `gorm:"column:image;size:70"`
-	Slug       string `gorm:"column:slug;size:70"`
+	Status string `gorm:"column:status;size:10"`
+	Image      string `gorm:"column:image;size:50"`
+	Slug       string `gorm:"column:slug;size:50"`
 	DestYS     bool `gorm:"column:dest_ys"`
 	DestYB     bool `gorm:"column:dest_yb"`
 	ShareID    string `gorm:"column:share_id;size:70"`

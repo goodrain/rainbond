@@ -19,22 +19,10 @@
 package cmd
 import (
 	"github.com/urfave/cli"
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/pkg/grctl/clients"
-	"encoding/json"
-	"github.com/goodrain/rainbond/pkg/node/api/model"
+
 )
 
-func NewCmdAddNode() cli.Command {
-	c:=cli.Command{
-		Name:  "add_node",
-		Usage: "添加节点。grctl add_node '{}'(jsoned host node)",
-		Action: func(c *cli.Context) error {
-			return addNode(c)
-		},
-	}
-	return c
-}
+
 func NewCmdCheckComputeServices() cli.Command {
 	c:=cli.Command{
 		Name:  "install_compute",
@@ -99,16 +87,5 @@ func NewCmdComputeGroup() cli.Command {
 	}
 	return c
 }
-func addNode(c *cli.Context) error{
 
-	jsoned:=c.Args().First()
-	var node model.APIHostNode
-	err:=json.Unmarshal([]byte(jsoned),&node)
-	if err != nil {
-		logrus.Errorf("error unmarshal input json host node")
-		return err
-	}
-	clients.NodeClient.Nodes().Add(&node)
-	return nil
-}
 

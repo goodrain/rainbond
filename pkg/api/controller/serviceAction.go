@@ -85,7 +85,6 @@ func createEvent(eventID, serviceID, optType, tenantID, deployVersion string) (*
 		return nil, status, nil
 	}
 	if status == 0 {
-		//todo check if exist,update
 		db.GetManager().ServiceEventDao().AddModel(&event)
 		go autoTimeOut(&event)
 		return &event, status, nil
@@ -579,7 +578,6 @@ func (t *TenantStruct) DeployService(w http.ResponseWriter, r *http.Request) {
 //     description: 统一返回格式
 func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 	rules := validator.MapData{
-		//todo
 		"deploy_version": []string{"required"},
 	}
 	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
@@ -723,7 +721,6 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	//todo
 	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "rollback", tenantID, data["deploy_version"].(string))
 	handleStatus(status, err, w, r)
 	eventID := sEvent.EventID

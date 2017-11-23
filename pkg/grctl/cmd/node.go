@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"github.com/apcera/termtables"
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"strings"
 	"strconv"
 	"encoding/json"
@@ -42,6 +43,30 @@ func NewCmdNode() cli.Command {
 		},
 	}
 	return c
+}
+
+
+func NewCmdAddNode() cli.Command {
+	c:=cli.Command{
+		Name:  "add_node",
+		Usage: "添加节点。grctl add_node '{}'(jsoned host node)",
+		Action: func(c *cli.Context) error {
+			return addNode(c)
+		},
+	}
+	return c
+}
+func addNode(c *cli.Context) error{
+
+	jsoned:=c.Args().First()
+	var node model.APIHostNode
+	err:=json.Unmarshal([]byte(jsoned),&node)
+	if err != nil {
+		logrus.Errorf("error unmarshal input json host node")
+		return err
+	}
+	clients.NodeClient.Nodes().Add(&node)
+	return nil
 }
 
 func NewCmdRegionNode() cli.Command {

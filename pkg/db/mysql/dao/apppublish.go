@@ -29,6 +29,7 @@ import (
 //AddModel AddModel
 func (c *AppPublishDaoImpl) AddModel(mo model.Interface) error {
 	result := mo.(*model.AppPublish)
+	result.Status="success"
 	var oldResult model.AppPublish
 	if ok := c.DB.Where("service_key=? and app_version=?", result.ServiceKey,result.AppVersion).Find(&oldResult).RecordNotFound(); ok {
 		if err := c.DB.Create(result).Error; err != nil {
@@ -53,6 +54,9 @@ func (c *AppPublishDaoImpl) GetAppPublish(serviceKey,appVersion string) (*model.
 	if err := c.DB.Where("service_key = ? and app_version =?", serviceKey,appVersion).Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			//return messageRaw, nil
+			return &model.AppPublish{
+				Status:"failure",
+			},nil
 		}
 		return nil, err
 	}
