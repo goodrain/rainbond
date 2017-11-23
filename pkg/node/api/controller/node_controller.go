@@ -23,8 +23,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"yiyun/common/log"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -188,11 +188,11 @@ func UpNode(w http.ResponseWriter, r *http.Request) {
 //NodeExporter 节点监控
 func NodeExporter(w http.ResponseWriter, r *http.Request) {
 	// filters := r.URL.Query()["collect[]"]
-	// log.Debugln("collect query:", filters)
+	// logrus.Debugln("collect query:", filters)
 	filters := []string{"cpu", "diskstats", "filesystem", "ipvs", "loadavg", "meminfo", "netdev", "netstat", "uname", "mountstats", "nfs"}
 	nc, err := collector.NewNodeCollector(filters...)
 	if err != nil {
-		log.Warnln("Couldn't create", err)
+		logrus.Warnln("Couldn't create", err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(fmt.Sprintf("Couldn't create %s", err)))
 		return
@@ -200,7 +200,7 @@ func NodeExporter(w http.ResponseWriter, r *http.Request) {
 	registry := prometheus.NewRegistry()
 	err = registry.Register(nc)
 	if err != nil {
-		log.Errorln("Couldn't register collector:", err)
+		logrus.Errorln("Couldn't register collector:", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(fmt.Sprintf("Couldn't register collector: %s", err)))
 		return
@@ -212,7 +212,7 @@ func NodeExporter(w http.ResponseWriter, r *http.Request) {
 	// Delegate http serving to Prometheus client library, which will call collector.Collect.
 	h := promhttp.HandlerFor(gatherers,
 		promhttp.HandlerOpts{
-			ErrorLog:      log.NewErrorLogger(),
+			ErrorLog:      logrus.StandardLogger(),
 			ErrorHandling: promhttp.ContinueOnError,
 		})
 	h.ServeHTTP(w, r)
