@@ -513,7 +513,7 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	version.EventID=sEvent.EventID
 	version.ServiceID=serviceID
 	version.RepoURL=build.Body.RepoURL
-	version.DeliveredType=build.Body.Kind
+	version.Kind=build.Body.Kind
 	version.BuildVersion=build.Body.DeployVersion
 	db.GetManager().VersionInfoDao().AddModel(&version)
 	//save

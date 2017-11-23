@@ -24,7 +24,7 @@ type VersionInfo struct {
 	BuildVersion  string `gorm:"column:build_version;size:40"` //唯一
 	EventID       string `gorm:"column:event_id;size:40"`
 	ServiceID     string `gorm:"column:service_id;size:40"`
-	BuildFrom     string `gorm:"column:build_from;size:40"` //kind
+	Kind     string `gorm:"column:kind;size:40"` //kind
 	DeliveredType string `gorm:"column:delivered_type;size:40"` //kind
 	DeliveredPath string `gorm:"column:delivered_path;size:40"` //交付物path
 	RepoURL        string `gorm:"column:repo_url;size:100"`

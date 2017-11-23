@@ -24,6 +24,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/db"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
+	validator "github.com/thedevsaddam/govalidator"
 	"github.com/go-chi/chi"
 	"strings"
 	"github.com/bitly/go-simplejson"
@@ -39,6 +40,33 @@ func GetAppPublish(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, appp)
 }
+
+func UpdateDeliveredPath(w http.ResponseWriter, r *http.Request) {
+	rules := validator.MapData{
+		"type": []string{"required"},
+		"event_id": []string{"required"},
+		"path": []string{"required"},
+	}
+	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
+	if !ok {
+		return
+	}
+	deliveredType:=data["type"].(string)
+	eventID:=data["event_id"].(string)
+	deliveredPath:=data["path"].(string)
+	version,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+	if err != nil {
+		httputil.ReturnError(r,w,404,err.Error())
+	}
+	version.DeliveredType=deliveredType
+	version.DeliveredPath=deliveredPath
+	db.GetManager().VersionInfoDao().UpdateModel(version)
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+
+
+
 func AddAppPublish(w http.ResponseWriter, r *http.Request) {
 	result := new(model.AppPublish)
 
