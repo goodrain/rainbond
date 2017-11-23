@@ -24,6 +24,8 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"fmt"
+	"github.com/Sirupsen/logrus"
+	"encoding/json"
 )
 
 
@@ -46,6 +48,8 @@ func (c *VersionInfoDaoImpl) AddModel(mo model.Interface) error {
 //UpdateModel UpdateModel
 func (c *VersionInfoDaoImpl) UpdateModel(mo model.Interface) error {
 	result := mo.(*model.VersionInfo)
+	rb,_:=json.Marshal(result)
+	logrus.Infof("updating version info,to %s",string(rb))
 	if err := c.DB.Save(result).Error; err != nil {
 		return err
 	}

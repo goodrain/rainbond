@@ -26,7 +26,7 @@ type VersionInfo struct {
 	ServiceID     string `gorm:"column:service_id;size:40"`
 	Kind     string `gorm:"column:kind;size:40"` //kind
 	DeliveredType string `gorm:"column:delivered_type;size:40"` //kind
-	DeliveredPath string `gorm:"column:delivered_path;size:40"` //交付物path
+	DeliveredPath string `gorm:"column:delivered_path;size:250"` //交付物path
 	RepoURL        string `gorm:"column:repo_url;size:100"`
 	CodeVersion   string `gorm:"column:code_version;size:40"`
 	CommitMsg   string `gorm:"column:code_commit_msg;size:40"`
