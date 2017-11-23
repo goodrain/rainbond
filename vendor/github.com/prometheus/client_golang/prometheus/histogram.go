@@ -430,8 +430,8 @@ func NewConstHistogram(
 	buckets map[float64]uint64,
 	labelValues ...string,
 ) (Metric, error) {
-	if len(desc.variableLabels) != len(labelValues) {
-		return nil, errInconsistentCardinality
+	if err := validateLabelValues(labelValues, len(desc.variableLabels)); err != nil {
+		return nil, err
 	}
 	return &constHistogram{
 		desc:       desc,

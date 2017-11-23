@@ -109,6 +109,7 @@ func Routers(mode string) *chi.Mux {
 	if mode == "master" {
 		r.Put("/-/taskreload", controller.ReloadStaticTasks)
 	}
-
+	//节点监控
+	r.Get("/metrics", controller.NodeExporter)
 	return r
 }
