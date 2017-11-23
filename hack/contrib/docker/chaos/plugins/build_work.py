@@ -343,7 +343,7 @@ class RepoBuilder():
             "path": build_image_name,
             "event_id": self.event_id
         }
-        self.region_client.update_version_region(json.dumps(version_body))
+        # self.region_client.update_version_region(json.dumps(version_body))
         return True
 
     def build_code(self):
@@ -397,10 +397,10 @@ class RepoBuilder():
                 step="build_code",
                 status="failure")
             return False
-        self.log.debug(package_name, step="build_code")
-        self.log.debug(self.tgz_dir, step="build_code")
-        self.log.debug(self.build_name, step="build_code")
-        self.log.debug(self.build_cmd, step="build_code")
+        # self.log.debug(package_name, step="build_code")
+        # self.log.debug(self.tgz_dir, step="build_code")
+        # self.log.debug(self.build_name, step="build_code")
+        # self.log.debug(self.build_cmd, step="build_code")
         try:
             package_size = os.path.getsize(package_name)
             if package_size == 0:
@@ -421,7 +421,7 @@ class RepoBuilder():
             "path": package_name,
             "event_id": self.event_id
         }
-        self.region_client.update_version_region(json.dumps(version_body))
+        # self.region_client.update_version_region(json.dumps(version_body))
         return True
 
     def feedback(self):
