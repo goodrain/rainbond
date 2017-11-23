@@ -27,10 +27,9 @@ type VersionInfo struct {
 	BuildFrom     string `gorm:"column:build_from;size:40"` //kind
 	DeliveredType string `gorm:"column:delivered_type;size:40"` //kind
 	DeliveredPath string `gorm:"column:delivered_path;size:40"` //交付物path
-	RepoURL        string `gorm:"column:repo_url;size:40"`
+	RepoURL        string `gorm:"column:repo_url;size:100"`
 	CodeVersion   string `gorm:"column:code_version;size:40"`
 	FinalStatus string `gorm:"column:final_status;size:40"`
-
 
 }
 
