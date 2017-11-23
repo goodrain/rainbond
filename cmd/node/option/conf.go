@@ -24,8 +24,6 @@ import (
 	"path"
 	"time"
 
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
-
 	"github.com/goodrain/rainbond/pkg/node/utils"
 	"github.com/prometheus/node_exporter/collector"
 
@@ -58,7 +56,6 @@ func Init() error {
 	if err := Config.parse(); err != nil {
 		return err
 	}
-	kingpin.Parse()
 	// This instance is only used to check collector creation and logging.
 	nc, err := collector.NewNodeCollector()
 	if err != nil {
