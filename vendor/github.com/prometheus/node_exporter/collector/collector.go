@@ -81,7 +81,6 @@ type nodeCollector struct {
 // NewNodeCollector creates a new NodeCollector
 func NewNodeCollector(filters ...string) (*nodeCollector, error) {
 	f := make(map[string]bool)
-	fmt.Println(&collectorState)
 	for _, filter := range filters {
 		enabled, exist := collectorState[filter]
 		if !exist {

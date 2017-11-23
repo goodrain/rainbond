@@ -19,12 +19,10 @@
 package controller
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/core/config"
 	"github.com/goodrain/rainbond/pkg/node/core/service"
 	"github.com/goodrain/rainbond/pkg/node/masterserver"
-	"github.com/prometheus/node_exporter/collector"
 )
 
 var datacenterConfig *config.DataCenterConfig
@@ -46,16 +44,6 @@ func Init(c *option.Conf, ms *masterserver.MasterServer) {
 	}
 	appService = service.CreateAppService(c)
 	discoverService = service.CreateDiscoverActionManager(c)
-
-	// This instance is only used to check collector creation and logging.
-	nc, err := collector.NewNodeCollector()
-	if err != nil {
-		logrus.Fatalf("Couldn't create collector: %s", err)
-	}
-	logrus.Infof("Enabled collectors:")
-	for n := range nc.Collectors {
-		logrus.Infof(" - %s", n)
-	}
 }
 
 //Exist 退出
