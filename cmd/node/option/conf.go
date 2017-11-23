@@ -24,6 +24,8 @@ import (
 	"path"
 	"time"
 
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
+
 	"github.com/goodrain/rainbond/pkg/node/utils"
 
 	"github.com/Sirupsen/logrus"
@@ -31,7 +33,6 @@ import (
 	"github.com/fsnotify/fsnotify"
 
 	"github.com/spf13/pflag"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
