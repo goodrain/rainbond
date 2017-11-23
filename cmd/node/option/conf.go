@@ -31,6 +31,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 
 	"github.com/spf13/pflag"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
@@ -55,6 +56,7 @@ func Init() error {
 	if err := Config.parse(); err != nil {
 		return err
 	}
+	kingpin.Parse()
 	// if err := Config.watch(); err != nil {
 	// 	return err
 	// }
