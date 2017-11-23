@@ -402,6 +402,7 @@ class RepoBuilder():
         return True
 
     def feedback(self):
+        time.sleep(2)
         body = {
             "deploy_version": self.deploy_version,
             "event_id": self.event_id
@@ -446,7 +447,7 @@ class RepoBuilder():
                 success = build_func()
                 if success:
                     # self.log.info("构建完成。", step="build-worker")
-                    self.log.info("构建完成。", step="callback",status="success")
+                    self.log.info("构建完成。", step="build-worker",status="success")
 
                     ok = self.feedback()
                     if not ok:

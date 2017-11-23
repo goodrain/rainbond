@@ -29,14 +29,14 @@ import (
 
 //AddModel AddModel
 func (c *VersionInfoDaoImpl) AddModel(mo model.Interface) error {
-	result := mo.(*model.ServiceEvent)
-	var oldResult model.ServiceEvent
+	result := mo.(*model.VersionInfo)
+	var oldResult model.VersionInfo
 	if ok := c.DB.Where("event_id=?", result.EventID).Find(&oldResult).RecordNotFound(); ok {
 		if err := c.DB.Create(result).Error; err != nil {
 			return err
 		}
 	} else {
-		fmt.Errorf("event result is exist")
+		fmt.Errorf("version is exist")
 		return nil
 	}
 	return nil
@@ -45,6 +45,10 @@ func (c *VersionInfoDaoImpl) AddModel(mo model.Interface) error {
 
 //UpdateModel UpdateModel
 func (c *VersionInfoDaoImpl) UpdateModel(mo model.Interface) error {
+	result := mo.(*model.VersionInfo)
+	if err := c.DB.Save(result).Error; err != nil {
+		return err
+	}
 	return nil
 }
 

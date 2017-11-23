@@ -79,7 +79,7 @@ func createEvent(eventID, serviceID, optType, tenantID, deployVersion string) (*
 	event.DeployVersion = version
 	event.OldDeployVersion = oldDeployVersion
 
-	status, err := checkCanAddEvent(serviceID)
+	status, err := checkCanAddEvent(serviceID,event.EventID)
 	if err != nil {
 		logrus.Errorf("error check event")
 		return nil, status, nil
@@ -119,8 +119,9 @@ func autoTimeOut(event *dbmodel.ServiceEvent) {
 		}
 	}
 }
-func checkCanAddEvent(s string) (int, error) {
+func checkCanAddEvent(s ,eventID string) (int, error) {
 	events, err := db.GetManager().ServiceEventDao().GetEventByServiceID(s)
+
 	if err != nil {
 		return 3, err
 	}
@@ -131,6 +132,9 @@ func checkCanAddEvent(s string) (int, error) {
 		return 0, nil
 	}
 	latestEvent := events[0]
+	if latestEvent.EventID==eventID {
+		return 0,nil
+	}
 	if latestEvent.FinalStatus == "" {
 		//未完成
 		timeOut, err := checkEventTimeOut(latestEvent)
@@ -514,6 +518,7 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	version.DeliveredType=build.Body.Kind
 	version.CodeVersion=""
 	version.BuildVersion=build.Body.DeployVersion
+	db.GetManager().VersionInfoDao().AddModel(&version)
 	//save
 	//version.DeliveredPath
 	//version.FinalStatus
