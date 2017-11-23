@@ -180,7 +180,7 @@ func (d *DiscoverAction) DiscoverListeners(
 						continue
 					}
 					if mr != nil {
-						sr = mr.(api_model.NetDownStreamRules)
+						sr = *mr.(*api_model.NetDownStreamRules)
 					}
 					prs := &node_model.PieceHTTPRoutes{
 						TimeoutMS: 0,
@@ -284,7 +284,7 @@ func (d *DiscoverAction) DiscoverClusters(
 				continue
 			}
 			if mr != nil {
-				sr = mr.(api_model.NetDownStreamRules)
+				sr = *mr.(*api_model.NetDownStreamRules)
 			}
 			circuits := d.ToolsGetRouterItem(destServiceAlias, node_model.LIMITS, &sr).(int)
 			cb := &node_model.CircuitBreakers{
