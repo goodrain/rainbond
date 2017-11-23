@@ -58,7 +58,6 @@ func UpdateDeliveredPath(w http.ResponseWriter, r *http.Request) {
 
 	version.DeliveredType=dt
 	version.DeliveredPath=dp
-
 	err=db.GetManager().VersionInfoDao().UpdateModel(version)
 	if err != nil {
 		httputil.ReturnError(r,w,500,err.Error())
