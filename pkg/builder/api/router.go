@@ -41,7 +41,6 @@ func APIServer() *chi.Mux {
 	})
 	r.Route("/event", func(r chi.Router) {
 		r.Get("/",controller.GetEventsByIds)
-
 	})
 	return r
 }
