@@ -39,6 +39,7 @@ type ServiceInterface interface {
 	SingleServiceInfo(w http.ResponseWriter, r *http.Request)
 	CheckCode(w http.ResponseWriter, r *http.Request)
 	ShareCloud(w http.ResponseWriter, r *http.Request)
+	Event(w http.ResponseWriter, r *http.Request)
 	BuildList(w http.ResponseWriter, r *http.Request)
 	CreateService(w http.ResponseWriter, r *http.Request)
 	UpdateService(w http.ResponseWriter, r *http.Request)

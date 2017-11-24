@@ -16,9 +16,10 @@ import logging
 import logging.config
 from etc import settings
 import fileinput
+
 load_dict = {}
 with open("plugins/config.json", 'r') as load_f:
-    load_dict = json.loads(load_f)
+    load_dict = json.load(load_f)
 logging.config.dictConfig(settings.get_logging(load_dict))
 logger = logging.getLogger('default')
 
