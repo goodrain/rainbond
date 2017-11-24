@@ -32,11 +32,17 @@ import (
 func (c *AppPublishDaoImpl) AddModel(mo model.Interface) error {
 	result := mo.(*model.AppPublish)
 	result.Status="success"
-	r,_:=json.Marshal(result)
+	r,err:=json.Marshal(result)
+	if err != nil {
+		logrus.Errorf("error marshal app publish,details %s",err.Error())
+	}
 	logrus.Infof("creating new app publish recode ,details %s",string(r))
 	var oldResult model.AppPublish
 	if ok := c.DB.Where("service_key=? and app_version=?", result.ServiceKey,result.AppVersion).Find(&oldResult).RecordNotFound(); ok {
 		if err := c.DB.Create(result).Error; err != nil {
+			if err != nil {
+				logrus.Errorf("error save app publish,details %s",err.Error())
+			}
 			return err
 		}
 	}
