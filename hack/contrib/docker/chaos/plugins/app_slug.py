@@ -16,7 +16,6 @@ import logging
 import logging.config
 from etc import settings
 import fileinput
-
 load_dict = {}
 with open("plugins/config.json", 'r') as load_f:
     load_dict = json.load(load_f)
@@ -29,11 +28,11 @@ class AppSlug():
         self.job = job
         self.configs = kwargs.get("config")
         self.region_api = RegionAPI(conf=self.configs['region'])
-        self.region_client = RegionBackAPI()
         self.oss_api = OssAPI(conf=self.configs['oss']['ali_shanghai'])
         self.locker = TaskLocker(conf=self.configs['etcd'])
         self.user_cs_client = UserConsoleAPI(conf=self.configs['userconsole'])
         self.api = ACPAPI(conf=self.configs['region'])
+        self.region_client = RegionBackAPI()
         self.slug_configs = self.configs["publish"]["slug"]
         self.is_region_slug = self.slug_configs.get('all_region_ftp')
         self.is_oss_ftp = self.slug_configs.get('oss_ftp')
@@ -181,7 +180,9 @@ class AppSlug():
                         'service_key': service_key,
                         'app_version': app_version,
                         'slug': slug,
-                        'dest_yb': True
+                        'image': "",
+                        'dest_yb': True,
+                        'dest_ys': False,
                     }
                     if share_id is not None:
                         data['share_id'] = share_id
@@ -202,7 +203,9 @@ class AppSlug():
                     'service_key': service_key,
                     'app_version': app_version,
                     'slug': slug,
-                    'dest_yb': True
+                    'image': "",
+                    'dest_yb': True,
+                    'dest_ys': False
                 }
                 if share_id is not None:
                     data['share_id'] = share_id
@@ -221,7 +224,9 @@ class AppSlug():
                         'service_key': service_key,
                         'app_version': app_version,
                         'slug': slug,
-                        'dest_ys': True
+                        'image': "",
+                        'dest_ys': True,
+                        'dest_yb': False
                     }
                     if share_id is not None:
                         data['share_id'] = share_id
@@ -238,7 +243,9 @@ class AppSlug():
                     'service_key': service_key,
                     'app_version': app_version,
                     'slug': slug,
-                    'dest_ys': True
+                    'image': "",
+                    'dest_ys': True,
+                    'dest_yb': False,
                 }
                 if share_id is not None:
                     data['share_id'] = share_id

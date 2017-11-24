@@ -28,6 +28,7 @@ import (
 	"strings"
 	"github.com/bitly/go-simplejson"
 	"io/ioutil"
+	"encoding/json"
 )
 
 func GetAppPublish(w http.ResponseWriter, r *http.Request) {
@@ -88,49 +89,28 @@ func UpdateDeliveredPath(w http.ResponseWriter, r *http.Request) {
 
 
 func AddAppPublish(w http.ResponseWriter, r *http.Request) {
-	result := new(model.AppPublish)
-	b,_:=ioutil.ReadAll(r.Body)
-	defer r.Body.Close()
-
-	j,err:=simplejson.NewJson(b)
+	var result model.AppPublish
+	b,err:=ioutil.ReadAll(r.Body)
 	if err != nil {
-		logrus.Errorf("error decode json,details %s",err.Error())
-		httputil.ReturnError(r,w,400,"bad request")
+		logrus.Errorf("error get request body ,details %s",err.Error())
+		return
+	}
+	defer r.Body.Close()
+	logrus.Infof("request body is %s",b)
+	err=json.Unmarshal(b,&result)
+	if err != nil {
+		logrus.Errorf("error unmarshal use raw support,details %s",err.Error())
 		return
 	}
 
-	result.AppVersion,err=j.Get("app_version").String()
-
-	result.ServiceKey,err=j.Get("service_key").String()
-	result.Slug,err=j.Get("slug").String()
-	if err != nil {
-		logrus.Warnf("error get slag json,details %s",err.Error())
-	}
-	result.Image,err=j.Get("image").String()
-	if err != nil {
-		logrus.Warnf("error get slag json,details %s",err.Error())
-	}
-	result.DestYS,err=j.Get("dest_ys").Bool()
-	if err != nil {
-		logrus.Warnf("error get slag json,details %s",err.Error())
-	}
-	result.DestYB,err=j.Get("dest_yb").Bool()
-	if err != nil {
-		logrus.Warnf("error get slag json,details %s",err.Error())
-	}
-	result.ShareID,err=j.Get("share_id").String()
-	if err != nil {
-		logrus.Warnf("error get slag json,details %s",err.Error())
-	}
-
-	dbmodel:=convertPublishToDB(result)
+	dbmodel:=convertPublishToDB(&result)
 	//checkAndGet
 	db.GetManager().AppPublishDao().AddModel(dbmodel)
 	httputil.ReturnSuccess(r, w, nil)
 }
 func convertPublishToDB(publish *model.AppPublish) *dbmodel.AppPublish {
 
-	dbm:=dbmodel.AppPublish{}
+	var dbm dbmodel.AppPublish
 	dbm.ShareID=publish.ShareID
 	dbm.AppVersion=publish.AppVersion
 	dbm.DestYB=publish.DestYB
