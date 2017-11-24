@@ -100,8 +100,13 @@ func (t *Node)List() []*model.HostNode {
 	body,_,err:=nodeServer.Request("/nodes","GET",nil)
 	if err != nil {
 		logrus.Errorf("error get nodes ,details %s",err.Error())
+		return nil
 	}
-	j,_:=simplejson.NewJson(body)
+	j,err:=simplejson.NewJson(body)
+	if err != nil {
+		logrus.Errorf("error get json ,details %s",err.Error())
+		return nil
+	}
 	nodeArr,err:=j.Get("list").Array()
 	if err != nil {
 		logrus.Infof("error occurd,details %s",err.Error())

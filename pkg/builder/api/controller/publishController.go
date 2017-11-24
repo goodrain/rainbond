@@ -39,7 +39,24 @@ func GetAppPublish(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, appp)
 }
+func GetVersionByEventID(w http.ResponseWriter, r *http.Request) {
+	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 
+	version,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+	if err != nil {
+		httputil.ReturnError(r,w,404,err.Error())
+	}
+	httputil.ReturnSuccess(r, w, version)
+}
+func GetVersionByServiceID(w http.ResponseWriter, r *http.Request) {
+	serviceID := strings.TrimSpace(chi.URLParam(r, "serviceID"))
+
+	versions,err:=db.GetManager().VersionInfoDao().GetVersionByServiceID(serviceID)
+	if err != nil {
+		httputil.ReturnError(r,w,404,err.Error())
+	}
+	httputil.ReturnSuccess(r, w, versions)
+}
 func UpdateDeliveredPath(w http.ResponseWriter, r *http.Request) {
 	in,err:=ioutil.ReadAll(r.Body)
 	if err != nil {
