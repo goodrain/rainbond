@@ -65,9 +65,9 @@ type CodeCheckResult struct {
 type AppPublish struct {
 	ServiceKey string `json:"service_key"`
 	AppVersion string `json:"app_version"`
-	Image      string `json:"image"`
-	Slug       string `json:"slug"`
-	DestYS     bool `json:"dest_ys"`
-	DestYB     bool `json:"dest_yb"`
+	Image      string `json:"image,omitempty"`
+	Slug       string `json:"slug,omitempty"`
+	DestYS     bool `json:"dest_ys,omitempty"`
+	DestYB     bool `json:"dest_yb,omitempty"`
 	ShareID    string `json:"share_id"`
 }

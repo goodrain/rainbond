@@ -23,6 +23,8 @@ import (
 	"github.com/goodrain/rainbond/pkg/db/model"
 
 	"github.com/jinzhu/gorm"
+	"github.com/Sirupsen/logrus"
+	"encoding/json"
 )
 
 
@@ -30,6 +32,8 @@ import (
 func (c *AppPublishDaoImpl) AddModel(mo model.Interface) error {
 	result := mo.(*model.AppPublish)
 	result.Status="success"
+	r,_:=json.Marshal(result)
+	logrus.Infof("creating new app publish recode ,details %s",string(r))
 	var oldResult model.AppPublish
 	if ok := c.DB.Where("service_key=? and app_version=?", result.ServiceKey,result.AppVersion).Find(&oldResult).RecordNotFound(); ok {
 		if err := c.DB.Create(result).Error; err != nil {

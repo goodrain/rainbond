@@ -28,7 +28,12 @@ class AppSlug():
         self.job = job
         self.configs = kwargs.get("config")
         self.region_api = RegionAPI(conf=self.configs['region'])
-        self.oss_api = OssAPI(conf=self.configs['oss']['ali_shanghai'])
+        da={
+            "id": "nMscVs3CaIXPEDUd",
+            "secret": "g4RWmftifuJxqUdqEWc69h0exO2V46",
+            "endpoint": "oss-cn-shanghai.aliyuncs.com"
+        }
+        self.oss_api = OssAPI(conf=da)
         self.locker = TaskLocker(conf=self.configs['etcd'])
         self.user_cs_client = UserConsoleAPI(conf=self.configs['userconsole'])
         self.api = ACPAPI(conf=self.configs['region'])
