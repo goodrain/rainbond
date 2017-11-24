@@ -185,7 +185,9 @@ class AppSlug():
                         'service_key': service_key,
                         'app_version': app_version,
                         'slug': slug,
-                        'dest_yb': True
+                        'image': "",
+                        'dest_yb': True,
+                        'dest_ys': False,
                     }
                     if share_id is not None:
                         data['share_id'] = share_id
@@ -206,7 +208,9 @@ class AppSlug():
                     'service_key': service_key,
                     'app_version': app_version,
                     'slug': slug,
-                    'dest_yb': True
+                    'image': "",
+                    'dest_yb': True,
+                    'dest_ys': False
                 }
                 if share_id is not None:
                     data['share_id'] = share_id
@@ -225,7 +229,9 @@ class AppSlug():
                         'service_key': service_key,
                         'app_version': app_version,
                         'slug': slug,
-                        'dest_ys': True
+                        'image': "",
+                        'dest_ys': True,
+                        'dest_yb': False
                     }
                     if share_id is not None:
                         data['share_id'] = share_id
@@ -242,7 +248,9 @@ class AppSlug():
                     'service_key': service_key,
                     'app_version': app_version,
                     'slug': slug,
-                    'dest_ys': True
+                    'image': "",
+                    'dest_ys': True,
+                    'dest_yb': False,
                 }
                 if share_id is not None:
                     data['share_id'] = share_id

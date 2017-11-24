@@ -90,9 +90,14 @@ func UpdateDeliveredPath(w http.ResponseWriter, r *http.Request) {
 
 func AddAppPublish(w http.ResponseWriter, r *http.Request) {
 	result := new(model.AppPublish)
-	b,_:=ioutil.ReadAll(r.Body)
+	b,err:=ioutil.ReadAll(r.Body)
+	if err != nil {
+		logrus.Errorf("error get request body ,details %s",err.Error())
+		return
+	}
 	defer r.Body.Close()
-	err:=json.Unmarshal(b,&result)
+	logrus.Infof("request body is %s",b)
+	err=json.Unmarshal(b,&result)
 	if err != nil {
 		logrus.Errorf("error unmarshal use raw support,details %s",err.Error())
 		return

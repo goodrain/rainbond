@@ -69,5 +69,5 @@ type AppPublish struct {
 	Slug       string `json:"slug,omitempty"`
 	DestYS     bool `json:"dest_ys,omitempty"`
 	DestYB     bool `json:"dest_yb,omitempty"`
-	ShareID    string `json:"share_id"`
+	ShareID    string `json:"share_id,omitempty"`
 }

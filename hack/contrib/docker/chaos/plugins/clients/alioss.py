@@ -11,5 +11,5 @@ from oss.oss_api import OssAPI as API
 class OssAPI(API):
 
     def __init__(self, conf, *args, **kwargs):
-        API.__init__(self, conf["endpoint"], conf.id, conf.secret)
+        API.__init__(self, conf["endpoint"], conf["id"], conf["secret"])
         self.timeout = 90
