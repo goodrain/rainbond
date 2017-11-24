@@ -116,7 +116,7 @@ func (m *Manager) Run() {
 	m.r.Mount("/", doc.Routes())
 	m.r.Mount("/license", license.Routes())
 	//兼容老版docker
-	m.r.Get("/etcd/event-log/instance", m.EventLogInstance)
+	m.r.Get("/v1/etcd/event-log/instances", m.EventLogInstance)
 	//开启对浏览器的websocket服务和文件服务
 	go func() {
 		websocketRouter := chi.NewRouter()
