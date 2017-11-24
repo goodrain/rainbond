@@ -24,6 +24,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/coreos/etcd/client"
 	"github.com/goodrain/rainbond/cmd/api/option"
 
 	"github.com/goodrain/rainbond/pkg/api/apiRouters/doc"
@@ -109,21 +110,13 @@ func (m *Manager) Stop() error {
 
 //Run run
 func (m *Manager) Run() {
-	// v1FuncAPI, s, err := singleton.NewV1Singleton(m.conf)
-	// if err != nil {
-	// 	logrus.Errorf("V1 create manager error. %v", err)
-	// }
-	// v1R := &version1.V1Routes{
-	// 	ServiceStruct: s,
-	// 	APIFuncV1:     v1FuncAPI,
-	// }
+
 	v2R := &version2.V2{}
-	//swagger 路由
-	//m.r.Mount("/v1", v1R.Routes())
 	m.r.Mount("/v2", v2R.Routes())
 	m.r.Mount("/", doc.Routes())
 	m.r.Mount("/license", license.Routes())
-	//m.r.NotFound(v1R.UnFoundRequest)
+	//兼容老版docker
+	m.r.Get("/v1/etcd/event-log/instances", m.EventLogInstance)
 	//开启对浏览器的websocket服务和文件服务
 	go func() {
 		websocketRouter := chi.NewRouter()
@@ -144,4 +137,33 @@ func (m *Manager) Run() {
 		logrus.Infof("api listen on (HTTP) 0.0.0.0%v", m.conf.APIAddr)
 		logrus.Fatal(http.ListenAndServe(m.conf.APIAddr, m.r))
 	}
+}
+
+//EventLogInstance 查询event server instance
+func (m *Manager) EventLogInstance(w http.ResponseWriter, r *http.Request) {
+	etcdclient, err := client.New(client.Config{
+		Endpoints: m.conf.EtcdEndpoint,
+	})
+	if err != nil {
+		w.WriteHeader(500)
+		return
+	}
+	keyAPI := client.NewKeysAPI(etcdclient)
+	res, err := keyAPI.Get(context.Background(), "/event/instance", &client.GetOptions{Recursive: true})
+	if err != nil {
+		w.WriteHeader(500)
+		return
+	}
+	if res.Node != nil && res.Node.Nodes.Len() > 0 {
+		result := `{"data":{"instance":[`
+		for _, node := range res.Node.Nodes {
+			result += node.Value + ","
+		}
+		result = result[:len(result)-1] + `]},"ok":true}`
+		w.Write([]byte(result))
+		w.WriteHeader(200)
+		return
+	}
+	w.WriteHeader(404)
+	return
 }
