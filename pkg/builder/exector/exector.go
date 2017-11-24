@@ -125,8 +125,8 @@ func (e *exectorManager) appImage(in []byte) {
 }
 func (e *exectorManager) appSlug(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
-	dest := gjson.GetBytes(in, "dest").String()
-	finalStatus:="failure"
+	//dest := gjson.GetBytes(in, "dest").String()
+	//finalStatus:="failure"
 
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("应用代码包构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
@@ -145,17 +145,17 @@ func (e *exectorManager) appSlug(in []byte) {
 
 				}
 			} else {
-				if dest!="yb"&&dest!="ys" {
-					finalStatus="success"
-					updateBuildResult(eventID,finalStatus)
-				}
+				//if dest!="yb"&&dest!="ys" {
+				//	finalStatus="success"
+				//	updateBuildResult(eventID,finalStatus)
+				//}
 				break
 			}
 		}
 	}()
-	if dest!="yb"&&dest!="ys" {
-		updateBuildResult(eventID,finalStatus)
-	}
+	//if dest!="yb"&&dest!="ys" {
+	//	updateBuildResult(eventID,finalStatus)
+	//}
 }
 func (e *exectorManager) imageManual(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
