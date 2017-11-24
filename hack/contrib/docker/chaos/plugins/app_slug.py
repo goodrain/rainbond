@@ -28,11 +28,11 @@ class AppSlug():
         self.job = job
         self.configs = kwargs.get("config")
         self.region_api = RegionAPI(conf=self.configs['region'])
-        self.region_client = RegionBackAPI()
         self.oss_api = OssAPI(conf=self.configs['oss']['ali_shanghai'])
         self.locker = TaskLocker(conf=self.configs['etcd'])
         self.user_cs_client = UserConsoleAPI(conf=self.configs['userconsole'])
         self.api = ACPAPI(conf=self.configs['region'])
+        self.region_client = RegionBackAPI()
         self.slug_configs = self.configs["publish"]["slug"]
         self.is_region_slug = self.slug_configs.get('all_region_ftp')
         self.is_oss_ftp = self.slug_configs.get('oss_ftp')
