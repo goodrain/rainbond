@@ -122,7 +122,7 @@ func (e *exectorManager) appImage(in []byte) {
 }
 func (e *exectorManager) appSlug(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
-	dest := gjson.GetBytes(in, "dest").String()
+	//dest := gjson.GetBytes(in, "dest").String()
 	//finalStatus:="failure"
 
 	logger := event.GetManager().GetLogger(eventID)
@@ -142,12 +142,12 @@ func (e *exectorManager) appSlug(in []byte) {
 
 				}
 			} else {
-				updateBuildResult(eventID,"success",dest)
+				//updateBuildResult(eventID,"success",dest)
 				break
 			}
 		}
 	}()
-	updateBuildResult(eventID,"failure",dest)
+	//updateBuildResult(eventID,"failure",dest)
 }
 func (e *exectorManager) imageManual(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()

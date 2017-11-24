@@ -330,7 +330,7 @@ class RepoBuilder():
         h = self.user_cs_client
         try:
             h.update_service(self.service_id, json.dumps(update_items))
-            self.region_client.updte_service_region(self.service_id,json.dumps(update_items))
+            self.region_client.update_service_region(self.service_id,json.dumps(update_items))
         except h.CallApiError, e:
             self.log.error(
                 "网络异常，更新应用镜像名称失败. {}".format(e.message),
