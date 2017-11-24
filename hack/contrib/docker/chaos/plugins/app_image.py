@@ -118,7 +118,9 @@ class AppImage():
                             'service_key': service_key,
                             'app_version': app_version,
                             'image': image,
-                            'dest_yb': True
+                            'dest_yb': True,
+                            'dest_ys': False,
+                            'slug': ""
                         }
                         if share_id is not None:
                             data["share_id"] = share_id
