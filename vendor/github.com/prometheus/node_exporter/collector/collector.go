@@ -70,7 +70,6 @@ func registerCollector(collector string, isDefaultEnabled bool, factory func() (
 	// flag := kingpin.Flag(flagName, flagHelp).Default(defaultValue).Bool()
 	collectorState[collector] = &isDefaultEnabled
 	factories[collector] = factory
-	fmt.Println(&collectorState)
 }
 
 // NodeCollector implements the prometheus.Collector interface.
