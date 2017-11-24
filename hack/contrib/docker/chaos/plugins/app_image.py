@@ -126,7 +126,12 @@ class AppImage():
                             data["share_id"] = share_id
                         self.user_cs_client.service_publish_success(
                             json.dumps(data))
-                        self.region_client.service_publish_success_region(json.dumps(data))
+                        try:
+                            self.region_client.service_publish_success_region(json.dumps(data))
+                        except Exception as e:
+                            logger.exception(e)
+                            pass
+
                         self.log.info(
                             "云帮应用发布完毕", step="last", status="success")
                     except (shell.ExecException, Exception), e:
@@ -150,7 +155,12 @@ class AppImage():
                         data["share_id"] = share_id
                     self.user_cs_client.service_publish_success(
                         json.dumps(data))
-                    self.region_client.service_publish_success_region(json.dumps(data))
+                    try:
+                        self.region_client.service_publish_success_region(json.dumps(data))
+                    except Exception as e:
+                        logger.exception(e)
+                        pass
+
                     self.log.info("云帮应用发布完毕", step="last", status="success")
         elif dest == "ys":
             # 当前有镜像并且云市的image数据中心开启
@@ -201,7 +211,12 @@ class AppImage():
                         data["share_id"] = share_id
                     self.user_cs_client.service_publish_success(
                         json.dumps(data))
-                    self.region_client.service_publish_success_region(json.dumps(data))
+                    try:
+                        self.region_client.service_publish_success_region(json.dumps(data))
+                    except Exception as e:
+                        logger.exception(e)
+                        pass
+
                     self.log.info("云市应用发布完毕", step="last", status="success")
                 except (shell.ExecException, Exception), e:
                     logger.exception("mq_work.app_image", e)

@@ -188,7 +188,12 @@ class AppSlug():
                         data['share_id'] = share_id
                     self.user_cs_client.service_publish_success(
                         json.dumps(data))
-                    self.region_client.service_publish_success_region(json.dumps(data))
+                    try:
+                        self.region_client.service_publish_success_region(json.dumps(data))
+                    except Exception as e:
+                        logger.exception(e)
+                        pass
+
                     self.log.info("云帮应用本地发布完毕", step="last", status="success")
                 except Exception as e:
                     logger.error("mq_work.app_slug",
@@ -210,7 +215,12 @@ class AppSlug():
                 if share_id is not None:
                     data['share_id'] = share_id
                 self.user_cs_client.service_publish_success(json.dumps(data))
-                self.region_client.service_publish_success_region(json.dumps(data))
+                try:
+                    self.region_client.service_publish_success_region(json.dumps(data))
+                except Exception as e:
+                    logger.exception(e)
+                    pass
+
                 self.log.info("云帮应用本地发布完毕", step="last", status="success")
         elif dest == "ys":
             if self.is_oss_ftp:
@@ -232,7 +242,12 @@ class AppSlug():
                         data['share_id'] = share_id
                     self.user_cs_client.service_publish_success(
                         json.dumps(data))
-                    self.region_client.service_publish_success_region(json.dumps(data))
+                    try:
+                        self.region_client.service_publish_success_region(json.dumps(data))
+                    except Exception as e:
+                        logger.exception(e)
+                        pass
+
                 except Exception as e:
                     logger.error("mq_work.app_slug",
                                  "*******ftp upload failed, {0}".format(e))
@@ -250,7 +265,12 @@ class AppSlug():
                 if share_id is not None:
                     data['share_id'] = share_id
                 self.user_cs_client.service_publish_success(json.dumps(data))
-                self.region_client.service_publish_success_region(json.dumps(data))
+                try:
+                    self.region_client.service_publish_success_region(json.dumps(data))
+                except Exception as e:
+                    logger.exception(e)
+                    pass
+
                 self.log.info("云市应用发布完毕", step="last", status="success")
 
     def _download_ftp(self, service_key, app_version, namespace, is_md5=False):
