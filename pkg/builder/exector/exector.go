@@ -125,7 +125,11 @@ func (e *exectorManager) appImage(in []byte) {
 }
 func (e *exectorManager) appSlug(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
-	//dest := gjson.GetBytes(in, "dest").String()
+	dest := gjson.GetBytes(in, "dest").String()
+	isShare:=false
+	if dest!="yb"&&dest!="ys" {
+		isShare=true
+	}
 	//finalStatus:="failure"
 
 	logger := event.GetManager().GetLogger(eventID)
@@ -145,17 +149,16 @@ func (e *exectorManager) appSlug(in []byte) {
 
 				}
 			} else {
-				//if dest!="yb"&&dest!="ys" {
-				//	finalStatus="success"
-				//	updateBuildResult(eventID,finalStatus)
-				//}
+				if !isShare {
+					updateBuildResult(eventID,"success")
+				}
 				break
 			}
 		}
 	}()
-	//if dest!="yb"&&dest!="ys" {
-	//	updateBuildResult(eventID,finalStatus)
-	//}
+	if !isShare {
+		updateBuildResult(eventID,"failure")
+	}
 }
 func (e *exectorManager) imageManual(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
