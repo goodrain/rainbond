@@ -39,6 +39,37 @@ func GetAppPublish(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, appp)
 }
+
+func UpdateDeliveredPath(w http.ResponseWriter, r *http.Request) {
+	in,err:=ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	jsonc,err:=simplejson.NewJson(in)
+	event,_:=jsonc.Get("event_id").String()
+	dt,_:=jsonc.Get("type").String()
+	dp,_:=jsonc.Get("path").String()
+
+	version,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(event)
+	if err != nil {
+		httputil.ReturnError(r,w,404,err.Error())
+		return
+	}
+
+	version.DeliveredType=dt
+	version.DeliveredPath=dp
+	err=db.GetManager().VersionInfoDao().UpdateModel(version)
+	if err != nil {
+		httputil.ReturnError(r,w,500,err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+	return
+}
+
+
+
+
 func AddAppPublish(w http.ResponseWriter, r *http.Request) {
 	result := new(model.AppPublish)
 

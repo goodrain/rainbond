@@ -29,7 +29,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"strings"
 	"strconv"
-	"encoding/json"
 	"errors"
 )
 
@@ -49,8 +48,12 @@ func NewCmdNode() cli.Command {
 						return nil
 					}
 					n:=clients.NodeClient.Nodes().Get(id)
-					b,_:=json.Marshal(n)
-					fmt.Println(string(b))
+					v:=n.Node
+					table := termtables.CreateTable()
+					table.AddHeaders("uid", "IP", "HostName","role","alived","unschedulable","available_memory","available_cpu")
+					table.AddRow(v.ID, v.InternalIP, v.HostName,v.Role.String(),v.Alived,v.Unschedulable,v.AvailableMemory,v.AvailableCPU)
+
+					fmt.Println(table.Render())
 					return nil
 				},
 			},

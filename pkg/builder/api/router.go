@@ -34,6 +34,9 @@ func APIServer() *chi.Mux {
 		r.Get("/service/{serviceKey}/version/{appVersion}",controller.GetAppPublish)
 		r.Post("/",controller.AddAppPublish)
 	})
+	r.Route("/version", func(r chi.Router) {
+		r.Post("/",controller.UpdateDeliveredPath)
+	})
 	return r
 }
 

@@ -312,7 +312,21 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					event.EventID = eventID
 					event.CodeVersion = codeVersion
 					cdb.GetManager().ServiceEventDao().UpdateModel(&event)
-
+					version,_:=cdb.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+					infos:=strings.Split(codeVersion," ")
+					for k,v:=range infos{
+						i:=strings.Split(v,":")
+						if k==0 {
+							version.CodeVersion=i[1]
+						}
+						if k==1 {
+							version.Author=i[1]
+						}
+						if k==2 {
+							version.CommitMsg=i[1]
+						}
+					}
+					cdb.GetManager().VersionInfoDao().UpdateModel(version)
 					h.log.Infof("run web hook update code version .event_id %s code_version %s", eventID, codeVersion)
 				}
 			}
