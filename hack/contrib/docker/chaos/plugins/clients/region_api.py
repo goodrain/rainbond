@@ -18,6 +18,7 @@ class RegionBackAPI(BaseHttpClient):
     def service_publish_success_region(self, body):
         # url = self.base_url + '/api/tenants/services/publish'
         url = self.base_url+ '/publish'
+        logger.info("publish app to ys?{}".format(body["dest_ys"]))
         res, body = self._post(url, self.default_headers, body)
         return res, body
 
