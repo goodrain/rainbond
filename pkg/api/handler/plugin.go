@@ -250,7 +250,7 @@ func (p *PluginAction) BuildPluginManual(bps *api_model.BuildPluginStruct) (stri
 	if err != nil {
 		return "", util.CreateAPIHandleErrorFromDBError(fmt.Sprintf("get plugin by %v", bps.PluginID), err)
 	}
-	switch bps.Body.Kind {
+	switch plugin.BuildModel {
 	case "image":
 		buildVersion, err := p.ImageBuildPlugin(bps, plugin)
 		if err != nil {
@@ -279,22 +279,31 @@ func createVersionID(s []byte) string {
 
 //ImageBuildPlugin ImageBuildPlugin
 func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *dbmodel.TenantPlugin) (string, error) {
-	if b.Body.ImageURL == "" {
+	if plugin.ImageURL == "" {
 		return "", fmt.Errorf("need image url")
 	}
 	if b.Body.Operator == "" {
 		b.Body.Operator = "define"
 	}
-	diffStr := fmt.Sprintf("%s%s%s%s", b.TenantName, b.Body.ImageURL, b.PluginID, time.Now().Format(time.RFC3339))
+	diffStr := fmt.Sprintf("%s%s%s%s", b.TenantName, plugin.ImageURL, b.PluginID, time.Now().Format(time.RFC3339))
 	buildVersion := createVersionID([]byte(diffStr))
 	pbv := &dbmodel.TenantPluginBuildVersion{
-		VersionID: buildVersion,
-		PluginID:  b.PluginID,
-		Kind:      b.Body.Kind,
-		BaseImage: b.Body.ImageURL,
-		BuildTime: time.Now().Format(time.RFC3339),
-		Info:      b.Body.Info,
-		Status:    "building",
+		VersionID:       buildVersion,
+		PluginID:        b.PluginID,
+		Kind:            plugin.BuildModel,
+		BaseImage:       plugin.ImageURL,
+		ContainerCPU:    b.Body.PluginCPU,
+		ContainerMemory: b.Body.PluginMemory,
+		ContainerCMD:    b.Body.PluginCMD,
+		BuildTime:       time.Now().Format(time.RFC3339),
+		Info:            b.Body.Info,
+		Status:          "building",
+	}
+	if b.Body.PluginCPU == 0 {
+		pbv.ContainerCPU = 125
+	}
+	if b.Body.PluginMemory == 0 {
+		pbv.ContainerMemory = 50
 	}
 	tx := db.GetManager().Begin()
 	if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).AddModel(pbv); err != nil {
@@ -302,13 +311,16 @@ func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *
 		return "", err
 	}
 	taskBody := &builder_model.BuildPluginTaskBody{
-		TenantID:  b.Body.TenantID,
-		PluginID:  b.PluginID,
-		Operator:  b.Body.Operator,
-		ImageURL:  b.Body.ImageURL,
-		EventID:   b.Body.EventID,
-		Kind:      b.Body.Kind,
-		VersionID: buildVersion,
+		TenantID:     b.Body.TenantID,
+		PluginID:     b.PluginID,
+		Operator:     b.Body.Operator,
+		ImageURL:     plugin.ImageURL,
+		EventID:      b.Body.EventID,
+		Kind:         plugin.BuildModel,
+		PluginCMD:    b.Body.PluginCMD,
+		PluginCPU:    b.Body.PluginCPU,
+		PluginMemory: b.Body.PluginMemory,
+		VersionID:    buildVersion,
 	}
 	jtask, errJ := ffjson.Marshal(taskBody)
 	if errJ != nil {
@@ -343,8 +355,11 @@ func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *
 
 //DockerfileBuildPlugin DockerfileBuildPlugin
 func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plugin *dbmodel.TenantPlugin) (string, error) {
-	if b.Body.GitURL == "" || b.Body.RepoURL == "" {
-		return "", fmt.Errorf("need repo url or git url")
+	if plugin.GitURL == "" {
+		return "", fmt.Errorf("need git url")
+	}
+	if b.Body.RepoURL == "" {
+		plugin.Repo = "master"
 	}
 	if b.Body.Operator == "" {
 		b.Body.Operator = "define"
@@ -352,14 +367,23 @@ func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plu
 	diffStr := fmt.Sprintf("%s%s%s%s", b.TenantName, b.Body.RepoURL, b.PluginID, time.Now().Format(time.RFC3339))
 	buildVersion := createVersionID([]byte(diffStr))
 	pbv := &dbmodel.TenantPluginBuildVersion{
-		VersionID: buildVersion,
-		PluginID:  b.PluginID,
-		Kind:      b.Body.Kind,
-		Repo:      b.Body.RepoURL,
-		GitURL:    b.Body.GitURL,
-		Info:      b.Body.Info,
-		BuildTime: time.Now().Format(time.RFC3339),
-		Status:    "building",
+		VersionID:       buildVersion,
+		PluginID:        b.PluginID,
+		Kind:            plugin.BuildModel,
+		Repo:            b.Body.RepoURL,
+		GitURL:          plugin.GitURL,
+		Info:            b.Body.Info,
+		ContainerCPU:    b.Body.PluginCPU,
+		ContainerMemory: b.Body.PluginMemory,
+		ContainerCMD:    b.Body.PluginCMD,
+		BuildTime:       time.Now().Format(time.RFC3339),
+		Status:          "building",
+	}
+	if b.Body.PluginCPU == 0 {
+		pbv.ContainerCPU = 125
+	}
+	if b.Body.PluginMemory == 0 {
+		pbv.ContainerMemory = 50
 	}
 	tx := db.GetManager().Begin()
 	if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).AddModel(pbv); err != nil {
@@ -367,14 +391,17 @@ func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plu
 		return "", err
 	}
 	taskBody := &builder_model.BuildPluginTaskBody{
-		TenantID:  b.Body.TenantID,
-		PluginID:  b.PluginID,
-		Operator:  b.Body.Operator,
-		EventID:   b.Body.EventID,
-		Repo:      b.Body.RepoURL,
-		GitURL:    b.Body.GitURL,
-		Kind:      b.Body.Kind,
-		VersionID: buildVersion,
+		TenantID:     b.Body.TenantID,
+		PluginID:     b.PluginID,
+		Operator:     b.Body.Operator,
+		EventID:      b.Body.EventID,
+		Repo:         b.Body.RepoURL,
+		GitURL:       plugin.GitURL,
+		Kind:         plugin.BuildModel,
+		VersionID:    buildVersion,
+		PluginCMD:    b.Body.PluginCMD,
+		PluginCPU:    b.Body.PluginCPU,
+		PluginMemory: b.Body.PluginMemory,
 	}
 	jtask, errJ := ffjson.Marshal(taskBody)
 	if errJ != nil {
