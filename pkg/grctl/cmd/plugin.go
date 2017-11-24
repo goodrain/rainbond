@@ -30,25 +30,30 @@ import (
 //NewCmdPlugin 插件相关操作
 func NewCmdPlugin() cli.Command {
 	c := cli.Command{
-		Name: "plugin",
-		Flags: []cli.Flag{
-			cli.BoolFlag{
-				Name:  "create, c",
-				Usage: "创建插件。 grctl plugin -c NAMESPACE PLUGIN_ID -i INFOS",
+		Name:  "plugin",
+		Usage: "插件相关操作。grctl plugin [create/delete/update/build] NAMESPACE PLUGIN_ID [commands] [sources]",
+		Subcommands: []cli.Command{
+			{
+				Name:  "create",
+				Usage: "创建自定义资源。 grctl sources create -g NAMESPACE/SOURCEALIAS -k ENVNAME -v ENVVALUE",
+				Action: func(c *cli.Context) error {
+					return sourcesAction(c, "create")
+				},
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "group, g",
+						Usage: "--group/-g NAMESPACE/SOURCEALIAS",
+					},
+					cli.StringFlag{
+						Name:  "key, k",
+						Usage: "自定义资源名，-k ENVNAME",
+					},
+					cli.StringFlag{
+						Name:  "value, v",
+						Usage: "自定义资源值，-v ENVVALUE",
+					},
+				},
 			},
-			cli.BoolFlag{
-				Name:  "update, u",
-				Usage: "更新插件。 grctl plugin -u NAMESPACE PLUGIN_ID -i INFOS",
-			},
-			cli.BoolFlag{
-				Name:  "delete, d",
-				Usage: "删除插件。 grctl plugin -d NAMESPACE PLUGIN_ID",
-			},
-		},
-		Usage: "插件相关操作。grctl plugin [create/delete/update] NAMESPACE PLUGIN_ID [commands] [sources]",
-		Action: func(c *cli.Context) error {
-			Common(c)
-			return pluginAction(c)
 		},
 	}
 	return c

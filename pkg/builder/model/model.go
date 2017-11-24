@@ -30,6 +30,9 @@ type BuildPluginTaskBody struct {
 	EventID       string `json:"event_id"`
 	DeployVersion string `json:"deploy_version"`
 	Kind          string `json:"kind"`
+	PluginCMD     string `json:"plugin_cmd"`
+	PluginCPU     int    `json:"plugin_cpu"`
+	PluginMemory  int    `json:"plugin_memory"`
 }
 
 //BuildPluginVersion BuildPluginVersion
@@ -67,7 +70,7 @@ type AppPublish struct {
 	AppVersion string `json:"app_version"`
 	Image      string `json:"image"`
 	Slug       string `json:"slug"`
-	DestYS     bool `json:"dest_ys"`
-	DestYB     bool `json:"dest_yb"`
+	DestYS     bool   `json:"dest_ys"`
+	DestYB     bool   `json:"dest_yb"`
 	ShareID    string `json:"share_id"`
 }

@@ -1145,6 +1145,29 @@
         }
       }
     },
+    "/v2/tenants/{tenant_name}/event": {
+      "get": {
+        "description": "get events",
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2",
+          "get"
+        ],
+        "summary": "获取指定event_ids详细信息  **完成",
+        "operationId": "events",
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
     "/v2/tenants/{tenant_name}/plugin": {
       "get": {
         "description": "get plugins",
@@ -1463,7 +1486,6 @@
               "type": "object",
               "required": [
                 "event_id",
-                "kind",
                 "deploy_version",
                 "info"
               ],
@@ -1478,45 +1500,35 @@
                   "type": "string",
                   "x-go-name": "EventID"
                 },
-                "git_url": {
-                  "description": "git地址\nin: body",
-                  "type": "string",
-                  "x-go-name": "GitURL"
-                },
-                "image_url": {
-                  "description": "镜像地址\nin: body",
-                  "type": "string",
-                  "x-go-name": "ImageURL"
-                },
                 "info": {
                   "description": "版本信息, 协助选择插件版本\nin:body",
                   "type": "string",
                   "x-go-name": "Info"
-                },
-                "kind": {
-                  "description": "插件构建类型, image/dockerfile\nin: body",
-                  "type": "string",
-                  "x-go-name": "Kind"
                 },
                 "operator": {
                   "description": "操作人\nin: body",
                   "type": "string",
                   "x-go-name": "Operator"
                 },
+                "plugin_cmd": {
+                  "description": "插件cmd, 默认50\nin: body",
+                  "type": "string",
+                  "x-go-name": "PluginCMD"
+                },
                 "plugin_cpu": {
-                  "description": "插件CPU权重, 默认500\nin: body",
+                  "description": "插件CPU权重, 默认125\nin: body",
                   "type": "integer",
                   "format": "int64",
                   "x-go-name": "PluginCPU"
                 },
                 "plugin_memory": {
-                  "description": "插件最大内存, 默认128\nin: body",
+                  "description": "插件最大内存, 默认50\nin: body",
                   "type": "integer",
                   "format": "int64",
                   "x-go-name": "PluginMemory"
                 },
                 "repo_url": {
-                  "description": "git地址 带版本\nin: body",
+                  "description": "git地址 分支信息\nin: body",
                   "type": "string",
                   "x-go-name": "RepoURL"
                 },
@@ -6028,10 +6040,25 @@
           "x-go-name": "Header"
         },
         "limit": {
-          "description": "限流值\nin:body",
+          "description": "限流值 max_connections",
           "type": "integer",
           "format": "int64",
           "x-go-name": "Limit"
+        },
+        "max_pending_requests": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "MaxPendingRequests"
+        },
+        "max_requests": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "MaxRequests"
+        },
+        "max_retries": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "MaxRetries"
         },
         "prefix": {
           "description": "path规则\nin: body",
@@ -6169,7 +6196,7 @@
           "x-go-name": "EnvName"
         },
         "env_value": {
-          "type": "string",
+          "type": "object",
           "x-go-name": "EnvVal"
         }
       },
