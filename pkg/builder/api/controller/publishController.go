@@ -89,10 +89,9 @@ func UpdateDeliveredPath(w http.ResponseWriter, r *http.Request) {
 
 func AddAppPublish(w http.ResponseWriter, r *http.Request) {
 	result := new(model.AppPublish)
-
-
 	b,_:=ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
+
 	j,err:=simplejson.NewJson(b)
 	if err != nil {
 		logrus.Errorf("error decode json,details %s",err.Error())
@@ -100,14 +99,29 @@ func AddAppPublish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result.AppVersion,_=j.Get("app_version").String()
-	result.ServiceKey,_=j.Get("service_key").String()
-	result.Slug,_=j.Get("slug").String()
-	result.Image,_=j.Get("image").String()
-	result.DestYS,_=j.Get("dest_ys").Bool()
-	result.DestYB,_=j.Get("dest_yb").Bool()
-	result.ShareID,_=j.Get("share_id").String()
+	result.AppVersion,err=j.Get("app_version").String()
 
+	result.ServiceKey,err=j.Get("service_key").String()
+	result.Slug,err=j.Get("slug").String()
+	if err != nil {
+		logrus.Warnf("error get slag json,details %s",err.Error())
+	}
+	result.Image,err=j.Get("image").String()
+	if err != nil {
+		logrus.Warnf("error get slag json,details %s",err.Error())
+	}
+	result.DestYS,err=j.Get("dest_ys").Bool()
+	if err != nil {
+		logrus.Warnf("error get slag json,details %s",err.Error())
+	}
+	result.DestYB,err=j.Get("dest_yb").Bool()
+	if err != nil {
+		logrus.Warnf("error get slag json,details %s",err.Error())
+	}
+	result.ShareID,err=j.Get("share_id").String()
+	if err != nil {
+		logrus.Warnf("error get slag json,details %s",err.Error())
+	}
 
 	dbmodel:=convertPublishToDB(result)
 	//checkAndGet
