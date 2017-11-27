@@ -1,29 +1,29 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package controller
 
 import (
-	"github.com/goodrain/rainbond/pkg/api/handler"
-	"github.com/goodrain/rainbond/pkg/api/middleware"
 	"net/http"
 	"strings"
+
+	"github.com/goodrain/rainbond/pkg/api/handler"
+	"github.com/goodrain/rainbond/pkg/api/middleware"
 
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
@@ -49,7 +49,7 @@ func (t *TenantStruct) AddVolumeDependency(w http.ResponseWriter, r *http.Reques
 	//
 	// 增加应用持久化依赖
 	//
-	// add volume dependency    **完成
+	// add volume dependency
 	//
 	// ---
 	// consumes:
@@ -93,7 +93,7 @@ func (t *TenantStruct) DeleteVolumeDependency(w http.ResponseWriter, r *http.Req
 	//
 	// 删除应用持久化依赖
 	//
-	// delete volume dependency  **完成
+	// delete volume dependency
 	//
 	// ---
 	// consumes:
@@ -134,7 +134,7 @@ func (t *TenantStruct) AddVolume(w http.ResponseWriter, r *http.Request) {
 	//
 	// 增加应用持久化信息
 	//
-	// add volume  **完成
+	// add volume
 	//
 	// ---
 	// consumes:
@@ -181,7 +181,7 @@ func (t *TenantStruct) DeleteVolume(w http.ResponseWriter, r *http.Request) {
 	//
 	// 删除应用持久化信息
 	//
-	// delete volume  **完成
+	// delete volume
 	//
 	// ---
 	// consumes:
@@ -224,7 +224,7 @@ func AddVolumeDependency(w http.ResponseWriter, r *http.Request) {
 	//
 	// 增加应用持久化依赖(V2.1支持多种类型存储)
 	//
-	// add volume dependency    **完成
+	// add volume dependency
 	//
 	// ---
 	// consumes:
@@ -268,7 +268,7 @@ func DeleteVolumeDependency(w http.ResponseWriter, r *http.Request) {
 	//
 	// 删除应用持久化依赖(V2.1支持多种类型存储)
 	//
-	// delete volume dependency  **完成
+	// delete volume dependency
 	//
 	// ---
 	// consumes:
@@ -310,7 +310,7 @@ func AddVolume(w http.ResponseWriter, r *http.Request) {
 	//
 	// 增加应用持久化信息(V2.1支持多种类型存储)
 	//
-	// add volume  **完成
+	// add volume
 	//
 	// ---
 	// consumes:
@@ -357,7 +357,7 @@ func DeleteVolume(w http.ResponseWriter, r *http.Request) {
 	//
 	// 删除应用持久化信息(V2.1支持多种类型存储)
 	//
-	// delete volume  **完成
+	// delete volume
 	//
 	// ---
 	// consumes:
