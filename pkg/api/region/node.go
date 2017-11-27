@@ -205,12 +205,27 @@ func (t *Task)Status() (*TaskStatus,error) {
 		bean:=j.Get("bean")
 		beanB,_:=json.Marshal(bean)
 		var status TaskStatus
-		logrus.Infof("%s",string(beanB))
-		//inner,err:=simplejson.NewJson(beanB)
-		//inner.GetPath()
+
+		result:=HandleUnStructedJson(beanB)
+
+		logrus.Infof("CompleStatus: %s",result["comple_status"])
+		logrus.Infof("Status: %s",result["status"])
 		return &status,nil
 	}
 	return nil,nil
+}
+func HandleUnStructedJson(b []byte) map[string]string {
+	json,_:=simplejson.NewJson(b)
+
+	second:=json.Interface()
+	m:=second.(map[string]interface{})
+	result:=make(map[string]string)
+	for k,_:=range m {
+		result["comple_status"]=m[k].(map[string]interface{})["comple_status"].(string)
+		result["status"]=m[k].(map[string]interface{})["status"].(string)
+		break
+	}
+	return result
 }
 func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error) {
 	logrus.Infof("requesting url: %s by method :%s",r.NodeAPI+url,method)

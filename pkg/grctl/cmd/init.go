@@ -68,7 +68,7 @@ func NewCmdInitStatus() cli.Command {
 	c:=cli.Command{
 		Name:  "init_status",
 
-		Usage: "初始化集群。grctl init_status",
+		Usage: "查看初始化集群状态。grctl init_status",
 		Action: func(c *cli.Context) error {
 			for true  {
 				clients.NodeClient.Tasks().Get("install_manage_ready").Status()

@@ -172,8 +172,6 @@ func (ts *TaskService) ExecTask(taskID string, nodes []string) *utils.APIHandleE
 	if nodes == nil || len(nodes) == 0 {
 		ts.ms.TaskEngine.PutSchedul(taskID, "")
 	} else {
-		b,_:=json.Marshal(ts.ms.Cluster.GetAllNode())
-		fmt.Println("in task service line 174, all node is %s",b)
 		for _, node := range nodes {
 			if n := ts.ms.Cluster.GetNode(node); n == nil {
 				return utils.CreateAPIHandleError(400, fmt.Errorf(" exec node  %s not found", node))

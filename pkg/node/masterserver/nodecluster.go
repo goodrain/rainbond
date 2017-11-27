@@ -285,10 +285,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 	}
 	defer func() {
 		node.UpdataCondition(initCondition)
-		fmt.Println("adding node %s to cluster",node.ID)
 		n.UpdateNode(node)
-		_,ok:=n.nodes[node.ID]
-		fmt.Println("result is %v",ok)
 	}()
 	errorCondition := func(reason string, err error) {
 		initCondition.Status = model.ConditionFalse

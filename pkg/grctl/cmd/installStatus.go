@@ -31,7 +31,7 @@ func GetCommand(status bool)[]cli.Command  {
 			Flags: []cli.Flag{
 				cli.StringSliceFlag{
 					Name:  "nodes",
-					Usage: "10.0.0.2 10.0.0.3,空表示全部",
+					Usage: "hostID1 hostID2 ...,空表示全部",
 				},
 			},
 			Action: func(c *cli.Context) error {
@@ -68,7 +68,7 @@ func GetCommand(status bool)[]cli.Command  {
 			Flags: []cli.Flag{
 				cli.StringSliceFlag{
 					Name:  "nodes",
-					Usage: "10.0.0.2 10.0.0.3,空表示全部",
+					Usage: "hostID1 hostID2 ...,空表示全部",
 				},
 			},
 			Action: func(c *cli.Context) error {
@@ -114,7 +114,7 @@ func GetCommand(status bool)[]cli.Command  {
 			Flags: []cli.Flag{
 				cli.StringSliceFlag{
 					Name:  "nodes",
-					Usage: "10.0.0.2 10.0.0.3,空表示全部",
+					Usage: "hostID1 hostID2 ...,空表示全部",
 				},
 			},
 			Subcommands:[]cli.Command{
@@ -165,7 +165,7 @@ func NewCmdInstall() cli.Command {
 		Flags: []cli.Flag{
 			cli.StringSliceFlag{
 				Name:  "nodes",
-				Usage: "10.0.0.2 10.0.0.3,空表示全部",
+				Usage: "hostID1 hostID2 ...,空表示全部",
 			},
 		},
 		Subcommands:GetCommand(false),
@@ -179,7 +179,7 @@ func NewCmdStatus() cli.Command {
 		Flags: []cli.Flag{
 			cli.StringSliceFlag{
 				Name:  "nodes",
-				Usage: "10.0.0.2 10.0.0.3,空表示全部",
+				Usage: "hostID1 hostID2 ...,空表示全部",
 			},
 		},
 		Subcommands:GetCommand(true),
