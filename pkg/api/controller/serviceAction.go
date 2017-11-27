@@ -79,7 +79,7 @@ func createEvent(eventID, serviceID, optType, tenantID, deployVersion string) (*
 	event.DeployVersion = version
 	event.OldDeployVersion = oldDeployVersion
 
-	status, err := checkCanAddEvent(serviceID,event.EventID)
+	status, err := checkCanAddEvent(serviceID, event.EventID)
 	if err != nil {
 		logrus.Errorf("error check event")
 		return nil, status, nil
@@ -118,21 +118,21 @@ func autoTimeOut(event *dbmodel.ServiceEvent) {
 		}
 	}
 }
-func checkCanAddEvent(s ,eventID string) (int, error) {
+func checkCanAddEvent(s, eventID string) (int, error) {
 	events, err := db.GetManager().ServiceEventDao().GetEventByServiceID(s)
 
 	if err != nil {
 		return 3, err
 	}
-	b,_:=json.Marshal(events)
-	logrus.Infof("get %d event from mysql by service %s,details is %s",len(events),s,string(b))
+	b, _ := json.Marshal(events)
+	logrus.Infof("get %d event from mysql by service %s,details is %s", len(events), s, string(b))
 	if len(events) == 0 {
 		//service 首个event
 		return 0, nil
 	}
 	latestEvent := events[0]
-	if latestEvent.EventID==eventID {
-		return 0,nil
+	if latestEvent.EventID == eventID {
+		return 0, nil
 	}
 	if latestEvent.FinalStatus == "" {
 		//未完成
@@ -201,7 +201,7 @@ func handleStatus(status int, err error, w http.ResponseWriter, r *http.Request)
 //
 // 启动应用
 //
-// start service  **完成
+// start service
 //
 // ---
 // consumes:
@@ -259,7 +259,7 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 //
 // 关闭应用
 //
-// stop service  **完成
+// stop service
 //
 // ---
 // consumes:
@@ -311,7 +311,7 @@ func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
 //
 // 重启应用
 //
-// restart service  **完成
+// restart service
 //
 // ---
 // consumes:
@@ -364,7 +364,7 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 //
 // 应用垂直伸缩
 //
-// service vertical  **完成
+// service vertical
 //
 // ---
 // consumes:
@@ -421,7 +421,7 @@ func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 //
 // 应用水平伸缩
 //
-// service horizontal  **完成
+// service horizontal
 //
 // ---
 // consumes:
@@ -474,7 +474,7 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 //
 // 应用构建
 //
-// service build  **完成
+// service build
 //
 // ---
 // consumes:
@@ -509,12 +509,12 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	handleStatus(status, err, w, r)
 	//{\"tenant_name\":\"\",\"service_alias\":\"\",\"Body\":{\"event_id\":\"c19aa41c357a4d9e9ca38ab7f2a44961\",\"envs\":{},\"kind\":\"source\",\"action\":\"deploy\",\"image_url\":\"\",\"deploy_version\":\"20171122154417\",\"repo_url\":\"--branch master --depth 1 https://github.com/bay1ts/zk_cluster_mini.git\",\"operator\":\"bay1ts\",\"tenant_name\":\"bay1ts-test\",\"service_alias\":\"gr21ea6b\"}}
 	////createBuildInfo
-	version:=dbmodel.VersionInfo{}
-	version.EventID=sEvent.EventID
-	version.ServiceID=serviceID
-	version.RepoURL=build.Body.RepoURL
-	version.Kind=build.Body.Kind
-	version.BuildVersion=build.Body.DeployVersion
+	version := dbmodel.VersionInfo{}
+	version.EventID = sEvent.EventID
+	version.ServiceID = serviceID
+	version.RepoURL = build.Body.RepoURL
+	version.Kind = build.Body.Kind
+	version.BuildVersion = build.Body.DeployVersion
 	db.GetManager().VersionInfoDao().AddModel(&version)
 	//save
 	//version.DeliveredPath
@@ -558,7 +558,7 @@ func (t *TenantStruct) DeployService(w http.ResponseWriter, r *http.Request) {
 //
 // 升级应用
 //
-// upgrade service  **完成
+// upgrade service
 //
 // ---
 // consumes:
@@ -613,7 +613,7 @@ func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 //
 // 应用代码检测
 //
-// check  code  **完成
+// check  code
 //
 // ---
 // consumes:
@@ -648,16 +648,13 @@ func (t *TenantStruct) CheckCode(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-
-
-
 //ShareCloud 云市分享
 func (t *TenantStruct) ShareCloud(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/tenants/{tenant_name}/cloud-share v2 sharecloud
 	//
 	// 云市分享
 	//
-	// share cloud  **完成
+	// share cloud
 	//
 	// ---
 	// consumes:
@@ -695,7 +692,7 @@ func (t *TenantStruct) ShareCloud(w http.ResponseWriter, r *http.Request) {
 //
 // 应用版本回滚
 //
-// service rollback  **完成
+// service rollback
 //
 // ---
 // consumes:
