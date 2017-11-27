@@ -43,7 +43,7 @@ func Run() error {
 	sort.Sort(cli.FlagsByName(App.Flags))
 	sort.Sort(cli.CommandsByName(App.Commands))
 	App.Commands=cmd.GetCmds()
-	if err := clients.InitNodeClient("http://127.0.0.0:6100/v2"); err != nil {
+	if err := clients.InitNodeClient("http://127.0.0.1:6100/v2"); err != nil {
 		logrus.Warnf("error config region")
 	}
 

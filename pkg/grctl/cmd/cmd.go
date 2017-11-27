@@ -71,7 +71,7 @@ func Common(c *cli.Context) {
 	if err := clients.InitRegionClient(*config.RegionAPI); err != nil {
 		logrus.Warnf("error config region")
 	}
-	if err := clients.InitNodeClient("http://127.0.0.1:6100"); err != nil {
+	if err := clients.InitNodeClient("http://127.0.0.1:6100/v2"); err != nil {
 		logrus.Warnf("error config region")
 	}
 
