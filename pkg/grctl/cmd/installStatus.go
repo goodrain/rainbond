@@ -20,9 +20,7 @@ package cmd
 import (
 	"github.com/urfave/cli"
 	"github.com/Sirupsen/logrus"
-	"encoding/json"
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
-	"fmt"
 )
 
 func GetCommand(status bool)[]cli.Command  {
@@ -190,14 +188,14 @@ func NewCmdStatus() cli.Command {
 }
 func Task(c *cli.Context,task string,status bool) error   {
 	if status{
-		status,err:=clients.NodeClient.Tasks().Get(task).Status()
+		_,err:=clients.NodeClient.Tasks().Get(task).Status()
 		if err != nil {
 			logrus.Errorf("error get task:%s 's status,details %s",task,err.Error())
 			return err
 		}
-		a:=status.Status
-		b,_:=json.Marshal(a)
-		fmt.Println(string(b))
+		//a:=status.Status
+		//b,_:=json.Marshal(a)
+		//fmt.Println(string(b))
 		return nil
 	}
 

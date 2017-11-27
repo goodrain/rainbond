@@ -55,7 +55,10 @@ type NodeInterface interface {
 
 func (t *Node)Add(node *model.APIHostNode) {
 	body,_:=json.Marshal(node)
-	nodeServer.Request("/nodes/","POST",body)
+	_,_,err:=nodeServer.Request("/nodes","POST",body)
+	if err != nil {
+		logrus.Errorf("error details %s",err.Error())
+	}
 }
 func (t *Node)Up() {
 	nodeServer.Request("/nodes/"+t.Id+"/up","POST",nil)
@@ -155,13 +158,10 @@ func (t *Task)Status() (*TaskStatus,error) {
 	}
 	if code == 200 {
 		j,_:=simplejson.NewJson(resp)
-		bean,_:=j.Get("bean").Bytes()
+		bean:=j.Get("bean")
+		beanB,_:=json.Marshal(bean)
 		var status TaskStatus
-		err=json.Unmarshal(bean,&status)
-		if err != nil {
-			logrus.Errorf("error unmarshal response,details %s",err.Error())
-			return nil,err
-		}
+		logrus.Infof("%s",string(beanB))
 		return &status,nil
 	}
 	return nil,nil
@@ -181,5 +181,6 @@ func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error)
 
 	data, err := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
+	logrus.Infof("response is %s,response code is %d",string(data),res.StatusCode)
 	return data,res.StatusCode,err
 }

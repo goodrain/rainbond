@@ -135,7 +135,7 @@ func NewCmdNode() cli.Command {
 					cli.StringFlag{
 						Name:  "InternalIP,i",
 						Value:"",
-						Usage: "InternalIP",
+						Usage: "InternalIP|required",
 					},
 					cli.StringFlag{
 						Name:  "ExternalIP,e",
