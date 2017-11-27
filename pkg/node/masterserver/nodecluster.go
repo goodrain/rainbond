@@ -310,6 +310,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 	}
 	//TODO:
 	//处理安装结果
+	fmt.Println("初始化节点成功")
 	logrus.Info(stdout.String())
 }
 
