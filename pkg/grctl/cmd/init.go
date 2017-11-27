@@ -25,6 +25,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"bytes"
+	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	//"runtime"
 	"fmt"
 )
@@ -61,6 +62,24 @@ func NewCmdInit() cli.Command {
 	}
 	return c
 }
+
+
+func NewCmdInitStatus() cli.Command {
+	c:=cli.Command{
+		Name:  "init_status",
+
+		Usage: "初始化集群。grctl init_status",
+		Action: func(c *cli.Context) error {
+			for true  {
+				clients.NodeClient.Tasks().Get("install_manage_ready").Status()
+			}
+
+			return nil
+		},
+	}
+	return c
+}
+
 
 // grctl exec POD_ID COMMAND
 func initCluster(c *cli.Context) error {

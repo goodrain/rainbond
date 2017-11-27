@@ -206,6 +206,8 @@ func (t *Task)Status() (*TaskStatus,error) {
 		beanB,_:=json.Marshal(bean)
 		var status TaskStatus
 		logrus.Infof("%s",string(beanB))
+		//inner,err:=simplejson.NewJson(beanB)
+		//inner.GetPath()
 		return &status,nil
 	}
 	return nil,nil
