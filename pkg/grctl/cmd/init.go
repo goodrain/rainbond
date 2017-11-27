@@ -27,7 +27,6 @@ import (
 	"bytes"
 	//"runtime"
 	"fmt"
-	"github.com/bitly/go-simplejson"
 )
 
 func NewCmdInit() cli.Command {

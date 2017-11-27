@@ -41,9 +41,8 @@ type MasterServer struct {
 
 //NewMasterServer 创建master节点
 func NewMasterServer(node *model.HostNode, k8sClient *kubernetes.Clientset) (*MasterServer, error) {
-	datacenterConfig := config.CreateDataCenterConfig()
 	ctx, cancel := context.WithCancel(context.Background())
-	cluster, err := CreateNodeCluster(k8sClient,datacenterConfig)
+	cluster, err := CreateNodeCluster(k8sClient,node)
 	if err != nil {
 		cancel()
 		return nil, err
@@ -55,7 +54,6 @@ func NewMasterServer(node *model.HostNode, k8sClient *kubernetes.Clientset) (*Ma
 		Cluster:          cluster,
 		ctx:              ctx,
 		cancel:           cancel,
-		datacenterConfig: datacenterConfig,
 	}
 	return ms, nil
 }
