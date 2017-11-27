@@ -46,12 +46,22 @@ type TaskInterface interface {
 type NodeInterface interface {
 	Add(node *model.APIHostNode)
 	Delete()
+	Rule(rule string) []*model.HostNode
 	Get(node string) *Node
 	List() []*model.HostNode
 	Up()
 	Down()
 	UnSchedulable()
 	ReSchedulable()
+	Label(label map[string]string)
+}
+
+func (t *Node)Label(label map[string]string)  {
+	body,_:=json.Marshal(label)
+	_,_,err:=nodeServer.Request("nodes/"+t.Id+"/labels","POST",body)
+	if err != nil {
+		logrus.Errorf("error details %s",err.Error())
+	}
 }
 
 func (t *Node)Add(node *model.APIHostNode) {
@@ -79,6 +89,7 @@ func (t *Node)UnSchedulable() {
 func (t *Node)ReSchedulable() {
 	nodeServer.Request("/nodes/"+t.Id+"/reschedulable","PUT",nil)
 }
+
 func (t *Node)Get(node string) *Node {
 	body,_,err:=nodeServer.Request("/nodes/"+node,"GET",nil)
 	if err != nil {
@@ -105,6 +116,32 @@ func (t *Node)Get(node string) *Node {
 	}
 	t.Node=&stored
 	return t
+}
+
+func (t *Node)Rule(rule string) []*model.HostNode {
+	body,_,err:=nodeServer.Request("/nodes/"+rule,"GET",nil)
+	if err != nil {
+		logrus.Errorf("error get rule %s ,details %s",rule,err.Error())
+		return nil
+	}
+	j,err:=simplejson.NewJson(body)
+	if err != nil {
+		logrus.Errorf("error get json ,details %s",err.Error())
+		return nil
+	}
+	nodeArr,err:=j.Get("list").Array()
+	if err != nil {
+		logrus.Infof("error occurd,details %s",err.Error())
+		return nil
+	}
+	jsonA, _ := json.Marshal(nodeArr)
+	nodes := []*model.HostNode{}
+	err=json.Unmarshal(jsonA, &nodes)
+	if err != nil {
+		logrus.Infof("error occurd,details %s",err.Error())
+		return nil
+	}
+	return nodes
 }
 func (t *Node)List() []*model.HostNode {
 	body,_,err:=nodeServer.Request("/nodes","GET",nil)

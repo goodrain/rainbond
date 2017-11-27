@@ -137,6 +137,48 @@ func NewCmdNode() cli.Command {
 				},
 			},
 			{
+				Name:  "rule",
+				Usage: "rule ruleName",
+				Action: func(c *cli.Context) error {
+					rule:=c.Args().First()
+					if rule == "" {
+						logrus.Errorf("need rule name")
+						return nil
+					}
+					clients.NodeClient.Nodes().Rule(rule)
+					return nil
+				},
+			},
+			{
+				Name:  "label",
+				Usage: "label hostID",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "key",
+						Value: "",
+						Usage: "key",
+					},
+					cli.StringFlag{
+						Name:  "val",
+						Value: "",
+						Usage: "val",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					hostID:=c.Args().First()
+					if hostID == "" {
+						logrus.Errorf("need hostID")
+						return nil
+					}
+					k:=c.String("key")
+					v:=c.String("val")
+					label:=make(map[string]string)
+					label[k]=v
+					clients.NodeClient.Nodes().Get(hostID).Label(label)
+					return nil
+				},
+			},
+			{
 				Name:  "add",
 				Usage: "add 添加节点",
 				Flags: []cli.Flag{
