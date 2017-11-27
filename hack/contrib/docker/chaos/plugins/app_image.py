@@ -90,6 +90,17 @@ class AppImage():
             if self.region_registry.exist_image(image):
                 logger.debug("mq_work.app_image",
                              "now local exists, oss doesnot exists")
+                data = {
+                    'service_key': service_key,
+                    'app_version': app_version,
+                    'image': image,
+                    'dest_yb': True,
+                    'dest_ys': False,
+                    'slug': ""
+                }
+                if share_id is not None:
+                    data["share_id"] = share_id
+                self.region_client.service_publish_new_region(data)
                 if self.is_region_image and not self.oss_registry.exist_image(
                         oss_image):
                     try:
@@ -100,6 +111,8 @@ class AppImage():
                                 "拉取镜像发生错误，构建退出。",
                                 step="callback",
                                 status="failure")
+
+                            self.region_client.service_publish_failure_region(data)
                             return
                         image_id = self.get_image_property(image, 'Id')
                         self.log.info("拉取镜像完成。")
@@ -111,25 +124,18 @@ class AppImage():
                                 "拉取镜像发生错误，构建退出。",
                                 step="callback",
                                 status="failure")
+
+                            self.region_client.service_publish_failure_region(data)
                             return
                         self.log.info("上传镜像到云帮完成")
                         # 发送通知到web
-                        data = {
-                            'service_key': service_key,
-                            'app_version': app_version,
-                            'image': image,
-                            'dest_yb': True,
-                            'dest_ys': False,
-                            'slug': ""
-                        }
-                        if share_id is not None:
-                            data["share_id"] = share_id
                         self.user_cs_client.service_publish_success(
                             json.dumps(data))
                         try:
                             self.region_client.service_publish_success_region(json.dumps(data))
                         except Exception as e:
                             logger.exception(e)
+                            self.region_client.service_publish_failure_region(data)
                             pass
 
                         self.log.info(
@@ -137,27 +143,20 @@ class AppImage():
                     except (shell.ExecException, Exception), e:
                         logger.exception("mq_work.app_image", e)
                         logger.error("mq_work.app_image", e)
+
+                        self.region_client.service_publish_failure_region(data)
                         self.log.error(
                             "云帮应用发布失败 {}".format(e.message),
                             step="callback",
                             status="failure")
                 else:
                     # 发送通知到web
-                    data = {
-                        'service_key': service_key,
-                        'app_version': app_version,
-                        'image': image,
-                        'dest_yb': True,
-                        'slug': "",
-                        'dest_ys': False,
-                    }
-                    if share_id is not None:
-                        data["share_id"] = share_id
                     self.user_cs_client.service_publish_success(
                         json.dumps(data))
                     try:
                         self.region_client.service_publish_success_region(json.dumps(data))
                     except Exception as e:
+                        self.region_client.service_publish_failure_region(data)
                         logger.exception(e)
                         pass
 
@@ -165,6 +164,17 @@ class AppImage():
         elif dest == "ys":
             # 当前有镜像并且云市的image数据中心开启
             if self.region_registry.exist_image(image) and self.is_oss_image:
+                req = {
+                    'service_key': service_key,
+                    'app_version': app_version,
+                    'image': image,
+                    'slug': "",
+                    'dest_ys': True,
+                    'dest_yb': False
+                }
+                if share_id is not None:
+                    req["share_id"] = share_id
+                self.region_client.service_publish_new_region(req)
                 self.log.info("开始上传镜像到云市")
                 # 修改image name
                 hub_image = self.hubclient.rename_image(image)
@@ -185,6 +195,7 @@ class AppImage():
                             "拉取镜像发生错误，构建退出。",
                             step="callback",
                             status="failure")
+                        self.region_client.service_publish_failure_region(req)
                         return
                     image_id = self.get_image_property(image, 'Id')
                     self.log.info("从云帮拉取镜像完成,更改镜像TAG")
@@ -196,24 +207,16 @@ class AppImage():
                             "拉取镜像发生错误，构建退出。",
                             step="callback",
                             status="failure")
+                        self.region_client.service_publish_failure_region(req)
                         return
                     self.log.info("上传镜像到云市完成。")
                     # 发送通知到web
-                    data = {
-                        'service_key': service_key,
-                        'app_version': app_version,
-                        'image': image,
-                        'slug': "",
-                        'dest_ys': True,
-                        'dest_yb': False
-                    }
-                    if share_id is not None:
-                        data["share_id"] = share_id
                     self.user_cs_client.service_publish_success(
-                        json.dumps(data))
+                        json.dumps(req))
                     try:
-                        self.region_client.service_publish_success_region(json.dumps(data))
+                        self.region_client.service_publish_success_region(json.dumps(req))
                     except Exception as e:
+                        self.region_client.service_publish_failure_region(req)
                         logger.exception(e)
                         pass
 
@@ -221,6 +224,7 @@ class AppImage():
                 except (shell.ExecException, Exception), e:
                     logger.exception("mq_work.app_image", e)
                     logger.error("mq_work.app_image", e)
+                    self.region_client.service_publish_failure_region(req)
                     self.log.error(
                         "云市应用发布失败 {}".format(e.message),
                         step="callback",

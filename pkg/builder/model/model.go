@@ -73,4 +73,5 @@ type AppPublish struct {
 	DestYS     bool   `json:"dest_ys,omitempty"`
 	DestYB     bool   `json:"dest_yb,omitempty"`
 	ShareID    string `json:"share_id,omitempty"`
+	Status    string `json:"status,omitempty"`
 }

@@ -118,5 +118,6 @@ func convertPublishToDB(publish *model.AppPublish) *dbmodel.AppPublish {
 	dbm.Image=publish.Image
 	dbm.ServiceKey=publish.ServiceKey
 	dbm.Slug=publish.Slug
+	dbm.Status=publish.Status
 	return &dbm
 }
