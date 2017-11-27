@@ -58,7 +58,7 @@ type NodeInterface interface {
 
 func (t *Node)Label(label map[string]string)  {
 	body,_:=json.Marshal(label)
-	_,_,err:=nodeServer.Request("nodes/"+t.Id+"/labels","POST",body)
+	_,_,err:=nodeServer.Request("/nodes/"+t.Id+"/labels","PUT",body)
 	if err != nil {
 		logrus.Errorf("error details %s",err.Error())
 	}
