@@ -124,6 +124,19 @@ func NewCmdNode() cli.Command {
 				},
 			},
 			{
+				Name:  "delete",
+				Usage: "delete hostID",
+				Action: func(c *cli.Context) error {
+					id:=c.Args().First()
+					if id == "" {
+						logrus.Errorf("need hostID")
+						return nil
+					}
+					clients.NodeClient.Nodes().Get(id).Delete()
+					return nil
+				},
+			},
+			{
 				Name:  "add",
 				Usage: "add 添加节点",
 				Flags: []cli.Flag{

@@ -45,6 +45,7 @@ type TaskInterface interface {
 }
 type NodeInterface interface {
 	Add(node *model.APIHostNode)
+	Delete()
 	Get(node string) *Node
 	List() []*model.HostNode
 	Up()
@@ -56,6 +57,12 @@ type NodeInterface interface {
 func (t *Node)Add(node *model.APIHostNode) {
 	body,_:=json.Marshal(node)
 	_,_,err:=nodeServer.Request("/nodes","POST",body)
+	if err != nil {
+		logrus.Errorf("error details %s",err.Error())
+	}
+}
+func (t *Node) Delete() {
+	_,_,err:=nodeServer.Request("/nodes/"+t.Id,"DELETE",nil)
 	if err != nil {
 		logrus.Errorf("error details %s",err.Error())
 	}
