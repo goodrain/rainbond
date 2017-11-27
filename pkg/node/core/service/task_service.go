@@ -34,7 +34,6 @@ import (
 	"github.com/coreos/etcd/clientv3"
 
 	"github.com/twinj/uuid"
-	"encoding/json"
 )
 
 //TaskService 处理taskAPI
