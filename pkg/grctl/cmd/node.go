@@ -203,7 +203,7 @@ func NewCmdNode() cli.Command {
 						Usage: "RootPass",
 					},
 					cli.StringSliceFlag{
-						Name:  "Role,r",
+						Name:  "Role,ro",
 						Usage: "Role|required",
 					},
 				},

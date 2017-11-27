@@ -299,8 +299,9 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	role:=node.Role[0]
+
 	etcd:=n.currentNode.InternalIP
-	cmd:="bash -c \"set "+etcd+" "+role+";$(curl -s repo.goodrain.com/gaops/jobs/install/prepare/init.sh)\""
+	cmd:="bash -c \"set "+node.ID+" "+etcd+" "+role+";$(curl -s repo.goodrain.com/gaops/jobs/install/prepare/init.sh)\""
 	logrus.Infof("init endpoint node cmd is %s",cmd)
 	client := util.NewSSHClient(node.InternalIP, "root", node.RootPass, cmd, 22, &stdout, &stderr)
 	if err := client.Connection(); err != nil {
