@@ -27,6 +27,7 @@ import (
 	"bytes"
 	//"runtime"
 	"fmt"
+	"github.com/bitly/go-simplejson"
 )
 
 func NewCmdInit() cli.Command {
@@ -101,6 +102,12 @@ func initCluster(c *cli.Context) error {
 	arr[1]="{"+arr[1]
 	json:=arr[1]
 	fmt.Println(json)
+	//j,err:=simplejson.NewJson([]byte(json))
+	//if err != nil {
+	//
+	//}
+	//etcd,err:=j.Get("global").Get("ETCD_ADDRS").String()
+
 	//go func(c *exec.Cmd) {
 	//	defer func() {
 	//		if r := recover(); r != nil {

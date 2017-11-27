@@ -42,7 +42,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"github.com/goodrain/rainbond/pkg/node/core/config"
 )
 
 //NodeCluster 节点管理器
@@ -53,12 +52,12 @@ type NodeCluster struct {
 	lock         sync.Mutex
 	client       *store.Client
 	k8sClient    *kubernetes.Clientset
-	config       *config.DataCenterConfig
+	currentNode       *model.HostNode
 	checkInstall chan *model.HostNode
 }
 
 //CreateNodeCluster 创建节点管理器
-func CreateNodeCluster(k8sClient *kubernetes.Clientset,config *config.DataCenterConfig) (*NodeCluster, error) {
+func CreateNodeCluster(k8sClient *kubernetes.Clientset,node *model.HostNode) (*NodeCluster, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	nc := NodeCluster{
 		ctx:          ctx,
@@ -66,7 +65,7 @@ func CreateNodeCluster(k8sClient *kubernetes.Clientset,config *config.DataCenter
 		nodes:        make(map[string]*model.HostNode, 5),
 		client:       store.DefalutClient,
 		k8sClient:    k8sClient,
-		config:		  config,
+		currentNode:  node,
 		checkInstall: make(chan *model.HostNode, 4),
 	}
 	if err := nc.loadNodes(); err != nil {
@@ -300,8 +299,8 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	role:=node.Role[0]
-	zk:=n.config.GetConfig("ETCD_ADDRS").Value.(string)
-	cmd:="bash -c 'set "+zk+" "+role+";$(curl -s repo.goodrain.com/gaops/jobs/install/prepare/init.sh)'"
+	etcd:=n.currentNode.InternalIP
+	cmd:="bash -c 'set "+etcd+" "+role+";$(curl -s repo.goodrain.com/gaops/jobs/install/prepare/init.sh)'"
 	logrus.Infof("init endpoint node cmd is %s",cmd)
 	client := util.NewSSHClient(node.InternalIP, "root", node.RootPass, cmd, 22, &stdout, &stderr)
 	if err := client.Connection(); err != nil {
