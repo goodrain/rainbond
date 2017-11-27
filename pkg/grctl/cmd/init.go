@@ -25,7 +25,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"bytes"
-	"runtime"
+	//"runtime"
 	"fmt"
 )
 
@@ -93,25 +93,25 @@ func initCluster(c *cli.Context) error {
 	}
 	//logrus.Infof("args is %s,len is %d",arg,len(arg))
 	cmd := exec.Command("bash", "-c",arg+string(b))
-
-	go func(c *exec.Cmd) {
-		defer func() {
-			if r := recover(); r != nil {
-				const size = 64 << 10
-				buf := make([]byte, size)
-				buf = buf[:runtime.Stack(buf, false)]
-				logrus.Warnf("panic running job: %v\n%s", r, buf)
-			}
-		}()
-		buf:=bytes.NewBuffer(nil)
-		cmd.Stderr=buf
-		c.Run()
-		out:=buf.String()
-		arr:=strings.SplitN(out,"{",2)
-		arr[1]="{"+arr[1]
-		json:=arr[1]
-		fmt.Println(json)
-	}(cmd)
+	buf:=bytes.NewBuffer(nil)
+	cmd.Stderr=buf
+	cmd.Run()
+	out:=buf.String()
+	arr:=strings.SplitN(out,"{",2)
+	arr[1]="{"+arr[1]
+	json:=arr[1]
+	fmt.Println(json)
+	//go func(c *exec.Cmd) {
+	//	defer func() {
+	//		if r := recover(); r != nil {
+	//			const size = 64 << 10
+	//			buf := make([]byte, size)
+	//			buf = buf[:runtime.Stack(buf, false)]
+	//			logrus.Warnf("panic running job: %v\n%s", r, buf)
+	//		}
+	//	}()
+	//
+	//}(cmd)
 	return nil
 }
 
