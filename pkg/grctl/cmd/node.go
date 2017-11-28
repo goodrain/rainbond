@@ -30,6 +30,7 @@ import (
 	"strings"
 	"strconv"
 	"errors"
+	"time"
 )
 
 
@@ -50,10 +51,23 @@ func NewCmdNode() cli.Command {
 					n:=clients.NodeClient.Nodes().Get(id)
 					v:=n.Node
 					table := termtables.CreateTable()
-					table.AddHeaders("uid", "IP", "HostName","role","alived","unschedulable","available_memory","available_cpu")
+					table.AddHeaders("uid", "IP", "HostName","role","alived","unschedulable","available_memory","available_cpu","conditions")
 					table.AddRow(v.ID, v.InternalIP, v.HostName,v.Role.String(),v.Alived,v.Unschedulable,v.AvailableMemory,v.AvailableCPU)
 
 					fmt.Println(table.Render())
+					fmt.Println("Condictions:")
+
+
+					tableC := termtables.CreateTable()
+					var header []string
+					var content []string
+					for _,val:=range v.Conditions{
+						header=append(header,string(val.Type))
+						content=append(content,string(val.Status))
+					}
+					tableC.AddHeaders(header)
+					tableC.AddRow(content)
+					fmt.Println(tableC.Render())
 					return nil
 				},
 			},
@@ -106,6 +120,11 @@ func NewCmdNode() cli.Command {
 						logrus.Errorf("need hostID")
 						return nil
 					}
+					node:=clients.NodeClient.Nodes().Get(id)
+					if node.Node.Role.HasRule("manage") {
+						logrus.Errorf("管理节点不支持此功能")
+						return nil
+					}
 					clients.NodeClient.Nodes().Get(id).UnSchedulable()
 					return nil
 				},
@@ -117,6 +136,11 @@ func NewCmdNode() cli.Command {
 					id:=c.Args().First()
 					if id == "" {
 						logrus.Errorf("need hostID")
+						return nil
+					}
+					node:=clients.NodeClient.Nodes().Get(id)
+					if node.Node.Role.HasRule("manage") {
+						logrus.Errorf("管理节点不支持此功能")
 						return nil
 					}
 					clients.NodeClient.Nodes().Get(id).ReSchedulable()
@@ -202,7 +226,7 @@ func NewCmdNode() cli.Command {
 						Value:"",
 						Usage: "RootPass",
 					},
-					cli.StringSliceFlag{
+					cli.StringFlag{
 						Name:  "Role,ro",
 						Usage: "Role|required",
 					},
@@ -210,12 +234,40 @@ func NewCmdNode() cli.Command {
 				Action: func(c *cli.Context) error {
 					var node model.APIHostNode
 					if c.IsSet("Role"){
-						node.Role=c.StringSlice("Role")
+						node.Role=append(node.Role,c.String("Role"))
 						node.InternalIP=c.String("InternalIP")
 						node.HostName=c.String("HostName")
 						node.ExternalIP=c.String("ExternalIP")
 						node.RootPass=c.String("RootPass")
+
 						clients.NodeClient.Nodes().Add(&node)
+						fmt.Println("开始初始化节点")
+						for true {
+							time.Sleep(3*time.Second)
+							list := clients.NodeClient.Nodes().List()
+							for _, v := range list {
+								if (node.InternalIP == v.InternalIP) {
+
+									tableC := termtables.CreateTable()
+									var header []string
+									var content []string
+									for _,val:=range v.Conditions{
+										header=append(header,string(val.Type))
+										content=append(content,string(val.Status))
+									}
+									tableC.AddHeaders(header)
+									tableC.AddRow(content)
+									fmt.Println(tableC.Render())
+
+
+									if (v.Alived) {
+										fmt.Printf("节点 %s 初始化成功",v.ID)
+										return nil
+									}
+									//todo  初始化其它节点失败判定
+								}
+							}
+						}
 						return nil
 					}
 

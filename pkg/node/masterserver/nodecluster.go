@@ -295,6 +295,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 		if err != nil {
 			initCondition.Message = err.Error()
 		}
+		node.Conditions=append(node.Conditions,initCondition)
 	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -309,6 +310,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 		errorCondition("SSH登陆初始化目标节点失败", err)
 		return
 	}
+
 	//TODO:
 	//处理安装结果
 	fmt.Println("初始化节点成功")

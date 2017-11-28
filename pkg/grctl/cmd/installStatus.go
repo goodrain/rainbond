@@ -174,39 +174,67 @@ func NewCmdInstall() cli.Command {
 	}
 	return c
 }
-func NewCmdStatus() cli.Command {
-	c:=cli.Command{
-		Name:  "status",
-		Usage: "状态命令相关子命令。grctl status  -h",
-		Flags: []cli.Flag{
-			cli.StringSliceFlag{
-				Name:  "nodes",
-				Usage: "hostID1 hostID2 ...,空表示全部",
-			},
-		},
-		Subcommands:GetCommand(true),
-	}
-	return c
-}
-func Task(c *cli.Context,task string,status bool) error   {
+//func NewCmdStatus() cli.Command {
+//	c:=cli.Command{
+//		Name:  "status",
+//		Usage: "状态命令相关子命令。grctl status  -h",
+//		Flags: []cli.Flag{
+//			cli.StringSliceFlag{
+//				Name:  "nodes",
+//				Usage: "hostID1 hostID2 ...,空表示全部",
+//			},
+//		},
+//		Subcommands:GetCommand(true),
+//	}
+//	return c
+//}
 
-	nodes:=c.StringSlice("nodes")
-	err:=clients.NodeClient.Tasks().Get(task).Exec(nodes)
-	if err != nil {
-		logrus.Errorf("error exec task:%s,details %s",task,err.Error())
-		return err
-	}
-	for true  {
+func Status(task string) {
+	var reqFailTime int=0
+	fmt.Printf("%s 安装中 ",task)
+	for reqFailTime<3  {
 		time.Sleep(3*time.Second)
 		taskStatus,err:=clients.NodeClient.Tasks().Get(task).Status()
 		if err != nil {
 			logrus.Errorf("error get task:%s 's status,details %s",task,err.Error())
-			return err
+			reqFailTime+=1
+			continue
 		}
-		fmt.Printf("安装中 ")
+		reqFailTime=0
 		for k,v:=range taskStatus.Status{
 			if v.Status!="complete" {
 				fmt.Printf(".")
+				continue
+			}else {
+				fmt.Printf("%s is %s-----%s",k,v.CompleStatus,v.Status)
+				return
+			}
+		}
+	}
+}
+func Task(c *cli.Context,task string,status bool) error   {
+
+	nodes:=c.StringSlice("nodes")
+	taskEntity:=clients.NodeClient.Tasks().Get(task)
+	err:=taskEntity.Exec(nodes)
+	if err != nil {
+		logrus.Errorf("error exec task:%s,details %s",task,err.Error())
+		return err
+	}
+	var reqFailTime int=0
+	fmt.Printf("%s 安装中 ",task)
+	for reqFailTime<3  {
+		time.Sleep(3*time.Second)
+		taskStatus,err:=clients.NodeClient.Tasks().Get(task).Status()
+		if err != nil {
+			logrus.Errorf("error get task:%s 's status,details %s",task,err.Error())
+			reqFailTime+=1
+			continue
+		}
+		reqFailTime=0
+		for k,v:=range taskStatus.Status{
+			if v.Status!="complete" {
+
 				continue
 			}else {
 				fmt.Printf("%s is %s-----%s",k,v.CompleStatus,v.Status)
