@@ -736,7 +736,7 @@ func (t *TaskEngine) prepareScheduleTask(taskSchedulerInfo *TaskSchedulerInfo) {
 
 //scheduler 调度一个Task到一个节点执行
 func (t *TaskEngine) scheduler(taskSchedulerInfo *TaskSchedulerInfo, task *model.Task) {
-	j, err := job.CreateJobFromTask(task, nil, taskSchedulerInfo)
+	j, err := job.CreateJobFromTask(task, nil)
 	if err != nil {
 		taskSchedulerInfo.Status.Status = "Failure"
 		taskSchedulerInfo.Status.Message = err.Error()
