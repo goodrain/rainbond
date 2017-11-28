@@ -46,14 +46,16 @@ import (
 // 处理任务的执行，结果处理，任务自动调度
 // TODO:执行记录清理工作
 type TaskEngine struct {
-	ctx              context.Context
-	cancel           context.CancelFunc
-	config           *option.Conf
-	tasks            map[string]*model.Task
-	tasksLock        sync.Mutex
-	dataCenterConfig *config.DataCenterConfig
-	nodeCluster      *NodeCluster
-	currentNode      *model.HostNode
+	ctx                context.Context
+	cancel             context.CancelFunc
+	config             *option.Conf
+	tasks              map[string]*model.Task
+	tasksLock          sync.Mutex
+	dataCenterConfig   *config.DataCenterConfig
+	nodeCluster        *NodeCluster
+	currentNode        *model.HostNode
+	schedulerCache     map[string]bool
+	schedulerCacheLock sync.Mutex
 }
 
 //TaskSchedulerInfo 请求调度信息
@@ -118,6 +120,7 @@ func CreateTaskEngine(nodeCluster *NodeCluster, node *model.HostNode) *TaskEngin
 		dataCenterConfig: config.GetDataCenterConfig(),
 		nodeCluster:      nodeCluster,
 		currentNode:      node,
+		schedulerCache:   make(map[string]bool),
 	}
 	return task
 }
@@ -206,6 +209,7 @@ func (t *TaskEngine) watcheScheduler() {
 
 //PutSchedul 发布请求调度信息
 //同样请求将被拒绝，在上一次请求完成之前
+//目前单节点调度，本地保证不重复调度
 func (t *TaskEngine) PutSchedul(taskID string, node string) error {
 	if node == "" {
 		//执行节点确定
@@ -235,10 +239,17 @@ func (t *TaskEngine) PutSchedul(taskID string, node string) error {
 			}
 		}
 	} else {
+		//保证同时只调度一次
+		t.schedulerCacheLock.Lock()
+		defer t.schedulerCacheLock.Unlock()
+		if _, ok := t.schedulerCache[taskID+node]; ok {
+			return nil
+		}
 		if n := t.nodeCluster.GetNode(node); n != nil {
 			info := NewTaskSchedulerInfo(taskID, node)
 			info.Post()
 		}
+		t.schedulerCache[taskID+node] = true
 	}
 	return nil
 }
@@ -789,6 +800,9 @@ func (t *TaskEngine) scheduler(taskSchedulerInfo *TaskSchedulerInfo, task *model
 		Status:    "Start",
 	}
 	t.UpdateTask(task)
+	t.schedulerCacheLock.Lock()
+	defer t.schedulerCacheLock.Unlock()
+	delete(t.schedulerCache, taskSchedulerInfo.TaskID+taskSchedulerInfo.Node)
 	logrus.Infof("success scheduler a task %s to node %s", task.Name, taskSchedulerInfo.Node)
 }
 
