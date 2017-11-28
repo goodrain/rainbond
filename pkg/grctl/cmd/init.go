@@ -65,21 +65,7 @@ func NewCmdInit() cli.Command {
 }
 
 
-func NewCmdInitStatus() cli.Command {
-	c:=cli.Command{
-		Name:  "init_status",
 
-		Usage: "查看初始化集群状态。grctl init_status",
-		Action: func(c *cli.Context) error {
-			for true  {
-				clients.NodeClient.Tasks().Get("install_manage_ready").Status()
-			}
-
-			return nil
-		},
-	}
-	return c
-}
 
 
 // grctl exec POD_ID COMMAND
@@ -126,7 +112,7 @@ func initCluster(c *cli.Context) error {
 		return err
 	}
 	fmt.Println(jsonStr)
-
+	clients.NodeClient.Tasks().Get("install_manage_ready").Status()
 	return nil
 }
 
