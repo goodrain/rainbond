@@ -564,6 +564,9 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 		task.UpdataOutPut(output)
 	}
 	task.ExecCount++
+	if task.Status == nil {
+		task.Status = make(map[string]model.TaskStatus)
+	}
 	task.Status[er.Node] = taskStatus
 	//如果是is_once的任务，处理完成后删除job
 	if task.IsOnce {
@@ -733,7 +736,7 @@ func (t *TaskEngine) prepareScheduleTask(taskSchedulerInfo *TaskSchedulerInfo) {
 
 //scheduler 调度一个Task到一个节点执行
 func (t *TaskEngine) scheduler(taskSchedulerInfo *TaskSchedulerInfo, task *model.Task) {
-	j, err := job.CreateJobFromTask(task, nil)
+	j, err := job.CreateJobFromTask(task, nil, taskSchedulerInfo)
 	if err != nil {
 		taskSchedulerInfo.Status.Status = "Failure"
 		taskSchedulerInfo.Status.Message = err.Error()
