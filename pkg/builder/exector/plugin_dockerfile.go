@@ -1,30 +1,31 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package exector
 
 import (
-	"github.com/goodrain/rainbond/pkg/db"
-	"github.com/goodrain/rainbond/pkg/event"
 	"fmt"
 	"os"
 	"strings"
+	"time"
+
+	"github.com/goodrain/rainbond/pkg/db"
+	"github.com/goodrain/rainbond/pkg/event"
 
 	"github.com/pquerna/ffjson/ffjson"
 
@@ -34,8 +35,11 @@ import (
 	"github.com/akkuman/parseConfig"
 )
 
-const cloneTimeout = 180
-const formatSourceDir = "/cache/build/%s/source/%s"
+const (
+	cloneTimeout    = 60
+	buildingTimeout = 180
+	formatSourceDir = "/cache/build/%s/source/%s"
+)
 
 func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 	config := getConf(configPath)
@@ -48,6 +52,21 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("从镜像构建插件任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 
+	go func() {
+		time.Sleep(buildingTimeout * time.Second)
+		logrus.Warnf("building plugin time out")
+		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(tb.PluginID, tb.VersionID)
+		if err != nil {
+			logrus.Errorf("get version error, %v", err)
+		}
+		if version.Status != "complete" {
+			version.Status = "failure"
+			if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
+				logrus.Errorf("update version error, %v", err)
+			}
+			logger.Info("插件构建超时，修改插件状态失败", map[string]string{"step": "callback", "status": "failure"})
+		}
+	}()
 	go func() {
 		logrus.Info("start exec build plugin from image worker")
 		defer event.GetManager().ReleaseLogger(logger)
@@ -78,7 +97,10 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config, logger event.Logger) error {
 	logger.Info("开始拉取代码", map[string]string{"step": "build-exector"})
 	sourceDir := fmt.Sprintf(formatSourceDir, t.TenantID, t.VersionID)
-	if err := clone(t.Repo, sourceDir, logger); err != nil {
+	if t.Repo == "" {
+		t.Repo = "master"
+	}
+	if err := clone(t.GitURL, sourceDir, logger, t.Repo); err != nil {
 		logger.Info("拉取代码失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("拉取代码失败，%v", err)
 		return err
@@ -124,8 +146,8 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config
 	return nil
 }
 
-func clone(repo string, sourceDir string, logger event.Logger) error {
-	mm := []string{"clone", repo, sourceDir}
+func clone(gitURL string, sourceDir string, logger event.Logger, repo string) error {
+	mm := []string{"clone", "-b", repo, gitURL, sourceDir}
 	if err := ShowExec("git", mm, logger); err != nil {
 		return err
 	}
