@@ -258,7 +258,7 @@ func HandleTaskStatus(task string) (*TaskStatus,error) {
 }
 func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error) {
 	//logrus.Infof("requesting url: %s by method :%s,and body is ",r.NodeAPI+url,method,string(body))
-	request, err := http.NewRequest(method, r.NodeAPI+url, bytes.NewBuffer(body))
+	request, err := http.NewRequest(method, "http://localhost:6100/v2"+url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil,500,err
 	}
