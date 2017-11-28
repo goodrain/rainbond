@@ -24,7 +24,8 @@ ENV GR_PIP_VERSION 4
 
 ADD requirements.txt $WORK_DIR/requirements.txt
 
-RUN pip install pyzmq==16.0.2 --install-option --zmq=/usr/local/libzmq
+#RUN pip install pyzmq==16.0.2 --install-option --zmq=/usr/local/libzmq
+RUN pip install -i https://pypi.tuna.tsinghua.edu.cn/simple pyzmq==16.0.2 --install-option --zmq=/usr/local/libzmq
 RUN pip install -r $WORK_DIR/requirements.txt -i https://pypi.doubanio.com/simple
 
 RUN python -c "import compileall;compileall.compile_dir('$WORK_DIR')" \
