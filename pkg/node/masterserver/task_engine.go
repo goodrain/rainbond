@@ -664,7 +664,7 @@ func (t *TaskEngine) waitScheduleTask(taskSchedulerInfo *TaskSchedulerInfo, task
 							result[i] = true
 							continue
 						} else if ok && nodestatus.CompleStatus != "" {
-							taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s Condition cannot be satisfied", depTask.ID)
+							taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s(%s) Condition cannot be satisfied", depTask.ID, nodestatus.CompleStatus)
 							taskSchedulerInfo.Status.Status = "Failure"
 							task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
 							continueScheduler = false
