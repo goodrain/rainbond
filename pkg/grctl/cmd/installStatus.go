@@ -196,14 +196,17 @@ func Task(c *cli.Context,task string,status bool) error   {
 		logrus.Errorf("error exec task:%s,details %s",task,err.Error())
 		return err
 	}
-	for true  {
+	var reqFailTime int=0
+	fmt.Printf("安装中 ")
+	for reqFailTime<3  {
 		time.Sleep(3*time.Second)
 		taskStatus,err:=clients.NodeClient.Tasks().Get(task).Status()
 		if err != nil {
 			logrus.Errorf("error get task:%s 's status,details %s",task,err.Error())
-			return err
+			reqFailTime+=1
+			continue
 		}
-		fmt.Printf("安装中 ")
+		reqFailTime=0
 		for k,v:=range taskStatus.Status{
 			if v.Status!="complete" {
 				fmt.Printf(".")

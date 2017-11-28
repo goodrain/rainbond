@@ -197,24 +197,6 @@ func (t *Task)Status() (*TaskStatus,error) {
 	taskId:=t.TaskID
 	return HandleTaskStatus(taskId)
 }
-func HandleUnStructedJson(b []byte) *model.TaskStatus {
-	json,_:=simplejson.NewJson(b)
-
-	second:=json.Interface()
-
-	logrus.Infof("second level is %v",second)
-	m:=second.(map[string]interface{})
-	var taskStatus model.TaskStatus
-	for k,_:=range m {
-		logrus.Infof("handling %s status",k)
-		taskStatus.CompleStatus=m[k].(map[string]interface{})["comple_status"].(string)
-		taskStatus.Status=m[k].(map[string]interface{})["status"].(string)
-		taskStatus.JobID=k
-		taskStatus.ShellCode=m[k].(map[string]interface{})["shell_code"].(int)
-		break
-	}
-	return &taskStatus
-}
 func HandleTaskStatus(task string) (*TaskStatus,error) {
 	resp,code,err:=nodeServer.Request("/tasks/"+task+"/status","GET",nil)
 	if err != nil {
