@@ -13,7 +13,7 @@ class FTPUtils:
     def __init__(self, host, username, password, namespace, port=22, timeout=30):
         self.host = str(host)
         self.port = str(port)
-        self.timeout = str(timeout)
+        self.timeout = timeout
         self.username = str(username)
         self.password = str(password)
         self.namespace = str(namespace)
