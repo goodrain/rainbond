@@ -255,15 +255,16 @@ func NewCmdNode() cli.Command {
 										header=append(header,string(val.Type))
 										content=append(content,string(val.Status))
 									}
+									if (v.Alived) {
+										fmt.Printf("节点 %s 初始化成功",v.ID)
+										return nil
+									}else{
+										fmt.Println("节点 %s 初始化中",v.ID)
+									}
 									tableC.AddHeaders(header)
 									tableC.AddRow(content)
 									fmt.Println(tableC.Render())
 
-
-									if (v.Alived) {
-										fmt.Printf("节点 %s 初始化成功",v.ID)
-										return nil
-									}
 									//todo  初始化其它节点失败判定
 								}
 							}
