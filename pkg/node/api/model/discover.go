@@ -54,7 +54,10 @@ type PieceCDS struct {
 
 //MaxConnections circuit
 type MaxConnections struct {
-	MaxConnections int `json:"max_connections"`
+	MaxConnections     int `json:"max_connections"`
+	MaxPendingRequests int `json:"max_pending_requests"`
+	MaxRequests        int `json:"max_requests"`
+	MaxRetries         int `json:"max_retries"`
 }
 
 //CircuitBreakers circuit
@@ -157,6 +160,12 @@ const (
 	DOMAINS string = "DOMAINS"
 	//LIMITS LIMITS
 	LIMITS string = "LIMITS"
+	//MaxPendingRequests MaxPendingRequests
+	MaxPendingRequests string = "MaxPendingRequests"
+	//MaxRequests MaxRequests
+	MaxRequests string = "MaxRequests"
+	//MaxRetries MaxRetries
+	MaxRetries string = "MaxRetries"
 	//UPSTREAM upStream
 	UPSTREAM string = "upStream"
 	//DOWNSTREAM downStream

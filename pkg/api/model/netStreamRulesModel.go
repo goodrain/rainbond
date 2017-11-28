@@ -62,10 +62,11 @@ type NetRulesDownStreamBody struct {
 
 //NetDownStreamRules NetDownStreamRules
 type NetDownStreamRules struct {
-	//限流值
-	//in:body
-	//required: false
-	Limit int `json:"limit" validate:"limit|numeric_between:0,1024"`
+	//限流值 max_connections
+	Limit              int `json:"limit" validate:"limit|numeric_between:0,1024"`
+	MaxPendingRequests int `json:"max_pending_requests"`
+	MaxRequests        int `json:"max_requests"`
+	MaxRetries         int `json:"max_retries"`
 	//请求头
 	//in: body
 	//required: false

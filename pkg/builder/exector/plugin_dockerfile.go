@@ -54,7 +54,7 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 
 	go func() {
 		time.Sleep(buildingTimeout * time.Second)
-		logrus.Warnf("building plugin time out")
+		logrus.Debugf("building plugin time-out time is reach")
 		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(tb.PluginID, tb.VersionID)
 		if err != nil {
 			logrus.Errorf("get version error, %v", err)
@@ -96,6 +96,7 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 
 func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config, logger event.Logger) error {
 	logger.Info("开始拉取代码", map[string]string{"step": "build-exector"})
+	logrus.Debugf("开始拉取代码")
 	sourceDir := fmt.Sprintf(formatSourceDir, t.TenantID, t.VersionID)
 	if t.Repo == "" {
 		t.Repo = "master"
@@ -147,6 +148,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config
 }
 
 func clone(gitURL string, sourceDir string, logger event.Logger, repo string) error {
+	logrus.Debugf("clone git %s", fmt.Sprintf("git clone -b %s %s %s", repo, gitURL, sourceDir))
 	mm := []string{"clone", "-b", repo, gitURL, sourceDir}
 	if err := ShowExec("git", mm, logger); err != nil {
 		return err

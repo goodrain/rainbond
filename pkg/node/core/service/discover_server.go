@@ -166,7 +166,9 @@ func (d *DiscoverAction) DiscoverListeners(
 						if err != nil {
 							return nil, util.CreateAPIHandleError(500, err)
 						}
-						sr = mr.(api_model.NetUpStreamRules)
+						if mr != nil {
+							sr = *mr.(*api_model.NetUpStreamRules)
+						}
 						plds.Address = fmt.Sprintf("tcp://0.0.0.0:%d", sr.MapPort)
 					}
 					ldsL = append(ldsL, plds)
@@ -287,9 +289,15 @@ func (d *DiscoverAction) DiscoverClusters(
 				sr = *mr.(*api_model.NetDownStreamRules)
 			}
 			circuits := d.ToolsGetRouterItem(destServiceAlias, node_model.LIMITS, &sr).(int)
+			maxRequests := d.ToolsGetRouterItem(destServiceAlias, node_model.MaxRequests, &sr).(int)
+			maxRetries := d.ToolsGetRouterItem(destServiceAlias, node_model.MaxRetries, &sr).(int)
+			maxPendingRequests := d.ToolsGetRouterItem(destServiceAlias, node_model.MaxPendingRequests, &sr).(int)
 			cb := &node_model.CircuitBreakers{
 				Default: &node_model.MaxConnections{
-					MaxConnections: circuits,
+					MaxConnections:     circuits,
+					MaxPendingRequests: maxPendingRequests,
+					MaxRequests:        maxRequests,
+					MaxRetries:         maxRetries,
 				},
 			}
 			pcds := &node_model.PieceCDS{
@@ -383,12 +391,36 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 		return "/"
 	case node_model.LIMITS:
 		if sr.Limit != 0 {
-			if sr.Limit == 1025 {
+			if sr.Limit == 10250 {
 				return 0
 			}
 			return sr.Limit
 		}
 		return 1024
+	case node_model.MaxRequests:
+		if sr.MaxRequests != 0 {
+			if sr.MaxRequests == 10250 {
+				return 0
+			}
+			return sr.MaxRequests
+		}
+		return 1024
+	case node_model.MaxPendingRequests:
+		if sr.MaxPendingRequests != 0 {
+			if sr.MaxPendingRequests == 10250 {
+				return 0
+			}
+			return sr.MaxPendingRequests
+		}
+		return 1024
+	case node_model.MaxRetries:
+		if sr.MaxRetries > 0 && sr.MaxRetries < 10 {
+			if sr.MaxRetries == 11 {
+				return 0
+			}
+			return sr.MaxRetries
+		}
+		return 3
 	case node_model.HEADERS:
 		var phL []*node_model.PieceHeader
 		if sr.Header != nil {
