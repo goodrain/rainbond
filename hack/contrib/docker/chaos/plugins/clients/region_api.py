@@ -21,7 +21,7 @@ class RegionBackAPI(BaseHttpClient):
         url = self.base_url+ '/publish'
         body["status"]="success"
         logger.info("publish app to ys?{}".format(body["dest_ys"]))
-        res, body = self._post(url, self.default_headers, body)
+        res, body = self._post(url, self.default_headers, json.dumps(body))
         return res, body
     def service_publish_failure_region(self, body):
         # url = self.base_url + '/api/tenants/services/publish'

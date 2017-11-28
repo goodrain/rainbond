@@ -191,7 +191,7 @@ class AppSlug():
                     self.user_cs_client.service_publish_success(
                         json.dumps(data))
                     try:
-                        self.region_client.service_publish_success_region(json.dumps(data))
+                        self.region_client.service_publish_success_region(data)
                     except Exception as e:
                         self.region_client.service_publish_failure_region(data)
                         logger.exception(e)
@@ -211,7 +211,7 @@ class AppSlug():
 
                 self.user_cs_client.service_publish_success(json.dumps(data))
                 try:
-                    self.region_client.service_publish_success_region(json.dumps(data))
+                    self.region_client.service_publish_success_region(data)
                 except Exception as e:
                     self.region_client.service_publish_failure_region(data)
                     logger.exception(e)
@@ -241,7 +241,7 @@ class AppSlug():
                     self.user_cs_client.service_publish_success(
                         json.dumps(data))
                     try:
-                        self.region_client.service_publish_success_region(json.dumps(data))
+                        self.region_client.service_publish_success_region(data)
                     except Exception as e:
                         logger.exception(e)
                         self.region_client.service_publish_failure_region(data)
@@ -256,7 +256,7 @@ class AppSlug():
             else:
                 self.user_cs_client.service_publish_success(json.dumps(data))
                 try:
-                    self.region_client.service_publish_success_region(json.dumps(data))
+                    self.region_client.service_publish_success_region(data)
                 except Exception as e:
                     logger.exception(e)
                     self.region_client.service_publish_failure_region(data)

@@ -132,7 +132,7 @@ class AppImage():
                         self.user_cs_client.service_publish_success(
                             json.dumps(data))
                         try:
-                            self.region_client.service_publish_success_region(json.dumps(data))
+                            self.region_client.service_publish_success_region(data)
                         except Exception as e:
                             logger.exception(e)
                             self.region_client.service_publish_failure_region(data)
@@ -154,7 +154,7 @@ class AppImage():
                     self.user_cs_client.service_publish_success(
                         json.dumps(data))
                     try:
-                        self.region_client.service_publish_success_region(json.dumps(data))
+                        self.region_client.service_publish_success_region(data)
                     except Exception as e:
                         self.region_client.service_publish_failure_region(data)
                         logger.exception(e)
@@ -214,7 +214,7 @@ class AppImage():
                     self.user_cs_client.service_publish_success(
                         json.dumps(req))
                     try:
-                        self.region_client.service_publish_success_region(json.dumps(req))
+                        self.region_client.service_publish_success_region(req)
                     except Exception as e:
                         self.region_client.service_publish_failure_region(req)
                         logger.exception(e)
