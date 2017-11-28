@@ -44,7 +44,7 @@ func GetCmds() []cli.Command {
 
 	//cmds = append(cmds, NewCmdComputeGroup())
 	cmds = append(cmds, NewCmdInstall())
-	cmds = append(cmds, NewCmdStatus())
+	//cmds = append(cmds, NewCmdStatus())
 
 	//cmds = append(cmds, NewCmdBaseManageGroup())
 	//cmds = append(cmds, NewCmdManageGroup())

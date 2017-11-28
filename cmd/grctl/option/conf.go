@@ -24,8 +24,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"io/ioutil"
 	"encoding/json"
-	"strings"
-	"github.com/goodrain/rainbond/pkg/api/region"
+	//"strings"
+
 )
 var config Config
 type Config struct {
@@ -83,17 +83,17 @@ func LoadConfigByRegion(c Config, ctx *cli.Context) (Config, error) {
 			Token: "",
 		}
 	}
-	data, err := region.LoadConfig(c.RegionAPI.URL, c.RegionAPI.Token)
-	if err != nil {
-		logrus.Error("Get config from region error.", err.Error())
-		return c,err
-		//os.Exit(1)
-	}
-	if c.Kubernets == nil {
-		c.Kubernets = &Kubernets{
-			Master: strings.Replace(data["k8s"]["url"].(string), "/api/v1", "", -1),
-		}
-	}
+	//data, err := region.LoadConfig(c.RegionAPI.URL, c.RegionAPI.Token)
+	//if err != nil {
+	//	logrus.Error("Get config from region error.", err.Error())
+	//	return c,err
+	//	//os.Exit(1)
+	//}
+	//if c.Kubernets == nil {
+	//	c.Kubernets = &Kubernets{
+	//		Master: strings.Replace(data["k8s"]["url"].(string), "/api/v1", "", -1),
+	//	}
+	//}
 	config = c
 	return c, nil
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/bitly/go-simplejson"
 	"github.com/Sirupsen/logrus"
 	"fmt"
+	//"github.com/goodrain/rainbond/pkg/grctl/cmd"
 )
 var nodeServer *RNodeServer
 
@@ -34,6 +35,7 @@ func (r *RNodeServer)Nodes() NodeInterface {
 }
 type Task struct {
 	TaskID string  `json:"task_id"`
+	Task *model.Task
 }
 type Node struct {
 	Id string
@@ -195,6 +197,7 @@ type TaskStatus struct {
 }
 func (t *Task)Status() (*TaskStatus,error) {
 	taskId:=t.TaskID
+
 	return HandleTaskStatus(taskId)
 }
 func HandleTaskStatus(task string) (*TaskStatus,error) {
@@ -213,7 +216,6 @@ func HandleTaskStatus(task string) (*TaskStatus,error) {
 
 		second:=json.Interface()
 
-		logrus.Infof("second level is %v",second)
 		m:=second.(map[string]interface{})
 
 		for k,_:=range m {
@@ -222,7 +224,7 @@ func HandleTaskStatus(task string) (*TaskStatus,error) {
 			taskStatus.CompleStatus=m[k].(map[string]interface{})["comple_status"].(string)
 			taskStatus.Status=m[k].(map[string]interface{})["status"].(string)
 			taskStatus.JobID=k
-			taskStatus.ShellCode=m[k].(map[string]interface{})["shell_code"].(int)
+			//taskStatus.ShellCode=m[k].(map[string]interface{})["shell_code"].(int)
 			status.Status[k]=taskStatus
 		}
 		return &status,nil

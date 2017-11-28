@@ -28,6 +28,11 @@ import (
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	//"runtime"
 	"fmt"
+	//"time"
+	//"github.com/bitly/go-simplejson"
+	"github.com/bitly/go-simplejson"
+	"time"
+	"encoding/json"
 )
 
 func NewCmdInit() cli.Command {
@@ -106,9 +111,47 @@ func initCluster(c *cli.Context) error {
 	arr:=strings.SplitN(out,"{",2)
 	arr[1]="{"+arr[1]
 	jsonStr:=arr[1]
+	js,err:=simplejson.NewJson([]byte(jsonStr))
+	if err != nil {
+		logrus.Errorf("error decode json,details %s",err.Error())
+		return nil
+	}
+	initStatus,err:=js.Get("status").Array()
+	fmt.Println("初始化结果：")
+	for _,v:=range initStatus{
+		b,_:=json.Marshal(v)
+		statusJ,err:=simplejson.NewJson(b)
+		if err != nil {
+			logrus.Errorf("error decode status,details %s",err.Error())
+			return nil
+		}
+		task,_:=statusJ.Get("name").String()
+		condition,_:=statusJ.Get("condition_status").String()
+		fmt.Printf("task:%s install %s",task,condition)
+		fmt.Println()
+	}
 
-	fmt.Println(jsonStr)
-	clients.NodeClient.Tasks().Get("install_manage_ready").Status()
+	checkFail:=0
+	for checkFail<3  {
+		time.Sleep(3*time.Second)
+		status,err:=clients.NodeClient.Tasks().Get("install_manage_ready").Status()
+		if err != nil {
+			checkFail+=1
+			logrus.Errorf("error get task status ,details %s",err.Error())
+			continue
+		}
+		checkFail=0
+		for k,v:=range status.Status{
+			if v.Status!="complete" {
+				fmt.Printf(".")
+				continue
+			}else {
+				fmt.Printf("%s is %s-----%s",k,v.CompleStatus,v.Status)
+				return nil
+			}
+		}
+	}
+	//一般 job会在通过grctl执行时阻塞输出，这种通过 脚本执行的，需要单独查
 	return nil
 }
 
