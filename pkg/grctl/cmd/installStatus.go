@@ -191,23 +191,22 @@ func NewCmdInstall() cli.Command {
 //}
 
 func Status(task string) {
-	var reqFailTime int=0
-	fmt.Printf("%s 安装中 ",task)
-	for reqFailTime<3  {
+	checkFail:=0
+	for checkFail<3  {
 		time.Sleep(3*time.Second)
-		taskStatus,err:=clients.NodeClient.Tasks().Get(task).Status()
+		status,err:=clients.NodeClient.Tasks().Get(task).Status()
 		if err != nil {
-			logrus.Errorf("error get task:%s 's status,details %s",task,err.Error())
-			reqFailTime+=1
+			checkFail+=1
+			logrus.Errorf("error get task status ,details %s",err.Error())
 			continue
 		}
-		reqFailTime=0
-		for k,v:=range taskStatus.Status{
+		checkFail=0
+		for k,v:=range status.Status{
 			if v.Status!="complete" {
 				fmt.Printf(".")
 				continue
 			}else {
-				fmt.Printf("%s is %s-----%s",k,v.CompleStatus,v.Status)
+				fmt.Printf("task %s is %s-----%s",k,v.Status,v.CompleStatus)
 				return
 			}
 		}
@@ -222,6 +221,7 @@ func Task(c *cli.Context,task string,status bool) error   {
 		logrus.Errorf("error exec task:%s,details %s",task,err.Error())
 		return err
 	}
+
 	var reqFailTime int=0
 	fmt.Printf("%s 安装中 ",task)
 	for reqFailTime<3  {
@@ -243,10 +243,10 @@ func Task(c *cli.Context,task string,status bool) error   {
 		reqFailTime=0
 		for k,v:=range taskStatus.Status{
 			if v.Status!="complete" {
-
+				fmt.Printf(".")
 				continue
 			}else {
-				fmt.Printf("%s is %s-----%s",k,v.CompleStatus,v.Status)
+				fmt.Printf("task %s is %s-----%s",k,v.Status,v.CompleStatus)
 				return nil
 			}
 		}
