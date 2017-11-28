@@ -184,6 +184,7 @@ func (c *Cmd) Run() {
 		if c.Job.Run("") {
 			return
 		}
+		logrus.Warnf("job %s run error ,will retry", c.Job.ID)
 		if c.Job.Interval > 0 {
 			time.Sleep(time.Duration(c.Job.Interval) * time.Second)
 		}
