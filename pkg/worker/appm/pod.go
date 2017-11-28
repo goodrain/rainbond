@@ -273,36 +273,6 @@ func (p *PodTemplateSpecBuild) createContainer(volumeMounts []v1.VolumeMount, en
 	}
 	containers = append(containers, c1)
 
-	/*
-		//构建proxy容器
-		if p.needProxy {
-			var AppPropertyHeighten bool
-			for _, e := range *envs {
-				if e.Name == "SEVEN_LEVEL" {
-					AppPropertyHeighten = true
-					break
-				}
-			}
-			c2 := v1.Container{
-				Name: "adapter-" + p.serviceID[len(p.serviceID)-20:],
-				VolumeMounts: []v1.VolumeMount{v1.VolumeMount{
-					MountPath: "/etc/kubernetes",
-					Name:      "kube-config",
-					ReadOnly:  true,
-				}},
-				TerminationMessagePath: "",
-				Env:       *envs,
-				Resources: p.createAdapterResources(50, 20),
-			}
-			//应用性能增强打开
-			if AppPropertyHeighten {
-				c2.Image = "goodrain.me/mid_rain"
-			} else {
-				c2.Image = "goodrain.me/adapter"
-			}
-			containers = append(containers, c2)
-		}
-	*/
 	//构建日志收集容器
 	var LogMatch bool
 	for _, e := range *envs {

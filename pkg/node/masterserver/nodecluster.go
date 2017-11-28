@@ -52,11 +52,12 @@ type NodeCluster struct {
 	lock         sync.Mutex
 	client       *store.Client
 	k8sClient    *kubernetes.Clientset
+	currentNode       *model.HostNode
 	checkInstall chan *model.HostNode
 }
 
 //CreateNodeCluster 创建节点管理器
-func CreateNodeCluster(k8sClient *kubernetes.Clientset) (*NodeCluster, error) {
+func CreateNodeCluster(k8sClient *kubernetes.Clientset,node *model.HostNode) (*NodeCluster, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	nc := NodeCluster{
 		ctx:          ctx,
@@ -64,6 +65,7 @@ func CreateNodeCluster(k8sClient *kubernetes.Clientset) (*NodeCluster, error) {
 		nodes:        make(map[string]*model.HostNode, 5),
 		client:       store.DefalutClient,
 		k8sClient:    k8sClient,
+		currentNode:  node,
 		checkInstall: make(chan *model.HostNode, 4),
 	}
 	if err := nc.loadNodes(); err != nil {
@@ -296,7 +298,12 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	client := util.NewSSHClient(node.InternalIP, "root", node.RootPass, "", 22, &stdout, &stderr)
+	role:=node.Role[0]
+
+	etcd:=n.currentNode.InternalIP
+	cmd:="bash -c \"set "+node.ID+" "+etcd+" "+role+";$(curl -s repo.goodrain.com/gaops/jobs/install/prepare/init.sh)\""
+	logrus.Infof("init endpoint node cmd is %s",cmd)
+	client := util.NewSSHClient(node.InternalIP, "root", node.RootPass, cmd, 22, &stdout, &stderr)
 	if err := client.Connection(); err != nil {
 		logrus.Error("init endpoint node error:", err.Error())
 		errorCondition("SSH登陆初始化目标节点失败", err)
@@ -304,6 +311,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 	}
 	//TODO:
 	//处理安装结果
+	fmt.Println("初始化节点成功")
 	logrus.Info(stdout.String())
 }
 

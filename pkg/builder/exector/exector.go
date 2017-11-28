@@ -30,6 +30,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/tidwall/gjson"
+	"strings"
 )
 
 //Manager 任务执行管理器
@@ -61,6 +62,7 @@ type exectorManager struct {
 //code_check 代码检测
 //app_build 源码构建
 func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
+
 	switch task.TaskType {
 	case "app_image":
 		e.appImage(task.TaskBody)
@@ -92,6 +94,7 @@ const pluginDockerfile = "plugins/plugin_dockerfile.pyc"
 
 func (e *exectorManager) appImage(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
+	dest := gjson.GetBytes(in, "dest").String()
 	finalStatus:="failure"
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("应用镜像构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
@@ -110,17 +113,45 @@ func (e *exectorManager) appImage(in []byte) {
 				}
 			} else {
 				finalStatus="success"
-				updateBuildResult(eventID,finalStatus)
+				updateBuildResult(eventID,finalStatus,dest)
 				break
 			}
 		}
 	}()
-	updateBuildResult(eventID,finalStatus)
+	updateBuildResult(eventID,finalStatus,dest)
 }
 func (e *exectorManager) appSlug(in []byte) {
-	eventID := gjson.GetBytes(in, "event_id").String()
-	finalStatus:="failure"
+	//eventID := gjson.GetBytes(in, "event_id").String()
+	////dest := gjson.GetBytes(in, "dest").String()
+	////finalStatus:="failure"
+	//
+	//logger := event.GetManager().GetLogger(eventID)
+	//logger.Info("应用代码包构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
+	//w := NewWorker(appSlug, "", nil, in)
+	//go func() {
+	//	logrus.Info("start exec app slug worker")
+	//	defer event.GetManager().ReleaseLogger(logger)
+	//	for i := 0; i < 3; i++ {
+	//		_, err := w.run(time.Minute * 30)
+	//		if err != nil {
+	//			logrus.Errorf("exec app slug python shell error:%s", err.Error())
+	//			if i < 3 {
+	//				logger.Info("应用代码包构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
+	//			} else {
+	//				logger.Info("应用代码包构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
+	//
+	//			}
+	//		} else {
+	//			//updateBuildResult(eventID,"success",dest)
+	//			break
+	//		}
+	//	}
+	//}()
+	//updateBuildResult(eventID,"failure",dest)
 
+
+
+	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("应用代码包构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	w := NewWorker(appSlug, "", nil, in)
@@ -135,21 +166,17 @@ func (e *exectorManager) appSlug(in []byte) {
 					logger.Info("应用代码包构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("应用代码包构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
-
 				}
 			} else {
-				finalStatus="success"
-				updateBuildResult(eventID,finalStatus)
 				break
 			}
 		}
 	}()
-	updateBuildResult(eventID,finalStatus)
 }
 func (e *exectorManager) imageManual(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
-
+	dest := gjson.GetBytes(in, "dest").String()
 	finalStatus:="failure"
 
 	logger.Info("应用镜像构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
@@ -168,12 +195,12 @@ func (e *exectorManager) imageManual(in []byte) {
 				}
 			} else {
 				finalStatus="success"
-				updateBuildResult(eventID,finalStatus)
+				updateBuildResult(eventID,finalStatus,dest)
 				break
 			}
 		}
 	}()
-	updateBuildResult(eventID,finalStatus)
+	updateBuildResult(eventID,finalStatus,dest)
 }
 func (e *exectorManager) codeCheck(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
@@ -201,6 +228,7 @@ func (e *exectorManager) codeCheck(in []byte) {
 func (e *exectorManager) appBuild(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	finalStatus:="failure"
+	dest := gjson.GetBytes(in, "dest").String()
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("应用编译构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 
@@ -218,20 +246,21 @@ func (e *exectorManager) appBuild(in []byte) {
 					logger.Info("应用编译构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
-				logrus.Infof("build task success,eventID is %s",eventID)
-				//logger.Info("应用编译构建任务执行成功", map[string]string{"step": "callback", "status": "success"})
 				finalStatus="success"
-				updateBuildResult(eventID,finalStatus)
+				updateBuildResult(eventID,finalStatus,dest)
 				break
 			}
 		}
 	}()
-	updateBuildResult(eventID,finalStatus)
+	updateBuildResult(eventID,finalStatus,dest)
 }
-func updateBuildResult(eventID,finalStatus string)  {
-	v,_:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
-	v.FinalStatus=finalStatus
-	db.GetManager().VersionInfoDao().UpdateModel(v)
+func updateBuildResult(eventID,finalStatus,dest string)  {
+	if dest == ""||!strings.Contains(dest,"y") {
+		v,_:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+		v.FinalStatus=finalStatus
+		db.GetManager().VersionInfoDao().UpdateModel(v)
+	}
+
 }
 func (e *exectorManager) pluginImageBuild1(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()

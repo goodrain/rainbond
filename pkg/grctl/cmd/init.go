@@ -25,7 +25,8 @@ import (
 	"io/ioutil"
 	"strings"
 	"bytes"
-	"runtime"
+	"github.com/goodrain/rainbond/pkg/grctl/clients"
+	//"runtime"
 	"fmt"
 )
 
@@ -62,6 +63,10 @@ func NewCmdInit() cli.Command {
 	return c
 }
 
+
+
+
+
 // grctl exec POD_ID COMMAND
 func initCluster(c *cli.Context) error {
 	//logrus.Infof("start init command")
@@ -92,26 +97,18 @@ func initCluster(c *cli.Context) error {
 		arg=""
 	}
 	//logrus.Infof("args is %s,len is %d",arg,len(arg))
+	fmt.Println("开始初始化集群")
 	cmd := exec.Command("bash", "-c",arg+string(b))
+	buf:=bytes.NewBuffer(nil)
+	cmd.Stderr=buf
+	cmd.Run()
+	out:=buf.String()
+	arr:=strings.SplitN(out,"{",2)
+	arr[1]="{"+arr[1]
+	jsonStr:=arr[1]
 
-	go func(c *exec.Cmd) {
-		defer func() {
-			if r := recover(); r != nil {
-				const size = 64 << 10
-				buf := make([]byte, size)
-				buf = buf[:runtime.Stack(buf, false)]
-				logrus.Warnf("panic running job: %v\n%s", r, buf)
-			}
-		}()
-		buf:=bytes.NewBuffer(nil)
-		cmd.Stderr=buf
-		c.Run()
-		out:=buf.String()
-		arr:=strings.SplitN(out,"{",2)
-		arr[1]="{"+arr[1]
-		json:=arr[1]
-		fmt.Println(json)
-	}(cmd)
+	fmt.Println(jsonStr)
+	clients.NodeClient.Tasks().Get("install_manage_ready").Status()
 	return nil
 }
 

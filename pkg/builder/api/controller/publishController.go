@@ -28,6 +28,7 @@ import (
 	"strings"
 	"github.com/bitly/go-simplejson"
 	"io/ioutil"
+	"encoding/json"
 )
 
 func GetAppPublish(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +40,24 @@ func GetAppPublish(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, appp)
 }
+func GetVersionByEventID(w http.ResponseWriter, r *http.Request) {
+	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 
+	version,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+	if err != nil {
+		httputil.ReturnError(r,w,404,err.Error())
+	}
+	httputil.ReturnSuccess(r, w, version)
+}
+func GetVersionByServiceID(w http.ResponseWriter, r *http.Request) {
+	serviceID := strings.TrimSpace(chi.URLParam(r, "serviceID"))
+
+	versions,err:=db.GetManager().VersionInfoDao().GetVersionByServiceID(serviceID)
+	if err != nil {
+		httputil.ReturnError(r,w,404,err.Error())
+	}
+	httputil.ReturnSuccess(r, w, versions)
+}
 func UpdateDeliveredPath(w http.ResponseWriter, r *http.Request) {
 	in,err:=ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -71,35 +89,28 @@ func UpdateDeliveredPath(w http.ResponseWriter, r *http.Request) {
 
 
 func AddAppPublish(w http.ResponseWriter, r *http.Request) {
-	result := new(model.AppPublish)
-
-
-	b,_:=ioutil.ReadAll(r.Body)
-	defer r.Body.Close()
-	j,err:=simplejson.NewJson(b)
+	var result model.AppPublish
+	b,err:=ioutil.ReadAll(r.Body)
 	if err != nil {
-		logrus.Errorf("error decode json,details %s",err.Error())
-		httputil.ReturnError(r,w,400,"bad request")
+		logrus.Errorf("error get request body ,details %s",err.Error())
+		return
+	}
+	defer r.Body.Close()
+	logrus.Infof("request body is %s",b)
+	err=json.Unmarshal(b,&result)
+	if err != nil {
+		logrus.Errorf("error unmarshal use raw support,details %s",err.Error())
 		return
 	}
 
-	result.AppVersion,_=j.Get("app_version").String()
-	result.ServiceKey,_=j.Get("service_key").String()
-	result.Slug,_=j.Get("slug").String()
-	result.Image,_=j.Get("image").String()
-	result.DestYS,_=j.Get("dest_ys").Bool()
-	result.DestYB,_=j.Get("dest_yb").Bool()
-	result.ShareID,_=j.Get("share_id").String()
-
-
-	dbmodel:=convertPublishToDB(result)
+	dbmodel:=convertPublishToDB(&result)
 	//checkAndGet
 	db.GetManager().AppPublishDao().AddModel(dbmodel)
 	httputil.ReturnSuccess(r, w, nil)
 }
 func convertPublishToDB(publish *model.AppPublish) *dbmodel.AppPublish {
 
-	dbm:=dbmodel.AppPublish{}
+	var dbm dbmodel.AppPublish
 	dbm.ShareID=publish.ShareID
 	dbm.AppVersion=publish.AppVersion
 	dbm.DestYB=publish.DestYB
@@ -107,5 +118,6 @@ func convertPublishToDB(publish *model.AppPublish) *dbmodel.AppPublish {
 	dbm.Image=publish.Image
 	dbm.ServiceKey=publish.ServiceKey
 	dbm.Slug=publish.Slug
+	dbm.Status=publish.Status
 	return &dbm
 }

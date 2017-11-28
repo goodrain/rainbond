@@ -201,34 +201,26 @@ type BuildPluginStruct struct {
 		// in: body
 		// required: true
 		EventID string `json:"event_id" validate:"event_id|required"`
-		// 插件构建类型, image/dockerfile
-		// in: body
-		// required: true
-		Kind string `json:"kind" validate:"kind|required"`
-		// 插件CPU权重, 默认500
+		// 插件CPU权重, 默认125
 		// in: body
 		// required: false
 		PluginCPU int `json:"plugin_cpu" validate:"plugin_cpu"`
-		// 插件最大内存, 默认128
+		// 插件最大内存, 默认50
 		// in: body
 		// required: false
 		PluginMemory int `json:"plugin_memory" validate:"plugin_memory"`
-		// 镜像地址
+		// 插件cmd, 默认50
 		// in: body
 		// required: false
-		ImageURL string `json:"image_url" validate:"image_url"`
+		PluginCMD string `json:"plugin_cmd" validate:"plugin_cmd"`
 		// 部署的版本号
 		// in: body
 		// required: true
 		DeployVersion string `json:"deploy_version" validate:"deploy_version|required"`
-		// git地址 带版本
+		// git地址 分支信息
 		// in: body
 		// required: false
 		RepoURL string `json:"repo_url" validate:"repo_url"`
-		// git地址
-		// in: body
-		// required: false
-		GitURL string `json:"git_url" validate:"git_url"`
 		// 版本信息, 协助选择插件版本
 		// in:body
 		// required: true
@@ -330,7 +322,7 @@ type DeletePluginSetStruct struct {
 }
 
 //GetPluginEnvStruct GetPluginEnvStruct
-//swagger:parameters getPluginEnv, getPluginDefaultEnv
+//swagger:parameters getPluginEnv getPluginDefaultEnv
 type GetPluginEnvStruct struct {
 	// in: path
 	// required: true

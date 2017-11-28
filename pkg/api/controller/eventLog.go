@@ -1,29 +1,29 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package controller
 
 import (
-	httputil "github.com/goodrain/rainbond/pkg/util/http"
 	"net/http"
 	"os"
 	"strings"
+
+	httputil "github.com/goodrain/rainbond/pkg/util/http"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
@@ -40,7 +40,7 @@ type EventLogStruct struct{}
 func (e *EventLogStruct) Logs(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST  /v2/tenants/{tenant_name}/services/{service_alias}/log v2 lastLinesLogs
 	//
-	// 获取最新指定数量条日志  **完成
+	// 获取最新指定数量条日志
 	//
 	// get last x lines logs
 	//
@@ -77,7 +77,7 @@ func (e *EventLogStruct) Logs(w http.ResponseWriter, r *http.Request) {
 func (e *EventLogStruct) LogList(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET  /v2/tenants/{tenant_name}/services/{service_alias}/log-file v2 logList
 	//
-	// 获取应用日志列表  **完成
+	// 获取应用日志列表
 	//
 	// get log list
 	//
@@ -109,7 +109,7 @@ func (e *EventLogStruct) LogList(w http.ResponseWriter, r *http.Request) {
 func (e *EventLogStruct) LogFile(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/log-file/{file_name} v2 logFile
 	//
-	// 下载应用指定日志 **完成
+	// 下载应用指定日志
 	//
 	// get log file
 	//
@@ -143,7 +143,7 @@ func (e *EventLogStruct) LogFile(w http.ResponseWriter, r *http.Request) {
 func (e *EventLogStruct) LogSocket(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/log-instance v2 logSocket
 	//
-	// 获取应用日志web-socket实例  **完成
+	// 获取应用日志web-socket实例
 	//
 	// get log socket
 	//
@@ -173,7 +173,7 @@ func (e *EventLogStruct) LogSocket(w http.ResponseWriter, r *http.Request) {
 func (e *EventLogStruct) LogByAction(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/event-log v2 logByAction
 	//
-	// 获取指定操作的操作日志  **完成
+	// 获取指定操作的操作日志
 	//
 	// get log by level
 	//

@@ -104,7 +104,7 @@ func (t *TenantStruct) AllTenantResources(w http.ResponseWriter, r *http.Request
 func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/resources/tenants v2 tenantResources
 	//
-	// 租户资源使用情况  **完成
+	// 租户资源使用情况
 	//
 	// get tenant resources
 	//
@@ -136,7 +136,7 @@ func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 func (t *TenantStruct) SumTenants(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/resources/tenants/sum v2 sumTenants
 	//
-	// 获取租户数量  **完成
+	// 获取租户数量
 	//
 	// get tenant resources
 	//
@@ -173,7 +173,7 @@ func (t *TenantStruct) Tenant(w http.ResponseWriter, r *http.Request) {
 func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/tenants v2 addTenant
 	//
-	// 添加租户信息  **完成
+	// 添加租户信息
 	//
 	// add tenant
 	//
@@ -262,7 +262,7 @@ func (t *TenantStruct) ServicesInfo(w http.ResponseWriter, r *http.Request) {
 	//
 	// 获取租户所有应用信息
 	//
-	// get services info in tenant  **完成
+	// get services info in tenant
 	//
 	// ---
 	// consumes:
@@ -294,7 +294,7 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 	//
 	// 创建应用
 	//
-	// create service   **完成
+	// create service
 	//
 	// ---
 	// consumes:
@@ -341,7 +341,7 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 	//
 	// 应用更新
 	//
-	// update service   **完成
+	// update service
 	//
 	// ---
 	// consumes:
@@ -387,7 +387,7 @@ func (t *TenantStruct) SetLanguage(w http.ResponseWriter, r *http.Request) {
 	//
 	// 设置应用语言
 	//
-	// set language  **完成
+	// set language
 	//
 	// ---
 	// consumes:
@@ -521,7 +521,7 @@ func (t *TenantStruct) AddServiceLabel(w http.ResponseWriter, r *http.Request) {
 	//
 	// 添加应用标签
 	//
-	// add service label  **完成
+	// add service label
 	//
 	// ---
 	// consumes:
@@ -560,7 +560,7 @@ func (t *TenantStruct) UpdateServiceLabel(w http.ResponseWriter, r *http.Request
 	//
 	// 更新应用标签
 	//
-	// delete service label  **完成
+	// delete service label
 	//
 	// ---
 	// consumes:
@@ -608,7 +608,7 @@ func (t *TenantStruct) AddNodeLabel(w http.ResponseWriter, r *http.Request) {
 	//
 	// 添加节点标签
 	//
-	// add node label  **完成
+	// add node label
 	//
 	// ---
 	// consumes:
@@ -646,7 +646,7 @@ func (t *TenantStruct) DeleteNodeLabel(w http.ResponseWriter, r *http.Request) {
 	//
 	// 删除节点标签
 	//
-	// delete node label  **完成
+	// delete node label
 	//
 	// ---
 	// consumes:
@@ -699,7 +699,7 @@ func (t *TenantStruct) GetSingleServiceInfo(w http.ResponseWriter, r *http.Reque
 	//
 	// 获取应用信息
 	//
-	// get service info  **完成
+	// get service info
 	//
 	// ---
 	// consumes:
@@ -777,7 +777,7 @@ func (t *TenantStruct) Dependency(w http.ResponseWriter, r *http.Request) {
 //
 // 增加应用依赖关系
 //
-// add dependency  **完成
+// add dependency
 //
 // ---
 // consumes:
@@ -821,7 +821,7 @@ func (t *TenantStruct) AddDependency(w http.ResponseWriter, r *http.Request) {
 //
 // 删除应用依赖关系
 //
-// delete dependency  **完成
+// delete dependency
 //
 // ---
 // consumes:
@@ -875,7 +875,7 @@ func (t *TenantStruct) Env(w http.ResponseWriter, r *http.Request) {
 //
 // 增加环境变量
 //
-// add env var  **完成
+// add env var
 //
 // ---
 // consumes:
@@ -920,7 +920,7 @@ func (t *TenantStruct) AddEnv(w http.ResponseWriter, r *http.Request) {
 //
 // 删除环境变量
 //
-// delete env var  **完成
+// delete env var
 //
 // ---
 // consumes:
@@ -983,7 +983,7 @@ func (t *TenantStruct) Ports(w http.ResponseWriter, r *http.Request) {
 //
 // 增加应用端口,默认关闭对内和对外选项，需要开启使用相应接口
 //
-// add port  **完成
+// add port
 //
 // ---
 // consumes:
@@ -1019,7 +1019,7 @@ func (t *TenantStruct) addPortController(w http.ResponseWriter, r *http.Request)
 //
 // 更新应用端口信息
 //
-// update port  **完成
+// update port
 //
 // ---
 // consumes:
@@ -1055,7 +1055,7 @@ func (t *TenantStruct) updatePortController(w http.ResponseWriter, r *http.Reque
 //
 // 开关端口对外服务，应用无需重启自动生效
 //
-// add port  **完成
+// add port
 //
 // ---
 // Consumes:
@@ -1119,7 +1119,7 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 //
 // 开关对内服务，应用无需重启，自动生效
 //
-// add port  **完成
+// add port
 //
 // ---
 // Consumes:
@@ -1168,7 +1168,7 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 //
 // 删除端口变量
 //
-// delete port  **完成
+// delete port
 //
 // ---
 // Consumes:
@@ -1216,7 +1216,7 @@ func (t *TenantStruct) deletePortController(w http.ResponseWriter, r *http.Reque
 //
 // 获取pods信息
 //
-// get pods info    **完成
+// get pods info
 //
 // ---
 // consumes:
@@ -1264,7 +1264,7 @@ func (t *TenantStruct) AddProbe(w http.ResponseWriter, r *http.Request) {
 	//
 	// 增加应用探针
 	//
-	// add probe  **完成
+	// add probe
 	//
 	// ---
 	// consumes:
@@ -1315,7 +1315,7 @@ func (t *TenantStruct) UpdateProbe(w http.ResponseWriter, r *http.Request) {
 	//
 	// 更新应用探针信息, *注意此处为全量更新
 	//
-	// update probe  ** 完成
+	// update probe
 	//
 	// ---
 	// consumes:
@@ -1371,7 +1371,7 @@ func (t *TenantStruct) DeleteProbe(w http.ResponseWriter, r *http.Request) {
 	//
 	// 删除应用探针
 	//
-	// delete probe  **完成
+	// delete probe
 	//
 	// ---
 	// consumes:
@@ -1436,7 +1436,7 @@ func (t *TenantStruct) UpdatePort(w http.ResponseWriter, r *http.Request) {
 func (t *TenantStruct) SingleTenantResources(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants/{tenant_name}/resources v2 singletenantResources
 	//
-	// 指定租户资源使用情况  **完成
+	// 指定租户资源使用情况
 	//
 	// get tenant resources
 	//

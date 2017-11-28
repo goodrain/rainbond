@@ -1,8 +1,9 @@
 #!/bin/sh
 set -e
 
-if [ -f "/usr/share/gr-rainbond-node/gaops/gaops.tgz" ];then
-	tar xf /usr/share/gr-rainbond-node/gaops/gaops.tgz -C /usr/share/gr-rainbond-node/gaops/
+if [ -f "/usr/share/gr-rainbond-node/gaops.tgz" ];then
+	mkdir -p /usr/share/gr-rainbond-node/gaops/
+	tar xf /usr/share/gr-rainbond-node/gaops.tgz -C /usr/share/gr-rainbond-node/gaops/
 fi
 
 case "$1" in

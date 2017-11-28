@@ -45,17 +45,37 @@ type TaskInterface interface {
 }
 type NodeInterface interface {
 	Add(node *model.APIHostNode)
+	Delete()
+	Rule(rule string) []*model.HostNode
 	Get(node string) *Node
 	List() []*model.HostNode
 	Up()
 	Down()
 	UnSchedulable()
 	ReSchedulable()
+	Label(label map[string]string)
+}
+
+func (t *Node)Label(label map[string]string)  {
+	body,_:=json.Marshal(label)
+	_,_,err:=nodeServer.Request("/nodes/"+t.Id+"/labels","PUT",body)
+	if err != nil {
+		logrus.Errorf("error details %s",err.Error())
+	}
 }
 
 func (t *Node)Add(node *model.APIHostNode) {
 	body,_:=json.Marshal(node)
-	nodeServer.Request("/nodes/","POST",body)
+	_,_,err:=nodeServer.Request("/nodes","POST",body)
+	if err != nil {
+		logrus.Errorf("error details %s",err.Error())
+	}
+}
+func (t *Node) Delete() {
+	_,_,err:=nodeServer.Request("/nodes/"+t.Id,"DELETE",nil)
+	if err != nil {
+		logrus.Errorf("error details %s",err.Error())
+	}
 }
 func (t *Node)Up() {
 	nodeServer.Request("/nodes/"+t.Id+"/up","POST",nil)
@@ -69,6 +89,7 @@ func (t *Node)UnSchedulable() {
 func (t *Node)ReSchedulable() {
 	nodeServer.Request("/nodes/"+t.Id+"/reschedulable","PUT",nil)
 }
+
 func (t *Node)Get(node string) *Node {
 	body,_,err:=nodeServer.Request("/nodes/"+node,"GET",nil)
 	if err != nil {
@@ -96,12 +117,43 @@ func (t *Node)Get(node string) *Node {
 	t.Node=&stored
 	return t
 }
+
+func (t *Node)Rule(rule string) []*model.HostNode {
+	body,_,err:=nodeServer.Request("/nodes/"+rule,"GET",nil)
+	if err != nil {
+		logrus.Errorf("error get rule %s ,details %s",rule,err.Error())
+		return nil
+	}
+	j,err:=simplejson.NewJson(body)
+	if err != nil {
+		logrus.Errorf("error get json ,details %s",err.Error())
+		return nil
+	}
+	nodeArr,err:=j.Get("list").Array()
+	if err != nil {
+		logrus.Infof("error occurd,details %s",err.Error())
+		return nil
+	}
+	jsonA, _ := json.Marshal(nodeArr)
+	nodes := []*model.HostNode{}
+	err=json.Unmarshal(jsonA, &nodes)
+	if err != nil {
+		logrus.Infof("error occurd,details %s",err.Error())
+		return nil
+	}
+	return nodes
+}
 func (t *Node)List() []*model.HostNode {
 	body,_,err:=nodeServer.Request("/nodes","GET",nil)
 	if err != nil {
 		logrus.Errorf("error get nodes ,details %s",err.Error())
+		return nil
 	}
-	j,_:=simplejson.NewJson(body)
+	j,err:=simplejson.NewJson(body)
+	if err != nil {
+		logrus.Errorf("error get json ,details %s",err.Error())
+		return nil
+	}
 	nodeArr,err:=j.Get("list").Array()
 	if err != nil {
 		logrus.Infof("error occurd,details %s",err.Error())
@@ -143,26 +195,60 @@ type TaskStatus struct {
 }
 func (t *Task)Status() (*TaskStatus,error) {
 	taskId:=t.TaskID
-	resp,code,err:=nodeServer.Request("/tasks/"+taskId+"/status","GET",nil)
+	return HandleTaskStatus(taskId)
+}
+func HandleUnStructedJson(b []byte) *model.TaskStatus {
+	json,_:=simplejson.NewJson(b)
+
+	second:=json.Interface()
+
+	logrus.Infof("second level is %v",second)
+	m:=second.(map[string]interface{})
+	var taskStatus model.TaskStatus
+	for k,_:=range m {
+		logrus.Infof("handling %s status",k)
+		taskStatus.CompleStatus=m[k].(map[string]interface{})["comple_status"].(string)
+		taskStatus.Status=m[k].(map[string]interface{})["status"].(string)
+		taskStatus.JobID=k
+		taskStatus.ShellCode=m[k].(map[string]interface{})["shell_code"].(int)
+		break
+	}
+	return &taskStatus
+}
+func HandleTaskStatus(task string) (*TaskStatus,error) {
+	resp,code,err:=nodeServer.Request("/tasks/"+task+"/status","GET",nil)
 	if err != nil {
 		logrus.Errorf("error execute status Request,details %s",err.Error())
 		return nil,err
 	}
 	if code == 200 {
-		j,_:=simplejson.NewJson(resp)
-		bean,_:=j.Get("bean").Bytes()
+		j, _ := simplejson.NewJson(resp)
+		bean := j.Get("bean")
+		beanB, _ := json.Marshal(bean)
 		var status TaskStatus
-		err=json.Unmarshal(bean,&status)
-		if err != nil {
-			logrus.Errorf("error unmarshal response,details %s",err.Error())
-			return nil,err
+
+		json,_:=simplejson.NewJson(beanB)
+
+		second:=json.Interface()
+
+		logrus.Infof("second level is %v",second)
+		m:=second.(map[string]interface{})
+
+		for k,_:=range m {
+			var taskStatus model.TaskStatus
+			logrus.Infof("handling %s status",k)
+			taskStatus.CompleStatus=m[k].(map[string]interface{})["comple_status"].(string)
+			taskStatus.Status=m[k].(map[string]interface{})["status"].(string)
+			taskStatus.JobID=k
+			taskStatus.ShellCode=m[k].(map[string]interface{})["shell_code"].(int)
+			status.Status[k]=taskStatus
 		}
 		return &status,nil
 	}
 	return nil,nil
 }
 func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error) {
-	logrus.Infof("requesting url: %s by method :%s",r.NodeAPI+url,method)
+	logrus.Infof("requesting url: %s by method :%s,and body is ",r.NodeAPI+url,method,string(body))
 	request, err := http.NewRequest(method, r.NodeAPI+url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil,500,err
@@ -176,5 +262,6 @@ func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error)
 
 	data, err := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
+	logrus.Infof("response is %s,response code is %d",string(data),res.StatusCode)
 	return data,res.StatusCode,err
 }

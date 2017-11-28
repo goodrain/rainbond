@@ -37,9 +37,11 @@ install -p -m 755 usr/share/gr-rainbond-node/gaops/gaops.tgz %{buildroot}/usr/sh
         echo "NODE_TYPE=compute" >> /etc/goodrain/envs/rainbond-node.sh
     else
         echo "NODE_TYPE=" >> /etc/goodrain/envs/rainbond-node.sh
+        echo "ROLE=manage" >> /etc/goodrain/envs/rainbond-node.sh
     fi
 ) || (
     echo "NODE_TYPE=" >> /etc/goodrain/envs/rainbond-node.sh
+    echo "ROLE=manage" >> /etc/goodrain/envs/rainbond-node.sh
 )
 
 

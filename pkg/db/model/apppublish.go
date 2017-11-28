@@ -1,4 +1,3 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
@@ -18,22 +17,21 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package model
+
 //AppPublish AppPublish
 type AppPublish struct {
 	Model
 	ServiceKey string `gorm:"column:service_key;size:70"`
 	AppVersion string `gorm:"column:app_version;size:70"`
-	Status string `gorm:"column:status;size:10"`
-	Image      string `gorm:"column:image;size:50"`
-	Slug       string `gorm:"column:slug;size:50"`
-	DestYS     bool `gorm:"column:dest_ys"`
-	DestYB     bool `gorm:"column:dest_yb"`
+	Status     string `gorm:"column:status;size:10"`
+	Image      string `gorm:"column:image;size:200"`
+	Slug       string `gorm:"column:slug;size:200"`
+	DestYS     bool   `gorm:"column:dest_ys"`
+	DestYB     bool   `gorm:"column:dest_yb"`
 	ShareID    string `gorm:"column:share_id;size:70"`
 }
-
 
 //TableName 表名
 func (t *AppPublish) TableName() string {
 	return "app_publish"
 }
-
