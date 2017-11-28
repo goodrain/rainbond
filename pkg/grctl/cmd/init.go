@@ -27,10 +27,7 @@ import (
 	"bytes"
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"fmt"
-	//"time"
 
-	"encoding/json"
-	"github.com/bitly/go-simplejson"
 )
 
 func NewCmdInit() cli.Command {
@@ -111,40 +108,14 @@ func initCluster(c *cli.Context) error {
 	jsonStr:=strings.TrimSpace(outJ)
 	jsonStr=strings.Replace(jsonStr,"\n","",-1)
 	jsonStr=strings.Replace(jsonStr," ","",-1)
-	logrus.Infof(jsonStr)
-	fixedJ,_:=json.Marshal(jsonStr)
 
-	//
-	js,err:=simplejson.NewJson(fixedJ)
-	if err != nil {
-		logrus.Errorf("error decode json,details %s",err.Error())
+	if strings.Contains(jsonStr, "Success") {
+		fmt.Println("初始化成功，开始安装服务")
+	}else{
+		fmt.Println("初始化失败！")
 		return nil
 	}
-	//
-	global:=js.Get("global").Get("OS_VER")
-	if err != nil {
-		logrus.Errorf("error decode status json,details %s",err.Error())
-		return nil
-	}
-	initStatusB,_:=json.Marshal(global)
-	fmt.Println("========"+string(initStatusB))
-	//
-	//
-	//
-	//
-	//fmt.Println("初始化结果：")
-	//for _,v:=range global{
-	//	b,_:=json.Marshal(v)
-	//	statusJ,err:=simplejson.NewJson(b)
-	//	if err != nil {
-	//		logrus.Errorf("error decode status,details %s",err.Error())
-	//		return nil
-	//	}
-	//	task,_:=statusJ.Get("name").String()
-	//	condition,_:=statusJ.Get("condition_status").String()
-	//	fmt.Printf("task:%s install %s",task,condition)
-	//	fmt.Println()
-	//}
+
 	err=clients.NodeClient.Tasks().Get("check_manage_base_services").Exec([]string{})
 	if err != nil {
 		logrus.Errorf("error execute task %s","check_manage_base_services")
@@ -156,26 +127,7 @@ func initCluster(c *cli.Context) error {
 		logrus.Errorf("error execute task %s","check_manage_services")
 	}
 	Status("check_manage_services")
-	//checkFail:=0
-	//for checkFail<3  {
-	//	time.Sleep(3*time.Second)
-	//	status,err:=clients.NodeClient.Tasks().Get("install_manage_ready").Status()
-	//	if err != nil {
-	//		checkFail+=1
-	//		logrus.Errorf("error get task status ,details %s",err.Error())
-	//		continue
-	//	}
-	//	checkFail=0
-	//	for k,v:=range status.Status{
-	//		if v.Status!="complete" {
-	//			fmt.Printf(".")
-	//			continue
-	//		}else {
-	//			fmt.Printf("task %s is %s-----%s",k,v.Status,v.CompleStatus)
-	//			return nil
-	//		}
-	//	}
-	//}
+
 	//一般 job会在通过grctl执行时阻塞输出，这种通过 脚本执行的，需要单独查
 	return nil
 }
