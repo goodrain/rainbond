@@ -171,8 +171,31 @@ func (t *Node)List() []*model.HostNode {
 	return nodes
 }
 func (t *Task)Get(id string) (*Task) {
+	url:="/tasks/"+id
+	resp,code,err:=nodeServer.Request(url,"GET",nil)
+	if code != 200 {
+		fmt.Println("executing failed:"+string(resp))
+	}
+	if err!=nil {
+		logrus.Errorf("error request url %s",url)
+		return nil
+	}
+	jsonTop,err:=simplejson.NewJson(resp)
+	if err!=nil {
+		logrus.Errorf("error get json from url %s",err.Error())
+		return nil
+	}
+	var task model.Task
+	beanJ:=jsonTop.Get("bean")
+	taskB,_:=json.Marshal(beanJ)
+	err=json.Unmarshal(taskB,&task)
+	if err!=nil {
+		logrus.Errorf("error unmarshal task %s",err.Error())
+		return nil
+	}
 	return &Task{
 		TaskID:id,
+		Task:&task,
 	}
 }
 func (t *Task)Exec(nodes []string ) error {
@@ -211,6 +234,7 @@ func HandleTaskStatus(task string) (*TaskStatus,error) {
 		bean := j.Get("bean")
 		beanB, _ := json.Marshal(bean)
 		var status TaskStatus
+		statusMap:=make(map[string]model.TaskStatus)
 
 		json,_:=simplejson.NewJson(beanB)
 
@@ -225,8 +249,9 @@ func HandleTaskStatus(task string) (*TaskStatus,error) {
 			taskStatus.Status=m[k].(map[string]interface{})["status"].(string)
 			taskStatus.JobID=k
 			//taskStatus.ShellCode=m[k].(map[string]interface{})["shell_code"].(int)
-			status.Status[k]=taskStatus
+			statusMap[k]=taskStatus
 		}
+		status.Status=statusMap
 		return &status,nil
 	}
 	return nil,nil

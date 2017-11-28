@@ -30,9 +30,9 @@ import (
 	"fmt"
 	//"time"
 	//"github.com/bitly/go-simplejson"
-	"github.com/bitly/go-simplejson"
+	//"github.com/bitly/go-simplejson"
 	"time"
-	"encoding/json"
+	//"encoding/json"
 )
 
 func NewCmdInit() cli.Command {
@@ -109,27 +109,33 @@ func initCluster(c *cli.Context) error {
 	cmd.Run()
 	out:=buf.String()
 	arr:=strings.SplitN(out,"{",2)
-	arr[1]="{"+arr[1]
-	jsonStr:=arr[1]
-	js,err:=simplejson.NewJson([]byte(jsonStr))
-	if err != nil {
-		logrus.Errorf("error decode json,details %s",err.Error())
-		return nil
-	}
-	initStatus,err:=js.Get("status").Array()
-	fmt.Println("初始化结果：")
-	for _,v:=range initStatus{
-		b,_:=json.Marshal(v)
-		statusJ,err:=simplejson.NewJson(b)
-		if err != nil {
-			logrus.Errorf("error decode status,details %s",err.Error())
-			return nil
-		}
-		task,_:=statusJ.Get("name").String()
-		condition,_:=statusJ.Get("condition_status").String()
-		fmt.Printf("task:%s install %s",task,condition)
-		fmt.Println()
-	}
+	outJ:="{"+arr[1]
+	jsonStr:=strings.TrimSpace(outJ)
+	jsonStr=strings.Replace(jsonStr,"\n","",-1)
+	jsonStr=strings.Replace(jsonStr," ","",-1)
+	logrus.Infof(jsonStr)
+
+
+
+	//js,err:=simplejson.NewJson([]byte(jsonStr))
+	//if err != nil {
+	//	logrus.Errorf("error decode json,details %s",err.Error())
+	//	return nil
+	//}
+	//initStatus,err:=js.Get("status").Array()
+	//fmt.Println("初始化结果：")
+	//for _,v:=range initStatus{
+	//	b,_:=json.Marshal(v)
+	//	statusJ,err:=simplejson.NewJson(b)
+	//	if err != nil {
+	//		logrus.Errorf("error decode status,details %s",err.Error())
+	//		return nil
+	//	}
+	//	task,_:=statusJ.Get("name").String()
+	//	condition,_:=statusJ.Get("condition_status").String()
+	//	fmt.Printf("task:%s install %s",task,condition)
+	//	fmt.Println()
+	//}
 
 	checkFail:=0
 	for checkFail<3  {
