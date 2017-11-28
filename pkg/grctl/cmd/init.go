@@ -28,7 +28,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	//"runtime"
 	"fmt"
-	"github.com/bitly/go-simplejson"
 )
 
 func NewCmdInit() cli.Command {
@@ -98,6 +97,7 @@ func initCluster(c *cli.Context) error {
 		arg=""
 	}
 	//logrus.Infof("args is %s,len is %d",arg,len(arg))
+	fmt.Println("开始初始化集群")
 	cmd := exec.Command("bash", "-c",arg+string(b))
 	buf:=bytes.NewBuffer(nil)
 	cmd.Stderr=buf
@@ -106,11 +106,7 @@ func initCluster(c *cli.Context) error {
 	arr:=strings.SplitN(out,"{",2)
 	arr[1]="{"+arr[1]
 	jsonStr:=arr[1]
-	_,err=simplejson.NewJson([]byte(jsonStr))
-	if err != nil {
-		logrus.Errorf("%s",err.Error())
-		return err
-	}
+
 	fmt.Println(jsonStr)
 	clients.NodeClient.Tasks().Get("install_manage_ready").Status()
 	return nil

@@ -203,9 +203,10 @@ func Task(c *cli.Context,task string,status bool) error   {
 			logrus.Errorf("error get task:%s 's status,details %s",task,err.Error())
 			return err
 		}
+		fmt.Printf("安装中 ")
 		for k,v:=range taskStatus.Status{
-			if v.CompleStatus=="" {
-				fmt.Printf("安装中")
+			if v.Status!="complete" {
+				fmt.Printf(".")
 				continue
 			}else {
 				fmt.Printf("%s is %s-----%s",k,v.CompleStatus,v.Status)
