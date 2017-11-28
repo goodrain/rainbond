@@ -93,6 +93,7 @@ func (t TaskSchedulerInfo) Post() {
 	body, err := ffjson.Marshal(t)
 	if err == nil {
 		store.DefalutClient.Post("/rainbond-node/scheduler/taskshcedulers/"+t.TaskID+"/"+t.Node, string(body))
+		logrus.Infof("put a scheduler info %s:%s", t.TaskID, t.Node)
 	}
 }
 
@@ -586,6 +587,9 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 	} else { //如果是一次性任务，执行记录已经被删除，无需更新
 		er.CompleteHandle()
 	}
+	t.schedulerCacheLock.Lock()
+	defer t.schedulerCacheLock.Unlock()
+	delete(t.schedulerCache, task.ID+er.Node)
 }
 
 //waitScheduleTask 等待调度条件成熟
@@ -800,9 +804,6 @@ func (t *TaskEngine) scheduler(taskSchedulerInfo *TaskSchedulerInfo, task *model
 		Status:    "Start",
 	}
 	t.UpdateTask(task)
-	t.schedulerCacheLock.Lock()
-	defer t.schedulerCacheLock.Unlock()
-	delete(t.schedulerCache, taskSchedulerInfo.TaskID+taskSchedulerInfo.Node)
 	logrus.Infof("success scheduler a task %s to node %s", task.Name, taskSchedulerInfo.Node)
 }
 
