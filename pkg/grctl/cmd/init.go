@@ -28,6 +28,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	//"runtime"
 	"fmt"
+	"github.com/bitly/go-simplejson"
 )
 
 func NewCmdInit() cli.Command {
@@ -118,25 +119,14 @@ func initCluster(c *cli.Context) error {
 	out:=buf.String()
 	arr:=strings.SplitN(out,"{",2)
 	arr[1]="{"+arr[1]
-	json:=arr[1]
-	fmt.Println(json)
-	//j,err:=simplejson.NewJson([]byte(json))
-	//if err != nil {
-	//
-	//}
-	//etcd,err:=j.Get("global").Get("ETCD_ADDRS").String()
+	jsonStr:=arr[1]
+	_,err=simplejson.NewJson([]byte(jsonStr))
+	if err != nil {
+		logrus.Errorf("%s",err.Error())
+		return err
+	}
+	fmt.Println(jsonStr)
 
-	//go func(c *exec.Cmd) {
-	//	defer func() {
-	//		if r := recover(); r != nil {
-	//			const size = 64 << 10
-	//			buf := make([]byte, size)
-	//			buf = buf[:runtime.Stack(buf, false)]
-	//			logrus.Warnf("panic running job: %v\n%s", r, buf)
-	//		}
-	//	}()
-	//
-	//}(cmd)
 	return nil
 }
 

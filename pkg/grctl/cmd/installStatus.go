@@ -21,6 +21,8 @@ import (
 	"github.com/urfave/cli"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
+	"time"
+	"fmt"
 )
 
 func GetCommand(status bool)[]cli.Command  {
@@ -187,23 +189,29 @@ func NewCmdStatus() cli.Command {
 	return c
 }
 func Task(c *cli.Context,task string,status bool) error   {
-	if status{
-		_,err:=clients.NodeClient.Tasks().Get(task).Status()
-		if err != nil {
-			logrus.Errorf("error get task:%s 's status,details %s",task,err.Error())
-			return err
-		}
-		//a:=status.Status
-		//b,_:=json.Marshal(a)
-		//fmt.Println(string(b))
-		return nil
-	}
 
 	nodes:=c.StringSlice("nodes")
 	err:=clients.NodeClient.Tasks().Get(task).Exec(nodes)
 	if err != nil {
 		logrus.Errorf("error exec task:%s,details %s",task,err.Error())
 		return err
+	}
+	for true  {
+		time.Sleep(3*time.Second)
+		taskStatus,err:=clients.NodeClient.Tasks().Get(task).Status()
+		if err != nil {
+			logrus.Errorf("error get task:%s 's status,details %s",task,err.Error())
+			return err
+		}
+		for k,v:=range taskStatus.Status{
+			if v.CompleStatus=="" {
+				fmt.Printf("安装中")
+				continue
+			}else {
+				fmt.Printf("%s is %s-----%s",k,v.CompleStatus,v.Status)
+				return nil
+			}
+		}
 	}
 	return nil
 }

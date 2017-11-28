@@ -195,40 +195,60 @@ type TaskStatus struct {
 }
 func (t *Task)Status() (*TaskStatus,error) {
 	taskId:=t.TaskID
-	resp,code,err:=nodeServer.Request("/tasks/"+taskId+"/status","GET",nil)
+	return HandleTaskStatus(taskId)
+}
+func HandleUnStructedJson(b []byte) *model.TaskStatus {
+	json,_:=simplejson.NewJson(b)
+
+	second:=json.Interface()
+
+	logrus.Infof("second level is %v",second)
+	m:=second.(map[string]interface{})
+	var taskStatus model.TaskStatus
+	for k,_:=range m {
+		logrus.Infof("handling %s status",k)
+		taskStatus.CompleStatus=m[k].(map[string]interface{})["comple_status"].(string)
+		taskStatus.Status=m[k].(map[string]interface{})["status"].(string)
+		taskStatus.JobID=k
+		taskStatus.ShellCode=m[k].(map[string]interface{})["shell_code"].(int)
+		break
+	}
+	return &taskStatus
+}
+func HandleTaskStatus(task string) (*TaskStatus,error) {
+	resp,code,err:=nodeServer.Request("/tasks/"+task+"/status","GET",nil)
 	if err != nil {
 		logrus.Errorf("error execute status Request,details %s",err.Error())
 		return nil,err
 	}
 	if code == 200 {
-		j,_:=simplejson.NewJson(resp)
-		bean:=j.Get("bean")
-		beanB,_:=json.Marshal(bean)
+		j, _ := simplejson.NewJson(resp)
+		bean := j.Get("bean")
+		beanB, _ := json.Marshal(bean)
 		var status TaskStatus
 
-		result:=HandleUnStructedJson(beanB)
+		json,_:=simplejson.NewJson(beanB)
 
-		logrus.Infof("CompleStatus: %s",result["comple_status"])
-		logrus.Infof("Status: %s",result["status"])
+		second:=json.Interface()
+
+		logrus.Infof("second level is %v",second)
+		m:=second.(map[string]interface{})
+
+		for k,_:=range m {
+			var taskStatus model.TaskStatus
+			logrus.Infof("handling %s status",k)
+			taskStatus.CompleStatus=m[k].(map[string]interface{})["comple_status"].(string)
+			taskStatus.Status=m[k].(map[string]interface{})["status"].(string)
+			taskStatus.JobID=k
+			taskStatus.ShellCode=m[k].(map[string]interface{})["shell_code"].(int)
+			status.Status[k]=taskStatus
+		}
 		return &status,nil
 	}
 	return nil,nil
 }
-func HandleUnStructedJson(b []byte) map[string]string {
-	json,_:=simplejson.NewJson(b)
-
-	second:=json.Interface()
-	m:=second.(map[string]interface{})
-	result:=make(map[string]string)
-	for k,_:=range m {
-		result["comple_status"]=m[k].(map[string]interface{})["comple_status"].(string)
-		result["status"]=m[k].(map[string]interface{})["status"].(string)
-		break
-	}
-	return result
-}
 func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error) {
-	logrus.Infof("requesting url: %s by method :%s",r.NodeAPI+url,method)
+	logrus.Infof("requesting url: %s by method :%s,and body is ",r.NodeAPI+url,method,string(body))
 	request, err := http.NewRequest(method, r.NodeAPI+url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil,500,err
