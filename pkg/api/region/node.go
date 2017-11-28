@@ -271,6 +271,6 @@ func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error)
 
 	data, err := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
-	//logrus.Infof("response is %s,response code is %d",string(data),res.StatusCode)
+	logrus.Infof("response is %s,response code is %d",string(data),res.StatusCode)
 	return data,res.StatusCode,err
 }

@@ -121,7 +121,7 @@ func initCluster(c *cli.Context) error {
 		return nil
 	}
 	//
-	global,err:=js.Get("global").Get("OS_VER").String()
+	global:=js.Get("global").Get("OS_VER")
 	if err != nil {
 		logrus.Errorf("error decode status json,details %s",err.Error())
 		return nil
@@ -145,13 +145,13 @@ func initCluster(c *cli.Context) error {
 	//	fmt.Printf("task:%s install %s",task,condition)
 	//	fmt.Println()
 	//}
-	err=clients.NodeClient.Tasks().Get("check_manage_base_services").Exec(nil)
+	err=clients.NodeClient.Tasks().Get("check_manage_base_services").Exec([]string{})
 	if err != nil {
 		logrus.Errorf("error execute task %s","check_manage_base_services")
 	}
 	Status("check_manage_base_services")
 
-	err=clients.NodeClient.Tasks().Get("check_manage_services").Exec(nil)
+	err=clients.NodeClient.Tasks().Get("check_manage_services").Exec([]string{})
 	if err != nil {
 		logrus.Errorf("error execute task %s","check_manage_services")
 	}
