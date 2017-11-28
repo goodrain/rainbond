@@ -406,6 +406,13 @@ func GetCurrentNode(cfg *conf.Conf) (*model.HostNode, error) {
 	for _, rule := range node.Role {
 		node.Labels["rainbond_node_rule_"+rule] = "true"
 	}
+	if node.HostName == "" {
+		hostname, _ := os.Hostname()
+		node.HostName = hostname
+	}
+	if node.ClusterNode.PID == "" {
+		node.ClusterNode.PID = strconv.Itoa(os.Getpid())
+	}
 	node.Labels["rainbond_node_hostname"] = node.HostName
 	node.Labels["rainbond_node_ip"] = node.InternalIP
 	node.UpdataCondition(model.NodeCondition{
@@ -419,7 +426,6 @@ func GetCurrentNode(cfg *conf.Conf) (*model.HostNode, error) {
 
 //CreateNode 创建节点信息
 func CreateNode(cfg *conf.Conf, nodeID, ip string) model.HostNode {
-	hostname, _ := os.Hostname()
 	HostNode := model.HostNode{
 		ID: nodeID,
 		ClusterNode: model.ClusterNode{
@@ -428,7 +434,6 @@ func CreateNode(cfg *conf.Conf, nodeID, ip string) model.HostNode {
 		},
 		InternalIP: ip,
 		ExternalIP: ip,
-		HostName:   hostname,
 		CreateTime: time.Now(),
 	}
 	return HostNode

@@ -564,6 +564,9 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 		task.UpdataOutPut(output)
 	}
 	task.ExecCount++
+	if task.Status == nil {
+		task.Status = make(map[string]model.TaskStatus)
+	}
 	task.Status[er.Node] = taskStatus
 	//如果是is_once的任务，处理完成后删除job
 	if task.IsOnce {
@@ -661,7 +664,7 @@ func (t *TaskEngine) waitScheduleTask(taskSchedulerInfo *TaskSchedulerInfo, task
 							result[i] = true
 							continue
 						} else if ok && nodestatus.CompleStatus != "" {
-							taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s Condition cannot be satisfied", depTask.ID)
+							taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s(%s) Condition cannot be satisfied", depTask.ID, nodestatus.CompleStatus)
 							taskSchedulerInfo.Status.Status = "Failure"
 							task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
 							continueScheduler = false

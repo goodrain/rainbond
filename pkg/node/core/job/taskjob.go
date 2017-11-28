@@ -49,6 +49,7 @@ func CreateJobFromTask(task *model.Task, groupCtx *config.GroupContext) (*Job, e
 		envs = append(envs, fmt.Sprintf("%s=%s", k, v))
 	}
 	var rules []*JobRule
+	//如果任务不是一次任务
 	if !task.IsOnce {
 		if task.Timer == "" {
 			return nil, fmt.Errorf("timer can not be empty")
@@ -58,6 +59,13 @@ func CreateJobFromTask(task *model.Task, groupCtx *config.GroupContext) (*Job, e
 			NodeIDs: task.Nodes,
 			ID:      uuid.NewV4().String(),
 			Timer:   task.Timer,
+		}
+		rules = append(rules, rule)
+	} else {
+		rule := &JobRule{
+			Labels:  task.Temp.Labels,
+			NodeIDs: task.Nodes,
+			ID:      uuid.NewV4().String(),
 		}
 		rules = append(rules, rule)
 	}
