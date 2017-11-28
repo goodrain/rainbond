@@ -30,9 +30,9 @@ import (
 	"fmt"
 	//"time"
 	//"github.com/bitly/go-simplejson"
-	"github.com/bitly/go-simplejson"
+	//"github.com/bitly/go-simplejson"
 	"time"
-	"encoding/json"
+	//"encoding/json"
 )
 
 func NewCmdInit() cli.Command {
@@ -111,6 +111,8 @@ func initCluster(c *cli.Context) error {
 	arr:=strings.SplitN(out,"{",2)
 	outJ:="{"+arr[1]
 	jsonStr:=strings.TrimSpace(outJ)
+	jsonStr=strings.Replace(jsonStr,"\n","",-1)
+	jsonStr=strings.Replace(jsonStr," ","",-1)
 	logrus.Infof(jsonStr)
 
 
