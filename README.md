@@ -1,7 +1,7 @@
 <img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_logo.png" width="40%">
 
 ----
-Rainbond is first open source production level serverless PaaS in China. It integrates Kubernetes based containers management, CI/CD methods and multiple data center resource management, to provide full management solution of cloud native application, build connection system of application and infrastructure, application and application, infrastructure and infrastructure.
+Rainbond is first open source production grade serverless PaaS in China. It integrates Kubernetes based containers management, CI/CD methods and multiple data center resource management, to provide full management solution of cloud native application, build connection system of application and infrastructure, application and application, infrastructure and infrastructure.
 
 5 years of optimizing and verifying makes Rainbond a cutting edge serverless PaaS with complete ecosystem and concept. We choose to open source and embrace the community, absorbing best ideas and practices to further improve and enhance Rainbond, enabling more enterprise and individuals to enjoy "application-centric" experience.
 
@@ -19,7 +19,7 @@ Rainbond is first open source production level serverless PaaS in China. It inte
 
 This repository includes core components of Rainbond Data Center, you can build it in two ways:
 
-##### Golang
+##### Golang(v1.8+)
 
 ```
 $go get -d github.com/goodrain/rainbond
