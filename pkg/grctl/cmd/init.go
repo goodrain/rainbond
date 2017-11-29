@@ -29,6 +29,7 @@ import (
 	"fmt"
 
 	"time"
+	"github.com/goodrain/rainbond/pkg/grctl/clients"
 )
 
 func NewCmdInit() cli.Command {
@@ -63,7 +64,40 @@ func NewCmdInit() cli.Command {
 	}
 	return c
 }
+func NewCmdInstallStatus() cli.Command {
+	c:=cli.Command{
+		Name:  "install_status",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "taskID",
+				Usage: "install_k8s,空则自动寻找",
+			},
 
+		},
+		Usage: "获取task执行状态。grctl install_status",
+		Action: func(c *cli.Context) error {
+			taskID:=c.String("taskID")
+			if taskID=="" {
+				tasks,err:=clients.NodeClient.Tasks().List()
+				if err != nil {
+
+				}
+				for _,v:=range tasks {
+					for _,vs:=range v.Status{
+						if  vs.Status=="Start"||vs.Status=="Create"{
+
+						}
+
+					}
+				}
+			}else {
+				Status(taskID)
+			}
+			return initCluster(c)
+		},
+	}
+	return c
+}
 
 
 
