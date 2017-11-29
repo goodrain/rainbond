@@ -1,25 +1,23 @@
-# Rainbond
-
-<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_logo.png" width="30%">
+<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_logo.png">
 
 ----
-Rainbond is the first opensource enterprise application management platform (serverless PaaS) in China. It integrates CI/CD automation application building system, microservice architecture application management system and fully-automatic computing resource management system, to provide best practice of application-centic philosophy.
+Rainbond is first open source production level serverless PaaS in China. It integrates Kubernetes based containers management, CI/CD methods and multiple data center resource management, to provide full management solution of cloud native application, build connection system of application and infrastructure, application and application, infrastructure and infrastructure.
 
-Rainbond is cutting edge application management platform with complete ecosystem, based on [Kubernetes](https://github.com/kubernetes/kubernetes) and [Docker](https://github.com/moby/moby), has been optimized and verified for 5 five years.
-
-We choose to open source and embrace the community, absorbing best ideas and practices to further improve and enhance Rainbond, enabling more enterprise and individuals to enjoy "application-centric" experience.
+5 years of optimizing and verifying makes Rainbond a cutting edge serverless PaaS with complete ecosystem and concept. We choose to open source and embrace the community, absorbing best ideas and practices to further improve and enhance Rainbond, enabling more enterprise and individuals to enjoy "application-centric" experience.
 
 ----
-## [中文Readme](https://github.com/goodrain/rainbond/blob/master/docs/Readme_cn.md)
-## Quick Start
+[Design Concept](http://www.rainbond.com/docs/stable/getting-started/design-concept.html) -- -- [Architecture](http://www.rainbond.com/docs/stable/getting-started/architecture.html) -- -- [User Scenario](getting-started/scenario-microservice.html) -- -- [Installation Requirement](http://www.rainbond.com/docs/stable/getting-started/pre-install.html) -- --[中文Readme](https://github.com/goodrain/rainbond/blob/master/docs/Readme_cn.md)
 
-1. [Install Rainbond Data Center]()
-2. [Install Rainbond Application Console]()
-3. [Build Your First Application](http://www.rainbond.com/docs/stable/getting-started/how-to-create-app.html)
+----
+## To start using Rainbond
 
-## Quick Build
+1. [Install Rainbond](http://www.rainbond.com/docs/stable/getting-started/pre-install.html)
+2. [Create First Application](http://www.rainbond.com/docs/stable/user-app-docs/addapp/addapp-code.html)
+3. [Build Microservice Architecture](http://www.rainbond.com/docs/stable/user-app-docs/addapp/addapp-cloud_framework.html)
 
-Quickly build Rainbond components in two ways:
+## To start developing Rainbond
+
+This repository includes core components of Rainbond Data Center, you can build it in two ways:
 
 ##### Golang
 
@@ -35,39 +33,23 @@ $git clone https://github.com/goodrain/rainbond.git
 $cd rainbond
 $make all-image
 ```
-##### BUG Submission
+##### BUG Fix
 
-Bug found in learning and using, please visit [ISSUES](https://github.com/goodrain/rainbond/issues) to find similar Bug and solutions. If there is no similar result, please create a new issure.
+Bug found in learning and using, please visit [ISSUES](https://github.com/goodrain/rainbond/issues) to find similar Bug and solutions. If there is no similar result, please create a new issue.
 
-## [Rainbond Architecture](http://www.rainbond.com/docs/stable/getting-started/architecture.html)
+## [Architecture](http://www.rainbond.com/docs/stable/getting-started/architecture.html)
 
-### Architecture
-
-<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_architecture.png"  href="http://www.rainbond.com/docs/stable/getting-started/architecture.html">
-
-### Rainbond Structure
-
-Rainbond consisted of [Rainbond Data Center](https://github.com/goodrain/rainbond) and [Rainbond Resource Console](https://github.com/goodrain/rainbond-ui)(Enterprise edition available), seamlessly docked with 好雨云市, enabling hyper-converged computing pools.
-
-* [Rainbond Data Center](https://github.com/goodrain/rainbond)    
-
-Rainbond Data Center consisted of [a series of distributed components](http://www.rainbond.com/docs/stable/platform-maintenance/add-management-node/component-introduction/overview.html), enabling resource-oriented Rainbond node abstraction, application-oriented storage, network and computing resources. With plug-in, distributed and software-defined principles, Rainbond can build unified application runtime environment on any computing environment, includes public cloud, private cloud, IDC and industry computing cloud.
-
-* [Rainbond Application Console](https://github.com/goodrain/rainbond-ui)
-
-Rainbond Application Console is Web console that interfaces with multiple Rainbond Data Centers, to provide application lifecycle management capabilities.
+<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_architecture.png" href="http://www.rainbond.com/docs/stable/getting-started/architecture.html">
 
 ## Community
 
-### Rainbond QQ Group
+### QQ Group:
 
-- 477016432(Group 1)  
-- 453475798(Group 2)  
-- 419331946(Group 3)
+- 477016432 (Group 1) 
+- 453475798 (Group 2)  
+- 419331946 (Group 3)
 
-### Documentation
+### [Documentation](http://www.rainbond.com/docs/stable/)       
 
-- [Development](http://doc.goodrain.com/cloudbang-community-install/247616)
-- [Installation](http://www.rainbond.com/docs/stable/getting-started/pre-install.html)
-- [Manual](http://www.rainbond.com/docs/stable/user-app-docs/addapp/addapp-image.html)
-- [Maintenance](http://www.rainbond.com/docs/stable/platform-maintenance/overview/overview.html)
+- Docs: https://www.rainbond.com/docs
+- Blog: https://www.rainbond.com/blog

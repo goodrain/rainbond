@@ -1,4 +1,3 @@
-# 云帮
 
 <img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_logo.png">
 
@@ -11,13 +10,13 @@ Rainbond历经超过五年的生产运营打磨和验证，形成目前理念最
 [设计理念](http://www.rainbond.com/docs/stable/getting-started/design-concept.html) -- -- [技术架构](http://www.rainbond.com/docs/stable/getting-started/architecture.html) -- -- [应用场景](getting-started/scenario-microservice.html) -- -- [系统安装](http://www.rainbond.com/docs/stable/getting-started/pre-install.html)
 
 ----
-## 快速开始
+## 使用Rainbond
 
 1. [安装Rainbond](http://www.rainbond.com/docs/stable/getting-started/pre-install.html)
 2. [创建第一个应用](http://www.rainbond.com/docs/stable/user-app-docs/addapp/addapp-code.html)
 3. [快速构建微服务架构](http://www.rainbond.com/docs/stable/user-app-docs/addapp/addapp-cloud_framework.html)
 
-## 快速构建
+## 开发Rainbond
 
 本仓库具有Rainbond数据中心核心组件，通过两种方式快速构建：
 
@@ -35,11 +34,11 @@ $git clone https://github.com/goodrain/rainbond.git
 $cd rainbond
 $make all-image
 ```
-##### BUG提交
+##### BUG与建议
 
 在学习和使用中发现Bug，请移步[ISSUES](https://github.com/goodrain/rainbond/issues)，查找类似Bug及其修复方案。若无类似问题，请新建Issue。
 
-## [云帮架构](http://www.rainbond.com/docs/stable/getting-started/architecture.html)
+## [Rainbond架构](http://www.rainbond.com/docs/stable/getting-started/architecture.html)
 
 ### 组件架构图 
 
@@ -47,12 +46,13 @@ $make all-image
 
 ## 社区支持
 
-### 云帮用户交流群(QQ)：
+### Rainbond用户交流群(QQ)：
 
 - 477016432(1群)  
 - 453475798(2群)  
 - 419331946(3群)
 
-### [项目文档支持](http://www.rainbond.com/docs/stable/)
-
+### [项目文档支持](http://www.rainbond.com/docs/stable/)       
+文档地址：https://www.rainbond.com/docs
+博客地址：https://blog.goodrain.com/
 
