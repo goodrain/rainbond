@@ -128,6 +128,7 @@ type TenantServicePluginRelationDao interface {
 	DeleteALLRelationByPluginID(pluginID string) error
 	GetALLRelationByServiceID(serviceID string) ([]*model.TenantServicePluginRelation, error)
 	GetRelateionByServiceIDAndPluginID(serviceID, pluginID string) (*model.TenantServicePluginRelation, error)
+	CheckSomeModelPluginByServiceID(serviceID, pluginModel string) (bool, error)
 }
 
 //TenantServiceRelationDao TenantServiceRelationDao
@@ -251,6 +252,7 @@ type ServiceStatusDao interface {
 	GetTenantStatus(tenantID string) ([]*model.TenantServiceStatus, error)
 	GetTenantServicesStatus(serviceIDs []string) ([]*model.TenantServiceStatus, error)
 }
+
 //CodeCheckResultDao CodeCheckResultDao
 type CodeCheckResultDao interface {
 	Dao
@@ -260,10 +262,10 @@ type CodeCheckResultDao interface {
 //AppPublishDao AppPublishDao
 type AppPublishDao interface {
 	Dao
-	GetAppPublish(serviceKey,appVersion string) (*model.AppPublish, error)
+	GetAppPublish(serviceKey, appVersion string) (*model.AppPublish, error)
 }
 
-//AppPublishDao AppPublishDao
+//EventDao EventDao
 type EventDao interface {
 	Dao
 	GetEventByEventID(eventID string) (*model.ServiceEvent, error)

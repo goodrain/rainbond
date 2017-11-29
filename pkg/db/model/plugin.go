@@ -137,10 +137,11 @@ func (t *TenantPluginVersionEnv) TableName() string {
 //TenantServicePluginRelation TenantServicePluginRelation
 type TenantServicePluginRelation struct {
 	Model
-	VersionID string `gorm:"column:version_id;size:32"`
-	PluginID  string `gorm:"column:plugin_id;size:32"`
-	ServiceID string `gorm:"column:service_id;size:32"`
-	Switch    bool   `gorm:"column:switch;default:false"`
+	VersionID   string `gorm:"column:version_id;size:32"`
+	PluginID    string `gorm:"column:plugin_id;size:32"`
+	ServiceID   string `gorm:"column:service_id;size:32"`
+	PluginModel string `gorm:"column:plugin_model;size:24"`
+	Switch      bool   `gorm:"column:switch;default:false"`
 }
 
 //TableName 表名
