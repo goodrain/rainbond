@@ -10,6 +10,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"fmt"
 	//"github.com/goodrain/rainbond/pkg/grctl/cmd"
+	"errors"
 )
 var nodeServer *RNodeServer
 
@@ -243,6 +244,9 @@ func HandleTaskStatus(task string) (*TaskStatus,error) {
 
 		second:=json.Interface()
 
+		if second==nil {
+			return nil,errors.New("get status failed")
+		}
 		m:=second.(map[string]interface{})
 
 		for k,_:=range m {

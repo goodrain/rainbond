@@ -73,13 +73,14 @@ func findTenantResourceUsage(c *cli.Context) error  {
 	//	logrus.Error("租户无应用(资源):" + tenantId)
 	//	return err
 	//}
-	var cpuUsage int64 =0
+	var cpuUsage float32 =0
+	var cpuUnit float32=1000
 	var memoryUsage int64=0
 	for _,service:=range services{
-		cpuUsage+=int64(service.ContainerCPU)
+		cpuUsage+=float32(service.ContainerCPU)
 		memoryUsage+=int64(service.ContainerMemory)
 	}
-	fmt.Printf("租户 %s 占用CPU : %d 核; 占用Memory : %d M",tenantID, cpuUsage,memoryUsage)
+	fmt.Printf("租户 %s 占用CPU : %v 核; 占用Memory : %d M",tenantID, cpuUsage/cpuUnit,memoryUsage)
 	fmt.Println()
 	return nil
 }

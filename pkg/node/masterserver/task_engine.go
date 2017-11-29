@@ -279,45 +279,6 @@ func (t *TaskEngine) getTaskFromKV(kv *mvccpb.KeyValue) *model.Task {
 		logrus.Error("parse task info error:", err.Error())
 		return nil
 	}
-	task.Status = map[string]model.TaskStatus{}
-	task.Scheduler.Status = map[string]model.SchedulerStatus{}
-	output:=[]*model.TaskOutPut{}
-	for _, n := range task.Nodes {
-		statusRes, err :=store.DefalutClient.Get("/store/tasks_part_status/"+task.ID+"/"+n)
-		if err != nil {
-			return nil
-		}
-		if statusRes.Count < 1 {
-			return nil
-		}
-		schedulerRes, err :=store.DefalutClient.Get("/store/tasks_part_scheduler/"+task.ID+"/"+n)
-		if err != nil {
-			return nil
-		}
-		if statusRes.Count < 1 {
-			return nil
-		}
-		outputRes, err :=store.DefalutClient.Get("/store/tasks_part_output/"+task.ID+"/"+n)
-		if err != nil {
-			return nil
-		}
-		if statusRes.Count < 1 {
-			return nil
-		}
-		var taskState model.TaskStatus
-		var schedulerState model.SchedulerStatus
-		var taskOutput model.TaskOutPut
-
-		ffjson.Unmarshal(statusRes.Kvs[0].Value,&taskState)
-		ffjson.Unmarshal(schedulerRes.Kvs[0].Value,&schedulerRes)
-		ffjson.Unmarshal(outputRes.Kvs[0].Value,&taskOutput)
-
-		output=append(output,&taskOutput)
-
-		task.Status[n] = taskState
-		task.Scheduler.Status[n] = schedulerState
-	}
-	task.OutPut=output
 	return &task
 }
 
@@ -422,48 +383,6 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 	if err := ffjson.Unmarshal(res.Kvs[0].Value, &task); err != nil {
 		return nil
 	}
-	task.Status = map[string]model.TaskStatus{}
-	OutPut:=[]*model.TaskOutPut{}
-
-	for _, n := range task.Nodes {
-		statusRes, err :=store.DefalutClient.Get("/store/tasks_part_status/"+task.ID+"/"+n)
-		if err != nil {
-			return nil
-		}
-		if res.Count < 1 {
-			return nil
-		}
-		outputRes, err :=store.DefalutClient.Get("/store/tasks_part_output/"+task.ID+"/"+n)
-
-		if err != nil {
-			return nil
-		}
-		if res.Count < 1 {
-			return nil
-		}
-
-		schedulerRes, err :=store.DefalutClient.Get("/store/tasks_part_scheduler/"+task.ID+"/"+n)
-
-		if err != nil {
-			return nil
-		}
-		if res.Count < 1 {
-			return nil
-		}
-
-		var taskState model.TaskStatus
-		var taskOutPut model.TaskOutPut
-		var taskSchedulerStatus model.SchedulerStatus
-		ffjson.Unmarshal(statusRes.Kvs[0].Value,&taskState)
-		ffjson.Unmarshal(outputRes.Kvs[0].Value,&taskOutPut)
-		ffjson.Unmarshal(schedulerRes.Kvs[0].Value,&taskSchedulerStatus)
-		task.Status[n] = taskState
-		task.Scheduler.Status[n] = taskSchedulerStatus
-		OutPut=append(OutPut,&taskOutPut)
-		OutPut=append(OutPut,&taskOutPut)
-		OutPut=append(OutPut,&taskOutPut)
-	}
-	task.OutPut=OutPut
 	return &task
 }
 
@@ -529,54 +448,17 @@ func (t *TaskEngine) AddTask(task *model.Task) error {
 			}
 		}
 	}
-
 	if task.CreateTime.IsZero() {
 		task.CreateTime = time.Now()
 	}
 	if task.Scheduler.Mode == "" {
 		task.Scheduler.Mode = "Passive"
 	}
-
-	statusO:=task.Status
-	outputO:=task.OutPut
-	schedulerO:=task.Scheduler.Status
-
-	task.Status=nil
-	task.OutPut=nil
-	task.Scheduler.Status=nil
-
 	t.CacheTask(task)
 	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, task.String())
 	if err != nil {
 		return err
 	}
-
-	//storage task scheduler
-	for k,v:=range schedulerO {
-		tschedulerByte,_:=ffjson.Marshal(v)
-		_, err = store.DefalutClient.Put("/store/tasks_part_scheduler/"+task.ID+"/"+k, string(tschedulerByte))
-		if err != nil {
-			return err
-		}
-	}
-	//storage task status
-	for k,v:=range statusO {
-		tStatusByte,_:=ffjson.Marshal(v)
-		_, err = store.DefalutClient.Put("/store/tasks_part_status/"+task.ID+"/"+k, string(tStatusByte))
-		if err != nil {
-			return err
-		}
-	}
-	//storage task outputs
-	for _,v:=range outputO{
-		toutputByte,_:=ffjson.Marshal(v)
-		_, err = store.DefalutClient.Put("/store/tasks_part_output/"+task.ID+"/"+v.NodeID, string(toutputByte))
-		if err != nil {
-			return err
-		}
-	}
-
-
 	if task.Scheduler.Mode == "Intime" {
 		t.PutSchedul(task.ID, "")
 	}
@@ -588,36 +470,6 @@ func (t *TaskEngine) UpdateTask(task *model.Task) {
 	t.tasksLock.Lock()
 	defer t.tasksLock.Unlock()
 	t.tasks[task.ID] = task
-	for k,v:=range task.Status {
-		tStatusByte,_:=ffjson.Marshal(v)
-		_, err := store.DefalutClient.Put("/store/tasks_part_status/"+task.ID+"/"+k, string(tStatusByte))
-		if err != nil {
-			logrus.Errorf("update task status part error,%s", err.Error())
-			return
-		}
-	}
-
-	for _,v:=range task.OutPut{
-		toutputByte,_:=ffjson.Marshal(v)
-		_, err := store.DefalutClient.Put("/store/tasks_part_output/"+task.ID+"/"+v.NodeID, string(toutputByte))
-		if err != nil {
-			logrus.Errorf("update task output part error,%s", err.Error())
-			return
-		}
-	}
-	//storage task scheduler
-	for k,v:=range task.Scheduler.Status {
-		tschedulerByte,_:=ffjson.Marshal(v)
-		_, err := store.DefalutClient.Put("/store/tasks_part_scheduler/"+task.ID+"/"+k, string(tschedulerByte))
-		if err != nil {
-			logrus.Errorf("update task scheduler part error,%s", err.Error())
-			return
-		}
-	}
-
-	task.Status=nil
-	task.OutPut=nil
-	task.Scheduler.Status=nil
 	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, task.String())
 	if err != nil {
 		logrus.Errorf("update task error,%s", err.Error())
