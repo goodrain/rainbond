@@ -279,6 +279,19 @@ func (t *TaskEngine) getTaskFromKV(kv *mvccpb.KeyValue) *model.Task {
 		logrus.Error("parse task info error:", err.Error())
 		return nil
 	}
+	task.Status = map[string]model.TaskStatus{}
+	for _, n := range task.Nodes {
+		statusRes, err :=store.DefalutClient.Get("/store/tasks_part/"+task.ID+"/"+n)
+		if err != nil {
+			return nil
+		}
+		if statusRes.Count < 1 {
+			return nil
+		}
+		var taskState model.TaskStatus
+		ffjson.Unmarshal(statusRes.Kvs[0].Value,&taskState)
+		task.Status[n] = taskState
+	}
 	return &task
 }
 
@@ -461,6 +474,8 @@ func (t *TaskEngine) AddTask(task *model.Task) error {
 			}
 		}
 	}
+	statusO:=task.Status
+	task.Status=nil
 	if task.CreateTime.IsZero() {
 		task.CreateTime = time.Now()
 	}
@@ -472,7 +487,7 @@ func (t *TaskEngine) AddTask(task *model.Task) error {
 	if err != nil {
 		return err
 	}
-	for k,v:=range task.Status {
+	for k,v:=range statusO {
 		tStatusByte,_:=ffjson.Marshal(v)
 		_, err = store.DefalutClient.Put("/store/tasks_part/"+task.ID+"/"+k, string(tStatusByte))
 		if err != nil {
@@ -490,6 +505,14 @@ func (t *TaskEngine) UpdateTask(task *model.Task) {
 	t.tasksLock.Lock()
 	defer t.tasksLock.Unlock()
 	t.tasks[task.ID] = task
+	for k,v:=range task.Status {
+		tStatusByte,_:=ffjson.Marshal(v)
+		_, err := store.DefalutClient.Put("/store/tasks_part/"+task.ID+"/"+k, string(tStatusByte))
+		if err != nil {
+			logrus.Errorf("update task error,%s", err.Error())
+		}
+	}
+	task.Status=nil
 	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, task.String())
 	if err != nil {
 		logrus.Errorf("update task error,%s", err.Error())

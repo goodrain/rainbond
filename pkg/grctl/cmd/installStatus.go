@@ -196,22 +196,29 @@ func Status(task string) {
 	for checkFail<3  {
 		time.Sleep(3*time.Second)
 		status,err:=taskE.Status()
-		if err != nil {
+		if err != nil||status==nil {
 			logrus.Warnf("error get task status,retry")
 			checkFail+=1
-			logrus.Errorf("error get task status ,details %s",err.Error())
+			if err!=nil {
+				logrus.Errorf("error get task status ,details %s",err.Error())
+			}
 			continue
 		}
 		checkFail=0
+		lastState:=""
 		for _,v:=range status.Status{
 			if v.Status!="complete" {
-				fmt.Printf("task %s is %s\n",task,v.Status)
-				//fmt.Printf("task is %s",v.Status)
+				if lastState!=v.Status{
+					fmt.Printf("task %s is %s\n",task,v.Status)
+				}else{
+					fmt.Print("..")
+				}
+				lastState=v.Status
 				continue
 			}else {
 				fmt.Printf("task %s is %s %s\n",task,v.Status,v.CompleStatus)
+				lastState=v.Status
 				taskFinished:=clients.NodeClient.Tasks().Get(task)
-
 				var  nextTasks []string
 				for _,v:=range taskFinished.Task.OutPut{
 					for _,sv:=range v.Status{
