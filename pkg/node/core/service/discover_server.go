@@ -87,9 +87,11 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *
 		toport := services.Items[key].Spec.Ports[0].Port
 		if serviceAlias == destServiceAlias {
 			if originPort, ok := services.Items[key].Labels["origin_port"]; ok {
-				if origin, err := strconv.Atoi(originPort); err != nil {
-					toport = int32(origin)
+				origin, err := strconv.Atoi(originPort)
+				if err != nil {
+					return nil, util.CreateAPIHandleError(500, fmt.Errorf("have no origin_port"))
 				}
+				toport = int32(origin)
 			}
 		}
 		for _, ip := range addressList {
