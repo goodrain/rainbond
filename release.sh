@@ -77,7 +77,7 @@ function build::image() {
 	docker build -t hub.goodrain.com/${BASE_NAME}/rbd-$1:${VERSION} -f Dockerfile.release .
 	docker tag hub.goodrain.com/${BASE_NAME}/rbd-$1:${VERSION} ${BASE_NAME}/rbd-$1:${VERSION}
 	docker tag hub.goodrain.com/${BASE_NAME}/rbd-$1:${VERSION} ${BASE_NAME}/rbd-$1
-	docker push ${BASE_NAME}/rbd-$1
+	#docker push ${BASE_NAME}/rbd-$1
 	rm -f ./Dockerfile.release
 	rm -f ./${BASE_NAME}-$1
 }
