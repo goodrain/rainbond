@@ -1,4 +1,4 @@
-<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_logo.png">
+<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_logo.png" width="40%">
 
 ----
 Rainbond is first open source production level serverless PaaS in China. It integrates Kubernetes based containers management, CI/CD methods and multiple data center resource management, to provide full management solution of cloud native application, build connection system of application and infrastructure, application and application, infrastructure and infrastructure.

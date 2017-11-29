@@ -1,5 +1,5 @@
 
-<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_logo.png">
+<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_logo.png" width="40%">
 
 ----
 好雨云帮（Rainbond）是国内首个开源的生产级无服务器PasS平台，深度整合基于Kubernetes的容器管理、多类型CI/CD应用构建与交付、多数据中心的资源管理等技术提供完整的云原生应用管理解决方案，构建出应用、基础设施之间的互联互通生态体系。
