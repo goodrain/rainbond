@@ -75,6 +75,17 @@ func (k *K8sServiceBuild) Build() ([]*v1.Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("find service port from db error %s", err.Error())
 	}
+	crt, err := k.checkUpstreamPluginRelation()
+	if err != nil {
+		return nil, fmt.Errorf("get service upstream plugin relation error, %s", err.Error())
+	}
+	pp := make(map[interface{}]int)
+	if crt {
+		ports, pp, err = k.CreateUpstreamPluginMappingPort(ports)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("create upstream port error, %s", err.Error())
+	}
 	var services []*v1.Service
 	//创建分端口的负载均衡Service
 	if ports != nil && len(ports) > 0 {
@@ -91,6 +102,40 @@ func (k *K8sServiceBuild) Build() ([]*v1.Service, error) {
 	//创建有状态服务DNS服务Service
 	if k.replicationType == model.TypeStatefulSet {
 		services = append(services, k.createStatefulService(ports))
+	}
+	if crt {
+		services, _ = k.CreateUpstreamPluginMappingService(services, pp)
+	}
+	return services, nil
+}
+
+func (k *K8sServiceBuild) checkUpstreamPluginRelation() (bool, error) {
+	return k.dbmanager.TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
+		k.serviceID,
+		model.UpNetPlugin)
+}
+
+//CreateUpstreamPluginMappingPort 检查是否存在upstream插件，接管入口网络
+func (k *K8sServiceBuild) CreateUpstreamPluginMappingPort(ports []*model.TenantServicesPort) (
+	[]*model.TenantServicesPort,
+	map[interface{}]int,
+	error) {
+	//start from 65301
+	pp := make(map[interface{}]int)
+	for i := range ports {
+		port := ports[i]
+		pp[65300+i] = port.ContainerPort
+		port.ContainerPort = 65300 + i
+	}
+	return ports, pp, nil
+}
+
+//CreateUpstreamPluginMappingService 增加service plugin mapport 标签
+func (k *K8sServiceBuild) CreateUpstreamPluginMappingService(services []*v1.Service, pp map[interface{}]int) (
+	[]*v1.Service,
+	error) {
+	for _, service := range services {
+		service.Labels["origin_port"] = fmt.Sprintf("%d", pp[service.Spec.Ports[0].Port])
 	}
 	return services, nil
 }
