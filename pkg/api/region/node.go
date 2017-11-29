@@ -301,6 +301,7 @@ func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error)
 
 	res, err := http.DefaultClient.Do(request)
 	if err != nil {
+		logrus.Infof("error when request region,details %s",err.Error())
 		return nil, 500,err
 	}
 

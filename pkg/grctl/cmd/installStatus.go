@@ -216,6 +216,7 @@ func Status(task string) {
 
 				if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
 					checkFail+=1
+					//todo add continue ,code behind this line should be placed in line 254
 					fmt.Printf("task %s 's output \n",taskE.TaskID)
 					for _,v:=range taskE.Task.OutPut{
 						fmt.Println("on %s :\n %s",v.NodeID,v.Body)
@@ -257,6 +258,10 @@ func Task(c *cli.Context,task string,status bool) error   {
 
 	nodes:=c.StringSlice("nodes")
 	taskEntity:=clients.NodeClient.Tasks().Get(task)
+	if taskEntity==nil {
+		logrus.Errorf("error get task entity from server,please check server api")
+		return nil
+	}
 	err:=taskEntity.Exec(nodes)
 	if err != nil {
 		logrus.Errorf("error exec task:%s,details %s",task,err.Error())
