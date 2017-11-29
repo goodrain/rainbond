@@ -99,7 +99,7 @@ func initCluster(c *cli.Context) error {
 		arg=""
 	}
 
-	fmt.Println("开始初始化集群")
+	fmt.Println("begin init cluster")
 	cmd := exec.Command("bash", "-c",arg+string(b))
 	buf:=bytes.NewBuffer(nil)
 	cmd.Stderr=buf
@@ -112,9 +112,9 @@ func initCluster(c *cli.Context) error {
 	jsonStr=strings.Replace(jsonStr," ","",-1)
 
 	if strings.Contains(jsonStr, "Success") {
-		fmt.Println("初始化成功，开始安装服务")
+		fmt.Println("init success，start install")
 	}else{
-		fmt.Println("初始化失败！")
+		fmt.Println("init failed！")
 		return nil
 	}
 	time.Sleep(5*time.Second)

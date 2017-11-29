@@ -219,7 +219,6 @@ func Status(task string) {
 							continue
 						}else{
 							for _,v:=range sv.NextTask{
-								fmt.Println("next:"+v)
 								nextTasks=append(nextTasks,v)
 							}
 						}
@@ -227,7 +226,7 @@ func Status(task string) {
 					}
 				}
 				if len(nextTasks) > 0 {
-					fmt.Printf("接下来要安装 %v \n",nextTasks)
+					fmt.Printf("next will install %v \n",nextTasks)
 					for _,v:=range nextTasks{
 						Status(v)
 					}
