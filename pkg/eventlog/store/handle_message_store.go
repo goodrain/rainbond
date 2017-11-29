@@ -326,7 +326,7 @@ func (h *handleMessageStore) handleBarrelEvent() {
 							version.CommitMsg=i[1]
 						}
 					}
-					cdb.GetManager().VersionInfoDao()
+					cdb.GetManager().VersionInfoDao().UpdateModel(version)
 					h.log.Infof("run web hook update code version .event_id %s code_version %s", eventID, codeVersion)
 				}
 			}
