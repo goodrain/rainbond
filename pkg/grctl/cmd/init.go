@@ -25,7 +25,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"bytes"
-	"github.com/goodrain/rainbond/pkg/grctl/clients"
+	//"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"fmt"
 
 	"time"
@@ -118,17 +118,20 @@ func initCluster(c *cli.Context) error {
 		return nil
 	}
 	time.Sleep(5*time.Second)
-	err=clients.NodeClient.Tasks().Get("check_manage_base_services").Exec([]string{})
-	if err != nil {
-		logrus.Errorf("error execute task %s","check_manage_base_services")
-	}
-	Status("check_manage_base_services")
 
-	err=clients.NodeClient.Tasks().Get("check_manage_services").Exec([]string{})
-	if err != nil {
-		logrus.Errorf("error execute task %s","check_manage_services")
-	}
-	Status("check_manage_services")
+	Task(c,"check_manage_base_services",false)
+	Task(c,"check_manage_services",false)
+	//err=clients.NodeClient.Tasks().Get("").Exec([]string{})
+	//if err != nil {
+	//	logrus.Errorf("error execute task %s","check_manage_base_services")
+	//}
+	//Status("check_manage_base_services")
+	//
+	//err=clients.NodeClient.Tasks().Get("check_manage_services").Exec([]string{})
+	//if err != nil {
+	//	logrus.Errorf("error execute task %s","check_manage_services")
+	//}
+	//Status("check_manage_services")
 	//done<-1
 	//一般 job会在通过grctl执行时阻塞输出，这种通过 脚本执行的，需要单独查
 	return nil

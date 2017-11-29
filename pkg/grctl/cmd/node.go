@@ -51,7 +51,7 @@ func NewCmdNode() cli.Command {
 					n:=clients.NodeClient.Nodes().Get(id)
 					v:=n.Node
 					table := termtables.CreateTable()
-					table.AddHeaders("uid", "IP", "HostName","role","alived","unschedulable","available_memory","available_cpu","conditions")
+					table.AddHeaders("uid", "IP", "HostName","role","alived","unschedulable","available_memory","available_cpu")
 					table.AddRow(v.ID, v.InternalIP, v.HostName,v.Role.String(),v.Alived,v.Unschedulable,v.AvailableMemory,v.AvailableCPU)
 
 					fmt.Println(table.Render())

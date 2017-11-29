@@ -23,7 +23,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"time"
 	"fmt"
-	"encoding/json"
 )
 
 func GetCommand(status bool)[]cli.Command  {
@@ -191,28 +190,46 @@ func NewCmdInstall() cli.Command {
 //}
 
 func Status(task string) {
+	taskE:=clients.NodeClient.Tasks().Get(task)
+
+	var  nextTasks []string
+	for _,v:=range taskE.Task.OutPut{
+		for _,sv:=range v.Status{
+			for _,v:=range sv.NextTask{
+				nextTasks=append(nextTasks,v)
+			}
+		}
+	}
+	if len(nextTasks) > 0 {
+		fmt.Printf("接下来要安装 %v \n",nextTasks)
+		for _,v:=range nextTasks{
+			Status(v)
+		}
+	}
+
 	checkFail:=0
 	for checkFail<3  {
 		time.Sleep(3*time.Second)
-		status,err:=clients.NodeClient.Tasks().Get(task).Status()
+		status,err:=taskE.Status()
 		if err != nil {
 			checkFail+=1
 			logrus.Errorf("error get task status ,details %s",err.Error())
 			continue
 		}
 		checkFail=0
-		for k,v:=range status.Status{
+		for _,v:=range status.Status{
 			if v.Status!="complete" {
+				fmt.Printf("task %s is %s\n",task,v.Status)
 				fmt.Printf(".")
+				//fmt.Printf("task is %s",v.Status)
 				continue
 			}else {
-				fmt.Printf("task %s is %s-----%s",k,v.Status,v.CompleStatus)
+				fmt.Printf("task %s is %s-----%s",task,v.Status,v.CompleStatus)
 				return
 			}
 		}
 	}
 }
-
 
 func Task(c *cli.Context,task string,status bool) error   {
 
@@ -223,35 +240,38 @@ func Task(c *cli.Context,task string,status bool) error   {
 		logrus.Errorf("error exec task:%s,details %s",task,err.Error())
 		return err
 	}
-
-	var reqFailTime int=0
-	fmt.Printf("%s 安装中 ",task)
-	for reqFailTime<3  {
-		time.Sleep(3*time.Second)
-		task:=clients.NodeClient.Tasks().Get(task)
-		outPutB,_:=json.Marshal(task.Task.OutPut)
-		logrus.Infof("output is %s",outPutB)
-		for _,v:=range task.Task.OutPut{
-			for _,sv:=range v.Status{
-				fmt.Println(sv.NextTask)
-			}
-		}
-		taskStatus,err:=task.Status()
-		if err != nil {
-			logrus.Errorf("error get task:%s 's status,details %s",task,err.Error())
-			reqFailTime+=1
-			continue
-		}
-		reqFailTime=0
-		for k,v:=range taskStatus.Status{
-			if v.Status!="complete" {
-				fmt.Printf(".")
-				continue
-			}else {
-				fmt.Printf("task %s is %s-----%s",k,v.Status,v.CompleStatus)
-				return nil
-			}
-		}
-	}
+	Status(task)
+	//var reqFailTime int=0
+	//fmt.Printf("%s 安装中 \n",task)
+	//taskE:=clients.NodeClient.Tasks().Get(task)
+	//var  nextTasks []string
+	//for _,v:=range taskE.Task.OutPut{
+	//	for _,sv:=range v.Status{
+	//		for _,v:=range sv.NextTask{
+	//			nextTasks=append(nextTasks,v)
+	//		}
+	//	}
+	//}
+	//fmt.Printf("next tasks is %v",nextTasks)
+	//for reqFailTime<3  {
+	//	time.Sleep(3*time.Second)
+	//
+	//	taskStatus,err:=taskE.Status()
+	//	if err != nil {
+	//		logrus.Errorf("error get task:%s 's status,details %s",task,err.Error())
+	//		reqFailTime+=1
+	//		continue
+	//	}
+	//	reqFailTime=0
+	//	for k,v:=range taskStatus.Status{
+	//		if v.Status!="complete" {
+	//			fmt.Printf("task is %s",v.Status)
+	//			continue
+	//		}else {
+	//			fmt.Printf("task %s is %s-----%s",k,v.Status,v.CompleStatus)
+	//			return nil
+	//		}
+	//	}
+	//}
 	return nil
 }

@@ -243,7 +243,7 @@ func HandleTaskStatus(task string) (*TaskStatus,error) {
 
 		for k,_:=range m {
 			var taskStatus model.TaskStatus
-			logrus.Infof("handling %s status",k)
+			//logrus.Infof("handling %s status",k)
 			taskStatus.CompleStatus=m[k].(map[string]interface{})["comple_status"].(string)
 			taskStatus.Status=m[k].(map[string]interface{})["status"].(string)
 			taskStatus.JobID=k
@@ -256,7 +256,7 @@ func HandleTaskStatus(task string) (*TaskStatus,error) {
 	return nil,nil
 }
 func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error) {
-	logrus.Infof("requesting url: %s by method :%s,and body is ",r.NodeAPI+url,method,string(body))
+	//logrus.Infof("requesting url: %s by method :%s,and body is ",r.NodeAPI+url,method,string(body))
 	request, err := http.NewRequest(method, "http://127.0.0.1:6100/v2"+url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil,500,err
@@ -270,6 +270,6 @@ func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error)
 
 	data, err := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
-	logrus.Infof("response is %s,response code is %d",string(data),res.StatusCode)
+	//logrus.Infof("response is %s,response code is %d",string(data),res.StatusCode)
 	return data,res.StatusCode,err
 }
