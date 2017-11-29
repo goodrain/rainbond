@@ -34,7 +34,7 @@ func InitRegionClient(reg option.RegionAPI) error {
 }
 
 func InitNodeClient(nodeAPI string) error {
-	region.NewNode(nodeAPI)
+	region.NewNode("http://127.0.0.1:6100/v2")
 	NodeClient=region.GetNode()
 	return nil
 }

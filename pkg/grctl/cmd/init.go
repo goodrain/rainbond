@@ -28,6 +28,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"fmt"
 
+	"time"
 )
 
 func NewCmdInit() cli.Command {
@@ -67,20 +68,21 @@ func NewCmdInit() cli.Command {
 
 
 
-// grctl exec POD_ID COMMAND
 func initCluster(c *cli.Context) error {
-	//logrus.Infof("start init command")
+	//done:=make(chan int)
+	//go func(done chan int) {
+	//	to := time.NewTimer(time.Second)
+	//	for true  {
+	//		select {
+	//		case <-done:
+	//			fmt.Println("安装完成")
+	//		case <-to.C:
+	//			fmt.Println("安装超时")
+	//		}
+	//	}
+	//}(done)
 	resp, err := http.Get("http://repo.goodrain.com/gaops/jobs/install/prepare/init.sh")
 
-	//参数
-	//$1 -- ETCD_NODE  eg: 127.0.0.1 ETCD IP
-	//$2 -- NODE_TYPE  eg: manage/compute 默认 manage
-	//$3 -- MIP eg: 10.0.0.1 当前机器ip
-	//$4 -- REPO_VER eg: 3.4 默认3.4
-	//$5 -- INSTALL_TYPE eg: online 默认online
-	//若不传参数则表示
-	//
-	//默认为管理节点 在线安装3.4版本的etcd
 	if err != nil {
 		logrus.Errorf("error get init script,details %s",err.Error())
 		return err
@@ -96,7 +98,7 @@ func initCluster(c *cli.Context) error {
 	}else {
 		arg=""
 	}
-	//logrus.Infof("args is %s,len is %d",arg,len(arg))
+
 	fmt.Println("开始初始化集群")
 	cmd := exec.Command("bash", "-c",arg+string(b))
 	buf:=bytes.NewBuffer(nil)
@@ -115,7 +117,7 @@ func initCluster(c *cli.Context) error {
 		fmt.Println("初始化失败！")
 		return nil
 	}
-
+	time.Sleep(5*time.Second)
 	err=clients.NodeClient.Tasks().Get("check_manage_base_services").Exec([]string{})
 	if err != nil {
 		logrus.Errorf("error execute task %s","check_manage_base_services")
@@ -127,7 +129,7 @@ func initCluster(c *cli.Context) error {
 		logrus.Errorf("error execute task %s","check_manage_services")
 	}
 	Status("check_manage_services")
-
+	//done<-1
 	//一般 job会在通过grctl执行时阻塞输出，这种通过 脚本执行的，需要单独查
 	return nil
 }

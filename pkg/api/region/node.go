@@ -171,14 +171,15 @@ func (t *Node)List() []*model.HostNode {
 	return nodes
 }
 func (t *Task)Get(id string) (*Task) {
+	t.TaskID=id
 	url:="/tasks/"+id
 	resp,code,err:=nodeServer.Request(url,"GET",nil)
+	if err!=nil {
+		logrus.Errorf("error request url %s,details %s",url,err.Error())
+		return nil
+	}
 	if code != 200 {
 		fmt.Println("executing failed:"+string(resp))
-	}
-	if err!=nil {
-		logrus.Errorf("error request url %s",url)
-		return nil
 	}
 	jsonTop,err:=simplejson.NewJson(resp)
 	if err!=nil {
@@ -193,10 +194,8 @@ func (t *Task)Get(id string) (*Task) {
 		logrus.Errorf("error unmarshal task %s",err.Error())
 		return nil
 	}
-	return &Task{
-		TaskID:id,
-		Task:&task,
-	}
+	t.Task=&task
+	return t
 }
 func (t *Task)Exec(nodes []string ) error {
 	taskId:=t.TaskID
@@ -257,8 +256,8 @@ func HandleTaskStatus(task string) (*TaskStatus,error) {
 	return nil,nil
 }
 func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error) {
-	//logrus.Infof("requesting url: %s by method :%s,and body is ",r.NodeAPI+url,method,string(body))
-	request, err := http.NewRequest(method, "http://localhost:6100/v2"+url, bytes.NewBuffer(body))
+	logrus.Infof("requesting url: %s by method :%s,and body is ",r.NodeAPI+url,method,string(body))
+	request, err := http.NewRequest(method, "http://127.0.0.1:6100/v2"+url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil,500,err
 	}

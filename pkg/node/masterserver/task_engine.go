@@ -383,6 +383,19 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 	if err := ffjson.Unmarshal(res.Kvs[0].Value, &task); err != nil {
 		return nil
 	}
+	task.Status = map[string]model.TaskStatus{}
+	for _, n := range task.Nodes {
+		statusRes, err :=store.DefalutClient.Get("/store/tasks_part/"+task.ID+"/"+n)
+		if err != nil {
+			return nil
+		}
+		if res.Count < 1 {
+			return nil
+		}
+		var taskState model.TaskStatus
+		ffjson.Unmarshal(statusRes.Kvs[0].Value,&taskState)
+		task.Status[n] = taskState
+	}
 	return &task
 }
 
@@ -458,6 +471,13 @@ func (t *TaskEngine) AddTask(task *model.Task) error {
 	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, task.String())
 	if err != nil {
 		return err
+	}
+	for k,v:=range task.Status {
+		tStatusByte,_:=ffjson.Marshal(v)
+		_, err = store.DefalutClient.Put("/store/tasks_part/"+task.ID+"/"+k, string(tStatusByte))
+		if err != nil {
+			return err
+		}
 	}
 	if task.Scheduler.Mode == "Intime" {
 		t.PutSchedul(task.ID, "")

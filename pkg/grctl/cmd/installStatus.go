@@ -212,6 +212,8 @@ func Status(task string) {
 		}
 	}
 }
+
+
 func Task(c *cli.Context,task string,status bool) error   {
 
 	nodes:=c.StringSlice("nodes")
