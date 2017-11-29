@@ -192,21 +192,6 @@ func NewCmdInstall() cli.Command {
 func Status(task string) {
 	taskE:=clients.NodeClient.Tasks().Get(task)
 
-	var  nextTasks []string
-	for _,v:=range taskE.Task.OutPut{
-		for _,sv:=range v.Status{
-			for _,v:=range sv.NextTask{
-				nextTasks=append(nextTasks,v)
-			}
-		}
-	}
-	if len(nextTasks) > 0 {
-		fmt.Printf("接下来要安装 %v \n",nextTasks)
-		for _,v:=range nextTasks{
-			Status(v)
-		}
-	}
-
 	checkFail:=0
 	for checkFail<3  {
 		time.Sleep(3*time.Second)
@@ -224,7 +209,24 @@ func Status(task string) {
 				//fmt.Printf("task is %s",v.Status)
 				continue
 			}else {
-				fmt.Printf("task %s is %s-----%s",task,v.Status,v.CompleStatus)
+				fmt.Printf("task %s is %s %s\n",task,v.Status,v.CompleStatus)
+				taskFinished:=clients.NodeClient.Tasks().Get(task)
+
+				var  nextTasks []string
+				for _,v:=range taskFinished.Task.OutPut{
+					for _,sv:=range v.Status{
+						for _,v:=range sv.NextTask{
+							fmt.Println("next:"+v)
+							nextTasks=append(nextTasks,v)
+						}
+					}
+				}
+				if len(nextTasks) > 0 {
+					fmt.Printf("接下来要安装 %v \n",nextTasks)
+					for _,v:=range nextTasks{
+						Status(v)
+					}
+				}
 				return
 			}
 		}
