@@ -85,7 +85,8 @@ func NewCmdInstallStatus() cli.Command {
 				for _,v:=range tasks {
 					for _,vs:=range v.Status{
 						if  vs.Status=="Start"||vs.Status=="Create"{
-
+							Status(v.ID)
+							return nil
 						}
 
 					}
@@ -93,7 +94,7 @@ func NewCmdInstallStatus() cli.Command {
 			}else {
 				Status(taskID)
 			}
-			return initCluster(c)
+			return nil
 		},
 	}
 	return c

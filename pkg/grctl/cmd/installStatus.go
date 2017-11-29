@@ -216,6 +216,11 @@ func Status(task string) {
 
 				if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
 					checkFail+=1
+					fmt.Printf("task %s 's output \n",taskE.TaskID)
+					for _,v:=range taskE.Task.OutPut{
+						fmt.Println("on %s :\n %s",v.NodeID,v.Body)
+					}
+					return
 				}
 				continue
 			}else {
@@ -245,10 +250,7 @@ func Status(task string) {
 		}
 		checkFail=0
 	}
-	fmt.Printf("task %s 's output \n",taskE.TaskID)
-	for _,v:=range taskE.Task.OutPut{
-		fmt.Println("on %s :\n %s",v.NodeID,v.Body)
-	}
+
 }
 
 func Task(c *cli.Context,task string,status bool) error   {
