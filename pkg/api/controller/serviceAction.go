@@ -37,7 +37,6 @@ import (
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 	validator "github.com/thedevsaddam/govalidator"
 
-	"encoding/json"
 )
 
 //TIMELAYOUT timelayout
@@ -120,12 +119,9 @@ func autoTimeOut(event *dbmodel.ServiceEvent) {
 }
 func checkCanAddEvent(s, eventID string) (int, error) {
 	events, err := db.GetManager().ServiceEventDao().GetEventByServiceID(s)
-
 	if err != nil {
 		return 3, err
 	}
-	b, _ := json.Marshal(events)
-	logrus.Infof("get %d event from mysql by service %s,details is %s", len(events), s, string(b))
 	if len(events) == 0 {
 		//service 首个event
 		return 0, nil

@@ -196,33 +196,44 @@ func Status(task string) {
 	for checkFail<3  {
 		time.Sleep(3*time.Second)
 		status,err:=taskE.Status()
-		if err != nil {
+		if err != nil||status==nil {
+			logrus.Warnf("error get task status,retry")
 			checkFail+=1
-			logrus.Errorf("error get task status ,details %s",err.Error())
+			if err!=nil {
+				logrus.Errorf("error get task status ,details %s",err.Error())
+			}
 			continue
 		}
 		checkFail=0
+		lastState:=""
 		for _,v:=range status.Status{
 			if v.Status!="complete" {
-				fmt.Printf("task %s is %s\n",task,v.Status)
-				fmt.Printf(".")
-				//fmt.Printf("task is %s",v.Status)
+				if lastState!=v.Status{
+					fmt.Printf("task %s is %s\n",task,v.Status)
+				}else{
+					fmt.Print("..")
+				}
+				lastState=v.Status
 				continue
 			}else {
 				fmt.Printf("task %s is %s %s\n",task,v.Status,v.CompleStatus)
+				lastState=v.Status
 				taskFinished:=clients.NodeClient.Tasks().Get(task)
-
 				var  nextTasks []string
 				for _,v:=range taskFinished.Task.OutPut{
 					for _,sv:=range v.Status{
-						for _,v:=range sv.NextTask{
-							fmt.Println("next:"+v)
-							nextTasks=append(nextTasks,v)
+						if sv.NextTask == nil ||len(sv.NextTask)==0{
+							continue
+						}else{
+							for _,v:=range sv.NextTask{
+								nextTasks=append(nextTasks,v)
+							}
 						}
+
 					}
 				}
 				if len(nextTasks) > 0 {
-					fmt.Printf("接下来要安装 %v \n",nextTasks)
+					fmt.Printf("next will install %v \n",nextTasks)
 					for _,v:=range nextTasks{
 						Status(v)
 					}
@@ -243,37 +254,6 @@ func Task(c *cli.Context,task string,status bool) error   {
 		return err
 	}
 	Status(task)
-	//var reqFailTime int=0
-	//fmt.Printf("%s 安装中 \n",task)
-	//taskE:=clients.NodeClient.Tasks().Get(task)
-	//var  nextTasks []string
-	//for _,v:=range taskE.Task.OutPut{
-	//	for _,sv:=range v.Status{
-	//		for _,v:=range sv.NextTask{
-	//			nextTasks=append(nextTasks,v)
-	//		}
-	//	}
-	//}
-	//fmt.Printf("next tasks is %v",nextTasks)
-	//for reqFailTime<3  {
-	//	time.Sleep(3*time.Second)
-	//
-	//	taskStatus,err:=taskE.Status()
-	//	if err != nil {
-	//		logrus.Errorf("error get task:%s 's status,details %s",task,err.Error())
-	//		reqFailTime+=1
-	//		continue
-	//	}
-	//	reqFailTime=0
-	//	for k,v:=range taskStatus.Status{
-	//		if v.Status!="complete" {
-	//			fmt.Printf("task is %s",v.Status)
-	//			continue
-	//		}else {
-	//			fmt.Printf("task %s is %s-----%s",k,v.Status,v.CompleStatus)
-	//			return nil
-	//		}
-	//	}
-	//}
+
 	return nil
 }

@@ -33,6 +33,9 @@ import (
 	"time"
 )
 
+func handleArr(arr []string )  {
+	return
+}
 
 func NewCmdNode() cli.Command {
 	c:=cli.Command{
@@ -59,14 +62,13 @@ func NewCmdNode() cli.Command {
 
 
 					tableC := termtables.CreateTable()
-					var header []string
-					var content []string
+					var content []interface{}
 					for _,val:=range v.Conditions{
-						header=append(header,string(val.Type))
+						tableC.AddHeaders(strings.Replace(string(val.Type),"INSTALL_","",-1))
 						content=append(content,string(val.Status))
 					}
-					tableC.AddHeaders(header)
-					tableC.AddRow(content)
+
+					tableC.AddRow(content...)
 					fmt.Println(tableC.Render())
 					return nil
 				},

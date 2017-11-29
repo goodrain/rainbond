@@ -188,7 +188,11 @@ func (t *Task)Get(id string) (*Task) {
 	}
 	var task model.Task
 	beanJ:=jsonTop.Get("bean")
-	taskB,_:=json.Marshal(beanJ)
+	taskB,err:=json.Marshal(beanJ)
+	if err!=nil {
+		logrus.Errorf("error marshal task %s",err.Error())
+		return nil
+	}
 	err=json.Unmarshal(taskB,&task)
 	if err!=nil {
 		logrus.Errorf("error unmarshal task %s",err.Error())

@@ -99,7 +99,7 @@ func initCluster(c *cli.Context) error {
 		arg=""
 	}
 
-	fmt.Println("开始初始化集群")
+	fmt.Println("begin init cluster")
 	cmd := exec.Command("bash", "-c",arg+string(b))
 	buf:=bytes.NewBuffer(nil)
 	cmd.Stderr=buf
@@ -112,26 +112,16 @@ func initCluster(c *cli.Context) error {
 	jsonStr=strings.Replace(jsonStr," ","",-1)
 
 	if strings.Contains(jsonStr, "Success") {
-		fmt.Println("初始化成功，开始安装服务")
+		fmt.Println("init success，start install")
 	}else{
-		fmt.Println("初始化失败！")
+		fmt.Println("init failed！")
 		return nil
 	}
 	time.Sleep(5*time.Second)
 
 	Task(c,"check_manage_base_services",false)
 	Task(c,"check_manage_services",false)
-	//err=clients.NodeClient.Tasks().Get("").Exec([]string{})
-	//if err != nil {
-	//	logrus.Errorf("error execute task %s","check_manage_base_services")
-	//}
-	//Status("check_manage_base_services")
-	//
-	//err=clients.NodeClient.Tasks().Get("check_manage_services").Exec([]string{})
-	//if err != nil {
-	//	logrus.Errorf("error execute task %s","check_manage_services")
-	//}
-	//Status("check_manage_services")
+
 	//done<-1
 	//一般 job会在通过grctl执行时阻塞输出，这种通过 脚本执行的，需要单独查
 	return nil
