@@ -11,12 +11,12 @@ class FTPUtils:
     """ 公用存储区域上传下载文件 """
 
     def __init__(self, host, username, password, namespace, port=22, timeout=30):
-        self.host = host
-        self.port = port
+        self.host = str(host)
+        self.port = str(port)
         self.timeout = timeout
-        self.username = username
-        self.password = password
-        self.namespace = namespace
+        self.username = str(username)
+        self.password = str(password)
+        self.namespace = str(namespace)
         # 检查命名空间是否存在,并创建目录
         # self.check_dir(self.namespace)
 

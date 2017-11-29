@@ -808,7 +808,7 @@
         "tags": [
           "v2"
         ],
-        "summary": "监控数据查询  **完成",
+        "summary": "监控数据查询    ",
         "operationId": "oentsdbquery",
         "parameters": [
           {
@@ -855,7 +855,7 @@
         "tags": [
           "v2"
         ],
-        "summary": "租户资源使用情况  **完成",
+        "summary": "租户资源使用情况    ",
         "operationId": "tenantResources",
         "parameters": [
           {
@@ -899,7 +899,7 @@
         "tags": [
           "v2"
         ],
-        "summary": "获取租户数量  **完成",
+        "summary": "获取租户数量    ",
         "operationId": "sumTenants",
         "responses": {
           "default": {
@@ -947,7 +947,7 @@
         "tags": [
           "v2"
         ],
-        "summary": "添加租户信息  **完成",
+        "summary": "添加租户信息    ",
         "operationId": "addTenant",
         "parameters": [
           {
@@ -991,7 +991,7 @@
     },
     "/v2/tenants/{tenant_name}/cloud-share": {
       "post": {
-        "description": "share cloud  **完成",
+        "description": "share cloud    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -1049,7 +1049,7 @@
     },
     "/v2/tenants/{tenant_name}/code-check": {
       "post": {
-        "description": "check  code  **完成",
+        "description": "check  code    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -1812,7 +1812,7 @@
         "tags": [
           "v2"
         ],
-        "summary": "指定租户资源使用情况  **完成",
+        "summary": "指定租户资源使用情况    ",
         "operationId": "singletenantResources",
         "parameters": [
           {
@@ -1835,7 +1835,7 @@
     },
     "/v2/tenants/{tenant_name}/services": {
       "get": {
-        "description": "get services info in tenant  **完成",
+        "description": "get services info in tenant    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -1868,7 +1868,7 @@
         }
       },
       "post": {
-        "description": "create service   **完成",
+        "description": "create service     ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -2094,7 +2094,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}": {
       "get": {
-        "description": "get service info  **完成",
+        "description": "get service info    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -2134,7 +2134,7 @@
         }
       },
       "put": {
-        "description": "update service   **完成",
+        "description": "update service     ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -2241,7 +2241,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/build": {
       "post": {
-        "description": "service build  **完成",
+        "description": "service build    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -2348,7 +2348,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/dependency": {
       "post": {
-        "description": "add dependency  **完成",
+        "description": "add dependency    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -2415,7 +2415,7 @@
         }
       },
       "delete": {
-        "description": "delete dependency  **完成",
+        "description": "delete dependency    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -2524,7 +2524,7 @@
         }
       },
       "post": {
-        "description": "add volume dependency    **完成",
+        "description": "add volume dependency      ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -2593,7 +2593,7 @@
         }
       },
       "delete": {
-        "description": "delete volume dependency  **完成",
+        "description": "delete volume dependency    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -2658,7 +2658,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/env": {
       "post": {
-        "description": "add env var  **完成",
+        "description": "add env var    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -2741,7 +2741,7 @@
         }
       },
       "delete": {
-        "description": "delete env var  **完成",
+        "description": "delete env var    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -2834,7 +2834,7 @@
         "tags": [
           "v2"
         ],
-        "summary": "获取指定操作的操作日志  **完成",
+        "summary": "获取指定操作的操作日志    ",
         "operationId": "logByAction",
         "parameters": [
           {
@@ -2887,7 +2887,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/horizontal": {
       "put": {
-        "description": "service horizontal  **完成",
+        "description": "service horizontal    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -2952,7 +2952,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/language": {
       "post": {
-        "description": "set language  **完成",
+        "description": "set language    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -3025,7 +3025,7 @@
         "tags": [
           "v2"
         ],
-        "summary": "获取最新指定数量条日志  **完成",
+        "summary": "获取最新指定数量条日志    ",
         "operationId": "lastLinesLogs",
         "parameters": [
           {
@@ -3081,7 +3081,7 @@
         "tags": [
           "v2"
         ],
-        "summary": "获取应用日志列表  **完成",
+        "summary": "获取应用日志列表    ",
         "operationId": "logList",
         "parameters": [
           {
@@ -3119,7 +3119,7 @@
         "tags": [
           "v2"
         ],
-        "summary": "下载应用指定日志 **完成",
+        "summary": "下载应用指定日志   ",
         "operationId": "logFile",
         "parameters": [
           {
@@ -3164,7 +3164,7 @@
         "tags": [
           "v2"
         ],
-        "summary": "获取应用日志web-socket实例  **完成",
+        "summary": "获取应用日志web-socket实例    ",
         "operationId": "logSocket",
         "parameters": [
           {
@@ -3194,7 +3194,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/node-label": {
       "post": {
-        "description": "add node label  **完成",
+        "description": "add node label    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -3254,7 +3254,7 @@
         }
       },
       "delete": {
-        "description": "delete node label  **完成",
+        "description": "delete node label    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -3410,7 +3410,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/pods": {
       "get": {
-        "description": "get pods info    **完成",
+        "description": "get pods info      ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -3452,7 +3452,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/ports": {
       "put": {
-        "description": "update port  **完成",
+        "description": "update port    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -3507,7 +3507,7 @@
         }
       },
       "post": {
-        "description": "add port  **完成",
+        "description": "add port    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -3564,7 +3564,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}": {
       "delete": {
-        "description": "delete port  **完成",
+        "description": "delete port    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -3615,7 +3615,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}/inner": {
       "put": {
-        "description": "add port  **完成",
+        "description": "add port    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -3682,7 +3682,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}/outer": {
       "put": {
-        "description": "add port  **完成",
+        "description": "add port    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -3749,7 +3749,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/probe": {
       "put": {
-        "description": "update probe  ** 完成",
+        "description": "update probe    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -3873,7 +3873,7 @@
         }
       },
       "post": {
-        "description": "add probe  **完成",
+        "description": "add probe    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -3997,7 +3997,7 @@
         }
       },
       "delete": {
-        "description": "delete probe  **完成",
+        "description": "delete probe    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -4056,7 +4056,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/restart": {
       "post": {
-        "description": "restart service  **完成",
+        "description": "restart service    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -4115,7 +4115,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/rollback": {
       "post": {
-        "description": "service rollback  **完成",
+        "description": "service rollback    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -4185,7 +4185,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/service-label": {
       "put": {
-        "description": "delete service label  **完成",
+        "description": "delete service label    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -4242,7 +4242,7 @@
         }
       },
       "post": {
-        "description": "add service label  **完成",
+        "description": "add service label    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -4301,7 +4301,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/start": {
       "post": {
-        "description": "start service  **完成",
+        "description": "start service    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -4402,7 +4402,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/stop": {
       "post": {
-        "description": "stop service  **完成",
+        "description": "stop service    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -4461,7 +4461,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/upgrade": {
       "post": {
-        "description": "upgrade service  **完成",
+        "description": "upgrade service    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -4533,7 +4533,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/vertical": {
       "put": {
-        "description": "service vertical  **完成",
+        "description": "service vertical    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -4604,7 +4604,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/volume": {
       "post": {
-        "description": "add volume  **完成",
+        "description": "add volume    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -4673,7 +4673,7 @@
         }
       },
       "delete": {
-        "description": "delete volume  **完成",
+        "description": "delete volume    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -4738,7 +4738,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/volume-dependency": {
       "post": {
-        "description": "add volume dependency    **完成",
+        "description": "add volume dependency      ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -4807,7 +4807,7 @@
         }
       },
       "delete": {
-        "description": "delete volume dependency  **完成",
+        "description": "delete volume dependency    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -4906,7 +4906,7 @@
         }
       },
       "post": {
-        "description": "add volume  **完成",
+        "description": "add volume    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -4983,7 +4983,7 @@
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/volumes/{volume_name}": {
       "delete": {
-        "description": "delete volume  **完成",
+        "description": "delete volume    ",
         "consumes": [
           "application/json",
           "application/x-protobuf"

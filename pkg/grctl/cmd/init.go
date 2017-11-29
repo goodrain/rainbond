@@ -25,14 +25,10 @@ import (
 	"io/ioutil"
 	"strings"
 	"bytes"
-	"github.com/goodrain/rainbond/pkg/grctl/clients"
-	//"runtime"
+	//"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"fmt"
-	//"time"
-	//"github.com/bitly/go-simplejson"
-	//"github.com/bitly/go-simplejson"
+
 	"time"
-	//"encoding/json"
 )
 
 func NewCmdInit() cli.Command {
@@ -72,20 +68,21 @@ func NewCmdInit() cli.Command {
 
 
 
-// grctl exec POD_ID COMMAND
 func initCluster(c *cli.Context) error {
-	//logrus.Infof("start init command")
+	//done:=make(chan int)
+	//go func(done chan int) {
+	//	to := time.NewTimer(time.Second)
+	//	for true  {
+	//		select {
+	//		case <-done:
+	//			fmt.Println("安装完成")
+	//		case <-to.C:
+	//			fmt.Println("安装超时")
+	//		}
+	//	}
+	//}(done)
 	resp, err := http.Get("http://repo.goodrain.com/gaops/jobs/install/prepare/init.sh")
 
-	//参数
-	//$1 -- ETCD_NODE  eg: 127.0.0.1 ETCD IP
-	//$2 -- NODE_TYPE  eg: manage/compute 默认 manage
-	//$3 -- MIP eg: 10.0.0.1 当前机器ip
-	//$4 -- REPO_VER eg: 3.4 默认3.4
-	//$5 -- INSTALL_TYPE eg: online 默认online
-	//若不传参数则表示
-	//
-	//默认为管理节点 在线安装3.4版本的etcd
 	if err != nil {
 		logrus.Errorf("error get init script,details %s",err.Error())
 		return err
@@ -101,8 +98,8 @@ func initCluster(c *cli.Context) error {
 	}else {
 		arg=""
 	}
-	//logrus.Infof("args is %s,len is %d",arg,len(arg))
-	fmt.Println("开始初始化集群")
+
+	fmt.Println("begin init cluster")
 	cmd := exec.Command("bash", "-c",arg+string(b))
 	buf:=bytes.NewBuffer(nil)
 	cmd.Stderr=buf
@@ -113,50 +110,19 @@ func initCluster(c *cli.Context) error {
 	jsonStr:=strings.TrimSpace(outJ)
 	jsonStr=strings.Replace(jsonStr,"\n","",-1)
 	jsonStr=strings.Replace(jsonStr," ","",-1)
-	logrus.Infof(jsonStr)
 
-
-
-	//js,err:=simplejson.NewJson([]byte(jsonStr))
-	//if err != nil {
-	//	logrus.Errorf("error decode json,details %s",err.Error())
-	//	return nil
-	//}
-	//initStatus,err:=js.Get("status").Array()
-	//fmt.Println("初始化结果：")
-	//for _,v:=range initStatus{
-	//	b,_:=json.Marshal(v)
-	//	statusJ,err:=simplejson.NewJson(b)
-	//	if err != nil {
-	//		logrus.Errorf("error decode status,details %s",err.Error())
-	//		return nil
-	//	}
-	//	task,_:=statusJ.Get("name").String()
-	//	condition,_:=statusJ.Get("condition_status").String()
-	//	fmt.Printf("task:%s install %s",task,condition)
-	//	fmt.Println()
-	//}
-
-	checkFail:=0
-	for checkFail<3  {
-		time.Sleep(3*time.Second)
-		status,err:=clients.NodeClient.Tasks().Get("install_manage_ready").Status()
-		if err != nil {
-			checkFail+=1
-			logrus.Errorf("error get task status ,details %s",err.Error())
-			continue
-		}
-		checkFail=0
-		for k,v:=range status.Status{
-			if v.Status!="complete" {
-				fmt.Printf(".")
-				continue
-			}else {
-				fmt.Printf("%s is %s-----%s",k,v.CompleStatus,v.Status)
-				return nil
-			}
-		}
+	if strings.Contains(jsonStr, "Success") {
+		fmt.Println("init success，start install")
+	}else{
+		fmt.Println("init failed！")
+		return nil
 	}
+	time.Sleep(5*time.Second)
+
+	Task(c,"check_manage_base_services",false)
+	Task(c,"check_manage_services",false)
+
+	//done<-1
 	//一般 job会在通过grctl执行时阻塞输出，这种通过 脚本执行的，需要单独查
 	return nil
 }

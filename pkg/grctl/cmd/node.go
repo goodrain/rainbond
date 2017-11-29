@@ -33,6 +33,9 @@ import (
 	"time"
 )
 
+func handleArr(arr []string )  {
+	return
+}
 
 func NewCmdNode() cli.Command {
 	c:=cli.Command{
@@ -51,7 +54,7 @@ func NewCmdNode() cli.Command {
 					n:=clients.NodeClient.Nodes().Get(id)
 					v:=n.Node
 					table := termtables.CreateTable()
-					table.AddHeaders("uid", "IP", "HostName","role","alived","unschedulable","available_memory","available_cpu","conditions")
+					table.AddHeaders("uid", "IP", "HostName","role","alived","unschedulable","available_memory","available_cpu")
 					table.AddRow(v.ID, v.InternalIP, v.HostName,v.Role.String(),v.Alived,v.Unschedulable,v.AvailableMemory,v.AvailableCPU)
 
 					fmt.Println(table.Render())
@@ -59,14 +62,13 @@ func NewCmdNode() cli.Command {
 
 
 					tableC := termtables.CreateTable()
-					var header []string
-					var content []string
+					var content []interface{}
 					for _,val:=range v.Conditions{
-						header=append(header,string(val.Type))
+						tableC.AddHeaders(strings.Replace(string(val.Type),"INSTALL_","",-1))
 						content=append(content,string(val.Status))
 					}
-					tableC.AddHeaders(header)
-					tableC.AddRow(content)
+
+					tableC.AddRow(content...)
 					fmt.Println(tableC.Render())
 					return nil
 				},
