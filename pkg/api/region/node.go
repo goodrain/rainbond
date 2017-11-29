@@ -188,7 +188,11 @@ func (t *Task)Get(id string) (*Task) {
 	}
 	var task model.Task
 	beanJ:=jsonTop.Get("bean")
-	taskB,_:=json.Marshal(beanJ)
+	taskB,err:=json.Marshal(beanJ)
+	if err!=nil {
+		logrus.Errorf("error marshal task %s",err.Error())
+		return nil
+	}
 	err=json.Unmarshal(taskB,&task)
 	if err!=nil {
 		logrus.Errorf("error unmarshal task %s",err.Error())
@@ -256,7 +260,7 @@ func HandleTaskStatus(task string) (*TaskStatus,error) {
 	return nil,nil
 }
 func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error) {
-	//logrus.Infof("requesting url: %s by method :%s,and body is ",r.NodeAPI+url,method,string(body))
+	logrus.Infof("requesting url: %s by method :%s,and body is ",r.NodeAPI+url,method,string(body))
 	request, err := http.NewRequest(method, "http://127.0.0.1:6100/v2"+url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil,500,err
