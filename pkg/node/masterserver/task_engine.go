@@ -283,38 +283,37 @@ func (t *TaskEngine) getTaskFromKV(kv *mvccpb.KeyValue) *model.Task {
 	task.Scheduler.Status = map[string]model.SchedulerStatus{}
 	output:=[]*model.TaskOutPut{}
 	for _, n := range task.Nodes {
+
+		var taskState model.TaskStatus
+		var schedulerState model.SchedulerStatus
+		var taskOutput model.TaskOutPut
+
 		statusRes, err :=store.DefalutClient.Get("/store/tasks_part_status/"+task.ID+"/"+n)
 		if err != nil {
 			return nil
 		}
-		if statusRes.Count < 1 {
-			return nil
+		if statusRes.Count == 1 {
+			ffjson.Unmarshal(statusRes.Kvs[0].Value,&taskState)
+			logrus.Infof("get task status info is %s",string(statusRes.Kvs[0].Value))
 		}
 		schedulerRes, err :=store.DefalutClient.Get("/store/tasks_part_scheduler/"+task.ID+"/"+n)
 		if err != nil {
 			return nil
 		}
-		if statusRes.Count < 1 {
-			return nil
+		if schedulerRes.Count == 1 {
+			ffjson.Unmarshal(schedulerRes.Kvs[0].Value,&schedulerRes)
+			logrus.Infof("get task schedule info is %s",string(schedulerRes.Kvs[0].Value))
 		}
 		outputRes, err :=store.DefalutClient.Get("/store/tasks_part_output/"+task.ID+"/"+n)
 		if err != nil {
 			return nil
 		}
-		if statusRes.Count < 1 {
-			return nil
+		if outputRes.Count == 1 {
+			ffjson.Unmarshal(outputRes.Kvs[0].Value,&taskOutput)
+			logrus.Infof("get task output info is %s",string(outputRes.Kvs[0].Value))
+			output=append(output,&taskOutput)
 		}
-		var taskState model.TaskStatus
-		var schedulerState model.SchedulerStatus
-		var taskOutput model.TaskOutPut
 
-		ffjson.Unmarshal(statusRes.Kvs[0].Value,&taskState)
-		logrus.Infof("get task status info is %s",string(statusRes.Kvs[0].Value))
-		ffjson.Unmarshal(schedulerRes.Kvs[0].Value,&schedulerRes)
-		logrus.Infof("get task schedule info is %s",string(schedulerRes.Kvs[0].Value))
-		ffjson.Unmarshal(outputRes.Kvs[0].Value,&taskOutput)
-		logrus.Infof("get task output info is %s",string(outputRes.Kvs[0].Value))
-		output=append(output,&taskOutput)
 
 		task.Status[n] = taskState
 		task.Scheduler.Status[n] = schedulerState
@@ -434,48 +433,45 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 	OutPut:=[]*model.TaskOutPut{}
 
 	for _, n := range task.Nodes {
+		var taskState model.TaskStatus
+		var taskOutPut model.TaskOutPut
+		var taskSchedulerStatus model.SchedulerStatus
+
 		statusRes, err :=store.DefalutClient.Get("/store/tasks_part_status/"+task.ID+"/"+n)
 		if err != nil {
 			return nil
 		}
-		if res.Count < 1 {
-			return nil
+		if statusRes.Count == 1 {
+
+			err=ffjson.Unmarshal(statusRes.Kvs[0].Value,&taskState)
+			if err != nil {
+				logrus.Errorf("error get status,details %s",err.Error())
+				return nil
+			}
 		}
 		outputRes, err :=store.DefalutClient.Get("/store/tasks_part_output/"+task.ID+"/"+n)
 
 		if err != nil {
 			return nil
 		}
-		if res.Count < 1 {
-			return nil
+		if outputRes.Count == 1 {
+			err=ffjson.Unmarshal(outputRes.Kvs[0].Value,&taskOutPut)
+			if err != nil {
+				logrus.Errorf("error get status,details %s",err.Error())
+				return nil
+			}
 		}
 
 		schedulerRes, err :=store.DefalutClient.Get("/store/tasks_part_scheduler/"+task.ID+"/"+n)
-
 		if err != nil {
 			return nil
 		}
-		if res.Count < 1 {
-			return nil
-		}
-
-		var taskState model.TaskStatus
-		var taskOutPut model.TaskOutPut
-		var taskSchedulerStatus model.SchedulerStatus
-		err=ffjson.Unmarshal(statusRes.Kvs[0].Value,&taskState)
-		if err != nil {
-			logrus.Errorf("error get status,details %s",err.Error())
-			return nil
-		}
-		err=ffjson.Unmarshal(outputRes.Kvs[0].Value,&taskOutPut)
-		if err != nil {
-			logrus.Errorf("error get status,details %s",err.Error())
-			return nil
-		}
-		err=ffjson.Unmarshal(schedulerRes.Kvs[0].Value,&taskSchedulerStatus)
-		if err != nil {
-			logrus.Errorf("error get status,details %s",err.Error())
-			return nil
+		if schedulerRes.Count == 1 {
+			err=ffjson.Unmarshal(schedulerRes.Kvs[0].Value,&taskSchedulerStatus)
+			if err != nil {
+				logrus.Errorf("error get status,details %s",err.Error())
+				return nil
+			}
 		}
 		task.Status[n] = taskState
 		task.Scheduler.Status[n] = taskSchedulerStatus
