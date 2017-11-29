@@ -79,7 +79,7 @@ func (k *K8sServiceBuild) Build() ([]*v1.Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get service upstream plugin relation error, %s", err.Error())
 	}
-	pp := make(map[interface{}]int)
+	pp := make(map[int32]int)
 	if crt {
 		ports, pp, err = k.CreateUpstreamPluginMappingPort(ports)
 	}
@@ -118,23 +118,28 @@ func (k *K8sServiceBuild) checkUpstreamPluginRelation() (bool, error) {
 //CreateUpstreamPluginMappingPort 检查是否存在upstream插件，接管入口网络
 func (k *K8sServiceBuild) CreateUpstreamPluginMappingPort(ports []*model.TenantServicesPort) (
 	[]*model.TenantServicesPort,
-	map[interface{}]int,
+	map[int32]int,
 	error) {
 	//start from 65301
-	pp := make(map[interface{}]int)
+	pp := make(map[int32]int)
 	for i := range ports {
 		port := ports[i]
-		pp[65300+i] = port.ContainerPort
-		port.ContainerPort = 65300 + i
+		pp[int32(65301+i)] = port.ContainerPort
+		port.ContainerPort = 65301 + i
+		port.MappingPort = 65301 + i
 	}
 	return ports, pp, nil
 }
 
 //CreateUpstreamPluginMappingService 增加service plugin mapport 标签
-func (k *K8sServiceBuild) CreateUpstreamPluginMappingService(services []*v1.Service, pp map[interface{}]int) (
+func (k *K8sServiceBuild) CreateUpstreamPluginMappingService(services []*v1.Service, pp map[int32]int) (
 	[]*v1.Service,
 	error) {
 	for _, service := range services {
+		logrus.Debugf("map is %v, port is %v, origin_port is %d",
+			pp,
+			service.Spec.Ports[0].Port,
+			pp[service.Spec.Ports[0].Port])
 		service.Labels["origin_port"] = fmt.Sprintf("%d", pp[service.Spec.Ports[0].Port])
 	}
 	return services, nil

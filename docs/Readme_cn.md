@@ -25,14 +25,14 @@ Rainbond历经超过五年的生产运营打磨和验证，形成目前理念最
 ```
 $go get -d github.com/goodrain/rainbond
 $cd $GOPATH/src/github.com/goodrain/rainbond
-$make all
+$make build
 ```
 ##### Docker环境
 
 ```
 $git clone https://github.com/goodrain/rainbond.git
 $cd rainbond
-$make all-image
+$make images
 ```
 ##### BUG与建议
 
