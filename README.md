@@ -24,14 +24,14 @@ This repository includes core components of Rainbond Data Center, you can build 
 ```
 $go get -d github.com/goodrain/rainbond
 $cd $GOPATH/src/github.com/goodrain/rainbond
-$make all
+$make build
 ```
 ##### Docker
 
 ```
 $git clone https://github.com/goodrain/rainbond.git
 $cd rainbond
-$make all-image
+$make images
 ```
 ##### BUG Fix
 
