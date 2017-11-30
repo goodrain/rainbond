@@ -45,6 +45,7 @@ type Node struct {
 type TaskInterface interface {
 	Get(name string) (*Task)
 	Add(task *model.Task) (error)
+	AddGroup(group *model.TaskGroup) (error)
 	Exec(nodes []string ) error
 	List() ([]*model.Task,error)
 }
@@ -250,6 +251,27 @@ func (t *Task)Exec(nodes []string ) error {
 }
 func (t *Task)Add(task *model.Task) (error) {
 
+	body,_:=json.Marshal(task)
+	url:="/tasks"
+	resp,code,err:=nodeServer.Request(url,"POST",body)
+	if code != 200 {
+		fmt.Println("executing failed:"+string(resp))
+	}
+	if err!=nil {
+		return err
+	}
+	return nil
+}
+func (t *Task) AddGroup(group *model.TaskGroup) (error){
+	body,_:=json.Marshal(group)
+	url:="/taskgroups"
+	resp,code,err:=nodeServer.Request(url,"POST",body)
+	if code != 200 {
+		fmt.Println("executing failed:"+string(resp))
+	}
+	if err!=nil {
+		return err
+	}
 	return nil
 }
 type TaskStatus struct {
