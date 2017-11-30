@@ -290,21 +290,21 @@ func (t *TaskEngine) getTaskFromKV(kv *mvccpb.KeyValue) *model.Task {
 
 		statusRes, err :=store.DefalutClient.Get("/store/tasks_part_status/"+task.ID+"/"+n)
 		if err != nil {
-			return nil
+			logrus.Errorf("error get part from etcd ,details %s",err.Error())
 		}
 		if statusRes.Count == 1 {
 			ffjson.Unmarshal(statusRes.Kvs[0].Value,&taskState)
 		}
 		schedulerRes, err :=store.DefalutClient.Get("/store/tasks_part_scheduler/"+task.ID+"/"+n)
 		if err != nil {
-			return nil
+			logrus.Errorf("error get part from etcd ,details %s",err.Error())
 		}
 		if schedulerRes.Count == 1 {
 			ffjson.Unmarshal(schedulerRes.Kvs[0].Value,&schedulerState)
 		}
 		outputRes, err :=store.DefalutClient.Get("/store/tasks_part_output/"+task.ID+"/"+n)
 		if err != nil {
-			return nil
+			logrus.Errorf("error get part from etcd ,details %s",err.Error())
 		}
 		if outputRes.Count == 1 {
 			ffjson.Unmarshal(outputRes.Kvs[0].Value,&taskOutput)
@@ -438,7 +438,7 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 
 		statusRes, err :=store.DefalutClient.Get("/store/tasks_part_status/"+task.ID+"/"+n)
 		if err != nil {
-			return nil
+			logrus.Errorf("error get part from etcd ,details %s",err.Error())
 		}
 		if statusRes.Count == 1 {
 
@@ -450,7 +450,7 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 		outputRes, err :=store.DefalutClient.Get("/store/tasks_part_output/"+task.ID+"/"+n)
 
 		if err != nil {
-			return nil
+			logrus.Errorf("error get part from etcd ,details %s",err.Error())
 		}
 		if outputRes.Count == 1 {
 			err=ffjson.Unmarshal(outputRes.Kvs[0].Value,&taskOutPut)
@@ -461,7 +461,7 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 
 		schedulerRes, err :=store.DefalutClient.Get("/store/tasks_part_scheduler/"+task.ID+"/"+n)
 		if err != nil {
-			return nil
+			logrus.Errorf("error get part from etcd ,details %s",err.Error())
 		}
 		if schedulerRes.Count == 1 {
 			err=ffjson.Unmarshal(schedulerRes.Kvs[0].Value,&taskSchedulerStatus)
