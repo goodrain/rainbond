@@ -24,6 +24,8 @@ import (
 	"time"
 	"fmt"
 	"strings"
+	"encoding/json"
+	"os"
 )
 
 func GetCommand(status bool)[]cli.Command  {
@@ -218,10 +220,12 @@ func Status(task string) {
 					checkFail+=1
 					//todo add continue ,code behind this line should be placed in line 254
 					fmt.Printf("task %s 's output \n",taskE.TaskID)
+					tb,_:=json.Marshal(taskE)
+					fmt.Println("task failed,details is %s",string(tb))
 					for _,v:=range taskE.Task.OutPut{
 						fmt.Println("on %s :\n %s",v.NodeID,v.Body)
 					}
-					return
+					os.Exit(1)
 				}
 				continue
 			}else {
