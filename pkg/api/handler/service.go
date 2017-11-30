@@ -710,7 +710,14 @@ func (s *ServiceAction) EnvAttr(action string, at *dbmodel.TenantServiceEnvVar) 
 }
 
 //PortVar port var
-func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_model.ServicePorts) error {
+func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_model.ServicePorts, oldPort int) error {
+	crt, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
+		serviceID,
+		dbmodel.UpNetPlugin,
+	)
+	if err != nil {
+		return err
+	}
 	switch action {
 	case "add":
 		for _, vp := range vps.Port {
@@ -730,31 +737,56 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 			}
 		}
 	case "delete":
+		tx := db.GetManager().Begin()
 		for _, vp := range vps.Port {
-			if err := db.GetManager().TenantServicesPortDao().DeleteModel(serviceID, vp.ContainerPort); err != nil {
+			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).DeleteModel(serviceID, vp.ContainerPort); err != nil {
 				logrus.Errorf("delete port var error, %v", err)
+				tx.Rollback()
 				return err
 			}
 			//TODO:删除k8s Service
 			service, err := db.GetManager().K8sServiceDao().GetK8sService(serviceID, vp.ContainerPort, true)
-			if err != nil && err != gorm.ErrRecordNotFound {
+			if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				logrus.Error("get deploy k8s service info error.")
+				tx.Rollback()
+				return err
 			}
 			if service != nil {
 				err := s.KubeClient.Core().Services(tenantID).Delete(service.K8sServiceID, &metav1.DeleteOptions{})
 				if err != nil {
 					logrus.Error("delete deploy k8s service info from kube-api error.")
-				} else {
-					err := db.GetManager().K8sServiceDao().DeleteK8sServiceByName(service.K8sServiceID)
-					if err != nil {
-						logrus.Error("delete deploy k8s service info from db error.")
+					tx.Rollback()
+					return err
+				}
+				err = db.GetManager().K8sServiceDaoTransactions(tx).DeleteK8sServiceByName(service.K8sServiceID)
+				if err != nil {
+					logrus.Error("delete deploy k8s service info from db error.")
+					tx.Rollback()
+					return err
+				}
+				if crt {
+					if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeletePluginMappingPortByContainerPort(
+						serviceID,
+						dbmodel.UpNetPlugin,
+						vp.ContainerPort,
+					); err != nil {
+						logrus.Errorf("delete plugin stream mapping port error: (%s)", err)
+						tx.Rollback()
+						return err
 					}
 				}
 			}
 		}
+		if err := tx.Commit().Error; err != nil {
+			tx.Rollback()
+			logrus.Debugf("commit delete port error, %v", err)
+			return err
+		}
 	case "update":
+		tx := db.GetManager().Begin()
 		for _, vp := range vps.Port {
-			vpD, err := db.GetManager().TenantServicesPortDao().GetPort(serviceID, vp.ContainerPort)
+			//port更新单个请求
+			vpD, err := db.GetManager().TenantServicesPortDao().GetPort(serviceID, oldPort)
 			if err != nil {
 				return err
 			}
@@ -766,10 +798,35 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 			vpD.MappingPort = vp.MappingPort
 			vpD.Protocol = vp.Protocol
 			vpD.PortAlias = vp.PortAlias
-			if err := db.GetManager().TenantServicesPortDao().UpdateModel(vpD); err != nil {
+			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(vpD); err != nil {
 				logrus.Errorf("update port var error, %v", err)
+				tx.Rollback()
 				return err
 			}
+			if crt {
+				pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
+					serviceID,
+					dbmodel.UpNetPlugin,
+					oldPort,
+				)
+				if err != nil {
+					logrus.Errorf("get plugin mapping port error:(%s)", err)
+					tx.Rollback()
+					return err
+				}
+				pluginPort.ContainerPort = vp.ContainerPort
+				if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).UpdateModel(pluginPort); err != nil {
+					logrus.Errorf("update plugin mapping port error:(%s)", err)
+					tx.Rollback()
+					return err
+				}
+
+			}
+		}
+		if err := tx.Commit().Error; err != nil {
+			tx.Rollback()
+			logrus.Debugf("commit update port error, %v", err)
+			return err
 		}
 	}
 	return nil

@@ -22,6 +22,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"fmt"
 	"github.com/apcera/termtables"
+	"github.com/Sirupsen/logrus"
 )
 func NewCmdTenant() cli.Command {
 	c:=cli.Command{
@@ -51,28 +52,23 @@ func getTenantInfo(c *cli.Context) error {
 	tenantID := c.Args().First()
 
 	services:=clients.RegionClient.Tenants().Get(tenantID).Services().List()
-	//services, err := db.GetServiceInfoByTenant(c.Args().First())
-	//if err != nil {
-	//	logrus.Error(err.Error())
-	//	return err
-	//}
-	//fmt.Println()
-	table := termtables.CreateTable()
-	table.AddHeaders("租户ID", "服务ID", "服务别名", "应用状态", "Deploy版本")
-	for _, service := range services {
-		table.AddRow(service.TenantID, service.ServiceID, service.ServiceAlias, service.CurStatus, service.DeployVersion)
+	if services !=nil{
+		table := termtables.CreateTable()
+		table.AddHeaders("租户ID", "服务ID", "服务别名", "应用状态", "Deploy版本")
+		for _, service := range services {
+			table.AddRow(service.TenantID, service.ServiceID, service.ServiceAlias, service.CurStatus, service.DeployVersion)
+		}
+		fmt.Println(table.Render())
+		return nil
+	}else {
+		logrus.Error("get nothing")
+		return nil
 	}
-	fmt.Println(table.Render())
-	return nil
+
 }
 func findTenantResourceUsage(c *cli.Context) error  {
 	tenantID := c.Args().First()
 	services:=clients.RegionClient.Tenants().Get(tenantID).Services().List()
-	//services, err := db.GetServiceInfoByTenant(tenantId)
-	//if err != nil {
-	//	logrus.Error("租户无应用(资源):" + tenantId)
-	//	return err
-	//}
 	var cpuUsage float32 =0
 	var cpuUnit float32=1000
 	var memoryUsage int64=0
