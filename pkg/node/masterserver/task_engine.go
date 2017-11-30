@@ -767,9 +767,9 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 
 //waitScheduleTask 等待调度条件成熟
 func (t *TaskEngine) waitScheduleTask(taskSchedulerInfo *TaskSchedulerInfo, task *model.Task) {
-	sb,_:=json.Marshal(task.Scheduler.Status)
+	sb,_:=json.Marshal(taskSchedulerInfo)
 	tb,_:=json.Marshal(task)
-	logrus.Infof("task scheduler is %s",string(sb))
+	logrus.Infof("task schedulerinfo is %s",string(sb))
 	logrus.Infof("!!!!!!!!!!!!task is %s",string(tb))
 	//continueScheduler 是否继续调度，如果调度条件无法满足，停止调度
 	var continueScheduler = true
