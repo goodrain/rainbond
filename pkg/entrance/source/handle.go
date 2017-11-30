@@ -130,7 +130,6 @@ func (m *Manager) podSource(pods *v1.Pod, method core.EventMethod) {
 		}
 	}
 	//protocols: 5000_._http-.-8080_._stream
-
 	s := &config.SourceBranch{
 		Tenant:    pods.Labels["tenant_name"],
 		Service:   pods.Labels["name"],
@@ -343,7 +342,6 @@ func (m *Manager) getHostPort(podName string, port int32) (int, error) {
 // FROM API GET USER DOAMINS CREATE RULE
 func (m *Manager) RcRule(s *config.SourceBranch) {
 	for _, domain := range s.Domain {
-		domain = m.replaceDomain(domain, s)
 		ruleobj := &object.RuleObject{
 			Namespace:       s.Namespace,
 			Name:            s.ReRuleName(domain),
@@ -365,20 +363,24 @@ func (m *Manager) RcRule(s *config.SourceBranch) {
 	}
 }
 
-func (m *Manager) replaceDomain(domain string, s *config.SourceBranch) string {
-	domainL := strings.Split(domain, ".")
-	if s.OriginPort != "" && domainL[0] == fmt.Sprintf("%d", s.Port) {
-		domainL[0] = s.OriginPort
-		domain = strings.Join(domainL, ".")
+func (m *Manager) replaceDomain(domains []string, s *config.SourceBranch) []string {
+	for i := range domains {
+		domain := domains[i]
+		domainL := strings.Split(domain, ".")
+		if s.OriginPort != "" && domainL[0] == fmt.Sprintf("%d", s.Port) {
+			domainL[0] = s.OriginPort
+			domain = strings.Join(domainL, ".")
+		}
+		domains[i] = domain
+		break
 	}
-	return domain
+	return domains
 }
 
 //RcDomain  RcDomain
 // FROM API GET USER DOAMINS
 func (m *Manager) RcDomain(s *config.SourceBranch) {
 	for _, domain := range s.Domain {
-		domain = m.replaceDomain(domain, s)
 		domainobj := &object.DomainObject{
 			Name:     domain,
 			Domain:   domain,
@@ -461,6 +463,7 @@ func (m *Manager) serviceSource(services *v1.Service, method core.EventMethod) {
 	}
 	logrus.Debug("poolName is ", s.RePoolName())
 	// event domain
+	s.Domain = m.replaceDomain(s.Domain, s)
 	m.RcDomain(s)
 	logrus.Debugf("Fprotocol is %s", services.Labels["protocol"])
 	if services.Labels["protocol"] == "stream" {
