@@ -469,61 +469,62 @@ func (t *TenantStruct) updatePluginSet(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/plugin v2 addPluginSet
+//
+// 添加插件设定
+//
+// add plugin setting
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) addPluginSet(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/plugin v2 addPluginSet
-	//
-	// 添加插件设定
-	//
-	// add plugin setting
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	var pss api_model.PluginSetStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &pss.Body, nil)
 	if !ok {
 		return
 	}
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().SetTenantServicePluginRelation(serviceID, &pss); err != nil {
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	if err := handler.GetServiceManager().SetTenantServicePluginRelation(tenantID, serviceID, &pss); err != nil {
 		err.Handle(r, w)
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/plugin v2 getPluginSet
+//
+// 获取插件设定
+//
+// get plugin setting
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) getPluginSet(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/plugin v2 getPluginSet
-	//
-	// 获取插件设定
-	//
-	// get plugin setting
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	gps, err := handler.GetServiceManager().GetTenantServicePluginRelation(serviceID)
 	if err != nil {
@@ -535,27 +536,27 @@ func (t *TenantStruct) getPluginSet(w http.ResponseWriter, r *http.Request) {
 }
 
 //DeletePluginRelation DeletePluginRelation
+// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id} v2 deletePluginRelation
+//
+// 删除插件依赖
+//
+// delete plugin relation
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) DeletePluginRelation(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id} v2 deletePluginRelation
-	//
-	// 删除插件依赖
-	//
-	// delete plugin relation
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	pluginID := chi.URLParam(r, "plugin_id")
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	if err := handler.GetServiceManager().TenantServiceDeletePluginRelation(serviceID, pluginID); err != nil {
@@ -566,27 +567,27 @@ func (t *TenantStruct) DeletePluginRelation(w http.ResponseWriter, r *http.Reque
 }
 
 //GetPluginDefaultEnvs GetPluginDefaultEnvs
+// swagger:operation GET /v2/tenants/{tenant_name}/plugin/{plugin_id}/default-env v2 getPluginDefaultEnv
+//
+// 获取插件默认设定的env
+//
+// get plugin env
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) GetPluginDefaultEnvs(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation GET /v2/tenants/{tenant_name}/plugin/{plugin_id}/default-env v2 getPluginDefaultEnv
-	//
-	// 获取插件默认设定的env
-	//
-	// get plugin env
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
 	envs, err := handler.GetPluginManager().GetDefaultEnv(pluginID)
 	if err != nil {
@@ -597,27 +598,27 @@ func (t *TenantStruct) GetPluginDefaultEnvs(w http.ResponseWriter, r *http.Reque
 }
 
 //GePluginEnvWhichCanBeSet GePluginEnvWhichCanBeSet
+// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/envs v2 getVersionEnvs
+//
+// 获取可配置的env; 从service plugin对应中取, 若不存在则返回默认可修改的变量
+//
+// get version env
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) GePluginEnvWhichCanBeSet(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/envs v2 getVersionEnvs
-	//
-	// 获取可配置的env; 从service plugin对应中取, 若不存在则返回默认可修改的变量
-	//
-	// get version env
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	pluginID := chi.URLParam(r, "plugin_id")
 	logrus.Debugf("plugin_Id is %s", pluginID)

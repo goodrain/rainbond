@@ -81,7 +81,14 @@ func (k *K8sServiceBuild) Build() ([]*v1.Service, error) {
 	}
 	pp := make(map[int32]int)
 	if crt {
-		ports, pp, err = k.CreateUpstreamPluginMappingPort(ports)
+		pluginPorts, err := k.dbmanager.TenantServicesStreamPluginPortDao().GetPluginMappingPorts(
+			k.serviceID,
+			model.UpNetPlugin,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("find upstream plugin mapping port error, %s", err.Error())
+		}
+		ports, pp, err = k.CreateUpstreamPluginMappingPort(ports, pluginPorts)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("create upstream port error, %s", err.Error())
@@ -116,7 +123,10 @@ func (k *K8sServiceBuild) checkUpstreamPluginRelation() (bool, error) {
 }
 
 //CreateUpstreamPluginMappingPort 检查是否存在upstream插件，接管入口网络
-func (k *K8sServiceBuild) CreateUpstreamPluginMappingPort(ports []*model.TenantServicesPort) (
+func (k *K8sServiceBuild) CreateUpstreamPluginMappingPort(
+	ports []*model.TenantServicesPort,
+	pluginPorts []*model.TenantServicesStreamPluginPort,
+) (
 	[]*model.TenantServicesPort,
 	map[int32]int,
 	error) {
@@ -124,9 +134,13 @@ func (k *K8sServiceBuild) CreateUpstreamPluginMappingPort(ports []*model.TenantS
 	pp := make(map[int32]int)
 	for i := range ports {
 		port := ports[i]
-		pp[int32(65301+i)] = port.ContainerPort
-		port.ContainerPort = 65301 + i
-		port.MappingPort = 65301 + i
+		for _, pport := range pluginPorts {
+			if pport.ContainerPort == port.ContainerPort {
+				pp[int32(pport.PluginPort)] = port.ContainerPort
+				port.ContainerPort = pport.PluginPort
+				port.MappingPort = pport.PluginPort
+			}
+		}
 	}
 	return ports, pp, nil
 }
