@@ -597,14 +597,6 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 	}
 	//TODO:处理应用特性增强相关环境变量
 
-	//处理当前应用用户定义环境变量
-	es, err := p.dbmanager.TenantServiceEnvVarDao().GetServiceEnvs(p.serviceID, []string{"inner", "both"})
-	if err != nil {
-		return nil, err
-	}
-	if len(es) > 0 {
-		envsAll = append(envsAll, es...)
-	}
 	//处理依赖反相关系环境变量
 	relations, err = p.dbmanager.TenantServiceRelationDao().GetTenantServiceRelationsByDependServiceID(p.serviceID)
 	if err != nil {
@@ -638,11 +630,14 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 	}
 	if ports != nil && len(ports) > 0 {
 		var portStr string
-		for _, p := range ports {
+		for _, port := range ports {
 			if portStr != "" {
 				portStr += ":"
 			}
-			portStr += fmt.Sprintf("%d", p.ContainerPort)
+			portStr += fmt.Sprintf("%d", port.ContainerPort)
+			if port.IsOuterService && (port.Protocol == "http" || port.Protocol == "https") {
+				envs = append(envs, v1.EnvVar{Name: "DEFAULT_DOMAIN", Value: p.service.Autodomain(p.tenant.Name, port.ContainerPort)})
+			}
 		}
 		envs = append(envs, v1.EnvVar{Name: "MONITOR_PORT", Value: portStr})
 	}
@@ -653,6 +648,16 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 	//新版此环境变量不生效，使用挂载方式加载slug包
 	if strings.HasPrefix(p.service.ImageName, "goodrain.me/runner") {
 	}
+
+	//处理当前应用用户定义环境变量
+	es, err := p.dbmanager.TenantServiceEnvVarDao().GetServiceEnvs(p.serviceID, []string{"inner", "both"})
+	if err != nil {
+		return nil, err
+	}
+	if len(es) > 0 {
+		envsAll = append(envsAll, es...)
+	}
+
 	for _, e := range envsAll {
 		envs = append(envs, v1.EnvVar{Name: e.AttrName, Value: e.AttrValue})
 	}
