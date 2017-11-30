@@ -313,17 +313,22 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					event.CodeVersion = codeVersion
 					cdb.GetManager().ServiceEventDao().UpdateModel(&event)
 					version,_:=cdb.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
-					infos:=strings.Split(codeVersion," ")
+					infos:=strings.Split(codeVersion,":")
 					for k,v:=range infos{
-						i:=strings.Split(v,":")
+						i:=strings.Split(v," ")
 						if k==0 {
-							version.CodeVersion=i[1]
+
 						}
 						if k==1 {
-							version.Author=i[1]
+							version.CodeVersion=i[0]
+
 						}
 						if k==2 {
-							version.CommitMsg=i[1]
+							version.Author=i[0]
+
+						}
+						if k == 3 {
+							version.CommitMsg=v
 						}
 					}
 					cdb.GetManager().VersionInfoDao().UpdateModel(version)
