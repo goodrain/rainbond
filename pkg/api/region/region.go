@@ -125,14 +125,8 @@ func (s *Services) Get(name string) map[string]string {
 	return m
 }
 func (s *Services) EventLog(serviceAlisa, eventID, level string) ([]model.MessageData, error) {
-	//{
-	//	"event_id": "string",
-	//	"level": "string"
-	//}
 	data := []byte(`{"event_id":"` + eventID + `","level":"` + level + `"}`)
-	//POST /v2/tenants/{tenant_name}/services/{service_alias}/event-log v2 logByAction
 	resp, _, err := DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+serviceAlisa+"/event-log", "POST", data)
-	//logrus.Infof("event log url is %s","/v2/tenants/"+s.tenant.tenantID+"/services/"+serviceAlisa+"/event-log")
 	if err != nil {
 		return nil, err
 	}
@@ -158,64 +152,37 @@ type beanServiceStruct struct {
 }
 
 func (s *Services) List() []model.ServiceStruct {
-
-	request, err := http.NewRequest("GET", region.regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services", nil)
+	res,_,err:=DoRequest(region.regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services","GET",nil)
+	j, err := simplejson.NewJson(res)
 	if err != nil {
-		//return err
-		logrus.Errorf("error create request for region server,details %s", err.Error())
+		logrus.Errorf("error unmarshal json,details %s", err.Error())
 		return nil
 	}
-	request.Header.Set("Content-Type", "application/json")
-	if region.token != "" {
-		request.Header.Set("Authorization", "Token "+region.token)
-	}
-
-	res, err := http.DefaultClient.Do(request)
+	realContent, err := j.Get("list").Array()
 	if err != nil {
-		//return nil, err
-		logrus.Errorf("error connect to region server,details %s", err.Error())
+		logrus.Errorf("error get json obj list,details %s", err.Error())
 		return nil
 	}
-	//de := json.NewDecoder(res.Body)
-
-	data, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		//return nil, err
-		logrus.Errorf("error read response region server,details %s", err.Error())
-		return nil
-	}
-	j, _ := simplejson.NewJson(data)
-	arr, _ := j.Get("list").Array()
-	b2, _ := json.Marshal(arr)
-
+	contentByte, err := json.Marshal(realContent)
 	ss := []model.ServiceStruct{}
-
-	json.Unmarshal(b2, &ss)
-
-	defer res.Body.Close()
+	json.Unmarshal(contentByte, &ss)
 	return ss
-
 }
 func (s *Services) Stop(name, eventID string) error {
-
 	data := []byte(`{"event_id":"` + eventID + `"}`)
 	_, _, err := DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name+"/stop", "POST", data)
-	//request, err := http.NewRequest("POST", regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services"+s.model.ServiceAlias+"/stop", bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 func (s *Services) Start(name, eventID string) error {
 
 	data := []byte(`{"event_id":"` + eventID + `"}`)
 	_, _, err := DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name+"/start", "POST", data)
-	//request, err := http.NewRequest("POST", regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services"+s.model.ServiceAlias+"/stop", bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
