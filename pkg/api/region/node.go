@@ -44,6 +44,7 @@ type Node struct {
 }
 type TaskInterface interface {
 	Get(name string) (*Task)
+	Add(task *model.Task) (error)
 	Exec(nodes []string ) error
 	List() ([]*model.Task,error)
 }
@@ -246,6 +247,10 @@ func (t *Task)Exec(nodes []string ) error {
 		return err
 	}
 	return err
+}
+func (t *Task)Add(task *model.Task) (error) {
+
+	return nil
 }
 type TaskStatus struct {
 	Status map[string]model.TaskStatus `json:"status,omitempty"`

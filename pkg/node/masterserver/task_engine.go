@@ -550,9 +550,9 @@ func (t *TaskEngine) AddTask(task *model.Task) error {
 
 	var savetask model.Task
 	savetask = *task
-	savetask.Status=nil
-	savetask.OutPut=nil
-	savetask.Scheduler.Status=nil
+	savetask.Status=make(map[string]model.TaskStatus)
+	savetask.OutPut=[]*model.TaskOutPut{}
+	savetask.Scheduler.Status=make(map[string]model.SchedulerStatus)
 
 
 	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, savetask.String())
@@ -628,9 +628,9 @@ func (t *TaskEngine) UpdateTask(task *model.Task) {
 	}
 	var savetask model.Task
 	savetask = *task
-	savetask.Status=nil
-	savetask.OutPut=nil
-	savetask.Scheduler.Status=nil
+	savetask.Status=make(map[string]model.TaskStatus)
+	savetask.OutPut=[]*model.TaskOutPut{}
+	savetask.Scheduler.Status=make(map[string]model.SchedulerStatus)
 	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, savetask.String())
 	if err != nil {
 		logrus.Errorf("update task error,%s", err.Error())
