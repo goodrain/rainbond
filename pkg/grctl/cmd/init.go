@@ -80,11 +80,12 @@ func NewCmdInstallStatus() cli.Command {
 			if taskID=="" {
 				tasks,err:=clients.NodeClient.Tasks().List()
 				if err != nil {
-
+					logrus.Errorf("error get task list,details %s",err.Error())
+					return nil
 				}
 				for _,v:=range tasks {
 					for _,vs:=range v.Status{
-						if  vs.Status=="Start"||vs.Status=="Create"{
+						if  vs.Status=="start"||vs.Status=="create"{
 							Status(v.ID)
 							return nil
 						}

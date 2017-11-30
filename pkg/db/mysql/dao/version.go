@@ -27,6 +27,17 @@ import (
 )
 
 
+func (c *VersionInfoDaoImpl) DeleteVersionByEventID(eventID string) error{
+	version := &model.VersionInfo{
+		EventID:eventID,
+	}
+	if err := c.DB.Where("event_id = ? ", eventID).Delete(version).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+
 //AddModel AddModel
 func (c *VersionInfoDaoImpl) AddModel(mo model.Interface) error {
 	result := mo.(*model.VersionInfo)

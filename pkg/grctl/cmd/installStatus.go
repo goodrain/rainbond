@@ -24,6 +24,11 @@ import (
 	"time"
 	"fmt"
 	"strings"
+	"encoding/json"
+	"os"
+	"github.com/pquerna/ffjson/ffjson"
+	"io/ioutil"
+	"github.com/goodrain/rainbond/pkg/node/api/model"
 )
 
 func GetCommand(status bool)[]cli.Command  {
@@ -161,6 +166,98 @@ func GetCommand(status bool)[]cli.Command  {
 	}
 	return c
 }
+
+
+func NewCmdAddTask() cli.Command {
+	c:=cli.Command{
+		Name:  "add_task",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "filepath",
+				Usage: "task path",
+			},
+
+		},
+		Usage: "添加task。grctl add_task",
+		Action: func(c *cli.Context) error {
+			file:=c.String("filepath")
+			if file!="" {
+				task:=loadFile(file)
+				err:=clients.NodeClient.Tasks().Add(task)
+				if err != nil {
+					logrus.Errorf("error add task from file,details %s",err.Error())
+					return nil
+				}
+
+			}else {
+				logrus.Errorf("error get task from path")
+			}
+			return nil
+		},
+	}
+	return c
+}
+
+func loadFile(path string) *model.Task{
+	taskBody, err := ioutil.ReadFile(path)
+	if err != nil {
+		logrus.Errorf("read static task file %s error.%s", path, err.Error())
+		return nil
+	}
+	var filename string
+	index := strings.LastIndex(path, "/")
+	if index < 0 {
+		filename = path
+	}
+	filename = path[index+1:]
+	if strings.Contains(filename, "group") {
+		var group model.TaskGroup
+		if err := ffjson.Unmarshal(taskBody, &group); err != nil {
+			logrus.Errorf("unmarshal static task file %s error.%s", path, err.Error())
+			return nil
+		}
+		if group.ID == "" {
+			group.ID = group.Name
+		}
+		if group.Name == "" {
+			logrus.Errorf("task group name can not be empty. file %s", path)
+			return nil
+		}
+		if group.Tasks == nil {
+			logrus.Errorf("task group tasks can not be empty. file %s", path)
+			return nil
+		}
+		//ScheduleGroup(nil, &group)
+		logrus.Infof("Load a static group %s.", group.Name)
+	}
+	if strings.Contains(filename, "task") {
+		var task model.Task
+		if err := ffjson.Unmarshal(taskBody, &task); err != nil {
+			logrus.Errorf("unmarshal static task file %s error.%s", path, err.Error())
+			return nil
+		}
+		if task.ID == "" {
+			task.ID = task.Name
+		}
+		if task.Name == "" {
+			logrus.Errorf("task name can not be empty. file %s", path)
+			return nil
+		}
+		if task.Temp == nil {
+			logrus.Errorf("task [%s] temp can not be empty.", task.Name)
+			return nil
+		}
+		if task.Temp.ID == "" {
+			task.Temp.ID = task.Temp.Name
+		}
+		//err:=t.AddTask(&task)
+		//if err != nil {
+		//	logrus.Errorf("error add task,details %s",err.Error())
+		//}
+		return &task
+	}
+	return nil
+}
 func NewCmdInstall() cli.Command {
 	c:=cli.Command{
 		Name:  "install",
@@ -216,13 +313,9 @@ func Status(task string) {
 
 				if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
 					checkFail+=1
-					fmt.Printf("task %s 's output \n",taskE.TaskID)
-					for _,v:=range taskE.Task.OutPut{
-						fmt.Println("on %s :\n %s",v.NodeID,v.Body)
-					}
-					return
+					//todo add continue ,code behind this line should be placed in line 254
+					continue
 				}
-				continue
 			}else {
 				fmt.Printf("task %s is %s %s\n",task,v.Status,v.CompleStatus)
 				lastState=v.Status
@@ -250,13 +343,23 @@ func Status(task string) {
 		}
 		checkFail=0
 	}
-
+	fmt.Printf("task %s 's output \n",taskE.TaskID)
+	tb,_:=json.Marshal(taskE)
+	fmt.Println("task failed,details is %s",string(tb))
+	for _,v:=range taskE.Task.OutPut{
+		fmt.Println("on %s :\n %s",v.NodeID,v.Body)
+	}
+	os.Exit(1)
 }
 
 func Task(c *cli.Context,task string,status bool) error   {
 
 	nodes:=c.StringSlice("nodes")
 	taskEntity:=clients.NodeClient.Tasks().Get(task)
+	if taskEntity==nil {
+		logrus.Errorf("error get task entity from server,please check server api")
+		return nil
+	}
 	err:=taskEntity.Exec(nodes)
 	if err != nil {
 		logrus.Errorf("error exec task:%s,details %s",task,err.Error())

@@ -44,6 +44,7 @@ type Node struct {
 }
 type TaskInterface interface {
 	Get(name string) (*Task)
+	Add(task *model.Task) (error)
 	Exec(nodes []string ) error
 	List() ([]*model.Task,error)
 }
@@ -247,6 +248,10 @@ func (t *Task)Exec(nodes []string ) error {
 	}
 	return err
 }
+func (t *Task)Add(task *model.Task) (error) {
+
+	return nil
+}
 type TaskStatus struct {
 	Status map[string]model.TaskStatus `json:"status,omitempty"`
 }
@@ -301,6 +306,7 @@ func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error)
 
 	res, err := http.DefaultClient.Do(request)
 	if err != nil {
+		logrus.Infof("error when request region,details %s",err.Error())
 		return nil, 500,err
 	}
 

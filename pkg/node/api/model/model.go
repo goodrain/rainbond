@@ -19,7 +19,7 @@
 package model
 
 import (
-	"github.com/Sirupsen/logrus"
+	//"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/pquerna/ffjson/ffjson"
 	"k8s.io/client-go/pkg/api/v1"
@@ -96,7 +96,6 @@ func (g *GlobalConfig) Add(c ConfigUnit) {
 			}
 		}
 	}
-	logrus.Debugf("add datacenter config %s", c.Name)
 	g.Configs[c.Name] = &c
 }
 

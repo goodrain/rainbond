@@ -58,9 +58,30 @@ func GetVersionByServiceID(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, versions)
 }
+func DeleteVersionByEventID(w http.ResponseWriter, r *http.Request) {
+	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
+
+	//tx := db.GetManager().Begin()
+	versionInfo,err:=db.GetManager().VersionInfoDao().GetVersionByEventID("")
+	if(versionInfo.DeliveredType==""||versionInfo.DeliveredPath==""){
+
+	}
+	if versionInfo.DeliveredType=="code" {
+		//fileToDelete:=versionInfo.DeliveredPath
+
+	}
+	err=db.GetManager().VersionInfoDao().DeleteVersionByEventID(eventID)
+	//todo delete storage of image of slug
+	if err != nil {
+		httputil.ReturnError(r,w,404,err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
 func UpdateDeliveredPath(w http.ResponseWriter, r *http.Request) {
 	in,err:=ioutil.ReadAll(r.Body)
 	if err != nil {
+		httputil.ReturnError(r,w,400,err.Error())
 		return
 	}
 	jsonc,err:=simplejson.NewJson(in)
