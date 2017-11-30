@@ -375,7 +375,7 @@ func (m *Manager) replaceDomain(domain string, s *config.SourceBranch) string {
 // FROM API GET USER DOAMINS
 func (m *Manager) RcDomain(s *config.SourceBranch) {
 	for _, domain := range s.Domain {
-
+		domain = m.replaceDomain(domain, s)
 		domainobj := &object.DomainObject{
 			Name:     domain,
 			Domain:   domain,
