@@ -1,35 +1,36 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package config
 
 import (
-	"github.com/goodrain/rainbond/pkg/entrance/core"
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+
+	"github.com/goodrain/rainbond/pkg/entrance/core"
 
 	"github.com/Sirupsen/logrus"
 
 	"k8s.io/client-go/pkg/api/v1"
 )
 
+//GainService GainService
 type GainService interface {
 	RePoolName()
 	ReVSName()
@@ -38,8 +39,9 @@ type GainService interface {
 	ReServiceId()
 }
 
+//SourceBranch SourceBranch
 type SourceBranch struct {
-	Tenant          string //tenant name, like "test123"
+	Tenant          string
 	Service         string
 	Domain          []string
 	Port            int32
@@ -59,8 +61,10 @@ type SourceBranch struct {
 	Version         string
 	Namespace       string
 	EventID         string
+	OriginPort      string
 }
 
+//ServiceInfo ServiceInfo
 type ServiceInfo struct {
 	Namespace string
 	SerName   string

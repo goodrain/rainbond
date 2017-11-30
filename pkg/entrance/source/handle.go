@@ -1,30 +1,24 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package source
 
 import (
-	"github.com/goodrain/rainbond/pkg/entrance/api/controller"
-	"github.com/goodrain/rainbond/pkg/entrance/api/model"
-	"github.com/goodrain/rainbond/pkg/entrance/core"
-	"github.com/goodrain/rainbond/pkg/entrance/core/object"
-	"github.com/goodrain/rainbond/pkg/entrance/source/config"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -33,6 +27,12 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+
+	"github.com/goodrain/rainbond/pkg/entrance/api/controller"
+	"github.com/goodrain/rainbond/pkg/entrance/api/model"
+	"github.com/goodrain/rainbond/pkg/entrance/core"
+	"github.com/goodrain/rainbond/pkg/entrance/core/object"
+	"github.com/goodrain/rainbond/pkg/entrance/source/config"
 
 	"github.com/Sirupsen/logrus"
 	"k8s.io/client-go/pkg/api/v1"
@@ -362,10 +362,20 @@ func (m *Manager) RcRule(s *config.SourceBranch) {
 	}
 }
 
-//RcDomain TODO:
+func (m *Manager) replaceDomain(domain string, s *config.SourceBranch) string {
+	domainL := strings.Split(domain, ".")
+	if s.OriginPort != "" && domainL[0] == fmt.Sprintf("%d", s.Port) {
+		domainL[0] = s.OriginPort
+		domain = strings.Join(domainL, ".")
+	}
+	return domain
+}
+
+//RcDomain  RcDomain
 // FROM API GET USER DOAMINS
 func (m *Manager) RcDomain(s *config.SourceBranch) {
 	for _, domain := range s.Domain {
+
 		domainobj := &object.DomainObject{
 			Name:     domain,
 			Domain:   domain,
@@ -436,14 +446,15 @@ func (m *Manager) serviceSource(services *v1.Service, method core.EventMethod) {
 	logrus.Debugf("In serviceSource service_type is %s", services.Labels["service_type"])
 	index, _ := strconv.ParseInt(services.ResourceVersion, 10, 64)
 	s := &config.SourceBranch{
-		Tenant:    services.Labels["tenant_name"],
-		Service:   services.Spec.Selector["name"],
-		EventID:   services.Labels["event_id"],
-		Port:      services.Spec.Ports[0].TargetPort.IntVal,
-		Index:     index,
-		LBMapPort: services.Labels["lbmap_port"],
-		Domain:    strings.Split(services.Labels["domain"], "___"),
-		Method:    method,
+		Tenant:     services.Labels["tenant_name"],
+		Service:    services.Spec.Selector["name"],
+		EventID:    services.Labels["event_id"],
+		Port:       services.Spec.Ports[0].TargetPort.IntVal,
+		Index:      index,
+		LBMapPort:  services.Labels["lbmap_port"],
+		Domain:     strings.Split(services.Labels["domain"], "___"),
+		Method:     method,
+		OriginPort: services.Labels["origin_port"],
 	}
 	logrus.Debug("poolName is ", s.RePoolName())
 	// event domain
