@@ -456,6 +456,22 @@ func (p *PodTemplateSpecBuild) createResources() v1.ResourceRequirements {
 func (p *PodTemplateSpecBuild) createPorts() (ports []v1.ContainerPort) {
 	ps, err := p.dbmanager.TenantServicesPortDao().GetPortsByServiceID(p.serviceID)
 	if err == nil && ps != nil && len(ps) > 0 {
+		crt, err := p.checkUpstreamPluginRelation()
+		if err != nil {
+			//return nil, fmt.Errorf("get service upstream plugin relation error, %s", err.Error())
+			return
+		}
+		if crt {
+			pluginPorts, err := p.dbmanager.TenantServicesStreamPluginPortDao().GetPluginMappingPorts(
+				p.serviceID,
+				model.UpNetPlugin,
+			)
+			if err != nil {
+				//return nil, fmt.Errorf("find upstream plugin mapping port error, %s", err.Error())
+				return
+			}
+			ps, err = p.CreateUpstreamPluginMappingPort(ps, pluginPorts)
+		}
 		for i := range ps {
 			p := ps[i]
 			var hostPort int32
