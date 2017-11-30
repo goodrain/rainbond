@@ -97,6 +97,12 @@ case $1 in
 		build
 		build::deb
 	;;
+	dev_deb)
+		build::deb
+	;;
+	dev_rpm)
+		build::rpm
+	;;
 	pkg)
 		prepare
 		build
