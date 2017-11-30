@@ -23,6 +23,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"time"
 	"fmt"
+	"strings"
 )
 
 func GetCommand(status bool)[]cli.Command  {
@@ -191,7 +192,7 @@ func NewCmdInstall() cli.Command {
 
 func Status(task string) {
 	taskE:=clients.NodeClient.Tasks().Get(task)
-
+	lastState:=""
 	checkFail:=0
 	for checkFail<3  {
 		time.Sleep(3*time.Second)
@@ -204,8 +205,6 @@ func Status(task string) {
 			}
 			continue
 		}
-		checkFail=0
-		lastState:=""
 		for _,v:=range status.Status{
 			if v.Status!="complete" {
 				if lastState!=v.Status{
@@ -214,6 +213,16 @@ func Status(task string) {
 					fmt.Print("..")
 				}
 				lastState=v.Status
+
+				if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
+					checkFail+=1
+					//todo add continue ,code behind this line should be placed in line 254
+					fmt.Printf("task %s 's output \n",taskE.TaskID)
+					for _,v:=range taskE.Task.OutPut{
+						fmt.Println("on %s :\n %s",v.NodeID,v.Body)
+					}
+					return
+				}
 				continue
 			}else {
 				fmt.Printf("task %s is %s %s\n",task,v.Status,v.CompleStatus)
@@ -229,7 +238,6 @@ func Status(task string) {
 								nextTasks=append(nextTasks,v)
 							}
 						}
-
 					}
 				}
 				if len(nextTasks) > 0 {
@@ -241,13 +249,19 @@ func Status(task string) {
 				return
 			}
 		}
+		checkFail=0
 	}
+
 }
 
 func Task(c *cli.Context,task string,status bool) error   {
 
 	nodes:=c.StringSlice("nodes")
 	taskEntity:=clients.NodeClient.Tasks().Get(task)
+	if taskEntity==nil {
+		logrus.Errorf("error get task entity from server,please check server api")
+		return nil
+	}
 	err:=taskEntity.Exec(nodes)
 	if err != nil {
 		logrus.Errorf("error exec task:%s,details %s",task,err.Error())

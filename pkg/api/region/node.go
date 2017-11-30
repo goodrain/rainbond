@@ -45,6 +45,7 @@ type Node struct {
 type TaskInterface interface {
 	Get(name string) (*Task)
 	Exec(nodes []string ) error
+	List() ([]*model.Task,error)
 }
 type NodeInterface interface {
 	Add(node *model.APIHostNode)
@@ -202,6 +203,33 @@ func (t *Task)Get(id string) (*Task) {
 	t.Task=&task
 	return t
 }
+func (t *Task)List() ([]*model.Task,error) {
+	url:="/tasks"
+	resp,_,err:=nodeServer.Request(url,"GET",nil)
+	if err!=nil {
+		logrus.Errorf("error request url %s,details %s",url,err.Error())
+		return nil,err
+	}
+	jsonTop,err:=simplejson.NewJson(resp)
+	if err!=nil {
+		logrus.Errorf("error get json from url %s",err.Error())
+		return nil,err
+	}
+	nodeArr,err:=jsonTop.Get("list").Array()
+	if err != nil {
+		logrus.Infof("error occurd,details %s",err.Error())
+		return nil,err
+	}
+	jsonA, _ := json.Marshal(nodeArr)
+	tasks := []*model.Task{}
+	err=json.Unmarshal(jsonA, &tasks)
+	if err != nil {
+		logrus.Infof("error occurd,details %s",err.Error())
+		return nil,err
+	}
+
+	return tasks,nil
+}
 func (t *Task)Exec(nodes []string ) error {
 	taskId:=t.TaskID
 	var nodesBody struct {
@@ -261,7 +289,7 @@ func HandleTaskStatus(task string) (*TaskStatus,error) {
 		status.Status=statusMap
 		return &status,nil
 	}
-	return nil,nil
+	return nil,errors.New(fmt.Sprintf("response status is %s",code))
 }
 func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error) {
 	//logrus.Infof("requesting url: %s by method :%s,and body is ",r.NodeAPI+url,method,string(body))
@@ -273,6 +301,7 @@ func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error)
 
 	res, err := http.DefaultClient.Do(request)
 	if err != nil {
+		logrus.Infof("error when request region,details %s",err.Error())
 		return nil, 500,err
 	}
 

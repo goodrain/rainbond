@@ -20,6 +20,7 @@ package service
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -51,15 +52,16 @@ func CreateDiscoverActionManager(conf *option.Conf) *DiscoverAction {
 //DiscoverService sds
 func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *util.APIHandleError) {
 	mm := strings.Split(serviceInfo, "_")
-	if len(mm) < 3 {
+	if len(mm) < 4 {
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
 	}
 	namespace := mm[0]
 	serviceAlias := mm[1]
-	dPort := mm[2]
+	destServiceAlias := mm[2]
+	dPort := mm[3]
 	//deployVersion := mm[3]
 
-	labelname := fmt.Sprintf("name=%sService", serviceAlias)
+	labelname := fmt.Sprintf("name=%sService", destServiceAlias)
 	endpoints, err := k8s.K8S.Core().Endpoints(namespace).List(metav1.ListOptions{LabelSelector: labelname})
 	logrus.Debugf("labelname is %s, endpoints is %v, items is %v", labelname, endpoints, endpoints.Items)
 	if err != nil {
@@ -83,6 +85,15 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *
 			continue
 		}
 		toport := services.Items[key].Spec.Ports[0].Port
+		if serviceAlias == destServiceAlias {
+			if originPort, ok := services.Items[key].Labels["origin_port"]; ok {
+				origin, err := strconv.Atoi(originPort)
+				if err != nil {
+					return nil, util.CreateAPIHandleError(500, fmt.Errorf("have no origin_port"))
+				}
+				toport = int32(origin)
+			}
+		}
 		for _, ip := range addressList {
 			sdsP := &node_model.PieceSDS{
 				IPAddress: ip.IP,
@@ -140,13 +151,13 @@ func (d *DiscoverAction) DiscoverListeners(
 				switch portProtocol {
 				case "stream":
 					ptr := &node_model.PieceTCPRoute{
-						Cluster: fmt.Sprintf("%s_%s_%d", namespace, destServiceAlias, port),
+						Cluster: fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
 					}
 					lrs := &node_model.LDSTCPRoutes{
 						Routes: []*node_model.PieceTCPRoute{ptr},
 					}
 					lcg := &node_model.LDSTCPConfig{
-						StatPrefix:  fmt.Sprintf("%s_%s_%d", namespace, destServiceAlias, port),
+						StatPrefix:  fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
 						RouteConfig: lrs,
 					}
 					lfs := &node_model.LDSFilters{
@@ -154,49 +165,103 @@ func (d *DiscoverAction) DiscoverListeners(
 						Config: lcg,
 					}
 					plds := &node_model.PieceLDS{
-						Name:    fmt.Sprintf("%s_%s_%d", namespace, destServiceAlias, port),
+						Name:    fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
 						Address: fmt.Sprintf("tcp://0.0.0.0:%d", port),
 						Filters: []*node_model.LDSFilters{lfs},
 					}
 					//TODO:front model/upsteam
-					if destServiceAlias == serviceAlias {
-						envName := fmt.Sprintf("%s_%d", serviceAlias, port)
-						var sr api_model.NetUpStreamRules
-						mr, err := d.ToolsGetStreamRules(namespace, node_model.UPSTREAM, envName, &sr)
-						if err != nil {
-							return nil, util.CreateAPIHandleError(500, err)
-						}
-						if mr != nil {
-							sr = *mr.(*api_model.NetUpStreamRules)
-						}
-						plds.Address = fmt.Sprintf("tcp://0.0.0.0:%d", sr.MapPort)
-					}
+					// if destServiceAlias == serviceAlias {
+					// 	envName := fmt.Sprintf("%s_%d", serviceAlias, port)
+					// 	var sr api_model.NetUpStreamRules
+					// 	mr, err := d.ToolsGetStreamRules(namespace, node_model.UPSTREAM, envName, &sr)
+					// 	if err != nil {
+					// 		return nil, util.CreateAPIHandleError(500, err)
+					// 	}
+					// 	if mr != nil {
+					// 		sr = *mr.(*api_model.NetUpStreamRules)
+					// 	}
+					// 	plds.Address = fmt.Sprintf("tcp://0.0.0.0:%d", sr.MapPort)
+					// }
 					ldsL = append(ldsL, plds)
 					continue
 				case "http":
-					envName := fmt.Sprintf("%s_%d", destServiceAlias, port)
-					var sr api_model.NetDownStreamRules
-					mr, err := d.ToolsGetStreamRules(namespace, node_model.DOWNSTREAM, envName, &sr)
-					if err != nil && !strings.Contains(err.Error(), "is not exist") {
-						logrus.Warnf("get env %s error, %v", envName, err)
-						continue
+					if destServiceAlias == serviceAlias {
+						//主容器应用
+						var vhLThin []*node_model.PieceHTTPVirtualHost
+						envName := fmt.Sprintf("%s_%d", destServiceAlias, port)
+						var sr api_model.NetDownStreamRules
+						mr, err := d.ToolsGetStreamRules(namespace, node_model.DOWNSTREAM, envName, &sr)
+						if err != nil && !strings.Contains(err.Error(), "is not exist") {
+							logrus.Warnf("get env %s error, %v", envName, err)
+							continue
+						}
+						if mr != nil {
+							sr = *mr.(*api_model.NetDownStreamRules)
+						}
+						prs := &node_model.PieceHTTPRoutes{
+							TimeoutMS: 0,
+							Prefix:    d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, &sr).(string),
+							Cluster:   fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
+						}
+						pvh := &node_model.PieceHTTPVirtualHost{
+							Name: fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
+							//Domains: d.ToolsGetRouterItem(destServiceAlias, node_model.DOMAINS, &sr).([]string),
+							//TODO: 主容器应用domain默认为*
+							Domains: []string{"*"},
+							Routes:  []*node_model.PieceHTTPRoutes{prs},
+						}
+						vhLThin = append(vhLThin, pvh)
+						hsf := &node_model.HTTPSingleFileter{
+							Type:   "decoder",
+							Name:   "router",
+							Config: make(map[string]string),
+						}
+						rcg := &node_model.RouteConfig{
+							VirtualHosts: vhLThin,
+						}
+						lhc := &node_model.LDSHTTPConfig{
+							CodecType:   "auto",
+							StatPrefix:  "ingress_http",
+							RouteConfig: rcg,
+							Filters:     []*node_model.HTTPSingleFileter{hsf},
+						}
+						lfs := &node_model.LDSFilters{
+							Name:   "http_connection_manager",
+							Config: lhc,
+						}
+						plds := &node_model.PieceLDS{
+							Name:    fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port),
+							Address: fmt.Sprintf("tcp://0.0.0.0:%d", port),
+							Filters: []*node_model.LDSFilters{lfs},
+						}
+						//修改http-port console 完成
+						ldsL = append(ldsL, plds)
+					} else {
+						//非主容易应用
+						envName := fmt.Sprintf("%s_%d", destServiceAlias, port)
+						var sr api_model.NetDownStreamRules
+						mr, err := d.ToolsGetStreamRules(namespace, node_model.DOWNSTREAM, envName, &sr)
+						if err != nil && !strings.Contains(err.Error(), "is not exist") {
+							logrus.Warnf("get env %s error, %v", envName, err)
+							continue
+						}
+						if mr != nil {
+							sr = *mr.(*api_model.NetDownStreamRules)
+						}
+						prs := &node_model.PieceHTTPRoutes{
+							TimeoutMS: 0,
+							Prefix:    d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, &sr).(string),
+							Cluster:   fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
+							//Headers: d.ToolsGetRouterItem(destServiceAlias,
+							//	node_model.HEADERS, &sr).([]*node_model.PieceHeader),
+						}
+						pvh := &node_model.PieceHTTPVirtualHost{
+							Name:    fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
+							Domains: d.ToolsGetRouterItem(destServiceAlias, node_model.DOMAINS, &sr).([]string),
+							Routes:  []*node_model.PieceHTTPRoutes{prs},
+						}
+						vhL = append(vhL, pvh)
 					}
-					if mr != nil {
-						sr = *mr.(*api_model.NetDownStreamRules)
-					}
-					prs := &node_model.PieceHTTPRoutes{
-						TimeoutMS: 0,
-						Prefix:    d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, &sr).(string),
-						Cluster:   fmt.Sprintf("%s_%s_%d", namespace, destServiceAlias, port),
-						//Headers: d.ToolsGetRouterItem(destServiceAlias,
-						//	node_model.HEADERS, &sr).([]*node_model.PieceHeader),
-					}
-					pvh := &node_model.PieceHTTPVirtualHost{
-						Name:    fmt.Sprintf("%s_%s_%d", namespace, destServiceAlias, port),
-						Domains: d.ToolsGetRouterItem(destServiceAlias, node_model.DOMAINS, &sr).([]string),
-						Routes:  []*node_model.PieceHTTPRoutes{prs},
-					}
-					vhL = append(vhL, pvh)
 					continue
 				default:
 					continue
@@ -260,7 +325,7 @@ func (d *DiscoverAction) DiscoverClusters(
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("namesapces and service_alias not in good format"))
 	}
 	namespace := nn[0]
-	//serviceAlias := nn[1]
+	serviceAlias := nn[1]
 	mm := strings.Split(serviceCluster, "_")
 	if len(mm) == 0 {
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
@@ -274,7 +339,7 @@ func (d *DiscoverAction) DiscoverClusters(
 		}
 		for _, service := range services.Items {
 			inner, ok := service.Labels["service_type"]
-			if !ok || inner != "inner" {
+			if (!ok || inner != "inner") && serviceAlias != destServiceAlias {
 				continue
 			}
 			port := service.Spec.Ports[0]
@@ -301,11 +366,11 @@ func (d *DiscoverAction) DiscoverClusters(
 				},
 			}
 			pcds := &node_model.PieceCDS{
-				Name:             fmt.Sprintf("%s_%s_%v", namespace, destServiceAlias, port.Port),
+				Name:             fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port),
 				Type:             "sds",
 				ConnectTimeoutMS: 250,
 				LBType:           "round_robin",
-				ServiceName:      fmt.Sprintf("%s_%s_%v", namespace, destServiceAlias, port.Port),
+				ServiceName:      fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port),
 				CircuitBreakers:  cb,
 			}
 			cdsL = append(cdsL, pcds)
