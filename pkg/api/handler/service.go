@@ -828,10 +828,16 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 				)
 				if err != nil {
 					if err.Error() == gorm.ErrRecordNotFound.Error() {
+						logrus.Debugf("outer, plugin port (%d) is not exist, do not need delete", port)
 						goto OUTERCLOSEPASS
 					}
 					tx.Callback()
 					return nil, "", fmt.Errorf("outer, get plugin mapping port error:(%s)", err)
+				}
+				if p.IsInnerService {
+					//发现内网未关闭则不删除该映射
+					logrus.Debugf("outer, close outer, but plugin inner port (%d) is exist, do not need delete", port)
+					goto OUTERCLOSEPASS
 				}
 				if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeletePluginMappingPortByContainerPort(
 					serviceID,
@@ -843,7 +849,6 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 				}
 				logrus.Debugf(fmt.Sprintf("outer, delete plugin port %d->%d", port, pluginPort.PluginPort))
 			OUTERCLOSEPASS:
-				logrus.Debugf("outer, plugin port (%d) is not exist, do not need delete", port)
 			}
 			if err := tx.Commit().Error; err != nil {
 				tx.Rollback()
@@ -1089,10 +1094,15 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 				)
 				if err != nil {
 					if err.Error() == gorm.ErrRecordNotFound.Error() {
+						logrus.Debugf("inner, plugin port (%d) is not exist, do not need delete", port)
 						goto INNERCLOSEPASS
 					}
 					tx.Callback()
 					return fmt.Errorf("inner, get plugin mapping port error:(%s)", err)
+				}
+				if p.IsOuterService {
+					logrus.Debugf("inner, close inner, but plugin outerport (%d) is exist, do not need delete", port)
+					goto INNERCLOSEPASS
 				}
 				if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeletePluginMappingPortByContainerPort(
 					serviceID,
@@ -1104,7 +1114,6 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 				}
 				logrus.Debugf(fmt.Sprintf("inner, delete plugin port %d->%d", port, pluginPort.PluginPort))
 			INNERCLOSEPASS:
-				logrus.Debugf("inner, plugin port (%d) is not exist, do not need delete", port)
 			}
 		} else {
 			tx.Callback()
