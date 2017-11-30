@@ -40,7 +40,6 @@ import (
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/job"
-	"encoding/json"
 )
 
 //TaskEngine 任务引擎
@@ -295,7 +294,6 @@ func (t *TaskEngine) getTaskFromKV(kv *mvccpb.KeyValue) *model.Task {
 		}
 		if statusRes.Count == 1 {
 			ffjson.Unmarshal(statusRes.Kvs[0].Value,&taskState)
-			logrus.Infof("get task status info is %s",string(statusRes.Kvs[0].Value))
 		}
 		schedulerRes, err :=store.DefalutClient.Get("/store/tasks_part_scheduler/"+task.ID+"/"+n)
 		if err != nil {
@@ -303,7 +301,6 @@ func (t *TaskEngine) getTaskFromKV(kv *mvccpb.KeyValue) *model.Task {
 		}
 		if schedulerRes.Count == 1 {
 			ffjson.Unmarshal(schedulerRes.Kvs[0].Value,&schedulerState)
-			logrus.Infof("get task schedule info is %s",string(schedulerRes.Kvs[0].Value))
 		}
 		outputRes, err :=store.DefalutClient.Get("/store/tasks_part_output/"+task.ID+"/"+n)
 		if err != nil {
@@ -311,17 +308,13 @@ func (t *TaskEngine) getTaskFromKV(kv *mvccpb.KeyValue) *model.Task {
 		}
 		if outputRes.Count == 1 {
 			ffjson.Unmarshal(outputRes.Kvs[0].Value,&taskOutput)
-			logrus.Infof("get task output info is %s",string(outputRes.Kvs[0].Value))
 			output=append(output,&taskOutput)
 		}
-
 
 		task.Status[n] = taskState
 		task.Scheduler.Status[n] = schedulerState
 	}
 	task.OutPut=output
-	b,_:=ffjson.Marshal(task)
-	logrus.Infof("get task from kv is %s",string(b))
 	return &task
 }
 
@@ -449,7 +442,6 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 
 			err=ffjson.Unmarshal(statusRes.Kvs[0].Value,&taskState)
 			if err != nil {
-				logrus.Errorf("error get status,details %s",err.Error())
 				return nil
 			}
 		}
@@ -461,7 +453,6 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 		if outputRes.Count == 1 {
 			err=ffjson.Unmarshal(outputRes.Kvs[0].Value,&taskOutPut)
 			if err != nil {
-				logrus.Errorf("error get status,details %s",err.Error())
 				return nil
 			}
 		}
@@ -473,19 +464,14 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 		if schedulerRes.Count == 1 {
 			err=ffjson.Unmarshal(schedulerRes.Kvs[0].Value,&taskSchedulerStatus)
 			if err != nil {
-				logrus.Errorf("error get scheduler,details %s",err.Error())
 				return nil
 			}
 		}
 		task.Status[n] = taskState
 		task.Scheduler.Status[n] = taskSchedulerStatus
 		OutPut=append(OutPut,&taskOutPut)
-		ob,_:=json.Marshal(OutPut)
-		logrus.Infof("---------get output is %s",string(ob))
 	}
 	task.OutPut=OutPut
-	tb,_:=json.Marshal(task)
-	logrus.Infof("-------------get finished task is %s",string(tb))
 	return &task
 }
 
@@ -558,23 +544,24 @@ func (t *TaskEngine) AddTask(task *model.Task) error {
 		task.Scheduler.Mode = "Passive"
 	}
 	t.CacheTask(task)
-	tb,_:=json.Marshal(task)
-	logrus.Error("======adding task,is %s",string(tb))
-	statusO:=task.Status
-	outputO:=task.OutPut
-	schedulerO:=task.Scheduler.Status
+	statusOld:=task.Status
+	outputOld:=task.OutPut
+	schedulerOld:=task.Scheduler.Status
 
-	task.Status=nil
-	task.OutPut=nil
-	task.Scheduler.Status=nil
+	var savetask model.Task
+	savetask = *task
+	savetask.Status=nil
+	savetask.OutPut=nil
+	savetask.Scheduler.Status=nil
 
-	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, task.String())
+
+	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, savetask.String())
 	if err != nil {
 		return err
 	}
 
 	//storage task scheduler
-	for k,v:=range schedulerO {
+	for k,v:=range schedulerOld {
 		tschedulerByte,_:=ffjson.Marshal(v)
 		_, err = store.DefalutClient.Put("/store/tasks_part_scheduler/"+task.ID+"/"+k, string(tschedulerByte))
 		if err != nil {
@@ -583,7 +570,7 @@ func (t *TaskEngine) AddTask(task *model.Task) error {
 		}
 	}
 	//storage task status
-	for k,v:=range statusO {
+	for k,v:=range statusOld {
 		tStatusByte,_:=ffjson.Marshal(v)
 		_, err = store.DefalutClient.Put("/store/tasks_part_status/"+task.ID+"/"+k, string(tStatusByte))
 		if err != nil {
@@ -592,7 +579,7 @@ func (t *TaskEngine) AddTask(task *model.Task) error {
 		}
 	}
 	//storage task outputs
-	for _,v:=range outputO{
+	for _,v:=range outputOld{
 		toutputByte,_:=ffjson.Marshal(v)
 		_, err = store.DefalutClient.Put("/store/tasks_part_output/"+task.ID+"/"+v.NodeID, string(toutputByte))
 		if err != nil {
@@ -639,11 +626,12 @@ func (t *TaskEngine) UpdateTask(task *model.Task) {
 			return
 		}
 	}
-
-	task.Status=nil
-	task.OutPut=nil
-	task.Scheduler.Status=nil
-	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, task.String())
+	var savetask model.Task
+	savetask = *task
+	savetask.Status=nil
+	savetask.OutPut=nil
+	savetask.Scheduler.Status=nil
+	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, savetask.String())
 	if err != nil {
 		logrus.Errorf("update task error,%s", err.Error())
 	}
@@ -767,10 +755,6 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 
 //waitScheduleTask 等待调度条件成熟
 func (t *TaskEngine) waitScheduleTask(taskSchedulerInfo *TaskSchedulerInfo, task *model.Task) {
-	sb,_:=json.Marshal(taskSchedulerInfo)
-	tb,_:=json.Marshal(task)
-	logrus.Infof("task schedulerinfo is %s",string(sb))
-	logrus.Infof("!!!!!!!!!!!!task is %s",string(tb))
 	//continueScheduler 是否继续调度，如果调度条件无法满足，停止调度
 	var continueScheduler = true
 
@@ -847,10 +831,6 @@ func (t *TaskEngine) waitScheduleTask(taskSchedulerInfo *TaskSchedulerInfo, task
 					}
 					//依赖任务相同节点执行成功
 					if dep.DetermineStrategy == model.SameNodeStrategy {
-						tb,_:=json.Marshal(taskSchedulerInfo)
-						tkb,_:=json.Marshal(task)
-						logrus.Infof("*****taskschedulerinfo is %s",string(tb))
-						logrus.Infof("*******task is %s",string(tkb))
 						if depTask.Status == nil || len(depTask.Status) < 1 {
 							taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s is not complete", depTask.ID)
 							taskSchedulerInfo.Status.Status = "Waiting"
