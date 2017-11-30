@@ -433,6 +433,7 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 	task.Status = map[string]model.TaskStatus{}
 	task.Scheduler.Status=map[string]model.SchedulerStatus{}
 	OutPut:=[]*model.TaskOutPut{}
+	task.OutPut=OutPut
 
 	for _, n := range task.Nodes {
 		var taskState model.TaskStatus
@@ -471,7 +472,7 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 		if schedulerRes.Count == 1 {
 			err=ffjson.Unmarshal(schedulerRes.Kvs[0].Value,&taskSchedulerStatus)
 			if err != nil {
-				logrus.Errorf("error get status,details %s",err.Error())
+				logrus.Errorf("error get scheduler,details %s",err.Error())
 				return nil
 			}
 		}
@@ -765,6 +766,8 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 
 //waitScheduleTask 等待调度条件成熟
 func (t *TaskEngine) waitScheduleTask(taskSchedulerInfo *TaskSchedulerInfo, task *model.Task) {
+	sb,_:=json.Marshal(task.Scheduler.Status)
+	logrus.Infof("task scheduler is %s",string(sb))
 	//continueScheduler 是否继续调度，如果调度条件无法满足，停止调度
 	var continueScheduler = true
 	canRun := func() bool {

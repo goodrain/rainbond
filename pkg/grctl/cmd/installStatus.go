@@ -219,15 +219,8 @@ func Status(task string) {
 				if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
 					checkFail+=1
 					//todo add continue ,code behind this line should be placed in line 254
-					fmt.Printf("task %s 's output \n",taskE.TaskID)
-					tb,_:=json.Marshal(taskE)
-					fmt.Println("task failed,details is %s",string(tb))
-					for _,v:=range taskE.Task.OutPut{
-						fmt.Println("on %s :\n %s",v.NodeID,v.Body)
-					}
-					os.Exit(1)
+					continue
 				}
-				continue
 			}else {
 				fmt.Printf("task %s is %s %s\n",task,v.Status,v.CompleStatus)
 				lastState=v.Status
@@ -255,7 +248,13 @@ func Status(task string) {
 		}
 		checkFail=0
 	}
-
+	fmt.Printf("task %s 's output \n",taskE.TaskID)
+	tb,_:=json.Marshal(taskE)
+	fmt.Println("task failed,details is %s",string(tb))
+	for _,v:=range taskE.Task.OutPut{
+		fmt.Println("on %s :\n %s",v.NodeID,v.Body)
+	}
+	os.Exit(1)
 }
 
 func Task(c *cli.Context,task string,status bool) error   {
