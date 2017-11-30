@@ -177,6 +177,7 @@ func (m *Manager) podSource(pods *v1.Pod, method core.EventMethod) {
 	}
 }
 
+//RcPool RcPool
 func (m *Manager) RcPool(s *config.SourceBranch) {
 	// 159dfa_grf2f1e2_3306
 	poolobj := &object.PoolObject{
@@ -218,6 +219,7 @@ func (m *Manager) RcNode(s *config.SourceBranch) {
 	m.CoreManager.EventChan() <- etNode
 }
 
+//RcVS RcVS
 func (m *Manager) RcVS(s *config.SourceBranch) {
 	lbMapPort, err := strconv.Atoi(s.LBMapPort)
 	if err != nil || lbMapPort == 0 {
@@ -341,6 +343,7 @@ func (m *Manager) getHostPort(podName string, port int32) (int, error) {
 // FROM API GET USER DOAMINS CREATE RULE
 func (m *Manager) RcRule(s *config.SourceBranch) {
 	for _, domain := range s.Domain {
+		domain = m.replaceDomain(domain, s)
 		ruleobj := &object.RuleObject{
 			Namespace:       s.Namespace,
 			Name:            s.ReRuleName(domain),
