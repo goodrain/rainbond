@@ -86,7 +86,9 @@ func (ts *TaskService) AddTask(t *model.Task) *utils.APIHandleError {
 		}
 	}
 	t.CreateTime = time.Now()
-	_, err := store.DefalutClient.Put(ts.SavePath+"/"+t.ID, t.String())
+
+
+	err:= ts.ms.TaskEngine.AddTask(t)
 	if err != nil {
 		return utils.CreateAPIHandleErrorFromDBError("save task", err)
 	}
@@ -103,6 +105,7 @@ func (ts *TaskService) GetTasks() ([]*model.Task, *utils.APIHandleError) {
 		return nil, nil
 	}
 	var tasks []*model.Task
+	var result []*model.Task
 	for _, kv := range res.Kvs {
 		var t model.Task
 		if err = ffjson.Unmarshal(kv.Value, &t); err != nil {
@@ -111,30 +114,25 @@ func (ts *TaskService) GetTasks() ([]*model.Task, *utils.APIHandleError) {
 		}
 		tasks = append(tasks, &t)
 	}
-	if len(tasks) < 1 {
+
+	for _,v:=range tasks{
+		task:=ts.ms.TaskEngine.GetTask(v.ID)
+		result=append(result,task)
+	}
+	if len(result) < 1 {
 		return nil, utils.CreateAPIHandleError(500, err)
 	}
-	return tasks, nil
+	return result, nil
 }
 
 //GetTask 获取Task
 func (ts *TaskService) GetTask(taskID string) (*model.Task, *utils.APIHandleError) {
-	res, err := store.DefalutClient.Get(ts.SavePath + "/" + taskID)
-	if err != nil {
-		return nil, utils.CreateAPIHandleErrorFromDBError("save task", err)
-	}
-	if res.Count == 0 {
+	var task *model.Task
+	task=ts.ms.TaskEngine.GetTask(taskID)
+	if task == nil {
 		return nil, utils.CreateAPIHandleError(404, fmt.Errorf("task not found"))
 	}
-	var task model.Task
-	for _, kv := range res.Kvs {
-		if err = ffjson.Unmarshal(kv.Value, &task); err != nil {
-			logrus.Errorf("unmarshal task info from etcd value error:%s", err.Error())
-			return nil, utils.CreateAPIHandleError(500, fmt.Errorf("unmarshal task value error %s", err.Error()))
-		}
-		break
-	}
-	return &task, nil
+	return task, nil
 }
 
 //DeleteTask 删除Task
@@ -147,6 +145,18 @@ func (ts *TaskService) DeleteTask(taskID string) *utils.APIHandleError {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("this task is not be deleted"))
 	}
 	_, er := store.DefalutClient.Delete(ts.SavePath+"/"+taskID, clientv3.WithPrefix())
+	if er != nil {
+		return utils.CreateAPIHandleErrorFromDBError("delete task", er)
+	}
+	_, er = store.DefalutClient.Delete("/store/tasks_part_status"+"/"+taskID, clientv3.WithPrefix())
+	if er != nil {
+		return utils.CreateAPIHandleErrorFromDBError("delete task", er)
+	}
+	_, er = store.DefalutClient.Delete("/store/tasks_part_output"+"/"+taskID, clientv3.WithPrefix())
+	if er != nil {
+		return utils.CreateAPIHandleErrorFromDBError("delete task", er)
+	}
+	_, er = store.DefalutClient.Delete("/store/tasks_part_scheduler"+"/"+taskID, clientv3.WithPrefix())
 	if er != nil {
 		return utils.CreateAPIHandleErrorFromDBError("delete task", er)
 	}
