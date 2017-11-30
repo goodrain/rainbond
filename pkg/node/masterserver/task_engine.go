@@ -279,42 +279,6 @@ func (t *TaskEngine) getTaskFromKV(kv *mvccpb.KeyValue) *model.Task {
 		logrus.Error("parse task info error:", err.Error())
 		return nil
 	}
-	task.Status = make(map[string]model.TaskStatus)
-	task.Scheduler.Status = make(map[string]model.SchedulerStatus)
-	output:=[]*model.TaskOutPut{}
-	for _, n := range task.Nodes {
-
-		var taskState model.TaskStatus
-		var schedulerState model.SchedulerStatus
-		var taskOutput model.TaskOutPut
-
-		statusRes, err :=store.DefalutClient.Get("/store/tasks_part_status/"+task.ID+"/"+n)
-		if err != nil {
-			return nil
-		}
-		if statusRes.Count == 1 {
-			ffjson.Unmarshal(statusRes.Kvs[0].Value,&taskState)
-		}
-		schedulerRes, err :=store.DefalutClient.Get("/store/tasks_part_scheduler/"+task.ID+"/"+n)
-		if err != nil {
-			return nil
-		}
-		if schedulerRes.Count == 1 {
-			ffjson.Unmarshal(schedulerRes.Kvs[0].Value,&schedulerState)
-		}
-		outputRes, err :=store.DefalutClient.Get("/store/tasks_part_output/"+task.ID+"/"+n)
-		if err != nil {
-			return nil
-		}
-		if outputRes.Count == 1 {
-			ffjson.Unmarshal(outputRes.Kvs[0].Value,&taskOutput)
-			output=append(output,&taskOutput)
-		}
-
-		task.Status[n] = taskState
-		task.Scheduler.Status[n] = schedulerState
-	}
-	task.OutPut=output
 	return &task
 }
 
@@ -396,10 +360,7 @@ func (t *TaskEngine) loadFile(path string) {
 		if task.Temp.ID == "" {
 			task.Temp.ID = task.Temp.Name
 		}
-		err:=t.AddTask(&task)
-		if err != nil {
-			logrus.Errorf("error add task,details %s",err.Error())
-		}
+		t.AddTask(&task)
 		logrus.Infof("Load a static task %s.", task.Name)
 	}
 }
@@ -420,58 +381,8 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 	}
 	var task model.Task
 	if err := ffjson.Unmarshal(res.Kvs[0].Value, &task); err != nil {
-		logrus.Errorf("error unmarshal task from etcd,line 426,details %s",err.Error())
 		return nil
 	}
-
-	task.Status = make(map[string]model.TaskStatus)
-	task.Scheduler.Status=make(map[string]model.SchedulerStatus)
-	OutPut:=[]*model.TaskOutPut{}
-	task.OutPut=OutPut
-
-	for _, n := range task.Nodes {
-		var taskState model.TaskStatus
-		var taskOutPut model.TaskOutPut
-		var taskSchedulerStatus model.SchedulerStatus
-
-		statusRes, err :=store.DefalutClient.Get("/store/tasks_part_status/"+task.ID+"/"+n)
-		if err != nil {
-			return nil
-		}
-		if statusRes.Count == 1 {
-
-			err=ffjson.Unmarshal(statusRes.Kvs[0].Value,&taskState)
-			if err != nil {
-				return nil
-			}
-		}
-		outputRes, err :=store.DefalutClient.Get("/store/tasks_part_output/"+task.ID+"/"+n)
-
-		if err != nil {
-			return nil
-		}
-		if outputRes.Count == 1 {
-			err=ffjson.Unmarshal(outputRes.Kvs[0].Value,&taskOutPut)
-			if err != nil {
-				return nil
-			}
-		}
-
-		schedulerRes, err :=store.DefalutClient.Get("/store/tasks_part_scheduler/"+task.ID+"/"+n)
-		if err != nil {
-			return nil
-		}
-		if schedulerRes.Count == 1 {
-			err=ffjson.Unmarshal(schedulerRes.Kvs[0].Value,&taskSchedulerStatus)
-			if err != nil {
-				return nil
-			}
-		}
-		task.Status[n] = taskState
-		task.Scheduler.Status[n] = taskSchedulerStatus
-		OutPut=append(OutPut,&taskOutPut)
-	}
-	task.OutPut=OutPut
 	return &task
 }
 
@@ -544,51 +455,10 @@ func (t *TaskEngine) AddTask(task *model.Task) error {
 		task.Scheduler.Mode = "Passive"
 	}
 	t.CacheTask(task)
-	statusOld:=task.Status
-	outputOld:=task.OutPut
-	schedulerOld:=task.Scheduler.Status
-
-	var savetask model.Task
-	savetask = *task
-	savetask.Status=make(map[string]model.TaskStatus)
-	savetask.OutPut=[]*model.TaskOutPut{}
-	savetask.Scheduler.Status=make(map[string]model.SchedulerStatus)
-
-
-	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, savetask.String())
+	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, task.String())
 	if err != nil {
 		return err
 	}
-
-	//storage task scheduler
-	for k,v:=range schedulerOld {
-		tschedulerByte,_:=ffjson.Marshal(v)
-		_, err = store.DefalutClient.Put("/store/tasks_part_scheduler/"+task.ID+"/"+k, string(tschedulerByte))
-		if err != nil {
-			logrus.Errorf("error put scheduler")
-			return err
-		}
-	}
-	//storage task status
-	for k,v:=range statusOld {
-		tStatusByte,_:=ffjson.Marshal(v)
-		_, err = store.DefalutClient.Put("/store/tasks_part_status/"+task.ID+"/"+k, string(tStatusByte))
-		if err != nil {
-			logrus.Errorf("error put status")
-			return err
-		}
-	}
-	//storage task outputs
-	for _,v:=range outputOld{
-		toutputByte,_:=ffjson.Marshal(v)
-		_, err = store.DefalutClient.Put("/store/tasks_part_output/"+task.ID+"/"+v.NodeID, string(toutputByte))
-		if err != nil {
-			logrus.Errorf("error put output ,details %s",err.Error())
-			return err
-		}
-	}
-
-
 	if task.Scheduler.Mode == "Intime" {
 		t.PutSchedul(task.ID, "")
 	}
@@ -600,38 +470,7 @@ func (t *TaskEngine) UpdateTask(task *model.Task) {
 	t.tasksLock.Lock()
 	defer t.tasksLock.Unlock()
 	t.tasks[task.ID] = task
-	for k,v:=range task.Status {
-		tStatusByte,_:=ffjson.Marshal(v)
-		_, err := store.DefalutClient.Put("/store/tasks_part_status/"+task.ID+"/"+k, string(tStatusByte))
-		if err != nil {
-			logrus.Errorf("update task status part error,%s", err.Error())
-			return
-		}
-	}
-
-	for _,v:=range task.OutPut{
-		toutputByte,_:=ffjson.Marshal(v)
-		_, err := store.DefalutClient.Put("/store/tasks_part_output/"+task.ID+"/"+v.NodeID, string(toutputByte))
-		if err != nil {
-			logrus.Errorf("update task output part error,%s", err.Error())
-			return
-		}
-	}
-	//storage task scheduler
-	for k,v:=range task.Scheduler.Status {
-		tschedulerByte,_:=ffjson.Marshal(v)
-		_, err := store.DefalutClient.Put("/store/tasks_part_scheduler/"+task.ID+"/"+k, string(tschedulerByte))
-		if err != nil {
-			logrus.Errorf("update task scheduler part error,%s", err.Error())
-			return
-		}
-	}
-	var savetask model.Task
-	savetask = *task
-	savetask.Status=make(map[string]model.TaskStatus)
-	savetask.OutPut=[]*model.TaskOutPut{}
-	savetask.Scheduler.Status=make(map[string]model.SchedulerStatus)
-	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, savetask.String())
+	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, task.String())
 	if err != nil {
 		logrus.Errorf("update task error,%s", err.Error())
 	}
@@ -757,7 +596,6 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 func (t *TaskEngine) waitScheduleTask(taskSchedulerInfo *TaskSchedulerInfo, task *model.Task) {
 	//continueScheduler 是否继续调度，如果调度条件无法满足，停止调度
 	var continueScheduler = true
-
 	canRun := func() bool {
 		defer t.UpdateTask(task)
 		if task.Temp.Depends != nil && len(task.Temp.Depends) > 0 {
@@ -982,10 +820,7 @@ func (t *TaskEngine) ScheduleGroup(nodes []string, nextGroups ...*model.TaskGrou
 		}
 		for _, task := range group.Tasks {
 			task.GroupID = group.ID
-			err:=t.AddTask(task)
-			if err != nil {
-				logrus.Errorf("error add task in 974,details %s",err.Error())
-			}
+			t.AddTask(task)
 		}
 		group.Status = &model.TaskGroupStatus{
 			StartTime: time.Now(),
