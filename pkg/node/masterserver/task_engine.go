@@ -280,8 +280,8 @@ func (t *TaskEngine) getTaskFromKV(kv *mvccpb.KeyValue) *model.Task {
 		logrus.Error("parse task info error:", err.Error())
 		return nil
 	}
-	task.Status = map[string]model.TaskStatus{}
-	task.Scheduler.Status = map[string]model.SchedulerStatus{}
+	task.Status = make(map[string]model.TaskStatus)
+	task.Scheduler.Status = make(map[string]model.SchedulerStatus)
 	output:=[]*model.TaskOutPut{}
 	for _, n := range task.Nodes {
 
@@ -430,8 +430,9 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 		logrus.Errorf("error unmarshal task from etcd,line 426,details %s",err.Error())
 		return nil
 	}
-	task.Status = map[string]model.TaskStatus{}
-	task.Scheduler.Status=map[string]model.SchedulerStatus{}
+
+	task.Status = make(map[string]model.TaskStatus)
+	task.Scheduler.Status=make(map[string]model.SchedulerStatus)
 	OutPut:=[]*model.TaskOutPut{}
 	task.OutPut=OutPut
 
@@ -767,9 +768,12 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 //waitScheduleTask 等待调度条件成熟
 func (t *TaskEngine) waitScheduleTask(taskSchedulerInfo *TaskSchedulerInfo, task *model.Task) {
 	sb,_:=json.Marshal(task.Scheduler.Status)
+	tb,_:=json.Marshal(task)
 	logrus.Infof("task scheduler is %s",string(sb))
+	logrus.Infof("!!!!!!!!!!!!task is %s",string(tb))
 	//continueScheduler 是否继续调度，如果调度条件无法满足，停止调度
 	var continueScheduler = true
+
 	canRun := func() bool {
 		defer t.UpdateTask(task)
 		if task.Temp.Depends != nil && len(task.Temp.Depends) > 0 {
