@@ -848,7 +848,9 @@ func (t *TaskEngine) waitScheduleTask(taskSchedulerInfo *TaskSchedulerInfo, task
 					//依赖任务相同节点执行成功
 					if dep.DetermineStrategy == model.SameNodeStrategy {
 						tb,_:=json.Marshal(taskSchedulerInfo)
-						logrus.Infof("taskschedulerinfo is %s",string(tb))
+						tkb,_:=json.Marshal(task)
+						logrus.Infof("*****taskschedulerinfo is %s",string(tb))
+						logrus.Infof("*******task is %s",string(tkb))
 						if depTask.Status == nil || len(depTask.Status) < 1 {
 							taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s is not complete", depTask.ID)
 							taskSchedulerInfo.Status.Status = "Waiting"
