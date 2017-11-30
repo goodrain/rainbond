@@ -149,6 +149,21 @@ func (t *TenantServicePluginRelation) TableName() string {
 	return "tenant_service_plugin_relation"
 }
 
+//TenantServicesStreamPluginPort 绑定stream类型插件后端口映射信息
+type TenantServicesStreamPluginPort struct {
+	Model
+	TenantID      string `gorm:"column:tenant_id;size:32" validate:"tenant_id|between:30,33" json:"tenant_id"`
+	ServiceID     string `gorm:"column:service_id;size:32" validate:"service_id|between:30,33" json:"service_id"`
+	PluginModel   string `gorm:"column:plugin_model;size:24" json:"plugin_model"`
+	ContainerPort int    `gorm:"column:container_port" validate:"container_port|required|numeric_between:1,65535" json:"container_port"`
+	PluginPort    int    `gorm:"column:plugin_port" json:"plugin_port"`
+}
+
+//TableName 表名
+func (t *TenantServicesStreamPluginPort) TableName() string {
+	return "tenant_services_stream_plugin_port"
+}
+
 //Plugin model 插件标签
 
 //InitPlugin 初始化插件

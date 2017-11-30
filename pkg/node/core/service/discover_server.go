@@ -337,11 +337,16 @@ func (d *DiscoverAction) DiscoverClusters(
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
 		}
+		selfCount := 0
 		for _, service := range services.Items {
 			inner, ok := service.Labels["service_type"]
 			if (!ok || inner != "inner") && serviceAlias != destServiceAlias {
 				continue
 			}
+			if (serviceAlias == destServiceAlias) && selfCount == 1 {
+				continue
+			}
+			selfCount++
 			port := service.Spec.Ports[0]
 			envName := fmt.Sprintf("%s_%d", destServiceAlias, port.Port)
 			var sr api_model.NetDownStreamRules

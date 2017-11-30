@@ -61,7 +61,7 @@ type ServiceHandler interface {
 	TransServieToDelete(serviceID string) error
 	TenantServiceDeletePluginRelation(serviceID, pluginID string) *util.APIHandleError
 	GetTenantServicePluginRelation(serviceID string) ([]*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
-	SetTenantServicePluginRelation(serviceID string, pss *api_model.PluginSetStruct) *util.APIHandleError
+	SetTenantServicePluginRelation(tenantID, serviceID string, pss *api_model.PluginSetStruct) *util.APIHandleError
 	UpdateTenantServicePluginRelation(serviceID string, pss *api_model.PluginSetStruct) *util.APIHandleError
 	SetVersionEnv(serviecID, pluginID string, sve *api_model.SetVersionEnv) *util.APIHandleError
 	UpdateVersionEnv(serviceID string, uve *api_model.UpdateVersionEnv) *util.APIHandleError
