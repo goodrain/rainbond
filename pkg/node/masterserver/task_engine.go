@@ -316,7 +316,7 @@ func (t *TaskEngine) getTaskFromKV(kv *mvccpb.KeyValue) *model.Task {
 	}
 	task.OutPut=output
 
-	logrus.Errorf("---------------------get task from kv %v",task)
+	logrus.Infof("---------------------get task from kv %v",task)
 	return &task
 }
 
@@ -422,7 +422,7 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 	}
 	var task model.Task
 	if err := ffjson.Unmarshal(res.Kvs[0].Value, &task); err != nil {
-		logrus.Errorf("error unmarshal task from etcd,line 426,details %s",err.Error())
+		logrus.Errorf("error unmarshal task from etcd,details %s",err.Error())
 		return nil
 	}
 
@@ -474,7 +474,7 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 		OutPut=append(OutPut,&taskOutPut)
 	}
 	task.OutPut=OutPut
-	logrus.Errorf("---------------------get task %v",task)
+	logrus.Infof("---------------------get task %v",task)
 	return &task
 }
 
@@ -610,7 +610,7 @@ func (t *TaskEngine) UpdateTask(task *model.Task) {
 			logrus.Errorf("update task status part error,%s", err.Error())
 			return
 		}
-		logrus.Errorf("-----update task status %s",string(taskStatusByte))
+		logrus.Infof("-----update task status %s",string(taskStatusByte))
 	}
 
 	for _,v:=range task.OutPut{
@@ -620,7 +620,7 @@ func (t *TaskEngine) UpdateTask(task *model.Task) {
 			logrus.Errorf("update task output part error,%s", err.Error())
 			return
 		}
-		logrus.Errorf("-----update task output %s",string(taskoutputByte))
+		logrus.Infof("-----update task output %s",string(taskoutputByte))
 	}
 	//storage task scheduler
 	for k,v:=range task.Scheduler.Status {
@@ -630,7 +630,7 @@ func (t *TaskEngine) UpdateTask(task *model.Task) {
 			logrus.Errorf("update task scheduler part error,%s", err.Error())
 			return
 		}
-		logrus.Errorf("-----update task scheduler %s",string(tschedulerByte))
+		logrus.Infof("-----update task scheduler %s",string(tschedulerByte))
 	}
 
 
