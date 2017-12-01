@@ -52,12 +52,12 @@ type NodeCluster struct {
 	lock         sync.Mutex
 	client       *store.Client
 	k8sClient    *kubernetes.Clientset
-	currentNode       *model.HostNode
+	currentNode  *model.HostNode
 	checkInstall chan *model.HostNode
 }
 
 //CreateNodeCluster 创建节点管理器
-func CreateNodeCluster(k8sClient *kubernetes.Clientset,node *model.HostNode) (*NodeCluster, error) {
+func CreateNodeCluster(k8sClient *kubernetes.Clientset, node *model.HostNode) (*NodeCluster, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	nc := NodeCluster{
 		ctx:          ctx,
@@ -249,6 +249,13 @@ func (n *NodeCluster) watchK8sNodes() {
 							rbnode.NodeStatus = &node.Status
 							rbnode.NodeStatus.Images = nil
 							rbnode.UpdataK8sCondition(node.Status.Conditions)
+							if rbnode.AvailableCPU == 0 {
+								rbnode.AvailableCPU, _ = node.Status.Allocatable.Cpu().AsInt64()
+							}
+							if rbnode.AvailableMemory == 0 {
+								rbnode.AvailableMemory, _ = node.Status.Allocatable.Memory().AsInt64()
+							}
+							rbnode.Unschedulable = node.Spec.Unschedulable
 							n.UpdateNode(rbnode)
 						}
 					}
@@ -295,15 +302,15 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 		if err != nil {
 			initCondition.Message = err.Error()
 		}
-		node.Conditions=append(node.Conditions,initCondition)
+		node.Conditions = append(node.Conditions, initCondition)
 	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	role:=node.Role[0]
+	role := node.Role[0]
 
-	etcd:=n.currentNode.InternalIP
-	cmd:="bash -c \"set "+node.ID+" "+etcd+" "+role+";$(curl -s repo.goodrain.com/gaops/jobs/install/prepare/init.sh)\""
-	logrus.Infof("init endpoint node cmd is %s",cmd)
+	etcd := n.currentNode.InternalIP
+	cmd := "bash -c \"set " + node.ID + " " + etcd + " " + role + ";$(curl -s repo.goodrain.com/gaops/jobs/install/prepare/init.sh)\""
+	logrus.Infof("init endpoint node cmd is %s", cmd)
 	client := util.NewSSHClient(node.InternalIP, "root", node.RootPass, cmd, 22, &stdout, &stderr)
 	if err := client.Connection(); err != nil {
 		logrus.Error("init endpoint node error:", err.Error())
