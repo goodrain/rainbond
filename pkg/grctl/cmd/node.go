@@ -31,11 +31,11 @@ import (
 	"strconv"
 	"errors"
 	"time"
+	"encoding/json"
+	"bytes"
 )
 
-func handleArr(arr []string )  {
-	return
-}
+
 
 func NewCmdNode() cli.Command {
 	c:=cli.Command{
@@ -53,23 +53,14 @@ func NewCmdNode() cli.Command {
 					}
 					n:=clients.NodeClient.Nodes().Get(id)
 					v:=n.Node
-					table := termtables.CreateTable()
-					table.AddHeaders("uid", "IP", "HostName","role","alived","unschedulable","available_memory","available_cpu")
-					table.AddRow(v.ID, v.InternalIP, v.HostName,v.Role.String(),v.Alived,v.Unschedulable,v.AvailableMemory,v.AvailableCPU)
-
-					fmt.Println(table.Render())
-					fmt.Println("Condictions:")
-
-
-					tableC := termtables.CreateTable()
-					var content []interface{}
-					for _,val:=range v.Conditions{
-						tableC.AddHeaders(strings.Replace(string(val.Type),"INSTALL_","",-1))
-						content=append(content,string(val.Status))
+					nodeByte,_:=json.Marshal(v)
+					var out bytes.Buffer
+					err := json.Indent(&out, nodeByte, "", "\t")
+					if err != nil {
+						logrus.Error("error format json details %s",err.Error())
+						return err
 					}
-
-					tableC.AddRow(content...)
-					fmt.Println(tableC.Render())
+					fmt.Println(out.String())
 					return nil
 				},
 			},
@@ -79,9 +70,31 @@ func NewCmdNode() cli.Command {
 				Action: func(c *cli.Context) error {
 					list:=clients.NodeClient.Nodes().List()
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("uid", "IP", "HostName","role","alived","unschedulable")
+					serviceTable.AddHeaders("uid", "IP", "HostName","role","alived","unschedulable","ready")
+					var rest []*model.HostNode
 					for _,v:=range list{
-						serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,v.Unschedulable)
+						var ready bool=false
+						for _,c:=range v.Conditions {
+							if string(c.Type)=="Ready"&&string(c.Status)=="True"{
+								ready=true
+							}
+						}
+						if v.Role.HasRule("manage") {
+							serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,"N/A",ready)
+
+						}else{
+							rest=append(rest,v)
+						}
+					}
+					serviceTable.AddSeparator()
+					for _,v:=range rest{
+						var ready bool=false
+						for _,c:=range v.Conditions {
+							if string(c.Type)=="Ready"&&string(c.Status)=="True"{
+								ready=true
+							}
+						}
+						serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,v.Unschedulable,ready)
 					}
 					fmt.Println(serviceTable.Render())
 					return nil
