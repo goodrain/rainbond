@@ -370,6 +370,19 @@ func (t *TenantServicePluginRelationDaoImpl) CheckSomeModelPluginByServiceID(ser
 	return false, nil
 }
 
+//CheckSomeModelLikePluginByServiceID 检查是否绑定了某大类插件
+func (t *TenantServicePluginRelationDaoImpl) CheckSomeModelLikePluginByServiceID(serviceID, pluginModel string) (bool, error) {
+	var relations []*model.TenantServicePluginRelation
+	catePlugin := "%" + pluginModel + "%"
+	if err := t.DB.Where("service_id=? and plugin_model LIKE ?", serviceID, catePlugin).Find(&relations).Error; err != nil {
+		return false, err
+	}
+	if len(relations) == 1 {
+		return true, nil
+	}
+	return false, nil
+}
+
 //DeleteALLRelationByServiceID 删除serviceID所有插件依赖 一般用于删除应用时使用
 func (t *TenantServicePluginRelationDaoImpl) DeleteALLRelationByServiceID(serviceID string) error {
 	relation := &model.TenantServicePluginRelation{

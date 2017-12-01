@@ -20,8 +20,8 @@ package version2
 
 import (
 	"github.com/goodrain/rainbond/pkg/api/controller"
-	builder_controller "github.com/goodrain/rainbond/pkg/builder/api"
 	"github.com/goodrain/rainbond/pkg/api/middleware"
+	builder_controller "github.com/goodrain/rainbond/pkg/builder/api"
 
 	"github.com/go-chi/chi"
 )
@@ -41,7 +41,7 @@ func (v2 *V2) Routes() chi.Router {
 	r.Mount("/cluster", v2.clusterRouter())
 	r.Mount("/resources", v2.resourcesRouter())
 	r.Mount("/prometheus", v2.prometheusRouter())
-	r.Mount("/builder",builder_controller.APIServer())
+	r.Mount("/builder", builder_controller.APIServer())
 	return r
 }
 
@@ -124,7 +124,8 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Delete("/env", controller.GetManager().Env)
 	//端口变量增删改(source)
 	r.Post("/ports", controller.GetManager().Ports)
-	r.Put("/ports", controller.GetManager().Ports)
+	r.Put("/ports", controller.GetManager().PutPorts)
+	r.Put("/ports/{port}", controller.GetManager().Ports)
 	r.Delete("/ports/{port}", controller.GetManager().Ports)
 	r.Put("/ports/{port}/outer", controller.GetManager().PortOuterController)
 	r.Put("/ports/{port}/inner", controller.GetManager().PortInnerController)

@@ -978,6 +978,42 @@ func (t *TenantStruct) Ports(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//PutPorts PortVar
+// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports v2 updatePort
+//
+// 更新应用端口信息(旧)
+//
+// update port
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func (t *TenantStruct) PutPorts(w http.ResponseWriter, r *http.Request) {
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	var ports api_model.ServicePorts
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ports, nil); !ok {
+		return
+	}
+	if err := handler.GetServiceManager().PortVar("update", tenantID, serviceID, &ports, 0); err != nil {
+		logrus.Errorf("update port error. %v", err)
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
 //AddPortVar PortVar
 // swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/ports v2 addPort
 //
