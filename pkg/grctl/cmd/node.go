@@ -86,7 +86,9 @@ func NewCmdNode() cli.Command {
 							rest=append(rest,v)
 						}
 					}
-					serviceTable.AddSeparator()
+					if len(rest)>0 {
+						serviceTable.AddSeparator()
+					}
 					for _,v:=range rest{
 						var ready bool=false
 						for _,c:=range v.Conditions {
