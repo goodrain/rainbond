@@ -222,7 +222,7 @@ func Status(task string) {
 					fmt.Errorf("error executing task %s",task)
 					taskE:=clients.NodeClient.Tasks().Get(task)
 					for _,v:=range taskE.Task.OutPut{
-						fmt.Println("on %s :\n %s",v.NodeID,v.Body)
+						fmt.Printf("on %s :\n %s",v.NodeID,v.Body)
 					}
 					os.Exit(1)
 				}

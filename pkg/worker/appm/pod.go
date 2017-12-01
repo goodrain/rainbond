@@ -300,6 +300,13 @@ func (p *PodTemplateSpecBuild) createContainer(volumeMounts []v1.VolumeMount, en
 	if containerName == "" {
 		containerName = p.serviceID
 	}
+	//todo
+	versionInfo,err:=p.dbmanager.VersionInfoDao().GetVersionByEventID(p.eventID)
+	if err != nil {
+		logrus.Infof("error get version info by eventID %s,details %s",p.eventID,err.Error())
+	}
+	logrus.Infof("--------get version info image name is %s,accroding origin logic,it should be %s",versionInfo.ImageName,p.service.ImageName)
+	//p.service.ID
 	c1 := v1.Container{
 		Name:                   containerName,
 		//todo
@@ -555,8 +562,9 @@ func (p *PodTemplateSpecBuild) createVolumes(envs *[]v1.EnvVar) ([]v1.Volume, []
 				logrus.Warnf("error get slug path from versioninfo table by key %s,prepare use path",p.service.DeployVersion)
 				slugPath = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion)
 			}else {
-				logrus.Infof("use slug path %s from version info",versionInfo.DeliveredPath)
 				slugPath=versionInfo.DeliveredPath
+				logrus.Infof("------------use slug path %s from version info,accroding origin logic,it should be %s",versionInfo.DeliveredPath,fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion))
+				slugPath = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion)
 			}
 		}
 		p.createVolumeObj(model.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", slugPath, true, &volumeMounts, &volumes)
