@@ -76,10 +76,25 @@ func UpdateDeliveredPath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonc,err:=simplejson.NewJson(in)
-	event,_:=jsonc.Get("event_id").String()
-	dt,_:=jsonc.Get("type").String()
-	dp,_:=jsonc.Get("path").String()
-
+	if err != nil {
+		httputil.ReturnError(r,w,400,err.Error())
+		return
+	}
+	event,err:=jsonc.Get("event_id").String()
+	if err != nil {
+		httputil.ReturnError(r,w,400,err.Error())
+		return
+	}
+	dt,err:=jsonc.Get("type").String()
+	if err != nil {
+		httputil.ReturnError(r,w,400,err.Error())
+		return
+	}
+	dp,err:=jsonc.Get("path").String()
+	if err != nil {
+		httputil.ReturnError(r,w,400,err.Error())
+		return
+	}
 	version,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(event)
 	if err != nil {
 		httputil.ReturnError(r,w,404,err.Error())
@@ -88,6 +103,11 @@ func UpdateDeliveredPath(w http.ResponseWriter, r *http.Request) {
 
 	version.DeliveredType=dt
 	version.DeliveredPath=dp
+	if version.DeliveredType == "code" {
+		version.ImageName="goodrain.me/runner"
+	}else{
+		version.ImageName=dp
+	}
 	err=db.GetManager().VersionInfoDao().UpdateModel(version)
 	if err != nil {
 		httputil.ReturnError(r,w,500,err.Error())

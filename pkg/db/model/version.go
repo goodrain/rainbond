@@ -24,15 +24,15 @@ type VersionInfo struct {
 	BuildVersion  string `gorm:"column:build_version;size:40"` //唯一
 	EventID       string `gorm:"column:event_id;size:40"`
 	ServiceID     string `gorm:"column:service_id;size:40"`
-	Kind     string `gorm:"column:kind;size:40"` //kind
-	DeliveredType string `gorm:"column:delivered_type;size:40"` //kind
+	Kind          string `gorm:"column:kind;size:40"`            //kind
+	DeliveredType string `gorm:"column:delivered_type;size:40"`  //kind
 	DeliveredPath string `gorm:"column:delivered_path;size:250"` //交付物path
-	RepoURL        string `gorm:"column:repo_url;size:100"`
+	ImageName     string `gorm:"column:image_name;size:250"`     //交付物path
+	RepoURL       string `gorm:"column:repo_url;size:100"`
 	CodeVersion   string `gorm:"column:code_version;size:40"`
-	CommitMsg   string `gorm:"column:code_commit_msg;size:40"`
-	Author   string `gorm:"column:code_commit_author;size:40"`
-	FinalStatus string `gorm:"column:final_status;size:40"`
-
+	CommitMsg     string `gorm:"column:code_commit_msg;size:40"`
+	Author        string `gorm:"column:code_commit_author;size:40"`
+	FinalStatus   string `gorm:"column:final_status;size:40"`
 }
 
 //TableName 表名

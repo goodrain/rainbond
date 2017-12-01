@@ -302,6 +302,7 @@ func (p *PodTemplateSpecBuild) createContainer(volumeMounts []v1.VolumeMount, en
 	}
 	c1 := v1.Container{
 		Name:                   containerName,
+		//todo
 		Image:                  p.service.ImageName,
 		Env:                    *envs,
 		Ports:                  p.createPorts(),
@@ -548,7 +549,15 @@ func (p *PodTemplateSpecBuild) createVolumes(envs *[]v1.EnvVar) ([]v1.Volume, []
 		if slugPath != "" {
 			slugPath = "/grdata/build/tenant/" + slugPath
 		} else {
-			slugPath = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion)
+
+			versionInfo,err:=p.dbmanager.VersionInfoDao().GetVersionByDeployVersion(p.service.DeployVersion)
+			if err != nil {
+				logrus.Warnf("error get slug path from versioninfo table by key %s,prepare use path",p.service.DeployVersion)
+				slugPath = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion)
+			}else {
+				logrus.Infof("use slug path %s from version info",versionInfo.DeliveredPath)
+				slugPath=versionInfo.DeliveredPath
+			}
 		}
 		p.createVolumeObj(model.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", slugPath, true, &volumeMounts, &volumes)
 	}

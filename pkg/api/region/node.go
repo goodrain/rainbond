@@ -306,11 +306,9 @@ func HandleTaskStatus(task string) (*TaskStatus,error) {
 
 		for k,_:=range m {
 			var taskStatus model.TaskStatus
-			//logrus.Infof("handling %s status",k)
 			taskStatus.CompleStatus=m[k].(map[string]interface{})["comple_status"].(string)
 			taskStatus.Status=m[k].(map[string]interface{})["status"].(string)
 			taskStatus.JobID=k
-			//taskStatus.ShellCode=m[k].(map[string]interface{})["shell_code"].(int)
 			statusMap[k]=taskStatus
 		}
 		status.Status=statusMap
