@@ -305,12 +305,13 @@ func (p *PodTemplateSpecBuild) createContainer(volumeMounts []v1.VolumeMount, en
 	if err != nil {
 		logrus.Infof("error get version info by eventID %s,details %s",p.eventID,err.Error())
 	}
-	logrus.Infof("--------get version info image name is %s,accroding origin logic,it should be %s",versionInfo.ImageName,p.service.ImageName)
+	//logrus.Infof("--------get version info image name is %s,accroding origin logic,it should be %s",versionInfo.ImageName,p.service.ImageName)
 	//p.service.ID
 	c1 := v1.Container{
 		Name:                   containerName,
 		//todo
-		Image:                  p.service.ImageName,
+		//Image:                  p.service.ImageName,
+		Image:                  versionInfo.ImageName,
 		Env:                    *envs,
 		Ports:                  p.createPorts(),
 		Resources:              p.createResources(),
@@ -563,8 +564,8 @@ func (p *PodTemplateSpecBuild) createVolumes(envs *[]v1.EnvVar) ([]v1.Volume, []
 				slugPath = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion)
 			}else {
 				slugPath=versionInfo.DeliveredPath
-				logrus.Infof("------------use slug path %s from version info,accroding origin logic,it should be %s",versionInfo.DeliveredPath,fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion))
-				slugPath = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion)
+				//logrus.Infof("------------use slug path %s from version info,accroding origin logic,it should be %s",versionInfo.DeliveredPath,fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion))
+				//slugPath = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion)
 			}
 		}
 		p.createVolumeObj(model.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", slugPath, true, &volumeMounts, &volumes)

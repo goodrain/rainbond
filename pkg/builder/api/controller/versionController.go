@@ -27,6 +27,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"errors"
+	"github.com/Sirupsen/logrus"
 )
 
 
@@ -57,10 +58,13 @@ func DeleteVersionByEventID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if versionInfo.DeliveredType=="code" {
-
+		//todo 挺危险的。
 	}else {
 		cmd:=exec.Command("docker","rmi",versionInfo.DeliveredPath)
-		cmd.Start()
+		err:=cmd.Start()
+		if err != nil {
+			logrus.Errorf("error delete image :%s ,details %s",versionInfo.DeliveredPath,err.Error())
+		}
 	}
 	err=db.GetManager().VersionInfoDao().DeleteVersionByEventID(eventID)
 	if err != nil {
