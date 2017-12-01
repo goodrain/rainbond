@@ -44,3 +44,6 @@ venv/
 
 .release/
 _output/
+
+
+hack/deb/ubuntu-trusty

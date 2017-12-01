@@ -44,7 +44,7 @@ type ServiceHandler interface {
 	ShareCloud(c *api_model.CloudShareStruct) error
 	ServiceDepend(action string, ds *api_model.DependService) error
 	EnvAttr(action string, at *dbmodel.TenantServiceEnvVar) error
-	PortVar(action string, tenantID, serviceID string, vp *api_model.ServicePorts) error
+	PortVar(action string, tenantID, serviceID string, vp *api_model.ServicePorts, oldPort int) error
 	PortOuter(tenantName, serviceID, operation string, port int) (*dbmodel.TenantServiceLBMappingPort, string, error)
 	PortInner(tenantName, serviceID, operation string, port int) error
 	VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, action string) *util.APIHandleError
