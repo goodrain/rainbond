@@ -331,7 +331,6 @@ func (s *ServiceAction) StartStopService(sss *api_model.StartStopStruct) error {
 		logrus.Errorf("get service by id error, %v", err)
 		return err
 	}
-
 	TaskBody := model.StopTaskBody{
 		TenantID:      sss.TenantID,
 		ServiceID:     sss.ServiceID,
@@ -711,7 +710,14 @@ func (s *ServiceAction) EnvAttr(action string, at *dbmodel.TenantServiceEnvVar) 
 }
 
 //PortVar port var
-func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_model.ServicePorts) error {
+func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_model.ServicePorts, oldPort int) error {
+	crt, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
+		serviceID,
+		dbmodel.UpNetPlugin,
+	)
+	if err != nil {
+		return err
+	}
 	switch action {
 	case "add":
 		for _, vp := range vps.Port {
@@ -731,31 +737,56 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 			}
 		}
 	case "delete":
+		tx := db.GetManager().Begin()
 		for _, vp := range vps.Port {
-			if err := db.GetManager().TenantServicesPortDao().DeleteModel(serviceID, vp.ContainerPort); err != nil {
+			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).DeleteModel(serviceID, vp.ContainerPort); err != nil {
 				logrus.Errorf("delete port var error, %v", err)
+				tx.Rollback()
 				return err
 			}
 			//TODO:删除k8s Service
 			service, err := db.GetManager().K8sServiceDao().GetK8sService(serviceID, vp.ContainerPort, true)
-			if err != nil && err != gorm.ErrRecordNotFound {
+			if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				logrus.Error("get deploy k8s service info error.")
+				tx.Rollback()
+				return err
 			}
 			if service != nil {
 				err := s.KubeClient.Core().Services(tenantID).Delete(service.K8sServiceID, &metav1.DeleteOptions{})
 				if err != nil {
 					logrus.Error("delete deploy k8s service info from kube-api error.")
-				} else {
-					err := db.GetManager().K8sServiceDao().DeleteK8sServiceByName(service.K8sServiceID)
-					if err != nil {
-						logrus.Error("delete deploy k8s service info from db error.")
+					tx.Rollback()
+					return err
+				}
+				err = db.GetManager().K8sServiceDaoTransactions(tx).DeleteK8sServiceByName(service.K8sServiceID)
+				if err != nil {
+					logrus.Error("delete deploy k8s service info from db error.")
+					tx.Rollback()
+					return err
+				}
+				if crt {
+					if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeletePluginMappingPortByContainerPort(
+						serviceID,
+						dbmodel.UpNetPlugin,
+						vp.ContainerPort,
+					); err != nil {
+						logrus.Errorf("delete plugin stream mapping port error: (%s)", err)
+						tx.Rollback()
+						return err
 					}
 				}
 			}
 		}
+		if err := tx.Commit().Error; err != nil {
+			tx.Rollback()
+			logrus.Debugf("commit delete port error, %v", err)
+			return err
+		}
 	case "update":
+		tx := db.GetManager().Begin()
 		for _, vp := range vps.Port {
-			vpD, err := db.GetManager().TenantServicesPortDao().GetPort(serviceID, vp.ContainerPort)
+			//port更新单个请求
+			vpD, err := db.GetManager().TenantServicesPortDao().GetPort(serviceID, oldPort)
 			if err != nil {
 				return err
 			}
@@ -767,10 +798,35 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 			vpD.MappingPort = vp.MappingPort
 			vpD.Protocol = vp.Protocol
 			vpD.PortAlias = vp.PortAlias
-			if err := db.GetManager().TenantServicesPortDao().UpdateModel(vpD); err != nil {
+			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(vpD); err != nil {
 				logrus.Errorf("update port var error, %v", err)
+				tx.Rollback()
 				return err
 			}
+			if crt {
+				pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
+					serviceID,
+					dbmodel.UpNetPlugin,
+					oldPort,
+				)
+				if err != nil {
+					logrus.Errorf("get plugin mapping port error:(%s)", err)
+					tx.Rollback()
+					return err
+				}
+				pluginPort.ContainerPort = vp.ContainerPort
+				if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).UpdateModel(pluginPort); err != nil {
+					logrus.Errorf("update plugin mapping port error:(%s)", err)
+					tx.Rollback()
+					return err
+				}
+
+			}
+		}
+		if err := tx.Commit().Error; err != nil {
+			tx.Rollback()
+			logrus.Debugf("commit update port error, %v", err)
+			return err
 		}
 	}
 	return nil
@@ -785,6 +841,13 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
 		return nil, "", fmt.Errorf("find service error:%s", err.Error())
+	}
+	hasUpStream, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
+		serviceID,
+		dbmodel.UpNetPlugin,
+	)
+	if err != nil {
+		return nil, "", fmt.Errorf("get plugin relations error: %s", err.Error())
 	}
 	var k8sService *v1.Service
 	//if stream 创建vs端口
@@ -813,6 +876,36 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 					tx.Callback()
 					return nil, "", fmt.Errorf("delete deploy k8s service info from db error")
 				}
+			}
+			if hasUpStream {
+				pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
+					serviceID,
+					dbmodel.UpNetPlugin,
+					port,
+				)
+				if err != nil {
+					if err.Error() == gorm.ErrRecordNotFound.Error() {
+						logrus.Debugf("outer, plugin port (%d) is not exist, do not need delete", port)
+						goto OUTERCLOSEPASS
+					}
+					tx.Callback()
+					return nil, "", fmt.Errorf("outer, get plugin mapping port error:(%s)", err)
+				}
+				if p.IsInnerService {
+					//发现内网未关闭则不删除该映射
+					logrus.Debugf("outer, close outer, but plugin inner port (%d) is exist, do not need delete", port)
+					goto OUTERCLOSEPASS
+				}
+				if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeletePluginMappingPortByContainerPort(
+					serviceID,
+					dbmodel.UpNetPlugin,
+					port,
+				); err != nil {
+					tx.Callback()
+					return nil, "", fmt.Errorf("outer, delete plugin mapping port %d error:(%s)", port, err)
+				}
+				logrus.Debugf(fmt.Sprintf("outer, delete plugin port %d->%d", port, pluginPort.PluginPort))
+			OUTERCLOSEPASS:
 			}
 			if err := tx.Commit().Error; err != nil {
 				tx.Rollback()
@@ -856,6 +949,36 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 				tx.Callback()
 				return nil, "", fmt.Errorf("create k8s service error,%s", err.Error())
 			}
+		}
+		if hasUpStream {
+			pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
+				serviceID,
+				dbmodel.UpNetPlugin,
+				port,
+			)
+			var pPort int
+			if err != nil {
+				if err.Error() == gorm.ErrRecordNotFound.Error() {
+					ppPort, err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).SetPluginMappingPort(
+						p.TenantID,
+						serviceID,
+						dbmodel.UpNetPlugin,
+						port,
+					)
+					if err != nil {
+						tx.Callback()
+						logrus.Errorf("outer, set plugin mapping port error:(%s)", err)
+						return nil, "", fmt.Errorf("outer, set plugin mapping port error:(%s)", err)
+					}
+					pPort = ppPort
+					goto OUTEROPENPASS
+				}
+				tx.Callback()
+				return nil, "", fmt.Errorf("outer, in setting plugin mapping port, get plugin mapping port error:(%s)", err)
+			}
+			logrus.Debugf("outer, plugin mapping port is already exist, %d->%d", pluginPort.ContainerPort, pluginPort.PluginPort)
+		OUTEROPENPASS:
+			logrus.Debugf("outer, set plugin mapping port %d->%d", port, pPort)
 		}
 		if err := tx.Commit().Error; err != nil {
 			tx.Rollback()
@@ -987,6 +1110,13 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 	if err != nil {
 		return fmt.Errorf("get service error:%s", err.Error())
 	}
+	hasUpStream, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
+		serviceID,
+		dbmodel.UpNetPlugin,
+	)
+	if err != nil {
+		return fmt.Errorf("get plugin relations error: %s", err.Error())
+	}
 	var k8sService *v1.Service
 	tx := db.GetManager().Begin()
 	switch operation {
@@ -1013,6 +1143,35 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 					return fmt.Errorf("delete deploy k8s service info from db error")
 				}
 			}
+			if hasUpStream {
+				pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
+					serviceID,
+					dbmodel.UpNetPlugin,
+					port,
+				)
+				if err != nil {
+					if err.Error() == gorm.ErrRecordNotFound.Error() {
+						logrus.Debugf("inner, plugin port (%d) is not exist, do not need delete", port)
+						goto INNERCLOSEPASS
+					}
+					tx.Callback()
+					return fmt.Errorf("inner, get plugin mapping port error:(%s)", err)
+				}
+				if p.IsOuterService {
+					logrus.Debugf("inner, close inner, but plugin outerport (%d) is exist, do not need delete", port)
+					goto INNERCLOSEPASS
+				}
+				if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeletePluginMappingPortByContainerPort(
+					serviceID,
+					dbmodel.UpNetPlugin,
+					port,
+				); err != nil {
+					tx.Callback()
+					return fmt.Errorf("inner, delete plugin mapping port %d error:(%s)", port, err)
+				}
+				logrus.Debugf(fmt.Sprintf("inner, delete plugin port %d->%d", port, pluginPort.PluginPort))
+			INNERCLOSEPASS:
+			}
 		} else {
 			tx.Callback()
 			return fmt.Errorf("already close")
@@ -1035,6 +1194,36 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 				return fmt.Errorf("create k8s service error,%s", err.Error())
 			}
 
+		}
+		if hasUpStream {
+			pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
+				serviceID,
+				dbmodel.UpNetPlugin,
+				port,
+			)
+			var pPort int
+			if err != nil {
+				if err.Error() == gorm.ErrRecordNotFound.Error() {
+					ppPort, err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).SetPluginMappingPort(
+						p.TenantID,
+						serviceID,
+						dbmodel.UpNetPlugin,
+						port,
+					)
+					if err != nil {
+						tx.Callback()
+						logrus.Errorf("inner, set plugin mapping port error:(%s)", err)
+						return fmt.Errorf("inner, set plugin mapping port error:(%s)", err)
+					}
+					pPort = ppPort
+					goto INNEROPENPASS
+				}
+				tx.Callback()
+				return fmt.Errorf("inner, in setting plugin mapping port, get plugin mapping port error:(%s)", err)
+			}
+			logrus.Debugf("inner, plugin mapping port is already exist, %d->%d", pluginPort.ContainerPort, pluginPort.PluginPort)
+		INNEROPENPASS:
+			logrus.Debugf("inner, set plugin mapping port %d->%d", port, pPort)
 		}
 	}
 	if err := tx.Commit().Error; err != nil {
@@ -1434,6 +1623,10 @@ func (s *ServiceAction) TenantServiceDeletePluginRelation(serviceID, pluginID st
 		tx.Rollback()
 		return util.CreateAPIHandleErrorFromDBError("delete relation env", err)
 	}
+	if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteAllPluginMappingPortByServiceID(serviceID); err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleErrorFromDBError("delete upstream plugin mapping port", err)
+	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return util.CreateAPIHandleErrorFromDBError("commit delete err", err)
@@ -1442,15 +1635,54 @@ func (s *ServiceAction) TenantServiceDeletePluginRelation(serviceID, pluginID st
 }
 
 //SetTenantServicePluginRelation SetTenantServicePluginRelation
-func (s *ServiceAction) SetTenantServicePluginRelation(serviceID string, pss *api_model.PluginSetStruct) *util.APIHandleError {
-	relation := &dbmodel.TenantServicePluginRelation{
-		VersionID: pss.Body.VersionID,
-		ServiceID: serviceID,
-		PluginID:  pss.Body.PluginID,
-		Switch:    pss.Body.Switch,
+func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID string, pss *api_model.PluginSetStruct) *util.APIHandleError {
+	tx := db.GetManager().Begin()
+	plugin, err := db.GetManager().TenantPluginDao().GetPluginByID(pss.Body.PluginID)
+	if err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleErrorFromDBError("get plugin by plugin id", err)
 	}
-	if err := db.GetManager().TenantServicePluginRelationDao().AddModel(relation); err != nil {
+	if plugin.PluginModel == dbmodel.UpNetPlugin {
+		ports, err := db.GetManager().TenantServicesPortDao().GetPortsByServiceID(serviceID)
+		if err != nil {
+			tx.Rollback()
+			return util.CreateAPIHandleErrorFromDBError("get ports by service id", err)
+		}
+		for _, p := range ports {
+			if p.IsInnerService || p.IsOuterService {
+				pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).SetPluginMappingPort(
+					tenantID,
+					serviceID,
+					dbmodel.UpNetPlugin,
+					p.ContainerPort,
+				)
+				if err != nil {
+					tx.Rollback()
+					logrus.Errorf(fmt.Sprintf("set upstream port %d error, %v", p.ContainerPort, err))
+					return util.CreateAPIHandleErrorFromDBError(
+						fmt.Sprintf("set upstream port %d error ", p.ContainerPort),
+						err,
+					)
+				}
+				logrus.Debugf("set plugin upsteam port %d->%d", p.ContainerPort, pluginPort)
+				continue
+			}
+		}
+	}
+	relation := &dbmodel.TenantServicePluginRelation{
+		VersionID:   pss.Body.VersionID,
+		ServiceID:   serviceID,
+		PluginID:    pss.Body.PluginID,
+		Switch:      pss.Body.Switch,
+		PluginModel: plugin.PluginModel,
+	}
+	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).AddModel(relation); err != nil {
+		tx.Rollback()
 		return util.CreateAPIHandleErrorFromDBError("set service plugin relation", err)
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleErrorFromDBError("commit set service plugin relation", err)
 	}
 	return nil
 }

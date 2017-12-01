@@ -358,7 +358,7 @@ func (t *TenantServicePluginRelationDaoImpl) DeleteRelationByServiceIDAndPluginI
 		serviceID).Delete(relation).Error
 }
 
-//CheckSomeModelPluginByServiceID 检查是否绑定了同种插件
+//CheckSomeModelPluginByServiceID 检查是否绑定了某种插件
 func (t *TenantServicePluginRelationDaoImpl) CheckSomeModelPluginByServiceID(serviceID, pluginModel string) (bool, error) {
 	var relations []*model.TenantServicePluginRelation
 	if err := t.DB.Where("service_id=? and plugin_model=?", serviceID, pluginModel).Find(&relations).Error; err != nil {
@@ -405,4 +405,148 @@ func (t *TenantServicePluginRelationDaoImpl) GetRelateionByServiceIDAndPluginID(
 		return nil, err
 	}
 	return relation, nil
+}
+
+//TenantServicesStreamPluginPortDaoImpl TenantServicesStreamPluginPortDaoImpl
+type TenantServicesStreamPluginPortDaoImpl struct {
+	DB *gorm.DB
+}
+
+//AddModel 添加插件端口映射信息
+func (t *TenantServicesStreamPluginPortDaoImpl) AddModel(mo model.Interface) error {
+	port := mo.(*model.TenantServicesStreamPluginPort)
+	var oldPort model.TenantServicesStreamPluginPort
+	if ok := t.DB.Where("service_id= ? and container_port= ? and plugin_model=? ",
+		port.ServiceID,
+		port.ContainerPort,
+		port.PluginModel).Find(&oldPort).RecordNotFound(); ok {
+		if err := t.DB.Create(port).Error; err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("plugin port %d mappint to %d is exist", port.ContainerPort, port.PluginPort)
+	}
+	return nil
+}
+
+//UpdateModel 更新插件端口映射信息
+func (t *TenantServicesStreamPluginPortDaoImpl) UpdateModel(mo model.Interface) error {
+	port := mo.(*model.TenantServicesStreamPluginPort)
+	if port.ID == 0 {
+		return fmt.Errorf("id can not be empty when update plugin mapping port")
+	}
+	if err := t.DB.Save(port).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+//GetPluginMappingPorts GetPluginMappingPorts  降序排列
+func (t *TenantServicesStreamPluginPortDaoImpl) GetPluginMappingPorts(
+	serviceID string, pluginModel string) ([]*model.TenantServicesStreamPluginPort, error) {
+	var ports []*model.TenantServicesStreamPluginPort
+	if err := t.DB.Where("service_id=? and plugin_model=?",
+		serviceID, pluginModel).Order("plugin_port asc").Find(&ports).Error; err != nil {
+		return nil, err
+	}
+	return ports, nil
+}
+
+//GetPluginMappingPortByServiceIDAndContainerPort GetPluginMappingPortByServiceIDAndContainerPort
+func (t *TenantServicesStreamPluginPortDaoImpl) GetPluginMappingPortByServiceIDAndContainerPort(
+	serviceID string,
+	pluginModel string,
+	containerPort int,
+) (*model.TenantServicesStreamPluginPort, error) {
+	var port model.TenantServicesStreamPluginPort
+	if err := t.DB.Where(
+		"service_id=? and plugin_model=? and container_port=?",
+		serviceID,
+		pluginModel,
+		containerPort,
+	).Find(&port).Error; err != nil {
+		return nil, err
+	}
+	return &port, nil
+}
+
+//SetPluginMappingPort SetPluginMappingPort
+func (t *TenantServicesStreamPluginPortDaoImpl) SetPluginMappingPort(
+	tenantID string,
+	serviceID string,
+	pluginModel string,
+	containerPort int) (int, error) {
+	ports, err := t.GetPluginMappingPorts(serviceID, pluginModel)
+	if err != nil {
+		return 0, err
+	}
+	//给予的端口范围
+	minPort := 65301
+	maxPort := 65400
+	newPort := &model.TenantServicesStreamPluginPort{
+		TenantID:      tenantID,
+		ServiceID:     serviceID,
+		PluginModel:   pluginModel,
+		ContainerPort: containerPort,
+	}
+	if len(ports) == 0 {
+		newPort.PluginPort = minPort
+		if err := t.AddModel(newPort); err != nil {
+			return 0, err
+		}
+		return newPort.PluginPort, nil
+	}
+	oldMaxPort := ports[len(ports)-1]
+	//已分配端口+2大于最大端口限制则从原范围内扫描端口使用
+	if oldMaxPort.PluginPort > (maxPort - 2) {
+		waitPort := minPort
+		for _, p := range ports {
+			if p.PluginPort == waitPort {
+				waitPort++
+				continue
+			}
+			newPort.PluginPort = waitPort
+			if err := t.AddModel(newPort); err != nil {
+				return 0, nil
+			}
+			continue
+		}
+	}
+	//端口与预分配端口相同重新分配
+	if containerPort == (oldMaxPort.PluginPort + 1) {
+		newPort.PluginPort = oldMaxPort.PluginPort + 2
+		if err := t.AddModel(newPort); err != nil {
+			return 0, err
+		}
+		return newPort.PluginPort, nil
+	}
+	newPort.PluginPort = oldMaxPort.PluginPort + 1
+	if err := t.AddModel(newPort); err != nil {
+		return 0, err
+	}
+	return newPort.PluginPort, nil
+}
+
+//DeletePluginMappingPortByContainerPort DeletePluginMappingPortByContainerPort
+func (t *TenantServicesStreamPluginPortDaoImpl) DeletePluginMappingPortByContainerPort(
+	serviceID string,
+	pluginModel string,
+	containerPort int) error {
+	relation := &model.TenantServicesStreamPluginPort{
+		ServiceID:     serviceID,
+		PluginModel:   pluginModel,
+		ContainerPort: containerPort,
+	}
+	return t.DB.Where("service_id=? and plugin_model=? and container_port=?",
+		serviceID,
+		pluginModel,
+		containerPort).Delete(relation).Error
+}
+
+//DeleteAllPluginMappingPortByServiceID DeleteAllPluginMappingPortByServiceID
+func (t *TenantServicesStreamPluginPortDaoImpl) DeleteAllPluginMappingPortByServiceID(serviceID string) error {
+	relation := &model.TenantServicesStreamPluginPort{
+		ServiceID: serviceID,
+	}
+	return t.DB.Where("service_id=?", serviceID).Delete(relation).Error
 }

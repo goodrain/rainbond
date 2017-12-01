@@ -142,6 +142,29 @@ type TenantServiceRelationDao interface {
 	DeleteRelationByDepID(serviceID, depID string) error
 }
 
+//TenantServicesStreamPluginPortDao TenantServicesStreamPluginPortDao
+type TenantServicesStreamPluginPortDao interface {
+	Dao
+	GetPluginMappingPorts(serviceID string, pluginModel string) ([]*model.TenantServicesStreamPluginPort, error)
+	SetPluginMappingPort(
+		tenantID string,
+		serviceID string,
+		pluginModel string,
+		containerPort int,
+	) (int, error)
+	DeletePluginMappingPortByContainerPort(
+		serviceID string,
+		pluginModel string,
+		containerPort int,
+	) error
+	DeleteAllPluginMappingPortByServiceID(serviceID string) error
+	GetPluginMappingPortByServiceIDAndContainerPort(
+		serviceID string,
+		pluginModel string,
+		containerPort int,
+	) (*model.TenantServicesStreamPluginPort, error)
+}
+
 //TenantServiceEnvVarDao TenantServiceEnvVarDao
 type TenantServiceEnvVarDao interface {
 	Dao
@@ -277,4 +300,5 @@ type VersionInfoDao interface {
 	Dao
 	GetVersionByEventID(eventID string) (*model.VersionInfo, error)
 	GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error)
+	DeleteVersionByEventID(eventID string) error
 }

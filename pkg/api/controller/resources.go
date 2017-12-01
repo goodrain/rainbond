@@ -1006,7 +1006,7 @@ func (t *TenantStruct) addPortController(w http.ResponseWriter, r *http.Request)
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ports, nil); !ok {
 		return
 	}
-	if err := handler.GetServiceManager().PortVar("add", tenantID, serviceID, &ports); err != nil {
+	if err := handler.GetServiceManager().PortVar("add", tenantID, serviceID, &ports, 0); err != nil {
 		logrus.Errorf("add port error. %v", err)
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
@@ -1015,7 +1015,7 @@ func (t *TenantStruct) addPortController(w http.ResponseWriter, r *http.Request)
 }
 
 //UpdatePortVar PortVar
-// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports v2 updatePort
+// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port} v2 updatePort
 //
 // 更新应用端口信息
 //
@@ -1038,12 +1038,65 @@ func (t *TenantStruct) addPortController(w http.ResponseWriter, r *http.Request)
 func (t *TenantStruct) updatePortController(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	portStr := chi.URLParam(r, "port")
+	oldPort, err := strconv.Atoi(portStr)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, "port must be a number")
+		return
+	}
 	var ports api_model.ServicePorts
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ports, nil); !ok {
 		return
 	}
-	if err := handler.GetServiceManager().PortVar("update", tenantID, serviceID, &ports); err != nil {
+	if err := handler.GetServiceManager().PortVar("update", tenantID, serviceID, &ports, oldPort); err != nil {
 		logrus.Errorf("update port error. %v", err)
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+//DeletePortVar PortVar
+// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port} v2 deletePort
+//
+// 删除端口变量
+//
+// delete port
+//
+// ---
+// Consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func (t *TenantStruct) deletePortController(w http.ResponseWriter, r *http.Request) {
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	portStr := chi.URLParam(r, "port")
+	oldPort, err := strconv.Atoi(portStr)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, "port must be a number")
+		return
+	}
+	var port = &api_model.TenantServicesPort{
+		TenantID:  tenantID,
+		ServiceID: serviceID,
+	}
+	var ports api_model.ServicePorts
+	ports.Port = append(ports.Port, port)
+	if err := handler.GetServiceManager().PortVar("delete", tenantID, serviceID, &ports, oldPort); err != nil {
+		if err.Error() == gorm.ErrRecordNotFound.Error() {
+			httputil.ReturnError(r, w, 404, "port can not found")
+			return
+		}
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
@@ -1159,54 +1212,6 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 			httputil.ReturnError(r, w, 500, err.Error())
 			return
 		}
-	}
-	httputil.ReturnSuccess(r, w, nil)
-}
-
-//DeletePortVar PortVar
-// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port} v2 deletePort
-//
-// 删除端口变量
-//
-// delete port
-//
-// ---
-// Consumes:
-// - application/json
-// - application/x-protobuf
-//
-// produces:
-// - application/json
-// - application/xml
-//
-// responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
-func (t *TenantStruct) deletePortController(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	portStr := chi.URLParam(r, "port")
-	containerPort, err := strconv.Atoi(portStr)
-	if err != nil {
-		httputil.ReturnError(r, w, 400, "port must be a number")
-		return
-	}
-	var port = &api_model.TenantServicesPort{
-		TenantID:      tenantID,
-		ServiceID:     serviceID,
-		ContainerPort: containerPort,
-	}
-	var ports api_model.ServicePorts
-	ports.Port = append(ports.Port, port)
-	if err := handler.GetServiceManager().PortVar("delete", tenantID, serviceID, &ports); err != nil {
-		if err.Error() == gorm.ErrRecordNotFound.Error() {
-			httputil.ReturnError(r, w, 404, "port can not found")
-			return
-		}
-		httputil.ReturnError(r, w, 500, err.Error())
-		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }

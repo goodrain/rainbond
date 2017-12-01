@@ -36,9 +36,11 @@ func APIServer() *chi.Mux {
 
 	})
 	r.Route("/version", func(r chi.Router) {
+
 		r.Post("/",controller.UpdateDeliveredPath)
 		r.Get("/event/{eventID}",controller.GetVersionByEventID)
 		r.Get("/service/{serviceID}",controller.GetVersionByServiceID)
+		r.Delete("/service/{eventID}",controller.DeleteVersionByEventID)
 	})
 	r.Route("/event", func(r chi.Router) {
 		r.Get("/",controller.GetEventsByIds)

@@ -105,18 +105,6 @@ func NewCmdInstallStatus() cli.Command {
 
 
 func initCluster(c *cli.Context) error {
-	//done:=make(chan int)
-	//go func(done chan int) {
-	//	to := time.NewTimer(time.Second)
-	//	for true  {
-	//		select {
-	//		case <-done:
-	//			fmt.Println("安装完成")
-	//		case <-to.C:
-	//			fmt.Println("安装超时")
-	//		}
-	//	}
-	//}(done)
 	resp, err := http.Get("http://repo.goodrain.com/gaops/jobs/install/prepare/init.sh")
 
 	if err != nil {

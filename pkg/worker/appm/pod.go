@@ -166,6 +166,20 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 		return nil, fmt.Errorf("find outer ports error. %v", err.Error())
 	}
 	if outPorts != nil && len(outPorts) > 0 {
+		crt, err := p.checkUpstreamPluginRelation()
+		if err != nil {
+			return nil, fmt.Errorf("get service upstream plugin relation error, %s", err.Error())
+		}
+		if crt {
+			pluginPorts, err := p.dbmanager.TenantServicesStreamPluginPortDao().GetPluginMappingPorts(
+				p.serviceID,
+				model.UpNetPlugin,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("find upstream plugin mapping port error, %s", err.Error())
+			}
+			outPorts, err = p.CreateUpstreamPluginMappingPort(outPorts, pluginPorts)
+		}
 		labels["service_type"] = "outer"
 		var pStr string
 		for _, p := range outPorts {
@@ -244,6 +258,33 @@ func (p *PodTemplateSpecBuild) createNodeSelector() map[string]string {
 	}
 	return selector
 }
+
+func (p *PodTemplateSpecBuild) checkUpstreamPluginRelation() (bool, error) {
+	return p.dbmanager.TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
+		p.serviceID,
+		model.UpNetPlugin)
+}
+
+//CreateUpstreamPluginMappingPort 检查是否存在upstream插件，接管入口网络
+func (p *PodTemplateSpecBuild) CreateUpstreamPluginMappingPort(
+	ports []*model.TenantServicesPort,
+	pluginPorts []*model.TenantServicesStreamPluginPort,
+) (
+	[]*model.TenantServicesPort,
+	error) {
+	//start from 65301
+	for i := range ports {
+		port := ports[i]
+		for _, pport := range pluginPorts {
+			if pport.ContainerPort == port.ContainerPort {
+				port.ContainerPort = pport.PluginPort
+				port.MappingPort = pport.PluginPort
+			}
+		}
+	}
+	return ports, nil
+}
+
 func (p *PodTemplateSpecBuild) createContainer(volumeMounts []v1.VolumeMount, envs *[]v1.EnvVar) []v1.Container {
 	var containers []v1.Container
 	//构建容器名称,主容器必须为第一容器
@@ -415,6 +456,22 @@ func (p *PodTemplateSpecBuild) createResources() v1.ResourceRequirements {
 func (p *PodTemplateSpecBuild) createPorts() (ports []v1.ContainerPort) {
 	ps, err := p.dbmanager.TenantServicesPortDao().GetPortsByServiceID(p.serviceID)
 	if err == nil && ps != nil && len(ps) > 0 {
+		crt, err := p.checkUpstreamPluginRelation()
+		if err != nil {
+			//return nil, fmt.Errorf("get service upstream plugin relation error, %s", err.Error())
+			return
+		}
+		if crt {
+			pluginPorts, err := p.dbmanager.TenantServicesStreamPluginPortDao().GetPluginMappingPorts(
+				p.serviceID,
+				model.UpNetPlugin,
+			)
+			if err != nil {
+				//return nil, fmt.Errorf("find upstream plugin mapping port error, %s", err.Error())
+				return
+			}
+			ps, err = p.CreateUpstreamPluginMappingPort(ps, pluginPorts)
+		}
 		for i := range ps {
 			p := ps[i]
 			var hostPort int32

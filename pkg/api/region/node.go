@@ -44,6 +44,8 @@ type Node struct {
 }
 type TaskInterface interface {
 	Get(name string) (*Task)
+	Add(task *model.Task) (error)
+	AddGroup(group *model.TaskGroup) (error)
 	Exec(nodes []string ) error
 	List() ([]*model.Task,error)
 }
@@ -247,6 +249,31 @@ func (t *Task)Exec(nodes []string ) error {
 	}
 	return err
 }
+func (t *Task)Add(task *model.Task) (error) {
+
+	body,_:=json.Marshal(task)
+	url:="/tasks"
+	resp,code,err:=nodeServer.Request(url,"POST",body)
+	if code != 200 {
+		fmt.Println("executing failed:"+string(resp))
+	}
+	if err!=nil {
+		return err
+	}
+	return nil
+}
+func (t *Task) AddGroup(group *model.TaskGroup) (error){
+	body,_:=json.Marshal(group)
+	url:="/taskgroups"
+	resp,code,err:=nodeServer.Request(url,"POST",body)
+	if code != 200 {
+		fmt.Println("executing failed:"+string(resp))
+	}
+	if err!=nil {
+		return err
+	}
+	return nil
+}
 type TaskStatus struct {
 	Status map[string]model.TaskStatus `json:"status,omitempty"`
 }
@@ -292,7 +319,7 @@ func HandleTaskStatus(task string) (*TaskStatus,error) {
 	return nil,errors.New(fmt.Sprintf("response status is %s",code))
 }
 func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error) {
-	//logrus.Infof("requesting url: %s by method :%s,and body is ",r.NodeAPI+url,method,string(body))
+	logrus.Infof("requesting url: %s by method :%s,and body is ",r.NodeAPI+url,method,string(body))
 	request, err := http.NewRequest(method, "http://127.0.0.1:6100/v2"+url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil,500,err
@@ -307,6 +334,6 @@ func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error)
 
 	data, err := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
-	//logrus.Infof("response is %s,response code is %d",string(data),res.StatusCode)
+	logrus.Infof("response is %s,response code is %d",string(data),res.StatusCode)
 	return data,res.StatusCode,err
 }

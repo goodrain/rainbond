@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -336,14 +335,28 @@ func (m *Manager) TenantServicePluginRelationDaoTransactions(db *gorm.DB) dao.Te
 	}
 }
 
-//TenantServicePluginRelationDao TenantServicePluginRelationDao
+//TenantServicesStreamPluginPortDao TenantServicesStreamPluginPortDao
+func (m *Manager) TenantServicesStreamPluginPortDao() dao.TenantServicesStreamPluginPortDao {
+	return &mysqldao.TenantServicesStreamPluginPortDaoImpl{
+		DB: m.db,
+	}
+}
+
+//TenantServicesStreamPluginPortDaoTransactions TenantServicesStreamPluginPortDaoTransactions
+func (m *Manager) TenantServicesStreamPluginPortDaoTransactions(db *gorm.DB) dao.TenantServicesStreamPluginPortDao {
+	return &mysqldao.TenantServicesStreamPluginPortDaoImpl{
+		DB: db,
+	}
+}
+
+//CodeCheckResultDao CodeCheckResultDao
 func (m *Manager) CodeCheckResultDao() dao.CodeCheckResultDao {
 	return &mysqldao.CodeCheckResultDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantServicePluginRelationDaoTransactions TenantServicePluginRelationDaoTransactions
+//CodeCheckResultDaoTransactions CodeCheckResultDaoTransactions
 func (m *Manager) CodeCheckResultDaoTransactions(db *gorm.DB) dao.CodeCheckResultDao {
 	return &mysqldao.CodeCheckResultDaoImpl{
 		DB: db,
@@ -378,13 +391,14 @@ func (m *Manager) ServiceEventDaoTransactions(db *gorm.DB) dao.EventDao {
 	}
 }
 
-//ServiceEventDao TenantServicePluginRelationDao
+//VersionInfoDao VersionInfoDao
 func (m *Manager) VersionInfoDao() dao.VersionInfoDao {
 	return &mysqldao.VersionInfoDaoImpl{
 		DB: m.db,
 	}
 }
-//ServiceEventDaoTransactions TenantServicePluginRelationDaoTransactions
+
+//VersionInfoDaoTransactions VersionInfoDaoTransactions
 func (m *Manager) VersionInfoDaoTransactions(db *gorm.DB) dao.VersionInfoDao {
 	return &mysqldao.VersionInfoDaoImpl{
 		DB: db,

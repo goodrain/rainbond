@@ -50,8 +50,9 @@ build-image-mq:
 build-image-chaos:
 	@echo "🐳 $@"
 	@bash ./release.sh chaos
-#build-image-node:
-#	@echo "🐳 $@"
+build-image-node:
+	@echo "🐳 $@"
+	@bash ./release.sh node
 #	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ${BASE_DOCKER}/node/${BASE_NAME}-node ./cmd/node
 build-image-entrance:
 	@echo "🐳 $@"
