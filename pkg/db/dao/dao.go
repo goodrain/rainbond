@@ -129,6 +129,7 @@ type TenantServicePluginRelationDao interface {
 	GetALLRelationByServiceID(serviceID string) ([]*model.TenantServicePluginRelation, error)
 	GetRelateionByServiceIDAndPluginID(serviceID, pluginID string) (*model.TenantServicePluginRelation, error)
 	CheckSomeModelPluginByServiceID(serviceID, pluginModel string) (bool, error)
+	CheckSomeModelLikePluginByServiceID(serviceID, pluginModel string) (bool, error)
 }
 
 //TenantServiceRelationDao TenantServiceRelationDao
