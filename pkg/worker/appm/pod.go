@@ -309,8 +309,6 @@ func (p *PodTemplateSpecBuild) createContainer(volumeMounts []v1.VolumeMount, en
 	//p.service.ID
 	c1 := v1.Container{
 		Name:                   containerName,
-		//todo
-		//Image:                  p.service.ImageName,
 		Image:                  versionInfo.ImageName,
 		Env:                    *envs,
 		Ports:                  p.createPorts(),
@@ -546,7 +544,8 @@ func (p *PodTemplateSpecBuild) createVolumes(envs *[]v1.EnvVar) ([]v1.Volume, []
 		}
 	}
 	//处理slug挂载
-	if strings.HasPrefix(p.service.ImageName, "goodrain.me/runner") {
+	deployVersion,err:=p.dbmanager.VersionInfoDao().GetVersionByDeployVersion(p.service.DeployVersion)
+	if strings.HasPrefix(deployVersion.ImageName, "goodrain.me/runner") {
 		var slugPath string
 		for _, e := range *envs {
 			if e.Name == "SLUG_PATH" {
@@ -564,8 +563,6 @@ func (p *PodTemplateSpecBuild) createVolumes(envs *[]v1.EnvVar) ([]v1.Volume, []
 				slugPath = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion)
 			}else {
 				slugPath=versionInfo.DeliveredPath
-				//logrus.Infof("------------use slug path %s from version info,accroding origin logic,it should be %s",versionInfo.DeliveredPath,fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion))
-				//slugPath = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion)
 			}
 		}
 		p.createVolumeObj(model.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", slugPath, true, &volumeMounts, &volumes)
