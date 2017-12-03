@@ -113,7 +113,7 @@ func (c *CloudAction) CertDispatcher(gt *api_model.GetUserToken) ([]byte, []byte
 	if err != nil {
 		return nil, nil, err
 	}
-	keyFile = keyFile.(rsa.PrivateKey)
+	//keyFile = keyFile.(rsa.PrivateKey)
 
 	validHourTime := (gt.Body.ValidityPeriod - gt.Body.BeforeTime)
 	cer := &x509.Certificate{
