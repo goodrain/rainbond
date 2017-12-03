@@ -19,9 +19,9 @@
 package cloud
 
 import (
-	"chi"
 	"os"
 
+	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/pkg/api/controller"
 	apimiddleware "github.com/goodrain/rainbond/pkg/api/middleware"
 )
