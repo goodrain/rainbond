@@ -16,23 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package cloud
+package model
 
-import (
-	"chi"
-	"os"
+//TableName 表名
+func (t *RegionUserInfo) TableName() string {
+	return "user_region_info"
+}
 
-	"github.com/goodrain/rainbond/pkg/api/controller"
-	apimiddleware "github.com/goodrain/rainbond/pkg/api/middleware"
-)
-
-//Routes routes
-func Routes() chi.Router {
-	r := chi.NewRouter()
-	if os.Getenv("TOKEN") != "" {
-		r.Use(apimiddleware.Token)
-	}
-	r.Get("/show", controller.GetCloudRouterManager().Show)
-	r.Post("/auth", controller.GetCloudRouterManager().GetToken)
-	return r
+//RegionUserInfo RegionUserInfo
+type RegionUserInfo struct {
+	Model
+	EID            string `gorm:"column:eid;size:34"`
+	Range          string `gorm:"column:range;size:24"`
+	RegionTag      string `gorm:"column:region_tag;size:24"`
+	ValidityPeriod int    `gorm:"column:validity_period;size:10"`
+	Token          string `gorm:"column:token;size:32"`
+	CA             string `gorm:"column:ca;size:1024"`
+	Key            string `gorm:"column:key;size:1024"`
 }
