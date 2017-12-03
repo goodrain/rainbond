@@ -68,7 +68,7 @@ func NewManager(c option.Config) *Manager {
 	r.Use(middleware.Timeout(time.Second * 5))
 	//simple authz
 	if os.Getenv("TOKEN") != "" {
-		r.Use(apimiddleware.Token)
+		r.Use(apimiddleware.FullToken)
 	}
 	//simple api version
 	r.Use(apimiddleware.APIVersion)

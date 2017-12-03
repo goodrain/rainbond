@@ -4,6 +4,10 @@
     "/cloud/auth": {
       "post": {
         "description": "get token",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
         "produces": [
           "application/json",
           "application/xml"
@@ -15,12 +19,8 @@
         "operationId": "getToken",
         "parameters": [
           {
-            "type": "string",
-            "format": "string",
-            "description": "license",
-            "name": "license",
-            "in": "form",
-            "required": true,
+            "name": "Body",
+            "in": "body",
             "schema": {
               "type": "object",
               "required": [
@@ -59,7 +59,12 @@
           }
         ],
         "responses": {
-          "200": {}
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
         }
       }
     },

@@ -53,19 +53,19 @@ func (c *CloudManager) Show(w http.ResponseWriter, r *http.Request) {
 // get token
 //
 // ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
 // produces:
 // - application/json
 // - application/xml
-// parameters:
-// - name: license
-//   in: form
-//   description: license
-//   required: true
-//   type: string
-//   format: string
 //
-// Responses:
-//   '200':
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (c *CloudManager) GetToken(w http.ResponseWriter, r *http.Request) {
 	var gt api_model.GetUserToken
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &gt, nil); !ok {

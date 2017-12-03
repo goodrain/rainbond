@@ -19,19 +19,13 @@
 package cloud
 
 import (
-	"os"
-
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/pkg/api/controller"
-	apimiddleware "github.com/goodrain/rainbond/pkg/api/middleware"
 )
 
 //Routes routes
 func Routes() chi.Router {
 	r := chi.NewRouter()
-	if os.Getenv("TOKEN") != "" {
-		r.Use(apimiddleware.Token)
-	}
 	r.Get("/show", controller.GetCloudRouterManager().Show)
 	r.Post("/auth", controller.GetCloudRouterManager().GetToken)
 	return r
