@@ -27,7 +27,7 @@ func (t *RegionUserInfo) TableName() string {
 type RegionUserInfo struct {
 	Model
 	EID            string `gorm:"column:eid;size:34"`
-	Range          string `gorm:"column:range;size:24"`
+	APIRange       string `gorm:"column:api_range;size:24"`
 	RegionTag      string `gorm:"column:region_tag;size:24"`
 	ValidityPeriod int    `gorm:"column:validity_period;size:10"`
 	Token          string `gorm:"column:token;size:32"`

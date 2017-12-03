@@ -50,7 +50,7 @@ func (t *TokenIdenAction) CheckToken(token, uri string) bool {
 	if regionInfo.ValidityPeriod < int(time.Now().Unix()) {
 		return false
 	}
-	switch regionInfo.Range {
+	switch regionInfo.APIRange {
 	case "source":
 		sm := GetDefaultSourceURI()
 		if _, ok := sm[uri]; ok {

@@ -69,8 +69,8 @@ func (t *RegionUserInfoDaoImpl) GetTokenByEid(eid string) (*model.RegionUserInfo
 //GetALLTokenInValidityPeriod GetALLTokenInValidityPeriod
 func (t *RegionUserInfoDaoImpl) GetALLTokenInValidityPeriod() ([]*model.RegionUserInfo, error) {
 	var ruis []*model.RegionUserInfo
-	timestamp := time.Now().Unix()
-	if err := t.DB.Select("range", "validity_period", "token").Where("validity_period > ?", timestamp).Find(&ruis).Error; err != nil {
+	timestamp := int(time.Now().Unix())
+	if err := t.DB.Select("api_range", "validity_period", "token").Where("validity_period > ?", timestamp).Find(&ruis).Error; err != nil {
 		return nil, err
 	}
 	return ruis, nil

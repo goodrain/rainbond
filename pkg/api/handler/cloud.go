@@ -88,7 +88,7 @@ CREATE:
 		Token:          token,
 	}
 	if gt.Body.Range == "" {
-		rui.Range = "source"
+		rui.APIRange = "source"
 	}
 	GetTokenIdenHandler().AddTokenIntoMap(rui)
 	rui.CA = string(ca)
