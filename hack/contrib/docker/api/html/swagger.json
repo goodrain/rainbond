@@ -1,6 +1,68 @@
 {
   "swagger": "2.0",
   "paths": {
+    "/cloud/auth": {
+      "post": {
+        "description": "get token",
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "cloud"
+        ],
+        "summary": "获取token",
+        "operationId": "getToken",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "license",
+            "name": "license",
+            "in": "form",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "eid",
+                "region_tag"
+              ],
+              "properties": {
+                "before_time": {
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "BeforeTime"
+                },
+                "eid": {
+                  "description": "eid\nin: body",
+                  "type": "string",
+                  "x-go-name": "EID"
+                },
+                "range": {
+                  "description": "可控范围\nin: body",
+                  "type": "string",
+                  "x-go-name": "Range"
+                },
+                "region_tag": {
+                  "description": "数据中心标识\nin: body",
+                  "type": "string",
+                  "x-go-name": "RegionTag"
+                },
+                "validity_period": {
+                  "description": "有效期\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "ValidityPeriod"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {}
+        }
+      }
+    },
     "/license": {
       "post": {
         "description": "post license \u0026 get token",
@@ -4094,6 +4156,61 @@
       }
     },
     "/v2/tenants/{tenant_name}/services/{service_alias}/ports": {
+      "put": {
+        "description": "update port",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "更新应用端口信息",
+        "operationId": "updatePort",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "Port": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/TenantServicesPort"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
       "post": {
         "description": "add port",
         "consumes": [

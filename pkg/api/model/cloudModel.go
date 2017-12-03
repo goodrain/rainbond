@@ -19,7 +19,7 @@
 package model
 
 //GetUserToken GetUserToken
-//swagger:parameters setDefineSource
+//swagger:parameters getToken
 type GetUserToken struct {
 	// in: body
 	Body struct {
