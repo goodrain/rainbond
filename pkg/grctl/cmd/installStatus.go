@@ -193,7 +193,7 @@ func NewCmdInstall() cli.Command {
 //	return c
 //}
 
-func Status(task string) {
+func Status(task string,nodes []string) {
 	taskE:=clients.NodeClient.Tasks().Get(task)
 	lastState:=""
 	checkFail:=0
@@ -208,48 +208,54 @@ func Status(task string) {
 			}
 			continue
 		}
-		for _,v:=range status.Status{
+		for k,v:=range status.Status{
+			for _,nid:=range nodes {
+				if k==nid {
 
-			if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
-				checkFail+=1
-				fmt.Errorf("error executing task %s",task)
-				taskE:=clients.NodeClient.Tasks().Get(task)
-				for _,v:=range taskE.Task.OutPut{
-					fmt.Printf("on %s :\n %s",v.NodeID,v.Body)
-				}
-				os.Exit(1)
-			}
-			if v.Status!="complete" {
-				if lastState!=v.Status{
-					fmt.Printf("task %s is %s\n",task,v.Status)
-				}else{
-					fmt.Print("..")
-				}
-				lastState=v.Status
-			}else {
-				fmt.Printf("task %s is %s %s\n",task,v.Status,v.CompleStatus)
-				lastState=v.Status
-				taskFinished:=clients.NodeClient.Tasks().Get(task)
-				var  nextTasks []string
-				for _,v:=range taskFinished.Task.OutPut{
-					for _,sv:=range v.Status{
-						if sv.NextTask == nil ||len(sv.NextTask)==0{
-							continue
+					if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
+						checkFail+=1
+						fmt.Errorf("error executing task %s",task)
+						taskE:=clients.NodeClient.Tasks().Get(task)
+						for _,v:=range taskE.Task.OutPut{
+							fmt.Printf("on %s :\n %s",v.NodeID,v.Body)
+						}
+						os.Exit(1)
+					}
+					if v.Status!="complete"&&v.CompleStatus!="Success" {
+						if lastState!=v.Status{
+							fmt.Printf("task %s is %s\n",task,v.Status)
 						}else{
-							for _,v:=range sv.NextTask{
-								nextTasks=append(nextTasks,v)
+							fmt.Print("..")
+						}
+						lastState=v.Status
+					}else {
+						fmt.Printf("task %s is %s %s\n",task,v.Status,v.CompleStatus)
+						lastState=v.Status
+						taskFinished:=clients.NodeClient.Tasks().Get(task)
+						var  nextTasks []string
+						for _,v:=range taskFinished.Task.OutPut{
+							for _,sv:=range v.Status{
+								if sv.NextTask == nil ||len(sv.NextTask)==0{
+									continue
+								}else{
+									for _,v:=range sv.NextTask{
+										nextTasks=append(nextTasks,v)
+									}
+								}
 							}
 						}
+						if len(nextTasks) > 0 {
+							fmt.Printf("next will install %v \n",nextTasks)
+							for _,v:=range nextTasks{
+								Status(v,nodes)
+							}
+						}
+						return
 					}
+
 				}
-				if len(nextTasks) > 0 {
-					fmt.Printf("next will install %v \n",nextTasks)
-					for _,v:=range nextTasks{
-						Status(v)
-					}
-				}
-				return
 			}
+
 		}
 		checkFail=0
 	}
@@ -268,7 +274,7 @@ func Task(c *cli.Context,task string,status bool) error   {
 		logrus.Errorf("error exec task:%s,details %s",task,err.Error())
 		return err
 	}
-	Status(task)
+	Status(task,nodes)
 
 	return nil
 }
