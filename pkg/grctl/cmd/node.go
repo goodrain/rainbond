@@ -51,6 +51,10 @@ func NewCmdNode() cli.Command {
 						logrus.Errorf("need args")
 						return nil
 					}
+
+					if(len(id) > 15){
+
+					}
 					n:=clients.NodeClient.Nodes().Get(id)
 					v:=n.Node
 					nodeByte,_:=json.Marshal(v)
