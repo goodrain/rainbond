@@ -26,15 +26,15 @@ type GetUserToken struct {
 		//eid
 		//in: body
 		//required: true
-		EID string `json:"eid" validate:"eid|between:30,33"`
+		EID string `json:"eid" validate:"eid|between:30,33|required"`
 		//可控范围
 		//in: body
 		//required: false
 		Range string `json:"range" validate:"range|in:source,node,all"`
 		//有效期
 		//in: body
-		//required: false
-		ValidityPeriod int `json:"validity_period" validate:"validity_period"` //20191120
+		//required: true
+		ValidityPeriod int `json:"validity_period" validate:"validity_period|required"` //20191120
 		//数据中心标识
 		//in: body
 		//required: true
