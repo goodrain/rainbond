@@ -417,7 +417,7 @@ class RepoBuilder():
             "path": package_name,
             "event_id": self.event_id
         }
-        self.region_client.update_version_region(json.dumps(version_body))
+        #self.region_client.update_version_region(json.dumps(version_body))
         return True
 
     def feedback(self):
