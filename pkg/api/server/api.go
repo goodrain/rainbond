@@ -30,7 +30,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/api/apiRouters/doc"
 	"github.com/goodrain/rainbond/pkg/api/apiRouters/license"
 
-	//"github.com/goodrain/rainbond/pkg/api/apiRouters/cloud"
+	"github.com/goodrain/rainbond/pkg/api/apiRouters/cloud"
 	"github.com/goodrain/rainbond/pkg/api/apiRouters/version2"
 	"github.com/goodrain/rainbond/pkg/api/apiRouters/websocket"
 
@@ -68,7 +68,7 @@ func NewManager(c option.Config) *Manager {
 	r.Use(middleware.Timeout(time.Second * 5))
 	//simple authz
 	if os.Getenv("TOKEN") != "" {
-		r.Use(apimiddleware.Token)
+		r.Use(apimiddleware.FullToken)
 	}
 	//simple api version
 	r.Use(apimiddleware.APIVersion)
@@ -113,7 +113,7 @@ func (m *Manager) Run() {
 
 	v2R := &version2.V2{}
 	m.r.Mount("/v2", v2R.Routes())
-	//m.r.Mount("/cloud", cloud.Routes())
+	m.r.Mount("/cloud", cloud.Routes())
 	m.r.Mount("/", doc.Routes())
 	m.r.Mount("/license", license.Routes())
 	//兼容老版docker

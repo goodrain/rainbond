@@ -89,6 +89,9 @@ type Manager interface {
 
 	VersionInfoDao() dao.VersionInfoDao
 	VersionInfoDaoTransactions(db *gorm.DB) dao.VersionInfoDao
+
+	RegionUserInfoDao() dao.RegionUserInfoDao
+	RegionUserInfoDaoTransactions(db *gorm.DB) dao.RegionUserInfoDao
 }
 
 var defaultManager Manager

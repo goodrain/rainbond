@@ -129,6 +129,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.ServiceEvent{})
 	m.models = append(m.models, &model.VersionInfo{})
 	m.models = append(m.models, &model.TenantServicesStreamPluginPort{})
+	m.models = append(m.models, &model.RegionUserInfo{})
 }
 
 //CheckTable 检测表结构

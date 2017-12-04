@@ -411,3 +411,17 @@ func (m *Manager) LocalSchedulerDao() dao.LocalSchedulerDao {
 		DB: m.db,
 	}
 }
+
+//RegionUserInfoDao RegionUserInfoDao
+func (m *Manager) RegionUserInfoDao() dao.RegionUserInfoDao {
+	return &mysqldao.RegionUserInfoDaoImpl{
+		DB: m.db,
+	}
+}
+
+//RegionUserInfoDaoTransactions RegionUserInfoDaoTransactions
+func (m *Manager) RegionUserInfoDaoTransactions(db *gorm.DB) dao.RegionUserInfoDao {
+	return &mysqldao.RegionUserInfoDaoImpl{
+		DB: db,
+	}
+}

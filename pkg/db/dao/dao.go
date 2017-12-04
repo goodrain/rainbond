@@ -304,3 +304,10 @@ type VersionInfoDao interface {
 	GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error)
 	DeleteVersionByEventID(eventID string) error
 }
+
+//RegionUserInfoDao UserRegionInfoDao
+type RegionUserInfoDao interface {
+	Dao
+	GetALLTokenInValidityPeriod() ([]*model.RegionUserInfo, error)
+	GetTokenByEid(eid string) (*model.RegionUserInfo, error)
+}

@@ -786,6 +786,9 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 		tx := db.GetManager().Begin()
 		for _, vp := range vps.Port {
 			//port更新单个请求
+			if oldPort == 0 {
+				oldPort = vp.ContainerPort
+			}
 			vpD, err := db.GetManager().TenantServicesPortDao().GetPort(serviceID, oldPort)
 			if err != nil {
 				return err
@@ -798,9 +801,6 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 			vpD.MappingPort = vp.MappingPort
 			vpD.Protocol = vp.Protocol
 			vpD.PortAlias = vp.PortAlias
-			if oldPort == 0 {
-				oldPort = vp.ContainerPort
-			}
 			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(vpD); err != nil {
 				logrus.Errorf("update port var error, %v", err)
 				tx.Rollback()

@@ -16,17 +16,35 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package cloud
+package handler
 
 import (
-	"github.com/go-chi/chi"
-	"github.com/goodrain/rainbond/pkg/api/controller"
+	"github.com/goodrain/rainbond/cmd/api/option"
+	api_model "github.com/goodrain/rainbond/pkg/api/model"
+	"github.com/goodrain/rainbond/pkg/api/util"
 )
 
-//Routes routes
-func Routes() chi.Router {
-	r := chi.NewRouter()
-	r.Get("/show", controller.GetCloudRouterManager().Show)
-	r.Post("/auth", controller.GetCloudRouterManager().GetToken)
-	return r
+//CloudHandler define source handler
+type CloudHandler interface {
+	TokenDispatcher(gt *api_model.GetUserToken) (*api_model.TokenInfo, *util.APIHandleError)
+}
+
+var defaultCloudHandler CloudHandler
+
+//CreateCloudHandler create define sources handler
+func CreateCloudHandler(conf option.Config) error {
+	var err error
+	if defaultCloudHandler != nil {
+		return nil
+	}
+	defaultCloudHandler, err = CreateCloudManager(conf)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+//GetCloudManager get manager
+func GetCloudManager() CloudHandler {
+	return defaultCloudHandler
 }
