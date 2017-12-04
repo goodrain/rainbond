@@ -256,7 +256,11 @@ func (e *exectorManager) appBuild(in []byte) {
 }
 func updateBuildResult(eventID,finalStatus,dest string)  {
 	if dest == ""||!strings.Contains(dest,"y") {
-		v,_:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+		v,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+		if err != nil {
+			logrus.Errorf("error get version by eventID %s  from db,details %s",eventID,err.Error())
+			return
+		}
 		v.FinalStatus=finalStatus
 		db.GetManager().VersionInfoDao().UpdateModel(v)
 	}
