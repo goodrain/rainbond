@@ -467,14 +467,14 @@ class RepoBuilder():
                 success = build_func()
                 if success:
                     # self.log.info("构建完成。", step="build-worker")
-                    self.log.info("构建完成。", step="build-worker",status="success")
+                    self.log.info("构建完成。", step="build-worker", status="success")
 
                     ok = self.feedback()
                     if not ok:
                         self.log.error(
                             "升级部署应用错误", step="callback", status="failure")
                 else:
-                    self.log.info("构建失败。", step="callback", status="failure")
+                    self.log.info("构建失败,请查看Debug构建日志", step="callback", status="failure")
             else:
                 self.log.error("代码拉取失败。", step="callback", status="failure")
         except Exception as e:
