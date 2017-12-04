@@ -31,6 +31,6 @@ type RegionUserInfo struct {
 	RegionTag      string `gorm:"column:region_tag;size:24"`
 	ValidityPeriod int    `gorm:"column:validity_period;size:10"`
 	Token          string `gorm:"column:token;size:32"`
-	CA             string `gorm:"column:ca;size:1024"`
-	Key            string `gorm:"column:key;size:1024"`
+	CA             string `gorm:"column:ca;size:4096"`
+	Key            string `gorm:"column:key;size:4096"`
 }

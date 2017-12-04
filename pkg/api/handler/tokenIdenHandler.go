@@ -59,12 +59,13 @@ func createDefaultSourceURI() {
 	if defaultSourceURI != nil {
 		return
 	}
-	defaultSourceURI := make(map[string]int)
-	defaultSourceURI["nodes"] = 1
-	defaultSourceURI["tasks"] = 1
-	defaultSourceURI["tasktemps"] = 1
-	defaultSourceURI["taskgroups"] = 1
-	defaultSourceURI["configs"] = 1
+	SourceURI := make(map[string]int)
+	SourceURI["nodes"] = 1
+	SourceURI["tasks"] = 1
+	SourceURI["tasktemps"] = 1
+	SourceURI["taskgroups"] = 1
+	SourceURI["configs"] = 1
+	defaultSourceURI = SourceURI
 	return
 }
 
