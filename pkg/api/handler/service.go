@@ -644,6 +644,13 @@ func (s *ServiceAction) ShareCloud(c *api_model.CloudShareStruct) error {
 		bs.TaskBody = bodyJ
 		bs.TaskType = "app_slug"
 	case "app_image":
+		if c.Body.Image.ServiceID != "" {
+			service, err := db.GetManager().TenantServiceDao().GetServiceByID(c.Body.Image.ServiceID)
+			if err != nil {
+				return err
+			}
+			c.Body.Image.Image = service.ImageName
+		}
 		bodyJ, err := ffjson.Marshal(&c.Body.Image)
 		if err != nil {
 			return err

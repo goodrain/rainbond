@@ -25,6 +25,7 @@
               "type": "object",
               "required": [
                 "eid",
+                "validity_period",
                 "region_tag"
               ],
               "properties": {
@@ -6130,6 +6131,10 @@
         "is_outer": {
           "type": "boolean",
           "x-go-name": "IsOuter"
+        },
+        "service_id": {
+          "type": "string",
+          "x-go-name": "ServiceID"
         },
         "service_key": {
           "type": "string",
