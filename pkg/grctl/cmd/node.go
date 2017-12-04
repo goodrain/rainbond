@@ -44,11 +44,11 @@ func NewCmdNode() cli.Command {
 		Subcommands:[]cli.Command{
 			{
 				Name:  "get",
-				Usage: "get hostID",
+				Usage: "get hostID/internal ip",
 				Action: func(c *cli.Context) error {
 					id:=c.Args().First()
 					if id == "" {
-						logrus.Errorf("need hostID")
+						logrus.Errorf("need args")
 						return nil
 					}
 					n:=clients.NodeClient.Nodes().Get(id)
@@ -274,13 +274,15 @@ func NewCmdNode() cli.Command {
 									}
 									if (v.Alived) {
 										fmt.Printf("节点 %s 初始化成功",v.ID)
+										fmt.Println()
+										tableC.AddHeaders(header)
+										tableC.AddRow(content)
+										fmt.Println(tableC.Render())
 										return nil
 									}else{
-										fmt.Println("节点 %s 初始化中",v.ID)
+										fmt.Printf("..")
 									}
-									tableC.AddHeaders(header)
-									tableC.AddRow(content)
-									fmt.Println(tableC.Render())
+
 
 									//todo  初始化其它节点失败判定
 								}
