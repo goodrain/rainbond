@@ -282,6 +282,7 @@ func (t *TaskEngine) getTaskFromKV(kv *mvccpb.KeyValue) *model.Task {
 	task.Status = make(map[string]model.TaskStatus)
 	task.Scheduler.Status = make(map[string]model.SchedulerStatus)
 	output:=[]*model.TaskOutPut{}
+	logrus.Infof("task %s can execute in node %v",task.ID,task.Nodes)
 	for _, n := range task.Nodes {
 		logrus.Infof("task in node:%s",n)
 		var taskState model.TaskStatus
@@ -319,8 +320,8 @@ func (t *TaskEngine) getTaskFromKV(kv *mvccpb.KeyValue) *model.Task {
 			}
 			output=append(output,&taskOutput)
 		}
-		logrus.Infof("adding task state %v to node %s",taskState,n)
-		logrus.Infof("adding task scheduler status %v to node %s",schedulerState,n)
+		logrus.Infof("====adding task state %v to node %s",taskState,n)
+		logrus.Infof("======adding task scheduler status %v to node %s",schedulerState,n)
 		task.Status[n] = taskState
 		task.Scheduler.Status[n] = schedulerState
 	}
@@ -440,7 +441,7 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 	task.Scheduler.Status=make(map[string]model.SchedulerStatus)
 	OutPut:=[]*model.TaskOutPut{}
 	task.OutPut=OutPut
-
+	logrus.Infof("task %s can execute in node %v",task.ID,task.Nodes)
 	for _, n := range task.Nodes {
 		var taskState model.TaskStatus
 		var taskOutPut model.TaskOutPut
@@ -454,6 +455,7 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 
 			err=ffjson.Unmarshal(statusRes.Kvs[0].Value,&taskState)
 			if err != nil {
+				logrus.Errorf("error get part status from etcd ,details %s",err.Error())
 				return nil
 			}
 		}
@@ -465,6 +467,7 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 		if outputRes.Count == 1 {
 			err=ffjson.Unmarshal(outputRes.Kvs[0].Value,&taskOutPut)
 			if err != nil {
+				logrus.Errorf("error get part output from etcd ,details %s",err.Error())
 				return nil
 			}
 		}
@@ -476,11 +479,14 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 		if schedulerRes.Count == 1 {
 			err=ffjson.Unmarshal(schedulerRes.Kvs[0].Value,&taskSchedulerStatus)
 			if err != nil {
+				logrus.Errorf("error get part scheduler from etcd ,details %s",err.Error())
 				return nil
 			}
 		}
 		task.Status[n] = taskState
 		task.Scheduler.Status[n] = taskSchedulerStatus
+		logrus.Infof("====adding task state %v to node %s",taskState,n)
+		logrus.Infof("======adding task scheduler status %v to node %s",taskSchedulerStatus,n)
 		OutPut=append(OutPut,&taskOutPut)
 	}
 	task.OutPut=OutPut
