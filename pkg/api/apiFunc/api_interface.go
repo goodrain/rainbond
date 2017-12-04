@@ -46,6 +46,7 @@ type ServiceInterface interface {
 	Dependency(w http.ResponseWriter, r *http.Request)
 	Env(w http.ResponseWriter, r *http.Request)
 	Ports(w http.ResponseWriter, r *http.Request)
+	PutPorts(w http.ResponseWriter, r *http.Request)
 	PortOuterController(w http.ResponseWriter, r *http.Request)
 	PortInnerController(w http.ResponseWriter, r *http.Request)
 	RollBack(w http.ResponseWriter, r *http.Request)

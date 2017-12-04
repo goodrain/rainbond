@@ -72,6 +72,7 @@ func (s *DeploymentBuild) Build() (*v1beta1.Deployment, error) {
 	deploymentSpec.Replicas = int32Ptr(s.service.Replicas)
 	deploymentSpec.Selector = metav1.SetAsLabelSelector(map[string]string{
 		"name":    s.service.ServiceAlias,
+		//todo
 		"version": s.service.DeployVersion,
 	})
 	deployment := &v1beta1.Deployment{
@@ -82,6 +83,7 @@ func (s *DeploymentBuild) Build() (*v1beta1.Deployment, error) {
 	deployment.GenerateName = s.service.ServiceAlias
 	deployment.Labels = map[string]string{
 		"name":    s.service.ServiceAlias,
+		//todo
 		"version": s.service.DeployVersion,
 	}
 	deployment.Kind = "Deployment"

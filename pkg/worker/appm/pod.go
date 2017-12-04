@@ -300,9 +300,16 @@ func (p *PodTemplateSpecBuild) createContainer(volumeMounts []v1.VolumeMount, en
 	if containerName == "" {
 		containerName = p.serviceID
 	}
+	//todo
+	versionInfo,err:=p.dbmanager.VersionInfoDao().GetVersionByEventID(p.eventID)
+	if err != nil {
+		logrus.Infof("error get version info by eventID %s,details %s",p.eventID,err.Error())
+	}
+	//logrus.Infof("--------get version info image name is %s,accroding origin logic,it should be %s",versionInfo.ImageName,p.service.ImageName)
+	//p.service.ID
 	c1 := v1.Container{
 		Name:                   containerName,
-		Image:                  p.service.ImageName,
+		Image:                  versionInfo.ImageName,
 		Env:                    *envs,
 		Ports:                  p.createPorts(),
 		Resources:              p.createResources(),
@@ -537,7 +544,8 @@ func (p *PodTemplateSpecBuild) createVolumes(envs *[]v1.EnvVar) ([]v1.Volume, []
 		}
 	}
 	//处理slug挂载
-	if strings.HasPrefix(p.service.ImageName, "goodrain.me/runner") {
+	deployVersion,err:=p.dbmanager.VersionInfoDao().GetVersionByDeployVersion(p.service.DeployVersion)
+	if strings.HasPrefix(deployVersion.ImageName, "goodrain.me/runner") {
 		var slugPath string
 		for _, e := range *envs {
 			if e.Name == "SLUG_PATH" {
@@ -548,7 +556,14 @@ func (p *PodTemplateSpecBuild) createVolumes(envs *[]v1.EnvVar) ([]v1.Volume, []
 		if slugPath != "" {
 			slugPath = "/grdata/build/tenant/" + slugPath
 		} else {
-			slugPath = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion)
+
+			versionInfo,err:=p.dbmanager.VersionInfoDao().GetVersionByDeployVersion(p.service.DeployVersion)
+			if err != nil {
+				logrus.Warnf("error get slug path from versioninfo table by key %s,prepare use path",p.service.DeployVersion)
+				slugPath = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion)
+			}else {
+				slugPath=versionInfo.DeliveredPath
+			}
 		}
 		p.createVolumeObj(model.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", slugPath, true, &volumeMounts, &volumes)
 	}

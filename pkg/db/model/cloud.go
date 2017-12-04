@@ -16,37 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package server
+package model
 
-import (
-	"os"
-	"sort"
-	"github.com/urfave/cli"
-	"github.com/goodrain/rainbond/pkg/grctl/cmd"
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/pkg/grctl/clients"
-	"github.com/goodrain/rainbond/cmd/grctl/option"
-)
+//TableName 表名
+func (t *RegionUserInfo) TableName() string {
+	return "user_region_info"
+}
 
-//var App *cli.App=cli.NewApp()
-var App *cli.App
-func Run() error {
-
-	App=cli.NewApp()
-	App.Version=option.Version
-	App.Flags = []cli.Flag {
-		cli.StringFlag{
-			Name: "config, c",
-			Value: "/etc/goodrain/grctl.json",
-			Usage: "Load configuration from `FILE`",
-		},
-	}
-	sort.Sort(cli.FlagsByName(App.Flags))
-	sort.Sort(cli.CommandsByName(App.Commands))
-	App.Commands=cmd.GetCmds()
-	if err := clients.InitNodeClient("http://127.0.0.1:6100/v2"); err != nil {
-		logrus.Warnf("error config region")
-	}
-
-	return App.Run(os.Args)
+//RegionUserInfo RegionUserInfo
+type RegionUserInfo struct {
+	Model
+	EID            string `gorm:"column:eid;size:34"`
+	APIRange       string `gorm:"column:api_range;size:24"`
+	RegionTag      string `gorm:"column:region_tag;size:24"`
+	ValidityPeriod int    `gorm:"column:validity_period;size:10"`
+	Token          string `gorm:"column:token;size:32"`
+	CA             string `gorm:"column:ca;size:4096"`
+	Key            string `gorm:"column:key;size:4096"`
 }

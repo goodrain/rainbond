@@ -166,14 +166,18 @@ func (t *TenantServicesStreamPluginPort) TableName() string {
 
 //Plugin model 插件标签
 
+//TODO: 插件类型名规定
+//@ 1. 插件大类  xxx-plugin
+//@ 2. 大类细分  冒号+细分 xxx-plugin:up  or  xxx-plugin:down
+
 //InitPlugin 初始化插件
 var InitPlugin = "init-plugin"
 
 //UpNetPlugin 上游网络插件
-var UpNetPlugin = "upnet-plugin"
+var UpNetPlugin = "net-plugin:up"
 
 //DownNetPlugin 下游网络插件
-var DownNetPlugin = "downnet-plugin"
+var DownNetPlugin = "net-plugin:down"
 
 //GeneralPlugin 一般插件,默认分类,优先级最低
 var GeneralPlugin = "general-plugin"

@@ -786,6 +786,9 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 		tx := db.GetManager().Begin()
 		for _, vp := range vps.Port {
 			//port更新单个请求
+			if oldPort == 0 {
+				oldPort = vp.ContainerPort
+			}
 			vpD, err := db.GetManager().TenantServicesPortDao().GetPort(serviceID, oldPort)
 			if err != nil {
 				return err
@@ -1641,6 +1644,21 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 	if err != nil {
 		tx.Rollback()
 		return util.CreateAPIHandleErrorFromDBError("get plugin by plugin id", err)
+	}
+
+	catePlugin := strings.Split(plugin.PluginModel, ":")[0]
+	//TODO:检查是否存在该大类插件
+	crt, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelLikePluginByServiceID(
+		serviceID,
+		catePlugin,
+	)
+	if err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleErrorFromDBError("check plugin model", err)
+	}
+	if crt {
+		tx.Rollback()
+		return util.CreateAPIHandleError(400, fmt.Errorf("can not add this kind plugin, a same kind plugin has been linked"))
 	}
 	if plugin.PluginModel == dbmodel.UpNetPlugin {
 		ports, err := db.GetManager().TenantServicesPortDao().GetPortsByServiceID(serviceID)

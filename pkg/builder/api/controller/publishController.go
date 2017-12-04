@@ -26,7 +26,6 @@ import (
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 	"github.com/go-chi/chi"
 	"strings"
-	"github.com/bitly/go-simplejson"
 	"io/ioutil"
 	"encoding/json"
 )
@@ -40,73 +39,6 @@ func GetAppPublish(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, appp)
 }
-func GetVersionByEventID(w http.ResponseWriter, r *http.Request) {
-	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
-
-	version,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
-	if err != nil {
-		httputil.ReturnError(r,w,404,err.Error())
-	}
-	httputil.ReturnSuccess(r, w, version)
-}
-func GetVersionByServiceID(w http.ResponseWriter, r *http.Request) {
-	serviceID := strings.TrimSpace(chi.URLParam(r, "serviceID"))
-
-	versions,err:=db.GetManager().VersionInfoDao().GetVersionByServiceID(serviceID)
-	if err != nil {
-		httputil.ReturnError(r,w,404,err.Error())
-	}
-	httputil.ReturnSuccess(r, w, versions)
-}
-func DeleteVersionByEventID(w http.ResponseWriter, r *http.Request) {
-	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
-
-	//tx := db.GetManager().Begin()
-	versionInfo,err:=db.GetManager().VersionInfoDao().GetVersionByEventID("")
-	if(versionInfo.DeliveredType==""||versionInfo.DeliveredPath==""){
-
-	}
-	if versionInfo.DeliveredType=="code" {
-		//fileToDelete:=versionInfo.DeliveredPath
-
-	}
-	err=db.GetManager().VersionInfoDao().DeleteVersionByEventID(eventID)
-	//todo delete storage of image of slug
-	if err != nil {
-		httputil.ReturnError(r,w,404,err.Error())
-		return
-	}
-	httputil.ReturnSuccess(r, w, nil)
-}
-func UpdateDeliveredPath(w http.ResponseWriter, r *http.Request) {
-	in,err:=ioutil.ReadAll(r.Body)
-	if err != nil {
-		httputil.ReturnError(r,w,400,err.Error())
-		return
-	}
-	jsonc,err:=simplejson.NewJson(in)
-	event,_:=jsonc.Get("event_id").String()
-	dt,_:=jsonc.Get("type").String()
-	dp,_:=jsonc.Get("path").String()
-
-	version,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(event)
-	if err != nil {
-		httputil.ReturnError(r,w,404,err.Error())
-		return
-	}
-
-	version.DeliveredType=dt
-	version.DeliveredPath=dp
-	err=db.GetManager().VersionInfoDao().UpdateModel(version)
-	if err != nil {
-		httputil.ReturnError(r,w,500,err.Error())
-		return
-	}
-	httputil.ReturnSuccess(r, w, nil)
-	return
-}
-
-
 
 
 func AddAppPublish(w http.ResponseWriter, r *http.Request) {

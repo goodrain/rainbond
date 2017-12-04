@@ -209,6 +209,16 @@ func Status(task string) {
 			continue
 		}
 		for _,v:=range status.Status{
+
+			if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
+				checkFail+=1
+				fmt.Errorf("error executing task %s",task)
+				taskE:=clients.NodeClient.Tasks().Get(task)
+				for _,v:=range taskE.Task.OutPut{
+					fmt.Printf("on %s :\n %s",v.NodeID,v.Body)
+				}
+				os.Exit(1)
+			}
 			if v.Status!="complete" {
 				if lastState!=v.Status{
 					fmt.Printf("task %s is %s\n",task,v.Status)
@@ -216,16 +226,6 @@ func Status(task string) {
 					fmt.Print("..")
 				}
 				lastState=v.Status
-
-				if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
-					checkFail+=1
-					fmt.Errorf("error executing task %s",task)
-					taskE:=clients.NodeClient.Tasks().Get(task)
-					for _,v:=range taskE.Task.OutPut{
-						fmt.Println("on %s :\n %s",v.NodeID,v.Body)
-					}
-					os.Exit(1)
-				}
 			}else {
 				fmt.Printf("task %s is %s %s\n",task,v.Status,v.CompleStatus)
 				lastState=v.Status
