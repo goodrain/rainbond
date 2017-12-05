@@ -63,6 +63,8 @@ func (n *NodeService) AddNode(node *model.APIHostNode) *utils.APIHandleError {
 	}
 	rbnode := node.Clone()
 	rbnode.CreateTime = time.Now()
+	rbnode.Status="create"
+
 	rbnode.Conditions = make([]model.NodeCondition, 0)
 	if _, err := rbnode.Update(); err != nil {
 		return utils.CreateAPIHandleErrorFromDBError("save node", err)
