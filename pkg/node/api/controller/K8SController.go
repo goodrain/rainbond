@@ -23,7 +23,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
-	httputil "github.com/goodrain/rainbond/pkg/util/http"
+	//httputil "github.com/goodrain/rainbond/pkg/util/http"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -48,7 +48,7 @@ import (
 	"bytes"
 
 	"github.com/goodrain/rainbond/pkg/util"
-	"github.com/goodrain/rainbond/pkg/db"
+	//"github.com/goodrain/rainbond/pkg/db"
 )
 
 func LoginCompute(w http.ResponseWriter, r *http.Request) {
@@ -572,11 +572,8 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-	tenants,error:=db.GetManager().TenantDao().GetALLTenants()
-	if error != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("sum tenants error, %v", err))
-		return
-	}
+
+
 	var capCpu int64
 	var capMem int64
 	for _,v:=range nodes{
@@ -587,9 +584,9 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nodeList, error := k8s.K8S.Core().Nodes().List(metav1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("error get nodes from k8s ,details %s", err.Error())
-		api.ReturnError(r, w, 500, "failed,details "+err.Error())
+	if error != nil {
+		logrus.Errorf("error get nodes from k8s ,details %s", error.Error())
+		api.ReturnError(r, w, 500, "failed,details "+error.Error())
 		return
 	}
 
@@ -613,7 +610,7 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 	result.ReqCpu = cpuR
 	result.ReqMem = memR
 	result.Node=len(nodes)
-	result.Tenant=len(tenants)
+	//result.Tenant=len(tenants)
 	logrus.Infof("get cpu %v and mem %v", capCpu, capMem)
 	api.ReturnSuccess(r, w, result)
 }
