@@ -37,7 +37,7 @@ type ClusterResource struct {
 	Tenant int `json:"tenant"`
 	CapCpu int `json:"cap_cpu"`
 	CapMem int `json:"cap_mem"`
-	ReqCpu int `json:"req_cpu"`
+	ReqCpu float32 `json:"req_cpu"`
 	ReqMem int `json:"req_mem"`
 }
 

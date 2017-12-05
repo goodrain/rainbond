@@ -510,7 +510,6 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	version.RepoURL = build.Body.RepoURL
 	version.Kind = build.Body.Kind
 	version.BuildVersion = build.Body.DeployVersion
-	db.GetManager().VersionInfoDao().AddModel(&version)
 
 
 	build.Body.EventID = sEvent.EventID
@@ -520,7 +519,14 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logrus.Debugf("equeue mq build task success")
+
+	err=db.GetManager().VersionInfoDao().AddModel(&version)
+
+	if err != nil {
+		logrus.Infof("error add version %v ,details %s",version,err.Error())
+	}
 	httputil.ReturnSuccess(r, w, sEvent)
+	//w.WriteHeader(200)
 }
 
 //BuildList BuildList

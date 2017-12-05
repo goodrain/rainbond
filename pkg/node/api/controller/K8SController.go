@@ -48,7 +48,6 @@ import (
 	"bytes"
 
 	"github.com/goodrain/rainbond/pkg/util"
-	//"github.com/goodrain/rainbond/pkg/db"
 )
 
 func LoginCompute(w http.ResponseWriter, r *http.Request) {
@@ -582,7 +581,12 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 			capMem+=v.NodeStatus.Capacity.Memory().Value()
 		}
 	}
-
+	//
+	//tenants, error := db.GetManager().TenantDao().GetALLTenants()
+	//if error != nil {
+	//	logrus.Errorf("error get tenants ,details %s",error.Error())
+	//}
+	//s:=len(tenants)
 	nodeList, error := k8s.K8S.Core().Nodes().List(metav1.ListOptions{})
 	if error != nil {
 		logrus.Errorf("error get nodes from k8s ,details %s", error.Error())
@@ -606,11 +610,11 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 
 	result := new(model.ClusterResource)
 	result.CapCpu=int(capCpu)
-	result.CapMem=int(capMem)
-	result.ReqCpu = cpuR
+	result.CapMem=int(capMem)/1024/1024
+	result.ReqCpu = float32(cpuR)/1000
 	result.ReqMem = memR
 	result.Node=len(nodes)
-	//result.Tenant=len(tenants)
+	result.Tenant=0
 	logrus.Infof("get cpu %v and mem %v", capCpu, capMem)
 	api.ReturnSuccess(r, w, result)
 }
