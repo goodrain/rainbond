@@ -54,7 +54,9 @@ func Routers(mode string) *chi.Mux {
 				r.Put("/datacenter", controller.PutDatacenterConfig)
 			})
 			r.Route("/nodes", func(r chi.Router) {
+
 				r.Get("/resources", controller.Resources)
+				r.Get("/capres", controller.CapRes)
 				r.Get("/", controller.GetNodes)
 				r.Get("/{rule}", controller.GetRuleNodes)
 				r.Post("/", controller.NewNode)                       //增加一个节点

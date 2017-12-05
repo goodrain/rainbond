@@ -543,7 +543,27 @@ func Resources(w http.ResponseWriter, r *http.Request) {
 	logrus.Infof("get cpu %v and mem %v", cpuR, memR)
 	api.ReturnSuccess(r, w, result)
 }
+func CapRes(w http.ResponseWriter, r *http.Request) {
+	nodes, err := nodeService.GetAllNode()
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	var capCpu int64
+	var capMem int64
+	for _,v:=range nodes{
+		if v.NodeStatus != nil {
+			capCpu+=v.NodeStatus.Capacity.Cpu().Value()
+			capMem+=v.NodeStatus.Capacity.Memory().Value()
+		}
+	}
 
+	result := new(model.Resource)
+	result.CpuR=int(capCpu)
+	result.MemR=int(capMem)
+	logrus.Infof("get cpu %v and mem %v", capCpu, capMem)
+	api.ReturnSuccess(r, w, result)
+}
 func UpdateNode(w http.ResponseWriter, r *http.Request) {
 
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
