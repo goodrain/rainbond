@@ -857,7 +857,7 @@ type PublicShare struct {
 	ShareID    string `json:"share_id" validate:"share_id"`
 	EventID    string `json:"event_id" validate:"event_id"`
 	Dest       string `json:"dest" validate:"dest|in:yb,ys"`
-	ServiceID  string `json:"service_id" validate:"app_version"`
+	ServiceID  string `json:"service_id" validate:"service_id"`
 }
 
 //SlugShare Slug 类型
