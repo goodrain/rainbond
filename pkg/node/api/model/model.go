@@ -31,6 +31,16 @@ type Resource struct {
 	MemR int `json:"mem"`
 }
 
+//Resource 资源
+type ClusterResource struct {
+	Node int `json:"node"`
+	Tenant int `json:"tenant"`
+	CapCpu int `json:"cap_cpu"`
+	CapMem int `json:"cap_mem"`
+	ReqCpu int `json:"req_cpu"`
+	ReqMem int `json:"req_mem"`
+}
+
 type FirstConfig struct {
 	StorageMode     string `json:"storage_mode"`
 	StorageHost     string `json:"storage_host,omitempty"`
