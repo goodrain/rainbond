@@ -41,7 +41,7 @@ func (c *AppPublishDaoImpl) AddModel(mo model.Interface) error {
 	}else {
 
 		oldResult.Status=result.Status
-		if err := c.DB.Save(oldResult).Error; err != nil {
+		if err := c.DB.Save(&oldResult).Error; err != nil {
 			return err
 		}
 		return nil
