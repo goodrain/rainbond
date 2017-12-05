@@ -52,9 +52,14 @@ func NewCmdNode() cli.Command {
 						return nil
 					}
 
-					if(len(id) > 15){
-
+					nodes:=clients.NodeClient.Nodes().List()
+					for _,v:=range nodes{
+						if v.InternalIP==id{
+							id=v.ID
+							break
+						}
 					}
+
 					n:=clients.NodeClient.Nodes().Get(id)
 					v:=n.Node
 					nodeByte,_:=json.Marshal(v)
