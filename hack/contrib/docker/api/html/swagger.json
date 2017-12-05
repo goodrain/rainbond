@@ -6131,6 +6131,10 @@
           "type": "boolean",
           "x-go-name": "IsOuter"
         },
+        "service_id": {
+          "type": "string",
+          "x-go-name": "ServiceID"
+        },
         "service_key": {
           "type": "string",
           "x-go-name": "ServiceKey"
