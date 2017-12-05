@@ -54,6 +54,7 @@ func Routers(mode string) *chi.Mux {
 				r.Put("/datacenter", controller.PutDatacenterConfig)
 			})
 			r.Route("/nodes", func(r chi.Router) {
+
 				r.Get("/resources", controller.Resources)
 				r.Get("/", controller.GetNodes)
 				r.Get("/{rule}", controller.GetRuleNodes)
