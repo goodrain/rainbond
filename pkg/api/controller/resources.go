@@ -41,7 +41,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"sort"
-	"github.com/renstrom/fuzzysearch/fuzzy"
+	"github.com/renstorm/fuzzysearch/fuzzy"
 )
 
 //V2Routes v2Routes
