@@ -209,7 +209,6 @@ func Status(task string) {
 			continue
 		}
 		for _,v:=range status.Status{
-
 			if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
 				checkFail+=1
 				fmt.Errorf("error executing task %s",task)
@@ -219,7 +218,7 @@ func Status(task string) {
 				}
 				os.Exit(1)
 			}
-			if v.Status!="complete" {
+			if v.Status!="complete"&&v.CompleStatus!="Success" {
 				if lastState!=v.Status{
 					fmt.Printf("task %s is %s\n",task,v.Status)
 				}else{

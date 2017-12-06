@@ -44,13 +44,22 @@ func NewCmdNode() cli.Command {
 		Subcommands:[]cli.Command{
 			{
 				Name:  "get",
-				Usage: "get hostID",
+				Usage: "get hostID/internal ip",
 				Action: func(c *cli.Context) error {
 					id:=c.Args().First()
 					if id == "" {
-						logrus.Errorf("need hostID")
+						logrus.Errorf("need args")
 						return nil
 					}
+
+					nodes:=clients.NodeClient.Nodes().List()
+					for _,v:=range nodes{
+						if v.InternalIP==id{
+							id=v.ID
+							break
+						}
+					}
+
 					n:=clients.NodeClient.Nodes().Get(id)
 					v:=n.Node
 					nodeByte,_:=json.Marshal(v)
@@ -70,15 +79,14 @@ func NewCmdNode() cli.Command {
 				Action: func(c *cli.Context) error {
 					list:=clients.NodeClient.Nodes().List()
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("uid", "IP", "HostName","role","alived","unschedulable","ready")
+					serviceTable.AddHeaders("uid", "IP", "HostName","role","alived","schedulable","ready")
 					var rest []*model.HostNode
 					for _,v:=range list{
 						var ready bool=false
-						for _,c:=range v.Conditions {
-							if string(c.Type)=="Ready"&&string(c.Status)=="True"{
-								ready=true
-							}
+						if (v.NodeStatus!=nil){
+							ready=true
 						}
+
 						if v.Role.HasRule("manage") {
 							serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,"N/A",ready)
 
@@ -91,12 +99,10 @@ func NewCmdNode() cli.Command {
 					}
 					for _,v:=range rest{
 						var ready bool=false
-						for _,c:=range v.Conditions {
-							if string(c.Type)=="Ready"&&string(c.Status)=="True"{
-								ready=true
-							}
+						if (v.NodeStatus!=nil){
+							ready=true
 						}
-						serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,v.Unschedulable,ready)
+						serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,!v.Unschedulable,ready)
 					}
 					fmt.Println(serviceTable.Render())
 					return nil
@@ -274,13 +280,15 @@ func NewCmdNode() cli.Command {
 									}
 									if (v.Alived) {
 										fmt.Printf("节点 %s 初始化成功",v.ID)
+										fmt.Println()
+										tableC.AddHeaders(header)
+										tableC.AddRow(content)
+										fmt.Println(tableC.Render())
 										return nil
 									}else{
-										fmt.Println("节点 %s 初始化中",v.ID)
+										fmt.Printf("..")
 									}
-									tableC.AddHeaders(header)
-									tableC.AddRow(content)
-									fmt.Println(tableC.Render())
+
 
 									//todo  初始化其它节点失败判定
 								}
