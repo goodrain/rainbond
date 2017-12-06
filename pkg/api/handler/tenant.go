@@ -83,7 +83,7 @@ func CreateTenManager(conf option.Config) (*TenantAction, error) {
 	}, nil
 }
 
-//GetTenants get tenants
+//GetTenantsName get tenants name
 func (t *TenantAction) GetTenantsName() ([]string, error) {
 	tenants, err := db.GetManager().TenantDao().GetALLTenants()
 	if err != nil {
@@ -95,6 +95,19 @@ func (t *TenantAction) GetTenantsName() ([]string, error) {
 	}
 	return result, err
 }
+
+//GetPagedTenants get tenants paged
+//func (t *TenantAction) GetPagedTenants(page,pageSize int) (*api_model.StatsInfo, error) {
+//	tenants, err := db.GetManager().TenantDao().GetTenantsOrderByUsedMemPaged(page,pageSize)
+//	if err != nil {
+//		return nil, err
+//	}
+//	var result []string
+//	for _,v:=range tenants{
+//		result=append(result,strings.ToLower(v.Name))
+//	}
+//	return result, err
+//}
 
 //GetTenants get tenants
 func (t *TenantAction) GetTenants() ([]*dbmodel.Tenants, error) {

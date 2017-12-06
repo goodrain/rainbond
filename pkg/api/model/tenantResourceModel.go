@@ -20,6 +20,11 @@ package model
 
 
 type TenantResList []*TenantResource
+
+type PagedTenantResList struct {
+	List []*TenantResource `json:"list"`
+	Length int `json:"length"`
+}
 //TenantResource path参数
 //swagger:parameters getVolumes getDepVolumes
 type TenantResource struct {

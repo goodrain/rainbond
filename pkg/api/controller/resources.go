@@ -185,10 +185,20 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 	//     description: 统一返回格式
 
 
-	pageLen:=25
-	curPage:=2
 
+	pageLenStr := strings.TrimSpace(chi.URLParam(r, "pageLen"))
+	curPageStr := strings.TrimSpace(chi.URLParam(r, "curPage"))
 
+	pageLen,err:=strconv.Atoi(pageLenStr)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("bad request, %v", err))
+		return
+	}
+	curPage,err:=strconv.Atoi(curPageStr)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("bad request, %v", err))
+		return
+	}
 	rep, err := handler.GetTenantManager().GetTenants()
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants error, %v", err))
@@ -215,7 +225,12 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 	}
 	pList := api_model.TenantResList(result)
 	sort.Sort(pList)
-	httputil.ReturnSuccess(r, w, pList)
+
+	resultList:=pList[(curPage-1)*pageLen:curPage*pageLen-1]
+	var ret api_model.PagedTenantResList
+	ret.List=resultList
+	ret.Length=len(rep)
+	httputil.ReturnSuccess(r, w, ret)
 	return
 }
 

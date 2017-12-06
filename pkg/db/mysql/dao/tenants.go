@@ -78,13 +78,13 @@ func (t *TenantDaoImpl) GetTenantIDByName(name string) (*model.Tenants, error) {
 }
 
 //GetTenantsOrderByUsedMemPaged 获取租户分页
-func (t *TenantDaoImpl) GetTenantsOrderByUsedMemPaged(page,pagesize int) ([]*model.Tenants, error) {
-	var tenant []*model.Tenants
-	if err := t.DB.Select("sum(container_cpu), sum(container_memory)").Where("cur_status = ?", "running").Find(&tenant).Error; err != nil {
-		return nil, err
-	}
-	return &tenant, nil
-}
+//func (t *TenantDaoImpl) GetTenantsOrderByUsedMemPaged(page,pagesize int) ([]*model.Tenants, error) {
+//	var tenant []*model.Tenants
+//	if err := t.DB.Select("sum(container_cpu), sum(container_memory)").Where("cur_status = ?", "running").Group("tenant_id").Find(&tenant).Error; err != nil {
+//		return nil, err
+//	}
+//	return tenant, nil
+//}
 
 //GetALLTenants GetALLTenants
 func (t *TenantDaoImpl) GetALLTenants() ([]*model.Tenants, error) {

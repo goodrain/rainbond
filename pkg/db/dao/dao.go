@@ -37,7 +37,7 @@ type TenantDao interface {
 	GetTenantByUUID(uuid string) (*model.Tenants, error)
 	GetTenantIDByName(tenantName string) (*model.Tenants, error)
 	GetALLTenants() ([]*model.Tenants, error)
-	GetTenantsOrderByUsedMemPaged(page,pagesize int) ([]*model.Tenants, error)
+	//GetTenantsOrderByUsedMemPaged(page,pagesize int) ([]*model.Tenants, error)
 }
 
 //LicenseDao LicenseDao
