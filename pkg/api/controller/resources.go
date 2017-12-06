@@ -41,6 +41,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"sort"
+	"github.com/renstrom/fuzzysearch/fuzzy"
 )
 
 //V2Routes v2Routes
@@ -133,6 +134,37 @@ func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+
+
+//TenantsQuery TenantsQuery
+func (t *TenantStruct) TenantsQuery(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation GET /v2/tenants/query/{tenant_name} v2 tenants
+	//
+	// 租户带资源列表
+	//
+	// get tenant resources
+	//
+	// ---
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//       "$ref": "#/responses/commandResponse"
+	//     description: 统一返回格式
+	tenantName := strings.TrimSpace(chi.URLParam(r, "tenant_name"))
+	rep, err := handler.GetTenantManager().GetTenantsName()
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants names error, %v", err))
+		return
+	}
+
+	result:=fuzzy.Find(tenantName, rep) // [cartwheel wheel]
+	httputil.ReturnSuccess(r, w, result)
+	return
+}
 //TenantsWithResource TenantsWithResource
 func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants v2 tenants

@@ -34,6 +34,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
+	"strings"
 )
 
 //TenantAction tenant act
@@ -80,6 +81,19 @@ func CreateTenManager(conf option.Config) (*TenantAction, error) {
 		//OpentsdbClient: opentsdb,
 		OpentsdbAPI: opentsdbAPI,
 	}, nil
+}
+
+//GetTenants get tenants
+func (t *TenantAction) GetTenantsName() ([]string, error) {
+	tenants, err := db.GetManager().TenantDao().GetALLTenants()
+	if err != nil {
+		return nil, err
+	}
+	var result []string
+	for _,v:=range tenants{
+		result=append(result,strings.ToLower(v.Name))
+	}
+	return result, err
 }
 
 //GetTenants get tenants

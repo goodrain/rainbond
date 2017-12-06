@@ -187,6 +187,7 @@ func (v2 *V2) resourcesRouter() chi.Router {
 	r.Get("/tenants/sum", controller.GetManager().SumTenants)
 	//tenants's resource
 	r.Get("/tenants/res", controller.GetManager().TenantsWithResource)
+	r.Get("/tenants/query/{tenant_name}", controller.GetManager().TenantsQuery)
 	return r
 }
 
