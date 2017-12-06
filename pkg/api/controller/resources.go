@@ -183,6 +183,12 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
+
+
+	pageLen:=25
+	curPage:=2
+
+
 	rep, err := handler.GetTenantManager().GetTenants()
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants error, %v", err))
