@@ -229,7 +229,7 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 	resultList:=pList[(curPage-1)*pageLen:curPage*pageLen-1]
 	var ret api_model.PagedTenantResList
 	ret.List=resultList
-	ret.Length=len(rep)
+	ret.Length=len(resultList)
 	httputil.ReturnSuccess(r, w, ret)
 	return
 }
