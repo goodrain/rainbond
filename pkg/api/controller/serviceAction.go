@@ -503,36 +503,27 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 
 	sEvent, status, err := createEvent(build.Body.EventID, serviceID, "build", tenantID, build.Body.DeployVersion)
 	handleStatus(status, err, w, r)
-	//{\"tenant_name\":\"\",\"service_alias\":\"\",\"Body\":{\"event_id\":\"c19aa41c357a4d9e9ca38ab7f2a44961\",\"envs\":{},\"kind\":\"source\",\"action\":\"deploy\",\"image_url\":\"\",\"deploy_version\":\"20171122154417\",\"repo_url\":\"--branch master --depth 1 https://github.com/bay1ts/zk_cluster_mini.git\",\"operator\":\"bay1ts\",\"tenant_name\":\"bay1ts-test\",\"service_alias\":\"gr21ea6b\"}}
-	////createBuildInfo
+
 	version := dbmodel.VersionInfo{}
 	version.EventID = sEvent.EventID
 	version.ServiceID = serviceID
 	version.RepoURL = build.Body.RepoURL
 	version.Kind = build.Body.Kind
 	version.BuildVersion = build.Body.DeployVersion
-	db.GetManager().VersionInfoDao().AddModel(&version)
-	//save
-	//version.DeliveredPath
-	//version.FinalStatus
-	//need update
 
-	//EventID string `json:"event_id" validate:"event_id|required"`
-	//ENVS map[string]string `json:"envs" validate:"envs"`
-	//Kind string `json:"kind" validate:"kind|required"`
-	//Action string `json:"action" validate:"action"`
-	//ImageURL string `json:"image_url" validate:"image_url"`
-	//DeployVersion string `json:"deploy_version" validate:"deploy_version|required"`
-	//RepoURL string `json:"repo_url" validate:"repo_url"`
-	//Operator     string `json:"operator" validate:"operator"`
-	//TenantName   string `json:"tenant_name"`
-	//ServiceAlias string `json:"service_alias"`
 
 	build.Body.EventID = sEvent.EventID
 	if err := handler.GetServiceManager().ServiceBuild(tenantID, serviceID, &build); err != nil {
 		logrus.Debugf("build service error")
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("build service error, %v", err))
 		return
+	}
+	logrus.Debugf("equeue mq build task success")
+
+	err=db.GetManager().VersionInfoDao().AddModel(&version)
+
+	if err != nil {
+		logrus.Infof("error add version %v ,details %s",version,err.Error())
 	}
 	logrus.Debugf("equeue mq build task success")
 	httputil.ReturnSuccess(r, w, sEvent)
