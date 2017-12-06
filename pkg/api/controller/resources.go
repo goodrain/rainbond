@@ -225,7 +225,7 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 	}
 	pList := api_model.TenantResList(result)
 	sort.Sort(pList)
-
+	logrus.Infof("start from %v to %v",(curPage-1)*pageLen,curPage*pageLen-1)
 	resultList:=pList[(curPage-1)*pageLen:curPage*pageLen-1]
 	var ret api_model.PagedTenantResList
 	ret.List=resultList
