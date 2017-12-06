@@ -37,12 +37,12 @@ func (list TenantResList) Len() int {
 }
 
 func (list TenantResList) Less(i, j int) bool {
-	if list[i].UsedMEM < list[j].UsedMEM {
+	if list[i].UsedMEM > list[j].UsedMEM {
 		return true
-	} else if list[i].UsedMEM > list[j].UsedMEM {
+	} else if list[i].UsedMEM < list[j].UsedMEM {
 		return false
 	} else {
-		return list[i].UsedCPU < list[j].UsedCPU
+		return list[i].UsedCPU > list[j].UsedCPU
 	}
 }
 
