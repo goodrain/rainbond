@@ -335,6 +335,15 @@ class AppImage():
                 "同步镜像发生异常." + e.__str__(), step="app-image", status="failure")
 
         if region_download:
+            version_body = {
+                "type": 'image',
+                "path": image,
+                "event_id": self.event_id
+            }
+            try:
+                self.region_client.update_version_region(json.dumps(version_body))
+            except Exception as e:
+                pass
             self.log.info("应用同步完成，开始启动应用。", step="app-image", status="success")
             try:
                 self.api.start_service(tenant_name, service_alias, event_id)
