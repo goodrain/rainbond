@@ -132,6 +132,59 @@ func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+//TenantsWithResource TenantsWithResource
+func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation GET /v2/tenants v2 tenants
+	//
+	// 租户带资源列表
+	//
+	// get tenant resources
+	//
+	// ---
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//       "$ref": "#/responses/commandResponse"
+	//     description: 统一返回格式
+	var tr api_model.TenantResources
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tr.Body, nil)
+	if !ok {
+		return
+	}
+	rep, err := handler.GetTenantManager().GetTenants()
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants error, %v", err))
+		return
+	}
+	var result []*api_model.TenantResource
+	for _,v:=range rep{
+		services, err := handler.GetServiceManager().GetService(v.UUID)
+		if err != nil {
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("get services by tenantID %s error, %v",v.UUID, err))
+			return
+		}
+		totalResInfo, _ := handler.GetTenantManager().TotalMemCPU(services)
+		usedResInfo, _ := handler.GetTenantManager().StatsMemCPU(services)
+		var res api_model.TenantResource
+		res.UUID=v.UUID
+		res.Name=v.Name
+		res.EID=v.EID
+		res.AllocatedCPU=totalResInfo.CPU
+		res.AllocatedMEM=totalResInfo.MEM
+		res.UsedCPU=usedResInfo.CPU
+		res.UsedMEM=usedResInfo.MEM
+		result=append(result,&res)
+	}
+
+	httputil.ReturnSuccess(r, w, result)
+	return
+}
+
+
 //SumTenants 统计租户数量
 func (t *TenantStruct) SumTenants(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/resources/tenants/sum v2 sumTenants

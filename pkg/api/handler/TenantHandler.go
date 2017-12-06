@@ -29,6 +29,7 @@ import (
 type TenantHandler interface {
 	GetTenants() ([]*dbmodel.Tenants, error)
 	StatsMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error)
+	TotalMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error)
 	//QueryTsdb(md *api_model.MontiorData) (*tsdbClient.QueryResponse, error)
 	HTTPTsdb(md *api_model.MontiorData) ([]byte, error)
 	GetTenantsResources(tr *api_model.TenantResources) ([]*map[string]interface{}, error)
