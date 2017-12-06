@@ -343,7 +343,10 @@ class RepoBuilder():
             "path": build_image_name,
             "event_id": self.event_id
         }
-        self.region_client.update_version_region(json.dumps(version_body))
+        try:
+            self.region_client.update_version_region(json.dumps(version_body))
+        except Exception as e:
+            pass
         return True
 
     def build_code(self):
@@ -417,7 +420,10 @@ class RepoBuilder():
             "path": package_name,
             "event_id": self.event_id
         }
-        self.region_client.update_version_region(json.dumps(version_body))
+        try:
+            self.region_client.update_version_region(json.dumps(version_body))
+        except Exception as e:
+            pass
         return True
 
     def feedback(self):
