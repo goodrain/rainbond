@@ -462,6 +462,15 @@ class AppSlug():
 
         if ftp_ok:
             self.log.info("应用同步完成，开始启动应用。", step="app-image", status="success")
+            version_body = {
+                "type": 'slug',
+                "path": dest_slug_file,
+                "event_id": self.event_id
+            }
+            try:
+                self.region_client.update_version_region(json.dumps(version_body))
+            except Exception as e:
+                pass
             try:
                 self.api.start_service(tenant_name, service_alias, event_id)
             except Exception as e:
