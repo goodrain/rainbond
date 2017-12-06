@@ -150,11 +150,6 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	var tr api_model.TenantResources
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tr.Body, nil)
-	if !ok {
-		return
-	}
 	rep, err := handler.GetTenantManager().GetTenants()
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants error, %v", err))
