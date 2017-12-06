@@ -346,6 +346,9 @@ class RepoBuilder():
         try:
             self.region_client.update_version_region(json.dumps(version_body))
         except Exception as e:
+            self.log.error(
+                "更新版本信息失败{0}失败{1}".format(self.event_id, e.message),
+                step="build_code")
             pass
         return True
 
