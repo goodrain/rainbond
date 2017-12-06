@@ -40,6 +40,7 @@ import (
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 
 	"github.com/Sirupsen/logrus"
+	"sort"
 )
 
 //V2Routes v2Routes
@@ -174,8 +175,9 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 		res.UsedMEM=usedResInfo.MEM
 		result=append(result,&res)
 	}
-
-	httputil.ReturnSuccess(r, w, result)
+	pList := api_model.TenantResList(result)
+	sort.Sort(pList)
+	httputil.ReturnSuccess(r, w, pList)
 	return
 }
 
