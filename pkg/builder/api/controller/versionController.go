@@ -55,24 +55,24 @@ func UpdateVersionByEventID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if author,err:=json.Get("code_commit_author").String();err!=nil||author=="" {
-
+		logrus.Debugf("error get code_commit_author from version body ,details %s",err.Error())
 	}else{
 		version.Author=author
 	}
 
 	if msg,err:=json.Get("code_commit_msg").String();err!=nil||msg=="" {
-
+		logrus.Debugf("error get code_commit_msg from version body ,details %s",err.Error())
 	}else{
 		version.CommitMsg=msg
 	}
 	if cVersion,err:=json.Get("code_version").String();err!=nil||cVersion=="" {
-
+		logrus.Debugf("error get code_version from version body ,details %s",err.Error())
 	}else{
 		version.CodeVersion=cVersion
 	}
 
 	if status,err:=json.Get("final_status").String();err!=nil||status=="" {
-
+		logrus.Debugf("error get final_status from version body ,details %s",err.Error())
 	}else{
 		version.FinalStatus=status
 	}
