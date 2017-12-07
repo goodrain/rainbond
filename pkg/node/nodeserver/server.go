@@ -330,6 +330,7 @@ func (n *NodeServer) keepAlive() {
 	for {
 		select {
 		case <-n.done:
+			timer.Stop()
 			return
 		case <-timer.C:
 			if n.lID > 0 {
@@ -356,6 +357,9 @@ func NewNodeServer(cfg *conf.Conf) (*NodeServer, error) {
 	currentNode, err := GetCurrentNode(cfg)
 	if err != nil {
 		return nil, err
+	}
+	if cfg.TTL==0{
+		cfg.TTL=10
 	}
 	n := &NodeServer{
 		Client:   store.DefalutClient,
