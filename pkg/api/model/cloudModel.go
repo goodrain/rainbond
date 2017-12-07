@@ -26,11 +26,11 @@ type GetUserToken struct {
 		//eid
 		//in: body
 		//required: true
-		EID string `json:"eid" validate:"eid|required"`
+		EID string `json:"eid" validate:"eid"`
 		//可控范围
 		//in: body
 		//required: false
-		Range string `json:"range" validate:"range|in:source,node,all"`
+		Range string `json:"range" validate:"range"`
 		//有效期
 		//in: body
 		//required: true
