@@ -68,7 +68,7 @@ func (c *CloudManager) Show(w http.ResponseWriter, r *http.Request) {
 //     description: 统一返回格式
 func (c *CloudManager) GetToken(w http.ResponseWriter, r *http.Request) {
 	var gt api_model.GetUserToken
-	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &gt, nil); !ok {
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &gt.Body, nil); !ok {
 		return
 	}
 	ti, err := handler.GetCloudManager().TokenDispatcher(&gt)
@@ -128,7 +128,7 @@ func (c *CloudManager) GetAPIManager(w http.ResponseWriter, r *http.Request) {
 //     description: 统一返回格式
 func (c *CloudManager) AddAPIManager(w http.ResponseWriter, r *http.Request) {
 	var am api_model.APIManager
-	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &am, nil); !ok {
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &am.Body, nil); !ok {
 		return
 	}
 	err := handler.GetTokenIdenHandler().AddAPIManager(&am)
@@ -162,7 +162,7 @@ func (c *CloudManager) AddAPIManager(w http.ResponseWriter, r *http.Request) {
 //     description: 统一返回格式
 func (c *CloudManager) DeleteAPIManager(w http.ResponseWriter, r *http.Request) {
 	var am api_model.APIManager
-	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &am, nil); !ok {
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &am.Body, nil); !ok {
 		return
 	}
 	err := handler.GetTokenIdenHandler().DeleteAPIManager(&am)
