@@ -215,16 +215,9 @@ func (t *TenantStruct) TenantsGetByName(w http.ResponseWriter, r *http.Request) 
 	//     description: 统一返回格式
 
 
-	rules := validator.MapData{
-		"tenant_name": []string{"required"},
-	}
 
-	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
-	if !ok {
-		return
-	}
 
-	tenantName := data["tenant_name"].(string)
+	tenantName := chi.URLParam(r, "tenant_name")
 
 	v, err := handler.GetTenantManager().GetTenantsByName(tenantName)
 	if err != nil {
