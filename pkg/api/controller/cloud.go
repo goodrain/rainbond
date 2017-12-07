@@ -21,6 +21,7 @@ package controller
 import (
 	"net/http"
 
+	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/pkg/api/handler"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
@@ -45,12 +46,12 @@ func (c *CloudManager) Show(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("cloud urls"))
 }
 
-//GetToken GetToken
-// swagger:operation POST /cloud/auth cloud getToken
+//CreateToken CreateToken
+// swagger:operation POST /cloud/auth cloud createToken
 //
-// 获取token
+// 产生token
 //
-// get token
+// create token
 //
 // ---
 // consumes:
@@ -66,7 +67,7 @@ func (c *CloudManager) Show(w http.ResponseWriter, r *http.Request) {
 //     schema:
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
-func (c *CloudManager) GetToken(w http.ResponseWriter, r *http.Request) {
+func (c *CloudManager) CreateToken(w http.ResponseWriter, r *http.Request) {
 	var gt api_model.GetUserToken
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &gt.Body, nil); !ok {
 		return
@@ -77,6 +78,72 @@ func (c *CloudManager) GetToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, ti)
+}
+
+//GetTokenInfo GetTokenInfo
+// swagger:operation GET /cloud/auth/{eid} cloud getTokenInfo
+//
+// 获取tokeninfo
+//
+// get token info
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func (c *CloudManager) GetTokenInfo(w http.ResponseWriter, r *http.Request) {
+	eid := chi.URLParam(r, "eid")
+	ti, err := handler.GetCloudManager().GetTokenInfo(eid)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, ti)
+}
+
+//UpdateToken UpdateToken
+// swagger:operation PUT /cloud/auth/{eid} cloud updateToken
+//
+// 更新token
+//
+// update token info
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func (c *CloudManager) UpdateToken(w http.ResponseWriter, r *http.Request) {
+	var ut api_model.UpdateToken
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ut.Body, nil); !ok {
+		return
+	}
+	eid := chi.URLParam(r, "eid")
+	err := handler.GetCloudManager().UpdateTokenTime(eid, ut.Body.ValidityPeriod)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
 }
 
 //GetAPIManager GetAPIManager

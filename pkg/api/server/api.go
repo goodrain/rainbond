@@ -131,12 +131,13 @@ func (m *Manager) Run() {
 			logrus.Fatal(http.ListenAndServe(m.conf.WebsocketAddr, websocketRouter))
 		}
 	}()
-	if m.conf.APISSL {
-		logrus.Infof("api listen on (HTTPs) 0.0.0.0%v", m.conf.APIAddrSSL)
-		logrus.Fatal(http.ListenAndServeTLS(m.conf.APIAddr, m.conf.APICertFile, m.conf.APIKeyFile, m.r))
-	} else {
+	go func() {
 		logrus.Infof("api listen on (HTTP) 0.0.0.0%v", m.conf.APIAddr)
 		logrus.Fatal(http.ListenAndServe(m.conf.APIAddr, m.r))
+	}()
+	if m.conf.APISSL {
+		logrus.Infof("api listen on (HTTPs) 0.0.0.0%v", m.conf.APIAddrSSL)
+		logrus.Fatal(http.ListenAndServeTLS(m.conf.APIAddrSSL, m.conf.APICertFile, m.conf.APIKeyFile, m.r))
 	}
 }
 

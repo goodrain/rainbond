@@ -19,7 +19,7 @@
 package model
 
 //GetUserToken GetUserToken
-//swagger:parameters getToken
+//swagger:parameters createToken
 type GetUserToken struct {
 	// in: body
 	Body struct {
@@ -40,6 +40,29 @@ type GetUserToken struct {
 		// required: true
 		RegionTag  string `json:"region_tag" validate:"region_tag"`
 		BeforeTime int    `json:"before_time"`
+	}
+}
+
+//GetTokenInfo GetTokenInfo
+//swagger:parameters getTokenInfo
+type GetTokenInfo struct {
+	// in: path
+	// required: true
+	EID string `json:"eid" validate:"eid|required"`
+}
+
+//UpdateToken UpdateToken
+//swagger:parameters updateToken
+type UpdateToken struct {
+	// in: path
+	// required: true
+	EID string `json:"eid" validate:"eid|required"`
+	//in: body
+	Body struct {
+		// 有效期
+		// in: body
+		// required: true
+		ValidityPeriod int `json:"validity_period" validate:"validity_period|required"` //1549812345
 	}
 }
 
