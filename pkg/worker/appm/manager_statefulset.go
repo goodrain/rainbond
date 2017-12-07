@@ -45,7 +45,7 @@ func (m *manager) StartStatefulSet(serviceID string, logger event.Logger) (*v1be
 		return nil, err
 	}
 	//判断应用镜像名称是否合法，非法镜像名进制启动
-	deployVersion,err:=m.dbmanager.VersionInfoDao().GetVersionByDeployVersion(builder.service.DeployVersion)
+	deployVersion,err:=m.dbmanager.VersionInfoDao().GetVersionByDeployVersion(builder.service.DeployVersion,serviceID)
 	var imageName string
 	if err != nil {
 		logrus.Warnf("error get version info by deployversion %s,details %s",builder.service.DeployVersion,err.Error())
