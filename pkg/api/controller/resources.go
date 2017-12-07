@@ -225,7 +225,7 @@ func (t *TenantStruct) TenantsGetByName(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	logrus.Infof("query tenant from db by name %s ,got %v",tenantName,v)
-	var res *api_model.TenantResource
+	var res =&api_model.TenantResource{}
 	services, err := handler.GetServiceManager().GetService(v.UUID)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get services by tenantID %s error, %v",v.UUID, err))
