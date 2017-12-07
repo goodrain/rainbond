@@ -96,6 +96,15 @@ func handleStatus(v *model.HostNode){
 			}
 		}
 	}
+	if v.Role.HasRule("manage") {
+		if v.Alived {
+			for _,condition:=range v.Conditions{
+				if condition.Type=="NodeInit"&&condition.Status=="True"{
+					v.Status="running"
+				}
+			}
+		}
+	}
 }
 
 //GetNode 获取一个节点详情
