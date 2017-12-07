@@ -62,6 +62,7 @@ func (n *NodeService) AddNode(node *model.APIHostNode) *utils.APIHandleError {
 		}
 	}
 	rbnode := node.Clone()
+	rbnode.Status="init"
 	rbnode.CreateTime = time.Now()
 	rbnode.Conditions = make([]model.NodeCondition, 0)
 	if _, err := rbnode.Update(); err != nil {
@@ -163,6 +164,7 @@ func (n *NodeService) DownNode(nodeID string) (*model.HostNode, *utils.APIHandle
 	if !hostNode.Role.HasRule(model.ComputeNode) || hostNode.NodeStatus == nil {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node is not k8s node or it not up"))
 	}
+	hostNode.Status="down"
 	err := k8s.DeleteNode(hostNode.ID)
 	if err != nil {
 		return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node down error,%s", err.Error()))
