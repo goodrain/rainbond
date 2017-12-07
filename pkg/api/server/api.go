@@ -132,7 +132,7 @@ func (m *Manager) Run() {
 		}
 	}()
 	if m.conf.APISSL {
-		logrus.Infof("api listen on (HTTPs) 0.0.0.0%v", m.conf.APIAddr)
+		logrus.Infof("api listen on (HTTPs) 0.0.0.0%v", m.conf.APIAddrSSL)
 		logrus.Fatal(http.ListenAndServeTLS(m.conf.APIAddr, m.conf.APICertFile, m.conf.APIKeyFile, m.r))
 	} else {
 		logrus.Infof("api listen on (HTTP) 0.0.0.0%v", m.conf.APIAddr)

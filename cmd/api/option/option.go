@@ -29,6 +29,7 @@ import (
 type Config struct {
 	DBType            string
 	APIAddr           string
+	APIAddrSSL        string
 	DBConnectionInfo  string
 	EventLogServers   []string
 	NodeAPI           []string
@@ -66,6 +67,7 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
 	fs.StringVar(&a.DBConnectionInfo, "mysql", "admin:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
 	fs.StringVar(&a.APIAddr, "api-addr", ":8888", "the api server listen address")
+	fs.StringVar(&a.APIAddrSSL, "api-addr-ssl", ":8443", "the api server listen address")
 	fs.StringVar(&a.WebsocketAddr, "ws-addr", ":6060", "the websocket server listen address")
 	fs.BoolVar(&a.APISSL, "api-ssl-enable", false, "whether to enable websocket  SSL")
 	fs.StringVar(&a.APICertFile, "api-ssl-certfile", "", "api ssl cert file")
