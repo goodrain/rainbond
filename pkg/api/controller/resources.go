@@ -164,16 +164,8 @@ func (t *TenantStruct) TenantsQuery(w http.ResponseWriter, r *http.Request) {
 	//     description: 统一返回格式
 
 
-	rules := validator.MapData{
-		"tenant_name": []string{"required"},
-	}
+	tenantName := strings.TrimSpace(chi.URLParam(r, "tenant_name"))
 
-	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
-	if !ok {
-		return
-	}
-
-	tenantName := data["tenant_name"].(string)
 
 	rep, err := handler.GetTenantManager().GetTenantsName()
 	if err != nil {
@@ -217,7 +209,7 @@ func (t *TenantStruct) TenantsGetByName(w http.ResponseWriter, r *http.Request) 
 
 
 
-	tenantName := chi.URLParam(r, "tenant_name")
+	tenantName := strings.TrimSpace(chi.URLParam(r, "tenant_name"))
 
 	v, err := handler.GetTenantManager().GetTenantsByName(tenantName)
 	if err != nil {
@@ -280,18 +272,11 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 	//     description: 统一返回格式
 
 
-	rules := validator.MapData{
-		"curPage": []string{"required"},
-		"pageLen": []string{"required"},
-	}
 
-	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
-	if !ok {
-		return
-	}
+	pageLenStr := strings.TrimSpace(chi.URLParam(r, "pageLen"))
+	curPageStr := strings.TrimSpace(chi.URLParam(r, "curPage"))
 
-	pageLenStr := data["pageLen"].(string)
-	curPageStr := data["curPage"].(string)
+
 
 	pageLen,err:=strconv.Atoi(pageLenStr)
 	if err != nil {
