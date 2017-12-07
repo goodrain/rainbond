@@ -31,6 +31,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
 
 	"github.com/goodrain/rainbond/cmd/api/option"
@@ -43,6 +44,7 @@ import (
 //CloudAction  cloud action struct
 type CloudAction struct {
 	RegionTag string
+	APISSL    bool
 	CAPath    string
 	KeyPath   string
 }
@@ -50,9 +52,10 @@ type CloudAction struct {
 //CreateCloudManager get cloud manager
 func CreateCloudManager(conf option.Config) (*CloudAction, error) {
 	return &CloudAction{
+		APISSL:    conf.APISSL,
 		RegionTag: conf.RegionTag,
-		CAPath:    conf.WebsocketCertFile,
-		KeyPath:   conf.WebsocketKeyFile,
+		CAPath:    conf.APICertFile,
+		KeyPath:   conf.APIKeyFile,
 	}, nil
 }
 
@@ -76,29 +79,31 @@ func (c *CloudAction) TokenDispatcher(gt *api_model.GetUserToken) (*api_model.To
 	return ti, nil
 CREATE:
 	token := c.createToken(gt)
-	//TODO: ca, key
-	ca, key, err := c.CertDispatcher(gt)
-	if err != nil {
-		return nil, util.CreateAPIHandleError(500, fmt.Errorf("create ca or key error"))
-	}
+	ti.Token = token
+	logrus.Debugf("create token %v", token)
 	rui := &dbmodel.RegionUserInfo{
 		EID:            gt.Body.EID,
 		RegionTag:      c.RegionTag,
 		ValidityPeriod: gt.Body.ValidityPeriod,
 		Token:          token,
 	}
+	if c.APISSL {
+		ca, key, err := c.CertDispatcher(gt)
+		if err != nil {
+			return nil, util.CreateAPIHandleError(500, fmt.Errorf("create ca or key error"))
+		}
+		rui.CA = string(ca)
+		rui.Key = string(key)
+		ti.CA = string(ca)
+		ti.Key = string(key)
+	}
 	if gt.Body.Range == "" {
-		rui.APIRange = "source"
+		rui.APIRange = dbmodel.SERVERSOURCE
 	}
 	GetTokenIdenHandler().AddTokenIntoMap(rui)
-	rui.CA = string(ca)
-	rui.Key = string(key)
 	if err := db.GetManager().RegionUserInfoDao().AddModel(rui); err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("create region user info", err)
 	}
-	ti.CA = string(ca)
-	ti.Key = string(key)
-	ti.Token = token
 	return ti, nil
 }
 

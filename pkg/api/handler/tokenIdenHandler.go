@@ -22,6 +22,9 @@ import (
 	"os"
 
 	"github.com/goodrain/rainbond/cmd/api/option"
+	api_model "github.com/goodrain/rainbond/pkg/api/model"
+	"github.com/goodrain/rainbond/pkg/api/util"
+	"github.com/goodrain/rainbond/pkg/db"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 )
 
@@ -29,6 +32,9 @@ import (
 type TokenMapHandler interface {
 	AddTokenIntoMap(rui *dbmodel.RegionUserInfo)
 	CheckToken(token, uri string) bool
+	GetAPIManager() map[string][]*dbmodel.RegionAPIClass
+	AddAPIManager(am *api_model.APIManager) *util.APIHandleError
+	DeleteAPIManager(am *api_model.APIManager) *util.APIHandleError
 	InitTokenMap() error
 }
 
@@ -39,7 +45,7 @@ type TokenMap map[string]*dbmodel.RegionUserInfo
 
 var defaultTokenMap map[string]*dbmodel.RegionUserInfo
 
-var defaultSourceURI map[string]int
+var defaultSourceURI map[string][]*dbmodel.RegionAPIClass
 
 //CreateTokenIdenHandler create token identification handler
 func CreateTokenIdenHandler(conf option.Config) error {
@@ -55,18 +61,32 @@ func CreateTokenIdenHandler(conf option.Config) error {
 	return nil
 }
 
-func createDefaultSourceURI() {
+func createDefaultSourceURI() error {
 	if defaultSourceURI != nil {
-		return
+		return nil
 	}
-	SourceURI := make(map[string]int)
-	SourceURI["nodes"] = 1
-	SourceURI["tasks"] = 1
-	SourceURI["tasktemps"] = 1
-	SourceURI["taskgroups"] = 1
-	SourceURI["configs"] = 1
-	defaultSourceURI = SourceURI
-	return
+	var err error
+	defaultSourceURI, err = resourceURI()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func resourceURI() (map[string][]*dbmodel.RegionAPIClass, error) {
+	sourceMap := make(map[string][]*dbmodel.RegionAPIClass)
+	nodeSource, err := db.GetManager().RegionAPIClassDao().GetPrefixesByClass(dbmodel.NODEMANAGER)
+	if err != nil {
+		return nil, err
+	}
+	sourceMap[dbmodel.NODEMANAGER] = nodeSource
+
+	serverSource, err := db.GetManager().RegionAPIClassDao().GetPrefixesByClass(dbmodel.SERVERSOURCE)
+	if err != nil {
+		return nil, err
+	}
+	sourceMap[dbmodel.SERVERSOURCE] = serverSource
+	return sourceMap, nil
 }
 
 //CreateDefaultTokenMap CreateDefaultTokenMap
@@ -101,6 +121,6 @@ func GetDefaultTokenMap() map[string]*dbmodel.RegionUserInfo {
 }
 
 //GetDefaultSourceURI GetDefaultSourceURI
-func GetDefaultSourceURI() map[string]int {
+func GetDefaultSourceURI() map[string][]*dbmodel.RegionAPIClass {
 	return defaultSourceURI
 }

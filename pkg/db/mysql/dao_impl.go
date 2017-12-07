@@ -425,3 +425,17 @@ func (m *Manager) RegionUserInfoDaoTransactions(db *gorm.DB) dao.RegionUserInfoD
 		DB: db,
 	}
 }
+
+//RegionAPIClassDao RegionAPIClassDao
+func (m *Manager) RegionAPIClassDao() dao.RegionAPIClassDao {
+	return &mysqldao.RegionAPIClassDaoImpl{
+		DB: m.db,
+	}
+}
+
+//RegionAPIClassDaoTransactions RegionAPIClassDaoTransactions
+func (m *Manager) RegionAPIClassDaoTransactions(db *gorm.DB) dao.RegionAPIClassDao {
+	return &mysqldao.RegionAPIClassDaoImpl{
+		DB: db,
+	}
+}

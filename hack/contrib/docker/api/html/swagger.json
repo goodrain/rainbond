@@ -1,6 +1,160 @@
 {
   "swagger": "2.0",
   "paths": {
+    "/cloud/api/manager": {
+      "get": {
+        "description": "get api manager",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "cloud"
+        ],
+        "summary": "获取api管理",
+        "operationId": "GetAPIManager",
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "get api manager",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "cloud"
+        ],
+        "summary": "获取api管理",
+        "operationId": "addAPIManager",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "class_level",
+                "prefix"
+              ],
+              "properties": {
+                "alias": {
+                  "description": "别称\nin: body",
+                  "type": "string",
+                  "x-go-name": "Alias"
+                },
+                "class_level": {
+                  "description": "api级别\nin: body",
+                  "type": "string",
+                  "x-go-name": "ClassLevel"
+                },
+                "prefix": {
+                  "description": "uri前部\nin: body",
+                  "type": "string",
+                  "x-go-name": "Prefix"
+                },
+                "remark": {
+                  "description": "补充信息\nin:body",
+                  "type": "string",
+                  "x-go-name": "Remark"
+                },
+                "uri": {
+                  "description": "完整uri\nin: body",
+                  "type": "string",
+                  "x-go-name": "URI"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "delete api manager",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "cloud"
+        ],
+        "summary": "获取api管理",
+        "operationId": "deleteAPIManager",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "class_level",
+                "prefix"
+              ],
+              "properties": {
+                "alias": {
+                  "description": "别称\nin: body",
+                  "type": "string",
+                  "x-go-name": "Alias"
+                },
+                "class_level": {
+                  "description": "api级别\nin: body",
+                  "type": "string",
+                  "x-go-name": "ClassLevel"
+                },
+                "prefix": {
+                  "description": "uri前部\nin: body",
+                  "type": "string",
+                  "x-go-name": "Prefix"
+                },
+                "remark": {
+                  "description": "补充信息\nin:body",
+                  "type": "string",
+                  "x-go-name": "Remark"
+                },
+                "uri": {
+                  "description": "完整uri\nin: body",
+                  "type": "string",
+                  "x-go-name": "URI"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
     "/cloud/auth": {
       "post": {
         "description": "get token",

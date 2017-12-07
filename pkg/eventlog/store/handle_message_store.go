@@ -312,13 +312,13 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					event.EventID = eventID
 					event.CodeVersion = codeVersion
 					cdb.GetManager().ServiceEventDao().UpdateModel(&event)
-					version,err:=cdb.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+					version, err := cdb.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
 					//infos:=strings.Split(codeVersion,":")
-					if err!=nil {
-						logrus.Errorf("error get version by eventID %s",eventID)
+					if err != nil {
+						logrus.Errorf("error get version by eventID %s", eventID)
 						continue
 					}
-					version.CodeVersion=codeVersion
+					version.CodeVersion = codeVersion
 					//for k,v:=range infos{
 					//	i:=strings.Split(v," ")
 					//	if k==0 {

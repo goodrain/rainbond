@@ -19,9 +19,13 @@
 package handler
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/cmd/api/option"
+	api_model "github.com/goodrain/rainbond/pkg/api/model"
+	"github.com/goodrain/rainbond/pkg/api/util"
 	"github.com/goodrain/rainbond/pkg/db"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 )
@@ -40,6 +44,60 @@ func (t *TokenIdenAction) AddTokenIntoMap(rui *dbmodel.RegionUserInfo) {
 	m[rui.Token] = rui
 }
 
+//GetAPIManager GetAPIManager
+func (t *TokenIdenAction) GetAPIManager() map[string][]*dbmodel.RegionAPIClass {
+	return GetDefaultSourceURI()
+}
+
+//AddAPIManager AddAPIManager
+func (t *TokenIdenAction) AddAPIManager(am *api_model.APIManager) *util.APIHandleError {
+	m := GetDefaultSourceURI()
+	ra := &dbmodel.RegionAPIClass{
+		ClassLevel: am.Body.ClassLevel,
+		Prefix:     am.Body.Prefix,
+	}
+	if sourceList, ok := m[am.Body.ClassLevel]; ok {
+		sourceList = append(sourceList, ra)
+	} else {
+		//支持新增类型
+		newL := []*dbmodel.RegionAPIClass{ra}
+		m[am.Body.ClassLevel] = newL
+	}
+	ra.URI = am.Body.URI
+	ra.Alias = am.Body.Alias
+	ra.Remark = am.Body.Remark
+	if err := db.GetManager().RegionAPIClassDao().AddModel(ra); err != nil {
+		return util.CreateAPIHandleErrorFromDBError("add api manager", err)
+	}
+	return nil
+}
+
+//DeleteAPIManager DeleteAPIManager
+func (t *TokenIdenAction) DeleteAPIManager(am *api_model.APIManager) *util.APIHandleError {
+	m := GetDefaultSourceURI()
+	if sourceList, ok := m[am.Body.ClassLevel]; ok {
+		var newL []*dbmodel.RegionAPIClass
+		for _, s := range sourceList {
+			if s.Prefix == am.Body.Prefix {
+				continue
+			}
+			newL = append(newL, s)
+		}
+		if len(newL) == 0 {
+			//该级别分组为空时，删除该资源分组
+			delete(m, am.Body.ClassLevel)
+		} else {
+			m[am.Body.ClassLevel] = newL
+		}
+	} else {
+		return util.CreateAPIHandleError(400, fmt.Errorf("have no api class level about %v", am.Body.ClassLevel))
+	}
+	if err := db.GetManager().RegionAPIClassDao().DeletePrefixInClass(am.Body.ClassLevel, am.Body.Prefix); err != nil {
+		return util.CreateAPIHandleErrorFromDBError("delete api prefix", err)
+	}
+	return nil
+}
+
 //CheckToken CheckToken
 func (t *TokenIdenAction) CheckToken(token, uri string) bool {
 	m := GetDefaultTokenMap()
@@ -51,20 +109,32 @@ func (t *TokenIdenAction) CheckToken(token, uri string) bool {
 		return false
 	}
 	switch regionInfo.APIRange {
-	case "source":
+	case dbmodel.ALLPOWER:
+		return true
+	case dbmodel.SERVERSOURCE:
 		sm := GetDefaultSourceURI()
-		if _, ok := sm[uri]; ok {
+		smL, ok := sm[dbmodel.SERVERSOURCE]
+		if !ok {
 			return false
 		}
-		return true
-	case "all":
-		return true
-	case "node":
-		sm := GetDefaultSourceURI()
-		if _, ok := sm[uri]; ok {
-			return true
+		for _, urinfo := range smL {
+			if strings.HasPrefix(uri, urinfo.Prefix) {
+				return true
+			}
+			return false
 		}
-		return false
+	case dbmodel.NODEMANAGER:
+		sm := GetDefaultSourceURI()
+		smL, ok := sm[dbmodel.NODEMANAGER]
+		if !ok {
+			return false
+		}
+		for _, urinfo := range smL {
+			if strings.HasPrefix(uri, urinfo.Prefix) {
+				return true
+			}
+			return false
+		}
 	}
 	return false
 }

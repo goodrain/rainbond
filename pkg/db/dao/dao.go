@@ -312,3 +312,10 @@ type RegionUserInfoDao interface {
 	GetALLTokenInValidityPeriod() ([]*model.RegionUserInfo, error)
 	GetTokenByEid(eid string) (*model.RegionUserInfo, error)
 }
+
+//RegionAPIClassDao RegionAPIClassDao
+type RegionAPIClassDao interface {
+	Dao
+	GetPrefixesByClass(apiClass string) ([]*model.RegionAPIClass, error)
+	DeletePrefixInClass(apiClass, prefix string) error
+}

@@ -23,21 +23,21 @@ package model
 type GetUserToken struct {
 	// in: body
 	Body struct {
-		//eid
-		//in: body
-		//required: true
-		EID string `json:"eid" validate:"eid|between:30,33|required"`
-		//可控范围
-		//in: body
-		//required: false
-		Range string `json:"range" validate:"range|in:source,node,all"`
-		//有效期
-		//in: body
-		//required: true
-		ValidityPeriod int `json:"validity_period" validate:"validity_period|required"` //20191120
-		//数据中心标识
-		//in: body
-		//required: true
+		// eid
+		// in: body
+		// required: true
+		EID string `json:"eid" validate:"eid|required"`
+		// 可控范围
+		// in: body
+		// required: false
+		Range string `json:"range" validate:"range"`
+		// 有效期
+		// in: body
+		// required: true
+		ValidityPeriod int `json:"validity_period" validate:"validity_period|required"` //1549812345
+		// 数据中心标识
+		// in: body
+		// required: true
 		RegionTag  string `json:"region_tag" validate:"region_tag"`
 		BeforeTime int    `json:"before_time"`
 	}
@@ -49,4 +49,32 @@ type TokenInfo struct {
 	Token string `json:"token"`
 	CA    string `json:"ca"`
 	Key   string `json:"key"`
+}
+
+//APIManager APIManager
+//swagger:parameters addAPIManager deleteAPIManager
+type APIManager struct {
+	//in: body
+	Body struct {
+		//api级别
+		//in: body
+		//required: true
+		ClassLevel string `json:"class_level" validate:"class_level|reqired"`
+		//uri前部
+		//in: body
+		//required: true
+		Prefix string `json:"prefix" validate:"prefix|required"`
+		//完整uri
+		//in: body
+		//required: false
+		URI string `json:"uri" validate:"uri"`
+		//别称
+		//in: body
+		//required: false
+		Alias string `json:"alias" validate:"alias"`
+		//补充信息
+		//in:body
+		//required: false
+		Remark string `json:"remark" validate:"remark"`
+	}
 }
