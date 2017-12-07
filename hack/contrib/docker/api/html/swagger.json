@@ -157,7 +157,7 @@
     },
     "/cloud/auth": {
       "post": {
-        "description": "get token",
+        "description": "create token",
         "consumes": [
           "application/json",
           "application/x-protobuf"
@@ -169,8 +169,8 @@
         "tags": [
           "cloud"
         ],
-        "summary": "获取token",
-        "operationId": "getToken",
+        "summary": "产生token",
+        "operationId": "createToken",
         "parameters": [
           {
             "name": "Body",
@@ -203,6 +203,59 @@
                   "type": "string",
                   "x-go-name": "RegionTag"
                 },
+                "validity_period": {
+                  "description": "有效期\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "ValidityPeriod"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/cloud/auth/{eid}": {
+      "get": {
+        "description": "update token info",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "cloud"
+        ],
+        "summary": "更新token",
+        "operationId": "updateToken",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "EID",
+            "name": "eid",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "validity_period"
+              ],
+              "properties": {
                 "validity_period": {
                   "description": "有效期\nin: body",
                   "type": "integer",
@@ -1111,6 +1164,46 @@
         }
       }
     },
+    "/v2/resources/tenants/res/page/{curPage}/size/{pageLen}": {
+      "get": {
+        "description": "get paged tenant resources",
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "租户带资源列表",
+        "operationId": "PagedTenantResList",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "123",
+            "name": "curPage",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "string",
+            "description": "25",
+            "name": "pageLen",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
     "/v2/resources/tenants/sum": {
       "get": {
         "description": "get tenant resources",
@@ -1199,6 +1292,38 @@
                 }
               }
             }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/query/{tenant_name}": {
+      "get": {
+        "description": "get tenant resources",
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "租户带资源列表",
+        "operationId": "tenants",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "123",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -2121,6 +2246,38 @@
         }
       }
     },
+    "/v2/tenants/{tenant_name}/res": {
+      "get": {
+        "description": "get tenant resources",
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "租户带资源单个",
+        "operationId": "tenants",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "description": "123",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
     "/v2/tenants/{tenant_name}/resources": {
       "get": {
         "description": "get tenant resources",
@@ -2830,6 +2987,52 @@
             "name": "service_alias",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "AllocatedCPU",
+            "name": "alloc_cpu",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "AllocatedMEM",
+            "name": "alloc_memory",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "UsedCPU",
+            "name": "used_cpu",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "UsedMEM",
+            "name": "used_memory",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Name",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "UUID",
+            "name": "uuid",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "EID",
+            "name": "eid",
+            "in": "query"
           }
         ],
         "responses": {
@@ -5800,6 +6003,52 @@
             "name": "service_alias",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "AllocatedCPU",
+            "name": "alloc_cpu",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "AllocatedMEM",
+            "name": "alloc_memory",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "UsedCPU",
+            "name": "used_cpu",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "UsedMEM",
+            "name": "used_memory",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Name",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "UUID",
+            "name": "uuid",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "EID",
+            "name": "eid",
+            "in": "query"
           }
         ],
         "responses": {
