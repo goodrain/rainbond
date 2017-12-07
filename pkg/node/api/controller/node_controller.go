@@ -77,15 +77,23 @@ func GetNodes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _,v:=range nodes {
-		if v.NodeStatus!=nil{
-			for _,condiction:=range v.Conditions{
+		handleStatus(v)
+	}
+	httputil.ReturnSuccess(r, w, nodes)
+}
+
+func handleStatus(v *model.HostNode){
+	if v.NodeStatus!=nil{
+		for _,condiction:=range v.Conditions{
+			if v.Status == "unschedulable" {
+
+			}else{
 				if condiction.Type=="Ready"&&condiction.Status=="True" {
 					v.Status="running"
 				}
 			}
-		}	
+		}
 	}
-	httputil.ReturnSuccess(r, w, nodes)
 }
 
 //GetNode 获取一个节点详情
