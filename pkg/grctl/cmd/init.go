@@ -89,6 +89,7 @@ func NewCmdInstallStatus() cli.Command {
 							Status(v.ID)
 							return nil
 						}
+
 					}
 				}
 			}else {

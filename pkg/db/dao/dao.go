@@ -37,7 +37,6 @@ type TenantDao interface {
 	GetTenantByUUID(uuid string) (*model.Tenants, error)
 	GetTenantIDByName(tenantName string) (*model.Tenants, error)
 	GetALLTenants() ([]*model.Tenants, error)
-	//GetTenantsOrderByUsedMemPaged(page,pagesize int) ([]*model.Tenants, error)
 }
 
 //LicenseDao LicenseDao
@@ -301,7 +300,7 @@ type EventDao interface {
 type VersionInfoDao interface {
 	Dao
 	GetVersionByEventID(eventID string) (*model.VersionInfo, error)
-	GetVersionByDeployVersion(version string) (*model.VersionInfo, error)
+	GetVersionByDeployVersion(version ,serviceID string) (*model.VersionInfo, error)
 	GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error)
 	DeleteVersionByEventID(eventID string) error
 }

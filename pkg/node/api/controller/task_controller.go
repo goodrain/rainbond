@@ -78,7 +78,6 @@ func ExecTask(w http.ResponseWriter, r *http.Request) {
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &nodes, nil); !ok {
 		return
 	}
-
 	err := taskService.ExecTask(taskID, nodes.Nodes)
 	if err != nil {
 		err.Handle(r, w)

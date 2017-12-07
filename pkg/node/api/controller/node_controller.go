@@ -254,26 +254,17 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 		logrus.Infof("namespace %s,podid %s :limit cpu %s,requests cpu %s,limit mem %s,request mem %s", pod.Namespace, pod.Id, lc, rc, lm, rm)
 		pod.CPURequests = strconv.Itoa(int(rc))
 
-		pod.CPURequestsR = strconv.FormatFloat(float64(rc)/float64(capCPU), 'f', -1, 64)
-			//strconv.FormatFloat(float64(rc)/float64(node.NodeStatus.Capacity.Cpu().Value()), 'E', -1, 32)
-
+		pod.CPURequestsR = strconv.FormatFloat(float64(rc*100)/float64(capCPU), 'f', 1, 64)
 
 		pod.CPULimits = strconv.Itoa(int(lc))
-		pod.CPULimitsR = strconv.FormatFloat(float64(lc)/float64(capCPU), 'f', -1, 64)
-			//strconv.FormatFloat(float64(lc)/float64(node.NodeStatus.Capacity.Cpu().Value()), 'E', -1, 32)
-
+		pod.CPULimitsR = strconv.FormatFloat(float64(lc*100)/float64(capCPU), 'f', 1, 64)
 
 		pod.MemoryRequests = strconv.Itoa(int(rm))
-		pod.MemoryRequestsR = strconv.FormatFloat(float64(rm)/float64(capMEM), 'f', -1, 64)
-			//strconv.FormatFloat(float64(rm)/float64(node.NodeStatus.Capacity.Memory().Value()), 'E', -1, 32)
+		pod.MemoryRequestsR = strconv.FormatFloat(float64(rm*100)/float64(capMEM), 'f', 1, 64)
 
 		pod.MemoryLimits = strconv.Itoa(int(lm))
-		//var h float32=100
-		//a:=float32(lm)*h/float32(capMEM)
-		pod.MemoryLimitsR = strconv.FormatFloat(float64(lm)/float64(capMEM), 'f', -1, 64)
+		pod.MemoryLimitsR = strconv.FormatFloat(float64(lm*100)/float64(capMEM), 'f', 1, 64)
 
-		//mlr, _ := strconv.Atoi(pod.MemoryLimitsR)
-		//memLR += mlr
 		pods = append(pods, pod)
 	}
 	httputil.ReturnSuccess(r, w, pods)

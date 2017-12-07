@@ -333,7 +333,9 @@ class AppImage():
             logger.exception("mq_work.app_image", e)
             self.log.error(
                 "同步镜像发生异常." + e.__str__(), step="app-image", status="failure")
-
+        version_status = {
+            "final_status":"failure",
+        }
         if region_download:
             version_body = {
                 "type": 'image',
@@ -344,6 +346,7 @@ class AppImage():
                 self.region_client.update_version_region(json.dumps(version_body))
             except Exception as e:
                 pass
+            version_status['final_status']="success"
             self.log.info("应用同步完成，开始启动应用。", step="app-image", status="success")
             try:
                 self.api.start_service(tenant_name, service_alias, event_id)
@@ -353,7 +356,12 @@ class AppImage():
                     "应用自动启动失败。请手动启动", step="callback", status="failure")
         else:
             self.log.error("应用同步失败。", step="callback", status="failure")
-
+        try:
+            self.region_client.update_version_event(self.event_id,json.dumps(version_status))
+        except Exception as e:
+            self.log.error(
+                "更新version信息失败", step="app-image")
+            pass
     def queryServiceStatus(self, service_id):
         try:
             res, body = self.region_api.is_service_running(service_id)

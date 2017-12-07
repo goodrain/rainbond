@@ -524,6 +524,7 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logrus.Infof("error add version %v ,details %s",version,err.Error())
 	}
+	logrus.Debugf("equeue mq build task success")
 	httputil.ReturnSuccess(r, w, sEvent)
 	//w.WriteHeader(200)
 }

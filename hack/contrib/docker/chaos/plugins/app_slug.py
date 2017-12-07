@@ -459,7 +459,9 @@ class AppSlug():
                 ftp_ok = True
         except Exception as e:
             logger.exception("mq_work.app_slug", e)
-
+        version_status = {
+            "final_status":"failure",
+        }
         if ftp_ok:
             self.log.info("应用同步完成，开始启动应用。", step="app-image", status="success")
             version_body = {
@@ -467,8 +469,12 @@ class AppSlug():
                 "path": dest_slug_file,
                 "event_id": self.event_id
             }
+            version_status = {
+                "final_status":"success",
+            }
             try:
                 self.region_client.update_version_region(json.dumps(version_body))
+                self.region_client.update_version_event(self.event_id,json.dumps(version_status))
             except Exception as e:
                 pass
             try:
@@ -479,6 +485,11 @@ class AppSlug():
                     "应用自动启动失败。请手动启动", step="callback", status="failure")
         else:
             self.log.error("应用同步失败。", step="callback", status="failure")
+            try:
+                self.region_client.update_version_event(self.event_id,json.dumps(version_status))
+            except Exception as e:
+                self.log.error("更新version信息失败", step="app-slug")
+                pass
 
     def queryServiceStatus(self, service_id):
         try:

@@ -120,6 +120,9 @@ class ImageManual():
                 step="callback",
                 status="failure")
             logger.exception("mq_work.image_manual", e)
+        version_status = {
+            "final_status":"failure",
+        }
         if has_download:
             self.log.info("应用同步完成。", step="app-image", status="success")
             version_body = {
@@ -127,8 +130,10 @@ class ImageManual():
                 "path": local_image,
                 "event_id": self.event_id
             }
+            version_status['final_status'] = "success"
             try:
                 self.region_client.update_version_region(json.dumps(version_body))
+                self.region_client.update_version_event(self.event_id,json.dumps(version_status))
             except Exception as e:
                 pass
             try:
@@ -140,6 +145,10 @@ class ImageManual():
                 self.log.error(
                     "应用自动启动失败。请手动启动", step="callback", status="failure")
         else:
+            try:
+                self.region_client.update_version_event(self.event_id,json.dumps(version_status))
+            except Exception as e:
+                pass
             self.log.error("应用同步失败。", step="callback", status="failure")
 
     def queryServiceStatus(self, service_id):
