@@ -149,12 +149,32 @@ func (t *TenantStruct) TenantsQuery(w http.ResponseWriter, r *http.Request) {
 	// - application/json
 	// - application/xml
 	//
+	// parameters:
+	// - name: tenant_name
+	//   in: path
+	//   description: '123'
+	//   required: true
+	//   type: string
+	//   format: string
+	//
 	// responses:
 	//   default:
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	tenantName := strings.TrimSpace(chi.URLParam(r, "tenant_name"))
+
+
+	rules := validator.MapData{
+		"tenant_name": []string{"required"},
+	}
+
+	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
+	if !ok {
+		return
+	}
+
+	tenantName := data["tenant_name"].(string)
+
 	rep, err := handler.GetTenantManager().GetTenantsName()
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants names error, %v", err))
@@ -167,16 +187,30 @@ func (t *TenantStruct) TenantsQuery(w http.ResponseWriter, r *http.Request) {
 }
 //TenantsWithResource TenantsWithResource
 func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation GET /v2/tenants v2 tenants
+	// swagger:operation GET /v2/resources/tenants/res/page/{curPage}/size/{pageLen} v2 PagedTenantResList
 	//
 	// 租户带资源列表
 	//
-	// get tenant resources
+	// get paged tenant resources
 	//
 	// ---
 	// produces:
 	// - application/json
 	// - application/xml
+	//
+	// parameters:
+	// - name: curPage
+	//   in: path
+	//   description: '123'
+	//   required: true
+	//   type: string
+	//   format: string
+	// - name: pageLen
+	//   in: path
+	//   description: '25'
+	//   required: true
+	//   type: string
+	//   format: string
 	//
 	// responses:
 	//   default:
@@ -185,9 +219,18 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 	//     description: 统一返回格式
 
 
+	rules := validator.MapData{
+		"curPage": []string{"required"},
+		"pageLen": []string{"required"},
+	}
 
-	pageLenStr := strings.TrimSpace(chi.URLParam(r, "pageLen"))
-	curPageStr := strings.TrimSpace(chi.URLParam(r, "curPage"))
+	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
+	if !ok {
+		return
+	}
+
+	pageLenStr := data["pageLen"].(string)
+	curPageStr := data["curPage"].(string)
 
 	pageLen,err:=strconv.Atoi(pageLenStr)
 	if err != nil {
@@ -225,7 +268,6 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 	}
 	pList := api_model.TenantResList(result)
 	sort.Sort(pList)
-	logrus.Infof("start from %v to %v",(curPage-1)*pageLen,curPage*pageLen-1)
 	var resultList []*api_model.TenantResource
 	if curPage*pageLen<len(rep) {
 		resultList=pList[(curPage-1)*pageLen:curPage*pageLen]
