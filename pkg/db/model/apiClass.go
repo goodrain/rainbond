@@ -26,8 +26,8 @@ func (t *RegionAPIClass) TableName() string {
 //RegionAPIClass RegionAPIClass
 type RegionAPIClass struct {
 	Model
-	ClassLevel string `gorm:"column:class_level;size:24" json:"class_level"`
-	Prefix     string `gorm:"column:prefix;size:128" json:"prefix"`
+	ClassLevel string `gorm:"column:class_level;size:24;primary_key" json:"class_level"`
+	Prefix     string `gorm:"column:prefix;size:128;primary_key" json:"prefix"`
 	URI        string `gorm:"column:uri;size:256" json:"uri"`
 	Alias      string `gorm:"column:alias;size:64" json:"alias"`
 	Remark     string `gorm:"column:remark;size:64" json:"remark"`
