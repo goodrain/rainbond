@@ -112,7 +112,7 @@ func (c *CloudManager) GetTokenInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 //UpdateToken UpdateToken
-// swagger:operation GET /cloud/auth/{eid} cloud updateToken
+// swagger:operation PUT /cloud/auth/{eid} cloud updateToken
 //
 // 更新token
 //

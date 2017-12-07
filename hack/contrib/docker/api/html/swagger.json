@@ -225,6 +225,39 @@
     },
     "/cloud/auth/{eid}": {
       "get": {
+        "description": "get token info",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "cloud"
+        ],
+        "summary": "获取tokeninfo",
+        "operationId": "getTokenInfo",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "EID",
+            "name": "eid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "put": {
         "description": "update token info",
         "consumes": [
           "application/json",
