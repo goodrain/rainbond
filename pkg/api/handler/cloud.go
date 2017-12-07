@@ -31,6 +31,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
 
 	"github.com/goodrain/rainbond/cmd/api/option"
@@ -78,32 +79,31 @@ func (c *CloudAction) TokenDispatcher(gt *api_model.GetUserToken) (*api_model.To
 	return ti, nil
 CREATE:
 	token := c.createToken(gt)
-	if !c.APISSL {
-		return ti, nil
-	}
-	//TODO: ca, key
-	ca, key, err := c.CertDispatcher(gt)
-	if err != nil {
-		return nil, util.CreateAPIHandleError(500, fmt.Errorf("create ca or key error"))
-	}
+	ti.Token = token
+	logrus.Debugf("create token %v", token)
 	rui := &dbmodel.RegionUserInfo{
 		EID:            gt.Body.EID,
 		RegionTag:      c.RegionTag,
 		ValidityPeriod: gt.Body.ValidityPeriod,
 		Token:          token,
 	}
+	if c.APISSL {
+		ca, key, err := c.CertDispatcher(gt)
+		if err != nil {
+			return nil, util.CreateAPIHandleError(500, fmt.Errorf("create ca or key error"))
+		}
+		rui.CA = string(ca)
+		rui.Key = string(key)
+		ti.CA = string(ca)
+		ti.Key = string(key)
+	}
 	if gt.Body.Range == "" {
-		rui.APIRange = "source"
+		rui.APIRange = dbmodel.SERVERSOURCE
 	}
 	GetTokenIdenHandler().AddTokenIntoMap(rui)
-	rui.CA = string(ca)
-	rui.Key = string(key)
 	if err := db.GetManager().RegionUserInfoDao().AddModel(rui); err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("create region user info", err)
 	}
-	ti.CA = string(ca)
-	ti.Key = string(key)
-	ti.Token = token
 	return ti, nil
 }
 

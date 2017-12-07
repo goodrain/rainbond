@@ -23,21 +23,21 @@ package model
 type GetUserToken struct {
 	// in: body
 	Body struct {
-		//eid
-		//in: body
-		//required: true
-		EID string `json:"eid" validate:"eid"`
-		//可控范围
-		//in: body
-		//required: false
+		// eid
+		// in: body
+		// required: true
+		EID string `json:"eid" validate:"eid|required"`
+		// 可控范围
+		// in: body
+		// required: false
 		Range string `json:"range" validate:"range"`
-		//有效期
-		//in: body
-		//required: true
-		ValidityPeriod int `json:"validity_period" validate:"validity_period|required"` //20191120
-		//数据中心标识
-		//in: body
-		//required: true
+		// 有效期
+		// in: body
+		// required: true
+		ValidityPeriod int `json:"validity_period" validate:"validity_period|required"` //1549812345
+		// 数据中心标识
+		// in: body
+		// required: true
 		RegionTag  string `json:"region_tag" validate:"region_tag"`
 		BeforeTime int    `json:"before_time"`
 	}
