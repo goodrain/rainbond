@@ -161,6 +161,8 @@ class AppImage():
                         pass
 
                     self.log.info("云帮应用发布完毕", step="last", status="success")
+            else:
+                self.log.info("镜像不存在，发布失败", step="callback", status="failure")
         elif dest == "ys":
             # 当前有镜像并且云市的image数据中心开启
             if self.region_registry.exist_image(image) and self.is_oss_image:
@@ -229,7 +231,9 @@ class AppImage():
                         "云市应用发布失败 {}".format(e.message),
                         step="callback",
                         status="failure")
-
+            else:
+                self.log.info("镜像不存在，发布失败", step="callback", status="failure")
+                
     def download_and_deploy(self):
         image = self.task['image']
         namespace = self.task['namespace']
@@ -331,6 +335,15 @@ class AppImage():
                 "同步镜像发生异常." + e.__str__(), step="app-image", status="failure")
 
         if region_download:
+            version_body = {
+                "type": 'image',
+                "path": image,
+                "event_id": self.event_id
+            }
+            try:
+                self.region_client.update_version_region(json.dumps(version_body))
+            except Exception as e:
+                pass
             self.log.info("应用同步完成，开始启动应用。", step="app-image", status="success")
             try:
                 self.api.start_service(tenant_name, service_alias, event_id)

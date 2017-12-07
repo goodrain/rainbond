@@ -79,15 +79,14 @@ func NewCmdNode() cli.Command {
 				Action: func(c *cli.Context) error {
 					list:=clients.NodeClient.Nodes().List()
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("uid", "IP", "HostName","role","alived","unschedulable","ready")
+					serviceTable.AddHeaders("uid", "IP", "HostName","role","alived","schedulable","ready")
 					var rest []*model.HostNode
 					for _,v:=range list{
 						var ready bool=false
-						for _,c:=range v.Conditions {
-							if string(c.Type)=="Ready"&&string(c.Status)=="True"{
-								ready=true
-							}
+						if (v.NodeStatus!=nil){
+							ready=true
 						}
+
 						if v.Role.HasRule("manage") {
 							serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,"N/A",ready)
 
@@ -100,12 +99,10 @@ func NewCmdNode() cli.Command {
 					}
 					for _,v:=range rest{
 						var ready bool=false
-						for _,c:=range v.Conditions {
-							if string(c.Type)=="Ready"&&string(c.Status)=="True"{
-								ready=true
-							}
+						if (v.NodeStatus!=nil){
+							ready=true
 						}
-						serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,v.Unschedulable,ready)
+						serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,!v.Unschedulable,ready)
 					}
 					fmt.Println(serviceTable.Render())
 					return nil

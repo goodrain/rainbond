@@ -1,29 +1,29 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package appm
 
 import (
-	"github.com/goodrain/rainbond/pkg/db/model"
-	"github.com/goodrain/rainbond/pkg/event"
 	"fmt"
 	"strings"
+
+	"github.com/goodrain/rainbond/pkg/db/model"
+	"github.com/goodrain/rainbond/pkg/event"
 
 	"github.com/jinzhu/gorm"
 
@@ -106,7 +106,11 @@ func (m *manager) updateService(serviceID, tenantID string, service *v1.Service,
 		K8sServiceID:    service.Name,
 	}
 	if len(service.Spec.Ports) > 0 {
-		k8sService.ContainerPort = int(service.Spec.Ports[0].Port)
+		if len(service.Spec.Ports) == 1 {
+			k8sService.ContainerPort = int(service.Spec.Ports[0].Port)
+		} else { //有状态服务 用于服务发现的service，不存port
+
+		}
 	}
 	if strings.HasSuffix(service.Name, "out") {
 		k8sService.IsOut = true

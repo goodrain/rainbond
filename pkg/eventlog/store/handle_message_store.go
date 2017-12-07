@@ -290,12 +290,11 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					webhook.GetManager().RunWebhookWithParameter(webhook.UpDateEventStatus, nil,
 						map[string]interface{}{"event_id": eventID, "status": status, "message": message})
 
-
 					event := model.ServiceEvent{}
 					event.EventID = eventID
 					event.Status = status
 					event.Message = message
-					logrus.Infof("updating event %s's status: %s",eventID,status)
+					logrus.Infof("updating event %s's status: %s", eventID, status)
 					cdb.GetManager().ServiceEventDao().UpdateModel(&event)
 
 					//todo  get version_info by event_id ,update final_status,optional delete
@@ -312,9 +311,13 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					event.EventID = eventID
 					event.CodeVersion = codeVersion
 					cdb.GetManager().ServiceEventDao().UpdateModel(&event)
-					version,_:=cdb.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+					version, err := cdb.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
 					//infos:=strings.Split(codeVersion,":")
-					version.CodeVersion=codeVersion
+					if err != nil {
+						logrus.Errorf("error get version by eventID %s", eventID)
+						continue
+					}
+					version.CodeVersion = codeVersion
 					//for k,v:=range infos{
 					//	i:=strings.Split(v," ")
 					//	if k==0 {

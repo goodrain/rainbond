@@ -7,6 +7,7 @@ from clients.registry import RegistryAPI
 from clients.etcdcli import TaskLocker
 from clients.userconsole import UserConsoleAPI
 from clients.acp_api import ACPAPI
+from clients.region_api import RegionBackAPI
 import time
 from utils.log import EventLog
 import logging
@@ -31,6 +32,7 @@ class ImageManual():
         self.configs = kwargs.get("config")
         self.region_api = RegionAPI(conf=self.configs['region'])
         image_config = self.configs["publish"]["image"]
+        self.region_client = RegionBackAPI()
         self.region_registry = RegistryAPI(
             host=image_config.get('curr_registry'))
         # self.region_registry.set_log_topic('mq_work.image_manual')
@@ -120,6 +122,15 @@ class ImageManual():
             logger.exception("mq_work.image_manual", e)
         if has_download:
             self.log.info("应用同步完成。", step="app-image", status="success")
+            version_body = {
+                "type": 'image',
+                "path": local_image,
+                "event_id": self.event_id
+            }
+            try:
+                self.region_client.update_version_region(json.dumps(version_body))
+            except Exception as e:
+                pass
             try:
                 self.api.update_iamge(tenant_name, service_alias, local_image)
                 self.log.info("应用信息更新完成，开始启动应用。", step="app-image", status="success")

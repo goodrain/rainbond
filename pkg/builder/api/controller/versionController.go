@@ -79,6 +79,7 @@ func UpdateDeliveredPath(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r,w,400,err.Error())
 		return
 	}
+	logrus.Infof("update build info to %s",string(in))
 	jsonc,err:=simplejson.NewJson(in)
 	if err != nil {
 		httputil.ReturnError(r,w,400,err.Error())
