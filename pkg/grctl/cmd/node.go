@@ -35,7 +35,23 @@ import (
 	"bytes"
 )
 
-
+func NewCmdShow() cli.Command {
+	c:=cli.Command{
+		Name:"show",
+		Usage:"显示region安装完成后访问地址",
+		Action: func(c *cli.Context) error {
+			var urls []string
+			manageHosts:=clients.NodeClient.Nodes().Rule("manage")
+			for _,v:=range manageHosts{
+				url:=v.ExternalIP+":7070"
+				urls=append(urls,url)
+			}
+			fmt.Println(urls)
+			return nil
+		},
+	}
+	return c
+}
 
 func NewCmdNode() cli.Command {
 	c:=cli.Command{
@@ -77,35 +93,35 @@ func NewCmdNode() cli.Command {
 				Name:  "list",
 				Usage: "list",
 				Action: func(c *cli.Context) error {
-					list:=clients.NodeClient.Nodes().List()
+					list := clients.NodeClient.Nodes().List()
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("uid", "IP", "HostName","role","alived","unschedulable","ready")
+					serviceTable.AddHeaders("uid", "IP", "HostName", "role", "alived", "unschedulable", "ready")
 					var rest []*model.HostNode
-					for _,v:=range list{
-						var ready bool=false
-						for _,c:=range v.Conditions {
-							if string(c.Type)=="Ready"&&string(c.Status)=="True"{
-								ready=true
+					for _, v := range list {
+						var ready bool = false
+						for _, c := range v.Conditions {
+							if string(c.Type) == "Ready" && string(c.Status) == "True" {
+								ready = true
 							}
 						}
 						if v.Role.HasRule("manage") {
-							serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,"N/A",ready)
+							serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Alived, "N/A", ready)
 
-						}else{
-							rest=append(rest,v)
+						} else {
+							rest = append(rest, v)
 						}
 					}
-					if len(rest)>0 {
+					if len(rest) > 0 {
 						serviceTable.AddSeparator()
 					}
-					for _,v:=range rest{
-						var ready bool=false
-						for _,c:=range v.Conditions {
-							if string(c.Type)=="Ready"&&string(c.Status)=="True"{
-								ready=true
+					for _, v := range rest {
+						var ready bool = false
+						for _, c := range v.Conditions {
+							if string(c.Type) == "Ready" && string(c.Status) == "True" {
+								ready = true
 							}
 						}
-						serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,v.Unschedulable,ready)
+						serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Alived, v.Unschedulable, ready)
 					}
 					fmt.Println(serviceTable.Render())
 					return nil

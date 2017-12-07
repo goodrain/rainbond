@@ -25,6 +25,8 @@ import (
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 )
 
+
+
 //ServiceGetCommon path参数
 //swagger:parameters getVolumes getDepVolumes
 type ServiceGetCommon struct {

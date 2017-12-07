@@ -29,6 +29,9 @@ type TenantInterface interface {
 	TenantResources(w http.ResponseWriter, r *http.Request)
 	Tenant(w http.ResponseWriter, r *http.Request)
 	ServicesInfo(w http.ResponseWriter, r *http.Request)
+	TenantsWithResource(w http.ResponseWriter, r *http.Request)
+	TenantsQuery(w http.ResponseWriter, r *http.Request)
+	TenantsGetByName(w http.ResponseWriter, r *http.Request)
 	SumTenants(w http.ResponseWriter, r *http.Request)
 	SingleTenantResources(w http.ResponseWriter, r *http.Request)
 }

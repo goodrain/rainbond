@@ -343,7 +343,10 @@ class RepoBuilder():
             "path": build_image_name,
             "event_id": self.event_id
         }
-        self.region_client.update_version_region(json.dumps(version_body))
+        try:
+            self.region_client.update_version_region(json.dumps(version_body))
+        except Exception as e:
+            pass
         return True
 
     def build_code(self):
@@ -417,7 +420,10 @@ class RepoBuilder():
             "path": package_name,
             "event_id": self.event_id
         }
-        #self.region_client.update_version_region(json.dumps(version_body))
+        try:
+            self.region_client.update_version_region(json.dumps(version_body))
+        except Exception as e:
+            pass
         return True
 
     def feedback(self):
@@ -474,7 +480,7 @@ class RepoBuilder():
                         self.log.error(
                             "升级部署应用错误", step="callback", status="failure")
                 else:
-                    self.log.info("构建失败。", step="callback", status="failure")
+                    self.log.info("构建失败,请查看Debug构建日志", step="callback", status="failure")
             else:
                 self.log.error("代码拉取失败。", step="callback", status="failure")
         except Exception as e:

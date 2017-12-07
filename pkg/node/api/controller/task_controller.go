@@ -78,11 +78,21 @@ func ExecTask(w http.ResponseWriter, r *http.Request) {
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &nodes, nil); !ok {
 		return
 	}
+
 	err := taskService.ExecTask(taskID, nodes.Nodes)
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
+	for _,v:=range nodes.Nodes {
+		node, err := nodeService.GetNode(v)
+		if err != nil {
+			err.Handle(r, w)
+			return
+		}
+		node.Status="install"
+	}
+
 	httputil.ReturnSuccess(r, w, nil)
 }
 

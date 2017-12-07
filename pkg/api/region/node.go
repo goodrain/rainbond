@@ -62,6 +62,8 @@ type NodeInterface interface {
 	Label(label map[string]string)
 }
 
+
+
 func (t *Node)Label(label map[string]string)  {
 	body,_:=json.Marshal(label)
 	_,_,err:=nodeServer.Request("/nodes/"+t.Id+"/labels","PUT",body)

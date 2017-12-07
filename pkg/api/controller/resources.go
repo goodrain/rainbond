@@ -40,6 +40,8 @@ import (
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 
 	"github.com/Sirupsen/logrus"
+	"sort"
+	"github.com/renstorm/fuzzysearch/fuzzy"
 )
 
 //V2Routes v2Routes
@@ -131,6 +133,201 @@ func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, rep)
 	return
 }
+
+
+
+//TenantsQuery TenantsQuery
+func (t *TenantStruct) TenantsQuery(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation GET /v2/tenants/query/{tenant_name} v2 tenants
+	//
+	// 租户带资源列表
+	//
+	// get tenant resources
+	//
+	// ---
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// parameters:
+	// - name: tenant_name
+	//   in: path
+	//   description: '123'
+	//   required: true
+	//   type: string
+	//   format: string
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//       "$ref": "#/responses/commandResponse"
+	//     description: 统一返回格式
+
+
+	tenantName := strings.TrimSpace(chi.URLParam(r, "tenant_name"))
+
+
+	rep, err := handler.GetTenantManager().GetTenantsName()
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants names error, %v", err))
+		return
+	}
+
+	result:=fuzzy.Find(tenantName, rep) // [cartwheel wheel]
+	httputil.ReturnSuccess(r, w, result)
+	return
+}
+
+
+//TenantsGetByName TenantsGetByName
+func (t *TenantStruct) TenantsGetByName(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation GET /v2/tenants/{tenant_name}/res v2 tenants
+	//
+	// 租户带资源单个
+	//
+	// get tenant resources
+	//
+	// ---
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// parameters:
+	// - name: tenant_name
+	//   in: path
+	//   description: '123'
+	//   required: true
+	//   type: string
+	//   format: string
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//       "$ref": "#/responses/commandResponse"
+	//     description: 统一返回格式
+
+
+
+
+	tenantName := strings.TrimSpace(chi.URLParam(r, "tenant_name"))
+
+	v, err := handler.GetTenantManager().GetTenantsByName(tenantName)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants names error, %v", err))
+		return
+	}
+	logrus.Infof("query tenant from db by name %s ,got %v",tenantName,v)
+	var res =&api_model.TenantResource{}
+	services, err := handler.GetServiceManager().GetService(v.UUID)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get services by tenantID %s error, %v",v.UUID, err))
+		return
+	}
+	totalResInfo, _ := handler.GetTenantManager().TotalMemCPU(services)
+	usedResInfo, _ := handler.GetTenantManager().StatsMemCPU(services)
+
+	res.UUID=v.UUID
+	res.Name=v.Name
+	res.EID=v.EID
+	res.AllocatedCPU=totalResInfo.CPU
+	res.AllocatedMEM=totalResInfo.MEM
+	res.UsedCPU=usedResInfo.CPU
+	res.UsedMEM=usedResInfo.MEM
+
+	httputil.ReturnSuccess(r, w, res)
+	return
+}
+
+//TenantsWithResource TenantsWithResource
+func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation GET /v2/resources/tenants/res/page/{curPage}/size/{pageLen} v2 PagedTenantResList
+	//
+	// 租户带资源列表
+	//
+	// get paged tenant resources
+	//
+	// ---
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// parameters:
+	// - name: curPage
+	//   in: path
+	//   description: '123'
+	//   required: true
+	//   type: string
+	//   format: string
+	// - name: pageLen
+	//   in: path
+	//   description: '25'
+	//   required: true
+	//   type: string
+	//   format: string
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//       "$ref": "#/responses/commandResponse"
+	//     description: 统一返回格式
+
+
+
+	pageLenStr := strings.TrimSpace(chi.URLParam(r, "pageLen"))
+	curPageStr := strings.TrimSpace(chi.URLParam(r, "curPage"))
+
+
+
+	pageLen,err:=strconv.Atoi(pageLenStr)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("bad request, %v", err))
+		return
+	}
+	curPage,err:=strconv.Atoi(curPageStr)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("bad request, %v", err))
+		return
+	}
+	rep, err := handler.GetTenantManager().GetTenants()
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants error, %v", err))
+		return
+	}
+	var result []*api_model.TenantResource
+	for _,v:=range rep{
+		services, err := handler.GetServiceManager().GetService(v.UUID)
+		if err != nil {
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("get services by tenantID %s error, %v",v.UUID, err))
+			return
+		}
+		totalResInfo, _ := handler.GetTenantManager().TotalMemCPU(services)
+		usedResInfo, _ := handler.GetTenantManager().StatsMemCPU(services)
+		var res api_model.TenantResource
+		res.UUID=v.UUID
+		res.Name=v.Name
+		res.EID=v.EID
+		res.AllocatedCPU=totalResInfo.CPU
+		res.AllocatedMEM=totalResInfo.MEM
+		res.UsedCPU=usedResInfo.CPU
+		res.UsedMEM=usedResInfo.MEM
+		result=append(result,&res)
+	}
+	pList := api_model.TenantResList(result)
+	sort.Sort(pList)
+	var resultList []*api_model.TenantResource
+	if curPage*pageLen<len(rep) {
+		resultList=pList[(curPage-1)*pageLen:curPage*pageLen]
+	}else{
+		resultList=pList[(curPage-1)*pageLen:len(rep)]
+	}
+
+	var ret api_model.PagedTenantResList
+	ret.List=resultList
+	ret.Length=len(resultList)
+	httputil.ReturnSuccess(r, w, ret)
+	return
+}
+
 
 //SumTenants 统计租户数量
 func (t *TenantStruct) SumTenants(w http.ResponseWriter, r *http.Request) {

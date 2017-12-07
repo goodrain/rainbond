@@ -294,6 +294,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 		node.UpdataCondition(initCondition)
 		n.UpdateNode(node)
 	}()
+	node.Status="init"
 	errorCondition := func(reason string, err error) {
 		initCondition.Status = model.ConditionFalse
 		initCondition.LastTransitionTime = time.Now()

@@ -76,6 +76,15 @@ func GetNodes(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
+	for _,v:=range nodes {
+		if v.NodeStatus!=nil{
+			for _,condiction:=range v.Conditions{
+				if condiction.Type=="Ready"&&condiction.Status=="True" {
+					v.Status="running"
+				}
+			}
+		}	
+	}
 	httputil.ReturnSuccess(r, w, nodes)
 }
 

@@ -139,12 +139,11 @@ class CodeCheck():
         self.region_client.code_check_region(json.dumps(body))
 
 
-
 def main():
     body = ""
     for line in fileinput.input():  # read task from stdin
         body = line
-    
+   
     code_check = CodeCheck(job=Job(body=body), config=load_dict, base_dir=sys.path[0])
     code_check.do_work()
 
