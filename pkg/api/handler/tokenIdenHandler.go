@@ -102,7 +102,7 @@ func CreateDefaultTokenMap(conf option.Config) {
 	}
 	rui := &dbmodel.RegionUserInfo{
 		Token:          consoleToken,
-		APIRange:       "all",
+		APIRange:       dbmodel.ALLPOWER,
 		ValidityPeriod: 3257894000,
 	}
 	tokenMap := make(map[string]*dbmodel.RegionUserInfo)
