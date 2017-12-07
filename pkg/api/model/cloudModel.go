@@ -67,14 +67,14 @@ type APIManager struct {
 		//完整uri
 		//in: body
 		//required: false
-		URI string `json:"uri;size:256" validate:"uri"`
+		URI string `json:"uri" validate:"uri"`
 		//别称
 		//in: body
 		//required: false
-		Alias string `json:"alias;size:64" validate:"alias"`
+		Alias string `json:"alias" validate:"alias"`
 		//补充信息
 		//in:body
 		//required: false
-		Remark string `json:"remark;size:64" validate:"remark"`
+		Remark string `json:"remark" validate:"remark"`
 	}
 }

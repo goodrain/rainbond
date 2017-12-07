@@ -52,7 +52,7 @@
                 "prefix"
               ],
               "properties": {
-                "alias;size:64": {
+                "alias": {
                   "description": "别称\nin: body",
                   "type": "string",
                   "x-go-name": "Alias"
@@ -67,12 +67,12 @@
                   "type": "string",
                   "x-go-name": "Prefix"
                 },
-                "remark;size:64": {
+                "remark": {
                   "description": "补充信息\nin:body",
                   "type": "string",
                   "x-go-name": "Remark"
                 },
-                "uri;size:256": {
+                "uri": {
                   "description": "完整uri\nin: body",
                   "type": "string",
                   "x-go-name": "URI"
@@ -116,7 +116,7 @@
                 "prefix"
               ],
               "properties": {
-                "alias;size:64": {
+                "alias": {
                   "description": "别称\nin: body",
                   "type": "string",
                   "x-go-name": "Alias"
@@ -131,12 +131,12 @@
                   "type": "string",
                   "x-go-name": "Prefix"
                 },
-                "remark;size:64": {
+                "remark": {
                   "description": "补充信息\nin:body",
                   "type": "string",
                   "x-go-name": "Remark"
                 },
-                "uri;size:256": {
+                "uri": {
                   "description": "完整uri\nin: body",
                   "type": "string",
                   "x-go-name": "URI"
