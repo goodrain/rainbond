@@ -29,7 +29,6 @@ import (
 type TenantHandler interface {
 	GetTenants() ([]*dbmodel.Tenants, error)
 	GetTenantsByName(name string) (*dbmodel.Tenants, error)
-	//GetPagedTenants(page,pageSize int) (*api_model.StatsInfo, error)
 	GetTenantsName() ([]string, error)
 	StatsMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error)
 	TotalMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error)

@@ -83,42 +83,14 @@ func CreateTenManager(conf option.Config) (*TenantAction, error) {
 	}, nil
 }
 
-//GetTenantsName get tenants name
-func (t *TenantAction) GetTenantsName() ([]string, error) {
+//GetTenants get tenants
+func (t *TenantAction) GetTenants() ([]*dbmodel.Tenants, error) {
 	tenants, err := db.GetManager().TenantDao().GetALLTenants()
 	if err != nil {
 		return nil, err
 	}
-	var result []string
-	for _,v:=range tenants{
-		result=append(result,strings.ToLower(v.Name))
-	}
-	return result, err
+	return tenants, err
 }
-
-//GetPagedTenants get tenants paged
-//func (t *TenantAction) GetPagedTenants(page,pageSize int) (*api_model.StatsInfo, error) {
-//	tenants, err := db.GetManager().TenantDao().GetTenantsOrderByUsedMemPaged(page,pageSize)
-//	if err != nil {
-//		return nil, err
-//	}
-//	var result []string
-//	for _,v:=range tenants{
-//		result=append(result,strings.ToLower(v.Name))
-//	}
-//	return result, err
-//}
-
-//GetTenants get tenants
-func (t *TenantAction) GetTenantsByName(name string) (*dbmodel.Tenants, error) {
-	tenant, err := db.GetManager().TenantDao().GetTenantIDByName(name)
-	if err != nil {
-		return nil, err
-	}
-	return tenant, err
-}
-
-
 
 //StatsMemCPU StatsMemCPU
 func (t *TenantAction) TotalMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error){
@@ -135,6 +107,28 @@ func (t *TenantAction) TotalMemCPU(services []*dbmodel.TenantServices) (*api_mod
 		MEM: mem,
 	}
 	return si, nil
+}
+
+//GetTenantsName get tenants name
+func (t *TenantAction) GetTenantsName() ([]string, error) {
+	tenants, err := db.GetManager().TenantDao().GetALLTenants()
+	if err != nil {
+		return nil, err
+	}
+	var result []string
+	for _,v:=range tenants{
+		result=append(result,strings.ToLower(v.Name))
+	}
+	return result, err
+}
+
+//GetTenants get tenants
+func (t *TenantAction) GetTenantsByName(name string) (*dbmodel.Tenants, error) {
+	tenant, err := db.GetManager().TenantDao().GetTenantIDByName(name)
+	if err != nil {
+		return nil, err
+	}
+	return tenant, err
 }
 
 //StatsMemCPU StatsMemCPU
