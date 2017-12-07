@@ -34,6 +34,8 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
+	"strconv"
+	"github.com/goodrain/rainbond/pkg/node/core/k8s"
 )
 
 func init() {
@@ -200,6 +202,79 @@ func UpNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, node)
+}
+
+
+//UpNode 节点实例，计算节点操作
+func Instances(w http.ResponseWriter, r *http.Request) {
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	node, err := nodeService.GetNode(nodeUID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	ps, error := k8s.GetPodsByNodeName(node.HostName)
+	if error != nil {
+		httputil.ReturnError(r,w,404,error.Error())
+		return
+	}
+
+	logrus.Infof("get pods from node %s is %v",node.HostName,ps)
+	pods := []*model.Pods{}
+	var cpuR int64
+	cpuRR := 0
+	var cpuL int64
+	cpuLR := 0
+	var memR int64
+	memRR := 0
+	var memL int64
+	memLR := 0
+	for _, v := range ps {
+		if v.Spec.NodeName != node.HostName {
+			continue
+		}
+		pod := &model.Pods{}
+		pod.Namespace = v.Namespace
+		serviceId := v.Labels["name"]
+		if serviceId == "" {
+			continue
+		}
+		pod.Name = v.Name
+		pod.Id = serviceId
+
+		lc := v.Spec.Containers[0].Resources.Limits.Cpu().Value()
+		cpuL += lc
+		lm := v.Spec.Containers[0].Resources.Limits.Memory().Value()
+
+		memL += lm
+		rc := v.Spec.Containers[0].Resources.Requests.Cpu().Value()
+		cpuR += rc
+		rm := v.Spec.Containers[0].Resources.Requests.Memory().Value()
+
+		memR += rm
+
+		logrus.Infof("namespace %s,podid %s :limit cpu %s,requests cpu %s,limit mem %s,request mem %s", pod.Namespace, pod.Id, lc, rc, lm, rm)
+		pod.CPURequests = strconv.Itoa(int(rc))
+
+		pod.CPURequestsR = string(rc/node.NodeStatus.Capacity.Cpu().Value())
+		crr, _ := strconv.Atoi(pod.CPURequestsR)
+		cpuRR += crr
+		pod.CPULimits = strconv.Itoa(int(lc))
+		pod.CPULimitsR = string(lc/node.NodeStatus.Capacity.Cpu().Value())
+		clr, _ := strconv.Atoi(pod.CPULimitsR)
+		cpuLR += clr
+		pod.MemoryRequests = strconv.Itoa(int(rm))
+		pod.MemoryRequestsR = string(rm/node.NodeStatus.Capacity.Memory().Value())
+		mrr, _ := strconv.Atoi(pod.MemoryRequestsR)
+		memRR += mrr
+
+		pod.MemoryLimits = strconv.Itoa(int(lm))
+		pod.MemoryLimitsR = string(lm/node.NodeStatus.Capacity.Memory().Value())
+		mlr, _ := strconv.Atoi(pod.MemoryLimitsR)
+		memLR += mlr
+		pods = append(pods, pod)
+	}
+	httputil.ReturnSuccess(r, w, pods)
 }
 
 //NodeExporter 节点监控
