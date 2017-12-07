@@ -185,6 +185,74 @@ func (t *TenantStruct) TenantsQuery(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, result)
 	return
 }
+
+
+//TenantsGetByName TenantsGetByName
+func (t *TenantStruct) TenantsGetByName(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation GET /v2/tenants/{tenant_name}/res v2 tenants
+	//
+	// 租户带资源单个
+	//
+	// get tenant resources
+	//
+	// ---
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// parameters:
+	// - name: tenant_name
+	//   in: path
+	//   description: '123'
+	//   required: true
+	//   type: string
+	//   format: string
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//       "$ref": "#/responses/commandResponse"
+	//     description: 统一返回格式
+
+
+	rules := validator.MapData{
+		"tenant_name": []string{"required"},
+	}
+
+	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
+	if !ok {
+		return
+	}
+
+	tenantName := data["tenant_name"].(string)
+
+	v, err := handler.GetTenantManager().GetTenantsByName(tenantName)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants names error, %v", err))
+		return
+	}
+
+	var res *api_model.TenantResource
+	services, err := handler.GetServiceManager().GetService(v.UUID)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get services by tenantID %s error, %v",v.UUID, err))
+		return
+	}
+	totalResInfo, _ := handler.GetTenantManager().TotalMemCPU(services)
+	usedResInfo, _ := handler.GetTenantManager().StatsMemCPU(services)
+
+	res.UUID=v.UUID
+	res.Name=v.Name
+	res.EID=v.EID
+	res.AllocatedCPU=totalResInfo.CPU
+	res.AllocatedMEM=totalResInfo.MEM
+	res.UsedCPU=usedResInfo.CPU
+	res.UsedMEM=usedResInfo.MEM
+
+	httputil.ReturnSuccess(r, w, res)
+	return
+}
+
 //TenantsWithResource TenantsWithResource
 func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/resources/tenants/res/page/{curPage}/size/{pageLen} v2 PagedTenantResList

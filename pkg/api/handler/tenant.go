@@ -110,13 +110,14 @@ func (t *TenantAction) GetTenantsName() ([]string, error) {
 //}
 
 //GetTenants get tenants
-func (t *TenantAction) GetTenants() ([]*dbmodel.Tenants, error) {
-	tenants, err := db.GetManager().TenantDao().GetALLTenants()
+func (t *TenantAction) GetTenantsByName(name string) (*dbmodel.Tenants, error) {
+	tenant, err := db.GetManager().TenantDao().GetTenantIDByName(name)
 	if err != nil {
 		return nil, err
 	}
-	return tenants, err
+	return tenant, err
 }
+
 
 
 //StatsMemCPU StatsMemCPU
