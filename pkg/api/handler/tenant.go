@@ -93,22 +93,7 @@ func (t *TenantAction) GetTenants() ([]*dbmodel.Tenants, error) {
 }
 
 
-//StatsMemCPU StatsMemCPU
-func (t *TenantAction) TotalMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error){
-	cpus := 0
-	mem := 0
-	for _, service := range services {
 
-		logrus.Debugf("service is %s, cpus is %v, mem is %v", service.ID, service.ContainerCPU, service.ContainerMemory)
-		cpus += service.ContainerCPU
-		mem += service.ContainerMemory
-	}
-	si := &api_model.StatsInfo{
-		CPU: cpus,
-		MEM: mem,
-	}
-	return si, nil
-}
 
 //StatsMemCPU StatsMemCPU
 func (t *TenantAction) TotalMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error){
