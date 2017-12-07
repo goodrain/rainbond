@@ -219,7 +219,6 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logrus.Infof("get pods from node %s is %v",node.HostName,ps)
 	pods := []*model.Pods{}
 	var cpuR int64
 	cpuRR := 0
@@ -230,7 +229,8 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 	var memL int64
 	memLR := 0
 	for _, v := range ps {
-		if v.Spec.NodeName != node.HostName {
+		logrus.Infof("pos 's node name is %s and node is %s",v.Spec.NodeName,node.HostName)
+		if v.Spec.NodeName != node.InternalIP {
 			continue
 		}
 		pod := &model.Pods{}
