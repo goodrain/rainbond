@@ -121,9 +121,6 @@ func (n *NodeService) CordonNode(nodeID string, unschedulable bool) *utils.APIHa
 	}
 	//更新节点状态
 	hostNode.Unschedulable = unschedulable
-	if unschedulable {
-		hostNode.Status = "unschedulable"
-	}
 	//k8s节点存在
 	if hostNode.NodeStatus != nil {
 		//true表示drain，不可调度
