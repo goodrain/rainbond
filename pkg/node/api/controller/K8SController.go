@@ -23,7 +23,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
-
+	//httputil "github.com/goodrain/rainbond/pkg/util/http"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -543,7 +543,81 @@ func Resources(w http.ResponseWriter, r *http.Request) {
 	logrus.Infof("get cpu %v and mem %v", cpuR, memR)
 	api.ReturnSuccess(r, w, result)
 }
+func CapRes(w http.ResponseWriter, r *http.Request) {
+	nodes, err := nodeService.GetAllNode()
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	var capCpu int64
+	var capMem int64
+	for _,v:=range nodes{
+		if v.NodeStatus != nil {
+			capCpu+=v.NodeStatus.Capacity.Cpu().Value()
+			capMem+=v.NodeStatus.Capacity.Memory().Value()
+		}
+	}
 
+	result := new(model.Resource)
+	result.CpuR=int(capCpu)
+	result.MemR=int(capMem)
+	logrus.Infof("get cpu %v and mem %v", capCpu, capMem)
+	api.ReturnSuccess(r, w, result)
+}
+
+func RegionRes(w http.ResponseWriter, r *http.Request) {
+	nodes, err := nodeService.GetAllNode()
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+
+
+	var capCpu int64
+	var capMem int64
+	for _,v:=range nodes{
+		if v.NodeStatus != nil {
+			capCpu+=v.NodeStatus.Capacity.Cpu().Value()
+			capMem+=v.NodeStatus.Capacity.Memory().Value()
+		}
+	}
+	//
+	//tenants, error := db.GetManager().TenantDao().GetALLTenants()
+	//if error != nil {
+	//	logrus.Errorf("error get tenants ,details %s",error.Error())
+	//}
+	//s:=len(tenants)
+	nodeList, error := k8s.K8S.Core().Nodes().List(metav1.ListOptions{})
+	if error != nil {
+		logrus.Errorf("error get nodes from k8s ,details %s", error.Error())
+		api.ReturnError(r, w, 500, "failed,details "+error.Error())
+		return
+	}
+
+	cpuR := 0
+	memR := 0
+	for _, v := range nodeList.Items {
+
+		ps, _ := k8s.GetPodsByNodeName(v.Name)
+		for _, pv := range ps {
+			rc := pv.Spec.Containers[0].Resources.Requests.Cpu().String()
+			rm := pv.Spec.Containers[0].Resources.Requests.Memory().String()
+			cpuR += getCpuInt(rc)
+			memR += convertMemoryToMBInt(rm, true)
+		}
+	}
+
+
+	result := new(model.ClusterResource)
+	result.CapCpu=int(capCpu)
+	result.CapMem=int(capMem)/1024/1024
+	result.ReqCpu = float32(cpuR)/1000
+	result.ReqMem = memR
+	result.Node=len(nodes)
+	result.Tenant=0
+	logrus.Infof("get cpu %v and mem %v", capCpu, capMem)
+	api.ReturnSuccess(r, w, result)
+}
 func UpdateNode(w http.ResponseWriter, r *http.Request) {
 
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
