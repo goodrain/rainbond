@@ -50,3 +50,31 @@ type TokenInfo struct {
 	CA    string `json:"ca"`
 	Key   string `json:"key"`
 }
+
+//APIManager APIManager
+//swagger:parameters addAPIManager deleteAPIManager
+type APIManager struct {
+	//in: body
+	Body struct {
+		//api级别
+		//in: body
+		//required: true
+		ClassLevel string `json:"class_level" validate:"class_level|reqired"`
+		//uri前部
+		//in: body
+		//required: true
+		Prefix string `json:"prefix" validate:"prefix|required"`
+		//完整uri
+		//in: body
+		//required: false
+		URI string `json:"uri;size:256" validate:"uri"`
+		//别称
+		//in: body
+		//required: false
+		Alias string `json:"alias;size:64" validate:"alias"`
+		//补充信息
+		//in:body
+		//required: false
+		Remark string `json:"remark;size:64" validate:"remark"`
+	}
+}

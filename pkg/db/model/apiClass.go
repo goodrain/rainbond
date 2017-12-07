@@ -16,19 +16,28 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package cloud
+package model
 
-import (
-	"github.com/go-chi/chi"
-	"github.com/goodrain/rainbond/pkg/api/controller"
-)
-
-//Routes routes
-func Routes() chi.Router {
-	r := chi.NewRouter()
-	r.Get("/show", controller.GetCloudRouterManager().Show)
-	r.Post("/auth", controller.GetCloudRouterManager().GetToken)
-	r.Get("/api/manager", controller.GetCloudRouterManager().GetAPIManager)
-	r.Post("/api/manager", controller.GetCloudRouterManager().DeleteAPIManager)
-	return r
+//TableName 表名
+func (t *RegionAPIClass) TableName() string {
+	return "region_api_class"
 }
+
+//RegionAPIClass RegionAPIClass
+type RegionAPIClass struct {
+	Model
+	ClassLevel string `gorm:"column:class_level;size:24" json:"class_level"`
+	Prefix     string `gorm:"column:prefix;size:128" json:"prefix"`
+	URI        string `gorm:"column:uri;size:256" json:"uri"`
+	Alias      string `gorm:"column:alias;size:64" json:"alias"`
+	Remark     string `gorm:"column:remark;size:64" json:"remark"`
+}
+
+//NODEMANAGER NODEMANAGER
+var NODEMANAGER = "node_manager"
+
+//SERVERSOURCE SERVERSOURCE
+var SERVERSOURCE = "server_source"
+
+//ALLPOWER ALLPOWER
+var ALLPOWER = "all_power"

@@ -92,6 +92,9 @@ type Manager interface {
 
 	RegionUserInfoDao() dao.RegionUserInfoDao
 	RegionUserInfoDaoTransactions(db *gorm.DB) dao.RegionUserInfoDao
+
+	RegionAPIClassDao() dao.RegionAPIClassDao
+	RegionAPIClassDaoTransactions(db *gorm.DB) dao.RegionAPIClassDao
 }
 
 var defaultManager Manager

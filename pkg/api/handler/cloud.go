@@ -43,6 +43,7 @@ import (
 //CloudAction  cloud action struct
 type CloudAction struct {
 	RegionTag string
+	APISSL    bool
 	CAPath    string
 	KeyPath   string
 }
@@ -50,9 +51,10 @@ type CloudAction struct {
 //CreateCloudManager get cloud manager
 func CreateCloudManager(conf option.Config) (*CloudAction, error) {
 	return &CloudAction{
+		APISSL:    conf.APISSL,
 		RegionTag: conf.RegionTag,
-		CAPath:    conf.WebsocketCertFile,
-		KeyPath:   conf.WebsocketKeyFile,
+		CAPath:    conf.APICertFile,
+		KeyPath:   conf.APIKeyFile,
 	}, nil
 }
 
@@ -76,6 +78,9 @@ func (c *CloudAction) TokenDispatcher(gt *api_model.GetUserToken) (*api_model.To
 	return ti, nil
 CREATE:
 	token := c.createToken(gt)
+	if !c.APISSL {
+		return ti, nil
+	}
 	//TODO: ca, key
 	ca, key, err := c.CertDispatcher(gt)
 	if err != nil {

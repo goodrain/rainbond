@@ -130,6 +130,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.VersionInfo{})
 	m.models = append(m.models, &model.TenantServicesStreamPluginPort{})
 	m.models = append(m.models, &model.RegionUserInfo{})
+	m.models = append(m.models, &model.RegionAPIClass{})
 }
 
 //CheckTable 检测表结构
@@ -162,4 +163,14 @@ func (m *Manager) patchTable() {
 	// m.db.Exec("alter table tenant_services add replica_id varchar(32)")
 	// m.db.Exec("alter table tenant_services add status int(11) default 0")
 	// m.db.Exec("alter table tenant_services add node_label varchar(40)")
+	m.db.Exec("insert into region_api_class VALUES ('','','server_source','/v2/tenants','','','')")
+	m.db.Exec("insert into region_api_class VALUES ('','','server_source','/v2/show','','','')")
+	m.db.Exec("insert into region_api_class VALUES ('','','server_source','/v2/resources','','','')")
+	m.db.Exec("insert into region_api_class VALUES ('','','server_source','/v2/opentsdb','','','')")
+	m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/nodes','','','')")
+	m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/job','','','')")
+	m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/tasks','','','')")
+	m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/taskgroups','','','')")
+	m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/tasktemps','','','')")
+	m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/configs','','','')")
 }
