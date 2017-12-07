@@ -464,7 +464,15 @@ class RepoBuilder():
                         commit_info["subject"]),
                     step="code-version",
                     status="success")
-
+                version_body = {
+                    "code_version":commit_info["hash"][0:7],
+                    "code_commit_msg":commit_info["subject"],
+                    "code_commit_author":commit_info["author"]
+                }
+                try:
+                    self.region_client.update_version_event(self.event_id,json.dumps(version_body))
+                except Exception as e:
+                    pass
                 if self.find_dockerfile():
                     self.log.info(
                         "代码识别出Dockerfile,直接构建镜像。", step="build-worker")

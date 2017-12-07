@@ -30,7 +30,6 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-
 func GetVersionByEventID(w http.ResponseWriter, r *http.Request) {
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 
@@ -39,6 +38,50 @@ func GetVersionByEventID(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r,w,404,err.Error())
 	}
 	httputil.ReturnSuccess(r, w, version)
+}
+
+func UpdateVersionByEventID(w http.ResponseWriter, r *http.Request) {
+	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
+
+	version,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+	if err != nil {
+		httputil.ReturnError(r,w,404,err.Error())
+	}
+	in,err:=ioutil.ReadAll(r.Body)
+	json,err:=simplejson.NewJson(in)
+	if err != nil {
+		httputil.ReturnError(r,w,400,err.Error())
+		return
+	}
+
+	if author,err:=json.Get("code_commit_author").String();err!=nil||author=="" {
+
+	}else{
+		version.Author=author
+	}
+
+	if msg,err:=json.Get("code_commit_msg").String();err!=nil||msg=="" {
+
+	}else{
+		version.CommitMsg=msg
+	}
+	if cVersion,err:=json.Get("code_version").String();err!=nil||cVersion=="" {
+
+	}else{
+		version.CodeVersion=cVersion
+	}
+
+	if status,err:=json.Get("final_status").String();err!=nil||status=="" {
+
+	}else{
+		version.FinalStatus=status
+	}
+	err=db.GetManager().VersionInfoDao().UpdateModel(version)
+	if err != nil {
+		httputil.ReturnError(r,w,500,err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
 }
 func GetVersionByServiceID(w http.ResponseWriter, r *http.Request) {
 	serviceID := strings.TrimSpace(chi.URLParam(r, "serviceID"))
