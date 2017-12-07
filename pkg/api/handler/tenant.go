@@ -128,7 +128,7 @@ func (t *TenantAction) GetTenantsByName(name string) (*dbmodel.Tenants, error) {
 	if err != nil {
 		return nil, err
 	}
-	logrus.Infof("query tenant from db by name %s ,got %v",name,tenant)
+
 	return tenant, err
 }
 
