@@ -31,6 +31,7 @@ import (
 //TokenMapHandler DefaultTokenMapHandler
 type TokenMapHandler interface {
 	AddTokenIntoMap(rui *dbmodel.RegionUserInfo)
+	DeleteTokenFromMap(oldtoken string, rui *dbmodel.RegionUserInfo)
 	CheckToken(token, uri string) bool
 	GetAPIManager() map[string][]*dbmodel.RegionAPIClass
 	AddAPIManager(am *api_model.APIManager) *util.APIHandleError

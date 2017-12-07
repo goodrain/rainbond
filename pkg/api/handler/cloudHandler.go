@@ -22,11 +22,14 @@ import (
 	"github.com/goodrain/rainbond/cmd/api/option"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
+	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 )
 
 //CloudHandler define source handler
 type CloudHandler interface {
 	TokenDispatcher(gt *api_model.GetUserToken) (*api_model.TokenInfo, *util.APIHandleError)
+	GetTokenInfo(eid string) (*dbmodel.RegionUserInfo, *util.APIHandleError)
+	UpdateTokenTime(eid string, vd int) *util.APIHandleError
 }
 
 var defaultCloudHandler CloudHandler

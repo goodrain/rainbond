@@ -44,6 +44,13 @@ func (t *TokenIdenAction) AddTokenIntoMap(rui *dbmodel.RegionUserInfo) {
 	m[rui.Token] = rui
 }
 
+//DeleteTokenFromMap DeleteTokenFromMap
+func (t *TokenIdenAction) DeleteTokenFromMap(oldtoken string, rui *dbmodel.RegionUserInfo) {
+	m := GetDefaultTokenMap()
+	t.AddTokenIntoMap(rui)
+	delete(m, oldtoken)
+}
+
 //GetAPIManager GetAPIManager
 func (t *TokenIdenAction) GetAPIManager() map[string][]*dbmodel.RegionAPIClass {
 	return GetDefaultSourceURI()

@@ -66,6 +66,8 @@ func (c *CloudAction) TokenDispatcher(gt *api_model.GetUserToken) (*api_model.To
 	ti := &api_model.TokenInfo{
 		EID: gt.Body.EID,
 	}
+	token := c.createToken(gt)
+	var oldToken string
 	tokenInfos, err := db.GetManager().RegionUserInfoDao().GetTokenByEid(gt.Body.EID)
 	if err != nil {
 		if err.Error() == gorm.ErrRecordNotFound.Error() {
@@ -74,11 +76,18 @@ func (c *CloudAction) TokenDispatcher(gt *api_model.GetUserToken) (*api_model.To
 		return nil, util.CreateAPIHandleErrorFromDBError("get user token info", err)
 	}
 	ti.CA = tokenInfos.CA
-	ti.Key = tokenInfos.Key
-	ti.Token = tokenInfos.Token
+	//ti.Key = tokenInfos.Key
+	ti.Token = token
+	oldToken = tokenInfos.Token
+	tokenInfos.Token = token
+	if err := db.GetManager().RegionUserInfoDao().UpdateModel(tokenInfos); err != nil {
+		return nil, util.CreateAPIHandleErrorFromDBError("recreate region user info", err)
+	}
+	tokenInfos.CA = ""
+	tokenInfos.Key = ""
+	GetTokenIdenHandler().DeleteTokenFromMap(oldToken, tokenInfos)
 	return ti, nil
 CREATE:
-	token := c.createToken(gt)
 	ti.Token = token
 	logrus.Debugf("create token %v", token)
 	rui := &dbmodel.RegionUserInfo{
@@ -95,7 +104,7 @@ CREATE:
 		rui.CA = string(ca)
 		rui.Key = string(key)
 		ti.CA = string(ca)
-		ti.Key = string(key)
+		//ti.Key = string(key)
 	}
 	if gt.Body.Range == "" {
 		rui.APIRange = dbmodel.SERVERSOURCE
@@ -105,6 +114,29 @@ CREATE:
 		return nil, util.CreateAPIHandleErrorFromDBError("create region user info", err)
 	}
 	return ti, nil
+}
+
+//GetTokenInfo GetTokenInfo
+func (c *CloudAction) GetTokenInfo(eid string) (*dbmodel.RegionUserInfo, *util.APIHandleError) {
+	tokenInfos, err := db.GetManager().RegionUserInfoDao().GetTokenByEid(eid)
+	if err != nil {
+		return nil, util.CreateAPIHandleErrorFromDBError("get user token info", err)
+	}
+	return tokenInfos, nil
+}
+
+//UpdateTokenTime UpdateTokenTime
+func (c *CloudAction) UpdateTokenTime(eid string, vd int) *util.APIHandleError {
+	tokenInfos, err := db.GetManager().RegionUserInfoDao().GetTokenByEid(eid)
+	if err != nil {
+		return util.CreateAPIHandleErrorFromDBError("get user token info", err)
+	}
+	tokenInfos.ValidityPeriod = vd
+	err = db.GetManager().RegionUserInfoDao().UpdateModel(tokenInfos)
+	if err != nil {
+		return util.CreateAPIHandleErrorFromDBError("update user token info", err)
+	}
+	return nil
 }
 
 //CertDispatcher Cert
@@ -185,7 +217,7 @@ func analystCaKey(path, kind string) (interface{}, error) {
 }
 
 func (c *CloudAction) createToken(gt *api_model.GetUserToken) string {
-	fullStr := fmt.Sprintf("%s-%s-%s-%d", gt.Body.EID, c.RegionTag, gt.Body.Range, gt.Body.ValidityPeriod)
+	fullStr := fmt.Sprintf("%s-%s-%s-%d-%d", gt.Body.EID, c.RegionTag, gt.Body.Range, gt.Body.ValidityPeriod, int(time.Now().Unix()))
 	h := md5.New()
 	h.Write([]byte(fullStr))
 	return hex.EncodeToString(h.Sum(nil))

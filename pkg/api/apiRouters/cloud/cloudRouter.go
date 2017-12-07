@@ -27,7 +27,9 @@ import (
 func Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/show", controller.GetCloudRouterManager().Show)
-	r.Post("/auth", controller.GetCloudRouterManager().GetToken)
+	r.Post("/auth", controller.GetCloudRouterManager().CreateToken)
+	r.Get("/auth/{eid}", controller.GetCloudRouterManager().GetTokenInfo)
+	r.Put("/auth/{eid}", controller.GetCloudRouterManager().UpdateToken)
 	r.Get("/api/manager", controller.GetCloudRouterManager().GetAPIManager)
 	r.Post("/api/manager", controller.GetCloudRouterManager().DeleteAPIManager)
 	return r
