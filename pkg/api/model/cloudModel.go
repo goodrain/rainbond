@@ -26,7 +26,7 @@ type GetUserToken struct {
 		//eid
 		//in: body
 		//required: true
-		EID string `json:"eid" validate:"eid|between:30,33|required"`
+		EID string `json:"eid" validate:"eid|required"`
 		//可控范围
 		//in: body
 		//required: false
