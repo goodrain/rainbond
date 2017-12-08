@@ -175,7 +175,7 @@ func (c *CloudManager) GetAPIManager(w http.ResponseWriter, r *http.Request) {
 //AddAPIManager AddAPIManager
 // swagger:operation POST /cloud/api/manager cloud addAPIManager
 //
-// 获取api管理
+// 添加api管理
 //
 // get api manager
 //
@@ -209,7 +209,7 @@ func (c *CloudManager) AddAPIManager(w http.ResponseWriter, r *http.Request) {
 //DeleteAPIManager DeleteAPIManager
 // swagger:operation DELETE /cloud/api/manager cloud deleteAPIManager
 //
-// 获取api管理
+// 删除api管理
 //
 // delete api manager
 //
