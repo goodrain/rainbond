@@ -34,7 +34,7 @@ import (
 func NewCmdSources() cli.Command {
 	c := cli.Command{
 		Name:  "sources",
-		Usage: "自定义资源相关操作。grctl plugin [create/delete/update/get] -g NAMESPACE/SOURCEALIAS [commands] [sources]",
+		Usage: "自定义资源相关操作。grctl sources [create/delete/update/get] -g NAMESPACE/SOURCEALIAS [commands] [sources]",
 		Subcommands: []cli.Command{
 			{
 				Name:  "create",

@@ -60,22 +60,29 @@ type TenantInterface interface {
 	Get(name string) *Tenant
 	Services() ServiceInterface
 	DefineSources(ss *api_model.SourceSpec) DefineSourcesInterface
+	DefineCloudAuth(gt *api_model.GetUserToken) DefineCloudAuthInterface
 }
 
+//Get Get
 func (t *Tenant) Get(name string) *Tenant {
 	return &Tenant{
 		tenantID: name,
 	}
 }
+
+//Delete Delete
 func (t *Tenant) Delete(name string) error {
 	return nil
 }
+
+//Services Services
 func (t *Tenant) Services() ServiceInterface {
 	return &Services{
 		tenant: t,
 	}
 }
 
+//ServiceInterface ServiceInterface
 type ServiceInterface interface {
 	Get(name string) map[string]string
 	Pods(serviceAlisa string) ([]*dbmodel.K8sPod, error)
@@ -85,6 +92,7 @@ type ServiceInterface interface {
 	EventLog(serviceAlisa, eventID, level string) ([]model.MessageData, error)
 }
 
+//Pods Pods
 func (s *Services) Pods(serviceAlisa string) ([]*dbmodel.K8sPod, error) {
 	resp, _, err := DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+serviceAlisa+"/pods", "GET", nil)
 	if err != nil {
@@ -101,6 +109,8 @@ func (s *Services) Pods(serviceAlisa string) ([]*dbmodel.K8sPod, error) {
 
 	return pods, err
 }
+
+//Get Get
 func (s *Services) Get(name string) map[string]string {
 	resp, status, err := DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name, "GET", nil)
 	if err != nil {
@@ -124,6 +134,8 @@ func (s *Services) Get(name string) map[string]string {
 
 	return m
 }
+
+//EventLog EventLog
 func (s *Services) EventLog(serviceAlisa, eventID, level string) ([]model.MessageData, error) {
 	data := []byte(`{"event_id":"` + eventID + `","level":"` + level + `"}`)
 	resp, _, err := DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+serviceAlisa+"/event-log", "POST", data)
@@ -152,7 +164,7 @@ type beanServiceStruct struct {
 }
 
 func (s *Services) List() []model.ServiceStruct {
-	res,_,err:=DoRequest(region.regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services","GET",nil)
+	res, _, err := DoRequest(region.regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services", "GET", nil)
 	j, err := simplejson.NewJson(res)
 	if err != nil {
 		logrus.Errorf("error unmarshal json,details %s", err.Error())
