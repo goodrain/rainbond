@@ -512,6 +512,7 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 		JobID:        er.JobID,
 		StartTime:    er.BeginTime,
 		EndTime:      er.EndTime,
+		Status:       "complete",
 		CompleStatus: "Failure",
 	}
 	if status, ok := task.Status[er.Node]; ok {
