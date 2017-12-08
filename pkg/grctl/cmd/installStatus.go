@@ -194,35 +194,45 @@ func NewCmdInstall() cli.Command {
 //}
 
 func Status(task string,nodes []string) {
-	taskE:=clients.NodeClient.Tasks().Get(task)
-	lastState:=""
 	checkFail:=0
+	lastState:=""
+	set := make(map[string]bool)
+	for _, v := range nodes {
+		set[v] = true
+	}
 	for checkFail<3  {
 		time.Sleep(3*time.Second)
-		status,err:=taskE.Status()
-		if err != nil||status==nil {
-			logrus.Warnf("error get task status,retry")
+		taskE,err:=clients.NodeClient.Tasks().Get(task)
+		if err!=nil {
+			logrus.Warnf("error get task %s,retry",task)
 			checkFail+=1
-			if err!=nil {
-				logrus.Errorf("error get task status ,details %s",err.Error())
-			}
 			continue
 		}
-
-		set := make(map[string]bool)
-		for _, v := range nodes {
-			set[v] = true
+		status,err:=taskE.Status()
+		if err != nil||status==nil {
+			logrus.Warnf("error get task %s status,retry",task)
+			checkFail+=1
+			continue
 		}
 		for k,v:=range status.Status{
+			//不是当前任务需要检测的status
 			if !set[k] {
 				continue
 			}
 			if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
 				checkFail+=1
 				fmt.Errorf("error executing task %s",task)
-				taskE:=clients.NodeClient.Tasks().Get(task)
+				//好像不需要更新task，因为一直在循环
+				//taskE,err:=clients.NodeClient.Tasks().Get(task)
+				//if err != nil||status==nil {
+				//	logrus.Warnf("error get task %s status,update task status failed,retry",task)
+				//	checkFail+=1
+				//	continue
+				//}
 				for _,v:=range taskE.Task.OutPut{
-					fmt.Printf("on %s :\n %s",v.NodeID,v.Body)
+					if set[v.NodeID]{
+						fmt.Printf("on %s :\n %s",v.NodeID,v.Body)
+					}
 				}
 				os.Exit(1)
 			}
@@ -236,9 +246,18 @@ func Status(task string,nodes []string) {
 			}else {
 				fmt.Printf("task %s is %s %s\n",task,v.Status,v.CompleStatus)
 				lastState=v.Status
-				taskFinished:=clients.NodeClient.Tasks().Get(task)
+				taskFinished:=taskE
+				//taskFinished,err:=clients.NodeClient.Tasks().Get(task)
+				//if err != nil||status==nil {
+				//	logrus.Warnf("error get task %s ,retry",task)
+				//	checkFail+=1
+				//	continue
+				//}
 				var  nextTasks []string
 				for _,v:=range taskFinished.Task.OutPut{
+					if !set[v.NodeID] {
+						continue
+					}
 					for _,sv:=range v.Status{
 						if sv.NextTask == nil ||len(sv.NextTask)==0{
 							continue
@@ -266,12 +285,12 @@ func Task(c *cli.Context,task string,status bool) error   {
 
 	nodes:=c.StringSlice("nodes")
 	logrus.Infof("task %s will execute in nodes: %v",task,nodes)
-	taskEntity:=clients.NodeClient.Tasks().Get(task)
-	if taskEntity==nil {
+	taskEntity,err:=clients.NodeClient.Tasks().Get(task)
+	if taskEntity==nil||err!=nil {
 		logrus.Errorf("error get task entity from server,please check server api")
 		return nil
 	}
-	err:=taskEntity.Exec(nodes)
+	err=taskEntity.Exec(nodes)
 	if err != nil {
 		logrus.Errorf("error exec task:%s,details %s",task,err.Error())
 		return err

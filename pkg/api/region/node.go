@@ -43,7 +43,7 @@ type Node struct {
 	Node *model.HostNode `json:"node"`
 }
 type TaskInterface interface {
-	Get(name string) (*Task)
+	Get(name string) (*Task,error)
 	Add(task *model.Task) (error)
 	AddGroup(group *model.TaskGroup) (error)
 	Exec(nodes []string ) error
@@ -176,13 +176,13 @@ func (t *Node)List() []*model.HostNode {
 	}
 	return nodes
 }
-func (t *Task)Get(id string) (*Task) {
+func (t *Task)Get(id string) (*Task,error) {
 	t.TaskID=id
 	url:="/tasks/"+id
 	resp,code,err:=nodeServer.Request(url,"GET",nil)
 	if err!=nil {
 		logrus.Errorf("error request url %s,details %s",url,err.Error())
-		return nil
+		return nil,err
 	}
 	if code != 200 {
 		fmt.Println("executing failed:"+string(resp))
@@ -190,22 +190,22 @@ func (t *Task)Get(id string) (*Task) {
 	jsonTop,err:=simplejson.NewJson(resp)
 	if err!=nil {
 		logrus.Errorf("error get json from url %s",err.Error())
-		return nil
+		return nil,err
 	}
 	var task model.Task
 	beanJ:=jsonTop.Get("bean")
 	taskB,err:=json.Marshal(beanJ)
 	if err!=nil {
 		logrus.Errorf("error marshal task %s",err.Error())
-		return nil
+		return nil,err
 	}
 	err=json.Unmarshal(taskB,&task)
 	if err!=nil {
 		logrus.Errorf("error unmarshal task %s",err.Error())
-		return nil
+		return nil,err
 	}
 	t.Task=&task
-	return t
+	return t,nil
 }
 func (t *Task)List() ([]*model.Task,error) {
 	url:="/tasks"
