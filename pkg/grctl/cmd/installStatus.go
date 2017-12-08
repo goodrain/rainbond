@@ -276,6 +276,9 @@ func Task(c *cli.Context,task string,status bool) error   {
 		logrus.Errorf("error exec task:%s,details %s",task,err.Error())
 		return err
 	}
+	if nodes==nil||len(nodes)==0 {
+		nodes=taskEntity.Task.Nodes
+	}
 	Status(task,nodes)
 
 	return nil

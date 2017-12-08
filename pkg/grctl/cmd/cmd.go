@@ -41,6 +41,7 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdGet())
 	cmds = append(cmds, NewCmdInit())
 	cmds = append(cmds, NewCmdShow())
+	cmds = append(cmds, NewCmdTask())
 	//cmds = append(cmds, NewCmdAddNode())
 
 	//cmds = append(cmds, NewCmdComputeGroup())
