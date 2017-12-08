@@ -33,12 +33,12 @@ type Resource struct {
 
 //Resource 资源
 type ClusterResource struct {
-	Node int `json:"node"`
-	Tenant int `json:"tenant"`
-	CapCpu int `json:"cap_cpu"`
-	CapMem int `json:"cap_mem"`
+	Node   int     `json:"node"`
+	Tenant int     `json:"tenant"`
+	CapCpu int     `json:"cap_cpu"`
+	CapMem int     `json:"cap_mem"`
 	ReqCpu float32 `json:"req_cpu"`
-	ReqMem int `json:"req_mem"`
+	ReqMem int     `json:"req_mem"`
 }
 
 type FirstConfig struct {
@@ -255,8 +255,8 @@ type ResponseBody struct {
 type Pods struct {
 	Namespace       string `json:"namespace"`
 	Id              string `json:"id"`
-	Name            string `json:name`
-	TenantName            string `json:tenant_name`
+	Name            string `json:"name"`
+	TenantName      string `json:"tenant_name"`
 	CPURequests     string `json:"cpurequest"`
 	CPURequestsR    string `json:"cpurequestr"`
 	CPULimits       string `json:"cpulimits"`
