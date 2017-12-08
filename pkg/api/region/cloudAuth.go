@@ -42,7 +42,7 @@ type DefineCloudAuth struct {
 //DefineCloudAuthInterface DefineCloudAuthInterface
 type DefineCloudAuthInterface interface {
 	GetToken() ([]byte, error)
-	PostToken() error
+	PostToken() ([]byte, error)
 	PutToken() error
 }
 
@@ -68,25 +68,25 @@ func (d *DefineCloudAuth) GetToken() ([]byte, error) {
 }
 
 //PostToken PostToken
-func (d *DefineCloudAuth) PostToken() error {
+func (d *DefineCloudAuth) PostToken() ([]byte, error) {
 	data, err := ffjson.Marshal(d.GT.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	_, status, err := DoRequest(
+	resp, status, err := DoRequest(
 		"/cloud/auth",
 		"POST",
 		data,
 	)
 	if err != nil {
 		logrus.Errorf("create auth token error, %v", err)
-		return err
+		return nil, err
 	}
 	if status > 400 {
 		logrus.Errorf("create auth token error")
-		return fmt.Errorf("cretae auth token failed")
+		return nil, fmt.Errorf("cretae auth token failed")
 	}
-	return nil
+	return resp, nil
 }
 
 //PutToken PutToken

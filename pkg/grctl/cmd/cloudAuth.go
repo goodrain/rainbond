@@ -22,7 +22,11 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/gosuri/uitable"
+	"github.com/pquerna/ffjson/ffjson"
+
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
+	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"github.com/urfave/cli"
 )
@@ -30,6 +34,10 @@ import (
 //CloudAuth CloudAuth
 type CloudAuth struct {
 	c *cli.Context
+}
+
+type respBean struct {
+	Bean *dbmodel.RegionUserInfo `json:"bean"`
 }
 
 //NewCmdCloudAuth 云市授权相关操作
@@ -59,7 +67,7 @@ func NewCmdCloudAuth() cli.Command {
 				Name:  "update",
 				Usage: "更新授权有效期。 grctl auth update -e EID -t VALIDITY_DATE",
 				Action: func(c *cli.Context) error {
-					return sourcesAction(c, "update")
+					return authAction(c, "update")
 				},
 				Flags: []cli.Flag{
 					cli.StringFlag{
@@ -74,9 +82,9 @@ func NewCmdCloudAuth() cli.Command {
 			},
 			{
 				Name:  "get",
-				Usage: "获取授权信息。 grctl sources get -e EID",
+				Usage: "获取授权信息。 grctl auth get -e EID",
 				Action: func(c *cli.Context) error {
-					return sourcesAction(c, "delete")
+					return authAction(c, "get")
 				},
 				Flags: []cli.Flag{
 					cli.StringFlag{
@@ -119,11 +127,23 @@ func (ca *CloudAuth) createToken() error {
 	tt, _ := strconv.Atoi(ttl)
 	gt.Body.EID = eid
 	gt.Body.ValidityPeriod = tt
-	if err := clients.RegionClient.Tenants().DefineCloudAuth(&gt).PostToken(); err != nil {
+	resp, err := clients.RegionClient.Tenants().DefineCloudAuth(&gt).PostToken()
+	if err != nil {
 		fmt.Printf("create auth %s failure\n", gt.Body.EID)
 		return err
 	}
-	fmt.Printf("create auth %s success\n", gt.Body.EID)
+	var rb respBean
+	if err := ffjson.Unmarshal(resp, &rb); err != nil {
+		return err
+	}
+	table := uitable.New()
+	table.Wrap = true // wrap columns
+	fmt.Printf("-------------------------------------------------\n")
+	table.AddRow("EID:", rb.Bean.EID)
+	table.AddRow("TOKEN:", rb.Bean.Token)
+	table.AddRow("VALIDITY_DATE:", rb.Bean.ValidityPeriod)
+	table.AddRow("CA:", rb.Bean.CA)
+	fmt.Println(table)
 	return nil
 }
 
@@ -153,19 +173,24 @@ func (ca *CloudAuth) getToken() error {
 	if err != nil {
 		return err
 	}
-	ttl, err := checkoutKV(ca.c, "ttl")
-	if err != nil {
-		return err
-	}
 	var gt api_model.GetUserToken
-	tt, _ := strconv.Atoi(ttl)
 	gt.Body.EID = eid
-	gt.Body.ValidityPeriod = tt
 	resp, err := clients.RegionClient.Tenants().DefineCloudAuth(&gt).GetToken()
 	if err != nil {
 		fmt.Printf("get auth %s failure\n", gt.Body.EID)
 		return err
 	}
-	fmt.Printf("%v", resp)
+	var rb respBean
+	if err := ffjson.Unmarshal(resp, &rb); err != nil {
+		return err
+	}
+	table := uitable.New()
+	table.Wrap = true // wrap columns
+	fmt.Printf("-------------------------------------------------\n")
+	table.AddRow("EID:", rb.Bean.EID)
+	table.AddRow("TOKEN:", rb.Bean.Token)
+	table.AddRow("VALIDITY_DATE:", rb.Bean.ValidityPeriod)
+	table.AddRow("CA:", rb.Bean.CA)
+	fmt.Println(table)
 	return nil
 }
