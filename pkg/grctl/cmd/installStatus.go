@@ -193,7 +193,7 @@ func NewCmdInstall() cli.Command {
 //	return c
 //}
 
-func Status(task string) {
+func Status(task string,nodes []string) {
 	taskE:=clients.NodeClient.Tasks().Get(task)
 	lastState:=""
 	checkFail:=0
@@ -208,7 +208,15 @@ func Status(task string) {
 			}
 			continue
 		}
-		for _,v:=range status.Status{
+
+		set := make(map[string]bool)
+		for _, v := range nodes {
+			set[v] = true
+		}
+		for k,v:=range status.Status{
+			if !set[k] {
+				continue
+			}
 			if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
 				checkFail+=1
 				fmt.Errorf("error executing task %s",task)
@@ -244,7 +252,7 @@ func Status(task string) {
 				if len(nextTasks) > 0 {
 					fmt.Printf("next will install %v \n",nextTasks)
 					for _,v:=range nextTasks{
-						Status(v)
+						Status(v,nodes)
 					}
 				}
 				return
@@ -257,6 +265,7 @@ func Status(task string) {
 func Task(c *cli.Context,task string,status bool) error   {
 
 	nodes:=c.StringSlice("nodes")
+	logrus.Infof("task %s will execute in nodes: %v",task,nodes)
 	taskEntity:=clients.NodeClient.Tasks().Get(task)
 	if taskEntity==nil {
 		logrus.Errorf("error get task entity from server,please check server api")
@@ -267,7 +276,7 @@ func Task(c *cli.Context,task string,status bool) error   {
 		logrus.Errorf("error exec task:%s,details %s",task,err.Error())
 		return err
 	}
-	Status(task)
+	Status(task,nodes)
 
 	return nil
 }
