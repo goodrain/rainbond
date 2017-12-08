@@ -39,7 +39,7 @@
         "tags": [
           "cloud"
         ],
-        "summary": "获取api管理",
+        "summary": "添加api管理",
         "operationId": "addAPIManager",
         "parameters": [
           {
@@ -103,7 +103,7 @@
         "tags": [
           "cloud"
         ],
-        "summary": "获取api管理",
+        "summary": "删除api管理",
         "operationId": "deleteAPIManager",
         "parameters": [
           {
