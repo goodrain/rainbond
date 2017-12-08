@@ -151,7 +151,7 @@ func UpdateDeliveredPath(w http.ResponseWriter, r *http.Request) {
 
 	version.DeliveredType=dt
 	version.DeliveredPath=dp
-	if version.DeliveredType == "code" {
+	if version.DeliveredType == "slug" {
 		version.ImageName="goodrain.me/runner"
 	}else{
 		version.ImageName=dp

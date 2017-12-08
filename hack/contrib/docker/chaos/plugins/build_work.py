@@ -419,7 +419,7 @@ class RepoBuilder():
         self.log.info("代码构建完成", step="build_code", status="success")
 
         version_body = {
-            "type": 'code',
+            "type": 'slug',
             "path": package_name,
             "event_id": self.event_id
         }
