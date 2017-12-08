@@ -255,7 +255,8 @@ type ResponseBody struct {
 type Pods struct {
 	Namespace       string `json:"namespace"`
 	Id              string `json:"id"`
-	Name            string `json:Name`
+	Name            string `json:name`
+	TenantName            string `json:tenant_name`
 	CPURequests     string `json:"cpurequest"`
 	CPURequestsR    string `json:"cpurequestr"`
 	CPULimits       string `json:"cpulimits"`
