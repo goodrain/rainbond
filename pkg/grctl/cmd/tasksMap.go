@@ -24,6 +24,7 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
+	"fmt"
 )
 
 func NewCmdTask() cli.Command {
@@ -31,33 +32,51 @@ func NewCmdTask() cli.Command {
 		Name: "tasks",
 		Usage: "tasks",
 		Action: func(c *cli.Context) error {
-			v:=clients.NodeClient.Tasks().Get("check_compute_services").Task
-			getDependTask(v)
-			v2:=clients.NodeClient.Tasks().Get("check_manage_base_services").Task
-			getDependTask(v2)
-			v3:=clients.NodeClient.Tasks().Get("check_manage_services").Task
-			getDependTask(v3)
+
+			tasks,_:=clients.NodeClient.Tasks().List()
+			//var total [][]string
+			for _,v:=range tasks {
+				fmt.Printf("%s",v.ID)
+				path:=v.ID
+				getDependTask(v,path)
+				fmt.Println()
+			}
 			return nil
 		},
 	}
 	return c
 }
-func getDependTask(task *model.Task) []*model.Task {
-	logrus.Infof(task.ID+"--->")
+func getDependTask(task *model.Task,path string)  {
+	if task==nil||task.Temp==nil {
+		fmt.Println("wrong task")
+		return
+	}
 	depends:=task.Temp.Depends
-	result:=[]*model.Task{}
-	for _,v:=range depends{
+
+	for k,v:=range depends{
+
 		tid:=v.DependTaskID
-		task:=clients.NodeClient.Tasks().Get(tid)
-		result=append(result,task.Task)
-	}
-	for _,Deptask:=range result {
-		if len(Deptask.Temp.Depends)==0||Deptask.Temp==nil {
-			return nil
+		taskD,err:=clients.NodeClient.Tasks().Get(tid)
+		if err != nil {
+			logrus.Errorf("error get task,details %s",err.Error())
+			return
 		}
-		getDependTask(Deptask)
+		//fmt.Print("task %s depend %s",task.ID,taskD.Task.ID)
+		if k==0 {
+			fmt.Print("-->"+taskD.Task.ID)
+
+		}else{
+			fmt.Println()
+
+			for i:=0;i<len(path);i++{
+				fmt.Print(" ")
+			}
+			fmt.Print("-->"+taskD.Task.ID)
+			//path+="-->"+taskD.Task.ID
+
+		}
+		getDependTask(taskD.Task,path+"-->"+taskD.Task.ID)
 	}
-	return result
 }
 
 

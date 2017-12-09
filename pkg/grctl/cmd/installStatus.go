@@ -217,8 +217,10 @@ func Status(task string,nodes []string) {
 		for k,v:=range status.Status{
 			//不是当前任务需要检测的status
 			if !set[k] {
+				logrus.Infof("task %s can't run in %s",task,k)
 				continue
 			}
+			logrus.Infof("task %s status is %v,final status is %s",task,v.Status,v.CompleStatus)
 			if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
 				checkFail+=1
 				fmt.Errorf("error executing task %s",task)
@@ -236,14 +238,7 @@ func Status(task string,nodes []string) {
 				}
 				os.Exit(1)
 			}
-			if v.Status!="complete"&&v.CompleStatus!="Success" {
-				if lastState!=v.Status{
-					fmt.Printf("task %s is %s\n",task,v.Status)
-				}else{
-					fmt.Print("..")
-				}
-				lastState=v.Status
-			}else {
+			if v.Status=="complete"||v.CompleStatus=="Success"{
 				fmt.Printf("task %s is %s %s\n",task,v.Status,v.CompleStatus)
 				lastState=v.Status
 				taskFinished:=taskE
@@ -275,7 +270,16 @@ func Status(task string,nodes []string) {
 					}
 				}
 				return
+			}else{
+				logrus.Infof("latest state is %s ,now task status is %s",lastState,v.Status)
+				if lastState!=v.Status{
+					fmt.Printf("task %s is %s\n",task,v.Status)
+				}else{
+					fmt.Print("..")
+				}
+				lastState=v.Status
 			}
+
 		}
 		checkFail=0
 	}
