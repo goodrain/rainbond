@@ -9,7 +9,7 @@ BASE_NAME=rainbond
 releasedir=./.release
 distdir=${releasedir}/dist
 #gaops='git@code.goodrain.com:goodrain/gaops.git'
-gaopsdir=/hack/contrib/docker/node/gaops/
+gaopsdir=/hack/contrib/docker/node/gaops
 
 
 gitDescribe=$(git describe --tag|sed 's/^v//')
@@ -38,7 +38,7 @@ function prepare() {
     [ ! -d "$distdir/usr/local/" ] && mkdir -p $distdir/usr/local/bin
     [ ! -d "$distdir/usr/share/gr-rainbond-node/gaops/" ] && mkdir -pv $distdir/usr/share/gr-rainbond-node/gaops
     cd $releasedir/tmp
-    cp -a $path$gaopsdir ./
+    cp -a $path$gaopsdir/* ./
     tar zcf  ../dist/usr/share/gr-rainbond-node/gaops/gaops.tgz ./ 
     cd $path
     rm -rf $releasedir/tmp
