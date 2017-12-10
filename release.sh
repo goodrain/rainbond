@@ -8,7 +8,8 @@ DOCKER_PATH=./hack/contrib/docker/$1
 BASE_NAME=rainbond
 releasedir=./.release
 distdir=${releasedir}/dist
-gaops='git@code.goodrain.com:goodrain/gaops.git'
+#gaops='git@code.goodrain.com:goodrain/gaops.git'
+gaopsdir=/hack/contrib/docker/node/gaops/
 
 
 gitDescribe=$(git describe --tag|sed 's/^v//')
@@ -33,12 +34,11 @@ function prepare() {
 	rm -rf $releasedir
     mkdir -pv $releasedir/{tmp,dist}
     path=$PWD
-    git clone $gaops  $releasedir/tmp
+    #git clone $gaops  $releasedir/tmp
     [ ! -d "$distdir/usr/local/" ] && mkdir -p $distdir/usr/local/bin
     [ ! -d "$distdir/usr/share/gr-rainbond-node/gaops/" ] && mkdir -pv $distdir/usr/share/gr-rainbond-node/gaops
     cd $releasedir/tmp
-    rm -rf .git
-    
+    cp -a $path$gaopsdir ./
     tar zcf  ../dist/usr/share/gr-rainbond-node/gaops/gaops.tgz ./ 
     cd $path
     rm -rf $releasedir/tmp
@@ -80,7 +80,7 @@ function build::image() {
 	sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
 	docker build -t hub.goodrain.com/${BASE_NAME}/rbd-$1:${VERSION} -f Dockerfile.release .
 	docker tag hub.goodrain.com/${BASE_NAME}/rbd-$1:${VERSION} ${BASE_NAME}/rbd-$1:${VERSION}
-	docker tag hub.goodrain.com/${BASE_NAME}/rbd-$1:${VERSION} ${BASE_NAME}/rbd-$1
+	#docker tag hub.goodrain.com/${BASE_NAME}/rbd-$1:${VERSION} ${BASE_NAME}/rbd-$1
 	#docker push ${BASE_NAME}/rbd-$1
 	rm -f ./Dockerfile.release
 	rm -f ./${BASE_NAME}-$1
