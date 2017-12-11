@@ -8,7 +8,6 @@ DOCKER_PATH=./hack/contrib/docker/$1
 BASE_NAME=rainbond
 releasedir=./.release
 distdir=${releasedir}/dist
-#gaops='git@code.goodrain.com:goodrain/gaops.git'
 gaopsdir=/hack/contrib/docker/node/gaops
 
 

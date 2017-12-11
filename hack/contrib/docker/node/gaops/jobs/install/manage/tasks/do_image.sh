@@ -40,8 +40,11 @@ function image::push() {
     fi
     log.info "docker pull $IMAGES_NAME_Pb"
     docker pull $IMAGES_NAME_Pb
-    IMAGES_NAME_Pr="goodrain.me/$BASE_NAME:$VERSION"
-    
+    if [ $BASE_NAME = "adapter" ];then
+        IMAGES_NAME_Pr="goodrain.me/$BASE_NAME"
+    else
+        IMAGES_NAME_Pr="goodrain.me/$BASE_NAME:$VERSION"
+    fi
     docker tag $IMAGES_NAME_Pb $IMAGES_NAME_Pr
     docker push $IMAGES_NAME_Pr
 }

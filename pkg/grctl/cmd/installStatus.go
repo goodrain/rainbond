@@ -274,7 +274,6 @@ func Status(task string,nodes []string) {
 func Task(c *cli.Context,task string,status bool) error   {
 
 	nodes:=c.StringSlice("nodes")
-	logrus.Infof("task %s will execute in nodes: %v",task,nodes)
 	taskEntity,err:=clients.NodeClient.Tasks().Get(task)
 	if taskEntity==nil||err!=nil {
 		logrus.Errorf("error get task entity from server,please check server api")

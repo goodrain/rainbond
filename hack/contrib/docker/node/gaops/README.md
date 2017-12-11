@@ -47,4 +47,3 @@ bash -x xxxx <args>
     ├── install_compute_group.json
     └── install_manage_group.json
 ```
-
