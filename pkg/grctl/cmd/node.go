@@ -103,11 +103,10 @@ func NewCmdNode() cli.Command {
 							ready=true
 						}
 
-						if v.Role.HasRule("manage") {
-							serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,"N/A",ready)
-
-						}else{
+						if v.Role.HasRule("compute") {
 							rest=append(rest,v)
+						}else{
+							serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,"N/A",ready)
 						}
 					}
 					if len(rest)>0 {
