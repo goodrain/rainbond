@@ -36,11 +36,11 @@ import (
 //Run start run
 func Run(s *option.WebCliServer) error {
 	errChan := make(chan error)
-	ap, err := app.New(nil, &app.Options{
-		Address:    s.Address,
-		Port:       s.Port,
-		SessionKey: s.SessionKey,
-	})
+	option := app.DefaultOptions
+	option.Address = s.Address
+	option.Port = s.Port
+	option.SessionKey = s.SessionKey
+	ap, err := app.New(nil, &option)
 	if err != nil {
 		return err
 	}

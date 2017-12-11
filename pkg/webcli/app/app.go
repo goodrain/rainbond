@@ -177,7 +177,6 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := init.TenantID + "_" + init.ServiceID + "_" + init.PodName
-	log.Print(key)
 	md5 := md5Func(key)
 	if md5 != init.Md5 {
 		log.Print("Auth is not allowed !")
