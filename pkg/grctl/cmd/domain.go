@@ -45,12 +45,17 @@ func NewCmdDomain() cli.Command {
 				return nil
 			}
 			domain:=c.String("domain")
-			cmd := exec.Command("bash", "-c "+ip+" "+domain," /usr/share/gr-rainbond-node/gaops/jobs/install/manage/tasks/ex_domain.sh")
+			cmd := exec.Command("bash", "-c","set "+ip+" "+domain+";"," /usr/share/gr-rainbond-node/gaops/jobs/install/manage/tasks/ex_domain.sh")
+			//cmd := exec.Command("bash", "-c","set "+ip+" "+domain+";"," /usr/share/gr-rainbond-node/gaops/jobs/install/manage/tasks/ex_domain.sh")
 			buf:=bytes.NewBuffer(nil)
+			outbuf:=bytes.NewBuffer(nil)
 			cmd.Stderr=buf
+			cmd.Stdout=outbuf
 			cmd.Run()
 			out:=buf.String()
+			out_:=outbuf.String()
 			fmt.Println(out)
+			fmt.Println(out_)
 			return nil
 		},
 	}
