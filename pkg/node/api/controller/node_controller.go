@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-
+	"github.com/goodrain/rainbond/pkg/node/utils"
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/prometheus/client_golang/prometheus"
@@ -36,6 +36,7 @@ import (
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 	"strconv"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
+	"io/ioutil"
 )
 
 func init() {
@@ -46,6 +47,11 @@ func init() {
 func NewNode(w http.ResponseWriter, r *http.Request) {
 	var node model.APIHostNode
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &node, nil); !ok {
+		return
+	}
+	if node.Role == nil ||len(node.Role)==0{
+		err:=utils.CreateAPIHandleError(400, fmt.Errorf("node role must not null"))
+		err.Handle(r,w)
 		return
 	}
 	if err := nodeService.AddNode(&node); err != nil {
@@ -91,6 +97,15 @@ func handleStatus(v *model.HostNode){
 
 			}else{
 				if condiction.Type=="Ready"&&condiction.Status=="True" {
+					v.Status="running"
+				}
+			}
+		}
+	}
+	if v.Role.HasRule("manage") {
+		if v.Alived {
+			for _,condition:=range v.Conditions{
+				if condition.Type=="NodeInit"&&condition.Status=="True"{
 					v.Status="running"
 				}
 			}
@@ -164,17 +179,18 @@ func UnCordon(w http.ResponseWriter, r *http.Request) {
 //PutLabel 更新节点标签
 func PutLabel(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
-	labels, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, nil, nil)
-	if !ok {
+	var label = make(map[string]string)
+	in,error:=ioutil.ReadAll(r.Body)
+	if error != nil {
+		logrus.Errorf("error read from request ,details %s",error.Error())
 		return
 	}
-	var label = make(map[string]string, len(labels))
-	for k, v := range labels {
-		if value, ok := v.(string); ok {
-			label[k] = value
-		}
+	error=json.Unmarshal(in,&label)
+	if error!=nil {
+		logrus.Errorf("error unmarshal labels  ,details %s",error.Error())
+		return
 	}
-	err := nodeService.PutNodeLabel(nodeUID, label)
+	err:= nodeService.PutNodeLabel(nodeUID, label)
 	if err != nil {
 		err.Handle(r, w)
 		return
@@ -254,26 +270,17 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 		logrus.Infof("namespace %s,podid %s :limit cpu %s,requests cpu %s,limit mem %s,request mem %s", pod.Namespace, pod.Id, lc, rc, lm, rm)
 		pod.CPURequests = strconv.Itoa(int(rc))
 
-		pod.CPURequestsR = strconv.FormatFloat(float64(rc)/float64(capCPU), 'f', -1, 64)
-			//strconv.FormatFloat(float64(rc)/float64(node.NodeStatus.Capacity.Cpu().Value()), 'E', -1, 32)
-
+		pod.CPURequestsR = strconv.FormatFloat(float64(rc*100)/float64(capCPU), 'f', 1, 64)
 
 		pod.CPULimits = strconv.Itoa(int(lc))
-		pod.CPULimitsR = strconv.FormatFloat(float64(lc)/float64(capCPU), 'f', -1, 64)
-			//strconv.FormatFloat(float64(lc)/float64(node.NodeStatus.Capacity.Cpu().Value()), 'E', -1, 32)
-
+		pod.CPULimitsR = strconv.FormatFloat(float64(lc*100)/float64(capCPU), 'f', 1, 64)
 
 		pod.MemoryRequests = strconv.Itoa(int(rm))
-		pod.MemoryRequestsR = strconv.FormatFloat(float64(rm)/float64(capMEM), 'f', -1, 64)
-			//strconv.FormatFloat(float64(rm)/float64(node.NodeStatus.Capacity.Memory().Value()), 'E', -1, 32)
-
+		pod.MemoryRequestsR = strconv.FormatFloat(float64(rm*100)/float64(capMEM), 'f', 1, 64)
+		pod.TenantName=v.Labels["tenant_name"]
 		pod.MemoryLimits = strconv.Itoa(int(lm))
-		//var h float32=100
-		//a:=float32(lm)*h/float32(capMEM)
-		pod.MemoryLimitsR = strconv.FormatFloat(float64(lm)/float64(capMEM), 'f', -1, 64)
+		pod.MemoryLimitsR = strconv.FormatFloat(float64(lm*100)/float64(capMEM), 'f', 1, 64)
 
-		//mlr, _ := strconv.Atoi(pod.MemoryLimitsR)
-		//memLR += mlr
 		pods = append(pods, pod)
 	}
 	httputil.ReturnSuccess(r, w, pods)
