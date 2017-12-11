@@ -4,6 +4,7 @@ REPO_VER=$1
 
 RBD_WEBCLI="rainbond/rbd-webcli:$REPO_VER"
 
+HOSTIP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
 function log.info() {
   echo "       $*"
 }
@@ -101,6 +102,7 @@ services:
     volumes:
     - /usr/bin/kubectl:/usr/bin/kubectl
     - /root/.kube:/root/.kube
+    command: --hostIP=$HOSTIP
     logging:
       driver: json-file
       options:
