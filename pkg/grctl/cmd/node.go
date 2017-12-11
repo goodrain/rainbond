@@ -40,13 +40,24 @@ func NewCmdShow() cli.Command {
 		Name:"show",
 		Usage:"显示region安装完成后访问地址",
 		Action: func(c *cli.Context) error {
-			var urls []string
 			manageHosts:=clients.NodeClient.Nodes().Rule("manage")
+			fmt.Println("Manage your apps with webui：")
 			for _,v:=range manageHosts{
-				url:=v.ExternalIP+":7070"
-				urls=append(urls,url)
+				url:=v.InternalIP+":7070"
+				fmt.Print(url+"  ")
 			}
-			fmt.Println(urls)
+
+			fmt.Println("The webui use websocket to provide more feture：")
+			for _,v:=range manageHosts{
+				url:=v.InternalIP+":6060"
+				fmt.Print(url+"  ")
+			}
+
+			fmt.Println("Your web apps use nginx for reverse proxy:")
+			for _,v:=range manageHosts{
+				url:=v.InternalIP+":80"
+				fmt.Print(url+"  ")
+			}
 			return nil
 		},
 	}

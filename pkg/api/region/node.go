@@ -127,7 +127,7 @@ func (t *Node)Get(node string) *Node {
 }
 
 func (t *Node)Rule(rule string) []*model.HostNode {
-	body,_,err:=nodeServer.Request("/nodes/"+rule,"GET",nil)
+	body,_,err:=nodeServer.Request("/nodes/rule/"+rule,"GET",nil)
 	if err != nil {
 		logrus.Errorf("error get rule %s ,details %s",rule,err.Error())
 		return nil
