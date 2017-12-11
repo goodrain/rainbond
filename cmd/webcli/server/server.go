@@ -49,7 +49,7 @@ func Run(s *option.WebCliServer) error {
 		return err
 	}
 	defer ap.Exit()
-	go keepAlive(s.EtcdEndPoints, "", s.Port)
+	go keepAlive(s.EtcdEndPoints, s.HostIP, s.Port)
 	//step finally: listen Signal
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
