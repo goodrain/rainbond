@@ -33,6 +33,8 @@ import (
 	"time"
 	"encoding/json"
 	"bytes"
+	"os"
+	"io/ioutil"
 )
 
 func NewCmdShow() cli.Command {
@@ -41,29 +43,57 @@ func NewCmdShow() cli.Command {
 		Usage:"显示region安装完成后访问地址",
 		Action: func(c *cli.Context) error {
 			manageHosts:=clients.NodeClient.Nodes().Rule("manage")
+			ips:=getExternalIP("/etc/goodrain/envs/.exip",manageHosts)
 			fmt.Println("Manage your apps with webui：")
-			for _,v:=range manageHosts{
-				url:=v.InternalIP+":7070"
+			for _,v:=range ips{
+				url:=v+":7070"
 				fmt.Print(url+"  ")
 			}
-
+			fmt.Println()
 			fmt.Println("The webui use websocket to provide more feture：")
-			for _,v:=range manageHosts{
-				url:=v.InternalIP+":6060"
+			for _,v:=range ips{
+				url:=v+":6060"
 				fmt.Print(url+"  ")
 			}
-
+			fmt.Println()
 			fmt.Println("Your web apps use nginx for reverse proxy:")
-			for _,v:=range manageHosts{
-				url:=v.InternalIP+":80"
+			for _,v:=range ips{
+				url:=v+":80"
 				fmt.Print(url+"  ")
 			}
+			fmt.Println()
 			return nil
 		},
 	}
 	return c
 }
 
+func getExternalIP(path string,node []*model.HostNode) []string {
+	var result []string
+	if fileExist(path) {
+		externalIP, err := ioutil.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		strings.TrimSpace(string(externalIP))
+		result=append(result,strings.TrimSpace(string(externalIP)))
+	}else {
+		for _,v:=range node {
+			result=append(result,v.InternalIP)
+		}
+	}
+	return result
+}
+func fileExist(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	return false
+}
 func handleStatus(serviceTable *termtables.Table ,ready bool ,v *model.HostNode)  {
 	if v.Role.HasRule("compute")&&!v.Role.HasRule("manage") {
 		if ready {
