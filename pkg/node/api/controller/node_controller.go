@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-
+	"github.com/goodrain/rainbond/pkg/node/utils"
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/prometheus/client_golang/prometheus"
@@ -34,6 +34,9 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
+	"strconv"
+	"github.com/goodrain/rainbond/pkg/node/core/k8s"
+	"io/ioutil"
 )
 
 func init() {
@@ -44,6 +47,11 @@ func init() {
 func NewNode(w http.ResponseWriter, r *http.Request) {
 	var node model.APIHostNode
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &node, nil); !ok {
+		return
+	}
+	if node.Role == nil ||len(node.Role)==0{
+		err:=utils.CreateAPIHandleError(400, fmt.Errorf("node role must not null"))
+		err.Handle(r,w)
 		return
 	}
 	if err := nodeService.AddNode(&node); err != nil {
@@ -76,7 +84,33 @@ func GetNodes(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
+	for _,v:=range nodes {
+		handleStatus(v)
+	}
 	httputil.ReturnSuccess(r, w, nodes)
+}
+
+func handleStatus(v *model.HostNode){
+	if v.NodeStatus!=nil{
+		for _,condiction:=range v.Conditions{
+			if v.Status == "unschedulable" {
+
+			}else{
+				if condiction.Type=="Ready"&&condiction.Status=="True" {
+					v.Status="running"
+				}
+			}
+		}
+	}
+	if v.Role.HasRule("manage") {
+		if v.Alived {
+			for _,condition:=range v.Conditions{
+				if condition.Type=="NodeInit"&&condition.Status=="True"{
+					v.Status="running"
+				}
+			}
+		}
+	}
 }
 
 //GetNode 获取一个节点详情
@@ -145,17 +179,18 @@ func UnCordon(w http.ResponseWriter, r *http.Request) {
 //PutLabel 更新节点标签
 func PutLabel(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
-	labels, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, nil, nil)
-	if !ok {
+	var label = make(map[string]string)
+	in,error:=ioutil.ReadAll(r.Body)
+	if error != nil {
+		logrus.Errorf("error read from request ,details %s",error.Error())
 		return
 	}
-	var label = make(map[string]string, len(labels))
-	for k, v := range labels {
-		if value, ok := v.(string); ok {
-			label[k] = value
-		}
+	error=json.Unmarshal(in,&label)
+	if error!=nil {
+		logrus.Errorf("error unmarshal labels  ,details %s",error.Error())
+		return
 	}
-	err := nodeService.PutNodeLabel(nodeUID, label)
+	err:= nodeService.PutNodeLabel(nodeUID, label)
 	if err != nil {
 		err.Handle(r, w)
 		return
@@ -183,6 +218,72 @@ func UpNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, node)
+}
+
+
+//UpNode 节点实例，计算节点操作
+func Instances(w http.ResponseWriter, r *http.Request) {
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	node, err := nodeService.GetNode(nodeUID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	ps, error := k8s.GetPodsByNodeName(node.HostName)
+	if error != nil {
+		httputil.ReturnError(r,w,404,error.Error())
+		return
+	}
+
+	pods := []*model.Pods{}
+	var cpuR int64
+	var cpuL int64
+	var memR int64
+	var memL int64
+	capCPU:=node.NodeStatus.Capacity.Cpu().Value()
+	capMEM:=node.NodeStatus.Capacity.Memory().Value()
+	for _, v := range ps {
+		logrus.Infof("pos 's node name is %s and node is %s",v.Spec.NodeName,node.HostName)
+		if v.Spec.NodeName != node.InternalIP {
+			continue
+		}
+		pod := &model.Pods{}
+		pod.Namespace = v.Namespace
+		serviceId := v.Labels["name"]
+		if serviceId == "" {
+			continue
+		}
+		pod.Name = v.Name
+		pod.Id = serviceId
+
+		lc := v.Spec.Containers[0].Resources.Limits.Cpu().Value()
+		cpuL += lc
+		lm := v.Spec.Containers[0].Resources.Limits.Memory().Value()
+
+		memL += lm
+		rc := v.Spec.Containers[0].Resources.Requests.Cpu().Value()
+		cpuR += rc
+		rm := v.Spec.Containers[0].Resources.Requests.Memory().Value()
+
+		memR += rm
+
+		logrus.Infof("namespace %s,podid %s :limit cpu %s,requests cpu %s,limit mem %s,request mem %s", pod.Namespace, pod.Id, lc, rc, lm, rm)
+		pod.CPURequests = strconv.Itoa(int(rc))
+
+		pod.CPURequestsR = strconv.FormatFloat(float64(rc*100)/float64(capCPU), 'f', 1, 64)
+
+		pod.CPULimits = strconv.Itoa(int(lc))
+		pod.CPULimitsR = strconv.FormatFloat(float64(lc*100)/float64(capCPU), 'f', 1, 64)
+
+		pod.MemoryRequests = strconv.Itoa(int(rm))
+		pod.MemoryRequestsR = strconv.FormatFloat(float64(rm*100)/float64(capMEM), 'f', 1, 64)
+		pod.TenantName=v.Labels["tenant_name"]
+		pod.MemoryLimits = strconv.Itoa(int(lm))
+		pod.MemoryLimitsR = strconv.FormatFloat(float64(lm*100)/float64(capMEM), 'f', 1, 64)
+
+		pods = append(pods, pod)
+	}
+	httputil.ReturnSuccess(r, w, pods)
 }
 
 //NodeExporter 节点监控

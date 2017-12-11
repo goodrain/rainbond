@@ -115,6 +115,7 @@ func (m *Manager) keepAlive() {
 	for {
 		select {
 		case <-m.ctx.Done():
+
 			return
 		case <-timer.C:
 			if m.lID > 0 {

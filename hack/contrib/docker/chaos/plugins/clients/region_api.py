@@ -52,5 +52,9 @@ class RegionBackAPI(BaseHttpClient):
 
     def update_version_region(self, body):
         url = self.base_url+'/version'
-        print body
+        res, body = self._post(url, self.default_headers, body)
+
+
+    def update_version_event(self, event_id,body):
+        url = self.base_url+'/version/event/{0}'.format(event_id)
         res, body = self._post(url, self.default_headers, body)

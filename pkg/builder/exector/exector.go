@@ -94,8 +94,8 @@ const pluginDockerfile = "plugins/plugin_dockerfile.pyc"
 
 func (e *exectorManager) appImage(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
-	dest := gjson.GetBytes(in, "dest").String()
-	finalStatus:="failure"
+	//dest := gjson.GetBytes(in, "dest").String()
+	//finalStatus:="failure"
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("应用镜像构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	w := NewWorker(appImage, "", nil, in)
@@ -112,13 +112,13 @@ func (e *exectorManager) appImage(in []byte) {
 					logger.Info("应用镜像构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
-				finalStatus="success"
-				updateBuildResult(eventID,finalStatus,dest)
+				//finalStatus="success"
+				//updateBuildResult(eventID,finalStatus,dest)
 				break
 			}
 		}
 	}()
-	updateBuildResult(eventID,finalStatus,dest)
+	//updateBuildResult(eventID,finalStatus,dest)
 }
 func (e *exectorManager) appSlug(in []byte) {
 	//eventID := gjson.GetBytes(in, "event_id").String()
@@ -176,8 +176,8 @@ func (e *exectorManager) appSlug(in []byte) {
 func (e *exectorManager) imageManual(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
-	dest := gjson.GetBytes(in, "dest").String()
-	finalStatus:="failure"
+	//dest := gjson.GetBytes(in, "dest").String()
+	//finalStatus:="failure"
 
 	logger.Info("应用镜像构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	w := NewWorker(imageManual, "", nil, in)
@@ -194,13 +194,13 @@ func (e *exectorManager) imageManual(in []byte) {
 					logger.Info("应用镜像构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
-				finalStatus="success"
-				updateBuildResult(eventID,finalStatus,dest)
+				//finalStatus="success"
+				//updateBuildResult(eventID,finalStatus,dest)
 				break
 			}
 		}
 	}()
-	updateBuildResult(eventID,finalStatus,dest)
+	//updateBuildResult(eventID,finalStatus,dest)
 }
 func (e *exectorManager) codeCheck(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()

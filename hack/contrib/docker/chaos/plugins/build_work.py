@@ -419,13 +419,14 @@ class RepoBuilder():
         self.log.info("代码构建完成", step="build_code", status="success")
 
         version_body = {
-            "type": 'code',
+            "type": 'slug',
             "path": package_name,
             "event_id": self.event_id
         }
         try:
             self.region_client.update_version_region(json.dumps(version_body))
         except Exception as e:
+            logger.exception("build_work.main", e)
             pass
         return True
 
@@ -464,7 +465,15 @@ class RepoBuilder():
                         commit_info["subject"]),
                     step="code-version",
                     status="success")
-
+                version_body = {
+                    "code_version":commit_info["hash"][0:7],
+                    "code_commit_msg":commit_info["subject"],
+                    "code_commit_author":commit_info["author"]
+                }
+                try:
+                    self.region_client.update_version_event(self.event_id,json.dumps(version_body))
+                except Exception as e:
+                    pass
                 if self.find_dockerfile():
                     self.log.info(
                         "代码识别出Dockerfile,直接构建镜像。", step="build-worker")
@@ -476,6 +485,10 @@ class RepoBuilder():
                 success = build_func()
                 if success:
                     # self.log.info("构建完成。", step="build-worker")
+                    version_body = {
+                        "final_status":"success",
+                    }
+
                     self.log.info("构建完成。", step="build-worker", status="success")
 
                     ok = self.feedback()
@@ -484,13 +497,40 @@ class RepoBuilder():
                             "升级部署应用错误", step="callback", status="failure")
                 else:
                     self.log.info("构建失败,请查看Debug构建日志", step="callback", status="failure")
+                    version_body = {
+                        "final_status":"failure",
+                    }
+                try:
+                    self.region_client.update_version_event(self.event_id,json.dumps(version_body))
+                except Exception as e:
+                    self.log.error(
+                        "更新version信息失败", step="build-worker")
+                    pass
             else:
                 self.log.error("代码拉取失败。", step="callback", status="failure")
+                version_body = {
+                    "final_status":"failure",
+                }
+                try:
+                    self.region_client.update_version_event(self.event_id,json.dumps(version_body))
+                except Exception as e:
+                    self.log.error(
+                        "更新version信息失败", step="build-worker")
+                    pass
         except Exception as e:
             self.log.error(
                 "代码构建发生异常.{}".format(e.message),
                 step="callback",
                 status="failure")
+            version_body = {
+                "final_status":"failure",
+            }
+            try:
+                self.region_client.update_version_event(self.event_id,json.dumps(version_body))
+            except Exception as e:
+                self.log.error(
+                    "更新version信息失败", step="build-worker")
+                pass
             logger.exception('build_work.main', e)
             raise e
 

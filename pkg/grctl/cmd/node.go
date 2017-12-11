@@ -35,7 +35,34 @@ import (
 	"bytes"
 )
 
+func NewCmdShow() cli.Command {
+	c:=cli.Command{
+		Name:"show",
+		Usage:"显示region安装完成后访问地址",
+		Action: func(c *cli.Context) error {
+			manageHosts:=clients.NodeClient.Nodes().Rule("manage")
+			fmt.Println("Manage your apps with webui：")
+			for _,v:=range manageHosts{
+				url:=v.InternalIP+":7070"
+				fmt.Print(url+"  ")
+			}
 
+			fmt.Println("The webui use websocket to provide more feture：")
+			for _,v:=range manageHosts{
+				url:=v.InternalIP+":6060"
+				fmt.Print(url+"  ")
+			}
+
+			fmt.Println("Your web apps use nginx for reverse proxy:")
+			for _,v:=range manageHosts{
+				url:=v.InternalIP+":80"
+				fmt.Print(url+"  ")
+			}
+			return nil
+		},
+	}
+	return c
+}
 
 func NewCmdNode() cli.Command {
 	c:=cli.Command{
@@ -87,11 +114,10 @@ func NewCmdNode() cli.Command {
 							ready=true
 						}
 
-						if v.Role.HasRule("manage") {
-							serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,"N/A",ready)
-
-						}else{
+						if v.Role.HasRule("compute") {
 							rest=append(rest,v)
+						}else{
+							serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,"N/A",ready)
 						}
 					}
 					if len(rest)>0 {
