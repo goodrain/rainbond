@@ -64,6 +64,28 @@ func NewCmdShow() cli.Command {
 	return c
 }
 
+func handleStatus(serviceTable *termtables.Table ,ready bool ,v *model.HostNode)  {
+	if v.Role.HasRule("compute")&&!v.Role.HasRule("manage") {
+		if ready {
+			//	 true of false
+			serviceTable.AddRow(v.ID,v.InternalIP,v.HostName,v.Role.String(),v.Alived,!v.Unschedulable,ready)
+		}else {
+			//scheduable==false
+
+			serviceTable.AddRow(v.ID,v.InternalIP,v.HostName,v.Role.String(),v.Alived,false,ready)
+		}
+	}else if v.Role.HasRule("manage")&&!v.Role.HasRule("compute") {
+		//scheduable="n/a"
+		serviceTable.AddRow(v.ID,v.InternalIP,v.HostName,v.Role.String(),v.Alived,"N/A",ready)
+	}else if v.Role.HasRule("compute") && v.Role.HasRule("manage") {
+		if !ready {
+			//n/a
+			serviceTable.AddRow(v.ID,v.InternalIP,v.HostName,v.Role.String(),v.Alived,"N/A",ready)
+		}else{
+			serviceTable.AddRow(v.ID,v.InternalIP,v.HostName,v.Role.String(),v.Alived,!v.Unschedulable,ready)
+		}
+	}
+}
 func NewCmdNode() cli.Command {
 	c:=cli.Command{
 		Name:  "node",
@@ -109,15 +131,15 @@ func NewCmdNode() cli.Command {
 					serviceTable.AddHeaders("uid", "IP", "HostName","role","alived","schedulable","ready")
 					var rest []*model.HostNode
 					for _,v:=range list{
+
 						var ready bool=false
 						if (v.NodeStatus!=nil){
 							ready=true
 						}
-
-						if v.Role.HasRule("compute") {
-							rest=append(rest,v)
+						if v.Role.HasRule("manage") {
+							handleStatus(serviceTable,ready,v)
 						}else{
-							serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,"N/A",ready)
+							rest=append(rest,v)
 						}
 					}
 					if len(rest)>0 {
@@ -128,7 +150,7 @@ func NewCmdNode() cli.Command {
 						if (v.NodeStatus!=nil){
 							ready=true
 						}
-						serviceTable.AddRow(v.ID, v.InternalIP,v.HostName, v.Role.String(),v.Alived,!v.Unschedulable,ready)
+						handleStatus(serviceTable,ready,v)
 					}
 					fmt.Println(serviceTable.Render())
 					return nil
