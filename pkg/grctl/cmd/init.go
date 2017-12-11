@@ -123,7 +123,7 @@ func initCluster(c *cli.Context) error {
 		arg=""
 	}
 
-	fmt.Println("begin init cluster")
+	fmt.Println("begin init cluster,please don't exit,wait install")
 	cmd := exec.Command("bash", "-c",arg+string(b))
 	buf:=bytes.NewBuffer(nil)
 	cmd.Stderr=buf

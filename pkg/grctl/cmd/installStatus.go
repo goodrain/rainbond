@@ -225,13 +225,6 @@ func Status(task string,nodes []string) {
 			if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
 				checkFail+=1
 				fmt.Errorf("error executing task %s",task)
-				//好像不需要更新task，因为一直在循环
-				//taskE,err:=clients.NodeClient.Tasks().Get(task)
-				//if err != nil||status==nil {
-				//	logrus.Warnf("error get task %s status,update task status failed,retry",task)
-				//	checkFail+=1
-				//	continue
-				//}
 				for _,v:=range taskE.Task.OutPut{
 					if set[v.NodeID]{
 						fmt.Printf("on %s :\n %s",v.NodeID,v.Body)
@@ -249,12 +242,6 @@ func Status(task string,nodes []string) {
 				fmt.Printf("task %s is %s %s\n",task,v.Status,v.CompleStatus)
 				lastState=v.Status
 				taskFinished:=taskE
-				//taskFinished,err:=clients.NodeClient.Tasks().Get(task)
-				//if err != nil||status==nil {
-				//	logrus.Warnf("error get task %s ,retry",task)
-				//	checkFail+=1
-				//	continue
-				//}
 				var  nextTasks []string
 				for _,v:=range taskFinished.Task.OutPut{
 					if !set[v.NodeID] {
