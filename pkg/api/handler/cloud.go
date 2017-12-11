@@ -80,6 +80,7 @@ func (c *CloudAction) TokenDispatcher(gt *api_model.GetUserToken) (*api_model.To
 	ti.Token = token
 	oldToken = tokenInfos.Token
 	tokenInfos.Token = token
+	tokenInfos.ValidityPeriod = gt.Body.ValidityPeriod
 	if err := db.GetManager().RegionUserInfoDao().UpdateModel(tokenInfos); err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("recreate region user info", err)
 	}

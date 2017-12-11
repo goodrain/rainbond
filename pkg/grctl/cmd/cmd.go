@@ -54,6 +54,7 @@ func GetCmds() []cli.Command {
 	//cmds = append(cmds, NewCmdManageGroup())
 
 	cmds = append(cmds, NewCmdSources())
+	cmds = append(cmds, NewCmdCloudAuth())
 	//cmds = append(cmds, NewCmdRegionNode())
 	//cmds = append(cmds, NewCmdTest())
 	//cmds = append(cmds, NewCmdPlugin())
