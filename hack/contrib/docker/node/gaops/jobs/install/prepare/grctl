@@ -71,13 +71,23 @@ function connfig_ssh_key() {
     echo "config ssh"
 }
 
+function test_public() {
+    # 获取公网ip
+    pubic_ip=$(ip ad | grep 'inet ' | grep -vE '( 10.|172.|192.168|127.)' | awk '{print $2}' | cut -d '/' -f 1)
+    if [ ! -z $pubic_ip ];then
+        echo $pubic_ip > /etc/goodrain/envs/.exip
+    fi
+}
+
 function install_grctl() {
     
     echo "install_grctl"
 
     config_mirrors
 
-    connfig_ssh_key
+    connfig_ssh_key 
+
+    test_public
 
     if [[ $OS_VER =~ '7' ]];then
         yum install gr-rainbond-grctl -y
