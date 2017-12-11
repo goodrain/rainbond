@@ -294,6 +294,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 		node.UpdataCondition(initCondition)
 		n.UpdateNode(node)
 	}()
+	node.Status="init"
 	errorCondition := func(reason string, err error) {
 		initCondition.Status = model.ConditionFalse
 		initCondition.LastTransitionTime = time.Now()
@@ -306,6 +307,9 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
+	if node.Role==nil {
+		node.Role=[]string{"compute"}
+	}
 	role := node.Role[0]
 
 	etcd := n.currentNode.InternalIP

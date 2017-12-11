@@ -62,7 +62,7 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 			if errL != nil || io.EOF == errL {
 				break
 			}
-			fmt.Print(line)
+			//fmt.Print(line)
 			logrus.Infof(fmt.Sprintf("builder: %v", line))
 			logger[0].Info(fmt.Sprintf("builder:%v", line), map[string]string{"step": "build-exector"})
 		}

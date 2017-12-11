@@ -86,14 +86,14 @@ func NewCmdInstallStatus() cli.Command {
 				for _,v:=range tasks {
 					for _,vs:=range v.Status{
 						if  vs.Status=="start"||vs.Status=="create"{
-							Status(v.ID)
+							//Status(v.ID)
 							return nil
 						}
 
 					}
 				}
 			}else {
-				Status(taskID)
+				//Status(taskID)
 			}
 			return nil
 		},
