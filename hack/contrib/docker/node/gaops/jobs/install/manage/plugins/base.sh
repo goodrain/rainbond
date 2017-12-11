@@ -102,11 +102,11 @@ function make_domain() {
         IP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
         docker pull hub.goodrain.com/dc-deploy/archiver:domain
         #docker run -it --rm hub.goodrain.com/dc-deploy/archiver:domain init --ip $IP > /tmp/domain.log
-        [ -f "/tmp/domain.log" ] && echo "" > /tmp/domain.log || touch /tmp/domain.log
+        [ -f "/data/.domain.log" ] && echo "" > /data/.domain.log || touch /data/.domain.log
          
-        docker run --rm -v /tmp/domain.log:/tmp/domain.log hub.goodrain.com/dc-deploy/archiver:domain init --ip $IP > /tmp/do.log
+        docker run --rm -v /data/.domain.log:/tmp/domain.log hub.goodrain.com/dc-deploy/archiver:domain init --ip $IP > /tmp/do.log
         if [ $? -eq 0 ];then
-            EX_DOMAIN=$(cat /tmp/domain.log)
+            EX_DOMAIN=$(cat /data/.domain.log)
         else
             touch /tmp/fuck
         fi
