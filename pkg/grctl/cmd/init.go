@@ -123,7 +123,7 @@ func initCluster(c *cli.Context) error {
 		arg=""
 	}
 
-	fmt.Println("begin init cluster")
+	fmt.Println("begin init cluster,please wait,don't exit")
 	cmd := exec.Command("bash", "-c",arg+string(b))
 	buf:=bytes.NewBuffer(nil)
 	cmd.Stderr=buf
@@ -146,8 +146,10 @@ func initCluster(c *cli.Context) error {
 	Task(c,"check_manage_base_services",false)
 	Task(c,"check_manage_services",false)
 
-	//done<-1
-	//一般 job会在通过grctl执行时阻塞输出，这种通过 脚本执行的，需要单独查
+	fmt.Println("install manage node success,next you can :")
+	fmt.Println("	add compute node--grctl node add -h")
+	fmt.Println("	install compute node--grctl install compute -h")
+	fmt.Println("	up compute node--grctl node up -h")
 	return nil
 }
 
