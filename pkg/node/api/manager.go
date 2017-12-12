@@ -35,6 +35,8 @@ import (
 
 	"github.com/goodrain/rainbond/cmd/node/option"
 
+	_ "net/http/pprof"
+
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/go-chi/chi"
@@ -74,6 +76,12 @@ func (m *Manager) Start(errChan chan error) {
 	go func() {
 		if err := http.ListenAndServe(m.conf.APIAddr, m.router); err != nil {
 			logrus.Error("rainbond node api listen error.", err.Error())
+			errChan <- err
+		}
+	}()
+	go func() {
+		if err := http.ListenAndServe(":6102", nil); err != nil {
+			logrus.Error("rainbond node debug api listen error.", err.Error())
 			errChan <- err
 		}
 	}()

@@ -17,24 +17,27 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package cmd
+
 import (
-	"github.com/urfave/cli"
-	"github.com/Sirupsen/logrus"
-	"os/exec"
-	"net/http"
-	"io/ioutil"
-	"strings"
 	"bytes"
+	"io/ioutil"
+	"net/http"
+	"os/exec"
+	"strings"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/urfave/cli"
 	//"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"fmt"
 
 	"time"
+
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 )
 
 func NewCmdInit() cli.Command {
-	c:=cli.Command{
-		Name:  "init",
+	c := cli.Command{
+		Name: "init",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "etcd",
@@ -65,34 +68,33 @@ func NewCmdInit() cli.Command {
 	return c
 }
 func NewCmdInstallStatus() cli.Command {
-	c:=cli.Command{
-		Name:  "install_status",
+	c := cli.Command{
+		Name: "install_status",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "taskID",
 				Usage: "install_k8s,空则自动寻找",
 			},
-
 		},
 		Usage: "获取task执行状态。grctl install_status",
 		Action: func(c *cli.Context) error {
-			taskID:=c.String("taskID")
-			if taskID=="" {
-				tasks,err:=clients.NodeClient.Tasks().List()
+			taskID := c.String("taskID")
+			if taskID == "" {
+				tasks, err := clients.NodeClient.Tasks().List()
 				if err != nil {
-					logrus.Errorf("error get task list,details %s",err.Error())
+					logrus.Errorf("error get task list,details %s", err.Error())
 					return nil
 				}
-				for _,v:=range tasks {
-					for _,vs:=range v.Status{
-						if  vs.Status=="start"||vs.Status=="create"{
+				for _, v := range tasks {
+					for _, vs := range v.Status {
+						if vs.Status == "start" || vs.Status == "create" {
 							//Status(v.ID)
 							return nil
 						}
 
 					}
 				}
-			}else {
+			} else {
 				//Status(taskID)
 			}
 			return nil
@@ -101,50 +103,47 @@ func NewCmdInstallStatus() cli.Command {
 	return c
 }
 
-
-
-
 func initCluster(c *cli.Context) error {
 	resp, err := http.Get("http://repo.goodrain.com/gaops/jobs/install/prepare/init.sh")
 
 	if err != nil {
-		logrus.Errorf("error get init script,details %s",err.Error())
+		logrus.Errorf("error get init script,details %s", err.Error())
 		return err
 	}
 	defer resp.Body.Close()
 
 	b, _ := ioutil.ReadAll(resp.Body)
-	args:=[]string{c.String("etcd"),c.String("type"),c.String("mip"),c.String("repo_ver"),c.String("install_type")}
-	arg:=strings.Join(args," ")
-	argCheck:=strings.Join(args,"")
+	args := []string{c.String("etcd"), c.String("type"), c.String("mip"), c.String("repo_ver"), c.String("install_type")}
+	arg := strings.Join(args, " ")
+	argCheck := strings.Join(args, "")
 	if len(argCheck) > 0 {
-		arg+=";"
-	}else {
-		arg=""
+		arg += ";"
+	} else {
+		arg = ""
 	}
 
-	fmt.Println("begin init cluster,please wait,don't exit")
-	cmd := exec.Command("bash", "-c",arg+string(b))
-	buf:=bytes.NewBuffer(nil)
-	cmd.Stderr=buf
+	fmt.Println("begin init cluster,please don't exit,wait install")
+	cmd := exec.Command("bash", "-c", arg+string(b))
+	buf := bytes.NewBuffer(nil)
+	cmd.Stderr = buf
 	cmd.Run()
-	out:=buf.String()
-	arr:=strings.SplitN(out,"{",2)
-	outJ:="{"+arr[1]
-	jsonStr:=strings.TrimSpace(outJ)
-	jsonStr=strings.Replace(jsonStr,"\n","",-1)
-	jsonStr=strings.Replace(jsonStr," ","",-1)
+	out := buf.String()
+	arr := strings.SplitN(out, "{", 2)
+	outJ := "{" + arr[1]
+	jsonStr := strings.TrimSpace(outJ)
+	jsonStr = strings.Replace(jsonStr, "\n", "", -1)
+	jsonStr = strings.Replace(jsonStr, " ", "", -1)
 
 	if strings.Contains(jsonStr, "Success") {
 		fmt.Println("init success，start install")
-	}else{
+	} else {
 		fmt.Println("init failed！")
 		return nil
 	}
-	time.Sleep(5*time.Second)
+	time.Sleep(5 * time.Second)
 
-	Task(c,"check_manage_base_services",false)
-	Task(c,"check_manage_services",false)
+	Task(c, "check_manage_base_services", false)
+	Task(c, "check_manage_services", false)
 
 	fmt.Println("install manage node success,next you can :")
 	fmt.Println("	add compute node--grctl node add -h")
@@ -152,4 +151,3 @@ func initCluster(c *cli.Context) error {
 	fmt.Println("	up compute node--grctl node up -h")
 	return nil
 }
-

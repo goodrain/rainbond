@@ -102,6 +102,7 @@ func New(command []string, options *Options) (*App, error) {
 	}, nil
 }
 
+//Run Run
 func (app *App) Run() error {
 	endpoint := net.JoinHostPort(app.options.Address, app.options.Port)
 
@@ -124,11 +125,11 @@ func (app *App) Run() error {
 	if err != nil {
 		return errors.New("Failed to build server: " + err.Error())
 	}
-	log.Printf("webcli listen %s", endpoint)
-	log.Fatal(server.ListenAndServe())
-
-	log.Printf("Exiting...")
-
+	go func() {
+		log.Printf("webcli listen %s", endpoint)
+		log.Fatal(server.ListenAndServe())
+		log.Printf("Exiting...")
+	}()
 	return nil
 }
 
@@ -177,7 +178,6 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := init.TenantID + "_" + init.ServiceID + "_" + init.PodName
-	log.Print(key)
 	md5 := md5Func(key)
 	if md5 != init.Md5 {
 		log.Print("Auth is not allowed !")

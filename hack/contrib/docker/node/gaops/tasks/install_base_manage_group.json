@@ -1,0 +1,153 @@
+{
+    "name": "install_base_manage_group",
+    "id": "install_base_manage_group",
+    "tasks": [
+        {
+            "name": "check_manage_base_services",
+            "id": "check_manage_base_services",
+            "temp": {
+                "name": "check_manage_base_services",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/install/check/check.sh",
+                        "manage_base"
+                    ]
+                },
+                "nodes":[],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                }
+            },
+            "is_once": true
+        },
+        {
+            "name": "install_docker",
+            "id": "install_docker",
+            "temp": {
+                "name": "install_docker",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/install/prepare/install_docker.sh",
+                        "${OS_VER}"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "is_once": true
+        },
+        {
+            "name": "install_db",
+            "id": "install_db",
+            "temp": {
+                "name": "install_db",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/plugins/db.sh",
+                        "${REPO_VER}"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": [
+                    {
+                        "depend_task_id": "install_docker",
+                        "strategy": "SameNode"
+                    }
+                ]
+            },
+            "is_once": true
+        },
+        {
+            "name": "install_base_plugins",
+            "id": "install_base_plugins",
+            "temp": {
+                "name": "install_base_plugins",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/plugins/base.sh",
+                        "${REPO_VER}",
+                        "${DOMAIN}"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": [
+                    {
+                        "depend_task_id": "install_db",
+                        "strategy": "SameNode"
+                    }
+                ]
+            },
+            "is_once": true
+        },
+        {
+            "name": "install_acp_plugins",
+            "id": "install_acp_plugins",
+            "temp": {
+                "name": "install_acp_plugins",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/plugins/sys.sh",
+                        "${REPO_VER}",
+                        "${DOMAIN}",
+                        "${DB_USER}",
+                        "${DB_PASSWD}",
+                        "${DB_HOST}",
+                        "${DB_PORT}",
+                        "${HOST_IP}"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": [
+                    {
+                        "depend_task_id": "install_base_plugins",
+                        "strategy": "SameNode"
+                    }
+                ]
+            },
+            "is_once": true
+        },
+        {
+            "name": "update_dns",
+            "id": "update_dns",
+            "temp": {
+                "name": "update_dns",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/tasks/dns_modify.sh",
+                        "${OS_VER}",
+                        "${DNS_SERVER}"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": [
+                    {
+                        "depend_task_id": "install_acp_plugins",
+                        "strategy": "SameNode"
+                    }
+                ]
+            },
+            "is_once": true
+        }
+    ]
+}
