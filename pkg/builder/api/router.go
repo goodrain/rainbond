@@ -31,22 +31,21 @@ func APIServer() *chi.Mux {
 			r.Get("/service/{serviceID}", controller.GetCodeCheck)
 		})
 		r.Route("/publish", func(r chi.Router) {
-			r.Get("/service/{serviceKey}/version/{appVersion}",controller.GetAppPublish)
-			r.Post("/",controller.AddAppPublish)
+			r.Get("/service/{serviceKey}/version/{appVersion}", controller.GetAppPublish)
+			r.Post("/", controller.AddAppPublish)
 
 		})
 		r.Route("/version", func(r chi.Router) {
 
-			r.Post("/",controller.UpdateDeliveredPath)
-			r.Get("/event/{eventID}",controller.GetVersionByEventID)
-			r.Post("/event/{eventID}",controller.UpdateVersionByEventID)
-			r.Get("/service/{serviceID}",controller.GetVersionByServiceID)
-			r.Delete("/service/{eventID}",controller.DeleteVersionByEventID)
+			r.Post("/", controller.UpdateDeliveredPath)
+			r.Get("/event/{eventID}", controller.GetVersionByEventID)
+			r.Post("/event/{eventID}", controller.UpdateVersionByEventID)
+			r.Get("/service/{serviceID}", controller.GetVersionByServiceID)
+			r.Delete("/service/{eventID}", controller.DeleteVersionByEventID)
 		})
 		r.Route("/event", func(r chi.Router) {
-			r.Get("/",controller.GetEventsByIds)
+			r.Get("/", controller.GetEventsByIds)
 		})
 	})
 	return r
 }
-

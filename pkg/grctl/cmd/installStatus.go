@@ -17,18 +17,20 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package cmd
+
 import (
-	"github.com/urfave/cli"
+	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
-	"time"
-	"fmt"
-	"strings"
-	"os"
+	"github.com/urfave/cli"
 )
 
-func GetCommand(status bool)[]cli.Command  {
-	c:=[]cli.Command{
+func GetCommand(status bool) []cli.Command {
+	c := []cli.Command{
 		{
 			Name:  "compute",
 			Usage: "安装计算节点 compute -h",
@@ -39,32 +41,31 @@ func GetCommand(status bool)[]cli.Command  {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				return Task(c,"check_compute_services",status)
+				return Task(c, "check_compute_services", status)
 			},
-			Subcommands:[]cli.Command{
+			Subcommands: []cli.Command{
 				{
 					Name:  "storage_client",
 					Usage: "step 1 storage_client",
 					Action: func(c *cli.Context) error {
-						return Task(c,"install_storage_client",status)
+						return Task(c, "install_storage_client", status)
 					},
 				},
 				{
 					Name:  "kubelet",
 					Usage: "need storage_client",
 					Action: func(c *cli.Context) error {
-						return Task(c,"install_kubelet",status)
+						return Task(c, "install_kubelet", status)
 					},
 				},
 				{
 					Name:  "network_compute",
 					Usage: "need storage_client,kubelet",
 					Action: func(c *cli.Context) error {
-						return Task(c,"install_network_compute",status)
+						return Task(c, "install_network_compute", status)
 					},
 				},
 			},
-
 		},
 		{
 			Name:  "manage_base",
@@ -76,39 +77,36 @@ func GetCommand(status bool)[]cli.Command  {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				return Task(c,"check_manage_base_services",status)
+				return Task(c, "check_manage_base_services", status)
 			},
-			Subcommands:[]cli.Command{
+			Subcommands: []cli.Command{
 				{
 					Name:  "docker",
 					Usage: "step 1 安装docker",
 					Action: func(c *cli.Context) error {
-						return Task(c,"install_docker",status)
+						return Task(c, "install_docker", status)
 					},
 				},
 				{
 					Name:  "db",
 					Usage: "step 2 安装db",
 					Action: func(c *cli.Context) error {
-						return Task(c,"install_db",status)
+						return Task(c, "install_db", status)
 					},
-
 				},
 				{
 					Name:  "base_plugins",
 					Usage: "step 3 基础插件",
 					Action: func(c *cli.Context) error {
-						return Task(c,"install_base_plugins",status)
+						return Task(c, "install_base_plugins", status)
 					},
-
 				},
 				{
 					Name:  "acp_plugins",
 					Usage: "step 4 acp插件",
 					Action: func(c *cli.Context) error {
-						return Task(c,"install_acp_plugins",status)
+						return Task(c, "install_acp_plugins", status)
 					},
-
 				},
 			},
 		},
@@ -121,51 +119,46 @@ func GetCommand(status bool)[]cli.Command  {
 					Usage: "hostID1 hostID2 ...,空表示全部",
 				},
 			},
-			Subcommands:[]cli.Command{
+			Subcommands: []cli.Command{
 				{
 					Name:  "storage",
 					Usage: "step 1 安装存储",
 					Action: func(c *cli.Context) error {
-						return Task(c,"install_storage",status)
+						return Task(c, "install_storage", status)
 					},
-
 				},
 				{
 					Name:  "k8s",
 					Usage: "need storage",
 					Action: func(c *cli.Context) error {
-						return Task(c,"install_k8s",status)
+						return Task(c, "install_k8s", status)
 					},
-
 				},
 				{
 					Name:  "network",
 					Usage: "need storage,k8s",
 					Action: func(c *cli.Context) error {
-						return Task(c,"install_network",status)
+						return Task(c, "install_network", status)
 					},
-
 				},
 				{
 					Name:  "plugins",
 					Usage: "need storage,k8s,network",
 					Action: func(c *cli.Context) error {
-						return Task(c,"install_plugins",status)
+						return Task(c, "install_plugins", status)
 					},
-
 				},
 			},
-			Action:func(c *cli.Context) error {
-				return Task(c,"check_manage_services",status)
+			Action: func(c *cli.Context) error {
+				return Task(c, "check_manage_services", status)
 			},
 		},
 	}
 	return c
 }
 
-
 func NewCmdInstall() cli.Command {
-	c:=cli.Command{
+	c := cli.Command{
 		Name:  "install",
 		Usage: "安装命令相关子命令。grctl install  -h",
 		Flags: []cli.Flag{
@@ -174,10 +167,11 @@ func NewCmdInstall() cli.Command {
 				Usage: "hostID1 hostID2 ...,空表示全部",
 			},
 		},
-		Subcommands:GetCommand(false),
+		Subcommands: GetCommand(false),
 	}
 	return c
 }
+
 //func NewCmdStatus() cli.Command {
 //	c:=cli.Command{
 //		Name:  "status",
@@ -193,115 +187,101 @@ func NewCmdInstall() cli.Command {
 //	return c
 //}
 
-func Status(task string,nodes []string) {
-	checkFail:=0
-	lastState:=""
+func Status(task string, nodes []string) {
+	checkFail := 0
+	lastState := ""
 	set := make(map[string]bool)
 	for _, v := range nodes {
 		set[v] = true
 	}
-	fmt.Printf("%s task is start\n",task)
-	lastState="Start"
-	for checkFail<3  {
-		time.Sleep(3*time.Second)
-		taskE,err:=clients.NodeClient.Tasks().Get(task)
-		if err!=nil {
-			logrus.Warnf("error get task %s,retry",task)
-			checkFail+=1
+	fmt.Printf("%s task is start\n", task)
+	lastState = "Start"
+	for checkFail < 3 {
+		time.Sleep(3 * time.Second)
+		taskE, err := clients.NodeClient.Tasks().Get(task)
+		if err != nil {
+			logrus.Warnf("error get task %s,retry", task)
+			checkFail += 1
 			continue
 		}
-		status,err:=taskE.Status()
-		if err != nil||status==nil {
-			logrus.Warnf("error get task %s status,retry",task)
-			checkFail+=1
+		status, err := taskE.Status()
+		if err != nil || status == nil {
+			logrus.Warnf("error get task %s status,retry", task)
+			checkFail += 1
 			continue
 		}
-		for k,v:=range status.Status{
+		for k, v := range status.Status {
 			//不是当前任务需要检测的status
 			if !set[k] {
 				fmt.Print("..")
 				continue
 			}
-			if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
-				checkFail+=1
-				fmt.Errorf("error executing task %s",task)
-				//好像不需要更新task，因为一直在循环
-				//taskE,err:=clients.NodeClient.Tasks().Get(task)
-				//if err != nil||status==nil {
-				//	logrus.Warnf("error get task %s status,update task status failed,retry",task)
-				//	checkFail+=1
-				//	continue
-				//}
-				for _,v:=range taskE.Task.OutPut{
-					if set[v.NodeID]{
-						fmt.Printf("on %s :\n %s",v.NodeID,v.Body)
+			if strings.Contains(v.Status, "error") || strings.Contains(v.CompleStatus, "Failure") || strings.Contains(v.CompleStatus, "Unknow") {
+				checkFail += 1
+				fmt.Errorf("error executing task %s", task)
+				for _, v := range taskE.Task.OutPut {
+					if set[v.NodeID] {
+						fmt.Printf("on %s :\n %s", v.NodeID, v.Body)
 					}
 				}
 				os.Exit(1)
 			}
-			if lastState!=v.Status{
-				fmt.Printf("task %s is %s\n",task,v.Status)
-			}else{
+			if lastState != v.Status {
+				fmt.Printf("task %s is %s\n", task, v.Status)
+			} else {
 				fmt.Print("..")
 			}
-			lastState=v.Status
-			if v.Status=="complete"||v.CompleStatus=="Success"{
-				fmt.Printf("task %s is %s %s\n",task,v.Status,v.CompleStatus)
-				lastState=v.Status
-				taskFinished:=taskE
-				//taskFinished,err:=clients.NodeClient.Tasks().Get(task)
-				//if err != nil||status==nil {
-				//	logrus.Warnf("error get task %s ,retry",task)
-				//	checkFail+=1
-				//	continue
-				//}
-				var  nextTasks []string
-				for _,v:=range taskFinished.Task.OutPut{
+			lastState = v.Status
+			if v.Status == "complete" || v.CompleStatus == "Success" {
+				fmt.Printf("task %s is %s %s\n", task, v.Status, v.CompleStatus)
+				lastState = v.Status
+				taskFinished := taskE
+				var nextTasks []string
+				for _, v := range taskFinished.Task.OutPut {
 					if !set[v.NodeID] {
 						continue
 					}
-					for _,sv:=range v.Status{
-						if sv.NextTask == nil ||len(sv.NextTask)==0{
+					for _, sv := range v.Status {
+						if sv.NextTask == nil || len(sv.NextTask) == 0 {
 							continue
-						}else{
-							for _,v:=range sv.NextTask{
-								nextTasks=append(nextTasks,v)
+						} else {
+							for _, v := range sv.NextTask {
+								nextTasks = append(nextTasks, v)
 							}
 						}
 					}
 				}
 				if len(nextTasks) > 0 {
-					fmt.Printf("next will install %v \n",nextTasks)
-					for _,v:=range nextTasks{
-						Status(v,nodes)
+					fmt.Printf("next will install %v \n", nextTasks)
+					for _, v := range nextTasks {
+						Status(v, nodes)
 					}
 				}
 				return
 			}
 
 		}
-		checkFail=0
+		checkFail = 0
 	}
 }
 
-func Task(c *cli.Context,task string,status bool) error   {
+func Task(c *cli.Context, task string, status bool) error {
 
-	nodes:=c.StringSlice("nodes")
-	logrus.Infof("task %s will execute in nodes: %v",task,nodes)
-	taskEntity,err:=clients.NodeClient.Tasks().Get(task)
-	if taskEntity==nil||err!=nil {
+	nodes := c.StringSlice("nodes")
+	taskEntity, err := clients.NodeClient.Tasks().Get(task)
+	if taskEntity == nil || err != nil {
 		logrus.Errorf("error get task entity from server,please check server api")
 		return nil
 	}
-	err=taskEntity.Exec(nodes)
+	err = taskEntity.Exec(nodes)
 	if err != nil {
-		logrus.Errorf("error exec task:%s,details %s",task,err.Error())
+		logrus.Errorf("error exec task:%s,details %s", task, err.Error())
 		return err
 	}
-	if nodes==nil||len(nodes)==0 {
-		nodes=taskEntity.Task.Nodes
+	if nodes == nil || len(nodes) == 0 {
+		nodes = taskEntity.Task.Nodes
 	}
-	Status(task,nodes)
+	Status(task, nodes)
 
 	return nil
 }
