@@ -35,8 +35,8 @@ func InitProxy(conf option.Config) {
 		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("acp_node", nodeProxy)
 	}
 	if builderProxy == nil {
-		builderProxy = proxy.CreateProxy("builder", "http", conf.NodeAPI)
-		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("acp_node", nodeProxy)
+		builderProxy = proxy.CreateProxy("builder", "http", conf.BuilderAPI)
+		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("builder", builderProxy)
 	}
 }
 
