@@ -25,8 +25,6 @@ import (
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 )
 
-
-
 //ServiceGetCommon path参数
 //swagger:parameters getVolumes getDepVolumes
 type ServiceGetCommon struct {
@@ -636,7 +634,7 @@ type BuildServiceStruct struct {
 		// the event id
 		// in: body
 		// required: false
-		EventID string `json:"event_id" validate:"event_id|required"`
+		EventID string `json:"event_id" validate:"event_id"`
 		// 变量
 		// in: body
 		// required: false

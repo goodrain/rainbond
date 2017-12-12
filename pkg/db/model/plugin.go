@@ -24,30 +24,30 @@ type TenantPlugin struct {
 	//插件id
 	PluginID string `gorm:"column:plugin_id;size:32"`
 	//插件名称
-	PluginName string `gorm:"column:plugin_name;size:32"`
+	PluginName string `gorm:"column:plugin_name;size:32" json:"plugin_name"`
 	//插件用途描述
-	PluginInfo string `gorm:"column:plugin_info:size:100"`
+	PluginInfo string `gorm:"column:plugin_info;size:100" json:"plugin_info"`
 	//插件CPU权重
 	PluginCPU int `gorm:"column:plugin_cpu;default:500" json:"plugin_cpu"`
 	//插件最大内存
 	PluginMemory int `gorm:"column:plugin_memory;default:128" json:"plugin_memory"`
 	//插件docker地址
-	ImageURL string `gorm:"column:image_url"`
+	ImageURL string `gorm:"column:image_url" json:"image_url"`
 	//插件goodrain地址
-	ImageLocal string `gorm:"column:image_local"`
+	ImageLocal string `gorm:"column:image_local" json:"image_local"`
 	//带分支信息的git地址
-	Repo string `gorm:"column:repo"`
+	Repo string `gorm:"column:repo" json:"repo"`
 	//git地址
-	GitURL string `gorm:"column:git_url"`
+	GitURL string `gorm:"column:git_url" json:"git_url"`
 	//构建模式
-	BuildModel string `gorm:"column:build_model"`
+	BuildModel string `gorm:"column:build_model" json:"build_model"`
 	//插件模式
-	PluginModel string `gorm:"column:plugin_model"`
+	PluginModel string `gorm:"column:plugin_model" json:"plugin_model"`
 	//插件启动命令
-	PluginCMD string `gorm:"column:plugin_cmd"`
-	TenantID  string `gorm:"column:tenant_id"`
+	PluginCMD string `gorm:"column:plugin_cmd" json:"plugin_cmd"`
+	TenantID  string `gorm:"column:tenant_id" json:"tenant_id"`
 	//tenant_name 统计cpu mem使用
-	Domain string `gorm:"column:domain"`
+	Domain string `gorm:"column:domain" json:"domain"`
 	//gitlab; github
 	CodeFrom string `gorm:"column:code_from" json:"code_from"`
 }
@@ -61,13 +61,13 @@ func (t *TenantPlugin) TableName() string {
 type TenantPluginDefaultENV struct {
 	Model
 	//对应插件id
-	PluginID string `gorm:"column:plugin_id"`
+	PluginID string `gorm:"column:plugin_id" json:"plugin_id"`
 	//配置项名称
-	ENVName string `gorm:"column:env_name"`
+	ENVName string `gorm:"column:env_name" json:"env_name"`
 	//配置项值
-	ENVValue string `gorm:"column:env_value"`
+	ENVValue string `gorm:"column:env_value" json:"env_value"`
 	//使用人是否可改
-	IsChange bool `gorm:"column:is_change;default:false"`
+	IsChange bool `gorm:"column:is_change;default:false" json:"is_change"`
 }
 
 //TableName 表名
@@ -96,16 +96,16 @@ func (t *TenantPluginDefaultConf) TableName() string {
 //TenantPluginBuildVersion 插件构建版本表
 type TenantPluginBuildVersion struct {
 	Model
-	VersionID       string `gorm:"column:version_id;size:32"`
-	PluginID        string `gorm:"column:plugin_id;size:32"`
-	Kind            string `gorm:"column:kind;size:24"`
-	BaseImage       string `gorm:"column:base_image;size:100"`
-	BuildLocalImage string `gorm:"column:build_local_image;size:100"`
-	BuildTime       string `gorm:"column:build_time"`
-	Repo            string `gorm:"column:repo"`
-	GitURL          string `gorm:"column:git_url"`
-	Info            string `gorm:"column:info"`
-	Status          string `gorm:"column:status;size:24"`
+	VersionID       string `gorm:"column:version_id;size:32" json:"version_id"`
+	PluginID        string `gorm:"column:plugin_id;size:32" json:"plugin_id"`
+	Kind            string `gorm:"column:kind;size:24" json:"kind"`
+	BaseImage       string `gorm:"column:base_image;size:100" json:"base_image"`
+	BuildLocalImage string `gorm:"column:build_local_image;size:100" json:"build_local_image"`
+	BuildTime       string `gorm:"column:build_time" json:"build_time"`
+	Repo            string `gorm:"column:repo" json:"repo"`
+	GitURL          string `gorm:"column:git_url" json:"git_url"`
+	Info            string `gorm:"column:info" json:"info"`
+	Status          string `gorm:"column:status;size:24" json:"status"`
 	// 容器CPU权重
 	ContainerCPU int `gorm:"column:container_cpu;default:125" json:"container_cpu"`
 	// 容器最大内存
@@ -123,10 +123,10 @@ func (t *TenantPluginBuildVersion) TableName() string {
 type TenantPluginVersionEnv struct {
 	Model
 	//VersionID string `gorm:"column:version_id;size:32"`
-	PluginID  string `gorm:"column:plugin_id;size:32"`
-	EnvName   string `gorm:"column:env_name"`
-	EnvValue  string `gorm:"column:env_value"`
-	ServiceID string `gorm:"column:service_id"`
+	PluginID  string `gorm:"column:plugin_id;size:32" json:"plugin_id"`
+	EnvName   string `gorm:"column:env_name" json:"env_name"`
+	EnvValue  string `gorm:"column:env_value" json:"env_value"`
+	ServiceID string `gorm:"column:service_id" json:"service_id"`
 }
 
 //TableName 表名
@@ -137,11 +137,11 @@ func (t *TenantPluginVersionEnv) TableName() string {
 //TenantServicePluginRelation TenantServicePluginRelation
 type TenantServicePluginRelation struct {
 	Model
-	VersionID   string `gorm:"column:version_id;size:32"`
-	PluginID    string `gorm:"column:plugin_id;size:32"`
-	ServiceID   string `gorm:"column:service_id;size:32"`
-	PluginModel string `gorm:"column:plugin_model;size:24"`
-	Switch      bool   `gorm:"column:switch;default:false"`
+	VersionID   string `gorm:"column:version_id;size:32" json:"version_id"`
+	PluginID    string `gorm:"column:plugin_id;size:32" json:"plugin_id"`
+	ServiceID   string `gorm:"column:service_id;size:32" json:"service_id"`
+	PluginModel string `gorm:"column:plugin_model;size:24" json:"plugin_model"`
+	Switch      bool   `gorm:"column:switch;default:false" json:"switch"`
 }
 
 //TableName 表名
