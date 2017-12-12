@@ -52,4 +52,4 @@ Bug found in learning and using, please visit [ISSUES](https://github.com/goodra
 ### [Documentation](http://www.rainbond.com/docs/stable/)       
 
 - Docs: https://www.rainbond.com/docs
-- Blog: https://www.rainbond.com/blog
+- Blog: https://blog.goodrain.com
