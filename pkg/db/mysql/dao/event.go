@@ -1,4 +1,3 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
@@ -20,14 +19,15 @@
 package dao
 
 import (
-	"github.com/goodrain/rainbond/pkg/db/model"
-	"github.com/jinzhu/gorm"
 	"time"
 
-	"github.com/Sirupsen/logrus"
-	"encoding/json"
-)
+	"github.com/goodrain/rainbond/pkg/db/model"
+	"github.com/jinzhu/gorm"
 
+	"encoding/json"
+
+	"github.com/Sirupsen/logrus"
+)
 
 //AddModel AddModel
 func (c *EventDaoImpl) AddModel(mo model.Interface) error {
@@ -44,18 +44,15 @@ func (c *EventDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-
-
-
 //UpdateModel UpdateModel
 func (c *EventDaoImpl) UpdateModel(mo model.Interface) error {
 	result := mo.(*model.ServiceEvent)
 
 	var oldResult model.ServiceEvent
 	if ok := c.DB.Where("event_id=?", result.EventID).Find(&oldResult).RecordNotFound(); !ok {
-		finalUpdateEvent(result,&oldResult)
-		oldB,_:=json.Marshal(oldResult)
-		logrus.Infof("update event to %s",string(oldB))
+		finalUpdateEvent(result, &oldResult)
+		oldB, _ := json.Marshal(oldResult)
+		logrus.Infof("update event to %s", string(oldB))
 		if err := c.DB.Save(oldResult).Error; err != nil {
 			return err
 		}
@@ -63,35 +60,36 @@ func (c *EventDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 func finalUpdateEvent(target *model.ServiceEvent, old *model.ServiceEvent) {
-	if target.CodeVersion!="" {
-		old.CodeVersion=target.CodeVersion
+	if target.CodeVersion != "" {
+		old.CodeVersion = target.CodeVersion
 	}
-	if target.OptType!="" {
-		old.OptType=target.OptType
+	if target.OptType != "" {
+		old.OptType = target.OptType
 	}
 
-	if target.Status!="" {
-		old.Status=target.Status
+	if target.Status != "" {
+		old.Status = target.Status
 	}
-	if target.Message!="" {
-		old.Message=target.Message
+	if target.Message != "" {
+		old.Message = target.Message
 	}
 	old.FinalStatus = "complete"
-	if target.FinalStatus!="" {
-		old.FinalStatus=target.FinalStatus
+	if target.FinalStatus != "" {
+		old.FinalStatus = target.FinalStatus
 	}
 
 	old.EndTime = time.Now().String()
-	if old.Status == "failure" && old.OptType == "callback"{
+	if old.Status == "failure" && old.OptType == "callback" {
 		old.DeployVersion = old.OldDeployVersion
 	}
 }
-//EventLogMessageDaoImpl EventLogMessageDaoImpl
+
+//EventDaoImpl EventLogMessageDaoImpl
 type EventDaoImpl struct {
 	DB *gorm.DB
 }
 
-//GetEventLogMessages get event log message
+//GetEventByEventID get event log message
 func (c *EventDaoImpl) GetEventByEventID(eventID string) (*model.ServiceEvent, error) {
 	var result model.ServiceEvent
 	if err := c.DB.Where("event_id=?", eventID).Find(&result).Error; err != nil {
@@ -103,8 +101,7 @@ func (c *EventDaoImpl) GetEventByEventID(eventID string) (*model.ServiceEvent, e
 	return &result, nil
 }
 
-
-//GetEventLogMessages get event log message
+//GetEventByServiceID get event log message
 func (c *EventDaoImpl) GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error) {
 	var result []*model.ServiceEvent
 	if err := c.DB.Where("service_id=?", serviceID).Find(&result).Order("start_time DESC").Error; err != nil {
