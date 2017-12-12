@@ -43,8 +43,9 @@ Bug found in learning and using, please visit [ISSUES](https://github.com/goodra
 
 ## Community
 ### WeChart
-<img src="https://github.com/goodrain/rainbond/blob/master/docs/Wechat.jpeg">
-*WeChat scan qr code to add friends*
+<img src="https://github.com/goodrain/rainbond/blob/master/docs/Wechat.jpeg" width="30%">
+*WeChat scan qr code to add friends*   
+  
 ### QQ Group:
 
 - 477016432 (Group 1) 
