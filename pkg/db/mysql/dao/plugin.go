@@ -91,7 +91,19 @@ type PluginDefaultENVDaoImpl struct {
 func (t *PluginDefaultENVDaoImpl) AddModel(mo model.Interface) error {
 	env := mo.(*model.TenantPluginDefaultENV)
 	var oldENV model.TenantPluginDefaultENV
-	if ok := t.DB.Where("plugin_id=? and env_name = ?", env.PluginID, env.ENVName).Find(&oldENV).RecordNotFound(); ok {
+	if ok := t.DB.Where("plugin_id=? and env_name =? and version_id= ?",
+		env.PluginID,
+		env.ENVName,
+		"master_rb").Find(&oldENV).RecordNotFound(); ok {
+		env.VersionID = "master_rb"
+		if err := t.DB.Create(env).Error; err != nil {
+			return err
+		}
+	}
+	if ok := t.DB.Where("plugin_id=? and env_name = ? and version_id = ?",
+		env.PluginID,
+		env.ENVName,
+		env.VersionID).Find(&oldENV).RecordNotFound(); ok {
 		if err := t.DB.Create(env).Error; err != nil {
 			return err
 		}
@@ -107,62 +119,98 @@ func (t *PluginDefaultENVDaoImpl) UpdateModel(mo model.Interface) error {
 	if err := t.DB.Save(env).Error; err != nil {
 		return err
 	}
+	env.VersionID = "master_rb"
+	if err := t.DB.Save(env).Error; err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return err
+		}
+	}
 	return nil
 }
 
+//GetALLMasterDefultENVs GetALLMasterDefultENVs
+func (t *PluginDefaultENVDaoImpl) GetALLMasterDefultENVs(pluginID string) ([]*model.TenantPluginDefaultENV, error) {
+	var envs []*model.TenantPluginDefaultENV
+	if err := t.DB.Where("plugin_id=? and version_id=?", pluginID, "master_rb").Find(&envs).Error; err != nil {
+		return nil, err
+	}
+	return envs, nil
+}
+
 //GetDefaultENVByName GetDefaultENVByName
-func (t *PluginDefaultENVDaoImpl) GetDefaultENVByName(pluginID string, name string) (*model.TenantPluginDefaultENV, error) {
+func (t *PluginDefaultENVDaoImpl) GetDefaultENVByName(pluginID, name, versionID string) (*model.TenantPluginDefaultENV, error) {
 	var env model.TenantPluginDefaultENV
-	if err := t.DB.Where("plugin_id=? and env_name=?", name).Find(&env).Error; err != nil {
+	if err := t.DB.Where("plugin_id=? and env_name=? and version_id=?",
+		pluginID,
+		name,
+		versionID).Find(&env).Error; err != nil {
 		return nil, err
 	}
 	return &env, nil
 }
 
 //GetDefaultENVSByPluginID GetDefaultENVSByPluginID
-func (t *PluginDefaultENVDaoImpl) GetDefaultENVSByPluginID(pluginID string) ([]*model.TenantPluginDefaultENV, error) {
+func (t *PluginDefaultENVDaoImpl) GetDefaultENVSByPluginID(pluginID, versionID string) ([]*model.TenantPluginDefaultENV, error) {
 	var envs []*model.TenantPluginDefaultENV
-	if err := t.DB.Where("plugin_id=?", pluginID).Find(&envs).Error; err != nil {
+	if err := t.DB.Where("plugin_id=? and version_id=?", pluginID, versionID).Find(&envs).Error; err != nil {
 		return nil, err
 	}
 	return envs, nil
 }
 
 //GetDefaultENVSByPluginIDCantBeSet GetDefaultENVSByPluginIDCantBeSet
-func (t *PluginDefaultENVDaoImpl) GetDefaultENVSByPluginIDCantBeSet(pluginID string) ([]*model.TenantPluginDefaultENV, error) {
-	var envs []*model.TenantPluginDefaultENV
-	if err := t.DB.Where("plugin_id=? and is_change=0", pluginID).Find(&envs).Error; err != nil {
-		return nil, err
-	}
-	return envs, nil
-}
+// func (t *PluginDefaultENVDaoImpl) GetDefaultENVSByPluginIDCantBeSet(pluginID string) ([]*model.TenantPluginDefaultENV, error) {
+// 	var envs []*model.TenantPluginDefaultENV
+// 	if err := t.DB.Where("plugin_id=? and is_change=0", pluginID).Find(&envs).Error; err != nil {
+// 		return nil, err
+// 	}
+// 	return envs, nil
+// }
 
 //DeleteDefaultENVByName DeleteDefaultENVByName
-func (t *PluginDefaultENVDaoImpl) DeleteDefaultENVByName(pluginID, name string) error {
+func (t *PluginDefaultENVDaoImpl) DeleteDefaultENVByName(pluginID, name, versionID string) error {
 	relation := &model.TenantPluginDefaultENV{
 		ENVName: name,
 	}
-	if err := t.DB.Where("plugin_id=? and env_name=?", pluginID, name).Delete(relation).Error; err != nil {
+	if err := t.DB.Where("plugin_id=? and env_name=? and version_id=?",
+		pluginID, name, versionID).Delete(relation).Error; err != nil {
+		return err
+	}
+	if err := t.DB.Where("plugin_id=? and env_name=? and version_id=?",
+		pluginID, name, "master_rb").Delete(relation).Error; err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			return err
+		}
+	}
+	return nil
+}
+
+//DeleteDefaultENVByPluginIDAndVersionID DeleteDefaultENVByPluginIDAndVersionID
+func (t *PluginDefaultENVDaoImpl) DeleteDefaultENVByPluginIDAndVersionID(pluginID, versionID string) error {
+	relation := &model.TenantPluginDefaultENV{
+		PluginID: pluginID,
+	}
+	if err := t.DB.Where("plugin_id=? and version_id=?", pluginID, versionID).Delete(relation).Error; err != nil {
 		return err
 	}
 	return nil
 }
 
 //DeleteAllDefaultENVByPluginID DeleteAllDefaultENVByPluginID
-func (t *PluginDefaultENVDaoImpl) DeleteAllDefaultENVByPluginID(id string) error {
+func (t *PluginDefaultENVDaoImpl) DeleteAllDefaultENVByPluginID(pluginID string) error {
 	relation := &model.TenantPluginDefaultENV{
-		PluginID: id,
+		PluginID: pluginID,
 	}
-	if err := t.DB.Where("plugin_id=?", id).Delete(relation).Error; err != nil {
+	if err := t.DB.Where("plugin_id=?", pluginID).Delete(relation).Error; err != nil {
 		return err
 	}
 	return nil
 }
 
 //GetDefaultEnvWhichCanBeSetByPluginID GetDefaultEnvWhichCanBeSetByPluginID
-func (t *PluginDefaultENVDaoImpl) GetDefaultEnvWhichCanBeSetByPluginID(pluginID string) ([]*model.TenantPluginDefaultENV, error) {
+func (t *PluginDefaultENVDaoImpl) GetDefaultEnvWhichCanBeSetByPluginID(pluginID, versionID string) ([]*model.TenantPluginDefaultENV, error) {
 	var envs []*model.TenantPluginDefaultENV
-	if err := t.DB.Where("plugin_id=? and is_change=1", pluginID).Find(&envs).Error; err != nil {
+	if err := t.DB.Where("plugin_id=? and is_change=1 and version_id=?", pluginID, versionID).Find(&envs).Error; err != nil {
 		return nil, err
 	}
 	return envs, nil

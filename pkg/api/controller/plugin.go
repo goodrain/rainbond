@@ -21,7 +21,6 @@ package controller
 import (
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/api/handler"
 	"github.com/goodrain/rainbond/pkg/api/middleware"
 
@@ -191,7 +190,7 @@ func (t *TenantStruct) PluginDefaultENV(w http.ResponseWriter, r *http.Request) 
 
 //AddDefatultENV AddDefatultENV
 func (t *TenantStruct) AddDefatultENV(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/plugin/{plugin_id}/default-env v2 adddefaultenv
+	// swagger:operation POST /v2/tenants/{tenant_name}/plugin/{plugin_id}/{version_id}/default-env v2 adddefaultenv
 	//
 	// 添加插件默认变量
 	//
@@ -212,10 +211,12 @@ func (t *TenantStruct) AddDefatultENV(w http.ResponseWriter, r *http.Request) {
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
+	versionID := chi.URLParam(r, "version_id")
 	var est api_model.ENVStruct
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &est.Body, nil); !ok {
 		return
 	}
+	est.VersionID = versionID
 	est.PluginID = pluginID
 	if err := handler.GetPluginManager().AddDefaultEnv(&est); err != nil {
 		err.Handle(r, w)
@@ -225,7 +226,7 @@ func (t *TenantStruct) AddDefatultENV(w http.ResponseWriter, r *http.Request) {
 
 //DeleteDefaultENV DeleteDefaultENV
 func (t *TenantStruct) DeleteDefaultENV(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation DELETE /v2/tenants/{tenant_name}/plugin/{plugin_id}/default-env/{env_name} v2 deletedefaultenv
+	// swagger:operation DELETE /v2/tenants/{tenant_name}/plugin/{plugin_id}/{version_id}/default-env/{env_name} v2 deletedefaultenv
 	//
 	// 删除插件默认变量
 	//
@@ -247,42 +248,80 @@ func (t *TenantStruct) DeleteDefaultENV(w http.ResponseWriter, r *http.Request) 
 	//     description: 统一返回格式
 	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
 	envName := chi.URLParam(r, "env_name")
-	if err := handler.GetPluginManager().DeleteDefaultEnv(pluginID, envName); err != nil {
+	versionID := chi.URLParam(r, "version_id")
+	if err := handler.GetPluginManager().DeleteDefaultEnv(pluginID, versionID, envName); err != nil {
 		err.Handle(r, w)
 		return
 	}
 }
 
 //UpdateDefaultENV UpdateDefaultENV
+// swagger:operation PUT /v2/tenants/{tenant_name}/plugin/{plugin_id}/{version_id}/default-env v2 updatedefaultenv
+//
+// 更新插件默认变量，支持批量
+//
+// update default env
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) UpdateDefaultENV(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation PUT /v2/tenants/{tenant_name}/plugin/{plugin_id}/default-env v2 updatedefaultenv
-	//
-	// 更新插件默认变量，支持批量
-	//
-	// update default env
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
+
+	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
+	versionID := chi.URLParam(r, "version_id")
 	var est api_model.ENVStruct
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &est.Body, nil); !ok {
 		return
 	}
+	est.PluginID = pluginID
+	est.VersionID = versionID
 	if err := handler.GetPluginManager().UpdateDefaultEnv(&est); err != nil {
 		err.Handle(r, w)
 		return
 	}
+}
+
+//GetPluginDefaultEnvs GetPluginDefaultEnvs
+// swagger:operation GET /v2/tenants/{tenant_name}/plugin/{plugin_id}/{version_id}/default-env v2 getPluginDefaultEnv
+//
+// 获取插件默认设定的env
+//
+// get plugin env
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func (t *TenantStruct) GetPluginDefaultEnvs(w http.ResponseWriter, r *http.Request) {
+	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
+	versionID := chi.URLParam(r, "version_id")
+	envs, err := handler.GetPluginManager().GetDefaultEnv(pluginID, versionID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, envs)
 }
 
 //PluginBuild PluginBuild
@@ -566,37 +605,6 @@ func (t *TenantStruct) DeletePluginRelation(w http.ResponseWriter, r *http.Reque
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//GetPluginDefaultEnvs GetPluginDefaultEnvs
-// swagger:operation GET /v2/tenants/{tenant_name}/plugin/{plugin_id}/default-env v2 getPluginDefaultEnv
-//
-// 获取插件默认设定的env
-//
-// get plugin env
-//
-// ---
-// consumes:
-// - application/json
-// - application/x-protobuf
-//
-// produces:
-// - application/json
-// - application/xml
-//
-// responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
-func (t *TenantStruct) GetPluginDefaultEnvs(w http.ResponseWriter, r *http.Request) {
-	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
-	envs, err := handler.GetPluginManager().GetDefaultEnv(pluginID)
-	if err != nil {
-		err.Handle(r, w)
-		return
-	}
-	httputil.ReturnSuccess(r, w, envs)
-}
-
 //GePluginEnvWhichCanBeSet GePluginEnvWhichCanBeSet
 // swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/envs v2 getVersionEnvs
 //
@@ -621,7 +629,6 @@ func (t *TenantStruct) GetPluginDefaultEnvs(w http.ResponseWriter, r *http.Reque
 func (t *TenantStruct) GePluginEnvWhichCanBeSet(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	pluginID := chi.URLParam(r, "plugin_id")
-	logrus.Debugf("plugin_Id is %s", pluginID)
 	envs, err := handler.GetPluginManager().GetEnvsWhichCanBeSet(serviceID, pluginID)
 	if err != nil {
 		err.Handle(r, w)
