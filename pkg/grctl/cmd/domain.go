@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"bytes"
 	"os/exec"
+	"github.com/goodrain/rainbond/pkg/grctl/clients"
+	"github.com/Sirupsen/logrus"
 )
 
 func NewCmdDomain() cli.Command {
@@ -56,7 +58,38 @@ func NewCmdDomain() cli.Command {
 	}
 	return c
 }
+func NewCmdCheckTask() cli.Command {
+	c:=cli.Command{
+		Name: "checkTask",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "uuid",
+				Usage: "uuid",
+			},
+		},
+		Usage: "",
+		Action: func(c *cli.Context) error {
+			uuid:=c.String("uuid")
+			if len(uuid)==0 {
+				fmt.Println("uuid must not null")
+				return nil
+			}
+			tasks,err:=clients.NodeClient.Tasks().List()
+			if err != nil {
+				logrus.Errorf("error get task list,details %s",err.Error())
+				return err
+			}
+			for _,v:=range tasks{
+				if taskStatus,ok:=v.Status[uuid];ok{
+					fmt.Printf("task %s status:%s,complete status %s\n",v.ID,taskStatus.Status,taskStatus.CompleStatus)
 
+				}
+			}
+			return nil
+		},
+	}
+	return c
+}
 
 
 
