@@ -25,6 +25,8 @@ import (
 )
 
 var nodeProxy proxy.Proxy
+var builderProxy proxy.Proxy
+
 
 //InitProxy 初始化
 func InitProxy(conf option.Config) {
@@ -32,9 +34,17 @@ func InitProxy(conf option.Config) {
 		nodeProxy = proxy.CreateProxy("acp_node", "http", conf.NodeAPI)
 		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("acp_node", nodeProxy)
 	}
+	if builderProxy == nil {
+		builderProxy = proxy.CreateProxy("builder", "http", conf.NodeAPI)
+		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("acp_node", nodeProxy)
+	}
 }
 
 //GetNodeProxy GetNodeProxy
 func GetNodeProxy() proxy.Proxy {
 	return nodeProxy
+}
+//GetNodeProxy GetNodeProxy
+func GetBuilderProxy() proxy.Proxy {
+	return builderProxy
 }
