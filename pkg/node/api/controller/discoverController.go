@@ -90,8 +90,8 @@ func RoutesDiscover(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 }
 
-//SourcesEnv SourcesEnv
-func SourcesEnv(w http.ResponseWriter, r *http.Request) {
+//ResourcesEnv ResourcesEnv
+func ResourcesEnv(w http.ResponseWriter, r *http.Request) {
 	namespace := chi.URLParam(r, "tenant_id")
 	sourceAlias := chi.URLParam(r, "source_alias")
 	envName := chi.URLParam(r, "env_name")
@@ -104,4 +104,9 @@ func SourcesEnv(w http.ResponseWriter, r *http.Request) {
 	if value, ok := ss.SourceBody.EnvVal.(string); ok {
 		w.Write([]byte(value))
 	}
+}
+
+//UserDefineResources UserDefineResources
+func UserDefineResources(w http.ResponseWriter, r *http.Request) {
+	return
 }

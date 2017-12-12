@@ -13,7 +13,7 @@ import (
 
 //Event GetLogs
 func (e *TenantStruct) Event(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation GET  /v2/tenants/{tenant_name}/event v2 get events
+	// swagger:operation GET  /v2/tenants/{tenant_name}/event v2 getevents
 	//
 	// 获取指定event_ids详细信息
 	//

@@ -1533,11 +1533,10 @@
           "application/xml"
         ],
         "tags": [
-          "v2",
-          "get"
+          "v2"
         ],
         "summary": "获取指定event_ids详细信息",
-        "operationId": "events",
+        "operationId": "getevents",
         "responses": {
           "default": {
             "description": "统一返回格式",
@@ -1619,14 +1618,6 @@
                   "description": "构建模式\nin: body",
                   "type": "string",
                   "x-go-name": "BuildModel"
-                },
-                "env_info": {
-                  "description": "in: body",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/definitions/PluginDefaultENV"
-                  },
-                  "x-go-name": "EVNInfo"
                 },
                 "git_url": {
                   "description": "git地址\nin: body",
@@ -2069,7 +2060,7 @@
         }
       }
     },
-    "/v2/tenants/{tenant_name}/plugin/{plugin_id}/default-env": {
+    "/v2/tenants/{tenant_name}/plugin/{plugin_id}/{version_id}/default-env": {
       "get": {
         "description": "get plugin env",
         "consumes": [
@@ -2089,6 +2080,7 @@
           {
             "type": "string",
             "x-go-name": "TenantName",
+            "description": "租户名称",
             "name": "tenant_name",
             "in": "path",
             "required": true
@@ -2096,7 +2088,16 @@
           {
             "type": "string",
             "x-go-name": "PluginID",
+            "description": "插件id",
             "name": "plugin_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "VersionID",
+            "description": "构建版本id",
+            "name": "version_id",
             "in": "path",
             "required": true
           }
@@ -2129,6 +2130,7 @@
           {
             "type": "string",
             "x-go-name": "TenantName",
+            "description": "租户名称",
             "name": "tenant_name",
             "in": "path",
             "required": true
@@ -2136,7 +2138,16 @@
           {
             "type": "string",
             "x-go-name": "PluginID",
+            "description": "插件id",
             "name": "plugin_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "VersionID",
+            "description": "构建版本",
+            "name": "version_id",
             "in": "path",
             "required": true
           },
@@ -2188,6 +2199,7 @@
           {
             "type": "string",
             "x-go-name": "TenantName",
+            "description": "租户名称",
             "name": "tenant_name",
             "in": "path",
             "required": true
@@ -2195,7 +2207,16 @@
           {
             "type": "string",
             "x-go-name": "PluginID",
+            "description": "插件id",
             "name": "plugin_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "VersionID",
+            "description": "构建版本",
+            "name": "version_id",
             "in": "path",
             "required": true
           },
@@ -2229,7 +2250,7 @@
         }
       }
     },
-    "/v2/tenants/{tenant_name}/plugin/{plugin_id}/default-env/{env_name}": {
+    "/v2/tenants/{tenant_name}/plugin/{plugin_id}/{version_id}/default-env/{env_name}": {
       "delete": {
         "description": "delete default env",
         "consumes": [
@@ -2249,6 +2270,7 @@
           {
             "type": "string",
             "x-go-name": "TenantName",
+            "description": "租户名称",
             "name": "tenant_name",
             "in": "path",
             "required": true
@@ -2256,7 +2278,16 @@
           {
             "type": "string",
             "x-go-name": "PluginID",
+            "description": "插件id",
             "name": "plugin_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "VersionID",
+            "description": "构建版本",
+            "name": "version_id",
             "in": "path",
             "required": true
           },
@@ -6659,29 +6690,36 @@
       "description": "PluginDefaultENV 插件默认环境变量",
       "type": "object",
       "required": [
+        "plugin_id",
+        "version_id",
         "env_name",
         "env_value"
       ],
       "properties": {
         "env_name": {
-          "description": "配置项名称\nin: path",
+          "description": "配置项名称\nin: body",
           "type": "string",
           "x-go-name": "ENVName"
         },
         "env_value": {
-          "description": "配置项值\nin: path",
+          "description": "配置项值\nin: body",
           "type": "string",
           "x-go-name": "ENVValue"
         },
         "is_change": {
-          "description": "是否可以被使用者修改\nin :path",
+          "description": "是否可以被使用者修改\nin :body",
           "type": "boolean",
           "x-go-name": "IsChange"
         },
         "plugin_id": {
-          "description": "对应插件id\nin: path",
+          "description": "对应插件id\nin: body",
           "type": "string",
           "x-go-name": "PluginID"
+        },
+        "version_id": {
+          "description": "构建版本id\nin: body",
+          "type": "string",
+          "x-go-name": "VersionID"
         }
       },
       "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"

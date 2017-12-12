@@ -62,6 +62,8 @@ type TenantPluginDefaultENV struct {
 	Model
 	//对应插件id
 	PluginID string `gorm:"column:plugin_id" json:"plugin_id"`
+	//构建版本
+	VersionID string `gorm:"column:version_id;size:32" json:"version_id"`
 	//配置项名称
 	ENVName string `gorm:"column:env_name" json:"env_name"`
 	//配置项值

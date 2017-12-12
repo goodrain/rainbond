@@ -1,30 +1,30 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package appm
 
 import (
-	"github.com/goodrain/rainbond/pkg/db/model"
-	"github.com/goodrain/rainbond/pkg/event"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/pkg/db/model"
+	"github.com/goodrain/rainbond/pkg/event"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
@@ -37,20 +37,20 @@ import (
 //返回部署结果
 func (m *manager) StartReplicationController(serviceID string, logger event.Logger) (*v1.ReplicationController, error) {
 	logger.Info("创建ReplicationController资源开始", map[string]string{"step": "worker-appm", "status": "starting"})
-	builder, err := ReplicationControllerBuilder(serviceID, logger)
+	builder, err := ReplicationControllerBuilder(serviceID, logger, m.conf.NodeAPI)
 	if err != nil {
 		logrus.Error("create ReplicationController builder error.", err.Error())
 		logger.Error("创建ReplicationController Builder失败", map[string]string{"step": "worker-appm", "status": "error"})
 		return nil, err
 	}
 	//判断应用镜像名称是否合法，非法镜像名进制启动
-	deployVersion,err:=m.dbmanager.VersionInfoDao().GetVersionByDeployVersion(builder.service.DeployVersion,serviceID)
+	deployVersion, err := m.dbmanager.VersionInfoDao().GetVersionByDeployVersion(builder.service.DeployVersion, serviceID)
 	var imageName string
 	if err != nil {
-		logrus.Warnf("error get version info by deployversion %s,details %s",builder.service.DeployVersion,err.Error())
-		imageName=builder.service.ImageName
-	}else{
-		imageName=deployVersion.ImageName
+		logrus.Warnf("error get version info by deployversion %s,details %s", builder.service.DeployVersion, err.Error())
+		imageName = builder.service.ImageName
+	} else {
+		imageName = deployVersion.ImageName
 	}
 	if !strings.HasPrefix(imageName, "goodrain.me/") {
 		logger.Error("启动应用失败,镜像名(%s)非法，请重新构建应用", map[string]string{"step": "callback", "status": "error"})
@@ -231,7 +231,7 @@ func (m *manager) RollingUpgradeReplicationController(serviceID string, stopChan
 		return m.StartReplicationController(serviceID, logger)
 	}
 	logger.Info("创建ReplicationController资源开始", map[string]string{"step": "worker-appm", "status": "starting"})
-	builder, err := ReplicationControllerBuilder(serviceID, logger)
+	builder, err := ReplicationControllerBuilder(serviceID, logger, m.conf.NodeAPI)
 	if err != nil {
 		logrus.Error("create ReplicationController builder error.", err.Error())
 		logger.Error("创建ReplicationController Builder失败", map[string]string{"step": "worker-appm", "status": "error"})

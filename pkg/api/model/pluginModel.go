@@ -67,9 +67,6 @@ type CreatePluginStruct struct {
 		//in: body
 		//required: false
 		TenantID string `json:"tenant_id" validate:"tenant_id"`
-		//in: body
-		//required: false
-		EVNInfo []*PluginDefaultENV `json:"env_info" validate:"env_info"`
 	}
 }
 
@@ -137,12 +134,18 @@ type deletePluginStruct struct {
 //ENVStruct ENVStruct
 //swagger:parameters adddefaultenv updatedefaultenv
 type ENVStruct struct {
+	// 租户名称
 	// in: path
 	// required: true
-	TenantName string `json:"tenant_name"`
+	TenantName string `json:"tenant_name" validate:"tenant_name"`
+	// 插件id
 	// in: path
 	// required: true
-	PluginID string `json:"plugin_id"`
+	PluginID string `json:"plugin_id" validate:"plugin_id"`
+	// 构建版本
+	// in: path
+	// required; true
+	VersionID string `json:"version_id" validate:"version_id"`
 	//in : body
 	Body struct {
 		//in: body
@@ -154,34 +157,44 @@ type ENVStruct struct {
 //DeleteENVstruct DeleteENVstruct
 //swagger:parameters deletedefaultenv
 type DeleteENVstruct struct {
+	// 租户名称
 	// in: path
 	// required: true
-	TenantName string `json:"tenant_name"`
+	TenantName string `json:"tenant_name" validate:"tenant_name|required"`
+	// 插件id
 	// in: path
 	// required: true
-	PluginID string `json:"plugin_id"`
+	PluginID string `json:"plugin_id" validate:"plugin_id|required"`
+	// 构建版本
+	// in: path
+	// required; true
+	VersionID string `json:"version_id" validate:"version_id|required"`
 	//配置项名称
 	//in: path
 	//required: true
-	ENVName string `json:"env_name" validate:"env_name"`
+	ENVName string `json:"env_name" validate:"env_name|required"`
 }
 
 //PluginDefaultENV 插件默认环境变量
 type PluginDefaultENV struct {
 	//对应插件id
-	//in: path
-	//required: false
+	//in: body
+	//required: true
 	PluginID string `json:"plugin_id" validate:"plugin_id"`
+	//构建版本id
+	//in: body
+	//required: true
+	VersionID string `json:"version_id" validate:"version_id"`
 	//配置项名称
-	//in: path
+	//in: body
 	//required: true
 	ENVName string `json:"env_name" validate:"env_name"`
 	//配置项值
-	//in: path
+	//in: body
 	//required: true
 	ENVValue string `json:"env_value" validate:"env_value"`
 	//是否可以被使用者修改
-	//in :path
+	//in :body
 	//required: false
 	IsChange bool `json:"is_change" validate:"is_change|bool"`
 }
@@ -324,12 +337,18 @@ type DeletePluginSetStruct struct {
 //GetPluginEnvStruct GetPluginEnvStruct
 //swagger:parameters getPluginEnv getPluginDefaultEnv
 type GetPluginEnvStruct struct {
+	// 租户名称
 	// in: path
 	// required: true
 	TenantName string `json:"tenant_name"`
+	// 插件id
 	// in: path
 	// required: true
 	PluginID string `json:"plugin_id"`
+	// 构建版本id
+	// in: path
+	// required: true
+	VersionID string `json:"version_id"`
 }
 
 //GetVersionEnvStruct GetVersionEnvStruct

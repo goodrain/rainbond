@@ -93,12 +93,14 @@ type TenantPluginDao interface {
 //TenantPluginDefaultENVDao TenantPluginDefaultENVDao
 type TenantPluginDefaultENVDao interface {
 	Dao
-	GetDefaultENVByName(pluginID, ENVName string) (*model.TenantPluginDefaultENV, error)
-	GetDefaultENVSByPluginID(pluginID string) ([]*model.TenantPluginDefaultENV, error)
-	GetDefaultENVSByPluginIDCantBeSet(pluginID string) ([]*model.TenantPluginDefaultENV, error)
-	DeleteDefaultENVByName(pluginID, ENVName string) error
+	GetDefaultENVByName(pluginID, name, versionID string) (*model.TenantPluginDefaultENV, error)
+	GetDefaultENVSByPluginID(pluginID, versionID string) ([]*model.TenantPluginDefaultENV, error)
+	//GetDefaultENVSByPluginIDCantBeSet(pluginID string) ([]*model.TenantPluginDefaultENV, error)
+	DeleteDefaultENVByName(pluginID, name, versionID string) error
 	DeleteAllDefaultENVByPluginID(PluginID string) error
-	GetDefaultEnvWhichCanBeSetByPluginID(pluginID string) ([]*model.TenantPluginDefaultENV, error)
+	DeleteDefaultENVByPluginIDAndVersionID(pluginID, versionID string) error
+	GetALLMasterDefultENVs(pluginID string) ([]*model.TenantPluginDefaultENV, error)
+	GetDefaultEnvWhichCanBeSetByPluginID(pluginID, versionID string) ([]*model.TenantPluginDefaultENV, error)
 }
 
 //TenantPluginBuildVersionDao TenantPluginBuildVersionDao
@@ -300,7 +302,7 @@ type EventDao interface {
 type VersionInfoDao interface {
 	Dao
 	GetVersionByEventID(eventID string) (*model.VersionInfo, error)
-	GetVersionByDeployVersion(version ,serviceID string) (*model.VersionInfo, error)
+	GetVersionByDeployVersion(version, serviceID string) (*model.VersionInfo, error)
 	GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error)
 	DeleteVersionByEventID(eventID string) error
 }

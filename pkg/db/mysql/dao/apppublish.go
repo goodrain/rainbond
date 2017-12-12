@@ -1,4 +1,3 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
@@ -22,25 +21,24 @@ package dao
 import (
 	"github.com/goodrain/rainbond/pkg/db/model"
 
-	"github.com/jinzhu/gorm"
 	"github.com/Sirupsen/logrus"
+	"github.com/jinzhu/gorm"
 )
-
 
 //AddModel AddModel
 func (c *AppPublishDaoImpl) AddModel(mo model.Interface) error {
 	result := mo.(*model.AppPublish)
 	var oldResult model.AppPublish
-	if ok := c.DB.Where("service_key=? and app_version=?", result.ServiceKey,result.AppVersion).Find(&oldResult).RecordNotFound(); ok {
+	if ok := c.DB.Where("service_key=? and app_version=?", result.ServiceKey, result.AppVersion).Find(&oldResult).RecordNotFound(); ok {
 		if err := c.DB.Create(result).Error; err != nil {
 			if err != nil {
-				logrus.Errorf("error save app publish,details %s",err.Error())
+				logrus.Errorf("error save app publish,details %s", err.Error())
 			}
 			return err
 		}
-	}else {
+	} else {
 
-		oldResult.Status=result.Status
+		oldResult.Status = result.Status
 		if err := c.DB.Save(&oldResult).Error; err != nil {
 			return err
 		}
@@ -53,20 +51,21 @@ func (c *AppPublishDaoImpl) AddModel(mo model.Interface) error {
 func (c *AppPublishDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
-//EventLogMessageDaoImpl EventLogMessageDaoImpl
+
+//AppPublishDaoImpl EventLogMessageDaoImpl
 type AppPublishDaoImpl struct {
 	DB *gorm.DB
 }
 
-//GetEventLogMessages get event log message
-func (c *AppPublishDaoImpl) GetAppPublish(serviceKey,appVersion string) (*model.AppPublish, error) {
+//GetAppPublish get event log message
+func (c *AppPublishDaoImpl) GetAppPublish(serviceKey, appVersion string) (*model.AppPublish, error) {
 	var result model.AppPublish
-	if err := c.DB.Where("service_key = ? and app_version =?", serviceKey,appVersion).Find(&result).Error; err != nil {
+	if err := c.DB.Where("service_key = ? and app_version =?", serviceKey, appVersion).Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			//return messageRaw, nil
 			return &model.AppPublish{
-				Status:"failure",
-			},nil
+				Status: "failure",
+			}, nil
 		}
 		return nil, err
 	}
