@@ -1,12 +1,12 @@
 <img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_logo.png" width="40%">
 
 ----
-Rainbond is first open source production grade serverless PaaS. It integrates Kubernetes based containers management, CI/CD methods and multiple data center resource management, to provide full management solution of cloud native application, build connection system of application and infrastructure, application and application, infrastructure and infrastructure.
+Rainbond is a production grade serverless PaaS. It integrates Kubernetes based containers management, CI/CD and multiple data center resource management, to provide full management of cloud native applications, build connections between application and infrastructure, application and application, infrastructure and infrastructure.
 
-5 years of optimizing and verifying makes Rainbond a cutting edge serverless PaaS with complete ecosystem and concept. We choose to open source and embrace the community, absorbing best ideas and practices to further improve and enhance Rainbond, enabling more enterprise and individuals to enjoy "application-centric" experience.
+5 years of optimizing and verifying makes Rainbond a cutting edge serverless PaaS with complete ecosystem and concept. We choose to open source and embrace the community, absorbing best ideas and practices to further improve and enhance Rainbond, enabling more enterprises and individuals to enjoy "application-centric" experience.
 
 ----
-[Design Concept](http://www.rainbond.com/docs/stable/getting-started/design-concept.html) -- -- [Architecture](http://www.rainbond.com/docs/stable/getting-started/architecture.html) -- -- [User Scenario](getting-started/scenario-microservice.html) -- -- [Installation Requirement](http://www.rainbond.com/docs/stable/getting-started/pre-install.html) -- --[中文Readme](https://github.com/goodrain/rainbond/blob/master/docs/Readme_cn.md)
+[Design Concept](http://www.rainbond.com/docs/stable/getting-started/design-concept.html) · [Architecture](http://www.rainbond.com/docs/stable/getting-started/architecture.html) · [User Scenario](getting-started/scenario-microservice.html) · [Installation Requirement](http://www.rainbond.com/docs/stable/getting-started/pre-install.html) · [中文文档](https://github.com/goodrain/rainbond/blob/master/docs/Readme_cn.md)
 
 ----
 ## To start using Rainbond
@@ -35,7 +35,7 @@ $make images
 ```
 ##### BUG Fix
 
-Bug found in learning and using, please visit [ISSUES](https://github.com/goodrain/rainbond/issues) to find similar Bug and solutions. If there is no similar result, please create a new issue.
+Bug found in learning and using, please visit [ISSUES](https://github.com/goodrain/rainbond/issues) to find similar Bugs and solutions. If there is no related result, please create a new issue.
 
 ## [Architecture](http://www.rainbond.com/docs/stable/getting-started/architecture.html)
 
@@ -53,3 +53,5 @@ Bug found in learning and using, please visit [ISSUES](https://github.com/goodra
 
 - Docs: https://www.rainbond.com/docs
 - Blog: https://blog.goodrain.com
+
+
