@@ -164,10 +164,11 @@ func (p *PluginAction) AddDefaultEnv(est *api_model.ENVStruct) *util.APIHandleEr
 	tx := db.GetManager().Begin()
 	for _, env := range est.Body.EVNInfo {
 		vis := &dbmodel.TenantPluginDefaultENV{
-			PluginID: est.PluginID,
-			ENVName:  env.ENVName,
-			ENVValue: env.ENVValue,
-			IsChange: env.IsChange,
+			PluginID:  est.PluginID,
+			ENVName:   env.ENVName,
+			ENVValue:  env.ENVValue,
+			IsChange:  env.IsChange,
+			VersionID: env.VersionID,
 		}
 		err := db.GetManager().TenantPluginDefaultENVDaoTransactions(tx).AddModel(vis)
 		if err != nil {
@@ -186,9 +187,10 @@ func (p *PluginAction) AddDefaultEnv(est *api_model.ENVStruct) *util.APIHandleEr
 func (p *PluginAction) UpdateDefaultEnv(est *api_model.ENVStruct) *util.APIHandleError {
 	for _, env := range est.Body.EVNInfo {
 		vis := &dbmodel.TenantPluginDefaultENV{
-			ENVName:  env.ENVName,
-			ENVValue: env.ENVValue,
-			IsChange: env.IsChange,
+			ENVName:   env.ENVName,
+			ENVValue:  env.ENVValue,
+			IsChange:  env.IsChange,
+			VersionID: env.VersionID,
 		}
 		err := db.GetManager().TenantPluginDefaultENVDao().UpdateModel(vis)
 		if err != nil {

@@ -391,7 +391,7 @@ func (d *DiscoverAction) DiscoverClusters(
 //ToolsGetSourcesEnv rds
 func (d *DiscoverAction) ToolsGetSourcesEnv(
 	namespace, sourceAlias, envName string) (*api_model.SourceSpec, *util.APIHandleError) {
-	k := fmt.Sprintf("/sources/define/%s/%s/%s", namespace, sourceAlias, envName)
+	k := fmt.Sprintf("/resources/define/%s/%s/%s", namespace, sourceAlias, envName)
 	resp, err := d.etcdCli.Get(k)
 	if err != nil {
 		logrus.Errorf("get etcd value error, %v", err)
@@ -524,7 +524,7 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 func (d *DiscoverAction) ToolsGetStreamRules(
 	namespace, sourceAlias, envName string,
 	rule interface{}) (interface{}, error) {
-	k := fmt.Sprintf("/sources/define/%s/%s/%s", namespace, sourceAlias, envName)
+	k := fmt.Sprintf("/resources/define/%s/%s/%s", namespace, sourceAlias, envName)
 	resp, err := d.etcdCli.Get(k)
 	if err != nil {
 		logrus.Errorf("get etcd value error, %v", err)

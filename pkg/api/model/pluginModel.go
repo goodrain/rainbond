@@ -337,12 +337,18 @@ type DeletePluginSetStruct struct {
 //GetPluginEnvStruct GetPluginEnvStruct
 //swagger:parameters getPluginEnv getPluginDefaultEnv
 type GetPluginEnvStruct struct {
+	// 租户名称
 	// in: path
 	// required: true
 	TenantName string `json:"tenant_name"`
+	// 插件id
 	// in: path
 	// required: true
 	PluginID string `json:"plugin_id"`
+	// 构建版本id
+	// in: path
+	// required: true
+	VersionID string `json:"version_id"`
 }
 
 //GetVersionEnvStruct GetVersionEnvStruct

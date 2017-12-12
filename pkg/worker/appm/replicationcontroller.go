@@ -43,8 +43,8 @@ type ReplicationControllerBuild struct {
 }
 
 //ReplicationControllerBuilder ReplicationControllerBuilder
-func ReplicationControllerBuilder(serviceID string, logger event.Logger) (*ReplicationControllerBuild, error) {
-	podBuild, err := PodTemplateSpecBuilder(serviceID, logger)
+func ReplicationControllerBuilder(serviceID string, logger event.Logger, nodeAPI string) (*ReplicationControllerBuild, error) {
+	podBuild, err := PodTemplateSpecBuilder(serviceID, logger, nodeAPI)
 	if err != nil {
 		logrus.Error("create pod template build error.", err.Error())
 		return nil, err

@@ -43,8 +43,8 @@ type StatefulSetBuild struct {
 }
 
 //StatefulSetBuilder StatefulSetBuilder
-func StatefulSetBuilder(serviceID string, logger event.Logger) (*StatefulSetBuild, error) {
-	podBuild, err := PodTemplateSpecBuilder(serviceID, logger)
+func StatefulSetBuilder(serviceID string, logger event.Logger, nodeAPI string) (*StatefulSetBuild, error) {
+	podBuild, err := PodTemplateSpecBuilder(serviceID, logger, nodeAPI)
 	if err != nil {
 		logrus.Error("create pod template build error.", err.Error())
 		return nil, err

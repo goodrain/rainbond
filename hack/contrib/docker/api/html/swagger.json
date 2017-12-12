@@ -1533,11 +1533,10 @@
           "application/xml"
         ],
         "tags": [
-          "v2",
-          "get"
+          "v2"
         ],
         "summary": "获取指定event_ids详细信息",
-        "operationId": "events",
+        "operationId": "getevents",
         "responses": {
           "default": {
             "description": "统一返回格式",
@@ -2081,6 +2080,7 @@
           {
             "type": "string",
             "x-go-name": "TenantName",
+            "description": "租户名称",
             "name": "tenant_name",
             "in": "path",
             "required": true
@@ -2088,7 +2088,16 @@
           {
             "type": "string",
             "x-go-name": "PluginID",
+            "description": "插件id",
             "name": "plugin_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "VersionID",
+            "description": "构建版本id",
+            "name": "version_id",
             "in": "path",
             "required": true
           }

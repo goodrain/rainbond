@@ -57,7 +57,7 @@ func (s *SourcesAction) CreateDefineSources(
 	tenantID string, ss *api_model.SetDefineSourcesStruct) *util.APIHandleError {
 
 	sourceAlias := ss.Body.SourceSpec.Alias
-	k := fmt.Sprintf("/sources/define/%s/%s/%s",
+	k := fmt.Sprintf("/resources/define/%s/%s/%s",
 		tenantID,
 		sourceAlias,
 		ss.Body.SourceSpec.SourceBody.EnvName)
@@ -84,7 +84,7 @@ func (s *SourcesAction) UpdateDefineSources(
 	tenantID string, ss *api_model.SetDefineSourcesStruct) *util.APIHandleError {
 
 	sourceAlias := ss.Body.SourceSpec.Alias
-	k := fmt.Sprintf("/sources/define/%s/%s/%s",
+	k := fmt.Sprintf("/resources/define/%s/%s/%s",
 		tenantID,
 		sourceAlias,
 		ss.Body.SourceSpec.SourceBody.EnvName)
@@ -109,7 +109,7 @@ func (s *SourcesAction) UpdateDefineSources(
 //DeleteDefineSources DeleteDefineSources
 func (s *SourcesAction) DeleteDefineSources(tenantID, sourceAlias, envName string) *util.APIHandleError {
 	k := fmt.Sprintf(
-		"/sources/define/%s/%s/%s",
+		"/resources/define/%s/%s/%s",
 		tenantID,
 		sourceAlias,
 		envName)
@@ -131,7 +131,7 @@ func (s *SourcesAction) GetDefineSources(
 	sourceAlias,
 	envName string) (*api_model.SourceSpec, *util.APIHandleError) {
 	k := fmt.Sprintf(
-		"/sources/define/%s/%s/%s",
+		"/resources/define/%s/%s/%s",
 		tenantID,
 		sourceAlias,
 		envName)

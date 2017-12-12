@@ -43,8 +43,8 @@ type DeploymentBuild struct {
 }
 
 //DeploymentBuilder DeploymentBuilder
-func DeploymentBuilder(serviceID string, logger event.Logger) (*DeploymentBuild, error) {
-	podBuild, err := PodTemplateSpecBuilder(serviceID, logger)
+func DeploymentBuilder(serviceID string, logger event.Logger, nodeAPI string) (*DeploymentBuild, error) {
+	podBuild, err := PodTemplateSpecBuilder(serviceID, logger, nodeAPI)
 	if err != nil {
 		logrus.Error("create pod template build error.", err.Error())
 		return nil, err
@@ -71,7 +71,7 @@ func (s *DeploymentBuild) Build() (*v1beta1.Deployment, error) {
 	}
 	deploymentSpec.Replicas = int32Ptr(s.service.Replicas)
 	deploymentSpec.Selector = metav1.SetAsLabelSelector(map[string]string{
-		"name":    s.service.ServiceAlias,
+		"name": s.service.ServiceAlias,
 		//todo
 		"version": s.service.DeployVersion,
 	})
@@ -82,7 +82,7 @@ func (s *DeploymentBuild) Build() (*v1beta1.Deployment, error) {
 	deployment.Name = util.NewUUID()
 	deployment.GenerateName = s.service.ServiceAlias
 	deployment.Labels = map[string]string{
-		"name":    s.service.ServiceAlias,
+		"name": s.service.ServiceAlias,
 		//todo
 		"version": s.service.DeployVersion,
 	}

@@ -47,10 +47,11 @@ type PodTemplateSpecBuild struct {
 	logger             event.Logger
 	localScheduler     bool
 	volumeMount        map[string]string
+	NodeAPI            string
 }
 
 //PodTemplateSpecBuilder pod builder
-func PodTemplateSpecBuilder(serviceID string, logger event.Logger) (*PodTemplateSpecBuild, error) {
+func PodTemplateSpecBuilder(serviceID string, logger event.Logger, nodeAPI string) (*PodTemplateSpecBuild, error) {
 	dbmanager := db.GetManager()
 	service, err := dbmanager.TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
@@ -73,6 +74,7 @@ func PodTemplateSpecBuilder(serviceID string, logger event.Logger) (*PodTemplate
 		tenant:          tenant,
 		logger:          logger,
 		volumeMount:     make(map[string]string),
+		NodeAPI:         nodeAPI,
 	}, nil
 }
 
@@ -737,7 +739,7 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]
 		if err != nil {
 			return nil, nil, err
 		}
-		envs, err := p.createPluginEnvs(pluginR.PluginID, mainEnvs)
+		envs, err := p.createPluginEnvs(pluginR.PluginID, mainEnvs, pluginR.VersionID)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -805,8 +807,8 @@ func (p *PodTemplateSpecBuild) createPluginArgs(pluginID string) ([]string, erro
 }
 
 //container envs
-func (p *PodTemplateSpecBuild) createPluginEnvs(pluginID string, mainEnvs *[]v1.EnvVar) (*[]v1.EnvVar, error) {
-	defaultEnvs, err := p.dbmanager.TenantPluginDefaultENVDao().GetDefaultENVSByPluginIDCantBeSet(pluginID)
+func (p *PodTemplateSpecBuild) createPluginEnvs(pluginID string, mainEnvs *[]v1.EnvVar, versionID string) (*[]v1.EnvVar, error) {
+	defaultEnvs, err := p.dbmanager.TenantPluginDefaultENVDao().GetDefaultEnvWhichCanBeSetByPluginID(pluginID, versionID)
 	if err != nil {
 		return nil, err
 	}
@@ -821,6 +823,13 @@ func (p *PodTemplateSpecBuild) createPluginEnvs(pluginID string, mainEnvs *[]v1.
 	for _, e := range versionEnvs {
 		envs = append(envs, v1.EnvVar{Name: e.EnvName, Value: e.EnvValue})
 	}
+	discoverURL := fmt.Sprintf(
+		"%s/v1/resources/%s/%s/%s",
+		p.NodeAPI,
+		p.tenant.UUID,
+		p.service.ServiceAlias,
+		pluginID)
+	envs = append(envs, v1.EnvVar{Name: "DISCOVER_URL", Value: discoverURL})
 	for _, e := range *mainEnvs {
 		envs = append(envs, e)
 	}
