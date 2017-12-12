@@ -304,6 +304,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 			initCondition.Message = err.Error()
 		}
 		node.Conditions = append(node.Conditions, initCondition)
+		node.Status="init_failed"
 	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
