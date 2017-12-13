@@ -50,7 +50,7 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 	}
 	eventID := tb.EventID
 	logger := event.GetManager().GetLogger(eventID)
-	logger.Info("从镜像构建插件任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
+	logger.Info("从dockerfile构建插件任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 
 	go func() {
 		time.Sleep(buildingTimeout * time.Second)
@@ -60,7 +60,7 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 			logrus.Errorf("get version error, %v", err)
 		}
 		if version.Status != "complete" {
-			version.Status = "failure"
+			version.Status = "timeout"
 			if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
 				logrus.Errorf("update version error, %v", err)
 			}
@@ -75,7 +75,7 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 			if err != nil {
 				logrus.Errorf("exec plugin build from image error:%s", err.Error())
 				if retry < 3 {
-					logger.Info("镜像构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
+					logger.Info("dockerfile构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(tb.PluginID, tb.VersionID)
 					if err != nil {
@@ -85,7 +85,7 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 					if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
 						logrus.Errorf("update version error, %v", err)
 					}
-					logger.Info("镜像构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
+					logger.Info("dockerfile构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
 				break
