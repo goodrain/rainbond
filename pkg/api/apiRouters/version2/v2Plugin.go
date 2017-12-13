@@ -57,7 +57,7 @@ func (v2 *V2) serviceRelatePluginRouter() chi.Router {
 	r.Delete("/{plugin_id}", controller.GetManager().DeletePluginRelation)
 	// plugin enable set env,包含普通设置和预设可修改部分
 	r.Post("/{plugin_id}/setenv", controller.GetManager().SetVersionEnv)
-	r.Put("/{plugin_id}/setenv/{env_name}", controller.GetManager().UpdateVersionEnv)
+	r.Put("/{plugin_id}/upenv", controller.GetManager().UpdateVersionEnv)
 	r.Get("/{plugin_id}/envs", controller.GetManager().GePluginEnvWhichCanBeSet)
 	return r
 }

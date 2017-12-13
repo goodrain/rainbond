@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/pkg/db"
 	core_model "github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/event"
@@ -55,6 +56,7 @@ import (
 type ServiceAction struct {
 	MQClient   pb.TaskQueueClient
 	KubeClient *kubernetes.Clientset
+	EtcdCli    *clientv3.Client
 }
 
 //CreateManager create Manger
@@ -76,9 +78,19 @@ func CreateManager(conf option.Config) (*ServiceAction, error) {
 		logrus.Errorf("create kubeclient failed, %v", errK)
 		return nil, errK
 	}
+	etcdCli, err := clientv3.New(clientv3.Config{
+		Endpoints:   conf.EtcdEndpoint,
+		DialTimeout: 5 * time.Second,
+	})
+	if err != nil {
+		logrus.Errorf("create etcd client v3 error, %v", err)
+		return nil, err
+	}
+	defer etcdCli.Close()
 	return &ServiceAction{
 		MQClient:   mqClient,
 		KubeClient: kubeClient,
+		EtcdCli:    etcdCli,
 	}, nil
 }
 
@@ -1728,12 +1740,23 @@ func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss 
 }
 
 //SetVersionEnv SetVersionEnv
-func (s *ServiceAction) SetVersionEnv(serviecID, pluginID string, sve *api_model.SetVersionEnv) *util.APIHandleError {
+func (s *ServiceAction) SetVersionEnv(sve *api_model.SetVersionEnv) *util.APIHandleError {
+	switch sve.Body.Kind {
+	case "normal":
+		return s.normalEnvs(sve)
+	case "complex":
+		return s.complexEnvs(sve)
+	}
+	return util.CreateAPIHandleError(400, fmt.Errorf("envs kind error"))
+}
+
+func (s *ServiceAction) normalEnvs(sve *api_model.SetVersionEnv) *util.APIHandleError {
 	tx := db.GetManager().Begin()
-	for _, env := range sve.Body.Envs {
+
+	for _, env := range sve.Body.ConfigEnvs.NormalEnvs {
 		tpv := &dbmodel.TenantPluginVersionEnv{
-			PluginID:  pluginID,
-			ServiceID: serviecID,
+			PluginID:  sve.PluginID,
+			ServiceID: sve.Body.ServiceID,
 			EnvName:   env.EnvName,
 			EnvValue:  env.EnvValue,
 		}
@@ -1749,15 +1772,75 @@ func (s *ServiceAction) SetVersionEnv(serviecID, pluginID string, sve *api_model
 	return nil
 }
 
+func (s *ServiceAction) complexEnvs(sve *api_model.SetVersionEnv) *util.APIHandleError {
+	k := fmt.Sprintf("/resources/define/%s/%s/%s",
+		sve.Body.TenantID,
+		sve.ServiceAlias,
+		sve.PluginID)
+	if CheckKeyIfExist(s.EtcdCli, k) {
+		return util.CreateAPIHandleError(405,
+			fmt.Errorf("key %v is exist", k))
+	}
+	v, err := ffjson.Marshal(sve.Body.ConfigEnvs.ComplexEnvs)
+	if err != nil {
+		logrus.Errorf("mashal etcd value error, %v", err)
+		return util.CreateAPIHandleError(500, err)
+	}
+	_, err = s.EtcdCli.Put(context.TODO(), k, string(v))
+	if err != nil {
+		logrus.Errorf("put k %s into etcd error, %v", k, err)
+		return util.CreateAPIHandleError(500, err)
+	}
+	return nil
+}
+
 //UpdateVersionEnv UpdateVersionEnv
-func (s *ServiceAction) UpdateVersionEnv(serviceID string, uve *api_model.UpdateVersionEnv) *util.APIHandleError {
-	env, err := db.GetManager().TenantPluginVersionENVDao().GetVersionEnvByEnvName(serviceID, uve.PluginID, uve.EnvName)
+func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError {
+	switch uve.Body.Kind {
+	case "normal":
+		return s.upNormalEnvs(uve)
+	case "complex":
+		return s.upComplexEnvs(uve)
+	}
+	return util.CreateAPIHandleError(400, fmt.Errorf("envs kind error"))
+}
+
+func (s *ServiceAction) upNormalEnvs(uve *api_model.SetVersionEnv) *util.APIHandleError {
+	if len(uve.Body.ConfigEnvs.NormalEnvs) != 1 {
+		return util.CreateAPIHandleError(400, fmt.Errorf("only one env can be update"))
+	}
+	env, err := db.GetManager().TenantPluginVersionENVDao().GetVersionEnvByEnvName(
+		uve.Body.ServiceID,
+		uve.PluginID,
+		uve.Body.ConfigEnvs.NormalEnvs[0].EnvName)
 	if err != nil {
 		return util.CreateAPIHandleErrorFromDBError("update get version env", err)
 	}
-	env.EnvValue = uve.Body.EnvValue
+	env.EnvValue = uve.Body.ConfigEnvs.NormalEnvs[0].EnvValue
 	if err := db.GetManager().TenantPluginVersionENVDao().UpdateModel(env); err != nil {
 		return util.CreateAPIHandleErrorFromDBError("update version env", err)
+	}
+	return nil
+}
+
+func (s *ServiceAction) upComplexEnvs(uve *api_model.SetVersionEnv) *util.APIHandleError {
+	k := fmt.Sprintf("/resources/define/%s/%s/%s",
+		uve.Body.TenantID,
+		uve.ServiceAlias,
+		uve.PluginID)
+	if !CheckKeyIfExist(s.EtcdCli, k) {
+		return util.CreateAPIHandleError(404,
+			fmt.Errorf("key %v is not exist", k))
+	}
+	v, err := ffjson.Marshal(uve.Body.ConfigEnvs.ComplexEnvs)
+	if err != nil {
+		logrus.Errorf("mashal etcd value error, %v", err)
+		return util.CreateAPIHandleError(500, err)
+	}
+	_, err = s.EtcdCli.Put(context.TODO(), k, string(v))
+	if err != nil {
+		logrus.Errorf("put k %s into etcd error, %v", k, err)
+		return util.CreateAPIHandleError(500, err)
 	}
 	return nil
 }

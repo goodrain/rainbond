@@ -1625,7 +1625,7 @@
                   "x-go-name": "GitURL"
                 },
                 "image_url": {
-                  "description": "description: 插件docker地址\nin:body",
+                  "description": "插件docker地址\nin:body",
                   "type": "string",
                   "x-go-name": "ImageURL"
                 },
@@ -4413,16 +4413,25 @@
             "schema": {
               "type": "object",
               "required": [
-                "envs"
+                "kind",
+                "config_envs"
               ],
               "properties": {
-                "envs": {
-                  "description": "环境变量\nin: body",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/definitions/VersionEnv"
-                  },
-                  "x-go-name": "Envs"
+                "config_envs": {
+                  "$ref": "#/definitions/ConfigEnvs"
+                },
+                "kind": {
+                  "description": "配置类型\nin: body",
+                  "type": "string",
+                  "x-go-name": "Kind"
+                },
+                "service_id": {
+                  "type": "string",
+                  "x-go-name": "ServiceID"
+                },
+                "tenant_id": {
+                  "type": "string",
+                  "x-go-name": "TenantID"
                 }
               }
             }
@@ -4438,7 +4447,7 @@
         }
       }
     },
-    "/v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/setenv/{env_name}": {
+    "/v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/upenv": {
       "put": {
         "description": "update version env",
         "consumes": [
@@ -4478,26 +4487,30 @@
             "required": true
           },
           {
-            "type": "string",
-            "x-go-name": "EnvName",
-            "description": "变量名",
-            "name": "env_name",
-            "in": "path",
-            "required": true
-          },
-          {
             "name": "Body",
             "in": "body",
             "schema": {
               "type": "object",
               "required": [
-                "env_value"
+                "kind",
+                "config_envs"
               ],
               "properties": {
-                "env_value": {
-                  "description": "变量值\nin: body",
+                "config_envs": {
+                  "$ref": "#/definitions/ConfigEnvs"
+                },
+                "kind": {
+                  "description": "配置类型\nin: body",
                   "type": "string",
-                  "x-go-name": "EnvValue"
+                  "x-go-name": "Kind"
+                },
+                "service_id": {
+                  "type": "string",
+                  "x-go-name": "ServiceID"
+                },
+                "tenant_id": {
+                  "type": "string",
+                  "x-go-name": "TenantID"
                 }
               }
             }
@@ -6525,6 +6538,24 @@
             "$ref": "#/definitions/Item"
           },
           "x-go-name": "Items"
+        }
+      },
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+    },
+    "ConfigEnvs": {
+      "description": "ConfigEnvs Config",
+      "type": "object",
+      "properties": {
+        "complex_envs": {
+          "type": "object",
+          "x-go-name": "ComplexEnvs"
+        },
+        "normal_envs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/VersionEnv"
+          },
+          "x-go-name": "NormalEnvs"
         }
       },
       "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"

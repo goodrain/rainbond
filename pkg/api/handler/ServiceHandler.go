@@ -63,8 +63,8 @@ type ServiceHandler interface {
 	GetTenantServicePluginRelation(serviceID string) ([]*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
 	SetTenantServicePluginRelation(tenantID, serviceID string, pss *api_model.PluginSetStruct) *util.APIHandleError
 	UpdateTenantServicePluginRelation(serviceID string, pss *api_model.PluginSetStruct) *util.APIHandleError
-	SetVersionEnv(serviecID, pluginID string, sve *api_model.SetVersionEnv) *util.APIHandleError
-	UpdateVersionEnv(serviceID string, uve *api_model.UpdateVersionEnv) *util.APIHandleError
+	SetVersionEnv(sve *api_model.SetVersionEnv) *util.APIHandleError
+	UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError
 }
 
 var defaultServieHandler ServiceHandler

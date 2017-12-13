@@ -347,7 +347,7 @@ type GetVersionEnvStruct struct {
 }
 
 //SetVersionEnv SetVersionEnv
-//swagger:parameters setVersionEnv
+//swagger:parameters setVersionEnv updateVersionEnv
 type SetVersionEnv struct {
 	// in: path
 	// required: true
@@ -361,11 +361,23 @@ type SetVersionEnv struct {
 	PluginID string `json:"plugin_id"`
 	//in: body
 	Body struct {
+		TenantID  string `json:"tenant_id"`
+		ServiceID string `json:"service_id"`
+		// 配置类型
+		// in: body
+		// required: true
+		Kind string `json:"kind" validate:"kind|in:normal,complex"`
 		// 环境变量
 		// in: body
 		// required: true
-		Envs []*VersionEnv `json:"envs"`
+		ConfigEnvs ConfigEnvs `json:"config_envs" validate:"configEnvs"`
 	}
+}
+
+//ConfigEnvs Config
+type ConfigEnvs struct {
+	NormalEnvs  []*VersionEnv `json:"normal_envs" validate:"normal_envs"`
+	ComplexEnvs interface{}   `json:"complex_envs" validate:"complex_envs"`
 }
 
 //VersionEnv VersionEnv
@@ -378,30 +390,4 @@ type VersionEnv struct {
 	//in:body
 	//required: true
 	EnvValue string `json:"env_value" validate:"env_value"`
-}
-
-//UpdateVersionEnv UpdateVersionEnv
-//swagger:parameters updateVersionEnv
-type UpdateVersionEnv struct {
-	// in: path
-	// required: true
-	TenantName string `json:"tenant_name"`
-	// in: path
-	// required: true
-	ServiceAlias string `json:"service_alias"`
-	// 插件id
-	// in: path
-	// required: true
-	PluginID string `json:"plugin_id"`
-	// 变量名
-	// in: path
-	// required: true
-	EnvName string `json:"env_name"`
-	//in: body
-	Body struct {
-		// 变量值
-		// in: body
-		// required: true
-		EnvValue string `json:"env_value" validate:"env_value"`
-	}
 }

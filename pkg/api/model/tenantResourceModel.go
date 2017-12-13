@@ -18,25 +18,28 @@
 
 package model
 
-
+//TenantResList TenantResList
 type TenantResList []*TenantResource
 
+//PagedTenantResList PagedTenantResList
 type PagedTenantResList struct {
-	List []*TenantResource `json:"list"`
-	Length int `json:"length"`
+	List   []*TenantResource `json:"list"`
+	Length int               `json:"length"`
 }
+
 //TenantResource path参数
 //swagger:parameters getVolumes getDepVolumes
 type TenantResource struct {
-	AllocatedCPU  int    `json:"alloc_cpu"`
-	AllocatedMEM  int    `json:"alloc_memory"`
+	AllocatedCPU int `json:"alloc_cpu"`
+	AllocatedMEM int `json:"alloc_memory"`
 
-	UsedCPU  int    `json:"used_cpu"`
-	UsedMEM  int    `json:"used_memory"`
-	Name string `json:"name"`
-	UUID string `json:"uuid"`
-	EID  string `json:"eid"`
+	UsedCPU int    `json:"used_cpu"`
+	UsedMEM int    `json:"used_memory"`
+	Name    string `json:"name"`
+	UUID    string `json:"uuid"`
+	EID     string `json:"eid"`
 }
+
 func (list TenantResList) Len() int {
 	return len(list)
 }
@@ -52,7 +55,7 @@ func (list TenantResList) Less(i, j int) bool {
 }
 
 func (list TenantResList) Swap(i, j int) {
-	var temp *TenantResource = list[i]
+	temp := list[i]
 	list[i] = list[j]
 	list[j] = temp
 }
