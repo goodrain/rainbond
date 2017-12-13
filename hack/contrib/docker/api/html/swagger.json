@@ -1624,23 +1624,13 @@
                   "type": "string",
                   "x-go-name": "GitURL"
                 },
-                "image_local": {
-                  "description": "插件goodrain地址\nin: body",
-                  "type": "string",
-                  "x-go-name": "ImageLocal"
-                },
                 "image_url": {
-                  "description": "插件docker地址\nin: body",
+                  "description": "description: 插件docker地址\nin:body",
                   "type": "string",
                   "x-go-name": "ImageURL"
                 },
-                "plugin_cmd": {
-                  "description": "插件启动命令\nin: body",
-                  "type": "string",
-                  "x-go-name": "PluginCMD"
-                },
                 "plugin_id": {
-                  "description": "in: body",
+                  "description": "插件id\nin: body",
                   "type": "string",
                   "x-go-name": "PluginID"
                 },
@@ -1659,13 +1649,8 @@
                   "type": "string",
                   "x-go-name": "PluginName"
                 },
-                "repo": {
-                  "description": "带分支信息的git地址\nin: body",
-                  "type": "string",
-                  "x-go-name": "Repo"
-                },
                 "tenant_id": {
-                  "description": "in: body",
+                  "description": "租户id\nin: body",
                   "type": "string",
                   "x-go-name": "TenantID"
                 }
@@ -1703,6 +1688,7 @@
           {
             "type": "string",
             "x-go-name": "TenantName",
+            "description": "租户名称",
             "name": "tenant_name",
             "in": "path",
             "required": true
@@ -1710,6 +1696,7 @@
           {
             "type": "string",
             "x-go-name": "PluginID",
+            "description": "插件id",
             "name": "plugin_id",
             "in": "path",
             "required": true
@@ -1730,20 +1717,10 @@
                   "type": "string",
                   "x-go-name": "GitURL"
                 },
-                "image_local": {
-                  "description": "插件goodrain地址\nin: body",
-                  "type": "string",
-                  "x-go-name": "ImageLocal"
-                },
                 "image_url": {
                   "description": "插件docker地址\nin: body",
                   "type": "string",
                   "x-go-name": "ImageURL"
-                },
-                "plugin_cmd": {
-                  "description": "插件启动命令\nin: body",
-                  "type": "string",
-                  "x-go-name": "PluginCMD"
                 },
                 "plugin_info": {
                   "description": "插件用途描述\nin: body",
@@ -1759,11 +1736,6 @@
                   "description": "插件名称\nin: body",
                   "type": "string",
                   "x-go-name": "PluginName"
-                },
-                "repo": {
-                  "description": "带分支信息的git地址\nin: body",
-                  "type": "string",
-                  "x-go-name": "Repo"
                 }
               }
             }
@@ -1856,15 +1828,16 @@
             "schema": {
               "type": "object",
               "required": [
-                "event_id",
-                "deploy_version",
+                "plugin_cpu",
+                "plugin_memory",
+                "build_version",
                 "info"
               ],
               "properties": {
-                "deploy_version": {
+                "build_version": {
                   "description": "部署的版本号\nin: body",
                   "type": "string",
-                  "x-go-name": "DeployVersion"
+                  "x-go-name": "BuildVersion"
                 },
                 "event_id": {
                   "description": "the event id\nin: body",
@@ -1899,7 +1872,7 @@
                   "x-go-name": "PluginMemory"
                 },
                 "repo_url": {
-                  "description": "git地址 分支信息\nin: body",
+                  "description": "git地址分支信息，默认为master\nin: body",
                   "type": "string",
                   "x-go-name": "RepoURL"
                 },

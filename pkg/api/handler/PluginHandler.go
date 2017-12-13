@@ -34,7 +34,7 @@ type PluginHandler interface {
 	AddDefaultEnv(est *api_model.ENVStruct) *util.APIHandleError
 	UpdateDefaultEnv(est *api_model.ENVStruct) *util.APIHandleError
 	DeleteDefaultEnv(pluginID, versionID, envName string) *util.APIHandleError
-	BuildPluginManual(bps *api_model.BuildPluginStruct) (string, *util.APIHandleError)
+	BuildPluginManual(bps *api_model.BuildPluginStruct) (*dbmodel.TenantPluginBuildVersion, *util.APIHandleError)
 	GetAllPluginBuildVersions(pluginID string) ([]*dbmodel.TenantPluginBuildVersion, *util.APIHandleError)
 	GetPluginBuildVersion(pluginID, versionID string) (*dbmodel.TenantPluginBuildVersion, *util.APIHandleError)
 	DeletePluginBuildVersion(pluginID, versionID string) *util.APIHandleError

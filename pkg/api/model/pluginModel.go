@@ -26,6 +26,7 @@ type CreatePluginStruct struct {
 	TenantName string `json:"tenant_name"`
 	// in: body
 	Body struct {
+		//插件id
 		//in: body
 		//required: true
 		PluginID string `json:"plugin_id" validate:"plugin_id|required"`
@@ -36,18 +37,10 @@ type CreatePluginStruct struct {
 		//in: body
 		//required: false
 		PluginInfo string `json:"plugin_info" validate:"plugin_info"`
-		//插件docker地址
-		//in: body
-		//required: false
+		// 插件docker地址
+		// in:body
+		// required: false
 		ImageURL string `json:"image_url" validate:"image_url"`
-		//插件goodrain地址
-		//in: body
-		//required: false
-		ImageLocal string `json:"image_local" validate:"image_local"`
-		//带分支信息的git地址
-		//in: body
-		//required: false
-		Repo string `json:"repo" validate:"repo"`
 		//git地址
 		//in: body
 		//required: false
@@ -60,10 +53,7 @@ type CreatePluginStruct struct {
 		//in: body
 		//required: false
 		PluginModel string `json:"plugin_model" validate:"plugin_model"`
-		//插件启动命令
-		//in: body
-		//required: false
-		PluginCMD string `json:"plugin_cmd" validate:"plugin_cmd"`
+		//租户id
 		//in: body
 		//required: false
 		TenantID string `json:"tenant_id" validate:"tenant_id"`
@@ -73,12 +63,14 @@ type CreatePluginStruct struct {
 //UpdatePluginStruct UpdatePluginStruct
 //swagger:parameters updatePlugin
 type UpdatePluginStruct struct {
+	// 租户名称
 	// in: path
 	// required: true
-	TenantName string `json:"tenant_name"`
+	TenantName string `json:"tenant_name" validate:"tenant_name|required"`
+	// 插件id
 	// in: path
 	// required: true
-	PluginID string `json:"plugin_id"`
+	PluginID string `json:"plugin_id" validate:"tenant_name|required"`
 	// in: body
 	Body struct {
 		//插件名称
@@ -93,14 +85,6 @@ type UpdatePluginStruct struct {
 		//in: body
 		//required: false
 		ImageURL string `json:"image_url" validate:"image_url"`
-		//插件goodrain地址
-		//in: body
-		//required: false
-		ImageLocal string `json:"image_local" validate:"image_local"`
-		//带分支信息的git地址
-		//in: body
-		//required: false
-		Repo string `json:"repo" validate:"repo"`
 		//git地址
 		//in: body
 		//required: false
@@ -113,22 +97,18 @@ type UpdatePluginStruct struct {
 		//in: body
 		//required: false
 		PluginModel string `json:"plugin_model" validate:"plugin_model"`
-		//插件启动命令
-		//in: body
-		//required: false
-		PluginCMD string `json:"plugin_cmd" validate:"plugin_cmd"`
 	}
 }
 
-//deletePluginStruct deletePluginStruct
+//DeletePluginStruct deletePluginStruct
 //swagger:parameters deletePlugin
-type deletePluginStruct struct {
+type DeletePluginStruct struct {
 	// in: path
 	// required: true
-	TenantName string `json:"tenant_name"`
+	TenantName string `json:"tenant_name" validate:"tenant_name|required"`
 	// in: path
 	// required: true
-	PluginID string `json:"plugin_id"`
+	PluginID string `json:"plugin_id" validate:"plugin_id|required"`
 }
 
 //ENVStruct ENVStruct
@@ -212,16 +192,16 @@ type BuildPluginStruct struct {
 	Body struct {
 		// the event id
 		// in: body
-		// required: true
-		EventID string `json:"event_id" validate:"event_id|required"`
+		// required: false
+		EventID string `json:"event_id" validate:"event_id"`
 		// 插件CPU权重, 默认125
 		// in: body
-		// required: false
-		PluginCPU int `json:"plugin_cpu" validate:"plugin_cpu"`
+		// required: true
+		PluginCPU int `json:"plugin_cpu" validate:"plugin_cpu|required"`
 		// 插件最大内存, 默认50
 		// in: body
-		// required: false
-		PluginMemory int `json:"plugin_memory" validate:"plugin_memory"`
+		// required: true
+		PluginMemory int `json:"plugin_memory" validate:"plugin_memory|required"`
 		// 插件cmd, 默认50
 		// in: body
 		// required: false
@@ -229,8 +209,8 @@ type BuildPluginStruct struct {
 		// 部署的版本号
 		// in: body
 		// required: true
-		DeployVersion string `json:"deploy_version" validate:"deploy_version|required"`
-		// git地址 分支信息
+		BuildVersion string `json:"build_version" validate:"build_version|required"`
+		// git地址分支信息，默认为master
 		// in: body
 		// required: false
 		RepoURL string `json:"repo_url" validate:"repo_url"`
@@ -252,13 +232,13 @@ type BuildPluginStruct struct {
 //PluginBuildVersionStruct PluginBuildVersionStruct
 //swagger:parameters deletePluginVersion pluginVersion
 type PluginBuildVersionStruct struct {
-	// in: path
-	// required: true
+	//in: path
+	//required: true
 	TenantName string `json:"tenant_name" validate:"tenant_name"`
-	// in: path
-	// required: true
+	//in: path
+	//required: true
 	PluginID string `json:"plugin_id" validate:"plugin_id"`
-	//in : path
+	//in: path
 	//required: true
 	VersionID string `json:"version_id" validate:"version_id"`
 }
@@ -266,35 +246,35 @@ type PluginBuildVersionStruct struct {
 //AllPluginBuildVersionStruct AllPluginBuildVersionStruct
 //swagger:parameters allPluginVersions
 type AllPluginBuildVersionStruct struct {
-	// in: path
-	// required: true
+	//in: path
+	//required: true
 	TenantName string `json:"tenant_name" validate:"tenant_name"`
-	// in: path
-	// required: true
+	//in: path
+	//required: true
 	PluginID string `json:"plugin_id" validate:"plugin_id"`
 }
 
 //PluginSetStruct PluginSetStruct
 //swagger:parameters updatePluginSet addPluginSet
 type PluginSetStruct struct {
-	// in: path
-	// required: true
+	//in: path
+	//required: true
 	TenantName string `json:"tenant_name"`
-	// in: path
-	// required: true
+	//in: path
+	//required: true
 	ServiceAlias string `json:"service_alias"`
 	// in: body
 	Body struct {
-		// 插件id
-		// in: body
-		// required: true
+		//插件id
+		//in: body
+		//required: true
 		PluginID string `json:"plugin_id" validate:"plugin_id"`
-		// 插件版本
-		// in: body
-		// required: true
+		//插件版本
+		//in: body
+		//required: true
 		VersionID string `json:"version_id" validate:"version_id"`
-		// 开关
-		// in: body
+		//开关
+		//in: body
 		//required: false
 		Switch bool `json:"switch" validate:"switch|bool"`
 	}
@@ -303,43 +283,43 @@ type PluginSetStruct struct {
 //GetPluginsStruct GetPluginsStruct
 //swagger:parameters getPlugins
 type GetPluginsStruct struct {
-	// in: path
-	// required: true
+	//in: path
+	//required: true
 	TenantName string `json:"tenant_name"`
 }
 
 //GetPluginSetStruct GetPluginSetStruct
 //swagger:parameters getPluginSet
 type GetPluginSetStruct struct {
-	// in: path
-	// required: true
+	//in: path
+	//required: true
 	TenantName string `json:"tenant_name"`
-	// in: path
-	// required: true
+	//in: path
+	//required: true
 	ServiceAlias string `json:"service_alias"`
 }
 
 //DeletePluginSetStruct DeletePluginSetStruct
 //swagger:parameters deletePluginRelation
 type DeletePluginSetStruct struct {
-	// in: path
-	// required: true
+	//in: path
+	//required: true
 	TenantName string `json:"tenant_name"`
-	// in: path
-	// required: true
+	//in: path
+	//required: true
 	ServiceAlias string `json:"service_alias"`
-	// 插件id
-	// in: path
-	// required: true
+	//插件id
+	//in: path
+	//required: true
 	PluginID string `json:"plugin_id"`
 }
 
 //GetPluginEnvStruct GetPluginEnvStruct
 //swagger:parameters getPluginEnv getPluginDefaultEnv
 type GetPluginEnvStruct struct {
-	// 租户名称
-	// in: path
-	// required: true
+	//租户名称
+	//in: path
+	//required: true
 	TenantName string `json:"tenant_name"`
 	// 插件id
 	// in: path

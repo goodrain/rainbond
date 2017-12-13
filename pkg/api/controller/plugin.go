@@ -357,14 +357,12 @@ func (t *TenantStruct) PluginBuild(w http.ResponseWriter, r *http.Request) {
 	build.TenantName = tenantName
 	build.PluginID = pluginID
 	build.Body.TenantID = tenantID
-	buildVersion, err := handler.GetPluginManager().BuildPluginManual(&build)
+	pbv, err := handler.GetPluginManager().BuildPluginManual(&build)
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	rc := make(map[string]string)
-	rc["build_version"] = buildVersion
-	httputil.ReturnSuccess(r, w, rc)
+	httputil.ReturnSuccess(r, w, pbv)
 }
 
 //GetAllPluginBuildVersons 获取该插件所有的构建版本

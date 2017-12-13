@@ -34,7 +34,7 @@ type PluginDaoImpl struct {
 func (t *PluginDaoImpl) AddModel(mo model.Interface) error {
 	plugin := mo.(*model.TenantPlugin)
 	var oldPlugin model.TenantPlugin
-	if ok := t.DB.Where("plugin_name = ?", plugin.PluginName).Find(&oldPlugin).RecordNotFound(); ok {
+	if ok := t.DB.Where("plugin_id = ?", plugin.PluginID).Find(&oldPlugin).RecordNotFound(); ok {
 		if err := t.DB.Create(plugin).Error; err != nil {
 			return err
 		}
