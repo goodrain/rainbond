@@ -743,7 +743,7 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]
 		if err != nil {
 			return nil, nil, err
 		}
-		args, err := p.createPluginArgs(pluginR.PluginID)
+		args, err := p.createPluginArgs(versionInfo.ContainerCMD)
 		if err != nil {
 			return nil, nil, err
 		}
