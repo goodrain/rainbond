@@ -66,13 +66,14 @@ func (t *TenantStruct) CreatePlugin(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
 	var cps api_model.CreatePluginStruct
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &cps.Body, nil); !ok {
 		return
 	}
 	cps.Body.TenantID = tenantID
+	cps.TenantName = tenantName
 	if err := handler.GetPluginManager().CreatePluginAct(&cps); err != nil {
 		err.Handle(r, w)
 		return

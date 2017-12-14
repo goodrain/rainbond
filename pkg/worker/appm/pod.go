@@ -751,7 +751,7 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]
 			Name:                   pluginR.PluginID,
 			Image:                  versionInfo.BuildLocalImage,
 			Env:                    *envs,
-			Resources:              p.createAdapterResources(200, 50),
+			Resources:              p.createAdapterResources(versionInfo.ContainerMemory, versionInfo.ContainerCPU),
 			TerminationMessagePath: "",
 			Args: args,
 		}
@@ -795,15 +795,11 @@ func (p *PodTemplateSpecBuild) getPluginModel(pluginID string) (string, error) {
 	return plugin.PluginModel, nil
 }
 
-func (p *PodTemplateSpecBuild) createPluginArgs(pluginID string) ([]string, error) {
-	plugin, err := p.dbmanager.TenantPluginDao().GetPluginByID(pluginID)
-	if err != nil {
-		return nil, err
-	}
-	if plugin.PluginCMD == "" {
+func (p *PodTemplateSpecBuild) createPluginArgs(cmd string) ([]string, error) {
+	if cmd == "" {
 		return nil, nil
 	}
-	return strings.Split(plugin.PluginCMD, " "), nil
+	return strings.Split(cmd, " "), nil
 }
 
 //container envs
@@ -830,6 +826,7 @@ func (p *PodTemplateSpecBuild) createPluginEnvs(pluginID string, mainEnvs *[]v1.
 		p.service.ServiceAlias,
 		pluginID)
 	envs = append(envs, v1.EnvVar{Name: "DISCOVER_URL", Value: discoverURL})
+	envs = append(envs, v1.EnvVar{Name: "PLUGIN_ID", Value: pluginID})
 	for _, e := range *mainEnvs {
 		envs = append(envs, e)
 	}
