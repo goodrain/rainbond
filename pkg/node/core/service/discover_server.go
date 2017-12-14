@@ -56,14 +56,13 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
 	}
 	namespace := mm[0]
-	//pluginID := mm[1]
-	serviceAlias := mm[2]
-	destServiceAlias := mm[3]
-	dPort := mm[4]
+	serviceAlias := mm[1]
+	destServiceAlias := mm[2]
+	dPort := mm[3]
 
 	labelname := fmt.Sprintf("name=%sService", destServiceAlias)
 	endpoints, err := k8s.K8S.Core().Endpoints(namespace).List(metav1.ListOptions{LabelSelector: labelname})
-	logrus.Debugf("labelname is %s, endpoints is %v, items is %v", labelname, endpoints, endpoints.Items)
+	//logrus.Debugf("labelname is %s, endpoints is %v, items is %v", labelname, endpoints, endpoints.Items)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
@@ -158,13 +157,13 @@ func (d *DiscoverAction) DiscoverListeners(
 				switch portProtocol {
 				case "stream":
 					ptr := &node_model.PieceTCPRoute{
-						Cluster: fmt.Sprintf("%s_%s_%s_%s_%d", namespace, pluginID, serviceAlias, destServiceAlias, port),
+						Cluster: fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
 					}
 					lrs := &node_model.LDSTCPRoutes{
 						Routes: []*node_model.PieceTCPRoute{ptr},
 					}
 					lcg := &node_model.LDSTCPConfig{
-						StatPrefix:  fmt.Sprintf("%s_%s_%s_%s_%d", namespace, pluginID, serviceAlias, destServiceAlias, port),
+						StatPrefix:  fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
 						RouteConfig: lrs,
 					}
 					lfs := &node_model.LDSFilters{
@@ -194,7 +193,7 @@ func (d *DiscoverAction) DiscoverListeners(
 						prs := &node_model.PieceHTTPRoutes{
 							TimeoutMS: 0,
 							Prefix:    d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, options).(string),
-							Cluster:   fmt.Sprintf("%s_%s_%s_%s_%d", namespace, pluginID, serviceAlias, destServiceAlias, port),
+							Cluster:   fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
 						}
 						pvh := &node_model.PieceHTTPVirtualHost{
 							Name: fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
@@ -242,7 +241,7 @@ func (d *DiscoverAction) DiscoverListeners(
 						prs := &node_model.PieceHTTPRoutes{
 							TimeoutMS: 0,
 							Prefix:    d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, options).(string),
-							Cluster:   fmt.Sprintf("%s_%s_%s_%s_%d", namespace, pluginID, serviceAlias, destServiceAlias, port),
+							Cluster:   fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
 							//Headers: d.ToolsGetRouterItem(destServiceAlias,
 							//	node_model.HEADERS, &sr).([]*node_model.PieceHeader),
 						}
@@ -368,7 +367,7 @@ func (d *DiscoverAction) DiscoverClusters(
 				Type:             "sds",
 				ConnectTimeoutMS: 250,
 				LBType:           "round_robin",
-				ServiceName:      fmt.Sprintf("%s_%s_%s_%s_%v", namespace, pluginID, serviceAlias, destServiceAlias, port.Port),
+				ServiceName:      fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port),
 				CircuitBreakers:  cb,
 			}
 			cdsL = append(cdsL, pcds)
