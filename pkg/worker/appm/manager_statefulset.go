@@ -1,30 +1,30 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package appm
 
 import (
-	"github.com/goodrain/rainbond/pkg/db/model"
-	"github.com/goodrain/rainbond/pkg/event"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/pkg/db/model"
+	"github.com/goodrain/rainbond/pkg/event"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
@@ -45,13 +45,13 @@ func (m *manager) StartStatefulSet(serviceID string, logger event.Logger) (*v1be
 		return nil, err
 	}
 	//判断应用镜像名称是否合法，非法镜像名进制启动
-	deployVersion,err:=m.dbmanager.VersionInfoDao().GetVersionByDeployVersion(builder.service.DeployVersion,serviceID)
+	deployVersion, err := m.dbmanager.VersionInfoDao().GetVersionByDeployVersion(builder.service.DeployVersion, serviceID)
 	var imageName string
 	if err != nil {
-		logrus.Warnf("error get version info by deployversion %s,details %s",builder.service.DeployVersion,err.Error())
-		imageName=builder.service.ImageName
-	}else{
-		imageName=deployVersion.ImageName
+		logrus.Warnf("error get version info by deployversion %s,details %s", builder.service.DeployVersion, err.Error())
+		imageName = builder.service.ImageName
+	} else {
+		imageName = deployVersion.ImageName
 	}
 	if !strings.HasPrefix(imageName, "goodrain.me/") {
 		logger.Error("启动应用失败,镜像名(%s)非法，请重新构建应用", map[string]string{"step": "callback", "status": "error"})
@@ -90,6 +90,9 @@ func (m *manager) StartStatefulSet(serviceID string, logger event.Logger) (*v1be
 	}
 	err = m.waitStatefulReplicasReady(*statefull.Spec.Replicas, serviceID, logger, result)
 	if err != nil {
+		if err == ErrTimeOut {
+			return result, err
+		}
 		logrus.Error("deploy statefulset to apiserver then watch error.", err.Error())
 		logger.Error("StatefulSet实例启动情况检测失败", map[string]string{"step": "worker-appm", "status": "error"})
 		return result, err
@@ -270,7 +273,7 @@ func (m *manager) waitStatefulReplicasReady(n int32, serviceID string, logger ev
 		logger.Info(fmt.Sprintf("启动实例数 %d,已完成", stateful.Status.Replicas), map[string]string{"step": "worker-appm"})
 		return nil
 	}
-	second := int32(30)
+	second := int32(60)
 	if stateful != nil && len(stateful.Spec.Template.Spec.Containers) > 0 {
 		for _, c := range stateful.Spec.Template.Spec.Containers {
 			if c.ReadinessProbe != nil {
