@@ -1,0 +1,16 @@
+#
+mappings:
+- match: "*.*.*.request.*"
+  name: "app_http_request"
+  labels:
+    service_id: "$1"
+    port: "$2"
+    protocol: $3
+    method: "$4"
+- match: "*.*.*.request.unusual.*"
+  name: "app_http_request_unusual"
+  labels:
+    service_id: "$1"
+    port: "$2"
+    protocol: $3
+    code: "$4"

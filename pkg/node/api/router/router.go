@@ -55,7 +55,7 @@ func Routers(mode string) *chi.Mux {
 			})
 
 			r.Route("/nodes", func(r chi.Router) {
-				r.Get("/fullres",controller.RegionRes)
+				r.Get("/fullres", controller.RegionRes)
 				r.Get("/resources", controller.Resources)
 				r.Get("/capres", controller.CapRes)
 				r.Get("/", controller.GetNodes)
@@ -67,9 +67,9 @@ func Routers(mode string) *chi.Mux {
 				r.Put("/{node_id}/unschedulable", controller.Cordon)
 				r.Put("/{node_id}/reschedulable", controller.UnCordon)
 				r.Put("/{node_id}/labels", controller.PutLabel)
-				r.Post("/{node_id}/down", controller.DownNode) //节点下线
-				r.Post("/{node_id}/up", controller.UpNode)     //节点上线
-				r.Get("/{node_id}/instance", controller.Instances)     //节点上线
+				r.Post("/{node_id}/down", controller.DownNode)     //节点下线
+				r.Post("/{node_id}/up", controller.UpNode)         //节点上线
+				r.Get("/{node_id}/instance", controller.Instances) //节点上线
 
 				//历史API
 				r.Get("/{node}/details", controller.GetNodeDetails)
@@ -114,6 +114,6 @@ func Routers(mode string) *chi.Mux {
 		r.Put("/-/taskreload", controller.ReloadStaticTasks)
 	}
 	//节点监控
-	r.Get("/metrics", controller.NodeExporter)
+	r.Get("/node/metrics", controller.NodeExporter)
 	return r
 }

@@ -855,7 +855,7 @@ func (t *TaskEngine) HandleJobRecord() {
 		case <-t.ctx.Done():
 			return
 		case event := <-ch:
-			if err:=event.Err();err!=nil{
+			if err := event.Err(); err != nil {
 
 			}
 			for _, ev := range event.Events {

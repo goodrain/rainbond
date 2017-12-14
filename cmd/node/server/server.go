@@ -28,6 +28,8 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/core/store"
 	"github.com/goodrain/rainbond/pkg/node/masterserver"
 	"github.com/goodrain/rainbond/pkg/node/nodeserver"
+	"github.com/goodrain/rainbond/pkg/node/statsd"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/Sirupsen/logrus"
 
@@ -86,8 +88,16 @@ func Run(c *option.Conf) error {
 		}
 		event.On(event.EXIT, ms.Stop)
 	}
+	//statsd exporter
+	registry := prometheus.NewRegistry()
+	exporter := statsd.CreateExporter(c.StatsdConfig, registry)
+	if err := exporter.Start(); err != nil {
+		logrus.Errorf("start statsd exporter server error,%s", err.Error())
+		return err
+	}
+
 	//启动API服务
-	apiManager := api.NewManager(*s.Conf, s.HostNode, ms)
+	apiManager := api.NewManager(*s.Conf, s.HostNode, ms, exporter)
 	apiManager.Start(errChan)
 	defer apiManager.Stop()
 

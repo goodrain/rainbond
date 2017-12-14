@@ -15,7 +15,6 @@
 package collector
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -83,10 +82,12 @@ func NewNodeCollector(filters ...string) (*nodeCollector, error) {
 	for _, filter := range filters {
 		enabled, exist := collectorState[filter]
 		if !exist {
-			return nil, fmt.Errorf("missing collector: %s", filter)
+			log.Warnf("missing collector: %s", filter)
+			continue
 		}
 		if !*enabled {
-			return nil, fmt.Errorf("disabled collector: %s", filter)
+			log.Warnf("disabled collector: %s", filter)
+			continue
 		}
 		f[filter] = true
 	}
