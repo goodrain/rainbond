@@ -172,7 +172,8 @@ func (d *DiscoverAction) DiscoverListeners(
 						Config: lcg,
 					}
 					plds := &node_model.PieceLDS{
-						Name:    fmt.Sprintf("%s_%s_%s_%s_%d", namespace, pluginID, serviceAlias, destServiceAlias, port),
+						//TODO: Name length must within 60
+						Name:    fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
 						Address: fmt.Sprintf("tcp://0.0.0.0:%d", port),
 						Filters: []*node_model.LDSFilters{lfs},
 					}
@@ -196,7 +197,7 @@ func (d *DiscoverAction) DiscoverListeners(
 							Cluster:   fmt.Sprintf("%s_%s_%s_%s_%d", namespace, pluginID, serviceAlias, destServiceAlias, port),
 						}
 						pvh := &node_model.PieceHTTPVirtualHost{
-							Name: fmt.Sprintf("%s_%s_%s_%s_%d", namespace, pluginID, serviceAlias, destServiceAlias, port),
+							Name: fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
 							//Domains: d.ToolsGetRouterItem(destServiceAlias, node_model.DOMAINS, &sr).([]string),
 							//TODO: 主容器应用domain默认为*
 							Domains: []string{"*"},
@@ -246,7 +247,7 @@ func (d *DiscoverAction) DiscoverListeners(
 							//	node_model.HEADERS, &sr).([]*node_model.PieceHeader),
 						}
 						pvh := &node_model.PieceHTTPVirtualHost{
-							Name:    fmt.Sprintf("%s_%s_%s_%s_%d", namespace, pluginID, serviceAlias, destServiceAlias, port),
+							Name:    fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
 							Domains: d.ToolsGetRouterItem(destServiceAlias, node_model.DOMAINS, options).([]string),
 							Routes:  []*node_model.PieceHTTPRoutes{prs},
 						}
@@ -363,7 +364,7 @@ func (d *DiscoverAction) DiscoverClusters(
 				},
 			}
 			pcds := &node_model.PieceCDS{
-				Name:             fmt.Sprintf("%s_%s_%s_%s_%v", namespace, pluginID, serviceAlias, destServiceAlias, port.Port),
+				Name:             fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port),
 				Type:             "sds",
 				ConnectTimeoutMS: 250,
 				LBType:           "round_robin",
