@@ -44,7 +44,7 @@ Bug found in learning and using, please visit [ISSUES](https://github.com/goodra
 ## Community
 ### WeChat
 <img src="https://github.com/goodrain/rainbond/blob/master/docs/Wechat.jpeg" width="30%">
-*Scan QR code, add inviter will to join Rainbond WeChat group*   
+*Scan QR code, add inviter to join Rainbond WeChat group*   
   
 ### QQ Group:
 
