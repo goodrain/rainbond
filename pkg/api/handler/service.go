@@ -1741,18 +1741,24 @@ func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss 
 
 //SetVersionEnv SetVersionEnv
 func (s *ServiceAction) SetVersionEnv(sve *api_model.SetVersionEnv) *util.APIHandleError {
-	switch sve.Body.Kind {
-	case "normal":
-		return s.normalEnvs(sve)
-	case "complex":
-		return s.complexEnvs(sve)
+	if len(sve.Body.ConfigEnvs.NormalEnvs) != 0 {
+		if err := s.normalEnvs(sve); err != nil {
+			return util.CreateAPIHandleErrorFromDBError("set version env", err)
+		}
 	}
-	return util.CreateAPIHandleError(400, fmt.Errorf("envs kind error"))
+	if sve.Body.ConfigEnvs.ComplexEnvs != nil {
+		if err := s.complexEnvs(sve); err != nil {
+			if strings.Contains(err.Error(), "is exist") {
+				return util.CreateAPIHandleError(405, err)
+			}
+			return util.CreateAPIHandleError(500, fmt.Errorf("set complex error, %v", err))
+		}
+	}
+	return util.CreateAPIHandleError(400, fmt.Errorf("no envs need to be changed"))
 }
 
-func (s *ServiceAction) normalEnvs(sve *api_model.SetVersionEnv) *util.APIHandleError {
+func (s *ServiceAction) normalEnvs(sve *api_model.SetVersionEnv) error {
 	tx := db.GetManager().Begin()
-
 	for _, env := range sve.Body.ConfigEnvs.NormalEnvs {
 		tpv := &dbmodel.TenantPluginVersionEnv{
 			PluginID:  sve.PluginID,
@@ -1762,47 +1768,53 @@ func (s *ServiceAction) normalEnvs(sve *api_model.SetVersionEnv) *util.APIHandle
 		}
 		if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).AddModel(tpv); err != nil {
 			tx.Rollback()
-			return util.CreateAPIHandleErrorFromDBError("set version env", err)
+			return err
 		}
 	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("commit set version env", err)
+		return err
 	}
 	return nil
 }
 
-func (s *ServiceAction) complexEnvs(sve *api_model.SetVersionEnv) *util.APIHandleError {
+func (s *ServiceAction) complexEnvs(sve *api_model.SetVersionEnv) error {
 	k := fmt.Sprintf("/resources/define/%s/%s/%s",
 		sve.Body.TenantID,
 		sve.ServiceAlias,
 		sve.PluginID)
 	if CheckKeyIfExist(s.EtcdCli, k) {
-		return util.CreateAPIHandleError(405,
-			fmt.Errorf("key %v is exist", k))
+		return fmt.Errorf("key %v is exist", k)
 	}
 	v, err := ffjson.Marshal(sve.Body.ConfigEnvs.ComplexEnvs)
 	if err != nil {
 		logrus.Errorf("mashal etcd value error, %v", err)
-		return util.CreateAPIHandleError(500, err)
+		return err
 	}
 	_, err = s.EtcdCli.Put(context.TODO(), k, string(v))
 	if err != nil {
 		logrus.Errorf("put k %s into etcd error, %v", k, err)
-		return util.CreateAPIHandleError(500, err)
+		return err
 	}
 	return nil
 }
 
 //UpdateVersionEnv UpdateVersionEnv
 func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError {
-	switch uve.Body.Kind {
-	case "normal":
-		return s.upNormalEnvs(uve)
-	case "complex":
-		return s.upComplexEnvs(uve)
+	if len(uve.Body.ConfigEnvs.NormalEnvs) != 0 {
+		if err := s.upNormalEnvs(uve); err != nil {
+			return util.CreateAPIHandleErrorFromDBError("update version env", err)
+		}
 	}
-	return util.CreateAPIHandleError(400, fmt.Errorf("envs kind error"))
+	if uve.Body.ConfigEnvs.ComplexEnvs != nil {
+		if err := s.upComplexEnvs(uve); err != nil {
+			if strings.Contains(err.Error(), "is not exist") {
+				return util.CreateAPIHandleError(405, err)
+			}
+			return util.CreateAPIHandleError(500, fmt.Errorf("update complex error, %v", err))
+		}
+	}
+	return util.CreateAPIHandleError(400, fmt.Errorf("no envs need to be changed"))
 }
 
 func (s *ServiceAction) upNormalEnvs(uve *api_model.SetVersionEnv) *util.APIHandleError {

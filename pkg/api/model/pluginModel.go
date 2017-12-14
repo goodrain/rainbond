@@ -363,10 +363,6 @@ type SetVersionEnv struct {
 	Body struct {
 		TenantID  string `json:"tenant_id"`
 		ServiceID string `json:"service_id"`
-		// 配置类型
-		// in: body
-		// required: true
-		Kind string `json:"kind" validate:"kind|in:normal,complex"`
 		// 环境变量
 		// in: body
 		// required: true
@@ -377,7 +373,7 @@ type SetVersionEnv struct {
 //ConfigEnvs Config
 type ConfigEnvs struct {
 	NormalEnvs  []*VersionEnv `json:"normal_envs" validate:"normal_envs"`
-	ComplexEnvs interface{}   `json:"complex_envs" validate:"complex_envs"`
+	ComplexEnvs *ResourceSpec `json:"complex_envs" validate:"complex_envs"`
 }
 
 //VersionEnv VersionEnv

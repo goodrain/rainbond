@@ -2033,256 +2033,6 @@
         }
       }
     },
-    "/v2/tenants/{tenant_name}/plugin/{plugin_id}/{version_id}/default-env": {
-      "get": {
-        "description": "get plugin env",
-        "consumes": [
-          "application/json",
-          "application/x-protobuf"
-        ],
-        "produces": [
-          "application/json",
-          "application/xml"
-        ],
-        "tags": [
-          "v2"
-        ],
-        "summary": "获取插件默认设定的env",
-        "operationId": "getPluginDefaultEnv",
-        "parameters": [
-          {
-            "type": "string",
-            "x-go-name": "TenantName",
-            "description": "租户名称",
-            "name": "tenant_name",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "x-go-name": "PluginID",
-            "description": "插件id",
-            "name": "plugin_id",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "x-go-name": "VersionID",
-            "description": "构建版本id",
-            "name": "version_id",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": "统一返回格式",
-            "schema": {
-              "$ref": "#/responses/commandResponse"
-            }
-          }
-        }
-      },
-      "put": {
-        "description": "update default env",
-        "consumes": [
-          "application/json",
-          "application/x-protobuf"
-        ],
-        "produces": [
-          "application/json",
-          "application/xml"
-        ],
-        "tags": [
-          "v2"
-        ],
-        "summary": "更新插件默认变量，支持批量",
-        "operationId": "updatedefaultenv",
-        "parameters": [
-          {
-            "type": "string",
-            "x-go-name": "TenantName",
-            "description": "租户名称",
-            "name": "tenant_name",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "x-go-name": "PluginID",
-            "description": "插件id",
-            "name": "plugin_id",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "x-go-name": "VersionID",
-            "description": "构建版本",
-            "name": "version_id",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "Body",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "required": [
-                "EVNInfo"
-              ],
-              "properties": {
-                "EVNInfo": {
-                  "description": "in: body",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/definitions/PluginDefaultENV"
-                  }
-                }
-              }
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": "统一返回格式",
-            "schema": {
-              "$ref": "#/responses/commandResponse"
-            }
-          }
-        }
-      },
-      "post": {
-        "description": "add default env",
-        "consumes": [
-          "application/json",
-          "application/x-protobuf"
-        ],
-        "produces": [
-          "application/json",
-          "application/xml"
-        ],
-        "tags": [
-          "v2"
-        ],
-        "summary": "添加插件默认变量",
-        "operationId": "adddefaultenv",
-        "parameters": [
-          {
-            "type": "string",
-            "x-go-name": "TenantName",
-            "description": "租户名称",
-            "name": "tenant_name",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "x-go-name": "PluginID",
-            "description": "插件id",
-            "name": "plugin_id",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "x-go-name": "VersionID",
-            "description": "构建版本",
-            "name": "version_id",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "Body",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "required": [
-                "EVNInfo"
-              ],
-              "properties": {
-                "EVNInfo": {
-                  "description": "in: body",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/definitions/PluginDefaultENV"
-                  }
-                }
-              }
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": "统一返回格式",
-            "schema": {
-              "$ref": "#/responses/commandResponse"
-            }
-          }
-        }
-      }
-    },
-    "/v2/tenants/{tenant_name}/plugin/{plugin_id}/{version_id}/default-env/{env_name}": {
-      "delete": {
-        "description": "delete default env",
-        "consumes": [
-          "application/json",
-          "application/x-protobuf"
-        ],
-        "produces": [
-          "application/json",
-          "application/xml"
-        ],
-        "tags": [
-          "v2"
-        ],
-        "summary": "删除插件默认变量",
-        "operationId": "deletedefaultenv",
-        "parameters": [
-          {
-            "type": "string",
-            "x-go-name": "TenantName",
-            "description": "租户名称",
-            "name": "tenant_name",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "x-go-name": "PluginID",
-            "description": "插件id",
-            "name": "plugin_id",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "x-go-name": "VersionID",
-            "description": "构建版本",
-            "name": "version_id",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "x-go-name": "ENVName",
-            "description": "配置项名称",
-            "name": "env_name",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": "统一返回格式",
-            "schema": {
-              "$ref": "#/responses/commandResponse"
-            }
-          }
-        }
-      }
-    },
     "/v2/tenants/{tenant_name}/res": {
       "get": {
         "description": "get tenant resources",
@@ -4413,17 +4163,11 @@
             "schema": {
               "type": "object",
               "required": [
-                "kind",
                 "config_envs"
               ],
               "properties": {
                 "config_envs": {
                   "$ref": "#/definitions/ConfigEnvs"
-                },
-                "kind": {
-                  "description": "配置类型\nin: body",
-                  "type": "string",
-                  "x-go-name": "Kind"
                 },
                 "service_id": {
                   "type": "string",
@@ -4492,17 +4236,11 @@
             "schema": {
               "type": "object",
               "required": [
-                "kind",
                 "config_envs"
               ],
               "properties": {
                 "config_envs": {
                   "$ref": "#/definitions/ConfigEnvs"
-                },
-                "kind": {
-                  "description": "配置类型\nin: body",
-                  "type": "string",
-                  "x-go-name": "Kind"
                 },
                 "service_id": {
                   "type": "string",
@@ -6542,13 +6280,96 @@
       },
       "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
     },
+    "BaseEnv": {
+      "description": "BaseEnv 无平台定义类型，普通kv",
+      "type": "object",
+      "properties": {
+        "options": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          },
+          "x-go-name": "Options"
+        }
+      },
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+    },
+    "BasePort": {
+      "description": "BasePort 基于当前应用端口结构",
+      "type": "object",
+      "properties": {
+        "options": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          },
+          "x-go-name": "Options"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Port"
+        },
+        "protocol": {
+          "type": "string",
+          "x-go-name": "Protocol"
+        },
+        "service_alias": {
+          "type": "string",
+          "x-go-name": "ServiceAlias"
+        },
+        "service_id": {
+          "type": "string",
+          "x-go-name": "ServiceID"
+        }
+      },
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+    },
+    "BaseService": {
+      "description": "BaseService 基于依赖应用及端口结构",
+      "type": "object",
+      "properties": {
+        "depend_service_alias": {
+          "type": "string",
+          "x-go-name": "DependServiceAlias"
+        },
+        "depend_service_id": {
+          "type": "string",
+          "x-go-name": "DependServiceID"
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          },
+          "x-go-name": "Options"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Port"
+        },
+        "protocol": {
+          "type": "string",
+          "x-go-name": "Protocol"
+        },
+        "service_alias": {
+          "type": "string",
+          "x-go-name": "ServiceAlias"
+        },
+        "service_id": {
+          "type": "string",
+          "x-go-name": "ServiceID"
+        }
+      },
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+    },
     "ConfigEnvs": {
       "description": "ConfigEnvs Config",
       "type": "object",
       "properties": {
         "complex_envs": {
-          "type": "object",
-          "x-go-name": "ComplexEnvs"
+          "$ref": "#/definitions/ResourceSpec"
         },
         "normal_envs": {
           "type": "array",
@@ -6724,6 +6545,30 @@
           "description": "构建版本id\nin: body",
           "type": "string",
           "x-go-name": "VersionID"
+        }
+      },
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+    },
+    "ResourceSpec": {
+      "description": "ResourceSpec 资源结构体",
+      "type": "object",
+      "properties": {
+        "base_normal": {
+          "$ref": "#/definitions/BaseEnv"
+        },
+        "base_ports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BasePort"
+          },
+          "x-go-name": "BasePorts"
+        },
+        "base_services": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BaseService"
+          },
+          "x-go-name": "BaseServices"
         }
       },
       "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"

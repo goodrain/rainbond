@@ -382,23 +382,18 @@ func (d *DiscoverAction) DiscoverClusters(
 
 //ToolsGetSourcesEnv rds
 func (d *DiscoverAction) ToolsGetSourcesEnv(
-	namespace, sourceAlias, envName string) (*api_model.SourceSpec, *util.APIHandleError) {
+	namespace, sourceAlias, envName string) ([]byte, *util.APIHandleError) {
 	k := fmt.Sprintf("/resources/define/%s/%s/%s", namespace, sourceAlias, envName)
 	resp, err := d.etcdCli.Get(k)
 	if err != nil {
 		logrus.Errorf("get etcd value error, %v", err)
 		return nil, util.CreateAPIHandleError(500, err)
 	}
-	var ss api_model.SourceSpec
 	if resp.Count != 0 {
 		v := resp.Kvs[0].Value
-		if err := ffjson.Unmarshal(v, &ss); err != nil {
-			logrus.Errorf("unmashal etcd v error, %v", err)
-			return nil, util.CreateAPIHandleError(500, err)
-		}
-		return &ss, nil
+		return v, nil
 	}
-	return &ss, nil
+	return []byte{}, nil
 }
 
 //ToolsGetK8SServiceList GetK8SServiceList
