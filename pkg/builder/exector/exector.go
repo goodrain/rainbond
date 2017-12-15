@@ -26,11 +26,9 @@ import (
 	"github.com/goodrain/rainbond/pkg/db/config"
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/goodrain/rainbond/pkg/mq/api/grpc/pb"
-	"github.com/goodrain/rainbond/pkg/db"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/tidwall/gjson"
-	"strings"
 )
 
 //Manager 任务执行管理器
