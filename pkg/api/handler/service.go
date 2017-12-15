@@ -93,7 +93,20 @@ func CreateManager(conf option.Config) (*ServiceAction, error) {
 		EtcdCli:    etcdCli,
 	}, nil
 }
+func checkDeployVersion(r *api_model.BuildServiceStruct) {
+	eventID := r.Body.EventID
+	logger := event.GetManager().GetLogger(eventID)
+	if len(r.Body.DeployVersion)==0 {
 
+		version,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+		if err != nil {
+			logger.Info("获取部署版本信息失败",map[string]string{"step": "callback", "status": "failure"})
+			return
+		}
+		r.Body.DeployVersion=version.BuildVersion
+		logrus.Infof("change deploy version to %s",r.Body.DeployVersion)
+	}
+}
 //ServiceBuild service build
 func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.BuildServiceStruct) error {
 	eventID := r.Body.EventID
@@ -109,6 +122,7 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 	switch r.Body.Kind {
 	case "source":
 		//源码构建
+		checkDeployVersion(r)
 		if err := s.sourceBuild(r, service); err != nil {
 			logger.Error("源码构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -117,6 +131,7 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		return nil
 	case "slug":
 		//源码构建的分享至云市安装回平台
+		checkDeployVersion(r)
 		if err := s.slugBuild(r, service); err != nil {
 			logger.Error("slug构建应用任务发送失败"+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -125,6 +140,7 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		return nil
 	case "image":
 		//镜像构建
+		checkDeployVersion(r)
 		if err := s.imageBuild(r, service); err != nil {
 			logger.Error("镜像构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -133,6 +149,7 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		return nil
 	case "market":
 		//镜像构建分享至云市安装回平台
+		checkDeployVersion(r)
 		if err := s.marketBuild(r, service); err != nil {
 			logger.Error("云市构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -222,7 +239,6 @@ func (s *ServiceAction) slugBuild(r *api_model.BuildServiceStruct, service *dbmo
 	body["app_version"] = service.ServiceVersion
 	body["app_key"] = service.ServiceKey
 	body["namespace"] = service.Namespace
-	body["deploy_version"] = service.DeployVersion
 	body["operator"] = r.Body.Operator
 	body["event_id"] = r.Body.EventID
 	body["tenant_name"] = r.Body.TenantName
@@ -455,7 +471,8 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	envs := sc.EnvsInfo
 	volumns := sc.VolumesInfo
 	dependIds := sc.DependIDs
-
+	logrus.Infof("creating new service,deploy version is %s",ts.DeployVersion)
+	ts.DeployVersion=""
 	tx := db.GetManager().Begin()
 
 	//服务信息表
@@ -617,6 +634,47 @@ func (s *ServiceAction) GetService(tenantID string) ([]*dbmodel.TenantServices, 
 		return nil, err
 	}
 	return services, nil
+}
+
+//GetPagedTenantRes get pagedTenantServiceRes(s)
+func (s *ServiceAction) GetPagedTenantRes(offset,len int) ([]*api_model.TenantResource, error) {
+	services, err := db.GetManager().TenantServiceDao().GetPagedTenantService(offset,len)
+	if err != nil {
+		logrus.Errorf("get service by id error, %v, %v", services, err)
+		return nil, err
+	}
+	var result []*api_model.TenantResource
+	for _,v:=range services {
+		var res api_model.TenantResource
+		res.UUID=v["tenant"].(string)
+		res.Name=""
+		res.EID=""
+		res.AllocatedCPU=v["capcpu"].(int)
+		res.AllocatedMEM=v["capmem"].(int)
+		res.UsedCPU=v["usecpu"].(int)
+		res.UsedMEM=v["usemem"].(int)
+		result=append(result,&res)
+	}
+	return result, nil
+}
+
+//GetPagedTenantRes get pagedTenantServiceRes(s)
+func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, error) {
+	services, err := db.GetManager().TenantServiceDao().GetTenantServiceRes(uuid)
+	if err != nil {
+		logrus.Errorf("get service by id error, %v, %v", services, err)
+		return nil, err
+	}
+	logrus.Infof("get tenant service res is %v",services)
+	var res api_model.TenantResource
+	res.UUID=uuid
+	res.Name=""
+	res.EID=""
+	res.AllocatedCPU=services["capcpu"].(int)
+	res.AllocatedMEM=services["capmem"].(int)
+	res.UsedCPU=services["usecpu"].(int)
+	res.UsedMEM=services["usemem"].(int)
+	return &res, nil
 }
 
 //CodeCheck code check

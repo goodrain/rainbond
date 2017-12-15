@@ -70,6 +70,7 @@ func Routers(mode string) *chi.Mux {
 				r.Post("/{node_id}/down", controller.DownNode) //节点下线
 				r.Post("/{node_id}/up", controller.UpNode)     //节点上线
 				r.Get("/{node_id}/instance", controller.Instances)     //节点上线
+				r.Get("/{node_id}/check", controller.CheckNode)
 
 				//历史API
 				r.Get("/{node}/details", controller.GetNodeDetails)

@@ -227,8 +227,8 @@ func (e *exectorManager) codeCheck(in []byte) {
 }
 func (e *exectorManager) appBuild(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
-	finalStatus:="failure"
-	dest := gjson.GetBytes(in, "dest").String()
+	//finalStatus:="failure"
+	//dest := gjson.GetBytes(in, "dest").String()
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("应用编译构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 
@@ -246,26 +246,26 @@ func (e *exectorManager) appBuild(in []byte) {
 					logger.Info("应用编译构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
-				finalStatus="success"
-				updateBuildResult(eventID,finalStatus,dest)
+				//finalStatus="success"
+				//updateBuildResult(eventID,finalStatus,dest)
 				break
 			}
 		}
 	}()
-	updateBuildResult(eventID,finalStatus,dest)
+	//updateBuildResult(eventID,finalStatus,dest)
 }
-func updateBuildResult(eventID,finalStatus,dest string)  {
-	if dest == ""||!strings.Contains(dest,"y") {
-		v,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
-		if err != nil {
-			logrus.Errorf("error get version by eventID %s  from db,details %s",eventID,err.Error())
-			return
-		}
-		v.FinalStatus=finalStatus
-		db.GetManager().VersionInfoDao().UpdateModel(v)
-	}
-
-}
+//func updateBuildResult(eventID,finalStatus,dest string)  {
+//	if dest == ""||!strings.Contains(dest,"y") {
+//		v,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+//		if err != nil {
+//			logrus.Errorf("error get version by eventID %s  from db,details %s",eventID,err.Error())
+//			return
+//		}
+//		v.FinalStatus=finalStatus
+//		db.GetManager().VersionInfoDao().UpdateModel(v)
+//	}
+//
+//}
 func (e *exectorManager) pluginImageBuild1(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)

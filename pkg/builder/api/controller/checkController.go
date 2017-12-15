@@ -133,7 +133,9 @@ func GetCodeCheck(w http.ResponseWriter, r *http.Request) {
 	//findResultByServiceID
 	cr,err:=db.GetManager().CodeCheckResultDao().GetCodeCheckResult(serviceID)
 	if err!=nil {
-
+		logrus.Errorf("error get check result,details %s",err.Error())
+		httputil.ReturnError(r,w,500,err.Error())
+		return
 	}
 	httputil.ReturnSuccess(r,w,cr)
 }

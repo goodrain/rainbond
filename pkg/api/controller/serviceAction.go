@@ -511,6 +511,7 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	version.Kind = build.Body.Kind
 	version.BuildVersion = build.Body.DeployVersion
 
+
 	build.Body.EventID = sEvent.EventID
 	if err := handler.GetServiceManager().ServiceBuild(tenantID, serviceID, &build); err != nil {
 		logrus.Debugf("build service error")

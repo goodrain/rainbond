@@ -39,8 +39,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/api/handler"
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 
-	"sort"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/renstorm/fuzzysearch/fuzzy"
 )
@@ -206,28 +204,22 @@ func (t *TenantStruct) TenantsGetByName(w http.ResponseWriter, r *http.Request) 
 
 	v, err := handler.GetTenantManager().GetTenantsByName(tenantName)
 	if err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants names error, %v", err))
+		httputil.ReturnError(r, w, 404, fmt.Sprintf("get tenants names error, %v", err))
 		return
 	}
-	logrus.Infof("query tenant from db by name %s ,got %v", tenantName, v)
-	var res = &api_model.TenantResource{}
-	services, err := handler.GetServiceManager().GetService(v.UUID)
+	logrus.Infof("query tenant from db by name %s ,got %v",tenantName,v)
+
+
+	tenantServiceRes, err := handler.GetServiceManager().GetTenantRes(v.UUID)
 	if err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("get services by tenantID %s error, %v", v.UUID, err))
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants service total resources  error, %v", err))
 		return
 	}
-	totalResInfo, _ := handler.GetTenantManager().TotalMemCPU(services)
-	usedResInfo, _ := handler.GetTenantManager().StatsMemCPU(services)
+	tenantServiceRes.UUID=v.UUID
+	tenantServiceRes.Name=v.Name
+	tenantServiceRes.EID=v.EID
 
-	res.UUID = v.UUID
-	res.Name = v.Name
-	res.EID = v.EID
-	res.AllocatedCPU = totalResInfo.CPU
-	res.AllocatedMEM = totalResInfo.MEM
-	res.UsedCPU = usedResInfo.CPU
-	res.UsedMEM = usedResInfo.MEM
-
-	httputil.ReturnSuccess(r, w, res)
+	httputil.ReturnSuccess(r, w, tenantServiceRes)
 	return
 }
 
@@ -267,7 +259,9 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 	pageLenStr := strings.TrimSpace(chi.URLParam(r, "pageLen"))
 	curPageStr := strings.TrimSpace(chi.URLParam(r, "curPage"))
 
-	pageLen, err := strconv.Atoi(pageLenStr)
+
+
+	pageLen,err:=strconv.Atoi(pageLenStr)
 	if err != nil {
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("bad request, %v", err))
 		return
@@ -282,40 +276,31 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants error, %v", err))
 		return
 	}
-	var result []*api_model.TenantResource
-	for _, v := range rep {
-		services, err := handler.GetServiceManager().GetService(v.UUID)
-		if err != nil {
-			httputil.ReturnError(r, w, 500, fmt.Sprintf("get services by tenantID %s error, %v", v.UUID, err))
-			return
-		}
-		totalResInfo, _ := handler.GetTenantManager().TotalMemCPU(services)
-		usedResInfo, _ := handler.GetTenantManager().StatsMemCPU(services)
-		var res api_model.TenantResource
-		res.UUID = v.UUID
-		res.Name = v.Name
-		res.EID = v.EID
-		res.AllocatedCPU = totalResInfo.CPU
-		res.AllocatedMEM = totalResInfo.MEM
-		res.UsedCPU = usedResInfo.CPU
-		res.UsedMEM = usedResInfo.MEM
-		result = append(result, &res)
-	}
-	pList := api_model.TenantResList(result)
-	sort.Sort(pList)
-	var resultList []*api_model.TenantResource
-	if curPage*pageLen < len(rep) {
-		resultList = pList[(curPage-1)*pageLen : curPage*pageLen]
-	} else {
-		resultList = pList[(curPage-1)*pageLen : len(rep)]
+	resource,err:=handler.GetServiceManager().GetPagedTenantRes((curPage-1)*pageLen,pageLen)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants  error, %v", err))
+		return
 	}
 
+	for _,v:=range resource{
+		tenant,err:=handler.GetTenantManager().GetTenantsByUUID(v.UUID)
+		if err != nil {
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants  error, %v", err))
+			return
+		}
+		v.Name=tenant.Name
+		v.EID=tenant.EID
+	}
+
+
+
 	var ret api_model.PagedTenantResList
-	ret.List = resultList
-	ret.Length = len(resultList)
+	ret.List=resource
+	ret.Length=len(rep)
 	httputil.ReturnSuccess(r, w, ret)
 	return
 }
+
 
 //SumTenants 统计租户数量
 func (t *TenantStruct) SumTenants(w http.ResponseWriter, r *http.Request) {

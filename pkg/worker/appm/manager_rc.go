@@ -44,13 +44,14 @@ func (m *manager) StartReplicationController(serviceID string, logger event.Logg
 		return nil, err
 	}
 	//判断应用镜像名称是否合法，非法镜像名进制启动
-	deployVersion, err := m.dbmanager.VersionInfoDao().GetVersionByDeployVersion(builder.service.DeployVersion, serviceID)
-	var imageName string
+	deployVersion,err:=m.dbmanager.VersionInfoDao().GetVersionByDeployVersion(builder.service.DeployVersion,serviceID)
+	imageName:=builder.service.ImageName
 	if err != nil {
-		logrus.Warnf("error get version info by deployversion %s,details %s", builder.service.DeployVersion, err.Error())
-		imageName = builder.service.ImageName
-	} else {
-		imageName = deployVersion.ImageName
+		logrus.Warnf("error get version info by deployversion %s,details %s",builder.service.DeployVersion,err.Error())
+	}else{
+		if CheckVersionInfo(deployVersion) {
+			imageName=deployVersion.ImageName
+		}
 	}
 	if !strings.HasPrefix(imageName, "goodrain.me/") {
 		logger.Error("启动应用失败,镜像名(%s)非法，请重新构建应用", map[string]string{"step": "callback", "status": "error"})
@@ -87,7 +88,15 @@ func (m *manager) StartReplicationController(serviceID string, logger event.Logg
 	}
 	return result, nil
 }
-
+func CheckVersionInfo(version *model.VersionInfo) bool {
+	if !strings.Contains(strings.ToLower(version.FinalStatus),"success") {
+		return false
+	}
+	if len(version.ImageName)==0||!strings.Contains(version.ImageName,"goodrain.me/") {
+		return false
+	}
+	return true
+}
 //StopReplicationController 停止
 func (m *manager) StopReplicationController(serviceID string, logger event.Logger) error {
 	logger.Info("停止删除ReplicationController资源开始", map[string]string{"step": "worker-appm", "status": "starting"})

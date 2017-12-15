@@ -37,6 +37,7 @@ import (
 	"strconv"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
 	"io/ioutil"
+	"errors"
 )
 
 func init() {
@@ -144,6 +145,101 @@ func GetRuleNodes(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, masternodes)
 }
+
+
+//UpNode 节点上线，计算节点操作
+func CheckNode(w http.ResponseWriter, r *http.Request) {
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	if len(nodeUID)==0 {
+		err:=utils.APIHandleError{
+			Code:404,
+			Err:errors.New(fmt.Sprintf("can't find node by node_id %s",nodeUID)),
+		}
+		err.Handle(r,w)
+		return
+	}
+	tasks, err := taskService.GetTasks()
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	var result []*ExecedTask
+	for _,v:=range tasks{
+
+		taskStatus,ok:=v.Status[nodeUID]
+		if ok{
+			status:=strings.ToLower(taskStatus.Status)
+			if status=="complete" ||status=="start"{
+				var execedTask =&ExecedTask{}
+				execedTask.ID=v.ID
+				execedTask.Status=taskStatus.Status
+				execedTask.Depends=[]string{}
+				dealDepend(execedTask,v)
+				dealNext(execedTask,tasks)
+				result=append(result, execedTask)
+				continue
+			}
+
+		}else {
+			_,scheduled:=v.Scheduler.Status[nodeUID]
+			if scheduled {
+				var execedTask =&ExecedTask{}
+				execedTask.ID=v.ID
+				execedTask.Depends=[]string{}
+				dealDepend(execedTask,v)
+				dealNext(execedTask,tasks)
+				allDepDone:=true
+
+				for _,dep:=range execedTask.Depends {
+					task,_:=taskService.GetTask(dep)
+
+					_,depOK:=task.Status[nodeUID]
+					if !depOK {
+						allDepDone=false
+						break
+					}
+				}
+				//所有依赖都完成了，没有自己的status说明自己未完成，已经被调度说明 正在执行
+				if allDepDone {
+					execedTask.Status="start"
+					result=append(result, execedTask)
+				}
+
+			}
+		}
+	}
+
+
+	httputil.ReturnSuccess(r, w, result)
+}
+func dealNext(task *ExecedTask, tasks []*model.Task) {
+	for _,v:=range tasks {
+		if v.Temp.Depends != nil {
+			for _,dep:=range v.Temp.Depends{
+				if dep.DependTaskID == task.ID {
+					task.Next=append(task.Next,v.ID)
+				}
+			}
+		}
+	}
+}
+
+
+
+func dealDepend(result *ExecedTask,task *model.Task) {
+	if task.Temp.Depends != nil {
+		for _,v:=range task.Temp.Depends{
+			result.Depends=append(result.Depends,v.DependTaskID)
+		}
+	}
+}
+type ExecedTask struct {
+	ID string
+	Status string
+	Depends []string
+	Next []string
+}
+
 
 //DeleteRainbondNode 节点删除
 func DeleteRainbondNode(w http.ResponseWriter, r *http.Request) {
@@ -256,24 +352,26 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 		pod.Name = v.Name
 		pod.Id = serviceId
 
-		lc := v.Spec.Containers[0].Resources.Limits.Cpu().Value()
+		lc := v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
 		cpuL += lc
 		lm := v.Spec.Containers[0].Resources.Limits.Memory().Value()
 
 		memL += lm
-		rc := v.Spec.Containers[0].Resources.Requests.Cpu().Value()
+
+		rc := v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 		cpuR += rc
 		rm := v.Spec.Containers[0].Resources.Requests.Memory().Value()
 
 		memR += rm
 
-		logrus.Infof("namespace %s,podid %s :limit cpu %s,requests cpu %s,limit mem %s,request mem %s", pod.Namespace, pod.Id, lc, rc, lm, rm)
-		pod.CPURequests = strconv.Itoa(int(rc))
+		logrus.Infof("namespace %s,podid %s :limit cpu %v,requests cpu %v,limit mem %v,request mem %v,cap cpu is %v,cap mem is %v", pod.Namespace, pod.Name, lc, rc, lm, rm,capCPU,capMEM)
 
-		pod.CPURequestsR = strconv.FormatFloat(float64(rc*100)/float64(capCPU), 'f', 1, 64)
+		pod.CPURequests = strconv.FormatFloat(float64(rc)/float64(1000), 'f', 2, 64)
 
-		pod.CPULimits = strconv.Itoa(int(lc))
-		pod.CPULimitsR = strconv.FormatFloat(float64(lc*100)/float64(capCPU), 'f', 1, 64)
+		pod.CPURequestsR = strconv.FormatFloat(float64(rc/10)/float64(capCPU), 'f', 1, 64)
+
+		pod.CPULimits = strconv.FormatFloat(float64(lc)/float64(1000), 'f', 2, 64)
+		pod.CPULimitsR = strconv.FormatFloat(float64(lc/10)/float64(capCPU), 'f', 1, 64)
 
 		pod.MemoryRequests = strconv.Itoa(int(rm))
 		pod.MemoryRequestsR = strconv.FormatFloat(float64(rm*100)/float64(capMEM), 'f', 1, 64)

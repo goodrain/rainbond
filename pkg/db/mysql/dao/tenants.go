@@ -86,6 +86,16 @@ func (t *TenantDaoImpl) GetALLTenants() ([]*model.Tenants, error) {
 	return tenants, nil
 }
 
+//GetALLTenants GetALLTenants
+func (t *TenantDaoImpl) GetPagedTenants(offset,len int) ([]*model.Tenants, error) {
+
+	var tenants []*model.Tenants
+	if err := t.DB.Find(&tenants).Group("").Error; err != nil {
+		return nil, err
+	}
+	return tenants, nil
+}
+
 //TenantServicesDaoImpl 租户应用dao
 type TenantServicesDaoImpl struct {
 	DB *gorm.DB
@@ -122,6 +132,7 @@ func (t *TenantServicesDaoImpl) GetServiceByID(serviceID string) (*model.TenantS
 	}
 	return &service, nil
 }
+
 
 //GetCPUAndMEM GetCPUAndMEM
 func (t *TenantServicesDaoImpl) GetCPUAndMEM(tenantName []string) ([]*map[string]interface{}, error) {
@@ -166,6 +177,51 @@ func (t *TenantServicesDaoImpl) GetCPUAndMEM(tenantName []string) ([]*map[string
 	return rc, nil
 }
 
+//GetPagedTenantResource GetPagedTenantResource
+func (t *TenantServicesDaoImpl) GetPagedTenantService(offset,len int) ([]map[string]interface{}, error) {
+	rows, err := t.DB.Raw("select tenant_id,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_cpu * replicas,0)) as use_cpu,sum(container_cpu*replicas) as cap_cpu,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_memory * replicas,0)) as use_memory,sum(container_memory*replicas) as cap_memory from tenant_services group by tenant_id order by use_memory desc limit ?,?",offset,len).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var rc []map[string]interface{}
+	for rows.Next() {
+		var tenantID string
+		var capCpu int
+		var useCpu int
+		var capMem int
+		var useMem int
+		rows.Scan(&tenantID, &useCpu,&capCpu,&useMem,&capMem)
+		res := make(map[string]interface{})
+		res["capcpu"] = capCpu
+		res["usecpu"] = useCpu
+		res["capmem"] = capMem
+		res["usemem"] = useMem
+		res["tenant"] =tenantID
+		rc = append(rc, res)
+	}
+	return rc, nil
+}
+
+
+//GetTenantServiceRes GetTenantServiceRes
+func (t *TenantServicesDaoImpl) GetTenantServiceRes(uuid string) (map[string]interface{}, error) {
+	row := t.DB.Raw("select sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_cpu * replicas,0)) as use_cpu,sum(container_cpu*replicas) as cap_cpu,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_memory * replicas,0)) as use_memory,sum(container_memory*replicas) as cap_memory from tenant_services where tenant_id =? order by use_memory desc",uuid).Row()
+	var capCpu int
+	var useCpu int
+	var capMem int
+	var useMem int
+	row.Scan( &useCpu,&capCpu,&useMem,&capMem)
+	res := make(map[string]interface{})
+
+	res["capcpu"] = capCpu
+	res["usecpu"] = useCpu
+	res["capmem"] = capMem
+	res["usemem"] = useMem
+	res["tenant"] =uuid
+	logrus.Infof("get tenant %s service resource :%v",res)
+	return res, nil
+}
 //GetServiceAliasByIDs 获取应用别名
 func (t *TenantServicesDaoImpl) GetServiceAliasByIDs(uids []string) ([]*model.TenantServices, error) {
 	var services []*model.TenantServices

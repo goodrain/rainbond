@@ -46,6 +46,7 @@ func AddAppPublish(w http.ResponseWriter, r *http.Request) {
 	b,err:=ioutil.ReadAll(r.Body)
 	if err != nil {
 		logrus.Errorf("error get request body ,details %s",err.Error())
+		httputil.ReturnError(r,w,404,err.Error())
 		return
 	}
 	defer r.Body.Close()
@@ -53,12 +54,17 @@ func AddAppPublish(w http.ResponseWriter, r *http.Request) {
 	err=json.Unmarshal(b,&result)
 	if err != nil {
 		logrus.Errorf("error unmarshal use raw support,details %s",err.Error())
+		httputil.ReturnError(r,w,400,err.Error())
 		return
 	}
 
 	dbmodel:=convertPublishToDB(&result)
 	//checkAndGet
-	db.GetManager().AppPublishDao().AddModel(dbmodel)
+	err=db.GetManager().AppPublishDao().AddModel(dbmodel)
+	if err!=nil {
+		logrus.Errorf("error save publish record to db,details %s",err.Error())
+		httputil.ReturnError(r,w,500,err.Error())
+	}
 	httputil.ReturnSuccess(r, w, nil)
 }
 func convertPublishToDB(publish *model.AppPublish) *dbmodel.AppPublish {

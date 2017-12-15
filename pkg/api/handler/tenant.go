@@ -32,10 +32,9 @@ import (
 	"github.com/goodrain/rainbond/pkg/db"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 
-	"strings"
-
 	"github.com/Sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
+	"strings"
 )
 
 //TenantAction tenant act
@@ -92,9 +91,18 @@ func (t *TenantAction) GetTenants() ([]*dbmodel.Tenants, error) {
 	}
 	return tenants, err
 }
+func (t *TenantAction) GetTenantsPaged(offset,len int) ([]*dbmodel.Tenants, error) {
+	tenants, err := db.GetManager().TenantDao().GetALLTenants()
+	if err != nil {
+		return nil, err
+	}
+	return tenants, err
+}
 
-//TotalMemCPU StatsMemCPU
-func (t *TenantAction) TotalMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error) {
+
+
+//StatsMemCPU StatsMemCPU
+func (t *TenantAction) TotalMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error){
 	cpus := 0
 	mem := 0
 	for _, service := range services {
@@ -132,6 +140,16 @@ func (t *TenantAction) GetTenantsByName(name string) (*dbmodel.Tenants, error) {
 
 	return tenant, err
 }
+//GetTenants get tenants
+func (t *TenantAction) GetTenantsByUUID(uuid string) (*dbmodel.Tenants, error) {
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	return tenant, err
+}
+
 
 //StatsMemCPU StatsMemCPU
 func (t *TenantAction) StatsMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error) {

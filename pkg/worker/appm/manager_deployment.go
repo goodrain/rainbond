@@ -45,7 +45,16 @@ func (m *manager) StartDeployment(serviceID string, logger event.Logger) (*v1bet
 		return nil, err
 	}
 	//判断应用镜像名称是否合法，非法镜像名进制启动
-	if !strings.HasPrefix(builder.service.ImageName, "goodrain.me/") {
+	imageName:=builder.service.ImageName
+	deployVersion,err:=m.dbmanager.VersionInfoDao().GetVersionByDeployVersion(builder.service.DeployVersion,serviceID)
+	if err != nil {
+		logrus.Warnf("error get version info by deployversion %s,details %s",builder.service.DeployVersion,err.Error())
+	}else{
+		if CheckVersionInfo(deployVersion) {
+			imageName=deployVersion.ImageName
+		}
+	}
+	if !strings.HasPrefix(imageName, "goodrain.me/") {
 		logger.Error(fmt.Sprintf("启动应用失败,镜像名(%s)非法，请重新构建应用", builder.service.ImageName), map[string]string{"step": "callback", "status": "error"})
 		return nil, fmt.Errorf("service image name invoid, it only can with prefix goodrain.me/")
 	}

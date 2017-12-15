@@ -42,6 +42,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"os"
 	"os/exec"
 )
 
@@ -176,18 +177,41 @@ func (n *NodeCluster) GetNode(id string) *model.HostNode {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	if node, ok := n.nodes[id]; ok {
+		if node.NodeStatus != nil {
+			if node.Unschedulable {
+				node.Status = "unschedulable"
+			} else {
+				node.Status = "schedulable"
+			}
+			node.AvailableCPU = node.NodeStatus.Allocatable.Cpu().Value()
+			node.AvailableMemory = node.NodeStatus.Allocatable.Memory().Value()
+		}
+
 		return node
 	}
 	return nil
 }
-
-func RegToHost(node *model.HostNode,opt string) {
-	uuid:=node.ID
-	internalIP:=node.InternalIP
-	cmd := exec.Command("bash", "/usr/share/gr-rainbond-node/gaops/jobs/cron/common/node_update_hosts.sh",uuid+" "+internalIP+" "+opt)
-	outbuf:=bytes.NewBuffer(nil)
-	cmd.Stdout=outbuf
-	err:=cmd.Run()
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
+func RegToHost(node *model.HostNode, opt string) {
+	if !exists("/usr/share/gr-rainbond-node/gaops/jobs/cron/common/node_update_hosts.sh") {
+		return
+	}
+	uuid := node.ID
+	internalIP := node.InternalIP
+	logrus.Infof("node 's hostname is %s", node.HostName)
+	cmd := exec.Command("bash", "/usr/share/gr-rainbond-node/gaops/jobs/cron/common/node_update_hosts.sh", uuid, internalIP, opt)
+	outbuf := bytes.NewBuffer(nil)
+	cmd.Stdout = outbuf
+	err := cmd.Run()
 	if err != nil {
 		logrus.Errorf("error update /etc/hosts,details %s",err.Error())
 		return
@@ -206,12 +230,10 @@ func (n *NodeCluster) watchNodes() {
 				switch {
 				case ev.IsCreate(), ev.IsModify():
 					if node := n.getNodeFromKV(ev.Kv); node != nil {
-						RegToHost(node,"add")
 						n.CacheNode(node)
 					}
 				case ev.Type == client.EventTypeDelete:
 					if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
-						RegToHost(node,"del")
 						n.RemoveNode(node)
 					}
 				}
@@ -221,14 +243,17 @@ func (n *NodeCluster) watchNodes() {
 				switch {
 				case ev.IsCreate(), ev.IsModify():
 					if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
+
 						node.Alived = true
 						node.UpTime = time.Now()
+						RegToHost(node, "add")
 						n.UpdateNode(node)
 					}
 				case ev.Type == client.EventTypeDelete:
 					if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
 						node.Alived = false
 						node.DownTime = time.Now()
+						RegToHost(node, "del")
 						n.UpdateNode(node)
 					}
 				}
@@ -350,6 +375,15 @@ func (n *NodeCluster) GetAllNode() (nodes []*model.HostNode) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	for _, node := range n.nodes {
+		if node.NodeStatus != nil {
+			if node.Unschedulable {
+				node.Status = "unschedulable"
+			} else {
+				node.Status = "schedulable"
+			}
+			node.AvailableCPU = node.NodeStatus.Allocatable.Cpu().Value()
+			node.AvailableMemory = node.NodeStatus.Allocatable.Memory().Value()
+		}
 		nodes = append(nodes, node)
 	}
 	return
