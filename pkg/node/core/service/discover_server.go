@@ -71,7 +71,20 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *
 		return nil, util.CreateAPIHandleError(500, err)
 	}
 	if len(endpoints.Items) == 0 {
-		return nil, util.CreateAPIHandleError(400, fmt.Errorf("have no endpoints"))
+		if destServiceAlias == serviceAlias {
+			labelname := fmt.Sprintf("name=%sServiceOUT", destServiceAlias)
+			var err error
+			endpoints, err = k8s.K8S.Core().Endpoints(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+			if err != nil {
+				return nil, util.CreateAPIHandleError(500, err)
+			}
+			if len(endpoints.Items) == 0 {
+				logrus.Debugf("outer endpoints items length is 0, continue")
+				return nil, util.CreateAPIHandleError(400, fmt.Errorf("outer have no endpoints"))
+			}
+		} else {
+			return nil, util.CreateAPIHandleError(400, fmt.Errorf("inner have no endpoints"))
+		}
 	}
 	var sdsL []*node_model.PieceSDS
 	for key, item := range endpoints.Items {
@@ -128,6 +141,7 @@ func (d *DiscoverAction) DiscoverListeners(
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf(
 			"get env %s error: %v", namespace+serviceAlias+pluginID, err))
 	}
+	logrus.Debugf("process go on")
 	//TODO: console控制尽量不把小于1000的端口给用户使用
 	var vhL []*node_model.PieceHTTPVirtualHost
 	var ldsL []*node_model.PieceLDS
@@ -142,16 +156,35 @@ func (d *DiscoverAction) DiscoverListeners(
 			return nil, util.CreateAPIHandleError(500, err)
 		}
 		if len(endpoint.Items) == 0 {
-			continue
+			if destServiceAlias == serviceAlias {
+				labelname := fmt.Sprintf("name=%sServiceOUT", destServiceAlias)
+				var err error
+				endpoint, err = k8s.K8S.Core().Endpoints(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+				if err != nil {
+					return nil, util.CreateAPIHandleError(500, err)
+				}
+				if len(endpoint.Items) == 0 {
+					logrus.Debugf("outer endpoints items length is 0, continue")
+					continue
+				}
+			} else {
+				logrus.Debugf("inner endpoints items length is 0, continue")
+				continue
+			}
 		}
 		for _, service := range services.Items {
 			//TODO: HTTP inner的protocol添加资源时需要label
 			inner, ok := service.Labels["service_type"]
 			if !ok || inner != "inner" {
-				continue
+				if destServiceAlias != serviceAlias {
+					continue
+				}
 			}
 			port := service.Spec.Ports[0].Port
 			portProtocol, ok := service.Labels["port_protocol"]
+			if !ok {
+				logrus.Debugf("have no port Protocol")
+			}
 			if ok {
 				logrus.Debugf("port protocol is %s", portProtocol)
 				switch portProtocol {
@@ -260,6 +293,7 @@ func (d *DiscoverAction) DiscoverListeners(
 		}
 	}
 	if len(vhL) != 0 {
+		logrus.Debugf("vhl len is not 0")
 		httpPort := 80
 		hsf := &node_model.HTTPSingleFileter{
 			Type:   "decoder",
