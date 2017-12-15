@@ -4,7 +4,7 @@
 #
 # configure mirrors grub dns.
 
-set -o errexit
+#set -o errexit
 set -o pipefail
 
 
@@ -381,7 +381,10 @@ function config_ip(){
     if [ $? -eq 0 ];then
         echo "LOCAL_IP=$MIP" > /etc/goodrain/envs/ip.sh
     else
-        echo "MANAGE_IP=$MIP" > /etc/goodrain/envs/ip.sh
+        IPFO=$(ip ad | grep 'inet ' | grep -v ':' | awk '{print $2}' | cut -d '/' -f 1 | grep -vE '(127.0.0.1|172.30.42.1)')
+        IP_ITEMS=($IPFO)
+        MIP=${IP_ITEMS[0]}
+        echo "LOCAL_IP=$MIP" > /etc/goodrain/envs/ip.sh
     fi 
 }
 
