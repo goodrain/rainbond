@@ -207,17 +207,16 @@ func (t *TenantStruct) TenantsGetByName(w http.ResponseWriter, r *http.Request) 
 		httputil.ReturnError(r, w, 404, fmt.Sprintf("get tenants names error, %v", err))
 		return
 	}
-	logrus.Infof("query tenant from db by name %s ,got %v",tenantName,v)
-
+	logrus.Infof("query tenant from db by name %s ,got %v", tenantName, v)
 
 	tenantServiceRes, err := handler.GetServiceManager().GetTenantRes(v.UUID)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants service total resources  error, %v", err))
 		return
 	}
-	tenantServiceRes.UUID=v.UUID
-	tenantServiceRes.Name=v.Name
-	tenantServiceRes.EID=v.EID
+	tenantServiceRes.UUID = v.UUID
+	tenantServiceRes.Name = v.Name
+	tenantServiceRes.EID = v.EID
 
 	httputil.ReturnSuccess(r, w, tenantServiceRes)
 	return
@@ -259,9 +258,7 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 	pageLenStr := strings.TrimSpace(chi.URLParam(r, "pageLen"))
 	curPageStr := strings.TrimSpace(chi.URLParam(r, "curPage"))
 
-
-
-	pageLen,err:=strconv.Atoi(pageLenStr)
+	pageLen, err := strconv.Atoi(pageLenStr)
 	if err != nil {
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("bad request, %v", err))
 		return
@@ -276,31 +273,28 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants error, %v", err))
 		return
 	}
-	resource,err:=handler.GetServiceManager().GetPagedTenantRes((curPage-1)*pageLen,pageLen)
+	resource, err := handler.GetServiceManager().GetPagedTenantRes((curPage-1)*pageLen, pageLen)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants  error, %v", err))
 		return
 	}
 
-	for _,v:=range resource{
-		tenant,err:=handler.GetTenantManager().GetTenantsByUUID(v.UUID)
+	for _, v := range resource {
+		tenant, err := handler.GetTenantManager().GetTenantsByUUID(v.UUID)
 		if err != nil {
 			httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants  error, %v", err))
 			return
 		}
-		v.Name=tenant.Name
-		v.EID=tenant.EID
+		v.Name = tenant.Name
+		v.EID = tenant.EID
 	}
 
-
-
 	var ret api_model.PagedTenantResList
-	ret.List=resource
-	ret.Length=len(rep)
+	ret.List = resource
+	ret.Length = len(rep)
 	httputil.ReturnSuccess(r, w, ret)
 	return
 }
-
 
 //SumTenants 统计租户数量
 func (t *TenantStruct) SumTenants(w http.ResponseWriter, r *http.Request) {
@@ -376,7 +370,12 @@ func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		dbts.EID = ts.Body.Eid
-		dbts.Name = name
+		if ts.Body.TenantName == "" {
+			dbts.Name = name
+		} else {
+			dbts.Name = ts.Body.TenantName
+			name = ts.Body.TenantName
+		}
 		dbts.UUID = id
 		if err := handler.GetServiceManager().CreateTenant(&dbts); err != nil {
 			if strings.HasSuffix(err.Error(), "is exist") {
@@ -389,10 +388,10 @@ func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 		rc := make(map[string]string)
 		rc["tenant_id"] = id
 		rc["tenang_name"] = name
+		rc["eid"] = ts.Body.Eid
 		httputil.ReturnSuccess(r, w, rc)
 		return
 	}
-
 	if ts.Body.TenantID != "" && ts.Body.TenantName != "" {
 		//兼容旧接口
 		dbts.Name = ts.Body.TenantName
