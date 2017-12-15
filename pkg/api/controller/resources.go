@@ -376,7 +376,12 @@ func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 			dbts.Name = ts.Body.TenantName
 			name = ts.Body.TenantName
 		}
-		dbts.UUID = id
+		if ts.Body.TenantID == "" {
+			dbts.UUID = id
+		} else {
+			dbts.ID = ts.Body.TenantID
+			id = ts.Body.TenantID
+		}
 		if err := handler.GetServiceManager().CreateTenant(&dbts); err != nil {
 			if strings.HasSuffix(err.Error(), "is exist") {
 				httputil.ReturnError(r, w, 400, err.Error())
