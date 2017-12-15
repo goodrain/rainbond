@@ -104,7 +104,7 @@ func (e *exectorManager) appImage(in []byte) {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("exec app image python shell error:%s", err.Error())
-				if i < 3 {
+				if i < 2 {
 					logger.Info("应用镜像构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("应用镜像构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
@@ -160,7 +160,7 @@ func (e *exectorManager) appSlug(in []byte) {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("exec app slug python shell error:%s", err.Error())
-				if i < 3 {
+				if i < 2 {
 					logger.Info("应用代码包构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("应用代码包构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
@@ -186,7 +186,7 @@ func (e *exectorManager) imageManual(in []byte) {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("exec image manual python shell error:%s", err.Error())
-				if i < 3 {
+				if i < 2 {
 					logger.Info("应用镜像构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("应用镜像构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
@@ -212,7 +212,7 @@ func (e *exectorManager) codeCheck(in []byte) {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("exec code check python shell error:%s", err.Error())
-				if i < 3 {
+				if i < 2 {
 					logger.Info("应用镜像构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("应用镜像构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
@@ -238,7 +238,7 @@ func (e *exectorManager) appBuild(in []byte) {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("exec app build python shell error:%s", err.Error())
-				if i < 3 {
+				if i < 2 {
 					logger.Info("应用编译构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("应用编译构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
@@ -277,7 +277,7 @@ func (e *exectorManager) pluginImageBuild1(in []byte) {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("exec plugin build from image python shell error:%s", err.Error())
-				if i < 3 {
+				if i < 2 {
 					logger.Info("镜像构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("镜像构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
@@ -302,7 +302,7 @@ func (e *exectorManager) pluginDockerfileBuild1(in []byte) {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("exec plugin build from image python shell error:%s", err.Error())
-				if i < 3 {
+				if i < 2 {
 					logger.Info("dockerfile构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("dockerfile构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
