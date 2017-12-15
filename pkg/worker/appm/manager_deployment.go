@@ -83,6 +83,9 @@ func (m *manager) StartDeployment(serviceID string, logger event.Logger) (*v1bet
 	}
 	err = m.waitDeploymentReplicasReady(*deployment.Spec.Replicas, serviceID, logger, result)
 	if err != nil {
+		if err == ErrTimeOut {
+			return result, err
+		}
 		logrus.Error("deploy Deployment to apiserver then watch error.", err.Error())
 		logger.Error("Deployment实例启动情况检测失败", map[string]string{"step": "worker-appm", "status": "error"})
 		return result, err
@@ -262,7 +265,7 @@ func (m *manager) waitDeploymentReplicasReady(n int32, serviceID string, logger 
 		logger.Info(fmt.Sprintf("启动实例数 %d,已完成", deployment.Status.Replicas), map[string]string{"step": "worker-appm"})
 		return nil
 	}
-	second := int32(30)
+	second := int32(60)
 	if deployment != nil && len(deployment.Spec.Template.Spec.Containers) > 0 {
 		for _, c := range deployment.Spec.Template.Spec.Containers {
 			if c.ReadinessProbe != nil {

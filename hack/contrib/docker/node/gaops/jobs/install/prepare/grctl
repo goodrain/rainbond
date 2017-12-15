@@ -75,6 +75,7 @@ function test_public() {
     # 获取公网ip
     pubic_ip=$(ip ad | grep 'inet ' | grep -vE '( 10.|172.|192.168|127.)' | awk '{print $2}' | cut -d '/' -f 1)
     if [ ! -z $pubic_ip ];then
+        [ -d /etc/goodrain/envs/ ] || mkdir -p /etc/goodrain/envs/
         echo $pubic_ip > /etc/goodrain/envs/.exip
     fi
 }

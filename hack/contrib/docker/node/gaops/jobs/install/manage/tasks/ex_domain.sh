@@ -8,7 +8,7 @@ function domain() {
     if [ $DOMAIN != $ex_domain ];then
         echo "DOMAIN NOT ALLOW"
     else
-        docker run -it --rm hub.goodrain.com/dc-deploy/archiver:domain update --ip $IP --domain $DOMAIN
+        docker run --rm hub.goodrain.com/dc-deploy/archiver:domain update --ip $IP --domain $DOMAIN
         if [ $? -eq 0 ];then
             echo "domain change Success!!!"
         else

@@ -1,33 +1,33 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package handle
 
 import (
+	"context"
+	"time"
+
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/pkg/db"
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/goodrain/rainbond/pkg/status"
 	"github.com/goodrain/rainbond/pkg/worker/discover/model"
 	"github.com/goodrain/rainbond/pkg/worker/executor"
-	"context"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -114,7 +114,7 @@ func (m *Manager) startExec(task *model.Task) int {
 		return 1
 	}
 	if curStatus != status.STOPPING && curStatus != status.CLOSED && curStatus != status.UNDEPLOY {
-		logger.Info("应用状态不为已关闭，无需进行启动操作", map[string]string{"step": "last", "status": "success"})
+		logger.Info("应用状态未关闭，无需进行启动操作", map[string]string{"step": "last", "status": "success"})
 		event.GetManager().ReleaseLogger(logger)
 		return 0
 	}
@@ -144,11 +144,22 @@ func (m *Manager) stopExec(task *model.Task) int {
 		event.GetManager().ReleaseLogger(logger)
 		return 1
 	}
-	if curStatus == "stopping" {
+	if curStatus == status.STOPPING {
 		logger.Info("应用正在关闭中，请勿重复操作", map[string]string{"step": "last", "status": "success"})
 		event.GetManager().ReleaseLogger(logger)
 		return 0
 	}
+	if curStatus == status.CLOSED {
+		logger.Info("应用已关闭，请勿重复操作", map[string]string{"step": "last", "status": "success"})
+		event.GetManager().ReleaseLogger(logger)
+		return 0
+	}
+	if curStatus == status.UNDEPLOY {
+		logger.Info("应用未部署，无需关闭", map[string]string{"step": "last", "status": "success"})
+		event.GetManager().ReleaseLogger(logger)
+		return 0
+	}
+
 	ttask := m.execManager.TaskManager().NewStopTask(task, event.GetManager().GetLogger(body.EventID))
 	err := m.execManager.AddTask(ttask)
 	if err != nil {
@@ -168,6 +179,27 @@ func (m *Manager) restartExec(task *model.Task) int {
 		return 1
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
+	curStatus, errS := m.statusManager.GetStatus(body.ServiceID)
+	if errS != nil {
+		logger.Error("应用实时状态获取失败，稍后操作", map[string]string{"step": "callback", "status": "failure"})
+		event.GetManager().ReleaseLogger(logger)
+		return 1
+	}
+	if curStatus == status.STOPPING {
+		logger.Info("应用正在关闭中，请勿重复操作", map[string]string{"step": "last", "status": "success"})
+		event.GetManager().ReleaseLogger(logger)
+		return 0
+	}
+	if curStatus == status.CLOSED {
+		logger.Info("应用已关闭，请直接启动应用", map[string]string{"step": "last", "status": "success"})
+		event.GetManager().ReleaseLogger(logger)
+		return 0
+	}
+	if curStatus == status.UNDEPLOY {
+		logger.Info("应用未部署，无法进行重启", map[string]string{"step": "last", "status": "success"})
+		event.GetManager().ReleaseLogger(logger)
+		return 0
+	}
 	ttask := m.execManager.TaskManager().NewRestartTask(task, event.GetManager().GetLogger(body.EventID))
 	err := m.execManager.AddTask(ttask)
 	if err != nil {

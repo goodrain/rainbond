@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -105,7 +104,7 @@ func (s *stopTask) Run() error {
 	case dbmodel.TypeStatefulSet:
 		s.logger.Info("开始移除StatefulSet", map[string]string{"step": "worker-executor", "status": "starting"})
 		err = s.taskManager.appm.StopStatefulSet(s.modelTask.ServiceID, s.logger)
-		if err != nil {
+		if err != nil && err.Error() != appm.ErrNotDeploy.Error() {
 			s.logger.Info("移除StatefulSet失败"+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
 		}
@@ -114,7 +113,7 @@ func (s *stopTask) Run() error {
 	case dbmodel.TypeDeployment:
 		s.logger.Info("开始移除Deployment", map[string]string{"step": "worker-executor", "status": "starting"})
 		err = s.taskManager.appm.StopDeployment(s.modelTask.ServiceID, s.logger)
-		if err != nil {
+		if err != nil && err.Error() != appm.ErrNotDeploy.Error() {
 			s.logger.Info("移除Deployment失败"+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
 		}
@@ -123,7 +122,7 @@ func (s *stopTask) Run() error {
 	case dbmodel.TypeReplicationController:
 		s.logger.Info("开始移除ReplicationController", map[string]string{"step": "worker-executor", "status": "starting"})
 		err = s.taskManager.appm.StopReplicationController(s.modelTask.ServiceID, s.logger)
-		if err != nil {
+		if err != nil && err.Error() != appm.ErrNotDeploy.Error() {
 			s.logger.Info("移除ReplicationController失败"+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
 		}

@@ -82,6 +82,9 @@ func (m *manager) StartReplicationController(serviceID string, logger event.Logg
 	}
 	err = m.waitRCReplicasReady(*rc.Spec.Replicas, serviceID, logger, result)
 	if err != nil {
+		if err == ErrTimeOut {
+			return result, err
+		}
 		logrus.Error("deploy ReplicationController to apiserver then watch error.", err.Error())
 		logger.Error("ReplicationController实例启动情况检测失败", map[string]string{"step": "worker-appm", "status": "error"})
 		return result, err
@@ -418,7 +421,7 @@ func (m *manager) waitRCReplicasReady(n int32, serviceID string, logger event.Lo
 		logger.Info(fmt.Sprintf("启动实例数 %d,已完成", rc.Status.Replicas), map[string]string{"step": "worker-appm"})
 		return nil
 	}
-	second := int32(30)
+	second := int32(60)
 	if rc.Spec.Template != nil && len(rc.Spec.Template.Spec.Containers) > 0 {
 		for _, c := range rc.Spec.Template.Spec.Containers {
 			if c.ReadinessProbe != nil {

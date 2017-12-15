@@ -91,6 +91,9 @@ func (m *manager) StartStatefulSet(serviceID string, logger event.Logger) (*v1be
 	}
 	err = m.waitStatefulReplicasReady(*statefull.Spec.Replicas, serviceID, logger, result)
 	if err != nil {
+		if err == ErrTimeOut {
+			return result, err
+		}
 		logrus.Error("deploy statefulset to apiserver then watch error.", err.Error())
 		logger.Error("StatefulSet实例启动情况检测失败", map[string]string{"step": "worker-appm", "status": "error"})
 		return result, err
@@ -271,7 +274,7 @@ func (m *manager) waitStatefulReplicasReady(n int32, serviceID string, logger ev
 		logger.Info(fmt.Sprintf("启动实例数 %d,已完成", stateful.Status.Replicas), map[string]string{"step": "worker-appm"})
 		return nil
 	}
-	second := int32(30)
+	second := int32(60)
 	if stateful != nil && len(stateful.Spec.Template.Spec.Containers) > 0 {
 		for _, c := range stateful.Spec.Template.Spec.Containers {
 			if c.ReadinessProbe != nil {

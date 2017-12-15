@@ -626,6 +626,7 @@ func (t *TaskEngine) waitScheduleTask(taskSchedulerInfo *TaskSchedulerInfo, task
 								} else {
 									taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s can not found exec node", depTask.ID)
 									taskSchedulerInfo.Status.Status = "Failure"
+									taskSchedulerInfo.Status.SchedulerTime = time.Now()
 									task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
 									continueScheduler = false
 									continue
@@ -662,6 +663,7 @@ func (t *TaskEngine) waitScheduleTask(taskSchedulerInfo *TaskSchedulerInfo, task
 						if faiiureSize != 0 && faiiureSize >= len(depTask.Scheduler.Status) {
 							taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s Condition cannot be satisfied", depTask.ID)
 							taskSchedulerInfo.Status.Status = "Failure"
+							taskSchedulerInfo.Status.SchedulerTime = time.Now()
 							task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
 							continueScheduler = false
 							return false
@@ -682,6 +684,7 @@ func (t *TaskEngine) waitScheduleTask(taskSchedulerInfo *TaskSchedulerInfo, task
 						} else if ok && nodestatus.CompleStatus != "" {
 							taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s(%s) Condition cannot be satisfied", depTask.ID, nodestatus.CompleStatus)
 							taskSchedulerInfo.Status.Status = "Failure"
+							taskSchedulerInfo.Status.SchedulerTime = time.Now()
 							task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
 							continueScheduler = false
 							return false
@@ -695,6 +698,7 @@ func (t *TaskEngine) waitScheduleTask(taskSchedulerInfo *TaskSchedulerInfo, task
 				} else {
 					taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s is not found", dep.DependTaskID)
 					taskSchedulerInfo.Status.Status = "Failure"
+					taskSchedulerInfo.Status.SchedulerTime = time.Now()
 					task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
 					result[i] = false
 					continueScheduler = false
@@ -855,7 +859,7 @@ func (t *TaskEngine) HandleJobRecord() {
 		case <-t.ctx.Done():
 			return
 		case event := <-ch:
-			if err:=event.Err();err!=nil{
+			if err := event.Err(); err != nil {
 
 			}
 			for _, ev := range event.Events {
