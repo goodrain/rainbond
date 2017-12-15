@@ -163,7 +163,7 @@ func NewCmdNode() cli.Command {
 					for _,v:=range list{
 
 						var ready bool=false
-						if (v.NodeStatus!=nil){
+						if isNodeReady(v){
 							ready=true
 						}
 						if v.Role.HasRule("manage") {
@@ -439,7 +439,20 @@ func getNodeWithResource(c *cli.Context) error {
 	fmt.Println(table.Render())
 	return nil
 }
+func isNodeReady(node *model.HostNode) bool {
+	if node.NodeStatus==nil {
+		return false
+	}
+	for _,v:=range node.NodeStatus.Conditions{
+		if strings.ToLower(string(v.Type))=="ready"{
+			if strings.ToLower(string(v.Status))=="true"{
+				return true
+			}
+		}
+	}
 
+	return false
+}
 func getNode(c *cli.Context) error {
 	ns, err :=clients.K8SClient.Core().Nodes().List(metav1.ListOptions{})
 	if err != nil {

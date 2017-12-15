@@ -175,6 +175,16 @@ func (n *NodeCluster) GetNode(id string) *model.HostNode {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	if node, ok := n.nodes[id]; ok {
+		if node.NodeStatus != nil {
+			if node.Unschedulable {
+				node.Status = "unschedulable"
+			} else {
+				node.Status = "schedulable"
+			}
+			node.AvailableCPU = node.NodeStatus.Allocatable.Cpu().Value()
+			node.AvailableMemory = node.NodeStatus.Allocatable.Memory().Value()
+		}
+
 		return node
 	}
 	return nil
@@ -334,6 +344,15 @@ func (n *NodeCluster) GetAllNode() (nodes []*model.HostNode) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	for _, node := range n.nodes {
+		if node.NodeStatus != nil {
+			if node.Unschedulable {
+				node.Status = "unschedulable"
+			} else {
+				node.Status = "schedulable"
+			}
+			node.AvailableCPU = node.NodeStatus.Allocatable.Cpu().Value()
+			node.AvailableMemory = node.NodeStatus.Allocatable.Memory().Value()
+		}
 		nodes = append(nodes, node)
 	}
 	return
