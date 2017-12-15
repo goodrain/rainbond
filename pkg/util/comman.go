@@ -51,6 +51,11 @@ func CheckAndCreateDir(path string) error {
 	return nil
 }
 
+//OpenOrCreateFile open or create file
+func OpenOrCreateFile(filename string) (*os.File, error) {
+	return os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0777)
+}
+
 //FileExists check file exist
 func FileExists(filename string) (bool, error) {
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
