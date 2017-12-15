@@ -82,6 +82,10 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*node_model.SDS, *
 				logrus.Debugf("outer endpoints items length is 0, continue")
 				return nil, util.CreateAPIHandleError(400, fmt.Errorf("outer have no endpoints"))
 			}
+			services, err = k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+			if err != nil {
+				return nil, util.CreateAPIHandleError(500, err)
+			}
 		} else {
 			return nil, util.CreateAPIHandleError(400, fmt.Errorf("inner have no endpoints"))
 		}
@@ -166,6 +170,10 @@ func (d *DiscoverAction) DiscoverListeners(
 				if len(endpoint.Items) == 0 {
 					logrus.Debugf("outer endpoints items length is 0, continue")
 					continue
+				}
+				services, err = k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+				if err != nil {
+					return nil, util.CreateAPIHandleError(500, err)
 				}
 			} else {
 				logrus.Debugf("inner endpoints items length is 0, continue")
@@ -354,6 +362,16 @@ func (d *DiscoverAction) DiscoverClusters(
 		services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
+		}
+		if len(services.Items) == 0 {
+			if destServiceAlias == serviceAlias {
+				labelname := fmt.Sprintf("name=%sServiceOUT", destServiceAlias)
+				var err error
+				services, err = k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+				if err != nil {
+					return nil, util.CreateAPIHandleError(500, err)
+				}
+			}
 		}
 		selfCount := 0
 		for _, service := range services.Items {
