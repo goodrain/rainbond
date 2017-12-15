@@ -178,7 +178,15 @@ class AppSlug():
             }
             if share_id is not None:
                 data['share_id'] = share_id
-            self.region_client.service_publish_new_region(data)
+            try:
+                self.region_client.service_publish_new_region(data)
+            except Exception as e:
+                self.region_client.service_publish_failure_region(data)
+                self.log.error(
+                    "云帮应用本地发布失败,保存publish 失败。{0}".format(e.message),
+                    step="callback",
+                    status="failure")
+                pass
             if self.is_region_slug:
                 try:
                     self.log.info("开始上传应用到本地云帮")
@@ -229,7 +237,15 @@ class AppSlug():
             }
             if share_id is not None:
                 data['share_id'] = share_id
-            self.region_client.service_publish_new_region(data)
+            try:
+                self.region_client.service_publish_new_region(data)
+            except Exception as e:
+                self.region_client.service_publish_failure_region(data)
+                self.log.error(
+                    "云帮应用本地发布失败,保存publish 失败。{0}".format(e.message),
+                    step="callback",
+                    status="failure")
+                pass
             if self.is_oss_ftp:
                 try:
                     self.log.info("开始上传应用到云市")
@@ -244,6 +260,7 @@ class AppSlug():
                         self.region_client.service_publish_success_region(data)
                     except Exception as e:
                         logger.exception(e)
+
                         self.region_client.service_publish_failure_region(data)
                         pass
 
@@ -342,15 +359,20 @@ class AppSlug():
         """ 下载slug包 """
 
         def start_service(service_id, deploy_version, operator):
+            # body = {
+            #     "deploy_version": deploy_version,
+            #     "operator": operator,
+            #     "event_id": self.event_id
+            # }
             body = {
                 "deploy_version": deploy_version,
-                "operator": operator,
                 "event_id": self.event_id
             }
             try:
                 # logger.info("mq_work.app_slug", "start service {}:{}".format(service_id, deploy_version))
                 self.log.info("开始调用api启动应用。")
-                self.region_api.start_service(service_id, json.dumps(body))
+                self.api.upgrade_service(self.tenant_name, self.service_alias, json.dumps(body))
+                # self.region_api.start_service(service_id, json.dumps(body))
             except self.region_api.CallApiError, e:
                 self.log.info(
                     "开始调用api启动应用失败。{}".format(e.message),
@@ -478,7 +500,12 @@ class AppSlug():
             except Exception as e:
                 pass
             try:
-                self.api.start_service(tenant_name, service_alias, event_id)
+                body = {
+                    "deploy_version": self.task['deploy_version'],
+                    "event_id": self.event_id
+                }
+                # self.api.start_service(tenant_name, service_alias, event_id)
+                self.api.upgrade_service(self.task['tenant_name'], self.task['service_alias'], json.dumps(body))
             except Exception as e:
                 logger.exception(e)
                 self.log.error(

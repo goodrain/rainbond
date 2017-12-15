@@ -130,6 +130,10 @@ class ImageManual():
                 "path": local_image,
                 "event_id": self.event_id
             }
+            body = {
+                "deploy_version": self.task['deploy_version'],
+                "event_id": self.event_id,
+            }
             version_status['final_status'] = "success"
             try:
                 self.region_client.update_version_region(json.dumps(version_body))
@@ -138,8 +142,10 @@ class ImageManual():
                 pass
             try:
                 self.api.update_iamge(tenant_name, service_alias, local_image)
+                version = self.task['deploy_version']
                 self.log.info("应用信息更新完成，开始启动应用。", step="app-image", status="success")
-                self.api.start_service(tenant_name, service_alias, event_id)
+                self.api.upgrade_service(self.task['tenant_name'], self.task['service_alias'], json.dumps(body))
+                # self.api.start_service(tenant_name, service_alias, event_id)
             except Exception as e:
                 logger.exception(e)
                 self.log.error(

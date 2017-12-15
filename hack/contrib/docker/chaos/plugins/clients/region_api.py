@@ -12,7 +12,7 @@ class RegionBackAPI(BaseHttpClient):
         self._name = 'region'
         self.default_headers = {"Content-Type": "application/json"}
         if conf is None:
-            self.base_url = "http://localhost:3228"
+            self.base_url = "http://localhost:3228/v2/builder"
         else:
             self.base_url = conf["url"]
 

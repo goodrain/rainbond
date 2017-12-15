@@ -24,27 +24,28 @@ import (
 
 func APIServer() *chi.Mux {
 	r := chi.NewRouter()
+	r.Route("/v2/builder", func(r chi.Router) {
+		r.Route("/codecheck", func(r chi.Router) {
+			r.Post("/", controller.AddCodeCheck)
+			r.Put("/service/{serviceID}", controller.Update)
+			r.Get("/service/{serviceID}", controller.GetCodeCheck)
+		})
+		r.Route("/publish", func(r chi.Router) {
+			r.Get("/service/{serviceKey}/version/{appVersion}",controller.GetAppPublish)
+			r.Post("/",controller.AddAppPublish)
 
-	r.Route("/codecheck", func(r chi.Router) {
-		r.Post("/", controller.AddCodeCheck)
-		r.Put("/service/{serviceID}", controller.Update)
-		r.Get("/service/{serviceID}", controller.GetCodeCheck)
-	})
-	r.Route("/publish", func(r chi.Router) {
-		r.Get("/service/{serviceKey}/version/{appVersion}",controller.GetAppPublish)
-		r.Post("/",controller.AddAppPublish)
+		})
+		r.Route("/version", func(r chi.Router) {
 
-	})
-	r.Route("/version", func(r chi.Router) {
-
-		r.Post("/",controller.UpdateDeliveredPath)
-		r.Get("/event/{eventID}",controller.GetVersionByEventID)
-		r.Post("/event/{eventID}",controller.UpdateVersionByEventID)
-		r.Get("/service/{serviceID}",controller.GetVersionByServiceID)
-		r.Delete("/service/{eventID}",controller.DeleteVersionByEventID)
-	})
-	r.Route("/event", func(r chi.Router) {
-		r.Get("/",controller.GetEventsByIds)
+			r.Post("/",controller.UpdateDeliveredPath)
+			r.Get("/event/{eventID}",controller.GetVersionByEventID)
+			r.Post("/event/{eventID}",controller.UpdateVersionByEventID)
+			r.Get("/service/{serviceID}",controller.GetVersionByServiceID)
+			r.Delete("/service/{eventID}",controller.DeleteVersionByEventID)
+		})
+		r.Route("/event", func(r chi.Router) {
+			r.Get("/", controller.GetEventsByIds)
+		})
 	})
 	return r
 }

@@ -86,14 +86,6 @@ func Run(s *option.Builder) error {
 	go http.ListenAndServe(":3228", r)
 
 
-	//service reg
-	discoverManager, errD := discover.NewDiscoverManager(s.Config)
-	if errD != nil {
-		return errD
-	}
-	discoverManager.Start()
-	defer discoverManager.CancelIP()
-
 	logrus.Info("builder begin running...")
 	//step finally: listen Signal
 	term := make(chan os.Signal)

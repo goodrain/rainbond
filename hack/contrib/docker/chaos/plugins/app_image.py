@@ -100,7 +100,12 @@ class AppImage():
                 }
                 if share_id is not None:
                     data["share_id"] = share_id
-                self.region_client.service_publish_new_region(data)
+                try:
+                    self.region_client.service_publish_new_region(data)
+                except Exception as e:
+                    self.region_client.service_publish_failure_region(data)
+                    self.log.error("云帮应用本地发布失败,保存publish 失败。{0}".format(e.message),step="callback",status="failure")
+                pass
                 if self.is_region_image and not self.oss_registry.exist_image(
                         oss_image):
                     try:
@@ -176,7 +181,13 @@ class AppImage():
                 }
                 if share_id is not None:
                     req["share_id"] = share_id
-                self.region_client.service_publish_new_region(req)
+                try:
+                    self.region_client.service_publish_new_region(data)
+                except Exception as e:
+                    self.region_client.service_publish_failure_region(data)
+                    self.log.info("云帮应用本地发布失败,保存publish 失败。{0}".format(e.message),step="callback",status="failure")
+                pass
+                # self.region_client.service_publish_new_region(req)
                 self.log.info("开始上传镜像到云市")
                 # 修改image name
                 hub_image = self.hubclient.rename_image(image)
@@ -233,7 +244,7 @@ class AppImage():
                         status="failure")
             else:
                 self.log.info("镜像不存在，发布失败", step="callback", status="failure")
-                
+
     def download_and_deploy(self):
         image = self.task['image']
         namespace = self.task['namespace']
@@ -348,8 +359,15 @@ class AppImage():
                 pass
             version_status['final_status']="success"
             self.log.info("应用同步完成，开始启动应用。", step="app-image", status="success")
+
+            body = {
+                "deploy_version": self.task['deploy_version'],
+                "event_id": self.event_id
+            }
+
             try:
-                self.api.start_service(tenant_name, service_alias, event_id)
+                # self.api.start_service(tenant_name, service_alias, event_id)
+                self.api.upgrade_service(self.task['tenant_name'], self.task['service_alias'], json.dumps(body))
             except Exception as e:
                 logger.exception(e)
                 self.log.error(
