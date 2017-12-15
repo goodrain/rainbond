@@ -804,20 +804,18 @@ func (p *PodTemplateSpecBuild) createPluginArgs(cmd string) ([]string, error) {
 
 //container envs
 func (p *PodTemplateSpecBuild) createPluginEnvs(pluginID string, mainEnvs *[]v1.EnvVar, versionID string) (*[]v1.EnvVar, error) {
-	defaultEnvs, err := p.dbmanager.TenantPluginDefaultENVDao().GetDefaultEnvWhichCanBeSetByPluginID(pluginID, versionID)
-	if err != nil {
-		return nil, err
-	}
 	versionEnvs, err := p.dbmanager.TenantPluginVersionENVDao().GetVersionEnvByServiceID(p.serviceID, pluginID)
 	if err != nil {
 		return nil, err
 	}
 	var envs []v1.EnvVar
-	for _, e := range defaultEnvs {
-		envs = append(envs, v1.EnvVar{Name: e.ENVName, Value: e.ENVValue})
-	}
 	for _, e := range versionEnvs {
 		envs = append(envs, v1.EnvVar{Name: e.EnvName, Value: e.EnvValue})
+	}
+	for _, pluginRelation := range p.pluginsRelation {
+		if strings.Contains(pluginRelation.PluginModel, "net-plugin") {
+			envs = append(envs, v1.EnvVar{Name: "PLUGIN_MOEL", Value: pluginRelation.PluginModel})
+		}
 	}
 	discoverURL := fmt.Sprintf(
 		"%s/v1/resources/%s/%s/%s",
@@ -831,6 +829,7 @@ func (p *PodTemplateSpecBuild) createPluginEnvs(pluginID string, mainEnvs *[]v1.
 		envs = append(envs, e)
 	}
 	//TODO: 在哪些情况下需要注入主容器的环境变量
+	logrus.Debugf("plugin env is %v", envs)
 	return &envs, nil
 }
 

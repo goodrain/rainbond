@@ -25,8 +25,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jinzhu/gorm"
-
 	"github.com/goodrain/rainbond/cmd/api/option"
 	api_db "github.com/goodrain/rainbond/pkg/api/db"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
@@ -66,8 +64,6 @@ func CreatePluginManager(conf option.Config) (*PluginAction, error) {
 
 //CreatePluginAct PluginAct
 func (p *PluginAction) CreatePluginAct(cps *api_model.CreatePluginStruct) *util.APIHandleError {
-	//TODO:事务
-	tx := db.GetManager().Begin()
 	tp := &dbmodel.TenantPlugin{
 		TenantID:    cps.Body.TenantID,
 		PluginID:    cps.Body.PluginID,
@@ -79,27 +75,8 @@ func (p *PluginAction) CreatePluginAct(cps *api_model.CreatePluginStruct) *util.
 		BuildModel:  cps.Body.BuildModel,
 		Domain:      cps.TenantName,
 	}
-	err := db.GetManager().TenantPluginDaoTransactions(tx).AddModel(tp)
-	if err != nil {
-		tx.Rollback()
+	if err := db.GetManager().TenantPluginDao().AddModel(tp); err != nil {
 		return util.CreateAPIHandleErrorFromDBError("create plugin", err)
-	}
-	//添加默认plugin model env
-	vis := &dbmodel.TenantPluginDefaultENV{
-		PluginID: cps.Body.PluginID,
-		ENVName:  "PLUGIN_MOEL",
-		ENVValue: cps.Body.PluginModel,
-		IsChange: false,
-		//VersionID: "master_rb",
-	}
-	err = db.GetManager().TenantPluginDefaultENVDaoTransactions(tx).AddModel(vis)
-	if err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("add default env PLUGIN_MOEL", err)
-	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("commit create plugin transactions", err)
 	}
 	return nil
 }
@@ -133,11 +110,6 @@ func (p *PluginAction) DeletePluginAct(pluginID string) *util.APIHandleError {
 	if err != nil {
 		tx.Rollback()
 		return util.CreateAPIHandleErrorFromDBError("delete plugin", err)
-	}
-	err = db.GetManager().TenantPluginDefaultENVDaoTransactions(tx).DeleteAllDefaultENVByPluginID(pluginID)
-	if err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("delete default env", err)
 	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
@@ -456,13 +428,6 @@ func (p *PluginAction) DeletePluginBuildVersion(pluginID, versionID string) *uti
 	err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).DeleteBuildVersionByVersionID(versionID)
 	if err != nil {
 		return util.CreateAPIHandleErrorFromDBError(fmt.Sprintf("delete plugin build version by id %v", versionID), err)
-	}
-	err = db.GetManager().TenantPluginDefaultENVDaoTransactions(tx).DeleteDefaultENVByPluginIDAndVersionID(pluginID, versionID)
-	if err != nil {
-		if err.Error() != gorm.ErrRecordNotFound.Error() {
-			tx.Rollback()
-			return util.CreateAPIHandleErrorFromDBError("delete default env", err)
-		}
 	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()

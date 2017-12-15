@@ -119,7 +119,6 @@ func (m *Manager) RegisterTableModel() {
 	//vs map port
 	m.models = append(m.models, &model.TenantServiceLBMappingPort{})
 	m.models = append(m.models, &model.TenantPlugin{})
-	m.models = append(m.models, &model.TenantPluginDefaultENV{})
 	m.models = append(m.models, &model.TenantPluginBuildVersion{})
 	m.models = append(m.models, &model.TenantServicePluginRelation{})
 	m.models = append(m.models, &model.TenantPluginVersionEnv{})
