@@ -81,7 +81,20 @@ func CreateManager(conf option.Config) (*ServiceAction, error) {
 		KubeClient: kubeClient,
 	}, nil
 }
+func checkDeployVersion(r *api_model.BuildServiceStruct) {
+	eventID := r.Body.EventID
+	logger := event.GetManager().GetLogger(eventID)
+	if len(r.Body.DeployVersion)==0 {
 
+		version,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+		if err != nil {
+			logger.Info("获取部署版本信息失败",map[string]string{"step": "callback", "status": "failure"})
+			return
+		}
+		r.Body.DeployVersion=version.BuildVersion
+		logrus.Infof("change deploy version to %s",r.Body.DeployVersion)
+	}
+}
 //ServiceBuild service build
 func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.BuildServiceStruct) error {
 	eventID := r.Body.EventID
@@ -97,6 +110,7 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 	switch r.Body.Kind {
 	case "source":
 		//源码构建
+		checkDeployVersion(r)
 		if err := s.sourceBuild(r, service); err != nil {
 			logger.Error("源码构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -105,6 +119,7 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		return nil
 	case "slug":
 		//源码构建的分享至云市安装回平台
+		checkDeployVersion(r)
 		if err := s.slugBuild(r, service); err != nil {
 			logger.Error("slug构建应用任务发送失败"+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -113,6 +128,7 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		return nil
 	case "image":
 		//镜像构建
+		checkDeployVersion(r)
 		if err := s.imageBuild(r, service); err != nil {
 			logger.Error("镜像构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -121,6 +137,7 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		return nil
 	case "market":
 		//镜像构建分享至云市安装回平台
+		checkDeployVersion(r)
 		if err := s.marketBuild(r, service); err != nil {
 			logger.Error("云市构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -210,7 +227,6 @@ func (s *ServiceAction) slugBuild(r *api_model.BuildServiceStruct, service *dbmo
 	body["app_version"] = service.ServiceVersion
 	body["app_key"] = service.ServiceKey
 	body["namespace"] = service.Namespace
-	body["deploy_version"] = service.DeployVersion
 	body["operator"] = r.Body.Operator
 	body["event_id"] = r.Body.EventID
 	body["tenant_name"] = r.Body.TenantName
@@ -443,7 +459,8 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	envs := sc.EnvsInfo
 	volumns := sc.VolumesInfo
 	dependIds := sc.DependIDs
-
+	logrus.Infof("creating new service,deploy version is %s",ts.DeployVersion)
+	ts.DeployVersion=""
 	tx := db.GetManager().Begin()
 
 	//服务信息表
