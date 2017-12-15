@@ -379,7 +379,7 @@ func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 		if ts.Body.TenantID == "" {
 			dbts.UUID = id
 		} else {
-			dbts.ID = ts.Body.TenantID
+			dbts.UUID = ts.Body.TenantID
 			id = ts.Body.TenantID
 		}
 		if err := handler.GetServiceManager().CreateTenant(&dbts); err != nil {
