@@ -47,7 +47,7 @@ func NewCmdDomain() cli.Command {
 				return nil
 			}
 			domain:=c.String("domain")
-			cmd := exec.Command("bash", "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/tasks/ex_domain.sh",ip+" "+domain)
+			cmd := exec.Command("bash", "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/tasks/ex_domain.sh",ip,domain)
 			outbuf:=bytes.NewBuffer(nil)
 			cmd.Stdout=outbuf
 			cmd.Run()

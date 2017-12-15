@@ -215,18 +215,6 @@
                 "nodes": [],
                 "depends": [
                     {
-                        "depend_task_id": "install_docker_compute",
-                        "strategy": "SameNode"
-                    },
-                    {
-                        "depend_task_id": "install_kubelet",
-                        "strategy": "SameNode"
-                    },
-                    {
-                        "depend_task_id": "install_network_compute",
-                        "strategy": "SameNode"
-                    },
-                    {
                         "depend_task_id": "install_plugins_compute",
                         "strategy": "SameNode"
                     }

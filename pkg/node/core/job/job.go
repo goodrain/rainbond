@@ -41,6 +41,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
 	"github.com/goodrain/rainbond/pkg/node/utils"
+	"github.com/goodrain/rainbond/pkg/util"
 	"github.com/robfig/cron"
 	"github.com/twinj/uuid"
 )
@@ -463,18 +464,33 @@ func (j *Job) CountRunning() (int64, error) {
 
 //handleJobLog 从标准输出获取日志
 func handleJobLog(job *Job, read io.ReadCloser) {
+	var logpath = "/var/log/event"
+	util.CheckAndCreateDir(logpath)
 	if job.EventID != "" {
 		logger := event.GetManager().GetLogger(job.EventID)
 		defer event.GetManager().ReleaseLogger(logger)
 		defer read.Close()
+		logfile, err := util.OpenOrCreateFile(logpath + "/" + job.EventID + ".log")
+		if err != nil {
+			logrus.Errorf("open file %s error,%s", logpath+"/"+job.EventID+".log", err.Error())
+		}
+		if logfile != nil {
+			defer logfile.Close()
+		}
+		r := bufio.NewReader(read)
 		for {
-			r := bufio.NewReader(read)
 			line, _, err := r.ReadLine()
 			if err != nil {
 				return
 			}
 			lineStr := string(line)
 			logger.Debug(lineStr, map[string]string{"jobId": job.ID, "status": "3"})
+			if logfile != nil {
+				// 查找文件末尾的偏移量
+				n, _ := logfile.Seek(0, os.SEEK_END)
+				// 从末尾的偏移量开始写入内容
+				_, err = logfile.WriteAt(append(line, []byte("\n")...), n)
+			}
 		}
 	}
 }
@@ -496,10 +512,10 @@ func (j *Job) Run(nid string) bool {
 		cmd.Stdin = bytes.NewBuffer([]byte(j.Stdin))
 	}
 	//从执行任务的标准输出获取日志，错误输出获取最终结果
-	stderr, _ := cmd.StdoutPipe()
+	stdout, _ := cmd.StdoutPipe()
 	var b bytes.Buffer
 	cmd.Stderr = &b
-	go handleJobLog(j, stderr)
+	go handleJobLog(j, stdout)
 
 	if err := cmd.Start(); err != nil {
 		logrus.Warnf("job exec failed,details :%s", err.Error())

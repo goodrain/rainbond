@@ -138,6 +138,7 @@ func initCluster(c *cli.Context) error {
 		fmt.Println("init success，start install")
 	} else {
 		fmt.Println("init failed！")
+		fmt.Println(jsonStr)
 		return nil
 	}
 	time.Sleep(5 * time.Second)
