@@ -383,7 +383,8 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 		cc.authority = target
 	}
 	waitC := make(chan error, 1)
-	go func() {
+	//同步完成
+	func() {
 		defer close(waitC)
 		if cc.dopts.balancer == nil && cc.sc.LB != nil {
 			cc.dopts.balancer = cc.sc.LB

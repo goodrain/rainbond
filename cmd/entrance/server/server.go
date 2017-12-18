@@ -1,36 +1,36 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package server
 
 import (
-	"github.com/goodrain/rainbond/pkg/entrance/api"
-	"github.com/goodrain/rainbond/pkg/entrance/cluster"
-	"github.com/goodrain/rainbond/cmd/entrance/option"
-	"github.com/goodrain/rainbond/pkg/entrance/core"
-	"github.com/goodrain/rainbond/pkg/entrance/core/sync"
-	"github.com/goodrain/rainbond/pkg/entrance/discover"
-	"github.com/goodrain/rainbond/pkg/entrance/source"
-	"github.com/goodrain/rainbond/pkg/entrance/store"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/goodrain/rainbond/cmd/entrance/option"
+	"github.com/goodrain/rainbond/pkg/discover"
+	"github.com/goodrain/rainbond/pkg/entrance/api"
+	"github.com/goodrain/rainbond/pkg/entrance/cluster"
+	"github.com/goodrain/rainbond/pkg/entrance/core"
+	"github.com/goodrain/rainbond/pkg/entrance/core/sync"
+	"github.com/goodrain/rainbond/pkg/entrance/source"
+	"github.com/goodrain/rainbond/pkg/entrance/store"
 
 	"github.com/Sirupsen/logrus"
 
@@ -70,12 +70,15 @@ func Run(s *option.ACPLBServer) error {
 	defer apiManager.Stop()
 
 	//step 6:registor acp_entrance host_ip into etcd
-	discoverManager, errD := discover.NewDiscoverManager(s.Config)
-	if errD != nil {
-		return errD
+	keepalive, err := discover.CreateKeepAlive(s.Config.EtcdEndPoints, "acp_entrance",
+		s.Config.HostName, s.Config.HostIP, s.Config.BindPort)
+	if err != nil {
+		return err
 	}
-	discoverManager.Start()
-	defer discoverManager.CancelIP()
+	if err := keepalive.Start(); err != nil {
+		return err
+	}
+	defer keepalive.Stop()
 
 	//step 7:new source manager and start
 	sourceManager := source.NewSourceManager(s.Config, coreManager, errChan)

@@ -19,12 +19,11 @@
 package appm
 
 import (
+	"github.com/goodrain/rainbond/pkg/db/model"
+	"github.com/goodrain/rainbond/pkg/event"
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/goodrain/rainbond/pkg/db/model"
-	"github.com/goodrain/rainbond/pkg/event"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
