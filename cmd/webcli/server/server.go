@@ -19,15 +19,13 @@
 package server
 
 import (
-	"context"
-	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
-	"time"
 
-	client "github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/webcli/option"
+	"github.com/goodrain/rainbond/pkg/discover"
 	"github.com/goodrain/rainbond/pkg/webcli/app"
 
 	"github.com/Sirupsen/logrus"
@@ -38,7 +36,7 @@ func Run(s *option.WebCliServer) error {
 	errChan := make(chan error)
 	option := app.DefaultOptions
 	option.Address = s.Address
-	option.Port = s.Port
+	option.Port = strconv.Itoa(s.Port)
 	option.SessionKey = s.SessionKey
 	ap, err := app.New(nil, &option)
 	if err != nil {
@@ -49,7 +47,14 @@ func Run(s *option.WebCliServer) error {
 		return err
 	}
 	defer ap.Exit()
-	go keepAlive(s.EtcdEndPoints, s.HostIP, s.Port)
+	keepalive, err := discover.CreateKeepAlive(s.EtcdEndPoints, "acp_webcli", s.HostIP, s.HostIP, s.Port)
+	if err != nil {
+		return err
+	}
+	if err := keepalive.Start(); err != nil {
+		return err
+	}
+	defer keepalive.Stop()
 	//step finally: listen Signal
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
@@ -61,53 +66,4 @@ func Run(s *option.WebCliServer) error {
 	}
 	logrus.Info("See you next time!")
 	return nil
-}
-
-func keepAlive(etcdEndpoint []string, address, port string) {
-	duration := time.Duration(5) * time.Second
-	ttl := int64(8)
-	timer := time.NewTimer(duration)
-	cli, err := client.New(client.Config{
-		Endpoints: etcdEndpoint,
-	})
-	if err != nil {
-		logrus.Error("create etcd client error,", err.Error())
-	}
-	var lid client.LeaseID
-	for {
-		select {
-		case <-timer.C:
-			if lid > 0 {
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-				_, err := cli.KeepAliveOnce(ctx, lid)
-				cancel()
-				if err == nil {
-					timer.Reset(duration)
-					continue
-				}
-				logrus.Warnf("lid[%x] keepAlive err: %s, try to reset...", lid, err.Error())
-				lid = 0
-			} else {
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-				resp, err := cli.Grant(ctx, ttl)
-				if err != nil {
-					logrus.Error("Grand from etcd error.", err.Error())
-					timer.Reset(duration)
-					cancel()
-					continue
-				}
-				hostName, _ := os.Hostname()
-				if _, err = cli.Put(ctx,
-					fmt.Sprintf("/traefik/backends/acp_webcli/servers/%s/url", hostName),
-					fmt.Sprintf("%s:%s", address, port), client.WithLease(resp.ID)); err != nil {
-					logrus.Error("put web_cli endpoint to etcd error.", err.Error())
-					timer.Reset(duration)
-					cancel()
-					continue
-				}
-				cancel()
-				lid = resp.ID
-			}
-		}
-	}
 }

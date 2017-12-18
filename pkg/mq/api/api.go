@@ -19,6 +19,7 @@
 package api
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"time"
@@ -109,14 +110,14 @@ func NewManager(c option.Config) (*Manager, error) {
 	}()
 	if c.RunMode == "http" {
 		wsContainer := restful.NewContainer()
-		server := &http.Server{Addr: c.APIAddr, Handler: wsContainer}
+		server := &http.Server{Addr: fmt.Sprintf(":%d", c.APIPort), Handler: wsContainer}
 		controller.Register(wsContainer, actionMQ)
 		manager.container = wsContainer
 		manager.server = &httpServer{server}
 		manager.doc()
 		logrus.Info("mq server api run with http")
 	} else {
-		lis, err := net.Listen("tcp", c.APIAddr)
+		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", c.APIPort))
 		if err != nil {
 			logrus.Errorf("failed to listen: %v", err)
 			return nil, err
@@ -137,7 +138,7 @@ func NewManager(c option.Config) (*Manager, error) {
 
 //Start 启动
 func (m *Manager) Start(errChan chan error) {
-	logrus.Infof("api server start listening on %s", m.conf.APIAddr)
+	logrus.Infof("api server start listening on 0.0.0.0:%d", m.conf.APIPort)
 	err := m.actionMQ.Start()
 	if err != nil {
 		errChan <- err

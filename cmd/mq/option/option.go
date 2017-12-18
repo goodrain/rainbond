@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -29,9 +28,11 @@ type Config struct {
 	EtcdTimeout          int
 	EtcdPrefix           string
 	ClusterName          string
-	APIAddr              string
+	APIPort              int
 	PrometheusMetricPath string
 	RunMode              string //http grpc
+	HostIP               string
+	HostName             string
 }
 
 //MQServer lb worker server
@@ -51,9 +52,11 @@ func (a *MQServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd v3 cluster endpoints.")
 	fs.IntVar(&a.EtcdTimeout, "etcd-timeout", 5, "etcd http timeout seconds")
 	fs.StringVar(&a.EtcdPrefix, "etcd-prefix", "/mq", "the etcd data save key prefix ")
-	fs.StringVar(&a.APIAddr, "api-addr", ":6300", "the api server listen address")
+	fs.IntVar(&a.APIPort, "api-port", 6300, "the api server listen port")
 	fs.StringVar(&a.RunMode, "mode", "grpc", "the api server run mode grpc or http")
 	fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")
+	fs.StringVar(&a.HostIP, "hostIP", "", "Current node Intranet IP")
+	fs.StringVar(&a.HostName, "hostName", "", "Current node host name")
 }
 
 //SetLog 设置log
