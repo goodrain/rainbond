@@ -113,7 +113,7 @@ function check_basic() {
             fi
         fi
     elif [ "$1" = "k8s" ];then
-        if [ ! -d "/usr/share/gr-kubernetes/" ];then
+        if [ ! -f "/usr/share/gr-kubernetes/scripts/start-kube-apiserver.sh" ];then
             taskid+=("install_k8s")
             taskid+=("install_webcli")
         fi
