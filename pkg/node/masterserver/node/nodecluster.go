@@ -17,7 +17,7 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 // 当前包处理集群节点的管理
-package masterserver
+package node
 
 import (
 	"bytes"
@@ -57,7 +57,7 @@ type NodeCluster struct {
 }
 
 //CreateNodeCluster 创建节点管理器
-func CreateNodeCluster(k8sClient *kubernetes.Clientset, node *model.HostNode) (*NodeCluster, error) {
+func CreateNodeCluster(k8sClient *kubernetes.Clientset, node *model.HostNode) *NodeCluster {
 	ctx, cancel := context.WithCancel(context.Background())
 	nc := NodeCluster{
 		ctx:          ctx,
@@ -68,80 +68,32 @@ func CreateNodeCluster(k8sClient *kubernetes.Clientset, node *model.HostNode) (*
 		currentNode:  node,
 		checkInstall: make(chan *model.HostNode, 4),
 	}
-	if err := nc.loadNodes(); err != nil {
-		return nil, err
-	}
-	return &nc, nil
+	return &nc
 }
 
 //Start 启动
-func (n *NodeCluster) Start() {
-	go n.watchNodes()
-	go n.watchK8sNodes()
+func (n *NodeCluster) Start() error {
+	if err := n.loadAndWatchNodes(); err != nil {
+		return err
+	}
+	go n.loadAndWatchK8sNodes()
 	go n.worker()
+	return nil
 }
 
 //Stop 停止
 func (n *NodeCluster) Stop(i interface{}) {
 	n.cancel()
 }
-func (n *NodeCluster) loadNodes() error {
-	//加载节点信息
-	res, err := n.client.Get(option.Config.NodePath, client.WithPrefix())
-	if err != nil {
-		return fmt.Errorf("load cluster nodes error:%s", err.Error())
-	}
-	for _, kv := range res.Kvs {
-		if node := n.getNodeFromKV(kv); node != nil {
-			n.CacheNode(node)
-		}
-	}
-	//加载rainbond节点在线信息
-	res, err = n.client.Get(option.Config.OnlineNodePath, client.WithPrefix())
-	if err != nil {
-		return fmt.Errorf("load cluster nodes error:%s", err.Error())
-	}
-	for _, kv := range res.Kvs {
-		if node := n.getNodeFromKey(string(kv.Key)); node != nil {
-			if !node.Alived {
-				node.Alived = true
-				node.UpTime = time.Now()
-			}
-		}
-	}
-	//加载k8s节点信息
-	go func() {
-		for {
-			list, err := n.k8sClient.Core().Nodes().List(metav1.ListOptions{})
-			if err != nil {
-				logrus.Warnf("load k8s nodes from k8s api error:%s", err.Error())
-				time.Sleep(time.Second * 3)
-				continue
-			}
-			for _, node := range list.Items {
-				if cn, ok := n.nodes[node.Name]; ok {
-					cn.NodeStatus = &node.Status
-					cn.UpdataK8sCondition(node.Status.Conditions)
-					n.UpdateNode(cn)
-				} else {
-					logrus.Warningf("k8s node %s can not exist in rainbond cluster.", node.Name)
-				}
-			}
-			return
-		}
-	}()
-	return nil
-}
 
 func (n *NodeCluster) worker() {
 	for {
 		select {
-		case newNode := <-n.checkInstall:
-			go n.checkNodeInstall(newNode)
-		//其他异步任务
-
 		case <-n.ctx.Done():
 			return
+		case newNode := <-n.checkInstall:
+			go n.checkNodeInstall(newNode)
+			//其他异步任务
 		}
 	}
 }
@@ -179,48 +131,92 @@ func (n *NodeCluster) GetNode(id string) *model.HostNode {
 	}
 	return nil
 }
-func (n *NodeCluster) watchNodes() {
-	ch := n.client.Watch(option.Config.NodePath, client.WithPrefix())
-	onlineCh := n.client.Watch(option.Config.OnlineNodePath, client.WithPrefix())
-	for {
-		select {
-		case <-n.ctx.Done():
-			return
-		case event := <-ch:
-			for _, ev := range event.Events {
-				switch {
-				case ev.IsCreate(), ev.IsModify():
-					if node := n.getNodeFromKV(ev.Kv); node != nil {
-						n.CacheNode(node)
-					}
-				case ev.Type == client.EventTypeDelete:
-					if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
-						n.RemoveNode(node)
+func (n *NodeCluster) loadAndWatchNodes() error {
+	//加载节点信息
+	noderes, err := n.client.Get(option.Config.NodePath, client.WithPrefix())
+	if err != nil {
+		return fmt.Errorf("load cluster nodes error:%s", err.Error())
+	}
+	for _, kv := range noderes.Kvs {
+		if node := n.getNodeFromKV(kv); node != nil {
+			n.CacheNode(node)
+		}
+	}
+	//加载rainbond节点在线信息
+	onlineres, err := n.client.Get(option.Config.OnlineNodePath, client.WithPrefix())
+	if err != nil {
+		return fmt.Errorf("load cluster nodes error:%s", err.Error())
+	}
+	for _, kv := range onlineres.Kvs {
+		if node := n.getNodeFromKey(string(kv.Key)); node != nil {
+			if !node.Alived {
+				node.Alived = true
+				node.UpTime = time.Now()
+			}
+		}
+	}
+	go func() {
+		ch := n.client.Watch(option.Config.NodePath, client.WithPrefix(), client.WithRev(noderes.Header.Revision))
+		onlineCh := n.client.Watch(option.Config.OnlineNodePath, client.WithPrefix(), client.WithRev(onlineres.Header.Revision))
+		for {
+			select {
+			case <-n.ctx.Done():
+				return
+			case event := <-ch:
+				for _, ev := range event.Events {
+					switch {
+					case ev.IsCreate(), ev.IsModify():
+						if node := n.getNodeFromKV(ev.Kv); node != nil {
+							n.CacheNode(node)
+						}
+					case ev.Type == client.EventTypeDelete:
+						if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
+							n.RemoveNode(node)
+						}
 					}
 				}
-			}
-		case event := <-onlineCh:
-			for _, ev := range event.Events {
-				switch {
-				case ev.IsCreate(), ev.IsModify():
-					if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
-						node.Alived = true
-						node.UpTime = time.Now()
-						n.UpdateNode(node)
-					}
-				case ev.Type == client.EventTypeDelete:
-					if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
-						node.Alived = false
-						node.DownTime = time.Now()
-						n.UpdateNode(node)
+			case event := <-onlineCh:
+				for _, ev := range event.Events {
+					switch {
+					case ev.IsCreate(), ev.IsModify():
+						if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
+							node.Alived = true
+							node.UpTime = time.Now()
+							n.UpdateNode(node)
+						}
+					case ev.Type == client.EventTypeDelete:
+						if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
+							node.Alived = false
+							node.DownTime = time.Now()
+							n.UpdateNode(node)
+						}
 					}
 				}
 			}
 		}
-	}
+	}()
+	return nil
 }
 
-func (n *NodeCluster) watchK8sNodes() {
+func (n *NodeCluster) loadAndWatchK8sNodes() {
+	for {
+		list, err := n.k8sClient.Core().Nodes().List(metav1.ListOptions{})
+		if err != nil {
+			logrus.Warnf("load k8s nodes from k8s api error:%s", err.Error())
+			time.Sleep(time.Second * 3)
+			continue
+		}
+		for _, node := range list.Items {
+			if cn, ok := n.nodes[node.Name]; ok {
+				cn.NodeStatus = &node.Status
+				cn.UpdataK8sCondition(node.Status.Conditions)
+				n.UpdateNode(cn)
+			} else {
+				logrus.Warningf("k8s node %s can not exist in rainbond cluster.", node.Name)
+			}
+		}
+		break
+	}
 	for {
 		wc, err := n.k8sClient.Core().Nodes().Watch(metav1.ListOptions{})
 		if err != nil {
@@ -294,7 +290,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 		node.UpdataCondition(initCondition)
 		n.UpdateNode(node)
 	}()
-	node.Status="init"
+	node.Status = "init"
 	errorCondition := func(reason string, err error) {
 		initCondition.Status = model.ConditionFalse
 		initCondition.LastTransitionTime = time.Now()
@@ -304,12 +300,12 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 			initCondition.Message = err.Error()
 		}
 		node.Conditions = append(node.Conditions, initCondition)
-		node.Status="init_failed"
+		node.Status = "init_failed"
 	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	if node.Role==nil {
-		node.Role=[]string{"compute"}
+	if node.Role == nil {
+		node.Role = []string{"compute"}
 	}
 	role := node.Role[0]
 

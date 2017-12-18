@@ -25,7 +25,7 @@ import (
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
-	"github.com/goodrain/rainbond/pkg/node/masterserver"
+	"github.com/goodrain/rainbond/pkg/node/masterserver/node"
 	"github.com/goodrain/rainbond/pkg/node/utils"
 	"github.com/twinj/uuid"
 )
@@ -33,11 +33,11 @@ import (
 //NodeService node service
 type NodeService struct {
 	c           *option.Conf
-	nodecluster *masterserver.NodeCluster
+	nodecluster *node.NodeCluster
 }
 
 //CreateNodeService create
-func CreateNodeService(c *option.Conf, nodecluster *masterserver.NodeCluster) *NodeService {
+func CreateNodeService(c *option.Conf, nodecluster *node.NodeCluster) *NodeService {
 	return &NodeService{
 		c:           c,
 		nodecluster: nodecluster,
@@ -62,9 +62,9 @@ func (n *NodeService) AddNode(node *model.APIHostNode) *utils.APIHandleError {
 		}
 	}
 	rbnode := node.Clone()
-	rbnode.Status="init"
+	rbnode.Status = "init"
 	rbnode.CreateTime = time.Now()
-	rbnode.Status="create"
+	rbnode.Status = "create"
 
 	rbnode.Conditions = make([]model.NodeCondition, 0)
 	if _, err := rbnode.Update(); err != nil {
@@ -125,9 +125,9 @@ func (n *NodeService) CordonNode(nodeID string, unschedulable bool) *utils.APIHa
 	hostNode.Unschedulable = unschedulable
 	//k8s节点存在
 	if unschedulable {
-		hostNode.Status="unschedulable"
-	}else{
-		hostNode.Status="schedulable"
+		hostNode.Status = "unschedulable"
+	} else {
+		hostNode.Status = "schedulable"
 	}
 	if hostNode.NodeStatus != nil {
 		//true表示drain，不可调度
@@ -168,7 +168,7 @@ func (n *NodeService) DownNode(nodeID string) (*model.HostNode, *utils.APIHandle
 	if !hostNode.Role.HasRule(model.ComputeNode) || hostNode.NodeStatus == nil {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node is not k8s node or it not up"))
 	}
-	hostNode.Status="down"
+	hostNode.Status = "down"
 	err := k8s.DeleteNode(hostNode.ID)
 	if err != nil {
 		return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node down error,%s", err.Error()))

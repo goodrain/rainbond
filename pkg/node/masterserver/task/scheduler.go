@@ -16,47 +16,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package masterserver
+package task
 
 import (
-	"context"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path"
-	"strings"
-	"sync"
 	"time"
 
-	"github.com/goodrain/rainbond/pkg/node/core/config"
-	"github.com/goodrain/rainbond/pkg/node/core/store"
-
-	"github.com/pquerna/ffjson/ffjson"
-
 	"github.com/Sirupsen/logrus"
-
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/mvcc/mvccpb"
-	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/job"
+	"github.com/goodrain/rainbond/pkg/node/core/store"
+	"github.com/pquerna/ffjson/ffjson"
 )
-
-//TaskEngine 任务引擎
-// 处理任务的执行，结果处理，任务自动调度
-// TODO:执行记录清理工作
-type TaskEngine struct {
-	ctx                context.Context
-	cancel             context.CancelFunc
-	config             *option.Conf
-	tasks              map[string]*model.Task
-	tasksLock          sync.Mutex
-	dataCenterConfig   *config.DataCenterConfig
-	nodeCluster        *NodeCluster
-	currentNode        *model.HostNode
-	schedulerCache     map[string]bool
-	schedulerCacheLock sync.Mutex
-}
 
 //TaskSchedulerInfo 请求调度信息
 //指定任务到指定节点执行
@@ -110,75 +83,6 @@ func (t TaskSchedulerInfo) Delete() {
 	store.DefalutClient.Delete("/rainbond-node/scheduler/taskshcedulers/" + t.TaskID + "/" + t.Node)
 }
 
-//CreateTaskEngine 创建task管理引擎
-func CreateTaskEngine(nodeCluster *NodeCluster, node *model.HostNode) *TaskEngine {
-	ctx, cancel := context.WithCancel(context.Background())
-	task := &TaskEngine{
-		ctx:              ctx,
-		cancel:           cancel,
-		tasks:            make(map[string]*model.Task),
-		config:           option.Config,
-		dataCenterConfig: config.GetDataCenterConfig(),
-		nodeCluster:      nodeCluster,
-		currentNode:      node,
-		schedulerCache:   make(map[string]bool),
-	}
-	return task
-}
-
-//Start 启动
-func (t *TaskEngine) Start() {
-	logrus.Info("task engine start")
-	t.loadTask()
-	go t.watchTasks()
-	go t.HandleJobRecord()
-	go t.watcheScheduler()
-	t.LoadStaticTask()
-}
-
-//Stop 启动
-func (t *TaskEngine) Stop() {
-	t.cancel()
-}
-
-//loadTask 加载所有task
-func (t *TaskEngine) loadTask() error {
-	//加载节点信息
-	res, err := store.DefalutClient.Get("/store/tasks/", client.WithPrefix())
-	if err != nil {
-		return fmt.Errorf("load tasks error:%s", err.Error())
-	}
-	for _, kv := range res.Kvs {
-		if task := t.getTaskFromKV(kv); task != nil {
-			t.CacheTask(task)
-		}
-	}
-	return nil
-}
-
-//watchTasks watchTasks
-func (t *TaskEngine) watchTasks() {
-	ch := store.DefalutClient.Watch("/store/tasks/", client.WithPrefix())
-	for {
-		select {
-		case <-t.ctx.Done():
-			return
-		case event := <-ch:
-			for _, ev := range event.Events {
-				switch {
-				case ev.IsCreate(), ev.IsModify():
-					if task := t.getTaskFromKV(ev.Kv); task != nil {
-						t.CacheTask(task)
-					}
-				case ev.Type == client.EventTypeDelete:
-					if task := t.getTaskFromKey(string(ev.Kv.Key)); task != nil {
-						t.RemoveTask(task)
-					}
-				}
-			}
-		}
-	}
-}
 func (t *TaskEngine) watcheScheduler() {
 	load, _ := store.DefalutClient.Get("/rainbond-node/scheduler/taskshcedulers/", client.WithPrefix())
 	if load != nil && load.Count > 0 {
@@ -253,344 +157,6 @@ func (t *TaskEngine) PutSchedul(taskID string, node string) error {
 		t.schedulerCache[taskID+node] = true
 	}
 	return nil
-}
-
-func (t *TaskEngine) getTaskFromKey(key string) *model.Task {
-	index := strings.LastIndex(key, "/")
-	if index < 0 {
-		return nil
-	}
-	id := key[index+1:]
-	return t.GetTask(id)
-}
-
-//RemoveTask 从缓存移除task
-func (t *TaskEngine) RemoveTask(task *model.Task) {
-	t.tasksLock.Lock()
-	defer t.tasksLock.Unlock()
-	if _, ok := t.tasks[task.ID]; ok {
-		delete(t.tasks, task.ID)
-	}
-}
-
-func (t *TaskEngine) getTaskFromKV(kv *mvccpb.KeyValue) *model.Task {
-	var task model.Task
-	if err := ffjson.Unmarshal(kv.Value, &task); err != nil {
-		logrus.Error("parse task info error:", err.Error())
-		return nil
-	}
-	return &task
-}
-
-//LoadStaticTask 从文件加载task
-//TODO:动态加载
-func (t *TaskEngine) LoadStaticTask() {
-	logrus.Infof("start load static task form path:%s", t.config.StaticTaskPath)
-	file, err := os.Stat(t.config.StaticTaskPath)
-	if err != nil {
-		logrus.Errorf("load static task error %s", err.Error())
-		return
-	}
-	if file.IsDir() {
-		files, err := ioutil.ReadDir(t.config.StaticTaskPath)
-		if err != nil {
-			logrus.Errorf("load static task error %s", err.Error())
-			return
-		}
-		for _, file := range files {
-			if file.IsDir() {
-				continue
-			} else if strings.HasSuffix(file.Name(), ".json") {
-				t.loadFile(path.Join(t.config.StaticTaskPath, file.Name()))
-			}
-		}
-	} else {
-		t.loadFile(t.config.StaticTaskPath)
-	}
-}
-func (t *TaskEngine) loadFile(path string) {
-	taskBody, err := ioutil.ReadFile(path)
-	if err != nil {
-		logrus.Errorf("read static task file %s error.%s", path, err.Error())
-		return
-	}
-	var filename string
-	index := strings.LastIndex(path, "/")
-	if index < 0 {
-		filename = path
-	}
-	filename = path[index+1:]
-	if strings.Contains(filename, "group") {
-		var group model.TaskGroup
-		if err := ffjson.Unmarshal(taskBody, &group); err != nil {
-			logrus.Errorf("unmarshal static task file %s error.%s", path, err.Error())
-			return
-		}
-		if group.ID == "" {
-			group.ID = group.Name
-		}
-		if group.Name == "" {
-			logrus.Errorf("task group name can not be empty. file %s", path)
-			return
-		}
-		if group.Tasks == nil {
-			logrus.Errorf("task group tasks can not be empty. file %s", path)
-			return
-		}
-		t.ScheduleGroup(nil, &group)
-		logrus.Infof("Load a static group %s.", group.Name)
-	}
-	if strings.Contains(filename, "task") {
-		var task model.Task
-		if err := ffjson.Unmarshal(taskBody, &task); err != nil {
-			logrus.Errorf("unmarshal static task file %s error.%s", path, err.Error())
-			return
-		}
-		if task.ID == "" {
-			task.ID = task.Name
-		}
-		if task.Name == "" {
-			logrus.Errorf("task name can not be empty. file %s", path)
-			return
-		}
-		if task.Temp == nil {
-			logrus.Errorf("task [%s] temp can not be empty.", task.Name)
-			return
-		}
-		if task.Temp.ID == "" {
-			task.Temp.ID = task.Temp.Name
-		}
-		t.AddTask(&task)
-		logrus.Infof("Load a static task %s.", task.Name)
-	}
-}
-
-//GetTask gettask
-func (t *TaskEngine) GetTask(taskID string) *model.Task {
-	t.tasksLock.Lock()
-	defer t.tasksLock.Unlock()
-	if task, ok := t.tasks[taskID]; ok {
-		return task
-	}
-	res, err := store.DefalutClient.Get("/store/tasks/" + taskID)
-	if err != nil {
-		return nil
-	}
-	if res.Count < 1 {
-		return nil
-	}
-	var task model.Task
-	if err := ffjson.Unmarshal(res.Kvs[0].Value, &task); err != nil {
-		return nil
-	}
-	return &task
-}
-
-//StopTask 停止任务，即删除任务对应的JOB
-func (t *TaskEngine) StopTask(task *model.Task, node string) {
-	if status, ok := task.Status[node]; ok {
-		if status.JobID != "" {
-			if task.IsOnce {
-				_, err := store.DefalutClient.Delete(t.config.Once + "/" + status.JobID)
-				if err != nil {
-					logrus.Errorf("stop task %s error.%s", task.Name, err.Error())
-				}
-			} else {
-				_, err := store.DefalutClient.Delete(t.config.Cmd + "/" + status.JobID)
-				if err != nil {
-					logrus.Errorf("stop task %s error.%s", task.Name, err.Error())
-				}
-			}
-			_, err := store.DefalutClient.Delete(t.config.ExecutionRecordPath+"/"+status.JobID, client.WithPrefix())
-			if err != nil {
-				logrus.Errorf("delete execution record for task %s error.%s", task.Name, err.Error())
-			}
-		}
-	}
-	store.DefalutClient.Delete("/rainbond-node/scheduler/taskshcedulers/" + task.ID + "/" + node)
-}
-
-//CacheTask 缓存task
-func (t *TaskEngine) CacheTask(task *model.Task) {
-	t.tasksLock.Lock()
-	defer t.tasksLock.Unlock()
-	t.tasks[task.ID] = task
-}
-
-//AddTask 添加task
-func (t *TaskEngine) AddTask(task *model.Task) error {
-	oldTask := t.GetTask(task.ID)
-	if oldTask != nil {
-		task.Status = oldTask.Status
-		task.OutPut = oldTask.OutPut
-		task.EventID = oldTask.EventID
-		task.CreateTime = oldTask.CreateTime
-		task.ExecCount = oldTask.ExecCount
-		task.StartTime = oldTask.StartTime
-		if task.Scheduler.Status != nil {
-			task.Scheduler.Status = oldTask.Scheduler.Status
-		}
-	}
-	if task.Temp == nil {
-		return fmt.Errorf("task temp can not be nil")
-	}
-	if task.EventID == "" {
-		task.EventID = task.ID
-	}
-	if len(task.Nodes) == 0 {
-		task.Nodes = t.nodeCluster.GetLabelsNode(task.Temp.Labels)
-	}
-	if task.Status == nil {
-		task.Status = map[string]model.TaskStatus{}
-		for _, n := range task.Nodes {
-			task.Status[n] = model.TaskStatus{
-				Status: "create",
-			}
-		}
-	}
-	if task.CreateTime.IsZero() {
-		task.CreateTime = time.Now()
-	}
-	if task.Scheduler.Mode == "" {
-		task.Scheduler.Mode = "Passive"
-	}
-	t.CacheTask(task)
-	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, task.String())
-	if err != nil {
-		return err
-	}
-	if task.Scheduler.Mode == "Intime" {
-		t.PutSchedul(task.ID, "")
-	}
-	return nil
-}
-
-//UpdateTask 更新task
-func (t *TaskEngine) UpdateTask(task *model.Task) {
-	t.tasksLock.Lock()
-	defer t.tasksLock.Unlock()
-	t.tasks[task.ID] = task
-	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, task.String())
-	if err != nil {
-		logrus.Errorf("update task error,%s", err.Error())
-	}
-}
-
-//UpdateGroup 更新taskgroup
-func (t *TaskEngine) UpdateGroup(group *model.TaskGroup) {
-	_, err := store.DefalutClient.Put("/store/taskgroups/"+group.ID, group.String())
-	if err != nil {
-		logrus.Errorf("update taskgroup error,%s", err.Error())
-	}
-}
-
-//GetTaskGroup 获取taskgroup
-func (t *TaskEngine) GetTaskGroup(taskGroupID string) *model.TaskGroup {
-	res, err := store.DefalutClient.Get("/store/taskgroups/" + taskGroupID)
-	if err != nil {
-		return nil
-	}
-	if res.Count < 1 {
-		return nil
-	}
-	var group model.TaskGroup
-	if err := ffjson.Unmarshal(res.Kvs[0].Value, &group); err != nil {
-		return nil
-	}
-	return &group
-}
-
-//handleJobRecord 处理
-func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
-	task := t.GetTask(er.TaskID)
-	if task == nil {
-		return
-	}
-	//更新task信息
-	defer t.UpdateTask(task)
-	taskStatus := model.TaskStatus{
-		JobID:        er.JobID,
-		StartTime:    er.BeginTime,
-		EndTime:      er.EndTime,
-		Status:       "complete",
-		CompleStatus: "Failure",
-	}
-	if status, ok := task.Status[er.Node]; ok {
-		taskStatus = status
-		taskStatus.EndTime = time.Now()
-		taskStatus.Status = "complete"
-	}
-	if er.Output != "" {
-		index := strings.Index(er.Output, "{")
-		jsonOutPut := er.Output
-		if index > -1 {
-			jsonOutPut = er.Output[index:]
-		}
-		output, err := model.ParseTaskOutPut(jsonOutPut)
-		output.JobID = er.JobID
-		if err != nil {
-			taskStatus.Status = "Parse task output error"
-			taskStatus.CompleStatus = "Unknow"
-			logrus.Warning("parse task output error:", err.Error())
-			output.NodeID = er.Node
-		} else {
-			output.NodeID = er.Node
-			if output.Global != nil && len(output.Global) > 0 {
-				for k, v := range output.Global {
-					err := t.dataCenterConfig.PutConfig(&model.ConfigUnit{
-						Name:           strings.ToUpper(k),
-						Value:          v,
-						ValueType:      "string",
-						IsConfigurable: false,
-					})
-					if err != nil {
-						logrus.Errorf("save datacenter config %s=%s error.%s", k, v, err.Error())
-					}
-				}
-			}
-			//groupID不为空，处理group连环操作
-			if output.Inner != nil && len(output.Inner) > 0 && task.GroupID != "" {
-				t.AddGroupConfig(task.GroupID, output.Inner)
-			}
-			for _, status := range output.Status {
-				if status.ConditionType != "" && status.ConditionStatus != "" {
-					t.nodeCluster.UpdateNodeCondition(er.Node, status.ConditionType, status.ConditionStatus)
-				}
-				if status.NextTask != nil && len(status.NextTask) > 0 {
-					for _, taskID := range status.NextTask {
-						//由哪个节点发起的执行请求，当前task只在此节点执行
-						t.PutSchedul(taskID, output.NodeID)
-					}
-				}
-				if status.NextGroups != nil && len(status.NextGroups) > 0 {
-					for _, groupID := range status.NextGroups {
-						group := t.GetTaskGroup(groupID)
-						if group == nil {
-							continue
-						}
-						t.ScheduleGroup([]string{output.NodeID}, group)
-					}
-				}
-			}
-			taskStatus.CompleStatus = output.ExecStatus
-		}
-		task.UpdataOutPut(output)
-	}
-	task.ExecCount++
-	if task.Status == nil {
-		task.Status = make(map[string]model.TaskStatus)
-	}
-	task.Status[er.Node] = taskStatus
-	//如果是is_once的任务，处理完成后删除job
-	if task.IsOnce {
-		task.CompleteTime = time.Now()
-		t.StopTask(task, er.Node)
-	} else { //如果是一次性任务，执行记录已经被删除，无需更新
-		er.CompleteHandle()
-	}
-	t.schedulerCacheLock.Lock()
-	defer t.schedulerCacheLock.Unlock()
-	delete(t.schedulerCache, task.ID+er.Node)
 }
 
 //waitScheduleTask 等待调度条件成熟
@@ -835,58 +401,26 @@ func (t *TaskEngine) ScheduleGroup(nodes []string, nextGroups ...*model.TaskGrou
 	}
 }
 
-//AddGroupConfig 添加组会话配置
-func (t *TaskEngine) AddGroupConfig(groupID string, configs map[string]string) {
-	ctx := config.NewGroupContext(groupID)
-	for k, v := range configs {
-		ctx.Add(k, v)
-	}
-}
-
-//HandleJobRecord 处理task执行记录
-func (t *TaskEngine) HandleJobRecord() {
-	jobRecord := t.loadJobRecord()
-	if jobRecord != nil {
-		for _, er := range jobRecord {
-			if !er.IsHandle {
-				t.handleJobRecord(er)
-			}
-		}
-	}
-	ch := store.DefalutClient.Watch(t.config.ExecutionRecordPath, client.WithPrefix())
-	for {
-		select {
-		case <-t.ctx.Done():
-			return
-		case event := <-ch:
-			if err := event.Err(); err != nil {
-
-			}
-			for _, ev := range event.Events {
-				switch {
-				case ev.IsCreate():
-					var er job.ExecutionRecord
-					if err := ffjson.Unmarshal(ev.Kv.Value, &er); err == nil {
-						if !er.IsHandle {
-							t.handleJobRecord(&er)
-						}
-					}
+//StopTask 停止任务，即删除任务对应的JOB
+func (t *TaskEngine) StopTask(task *model.Task, node string) {
+	if status, ok := task.Status[node]; ok {
+		if status.JobID != "" {
+			if task.IsOnce {
+				_, err := store.DefalutClient.Delete(t.config.Once + "/" + status.JobID)
+				if err != nil {
+					logrus.Errorf("stop task %s error.%s", task.Name, err.Error())
+				}
+			} else {
+				_, err := store.DefalutClient.Delete(t.config.Cmd + "/" + status.JobID)
+				if err != nil {
+					logrus.Errorf("stop task %s error.%s", task.Name, err.Error())
 				}
 			}
+			_, err := store.DefalutClient.Delete(t.config.ExecutionRecordPath+"/"+status.JobID, client.WithPrefix())
+			if err != nil {
+				logrus.Errorf("delete execution record for task %s error.%s", task.Name, err.Error())
+			}
 		}
 	}
-}
-func (t *TaskEngine) loadJobRecord() (ers []*job.ExecutionRecord) {
-	res, err := store.DefalutClient.Get(t.config.ExecutionRecordPath, client.WithPrefix())
-	if err != nil {
-		logrus.Error("load job execution record error.", err.Error())
-		return nil
-	}
-	for _, re := range res.Kvs {
-		var er job.ExecutionRecord
-		if err := ffjson.Unmarshal(re.Value, &er); err == nil {
-			ers = append(ers, &er)
-		}
-	}
-	return
+	store.DefalutClient.Delete("/rainbond-node/scheduler/taskshcedulers/" + task.ID + "/" + node)
 }
