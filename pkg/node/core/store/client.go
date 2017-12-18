@@ -194,9 +194,6 @@ func (c *Client) DelLock(key string) error {
 
 //Grant etcd v3 Grant
 func (c *Client) Grant(ttl int64) (*client.LeaseGrantResponse, error) {
-	if c == nil {
-		logrus.Info("client is nil")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
 	defer cancel()
 	return c.Client.Grant(ctx, ttl)

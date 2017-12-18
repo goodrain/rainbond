@@ -53,6 +53,8 @@ type TaskEngine struct {
 	currentNode        *model.HostNode
 	schedulerCache     map[string]bool
 	schedulerCacheLock sync.Mutex
+	down               chan struct{}
+	masterID           client.LeaseID
 }
 
 //CreateTaskEngine 创建task管理引擎
@@ -67,26 +69,119 @@ func CreateTaskEngine(nodeCluster *node.NodeCluster, node *model.HostNode) *Task
 		nodeCluster:      nodeCluster,
 		currentNode:      node,
 		schedulerCache:   make(map[string]bool),
+		down:             make(chan struct{}),
 	}
 	return task
 }
 
 //Start 启动
 func (t *TaskEngine) Start() error {
-	logrus.Info("task engine start")
 	//加载所有task信息并监听变化
 	if err := t.loadAndWatchTasks(); err != nil {
 		return err
 	}
-	go t.HandleJobRecord()
-	go t.watcheScheduler()
 	t.LoadStaticTask()
+	//以下工作器只能由一个节点完成
+	//step1 获取调度权限，如果master节点多点部署，只能有一个节点具有调度权
+	go func() {
+		defer close(t.down)
+		for {
+			if ok, err := t.haveMaster(); ok {
+				logrus.Infof("Current node(%s) have task scheduler authority", t.currentNode.HostName)
+				keepchan := make(chan struct{}, 1)
+				go t.keepMaster(keepchan)
+				go t.startScheduler()
+				go t.startHandleJobRecord()
+				select {
+				case <-t.ctx.Done():
+					t.deleteMaster()
+					t.stopScheduler()
+					t.stopHandleJobRecord()
+					return
+				case <-keepchan:
+					t.deleteMaster()
+					t.stopScheduler()
+					t.stopHandleJobRecord()
+					continue
+				}
+			} else if err != nil {
+				logrus.Error("check current node Whether has a scheduling authority error,", err.Error())
+			}
+			select {
+			case <-t.ctx.Done():
+				return
+			default:
+			}
+			time.Sleep(time.Second * 3)
+		}
+	}()
 	return nil
+}
+func (t *TaskEngine) deleteMaster() error {
+	key := "/rainbond/task/scheduler/authority"
+	_, err := store.DefalutClient.Delete(key)
+	return err
+}
+func (t *TaskEngine) haveMaster() (bool, error) {
+	key := "/rainbond/task/scheduler/authority"
+	lgr, err := store.DefalutClient.Grant(8)
+	if err != nil {
+		return false, err
+	}
+	ctx, cancel := context.WithTimeout(t.ctx, time.Second*3)
+	resp, err := store.DefalutClient.Txn(ctx).
+		If(client.Compare(client.CreateRevision(key), "=", 0)).
+		Then(client.OpPut(key, t.currentNode.HostName, client.WithLease(lgr.ID))).
+		Commit()
+	cancel()
+	if err != nil {
+		return false, err
+	}
+	if !resp.Succeeded {
+		ch := store.DefalutClient.Watch("/rainbond/task/scheduler/authority")
+		for {
+			select {
+			case <-t.ctx.Done():
+				return false, nil
+			case events := <-ch:
+				for _, event := range events.Events {
+					//watch 到删除操作，返回去获取权限
+					if event.Type == client.EventTypeDelete {
+						return false, nil
+					}
+				}
+			}
+		}
+	}
+	t.masterID = lgr.ID
+	return resp.Succeeded, nil
+}
+
+func (t *TaskEngine) keepMaster(errchan chan struct{}) {
+	duration := time.Second * 5
+	timer := time.NewTimer(duration)
+	for {
+		select {
+		case <-timer.C:
+			if t.masterID > 0 {
+				_, err := store.DefalutClient.KeepAliveOnce(t.masterID)
+				if err == nil {
+					timer.Reset(duration)
+					continue
+				}
+				logrus.Warnf("lid[%x] keepAlive err: %s, try to reset...", t.masterID, err.Error())
+				t.masterID = 0
+				errchan <- struct{}{}
+				return
+			}
+		}
+	}
 }
 
 //Stop 启动
 func (t *TaskEngine) Stop() {
 	t.cancel()
+	<-t.down
 }
 
 //watchTasks watchTasks

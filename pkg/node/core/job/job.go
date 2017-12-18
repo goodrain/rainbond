@@ -29,7 +29,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -61,9 +60,9 @@ type Job struct {
 	ID      string     `json:"id"`
 	TaskID  string     `json:"taskID"`
 	EventID string     `json:"event_id"`
-	IsOnce  bool       `json:"is_once"` //是否为单节点执行一次任务（例如安装任务）
+	NodeID  string     `json:"node_id"`
+	Hash    string     `json:"hash"`
 	Name    string     `json:"name"`
-	Group   string     `json:"group"`
 	Command string     `json:"cmd"`
 	Stdin   string     `json:"stdin"`
 	Envs    []string   `json:"envs"`
@@ -71,9 +70,6 @@ type Job struct {
 	Rules   []*JobRule `json:"rules"`
 	Pause   bool       `json:"pause"`   // 可手工控制的状态
 	Timeout int64      `json:"timeout"` // 任务执行时间超时设置，大于 0 时有效
-	// 设置任务在单个节点上可以同时允许多少个
-	// 针对两次任务执行间隔比任务执行时间要长的任务启用
-	Parallels int64 `json:"parallels"`
 	// 执行任务失败重试次数
 	// 默认为 0，不重试
 	Retry int `json:"retry"`
@@ -81,19 +77,11 @@ type Job struct {
 	// 单位秒，如果不大于 0 则马上重试
 	Interval int `json:"interval"`
 	// 任务类型
-	// 0: 普通任务
-	// 1: 单机任务
-	// 如果为单机任务，node 加载任务的时候 Parallels 设置 1
+	// 0: 单次任务
+	// 1: 循环任务
 	Kind int `json:"kind"`
 	// 平均执行时间，单位 ms
 	AvgTime int64 `json:"avg_time"`
-	// 执行失败发送通知
-	FailNotify bool `json:"fail_notify"`
-	// 发送通知地址
-	To []string `json:"to"`
-
-	// 执行任务的结点
-	runOn string
 	// 用于存储分隔后的任务
 	cmd []string
 	// 控制同时执行任务数
@@ -162,20 +150,6 @@ func (c *Cmd) GetID() string {
 
 //Run 执行
 func (c *Cmd) Run() {
-	// 同时执行任务数限制
-	if c.Job.limit() {
-		return
-	}
-	defer c.Job.unlimit()
-
-	if c.Job.Kind != KindCommon {
-		lk := c.lock()
-		if lk == nil {
-			return
-		}
-		defer lk.unlock()
-	}
-
 	if c.Job.Retry <= 0 {
 		c.Job.Run("")
 		return
@@ -190,36 +164,6 @@ func (c *Cmd) Run() {
 			time.Sleep(time.Duration(c.Job.Interval) * time.Second)
 		}
 	}
-}
-
-func (j *Job) limit() bool {
-	if j.Parallels == 0 {
-		return false
-	}
-
-	// 更精确的控制是加锁
-	// 两次运行时间极为接近的任务才可能出现控制不精确的情况
-	count := atomic.LoadInt64(j.Count)
-	if j.Parallels <= count {
-		j.Fail(time.Now(), fmt.Sprintf("job[%s] running on[%s] running:[%d]", j.Key(), j.runOn, count))
-		return true
-	}
-
-	atomic.AddInt64(j.Count, 1)
-	return false
-}
-
-func (j *Job) unlimit() {
-	if j.Parallels == 0 {
-		return
-	}
-	atomic.AddInt64(j.Count, -1)
-}
-
-//Init 初始化
-func (j *Job) Init(n string) {
-	var c int64
-	j.Count, j.runOn = &c, n
 }
 
 //lockTTL
@@ -398,12 +342,10 @@ func GetJobs() (jobs map[string]*Job, err error) {
 			logrus.Warnf("job[%s] umarshal err: %s", string(j.Key), e.Error())
 			continue
 		}
-
 		if err := job.Valid(); err != nil {
 			logrus.Warnf("job[%s] is invalid: %s", string(j.Key), err.Error())
 			continue
 		}
-		job.alone()
 		jobs[job.ID] = job
 	}
 	return
@@ -431,14 +373,7 @@ func GetJobFromKv(kv *mvccpb.KeyValue) (job *Job, err error) {
 		return
 	}
 	err = job.Valid()
-	job.alone()
 	return
-}
-
-func (j *Job) alone() {
-	if j.Kind == KindAlone {
-		j.Parallels = 1
-	}
 }
 
 func (j *Job) splitCmd() {
@@ -455,7 +390,7 @@ func (j *Job) String() string {
 
 //CountRunning 获取结点正在执行任务的数量
 func (j *Job) CountRunning() (int64, error) {
-	resp, err := store.DefalutClient.Get(conf.Config.Proc+j.runOn+"/"+j.ID, client.WithPrefix(), client.WithCountOnly())
+	resp, err := store.DefalutClient.Get(conf.Config.Proc+j.NodeID+"/"+j.ID, client.WithPrefix(), client.WithCountOnly())
 	if err != nil {
 		return 0, err
 	}
@@ -525,7 +460,7 @@ func (j *Job) Run(nid string) bool {
 	proc = &Process{
 		ID:     strconv.Itoa(cmd.Process.Pid),
 		JobID:  j.ID,
-		NodeID: j.runOn,
+		NodeID: j.NodeID,
 		Time:   start,
 	}
 	proc.Start()
@@ -550,7 +485,7 @@ func (j *Job) RunWithRecovery() {
 			logrus.Warnf("panic running job: %v\n%s", r, buf)
 		}
 	}()
-	j.Run(j.runOn)
+	j.Run(j.NodeID)
 }
 
 //RunBuildInWithRecovery run build
@@ -600,15 +535,6 @@ func (j *Job) Check() error {
 	j.Name = strings.TrimSpace(j.Name)
 	if len(j.Name) == 0 {
 		return utils.ErrEmptyJobName
-	}
-
-	j.Group = strings.TrimSpace(j.Group)
-	if len(j.Group) == 0 {
-		j.Group = DefaultJobGroup
-	}
-
-	if !store.IsValidAsKeyPath(j.Group) {
-		return utils.ErrIllegalJobGroupName
 	}
 
 	j.User = strings.TrimSpace(j.User)

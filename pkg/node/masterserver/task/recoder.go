@@ -30,8 +30,8 @@ import (
 	"github.com/pquerna/ffjson/ffjson"
 )
 
-//HandleJobRecord 处理task执行记录
-func (t *TaskEngine) HandleJobRecord() {
+//startHandleJobRecord 处理task执行记录
+func (t *TaskEngine) startHandleJobRecord() {
 	jobRecord := t.loadJobRecord()
 	if jobRecord != nil {
 		for _, er := range jobRecord {
@@ -62,6 +62,11 @@ func (t *TaskEngine) HandleJobRecord() {
 			}
 		}
 	}
+}
+
+//stopHandleJobRecord
+func (t *TaskEngine) stopHandleJobRecord() {
+
 }
 func (t *TaskEngine) loadJobRecord() (ers []*job.ExecutionRecord) {
 	res, err := store.DefalutClient.Get(t.config.ExecutionRecordPath, client.WithPrefix())

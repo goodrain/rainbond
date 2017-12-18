@@ -22,10 +22,11 @@ import (
 	"testing"
 
 	"github.com/goodrain/rainbond/pkg/node/api/model"
+	"github.com/twinj/uuid"
 )
 
 func TestGroupWorker(t *testing.T) {
-	taskEngine := CreateTaskEngine(nil)
+	taskEngine := CreateTaskEngine(nil, nil)
 	group := &model.TaskGroup{
 		Tasks: []*model.Task{
 			&model.Task{ID: "1", Temp: &model.TaskTemp{Depends: []model.DependStrategy{model.DependStrategy{DependTaskID: "5"}}}},
@@ -38,4 +39,13 @@ func TestGroupWorker(t *testing.T) {
 		},
 	}
 	taskEngine.ScheduleGroup(nil, group)
+}
+
+func TestGetHash(t *testing.T) {
+	id1 := uuid.NewV4().String()
+	id2 := uuid.NewV4().String()
+	s := getHash(id1, id2)
+	t.Log(s)
+	ss := getHash(id1, id2)
+	t.Log(ss)
 }

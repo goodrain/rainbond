@@ -19,6 +19,7 @@
 package task
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"time"
 
@@ -30,6 +31,15 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/core/store"
 	"github.com/pquerna/ffjson/ffjson"
 )
+
+//StartScheduler 开始调度
+func (t *TaskEngine) startScheduler() {
+
+}
+
+func (t *TaskEngine) stopScheduler() {
+
+}
 
 //TaskSchedulerInfo 请求调度信息
 //指定任务到指定节点执行
@@ -112,51 +122,42 @@ func (t *TaskEngine) watcheScheduler() {
 	}
 }
 
-//PutSchedul 发布请求调度信息
-//同样请求将被拒绝，在上一次请求完成之前
-//目前单节点调度，本地保证不重复调度
-func (t *TaskEngine) PutSchedul(taskID string, node string) error {
-	if node == "" {
-		//执行节点确定
-		task := t.GetTask(taskID)
-		if task == nil {
-			return fmt.Errorf("task (%s) can not be found", taskID)
-		}
-		if task.Temp == nil {
-			return fmt.Errorf("task (%s) temp can not be found", taskID)
-		}
-		//task定义了执行节点
-		if task.Nodes != nil && len(task.Nodes) > 0 {
-			for _, node := range task.Nodes {
-				if n := t.nodeCluster.GetNode(node); n != nil {
-					info := NewTaskSchedulerInfo(taskID, node)
-					info.Post()
-				}
-
-			}
-		} else { //从lables决定执行节点
-			nodes := t.nodeCluster.GetLabelsNode(task.Temp.Labels)
-			for _, node := range nodes {
-				if n := t.nodeCluster.GetNode(node); n != nil {
-					info := NewTaskSchedulerInfo(taskID, node)
-					info.Post()
-				}
-			}
+//PutSchedul 发布调度需求，即定义task的某个执行节点
+//taskID+nodeID = 一个调度单位,保证不重复
+//node不能为空
+func (t *TaskEngine) PutSchedul(taskID string, nodeID string) (err error) {
+	if taskID == "" || nodeID == "" {
+		return fmt.Errorf("taskid or nodeid can not be empty")
+	}
+	task := t.GetTask(taskID)
+	if task == nil {
+		return fmt.Errorf("task %s not found", taskID)
+	}
+	node := t.nodeCluster.GetNode(nodeID)
+	if node == nil {
+		return fmt.Errorf("node %s not found", nodeID)
+	}
+	hash := getHash(taskID, nodeID)
+	logrus.Infof("scheduler hash %s", hash)
+	var jb *job.Job
+	if task.GroupID == "" {
+		jb, err = job.CreateJobFromTask(task, nil)
+		if err != nil {
+			return fmt.Errorf("create job error,%s", err.Error())
 		}
 	} else {
-		//保证同时只调度一次
-		t.schedulerCacheLock.Lock()
-		defer t.schedulerCacheLock.Unlock()
-		if _, ok := t.schedulerCache[taskID+node]; ok {
-			return nil
-		}
-		if n := t.nodeCluster.GetNode(node); n != nil {
-			info := NewTaskSchedulerInfo(taskID, node)
-			info.Post()
-		}
-		t.schedulerCache[taskID+node] = true
+
 	}
+
 	return nil
+}
+
+func getHash(source ...string) string {
+	h := sha1.New()
+	for _, s := range source {
+		h.Write([]byte(s))
+	}
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 //waitScheduleTask 等待调度条件成熟
