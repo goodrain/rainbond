@@ -27,7 +27,7 @@ type GetUserToken struct {
 		// in: body
 		// required: true
 		EID string `json:"eid" validate:"eid|required"`
-		// 可控范围
+		// 可控范围:all_power|node_manager|server_source
 		// in: body
 		// required: false
 		Range string `json:"range" validate:"range"`
@@ -37,7 +37,7 @@ type GetUserToken struct {
 		ValidityPeriod int `json:"validity_period" validate:"validity_period|required"` //1549812345
 		// 数据中心标识
 		// in: body
-		// required: true
+		// required: false
 		RegionTag  string `json:"region_tag" validate:"region_tag"`
 		BeforeTime int    `json:"before_time"`
 	}

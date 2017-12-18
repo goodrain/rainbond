@@ -179,8 +179,7 @@
               "type": "object",
               "required": [
                 "eid",
-                "validity_period",
-                "region_tag"
+                "validity_period"
               ],
               "properties": {
                 "before_time": {
@@ -194,7 +193,7 @@
                   "x-go-name": "EID"
                 },
                 "range": {
-                  "description": "可控范围\nin: body",
+                  "description": "可控范围:all_power|node_manager|server_source\nin: body",
                   "type": "string",
                   "x-go-name": "Range"
                 },
