@@ -96,17 +96,18 @@ func CreateManager(conf option.Config) (*ServiceAction, error) {
 func checkDeployVersion(r *api_model.BuildServiceStruct) {
 	eventID := r.Body.EventID
 	logger := event.GetManager().GetLogger(eventID)
-	if len(r.Body.DeployVersion)==0 {
+	if len(r.Body.DeployVersion) == 0 {
 
-		version,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+		version, err := db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
 		if err != nil {
-			logger.Info("获取部署版本信息失败",map[string]string{"step": "callback", "status": "failure"})
+			logger.Info("获取部署版本信息失败", map[string]string{"step": "callback", "status": "failure"})
 			return
 		}
-		r.Body.DeployVersion=version.BuildVersion
-		logrus.Infof("change deploy version to %s",r.Body.DeployVersion)
+		r.Body.DeployVersion = version.BuildVersion
+		logrus.Infof("change deploy version to %s", r.Body.DeployVersion)
 	}
 }
+
 //ServiceBuild service build
 func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.BuildServiceStruct) error {
 	eventID := r.Body.EventID
@@ -471,8 +472,8 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	envs := sc.EnvsInfo
 	volumns := sc.VolumesInfo
 	dependIds := sc.DependIDs
-	logrus.Infof("creating new service,deploy version is %s",ts.DeployVersion)
-	ts.DeployVersion=""
+	logrus.Infof("creating new service,deploy version is %s", ts.DeployVersion)
+	ts.DeployVersion = ""
 	tx := db.GetManager().Begin()
 
 	//服务信息表
@@ -637,23 +638,23 @@ func (s *ServiceAction) GetService(tenantID string) ([]*dbmodel.TenantServices, 
 }
 
 //GetPagedTenantRes get pagedTenantServiceRes(s)
-func (s *ServiceAction) GetPagedTenantRes(offset,len int) ([]*api_model.TenantResource, error) {
-	services, err := db.GetManager().TenantServiceDao().GetPagedTenantService(offset,len)
+func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantResource, error) {
+	services, err := db.GetManager().TenantServiceDao().GetPagedTenantService(offset, len)
 	if err != nil {
 		logrus.Errorf("get service by id error, %v, %v", services, err)
 		return nil, err
 	}
 	var result []*api_model.TenantResource
-	for _,v:=range services {
+	for _, v := range services {
 		var res api_model.TenantResource
-		res.UUID=v["tenant"].(string)
-		res.Name=""
-		res.EID=""
-		res.AllocatedCPU=v["capcpu"].(int)
-		res.AllocatedMEM=v["capmem"].(int)
-		res.UsedCPU=v["usecpu"].(int)
-		res.UsedMEM=v["usemem"].(int)
-		result=append(result,&res)
+		res.UUID = v["tenant"].(string)
+		res.Name = ""
+		res.EID = ""
+		res.AllocatedCPU = v["capcpu"].(int)
+		res.AllocatedMEM = v["capmem"].(int)
+		res.UsedCPU = v["usecpu"].(int)
+		res.UsedMEM = v["usemem"].(int)
+		result = append(result, &res)
 	}
 	return result, nil
 }
@@ -665,15 +666,15 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 		logrus.Errorf("get service by id error, %v, %v", services, err)
 		return nil, err
 	}
-	logrus.Infof("get tenant service res is %v",services)
+	logrus.Infof("get tenant service res is %v", services)
 	var res api_model.TenantResource
-	res.UUID=uuid
-	res.Name=""
-	res.EID=""
-	res.AllocatedCPU=services["capcpu"].(int)
-	res.AllocatedMEM=services["capmem"].(int)
-	res.UsedCPU=services["usecpu"].(int)
-	res.UsedMEM=services["usemem"].(int)
+	res.UUID = uuid
+	res.Name = ""
+	res.EID = ""
+	res.AllocatedCPU = services["capcpu"].(int)
+	res.AllocatedMEM = services["capmem"].(int)
+	res.UsedCPU = services["usecpu"].(int)
+	res.UsedMEM = services["usemem"].(int)
 	return &res, nil
 }
 
@@ -1607,6 +1608,7 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	tx := db.GetManager().Begin()
 	//此处的原因，必须使用golang 1.8 以上版本编译
 	delService := service.ChangeDelete()
+	delService.ID = 0
 	if err := db.GetManager().TenantServiceDeleteDaoTransactions(tx).AddModel(delService); err != nil {
 		tx.Rollback()
 		return err
