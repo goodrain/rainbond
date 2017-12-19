@@ -43,21 +43,6 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
-
 function sys::path_mounted() {
     dest_dir=$1
     if [ ! -d "$dest_dir" ]; then
@@ -108,7 +93,7 @@ function image::pull() {
 }
 
 function prepare() {
-    log.section "prepare base plugins"
+    log.info "prepare base plugins"
 
     # 待测试管理节点扩容
     #sys::path_mounted /grdata || exit 3 
@@ -492,7 +477,7 @@ EOF
 }
 
 function install_app_ui() {
-    log.section "setup app_ui"
+    log.info "setup app_ui"
 
     web_write_cfg
 
@@ -522,7 +507,7 @@ EOF
 
 function install_worker() {
 
-    log.section "setup worker"
+    log.info "setup worker"
 
     compose::config_update << EOF
 services:
@@ -617,7 +602,7 @@ EOF
 }
 
 function install_chaos(){
-    log.section "setup chaos"
+    log.info "setup chaos"
 
     chaos_write_cfg
 
@@ -672,7 +657,7 @@ EOF
 }
 
 function install_lb() {
-    log.section "setup lb"
+    log.info "setup lb"
 
     compose::config_update << EOF
 services:
@@ -708,7 +693,7 @@ EOF
 }
 
 function install_eventlog() {
-    log.section "setup eventlog"
+    log.info "setup eventlog"
 
     compose::config_update << EOF
 services:
@@ -741,7 +726,7 @@ EOF
 }
 
 function install_mq() {
-    log.section "setup mq"
+    log.info "setup mq"
 
     compose::config_update << EOF
 services:
@@ -910,7 +895,7 @@ EOF
 }
 
 function install_slogger() {
-    log.section "setup slogger"
+    log.info "setup slogger"
     [ -d "/etc/goodrain/ssh" ] || ( mkdir /etc/goodrain/ssh) && (
         chown rain.rain /etc/goodrain/ssh
     )
@@ -973,7 +958,7 @@ EOF
 
 function run() {
     
-    log.section "setup plugins"
+    log.info "setup plugins"
 
     image::done $RBD_API
     image::done $RBD_WORKER

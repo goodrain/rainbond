@@ -18,20 +18,6 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
 
 function sys::path_mounted() {
     dest_dir=$1
@@ -346,7 +332,7 @@ done
 }
 
 function prepare() {
-    log.section "prepare proxy for ACP"
+    log.info "prepare proxy for RBD"
     sys::path_mounted /grdata || (
         showmount -e 127.0.0.1 2>&1 | grep "/grdata"
         [ $? -ne 0 ] && (

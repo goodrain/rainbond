@@ -23,20 +23,6 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
 
 function sys::path_mounted() {
     dest_dir=$1
@@ -130,7 +116,7 @@ function make_domain() {
 }
 
 function prepare() {
-    log.section "prepare base plugins"
+    log.info "prepare base plugins"
 
     # 待测试管理节点扩容
     #sys::path_mounted /grdata || exit 3 
@@ -142,7 +128,7 @@ function prepare() {
 
 function install_dns() {
 
-    log.section "setup dns"
+    log.info "setup dns"
 
         image::exist $RBD_DNS || (
         log.info "pull image: $RBD_DNS"
@@ -190,7 +176,7 @@ EOF
 }
 
 function install_registry() {
-    log.section "setup registry"
+    log.info "setup registry"
 
     image::exist $RBD_REGISTRY || (
         log.info "pull image: $RBD_REGISTRY"
@@ -231,7 +217,7 @@ EOF
 
 
 function install_repo() {
-    log.section "setup repo"
+    log.info "setup repo"
 
     image::exist $RBD_REPO || (
         log.info "pull image: $RBD_REPO"
@@ -271,7 +257,7 @@ EOF
 }
 
 function install_dalaran() {
-    log.section "setup dalaran_service"
+    log.info "setup dalaran_service"
     
     image::exist $RBD_DALARAN || (
         log.info "pull image: $RBD_DALARAN"
@@ -311,7 +297,7 @@ EOF
 }
 
 function install_entrance() {
-    log.section "setup entrance"
+    log.info "setup entrance"
     
     image::exist $RBD_ENTRANCE || (
         log.info "pull image: $RBD_ENTRANCE"
@@ -362,7 +348,7 @@ EOF
 
 function run() {
     
-    log.section "setup RBD base plugins"
+    log.info "setup RBD base plugins"
     install_dns
     install_registry
     install_repo
