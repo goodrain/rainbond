@@ -57,19 +57,20 @@ const (
 
 //Job 需要执行的任务
 type Job struct {
-	ID      string     `json:"id"`
-	TaskID  string     `json:"taskID"`
-	EventID string     `json:"event_id"`
-	NodeID  string     `json:"node_id"`
-	Hash    string     `json:"hash"`
-	Name    string     `json:"name"`
-	Command string     `json:"cmd"`
-	Stdin   string     `json:"stdin"`
-	Envs    []string   `json:"envs"`
-	User    string     `json:"user"`
-	Rules   []*JobRule `json:"rules"`
-	Pause   bool       `json:"pause"`   // 可手工控制的状态
-	Timeout int64      `json:"timeout"` // 任务执行时间超时设置，大于 0 时有效
+	ID      string   `json:"id"`
+	TaskID  string   `json:"taskID"`
+	EventID string   `json:"event_id"`
+	NodeID  string   `json:"node_id"`
+	Hash    string   `json:"hash"`
+	Name    string   `json:"name"`
+	Command string   `json:"cmd"`
+	Stdin   string   `json:"stdin"`
+	Envs    []string `json:"envs"`
+	User    string   `json:"user"`
+	//rules 为nil 即当前任务是一次任务
+	Rules   *Rule `json:"rule"`
+	Pause   bool  `json:"pause"`   // 可手工控制的状态
+	Timeout int64 `json:"timeout"` // 任务执行时间超时设置，大于 0 时有效
 	// 执行任务失败重试次数
 	// 默认为 0，不重试
 	Retry int `json:"retry"`
@@ -85,18 +86,48 @@ type Job struct {
 	// 用于存储分隔后的任务
 	cmd []string
 	// 控制同时执行任务数
-	Count *int64 `json:"-"`
+	Count     *int64 `json:"-"`
+	Scheduler *Scheduler
+	RunStatus *RunStatus
 }
 
-//JobRule 任务规则
-type JobRule struct {
-	ID             string            `json:"id"`
-	Timer          string            `json:"timer"`
-	NodeIDs        []string          `json:"nids"`
-	ExcludeNodeIDs []string          `json:"exclude_nids"`
-	Labels         map[string]string `json:"labels"`
-	Schedule       cron.Schedule     `json:"-"`
+//Scheduler 调度信息
+type Scheduler struct {
+	NodeID          string    `json:"node_id"`
+	SchedulerTime   time.Time `json:"scheduler_time"`
+	CanRun          bool      `json:"can_run"`
+	Message         string    `json:"message"`
+	SchedulerStatus string    `json:"scheduler_status"`
 }
+
+//RunStatus job run status
+type RunStatus struct {
+	Status    string    `json:"status"`
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time"`
+	RecordID  string    `json:"record_id"`
+}
+
+//Rule 任务规则
+type Rule struct {
+	ID       string            `json:"id"`
+	Mode     RuleMode          `json:"mode"` //once,
+	Timer    string            `json:"timer"`
+	Labels   map[string]string `json:"labels"`
+	Schedule cron.Schedule     `json:"-"`
+}
+
+//RuleMode RuleMode
+type RuleMode string
+
+//OnlyOnce 只能一次
+var OnlyOnce RuleMode = "onlyonce"
+
+//ManyOnce 多次运行
+var ManyOnce RuleMode = "manyonce"
+
+//Cycle 循环运行
+var Cycle RuleMode = "cycle"
 
 // 任务锁
 type locker struct {
@@ -140,12 +171,12 @@ func (l *locker) unlock() {
 //Cmd 可执行任务
 type Cmd struct {
 	*Job
-	*JobRule
+	*Rule
 }
 
 //GetID GetID
 func (c *Cmd) GetID() string {
-	return c.Job.ID + c.JobRule.ID
+	return c.Job.ID + c.Rule.ID
 }
 
 //Run 执行
@@ -169,8 +200,8 @@ func (c *Cmd) Run() {
 //lockTTL
 func (c *Cmd) lockTTL() int64 {
 	now := time.Now()
-	prev := c.JobRule.Schedule.Next(now)
-	ttl := int64(c.JobRule.Schedule.Next(prev).Sub(prev) / time.Second)
+	prev := c.Rule.Schedule.Next(now)
+	ttl := int64(c.Rule.Schedule.Next(prev).Sub(prev) / time.Second)
 	if ttl == 0 {
 		return 0
 	}
@@ -247,13 +278,18 @@ func (c *Cmd) lock() *locker {
 }
 
 //Valid 验证 timer 字段,创建Schedule
-func (j *JobRule) Valid() error {
+func (j *Rule) Valid() error {
 	// 注意 interface nil 的比较
 	if j.Schedule != nil {
 		return nil
 	}
-
-	if len(j.Timer) > 0 {
+	if j.Mode != OnlyOnce && j.Mode != ManyOnce && j.Mode != Cycle {
+		return fmt.Errorf("job rule mode(%s) can not be support", j.Mode)
+	}
+	if j.Mode == Cycle && len(j.Timer) <= 0 {
+		return fmt.Errorf("job rule mode(%s) timer can not be empty", Cycle)
+	}
+	if j.Mode == Cycle && len(j.Timer) > 0 {
 		sch, err := cron.Parse(j.Timer)
 		if err != nil {
 			return fmt.Errorf("invalid JobRule[%s], parse err: %s", j.Timer, err.Error())
@@ -261,33 +297,6 @@ func (j *JobRule) Valid() error {
 		j.Schedule = sch
 	}
 	return nil
-}
-
-//included 当前节点是否符合规则
-func (j *JobRule) included(node *model.HostNode) bool {
-	//是否属于排除节点
-	for _, excludeID := range j.ExcludeNodeIDs {
-		if excludeID == node.ID {
-			return false
-		}
-	}
-	if j.NodeIDs != nil && len(j.NodeIDs) > 0 {
-		//是否属于允许节点
-		for _, id := range j.NodeIDs {
-			if id == node.ID {
-				return true
-			}
-		}
-	} else {
-		//是否匹配label
-		for k, v := range j.Labels {
-			if nodev := node.Labels[k]; nodev != v {
-				return false
-			}
-		}
-		return true
-	}
-	return false
 }
 
 //GetJob get job
@@ -317,17 +326,15 @@ func GetJobAndRev(id string) (job *Job, rev int64, err error) {
 	return
 }
 
-//DeleteJob 删除job
-func DeleteJob(id string) (resp *client.DeleteResponse, err error) {
-	return store.DefalutClient.Delete(CreateJobKey(id))
-}
-
-//GetJobs 获取jobs
-func GetJobs() (jobs map[string]*Job, err error) {
-	if conf.Config.Cmd == "" {
+//GetJobs 获取当前节点jobs
+func GetJobs(node *model.HostNode) (jobs map[string]*Job, err error) {
+	if conf.Config.JobPath == "" {
 		return nil, fmt.Errorf("job save path can not be empty")
 	}
-	resp, err := store.DefalutClient.Get(conf.Config.Cmd, client.WithPrefix())
+	if node == nil {
+		return nil, fmt.Errorf("current node can not be nil")
+	}
+	resp, err := store.DefalutClient.Get(conf.Config.JobPath, client.WithPrefix())
 	if err != nil {
 		return
 	}
@@ -346,6 +353,9 @@ func GetJobs() (jobs map[string]*Job, err error) {
 			logrus.Warnf("job[%s] is invalid: %s", string(j.Key), err.Error())
 			continue
 		}
+		if !job.IsRunOn(node) {
+			continue
+		}
 		jobs[job.ID] = job
 	}
 	return
@@ -353,12 +363,21 @@ func GetJobs() (jobs map[string]*Job, err error) {
 
 //WatchJobs watch jobs
 func WatchJobs() client.WatchChan {
-	return store.DefalutClient.Watch(conf.Config.Cmd, client.WithPrefix())
+	return store.DefalutClient.Watch(conf.Config.JobPath, client.WithPrefix())
 }
 
-//AddJob 添加job
-func AddJob(j *Job) error {
-	_, err := store.DefalutClient.Put(conf.Config.Cmd+"/"+j.ID, j.String())
+//PutJob 添加获取更新job
+func PutJob(j *Job) error {
+	_, err := store.DefalutClient.Put(conf.Config.JobPath+"/"+j.Hash, j.String())
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+//DeleteJob delete job
+func DeleteJob(hash string) error {
+	_, err := store.DefalutClient.Delete(conf.Config.JobPath + "/" + hash)
 	if err != nil {
 		return err
 	}
@@ -454,7 +473,7 @@ func (j *Job) Run(nid string) bool {
 
 	if err := cmd.Start(); err != nil {
 		logrus.Warnf("job exec failed,details :%s", err.Error())
-		j.Fail(start, fmt.Sprintf("%s\n%s", b.String(), err.Error()))
+		j.Fail(start, err.Error()+"\n"+b.String())
 		return false
 	}
 	proc = &Process{
@@ -467,7 +486,7 @@ func (j *Job) Run(nid string) bool {
 	defer proc.Stop()
 
 	if err := cmd.Wait(); err != nil {
-		j.Fail(start, fmt.Sprintf("%s\n%s", b.String(), err.Error()))
+		j.Fail(start, err.Error()+"\n"+b.String())
 		return false
 	}
 	j.Success(start, b.String())
@@ -517,7 +536,7 @@ func GetIDFromKey(key string) string {
 
 //CreateJobKey JobKey
 func CreateJobKey(id string) string {
-	return conf.Config.Cmd + "/" + id
+	return conf.Config.JobPath + "/" + id
 }
 
 //Key Key
@@ -539,10 +558,10 @@ func (j *Job) Check() error {
 
 	j.User = strings.TrimSpace(j.User)
 
-	for i := range j.Rules {
-		id := strings.TrimSpace(j.Rules[i].ID)
+	if j.Rules != nil {
+		id := strings.TrimSpace(j.Rules.ID)
 		if id == "" || strings.HasPrefix(id, "NEW") {
-			j.Rules[i].ID = uuid.NewV4().String()
+			j.Rules.ID = uuid.NewV4().String()
 		}
 	}
 
@@ -582,31 +601,32 @@ func (j *Job) Cmds(node *model.HostNode) (cmds map[string]*Cmd) {
 	if j.Pause {
 		return
 	}
-	for _, r := range j.Rules {
-		if r.included(node) {
-			cmd := &Cmd{
-				Job:     j,
-				JobRule: r,
-			}
-			cmds[cmd.GetID()] = cmd
+	if j.Rules != nil {
+		cmd := &Cmd{
+			Job:  j,
+			Rule: j.Rules,
 		}
+		cmds[cmd.GetID()] = cmd
 	}
-
 	return
 }
 
 //IsRunOn  是否在本节点执行
-//只要有一个rule满足条件即可
 func (j Job) IsRunOn(node *model.HostNode) bool {
-	if j.Rules == nil || len(j.Rules) == 0 {
+	if j.Scheduler == nil {
 		return false
 	}
-	for _, r := range j.Rules {
-		if r.included(node) {
-			return true
-		}
+	if j.Scheduler.NodeID != node.ID {
+		return false
 	}
-	return false
+	if !j.Scheduler.CanRun {
+		return false
+	}
+	//已有执行状态
+	if j.RunStatus != nil {
+		return false
+	}
+	return true
 }
 
 //Valid 安全选项验证
@@ -664,10 +684,11 @@ func (j *Job) genReal() {
 
 //ValidRules ValidRules
 func (j *Job) ValidRules() error {
-	for _, r := range j.Rules {
-		if err := r.Valid(); err != nil {
-			return err
-		}
+	if j.Rules == nil {
+		return fmt.Errorf("job rule can not be nil")
+	}
+	if err := j.Rules.Valid(); err != nil {
+		return err
 	}
 	return nil
 }

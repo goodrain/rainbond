@@ -34,8 +34,10 @@ import (
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/config"
+	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
 	"github.com/goodrain/rainbond/pkg/node/masterserver/node"
+	"github.com/goodrain/rainbond/pkg/node/nodeserver"
 	"github.com/pquerna/ffjson/ffjson"
 )
 
@@ -43,18 +45,18 @@ import (
 // 处理任务的执行，结果处理，任务自动调度
 // TODO:执行记录清理工作
 type TaskEngine struct {
-	ctx                context.Context
-	cancel             context.CancelFunc
-	config             *option.Conf
-	tasks              map[string]*model.Task
-	tasksLock          sync.Mutex
-	dataCenterConfig   *config.DataCenterConfig
-	nodeCluster        *node.NodeCluster
-	currentNode        *model.HostNode
-	schedulerCache     map[string]bool
-	schedulerCacheLock sync.Mutex
-	down               chan struct{}
-	masterID           client.LeaseID
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	config              *option.Conf
+	tasks               map[string]*model.Task
+	jobs                nodeserver.Jobs
+	tasksLock, jobsLock sync.Mutex
+	dataCenterConfig    *config.DataCenterConfig
+	nodeCluster         *node.NodeCluster
+	currentNode         *model.HostNode
+	down                chan struct{}
+	masterID            client.LeaseID
+	scheduler           *Scheduler
 }
 
 //CreateTaskEngine 创建task管理引擎
@@ -64,13 +66,15 @@ func CreateTaskEngine(nodeCluster *node.NodeCluster, node *model.HostNode) *Task
 		ctx:              ctx,
 		cancel:           cancel,
 		tasks:            make(map[string]*model.Task),
+		jobs:             make(nodeserver.Jobs),
 		config:           option.Config,
 		dataCenterConfig: config.GetDataCenterConfig(),
 		nodeCluster:      nodeCluster,
 		currentNode:      node,
-		schedulerCache:   make(map[string]bool),
 		down:             make(chan struct{}),
 	}
+	scheduler := createScheduler(task)
+	task.scheduler = scheduler
 	return task
 }
 
@@ -187,7 +191,7 @@ func (t *TaskEngine) Stop() {
 //watchTasks watchTasks
 func (t *TaskEngine) loadAndWatchTasks() error {
 	//加载节点信息
-	res, err := store.DefalutClient.Get("/store/tasks/", client.WithPrefix())
+	res, err := store.DefalutClient.Get("/rainbond/store/tasks/", client.WithPrefix())
 	if err != nil {
 		return fmt.Errorf("load tasks error:%s", err.Error())
 	}
@@ -197,7 +201,7 @@ func (t *TaskEngine) loadAndWatchTasks() error {
 		}
 	}
 	go func() {
-		ch := store.DefalutClient.Watch("/store/tasks/", client.WithPrefix(), client.WithRev(res.Header.Revision))
+		ch := store.DefalutClient.Watch("/rainbond/store/tasks/", client.WithPrefix(), client.WithRev(res.Header.Revision))
 		for {
 			select {
 			case <-t.ctx.Done():
@@ -274,6 +278,7 @@ func (t *TaskEngine) LoadStaticTask() {
 		t.loadFile(t.config.StaticTaskPath)
 	}
 }
+
 func (t *TaskEngine) loadFile(path string) {
 	taskBody, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -292,18 +297,36 @@ func (t *TaskEngine) loadFile(path string) {
 			logrus.Errorf("unmarshal static task file %s error.%s", path, err.Error())
 			return
 		}
-		if group.ID == "" {
-			group.ID = group.Name
-		}
 		if group.Name == "" {
 			logrus.Errorf("task group name can not be empty. file %s", path)
 			return
+		}
+		if group.ID == "" {
+			group.ID = group.Name
 		}
 		if group.Tasks == nil {
 			logrus.Errorf("task group tasks can not be empty. file %s", path)
 			return
 		}
-		t.ScheduleGroup(nil, &group)
+		for _, task := range group.Tasks {
+			task.GroupID = group.ID
+			if task.Name == "" {
+				logrus.Errorf("task name can not be empty. file %s", path)
+				return
+			}
+			if task.ID == "" {
+				task.ID = task.Name
+			}
+			if task.Temp == nil {
+				logrus.Errorf("task [%s] temp can not be empty.", task.Name)
+				return
+			}
+			if task.Temp.ID == "" {
+				task.Temp.ID = task.Temp.Name
+			}
+			t.AddTask(task)
+		}
+		t.UpdateGroup(&group)
 		logrus.Infof("Load a static group %s.", group.Name)
 	}
 	if strings.Contains(filename, "task") {
@@ -312,12 +335,12 @@ func (t *TaskEngine) loadFile(path string) {
 			logrus.Errorf("unmarshal static task file %s error.%s", path, err.Error())
 			return
 		}
-		if task.ID == "" {
-			task.ID = task.Name
-		}
 		if task.Name == "" {
 			logrus.Errorf("task name can not be empty. file %s", path)
 			return
+		}
+		if task.ID == "" {
+			task.ID = task.Name
 		}
 		if task.Temp == nil {
 			logrus.Errorf("task [%s] temp can not be empty.", task.Name)
@@ -338,7 +361,7 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 	if task, ok := t.tasks[taskID]; ok {
 		return task
 	}
-	res, err := store.DefalutClient.Get("/store/tasks/" + taskID)
+	res, err := store.DefalutClient.Get("/rainbond/store/tasks/" + taskID)
 	if err != nil {
 		return nil
 	}
@@ -390,13 +413,18 @@ func (t *TaskEngine) AddTask(task *model.Task) error {
 	if task.Scheduler.Mode == "" {
 		task.Scheduler.Mode = "Passive"
 	}
+	if task.RunMode == "" {
+		task.RunMode = string(job.OnlyOnce)
+	}
 	t.CacheTask(task)
-	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, task.String())
+	_, err := store.DefalutClient.Put("/rainbond/store/tasks/"+task.ID, task.String())
 	if err != nil {
 		return err
 	}
 	if task.Scheduler.Mode == "Intime" {
-		t.PutSchedul(task.ID, "")
+		for _, node := range t.nodeCluster.GetLabelsNode(task.Temp.Labels) {
+			t.PutSchedul(task.ID, node)
+		}
 	}
 	return nil
 }
@@ -406,7 +434,7 @@ func (t *TaskEngine) UpdateTask(task *model.Task) {
 	t.tasksLock.Lock()
 	defer t.tasksLock.Unlock()
 	t.tasks[task.ID] = task
-	_, err := store.DefalutClient.Put("/store/tasks/"+task.ID, task.String())
+	_, err := store.DefalutClient.Put("/rainbond/store/tasks/"+task.ID, task.String())
 	if err != nil {
 		logrus.Errorf("update task error,%s", err.Error())
 	}
@@ -414,7 +442,8 @@ func (t *TaskEngine) UpdateTask(task *model.Task) {
 
 //UpdateGroup 更新taskgroup
 func (t *TaskEngine) UpdateGroup(group *model.TaskGroup) {
-	_, err := store.DefalutClient.Put("/store/taskgroups/"+group.ID, group.String())
+	group.Tasks = nil
+	_, err := store.DefalutClient.Put("/rainbond/store/taskgroups/"+group.ID, group.String())
 	if err != nil {
 		logrus.Errorf("update taskgroup error,%s", err.Error())
 	}
@@ -422,7 +451,7 @@ func (t *TaskEngine) UpdateGroup(group *model.TaskGroup) {
 
 //GetTaskGroup 获取taskgroup
 func (t *TaskEngine) GetTaskGroup(taskGroupID string) *model.TaskGroup {
-	res, err := store.DefalutClient.Get("/store/taskgroups/" + taskGroupID)
+	res, err := store.DefalutClient.Get("/rainbond/store/taskgroups/" + taskGroupID)
 	if err != nil {
 		return nil
 	}
@@ -445,7 +474,7 @@ func (t *TaskEngine) CacheTask(task *model.Task) {
 
 //AddGroupConfig 添加组会话配置
 func (t *TaskEngine) AddGroupConfig(groupID string, configs map[string]string) {
-	ctx := config.NewGroupContext(groupID)
+	ctx := t.dataCenterConfig.GetGroupConfig(groupID)
 	for k, v := range configs {
 		ctx.Add(k, v)
 	}

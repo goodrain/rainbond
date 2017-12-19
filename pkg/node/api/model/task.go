@@ -92,7 +92,7 @@ type Task struct {
 	CompleteTime time.Time             `json:"complete_time"`
 	ResultPath   string                `json:"result_path"`
 	EventID      string                `json:"event_id"`
-	IsOnce       bool                  `json:"is_once"`
+	RunMode      string                `json:"run_mode"`
 	OutPut       []*TaskOutPut         `json:"out_put"`
 }
 

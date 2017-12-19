@@ -49,7 +49,7 @@ var taskService *TaskService
 func CreateTaskService(c *option.Conf, ms *masterserver.MasterServer) *TaskService {
 	if taskService == nil {
 		taskService = &TaskService{
-			SavePath: "/store/tasks",
+			SavePath: "/rainbond/store/tasks",
 			conf:     c,
 			ms:       ms,
 		}
@@ -87,8 +87,7 @@ func (ts *TaskService) AddTask(t *model.Task) *utils.APIHandleError {
 	}
 	t.CreateTime = time.Now()
 
-
-	err:= ts.ms.TaskEngine.AddTask(t)
+	err := ts.ms.TaskEngine.AddTask(t)
 	if err != nil {
 		return utils.CreateAPIHandleErrorFromDBError("save task", err)
 	}
@@ -115,9 +114,9 @@ func (ts *TaskService) GetTasks() ([]*model.Task, *utils.APIHandleError) {
 		tasks = append(tasks, &t)
 	}
 
-	for _,v:=range tasks{
-		task:=ts.ms.TaskEngine.GetTask(v.ID)
-		result=append(result,task)
+	for _, v := range tasks {
+		task := ts.ms.TaskEngine.GetTask(v.ID)
+		result = append(result, task)
 	}
 	if len(result) < 1 {
 		return nil, utils.CreateAPIHandleError(500, err)
@@ -128,7 +127,7 @@ func (ts *TaskService) GetTasks() ([]*model.Task, *utils.APIHandleError) {
 //GetTask 获取Task
 func (ts *TaskService) GetTask(taskID string) (*model.Task, *utils.APIHandleError) {
 	var task *model.Task
-	task=ts.ms.TaskEngine.GetTask(taskID)
+	task = ts.ms.TaskEngine.GetTask(taskID)
 	if task == nil {
 		return nil, utils.CreateAPIHandleError(404, fmt.Errorf("task not found"))
 	}
@@ -179,16 +178,22 @@ func (ts *TaskService) ExecTask(taskID string, nodes []string) *utils.APIHandleE
 		}
 	}
 	if nodes == nil || len(nodes) == 0 {
-		ts.ms.TaskEngine.PutSchedul(taskID, "")
-	} else {
-		for _, node := range nodes {
-			if n := ts.ms.Cluster.GetNode(node); n == nil {
-				return utils.CreateAPIHandleError(400, fmt.Errorf(" exec node  %s not found", node))
-			}
+		return utils.CreateAPIHandleError(400, fmt.Errorf("exec node can not be empty"))
+	}
+	for _, node := range nodes {
+		if n := ts.ms.Cluster.GetNode(node); n == nil {
+			return utils.CreateAPIHandleError(400, fmt.Errorf(" exec node  %s not found", node))
 		}
-		for _, node := range nodes {
-			ts.ms.TaskEngine.PutSchedul(taskID, node)
+	}
+	var er error
+	for _, node := range nodes {
+		er = ts.ms.TaskEngine.PutSchedul(taskID, node)
+		if er != nil {
+			logrus.Error("create task scheduler info error,", er.Error())
 		}
+	}
+	if er != nil {
+		return utils.CreateAPIHandleError(400, fmt.Errorf("exec task encounters an error"))
 	}
 	return nil
 }
@@ -369,12 +374,28 @@ func (ts *TaskGroupService) DeleteTaskGroup(taskGroupID string) *utils.APIHandle
 }
 
 //ExecTaskGroup 执行组任务API处理
-func (ts *TaskGroupService) ExecTaskGroup(taskGroupID string) *utils.APIHandleError {
+func (ts *TaskGroupService) ExecTaskGroup(taskGroupID string, nodes []string) *utils.APIHandleError {
 	t, err := ts.GetTaskGroup(taskGroupID)
 	if err != nil {
 		return err
 	}
-	//TODO:增加执行判断
-	ts.ms.TaskEngine.ScheduleGroup(nil, t)
+	if nodes == nil || len(nodes) == 0 {
+		return utils.CreateAPIHandleError(400, fmt.Errorf("exec node can not be empty"))
+	}
+	for _, node := range nodes {
+		if n := ts.ms.Cluster.GetNode(node); n == nil {
+			return utils.CreateAPIHandleError(400, fmt.Errorf(" exec node  %s not found", node))
+		}
+	}
+	var er error
+	for _, node := range nodes {
+		er = ts.ms.TaskEngine.ScheduleGroup(t, node)
+		if er != nil {
+			logrus.Error("create task scheduler info error,", err.Error())
+		}
+	}
+	if er != nil {
+		return utils.CreateAPIHandleError(400, fmt.Errorf("exec task encounters an error"))
+	}
 	return nil
 }

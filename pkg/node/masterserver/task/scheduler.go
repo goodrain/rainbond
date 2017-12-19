@@ -19,106 +19,213 @@
 package task
 
 import (
+	"context"
 	"crypto/sha1"
 	"fmt"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
-	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
-	"github.com/pquerna/ffjson/ffjson"
 )
+
+//Scheduler 调度器
+type Scheduler struct {
+	taskEngine *TaskEngine
+	cache      chan *job.Job
+	ctx        context.Context
+	cancel     context.CancelFunc
+}
+
+func createScheduler(taskEngine *TaskEngine) *Scheduler {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &Scheduler{
+		taskEngine: taskEngine,
+		cache:      make(chan *job.Job, 100),
+		ctx:        ctx,
+		cancel:     cancel,
+	}
+}
+func (s *Scheduler) putSchedulerChan(jb *job.Job, duration time.Duration) {
+	go func() {
+		time.Sleep(duration)
+		s.cache <- jb
+	}()
+}
+
+//Next 下一个调度对象
+func (s *Scheduler) Next() (*job.Job, error) {
+	ctx, cancel := context.WithTimeout(s.ctx, time.Second*5)
+	defer cancel()
+	select {
+	case job := <-s.cache:
+		return job, nil
+	case <-s.ctx.Done():
+		return nil, fmt.Errorf("context cancel")
+	case <-ctx.Done():
+		return nil, fmt.Errorf("time out")
+	}
+}
+
+//Stop 停止
+func (s *Scheduler) Stop() {
+	s.cancel()
+}
 
 //StartScheduler 开始调度
 func (t *TaskEngine) startScheduler() {
+	t.loadAndWatchJobs()
+	logrus.Info("Start scheduler worke")
+	for {
+		next, err := t.scheduler.Next()
+		if err != nil {
+			if err.Error() == "time out" {
+				continue
+			}
+			if err.Error() == "context cancel" {
+				return
+			}
+			continue
+		}
+		logrus.Infof("Start schedule job %s to node %s", next.Hash, next.NodeID)
+		task := t.GetTask(next.TaskID)
+		if task == nil {
+			logrus.Errorf("job %s task %s not found when scheduler", next.ID, next.TaskID)
+			continue
+		}
+		vas := t.GetValidationCriteria(task)
+		for i, va := range vas {
+			ok, err := va(next.NodeID, task)
+			if err != nil {
+				task.Scheduler.Status[next.NodeID] = model.SchedulerStatus{
+					Status:          "Failure",
+					Message:         err.Error(),
+					SchedulerMaster: t.currentNode.ID,
+					SchedulerTime:   time.Now(),
+				}
+				t.UpdateTask(task)
+				next.Scheduler = &job.Scheduler{
+					NodeID:          next.NodeID,
+					SchedulerTime:   time.Now(),
+					SchedulerStatus: "Failure",
+					Message:         err.Error(),
+				}
+				t.UpdateJob(next)
+				logrus.Infof("Failure schedule job %s to node %s", next.Hash, next.NodeID)
+				break
+			}
+			if !ok {
+				task.Scheduler.Status[next.NodeID] = model.SchedulerStatus{
+					Status:          "Waiting",
+					Message:         "waiting validation criteria",
+					SchedulerMaster: t.currentNode.ID,
+					SchedulerTime:   time.Now(),
+				}
+				t.UpdateTask(task)
+				t.scheduler.putSchedulerChan(next, 3*time.Second)
+				break
+			}
+			//全部条件满足
+			if i == len(vas)-1 {
+				if task.Scheduler.Status == nil {
+					task.Scheduler.Status = make(map[string]model.SchedulerStatus)
+				}
+				task.Scheduler.Status[next.NodeID] = model.SchedulerStatus{
+					Status:          "Success",
+					Message:         "Success",
+					SchedulerMaster: t.currentNode.ID,
+					SchedulerTime:   time.Now(),
+				}
+				task.Status[next.NodeID] = model.TaskStatus{
+					JobID:  next.ID,
+					Status: "Start",
+				}
+				t.UpdateTask(task)
+				next.Scheduler = &job.Scheduler{
+					NodeID:          next.NodeID,
+					SchedulerTime:   time.Now(),
+					SchedulerStatus: "Success",
+					CanRun:          true,
+				}
+				t.UpdateJob(next)
+				logrus.Infof("Success schedule job %s to node %s", next.Hash, next.NodeID)
+			}
+		}
 
+	}
 }
 
 func (t *TaskEngine) stopScheduler() {
-
+	t.scheduler.Stop()
 }
 
-//TaskSchedulerInfo 请求调度信息
-//指定任务到指定节点执行
-//执行完成后该数据从集群中删除
-//存储key: taskid+nodeid
-type TaskSchedulerInfo struct {
-	TaskID              string    `json:"taskID"`
-	Node                string    `json:"node"`
-	JobID               string    `json:"jobID"`
-	CreateTime          time.Time `json:"create_time"`
-	SchedulerMasterNode string    `json:"create_master_node"`
-	Status              model.SchedulerStatus
-}
-
-//NewTaskSchedulerInfo 创建请求调度信息
-func NewTaskSchedulerInfo(taskID, nodeID string) *TaskSchedulerInfo {
-	return &TaskSchedulerInfo{
-		TaskID:     taskID,
-		Node:       nodeID,
-		CreateTime: time.Now(),
-	}
-}
-func getTaskSchedulerInfoFromKV(kv *mvccpb.KeyValue) *TaskSchedulerInfo {
-	var taskinfo TaskSchedulerInfo
-	if err := ffjson.Unmarshal(kv.Value, &taskinfo); err != nil {
-		logrus.Error("parse task scheduler info error:", err.Error())
-		return nil
-	}
-	return &taskinfo
-}
-
-//Post 发布
-func (t TaskSchedulerInfo) Post() {
-	body, err := ffjson.Marshal(t)
-	if err == nil {
-		store.DefalutClient.Post("/rainbond-node/scheduler/taskshcedulers/"+t.TaskID+"/"+t.Node, string(body))
-		logrus.Infof("put a scheduler info %s:%s", t.TaskID, t.Node)
-	}
-}
-
-//Update 更新数据
-func (t TaskSchedulerInfo) Update() {
-	body, err := ffjson.Marshal(t)
-	if err == nil {
-		store.DefalutClient.Put("/rainbond-node/scheduler/taskshcedulers/"+t.TaskID+"/"+t.Node, string(body))
-	}
-}
-
-//Delete 删除数据
-func (t TaskSchedulerInfo) Delete() {
-	store.DefalutClient.Delete("/rainbond-node/scheduler/taskshcedulers/" + t.TaskID + "/" + t.Node)
-}
-
-func (t *TaskEngine) watcheScheduler() {
-	load, _ := store.DefalutClient.Get("/rainbond-node/scheduler/taskshcedulers/", client.WithPrefix())
+func (t *TaskEngine) loadAndWatchJobs() {
+	load, _ := store.DefalutClient.Get(t.config.JobPath, client.WithPrefix())
 	if load != nil && load.Count > 0 {
 		for _, kv := range load.Kvs {
-			logrus.Debugf("watch a scheduler task %s", kv.Key)
-			if taskinfo := getTaskSchedulerInfoFromKV(kv); taskinfo != nil {
-				t.prepareScheduleTask(taskinfo)
+			jb, err := job.GetJobFromKv(kv)
+			if err != nil {
+				logrus.Errorf("load job(%s) error,%s", kv.Key, err.Error())
+				continue
 			}
+			t.andOrUpdateJob(jb)
 		}
 	}
-	ch := store.DefalutClient.Watch("/rainbond-node/scheduler/taskshcedulers/", client.WithPrefix())
-	for {
-		select {
-		case <-t.ctx.Done():
-			return
-		case event := <-ch:
-			for _, ev := range event.Events {
-				switch {
-				case ev.IsCreate(), ev.IsModify():
-					logrus.Debugf("watch a scheduler task %s", ev.Kv.Key)
-					if taskinfo := getTaskSchedulerInfoFromKV(ev.Kv); taskinfo != nil {
-						t.prepareScheduleTask(taskinfo)
+	logrus.Infof("load exist job success,count %d", len(t.jobs))
+	go func() {
+		ch := store.DefalutClient.Watch(t.config.JobPath, client.WithPrefix())
+		for {
+			select {
+			case <-t.ctx.Done():
+				return
+			case event := <-ch:
+				if err := event.Err(); err != nil {
+					logrus.Error("watch job error,", err.Error())
+					time.Sleep(time.Second * 3)
+					continue
+				}
+				for _, ev := range event.Events {
+					switch {
+					case ev.IsCreate(), ev.IsModify():
+						jb, err := job.GetJobFromKv(ev.Kv)
+						if err != nil {
+							logrus.Errorf("load job(%s) error,%s", ev.Kv.Key, err.Error())
+							continue
+						}
+						t.andOrUpdateJob(jb)
+					case ev.Type == client.EventTypeDelete:
+						t.deleteJob(job.GetIDFromKey(string(ev.Kv.Key)))
 					}
 				}
 			}
 		}
+	}()
+}
+
+func (t *TaskEngine) andOrUpdateJob(jb *job.Job) {
+	t.jobsLock.Lock()
+	defer t.jobsLock.Unlock()
+	t.jobs[jb.Hash] = jb
+	if jb.Scheduler == nil {
+		t.scheduler.putSchedulerChan(jb, 0)
+		logrus.Infof("cache a job and put scheduler")
+	}
+}
+
+//UpdateJob 持久化增加or更新job
+func (t *TaskEngine) UpdateJob(jb *job.Job) {
+	t.jobsLock.Lock()
+	defer t.jobsLock.Unlock()
+	t.jobs[jb.Hash] = jb
+	job.PutJob(jb)
+}
+func (t *TaskEngine) deleteJob(jbHash string) {
+	t.jobsLock.Lock()
+	defer t.jobsLock.Unlock()
+	if _, ok := t.jobs[jbHash]; ok {
+		delete(t.jobs, jbHash)
 	}
 }
 
@@ -138,7 +245,15 @@ func (t *TaskEngine) PutSchedul(taskID string, nodeID string) (err error) {
 		return fmt.Errorf("node %s not found", nodeID)
 	}
 	hash := getHash(taskID, nodeID)
-	logrus.Infof("scheduler hash %s", hash)
+	logrus.Infof("put scheduler hash %s", hash)
+	//初步判断任务是否能被创建
+	if oldjob := t.GetJob(hash); oldjob != nil {
+		if task.RunMode == string(job.OnlyOnce) {
+			if oldjob.Scheduler != nil && oldjob.Scheduler.SchedulerStatus == "Success" {
+				return fmt.Errorf("task %s run on node %s job only run mode %s", taskID, nodeID, job.OnlyOnce)
+			}
+		}
+	}
 	var jb *job.Job
 	if task.GroupID == "" {
 		jb, err = job.CreateJobFromTask(task, nil)
@@ -146,9 +261,23 @@ func (t *TaskEngine) PutSchedul(taskID string, nodeID string) (err error) {
 			return fmt.Errorf("create job error,%s", err.Error())
 		}
 	} else {
-
+		ctx := t.dataCenterConfig.GetGroupConfig(task.GroupID)
+		jb, err = job.CreateJobFromTask(task, ctx)
+		if err != nil {
+			return fmt.Errorf("create job error,%s", err.Error())
+		}
 	}
+	jb.NodeID = nodeID
+	jb.Hash = hash
+	jb.Scheduler = nil
+	return job.PutJob(jb)
+}
 
+//GetJob 获取已经存在的job
+func (t *TaskEngine) GetJob(hash string) *job.Job {
+	if j, ok := t.jobs[hash]; ok {
+		return j
+	}
 	return nil
 }
 
@@ -160,268 +289,24 @@ func getHash(source ...string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-//waitScheduleTask 等待调度条件成熟
-func (t *TaskEngine) waitScheduleTask(taskSchedulerInfo *TaskSchedulerInfo, task *model.Task) {
-	//continueScheduler 是否继续调度，如果调度条件无法满足，停止调度
-	var continueScheduler = true
-	canRun := func() bool {
-		defer t.UpdateTask(task)
-		if task.Temp.Depends != nil && len(task.Temp.Depends) > 0 {
-			var result = make([]bool, len(task.Temp.Depends))
-			for i, dep := range task.Temp.Depends {
-				if depTask := t.GetTask(dep.DependTaskID); depTask != nil {
-					//判断依赖任务调度情况
-					if depTask.Scheduler.Mode == "Passive" {
-						var needScheduler bool
-						if depTask.Scheduler.Status == nil {
-							needScheduler = true
-						}
-						//当前节点未调度且依赖策略为当前节点必须执行，则调度
-						if _, ok := depTask.Scheduler.Status[taskSchedulerInfo.Node]; !ok && dep.DetermineStrategy == model.SameNodeStrategy {
-							needScheduler = true
-						}
-						if needScheduler {
-							//依赖任务i未就绪
-							result[i] = false
-							//发出依赖任务的调度请求
-							if dep.DetermineStrategy == model.SameNodeStrategy {
-								t.PutSchedul(depTask.ID, taskSchedulerInfo.Node)
-							} else if dep.DetermineStrategy == model.AtLeastOnceStrategy {
-								nodes := t.nodeCluster.GetLabelsNode(depTask.Temp.Labels)
-								if len(nodes) > 0 {
-									t.PutSchedul(depTask.ID, nodes[0])
-								} else {
-									taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s can not found exec node", depTask.ID)
-									taskSchedulerInfo.Status.Status = "Failure"
-									taskSchedulerInfo.Status.SchedulerTime = time.Now()
-									task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
-									continueScheduler = false
-									continue
-								}
-							}
-							taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s is not complete", depTask.ID)
-							taskSchedulerInfo.Status.Status = "Waiting"
-							task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
-							continue
-						}
-					}
-					//判断依赖任务的执行情况
-					//依赖策略为任务全局只要执行一次
-					if dep.DetermineStrategy == model.AtLeastOnceStrategy {
-						if depTask.Status == nil || len(depTask.Status) < 1 {
-							taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s is not complete", depTask.ID)
-							taskSchedulerInfo.Status.Status = "Waiting"
-							task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
-							return false
-						}
-						var access bool
-						var faiiureSize int
-						if len(depTask.Status) > 0 {
-							for _, status := range depTask.Status {
-								if status.CompleStatus == "Success" {
-									logrus.Debugf("dep task %s ready", depTask.ID)
-									access = true
-								} else {
-									faiiureSize++
-								}
-							}
-						}
-						//如果依赖的某个服务全部执行记录失败，条件不可能满足，本次调度结束
-						if faiiureSize != 0 && faiiureSize >= len(depTask.Scheduler.Status) {
-							taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s Condition cannot be satisfied", depTask.ID)
-							taskSchedulerInfo.Status.Status = "Failure"
-							taskSchedulerInfo.Status.SchedulerTime = time.Now()
-							task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
-							continueScheduler = false
-							return false
-						}
-						result[i] = access
-					}
-					//依赖任务相同节点执行成功
-					if dep.DetermineStrategy == model.SameNodeStrategy {
-						if depTask.Status == nil || len(depTask.Status) < 1 {
-							taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s is not complete", depTask.ID)
-							taskSchedulerInfo.Status.Status = "Waiting"
-							task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
-							return false
-						}
-						if nodestatus, ok := depTask.Status[taskSchedulerInfo.Node]; ok && nodestatus.CompleStatus == "Success" {
-							result[i] = true
-							continue
-						} else if ok && nodestatus.CompleStatus != "" {
-							taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s(%s) Condition cannot be satisfied", depTask.ID, nodestatus.CompleStatus)
-							taskSchedulerInfo.Status.Status = "Failure"
-							taskSchedulerInfo.Status.SchedulerTime = time.Now()
-							task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
-							continueScheduler = false
-							return false
-						} else {
-							taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s is not complete", depTask.ID)
-							taskSchedulerInfo.Status.Status = "Waiting"
-							task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
-							return false
-						}
-					}
-				} else {
-					taskSchedulerInfo.Status.Message = fmt.Sprintf("depend task %s is not found", dep.DependTaskID)
-					taskSchedulerInfo.Status.Status = "Failure"
-					taskSchedulerInfo.Status.SchedulerTime = time.Now()
-					task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
-					result[i] = false
-					continueScheduler = false
-					return false
-				}
-			}
-			for _, ok := range result {
-				if !ok {
-					return false
-				}
-			}
-		}
-		return true
-	}
-	for continueScheduler {
-		if canRun() {
-			t.scheduler(taskSchedulerInfo, task)
-			return
-		}
-		logrus.Infof("task %s can not be run .waiting depend tasks complete", task.Name)
-		time.Sleep(2 * time.Second)
-	}
-	//调度失败，删除任务
-	taskSchedulerInfo.Delete()
-}
-
-//ScheduleTask 调度执行指定task
-//单节点或不确定节点
-func (t *TaskEngine) prepareScheduleTask(taskSchedulerInfo *TaskSchedulerInfo) {
-	if task := t.GetTask(taskSchedulerInfo.TaskID); task != nil {
-		if task == nil {
-			return
-		}
-		//已经调度且没有完成
-		if status, ok := task.Status[taskSchedulerInfo.Node]; ok && status.Status == "start" {
-			logrus.Warningf("prepare scheduler task(%s) error,it already scheduler", taskSchedulerInfo.TaskID)
-			return
-		}
-		if task.Temp == nil {
-			logrus.Warningf("prepare scheduler task(%s) temp can not be nil", taskSchedulerInfo.TaskID)
-			return
-		}
-		if task.Scheduler.Status == nil {
-			task.Scheduler.Status = make(map[string]model.SchedulerStatus)
-		}
-		if task.Temp.Depends != nil && len(task.Temp.Depends) > 0 {
-			go t.waitScheduleTask(taskSchedulerInfo, task)
-		} else {
-			//真正调度
-			t.scheduler(taskSchedulerInfo, task)
-		}
-		t.UpdateTask(task)
-	}
-}
-
-//scheduler 调度一个Task到一个节点执行
-func (t *TaskEngine) scheduler(taskSchedulerInfo *TaskSchedulerInfo, task *model.Task) {
-	j, err := job.CreateJobFromTask(task, nil)
-	if err != nil {
-		taskSchedulerInfo.Status.Status = "Failure"
-		taskSchedulerInfo.Status.Message = err.Error()
-		//更新调度状态
-		task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
-		t.UpdateTask(task)
-		logrus.Errorf("run task %s error.%s", task.Name, err.Error())
-		return
-	}
-	//如果指定nodes
-	if taskSchedulerInfo.Node != "" {
-		for _, rule := range j.Rules {
-			rule.NodeIDs = []string{taskSchedulerInfo.Node}
-		}
-	}
-	if j.IsOnce {
-		if err := job.PutOnce(j); err != nil {
-			taskSchedulerInfo.Status.Status = "Failure"
-			taskSchedulerInfo.Status.Message = err.Error()
-			//更新调度状态
-			task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
-			t.UpdateTask(task)
-			logrus.Errorf("run task %s error.%s", task.Name, err.Error())
-			return
-		}
-	} else {
-		if err := job.AddJob(j); err != nil {
-			taskSchedulerInfo.Status.Status = "Failure"
-			taskSchedulerInfo.Status.Message = err.Error()
-			//更新调度状态
-			task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
-			t.UpdateTask(task)
-			logrus.Errorf("run task %s error.%s", task.Name, err.Error())
-			return
-		}
-	}
-	task.StartTime = time.Now()
-	taskSchedulerInfo.Status.Status = "Success"
-	taskSchedulerInfo.Status.Message = "scheduler success"
-	taskSchedulerInfo.Status.SchedulerTime = time.Now()
-	taskSchedulerInfo.Status.SchedulerMaster = t.currentNode.ID
-	//更新调度状态
-	task.Scheduler.Status[taskSchedulerInfo.Node] = taskSchedulerInfo.Status
-	if task.Status == nil {
-		task.Status = make(map[string]model.TaskStatus)
-	}
-	task.Status[t.currentNode.ID] = model.TaskStatus{
-		JobID:     j.ID,
-		StartTime: time.Now(),
-		Status:    "Start",
-	}
-	t.UpdateTask(task)
-	logrus.Infof("success scheduler a task %s to node %s", task.Name, taskSchedulerInfo.Node)
-}
-
 //ScheduleGroup 调度执行指定task
-func (t *TaskEngine) ScheduleGroup(nodes []string, nextGroups ...*model.TaskGroup) {
-	for _, group := range nextGroups {
-		if group.Tasks == nil || len(group.Tasks) < 1 {
-			group.Status = &model.TaskGroupStatus{
-				StartTime: time.Now(),
-				EndTime:   time.Now(),
-				Status:    "NotDefineTask",
-			}
-			t.UpdateGroup(group)
-		}
-		for _, task := range group.Tasks {
-			task.GroupID = group.ID
-			t.AddTask(task)
-		}
-		group.Status = &model.TaskGroupStatus{
-			StartTime: time.Now(),
-			Status:    "Start",
-		}
-		t.UpdateGroup(group)
-	}
+func (t *TaskEngine) ScheduleGroup(nextGroups *model.TaskGroup, node string) error {
+	//TODO:调度组任务
+	return nil
 }
 
 //StopTask 停止任务，即删除任务对应的JOB
 func (t *TaskEngine) StopTask(task *model.Task, node string) {
 	if status, ok := task.Status[node]; ok {
 		if status.JobID != "" {
-			if task.IsOnce {
-				_, err := store.DefalutClient.Delete(t.config.Once + "/" + status.JobID)
-				if err != nil {
-					logrus.Errorf("stop task %s error.%s", task.Name, err.Error())
-				}
-			} else {
-				_, err := store.DefalutClient.Delete(t.config.Cmd + "/" + status.JobID)
-				if err != nil {
-					logrus.Errorf("stop task %s error.%s", task.Name, err.Error())
-				}
+			_, err := store.DefalutClient.Delete(t.config.JobPath + "/" + status.JobID)
+			if err != nil {
+				logrus.Errorf("stop task %s error.%s", task.Name, err.Error())
 			}
-			_, err := store.DefalutClient.Delete(t.config.ExecutionRecordPath+"/"+status.JobID, client.WithPrefix())
+			_, err = store.DefalutClient.Delete(t.config.ExecutionRecordPath+"/"+status.JobID, client.WithPrefix())
 			if err != nil {
 				logrus.Errorf("delete execution record for task %s error.%s", task.Name, err.Error())
 			}
 		}
 	}
-	store.DefalutClient.Delete("/rainbond-node/scheduler/taskshcedulers/" + task.ID + "/" + node)
 }

@@ -47,7 +47,9 @@ func (t *TaskEngine) startHandleJobRecord() {
 			return
 		case event := <-ch:
 			if err := event.Err(); err != nil {
-
+				logrus.Error("watch job recoder error,", err.Error())
+				time.Sleep(time.Second * 3)
+				continue
 			}
 			for _, ev := range event.Events {
 				switch {
@@ -91,6 +93,7 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 	}
 	//更新task信息
 	defer t.UpdateTask(task)
+	defer er.CompleteHandle()
 	taskStatus := model.TaskStatus{
 		JobID:        er.JobID,
 		StartTime:    er.BeginTime,
@@ -151,7 +154,7 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 						if group == nil {
 							continue
 						}
-						t.ScheduleGroup([]string{output.NodeID}, group)
+						t.ScheduleGroup(group, output.NodeID)
 					}
 				}
 			}
@@ -164,14 +167,4 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 		task.Status = make(map[string]model.TaskStatus)
 	}
 	task.Status[er.Node] = taskStatus
-	//如果是is_once的任务，处理完成后删除job
-	if task.IsOnce {
-		task.CompleteTime = time.Now()
-		t.StopTask(task, er.Node)
-	} else { //如果是一次性任务，执行记录已经被删除，无需更新
-		er.CompleteHandle()
-	}
-	t.schedulerCacheLock.Lock()
-	defer t.schedulerCacheLock.Unlock()
-	delete(t.schedulerCache, task.ID+er.Node)
 }

@@ -41,14 +41,14 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdGet())
 	cmds = append(cmds, NewCmdInit())
 	cmds = append(cmds, NewCmdShow())
-	cmds = append(cmds, NewCmdTask())
+
+	//task相关命令
+	cmds = append(cmds, NewCmdTasks())
 	//cmds = append(cmds, NewCmdAddNode())
 
 	//cmds = append(cmds, NewCmdComputeGroup())
 	cmds = append(cmds, NewCmdInstall())
 	//cmds = append(cmds, NewCmdInstallStatus())
-	cmds = append(cmds, NewCmdAddTask())
-	//cmds = append(cmds, NewCmdStatus())
 
 	cmds = append(cmds, NewCmdDomain())
 

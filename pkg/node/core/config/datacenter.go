@@ -40,6 +40,8 @@ type DataCenterConfig struct {
 	options *option.Conf
 	ctx     context.Context
 	cancel  context.CancelFunc
+	//group config 不持久化
+	groupConfigs map[string]*GroupContext
 }
 
 var dataCenterConfig *DataCenterConfig
@@ -62,6 +64,7 @@ func CreateDataCenterConfig() *DataCenterConfig {
 		config: &model.GlobalConfig{
 			Configs: make(map[string]*model.ConfigUnit),
 		},
+		groupConfigs: make(map[string]*GroupContext),
 	}
 	res, err := store.DefalutClient.Get(dataCenterConfig.options.ConfigStoragePath+"/global", client.WithPrefix())
 	if err != nil {
@@ -161,4 +164,14 @@ func (d *DataCenterConfig) PutConfigKV(kv *mvccpb.KeyValue) {
 //DeleteConfig 删除配置
 func (d *DataCenterConfig) DeleteConfig(name string) {
 	d.config.Delete(name)
+}
+
+//GetGroupConfig get group config
+func (d *DataCenterConfig) GetGroupConfig(groupID string) *GroupContext {
+	if c, ok := d.groupConfigs[groupID]; ok {
+		return c
+	}
+	c := NewGroupContext(groupID)
+	d.groupConfigs[groupID] = c
+	return c
 }
