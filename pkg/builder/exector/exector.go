@@ -146,6 +146,8 @@ func (e *exectorManager) appSlug(in []byte) {
 	//}()
 	//updateBuildResult(eventID,"failure",dest)
 
+
+
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("应用代码包构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
