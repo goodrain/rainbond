@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -24,6 +23,7 @@ import (
 	"path"
 	"syscall"
 
+	"github.com/goodrain/rainbond/pkg/discover"
 	"github.com/goodrain/rainbond/pkg/eventlog/cluster"
 	"github.com/goodrain/rainbond/pkg/eventlog/conf"
 	"github.com/goodrain/rainbond/pkg/eventlog/entry"
@@ -36,8 +36,8 @@ import (
 	"fmt"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/spf13/pflag"
 	"github.com/goodrain/rainbond/pkg/eventlog/db"
+	"github.com/spf13/pflag"
 )
 
 type LogServer struct {
@@ -215,6 +215,28 @@ func (s *LogServer) Run() error {
 		return err
 	}
 	defer s.Entry.Stop()
+
+	//服务注册
+	grpckeepalive, err := discover.CreateKeepAlive(s.Conf.Cluster.Discover.EtcdAddr, "event_log_event_grpc",
+		s.Conf.Cluster.Discover.InstanceIP, s.Conf.Cluster.Discover.InstanceIP, 6367)
+	if err != nil {
+		return err
+	}
+	if err := grpckeepalive.Start(); err != nil {
+		return err
+	}
+	defer grpckeepalive.Stop()
+
+	httpkeepalive, err := discover.CreateKeepAlive(s.Conf.Cluster.Discover.EtcdAddr, "event_log_event_http",
+		s.Conf.Cluster.Discover.InstanceIP, s.Conf.Cluster.Discover.InstanceIP, s.Conf.WebSocket.BindPort)
+	if err != nil {
+		return err
+	}
+	if err := httpkeepalive.Start(); err != nil {
+		return err
+	}
+	defer httpkeepalive.Stop()
+
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
 	select {

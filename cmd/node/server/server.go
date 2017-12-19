@@ -88,9 +88,10 @@ func Run(c *option.Conf) error {
 	}
 	//启动API服务
 	apiManager := api.NewManager(*s.Conf, s.HostNode, ms)
-	apiManager.Start(errChan)
+	if err := apiManager.Start(errChan); err != nil {
+		return err
+	}
 	defer apiManager.Stop()
-
 	// 注册退出事件
 	//todo conf.Exit cronsun.exit 重写
 	event.On(event.EXIT, s.Stop, option.Exit, job.Exit, controller.Exist)

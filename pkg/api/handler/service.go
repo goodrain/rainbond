@@ -84,17 +84,18 @@ func CreateManager(conf option.Config) (*ServiceAction, error) {
 func checkDeployVersion(r *api_model.BuildServiceStruct) {
 	eventID := r.Body.EventID
 	logger := event.GetManager().GetLogger(eventID)
-	if len(r.Body.DeployVersion)==0 {
+	if len(r.Body.DeployVersion) == 0 {
 
-		version,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+		version, err := db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
 		if err != nil {
-			logger.Info("获取部署版本信息失败",map[string]string{"step": "callback", "status": "failure"})
+			logger.Info("获取部署版本信息失败", map[string]string{"step": "callback", "status": "failure"})
 			return
 		}
-		r.Body.DeployVersion=version.BuildVersion
-		logrus.Infof("change deploy version to %s",r.Body.DeployVersion)
+		r.Body.DeployVersion = version.BuildVersion
+		logrus.Infof("change deploy version to %s", r.Body.DeployVersion)
 	}
 }
+
 //ServiceBuild service build
 func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.BuildServiceStruct) error {
 	eventID := r.Body.EventID
@@ -459,8 +460,8 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	envs := sc.EnvsInfo
 	volumns := sc.VolumesInfo
 	dependIds := sc.DependIDs
-	logrus.Infof("creating new service,deploy version is %s",ts.DeployVersion)
-	ts.DeployVersion=""
+	logrus.Infof("creating new service,deploy version is %s", ts.DeployVersion)
+	ts.DeployVersion = ""
 	tx := db.GetManager().Begin()
 
 	//服务信息表
@@ -1554,6 +1555,7 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	tx := db.GetManager().Begin()
 	//此处的原因，必须使用golang 1.8 以上版本编译
 	delService := service.ChangeDelete()
+	delService.ID = 0
 	if err := db.GetManager().TenantServiceDeleteDaoTransactions(tx).AddModel(delService); err != nil {
 		tx.Rollback()
 		return err
