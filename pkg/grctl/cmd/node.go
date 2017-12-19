@@ -222,8 +222,8 @@ func NewCmdNode() cli.Command {
 						return nil
 					}
 					node := clients.NodeClient.Nodes().Get(id)
-					if node.Node.Role.HasRule("manage") {
-						logrus.Errorf("管理节点不支持此功能")
+					if !node.Node.Role.HasRule("compute") {
+						logrus.Errorf("计算节点支持此功能，请检查角色")
 						return nil
 					}
 					clients.NodeClient.Nodes().Get(id).UnSchedulable()
@@ -240,8 +240,8 @@ func NewCmdNode() cli.Command {
 						return nil
 					}
 					node := clients.NodeClient.Nodes().Get(id)
-					if node.Node.Role.HasRule("manage") {
-						logrus.Errorf("管理节点不支持此功能")
+					if !node.Node.Role.HasRule("compute") {
+						logrus.Errorf("计算节点支持此功能，请检查角色")
 						return nil
 					}
 					clients.NodeClient.Nodes().Get(id).ReSchedulable()
