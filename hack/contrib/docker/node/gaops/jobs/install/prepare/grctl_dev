@@ -72,8 +72,6 @@ function connfig_ssh_key() {
 }
 
 function install_grctl() {
-    
-    echo "install_grctl"
 
     config_mirrors
 

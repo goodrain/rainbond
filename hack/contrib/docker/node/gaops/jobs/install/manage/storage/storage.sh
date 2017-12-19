@@ -21,21 +21,6 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
-
 NFS_DEST="/grdata"
 
 if [ -z "$NFS_ARGS" ];then
@@ -132,7 +117,7 @@ function write_automount() {
 }
 
 function prepare() {
-    log.section "ACP: mount nfs"
+    log.info "RBD: mount nfs"
     log.info "prepare NFS"
 }
 
@@ -185,7 +170,7 @@ function write_config() {
 }
 
 function run_server() {
-    log.section "setup nfs-server"
+    log.info "setup nfs-server"
     package::is_installed nfs-utils $OS_TYPE || (
         package::install nfs-utils $OS_TYPE || (
             log.error "install faild"

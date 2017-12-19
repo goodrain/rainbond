@@ -42,21 +42,6 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
-
 # define install func
 function package::match(){
     str=$1
@@ -181,7 +166,7 @@ function proc::restart(){
 }
 
 function prepare() {
-    log.section "ACP: install  basic service: $INSTALL_SERVICE"
+    log.info "RBD: install basic service: docker"
     [ -d "/etc/goodrain/envs" ] || mkdir -p /etc/goodrain/envs
     [ -d "/root/.docker" ] || mkdir -p /root/.docker
     [ -f "/root/.docker/config.json" ] || echo "{}" >> /root/.docker/config.json

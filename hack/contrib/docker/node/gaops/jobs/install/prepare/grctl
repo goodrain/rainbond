@@ -81,8 +81,6 @@ function test_public() {
 }
 
 function install_grctl() {
-    
-    echo "install_grctl"
 
     config_mirrors
 

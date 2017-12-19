@@ -26,21 +26,6 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
-
 function compose::config_remove() {
     service_name=$1
     YAML_FILE=/etc/goodrain/docker-compose.yaml
@@ -137,7 +122,7 @@ function check_mysql_admin() {
 
 function prepare() {
 
-    log.section "ACP: docker plugins db"
+    log.info "install docker plugins db"
     log.info "prepare db"
     mkdir -pv /data/db
 

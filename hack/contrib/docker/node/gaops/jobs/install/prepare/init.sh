@@ -37,21 +37,6 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
-
 # check os-release ,now support CentOS 7.x, Maybe support Ubuntu 16.04 & Debian 9
 RELEASE_INFO=$(cat /etc/os-release | grep "^VERSION=" | awk -F '="' '{print $2}' | awk '{print $1}' | cut -b 1-5)
 if [[ $RELEASE_INFO == "7" ]];then
@@ -229,7 +214,7 @@ function do_host_uuid() {
 }
 
 function prepare() {
-    log.section "ACP: Initialize the system"
+    log.info "RBD: Initialize the system"
     [ ! -d /etc/goodrain/envs ] && mkdir -p /etc/goodrain/envs || log.info ""
     log.info "prepare --> initialize the system"
     log.info "Install the system prerequisite package..."
