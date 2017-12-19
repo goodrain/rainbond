@@ -152,7 +152,17 @@ type beanServiceStruct struct {
 }
 
 func (s *Services) List() []model.ServiceStruct {
-	res,_,err:=DoRequest(region.regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services","GET",nil)
+	url:="/v2/tenants/"+s.tenant.tenantID+"/services"
+	res, code, err := DoRequest(url, "GET", nil)
+	if err != nil {
+		logrus.Errorf("error get response from url %s ,details %s",url,err.Error())
+		return nil
+	}
+	if code == 404 {
+		logrus.Errorf("can't find tenant with id %s",s.tenant.tenantID)
+		return nil
+	}
+
 	j, err := simplejson.NewJson(res)
 	if err != nil {
 		logrus.Errorf("error unmarshal json,details %s", err.Error())
@@ -163,9 +173,13 @@ func (s *Services) List() []model.ServiceStruct {
 		logrus.Errorf("error get json obj list,details %s", err.Error())
 		return nil
 	}
-	contentByte, err := json.Marshal(realContent)
+	contentByte, _ := json.Marshal(realContent)
 	ss := []model.ServiceStruct{}
-	json.Unmarshal(contentByte, &ss)
+	err=json.Unmarshal(contentByte, &ss)
+	if err != nil {
+		logrus.Errorf("error unmarshal json,details %s", err.Error())
+		return nil
+	}
 	return ss
 }
 func (s *Services) Stop(name, eventID string) error {
