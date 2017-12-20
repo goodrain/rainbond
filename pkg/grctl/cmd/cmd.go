@@ -44,7 +44,8 @@ func GetCmds() []cli.Command {
 
 	//task相关命令
 	cmds = append(cmds, NewCmdTasks())
-	//cmds = append(cmds, NewCmdAddNode())
+	//数据中心配置相关命令
+	cmds = append(cmds, NewCmdConfigs())
 
 	//cmds = append(cmds, NewCmdComputeGroup())
 	cmds = append(cmds, NewCmdInstall())

@@ -27,6 +27,7 @@ import (
 	"github.com/apcera/termtables"
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
+	"github.com/gosuri/uitable"
 	"github.com/urfave/cli"
 )
 
@@ -49,35 +50,70 @@ func NewCmdTasks() cli.Command {
 			cli.Command{
 				Name:  "list",
 				Usage: "List all task",
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "g",
+						Usage: "show all task longitudinal",
+					},
+				},
 				Action: func(c *cli.Context) error {
 					tasks, err := clients.NodeClient.Tasks().List()
 					if err != nil {
-						logrus.Println("list all task error,", err.Error())
 						return err
 					}
 					if len(tasks) > 0 {
-						taskTable := termtables.CreateTable()
-						taskTable.AddHeaders("ID", "GroupID", "DepTask", "Status", "Scheduler")
-						for _, v := range tasks {
-							var depstr string
-							for _, dep := range v.Temp.Depends {
-								depstr += fmt.Sprintf("%s(%s);", dep.DependTaskID, dep.DetermineStrategy)
-							}
-							var status string
-							for k, v := range v.Status {
-								status += fmt.Sprintf("%s:%s(%s);", k, v.Status, v.CompleStatus)
-							}
-							var scheduler = v.Scheduler.Mode + ";"
-							if len(v.Scheduler.Status) == 0 {
-								scheduler += "暂未调度"
-							} else {
-								for k, v := range v.Scheduler.Status {
-									scheduler += fmt.Sprintf("%s:%s(%s);", k, v.Status, v.SchedulerTime.Format(time.RFC3339))
+						if c.Bool("g") {
+							for _, v := range tasks {
+								table := uitable.New()
+								table.Wrap = true // wrap columns
+								table.AddRow("ID", v.ID)
+								table.AddRow("GroupID", v.GroupID)
+								var depstr string
+								for _, dep := range v.Temp.Depends {
+									depstr += fmt.Sprintf("%s(%s)\n", dep.DependTaskID, dep.DetermineStrategy)
 								}
+								var status string
+								for k, v := range v.Status {
+									status += fmt.Sprintf("%s:%s(%s)\n", k, v.Status, v.CompleStatus)
+								}
+								var scheduler = v.Scheduler.Mode + "\n"
+								if len(v.Scheduler.Status) == 0 {
+									scheduler += "暂未调度"
+								} else {
+									for k, v := range v.Scheduler.Status {
+										scheduler += fmt.Sprintf("%s:%s(%s)\n", k, v.Status, v.SchedulerTime.Format(time.RFC3339))
+									}
+								}
+								table.AddRow("DepTask", depstr)
+								table.AddRow("Status", status)
+								table.AddRow("Scheduler", scheduler)
+								fmt.Println(table.String())
+								fmt.Println("--------------------------------------------")
 							}
-							taskTable.AddRow(v.ID, v.GroupID, depstr, status, scheduler)
+						} else {
+							taskTable := termtables.CreateTable()
+							taskTable.AddHeaders("ID", "GroupID", "DepTask", "Status", "Scheduler")
+							for _, v := range tasks {
+								var depstr string
+								for _, dep := range v.Temp.Depends {
+									depstr += fmt.Sprintf("%s(%s);", dep.DependTaskID, dep.DetermineStrategy)
+								}
+								var status string
+								for k, v := range v.Status {
+									status += fmt.Sprintf("%s:%s(%s);", k, v.Status, v.CompleStatus)
+								}
+								var scheduler = v.Scheduler.Mode + ";"
+								if len(v.Scheduler.Status) == 0 {
+									scheduler += "暂未调度"
+								} else {
+									for k, v := range v.Scheduler.Status {
+										scheduler += fmt.Sprintf("%s:%s(%s);", k, v.Status, v.SchedulerTime.Format(time.RFC3339))
+									}
+								}
+								taskTable.AddRow(v.ID, v.GroupID, depstr, status, scheduler)
+							}
+							fmt.Println(taskTable.Render())
 						}
-						fmt.Println(taskTable.Render())
 						return nil
 					}
 					fmt.Println("not found tasks")

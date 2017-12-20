@@ -145,8 +145,9 @@ func (t *TaskEngine) startScheduler() {
 					SchedulerTime:   time.Now(),
 				}
 				task.Status[next.NodeID] = model.TaskStatus{
-					JobID:  next.ID,
-					Status: "Start",
+					JobID:     next.ID,
+					Status:    "Start",
+					StartTime: time.Now(),
 				}
 				t.UpdateTask(task)
 				next.Scheduler = &job.Scheduler{
@@ -255,8 +256,13 @@ func (t *TaskEngine) PutSchedul(taskID string, nodeID string) (err error) {
 	//初步判断任务是否能被创建
 	if oldjob := t.GetJob(hash); oldjob != nil {
 		if task.RunMode == string(job.OnlyOnce) || task.RunMode == string(job.Cycle) {
-			if oldjob.Scheduler != nil && oldjob.Scheduler.SchedulerStatus == "Success" {
+			if oldjob.Scheduler != nil && oldjob.Scheduler.SchedulerStatus == "Waiting" {
 				return fmt.Errorf("task %s run on node %s job only run mode %s", taskID, nodeID, job.OnlyOnce)
+			}
+			if oldjob.Scheduler != nil && oldjob.Scheduler.SchedulerStatus == "Success" {
+				if oldjob.RunStatus != nil && oldjob.RunStatus.Status == "Success" {
+					return fmt.Errorf("task %s run on node %s job only run mode %s", taskID, nodeID, job.OnlyOnce)
+				}
 			}
 		}
 	}

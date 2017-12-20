@@ -17,19 +17,14 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 package config
 
-import (
-	"testing"
-
-	"github.com/goodrain/rainbond/cmd/node/option"
-)
+import "testing"
+import "fmt"
 
 func TestResettingArray(t *testing.T) {
-	c := CreateDataCenterConfig(&option.Conf{
-		ConfigStoragePath: "/rainbond/acp_configs",
-	})
+	c := CreateDataCenterConfig()
 	c.Start()
 	defer c.Stop()
-	groupCtx := NewGroupContext()
+	groupCtx := NewGroupContext("")
 	groupCtx.Add("SADAS", "Test")
 	result, err := ResettingArray(groupCtx, []string{"Sdd${sadas}asd", "${MYSQL_HOST}", "12_${MYSQL_PASS}_sd"})
 	if err != nil {
@@ -39,16 +34,20 @@ func TestResettingArray(t *testing.T) {
 }
 
 func TestResettingString(t *testing.T) {
-	c := CreateDataCenterConfig(&option.Conf{
-		ConfigStoragePath: "/rainbond/acp_configs",
-	})
+	c := CreateDataCenterConfig()
 	c.Start()
 	defer c.Stop()
-	groupCtx := NewGroupContext()
+	groupCtx := NewGroupContext("")
 	groupCtx.Add("SADAS", "Test")
 	result, err := ResettingString(nil, "${MYSQL_HOST}Sdd${sadas}asd")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(result)
+}
+
+func TestGroupConfig(t *testing.T) {
+	groupCtx := NewGroupContext("")
+	v := groupCtx.Get("API")
+	fmt.Println("asdasd:", v)
 }

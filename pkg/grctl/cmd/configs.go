@@ -16,29 +16,40 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package clients
+package cmd
 
 import (
-	"github.com/goodrain/rainbond/cmd/grctl/option"
-	"github.com/goodrain/rainbond/pkg/api/region"
+	"fmt"
+
+	"github.com/apcera/termtables"
+	"github.com/goodrain/rainbond/pkg/grctl/clients"
+	"github.com/urfave/cli"
 )
 
-//RegionClient region api
-var RegionClient *region.Region
-
-//NodeClient  node api
-var NodeClient *region.RNodeClient
-
-//InitRegionClient init region api client
-func InitRegionClient(reg option.RegionAPI) error {
-	region.NewRegion(reg.URL, reg.Token, reg.Type)
-	RegionClient = region.GetRegion()
-	return nil
-}
-
-//InitNodeClient init node api client
-func InitNodeClient(nodeAPI string) error {
-	region.NewNode("http://127.0.0.1:6100/v2")
-	NodeClient = region.GetNode()
-	return nil
+//NewCmdConfigs 全局配置相关命令
+func NewCmdConfigs() cli.Command {
+	c := cli.Command{
+		Name:  "configs",
+		Usage: "系统任务相关命令，grctl tasks -h",
+		Subcommands: []cli.Command{
+			cli.Command{
+				Name:  "get",
+				Usage: "get all datacenter configs",
+				Action: func(c *cli.Context) error {
+					configs, err := clients.NodeClient.Configs().Get()
+					if err != nil {
+						return err
+					}
+					taskTable := termtables.CreateTable()
+					taskTable.AddHeaders("Name", "CNName", "ValueType", "Value")
+					for _, config := range configs.Configs {
+						taskTable.AddRow(config.Name, config.CNName, config.ValueType, config.Value)
+					}
+					fmt.Println(taskTable.Render())
+					return nil
+				},
+			},
+		},
+	}
+	return c
 }
