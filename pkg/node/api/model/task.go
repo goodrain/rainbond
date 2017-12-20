@@ -181,7 +181,8 @@ type TaskStatus struct {
 	TakeTime     int       `json:"take_time"`
 	CompleStatus string    `json:"comple_status"`
 	//脚本退出码
-	ShellCode int `json:"shell_code"`
+	ShellCode int    `json:"shell_code"`
+	Message   string `json:"message,omitempty"`
 }
 
 //TaskGroup 任务组

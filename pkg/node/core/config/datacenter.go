@@ -141,6 +141,16 @@ func (d *DataCenterConfig) PutConfig(c *model.ConfigUnit) error {
 	if c.Name == "" {
 		return fmt.Errorf("config name can not be empty")
 	}
+	if c.ValueType == "array" {
+		oldC := d.config.Get(c.Name)
+		if oldC != nil {
+			oldV, ok := oldC.Value.([]string)
+			newV, newOK := c.Value.([]string)
+			if ok && newOK {
+				c.Value = append(oldV, newV...)
+			}
+		}
+	}
 	d.config.Add(*c)
 	//持久化
 	_, err := store.DefalutClient.Put(d.options.ConfigStoragePath+"/global/"+c.Name, c.String())

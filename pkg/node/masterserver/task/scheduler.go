@@ -27,6 +27,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
+	"github.com/goodrain/rainbond/pkg/node/core/config"
 	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
 )
@@ -149,19 +150,55 @@ func (t *TaskEngine) startScheduler() {
 					Status:    "Start",
 					StartTime: time.Now(),
 				}
-				t.UpdateTask(task)
 				next.Scheduler = &job.Scheduler{
 					NodeID:          next.NodeID,
 					SchedulerTime:   time.Now(),
 					SchedulerStatus: "Success",
 					CanRun:          true,
 				}
+				err := t.UpdateJobConfig(next, task.GroupID)
+				if err != nil {
+					task.Status[next.NodeID] = model.TaskStatus{
+						JobID:        next.ID,
+						Status:       "complete",
+						CompleStatus: "Failure",
+						Message:      "update job config error," + err.Error(),
+						StartTime:    time.Now(),
+						EndTime:      time.Now(),
+					}
+				}
+				t.UpdateTask(task)
 				t.UpdateJob(next)
 				logrus.Infof("Success schedule job %s to node %s", next.Hash, next.NodeID)
 			}
 		}
 
 	}
+}
+
+//UpdateJobConfig 更新job的配置
+//解析可赋值变量 ${XXX}
+func (t *TaskEngine) UpdateJobConfig(jb *job.Job, groupID string) error {
+	var groupCtx *config.GroupContext
+	if groupID != "" {
+		groupCtx = t.dataCenterConfig.GetGroupConfig(groupID)
+	}
+	command, err := config.ResettingString(groupCtx, jb.Command)
+	if err != nil {
+		return err
+	}
+	stdin, err := config.ResettingString(groupCtx, jb.Stdin)
+	if err != nil {
+		return err
+	}
+	envMaps, err := config.ResettingArray(groupCtx, jb.Envs)
+	if err != nil {
+		return err
+	}
+	jb.Command = command
+	jb.Stdin = stdin
+	jb.Envs = envMaps
+	return nil
 }
 
 func (t *TaskEngine) stopScheduler() {
@@ -266,18 +303,9 @@ func (t *TaskEngine) PutSchedul(taskID string, nodeID string) (err error) {
 			}
 		}
 	}
-	var jb *job.Job
-	if task.GroupID == "" {
-		jb, err = job.CreateJobFromTask(task, nil)
-		if err != nil {
-			return fmt.Errorf("create job error,%s", err.Error())
-		}
-	} else {
-		ctx := t.dataCenterConfig.GetGroupConfig(task.GroupID)
-		jb, err = job.CreateJobFromTask(task, ctx)
-		if err != nil {
-			return fmt.Errorf("create job error,%s", err.Error())
-		}
+	jb, err := job.CreateJobFromTask(task)
+	if err != nil {
+		return fmt.Errorf("create job error,%s", err.Error())
 	}
 	jb.NodeID = nodeID
 	jb.Hash = hash

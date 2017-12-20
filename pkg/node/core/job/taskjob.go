@@ -23,29 +23,16 @@ import (
 	"strings"
 
 	"github.com/goodrain/rainbond/pkg/node/api/model"
-	"github.com/goodrain/rainbond/pkg/node/core/config"
 	"github.com/twinj/uuid"
 )
 
 //CreateJobFromTask 从task创建job
-func CreateJobFromTask(task *model.Task, groupCtx *config.GroupContext) (*Job, error) {
+func CreateJobFromTask(task *model.Task) (*Job, error) {
 	if task.Temp == nil {
 		return nil, fmt.Errorf("task temp is nil, can not build job")
 	}
-	command, err := config.ResettingArray(groupCtx, task.Temp.Shell.Cmd)
-	if err != nil {
-		return nil, err
-	}
-	stdin, err := config.ResettingString(groupCtx, task.Temp.Input)
-	if err != nil {
-		return nil, err
-	}
-	envMaps, err := config.ResettingMap(groupCtx, task.Temp.Envs)
-	if err != nil {
-		return nil, err
-	}
 	var envs []string
-	for k, v := range envMaps {
+	for k, v := range task.Temp.Envs {
 		envs = append(envs, fmt.Sprintf("%s=%s", k, v))
 	}
 
@@ -54,8 +41,8 @@ func CreateJobFromTask(task *model.Task, groupCtx *config.GroupContext) (*Job, e
 		TaskID:   task.ID,
 		EventID:  task.EventID,
 		Name:     task.Name,
-		Command:  strings.Join(command, " "),
-		Stdin:    stdin,
+		Command:  strings.Join(task.Temp.Shell.Cmd, " "),
+		Stdin:    task.Temp.Input,
 		Envs:     envs,
 		Timeout:  task.TimeOut,
 		Retry:    task.Retry,

@@ -90,7 +90,9 @@ func GetConfigKey(rk string) string {
 func ResettingArray(groupCtx *GroupContext, source []string) ([]string, error) {
 	sourcecopy := make([]string, len(source))
 	// 使用copy
-	copy(sourcecopy, source)
+	for i, s := range source {
+		sourcecopy[i] = s
+	}
 	for i, s := range sourcecopy {
 		resultKey := reg.FindAllString(s, -1)
 		for _, rk := range resultKey {
@@ -110,7 +112,6 @@ func GetConfig(groupCtx *GroupContext, key string) string {
 	if groupCtx != nil {
 		value := groupCtx.Get(key)
 		if value != nil {
-			logrus.Debugf("group config get %s:%s", key, value)
 			switch value.(type) {
 			case string:
 				if value.(string) != "" {

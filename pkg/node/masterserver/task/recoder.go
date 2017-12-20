@@ -123,14 +123,27 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 			output.NodeID = er.Node
 			if output.Global != nil && len(output.Global) > 0 {
 				for k, v := range output.Global {
-					err := t.dataCenterConfig.PutConfig(&model.ConfigUnit{
-						Name:           strings.ToUpper(k),
-						Value:          v,
-						ValueType:      "string",
-						IsConfigurable: false,
-					})
-					if err != nil {
-						logrus.Errorf("save datacenter config %s=%s error.%s", k, v, err.Error())
+					if strings.Index(v, "|") > -1 {
+						values := strings.Split(v, "|")
+						err := t.dataCenterConfig.PutConfig(&model.ConfigUnit{
+							Name:           strings.ToUpper(k),
+							Value:          values,
+							ValueType:      "array",
+							IsConfigurable: false,
+						})
+						if err != nil {
+							logrus.Errorf("save datacenter config %s=%s error.%s", k, v, err.Error())
+						}
+					} else {
+						err := t.dataCenterConfig.PutConfig(&model.ConfigUnit{
+							Name:           strings.ToUpper(k),
+							Value:          v,
+							ValueType:      "string",
+							IsConfigurable: false,
+						})
+						if err != nil {
+							logrus.Errorf("save datacenter config %s=%s error.%s", k, v, err.Error())
+						}
 					}
 				}
 			}
