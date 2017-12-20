@@ -48,7 +48,7 @@ type MasterServer struct {
 func NewMasterServer(modelnode *model.HostNode, k8sClient *kubernetes.Clientset) (*MasterServer, error) {
 	datacenterConfig := config.CreateDataCenterConfig()
 	ctx, cancel := context.WithCancel(context.Background())
-	nodecluster := node.CreateNodeCluster(k8sClient, modelnode)
+	nodecluster := node.CreateNodeCluster(k8sClient, modelnode, datacenterConfig)
 	taskengin := task.CreateTaskEngine(nodecluster, modelnode)
 	ms := &MasterServer{
 		Client:           store.DefalutClient,

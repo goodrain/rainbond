@@ -38,6 +38,7 @@ import (
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
+	"github.com/goodrain/rainbond/pkg/node/core/config"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
 	"github.com/goodrain/rainbond/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,27 +47,29 @@ import (
 
 //NodeCluster 节点管理器
 type NodeCluster struct {
-	ctx          context.Context
-	cancel       context.CancelFunc
-	nodes        map[string]*model.HostNode
-	lock         sync.Mutex
-	client       *store.Client
-	k8sClient    *kubernetes.Clientset
-	currentNode  *model.HostNode
-	checkInstall chan *model.HostNode
+	ctx              context.Context
+	cancel           context.CancelFunc
+	nodes            map[string]*model.HostNode
+	lock             sync.Mutex
+	client           *store.Client
+	k8sClient        *kubernetes.Clientset
+	currentNode      *model.HostNode
+	checkInstall     chan *model.HostNode
+	datacenterConfig *config.DataCenterConfig
 }
 
 //CreateNodeCluster 创建节点管理器
-func CreateNodeCluster(k8sClient *kubernetes.Clientset, node *model.HostNode) *NodeCluster {
+func CreateNodeCluster(k8sClient *kubernetes.Clientset, node *model.HostNode, datacenterConfig *config.DataCenterConfig) *NodeCluster {
 	ctx, cancel := context.WithCancel(context.Background())
 	nc := NodeCluster{
-		ctx:          ctx,
-		cancel:       cancel,
-		nodes:        make(map[string]*model.HostNode, 5),
-		client:       store.DefalutClient,
-		k8sClient:    k8sClient,
-		currentNode:  node,
-		checkInstall: make(chan *model.HostNode, 4),
+		ctx:              ctx,
+		cancel:           cancel,
+		nodes:            make(map[string]*model.HostNode, 5),
+		client:           store.DefalutClient,
+		k8sClient:        k8sClient,
+		currentNode:      node,
+		checkInstall:     make(chan *model.HostNode, 4),
+		datacenterConfig: datacenterConfig,
 	}
 	return &nc
 }
@@ -302,27 +305,70 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 		node.Conditions = append(node.Conditions, initCondition)
 		node.Status = "init_failed"
 	}
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
 	if node.Role == nil {
 		node.Role = []string{"compute"}
 	}
-	role := node.Role[0]
-
-	etcd := n.currentNode.InternalIP
+	role := strings.Join(node.Role, ",")
+	etcdConfig := n.datacenterConfig.GetConfig("ETCD")
+	etcd := n.currentNode.InternalIP + ":2379"
+	if etcdConfig != nil && etcdConfig.Value != nil {
+		switch etcdConfig.Value.(type) {
+		case string:
+			if etcdConfig.Value.(string) != "" {
+				etcd = etcdConfig.Value.(string)
+			}
+		case []string:
+			etcd = strings.Join(etcdConfig.Value.([]string), "|")
+		}
+	}
 	cmd := "bash -c \"set " + node.ID + " " + etcd + " " + role + ";$(curl -s repo.goodrain.com/gaops/jobs/install/prepare/init.sh)\""
 	logrus.Infof("init endpoint node cmd is %s", cmd)
-	client := util.NewSSHClient(node.InternalIP, "root", node.RootPass, cmd, 22, &stdout, &stderr)
+
+	//日志输出文件
+	util.CheckAndCreateDir("/var/log/event")
+	logFile := "/var/log/event/install_node_" + node.ID + ".log"
+	logfile, _ := util.OpenOrCreateFile(logFile)
+	//结果输出buffer
+	var stderr bytes.Buffer
+	client := util.NewSSHClient(node.InternalIP, "root", node.RootPass, cmd, 22, logfile, &stderr)
 	if err := client.Connection(); err != nil {
 		logrus.Error("init endpoint node error:", err.Error())
 		errorCondition("SSH登陆初始化目标节点失败", err)
 		return
 	}
-
-	//TODO:
-	//处理安装结果
-	fmt.Println("初始化节点成功")
-	logrus.Info(stdout.String())
+	//设置init的结果
+	result := stderr.String()
+	index := strings.Index(result, "{")
+	jsonOutPut := result
+	if index > -1 {
+		jsonOutPut = result[index:]
+	}
+	fmt.Println("Init node Result:" + jsonOutPut)
+	output, err := model.ParseTaskOutPut(jsonOutPut)
+	if err != nil {
+		errorCondition("节点初始化输出数据错误", err)
+		logrus.Errorf("get init current node result error:%s", err.Error())
+	}
+	if output.Global != nil {
+		for k, v := range output.Global {
+			if strings.Index(v, "|") > -1 {
+				values := strings.Split(v, "|")
+				n.datacenterConfig.PutConfig(&model.ConfigUnit{
+					Name:           strings.ToUpper(k),
+					Value:          values,
+					ValueType:      "array",
+					IsConfigurable: false,
+				})
+			} else {
+				n.datacenterConfig.PutConfig(&model.ConfigUnit{
+					Name:           strings.ToUpper(k),
+					Value:          v,
+					ValueType:      "string",
+					IsConfigurable: false,
+				})
+			}
+		}
+	}
 }
 
 //GetAllNode 获取全部节点
