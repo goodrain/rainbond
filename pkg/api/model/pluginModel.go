@@ -366,7 +366,7 @@ type SetVersionEnv struct {
 		// 环境变量
 		// in: body
 		// required: true
-		ConfigEnvs ConfigEnvs `json:"config_envs" validate:"configEnvs"`
+		ConfigEnvs ConfigEnvs `json:"config_envs" validate:"config_envs"`
 	}
 }
 
