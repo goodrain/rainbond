@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -47,6 +46,25 @@ type LogByLevelStruct struct {
 	// in: path
 	// required: true
 	ServiceAlias string `json:"service_alias" validate:"service_alias"`
+	// in: body
+	Body struct {
+		// 日志级别info/debug/error
+		// in: body
+		// required: true
+		Level string `json:"level" validate:"level|required"`
+		// eventID
+		// in: body
+		// required: true
+		EventID string `json:"event_id" validate:"event_id|required"`
+	}
+}
+
+//TenantLogByLevelStruct GetTenantLogByLevelStruct
+//swagger:parameters tenantLogByAction
+type TenantLogByLevelStruct struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name" validate:"tenant_name"`
 	// in: body
 	Body struct {
 		// 日志级别info/debug/error

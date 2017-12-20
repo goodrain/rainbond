@@ -92,6 +92,7 @@ type LogInterface interface {
 	LogFile(w http.ResponseWriter, r *http.Request)
 	LogSocket(w http.ResponseWriter, r *http.Request)
 	LogByAction(w http.ResponseWriter, r *http.Request)
+	TenantLogByAction(w http.ResponseWriter, r *http.Request)
 }
 
 //PluginInterface plugin interface
