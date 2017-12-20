@@ -77,6 +77,25 @@ type HostNode struct {
 	ClusterNode
 }
 
+type NodeList []*HostNode
+func (list NodeList) Len() int {
+	return len(list)
+}
+
+func (list NodeList) Less(i, j int) bool {
+	if list[i].InternalIP < list[j].InternalIP {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (list NodeList) Swap(i, j int) {
+	var temp = list[i]
+	list[i] = list[j]
+	list[j] = temp
+}
+
 //GetNodeFromKV 从etcd解析node信息
 func GetNodeFromKV(kv *mvccpb.KeyValue) *HostNode {
 	var node HostNode

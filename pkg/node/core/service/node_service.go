@@ -28,6 +28,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/masterserver"
 	"github.com/goodrain/rainbond/pkg/node/utils"
 	"github.com/twinj/uuid"
+	"sort"
 )
 
 //NodeService node service
@@ -109,7 +110,10 @@ func (n *NodeService) GetAllNode() ([]*model.HostNode, *utils.APIHandleError) {
 	if n.nodecluster == nil {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
 	}
-	return n.nodecluster.GetAllNode(), nil
+
+	nodes:=n.nodecluster.GetAllNode()
+	sort.Sort(model.NodeList(nodes))
+	return nodes, nil
 }
 
 //CordonNode 设置节点不可调度熟悉
