@@ -145,7 +145,7 @@ func initCluster(c *cli.Context) error {
 			if err != nil {
 				return
 			}
-			fmt.Println(line)
+			fmt.Println(string(line))
 		}
 	}()
 	if err := cmd.Run(); err != nil {
