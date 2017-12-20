@@ -77,6 +77,7 @@ type NodeInterface interface {
 //ConfigsInterface 数据中心配置API
 type ConfigsInterface interface {
 	Get() (*model.GlobalConfig, error)
+	Put(*model.GlobalConfig) error
 }
 type configs struct {
 	client *RNodeClient
@@ -100,6 +101,20 @@ func (c *configs) Get() (*model.GlobalConfig, error) {
 		return gc, nil
 	}
 	return nil, nil
+}
+func (c *configs) Put(gc *model.GlobalConfig) error {
+	rebody, err := ffjson.Marshal(gc)
+	if err != nil {
+		return err
+	}
+	_, code, err := nodeclient.Request("/configs/datacenter", "PUT", rebody)
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("Put database center configs code %d", code)
+	}
+	return nil
 }
 
 func (t *Node) Label(label map[string]string) {

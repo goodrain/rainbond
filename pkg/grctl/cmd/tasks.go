@@ -200,3 +200,8 @@ func getDependTask(task *model.Task, path string) {
 		getDependTask(taskD.Task, path+"-->"+taskD.Task.ID)
 	}
 }
+
+//ExecTaskAndCheckStatus 执行一个任务并检测状态
+func ExecTaskAndCheckStatus(taskID string, nodes []string) {
+
+}
