@@ -150,26 +150,6 @@ func (d *EtcdDiscoverManager) RegisteredInstance(host string, port int, stopRegi
 			continue
 		}
 	success:
-		//临时注册服务发现,应该由acp_node进行注册
-		go func() {
-			time.Sleep(time.Second * 3)
-			select {
-			case <-d.context.Done():
-				return
-			default:
-			}
-			ctx, cancel := context.WithTimeout(d.context, time.Second*5)
-			defer cancel()
-			_, err = d.etcdclientv3.Put(ctx, fmt.Sprintf("/traefik/backends/event_log_event_grpc/servers/%s/url", instance.HostID), fmt.Sprintf("%s:%d", instance.HostIP, 6367))
-			if err != nil {
-				d.log.Error("Register instance data to etcd discover v3 error.", err.Error())
-			}
-			_, err = d.etcdclientv3.Put(ctx, fmt.Sprintf("/traefik/backends/event_log_event_http/servers/%s/url", instance.HostID), fmt.Sprintf("http://%s:%d", instance.HostIP, instance.WebPort))
-			if err != nil {
-				d.log.Error("Register instance data to etcd discover v3 error.", err.Error())
-			}
-		}()
-
 		d.selfInstance = instance
 		go d.discover()
 		d.log.Infof("Register instance in cluster success. HostID:%s HostIP:%s PubPort:%d", instance.HostID, instance.HostIP, instance.PubPort)

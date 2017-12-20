@@ -12,7 +12,11 @@ REGION_TAG=${9:-cloudbang}
 MYSQL_DB="region"
 
 [ -z "$MYSQL_USER" ] && MYSQL_USER="write1"
-[ -z "$MYSQL_PASSWD" ] && MYSQL_PASSWD=$(cat /data/.db_passwd)
+[ -z "$MYSQL_PASSWD" ] && MYSQL_PASSWD=$(cat /data/.db_passwd) || (
+    if [ "$MYSQL_PASSWD" != "$(cat /data/.db_passwd)" ];then
+        MYSQL_PASSWD=$(cat /data/.db_passwd)
+    fi
+)
 [ -z "REGION_TAG" ] && REGION_TAG=cloudbang
 
 RBD_WEB="rainbond/rbd-app-ui:$REPO_VER"
