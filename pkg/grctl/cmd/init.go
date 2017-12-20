@@ -37,6 +37,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/util"
 )
 
+//NewCmdInit grctl init
 func NewCmdInit() cli.Command {
 	c := cli.Command{
 		Name: "init",
@@ -60,6 +61,11 @@ func NewCmdInit() cli.Command {
 			cli.StringFlag{
 				Name:  "install_type",
 				Usage: "online/offline ,online",
+			},
+			cli.BoolFlag{
+				Name:   "test",
+				Usage:  "use test shell",
+				Hidden: true,
 			},
 		},
 		Usage: "初始化集群。grctl init cluster",
@@ -106,7 +112,11 @@ func NewCmdInstallStatus() cli.Command {
 }
 
 func initCluster(c *cli.Context) error {
-	resp, err := http.Get("http://repo.goodrain.com/gaops/jobs/install/prepare/init.sh")
+	url := "http://repo.goodrain.com/gaops/jobs/install/prepare/init.sh"
+	if c.Bool("test") {
+		url = "http://dev.repo.goodrain.com/gaops/jobs/install/prepare/init.sh"
+	}
+	resp, err := http.Get(url)
 
 	if err != nil {
 		logrus.Errorf("error get init script,details %s", err.Error())
@@ -209,7 +219,6 @@ func initCluster(c *cli.Context) error {
 	}
 	Status("check_manage_base_services", []string{hostID})
 	Status("check_manage_services", []string{hostID})
-
 	fmt.Println("install manage node success,next you can :")
 	fmt.Println("	add compute node--grctl node add -h")
 	fmt.Println("	install compute node--grctl install compute -h")

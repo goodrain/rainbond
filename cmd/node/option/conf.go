@@ -212,7 +212,8 @@ func (c *Conf) parse() error {
 	c.Lock = cleanKeyPrefix(c.Lock)
 	c.Group = cleanKeyPrefix(c.Group)
 	c.Noticer = cleanKeyPrefix(c.Noticer)
-
+	//固定值
+	c.HostIDFile = "/etc/goodrain/host_uuid.conf"
 	return nil
 }
 
