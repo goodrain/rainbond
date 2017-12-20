@@ -21,6 +21,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/apcera/termtables"
@@ -71,7 +72,7 @@ func NewCmdTasks() cli.Command {
 								scheduler += "暂未调度"
 							} else {
 								for k, v := range v.Scheduler.Status {
-									scheduler += fmt.Sprintf("%s:%s(%s);", k, v.Status, v.SchedulerTime)
+									scheduler += fmt.Sprintf("%s:%s(%s);", k, v.Status, v.SchedulerTime.Format(time.RFC3339))
 								}
 							}
 							taskTable.AddRow(v.ID, v.GroupID, depstr, status, scheduler)
@@ -105,12 +106,12 @@ func NewCmdTasks() cli.Command {
 				Usage: "Exec the specified task",
 				Flags: []cli.Flag{
 					cli.StringFlag{
-						Name:  "node",
+						Name:  "n",
 						Usage: "exec task nodeid",
 					},
 					cli.StringFlag{
 						Name:  "f",
-						Usage: "exec task nodeid and return status",
+						Usage: "exec task and return status",
 					},
 				},
 				Action: func(c *cli.Context) error {
@@ -118,9 +119,9 @@ func NewCmdTasks() cli.Command {
 					if taskID == "" {
 						fmt.Println("Please specified task id")
 					}
-					nodeID := c.String("node")
+					nodeID := c.String("n")
 					if nodeID == "" {
-						fmt.Println("Please specified nodeid use `-node`")
+						fmt.Println("Please specified nodeid use `-n`")
 					}
 					err := clients.NodeClient.Tasks().Exec(taskID, []string{nodeID})
 					return err

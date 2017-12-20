@@ -372,6 +372,9 @@ func (t *TaskEngine) GetTask(taskID string) *model.Task {
 	if err := ffjson.Unmarshal(res.Kvs[0].Value, &task); err != nil {
 		return nil
 	}
+	if task.Status == nil {
+		task.Status = map[string]model.TaskStatus{}
+	}
 	return &task
 }
 
@@ -386,7 +389,7 @@ func (t *TaskEngine) AddTask(task *model.Task) error {
 		task.CreateTime = oldTask.CreateTime
 		task.ExecCount = oldTask.ExecCount
 		task.StartTime = oldTask.StartTime
-		if task.Scheduler.Status != nil {
+		if oldTask.Scheduler.Status != nil {
 			task.Scheduler.Status = oldTask.Scheduler.Status
 		}
 	}
@@ -401,14 +404,12 @@ func (t *TaskEngine) AddTask(task *model.Task) error {
 	}
 	if task.Status == nil {
 		task.Status = map[string]model.TaskStatus{}
-		for _, n := range task.Nodes {
-			task.Status[n] = model.TaskStatus{
-				Status: "create",
-			}
-		}
 	}
 	if task.CreateTime.IsZero() {
 		task.CreateTime = time.Now()
+	}
+	if task.Temp.CreateTime.IsZero() {
+		task.Temp.CreateTime = time.Now()
 	}
 	if task.Scheduler.Mode == "" {
 		task.Scheduler.Mode = "Passive"
@@ -469,6 +470,9 @@ func (t *TaskEngine) GetTaskGroup(taskGroupID string) *model.TaskGroup {
 func (t *TaskEngine) CacheTask(task *model.Task) {
 	t.tasksLock.Lock()
 	defer t.tasksLock.Unlock()
+	if task.Status == nil {
+		task.Status = map[string]model.TaskStatus{}
+	}
 	t.tasks[task.ID] = task
 }
 

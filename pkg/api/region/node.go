@@ -191,7 +191,7 @@ func (t *Task) Get(id string) (*Task, error) {
 		return nil, err
 	}
 	if code != 200 {
-		fmt.Println("executing failed:" + string(resp))
+		return nil, fmt.Errorf("get task failure," + string(resp))
 	}
 	jsonTop, err := simplejson.NewJson(resp)
 	if err != nil {
@@ -248,7 +248,6 @@ func (t *Task) Exec(taskID string, nodes []string) error {
 	url := "/tasks/" + taskID + "/exec"
 	resp, code, err := nodeServer.Request(url, "POST", body)
 	if code != 200 {
-		fmt.Println("executing failed:" + string(resp))
 		return fmt.Errorf("exec failure," + string(resp))
 	}
 	if err != nil {
@@ -262,7 +261,7 @@ func (t *Task) Add(task *model.Task) error {
 	url := "/tasks"
 	resp, code, err := nodeServer.Request(url, "POST", body)
 	if code != 200 {
-		fmt.Println("executing failed:" + string(resp))
+		return fmt.Errorf("add task failure," + string(resp))
 	}
 	if err != nil {
 		return err
@@ -274,7 +273,7 @@ func (t *Task) AddGroup(group *model.TaskGroup) error {
 	url := "/taskgroups"
 	resp, code, err := nodeServer.Request(url, "POST", body)
 	if code != 200 {
-		fmt.Println("executing failed:" + string(resp))
+		return fmt.Errorf("add taskgroup failure," + string(resp))
 	}
 	if err != nil {
 		return err
@@ -285,9 +284,8 @@ func (t *Task) AddGroup(group *model.TaskGroup) error {
 //Refresh 刷新静态配置
 func (t *Task) Refresh() error {
 	url := "/tasks/taskreload"
-	resp, code, err := nodeServer.Request(url, "PUT", nil)
+	_, code, err := nodeServer.Request(url, "PUT", nil)
 	if code != 200 {
-		fmt.Println("executing failed:" + string(resp))
 		return fmt.Errorf("refresh error code,%d", code)
 	}
 	if err != nil {
@@ -339,6 +337,8 @@ func HandleTaskStatus(task string) (*TaskStatus, error) {
 	}
 	return nil, errors.New(fmt.Sprintf("response status is %s", code))
 }
+
+//Request Request
 func (r *RNodeServer) Request(url, method string, body []byte) ([]byte, int, error) {
 	//logrus.Infof("requesting url: %s by method :%s,and body is ",r.NodeAPI+url,method,string(body))
 	request, err := http.NewRequest(method, "http://127.0.0.1:6100/v2"+url, bytes.NewBuffer(body))
@@ -349,10 +349,8 @@ func (r *RNodeServer) Request(url, method string, body []byte) ([]byte, int, err
 
 	res, err := http.DefaultClient.Do(request)
 	if err != nil {
-		logrus.Infof("error when request region,details %s", err.Error())
 		return nil, 500, err
 	}
-
 	data, err := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
 	//logrus.Infof("response is %s,response code is %d",string(data),res.StatusCode)

@@ -31,17 +31,14 @@ type Shell struct {
 
 //TaskTemp 任务模版
 type TaskTemp struct {
-	Name    string            `json:"name" validate:"name|required"`
-	ID      string            `json:"id" validate:"id|uuid"`
-	Shell   Shell             `json:"shell"`
-	Envs    map[string]string `json:"envs,omitempty"`
-	Input   string            `json:"input,omitempty"`
-	Args    []string          `json:"args,omitempty"`
-	Depends []DependStrategy  `json:"depends,omitempty"`
-	Timeout int               `json:"timeout" validate:"timeout|required|numeric"`
-	//OutPutChan
-	//结果输出通道，错误输出OR标准输出
-	OutPutChan string            `json:"out_put_chan" validate:"out_put_chan|required|in:stdout,stderr"`
+	Name       string            `json:"name" validate:"name|required"`
+	ID         string            `json:"id" validate:"id|uuid"`
+	Shell      Shell             `json:"shell"`
+	Envs       map[string]string `json:"envs,omitempty"`
+	Input      string            `json:"input,omitempty"`
+	Args       []string          `json:"args,omitempty"`
+	Depends    []DependStrategy  `json:"depends,omitempty"`
+	Timeout    int               `json:"timeout" validate:"timeout|required|numeric"`
 	CreateTime time.Time         `json:"create_time"`
 	Labels     map[string]string `json:"labels,omitempty"`
 }

@@ -99,6 +99,9 @@ func (t *TaskEngine) startScheduler() {
 		for i, va := range vas {
 			ok, err := va(next.NodeID, task)
 			if err != nil {
+				if task.Scheduler.Status == nil {
+					task.Scheduler.Status = make(map[string]model.SchedulerStatus)
+				}
 				task.Scheduler.Status[next.NodeID] = model.SchedulerStatus{
 					Status:          "Failure",
 					Message:         err.Error(),
@@ -117,6 +120,9 @@ func (t *TaskEngine) startScheduler() {
 				break
 			}
 			if !ok {
+				if task.Scheduler.Status == nil {
+					task.Scheduler.Status = make(map[string]model.SchedulerStatus)
+				}
 				task.Scheduler.Status[next.NodeID] = model.SchedulerStatus{
 					Status:          "Waiting",
 					Message:         "waiting validation criteria",
@@ -248,7 +254,7 @@ func (t *TaskEngine) PutSchedul(taskID string, nodeID string) (err error) {
 	logrus.Infof("put scheduler hash %s", hash)
 	//初步判断任务是否能被创建
 	if oldjob := t.GetJob(hash); oldjob != nil {
-		if task.RunMode == string(job.OnlyOnce) {
+		if task.RunMode == string(job.OnlyOnce) || task.RunMode == string(job.Cycle) {
 			if oldjob.Scheduler != nil && oldjob.Scheduler.SchedulerStatus == "Success" {
 				return fmt.Errorf("task %s run on node %s job only run mode %s", taskID, nodeID, job.OnlyOnce)
 			}

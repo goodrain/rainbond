@@ -366,6 +366,7 @@ func GetCurrentNode(cfg *conf.Conf) (*model.HostNode, error) {
 		LastHeartbeatTime:  time.Now(),
 		LastTransitionTime: time.Now(),
 	})
+	node.Mode = cfg.RunMode
 	return &node, nil
 }
 
