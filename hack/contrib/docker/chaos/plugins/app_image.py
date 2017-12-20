@@ -343,7 +343,7 @@ class AppImage():
         except Exception as e:
             logger.exception("mq_work.app_image", e)
             self.log.error(
-                "同步镜像发生异常." + e.__str__(), step="app-image", status="failure")
+                "同步镜像发生异常." + e.__str__(), step="callback", status="failure")
         version_status = {
             "final_status":"failure",
         }
