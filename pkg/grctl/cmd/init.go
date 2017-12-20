@@ -135,8 +135,8 @@ func initCluster(c *cli.Context) error {
 	}
 	fmt.Println("begin init cluster first node,please don't exit,wait install")
 	cmd := exec.Command("bash", "-c", arg+string(b))
-	var result []byte
-	cmd.Stderr = bytes.NewBuffer(result)
+	var buffe bytes.Buffer
+	cmd.Stderr = &buffe
 	stdout, _ := cmd.StdoutPipe()
 	go func() {
 		read := bufio.NewReader(stdout)
@@ -153,11 +153,13 @@ func initCluster(c *cli.Context) error {
 		return err
 	}
 	//检测并设置init的结果
-	index := strings.Index(string(result), "{")
-	jsonOutPut := string(result)
+	result := buffe.String()
+	index := strings.Index(result, "{")
+	jsonOutPut := result
 	if index > -1 {
-		jsonOutPut = string(result)[index:]
+		jsonOutPut = result[index:]
 	}
+	fmt.Println("Result:" + jsonOutPut)
 	output, err := model.ParseTaskOutPut(jsonOutPut)
 	if err != nil {
 		logrus.Errorf("get init current node result error:%s", err.Error())
