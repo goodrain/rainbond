@@ -1546,6 +1546,60 @@
         }
       }
     },
+    "/v2/tenants/{tenant_name}/event-log": {
+      "post": {
+        "description": "get tenant log by level",
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取指定操作的操作日志",
+        "operationId": "tenantLogByAction",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "level",
+                "event_id"
+              ],
+              "properties": {
+                "event_id": {
+                  "description": "eventID\nin: body",
+                  "type": "string",
+                  "x-go-name": "EventID"
+                },
+                "level": {
+                  "description": "日志级别info/debug/error\nin: body",
+                  "type": "string",
+                  "x-go-name": "Level"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
     "/v2/tenants/{tenant_name}/plugin": {
       "get": {
         "description": "get plugins",

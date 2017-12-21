@@ -202,3 +202,37 @@ func (e *EventLogStruct) LogByAction(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, dl.Data)
 	return
 }
+
+//TenantLogByAction GetTenantLogByAction
+// swagger:operation POST /v2/tenants/{tenant_name}/event-log v2 tenantLogByAction
+//
+// 获取指定操作的操作日志
+//
+// get tenant log by level
+//
+// ---
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func (e *EventLogStruct) TenantLogByAction(w http.ResponseWriter, r *http.Request) {
+	var elog api_model.TenantLogByLevelStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &elog.Body, nil)
+	if !ok {
+		return
+	}
+	logrus.Info(elog.Body.Level)
+	dl, err := handler.GetEventHandler().GetLevelLog(elog.Body.EventID, elog.Body.Level)
+	if err != nil {
+		logrus.Errorf("get tenant event log error, %v", err)
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, dl.Data)
+	return
+}
