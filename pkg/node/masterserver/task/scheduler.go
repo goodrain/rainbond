@@ -78,7 +78,8 @@ func (s *Scheduler) Stop() {
 //StartScheduler 开始调度
 func (t *TaskEngine) startScheduler() {
 	t.loadAndWatchJobs()
-	logrus.Info("Start scheduler worke")
+	logrus.Info("Start scheduler worker...")
+	defer logrus.Info("scheduler worker closed....")
 	for {
 		next, err := t.scheduler.Next()
 		if err != nil {
@@ -117,7 +118,7 @@ func (t *TaskEngine) startScheduler() {
 					Message:         err.Error(),
 				}
 				t.UpdateJob(next)
-				logrus.Infof("Failure schedule job %s to node %s", next.Hash, next.NodeID)
+				logrus.Errorf("Failure schedule job %s to node %s", next.Hash, next.NodeID)
 				break
 			}
 			if !ok {

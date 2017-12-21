@@ -71,12 +71,13 @@ func CreateDataCenterConfig() *DataCenterConfig {
 		logrus.Error("load datacenter config error.", err.Error())
 	}
 	if len(res.Kvs) < 1 {
-		dgc := model.CreateDefaultGlobalConfig()
-		err := dataCenterConfig.PutDataCenterConfig(dgc)
-		if err != nil {
-			logrus.Error("put datacenter config error,", err.Error())
-		}
-		dataCenterConfig.config = dgc
+		// dgc := model.CreateDefaultGlobalConfig()
+		// err := dataCenterConfig.PutDataCenterConfig(dgc)
+		// if err != nil {
+		// 	logrus.Error("put datacenter config error,", err.Error())
+		// }
+		var dgc model.GlobalConfig
+		dataCenterConfig.config = &dgc
 	} else {
 		for _, kv := range res.Kvs {
 			dataCenterConfig.PutConfigKV(kv)
