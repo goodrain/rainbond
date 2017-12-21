@@ -117,8 +117,9 @@ type Conf struct {
 	// 默认 300
 	LockTTL int64
 
-	Etcd         client.Config
-	StatsdConfig StatsdConfig
+	Etcd             client.Config
+	StatsdConfig     StatsdConfig
+	UDPMonitorConfig UDPMonitorConfig
 }
 
 //StatsdConfig StatsdConfig
@@ -128,6 +129,12 @@ type StatsdConfig struct {
 	StatsdListenTCP     string
 	MappingConfig       string
 	ReadBuffer          int
+}
+
+//UDPMonitorConfig UDPMonitorConfig
+type UDPMonitorConfig struct {
+	ListenHost string
+	ListenPort string
 }
 
 //AddFlags AddFlags

@@ -27,6 +27,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
 	"github.com/goodrain/rainbond/pkg/node/masterserver"
+	"github.com/goodrain/rainbond/pkg/node/monitormessage"
 	"github.com/goodrain/rainbond/pkg/node/nodeserver"
 	"github.com/goodrain/rainbond/pkg/node/statsd"
 	"github.com/prometheus/client_golang/prometheus"
@@ -95,7 +96,10 @@ func Run(c *option.Conf) error {
 		logrus.Errorf("start statsd exporter server error,%s", err.Error())
 		return err
 	}
-
+	meserver := monitormessage.CreateUDPServer("0.0.0.0", 6666)
+	if err := meserver.Start(); err != nil {
+		return err
+	}
 	//启动API服务
 	apiManager := api.NewManager(*s.Conf, s.HostNode, ms, exporter)
 	apiManager.Start(errChan)
