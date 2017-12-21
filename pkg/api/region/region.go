@@ -24,14 +24,14 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
-
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/api/model"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
-	//api "github.com/goodrain/rainbond/pkg/util/http"
-	//"github.com/bitly/go-simplejson"
 	"github.com/bitly/go-simplejson"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
+	utilhttp "github.com/goodrain/rainbond/pkg/util/http"
+	"github.com/goodrain/rainbond/pkg/api/util"
+	"fmt"
+	"github.com/pquerna/ffjson/ffjson"
 )
 
 var regionAPI, token string
@@ -44,73 +44,81 @@ type Region struct {
 }
 
 func (r *Region) Tenants() TenantInterface {
-	return &Tenant{}
+	return &tenant{prefix:"/tenants"}
 }
 
-type Tenant struct {
+type tenant struct {
 	tenantID string
+	prefix string
 }
-type Services struct {
-	tenant *Tenant
+type services struct {
+	tenant *tenant
+	prefix string
 	model  model.ServiceStruct
 }
 
+
 //TenantInterface TenantInterface
 type TenantInterface interface {
-	Get(name string) *Tenant
+	Get(name string) (*tenant)
 	Services() ServiceInterface
 	DefineSources(ss *api_model.SourceSpec) DefineSourcesInterface
 }
 
-func (t *Tenant) Get(name string) *Tenant {
-	return &Tenant{
-		tenantID: name,
-	}
+func (t *tenant) Get(name string) *tenant {
+	t.tenantID=name
+	return t
 }
-func (t *Tenant) Delete(name string) error {
+func (t *tenant) Delete(name string) error {
 	return nil
 }
-func (t *Tenant) Services() ServiceInterface {
-	return &Services{
+func (t *tenant) Services() ServiceInterface {
+	return &services{
+		prefix:"services",
 		tenant: t,
 	}
 }
 
 type ServiceInterface interface {
-	Get(name string) map[string]string
-	Pods(serviceAlisa string) ([]*dbmodel.K8sPod, error)
-	List() []model.ServiceStruct
-	Stop(serviceAlisa, eventID string) error
-	Start(serviceAlisa, eventID string) error
-	EventLog(serviceAlisa, eventID, level string) ([]model.MessageData, error)
+	Get(name string) (map[string]string,*util.APIHandleError)
+	Pods(serviceAlisa string) ([]*dbmodel.K8sPod,*util.APIHandleError)
+	List() ([]*model.ServiceStruct,*util.APIHandleError)
+	Stop(serviceAlisa, eventID string) *util.APIHandleError
+	Start(serviceAlisa, eventID string) *util.APIHandleError
+	EventLog(serviceAlisa, eventID, level string) ([]*model.MessageData, *util.APIHandleError)
 }
 
-func (s *Services) Pods(serviceAlisa string) ([]*dbmodel.K8sPod, error) {
-	resp, _, err := DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+serviceAlisa+"/pods", "GET", nil)
+func (s *services) Pods(serviceAlisa string) ([]*dbmodel.K8sPod, *util.APIHandleError) {
+	body, code, err := request("/v2"+s.tenant.prefix+s.tenant.tenantID+"/"+serviceAlisa+"/pods", "GET", nil)
 	if err != nil {
-		logrus.Errorf("获取pods失败，details %s", err.Error())
-		return nil, err
+		return nil, util.CreateAPIHandleError(code,err)
 	}
-
-	j, _ := simplejson.NewJson(resp)
-	arr, err := j.Get("list").Array()
-
-	jsonA, _ := json.Marshal(arr)
-	pods := []*dbmodel.K8sPod{}
-	json.Unmarshal(jsonA, &pods)
-
-	return pods, err
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code,fmt.Errorf("Get database center configs code %d", code))
+	}
+	var res utilhttp.ResponseBody
+	var gc []*dbmodel.K8sPod
+	res.List = &gc
+	if err := ffjson.Unmarshal(body, &res); err != nil {
+		return nil, util.CreateAPIHandleError(code,err)
+	}
+	if gc, ok := res.List.([]*dbmodel.K8sPod); ok {
+		return gc, nil
+	}
+	return nil, nil
 }
-func (s *Services) Get(name string) map[string]string {
-	resp, status, err := DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name, "GET", nil)
+func (s *services) Get(name string) (map[string]string,*util.APIHandleError) {
+	body, code, err := request("/v2"+s.tenant.prefix+"/"+s.tenant.tenantID+"/"+s.prefix+"/"+name, "GET", nil)
 	if err != nil {
-		logrus.Errorf("获取服务失败，details %s", err.Error())
-		return nil
+		return nil, util.CreateAPIHandleError(code,err)
 	}
-	if status == 404 {
-		return nil
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code,fmt.Errorf("Get database center configs code %d", code))
 	}
-	j, _ := simplejson.NewJson(resp)
+	j, err := simplejson.NewJson(body)
+	if err != nil {
+		return nil, util.CreateAPIHandleError(code,err)
+	}
 	m := make(map[string]string)
 	bean := j.Get("bean")
 	sa, err := bean.Get("serviceAlias").String()
@@ -121,72 +129,61 @@ func (s *Services) Get(name string) map[string]string {
 	m["serviceId"] = si
 	m["tenantId"] = ti
 	m["tenantName"] = tn
-
-	return m
+	return m,nil
 }
-func (s *Services) EventLog(serviceAlisa, eventID, level string) ([]model.MessageData, error) {
+func (s *services) EventLog(serviceAlisa, eventID, level string) ([]*model.MessageData, *util.APIHandleError) {
 	data := []byte(`{"event_id":"` + eventID + `","level":"` + level + `"}`)
-	resp, _, err := DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+serviceAlisa+"/event-log", "POST", data)
+	body, code, err := request("/v2"+s.tenant.prefix+"/"+s.tenant.tenantID+"/"+s.prefix+"/event-log", "POST", data)
 	if err != nil {
-		return nil, err
+		return nil, util.CreateAPIHandleError(code,err)
 	}
-
-	dlj, err := simplejson.NewJson(resp)
-	arr, _ := dlj.Get("list").Array()
-
-	a, _ := json.Marshal(arr)
-	ss := []model.MessageData{}
-	json.Unmarshal(a, &ss)
-
-	return ss, nil
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code,fmt.Errorf("Get database center configs code %d", code))
+	}
+	var res utilhttp.ResponseBody
+	var gc []*model.MessageData
+	res.List = &gc
+	if err := ffjson.Unmarshal(body, &res); err != nil {
+		return nil, util.CreateAPIHandleError(code,err)
+	}
+	if gc, ok := res.List.([]*model.MessageData); ok {
+		return gc, nil
+	}
+	return nil, nil
 }
 
-type listServices struct {
-	list []model.ServiceStruct `json:"list"`
-}
-type beanDataLog struct {
-	bean model.DataLog `json:"bean"`
-}
-type beanServiceStruct struct {
-	bean model.ServiceStruct `json:"bean"`
-}
+func (s *services) List() ([]*model.ServiceStruct,*util.APIHandleError) {
+	body, code, err := request("/v2"+s.tenant.prefix+"/"+s.tenant.tenantID+s.prefix, "GET", nil)
 
-func (s *Services) List() []model.ServiceStruct {
-	res,_,err:=DoRequest(region.regionAPI+"/v2/tenants/"+s.tenant.tenantID+"/services","GET",nil)
-	j, err := simplejson.NewJson(res)
 	if err != nil {
-		logrus.Errorf("error unmarshal json,details %s", err.Error())
-		return nil
+		return nil, util.CreateAPIHandleError(code,err)
 	}
-	realContent, err := j.Get("list").Array()
-	if err != nil {
-		logrus.Errorf("error get json obj list,details %s", err.Error())
-		return nil
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code,fmt.Errorf("Get database center configs code %d", code))
 	}
-	contentByte, err := json.Marshal(realContent)
-	ss := []model.ServiceStruct{}
-	json.Unmarshal(contentByte, &ss)
-	return ss
+	var res utilhttp.ResponseBody
+	var gc []*model.ServiceStruct
+	res.List = &gc
+	if err := ffjson.Unmarshal(body, &res); err != nil {
+		return nil, util.CreateAPIHandleError(code,err)
+	}
+	if gc, ok := res.List.([]*model.ServiceStruct); ok {
+		return gc, nil
+	}
+	return nil, nil
 }
-func (s *Services) Stop(name, eventID string) error {
+func (s *services) Stop(name, eventID string) *util.APIHandleError {
 	data := []byte(`{"event_id":"` + eventID + `"}`)
-	_, _, err := DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name+"/stop", "POST", data)
-	if err != nil {
-		return err
-	}
-	return nil
+	_, code, err := request("/v2"+s.tenant.prefix+"/"+s.tenant.tenantID+s.prefix+name+"/stop", "POST", data)
+	return handleErrAndCode(err,code)
 }
-func (s *Services) Start(name, eventID string) error {
-
+func (s *services) Start(name, eventID string) *util.APIHandleError {
 	data := []byte(`{"event_id":"` + eventID + `"}`)
-	_, _, err := DoRequest("/v2/tenants/"+s.tenant.tenantID+"/services/"+name+"/start", "POST", data)
-	if err != nil {
-		return err
-	}
-	return nil
+	_, code, err := request("/v2"+s.tenant.prefix+"/"+s.tenant.tenantID+s.prefix+name+"/start", "POST", data)
+	return handleErrAndCode(err,code)
 }
 
-func DoRequest(url, method string, body []byte) ([]byte, int, error) {
+func request(url, method string, body []byte) ([]byte, int, error) {
 	request, err := http.NewRequest(method, region.regionAPI+url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, 500, err
@@ -262,4 +259,13 @@ func LoadConfig(regionAPI, token string) (map[string]map[string]interface{}, err
 func SetInfo(region, t string) {
 	regionAPI = region
 	token = t
+}
+func handleErrAndCode(err error,code int) *util.APIHandleError{
+	if err != nil {
+		return util.CreateAPIHandleError(code,err)
+	}
+	if code != 200 {
+		return util.CreateAPIHandleError(code,fmt.Errorf("error with code %d", code))
+	}
+	return nil
 }

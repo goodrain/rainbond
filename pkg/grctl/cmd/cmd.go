@@ -28,17 +28,12 @@ import (
 //GetCmds GetCmds
 func GetCmds() []cli.Command {
 	cmds := []cli.Command{}
-	cmds = append(cmds, NewCmdBatchStop())
-	cmds = append(cmds, NewCmdStartService())
-	cmds = append(cmds, NewCmdStopService())
+	cmds = append(cmds, NewCmdService())
+
 	cmds = append(cmds, NewCmdTenant())
-	cmds = append(cmds, NewCmdTenantRes())
 	cmds = append(cmds, NewCmdNode())
 	cmds = append(cmds, NewCmdNodeRes())
 	cmds = append(cmds, NewCmdExec())
-	cmds = append(cmds, NewCmdLog())
-	cmds = append(cmds, NewCmdEvent())
-	cmds = append(cmds, NewCmdGet())
 	cmds = append(cmds, NewCmdInit())
 	cmds = append(cmds, NewCmdShow())
 

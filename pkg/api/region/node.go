@@ -309,12 +309,32 @@ func (t *task) Status(name string) (*TaskStatus, error) {
 
 	return HandleTaskStatus(taskId)
 }
+func (t *task)HandleTaskStatus(task string) (*map[string]TaskStatus,*util.APIHandleError) {
+	body, code, err := nodeclient.Request("/tasks/"+task+"/status", "GET", nil)
+	if err != nil {
+		return nil, util.CreateAPIHandleError(code,err)
+	}
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code,fmt.Errorf("get task with code %d", code))
+	}
+	var res utilhttp.ResponseBody
+	var gc map[string]TaskStatus
+	res.Bean = &gc
+	if err := ffjson.Unmarshal(body, &res); err != nil {
+		return nil, util.CreateAPIHandleError(code,err)
+	}
+	if gc, ok := res.Bean.(*map[string]TaskStatus); ok {
+		return gc, nil
+	}
+	return nil, nil
+}
 func HandleTaskStatus(task string) (*TaskStatus, error) {
 	resp, code, err := nodeclient.Request("/tasks/"+task+"/status", "GET", nil)
 	if err != nil {
 		logrus.Errorf("error execute status Request,details %s", err.Error())
 		return nil, err
 	}
+
 	if code == 200 {
 		j, _ := simplejson.NewJson(resp)
 		bean := j.Get("bean")
