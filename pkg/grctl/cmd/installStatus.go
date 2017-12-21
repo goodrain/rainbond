@@ -204,57 +204,57 @@ func Status(task string, nodes []string) {
 			checkFail += 1
 			continue
 		}
-		status, err := taskE.Status()
-		if err != nil || status == nil {
-			logrus.Warnf("error get task %s status,retry", task)
-			checkFail += 1
+		status,error:=clients.NodeClient.Tasks().Status(task)
+		if error != nil||status==nil {
+			logrus.Warnf("error get task %s status,retry",task)
+			checkFail+=1
 			continue
 		}
-		for k, v := range status.Status {
+		for k,v:=range status.Status{
 			//不是当前任务需要检测的status
 			if !set[k] {
 				fmt.Print("..")
 				continue
 			}
-			if strings.Contains(v.Status, "error") || strings.Contains(v.CompleStatus, "Failure") || strings.Contains(v.CompleStatus, "Unknow") {
-				checkFail += 1
-				fmt.Errorf("error executing task %s", task)
-				for _, v := range taskE.Task.OutPut {
-					if set[v.NodeID] {
-						fmt.Printf("on %s :\n %s", v.NodeID, v.Body)
+			if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
+				checkFail+=1
+				fmt.Errorf("error executing task %s",task)
+				for _,v:=range taskE.OutPut{
+					if set[v.NodeID]{
+						fmt.Printf("on %s :\n %s",v.NodeID,v.Body)
 					}
 				}
 				os.Exit(1)
 			}
-			if lastState != v.Status {
-				fmt.Printf("task %s is %s\n", task, v.Status)
-			} else {
+			if lastState!=v.Status{
+				fmt.Printf("task %s is %s\n",task,v.Status)
+			}else{
 				fmt.Print("..")
 			}
-			lastState = v.Status
-			if v.Status == "complete" || v.CompleStatus == "Success" {
-				fmt.Printf("task %s is %s %s\n", task, v.Status, v.CompleStatus)
-				lastState = v.Status
-				taskFinished := taskE
-				var nextTasks []string
-				for _, v := range taskFinished.Task.OutPut {
+			lastState=v.Status
+			if v.Status=="complete"||v.CompleStatus=="Success"{
+				fmt.Printf("task %s is %s %s\n",task,v.Status,v.CompleStatus)
+				lastState=v.Status
+				taskFinished:=taskE
+				var  nextTasks []string
+				for _,v:=range taskFinished.OutPut{
 					if !set[v.NodeID] {
 						continue
 					}
-					for _, sv := range v.Status {
-						if sv.NextTask == nil || len(sv.NextTask) == 0 {
+					for _,sv:=range v.Status{
+						if sv.NextTask == nil ||len(sv.NextTask)==0{
 							continue
-						} else {
-							for _, v := range sv.NextTask {
-								nextTasks = append(nextTasks, v)
+						}else{
+							for _,v:=range sv.NextTask{
+								nextTasks=append(nextTasks,v)
 							}
 						}
 					}
 				}
 				if len(nextTasks) > 0 {
-					fmt.Printf("next will install %v \n", nextTasks)
-					for _, v := range nextTasks {
-						Status(v, nodes)
+					fmt.Printf("next will install %v \n",nextTasks)
+					for _,v:=range nextTasks{
+						Status(v,nodes)
 					}
 				}
 				return

@@ -22,8 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
-
-	"github.com/Sirupsen/logrus"
 	"github.com/apcera/termtables"
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
@@ -179,13 +177,10 @@ func getDependTask(task *model.Task, path string) {
 
 		tid := v.DependTaskID
 		taskD, err := clients.NodeClient.Tasks().Get(tid)
-		if err != nil {
-			logrus.Errorf("error get task,details %s", err.Error())
-			return
-		}
+		handleErr(err)
 		//fmt.Print("task %s depend %s",task.ID,taskD.Task.ID)
 		if k == 0 {
-			fmt.Print("-->" + taskD.Task.ID)
+			fmt.Print("-->" + taskD.ID)
 
 		} else {
 			fmt.Println()
@@ -193,11 +188,11 @@ func getDependTask(task *model.Task, path string) {
 			for i := 0; i < len(path); i++ {
 				fmt.Print(" ")
 			}
-			fmt.Print("-->" + taskD.Task.ID)
+			fmt.Print("-->" + taskD.ID)
 			//path+="-->"+taskD.Task.ID
 
 		}
-		getDependTask(taskD.Task, path+"-->"+taskD.Task.ID)
+		getDependTask(taskD, path+"-->"+taskD.ID)
 	}
 }
 

@@ -36,14 +36,22 @@ import (
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"github.com/goodrain/rainbond/pkg/api/util"
 )
 
+func handleErr(err *util.APIHandleError)  {
+	if err != nil {
+		fmt.Println(err.String())
+		os.Exit(1)
+	}
+}
 func NewCmdShow() cli.Command {
 	c := cli.Command{
 		Name:  "show",
 		Usage: "显示region安装完成后访问地址",
 		Action: func(c *cli.Context) error {
-			manageHosts := clients.NodeClient.Nodes().Rule("manage")
+			manageHosts ,err:= clients.NodeClient.Nodes().Rule("manage")
+			handleErr(err)
 			ips := getExternalIP("/etc/goodrain/envs/.exip", manageHosts)
 			fmt.Println("Manage your apps with webui：")
 			for _, v := range ips {
@@ -132,7 +140,8 @@ func NewCmdNode() cli.Command {
 						return nil
 					}
 
-					nodes := clients.NodeClient.Nodes().List()
+					nodes,err:= clients.NodeClient.Nodes().List()
+					handleErr(err)
 					for _, v := range nodes {
 						if v.InternalIP == id {
 							id = v.ID
@@ -140,14 +149,14 @@ func NewCmdNode() cli.Command {
 						}
 					}
 
-					n := clients.NodeClient.Nodes().Get(id)
-					v := n.Node
+					v,err := clients.NodeClient.Nodes().Get(id)
+					handleErr(err)
 					nodeByte, _ := json.Marshal(v)
 					var out bytes.Buffer
-					err := json.Indent(&out, nodeByte, "", "\t")
-					if err != nil {
+					error := json.Indent(&out, nodeByte, "", "\t")
+					if error != nil {
 						logrus.Error("error format json details %s", err.Error())
-						return err
+						return error
 					}
 					fmt.Println(out.String())
 					return nil
@@ -157,7 +166,8 @@ func NewCmdNode() cli.Command {
 				Name:  "list",
 				Usage: "list",
 				Action: func(c *cli.Context) error {
-					list := clients.NodeClient.Nodes().List()
+					list ,err:= clients.NodeClient.Nodes().List()
+					handleErr(err)
 					serviceTable := termtables.CreateTable()
 					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Alived", "Schedulable", "Ready")
 					var rest []*model.HostNode
@@ -195,7 +205,8 @@ func NewCmdNode() cli.Command {
 						logrus.Errorf("need hostID")
 						return nil
 					}
-					clients.NodeClient.Nodes().Get(id).Up()
+					err:=clients.NodeClient.Nodes().Up(id)
+					handleErr(err)
 					return nil
 				},
 			},
@@ -208,7 +219,8 @@ func NewCmdNode() cli.Command {
 						logrus.Errorf("need hostID")
 						return nil
 					}
-					clients.NodeClient.Nodes().Get(id).Down()
+					err:=clients.NodeClient.Nodes().Down(id)
+					handleErr(err)
 					return nil
 				},
 			},
@@ -221,12 +233,14 @@ func NewCmdNode() cli.Command {
 						logrus.Errorf("need hostID")
 						return nil
 					}
-					node := clients.NodeClient.Nodes().Get(id)
-					if node.Node.Role.HasRule("manage") {
+					node ,err:= clients.NodeClient.Nodes().Get(id)
+					handleErr(err)
+					if !node.Role.HasRule("compute") {
 						logrus.Errorf("管理节点不支持此功能")
 						return nil
 					}
-					clients.NodeClient.Nodes().Get(id).UnSchedulable()
+					err=clients.NodeClient.Nodes().UnSchedulable(id)
+					handleErr(err)
 					return nil
 				},
 			},
@@ -239,12 +253,14 @@ func NewCmdNode() cli.Command {
 						logrus.Errorf("need hostID")
 						return nil
 					}
-					node := clients.NodeClient.Nodes().Get(id)
-					if node.Node.Role.HasRule("manage") {
+					node,err:= clients.NodeClient.Nodes().Get(id)
+					handleErr(err)
+					if !node.Role.HasRule("compute") {
 						logrus.Errorf("管理节点不支持此功能")
 						return nil
 					}
-					clients.NodeClient.Nodes().Get(id).ReSchedulable()
+					err=clients.NodeClient.Nodes().ReSchedulable(id)
+					handleErr(err)
 					return nil
 				},
 			},
@@ -257,7 +273,8 @@ func NewCmdNode() cli.Command {
 						logrus.Errorf("need hostID")
 						return nil
 					}
-					clients.NodeClient.Nodes().Get(id).Delete()
+					err:=clients.NodeClient.Nodes().Delete(id)
+					handleErr(err)
 					return nil
 				},
 			},
@@ -299,7 +316,8 @@ func NewCmdNode() cli.Command {
 					v := c.String("val")
 					label := make(map[string]string)
 					label[k] = v
-					clients.NodeClient.Nodes().Get(hostID).Label(label)
+					err:=clients.NodeClient.Nodes().Label(hostID,label)
+					handleErr(err)
 					return nil
 				},
 			},
@@ -345,7 +363,8 @@ func NewCmdNode() cli.Command {
 						fmt.Println("开始初始化节点")
 						for true {
 							time.Sleep(3 * time.Second)
-							list := clients.NodeClient.Nodes().List()
+							list,err := clients.NodeClient.Nodes().List()
+							handleErr(err)
 							for _, v := range list {
 								if node.InternalIP == v.InternalIP {
 

@@ -6,10 +6,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/bitly/go-simplejson"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/pquerna/ffjson/ffjson"
+	//"github.com/goodrain/rainbond/pkg/grctl/cmd"
+	"errors"
+
 	utilhttp "github.com/goodrain/rainbond/pkg/util/http"
-	"rainbond/pkg/api/util"
+	"github.com/goodrain/rainbond/pkg/api/util"
 )
 
 var nodeclient *RNodeClient
@@ -50,7 +56,7 @@ type node struct {
 }
 type TaskInterface interface {
 	Get(name string) (*model.Task, *util.APIHandleError)
-	Status(name string) ( *model.TaskStatus,*util.APIHandleError)
+	Status(name string) (*TaskStatus, error)
 	Add(task *model.Task) *util.APIHandleError
 	AddGroup(group *model.TaskGroup) *util.APIHandleError
 	Exec(name string, nodes []string) *util.APIHandleError
@@ -298,29 +304,44 @@ type TaskStatus struct {
 	Status map[string]model.TaskStatus `json:"status,omitempty"`
 }
 
-func (t *task) Status(name string) (*model.TaskStatus, *util.APIHandleError) {
+func (t *task) Status(name string) (*TaskStatus, error) {
 	taskId := name
-	return handleTaskStatus(t.prefix,taskId)
-}
-func handleTaskStatus(prefix,task string) (*model.TaskStatus, *util.APIHandleError) {
-	body, code, err := nodeclient.Request(prefix+"/"+task+"/status", "GET", nil)
-	if err != nil {
-		return nil, util.CreateAPIHandleError(code,err)
-	}
-	if code != 200 {
-		return nil, util.CreateAPIHandleError(code,fmt.Errorf("get task with code %d", code))
-	}
 
-	var res utilhttp.ResponseBody
-	var gc model.TaskStatus
-	res.Bean = &gc
-	if err := ffjson.Unmarshal(body, &res); err != nil {
-		return nil, util.CreateAPIHandleError(code,err)
+	return HandleTaskStatus(taskId)
+}
+func HandleTaskStatus(task string) (*TaskStatus, error) {
+	resp, code, err := nodeclient.Request("/tasks/"+task+"/status", "GET", nil)
+	if err != nil {
+		logrus.Errorf("error execute status Request,details %s", err.Error())
+		return nil, err
 	}
-	if gc, ok := res.Bean.(*model.TaskStatus); ok {
-		return gc, nil
+	if code == 200 {
+		j, _ := simplejson.NewJson(resp)
+		bean := j.Get("bean")
+		beanB, _ := json.Marshal(bean)
+		var status TaskStatus
+		statusMap := make(map[string]model.TaskStatus)
+
+		json, _ := simplejson.NewJson(beanB)
+
+		second := json.Interface()
+
+		if second == nil {
+			return nil, errors.New("get status failed")
+		}
+		m := second.(map[string]interface{})
+
+		for k, _ := range m {
+			var taskStatus model.TaskStatus
+			taskStatus.CompleStatus = m[k].(map[string]interface{})["comple_status"].(string)
+			taskStatus.Status = m[k].(map[string]interface{})["status"].(string)
+			taskStatus.JobID = k
+			statusMap[k] = taskStatus
+		}
+		status.Status = statusMap
+		return &status, nil
 	}
-	return nil,nil
+	return nil, errors.New(fmt.Sprintf("response status is %s", code))
 }
 
 //Request Request
