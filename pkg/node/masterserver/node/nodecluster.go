@@ -311,8 +311,9 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 	}
 	role := strings.Join(node.Role, ",")
 	etcdConfig := n.datacenterConfig.GetConfig("ETCD_ADDRS")
-	etcd := n.currentNode.InternalIP + ":2379"
+	etcd := n.currentNode.InternalIP
 	if etcdConfig != nil && etcdConfig.Value != nil {
+		logrus.Infof("etcd address is %v when install node", etcdConfig.Value)
 		switch etcdConfig.Value.(type) {
 		case string:
 			if etcdConfig.Value.(string) != "" {
