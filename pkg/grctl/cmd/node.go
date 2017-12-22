@@ -361,35 +361,38 @@ func NewCmdNode() cli.Command {
 
 						clients.NodeClient.Nodes().Add(&node)
 						fmt.Println("开始初始化节点")
-						for true {
-							time.Sleep(3 * time.Second)
-							list,err := clients.NodeClient.Nodes().List()
-							handleErr(err)
-							for _, v := range list {
-								if node.InternalIP == v.InternalIP {
-
-									tableC := termtables.CreateTable()
-									var header []string
-									var content []string
-									for _, val := range v.Conditions {
-										header = append(header, string(val.Type))
-										content = append(content, string(val.Status))
-									}
-									if v.Alived {
-										fmt.Printf("节点 %s 初始化成功", v.ID)
-										fmt.Println()
-										tableC.AddHeaders(header)
-										tableC.AddRow(content)
-										fmt.Println(tableC.Render())
-										return nil
-									} else {
-										fmt.Printf("..")
-									}
-
-									//todo  初始化其它节点失败判定
-								}
+						time.Sleep(3 * time.Second)
+						list,err := clients.NodeClient.Nodes().List()
+						handleErr(err)
+						var node *model.HostNode
+						for _, v := range list {
+							if node.InternalIP == v.InternalIP {
+								node=v
+								break
+								//todo  初始化其它节点失败判定
 							}
 						}
+						tableC := termtables.CreateTable()
+						var header []string
+						var content []string
+						for _, val := range node.Conditions {
+							header = append(header, string(val.Type))
+							content = append(content, string(val.Status))
+							if node.Alived {
+								fmt.Printf("节点 %s 初始化成功", node.ID)
+								fmt.Println()
+								tableC.AddHeaders(header)
+								tableC.AddRow(content)
+								fmt.Println(tableC.Render())
+								return nil
+							} else if val.Type==model.NodeInit &&val.Status==model.ConditionFalse{
+								fmt.Printf("节点 %s 初始化失败:%s", node.ID,val.Reason)
+								return nil
+							}else{
+								fmt.Printf("..")
+							}
+						}
+
 						return nil
 					}
 
