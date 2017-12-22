@@ -199,7 +199,7 @@ func initCluster(c *cli.Context) error {
 		}
 	}
 	if err != nil {
-		logrus.Errorf("Update Datacenter configs error,please check node status")
+		logrus.Errorf("Update Datacenter configs error,please check node status,%s", err.Error())
 		return err
 	}
 	//获取当前节点ID
@@ -208,7 +208,6 @@ func initCluster(c *cli.Context) error {
 		logrus.Errorf("read nodeid error,please check node status")
 		return err
 	}
-
 	err = clients.NodeClient.Tasks().Exec("check_manage_base_services", []string{hostID})
 	if err != nil {
 		logrus.Errorf("error exec task:%s,details %s", "check_manage_base_services", err.Error())
