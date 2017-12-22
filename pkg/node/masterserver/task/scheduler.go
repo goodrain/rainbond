@@ -85,7 +85,6 @@ func (t *TaskEngine) startScheduler() {
 		next, err := t.scheduler.Next()
 		if err != nil {
 			if err.Error() == "time out" {
-				logrus.Warningf("get next scheduler job timeout")
 				continue
 			}
 			if err.Error() == "ctx context cancel" {

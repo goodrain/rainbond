@@ -145,13 +145,27 @@ func (d *DataCenterConfig) PutConfig(c *model.ConfigUnit) error {
 	if c.Name == "" {
 		return fmt.Errorf("config name can not be empty")
 	}
+	//将值类型由[]interface{} 转 []string
+	if c.ValueType == "array" {
+		switch c.Value.(type) {
+		case []interface{}:
+			var data []string
+			for _, v := range c.Value.([]interface{}) {
+				data = append(data, v.(string))
+			}
+			c.Value = data
+		}
+	}
 	if c.ValueType == "array" {
 		oldC := d.config.Get(c.Name)
 		if oldC != nil {
-			oldV, ok := oldC.Value.([]string)
-			newV, newOK := c.Value.([]string)
-			if ok && newOK {
-				c.Value = append(oldV, newV...)
+			switch oldC.Value.(type) {
+			case string:
+				c.Value = append(c.Value.([]string), oldC.Value.(string))
+			case []string:
+				c.Value = append(c.Value.([]string), oldC.Value.([]string)...)
+			default:
+				logrus.Info(4)
 			}
 		}
 	}
