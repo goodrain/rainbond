@@ -34,7 +34,8 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
-	"github.com/goodrain/rainbond/pkg/util"
+	coreutil"github.com/goodrain/rainbond/pkg/util"
+	"github.com/goodrain/rainbond/pkg/api/util"
 )
 
 //NewCmdInit grctl init
@@ -187,37 +188,38 @@ func initCluster(c *cli.Context) error {
 		}
 	}
 	var gc *model.GlobalConfig
+	var error *util.APIHandleError
 	for i := 0; i < 10; i++ {
 		time.Sleep(time.Second * 2)
-		gc, err = clients.NodeClient.Configs().Get()
+		gc, error = clients.NodeClient.Configs().Get()
 		if err == nil && gc != nil {
 			for _, nc := range newConfigs {
 				gc.Add(nc)
 			}
-			err = clients.NodeClient.Configs().Put(gc)
+			error = clients.NodeClient.Configs().Put(gc)
 			break
 		}
 	}
-	if err != nil {
+	if error != nil {
 		logrus.Errorf("Update Datacenter configs error,please check node status")
 		return err
 	}
 	//获取当前节点ID
-	hostID, err := util.ReadHostID("")
+	hostID, err := coreutil.ReadHostID("")
 	if err != nil {
 		logrus.Errorf("read nodeid error,please check node status")
 		return err
 	}
 
-	err = clients.NodeClient.Tasks().Exec("check_manage_base_services", []string{hostID})
-	if err != nil {
-		logrus.Errorf("error exec task:%s,details %s", "check_manage_base_services", err.Error())
-		return err
+	error = clients.NodeClient.Tasks().Exec("check_manage_base_services", []string{hostID})
+	if error != nil {
+		logrus.Errorf("error exec task:%s,details %s", "check_manage_base_services", error.String())
+		return error.Err
 	}
-	err = clients.NodeClient.Tasks().Exec("check_manage_services", []string{hostID})
-	if err != nil {
-		logrus.Errorf("error exec task:%s,details %s", "check_manage_services", err.Error())
-		return err
+	error = clients.NodeClient.Tasks().Exec("check_manage_services", []string{hostID})
+	if error != nil {
+		logrus.Errorf("error exec task:%s,details %s", "check_manage_services", error.String())
+		return error.Err
 	}
 	Status("check_manage_base_services", []string{hostID})
 	Status("check_manage_services", []string{hostID})
