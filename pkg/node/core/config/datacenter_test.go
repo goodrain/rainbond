@@ -20,9 +20,11 @@ package config
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
 
 	"github.com/Sirupsen/logrus"
@@ -38,11 +40,21 @@ func init() {
 		logrus.Error(err.Error())
 		os.Exit(1)
 	}
+	option.Config = &option.Conf{
+		ConfigStoragePath: "/rainbond/configs",
+	}
 }
 func TestGetDataCenterConfig(t *testing.T) {
-	c := DataCenterConfig{options: &option.Conf{
-		ConfigStoragePath: "/rainbond/acp_configs",
-	}}
+	str := "asdadad|"
+	t.Log(strings.Index(str, "|"))
+	t.Log(strings.Index(str, ","))
+	c := GetDataCenterConfig()
+	c.PutConfig(&model.ConfigUnit{
+		Name:           strings.ToUpper("ARRAY"),
+		Value:          []string{"121211212"},
+		ValueType:      "array",
+		IsConfigurable: false,
+	})
 	gc, err := c.GetDataCenterConfig()
 	t.Log(gc.String())
 	t.Fatal(err)

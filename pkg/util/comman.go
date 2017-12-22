@@ -162,3 +162,34 @@ func GetIDFromKey(key string) string {
 
 	return key[index+1:]
 }
+
+//Deweight 去除数组重复
+func Deweight(data *[]string) {
+	var result []string
+	if len(*data) < 1024 {
+		// 切片长度小于1024的时候，循环来过滤
+		for i := range *data {
+			flag := true
+			for j := range result {
+				if result[j] == (*data)[i] {
+					flag = false // 存在重复元素，标识为false
+					break
+				}
+			}
+			if flag { // 标识为false，不添加进结果
+				result = append(result, (*data)[i])
+			}
+		}
+	} else {
+		// 大于的时候，通过map来过滤
+		var tmp = make(map[string]byte)
+		for _, d := range *data {
+			l := len(tmp)
+			tmp[d] = 0
+			if len(tmp) != l { // 加入map后，map长度变化，则元素不重复
+				result = append(result, d)
+			}
+		}
+	}
+	*data = result
+}
