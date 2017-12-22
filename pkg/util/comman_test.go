@@ -26,3 +26,9 @@ func TestOpenOrCreateFile(t *testing.T) {
 	}
 	file.Close()
 }
+
+func TestDeweight(t *testing.T) {
+	data := []string{"asd", "asd", "12", "12"}
+	Deweight(&data)
+	t.Log(data)
+}

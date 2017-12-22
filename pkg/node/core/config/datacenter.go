@@ -155,17 +155,19 @@ func (d *DataCenterConfig) PutConfig(c *model.ConfigUnit) error {
 			}
 			c.Value = data
 		}
-	}
-	if c.ValueType == "array" {
 		oldC := d.config.Get(c.Name)
 		if oldC != nil {
+
 			switch oldC.Value.(type) {
 			case string:
-				c.Value = append(c.Value.([]string), oldC.Value.(string))
+				value := append(c.Value.([]string), oldC.Value.(string))
+				util.Deweight(&value)
+				c.Value = value
 			case []string:
-				c.Value = append(c.Value.([]string), oldC.Value.([]string)...)
+				value := append(c.Value.([]string), oldC.Value.([]string)...)
+				util.Deweight(&value)
+				c.Value = value
 			default:
-				logrus.Info(4)
 			}
 		}
 	}
