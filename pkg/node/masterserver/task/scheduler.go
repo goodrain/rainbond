@@ -72,6 +72,7 @@ func (s *Scheduler) Next() (*job.Job, error) {
 
 //Stop 停止
 func (s *Scheduler) Stop() {
+	logrus.Infof("task engine scheduler worker is stopping")
 	s.cancel()
 }
 
@@ -84,9 +85,11 @@ func (t *TaskEngine) startScheduler() {
 		next, err := t.scheduler.Next()
 		if err != nil {
 			if err.Error() == "time out" {
+				logrus.Warningf("get next scheduler job timeout")
 				continue
 			}
 			if err.Error() == "ctx context cancel" {
+				logrus.Warningf("get next scheduler job ctx context cancel")
 				return
 			}
 			continue

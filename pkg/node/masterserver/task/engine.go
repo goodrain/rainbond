@@ -164,16 +164,21 @@ func (t *TaskEngine) haveMaster() (bool, error) {
 func (t *TaskEngine) keepMaster(errchan chan struct{}) {
 	duration := time.Second * 5
 	timer := time.NewTimer(duration)
+keep:
 	for {
 		select {
 		case <-timer.C:
 			if t.masterID > 0 {
-				_, err := store.DefalutClient.KeepAliveOnce(t.masterID)
-				if err == nil {
-					timer.Reset(duration)
-					continue
+				for i := 0; i < 3; i++ {
+					_, err := store.DefalutClient.KeepAliveOnce(t.masterID)
+					if err == nil {
+						timer.Reset(duration)
+						continue keep
+					}
+					logrus.Warnf("lid[%x] keepAlive err: %s, will retry...", t.masterID, err.Error())
+					time.Sleep(time.Second * 1)
 				}
-				logrus.Warnf("lid[%x] keepAlive err: %s, try to reset...", t.masterID, err.Error())
+				logrus.Errorf("lid[%x] keepAlive err,master closed", t.masterID)
 				t.masterID = 0
 				errchan <- struct{}{}
 				return
