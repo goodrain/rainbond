@@ -58,13 +58,13 @@ func (s *Scheduler) putSchedulerChan(jb *job.Job, duration time.Duration) {
 
 //Next 下一个调度对象
 func (s *Scheduler) Next() (*job.Job, error) {
-	ctx, cancel := context.WithTimeout(s.ctx, time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	select {
 	case job := <-s.cache:
 		return job, nil
 	case <-s.ctx.Done():
-		return nil, fmt.Errorf("context cancel")
+		return nil, fmt.Errorf("ctx context cancel")
 	case <-ctx.Done():
 		return nil, fmt.Errorf("time out")
 	}
@@ -86,7 +86,7 @@ func (t *TaskEngine) startScheduler() {
 			if err.Error() == "time out" {
 				continue
 			}
-			if err.Error() == "context cancel" {
+			if err.Error() == "ctx context cancel" {
 				return
 			}
 			continue

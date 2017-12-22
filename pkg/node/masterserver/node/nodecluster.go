@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -309,7 +310,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 		node.Role = []string{"compute"}
 	}
 	role := strings.Join(node.Role, ",")
-	etcdConfig := n.datacenterConfig.GetConfig("ETCD")
+	etcdConfig := n.datacenterConfig.GetConfig("ETCD_ADDRS")
 	etcd := n.currentNode.InternalIP + ":2379"
 	if etcdConfig != nil && etcdConfig.Value != nil {
 		switch etcdConfig.Value.(type) {
@@ -321,13 +322,22 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 			etcd = strings.Join(etcdConfig.Value.([]string), "|")
 		}
 	}
-	cmd := "bash -c \"set " + node.ID + " " + etcd + " " + role + ";$(curl -s repo.goodrain.com/gaops/jobs/install/prepare/init.sh)\""
+	initshell := "dev.repo.goodrain.com/gaops/jobs/install/prepare/init.sh"
+	cmd := fmt.Sprintf("bash -c \"set %s %s %s;$(curl -s %s)\"", node.ID, etcd, role, initshell)
 	logrus.Infof("init endpoint node cmd is %s", cmd)
 
 	//日志输出文件
-	util.CheckAndCreateDir("/var/log/event")
+	if err := util.CheckAndCreateDir("/var/log/event"); err != nil {
+		logrus.Errorf("check and create dir /var/log/event error,%s", err.Error())
+	}
 	logFile := "/var/log/event/install_node_" + node.ID + ".log"
-	logfile, _ := util.OpenOrCreateFile(logFile)
+	logfile, err := util.OpenOrCreateFile(logFile)
+	if err != nil {
+		logrus.Errorf("check and create install node logfile error,%s", err.Error())
+	}
+	if logfile == nil {
+		logfile = os.Stdout
+	}
 	//结果输出buffer
 	var stderr bytes.Buffer
 	client := util.NewSSHClient(node.InternalIP, "root", node.RootPass, cmd, 22, logfile, &stderr)
