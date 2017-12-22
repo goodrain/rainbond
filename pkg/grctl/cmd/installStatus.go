@@ -204,13 +204,14 @@ func Status(task string, nodes []string) {
 			checkFail += 1
 			continue
 		}
-		status,error:=clients.NodeClient.Tasks().Status(task)
-		if error != nil||status==nil {
-			logrus.Warnf("error get task %s status,retry",task)
+		//status,error:=clients.NodeClient.Tasks().Status(task)
+		status,err:=clients.NodeClient.Tasks().HandleTaskStatus(task)
+		if err != nil||status==nil {
+			logrus.Warnf("error get task %s status,details %s,retry",task,err.String())
 			checkFail+=1
 			continue
 		}
-		for k,v:=range status.Status{
+		for k,v:=range *status{
 			//不是当前任务需要检测的status
 			if !set[k] {
 				fmt.Print("..")

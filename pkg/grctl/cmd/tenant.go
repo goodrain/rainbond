@@ -47,7 +47,7 @@ func NewCmdTenant() cli.Command {
 			},
 			cli.Command{
 				Name:  "batchstop",
-				Usage: "批量停止租户应用。grctl service batchstop tenant_name",
+				Usage: "批量停止租户应用。grctl tenant batchstop tenant_name",
 				Flags: []cli.Flag{
 					cli.BoolFlag{
 						Name:  "f",

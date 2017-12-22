@@ -40,7 +40,7 @@ import (
 )
 
 func handleErr(err *util.APIHandleError)  {
-	if err != nil {
+	if err != nil&&err.Err!=nil {
 		fmt.Println(err.String())
 		os.Exit(1)
 	}

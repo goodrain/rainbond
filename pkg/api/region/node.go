@@ -57,11 +57,13 @@ type node struct {
 type TaskInterface interface {
 	Get(name string) (*model.Task, *util.APIHandleError)
 	Status(name string) (*TaskStatus, error)
+	HandleTaskStatus(task string) (*map[string]*model.TaskStatus,*util.APIHandleError)
 	Add(task *model.Task) *util.APIHandleError
 	AddGroup(group *model.TaskGroup) *util.APIHandleError
 	Exec(name string, nodes []string) *util.APIHandleError
 	List() ([]*model.Task, *util.APIHandleError)
 	Refresh() *util.APIHandleError
+
 }
 type NodeInterface interface {
 	Rule(rule string) ([]*model.HostNode,*util.APIHandleError)
@@ -150,7 +152,7 @@ func (n *node) Rule(rule string) ([]*model.HostNode,*util.APIHandleError) {
 	}
 	var res utilhttp.ResponseBody
 	var gc []*model.HostNode
-	res.List = &gc
+	res.List = gc
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
@@ -169,7 +171,7 @@ func (n *node) List() ([]*model.HostNode,*util.APIHandleError) {
 	}
 	var res utilhttp.ResponseBody
 	var gc []*model.HostNode
-	res.List = &gc
+	res.List = gc
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
@@ -256,7 +258,7 @@ func (t *task) List() ([]*model.Task, *util.APIHandleError) {
 	}
 	var res utilhttp.ResponseBody
 	var gc []*model.Task
-	res.List = &gc
+	res.List = gc
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
@@ -309,7 +311,7 @@ func (t *task) Status(name string) (*TaskStatus, error) {
 
 	return HandleTaskStatus(taskId)
 }
-func (t *task)HandleTaskStatus(task string) (*map[string]TaskStatus,*util.APIHandleError) {
+func (t *task)HandleTaskStatus(task string) (*map[string]*model.TaskStatus,*util.APIHandleError) {
 	body, code, err := nodeclient.Request("/tasks/"+task+"/status", "GET", nil)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
@@ -318,12 +320,12 @@ func (t *task)HandleTaskStatus(task string) (*map[string]TaskStatus,*util.APIHan
 		return nil, util.CreateAPIHandleError(code,fmt.Errorf("get task with code %d", code))
 	}
 	var res utilhttp.ResponseBody
-	var gc map[string]TaskStatus
+	var gc map[string]*model.TaskStatus
 	res.Bean = &gc
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
-	if gc, ok := res.Bean.(*map[string]TaskStatus); ok {
+	if gc, ok := res.Bean.(*map[string]*model.TaskStatus); ok {
 		return gc, nil
 	}
 	return nil, nil

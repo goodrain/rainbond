@@ -32,6 +32,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/api/util"
 	"fmt"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/Sirupsen/logrus"
 )
 
 var regionAPI, token string
@@ -89,7 +90,7 @@ type ServiceInterface interface {
 }
 
 func (s *services) Pods(serviceAlisa string) ([]*dbmodel.K8sPod, *util.APIHandleError) {
-	body, code, err := request("/v2"+s.tenant.prefix+s.tenant.tenantID+"/"+serviceAlisa+"/pods", "GET", nil)
+	body, code, err := request("/v2"+s.tenant.prefix+"/"+s.tenant.tenantID+"/"+s.prefix+"/"+serviceAlisa+"/pods", "GET", nil)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
@@ -98,7 +99,7 @@ func (s *services) Pods(serviceAlisa string) ([]*dbmodel.K8sPod, *util.APIHandle
 	}
 	var res utilhttp.ResponseBody
 	var gc []*dbmodel.K8sPod
-	res.List = &gc
+	res.List = gc
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
@@ -113,7 +114,7 @@ func (s *services) Get(name string) (map[string]string,*util.APIHandleError) {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
 	if code != 200 {
-		return nil, util.CreateAPIHandleError(code,fmt.Errorf("Get database center configs code %d", code))
+		return nil, util.CreateAPIHandleError(code,fmt.Errorf("Get err with code %d", code))
 	}
 	j, err := simplejson.NewJson(body)
 	if err != nil {
@@ -142,7 +143,7 @@ func (s *services) EventLog(serviceAlisa, eventID, level string) ([]*model.Messa
 	}
 	var res utilhttp.ResponseBody
 	var gc []*model.MessageData
-	res.List = &gc
+	res.List = gc
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
@@ -153,37 +154,43 @@ func (s *services) EventLog(serviceAlisa, eventID, level string) ([]*model.Messa
 }
 
 func (s *services) List() ([]*model.ServiceStruct,*util.APIHandleError) {
-	body, code, err := request("/v2"+s.tenant.prefix+"/"+s.tenant.tenantID+s.prefix, "GET", nil)
+	body, code, err := request("/v2"+s.tenant.prefix+"/"+s.tenant.tenantID+"/"+s.prefix, "GET", nil)
 
 	if err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
 	if code != 200 {
-		return nil, util.CreateAPIHandleError(code,fmt.Errorf("Get database center configs code %d", code))
+		return nil, util.CreateAPIHandleError(code,fmt.Errorf("Get with code %d", code))
 	}
 	var res utilhttp.ResponseBody
 	var gc []*model.ServiceStruct
-	res.List = &gc
+	res.List = gc
+	logrus.Infof("res is %v",res)
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
+	logrus.Infof("after unmarshal res is %v",res)
 	if gc, ok := res.List.([]*model.ServiceStruct); ok {
 		return gc, nil
+	}else{
+		c:=res.List.([]*model.ServiceStruct)
+		logrus.Infof("response is %v",c)
 	}
 	return nil, nil
 }
 func (s *services) Stop(name, eventID string) *util.APIHandleError {
 	data := []byte(`{"event_id":"` + eventID + `"}`)
-	_, code, err := request("/v2"+s.tenant.prefix+"/"+s.tenant.tenantID+s.prefix+name+"/stop", "POST", data)
+	_, code, err := request("/v2"+s.tenant.prefix+"/"+s.tenant.tenantID+"/"+s.prefix+"/"+name+"/stop", "POST", data)
 	return handleErrAndCode(err,code)
 }
 func (s *services) Start(name, eventID string) *util.APIHandleError {
 	data := []byte(`{"event_id":"` + eventID + `"}`)
-	_, code, err := request("/v2"+s.tenant.prefix+"/"+s.tenant.tenantID+s.prefix+name+"/start", "POST", data)
+	_, code, err := request("/v2"+s.tenant.prefix+"/"+s.tenant.tenantID+"/"+s.prefix+"/"+name+"/start", "POST", data)
 	return handleErrAndCode(err,code)
 }
 
 func request(url, method string, body []byte) ([]byte, int, error) {
+	logrus.Infof("req url is %s",region.regionAPI+url)
 	request, err := http.NewRequest(method, region.regionAPI+url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, 500, err
