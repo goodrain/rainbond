@@ -58,13 +58,13 @@ func (s *Scheduler) putSchedulerChan(jb *job.Job, duration time.Duration) {
 
 //Next 下一个调度对象
 func (s *Scheduler) Next() (*job.Job, error) {
-	ctx, cancel := context.WithTimeout(s.ctx, time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	select {
 	case job := <-s.cache:
 		return job, nil
 	case <-s.ctx.Done():
-		return nil, fmt.Errorf("context cancel")
+		return nil, fmt.Errorf("ctx context cancel")
 	case <-ctx.Done():
 		return nil, fmt.Errorf("time out")
 	}
@@ -72,20 +72,24 @@ func (s *Scheduler) Next() (*job.Job, error) {
 
 //Stop 停止
 func (s *Scheduler) Stop() {
+	logrus.Infof("task engine scheduler worker is stopping")
 	s.cancel()
 }
 
 //StartScheduler 开始调度
 func (t *TaskEngine) startScheduler() {
 	t.loadAndWatchJobs()
-	logrus.Info("Start scheduler worke")
+	logrus.Info("Start scheduler worker...")
+	defer logrus.Info("scheduler worker closed....")
 	for {
 		next, err := t.scheduler.Next()
 		if err != nil {
 			if err.Error() == "time out" {
+				logrus.Warningf("get next scheduler job timeout")
 				continue
 			}
-			if err.Error() == "context cancel" {
+			if err.Error() == "ctx context cancel" {
+				logrus.Warningf("get next scheduler job ctx context cancel")
 				return
 			}
 			continue
@@ -117,7 +121,7 @@ func (t *TaskEngine) startScheduler() {
 					Message:         err.Error(),
 				}
 				t.UpdateJob(next)
-				logrus.Infof("Failure schedule job %s to node %s", next.Hash, next.NodeID)
+				logrus.Errorf("Failure schedule job %s to node %s", next.Hash, next.NodeID)
 				break
 			}
 			if !ok {
