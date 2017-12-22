@@ -99,12 +99,12 @@ func (s *services) Pods(serviceAlisa string) ([]*dbmodel.K8sPod, *util.APIHandle
 	}
 	var res utilhttp.ResponseBody
 	var gc []*dbmodel.K8sPod
-	res.List = gc
+	res.List = &gc
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
-	if gc, ok := res.List.([]*dbmodel.K8sPod); ok {
-		return gc, nil
+	if gc, ok := res.List.(*[]*dbmodel.K8sPod); ok {
+		return *gc, nil
 	}
 	return nil, nil
 }
@@ -143,12 +143,12 @@ func (s *services) EventLog(serviceAlisa, eventID, level string) ([]*model.Messa
 	}
 	var res utilhttp.ResponseBody
 	var gc []*model.MessageData
-	res.List = gc
+	res.List = &gc
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
-	if gc, ok := res.List.([]*model.MessageData); ok {
-		return gc, nil
+	if gc, ok := res.List.(*[]*model.MessageData); ok {
+		return *gc, nil
 	}
 	return nil, nil
 }
@@ -164,17 +164,13 @@ func (s *services) List() ([]*model.ServiceStruct,*util.APIHandleError) {
 	}
 	var res utilhttp.ResponseBody
 	var gc []*model.ServiceStruct
-	res.List = gc
-	logrus.Infof("res is %v",res)
+	res.List = &gc
+
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
-	logrus.Infof("after unmarshal res is %v",res)
-	if gc, ok := res.List.([]*model.ServiceStruct); ok {
-		return gc, nil
-	}else{
-		c:=res.List.([]*model.ServiceStruct)
-		logrus.Infof("response is %v",c)
+	if gc, ok := res.List.(*[]*model.ServiceStruct); ok {
+		return *gc, nil
 	}
 	return nil, nil
 }

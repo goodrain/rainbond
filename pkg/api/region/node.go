@@ -134,9 +134,11 @@ func (n *node) Get(node string) (*model.HostNode,*util.APIHandleError) {
 	var res utilhttp.ResponseBody
 	var gc model.HostNode
 	res.Bean = &gc
+	logrus.Infof("res is %v",res)
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
+	logrus.Infof("res is %v",res)
 	if gc, ok := res.Bean.(*model.HostNode); ok {
 		return gc, nil
 	}
@@ -152,12 +154,12 @@ func (n *node) Rule(rule string) ([]*model.HostNode,*util.APIHandleError) {
 	}
 	var res utilhttp.ResponseBody
 	var gc []*model.HostNode
-	res.List = gc
+	res.List = &gc
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
-	if gc, ok := res.List.([]*model.HostNode); ok {
-		return gc, nil
+	if gc, ok := res.List.(*[]*model.HostNode); ok {
+		return *gc, nil
 	}
 	return nil, nil
 }
@@ -171,12 +173,12 @@ func (n *node) List() ([]*model.HostNode,*util.APIHandleError) {
 	}
 	var res utilhttp.ResponseBody
 	var gc []*model.HostNode
-	res.List = gc
+	res.List = &gc
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
-	if gc, ok := res.List.([]*model.HostNode); ok {
-		return gc, nil
+	if gc, ok := res.List.(*[]*model.HostNode); ok {
+		return *gc, nil
 	}
 	return nil, nil
 }
@@ -258,12 +260,12 @@ func (t *task) List() ([]*model.Task, *util.APIHandleError) {
 	}
 	var res utilhttp.ResponseBody
 	var gc []*model.Task
-	res.List = gc
+	res.List = &gc
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code,err)
 	}
-	if gc, ok := res.List.([]*model.Task); ok {
-		return gc, nil
+	if gc, ok := res.List.(*[]*model.Task); ok {
+		return *gc, nil
 	}
 	return nil, nil
 }
