@@ -155,8 +155,7 @@ func NewCmdNode() cli.Command {
 					var out bytes.Buffer
 					error := json.Indent(&out, nodeByte, "", "\t")
 					if error != nil {
-						logrus.Error("error format json details %s", err.Error())
-						return error
+						handleErr(util.CreateAPIHandleError(500,err))
 					}
 					fmt.Println(out.String())
 					return nil
