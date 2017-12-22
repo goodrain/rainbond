@@ -120,7 +120,7 @@ func (t Task) CanBeDelete() bool {
 		return true
 	}
 	for _, v := range t.Status {
-		if v.Status == "exec" {
+		if v.Status != "create" {
 			return false
 		}
 	}
@@ -205,7 +205,7 @@ func (t TaskGroup) CanBeDelete() bool {
 		return true
 	}
 	for _, v := range t.Status.TaskStatus {
-		if v.Status == "exec" {
+		if v.Status != "create" {
 			return false
 		}
 	}
