@@ -366,7 +366,7 @@ func NewCmdNode() cli.Command {
 						for {
 
 							select {
-							case timer.C:
+							case <-timer.C:
 								fmt.Println("添加节点超时，请检查etcd")
 								return nil
 							default:
