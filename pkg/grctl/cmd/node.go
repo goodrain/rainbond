@@ -376,6 +376,7 @@ func NewCmdNode() cli.Command {
 
 						var hostNode *model.HostNode
 						timer := time.NewTimer(15 * time.Second)
+						b:
 						for {
 
 							select {
@@ -391,7 +392,7 @@ func NewCmdNode() cli.Command {
 									if node.InternalIP == v.InternalIP {
 										hostNode = v
 										timer.Stop()
-										break
+										break b
 										//todo  初始化其它节点失败判定
 									}
 								}
