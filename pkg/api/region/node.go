@@ -191,7 +191,7 @@ func (n *node) Add(node *model.APIHostNode) *util.APIHandleError {
 	if err != nil {
 		return util.CreateAPIHandleError(400, err)
 	}
-	_, code, err := n.client.Request(n.prefix+"/", "POST", body)
+	_, code, err := n.client.Request(n.prefix, "POST", body)
 	return n.client.handleErrAndCode(err, code)
 }
 func (n *node) Label(nid string, label map[string]string) *util.APIHandleError {

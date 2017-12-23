@@ -31,16 +31,16 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/apcera/termtables"
+	"github.com/goodrain/rainbond/pkg/api/util"
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"github.com/goodrain/rainbond/pkg/api/util"
 )
 
-func handleErr(err *util.APIHandleError)  {
-	if err != nil&&err.Err!=nil {
+func handleErr(err *util.APIHandleError) {
+	if err != nil && err.Err != nil {
 		fmt.Println(err.String())
 		os.Exit(1)
 	}
@@ -50,7 +50,7 @@ func NewCmdShow() cli.Command {
 		Name:  "show",
 		Usage: "显示region安装完成后访问地址",
 		Action: func(c *cli.Context) error {
-			manageHosts ,err:= clients.NodeClient.Nodes().Rule("manage")
+			manageHosts, err := clients.NodeClient.Nodes().Rule("manage")
 			handleErr(err)
 			ips := getExternalIP("/etc/goodrain/envs/.exip", manageHosts)
 			fmt.Println("Manage your apps with webui：")
@@ -140,7 +140,7 @@ func NewCmdNode() cli.Command {
 						return nil
 					}
 
-					nodes,err:= clients.NodeClient.Nodes().List()
+					nodes, err := clients.NodeClient.Nodes().List()
 					handleErr(err)
 					for _, v := range nodes {
 						if v.InternalIP == id {
@@ -149,13 +149,13 @@ func NewCmdNode() cli.Command {
 						}
 					}
 
-					v,err := clients.NodeClient.Nodes().Get(id)
+					v, err := clients.NodeClient.Nodes().Get(id)
 					handleErr(err)
 					nodeByte, _ := json.Marshal(v)
 					var out bytes.Buffer
 					error := json.Indent(&out, nodeByte, "", "\t")
 					if error != nil {
-						handleErr(util.CreateAPIHandleError(500,err))
+						handleErr(util.CreateAPIHandleError(500, err))
 					}
 					fmt.Println(out.String())
 					return nil
@@ -165,7 +165,7 @@ func NewCmdNode() cli.Command {
 				Name:  "list",
 				Usage: "list",
 				Action: func(c *cli.Context) error {
-					list ,err:= clients.NodeClient.Nodes().List()
+					list, err := clients.NodeClient.Nodes().List()
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
 					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Alived", "Schedulable", "Ready")
@@ -204,7 +204,7 @@ func NewCmdNode() cli.Command {
 						logrus.Errorf("need hostID")
 						return nil
 					}
-					err:=clients.NodeClient.Nodes().Up(id)
+					err := clients.NodeClient.Nodes().Up(id)
 					handleErr(err)
 					return nil
 				},
@@ -218,7 +218,7 @@ func NewCmdNode() cli.Command {
 						logrus.Errorf("need hostID")
 						return nil
 					}
-					err:=clients.NodeClient.Nodes().Down(id)
+					err := clients.NodeClient.Nodes().Down(id)
 					handleErr(err)
 					return nil
 				},
@@ -232,13 +232,13 @@ func NewCmdNode() cli.Command {
 						logrus.Errorf("need hostID")
 						return nil
 					}
-					node ,err:= clients.NodeClient.Nodes().Get(id)
+					node, err := clients.NodeClient.Nodes().Get(id)
 					handleErr(err)
 					if !node.Role.HasRule("compute") {
 						logrus.Errorf("管理节点不支持此功能")
 						return nil
 					}
-					err=clients.NodeClient.Nodes().UnSchedulable(id)
+					err = clients.NodeClient.Nodes().UnSchedulable(id)
 					handleErr(err)
 					return nil
 				},
@@ -252,13 +252,13 @@ func NewCmdNode() cli.Command {
 						logrus.Errorf("need hostID")
 						return nil
 					}
-					node,err:= clients.NodeClient.Nodes().Get(id)
+					node, err := clients.NodeClient.Nodes().Get(id)
 					handleErr(err)
 					if !node.Role.HasRule("compute") {
 						logrus.Errorf("管理节点不支持此功能")
 						return nil
 					}
-					err=clients.NodeClient.Nodes().ReSchedulable(id)
+					err = clients.NodeClient.Nodes().ReSchedulable(id)
 					handleErr(err)
 					return nil
 				},
@@ -272,7 +272,7 @@ func NewCmdNode() cli.Command {
 						logrus.Errorf("need hostID")
 						return nil
 					}
-					err:=clients.NodeClient.Nodes().Delete(id)
+					err := clients.NodeClient.Nodes().Delete(id)
 					handleErr(err)
 					return nil
 				},
@@ -286,7 +286,19 @@ func NewCmdNode() cli.Command {
 						logrus.Errorf("need rule name")
 						return nil
 					}
-					clients.NodeClient.Nodes().Rule(rule)
+					hostnodes, err := clients.NodeClient.Nodes().Rule(rule)
+					handleErr(err)
+					serviceTable := termtables.CreateTable()
+					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Alived", "Schedulable", "Ready")
+					for _, v := range hostnodes {
+
+						var ready bool = false
+						if v.NodeStatus != nil {
+							ready = true
+						}
+						handleStatus(serviceTable, ready, v)
+
+					}
 					return nil
 				},
 			},
@@ -315,7 +327,7 @@ func NewCmdNode() cli.Command {
 					v := c.String("val")
 					label := make(map[string]string)
 					label[k] = v
-					err:=clients.NodeClient.Nodes().Label(hostID,label)
+					err := clients.NodeClient.Nodes().Label(hostID, label)
 					handleErr(err)
 					return nil
 				},
@@ -358,36 +370,53 @@ func NewCmdNode() cli.Command {
 						node.ExternalIP = c.String("ExternalIP")
 						node.RootPass = c.String("RootPass")
 
-						clients.NodeClient.Nodes().Add(&node)
-						fmt.Println("开始初始化节点")
-						time.Sleep(3 * time.Second)
-						list,err := clients.NodeClient.Nodes().List()
+						err := clients.NodeClient.Nodes().Add(&node)
 						handleErr(err)
-						var node *model.HostNode
-						for _, v := range list {
-							if node.InternalIP == v.InternalIP {
-								node=v
-								break
-								//todo  初始化其它节点失败判定
+						fmt.Println("开始初始化节点")
+
+						var hostNode *model.HostNode
+						timer := time.NewTimer(15 * time.Second)
+						b:
+						for {
+
+							select {
+							case <-timer.C:
+								fmt.Println("添加节点超时，请检查etcd")
+								return nil
+							default:
+
+								time.Sleep(3 * time.Second)
+								list, err := clients.NodeClient.Nodes().List()
+								handleErr(err)
+								for _, v := range list {
+									if node.InternalIP == v.InternalIP {
+										hostNode = v
+										timer.Stop()
+										break b
+										//todo  初始化其它节点失败判定
+									}
+								}
 							}
+
 						}
+
 						tableC := termtables.CreateTable()
 						var header []string
 						var content []string
-						for _, val := range node.Conditions {
+						for _, val := range hostNode.Conditions {
 							header = append(header, string(val.Type))
 							content = append(content, string(val.Status))
-							if node.Alived {
-								fmt.Printf("节点 %s 初始化成功", node.ID)
+							if hostNode.Alived {
+								fmt.Printf("节点 %s 初始化成功", hostNode.ID)
 								fmt.Println()
 								tableC.AddHeaders(header)
 								tableC.AddRow(content)
 								fmt.Println(tableC.Render())
 								return nil
-							} else if val.Type==model.NodeInit &&val.Status==model.ConditionFalse{
-								fmt.Printf("节点 %s 初始化失败:%s", node.ID,val.Reason)
+							} else if val.Type == model.NodeInit && val.Status == model.ConditionFalse {
+								fmt.Printf("节点 %s 初始化失败:%s", hostNode.ID, val.Reason)
 								return nil
-							}else{
+							} else {
 								fmt.Printf("..")
 							}
 						}
