@@ -390,6 +390,7 @@ func NewCmdNode() cli.Command {
 								for _, v := range list {
 									if node.InternalIP == v.InternalIP {
 										hostNode = v
+										timer.Stop()
 										break
 										//todo  初始化其它节点失败判定
 									}
