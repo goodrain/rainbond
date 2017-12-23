@@ -363,10 +363,10 @@ func NewCmdNode() cli.Command {
 						time.Sleep(3 * time.Second)
 						list,err := clients.NodeClient.Nodes().List()
 						handleErr(err)
-						var node *model.HostNode
+						var hostNode *model.HostNode
 						for _, v := range list {
 							if node.InternalIP == v.InternalIP {
-								node=v
+								hostNode=v
 								break
 								//todo  初始化其它节点失败判定
 							}
@@ -374,18 +374,18 @@ func NewCmdNode() cli.Command {
 						tableC := termtables.CreateTable()
 						var header []string
 						var content []string
-						for _, val := range node.Conditions {
+						for _, val := range hostNode.Conditions {
 							header = append(header, string(val.Type))
 							content = append(content, string(val.Status))
-							if node.Alived {
-								fmt.Printf("节点 %s 初始化成功", node.ID)
+							if hostNode.Alived {
+								fmt.Printf("节点 %s 初始化成功", hostNode.ID)
 								fmt.Println()
 								tableC.AddHeaders(header)
 								tableC.AddRow(content)
 								fmt.Println(tableC.Render())
 								return nil
 							} else if val.Type==model.NodeInit &&val.Status==model.ConditionFalse{
-								fmt.Printf("节点 %s 初始化失败:%s", node.ID,val.Reason)
+								fmt.Printf("节点 %s 初始化失败:%s", hostNode.ID,val.Reason)
 								return nil
 							}else{
 								fmt.Printf("..")
