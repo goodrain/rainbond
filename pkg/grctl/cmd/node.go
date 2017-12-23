@@ -360,17 +360,31 @@ func NewCmdNode() cli.Command {
 
 						clients.NodeClient.Nodes().Add(&node)
 						fmt.Println("开始初始化节点")
-						time.Sleep(3 * time.Second)
-						list,err := clients.NodeClient.Nodes().List()
-						handleErr(err)
+
 						var hostNode *model.HostNode
-						for _, v := range list {
-							if node.InternalIP == v.InternalIP {
-								hostNode=v
-								break
-								//todo  初始化其它节点失败判定
+						timer:=time.NewTimer(15*time.Second)
+						for {
+
+							select {
+							case timer.C:
+								fmt.Println("添加节点超时，请检查etcd")
+								return nil
+							default:
+
+								time.Sleep(3 * time.Second)
+								list,err := clients.NodeClient.Nodes().List()
+								handleErr(err)
+								for _, v := range list {
+									if node.InternalIP == v.InternalIP {
+										hostNode=v
+										break
+										//todo  初始化其它节点失败判定
+									}
+								}
 							}
+
 						}
+
 						tableC := termtables.CreateTable()
 						var header []string
 						var content []string
