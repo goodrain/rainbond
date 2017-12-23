@@ -320,7 +320,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 				etcd = etcdConfig.Value.(string)
 			}
 		case []string:
-			etcd = strings.Join(etcdConfig.Value.([]string), "|")
+			etcd = strings.Join(etcdConfig.Value.([]string), ",")
 		}
 	}
 	initshell := "dev.repo.goodrain.com/gaops/jobs/install/prepare/init.sh"
@@ -362,8 +362,8 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 	}
 	if output.Global != nil {
 		for k, v := range output.Global {
-			if strings.Index(v, "|") > -1 {
-				values := strings.Split(v, "|")
+			if strings.Index(v, ",") > -1 {
+				values := strings.Split(v, ",")
 				n.datacenterConfig.PutConfig(&model.ConfigUnit{
 					Name:           strings.ToUpper(k),
 					Value:          values,

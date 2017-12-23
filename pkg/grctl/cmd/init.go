@@ -32,10 +32,10 @@ import (
 	//"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"fmt"
 
+	"github.com/goodrain/rainbond/pkg/api/util"
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
-	coreutil"github.com/goodrain/rainbond/pkg/util"
-	"github.com/goodrain/rainbond/pkg/api/util"
+	coreutil "github.com/goodrain/rainbond/pkg/util"
 )
 
 //NewCmdInit grctl init
@@ -169,8 +169,8 @@ func initCluster(c *cli.Context) error {
 	var newConfigs []model.ConfigUnit
 	if output.Global != nil {
 		for k, v := range output.Global {
-			if strings.Index(v, "|") > -1 {
-				values := strings.Split(v, "|")
+			if strings.Index(v, ",") > -1 {
+				values := strings.Split(v, ",")
 				newConfigs = append(newConfigs, model.ConfigUnit{
 					Name:           strings.ToUpper(k),
 					Value:          values,

@@ -45,8 +45,7 @@ func init() {
 	}
 }
 func TestGetDataCenterConfig(t *testing.T) {
-	str := "asdadad|"
-	t.Log(strings.Index(str, "|"))
+	str := "asdadad,"
 	t.Log(strings.Index(str, ","))
 	c := GetDataCenterConfig()
 	c.PutConfig(&model.ConfigUnit{

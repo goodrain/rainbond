@@ -123,8 +123,8 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 			output.NodeID = er.Node
 			if output.Global != nil && len(output.Global) > 0 {
 				for k, v := range output.Global {
-					if strings.Index(v, "|") > -1 {
-						values := strings.Split(v, "|")
+					if strings.Index(v, ",") > -1 {
+						values := strings.Split(v, ",")
 						err := t.dataCenterConfig.PutConfig(&model.ConfigUnit{
 							Name:           strings.ToUpper(k),
 							Value:          values,

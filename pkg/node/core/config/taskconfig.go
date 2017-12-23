@@ -123,7 +123,7 @@ func GetConfig(groupCtx *GroupContext, key string) string {
 				}
 			case []string:
 				if value.([]string) != nil {
-					return strings.Join(value.([]string), "|")
+					return strings.Join(value.([]string), ",")
 				}
 			}
 		}
@@ -139,16 +139,16 @@ func GetConfig(groupCtx *GroupContext, key string) string {
 		if cn.ValueType == "array" {
 			switch cn.Value.(type) {
 			case []string:
-				return strings.Join(cn.Value.([]string), "|")
+				return strings.Join(cn.Value.([]string), ",")
 			case []interface{}:
 				vas := cn.Value.([]interface{})
 				result := ""
 				for _, va := range vas {
 					switch va.(type) {
 					case string:
-						result += va.(string) + "|"
+						result += va.(string) + ","
 					case int:
-						result += strconv.Itoa(va.(int)) + "|"
+						result += strconv.Itoa(va.(int)) + ","
 					}
 				}
 				if len(result) > 0 {
