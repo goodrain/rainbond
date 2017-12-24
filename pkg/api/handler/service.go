@@ -86,7 +86,6 @@ func CreateManager(conf option.Config) (*ServiceAction, error) {
 		logrus.Errorf("create etcd client v3 error, %v", err)
 		return nil, err
 	}
-	defer etcdCli.Close()
 	return &ServiceAction{
 		MQClient:   mqClient,
 		KubeClient: kubeClient,
@@ -1814,7 +1813,7 @@ func (s *ServiceAction) SetVersionEnv(sve *api_model.SetVersionEnv) *util.APIHan
 			return util.CreateAPIHandleError(500, fmt.Errorf("set complex error, %v", err))
 		}
 	}
-	return util.CreateAPIHandleError(400, fmt.Errorf("no envs need to be changed"))
+	return util.CreateAPIHandleError(200, fmt.Errorf("no envs need to be changed"))
 }
 
 func (s *ServiceAction) normalEnvs(sve *api_model.SetVersionEnv) error {
@@ -1874,7 +1873,7 @@ func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.API
 			return util.CreateAPIHandleError(500, fmt.Errorf("update complex error, %v", err))
 		}
 	}
-	return util.CreateAPIHandleError(400, fmt.Errorf("no envs need to be changed"))
+	return util.CreateAPIHandleError(200, fmt.Errorf("no envs need to be changed"))
 }
 
 func (s *ServiceAction) upNormalEnvs(uve *api_model.SetVersionEnv) *util.APIHandleError {
