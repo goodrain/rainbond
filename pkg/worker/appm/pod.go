@@ -40,6 +40,7 @@ import (
 type PodTemplateSpecBuild struct {
 	serviceID, eventID string
 	needProxy          bool
+	hostName           string
 	service            *model.TenantServices
 	tenant             *model.Tenants
 	pluginsRelation    []*model.TenantServicePluginRelation
@@ -195,6 +196,10 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 		Spec: podSpec,
 	}
 	temp.Labels = labels
+	//step8: set hostname
+	if p.hostName != "" {
+		podSpec.Hostname = p.hostName
+	}
 	return &temp, nil
 }
 
@@ -549,12 +554,12 @@ func (p *PodTemplateSpecBuild) createVolumes(envs *[]v1.EnvVar) ([]v1.Volume, []
 			slugPath = "/grdata/build/tenant/" + slugPath
 		} else {
 			slugPath = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion)
-			versionInfo,err:=p.dbmanager.VersionInfoDao().GetVersionByDeployVersion(p.service.DeployVersion,p.serviceID)
+			versionInfo, err := p.dbmanager.VersionInfoDao().GetVersionByDeployVersion(p.service.DeployVersion, p.serviceID)
 			if err != nil {
-				logrus.Warnf("error get slug path from versioninfo table by key %s,prepare use path",p.service.DeployVersion)
-			}else {
-				if len(versionInfo.DeliveredPath)!=0{
-					slugPath=versionInfo.DeliveredPath
+				logrus.Warnf("error get slug path from versioninfo table by key %s,prepare use path", p.service.DeployVersion)
+			} else {
+				if len(versionInfo.DeliveredPath) != 0 {
+					slugPath = versionInfo.DeliveredPath
 				}
 			}
 		}
@@ -724,6 +729,9 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 	}
 
 	for _, e := range envsAll {
+		if e.AttrName == "HOSTNAME" {
+			p.hostName = e.AttrValue
+		}
 		envs = append(envs, v1.EnvVar{Name: e.AttrName, Value: e.AttrValue})
 	}
 	return &envs, nil
