@@ -401,6 +401,7 @@ func NewCmdNode() cli.Command {
 						tableC := termtables.CreateTable()
 						var header []string
 						var content []string
+						logrus.Infof("host is %v , conditions is %v",hostNode,hostNode.Conditions)
 						for _, val := range hostNode.Conditions {
 							fmt.Println("正在判断节点状态，请稍等")
 							if hostNode.Alived||(val.Type==model.NodeInit&&val.Status==model.ConditionTrue) {
