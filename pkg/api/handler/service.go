@@ -86,7 +86,6 @@ func CreateManager(conf option.Config) (*ServiceAction, error) {
 		logrus.Errorf("create etcd client v3 error, %v", err)
 		return nil, err
 	}
-	defer etcdCli.Close()
 	return &ServiceAction{
 		MQClient:   mqClient,
 		KubeClient: kubeClient,
