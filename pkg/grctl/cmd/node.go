@@ -402,11 +402,12 @@ func NewCmdNode() cli.Command {
 						var header []string
 						var content []string
 						for _, val := range hostNode.Conditions {
-							header = append(header, string(val.Type))
-							content = append(content, string(val.Status))
-							if hostNode.Alived {
+							fmt.Println("正在判断节点状态，请稍等")
+							if hostNode.Alived||(val.Type==model.NodeInit&&val.Status==model.ConditionTrue) {
 								fmt.Printf("节点 %s 初始化成功", hostNode.ID)
 								fmt.Println()
+								header = append(header, string(val.Type))
+								content = append(content, string(val.Status))
 								tableC.AddHeaders(header)
 								tableC.AddRow(content)
 								fmt.Println(tableC.Render())
@@ -418,7 +419,7 @@ func NewCmdNode() cli.Command {
 								fmt.Printf("..")
 							}
 						}
-
+						fmt.Println("节点初始化结束")
 						return nil
 					}
 
