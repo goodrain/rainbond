@@ -376,9 +376,8 @@ func NewCmdNode() cli.Command {
 
 						var hostNode *model.HostNode
 						timer := time.NewTimer(15 * time.Second)
-						b:
-						for {
-
+						gotNode:=false
+						for !gotNode {
 							select {
 							case <-timer.C:
 								fmt.Println("添加节点超时，请检查etcd")
@@ -392,14 +391,13 @@ func NewCmdNode() cli.Command {
 									if node.InternalIP == v.InternalIP {
 										hostNode = v
 										timer.Stop()
-										break b
+										gotNode=true
 										//todo  初始化其它节点失败判定
 									}
 								}
 							}
-
 						}
-
+						fmt.Println("添加节点成功，正在初始化")
 						tableC := termtables.CreateTable()
 						var header []string
 						var content []string
