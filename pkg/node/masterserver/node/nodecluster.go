@@ -44,6 +44,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"os/exec"
 )
 
 //NodeCluster 节点管理器
@@ -89,7 +90,33 @@ func (n *NodeCluster) Start() error {
 func (n *NodeCluster) Stop(i interface{}) {
 	n.cancel()
 }
-
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
+func RegToHost(node *model.HostNode, opt string) {
+	if !exists("/usr/share/gr-rainbond-node/gaops/jobs/cron/common/node_update_hosts.sh") {
+		return
+	}
+	uuid := node.ID
+	internalIP := node.InternalIP
+	logrus.Infof("node 's hostname is %s", node.HostName)
+	cmd := exec.Command("bash", "/usr/share/gr-rainbond-node/gaops/jobs/cron/common/node_update_hosts.sh", uuid, internalIP, opt)
+	outbuf := bytes.NewBuffer(nil)
+	cmd.Stdout = outbuf
+	err := cmd.Run()
+	if err != nil {
+		logrus.Errorf("error update /etc/hosts,details %s", err.Error())
+		return
+	}
+	logrus.Infof("update /etc/hosts %s %s success", uuid, internalIP)
+}
 func (n *NodeCluster) worker() {
 	for {
 		select {
@@ -186,12 +213,14 @@ func (n *NodeCluster) loadAndWatchNodes() error {
 						if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
 							node.Alived = true
 							node.UpTime = time.Now()
+							RegToHost(node, "add")
 							n.UpdateNode(node)
 						}
 					case ev.Type == client.EventTypeDelete:
 						if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
 							node.Alived = false
 							node.DownTime = time.Now()
+							RegToHost(node, "del")
 							n.UpdateNode(node)
 						}
 					}
