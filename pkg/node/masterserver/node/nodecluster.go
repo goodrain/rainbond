@@ -324,7 +324,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 		}
 	}
 	initshell := "dev.repo.goodrain.com/gaops/jobs/install/prepare/init.sh"
-	etcd=fmt.Sprintf("'%s'",etcd)
+	etcd = etcd + ","
 	cmd := fmt.Sprintf("bash -c \"set %s %s %s;$(curl -s %s)\"", node.ID, etcd, role, initshell)
 	logrus.Infof("init endpoint node cmd is %s", cmd)
 
@@ -365,6 +365,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 		for k, v := range output.Global {
 			if strings.Index(v, ",") > -1 {
 				values := strings.Split(v, ",")
+				util.Deweight(&values)
 				n.datacenterConfig.PutConfig(&model.ConfigUnit{
 					Name:           strings.ToUpper(k),
 					Value:          values,

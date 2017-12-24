@@ -50,11 +50,11 @@ func TestGetDataCenterConfig(t *testing.T) {
 	c := GetDataCenterConfig()
 	c.PutConfig(&model.ConfigUnit{
 		Name:           strings.ToUpper("ARRAY"),
-		Value:          []string{"121211212"},
+		Value:          []string{"121211212", "", "sadasd"},
 		ValueType:      "array",
 		IsConfigurable: false,
 	})
 	gc, err := c.GetDataCenterConfig()
-	t.Log(gc.String())
+	t.Log(strings.Join(gc.Get("ARRAY").Value.([]string), ","))
 	t.Fatal(err)
 }

@@ -171,6 +171,7 @@ func initCluster(c *cli.Context) error {
 		for k, v := range output.Global {
 			if strings.Index(v, ",") > -1 {
 				values := strings.Split(v, ",")
+				coreutil.Deweight(&values)
 				newConfigs = append(newConfigs, model.ConfigUnit{
 					Name:           strings.ToUpper(k),
 					Value:          values,

@@ -123,7 +123,11 @@ func GetConfig(groupCtx *GroupContext, key string) string {
 				}
 			case []string:
 				if value.([]string) != nil {
-					return strings.Join(value.([]string), ",")
+					result := strings.Join(value.([]string), ",")
+					if strings.HasSuffix(result, ",") {
+						return result
+					}
+					return result + ","
 				}
 			}
 		}
@@ -151,9 +155,7 @@ func GetConfig(groupCtx *GroupContext, key string) string {
 						result += strconv.Itoa(va.(int)) + ","
 					}
 				}
-				if len(result) > 0 {
-					return result[0 : len(result)-1]
-				}
+				return result
 			}
 		}
 		if cn.ValueType == "int" {

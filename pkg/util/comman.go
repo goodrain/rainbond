@@ -176,7 +176,7 @@ func Deweight(data *[]string) {
 					break
 				}
 			}
-			if flag { // 标识为false，不添加进结果
+			if flag && (*data)[i] != "" { // 标识为false，不添加进结果
 				result = append(result, (*data)[i])
 			}
 		}
@@ -186,7 +186,7 @@ func Deweight(data *[]string) {
 		for _, d := range *data {
 			l := len(tmp)
 			tmp[d] = 0
-			if len(tmp) != l { // 加入map后，map长度变化，则元素不重复
+			if len(tmp) != l && d != "" { // 加入map后，map长度变化，则元素不重复
 				result = append(result, d)
 			}
 		}
