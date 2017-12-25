@@ -28,7 +28,7 @@ import (
 )
 
 //DefineSources DefineSources
-func (t *Tenant) DefineSources(ss *api_model.SourceSpec) DefineSourcesInterface {
+func (t *tenant) DefineSources(ss *api_model.SourceSpec) DefineSourcesInterface {
 	return &DefineSources{
 		tenant: t,
 		Model: Body{
@@ -39,7 +39,7 @@ func (t *Tenant) DefineSources(ss *api_model.SourceSpec) DefineSourcesInterface 
 
 //DefineSources DefineSources
 type DefineSources struct {
-	tenant *Tenant
+	tenant *tenant
 	Model  Body
 }
 
@@ -58,7 +58,7 @@ type DefineSourcesInterface interface {
 
 //GetSource GetSource
 func (d *DefineSources) GetSource(sourceAlias string) ([]byte, error) {
-	resp, status, err := DoRequest(
+	resp, status, err := request(
 		fmt.Sprintf("/v2/tenants/%s/sources/%s/%s",
 			d.tenant.tenantID, d.Model.SourceSpec.Alias, d.Model.SourceSpec.SourceBody.EnvName),
 		"GET",
@@ -84,7 +84,7 @@ func (d *DefineSources) PostSource(sourceAlias string) error {
 	if err != nil {
 		return err
 	}
-	_, status, err := DoRequest(
+	_, status, err := request(
 		fmt.Sprintf("/v2/tenants/%s/sources/%s",
 			d.tenant.tenantID, d.Model.SourceSpec.Alias),
 		"POST",
@@ -107,7 +107,7 @@ func (d *DefineSources) PutSource(sourceAlias string) error {
 	if err != nil {
 		return err
 	}
-	_, status, err := DoRequest(
+	_, status, err := request(
 		fmt.Sprintf("/v2/tenants/%s/sources/%s/%s",
 			d.tenant.tenantID, d.Model.SourceSpec.Alias, d.Model.SourceSpec.SourceBody.EnvName),
 		"PUT",
@@ -126,7 +126,7 @@ func (d *DefineSources) PutSource(sourceAlias string) error {
 
 //DeleteSource DeleteSource
 func (d *DefineSources) DeleteSource(sourceAlias string) error {
-	_, status, err := DoRequest(
+	_, status, err := request(
 		fmt.Sprintf("/v2/tenants/%s/sources/%s/%s",
 			d.tenant.tenantID, d.Model.SourceSpec.Alias, d.Model.SourceSpec.SourceBody.EnvName),
 		"DELETE",

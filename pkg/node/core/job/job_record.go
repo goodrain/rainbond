@@ -107,7 +107,7 @@ func CreateExecutionRecord(j *Job, t time.Time, rs string, success bool) {
 		TaskID:    j.TaskID,
 		User:      j.User,
 		Name:      j.Name,
-		Node:      j.runOn,
+		Node:      j.NodeID,
 		Command:   j.Command,
 		Output:    rs,
 		Success:   success,
@@ -118,16 +118,15 @@ func CreateExecutionRecord(j *Job, t time.Time, rs string, success bool) {
 	if err != nil {
 		logrus.Error("put exec record to etcd error.", err.Error())
 	}
-	//单次执行job,更新job rule，将已执行节点加入到排除节点范围
-	if j.IsOnce {
-		if j.Rules != nil {
-			for _, rule := range j.Rules {
-				rule.ExcludeNodeIDs = append(rule.ExcludeNodeIDs, j.runOn)
-			}
-		} else {
-			j.Rules = append(j.Rules, &JobRule{ExcludeNodeIDs: []string{j.runOn}})
-		}
-		//更新job
-		PutOnce(j)
+	status := "Success"
+	if !success {
+		status = "Failure"
 	}
+	j.RunStatus = &RunStatus{
+		Status:    status,
+		StartTime: t,
+		EndTime:   time.Now(),
+		RecordID:  record.ID,
+	}
+	PutJob(j)
 }

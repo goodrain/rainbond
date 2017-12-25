@@ -69,6 +69,7 @@ type HostNode struct {
 	KeyPath         string            `json:"key_path,omitempty"` //管理节点key文件路径
 	AvailableMemory int64             `json:"available_memory"`
 	AvailableCPU    int64             `json:"available_cpu"`
+	Mode            string            `json:"mode"`
 	Role            HostRule          `json:"role"`          //节点属性 compute manage storage
 	Status          string            `json:"status"`        //节点状态 create,init,running,stop,delete
 	Labels          map[string]string `json:"labels"`        //节点标签 内置标签+用户自定义标签

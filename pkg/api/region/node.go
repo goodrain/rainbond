@@ -1,339 +1,398 @@
 package region
 
 import (
-	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"bytes"
-	"net/http"
-	"io/ioutil"
 	"encoding/json"
-	"github.com/bitly/go-simplejson"
-	"github.com/Sirupsen/logrus"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/bitly/go-simplejson"
+	"github.com/goodrain/rainbond/pkg/node/api/model"
+	"github.com/pquerna/ffjson/ffjson"
 	//"github.com/goodrain/rainbond/pkg/grctl/cmd"
 	"errors"
-)
-var nodeServer *RNodeServer
 
-func NewNode(nodeAPI string)  {
-	if nodeServer==nil {
-		nodeServer=&RNodeServer{
-			NodeAPI:nodeAPI,
+	"github.com/goodrain/rainbond/pkg/api/util"
+	utilhttp "github.com/goodrain/rainbond/pkg/util/http"
+)
+
+var nodeclient *RNodeClient
+
+//NewNode new node client
+func NewNode(nodeAPI string) {
+	if nodeclient == nil {
+		nodeclient = &RNodeClient{
+			NodeAPI: nodeAPI,
 		}
 	}
 }
-func GetNode() *RNodeServer {
-	return nodeServer
+func GetNode() *RNodeClient {
+	return nodeclient
 }
-type RNodeServer struct {
+
+type RNodeClient struct {
 	NodeAPI string
 }
 
-func (r *RNodeServer)Tasks() TaskInterface {
-	return &Task{}
+func (r *RNodeClient) Tasks() TaskInterface {
+	return &task{client: r, prefix: "/tasks"}
 }
-func (r *RNodeServer)Nodes() NodeInterface {
-	return &Node{}
+func (r *RNodeClient) Nodes() NodeInterface {
+	return &node{client: r, prefix: "/nodes"}
 }
-type Task struct {
-	TaskID string  `json:"task_id"`
-	Task *model.Task
+func (r *RNodeClient) Configs() ConfigsInterface {
+	return &configs{client: r, prefix: "/configs"}
 }
-type Node struct {
-	Id string
-	Node *model.HostNode `json:"node"`
+
+type task struct {
+	client *RNodeClient
+	prefix string
+}
+type node struct {
+	client *RNodeClient
+	prefix string
 }
 type TaskInterface interface {
-	Get(name string) (*Task,error)
-	Add(task *model.Task) (error)
-	AddGroup(group *model.TaskGroup) (error)
-	Exec(nodes []string ) error
-	List() ([]*model.Task,error)
+	Get(name string) (*model.Task, *util.APIHandleError)
+	Status(name string) (*TaskStatus, error)
+	HandleTaskStatus(task string) (*map[string]*model.TaskStatus, *util.APIHandleError)
+	Add(task *model.Task) *util.APIHandleError
+	AddGroup(group *model.TaskGroup) *util.APIHandleError
+	Exec(name string, nodes []string) *util.APIHandleError
+	List() ([]*model.Task, *util.APIHandleError)
+	Refresh() *util.APIHandleError
 }
 type NodeInterface interface {
-	Add(node *model.APIHostNode)
-	Delete()
-	Rule(rule string) []*model.HostNode
-	Get(node string) *Node
-	List() []*model.HostNode
-	Up()
-	Down()
-	UnSchedulable()
-	ReSchedulable()
-	Label(label map[string]string)
+	Rule(rule string) ([]*model.HostNode, *util.APIHandleError)
+	Get(node string) (*model.HostNode, *util.APIHandleError)
+	List() ([]*model.HostNode, *util.APIHandleError)
+	Add(node *model.APIHostNode) *util.APIHandleError
+	Up(nid string) *util.APIHandleError
+	Down(nid string) *util.APIHandleError
+	UnSchedulable(nid string) *util.APIHandleError
+	ReSchedulable(nid string) *util.APIHandleError
+	Delete(nid string) *util.APIHandleError
+	Label(nid string, label map[string]string) *util.APIHandleError
 }
 
-
-
-func (t *Node)Label(label map[string]string)  {
-	body,_:=json.Marshal(label)
-	_,_,err:=nodeServer.Request("/nodes/"+t.Id+"/labels","PUT",body)
-	if err != nil {
-		logrus.Errorf("error details %s",err.Error())
-	}
+//ConfigsInterface 数据中心配置API
+type ConfigsInterface interface {
+	Get() (*model.GlobalConfig, *util.APIHandleError)
+	Put(*model.GlobalConfig) *util.APIHandleError
+}
+type configs struct {
+	client *RNodeClient
+	prefix string
 }
 
-func (t *Node)Add(node *model.APIHostNode) {
-	body,_:=json.Marshal(node)
-	_,_,err:=nodeServer.Request("/nodes","POST",body)
+func (c *configs) Get() (*model.GlobalConfig, *util.APIHandleError) {
+	body, code, err := c.client.Request(c.prefix+"/datacenter", "GET", nil)
 	if err != nil {
-		logrus.Errorf("error details %s",err.Error())
-	}
-}
-func (t *Node) Delete() {
-	_,_,err:=nodeServer.Request("/nodes/"+t.Id,"DELETE",nil)
-	if err != nil {
-		logrus.Errorf("error details %s",err.Error())
-	}
-}
-func (t *Node)Up() {
-	nodeServer.Request("/nodes/"+t.Id+"/up","POST",nil)
-}
-func (t *Node)Down() {
-	nodeServer.Request("/nodes/"+t.Id+"/down","POST",nil)
-}
-func (t *Node)UnSchedulable() {
-	nodeServer.Request("/nodes/"+t.Id+"/unschedulable","PUT",nil)
-}
-func (t *Node)ReSchedulable() {
-	nodeServer.Request("/nodes/"+t.Id+"/reschedulable","PUT",nil)
-}
-
-func (t *Node)Get(node string) *Node {
-	body,_,err:=nodeServer.Request("/nodes/"+node,"GET",nil)
-	if err != nil {
-		logrus.Errorf("error get node %s,details %s",node,err.Error())
-		return nil
-	}
-	t.Id=node
-	var stored model.HostNode
-	j,err:=simplejson.NewJson(body)
-	if err != nil {
-		logrus.Errorf("error get node %s 's json,details %s",node,err.Error())
-		return nil
-	}
-	bean:=j.Get("bean")
-	n,err:=json.Marshal(bean)
-	if err != nil {
-		logrus.Errorf("error get bean from response,details %s",err.Error())
-		return nil
-	}
-	err=json.Unmarshal([]byte(n),&stored)
-	if err != nil {
-		logrus.Errorf("error unmarshal node %s,details %s",node,err.Error())
-		return nil
-	}
-	t.Node=&stored
-	return t
-}
-
-func (t *Node)Rule(rule string) []*model.HostNode {
-	body,_,err:=nodeServer.Request("/nodes/rule/"+rule,"GET",nil)
-	if err != nil {
-		logrus.Errorf("error get rule %s ,details %s",rule,err.Error())
-		return nil
-	}
-	j,err:=simplejson.NewJson(body)
-	if err != nil {
-		logrus.Errorf("error get json ,details %s",err.Error())
-		return nil
-	}
-	nodeArr,err:=j.Get("list").Array()
-	if err != nil {
-		logrus.Infof("error occurd,details %s",err.Error())
-		return nil
-	}
-	jsonA, _ := json.Marshal(nodeArr)
-	nodes := []*model.HostNode{}
-	err=json.Unmarshal(jsonA, &nodes)
-	if err != nil {
-		logrus.Infof("error occurd,details %s",err.Error())
-		return nil
-	}
-	return nodes
-}
-func (t *Node)List() []*model.HostNode {
-	body,_,err:=nodeServer.Request("/nodes","GET",nil)
-	if err != nil {
-		logrus.Errorf("error get nodes ,details %s",err.Error())
-		return nil
-	}
-	j,err:=simplejson.NewJson(body)
-	if err != nil {
-		logrus.Errorf("error get json ,details %s",err.Error())
-		return nil
-	}
-	nodeArr,err:=j.Get("list").Array()
-	if err != nil {
-		logrus.Infof("error occurd,details %s",err.Error())
-		return nil
-	}
-	jsonA, _ := json.Marshal(nodeArr)
-	nodes := []*model.HostNode{}
-	err=json.Unmarshal(jsonA, &nodes)
-	if err != nil {
-		logrus.Infof("error occurd,details %s",err.Error())
-		return nil
-	}
-	return nodes
-}
-func (t *Task)Get(id string) (*Task,error) {
-	t.TaskID=id
-	url:="/tasks/"+id
-	resp,code,err:=nodeServer.Request(url,"GET",nil)
-	if err!=nil {
-		logrus.Errorf("error request url %s,details %s",url,err.Error())
-		return nil,err
+		return nil, util.CreateAPIHandleError(code, err)
 	}
 	if code != 200 {
-		fmt.Println("executing failed:"+string(resp))
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
 	}
-	jsonTop,err:=simplejson.NewJson(resp)
-	if err!=nil {
-		logrus.Errorf("error get json from url %s",err.Error())
-		return nil,err
+	var res utilhttp.ResponseBody
+	var gc = model.GlobalConfig{
+		Configs: make(map[string]*model.ConfigUnit),
 	}
-	var task model.Task
-	beanJ:=jsonTop.Get("bean")
-	taskB,err:=json.Marshal(beanJ)
-	if err!=nil {
-		logrus.Errorf("error marshal task %s",err.Error())
-		return nil,err
+	res.Bean = &gc
+	if err := ffjson.Unmarshal(body, &res); err != nil {
+		return nil, util.CreateAPIHandleError(code, err)
 	}
-	err=json.Unmarshal(taskB,&task)
-	if err!=nil {
-		logrus.Errorf("error unmarshal task %s",err.Error())
-		return nil,err
+	if gc, ok := res.Bean.(*model.GlobalConfig); ok {
+		return gc, nil
 	}
-	t.Task=&task
-	return t,nil
+	return nil, nil
 }
-func (t *Task)List() ([]*model.Task,error) {
-	url:="/tasks"
-	resp,_,err:=nodeServer.Request(url,"GET",nil)
-	if err!=nil {
-		logrus.Errorf("error request url %s,details %s",url,err.Error())
-		return nil,err
-	}
-	jsonTop,err:=simplejson.NewJson(resp)
-	if err!=nil {
-		logrus.Errorf("error get json from url %s",err.Error())
-		return nil,err
-	}
-	nodeArr,err:=jsonTop.Get("list").Array()
-	if err != nil {
-		logrus.Infof("error occurd,details %s",err.Error())
-		return nil,err
-	}
-	jsonA, _ := json.Marshal(nodeArr)
-	tasks := []*model.Task{}
-	err=json.Unmarshal(jsonA, &tasks)
-	if err != nil {
-		logrus.Infof("error occurd,details %s",err.Error())
-		return nil,err
-	}
 
-	return tasks,nil
+func (c *configs) Put(gc *model.GlobalConfig) *util.APIHandleError {
+	rebody, err := ffjson.Marshal(gc)
+	if err != nil {
+		return util.CreateAPIHandleError(400, err)
+	}
+	_, code, err := c.client.Request(c.prefix+"/datacenter", "PUT", rebody)
+	if err != nil {
+		return util.CreateAPIHandleError(code, err)
+	}
+	if code != 200 {
+		return util.CreateAPIHandleError(code, fmt.Errorf("Put database center configs code %d", code))
+	}
+	return nil
 }
-func (t *Task)Exec(nodes []string ) error {
-	taskId:=t.TaskID
+
+func (n *node) Get(node string) (*model.HostNode, *util.APIHandleError) {
+	body, code, err := n.client.Request(n.prefix+"/"+node, "GET", nil)
+	if err != nil {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
+	}
+	var res utilhttp.ResponseBody
+	var gc model.HostNode
+	res.Bean = &gc
+	logrus.Infof("res is %v", res)
+	if err := ffjson.Unmarshal(body, &res); err != nil {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	logrus.Infof("res is %v", res)
+	if gc, ok := res.Bean.(*model.HostNode); ok {
+		return gc, nil
+	}
+	return nil, nil
+}
+func (n *node) Rule(rule string) ([]*model.HostNode, *util.APIHandleError) {
+	body, code, err := n.client.Request(n.prefix+"/rule/"+rule, "GET", nil)
+	if err != nil {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
+	}
+	var res utilhttp.ResponseBody
+	var gc []*model.HostNode
+	res.List = &gc
+	if err := ffjson.Unmarshal(body, &res); err != nil {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	if gc, ok := res.List.(*[]*model.HostNode); ok {
+		return *gc, nil
+	}
+	return nil, nil
+}
+func (n *node) List() ([]*model.HostNode, *util.APIHandleError) {
+	body, code, err := n.client.Request(n.prefix, "GET", nil)
+	if err != nil {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
+	}
+	var res utilhttp.ResponseBody
+	var gc []*model.HostNode
+	res.List = &gc
+	if err := ffjson.Unmarshal(body, &res); err != nil {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	if gc, ok := res.List.(*[]*model.HostNode); ok {
+		return *gc, nil
+	}
+	return nil, nil
+}
+
+// put/post 类
+
+func (n *node) Add(node *model.APIHostNode) *util.APIHandleError {
+	body, err := json.Marshal(node)
+	if err != nil {
+		return util.CreateAPIHandleError(400, err)
+	}
+	_, code, err := n.client.Request(n.prefix, "POST", body)
+	return n.client.handleErrAndCode(err, code)
+}
+func (n *node) Label(nid string, label map[string]string) *util.APIHandleError {
+	body, err := json.Marshal(label)
+	if err != nil {
+		return util.CreateAPIHandleError(400, err)
+	}
+	_, code, err := n.client.Request(n.prefix+"/"+nid+"/labels", "PUT", body)
+	return n.client.handleErrAndCode(err, code)
+}
+
+func (n *node) Delete(nid string) *util.APIHandleError {
+	_, code, err := n.client.Request(n.prefix+"/"+nid, "DELETE", nil)
+	return n.client.handleErrAndCode(err, code)
+}
+func (n *node) Up(nid string) *util.APIHandleError {
+	_, code, err := n.client.Request(n.prefix+"/"+nid+"/up", "POST", nil)
+	return n.client.handleErrAndCode(err, code)
+}
+func (n *node) Down(nid string) *util.APIHandleError {
+	_, code, err := n.client.Request(n.prefix+"/"+nid+"/down", "POST", nil)
+	return n.client.handleErrAndCode(err, code)
+}
+func (n *node) UnSchedulable(nid string) *util.APIHandleError {
+	_, code, err := n.client.Request(n.prefix+"/"+nid+"/unschedulable", "PUT", nil)
+	return n.client.handleErrAndCode(err, code)
+}
+func (n *node) ReSchedulable(nid string) *util.APIHandleError {
+	_, code, err := n.client.Request(n.prefix+"/"+nid+"/reschedulable", "PUT", nil)
+	return n.client.handleErrAndCode(err, code)
+}
+
+func (t *task) Get(id string) (*model.Task, *util.APIHandleError) {
+	url := t.prefix + "/" + id
+	body, code, err := nodeclient.Request(url, "GET", nil)
+
+	if err != nil {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("get task with code %d", code))
+	}
+	var res utilhttp.ResponseBody
+	var gc model.Task
+	res.Bean = &gc
+	if err := ffjson.Unmarshal(body, &res); err != nil {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	if gc, ok := res.Bean.(*model.Task); ok {
+		return gc, nil
+	}
+	return nil, nil
+
+}
+
+//List list all task
+func (t *task) List() ([]*model.Task, *util.APIHandleError) {
+	url := t.prefix
+	body, code, err := nodeclient.Request(url, "GET", nil)
+
+	if err != nil {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("get task with code %d", code))
+	}
+	var res utilhttp.ResponseBody
+	var gc []*model.Task
+	res.List = &gc
+	if err := ffjson.Unmarshal(body, &res); err != nil {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	if gc, ok := res.List.(*[]*model.Task); ok {
+		return *gc, nil
+	}
+	return nil, nil
+}
+
+//Exec 执行任务
+func (t *task) Exec(taskID string, nodes []string) *util.APIHandleError {
 	var nodesBody struct {
 		Nodes []string `json:"nodes"`
 	}
-	nodesBody.Nodes=nodes
-	body,_:=json.Marshal(nodesBody)
-	url:="/tasks/"+taskId+"/exec"
-	resp,code,err:=nodeServer.Request(url,"POST",body)
-	if code != 200 {
-		fmt.Println("executing failed:"+string(resp))
+	nodesBody.Nodes = nodes
+	body, err := json.Marshal(nodesBody)
+	if err != nil {
+		return util.CreateAPIHandleError(400, err)
 	}
-	if err!=nil {
-		return err
-	}
-	return err
+	url := t.prefix + "/" + taskID + "/exec"
+	_, code, err := nodeclient.Request(url, "POST", body)
+	return t.client.handleErrAndCode(err, code)
 }
-func (t *Task)Add(task *model.Task) (error) {
+func (t *task) Add(task *model.Task) *util.APIHandleError {
 
-	body,_:=json.Marshal(task)
-	url:="/tasks"
-	resp,code,err:=nodeServer.Request(url,"POST",body)
-	if code != 200 {
-		fmt.Println("executing failed:"+string(resp))
-	}
-	if err!=nil {
-		return err
-	}
-	return nil
+	body, _ := json.Marshal(task)
+	url := t.prefix
+	_, code, err := nodeclient.Request(url, "POST", body)
+	return t.client.handleErrAndCode(err, code)
 }
-func (t *Task) AddGroup(group *model.TaskGroup) (error){
-	body,_:=json.Marshal(group)
-	url:="/taskgroups"
-	resp,code,err:=nodeServer.Request(url,"POST",body)
-	if code != 200 {
-		fmt.Println("executing failed:"+string(resp))
-	}
-	if err!=nil {
-		return err
-	}
-	return nil
+func (t *task) AddGroup(group *model.TaskGroup) *util.APIHandleError {
+	body, _ := json.Marshal(group)
+	url := "/taskgroups"
+	_, code, err := nodeclient.Request(url, "POST", body)
+	return t.client.handleErrAndCode(err, code)
 }
+
+//Refresh 刷新静态配置
+func (t *task) Refresh() *util.APIHandleError {
+	url := t.prefix + "/taskreload"
+	_, code, err := nodeclient.Request(url, "PUT", nil)
+	return t.client.handleErrAndCode(err, code)
+}
+
 type TaskStatus struct {
 	Status map[string]model.TaskStatus `json:"status,omitempty"`
 }
-func (t *Task)Status() (*TaskStatus,error) {
-	taskId:=t.TaskID
+
+func (t *task) Status(name string) (*TaskStatus, error) {
+	taskId := name
 
 	return HandleTaskStatus(taskId)
 }
-func HandleTaskStatus(task string) (*TaskStatus,error) {
-	resp,code,err:=nodeServer.Request("/tasks/"+task+"/status","GET",nil)
+func (t *task) HandleTaskStatus(task string) (*map[string]*model.TaskStatus, *util.APIHandleError) {
+	body, code, err := nodeclient.Request("/tasks/"+task+"/status", "GET", nil)
 	if err != nil {
-		logrus.Errorf("error execute status Request,details %s",err.Error())
-		return nil,err
+		return nil, util.CreateAPIHandleError(code, err)
 	}
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("get task with code %d", code))
+	}
+	var res utilhttp.ResponseBody
+	var gc map[string]*model.TaskStatus
+	res.Bean = &gc
+	if err := ffjson.Unmarshal(body, &res); err != nil {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	if gc, ok := res.Bean.(*map[string]*model.TaskStatus); ok {
+		return gc, nil
+	}
+	return nil, nil
+}
+func HandleTaskStatus(task string) (*TaskStatus, error) {
+	resp, code, err := nodeclient.Request("/tasks/"+task+"/status", "GET", nil)
+	if err != nil {
+		logrus.Errorf("error execute status Request,details %s", err.Error())
+		return nil, err
+	}
+
 	if code == 200 {
 		j, _ := simplejson.NewJson(resp)
 		bean := j.Get("bean")
 		beanB, _ := json.Marshal(bean)
 		var status TaskStatus
-		statusMap:=make(map[string]model.TaskStatus)
+		statusMap := make(map[string]model.TaskStatus)
 
-		json,_:=simplejson.NewJson(beanB)
+		json, _ := simplejson.NewJson(beanB)
 
-		second:=json.Interface()
+		second := json.Interface()
 
-		if second==nil {
-			return nil,errors.New("get status failed")
+		if second == nil {
+			return nil, errors.New("get status failed")
 		}
-		m:=second.(map[string]interface{})
+		m := second.(map[string]interface{})
 
-		for k,_:=range m {
+		for k, _ := range m {
 			var taskStatus model.TaskStatus
-			taskStatus.CompleStatus=m[k].(map[string]interface{})["comple_status"].(string)
-			taskStatus.Status=m[k].(map[string]interface{})["status"].(string)
-			taskStatus.JobID=k
-			statusMap[k]=taskStatus
+			taskStatus.CompleStatus = m[k].(map[string]interface{})["comple_status"].(string)
+			taskStatus.Status = m[k].(map[string]interface{})["status"].(string)
+			taskStatus.JobID = k
+			statusMap[k] = taskStatus
 		}
-		status.Status=statusMap
-		return &status,nil
+		status.Status = statusMap
+		return &status, nil
 	}
-	return nil,errors.New(fmt.Sprintf("response status is %s",code))
+	return nil, errors.New(fmt.Sprintf("response status is %s", code))
 }
-func (r *RNodeServer)Request(url ,method string, body []byte) ([]byte,int,error) {
+
+//Request Request
+func (r *RNodeClient) Request(url, method string, body []byte) ([]byte, int, error) {
 	//logrus.Infof("requesting url: %s by method :%s,and body is ",r.NodeAPI+url,method,string(body))
 	request, err := http.NewRequest(method, "http://127.0.0.1:6100/v2"+url, bytes.NewBuffer(body))
 	if err != nil {
-		return nil,500,err
+		return nil, 500, err
 	}
 	request.Header.Set("Content-Type", "application/json")
 
 	res, err := http.DefaultClient.Do(request)
 	if err != nil {
-		logrus.Infof("error when request region,details %s",err.Error())
-		return nil, 500,err
+		return nil, 500, err
 	}
-
 	data, err := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
 	//logrus.Infof("response is %s,response code is %d",string(data),res.StatusCode)
-	return data,res.StatusCode,err
+	return data, res.StatusCode, err
+}
+func (r *RNodeClient) handleErrAndCode(err error, code int) *util.APIHandleError {
+	if err != nil {
+		return util.CreateAPIHandleError(code, err)
+	}
+	if code != 200 {
+		return util.CreateAPIHandleError(code, fmt.Errorf("error with code %d", code))
+	}
+	return nil
 }

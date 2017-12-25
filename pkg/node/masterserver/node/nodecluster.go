@@ -17,12 +17,14 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 // 当前包处理集群节点的管理
-package masterserver
+package node
 
 import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -38,112 +40,93 @@ import (
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
+	"github.com/goodrain/rainbond/pkg/node/core/config"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
 	"github.com/goodrain/rainbond/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"os"
-	"os/exec"
 )
 
 //NodeCluster 节点管理器
 type NodeCluster struct {
-	ctx          context.Context
-	cancel       context.CancelFunc
-	nodes        map[string]*model.HostNode
-	lock         sync.Mutex
-	client       *store.Client
-	k8sClient    *kubernetes.Clientset
-	currentNode  *model.HostNode
-	checkInstall chan *model.HostNode
+	ctx              context.Context
+	cancel           context.CancelFunc
+	nodes            map[string]*model.HostNode
+	lock             sync.Mutex
+	client           *store.Client
+	k8sClient        *kubernetes.Clientset
+	currentNode      *model.HostNode
+	checkInstall     chan *model.HostNode
+	datacenterConfig *config.DataCenterConfig
 }
 
 //CreateNodeCluster 创建节点管理器
-func CreateNodeCluster(k8sClient *kubernetes.Clientset, node *model.HostNode) (*NodeCluster, error) {
+func CreateNodeCluster(k8sClient *kubernetes.Clientset, node *model.HostNode, datacenterConfig *config.DataCenterConfig) *NodeCluster {
 	ctx, cancel := context.WithCancel(context.Background())
 	nc := NodeCluster{
-		ctx:          ctx,
-		cancel:       cancel,
-		nodes:        make(map[string]*model.HostNode, 5),
-		client:       store.DefalutClient,
-		k8sClient:    k8sClient,
-		currentNode:  node,
-		checkInstall: make(chan *model.HostNode, 4),
+		ctx:              ctx,
+		cancel:           cancel,
+		nodes:            make(map[string]*model.HostNode, 5),
+		client:           store.DefalutClient,
+		k8sClient:        k8sClient,
+		currentNode:      node,
+		checkInstall:     make(chan *model.HostNode, 4),
+		datacenterConfig: datacenterConfig,
 	}
-	if err := nc.loadNodes(); err != nil {
-		return nil, err
-	}
-	return &nc, nil
+	return &nc
 }
 
 //Start 启动
-func (n *NodeCluster) Start() {
-	go n.watchNodes()
-	go n.watchK8sNodes()
+func (n *NodeCluster) Start() error {
+	if err := n.loadAndWatchNodes(); err != nil {
+		return err
+	}
+	go n.loadAndWatchK8sNodes()
 	go n.worker()
+	return nil
 }
 
 //Stop 停止
 func (n *NodeCluster) Stop(i interface{}) {
 	n.cancel()
 }
-func (n *NodeCluster) loadNodes() error {
-	//加载节点信息
-	res, err := n.client.Get(option.Config.NodePath, client.WithPrefix())
-	if err != nil {
-		return fmt.Errorf("load cluster nodes error:%s", err.Error())
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
 	}
-	for _, kv := range res.Kvs {
-		if node := n.getNodeFromKV(kv); node != nil {
-			n.CacheNode(node)
-		}
+	if os.IsNotExist(err) {
+		return false
 	}
-	//加载rainbond节点在线信息
-	res, err = n.client.Get(option.Config.OnlineNodePath, client.WithPrefix())
-	if err != nil {
-		return fmt.Errorf("load cluster nodes error:%s", err.Error())
-	}
-	for _, kv := range res.Kvs {
-		if node := n.getNodeFromKey(string(kv.Key)); node != nil {
-			if !node.Alived {
-				node.Alived = true
-				node.UpTime = time.Now()
-			}
-		}
-	}
-	//加载k8s节点信息
-	go func() {
-		for {
-			list, err := n.k8sClient.Core().Nodes().List(metav1.ListOptions{})
-			if err != nil {
-				logrus.Warnf("load k8s nodes from k8s api error:%s", err.Error())
-				time.Sleep(time.Second * 3)
-				continue
-			}
-			for _, node := range list.Items {
-				if cn, ok := n.nodes[node.Name]; ok {
-					cn.NodeStatus = &node.Status
-					cn.UpdataK8sCondition(node.Status.Conditions)
-					n.UpdateNode(cn)
-				} else {
-					logrus.Warningf("k8s node %s can not exist in rainbond cluster.", node.Name)
-				}
-			}
-			return
-		}
-	}()
-	return nil
+	return true
 }
 
+//RegToHost 注册节点
+func RegToHost(node *model.HostNode, opt string) {
+	if !exists("/usr/share/gr-rainbond-node/gaops/jobs/cron/common/node_update_hosts.sh") {
+		return
+	}
+	uuid := node.ID
+	internalIP := node.InternalIP
+	logrus.Infof("node 's hostname is %s", node.HostName)
+	cmd := exec.Command("bash", "/usr/share/gr-rainbond-node/gaops/jobs/cron/common/node_update_hosts.sh", uuid, internalIP, opt)
+	outbuf := bytes.NewBuffer(nil)
+	cmd.Stdout = outbuf
+	err := cmd.Run()
+	if err != nil {
+		logrus.Errorf("error update /etc/hosts,details %s", err.Error())
+		return
+	}
+	logrus.Infof("update /etc/hosts %s %s success", uuid, internalIP)
+}
 func (n *NodeCluster) worker() {
 	for {
 		select {
-		case newNode := <-n.checkInstall:
-			go n.checkNodeInstall(newNode)
-		//其他异步任务
-
 		case <-n.ctx.Done():
 			return
+		case newNode := <-n.checkInstall:
+			go n.checkNodeInstall(newNode)
+			//其他异步任务
 		}
 	}
 }
@@ -191,78 +174,95 @@ func (n *NodeCluster) GetNode(id string) *model.HostNode {
 	}
 	return nil
 }
-func exists(path string) bool {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true
-	}
-	if os.IsNotExist(err) {
-		return false
-	}
-	return true
-}
-func RegToHost(node *model.HostNode, opt string) {
-	if !exists("/usr/share/gr-rainbond-node/gaops/jobs/cron/common/node_update_hosts.sh") {
-		return
-	}
-	uuid := node.ID
-	internalIP := node.InternalIP
-	logrus.Infof("node 's hostname is %s", node.HostName)
-	cmd := exec.Command("bash", "/usr/share/gr-rainbond-node/gaops/jobs/cron/common/node_update_hosts.sh", uuid, internalIP, opt)
-	outbuf := bytes.NewBuffer(nil)
-	cmd.Stdout = outbuf
-	err := cmd.Run()
+
+func (n *NodeCluster) loadAndWatchNodes() error {
+	//加载节点信息
+	noderes, err := n.client.Get(option.Config.NodePath, client.WithPrefix())
 	if err != nil {
-		logrus.Errorf("error update /etc/hosts,details %s",err.Error())
-		return
+		return fmt.Errorf("load cluster nodes error:%s", err.Error())
 	}
-	logrus.Infof("update /etc/hosts %s %s success",uuid,internalIP)
-}
-func (n *NodeCluster) watchNodes() {
-	ch := n.client.Watch(option.Config.NodePath, client.WithPrefix())
-	onlineCh := n.client.Watch(option.Config.OnlineNodePath, client.WithPrefix())
-	for {
-		select {
-		case <-n.ctx.Done():
-			return
-		case event := <-ch:
-			for _, ev := range event.Events {
-				switch {
-				case ev.IsCreate(), ev.IsModify():
-					if node := n.getNodeFromKV(ev.Kv); node != nil {
-						n.CacheNode(node)
-					}
-				case ev.Type == client.EventTypeDelete:
-					if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
-						n.RemoveNode(node)
+	for _, kv := range noderes.Kvs {
+		if node := n.getNodeFromKV(kv); node != nil {
+			n.CacheNode(node)
+		}
+	}
+	//加载rainbond节点在线信息
+	onlineres, err := n.client.Get(option.Config.OnlineNodePath, client.WithPrefix())
+	if err != nil {
+		return fmt.Errorf("load cluster nodes error:%s", err.Error())
+	}
+	for _, kv := range onlineres.Kvs {
+		if node := n.getNodeFromKey(string(kv.Key)); node != nil {
+			if !node.Alived {
+				node.Alived = true
+				node.UpTime = time.Now()
+			}
+		}
+	}
+	go func() {
+		ch := n.client.Watch(option.Config.NodePath, client.WithPrefix(), client.WithRev(noderes.Header.Revision))
+		onlineCh := n.client.Watch(option.Config.OnlineNodePath, client.WithPrefix(), client.WithRev(onlineres.Header.Revision))
+		for {
+			select {
+			case <-n.ctx.Done():
+				return
+			case event := <-ch:
+				for _, ev := range event.Events {
+					switch {
+					case ev.IsCreate(), ev.IsModify():
+						if node := n.getNodeFromKV(ev.Kv); node != nil {
+							n.CacheNode(node)
+						}
+					case ev.Type == client.EventTypeDelete:
+						if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
+							n.RemoveNode(node)
+						}
 					}
 				}
-			}
-		case event := <-onlineCh:
-			for _, ev := range event.Events {
-				switch {
-				case ev.IsCreate(), ev.IsModify():
-					if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
-
-						node.Alived = true
-						node.UpTime = time.Now()
-						RegToHost(node, "add")
-						n.UpdateNode(node)
-					}
-				case ev.Type == client.EventTypeDelete:
-					if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
-						node.Alived = false
-						node.DownTime = time.Now()
-						RegToHost(node, "del")
-						n.UpdateNode(node)
+			case event := <-onlineCh:
+				for _, ev := range event.Events {
+					switch {
+					case ev.IsCreate(), ev.IsModify():
+						if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
+							node.Alived = true
+							node.UpTime = time.Now()
+							RegToHost(node, "add")
+							n.UpdateNode(node)
+						}
+					case ev.Type == client.EventTypeDelete:
+						if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
+							node.Alived = false
+							node.DownTime = time.Now()
+							RegToHost(node, "del")
+							n.UpdateNode(node)
+						}
 					}
 				}
 			}
 		}
-	}
+	}()
+	return nil
 }
 
-func (n *NodeCluster) watchK8sNodes() {
+func (n *NodeCluster) loadAndWatchK8sNodes() {
+	for {
+		list, err := n.k8sClient.Core().Nodes().List(metav1.ListOptions{})
+		if err != nil {
+			logrus.Warnf("load k8s nodes from k8s api error:%s", err.Error())
+			time.Sleep(time.Second * 3)
+			continue
+		}
+		for _, node := range list.Items {
+			if cn, ok := n.nodes[node.Name]; ok {
+				cn.NodeStatus = &node.Status
+				cn.UpdataK8sCondition(node.Status.Conditions)
+				n.UpdateNode(cn)
+			} else {
+				logrus.Warningf("k8s node %s can not exist in rainbond cluster.", node.Name)
+			}
+		}
+		break
+	}
 	for {
 		wc, err := n.k8sClient.Core().Nodes().Watch(metav1.ListOptions{})
 		if err != nil {
@@ -336,7 +336,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 		node.UpdataCondition(initCondition)
 		n.UpdateNode(node)
 	}()
-	node.Status="init"
+	node.Status = "init"
 	errorCondition := func(reason string, err error) {
 		initCondition.Status = model.ConditionFalse
 		initCondition.LastTransitionTime = time.Now()
@@ -346,29 +346,84 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 			initCondition.Message = err.Error()
 		}
 		node.Conditions = append(node.Conditions, initCondition)
-		node.Status="init_failed"
+		node.Status = "init_failed"
 	}
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	if node.Role==nil {
-		node.Role=[]string{"compute"}
+	if node.Role == nil {
+		node.Role = []string{"compute"}
 	}
-	role := node.Role[0]
-
+	role := strings.Join(node.Role, ",")
+	etcdConfig := n.datacenterConfig.GetConfig("ETCD_ADDRS")
 	etcd := n.currentNode.InternalIP
-	cmd := "bash -c \"set " + node.ID + " " + etcd + " " + role + ";$(curl -s repo.goodrain.com/gaops/jobs/install/prepare/init.sh)\""
+	if etcdConfig != nil && etcdConfig.Value != nil {
+		logrus.Infof("etcd address is %v when install node", etcdConfig.Value)
+		switch etcdConfig.Value.(type) {
+		case string:
+			if etcdConfig.Value.(string) != "" {
+				etcd = etcdConfig.Value.(string)
+			}
+		case []string:
+			etcd = strings.Join(etcdConfig.Value.([]string), ",")
+		}
+	}
+	initshell := "dev.repo.goodrain.com/gaops/jobs/install/prepare/init.sh"
+	etcd = etcd + ","
+	cmd := fmt.Sprintf("bash -c \"set %s %s %s;$(curl -s %s)\"", node.ID, etcd, role, initshell)
 	logrus.Infof("init endpoint node cmd is %s", cmd)
-	client := util.NewSSHClient(node.InternalIP, "root", node.RootPass, cmd, 22, &stdout, &stderr)
+
+	//日志输出文件
+	if err := util.CheckAndCreateDir("/var/log/event"); err != nil {
+		logrus.Errorf("check and create dir /var/log/event error,%s", err.Error())
+	}
+	logFile := "/var/log/event/install_node_" + node.ID + ".log"
+	logfile, err := util.OpenOrCreateFile(logFile)
+	if err != nil {
+		logrus.Errorf("check and create install node logfile error,%s", err.Error())
+	}
+	if logfile == nil {
+		logfile = os.Stdout
+	}
+	//结果输出buffer
+	var stderr bytes.Buffer
+	client := util.NewSSHClient(node.InternalIP, "root", node.RootPass, cmd, 22, logfile, &stderr)
 	if err := client.Connection(); err != nil {
 		logrus.Error("init endpoint node error:", err.Error())
 		errorCondition("SSH登陆初始化目标节点失败", err)
 		return
 	}
-
-	//TODO:
-	//处理安装结果
-	fmt.Println("初始化节点成功")
-	logrus.Info(stdout.String())
+	//设置init的结果
+	result := stderr.String()
+	index := strings.Index(result, "{")
+	jsonOutPut := result
+	if index > -1 {
+		jsonOutPut = result[index:]
+	}
+	fmt.Println("Init node Result:" + jsonOutPut)
+	output, err := model.ParseTaskOutPut(jsonOutPut)
+	if err != nil {
+		errorCondition("节点初始化输出数据错误", err)
+		logrus.Errorf("get init current node result error:%s", err.Error())
+	}
+	if output.Global != nil {
+		for k, v := range output.Global {
+			if strings.Index(v, ",") > -1 {
+				values := strings.Split(v, ",")
+				util.Deweight(&values)
+				n.datacenterConfig.PutConfig(&model.ConfigUnit{
+					Name:           strings.ToUpper(k),
+					Value:          values,
+					ValueType:      "array",
+					IsConfigurable: false,
+				})
+			} else {
+				n.datacenterConfig.PutConfig(&model.ConfigUnit{
+					Name:           strings.ToUpper(k),
+					Value:          v,
+					ValueType:      "string",
+					IsConfigurable: false,
+				})
+			}
+		}
+	}
 }
 
 //GetAllNode 获取全部节点
