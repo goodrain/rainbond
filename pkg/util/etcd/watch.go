@@ -42,6 +42,15 @@ func WatchPrefixEvents(c *clientv3.Client, prefix string, evs []mvccpb.Event_Eve
 	return waitEvents(wc, evs), nil
 }
 
+//WaitPrefixEvents WaitPrefixEvents
+func WaitPrefixEvents(c *clientv3.Client, prefix string, rev int64, evs []mvccpb.Event_EventType) (*clientv3.Event, error) {
+	wc := c.Watch(context.Background(), prefix, clientv3.WithPrefix(), clientv3.WithRev(rev))
+	if wc == nil {
+		return nil, ErrNoWatcher
+	}
+	return waitEvents(wc, evs), nil
+}
+
 func waitEvents(wc clientv3.WatchChan, evs []mvccpb.Event_EventType) *clientv3.Event {
 	i := 0
 	for wresp := range wc {
