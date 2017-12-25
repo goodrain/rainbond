@@ -110,7 +110,7 @@ func NewCmdCheckTask() cli.Command {
 						for _,dep:=range taskentity.Depends {
 							task,_:=clients.NodeClient.Tasks().Get(dep)
 
-							_,depOK:=task.Task.Status[uuid]
+							_,depOK:=task.Status[uuid]
 							if !depOK {
 								allDepDone=false
 								break
