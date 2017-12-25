@@ -658,7 +658,7 @@ func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantR
 	return result, nil
 }
 
-//GetPagedTenantRes get pagedTenantServiceRes(s)
+//GetTenantRes get pagedTenantServiceRes(s)
 func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, error) {
 	services, err := db.GetManager().TenantServiceDao().GetTenantServiceRes(uuid)
 	if err != nil {
@@ -1854,6 +1854,20 @@ func (s *ServiceAction) complexEnvs(sve *api_model.SetVersionEnv) error {
 	if err != nil {
 		logrus.Errorf("put k %s into etcd error, %v", k, err)
 		return err
+	}
+	return nil
+}
+
+//DeleteComplexEnvs DeleteComplexEnvs
+func (s *ServiceAction) DeleteComplexEnvs(tenantID, serviceAlias, pluginID string) *util.APIHandleError {
+	k := fmt.Sprintf("/resources/define/%s/%s/%s",
+		tenantID,
+		serviceAlias,
+		pluginID)
+	_, err := s.EtcdCli.Delete(context.TODO(), k)
+	if err != nil {
+		logrus.Errorf("delete k %s from etcd error, %v", k, err)
+		return util.CreateAPIHandleError(500, fmt.Errorf("delete k %s from etcd error, %v", k, err))
 	}
 	return nil
 }

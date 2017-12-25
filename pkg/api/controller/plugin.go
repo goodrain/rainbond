@@ -517,7 +517,13 @@ func (t *TenantStruct) getPluginSet(w http.ResponseWriter, r *http.Request) {
 func (t *TenantStruct) DeletePluginRelation(w http.ResponseWriter, r *http.Request) {
 	pluginID := chi.URLParam(r, "plugin_id")
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
 	if err := handler.GetServiceManager().TenantServiceDeletePluginRelation(serviceID, pluginID); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	if err := handler.GetServiceManager().DeleteComplexEnvs(tenantID, serviceAlias, pluginID); err != nil {
 		err.Handle(r, w)
 		return
 	}

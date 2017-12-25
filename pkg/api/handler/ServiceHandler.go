@@ -40,7 +40,7 @@ type ServiceHandler interface {
 	ServiceUpdate(sc map[string]interface{}) error
 	LanguageSet(langS *api_model.LanguageSet) error
 	GetService(tenantID string) ([]*dbmodel.TenantServices, error)
-	GetPagedTenantRes(offset,len int) ([]*api_model.TenantResource, error)
+	GetPagedTenantRes(offset, len int) ([]*api_model.TenantResource, error)
 	GetTenantRes(uuid string) (*api_model.TenantResource, error)
 	CodeCheck(c *api_model.CheckCodeStruct) error
 	ShareCloud(c *api_model.CloudShareStruct) error
@@ -67,6 +67,7 @@ type ServiceHandler interface {
 	UpdateTenantServicePluginRelation(serviceID string, pss *api_model.PluginSetStruct) *util.APIHandleError
 	SetVersionEnv(sve *api_model.SetVersionEnv) *util.APIHandleError
 	UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError
+	DeleteComplexEnvs(tenantID, serviceAlias, pluginID string) *util.APIHandleError
 }
 
 var defaultServieHandler ServiceHandler
