@@ -129,6 +129,19 @@ func GetConfig(groupCtx *GroupContext, key string) string {
 					}
 					return result + ","
 				}
+			case []interface{}:
+				if value.([]interface{}) != nil && len(value.([]interface{})) > 0 {
+					result := ""
+					for _, v := range value.([]interface{}) {
+						switch v.(type) {
+						case string:
+							result += v.(string) + ","
+						case int:
+							result += strconv.Itoa(v.(int)) + ","
+						}
+					}
+					return result
+				}
 			}
 		}
 	}
