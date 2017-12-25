@@ -198,6 +198,7 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 	temp.Labels = labels
 	//step8: set hostname
 	if p.hostName != "" {
+		logrus.Infof("set pod name is %s", p.hostName)
 		podSpec.Hostname = p.hostName
 	}
 	return &temp, nil
