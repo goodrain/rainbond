@@ -28,7 +28,7 @@ import (
 )
 
 //DefineCloudAuth DefineCloudAuth
-func (t *Tenant) DefineCloudAuth(gt *api_model.GetUserToken) DefineCloudAuthInterface {
+func (t *tenant) DefineCloudAuth(gt *api_model.GetUserToken) DefineCloudAuthInterface {
 	return &DefineCloudAuth{
 		GT: gt,
 	}
