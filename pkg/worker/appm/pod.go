@@ -193,13 +193,14 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 		}
 		labels["protocols"] = pStr
 	}
-	//step7: 构建PodTemplateSpec
+	//step7: set hostname
+	if p.hostName != "" {
+		logrus.Infof("set pod name is %s", p.hostName)
+		podSpec.Hostname = p.hostName
+	}
+	//step8: 构建PodTemplateSpec
 	temp := v1.PodTemplateSpec{
 		Spec: podSpec,
-	}
-	//step8: 设置hostname
-	if p.hostName != "" {
-		podSpec.Hostname = p.hostName
 	}
 	temp.Labels = labels
 	return &temp, nil
