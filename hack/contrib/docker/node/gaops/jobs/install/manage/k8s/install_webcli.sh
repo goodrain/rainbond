@@ -2,7 +2,8 @@
 
 REPO_VER=$1
 
-RBD_WEBCLI="rainbond/rbd-webcli:$REPO_VER"
+RBD_WEBCLI_VER=$(jq --raw-output '."rbd-webcli".version' /etc/goodrain/envs/rbd.json)
+RBD_WEBCLI="rainbond/rbd-webcli:$RBD_WEBCLI_VER"
 
 HOSTIP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
 function log.info() {
@@ -18,20 +19,6 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
 
 function compose::config_update() {
     YAML_FILE=/etc/goodrain/docker-compose.yaml
@@ -67,7 +54,7 @@ function image::pull() {
 }
 
 function prepare() {
-    log.section "install webcli"
+    log.log "nothing prepare for  webcli"
 }
 
 
@@ -75,7 +62,7 @@ function prepare() {
 
 
 function install_webcli() {
-    log.section "setup webcli"
+    #log.info "setup webcli"
 
     image::exist $RBD_WEBCLI || (
         log.info "pull image: $RBD_WEBCLI"
@@ -117,7 +104,7 @@ EOF
 
 function run() {
     
-    log.section "setup webcli"
+    log.info "setup webcli"
     install_webcli
     dc-compose ps  | grep webcli | grep Up
     if [ $? -eq 0 ];then

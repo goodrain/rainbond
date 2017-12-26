@@ -19,20 +19,6 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
 
 function compose::config_update() {
     YAML_FILE=/etc/goodrain/docker-compose.yaml
@@ -77,7 +63,7 @@ function prepare() {
 
 function run() {
 
-    log.section "setup acp_manage ui"
+    log.info "setup acp_manage ui"
 
         [ ! -f "/etc/goodrain/.version" ] && (
 

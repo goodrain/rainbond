@@ -1,17 +1,18 @@
 #!/bin/bash
-set -o errexit
+
 set -o pipefail
 
-REPO_VER=$1 #版本信息
+MYSQL_EXPAND=${1:-0} #是否支持扩容
 MYSQL_USER=$2
 MYSQL_PASSWD=$3
 MYSQL_HOST=${4:-127.0.0.1}
 MYSQL_PORT=${5:-3306}
 
-
-
-RBD_DIM="rainbond/rbd-db:${REPO_VER}"
 MYSQL_VAR=$#
+
+RBD_IMAGE_DB_NAME=$(jq --raw-output '."rbd-db".name' /etc/goodrain/envs/rbd.json)
+RBD_IMAGE_DB_VERSION=$(jq --raw-output '."rbd-db".version' /etc/goodrain/envs/rbd.json)
+RBD_DIM=$RBD_IMAGE_DB_NAME:$RBD_IMAGE_DB_VERSION
 
 function log.info() {
   echo "       $*"
@@ -24,21 +25,6 @@ function log.error() {
 
 function log.stdout() {
     echo "$*" >&2
-}
-
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
 }
 
 function compose::config_remove() {
@@ -137,7 +123,7 @@ function check_mysql_admin() {
 
 function prepare() {
 
-    log.section "ACP: docker plugins db"
+    log.info "install docker plugins db"
     log.info "prepare db"
     mkdir -pv /data/db
 
@@ -151,11 +137,22 @@ function prepare() {
         log.info "$MYSQL_USER $MYSQL_PASSWD $MYSQL_HOST $MYSQL_PORT"
     else
         log.error "mysql configure parameter error, VERSION MYSQL_USER MYSQL_PASSWD MYSQL_HOST MYSQL_PORT"
+        log.status '{
+            "status":[ 
+                { 
+                    "name":"db_configure_parameter_error", 
+                    "condition_type":"DB_PARAMETER_ERROR", 
+                    "condition_status":"False"
+                } 
+                ], 
+                "exec_status":"Failure",
+                "type":"install"
+        }'
         exit 1
     fi
 }
 
-function run() {
+function one_db() {
 
     
     log.info "install db"
@@ -167,11 +164,12 @@ function run() {
             log.stdout '{ 
                 "status":[ 
                 { 
-                    "name":"docker_pull_db", 
+                    "name":"docker_pull_db_faild", 
                     "condition_type":"DOCKER_PULL_DB_ERROR", 
                     "condition_status":"False"
                 } 
-                ], 
+                ],
+                "exec_status":"Failure",
                 "type":"install"
                 }'
             exit 1
@@ -223,13 +221,15 @@ EOF
 
     log.info "create database region, console success!"
     #log.stdout "{'db_type':'mysql','info':['MYSQL_USER':'"$MYSQL_USER"','MYSQL_PASSWD':'"$MYSQL_PASSWD"','MYSQL_HOST':'"$MYSQL_HOST"','MYSQL_PORT':'"$MYSQL_PORT"']}"
+    MYSQL_EXPAND=1
     log.stdout '{ 
             "global":{
-              '\"DB_TYPE\"':'\"mysql\"',
-              '\"DB_USER\"':'\"$MYSQL_USER\"',
-              '\"DB_PASSWD\"':'\"$MYSQL_PASSWD\"',
-              '\"DB_HOST\"':'\"$MYSQL_HOST\"',
-              '\"DB_PORT\"':'\"$MYSQL_PORT\"'
+              "DB_MODE":"'mysql'",
+              "DB_USER":"'$MYSQL_USER'",
+              "DB_PASSWD":"'$MYSQL_PASSWD'",
+              "DB_HOST":"'$MYSQL_HOST'",
+              "DB_PORT":"'$MYSQL_PORT'",
+              "DB_EXPAND":"'$MYSQL_EXPAND'"
             },
             "status":[ 
             { 
@@ -243,9 +243,31 @@ EOF
             }'
 }
 
+function run(){
+    if [[ $MYSQL_EXPAND -eq 0 ]];then
+        log.info "init db"
+        prepare
+        one_db
+    else
+        
+        log.info "pass init db"
+        log.stdout '{
+            "status":[ 
+            { 
+                "name":"install_db_manage", 
+                "condition_type":"INSTALL_DB_MANAGE", 
+                "condition_status":"True"
+            } 
+            ], 
+            "exec_status":"Success",
+            "type":"install"
+            }'
+    fi
+
+}
+
 case $1 in
     * )
-        prepare
         run
         ;;
 esac

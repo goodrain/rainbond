@@ -2,13 +2,29 @@
 
 REPO_VER=$1
 EX_DOMAIN=$2
-IP=${3:-$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')}
+RBD_REPO_EXPAND=${3:-0}
+LANG_SERVER=${4:-$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')}
+MAVEN_SERVER=${5:-$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')}
+DNS_SERVER=${6:-$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')}
+HUB_SERVER=${7:-$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')}
 
-RBD_DNS="rainbond/rbd-dns:$REPO_VER"
+
+
+#EXIP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
+EXIP=$(cat /etc/goodrain/envs/.exip  | awk '{print $1}')
+
+RBD_IMAGE_DNS_NAME=$(jq --raw-output '."rbd-dns".name' /etc/goodrain/envs/rbd.json)
+RBD_IMAGE_DNS_VERSION=$(jq --raw-output '."rbd-dns".version' /etc/goodrain/envs/rbd.json)
+
+RBD_DNS=$RBD_IMAGE_DNS_NAME:$RBD_IMAGE_DNS_VERSION
+
 RBD_REGISTRY="rainbond/rbd-registry:2.3.1"
-RBD_REPO="rainbond/rbd-repo:$REPO_VER"
-RBD_DALARAN="rainbond/rbd-dalaran:$REPO_VER"
-RBD_ENTRANCE="rainbond/rbd-entrance:$REPO_VER"
+
+RBD_IMAGE_REPO_NAME=$(jq --raw-output '."rbd-repo".name' /etc/goodrain/envs/rbd.json)
+RBD_IMAGE_REPO_VERSION=$(jq --raw-output '."rbd-repo".version' /etc/goodrain/envs/rbd.json)
+
+RBD_REPO=$RBD_IMAGE_REPO_NAME:$RBD_IMAGE_REPO_VERSION
+
 
 function log.info() {
   echo "       $*"
@@ -23,20 +39,6 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
 
 function sys::path_mounted() {
     dest_dir=$1
@@ -99,18 +101,23 @@ function add_user() {
 
 function make_domain() {
     if [ -z "$EX_DOMAIN" ];then
-        IP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
+        [ -z "$EXIP" ] && (
+                EXIP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
+        )
+        
+        log.info "domain resolve: $EXIP."
+
         docker pull hub.goodrain.com/dc-deploy/archiver:domain
         #docker run -it --rm hub.goodrain.com/dc-deploy/archiver:domain init --ip $IP > /tmp/domain.log
         [ -f "/data/.domain.log" ] && echo "" > /data/.domain.log || touch /data/.domain.log
-         
-        docker run --rm -v /data/.domain.log:/tmp/domain.log hub.goodrain.com/dc-deploy/archiver:domain init --ip $IP > /tmp/do.log
+        
+        docker run  --rm -v /data/.domain.log:/tmp/domain.log hub.goodrain.com/dc-deploy/archiver:domain init --ip $EXIP > /tmp/do.log
         if [ $? -eq 0 ];then
             EX_DOMAIN=$(cat /data/.domain.log)
         else
-            touch /tmp/fuck
+            log.error "Domain name not generated"
         fi
-        #docker rmi hub.goodrain.com/dc-deploy/archiver:domain
+        log.info "DOMAIN:$EX_DOMAIN"
     fi
 
     if [ "$EX_DOMAIN" = "" ];then
@@ -130,7 +137,7 @@ function make_domain() {
 }
 
 function prepare() {
-    log.section "prepare base plugins"
+    log.info "prepare base plugins"
 
     # 待测试管理节点扩容
     #sys::path_mounted /grdata || exit 3 
@@ -142,7 +149,7 @@ function prepare() {
 
 function install_dns() {
 
-    log.section "setup dns"
+    log.info "setup dns"
 
         image::exist $RBD_DNS || (
         log.info "pull image: $RBD_DNS"
@@ -190,7 +197,7 @@ EOF
 }
 
 function install_registry() {
-    log.section "setup registry"
+    log.info "setup registry"
 
     image::exist $RBD_REGISTRY || (
         log.info "pull image: $RBD_REGISTRY"
@@ -231,7 +238,7 @@ EOF
 
 
 function install_repo() {
-    log.section "setup repo"
+    log.info "setup repo"
 
     image::exist $RBD_REPO || (
         log.info "pull image: $RBD_REPO"
@@ -270,121 +277,50 @@ EOF
     dc-compose up -d
 }
 
-function install_dalaran() {
-    log.section "setup dalaran_service"
-    
-    image::exist $RBD_DALARAN || (
-        log.info "pull image: $RBD_DALARAN"
-        image::pull $RBD_DALARAN || (
-            log.stdout '{ 
-                "status":[ 
-                { 
-                    "name":"docker_pull_dalaran", 
-                    "condition_type":"DOCKER_PULL_DALARAN_ERROR", 
-                    "condition_status":"False"
-                } 
-                ], 
-                "type":"install"
-                }'
-            exit 1
-        )
-    )
-
-    compose::config_update << EOF
-services:
-  rbd-dalaran:
-    image: $RBD_DALARAN
-    container_name: rbd-dalaran
-    environment:
-      ZMQ_BIND_SUB: tcp://0.0.0.0:9341
-      ZMQ_BIND_PUB: tcp://0.0.0.0:9342
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    network_mode: "host"
-    restart: always
-EOF
-
-    dc-compose up -d
-}
-
-function install_entrance() {
-    log.section "setup entrance"
-    
-    image::exist $RBD_ENTRANCE || (
-        log.info "pull image: $RBD_ENTRANCE"
-        image::pull $RBD_ENTRANCE || (
-            log.stdout '{ 
-                "status":[ 
-                { 
-                    "name":"docker_pull_entrance", 
-                    "condition_type":"DOCKER_PULL_ENTRANCE_ERROR", 
-                    "condition_status":"False"
-                } 
-                ], 
-                "type":"install"
-                }'
-            exit 1
-        )
-    )
-
-    [ -f "/etc/goodrain/kubernetes/admin.kubeconfig" ] || (
-        [ -f "/etc/goodrain/kubernetes/kubeconfig" ] && cp /etc/goodrain/kubernetes/kubeconfig /etc/goodrain/kubernetes/admin.kubeconfig
-    )
-
-    compose::config_update << EOF
-services:
-  rbd-entrance:
-    image: $RBD_ENTRANCE
-    container_name: rbd-entrance
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    network_mode: "host"
-    restart: always
-    volumes:
-      - /etc/goodrain/kubernetes:/etc/goodrain/kubernetes
-    command:
-      - --plugin-name=nginx
-      - --plugin-opts=httpapi=http://127.0.0.1:10002
-      - --plugin-opts=streamapi=http://127.0.0.1:10002
-      #- --token=
-      - --kube-conf=/etc/goodrain/kubernetes/admin.kubeconfig
-      - --log-level=info
-EOF
-    dc-compose up -d
-
-}
-
 function run() {
     
-    log.section "setup RBD base plugins"
+    log.info "setup RBD base plugins"
     install_dns
     install_registry
-    install_repo
-    install_dalaran
-    install_entrance
-    
-
-    log.stdout '{ 
-            "global":{
-              "DOMAIN":"'$EX_DOMAIN'",
-              "DNS_SERVER":"'$IP'"
-            },
-            "status":[ 
-            { 
-                "name":"install_base_plugins", 
-                "condition_type":"INSTALL_BASE_PLUGINS", 
-                "condition_status":"True"
-            } 
-            ], 
-            "exec_status":"Success",
-            "type":"install"
-            }'
+    if [ $RBD_REPO_EXPAND -eq 0 ];then
+        install_repo
+        RBD_REPO_EXPAND=1
+        log.stdout '{ 
+                "global":{
+                "DOMAIN":"'$EX_DOMAIN'",
+                "DNS_SERVER":"'$DNS_SERVER',",
+                "HUB_SERVER":"'$HUB_SERVER',",
+                "RBD_REPO_EXPAND":"'$RBD_REPO_EXPAND'",
+                "LANG_SERVER":"'$LANG_SERVER'",
+                "MAVEN_SERVER":"'$MAVEN_SERVER'"
+                },
+                "status":[ 
+                { 
+                    "name":"install_base_plugins", 
+                    "condition_type":"INSTALL_BASE_PLUGINS", 
+                    "condition_status":"True"
+                } 
+                ], 
+                "exec_status":"Success",
+                "type":"install"
+                }'
+    else
+        log.stdout '{ 
+                "global":{
+                "DNS_SERVER":"'$DNS_SERVER',",
+                "HUB_SERVER":"'$HUB_SERVER',"
+                },
+                "status":[ 
+                { 
+                    "name":"install_base_plugins_manage", 
+                    "condition_type":"INSTALL_BASE_PLUGINS_MANAGE", 
+                    "condition_status":"True"
+                } 
+                ], 
+                "exec_status":"Success",
+                "type":"install"
+                }'
+    fi
 }
 
 case $1 in

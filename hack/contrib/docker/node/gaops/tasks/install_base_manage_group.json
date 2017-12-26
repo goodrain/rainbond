@@ -19,6 +19,7 @@
                     "rainbond_node_rule_manage": "true"
                 }
             },
+            "run_mode":"manyonce",
             "is_once": true
         },
         {
@@ -39,6 +40,7 @@
                 },
                 "depends": []
             },
+            "run_mode":"onlyonce",
             "is_once": true
         },
         {
@@ -50,7 +52,7 @@
                     "cmd": [
                         "bash",
                         "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/plugins/db.sh",
-                        "${REPO_VER}"
+                        "${DB_EXPAND}"
                     ]
                 },
                 "nodes": [],
@@ -64,6 +66,7 @@
                     }
                 ]
             },
+            "run_mode":"onlyonce",
             "is_once": true
         },
         {
@@ -76,7 +79,10 @@
                         "bash",
                         "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/plugins/base.sh",
                         "${REPO_VER}",
-                        "${DOMAIN}"
+                        "${DOMAIN}",
+                        "${RBD_REPO_EXPAND}",
+                        "${LANG_SERVER}",
+                        "${MAVEN_SERVER}"
                     ]
                 },
                 "nodes": [],
@@ -90,6 +96,7 @@
                     }
                 ]
             },
+            "run_mode":"onlyonce",
             "is_once": true
         },
         {
@@ -107,7 +114,7 @@
                         "${DB_PASSWD}",
                         "${DB_HOST}",
                         "${DB_PORT}",
-                        "${HOST_IP}"
+                        "${WORKER_EXPAND}"
                     ]
                 },
                 "nodes": [],
@@ -121,6 +128,7 @@
                     }
                 ]
             },
+            "run_mode":"onlyonce",
             "is_once": true
         },
         {
@@ -147,6 +155,7 @@
                     }
                 ]
             },
+            "run_mode":"onlyonce",
             "is_once": true
         }
     ]
