@@ -20,7 +20,7 @@ package server
 
 import (
 	"fmt"
-
+	"k8s.io/client-go/pkg/api/v1"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/controller"
 	"github.com/goodrain/rainbond/pkg/node/core/job"
@@ -35,6 +35,13 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/node/api"
 	"github.com/goodrain/rainbond/pkg/node/event"
+	"bytes"
+	"os/exec"
+	"encoding/json"
+	"strconv"
+	"strings"
+	"net/http"
+	"io/ioutil"
 )
 
 //Run start run
@@ -80,6 +87,8 @@ func Run(c *option.Conf) error {
 			logrus.Errorf(err.Error())
 			return err
 		}
+		getInfoForMaster(s)
+		ms.Cluster.UpdateNode(s.HostNode)
 		if err := ms.Start(); err != nil {
 			logrus.Errorf(err.Error())
 			return err
@@ -102,4 +111,63 @@ func Run(c *option.Conf) error {
 	logrus.Infof("exit success")
 	logrus.Info("See you next time!")
 	return nil
+}
+func getInfoForMaster(s *nodeserver.NodeServer) {
+	resp, err := http.Get("http://repo.goodrain.com/release/3.4.1/gaops/jobs/cron/check/manage/sys.sh")
+	if err != nil {
+		logrus.Errorf("error get sysinfo script,details %s", err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logrus.Errorf("error get response from sysinfo script,details %s", err.Error())
+		return
+	}
+	cmd := exec.Command("bash","-c", string(b))
+
+	//cmd := exec.Command("bash", "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/tasks/ex_domain.sh")
+	outbuf:=bytes.NewBuffer(nil)
+	cmd.Stderr=outbuf
+	err=cmd.Run()
+	if err != nil {
+		logrus.Infof("err run command ,details %s",err.Error())
+		return
+	}
+	result:=make(map[string]string)
+
+	out:=outbuf.Bytes()
+	logrus.Infof("get system info is %s ",string(out))
+	err=json.Unmarshal(out,&result)
+	if err != nil {
+		logrus.Infof("err unmarshal shell output ,details %s",err.Error())
+		return
+	}
+	s.HostNode.NodeStatus=&v1.NodeStatus{
+		NodeInfo:v1.NodeSystemInfo{
+			KernelVersion:result["KERNEL"],
+			Architecture:result["PLATFORM"],
+			OperatingSystem:result["OS"],
+			KubeletVersion:"N/A",
+		},
+	}
+	if cpuStr,ok:=result["LOGIC_CORES"];ok{
+		if cpu,err:=strconv.Atoi(cpuStr);err==nil{
+			logrus.Infof("server cpu is %v",cpu)
+			s.HostNode.AvailableCPU=int64(cpu)
+			s.HostNode.NodeStatus.Allocatable.Cpu().Set(int64(cpu))
+		}
+	}
+	if memStr,ok:=result["MEMORY"];ok{
+		memStr=strings.Replace(memStr," ","",-1)
+		memStr=strings.Replace(memStr,"G","",-1)
+		memStr=strings.Replace(memStr,"B","",-1)
+		if mem,err:=strconv.Atoi(memStr);err==nil{
+			s.HostNode.AvailableMemory=int64(mem*1024*1024*1024)
+			s.HostNode.NodeStatus.Allocatable.Memory().SetScaled(int64(mem*1024*1024*1024),0)
+		}
+	}
+	s.Update()
+
 }
