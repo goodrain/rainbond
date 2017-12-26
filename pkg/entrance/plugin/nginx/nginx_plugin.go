@@ -840,6 +840,7 @@ func (n *nginxAPI) urlPPAction(method HTTPMETHOD, url string, stream []byte) (*h
 
 func splitUrl(urlstr string) []string {
 	var urls []string
+	logrus.Debugf("urlstr is %s", urlstr)
 	if strings.Contains(urlstr, ",") {
 		urls = strings.Split(urlstr, ",")
 	} else {
