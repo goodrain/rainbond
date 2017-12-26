@@ -449,12 +449,12 @@ func (n *nginxAPI) addDomain(ads *AddDomainS) bool {
 
 func (n *nginxAPI) delDomainNode(ads *AddDomainS) bool {
 	// 添加域名
-	logrus.Debugf("<LBNGINX>[addDomain]del domain:%s, pool_name:%s, update_nodes:%v",
+	logrus.Debugf("<LBNGINX>[delDomain]del domain:%s, pool_name:%s, update_nodes:%v",
 		ads.Domain,
 		ads.PoolName,
 		ads.NodeList)
 	if len(ads.NodeList) == 0 {
-		logrus.Warnf("<LBNGINX>[addDomain]domain %s node is None", ads.Domain)
+		logrus.Warnf("<LBNGINX>[delDomain]domain %s node is None", ads.Domain)
 		return true
 	}
 	logrus.Debugf("domain is %s", ads.Domain)
@@ -464,7 +464,7 @@ func (n *nginxAPI) delDomainNode(ads *AddDomainS) bool {
 		return false
 	}
 	upstream := reUpStream(ads.NodeList)
-	logrus.Debugf("<LBNGINX>[addDomain]post_http, tenant:%s, service:%s, upstream:%s",
+	logrus.Debugf("<LBNGINX>[delDomain]post_http, tenant:%s, service:%s, upstream:%s",
 		p.Tenantname,
 		p.Servicename,
 		upstream)
