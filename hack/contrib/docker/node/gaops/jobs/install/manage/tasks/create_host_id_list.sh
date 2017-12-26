@@ -65,6 +65,14 @@ function write_host_id_list() {
         log.info "add $api_node to host_id_list.conf"
         echo "$api_node;" >> /etc/goodrain/host_id_list.conf
     done
+    log.info "will restart rbd-api"
+    dc-compose restart rbd-api
+    [ $? -ne 0 ] && (
+        dc-compose stop rbd-api
+        cclear
+        dc-compose up -d
+    )
+    #dc-compose ps | grep "rbd-api" | grep -i "up"
 }
 
 function run() {
