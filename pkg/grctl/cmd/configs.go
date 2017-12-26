@@ -16,23 +16,40 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package job
+package cmd
 
 import (
-	client "github.com/coreos/etcd/clientv3"
+	"fmt"
 
-	conf "github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/pkg/node/core/store"
+	"github.com/apcera/termtables"
+	"github.com/goodrain/rainbond/pkg/grctl/clients"
+	"github.com/urfave/cli"
 )
 
-//PutOnce 添加立即执行的任务，只执行一次，执行完成后删除
-//也可以更新job状态。node节点不监听更改事件
-func PutOnce(j *Job) error {
-	_, err := store.DefalutClient.Put(conf.Config.Once+"/"+j.ID, j.String())
-	return err
-}
-
-//WatchOnce 监听任务
-func WatchOnce() client.WatchChan {
-	return store.DefalutClient.Watch(conf.Config.Once, client.WithPrefix())
+//NewCmdConfigs 全局配置相关命令
+func NewCmdConfigs() cli.Command {
+	c := cli.Command{
+		Name:  "configs",
+		Usage: "系统任务相关命令，grctl tasks -h",
+		Subcommands: []cli.Command{
+			cli.Command{
+				Name:  "get",
+				Usage: "get all datacenter configs",
+				Action: func(c *cli.Context) error {
+					configs, err := clients.NodeClient.Configs().Get()
+					if err != nil {
+						return err
+					}
+					taskTable := termtables.CreateTable()
+					taskTable.AddHeaders("Name", "CNName", "ValueType", "Value")
+					for _, config := range configs.Configs {
+						taskTable.AddRow(config.Name, config.CNName, config.ValueType, config.Value)
+					}
+					fmt.Println(taskTable.Render())
+					return nil
+				},
+			},
+		},
+	}
+	return c
 }

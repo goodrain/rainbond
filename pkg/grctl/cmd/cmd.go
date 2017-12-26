@@ -28,28 +28,23 @@ import (
 //GetCmds GetCmds
 func GetCmds() []cli.Command {
 	cmds := []cli.Command{}
-	cmds = append(cmds, NewCmdBatchStop())
-	cmds = append(cmds, NewCmdStartService())
-	cmds = append(cmds, NewCmdStopService())
+	cmds = append(cmds, NewCmdService())
+
 	cmds = append(cmds, NewCmdTenant())
-	cmds = append(cmds, NewCmdTenantRes())
 	cmds = append(cmds, NewCmdNode())
 	cmds = append(cmds, NewCmdNodeRes())
 	cmds = append(cmds, NewCmdExec())
-	cmds = append(cmds, NewCmdLog())
-	cmds = append(cmds, NewCmdEvent())
-	cmds = append(cmds, NewCmdGet())
 	cmds = append(cmds, NewCmdInit())
 	cmds = append(cmds, NewCmdShow())
-	cmds = append(cmds, NewCmdTask())
-	cmds = append(cmds, NewCmdCheckTask())
-	//cmds = append(cmds, NewCmdAddNode())
+
+	//task相关命令
+	cmds = append(cmds, NewCmdTasks())
+	//数据中心配置相关命令
+	cmds = append(cmds, NewCmdConfigs())
 
 	//cmds = append(cmds, NewCmdComputeGroup())
 	cmds = append(cmds, NewCmdInstall())
 	//cmds = append(cmds, NewCmdInstallStatus())
-	cmds = append(cmds, NewCmdAddTask())
-	//cmds = append(cmds, NewCmdStatus())
 
 	cmds = append(cmds, NewCmdDomain())
 

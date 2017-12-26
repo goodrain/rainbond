@@ -55,7 +55,7 @@ func Routers(mode string) *chi.Mux {
 			})
 
 			r.Route("/nodes", func(r chi.Router) {
-				r.Get("/fullres",controller.RegionRes)
+				r.Get("/fullres", controller.RegionRes)
 				r.Get("/resources", controller.Resources)
 				r.Get("/capres", controller.CapRes)
 				r.Get("/", controller.GetNodes)
@@ -67,19 +67,11 @@ func Routers(mode string) *chi.Mux {
 				r.Put("/{node_id}/unschedulable", controller.Cordon)
 				r.Put("/{node_id}/reschedulable", controller.UnCordon)
 				r.Put("/{node_id}/labels", controller.PutLabel)
-				r.Post("/{node_id}/down", controller.DownNode) //节点下线
-				r.Post("/{node_id}/up", controller.UpNode)     //节点上线
-				r.Get("/{node_id}/instance", controller.Instances)     //节点上线
+				r.Post("/{node_id}/down", controller.DownNode)     //节点下线
+				r.Post("/{node_id}/up", controller.UpNode)         //节点上线
+				r.Get("/{node_id}/instance", controller.Instances) //节点上线
 				r.Get("/{node_id}/check", controller.CheckNode)
 
-				//历史API
-				r.Get("/{node}/details", controller.GetNodeDetails)
-				r.Put("/login", controller.LoginCompute)
-				//此处会安装
-				r.Put("/{ip}/init", controller.NodeInit)
-				r.Get("/{ip}/init/status", controller.CheckInitStatus)
-				r.Get("/{ip}/install/status", controller.CheckJobGetStatus)
-				r.Put("/{ip}/install", controller.StartBuildInJobs)
 			})
 
 			//TODO:
@@ -108,12 +100,9 @@ func Routers(mode string) *chi.Mux {
 				r.Post("/{group_id}/exec", controller.ExecTaskGroup)
 				r.Get("/{group_id}/status", controller.GetTaskGroupStatus)
 			})
+			r.Put("/tasks/taskreload", controller.ReloadStaticTasks)
 		}
 	})
-	//重新加载task文件
-	if mode == "master" {
-		r.Put("/-/taskreload", controller.ReloadStaticTasks)
-	}
 	//节点监控
 	r.Get("/metrics", controller.NodeExporter)
 	return r

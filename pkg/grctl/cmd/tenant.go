@@ -27,31 +27,54 @@ import (
 func NewCmdTenant() cli.Command {
 	c:=cli.Command{
 		Name: "tenant",
-		Usage: "获取租户应用（包括未运行）信息。 grctl tenant TENANT_NAME",
-		Action: func(c *cli.Context) error {
-			Common(c)
-			return getTenantInfo(c)
+		Usage: "获取租户应用（包括未运行）信息。 grctl tenant -h",
+		Subcommands:[]cli.Command{
+			cli.Command{
+				Name: "get",
+				Usage: "获取应用运行详细信息。grctl tenant get TENANT_NAME",
+				Action: func(c *cli.Context) error {
+					Common(c)
+					return getTenantInfo(c)
+				},
+			},
+			cli.Command{
+				Name:  "res",
+				Usage: "获取租户占用资源信息。 grctl tenant res TENANT_NAME",
+				Action: func(c *cli.Context) error {
+					Common(c)
+					return findTenantResourceUsage(c)
+				},
+			},
+			cli.Command{
+				Name:  "batchstop",
+				Usage: "批量停止租户应用。grctl tenant batchstop tenant_name",
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "f",
+						Usage: "添加此参数日志持续输出。",
+					},
+					cli.StringFlag{
+						Name:  "event_log_server",
+						Usage: "event log server address",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					Common(c)
+					return stopTenantService(c)
+				},
+			},
 		},
 	}
 	return c
 }
-func NewCmdTenantRes() cli.Command {
-	c:=cli.Command{
-		Name:  "tenantres",
-		Usage: "获取租户占用资源信息。 grctl tenantres TENANT_NAME",
-		Action: func(c *cli.Context) error {
-			Common(c)
-			return findTenantResourceUsage(c)
-		},
-	}
-	return c
-}
+
 
 // grctrl tenant TENANT_NAME
 func getTenantInfo(c *cli.Context) error {
 	tenantID := c.Args().First()
 
-	services:=clients.RegionClient.Tenants().Get(tenantID).Services().List()
+	services,err:=clients.RegionClient.Tenants().Get(tenantID).Services().List()
+	handleErr(err)
 	if services !=nil{
 		table := termtables.CreateTable()
 		table.AddHeaders("租户ID", "服务ID", "服务别名", "应用状态", "Deploy版本")
@@ -68,7 +91,8 @@ func getTenantInfo(c *cli.Context) error {
 }
 func findTenantResourceUsage(c *cli.Context) error  {
 	tenantID := c.Args().First()
-	services:=clients.RegionClient.Tenants().Get(tenantID).Services().List()
+	services,err:=clients.RegionClient.Tenants().Get(tenantID).Services().List()
+	handleErr(err)
 	var cpuUsage float32 =0
 	var cpuUnit float32=1000
 	var memoryUsage int64=0

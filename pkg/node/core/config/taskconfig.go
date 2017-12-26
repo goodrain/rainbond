@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -87,7 +88,12 @@ func GetConfigKey(rk string) string {
 
 //ResettingArray 根据实际配置解析数组字符串
 func ResettingArray(groupCtx *GroupContext, source []string) ([]string, error) {
+	sourcecopy := make([]string, len(source))
+	// 使用copy
 	for i, s := range source {
+		sourcecopy[i] = s
+	}
+	for i, s := range sourcecopy {
 		resultKey := reg.FindAllString(s, -1)
 		for _, rk := range resultKey {
 			key := strings.ToUpper(GetConfigKey(rk))
@@ -95,10 +101,10 @@ func ResettingArray(groupCtx *GroupContext, source []string) ([]string, error) {
 			// 	return nil, fmt.Errorf("%s Parameter configuration error.please make sure `${XXX}`", s)
 			// }
 			value := GetConfig(groupCtx, key)
-			source[i] = strings.Replace(s, rk, value, -1)
+			sourcecopy[i] = strings.Replace(s, rk, value, -1)
 		}
 	}
-	return source, nil
+	return sourcecopy, nil
 }
 
 //GetConfig 获取配置信息
@@ -106,7 +112,37 @@ func GetConfig(groupCtx *GroupContext, key string) string {
 	if groupCtx != nil {
 		value := groupCtx.Get(key)
 		if value != nil {
-			return value.(string)
+			switch value.(type) {
+			case string:
+				if value.(string) != "" {
+					return value.(string)
+				}
+			case int:
+				if value.(int) != 0 {
+					return strconv.Itoa(value.(int))
+				}
+			case []string:
+				if value.([]string) != nil {
+					result := strings.Join(value.([]string), ",")
+					if strings.HasSuffix(result, ",") {
+						return result
+					}
+					return result + ","
+				}
+			case []interface{}:
+				if value.([]interface{}) != nil && len(value.([]interface{})) > 0 {
+					result := ""
+					for _, v := range value.([]interface{}) {
+						switch v.(type) {
+						case string:
+							result += v.(string) + ","
+						case int:
+							result += strconv.Itoa(v.(int)) + ","
+						}
+					}
+					return result
+				}
+			}
 		}
 	}
 	if dataCenterConfig == nil {
@@ -114,7 +150,30 @@ func GetConfig(groupCtx *GroupContext, key string) string {
 	}
 	cn := dataCenterConfig.GetConfig(key)
 	if cn != nil && cn.Value != nil {
-		return cn.Value.(string)
+		if cn.ValueType == "string" || cn.ValueType == "" {
+			return cn.Value.(string)
+		}
+		if cn.ValueType == "array" {
+			switch cn.Value.(type) {
+			case []string:
+				return strings.Join(cn.Value.([]string), ",")
+			case []interface{}:
+				vas := cn.Value.([]interface{})
+				result := ""
+				for _, va := range vas {
+					switch va.(type) {
+					case string:
+						result += va.(string) + ","
+					case int:
+						result += strconv.Itoa(va.(int)) + ","
+					}
+				}
+				return result
+			}
+		}
+		if cn.ValueType == "int" {
+			return strconv.Itoa(cn.Value.(int))
+		}
 	}
 	logrus.Warnf("can not find config for key %s", key)
 	return ""
@@ -136,7 +195,11 @@ func ResettingString(groupCtx *GroupContext, source string) (string, error) {
 
 //ResettingMap 根据实际配置解析Map字符串
 func ResettingMap(groupCtx *GroupContext, source map[string]string) (map[string]string, error) {
-	for k, s := range source {
+	sourcecopy := make(map[string]string, len(source))
+	for k, v := range source {
+		sourcecopy[k] = v
+	}
+	for k, s := range sourcecopy {
 		resultKey := reg.FindAllString(s, -1)
 		for _, rk := range resultKey {
 			key := strings.ToUpper(GetConfigKey(rk))
@@ -144,8 +207,8 @@ func ResettingMap(groupCtx *GroupContext, source map[string]string) (map[string]
 			// 	return nil, fmt.Errorf("%s Parameter configuration error.please make sure `${XXX}`", s)
 			// }
 			value := GetConfig(groupCtx, key)
-			source[k] = strings.Replace(s, rk, value, -1)
+			sourcecopy[k] = strings.Replace(s, rk, value, -1)
 		}
 	}
-	return source, nil
+	return sourcecopy, nil
 }

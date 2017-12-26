@@ -19,22 +19,26 @@
 package cmd
 
 import (
+	"bufio"
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
 	//"github.com/goodrain/rainbond/pkg/grctl/clients"
-	"fmt"
 
-	"time"
-
+	"github.com/goodrain/rainbond/pkg/api/util"
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
+	"github.com/goodrain/rainbond/pkg/node/api/model"
+	coreutil "github.com/goodrain/rainbond/pkg/util"
 )
 
+//NewCmdInit grctl init
 func NewCmdInit() cli.Command {
 	c := cli.Command{
 		Name: "init",
@@ -58,6 +62,11 @@ func NewCmdInit() cli.Command {
 			cli.StringFlag{
 				Name:  "install_type",
 				Usage: "online/offline ,online",
+			},
+			cli.BoolFlag{
+				Name:   "test",
+				Usage:  "use test shell",
+				Hidden: true,
 			},
 		},
 		Usage: "初始化集群。grctl init cluster",
@@ -104,7 +113,11 @@ func NewCmdInstallStatus() cli.Command {
 }
 
 func initCluster(c *cli.Context) error {
-	resp, err := http.Get("http://repo.goodrain.com/gaops/jobs/install/prepare/init.sh")
+	url := "http://repo.goodrain.com/gaops/jobs/install/prepare/init.sh"
+	if c.Bool("test") {
+		url = "http://dev.repo.goodrain.com/gaops/jobs/install/prepare/init.sh"
+	}
+	resp, err := http.Get(url)
 
 	if err != nil {
 		logrus.Errorf("error get init script,details %s", err.Error())
@@ -121,31 +134,96 @@ func initCluster(c *cli.Context) error {
 	} else {
 		arg = ""
 	}
-
-	fmt.Println("begin init cluster,please don't exit,wait install")
+	fmt.Println("begin init cluster first node,please don't exit,wait install")
 	cmd := exec.Command("bash", "-c", arg+string(b))
-	buf := bytes.NewBuffer(nil)
-	cmd.Stderr = buf
-	cmd.Run()
-	out := buf.String()
-	arr := strings.SplitN(out, "{", 2)
-	outJ := "{" + arr[1]
-	jsonStr := strings.TrimSpace(outJ)
-	jsonStr = strings.Replace(jsonStr, "\n", "", -1)
-	jsonStr = strings.Replace(jsonStr, " ", "", -1)
-
-	if strings.Contains(jsonStr, "Success") {
-		fmt.Println("init success，start install")
-	} else {
-		fmt.Println("init failed！")
-		fmt.Println(jsonStr)
-		return nil
+	var buffe bytes.Buffer
+	cmd.Stderr = &buffe
+	stdout, _ := cmd.StdoutPipe()
+	go func() {
+		read := bufio.NewReader(stdout)
+		for {
+			line, _, err := read.ReadLine()
+			if err != nil {
+				return
+			}
+			fmt.Println(string(line))
+		}
+	}()
+	if err := cmd.Run(); err != nil {
+		logrus.Errorf("current node init error,%s", err.Error())
+		return err
 	}
-	time.Sleep(5 * time.Second)
+	//检测并设置init的结果
+	result := buffe.String()
+	index := strings.Index(result, "{")
+	jsonOutPut := result
+	if index > -1 {
+		jsonOutPut = result[index:]
+	}
+	fmt.Println("Result:" + jsonOutPut)
+	output, err := model.ParseTaskOutPut(jsonOutPut)
+	if err != nil {
+		logrus.Errorf("get init current node result error:%s", err.Error())
+		return err
+	}
+	var newConfigs []model.ConfigUnit
+	if output.Global != nil {
+		for k, v := range output.Global {
+			if strings.Index(v, ",") > -1 {
+				values := strings.Split(v, ",")
+				coreutil.Deweight(&values)
+				newConfigs = append(newConfigs, model.ConfigUnit{
+					Name:           strings.ToUpper(k),
+					Value:          values,
+					ValueType:      "array",
+					IsConfigurable: false,
+				})
+			} else {
+				newConfigs = append(newConfigs, model.ConfigUnit{
+					Name:           strings.ToUpper(k),
+					Value:          v,
+					ValueType:      "string",
+					IsConfigurable: false,
+				})
+			}
+		}
+	}
+	var gc *model.GlobalConfig
+	var error *util.APIHandleError
+	for i := 0; i < 10; i++ {
+		time.Sleep(time.Second * 2)
+		gc, error = clients.NodeClient.Configs().Get()
+		if err == nil && gc != nil {
+			for _, nc := range newConfigs {
+				gc.Add(nc)
+			}
+			error = clients.NodeClient.Configs().Put(gc)
+			break
+		}
+	}
+	if error != nil {
+		logrus.Errorf("Update Datacenter configs error,please check node status")
+		return err
+	}
+	//获取当前节点ID
+	hostID, err := coreutil.ReadHostID("")
+	if err != nil {
+		logrus.Errorf("read nodeid error,please check node status")
+		return err
+	}
 
-	Task(c, "check_manage_base_services", false)
-	Task(c, "check_manage_services", false)
-
+	error = clients.NodeClient.Tasks().Exec("check_manage_base_services", []string{hostID})
+	if error != nil {
+		logrus.Errorf("error exec task:%s,details %s", "check_manage_base_services", error.String())
+		return error.Err
+	}
+	error = clients.NodeClient.Tasks().Exec("check_manage_services", []string{hostID})
+	if error != nil {
+		logrus.Errorf("error exec task:%s,details %s", "check_manage_services", error.String())
+		return error.Err
+	}
+	Status("check_manage_base_services", []string{hostID})
+	Status("check_manage_services", []string{hostID})
 	fmt.Println("install manage node success,next you can :")
 	fmt.Println("	add compute node--grctl node add -h")
 	fmt.Println("	install compute node--grctl install compute -h")

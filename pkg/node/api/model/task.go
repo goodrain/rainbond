@@ -31,17 +31,14 @@ type Shell struct {
 
 //TaskTemp 任务模版
 type TaskTemp struct {
-	Name    string            `json:"name" validate:"name|required"`
-	ID      string            `json:"id" validate:"id|uuid"`
-	Shell   Shell             `json:"shell"`
-	Envs    map[string]string `json:"envs,omitempty"`
-	Input   string            `json:"input,omitempty"`
-	Args    []string          `json:"args,omitempty"`
-	Depends []DependStrategy  `json:"depends,omitempty"`
-	Timeout int               `json:"timeout" validate:"timeout|required|numeric"`
-	//OutPutChan
-	//结果输出通道，错误输出OR标准输出
-	OutPutChan string            `json:"out_put_chan" validate:"out_put_chan|required|in:stdout,stderr"`
+	Name       string            `json:"name" validate:"name|required"`
+	ID         string            `json:"id" validate:"id|uuid"`
+	Shell      Shell             `json:"shell"`
+	Envs       map[string]string `json:"envs,omitempty"`
+	Input      string            `json:"input,omitempty"`
+	Args       []string          `json:"args,omitempty"`
+	Depends    []DependStrategy  `json:"depends,omitempty"`
+	Timeout    int               `json:"timeout" validate:"timeout|required|numeric"`
 	CreateTime time.Time         `json:"create_time"`
 	Labels     map[string]string `json:"labels,omitempty"`
 }
@@ -92,7 +89,7 @@ type Task struct {
 	CompleteTime time.Time             `json:"complete_time"`
 	ResultPath   string                `json:"result_path"`
 	EventID      string                `json:"event_id"`
-	IsOnce       bool                  `json:"is_once"`
+	RunMode      string                `json:"run_mode"`
 	OutPut       []*TaskOutPut         `json:"out_put"`
 }
 
@@ -123,7 +120,7 @@ func (t Task) CanBeDelete() bool {
 		return true
 	}
 	for _, v := range t.Status {
-		if v.Status == "exec" {
+		if v.Status != "create" {
 			return false
 		}
 	}
@@ -184,7 +181,8 @@ type TaskStatus struct {
 	TakeTime     int       `json:"take_time"`
 	CompleStatus string    `json:"comple_status"`
 	//脚本退出码
-	ShellCode int `json:"shell_code"`
+	ShellCode int    `json:"shell_code"`
+	Message   string `json:"message,omitempty"`
 }
 
 //TaskGroup 任务组
@@ -207,7 +205,7 @@ func (t TaskGroup) CanBeDelete() bool {
 		return true
 	}
 	for _, v := range t.Status.TaskStatus {
-		if v.Status == "exec" {
+		if v.Status != "create" {
 			return false
 		}
 	}

@@ -19,6 +19,8 @@
 package controller
 
 import (
+	"net/http"
+
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/core/config"
 	"github.com/goodrain/rainbond/pkg/node/core/service"
@@ -51,4 +53,9 @@ func Exist(i interface{}) {
 	if datacenterConfig != nil {
 		datacenterConfig.Stop()
 	}
+}
+
+//Ping Ping
+func Ping(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
 }
