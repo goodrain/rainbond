@@ -385,10 +385,10 @@ func (t *TenantServicePluginRelationDaoImpl) DeleteRelationByServiceIDAndPluginI
 		serviceID).Delete(relation).Error
 }
 
-//CheckSomeModelPluginByServiceID 检查是否绑定了某种插件
+//CheckSomeModelPluginByServiceID 检查是否绑定了某种插件且处于启用状态
 func (t *TenantServicePluginRelationDaoImpl) CheckSomeModelPluginByServiceID(serviceID, pluginModel string) (bool, error) {
 	var relations []*model.TenantServicePluginRelation
-	if err := t.DB.Where("service_id=? and plugin_model=?", serviceID, pluginModel).Find(&relations).Error; err != nil {
+	if err := t.DB.Where("service_id=? and plugin_model=? and switch=1", serviceID, pluginModel).Find(&relations).Error; err != nil {
 		return false, err
 	}
 	if len(relations) == 1 {
