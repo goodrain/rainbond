@@ -158,7 +158,8 @@ func NewCmdTasks() cli.Command {
 						fmt.Println("Please specified nodeid use `-n`")
 					}
 					err := clients.NodeClient.Tasks().Exec(taskID, []string{nodeID})
-					return err
+					handleErr(err)
+					return nil
 				},
 			},
 		},
