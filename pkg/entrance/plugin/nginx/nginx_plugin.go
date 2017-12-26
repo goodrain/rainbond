@@ -40,6 +40,7 @@ func init() {
 	plugin.RegistPluginOptionCheck("nginx", Check)
 }
 
+//New New
 func New(ctx plugin.Context) (plugin.Plugin, error) {
 	n := &nginxAPI{
 		ctx: ctx,
@@ -65,6 +66,7 @@ func checkURLS(s string, errs string) error {
 	return nil
 }
 
+//Check Check
 func Check(ctx plugin.Context) error {
 	errMsg := "Nginx httpapi can not be empty, Eg: http://10.12.23.11:10002,http://10.12.23.12:10002"
 	for k, v := range ctx.Option {
@@ -72,15 +74,13 @@ func Check(ctx plugin.Context) error {
 		case "httpapi":
 			if v == "" {
 				return errors.New(errMsg)
-			} else {
-				checkURLS(v, errMsg)
 			}
+			checkURLS(v, errMsg)
 		case "streamapi":
 			if v == "" {
 				return errors.New(errMsg)
-			} else {
-				checkURLS(v, errMsg)
 			}
+			checkURLS(v, errMsg)
 		}
 	}
 	return nil
@@ -332,6 +332,7 @@ type nginxAPI struct {
 	client *http.Client
 }
 
+//NginxError NginxError
 type NginxError struct {
 	Code    int
 	Message string
@@ -345,6 +346,7 @@ func (e *NginxError) Error() string {
 	return e.Message
 }
 
+//Err Err
 func Err(err error, msg string, code int) error {
 	if err == nil {
 		return nil
@@ -746,7 +748,7 @@ func (n *nginxAPI) drainPool(dps *DrainPoolS) bool {
 }
 
 func (n *nginxAPI) pHTTPDomain(domain string, p *MethodHTTPArgs) {
-	for _, baseURL := range splitUrl(n.ctx.Option["httpapi"]) {
+	for _, baseURL := range splitURL(n.ctx.Option["httpapi"]) {
 		url := fmt.Sprintf("%s/server/%s", baseURL, domain)
 		logrus.Debugf("phttpdomain url is %s, method is %v", url, p.Method)
 		resp, err := n.urlPPAction(p.Method, url, p.UpStream)
@@ -758,7 +760,7 @@ func (n *nginxAPI) pHTTPDomain(domain string, p *MethodHTTPArgs) {
 }
 
 func (n *nginxAPI) pUpStreamServer(p *MethodHTTPArgs) {
-	for _, baseURL := range splitUrl(n.ctx.Option["streamapi"]) {
+	for _, baseURL := range splitURL(n.ctx.Option["streamapi"]) {
 		url := fmt.Sprintf("%s/upstream/server/%s/%s/%s", baseURL, p.PoolName.Port, p.PoolName.Servicename, p.PoolName.Tenantname)
 		logrus.Debug("pupstreamserver url is %s, method is %v", url, p.Method)
 		resp, err := n.urlPPAction(p.Method, url, p.UpStream)
@@ -770,7 +772,7 @@ func (n *nginxAPI) pUpStreamServer(p *MethodHTTPArgs) {
 }
 
 func (n *nginxAPI) pUpStreamDomainServer(p *MethodHTTPArgs) {
-	for _, baseURL := range splitUrl(n.ctx.Option["streamapi"]) {
+	for _, baseURL := range splitURL(n.ctx.Option["streamapi"]) {
 		url := fmt.Sprintf("%s/upstream/server/%s", baseURL, p.Domain)
 		logrus.Debug("pupstreamserver url is %s, method is %v", url, p.Method)
 		resp, err := n.urlPPAction(p.Method, url, p.UpStream)
@@ -782,7 +784,7 @@ func (n *nginxAPI) pUpStreamDomainServer(p *MethodHTTPArgs) {
 }
 
 func (n *nginxAPI) pUpStreamStream(p *MethodHTTPArgs) {
-	for _, baseURL := range splitUrl(n.ctx.Option["streamapi"]) {
+	for _, baseURL := range splitURL(n.ctx.Option["streamapi"]) {
 		url := fmt.Sprintf("%s/upstream/stream/%s", baseURL, p.UpStreamName)
 		logrus.Debugf("pupstreamstream url is %s, method is %v", url, p.Method)
 		resp, err := n.urlPPAction(p.Method, url, p.UpStream)
@@ -794,7 +796,7 @@ func (n *nginxAPI) pUpStreamStream(p *MethodHTTPArgs) {
 }
 
 func (n *nginxAPI) pStream(p *MethodHTTPArgs) {
-	for _, baseURL := range splitUrl(n.ctx.Option["streamapi"]) {
+	for _, baseURL := range splitURL(n.ctx.Option["streamapi"]) {
 		url := fmt.Sprintf("%s/stream/%s/%s", baseURL, p.UpStreamName, p.PoolName.Port)
 		logrus.Debugf("pupstream url is %s, method is %v", url, p.Method)
 		resp, err := n.urlPPAction(p.Method, url, p.UpStream)
@@ -806,7 +808,7 @@ func (n *nginxAPI) pStream(p *MethodHTTPArgs) {
 }
 
 func (n *nginxAPI) pHTTP(p *MethodHTTPArgs) {
-	for _, baseURL := range splitUrl(n.ctx.Option["httpapi"]) {
+	for _, baseURL := range splitURL(n.ctx.Option["httpapi"]) {
 		url := fmt.Sprintf("%s/server/%s/%s/%s", baseURL, p.PoolName.Port, p.PoolName.Servicename, p.PoolName.Tenantname)
 		logrus.Debugf("phttp url is %s, method is %v", url, p.Method)
 		resp, err := n.urlPPAction(p.Method, url, p.UpStream)
@@ -825,7 +827,7 @@ func (n *nginxAPI) urlPPAction(method HTTPMETHOD, url string, stream []byte) (*h
 		hr := &http.Response{
 			Status: "500",
 		}
-		return hr, errors.New("create new request failed.")
+		return hr, fmt.Errorf("create new request failed")
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := n.client.Do(req)
@@ -833,15 +835,17 @@ func (n *nginxAPI) urlPPAction(method HTTPMETHOD, url string, stream []byte) (*h
 		hr := &http.Response{
 			Status: "500",
 		}
-		return hr, errors.New("client do failed.")
+		return hr, fmt.Errorf("client do failed")
 	}
 	return resp, nil
 }
 
-func splitUrl(urlstr string) []string {
+func splitURL(urlstr string) []string {
 	var urls []string
 	logrus.Debugf("urlstr is %s", urlstr)
-	if strings.Contains(urlstr, ",") {
+	if strings.Contains(urlstr, ";") {
+		urls = strings.Split(urlstr, ";")
+	} else if strings.Contains(urlstr, ",") {
 		urls = strings.Split(urlstr, ",")
 	} else {
 		urls = append(urls, urlstr)
