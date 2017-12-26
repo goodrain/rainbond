@@ -41,7 +41,7 @@ import (
 
 func handleErr(err *util.APIHandleError) {
 	if err != nil && err.Err != nil {
-		fmt.Println(err.String())
+		fmt.Printf("code:%v,msg:%v\n",err.Code,err.String())
 		os.Exit(1)
 	}
 }

@@ -371,7 +371,7 @@ func HandleTaskStatus(task string) (*TaskStatus, error) {
 
 //Request Request
 func (r *RNodeClient) Request(url, method string, body []byte) ([]byte, int, error) {
-	//logrus.Infof("requesting url: %s by method :%s,and body is ",r.NodeAPI+url,method,string(body))
+	//logrus.Infof("requesting url: %s by method :%s,and body is %s",r.NodeAPI+url,method,string(body))
 	request, err := http.NewRequest(method, "http://127.0.0.1:6100/v2"+url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, 500, err
@@ -383,9 +383,12 @@ func (r *RNodeClient) Request(url, method string, body []byte) ([]byte, int, err
 		return nil, 500, err
 	}
 	data, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, 500, err
+	}
 	defer res.Body.Close()
 	//logrus.Infof("response is %s,response code is %d",string(data),res.StatusCode)
-	return data, res.StatusCode, err
+	return data, res.StatusCode, nil
 }
 func (r *RNodeClient) handleErrAndCode(err error, code int) *util.APIHandleError {
 	if err != nil {
