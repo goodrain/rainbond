@@ -166,8 +166,12 @@ func (n *NodeCluster) GetNode(id string) *model.HostNode {
 			} else {
 				node.Status = "schedulable"
 			}
-			node.AvailableCPU = node.NodeStatus.Allocatable.Cpu().Value()
-			node.AvailableMemory = node.NodeStatus.Allocatable.Memory().Value()
+			if node.AvailableCPU == 0 {
+				node.AvailableCPU = node.NodeStatus.Allocatable.Cpu().Value()
+			}
+			if node.AvailableMemory == 0 {
+				node.AvailableMemory = node.NodeStatus.Allocatable.Memory().Value()
+			}
 		}
 
 		return node
@@ -439,8 +443,12 @@ func (n *NodeCluster) GetAllNode() (nodes []*model.HostNode) {
 			} else {
 				node.Status = "schedulable"
 			}
-			node.AvailableCPU = node.NodeStatus.Allocatable.Cpu().Value()
-			node.AvailableMemory = node.NodeStatus.Allocatable.Memory().Value()
+			if node.AvailableCPU == 0 {
+				node.AvailableCPU = node.NodeStatus.Allocatable.Cpu().Value()
+			}
+			if node.AvailableMemory == 0 {
+				node.AvailableMemory = node.NodeStatus.Allocatable.Memory().Value()
+			}
 		}
 		nodes = append(nodes, node)
 	}
