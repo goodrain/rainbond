@@ -395,7 +395,7 @@ func (r *RNodeClient) handleErrAndCode(err error, code int) *util.APIHandleError
 		return util.CreateAPIHandleError(code, err)
 	}
 	if code != 200 {
-		return util.CreateAPIHandleError(code, fmt.Errorf("error with code %d", code))
+		return util.CreateAPIHandleError(code, fmt.Errorf("error with code %d,details %s", code,err.Error()))
 	}
 	return nil
 }
