@@ -191,37 +191,37 @@ func (n *node) Add(node *model.APIHostNode) *util.APIHandleError {
 	if err != nil {
 		return util.CreateAPIHandleError(400, err)
 	}
-	_, code, err := n.client.Request(n.prefix, "POST", body)
-	return n.client.handleErrAndCode(err, code)
+	resp, code, err := n.client.Request(n.prefix, "POST", body)
+	return n.client.handleErrAndCodeWithMsg(resp,err, code)
 }
 func (n *node) Label(nid string, label map[string]string) *util.APIHandleError {
 	body, err := json.Marshal(label)
 	if err != nil {
 		return util.CreateAPIHandleError(400, err)
 	}
-	_, code, err := n.client.Request(n.prefix+"/"+nid+"/labels", "PUT", body)
-	return n.client.handleErrAndCode(err, code)
+	resp, code, err := n.client.Request(n.prefix+"/"+nid+"/labels", "PUT", body)
+	return n.client.handleErrAndCodeWithMsg(resp,err, code)
 }
 
 func (n *node) Delete(nid string) *util.APIHandleError {
-	_, code, err := n.client.Request(n.prefix+"/"+nid, "DELETE", nil)
-	return n.client.handleErrAndCode(err, code)
+	resp, code, err := n.client.Request(n.prefix+"/"+nid, "DELETE", nil)
+	return n.client.handleErrAndCodeWithMsg(resp,err, code)
 }
 func (n *node) Up(nid string) *util.APIHandleError {
-	_, code, err := n.client.Request(n.prefix+"/"+nid+"/up", "POST", nil)
-	return n.client.handleErrAndCode(err, code)
+	resp, code, err := n.client.Request(n.prefix+"/"+nid+"/up", "POST", nil)
+	return n.client.handleErrAndCodeWithMsg(resp,err, code)
 }
 func (n *node) Down(nid string) *util.APIHandleError {
-	_, code, err := n.client.Request(n.prefix+"/"+nid+"/down", "POST", nil)
-	return n.client.handleErrAndCode(err, code)
+	resp, code, err := n.client.Request(n.prefix+"/"+nid+"/down", "POST", nil)
+	return n.client.handleErrAndCodeWithMsg(resp,err, code)
 }
 func (n *node) UnSchedulable(nid string) *util.APIHandleError {
-	_, code, err := n.client.Request(n.prefix+"/"+nid+"/unschedulable", "PUT", nil)
-	return n.client.handleErrAndCode(err, code)
+	resp, code, err := n.client.Request(n.prefix+"/"+nid+"/unschedulable", "PUT", nil)
+	return n.client.handleErrAndCodeWithMsg(resp,err, code)
 }
 func (n *node) ReSchedulable(nid string) *util.APIHandleError {
-	_, code, err := n.client.Request(n.prefix+"/"+nid+"/reschedulable", "PUT", nil)
-	return n.client.handleErrAndCode(err, code)
+	resp, code, err := n.client.Request(n.prefix+"/"+nid+"/reschedulable", "PUT", nil)
+	return n.client.handleErrAndCodeWithMsg(resp,err, code)
 }
 
 func (t *task) Get(id string) (*model.Task, *util.APIHandleError) {
@@ -281,28 +281,28 @@ func (t *task) Exec(taskID string, nodes []string) *util.APIHandleError {
 		return util.CreateAPIHandleError(400, err)
 	}
 	url := t.prefix + "/" + taskID + "/exec"
-	_, code, err := nodeclient.Request(url, "POST", body)
-	return t.client.handleErrAndCode(err, code)
+	resp, code, err := nodeclient.Request(url, "POST", body)
+	return t.client.handleErrAndCodeWithMsg(resp,err, code)
 }
 func (t *task) Add(task *model.Task) *util.APIHandleError {
 
 	body, _ := json.Marshal(task)
 	url := t.prefix
-	_, code, err := nodeclient.Request(url, "POST", body)
-	return t.client.handleErrAndCode(err, code)
+	resp, code, err := nodeclient.Request(url, "POST", body)
+	return t.client.handleErrAndCodeWithMsg(resp,err, code)
 }
 func (t *task) AddGroup(group *model.TaskGroup) *util.APIHandleError {
 	body, _ := json.Marshal(group)
 	url := "/taskgroups"
-	_, code, err := nodeclient.Request(url, "POST", body)
-	return t.client.handleErrAndCode(err, code)
+	resp, code, err := nodeclient.Request(url, "POST", body)
+	return t.client.handleErrAndCodeWithMsg(resp,err, code)
 }
 
 //Refresh 刷新静态配置
 func (t *task) Refresh() *util.APIHandleError {
 	url := t.prefix + "/taskreload"
-	_, code, err := nodeclient.Request(url, "PUT", nil)
-	return t.client.handleErrAndCode(err, code)
+	resp, code, err := nodeclient.Request(url, "PUT", nil)
+	return t.client.handleErrAndCodeWithMsg(resp,err, code)
 }
 
 type TaskStatus struct {
@@ -396,6 +396,15 @@ func (r *RNodeClient) handleErrAndCode(err error, code int) *util.APIHandleError
 	}
 	if code != 200 {
 		return util.CreateAPIHandleError(code, fmt.Errorf("error with code %d", code))
+	}
+	return nil
+}
+func (r *RNodeClient) handleErrAndCodeWithMsg(resp []byte,err error, code int) *util.APIHandleError {
+	if err != nil {
+		return util.CreateAPIHandleError(code, err)
+	}
+	if code != 200 {
+		return util.CreateAPIHandleError(code, fmt.Errorf("error with code %d , %s" , code,string(resp)))
 	}
 	return nil
 }
