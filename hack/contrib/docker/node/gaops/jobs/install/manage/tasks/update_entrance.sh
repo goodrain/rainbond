@@ -26,7 +26,7 @@ ADD_EN_IP=$(echo $ENTRANCE_IP | tr ',' '\n' | grep -v $LOCAL_IP | sort -u | xarg
 
 log.info "need add othor entrance ip: $ADD_EN_IP"
 
-OLD_EN_IP=$(cat /etc/goodrain/docker-compose.yaml | grep "api=" | awk -F '=' '{print $3}' | uniq | tr ',' '\n' | awk -F '[:/]' '{print $4}' | grep -v '127.0.0.1' | xargs | tr ' ' ',')
+OLD_EN_IP=$(cat /etc/goodrain/docker-compose.yaml | grep "api=" | awk -F '=' '{print $3}' | uniq | tr ';' '\n' | awk -F '[:/]' '{print $4}' | grep -v '127.0.0.1' | xargs | tr ' ' ',')
 
 function check_config() {
     dest_md5=$(echo $ADD_EN_IP | tr ',' '\n' | sort -u | xargs | md5sum | awk '{print $1}')
@@ -56,12 +56,13 @@ function compose::config_update() {
 
 function write_entrance_config() {
     log.info "write_entrance_config"
-    ENTRANCE_NODE=()
+    #ENTRANCE_NODE=()
     for entrance_node in $(echo $ADD_EN_IP | tr ',' ' ' | sort -u)
     do
-        ENTRANCE_INFO=",http://$entrance_node:10002"
-        ENTRANCE_NODE+=($ENTRANCE_INFO)
+        ENTRANCE_INFO=";http://$entrance_node:10002"
+        echo "$ENTRANCE_INFO" >> /tmp/entrance
     done
+    ENTRANCE_NODE=$(cat /tmp/entrance | sort -u | xargs | tr -d " ")
         compose::config_update << EOF
 services:
   rbd-entrance:
@@ -85,6 +86,8 @@ services:
       - --log-level=info
 EOF
     dc-compose up -d
+
+    rm -rf /tmp/entrance
 }
 
 function run() {
