@@ -165,12 +165,24 @@ function proc::restart(){
     return 0
 }
 
+function add_user() {
+    grep rain /etc/group >/dev/null 2>&1 || groupadd -g 200 rain
+    id rain >/dev/null 2>&1 || (
+        useradd -m -s /bin/bash -u 200 -g 200 rain
+        echo "rain ALL = (root) NOPASSWD:ALL" > /etc/sudoers.d/rain
+        chmod 0440 /etc/sudoers.d/rain
+    )
+    log.info "add_user ok"
+}
+
 function prepare() {
     log.info "RBD: install basic service: docker"
     [ -d "/etc/goodrain/envs" ] || mkdir -p /etc/goodrain/envs
     [ -d "/root/.docker" ] || mkdir -p /root/.docker
     [ -f "/root/.docker/config.json" ] || echo "{}" >> /root/.docker/config.json
     log.info "prepare docker..."
+    log.info "add rain user"
+    add_user
 }
 
 function write_docker_config() {

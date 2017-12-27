@@ -320,8 +320,14 @@ function run() {
 
     proxy
 
-    dc-compose ps | grep "proxy" > /dev/null
-    if [ $? -eq 0 ];then
+    _EXIT=1
+    for ((i=1;i<=3;i++ )); do
+        sleep 3
+        log.info "retry $i get rbd-proxy "
+        dc-compose ps | grep "proxy" && export _EXIT=0 && break
+    done
+    
+    if [ $_EXIT -eq 0 ];then
         log.stdout '{
                 "status":[ 
                 { 
