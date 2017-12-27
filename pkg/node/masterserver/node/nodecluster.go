@@ -196,6 +196,7 @@ func (n *NodeCluster) loadAndWatchNodes() error {
 			if !node.Alived {
 				node.Alived = true
 				node.UpTime = time.Now()
+				n.UpdateNode(node)
 			}
 		}
 	}
@@ -226,15 +227,16 @@ func (n *NodeCluster) loadAndWatchNodes() error {
 						if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
 							node.Alived = true
 							node.UpTime = time.Now()
-							RegToHost(node, "add")
+							//getInfoForMaster(node)
 							n.UpdateNode(node)
+							RegToHost(node, "add")
 						}
 					case ev.Type == client.EventTypeDelete:
 						if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
 							node.Alived = false
 							node.DownTime = time.Now()
-							RegToHost(node, "del")
 							n.UpdateNode(node)
+							RegToHost(node, "del")
 						}
 					}
 				}

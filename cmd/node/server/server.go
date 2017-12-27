@@ -87,7 +87,9 @@ func Run(c *option.Conf) error {
 			logrus.Errorf(err.Error())
 			return err
 		}
-		getInfoForMaster(s)
+		if !s.HostNode.Role.HasRule("compute"){
+			getInfoForMaster(s)
+		}
 		ms.Cluster.UpdateNode(s.HostNode)
 		if err := ms.Start(); err != nil {
 			logrus.Errorf(err.Error())
