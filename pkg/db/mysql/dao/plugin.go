@@ -336,11 +336,11 @@ func (t *PluginVersionEnvDaoImpl) GetVersionEnvByServiceID(serviceID string, plu
 
 //GetVersionEnvByEnvName GetVersionEnvByEnvName
 func (t *PluginVersionEnvDaoImpl) GetVersionEnvByEnvName(serviceID, pluginID, envName string) (*model.TenantPluginVersionEnv, error) {
-	var env *model.TenantPluginVersionEnv
+	var env model.TenantPluginVersionEnv
 	if err := t.DB.Where("service_id=? and plugin_id=? and env_name=?", serviceID, pluginID, envName).Find(&env).Error; err != nil {
 		return nil, err
 	}
-	return env, nil
+	return &env, nil
 }
 
 //TenantServicePluginRelationDaoImpl TenantServicePluginRelationDaoImpl

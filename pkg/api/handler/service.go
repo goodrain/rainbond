@@ -1899,7 +1899,7 @@ func (s *ServiceAction) upNormalEnvs(uve *api_model.SetVersionEnv) *util.APIHand
 		uve.PluginID,
 		uve.Body.ConfigEnvs.NormalEnvs[0].EnvName)
 	if err != nil {
-		return util.CreateAPIHandleErrorFromDBError("update get version env", err)
+		return util.CreateAPIHandleErrorFromDBError("get version env", err)
 	}
 	env.EnvValue = uve.Body.ConfigEnvs.NormalEnvs[0].EnvValue
 	if err := db.GetManager().TenantPluginVersionENVDao().UpdateModel(env); err != nil {
