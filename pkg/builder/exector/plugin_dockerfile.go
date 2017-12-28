@@ -143,7 +143,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config
 		logrus.Errorf("update version error, %v", err)
 		return err
 	}
-	logger.Info("从dockerfile构建插件完成", map[string]string{"step": "builder-exector"})
+	logger.Info("从dockerfile构建插件完成", map[string]string{"step": "last", "status": "success"})
 	return nil
 }
 
