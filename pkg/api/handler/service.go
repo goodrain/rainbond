@@ -1598,7 +1598,7 @@ func (s *ServiceAction) GetPods(serviceID string) ([]*dbmodel.K8sPod, error) {
 }
 
 //TransServieToDelete trans service info to delete table
-func (s *ServiceAction) TransServieToDelete(tenantID, serviceID string) error {
+func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	status, err := db.GetManager().TenantServiceStatusDao().GetTenantServiceStatus(serviceID)
 	if err != nil {
 		return err
@@ -1703,7 +1703,8 @@ func (s *ServiceAction) TransServieToDelete(tenantID, serviceID string) error {
 		}
 	}
 	//TODO: 删除plugin etcd资源
-	prefixK := fmt.Sprintf("/resources/define/%s/%s", tenantID, serviceID)
+	prefixK := fmt.Sprintf("/resources/define/%s/%s", service.TenantID, serviceID)
+	logrus.Debugf("prefix is %s", prefixK)
 	_, err = s.EtcdCli.Delete(context.TODO(), prefixK, clientv3.WithPrefix())
 	if err != nil {
 		logrus.Errorf("delete prefix %s from etcd error, %v", prefixK, err)

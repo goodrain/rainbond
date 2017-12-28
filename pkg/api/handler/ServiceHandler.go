@@ -60,7 +60,7 @@ type ServiceHandler interface {
 	CreateTenant(*dbmodel.Tenants) error
 	CreateTenandIDAndName(eid string) (string, string, error)
 	GetPods(serviceID string) ([]*dbmodel.K8sPod, error)
-	TransServieToDelete(tenantID, serviceID string) error
+	TransServieToDelete(serviceID string) error
 	TenantServiceDeletePluginRelation(serviceID, pluginID string) *util.APIHandleError
 	GetTenantServicePluginRelation(serviceID string) ([]*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
 	SetTenantServicePluginRelation(tenantID, serviceID string, pss *api_model.PluginSetStruct) *util.APIHandleError
