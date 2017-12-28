@@ -1297,8 +1297,9 @@ func (t *TenantStruct) deletePortController(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	var port = &api_model.TenantServicesPort{
-		TenantID:  tenantID,
-		ServiceID: serviceID,
+		TenantID:      tenantID,
+		ServiceID:     serviceID,
+		ContainerPort: oldPort,
 	}
 	var ports api_model.ServicePorts
 	ports.Port = append(ports.Port, port)
