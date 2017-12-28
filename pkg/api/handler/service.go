@@ -1703,7 +1703,7 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 		}
 	}
 	//TODO: 删除plugin etcd资源
-	prefixK := fmt.Sprintf("/resources/define/%s/%s", service.TenantID, serviceID)
+	prefixK := fmt.Sprintf("/resources/define/%s/%s", service.TenantID, service.ServiceAlias)
 	logrus.Debugf("prefix is %s", prefixK)
 	_, err = s.EtcdCli.Delete(context.TODO(), prefixK, clientv3.WithPrefix())
 	if err != nil {
