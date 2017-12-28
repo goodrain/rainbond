@@ -276,7 +276,7 @@ type PluginVersionEnvDaoImpl struct {
 func (t *PluginVersionEnvDaoImpl) AddModel(mo model.Interface) error {
 	env := mo.(*model.TenantPluginVersionEnv)
 	var oldENV model.TenantPluginVersionEnv
-	if ok := t.DB.Where("plugin_id=? and env_name = ?", env.PluginID, env.EnvName).Find(&oldENV).RecordNotFound(); ok {
+	if ok := t.DB.Where("service_id=? and plugin_id=? and env_name = ?", env.ServiceID, env.PluginID, env.EnvName).Find(&oldENV).RecordNotFound(); ok {
 		if err := t.DB.Create(env).Error; err != nil {
 			return err
 		}
