@@ -889,18 +889,24 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 					dbmodel.UpNetPlugin,
 					oldPort,
 				)
+				goon := true
 				if err != nil {
-					logrus.Errorf("get plugin mapping port error:(%s)", err)
-					tx.Rollback()
-					return err
+					if strings.Contains(err.Error(), "record not found") {
+						goon = false
+					} else {
+						logrus.Errorf("get plugin mapping port error:(%s)", err)
+						tx.Rollback()
+						return err
+					}
 				}
-				pluginPort.ContainerPort = vp.ContainerPort
-				if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).UpdateModel(pluginPort); err != nil {
-					logrus.Errorf("update plugin mapping port error:(%s)", err)
-					tx.Rollback()
-					return err
+				if goon {
+					pluginPort.ContainerPort = vp.ContainerPort
+					if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).UpdateModel(pluginPort); err != nil {
+						logrus.Errorf("update plugin mapping port error:(%s)", err)
+						tx.Rollback()
+						return err
+					}
 				}
-
 			}
 		}
 		if err := tx.Commit().Error; err != nil {
@@ -1592,7 +1598,7 @@ func (s *ServiceAction) GetPods(serviceID string) ([]*dbmodel.K8sPod, error) {
 }
 
 //TransServieToDelete trans service info to delete table
-func (s *ServiceAction) TransServieToDelete(serviceID string) error {
+func (s *ServiceAction) TransServieToDelete(tenantID, serviceID string) error {
 	status, err := db.GetManager().TenantServiceStatusDao().GetTenantServiceStatus(serviceID)
 	if err != nil {
 		return err
@@ -1676,6 +1682,33 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 			tx.Rollback()
 			return err
 		}
+	}
+	//TODO: 如果有关联过插件，需要删除该插件相关配置及资源
+	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteALLRelationByServiceID(serviceID); err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			tx.Rollback()
+			return err
+		}
+	}
+	if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteAllPluginMappingPortByServiceID(serviceID); err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			tx.Rollback()
+			return err
+		}
+	}
+	if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByServiceID(serviceID); err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			tx.Rollback()
+			return err
+		}
+	}
+	//TODO: 删除plugin etcd资源
+	prefixK := fmt.Sprintf("/resources/define/%s/%s", tenantID, serviceID)
+	_, err = s.EtcdCli.Delete(context.TODO(), prefixK, clientv3.WithPrefix())
+	if err != nil {
+		logrus.Errorf("delete prefix %s from etcd error, %v", prefixK, err)
+		tx.Rollback()
+		return err
 	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
