@@ -53,7 +53,7 @@ func (c *EventDaoImpl) UpdateModel(mo model.Interface) error {
 		finalUpdateEvent(result, &oldResult)
 		oldB, _ := json.Marshal(oldResult)
 		logrus.Infof("update event to %s", string(oldB))
-		if err := c.DB.Save(oldResult).Error; err != nil {
+		if err := c.DB.Save(&oldResult).Error; err != nil {
 			return err
 		}
 	}

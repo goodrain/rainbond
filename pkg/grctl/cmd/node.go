@@ -41,7 +41,7 @@ import (
 
 func handleErr(err *util.APIHandleError) {
 	if err != nil && err.Err != nil {
-		fmt.Printf("code:%v,msg:%v\n",err.Code,err.String())
+		fmt.Printf("%v\n",err.String())
 		os.Exit(1)
 	}
 }
@@ -171,14 +171,14 @@ func NewCmdNode() cli.Command {
 					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Alived", "Schedulable", "Ready")
 					var rest []*model.HostNode
 					for _, v := range list {
-						var ready bool = false
-						if v.NodeStatus != nil {
-							ready = true
+						var ready bool=false
+						if isNodeReady(v){
+							ready=true
 						}
 						if v.Role.HasRule("manage") {
-							handleStatus(serviceTable, ready, v)
-						} else {
-							rest = append(rest, v)
+							handleStatus(serviceTable,ready,v)
+						}else{
+							rest=append(rest,v)
 						}
 					}
 					if len(rest) > 0 {

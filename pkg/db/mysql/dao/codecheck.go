@@ -38,7 +38,7 @@ func (c *CodeCheckResultDaoImpl) AddModel(mo model.Interface) error {
 		fmt.Errorf("codecheck result is exist")
 		update(result, &oldResult)
 
-		if err := c.DB.Save(oldResult).Error; err != nil {
+		if err := c.DB.Save(&oldResult).Error; err != nil {
 			return err
 		}
 		return nil
@@ -52,7 +52,7 @@ func (c *CodeCheckResultDaoImpl) UpdateModel(mo model.Interface) error {
 	var oldResult model.CodeCheckResult
 	if ok := c.DB.Where("service_id=?", result.ServiceID).Find(&oldResult).RecordNotFound(); !ok {
 		update(result, &oldResult)
-		if err := c.DB.Save(oldResult).Error; err != nil {
+		if err := c.DB.Save(&oldResult).Error; err != nil {
 			return err
 		}
 	}
