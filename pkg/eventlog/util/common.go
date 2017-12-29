@@ -113,6 +113,11 @@ var rex *regexp.Regexp
 
 //Format 格式化处理监控数据
 func Format(source map[string]gjson.Result) map[string]interface{} {
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Warnf("error deal with source msg %v",source)
+		}
+	}()
 	if rex == nil {
 		var err error
 		rex, err = regexp.Compile(`\d+\.\d{3,}`)
