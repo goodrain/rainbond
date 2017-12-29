@@ -191,9 +191,10 @@ func (m *Manager) restartExec(task *model.Task) int {
 		return 0
 	}
 	if curStatus == status.CLOSED {
-		logger.Info("应用已关闭，请直接启动应用", map[string]string{"step": "last", "status": "success"})
-		event.GetManager().ReleaseLogger(logger)
-		return 0
+		//logger.Info("应用已关闭，请直接启动应用", map[string]string{"step": "last", "status": "success"})
+		logger.Info("应用已关闭，开始重启操作", map[string]string{"step": "worker-handle", "status": "success"})
+		//event.GetManager().ReleaseLogger(logger)
+		//return 0
 	}
 	if curStatus == status.UNDEPLOY {
 		logger.Info("应用未部署，无法进行重启", map[string]string{"step": "last", "status": "success"})
