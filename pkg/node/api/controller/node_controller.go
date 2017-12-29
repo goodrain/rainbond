@@ -289,7 +289,7 @@ func Resource(w http.ResponseWriter, r *http.Request) {
 
 		memLimit += lm
 
-//		logrus.Infof("pod %s request cpu is %s",v.Name,v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue())
+		//logrus.Infof("pod %s limit cpu is %s",v.Name,v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue())
 		rc := v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 		cpuRequest += rc
 		rm := v.Spec.Containers[0].Resources.Requests.Memory().Value()
@@ -299,7 +299,7 @@ func Resource(w http.ResponseWriter, r *http.Request) {
 
 
 	res.CPULimits=cpuLimit
-
+	//logrus.Infof("node %s cpu limit is %v",cpuLimit)
 	res.CPURequests=cpuRequest
 	res.CpuR=int(cpuTotal)
 	res.MemR=int(memTotal/1024/1024)

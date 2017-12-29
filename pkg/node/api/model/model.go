@@ -26,7 +26,7 @@ import (
 	"net/http"
 	"io/ioutil"
 	"github.com/goodrain/rainbond/pkg/node/utils"
-	"github.com/Sirupsen/logrus"
+	//"github.com/Sirupsen/logrus"
 	"fmt"
 	url2 "net/url"
 	"strings"
@@ -99,11 +99,12 @@ type PrometheusInterface interface {
 }
 
 type PrometheusAPI struct {
+	API string
 }
 
 //Get Get
 func (s *PrometheusAPI) Query(query string) (*Prome,*utils.APIHandleError) {
-	resp, code, err := DoRequest(query,"query", "GET", nil)
+	resp, code, err := DoRequest(s.API,query,"query", "GET", nil)
 	if err != nil {
 		return nil,utils.CreateAPIHandleError(400,err)
 	}
@@ -125,8 +126,9 @@ func (s *PrometheusAPI) Query(query string) (*Prome,*utils.APIHandleError) {
 }
 //Get Get
 func (s *PrometheusAPI) QueryRange(query string,start,end,step string) (*Prome,*utils.APIHandleError) {
+	//logrus.Infof("prometheus api is %s",s.API)
 	uri:=fmt.Sprintf("%v&start=%v&end=%v&step=%v",query,start,end,step)
-	resp, code, err := DoRequest(uri,"query_range", "GET", nil)
+	resp, code, err := DoRequest(s.API,uri,"query_range", "GET", nil)
 	if err != nil {
 		return nil,utils.CreateAPIHandleError(400,err)
 	}
@@ -146,8 +148,8 @@ func (s *PrometheusAPI) QueryRange(query string,start,end,step string) (*Prome,*
 	}
 	return &prome,nil
 }
-func DoRequest(query,queryType, method string, body []byte) ([]byte, int, error) {
-	api:="http://localhost:9191/api/v1/"+queryType+"?"
+func DoRequest(baseAPI,query,queryType, method string, body []byte) ([]byte, int, error) {
+	api:=baseAPI+"/api/v1/"+queryType+"?"
 	query="query="+query
 	query=strings.Replace(query,"+","%2B",-1)
 	val,err:=url2.ParseQuery(query)
@@ -155,7 +157,7 @@ func DoRequest(query,queryType, method string, body []byte) ([]byte, int, error)
 		return nil,0,err
 	}
 	encoded:=val.Encode()
-	logrus.Infof("uri is %s",api+encoded)
+	//logrus.Infof("uri is %s",api+encoded)
 	request, err := http.NewRequest(method, api+encoded, nil)
 	if err != nil {
 		return nil, 0, err
