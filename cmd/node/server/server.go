@@ -150,7 +150,8 @@ func getInfoForMaster(s *nodeserver.NodeServer) {
 		NodeInfo:v1.NodeSystemInfo{
 			KernelVersion:result["KERNEL"],
 			Architecture:result["PLATFORM"],
-			OperatingSystem:result["OS"],
+			OSImage:result["OS"],
+			//OperatingSystem:result["OS"],
 			KubeletVersion:"N/A",
 		},
 	}
