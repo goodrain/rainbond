@@ -347,6 +347,7 @@ func (d *DiscoverAction) DiscoverClusters(
 	pluginID := nn[1]
 	serviceAlias := nn[2]
 	resources, err := d.ToolsGetRainbondResources(namespace, serviceAlias, pluginID)
+	logrus.Debugf("resources is %v", resources)
 	if err != nil && !strings.Contains(err.Error(), "is not exist") {
 		logrus.Warnf("in lds get env %s error: %v", namespace+serviceAlias+pluginID, err)
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf(
@@ -377,6 +378,7 @@ func (d *DiscoverAction) DiscoverClusters(
 		for _, service := range services.Items {
 			inner, ok := service.Labels["service_type"]
 			port := service.Spec.Ports[0]
+			originPort := service.Labels["origin_port"]
 			options := make(map[string]interface{})
 			if (!ok || inner != "inner") && serviceAlias != destServiceAlias {
 				continue
@@ -387,7 +389,9 @@ func (d *DiscoverAction) DiscoverClusters(
 			if serviceAlias == destServiceAlias {
 				if resources != nil {
 					for _, bp := range resources.BasePorts {
-						if bp.ServiceAlias == serviceAlias && int32(bp.Port) == port.Port {
+						logrus.Debugf("bp.servicealias: %s, serviceAlias: %s, bp.Port:%s, originPort: %s",
+							bp.ServiceAlias, serviceAlias, fmt.Sprintf("%d", bp.Port), originPort)
+						if bp.ServiceAlias == serviceAlias && fmt.Sprintf("%d", bp.Port) == originPort {
 							options = bp.Options
 						}
 					}
@@ -401,6 +405,7 @@ func (d *DiscoverAction) DiscoverClusters(
 					}
 				}
 			}
+			logrus.Debugf("options is %s", options)
 			selfCount++
 			circuits := d.ToolsGetRouterItem(destServiceAlias, node_model.LIMITS, options).(int)
 			maxRequests := d.ToolsGetRouterItem(destServiceAlias, node_model.MaxRequests, options).(int)
@@ -500,34 +505,54 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 		return "/"
 	case node_model.LIMITS:
 		if circuit, ok := sr[node_model.LIMITS]; ok {
-			if circuit == 10250 {
+			cc, err := strconv.Atoi(circuit.(string))
+			if err != nil {
+				logrus.Errorf("strcon circuit error")
+				return 1024
+			}
+			if cc == 10250 {
 				return 0
 			}
-			return circuit
+			return cc
 		}
 		return 1024
 	case node_model.MaxRequests:
 		if maxRequest, ok := sr[node_model.MaxRequests]; ok {
-			if maxRequest == 10250 {
+			mrt, err := strconv.Atoi(maxRequest.(string))
+			if err != nil {
+				logrus.Errorf("strcon max request error")
+				return 1024
+			}
+			if mrt == 10250 {
 				return 0
 			}
-			return maxRequest
+			return mrt
 		}
 		return 1024
 	case node_model.MaxPendingRequests:
 		if maxPendingRequests, ok := sr[node_model.MaxPendingRequests]; ok {
-			if maxPendingRequests == 10250 {
+			mpr, err := strconv.Atoi(maxPendingRequests.(string))
+			if err != nil {
+				logrus.Errorf("strcon max pending request error")
+				return 1024
+			}
+			if mpr == 10250 {
 				return 0
 			}
-			return maxPendingRequests
+			return mpr
 		}
 		return 1024
 	case node_model.MaxRetries:
 		if maxRetries, ok := sr[node_model.MaxRetries]; ok {
-			if maxRetries.(int) > 0 && maxRetries.(int) < 10 {
-				return maxRetries
+			mxr, err := strconv.Atoi(maxRetries.(string))
+			if err != nil {
+				logrus.Errorf("strcon max retry error")
+				return 3
 			}
-			if maxRetries == 11 {
+			if mxr > 0 && mxr < 10 {
+				return mxr
+			}
+			if mxr == 11 {
 				return 0
 			}
 		}
@@ -550,6 +575,7 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 func (d *DiscoverAction) ToolsGetRainbondResources(
 	namespace, sourceAlias, pluginID string) (*api_model.ResourceSpec, error) {
 	k := fmt.Sprintf("/resources/define/%s/%s/%s", namespace, sourceAlias, pluginID)
+	logrus.Debugf("etcd resources k is %s", k)
 	resp, err := d.etcdCli.Get(k)
 	if err != nil {
 		logrus.Errorf("get etcd value error, %v", err)
