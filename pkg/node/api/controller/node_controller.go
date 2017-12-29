@@ -38,6 +38,8 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
 	"io/ioutil"
 	"errors"
+	"time"
+	"github.com/goodrain/rainbond/pkg/api/util"
 )
 
 func init() {
@@ -146,6 +148,170 @@ func GetRuleNodes(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, masternodes)
 }
 
+func Install(w http.ResponseWriter, r *http.Request) {
+	nodeID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	if len(nodeID)==0 {
+		err:=utils.APIHandleError{
+			Code:404,
+			Err:errors.New(fmt.Sprintf("can't find node by node_id %s", nodeID)),
+		}
+		err.Handle(r,w)
+		return
+	}
+	node,err:=nodeService.GetNode(nodeID)
+	if err != nil {
+		err.Handle(r,w)
+		return
+	}
+	nodes:=[]string{node.ID}
+	if node.Role.HasRule("manage"){
+		err := taskService.ExecTask("check_manage_base_services", nodes)
+		if err != nil {
+			err.Handle(r, w)
+			return
+		}
+		err = taskService.ExecTask("check_manage_services", nodes)
+		if err != nil {
+			err.Handle(r, w)
+			return
+		}
+	}
+	if node.Role.HasRule("compute"){
+		err = taskService.ExecTask("check_compute_services", nodes)
+		if err != nil {
+			err.Handle(r, w)
+			return
+		}
+	}
+	httputil.ReturnSuccess(r,w,nil)
+}
+
+func InitStatus(w http.ResponseWriter, r *http.Request) {
+	nodeIP := strings.TrimSpace(chi.URLParam(r, "node_ip"))
+	if len(nodeIP)==0 {
+		err:=utils.APIHandleError{
+			Code:404,
+			Err:errors.New(fmt.Sprintf("can't find node by node_ip %s", nodeIP)),
+		}
+		err.Handle(r,w)
+		return
+	}
+	var hostnode model.HostNode
+	gotNode:=false
+	i:=0
+	for !gotNode&&i<3{
+		list, err := nodeService.GetAllNode()
+		if err!=nil{
+			err.Handle(r,w)
+		}
+		for _, v := range list {
+			if nodeIP == v.InternalIP {
+				hostnode = *v
+				gotNode=true
+				i=9
+				break
+			}
+		}
+
+		if i > 0 {
+			time.Sleep(time.Second)
+		}
+		i++
+	}
+	if i!=10{
+		util.CreateAPIHandleError(400,fmt.Errorf("can't find node with given ip %s",nodeIP)).Handle(r,w)
+		return
+	}
+
+	nodeUID:=hostnode.ID
+
+	node,err:=nodeService.GetNode(nodeUID)
+	if err!=nil{
+		err.Handle(r,w)
+	}
+	var status model.InitStatus
+	for _, val := range node.Conditions {
+
+		if node.Alived||(val.Type==model.NodeInit&&val.Status==model.ConditionTrue) {
+			//初始化成功
+			status.Status=0
+			status.StatusCN="初始化成功"
+		} else if val.Type == model.NodeInit && val.Status == model.ConditionFalse {
+			status.Status=1
+			status.StatusCN=fmt.Sprintf("初始化失败,%s",val.Message)
+		} else {
+			status.Status=2
+			status.StatusCN="初始化中"
+		}
+	}
+	if len(node.Conditions) == 0 {
+		status.Status=2
+		status.StatusCN="初始化中"
+	}
+
+	httputil.ReturnSuccess(r, w, &status)
+}
+func Resource(w http.ResponseWriter, r *http.Request) {
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	if len(nodeUID)==0 {
+		err:=utils.APIHandleError{
+			Code:404,
+			Err:errors.New(fmt.Sprintf("can't find node by node_id %s",nodeUID)),
+		}
+		err.Handle(r,w)
+		return
+	}
+	node,err:=nodeService.GetNode(nodeUID);
+	if err != nil {
+		err.Handle(r,w)
+	}
+
+	if !node.Role.HasRule("compute"){
+
+	}
+	ps, error := k8s.GetPodsByNodeName("")
+	if error != nil {
+		utils.CreateAPIHandleError(404,err).Handle(r,w)
+	}
+	var cpuTotal int64=node.AvailableCPU
+	var memTotal int64=node.AvailableMemory
+	var cpuLimit int64
+	var cpuRequest int64
+	var memLimit int64
+	var memRequest int64
+	for _,v:=range ps {
+		if v.Spec.NodeName != node.InternalIP {
+			continue
+		}
+		lc := v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
+		cpuLimit += lc
+		lm := v.Spec.Containers[0].Resources.Limits.Memory().Value()
+
+		memLimit += lm
+
+		logrus.Infof("pod %s request cpu is %s",v.Name,v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue())
+		rc := v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
+		cpuRequest += rc
+		rm := v.Spec.Containers[0].Resources.Requests.Memory().Value()
+		memRequest +=rm
+	}
+	var res model.NodePodResource
+
+
+	res.CPULimits=cpuLimit
+
+	res.CPURequests=cpuRequest
+	res.CpuR=int(cpuTotal*1000)
+	res.MemR=int(memTotal/1024/1024)
+	res.CPULimitsR=strconv.FormatFloat(float64(res.CPULimits*100)/float64(res.CpuR), 'f', 2, 64)
+	res.CPURequestsR=strconv.FormatFloat(float64(res.CPURequests*100)/float64(res.CpuR), 'f', 2, 64)
+	res.MemoryLimits=memLimit/1024/1024
+	res.MemoryLimitsR=strconv.FormatFloat(float64(res.MemoryLimits*100)/float64(res.MemR), 'f', 2, 64)
+	res.MemoryRequests=memRequest/1024/1024
+	res.MemoryRequestsR=strconv.FormatFloat(float64(res.MemoryRequests*100)/float64(res.MemR), 'f', 2, 64)
+
+	httputil.ReturnSuccess(r, w, res)
+}
 
 //UpNode 节点上线，计算节点操作
 func CheckNode(w http.ResponseWriter, r *http.Request) {
@@ -158,61 +324,74 @@ func CheckNode(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r,w)
 		return
 	}
-	tasks, err := taskService.GetTasks()
+	hostnode,err:=nodeService.GetNode(nodeUID)
+	if err!=nil{
+		err.Handle(r,w)
+		return
+	}
+	tasks, err := taskService.GetTasksByNode(hostnode)
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	var result []*ExecedTask
+
+	var final model.InstallStatus
+	var result []*model.ExecedTask
+	var installStatus int=1//0 success 1 ing  2 failed
+	var statusCN string="安装中"//0 success 1 ing  2 failed
+	successCount:=0
 	for _,v:=range tasks{
-
-		taskStatus,ok:=v.Status[nodeUID]
-		if ok{
-			status:=strings.ToLower(taskStatus.Status)
-			if status=="complete" ||status=="start"{
-				var execedTask =&ExecedTask{}
-				execedTask.ID=v.ID
-				execedTask.Status=taskStatus.Status
-				execedTask.Depends=[]string{}
-				dealDepend(execedTask,v)
-				dealNext(execedTask,tasks)
-				result=append(result, execedTask)
-				continue
+		var task model.ExecedTask
+		task.ID=v.ID
+		if taskStatus,ok:=v.Status[nodeUID];ok{
+			task.Status=taskStatus.Status
+			task.CompleteStatus=taskStatus.CompleStatus
+			if strings.ToLower(task.Status)=="complete"&&strings.ToLower(task.CompleteStatus)=="success" {
+				successCount+=1
 			}
-
-		}else {
-			_,scheduled:=v.Scheduler.Status[nodeUID]
-			if scheduled {
-				var execedTask =&ExecedTask{}
-				execedTask.ID=v.ID
-				execedTask.Depends=[]string{}
-				dealDepend(execedTask,v)
-				dealNext(execedTask,tasks)
-				allDepDone:=true
-
-				for _,dep:=range execedTask.Depends {
-					task,_:=taskService.GetTask(dep)
-
-					_,depOK:=task.Status[nodeUID]
-					if !depOK {
-						allDepDone=false
-						break
+			if strings.ToLower(task.Status)=="failure"{
+				logrus.Debugf("install failure")
+				for _,output:=range v.OutPut{
+					if output.NodeID==nodeUID{
+						task.ErrorMsg=output.Body
 					}
 				}
-				//所有依赖都完成了，没有自己的status说明自己未完成，已经被调度说明 正在执行
-				if allDepDone {
-					execedTask.Status="start"
-					result=append(result, execedTask)
-				}
 
+				installStatus=2
+				statusCN="安装失败"
+			}
+			task.CompleteStatus=taskStatus.CompleStatus
+		}else{
+			if len(v.Scheduler.Status) == 0 {
+				task.Status = "wait"
+			}else {
+				if _, ok := v.Scheduler.Status[nodeUID]; ok {
+					task.Status="wait"
+				}else{
+					task.Status="N/A"
+				}
 			}
 		}
+		dealNext(&task,tasks)
+		dealDepend(&task,v)
+		result=append(result,&task)
 	}
 
+	logrus.Debugf("success task count is %v,total task count is %v",successCount,len(tasks))
+	if successCount==len(tasks) {
+		logrus.Debugf("install success")
+		installStatus=0
+		statusCN="安装成功"
 
-	httputil.ReturnSuccess(r, w, result)
+	}
+	final.Status=installStatus
+	final.StatusCN=statusCN
+	final.Tasks=result
+	logrus.Infof("install status is %v",installStatus)
+	logrus.Infof("task info  is %v",result)
+	httputil.ReturnSuccess(r, w, &final)
 }
-func dealNext(task *ExecedTask, tasks []*model.Task) {
+func dealNext(task *model.ExecedTask, tasks []*model.Task) {
 	for _,v:=range tasks {
 		if v.Temp.Depends != nil {
 			for _,dep:=range v.Temp.Depends{
@@ -226,19 +405,17 @@ func dealNext(task *ExecedTask, tasks []*model.Task) {
 
 
 
-func dealDepend(result *ExecedTask,task *model.Task) {
+func dealDepend(result *model.ExecedTask,task *model.Task) {
 	if task.Temp.Depends != nil {
+
 		for _,v:=range task.Temp.Depends{
-			result.Depends=append(result.Depends,v.DependTaskID)
+			if v.DetermineStrategy=="SameNode" {
+				result.Depends=append(result.Depends,v.DependTaskID)
+			}
 		}
 	}
 }
-type ExecedTask struct {
-	ID string
-	Status string
-	Depends []string
-	Next []string
-}
+
 
 
 //DeleteRainbondNode 节点删除

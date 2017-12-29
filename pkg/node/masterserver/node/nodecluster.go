@@ -173,7 +173,6 @@ func (n *NodeCluster) GetNode(id string) *model.HostNode {
 				node.AvailableMemory = node.NodeStatus.Allocatable.Memory().Value()
 			}
 		}
-
 		return node
 	}
 	return nil
