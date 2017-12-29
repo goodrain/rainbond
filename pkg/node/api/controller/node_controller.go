@@ -289,7 +289,7 @@ func Resource(w http.ResponseWriter, r *http.Request) {
 
 		memLimit += lm
 
-		logrus.Infof("pod %s request cpu is %s",v.Name,v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue())
+//		logrus.Infof("pod %s request cpu is %s",v.Name,v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue())
 		rc := v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 		cpuRequest += rc
 		rm := v.Spec.Containers[0].Resources.Requests.Memory().Value()
@@ -301,10 +301,10 @@ func Resource(w http.ResponseWriter, r *http.Request) {
 	res.CPULimits=cpuLimit
 
 	res.CPURequests=cpuRequest
-	res.CpuR=int(cpuTotal*1000)
+	res.CpuR=int(cpuTotal)
 	res.MemR=int(memTotal/1024/1024)
-	res.CPULimitsR=strconv.FormatFloat(float64(res.CPULimits*100)/float64(res.CpuR), 'f', 2, 64)
-	res.CPURequestsR=strconv.FormatFloat(float64(res.CPURequests*100)/float64(res.CpuR), 'f', 2, 64)
+	res.CPULimitsR=strconv.FormatFloat(float64(res.CPULimits*100)/float64(res.CpuR*1000), 'f', 2, 64)
+	res.CPURequestsR=strconv.FormatFloat(float64(res.CPURequests*100)/float64(res.CpuR*1000), 'f', 2, 64)
 	res.MemoryLimits=memLimit/1024/1024
 	res.MemoryLimitsR=strconv.FormatFloat(float64(res.MemoryLimits*100)/float64(res.MemR), 'f', 2, 64)
 	res.MemoryRequests=memRequest/1024/1024

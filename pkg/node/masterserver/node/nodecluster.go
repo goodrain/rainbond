@@ -164,7 +164,7 @@ func (n *NodeCluster) GetNode(id string) *model.HostNode {
 			if node.Unschedulable {
 				node.Status = "unschedulable"
 			} else {
-				node.Status = "schedulable"
+				node.Status="running"
 			}
 			if node.AvailableCPU == 0 {
 				node.AvailableCPU = node.NodeStatus.Allocatable.Cpu().Value()
