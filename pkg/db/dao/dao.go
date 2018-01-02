@@ -37,7 +37,7 @@ type TenantDao interface {
 	GetTenantByUUID(uuid string) (*model.Tenants, error)
 	GetTenantIDByName(tenantName string) (*model.Tenants, error)
 	GetALLTenants() ([]*model.Tenants, error)
-	GetPagedTenants(offset,len int) ([]*model.Tenants, error)
+	GetPagedTenants(offset, len int) ([]*model.Tenants, error)
 }
 
 //LicenseDao LicenseDao
@@ -65,7 +65,7 @@ type TenantServiceDao interface {
 	GetServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error)
 	DeleteServiceByServiceID(serviceID string) error
 	GetCPUAndMEM(tenantName []string) ([]*map[string]interface{}, error)
-	GetPagedTenantService(offset,len int) ([]map[string]interface{}, error)
+	GetPagedTenantService(offset, len int) ([]map[string]interface{}, error)
 	GetTenantServiceRes(uuid string) (map[string]interface{}, error)
 }
 
@@ -322,4 +322,11 @@ type RegionAPIClassDao interface {
 	Dao
 	GetPrefixesByClass(apiClass string) ([]*model.RegionAPIClass, error)
 	DeletePrefixInClass(apiClass, prefix string) error
+}
+
+//RegionProcotolsDao RegionProcotolsDao
+type RegionProcotolsDao interface {
+	Dao
+	GetAllSupportProtocol(version string) ([]*model.RegionProcotols, error)
+	GetProtocolGroupByProtocolChild(version, protocolChild string) (*model.RegionProcotols, error)
 }

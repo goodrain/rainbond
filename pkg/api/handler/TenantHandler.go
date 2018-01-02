@@ -1,4 +1,3 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
@@ -22,13 +21,14 @@ package handler
 import (
 	"github.com/goodrain/rainbond/cmd/api/option"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
+	"github.com/goodrain/rainbond/pkg/api/util"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 )
 
 //TenantHandler tenant handler
 type TenantHandler interface {
 	GetTenants() ([]*dbmodel.Tenants, error)
-	GetTenantsPaged(offset,len int) ([]*dbmodel.Tenants, error)
+	GetTenantsPaged(offset, len int) ([]*dbmodel.Tenants, error)
 	GetTenantsByName(name string) (*dbmodel.Tenants, error)
 	GetTenantsByUUID(uuid string) (*dbmodel.Tenants, error)
 	GetTenantsName() ([]string, error)
@@ -38,6 +38,7 @@ type TenantHandler interface {
 	HTTPTsdb(md *api_model.MontiorData) ([]byte, error)
 	GetTenantsResources(tr *api_model.TenantResources) ([]*map[string]interface{}, error)
 	TenantsSum() (int, error)
+	GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHandleError)
 }
 
 var defaultTenantHandler TenantHandler

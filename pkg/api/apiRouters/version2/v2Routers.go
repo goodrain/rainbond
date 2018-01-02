@@ -60,6 +60,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Delete("/", controller.GetManager().Tenant)
 	//租户中的日志
 	r.Post("/event-log", controller.GetManager().TenantLogByAction)
+	r.Get("/protocols", controller.GetManager().GetSupportProtocols)
 	//代码检测
 	r.Post("/code-check", controller.GetManager().CheckCode)
 	r.Post("/cloud-share", controller.GetManager().ShareCloud)
