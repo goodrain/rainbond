@@ -29,6 +29,7 @@ import (
 
 var datacenterConfig *config.DataCenterConfig
 var taskService *service.TaskService
+var prometheusService *service.PrometheusService
 var taskTempService *service.TaskTempService
 var taskGroupService *service.TaskGroupService
 var appService *service.AppService
@@ -38,6 +39,7 @@ var discoverService *service.DiscoverAction
 //Init 初始化
 func Init(c *option.Conf, ms *masterserver.MasterServer) {
 	if ms != nil {
+		prometheusService=service.CreatePrometheusService(c,ms)
 		taskService = service.CreateTaskService(c, ms)
 		taskTempService = service.CreateTaskTempService(c)
 		taskGroupService = service.CreateTaskGroupService(c, ms)

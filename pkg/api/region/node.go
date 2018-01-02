@@ -399,6 +399,7 @@ func (r *RNodeClient) handleErrAndCode(err error, code int) *util.APIHandleError
 	}
 	return nil
 }
+
 func (r *RNodeClient) handleErrAndCodeWithMsg(resp []byte,err error, code int) *util.APIHandleError {
 	if err != nil {
 		return util.CreateAPIHandleError(code, err)

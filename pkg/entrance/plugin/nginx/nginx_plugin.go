@@ -203,7 +203,6 @@ func (n *nginxAPI) DeleteRule(rules ...*object.RuleObject) error {
 	var errs []error
 	var dds DeleteDomainS
 	for _, rule := range rules {
-		logrus.Debugf("delete rule name is: %s, contains domain is: %s", rule.Name, rule.DomainName)
 		dds.Domain = rule.DomainName
 		dds.PoolName = rule.PoolName
 	}

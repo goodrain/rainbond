@@ -278,7 +278,6 @@ func (m *Manager) getDomainInfo(s *config.SourceBranch) ([]model.Domain, error) 
 		defer response.Body.Close()
 	}
 	if response.StatusCode == 404 {
-		logrus.Debugf("get_domain response is 404")
 		return nil, nil
 	}
 	if response.StatusCode == 200 {
@@ -297,7 +296,6 @@ func (m *Manager) getDomainInfo(s *config.SourceBranch) ([]model.Domain, error) 
 		if domainInfo.Code != 200 {
 			return ldomain, errors.New(domainInfo.Message)
 		}
-		logrus.Debugf("get_domain response is 200, domain list is %v", domainInfo.Body.List)
 		return domainInfo.Body.List, nil
 	}
 	return ldomain, fmt.Errorf("get domain info status is %d", response.StatusCode)
