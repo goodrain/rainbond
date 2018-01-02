@@ -27,8 +27,8 @@ function log.stdout() {
 }
 
 # define basic services
-check_basic_services=(docker db base_plugins acp_plugins)
-check_manage_services=(storage network k8s plugins analysis check_manage)
+check_basic_services=(docker storage db base_plugins acp_plugins)
+check_manage_services=(network k8s plugins analysis check_manage)
 check_compute_services=(storage_client docker_compute network_compute kubelet plugins_compute check_compute)
 
 RELEASE_INFO=$(cat /etc/os-release | grep "^VERSION=" | awk -F '="' '{print $2}' | awk '{print $1}' | cut -b 1-5)
