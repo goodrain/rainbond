@@ -145,6 +145,7 @@ func (d *DataCenterConfig) PutConfig(c *model.ConfigUnit) error {
 	if c.Name == "" {
 		return fmt.Errorf("config name can not be empty")
 	}
+	logrus.Debugf("add config %v",c)
 	//将值类型由[]interface{} 转 []string
 	if c.ValueType == "array" {
 		switch c.Value.(type) {
