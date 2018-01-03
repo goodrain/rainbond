@@ -24,6 +24,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
+	"github.com/Sirupsen/logrus"
 )
 
 //GetDatacenterConfig 获取数据中心配置
@@ -33,6 +34,7 @@ func GetDatacenterConfig(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
+	logrus.Infof("task details is %v",c)
 	httputil.ReturnSuccess(r, w, c)
 }
 

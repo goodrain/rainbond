@@ -20,7 +20,7 @@ package server
 
 import (
 	"fmt"
-	"k8s.io/client-go/pkg/api/v1"
+
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/controller"
 	"github.com/goodrain/rainbond/pkg/node/core/job"
@@ -115,7 +115,7 @@ func Run(c *option.Conf) error {
 	return nil
 }
 func getInfoForMaster(s *nodeserver.NodeServer) {
-	resp, err := http.Get("http://repo.goodrain.com/gaops/jobs/cron/check/manage/sys.sh")
+	resp, err := http.Get("http://repo.goodrain.com/release/3.4.1/gaops/jobs/cron/check/manage/sys.sh")
 	if err != nil {
 		logrus.Errorf("error get sysinfo script,details %s", err.Error())
 		return
@@ -150,8 +150,7 @@ func getInfoForMaster(s *nodeserver.NodeServer) {
 		NodeInfo:v1.NodeSystemInfo{
 			KernelVersion:result["KERNEL"],
 			Architecture:result["PLATFORM"],
-			OSImage:result["OS"],
-			//OperatingSystem:result["OS"],
+			OperatingSystem:result["OS"],
 			KubeletVersion:"N/A",
 		},
 	}

@@ -21,21 +21,6 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
-
 NFS_DEST="/grdata"
 
 if [ -z "$NFS_ARGS" ];then
@@ -132,7 +117,7 @@ function write_automount() {
 }
 
 function prepare() {
-    log.section "ACP: mount nfs"
+    log.info "RBD: mount nfs"
     log.info "prepare NFS"
 }
 
@@ -185,7 +170,7 @@ function write_config() {
 }
 
 function run_server() {
-    log.section "setup nfs-server"
+    log.info "setup nfs-server"
     package::is_installed nfs-utils $OS_TYPE || (
         package::install nfs-utils $OS_TYPE || (
             log.error "install faild"
@@ -256,14 +241,14 @@ function run() {
         run_server
         log.stdout '{ 
             "global":{
-              '\"STORAGE_MODE\"':'\"$STORAGE_MODE\"',
-              '\"NFS_SERVERS\"':'\"$IP\"',
-              '\"NFS_ENDPOINT\"':'\"$NFS_DEST\"'
+              "STORAGE_MODE":"'$STORAGE_MODE'",
+              "NFS_SERVERS":"'$IP'",
+              "NFS_ENDPOINT":"'$NFS_DEST'"
             },
             "status":[ 
             { 
-                "name":"install_storage", 
-                "condition_type":"INSTALL_STORAGE", 
+                "name":"install_storage_manage_server", 
+                "condition_type":"INSTALL_STORAGE_MANAGE_SERVER", 
                 "condition_status":"True"
             } 
             ], 
@@ -276,8 +261,8 @@ function run() {
         log.stdout '{
             "status":[ 
             { 
-                "name":"install_storage", 
-                "condition_type":"INSTALL_STORAGE", 
+                "name":"install_storage_manage_client", 
+                "condition_type":"INSTALL_STORAGE_MANAGE_CLIENT", 
                 "condition_status":"True"
             } 
             ], 

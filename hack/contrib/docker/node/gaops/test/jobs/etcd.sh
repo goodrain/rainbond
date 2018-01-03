@@ -4,21 +4,23 @@
 #
 # configure mirrors grub dns.
 
+set -o errexit
 set -o pipefail
 
 
 # define 
 # MIP node ip
-# REPO_VER goodrain mirrors version ，default 3.4
+# REPO_VER goodrain mirrors version ，default 3.4.1
 # INSTALL_TYPE default online
 
 HOST_UUID=$1
 ETCD_NODE=$2
 NODE_TYPE=${3:-manage}
 MIP=$4
-REPO_VER=$5
+REPO_VER=${5:-3.4.1}
 INSTALL_TYPE=${6:-online}
 FIRST_NODE_TYPE=$3
+
 
 # define log func 
 
@@ -35,6 +37,21 @@ function log.stdout() {
     echo "$*" >&2
 }
 
+function log.section() {
+    local title=$1
+    local title_length=${#title}
+    local width=$(tput cols)
+    local arrival_cols=$[$width-$title_length-2]
+    local left=$[$arrival_cols/2]
+    local right=$[$arrival_cols-$left]
+
+    echo ""
+    printf "=%.0s" `seq 1 $left`
+    printf " $title "
+    printf "=%.0s" `seq 1 $right`
+    echo ""
+}
+
 # check os-release ,now support CentOS 7.x, Maybe support Ubuntu 16.04 & Debian 9
 RELEASE_INFO=$(cat /etc/os-release | grep "^VERSION=" | awk -F '="' '{print $2}' | awk '{print $1}' | cut -b 1-5)
 if [[ $RELEASE_INFO == "7" ]];then
@@ -49,8 +66,6 @@ else
     log.stdout "Release $(cat /etc/os-release | grep "PRETTY" | awk -F '"' '{print $2}') Not supported"
     exit 1
 fi
-
-#REPO_VER=3.4
 
 # define install func
 function package::match(){
@@ -214,21 +229,19 @@ function do_host_uuid() {
 }
 
 function prepare() {
-    log.info "RBD: Initialize the system"
+    log.section "ACP: Initialize the system"
     [ ! -d /etc/goodrain/envs ] && mkdir -p /etc/goodrain/envs || log.info ""
     log.info "prepare --> initialize the system"
     log.info "Install the system prerequisite package..."
     do_host_uuid
-    log.info "install basic service package"
     if [[ $OS_VER =~ "7" ]];then
         yum makecache >/dev/stdout  2>&1
-        yum install -y bash-completion wget curl lsof htop rsync net-tools telnet iproute bind-utils tree >/dev/stdout 2>&1
+        yum install -y lsof htop rsync net-tools telnet iproute bind-utils tree >/dev/stdout 2>&1
     else
         apt update >/dev/stdout  2>&1
-        apt install  -y wget curl lsof htop rsync net-tools telnet iproute lvm2 tree >/dev/stdout  2>&1
+        apt install  -y lsof htop rsync net-tools telnet iproute lvm2 tree >/dev/stdout  2>&1
     fi
-    log.info "check rbd.json"
-    install_jq
+    
 }
 
 # check route、firewaall、dns
@@ -266,8 +279,6 @@ function check_system_services(){
         log.info "Check dns..."
         
         systemctl stop dnsmasq >/dev/stdout  2>&1
-        systemctl disable dnsmasq >/dev/stdout  2>&1
-        yum remove -y dnsmasq >/dev/stdout  2>&1
         sed -i 's/^dns=dnsmasq/#&/' /etc/NetworkManager/NetworkManager.conf
     fi
 
@@ -287,9 +298,6 @@ function check_system_services(){
 
 # configure apt/yum mirrors
 function config_mirrors(){
-    if [ -z "$REPO_VER" ];then
-        REPO_VER=$(jq --raw-output '.mirrors.version' /etc/goodrain/envs/rbd.json)        
-    fi
     if [ ! -n "$REPO_VER" ];then
         log.stdout '{
         "global":{"OS_VER":"'$OS_VER'"}, 
@@ -304,11 +312,29 @@ function config_mirrors(){
         }'
         exit 1
     fi
-    
-    if [[ $OS_VER =~ '7' ]];then
+
+    if [ "$INSTALL_TYPE" == "local" ];then
+        if [ ! -f /etc/yum.repos.d/acp.repo ];then
+            yum clean all >/dev/stdout  2>&1 \
+            && rm -rf /etc/yum.repos.d/*
+
+            cat >/etc/yum.repos.d/acp.repo <<EOF
+[acp-local]
+name=local
+baseurl=file://$PWD/repo
+enabled=1
+gpgcheck=0
+EOF
+
+            yum makecache
+
+            log.info "Install the system prerequisite package..."
+            yum install -y perl telnet bind-utils htop dstat mariadb net-tools lsof iproute rsync lvm2 >/dev/stdout  2>&1
+        fi
+    else
+        if [[ $OS_VER =~ '7' ]];then
             log.info "Configure yum repo..."
-            if [ ! -f "/etc/yum.repos.d/acp.repo" ];then
-                cat >/etc/yum.repos.d/acp.repo <<EOF
+            cat >/etc/yum.repos.d/acp.repo <<EOF
 [goodrain]
 name=goodrain CentOS-\$releasever - for x86_64
 baseurl=http://repo.goodrain.com/centos/\$releasever/${REPO_VER}/\$basearch
@@ -316,11 +342,8 @@ enabled=1
 gpgcheck=1
 gpgkey=http://repo.goodrain.com/gpg/RPM-GPG-KEY-CentOS-goodrain
 EOF
-                        
-            fi
             yum makecache >/dev/stdout  2>&1
-            
-    else
+        else
             log.info "Configure apt sources.list..."
             if [[ $OS_VER =~ '16' ]];then
                 echo deb http://repo.goodrain.com/ubuntu/16.04 ${REPO_VER} main | tee /etc/apt/sources.list.d/acp.list 
@@ -328,7 +351,9 @@ EOF
                 echo deb http://repo.goodrain.com/ubuntu/14.04 ${REPO_VER} main | tee /etc/apt/sources.list.d/acp.list                 
             fi
             curl http://repo.goodrain.com/gpg/goodrain-C4CDA0B7 2>/dev/null | apt-key add - \
-            && apt update >/dev/stdout  2>&1 
+            && apt update >/dev/stdout  2>&1 \
+            && apt install  -y lsof htop rsync net-tools telnet iproute lvm2 >/dev/stdout  2>&1
+        fi
     fi
 }
 
@@ -356,10 +381,7 @@ function config_ip(){
     if [ $? -eq 0 ];then
         echo "LOCAL_IP=$MIP" > /etc/goodrain/envs/ip.sh
     else
-        IPFO=$(ip ad | grep 'inet ' | grep -v ':' | awk '{print $2}' | cut -d '/' -f 1 | grep -vE '(127.0.0.1|172.30.42.1)')
-        IP_ITEMS=($IPFO)
-        MIP=${IP_ITEMS[0]}
-        echo "LOCAL_IP=$MIP" > /etc/goodrain/envs/ip.sh
+        echo "MANAGE_IP=$MIP" > /etc/goodrain/envs/ip.sh
     fi 
 }
 
@@ -395,29 +417,10 @@ root hard nofile 65535
     fi
 }
 
-function install_jq() {
-
-    log.info "install jq"
-    [ -d "/etc/goodrain/envs" ] || mkdir -pv /etc/goodrain/envs
-    log.info "wget rbd.json from goodrain.mirrors"
-    wget http://repo.goodrain.com/release/3.4.1/gaops/jobs/install/prepare/rbd.json -O /etc/goodrain/envs/rbd.json
-    if [ -f " /etc/goodrain/envs/rbd.json" ];then
-        curl  http://repo.goodrain.com/release/3.4.1/gaops/jobs/install/prepare/rbd.json -o  /etc/goodrain/envs/rbd.json
-    fi
-    yum install -y wget curl epel-release
-    sed -e 's!^mirrorlist=!#mirrorlist=!g' \
-         -e 's!^#baseurl=!baseurl=!g' \
-         -e 's!//download\.fedoraproject\.org/pub!//mirrors.ustc.edu.cn!g' \
-         -e 's!http://mirrors\.ustc!https://mirrors.ustc!g' \
-         -i /etc/yum.repos.d/epel.repo /etc/yum.repos.d/epel-testing.repo
-    yum makecache    
-    yum install -y jq
-}
-
 function init_system() {
     log.info "Initialize the system"
 
-    check_system_services && config_grup && config_ip && config_system
+    check_system_services && config_mirrors && config_grup && config_ip && config_system
     if [ $? -eq 0 ];then
         return 0
     else
@@ -440,22 +443,19 @@ function write_env_config() {
 function rewrite_conf() {
     CONFIG=/usr/share/gr-etcd/scripts/start.sh
     cp $CONFIG $CONFIG.`date +%s`
-    for node in $(echo $ETCD_NODE | tr "," " " | sort -u )
+    #ETCD_NODE aaaa-127.0.0.1,bbbb-127.0.0.2
+    for node in $(echo $ETCD_NODE | tr " " "," | sort -u )
     do
-        #node_name=${node%%-*}
-        #node_ip=${node#*-}
-        node_name=$node
-        node_ip=$node
+        node_name=${node%%-*}
+        node_ip=${node#*-}
         sed -i "/\$LOCAL_NODE:\$LOCAL_IP/a${node_name}:${node_ip}" /usr/share/gr-etcd/scripts/start.sh
     done
     # reg
-    FNODE=${ETCD_NODE%%,*}
-    MASTER_NODE=${FNODE#*-}
-    if [ -z "$MIP" ];then
-        MIP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
-    fi
+    xxx=${ETCD_NODE%%,*}
+    MASTER_NODE=${xxx#*-}
     curl http://${MASTER_NODE}:2379/v2/members -XPOST -H "Content-Type: application/json" -d '{"peerURLs": ["http://'${MIP}':2380"]}'
-    
+    #sed -i "s/\$LOCAL_NODE:\$LOCAL_IP/$ETCD_NODE/g" /usr/share/gr-etcd/scripts/start.sh
+    #sed -i "/\$LOCAL_NODE:\$LOCAL_IP/a${NODE}"
     sed -i 's/INITIAL_CLUSTER_STATE=""/INITIAL_CLUSTER_STATE="existing"/g' /usr/share/gr-etcd/scripts/start.sh
 }
 
@@ -469,12 +469,11 @@ function install_etcd() {
                     "global":{"OS_VER":"'$OS_VER'","REPO_VER":"'$REPO_VER'"}, 
                     "status":[ 
                     { 
-                        "name":"install_etcd_manage_faild", 
-                        "condition_type":"INSTALL_ETCD_MANAGE_faild", 
+                        "name":"install_etcd_manage", 
+                        "condition_type":"INSTALL_ETCD_MANAGE", 
                         "condition_status":"False"
                     } 
                     ], 
-                    "exec_status":"Failure",
                     "type":"install"
                     }'
                     exit 1
@@ -487,12 +486,11 @@ function install_etcd() {
                     "global":{"OS_VER":"'$OS_VER'","REPO_VER":"'$REPO_VER'"}, 
                     "status":[ 
                     { 
-                        "name":"install_etcdctl_manage_faild", 
-                        "condition_type":"INSTALL_ETCDCTL_MANAGE_faild", 
+                        "name":"install_etcdctl_manage", 
+                        "condition_type":"INSTALL_ETCDCTL_MANAGE", 
                         "condition_status":"False"
                     } 
                     ], 
-                    "exec_status":"Failure",
                     "type":"install"
                     }'
                     exit 1
@@ -509,116 +507,16 @@ function install_etcd() {
         package::is_installed gr-etcd-proxy  || (
             package::install gr-etcd-proxy  || (
                 log.error "install faild"
-                log.stdout '{
-                    "status":[ 
-                    { 
-                        "name":"install_etcd_proxy_error", 
-                        "condition_type":"INSTALL_ETCD_PROXY_ERROR", 
-                        "condition_status":"False"
-                    } 
-                    ], 
-                    "exec_status":"Failure",
-                    "type":"install"
-                    }'
-                exit 1
+                return 1
             )
         )
-        
         [ -f "/etc/goodrain/envs/etcd-proxy.sh" ] && rm /etc/goodrain/envs/etcd-proxy.sh
-        echo "MASTER_IP=$(echo $ETCD_NODE | awk -F ',' '{print $1}'):2379" > /etc/goodrain/envs/etcd-proxy.sh
+        echo "MASTER_IP=$ETCD_NODE:2379" > /etc/goodrain/envs/etcd-proxy.sh
         package::enable etcd-proxy || status::check etcd-proxy
     fi
 }
 
-function run_mode() {
-
-    [ -d "/etc/goodrain/kubernetes/" ] || mkdir -pv /etc/goodrain/kubernetes/
-    [ -f "/etc/goodrain/kubernetes/kubeconfig" ] || (
-        [ -f "/etc/goodrain/kubernetes/admin.kubeconfig" ] && (
-            cp /etc/goodrain/kubernetes/admin.kubeconfig /etc/goodrain/kubernetes/kubeconfig
-        ) || (
-            [ -f "/grdata/services/k8s/admin.kubeconfig" ] && (
-                cp /grdata/services/k8s/admin.kubeconfig /etc/goodrain/kubernetes/kubeconfig
-                #cp /grdata/services/k8s/admin.kubeconfig /etc/goodrain/kubernetes/admin.kubeconfig
-            ) || (
-                cat >> /etc/goodrain/kubernetes/kubeconfig <<EOF
-apiVersion: v1
-clusters:
-- cluster:
-    server: http://127.0.0.1:8181
-  name: default-cluster
-contexts:
-- context:
-    cluster: default-cluster
-    user: ""
-  name: default
-current-context: default
-kind: Config
-preferences: {}
-users: []
-EOF
-            )
-        )
-    )
-
-    log.info "kubeconfig ok"
-
-    if [[ "$NODE_TYPE" == "manage"  ]];then
-        [ ! -f "/etc/goodrain/envs/rainbond-node.sh" ] && echo "NODE_TYPE=manage" >> /etc/goodrain/envs/rainbond-node.sh || (
-            if [ -z $FIRST_NODE_TYPE ];then
-                echo "NODE_TYPE=" > /etc/goodrain/envs/rainbond-node.sh
-                echo "ROLE=manage,compute" >> /etc/goodrain/envs/rainbond-node.sh
-            fi
-            log.info ""
-        )
-    else
-        [ ! -f "/etc/goodrain/envs/rainbond-node.sh" ] && echo "NODE_TYPE=compute" >> /etc/goodrain/envs/rainbond-node.sh || (
-            echo "NODE_TYPE=compute" > /etc/goodrain/envs/rainbond-node.sh
-            echo "ROLE=compute" >> /etc/goodrain/envs/rainbond-node.sh
-        )
-    fi
-}
-
-function install_node() {
-    log.info "install rainbond-node"
-    package::is_installed gr-rainbond-node  || (
-        package::install gr-rainbond-node  || (
-            log.error "install faild"
-            log.stdout '{
-                "global":{"OS_VER":"'$OS_VER'","REPO_VER":"'$REPO_VER'"}, 
-                "status":[ 
-                { 
-                    "name":"install_acp_node_manage_faild", 
-                    "condition_type":"INSTALL_ACP_NODE_MANAGE_FAILD", 
-                    "condition_status":"False"
-                } 
-                ], 
-                "exec_status":"Failure",
-                "type":"install"
-                }'
-            exit 1
-        )
-    )
-    if [ -z "$ETCD_NODE" ];then
-        log.info "1st node"
-
-    else
-       if [ -d /usr/share/gr-rainbond-node/gaops/tasks ];then
-            mv /usr/share/gr-rainbond-node/gaops/tasks /usr/share/gr-rainbond-node/gaops/tasks_old
-            mkdir -p /usr/share/gr-rainbond-node/gaops/tasks
-       fi
-       log.info "not 1st node"
-    fi
-    run_mode
-    proc::restart rainbond-node
-    package::enable rainbond-node || status::check rainbond-node
-    proc::restart rainbond-node
-}
-
 function run(){
-
-
-    config_mirrors
 
     log.info "role"
     if [ $NODE_TYPE == "manage" ];then
@@ -626,9 +524,7 @@ function run(){
             echo "role:manage,compute" > /etc/goodrain/envs/.role
         else
             echo "role:manage" > /etc/goodrain/envs/.role
-            package::install gr-rainbond-grctl
         fi
-        
     else
         echo "role:compute" > /etc/goodrain/envs/.role
     fi
@@ -638,51 +534,16 @@ function run(){
         "global":{"OS_VER":"'$OS_VER'","REPO_VER":"'$REPO_VER'"}, 
         "status":[ 
         { 
-            "name":"init_system_rainbond_failure", 
-            "condition_type":"INIT_SYSTEM_RAINBOND_FAILURE", 
+            "name":"init_system_rainbond", 
+            "condition_type":"INIT_SYSTEM_RAINBOND", 
             "condition_status":"False"
         } 
-        ],
-        "exec_status":"Failure",
+        ], 
         "type":"install"
         }'
         exit 1
     )
-    ETCD_ADDRS=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')  
-    install_etcd && install_node
-
-    if [ $? -eq 0 ];then
-        if [ "$NODE_TYPE" = "manage" ];then
-        log.stdout '{
-                    "global":{
-                        "OS_VER":"'$OS_VER'",
-                        "REPO_VER":"'$REPO_VER'",
-                        "ETCD_ADDRS":"'$ETCD_ADDRS',"
-                    },
-                    "status":[ 
-                    { 
-                        "name":"prepare_rainbond", 
-                        "condition_type":"PREPARE_RAINBOND", 
-                        "condition_status":"True"
-                    } 
-                    ],
-                    "exec_status":"Success",
-                    "type":"install"
-        }'
-        else
-            log.stdout '{
-                    "status":[ 
-                    { 
-                        "name":"prepare_rainbond_compute", 
-                        "condition_type":"PREPARE_RAINBOND_COMPUTE", 
-                        "condition_status":"True"
-                    } 
-                    ],
-                    "exec_status":"Success",
-                    "type":"install"
-        }'
-        fi
-    fi
+    install_etcd
 }
 
 

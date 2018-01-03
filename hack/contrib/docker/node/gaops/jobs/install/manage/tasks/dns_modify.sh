@@ -4,8 +4,6 @@ OS_VER=$1
 DNS=$2
 
 
-nameservers=($DNS)
-
 function log.info() {
   echo "       $*"
 }
@@ -17,21 +15,6 @@ function log.error() {
 
 function log.stdout() {
     echo "$*" >&2
-}
-
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
 }
 
 function proc::is_running() {
@@ -79,9 +62,11 @@ function proc::restart(){
 }
 
 function check_config() {
-    dest_md5=$(echo $DNS | md5sum | awk '{print $1}')
+    dest_md5=$(echo $DNS | tr ',' '\n' | sort -u | xargs | md5sum | awk '{print $1}')
     old_md5=$(egrep '^nameserver' /etc/resolv.conf | head -5 | awk '{print $2}' | sort -u | xargs | md5sum | awk '{print $1}')
 
+    log.info "new dns md5sum: <$dest_md5>"
+    log.info "old dns md5sum: <$old_md5>"
     if [ "$dest_md5" == "$old_md5" ];then
         log.info "check resolv.conf ok"
         return 0
@@ -101,7 +86,7 @@ function write_resolv_confd() {
     rm -f /run/resolvconf/interface/*
 
     cat /dev/null > /etc/resolvconf/resolv.conf.d/head
-    for nameserver in $nameservers
+    for nameserver in $(echo $DNS | tr ',' ' ' | sort -u)
     do
         echo nameserver $nameserver >> /etc/resolvconf/resolv.conf.d/head
     done
@@ -110,15 +95,16 @@ function write_resolv_confd() {
 
 function write_resolv() {
     sed -i -e 's/^[^#]/#&/' /etc/resolv.conf
-    for nameserver in $nameservers
+    for nameserver in $(echo $DNS | tr ',' ' ' | sort -u)
     do
         echo nameserver $nameserver >> /etc/resolv.conf
     done
 }
 
 function run() {
-    log.section "setting resolv.conf"
+    log.info "setting resolv.conf"
     check_config || (
+        log.info "update dns"
         if [ -L "/etc/resolv.conf" ];then
             write_resolv_confd
         else
@@ -131,13 +117,13 @@ function run() {
         #    proc::stop docker
         #    proc::start docker
         if [[ $OS_VER =~ 7 ]];then
-            grep "manage" /etc/goodrain/envs/.role 
+            grep "manage" /etc/goodrain/envs/.role >/dev/null 2>&1
             if [ $? -eq 0 ];then
                 #proc::stop docker
                 #proc::start docker
                 systemctl restart docker
                 sleep 15
-                log.info "restart docker"
+                log.info "manage role node need: restart docker"
             fi
         fi
     )

@@ -3,13 +3,13 @@
 REPO_VER=$1
 REGION_TAG=${2:-cloudbang}
 
-DALARAN_CEP=hub.goodrain.com/dc-deploy/cep_dalaran:${1:-3.4}
-CEP_HBASE=hub.goodrain.com/dc-deploy/cep_hbase:${1:-3.4}
-CEP_OPENTSDB=hub.goodrain.com/dc-deploy/cep_opentsdb:${1:-3.4}
-CEP_SERVER=hub.goodrain.com/dc-deploy/cep_server:${1:-3.4}
-CEP_RECORDER=hub.goodrain.com/dc-deploy/acp_labor:${1:-3.4}
-LOGTRANSFER=hub.goodrain.com/dc-deploy/cep_logtransfer:${1:-3.4}
-CEP_PRISM=hub.goodrain.com/dc-deploy/cep_prism:${1:-3.4}
+DALARAN_CEP=hub.goodrain.com/dc-deploy/cep_dalaran:${1:-3.4.1}
+CEP_HBASE=hub.goodrain.com/dc-deploy/cep_hbase:${1:-3.4.1}
+CEP_OPENTSDB=hub.goodrain.com/dc-deploy/cep_opentsdb:${1:-3.4.1}
+CEP_SERVER=hub.goodrain.com/dc-deploy/cep_server:${1:-3.4.1}
+CEP_RECORDER=hub.goodrain.com/dc-deploy/acp_labor:${1:-3.4.1}
+LOGTRANSFER=hub.goodrain.com/dc-deploy/cep_logtransfer:${1:-3.4.1}
+CEP_PRISM=hub.goodrain.com/dc-deploy/cep_prism:${1:-3.4.1}
 
 function log.info() {
   echo "       $*"
@@ -24,20 +24,7 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
 
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
 
 function image::exist() {
     IMAGE=$1
@@ -96,12 +83,12 @@ function compose::config_update() {
 }
 
 function prepare() {
-    log.section "prepare analysis for ACP"
+    log.info "prepare analysis for RBD"
 }
 
 function install_dalaran_cep() {
     log.info "setup dalaran"
-        log.section "setup dalaran_cep"
+        log.info "setup dalaran_cep"
     image::exist $DALARAN_CEP || (
         log.info "pull image: $DALARAN_CEP "
         image::pull $DALARAN_CEP || (exit 1)
