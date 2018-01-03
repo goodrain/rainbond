@@ -40,6 +40,7 @@ import (
 	"errors"
 	"time"
 	"github.com/goodrain/rainbond/pkg/api/util"
+	"sort"
 )
 
 func init() {
@@ -372,15 +373,15 @@ func CheckNode(w http.ResponseWriter, r *http.Request) {
 	for _,v:=range tasks{
 		var task model.ExecedTask
 		task.ID=v.ID
-		task.Now=true
 		task.Desc=descMap[task.ID]
 		if taskStatus,ok:=v.Status[nodeUID];ok{
-			task.Status=taskStatus.Status
+			task.Status=strings.ToLower(taskStatus.Status)
 			task.CompleteStatus=taskStatus.CompleStatus
 			if strings.ToLower(task.Status)=="complete"&&strings.ToLower(task.CompleteStatus)=="success" {
 				successCount+=1
 			}
-			if strings.ToLower(task.Status)=="failure"{
+			if strings.ToLower(task.Status)=="parse task output error"{
+				task.Status="failure"
 				logrus.Debugf("install failure")
 				for _,output:=range v.OutPut{
 					if output.NodeID==nodeUID{
@@ -408,7 +409,7 @@ func CheckNode(w http.ResponseWriter, r *http.Request) {
 
 		result=append(result,&task)
 	}
-
+	//dealSeq(result)
 	logrus.Debugf("success task count is %v,total task count is %v",successCount,len(tasks))
 	if successCount==len(tasks) {
 		logrus.Debugf("install success")
@@ -418,10 +419,56 @@ func CheckNode(w http.ResponseWriter, r *http.Request) {
 	}
 	final.Status=installStatus
 	final.StatusCN=statusCN
+
+	sort.Sort(TaskResult(result))
+
 	final.Tasks=result
 	logrus.Infof("install status is %v",installStatus)
 	logrus.Infof("task info  is %v",result)
 	httputil.ReturnSuccess(r, w, &final)
+}
+func dealSeq(tasks []*model.ExecedTask) {
+	var firsts []*model.ExecedTask
+	var keymap map[string]*model.ExecedTask
+	for _,v:=range tasks{
+		keymap[v.ID]=v
+		if len(v.Depends) == 0 {
+			v.Seq=0
+			firsts=append(firsts,v)
+		}
+	}
+	for _,v:=range firsts{
+		dealLoopSeq(v,keymap)
+	}
+}
+func dealLoopSeq(task *model.ExecedTask, keymap map[string]*model.ExecedTask) {
+	for _,next:=range task.Next{
+		keymap[next].Seq=task.Seq+1
+		dealLoopSeq(keymap[next],keymap)
+	}
+}
+
+
+
+type TaskResult []*model.ExecedTask
+func (c TaskResult) Len() int {
+	return len(c)
+}
+func (c TaskResult) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
+}
+func (c TaskResult) Less(i, j int) bool {
+	if c[i].Status == "complete" {
+		return true
+	}
+	if c[i].Status=="start" {
+		return true
+	}
+	if c[i].Status=="wait" {
+		return true
+	}
+	return true
+	
 }
 func dealNext(task *model.ExecedTask, tasks []*model.Task) {
 	for _,v:=range tasks {

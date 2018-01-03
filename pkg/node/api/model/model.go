@@ -64,7 +64,7 @@ type AllocatedResources struct {
 }
 type ExecedTask struct {
 	ID string `json:"id"`
-	Now bool `json:"now"`
+	Seq int `json:"seq"`
 	Desc string `json:"desc"`
 	Status string `json:"status"`
 	CompleteStatus string `json:"complete_status"`
