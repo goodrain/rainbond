@@ -46,6 +46,7 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("node_exporter"))
 }
 
+
 //NewNode 创建一个节点
 func NewNode(w http.ResponseWriter, r *http.Request) {
 	var node model.APIHostNode
@@ -316,6 +317,33 @@ func Resource(w http.ResponseWriter, r *http.Request) {
 
 //UpNode 节点上线，计算节点操作
 func CheckNode(w http.ResponseWriter, r *http.Request) {
+	descMap := make(map[string]string)
+	descMap["check_compute_services"]="检测计算节点所需服务"
+	descMap["check_manage_base_services"]="检测管理节点所需基础服务"
+	descMap["check_manage_services"]="检测管理节点所需服务"
+	descMap["create_host_id_list"]="API支持服务"
+	descMap["do_rbd_images"]="拉取镜像"
+	descMap["install_acp_plugins"]="安装好雨组件"
+	descMap["install_base_plugins"]="安装基础组件"
+	descMap["install_compute_ready"]="安装计算节点完成"
+	descMap["install_compute_ready_manage"]="安装计算节点完成"
+	descMap["install_db"]="安装数据库"
+	descMap["install_docker"]="安装Docker"
+	descMap["install_docker_compute"]="计算节点安装Docker"
+	descMap["install_k8s"]="安装管理节点Kubernetes"
+	descMap["install_kubelet"]="安装Kubelet"
+	descMap["install_kubelet_manage"]="管理节点Kubelet"
+	descMap["install_manage_ready"]="安装管理节点完成"
+	descMap["install_network"]="安装网络服务"
+	descMap["install_network_compute"]="计算节点安装网络服务"
+	descMap["install_plugins"]="管理节点安装代理"
+	descMap["install_plugins_compute"]="计算节点安装代理"
+	descMap["install_storage"]="安装存储"
+	descMap["install_storage_client"]="安装存储客户端"
+	descMap["install_webcli"]="安装WebCli"
+	descMap["update_dns"]="更新DNS"
+	descMap["update_dns_compute"]="计算节点更新DNS"
+	descMap["update_entrance_services"]="更新Entrance"
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
 	if len(nodeUID)==0 {
 		err:=utils.APIHandleError{
@@ -345,6 +373,7 @@ func CheckNode(w http.ResponseWriter, r *http.Request) {
 		var task model.ExecedTask
 		task.ID=v.ID
 		task.Now=true
+		task.Desc=descMap[task.ID]
 		if taskStatus,ok:=v.Status[nodeUID];ok{
 			task.Status=taskStatus.Status
 			task.CompleteStatus=taskStatus.CompleStatus
