@@ -236,6 +236,7 @@ func InitStatus(w http.ResponseWriter, r *http.Request) {
 			//初始化成功
 			status.Status=0
 			status.StatusCN="初始化成功"
+			status.HostID=node.ID
 		} else if val.Type == model.NodeInit && val.Status == model.ConditionFalse {
 			status.Status=1
 			status.StatusCN=fmt.Sprintf("初始化失败,%s",val.Message)
@@ -343,6 +344,7 @@ func CheckNode(w http.ResponseWriter, r *http.Request) {
 	for _,v:=range tasks{
 		var task model.ExecedTask
 		task.ID=v.ID
+		task.Now=true
 		if taskStatus,ok:=v.Status[nodeUID];ok{
 			task.Status=taskStatus.Status
 			task.CompleteStatus=taskStatus.CompleStatus
@@ -374,6 +376,7 @@ func CheckNode(w http.ResponseWriter, r *http.Request) {
 		}
 		dealNext(&task,tasks)
 		dealDepend(&task,v)
+
 		result=append(result,&task)
 	}
 

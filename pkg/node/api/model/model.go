@@ -44,6 +44,7 @@ type NodePodResource struct {
 type InitStatus struct {
 	Status int `json:"status"`
 	StatusCN string `json:"cn"`
+	HostID string `json:"uuid"`
 }
 type InstallStatus struct {
 	Status int `json:"status"`
@@ -63,6 +64,7 @@ type AllocatedResources struct {
 }
 type ExecedTask struct {
 	ID string `json:"id"`
+	Now bool `json:"now"`
 	Status string `json:"status"`
 	CompleteStatus string `json:"complete_status"`
 	ErrorMsg string `json:"err_msg"`
