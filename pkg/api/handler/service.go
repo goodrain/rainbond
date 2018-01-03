@@ -372,7 +372,7 @@ func (s *ServiceAction) StartStopService(sss *api_model.StartStopStruct) error {
 	}
 	eq, errEq := api_db.BuildTask(ts)
 	if errEq != nil {
-		logrus.Errorf("build equeue stop request error, %v", errEq)
+		logrus.Errorf("build equeue startstop request error, %v", errEq)
 		return errEq
 	}
 	_, err = s.MQClient.Enqueue(context.Background(), eq)
@@ -380,7 +380,7 @@ func (s *ServiceAction) StartStopService(sss *api_model.StartStopStruct) error {
 		logrus.Errorf("equque mq error, %v", err)
 		return err
 	}
-	logrus.Debugf("equeue mq stop task success")
+	logrus.Debugf("equeue mq startstop task success")
 	return nil
 }
 
