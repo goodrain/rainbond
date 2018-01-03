@@ -470,14 +470,14 @@ func (n *nginxAPI) addDomain(ads *AddDomainS) bool {
 			httpsInfo.WriteString(`https=true`)
 			httpsInfo.WriteString(fmt.Sprintf(`&cert_name=%s&`, ads.CertificateName))
 			httpsInfo.WriteString(string(upstream))
-			logrus.Debugf("https info is %v", *httpsInfo)
+			logrus.Debugf("https info is %v", string(httpsInfo.Bytes()))
 			pha.UpStream = httpsInfo.Bytes()
 		} else if ads.TransferHTTP && ads.CertificateName != "" {
 			httpsInfo := bytes.NewBuffer(nil)
 			httpsInfo.WriteString(`tran_https=true`)
 			httpsInfo.WriteString(fmt.Sprintf(`&cert_name=%s&`, ads.CertificateName))
 			httpsInfo.WriteString(string(upstream))
-			logrus.Debugf("trans https info is %v", *httpsInfo)
+			logrus.Debugf("trans https info is %v", string(httpsInfo.Bytes()))
 			pha.UpStream = httpsInfo.Bytes()
 		}
 		n.pHTTPDomain(ads.Domain, pha)
