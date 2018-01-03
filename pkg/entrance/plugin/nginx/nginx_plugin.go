@@ -800,12 +800,20 @@ func (n *nginxAPI) pHTTPDomain(domain string, p *MethodHTTPArgs) {
 func (n *nginxAPI) pHTTPSCert(ssl *SSLCert, errs []error) []error {
 	for _, baseURL := range splitURL(n.ctx.Option["httpapi"]) {
 		url := fmt.Sprintf("%s/ssl/cert/%s", baseURL, ssl.CertName)
-		logrus.Debug("phttps cert url is %s, method is %v", url, ssl.HTTPMethod)
+		logrus.Debugf("phttps cert url is %s, method is %v", url, ssl.HTTPMethod)
 		sslJ, err := ffjson.Marshal(ssl)
+		logrus.Debugf("https ssl is %s", sslJ)
 		if err != nil {
 			errs = append(errs, err)
 		}
-		resp, err := n.urlPPAction(ssl.HTTPMethod, url, sslJ)
+		certInfo := bytes.NewBuffer(nil)
+		certInfo.WriteString(fmt.Sprintf(`cert_name=%s`, ssl.CertName))
+		if ssl.HTTPMethod == MethodPOST {
+			certInfo.WriteString(fmt.Sprintf(`&ca=%s`, ssl.CA))
+			certInfo.WriteString(fmt.Sprintf(`&key=%s`, ssl.Key))
+		}
+		logrus.Debugf("cert info is %v", string(certInfo.Bytes()))
+		resp, err := n.urlPPAction(ssl.HTTPMethod, url, certInfo.Bytes())
 		if err != nil {
 			errs = append(errs, err)
 			logrus.Error(err)
