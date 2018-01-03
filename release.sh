@@ -19,7 +19,8 @@ VERSION=$(git branch | grep '^*' | cut -d ' ' -f 2 | tr '-' " " | awk '{print $2
 git_commit=$(git log -n 1 --pretty --format=%h)
 
 if [ $describe_len -ge 3 ];then
-    buildRelease=${describe_items[-2]}.${describe_items[-1]}
+    #buildRelease=${describe_items[-2]}.${describe_items[-1]}
+	buildRelease=${describe_items[*]: -2:1}.${describe_items[*]: -1}
 else
     buildRelease=0.$git_commit
 fi
