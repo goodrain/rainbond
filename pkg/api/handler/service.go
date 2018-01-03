@@ -372,7 +372,7 @@ func (s *ServiceAction) StartStopService(sss *api_model.StartStopStruct) error {
 	}
 	eq, errEq := api_db.BuildTask(ts)
 	if errEq != nil {
-		logrus.Errorf("build equeue stop request error, %v", errEq)
+		logrus.Errorf("build equeue startstop request error, %v", errEq)
 		return errEq
 	}
 	_, err = s.MQClient.Enqueue(context.Background(), eq)
@@ -380,7 +380,7 @@ func (s *ServiceAction) StartStopService(sss *api_model.StartStopStruct) error {
 		logrus.Errorf("equque mq error, %v", err)
 		return err
 	}
-	logrus.Debugf("equeue mq stop task success")
+	logrus.Debugf("equeue mq startstop task success")
 	return nil
 }
 
@@ -889,18 +889,24 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 					dbmodel.UpNetPlugin,
 					oldPort,
 				)
+				goon := true
 				if err != nil {
-					logrus.Errorf("get plugin mapping port error:(%s)", err)
-					tx.Rollback()
-					return err
+					if strings.Contains(err.Error(), "record not found") {
+						goon = false
+					} else {
+						logrus.Errorf("get plugin mapping port error:(%s)", err)
+						tx.Rollback()
+						return err
+					}
 				}
-				pluginPort.ContainerPort = vp.ContainerPort
-				if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).UpdateModel(pluginPort); err != nil {
-					logrus.Errorf("update plugin mapping port error:(%s)", err)
-					tx.Rollback()
-					return err
+				if goon {
+					pluginPort.ContainerPort = vp.ContainerPort
+					if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).UpdateModel(pluginPort); err != nil {
+						logrus.Errorf("update plugin mapping port error:(%s)", err)
+						tx.Rollback()
+						return err
+					}
 				}
-
 			}
 		}
 		if err := tx.Commit().Error; err != nil {
@@ -1677,6 +1683,34 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 			return err
 		}
 	}
+	//TODO: 如果有关联过插件，需要删除该插件相关配置及资源
+	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteALLRelationByServiceID(serviceID); err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			tx.Rollback()
+			return err
+		}
+	}
+	if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteAllPluginMappingPortByServiceID(serviceID); err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			tx.Rollback()
+			return err
+		}
+	}
+	if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByServiceID(serviceID); err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			tx.Rollback()
+			return err
+		}
+	}
+	//TODO: 删除plugin etcd资源
+	prefixK := fmt.Sprintf("/resources/define/%s/%s", service.TenantID, service.ServiceAlias)
+	logrus.Debugf("prefix is %s", prefixK)
+	_, err = s.EtcdCli.Delete(context.TODO(), prefixK, clientv3.WithPrefix())
+	if err != nil {
+		logrus.Errorf("delete prefix %s from etcd error, %v", prefixK, err)
+		tx.Rollback()
+		return err
+	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return err
@@ -1899,7 +1933,7 @@ func (s *ServiceAction) upNormalEnvs(uve *api_model.SetVersionEnv) *util.APIHand
 		uve.PluginID,
 		uve.Body.ConfigEnvs.NormalEnvs[0].EnvName)
 	if err != nil {
-		return util.CreateAPIHandleErrorFromDBError("update get version env", err)
+		return util.CreateAPIHandleErrorFromDBError("get version env", err)
 	}
 	env.EnvValue = uve.Body.ConfigEnvs.NormalEnvs[0].EnvValue
 	if err := db.GetManager().TenantPluginVersionENVDao().UpdateModel(env); err != nil {

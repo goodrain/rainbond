@@ -71,6 +71,23 @@ func Routers(mode string) *chi.Mux {
 				r.Post("/{node_id}/up", controller.UpNode)         //节点上线
 				r.Get("/{node_id}/instance", controller.Instances) //节点上线
 				r.Get("/{node_id}/check", controller.CheckNode)
+				r.Get("/{node_id}/resource", controller.Resource)
+
+				r.Get("/{node_ip}/init", controller.InitStatus)
+				r.Post("/{node_id}/install", controller.Install)
+
+
+				r.Get("/{node_id}/prometheus/cpu", controller.GetCpu)
+				r.Get("/{node_id}/prometheus/mem", controller.GetMem)
+				r.Get("/{node_id}/prometheus/disk", controller.GetDisk)
+				r.Get("/{node_id}/prometheus/load1", controller.GetLoad1)
+				r.Get("/{node_id}/prometheus/start/{start}/end/{end}/step/{step}/cpu", controller.GetCpuRange)
+				r.Get("/{node_id}/prometheus/start/{start}/end/{end}/step/{step}/mem", controller.GetMemRange)
+				r.Get("/{node_id}/prometheus/start/{start}/end/{end}/step/{step}/disk", controller.GetDiskRange)
+				r.Get("/{node_id}/prometheus/start/{start}/end/{end}/step/{step}/load1", controller.GetLoad1Range)
+				r.Put("/prometheus/expr", controller.GetExpr)
+				r.Put("/prometheus/start/{start}/end/{end}/step/{step}/expr", controller.GetExpr)
+
 
 			})
 

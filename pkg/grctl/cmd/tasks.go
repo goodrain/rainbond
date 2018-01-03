@@ -157,8 +157,10 @@ func NewCmdTasks() cli.Command {
 					if nodeID == "" {
 						fmt.Println("Please specified nodeid use `-n`")
 					}
+					//fmt.Printf("node is %s task id is %s",nodeID,taskID)
 					err := clients.NodeClient.Tasks().Exec(taskID, []string{nodeID})
-					return err
+					handleErr(err)
+					return nil
 				},
 			},
 		},
