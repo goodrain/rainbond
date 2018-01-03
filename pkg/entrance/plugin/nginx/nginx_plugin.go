@@ -27,6 +27,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/pquerna/ffjson/ffjson"
+
 	"github.com/goodrain/rainbond/pkg/entrance/core/object"
 	"github.com/goodrain/rainbond/pkg/entrance/plugin"
 
@@ -218,6 +220,9 @@ func (n *nginxAPI) AddRule(rules ...*object.RuleObject) error {
 	for _, rule := range rules {
 		ads.PoolName = rule.PoolName
 		ads.Domain = rule.DomainName
+		ads.TransferHTTP = rule.TransferHTTP
+		ads.HTTPS = rule.HTTPS
+		ads.CertificateName = rule.CertificateName
 		nodes, err := n.ctx.Store.GetNodeByPool(ads.PoolName)
 		if err != nil {
 			return handleErr(append(errs, errors.New("Getnodebypool error")))
@@ -321,10 +326,28 @@ func (n *nginxAPI) GetPluginStatus() bool {
 }
 
 func (n *nginxAPI) AddCertificate(cas ...*object.Certificate) error {
-	return nil
+	var errs []error
+	for _, ca := range cas {
+		ssl := SSLCert{
+			CertName:   ca.Name,
+			Key:        ca.PrivateKey,
+			CA:         ca.Certificate,
+			HTTPMethod: MethodPOST,
+		}
+		errs = n.pHTTPSCert(&ssl, errs)
+	}
+	return handleErr(errs)
 }
 func (n *nginxAPI) DeleteCertificate(cas ...*object.Certificate) error {
-	return nil
+	var errs []error
+	for _, ca := range cas {
+		ssl := SSLCert{
+			CertName:   ca.Name,
+			HTTPMethod: MethodDELETE,
+		}
+		errs = n.pHTTPSCert(&ssl, errs)
+	}
+	return handleErr(errs)
 }
 
 type nginxAPI struct {
@@ -442,6 +465,21 @@ func (n *nginxAPI) addDomain(ads *AddDomainS) bool {
 	}
 	n.pHTTP(pha)
 	if !bytes.HasPrefix([]byte(ads.Domain), []byte(fmt.Sprintf("%s.%s", p.Port, p.Servicename))) {
+		if ads.HTTPS && ads.CertificateName != "" {
+			httpsInfo := bytes.NewBuffer(nil)
+			httpsInfo.WriteString(`https=true`)
+			httpsInfo.WriteString(fmt.Sprintf(`&cert_name=%s&`, ads.CertificateName))
+			httpsInfo.WriteString(string(upstream))
+			logrus.Debugf("https info is %v", *httpsInfo)
+			pha.UpStream = httpsInfo.Bytes()
+		} else if ads.TransferHTTP && ads.CertificateName != "" {
+			httpsInfo := bytes.NewBuffer(nil)
+			httpsInfo.WriteString(`tran_https=true`)
+			httpsInfo.WriteString(fmt.Sprintf(`&cert_name=%s&`, ads.CertificateName))
+			httpsInfo.WriteString(string(upstream))
+			logrus.Debugf("trans https info is %v", *httpsInfo)
+			pha.UpStream = httpsInfo.Bytes()
+		}
 		n.pHTTPDomain(ads.Domain, pha)
 	}
 	return true
@@ -757,6 +795,24 @@ func (n *nginxAPI) pHTTPDomain(domain string, p *MethodHTTPArgs) {
 		}
 		logrus.Debug(resp)
 	}
+}
+
+func (n *nginxAPI) pHTTPSCert(ssl *SSLCert, errs []error) []error {
+	for _, baseURL := range splitURL(n.ctx.Option["httpapi"]) {
+		url := fmt.Sprintf("%s/ssl/cert/%s", baseURL, ssl.CertName)
+		logrus.Debug("phttps cert url is %s, method is %v", url, ssl.HTTPMethod)
+		sslJ, err := ffjson.Marshal(ssl)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		resp, err := n.urlPPAction(ssl.HTTPMethod, url, sslJ)
+		if err != nil {
+			errs = append(errs, err)
+			logrus.Error(err)
+		}
+		logrus.Debug(resp)
+	}
+	return errs
 }
 
 func (n *nginxAPI) pUpStreamServer(p *MethodHTTPArgs) {
