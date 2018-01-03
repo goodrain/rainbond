@@ -226,7 +226,7 @@ EOF
   log.info "add upstream($(echo $K8S_IPS | tr ',' ' ' | sort -u)) for kube"
   for ii in $(echo $K8S_IPS | tr ',' ' ' | sort -u)
   do
-   sed -i "/#server/iserver $ii:6443 id=${ii} max_fails=2 fail_timeout=10s;" /etc/goodrain/proxy/sites/kube
+   sed -i "/#server/iserver $ii:6443 max_fails=2 fail_timeout=10s;" /etc/goodrain/proxy/sites/kube
   done
 
 }
@@ -331,6 +331,7 @@ MNFZqbv4qs89Mf6AuYaDCD+NrpMHJeCeeUpUeboe6yQg
 -----END RSA PRIVATE KEY-----
 EOF
 
+log.info "add upstream($(echo $HUB_IPS | tr ',' ' ' | sort -u)) for registry"
 for ii in $(echo $HUB_IPS | tr ',' ' ' | sort -u)
 do
     sed -i "/#server/iserver $ii:5000 max_fails=2 fail_timeout=10s;" /etc/goodrain/proxy/sites/registry
@@ -401,19 +402,51 @@ services:
     restart: always
 EOF
 
-    dc-compose up -d
+    dc-compose up -d rbd-proxy
     
     # manage node dont need
     grep "manage" /etc/goodrain/envs/.role >/dev/null
     if [ $? -ne 0 ];then
-        log.info "add kube vhost"
-        add_kube_vhost
+        
+        if [ ! -f "/etc/goodrain/proxy/sites/kube" ];then
+            log.info "add kube vhost"
+            add_kube_vhost
+        else
+            dest_md5_k8s=$(echo $K8S_IPS | tr ',' '\n' | sort -u | xargs | md5sum | awk '{print $1}')
+            old_md5_k8s=$(grep "^server .*;$"  /etc/goodrain/proxy/sites/kube | tr ':' ' ' | awk '{print $2}' | sort -u | xargs | md5sum | awk '{print $1}')
+            if [ $dest_md5_k8s == $old_md5_k8s ];then
+                log.info "kube vhost not change"
+            else
+                log.info "add kube vhost"
+                add_kube_vhost
+            fi
+        fi        
     fi
-    log.info "add registry_vhost"
-    add_registry_vhost
+    
+    if [ ! -f "/etc/goodrain/proxy/sites/registry" ];then
+        log.info "add registry vhost"
+        add_registry_vhost
+    else
+            dest_md5_hub=$(echo $HUB_IPS | tr ',' '\n' | sort -u | xargs | md5sum | awk '{print $1}')
+            old_md5_hub=$(grep "^server .*;$"  /etc/goodrain/proxy/sites/registry | tr ':' ' ' | awk '{print $2}' | sort -u | xargs | md5sum | awk '{print $1}')
+            if [ $dest_md5_hub == $old_md5_hub ];then
+                log.info "registry vhost not change"
+            else
+                log.info "add registry vhost"
+                add_registry_vhost
+            fi
+    fi   
+    
     vhost::reload
-    dc-compose ps | grep "proxy" > /dev/null
-    if [ $? -eq 0 ];then
+    
+    _EXIT=1
+    for ((i=1;i<=3;i++ )); do
+        sleep 3
+        log.info "retry $i time(s) get rbd-proxy "
+        dc-compose ps | grep "proxy" && export _EXIT=0 && break
+    done
+
+    if [ $_EXIT -eq 0 ];then
         log.info "install plugins for compute node ok"
         log.stdout '{
                 "status":[ 

@@ -44,6 +44,36 @@
             "is_once": true
         },
         {
+            "name": "install_storage",
+            "id": "install_storage",
+            "temp": {
+                "name": "install_storage",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/storage/storage.sh",
+                        "${OS_VER}",
+                        "${STORAGE_MODE}",
+                        "${NFS_SERVERS}",
+                        "${NFS_ENDPOINT}",
+                        "${NFS_ARGS}"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": [
+                    {
+                        "depend_task_id": "install_docker",
+                        "strategy": "SameNode"
+                    }
+                ]
+            },
+            "run_mode": "onlyonce",
+            "is_once": true
+        },
+        {
             "name": "install_db",
             "id": "install_db",
             "temp": {
@@ -61,7 +91,7 @@
                 },
                 "depends": [
                     {
-                        "depend_task_id": "install_docker",
+                        "depend_task_id": "install_storage",
                         "strategy": "SameNode"
                     }
                 ]

@@ -38,7 +38,7 @@ function image::push() {
 
 function run() {
     image::push runner latest
-    image::push adapter $REPO_VER
+    image::push adapter 3.4
     image::push pause-amd64 3.0
     image::push builder latest
 
