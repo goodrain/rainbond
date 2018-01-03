@@ -45,7 +45,7 @@ function prepare() {
     log.info "install network plugins calico-node"
     log.info "prepare network env"
     [ -d "/etc/goodrain/envs" ] || mkdir -pv /etc/goodrain/envs
-    docker images | grep calico ||  docker pull $calico_node_image
+    docker pull $calico_node_image
 }
 
 function proc::is_running() {
