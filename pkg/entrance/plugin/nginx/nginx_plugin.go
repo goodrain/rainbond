@@ -27,8 +27,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/pquerna/ffjson/ffjson"
-
 	"github.com/goodrain/rainbond/pkg/entrance/core/object"
 	"github.com/goodrain/rainbond/pkg/entrance/plugin"
 
@@ -801,11 +799,6 @@ func (n *nginxAPI) pHTTPSCert(ssl *SSLCert, errs []error) []error {
 	for _, baseURL := range splitURL(n.ctx.Option["httpapi"]) {
 		url := fmt.Sprintf("%s/ssl/cert/%s", baseURL, ssl.CertName)
 		logrus.Debugf("phttps cert url is %s, method is %v", url, ssl.HTTPMethod)
-		sslJ, err := ffjson.Marshal(ssl)
-		logrus.Debugf("https ssl is %s", sslJ)
-		if err != nil {
-			errs = append(errs, err)
-		}
 		certInfo := bytes.NewBuffer(nil)
 		certInfo.WriteString(fmt.Sprintf(`cert_name=%s`, ssl.CertName))
 		if ssl.HTTPMethod == MethodPOST {
