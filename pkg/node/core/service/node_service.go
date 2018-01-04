@@ -201,6 +201,7 @@ func (n *NodeService) UpNode(nodeID string) (*model.HostNode, *utils.APIHandleEr
 	return hostNode, nil
 }
 func (n *NodeService) InstallNode(nodeID string) *utils.APIHandleError {
+	time.Sleep(3*time.Second)
 	node,err:=n.GetNode(nodeID)
 	if err != nil {
 		return err
