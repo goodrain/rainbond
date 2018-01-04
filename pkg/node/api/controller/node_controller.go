@@ -131,6 +131,7 @@ func GetNode(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
+	handleStatus(node)
 	httputil.ReturnSuccess(r, w, node)
 }
 
