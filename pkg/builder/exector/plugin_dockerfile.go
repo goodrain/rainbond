@@ -148,17 +148,30 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config
 }
 
 func clone(gitURL string, sourceDir string, logger event.Logger, repo string) error {
-	logrus.Debugf("rm dir: sudo -P rm -rf %v", sourceDir)
-	nn := []string{"-P", "rm", "-rf", sourceDir}
-	if err := ShowExec("sudo", nn, logger); err != nil {
-		return err
+	path := fmt.Sprintf("%s/.git/config", sourceDir)
+	_, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			logrus.Debugf("clone: %s", fmt.Sprintf("git clone -b %s %s %s", repo, gitURL, sourceDir))
+			mm := []string{"clone", "-b", repo, gitURL, sourceDir}
+			if err := ShowExec("git", mm, logger); err != nil {
+				return err
+			}
+		} else {
+			logrus.Debugf("file check error: %v", err)
+			return err
+		}
 	}
-	logrus.Debugf("clone git: %s", fmt.Sprintf("git clone -b %s %s %s", repo, gitURL, sourceDir))
-	mm := []string{"clone", "-b", repo, gitURL, sourceDir}
-	if err := ShowExec("git", mm, logger); err != nil {
+	logrus.Debugf("pull: %s", fmt.Sprintf("cd %s & git pull", sourceDir))
+	mm := []string{"-P", "cd", sourceDir, "&", "git", "pull"}
+	if err := ShowExec("sudo", mm, logger); err != nil {
 		return err
 	}
 	return nil
+}
+
+func checkGitDir(sourceDir string, logger event.Logger) {
+
 }
 
 func checkDockerfile(sourceDir string) bool {
