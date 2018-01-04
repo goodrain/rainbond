@@ -194,11 +194,13 @@ func setTag(curRegistry string, image string, alias string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	logrus.Debugf("set tag: sudo -P docker tag %s %s", image, curImage)
 	return curImage, nil
 }
 
 func push(curImage string, logger event.Logger) error {
 	mm := []string{"-P", "docker", "push", curImage}
+	logrus.Debugf("push images: sudo -P docker push %s", curImage)
 	if err := ShowExec("sudo", mm, logger); err != nil {
 		return err
 	}
