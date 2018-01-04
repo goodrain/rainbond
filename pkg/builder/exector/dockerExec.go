@@ -63,8 +63,8 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 				break
 			}
 			//fmt.Print(line)
-			logrus.Infof(fmt.Sprintf("builder: %v", line))
-			logger[0].Info(fmt.Sprintf("builder:%v", line), map[string]string{"step": "build-exector"})
+			logrus.Debugf(fmt.Sprintf("builder: %v", line))
+			logger[0].Debug(fmt.Sprintf("builder:%v", line), map[string]string{"step": "build-exector"})
 		}
 	}()
 	cmd.Wait()

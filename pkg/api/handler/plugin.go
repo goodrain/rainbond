@@ -23,6 +23,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/cmd/api/option"
@@ -274,8 +275,10 @@ func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *
 	}
 	tx := db.GetManager().Begin()
 	if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).AddModel(pbv); err != nil {
-		tx.Rollback()
-		return nil, err
+		if !strings.Contains(err.Error(), "exist") {
+			tx.Rollback()
+			return nil, err
+		}
 	}
 	taskBody := &builder_model.BuildPluginTaskBody{
 		TenantID:     b.Body.TenantID,
@@ -356,8 +359,10 @@ func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plu
 	}
 	tx := db.GetManager().Begin()
 	if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).AddModel(pbv); err != nil {
-		tx.Rollback()
-		return nil, err
+		if strings.Contains(err.Error(), "exist") {
+			tx.Rollback()
+			return nil, err
+		}
 	}
 	taskBody := &builder_model.BuildPluginTaskBody{
 		TenantID:     b.Body.TenantID,

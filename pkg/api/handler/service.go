@@ -1925,18 +1925,11 @@ func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.API
 }
 
 func (s *ServiceAction) upNormalEnvs(uve *api_model.SetVersionEnv) *util.APIHandleError {
-	if len(uve.Body.ConfigEnvs.NormalEnvs) != 1 {
-		return util.CreateAPIHandleError(400, fmt.Errorf("only one env can be update"))
-	}
-	env, err := db.GetManager().TenantPluginVersionENVDao().GetVersionEnvByEnvName(
-		uve.Body.ServiceID,
-		uve.PluginID,
-		uve.Body.ConfigEnvs.NormalEnvs[0].EnvName)
+	err := db.GetManager().TenantPluginVersionENVDao().DeleteEnvByPluginID(uve.Body.ServiceID, uve.PluginID)
 	if err != nil {
-		return util.CreateAPIHandleErrorFromDBError("get version env", err)
+		return util.CreateAPIHandleErrorFromDBError("delete version env", err)
 	}
-	env.EnvValue = uve.Body.ConfigEnvs.NormalEnvs[0].EnvValue
-	if err := db.GetManager().TenantPluginVersionENVDao().UpdateModel(env); err != nil {
+	if err := s.normalEnvs(uve); err != nil {
 		return util.CreateAPIHandleErrorFromDBError("update version env", err)
 	}
 	return nil
