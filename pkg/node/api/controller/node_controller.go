@@ -96,7 +96,7 @@ func handleStatus(v *model.HostNode){
 
 	if v.NodeStatus!=nil{
 		for _,condiction:=range v.Conditions{
-			if condiction.Status=="True" &&condiction.Type!="Ready"{
+			if condiction.Status=="True" &&(condiction.Type=="OutOfDisk"||condiction.Type=="MemoryPressure"||condiction.Type=="DiskPressure"){
 				v.Status="error"
 				return
 			}
