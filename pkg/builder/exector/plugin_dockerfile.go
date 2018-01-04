@@ -171,11 +171,13 @@ func buildImage(version, gitURL, sourceDir, curRegistry string, logger event.Log
 	logrus.Debugf("image name is %v", imageName)
 	if os.Getenv("NO_CACHE") == "" {
 		mm := []string{"-P", "docker", "build", "-t", imageName, "--no-cache", sourceDir}
+		logrus.Debugf("build image: sudo -P docker build -t %s --no-cache %s", imageName, sourceDir)
 		if err := ShowExec("sudo", mm, logger); err != nil {
 			return "", err
 		}
 	} else {
 		mm := []string{"-P", "docker", "build", "-t", imageName, sourceDir}
+		logrus.Debugf("build image: sudo -P docker build -t %s %s", imageName, sourceDir)
 		if err := ShowExec("sudo", mm, logger); err != nil {
 			return "", err
 		}
