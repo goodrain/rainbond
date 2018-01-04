@@ -277,6 +277,7 @@ func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *
 	if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).AddModel(pbv); err != nil {
 		if !strings.Contains(err.Error(), "exist") {
 			tx.Rollback()
+			logrus.Errorf("build plugin error: %s", err.Error())
 			return nil, err
 		}
 	}
@@ -359,8 +360,9 @@ func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plu
 	}
 	tx := db.GetManager().Begin()
 	if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).AddModel(pbv); err != nil {
-		if strings.Contains(err.Error(), "exist") {
+		if !strings.Contains(err.Error(), "exist") {
 			tx.Rollback()
+			logrus.Errorf("build plugin error: %s", err.Error())
 			return nil, err
 		}
 	}
