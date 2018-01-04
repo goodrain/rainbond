@@ -161,6 +161,7 @@ func (m *Manager) patchTable() {
 	// m.db.Exec("alter table tenant_services add replica_id varchar(32)")
 	// m.db.Exec("alter table tenant_services add status int(11) default 0")
 	// m.db.Exec("alter table tenant_services add node_label varchar(40)")
+	m.db.Exec("truncate table region_api_class")
 	m.db.Exec("insert into region_api_class VALUES ('','','server_source','/v2/tenants','','','')")
 	m.db.Exec("insert into region_api_class VALUES ('','','server_source','/v2/show','','','')")
 	m.db.Exec("insert into region_api_class VALUES ('','','server_source','/v2/resources','','','')")

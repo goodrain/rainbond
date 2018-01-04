@@ -1847,7 +1847,10 @@ func (s *ServiceAction) SetVersionEnv(sve *api_model.SetVersionEnv) *util.APIHan
 			return util.CreateAPIHandleError(500, fmt.Errorf("set complex error, %v", err))
 		}
 	}
-	return util.CreateAPIHandleError(200, fmt.Errorf("no envs need to be changed"))
+	if len(sve.Body.ConfigEnvs.NormalEnvs) == 0 && sve.Body.ConfigEnvs.ComplexEnvs == nil {
+		return util.CreateAPIHandleError(200, fmt.Errorf("no envs need to be changed"))
+	}
+	return nil
 }
 
 func (s *ServiceAction) normalEnvs(sve *api_model.SetVersionEnv) error {
@@ -1921,7 +1924,10 @@ func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.API
 			return util.CreateAPIHandleError(500, fmt.Errorf("update complex error, %v", err))
 		}
 	}
-	return util.CreateAPIHandleError(200, fmt.Errorf("no envs need to be changed"))
+	if len(uve.Body.ConfigEnvs.NormalEnvs) == 0 && uve.Body.ConfigEnvs.ComplexEnvs == nil {
+		return util.CreateAPIHandleError(200, fmt.Errorf("no envs need to be changed"))
+	}
+	return nil
 }
 
 func (s *ServiceAction) upNormalEnvs(uve *api_model.SetVersionEnv) *util.APIHandleError {
