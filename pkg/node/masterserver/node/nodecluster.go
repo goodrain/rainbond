@@ -408,6 +408,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 		errorCondition("节点初始化输出数据错误", err)
 		logrus.Errorf("get init current node result error:%s", err.Error())
 	}
+	node.Status = "init_success"
 	if output.Global != nil {
 		for k, v := range output.Global {
 			if strings.Index(v, ",") > -1 {
@@ -429,6 +430,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 			}
 		}
 	}
+	node.Update()
 }
 
 //GetAllNode 获取全部节点
