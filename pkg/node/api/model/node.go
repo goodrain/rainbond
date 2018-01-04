@@ -104,17 +104,22 @@ func (c TaskResult) Swap(i, j int) {
 	c[i], c[j] = c[j], c[i]
 }
 func (c TaskResult) Less(i, j int) bool {
-	if c[i].Status == "complete" {
+	if c[i].Status == "complete"&&(c[j].Status=="start"||c[j].Status=="wait") {
 		return true
 	}
 	if c[i].Status=="start" {
+		if c[j].Status=="complete" {
+			return false
+		}
+		if c[j].Status == "wait" {
+			return true
+		}
 		return true
 	}
 	if c[i].Status=="wait" {
-		return true
+		return false
 	}
 	return true
-
 }
 //GetNodeFromKV 从etcd解析node信息
 func GetNodeFromKV(kv *mvccpb.KeyValue) *HostNode {
