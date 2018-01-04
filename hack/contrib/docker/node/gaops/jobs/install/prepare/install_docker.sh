@@ -118,6 +118,7 @@ function package::enable() {
                 "condition_status":"False"
             } 
             ], 
+            "exec_status":"Failure",
             "type":"check"
             }'
             exit $_EXIT

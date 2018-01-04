@@ -133,6 +133,7 @@ function package::enable() {
                     "condition_status":"False"
                 } 
                 ], 
+                "exec_status":"Failure",
                 "type":"install"
                 }'
             exit $_EXIT
@@ -295,6 +296,7 @@ function install-kube-apiserver() {
                     "condition_status":"False"
                 } 
                 ], 
+                "exec_status":"Failure",
                 "type":"install"
                 }'
             exit 1
@@ -327,7 +329,8 @@ function install-kube-controller-manager() {
                     "condition_type":"INSTALL_KUBE-CONTROLLER-MANAGER", 
                     "condition_status":"False"
                 } 
-                ], 
+                ],
+                "exec_status":"Failure",
                 "type":"install"
                 }'
             exit 1
@@ -349,7 +352,8 @@ function install-kube-scheduler() {
                     "condition_type":"INSTALL_KUBE-SCHEDULER", 
                     "condition_status":"False"
                 } 
-                ], 
+                ],
+                "exec_status":"Failure",
                 "type":"install"
                 }'
             exit 1

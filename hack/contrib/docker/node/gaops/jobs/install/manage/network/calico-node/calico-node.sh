@@ -151,6 +151,17 @@ function package::enable() {
 
         if [ $_EXIT -ne 0 ];then
             log.error "check failed. abort..."
+            log.stdout '{
+            "status":[ 
+            { 
+                "name":"start_network_calico-node_client_manage", 
+                "condition_type":"START_NETWORK_CALICO_NODE_client_manage", 
+                "condition_status":"False"
+            } 
+            ], 
+            "exec_status":"Failure",
+            "type":"install"
+            }'
             exit $_EXIT
         fi
     else

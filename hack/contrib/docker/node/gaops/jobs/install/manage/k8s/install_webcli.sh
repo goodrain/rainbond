@@ -75,6 +75,7 @@ function install_webcli() {
                     "condition_status":"False"
                 } 
                 ], 
+                "exec_status":"Failure",
                 "type":"install"
                 }'
             exit 1
@@ -128,6 +129,7 @@ function run() {
                     "condition_status":"False"
                 } 
                 ],
+                "exec_status":"Failure",
                 "type":"install"
                 }'
     fi

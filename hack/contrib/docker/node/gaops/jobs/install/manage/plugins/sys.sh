@@ -179,6 +179,7 @@ function image::done() {
                 "condition_status":"Flase"
             } 
             ],
+            "exec_status":"Failure",
             "type":"install"
             }'
             exit 1
