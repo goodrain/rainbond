@@ -148,7 +148,11 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config
 }
 
 func clone(gitURL string, sourceDir string, logger event.Logger, repo string) error {
-	logrus.Debugf("clone git %s", fmt.Sprintf("git clone -b %s %s %s", repo, gitURL, sourceDir))
+	logrus.Debugf("clone git: %s", fmt.Sprintf("git clone -b %s %s %s", repo, gitURL, sourceDir))
+	nn := []string{sourceDir, "&", "rm", "-rf", "*"}
+	if err := ShowExec("cd", nn, logger); err != nil {
+		return err
+	}
 	mm := []string{"clone", "-b", repo, gitURL, sourceDir}
 	if err := ShowExec("git", mm, logger); err != nil {
 		return err
