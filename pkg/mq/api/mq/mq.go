@@ -1,30 +1,30 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package mq
 
 import (
-	"github.com/goodrain/rainbond/cmd/mq/option"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/goodrain/rainbond/cmd/mq/option"
 
 	"golang.org/x/net/context"
 
@@ -56,7 +56,6 @@ func NewActionMQ(ctx context.Context, c option.Config) ActionMQ {
 
 type etcdQueue struct {
 	config     option.Config
-	client     *clientv3.Client
 	ctx        context.Context
 	queues     map[string]string
 	queuesLock sync.Mutex
@@ -64,15 +63,6 @@ type etcdQueue struct {
 
 func (e *etcdQueue) Start() error {
 	logrus.Debug("etcd message queue client starting")
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   e.config.EtcdEndPoints,
-		DialTimeout: time.Duration(e.config.EtcdTimeout) * time.Second,
-	})
-	if err != nil {
-		etcdutil.HandleEtcdError(err)
-		return err
-	}
-	e.client = cli
 	topics := os.Getenv("topics")
 	if topics != "" {
 		ts := strings.Split(topics, ",")
@@ -108,20 +98,35 @@ func (e *etcdQueue) GetAllTopics() []string {
 }
 
 func (e *etcdQueue) Stop() error {
-	if e.client != nil {
-		return e.client.Close()
-	}
 	return nil
 }
 func (e *etcdQueue) queueKey(topic string) string {
 	return e.config.EtcdPrefix + "/" + topic
 }
 func (e *etcdQueue) Enqueue(ctx context.Context, topic, value string) error {
-	queue := etcdutil.NewQueue(e.client, e.queueKey(topic), ctx)
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   e.config.EtcdEndPoints,
+		DialTimeout: time.Duration(e.config.EtcdTimeout) * time.Second,
+	})
+	if err != nil {
+		etcdutil.HandleEtcdError(err)
+		return err
+	}
+	defer cli.Close()
+	queue := etcdutil.NewQueue(cli, e.queueKey(topic), ctx)
 	return queue.Enqueue(value)
 }
 
 func (e *etcdQueue) Dequeue(ctx context.Context, topic string) (string, error) {
-	queue := etcdutil.NewQueue(e.client, e.queueKey(topic), ctx)
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   e.config.EtcdEndPoints,
+		DialTimeout: time.Duration(e.config.EtcdTimeout) * time.Second,
+	})
+	if err != nil {
+		etcdutil.HandleEtcdError(err)
+		return "", err
+	}
+	defer cli.Close()
+	queue := etcdutil.NewQueue(cli, e.queueKey(topic), ctx)
 	return queue.Dequeue()
 }

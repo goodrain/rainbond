@@ -103,6 +103,7 @@ func (k *KeepAlive) Start() error {
 						}
 						logrus.Warnf("%s lid[%x] keepAlive err: %s, try to reset...", k.Endpoint, k.LID, err.Error())
 						k.LID = 0
+						timer.Reset(duration)
 					}()
 				} else {
 					if err := k.reg(); err != nil {

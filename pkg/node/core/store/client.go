@@ -79,7 +79,7 @@ func (c *Client) Post(key, val string, opts ...client.OpOption) (*client.PutResp
 	if !txnresp.Succeeded {
 		return nil, ErrKeyExists
 	}
-	return txnresp.ToOpResponse().Put(), nil
+	return txnresp.OpResponse().Put(), nil
 }
 
 //Put etcd v3 Put

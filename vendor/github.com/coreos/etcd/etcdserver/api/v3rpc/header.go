@@ -37,9 +37,6 @@ func newHeader(s *etcdserver.EtcdServer) header {
 
 // fill populates pb.ResponseHeader using etcdserver information
 func (h *header) fill(rh *pb.ResponseHeader) {
-	if rh == nil {
-		plog.Panic("unexpected nil resp.Header")
-	}
 	rh.ClusterId = uint64(h.clusterID)
 	rh.MemberId = uint64(h.memberID)
 	rh.RaftTerm = h.raftTimer.Term()
