@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os/exec"
 
 	"github.com/goodrain/rainbond/pkg/event"
@@ -58,8 +59,6 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 	if err != nil {
 		return err
 	}
-	errReader := bufio.NewReader(stderr)
-	errChan := make(chan error)
 	cmd.Start()
 	reader := bufio.NewReader(stdout)
 	go func() {
@@ -73,24 +72,15 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 			logger[0].Debug(fmt.Sprintf("builder:%v", line), map[string]string{"step": "build-exector"})
 		}
 	}()
-	go func() {
-		for {
-			errLine, errL := errReader.ReadString('\n')
-			if errL != nil {
-				logrus.Debugf("err line error: %s", errL.Error())
-			}
-			logrus.Errorf(fmt.Sprintf("builder error: %v", errLine))
-			logger[0].Error(fmt.Sprintf("build Error: %v", errLine), map[string]string{"step": "builder-exector", "status": "failure"})
-			errChan <- fmt.Errorf(errLine)
-			break
-		}
-	}()
-	//cmd.Wait()
-	select {
-	case mm := <-errChan:
-		return mm
-	default:
-		cmd.Wait()
+	bytesErr, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		return err
 	}
+	if len(bytesErr) != 0 {
+		logrus.Debugf("builder: %s", bytesErr)
+		logger[0].Debug(fmt.Sprintf("builder:%v", string(bytesErr)), map[string]string{"step": "build-exector"})
+		return fmt.Errorf("%s", bytesErr)
+	}
+	cmd.Wait()
 	return nil
 }
