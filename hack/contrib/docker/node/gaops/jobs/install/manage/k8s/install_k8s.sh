@@ -19,20 +19,6 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
 
 function proc::is_running() {
     proc=$1
@@ -160,7 +146,7 @@ function package::enable() {
 export KUBE_SHARE_DIR="/grdata/services/k8s"
 
 function prepare() {
-    log.section "ACP: install k8s"
+    log.info "RBD: install k8s"
     [ -d "/etc/goodrain/envs" ] || mkdir -pv /etc/goodrain/envs
     log.info "prepare k8s"
 }
@@ -398,7 +384,7 @@ function run() {
 
     log.stdout '{
             "global":{
-                "KUBE_API":"'$KUBE_API'"
+                "KUBE_API":"'$KUBE_API',"
             },
             "status":[ 
             { 

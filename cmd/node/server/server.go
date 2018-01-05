@@ -115,7 +115,7 @@ func Run(c *option.Conf) error {
 	return nil
 }
 func getInfoForMaster(s *nodeserver.NodeServer) {
-	resp, err := http.Get("http://repo.goodrain.com/gaops/jobs/cron/check/manage/sys.sh")
+	resp, err := http.Get("http://repo.goodrain.com/release/3.4.1/gaops/jobs/cron/check/manage/sys.sh")
 	if err != nil {
 		logrus.Errorf("error get sysinfo script,details %s", err.Error())
 		return
@@ -150,8 +150,7 @@ func getInfoForMaster(s *nodeserver.NodeServer) {
 		NodeInfo:v1.NodeSystemInfo{
 			KernelVersion:result["KERNEL"],
 			Architecture:result["PLATFORM"],
-			OSImage:result["OS"],
-			//OperatingSystem:result["OS"],
+			OperatingSystem:result["OS"],
 			KubeletVersion:"N/A",
 		},
 	}
@@ -162,15 +161,19 @@ func getInfoForMaster(s *nodeserver.NodeServer) {
 			s.HostNode.NodeStatus.Allocatable.Cpu().Set(int64(cpu))
 		}
 	}
+
 	if memStr,ok:=result["MEMORY"];ok{
 		memStr=strings.Replace(memStr," ","",-1)
 		memStr=strings.Replace(memStr,"G","",-1)
 		memStr=strings.Replace(memStr,"B","",-1)
-		if mem,err:=strconv.Atoi(memStr);err==nil{
+		if mem,err:=strconv.ParseFloat(memStr,64);err==nil{
 			s.HostNode.AvailableMemory=int64(mem*1024*1024*1024)
 			s.HostNode.NodeStatus.Allocatable.Memory().SetScaled(int64(mem*1024*1024*1024),0)
+		}else {
+			logrus.Warnf("get master memory info failed ,details %s",err.Error())
 		}
 	}
+	logrus.Infof("memory is %v",s.HostNode.AvailableMemory)
 	s.Update()
 
 }

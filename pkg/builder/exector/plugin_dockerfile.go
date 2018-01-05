@@ -148,12 +148,30 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config
 }
 
 func clone(gitURL string, sourceDir string, logger event.Logger, repo string) error {
-	logrus.Debugf("clone git %s", fmt.Sprintf("git clone -b %s %s %s", repo, gitURL, sourceDir))
-	mm := []string{"clone", "-b", repo, gitURL, sourceDir}
-	if err := ShowExec("git", mm, logger); err != nil {
+	path := fmt.Sprintf("%s/.git/config", sourceDir)
+	_, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			logrus.Debugf("clone: %s", fmt.Sprintf("git clone -b %s %s %s", repo, gitURL, sourceDir))
+			mm := []string{"clone", "-b", repo, gitURL, sourceDir}
+			if err := ShowExec("git", mm, logger); err != nil {
+				return err
+			}
+		} else {
+			logrus.Debugf("file check error: %v", err)
+			return err
+		}
+	}
+	logrus.Debugf("pull: %s", fmt.Sprintf("cd %s & sudo -P git pull", sourceDir))
+	mm := []string{"-P", "cd", sourceDir, "&", "sudo", "-P", "git", "pull"}
+	if err := ShowExec("sudo", mm, logger); err != nil {
 		return err
 	}
 	return nil
+}
+
+func checkGitDir(sourceDir string, logger event.Logger) {
+
 }
 
 func checkDockerfile(sourceDir string) bool {
@@ -171,11 +189,13 @@ func buildImage(version, gitURL, sourceDir, curRegistry string, logger event.Log
 	logrus.Debugf("image name is %v", imageName)
 	if os.Getenv("NO_CACHE") == "" {
 		mm := []string{"-P", "docker", "build", "-t", imageName, "--no-cache", sourceDir}
+		logrus.Debugf("build image: sudo -P docker build -t %s --no-cache %s", imageName, sourceDir)
 		if err := ShowExec("sudo", mm, logger); err != nil {
 			return "", err
 		}
 	} else {
 		mm := []string{"-P", "docker", "build", "-t", imageName, sourceDir}
+		logrus.Debugf("build image: sudo -P docker build -t %s %s", imageName, sourceDir)
 		if err := ShowExec("sudo", mm, logger); err != nil {
 			return "", err
 		}

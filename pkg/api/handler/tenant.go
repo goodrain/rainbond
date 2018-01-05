@@ -93,6 +93,8 @@ func (t *TenantAction) GetTenants() ([]*dbmodel.Tenants, error) {
 	}
 	return tenants, err
 }
+
+//GetTenantsPaged GetTenantsPaged
 func (t *TenantAction) GetTenantsPaged(offset, len int) ([]*dbmodel.Tenants, error) {
 	tenants, err := db.GetManager().TenantDao().GetALLTenants()
 	if err != nil {
@@ -101,7 +103,7 @@ func (t *TenantAction) GetTenantsPaged(offset, len int) ([]*dbmodel.Tenants, err
 	return tenants, err
 }
 
-//StatsMemCPU StatsMemCPU
+//TotalMemCPU StatsMemCPU
 func (t *TenantAction) TotalMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error) {
 	cpus := 0
 	mem := 0
@@ -141,7 +143,7 @@ func (t *TenantAction) GetTenantsByName(name string) (*dbmodel.Tenants, error) {
 	return tenant, err
 }
 
-//GetTenants get tenants
+//GetTenantsByUUID get tenants
 func (t *TenantAction) GetTenantsByUUID(uuid string) (*dbmodel.Tenants, error) {
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(uuid)
 	if err != nil {

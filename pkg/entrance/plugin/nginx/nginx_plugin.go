@@ -40,7 +40,6 @@ func init() {
 	plugin.RegistPluginOptionCheck("nginx", Check)
 }
 
-//New New
 func New(ctx plugin.Context) (plugin.Plugin, error) {
 	n := &nginxAPI{
 		ctx: ctx,
@@ -68,7 +67,7 @@ func checkURLS(s string, errs string) error {
 
 //Check Check
 func Check(ctx plugin.Context) error {
-	errMsg := "Nginx httpapi can not be empty, Eg: http://10.12.23.11:10002,http://10.12.23.12:10002"
+	errMsg := "Nginx httpapi can not be empty, Eg: http://10.12.23.11:10002;http://10.12.23.12:10002"
 	for k, v := range ctx.Option {
 		switch k {
 		case "httpapi":
@@ -353,7 +352,6 @@ type nginxAPI struct {
 	client *http.Client
 }
 
-//NginxError NginxError
 type NginxError struct {
 	Code    int
 	Message string
@@ -367,7 +365,6 @@ func (e *NginxError) Error() string {
 	return e.Message
 }
 
-//Err Err
 func Err(err error, msg string, code int) error {
 	if err == nil {
 		return nil
@@ -485,12 +482,12 @@ func (n *nginxAPI) addDomain(ads *AddDomainS) bool {
 
 func (n *nginxAPI) delDomainNode(ads *AddDomainS) bool {
 	// 添加域名
-	logrus.Debugf("<LBNGINX>[delDomain]del domain:%s, pool_name:%s, update_nodes:%v",
+	logrus.Debugf("<LBNGINX>[addDomain]del domain:%s, pool_name:%s, update_nodes:%v",
 		ads.Domain,
 		ads.PoolName,
 		ads.NodeList)
 	if len(ads.NodeList) == 0 {
-		logrus.Warnf("<LBNGINX>[delDomain]domain %s node is None", ads.Domain)
+		logrus.Warnf("<LBNGINX>[addDomain]domain %s node is None", ads.Domain)
 		return true
 	}
 	logrus.Debugf("domain is %s", ads.Domain)
@@ -500,7 +497,7 @@ func (n *nginxAPI) delDomainNode(ads *AddDomainS) bool {
 		return false
 	}
 	upstream := reUpStream(ads.NodeList)
-	logrus.Debugf("<LBNGINX>[delDomain]post_http, tenant:%s, service:%s, upstream:%s",
+	logrus.Debugf("<LBNGINX>[addDomain]post_http, tenant:%s, service:%s, upstream:%s",
 		p.Tenantname,
 		p.Servicename,
 		upstream)
@@ -899,7 +896,6 @@ func (n *nginxAPI) urlPPAction(method HTTPMETHOD, url string, stream []byte) (*h
 
 func splitURL(urlstr string) []string {
 	var urls []string
-	logrus.Debugf("urlstr is %s", urlstr)
 	if strings.Contains(urlstr, ";") {
 		urls = strings.Split(urlstr, ";")
 	} else if strings.Contains(urlstr, ",") {

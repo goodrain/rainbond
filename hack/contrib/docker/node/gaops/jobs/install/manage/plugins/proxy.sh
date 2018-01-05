@@ -1,8 +1,13 @@
 #!/bin/bash
 
 REPO_VER=$1
+RBD_REPO_EXPAND=${2:-0}
+LANG_SERVER=${3:-$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')}
+MAVEN_SERVER=${4:-$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')}
 
-RBD_PROXY="rainbond/rbd-proxy:$REPO_VER"
+RBD_IMAGE_PROXY_NAME=$(jq --raw-output '."rbd-proxy".name' /etc/goodrain/envs/rbd.json)
+RBD_IMAGE_PROXY_VERSION=$(jq --raw-output '."rbd-proxy".version' /etc/goodrain/envs/rbd.json)
+RBD_PROXY=$RBD_IMAGE_PROXY_NAME:$RBD_IMAGE_PROXY_VERSION
 
 
 function log.info() {
@@ -16,21 +21,6 @@ function log.error() {
 
 function log.stdout() {
     echo "$*" >&2
-}
-
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
 }
 
 function sys::path_mounted() {
@@ -315,16 +305,29 @@ EOF
 
 function run() {
     
-    log.section "setup acp proxy"
+    log.info "setup rbd proxy"
     add_console_vhost
-    add_lang_vhost
+    
     add_registry_vhost
+    
+    add_lang_vhost
     add_maven_vhost
+
+    if [ $RBD_REPO_EXPAND -ne 0 ];then
+        sed -i "s#127.0.0.1#$MAVEN_SERVER#g" /etc/goodrain/proxy/sites/maven
+        sed -i "s#127.0.0.1#$LANG_SERVER#g" /etc/goodrain/proxy/sites/lang
+    fi 
 
     proxy
 
-    dc-compose ps | grep "proxy" > /dev/null
-    if [ $? -eq 0 ];then
+    _EXIT=1
+    for ((i=1;i<=3;i++ )); do
+        sleep 3
+        log.info "retry $i get rbd-proxy "
+        dc-compose ps | grep "proxy" && export _EXIT=0 && break
+    done
+    
+    if [ $_EXIT -eq 0 ];then
         log.stdout '{
                 "status":[ 
                 { 

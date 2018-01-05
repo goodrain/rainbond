@@ -19,6 +19,7 @@
                     "rainbond_node_rule_manage": "true"
                 }
             },
+            "run_mode":"manyonce",
             "is_once": true
         },
         {
@@ -39,18 +40,23 @@
                 },
                 "depends": []
             },
+            "run_mode":"onlyonce",
             "is_once": true
         },
         {
-            "name": "install_db",
-            "id": "install_db",
+            "name": "install_storage",
+            "id": "install_storage",
             "temp": {
-                "name": "install_db",
+                "name": "install_storage",
                 "shell": {
                     "cmd": [
                         "bash",
-                        "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/plugins/db.sh",
-                        "${REPO_VER}"
+                        "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/storage/storage.sh",
+                        "${OS_VER}",
+                        "${STORAGE_MODE}",
+                        "${NFS_SERVERS}",
+                        "${NFS_ENDPOINT}",
+                        "${NFS_ARGS}"
                     ]
                 },
                 "nodes": [],
@@ -64,6 +70,33 @@
                     }
                 ]
             },
+            "run_mode": "onlyonce",
+            "is_once": true
+        },
+        {
+            "name": "install_db",
+            "id": "install_db",
+            "temp": {
+                "name": "install_db",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/plugins/db.sh",
+                        "${DB_EXPAND}"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": [
+                    {
+                        "depend_task_id": "install_storage",
+                        "strategy": "SameNode"
+                    }
+                ]
+            },
+            "run_mode":"onlyonce",
             "is_once": true
         },
         {
@@ -76,7 +109,10 @@
                         "bash",
                         "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/plugins/base.sh",
                         "${REPO_VER}",
-                        "${DOMAIN}"
+                        "${DOMAIN}",
+                        "${RBD_REPO_EXPAND}",
+                        "${LANG_SERVER}",
+                        "${MAVEN_SERVER}"
                     ]
                 },
                 "nodes": [],
@@ -90,6 +126,7 @@
                     }
                 ]
             },
+            "run_mode":"onlyonce",
             "is_once": true
         },
         {
@@ -107,7 +144,7 @@
                         "${DB_PASSWD}",
                         "${DB_HOST}",
                         "${DB_PORT}",
-                        "${HOST_IP}"
+                        "${WORKER_EXPAND}"
                     ]
                 },
                 "nodes": [],
@@ -121,6 +158,7 @@
                     }
                 ]
             },
+            "run_mode":"onlyonce",
             "is_once": true
         },
         {
@@ -147,6 +185,7 @@
                     }
                 ]
             },
+            "run_mode":"onlyonce",
             "is_once": true
         }
     ]

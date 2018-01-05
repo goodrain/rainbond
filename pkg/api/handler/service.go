@@ -1847,7 +1847,10 @@ func (s *ServiceAction) SetVersionEnv(sve *api_model.SetVersionEnv) *util.APIHan
 			return util.CreateAPIHandleError(500, fmt.Errorf("set complex error, %v", err))
 		}
 	}
-	return util.CreateAPIHandleError(200, fmt.Errorf("no envs need to be changed"))
+	if len(sve.Body.ConfigEnvs.NormalEnvs) == 0 && sve.Body.ConfigEnvs.ComplexEnvs == nil {
+		return util.CreateAPIHandleError(200, fmt.Errorf("no envs need to be changed"))
+	}
+	return nil
 }
 
 func (s *ServiceAction) normalEnvs(sve *api_model.SetVersionEnv) error {
@@ -1921,22 +1924,18 @@ func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.API
 			return util.CreateAPIHandleError(500, fmt.Errorf("update complex error, %v", err))
 		}
 	}
-	return util.CreateAPIHandleError(200, fmt.Errorf("no envs need to be changed"))
+	if len(uve.Body.ConfigEnvs.NormalEnvs) == 0 && uve.Body.ConfigEnvs.ComplexEnvs == nil {
+		return util.CreateAPIHandleError(200, fmt.Errorf("no envs need to be changed"))
+	}
+	return nil
 }
 
 func (s *ServiceAction) upNormalEnvs(uve *api_model.SetVersionEnv) *util.APIHandleError {
-	if len(uve.Body.ConfigEnvs.NormalEnvs) != 1 {
-		return util.CreateAPIHandleError(400, fmt.Errorf("only one env can be update"))
-	}
-	env, err := db.GetManager().TenantPluginVersionENVDao().GetVersionEnvByEnvName(
-		uve.Body.ServiceID,
-		uve.PluginID,
-		uve.Body.ConfigEnvs.NormalEnvs[0].EnvName)
+	err := db.GetManager().TenantPluginVersionENVDao().DeleteEnvByPluginID(uve.Body.ServiceID, uve.PluginID)
 	if err != nil {
-		return util.CreateAPIHandleErrorFromDBError("get version env", err)
+		return util.CreateAPIHandleErrorFromDBError("delete version env", err)
 	}
-	env.EnvValue = uve.Body.ConfigEnvs.NormalEnvs[0].EnvValue
-	if err := db.GetManager().TenantPluginVersionENVDao().UpdateModel(env); err != nil {
+	if err := s.normalEnvs(uve); err != nil {
 		return util.CreateAPIHandleErrorFromDBError("update version env", err)
 	}
 	return nil

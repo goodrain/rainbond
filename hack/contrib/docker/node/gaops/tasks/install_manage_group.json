@@ -20,32 +20,7 @@
                 },
                 "depends": []
             },
-            "is_once": true
-        },
-        {
-            "name": "install_storage",
-            "id": "install_storage",
-            "temp": {
-                "name": "install_storage",
-                "shell": {
-                    "cmd": [
-                        "bash",
-                        "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/storage/storage.sh",
-                        "${OS_VER}",
-                        "${STORAGE_MODE}"
-                    ]
-                },
-                "nodes": [],
-                "labels": {
-                    "rainbond_node_rule_manage": "true"
-                },
-                "depends": [
-                    {
-                        "depend_task_id": "install_docker",
-                        "strategy": "SameNode"
-                    }
-                ]
-            },
+            "run_mode": "manyonce",
             "is_once": true
         },
         {
@@ -57,7 +32,8 @@
                     "cmd": [
                         "bash",
                         "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/network/calico-node/calico-node.sh",
-                        "${OS_VER}"
+                        "${OS_VER}",
+                        "${CALICO_NET}"
                     ]
                 },
                 "labels": {
@@ -66,11 +42,12 @@
                 "nodes": [],
                 "depends": [
                     {
-                        "depend_task_id": "install_storage",
+                        "depend_task_id": "install_docker",
                         "strategy": "SameNode"
                     }
                 ]
             },
+            "run_mode": "onlyonce",
             "is_once": true
         },
         {
@@ -93,13 +70,10 @@
                     {
                         "depend_task_id": "install_network",
                         "strategy": "SameNode"
-                    },
-                    {
-                        "depend_task_id": "install_storage",
-                        "strategy": "SameNode"
                     }
                 ]
             },
+            "run_mode": "onlyonce",
             "is_once": true
         },
         {
@@ -125,6 +99,7 @@
                     }
                 ]
             },
+            "run_mode": "onlyonce",
             "is_once": true
         },
         {
@@ -136,7 +111,10 @@
                     "cmd": [
                         "bash",
                         "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/plugins/proxy.sh",
-                        "${REPO_VER}"
+                        "${REPO_VER}",
+                        "${RBD_REPO_EXPAND}",
+                        "${LANG_SERVER}",
+                        "${MAVEN_SERVER}"
                     ]
                 },
                 "nodes": [],                
@@ -150,6 +128,7 @@
                     }
                 ]
             },
+            "run_mode": "onlyonce",
             "is_once": true
         },
         {
@@ -175,6 +154,7 @@
                     }
                 ]
             },
+            "run_mode": "onlyonce",
             "is_once": true
         },
         {
@@ -194,35 +174,12 @@
                 },
                 "depends": [
                     {
-                        "depend_task_id": "install_k8s",
-                        "strategy": "SameNode"
-                    },
-                    {
-                        "depend_task_id": "install_network",
-                        "strategy": "SameNode"
-                    },
-                    {
-                        "depend_task_id": "install_storage",
-                        "strategy": "SameNode"
-                    },
-                    {
-                        "depend_task_id": "install_base_plugins",
-                        "strategy": "SameNode"
-                    },
-                    {
-                        "depend_task_id": "install_acp_plugins",
-                        "strategy": "SameNode"
-                    },
-                    {
-                        "depend_task_id": "install_plugins",
-                        "strategy": "SameNode"
-                    },
-                    {
                         "depend_task_id": "do_rbd_images",
                         "strategy": "SameNode"
                     }
                 ]
             },
+            "run_mode": "onlyonce",
             "is_once": true
         }
     ]

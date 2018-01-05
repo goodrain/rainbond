@@ -1,9 +1,13 @@
 #!/bin/bash
 
-REPO_VER=${1:-3.4}
-K8S_IPS=${2:-$(cat /etc/goodrain/envs/etcd-proxy.sh | awk -F '[=:]' '{print $2}')} #kubeapi ip
+REPO_VER=${1:-3.4.1}
+K8S_IPS=${2} #kubeapi ip
+HUB_IPS=${3}
 
-RBD_PROXY="rainbond/rbd-proxy:$REPO_VER"
+
+RBD_IMAGE_PROXY_NAME=$(jq --raw-output '."rbd-proxy".name' /etc/goodrain/envs/rbd.json)
+RBD_IMAGE_PROXY_VERSION=$(jq --raw-output '."rbd-proxy".version' /etc/goodrain/envs/rbd.json)
+RBD_PROXY=$RBD_IMAGE_PROXY_NAME:$RBD_IMAGE_PROXY_VERSION
 
 function log.info() {
   echo "       $*"
@@ -18,20 +22,6 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
 
 function sys::path_mounted() {
     dest_dir=$1
@@ -137,11 +127,13 @@ function vhost::write() {
 function add_kube_vhost() {
     export KUBE_SHARE_DIR="/grdata/services/k8s"
     mkdir -p /etc/goodrain/proxy/ssl/kubeapi.goodrain.me
+    log.info "rsync certificate to dir /etc/goodrain/proxy/ssl"
     if [ -d "$KUBE_SHARE_DIR/ssl/" ];then
         rsync -a $KUBE_SHARE_DIR/ssl/ /etc/goodrain/proxy/ssl/kubeapi.goodrain.me
     else
         rsync -a $KUBE_SHARE_DIR/kube-ssl/ /etc/goodrain/proxy/ssl/kubeapi.goodrain.me
     fi
+    log.info "create kube for proxy"
     cat <<EOF | vhost::write kube
 server {
     listen 172.30.42.1:80;
@@ -231,15 +223,16 @@ server {
 }
 EOF
   
-
-  for ii in $K8S_IPS
+  log.info "add upstream($(echo $K8S_IPS | tr ',' ' ' | sort -u)) for kube"
+  for ii in $(echo $K8S_IPS | tr ',' ' ' | sort -u)
   do
-   sed -i "/#server/iserver $ii:6443 id=${ii} max_fails=2 fail_timeout=10s;" /etc/goodrain/proxy/sites/kube
+   sed -i "/#server/iserver $ii:6443 max_fails=2 fail_timeout=10s;" /etc/goodrain/proxy/sites/kube
   done
 
 }
 
 function add_registry_vhost() {
+    log.info "create registry for proxy"
         cat <<EOF | vhost::write registry
 upstream registry {
   
@@ -338,7 +331,8 @@ MNFZqbv4qs89Mf6AuYaDCD+NrpMHJeCeeUpUeboe6yQg
 -----END RSA PRIVATE KEY-----
 EOF
 
-for ii in $K8S_IPS
+log.info "add upstream($(echo $HUB_IPS | tr ',' ' ' | sort -u)) for registry"
+for ii in $(echo $HUB_IPS | tr ',' ' ' | sort -u)
 do
     sed -i "/#server/iserver $ii:5000 max_fails=2 fail_timeout=10s;" /etc/goodrain/proxy/sites/registry
 done
@@ -346,7 +340,8 @@ done
 }
 
 function prepare() {
-    log.section "prepare proxy for ACP"
+    log.info "prepare proxy for RBD"
+    log.info "check path_mounted /grdata"
     sys::path_mounted /grdata || (
         showmount -e 127.0.0.1 2>&1 | grep "/grdata"
         [ $? -ne 0 ] && (
@@ -385,6 +380,7 @@ function run() {
             exit 1
         )
     )
+    log.info "install dc-compose tool"
     image::package gr-docker-compose
     
     compose::config_update << EOF
@@ -406,19 +402,52 @@ services:
     restart: always
 EOF
 
-    dc-compose up -d
+    dc-compose up -d rbd-proxy
     
     # manage node dont need
     grep "manage" /etc/goodrain/envs/.role >/dev/null
     if [ $? -ne 0 ];then
-        log.info "add kube vhost"
-        add_kube_vhost
+        
+        if [ ! -f "/etc/goodrain/proxy/sites/kube" ];then
+            log.info "add kube vhost"
+            add_kube_vhost
+        else
+            dest_md5_k8s=$(echo $K8S_IPS | tr ',' '\n' | sort -u | xargs | md5sum | awk '{print $1}')
+            old_md5_k8s=$(grep "^server .*;$"  /etc/goodrain/proxy/sites/kube | tr ':' ' ' | awk '{print $2}' | sort -u | xargs | md5sum | awk '{print $1}')
+            if [ $dest_md5_k8s == $old_md5_k8s ];then
+                log.info "kube vhost not change"
+            else
+                log.info "add kube vhost"
+                add_kube_vhost
+            fi
+        fi        
     fi
-    log.info "add registry_vhost"
-    add_registry_vhost
+    
+    if [ ! -f "/etc/goodrain/proxy/sites/registry" ];then
+        log.info "add registry vhost"
+        add_registry_vhost
+    else
+            dest_md5_hub=$(echo $HUB_IPS | tr ',' '\n' | sort -u | xargs | md5sum | awk '{print $1}')
+            old_md5_hub=$(grep "^server .*;$"  /etc/goodrain/proxy/sites/registry | tr ':' ' ' | awk '{print $2}' | sort -u | xargs | md5sum | awk '{print $1}')
+            if [ $dest_md5_hub == $old_md5_hub ];then
+                log.info "registry vhost not change"
+            else
+                log.info "add registry vhost"
+                add_registry_vhost
+            fi
+    fi   
+    
     vhost::reload
-    dc-compose ps | grep "proxy" > /dev/null
-    if [ $? -eq 0 ];then
+    
+    _EXIT=1
+    for ((i=1;i<=3;i++ )); do
+        sleep 3
+        log.info "retry $i time(s) get rbd-proxy "
+        dc-compose ps | grep "proxy" && export _EXIT=0 && break
+    done
+
+    if [ $_EXIT -eq 0 ];then
+        log.info "install plugins for compute node ok"
         log.stdout '{
                 "status":[ 
                 { 

@@ -370,7 +370,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 			etcd = strings.Join(etcdConfig.Value.([]string), ",")
 		}
 	}
-	initshell := "repo.goodrain.com/gaops/jobs/install/prepare/init.sh"
+	initshell := "repo.goodrain.com/release/3.4.1/gaops/jobs/install/prepare/init.sh"
 	etcd = etcd + ","
 	cmd := fmt.Sprintf("bash -c \"set %s %s %s;$(curl -s %s)\"", node.ID, etcd, role, initshell)
 	logrus.Infof("init endpoint node cmd is %s", cmd)
@@ -408,6 +408,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 		errorCondition("节点初始化输出数据错误", err)
 		logrus.Errorf("get init current node result error:%s", err.Error())
 	}
+	node.Status = "init_success"
 	if output.Global != nil {
 		for k, v := range output.Global {
 			if strings.Index(v, ",") > -1 {
@@ -429,6 +430,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 			}
 		}
 	}
+	node.Update()
 }
 
 //GetAllNode 获取全部节点

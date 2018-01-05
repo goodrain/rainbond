@@ -200,7 +200,8 @@ func Status(task string, nodes []string) {
 		time.Sleep(3 * time.Second)
 		taskE, err := clients.NodeClient.Tasks().Get(task)
 		if err != nil {
-			logrus.Warnf("error get task %s,retry", task)
+
+			logrus.Warnf("error get task %s ,details %s,retry", task,err.String())
 			checkFail += 1
 			continue
 		}

@@ -54,6 +54,12 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 	if err != nil {
 		return err
 	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
+	errReader := bufio.NewReader(stderr)
+
 	cmd.Start()
 	reader := bufio.NewReader(stdout)
 	go func() {
@@ -63,10 +69,15 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 				break
 			}
 			//fmt.Print(line)
-			logrus.Infof(fmt.Sprintf("builder: %v", line))
-			logger[0].Info(fmt.Sprintf("builder:%v", line), map[string]string{"step": "build-exector"})
+			logrus.Debugf(fmt.Sprintf("builder: %v", line))
+			logger[0].Debug(fmt.Sprintf("builder:%v", line), map[string]string{"step": "build-exector"})
 		}
 	}()
-	cmd.Wait()
+	if err := cmd.Wait(); err != nil {
+		errLine, _ := errReader.ReadString('\n')
+		logrus.Errorf(fmt.Sprintf("builder error: %v", errLine))
+		logger[0].Error(fmt.Sprintf("build Error: %v", errLine), map[string]string{"step": "builder-exector", "status": "failure"})
+		return err
+	}
 	return nil
 }

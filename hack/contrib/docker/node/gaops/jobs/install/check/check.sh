@@ -9,7 +9,7 @@
 #set -o errexit
 set -o pipefail
 
-REPO_VER=${2:-3.4}
+REPO_VER=${2:-3.4.1}
 
 # define log func 
 
@@ -26,24 +26,9 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
-
 # define basic services
-check_basic_services=(docker db base_plugins acp_plugins)
-check_manage_services=(storage network k8s plugins analysis check_manage)
+check_basic_services=(docker storage db base_plugins acp_plugins)
+check_manage_services=(network k8s plugins analysis check_manage)
 check_compute_services=(storage_client docker_compute network_compute kubelet plugins_compute check_compute)
 
 RELEASE_INFO=$(cat /etc/os-release | grep "^VERSION=" | awk -F '="' '{print $2}' | awk '{print $1}' | cut -b 1-5)
@@ -66,7 +51,7 @@ taskid=()
 taskid_str=""
 
 function prepare() {
-    log.section "ACP: check services"
+    log.info "RBD: check services"
 }
 
 function check_basic() {

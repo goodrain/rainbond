@@ -29,20 +29,23 @@ install -p -m 755 usr/share/gr-rainbond-node/gaops/gaops.tgz %{buildroot}/usr/sh
 
 
 %pre
-[ -d "/etc/goodrain/envs" ] || mkdir -p /etc/goodrain/envs 
-[ -f "/etc/goodrain/envs/rainbond-node.sh" ] && rm /etc/goodrain/envs/rainbond-node.sh
-[ -f "/etc/goodrain/envs/ip.sh" ] && (
-    grep "MANAGE" /etc/goodrain/envs/ip.sh 
-    if [ $? -eq 0 ];then
-        echo "NODE_TYPE=compute" >> /etc/goodrain/envs/rainbond-node.sh
+[ -d "/etc/goodrain/envs" ] || mkdir -p /etc/goodrain/envs
+[ -f "/etc/goodrain/envs/rainbond-node.sh" ] || (
+    if [ -f "/etc/goodrain/envs/.role" ];then
+        grep "manage" /etc/goodrain/envs/.role 
+        if [ $? -eq 0 ];then
+            echo "NODE_TYPE=" >> /etc/goodrain/envs/rainbond-node.sh
+            echo "ROLE=$(cat /etc/goodrain/envs/.role | awk -F ':' '{print $2}')" >> /etc/goodrain/envs/rainbond-node.sh
+        else
+            echo "NODE_TYPE=compute" >> /etc/goodrain/envs/rainbond-node.sh
+            echo "ROLE=$(cat /etc/goodrain/envs/.role | awk -F ':' '{print $2}')" >> /etc/goodrain/envs/rainbond-node.sh
+        fi
     else
         echo "NODE_TYPE=" >> /etc/goodrain/envs/rainbond-node.sh
-        echo "ROLE=manage" >> /etc/goodrain/envs/rainbond-node.sh
+        echo "ROLE=manage,compute" >> /etc/goodrain/envs/rainbond-node.sh
     fi
-) || (
-    echo "NODE_TYPE=" >> /etc/goodrain/envs/rainbond-node.sh
-    echo "ROLE=manage" >> /etc/goodrain/envs/rainbond-node.sh
 )
+
 
 
 %post
