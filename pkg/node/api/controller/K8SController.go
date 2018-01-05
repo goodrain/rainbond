@@ -332,12 +332,11 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-
-
 	var capCpu int64
 	var capMem int64
 	for _,v:=range nodes{
-		if v.NodeStatus != nil {
+		if v.NodeStatus != nil&&v.Unschedulable==false {
+
 			capCpu+=v.NodeStatus.Capacity.Cpu().Value()
 			capMem+=v.NodeStatus.Capacity.Memory().Value()
 		}

@@ -164,7 +164,7 @@ func (n *NodeCluster) GetNode(id string) *model.HostNode {
 			if node.Unschedulable {
 				node.Status = "unschedulable"
 			} else {
-				node.Status = "schedulable"
+				node.Status="running"
 			}
 			if node.AvailableCPU == 0 {
 				node.AvailableCPU = node.NodeStatus.Allocatable.Cpu().Value()
@@ -186,6 +186,7 @@ func (n *NodeCluster) loadAndWatchNodes() error {
 	}
 	for _, kv := range noderes.Kvs {
 		if node := n.getNodeFromKV(kv); node != nil {
+			RegToHost(node, "add")
 			n.CacheNode(node)
 		}
 	}
@@ -408,6 +409,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 		errorCondition("节点初始化输出数据错误", err)
 		logrus.Errorf("get init current node result error:%s", err.Error())
 	}
+	node.Status = "init_success"
 	if output.Global != nil {
 		for k, v := range output.Global {
 			if strings.Index(v, ",") > -1 {
@@ -429,6 +431,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 			}
 		}
 	}
+	node.Update()
 }
 
 //GetAllNode 获取全部节点

@@ -44,6 +44,7 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("node_exporter"))
 }
 
+
 //NewNode 创建一个节点
 func NewNode(w http.ResponseWriter, r *http.Request) {
 	var node model.APIHostNode
@@ -92,9 +93,14 @@ func GetNodes(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleStatus(v *model.HostNode){
+
 	if v.NodeStatus!=nil{
 		for _,condiction:=range v.Conditions{
-			if v.Status == "unschedulable" {
+			if condiction.Status=="True" &&(condiction.Type=="OutOfDisk"||condiction.Type=="MemoryPressure"||condiction.Type=="DiskPressure"){
+				v.Status="error"
+				return
+			}
+			if v.Status == "unschedulable"||v.Status=="init"||v.Status=="init_success"||v.Status=="init_failed"||v.Status=="installing"||v.Status=="install_success"||v.Status=="install_failed" {
 
 			}else{
 				if condiction.Type=="Ready"&&condiction.Status=="True" {
@@ -103,7 +109,10 @@ func handleStatus(v *model.HostNode){
 			}
 		}
 	}
-	if v.Role.HasRule("manage") {
+	if v.Role.HasRule("manage") {//manage install_success == runnint
+		if v.Status=="init"||v.Status=="init_success"||v.Status=="init_failed"||v.Status=="installing"||v.Status=="install_failed"{
+			return
+		}
 		if v.Alived {
 			for _,condition:=range v.Conditions{
 				if condition.Type=="NodeInit"&&condition.Status=="True"{
@@ -122,6 +131,7 @@ func GetNode(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
+	handleStatus(node)
 	httputil.ReturnSuccess(r, w, node)
 }
 
@@ -146,6 +156,55 @@ func GetRuleNodes(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, masternodes)
 }
 
+func Install(w http.ResponseWriter, r *http.Request) {
+	nodeID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	if len(nodeID)==0 {
+		err:=utils.APIHandleError{
+			Code:404,
+			Err:errors.New(fmt.Sprintf("can't find node by node_id %s", nodeID)),
+		}
+		err.Handle(r,w)
+		return
+	}
+	nodeService.InstallNode(nodeID)
+
+	httputil.ReturnSuccess(r,w,nil)
+}
+
+func InitStatus(w http.ResponseWriter, r *http.Request) {
+	nodeIP := strings.TrimSpace(chi.URLParam(r, "node_ip"))
+	if len(nodeIP)==0 {
+		err:=utils.APIHandleError{
+			Code:404,
+			Err:errors.New(fmt.Sprintf("can't find node by node_ip %s", nodeIP)),
+		}
+		err.Handle(r,w)
+		return
+	}
+	status,err:=nodeService.InitStatus(nodeIP)
+	if err != nil {
+		err.Handle(r,w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, status)
+}
+func Resource(w http.ResponseWriter, r *http.Request) {
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	if len(nodeUID)==0 {
+		err:=utils.APIHandleError{
+			Code:404,
+			Err:errors.New(fmt.Sprintf("can't find node by node_id %s",nodeUID)),
+		}
+		err.Handle(r,w)
+		return
+	}
+	res,err:=nodeService.GetNodeResource(nodeUID)
+	if err != nil {
+		err.Handle(r,w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, res)
+}
 
 //UpNode 节点上线，计算节点操作
 func CheckNode(w http.ResponseWriter, r *http.Request) {
@@ -158,86 +217,33 @@ func CheckNode(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r,w)
 		return
 	}
-	tasks, err := taskService.GetTasks()
+	final,err:=nodeService.CheckNode(nodeUID)
 	if err != nil {
-		err.Handle(r, w)
+		err.Handle(r,w)
 		return
 	}
-	var result []*ExecedTask
+
+	httputil.ReturnSuccess(r, w, &final)
+}
+func dealSeq(tasks []*model.ExecedTask) {
+	var firsts []*model.ExecedTask
+	var keymap map[string]*model.ExecedTask
 	for _,v:=range tasks{
-
-		taskStatus,ok:=v.Status[nodeUID]
-		if ok{
-			status:=strings.ToLower(taskStatus.Status)
-			if status=="complete" ||status=="start"{
-				var execedTask =&ExecedTask{}
-				execedTask.ID=v.ID
-				execedTask.Status=taskStatus.Status
-				execedTask.Depends=[]string{}
-				dealDepend(execedTask,v)
-				dealNext(execedTask,tasks)
-				result=append(result, execedTask)
-				continue
-			}
-
-		}else {
-			_,scheduled:=v.Scheduler.Status[nodeUID]
-			if scheduled {
-				var execedTask =&ExecedTask{}
-				execedTask.ID=v.ID
-				execedTask.Depends=[]string{}
-				dealDepend(execedTask,v)
-				dealNext(execedTask,tasks)
-				allDepDone:=true
-
-				for _,dep:=range execedTask.Depends {
-					task,_:=taskService.GetTask(dep)
-
-					_,depOK:=task.Status[nodeUID]
-					if !depOK {
-						allDepDone=false
-						break
-					}
-				}
-				//所有依赖都完成了，没有自己的status说明自己未完成，已经被调度说明 正在执行
-				if allDepDone {
-					execedTask.Status="start"
-					result=append(result, execedTask)
-				}
-
-			}
+		keymap[v.ID]=v
+		if len(v.Depends) == 0 {
+			v.Seq=0
+			firsts=append(firsts,v)
 		}
 	}
-
-
-	httputil.ReturnSuccess(r, w, result)
-}
-func dealNext(task *ExecedTask, tasks []*model.Task) {
-	for _,v:=range tasks {
-		if v.Temp.Depends != nil {
-			for _,dep:=range v.Temp.Depends{
-				if dep.DependTaskID == task.ID {
-					task.Next=append(task.Next,v.ID)
-				}
-			}
-		}
+	for _,v:=range firsts{
+		dealLoopSeq(v,keymap)
 	}
 }
-
-
-
-func dealDepend(result *ExecedTask,task *model.Task) {
-	if task.Temp.Depends != nil {
-		for _,v:=range task.Temp.Depends{
-			result.Depends=append(result.Depends,v.DependTaskID)
-		}
+func dealLoopSeq(task *model.ExecedTask, keymap map[string]*model.ExecedTask) {
+	for _,next:=range task.Next{
+		keymap[next].Seq=task.Seq+1
+		dealLoopSeq(keymap[next],keymap)
 	}
-}
-type ExecedTask struct {
-	ID string
-	Status string
-	Depends []string
-	Next []string
 }
 
 

@@ -56,7 +56,62 @@ func CreateTaskService(c *option.Conf, ms *masterserver.MasterServer) *TaskServi
 	}
 	return taskService
 }
+func (ts *TaskService)getTasksByCheck(checkTasks []string,nodeID string) ([]*model.Task, *utils.APIHandleError) {
+	var result []*model.Task
+	var nextTask []string
+	for _,v:=range checkTasks{
+		checkTask,err:=taskService.GetTask(v)
+		if err != nil {
+			return nil,err
+		}
+		for _,out:=range checkTask.OutPut{
+			if out.NodeID == nodeID {
+				for _,status:=range out.Status{
+					for _,v:=range status.NextTask{
+						nextTask=append(nextTask,v)
+					}
+				}
+			}
+		}
 
+	}
+	//tids:=[]string{"do_rbd_images","install_acp_plugins","install_base_plugins","install_db",
+	//	"install_docker","install_k8s","install_manage_ready","install_network","install_plugins","install_storage","install_webcli","update_dns","update_entrance_services","create_host_id_list"}
+	for _,v:=range nextTask{
+		task,err:=taskService.GetTask(v)
+		if err != nil {
+			return nil,err
+		}
+		result=append(result, task)
+	}
+	return result,nil
+}
+func (ts *TaskService)GetTasksByNode(n *model.HostNode)([]*model.Task,*utils.APIHandleError)  {
+	if n.Role.HasRule("compute") &&len(n.Role)==1{
+		checkTask:=[]string{"check_compute_services"}
+		//tids:=[]string{"install_compute_ready","update_dns_compute","install_storage_client","install_network_compute","install_plugins_compute","install_docker_compute","install_kubelet"}
+		result,err:=ts.getTasksByCheck(checkTask,n.ID)
+		if err != nil {
+			return nil,err
+		}
+		return result,nil
+	}else if n.Role.HasRule("manage") &&len(n.Role)==1{
+		checkTask:=[]string{"check_manage_base_services","check_manage_services"}
+		result,err:=ts.getTasksByCheck(checkTask,n.ID)
+		if err != nil {
+			return nil,err
+		}
+		return result,nil
+	}else {
+		checkTask:=[]string{"check_manage_base_services","check_manage_services","check_compute_services"}
+		//tids:=[]string{"do_rbd_images","install_acp_plugins","install_base_plugins","install_db","install_docker","install_k8s","install_manage_ready","install_network","install_plugins","install_storage","install_webcli","update_dns","update_entrance_services","create_host_id_list","install_kubelet_manage","install_compute_ready_manage"}
+		result,err:=ts.getTasksByCheck(checkTask,n.ID)
+		if err != nil {
+			return nil,err
+		}
+		return result,nil
+	}
+}
 //AddTask add task
 func (ts *TaskService) AddTask(t *model.Task) *utils.APIHandleError {
 	if t.ID == "" {

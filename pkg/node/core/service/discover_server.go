@@ -347,6 +347,7 @@ func (d *DiscoverAction) DiscoverClusters(
 	pluginID := nn[1]
 	serviceAlias := nn[2]
 	resources, err := d.ToolsGetRainbondResources(namespace, serviceAlias, pluginID)
+	logrus.Debugf("resources is %v", resources)
 	if err != nil && !strings.Contains(err.Error(), "is not exist") {
 		logrus.Warnf("in lds get env %s error: %v", namespace+serviceAlias+pluginID, err)
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf(

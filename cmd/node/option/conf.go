@@ -72,6 +72,7 @@ func Init() error {
 //Conf Conf
 type Conf struct {
 	APIAddr             string //api server listen port
+	PrometheusAPI       string //Prometheus server listen port
 	K8SConfPath         string //absolute path to the kubeconfig file
 	LogLevel            string
 	HostIDFile          string
@@ -119,6 +120,7 @@ type Conf struct {
 //AddFlags AddFlags
 func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the log level")
+	fs.StringVar(&a.PrometheusAPI, "prometheus", "http://localhost:9999", "the prometheus api")
 	fs.StringVar(&a.NodePath, "nodePath", "/rainbond/nodes", "the path of node in etcd")
 	fs.StringVar(&a.HostIDFile, "nodeid-file", "/etc/goodrain/host_uuid.conf", "the unique ID for this node. Just specify, don't modify")
 	fs.StringVar(&a.OnlineNodePath, "onlineNodePath", "/rainbond/onlinenodes", "the path of master node in etcd")

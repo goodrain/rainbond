@@ -161,6 +161,7 @@ func getInfoForMaster(s *nodeserver.NodeServer) {
 			s.HostNode.NodeStatus.Allocatable.Cpu().Set(int64(cpu))
 		}
 	}
+
 	if memStr,ok:=result["MEMORY"];ok{
 		memStr=strings.Replace(memStr," ","",-1)
 		memStr=strings.Replace(memStr,"G","",-1)
@@ -172,6 +173,7 @@ func getInfoForMaster(s *nodeserver.NodeServer) {
 			logrus.Warnf("get master memory info failed ,details %s",err.Error())
 		}
 	}
+	logrus.Infof("memory is %v",s.HostNode.AvailableMemory)
 	s.Update()
 
 }
