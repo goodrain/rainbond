@@ -64,7 +64,7 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 			if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
 				logrus.Errorf("update version error, %v", err)
 			}
-			logger.Info("插件构建超时，修改插件状态失败", map[string]string{"step": "callback", "status": "failure"})
+			logger.Error("插件构建超时，修改插件状态失败", map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
 	go func() {
