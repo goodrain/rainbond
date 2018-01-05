@@ -59,7 +59,7 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 		return err
 	}
 	errReader := bufio.NewReader(stderr)
-
+	errChan := make(chan error)
 	cmd.Start()
 	reader := bufio.NewReader(stdout)
 	go func() {
@@ -73,15 +73,24 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 			logger[0].Debug(fmt.Sprintf("builder:%v", line), map[string]string{"step": "build-exector"})
 		}
 	}()
-	if err := cmd.Wait(); err != nil {
+	go func() {
 		for {
-			errLine, _ := errReader.ReadString('\n')
-			if errLine != "" {
-				logrus.Errorf(fmt.Sprintf("builder error: %v", errLine))
-				logger[0].Error(fmt.Sprintf("build Error: %v", errLine), map[string]string{"step": "builder-exector", "status": "failure"})
-				return err
+			errLine, errL := errReader.ReadString('\n')
+			if errL != nil {
+				logrus.Debugf("err line error: %s", errL.Error())
 			}
+			logrus.Errorf(fmt.Sprintf("builder error: %v", errLine))
+			logger[0].Error(fmt.Sprintf("build Error: %v", errLine), map[string]string{"step": "builder-exector", "status": "failure"})
+			errChan <- fmt.Errorf(errLine)
+			break
 		}
+	}()
+	//cmd.Wait()
+	select {
+	case mm := <-errChan:
+		return mm
+	default:
+		cmd.Wait()
 	}
 	return nil
 }
