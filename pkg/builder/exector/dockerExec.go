@@ -23,7 +23,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os/exec"
 
 	"github.com/goodrain/rainbond/pkg/event"
@@ -55,11 +54,12 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 	if err != nil {
 		return err
 	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
+	errC := cmd.Start()
+	if errC != nil {
+		logrus.Debugf(fmt.Sprintf("builder: %v", errC))
+		logger[0].Error(fmt.Sprintf("builder:%v", errC), map[string]string{"step": "build-exector"})
+		return errC
 	}
-	cmd.Start()
 	reader := bufio.NewReader(stdout)
 	go func() {
 		for {
@@ -72,15 +72,6 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 			logger[0].Debug(fmt.Sprintf("builder:%v", line), map[string]string{"step": "build-exector"})
 		}
 	}()
-	bytesErr, err := ioutil.ReadAll(stderr)
-	if err != nil {
-		return err
-	}
-	if len(bytesErr) != 0 {
-		logrus.Debugf("builder: %s", bytesErr)
-		logger[0].Debug(fmt.Sprintf("builder:%v", string(bytesErr)), map[string]string{"step": "build-exector"})
-		return fmt.Errorf("%s", bytesErr)
-	}
 	cmd.Wait()
 	return nil
 }

@@ -178,10 +178,16 @@ func (m *Manager) patchTable() {
 			m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/configs','','','')")
 		}
 	}
+
 	//协议族支持
-	m.db.Exec("insert into region_protocols VALUES ('','','http','http','v2',1)")
-	m.db.Exec("insert into region_protocols VALUES ('','','stream','mysql','v2',1)")
-	m.db.Exec("insert into region_protocols VALUES ('','','stream','udp','v2',1)")
-	m.db.Exec("insert into region_protocols VALUES ('','','stream','tcp','v2',1)")
-	m.db.Exec("insert into region_protocols VALUES ('','','http','grpc','v2',0)")
+	var rps model.RegionProcotols
+	if err := m.db.Where("protocol_group=? and protocol_child=?", "http", "http").Find(&rps).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			m.db.Exec("insert into region_protocols VALUES ('','','http','http','v2',1)")
+			m.db.Exec("insert into region_protocols VALUES ('','','stream','mysql','v2',1)")
+			m.db.Exec("insert into region_protocols VALUES ('','','stream','udp','v2',1)")
+			m.db.Exec("insert into region_protocols VALUES ('','','stream','tcp','v2',1)")
+			m.db.Exec("insert into region_protocols VALUES ('','','http','grpc','v2',0)")
+		}
+	}
 }

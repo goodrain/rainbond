@@ -85,7 +85,7 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 					if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
 						logrus.Errorf("update version error, %v", err)
 					}
-					logger.Info("dockerfile构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
+					logger.Error("dockerfile构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
 				break
@@ -102,12 +102,12 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config
 		t.Repo = "master"
 	}
 	if err := clone(t.GitURL, sourceDir, logger, t.Repo); err != nil {
-		logger.Info("拉取代码失败", map[string]string{"step": "builder-exector", "status": "failure"})
+		logger.Error("拉取代码失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("拉取代码失败，%v", err)
 		return err
 	}
 	if !checkDockerfile(sourceDir) {
-		logger.Info("代码未检测到dockerfile，暂不支持构建，任务即将退出", map[string]string{"step": "builder-exector", "status": "failure"})
+		logger.Error("代码未检测到dockerfile，暂不支持构建，任务即将退出", map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Error("代码未检测到dockerfile")
 		return fmt.Errorf("have no dockerfile")
 	}
@@ -121,7 +121,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config
 	logger.Info(fmt.Sprintf("镜像编译完成，开始推送镜像，镜像名为 %s", curImage), map[string]string{"step": "build-exector"})
 
 	if err := push(curImage, logger); err != nil {
-		logger.Info("推送镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
+		logger.Error("推送镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Error("推送镜像失败")
 		return err
 	}
