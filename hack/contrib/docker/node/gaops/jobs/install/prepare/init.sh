@@ -523,7 +523,24 @@ function install_etcd() {
                 exit 1
             )
         )
-        
+        package::is_installed gr-etcdctl  || (
+                package::install gr-etcdctl  || (
+                    log.error "install faild"
+                    log.stdout '{
+                    "status":[ 
+                    { 
+                        "name":"install_etcdctl_compute_faild", 
+                        "condition_type":"INSTALL_ETCDCTL_COMPUTE_faild", 
+                        "condition_status":"False"
+                    } 
+                    ], 
+                    "exec_status":"Failure",
+                    "type":"install"
+                    }'
+                    exit 1
+                )
+        )
+
         [ -f "/etc/goodrain/envs/etcd-proxy.sh" ] && rm /etc/goodrain/envs/etcd-proxy.sh
         echo "MASTER_IP=$(echo $ETCD_NODE | awk -F ',' '{print $1}'):2379" > /etc/goodrain/envs/etcd-proxy.sh
         package::enable etcd-proxy || status::check etcd-proxy

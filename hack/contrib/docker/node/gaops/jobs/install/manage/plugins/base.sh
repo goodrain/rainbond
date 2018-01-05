@@ -162,6 +162,7 @@ function install_dns() {
                     "condition_status":"False"
                 } 
                 ], 
+                "exec_status":"Failure",
                 "type":"install"
                 }'
             exit 1
@@ -209,7 +210,8 @@ function install_registry() {
                     "condition_type":"DOCKER_PULL_REGISTRY_ERROR", 
                     "condition_status":"False"
                 } 
-                ], 
+                ],
+                "exec_status":"Failure",
                 "type":"install"
                 }'
             exit 1
@@ -262,8 +264,8 @@ services:
   rbd-repo:
     image: $RBD_REPO
     container_name: rbd-repo
-    environment:
-      INSTANCE_LOCK_NAME: artifactory
+    #environment:
+    #  INSTANCE_LOCK_NAME: artifactory
     volumes:
     - /grdata/services/artifactory5:/var/opt/jfrog/artifactory
     logging:

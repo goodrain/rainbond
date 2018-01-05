@@ -147,7 +147,8 @@ function package::enable() {
                 "condition_type":"START_KUBELET", 
                 "condition_status":"False"
             } 
-            ], 
+            ],
+            "exec_status":"Failure",
             "type":"install"
             }'
             exit $_EXIT
@@ -197,6 +198,7 @@ function run() {
                 "condition_status":"False"
             } 
             ],
+            "exec_status":"Failure",
             "type":"install"
             }'
             exit 1

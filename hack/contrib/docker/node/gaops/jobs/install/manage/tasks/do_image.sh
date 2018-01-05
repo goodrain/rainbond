@@ -17,6 +17,31 @@ function log.stdout() {
 # Todo list
 # 其他管理节点从goodrain.me 拉取
 #
+
+function image::exist() {
+    IMAGE_NAME=$1
+    docker images | sed 1d | awk '{print $1":"$2}' | grep $IMAGES_NAME >/dev/null 2>&1
+    if [ $? -eq 0 ];then
+        log.info "image $IMAGE_NAME exists"
+        return 0
+    else
+        log.info "image $IMAGE_NAME not exists"
+        return 1
+    fi
+}
+
+function image::pull() {
+    IMAGES_NAME=$1
+    docker pull $IMAGES_NAME
+    if [ $? -eq 0 ];then
+        log.info "pull image $IMAGES_NAME success"
+        return 0
+    else
+        log.info "pull image $IMAGES_NAME failed"
+        return 1
+    fi
+}
+
 function image::push() {
     BASE_NAME=$1
     VERSION=$2
@@ -37,10 +62,10 @@ function image::push() {
 }
 
 function run() {
-    image::push runner latest
-    image::push adapter 3.4
-    image::push pause-amd64 3.0
-    image::push builder latest
+    image::exist goodrain.me/runner:latest || image::pull goodrain.me/runner:latest || image::push runner latest
+    image::exist goodrain.me/adapter:latest || image::pull goodrain.me/adapter:latest || image::push adapter 3.4
+    image::exist goodrain.me/pause-amd64:3.0 || image::pull goodrain.me/pause-amd64:3.0 || image::push pause-amd64 3.0                                                                                     
+    image::exist goodrain.me/builder:latest || image::pull goodrain.me/builder:latest || image::push builder latest
 
     log.stdout '{ 
             "status":[ 
@@ -48,7 +73,7 @@ function run() {
                 "name":"do_rbd_images", 
                 "condition_type":"DO_RBD_IMAGES", 
                 "condition_status":"True"
-            } 
+            }
             ], 
             "exec_status":"Success",
             "type":"install"
