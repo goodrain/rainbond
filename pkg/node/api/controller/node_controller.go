@@ -100,7 +100,7 @@ func handleStatus(v *model.HostNode){
 				v.Status="error"
 				return
 			}
-			if v.Status == "unschedulable"||v.Status=="init"||v.Status=="init_success"||v.Status=="init_failed"||v.Status=="installing"||v.Status=="install_success"||v.Status=="install_failed" {
+			if v.Status == "unschedulable"||v.Status=="init"||v.Status=="init_success"||v.Status=="init_failed"||v.Status=="installing"||v.Status=="install_success"||v.Status=="install_failed"||v.Status=="offline" {
 
 			}else{
 				if condiction.Type=="Ready"&&condiction.Status=="True" {
