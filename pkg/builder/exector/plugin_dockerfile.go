@@ -161,11 +161,12 @@ func clone(gitURL string, sourceDir string, logger event.Logger, repo string) er
 			logrus.Debugf("file check error: %v", err)
 			return err
 		}
-	}
-	logrus.Debugf("pull: %s", fmt.Sprintf("cd %s && sudo -P git pull", sourceDir))
-	mm := []string{"-P", "cd", sourceDir, "&", "sudo", "-P", "git", "pull"}
-	if err := ShowExec("sudo", mm, logger); err != nil {
-		return err
+	} else {
+		logrus.Debugf("pull: %s", fmt.Sprintf("cd %s && sudo -P git pull", sourceDir))
+		mm := []string{"-P", "cd", sourceDir, "&", "sudo", "-P", "git", "pull"}
+		if err := ShowExec("sudo", mm, logger); err != nil {
+			return err
+		}
 	}
 	return nil
 }
