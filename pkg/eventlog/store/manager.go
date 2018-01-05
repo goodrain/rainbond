@@ -51,6 +51,7 @@ type Manager interface {
 	DockerLogMessageChan() chan []byte
 	MonitorMessageChan() chan [][]byte
 	WebSocketMessageChan(mode, eventID, subID string) chan *db.EventLogMessage
+	NewMonitorMessageChan() chan []byte
 	RealseWebSocketMessageChan(mode, EventID, subID string)
 	Run() error
 	Stop()
@@ -73,48 +74,53 @@ func NewManager(conf conf.EventStoreConf, log *logrus.Entry) (Manager, error) {
 		return nil, err
 	}
 	storeManager := &storeManager{
-		cancel:             cancel,
-		context:            ctx,
-		conf:               conf,
-		log:                log,
-		receiveChan:        make(chan []byte, 300),
-		subChan:            make(chan [][]byte, 300),
-		pubChan:            make(chan [][]byte, 300),
-		dockerLogChan:      make(chan []byte, 2048),
-		monitorMessageChan: make(chan [][]byte, 100),
-		chanCacheSize:      100,
-		dbPlugin:           dbPlugin,
-		filePlugin:         filePlugin,
-		errChan:            make(chan error),
+		cancel:                cancel,
+		context:               ctx,
+		conf:                  conf,
+		log:                   log,
+		receiveChan:           make(chan []byte, 300),
+		subChan:               make(chan [][]byte, 300),
+		pubChan:               make(chan [][]byte, 300),
+		dockerLogChan:         make(chan []byte, 2048),
+		monitorMessageChan:    make(chan [][]byte, 100),
+		newmonitorMessageChan: make(chan []byte, 2048),
+		chanCacheSize:         100,
+		dbPlugin:              dbPlugin,
+		filePlugin:            filePlugin,
+		errChan:               make(chan error),
 	}
 	handle := NewStore("handle", storeManager)
 	read := NewStore("read", storeManager)
 	docker := NewStore("docker_log", storeManager)
 	monitor := NewStore("monitor", storeManager)
+	newmonitor := NewStore("newmonitor", storeManager)
 	storeManager.handleMessageStore = handle
 	storeManager.readMessageStore = read
 	storeManager.dockerLogStore = docker
 	storeManager.monitorMessageStore = monitor
+	storeManager.newmonitorMessageStore = newmonitor
 	return storeManager, nil
 }
 
 type storeManager struct {
-	cancel              func()
-	context             context.Context
-	handleMessageStore  MessageStore
-	readMessageStore    MessageStore
-	dockerLogStore      MessageStore
-	monitorMessageStore MessageStore
-	receiveChan         chan []byte
-	pubChan, subChan    chan [][]byte
-	dockerLogChan       chan []byte
-	monitorMessageChan  chan [][]byte
-	chanCacheSize       int
-	conf                conf.EventStoreConf
-	log                 *logrus.Entry
-	dbPlugin            db.Manager
-	filePlugin          db.Manager
-	errChan             chan error
+	cancel                 func()
+	context                context.Context
+	handleMessageStore     MessageStore
+	readMessageStore       MessageStore
+	dockerLogStore         MessageStore
+	monitorMessageStore    MessageStore
+	newmonitorMessageStore MessageStore
+	receiveChan            chan []byte
+	pubChan, subChan       chan [][]byte
+	dockerLogChan          chan []byte
+	monitorMessageChan     chan [][]byte
+	newmonitorMessageChan  chan []byte
+	chanCacheSize          int
+	conf                   conf.EventStoreConf
+	log                    *logrus.Entry
+	dbPlugin               db.Manager
+	filePlugin             db.Manager
+	errChan                chan error
 }
 
 //Scrape prometheue monitor metrics
@@ -187,6 +193,12 @@ func (s *storeManager) MonitorMessageChan() chan [][]byte {
 	}
 	return s.monitorMessageChan
 }
+func (s *storeManager) NewMonitorMessageChan() chan []byte {
+	if s.newmonitorMessageChan == nil {
+		s.newmonitorMessageChan = make(chan []byte, 100)
+	}
+	return s.newmonitorMessageChan
+}
 
 func (s *storeManager) WebSocketMessageChan(mode, eventID, subID string) chan *db.EventLogMessage {
 	if mode == "event" {
@@ -201,6 +213,10 @@ func (s *storeManager) WebSocketMessageChan(mode, eventID, subID string) chan *d
 		ch := s.monitorMessageStore.SubChan(eventID, subID)
 		return ch
 	}
+	if mode == "newmonitor" {
+		ch := s.newmonitorMessageStore.SubChan(eventID, subID)
+		return ch
+	}
 	return nil
 }
 
@@ -210,6 +226,7 @@ func (s *storeManager) Run() error {
 	s.readMessageStore.Run()
 	s.dockerLogStore.Run()
 	s.monitorMessageStore.Run()
+	s.newmonitorMessageStore.Run()
 	for i := 0; i < s.conf.HandleMessageCoreNumber; i++ {
 		go s.handleReceiveMessage()
 	}
@@ -222,6 +239,7 @@ func (s *storeManager) Run() error {
 	for i := 0; i < s.conf.HandleMessageCoreNumber; i++ {
 		go s.handleMonitorMessage()
 	}
+	go s.handleNewMonitorMessage()
 	return nil
 }
 
@@ -248,6 +266,33 @@ func (s *storeManager) parsingMessage(msg []byte, messageType string) (*db.Event
 	}
 	return nil, errors.New("Unable to process configuration of message format type.")
 }
+
+//handleNewMonitorMessage 处理新监控数据
+func (s *storeManager) handleNewMonitorMessage() {
+loop:
+	for {
+		select {
+		case <-s.context.Done():
+			return
+		case msg, ok := <-s.newmonitorMessageChan:
+			if !ok {
+				s.log.Error("handle new monitor message core stop.monitor message log chan closed")
+				break loop
+			}
+			if msg == nil {
+				continue
+			}
+			//s.log.Debugf("receive message %s", string(message.Content))
+			if s.conf.ClusterMode {
+				//消息直接集群共享
+				s.pubChan <- [][]byte{[]byte(db.ServiceNewMonitorMessage), msg}
+			}
+			s.newmonitorMessageStore.InsertMessage(&db.EventLogMessage{MonitorData: msg})
+		}
+	}
+	s.errChan <- fmt.Errorf("handle monitor log core exist")
+}
+
 func (s *storeManager) handleReceiveMessage() {
 	s.log.Debug("event message store manager start handle receive message")
 loop:
@@ -311,6 +356,9 @@ func (s *storeManager) handleSubMessage() {
 				}
 				if string(msg[0]) == string(db.ServiceMonitorMessage) {
 					s.monitorMessageStore.InsertMessage(message)
+				}
+				if string(msg[0]) == string(db.ServiceNewMonitorMessage) {
+					s.newmonitorMessageStore.InsertMessage(&db.EventLogMessage{MonitorData: msg[1]})
 				}
 			}
 		}
