@@ -162,9 +162,9 @@ func clone(gitURL string, sourceDir string, logger event.Logger, repo string) er
 			return err
 		}
 	} else {
-		logrus.Debugf("pull: %s", fmt.Sprintf("cd %s && sudo -P git pull", sourceDir))
-		mm := []string{sourceDir, "&&", "sudo", "-P", "git", "pull"}
-		if err := ShowExec("cd", mm, logger); err != nil {
+		logrus.Debugf("pull: %s", fmt.Sprintf("sudo -P git -C %s pull", sourceDir))
+		mm := []string{"-P", "git", "-C", sourceDir, "pull"}
+		if err := ShowExec("sudo", mm, logger); err != nil {
 			return err
 		}
 	}
