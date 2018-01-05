@@ -122,29 +122,30 @@ func (t *TokenIdenAction) CheckToken(token, uri string) bool {
 		return true
 	case dbmodel.SERVERSOURCE:
 		sm := GetDefaultSourceURI()
-		logrus.Debugf("default source uri is %v", sm)
 		smL, ok := sm[dbmodel.SERVERSOURCE]
 		if !ok {
 			return false
 		}
+		rc := false
 		for _, urinfo := range smL {
 			if strings.HasPrefix(uri, urinfo.Prefix) {
-				return true
+				rc = true
 			}
-			return false
 		}
+		return rc
 	case dbmodel.NODEMANAGER:
 		sm := GetDefaultSourceURI()
 		smL, ok := sm[dbmodel.NODEMANAGER]
 		if !ok {
 			return false
 		}
+		rc := false
 		for _, urinfo := range smL {
 			if strings.HasPrefix(uri, urinfo.Prefix) {
-				return true
+				rc = true
 			}
-			return false
 		}
+		return rc
 	}
 	return false
 }
