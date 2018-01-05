@@ -75,9 +75,11 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 	}()
 	if err := cmd.Wait(); err != nil {
 		errLine, _ := errReader.ReadString('\n')
-		logrus.Errorf(fmt.Sprintf("builder error: %v", errLine))
-		logger[0].Error(fmt.Sprintf("build Error: %v", errLine), map[string]string{"step": "builder-exector", "status": "failure"})
-		return err
+		if errLine != "" {
+			logrus.Errorf(fmt.Sprintf("builder error: %v", errLine))
+			logger[0].Error(fmt.Sprintf("build Error: %v", errLine), map[string]string{"step": "builder-exector", "status": "failure"})
+			return err
+		}
 	}
 	return nil
 }
