@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
@@ -108,6 +109,7 @@ func (t *TokenIdenAction) DeleteAPIManager(am *api_model.APIManager) *util.APIHa
 //CheckToken CheckToken
 func (t *TokenIdenAction) CheckToken(token, uri string) bool {
 	m := GetDefaultTokenMap()
+	logrus.Debugf("default token map is %v", m)
 	regionInfo, ok := m[token]
 	if !ok {
 		return false
@@ -120,6 +122,7 @@ func (t *TokenIdenAction) CheckToken(token, uri string) bool {
 		return true
 	case dbmodel.SERVERSOURCE:
 		sm := GetDefaultSourceURI()
+		logrus.Debugf("default source uri is %v", sm)
 		smL, ok := sm[dbmodel.SERVERSOURCE]
 		if !ok {
 			return false
