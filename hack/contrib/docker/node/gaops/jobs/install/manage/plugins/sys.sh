@@ -133,6 +133,7 @@ function prepare() {
     )
     if [ ! -L "/data/docker_logs" ];then
         mkdir -p /data/service_logs && chown rain.rain /data/docker_logs
+        mkdir -p /var/log/rbdnode
     fi
     [ -d "/grdata/build/tenant/" ] || (
         mkdir -p /grdata/build/tenant && chown rain.rain /grdata/build/tenant
@@ -164,6 +165,8 @@ function prepare() {
         mkdir /etc/goodrain/openresty
         chown rain.rain /etc/goodrain/openresty
     )
+
+
 
 }
 
