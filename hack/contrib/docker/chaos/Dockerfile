@@ -10,7 +10,7 @@ ENV PKG_URL="http://goodrain-pkg.oss-cn-shanghai.aliyuncs.com/pkg"
 RUN curl $PKG_URL/labor_docker.tar.gz | tar -xzC /usr/bin/ \
     && curl $PKG_URL/labor_libzmq.tar.gz | tar -xzC /usr/local/ \
     && adduser -u 200 -D -S rain \
-    && echo 'rain ALL = (root) NOPASSWD:/usr/bin/docker' > /etc/sudoers.d/rain \
+    && echo 'rain ALL = (root) NOPASSWD: ALL' > /etc/sudoers.d/rain \
     && curl https://bootstrap.pypa.io/get-pip.py | python -
 
 ADD rainbond-chaos /run/rainbond-chaos
