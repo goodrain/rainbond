@@ -59,10 +59,20 @@ type etcdQueue struct {
 	ctx        context.Context
 	queues     map[string]string
 	queuesLock sync.Mutex
+	client     *clientv3.Client
 }
 
 func (e *etcdQueue) Start() error {
 	logrus.Debug("etcd message queue client starting")
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   e.config.EtcdEndPoints,
+		DialTimeout: time.Duration(e.config.EtcdTimeout) * time.Second,
+	})
+	if err != nil {
+		etcdutil.HandleEtcdError(err)
+		return err
+	}
+	e.client = cli
 	topics := os.Getenv("topics")
 	if topics != "" {
 		ts := strings.Split(topics, ",")
@@ -98,35 +108,20 @@ func (e *etcdQueue) GetAllTopics() []string {
 }
 
 func (e *etcdQueue) Stop() error {
+	if e.client != nil {
+		e.client.Close()
+	}
 	return nil
 }
 func (e *etcdQueue) queueKey(topic string) string {
 	return e.config.EtcdPrefix + "/" + topic
 }
 func (e *etcdQueue) Enqueue(ctx context.Context, topic, value string) error {
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   e.config.EtcdEndPoints,
-		DialTimeout: time.Duration(e.config.EtcdTimeout) * time.Second,
-	})
-	if err != nil {
-		etcdutil.HandleEtcdError(err)
-		return err
-	}
-	defer cli.Close()
-	queue := etcdutil.NewQueue(cli, e.queueKey(topic), ctx)
+	queue := etcdutil.NewQueue(e.client, e.queueKey(topic), ctx)
 	return queue.Enqueue(value)
 }
 
 func (e *etcdQueue) Dequeue(ctx context.Context, topic string) (string, error) {
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   e.config.EtcdEndPoints,
-		DialTimeout: time.Duration(e.config.EtcdTimeout) * time.Second,
-	})
-	if err != nil {
-		etcdutil.HandleEtcdError(err)
-		return "", err
-	}
-	defer cli.Close()
-	queue := etcdutil.NewQueue(cli, e.queueKey(topic), ctx)
+	queue := etcdutil.NewQueue(e.client, e.queueKey(topic), ctx)
 	return queue.Dequeue()
 }

@@ -162,6 +162,11 @@ func (c *Client) Watch(key string, opts ...client.OpOption) client.WatchChan {
 	return c.Client.Watch(context.Background(), key, opts...)
 }
 
+//WatchByCtx watch by ctx
+func (c *Client) WatchByCtx(ctx context.Context, key string, opts ...client.OpOption) client.WatchChan {
+	return c.Client.Watch(ctx, key, opts...)
+}
+
 //KeepAliveOnce etcd v3 KeepAliveOnce
 func (c *Client) KeepAliveOnce(id client.LeaseID) (*client.LeaseKeepAliveResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
