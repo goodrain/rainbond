@@ -25,6 +25,8 @@ import (
 
 	etcdserverpb "github.com/coreos/etcd/etcdserver/etcdserverpb"
 
+	_ "google.golang.org/genproto/googleapis/api/annotations"
+
 	context "golang.org/x/net/context"
 
 	grpc "google.golang.org/grpc"

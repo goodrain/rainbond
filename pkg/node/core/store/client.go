@@ -79,7 +79,7 @@ func (c *Client) Post(key, val string, opts ...client.OpOption) (*client.PutResp
 	if !txnresp.Succeeded {
 		return nil, ErrKeyExists
 	}
-	return txnresp.ToOpResponse().Put(), nil
+	return txnresp.OpResponse().Put(), nil
 }
 
 //Put etcd v3 Put
@@ -160,6 +160,11 @@ func (c *Client) Delete(key string, opts ...client.OpOption) (*client.DeleteResp
 //Watch etcd v3 watch
 func (c *Client) Watch(key string, opts ...client.OpOption) client.WatchChan {
 	return c.Client.Watch(context.Background(), key, opts...)
+}
+
+//WatchByCtx watch by ctx
+func (c *Client) WatchByCtx(ctx context.Context, key string, opts ...client.OpOption) client.WatchChan {
+	return c.Client.Watch(ctx, key, opts...)
 }
 
 //KeepAliveOnce etcd v3 KeepAliveOnce

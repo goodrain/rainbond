@@ -32,24 +32,28 @@ func TestClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	re, err := c.Enqueue(context.Background(), &pb.EnqueueRequest{
-		Topic: "worker",
-		Message: &pb.TaskMessage{
-			TaskType:   "stop",
-			CreateTime: time.Now().Format(time.RFC3339),
-			TaskBody:   []byte(`{"tenant_id":"232bd923d3794b979974bb21b863608b","service_id":"37f6cc84da449882104687130e868196","deploy_version":"20170717163635","event_id":"system"}`),
-			User:       "barnett",
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
+	for i := 0; i < 100000; i++ {
+		re, err := c.Enqueue(context.Background(), &pb.EnqueueRequest{
+			Topic: "worker",
+			Message: &pb.TaskMessage{
+				TaskType:   "stop",
+				CreateTime: time.Now().Format(time.RFC3339),
+				TaskBody:   []byte(`{"tenant_id":"232bd923d3794b979974bb21b863608b","service_id":"37f6cc84da449882104687130e868196","deploy_version":"20170717163635","event_id":"system"}`),
+				User:       "barnett",
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log(re)
+		taskme, err := c.Dequeue(context.Background(), &pb.DequeueRequest{Topic: "worker"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log(taskme)
+		time.Sleep(time.Millisecond * 10)
 	}
-	t.Log(re)
-	taskme, err := c.Dequeue(context.Background(), &pb.DequeueRequest{Topic: "worker"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(taskme)
+
 }
 
 func TestClientScaling(t *testing.T) {
