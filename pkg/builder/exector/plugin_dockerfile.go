@@ -19,8 +19,11 @@
 package exector
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -101,7 +104,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config
 	if t.Repo == "" {
 		t.Repo = "master"
 	}
-	if err := clone(t.GitURL, sourceDir, logger, t.Repo); err != nil {
+	if err := gitclone(t.GitURL, sourceDir, logger, t.Repo); err != nil {
 		logger.Error("拉取代码失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("拉取代码失败，%v", err)
 		return err
@@ -171,8 +174,56 @@ func clone(gitURL string, sourceDir string, logger event.Logger, repo string) er
 	return nil
 }
 
-func checkGitDir(sourceDir string, logger event.Logger) {
-
+func gitclone(gitURL string, sourceDir string, logger event.Logger, repo string) error {
+	path := fmt.Sprintf("%s/.git/config", sourceDir)
+	_, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			logrus.Debugf("clone: %s", fmt.Sprintf("git clone -b %s %s %s", repo, gitURL, sourceDir))
+			mm := []string{"-P", "git", "clone", "-b", repo, gitURL, sourceDir}
+			cmd := exec.Command("sudo", mm...)
+			stdout, err := cmd.StdoutPipe()
+			if err != nil {
+				return err
+			}
+			errC := cmd.Start()
+			if errC != nil {
+				logrus.Debugf(fmt.Sprintf("builder: %v", errC))
+				logger.Error(fmt.Sprintf("builder:%v", errC), map[string]string{"step": "build-exector"})
+				return errC
+			}
+			reader := bufio.NewReader(stdout)
+			go func() {
+				for {
+					line, errL := reader.ReadString('\n')
+					if errL != nil || io.EOF == errL {
+						break
+					}
+					//fmt.Print(line)
+					logrus.Debugf(fmt.Sprintf("builder: %v", line))
+					logger.Debug(fmt.Sprintf("builder:%v", line), map[string]string{"step": "build-exector"})
+				}
+			}()
+			errW := cmd.Wait()
+			if errW != nil {
+				cierr := strings.Split(errW.Error(), "\n")
+				if strings.Contains(errW.Error(), "Cloning into") && len(cierr) < 3 {
+					logrus.Errorf(fmt.Sprintf("builder: %v", errW))
+					logger.Error(fmt.Sprintf("builder:%v", errW), map[string]string{"step": "build-exector"})
+					return errW
+				}
+			}
+			return nil
+		}
+		logrus.Debugf("file check error: %v", err)
+		return err
+	}
+	logrus.Debugf("pull: %s", fmt.Sprintf("sudo -P git -C %s pull", sourceDir))
+	mm := []string{"-P", "git", "-C", sourceDir, "pull"}
+	if err := ShowExec("sudo", mm, logger); err != nil {
+		return err
+	}
+	return nil
 }
 
 func checkDockerfile(sourceDir string) bool {

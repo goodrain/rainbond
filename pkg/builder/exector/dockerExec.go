@@ -84,6 +84,9 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 			logger[0].Error(fmt.Sprintf("build Error: %v", errLine), map[string]string{"step": "builder-exector"})
 		}
 	}()
-	cmd.Wait()
+	errW := cmd.Wait()
+	if errW != nil {
+		return errW
+	}
 	return nil
 }
