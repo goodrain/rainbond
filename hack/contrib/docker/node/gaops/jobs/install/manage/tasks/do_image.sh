@@ -20,7 +20,7 @@ function log.stdout() {
 
 function image::exist() {
     IMAGE_NAME=$1
-    docker images | sed 1d | awk '{print $1":"$2}' | grep $IMAGES_NAME >/dev/null 2>&1
+    docker images | sed 1d | awk '{print $1":"$2}' | grep $IMAGE_NAME >/dev/null 2>&1
     if [ $? -eq 0 ];then
         log.info "image $IMAGE_NAME exists"
         return 0
