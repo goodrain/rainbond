@@ -76,24 +76,21 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 		for retry := 0; retry < 3; retry++ {
 			err := e.runD(&tb, config, logger)
 			if err != nil {
-				logrus.Errorf("exec plugin build from image error:%s", err.Error())
-				if retry < 3 {
-					logger.Info("dockerfile构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
-				} else {
-					version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(tb.PluginID, tb.VersionID)
-					if err != nil {
-						logrus.Errorf("get version error, %v", err)
-					}
-					version.Status = "failure"
-					if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
-						logrus.Errorf("update version error, %v", err)
-					}
-					logger.Error("dockerfile构建插件任务执行失败", map[string]string{"step": "last", "status": "failure"})
-				}
+				logrus.Errorf("exec plugin build from dockerfile error:%s", err.Error())
+				logger.Info("dockerfile构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 			} else {
-				break
+				return
 			}
 		}
+		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(tb.PluginID, tb.VersionID)
+		if err != nil {
+			logrus.Errorf("get version error, %v", err)
+		}
+		version.Status = "failure"
+		if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
+			logrus.Errorf("update version error, %v", err)
+		}
+		logger.Error("dockerfile构建插件任务执行失败", map[string]string{"step": "last", "status": "failure"})
 	}()
 }
 
@@ -104,7 +101,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config
 	if t.Repo == "" {
 		t.Repo = "master"
 	}
-	if err := gitclone(t.GitURL, sourceDir, logger, t.Repo); err != nil {
+	if err := clone(t.GitURL, sourceDir, logger, t.Repo); err != nil {
 		logger.Error("拉取代码失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("拉取代码失败，%v", err)
 		return err
@@ -184,6 +181,7 @@ func gitclone(gitURL string, sourceDir string, logger event.Logger, repo string)
 			cmd := exec.Command("sudo", mm...)
 			stdout, err := cmd.StdoutPipe()
 			if err != nil {
+				logrus.Errorf(fmt.Sprintf("builder err: %v", err))
 				return err
 			}
 			errC := cmd.Start()
@@ -209,7 +207,7 @@ func gitclone(gitURL string, sourceDir string, logger event.Logger, repo string)
 			if errW != nil {
 				cierr := strings.Split(errW.Error(), "\n")
 				if strings.Contains(errW.Error(), "Cloning into") && len(cierr) < 3 {
-					logrus.Errorf(fmt.Sprintf("builder: %v", errW))
+					logrus.Errorf(fmt.Sprintf("builder:%v", errW))
 					logger.Error(fmt.Sprintf("builder:%v", errW), map[string]string{"step": "build-exector"})
 					return errW
 				}
