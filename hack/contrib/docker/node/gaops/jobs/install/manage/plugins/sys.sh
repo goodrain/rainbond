@@ -561,7 +561,7 @@ services:
 EOF
 
     mkdir -pv /grdata/services/console && chown rain.rain /grdata/services/console
-    dc-compose up -d
+    dc-compose up -d rbd-app-ui
     docker exec rbd-app-ui python /app/ui/manage.py migrate
 }
 
@@ -597,7 +597,7 @@ services:
     restart: always
 EOF
 
-    dc-compose up -d
+    dc-compose up -d rbd-worker
 }
 
 function chaos_write_cfg() {
@@ -689,10 +689,13 @@ services:
     restart: always
 EOF
 
-    dc-compose up -d
+    dc-compose up -d rbd-chaos
 }
 
 function lb_add_forward() {
+
+log.info "add lb_add_forward"
+
 cat <<EOF > /etc/goodrain/openresty/servers/http/forward.conf
 upstream goodrain {
    server 172.30.42.1:8688 max_fails=3 fail_timeout=1s;
@@ -744,11 +747,8 @@ services:
     restart: always
 EOF
 
-    dc-compose up -d
-
     lb_add_forward
 
-    dc-compose stop rbd-lb
     dc-compose up -d rbd-lb
 }
 
@@ -782,7 +782,7 @@ services:
     restart: always
 EOF
     
-    dc-compose up -d
+    dc-compose up -d rbd-eventlog
 }
 
 function install_mq() {
@@ -803,7 +803,7 @@ services:
     restart: always
 EOF
     
-    dc-compose up -d
+    dc-compose up -d rbd-mq
 
 }
 
@@ -1025,7 +1025,7 @@ services:
     restart: always
 EOF
 
-    dc-compose up -d
+    dc-compose up -d rbd-dalaran
 }
 
 function install_entrance() {
@@ -1075,7 +1075,7 @@ services:
       - --kube-conf=/etc/goodrain/kubernetes/admin.kubeconfig
       - --log-level=info
 EOF
-    dc-compose up -d
+    dc-compose up -d rbd-entrance
 
 }
 

@@ -41,6 +41,21 @@ function check_manage() {
 
 }
 
+function reg_rbd(){
+    log.info "will reg domain to rbd"
+    domain=$(cat /data/.domain.log | awk '{print $1}')
+    uuid=$(cat /etc/goodrain/host_uuid.conf | awk -F '=' '{print $2}')
+    if [ -f "/etc/goodrain/envs/.exip" ];then
+        ex_ip=$(cat /etc/goodrain/envs/.exip | awk '{print $1}')
+    else
+        ex_ip=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
+    fi
+    if [ ! -z $domain ];then
+        curl --connect-timeout 20 http://reg.rbd.goodrain.org/reg?domain=$domain\&uuid=$uuid\&ex_ip=$ex_ip
+    fi
+
+}
+
 function run(){
 
     for plugin in ${check_manage[@]};do
@@ -49,6 +64,9 @@ function run(){
     task=($taskid)
     task_num=${#task[@]}
     if [ $task_num -eq 0 ];then
+
+        reg_rbd
+        
         log.stdout '{
                 "status":[ 
                 { 
