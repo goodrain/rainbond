@@ -82,7 +82,7 @@ func (e *exectorManager) pluginImageBuild(in []byte) {
 			if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
 				logrus.Errorf("update version error, %v", err)
 			}
-			logger.Info("插件构建超时，修改插件状态失败", map[string]string{"step": "callback", "status": "failure"})
+			logger.Info("插件构建超时，修改插件状态失败", map[string]string{"step": "last", "status": "failure"})
 		}
 	}()
 	go func() {
@@ -103,7 +103,7 @@ func (e *exectorManager) pluginImageBuild(in []byte) {
 					if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
 						logrus.Errorf("update version error, %v", err)
 					}
-					logger.Info("镜像构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
+					logger.Info("镜像构建插件任务执行失败", map[string]string{"step": "last", "status": "failure"})
 				}
 			} else {
 				break
