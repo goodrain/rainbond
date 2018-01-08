@@ -462,14 +462,14 @@ func (n *nginxAPI) addDomain(ads *AddDomainS) bool {
 	if !bytes.HasPrefix([]byte(ads.Domain), []byte(fmt.Sprintf("%s.%s", p.Port, p.Servicename))) {
 		if ads.HTTPS && ads.CertificateName != "" {
 			httpsInfo := bytes.NewBuffer(nil)
-			httpsInfo.WriteString(`https=true`)
+			httpsInfo.WriteString(`https=https`)
 			httpsInfo.WriteString(fmt.Sprintf(`&cert_name=%s&`, ads.CertificateName))
 			httpsInfo.WriteString(string(upstream))
 			logrus.Debugf("https info is %v", string(httpsInfo.Bytes()))
 			pha.UpStream = httpsInfo.Bytes()
 		} else if ads.TransferHTTP && ads.CertificateName != "" {
 			httpsInfo := bytes.NewBuffer(nil)
-			httpsInfo.WriteString(`tran_https=true`)
+			httpsInfo.WriteString(`https=tran_https`)
 			httpsInfo.WriteString(fmt.Sprintf(`&cert_name=%s&`, ads.CertificateName))
 			httpsInfo.WriteString(string(upstream))
 			logrus.Debugf("trans https info is %v", string(httpsInfo.Bytes()))
