@@ -717,6 +717,12 @@ server {
 }
 EOF
 
+    [  -f "/etc/goodrain/openresty/servers/http/forward.conf" ] && (
+        log.info "forward exist"
+    ) || (
+        log.error "forward not found"
+    )
+
 }
 
 function install_lb() {
@@ -747,9 +753,10 @@ services:
     restart: always
 EOF
 
+    dc-compose up -d rbd-lb 
+    dc-compose stop
     lb_add_forward
-
-    dc-compose up -d rbd-lb
+    dc-compose start rbd-lb
 }
 
 function install_eventlog() {
