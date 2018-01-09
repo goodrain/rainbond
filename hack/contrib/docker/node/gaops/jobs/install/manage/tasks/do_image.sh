@@ -57,8 +57,11 @@ function image::push() {
     else
         IMAGES_NAME_Pr="goodrain.me/$BASE_NAME:$VERSION"
     fi
+    log.info "docker tag $IMAGES_NAME_Pb $IMAGES_NAME_Pr"
     docker tag $IMAGES_NAME_Pb $IMAGES_NAME_Pr
+    log.info "docker push $IMAGES_NAME_Pr"
     docker push $IMAGES_NAME_Pr
+    log.info "---------\n docker for $BASE_NAME end"
 }
 
 function run() {
