@@ -799,8 +799,10 @@ func (n *nginxAPI) pHTTPSCert(ssl *SSLCert, errs []error) []error {
 		certInfo := bytes.NewBuffer(nil)
 		certInfo.WriteString(fmt.Sprintf(`cert_name=%s`, ssl.CertName))
 		if ssl.HTTPMethod == MethodPOST {
-			certInfo.WriteString(fmt.Sprintf(`&ca=%s`, ssl.CA))
-			certInfo.WriteString(fmt.Sprintf(`&key=%s`, ssl.Key))
+			transCA := strings.Replace(ssl.CA, "+", "%2B", -1)
+			transKey := strings.Replace(ssl.Key, "+", "%2B", -1)
+			certInfo.WriteString(fmt.Sprintf(`&ca=%s`, transCA))
+			certInfo.WriteString(fmt.Sprintf(`&key=%s`, transKey))
 		}
 		logrus.Debugf("cert info is %v", string(certInfo.Bytes()))
 		resp, err := n.urlPPAction(ssl.HTTPMethod, url, certInfo.Bytes())
