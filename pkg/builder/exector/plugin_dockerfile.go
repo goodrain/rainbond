@@ -67,7 +67,7 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 			if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
 				logrus.Errorf("update version error, %v", err)
 			}
-			logger.Error("插件构建超时，修改插件状态失败", map[string]string{"step": "last", "status": "failure"})
+			logger.Error("插件构建超时，修改插件状态失败", map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
 	go func() {
@@ -90,7 +90,7 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 		if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
 			logrus.Errorf("update version error, %v", err)
 		}
-		logger.Error("dockerfile构建插件任务执行失败", map[string]string{"step": "last", "status": "failure"})
+		logger.Error("dockerfile构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 	}()
 }
 
@@ -163,8 +163,8 @@ func clone(gitURL string, sourceDir string, logger event.Logger, repo string) er
 		}
 	} else {
 		logrus.Debugf("pull: %s", fmt.Sprintf("sudo -P git -C %s pull", sourceDir))
-		mm := []string{"-P", "git", "-C", sourceDir, "pull"}
-		if err := ShowExec("sudo", mm, logger); err != nil {
+		mm := []string{"-C", sourceDir, "pull"}
+		if err := ShowExec("git", mm, logger); err != nil {
 			return err
 		}
 	}
