@@ -314,7 +314,7 @@ function sync_certificates() {
 function grctl_check() {
     #which grctl >/dev/null 2>&1 || \
     #docker run --rm -v /var/run/docker.sock:/var/run/docker.sock hub.goodrain.com/dc-deploy/archiver grctl
-
+    log.info "create grctl.json"
     [ ! -f "/etc/goodrain/grctl.json" ] && (
 
     cat >>/etc/goodrain/grctl.json <<EOF
@@ -369,6 +369,9 @@ EOF
 }
 
 function web_write_cfg() {
+
+    log.info "do web_write_cfg"
+
     cat <<EOF > /etc/goodrain/console.py
 import os
 
@@ -533,6 +536,11 @@ OAUTH2_APP = {
 }
 EOF
 
+    [ -f "/etc/goodrain/console.py" ] && (
+        log.info "/etc/goodrain/console.py exist"
+    ) || (
+        log.error "/etc/goodrain/console.py not exist"
+    )
 
 }
 
@@ -562,7 +570,9 @@ EOF
 
     mkdir -pv /grdata/services/console && chown rain.rain /grdata/services/console
     dc-compose up -d rbd-app-ui
+    log.info "migrate database start"
     docker exec rbd-app-ui python /app/ui/manage.py migrate
+    log.info "migrate database end"
 }
 
 function install_worker() {
@@ -601,7 +611,11 @@ EOF
 }
 
 function chaos_write_cfg() {
-        [ -d "/etc/goodrain/etc/chaos/" ] || mkdir -pv /etc/goodrain/etc/chaos/
+    
+    [ -d "/etc/goodrain/etc/chaos/" ] || mkdir -pv /etc/goodrain/etc/chaos/
+
+    log.info "do chaos_write_cfg"
+
     cat <<EOF > /etc/goodrain/etc/chaos/config.json
     {
     "region": {
@@ -658,6 +672,12 @@ function chaos_write_cfg() {
 }
 }
 EOF
+
+    [ -f "/etc/goodrain/etc/chaos/config.json" ] && (
+        log.info "/etc/goodrain/etc/chaos/config.json exist"
+    ) || (
+        log.error "/etc/goodrain/etc/chaos/config.json not exist"
+    )
 
 }
 
@@ -815,6 +835,9 @@ EOF
 }
 
 function write_slogger_config() {
+
+    log.info "write_slogger_config"
+
     cat <<EOF > /etc/goodrain/labor.py
 # -*- coding: utf8 -*-
 
@@ -959,6 +982,12 @@ MULTI_LB = {
     }
 }
 EOF
+
+    [ -f "/etc/goodrain/labor.py" ] && (
+        log.info "/etc/goodrain/labor.py exist"
+    ) || (
+        log.error "/etc/goodrain/labor.py not exist"
+    )
 }
 
 
