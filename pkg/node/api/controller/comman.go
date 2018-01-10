@@ -19,6 +19,8 @@
 package controller
 
 import (
+	"net/http"
+
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/core/config"
 	"github.com/goodrain/rainbond/pkg/node/core/service"
@@ -27,6 +29,7 @@ import (
 
 var datacenterConfig *config.DataCenterConfig
 var taskService *service.TaskService
+var prometheusService *service.PrometheusService
 var taskTempService *service.TaskTempService
 var taskGroupService *service.TaskGroupService
 var appService *service.AppService
@@ -36,6 +39,7 @@ var discoverService *service.DiscoverAction
 //Init 初始化
 func Init(c *option.Conf, ms *masterserver.MasterServer) {
 	if ms != nil {
+		prometheusService=service.CreatePrometheusService(c,ms)
 		taskService = service.CreateTaskService(c, ms)
 		taskTempService = service.CreateTaskTempService(c)
 		taskGroupService = service.CreateTaskGroupService(c, ms)
@@ -51,4 +55,9 @@ func Exist(i interface{}) {
 	if datacenterConfig != nil {
 		datacenterConfig.Stop()
 	}
+}
+
+//Ping Ping
+func Ping(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
 }

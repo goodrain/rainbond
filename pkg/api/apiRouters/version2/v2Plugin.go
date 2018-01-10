@@ -35,10 +35,6 @@ func (v2 *V2) pluginRouter() chi.Router {
 	r.Put("/", controller.GetManager().PluginAction)
 	r.Delete("/", controller.GetManager().PluginAction)
 	r.Post("/build", controller.GetManager().PluginBuild)
-	r.Post("/{version_id}/default-env", controller.GetManager().PluginDefaultENV)
-	r.Get("/{version_id}/default-env", controller.GetManager().GetPluginDefaultEnvs)
-	r.Put("/{version_id}/default-env/{env_name}", controller.GetManager().PluginDefaultENV)
-	r.Delete("/{version_id}/default-env/{env_name}", controller.GetManager().PluginDefaultENV)
 	//get this plugin all build version
 	r.Get("/build-version", controller.GetManager().GetAllPluginBuildVersons)
 	r.Get("/build-version/{version_id}", controller.GetManager().GetPluginBuildVersion)
@@ -57,7 +53,7 @@ func (v2 *V2) serviceRelatePluginRouter() chi.Router {
 	r.Delete("/{plugin_id}", controller.GetManager().DeletePluginRelation)
 	// plugin enable set env,包含普通设置和预设可修改部分
 	r.Post("/{plugin_id}/setenv", controller.GetManager().SetVersionEnv)
-	r.Put("/{plugin_id}/setenv/{env_name}", controller.GetManager().UpdateVersionEnv)
+	r.Put("/{plugin_id}/upenv", controller.GetManager().UpdateVersionEnv)
 	r.Get("/{plugin_id}/envs", controller.GetManager().GePluginEnvWhichCanBeSet)
 	return r
 }

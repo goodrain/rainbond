@@ -1,13 +1,14 @@
 #!/bin/bash
 
-set -o errexit
 set -o pipefail
 
 #
 # This script will install grctl tools
 #
 
-REPO_VER=${1:-3.4}
+REPO_VER=${1}
+
+[ -d /etc/goodrain/envs/ ] || mkdir -p /etc/goodrain/envs/
 
 # check os-release ,now support CentOS 7.x, Maybe support Ubuntu 16.04 & Debian 9
 RELEASE_INFO=$(cat /etc/os-release | grep "^VERSION=" | awk -F '="' '{print $2}' | awk '{print $1}' | cut -b 1-5)
@@ -24,6 +25,26 @@ else
     exit 1
 fi
 
+function check_rbd_json() {
+    if [[ $OS_VER =~ '7' ]];then
+        yum install -y wget curl epel-release
+        sed -e 's!^mirrorlist=!#mirrorlist=!g' \
+         -e 's!^#baseurl=!baseurl=!g' \
+         -e 's!//download\.fedoraproject\.org/pub!//mirrors.ustc.edu.cn!g' \
+         -e 's!http://mirrors\.ustc!https://mirrors.ustc!g' \
+         -i /etc/yum.repos.d/epel.repo /etc/yum.repos.d/epel-testing.repo
+        
+        yum install -y jq
+
+        wget http://repo.goodrain.com/release/3.4.1/gaops/jobs/install/prepare/rbd.json -qO /etc/goodrain/envs/rbd.json
+        REPO_VER=$(jq --raw-output '.mirrors.version' /etc/goodrain/envs/rbd.json)
+    else
+        apt install -y wget curl
+        echo "not support now"
+        exit 1
+    fi    
+}
+
 function config_mirrors(){
 
     if [[ $OS_VER =~ '7' ]];then
@@ -37,6 +58,7 @@ gpgcheck=1
 gpgkey=http://repo.goodrain.com/gpg/RPM-GPG-KEY-CentOS-goodrain
 EOF
             yum makecache
+            yum install -y git perl telnet bind-utils htop dstat net-tools lsof iproute rsync lvm2
         else
             log.info "Configure apt sources.list..."
             if [[ $OS_VER =~ '16' ]];then
@@ -80,8 +102,8 @@ function test_public() {
 }
 
 function install_grctl() {
-    
-    echo "install_grctl"
+
+    check_rbd_json
 
     config_mirrors
 

@@ -20,9 +20,7 @@ package controller
 
 import (
 	conf "github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
-	"github.com/goodrain/rainbond/pkg/node/core/store"
 
 	"encoding/json"
 	"fmt"
@@ -42,244 +40,7 @@ import (
 	"strconv"
 
 	"github.com/goodrain/rainbond/pkg/node/api/model"
-
-	"github.com/coreos/etcd/clientv3"
-
-	"bytes"
-
-	"github.com/goodrain/rainbond/pkg/util"
 )
-
-func LoginCompute(w http.ResponseWriter, r *http.Request) {
-	loginInfo := new(model.Login)
-
-	decoder := json.NewDecoder(r.Body)
-	defer r.Body.Close()
-	err := decoder.Decode(loginInfo)
-
-	_, err = job.UnifiedLogin(loginInfo)
-	if err != nil {
-		logrus.Errorf("login remote host failed,details %s", err.Error())
-		api.ReturnError(r, w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	//check instation
-
-	nodeIP := strings.Split(loginInfo.HostPort, ":")[0]
-	logrus.Infof("target hostport is %s,node ip is %s", loginInfo.HostPort, nodeIP)
-
-	mayExist, err := k8s.GetSource(conf.Config.K8SNode + nodeIP)
-	if err == nil || mayExist != nil {
-		//if err != nil {
-		//	logrus.Warnf("error wile test node exist,details %s",err.Error())
-		//}
-		logrus.Infof("already installed")
-		api.ReturnError(r, w, 400, "already installed")
-		return
-	}
-	cli2, err := job.UnifiedLogin(loginInfo)
-	if err != nil {
-		logrus.Errorf("login remote host failed,details %s", err.Error())
-		api.ReturnError(r, w, http.StatusBadRequest, err.Error())
-		return
-	}
-	sess, err := cli2.NewSession()
-	if err != nil {
-		logrus.Errorf("get remote host ssh session failed,details %s", err.Error())
-		api.ReturnError(r, w, http.StatusBadRequest, err.Error())
-		return
-	}
-	defer sess.Close()
-	buf := bytes.NewBuffer(nil)
-	sess.Stdout = buf
-	err = sess.Run("cat " + conf.Config.InstalledMarker)
-	if err == nil {
-		logrus.Infof("already installed,checked by installed marker file,details %s", err.Error())
-		api.ReturnError(r, w, 400, "already installed")
-		return
-	}
-	installedType := buf.String()
-	if strings.Contains(installedType, "\n") {
-		installedType = strings.Replace(installedType, "\n", "", -1)
-	}
-	if installedType == loginInfo.HostType {
-		logrus.Infof("already installed,checked by installed marker file,details %s", err.Error())
-		api.ReturnError(r, w, 400, "already installed")
-		return
-	} else {
-		//可以安装
-		logrus.Infof("installing new role to a node,whose installed role is %s,instaling %s", installedType, loginInfo.HostType)
-	}
-
-	_, err = newComputeNodeToInstall(nodeIP)
-	if err != nil {
-		logrus.Warnf("reg node %s to build-in jobs failed,details: %s", nodeIP, err.Error())
-	}
-	//todo 在这里给全局channel<-
-	logrus.Infof("prepare add item to channel canRunJob")
-	//core.CanRunJob<-nodeIP
-	store.DefalutClient.NewRunnable("/acp_node/runnable/"+nodeIP, nodeIP)
-	logrus.Infof("add runnable to node ip %s", nodeIP)
-
-	result := new(model.LoginResult)
-	result.HostPort = loginInfo.HostPort
-	result.LoginType = loginInfo.LoginType
-	result.Result = "success"
-	//添加一条记录，保存信息
-
-	//sess.Run()
-
-	cnode := &model.HostNode{
-		ID:              nodeIP,
-		HostName:        nodeIP,
-		InternalIP:      nodeIP,
-		ExternalIP:      nodeIP,
-		Role:            []string{loginInfo.HostType},
-		Status:          "installing",
-		Unschedulable:   false,
-		Labels:          nil,
-		AvailableCPU:    0,
-		AvailableMemory: 0,
-	}
-	err = k8s.AddSource(conf.Config.K8SNode+nodeIP, cnode)
-	if err != nil {
-		logrus.Errorf("error add source ,details %s", err.Error())
-		api.ReturnError(r, w, 500, err.Error())
-		return
-	}
-	//k8s.AddSource(conf.Config.K8SNode+node.UUID, node)
-	b, _ := json.Marshal(loginInfo)
-	store.DefalutClient.Put(conf.Config.ConfigStoragePath+"login/"+strings.Split(loginInfo.HostPort, ":")[0], string(b))
-
-	api.ReturnSuccess(r, w, result)
-}
-func newComputeNodeToInstall(node string) (*job.JobList, error) {
-
-	//这里改成所有
-	// jobs, err := job.GetBuildinJobs() //状态为未安装
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// logrus.Infof("added new node %s to jobs", node)
-	// err = job.AddNewNodeToJobs(jobs, node)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	return nil, nil
-}
-func NodeInit(w http.ResponseWriter, r *http.Request) {
-	// nodeIP := strings.TrimSpace(chi.URLParam(r, "ip"))
-	// logrus.Infof("init node whose ip is %s", nodeIP)
-	// loginInfo := new(model.Login)
-	// resp, err := store.DefalutClient.Get(conf.Config.ConfigPath + "login/" + nodeIP)
-	// if err != nil {
-	// 	logrus.Errorf("prepare stage  failed,get login info failed,details %s", err.Error())
-	// 	api.ReturnError(r, w, http.StatusBadRequest, err.Error())
-	// 	return
-	// }
-	// if resp.Count > 0 {
-	// 	err := json.Unmarshal(resp.Kvs[0].Value, loginInfo)
-	// 	if err != nil {
-	// 		logrus.Errorf("decode request failed,details %s", err.Error())
-	// 		api.ReturnError(r, w, http.StatusBadRequest, err.Error())
-	// 		return
-	// 	}
-	// } else {
-	// 	logrus.Errorf("prepare stage failed,get login info failed,details %s", err.Error())
-	// 	api.ReturnError(r, w, http.StatusBadRequest, err.Error())
-	// 	return
-	// }
-	// logrus.Infof("starting new goruntine to init")
-	// go asyncInit(loginInfo, nodeIP)
-
-	api.ReturnSuccess(r, w, nil)
-}
-func CheckInitStatus(w http.ResponseWriter, r *http.Request) {
-	nodeIP := strings.TrimSpace(chi.URLParam(r, "ip"))
-	var result InitStatus
-	logrus.Infof("geting init status by key %s", conf.Config.InitStatus+nodeIP)
-	resp, err := store.DefalutClient.Get(conf.Config.InitStatus+nodeIP, clientv3.WithPrefix())
-	if err != nil {
-		logrus.Warnf("error getting resp from etcd with given key %s,details %s", conf.Config.InitStatus+nodeIP, err.Error())
-		api.ReturnError(r, w, 500, err.Error())
-		return
-	}
-	if resp.Count > 0 {
-
-		status := string(resp.Kvs[0].Value)
-		result.Status = status
-		if strings.HasPrefix(status, "failed") {
-			result.Status = "failed"
-			logrus.Infof("init failed")
-			errmsg := strings.Split(status, "|")[1]
-			result.Msg = errmsg
-		}
-	} else {
-		logrus.Infof("get nothing from etcd")
-		result.Status = "uninit"
-	}
-
-	api.ReturnSuccess(r, w, &result)
-}
-
-type InitStatus struct {
-	Status string `json:"status"`
-	Msg    string `json:"msg"`
-}
-
-func asyncInit(login *model.Login, nodeIp string) {
-	//save initing to etcd
-	// store.DefalutClient.Put(conf.Config.InitStatus+nodeIp, "initing")
-	// logrus.Infof("changing init stauts to initing ")
-	// _, err := job.PrepareState(login)
-	// if err != nil {
-	// 	logrus.Errorf("async prepare stage failed,details %s", err.Error())
-	// 	//save error to etcd
-	// 	store.DefalutClient.Put(conf.Config.InitStatus+nodeIp, "failed|"+err.Error())
-
-	// 	//api.ReturnError(r,w,http.StatusBadRequest,err.Error())
-	// 	return
-	// }
-	// //save init success to etcd
-	// logrus.Infof("changing init stauts to success ")
-	store.DefalutClient.Put(conf.Config.InitStatus+nodeIp, "success")
-}
-func CheckJobGetStatus(w http.ResponseWriter, r *http.Request) {
-	nodeIP := strings.TrimSpace(chi.URLParam(r, "ip"))
-	jl, err := job.GetJobStatusByNodeIP(nodeIP)
-	if err != nil {
-		logrus.Warnf("get job status failed")
-		api.ReturnError(r, w, http.StatusInternalServerError, err.Error())
-	}
-	api.ReturnSuccess(r, w, jl)
-}
-
-func StartBuildInJobs(w http.ResponseWriter, r *http.Request) {
-	nodeIP := strings.TrimSpace(chi.URLParam(r, "ip"))
-	logrus.Infof("node start install %s", nodeIP)
-	done := make(chan *job.JobList)
-	doneOne := make(chan *job.BuildInJob)
-	store.DefalutClient.NewRunnable("/acp_node/runnable/"+nodeIP, nodeIP)
-	logrus.Infof("adding install runnable to node ip %s", nodeIP)
-	jl, err := job.GetJobStatusByNodeIP(nodeIP)
-	if err != nil {
-		logrus.Warnf("get job status failed")
-		api.ReturnError(r, w, http.StatusInternalServerError, err.Error())
-	}
-	jl.SEQ = util.NewUUID()
-	for _, v := range jl.List {
-		v.JobSEQ = jl.SEQ
-	}
-	go writer(jl.SEQ, nodeIP, done, doneOne)
-	for _, v := range jl.List {
-		v.JobSEQ = jl.SEQ
-	}
-	job.UpdateNodeJobStatus(nodeIP, jl.List)
-	//core.CanRunJob<-nodeIP
-	go job.RunBuildJobs(nodeIP, done, doneOne)
-	api.ReturnSuccess(r, w, jl)
-}
 
 func GetNodeDetails(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
@@ -571,51 +332,33 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-
-
 	var capCpu int64
 	var capMem int64
 	for _,v:=range nodes{
-		if v.NodeStatus != nil {
+		if v.NodeStatus != nil&&v.Unschedulable==false {
+
 			capCpu+=v.NodeStatus.Capacity.Cpu().Value()
 			capMem+=v.NodeStatus.Capacity.Memory().Value()
 		}
 	}
-	//
-	//tenants, error := db.GetManager().TenantDao().GetALLTenants()
-	//if error != nil {
-	//	logrus.Errorf("error get tenants ,details %s",error.Error())
-	//}
-	//s:=len(tenants)
-	nodeList, error := k8s.K8S.Core().Nodes().List(metav1.ListOptions{})
-	if error != nil {
-		logrus.Errorf("error get nodes from k8s ,details %s", error.Error())
-		api.ReturnError(r, w, 500, "failed,details "+error.Error())
-		return
+	ps, _ := k8s.GetPodsByNodeName("")
+	var cpuR int64= 0
+	var memR int64= 0
+	for _, pv := range ps {
+		rc := pv.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
+		rm := pv.Spec.Containers[0].Resources.Requests.Memory().Value()
+		cpuR += rc
+		memR += rm
 	}
-
-	cpuR := 0
-	memR := 0
-	for _, v := range nodeList.Items {
-
-		ps, _ := k8s.GetPodsByNodeName(v.Name)
-		for _, pv := range ps {
-			rc := pv.Spec.Containers[0].Resources.Requests.Cpu().String()
-			rm := pv.Spec.Containers[0].Resources.Requests.Memory().String()
-			cpuR += getCpuInt(rc)
-			memR += convertMemoryToMBInt(rm, true)
-		}
-	}
-
-
+	podMemRequestMB:=memR/1024/1024
+	logrus.Infof("get total cpu request %v,memory request %v  by value",cpuR,podMemRequestMB)
 	result := new(model.ClusterResource)
 	result.CapCpu=int(capCpu)
 	result.CapMem=int(capMem)/1024/1024
 	result.ReqCpu = float32(cpuR)/1000
-	result.ReqMem = memR
+	result.ReqMem = int(podMemRequestMB)
 	result.Node=len(nodes)
 	result.Tenant=0
-	logrus.Infof("get cpu %v and mem %v", capCpu, capMem)
 	api.ReturnSuccess(r, w, result)
 }
 func UpdateNode(w http.ResponseWriter, r *http.Request) {

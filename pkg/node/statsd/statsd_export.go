@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"yiyun/common/log"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/howeyc/fsnotify"
@@ -108,7 +107,7 @@ func (e *Exporter) Start() error {
 	if e.mappingConfig != "" {
 		err := mapper.InitFromFile(e.mappingConfig)
 		if err != nil {
-			log.Fatal("Error loading config:", err)
+			logrus.Fatal("Error loading config:", err)
 			return err
 		}
 		//观察文件变化进行重新reload是有风险的,采用API重新加载

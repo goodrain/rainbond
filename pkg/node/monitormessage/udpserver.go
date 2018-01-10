@@ -21,6 +21,7 @@ package monitormessage
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,6 +37,7 @@ type UDPServer struct {
 	ListenerHost        string
 	ListenerPort        int
 	eventServerEndpoint []string
+	client              net.Conn
 }
 
 //CreateUDPServer create udpserver
@@ -63,8 +65,31 @@ func (u *UDPServer) Start() error {
 func (u *UDPServer) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	var eventServerEndpoint []string
 	for _, e := range endpoints {
-		strings.Split(e.URL, ":")
 		eventServerEndpoint = append(eventServerEndpoint, e.URL)
+		u.eventServerEndpoint = eventServerEndpoint
+	}
+	if len(u.eventServerEndpoint) > 0 {
+		for i := range u.eventServerEndpoint {
+			info := strings.Split(u.eventServerEndpoint[i], ":")
+			if len(info) == 2 {
+				dip := net.ParseIP(info[0])
+				port, err := strconv.Atoi(info[1])
+				if err != nil {
+					continue
+				}
+				srcAddr := &net.UDPAddr{IP: net.IPv4zero, Port: 0}
+				dstAddr := &net.UDPAddr{IP: dip, Port: port}
+				conn, err := net.DialUDP("udp", srcAddr, dstAddr)
+				if err != nil {
+					logrus.Error(err)
+					continue
+				}
+				logrus.Infof("Update event server address is %s", u.eventServerEndpoint[i])
+				u.client = conn
+				break
+			}
+		}
+
 	}
 }
 
@@ -98,11 +123,11 @@ func (u *UDPServer) server() error {
 }
 
 func (u *UDPServer) handlePacket(packet []byte) {
-
 	lines := strings.Split(string(packet), "\n")
 	for _, line := range lines {
-		if line != "" {
-			fmt.Println("Message:" + line)
+		if line != "" && u.client != nil {
+			fmt.Println(line)
+			u.client.Write([]byte(line))
 		}
 	}
 }

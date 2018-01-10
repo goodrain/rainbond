@@ -40,6 +40,7 @@ import (
 type PodTemplateSpecBuild struct {
 	serviceID, eventID string
 	needProxy          bool
+	hostName           string
 	service            *model.TenantServices
 	tenant             *model.Tenants
 	pluginsRelation    []*model.TenantServicePluginRelation
@@ -192,7 +193,12 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 		}
 		labels["protocols"] = pStr
 	}
-	//step7: 构建PodTemplateSpec
+	//step7: set hostname
+	if p.hostName != "" {
+		logrus.Infof("set pod name is %s", p.hostName)
+		podSpec.Hostname = p.hostName
+	}
+	//step8: 构建PodTemplateSpec
 	temp := v1.PodTemplateSpec{
 		Spec: podSpec,
 	}
@@ -551,6 +557,14 @@ func (p *PodTemplateSpecBuild) createVolumes(envs *[]v1.EnvVar) ([]v1.Volume, []
 			slugPath = "/grdata/build/tenant/" + slugPath
 		} else {
 			slugPath = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion)
+			versionInfo, err := p.dbmanager.VersionInfoDao().GetVersionByDeployVersion(p.service.DeployVersion, p.serviceID)
+			if err != nil {
+				logrus.Warnf("error get slug path from versioninfo table by key %s,prepare use path", p.service.DeployVersion)
+			} else {
+				if len(versionInfo.DeliveredPath) != 0 {
+					slugPath = versionInfo.DeliveredPath
+				}
+			}
 		}
 		p.createVolumeObj(model.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", slugPath, true, &volumeMounts, &volumes)
 	}
@@ -718,6 +732,9 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 	}
 
 	for _, e := range envsAll {
+		if e.AttrName == "HOSTNAME" {
+			p.hostName = e.AttrValue
+		}
 		envs = append(envs, v1.EnvVar{Name: e.AttrName, Value: e.AttrValue})
 	}
 	return &envs, nil
@@ -743,7 +760,7 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]
 		if err != nil {
 			return nil, nil, err
 		}
-		args, err := p.createPluginArgs(pluginR.PluginID)
+		args, err := p.createPluginArgs(versionInfo.ContainerCMD)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -751,7 +768,7 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]
 			Name:                   pluginR.PluginID,
 			Image:                  versionInfo.BuildLocalImage,
 			Env:                    *envs,
-			Resources:              p.createAdapterResources(200, 50),
+			Resources:              p.createAdapterResources(versionInfo.ContainerMemory, versionInfo.ContainerCPU),
 			TerminationMessagePath: "",
 			Args: args,
 		}
@@ -795,33 +812,27 @@ func (p *PodTemplateSpecBuild) getPluginModel(pluginID string) (string, error) {
 	return plugin.PluginModel, nil
 }
 
-func (p *PodTemplateSpecBuild) createPluginArgs(pluginID string) ([]string, error) {
-	plugin, err := p.dbmanager.TenantPluginDao().GetPluginByID(pluginID)
-	if err != nil {
-		return nil, err
-	}
-	if plugin.PluginCMD == "" {
+func (p *PodTemplateSpecBuild) createPluginArgs(cmd string) ([]string, error) {
+	if cmd == "" {
 		return nil, nil
 	}
-	return strings.Split(plugin.PluginCMD, " "), nil
+	return strings.Split(cmd, " "), nil
 }
 
 //container envs
 func (p *PodTemplateSpecBuild) createPluginEnvs(pluginID string, mainEnvs *[]v1.EnvVar, versionID string) (*[]v1.EnvVar, error) {
-	defaultEnvs, err := p.dbmanager.TenantPluginDefaultENVDao().GetDefaultEnvWhichCanBeSetByPluginID(pluginID, versionID)
-	if err != nil {
-		return nil, err
-	}
 	versionEnvs, err := p.dbmanager.TenantPluginVersionENVDao().GetVersionEnvByServiceID(p.serviceID, pluginID)
 	if err != nil {
 		return nil, err
 	}
 	var envs []v1.EnvVar
-	for _, e := range defaultEnvs {
-		envs = append(envs, v1.EnvVar{Name: e.ENVName, Value: e.ENVValue})
-	}
 	for _, e := range versionEnvs {
 		envs = append(envs, v1.EnvVar{Name: e.EnvName, Value: e.EnvValue})
+	}
+	for _, pluginRelation := range p.pluginsRelation {
+		if strings.Contains(pluginRelation.PluginModel, "net-plugin") {
+			envs = append(envs, v1.EnvVar{Name: "PLUGIN_MOEL", Value: pluginRelation.PluginModel})
+		}
 	}
 	discoverURL := fmt.Sprintf(
 		"%s/v1/resources/%s/%s/%s",
@@ -830,10 +841,12 @@ func (p *PodTemplateSpecBuild) createPluginEnvs(pluginID string, mainEnvs *[]v1.
 		p.service.ServiceAlias,
 		pluginID)
 	envs = append(envs, v1.EnvVar{Name: "DISCOVER_URL", Value: discoverURL})
+	envs = append(envs, v1.EnvVar{Name: "PLUGIN_ID", Value: pluginID})
 	for _, e := range *mainEnvs {
 		envs = append(envs, e)
 	}
 	//TODO: 在哪些情况下需要注入主容器的环境变量
+	logrus.Debugf("plugin env is %v", envs)
 	return &envs, nil
 }
 

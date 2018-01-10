@@ -14,22 +14,9 @@ function log.error() {
 function log.stdout() {
     echo "$*" >&2
 }
-
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
-
+# Todo list
+# 其他管理节点从goodrain.me 拉取
+#
 function image::push() {
     BASE_NAME=$1
     VERSION=$2
@@ -51,7 +38,7 @@ function image::push() {
 
 function run() {
     image::push runner latest
-    image::push adapter $REPO_VER
+    image::push adapter 3.4
     image::push pause-amd64 3.0
     image::push builder latest
 

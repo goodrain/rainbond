@@ -25,10 +25,11 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
+	"github.com/goodrain/rainbond/pkg/api/util"
 )
 
 //DefineCloudAuth DefineCloudAuth
-func (t *Tenant) DefineCloudAuth(gt *api_model.GetUserToken) DefineCloudAuthInterface {
+func (t *tenant) DefineCloudAuth(gt *api_model.GetUserToken) DefineCloudAuthInterface {
 	return &DefineCloudAuth{
 		GT: gt,
 	}
@@ -48,20 +49,19 @@ type DefineCloudAuthInterface interface {
 
 //GetToken GetToken
 func (d *DefineCloudAuth) GetToken() ([]byte, error) {
-	resp, status, err := DoRequest(
+	resp, code, err := request(
 		fmt.Sprintf("/cloud/auth/%s", d.GT.Body.EID),
 		"GET",
 		nil,
 	)
 	if err != nil {
-		logrus.Errorf("get cloud auth %s error, %v", d.GT.Body.EID, err)
-		return nil, err
+		return nil, util.CreateAPIHandleError(code, err)
 	}
-	if status > 400 {
-		if status == 404 {
-			return nil, fmt.Errorf("eid %s is not exist", d.GT.Body.EID)
+	if code > 400 {
+		if code == 404 {
+			return nil, util.CreateAPIHandleError(code, fmt.Errorf("eid %s is not exist", d.GT.Body.EID))
 		}
-		return nil, fmt.Errorf("get eid infos %s failed", d.GT.Body.EID)
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("get eid infos %s failed", d.GT.Body.EID))
 	}
 	//valJ, err := simplejson.NewJson(resp)
 	return resp, nil
@@ -73,18 +73,18 @@ func (d *DefineCloudAuth) PostToken() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, status, err := DoRequest(
+	resp, code, err := request(
 		"/cloud/auth",
 		"POST",
 		data,
 	)
 	if err != nil {
 		logrus.Errorf("create auth token error, %v", err)
-		return nil, err
+		return nil, util.CreateAPIHandleError(code, err)
 	}
-	if status > 400 {
+	if code > 400 {
 		logrus.Errorf("create auth token error")
-		return nil, fmt.Errorf("cretae auth token failed")
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("cretae auth token failed"))
 	}
 	return resp, nil
 }
@@ -95,18 +95,18 @@ func (d *DefineCloudAuth) PutToken() error {
 	if err != nil {
 		return err
 	}
-	_, status, err := DoRequest(
+	_, code, err := request(
 		fmt.Sprintf("/cloud/auth/%s", d.GT.Body.EID),
 		"PUT",
 		data,
 	)
 	if err != nil {
-		logrus.Errorf("update token ttl error, %v", err)
-		return err
+		logrus.Errorf("create auth token error, %v", err)
+		return util.CreateAPIHandleError(code, err)
 	}
-	if status > 400 {
-		logrus.Errorf("update token ttl error")
-		return fmt.Errorf("update token ttl failed")
+	if code > 400 {
+		logrus.Errorf("create auth token error")
+		return util.CreateAPIHandleError(code, fmt.Errorf("cretae auth token failed"))
 	}
 	return nil
 }

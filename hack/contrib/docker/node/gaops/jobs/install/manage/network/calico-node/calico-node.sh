@@ -3,8 +3,8 @@ set -o errexit
 set -o pipefail
 
 OS_VERSION=$1
-ETCD_ENDPOINTS=${2:-127.0.0.1:2379} #calico ETCD_ENDPOINTS:2379
-CALICO_NET=${3:-172.16.0.0/16} #172.16.0.0/16
+CALICO_NET=$2 #172.16.0.0/16
+ETCD_ENDPOINTS=${3:-127.0.0.1:2379} #calico ETCD_ENDPOINTS:2379
 HOSTIP=${4:-$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')}
 
 
@@ -12,7 +12,7 @@ HOSTIP=${4:-$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')}
 calico_node_image="hub.goodrain.com/dc-deploy/calico-node:v2.4.1"
 
 
-if [ -z $3 ];then
+if [ -z $CALICO_NET ];then
     IP_INFO=$(ip ad | grep 'inet ' | egrep ' 10.|172.|192.168' | awk '{print $2}' | cut -d '/' -f 1 | grep -v '172.30.42.1')
     IP_ITEMS=($IP_INFO)
     INET_IP=${IP_ITEMS%%.*}
@@ -38,27 +38,14 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
 
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
 
 
 function prepare() {
-    log.section "ACP: install network plugins calico-node"
+    log.info "install network plugins calico-node"
     log.info "prepare network env"
     [ -d "/etc/goodrain/envs" ] || mkdir -pv /etc/goodrain/envs
-    docker images | grep calico ||  docker pull $calico_node_image
+    docker pull $calico_node_image
 }
 
 function proc::is_running() {
@@ -200,8 +187,9 @@ EOF
 }
 
 function check_calico_pool() {
-    
-    etcdctl get /calico/v1/ipam/v4/pool/$CALICO_NET >/dev/null 2>&1
+    CALICO_NET_ETCD=$(echo $CALICO_NET | sed 's#/#-#g')
+    log.info "CALICO_NET:$CALICO_NET to $CALICO_NET_ETCD"
+    etcdctl get /calico/v1/ipam/v4/pool/$CALICO_NET_ETCD >/dev/null 2>&1
     if [ $? -eq 0 ];then
         log.info "calico pool config checked"
         return 0
@@ -241,6 +229,9 @@ function run_calico_node() {
     package::enable calico-node.service $OS_VERSION
 
     log.stdout '{
+            "global":{
+              "CALICO_NET":"'$CALICO_NET'"
+            },
             "status":[ 
             { 
                 "name":"install_network_calico-node", 

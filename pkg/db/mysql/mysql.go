@@ -119,7 +119,6 @@ func (m *Manager) RegisterTableModel() {
 	//vs map port
 	m.models = append(m.models, &model.TenantServiceLBMappingPort{})
 	m.models = append(m.models, &model.TenantPlugin{})
-	m.models = append(m.models, &model.TenantPluginDefaultENV{})
 	m.models = append(m.models, &model.TenantPluginBuildVersion{})
 	m.models = append(m.models, &model.TenantServicePluginRelation{})
 	m.models = append(m.models, &model.TenantPluginVersionEnv{})
@@ -127,9 +126,10 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.AppPublish{})
 	m.models = append(m.models, &model.ServiceEvent{})
 	m.models = append(m.models, &model.VersionInfo{})
-	m.models = append(m.models, &model.TenantServicesStreamPluginPort{})
 	m.models = append(m.models, &model.RegionUserInfo{})
+	m.models = append(m.models, &model.TenantServicesStreamPluginPort{})
 	m.models = append(m.models, &model.RegionAPIClass{})
+	m.models = append(m.models, &model.RegionProcotols{})
 }
 
 //CheckTable 检测表结构
@@ -162,14 +162,32 @@ func (m *Manager) patchTable() {
 	// m.db.Exec("alter table tenant_services add replica_id varchar(32)")
 	// m.db.Exec("alter table tenant_services add status int(11) default 0")
 	// m.db.Exec("alter table tenant_services add node_label varchar(40)")
-	m.db.Exec("insert into region_api_class VALUES ('','','server_source','/v2/tenants','','','')")
-	m.db.Exec("insert into region_api_class VALUES ('','','server_source','/v2/show','','','')")
-	m.db.Exec("insert into region_api_class VALUES ('','','server_source','/v2/resources','','','')")
-	m.db.Exec("insert into region_api_class VALUES ('','','server_source','/v2/opentsdb','','','')")
-	m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/nodes','','','')")
-	m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/job','','','')")
-	m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/tasks','','','')")
-	m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/taskgroups','','','')")
-	m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/tasktemps','','','')")
-	m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/configs','','','')")
+	//权限组
+	var rac model.RegionAPIClass
+	if err := m.db.Where("class_level=? and prefix=?", "server_source", "/v2/show").Find(&rac).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			m.db.Exec("insert into region_api_class VALUES ('','','server_source','/v2/tenants','','','')")
+			m.db.Exec("insert into region_api_class VALUES ('','','server_source','/v2/show','','','')")
+			m.db.Exec("insert into region_api_class VALUES ('','','server_source','/v2/resources','','','')")
+			m.db.Exec("insert into region_api_class VALUES ('','','server_source','/v2/opentsdb','','','')")
+			m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/nodes','','','')")
+			m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/job','','','')")
+			m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/tasks','','','')")
+			m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/taskgroups','','','')")
+			m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/tasktemps','','','')")
+			m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/configs','','','')")
+		}
+	}
+
+	//协议族支持
+	var rps model.RegionProcotols
+	if err := m.db.Where("protocol_group=? and protocol_child=?", "http", "http").Find(&rps).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			m.db.Exec("insert into region_protocols VALUES ('','','http','http','v2',1)")
+			m.db.Exec("insert into region_protocols VALUES ('','','stream','mysql','v2',1)")
+			m.db.Exec("insert into region_protocols VALUES ('','','stream','udp','v2',1)")
+			m.db.Exec("insert into region_protocols VALUES ('','','stream','tcp','v2',1)")
+			m.db.Exec("insert into region_protocols VALUES ('','','http','grpc','v2',0)")
+		}
+	}
 }

@@ -65,9 +65,6 @@ func Init() error {
 	for n := range nc.Collectors {
 		logrus.Infof(" - %s", n)
 	}
-	// if err := Config.watch(); err != nil {
-	// 	return err
-	// }
 	initialized = true
 	return nil
 }
@@ -75,6 +72,7 @@ func Init() error {
 //Conf Conf
 type Conf struct {
 	APIAddr             string //api server listen port
+	PrometheusAPI       string //Prometheus server listen port
 	K8SConfPath         string //absolute path to the kubeconfig file
 	LogLevel            string
 	HostIDFile          string
@@ -87,8 +85,7 @@ type Conf struct {
 	OnlineNodePath      string //上线节点信息存储路径
 	Proc                string // 当前节点正在执行任务存储路径
 	StaticTaskPath      string // 配置静态task文件宿主机路径
-	Cmd                 string // 节点执行任务保存路径
-	Once                string // 马上执行任务路径//立即执行任务保存地址
+	JobPath             string // 节点执行任务保存路径
 	Lock                string // job lock 路径
 	Group               string // 节点分组
 	Noticer             string // 通知
@@ -140,6 +137,7 @@ type UDPMonitorConfig struct {
 //AddFlags AddFlags
 func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the log level")
+	fs.StringVar(&a.PrometheusAPI, "prometheus", "http://localhost:9999", "the prometheus api")
 	fs.StringVar(&a.NodePath, "nodePath", "/rainbond/nodes", "the path of node in etcd")
 	fs.StringVar(&a.HostIDFile, "nodeid-file", "/etc/goodrain/host_uuid.conf", "the unique ID for this node. Just specify, don't modify")
 	fs.StringVar(&a.OnlineNodePath, "onlineNodePath", "/rainbond/onlinenodes", "the path of master node in etcd")
@@ -152,8 +150,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.ConfigStoragePath, "config-path", "/rainbond/acp_configs", "the path of config to store(new)")
 	fs.StringVar(&a.InitStatus, "init-status", "/rainbond/init_status", "the path of init status to store")
 	fs.StringVar(&a.Service, "servicePath", "/traefik/backends", "the path of service info to store")
-	fs.StringVar(&a.Cmd, "cmdPath", "/rainbond/cmd", "the path of cmd in etcd")
-	fs.StringVar(&a.Once, "oncePath", "/rainbond/once", "the path of once in etcd")
+	fs.StringVar(&a.JobPath, "jobPath", "/rainbond/jobs", "the path of job in etcd")
 	fs.StringVar(&a.Lock, "lockPath", "/rainbond/lock", "the path of lock in etcd")
 	fs.IntVar(&a.FailTime, "failTime", 3, "the fail time of healthy check")
 	fs.IntVar(&a.CheckIntervalSec, "checkInterval-second", 5, "the interval time of healthy check")
@@ -235,50 +232,14 @@ func (c *Conf) parse() error {
 
 	c.NodePath = cleanKeyPrefix(c.NodePath)
 	c.Proc = cleanKeyPrefix(c.Proc)
-	c.Cmd = cleanKeyPrefix(c.Cmd)
-	c.Once = cleanKeyPrefix(c.Once)
+	c.JobPath = cleanKeyPrefix(c.JobPath)
 	c.Lock = cleanKeyPrefix(c.Lock)
 	c.Group = cleanKeyPrefix(c.Group)
 	c.Noticer = cleanKeyPrefix(c.Noticer)
-
+	//固定值
+	c.HostIDFile = "/etc/goodrain/host_uuid.conf"
 	return nil
 }
-
-// func (c *Conf) watch() error {
-// 	var err error
-// 	watcher, err = fsnotify.NewWatcher()
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	go func() {
-// 		duration := 3 * time.Second
-// 		timer, update := time.NewTimer(duration), false
-// 		for {
-// 			select {
-// 			case <-exitChan:
-// 				return
-// 			case event := <-watcher.Events:
-// 				// 保存文件时会产生多个事件
-// 				if event.Op&(fsnotify.Write|fsnotify.Chmod) > 0 {
-// 					update = true
-// 				}
-// 				timer.Reset(duration)
-// 			case <-timer.C:
-// 				if update {
-// 					c.reload()
-// 					event.Emit(event.WAIT, nil)
-// 					update = false
-// 				}
-// 				timer.Reset(duration)
-// 			case err := <-watcher.Errors:
-// 				logrus.Warnf("config watcher err: %v", err)
-// 			}
-// 		}
-// 	}()
-
-// 	return watcher.Add(*confFile)
-// }
 
 func Exit(i interface{}) {
 	close(exitChan)

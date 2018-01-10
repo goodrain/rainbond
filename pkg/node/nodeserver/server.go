@@ -28,7 +28,7 @@ import (
 
 	conf "github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
-	"github.com/goodrain/rainbond/pkg/node/core/job"
+	corejob "github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
 	"github.com/goodrain/rainbond/pkg/util"
 	"github.com/robfig/cron"
@@ -50,6 +50,9 @@ type Config struct {
 	TTL                  int64
 }
 
+//Jobs jobs
+type Jobs map[string]*corejob.Job
+
 //NodeServer node manager server
 type NodeServer struct {
 	*store.Client
@@ -58,7 +61,7 @@ type NodeServer struct {
 	jobs     Jobs // 和结点相关的任务
 	onceJobs Jobs //记录执行的单任务
 	jobLock  sync.Mutex
-	cmds     map[string]*job.Cmd
+	cmds     map[string]*corejob.Cmd
 	// 删除的 job id，用于 group 更新
 	delIDs     map[string]bool
 	ttl        int64
@@ -99,15 +102,14 @@ func (n *NodeServer) Run() (err error) {
 	}
 	n.Cron.Start()
 	go n.watchJobs()
-	go n.watchOnce()
 	logrus.Info("node registe success")
-	if err := job.StartProc(); err != nil {
+	if err := corejob.StartProc(); err != nil {
 		logrus.Warnf("[process key will not timeout]proc lease id set err: %s", err.Error())
 	}
 	return
 }
 func (n *NodeServer) loadJobs() (err error) {
-	jobs, err := job.GetJobs()
+	jobs, err := corejob.GetJobs(n.HostNode)
 	if err != nil {
 		return err
 	}
@@ -115,42 +117,47 @@ func (n *NodeServer) loadJobs() (err error) {
 		return
 	}
 	for _, job := range jobs {
-		job.Init(n.ID)
 		n.addJob(job)
 	}
 	return
 }
+
 func (n *NodeServer) watchJobs() {
-	rch := job.WatchJobs()
+	rch := corejob.WatchJobs()
 	for wresp := range rch {
 		for _, ev := range wresp.Events {
 			switch {
 			case ev.IsCreate():
-				j, err := job.GetJobFromKv(ev.Kv)
+				j, err := corejob.GetJobFromKv(ev.Kv)
 				if err != nil {
 					logrus.Warnf("err: %s, kv: %s", err.Error(), ev.Kv.String())
 					continue
 				}
-				j.Init(n.ID)
 				n.addJob(j)
 			case ev.IsModify():
-				j, err := job.GetJobFromKv(ev.Kv)
+				j, err := corejob.GetJobFromKv(ev.Kv)
 				if err != nil {
 					logrus.Warnf("err: %s, kv: %s", err.Error(), ev.Kv.String())
 					continue
 				}
-				j.Init(n.ID)
 				n.modJob(j)
 			case ev.Type == client.EventTypeDelete:
-				n.delJob(job.GetIDFromKey(string(ev.Kv.Key)))
+				n.delJob(corejob.GetIDFromKey(string(ev.Kv.Key)))
 			default:
 				logrus.Warnf("unknown event type[%v] from job[%s]", ev.Type, string(ev.Kv.Key))
 			}
 		}
 	}
 }
-func (n *NodeServer) addJob(j *job.Job) {
+
+//添加job缓存
+func (n *NodeServer) addJob(j *corejob.Job) {
 	if !j.IsRunOn(n.HostNode) {
+		return
+	}
+	//一次性任务
+	if j.Rules.Mode != corejob.Cycle {
+		n.runOnceJob(j)
 		return
 	}
 	n.jobLock.Lock()
@@ -186,7 +193,15 @@ func (n *NodeServer) delJob(id string) {
 	return
 }
 
-func (n *NodeServer) modJob(job *job.Job) {
+func (n *NodeServer) modJob(job *corejob.Job) {
+	if !job.IsRunOn(n.HostNode) {
+		return
+	}
+	//一次性任务
+	if job.Rules.Mode != corejob.Cycle {
+		n.runOnceJob(job)
+		return
+	}
 	oJob, ok := n.jobs[job.ID]
 	// 之前此任务没有在当前结点执行，直接增加任务
 	if !ok {
@@ -207,112 +222,38 @@ func (n *NodeServer) modJob(job *job.Job) {
 	}
 }
 
-func (n *NodeServer) addCmd(cmd *job.Cmd) {
-	n.Cron.Schedule(cmd.JobRule.Schedule, cmd)
+func (n *NodeServer) addCmd(cmd *corejob.Cmd) {
+	n.Cron.Schedule(cmd.Rule.Schedule, cmd)
 	n.cmds[cmd.GetID()] = cmd
-	logrus.Infof("job[%s] rule[%s] timer[%s] has added", cmd.Job.ID, cmd.JobRule.ID, cmd.JobRule.Timer)
+	logrus.Infof("job[%s] rule[%s] timer[%s] has added", cmd.Job.ID, cmd.Rule.ID, cmd.Rule.Timer)
 	return
 }
 
-func (n *NodeServer) modCmd(cmd *job.Cmd) {
+func (n *NodeServer) modCmd(cmd *corejob.Cmd) {
 	c, ok := n.cmds[cmd.GetID()]
 	if !ok {
 		n.addCmd(cmd)
 		return
 	}
-	sch := c.JobRule.Timer
+	sch := c.Rule.Timer
 	*c = *cmd
 	// 节点执行时间改变，更新 cron
 	// 否则不用更新 cron
-	if c.JobRule.Timer != sch {
-		n.Cron.Schedule(c.JobRule.Schedule, c)
+	if c.Rule.Timer != sch {
+		n.Cron.Schedule(c.Rule.Schedule, c)
 	}
-	logrus.Infof("job[%s] rule[%s] timer[%s] has updated", c.Job.ID, c.JobRule.ID, c.JobRule.Timer)
+	logrus.Infof("job[%s] rule[%s] timer[%s] has updated", c.Job.ID, c.Rule.ID, c.Rule.Timer)
 }
 
-func (n *NodeServer) delCmd(cmd *job.Cmd) {
+func (n *NodeServer) delCmd(cmd *corejob.Cmd) {
 	delete(n.cmds, cmd.GetID())
 	n.Cron.DelJob(cmd)
-	logrus.Infof("job[%s] rule[%s] timer[%s] has deleted", cmd.Job.ID, cmd.JobRule.ID, cmd.JobRule.Timer)
+	logrus.Infof("job[%s] rule[%s] timer[%s] has deleted", cmd.Job.ID, cmd.Rule.ID, cmd.Rule.Timer)
 }
-func (n *NodeServer) watchOnce() {
-	rch := job.WatchOnce()
-	for wresp := range rch {
-		for _, ev := range wresp.Events {
-			switch {
-			case ev.IsCreate():
-				j, err := job.GetJobFromKv(ev.Kv)
-				if err != nil {
-					logrus.Warnf("err: %s, kv: %s", err.Error(), ev.Kv.String())
-					continue
-				}
-				j.Init(n.ID)
-				if j.Rules != nil {
-					if !j.IsRunOn(n.HostNode) {
-						continue
-					}
-				}
-				if !j.IsOnce {
-					continue
-				}
-				go j.RunWithRecovery()
-			}
-		}
-	}
-}
-func (n *NodeServer) watchBuildIn() {
 
-	//todo 在这里给<-channel,如果没有，立刻返回,可以用无循环switch，default实现
-	// rch := job.WatchBuildIn()
-	// for wresp := range rch {
-	// 	for _, ev := range wresp.Events {
-	// 		switch {
-	// 		case ev.IsCreate() || ev.IsModify():
-	// 			canRun := store.DefalutClient.IsRunnable("/acp_node/runnable/" + n.ID)
-	// 			if !canRun {
-	// 				logrus.Infof("job can't run on node %s,skip", n.ID)
-	// 				continue
-	// 			}
-
-	// 			logrus.Infof("new build-in job to run ,key is %s,local ip is %s", ev.Kv.Key, n.ID)
-	// 			job := &job.Job{}
-	// 			k := string(ev.Kv.Key)
-	// 			paths := strings.Split(k, "/")
-
-	// 			ps := strings.Split(paths[len(paths)-1], "-")
-	// 			buildInJobId := ps[0]
-	// 			jobResp, err := store.DefalutClient.Get(conf.Config.BuildIn + buildInJobId)
-	// 			if err != nil {
-	// 				logrus.Warnf("get build-in job failed")
-	// 			}
-	// 			json.Unmarshal(jobResp.Kvs[0].Value, job)
-
-	// 			job.Init(n.ID)
-	// 			//job.Check()
-	// 			err = job.ResolveShell()
-	// 			if err != nil {
-	// 				logrus.Infof("resolve shell to runnable failed , details %s", err.Error())
-	// 			}
-	// 			n.addJob(job)
-
-	// 			//logrus.Infof("is ok? %v and is job runing on %v",ok,job.IsRunOn(n.ID, n.groups))
-	// 			////if !ok || !job.IsRunOn(n.ID, n.groups) {
-	// 			////	continue
-	// 			////}
-	// 			for _, v := range job.Rules {
-	// 				for _, v2 := range v.NodeIDs {
-	// 					if v2 == n.ID {
-	// 						logrus.Infof("prepare run new build-in job")
-	// 						go job.RunBuildInWithRecovery(n.ID)
-	// 						go n.watchBuildIn()
-	// 						return
-	// 					}
-	// 				}
-	// 			}
-
-	// 		}
-	// 	}
-	// }
+//job must be schedulered
+func (n *NodeServer) runOnceJob(j *corejob.Job) {
+	go j.RunWithRecovery()
 }
 
 //Stop 停止服务
@@ -358,8 +299,8 @@ func NewNodeServer(cfg *conf.Conf) (*NodeServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	if cfg.TTL==0{
-		cfg.TTL=10
+	if cfg.TTL == 0 {
+		cfg.TTL = 10
 	}
 	n := &NodeServer{
 		Client:   store.DefalutClient,
@@ -367,7 +308,7 @@ func NewNodeServer(cfg *conf.Conf) (*NodeServer, error) {
 		Cron:     cron.New(),
 		jobs:     make(Jobs, 8),
 		onceJobs: make(Jobs, 8),
-		cmds:     make(map[string]*job.Cmd),
+		cmds:     make(map[string]*corejob.Cmd),
 		delIDs:   make(map[string]bool, 8),
 		Conf:     cfg,
 		ttl:      cfg.TTL,
@@ -425,6 +366,7 @@ func GetCurrentNode(cfg *conf.Conf) (*model.HostNode, error) {
 		LastHeartbeatTime:  time.Now(),
 		LastTransitionTime: time.Now(),
 	})
+	node.Mode = cfg.RunMode
 	return &node, nil
 }
 

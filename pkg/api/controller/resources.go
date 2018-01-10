@@ -40,7 +40,6 @@ import (
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 
 	"github.com/Sirupsen/logrus"
-	"sort"
 	"github.com/renstorm/fuzzysearch/fuzzy"
 )
 
@@ -134,8 +133,6 @@ func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-
-
 //TenantsQuery TenantsQuery
 func (t *TenantStruct) TenantsQuery(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants/query/{tenant_name} v2 tenants
@@ -163,9 +160,7 @@ func (t *TenantStruct) TenantsQuery(w http.ResponseWriter, r *http.Request) {
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 
-
 	tenantName := strings.TrimSpace(chi.URLParam(r, "tenant_name"))
-
 
 	rep, err := handler.GetTenantManager().GetTenantsName()
 	if err != nil {
@@ -173,11 +168,10 @@ func (t *TenantStruct) TenantsQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result:=fuzzy.Find(tenantName, rep) // [cartwheel wheel]
+	result := fuzzy.Find(tenantName, rep) // [cartwheel wheel]
 	httputil.ReturnSuccess(r, w, result)
 	return
 }
-
 
 //TenantsGetByName TenantsGetByName
 func (t *TenantStruct) TenantsGetByName(w http.ResponseWriter, r *http.Request) {
@@ -206,35 +200,25 @@ func (t *TenantStruct) TenantsGetByName(w http.ResponseWriter, r *http.Request) 
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 
-
-
-
 	tenantName := strings.TrimSpace(chi.URLParam(r, "tenant_name"))
 
 	v, err := handler.GetTenantManager().GetTenantsByName(tenantName)
 	if err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants names error, %v", err))
+		httputil.ReturnError(r, w, 404, fmt.Sprintf("get tenants names error, %v", err))
 		return
 	}
-	logrus.Infof("query tenant from db by name %s ,got %v",tenantName,v)
-	var res =&api_model.TenantResource{}
-	services, err := handler.GetServiceManager().GetService(v.UUID)
+	logrus.Infof("query tenant from db by name %s ,got %v", tenantName, v)
+
+	tenantServiceRes, err := handler.GetServiceManager().GetTenantRes(v.UUID)
 	if err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("get services by tenantID %s error, %v",v.UUID, err))
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants service total resources  error, %v", err))
 		return
 	}
-	totalResInfo, _ := handler.GetTenantManager().TotalMemCPU(services)
-	usedResInfo, _ := handler.GetTenantManager().StatsMemCPU(services)
+	tenantServiceRes.UUID = v.UUID
+	tenantServiceRes.Name = v.Name
+	tenantServiceRes.EID = v.EID
 
-	res.UUID=v.UUID
-	res.Name=v.Name
-	res.EID=v.EID
-	res.AllocatedCPU=totalResInfo.CPU
-	res.AllocatedMEM=totalResInfo.MEM
-	res.UsedCPU=usedResInfo.CPU
-	res.UsedMEM=usedResInfo.MEM
-
-	httputil.ReturnSuccess(r, w, res)
+	httputil.ReturnSuccess(r, w, tenantServiceRes)
 	return
 }
 
@@ -271,19 +255,15 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 
-
-
 	pageLenStr := strings.TrimSpace(chi.URLParam(r, "pageLen"))
 	curPageStr := strings.TrimSpace(chi.URLParam(r, "curPage"))
 
-
-
-	pageLen,err:=strconv.Atoi(pageLenStr)
+	pageLen, err := strconv.Atoi(pageLenStr)
 	if err != nil {
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("bad request, %v", err))
 		return
 	}
-	curPage,err:=strconv.Atoi(curPageStr)
+	curPage, err := strconv.Atoi(curPageStr)
 	if err != nil {
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("bad request, %v", err))
 		return
@@ -293,41 +273,28 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants error, %v", err))
 		return
 	}
-	var result []*api_model.TenantResource
-	for _,v:=range rep{
-		services, err := handler.GetServiceManager().GetService(v.UUID)
+	resource, err := handler.GetServiceManager().GetPagedTenantRes((curPage-1)*pageLen, pageLen)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants  error, %v", err))
+		return
+	}
+
+	for _, v := range resource {
+		tenant, err := handler.GetTenantManager().GetTenantsByUUID(v.UUID)
 		if err != nil {
-			httputil.ReturnError(r, w, 500, fmt.Sprintf("get services by tenantID %s error, %v",v.UUID, err))
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants  error, %v", err))
 			return
 		}
-		totalResInfo, _ := handler.GetTenantManager().TotalMemCPU(services)
-		usedResInfo, _ := handler.GetTenantManager().StatsMemCPU(services)
-		var res api_model.TenantResource
-		res.UUID=v.UUID
-		res.Name=v.Name
-		res.EID=v.EID
-		res.AllocatedCPU=totalResInfo.CPU
-		res.AllocatedMEM=totalResInfo.MEM
-		res.UsedCPU=usedResInfo.CPU
-		res.UsedMEM=usedResInfo.MEM
-		result=append(result,&res)
-	}
-	pList := api_model.TenantResList(result)
-	sort.Sort(pList)
-	var resultList []*api_model.TenantResource
-	if curPage*pageLen<len(rep) {
-		resultList=pList[(curPage-1)*pageLen:curPage*pageLen]
-	}else{
-		resultList=pList[(curPage-1)*pageLen:len(rep)]
+		v.Name = tenant.Name
+		v.EID = tenant.EID
 	}
 
 	var ret api_model.PagedTenantResList
-	ret.List=resultList
-	ret.Length=len(resultList)
+	ret.List = resource
+	ret.Length = len(rep)
 	httputil.ReturnSuccess(r, w, ret)
 	return
 }
-
 
 //SumTenants 统计租户数量
 func (t *TenantStruct) SumTenants(w http.ResponseWriter, r *http.Request) {
@@ -403,8 +370,18 @@ func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		dbts.EID = ts.Body.Eid
-		dbts.Name = name
-		dbts.UUID = id
+		if ts.Body.TenantName == "" {
+			dbts.Name = name
+		} else {
+			dbts.Name = ts.Body.TenantName
+			name = ts.Body.TenantName
+		}
+		if ts.Body.TenantID == "" {
+			dbts.UUID = id
+		} else {
+			dbts.UUID = ts.Body.TenantID
+			id = ts.Body.TenantID
+		}
 		if err := handler.GetServiceManager().CreateTenant(&dbts); err != nil {
 			if strings.HasSuffix(err.Error(), "is exist") {
 				httputil.ReturnError(r, w, 400, err.Error())
@@ -416,10 +393,10 @@ func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 		rc := make(map[string]string)
 		rc["tenant_id"] = id
 		rc["tenang_name"] = name
+		rc["eid"] = ts.Body.Eid
 		httputil.ReturnSuccess(r, w, rc)
 		return
 	}
-
 	if ts.Body.TenantID != "" && ts.Body.TenantName != "" {
 		//兼容旧接口
 		dbts.Name = ts.Body.TenantName
@@ -1320,8 +1297,9 @@ func (t *TenantStruct) deletePortController(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	var port = &api_model.TenantServicesPort{
-		TenantID:  tenantID,
-		ServiceID: serviceID,
+		TenantID:      tenantID,
+		ServiceID:     serviceID,
+		ContainerPort: oldPort,
 	}
 	var ports api_model.ServicePorts
 	ports.Port = append(ports.Port, port)
@@ -1497,29 +1475,27 @@ func (t *TenantStruct) Probe(w http.ResponseWriter, r *http.Request) {
 }
 
 //AddProbe add probe
+// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/probe v2 addProbe
+//
+// 增加应用探针
+//
+// add probe
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) AddProbe(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/probe v2 addProbe
-	//
-	// 增加应用探针
-	//
-	// add probe
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	logrus.Debugf("trans add probe dependency service ")
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	var tsp api_model.ServiceProbe
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsp, nil); !ok {
@@ -1548,29 +1524,27 @@ func (t *TenantStruct) AddProbe(w http.ResponseWriter, r *http.Request) {
 }
 
 //UpdateProbe update probe
+// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/probe v2 updateProbe
+//
+// 更新应用探针信息, *注意此处为全量更新
+//
+// update probe
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) UpdateProbe(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/probe v2 updateProbe
-	//
-	// 更新应用探针信息, *注意此处为全量更新
-	//
-	// update probe
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	logrus.Debugf("trans update probe dependency service ")
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	var tsp api_model.ServiceProbe
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsp, nil); !ok {
@@ -1604,29 +1578,27 @@ func (t *TenantStruct) UpdateProbe(w http.ResponseWriter, r *http.Request) {
 }
 
 //DeleteProbe delete probe
+// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/probe v2 deleteProbe
+//
+// 删除应用探针
+//
+// delete probe
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) DeleteProbe(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/probe v2 deleteProbe
-	//
-	// 删除应用探针
-	//
-	// delete probe
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	logrus.Debugf("trans delete probe dependency service ")
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	var tsp api_model.ServiceProbe
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsp, nil); !ok {
@@ -1671,30 +1643,29 @@ func (t *TenantStruct) UpdatePort(w http.ResponseWriter, r *http.Request) {
 }
 
 //SingleTenantResources SingleTenantResources
+// swagger:operation GET /v2/tenants/{tenant_name}/resources v2 singletenantResources
+//
+// 指定租户资源使用情况
+//
+// get tenant resources
+//
+// ---
+// produces:
+// - application/json
+// - application/xml
+// parameters:
+// - name: tenant_name
+//   in: path
+//   description: tenant name
+//   required: true
+//   type: string
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) SingleTenantResources(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation GET /v2/tenants/{tenant_name}/resources v2 singletenantResources
-	//
-	// 指定租户资源使用情况
-	//
-	// get tenant resources
-	//
-	// ---
-	// produces:
-	// - application/json
-	// - application/xml
-	// parameters:
-	// - name: tenant_name
-	//   in: path
-	//   description: tenant name
-	//   required: true
-	//   type: string
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	//11ms
 	services, err := handler.GetServiceManager().GetService(tenantID)
@@ -1710,5 +1681,38 @@ func (t *TenantStruct) SingleTenantResources(w http.ResponseWriter, r *http.Requ
 	statsInfo.UUID = tenantID
 	logrus.Debugf("stats info is %v", statsInfo)
 	httputil.ReturnSuccess(r, w, statsInfo)
+	return
+}
+
+//GetSupportProtocols GetSupportProtocols
+// swagger:operation GET /v2/tenants/{tenant_name}/protocols v2 getSupportProtocols
+//
+// 获取当前数据中心支持的protocols
+//
+// get region protocols
+//
+// ---
+// produces:
+// - application/json
+// - application/xml
+// parameters:
+// - name: tenant_name
+//   in: path
+//   description: tenant name
+//   required: true
+//   type: string
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func (t *TenantStruct) GetSupportProtocols(w http.ResponseWriter, r *http.Request) {
+	rps, err := handler.GetTenantManager().GetProtocols()
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, rps)
 	return
 }

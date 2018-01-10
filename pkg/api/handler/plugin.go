@@ -23,9 +23,8 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
-
-	"github.com/jinzhu/gorm"
 
 	"github.com/goodrain/rainbond/cmd/api/option"
 	api_db "github.com/goodrain/rainbond/pkg/api/db"
@@ -66,42 +65,19 @@ func CreatePluginManager(conf option.Config) (*PluginAction, error) {
 
 //CreatePluginAct PluginAct
 func (p *PluginAction) CreatePluginAct(cps *api_model.CreatePluginStruct) *util.APIHandleError {
-	//TODO:事务
-	tx := db.GetManager().Begin()
 	tp := &dbmodel.TenantPlugin{
 		TenantID:    cps.Body.TenantID,
-		PluginCMD:   cps.Body.PluginCMD,
 		PluginID:    cps.Body.PluginID,
 		PluginInfo:  cps.Body.PluginInfo,
 		PluginModel: cps.Body.PluginModel,
 		PluginName:  cps.Body.PluginName,
-		ImageLocal:  cps.Body.ImageLocal,
 		ImageURL:    cps.Body.ImageURL,
 		GitURL:      cps.Body.GitURL,
-		Repo:        cps.Body.Repo,
 		BuildModel:  cps.Body.BuildModel,
+		Domain:      cps.TenantName,
 	}
-	err := db.GetManager().TenantPluginDaoTransactions(tx).AddModel(tp)
-	if err != nil {
-		tx.Rollback()
+	if err := db.GetManager().TenantPluginDao().AddModel(tp); err != nil {
 		return util.CreateAPIHandleErrorFromDBError("create plugin", err)
-	}
-	//添加默认plugin model env
-	vis := &dbmodel.TenantPluginDefaultENV{
-		PluginID:  cps.Body.PluginID,
-		ENVName:   "PLUGIN_MOEL",
-		ENVValue:  cps.Body.PluginModel,
-		VersionID: "master_rb",
-		IsChange:  false,
-	}
-	err = db.GetManager().TenantPluginDefaultENVDaoTransactions(tx).AddModel(vis)
-	if err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("add default env PLUGIN_MOEL", err)
-	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("commit create plugin transactions", err)
 	}
 	return nil
 }
@@ -113,14 +89,12 @@ func (p *PluginAction) UpdatePluginAct(pluginID string, cps *api_model.UpdatePlu
 		return util.CreateAPIHandleErrorFromDBError("get old plugin info", err)
 	}
 	//全量更新，但pluginID和所在租户不提供修改
-	tp.PluginCMD = cps.Body.PluginCMD
+	//TODO: 是否允许修改pluginModel,会影响该插件的性质
 	tp.PluginInfo = cps.Body.PluginInfo
 	tp.PluginModel = cps.Body.PluginModel
 	tp.PluginName = cps.Body.PluginName
-	tp.ImageLocal = cps.Body.ImageLocal
 	tp.ImageURL = cps.Body.ImageURL
 	tp.GitURL = cps.Body.GitURL
-	tp.Repo = cps.Body.Repo
 	tp.BuildModel = cps.Body.BuildModel
 	err = db.GetManager().TenantPluginDao().UpdateModel(tp)
 	if err != nil {
@@ -137,11 +111,6 @@ func (p *PluginAction) DeletePluginAct(pluginID string) *util.APIHandleError {
 	if err != nil {
 		tx.Rollback()
 		return util.CreateAPIHandleErrorFromDBError("delete plugin", err)
-	}
-	err = db.GetManager().TenantPluginDefaultENVDaoTransactions(tx).DeleteAllDefaultENVByPluginID(pluginID)
-	if err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("delete default env", err)
 	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
@@ -238,33 +207,34 @@ func (p *PluginAction) GetEnvsWhichCanBeSet(serviceID, pluginID string) (interfa
 }
 
 //BuildPluginManual BuildPluginManual
-func (p *PluginAction) BuildPluginManual(bps *api_model.BuildPluginStruct) (string, *util.APIHandleError) {
+func (p *PluginAction) BuildPluginManual(bps *api_model.BuildPluginStruct) (*dbmodel.TenantPluginBuildVersion, *util.APIHandleError) {
+	//TODO: 生成event_id
 	eventID := bps.Body.EventID
 	logger := event.GetManager().GetLogger(eventID)
 	defer event.CloseManager()
 	plugin, err := db.GetManager().TenantPluginDao().GetPluginByID(bps.PluginID)
 	if err != nil {
-		return "", util.CreateAPIHandleErrorFromDBError(fmt.Sprintf("get plugin by %v", bps.PluginID), err)
+		return nil, util.CreateAPIHandleErrorFromDBError(fmt.Sprintf("get plugin by %v", bps.PluginID), err)
 	}
 	switch plugin.BuildModel {
 	case "image":
-		buildVersion, err := p.ImageBuildPlugin(bps, plugin)
+		pbv, err := p.ImageBuildPlugin(bps, plugin)
 		if err != nil {
 			logger.Error("从镜像构建插件任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
-			return "", util.CreateAPIHandleError(500, fmt.Errorf("build plugin from image error"))
+			return nil, util.CreateAPIHandleError(500, fmt.Errorf("build plugin from image error"))
 		}
 		logger.Info("从镜像构建插件任务发送成功 ", map[string]string{"step": "image-plugin", "status": "starting"})
-		return buildVersion, nil
+		return pbv, nil
 	case "dockerfile":
-		buildVersion, err := p.DockerfileBuildPlugin(bps, plugin)
+		pbv, err := p.DockerfileBuildPlugin(bps, plugin)
 		if err != nil {
 			logger.Error("从dockerfile构建插件任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
-			return "", util.CreateAPIHandleError(500, fmt.Errorf("build plugin from dockerfile error"))
+			return nil, util.CreateAPIHandleError(500, fmt.Errorf("build plugin from dockerfile error"))
 		}
 		logger.Info("从dockerfile构建插件任务发送成功 ", map[string]string{"step": "dockerfile-plugin", "status": "starting"})
-		return buildVersion, nil
+		return pbv, nil
 	default:
-		return "", util.CreateAPIHandleError(400, fmt.Errorf("unexpect kind"))
+		return nil, util.CreateAPIHandleError(400, fmt.Errorf("unexpect kind"))
 	}
 }
 func createVersionID(s []byte) string {
@@ -274,17 +244,19 @@ func createVersionID(s []byte) string {
 }
 
 //ImageBuildPlugin ImageBuildPlugin
-func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *dbmodel.TenantPlugin) (string, error) {
+func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *dbmodel.TenantPlugin) (
+	*dbmodel.TenantPluginBuildVersion, error) {
 	if plugin.ImageURL == "" {
-		return "", fmt.Errorf("need image url")
+		return nil, fmt.Errorf("need image url")
 	}
 	if b.Body.Operator == "" {
 		b.Body.Operator = "define"
 	}
-	diffStr := fmt.Sprintf("%s%s%s%s", b.TenantName, plugin.ImageURL, b.PluginID, time.Now().Format(time.RFC3339))
-	buildVersion := createVersionID([]byte(diffStr))
+	//TODO: build_version create in console
+	//diffStr := fmt.Sprintf("%s%s%s%s", b.TenantName, plugin.ImageURL, b.PluginID, time.Now().Format(time.RFC3339))
+	//buildVersion := createVersionID([]byte(diffStr))
 	pbv := &dbmodel.TenantPluginBuildVersion{
-		VersionID:       buildVersion,
+		VersionID:       b.Body.BuildVersion,
 		PluginID:        b.PluginID,
 		Kind:            plugin.BuildModel,
 		BaseImage:       plugin.ImageURL,
@@ -303,8 +275,11 @@ func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *
 	}
 	tx := db.GetManager().Begin()
 	if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).AddModel(pbv); err != nil {
-		tx.Rollback()
-		return "", err
+		if !strings.Contains(err.Error(), "exist") {
+			tx.Rollback()
+			logrus.Errorf("build plugin error: %s", err.Error())
+			return nil, err
+		}
 	}
 	taskBody := &builder_model.BuildPluginTaskBody{
 		TenantID:     b.Body.TenantID,
@@ -316,13 +291,13 @@ func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *
 		PluginCMD:    b.Body.PluginCMD,
 		PluginCPU:    b.Body.PluginCPU,
 		PluginMemory: b.Body.PluginMemory,
-		VersionID:    buildVersion,
+		VersionID:    b.Body.BuildVersion,
 	}
 	jtask, errJ := ffjson.Marshal(taskBody)
 	if errJ != nil {
 		tx.Rollback()
 		logrus.Debugf("unmarshall jtask error, %v", errJ)
-		return "", errJ
+		return nil, errJ
 	}
 	ts := &api_db.BuildTaskStruct{
 		TaskType: "plugin_image_build",
@@ -333,37 +308,39 @@ func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *
 	if err != nil {
 		logrus.Errorf("build equeue build plugin from image error, %v", err)
 		tx.Rollback()
-		return "", err
+		return nil, err
 	}
 	if _, err := p.MQClient.Enqueue(context.Background(), eq); err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		tx.Rollback()
-		return "", err
+		return nil, err
 	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		logrus.Debugf("commit mysql error, %v", err)
-		return "", nil
+		return nil, nil
 	}
 	logrus.Debugf("equeue mq build plugin from image success")
-	return buildVersion, nil
+	return pbv, nil
 }
 
 //DockerfileBuildPlugin DockerfileBuildPlugin
-func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plugin *dbmodel.TenantPlugin) (string, error) {
+func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plugin *dbmodel.TenantPlugin) (
+	*dbmodel.TenantPluginBuildVersion, error) {
 	if plugin.GitURL == "" {
-		return "", fmt.Errorf("need git url")
+		return nil, fmt.Errorf("need git url")
 	}
 	if b.Body.RepoURL == "" {
-		plugin.Repo = "master"
+		b.Body.RepoURL = "master"
 	}
 	if b.Body.Operator == "" {
 		b.Body.Operator = "define"
 	}
-	diffStr := fmt.Sprintf("%s%s%s%s", b.TenantName, b.Body.RepoURL, b.PluginID, time.Now().Format(time.RFC3339))
-	buildVersion := createVersionID([]byte(diffStr))
+	// TODO: build_version create in console
+	// diffStr := fmt.Sprintf("%s%s%s%s", b.TenantName, b.Body.RepoURL, b.PluginID, time.Now().Format(time.RFC3339))
+	// buildVersion := createVersionID([]byte(diffStr))
 	pbv := &dbmodel.TenantPluginBuildVersion{
-		VersionID:       buildVersion,
+		VersionID:       b.Body.BuildVersion,
 		PluginID:        b.PluginID,
 		Kind:            plugin.BuildModel,
 		Repo:            b.Body.RepoURL,
@@ -383,8 +360,11 @@ func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plu
 	}
 	tx := db.GetManager().Begin()
 	if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).AddModel(pbv); err != nil {
-		tx.Rollback()
-		return "", err
+		if !strings.Contains(err.Error(), "exist") {
+			tx.Rollback()
+			logrus.Errorf("build plugin error: %s", err.Error())
+			return nil, err
+		}
 	}
 	taskBody := &builder_model.BuildPluginTaskBody{
 		TenantID:     b.Body.TenantID,
@@ -394,7 +374,7 @@ func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plu
 		Repo:         b.Body.RepoURL,
 		GitURL:       plugin.GitURL,
 		Kind:         plugin.BuildModel,
-		VersionID:    buildVersion,
+		VersionID:    b.Body.BuildVersion,
 		PluginCMD:    b.Body.PluginCMD,
 		PluginCPU:    b.Body.PluginCPU,
 		PluginMemory: b.Body.PluginMemory,
@@ -403,7 +383,7 @@ func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plu
 	if errJ != nil {
 		tx.Rollback()
 		logrus.Debugf("unmarshall jtask error, %v", errJ)
-		return "", errJ
+		return nil, errJ
 	}
 	ts := &api_db.BuildTaskStruct{
 		TaskType: "plugin_dockerfile_build",
@@ -414,20 +394,20 @@ func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plu
 	if err != nil {
 		logrus.Errorf("build equeue build plugin from dockerfile error, %v", err)
 		tx.Rollback()
-		return "", err
+		return nil, err
 	}
 	if _, err := p.MQClient.Enqueue(context.Background(), eq); err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		tx.Rollback()
-		return "", err
+		return nil, err
 	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		logrus.Debugf("commit mysql error, %v", err)
-		return "", nil
+		return nil, nil
 	}
 	logrus.Debugf("equeue mq build plugin from dockerfile success")
-	return buildVersion, nil
+	return pbv, nil
 }
 
 //GetAllPluginBuildVersions GetAllPluginBuildVersions
@@ -455,13 +435,6 @@ func (p *PluginAction) DeletePluginBuildVersion(pluginID, versionID string) *uti
 	err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).DeleteBuildVersionByVersionID(versionID)
 	if err != nil {
 		return util.CreateAPIHandleErrorFromDBError(fmt.Sprintf("delete plugin build version by id %v", versionID), err)
-	}
-	err = db.GetManager().TenantPluginDefaultENVDaoTransactions(tx).DeleteDefaultENVByPluginIDAndVersionID(pluginID, versionID)
-	if err != nil {
-		if err.Error() != gorm.ErrRecordNotFound.Error() {
-			tx.Rollback()
-			return util.CreateAPIHandleErrorFromDBError("delete default env", err)
-		}
 	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()

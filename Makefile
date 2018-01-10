@@ -1,5 +1,5 @@
 GO_LDFLAGS=-ldflags " -w"
-VERSION=3.4
+VERSION=3.4.1
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 BASE_DOCKER=./hack/contrib/docker
@@ -25,7 +25,7 @@ build-node:
 build-entrance:
 	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-entrance ./cmd/entrance	
 build-eventlog:
-	go build ${GO_LDFLAGS} -o .${BIN_PATH}/${BASE_NAME}-eventlog ./cmd/eventlog
+	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-eventlog ./cmd/eventlog
 build-grctl:
 	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-grctl ./cmd/grctl
 build-api:

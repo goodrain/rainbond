@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/pkg/db"
 	core_model "github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/event"
@@ -55,6 +56,7 @@ import (
 type ServiceAction struct {
 	MQClient   pb.TaskQueueClient
 	KubeClient *kubernetes.Clientset
+	EtcdCli    *clientv3.Client
 }
 
 //CreateManager create Manger
@@ -76,10 +78,33 @@ func CreateManager(conf option.Config) (*ServiceAction, error) {
 		logrus.Errorf("create kubeclient failed, %v", errK)
 		return nil, errK
 	}
+	etcdCli, err := clientv3.New(clientv3.Config{
+		Endpoints:   conf.EtcdEndpoint,
+		DialTimeout: 5 * time.Second,
+	})
+	if err != nil {
+		logrus.Errorf("create etcd client v3 error, %v", err)
+		return nil, err
+	}
 	return &ServiceAction{
 		MQClient:   mqClient,
 		KubeClient: kubeClient,
+		EtcdCli:    etcdCli,
 	}, nil
+}
+func checkDeployVersion(r *api_model.BuildServiceStruct) {
+	eventID := r.Body.EventID
+	logger := event.GetManager().GetLogger(eventID)
+	if len(r.Body.DeployVersion) == 0 {
+
+		version, err := db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+		if err != nil {
+			logger.Info("获取部署版本信息失败", map[string]string{"step": "callback", "status": "failure"})
+			return
+		}
+		r.Body.DeployVersion = version.BuildVersion
+		logrus.Infof("change deploy version to %s", r.Body.DeployVersion)
+	}
 }
 
 //ServiceBuild service build
@@ -97,6 +122,7 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 	switch r.Body.Kind {
 	case "source":
 		//源码构建
+		checkDeployVersion(r)
 		if err := s.sourceBuild(r, service); err != nil {
 			logger.Error("源码构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -105,6 +131,7 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		return nil
 	case "slug":
 		//源码构建的分享至云市安装回平台
+		checkDeployVersion(r)
 		if err := s.slugBuild(r, service); err != nil {
 			logger.Error("slug构建应用任务发送失败"+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -113,6 +140,7 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		return nil
 	case "image":
 		//镜像构建
+		checkDeployVersion(r)
 		if err := s.imageBuild(r, service); err != nil {
 			logger.Error("镜像构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -121,6 +149,7 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		return nil
 	case "market":
 		//镜像构建分享至云市安装回平台
+		checkDeployVersion(r)
 		if err := s.marketBuild(r, service); err != nil {
 			logger.Error("云市构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -210,7 +239,6 @@ func (s *ServiceAction) slugBuild(r *api_model.BuildServiceStruct, service *dbmo
 	body["app_version"] = service.ServiceVersion
 	body["app_key"] = service.ServiceKey
 	body["namespace"] = service.Namespace
-	body["deploy_version"] = service.DeployVersion
 	body["operator"] = r.Body.Operator
 	body["event_id"] = r.Body.EventID
 	body["tenant_name"] = r.Body.TenantName
@@ -344,7 +372,7 @@ func (s *ServiceAction) StartStopService(sss *api_model.StartStopStruct) error {
 	}
 	eq, errEq := api_db.BuildTask(ts)
 	if errEq != nil {
-		logrus.Errorf("build equeue stop request error, %v", errEq)
+		logrus.Errorf("build equeue startstop request error, %v", errEq)
 		return errEq
 	}
 	_, err = s.MQClient.Enqueue(context.Background(), eq)
@@ -352,7 +380,7 @@ func (s *ServiceAction) StartStopService(sss *api_model.StartStopStruct) error {
 		logrus.Errorf("equque mq error, %v", err)
 		return err
 	}
-	logrus.Debugf("equeue mq stop task success")
+	logrus.Debugf("equeue mq startstop task success")
 	return nil
 }
 
@@ -443,7 +471,8 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	envs := sc.EnvsInfo
 	volumns := sc.VolumesInfo
 	dependIds := sc.DependIDs
-
+	logrus.Infof("creating new service,deploy version is %s", ts.DeployVersion)
+	ts.DeployVersion = ""
 	tx := db.GetManager().Begin()
 
 	//服务信息表
@@ -605,6 +634,47 @@ func (s *ServiceAction) GetService(tenantID string) ([]*dbmodel.TenantServices, 
 		return nil, err
 	}
 	return services, nil
+}
+
+//GetPagedTenantRes get pagedTenantServiceRes(s)
+func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantResource, error) {
+	services, err := db.GetManager().TenantServiceDao().GetPagedTenantService(offset, len)
+	if err != nil {
+		logrus.Errorf("get service by id error, %v, %v", services, err)
+		return nil, err
+	}
+	var result []*api_model.TenantResource
+	for _, v := range services {
+		var res api_model.TenantResource
+		res.UUID = v["tenant"].(string)
+		res.Name = ""
+		res.EID = ""
+		res.AllocatedCPU = v["capcpu"].(int)
+		res.AllocatedMEM = v["capmem"].(int)
+		res.UsedCPU = v["usecpu"].(int)
+		res.UsedMEM = v["usemem"].(int)
+		result = append(result, &res)
+	}
+	return result, nil
+}
+
+//GetTenantRes get pagedTenantServiceRes(s)
+func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, error) {
+	services, err := db.GetManager().TenantServiceDao().GetTenantServiceRes(uuid)
+	if err != nil {
+		logrus.Errorf("get service by id error, %v, %v", services, err)
+		return nil, err
+	}
+	logrus.Infof("get tenant service res is %v", services)
+	var res api_model.TenantResource
+	res.UUID = uuid
+	res.Name = ""
+	res.EID = ""
+	res.AllocatedCPU = services["capcpu"].(int)
+	res.AllocatedMEM = services["capmem"].(int)
+	res.UsedCPU = services["usecpu"].(int)
+	res.UsedMEM = services["usemem"].(int)
+	return &res, nil
 }
 
 //CodeCheck code check
@@ -819,18 +889,24 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 					dbmodel.UpNetPlugin,
 					oldPort,
 				)
+				goon := true
 				if err != nil {
-					logrus.Errorf("get plugin mapping port error:(%s)", err)
-					tx.Rollback()
-					return err
+					if strings.Contains(err.Error(), "record not found") {
+						goon = false
+					} else {
+						logrus.Errorf("get plugin mapping port error:(%s)", err)
+						tx.Rollback()
+						return err
+					}
 				}
-				pluginPort.ContainerPort = vp.ContainerPort
-				if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).UpdateModel(pluginPort); err != nil {
-					logrus.Errorf("update plugin mapping port error:(%s)", err)
-					tx.Rollback()
-					return err
+				if goon {
+					pluginPort.ContainerPort = vp.ContainerPort
+					if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).UpdateModel(pluginPort); err != nil {
+						logrus.Errorf("update plugin mapping port error:(%s)", err)
+						tx.Rollback()
+						return err
+					}
 				}
-
 			}
 		}
 		if err := tx.Commit().Error; err != nil {
@@ -1537,6 +1613,7 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	tx := db.GetManager().Begin()
 	//此处的原因，必须使用golang 1.8 以上版本编译
 	delService := service.ChangeDelete()
+	delService.ID = 0
 	if err := db.GetManager().TenantServiceDeleteDaoTransactions(tx).AddModel(delService); err != nil {
 		tx.Rollback()
 		return err
@@ -1605,6 +1682,34 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 			tx.Rollback()
 			return err
 		}
+	}
+	//TODO: 如果有关联过插件，需要删除该插件相关配置及资源
+	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteALLRelationByServiceID(serviceID); err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			tx.Rollback()
+			return err
+		}
+	}
+	if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteAllPluginMappingPortByServiceID(serviceID); err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			tx.Rollback()
+			return err
+		}
+	}
+	if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByServiceID(serviceID); err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			tx.Rollback()
+			return err
+		}
+	}
+	//TODO: 删除plugin etcd资源
+	prefixK := fmt.Sprintf("/resources/define/%s/%s", service.TenantID, service.ServiceAlias)
+	logrus.Debugf("prefix is %s", prefixK)
+	_, err = s.EtcdCli.Delete(context.TODO(), prefixK, clientv3.WithPrefix())
+	if err != nil {
+		logrus.Errorf("delete prefix %s from etcd error, %v", prefixK, err)
+		tx.Rollback()
+		return err
 	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
@@ -1728,36 +1833,132 @@ func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss 
 }
 
 //SetVersionEnv SetVersionEnv
-func (s *ServiceAction) SetVersionEnv(serviecID, pluginID string, sve *api_model.SetVersionEnv) *util.APIHandleError {
+func (s *ServiceAction) SetVersionEnv(sve *api_model.SetVersionEnv) *util.APIHandleError {
+	if len(sve.Body.ConfigEnvs.NormalEnvs) != 0 {
+		if err := s.normalEnvs(sve); err != nil {
+			return util.CreateAPIHandleErrorFromDBError("set version env", err)
+		}
+	}
+	if sve.Body.ConfigEnvs.ComplexEnvs != nil {
+		if err := s.complexEnvs(sve); err != nil {
+			if strings.Contains(err.Error(), "is exist") {
+				return util.CreateAPIHandleError(405, err)
+			}
+			return util.CreateAPIHandleError(500, fmt.Errorf("set complex error, %v", err))
+		}
+	}
+	if len(sve.Body.ConfigEnvs.NormalEnvs) == 0 && sve.Body.ConfigEnvs.ComplexEnvs == nil {
+		return util.CreateAPIHandleError(200, fmt.Errorf("no envs need to be changed"))
+	}
+	return nil
+}
+
+func (s *ServiceAction) normalEnvs(sve *api_model.SetVersionEnv) error {
 	tx := db.GetManager().Begin()
-	for _, env := range sve.Body.Envs {
+	for _, env := range sve.Body.ConfigEnvs.NormalEnvs {
 		tpv := &dbmodel.TenantPluginVersionEnv{
-			PluginID:  pluginID,
-			ServiceID: serviecID,
+			PluginID:  sve.PluginID,
+			ServiceID: sve.Body.ServiceID,
 			EnvName:   env.EnvName,
 			EnvValue:  env.EnvValue,
 		}
 		if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).AddModel(tpv); err != nil {
 			tx.Rollback()
-			return util.CreateAPIHandleErrorFromDBError("set version env", err)
+			return err
 		}
 	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("commit set version env", err)
+		return err
+	}
+	return nil
+}
+
+func (s *ServiceAction) complexEnvs(sve *api_model.SetVersionEnv) error {
+	k := fmt.Sprintf("/resources/define/%s/%s/%s",
+		sve.Body.TenantID,
+		sve.ServiceAlias,
+		sve.PluginID)
+	if CheckKeyIfExist(s.EtcdCli, k) {
+		return fmt.Errorf("key %v is exist", k)
+	}
+	v, err := ffjson.Marshal(sve.Body.ConfigEnvs.ComplexEnvs)
+	if err != nil {
+		logrus.Errorf("mashal etcd value error, %v", err)
+		return err
+	}
+	_, err = s.EtcdCli.Put(context.TODO(), k, string(v))
+	if err != nil {
+		logrus.Errorf("put k %s into etcd error, %v", k, err)
+		return err
+	}
+	return nil
+}
+
+//DeleteComplexEnvs DeleteComplexEnvs
+func (s *ServiceAction) DeleteComplexEnvs(tenantID, serviceAlias, pluginID string) *util.APIHandleError {
+	k := fmt.Sprintf("/resources/define/%s/%s/%s",
+		tenantID,
+		serviceAlias,
+		pluginID)
+	_, err := s.EtcdCli.Delete(context.TODO(), k)
+	if err != nil {
+		logrus.Errorf("delete k %s from etcd error, %v", k, err)
+		return util.CreateAPIHandleError(500, fmt.Errorf("delete k %s from etcd error, %v", k, err))
 	}
 	return nil
 }
 
 //UpdateVersionEnv UpdateVersionEnv
-func (s *ServiceAction) UpdateVersionEnv(serviceID string, uve *api_model.UpdateVersionEnv) *util.APIHandleError {
-	env, err := db.GetManager().TenantPluginVersionENVDao().GetVersionEnvByEnvName(serviceID, uve.PluginID, uve.EnvName)
-	if err != nil {
-		return util.CreateAPIHandleErrorFromDBError("update get version env", err)
+func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError {
+	if len(uve.Body.ConfigEnvs.NormalEnvs) != 0 {
+		if err := s.upNormalEnvs(uve); err != nil {
+			return util.CreateAPIHandleErrorFromDBError("update version env", err)
+		}
 	}
-	env.EnvValue = uve.Body.EnvValue
-	if err := db.GetManager().TenantPluginVersionENVDao().UpdateModel(env); err != nil {
+	if uve.Body.ConfigEnvs.ComplexEnvs != nil {
+		if err := s.upComplexEnvs(uve); err != nil {
+			if strings.Contains(err.Error(), "is not exist") {
+				return util.CreateAPIHandleError(405, err)
+			}
+			return util.CreateAPIHandleError(500, fmt.Errorf("update complex error, %v", err))
+		}
+	}
+	if len(uve.Body.ConfigEnvs.NormalEnvs) == 0 && uve.Body.ConfigEnvs.ComplexEnvs == nil {
+		return util.CreateAPIHandleError(200, fmt.Errorf("no envs need to be changed"))
+	}
+	return nil
+}
+
+func (s *ServiceAction) upNormalEnvs(uve *api_model.SetVersionEnv) *util.APIHandleError {
+	err := db.GetManager().TenantPluginVersionENVDao().DeleteEnvByPluginID(uve.Body.ServiceID, uve.PluginID)
+	if err != nil {
+		return util.CreateAPIHandleErrorFromDBError("delete version env", err)
+	}
+	if err := s.normalEnvs(uve); err != nil {
 		return util.CreateAPIHandleErrorFromDBError("update version env", err)
+	}
+	return nil
+}
+
+func (s *ServiceAction) upComplexEnvs(uve *api_model.SetVersionEnv) *util.APIHandleError {
+	k := fmt.Sprintf("/resources/define/%s/%s/%s",
+		uve.Body.TenantID,
+		uve.ServiceAlias,
+		uve.PluginID)
+	if !CheckKeyIfExist(s.EtcdCli, k) {
+		return util.CreateAPIHandleError(404,
+			fmt.Errorf("key %v is not exist", k))
+	}
+	v, err := ffjson.Marshal(uve.Body.ConfigEnvs.ComplexEnvs)
+	if err != nil {
+		logrus.Errorf("mashal etcd value error, %v", err)
+		return util.CreateAPIHandleError(500, err)
+	}
+	_, err = s.EtcdCli.Put(context.TODO(), k, string(v))
+	if err != nil {
+		logrus.Errorf("put k %s into etcd error, %v", k, err)
+		return util.CreateAPIHandleError(500, err)
 	}
 	return nil
 }

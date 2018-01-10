@@ -6,23 +6,50 @@ MYSQL_USER=${3:-write1}
 MYSQL_PASSWD=$4
 MYSQL_HOST=$5
 MYSQL_PORT=$6
-HOST_IP=$7 # 此节点ip
+WORKER_EXPAND=$7
 CUR_NET=${8:-calico} #calico/midonet
 REGION_TAG=${9:-cloudbang}
 MYSQL_DB="region"
 
 [ -z "$MYSQL_USER" ] && MYSQL_USER="write1"
-[ -z "$MYSQL_PASSWD" ] && MYSQL_PASSWD=$(cat /data/.db_passwd)
+[ -z "$MYSQL_PASSWD" ] && MYSQL_PASSWD=$(cat /data/.db_passwd) || (
+    if [ -f "/data/.db_passwd" ];then
+        if [ "$MYSQL_PASSWD" != "$(cat /data/.db_passwd)" ];then
+            MYSQL_PASSWD=$(cat /data/.db_passwd)
+        fi
+    fi
+)
 [ -z "REGION_TAG" ] && REGION_TAG=cloudbang
 
-RBD_WEB="rainbond/rbd-app-ui:$REPO_VER"
-RBD_WORKER="rainbond/rbd-worker:$REPO_VER"
-RBD_CHAOS="rainbond/rbd-chaos:$REPO_VER"
-RBD_SLOGGER="rainbond/rbd-slogger:$REPO_VER"
-RBD_API="rainbond/rbd-api:$REPO_VER"
-RBD_LB="rainbond/rbd-lb:$REPO_VER"
-RBD_EVENTLOG="rainbond/rbd-eventlog:$REPO_VER"
-RBD_MQ="rainbond/rbd-mq:$REPO_VER"
+RBD_WEB_VER=$(jq --raw-output '."rbd-app-ui".version' /etc/goodrain/envs/rbd.json)
+RBD_WEB="rainbond/rbd-app-ui:$RBD_WEB_VER"
+
+RBD_WORKER_VER=$(jq --raw-output '."rbd-worker".version' /etc/goodrain/envs/rbd.json)
+RBD_WORKER="rainbond/rbd-worker:$RBD_WORKER_VER"
+
+RBD_CHAOS_VER=$(jq --raw-output '."rbd-chaos".version' /etc/goodrain/envs/rbd.json)
+RBD_CHAOS="rainbond/rbd-chaos:$RBD_CHAOS_VER"
+
+RBD_SLOGGER_VER=$(jq --raw-output '."rbd-slogger".version' /etc/goodrain/envs/rbd.json)
+RBD_SLOGGER="rainbond/rbd-slogger:$RBD_SLOGGER_VER"
+
+RBD_API_VER=$(jq --raw-output '."rbd-api".version' /etc/goodrain/envs/rbd.json)
+RBD_API="rainbond/rbd-api:$RBD_API_VER"
+
+RBD_LB_VER=$(jq --raw-output '."rbd-lb".version' /etc/goodrain/envs/rbd.json)
+RBD_LB="rainbond/rbd-lb:$RBD_LB_VER"
+
+RBD_EVENTLOG_VER=$(jq --raw-output '."rbd-eventlog".version' /etc/goodrain/envs/rbd.json)
+RBD_EVENTLOG="rainbond/rbd-eventlog:$RBD_EVENTLOG_VER"
+
+RBD_MQ_VER=$(jq --raw-output '."rbd-mq".version' /etc/goodrain/envs/rbd.json)
+RBD_MQ="rainbond/rbd-mq:$RBD_MQ_VER"
+
+RBD_DALARAN_VER=$(jq --raw-output '."rbd-dalaran".version' /etc/goodrain/envs/rbd.json)
+RBD_DALARAN="rainbond/rbd-dalaran:$RBD_DALARAN_VER"
+
+RBD_ENTRANCE_VER=$(jq --raw-output '."rbd-entrance".version' /etc/goodrain/envs/rbd.json)
+RBD_ENTRANCE="rainbond/rbd-entrance:$RBD_ENTRANCE_VER"
 
 export KUBE_SHARE_DIR="/grdata/services/k8s"
 
@@ -37,21 +64,6 @@ function log.error() {
 
 function log.stdout() {
     echo "$*" >&2
-}
-
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
 }
 
 function sys::path_mounted() {
@@ -104,10 +116,44 @@ function image::pull() {
 }
 
 function prepare() {
-    log.section "prepare base plugins"
+    log.info "prepare base plugins"
 
     # 待测试管理节点扩容
     #sys::path_mounted /grdata || exit 3 
+    
+    [ -d "/grdata/build/tenant/" ] || (
+        mkdir -p /grdata/build/tenant && chown rain.rain /grdata/build/tenant
+    )
+
+    [ -d "/etc/goodrain/ssh" ] || ( mkdir /etc/goodrain/ssh) && (
+        chown rain.rain /etc/goodrain/ssh
+    )
+    [ -d "/grdata/logs" ] || (
+        mkdir /grdata/logs && chown rain.rain /grdata/logs
+    )
+    if [ ! -L "/data/docker_logs" ];then
+        mkdir -p /data/service_logs && chown rain.rain /data/docker_logs
+    fi
+    [ -d "/grdata/build/tenant/" ] || (
+        mkdir -p /grdata/build/tenant && chown rain.rain /grdata/build/tenant
+    )
+    [ -d "/cache/build" ] && (
+        chown rain.rain /cache
+        chown rain.rain /cache/build
+    ) || (
+        mkdir -p /cache/build && chown -R rain.rain /cache/
+    )
+    [ -d "/grdata/cache" ] && (
+        chown  rain.rain /grdata/cache
+    ) || (
+        mkdir -p /grdata/cache
+        chown  rain.rain /grdata/cache
+    )
+    [ -L "/logs" ] || (
+        mkdir -p /data/service_logs && chown rain.rain /data/service_logs
+        rm -rf /logs
+        ln -s /data/service_logs /logs
+    )
 
     [ -d "/grdata/tenant" ] || (
         mkdir /grdata/tenant
@@ -288,7 +334,7 @@ EOF
 }
 
 function install_api(){
-    write_region_api_cfg
+    #write_region_api_cfg
     sync_certificates
 
     compose::config_update << EOF
@@ -301,8 +347,7 @@ services:
       EX_DOMAIN: $EX_DOMAIN
       LicenseSwitch: "off"
     volumes:
-      - /etc/goodrain/region_api.py:/app/region_api/conf/$REGION_TAG.py
-      - /etc/goodrain/kubernetes:/etc/goodrain/kubernetes
+      - /etc/goodrain:/etc/goodrain
       - /grdata:/grdata
       - /data/docker_logs:/data/docker_logs
     command: --log-level=debug --mysql="$MYSQL_USER:$MYSQL_PASSWD@tcp(${MYSQL_HOST:-127.0.0.1}:${MYSQL_PORT:-3306})/$MYSQL_DB"
@@ -488,7 +533,7 @@ EOF
 }
 
 function install_app_ui() {
-    log.section "setup app_ui"
+    log.info "setup app_ui"
 
     web_write_cfg
 
@@ -518,7 +563,7 @@ EOF
 
 function install_worker() {
 
-    log.section "setup worker"
+    log.info "setup worker"
 
     compose::config_update << EOF
 services:
@@ -613,7 +658,7 @@ EOF
 }
 
 function install_chaos(){
-    log.section "setup chaos"
+    log.info "setup chaos"
 
     chaos_write_cfg
 
@@ -668,7 +713,7 @@ EOF
 }
 
 function install_lb() {
-    log.section "setup lb"
+    log.info "setup lb"
 
     compose::config_update << EOF
 services:
@@ -704,7 +749,7 @@ EOF
 }
 
 function install_eventlog() {
-    log.section "setup eventlog"
+    log.info "setup eventlog"
 
     compose::config_update << EOF
 services:
@@ -737,7 +782,7 @@ EOF
 }
 
 function install_mq() {
-    log.section "setup mq"
+    log.info "setup mq"
 
     compose::config_update << EOF
 services:
@@ -905,38 +950,10 @@ MULTI_LB = {
 EOF
 }
 
-function install_slogger() {
-    log.section "setup slogger"
-    [ -d "/etc/goodrain/ssh" ] || ( mkdir /etc/goodrain/ssh) && (
-        chown rain.rain /etc/goodrain/ssh
-    )
-    [ -d "/grdata/logs" ] || (
-        mkdir /grdata/logs && chown rain.rain /grdata/logs
-    )
-    if [ ! -L "/data/docker_logs" ];then
-        mkdir -p /data/service_logs && chown rain.rain /data/docker_logs
-    fi
-    [ -d "/grdata/build/tenant/" ] || (
-        mkdir -p /grdata/build/tenant && chown rain.rain /grdata/build/tenant
-    )
-    [ -d "/cache/build" ] && (
-        chown rain.rain /cache
-        chown rain.rain /cache/build
-    ) || (
-        mkdir -p /cache/build && chown -R rain.rain /cache/
-    )
-    [ -d "/grdata/cache" ] && (
-        chown  rain.rain /grdata/cache
-    ) || (
-        mkdir -p /grdata/cache
-        chown  rain.rain /grdata/cache
-    )
-    [ -L "/logs" ] || (
-        mkdir -p /data/service_logs && chown rain.rain /data/service_logs
-        rm -rf /logs
-        ln -s /data/service_logs /logs
-    )
 
+function install_slogger() {
+    log.info "setup slogger"
+    
     write_slogger_config
 
     compose::config_update << EOF
@@ -967,12 +984,107 @@ EOF
 
 }
 
+function install_dalaran() {
+    log.info "setup dalaran_service"
+    
+    image::exist $RBD_DALARAN || (
+        log.info "pull image: $RBD_DALARAN"
+        image::pull $RBD_DALARAN || (
+            log.stdout '{ 
+                "status":[ 
+                { 
+                    "name":"docker_pull_dalaran", 
+                    "condition_type":"DOCKER_PULL_DALARAN_ERROR", 
+                    "condition_status":"False"
+                } 
+                ], 
+                "type":"install"
+                }'
+            exit 1
+        )
+    )
+
+    compose::config_update << EOF
+services:
+  rbd-dalaran:
+    image: $RBD_DALARAN
+    container_name: rbd-dalaran
+    environment:
+      ZMQ_BIND_SUB: tcp://0.0.0.0:9341
+      ZMQ_BIND_PUB: tcp://0.0.0.0:9342
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    network_mode: "host"
+    restart: always
+EOF
+
+    dc-compose up -d
+}
+
+function install_entrance() {
+    log.info "setup entrance"
+    
+
+    image::exist $RBD_ENTRANCE || (
+        log.info "pull image: $RBD_ENTRANCE"
+        image::pull $RBD_ENTRANCE || (
+            log.stdout '{ 
+                "status":[ 
+                { 
+                    "name":"docker_pull_entrance", 
+                    "condition_type":"DOCKER_PULL_ENTRANCE_ERROR", 
+                    "condition_status":"False"
+                } 
+                ], 
+                "type":"install"
+                }'
+            exit 1
+        )
+    )
+
+    [ -f "/etc/goodrain/kubernetes/admin.kubeconfig" ] || (
+        [ -f "/etc/goodrain/kubernetes/kubeconfig" ] && cp /etc/goodrain/kubernetes/kubeconfig /etc/goodrain/kubernetes/admin.kubeconfig
+    )
+
+    compose::config_update << EOF
+services:
+  rbd-entrance:
+    image: $RBD_ENTRANCE
+    container_name: rbd-entrance
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    network_mode: "host"
+    restart: always
+    volumes:
+      - /etc/goodrain/kubernetes:/etc/goodrain/kubernetes
+    command:
+      - --plugin-name=nginx
+      - --plugin-opts=httpapi=http://127.0.0.1:10002
+      - --plugin-opts=streamapi=http://127.0.0.1:10002
+      #- --token=
+      - --kube-conf=/etc/goodrain/kubernetes/admin.kubeconfig
+      - --log-level=info
+EOF
+    dc-compose up -d
+
+}
+
 function run() {
     
-    log.section "setup plugins"
+    log.info "setup plugins"
 
     image::done $RBD_API
-    image::done $RBD_WORKER
+    if [  -z $WORKER_EXPAND ];then
+        image::done $RBD_WORKER
+        install_worker
+        WORKER_EXPAND=1
+    fi
     image::done $RBD_CHAOS
     
     image::done $RBD_LB
@@ -982,21 +1094,31 @@ function run() {
 
     image::done $RBD_SLOGGER
 
-
+    image::done $RBD_DALARAN
+    image::done $RBD_ENTRANCE
+    
     install_eventlog
-    
+    install_dalaran
+    install_entrance
     install_api
-    install_worker
-    install_chaos
-
-    install_lb
-
     
+    install_chaos
+    install_lb
     install_mq
     install_app_ui
     install_slogger
-    dc-compose up -d 
+    dc-compose up -d
+    
+    ENTRANCE_IP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
+    REGION_API_IP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
+
+
     log.stdout '{
+            "global":{
+                "WORKER_EXPAND":"'$WORKER_EXPAND'",
+                "ENTRANCE_IP":"'$ENTRANCE_IP',",
+                "REGION_API_IP":"'$REGION_API_IP:6363',"
+            }, 
             "status":[ 
             { 
                 "name":"install_acp_plugins", 

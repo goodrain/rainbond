@@ -19,14 +19,12 @@
 package dao
 
 import (
+	"encoding/json"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/jinzhu/gorm"
-
-	"encoding/json"
-
-	"github.com/Sirupsen/logrus"
 )
 
 //AddModel AddModel
@@ -53,7 +51,7 @@ func (c *EventDaoImpl) UpdateModel(mo model.Interface) error {
 		finalUpdateEvent(result, &oldResult)
 		oldB, _ := json.Marshal(oldResult)
 		logrus.Infof("update event to %s", string(oldB))
-		if err := c.DB.Save(oldResult).Error; err != nil {
+		if err := c.DB.Save(&oldResult).Error; err != nil {
 			return err
 		}
 	}

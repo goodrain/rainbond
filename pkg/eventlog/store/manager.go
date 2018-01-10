@@ -195,7 +195,7 @@ func (s *storeManager) MonitorMessageChan() chan [][]byte {
 }
 func (s *storeManager) NewMonitorMessageChan() chan []byte {
 	if s.newmonitorMessageChan == nil {
-		s.newmonitorMessageChan = make(chan []byte, 100)
+		s.newmonitorMessageChan = make(chan []byte, 2048)
 	}
 	return s.newmonitorMessageChan
 }
@@ -287,6 +287,7 @@ loop:
 				//消息直接集群共享
 				s.pubChan <- [][]byte{[]byte(db.ServiceNewMonitorMessage), msg}
 			}
+			fmt.Println("store mange " + string(msg))
 			s.newmonitorMessageStore.InsertMessage(&db.EventLogMessage{MonitorData: msg})
 		}
 	}

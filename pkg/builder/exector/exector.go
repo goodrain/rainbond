@@ -26,11 +26,9 @@ import (
 	"github.com/goodrain/rainbond/pkg/db/config"
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/goodrain/rainbond/pkg/mq/api/grpc/pb"
-	"github.com/goodrain/rainbond/pkg/db"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/tidwall/gjson"
-	"strings"
 )
 
 //Manager 任务执行管理器
@@ -106,7 +104,7 @@ func (e *exectorManager) appImage(in []byte) {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("exec app image python shell error:%s", err.Error())
-				if i < 3 {
+				if i < 2 {
 					logger.Info("应用镜像构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("应用镜像构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
@@ -162,7 +160,7 @@ func (e *exectorManager) appSlug(in []byte) {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("exec app slug python shell error:%s", err.Error())
-				if i < 3 {
+				if i < 2 {
 					logger.Info("应用代码包构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("应用代码包构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
@@ -188,7 +186,7 @@ func (e *exectorManager) imageManual(in []byte) {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("exec image manual python shell error:%s", err.Error())
-				if i < 3 {
+				if i < 2 {
 					logger.Info("应用镜像构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("应用镜像构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
@@ -214,7 +212,7 @@ func (e *exectorManager) codeCheck(in []byte) {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("exec code check python shell error:%s", err.Error())
-				if i < 3 {
+				if i < 2 {
 					logger.Info("应用镜像构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("应用镜像构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
@@ -227,8 +225,8 @@ func (e *exectorManager) codeCheck(in []byte) {
 }
 func (e *exectorManager) appBuild(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
-	finalStatus:="failure"
-	dest := gjson.GetBytes(in, "dest").String()
+	//finalStatus:="failure"
+	//dest := gjson.GetBytes(in, "dest").String()
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("应用编译构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 
@@ -240,32 +238,32 @@ func (e *exectorManager) appBuild(in []byte) {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("exec app build python shell error:%s", err.Error())
-				if i < 3 {
+				if i < 2 {
 					logger.Info("应用编译构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("应用编译构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
-				finalStatus="success"
-				updateBuildResult(eventID,finalStatus,dest)
+				//finalStatus="success"
+				//updateBuildResult(eventID,finalStatus,dest)
 				break
 			}
 		}
 	}()
-	updateBuildResult(eventID,finalStatus,dest)
+	//updateBuildResult(eventID,finalStatus,dest)
 }
-func updateBuildResult(eventID,finalStatus,dest string)  {
-	if dest == ""||!strings.Contains(dest,"y") {
-		v,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
-		if err != nil {
-			logrus.Errorf("error get version by eventID %s  from db,details %s",eventID,err.Error())
-			return
-		}
-		v.FinalStatus=finalStatus
-		db.GetManager().VersionInfoDao().UpdateModel(v)
-	}
-
-}
+//func updateBuildResult(eventID,finalStatus,dest string)  {
+//	if dest == ""||!strings.Contains(dest,"y") {
+//		v,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
+//		if err != nil {
+//			logrus.Errorf("error get version by eventID %s  from db,details %s",eventID,err.Error())
+//			return
+//		}
+//		v.FinalStatus=finalStatus
+//		db.GetManager().VersionInfoDao().UpdateModel(v)
+//	}
+//
+//}
 func (e *exectorManager) pluginImageBuild1(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
@@ -279,7 +277,7 @@ func (e *exectorManager) pluginImageBuild1(in []byte) {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("exec plugin build from image python shell error:%s", err.Error())
-				if i < 3 {
+				if i < 2 {
 					logger.Info("镜像构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("镜像构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
@@ -304,7 +302,7 @@ func (e *exectorManager) pluginDockerfileBuild1(in []byte) {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("exec plugin build from image python shell error:%s", err.Error())
-				if i < 3 {
+				if i < 2 {
 					logger.Info("dockerfile构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					logger.Info("dockerfile构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})

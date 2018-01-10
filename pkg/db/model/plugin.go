@@ -27,25 +27,16 @@ type TenantPlugin struct {
 	PluginName string `gorm:"column:plugin_name;size:32" json:"plugin_name"`
 	//插件用途描述
 	PluginInfo string `gorm:"column:plugin_info;size:100" json:"plugin_info"`
-	//插件CPU权重
-	PluginCPU int `gorm:"column:plugin_cpu;default:500" json:"plugin_cpu"`
-	//插件最大内存
-	PluginMemory int `gorm:"column:plugin_memory;default:128" json:"plugin_memory"`
 	//插件docker地址
 	ImageURL string `gorm:"column:image_url" json:"image_url"`
-	//插件goodrain地址
-	ImageLocal string `gorm:"column:image_local" json:"image_local"`
-	//带分支信息的git地址
-	Repo string `gorm:"column:repo" json:"repo"`
 	//git地址
 	GitURL string `gorm:"column:git_url" json:"git_url"`
 	//构建模式
 	BuildModel string `gorm:"column:build_model" json:"build_model"`
 	//插件模式
 	PluginModel string `gorm:"column:plugin_model" json:"plugin_model"`
-	//插件启动命令
-	PluginCMD string `gorm:"column:plugin_cmd" json:"plugin_cmd"`
-	TenantID  string `gorm:"column:tenant_id" json:"tenant_id"`
+	//租户id
+	TenantID string `gorm:"column:tenant_id" json:"tenant_id"`
 	//tenant_name 统计cpu mem使用
 	Domain string `gorm:"column:domain" json:"domain"`
 	//gitlab; github

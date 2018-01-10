@@ -36,7 +36,6 @@ import (
 	tutil "github.com/goodrain/rainbond/pkg/util"
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 	validator "github.com/thedevsaddam/govalidator"
-
 )
 
 //TIMELAYOUT timelayout
@@ -345,6 +344,12 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 		EventID:   eventID,
 		TaskType:  "restart",
 	}
+	curStatus, err := db.GetManager().TenantServiceStatusDao().GetTenantServiceStatus(serviceID)
+	if err == nil {
+		if curStatus.Status == "closed" {
+			startStopStruct.TaskType = "start"
+		}
+	}
 	if err := handler.GetServiceManager().StartStopService(startStopStruct); err != nil {
 		logger.Error("应用重启任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 		httputil.ReturnError(r, w, 500, "get service info error.")
@@ -519,10 +524,10 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	}
 	logrus.Debugf("equeue mq build task success")
 
-	err=db.GetManager().VersionInfoDao().AddModel(&version)
+	err = db.GetManager().VersionInfoDao().AddModel(&version)
 
 	if err != nil {
-		logrus.Infof("error add version %v ,details %s",version,err.Error())
+		logrus.Infof("error add version %v ,details %s", version, err.Error())
 	}
 	logrus.Debugf("equeue mq build task success")
 	httputil.ReturnSuccess(r, w, sEvent)

@@ -20,6 +20,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -65,7 +66,7 @@ func (h *newMonitorMessageStore) insertMessage(message *db.EventLogMessage) ([]M
 	if len(mm) < 1 {
 		return mm, true
 	}
-	if mm[0].ServiceID == "" || mm[0].Port == "" {
+	if mm[0].ServiceID == "" && mm[0].Port == "" {
 		return mm, true
 	}
 	if ba, ok := h.barrels[mm[0].ServiceID+mm[0].Port]; ok {
@@ -76,7 +77,7 @@ func (h *newMonitorMessageStore) insertMessage(message *db.EventLogMessage) ([]M
 }
 
 func (h *newMonitorMessageStore) InsertMessage(message *db.EventLogMessage) {
-	if message == nil || message.EventID == "" {
+	if message == nil {
 		return
 	}
 	//h.log.Debug("Receive a monitor message:" + string(message.Content))
@@ -90,7 +91,7 @@ func (h *newMonitorMessageStore) InsertMessage(message *db.EventLogMessage) {
 	defer h.lock.Unlock()
 	ba := CreateCacheMonitorMessageList(mm[0].ServiceID + mm[0].Port)
 	ba.Insert(mm...)
-	h.barrels[message.EventID] = ba
+	h.barrels[mm[0].ServiceID+mm[0].Port] = ba
 }
 func (h *newMonitorMessageStore) GetMonitorData() *db.MonitorData {
 	data := &db.MonitorData{
@@ -204,13 +205,30 @@ func (c *CacheMonitorMessageList) Insert(mms ...MonitorMessage) {
 	}
 	c.UpdateTime = time.Now()
 	hostname := mms[0].HostName
+	if len(c.list) == 0 {
+		c.list = []*cacheMonitorMessage{
+			&cacheMonitorMessage{
+				updateTime: time.Now(),
+				hostName:   hostname,
+				mms:        mms,
+			}}
+	}
+	var update bool
 	for i := range c.list {
 		cm := c.list[i]
 		if cm.hostName == hostname {
 			cm.updateTime = time.Now()
 			cm.mms = mms
+			update = true
 			break
 		}
+	}
+	if !update {
+		c.list = append(c.list, &cacheMonitorMessage{
+			updateTime: time.Now(),
+			hostName:   hostname,
+			mms:        mms,
+		})
 	}
 	c.Gc()
 	c.pushMessage()
@@ -242,6 +260,7 @@ func (c *CacheMonitorMessageList) pushMessage() {
 		source = merge(source, addSource)
 	}
 	mdata = getByte(source)
+	fmt.Println(string(mdata))
 	c.message.MonitorData = mdata
 	for _, ch := range c.subSocketChan {
 		select {
@@ -299,7 +318,7 @@ func merge(source, addsource []MonitorMessage) (result []MonitorMessage) {
 			oldmm.AbnormalCount += mm.AbnormalCount
 			//平均时间
 			oldmm.AverageTime = (oldmm.AverageTime + mm.AverageTime) / 2
-			//累积时间
+			//���积时间
 			oldmm.CumulativeTime = oldmm.CumulativeTime + mm.CumulativeTime
 			//最大时间
 			if mm.MaxTime > oldmm.MaxTime {

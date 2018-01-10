@@ -24,6 +24,8 @@ import (
 	"os/exec"
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"github.com/Sirupsen/logrus"
+	"strings"
+	"github.com/goodrain/rainbond/pkg/node/api/model"
 )
 
 func NewCmdDomain() cli.Command {
@@ -47,7 +49,7 @@ func NewCmdDomain() cli.Command {
 				return nil
 			}
 			domain:=c.String("domain")
-			cmd := exec.Command("bash", "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/tasks/ex_domain.sh",ip+" "+domain)
+			cmd := exec.Command("bash", "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/tasks/ex_domain.sh",ip,domain)
 			outbuf:=bytes.NewBuffer(nil)
 			cmd.Stdout=outbuf
 			cmd.Run()
@@ -79,17 +81,80 @@ func NewCmdCheckTask() cli.Command {
 				logrus.Errorf("error get task list,details %s",err.Error())
 				return err
 			}
+			var result []*ExecedTask
 			for _,v:=range tasks{
-				if taskStatus,ok:=v.Status[uuid];ok{
-					fmt.Printf("task %s status:%s,complete status %s\n",v.ID,taskStatus.Status,taskStatus.CompleStatus)
+				taskStatus,ok:=v.Status[uuid]
+				if ok{
+					status:=strings.ToLower(taskStatus.Status)
+					if status=="complete" ||status=="start"{
+						var taskentity =&ExecedTask{}
+						taskentity.ID=v.ID
+						taskentity.Status=taskStatus.Status
+						taskentity.Depends=[]string{}
+						dealDepend(taskentity,v)
+						dealNext(taskentity,tasks)
+						result=append(result, taskentity)
+						continue
+					}
 
+				}else {
+					_,scheduled:=v.Scheduler.Status[uuid]
+					if scheduled {
+						var taskentity =&ExecedTask{}
+						taskentity.ID=v.ID
+						taskentity.Depends=[]string{}
+						dealDepend(taskentity,v)
+						dealNext(taskentity,tasks)
+						allDepDone:=true
+
+						for _,dep:=range taskentity.Depends {
+							task,_:=clients.NodeClient.Tasks().Get(dep)
+
+							_,depOK:=task.Status[uuid]
+							if !depOK {
+								allDepDone=false
+								break
+							}
+						}
+						if allDepDone {
+							taskentity.Status="start"
+							result=append(result, taskentity)
+						}
+
+					}
 				}
+			}
+			for _,v:=range result {
+				fmt.Printf("task %s is %s,depends is %v\n",v.ID,v.Status,v.Depends)
 			}
 			return nil
 		},
 	}
 	return c
 }
-
+func dealDepend(result *ExecedTask,task *model.Task) {
+	if task.Temp.Depends != nil {
+		for _,v:=range task.Temp.Depends{
+			result.Depends=append(result.Depends,v.DependTaskID)
+		}
+	}
+}
+func dealNext(task *ExecedTask, tasks []*model.Task) {
+	for _,v:=range tasks {
+		if v.Temp.Depends != nil {
+			for _,dep:=range v.Temp.Depends{
+				if dep.DependTaskID == task.ID {
+					task.Next=append(task.Next,v.ID)
+				}
+			}
+		}
+	}
+}
+type ExecedTask struct {
+	ID string
+	Status string
+	Depends []string
+	Next []string
+}
 
 

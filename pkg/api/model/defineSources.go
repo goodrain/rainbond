@@ -86,6 +86,38 @@ type SoureBody struct {
 	//json format
 }
 
+//ResourceSpec 资源结构体
+type ResourceSpec struct {
+	BasePorts    []*BasePort    `json:"base_ports"`
+	BaseServices []*BaseService `json:"base_services"`
+	BaseNormal   BaseEnv        `json:"base_normal"`
+}
+
+//BasePort 基于当前应用端口结构
+type BasePort struct {
+	ServiceAlias string                 `json:"service_alias"`
+	ServiceID    string                 `json:"service_id"`
+	Port         int                    `json:"port"`
+	Protocol     string                 `json:"protocol"`
+	Options      map[string]interface{} `json:"options"`
+}
+
+//BaseService 基于依赖应用及端口结构
+type BaseService struct {
+	ServiceAlias       string                 `json:"service_alias"`
+	ServiceID          string                 `json:"service_id"`
+	DependServiceAlias string                 `json:"depend_service_alias"`
+	DependServiceID    string                 `json:"depend_service_id"`
+	Port               int                    `json:"port"`
+	Protocol           string                 `json:"protocol"`
+	Options            map[string]interface{} `json:"options"`
+}
+
+//BaseEnv 无平台定义类型，普通kv
+type BaseEnv struct {
+	Options map[string]interface{} `json:"options"`
+}
+
 //Item source值,键值对形式
 type Item struct {
 	Key   string      `json:"key" validate:"key"`

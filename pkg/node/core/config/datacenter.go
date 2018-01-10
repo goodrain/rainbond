@@ -40,6 +40,8 @@ type DataCenterConfig struct {
 	options *option.Conf
 	ctx     context.Context
 	cancel  context.CancelFunc
+	//group config 不持久化
+	groupConfigs map[string]*GroupContext
 }
 
 var dataCenterConfig *DataCenterConfig
@@ -62,16 +64,21 @@ func CreateDataCenterConfig() *DataCenterConfig {
 		config: &model.GlobalConfig{
 			Configs: make(map[string]*model.ConfigUnit),
 		},
+		groupConfigs: make(map[string]*GroupContext),
 	}
 	res, err := store.DefalutClient.Get(dataCenterConfig.options.ConfigStoragePath+"/global", client.WithPrefix())
 	if err != nil {
 		logrus.Error("load datacenter config error.", err.Error())
 	}
 	if len(res.Kvs) < 1 {
-		dgc := model.CreateDefaultGlobalConfig()
-		err := dataCenterConfig.PutDataCenterConfig(dgc)
-		if err != nil {
-			logrus.Error("put datacenter config error,", err.Error())
+		// dgc := model.CreateDefaultGlobalConfig()
+		// err := dataCenterConfig.PutDataCenterConfig(dgc)
+		// if err != nil {
+		// 	logrus.Error("put datacenter config error,", err.Error())
+		// }
+
+		dgc := &model.GlobalConfig{
+			Configs: make(map[string]*model.ConfigUnit),
 		}
 		dataCenterConfig.config = dgc
 	} else {
@@ -138,6 +145,33 @@ func (d *DataCenterConfig) PutConfig(c *model.ConfigUnit) error {
 	if c.Name == "" {
 		return fmt.Errorf("config name can not be empty")
 	}
+	logrus.Debugf("add config %v",c)
+	//将值类型由[]interface{} 转 []string
+	if c.ValueType == "array" {
+		switch c.Value.(type) {
+		case []interface{}:
+			var data []string
+			for _, v := range c.Value.([]interface{}) {
+				data = append(data, v.(string))
+			}
+			c.Value = data
+		}
+		oldC := d.config.Get(c.Name)
+		if oldC != nil {
+
+			switch oldC.Value.(type) {
+			case string:
+				value := append(c.Value.([]string), oldC.Value.(string))
+				util.Deweight(&value)
+				c.Value = value
+			case []string:
+				value := append(c.Value.([]string), oldC.Value.([]string)...)
+				util.Deweight(&value)
+				c.Value = value
+			default:
+			}
+		}
+	}
 	d.config.Add(*c)
 	//持久化
 	_, err := store.DefalutClient.Put(d.options.ConfigStoragePath+"/global/"+c.Name, c.String())
@@ -161,4 +195,14 @@ func (d *DataCenterConfig) PutConfigKV(kv *mvccpb.KeyValue) {
 //DeleteConfig 删除配置
 func (d *DataCenterConfig) DeleteConfig(name string) {
 	d.config.Delete(name)
+}
+
+//GetGroupConfig get group config
+func (d *DataCenterConfig) GetGroupConfig(groupID string) *GroupContext {
+	if c, ok := d.groupConfigs[groupID]; ok {
+		return c
+	}
+	c := NewGroupContext(groupID)
+	d.groupConfigs[groupID] = c
+	return c
 }

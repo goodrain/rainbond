@@ -69,6 +69,7 @@ type HostNode struct {
 	KeyPath         string            `json:"key_path,omitempty"` //管理节点key文件路径
 	AvailableMemory int64             `json:"available_memory"`
 	AvailableCPU    int64             `json:"available_cpu"`
+	Mode            string            `json:"mode"`
 	Role            HostRule          `json:"role"`          //节点属性 compute manage storage
 	Status          string            `json:"status"`        //节点状态 create,init,running,stop,delete
 	Labels          map[string]string `json:"labels"`        //节点标签 内置标签+用户自定义标签
@@ -77,6 +78,49 @@ type HostNode struct {
 	ClusterNode
 }
 
+type NodeList []*HostNode
+func (list NodeList) Len() int {
+	return len(list)
+}
+
+func (list NodeList) Less(i, j int) bool {
+	if list[i].InternalIP < list[j].InternalIP {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (list NodeList) Swap(i, j int) {
+	var temp = list[i]
+	list[i] = list[j]
+	list[j] = temp
+}
+type TaskResult []*ExecedTask
+func (c TaskResult) Len() int {
+	return len(c)
+}
+func (c TaskResult) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
+}
+func (c TaskResult) Less(i, j int) bool {
+	if c[i].Status == "complete"&&(c[j].Status=="start"||c[j].Status=="wait") {
+		return true
+	}
+	if c[i].Status=="start" {
+		if c[j].Status=="complete" {
+			return false
+		}
+		if c[j].Status == "wait" {
+			return true
+		}
+		return true
+	}
+	if c[i].Status=="wait" {
+		return false
+	}
+	return true
+}
 //GetNodeFromKV 从etcd解析node信息
 func GetNodeFromKV(kv *mvccpb.KeyValue) *HostNode {
 	var node HostNode

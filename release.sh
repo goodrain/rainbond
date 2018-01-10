@@ -13,18 +13,19 @@ gaopsdir=/hack/contrib/docker/node/gaops
 
 gitDescribe=$(git describe --tag|sed 's/^v//')
 describe_items=($(echo $gitDescribe | tr '-' ' '))
-branch_info=($(git branch | grep '^*' | cut -d ' ' -f 2 | tr '-' " "))
+branch_info=($(git branch | grep '^*' | cut -d ' ' -f 2))
 describe_len=${#describe_items[@]}
-VERSION=${describe_items[0]}
+VERSION=$(git branch | grep '^*' | cut -d ' ' -f 2 | tr '-' " " | awk '{print $2}')
 git_commit=$(git log -n 1 --pretty --format=%h)
 
 if [ $describe_len -ge 3 ];then
-    buildRelease=${describe_items[-2]}.${describe_items[-1]}
+    #buildRelease=${describe_items[-2]}.${describe_items[-1]}
+	buildRelease=${describe_items[*]: -2:1}.${describe_items[*]: -1}
 else
     buildRelease=0.$git_commit
 fi
 if [ -z "$VERSION" ];then
-    VERSION=3.4
+    VERSION=3.4.1
 fi
 
 release_desc=${branch_info}-${VERSION}-${buildRelease}
@@ -46,11 +47,11 @@ function prepare() {
 function build() {
 	echo "---> Build Binary For ACP"
 	echo "build rainbond-node"
-    docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/${BASE_NAME}-node ./cmd/node
+    docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/${BASE_NAME}-node ./cmd/node
 	echo "grctl version:$release_desc"
 	sed -i "s/0.0.0/$release_desc/g" ./cmd/grctl/option/version.go
 	echo "build rainbond-grctl"
-	docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/${BASE_NAME}-grctl ./cmd/grctl
+	docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/${BASE_NAME}-grctl ./cmd/grctl
 	sed -i "s/$release_desc/0.0.0/g" ./cmd/grctl/option/version.go
 }
 
@@ -71,16 +72,13 @@ function build::image() {
 		docker build -t goodraim.me/event-build:v1 ${DOCKER_PATH}/build
 		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} goodraim.me/event-build:v1 go build  -ldflags '-w -s'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/eventlog
 	elif [ "$1" = "chaos" ];then
-		docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/builder
+		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/builder
 	else
-		docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
+		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
 	fi
 	cd  ${DOCKER_PATH}
 	sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
-	docker build -t hub.goodrain.com/${BASE_NAME}/rbd-$1:${VERSION} -f Dockerfile.release .
-	docker tag hub.goodrain.com/${BASE_NAME}/rbd-$1:${VERSION} ${BASE_NAME}/rbd-$1:${VERSION}
-	#docker tag hub.goodrain.com/${BASE_NAME}/rbd-$1:${VERSION} ${BASE_NAME}/rbd-$1
-	#docker push ${BASE_NAME}/rbd-$1
+	docker build -t ${BASE_NAME}/rbd-$1:${VERSION} -f Dockerfile.release .
 	rm -f ./Dockerfile.release
 	rm -f ./${BASE_NAME}-$1
 }

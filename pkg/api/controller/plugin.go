@@ -66,13 +66,14 @@ func (t *TenantStruct) CreatePlugin(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
 	var cps api_model.CreatePluginStruct
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &cps.Body, nil); !ok {
 		return
 	}
 	cps.Body.TenantID = tenantID
+	cps.TenantName = tenantName
 	if err := handler.GetPluginManager().CreatePluginAct(&cps); err != nil {
 		err.Handle(r, w)
 		return
@@ -190,26 +191,6 @@ func (t *TenantStruct) PluginDefaultENV(w http.ResponseWriter, r *http.Request) 
 
 //AddDefatultENV AddDefatultENV
 func (t *TenantStruct) AddDefatultENV(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/plugin/{plugin_id}/{version_id}/default-env v2 adddefaultenv
-	//
-	// 添加插件默认变量
-	//
-	// add default env
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
 	versionID := chi.URLParam(r, "version_id")
 	var est api_model.ENVStruct
@@ -226,26 +207,6 @@ func (t *TenantStruct) AddDefatultENV(w http.ResponseWriter, r *http.Request) {
 
 //DeleteDefaultENV DeleteDefaultENV
 func (t *TenantStruct) DeleteDefaultENV(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation DELETE /v2/tenants/{tenant_name}/plugin/{plugin_id}/{version_id}/default-env/{env_name} v2 deletedefaultenv
-	//
-	// 删除插件默认变量
-	//
-	// delete default env
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
 	envName := chi.URLParam(r, "env_name")
 	versionID := chi.URLParam(r, "version_id")
@@ -256,26 +217,6 @@ func (t *TenantStruct) DeleteDefaultENV(w http.ResponseWriter, r *http.Request) 
 }
 
 //UpdateDefaultENV UpdateDefaultENV
-// swagger:operation PUT /v2/tenants/{tenant_name}/plugin/{plugin_id}/{version_id}/default-env v2 updatedefaultenv
-//
-// 更新插件默认变量，支持批量
-//
-// update default env
-//
-// ---
-// consumes:
-// - application/json
-// - application/x-protobuf
-//
-// produces:
-// - application/json
-// - application/xml
-//
-// responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
 func (t *TenantStruct) UpdateDefaultENV(w http.ResponseWriter, r *http.Request) {
 
 	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
@@ -293,11 +234,23 @@ func (t *TenantStruct) UpdateDefaultENV(w http.ResponseWriter, r *http.Request) 
 }
 
 //GetPluginDefaultEnvs GetPluginDefaultEnvs
-// swagger:operation GET /v2/tenants/{tenant_name}/plugin/{plugin_id}/{version_id}/default-env v2 getPluginDefaultEnv
+func (t *TenantStruct) GetPluginDefaultEnvs(w http.ResponseWriter, r *http.Request) {
+	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
+	versionID := chi.URLParam(r, "version_id")
+	envs, err := handler.GetPluginManager().GetDefaultEnv(pluginID, versionID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, envs)
+}
+
+//PluginBuild PluginBuild
+// swagger:operation POST /v2/tenants/{tenant_name}/plugin/{plugin_id}/build v2 buildPlugin
 //
-// 获取插件默认设定的env
+// 构建plugin
 //
-// get plugin env
+// build plugin
 //
 // ---
 // consumes:
@@ -313,39 +266,7 @@ func (t *TenantStruct) UpdateDefaultENV(w http.ResponseWriter, r *http.Request) 
 //     schema:
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
-func (t *TenantStruct) GetPluginDefaultEnvs(w http.ResponseWriter, r *http.Request) {
-	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
-	versionID := chi.URLParam(r, "version_id")
-	envs, err := handler.GetPluginManager().GetDefaultEnv(pluginID, versionID)
-	if err != nil {
-		err.Handle(r, w)
-		return
-	}
-	httputil.ReturnSuccess(r, w, envs)
-}
-
-//PluginBuild PluginBuild
 func (t *TenantStruct) PluginBuild(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/plugin/{plugin_id}/build v2 buildPlugin
-	//
-	// 构建plugin
-	//
-	// build plugin
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	var build api_model.BuildPluginStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build.Body, nil)
 	if !ok {
@@ -357,38 +278,36 @@ func (t *TenantStruct) PluginBuild(w http.ResponseWriter, r *http.Request) {
 	build.TenantName = tenantName
 	build.PluginID = pluginID
 	build.Body.TenantID = tenantID
-	buildVersion, err := handler.GetPluginManager().BuildPluginManual(&build)
+	pbv, err := handler.GetPluginManager().BuildPluginManual(&build)
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	rc := make(map[string]string)
-	rc["build_version"] = buildVersion
-	httputil.ReturnSuccess(r, w, rc)
+	httputil.ReturnSuccess(r, w, pbv)
 }
 
 //GetAllPluginBuildVersons 获取该插件所有的构建版本
+// swagger:operation GET /v2/tenants/{tenant_name}/plugin/{plugin_id}/build-version v2 allPluginVersions
+//
+// 获取所有的构建版本信息
+//
+// all plugin versions
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) GetAllPluginBuildVersons(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation GET /v2/tenants/{tenant_name}/plugin/{plugin_id}/build-version v2 allPluginVersions
-	//
-	// 获取所有的构建版本信息
-	//
-	// all plugin versions
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
 	versions, err := handler.GetPluginManager().GetAllPluginBuildVersions(pluginID)
 	if err != nil {
@@ -399,27 +318,27 @@ func (t *TenantStruct) GetAllPluginBuildVersons(w http.ResponseWriter, r *http.R
 }
 
 //GetPluginBuildVersion 获取某构建版本信息
+// swagger:operation GET /v2/tenants/{tenant_name}/plugin/{plugin_id}/build-version/{version_id} v2 pluginVersion
+//
+// 获取某个构建版本信息
+//
+// plugin version
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) GetPluginBuildVersion(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation GET /v2/tenants/{tenant_name}/plugin/{plugin_id}/build-version/{version_id} v2 pluginVersion
-	//
-	// 获取某个构建版本信息
-	//
-	// plugin version
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
 	versionID := chi.URLParam(r, "version_id")
 	version, err := handler.GetPluginManager().GetPluginBuildVersion(pluginID, versionID)
@@ -431,27 +350,27 @@ func (t *TenantStruct) GetPluginBuildVersion(w http.ResponseWriter, r *http.Requ
 }
 
 //DeletePluginBuildVersion DeletePluginBuildVersion
+// swagger:operation DELETE /v2/tenants/{tenant_name}/plugin/{plugin_id}/build-version/{version_id} v2 deletePluginVersion
+//
+// 删除某个构建版本信息
+//
+// delete plugin version
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) DeletePluginBuildVersion(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation DELETE /v2/tenants/{tenant_name}/plugin/{plugin_id}/build-version/{version_id} v2 deletePluginVersion
-	//
-	// 删除某个构建版本信息
-	//
-	// delete plugin version
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
 	versionID := chi.URLParam(r, "version_id")
 	err := handler.GetPluginManager().DeletePluginBuildVersion(pluginID, versionID)
@@ -474,27 +393,27 @@ func (t *TenantStruct) PluginSet(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/plugin v2 updatePluginSet
+//
+// 更新插件设定
+//
+// update plugin setting
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) updatePluginSet(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/plugin v2 updatePluginSet
-	//
-	// 更新插件设定
-	//
-	// update plugin setting
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	var pss api_model.PluginSetStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &pss.Body, nil)
 	if !ok {
@@ -598,7 +517,13 @@ func (t *TenantStruct) getPluginSet(w http.ResponseWriter, r *http.Request) {
 func (t *TenantStruct) DeletePluginRelation(w http.ResponseWriter, r *http.Request) {
 	pluginID := chi.URLParam(r, "plugin_id")
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
 	if err := handler.GetServiceManager().TenantServiceDeletePluginRelation(serviceID, pluginID); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	if err := handler.GetServiceManager().DeleteComplexEnvs(tenantID, serviceAlias, pluginID); err != nil {
 		err.Handle(r, w)
 		return
 	}
@@ -638,35 +563,41 @@ func (t *TenantStruct) GePluginEnvWhichCanBeSet(w http.ResponseWriter, r *http.R
 }
 
 //SetVersionEnv SetVersionEnv
+// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/setenv v2 setVersionEnv
+//
+// 设置用户可配的环境变量
+//
+// set version env
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) SetVersionEnv(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/setenv v2 setVersionEnv
-	//
-	// 设置用户可配的环境变量
-	//
-	// set version env
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	var sve api_model.SetVersionEnv
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &sve.Body, nil)
 	if !ok {
 		return
 	}
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	pluginID := chi.URLParam(r, "plugin_id")
-	if err := handler.GetServiceManager().SetVersionEnv(serviceID, pluginID, &sve); err != nil {
+	sve.PluginID = pluginID
+	sve.Body.TenantID = tenantID
+	sve.ServiceAlias = serviceAlias
+	sve.Body.ServiceID = serviceID
+	if err := handler.GetServiceManager().SetVersionEnv(&sve); err != nil {
 		err.Handle(r, w)
 		return
 	}
@@ -674,38 +605,41 @@ func (t *TenantStruct) SetVersionEnv(w http.ResponseWriter, r *http.Request) {
 }
 
 //UpdateVersionEnv UpdateVersionEnv
+// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/upenv v2 updateVersionEnv
+//
+// 修改用户可配的环境变量
+//
+// update version env
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) UpdateVersionEnv(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/setenv/{env_name} v2 updateVersionEnv
-	//
-	// 修改用户可配的环境变量
-	//
-	// update version env
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-	var uve api_model.UpdateVersionEnv
+	var uve api_model.SetVersionEnv
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &uve.Body, nil)
 	if !ok {
 		return
 	}
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	pluginID := chi.URLParam(r, "plugin_id")
-	envName := chi.URLParam(r, "env_name")
 	uve.PluginID = pluginID
-	uve.EnvName = envName
-	if err := handler.GetServiceManager().UpdateVersionEnv(serviceID, &uve); err != nil {
+	uve.Body.TenantID = tenantID
+	uve.ServiceAlias = serviceAlias
+	uve.Body.ServiceID = serviceID
+	if err := handler.GetServiceManager().UpdateVersionEnv(&uve); err != nil {
 		err.Handle(r, w)
 		return
 	}

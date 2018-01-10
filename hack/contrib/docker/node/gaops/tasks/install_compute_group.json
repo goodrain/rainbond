@@ -20,6 +20,7 @@
                 },
                 "depends": []
             },
+            "run_mode": "manyonce",
             "is_once": true
         },
         {
@@ -44,6 +45,7 @@
                 },
                 "depends": []
             },
+            "run_mode":"onlyonce",
             "is_once": true
         },
         {
@@ -70,6 +72,7 @@
                     }
                 ]
             },
+            "run_mode":"onlyonce",
             "is_once": true
         },
         {
@@ -95,6 +98,7 @@
                     }
                 ]
             },
+            "run_mode":"onlyonce",
             "is_once": true
         },
         {
@@ -121,6 +125,7 @@
                     }
                 ]
             },
+            "run_mode":"onlyonce",
             "is_once": true
         },
         {
@@ -133,7 +138,7 @@
                         "bash",
                         "/usr/share/gr-rainbond-node/gaops/jobs/install/compute/kubelet/kubelet.sh",
                         "${OS_VER}",
-                        "${DNS}",
+                        "${DNS_SERVER}",
                         "${HOST_IP}"
                     ]
                 },
@@ -148,6 +153,7 @@
                     }
                 ]
             },
+            "run_mode":"onlyonce",
             "is_once": true
         },
         {
@@ -160,8 +166,7 @@
                         "bash",
                         "/usr/share/gr-rainbond-node/gaops/jobs/install/compute/kubelet/kubelet.sh",
                         "${OS_VER}",
-                        "${DNS}",
-                        "${HOST_IP}"
+                        "${DNS}"
                     ]
                 },
                 "nodes": [],
@@ -170,6 +175,7 @@
                 },
                 "depends": []
             },
+            "run_mode":"onlyonce",
             "is_once": true
         },
         {
@@ -182,7 +188,8 @@
                         "bash",
                         "/usr/share/gr-rainbond-node/gaops/jobs/install/compute/proxy/proxy.sh",
                         "${REPO_VER}",
-                        "${KUBE_API}"
+                        "${KUBE_API}",
+                        "${HUB_SERVER}"
                     ]
                 },
                 "labels": {
@@ -196,6 +203,7 @@
                     }
                 ]
             },
+            "run_mode":"onlyonce",
             "is_once": true
         },
         {
@@ -215,23 +223,12 @@
                 "nodes": [],
                 "depends": [
                     {
-                        "depend_task_id": "install_docker_compute",
-                        "strategy": "SameNode"
-                    },
-                    {
-                        "depend_task_id": "install_kubelet",
-                        "strategy": "SameNode"
-                    },
-                    {
-                        "depend_task_id": "install_network_compute",
-                        "strategy": "SameNode"
-                    },
-                    {
                         "depend_task_id": "install_plugins_compute",
                         "strategy": "SameNode"
                     }
                 ]
             },
+            "run_mode":"onlyonce",
             "is_once": true
         },
         {
@@ -256,6 +253,7 @@
                     }
                 ]
             },
+            "run_mode":"onlyonce",
             "is_once": true
         }
     ]

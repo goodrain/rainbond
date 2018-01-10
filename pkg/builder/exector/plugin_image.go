@@ -38,6 +38,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/goodrain/rainbond/pkg/db"
 	"github.com/goodrain/rainbond/pkg/event"
@@ -69,7 +70,21 @@ func (e *exectorManager) pluginImageBuild(in []byte) {
 	eventID := tb.EventID
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("从镜像构建插件任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
-
+	go func() {
+		time.Sleep(buildingTimeout * time.Second)
+		logrus.Debugf("building plugin time-out time is reach")
+		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(tb.PluginID, tb.VersionID)
+		if err != nil {
+			logrus.Errorf("get version error, %v", err)
+		}
+		if version.Status != "complete" {
+			version.Status = "timeout"
+			if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
+				logrus.Errorf("update version error, %v", err)
+			}
+			logger.Info("插件构建超时，修改插件状态失败", map[string]string{"step": "last", "status": "failure"})
+		}
+	}()
 	go func() {
 		logrus.Info("start exec build plugin from image worker")
 		defer event.GetManager().ReleaseLogger(logger)
@@ -77,23 +92,20 @@ func (e *exectorManager) pluginImageBuild(in []byte) {
 			err := e.run(&tb, config, logger)
 			if err != nil {
 				logrus.Errorf("exec plugin build from image error:%s", err.Error())
-				if retry < 3 {
-					logger.Info("镜像构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
-				} else {
-					version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(tb.PluginID, tb.VersionID)
-					if err != nil {
-						logrus.Errorf("get version error, %v", err)
-					}
-					version.Status = "failure"
-					if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
-						logrus.Errorf("update version error, %v", err)
-					}
-					logger.Info("镜像构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
-				}
+				logger.Info("镜像构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 			} else {
-				break
+				return
 			}
 		}
+		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(tb.PluginID, tb.VersionID)
+		if err != nil {
+			logrus.Errorf("get version error, %v", err)
+		}
+		version.Status = "failure"
+		if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
+			logrus.Errorf("update version error, %v", err)
+		}
+		logger.Info("镜像构建插件任务执行失败", map[string]string{"step": "last", "status": "failure"})
 	}()
 }
 
@@ -150,7 +162,7 @@ func (e exectorManager) run(t *model.BuildPluginTaskBody, c parseConfig.Config, 
 	if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
 		return err
 	}
-	logger.Info("从镜像构建插件完成", map[string]string{"step": "builder-exector"})
+	logger.Info("从镜像构建插件完成", map[string]string{"step": "last", "status": "success"})
 	return nil
 }
 
@@ -179,11 +191,13 @@ func setTag(curRegistry string, image string, alias string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	logrus.Debugf("set tag: sudo -P docker tag %s %s", image, curImage)
 	return curImage, nil
 }
 
 func push(curImage string, logger event.Logger) error {
 	mm := []string{"-P", "docker", "push", curImage}
+	logrus.Debugf("push images: sudo -P docker push %s", curImage)
 	if err := ShowExec("sudo", mm, logger); err != nil {
 		return err
 	}

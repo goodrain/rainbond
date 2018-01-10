@@ -87,6 +87,7 @@ func (s *NMonitorMessageServer) Stop() {
 func (s *NMonitorMessageServer) handleMessage() {
 	buf := make([]byte, 65535)
 	defer s.listener.Close()
+	s.log.Infoln("start receive monitor message by udp")
 	for {
 		n, _, err := s.listener.ReadFromUDP(buf)
 		if err != nil {

@@ -94,6 +94,7 @@ CREATE:
 	rui := &dbmodel.RegionUserInfo{
 		EID:            gt.Body.EID,
 		RegionTag:      c.RegionTag,
+		APIRange:       gt.Body.Range,
 		ValidityPeriod: gt.Body.ValidityPeriod,
 		Token:          token,
 	}

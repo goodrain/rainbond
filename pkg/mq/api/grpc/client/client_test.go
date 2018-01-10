@@ -1,28 +1,28 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package client
 
 import (
-	"github.com/goodrain/rainbond/pkg/api/grpc/pb"
 	"testing"
 	"time"
+
+	"github.com/goodrain/rainbond/pkg/mq/api/grpc/pb"
 
 	context "golang.org/x/net/context"
 )
@@ -32,17 +32,32 @@ func TestClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.Enqueue(context.Background(), &pb.EnqueueRequest{
-		Topic: "worker",
-		Message: &pb.TaskMessage{
-			TaskType:   "stop",
-			CreateTime: time.Now().Format(time.RFC3339),
-			TaskBody:   []byte(`{"tenant_id":"232bd923d3794b979974bb21b863608b","service_id":"37f6cc84da449882104687130e868196","deploy_version":"20170717163635","event_id":"system"}`),
-			User:       "barnett",
-		},
-	})
+	for i := 0; i < 100000; i++ {
+		re, err := c.Enqueue(context.Background(), &pb.EnqueueRequest{
+			Topic: "worker",
+			Message: &pb.TaskMessage{
+				TaskType:   "stop",
+				CreateTime: time.Now().Format(time.RFC3339),
+				TaskBody:   []byte(`{"tenant_id":"232bd923d3794b979974bb21b863608b","service_id":"37f6cc84da449882104687130e868196","deploy_version":"20170717163635","event_id":"system"}`),
+				User:       "barnett",
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log(re)
+		taskme, err := c.Dequeue(context.Background(), &pb.DequeueRequest{Topic: "worker"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log(taskme)
+		time.Sleep(time.Millisecond * 10)
+	}
+
 }
+
 func TestClientScaling(t *testing.T) {
+	t.SkipNow()
 	client, err := NewMqClient("127.0.0.1:6300")
 	if err != nil {
 		t.Fatal(err)
@@ -59,6 +74,7 @@ func TestClientScaling(t *testing.T) {
 }
 
 func TestClientUpgrade(t *testing.T) {
+	t.SkipNow()
 	client, err := NewMqClient("127.0.0.1:6300")
 	if err != nil {
 		t.Fatal(err)
@@ -74,6 +90,7 @@ func TestClientUpgrade(t *testing.T) {
 	})
 }
 func TestBuilder(t *testing.T) {
+	t.SkipNow()
 	c, err := NewMqClient("127.0.0.1:6300")
 	if err != nil {
 		t.Fatal(err)

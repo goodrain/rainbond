@@ -101,9 +101,7 @@ func ResourcesEnv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(200)
-	if value, ok := ss.SourceBody.EnvVal.(string); ok {
-		w.Write([]byte(value))
-	}
+	w.Write(ss)
 }
 
 //UserDefineResources UserDefineResources

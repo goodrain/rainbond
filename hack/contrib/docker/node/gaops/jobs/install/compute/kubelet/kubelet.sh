@@ -2,11 +2,13 @@
 
 
 OS_VERSION=$1
-HOST_IP=${3:-$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')}
-DNS=${2:-$(cat /etc/goodrain/envs/etcd-proxy.sh | awk -F '[=:]' '{print $2}')}
+DNS_SERVER=$2
+HOST_IP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
 HOST_UUID=$(cat /etc/goodrain/host_uuid.conf | grep "host_uuid" | awk -F '=' '{print $2}')
 
 export KUBE_SHARE_DIR="/grdata/services/k8s"
+
+DNS=${DNS_SERVER%%,*}
 
 log.info() {
   echo "       $*"
@@ -210,7 +212,7 @@ function run() {
             grep -q '^HOST_UUID' /etc/goodrain/envs/kubelet.sh || echo "HOST_UUID=$HOST_UUID" >> /etc/goodrain/envs/kubelet.sh
             sed -i "s/--hostname_override=\$HOST_IP/--hostname_override=\$HOST_UUID/g" /usr/share/gr-kubernetes/scripts/start-kubelet.sh
         fi
-        grep -q '^DNS_SERVERS' /etc/goodrain/envs/kubelet.sh || echo "DNS_SERVERS=$DNS" >> /etc/goodrain/envs/kubelet.sh
+        grep -q '^DNS_SERVERS' /etc/goodrain/envs/kubelet.sh || echo "DNS_SERVERS=${DNS%%|*}" >> /etc/goodrain/envs/kubelet.sh
         grep -q '^HOST_IP' /etc/goodrain/envs/kubelet.sh || echo "HOST_IP=$HOST_IP" >> /etc/goodrain/envs/kubelet.sh
     fi
     package::enable kubelet.service

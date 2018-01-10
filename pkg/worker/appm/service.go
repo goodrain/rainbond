@@ -213,6 +213,7 @@ func (k *K8sServiceBuild) createOuterService(port *model.TenantServicesPort) *v1
 		"services_version": k.service.ServiceVersion,
 		"domain":           k.service.Autodomain(k.tenant.Name, port.ContainerPort),
 		"protocol":         port.Protocol,
+		"port_protocol":    port.Protocol,
 		"ca":               "",
 		"key":              "",
 		"event_id":         k.eventID,

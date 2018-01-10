@@ -80,7 +80,7 @@ type PodInfo struct {
 const (
 	VSPoolExpString string = "(.*)[@|_](.*)_([0-9]*)\\.[Pool|VS]"
 	NodeExpString   string = "(.*)_([0-9]*)\\.Node"
-	DomainAPIURI    string = "http://127.0.0.1:%s/tenants/%s/services/%s/domains"
+	DomainAPIURI    string = "http://127.0.0.1:%s/v2/tenants/%s/services/%s/domains"
 )
 
 func (s *SourceBranch) RePoolName() string {

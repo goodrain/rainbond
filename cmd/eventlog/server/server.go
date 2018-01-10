@@ -23,6 +23,7 @@ import (
 	"path"
 	"syscall"
 
+	"github.com/goodrain/rainbond/pkg/discover"
 	"github.com/goodrain/rainbond/pkg/eventlog/cluster"
 	"github.com/goodrain/rainbond/pkg/eventlog/conf"
 	"github.com/goodrain/rainbond/pkg/eventlog/entry"
@@ -107,7 +108,7 @@ func (s *LogServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&s.Conf.WebHook.ConsoleURL, "webhook.console.url", "http://console.goodrain.me", "console web api url")
 	fs.StringVar(&s.Conf.WebHook.ConsoleToken, "webhook.console.token", "", "console web api token")
 	fs.StringVar(&s.Conf.Entry.NewMonitorMessageServerConf.ListenerHost, "monitor.udp.host", "0.0.0.0", "receive new monitor udp server host")
-	fs.IntVar(&s.Conf.Entry.NewMonitorMessageServerConf.ListenerPort, "monitor.udp.host", 6166, "receive new monitor udp server port")
+	fs.IntVar(&s.Conf.Entry.NewMonitorMessageServerConf.ListenerPort, "monitor.udp.port", 6166, "receive new monitor udp server port")
 }
 
 //InitLog 初始化log
@@ -216,6 +217,38 @@ func (s *LogServer) Run() error {
 		return err
 	}
 	defer s.Entry.Stop()
+
+	//服务注册
+	grpckeepalive, err := discover.CreateKeepAlive(s.Conf.Cluster.Discover.EtcdAddr, "event_log_event_grpc",
+		s.Conf.Cluster.Discover.InstanceIP, s.Conf.Cluster.Discover.InstanceIP, 6367)
+	if err != nil {
+		return err
+	}
+	if err := grpckeepalive.Start(); err != nil {
+		return err
+	}
+	defer grpckeepalive.Stop()
+
+	udpkeepalive, err := discover.CreateKeepAlive(s.Conf.Cluster.Discover.EtcdAddr, "event_log_event_udp",
+		s.Conf.Cluster.Discover.InstanceIP, s.Conf.Cluster.Discover.InstanceIP, s.Conf.Entry.NewMonitorMessageServerConf.ListenerPort)
+	if err != nil {
+		return err
+	}
+	if err := udpkeepalive.Start(); err != nil {
+		return err
+	}
+	defer udpkeepalive.Stop()
+
+	httpkeepalive, err := discover.CreateKeepAlive(s.Conf.Cluster.Discover.EtcdAddr, "event_log_event_http",
+		s.Conf.Cluster.Discover.InstanceIP, s.Conf.Cluster.Discover.InstanceIP, s.Conf.WebSocket.BindPort)
+	if err != nil {
+		return err
+	}
+	if err := httpkeepalive.Start(); err != nil {
+		return err
+	}
+	defer httpkeepalive.Stop()
+
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
 	select {

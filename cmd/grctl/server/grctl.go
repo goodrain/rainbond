@@ -21,29 +21,31 @@ package server
 import (
 	"os"
 	"sort"
-	"github.com/urfave/cli"
-	"github.com/goodrain/rainbond/pkg/grctl/cmd"
+
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"github.com/goodrain/rainbond/cmd/grctl/option"
+	"github.com/goodrain/rainbond/pkg/grctl/clients"
+	"github.com/goodrain/rainbond/pkg/grctl/cmd"
+	"github.com/urfave/cli"
 )
 
 //var App *cli.App=cli.NewApp()
 var App *cli.App
+
 func Run() error {
 
-	App=cli.NewApp()
-	App.Version=option.Version
-	App.Flags = []cli.Flag {
+	App = cli.NewApp()
+	App.Version = option.Version
+	App.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name: "config, c",
+			Name:  "config, c",
 			Value: "/etc/goodrain/grctl.json",
 			Usage: "Load configuration from `FILE`",
 		},
 	}
 	sort.Sort(cli.FlagsByName(App.Flags))
 	sort.Sort(cli.CommandsByName(App.Commands))
-	App.Commands=cmd.GetCmds()
+	App.Commands = cmd.GetCmds()
 	if err := clients.InitNodeClient("http://127.0.0.1:6100/v2"); err != nil {
 		logrus.Warnf("error config region")
 	}

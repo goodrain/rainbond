@@ -79,7 +79,7 @@ func (c *Client) Post(key, val string, opts ...client.OpOption) (*client.PutResp
 	if !txnresp.Succeeded {
 		return nil, ErrKeyExists
 	}
-	return txnresp.ToOpResponse().Put(), nil
+	return txnresp.OpResponse().Put(), nil
 }
 
 //Put etcd v3 Put
@@ -162,6 +162,11 @@ func (c *Client) Watch(key string, opts ...client.OpOption) client.WatchChan {
 	return c.Client.Watch(context.Background(), key, opts...)
 }
 
+//WatchByCtx watch by ctx
+func (c *Client) WatchByCtx(ctx context.Context, key string, opts ...client.OpOption) client.WatchChan {
+	return c.Client.Watch(ctx, key, opts...)
+}
+
 //KeepAliveOnce etcd v3 KeepAliveOnce
 func (c *Client) KeepAliveOnce(id client.LeaseID) (*client.LeaseKeepAliveResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
@@ -194,9 +199,6 @@ func (c *Client) DelLock(key string) error {
 
 //Grant etcd v3 Grant
 func (c *Client) Grant(ttl int64) (*client.LeaseGrantResponse, error) {
-	if c == nil {
-		logrus.Info("client is nil")
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
 	defer cancel()
 	return c.Client.Grant(ctx, ttl)

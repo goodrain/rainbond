@@ -9,7 +9,7 @@
 #set -o errexit
 set -o pipefail
 
-REPO_VER=${2:-3.4}
+REPO_VER=${2:-3.4.1}
 
 # define log func 
 
@@ -26,24 +26,9 @@ function log.stdout() {
     echo "$*" >&2
 }
 
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
-}
-
 # define basic services
-check_basic_services=(docker db base_plugins acp_plugins)
-check_manage_services=(storage network k8s plugins analysis check_manage)
+check_basic_services=(docker storage db base_plugins acp_plugins)
+check_manage_services=(network k8s plugins analysis check_manage)
 check_compute_services=(storage_client docker_compute network_compute kubelet plugins_compute check_compute)
 
 RELEASE_INFO=$(cat /etc/os-release | grep "^VERSION=" | awk -F '="' '{print $2}' | awk '{print $1}' | cut -b 1-5)
@@ -66,7 +51,7 @@ taskid=()
 taskid_str=""
 
 function prepare() {
-    log.section "ACP: check services"
+    log.info "RBD: check services"
 }
 
 function check_basic() {
@@ -113,7 +98,7 @@ function check_basic() {
             fi
         fi
     elif [ "$1" = "k8s" ];then
-        if [ ! -d "/usr/share/gr-kubernetes/" ];then
+        if [ ! -f "/usr/share/gr-kubernetes/scripts/start-kube-apiserver.sh" ];then
             taskid+=("install_k8s")
             taskid+=("install_webcli")
         fi
@@ -122,13 +107,13 @@ function check_basic() {
             taskid+=("install_kubelet")
         fi
     elif [ "$1" = "plugins" ];then
-        plugins_num=$(dc-compose ps | grep "rbd-proxy" | wc -l)
+        plugins_num=$(dc-compose ps | grep "proxy" | wc -l)
         if [ $plugins_num -eq 0 ];then
             taskid+=("install_plugins")
             taskid+=("do_rbd_images")
         fi
     elif [ "$1" = "plugins_compute" ];then
-        plugins_num=$(dc-compose ps | grep "rbd-proxy" | wc -l)
+        plugins_num=$(dc-compose ps | grep "proxy" | wc -l)
         if [ $plugins_num -eq 0 ];then
             taskid+=("install_plugins_compute")
         fi
@@ -141,9 +126,15 @@ function check_basic() {
             taskid+=("install_network_compute")
         fi
     elif [ "$1" = "check_manage" ];then
+        plugins_num=$(dc-compose ps | grep "proxy" | wc -l)
+        if [ $plugins_num -eq 0 ];then
             taskid+=("install_manage_ready")
+        fi
     elif [ "$1" = "check_compute" ];then
+        plugins_num=$(dc-compose ps | grep "proxy" | wc -l)
+        if [ $plugins_num -eq 0 ];then
             taskid+=("install_compute_ready")
+        fi
     elif [ "$1" = "dns" ];then
             taskid+=("update_dns")
     else
@@ -242,9 +233,8 @@ function run_compute() {
     else
         if [ ! -f "/usr/share/gr-kubernetes/scripts/start-kubelet.sh" ];then
             taskid+=("install_kubelet_manage")
+            taskid+=("install_compute_ready_manage")
         fi
-
-        taskid+=("install_compute_ready_manage")
 
         log.stdout '{
             "status":[ 

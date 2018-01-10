@@ -8,7 +8,7 @@
 #
 # Basic services For ACP install:docker etcd/etcd(etcd_proxy)/acp-node
 
-set -o errexit
+#set -o errexit
 set -o pipefail
 
 # define service name
@@ -40,21 +40,6 @@ function log.error() {
 
 function log.stdout() {
     echo "$*" >&2
-}
-
-function log.section() {
-    local title=$1
-    local title_length=${#title}
-    local width=$(tput cols)
-    local arrival_cols=$[$width-$title_length-2]
-    local left=$[$arrival_cols/2]
-    local right=$[$arrival_cols-$left]
-
-    echo ""
-    printf "=%.0s" `seq 1 $left`
-    printf " $title "
-    printf "=%.0s" `seq 1 $right`
-    echo ""
 }
 
 # define install func
@@ -180,12 +165,24 @@ function proc::restart(){
     return 0
 }
 
+function add_user() {
+    grep rain /etc/group >/dev/null 2>&1 || groupadd -g 200 rain
+    id rain >/dev/null 2>&1 || (
+        useradd -m -s /bin/bash -u 200 -g 200 rain
+        echo "rain ALL = (root) NOPASSWD:ALL" > /etc/sudoers.d/rain
+        chmod 0440 /etc/sudoers.d/rain
+    )
+    log.info "add_user ok"
+}
+
 function prepare() {
-    log.section "ACP: install  basic service: $INSTALL_SERVICE"
+    log.info "RBD: install basic service: docker"
     [ -d "/etc/goodrain/envs" ] || mkdir -p /etc/goodrain/envs
     [ -d "/root/.docker" ] || mkdir -p /root/.docker
     [ -f "/root/.docker/config.json" ] || echo "{}" >> /root/.docker/config.json
     log.info "prepare docker..."
+    log.info "add rain user"
+    add_user
 }
 
 function write_docker_config() {
@@ -240,11 +237,12 @@ function install_docker() {
             log.stdout '{
                 "status":[ 
                 { 
-                    "name":"install_docker", 
-                    "condition_type":"INSTALL_DOCKER", 
+                    "name":"install_docker_faild", 
+                    "condition_type":"INSTALL_DOCKER_FAILD", 
                     "condition_status":"False"
                 } 
                 ], 
+                "exec_status":"Failure",
                 "type":"common"
                 }'
             exit 1
@@ -265,18 +263,17 @@ function run(){
     install_docker
     docker ps >/dev/null
     if [ $? -eq 0 ];then
-
-        log.stdout '{
-                    "status":[ 
-                    { 
-                        "name":"install_docker", 
-                        "condition_type":"INSTALL_DOCKER", 
-                        "condition_status":"True"
-                    } 
-                    ],
-                    "exec_status":"Success",
-                    "type":"install"
-                    }'
+            log.stdout '{
+                        "status":[ 
+                        { 
+                            "name":"install_docker", 
+                            "condition_type":"INSTALL_DOCKER", 
+                            "condition_status":"True"
+                        } 
+                        ],
+                        "exec_status":"Success",
+                        "type":"install"
+                        }'
     fi
 }
 

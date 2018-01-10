@@ -34,6 +34,7 @@ type TenantInterface interface {
 	TenantsGetByName(w http.ResponseWriter, r *http.Request)
 	SumTenants(w http.ResponseWriter, r *http.Request)
 	SingleTenantResources(w http.ResponseWriter, r *http.Request)
+	GetSupportProtocols(w http.ResponseWriter, r *http.Request)
 }
 
 //ServiceInterface ServiceInterface
@@ -92,6 +93,7 @@ type LogInterface interface {
 	LogFile(w http.ResponseWriter, r *http.Request)
 	LogSocket(w http.ResponseWriter, r *http.Request)
 	LogByAction(w http.ResponseWriter, r *http.Request)
+	TenantLogByAction(w http.ResponseWriter, r *http.Request)
 }
 
 //PluginInterface plugin interface

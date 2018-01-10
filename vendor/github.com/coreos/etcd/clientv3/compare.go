@@ -99,18 +99,7 @@ func (cmp *Cmp) ValueBytes() []byte {
 // WithValueBytes sets the byte slice for the comparison's value.
 func (cmp *Cmp) WithValueBytes(v []byte) { cmp.TargetUnion.(*pb.Compare_Value).Value = v }
 
-// WithRange sets the comparison to scan the range [key, end).
-func (cmp Cmp) WithRange(end string) Cmp {
-	cmp.RangeEnd = []byte(end)
-	return cmp
-}
-
-// WithPrefix sets the comparison to scan all keys prefixed by the key.
-func (cmp Cmp) WithPrefix() Cmp {
-	cmp.RangeEnd = getPrefix(cmp.Key)
-	return cmp
-}
-
+// mustInt64 panics if val isn't an int or int64. It returns an int64 otherwise.
 func mustInt64(val interface{}) int64 {
 	if v, ok := val.(int64); ok {
 		return v
@@ -119,4 +108,13 @@ func mustInt64(val interface{}) int64 {
 		return int64(v)
 	}
 	panic("bad value")
+}
+
+// mustInt64orLeaseID panics if val isn't a LeaseID, int or int64. It returns an
+// int64 otherwise.
+func mustInt64orLeaseID(val interface{}) int64 {
+	if v, ok := val.(LeaseID); ok {
+		return int64(v)
+	}
+	return mustInt64(val)
 }

@@ -70,15 +70,23 @@ func Routers(mode string) *chi.Mux {
 				r.Post("/{node_id}/down", controller.DownNode)     //节点下线
 				r.Post("/{node_id}/up", controller.UpNode)         //节点上线
 				r.Get("/{node_id}/instance", controller.Instances) //节点上线
+				r.Get("/{node_id}/check", controller.CheckNode)
+				r.Get("/{node_id}/resource", controller.Resource)
 
-				//历史API
-				r.Get("/{node}/details", controller.GetNodeDetails)
-				r.Put("/login", controller.LoginCompute)
-				//此处会安装
-				r.Put("/{ip}/init", controller.NodeInit)
-				r.Get("/{ip}/init/status", controller.CheckInitStatus)
-				r.Get("/{ip}/install/status", controller.CheckJobGetStatus)
-				r.Put("/{ip}/install", controller.StartBuildInJobs)
+				r.Get("/{node_ip}/init", controller.InitStatus)
+				r.Post("/{node_id}/install", controller.Install)
+
+				r.Get("/{node_id}/prometheus/cpu", controller.GetCpu)
+				r.Get("/{node_id}/prometheus/mem", controller.GetMem)
+				r.Get("/{node_id}/prometheus/disk", controller.GetDisk)
+				r.Get("/{node_id}/prometheus/load1", controller.GetLoad1)
+				r.Get("/{node_id}/prometheus/start/{start}/end/{end}/step/{step}/cpu", controller.GetCpuRange)
+				r.Get("/{node_id}/prometheus/start/{start}/end/{end}/step/{step}/mem", controller.GetMemRange)
+				r.Get("/{node_id}/prometheus/start/{start}/end/{end}/step/{step}/disk", controller.GetDiskRange)
+				r.Get("/{node_id}/prometheus/start/{start}/end/{end}/step/{step}/load1", controller.GetLoad1Range)
+				r.Put("/prometheus/expr", controller.GetExpr)
+				r.Put("/prometheus/start/{start}/end/{end}/step/{step}/expr", controller.GetExpr)
+
 			})
 
 			//TODO:
@@ -107,12 +115,9 @@ func Routers(mode string) *chi.Mux {
 				r.Post("/{group_id}/exec", controller.ExecTaskGroup)
 				r.Get("/{group_id}/status", controller.GetTaskGroupStatus)
 			})
+			r.Put("/tasks/taskreload", controller.ReloadStaticTasks)
 		}
 	})
-	//重新加载task文件
-	if mode == "master" {
-		r.Put("/-/taskreload", controller.ReloadStaticTasks)
-	}
 	//节点监控
 	r.Get("/node/metrics", controller.NodeExporter)
 	return r

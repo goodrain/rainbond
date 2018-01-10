@@ -42,9 +42,9 @@ Bug found in learning and using, please visit [ISSUES](https://github.com/goodra
 <img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_architecture.png" href="http://www.rainbond.com/docs/stable/getting-started/architecture.html">
 
 ## Community
-### WeChart
+### WeChat
 <img src="https://github.com/goodrain/rainbond/blob/master/docs/Wechat.jpeg" width="30%">
-*WeChat scan qr code to add friends*   
+*Scan QR code, add inviter to join Rainbond WeChat group*   
   
 ### QQ Group:
 

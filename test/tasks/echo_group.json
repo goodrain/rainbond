@@ -36,6 +36,7 @@
                 "strategy": "AtLeastOnce"
             }]
         },
+        "run_mode": "",
         "event_id": "xyxyxyxyxy",
         "is_once": true
     }]

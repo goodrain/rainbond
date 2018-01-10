@@ -21,38 +21,40 @@ package masterserver
 import (
 	"context"
 
+	"github.com/Sirupsen/logrus"
+
+	"github.com/goodrain/rainbond/pkg/node/masterserver/task"
+
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/config"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
+	"github.com/goodrain/rainbond/pkg/node/masterserver/node"
 )
 
 //MasterServer 主节点服务
 type MasterServer struct {
 	*store.Client
 	*model.HostNode
-	Cluster          *NodeCluster
-	TaskEngine       *TaskEngine
+	Cluster          *node.NodeCluster
+	TaskEngine       *task.TaskEngine
 	ctx              context.Context
 	cancel           context.CancelFunc
 	datacenterConfig *config.DataCenterConfig
 }
 
 //NewMasterServer 创建master节点
-func NewMasterServer(node *model.HostNode, k8sClient *kubernetes.Clientset) (*MasterServer, error) {
-	datacenterConfig := config.CreateDataCenterConfig()
+func NewMasterServer(modelnode *model.HostNode, k8sClient *kubernetes.Clientset) (*MasterServer, error) {
+	datacenterConfig := config.GetDataCenterConfig()
 	ctx, cancel := context.WithCancel(context.Background())
-	cluster, err := CreateNodeCluster(k8sClient,node)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
+	nodecluster := node.CreateNodeCluster(k8sClient, modelnode, datacenterConfig)
+	taskengin := task.CreateTaskEngine(nodecluster, modelnode)
 	ms := &MasterServer{
 		Client:           store.DefalutClient,
-		TaskEngine:       CreateTaskEngine(cluster, node),
-		HostNode:         node,
-		Cluster:          cluster,
+		TaskEngine:       taskengin,
+		HostNode:         modelnode,
+		Cluster:          nodecluster,
 		ctx:              ctx,
 		cancel:           cancel,
 		datacenterConfig: datacenterConfig,
@@ -62,16 +64,26 @@ func NewMasterServer(node *model.HostNode, k8sClient *kubernetes.Clientset) (*Ma
 
 //Start 启动
 func (m *MasterServer) Start() error {
-	m.Cluster.Start()
-	m.TaskEngine.Start()
 	//监控配置变化启动
 	m.datacenterConfig.Start()
+	if err := m.Cluster.Start(); err != nil {
+		logrus.Error("node cluster start error,", err.Error())
+		return err
+	}
+	if err := m.TaskEngine.Start(); err != nil {
+		logrus.Error("task engin start error,", err.Error())
+		return err
+	}
 	return nil
 }
 
 //Stop 停止
 func (m *MasterServer) Stop(i interface{}) {
-	m.Cluster.Stop(i)
-	m.TaskEngine.Stop()
+	if m.Cluster != nil {
+		m.Cluster.Stop(i)
+	}
+	if m.TaskEngine != nil {
+		m.TaskEngine.Stop()
+	}
 	m.cancel()
 }

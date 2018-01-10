@@ -21,8 +21,9 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"time"
+	"strconv"
 
+	"github.com/goodrain/rainbond/pkg/discover"
 	"github.com/goodrain/rainbond/pkg/node/masterserver"
 	"github.com/goodrain/rainbond/pkg/node/statsd"
 	"github.com/prometheus/client_golang/prometheus"
@@ -31,7 +32,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/api/controller"
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/api/router"
-	"github.com/goodrain/rainbond/pkg/node/core/store"
 
 	"context"
 	"strings"
@@ -47,14 +47,15 @@ import (
 
 //Manager api manager
 type Manager struct {
-	ctx      context.Context
-	cancel   context.CancelFunc
-	conf     option.Conf
-	router   *chi.Mux
-	node     *model.HostNode
-	lID      client.LeaseID // lease id
-	ms       *masterserver.MasterServer
-	exporter *statsd.Exporter
+	ctx       context.Context
+	cancel    context.CancelFunc
+	conf      option.Conf
+	router    *chi.Mux
+	node      *model.HostNode
+	lID       client.LeaseID // lease id
+	ms        *masterserver.MasterServer
+	keepalive *discover.KeepAlive
+	exporter  *statsd.Exporter
 }
 
 //NewManager api manager
@@ -103,7 +104,7 @@ func (m *Manager) HandleStatsd(w http.ResponseWriter, r *http.Request) {
 }
 
 //Start 启动
-func (m *Manager) Start(errChan chan error) {
+func (m *Manager) Start(errChan chan error) error {
 	logrus.Infof("api server start listening on %s", m.conf.APIAddr)
 	//m.prometheus()
 
@@ -120,61 +121,35 @@ func (m *Manager) Start(errChan chan error) {
 		}
 	}()
 	if m.conf.RunMode == "master" {
-		go m.keepAlive()
-	}
-}
-func (m *Manager) set() error {
-	key := fmt.Sprintf("/traefik/backends/acp_node/servers/%s/url", m.node.ID)
-	portinfo := strings.Split(m.conf.APIAddr, ":")
-	var port string
-	if len(portinfo) != 2 {
-		port = "6100"
-	} else {
-		port = portinfo[1]
-	}
-	value := fmt.Sprintf("%s:%s", m.node.InternalIP, port)
-	resp, err := store.DefalutClient.Grant(7)
-	if err != nil {
-		return err
-	}
-	if _, err = store.DefalutClient.Put(key, value, client.WithLease(resp.ID)); err != nil {
-		return err
-	}
-	m.lID = resp.ID
-	return nil
-}
-func (m *Manager) keepAlive() {
-	duration := time.Duration(5) * time.Second
-	timer := time.NewTimer(duration)
-	for {
-		select {
-		case <-m.ctx.Done():
-
-			return
-		case <-timer.C:
-			if m.lID > 0 {
-				_, err := store.DefalutClient.KeepAliveOnce(m.lID)
-				if err == nil {
-					timer.Reset(duration)
-					continue
-				}
-				logrus.Warnf("%s lid[%x] keepAlive err: %s, try to reset...", "rainbond node api", m.lID, err.Error())
-				m.lID = 0
+		portinfo := strings.Split(m.conf.APIAddr, ":")
+		var port int
+		if len(portinfo) != 2 {
+			port = 6100
+		} else {
+			var err error
+			port, err = strconv.Atoi(portinfo[1])
+			if err != nil {
+				return fmt.Errorf("get the api port info error.%s", err.Error())
 			}
-			if err := m.set(); err != nil {
-				logrus.Warnf("%s set lid err: %s, try to reset after 5 seconds...", "rainbond node api", err.Error())
-			} else {
-				logrus.Infof("%s set lid[%x] success", "rainbond node api", m.lID)
-			}
-			timer.Reset(duration)
+		}
+		keepalive, err := discover.CreateKeepAlive(m.conf.Etcd.Endpoints, "acp_node", m.node.HostName, m.node.InternalIP, port)
+		if err != nil {
+			return err
+		}
+		if err := keepalive.Start(); err != nil {
+			return err
 		}
 	}
+	return nil
 }
 
 //Stop 停止
 func (m *Manager) Stop() error {
 	logrus.Info("api server is stoping.")
 	m.cancel()
+	if m.keepalive != nil {
+		m.keepalive.Stop()
+	}
 	return nil
 }
 

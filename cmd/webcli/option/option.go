@@ -30,7 +30,8 @@ type Config struct {
 	EtcdEndPoints        []string
 	Address              string
 	HostIP               string
-	Port                 string
+	HostName             string
+	Port                 int
 	SessionKey           string
 	PrometheusMetricPath string
 }
@@ -51,8 +52,9 @@ func (a *WebCliServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the entrance log level")
 	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd v3 cluster endpoints.")
 	fs.StringVar(&a.Address, "address", "0.0.0.0", "server listen address")
-	fs.StringVar(&a.HostIP, "hostIP", "127.0.0.1", "webcli request ip address for regist lb")
-	fs.StringVar(&a.Port, "port", "7171", "server listen port")
+	fs.StringVar(&a.HostIP, "hostIP", "", "Current node Intranet IP")
+	fs.StringVar(&a.HostName, "hostName", "", "Current node host name")
+	fs.IntVar(&a.Port, "port", 7171, "server listen port")
 	fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")
 }
 
