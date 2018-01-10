@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -21,14 +20,15 @@ package web
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"net/http"
+	"time"
+
 	"github.com/goodrain/rainbond/pkg/eventlog/cluster"
 	"github.com/goodrain/rainbond/pkg/eventlog/cluster/discover"
 	"github.com/goodrain/rainbond/pkg/eventlog/conf"
 	"github.com/goodrain/rainbond/pkg/eventlog/exit/monitor"
 	"github.com/goodrain/rainbond/pkg/eventlog/store"
-	"io/ioutil"
-	"net/http"
-	"time"
 
 	"golang.org/x/net/context"
 
@@ -324,6 +324,88 @@ func (s *SocketServer) pushMonitorMessage(w http.ResponseWriter, r *http.Request
 	}
 
 }
+func (s *SocketServer) pushNewMonitorMessage(w http.ResponseWriter, r *http.Request) {
+	// if r.FormValue("host") == "" || r.FormValue("host") != s.cluster.GetInstanceID() {
+	// 	w.WriteHeader(404)
+	// 	return
+	// }
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:    s.conf.ReadBufferSize,
+		WriteBufferSize:   s.conf.WriteBufferSize,
+		EnableCompression: s.conf.EnableCompression,
+		Error: func(w http.ResponseWriter, r *http.Request, status int, reason error) {
+
+		},
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		s.log.Error("Create web socket conn error.", err.Error())
+		return
+	}
+	defer conn.Close()
+	_, me, err := conn.ReadMessage()
+	if err != nil {
+		s.log.Error("Read tag key from first message error.", err.Error())
+		return
+	}
+	info := strings.Split(string(me), "=")
+	if len(info) != 2 {
+		s.log.Error("Read tag key from first message error. The data format is not correct")
+		return
+	}
+	ServiceID := info[1]
+	if ServiceID == "" {
+		s.log.Error("tag key can not be empty when get socket message")
+		return
+	}
+	s.log.Infof("Begin push monitor message of service (%s)", ServiceID)
+	SubID := uuid.NewV4().String()
+	ch := s.storemanager.WebSocketMessageChan("newmonitor", ServiceID, SubID)
+	if ch == nil {
+		// w.Write([]byte("Real-time message does not exist."))
+		// w.Header().Set("Status Code", "200")
+		s.log.Error("get web socket message chan from storemanager error.")
+		return
+	}
+	defer func() {
+		s.log.Debug("Push new monitor message request closed")
+		s.storemanager.RealseWebSocketMessageChan("newmonitor", ServiceID, SubID)
+	}()
+	stop := make(chan struct{})
+	go s.reader(conn, stop)
+	pingTicker := time.NewTicker(s.timeout * 8 / 10)
+	defer pingTicker.Stop()
+	for {
+		select {
+		case message, ok := <-ch:
+			if !ok {
+				return
+			}
+			if message != nil {
+				s.log.Debugf("websocket push a new monitor message,%s", string(message.MonitorData))
+				conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				err = conn.WriteMessage(websocket.TextMessage, message.MonitorData)
+				if err != nil {
+					s.log.Warn("Push message to client error.", err.Error())
+					return
+				}
+			}
+		case <-stop:
+			return
+		case <-s.context.Done():
+			return
+		case <-pingTicker.C:
+			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+				return
+			}
+		}
+	}
+
+}
 func (s *SocketServer) reader(ws *websocket.Conn, ch chan struct{}) {
 	defer ws.Close()
 	ws.SetReadLimit(512)
@@ -350,6 +432,7 @@ func (s *SocketServer) listen() {
 	http.HandleFunc("/event_log", s.pushEventMessage)
 	http.HandleFunc("/docker_log", s.pushDockerLog)
 	http.HandleFunc("/monitor_message", s.pushMonitorMessage)
+	http.HandleFunc("/new_monitor_message", s.pushMonitorMessage)
 	http.HandleFunc("/monitor", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("ok"))

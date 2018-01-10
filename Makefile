@@ -112,6 +112,7 @@ run-node:build-node
 	 --run-mode=master --kube-conf=`pwd`/test/admin.kubeconfig \
 	 --nodeid-file=`pwd`/test/host_id.conf \
 	 --static-task-path=`pwd`/test/tasks \
+	 --statsd.mapping-config=`pwd`/test/mapper.yml \
 	 --log-level=debug
 
 doc: ## build the docs 
