@@ -831,6 +831,33 @@ type CheckCodeStruct struct {
 	}
 }
 
+//ServiceCheckStruct 应用检测，支持源码检测，镜像检测，dockerrun检测
+//swagger:parameters serviceCheck
+type ServiceCheckStruct struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
+	// in: body
+	Body struct {
+		//uuid
+		// in: body
+		CheckUUID string `json:"uuid"`
+		//检测来源类型
+		// in: body
+		// required: true
+		SourceType string `json:"source_type" validate:"source_type|required|in:docker-run,docker-compose,sourcecode"`
+
+		// 检测来源定义，
+		// 代码： https://github.com/shurcooL/githubql.git master
+		// docker-run: docker run --name xxx nginx:latest nginx
+		// docker-compose: compose全文
+		// in: body
+		// required: true
+		SourceBody string `json:"source_body" validate:"source_body|required"`
+		TenantID   string
+	}
+}
+
 //CloudShareStruct CloudShareStruct
 //swagger:parameters sharecloud
 type CloudShareStruct struct {

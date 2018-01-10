@@ -528,7 +528,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 				//共享文件存储
 				case dbmodel.ShareFileVolumeType.String():
 					volumn.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, sc.TenantID, volumn.ServiceID, volumn.VolumePath)
-				//本地文件存储
+				//本地文件存�����
 				case dbmodel.LocalVolumeType.String():
 					serviceType, err := db.GetManager().TenantServiceLabelDao().GetTenantServiceTypeLabel(volumn.ServiceID)
 					if err != nil {
@@ -1967,7 +1967,7 @@ func (s *ServiceAction) upComplexEnvs(uve *api_model.SetVersionEnv) *util.APIHan
 func TransStatus(eStatus string) string {
 	switch eStatus {
 	case "starting":
-		return "启动中"
+		return "���动中"
 	case "abnormal":
 		return "运行异常"
 	case "upgrade":

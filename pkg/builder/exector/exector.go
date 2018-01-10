@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -23,11 +22,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/pkg/db/config"
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/goodrain/rainbond/pkg/mq/api/grpc/pb"
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/client"
 	"github.com/tidwall/gjson"
 )
 
@@ -70,6 +69,8 @@ func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 		e.imageManual(task.TaskBody)
 	case "code_check":
 		e.codeCheck(task.TaskBody)
+	case "service_check":
+		e.serviceCheck(task.TaskBody)
 	case "app_build":
 		e.appBuild(task.TaskBody)
 	case "plugin_image_build":
@@ -146,8 +147,6 @@ func (e *exectorManager) appSlug(in []byte) {
 	//	}
 	//}()
 	//updateBuildResult(eventID,"failure",dest)
-
-
 
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
@@ -252,6 +251,7 @@ func (e *exectorManager) appBuild(in []byte) {
 	}()
 	//updateBuildResult(eventID,finalStatus,dest)
 }
+
 //func updateBuildResult(eventID,finalStatus,dest string)  {
 //	if dest == ""||!strings.Contains(dest,"y") {
 //		v,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
