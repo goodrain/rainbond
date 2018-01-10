@@ -194,7 +194,7 @@ services:
     restart: always
 EOF
 
-    dc-compose up -d
+    dc-compose up -d rbd-dns
 }
 
 function install_registry() {
@@ -234,7 +234,7 @@ services:
     restart: always
 EOF
 
-    dc-compose up -d
+    dc-compose up -d rbd-hub
 
 }
 
@@ -276,7 +276,7 @@ services:
     network_mode: host
     restart: always
 EOF
-    dc-compose up -d
+    dc-compose up -d rbd-repo
 }
 
 function run() {
