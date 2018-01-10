@@ -25,14 +25,17 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/pkg/discover"
+	"github.com/goodrain/rainbond/pkg/discover/config"
 
 	"github.com/prometheus/common/log"
 )
 
 //UDPServer udp server
 type UDPServer struct {
-	ListenerHost string
-	ListenerPort int
+	ListenerHost        string
+	ListenerPort        int
+	eventServerEndpoint []string
 }
 
 //CreateUDPServer create udpserver
@@ -45,10 +48,29 @@ func CreateUDPServer(lisHost string, lisPort int) *UDPServer {
 
 //Start start
 func (u *UDPServer) Start() error {
+	dis, err := discover.GetDiscover(config.DiscoverConfig{})
+	if err != nil {
+		return err
+	}
+	dis.AddProject("event_log_event_udp", u)
 	if err := u.server(); err != nil {
 		return err
 	}
 	return nil
+}
+
+//UpdateEndpoints update event server address
+func (u *UDPServer) UpdateEndpoints(endpoints ...*config.Endpoint) {
+	var eventServerEndpoint []string
+	for _, e := range endpoints {
+		strings.Split(e.URL, ":")
+		eventServerEndpoint = append(eventServerEndpoint, e.URL)
+	}
+}
+
+//Error
+func (u *UDPServer) Error(err error) {
+
 }
 
 //Server 服务
@@ -76,6 +98,7 @@ func (u *UDPServer) server() error {
 }
 
 func (u *UDPServer) handlePacket(packet []byte) {
+
 	lines := strings.Split(string(packet), "\n")
 	for _, line := range lines {
 		if line != "" {
