@@ -58,6 +58,7 @@ func Run(c *option.Conf) error {
 	})
 	if err != nil {
 		logrus.Errorf("error creating eventlog manager")
+		return nil
 	}
 	defer eventLog.CloseManager()
 
