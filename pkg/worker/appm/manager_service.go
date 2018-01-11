@@ -105,12 +105,12 @@ func (m *manager) updateService(serviceID, tenantID string, service *v1.Service,
 		ReplicationType: ReplicationType,
 		K8sServiceID:    service.Name,
 	}
-	if len(service.Spec.Ports) > 0 {
-		if len(service.Spec.Ports) == 1 {
-			k8sService.ContainerPort = int(service.Spec.Ports[0].Port)
-		} else { //有状态服务 用于服务发现的service，不存port
-
-		}
+	if len(service.Spec.Ports) == 1 {
+		k8sService.ContainerPort = int(service.Spec.Ports[0].Port)
+	}
+	//有状态service不存储port,避免存储失败
+	if service.Labels["service_type"] == "stateful" {
+		k8sService.ContainerPort = 0
 	}
 	if strings.HasSuffix(service.Name, "out") {
 		k8sService.IsOut = true
@@ -153,6 +153,10 @@ func (m *manager) createService(serviceID, tenantID string, service *v1.Service,
 	}
 	if len(service.Spec.Ports) > 0 {
 		k8sService.ContainerPort = int(service.Spec.Ports[0].TargetPort.IntVal)
+	}
+	//有状态service不存储port,避免存储失败
+	if service.Labels["service_type"] == "stateful" {
+		k8sService.ContainerPort = 0
 	}
 	err = m.dbmanager.K8sServiceDao().AddModel(k8sService)
 	if err != nil {
