@@ -393,6 +393,12 @@ root hard nofile 65535
 * soft nofile 65535
 * hard nofile 6553" >> /etc/security/limits.conf 
     fi
+
+    log.info "ip forward"
+    forward=$(sysctl net.ipv4.ip_forward | awk '{print $NF}')
+    if [ $forward == 0 ];then
+        sysctl -w net.ipv4.ip_forward=1
+    fi
 }
 
 function install_jq() {

@@ -715,7 +715,7 @@ EOF
 function lb_add_forward() {
 
 log.info "add lb_add_forward"
-
+mkdir -pv /etc/goodrain/openresty/servers/http
 cat <<EOF > /etc/goodrain/openresty/servers/http/forward.conf
 upstream goodrain {
    server 172.30.42.1:8688 max_fails=3 fail_timeout=1s;
