@@ -1,32 +1,32 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package status
 
 import (
-	"github.com/goodrain/rainbond/cmd/worker/option"
-	"github.com/goodrain/rainbond/pkg/db"
-	"github.com/goodrain/rainbond/pkg/db/model"
 	"context"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/goodrain/rainbond/cmd/worker/option"
+	"github.com/goodrain/rainbond/pkg/db"
+	"github.com/goodrain/rainbond/pkg/db/model"
 
 	"github.com/jinzhu/gorm"
 
@@ -196,7 +196,7 @@ func (s *statusManager) checkStatus() {
 							continue
 						}
 					} else {
-						if d.Status.ReadyReplicas >= d.Status.Replicas {
+						if d.Status.ReadyReplicas >= d.Status.Replicas && d.Status.Replicas != 0 {
 							s.SetStatus(serviceID, RUNNING)
 							break
 						} else {
@@ -219,7 +219,7 @@ func (s *statusManager) checkStatus() {
 							continue
 						}
 					} else {
-						if d.Status.ReadyReplicas >= d.Status.Replicas {
+						if d.Status.ReadyReplicas >= d.Status.Replicas && d.Status.Replicas != 0 {
 							s.SetStatus(serviceID, RUNNING)
 							break
 						} else {
@@ -243,7 +243,7 @@ func (s *statusManager) checkStatus() {
 					} else {
 						readycount := s.getReadyCount(d.Namespace,
 							d.Labels["name"], d.Labels["version"])
-						if readycount >= d.Status.Replicas {
+						if readycount >= d.Status.Replicas && d.Status.Replicas != 0 {
 							s.SetStatus(serviceID, RUNNING)
 							break
 						} else {
@@ -265,7 +265,7 @@ func (s *statusManager) checkStatus() {
 							continue
 						}
 					} else {
-						if d.Status.ReadyReplicas >= d.Status.Replicas {
+						if d.Status.ReadyReplicas >= d.Status.Replicas && d.Status.Replicas != 0 {
 							s.SetStatus(serviceID, RUNNING)
 							break
 						}
