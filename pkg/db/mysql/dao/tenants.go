@@ -174,7 +174,7 @@ func (t *TenantServicesDaoImpl) GetCPUAndMEM(tenantName []string) ([]map[string]
 			res["tenant_id"] = id
 			dirPath := fmt.Sprintf("/grdata/tenant/%s", id)
 			cmd := []string{"-sh", dirPath}
-			f, err := exec.Command("tail", cmd...).Output()
+			f, err := exec.Command("du", cmd...).Output()
 			if err != nil {
 				f = []byte("0 xxx")
 			}
