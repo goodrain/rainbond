@@ -278,6 +278,7 @@ func (c *CacheMonitorMessageList) addSubChan(subID string) chan *db.EventLogMess
 		return sub
 	}
 	ch := make(chan *db.EventLogMessage, 10)
+	c.subSocketChan[subID] = ch
 	c.pushMessage()
 	return ch
 }
