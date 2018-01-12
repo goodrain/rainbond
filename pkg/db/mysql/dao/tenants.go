@@ -178,7 +178,7 @@ func (t *TenantServicesDaoImpl) GetCPUAndMEM(tenantName []string) ([]map[string]
 			if err != nil {
 				f = []byte("0 xxx")
 			}
-			st := strings.Split(string(f), " ")[0]
+			st := strings.Split(string(f), "\t")[0]
 			res["disk"] = st
 			rc = append(rc, res)
 		}
