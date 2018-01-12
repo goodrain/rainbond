@@ -121,7 +121,8 @@ func (n *nginxAPI) AddNode(nodes ...*object.NodeObject) error {
 		var nodeList []string
 		nodeList = append(nodeList, fmt.Sprintf("%s:%d", node.Host, node.Port))
 		sns.NodeList = nodeList
-		if node.Protocol == "stream" {
+		//TODO: "stream" to !http
+		if node.Protocol != "http" {
 			logrus.Debugf("node protocol --stream  %s", node.PoolName)
 			if !n.addStreamNode(&sns) {
 				errs = append(errs, errors.New("addPoolNode strem error"))
@@ -162,7 +163,8 @@ func (n *nginxAPI) DeleteNode(nodes ...*object.NodeObject) error {
 		nodeList = append(nodeList, fmt.Sprintf("%s:%d", node.Host, node.Port))
 		logrus.Debugf("in DeleteNode nodelist is %v", nodeList)
 		sns.NodeList = nodeList
-		if node.Protocol == "stream" {
+		//TODO: "stream" to !http
+		if node.Protocol != "http" {
 			if !n.deleteStreamNode(&sns) {
 				errs = append(errs, errors.New("addPoolNode error"))
 			}

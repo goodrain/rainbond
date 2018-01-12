@@ -1098,12 +1098,17 @@ func (s *ServiceAction) createOuterK8sService(tenantName string, mapPort *dbmode
 		"key":              "",
 		"event_id":         tenantservice.EventID,
 	}
-	if port.Protocol == "stream" && mapPort != nil { //stream 协议获取映射端口
+	//TODO: "stream" to ! http
+	if port.Protocol != "http" && mapPort != nil { //stream 协议获取映射端口
 		service.Labels["lbmap_port"] = fmt.Sprintf("%d", mapPort.Port)
 	}
 	var servicePort v1.ServicePort
 	if port.Protocol == "udp" {
 		servicePort.Protocol = "UDP"
+	}else if port.Protocol == "mysql" {
+		servicePort.Protocol = "MYSQL"
+	}else if port.Protocol == "tcp" {
+		servicePort.Protocol = "TCP"
 	} else {
 		servicePort.Protocol = "TCP"
 	}
