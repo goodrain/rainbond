@@ -64,7 +64,7 @@ type TenantServiceDao interface {
 	GetServicesByTenantID(tenantID string) ([]*model.TenantServices, error)
 	GetServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error)
 	DeleteServiceByServiceID(serviceID string) error
-	GetCPUAndMEM(tenantName []string) ([]*map[string]interface{}, error)
+	GetCPUAndMEM(tenantName []string) ([]map[string]interface{}, error)
 	GetPagedTenantService(offset, len int) ([]map[string]interface{}, error)
 	GetTenantServiceRes(uuid string) (map[string]interface{}, error)
 }

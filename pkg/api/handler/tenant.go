@@ -224,9 +224,24 @@ func (t *TenantAction) HTTPTsdb(md *api_model.MontiorData) ([]byte, error) {
 }
 
 //GetTenantsResources GetTenantsResources
-func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) ([]*map[string]interface{}, error) {
+func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) ([]map[string]interface{}, error) {
 	//返回全部资源
-	return db.GetManager().TenantServiceDao().GetCPUAndMEM(tr.Body.TenantName)
+	res, err :=  db.GetManager().TenantServiceDao().GetCPUAndMEM(tr.Body.TenantName)
+	if err != nil {
+		return nil, err
+	}
+	if len(tr.Body.TenantName) == 0 {
+		return res, nil
+	}
+	//TODO: 应用关闭，硬盘存储资源仍会占用
+
+	logrus.Infof("res is %v", res)
+	for key, per := range res {
+		id, ok := per["tenant_id"].(string)
+		if !ok {
+			return res, nil
+		}
+	}
 }
 
 //TenantsSum TenantsSum

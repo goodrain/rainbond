@@ -36,7 +36,7 @@ type TenantHandler interface {
 	TotalMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error)
 	//QueryTsdb(md *api_model.MontiorData) (*tsdbClient.QueryResponse, error)
 	HTTPTsdb(md *api_model.MontiorData) ([]byte, error)
-	GetTenantsResources(tr *api_model.TenantResources) ([]*map[string]interface{}, error)
+	GetTenantsResources(tr *api_model.TenantResources) ([]map[string]interface{}, error)
 	TenantsSum() (int, error)
 	GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHandleError)
 }
