@@ -66,10 +66,10 @@ func (h *newMonitorMessageStore) insertMessage(message *db.EventLogMessage) ([]M
 	if len(mm) < 1 {
 		return mm, true
 	}
-	if mm[0].ServiceID == "" && mm[0].Port == "" {
+	if mm[0].ServiceID == "" {
 		return mm, true
 	}
-	if ba, ok := h.barrels[mm[0].ServiceID+mm[0].Port]; ok {
+	if ba, ok := h.barrels[mm[0].ServiceID]; ok {
 		ba.Insert(mm...)
 		return mm, true
 	}
@@ -89,9 +89,9 @@ func (h *newMonitorMessageStore) InsertMessage(message *db.EventLogMessage) {
 	}
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	ba := CreateCacheMonitorMessageList(mm[0].ServiceID + mm[0].Port)
+	ba := CreateCacheMonitorMessageList(mm[0].ServiceID)
 	ba.Insert(mm...)
-	h.barrels[mm[0].ServiceID+mm[0].Port] = ba
+	h.barrels[mm[0].ServiceID] = ba
 }
 func (h *newMonitorMessageStore) GetMonitorData() *db.MonitorData {
 	data := &db.MonitorData{
@@ -318,7 +318,7 @@ func merge(source, addsource []MonitorMessage) (result []MonitorMessage) {
 			oldmm.AbnormalCount += mm.AbnormalCount
 			//平均时间
 			oldmm.AverageTime = (oldmm.AverageTime + mm.AverageTime) / 2
-			//���积时间
+			//���积���间
 			oldmm.CumulativeTime = oldmm.CumulativeTime + mm.CumulativeTime
 			//最大时间
 			if mm.MaxTime > oldmm.MaxTime {

@@ -432,7 +432,7 @@ func (s *SocketServer) listen() {
 	http.HandleFunc("/event_log", s.pushEventMessage)
 	http.HandleFunc("/docker_log", s.pushDockerLog)
 	http.HandleFunc("/monitor_message", s.pushMonitorMessage)
-	http.HandleFunc("/new_monitor_message", s.pushMonitorMessage)
+	http.HandleFunc("/new_monitor_message", s.pushNewMonitorMessage)
 	http.HandleFunc("/monitor", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("ok"))
