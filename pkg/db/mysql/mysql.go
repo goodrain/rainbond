@@ -176,6 +176,7 @@ func (m *Manager) patchTable() {
 			m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/taskgroups','','','')")
 			m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/tasktemps','','','')")
 			m.db.Exec("insert into region_api_class VALUES ('','','node_manager','/v2/configs','','','')")
+			m.db.Exec("insert into region_api_class VALUES ('','','server_source','/v2/builder','','','')")
 		}
 	}
 
