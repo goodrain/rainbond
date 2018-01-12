@@ -385,7 +385,7 @@ func (s *SocketServer) pushNewMonitorMessage(w http.ResponseWriter, r *http.Requ
 				return
 			}
 			if message != nil {
-				s.log.Debugf("websocket push a new monitor message,%s", string(message.MonitorData))
+				s.log.Debugf("websocket push a new monitor message")
 				conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 				err = conn.WriteMessage(websocket.TextMessage, message.MonitorData)
 				if err != nil {

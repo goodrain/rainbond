@@ -126,7 +126,6 @@ func (u *UDPServer) handlePacket(packet []byte) {
 	lines := strings.Split(string(packet), "\n")
 	for _, line := range lines {
 		if line != "" && u.client != nil {
-			fmt.Println(line)
 			u.client.Write([]byte(line))
 		}
 	}

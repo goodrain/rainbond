@@ -20,7 +20,6 @@ package store
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -260,7 +259,6 @@ func (c *CacheMonitorMessageList) pushMessage() {
 		source = merge(source, addSource)
 	}
 	mdata = getByte(source)
-	fmt.Println(string(mdata))
 	c.message.MonitorData = mdata
 	for _, ch := range c.subSocketChan {
 		select {
