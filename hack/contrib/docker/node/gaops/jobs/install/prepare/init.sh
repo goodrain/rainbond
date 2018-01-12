@@ -397,7 +397,11 @@ root hard nofile 65535
     log.info "ip forward"
     forward=$(sysctl net.ipv4.ip_forward | awk '{print $NF}')
     if [ $forward == 0 ];then
-        sysctl -w net.ipv4.ip_forward=1
+        #sysctl -w net.ipv4.ip_forward=1
+        grep "net.ipv4.ip_forward=1" /etc/sysctl.conf >/dev/null
+        if [ $? -ne 0 ];then
+            echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+        fi
     fi
 }
 

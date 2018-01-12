@@ -111,6 +111,11 @@ function make_domain() {
         #docker run -it --rm hub.goodrain.com/dc-deploy/archiver:domain init --ip $IP > /tmp/domain.log
         [ -f "/data/.domain.log" ] && echo "" > /data/.domain.log || touch /data/.domain.log
         
+        log.info "check ip_forward for domain"
+        forward=$(sysctl net.ipv4.ip_forward | awk '{print $NF}')
+        if [ $forward == 0 ];then
+            sysctl -w net.ipv4.ip_forward=1
+        fi
         docker run  --rm -v /data/.domain.log:/tmp/domain.log hub.goodrain.com/dc-deploy/archiver:domain init --ip $EXIP > /tmp/do.log
         if [ $? -eq 0 ];then
             EX_DOMAIN=$(cat /data/.domain.log)
