@@ -585,7 +585,7 @@ EOF
         log.info "exec done"
     else
         log.info "not exec"
-        log.info docker exec rbd-app-ui python /app/ui/manage.py migrate
+        docker exec rbd-app-ui python /app/ui/manage.py migrate
     fi
     log.info "migrate database end"
 }
