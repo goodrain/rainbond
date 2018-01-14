@@ -137,7 +137,7 @@ function prepare() {
         log.info "$MYSQL_USER $MYSQL_PASSWD $MYSQL_HOST $MYSQL_PORT"
     else
         log.error "mysql configure parameter error, VERSION MYSQL_USER MYSQL_PASSWD MYSQL_HOST MYSQL_PORT"
-        log.status '{
+        log.stdout '{
             "status":[ 
                 { 
                     "name":"db_configure_parameter_error", 

@@ -166,13 +166,12 @@ function prepare() {
         chown rain.rain /etc/goodrain/openresty
     )
 
-
-
 }
 
 function image::done() {
     #image::exist $1 || (
-    #    log.info "pull image: $1"
+        log.info "start pull image: $1"
+
         image::pull $1 || (
             log.stdout '{
             "status":[ 
@@ -187,6 +186,8 @@ function image::done() {
             }'
             exit 1
         )
+
+        log.info "end pull image: $1"
     #)
 }
 
@@ -339,6 +340,9 @@ EOF
 
 function install_api(){
     #write_region_api_cfg
+
+    image::done $RBD_API
+
     sync_certificates
 
     compose::config_update << EOF
@@ -547,7 +551,11 @@ EOF
 function install_app_ui() {
     log.info "setup app_ui"
 
+    image::done $RBD_WEB
+
     web_write_cfg
+
+    mkdir -pv /grdata/services/console && chown rain.rain /grdata/services/console
 
         compose::config_update << EOF
 services:
@@ -568,10 +576,17 @@ services:
       - /grdata/services/console:/data
 EOF
 
-    mkdir -pv /grdata/services/console && chown rain.rain /grdata/services/console
     dc-compose up -d rbd-app-ui
+    sleep 3
     log.info "migrate database start"
     docker exec rbd-app-ui python /app/ui/manage.py migrate
+    curl -s localhost:7070/wizard/prefix/ | grep "安装成功" > /dev/null
+    if [ $? -eq 0 ];then
+        log.info "exec done"
+    else
+        log.info "not exec"
+        log.info docker exec rbd-app-ui python /app/ui/manage.py migrate
+    fi
     log.info "migrate database end"
 }
 
@@ -684,6 +699,8 @@ EOF
 function install_chaos(){
     log.info "setup chaos"
 
+    image::done $RBD_CHAOS
+
     chaos_write_cfg
 
     compose::config_update << EOF
@@ -748,6 +765,8 @@ EOF
 function install_lb() {
     log.info "setup lb"
 
+    image::done $RBD_LB
+
     compose::config_update << EOF
 services:
   rbd-lb:
@@ -782,6 +801,8 @@ EOF
 function install_eventlog() {
     log.info "setup eventlog"
 
+    image::done $RBD_EVENTLOG
+
     compose::config_update << EOF
 services:
   rbd-eventlog:
@@ -815,6 +836,8 @@ EOF
 function install_mq() {
     log.info "setup mq"
 
+    image::done $RBD_MQ
+
     compose::config_update << EOF
 services:
   rbd-mq:
@@ -837,6 +860,8 @@ EOF
 function write_slogger_config() {
 
     log.info "write_slogger_config"
+
+    image::done $RBD_SLOGGER
 
     cat <<EOF > /etc/goodrain/labor.py
 # -*- coding: utf8 -*-
@@ -1026,24 +1051,9 @@ EOF
 
 function install_dalaran() {
     log.info "setup dalaran_service"
-    
-    image::exist $RBD_DALARAN || (
-        log.info "pull image: $RBD_DALARAN"
-        image::pull $RBD_DALARAN || (
-            log.stdout '{ 
-                "status":[ 
-                { 
-                    "name":"docker_pull_dalaran", 
-                    "condition_type":"DOCKER_PULL_DALARAN_ERROR", 
-                    "condition_status":"False"
-                } 
-                ], 
-                "type":"install"
-                }'
-            exit 1
-        )
-    )
 
+    image::done $RBD_DALARAN
+    
     compose::config_update << EOF
 services:
   rbd-dalaran:
@@ -1067,23 +1077,7 @@ EOF
 function install_entrance() {
     log.info "setup entrance"
     
-
-    image::exist $RBD_ENTRANCE || (
-        log.info "pull image: $RBD_ENTRANCE"
-        image::pull $RBD_ENTRANCE || (
-            log.stdout '{ 
-                "status":[ 
-                { 
-                    "name":"docker_pull_entrance", 
-                    "condition_type":"DOCKER_PULL_ENTRANCE_ERROR", 
-                    "condition_status":"False"
-                } 
-                ], 
-                "type":"install"
-                }'
-            exit 1
-        )
-    )
+    image::done $RBD_ENTRANCE
 
     [ -f "/etc/goodrain/kubernetes/admin.kubeconfig" ] || (
         [ -f "/etc/goodrain/kubernetes/kubeconfig" ] && cp /etc/goodrain/kubernetes/kubeconfig /etc/goodrain/kubernetes/admin.kubeconfig
@@ -1119,24 +1113,13 @@ function run() {
     
     log.info "setup plugins"
 
-    image::done $RBD_API
+    
     if [  -z $WORKER_EXPAND ];then
         image::done $RBD_WORKER
         install_worker
         WORKER_EXPAND=1
     fi
-    image::done $RBD_CHAOS
-    
-    image::done $RBD_LB
-    image::done $RBD_EVENTLOG
-    image::done $RBD_MQ
-    image::done $RBD_WEB
-
-    image::done $RBD_SLOGGER
-
-    image::done $RBD_DALARAN
-    image::done $RBD_ENTRANCE
-    
+   
     install_eventlog
     install_dalaran
     install_entrance

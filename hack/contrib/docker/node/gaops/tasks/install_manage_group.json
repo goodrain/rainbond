@@ -178,6 +178,10 @@
                         "strategy": "SameNode"
                     },
                     {
+                        "depend_task_id": "update_dns",
+                        "strategy": "SameNode"
+                    },
+                    {
                         "depend_task_id": "create_host_id_list",
                         "strategy": "SameNode"
                     },
