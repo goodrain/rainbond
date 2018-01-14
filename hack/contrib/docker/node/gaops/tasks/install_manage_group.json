@@ -44,6 +44,10 @@
                     {
                         "depend_task_id": "install_docker",
                         "strategy": "SameNode"
+                    },
+                    {
+                        "depend_task_id": "install_base_plugins",
+                        "strategy": "SameNode"
                     }
                 ]
             },

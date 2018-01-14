@@ -576,7 +576,7 @@ services:
       - /grdata/services/console:/data
 EOF
 
-    dc-compose up -d rbd-app-ui
+    dc-compose up -d
     sleep 3
     log.info "migrate database start"
     docker exec rbd-app-ui python /app/ui/manage.py migrate
