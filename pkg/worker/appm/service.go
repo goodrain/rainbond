@@ -229,13 +229,9 @@ func (k *K8sServiceBuild) createOuterService(port *model.TenantServicesPort) *v1
 		}
 	}
 	var servicePort v1.ServicePort
-	//TODO: mysql, udp, tcp
+	//TODO: udp, tcp
 	if port.Protocol == "udp" {
 		servicePort.Protocol = "UDP"
-	}else if port.Protocol == "mysql" {
-		servicePort.Protocol = "MYSQL"
-	}else if port.Protocol == "tcp" {
-		servicePort.Protocol = "TCP"
 	} else {
 		servicePort.Protocol = "TCP"
 	}
