@@ -109,6 +109,7 @@ function run() {
     install_webcli
     dc-compose ps  | grep webcli | grep Up
     if [ $? -eq 0 ];then
+        log.info "Install webcli Successful."
         log.stdout '{ 
                 "status":[ 
                 { 

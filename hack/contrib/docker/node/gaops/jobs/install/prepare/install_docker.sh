@@ -23,9 +23,6 @@ OS_VERSION=$1
 INSTALL_SERVICE=$2
 NODE_TYPE=$3
 HOST_IP=${4:-127.0.0.1}
-
-
-[ -z $TERM ] && TERM=xterm-256color
 #ETCD_NODE=$5
 
 # define log func 
@@ -230,6 +227,10 @@ EOF
     fi
 }
 
+function centos74_patch() {
+    echo 'DOCKER_OPTS=" -H 0.0.0.0:2376 -H unix:///var/run/docker.sock --bip=172.30.42.1/16 --insecure-registry goodrain.me --userland-proxy=false --dns-opt=use-vc"' > /etc/goodrain/envs/docker.sh
+}
+
 function install_docker() {
     log.info "Install docker"
     package::is_installed gr-docker-engine  || (
@@ -250,12 +251,18 @@ function install_docker() {
         )
     )
     write_docker_config && docker_mirrors
+    cat /etc/redhat-release | grep "7.4" > /dev/null 2>&1
+    if [ $? -eq 0 ];then
+        log.info "patch for centos 7.4: add dns-opt args"
+        centos74_patch
+    fi
     package::enable docker.service
 
     which dps > /dev/null 2>&1 || (
     docker run --rm -v /var/run/docker.sock:/var/run/docker.sock hub.goodrain.com/dc-deploy/archiver gr-docker-utils
     docker run --rm -v /var/run/docker.sock:/var/run/docker.sock hub.goodrain.com/dc-deploy/archiver gr-docker-compose
     ) 
+
     log.info "Install docker Successful."
 }
 

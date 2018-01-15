@@ -328,6 +328,7 @@ function run() {
     done
     
     if [ $_EXIT -eq 0 ];then
+        log.info "Install proxy plugins Successful."
         log.stdout '{
                 "status":[ 
                 { 

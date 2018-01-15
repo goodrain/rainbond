@@ -238,7 +238,7 @@ function run_calico_node() {
     check_env_config_calico || write_env_config_calico
     check_calico_pool || reconfig_calico_pool
     package::enable calico-node.service $OS_VERSION
-
+    log.info "Install network (calico) Successful."
     log.stdout '{
             "global":{
               "CALICO_NET":"'$CALICO_NET'"

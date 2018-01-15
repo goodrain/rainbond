@@ -222,6 +222,8 @@ EOF
     log.info "create database region, console success!"
     #log.stdout "{'db_type':'mysql','info':['MYSQL_USER':'"$MYSQL_USER"','MYSQL_PASSWD':'"$MYSQL_PASSWD"','MYSQL_HOST':'"$MYSQL_HOST"','MYSQL_PORT':'"$MYSQL_PORT"']}"
     MYSQL_EXPAND=1
+    log.info "Install db Successful."
+
     log.stdout '{ 
             "global":{
               "DB_MODE":"'mysql'",

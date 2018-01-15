@@ -384,6 +384,8 @@ function run() {
     #rm /etc/goodrain/kubernetes/kubeconfig
     #cp /grdata/kubernetes/admin.kubeconfig /etc/goodrain/kubernetes/kubeconfig
     
+    log.info "Install k8s master Successful."
+
     KUBE_API=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
 
     log.stdout '{

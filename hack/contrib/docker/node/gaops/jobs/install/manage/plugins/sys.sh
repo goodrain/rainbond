@@ -1135,6 +1135,7 @@ function run() {
     ENTRANCE_IP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
     REGION_API_IP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
 
+    log.info "Install acp plugins Successful."
 
     log.stdout '{
             "global":{
