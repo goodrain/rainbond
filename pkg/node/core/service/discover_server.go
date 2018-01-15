@@ -279,12 +279,19 @@ func (d *DiscoverAction) DiscoverListeners(
 								}
 							}
 						}
+						headers := d.ToolsGetRouterItem(
+							destServiceAlias,
+							node_model.HEADERS, options)
+						if headers == nil {
+							mm := make(map[string]string)
+							mm["name"] = "with_empty_header"
+							headers = []map[string]string{mm}
+						}
 						prs := &node_model.PieceHTTPRoutes{
 							TimeoutMS: 0,
 							Prefix:    d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, options).(string),
 							Cluster:   fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
-							//Headers: d.ToolsGetRouterItem(destServiceAlias,
-							//	node_model.HEADERS, &sr).([]*node_model.PieceHeader),
+							Headers:   headers,
 						}
 						pvh := &node_model.PieceHTTPVirtualHost{
 							Name:    fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
@@ -558,7 +565,22 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 		}
 		return 3
 	case node_model.HEADERS:
-		return ""
+		if headers, ok := sr[node_model.HEADERS]; ok {
+			var np []node_model.PieceHeader 
+			parents := strings.Split(headers.(string), ";")
+			for _, h := range parents {
+				headers := strings.Split(h, ":")
+				if len(headers) == 2 {
+					ph := node_model.PieceHeader{
+						Name: headers[0],
+						Value: headers[1],
+					}
+					np = append(np, ph)
+				}
+			}
+			return np
+		}
+		return nil
 	case node_model.DOMAINS:
 		if domain, ok := sr[node_model.DOMAINS]; ok {
 			if destAlias != "" {

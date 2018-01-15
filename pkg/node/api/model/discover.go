@@ -135,7 +135,8 @@ type PieceHTTPRoutes struct {
 	TimeoutMS int    `json:"timeout_ms"`
 	Prefix    string `json:"prefix"`
 	Cluster   string `json:"cluster"`
-	//Headers   []*PieceHeader `json:"headers"`
+	//Headers   []PieceHeader `json:"headers"`
+	Headers   interface{} `json:"headers"`
 }
 
 //PieceHeader PieceHeader
