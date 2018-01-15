@@ -172,13 +172,15 @@ func (t *TenantServicesDaoImpl) GetCPUAndMEM(tenantName []string) ([]map[string]
 			res["cpu"] = cpu
 			res["memory"] = mem
 			res["tenant_id"] = id
+			res["tenant_name"] = tenantName
 			dirPath := fmt.Sprintf("/grdata/tenant/%s", id)
-			cmd := []string{"-sh", dirPath}
+			cmd := []string{"-sh", "-m", dirPath}
 			f, err := exec.Command("du", cmd...).Output()
 			if err != nil {
-				f = []byte("0 xxx")
+				f = []byte("1 xxx")
 			}
 			st := strings.Split(string(f), "\t")[0]
+			//TODO: disk默认单位为MB
 			res["disk"] = st
 			rc = append(rc, res)
 		}
