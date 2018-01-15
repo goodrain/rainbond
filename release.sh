@@ -25,7 +25,7 @@ else
     buildRelease=0.$git_commit
 fi
 if [ -z "$VERSION" ];then
-    VERSION=3.4.1
+    VERSION=cloud
 fi
 
 release_desc=${branch_info}-${VERSION}-${buildRelease}
