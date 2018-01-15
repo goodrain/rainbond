@@ -181,7 +181,11 @@ func (t *TenantServicesDaoImpl) GetCPUAndMEM(tenantName []string) ([]map[string]
 			}
 			st := strings.Split(string(f), "\t")[0]
 			//TODO: disk默认单位为MB
-			res["disk"] = st
+			intSt, err := strconv.Atoi(st)
+			if err != nil {
+				return nil, err
+			}
+			res["disk"] = intSt
 			rc = append(rc, res)
 		}
 	}
