@@ -101,7 +101,9 @@ func GetManager() Manager {
 
 //CloseManager 关闭日志服务
 func CloseManager() {
-	defaultManager.Close()
+	if defaultManager != nil {
+		defaultManager.Close()
+	}
 }
 
 func (m *manager) Start() error {

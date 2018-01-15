@@ -26,6 +26,7 @@ import (
 
 	"github.com/goodrain/rainbond/cmd/api/option"
 	api_db "github.com/goodrain/rainbond/pkg/api/db"
+	"github.com/goodrain/rainbond/pkg/api/util"
 	"github.com/goodrain/rainbond/pkg/mq/api/grpc/pb"
 
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
@@ -107,7 +108,6 @@ func (t *TenantAction) TotalMemCPU(services []*dbmodel.TenantServices) (*api_mod
 	cpus := 0
 	mem := 0
 	for _, service := range services {
-
 		logrus.Debugf("service is %s, cpus is %v, mem is %v", service.ID, service.ContainerCPU, service.ContainerMemory)
 		cpus += service.ContainerCPU
 		mem += service.ContainerMemory
@@ -224,8 +224,9 @@ func (t *TenantAction) HTTPTsdb(md *api_model.MontiorData) ([]byte, error) {
 }
 
 //GetTenantsResources GetTenantsResources
-func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) ([]*map[string]interface{}, error) {
+func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) ([]map[string]interface{}, error) {
 	//返回全部资源
+	//TODO: 应用关闭，硬盘存储资源仍会占用
 	return db.GetManager().TenantServiceDao().GetCPUAndMEM(tr.Body.TenantName)
 }
 
@@ -236,4 +237,13 @@ func (t *TenantAction) TenantsSum() (int, error) {
 		return 0, err
 	}
 	return len(s), nil
+}
+
+//GetProtocols GetProtocols
+func (t *TenantAction) GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHandleError) {
+	rps, err := db.GetManager().RegionProcotolsDao().GetAllSupportProtocol("v2")
+	if err != nil {
+		return nil, util.CreateAPIHandleErrorFromDBError("get all support protocols", err)
+	}
+	return rps, nil
 }

@@ -2086,6 +2086,38 @@
         }
       }
     },
+    "/v2/tenants/{tenant_name}/protocols": {
+      "get": {
+        "description": "get region protocols",
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取当前数据中心支持的protocols",
+        "operationId": "getSupportProtocols",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "description": "tenant name",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
     "/v2/tenants/{tenant_name}/res": {
       "get": {
         "description": "get tenant resources",

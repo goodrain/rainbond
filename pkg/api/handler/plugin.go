@@ -19,6 +19,7 @@
 package handler
 
 import (
+	"github.com/jinzhu/gorm"
 	"context"
 	"crypto/md5"
 	"encoding/hex"
@@ -255,31 +256,63 @@ func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *
 	//TODO: build_version create in console
 	//diffStr := fmt.Sprintf("%s%s%s%s", b.TenantName, plugin.ImageURL, b.PluginID, time.Now().Format(time.RFC3339))
 	//buildVersion := createVersionID([]byte(diffStr))
-	pbv := &dbmodel.TenantPluginBuildVersion{
-		VersionID:       b.Body.BuildVersion,
-		PluginID:        b.PluginID,
-		Kind:            plugin.BuildModel,
-		BaseImage:       plugin.ImageURL,
-		ContainerCPU:    b.Body.PluginCPU,
-		ContainerMemory: b.Body.PluginMemory,
-		ContainerCMD:    b.Body.PluginCMD,
-		BuildTime:       time.Now().Format(time.RFC3339),
-		Info:            b.Body.Info,
-		Status:          "building",
-	}
-	if b.Body.PluginCPU == 0 {
-		pbv.ContainerCPU = 125
-	}
-	if b.Body.PluginMemory == 0 {
-		pbv.ContainerMemory = 50
-	}
-	tx := db.GetManager().Begin()
-	if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).AddModel(pbv); err != nil {
-		if !strings.Contains(err.Error(), "exist") {
-			tx.Rollback()
-			logrus.Errorf("build plugin error: %s", err.Error())
+	rebuild := false
+	tpbv, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(
+		b.PluginID, b.Body.BuildVersion)
+	if err != nil {
+		if err.Error() == gorm.ErrRecordNotFound.Error(){
+			rebuild = false
+		}else{
 			return nil, err
 		}
+	}else{
+		rebuild = true
+	}
+	tx := db.GetManager().Begin()
+	if rebuild {
+		tpbv.Info = b.Body.Info
+		tpbv.Status = "building"
+		tpbv.BuildTime = time.Now().Format(time.RFC3339)
+		if b.Body.PluginCPU == 0 {
+			tpbv.ContainerCPU = 125
+		}
+		if b.Body.PluginMemory == 0 {
+			tpbv.ContainerMemory = 50
+		}	
+		if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).UpdateModel(tpbv); err != nil {
+			if err != nil {
+				tx.Rollback()
+				logrus.Errorf("build plugin error: %s", err.Error())
+				return nil, err
+			}
+		}		
+	}else {
+		pbv := &dbmodel.TenantPluginBuildVersion{
+			VersionID:       b.Body.BuildVersion,
+			PluginID:        b.PluginID,
+			Kind:            plugin.BuildModel,
+			BaseImage:       plugin.ImageURL,
+			ContainerCPU:    b.Body.PluginCPU,
+			ContainerMemory: b.Body.PluginMemory,
+			ContainerCMD:    b.Body.PluginCMD,
+			BuildTime:       time.Now().Format(time.RFC3339),
+			Info:            b.Body.Info,
+			Status:          "building",
+		}
+		if b.Body.PluginCPU == 0 {
+			pbv.ContainerCPU = 125
+		}
+		if b.Body.PluginMemory == 0 {
+			pbv.ContainerMemory = 50
+		}
+		if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).AddModel(pbv); err != nil {
+			if !strings.Contains(err.Error(), "exist") {
+				tx.Rollback()
+				logrus.Errorf("build plugin error: %s", err.Error())
+				return nil, err
+			}
+		}
+		tpbv = pbv
 	}
 	taskBody := &builder_model.BuildPluginTaskBody{
 		TenantID:     b.Body.TenantID,
@@ -321,7 +354,7 @@ func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *
 		return nil, nil
 	}
 	logrus.Debugf("equeue mq build plugin from image success")
-	return pbv, nil
+	return tpbv, nil
 }
 
 //DockerfileBuildPlugin DockerfileBuildPlugin
@@ -339,32 +372,64 @@ func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plu
 	// TODO: build_version create in console
 	// diffStr := fmt.Sprintf("%s%s%s%s", b.TenantName, b.Body.RepoURL, b.PluginID, time.Now().Format(time.RFC3339))
 	// buildVersion := createVersionID([]byte(diffStr))
-	pbv := &dbmodel.TenantPluginBuildVersion{
-		VersionID:       b.Body.BuildVersion,
-		PluginID:        b.PluginID,
-		Kind:            plugin.BuildModel,
-		Repo:            b.Body.RepoURL,
-		GitURL:          plugin.GitURL,
-		Info:            b.Body.Info,
-		ContainerCPU:    b.Body.PluginCPU,
-		ContainerMemory: b.Body.PluginMemory,
-		ContainerCMD:    b.Body.PluginCMD,
-		BuildTime:       time.Now().Format(time.RFC3339),
-		Status:          "building",
-	}
-	if b.Body.PluginCPU == 0 {
-		pbv.ContainerCPU = 125
-	}
-	if b.Body.PluginMemory == 0 {
-		pbv.ContainerMemory = 50
-	}
-	tx := db.GetManager().Begin()
-	if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).AddModel(pbv); err != nil {
-		if !strings.Contains(err.Error(), "exist") {
-			tx.Rollback()
-			logrus.Errorf("build plugin error: %s", err.Error())
+	rebuild := false
+	tpbv, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(
+		b.PluginID, b.Body.BuildVersion)
+	if err != nil {
+		if err.Error() == gorm.ErrRecordNotFound.Error(){
+			rebuild = false
+		}else{
 			return nil, err
 		}
+	}else{
+		rebuild = true
+	}
+	tx := db.GetManager().Begin()
+	if rebuild {
+		tpbv.Info = b.Body.Info
+		tpbv.Status = "building"
+		tpbv.BuildTime = time.Now().Format(time.RFC3339)
+		if b.Body.PluginCPU == 0 {
+			tpbv.ContainerCPU = 125
+		}
+		if b.Body.PluginMemory == 0 {
+			tpbv.ContainerMemory = 50
+		}	
+		if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).UpdateModel(tpbv); err != nil {
+			if err != nil {
+				tx.Rollback()
+				logrus.Errorf("build plugin error: %s", err.Error())
+				return nil, err
+			}
+		}	
+	}else{
+		pbv := &dbmodel.TenantPluginBuildVersion{
+			VersionID:       b.Body.BuildVersion,
+			PluginID:        b.PluginID,
+			Kind:            plugin.BuildModel,
+			Repo:            b.Body.RepoURL,
+			GitURL:          plugin.GitURL,
+			Info:            b.Body.Info,
+			ContainerCPU:    b.Body.PluginCPU,
+			ContainerMemory: b.Body.PluginMemory,
+			ContainerCMD:    b.Body.PluginCMD,
+			BuildTime:       time.Now().Format(time.RFC3339),
+			Status:          "building",
+		}
+		if b.Body.PluginCPU == 0 {
+			pbv.ContainerCPU = 125
+		}
+		if b.Body.PluginMemory == 0 {
+			pbv.ContainerMemory = 50
+		}
+		if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).AddModel(pbv); err != nil {
+			if !strings.Contains(err.Error(), "exist") {
+				tx.Rollback()
+				logrus.Errorf("build plugin error: %s", err.Error())
+				return nil, err
+			}
+		}
+		tpbv = pbv
 	}
 	taskBody := &builder_model.BuildPluginTaskBody{
 		TenantID:     b.Body.TenantID,
@@ -407,7 +472,7 @@ func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plu
 		return nil, nil
 	}
 	logrus.Debugf("equeue mq build plugin from dockerfile success")
-	return pbv, nil
+	return tpbv, nil
 }
 
 //GetAllPluginBuildVersions GetAllPluginBuildVersions

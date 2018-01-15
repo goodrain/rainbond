@@ -1475,29 +1475,27 @@ func (t *TenantStruct) Probe(w http.ResponseWriter, r *http.Request) {
 }
 
 //AddProbe add probe
+// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/probe v2 addProbe
+//
+// 增加应用探针
+//
+// add probe
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) AddProbe(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/probe v2 addProbe
-	//
-	// 增加应用探针
-	//
-	// add probe
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	logrus.Debugf("trans add probe dependency service ")
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	var tsp api_model.ServiceProbe
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsp, nil); !ok {
@@ -1526,29 +1524,27 @@ func (t *TenantStruct) AddProbe(w http.ResponseWriter, r *http.Request) {
 }
 
 //UpdateProbe update probe
+// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/probe v2 updateProbe
+//
+// 更新应用探针信息, *注意此处为全量更新
+//
+// update probe
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) UpdateProbe(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/probe v2 updateProbe
-	//
-	// 更新应用探针信息, *注意此处为全量更新
-	//
-	// update probe
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	logrus.Debugf("trans update probe dependency service ")
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	var tsp api_model.ServiceProbe
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsp, nil); !ok {
@@ -1582,29 +1578,27 @@ func (t *TenantStruct) UpdateProbe(w http.ResponseWriter, r *http.Request) {
 }
 
 //DeleteProbe delete probe
+// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/probe v2 deleteProbe
+//
+// 删除应用探针
+//
+// delete probe
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) DeleteProbe(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/probe v2 deleteProbe
-	//
-	// 删除应用探针
-	//
-	// delete probe
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	logrus.Debugf("trans delete probe dependency service ")
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	var tsp api_model.ServiceProbe
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsp, nil); !ok {
@@ -1649,30 +1643,29 @@ func (t *TenantStruct) UpdatePort(w http.ResponseWriter, r *http.Request) {
 }
 
 //SingleTenantResources SingleTenantResources
+// swagger:operation GET /v2/tenants/{tenant_name}/resources v2 singletenantResources
+//
+// 指定租户资源使用情况
+//
+// get tenant resources
+//
+// ---
+// produces:
+// - application/json
+// - application/xml
+// parameters:
+// - name: tenant_name
+//   in: path
+//   description: tenant name
+//   required: true
+//   type: string
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
 func (t *TenantStruct) SingleTenantResources(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation GET /v2/tenants/{tenant_name}/resources v2 singletenantResources
-	//
-	// 指定租户资源使用情况
-	//
-	// get tenant resources
-	//
-	// ---
-	// produces:
-	// - application/json
-	// - application/xml
-	// parameters:
-	// - name: tenant_name
-	//   in: path
-	//   description: tenant name
-	//   required: true
-	//   type: string
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	//11ms
 	services, err := handler.GetServiceManager().GetService(tenantID)
@@ -1688,5 +1681,38 @@ func (t *TenantStruct) SingleTenantResources(w http.ResponseWriter, r *http.Requ
 	statsInfo.UUID = tenantID
 	logrus.Debugf("stats info is %v", statsInfo)
 	httputil.ReturnSuccess(r, w, statsInfo)
+	return
+}
+
+//GetSupportProtocols GetSupportProtocols
+// swagger:operation GET /v2/tenants/{tenant_name}/protocols v2 getSupportProtocols
+//
+// 获取当前数据中心支持的protocols
+//
+// get region protocols
+//
+// ---
+// produces:
+// - application/json
+// - application/xml
+// parameters:
+// - name: tenant_name
+//   in: path
+//   description: tenant name
+//   required: true
+//   type: string
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func (t *TenantStruct) GetSupportProtocols(w http.ResponseWriter, r *http.Request) {
+	rps, err := handler.GetTenantManager().GetProtocols()
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, rps)
 	return
 }

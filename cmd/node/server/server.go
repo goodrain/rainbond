@@ -20,28 +20,33 @@ package server
 
 import (
 	"fmt"
-	"k8s.io/client-go/pkg/api/v1"
+
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/controller"
 	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
 	"github.com/goodrain/rainbond/pkg/node/masterserver"
+	"github.com/goodrain/rainbond/pkg/node/monitormessage"
 	"github.com/goodrain/rainbond/pkg/node/nodeserver"
+	"github.com/goodrain/rainbond/pkg/node/statsd"
+	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/client-go/pkg/api/v1"
 
 	"github.com/Sirupsen/logrus"
 
 	eventLog "github.com/goodrain/rainbond/pkg/event"
 
-	"github.com/goodrain/rainbond/pkg/node/api"
-	"github.com/goodrain/rainbond/pkg/node/event"
 	"bytes"
-	"os/exec"
 	"encoding/json"
+	"io/ioutil"
+	"net/http"
+	"os/exec"
 	"strconv"
 	"strings"
-	"net/http"
-	"io/ioutil"
+
+	"github.com/goodrain/rainbond/pkg/node/api"
+	"github.com/goodrain/rainbond/pkg/node/event"
 )
 
 //Run start run
@@ -53,6 +58,7 @@ func Run(c *option.Conf) error {
 	})
 	if err != nil {
 		logrus.Errorf("error creating eventlog manager")
+		return nil
 	}
 	defer eventLog.CloseManager()
 
@@ -87,7 +93,7 @@ func Run(c *option.Conf) error {
 			logrus.Errorf(err.Error())
 			return err
 		}
-		if !s.HostNode.Role.HasRule("compute"){
+		if !s.HostNode.Role.HasRule("compute") {
 			getInfoForMaster(s)
 		}
 		ms.Cluster.UpdateNode(s.HostNode)
@@ -97,8 +103,19 @@ func Run(c *option.Conf) error {
 		}
 		event.On(event.EXIT, ms.Stop)
 	}
+	//statsd exporter
+	registry := prometheus.NewRegistry()
+	exporter := statsd.CreateExporter(c.StatsdConfig, registry)
+	if err := exporter.Start(); err != nil {
+		logrus.Errorf("start statsd exporter server error,%s", err.Error())
+		return err
+	}
+	meserver := monitormessage.CreateUDPServer("0.0.0.0", 6666)
+	if err := meserver.Start(); err != nil {
+		return err
+	}
 	//启动API服务
-	apiManager := api.NewManager(*s.Conf, s.HostNode, ms)
+	apiManager := api.NewManager(*s.Conf, s.HostNode, ms, exporter)
 	if err := apiManager.Start(errChan); err != nil {
 		return err
 	}
@@ -127,53 +144,53 @@ func getInfoForMaster(s *nodeserver.NodeServer) {
 		logrus.Errorf("error get response from sysinfo script,details %s", err.Error())
 		return
 	}
-	cmd := exec.Command("bash","-c", string(b))
+	cmd := exec.Command("bash", "-c", string(b))
 
 	//cmd := exec.Command("bash", "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/tasks/ex_domain.sh")
-	outbuf:=bytes.NewBuffer(nil)
-	cmd.Stderr=outbuf
-	err=cmd.Run()
+	outbuf := bytes.NewBuffer(nil)
+	cmd.Stderr = outbuf
+	err = cmd.Run()
 	if err != nil {
-		logrus.Infof("err run command ,details %s",err.Error())
+		logrus.Infof("err run command ,details %s", err.Error())
 		return
 	}
-	result:=make(map[string]string)
+	result := make(map[string]string)
 
-	out:=outbuf.Bytes()
-	logrus.Infof("get system info is %s ",string(out))
-	err=json.Unmarshal(out,&result)
+	out := outbuf.Bytes()
+	logrus.Infof("get system info is %s ", string(out))
+	err = json.Unmarshal(out, &result)
 	if err != nil {
-		logrus.Infof("err unmarshal shell output ,details %s",err.Error())
+		logrus.Infof("err unmarshal shell output ,details %s", err.Error())
 		return
 	}
-	s.HostNode.NodeStatus=&v1.NodeStatus{
-		NodeInfo:v1.NodeSystemInfo{
-			KernelVersion:result["KERNEL"],
-			Architecture:result["PLATFORM"],
-			OperatingSystem:result["OS"],
-			KubeletVersion:"N/A",
+	s.HostNode.NodeStatus = &v1.NodeStatus{
+		NodeInfo: v1.NodeSystemInfo{
+			KernelVersion:   result["KERNEL"],
+			Architecture:    result["PLATFORM"],
+			OperatingSystem: result["OS"],
+			KubeletVersion:  "N/A",
 		},
 	}
-	if cpuStr,ok:=result["LOGIC_CORES"];ok{
-		if cpu,err:=strconv.Atoi(cpuStr);err==nil{
-			logrus.Infof("server cpu is %v",cpu)
-			s.HostNode.AvailableCPU=int64(cpu)
+	if cpuStr, ok := result["LOGIC_CORES"]; ok {
+		if cpu, err := strconv.Atoi(cpuStr); err == nil {
+			logrus.Infof("server cpu is %v", cpu)
+			s.HostNode.AvailableCPU = int64(cpu)
 			s.HostNode.NodeStatus.Allocatable.Cpu().Set(int64(cpu))
 		}
 	}
 
-	if memStr,ok:=result["MEMORY"];ok{
-		memStr=strings.Replace(memStr," ","",-1)
-		memStr=strings.Replace(memStr,"G","",-1)
-		memStr=strings.Replace(memStr,"B","",-1)
-		if mem,err:=strconv.ParseFloat(memStr,64);err==nil{
-			s.HostNode.AvailableMemory=int64(mem*1024*1024*1024)
-			s.HostNode.NodeStatus.Allocatable.Memory().SetScaled(int64(mem*1024*1024*1024),0)
-		}else {
-			logrus.Warnf("get master memory info failed ,details %s",err.Error())
+	if memStr, ok := result["MEMORY"]; ok {
+		memStr = strings.Replace(memStr, " ", "", -1)
+		memStr = strings.Replace(memStr, "G", "", -1)
+		memStr = strings.Replace(memStr, "B", "", -1)
+		if mem, err := strconv.ParseFloat(memStr, 64); err == nil {
+			s.HostNode.AvailableMemory = int64(mem * 1024 * 1024 * 1024)
+			s.HostNode.NodeStatus.Allocatable.Memory().SetScaled(int64(mem*1024*1024*1024), 0)
+		} else {
+			logrus.Warnf("get master memory info failed ,details %s", err.Error())
 		}
 	}
-	logrus.Infof("memory is %v",s.HostNode.AvailableMemory)
+	logrus.Infof("memory is %v", s.HostNode.AvailableMemory)
 	s.Update()
 
 }

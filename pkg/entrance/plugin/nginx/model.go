@@ -18,12 +18,25 @@
 
 package nginx
 
+//AddDomainS AddDomainS
 type AddDomainS struct {
-	Domain   string
-	PoolName string
-	NodeList []string
+	Domain          string
+	HTTPS           bool
+	TransferHTTP    bool
+	CertificateName string
+	PoolName        string
+	NodeList        []string
 }
 
+//SSLCert SSLCert
+type SSLCert struct {
+	CertName   string
+	Key        string
+	CA         string
+	HTTPMethod HTTPMETHOD
+}
+
+//AddPoolNodeS AddPoolNodeS
 type AddPoolNodeS struct {
 	PoolName   string
 	NodeList   []string
@@ -103,4 +116,12 @@ type MethodHTTPArgs struct {
 	UpStreamName string //poolname
 	Url          string
 	Domain       string
+}
+
+type MethodHTTPSArgs struct {
+	PoolName *PoolName
+	UpStream []byte
+	Method   HTTPMETHOD
+	URL      string
+	Domain   string
 }

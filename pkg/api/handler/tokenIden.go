@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
@@ -108,6 +109,7 @@ func (t *TokenIdenAction) DeleteAPIManager(am *api_model.APIManager) *util.APIHa
 //CheckToken CheckToken
 func (t *TokenIdenAction) CheckToken(token, uri string) bool {
 	m := GetDefaultTokenMap()
+	logrus.Debugf("default token map is %v", m)
 	regionInfo, ok := m[token]
 	if !ok {
 		return false
@@ -124,24 +126,26 @@ func (t *TokenIdenAction) CheckToken(token, uri string) bool {
 		if !ok {
 			return false
 		}
+		rc := false
 		for _, urinfo := range smL {
 			if strings.HasPrefix(uri, urinfo.Prefix) {
-				return true
+				rc = true
 			}
-			return false
 		}
+		return rc
 	case dbmodel.NODEMANAGER:
 		sm := GetDefaultSourceURI()
 		smL, ok := sm[dbmodel.NODEMANAGER]
 		if !ok {
 			return false
 		}
+		rc := false
 		for _, urinfo := range smL {
 			if strings.HasPrefix(uri, urinfo.Prefix) {
-				return true
+				rc = true
 			}
-			return false
 		}
+		return rc
 	}
 	return false
 }

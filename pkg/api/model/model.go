@@ -1227,3 +1227,11 @@ type TenantServiceVolume struct {
 	VolumePath string `gorm:"column:volume_path" json:"volume_path" validate:"volume_path|required"`
 	IsReadOnly bool   `gorm:"column:is_read_only;default:false" json:"is_read_only" validate:"is_read_only|bool"`
 }
+
+// GetSupportProtocols GetSupportProtocols
+// swagger:parameters getSupportProtocols
+type GetSupportProtocols struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
+}

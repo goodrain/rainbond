@@ -76,7 +76,6 @@ func Routers(mode string) *chi.Mux {
 				r.Get("/{node_ip}/init", controller.InitStatus)
 				r.Post("/{node_id}/install", controller.Install)
 
-
 				r.Get("/{node_id}/prometheus/cpu", controller.GetCpu)
 				r.Get("/{node_id}/prometheus/mem", controller.GetMem)
 				r.Get("/{node_id}/prometheus/disk", controller.GetDisk)
@@ -87,7 +86,6 @@ func Routers(mode string) *chi.Mux {
 				r.Get("/{node_id}/prometheus/start/{start}/end/{end}/step/{step}/load1", controller.GetLoad1Range)
 				r.Put("/prometheus/expr", controller.GetExpr)
 				r.Put("/prometheus/start/{start}/end/{end}/step/{step}/expr", controller.GetExpr)
-
 
 			})
 
@@ -121,6 +119,6 @@ func Routers(mode string) *chi.Mux {
 		}
 	})
 	//节点监控
-	r.Get("/metrics", controller.NodeExporter)
+	r.Get("/node/metrics", controller.NodeExporter)
 	return r
 }

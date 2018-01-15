@@ -19,14 +19,12 @@
 package dao
 
 import (
+	"encoding/json"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/jinzhu/gorm"
-
-	"encoding/json"
-
-	"github.com/Sirupsen/logrus"
 )
 
 //AddModel AddModel

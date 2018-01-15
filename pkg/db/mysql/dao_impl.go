@@ -439,3 +439,10 @@ func (m *Manager) RegionAPIClassDaoTransactions(db *gorm.DB) dao.RegionAPIClassD
 		DB: db,
 	}
 }
+
+//RegionProcotolsDao RegionProcotolsDao
+func (m *Manager) RegionProcotolsDao() dao.RegionProcotolsDao {
+	return &mysqldao.RegionProcotolsDaoImpl{
+		DB: m.db,
+	}
+}

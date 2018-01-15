@@ -23,6 +23,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"os/exec"
+	"strings"
 
 	"github.com/goodrain/rainbond/pkg/db/model"
 
@@ -135,7 +137,7 @@ func (t *TenantServicesDaoImpl) GetServiceByID(serviceID string) (*model.TenantS
 
 
 //GetCPUAndMEM GetCPUAndMEM
-func (t *TenantServicesDaoImpl) GetCPUAndMEM(tenantName []string) ([]*map[string]interface{}, error) {
+func (t *TenantServicesDaoImpl) GetCPUAndMEM(tenantName []string) ([]map[string]interface{}, error) {
 	if len(tenantName) == 0 {
 		rows, err := t.DB.Raw("select sum(container_cpu) as cpu,sum(container_memory * replicas) as memory from tenant_services where service_id in (select service_id from tenant_service_status where status != 'closed' && status != 'undeploy')").Rows()
 		if err != nil {
@@ -147,14 +149,14 @@ func (t *TenantServicesDaoImpl) GetCPUAndMEM(tenantName []string) ([]*map[string
 		for rows.Next() {
 			rows.Scan(&cpu, &mem)
 		}
-		var rc []*map[string]interface{}
+		var rc []map[string]interface{}
 		res := make(map[string]interface{})
 		res["cpu"] = cpu
 		res["memory"] = mem
-		rc = append(rc, &res)
+		rc = append(rc, res)
 		return rc, nil
 	}
-	var rc []*map[string]interface{}
+	var rc []map[string]interface{}
 	for _, tenant := range tenantName {
 		rows, err := t.DB.Raw("select tenant_id, sum(container_cpu) as cpu, sum(container_memory * replicas) as memory from tenant_services where service_id in (select service_id from tenant_service_status where (status != 'closed' && status != 'undeploy') && service_id in (select service_id from tenant_services where domain = (?))) group by tenant_id", tenant).Rows()
 		if err != nil {
@@ -170,8 +172,15 @@ func (t *TenantServicesDaoImpl) GetCPUAndMEM(tenantName []string) ([]*map[string
 			res["cpu"] = cpu
 			res["memory"] = mem
 			res["tenant_id"] = id
-			logrus.Infof("res is $v", res)
-			rc = append(rc, &res)
+			dirPath := fmt.Sprintf("/grdata/tenant/%s", id)
+			cmd := []string{"-sh", dirPath}
+			f, err := exec.Command("du", cmd...).Output()
+			if err != nil {
+				f = []byte("0 xxx")
+			}
+			st := strings.Split(string(f), "\t")[0]
+			res["disk"] = st
+			rc = append(rc, res)
 		}
 	}
 	return rc, nil

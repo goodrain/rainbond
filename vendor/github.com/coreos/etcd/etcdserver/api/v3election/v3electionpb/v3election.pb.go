@@ -32,6 +32,8 @@ import (
 
 	mvccpb "github.com/coreos/etcd/mvcc/mvccpb"
 
+	_ "google.golang.org/genproto/googleapis/api/annotations"
+
 	context "golang.org/x/net/context"
 
 	grpc "google.golang.org/grpc"
