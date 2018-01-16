@@ -586,6 +586,14 @@ EOF
     else
         log.info "not exec"
         docker exec rbd-app-ui python /app/ui/manage.py migrate
+        if [ $? -eq 0 ];then
+            log.info "exec done"
+        else
+            log.info "try run /tmp/pyexec"
+            echo "docker exec rbd-app-ui python /app/ui/manage.py migrate" > /tmp/pyexec
+            chmod +x /tmp/pyexec
+            bash /tmp/pyexec
+        fi
     fi
     log.info "migrate database end"
 }
