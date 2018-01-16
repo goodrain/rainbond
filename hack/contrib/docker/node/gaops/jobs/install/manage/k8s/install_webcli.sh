@@ -108,7 +108,13 @@ function run() {
     log.info "setup webcli"
     install_webcli
     dc-compose ps  | grep webcli | grep Up
-    if [ $? -eq 0 ];then
+     _EXIT=1
+    for ((i=1;i<=3;i++ )); do
+        sleep 3
+        log.info "retry $i get webcli "
+        dc-compose ps | grep "webcli" && export _EXIT=0 && break
+    done
+    if [ $_EXIT -eq 0 ];then
         log.info "Install webcli Successful."
         log.stdout '{ 
                 "status":[ 
