@@ -61,15 +61,26 @@ function image::push() {
     docker tag $IMAGES_NAME_Pb $IMAGES_NAME_Pr
     log.info "docker push $IMAGES_NAME_Pr"
     docker push $IMAGES_NAME_Pr
-    log.info "---------\n docker for $BASE_NAME end"
+    log.info "    docker for $BASE_NAME end"
 }
 
 function run() {
-    image::exist goodrain.me/runner:latest || image::pull goodrain.me/runner:latest || image::push runner latest
-    image::exist goodrain.me/adapter:latest || image::pull goodrain.me/adapter:latest || image::push adapter 3.4
-    image::exist goodrain.me/pause-amd64:3.0 || image::pull goodrain.me/pause-amd64:3.0 || image::push pause-amd64 3.0                                                                                     
-    image::exist goodrain.me/builder:latest || image::pull goodrain.me/builder:latest || image::push builder latest
-
+    
+    if [ ! -f "/grdata/.do_image" ];then
+        log.info "first node"
+        image::pull goodrain.me/runner:latest || image::push runner latest
+        image::pull goodrain.me/adapter:latest || image::push adapter 3.4
+        image::pull goodrain.me/pause-amd64:3.0 || image::push pause-amd64 3.0                                                                                     
+        image::pull goodrain.me/builder:latest || image::push builder latest
+        touch /grdata/.do_image
+    else
+        log.info "not 1st node"
+        image::exist goodrain.me/runner:latest || image::pull goodrain.me/runner:latest || image::push runner latest
+        image::exist goodrain.me/adapter:latest || image::pull goodrain.me/adapter:latest || image::push adapter 3.4
+        image::exist goodrain.me/pause-amd64:3.0 || image::pull goodrain.me/pause-amd64:3.0 || image::push pause-amd64 3.0                                                                                     
+        image::exist goodrain.me/builder:latest || image::pull goodrain.me/builder:latest || image::push builder latest
+    fi
+    
     log.stdout '{ 
             "status":[ 
             { 
