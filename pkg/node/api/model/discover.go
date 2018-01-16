@@ -127,7 +127,13 @@ type RouteConfig struct {
 type PieceHTTPVirtualHost struct {
 	Name    string             `json:"name"`
 	Domains []string           `json:"domains"`
-	Routes  []*PieceHTTPRoutes `json:"routes"`
+	//Routes  []*PieceHTTPRoutes `json:"routes"`
+	Routes  interface{} `json:"routes"`
+}
+
+//WeightedClusters WeightedClusters
+type WeightedClusters struct {
+	Clusters  []map[string]interface{}  `json:"clusters"`
 }
 
 //PieceHTTPRoutes PieceHTTPRoutes
@@ -171,4 +177,6 @@ const (
 	UPSTREAM string = "upStream"
 	//DOWNSTREAM downStream
 	DOWNSTREAM string = "downStream"
+	//WEIGHT WEIGHT
+	WEIGHT string = "WEIGHT"
 )

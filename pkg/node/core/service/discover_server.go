@@ -145,6 +145,7 @@ func (d *DiscoverAction) DiscoverListeners(
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf(
 			"get env %s error: %v", namespace+serviceAlias+pluginID, err))
 	}
+	
 	logrus.Debugf("process go on")
 	//TODO: console控制尽量不把小于1000的端口给用户使用
 	var vhL []*node_model.PieceHTTPVirtualHost
@@ -287,16 +288,21 @@ func (d *DiscoverAction) DiscoverListeners(
 							mm["name"] = "with_empty_header"
 							headers = []map[string]string{mm}
 						}
-						prs := &node_model.PieceHTTPRoutes{
-							TimeoutMS: 0,
-							Prefix:    d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, options).(string),
-							Cluster:   fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
-							Headers:   headers,
-						}
+						prs := make(map[string]interface{})
+						prs["timeout_ms"] = 0
+						prs["prefix"] = d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, options).(string)
+						prs["cluster"] = fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
+						c := make(map[string]interface{})
+						c["name"] = prs["cluster"]
+						c["weight"] = d.ToolsGetRouterItem(destServiceAlias, node_model.WEIGHT, options).(int)
+						var wc node_model.WeightedClusters
+						wc.Clusters = []map[string]interface{}{c}
+						prs["weighted_clusters"] = wc
+						prs["headers"] = headers
 						pvh := &node_model.PieceHTTPVirtualHost{
 							Name:    fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
 							Domains: d.ToolsGetRouterItem(destServiceAlias, node_model.DOMAINS, options).([]string),
-							Routes:  []*node_model.PieceHTTPRoutes{prs},
+							Routes:  []map[string]interface{}{prs},
 						}
 						vhL = append(vhL, pvh)
 					}
@@ -315,6 +321,18 @@ func (d *DiscoverAction) DiscoverListeners(
 			Name:   "router",
 			Config: make(map[string]string),
 		}
+		//TODO:处理virtualhost
+		// if len(vhL) > 1 {
+		// 	for m := 0; m < len(vhL); m++{
+		// 		for n:= 0; n < m; n++ {
+		// 			if n == m {
+		// 				continue
+		// 			}
+		// 			if vhL[m].Domains[0] == vhL[n].Domains[0] {
+		// 			}
+		// 		}
+		// 	}
+		// }
 		rcg := &node_model.RouteConfig{
 			VirtualHosts: vhL,
 		}
@@ -502,8 +520,7 @@ func (d *DiscoverAction) ToolsBuildPieceLDS() {}
 
 //ToolsGetRouterItem ToolsGetRouterItem
 func (d *DiscoverAction) ToolsGetRouterItem(
-	destAlias, kind string,
-	sr map[string]interface{}) interface{} {
+	destAlias, kind string, sr map[string]interface{}) interface{} {
 	switch kind {
 	case node_model.PREFIX:
 		if prefix, ok := sr[node_model.PREFIX]; ok {
@@ -556,12 +573,7 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 				logrus.Errorf("strcon max retry error")
 				return 3
 			}
-			if mxr > 0 && mxr < 10 {
-				return mxr
-			}
-			if mxr == 11 {
-				return 0
-			}
+			return mxr
 		}
 		return 3
 	case node_model.HEADERS:
@@ -583,14 +595,25 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 		return nil
 	case node_model.DOMAINS:
 		if domain, ok := sr[node_model.DOMAINS]; ok {
-			if destAlias != "" {
-				return []string{destAlias, domain.(string)}
+			if strings.Contains(domain.(string), ","){
+				mm := strings.Split(domain.(string), ",")
+				return mm
 			}
 			return []string{domain.(string)}
 		}
 		return []string{destAlias}
+	case node_model.WEIGHT:
+		if weight, ok := sr[node_model.WEIGHT]; ok {
+			w, err := strconv.Atoi(weight.(string))
+			if err != nil {
+				return 100
+			}
+			return w
+		}
+		return 100
+	default:
+		return nil
 	}
-	return ""
 }
 
 //ToolsGetRainbondResources 获取rainbond自定义resources
