@@ -21,10 +21,15 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/grctl/server"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "version" {
+		cmd.ShowVersion("grctl")
+	}
 	if err := server.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)

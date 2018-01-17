@@ -27,6 +27,9 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "version" {
+		cmd.ShowVersion("node")
+	}
 	option.Init()
 	if err := server.Run(option.Config); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

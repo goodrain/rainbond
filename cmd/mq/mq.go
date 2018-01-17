@@ -30,6 +30,9 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "version" {
+		cmd.ShowVersion("mq")
+	}
 	s := option.NewMQServer()
 	s.AddFlags(pflag.CommandLine)
 	pflag.Parse()
