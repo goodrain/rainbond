@@ -46,6 +46,8 @@ function prepare() {
 
 function build() {
 	echo "---> Build Binary For ACP"
+	echo "node version:$release_desc"
+	sed -i "s/0.0.0/$release_desc/g" ./cmd/version.go
 	echo "build rainbond-node"
     docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/${BASE_NAME}-node ./cmd/node
 	echo "grctl version:$release_desc"
