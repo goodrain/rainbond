@@ -293,7 +293,7 @@ func (d *DiscoverAction) DiscoverListeners(
 						var wc node_model.WeightedClusters
 						wc.Clusters = []map[string]interface{}{c}
 						prs["weighted_clusters"] = wc
-						if headers != nil {
+						if len(headers.([]node_model.PieceHeader)) != 0 {
 							prs["headers"] = headers
 						}
 						pvh := &node_model.PieceHTTPVirtualHost{
