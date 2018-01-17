@@ -376,6 +376,9 @@ function web_write_cfg() {
 
     log.info "do web_write_cfg"
 
+    STREAM_IP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
+
+
     cat <<EOF > /etc/goodrain/console.py
 import os
 
@@ -409,7 +412,7 @@ STREAM_DOMAIN = True
 
 
 STREAM_DOMAIN_URL = {
-    "$REGION_TAG": "10.80.86.19"
+    "$REGION_TAG": "$STREAM_IP"
 }
 
 
