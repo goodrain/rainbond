@@ -179,4 +179,8 @@ const (
 	DOWNSTREAM string = "downStream"
 	//WEIGHT WEIGHT
 	WEIGHT string = "WEIGHT"
+	//MODELWEIGHT MODEL_WEIGHT
+	MODELWEIGHT string = "weight_model"
+	//MODELPREFIX MODEL_PREFIX	
+	MODELPREFIX string = "prefix_model"
 )

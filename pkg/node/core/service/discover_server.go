@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"reflect"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
@@ -283,22 +284,18 @@ func (d *DiscoverAction) DiscoverListeners(
 						headers := d.ToolsGetRouterItem(
 							destServiceAlias,
 							node_model.HEADERS, options)
-						if headers == nil {
-							mm := make(map[string]string)
-							mm["name"] = "with_empty_header"
-							headers = []map[string]string{mm}
-						}
 						prs := make(map[string]interface{})
 						prs["timeout_ms"] = 0
 						prs["prefix"] = d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, options).(string)
-						prs["cluster"] = fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
 						c := make(map[string]interface{})
-						c["name"] = prs["cluster"]
+						c["name"] = fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
 						c["weight"] = d.ToolsGetRouterItem(destServiceAlias, node_model.WEIGHT, options).(int)
 						var wc node_model.WeightedClusters
 						wc.Clusters = []map[string]interface{}{c}
 						prs["weighted_clusters"] = wc
-						prs["headers"] = headers
+						if headers != nil {
+							prs["headers"] = headers
+						}
 						pvh := &node_model.PieceHTTPVirtualHost{
 							Name:    fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
 							Domains: d.ToolsGetRouterItem(destServiceAlias, node_model.DOMAINS, options).([]string),
@@ -321,20 +318,53 @@ func (d *DiscoverAction) DiscoverListeners(
 			Name:   "router",
 			Config: make(map[string]string),
 		}
-		//TODO:处理virtualhost
-		// if len(vhL) > 1 {
-		// 	for m := 0; m < len(vhL); m++{
-		// 		for n:= 0; n < m; n++ {
-		// 			if n == m {
-		// 				continue
-		// 			}
-		// 			if vhL[m].Domains[0] == vhL[n].Domains[0] {
-		// 			}
-		// 		}
-		// 	}
-		// }
+		var newVHL []*node_model.PieceHTTPVirtualHost	
+		if len(vhL) > 1 {
+			domainL := d.CheckSameDomainAndPrefix(resources)
+			if len(domainL) > 0 {
+				//存在相同的domain设置
+				for d := range domainL {
+					var c []map[string]interface{}
+					var r []interface{}
+					var pvh node_model.PieceHTTPVirtualHost	
+					prs := make(map[string]interface{})
+					prs["timeout_ms"] = 0
+					for _, v := range vhL {
+						if pvh.Name == "" {
+							pvh.Name = v.Name
+							pvh.Domains = v.Domains
+							pvh.Routes = []map[string]interface{}{prs}
+						}
+						if v.Domains[0] == d {
+							switch domainL[d]{
+							case node_model.MODELWEIGHT:
+								prs["prefix"] = v.Routes.([]map[string]interface{})[0]["prefix"].(string)
+								c = append(c, v.Routes.([]map[string]interface{})[0]["weighted_clusters"].(map[string]interface{}))
+							case node_model.MODELPREFIX:
+								r = append(r, v.Routes.([]map[string]interface{})[0])
+							}
+						}else {
+							newVHL = append(newVHL, v)
+						}
+					}
+					if len(r) != 0 {
+						pvh.Routes = r
+						newVHL = append(newVHL, &pvh)
+					}
+					if len(c) != 0 {
+						prs["weighted_clusters"] = c
+						logrus.Debugf("prs is %v", prs)
+						pvh.Routes = prs
+						newVHL = append(newVHL, &pvh)
+					}
+				}
+			}
+		}else {
+			newVHL = vhL
+		}
+		logrus.Debugf("newVHL is %v", newVHL)
 		rcg := &node_model.RouteConfig{
-			VirtualHosts: vhL,
+			VirtualHosts: newVHL,
 		}
 		lhc := &node_model.LDSHTTPConfig{
 			CodecType:   "auto",
@@ -358,6 +388,59 @@ func (d *DiscoverAction) DiscoverListeners(
 		Listeners: ldsL,
 	}
 	return lds, nil
+}
+
+//Duplicate Duplicate
+func Duplicate(a interface{}) (ret []interface{}) {
+	va := reflect.ValueOf(a)
+	for i := 0; i < va.Len(); i++ {
+	   if i > 0 && reflect.DeepEqual(va.Index(i-1).Interface(), va.Index(i).Interface()) {
+		  continue
+	   }
+	   ret = append(ret, va.Index(i).Interface())
+	}
+	return ret
+}
+
+//CheckSameDomainAndPrefix 检查是否存在相同domain以及prefix
+func (d *DiscoverAction)CheckSameDomainAndPrefix(resources *api_model.ResourceSpec) (map[string]string){
+	baseServices := resources.BaseServices
+	domainL := make(map[string]string)
+	if len(baseServices) == 0 {
+		logrus.Debugf("has no base services resources")
+		return domainL
+	}
+	filterL := make(map[string]int)
+	for _, bs := range baseServices {
+		l := len(filterL)
+		domainName, _:= bs.Options[node_model.DOMAINS].(string)
+		filterL[domainName] = 0
+		if len(filterL) != l {
+			domainL[domainName] = "use"
+		}
+	}
+	for d := range domainL {
+		prefixM := make(map[string]int)
+		for _, bs := range baseServices {
+			domainName, _ := bs.Options[node_model.DOMAINS].(string)
+			if strings.Contains(domainName, ","){
+				mm := strings.Split(domainName, ",")
+				for _, n := range mm {
+					if n == d {
+						prefix, _ := bs.Options[node_model.PREFIX].(string)
+						prefixM[prefix] = 0
+						break
+					}
+				}
+			}
+		}
+		if len(prefixM) == 1 {
+			domainL[d] = node_model.MODELWEIGHT
+		}else{
+			domainL[d] = node_model.MODELPREFIX
+		}
+	}
+	return domainL
 }
 
 //DiscoverClusters cds
