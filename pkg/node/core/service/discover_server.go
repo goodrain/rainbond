@@ -340,7 +340,8 @@ func (d *DiscoverAction) DiscoverListeners(
 							switch domainL[d]{
 							case node_model.MODELWEIGHT:
 								prs["prefix"] = v.Routes.([]map[string]interface{})[0]["prefix"].(string)
-								c = append(c, v.Routes.([]map[string]interface{})[0]["weighted_clusters"].(map[string]interface{}))
+								//pieceCluster := v.Routes.([]map[string]interface{})[0]["weighted_clusters"].(node_model.WeightedClusters).Clusters[0]
+								c = append(c, v.Routes.([]map[string]interface{})[0]["weighted_clusters"].(node_model.WeightedClusters).Clusters[0])
 							case node_model.MODELPREFIX:
 								r = append(r, v.Routes.([]map[string]interface{})[0])
 							}
@@ -353,9 +354,11 @@ func (d *DiscoverAction) DiscoverListeners(
 						newVHL = append(newVHL, &pvh)
 					}
 					if len(c) != 0 {
-						prs["weighted_clusters"] = c
+						var wc node_model.WeightedClusters
+						wc.Clusters = c
+						prs["weighted_clusters"] = wc
 						logrus.Debugf("prs is %v", prs)
-						pvh.Routes = prs
+						pvh.Routes = []map[string]interface{}{prs}
 						newVHL = append(newVHL, &pvh)
 					}
 				}
@@ -424,17 +427,22 @@ func (d *DiscoverAction)CheckSameDomainAndPrefix(resources *api_model.ResourceSp
 		prefixM := make(map[string]int)
 		for _, bs := range baseServices {
 			domainName, _ := bs.Options[node_model.DOMAINS].(string)
-			if strings.Contains(domainName, ","){
-				mm := strings.Split(domainName, ",")
-				for _, n := range mm {
-					if n == d {
-						prefix, _ := bs.Options[node_model.PREFIX].(string)
-						prefixM[prefix] = 0
-						break
-					}
-				}
+			if domainName == d {
+				prefix, _ := bs.Options[node_model.PREFIX].(string)
+				prefixM[prefix] = 0
 			}
+			// if strings.Contains(domainName, ","){
+			// 	mm := strings.Split(domainName, ",")
+			// 	for _, n := range mm {
+			// 		if n == d {
+			// 			prefix, _ := bs.Options[node_model.PREFIX].(string)
+			// 			prefixM[prefix] = 0
+			// 			continue
+			// 		}
+			// 	}
+			// }
 		}
+		logrus.Debugf("prefixM is %v", prefixM)
 		if len(prefixM) == 1 {
 			domainL[d] = node_model.MODELWEIGHT
 		}else{
