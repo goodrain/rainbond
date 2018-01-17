@@ -340,6 +340,9 @@ func (d *DiscoverAction) DiscoverListeners(
 							switch domainL[d]{
 							case node_model.MODELWEIGHT:
 								prs["prefix"] = v.Routes.([]map[string]interface{})[0]["prefix"].(string)
+								if hasHeader, ok := v.Routes.([]map[string]interface{})[0]["headers"].([]node_model.PieceHeader); ok {
+									prs["headers"] = hasHeader	
+								}
 								//pieceCluster := v.Routes.([]map[string]interface{})[0]["weighted_clusters"].(node_model.WeightedClusters).Clusters[0]
 								c = append(c, v.Routes.([]map[string]interface{})[0]["weighted_clusters"].(node_model.WeightedClusters).Clusters[0])
 							case node_model.MODELPREFIX:
