@@ -143,17 +143,16 @@ func (t *TaskEngine) haveMaster() (bool, error) {
 	}
 	if !resp.Succeeded {
 		ctx, cancel := context.WithTimeout(t.ctx, time.Second*3)
-		ch := store.DefalutClient.WatchByCtx(ctx, "/rainbond/task/scheduler/authority")
+		defer cancel()
+		ch := store.DefalutClient.WatchByCtx(ctx, key)
 		for {
 			select {
 			case <-t.ctx.Done():
-				cancel()
 				return false, nil
 			case events := <-ch:
 				for _, event := range events.Events {
 					//watch 到删除操作，返回去获取权限
 					if event.Type == client.EventTypeDelete {
-						cancel()
 						return false, nil
 					}
 				}
