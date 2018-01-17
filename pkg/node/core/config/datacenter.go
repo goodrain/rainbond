@@ -140,12 +140,48 @@ func (d *DataCenterConfig) GetConfig(name string) *model.ConfigUnit {
 	return d.config.Get(name)
 }
 
+//CacheConfig 更新配置缓存
+func (d *DataCenterConfig) CacheConfig(c *model.ConfigUnit) error {
+	if c.Name == "" {
+		return fmt.Errorf("config name can not be empty")
+	}
+	logrus.Debugf("add config %v", c)
+	//将值类型由[]interface{} 转 []string
+	if c.ValueType == "array" {
+		switch c.Value.(type) {
+		case []interface{}:
+			var data []string
+			for _, v := range c.Value.([]interface{}) {
+				data = append(data, v.(string))
+			}
+			c.Value = data
+		}
+		oldC := d.config.Get(c.Name)
+		if oldC != nil {
+
+			switch oldC.Value.(type) {
+			case string:
+				value := append(c.Value.([]string), oldC.Value.(string))
+				util.Deweight(&value)
+				c.Value = value
+			case []string:
+				value := append(c.Value.([]string), oldC.Value.([]string)...)
+				util.Deweight(&value)
+				c.Value = value
+			default:
+			}
+		}
+	}
+	d.config.Add(*c)
+	return nil
+}
+
 //PutConfig 增加or更新配置
 func (d *DataCenterConfig) PutConfig(c *model.ConfigUnit) error {
 	if c.Name == "" {
 		return fmt.Errorf("config name can not be empty")
 	}
-	logrus.Debugf("add config %v",c)
+	logrus.Debugf("add config %v", c)
 	//将值类型由[]interface{} 转 []string
 	if c.ValueType == "array" {
 		switch c.Value.(type) {
@@ -186,7 +222,7 @@ func (d *DataCenterConfig) PutConfig(c *model.ConfigUnit) error {
 func (d *DataCenterConfig) PutConfigKV(kv *mvccpb.KeyValue) {
 	var cn model.ConfigUnit
 	if err := ffjson.Unmarshal(kv.Value, &cn); err == nil {
-		d.PutConfig(&cn)
+		d.CacheConfig(&cn)
 	} else {
 		logrus.Errorf("parse config error,%s", err.Error())
 	}
