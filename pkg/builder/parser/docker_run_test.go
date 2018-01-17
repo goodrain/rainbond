@@ -42,14 +42,9 @@ func TestParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := CreateDockerRunOrImageParse(dockerrun, dockerclient)
+	p := CreateDockerRunOrImageParse(dockerrun, dockerclient, nil)
 	if err := p.Parse(); err != nil {
 		logrus.Errorf(err.Error())
 	}
-	fmt.Printf("Volume:%v \n", p.GetVolumes())
-	fmt.Printf("Ports:%v \n", p.GetPorts())
-	fmt.Printf("Envs:%v \n", p.GetEnvs())
-	fmt.Printf("Image:%v \n", p.GetImage())
-	fmt.Printf("Memory:%v \n", p.GetMemory())
-	fmt.Printf("Args:%v \n", p.GetArgs())
+	fmt.Printf("ServiceInfo:%+v \n", p.GetServiceInfo())
 }

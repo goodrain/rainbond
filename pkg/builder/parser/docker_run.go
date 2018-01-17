@@ -107,6 +107,9 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 		for k := range imageInspect.ContainerConfig.ExposedPorts {
 			proto := k.Proto()
 			port := k.Int()
+			if proto != "udp" {
+				proto = GetPortProtocol(port)
+			}
 			if _, ok := d.ports[port]; ok {
 				d.ports[port].Protocol = proto
 			} else {
@@ -140,7 +143,7 @@ func (d *DockerRunOrImageParse) dockerun(source []string) {
 					if len(info) == 2 {
 						port, _ := strconv.Atoi(info[0])
 						if port != 0 {
-							d.ports[port] = &Port{ContainerPort: port, Protocol: "tcp"}
+							d.ports[port] = &Port{ContainerPort: port, Protocol: GetPortProtocol(port)}
 						}
 					}
 				case "v", "volume":
@@ -164,7 +167,7 @@ func (d *DockerRunOrImageParse) dockerun(source []string) {
 				if len(info) == 2 {
 					port, _ := strconv.Atoi(info[0])
 					if port != 0 {
-						d.ports[port] = &Port{ContainerPort: port, Protocol: "tcp"}
+						d.ports[port] = &Port{ContainerPort: port, Protocol: GetPortProtocol(port)}
 					}
 				}
 			case "v", "volume":
@@ -188,42 +191,6 @@ func (d *DockerRunOrImageParse) dockerun(source []string) {
 
 }
 
-//readmemory
-//10m 10
-//10g 10*1024
-//10k 128
-//10b 128
-func readmemory(s string) int {
-	if strings.HasSuffix(s, "m") {
-		s, err := strconv.Atoi(s[0 : len(s)-1])
-		if err != nil {
-			return 128
-		}
-		return s
-	}
-	if strings.HasSuffix(s, "g") {
-		s, err := strconv.Atoi(s[0 : len(s)-1])
-		if err != nil {
-			return 128
-		}
-		return s * 1024
-	}
-	return 128
-}
-
-func parseImageName(s string) Image {
-	index := strings.Index(s, ":")
-	if index > -1 {
-		return Image{
-			Name: s[0:index],
-			Tag:  s[index+1:],
-		}
-	}
-	return Image{
-		Name: s,
-		Tag:  "latest",
-	}
-}
 func (d *DockerRunOrImageParse) errappend(pe ParseError) {
 	d.errors = append(d.errors, pe)
 }
@@ -275,4 +242,18 @@ func (d *DockerRunOrImageParse) GetArgs() []string {
 //GetMemory 获取内存
 func (d *DockerRunOrImageParse) GetMemory() int {
 	return d.memory
+}
+
+//GetServiceInfo 获取service info
+func (d *DockerRunOrImageParse) GetServiceInfo() []ServiceInfo {
+	serviceInfo := ServiceInfo{
+		Ports:   d.GetPorts(),
+		Envs:    d.GetEnvs(),
+		Volumes: d.GetVolumes(),
+		Image:   d.GetImage(),
+		Args:    d.GetArgs(),
+		Branchs: d.GetBranchs(),
+		Memory:  d.memory,
+	}
+	return []ServiceInfo{serviceInfo}
 }

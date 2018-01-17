@@ -20,6 +20,8 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 //Port 端口
@@ -112,20 +114,85 @@ func (i Image) String() string {
 //Parser 解析器
 type Parser interface {
 	Parse() ParseErrorList
-	//获取分支列表
-	GetBranchs() []string
-	//获取端口列表
-	GetPorts() []Port
-	//获取存储列表
-	GetVolumes() []Volume
-	//获取源是否合法
-	GetValid() bool
-	//获取环境变量
-	GetEnvs() []Env
-	//获取镜像名
+	GetServiceInfo() []ServiceInfo
 	GetImage() Image
-	//获取启动参数
-	GetArgs() []string
-	//获取内存
-	GetMemory() int
+}
+
+//ServiceInfo 智能获取的应用信息
+type ServiceInfo struct {
+	Ports             []Port   `json:"ports"`
+	Envs              []Env    `json:"envs"`
+	Volumes           []Volume `json:"volumes"`
+	Image             Image    `json:"image"`
+	Args              []string `json:"args"`
+	DependServices    []string `json:"depends,omitempty"`
+	ServiceDeployType string   `json:"deploy_type,omitempty"`
+	Branchs           []string `json:"branchs,omitempty"`
+	Memory            int      `json:"memory"`
+}
+
+//GetPortProtocol 获取端口协议
+func GetPortProtocol(port int) string {
+	if port == 80 {
+		return "http"
+	}
+	if port == 8080 {
+		return "http"
+	}
+	if port == 22 {
+		return "tcp"
+	}
+	if port == 3306 {
+		return "mysql"
+	}
+	if port == 443 {
+		return "https"
+	}
+	if port == 3128 {
+		return "http"
+	}
+	if port == 1080 {
+		return "udp"
+	}
+	if port > 1 && port < 5000 {
+		return "tcp"
+	}
+	return "http"
+}
+
+//readmemory
+//10m 10
+//10g 10*1024
+//10k 128
+//10b 128
+func readmemory(s string) int {
+	if strings.HasSuffix(s, "m") {
+		s, err := strconv.Atoi(s[0 : len(s)-1])
+		if err != nil {
+			return 128
+		}
+		return s
+	}
+	if strings.HasSuffix(s, "g") {
+		s, err := strconv.Atoi(s[0 : len(s)-1])
+		if err != nil {
+			return 128
+		}
+		return s * 1024
+	}
+	return 128
+}
+
+func parseImageName(s string) Image {
+	index := strings.Index(s, ":")
+	if index > -1 {
+		return Image{
+			Name: s[0:index],
+			Tag:  s[index+1:],
+		}
+	}
+	return Image{
+		Name: s,
+		Tag:  "latest",
+	}
 }

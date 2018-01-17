@@ -74,3 +74,9 @@ func ImagePull(dockerCli *client.Client, image string, opts types.ImagePullOptio
 	}
 	return &ins, nil
 }
+
+//ImagePush 推送镜像
+//timeout 分钟为单位
+func ImagePush(dockerCli *client.Client, image string, opts types.ImagePushOptions, logger event.Logger, timeout int) error {
+	return nil
+}

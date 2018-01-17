@@ -380,6 +380,7 @@ func (l *logger) send(message string, info map[string]string) {
 	info["time"] = time.Now().Format(time.RFC3339)
 	log, err := ffjson.Marshal(info)
 	if err == nil && l.sendChan != nil {
+		logrus.Info(string(log))
 		util.SendNoBlocking(log, l.sendChan)
 	}
 }

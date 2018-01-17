@@ -22,7 +22,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pquerna/ffjson/ffjson"
+
+	"github.com/goodrain/rainbond/pkg/builder/exector"
 	"github.com/goodrain/rainbond/pkg/mq/api/grpc/pb"
+	"github.com/twinj/uuid"
 
 	context "golang.org/x/net/context"
 )
@@ -101,6 +105,29 @@ func TestBuilder(t *testing.T) {
 			TaskType:   "app_build",
 			CreateTime: time.Now().Format(time.RFC3339),
 			TaskBody:   []byte(`{"envs": {"DEBUG": "True"}, "expire": 180, "deploy_version": "20170905133413", "repo_url": "--branch master --depth 1 git@code.goodrain.com:goodrain/goodrain_web.git", "service_id": "f398048d1a2998b05e556330b05ec1aa", "event_id": "e0413f825cc740678e721fc5d5a9e825", "tenant_id": "b7584c080ad24fafaa812a7739174b50", "action": "upgrade", "operator": "lichao"}`),
+			User:       "barnett",
+		},
+	})
+}
+
+func TestChaosTask(t *testing.T) {
+	sci := exector.ServiceCheckInput{
+		CheckUUID:  uuid.NewV4().String(),
+		SourceType: "docker-run",
+		SourceBody: "docker run -it nginx",
+		EventID:    "system",
+	}
+	body, _ := ffjson.Marshal(sci)
+	client, err := NewMqClient("127.0.0.1:6300")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.Enqueue(context.Background(), &pb.EnqueueRequest{
+		Topic: "builder",
+		Message: &pb.TaskMessage{
+			TaskType:   "service_check",
+			CreateTime: time.Now().Format(time.RFC3339),
+			TaskBody:   body,
 			User:       "barnett",
 		},
 	})

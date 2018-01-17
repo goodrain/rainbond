@@ -47,11 +47,11 @@ type ServiceCheckResult struct {
 	//检测状态 Success Failure
 	CheckStatus string `json:"check_status"`
 	ErrorInfos  parser.ParseErrorList
-	ServiceInfo ServiceInfo `json:"service_info"`
+	ServiceInfo []parser.ServiceInfo `json:"service_info"`
 }
 
 //CreateResult 创建检测结果
-func CreateResult(ErrorInfos parser.ParseErrorList, ServiceInfo ServiceInfo) error {
+func CreateResult(ErrorInfos parser.ParseErrorList, ServiceInfo []parser.ServiceInfo) error {
 	var sr ServiceCheckResult
 	if ErrorInfos != nil && ErrorInfos.IsFatalError() {
 		sr = ServiceCheckResult{
@@ -59,26 +59,16 @@ func CreateResult(ErrorInfos parser.ParseErrorList, ServiceInfo ServiceInfo) err
 			ErrorInfos:  ErrorInfos,
 			ServiceInfo: ServiceInfo,
 		}
-	}
-	sr = ServiceCheckResult{
-		CheckStatus: "Success",
-		ErrorInfos:  ErrorInfos,
-		ServiceInfo: ServiceInfo,
+	} else {
+		sr = ServiceCheckResult{
+			CheckStatus: "Success",
+			ErrorInfos:  ErrorInfos,
+			ServiceInfo: ServiceInfo,
+		}
 	}
 	//save result
 	fmt.Println(sr)
 	return nil
-}
-
-//ServiceInfo 智能获取的应用信息
-type ServiceInfo struct {
-	Ports             []parser.Port   `json:"ports"`
-	Envs              []parser.Env    `json:"envs"`
-	Volumes           []parser.Volume `json:"volumes"`
-	Image             parser.Image    `json:"image"`
-	Args              []string        `json:"args"`
-	DependServices    []string        `json:"depends,omitempty"`
-	ServiceDeployType string          `json:"deploy_type,omitempty"`
 }
 
 //serviceCheck 应用创建源检测
@@ -94,23 +84,32 @@ func (e *exectorManager) serviceCheck(in []byte) {
 	}
 	logger := event.GetManager().GetLogger(input.EventID)
 	logger.Info("开始应用构建源检测", map[string]string{"step": "starting"})
+	logrus.Infof("start check service by type: %s ", input.SourceType)
+	var pr parser.Parser
 	switch input.SourceType {
 	case "docker-run":
-		parser := parser.CreateDockerRunOrImageParse(input.SourceBody, e.DockerClient, logger)
-		if errList := parser.Parse(); errList != nil {
-			for i, err := range errList {
-				if err.SolveAdvice == "" {
-					errList[i].SolveAdvice = fmt.Sprintf("解析器认为镜像名为:%s,请确认是否正确或镜像是否存在", parser.GetImage())
-				}
-			}
-			if errList.IsFatalError() {
-
+		pr = parser.CreateDockerRunOrImageParse(input.SourceBody, e.DockerClient, logger)
+	case "docker-compose":
+		pr = parser.CreateDockerComposeParse(input.SourceBody, e.DockerClient, logger)
+	case "sourcecode":
+		pr = parser.CreateSourceCodeParse(input.SourceBody, logger)
+	}
+	if pr == nil {
+		logger.Error("创建应用来源类型不支持。", map[string]string{"step": "callback", "status": "failure"})
+		return
+	}
+	errList := pr.Parse()
+	if errList != nil {
+		for i, err := range errList {
+			if err.SolveAdvice == "" {
+				errList[i].SolveAdvice = fmt.Sprintf("解析器认为镜像名为:%s,请确认是否正确或镜像是否存在", pr.GetImage())
 			}
 		}
-
-	case "docker-compose":
-
-	case "sourcecode":
-
 	}
+	serviceInfos := pr.GetServiceInfo()
+	if err := CreateResult(errList, serviceInfos); err != nil {
+		logrus.Errorf("create check result error,%s", err.Error())
+		logger.Error("创建检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
+	}
+	logger.Error("创建检测结果成功。", map[string]string{"step": "latest", "status": "success"})
 }
