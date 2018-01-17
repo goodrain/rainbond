@@ -666,7 +666,11 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 			parents := strings.Split(headers.(string), ";")
 			for _, h := range parents {
 				headers := strings.Split(h, ":")
+				//has_header:no 默认
 				if len(headers) == 2 {
+					if headers[0] == "has_header" && headers[1] == "no" {
+						continue
+					}
 					ph := node_model.PieceHeader{
 						Name: headers[0],
 						Value: headers[1],
