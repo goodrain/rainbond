@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/cmd/node/server"
 )
