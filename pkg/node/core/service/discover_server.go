@@ -321,6 +321,7 @@ func (d *DiscoverAction) DiscoverListeners(
 		var newVHL []*node_model.PieceHTTPVirtualHost	
 		if len(vhL) > 1 {
 			domainL := d.CheckSameDomainAndPrefix(resources)
+			logrus.Debugf("domainL is %v", domainL)
 			if len(domainL) > 0 {
 				//存在相同的domain设置
 				for d := range domainL {
@@ -358,9 +359,9 @@ func (d *DiscoverAction) DiscoverListeners(
 						newVHL = append(newVHL, &pvh)
 					}
 				}
+			}else {
+				newVHL = vhL
 			}
-		}else {
-			newVHL = vhL
 		}
 		logrus.Debugf("newVHL is %v", newVHL)
 		rcg := &node_model.RouteConfig{
@@ -415,7 +416,7 @@ func (d *DiscoverAction)CheckSameDomainAndPrefix(resources *api_model.ResourceSp
 		l := len(filterL)
 		domainName, _:= bs.Options[node_model.DOMAINS].(string)
 		filterL[domainName] = 0
-		if len(filterL) != l {
+		if len(filterL) == l {
 			domainL[domainName] = "use"
 		}
 	}
