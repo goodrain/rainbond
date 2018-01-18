@@ -39,6 +39,7 @@ type TenantHandler interface {
 	GetTenantsResources(tr *api_model.TenantResources) ([]map[string]interface{}, error)
 	TenantsSum() (int, error)
 	GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHandleError)
+	TransPlugins(tenantID, tenantName, fromTenant string, pluginList []string)  *util.APIHandleError
 }
 
 var defaultTenantHandler TenantHandler

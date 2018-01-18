@@ -44,7 +44,7 @@ func InitProxy(conf option.Config) {
 func GetNodeProxy() proxy.Proxy {
 	return nodeProxy
 }
-//GetNodeProxy GetNodeProxy
+//GetBuilderProxy GetNodeProxy
 func GetBuilderProxy() proxy.Proxy {
 	return builderProxy
 }
