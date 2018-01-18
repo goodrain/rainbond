@@ -368,6 +368,8 @@ func (d *DiscoverAction) DiscoverListeners(
 			}else {
 				newVHL = vhL
 			}
+		}else {
+			newVHL = vhL
 		}
 		logrus.Debugf("newVHL is %v", newVHL)
 		rcg := &node_model.RouteConfig{
