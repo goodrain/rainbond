@@ -693,7 +693,8 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 			}
 			return np
 		}
-		return nil
+		var rc []node_model.PieceHeader
+		return rc
 	case node_model.DOMAINS:
 		if domain, ok := sr[node_model.DOMAINS]; ok {
 			if strings.Contains(domain.(string), ","){
