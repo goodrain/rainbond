@@ -28,6 +28,6 @@ const CodeVersion = "0.0.0"
 
 //ShowVersion 显示版本
 func ShowVersion(module string) {
-	fmt.Printf("Rainbond %s %s", module, CodeVersion)
+	fmt.Printf("Rainbond %s %s\n", module, CodeVersion)
 	os.Exit(0)
 }
