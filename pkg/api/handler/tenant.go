@@ -247,3 +247,34 @@ func (t *TenantAction) GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHand
 	}
 	return rps, nil
 }
+
+//TransPlugins TransPlugins
+func (t *TenantAction) TransPlugins(tenantID, tenantName, fromTenant string, pluginList []string)  *util.APIHandleError {
+	tenantInfo, err := db.GetManager().TenantDao().GetTenantIDByName(fromTenant)
+	if err != nil {
+		return util.CreateAPIHandleErrorFromDBError("get tenant infos", err)
+	}
+	goodrainID := tenantInfo.UUID
+	tx := db.GetManager().Begin()
+	for _, p := range pluginList {
+		pluginInfo, err := db.GetManager().TenantPluginDao().GetPluginByID(p, goodrainID)
+		if err != nil {
+			tx.Rollback()
+			return util.CreateAPIHandleErrorFromDBError("get plugin infos", err)
+		}
+		pluginInfo.TenantID = tenantID
+		pluginInfo.Domain = tenantName
+		pluginInfo.ID = 0
+		err = db.GetManager().TenantPluginDaoTransactions(tx).AddModel(pluginInfo)
+		if err != nil {
+			if !strings.Contains(err.Error(), "is exist") {
+				tx.Rollback()
+				return util.CreateAPIHandleErrorFromDBError("add plugin Info", err)
+			}
+		}
+	}
+	if err := tx.Commit().Error; err != nil {
+		return util.CreateAPIHandleErrorFromDBError("trans plugins infos", err)
+	}
+	return nil
+}

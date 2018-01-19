@@ -15,30 +15,24 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+package store
 
-package main
+import "testing"
 
-import (
-	"fmt"
-	"os"
-
-	"github.com/goodrain/rainbond/cmd"
-	"github.com/goodrain/rainbond/cmd/webcli/option"
-	"github.com/goodrain/rainbond/cmd/webcli/server"
-
-	"github.com/spf13/pflag"
-)
-
-func main() {
-	if len(os.Args) > 1 && os.Args[1] == "version" {
-		cmd.ShowVersion("webcli")
+func TestMerge(t *testing.T) {
+	s1 := MonitorMessageList{
+		MonitorMessage{
+			Key: "/asdadasd",
+		},
 	}
-	s := option.NewWebCliServer()
-	s.AddFlags(pflag.CommandLine)
-	pflag.Parse()
-	s.SetLog()
-	if err := server.Run(s); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+	s2 := MonitorMessageList{
+		MonitorMessage{
+			Key: "/asdadasd",
+		},
+		MonitorMessage{
+			Key: "/asda12dasd",
+		},
 	}
+	re := merge(s1, s2)
+	t.Log(re)
 }

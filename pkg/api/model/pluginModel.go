@@ -224,8 +224,16 @@ type BuildPluginStruct struct {
 		Operator string `json:"operator" validate:"operator"`
 		//租户id
 		// in: body
-		// required: false
+		// required: true
 		TenantID string `json:"tenant_id" validate:"tenant_id"`
+		//安装来源
+		// in: body
+		// required: false
+		PluginFrom string `json:"plugin_from" validate:"plugin_from"`
+		// 镜像地址
+		// in: body
+		// required: false
+		BuildImage string `json:"build_image" validate:"build_image"`
 	}
 }
 
@@ -386,4 +394,22 @@ type VersionEnv struct {
 	//in:body
 	//required: true
 	EnvValue string `json:"env_value" validate:"env_value"`
+}
+
+//TransPlugins TransPlugins
+type TransPlugins struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
+	//in: body
+	Body struct {
+		// 从该租户安装
+		// in: body
+		// required: true
+		FromTenantName string `json:"from_tenant_name" validate:"from_tenant_name"`
+		// 插件id
+		// in: body
+		// required: true
+		PluginsID []string `json:"plugins_id" validate:"plugins_id"`
+	}		
 }

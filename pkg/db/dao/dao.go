@@ -88,8 +88,8 @@ type TenantServicesPortDao interface {
 //TenantPluginDao TenantPluginDao
 type TenantPluginDao interface {
 	Dao
-	GetPluginByID(pluginID string) (*model.TenantPlugin, error)
-	DeletePluginByID(pluginID string) error
+	GetPluginByID(pluginID, tenantID string) (*model.TenantPlugin, error)
+	DeletePluginByID(pluginID, tenantID string) error
 	GetPluginsByTenantID(tenantID string) ([]*model.TenantPlugin, error)
 }
 
