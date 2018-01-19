@@ -1752,7 +1752,7 @@ func (s *ServiceAction) TenantServiceDeletePluginRelation(serviceID, pluginID st
 //SetTenantServicePluginRelation SetTenantServicePluginRelation
 func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID string, pss *api_model.PluginSetStruct) *util.APIHandleError {
 	tx := db.GetManager().Begin()
-	plugin, err := db.GetManager().TenantPluginDao().GetPluginByID(pss.Body.PluginID)
+	plugin, err := db.GetManager().TenantPluginDao().GetPluginByID(pss.Body.PluginID, tenantID)
 	if err != nil {
 		tx.Rollback()
 		return util.CreateAPIHandleErrorFromDBError("get plugin by plugin id", err)

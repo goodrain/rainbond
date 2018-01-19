@@ -93,11 +93,12 @@ func InitService(next http.Handler) http.Handler {
 func InitPlugin(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		pluginID := chi.URLParam(r, "plugin_id")
+		tenantID := r.Context().Value(ContextKey("tenant_id")).(string)
 		if pluginID == "" {
 			httputil.ReturnError(r, w, 404, "need plugin id")
 			return
 		}
-		_, err := db.GetManager().TenantPluginDao().GetPluginByID(pluginID)
+		_, err := db.GetManager().TenantPluginDao().GetPluginByID(pluginID,tenantID)
 		if err != nil {
 			if err.Error() == gorm.ErrRecordNotFound.Error() {
 				httputil.ReturnError(r, w, 404, "cant find plugin")

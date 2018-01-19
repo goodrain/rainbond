@@ -1716,3 +1716,45 @@ func (t *TenantStruct) GetSupportProtocols(w http.ResponseWriter, r *http.Reques
 	httputil.ReturnSuccess(r, w, rps)
 	return
 }
+
+//TransPlugins transPlugins
+// swagger:operation POST /v2/tenants/{tenant_name}/transplugins v2 transPlugins
+//
+// 安装云帮默认plugins
+//
+// trans plugins
+//
+// ---
+// produces:
+// - application/json
+// - application/xml
+// parameters:
+// - name: tenant_name
+//   in: path
+//   description: tenant name
+//   required: true
+//   type: string
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func (t *TenantStruct) TransPlugins(w http.ResponseWriter, r *http.Request) {
+	var tps api_model.TransPlugins
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tps.Body, nil)
+	if !ok {
+		return
+	}
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)	
+	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
+	rc := make(map[string]string)
+	err := handler.GetTenantManager().TransPlugins(tenantID, tenantName, tps.Body.FromTenantName, tps.Body.PluginsID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	rc["result"] = "success"
+	httputil.ReturnSuccess(r, w, rc)
+	return
+}

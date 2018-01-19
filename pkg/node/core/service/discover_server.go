@@ -368,6 +368,8 @@ func (d *DiscoverAction) DiscoverListeners(
 			}else {
 				newVHL = vhL
 			}
+		}else {
+			newVHL = vhL
 		}
 		logrus.Debugf("newVHL is %v", newVHL)
 		rcg := &node_model.RouteConfig{
@@ -691,7 +693,8 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 			}
 			return np
 		}
-		return nil
+		var rc []node_model.PieceHeader
+		return rc
 	case node_model.DOMAINS:
 		if domain, ok := sr[node_model.DOMAINS]; ok {
 			if strings.Contains(domain.(string), ","){

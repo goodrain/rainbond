@@ -84,8 +84,8 @@ func (p *PluginAction) CreatePluginAct(cps *api_model.CreatePluginStruct) *util.
 }
 
 //UpdatePluginAct UpdatePluginAct
-func (p *PluginAction) UpdatePluginAct(pluginID string, cps *api_model.UpdatePluginStruct) *util.APIHandleError {
-	tp, err := db.GetManager().TenantPluginDao().GetPluginByID(pluginID)
+func (p *PluginAction) UpdatePluginAct(pluginID, tenantID string, cps *api_model.UpdatePluginStruct) *util.APIHandleError {
+	tp, err := db.GetManager().TenantPluginDao().GetPluginByID(pluginID, tenantID)
 	if err != nil {
 		return util.CreateAPIHandleErrorFromDBError("get old plugin info", err)
 	}
@@ -105,10 +105,10 @@ func (p *PluginAction) UpdatePluginAct(pluginID string, cps *api_model.UpdatePlu
 }
 
 //DeletePluginAct DeletePluginAct
-func (p *PluginAction) DeletePluginAct(pluginID string) *util.APIHandleError {
+func (p *PluginAction) DeletePluginAct(pluginID,tenantID string) *util.APIHandleError {
 	//TODO: 事务
 	tx := db.GetManager().Begin()
-	err := db.GetManager().TenantPluginDaoTransactions(tx).DeletePluginByID(pluginID)
+	err := db.GetManager().TenantPluginDaoTransactions(tx).DeletePluginByID(pluginID, tenantID)
 	if err != nil {
 		tx.Rollback()
 		return util.CreateAPIHandleErrorFromDBError("delete plugin", err)
@@ -213,9 +213,23 @@ func (p *PluginAction) BuildPluginManual(bps *api_model.BuildPluginStruct) (*dbm
 	eventID := bps.Body.EventID
 	logger := event.GetManager().GetLogger(eventID)
 	defer event.CloseManager()
-	plugin, err := db.GetManager().TenantPluginDao().GetPluginByID(bps.PluginID)
+	plugin, err := db.GetManager().TenantPluginDao().GetPluginByID(bps.PluginID, bps.Body.TenantID)
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError(fmt.Sprintf("get plugin by %v", bps.PluginID), err)
+	}
+	if bps.Body.PluginFrom != "" {
+		switch bps.Body.PluginFrom{
+		case "yb":
+			pbv, err := p.InstallPluginFromYB(bps, plugin)
+			if err != nil {
+				logrus.Debugf("install plugin from yb error %s", err.Error())
+				return nil, util.CreateAPIHandleError(500, fmt.Errorf("install plugin from yb error"))
+			}
+			return pbv, nil
+		case "ys":
+		default:
+			return nil, util.CreateAPIHandleError(400, fmt.Errorf("unexpect plugin from"))
+		}
 	}
 	switch plugin.BuildModel {
 	case "image":
@@ -242,6 +256,34 @@ func createVersionID(s []byte) string {
 	h := md5.New()
 	h.Write(s)
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+//InstallPluginFromYB InstallPluginFromYB
+func (p *PluginAction) InstallPluginFromYB(b *api_model.BuildPluginStruct, plugin *dbmodel.TenantPlugin)(
+	*dbmodel.TenantPluginBuildVersion, error) {
+	if b.Body.Operator == "" {
+		b.Body.Operator = "define"
+	}
+	pbv := &dbmodel.TenantPluginBuildVersion{
+		VersionID:       b.Body.BuildVersion,
+		PluginID:        b.PluginID,
+		Kind:            plugin.BuildModel,
+		BaseImage:       plugin.ImageURL,
+		BuildLocalImage: b.Body.BuildImage,
+		ContainerCPU:    b.Body.PluginCPU,
+		ContainerMemory: b.Body.PluginMemory,
+		ContainerCMD:    b.Body.PluginCMD,
+		BuildTime:       time.Now().Format(time.RFC3339),
+		Info:            b.Body.Info,
+		Status:          "complete",
+	}	
+	if err := db.GetManager().TenantPluginBuildVersionDao().AddModel(pbv); err != nil {
+		if !strings.Contains(err.Error(), "exist") {
+			logrus.Errorf("build plugin error: %s", err.Error())
+			return nil, err
+		}
+	}	
+	return pbv, nil
 }
 
 //ImageBuildPlugin ImageBuildPlugin
