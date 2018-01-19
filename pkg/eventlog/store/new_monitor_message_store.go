@@ -20,6 +20,8 @@ package store
 
 import (
 	"context"
+	"math"
+	"sort"
 	"sync"
 	"time"
 
@@ -174,7 +176,7 @@ type MonitorMessage struct {
 type cacheMonitorMessage struct {
 	updateTime time.Time
 	hostName   string
-	mms        []MonitorMessage
+	mms        MonitorMessageList
 }
 
 //CacheMonitorMessageList 某个应用性能分析数据
@@ -258,7 +260,9 @@ func (c *CacheMonitorMessageList) pushMessage() {
 		addSource := c.list[i].mms
 		source = merge(source, addSource)
 	}
-	mdata = getByte(source)
+	//重新排序
+	sort.Sort(&source)
+	mdata = getByte(*source.Pop(20))
 	c.message.MonitorData = mdata
 	for _, ch := range c.subSocketChan {
 		select {
@@ -306,7 +310,7 @@ func fromByte(source []byte) []MonitorMessage {
 	return mm
 }
 
-func merge(source, addsource []MonitorMessage) (result []MonitorMessage) {
+func merge(source, addsource MonitorMessageList) (result MonitorMessageList) {
 	var cache = make(map[string]*MonitorMessage)
 	for _, mm := range source {
 		cache[mm.Key] = &mm
@@ -316,9 +320,9 @@ func merge(source, addsource []MonitorMessage) (result []MonitorMessage) {
 			oldmm.Count += mm.Count
 			oldmm.AbnormalCount += mm.AbnormalCount
 			//平均时间
-			oldmm.AverageTime = (oldmm.AverageTime + mm.AverageTime) / 2
-			//���积���间
-			oldmm.CumulativeTime = oldmm.CumulativeTime + mm.CumulativeTime
+			oldmm.AverageTime = Round((oldmm.AverageTime+mm.AverageTime)/2, 2)
+			//�����积���间
+			oldmm.CumulativeTime = Round(oldmm.CumulativeTime+mm.CumulativeTime, 2)
 			//最大时间
 			if mm.MaxTime > oldmm.MaxTime {
 				oldmm.MaxTime = mm.MaxTime
@@ -328,7 +332,53 @@ func merge(source, addsource []MonitorMessage) (result []MonitorMessage) {
 		cache[mm.Key] = &mm
 	}
 	for _, c := range cache {
-		result = append(result, *c)
+		result.Add(c)
 	}
 	return
+}
+
+//Round Round
+func Round(f float64, n int) float64 {
+	pow10n := math.Pow10(n)
+	return math.Trunc((f+0.5/pow10n)*pow10n) / pow10n
+}
+
+//MonitorMessageList 消息列表
+type MonitorMessageList []MonitorMessage
+
+//Add 添加
+func (m *MonitorMessageList) Add(mm *MonitorMessage) {
+	*m = append(*m, *mm)
+}
+
+// Len 为集合内元素的总数
+func (m *MonitorMessageList) Len() int {
+	return len(*m)
+}
+
+//Less 如果index为i的元素小于index为j的元素，则返回true，否则返回false
+func (m *MonitorMessageList) Less(i, j int) bool {
+	return (*m)[i].CumulativeTime < (*m)[j].CumulativeTime
+}
+
+// Swap 交换索引为 i 和 j 的元素
+func (m *MonitorMessageList) Swap(i, j int) {
+	tmp := (*m)[i]
+	(*m)[i] = (*m)[j]
+	(*m)[j] = tmp
+}
+
+//Pop Pop
+func (m *MonitorMessageList) Pop(i int) *MonitorMessageList {
+	if len(*m) <= i {
+		return m
+	}
+	cache := (*m)[:i]
+	return &cache
+}
+
+//String json string
+func (m *MonitorMessageList) String() string {
+	body, _ := ffjson.Marshal(m)
+	return string(body)
 }
