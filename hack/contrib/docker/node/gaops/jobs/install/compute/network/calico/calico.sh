@@ -21,9 +21,11 @@ function log.stdout() {
 }
 
 function prepare() {
-    echo "prepare network env"
+    log.info "prepare network env"
     [ -d "/etc/goodrain/envs" ] || mkdir -pv /etc/goodrain/envs
-    docker pull $calico_node_image 
+    log.info "docker pull calico image"
+    docker pull $calico_node_image
+
 }
 
 function proc::is_running() {
@@ -153,16 +155,18 @@ function package::enable() {
 function check_env_config_calico() {
     grep "$HOSTIP" /etc/goodrain/envs/calico.sh >/dev/null 2>&1
     if [ $? -eq 0 ];then
-        echo "calico config checked"
+        log.info "calico config checked"
         return 0
     else
-        echo "calico config check failed"
+        log.info "calico config check failed"
         return 1
     fi
-    grep ""
 }
 
 function write_env_config_calico() {
+
+    log.info "write env config for calico"
+
     cat <<EOF > /etc/goodrain/envs/calico.sh
 DEFAULT_IPV4=$HOSTIP
 ETCD_ENDPOINTS=http://$ETCD_ENDPOINTS
@@ -176,6 +180,7 @@ EOF
 }
 
 function update_cni_calico() {
+    log.info "check cni config"
     if [ -f "/etc/goodrain/cni/net.d/10-calico.conf" ];then
         sed -i "s#127.0.0.1:2379#$ETCD_ENDPOINTS#g" /etc/goodrain/cni/net.d/10-calico.conf
         grep "$ETCD_ENDPOINTS" /etc/goodrain/cni/net.d/10-calico.conf >/dev/null
@@ -188,8 +193,10 @@ function update_cni_calico() {
 }
 
 function write_cni_calico() {
-     [ -f "/etc/goodrain/cni/net.d/10-calico.conf" ] && mv /etc/goodrain/cni/net.d/10-calico.conf /etc/goodrain/cni/net.d/10-calico.conf.bak
-     cat > /etc/goodrain/cni/net.d/10-calico.conf <<EOF
+
+    log.info "will write_cni_calico"
+    [ -f "/etc/goodrain/cni/net.d/10-calico.conf" ] && mv /etc/goodrain/cni/net.d/10-calico.conf /etc/goodrain/cni/net.d/10-calico.conf.bak
+    cat > /etc/goodrain/cni/net.d/10-calico.conf <<EOF
 {
     "name": "calico-k8s-network",
     "cniVersion": "0.1.0",
@@ -207,13 +214,23 @@ EOF
 }
 
 function run_calico_node() {
+    log.info "start install calico_node"
     package::is_installed gr-calico || package::install gr-calico
+    log.info "check or update calico cni"
     update_cni_calico || write_cni_calico
     check_env_config_calico || write_env_config_calico
+    log.info "check calico status"
     package::enable calico-node.service
-    calico_num=$(docker ps | grep 'calico' | wc -l)
-    sleep 30
-    if [ $calico_num -eq 1 ];then
+    #calico_num=$(docker ps | grep 'calico' | wc -l)
+    #sleep 30
+    _EXIT=1
+    for ((i=1;i<=3;i++ )); do
+        sleep 10
+        log.info "retry $i get calico "
+        docker ps | grep "calico" && export _EXIT=0 && break
+    done
+    if [ $_EXIT -eq 0 ];then
+        log.info "install calico-node client Successful."
         log.stdout '{
                 "status":[ 
                 { 

@@ -219,7 +219,7 @@ function run() {
     fi
     package::enable kubelet.service
     config_custom
-
+    log.info "install kubelet Successful."
     log.stdout '{
             "status":[ 
             { 

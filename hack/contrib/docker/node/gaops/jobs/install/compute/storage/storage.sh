@@ -162,12 +162,17 @@ function run() {
     )
     fi
     
-
     sys::path_mounted $NFS_DEST || (
         mkdir -pv $NFS_DEST
         mount -t nfs -o vers=4.0  $NFS_HOST:$NFS_ENDPOINT $NFS_DEST
     )
     check_automount || write_automount
+
+    [ -d "/grdata/services/k8s/" ] || (
+        log.info "/grdata found,but not mount"
+        mount /grdata
+    )
+    if [ -d "/grdata/services/k8s/" ];then
     log.stdout '{
             "status":[ 
             { 
@@ -179,6 +184,19 @@ function run() {
             "exec_status":"Success",
             "type":"install"
             }'
+    else
+    log.stdout '{
+            "status":[ 
+            { 
+                "name":"install_storage_client_error", 
+                "condition_type":"INSTALL_STORAGE_CLIENT_ERROR", 
+                "condition_status":"False"
+            } 
+            ], 
+            "exec_status":"Failure",
+            "type":"install"
+            }'
+    fi
 }
 
 case $1 in
