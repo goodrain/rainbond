@@ -830,7 +830,7 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]
 }
 
 func (p *PodTemplateSpecBuild) getPluginModel(pluginID string) (string, error) {
-	plugin, err := p.dbmanager.TenantPluginDao().GetPluginByID(pluginID)
+	plugin, err := p.dbmanager.TenantPluginDao().GetPluginByID(pluginID, p.tenant.UUID)
 	if err != nil {
 		return "", err
 	}
@@ -880,7 +880,7 @@ func (p *PodTemplateSpecBuild) sortPlugins() ([]string, error) {
 	var mid []int
 	//TODO: 目前同种插件只能出现一个
 	for _, plugin := range p.pluginsRelation {
-		pi, err := p.dbmanager.TenantPluginDao().GetPluginByID(plugin.PluginID)
+		pi, err := p.dbmanager.TenantPluginDao().GetPluginByID(plugin.PluginID, p.tenant.UUID)
 		if err != nil {
 			return nil, err
 		}
