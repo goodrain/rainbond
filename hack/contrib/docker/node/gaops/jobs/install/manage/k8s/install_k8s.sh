@@ -1,10 +1,8 @@
 #!/bin/bash
-set -o errexit
+
 set -o pipefail
 
 OS_VERSION=$1
-
-#[ -z $TERM ] && TERM=xterm-256color
 
 function log.info() {
   echo "       $*"
@@ -149,6 +147,8 @@ export KUBE_SHARE_DIR="/grdata/services/k8s"
 function prepare() {
     log.info "RBD: install k8s"
     [ -d "/etc/goodrain/envs" ] || mkdir -pv /etc/goodrain/envs
+    log.info "rm old /etc/goodrain/kubernetes/"
+    [ -d "/etc/goodrain/kubernetes" ] || rm -f /etc/goodrain/kubernetes/*
     log.info "prepare k8s"
 }
 
