@@ -311,9 +311,9 @@ func fromByte(source []byte) []MonitorMessage {
 }
 
 func merge(source, addsource MonitorMessageList) (result MonitorMessageList) {
-	var cache = make(map[string]*MonitorMessage)
+	var cache = make(map[string]MonitorMessage)
 	for _, mm := range source {
-		cache[mm.Key] = &mm
+		cache[mm.Key] = mm
 	}
 	for _, mm := range addsource {
 		if oldmm, ok := cache[mm.Key]; ok {
@@ -327,12 +327,13 @@ func merge(source, addsource MonitorMessageList) (result MonitorMessageList) {
 			if mm.MaxTime > oldmm.MaxTime {
 				oldmm.MaxTime = mm.MaxTime
 			}
+			cache[mm.Key] = oldmm
 			continue
 		}
-		cache[mm.Key] = &mm
+		cache[mm.Key] = mm
 	}
 	for _, c := range cache {
-		result.Add(c)
+		result.Add(&c)
 	}
 	return
 }
