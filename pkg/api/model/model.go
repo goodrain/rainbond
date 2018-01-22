@@ -855,6 +855,7 @@ type ServiceCheckStruct struct {
 		// required: true
 		SourceBody string `json:"source_body" validate:"source_body|required"`
 		TenantID   string
+		EventID    string `json:"event_id"`
 	}
 }
 

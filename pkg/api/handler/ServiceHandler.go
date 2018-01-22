@@ -68,7 +68,7 @@ type ServiceHandler interface {
 	SetVersionEnv(sve *api_model.SetVersionEnv) *util.APIHandleError
 	UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError
 	DeleteComplexEnvs(tenantID, serviceAlias, pluginID string) *util.APIHandleError
-	ServiceCheck(*api_model.ServiceCheckStruct) (string, *util.APIHandleError)
+	ServiceCheck(*api_model.ServiceCheckStruct) (string, string, *util.APIHandleError)
 }
 
 var defaultServieHandler ServiceHandler

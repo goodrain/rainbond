@@ -26,23 +26,22 @@ import (
 	"github.com/Sirupsen/logrus"
 	api_db "github.com/goodrain/rainbond/pkg/api/db"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
+	tutil "github.com/goodrain/rainbond/pkg/util"
 	"github.com/goodrain/rainbond/pkg/api/util"
 	"github.com/twinj/uuid"
 )
 
 //ServiceCheck 应用构建源检测
-func (s *ServiceAction) ServiceCheck(scs *api_model.ServiceCheckStruct) (string, *util.APIHandleError) {
+func (s *ServiceAction) ServiceCheck(scs *api_model.ServiceCheckStruct) (string, string, *util.APIHandleError) {
 	checkUUID := uuid.NewV4().String()
-	if scs.Body.CheckUUID == "" {
-		scs.Body.CheckUUID = checkUUID
-	}else {
-		checkUUID = scs.Body.CheckUUID
+	scs.Body.CheckUUID = checkUUID
+	if scs.Body.EventID == "" {
+		scs.Body.EventID = tutil.NewUUID()
 	}
-	
 	body, err := ffjson.Marshal(scs.Body)
 	if err != nil {
 		logrus.Errorf("marshal service check request body error.%s", err.Error())
-		return "", util.CreateAPIHandleError(500, err)
+		return "", "", util.CreateAPIHandleError(500, err)
 	}
 	bs := &api_db.BuildTaskStruct{
 		TaskType: "service_check",
@@ -52,14 +51,14 @@ func (s *ServiceAction) ServiceCheck(scs *api_model.ServiceCheckStruct) (string,
 	eq, errEq := api_db.BuildTaskBuild(bs)
 	if errEq != nil {
 		logrus.Errorf("build equeue code check error, %v", errEq)
-		return "", util.CreateAPIHandleError(500, err)
+		return "", "", util.CreateAPIHandleError(500, err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	_, err = s.MQClient.Enqueue(ctx, eq)
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
-		return "", util.CreateAPIHandleError(500, err)
+		return "", "", util.CreateAPIHandleError(500, err)
 	}
-	return checkUUID, nil
+	return checkUUID, scs.Body.EventID, nil
 }
