@@ -49,7 +49,6 @@ func (v2 *V2) tenantRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/", controller.GetManager().Tenant)
 	r.Mount("/{tenant_name}", v2.tenantNameRouter())
-	r.Post("/servicecheck", controller.Check)
 	return r
 }
 
@@ -64,6 +63,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Get("/protocols", controller.GetManager().GetSupportProtocols)
 	//代码检测
 	r.Post("/code-check", controller.GetManager().CheckCode)
+	r.Post("/servicecheck", controller.Check)
 	r.Post("/cloud-share", controller.GetManager().ShareCloud)
 	r.Get("/resources", controller.GetManager().SingleTenantResources)
 	r.Get("/certificates", controller.GetManager().Entrance)
