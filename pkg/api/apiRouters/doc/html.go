@@ -21,6 +21,8 @@ package doc
 import (
 	"net/http"
 	"strings"
+	"path/filepath"
+	"os"
 
 	"github.com/go-chi/chi"
 
@@ -30,10 +32,10 @@ import (
 //Routes routes
 func Routes() chi.Router {
 	r := chi.NewRouter()
-	//workDir, _ := os.Getwd()
+	workDir, _ := os.Getwd()
 	//logrus.Debugf("workdir is %v", workDir)
-	//filesDir := filepath.Join(workDir, "html")
-	filesDir := "/Users/qingguo/gopath/src/github.com/goodrain/rainbond/hack/contrib/docker/api/html"
+	filesDir := filepath.Join(workDir, "html")
+	//filesDir := "/Users/qingguo/gopath/src/github.com/goodrain/rainbond/hack/contrib/docker/api/html"
 	logrus.Debugf("filesdir is %v", filesDir)
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("/docs"))

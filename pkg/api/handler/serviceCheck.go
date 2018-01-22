@@ -33,7 +33,12 @@ import (
 //ServiceCheck 应用构建源检测
 func (s *ServiceAction) ServiceCheck(scs *api_model.ServiceCheckStruct) (string, *util.APIHandleError) {
 	checkUUID := uuid.NewV4().String()
-	scs.Body.CheckUUID = checkUUID
+	if scs.Body.CheckUUID == "" {
+		scs.Body.CheckUUID = checkUUID
+	}else {
+		checkUUID = scs.Body.CheckUUID
+	}
+	
 	body, err := ffjson.Marshal(scs.Body)
 	if err != nil {
 		logrus.Errorf("marshal service check request body error.%s", err.Error())

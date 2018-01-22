@@ -32,6 +32,7 @@ import (
 //
 // 应用构建源检测，支持docker run ,docker compose, source code
 //
+// service check
 //
 // ---
 // consumes:
