@@ -29,7 +29,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libcompose/project"
 	"github.com/fatih/structs"
-	"github.com/pkg/errors"
 )
 
 // Compose is docker compose file loader, implements Loader interface
@@ -160,12 +159,12 @@ func (c *Compose) LoadBytes(bodys [][]byte) (ComposeObject, error) {
 	for _, body := range bodys {
 		composeVersion, err := getVersionFromByte(body)
 		if err != nil {
-			return ComposeObject{}, errors.Wrap(err, "Unable to load yaml/json file for version parsing")
+			return ComposeObject{}, fmt.Errorf("Unable to load yaml/json file for version parsing,%s", err.Error())
 		}
 
 		// Check that the previous file loaded matches.
 		if len(bodys) > 0 && version != "" && version != composeVersion {
-			return ComposeObject{}, errors.New("All Docker Compose files must be of the same version")
+			return ComposeObject{}, fmt.Errorf("All Docker Compose files must be of the same version")
 		}
 		version = composeVersion
 	}

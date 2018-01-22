@@ -28,15 +28,12 @@ import (
 	libcomposeyaml "github.com/docker/libcompose/yaml"
 	"github.com/twinj/uuid"
 
-	"k8s.io/kubernetes/pkg/api"
-
 	"github.com/docker/cli/cli/compose/loader"
 	"github.com/docker/cli/cli/compose/types"
 
 	"os"
 
 	"github.com/goodrain/rainbond/pkg/util"
-	"github.com/pkg/errors"
 )
 
 // converts os.Environ() ([]string) to map[string]string
@@ -47,7 +44,7 @@ func buildEnvironment() (map[string]string, error) {
 	for _, s := range env {
 		// if value is empty, s is like "K=", not "K".
 		if !strings.Contains(s, "=") {
-			return result, errors.Errorf("unexpected environment %q", s)
+			return result, fmt.Errorf("unexpected environment %q", s)
 		}
 		kv := strings.SplitN(s, "=", 2)
 		result[kv[0]] = kv[1]
@@ -92,7 +89,7 @@ func parseV3(bodys [][]byte) (ComposeObject, error) {
 	// get environment variables
 	env, err := buildEnvironment()
 	if err != nil {
-		return ComposeObject{}, errors.Wrap(err, "cannot build environment variables")
+		return ComposeObject{}, fmt.Errorf("cannot build environment variables")
 	}
 
 	// Config details
@@ -160,7 +157,7 @@ func loadV3Ports(ports []types.ServicePortConfig) []Ports {
 			HostPort:      int32(port.Published),
 			ContainerPort: int32(port.Target),
 			HostIP:        "",
-			Protocol:      api.Protocol(strings.ToUpper(string(port.Protocol))),
+			Protocol:      strings.ToUpper(string(port.Protocol)),
 		})
 
 	}
@@ -223,13 +220,13 @@ func dockerComposeToKomposeMapping(composeObject *types.Config) (ComposeObject, 
 
 			cpuLimit, err := strconv.ParseFloat(composeServiceConfig.Deploy.Resources.Limits.NanoCPUs, 64)
 			if err != nil {
-				return ComposeObject{}, errors.Wrap(err, "Unable to convert cpu limits resources value")
+				return ComposeObject{}, fmt.Errorf("Unable to convert cpu limits resources value")
 			}
 			serviceConfig.CPULimit = int64(cpuLimit * 1000)
 
 			cpuReservation, err := strconv.ParseFloat(composeServiceConfig.Deploy.Resources.Reservations.NanoCPUs, 64)
 			if err != nil {
-				return ComposeObject{}, errors.Wrap(err, "Unable to convert cpu limits reservation value")
+				return ComposeObject{}, fmt.Errorf("Unable to convert cpu limits reservation value")
 			}
 			serviceConfig.CPUReservation = int64(cpuReservation * 1000)
 
@@ -295,7 +292,7 @@ func dockerComposeToKomposeMapping(composeObject *types.Config) (ComposeObject, 
 			case "kompose.service.type":
 				serviceType, err := handleServiceType(value)
 				if err != nil {
-					return ComposeObject{}, errors.Wrap(err, "handleServiceType failed")
+					return ComposeObject{}, fmt.Errorf("handleServiceType failed")
 				}
 
 				serviceConfig.ServiceType = serviceType
@@ -307,7 +304,7 @@ func dockerComposeToKomposeMapping(composeObject *types.Config) (ComposeObject, 
 		}
 
 		if serviceConfig.ExposeService == "" && serviceConfig.ExposeServiceTLS != "" {
-			return ComposeObject{}, errors.New("kompose.service.expose.tls-secret was specifed without kompose.service.expose")
+			return ComposeObject{}, fmt.Errorf("kompose.service.expose.tls-secret was specifed without kompose.service.expose")
 		}
 
 		// Log if the name will been changed

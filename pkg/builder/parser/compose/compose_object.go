@@ -36,7 +36,6 @@ package compose
 
 import (
 	"github.com/docker/libcompose/yaml"
-	"k8s.io/kubernetes/pkg/api"
 )
 
 // ComposeObject holds the generic struct of Kompose transformation
@@ -146,7 +145,7 @@ type Ports struct {
 	HostPort      int32
 	ContainerPort int32
 	HostIP        string
-	Protocol      api.Protocol
+	Protocol      string
 }
 
 // Volumes holds the volume struct of container

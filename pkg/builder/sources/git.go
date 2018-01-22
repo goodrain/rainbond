@@ -34,9 +34,9 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/goodrain/rainbond/pkg/util"
-	"github.com/src-d/go-git/plumbing/protocol/packp/sideband"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/protocol/packp/sideband"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )

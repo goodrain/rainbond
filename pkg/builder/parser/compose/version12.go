@@ -25,11 +25,8 @@ import (
 	"strconv"
 	"strings"
 
-	"k8s.io/kubernetes/pkg/api"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libcompose/project"
-	"github.com/pkg/errors"
 )
 
 // Parse Docker Compose with libcompose (only supports v1 and v2). Eventually we will
@@ -44,7 +41,7 @@ func parseV1V2(bodys [][]byte) (ComposeObject, error) {
 	composeObject := project.NewProject(context, nil, nil)
 	err := composeObject.Parse()
 	if err != nil {
-		return ComposeObject{}, errors.Wrap(err, "composeObject.Parse() failed, Failed to load compose file")
+		return ComposeObject{}, fmt.Errorf("composeObject.Parse() failed, Failed to load compose file,%s", err)
 	}
 
 	noSupKeys := checkUnsupportedKey(composeObject)
@@ -70,13 +67,13 @@ func loadPorts(composePorts []string) ([]Ports, error) {
 		// Get the TCP / UDP protocol. Checks to see if it splits in 2 with '/' character.
 		// ex. 15000:15000/tcp
 		// else, set a default protocol of using TCP
-		proto := api.ProtocolTCP
+		proto := "TCP"
 		protocolCheck := strings.Split(port, "/")
 		if len(protocolCheck) == 2 {
 			if strings.EqualFold("tcp", protocolCheck[1]) {
-				proto = api.ProtocolTCP
+				proto = "TCP"
 			} else if strings.EqualFold("udp", protocolCheck[1]) {
-				proto = api.ProtocolUDP
+				proto = "UDP"
 			} else {
 				return nil, fmt.Errorf("invalid protocol %q", protocolCheck[1])
 			}
@@ -189,7 +186,7 @@ func libComposeToKomposeMapping(composeObject *project.Project) (ComposeObject, 
 		// load ports
 		ports, err := loadPorts(composeServiceConfig.Ports)
 		if err != nil {
-			return ComposeObject{}, errors.Wrap(err, "loadPorts failed. "+name+" failed to load ports from compose file")
+			return ComposeObject{}, fmt.Errorf("loadPorts failed. " + name + " failed to load ports from compose file")
 		}
 		serviceConfig.Port = ports
 
@@ -210,7 +207,7 @@ func libComposeToKomposeMapping(composeObject *project.Project) (ComposeObject, 
 			case "kompose.service.type":
 				serviceType, err := handleServiceType(value)
 				if err != nil {
-					return ComposeObject{}, errors.Wrap(err, "handleServiceType failed")
+					return ComposeObject{}, fmt.Errorf("handleServiceType failed")
 				}
 
 				serviceConfig.ServiceType = serviceType
@@ -221,11 +218,11 @@ func libComposeToKomposeMapping(composeObject *project.Project) (ComposeObject, 
 			}
 		}
 		if serviceConfig.ExposeService == "" && serviceConfig.ExposeServiceTLS != "" {
-			return ComposeObject{}, errors.New("kompose.service.expose.tls-secret was specifed without kompose.service.expose")
+			return ComposeObject{}, fmt.Errorf("kompose.service.expose.tls-secret was specifed without kompose.service.expose")
 		}
 		err = checkLabelsPorts(len(serviceConfig.Port), composeServiceConfig.Labels["kompose.service.type"], name)
 		if err != nil {
-			return ComposeObject{}, errors.Wrap(err, "kompose.service.type can't be set if service doesn't expose any ports.")
+			return ComposeObject{}, fmt.Errorf("kompose.service.type can't be set if service doesn't expose any ports.")
 		}
 
 		// convert compose labels to annotations
@@ -250,7 +247,7 @@ func libComposeToKomposeMapping(composeObject *project.Project) (ComposeObject, 
 		// Get GroupAdd, group should be mentioned in gid format but not the group name
 		groupAdd, err := getGroupAdd(composeServiceConfig.GroupAdd)
 		if err != nil {
-			return ComposeObject{}, errors.Wrap(err, "GroupAdd should be mentioned in gid format, not a group name")
+			return ComposeObject{}, fmt.Errorf("GroupAdd should be mentioned in gid format, not a group name")
 		}
 		serviceConfig.GroupAdd = groupAdd
 		co.ServiceConfigs[normalizeServiceNames(name)] = serviceConfig
@@ -271,7 +268,7 @@ func handleVolume(ComposeObject *ComposeObject) {
 		// retrieve volumes of service
 		vols, err := retrieveVolume(name, *ComposeObject)
 		if err != nil {
-			errors.Wrap(err, "could not retrieve volume")
+			logrus.Errorf("could not retrieve volume %s", err.Error())
 		}
 		// We can't assign value to struct field in map while iterating over it, so temporary variable `temp` is used here
 		var temp = ComposeObject.ServiceConfigs[name]
@@ -282,7 +279,7 @@ func handleVolume(ComposeObject *ComposeObject) {
 
 func checkLabelsPorts(noOfPort int, labels string, svcName string) error {
 	if noOfPort == 0 && (labels == "NodePort" || labels == "LoadBalancer") {
-		return errors.Errorf("%s defined in service %s with no ports present. Issues may occur when bringing up artifacts.", labels, svcName)
+		return fmt.Errorf("%s defined in service %s with no ports present. Issues may occur when bringing up artifacts", labels, svcName)
 	}
 	return nil
 }
@@ -296,12 +293,12 @@ func retrieveVolume(svcName string, ComposeObject ComposeObject) (volume []Volum
 			// recursive call for retrieving volumes of services from `volumes-from`
 			dVols, err := retrieveVolume(depSvc, ComposeObject)
 			if err != nil {
-				return nil, errors.Wrapf(err, "could not retrieve the volume")
+				return nil, fmt.Errorf("could not retrieve the volume")
 			}
 			var cVols []Volumes
 			cVols, err = ParseVols(ComposeObject.ServiceConfigs[svcName].VolList, svcName)
 			if err != nil {
-				return nil, errors.Wrapf(err, "error generting current volumes")
+				return nil, fmt.Errorf("error generting current volumes")
 			}
 
 			for _, cv := range cVols {
@@ -335,7 +332,7 @@ func retrieveVolume(svcName string, ComposeObject ComposeObject) (volume []Volum
 		// if `volumes-from` is not present
 		volume, err = ParseVols(ComposeObject.ServiceConfigs[svcName].VolList, svcName)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error generting current volumes")
+			return nil, fmt.Errorf("error generting current volumes")
 		}
 	}
 	return
@@ -360,7 +357,7 @@ func ParseVols(volNames []string, svcName string) ([]Volumes, error) {
 		var v Volumes
 		v.VolumeName, v.Host, v.Container, v.Mode, err = ParseVolume(vn)
 		if err != nil {
-			return nil, errors.Wrapf(err, "could not parse volume %q: %v", vn, err)
+			return nil, fmt.Errorf("could not parse volume %q: %v", vn, err)
 		}
 		v.SvcName = svcName
 		v.MountPath = fmt.Sprintf("%s:%s", v.Host, v.Container)
@@ -386,7 +383,7 @@ func getGroupAdd(group []string) ([]int64, error) {
 	for _, i := range group {
 		j, err := strconv.Atoi(i)
 		if err != nil {
-			return nil, errors.Wrap(err, "unable to get group_add key")
+			return nil, fmt.Errorf("unable to get group_add key")
 		}
 		groupAdd = append(groupAdd, int64(j))
 

@@ -24,9 +24,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
-	"github.com/shunfei/cronsun/log"
-	"k8s.io/kubernetes/pkg/api"
+	"github.com/Sirupsen/logrus"
 )
 
 // load environment variables from compose file
@@ -80,7 +78,7 @@ func getComposeFileDir(inputFiles []string) (string, error) {
 	if strings.Index(inputFile, "/") != 0 {
 		workDir, err := os.Getwd()
 		if err != nil {
-			return "", errors.Wrap(err, "Unable to retrieve compose file directory")
+			return "", fmt.Errorf("Unable to retrieve compose file directory,%s", err)
 		}
 		inputFile = filepath.Join(workDir, inputFile)
 	}
@@ -90,13 +88,13 @@ func getComposeFileDir(inputFiles []string) (string, error) {
 func handleServiceType(ServiceType string) (string, error) {
 	switch strings.ToLower(ServiceType) {
 	case "", "clusterip":
-		return string(api.ServiceTypeClusterIP), nil
+		return "ClusterIP", nil
 	case "nodeport":
-		return string(api.ServiceTypeNodePort), nil
+		return "NodePort", nil
 	case "loadbalancer":
-		return string(api.ServiceTypeLoadBalancer), nil
+		return "LoadBalancer", nil
 	default:
-		return "", errors.New("Unknown value " + ServiceType + " , supported values are 'NodePort, ClusterIP or LoadBalancer'")
+		return "", fmt.Errorf("Unknown value " + ServiceType + " , supported values are 'NodePort, ClusterIP or LoadBalancer'")
 	}
 }
 
@@ -133,7 +131,7 @@ func ParseVolume(volume string) (name, host, container, mode string, err error) 
 	// See https://github.com/kubernetes/kompose/issues/176
 	// Otherwise, check to see if "rw" or "ro" has been passed
 	if possibleAccessMode == "z" || possibleAccessMode == "Z" {
-		log.Warnf("Volume mount \"%s\" will be mounted without labeling support. :z or :Z not supported", volume)
+		logrus.Warnf("Volume mount \"%s\" will be mounted without labeling support. :z or :Z not supported", volume)
 		mode = ""
 		volumeStrings = volumeStrings[:len(volumeStrings)-1]
 	} else if possibleAccessMode == "rw" || possibleAccessMode == "ro" {
