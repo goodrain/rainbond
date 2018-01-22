@@ -260,8 +260,8 @@ func (c *CacheMonitorMessageList) pushMessage() {
 		addSource := c.list[i].mms
 		source = merge(source, addSource)
 	}
-	//重新排序
-	sort.Sort(&source)
+	//降序排序
+	sort.Sort(sort.Reverse(&source))
 	mdata = getByte(*source.Pop(20))
 	c.message.MonitorData = mdata
 	for _, ch := range c.subSocketChan {
