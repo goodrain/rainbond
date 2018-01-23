@@ -71,6 +71,8 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 	ch <- e.totalScrapes
 	ch <- e.error
+	e.fsUse.Collect(ch)
+	e.memoryUse.Collect(ch)
 	e.scrapeErrors.Collect(ch)
 	ch <- e.workerUp
 }
