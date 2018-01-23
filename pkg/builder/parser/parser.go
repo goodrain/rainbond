@@ -131,6 +131,13 @@ type ServiceInfo struct {
 	Memory            int      `json:"memory"`
 }
 
+//GetServiceInfo GetServiceInfo
+type GetServiceInfo struct {
+	UUID 		string `json:"uuid"`
+	Source 		string `json:"source"`
+	AnalystInfo []ServiceInfo `json:"analyst_info"`
+}
+
 //GetPortProtocol 获取端口协议
 func GetPortProtocol(port int) string {
 	if port == 80 {

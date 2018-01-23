@@ -67,9 +67,11 @@ func (s *ServiceAction) ServiceCheck(scs *api_model.ServiceCheckStruct) (string,
 }
 
 //GetServiceCheckInfo 获取应用源检测信息
-func (s *ServiceAction) GetServiceCheckInfo(uuid string)([]parser.ServiceInfo, *util.APIHandleError) {
+func (s *ServiceAction) GetServiceCheckInfo(uuid string)(*parser.GetServiceInfo, *util.APIHandleError) {
 	k := fmt.Sprintf("/servicecheck/%s", uuid)
-	var si []parser.ServiceInfo
+	si := &parser.GetServiceInfo{
+		UUID: uuid,
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
 	resp, err := s.EtcdCli.Get(ctx, k)
 	cancel()

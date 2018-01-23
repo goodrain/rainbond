@@ -112,11 +112,7 @@ func (e *exectorManager) serviceCheck(in []byte) {
 		logger.Error("创建检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
 	}
 	k := fmt.Sprintf("/servicecheck/%s", input.CheckUUID)
-	v := struct {
-		UUID string `json:"uuid"`
-		Source string `json:"source"`
-		AnalystInfo []parser.ServiceInfo `json:"analyst_info"`
-	}{
+	v := parser.GetServiceInfo{
 		UUID: input.CheckUUID,
 		Source: input.SourceType,
 		AnalystInfo: serviceInfos,
