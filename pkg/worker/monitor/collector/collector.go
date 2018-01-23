@@ -171,12 +171,12 @@ func New(statusManager status.ServiceStatusManager) *Exporter {
 			Namespace: namespace,
 			Name:      "appmemory",
 			Help:      "tenant service memory used.",
-		}, []string{"tenant_id", "service_alias", "service_status"}),
+		}, []string{"tenant_id", "service_id", "service_status"}),
 		fsUse: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Name:      "appfs",
 			Help:      "tenant service fs used.",
-		}, []string{"tenant_id", "service_alias", "volume_type"}),
+		}, []string{"tenant_id", "service_id", "volume_type"}),
 		dbmanager:     db.GetManager(),
 		statusManager: statusManager,
 	}
