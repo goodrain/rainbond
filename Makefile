@@ -94,9 +94,8 @@ run-mq:build-mq
 run-worker:build-worker
 	CUR_NET=midonet EX_DOMAIN=test-ali.goodrain.net:10080 ${BIN_PATH}/${BASE_NAME}-worker \
 	--log-level=debug  \
-	--db-type=cockroachdb \
-	--mysql="postgresql://root@localhost:26257/region" \
-	--kube-config=./admin.kubeconfig
+	--mysql="root:admin@tcp(127.0.0.1:3306)/region" \
+	--kube-config=./test/admin.kubeconfig
 run-chaos:build-chaos
 	${BIN_PATH}/${BASE_NAME}-chaos
 run-eventlog:build-eventlog

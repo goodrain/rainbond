@@ -24,7 +24,9 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -192,4 +194,64 @@ func Deweight(data *[]string) {
 		}
 	}
 	*data = result
+}
+
+//GetDirSize kb为单位
+func GetDirSize(path string) float64 {
+	if ok, err := FileExists(path); err != nil || !ok {
+		return 0
+	}
+
+	fileSizes := make(chan int64)
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go walkDir(path, &wg, fileSizes)
+
+	go func() {
+		wg.Wait() //等待goroutine结束
+		close(fileSizes)
+	}()
+	var nfiles, nbytes int64
+loop:
+	for {
+		select {
+		case size, ok := <-fileSizes:
+			if !ok {
+				break loop
+			}
+			nfiles++
+			nbytes += size
+		}
+	}
+	return float64(nbytes / 1024)
+}
+
+//获取目录dir下的文件大小
+func walkDir(dir string, wg *sync.WaitGroup, fileSizes chan<- int64) {
+	defer wg.Done()
+	for _, entry := range dirents(dir) {
+		if entry.IsDir() { //目录
+			wg.Add(1)
+			subDir := filepath.Join(dir, entry.Name())
+			go walkDir(subDir, wg, fileSizes)
+		} else {
+			fileSizes <- entry.Size()
+		}
+	}
+}
+
+//sema is a counting semaphore for limiting concurrency in dirents
+var sema = make(chan struct{}, 20)
+
+//读取目录dir下的文件信息
+func dirents(dir string) []os.FileInfo {
+	sema <- struct{}{}
+	defer func() { <-sema }()
+	entries, err := ioutil.ReadDir(dir)
+	if err != nil {
+		logrus.Errorf("get file sizt: %v\n", err)
+		return nil
+	}
+	return entries
 }

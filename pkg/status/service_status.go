@@ -49,6 +49,8 @@ const (
 	//升级中
 	UPGRADE  = "upgrade"
 	UNDEPLOY = "undeploy"
+	//构建中
+	DEPLOYING = "deploying"
 )
 
 //ServiceStatusManager 应用运行状态控制器
@@ -75,6 +77,7 @@ type statusManager struct {
 	checkChan             chan string
 	ignoreDelete          map[string]string
 	ignoreLock            sync.Mutex
+	status                map[string]string
 }
 
 //NewManager 创建一个应用运行状态控制器
@@ -101,6 +104,7 @@ func NewManager(conf option.Config) ServiceStatusManager {
 		StatefulSetUpdateChan: make(chan StatefulSetUpdate, 10),
 		checkChan:             make(chan string, 20),
 		ignoreDelete:          make(map[string]string),
+		status:                make(map[string]string),
 	}
 }
 
@@ -113,10 +117,17 @@ func (s *statusManager) SetStatus(serviceID, status string) error {
 		logrus.Error("set application service status error.", err.Error())
 		return err
 	}
+	//本地缓存
+	//s.status[serviceID] = status
 	return nil
 }
 
 func (s *statusManager) GetStatus(serviceID string) (string, error) {
+
+	// 本地缓存应用状态
+	// if status, ok := s.status[serviceID]; ok {
+	// 	return status, nil
+	// }
 	status, err := db.GetManager().TenantServiceStatusDao().GetTenantServiceStatus(serviceID)
 	if err != nil {
 		return "", err
