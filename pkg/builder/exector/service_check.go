@@ -20,7 +20,7 @@ package exector
 
 import (
 	"fmt"
-
+	"context"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/builder/parser"
 	"github.com/goodrain/rainbond/pkg/event"
@@ -111,5 +111,25 @@ func (e *exectorManager) serviceCheck(in []byte) {
 		logrus.Errorf("create check result error,%s", err.Error())
 		logger.Error("创建检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
 	}
-	logger.Error("创建检测结果成功。", map[string]string{"step": "latest", "status": "success"})
+	k := fmt.Sprintf("/servicecheck/%s", input.CheckUUID)
+	v := struct {
+		UUID string `json:"uuid"`
+		Source string `json:"source"`
+		AnalystInfo []parser.ServiceInfo `json:"analyst_info"`
+	}{
+		UUID: input.CheckUUID,
+		Source: input.SourceType,
+		AnalystInfo: serviceInfos,
+	}
+	vj, err := ffjson.Marshal(&v)
+	if err != nil {
+		logrus.Errorf("mashal servicecheck value error, %v", err)
+		logger.Error("格式化检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
+	}
+	_, err = e.EtcdCli.Put(context.TODO(), k, string(vj))
+	if err != nil {
+		logrus.Errorf("put servicecheck k %s into etcd error, %v", k, err)
+		logger.Error("存储检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
+	}
+	logger.Info("创建检测结果成功。", map[string]string{"step": "latest", "status": "success"})
 }

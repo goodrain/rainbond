@@ -24,6 +24,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
+	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/pkg/db/config"
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/goodrain/rainbond/pkg/mq/api/grpc/pb"
@@ -43,13 +44,24 @@ func NewManager(conf config.Config) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
+	etcdCli, err := clientv3.New(clientv3.Config{
+		Endpoints:   conf.EtcdEndPoints,
+		DialTimeout: 5 * time.Second,
+	})
+	if err != nil {
+		logrus.Errorf("create etcd client v3 in service check error, %v", err)
+		return nil, err
+	}
+	defer etcdCli.Close()
 	return &exectorManager{
 		DockerClient: dockerClient,
+		EtcdCli: etcdCli,
 	}, nil
 }
 
 type exectorManager struct {
 	DockerClient *client.Client
+	EtcdCli *clientv3.Client
 }
 
 //TaskType:
