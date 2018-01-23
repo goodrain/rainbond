@@ -19,6 +19,8 @@
 package collector
 
 import (
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -93,13 +95,26 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		e.scrapeErrors.WithLabelValues("db.getvolumes").Inc()
 		e.error.Set(1)
 	}
+	localPath := os.Getenv("LOCAL_DATA_PATH")
+	sharePath := os.Getenv("SHARE_DATA_PATH")
+	if localPath == "" {
+		localPath = "/grlocaldata"
+	}
+	if sharePath == "" {
+		sharePath = "/grdata"
+	}
 	//获取内存使用情况
 	var cache = make(map[string]*model.TenantServices)
 	for _, service := range services {
-		if appstatus, err := e.statusManager.GetStatus(service.ServiceID); err != nil {
+		if appstatus, err := e.statusManager.GetStatus(service.ServiceID); err == nil {
 			if appstatus != status.CLOSED && appstatus != status.UNDEPLOY && appstatus != status.DEPLOYING {
 				e.memoryUse.WithLabelValues(service.TenantID, service.ServiceAlias, appstatus).Set(float64(service.ContainerMemory * service.Replicas))
 			}
+		}
+		//默认目录
+		size := util.GetDirSize(fmt.Sprintf("%s/tenant/%s/service/%s", sharePath, service.TenantID, service.ServiceID))
+		if size != 0 {
+			e.fsUse.WithLabelValues(service.TenantID, service.ServiceID, string(model.ShareFileVolumeType)).Set(size)
 		}
 		cache[service.ServiceID] = service
 	}
@@ -116,7 +131,9 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		var size float64
 		if volume.VolumeType == string(model.LocalVolumeType) {
 			size = util.GetDirSize(volume.HostPath)
-			e.fsUse.WithLabelValues(gettenantID(volume.ServiceID), volume.ServiceID, volume.VolumeType).Set(size)
+			if size != 0 {
+				e.fsUse.WithLabelValues(gettenantID(volume.ServiceID), volume.ServiceID, volume.VolumeType).Set(size)
+			}
 		}
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.fs")
