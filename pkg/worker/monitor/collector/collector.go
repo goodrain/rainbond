@@ -108,7 +108,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	for _, service := range services {
 		if appstatus, err := e.statusManager.GetStatus(service.ServiceID); err == nil {
 			if appstatus != status.CLOSED && appstatus != status.UNDEPLOY && appstatus != status.DEPLOYING {
-				e.memoryUse.WithLabelValues(service.TenantID, service.ServiceAlias, appstatus).Set(float64(service.ContainerMemory * service.Replicas))
+				e.memoryUse.WithLabelValues(service.TenantID, service.ServiceID, appstatus).Set(float64(service.ContainerMemory * service.Replicas))
 			}
 		}
 		//默认目录
