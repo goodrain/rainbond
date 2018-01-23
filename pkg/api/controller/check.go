@@ -20,7 +20,9 @@ package controller
 
 import (
 	"net/http"
+	"strings"
 
+	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/pkg/api/handler"
 	"github.com/goodrain/rainbond/pkg/api/middleware"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
@@ -68,4 +70,36 @@ func Check(w http.ResponseWriter, r *http.Request) {
 		EventID: eventID,
 	}
 	httputil.ReturnSuccess(r, w, re)
+}
+
+
+//GetServiceCheckInfo get service check info
+// swagger:operation GET /v2/tenants/{tenant_name}/servicecheck/{uuid} v2 getServiceCheckInfo
+//
+//	获取构建检测信息 
+//
+// get service check info
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func GetServiceCheckInfo(w http.ResponseWriter, r *http.Request) {
+	uuid := strings.TrimSpace(chi.URLParam(r, "uuid"))
+	si, err := handler.GetServiceManager().GetServiceCheckInfo(uuid)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, si)
 }

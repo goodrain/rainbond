@@ -52,7 +52,6 @@ func NewManager(conf config.Config) (Manager, error) {
 		logrus.Errorf("create etcd client v3 in service check error, %v", err)
 		return nil, err
 	}
-	defer etcdCli.Close()
 	return &exectorManager{
 		DockerClient: dockerClient,
 		EtcdCli: etcdCli,

@@ -859,6 +859,17 @@ type ServiceCheckStruct struct {
 	}
 }
 
+//GetServiceCheckInfoStruct 获取应用检测信息
+//swagger:parameters getServiceCheckInfo
+type GetServiceCheckInfoStruct struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
+	// in: path
+	// required: true
+	UUID string `json:"uuid"`
+}
+
 //CloudShareStruct CloudShareStruct
 //swagger:parameters sharecloud
 type CloudShareStruct struct {

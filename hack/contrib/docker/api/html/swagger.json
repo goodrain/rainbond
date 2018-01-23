@@ -2218,6 +2218,10 @@
                 "TenantID": {
                   "type": "string"
                 },
+                "event_id": {
+                  "type": "string",
+                  "x-go-name": "EventID"
+                },
                 "source_body": {
                   "description": "检测来源定义，\n代码： https://github.com/shurcooL/githubql.git master\ndocker-run: docker run --name xxx nginx:latest nginx\ndocker-compose: compose全文\nin: body",
                   "type": "string",
@@ -2235,6 +2239,48 @@
                 }
               }
             }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/servicecheck/{uuid}": {
+      "get": {
+        "description": "get service check info",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取构建检测信息 ",
+        "operationId": "getServiceCheckInfo",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "UUID",
+            "name": "uuid",
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
