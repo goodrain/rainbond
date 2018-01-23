@@ -143,6 +143,14 @@ func (t *TaskEngine) haveMaster() (bool, error) {
 		return false, err
 	}
 	if !resp.Succeeded {
+		//判断是否为自己注册
+		res, err := store.DefalutClient.Get(key)
+		if err == nil && res != nil && len(res.Kvs) == 1 {
+			if string(res.Kvs[0].Value) == t.currentNode.HostName {
+				return true, nil
+			}
+		}
+		//监控变化
 		ctx, cancel := context.WithCancel(t.ctx)
 		defer cancel()
 		ch := store.DefalutClient.WatchByCtx(ctx, key)
