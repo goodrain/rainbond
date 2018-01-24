@@ -345,6 +345,10 @@ func (s *storeManager) handleSubMessage() {
 				continue
 			}
 			if len(msg) == 2 {
+				if string(msg[0]) == string(db.ServiceNewMonitorMessage) {
+					s.newmonitorMessageStore.InsertMessage(&db.EventLogMessage{MonitorData: msg[1]})
+					continue
+				}
 				//s.log.Debugf("receive sub message %s", string(msg))
 				message, err := s.parsingMessage(msg[1], s.conf.MessageType)
 				if err != nil {
@@ -357,9 +361,7 @@ func (s *storeManager) handleSubMessage() {
 				if string(msg[0]) == string(db.ServiceMonitorMessage) {
 					s.monitorMessageStore.InsertMessage(message)
 				}
-				if string(msg[0]) == string(db.ServiceNewMonitorMessage) {
-					s.newmonitorMessageStore.InsertMessage(&db.EventLogMessage{MonitorData: msg[1]})
-				}
+
 			}
 		}
 	}
