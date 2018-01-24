@@ -201,6 +201,7 @@ func (d *DiscoverAction) DiscoverListeners(
 				if portProtocol != "http" && portProtocol != "https" {
 					portProtocol = "stream"
 				}
+				logrus.Debugf("port protocol is %s after trans", portProtocol)
 				switch portProtocol {
 				case "stream":
 					ptr := &node_model.PieceTCPRoute{
