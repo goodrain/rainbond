@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"github.com/goodrain/rainbond/pkg/builder/parser/code"
 )
 
 //Port 端口
@@ -118,6 +119,9 @@ type Parser interface {
 	GetImage() Image
 }
 
+//Lang 语言类型
+type Lang string
+
 //ServiceInfo 智能获取的应用信息
 type ServiceInfo struct {
 	Ports             []Port   `json:"ports"`
@@ -129,6 +133,7 @@ type ServiceInfo struct {
 	ServiceDeployType string   `json:"deploy_type,omitempty"`
 	Branchs           []string `json:"branchs,omitempty"`
 	Memory            int      `json:"memory"`
+	Lang 			  code.Lang 	   `json:"language"`	  
 }
 
 //GetServiceInfo GetServiceInfo
