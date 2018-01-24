@@ -790,7 +790,7 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]
 			return nil, nil, err
 		}
 		pc := v1.Container{
-			Name:                   pluginR.PluginID,
+			Name:                   "plugin-" + pluginR.PluginID,
 			Image:                  versionInfo.BuildLocalImage,
 			Env:                    *envs,
 			Resources:              p.createPluginResources(versionInfo.ContainerMemory, versionInfo.ContainerCPU),
