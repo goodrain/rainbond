@@ -1,36 +1,37 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package task
 
 import (
+	"fmt"
+
 	"github.com/goodrain/rainbond/pkg/db"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/goodrain/rainbond/pkg/util"
 	"github.com/goodrain/rainbond/pkg/worker/appm"
 	"github.com/goodrain/rainbond/pkg/worker/discover/model"
-	"fmt"
 
 	"github.com/goodrain/rainbond/pkg/status"
 
 	"github.com/Sirupsen/logrus"
+	"k8s.io/client-go/pkg/api/v1"
 )
 
 type rollingUpgradeTask struct {
@@ -57,14 +58,14 @@ func (s *rollingUpgradeTask) RunError(e error) {
 		//是否关闭应用？
 		//暂时不自动关闭
 		s.logger.Error("滚动更新超时，应用关闭或启动缓慢，状态将由后台处理", map[string]string{"step": "callback", "status": "failure"})
-		return
-	}
-	//TODO:
-	//是否还原到原版本
-	if e.Error() == "应用容器重启" {
-		s.logger.Error("滚动升级失败，应用启动失败，请查询应用日志", map[string]string{"step": "callback", "status": "failure"})
-	} else if e.Error() != "dont't support" {
-		s.logger.Error("滚动升级失败，请重试", map[string]string{"step": "callback", "status": "failure"})
+	} else {
+		//TODO:
+		//是否还原到原版本
+		if e.Error() == "应用容器重启" {
+			s.logger.Error("滚动升级失败，应用启动失败，请查询应用日志", map[string]string{"step": "callback", "status": "failure"})
+		} else if e.Error() != "dont't support" {
+			s.logger.Error("滚动升级失败，请重试", map[string]string{"step": "callback", "status": "failure"})
+		}
 	}
 	s.taskManager.statusManager.CheckStatus(s.modelTask.ServiceID)
 }
@@ -100,26 +101,28 @@ func (s *rollingUpgradeTask) RollBack() {
 func (s *rollingUpgradeTask) Run() error {
 	s.logger.Info("应用滚动升级任务开始执行", map[string]string{"step": "worker-executor", "status": "starting"})
 
+	var upgradeError error
 	switch s.serviceType {
 	case dbmodel.TypeStatefulSet:
-		_, err := s.taskManager.appm.RollingUpgradeStatefulSet(s.modelTask.ServiceID, s.logger)
-		if err != nil && err.Error() != appm.ErrTimeOut.Error() {
-			logrus.Error(err.Error())
+		_, upgradeError = s.taskManager.appm.RollingUpgradeStatefulSet(s.modelTask.ServiceID, s.logger)
+		if upgradeError != nil && upgradeError.Error() != appm.ErrTimeOut.Error() {
+			logrus.Error(upgradeError.Error())
 			s.logger.Info("应用升级发生错误", map[string]string{"step": "worker-executor", "status": "failure"})
-			return err
+			return upgradeError
 		}
 		break
 	case dbmodel.TypeDeployment:
 		s.logger.Error("版本构建成功，当前类型不支持滚动升级，请手动重启", map[string]string{"step": "callback", "status": "failure"})
 		return fmt.Errorf("dont't support")
 	case dbmodel.TypeReplicationController:
-		rc, err := s.taskManager.appm.RollingUpgradeReplicationController(s.modelTask.ServiceID, s.stopChan, s.logger)
-		if err != nil && err.Error() != appm.ErrTimeOut.Error() {
-			logrus.Error(err.Error())
+		var rc *v1.ReplicationController
+		rc, upgradeError = s.taskManager.appm.RollingUpgradeReplicationController(s.modelTask.ServiceID, s.stopChan, s.logger)
+		if upgradeError != nil && upgradeError.Error() != appm.ErrTimeOut.Error() {
+			logrus.Error(upgradeError.Error())
 			s.logger.Info("应用滚动升级发生错误", map[string]string{"step": "worker-executor", "status": "failure"})
-			return err
+			return upgradeError
 		}
-		err = s.taskManager.appm.UpdateService(s.modelTask.ServiceID, s.logger, rc.Name, dbmodel.TypeReplicationController)
+		err := s.taskManager.appm.UpdateService(s.modelTask.ServiceID, s.logger, rc.Name, dbmodel.TypeReplicationController)
 		if err != nil {
 			logrus.Error(err.Error())
 			s.logger.Info("应用Service升级发生错误", map[string]string{"step": "worker-executor", "status": "failure"})
@@ -127,7 +130,7 @@ func (s *rollingUpgradeTask) Run() error {
 		}
 		break
 	}
-	return nil
+	return upgradeError
 }
 func (s *rollingUpgradeTask) TaskID() string {
 	return s.taskID
