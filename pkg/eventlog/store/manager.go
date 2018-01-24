@@ -287,7 +287,6 @@ loop:
 				//消息直接集群共享
 				s.pubChan <- [][]byte{[]byte(db.ServiceNewMonitorMessage), msg}
 			}
-			fmt.Println("store mange " + string(msg))
 			s.newmonitorMessageStore.InsertMessage(&db.EventLogMessage{MonitorData: msg})
 		}
 	}
