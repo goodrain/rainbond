@@ -19,6 +19,7 @@
 package sources
 
 import (
+	"github.com/Sirupsen/logrus"
 	"bufio"
 	"context"
 	"fmt"
@@ -29,6 +30,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/pkg/event"
+	"github.com/goodrain/rainbond/pkg/builder/model"
 )
 
 //ImagePull 拉取镜像
@@ -75,8 +77,83 @@ func ImagePull(dockerCli *client.Client, image string, opts types.ImagePullOptio
 	return &ins, nil
 }
 
+//ImageTag 修改镜像tag
+func ImageTag(dockerCli *client.Client, source, target string, logger event.Logger, timeout int) error {
+	if logger != nil {
+		//进度信息
+		logger.Info(fmt.Sprintf("开始修改镜像tag：%s -> %s", source, target), map[string]string{"step": "changetag"})
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
+	defer cancel()
+	err := dockerCli.ImageTag(ctx, source, target)
+	if err != nil {
+		logrus.Debugf("image tag err: %s", err.Error())
+		return err
+	}
+	logger.Info("镜像tag修改完成", map[string]string{"step":"changetag"})
+	return nil
+}
+
+//ImageNameHandle 解析imagename
+func ImageNameHandle(imageName string) *model.ImageName {
+	var i model.ImageName
+	if strings.Contains(imageName, "/"){
+		mm := strings.Split(imageName, "/")
+		i.Host = mm[0]
+		names := strings.Join(mm[1:], "/")
+		if strings.Contains(names, ":"){
+			nn := strings.Split(names, ":")
+			i.Name = nn[0]
+			i.Tag = nn[1]
+		}else {
+			i.Name = names
+			i.Tag = "latest"
+		}
+	}else {
+		if strings.Contains(imageName, ":"){
+			nn := strings.Split(imageName, ":")
+			i.Name = nn[0]
+			i.Tag = nn[1]
+		}else {
+			i.Name = imageName
+			i.Tag = "latest"
+		}	
+	}
+	return &i
+}
+
 //ImagePush 推送镜像
 //timeout 分钟为单位
 func ImagePush(dockerCli *client.Client, image string, opts types.ImagePushOptions, logger event.Logger, timeout int) error {
+	if logger != nil {
+		//进度信息
+		logger.Info(fmt.Sprintf("开始推送镜像：%s", image), map[string]string{"step": "pushimage"})
+	}
+	//最少一分钟
+	if timeout < 1 {
+		timeout = 1
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
+	defer cancel()
+	readcloser, err := dockerCli.ImagePush(ctx, image, opts)
+	if err != nil {
+		if strings.HasSuffix(err.Error(), "does not exist") {
+			return fmt.Errorf("Image(%s) does not exist", image)
+		}
+		return err
+	}	
+	defer readcloser.Close()
+	r := bufio.NewReader(readcloser)
+	for {
+		if line, _, err := r.ReadLine(); err == nil {
+			if logger != nil {
+				//进度信息
+				logger.Debug(string(line), map[string]string{"step": "progress"})
+			}
+			fmt.Println(string(line))
+		} else {
+			break
+		}
+	}	
 	return nil
 }

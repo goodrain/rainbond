@@ -75,3 +75,10 @@ type AppPublish struct {
 	ShareID    string `json:"share_id,omitempty"`
 	Status    string `json:"status,omitempty"`
 }
+
+//ImageName ImageName
+type ImageName struct {
+	Host 	string `json:"host"`
+	Name 	string `json:"name"`
+	Tag 	string `json:"tag"`
+}

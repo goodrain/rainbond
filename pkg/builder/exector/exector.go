@@ -29,6 +29,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/goodrain/rainbond/pkg/mq/api/grpc/pb"
 	"github.com/tidwall/gjson"
+	"github.com/goodrain/rainbond/pkg/db"
 )
 
 //Manager 任务执行管理器
@@ -48,6 +49,11 @@ func NewManager(conf config.Config) (Manager, error) {
 		Endpoints:   conf.EtcdEndPoints,
 		DialTimeout: 5 * time.Second,
 	})
+	err = db.CreateManager(conf)
+	if err != nil {
+		return nil, err
+	}
+	defer db.CloseManager()
 	if err != nil {
 		logrus.Errorf("create etcd client v3 in service check error, %v", err)
 		return nil, err
@@ -55,12 +61,15 @@ func NewManager(conf config.Config) (Manager, error) {
 	return &exectorManager{
 		DockerClient: dockerClient,
 		EtcdCli: etcdCli,
+		
 	}, nil
 }
 
 type exectorManager struct {
 	DockerClient *client.Client
 	EtcdCli *clientv3.Client
+
+
 }
 
 //TaskType:
@@ -74,6 +83,12 @@ func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 	switch task.TaskType {
 	case "app_image":
 		e.appImage(task.TaskBody)
+	case "build_from_image":
+		e.buildFromImage(task.TaskBody)
+	case "build_from_source_code":
+		e.buildFromSourceCode(task.TaskBody)
+	case "build_from_ys":
+		e.buildFromYS(task.TaskBody)
 	case "app_slug":
 		e.appSlug(task.TaskBody)
 	case "image_manual":
@@ -130,6 +145,35 @@ func (e *exectorManager) appImage(in []byte) {
 	}()
 	//updateBuildResult(eventID,finalStatus,dest)
 }
+func (e *exectorManager) buildFromImage(in []byte) {
+	i := NewImageBuildItem(in)
+	i.DockerClient = e.DockerClient
+	i.Logger.Info("从镜像构建应用任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})	
+	go func() {
+		logrus.Debugf("start build from image worker")
+		defer event.GetManager().ReleaseLogger(i.Logger)
+		for n := 0; n < 3; n++ {
+			err := i.Run(time.Minute * 30)
+			if err != nil {
+				logrus.Errorf("build from image error: %s", err.Error())
+				if n < 2 {
+					i.Logger.Info("从镜像构建应用任务执行失败，开始重试", map[string]string{"step": "build-exector", "status":"failure"})
+				}else {
+					i.Logger.Info("从镜像构建应用任务执行失败", map[string]string{"step": "callback", "status":"failure"})
+				}
+			}else {
+				break
+			}
+		}
+	}()
+	
+}
+
+func (e *exectorManager) buildFromSourceCode(in []byte){
+
+}
+
+func (e *exectorManager) buildFromYS(in []byte){}
 func (e *exectorManager) appSlug(in []byte) {
 	//eventID := gjson.GetBytes(in, "event_id").String()
 	////dest := gjson.GetBytes(in, "dest").String()
