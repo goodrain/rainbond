@@ -48,14 +48,20 @@ type CodeSourceInfo struct {
 	Branch        string `json:"branch"`
 	User          string `json:"user"`
 	Password      string `json:"password"`
+	//避免项目之间冲突，代码缓存目录提高到租户
+	TenantID string `json:"tenant_id"`
 }
 
 //GetCodeCacheDir 获取代码缓存目录
 func (c CodeSourceInfo) GetCodeCacheDir() string {
+	cacheDir := os.Getenv("CACHE_DIR")
+	if cacheDir == "" {
+		cacheDir = "/cache"
+	}
 	h := sha1.New()
 	h.Write([]byte(c.RepositoryURL))
 	bs := h.Sum(nil)
-	return string(bs)
+	return path.Join(cacheDir, "build", c.TenantID, string(bs))
 }
 
 //GitClone git clone code
