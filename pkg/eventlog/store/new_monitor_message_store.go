@@ -240,7 +240,7 @@ func (c *CacheMonitorMessageList) Gc() {
 	var list []*cacheMonitorMessage
 	for i := range c.list {
 		cmm := c.list[i]
-		if !cmm.updateTime.Add(time.Minute * 5).Before(time.Now()) {
+		if !cmm.updateTime.Add(time.Second * 30).Before(time.Now()) {
 			list = append(list, cmm)
 		}
 	}
