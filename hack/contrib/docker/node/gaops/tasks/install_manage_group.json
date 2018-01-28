@@ -155,6 +155,10 @@
                     {
                         "depend_task_id": "install_plugins",
                         "strategy": "SameNode"
+                    },
+                    {
+                        "depend_task_id": "update_dns",
+                        "strategy": "SameNode"
                     }
                 ]
             },

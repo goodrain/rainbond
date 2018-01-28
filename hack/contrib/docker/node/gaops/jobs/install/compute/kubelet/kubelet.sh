@@ -1,5 +1,6 @@
 #!/bin/bash
 
+#set -e
 
 OS_VERSION=$1
 DNS_SERVER=$2
