@@ -68,10 +68,10 @@ function run() {
     
     if [ ! -f "/grdata/.do_image" ];then
         log.info "first node"
-        image::pull goodrain.me/runner:latest || image::push runner latest
-        image::pull goodrain.me/adapter:latest || image::push adapter 3.4
-        image::pull goodrain.me/pause-amd64:3.0 || image::push pause-amd64 3.0                                                                                     
-        image::pull goodrain.me/builder:latest || image::push builder latest
+        image::pull goodrain.me/runner:latest && image::push runner latest
+        image::pull goodrain.me/adapter:latest && image::push adapter 3.4
+        image::pull goodrain.me/pause-amd64:3.0 && image::push pause-amd64 3.0                                                                                     
+        image::pull goodrain.me/builder:latest && image::push builder latest
         touch /grdata/.do_image
     else
         log.info "not 1st node"
