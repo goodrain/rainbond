@@ -149,6 +149,7 @@ func (e *exectorManager) buildFromImage(in []byte) {
 	i := NewImageBuildItem(in)
 	i.DockerClient = e.DockerClient
 	i.Logger.Info("从镜像构建应用任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})	
+	status := "success"
 	go func() {
 		logrus.Debugf("start build from image worker")
 		defer event.GetManager().ReleaseLogger(i.Logger)
@@ -160,13 +161,16 @@ func (e *exectorManager) buildFromImage(in []byte) {
 					i.Logger.Info("从镜像构建应用任务执行失败，开始重试", map[string]string{"step": "build-exector", "status":"failure"})
 				}else {
 					i.Logger.Info("从镜像构建应用任务执行失败", map[string]string{"step": "callback", "status":"failure"})
+					status = "failure"
 				}
 			}else {
 				break
 			}
 		}
 	}()
-	
+	if err := i.UpdateVersionInfo(status); err != nil {
+		logrus.Debugf("update version Info error: %s", err.Error())
+	}
 }
 
 func (e *exectorManager) buildFromSourceCode(in []byte){
@@ -175,34 +179,6 @@ func (e *exectorManager) buildFromSourceCode(in []byte){
 
 func (e *exectorManager) buildFromYS(in []byte){}
 func (e *exectorManager) appSlug(in []byte) {
-	//eventID := gjson.GetBytes(in, "event_id").String()
-	////dest := gjson.GetBytes(in, "dest").String()
-	////finalStatus:="failure"
-	//
-	//logger := event.GetManager().GetLogger(eventID)
-	//logger.Info("应用代码包构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
-	//w := NewWorker(appSlug, "", nil, in)
-	//go func() {
-	//	logrus.Info("start exec app slug worker")
-	//	defer event.GetManager().ReleaseLogger(logger)
-	//	for i := 0; i < 3; i++ {
-	//		_, err := w.run(time.Minute * 30)
-	//		if err != nil {
-	//			logrus.Errorf("exec app slug python shell error:%s", err.Error())
-	//			if i < 3 {
-	//				logger.Info("应用代码包构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
-	//			} else {
-	//				logger.Info("应用代码包构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
-	//
-	//			}
-	//		} else {
-	//			//updateBuildResult(eventID,"success",dest)
-	//			break
-	//		}
-	//	}
-	//}()
-	//updateBuildResult(eventID,"failure",dest)
-
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("应用代码包构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})

@@ -31,7 +31,7 @@ func init() {
 }
 func TestGitClone(t *testing.T) {
 	csi := CodeSourceInfo{
-		RepositoryURL: "ssh://git@gr5042d6.7804f67d.ali-sh-s1.goodrain.net:20905/root/test.git",
+		RepositoryURL: "https://github.com/Gemrails/envoy_discover_service.git",
 		Branch:        "master",
 		User:          "root",
 		Password:      "5258423zqg",

@@ -157,3 +157,26 @@ func ImagePush(dockerCli *client.Client, image string, opts types.ImagePushOptio
 	}	
 	return nil
 }
+
+//ImageBuild ImageBuild
+func ImageBuild(dockerCli *client.Client, options types.ImageBuildOptions, logger event.Logger, timeout int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
+	defer cancel()
+	rc, err := dockerCli.ImageBuild(ctx, nil, options)
+	if err != nil {
+		return err
+	}
+	logrus.Debugf("rc. type is %s", rc.OSType)
+	r := bufio.NewReader(rc.Body)
+	for {
+		if line, _, err := r.ReadLine(); err == nil {
+			if logger != nil {
+				logger.Debug(string(line), map[string]string{"step": "progress"})
+			}
+			fmt.Println(string(line))
+		} else {
+			break
+		}
+	}	
+	return nil
+}
