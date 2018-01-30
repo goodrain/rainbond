@@ -150,8 +150,8 @@ services:
     logging:
         driver: "json-file"
         options:
-        max-size: "50m"
-        max-file: "3"
+          max-size: "50m"
+          max-file: "3"
     network_mode: "host"
     restart: always
 EOF
