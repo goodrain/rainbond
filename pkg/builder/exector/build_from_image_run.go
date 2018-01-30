@@ -96,7 +96,7 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 		logrus.Errorf("storage version info error, ignor it: %s", err.Error())
 	}
 	i.Logger.Info("应用同步完成，开始启动应用", map[string]string{"step": "build-exector"})
-	if err := apiHandler.UpgradeService(i.CreateUpgradeTaskBody()); err != nil {
+	if err := apiHandler.UpgradeService(i.TenantName, i.ServiceAlias, i.CreateUpgradeTaskBody()); err != nil {
 		i.Logger.Error("启动应用失败，请手动启动", map[string]string{"step": "callback", "status": "failure"})
 		logrus.Errorf("rolling update service error, %s", err.Error())
 	}

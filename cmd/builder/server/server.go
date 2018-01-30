@@ -41,7 +41,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/builder/discover"
 	"github.com/goodrain/rainbond/pkg/builder/exector"
 	"github.com/goodrain/rainbond/pkg/api/handler"
-	"github.com/goodrain/rainbond/pkg/db"
 	"github.com/goodrain/rainbond/pkg/db/config"
 	"github.com/goodrain/rainbond/pkg/event"
 	"os"
@@ -63,24 +62,12 @@ func Run(s *option.Builder) error {
 		EtcdEndPoints:       s.Config.EtcdEndPoints,
 		EtcdTimeout:         s.Config.EtcdTimeout,
 	}
-	if err := db.CreateManager(dbconfig); err != nil {
-		return err
-	}
-	defer db.CloseManager()
 	if err := event.NewManager(event.EventConfig{EventLogServers: s.Config.EventLogServers}); err != nil {
 		return err
 	}
 	defer event.CloseManager()
 	exec, err := exector.NewManager(dbconfig)
 	if err != nil {
-		return err
-	}
-	if err := handler.CreateServiceManger(api_option.Config{
-		DBType: dbconfig.DBType,
-		DBConnectionInfo: dbconfig.MysqlConnectionInfo,
-		EtcdEndpoint: dbconfig.EtcdEndPoints,
-	}); err != nil {
-		logrus.Errorf("create servie manager error, %v", err)
 		return err
 	}
 	if err := exec.Start(); err != nil {

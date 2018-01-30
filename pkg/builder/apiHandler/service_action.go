@@ -19,14 +19,54 @@
 package apiHandler
 
 import (
-	"github.com/goodrain/rainbond/pkg/api/handler"
+	"github.com/pquerna/ffjson/ffjson"
+	"os"
+	"strings"
+	"net/http"
+	"fmt"
+	"bytes"
+	"strconv"
 	"github.com/goodrain/rainbond/pkg/worker/discover/model"
 )
 
 //UpgradeService 滚动升级
-func UpgradeService(upgradeTask *model.RollingUpgradeTaskBody) error {
-	if err := handler.GetServiceManager().ServiceUpgrade(upgradeTask); err != nil {
+func UpgradeService(tenantName, serviceAlias string ,ru *model.RollingUpgradeTaskBody) error {
+	url := fmt.Sprintf("http://127.0.0.1:8888/v2/tenants/%s/services/%s/upgrade", tenantName, serviceAlias)
+	version, err := strconv.Atoi(ru.CurrentDeployVersion)
+	if err != nil {
 		return err
 	}
-	return nil
+	raw := struct {
+		DeployVersion int `json:"deploy_version"`
+		EventID  string `json:"event_id"`
+	}{
+		DeployVersion:version,
+		EventID:ru.EventID,
+	}
+	rawBody, err := ffjson.Marshal(raw)
+	if err != nil {
+		return err
+	}
+	return publicRequest("post", url,rawBody)
+}
+
+func publicRequest(method, url string, body...[]byte) error {
+	client := &http.Client{}
+	var rawBody *bytes.Buffer
+	if len(body) != 0 {
+		rawBody = bytes.NewBuffer(body[0])  
+	}else {
+		rawBody = nil 
+	}
+	request, _ := http.NewRequest(strings.ToUpper(method), url, rawBody)
+	token := os.Getenv("TOKEN")
+	if token != "" {
+		request.Header.Set("Authorization", "Token "+token)
+	}
+	response, _ := client.Do(request)
+    if response.StatusCode == 200 {
+        //body, _ := ioutil.ReadAll(response.Body)
+        return nil
+	}
+	return fmt.Errorf("send upgrade mission error")
 }

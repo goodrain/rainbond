@@ -69,8 +69,6 @@ func NewManager(conf config.Config) (Manager, error) {
 type exectorManager struct {
 	DockerClient *client.Client
 	EtcdCli *clientv3.Client
-
-
 }
 
 //TaskType:
