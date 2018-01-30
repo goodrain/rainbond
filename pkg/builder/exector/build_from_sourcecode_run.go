@@ -21,6 +21,7 @@ package exector
 
 
 import (
+	"github.com/pquerna/ffjson/ffjson"
 	"github.com/Sirupsen/logrus"
 	"time"
 	"fmt"
@@ -35,6 +36,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/builder/sources"
 	"github.com/akkuman/parseConfig"
 	"github.com/goodrain/rainbond/pkg/db"
+	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/worker/discover/model"
 	"github.com/goodrain/rainbond/pkg/builder/apiHandler"
 )
@@ -42,8 +44,8 @@ import (
 //REGISTRYDOMAIN REGISTRY_DOMAIN
 var REGISTRYDOMAIN = "goodrain.me"
 
-//SouceCodeBuildItem SouceCodeBuildItem
-type SouceCodeBuildItem struct {
+//SourceCodeBuildItem SouceCodeBuildItem
+type SourceCodeBuildItem struct {
 	Namespace 		string `json:"namespace"`
 	TenantName 		string `json:"tenant_name"`
 	ServiceAlias 	string `json:"service_alias"`
@@ -57,11 +59,14 @@ type SouceCodeBuildItem struct {
 	TenantID        string
 	ServiceID 		string
 	DeployVersion   string
+	Lang 			string
+	Runtime			string
+	BuildEnvs		map[string]string
 	CodeSouceInfo   sources.CodeSourceInfo
 }
 
 //NewSouceCodeBuildItem 创建实体
-func NewSouceCodeBuildItem(in []byte) *SouceCodeBuildItem {
+func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	csi := sources.CodeSourceInfo{
@@ -73,7 +78,12 @@ func NewSouceCodeBuildItem(in []byte) *SouceCodeBuildItem {
 		Password: gjson.GetBytes(in, "password").String(),
 		TenantID:  gjson.GetBytes(in, "tenant_id").String(),
 	}
-	return &SouceCodeBuildItem{
+	envs := gjson.GetBytes(in, "envs").String()
+	be := make(map[string]string)
+	if err := ffjson.Unmarshal([]byte(envs), &be); err != nil {
+		logrus.Errorf("unmarshal build envs error: %s", err.Error())
+	}
+	return &SourceCodeBuildItem{
 		Namespace: gjson.GetBytes(in, "namespace").String(),
 		TenantName:  gjson.GetBytes(in, "tenant_name").String(),
 		ServiceAlias: gjson.GetBytes(in, "service_alias").String(),
@@ -85,11 +95,14 @@ func NewSouceCodeBuildItem(in []byte) *SouceCodeBuildItem {
 		EventID: eventID,
 		Config: GetBuilderConfig(),
 		CodeSouceInfo: csi,
+		Lang: gjson.GetBytes(in, "lang").String(),
+		Runtime: gjson.GetBytes(in, "runtime").String(),
+		BuildEnvs: be,
 	}
 }
 
 //Run Run
-func (i *SouceCodeBuildItem) Run(timeout time.Duration) error {
+func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	//TODO:
 	// 1.clone
 	// 2.check dockerfile/ source_code
@@ -127,7 +140,7 @@ func (i *SouceCodeBuildItem) Run(timeout time.Duration) error {
 }
 
 //IsDockerfile CheckDockerfile
-func (i *SouceCodeBuildItem) IsDockerfile() bool {
+func (i *SourceCodeBuildItem) IsDockerfile() bool {
 	filepath := path.Join(i.CacheDir, "Dockerfile")
 	_, err := os.Stat(filepath)
 	if err != nil {
@@ -136,15 +149,16 @@ func (i *SouceCodeBuildItem) IsDockerfile() bool {
 	return true
 }
 
-func (i *SouceCodeBuildItem) buildImage() error {
+func (i *SourceCodeBuildItem) buildImage() error {
 	filepath := path.Join(i.CacheDir, "Dockerfile")
 	i.Logger.Info("开始解析Dockerfile", map[string]string{"step":"builder-exector"})
-	commands, err := sources.ParseFile(filepath)
+	_, err := sources.ParseFile(filepath)
 	if err != nil {
 		return err
 	}
 	reg := regexp.MustCompile(`.*(?:\:|\/)([\w\-\.]+)/([\w\-\.]+)\.git`)
 	rc := reg.FindSubmatch([]byte(i.CodeSouceInfo.RepositoryURL))
+	logrus.Debugf("reg git url piece is %s", rc)
 	pieceID := func(s string) string {
 		mm := []byte(s)
 		return string(mm[12:])
@@ -159,8 +173,12 @@ func (i *SouceCodeBuildItem) buildImage() error {
 	buildOptions := types.ImageBuildOptions{
 		Tags:   	[]string{buildImageName},
 		Dockerfile: filepath,
-		NoCache:    true,
 		Remove: 	true,
+	}
+	if _, ok := i.BuildEnvs["NO_CACHE"]; ok {
+		buildOptions.NoCache = true
+	}else {
+		buildOptions.NoCache = false
 	}
 	err = sources.ImageBuild(i.DockerClient, buildOptions, i.Logger, 3)
 	i.Logger.Info("开始构建镜像: ", map[string]string{"step": "builder-exector"})
@@ -176,19 +194,103 @@ func (i *SouceCodeBuildItem) buildImage() error {
 		logrus.Errorf("push image error: %s", err.Error())
 		return err 
 	}
+
+	i.Logger.Info("应用同步完成，开始启动应用", map[string]string{"step": "build-exector"})
+	if err := apiHandler.UpgradeService(i.CreateUpgradeTaskBody()); err != nil {
+		i.Logger.Error("启动应用失败，请手动启动", map[string]string{"step": "callback", "status": "failure"})
+		logrus.Errorf("rolling update service error, %s", err.Error())
+	}
 	return nil
 }
 
-func (i *SouceCodeBuildItem) buildCode() error {
+func (i *SourceCodeBuildItem) buildCode() error {
+	i.Logger.Info("开始编译代码包", map[string]string{"step": "build-exector"})
+	packageName := fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz",
+	i.TenantID, i.ServiceID, i.DeployVersion)
+	logfile := fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.log",
+		i.TenantID, i.ServiceID, i.DeployVersion)
+	repos := strings.Split(i.CodeSouceInfo.RepositoryURL, " ")
+	buildCMD := "plugins/scripts/build.pl"
+	buildName := func(s, buildVersion string) string {
+		mm := []byte(s)
+		return string(mm[:8]) + "_" + buildVersion
+	}(i.ServiceID, i.DeployVersion)
+	cmd := []string{buildCMD,
+		"-b", repos[1],
+		"-s", i.CodeSouceInfo.GetCodeCacheDir(),
+		"-c", i.CodeSouceInfo.GetCodeCacheDir(),
+		"-d", packageName,
+		"-v", i.DeployVersion,
+		"-l", logfile,
+		"-tid", i.TenantID,
+		"-sid", i.ServiceID,
+		"-r", i.Runtime,
+		"-g", i.Lang,
+		"--name", buildName}
+	if err := ShowExec("perl", cmd, i.Logger); err != nil {
+		i.Logger.Error("编译代码包失败", map[string]string{"step":"build-code", "status":"failure"})
+		logrus.Error("build perl error")
+		return err
+	}
+	i.Logger.Info("编译代码包完成。", map[string]string{"step":"build-code", "status":"success"})
+	fileInfo, err := os.Stat(packageName)
+	if err != nil {
+		i.Logger.Error("构建代码包检测失败", map[string]string{"step":"build-code", "status":"failure"})
+		logrus.Errorf("build package check error")
+		return err
+	}
+	if fileInfo.Size() == 0 {
+		i.Logger.Error(fmt.Sprintf("构建失败！ 构建包大小为0 name：%s", packageName), 
+		map[string]string{"step":"build-code", "status":"failure"})
+		return fmt.Errorf("build package size is 0")
+	}
+	i.Logger.Info("代码构建完成", map[string]string{"step":"build-code", "status":"success"})
+	vi := &dbmodel.VersionInfo {
+		DeliveredType: "slug",
+		DeliveredPath: packageName,
+		EventID: i.EventID,
+	}
+	if err := i.UpdateVersionInfo(vi); err != nil {
+		logrus.Errorf("update version info error: %s", err.Error())
+	}
 	return nil
 }
 
 //CreateUpgradeTaskBody 构造消息体
-func (i *SouceCodeBuildItem) CreateUpgradeTaskBody() *model.RollingUpgradeTaskBody{
+func (i *SourceCodeBuildItem) CreateUpgradeTaskBody() *model.RollingUpgradeTaskBody{
 	return &model.RollingUpgradeTaskBody{
 		TenantID: i.TenantID,
 		ServiceID: i.ServiceID,
 		NewDeployVersion: i.DeployVersion,
 		EventID: i.EventID,
 	}
+}
+
+//UpdateVersionInfo 更新任务执行结果
+func (i *SourceCodeBuildItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
+	version,err :=db.GetManager().VersionInfoDao().GetVersionByEventID(i.EventID)
+	if err != nil {
+		return err
+	}
+	if vi.DeliveredType != "" {
+		version.DeliveredType = vi.DeliveredType
+	}
+	if vi.DeliveredPath != "" {
+		version.DeliveredPath = vi.DeliveredPath
+	}
+	if vi.EventID != "" {
+		version.EventID = vi.EventID
+	}
+	if vi.FinalStatus != "" {
+		version.FinalStatus = vi.FinalStatus
+	}
+	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
+		return err
+	}
+	return nil
+} 
+
+//UpdateCheckResult UpdateCheckResult
+func (i *SourceCodeBuildItem)UpdateCheckResult(result *dbmodel.CodeCheckResult) error {
+	return nil
 }

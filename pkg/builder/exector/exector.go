@@ -30,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/mq/api/grpc/pb"
 	"github.com/tidwall/gjson"
 	"github.com/goodrain/rainbond/pkg/db"
+	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 )
 
 //Manager 任务执行管理器
@@ -158,9 +159,9 @@ func (e *exectorManager) buildFromImage(in []byte) {
 			if err != nil {
 				logrus.Errorf("build from image error: %s", err.Error())
 				if n < 2 {
-					i.Logger.Info("从镜像构建应用任务执行失败，开始重试", map[string]string{"step": "build-exector", "status":"failure"})
+					i.Logger.Error("从镜像构建应用任务执行失败，开始重试", map[string]string{"step": "build-exector", "status":"failure"})
 				}else {
-					i.Logger.Info("从镜像构建应用任务执行失败", map[string]string{"step": "callback", "status":"failure"})
+					i.Logger.Error("从镜像构建应用任务执行失败", map[string]string{"step": "callback", "status":"failure"})
 					status = "failure"
 				}
 			}else {
@@ -174,7 +175,34 @@ func (e *exectorManager) buildFromImage(in []byte) {
 }
 
 func (e *exectorManager) buildFromSourceCode(in []byte){
-
+	i := NewSouceCodeBuildItem(in)
+	i.DockerClient = e.DockerClient
+	i.Logger.Info("从源码构建应用任务开始执行", map[string]string{"step":"builder-exector", "status":"starting"})
+	status := "success"
+	go func() {
+		logrus.Debugf("start build from source code")
+		defer event.GetManager().ReleaseLogger(i.Logger)
+		for n:=0; n< 3; n++ {
+			err := i.Run(time.Minute * 30)
+			if err != nil {
+				logrus.Errorf("build from source code error: %s", err.Error())
+				if n < 2 {
+					i.Logger.Error("从源码构建应用任务执行失败，开始重试", map[string]string{"step":"build-exector", "status":"failure"})
+				}else {
+					i.Logger.Error("从源码构建应用任务执行失败", map[string]string{"step":"build-exector", "status":"failure"})
+					status = "failure"
+				}
+			}else {
+				break
+			}
+		}
+	}()
+	vi := &dbmodel.VersionInfo{
+		FinalStatus: status,
+	}
+	if err := i.UpdateVersionInfo(vi); err != nil {
+		logrus.Debugf("update version Info error: %s", err.Error())
+	}
 }
 
 func (e *exectorManager) buildFromYS(in []byte){}
