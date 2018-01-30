@@ -40,6 +40,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/builder/discover"
 	"github.com/goodrain/rainbond/pkg/builder/exector"
 	"github.com/goodrain/rainbond/pkg/db/config"
+	"github.com/goodrain/rainbond/pkg/db"
 	"github.com/goodrain/rainbond/pkg/event"
 	"os"
 	"os/signal"
@@ -59,6 +60,9 @@ func Run(s *option.Builder) error {
 		MysqlConnectionInfo: s.Config.MysqlConnectionInfo,
 		EtcdEndPoints:       s.Config.EtcdEndPoints,
 		EtcdTimeout:         s.Config.EtcdTimeout,
+	}
+	if err := db.CreateManager(dbconfig); err != nil {
+		return err
 	}
 	if err := event.NewManager(event.EventConfig{EventLogServers: s.Config.EventLogServers}); err != nil {
 		return err
