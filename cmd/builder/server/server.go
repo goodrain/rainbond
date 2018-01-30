@@ -37,10 +37,8 @@ limitations under the License.
 
 import (
 	"github.com/goodrain/rainbond/cmd/builder/option"
-	api_option "github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/pkg/builder/discover"
 	"github.com/goodrain/rainbond/pkg/builder/exector"
-	"github.com/goodrain/rainbond/pkg/api/handler"
 	"github.com/goodrain/rainbond/pkg/db/config"
 	"github.com/goodrain/rainbond/pkg/event"
 	"os"
