@@ -142,5 +142,11 @@
         "name": "rainbond/pause-amd64",
         "version": "3.0",
         "expand": "True"
+    },
+    "prometheus": {
+        "type": "image",
+        "name": "prom/prometheus",
+        "version": "v2.0.0",
+        "expand": "False"
     }
 }

@@ -196,6 +196,10 @@
                     {
                         "depend_task_id": "update_entrance_services",
                         "strategy": "SameNode"
+                    },
+                    {
+                        "depend_task_id": "install_prometheus",
+                        "strategy": "SameNode"
                     }
                 ]
             },

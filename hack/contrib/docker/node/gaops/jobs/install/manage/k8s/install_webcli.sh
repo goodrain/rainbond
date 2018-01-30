@@ -54,12 +54,8 @@ function image::pull() {
 }
 
 function prepare() {
-    log.log "nothing prepare for  webcli"
+    log.info "nothing prepare for  webcli"
 }
-
-
-
-
 
 function install_webcli() {
     #log.info "setup webcli"
