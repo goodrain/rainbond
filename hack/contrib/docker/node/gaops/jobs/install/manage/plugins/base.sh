@@ -101,17 +101,24 @@ function add_user() {
 
 function make_domain() {
     if [ -z "$EX_DOMAIN" ];then
+
         [ -z "$EXIP" ] && (
                 EXIP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
         )
         
-        log.info "domain resolve: $EXIP."
+        log.info "domain resolve: ${EXIP:-$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')}."
 
         docker pull hub.goodrain.com/dc-deploy/archiver:domain
         #docker run -it --rm hub.goodrain.com/dc-deploy/archiver:domain init --ip $IP > /tmp/domain.log
         [ -f "/data/.domain.log" ] && echo "" > /data/.domain.log || touch /data/.domain.log
         
-        docker run  --rm -v /data/.domain.log:/tmp/domain.log hub.goodrain.com/dc-deploy/archiver:domain init --ip $EXIP > /tmp/do.log
+        log.info "check ip_forward for domain"
+        forward=$(sysctl net.ipv4.ip_forward | awk '{print $NF}')
+        if [ $forward == 0 ];then
+            log.info "need update ip_forward"
+            sysctl -w net.ipv4.ip_forward=1
+        fi
+        docker run  --rm -v /data/.domain.log:/tmp/domain.log hub.goodrain.com/dc-deploy/archiver:domain init --ip ${EXIP:-$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')} > /tmp/do.log
         if [ $? -eq 0 ];then
             EX_DOMAIN=$(cat /data/.domain.log)
         else
@@ -162,6 +169,7 @@ function install_dns() {
                     "condition_status":"False"
                 } 
                 ], 
+                "exec_status":"Failure",
                 "type":"install"
                 }'
             exit 1
@@ -193,7 +201,7 @@ services:
     restart: always
 EOF
 
-    dc-compose up -d
+    dc-compose up -d rbd-dns
 }
 
 function install_registry() {
@@ -209,7 +217,8 @@ function install_registry() {
                     "condition_type":"DOCKER_PULL_REGISTRY_ERROR", 
                     "condition_status":"False"
                 } 
-                ], 
+                ],
+                "exec_status":"Failure",
                 "type":"install"
                 }'
             exit 1
@@ -232,7 +241,7 @@ services:
     restart: always
 EOF
 
-    dc-compose up -d
+    dc-compose up -d rbd-hub
 
 }
 
@@ -262,8 +271,8 @@ services:
   rbd-repo:
     image: $RBD_REPO
     container_name: rbd-repo
-    environment:
-      INSTANCE_LOCK_NAME: artifactory
+    #environment:
+    #  INSTANCE_LOCK_NAME: artifactory
     volumes:
     - /grdata/services/artifactory5:/var/opt/jfrog/artifactory
     logging:
@@ -274,7 +283,7 @@ services:
     network_mode: host
     restart: always
 EOF
-    dc-compose up -d
+    dc-compose up -d rbd-repo
 }
 
 function run() {
@@ -285,6 +294,9 @@ function run() {
     if [ $RBD_REPO_EXPAND -eq 0 ];then
         install_repo
         RBD_REPO_EXPAND=1
+
+        log.info "Install base plugins Successful."
+
         log.stdout '{ 
                 "global":{
                 "DOMAIN":"'$EX_DOMAIN'",
@@ -305,6 +317,9 @@ function run() {
                 "type":"install"
                 }'
     else
+
+        log.info "Install base plugins Successful."
+
         log.stdout '{ 
                 "global":{
                 "DNS_SERVER":"'$DNS_SERVER',",

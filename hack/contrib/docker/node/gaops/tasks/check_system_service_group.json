@@ -1,0 +1,418 @@
+{
+    "name": "check_system_service_healthy",
+    "id": "check_system_service_healthy",
+    "tasks": [
+
+        {
+            "name": "check_compute_etcd_proxy_health",
+            "id": "check_compute_etcd_proxy_health",
+            "temp": {
+                "name": "check_compute_etcd_proxy_health",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/compute/etcd_proxy.sh",
+                        "${OS_VER}"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_compute": "true"
+                },
+                "depends": []
+            },
+            "run_mode": "manyonce",
+            "is_once": true
+        },
+        {
+            "name": "check_manage_etcd_health",
+            "id": "check_manage_etcd_health",
+            "temp": {
+                "name": "check_manage_etcd_health",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/manage/etcd.sh",
+                        "${OS_VER}"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "run_mode": "manyonce",
+            "is_once": true
+        },
+        {
+            "name": "check_manage_docker_health",
+            "id": "check_manage_docker_health",
+            "temp": {
+                "name": "check_manage_docker_health",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/common/docker.sh",
+                        "${OS_VER}",
+                        "manage"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "run_mode": "manyonce",
+            "is_once": true
+        },
+        {
+            "name": "check_compute_docker_health",
+            "id": "check_compute_docker_health",
+            "temp": {
+                "name": "check_compute_docker_health",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/common/docker.sh",
+                        "${OS_VER}",
+                        "compute"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "run_mode": "manyonce",
+            "is_once": true
+        },
+
+        {
+            "name": "check_compute_calico_node_health",
+            "id": "check_compute_calico_node_health",
+            "temp": {
+                "name": "check_compute_calico_node_health",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/common/calico_node.sh",
+                        "${OS_VER}",
+                        "compute"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_compute": "true"
+                },
+                "depends": []
+            },
+            "run_mode":"manyonce",
+            "is_once": true
+        },
+        {
+            "name": "check_calico_node_manage_health",
+            "id": "check_calico_node_manage_health",
+            "temp": {
+                "name": "check_calico_node_manage_health",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/common/calico_node.sh",
+                        "${OS_VER}",
+                        "manage"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "run_mode": "manyonce",
+            "is_once": true
+        },
+
+        {
+            "name": "check_storage_compute_health",
+            "id": "check_storage_compute_health",
+            "temp": {
+                "name": "check_storage_compute_health",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/storage/nfs.sh",
+                        "${OS_VER}",
+                        "compute"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_compute": "true"
+                },
+                "depends": []
+            },
+            "run_mode":"manyonce",
+            "is_once": true
+        },
+        {
+            "name": "check_storage_manage_health",
+            "id": "check_storage_manage_health",
+            "temp": {
+                "name": "check_storage_manage_health",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/storage/nfs.sh",
+                        "${OS_VER}",
+                        "manage"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "run_mode": "manyonce",
+            "is_once": true
+        },
+        {
+            "name": "check_k8s_manage_health",
+            "id": "check_k8s_manage_health",
+            "temp": {
+                "name": "check_k8s_manage_health",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/manage/k8s.sh",
+                        "${OS_VER}"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "run_mode":"manyonce",
+            "is_once": true
+        },
+
+        {
+            "name": "check_kubelet_compute_health",
+            "id": "check_kubelet_compute_health",
+            "temp": {
+                "name": "check_kubelet_compute_health",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/compute/kubelet.sh",
+                        "${OS_VER}"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_compute": "true"
+                },
+                "depends": []
+            },
+            "run_mode": "manyonce",
+            "is_once": true
+        },
+
+        {
+            "name": "check_dns_manage_health",
+            "id": "check_dns_manage_health",
+            "temp": {
+                "name": "check_dns_manage_health",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/common/dns.sh",
+                        "manage"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "run_mode":"manyonce",
+            "is_once": true
+        },
+        {
+            "name": "check_dns_compute_health",
+            "id": "check_dns_compute_health",
+            "temp": {
+                "name": "check_dns_compute_health",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/common/dns.sh",
+                        "compute"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "run_mode": "manyonce",
+            "is_once": true
+        },
+        {
+            "name": "check_api",
+            "id": "check_api",
+            "temp": {
+                "name": "check_api",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/manage/check_rbd.sh",
+                        "rbd-api"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "run_mode": "manyonce",
+            "is_once": true
+        },
+        {
+            "name": "check_chaos",
+            "id": "check_chaos",
+            "temp": {
+                "name": "check_chaos",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/manage/check_rbd.sh",
+                        "rbd-chaos"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "run_mode": "manyonce",
+            "is_once": true
+        },
+        {
+            "name": "check_worker",
+            "id": "check_worker",
+            "temp": {
+                "name": "check_worker",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/manage/check_rbd.sh",
+                        "rbd-worker"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "run_mode": "manyonce",
+            "is_once": true
+        },
+        {
+            "name": "check_entrance",
+            "id": "check_entrance",
+            "temp": {
+                "name": "check_entrance",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/manage/check_rbd.sh",
+                        "rbd-entrance"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "run_mode": "manyonce",
+            "is_once": true
+        }
+        ,
+        {
+            "name": "check_mq",
+            "id": "check_mq",
+            "temp": {
+                "name": "check_mq",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/manage/check_rbd.sh",
+                        "rbd-mq"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "run_mode": "manyonce",
+            "is_once": true
+        },
+        {
+            "name": "check_eventlog",
+            "id": "check_eventlog",
+            "temp": {
+                "name": "check_eventlog",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/manage/check_rbd.sh",
+                        "rbd-eventlog"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "run_mode": "manyonce",
+            "is_once": true
+        }
+        ,
+        {
+            "name": "check_webcli",
+            "id": "check_webcli",
+            "temp": {
+                "name": "check_webcli",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/cron/check/manage/check_rbd.sh",
+                        "rbd-webcli"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "run_mode": "manyonce",
+            "is_once": true
+        }
+    ]
+}

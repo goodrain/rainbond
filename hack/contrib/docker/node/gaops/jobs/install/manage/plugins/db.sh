@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -o pipefail
+#set -o pipefail
 
 MYSQL_EXPAND=${1:-0} #是否支持扩容
 MYSQL_USER=$2
@@ -137,7 +137,7 @@ function prepare() {
         log.info "$MYSQL_USER $MYSQL_PASSWD $MYSQL_HOST $MYSQL_PORT"
     else
         log.error "mysql configure parameter error, VERSION MYSQL_USER MYSQL_PASSWD MYSQL_HOST MYSQL_PORT"
-        log.status '{
+        log.stdout '{
             "status":[ 
                 { 
                     "name":"db_configure_parameter_error", 
@@ -205,14 +205,30 @@ EOF
         fi
     done
 
-    check_mysql_admin || (
+    for ((i=1;i<=3;i++ )); do
+        sleep 1
+        check_mysql_admin || (
         log.info "create admin user"
-        
         docker exec rbd-db mysql -e "grant all on *.* to $MYSQL_USER@'%' identified by '"$MYSQL_PASSWD"' with grant option; flush privileges"
         docker exec rbd-db mysql -e "delete from mysql.user where user=''; flush privileges"
-        
         log.info "recheck admin_user"
         check_mysql_admin
+    )
+    done
+    check_mysql_admin || (
+        log.info "Install db Error. create admin user failed."
+        log.stdout '{ 
+            "status":[ 
+            { 
+                "name":"install_db", 
+                "condition_type":"INSTALL_DB", 
+                "condition_status":"False"
+            } 
+            ], 
+            "exec_status":"Failure",
+            "type":"install"
+            }'
+            exit 1
     )
     MYSQL_HOST=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
 
@@ -222,6 +238,8 @@ EOF
     log.info "create database region, console success!"
     #log.stdout "{'db_type':'mysql','info':['MYSQL_USER':'"$MYSQL_USER"','MYSQL_PASSWD':'"$MYSQL_PASSWD"','MYSQL_HOST':'"$MYSQL_HOST"','MYSQL_PORT':'"$MYSQL_PORT"']}"
     MYSQL_EXPAND=1
+    log.info "Install db Successful."
+    
     log.stdout '{ 
             "global":{
               "DB_MODE":"'mysql'",

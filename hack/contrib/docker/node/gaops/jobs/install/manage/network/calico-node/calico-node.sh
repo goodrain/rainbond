@@ -151,6 +151,17 @@ function package::enable() {
 
         if [ $_EXIT -ne 0 ];then
             log.error "check failed. abort..."
+            log.stdout '{
+            "status":[ 
+            { 
+                "name":"start_network_calico-node_client_manage", 
+                "condition_type":"START_NETWORK_CALICO_NODE_client_manage", 
+                "condition_status":"False"
+            } 
+            ], 
+            "exec_status":"Failure",
+            "type":"install"
+            }'
             exit $_EXIT
         fi
     else
@@ -227,7 +238,7 @@ function run_calico_node() {
     check_env_config_calico || write_env_config_calico
     check_calico_pool || reconfig_calico_pool
     package::enable calico-node.service $OS_VERSION
-
+    log.info "Install network (calico) Successful."
     log.stdout '{
             "global":{
               "CALICO_NET":"'$CALICO_NET'"

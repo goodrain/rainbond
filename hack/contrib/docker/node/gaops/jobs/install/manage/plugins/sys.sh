@@ -133,6 +133,7 @@ function prepare() {
     )
     if [ ! -L "/data/docker_logs" ];then
         mkdir -p /data/service_logs && chown rain.rain /data/docker_logs
+        mkdir -p /var/log/rbdnode
     fi
     [ -d "/grdata/build/tenant/" ] || (
         mkdir -p /grdata/build/tenant && chown rain.rain /grdata/build/tenant
@@ -169,7 +170,8 @@ function prepare() {
 
 function image::done() {
     #image::exist $1 || (
-    #    log.info "pull image: $1"
+        log.info "start pull image: $1"
+
         image::pull $1 || (
             log.stdout '{
             "status":[ 
@@ -179,10 +181,13 @@ function image::done() {
                 "condition_status":"Flase"
             } 
             ],
+            "exec_status":"Failure",
             "type":"install"
             }'
             exit 1
         )
+
+        log.info "end pull image: $1"
     #)
 }
 
@@ -310,7 +315,7 @@ function sync_certificates() {
 function grctl_check() {
     #which grctl >/dev/null 2>&1 || \
     #docker run --rm -v /var/run/docker.sock:/var/run/docker.sock hub.goodrain.com/dc-deploy/archiver grctl
-
+    log.info "create grctl.json"
     [ ! -f "/etc/goodrain/grctl.json" ] && (
 
     cat >>/etc/goodrain/grctl.json <<EOF
@@ -335,6 +340,9 @@ EOF
 
 function install_api(){
     #write_region_api_cfg
+
+    image::done $RBD_API
+
     sync_certificates
 
     compose::config_update << EOF
@@ -365,6 +373,12 @@ EOF
 }
 
 function web_write_cfg() {
+
+    log.info "do web_write_cfg"
+
+    STREAM_IP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
+
+
     cat <<EOF > /etc/goodrain/console.py
 import os
 
@@ -398,7 +412,7 @@ STREAM_DOMAIN = True
 
 
 STREAM_DOMAIN_URL = {
-    "$REGION_TAG": "10.80.86.19"
+    "$REGION_TAG": "$STREAM_IP"
 }
 
 
@@ -529,13 +543,22 @@ OAUTH2_APP = {
 }
 EOF
 
+    [ -f "/etc/goodrain/console.py" ] && (
+        log.info "/etc/goodrain/console.py exist"
+    ) || (
+        log.error "/etc/goodrain/console.py not exist"
+    )
 
 }
 
 function install_app_ui() {
     log.info "setup app_ui"
 
+    image::done $RBD_WEB
+
     web_write_cfg
+
+    mkdir -pv /grdata/services/console && chown rain.rain /grdata/services/console
 
         compose::config_update << EOF
 services:
@@ -556,9 +579,26 @@ services:
       - /grdata/services/console:/data
 EOF
 
-    mkdir -pv /grdata/services/console && chown rain.rain /grdata/services/console
     dc-compose up -d
+    sleep 3
+    log.info "migrate database start"
     docker exec rbd-app-ui python /app/ui/manage.py migrate
+    curl -s localhost:7070/wizard/prefix/ | grep "安装成功" > /dev/null
+    if [ $? -eq 0 ];then
+        log.info "exec done"
+    else
+        log.info "not exec"
+        docker exec rbd-app-ui python /app/ui/manage.py migrate
+        if [ $? -eq 0 ];then
+            log.info "exec done"
+        else
+            log.info "try run /tmp/pyexec"
+            echo "docker exec rbd-app-ui python /app/ui/manage.py migrate" > /tmp/pyexec
+            chmod +x /tmp/pyexec
+            bash /tmp/pyexec
+        fi
+    fi
+    log.info "migrate database end"
 }
 
 function install_worker() {
@@ -593,11 +633,15 @@ services:
     restart: always
 EOF
 
-    dc-compose up -d
+    dc-compose up -d rbd-worker
 }
 
 function chaos_write_cfg() {
-        [ -d "/etc/goodrain/etc/chaos/" ] || mkdir -pv /etc/goodrain/etc/chaos/
+    
+    [ -d "/etc/goodrain/etc/chaos/" ] || mkdir -pv /etc/goodrain/etc/chaos/
+
+    log.info "do chaos_write_cfg"
+
     cat <<EOF > /etc/goodrain/etc/chaos/config.json
     {
     "region": {
@@ -655,10 +699,18 @@ function chaos_write_cfg() {
 }
 EOF
 
+    [ -f "/etc/goodrain/etc/chaos/config.json" ] && (
+        log.info "/etc/goodrain/etc/chaos/config.json exist"
+    ) || (
+        log.error "/etc/goodrain/etc/chaos/config.json not exist"
+    )
+
 }
 
 function install_chaos(){
     log.info "setup chaos"
+
+    image::done $RBD_CHAOS
 
     chaos_write_cfg
 
@@ -685,10 +737,13 @@ services:
     restart: always
 EOF
 
-    dc-compose up -d
+    dc-compose up -d rbd-chaos
 }
 
 function lb_add_forward() {
+
+log.info "add lb_add_forward"
+mkdir -pv /etc/goodrain/openresty/servers/http
 cat <<EOF > /etc/goodrain/openresty/servers/http/forward.conf
 upstream goodrain {
    server 172.30.42.1:8688 max_fails=3 fail_timeout=1s;
@@ -710,10 +765,18 @@ server {
 }
 EOF
 
+    [  -f "/etc/goodrain/openresty/servers/http/forward.conf" ] && (
+        log.info "forward exist"
+    ) || (
+        log.error "forward not found"
+    )
+
 }
 
 function install_lb() {
     log.info "setup lb"
+
+    image::done $RBD_LB
 
     compose::config_update << EOF
 services:
@@ -740,16 +803,16 @@ services:
     restart: always
 EOF
 
-    dc-compose up -d
-
+    dc-compose up -d rbd-lb 
+    dc-compose stop
     lb_add_forward
-
-    dc-compose stop rbd-lb
-    dc-compose up -d rbd-lb
+    dc-compose start rbd-lb
 }
 
 function install_eventlog() {
     log.info "setup eventlog"
+
+    image::done $RBD_EVENTLOG
 
     compose::config_update << EOF
 services:
@@ -778,11 +841,13 @@ services:
     restart: always
 EOF
     
-    dc-compose up -d
+    dc-compose up -d rbd-eventlog
 }
 
 function install_mq() {
     log.info "setup mq"
+
+    image::done $RBD_MQ
 
     compose::config_update << EOF
 services:
@@ -799,11 +864,16 @@ services:
     restart: always
 EOF
     
-    dc-compose up -d
+    dc-compose up -d rbd-mq
 
 }
 
 function write_slogger_config() {
+
+    log.info "write_slogger_config"
+
+    image::done $RBD_SLOGGER
+
     cat <<EOF > /etc/goodrain/labor.py
 # -*- coding: utf8 -*-
 
@@ -948,6 +1018,12 @@ MULTI_LB = {
     }
 }
 EOF
+
+    [ -f "/etc/goodrain/labor.py" ] && (
+        log.info "/etc/goodrain/labor.py exist"
+    ) || (
+        log.error "/etc/goodrain/labor.py not exist"
+    )
 }
 
 
@@ -986,24 +1062,9 @@ EOF
 
 function install_dalaran() {
     log.info "setup dalaran_service"
-    
-    image::exist $RBD_DALARAN || (
-        log.info "pull image: $RBD_DALARAN"
-        image::pull $RBD_DALARAN || (
-            log.stdout '{ 
-                "status":[ 
-                { 
-                    "name":"docker_pull_dalaran", 
-                    "condition_type":"DOCKER_PULL_DALARAN_ERROR", 
-                    "condition_status":"False"
-                } 
-                ], 
-                "type":"install"
-                }'
-            exit 1
-        )
-    )
 
+    image::done $RBD_DALARAN
+    
     compose::config_update << EOF
 services:
   rbd-dalaran:
@@ -1021,29 +1082,13 @@ services:
     restart: always
 EOF
 
-    dc-compose up -d
+    dc-compose up -d rbd-dalaran
 }
 
 function install_entrance() {
     log.info "setup entrance"
     
-
-    image::exist $RBD_ENTRANCE || (
-        log.info "pull image: $RBD_ENTRANCE"
-        image::pull $RBD_ENTRANCE || (
-            log.stdout '{ 
-                "status":[ 
-                { 
-                    "name":"docker_pull_entrance", 
-                    "condition_type":"DOCKER_PULL_ENTRANCE_ERROR", 
-                    "condition_status":"False"
-                } 
-                ], 
-                "type":"install"
-                }'
-            exit 1
-        )
-    )
+    image::done $RBD_ENTRANCE
 
     [ -f "/etc/goodrain/kubernetes/admin.kubeconfig" ] || (
         [ -f "/etc/goodrain/kubernetes/kubeconfig" ] && cp /etc/goodrain/kubernetes/kubeconfig /etc/goodrain/kubernetes/admin.kubeconfig
@@ -1071,7 +1116,7 @@ services:
       - --kube-conf=/etc/goodrain/kubernetes/admin.kubeconfig
       - --log-level=info
 EOF
-    dc-compose up -d
+    dc-compose up -d rbd-entrance
 
 }
 
@@ -1079,24 +1124,13 @@ function run() {
     
     log.info "setup plugins"
 
-    image::done $RBD_API
+    
     if [  -z $WORKER_EXPAND ];then
         image::done $RBD_WORKER
         install_worker
         WORKER_EXPAND=1
     fi
-    image::done $RBD_CHAOS
-    
-    image::done $RBD_LB
-    image::done $RBD_EVENTLOG
-    image::done $RBD_MQ
-    image::done $RBD_WEB
-
-    image::done $RBD_SLOGGER
-
-    image::done $RBD_DALARAN
-    image::done $RBD_ENTRANCE
-    
+   
     install_eventlog
     install_dalaran
     install_entrance
@@ -1112,6 +1146,7 @@ function run() {
     ENTRANCE_IP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
     REGION_API_IP=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
 
+    log.info "Install acp plugins Successful."
 
     log.stdout '{
             "global":{

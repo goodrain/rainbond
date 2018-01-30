@@ -36,7 +36,7 @@ function check_rbd_json() {
         
         yum install -y jq
 
-        wget http://repo.goodrain.com/release/3.4.1/gaops/jobs/install/prepare/rbd.json -qO /etc/goodrain/envs/rbd.json
+        wget http://repo.goodrain.com/release/3.4.2/gaops/jobs/install/prepare/rbd.json -qO /etc/goodrain/envs/rbd.json
         REPO_VER=$(jq --raw-output '.mirrors.version' /etc/goodrain/envs/rbd.json)
     else
         apt install -y wget curl

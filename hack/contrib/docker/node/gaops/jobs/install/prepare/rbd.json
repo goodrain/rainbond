@@ -3,42 +3,42 @@
         "type":"release",
         "common":"centos",
         "domain":"repo.goodrain.com",
-        "version":"3.4.1"
+        "version":"3.4.2"
     },
     "rbd-chaos": {
         "type": "image",
         "name": "rainbond/rbd-chaos",
-        "version": "3.4.1",
+        "version": "3.4.2",
         "expand": "True"
     },
     "rbd-api": {
         "type": "image",
         "name": "rainbond/rbd-api",
-        "version": "3.4.1",
+        "version": "3.4.2",
         "expand": "True"
     },
     "rbd-worker": {
         "type": "image",
         "name": "rainbond/rbd-worker",
-        "version": "3.4.1",
+        "version": "3.4.2",
         "expand": "False"
     },
     "rbd-eventlog": {
         "type": "image",
         "name": "rainbond/rbd-eventlog",
-        "version": "3.4.1",
+        "version": "3.4.2",
         "expand": "True"
     },
     "rbd-app-ui": {
         "type": "image",
         "name": "rainbond/rbd-app-ui",
-        "version": "3.4",
+        "version": "3.4.2",
         "expand": "True"
     },
     "rbd-mq": {
         "type": "image",
         "name": "rainbond/rbd-mq",
-        "version": "3.4.1",
+        "version": "3.4.2",
         "expand": "True"
     },
     "rbd-lb": {
@@ -56,13 +56,13 @@
     "rbd-entrance": {
         "type": "image",
         "name": "rainbond/rbd-entrance",
-        "version": "3.4.1",
+        "version": "3.4.2",
         "expand": "True"
     },
     "rbd-webcli": {
         "type": "image",
         "name": "rainbond/rbd-webcli",
-        "version": "3.4.1",
+        "version": "3.4.2",
         "expand": "True"
     },
     "rbd-proxy": {
@@ -104,7 +104,7 @@
     "rbd-node": {
         "type": "image",
         "name": "rainbond/rbd-node",
-        "version": "3.4.1",
+        "version": "3.4.2",
         "expand": "True"
     },
     "calico-node": {

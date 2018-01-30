@@ -393,6 +393,16 @@ root hard nofile 65535
 * soft nofile 65535
 * hard nofile 6553" >> /etc/security/limits.conf 
     fi
+
+    log.info "ip forward"
+    forward=$(sysctl net.ipv4.ip_forward | awk '{print $NF}')
+    if [ $forward == 0 ];then
+        #sysctl -w net.ipv4.ip_forward=1
+        grep "net.ipv4.ip_forward=1" /etc/sysctl.conf >/dev/null
+        if [ $? -ne 0 ];then
+            echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+        fi
+    fi
 }
 
 function install_jq() {
@@ -400,9 +410,9 @@ function install_jq() {
     log.info "install jq"
     [ -d "/etc/goodrain/envs" ] || mkdir -pv /etc/goodrain/envs
     log.info "wget rbd.json from goodrain.mirrors"
-    wget http://repo.goodrain.com/release/3.4.1/gaops/jobs/install/prepare/rbd.json -O /etc/goodrain/envs/rbd.json
+    wget http://repo.goodrain.com/release/3.4.2/gaops/jobs/install/prepare/rbd.json -O /etc/goodrain/envs/rbd.json
     if [ -f " /etc/goodrain/envs/rbd.json" ];then
-        curl  http://repo.goodrain.com/release/3.4.1/gaops/jobs/install/prepare/rbd.json -o  /etc/goodrain/envs/rbd.json
+        curl  http://repo.goodrain.com/release/3.4.2/gaops/jobs/install/prepare/rbd.json -o  /etc/goodrain/envs/rbd.json
     fi
     yum install -y wget curl epel-release
     sed -e 's!^mirrorlist=!#mirrorlist=!g' \
@@ -523,7 +533,24 @@ function install_etcd() {
                 exit 1
             )
         )
-        
+        package::is_installed gr-etcdctl  || (
+                package::install gr-etcdctl  || (
+                    log.error "install faild"
+                    log.stdout '{
+                    "status":[ 
+                    { 
+                        "name":"install_etcdctl_compute_faild", 
+                        "condition_type":"INSTALL_ETCDCTL_COMPUTE_faild", 
+                        "condition_status":"False"
+                    } 
+                    ], 
+                    "exec_status":"Failure",
+                    "type":"install"
+                    }'
+                    exit 1
+                )
+        )
+
         [ -f "/etc/goodrain/envs/etcd-proxy.sh" ] && rm /etc/goodrain/envs/etcd-proxy.sh
         echo "MASTER_IP=$(echo $ETCD_NODE | awk -F ',' '{print $1}'):2379" > /etc/goodrain/envs/etcd-proxy.sh
         package::enable etcd-proxy || status::check etcd-proxy

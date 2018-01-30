@@ -9,7 +9,7 @@
 #set -o errexit
 set -o pipefail
 
-REPO_VER=${2:-3.4.1}
+REPO_VER=${2:-3.4.2}
 
 # define log func 
 

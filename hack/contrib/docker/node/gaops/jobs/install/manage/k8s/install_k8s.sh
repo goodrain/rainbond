@@ -1,10 +1,8 @@
 #!/bin/bash
-set -o errexit
+
 set -o pipefail
 
 OS_VERSION=$1
-
-#[ -z $TERM ] && TERM=xterm-256color
 
 function log.info() {
   echo "       $*"
@@ -133,6 +131,7 @@ function package::enable() {
                     "condition_status":"False"
                 } 
                 ], 
+                "exec_status":"Failure",
                 "type":"install"
                 }'
             exit $_EXIT
@@ -148,6 +147,8 @@ export KUBE_SHARE_DIR="/grdata/services/k8s"
 function prepare() {
     log.info "RBD: install k8s"
     [ -d "/etc/goodrain/envs" ] || mkdir -pv /etc/goodrain/envs
+    log.info "rm old /etc/goodrain/kubernetes/"
+    [ -d "/etc/goodrain/kubernetes" ] || rm -f /etc/goodrain/kubernetes/*
     log.info "prepare k8s"
 }
 
@@ -295,6 +296,7 @@ function install-kube-apiserver() {
                     "condition_status":"False"
                 } 
                 ], 
+                "exec_status":"Failure",
                 "type":"install"
                 }'
             exit 1
@@ -327,7 +329,8 @@ function install-kube-controller-manager() {
                     "condition_type":"INSTALL_KUBE-CONTROLLER-MANAGER", 
                     "condition_status":"False"
                 } 
-                ], 
+                ],
+                "exec_status":"Failure",
                 "type":"install"
                 }'
             exit 1
@@ -349,7 +352,8 @@ function install-kube-scheduler() {
                     "condition_type":"INSTALL_KUBE-SCHEDULER", 
                     "condition_status":"False"
                 } 
-                ], 
+                ],
+                "exec_status":"Failure",
                 "type":"install"
                 }'
             exit 1
@@ -380,6 +384,8 @@ function run() {
     #rm /etc/goodrain/kubernetes/kubeconfig
     #cp /grdata/kubernetes/admin.kubeconfig /etc/goodrain/kubernetes/kubeconfig
     
+    log.info "Install k8s master Successful."
+
     KUBE_API=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')
 
     log.stdout '{

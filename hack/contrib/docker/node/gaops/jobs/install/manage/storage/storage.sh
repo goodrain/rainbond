@@ -1,6 +1,6 @@
 #!/bin/bash
 set -o errexit
-set -o pipefail 
+set -o pipefail
 
 OS_VERSION=$1
 STORAGE_MODE=${2:-nfs} # 默认nfs，支持custom

@@ -44,6 +44,10 @@
                     {
                         "depend_task_id": "install_docker",
                         "strategy": "SameNode"
+                    },
+                    {
+                        "depend_task_id": "install_base_plugins",
+                        "strategy": "SameNode"
                     }
                 ]
             },
@@ -151,6 +155,10 @@
                     {
                         "depend_task_id": "install_plugins",
                         "strategy": "SameNode"
+                    },
+                    {
+                        "depend_task_id": "update_dns",
+                        "strategy": "SameNode"
                     }
                 ]
             },
@@ -175,6 +183,18 @@
                 "depends": [
                     {
                         "depend_task_id": "do_rbd_images",
+                        "strategy": "SameNode"
+                    },
+                    {
+                        "depend_task_id": "update_dns",
+                        "strategy": "SameNode"
+                    },
+                    {
+                        "depend_task_id": "create_host_id_list",
+                        "strategy": "SameNode"
+                    },
+                    {
+                        "depend_task_id": "update_entrance_services",
                         "strategy": "SameNode"
                     }
                 ]

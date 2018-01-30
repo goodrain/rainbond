@@ -63,7 +63,7 @@ function write_host_id_list() {
         api_node=${api_all##*-}
 
         log.info "add $api_node to host_id_list.conf"
-        echo "$api_node;" >> /etc/goodrain/host_id_list.conf
+        echo "$api_node:6363;" >> /etc/goodrain/host_id_list.conf
     done
     log.info "will restart rbd-api"
     dc-compose restart rbd-api

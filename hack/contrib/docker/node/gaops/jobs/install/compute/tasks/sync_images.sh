@@ -1,12 +1,5 @@
 #!/bin/bash
 
-# 同步镜像
-# 安装相关组件
-REPO_VERSION=$1
-INSTALL_TYPE=${2:-online}
-
-IMAGE_PATH="/root/acpimg" 
-
 function log.info() {
   echo "       $*"
 }
@@ -24,10 +17,10 @@ function image::exist() {
     IMAGE_NAME=$1
     docker images | sed 1d | awk '{print $1":"$2}' | grep $IMAGES_NAME >/dev/null 2>&1
     if [ $? -eq 0 ];then
-        echo "image $IMAGE_NAME exists"
+        log.info "image $IMAGE_NAME exists"
         return 0
     else
-        echo "image $IMAGE_NAME not exists"
+        log.info "image $IMAGE_NAME not exists"
         return 1
     fi
 }
@@ -36,10 +29,10 @@ function image::pull() {
     IMAGES_NAME=$1
     docker pull $IMAGES_NAME
     if [ $? -eq 0 ];then
-        echo "pull image $IMAGES_NAME success"
+        log.info "pull image $IMAGES_NAME success"
         return 0
     else
-        echo "pull image $IMAGES_NAME failed"
+        log.info "pull image $IMAGES_NAME failed"
         return 1
     fi
 }
@@ -77,12 +70,12 @@ function image::package() {
 
 function run() {
     log.info "pull images"
-    image::exist goodrain.me/runner:latest || image::pull goodrain.me/runner:latest || image::push runner latest
-    image::exist goodrain.me/adapter:latest || image::pull goodrain.me/adapter:latest || image::push adapter $REPO_VERSION
-    image::exist goodrain.me/pause-amd64:3.0 || image::pull goodrain.me/pause-amd64:3.0 || image::push pause-amd64 3.0
+    image::exist goodrain.me/runner:latest || image::pull goodrain.me/runner:latest  #|| image::push runner latest
+    image::exist goodrain.me/adapter:latest || image::pull goodrain.me/adapter:latest #|| image::push adapter $REPO_VERSION
+    image::exist goodrain.me/pause-amd64:3.0 || image::pull goodrain.me/pause-amd64:3.0 #|| image::push pause-amd64 3.0
     image::package gr-nsenter
-    image::package gr-docker-compose
-    image::package gr-docker-utils
+    #image::package gr-docker-compose
+    #image::package gr-docker-utils
     image::package gr-midonet-cni 
 }
 

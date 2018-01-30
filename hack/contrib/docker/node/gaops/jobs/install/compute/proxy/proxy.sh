@@ -1,6 +1,6 @@
 #!/bin/bash
 
-REPO_VER=${1:-3.4.1}
+REPO_VER=${1:-3.4.2}
 K8S_IPS=${2} #kubeapi ip
 HUB_IPS=${3}
 
@@ -360,9 +360,18 @@ function prepare() {
     )
 }
 
+function do_image(){
+    log.info "docker pull runner"
+    image::exist goodrain.me/runner:latest || image::pull goodrain.me/runner:latest
+    log.info "docker pull adapter"
+    image::exist goodrain.me/adapter:latest || image::pull goodrain.me/adapter:latest 
+    log.info "docker pull pause-amd64"
+    image::exist goodrain.me/pause-amd64:3.0 || image::pull goodrain.me/pause-amd64:3.0
+}
 
 function run() {
     
+    do_image
     
     image::exist $RBD_PROXY || (
         log.info "pull image $RBD_PROXY"

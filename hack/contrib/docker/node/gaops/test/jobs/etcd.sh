@@ -10,14 +10,14 @@ set -o pipefail
 
 # define 
 # MIP node ip
-# REPO_VER goodrain mirrors version ，default 3.4.1
+# REPO_VER goodrain mirrors version ，default 3.4.2
 # INSTALL_TYPE default online
 
 HOST_UUID=$1
 ETCD_NODE=$2
 NODE_TYPE=${3:-manage}
 MIP=$4
-REPO_VER=${5:-3.4.1}
+REPO_VER=${5:-3.4.2}
 INSTALL_TYPE=${6:-online}
 FIRST_NODE_TYPE=$3
 

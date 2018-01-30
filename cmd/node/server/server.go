@@ -132,7 +132,7 @@ func Run(c *option.Conf) error {
 	return nil
 }
 func getInfoForMaster(s *nodeserver.NodeServer) {
-	resp, err := http.Get("http://repo.goodrain.com/release/3.4.1/gaops/jobs/cron/check/manage/sys.sh")
+	resp, err := http.Get("http://repo.goodrain.com/release/3.4.2/gaops/jobs/cron/check/manage/sys.sh")
 	if err != nil {
 		logrus.Errorf("error get sysinfo script,details %s", err.Error())
 		return
