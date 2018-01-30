@@ -141,21 +141,21 @@ EOF
     compose::config_update << EOF
 services:
   prometheus:
-  image: $PROM
-  container_name: prometheus
-  volumes:
-    - /grdata/services/prometheus/data:/prometheusdata
-    - /etc/goodrain/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-  command: --web.listen-address=":9999" --storage.tsdb.path="/prometheusdata" --config.file="/etc/prometheus/prometheus.yml"
-  logging:
-    driver: "json-file"
-    options:
-      max-size: "50m"
-      max-file: "3"
-  network_mode: "host"
-  restart: always
+    image: $PROM
+    container_name: prometheus
+    volumes:
+        - /grdata/services/prometheus/data:/prometheusdata
+        - /etc/goodrain/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command: --web.listen-address=":9999" --storage.tsdb.path="/prometheusdata" --config.file="/etc/prometheus/prometheus.yml"
+    logging:
+        driver: "json-file"
+        options:
+        max-size: "50m"
+        max-file: "3"
+    network_mode: "host"
+    restart: always
 EOF
-    dc-compose up -d
+    dc-compose up -d prometheus
 
 }
 
