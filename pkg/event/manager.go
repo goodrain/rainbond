@@ -287,13 +287,15 @@ func (m *manager) RemoveHandle(server string) {
 func (m *handle) HandleLog() error {
 	defer m.manager.RemoveHandle(m.server)
 	return util.Exec(m.ctx, func() error {
-		client, err := eventclient.NewEventClient(m.ctx, m.server)
+		ctx, cancel := context.WithCancel(m.ctx)
+		defer cancel()
+		client, err := eventclient.NewEventClient(ctx, m.server)
 		if err != nil {
 			logrus.Error("create event client error.", err.Error())
 			return err
 		}
 		logrus.Infof("start a event log handle core. connect server %s", m.server)
-		logClient, err := client.Log(m.ctx)
+		logClient, err := client.Log(ctx)
 		if err != nil {
 			logrus.Error("create event log client error.", err.Error())
 			//切换使用此chan的logger到其他chan
