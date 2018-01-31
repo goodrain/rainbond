@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -128,7 +127,10 @@ func (r *readEventBarrel) insertMessage(message *db.EventLogMessage) {
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
 	for _, v := range r.subSocketChan { //向订阅的通道发送消息
-		v <- message
+		select {
+		case v <- message:
+		default:
+		}
 	}
 }
 
@@ -136,7 +138,10 @@ func (r *readEventBarrel) pushCashMessage(ch chan *db.EventLogMessage, subID str
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
 	for _, m := range r.barrel {
-		ch <- m
+		select {
+		case ch <- m:
+		default:
+		}
 	}
 	r.subSocketChan[subID] = ch
 }
@@ -199,7 +204,10 @@ func (r *dockerLogEventBarrel) insertMessage(message *db.EventLogMessage) {
 	r.barrel = append(r.barrel, message)
 	r.updateTime = time.Now()
 	for _, v := range r.subSocketChan { //向订阅的通道发送消息
-		v <- message
+		select {
+		case v <- message:
+		default:
+		}
 	}
 	r.size++
 	if int64(len(r.barrel)) >= r.cacheSize {
@@ -211,7 +219,10 @@ func (r *dockerLogEventBarrel) pushCashMessage(ch chan *db.EventLogMessage, subI
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
 	for _, m := range r.barrel {
-		ch <- m
+		select {
+		case ch <- m:
+		default:
+		}
 	}
 	r.subSocketChan[subID] = ch
 }
@@ -285,7 +296,10 @@ func (r *monitorMessageBarrel) insertMessage(message *db.EventLogMessage) {
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
 	for _, v := range r.subSocketChan { //向订阅的通道发送消息
-		v <- message
+		select {
+		case v <- message:
+		default:
+		}
 	}
 }
 
@@ -293,7 +307,10 @@ func (r *monitorMessageBarrel) pushCashMessage(ch chan *db.EventLogMessage, subI
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
 	for _, m := range r.barrel {
-		ch <- m
+		select {
+		case ch <- m:
+		default:
+		}
 	}
 	r.subSocketChan[subID] = ch
 }
