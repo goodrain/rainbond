@@ -19,15 +19,16 @@
 package collector
 
 import (
-	"fmt"
 	"os"
+	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/pkg/db/model"
+	"github.com/goodrain/rainbond/pkg/worker/monitor/cache"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/db"
-	"github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/status"
-	"github.com/goodrain/rainbond/pkg/util"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -42,7 +43,7 @@ type Exporter struct {
 	workerUp      prometheus.Gauge
 	dbmanager     db.Manager
 	statusManager status.ServiceStatusManager
-	fscache       map[string]float64
+	cache         *cache.DiskCache
 }
 
 var scrapeDurationDesc = prometheus.NewDesc(
@@ -90,12 +91,6 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		e.scrapeErrors.WithLabelValues("db.getservices").Inc()
 		e.error.Set(1)
 	}
-	volumes, err := e.dbmanager.TenantServiceVolumeDao().GetAllVolumes()
-	if err != nil {
-		logrus.Errorln("Error scraping for tenant service when select db :", err)
-		e.scrapeErrors.WithLabelValues("db.getvolumes").Inc()
-		e.error.Set(1)
-	}
 	localPath := os.Getenv("LOCAL_DATA_PATH")
 	sharePath := os.Getenv("SHARE_DATA_PATH")
 	if localPath == "" {
@@ -105,36 +100,20 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		sharePath = "/grdata"
 	}
 	//获取内存使用情况
-	var cache = make(map[string]*model.TenantServices)
 	for _, service := range services {
 		if appstatus, err := e.statusManager.GetStatus(service.ServiceID); err == nil {
 			if appstatus != status.CLOSED && appstatus != status.UNDEPLOY && appstatus != status.DEPLOYING {
 				e.memoryUse.WithLabelValues(service.TenantID, service.ServiceID, appstatus).Set(float64(service.ContainerMemory * service.Replicas))
 			}
 		}
-		//默认目录
-		size := util.GetDirSize(fmt.Sprintf("%s/tenant/%s/service/%s", sharePath, service.TenantID, service.ServiceID))
-		if size != 0 {
-			e.fsUse.WithLabelValues(service.TenantID, service.ServiceID, string(model.ShareFileVolumeType)).Set(size)
-		}
-		cache[service.ServiceID] = service
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.memory")
 	scrapeTime = time.Now()
-	gettenantID := func(serviceID string) string {
-		if service, ok := cache[serviceID]; ok {
-			return service.TenantID
-		}
-		return ""
-	}
-	//获取磁盘使用情况
-	for _, volume := range volumes {
-		var size float64
-		if volume.VolumeType == string(model.LocalVolumeType) {
-			size = util.GetDirSize(volume.HostPath)
-			if size != 0 {
-				e.fsUse.WithLabelValues(gettenantID(volume.ServiceID), volume.ServiceID, volume.VolumeType).Set(size)
-			}
+	diskcache := e.cache.Get()
+	for k, v := range diskcache {
+		key := strings.Split(k, "_")
+		if len(key) == 2 {
+			e.fsUse.WithLabelValues(key[1], key[0], string(model.ShareFileVolumeType)).Set(v)
 		}
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.fs")
@@ -143,7 +122,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 var namespace = "app_resource"
 
 //New 创建一个收集器
-func New(statusManager status.ServiceStatusManager) *Exporter {
+func New(statusManager status.ServiceStatusManager, cache *cache.DiskCache) *Exporter {
 	return &Exporter{
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
@@ -180,6 +159,6 @@ func New(statusManager status.ServiceStatusManager) *Exporter {
 		}, []string{"tenant_id", "service_id", "volume_type"}),
 		dbmanager:     db.GetManager(),
 		statusManager: statusManager,
-		fscache:       make(map[string]float64),
+		cache:         cache,
 	}
 }
