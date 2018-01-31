@@ -295,7 +295,9 @@ func (s *ServiceAction) sendTask(body map[string]interface{}, taskType string) e
 		logrus.Errorf("build equeue stop request error, %v", errEq)
 		return errEq
 	}
-	_, err = s.MQClient.Enqueue(context.Background(), eq)
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err = s.MQClient.Enqueue(ctx, eq)
+	cancel()
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		return err
@@ -375,7 +377,9 @@ func (s *ServiceAction) StartStopService(sss *api_model.StartStopStruct) error {
 		logrus.Errorf("build equeue startstop request error, %v", errEq)
 		return errEq
 	}
-	_, err = s.MQClient.Enqueue(context.Background(), eq)
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err = s.MQClient.Enqueue(ctx, eq)
+	cancel()
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		return err
@@ -396,7 +400,9 @@ func (s *ServiceAction) ServiceVertical(vs *model.VerticalScalingTaskBody) error
 		logrus.Errorf("build equeue vertical request error, %v", errEq)
 		return errEq
 	}
-	_, err := s.MQClient.Enqueue(context.Background(), eq)
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err := s.MQClient.Enqueue(ctx, eq)
+	cancel()
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		return err
@@ -417,7 +423,9 @@ func (s *ServiceAction) ServiceHorizontal(hs *model.HorizontalScalingTaskBody) e
 		logrus.Errorf("build equeue horizontal request error, %v", errEq)
 		return errEq
 	}
-	_, err := s.MQClient.Enqueue(context.Background(), eq)
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err := s.MQClient.Enqueue(ctx, eq)
+	cancel()
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		return err
@@ -444,7 +452,10 @@ func (s *ServiceAction) ServiceUpgrade(ru *model.RollingUpgradeTaskBody) error {
 		logrus.Errorf("build equeue upgrade request error, %v", errEq)
 		return errEq
 	}
-	if _, err := s.MQClient.Enqueue(context.Background(), eq); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err = s.MQClient.Enqueue(ctx, eq)
+	cancel()
+	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		return err
 	}
@@ -525,7 +536,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			if volumn.HostPath == "" {
 				//step 1 设置主机目录
 				switch volumn.VolumeType {
-				//共享文件存储
+				//共享文件��储
 				case dbmodel.ShareFileVolumeType.String():
 					volumn.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, sc.TenantID, volumn.ServiceID, volumn.VolumePath)
 				//本地文件存储
@@ -693,7 +704,9 @@ func (s *ServiceAction) CodeCheck(c *api_model.CheckCodeStruct) error {
 		logrus.Errorf("build equeue code check error, %v", errEq)
 		return errEq
 	}
-	_, err = s.MQClient.Enqueue(context.Background(), eq)
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err = s.MQClient.Enqueue(ctx, eq)
+	cancel()
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		return err
@@ -736,7 +749,9 @@ func (s *ServiceAction) ShareCloud(c *api_model.CloudShareStruct) error {
 		logrus.Errorf("build equeue share cloud error, %v", errEq)
 		return errEq
 	}
-	_, err := s.MQClient.Enqueue(context.Background(), eq)
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err := s.MQClient.Enqueue(ctx, eq)
+	cancel()
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		return err
@@ -1105,9 +1120,9 @@ func (s *ServiceAction) createOuterK8sService(tenantName string, mapPort *dbmode
 	var servicePort v1.ServicePort
 	if port.Protocol == "udp" {
 		servicePort.Protocol = "UDP"
-	}else if port.Protocol == "mysql" {
+	} else if port.Protocol == "mysql" {
 		servicePort.Protocol = "MYSQL"
-	}else if port.Protocol == "tcp" {
+	} else if port.Protocol == "tcp" {
 		servicePort.Protocol = "TCP"
 	} else {
 		servicePort.Protocol = "TCP"

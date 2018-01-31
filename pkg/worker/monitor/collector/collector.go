@@ -42,6 +42,7 @@ type Exporter struct {
 	workerUp      prometheus.Gauge
 	dbmanager     db.Manager
 	statusManager status.ServiceStatusManager
+	fscache       map[string]float64
 }
 
 var scrapeDurationDesc = prometheus.NewDesc(
@@ -179,5 +180,6 @@ func New(statusManager status.ServiceStatusManager) *Exporter {
 		}, []string{"tenant_id", "service_id", "volume_type"}),
 		dbmanager:     db.GetManager(),
 		statusManager: statusManager,
+		fscache:       make(map[string]float64),
 	}
 }

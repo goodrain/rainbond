@@ -19,13 +19,14 @@
 package handler
 
 import (
-	"github.com/jinzhu/gorm"
 	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/jinzhu/gorm"
 
 	"github.com/goodrain/rainbond/cmd/api/option"
 	api_db "github.com/goodrain/rainbond/pkg/api/db"
@@ -105,7 +106,7 @@ func (p *PluginAction) UpdatePluginAct(pluginID, tenantID string, cps *api_model
 }
 
 //DeletePluginAct DeletePluginAct
-func (p *PluginAction) DeletePluginAct(pluginID,tenantID string) *util.APIHandleError {
+func (p *PluginAction) DeletePluginAct(pluginID, tenantID string) *util.APIHandleError {
 	//TODO: 事务
 	tx := db.GetManager().Begin()
 	err := db.GetManager().TenantPluginDaoTransactions(tx).DeletePluginByID(pluginID, tenantID)
@@ -218,7 +219,7 @@ func (p *PluginAction) BuildPluginManual(bps *api_model.BuildPluginStruct) (*dbm
 		return nil, util.CreateAPIHandleErrorFromDBError(fmt.Sprintf("get plugin by %v", bps.PluginID), err)
 	}
 	if bps.Body.PluginFrom != "" {
-		switch bps.Body.PluginFrom{
+		switch bps.Body.PluginFrom {
 		case "yb":
 			pbv, err := p.InstallPluginFromYB(bps, plugin)
 			if err != nil {
@@ -259,7 +260,7 @@ func createVersionID(s []byte) string {
 }
 
 //InstallPluginFromYB InstallPluginFromYB
-func (p *PluginAction) InstallPluginFromYB(b *api_model.BuildPluginStruct, plugin *dbmodel.TenantPlugin)(
+func (p *PluginAction) InstallPluginFromYB(b *api_model.BuildPluginStruct, plugin *dbmodel.TenantPlugin) (
 	*dbmodel.TenantPluginBuildVersion, error) {
 	if b.Body.Operator == "" {
 		b.Body.Operator = "define"
@@ -276,13 +277,13 @@ func (p *PluginAction) InstallPluginFromYB(b *api_model.BuildPluginStruct, plugi
 		BuildTime:       time.Now().Format(time.RFC3339),
 		Info:            b.Body.Info,
 		Status:          "complete",
-	}	
+	}
 	if err := db.GetManager().TenantPluginBuildVersionDao().AddModel(pbv); err != nil {
 		if !strings.Contains(err.Error(), "exist") {
 			logrus.Errorf("build plugin error: %s", err.Error())
 			return nil, err
 		}
-	}	
+	}
 	return pbv, nil
 }
 
@@ -302,12 +303,12 @@ func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *
 	tpbv, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(
 		b.PluginID, b.Body.BuildVersion)
 	if err != nil {
-		if err.Error() == gorm.ErrRecordNotFound.Error(){
+		if err.Error() == gorm.ErrRecordNotFound.Error() {
 			rebuild = false
-		}else{
+		} else {
 			return nil, err
 		}
-	}else{
+	} else {
 		rebuild = true
 	}
 	tx := db.GetManager().Begin()
@@ -320,15 +321,15 @@ func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *
 		}
 		if b.Body.PluginMemory == 0 {
 			tpbv.ContainerMemory = 50
-		}	
+		}
 		if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).UpdateModel(tpbv); err != nil {
 			if err != nil {
 				tx.Rollback()
 				logrus.Errorf("build plugin error: %s", err.Error())
 				return nil, err
 			}
-		}		
-	}else {
+		}
+	} else {
 		pbv := &dbmodel.TenantPluginBuildVersion{
 			VersionID:       b.Body.BuildVersion,
 			PluginID:        b.PluginID,
@@ -385,7 +386,10 @@ func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *
 		tx.Rollback()
 		return nil, err
 	}
-	if _, err := p.MQClient.Enqueue(context.Background(), eq); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err = p.MQClient.Enqueue(ctx, eq)
+	cancel()
+	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		tx.Rollback()
 		return nil, err
@@ -418,12 +422,12 @@ func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plu
 	tpbv, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(
 		b.PluginID, b.Body.BuildVersion)
 	if err != nil {
-		if err.Error() == gorm.ErrRecordNotFound.Error(){
+		if err.Error() == gorm.ErrRecordNotFound.Error() {
 			rebuild = false
-		}else{
+		} else {
 			return nil, err
 		}
-	}else{
+	} else {
 		rebuild = true
 	}
 	tx := db.GetManager().Begin()
@@ -436,15 +440,15 @@ func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plu
 		}
 		if b.Body.PluginMemory == 0 {
 			tpbv.ContainerMemory = 50
-		}	
+		}
 		if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).UpdateModel(tpbv); err != nil {
 			if err != nil {
 				tx.Rollback()
 				logrus.Errorf("build plugin error: %s", err.Error())
 				return nil, err
 			}
-		}	
-	}else{
+		}
+	} else {
 		pbv := &dbmodel.TenantPluginBuildVersion{
 			VersionID:       b.Body.BuildVersion,
 			PluginID:        b.PluginID,
@@ -503,7 +507,10 @@ func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plu
 		tx.Rollback()
 		return nil, err
 	}
-	if _, err := p.MQClient.Enqueue(context.Background(), eq); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	_, errE := p.MQClient.Enqueue(ctx, eq)
+	cancel()
+	if errE != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		tx.Rollback()
 		return nil, err

@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -86,7 +85,9 @@ func (t *TaskManager) Do() {
 		case <-t.ctx.Done():
 			return
 		default:
-			data, err := t.client.Dequeue(t.ctx, &pb.DequeueRequest{Topic: WTOPIC, ClientHost: hostname + "-worker"})
+			ctx, cancel := context.WithCancel(t.ctx)
+			data, err := t.client.Dequeue(ctx, &pb.DequeueRequest{Topic: WTOPIC, ClientHost: hostname + "-worker"})
+			cancel()
 			if err != nil {
 				if grpc1.ErrorDesc(err) == context.DeadlineExceeded.Error() {
 					continue
@@ -111,10 +112,12 @@ func (t *TaskManager) Do() {
 			rc := t.handleManager.AnalystToExec(transData)
 			if rc == 9 {
 				logrus.Debugf("rc is 9, enqueue task to mq")
-				reply, err := t.client.Enqueue(t.ctx, &pb.EnqueueRequest{
+				ctx, cancel := context.WithCancel(t.ctx)
+				reply, err := t.client.Enqueue(ctx, &pb.EnqueueRequest{
 					Topic:   WTOPIC,
 					Message: data,
 				})
+				cancel()
 				logrus.Debugf("retry send task to mq ,reply is %v", reply)
 				if err != nil {
 					logrus.Errorf("enqueue task %v to mq topic %v Error", data, WTOPIC)

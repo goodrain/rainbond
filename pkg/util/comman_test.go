@@ -34,5 +34,5 @@ func TestDeweight(t *testing.T) {
 }
 
 func TestGetDirSize(t *testing.T) {
-	t.Log(GetDirSize("/Users/qingguo/gopath/src/github.com/"))
+	t.Log(GetDirSize("/Users/qingguo/gopath"))
 }

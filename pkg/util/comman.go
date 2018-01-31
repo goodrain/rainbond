@@ -203,10 +203,11 @@ func GetDirSize(path string) float64 {
 	}
 
 	fileSizes := make(chan int64)
+	concurrent := make(chan int, 10)
 	var wg sync.WaitGroup
 
 	wg.Add(1)
-	go walkDir(path, &wg, fileSizes)
+	go walkDir(path, &wg, fileSizes, concurrent)
 
 	go func() {
 		wg.Wait() //等待goroutine结束
@@ -228,13 +229,17 @@ loop:
 }
 
 //获取目录dir下的文件大小
-func walkDir(dir string, wg *sync.WaitGroup, fileSizes chan<- int64) {
+func walkDir(dir string, wg *sync.WaitGroup, fileSizes chan<- int64, concurrent chan int) {
 	defer wg.Done()
+	concurrent <- 1
+	defer func() {
+		<-concurrent
+	}()
 	for _, entry := range dirents(dir) {
 		if entry.IsDir() { //目录
 			wg.Add(1)
 			subDir := filepath.Join(dir, entry.Name())
-			go walkDir(subDir, wg, fileSizes)
+			go walkDir(subDir, wg, fileSizes, concurrent)
 		} else {
 			fileSizes <- entry.Size()
 		}
