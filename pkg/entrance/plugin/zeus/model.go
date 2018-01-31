@@ -53,7 +53,8 @@ type Properties interface {
 }
 
 type PoolProperties struct {
-	Basic PoolBasic `json:"basic"`
+	Basic      PoolBasic      `json:"basic"`
+	Connection PoolConnection `json:"connection"`
 }
 type VSProperties struct {
 	Basic VSBasic `json:"basic"`
@@ -80,12 +81,11 @@ type HostMaping struct {
 }
 
 type PoolBasic struct {
-	BandwidthClass string         `json:"bandwidth_class"`
-	Monitors       []string       `json:"monitors"`
-	NodesTable     []*ZeusNode    `json:"nodes_table"`
-	FailurePool    string         `json:"failure_pool"`
-	Note           string         `json:"note"`
-	Connection     PoolConnection `json:"connection"`
+	BandwidthClass string      `json:"bandwidth_class"`
+	Monitors       []string    `json:"monitors"`
+	NodesTable     []*ZeusNode `json:"nodes_table"`
+	FailurePool    string      `json:"failure_pool"`
+	Note           string      `json:"note"`
 }
 
 type PoolConnection struct {

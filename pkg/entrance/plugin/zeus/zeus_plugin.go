@@ -296,13 +296,13 @@ func (z *zeus) AddPool(pools ...*object.PoolObject) error {
 			Note:       pool.Note,
 			NodesTable: []*ZeusNode{},
 			Monitors:   []string{"Connect"},
-			Connection: PoolConnection{
-				MaxReplyTime: 100,
-			},
 		}
 		zeusSource := Source{
 			Properties: PoolProperties{
 				Basic: poolBasic,
+				Connection: PoolConnection{
+					MaxReplyTime: 100,
+				},
 			},
 		}
 		body, err := zeusSource.GetJSON()
@@ -360,13 +360,13 @@ func (z *zeus) UpdatePool(pools ...*object.PoolObject) error {
 			Note:       pool.Note,
 			NodesTable: nodesTable,
 			Monitors:   []string{"Connect"},
-			Connection: PoolConnection{
-				MaxReplyTime: 100,
-			},
 		}
 		zeusSource := Source{
 			Properties: PoolProperties{
 				Basic: poolBasic,
+				Connection: PoolConnection{
+					MaxReplyTime: 100,
+				},
 			},
 		}
 		body, err := zeusSource.GetJSON()
@@ -568,7 +568,7 @@ func (z *zeus) UpdateVirtualService(services ...*object.VirtualServiceObject) er
 			DefaultPoolName:  vs.DefaultPoolName,
 			Enabled:          true,
 			AddXForwardedFor: true,
-			ConnectTimeout:   0,
+			ConnectTimeout:   300,
 		}
 		if vs.Name == "HTTPS.VS" {
 			basic.ConnectTimeout = 10
