@@ -677,14 +677,15 @@ function run(){
     )
     ETCD_ADDRS=$(cat /etc/goodrain/envs/ip.sh | awk -F '=' '{print $2}')  
     install_etcd && install_node
-
+    [ -z "$REGION_TAG" ] && REGION_TAG='cloudbang'
     if [ $? -eq 0 ];then
         if [ "$NODE_TYPE" = "manage" ];then
         log.stdout '{
                     "global":{
                         "OS_VER":"'$OS_VER'",
                         "REPO_VER":"'$REPO_VER'",
-                        "ETCD_ADDRS":"'$ETCD_ADDRS',"
+                        "ETCD_ADDRS":"'$ETCD_ADDRS',",
+                        "REGION_TAG":"'$REGION_TAG'"
                     },
                     "status":[ 
                     { 
