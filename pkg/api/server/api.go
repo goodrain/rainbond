@@ -77,7 +77,7 @@ func NewManager(c option.Config) *Manager {
 	r.Use(apimiddleware.Proxy)
 
 	r.Get("/monitor", func(res http.ResponseWriter, req *http.Request) {
-		res.Write([]byte{"ok"})
+		res.Write([]byte("ok"))
 	})
 
 	return &Manager{
