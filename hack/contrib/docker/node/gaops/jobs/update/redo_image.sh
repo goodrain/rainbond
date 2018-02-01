@@ -88,8 +88,18 @@ function run() {
     image::pull rainbond/rbd-mq:$(jq --raw-output '."rbd-mq".version' /etc/goodrain/envs/rbd.json)
     image::pull rainbond/rbd-entrance:$(jq --raw-output '."rbd-entrance".version' /etc/goodrain/envs/rbd.json)
     image::pull rainbond/rbd-eventlog:$(jq --raw-output '."rbd-eventlog".version' /etc/goodrain/envs/rbd.json)
-    
-    log.stdout '{ 
+    image::pull rainbond/rbd-app-ui:$(jq --raw-output '."rbd-app-ui".version' /etc/goodrain/envs/rbd.json)
+
+    sed -i "s#3.4.1#3.4.2#g" /etc/goodrain/docker-compose.yaml
+    sed -i "s#rbd-app-ui:3.4#rbd-app-ui:3.4.2#g" /etc/goodrain/docker-compose.yaml
+    dc-compose up -d
+
+    docker exec rbd-app-ui python /app/ui/manage.py migrate
+
+    log.stdout '{
+            "global":{
+                    "REGION_TAG":"cloudbang"
+                 },
             "status":[ 
             { 
                 "name":"redo_rbd_images", 
