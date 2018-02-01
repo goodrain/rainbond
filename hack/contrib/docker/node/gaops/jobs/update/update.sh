@@ -66,7 +66,6 @@ function run(){
     update_rbd_version
     reload_node
     exec_update
-    exec_sql
 }
 
 case $1 in

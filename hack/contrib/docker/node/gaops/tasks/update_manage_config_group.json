@@ -67,6 +67,25 @@
                 ]
             },
             "run_mode": "manyonce"
+        },
+        {
+            "name": "install_rbd_plugins",
+            "id": "install_rbd_plugins",
+            "temp": {
+                "name": "install_rbd_plugins",
+                "shell": {
+                    "cmd": [
+                        "bash",
+                        "/usr/share/gr-rainbond-node/gaops/jobs/install/manage/tasks/plugins.sh"
+                    ]
+                },
+                "nodes": [],
+                "labels": {
+                    "rainbond_node_rule_manage": "true"
+                },
+                "depends": []
+            },
+            "run_mode": "manyonce"
         }
     ]
 }

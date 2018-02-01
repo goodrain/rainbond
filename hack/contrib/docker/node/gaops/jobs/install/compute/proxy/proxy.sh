@@ -367,6 +367,9 @@ function do_image(){
     image::exist goodrain.me/adapter:latest || image::pull goodrain.me/adapter:latest 
     log.info "docker pull pause-amd64"
     image::exist goodrain.me/pause-amd64:3.0 || image::pull goodrain.me/pause-amd64:3.0
+    log.info "docker pull plugins images"
+    docker pull goodrain.me/tcm_20180117175939
+    docker pull  goodrain.me/envoy_discover_service_20180117184912
 }
 
 function run() {

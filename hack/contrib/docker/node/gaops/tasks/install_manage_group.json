@@ -200,6 +200,10 @@
                     {
                         "depend_task_id": "install_prometheus",
                         "strategy": "SameNode"
+                    },
+                    {
+                        "depend_task_id": "install_rbd_plugins",
+                        "strategy": "SameNode"
                     }
                 ]
             },
