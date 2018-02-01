@@ -1126,10 +1126,6 @@ func (s *ServiceAction) createOuterK8sService(tenantName string, mapPort *dbmode
 	var servicePort v1.ServicePort
 	if port.Protocol == "udp" {
 		servicePort.Protocol = "UDP"
-	} else if port.Protocol == "mysql" {
-		servicePort.Protocol = "MYSQL"
-	} else if port.Protocol == "tcp" {
-		servicePort.Protocol = "TCP"
 	} else {
 		servicePort.Protocol = "TCP"
 	}
