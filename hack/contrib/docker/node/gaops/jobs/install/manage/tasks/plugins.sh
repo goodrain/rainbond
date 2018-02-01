@@ -34,7 +34,12 @@ function plugins::image() {
 function exec_sql() {
     log.info "exec sql for plugins exec"
     docker cp /usr/share/gr-rainbond-node/gaops/config/plugins.sql rbd-db:/root
-    docker exec rbd-db mysql -e "use console;source /root/plugins.sql"
+    docker exec rbd-db mysql -e "use console;source /root/plugins.sql;"
+    if [ $? -eq 0 ];then
+       log.info "import plugins data ok"
+    else
+        log.info "import maybe error"
+    fi
 }
 
 function run() {

@@ -22,6 +22,8 @@ function update_rbd_version(){
 
 function reload_node(){
     log.info "install new node & grctl"
+    yum remove -y gr-rainbond-node
+    rm -rf /usr/share/gr-rainbond-node/gaops/*
     yum install gr-rainbond-node gr-rainbond-grctl -y
     log.info "update tasks"
     wget http://repo.goodrain.com/release/3.4.2/gaops/jobs/update/update.json -O /usr/share/gr-rainbond-node/gaops/tasks/update_342_group.json
@@ -66,6 +68,7 @@ function run(){
     update_rbd_version
     reload_node
     exec_update
+    exec_sql
 }
 
 case $1 in
