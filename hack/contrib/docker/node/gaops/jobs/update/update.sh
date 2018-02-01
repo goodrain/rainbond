@@ -29,18 +29,16 @@ function reload_node(){
 }
 
 function exec_update(){
+    sleep 15
     uuid=$(grctl node list | grep "manage,compute" | awk '{print $2}')
     log.info "exec tasks redo_rbd_images <nodeid:$uuid>"
     grctl tasks exec redo_rbd_images -n $uuid
 }
 
 function exec_sql(){
-    log.info "pass"
-    docker exec 
-
-    docker exec rbd-db mysql -e "use console;ALTER TABLE tenant_service ADD update_time DATETIME DEFAULT NOW();ALTER TABLE tenant_service_delete ADD update_time DATETIME DEFAULT NOW();ALTER TABLE tenant_service ADD tenant_service_group_id INT(11) NULL DEFAULT 0;"
+    log.info "update database"
     
-    docker exec rbd-db mysql -e "use console;ALTER TABLE app_service_group ADD deploy_time datetime DEFAULT NULL;
+    docker exec rbd-db mysql -e "use console;ALTER TABLE tenant_service ADD update_time DATETIME DEFAULT NOW();ALTER TABLE tenant_service_delete ADD update_time DATETIME DEFAULT NOW();ALTER TABLE tenant_service ADD tenant_service_group_id INT(11) NULL DEFAULT 0;ALTER TABLE app_service_group ADD deploy_time datetime DEFAULT NULL;
 ALTER TABLE app_service_group ADD installed_count INT(11) NULL DEFAULT 0;
 ALTER TABLE app_service_group ADD source VARCHAR(32) NULL DEFAULT 'local';
 ALTER TABLE app_service_group ADD enterprise_id INT(11) NULL DEFAULT 0;
@@ -60,11 +58,7 @@ CREATE TABLE tenant_service_group (
 ALTER TABLE app_service ADD update_version INT(11) NULL DEFAULT 1;
 ALTER TABLE app_service_volume ADD volume_type VARCHAR(30) NULL DEFAULT '';
 ALTER TABLE app_service_volume ADD volume_name VARCHAR(100) NULL DEFAULT '';
-ALTER TABLE tenant_service_delete ADD tenant_service_group_id INT(11) NULL DEFAULT 0;
-
-
-
-"
+ALTER TABLE tenant_service_delete ADD tenant_service_group_id INT(11) NULL DEFAULT 0;"
 }
 
 function run(){
@@ -72,6 +66,7 @@ function run(){
     update_rbd_version
     reload_node
     exec_update
+    exec_sql
 }
 
 case $1 in

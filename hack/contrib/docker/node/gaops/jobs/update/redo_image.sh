@@ -30,6 +30,15 @@ function image::exist() {
     fi
 }
 
+function compose::config_update() {
+    YAML_FILE=/etc/goodrain/docker-compose.yaml
+    mkdir -pv `dirname $YAML_FILE`
+    if [ ! -f "$YAML_FILE" ];then
+        echo "version: '2.1'" > $YAML_FILE
+    fi
+    dc-yaml -f $YAML_FILE -u -
+}
+
 function image::pull() {
     IMAGES_NAME=$1
     docker pull $IMAGES_NAME
@@ -89,12 +98,42 @@ function run() {
     image::pull rainbond/rbd-entrance:$(jq --raw-output '."rbd-entrance".version' /etc/goodrain/envs/rbd.json)
     image::pull rainbond/rbd-eventlog:$(jq --raw-output '."rbd-eventlog".version' /etc/goodrain/envs/rbd.json)
     image::pull rainbond/rbd-app-ui:$(jq --raw-output '."rbd-app-ui".version' /etc/goodrain/envs/rbd.json)
+    image::pull rainbond/rbd-lb:$(jq --raw-output '."rbd-lb".version' /etc/goodrain/envs/rbd.json)
 
     sed -i "s#3.4.1#3.4.2#g" /etc/goodrain/docker-compose.yaml
     sed -i "s#rbd-app-ui:3.4#rbd-app-ui:3.4.2#g" /etc/goodrain/docker-compose.yaml
+    sed -i "s#rbd-lb:3.4#rbd-lb:3.4.2#g" /etc/goodrain/docker-compose.yaml
     dc-compose up -d
 
     docker exec rbd-app-ui python /app/ui/manage.py migrate
+
+    compose::config_update << EOF
+services:
+  rbd-lb:
+    image: $RBD_LB
+    container_name: rbd-lb
+    environment:
+      NGINX_INIT_PORT: 80
+      MYSQL_HOST: ${MYSQL_HOST:-127.0.0.1}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_USERNAME: $MYSQL_USER
+      MYSQL_PASSWORD: $MYSQL_PASSWD
+      MYSQL_DATABASE: $MYSQL_DB
+      HTTP_SUFFIX_URL: ${EX_DOMAIN#.*}
+      NGINX_SSL_PORT: 8443
+    volumes:
+      - /etc/goodrain/openresty:/usr/local/openresty/nginx/conf
+      - /data/openrestry/logs:/usr/local/openresty/nginx/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    network_mode: "host"
+    restart: always
+EOF
+
+    dc-compose up -d rbd-lb 
 
     log.stdout '{
             "global":{
