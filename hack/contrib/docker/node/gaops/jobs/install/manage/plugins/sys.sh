@@ -791,7 +791,7 @@ services:
       MYSQL_PASSWORD: $MYSQL_PASSWD
       MYSQL_DATABASE: $MYSQL_DB
       HTTP_SUFFIX_URL: ${EX_DOMAIN#.*}
-      NGINX_SSL_PORT: 8443
+      NGINX_SSL_PORT: 10443
     volumes:
       - /etc/goodrain/openresty:/usr/local/openresty/nginx/conf
       - /data/openrestry/logs:/usr/local/openresty/nginx/logs
