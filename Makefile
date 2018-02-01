@@ -88,7 +88,7 @@ push-hub-image:
 	@docker push ${BASE_NAME}/rbd-api:${VERSION}
 
 run-api:build-api
-	${BIN_PATH}/${BASE_NAME}-api --log-level=debug --mysql="admin:admin@tcp(127.0.0.1:3306)/region" --kube-config="`PWD`/admin.kubeconfig"
+	${BIN_PATH}/${BASE_NAME}-api --log-level=debug --mysql="root:admin@tcp(127.0.0.1:3306)/region" --kube-config="`PWD`/test/admin.kubeconfig"
 run-mq:build-mq
 	${BIN_PATH}/${BASE_NAME}-mq --log-level=debug
 run-worker:build-worker

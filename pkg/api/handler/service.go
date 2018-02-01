@@ -965,7 +965,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 			p.IsOuterService = false
 			tx := db.GetManager().Begin()
 			if err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(p); err != nil {
-				tx.Callback()
+				tx.Rollback()
 				return nil, "", err
 			}
 			service, err := db.GetManager().K8sServiceDao().GetK8sService(serviceID, port, true)
@@ -975,12 +975,12 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 			if service != nil {
 				err := s.KubeClient.Core().Services(p.TenantID).Delete(service.K8sServiceID, &metav1.DeleteOptions{})
 				if err != nil {
-					tx.Callback()
+					tx.Rollback()
 					return nil, "", fmt.Errorf("delete deploy k8s service info from kube-api error.%s", err.Error())
 				}
 				err = db.GetManager().K8sServiceDaoTransactions(tx).DeleteK8sServiceByName(service.K8sServiceID)
 				if err != nil {
-					tx.Callback()
+					tx.Rollback()
 					return nil, "", fmt.Errorf("delete deploy k8s service info from db error")
 				}
 			}
@@ -995,7 +995,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 						logrus.Debugf("outer, plugin port (%d) is not exist, do not need delete", port)
 						goto OUTERCLOSEPASS
 					}
-					tx.Callback()
+					tx.Rollback()
 					return nil, "", fmt.Errorf("outer, get plugin mapping port error:(%s)", err)
 				}
 				if p.IsInnerService {
@@ -1008,7 +1008,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 					dbmodel.UpNetPlugin,
 					port,
 				); err != nil {
-					tx.Callback()
+					tx.Rollback()
 					return nil, "", fmt.Errorf("outer, delete plugin mapping port %d error:(%s)", port, err)
 				}
 				logrus.Debugf(fmt.Sprintf("outer, delete plugin port %d->%d", port, pluginPort.PluginPort))
@@ -1039,13 +1039,13 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 		p.IsOuterService = true
 		tx := db.GetManager().Begin()
 		if err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(p); err != nil {
-			tx.Callback()
+			tx.Rollback()
 			return nil, "", err
 		}
 		if p.Protocol != "http" && p.Protocol != "https" {
 			vsPort, err = s.createVSPort(serviceID, p.ContainerPort)
 			if vsPort == nil {
-				tx.Callback()
+				tx.Rollback()
 				return nil, "", fmt.Errorf("create or get vs map port for service error,%s", err.Error())
 			}
 		}
@@ -1053,7 +1053,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 		if deploy != nil {
 			k8sService, err = s.createOuterK8sService(tenantName, vsPort, service, p, deploy)
 			if err != nil && !strings.HasSuffix(err.Error(), "is exist") {
-				tx.Callback()
+				tx.Rollback()
 				return nil, "", fmt.Errorf("create k8s service error,%s", err.Error())
 			}
 		}
@@ -1073,14 +1073,14 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 						port,
 					)
 					if err != nil {
-						tx.Callback()
+						tx.Rollback()
 						logrus.Errorf("outer, set plugin mapping port error:(%s)", err)
 						return nil, "", fmt.Errorf("outer, set plugin mapping port error:(%s)", err)
 					}
 					pPort = ppPort
 					goto OUTEROPENPASS
 				}
-				tx.Callback()
+				tx.Rollback()
 				return nil, "", fmt.Errorf("outer, in setting plugin mapping port, get plugin mapping port error:(%s)", err)
 			}
 			logrus.Debugf("outer, plugin mapping port is already exist, %d->%d", pluginPort.ContainerPort, pluginPort.PluginPort)
@@ -1232,7 +1232,7 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 		if p.IsInnerService { //如果端口已经开了对内
 			p.IsInnerService = false
 			if err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(p); err != nil {
-				tx.Callback()
+				tx.Rollback()
 				return fmt.Errorf("update service port error: %s", err.Error())
 			}
 			service, err := db.GetManager().K8sServiceDao().GetK8sService(serviceID, port, false)
@@ -1242,12 +1242,12 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 			if service != nil {
 				err := s.KubeClient.Core().Services(p.TenantID).Delete(service.K8sServiceID, &metav1.DeleteOptions{})
 				if err != nil && !strings.HasSuffix(err.Error(), "not found") {
-					tx.Callback()
+					tx.Rollback()
 					return fmt.Errorf("delete deploy k8s service info from kube-api error")
 				}
 				err = db.GetManager().K8sServiceDao().DeleteK8sServiceByName(service.K8sServiceID)
 				if err != nil {
-					tx.Callback()
+					tx.Rollback()
 					return fmt.Errorf("delete deploy k8s service info from db error")
 				}
 			}
@@ -1262,7 +1262,7 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 						logrus.Debugf("inner, plugin port (%d) is not exist, do not need delete", port)
 						goto INNERCLOSEPASS
 					}
-					tx.Callback()
+					tx.Rollback()
 					return fmt.Errorf("inner, get plugin mapping port error:(%s)", err)
 				}
 				if p.IsOuterService {
@@ -1274,31 +1274,31 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 					dbmodel.UpNetPlugin,
 					port,
 				); err != nil {
-					tx.Callback()
+					tx.Rollback()
 					return fmt.Errorf("inner, delete plugin mapping port %d error:(%s)", port, err)
 				}
 				logrus.Debugf(fmt.Sprintf("inner, delete plugin port %d->%d", port, pluginPort.PluginPort))
 			INNERCLOSEPASS:
 			}
 		} else {
-			tx.Callback()
+			tx.Rollback()
 			return fmt.Errorf("already close")
 		}
 	case "open":
 		if p.IsInnerService {
-			tx.Callback()
+			tx.Rollback()
 			return fmt.Errorf("already open")
 		}
 		p.IsInnerService = true
 		if err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(p); err != nil {
-			tx.Callback()
+			tx.Rollback()
 			return err
 		}
 		deploy, _ := db.GetManager().K8sDeployReplicationDao().GetK8sCurrentDeployReplicationByService(serviceID)
 		if deploy != nil {
 			k8sService, err = s.createInnerService(service, p, deploy)
 			if err != nil {
-				tx.Callback()
+				tx.Rollback()
 				return fmt.Errorf("create k8s service error,%s", err.Error())
 			}
 
@@ -1319,14 +1319,14 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 						port,
 					)
 					if err != nil {
-						tx.Callback()
+						tx.Rollback()
 						logrus.Errorf("inner, set plugin mapping port error:(%s)", err)
 						return fmt.Errorf("inner, set plugin mapping port error:(%s)", err)
 					}
 					pPort = ppPort
 					goto INNEROPENPASS
 				}
-				tx.Callback()
+				tx.Rollback()
 				return fmt.Errorf("inner, in setting plugin mapping port, get plugin mapping port error:(%s)", err)
 			}
 			logrus.Debugf("inner, plugin mapping port is already exist, %d->%d", pluginPort.ContainerPort, pluginPort.PluginPort)
@@ -1580,7 +1580,7 @@ func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants) error {
 	tx := db.GetManager().Begin()
 	if err := db.GetManager().TenantDaoTransactions(tx).AddModel(t); err != nil {
 		if !strings.HasSuffix(err.Error(), "is exist") {
-			tx.Callback()
+			tx.Rollback()
 			return err
 		}
 	}
