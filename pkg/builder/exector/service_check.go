@@ -46,12 +46,12 @@ type ServiceCheckInput struct {
 type ServiceCheckResult struct {
 	//检测状态 Success Failure
 	CheckStatus string `json:"check_status"`
-	ErrorInfos  parser.ParseErrorList
+	ErrorInfos  parser.ParseErrorList `json:"error_infos"`
 	ServiceInfo []parser.ServiceInfo `json:"service_info"`
 }
 
 //CreateResult 创建检测结果
-func CreateResult(ErrorInfos parser.ParseErrorList, ServiceInfo []parser.ServiceInfo) error {
+func CreateResult(ErrorInfos parser.ParseErrorList, ServiceInfo []parser.ServiceInfo) (ServiceCheckResult, error) {
 	var sr ServiceCheckResult
 	if ErrorInfos != nil && ErrorInfos.IsFatalError() {
 		sr = ServiceCheckResult{
@@ -67,8 +67,7 @@ func CreateResult(ErrorInfos parser.ParseErrorList, ServiceInfo []parser.Service
 		}
 	}
 	//save result
-	fmt.Println(sr)
-	return nil
+	return sr, nil
 }
 
 //serviceCheck 应用创建源检测
@@ -107,16 +106,13 @@ func (e *exectorManager) serviceCheck(in []byte) {
 		}
 	}
 	serviceInfos := pr.GetServiceInfo()
-	if err := CreateResult(errList, serviceInfos); err != nil {
+	sr, err := CreateResult(errList, serviceInfos)
+	if err != nil {
 		logrus.Errorf("create check result error,%s", err.Error())
 		logger.Error("创建检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
 	}
 	k := fmt.Sprintf("/servicecheck/%s", input.CheckUUID)
-	v := parser.GetServiceInfo{
-		UUID: input.CheckUUID,
-		Source: input.SourceType,
-		AnalystInfo: serviceInfos,
-	}
+	v := sr
 	vj, err := ffjson.Marshal(&v)
 	if err != nil {
 		logrus.Errorf("mashal servicecheck value error, %v", err)

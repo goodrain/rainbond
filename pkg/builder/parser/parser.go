@@ -45,9 +45,9 @@ type Env struct {
 
 //ParseError 错误信息
 type ParseError struct {
-	ErrorType   ParseErrorType
-	ErrorInfo   string
-	SolveAdvice string
+	ErrorType   ParseErrorType `json:"error_type"`
+	ErrorInfo   string `json:"error_info"`
+	SolveAdvice string `json:"solve_advice"`
 }
 
 //ParseErrorList 错误列表
@@ -140,7 +140,6 @@ type ServiceInfo struct {
 type GetServiceInfo struct {
 	UUID 		string `json:"uuid"`
 	Source 		string `json:"source"`
-	AnalystInfo []ServiceInfo `json:"analyst_info"`
 }
 
 //GetPortProtocol 获取端口协议
