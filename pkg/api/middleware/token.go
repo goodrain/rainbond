@@ -132,7 +132,7 @@ func FullToken(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		logrus.Debugf("request uri is %s", r.RequestURI)
+		//logrus.Debugf("request uri is %s", r.RequestURI)
 		t := r.Header.Get("Authorization")
 		if tt := strings.Split(t, " "); len(tt) == 2 {
 			if handler.GetTokenIdenHandler().CheckToken(tt[1], r.RequestURI) {
