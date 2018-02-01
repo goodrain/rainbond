@@ -543,9 +543,11 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 				case dbmodel.LocalVolumeType.String():
 					serviceType, err := db.GetManager().TenantServiceLabelDao().GetTenantServiceTypeLabel(volumn.ServiceID)
 					if err != nil {
+						tx.Rollback()
 						return util.CreateAPIHandleErrorFromDBError("service type", err)
 					}
 					if serviceType.LabelValue != core_util.StatefulServiceType {
+						tx.Rollback()
 						return util.CreateAPIHandleError(400, fmt.Errorf("应用类型不为有状态应用.不支持本地存储"))
 					}
 					volumn.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, sc.TenantID, volumn.ServiceID, volumn.VolumePath)
@@ -591,7 +593,10 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		tx.Rollback()
 		return err
 	}
-	tx.Commit()
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
 	return nil
 }
 
@@ -883,6 +888,7 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 			}
 			vpD, err := db.GetManager().TenantServicesPortDao().GetPort(serviceID, oldPort)
 			if err != nil {
+				tx.Rollback()
 				return err
 			}
 			vpD.ServiceID = serviceID
@@ -1485,13 +1491,16 @@ func (s *ServiceAction) RollBack(rs *api_model.RollbackStruct) error {
 	tx := db.GetManager().Begin()
 	service, err := db.GetManager().TenantServiceDaoTransactions(tx).GetServiceByID(rs.ServiceID)
 	if err != nil {
+		tx.Rollback()
 		return err
 	}
 	if service.DeployVersion == rs.DeployVersion {
+		tx.Rollback()
 		return fmt.Errorf("current version is %v, don't need rollback", rs.DeployVersion)
 	}
 	service.DeployVersion = rs.DeployVersion
 	if err := db.GetManager().TenantServiceDaoTransactions(tx).UpdateModel(service); err != nil {
+		tx.Rollback()
 		return err
 	}
 	//发送重启消息到MQ
@@ -1574,15 +1583,10 @@ func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants) error {
 	}
 	tx := db.GetManager().Begin()
 	if err := db.GetManager().TenantDaoTransactions(tx).AddModel(t); err != nil {
-		if strings.HasSuffix(err.Error(), "is exist") {
-			_, err := s.KubeClient.Core().Namespaces().Get(t.UUID, metav1.GetOptions{})
-			if err == nil {
-				tx.Commit()
-				return nil
-			}
+		if !strings.HasSuffix(err.Error(), "is exist") {
+			tx.Callback()
+			return err
 		}
-		tx.Callback()
-		return err
 	}
 	ns := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1596,7 +1600,11 @@ func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants) error {
 			return err
 		}
 	}
-	return tx.Commit().Error
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	return nil
 }
 
 //CreateTenandIDAndName create tenant_id and tenant_name

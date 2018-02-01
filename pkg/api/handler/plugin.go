@@ -548,6 +548,7 @@ func (p *PluginAction) DeletePluginBuildVersion(pluginID, versionID string) *uti
 	tx := db.GetManager().Begin()
 	err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).DeleteBuildVersionByVersionID(versionID)
 	if err != nil {
+		tx.Rollback()
 		return util.CreateAPIHandleErrorFromDBError(fmt.Sprintf("delete plugin build version by id %v", versionID), err)
 	}
 	if err := tx.Commit().Error; err != nil {
