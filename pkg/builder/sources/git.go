@@ -64,6 +64,18 @@ func (c CodeSourceInfo) GetCodeCacheDir() string {
 	return path.Join(cacheDir, "build", c.TenantID, string(bs))
 }
 
+//GetCodeSourceDir 获取代码下载目录
+func (c CodeSourceInfo) GetCodeSourceDir() string {
+	sourceDir := os.Getenv("SOURCE_DIR")
+	if sourceDir == "" {
+		sourceDir = "/source"
+	}
+	h := sha1.New()
+	h.Write([]byte(c.RepositoryURL))
+	bs := h.Sum(nil)
+	return path.Join(sourceDir, "build", c.TenantID, string(bs))
+}
+
 //GitClone git clone code
 func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
 	if logger != nil {

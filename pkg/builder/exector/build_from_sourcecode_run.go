@@ -54,6 +54,7 @@ type SourceCodeBuildItem struct {
 	Logger 			event.Logger `json:"logger"`
 	EventID	 		string `json:"event_id"`
 	CacheDir		string `json:"cache_dir"`
+	SourceDir		string `json:"source_dir"`
 	DockerClient    *client.Client	
 	Config          parseConfig.Config
 	TenantID        string
@@ -109,7 +110,8 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	// 3.build
 	// 4.upload image /upload slug
 	i.CacheDir = i.CodeSouceInfo.GetCodeCacheDir()
-	_, err := sources.GitClone(i.CodeSouceInfo, i.CacheDir, i.Logger, 3)
+	i.SourceDir = i.CodeSouceInfo.GetCodeSourceDir()
+	_, err := sources.GitClone(i.CodeSouceInfo, i.SourceDir, i.Logger, 3)
 	if err != nil {
 		logrus.Errorf("pull git code error: %s", err.Error())
 		i.Logger.Error(fmt.Sprintf("拉取代码失败, %s", err.Error()), map[string]string{"step": "builder-exector", "status":"failure"})
@@ -141,7 +143,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 
 //IsDockerfile CheckDockerfile
 func (i *SourceCodeBuildItem) IsDockerfile() bool {
-	filepath := path.Join(i.CacheDir, "Dockerfile")
+	filepath := path.Join(i.SourceDir, "Dockerfile")
 	_, err := os.Stat(filepath)
 	if err != nil {
 		return false
@@ -150,7 +152,7 @@ func (i *SourceCodeBuildItem) IsDockerfile() bool {
 }
 
 func (i *SourceCodeBuildItem) buildImage() error {
-	filepath := path.Join(i.CacheDir, "Dockerfile")
+	filepath := path.Join(i.SourceDir, "Dockerfile")
 	i.Logger.Info("开始解析Dockerfile", map[string]string{"step":"builder-exector"})
 	_, err := sources.ParseFile(filepath)
 	if err != nil {
@@ -217,8 +219,8 @@ func (i *SourceCodeBuildItem) buildCode() error {
 	}(i.ServiceID, i.DeployVersion)
 	cmd := []string{buildCMD,
 		"-b", repos[1],
-		"-s", i.CodeSouceInfo.GetCodeCacheDir(),
-		"-c", i.CodeSouceInfo.GetCodeCacheDir(),
+		"-s", i.SourceDir,
+		"-c", i.CacheDir,
 		"-d", packageName,
 		"-v", i.DeployVersion,
 		"-l", logfile,
@@ -227,6 +229,20 @@ func (i *SourceCodeBuildItem) buildCode() error {
 		"-r", i.Runtime,
 		"-g", i.Lang,
 		"--name", buildName}
+	if len(i.BuildEnvs) != 0 {
+		buildEnvStr := ""
+		mm := []string{}
+		for k,v := range i.BuildEnvs {
+			mm = append(mm, k+"="+v)
+		}
+		if len(mm) > 1 {
+			buildEnvStr = strings.Join(mm, ":::")
+		}else {
+			buildEnvStr = mm[0]
+		}
+		cmd = append(cmd, "-e")
+		cmd = append(cmd, buildEnvStr)
+	}
 	if err := ShowExec("perl", cmd, i.Logger); err != nil {
 		i.Logger.Error("编译代码包失败", map[string]string{"step":"build-code", "status":"failure"})
 		logrus.Error("build perl error")
