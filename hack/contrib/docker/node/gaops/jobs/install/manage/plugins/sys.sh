@@ -465,7 +465,7 @@ EVENT_WEBSOCKET_URL = {
 
 
 APP_SERVICE_API = {
-    'url': 'http://app.goodrain.com:80',
+    'url': 'https://app-test.goodrain.com',
     'apitype': 'app service'
 }
 
