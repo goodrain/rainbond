@@ -659,9 +659,18 @@ type BuildServiceStruct struct {
 		// in: body
 		// required: false
 		RepoURL string `json:"repo_url" validate:"repo_url"`
+		// branch 分支信息
+		// in: body
+		// required: false
+		Branch  string `json:"branch" validate:"branch"`
 		// 操作人员
 		// in: body
 		// required: false
+		Lang string `json:"lang" validate:"lang"`
+		Runtime string `json:"runtime" validate:"runtime"`
+		ServiceType string `json:"service_type" validate:"service_type"`
+		User string `json:"user" validate:"user"`
+		Password string `json:"password" validate:"password"`
 		Operator     string `json:"operator" validate:"operator"`
 		TenantName   string `json:"tenant_name"`
 		ServiceAlias string `json:"service_alias"`

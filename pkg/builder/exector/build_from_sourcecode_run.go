@@ -72,8 +72,8 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 	logger := event.GetManager().GetLogger(eventID)
 	csi := sources.CodeSourceInfo{
 		ServerType : gjson.GetBytes(in, "server_type").String(),
-		RepositoryURL: gjson.GetBytes(in, "deploy_version").String(),
-		Branch: gjson.GetBytes(in, "deploy_version").String(),
+		RepositoryURL: gjson.GetBytes(in, "repo_url").String(),
+		Branch: gjson.GetBytes(in, "branch").String(),
 		//TODO: user password api发出任务时判断是否存在，不存在则套用define
 		User: gjson.GetBytes(in, "user").String(),
 		Password: gjson.GetBytes(in, "password").String(),
@@ -85,7 +85,7 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 		logrus.Errorf("unmarshal build envs error: %s", err.Error())
 	}
 	return &SourceCodeBuildItem{
-		Namespace: gjson.GetBytes(in, "namespace").String(),
+		Namespace: gjson.GetBytes(in, "tenant_id").String(),
 		TenantName:  gjson.GetBytes(in, "tenant_name").String(),
 		ServiceAlias: gjson.GetBytes(in, "service_alias").String(),
 		TenantID: gjson.GetBytes(in, "tenant_id").String(),
