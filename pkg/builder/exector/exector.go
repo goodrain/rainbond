@@ -54,7 +54,7 @@ func NewManager(conf config.Config) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer db.CloseManager()
+	//defer db.CloseManager()
 	if err != nil {
 		logrus.Errorf("create etcd client v3 in service check error, %v", err)
 		return nil, err
