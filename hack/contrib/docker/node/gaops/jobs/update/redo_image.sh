@@ -1,6 +1,11 @@
 #!/bin/bash
 
-REPO_VER=$1
+MYSQL_USER=$1
+MYSQL_PASSWD=$2
+MYSQL_HOST=$3
+MYSQL_PORT=$4
+EX_DOMAIN=$5
+MYSQL_DB="region"
 
 function log.info() {
   echo "       $*"
@@ -100,17 +105,18 @@ function run() {
     image::pull rainbond/rbd-app-ui:$(jq --raw-output '."rbd-app-ui".version' /etc/goodrain/envs/rbd.json)
     image::pull rainbond/rbd-lb:$(jq --raw-output '."rbd-lb".version' /etc/goodrain/envs/rbd.json)
 
+    log.info "update docker-compose.yaml"
     sed -i "s#3.4.1#3.4.2#g" /etc/goodrain/docker-compose.yaml
     sed -i "s#rbd-app-ui:3.4#rbd-app-ui:3.4.2#g" /etc/goodrain/docker-compose.yaml
-    sed -i "s#rbd-lb:3.4#rbd-lb:3.4.2#g" /etc/goodrain/docker-compose.yaml
+    #sed -i "s#rbd-lb:3.4#rbd-lb:3.4.2#g" /etc/goodrain/docker-compose.yaml
     dc-compose up -d
-
+    log.info "migrate database"
     docker exec rbd-app-ui python /app/ui/manage.py migrate
 
     compose::config_update << EOF
 services:
   rbd-lb:
-    image: $RBD_LB
+    image: rainbond/rbd-lb:3.4.2
     container_name: rbd-lb
     environment:
       NGINX_INIT_PORT: 80

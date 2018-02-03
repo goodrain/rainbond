@@ -10,7 +10,12 @@
                 "shell": {
                     "cmd": [
                         "bash",
-                        "/usr/share/gr-rainbond-node/gaops/jobs/update/redo_image.sh"
+                        "/usr/share/gr-rainbond-node/gaops/jobs/update/redo_image.sh",
+                        "${DB_USER}",
+                        "${DB_PASSWD}",
+                        "${DB_HOST}",
+                        "${DB_PORT}",
+                        "${DOMAIN}"
                     ]
                 },
                 "nodes": [],
