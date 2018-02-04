@@ -113,6 +113,14 @@ function run() {
     log.info "migrate database"
     docker exec rbd-app-ui python /app/ui/manage.py migrate
 
+    docker cp /usr/share/gr-rainbond-node/gaops/config/grplugin.sql rbd-db:/root
+    docker exec rbd-db mysql -e "use console;source /root/grplugin.sql;"
+    if [ $? -eq 0 ];then
+       log.info "import gr-plugin data ok"
+    else
+        log.info "import maybe error"
+    fi
+
     compose::config_update << EOF
 services:
   rbd-lb:
