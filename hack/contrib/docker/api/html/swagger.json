@@ -2745,6 +2745,11 @@
                   "type": "string",
                   "x-go-name": "Action"
                 },
+                "branch": {
+                  "description": "branch 分支信息\nin: body",
+                  "type": "string",
+                  "x-go-name": "Branch"
+                },
                 "deploy_version": {
                   "description": "部署的版本号\nin: body",
                   "type": "string",
@@ -2773,23 +2778,43 @@
                   "type": "string",
                   "x-go-name": "Kind"
                 },
-                "operator": {
+                "lang": {
                   "description": "操作人员\nin: body",
                   "type": "string",
+                  "x-go-name": "Lang"
+                },
+                "operator": {
+                  "type": "string",
                   "x-go-name": "Operator"
+                },
+                "password": {
+                  "type": "string",
+                  "x-go-name": "Password"
                 },
                 "repo_url": {
                   "description": "git地址\nin: body",
                   "type": "string",
                   "x-go-name": "RepoURL"
                 },
+                "runtime": {
+                  "type": "string",
+                  "x-go-name": "Runtime"
+                },
                 "service_alias": {
                   "type": "string",
                   "x-go-name": "ServiceAlias"
                 },
+                "service_type": {
+                  "type": "string",
+                  "x-go-name": "ServiceType"
+                },
                 "tenant_name": {
                   "type": "string",
                   "x-go-name": "TenantName"
+                },
+                "user": {
+                  "type": "string",
+                  "x-go-name": "User"
                 }
               }
             }
@@ -6629,6 +6654,9 @@
           "type": "string",
           "x-go-name": "ServiceKey"
         },
+        "share_conf": {
+          "$ref": "#/definitions/ShareConfItems"
+        },
         "share_id": {
           "type": "string",
           "x-go-name": "ShareID"
@@ -6770,6 +6798,34 @@
       },
       "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
     },
+    "ShareConfItems": {
+      "description": "ShareConfItems 分享相关配置",
+      "type": "object",
+      "properties": {
+        "ftp_host": {
+          "type": "string",
+          "x-go-name": "FTPHost"
+        },
+        "ftp_namespace": {
+          "type": "string",
+          "x-go-name": "FTPNamespace"
+        },
+        "ftp_password": {
+          "type": "string",
+          "x-go-name": "FTPPassWord"
+        },
+        "ftp_port": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "FTPPort"
+        },
+        "ftp_username": {
+          "type": "string",
+          "x-go-name": "FTPUserName"
+        }
+      },
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+    },
     "SlugShare": {
       "description": "SlugShare Slug 类型",
       "type": "object",
@@ -6805,6 +6861,9 @@
         "service_key": {
           "type": "string",
           "x-go-name": "ServiceKey"
+        },
+        "share_conf": {
+          "$ref": "#/definitions/ShareConfItems"
         },
         "share_id": {
           "type": "string",
