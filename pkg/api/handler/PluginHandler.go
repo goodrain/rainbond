@@ -28,8 +28,8 @@ import (
 //PluginHandler plugin handler
 type PluginHandler interface {
 	CreatePluginAct(cps *api_model.CreatePluginStruct) *util.APIHandleError
-	UpdatePluginAct(pluginID string, cps *api_model.UpdatePluginStruct) *util.APIHandleError
-	DeletePluginAct(pluginID string) *util.APIHandleError
+	UpdatePluginAct(pluginID,tenantID string, cps *api_model.UpdatePluginStruct) *util.APIHandleError
+	DeletePluginAct(pluginID, tenantID string) *util.APIHandleError
 	GetPlugins(tenantID string) ([]*dbmodel.TenantPlugin, *util.APIHandleError)
 	AddDefaultEnv(est *api_model.ENVStruct) *util.APIHandleError
 	UpdateDefaultEnv(est *api_model.ENVStruct) *util.APIHandleError

@@ -105,11 +105,12 @@ func (t *TenantStruct) UpdatePlugin(w http.ResponseWriter, r *http.Request) {
 	//     description: 统一返回格式
 
 	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	var ups api_model.UpdatePluginStruct
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ups.Body, nil); !ok {
 		return
 	}
-	if err := handler.GetPluginManager().UpdatePluginAct(pluginID, &ups); err != nil {
+	if err := handler.GetPluginManager().UpdatePluginAct(pluginID,tenantID, &ups); err != nil {
 		err.Handle(r, w)
 		return
 	}
@@ -139,7 +140,8 @@ func (t *TenantStruct) DeletePlugin(w http.ResponseWriter, r *http.Request) {
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
-	if err := handler.GetPluginManager().DeletePluginAct(pluginID); err != nil {
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	if err := handler.GetPluginManager().DeletePluginAct(pluginID, tenantID); err != nil {
 		err.Handle(r, w)
 		return
 	}

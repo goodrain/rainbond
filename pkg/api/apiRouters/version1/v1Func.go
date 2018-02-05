@@ -121,7 +121,9 @@ func (s *ServiceStruct) StartService(w http.ResponseWriter, r *http.Request) {
 			w.Write(controller.RestInfo(500, `"msg":"start falied"`))
 			return
 		}
-		_, err := s.MQClient.Enqueue(context.Background(), eq)
+		ctx, cancel := context.WithCancel(context.Background())
+		_, err := s.MQClient.Enqueue(ctx, eq)
+		cancel()
 		if err != nil {
 			logrus.Errorf("equque mq error, %v", err)
 			w.WriteHeader(500)
@@ -178,7 +180,9 @@ func (s *ServiceStruct) StopService(w http.ResponseWriter, r *http.Request) {
 			w.Write(controller.RestInfo(500))
 			return
 		}
-		_, err = s.MQClient.Enqueue(context.Background(), eq)
+		ctx, cancel := context.WithCancel(context.Background())
+		_, err = s.MQClient.Enqueue(ctx, eq)
+		cancel()
 		if err != nil {
 			logrus.Errorf("equque mq error, %v", err)
 			w.WriteHeader(500)
@@ -238,7 +242,9 @@ func (s *ServiceStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 			w.Write(controller.RestInfo(500))
 			return
 		}
-		_, err = s.MQClient.Enqueue(context.Background(), eq)
+		ctx, cancel := context.WithCancel(context.Background())
+		_, err = s.MQClient.Enqueue(ctx, eq)
+		cancel()
 		if err != nil {
 			logrus.Errorf("equque mq error, %v", err)
 			w.WriteHeader(500)
@@ -296,7 +302,9 @@ func (s *ServiceStruct) VerticalService(w http.ResponseWriter, r *http.Request) 
 			w.Write(controller.RestInfo(500))
 			return
 		}
-		_, err = s.MQClient.Enqueue(context.Background(), eq)
+		ctx, cancel := context.WithCancel(context.Background())
+		_, err = s.MQClient.Enqueue(ctx, eq)
+		cancel()
 		if err != nil {
 			logrus.Errorf("equque mq error, %v", err)
 			w.WriteHeader(500)
@@ -352,7 +360,9 @@ func (s *ServiceStruct) HorizontalService(w http.ResponseWriter, r *http.Request
 			w.Write(controller.RestInfo(500))
 			return
 		}
-		_, err = s.MQClient.Enqueue(context.Background(), eq)
+		ctx, cancel := context.WithCancel(context.Background())
+		_, err = s.MQClient.Enqueue(ctx, eq)
+		cancel()
 		if err != nil {
 			logrus.Errorf("equque mq error, %v", err)
 			w.WriteHeader(500)
@@ -486,7 +496,9 @@ func (s *ServiceStruct) DeployService(w http.ResponseWriter, r *http.Request) {
 			w.Write(controller.RestInfo(500))
 			return
 		}
-		_, err = s.MQClient.Enqueue(context.Background(), eq)
+		ctx, cancel := context.WithCancel(context.Background())
+		_, err = s.MQClient.Enqueue(ctx, eq)
+		cancel()
 		if err != nil {
 			logrus.Errorf("equque mq error, %v", err)
 			w.WriteHeader(500)
@@ -523,7 +535,7 @@ func (s *ServiceStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 			w.Write(controller.RestInfo(500))
 			return
 		}
-		//两个deploy version
+		//两��deploy version
 		upgradeTask := model.RollingUpgradeTaskBody{
 			TenantID:             services.TenantID,
 			ServiceID:            services.ServiceID,
@@ -543,7 +555,9 @@ func (s *ServiceStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 			w.Write(controller.RestInfo(500))
 			return
 		}
-		_, err = s.MQClient.Enqueue(context.Background(), eq)
+		ctx, cancel := context.WithCancel(context.Background())
+		_, err = s.MQClient.Enqueue(ctx, eq)
+		cancel()
 		if err != nil {
 			logrus.Errorf("equque mq error, %v", err)
 			w.WriteHeader(500)

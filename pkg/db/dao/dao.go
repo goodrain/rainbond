@@ -64,9 +64,10 @@ type TenantServiceDao interface {
 	GetServicesByTenantID(tenantID string) ([]*model.TenantServices, error)
 	GetServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error)
 	DeleteServiceByServiceID(serviceID string) error
-	GetCPUAndMEM(tenantName []string) ([]*map[string]interface{}, error)
+	GetCPUAndMEM(tenantName []string) ([]map[string]interface{}, error)
 	GetPagedTenantService(offset, len int) ([]map[string]interface{}, error)
 	GetTenantServiceRes(uuid string) (map[string]interface{}, error)
+	GetAllServices() ([]*model.TenantServices, error)
 }
 
 //TenantServiceDeleteDao TenantServiceDeleteDao
@@ -88,8 +89,8 @@ type TenantServicesPortDao interface {
 //TenantPluginDao TenantPluginDao
 type TenantPluginDao interface {
 	Dao
-	GetPluginByID(pluginID string) (*model.TenantPlugin, error)
-	DeletePluginByID(pluginID string) error
+	GetPluginByID(pluginID, tenantID string) (*model.TenantPlugin, error)
+	DeletePluginByID(pluginID, tenantID string) error
 	GetPluginsByTenantID(tenantID string) ([]*model.TenantPlugin, error)
 }
 
@@ -199,6 +200,7 @@ type TenantServiceVolumeDao interface {
 	DeleteTenantServiceVolumesByServiceID(serviceID string) error
 	DeleteByServiceIDAndVolumePath(serviceID string, volumePath string) error
 	GetVolumeByServiceIDAndName(serviceID, name string) (*model.TenantServiceVolume, error)
+	GetAllVolumes() ([]*model.TenantServiceVolume, error)
 }
 
 //TenantServiceLBMappingPortDao vs lb mapping port dao

@@ -61,6 +61,8 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	//租户中的日志
 	r.Post("/event-log", controller.GetManager().TenantLogByAction)
 	r.Get("/protocols", controller.GetManager().GetSupportProtocols)
+	//插件预安装
+	r.Post("/transplugins", controller.GetManager().TransPlugins)
 	//代码检测
 	r.Post("/code-check", controller.GetManager().CheckCode)
 	r.Post("/servicecheck", controller.Check)

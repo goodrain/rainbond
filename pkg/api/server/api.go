@@ -29,6 +29,7 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/api/apiRouters/doc"
 	"github.com/goodrain/rainbond/pkg/api/apiRouters/license"
+	"github.com/goodrain/rainbond/pkg/api/proxy"
 
 	"github.com/goodrain/rainbond/pkg/api/apiRouters/cloud"
 	"github.com/goodrain/rainbond/pkg/api/apiRouters/version2"
@@ -43,11 +44,12 @@ import (
 
 //Manager apiserver
 type Manager struct {
-	ctx      context.Context
-	cancel   context.CancelFunc
-	conf     option.Config
-	stopChan chan struct{}
-	r        *chi.Mux
+	ctx             context.Context
+	cancel          context.CancelFunc
+	conf            option.Config
+	stopChan        chan struct{}
+	r               *chi.Mux
+	prometheusProxy proxy.Proxy
 }
 
 //NewManager newManager
@@ -73,6 +75,11 @@ func NewManager(c option.Config) *Manager {
 	//simple api version
 	r.Use(apimiddleware.APIVersion)
 	r.Use(apimiddleware.Proxy)
+
+	r.Get("/monitor", func(res http.ResponseWriter, req *http.Request) {
+		res.Write([]byte("ok"))
+	})
+
 	return &Manager{
 		ctx:      ctx,
 		cancel:   cancel,
@@ -118,6 +125,10 @@ func (m *Manager) Run() {
 	m.r.Mount("/license", license.Routes())
 	//兼容老版docker
 	m.r.Get("/v1/etcd/event-log/instances", m.EventLogInstance)
+
+	//prometheus单节点代理
+	m.r.Get("/api/v1/query", m.PrometheusAPI)
+	m.r.Get("/api/v1/query_range", m.PrometheusAPI)
 	//开启对浏览器的websocket服务和文件服务
 	go func() {
 		websocketRouter := chi.NewRouter()
@@ -171,4 +182,12 @@ func (m *Manager) EventLogInstance(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(404)
 	return
+}
+
+//PrometheusAPI prometheus api 代理
+func (m *Manager) PrometheusAPI(w http.ResponseWriter, r *http.Request) {
+	if m.prometheusProxy == nil {
+		m.prometheusProxy = proxy.CreateProxy("prometheus", "http", []string{"127.0.0.1:9999"})
+	}
+	m.prometheusProxy.Proxy(w, r)
 }

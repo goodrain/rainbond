@@ -1,29 +1,29 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package zeus
 
 import (
-	"github.com/goodrain/rainbond/pkg/entrance/core/object"
 	"bytes"
 	"encoding/json"
 	"fmt"
+
+	"github.com/goodrain/rainbond/pkg/entrance/core/object"
 )
 
 //Source zeus资源模型
@@ -53,7 +53,8 @@ type Properties interface {
 }
 
 type PoolProperties struct {
-	Basic PoolBasic `json:"basic"`
+	Basic      PoolBasic      `json:"basic"`
+	Connection PoolConnection `json:"connection"`
 }
 type VSProperties struct {
 	Basic VSBasic `json:"basic"`
@@ -87,17 +88,23 @@ type PoolBasic struct {
 	Note           string      `json:"note"`
 }
 
+type PoolConnection struct {
+	MaxReplyTime int `json:"max_reply_time"`
+}
+
 type VSBasic struct {
-	ListenONAny     bool     `json:"listen_on_any"`
-	ListenONHosts   []string `json:"listen_on_hosts,omitempty"`
-	Note            string   `json:"note"`
-	DefaultPoolName string   `json:"pool"`
-	Port            int32    `json:"port"`
-	Enabled         bool     `json:"enabled"`
-	Protocol        string   `json:"protocol"` //stream http https 等等
-	RequestRules    []string `json:"request_rules,omitempty"`
-	ResponseRules   []string `json:"response_rules,omitempty"`
-	SSLDecrypt      bool     `json:"ssl_decrypt"`
+	AddXForwardedFor bool     `json:"add_x_forwarded_for"`
+	ListenONAny      bool     `json:"listen_on_any"`
+	ListenONHosts    []string `json:"listen_on_hosts,omitempty"`
+	Note             string   `json:"note"`
+	DefaultPoolName  string   `json:"pool"`
+	Port             int32    `json:"port"`
+	Enabled          bool     `json:"enabled"`
+	Protocol         string   `json:"protocol"` //stream http https 等等
+	RequestRules     []string `json:"request_rules,omitempty"`
+	ResponseRules    []string `json:"response_rules,omitempty"`
+	SSLDecrypt       bool     `json:"ssl_decrypt"`
+	ConnectTimeout   int      `json:"connect_timeout"`
 }
 
 type ZeusNode struct {

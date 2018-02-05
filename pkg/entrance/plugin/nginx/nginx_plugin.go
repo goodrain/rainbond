@@ -121,7 +121,8 @@ func (n *nginxAPI) AddNode(nodes ...*object.NodeObject) error {
 		var nodeList []string
 		nodeList = append(nodeList, fmt.Sprintf("%s:%d", node.Host, node.Port))
 		sns.NodeList = nodeList
-		if node.Protocol == "stream" {
+		//TODO: "stream" to !http
+		if node.Protocol != "http" {
 			logrus.Debugf("node protocol --stream  %s", node.PoolName)
 			if !n.addStreamNode(&sns) {
 				errs = append(errs, errors.New("addPoolNode strem error"))
@@ -162,7 +163,8 @@ func (n *nginxAPI) DeleteNode(nodes ...*object.NodeObject) error {
 		nodeList = append(nodeList, fmt.Sprintf("%s:%d", node.Host, node.Port))
 		logrus.Debugf("in DeleteNode nodelist is %v", nodeList)
 		sns.NodeList = nodeList
-		if node.Protocol == "stream" {
+		//TODO: "stream" to !http
+		if node.Protocol != "http" {
 			if !n.deleteStreamNode(&sns) {
 				errs = append(errs, errors.New("addPoolNode error"))
 			}
@@ -462,14 +464,14 @@ func (n *nginxAPI) addDomain(ads *AddDomainS) bool {
 	if !bytes.HasPrefix([]byte(ads.Domain), []byte(fmt.Sprintf("%s.%s", p.Port, p.Servicename))) {
 		if ads.HTTPS && ads.CertificateName != "" {
 			httpsInfo := bytes.NewBuffer(nil)
-			httpsInfo.WriteString(`https=true`)
+			httpsInfo.WriteString(`https=https`)
 			httpsInfo.WriteString(fmt.Sprintf(`&cert_name=%s&`, ads.CertificateName))
 			httpsInfo.WriteString(string(upstream))
 			logrus.Debugf("https info is %v", string(httpsInfo.Bytes()))
 			pha.UpStream = httpsInfo.Bytes()
 		} else if ads.TransferHTTP && ads.CertificateName != "" {
 			httpsInfo := bytes.NewBuffer(nil)
-			httpsInfo.WriteString(`tran_https=true`)
+			httpsInfo.WriteString(`https=tran_https`)
 			httpsInfo.WriteString(fmt.Sprintf(`&cert_name=%s&`, ads.CertificateName))
 			httpsInfo.WriteString(string(upstream))
 			logrus.Debugf("trans https info is %v", string(httpsInfo.Bytes()))
@@ -799,8 +801,10 @@ func (n *nginxAPI) pHTTPSCert(ssl *SSLCert, errs []error) []error {
 		certInfo := bytes.NewBuffer(nil)
 		certInfo.WriteString(fmt.Sprintf(`cert_name=%s`, ssl.CertName))
 		if ssl.HTTPMethod == MethodPOST {
-			certInfo.WriteString(fmt.Sprintf(`&ca=%s`, ssl.CA))
-			certInfo.WriteString(fmt.Sprintf(`&key=%s`, ssl.Key))
+			transCA := strings.Replace(ssl.CA, "+", "%2B", -1)
+			transKey := strings.Replace(ssl.Key, "+", "%2B", -1)
+			certInfo.WriteString(fmt.Sprintf(`&ca=%s`, transCA))
+			certInfo.WriteString(fmt.Sprintf(`&key=%s`, transKey))
 		}
 		logrus.Debugf("cert info is %v", string(certInfo.Bytes()))
 		resp, err := n.urlPPAction(ssl.HTTPMethod, url, certInfo.Bytes())

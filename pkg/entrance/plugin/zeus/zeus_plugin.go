@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -26,8 +25,6 @@ package zeus
 //4.需要缓存数据，可以从ctx.Store中获取
 
 import (
-	"github.com/goodrain/rainbond/pkg/entrance/core/object"
-	"github.com/goodrain/rainbond/pkg/entrance/plugin"
 	"bytes"
 	"crypto/tls"
 	"errors"
@@ -37,6 +34,9 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/pkg/entrance/core/object"
+	"github.com/goodrain/rainbond/pkg/entrance/plugin"
 
 	"github.com/Sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -300,6 +300,9 @@ func (z *zeus) AddPool(pools ...*object.PoolObject) error {
 		zeusSource := Source{
 			Properties: PoolProperties{
 				Basic: poolBasic,
+				Connection: PoolConnection{
+					MaxReplyTime: 100,
+				},
 			},
 		}
 		body, err := zeusSource.GetJSON()
@@ -361,6 +364,9 @@ func (z *zeus) UpdatePool(pools ...*object.PoolObject) error {
 		zeusSource := Source{
 			Properties: PoolProperties{
 				Basic: poolBasic,
+				Connection: PoolConnection{
+					MaxReplyTime: 100,
+				},
 			},
 		}
 		body, err := zeusSource.GetJSON()
@@ -557,19 +563,24 @@ func (z *zeus) closeSSl() VSssl {
 func (z *zeus) UpdateVirtualService(services ...*object.VirtualServiceObject) error {
 	for _, vs := range services {
 		basic := VSBasic{
-			Note:            vs.Note,
-			Port:            vs.Port,
-			DefaultPoolName: vs.DefaultPoolName,
-			Enabled:         true,
+			Note:             vs.Note,
+			Port:             vs.Port,
+			DefaultPoolName:  vs.DefaultPoolName,
+			Enabled:          true,
+			AddXForwardedFor: true,
+			ConnectTimeout:   300,
+		}
+		if vs.Name == "HTTPS.VS" {
+			basic.ConnectTimeout = 10
 		}
 		if vs.Listening == nil || len(vs.Listening) == 0 {
 			basic.ListenONAny = true
 		} else {
 			basic.ListenONHosts = vs.Listening
 		}
-		if vs.Protocol != "" {
-			basic.Protocol = vs.Protocol
-		} else {
+		if vs.Protocol == "udp" {
+			basic.Protocol = "udp"
+		} else if vs.Protocol != "http" {
 			basic.Protocol = "stream"
 		}
 		vsPro := VSProperties{

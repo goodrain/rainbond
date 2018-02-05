@@ -466,7 +466,8 @@ func (m *Manager) serviceSource(services *v1.Service, method core.EventMethod) {
 	s.Domain = m.replaceDomain(s.Domain, s)
 	m.RcDomain(s)
 	logrus.Debugf("Fprotocol is %s", services.Labels["protocol"])
-	if services.Labels["protocol"] == "stream" {
+	//TODO: "stream" to !http
+	if services.Labels["protocol"] != "http" && services.Labels["protocol"] != "https" {
 		// event vs
 		m.RcVS(s)
 	} else {

@@ -34,12 +34,12 @@ type PluginDaoImpl struct {
 func (t *PluginDaoImpl) AddModel(mo model.Interface) error {
 	plugin := mo.(*model.TenantPlugin)
 	var oldPlugin model.TenantPlugin
-	if ok := t.DB.Where("plugin_id = ?", plugin.PluginID).Find(&oldPlugin).RecordNotFound(); ok {
+	if ok := t.DB.Where("plugin_id = ? and tenant_id = ?", plugin.PluginID, plugin.TenantID).Find(&oldPlugin).RecordNotFound(); ok {
 		if err := t.DB.Create(plugin).Error; err != nil {
 			return err
 		}
 	} else {
-		return fmt.Errorf("plugin  %s is exist", plugin.PluginName)
+		return fmt.Errorf("plugin %s in tenant %s is exist", plugin.PluginName, plugin.TenantID)
 	}
 	return nil
 }
@@ -54,20 +54,20 @@ func (t *PluginDaoImpl) UpdateModel(mo model.Interface) error {
 }
 
 //GetPluginByID GetPluginByID
-func (t *PluginDaoImpl) GetPluginByID(id string) (*model.TenantPlugin, error) {
+func (t *PluginDaoImpl) GetPluginByID(id, tenantID string) (*model.TenantPlugin, error) {
 	var plugin model.TenantPlugin
-	if err := t.DB.Where("plugin_id = ? ", id).Find(&plugin).Error; err != nil {
+	if err := t.DB.Where("plugin_id = ? and tenant_id = ?", id, tenantID).Find(&plugin).Error; err != nil {
 		return nil, err
 	}
 	return &plugin, nil
 }
 
 //DeletePluginByID DeletePluginByID
-func (t *PluginDaoImpl) DeletePluginByID(id string) error {
+func (t *PluginDaoImpl) DeletePluginByID(id, tenantID string) error {
 	relation := &model.TenantPlugin{
 		PluginID: id,
 	}
-	if err := t.DB.Where("plugin_id=?", id).Delete(relation).Error; err != nil {
+	if err := t.DB.Where("plugin_id=? and tenant_id=?", id, tenantID).Delete(relation).Error; err != nil {
 		return err
 	}
 	return nil

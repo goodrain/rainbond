@@ -108,7 +108,6 @@ func (t *TenantAction) TotalMemCPU(services []*dbmodel.TenantServices) (*api_mod
 	cpus := 0
 	mem := 0
 	for _, service := range services {
-
 		logrus.Debugf("service is %s, cpus is %v, mem is %v", service.ID, service.ContainerCPU, service.ContainerMemory)
 		cpus += service.ContainerCPU
 		mem += service.ContainerMemory
@@ -225,8 +224,9 @@ func (t *TenantAction) HTTPTsdb(md *api_model.MontiorData) ([]byte, error) {
 }
 
 //GetTenantsResources GetTenantsResources
-func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) ([]*map[string]interface{}, error) {
+func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) ([]map[string]interface{}, error) {
 	//返回全部资源
+	//TODO: 应用关闭，硬盘存储资源仍会占用
 	return db.GetManager().TenantServiceDao().GetCPUAndMEM(tr.Body.TenantName)
 }
 
@@ -246,4 +246,35 @@ func (t *TenantAction) GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHand
 		return nil, util.CreateAPIHandleErrorFromDBError("get all support protocols", err)
 	}
 	return rps, nil
+}
+
+//TransPlugins TransPlugins
+func (t *TenantAction) TransPlugins(tenantID, tenantName, fromTenant string, pluginList []string)  *util.APIHandleError {
+	tenantInfo, err := db.GetManager().TenantDao().GetTenantIDByName(fromTenant)
+	if err != nil {
+		return util.CreateAPIHandleErrorFromDBError("get tenant infos", err)
+	}
+	goodrainID := tenantInfo.UUID
+	tx := db.GetManager().Begin()
+	for _, p := range pluginList {
+		pluginInfo, err := db.GetManager().TenantPluginDao().GetPluginByID(p, goodrainID)
+		if err != nil {
+			tx.Rollback()
+			return util.CreateAPIHandleErrorFromDBError("get plugin infos", err)
+		}
+		pluginInfo.TenantID = tenantID
+		pluginInfo.Domain = tenantName
+		pluginInfo.ID = 0
+		err = db.GetManager().TenantPluginDaoTransactions(tx).AddModel(pluginInfo)
+		if err != nil {
+			if !strings.Contains(err.Error(), "is exist") {
+				tx.Rollback()
+				return util.CreateAPIHandleErrorFromDBError("add plugin Info", err)
+			}
+		}
+	}
+	if err := tx.Commit().Error; err != nil {
+		return util.CreateAPIHandleErrorFromDBError("trans plugins infos", err)
+	}
+	return nil
 }

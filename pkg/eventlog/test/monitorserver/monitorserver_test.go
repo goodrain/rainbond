@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -28,6 +27,27 @@ import (
 
 var urlData = `
 2017-05-19 11:33:34 APPS SumTimeByUrl [{"tenant":"o2o","service":"zzcplus","url":"/active/js/wx_share.js","avgtime":"1.453","sumtime":"1.453","counts":"1"}]
+`
+var newMonitorMessage = `
+[{"ServiceID":"test",
+	"Port":"5000",
+	"MessageType":"http",
+	"Key":"/test",
+	"CumulativeTime":0.1,
+	"AverageTime":0.1,
+	"MaxTime":0.1,
+	"Count":1,
+	"AbnormalCount":0}
+,{"ServiceID":"test",
+	"Port":"5000",
+	"MessageType":"http",
+	"Key":"/test2",
+	"CumulativeTime":0.36,
+	"AverageTime":0.18,
+	"MaxTime":0.2,
+	"Count":2,
+	"AbnormalCount":2}
+]
 `
 
 func BenchmarkMonitorServer(t *testing.B) {

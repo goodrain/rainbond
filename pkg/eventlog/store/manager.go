@@ -1,19 +1,18 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -52,6 +51,7 @@ type Manager interface {
 	DockerLogMessageChan() chan []byte
 	MonitorMessageChan() chan [][]byte
 	WebSocketMessageChan(mode, eventID, subID string) chan *db.EventLogMessage
+	NewMonitorMessageChan() chan []byte
 	RealseWebSocketMessageChan(mode, EventID, subID string)
 	Run() error
 	Stop()
@@ -74,48 +74,53 @@ func NewManager(conf conf.EventStoreConf, log *logrus.Entry) (Manager, error) {
 		return nil, err
 	}
 	storeManager := &storeManager{
-		cancel:             cancel,
-		context:            ctx,
-		conf:               conf,
-		log:                log,
-		receiveChan:        make(chan []byte, 300),
-		subChan:            make(chan [][]byte, 300),
-		pubChan:            make(chan [][]byte, 300),
-		dockerLogChan:      make(chan []byte, 2048),
-		monitorMessageChan: make(chan [][]byte, 100),
-		chanCacheSize:      100,
-		dbPlugin:           dbPlugin,
-		filePlugin:         filePlugin,
-		errChan:            make(chan error),
+		cancel:                cancel,
+		context:               ctx,
+		conf:                  conf,
+		log:                   log,
+		receiveChan:           make(chan []byte, 300),
+		subChan:               make(chan [][]byte, 300),
+		pubChan:               make(chan [][]byte, 300),
+		dockerLogChan:         make(chan []byte, 2048),
+		monitorMessageChan:    make(chan [][]byte, 100),
+		newmonitorMessageChan: make(chan []byte, 2048),
+		chanCacheSize:         100,
+		dbPlugin:              dbPlugin,
+		filePlugin:            filePlugin,
+		errChan:               make(chan error),
 	}
 	handle := NewStore("handle", storeManager)
 	read := NewStore("read", storeManager)
 	docker := NewStore("docker_log", storeManager)
 	monitor := NewStore("monitor", storeManager)
+	newmonitor := NewStore("newmonitor", storeManager)
 	storeManager.handleMessageStore = handle
 	storeManager.readMessageStore = read
 	storeManager.dockerLogStore = docker
 	storeManager.monitorMessageStore = monitor
+	storeManager.newmonitorMessageStore = newmonitor
 	return storeManager, nil
 }
 
 type storeManager struct {
-	cancel              func()
-	context             context.Context
-	handleMessageStore  MessageStore
-	readMessageStore    MessageStore
-	dockerLogStore      MessageStore
-	monitorMessageStore MessageStore
-	receiveChan         chan []byte
-	pubChan, subChan    chan [][]byte
-	dockerLogChan       chan []byte
-	monitorMessageChan  chan [][]byte
-	chanCacheSize       int
-	conf                conf.EventStoreConf
-	log                 *logrus.Entry
-	dbPlugin            db.Manager
-	filePlugin          db.Manager
-	errChan             chan error
+	cancel                 func()
+	context                context.Context
+	handleMessageStore     MessageStore
+	readMessageStore       MessageStore
+	dockerLogStore         MessageStore
+	monitorMessageStore    MessageStore
+	newmonitorMessageStore MessageStore
+	receiveChan            chan []byte
+	pubChan, subChan       chan [][]byte
+	dockerLogChan          chan []byte
+	monitorMessageChan     chan [][]byte
+	newmonitorMessageChan  chan []byte
+	chanCacheSize          int
+	conf                   conf.EventStoreConf
+	log                    *logrus.Entry
+	dbPlugin               db.Manager
+	filePlugin             db.Manager
+	errChan                chan error
 }
 
 //Scrape prometheue monitor metrics
@@ -188,6 +193,12 @@ func (s *storeManager) MonitorMessageChan() chan [][]byte {
 	}
 	return s.monitorMessageChan
 }
+func (s *storeManager) NewMonitorMessageChan() chan []byte {
+	if s.newmonitorMessageChan == nil {
+		s.newmonitorMessageChan = make(chan []byte, 2048)
+	}
+	return s.newmonitorMessageChan
+}
 
 func (s *storeManager) WebSocketMessageChan(mode, eventID, subID string) chan *db.EventLogMessage {
 	if mode == "event" {
@@ -202,6 +213,10 @@ func (s *storeManager) WebSocketMessageChan(mode, eventID, subID string) chan *d
 		ch := s.monitorMessageStore.SubChan(eventID, subID)
 		return ch
 	}
+	if mode == "newmonitor" {
+		ch := s.newmonitorMessageStore.SubChan(eventID, subID)
+		return ch
+	}
 	return nil
 }
 
@@ -211,6 +226,7 @@ func (s *storeManager) Run() error {
 	s.readMessageStore.Run()
 	s.dockerLogStore.Run()
 	s.monitorMessageStore.Run()
+	s.newmonitorMessageStore.Run()
 	for i := 0; i < s.conf.HandleMessageCoreNumber; i++ {
 		go s.handleReceiveMessage()
 	}
@@ -223,6 +239,7 @@ func (s *storeManager) Run() error {
 	for i := 0; i < s.conf.HandleMessageCoreNumber; i++ {
 		go s.handleMonitorMessage()
 	}
+	go s.handleNewMonitorMessage()
 	return nil
 }
 
@@ -249,6 +266,33 @@ func (s *storeManager) parsingMessage(msg []byte, messageType string) (*db.Event
 	}
 	return nil, errors.New("Unable to process configuration of message format type.")
 }
+
+//handleNewMonitorMessage 处理新监控数据
+func (s *storeManager) handleNewMonitorMessage() {
+loop:
+	for {
+		select {
+		case <-s.context.Done():
+			return
+		case msg, ok := <-s.newmonitorMessageChan:
+			if !ok {
+				s.log.Error("handle new monitor message core stop.monitor message log chan closed")
+				break loop
+			}
+			if msg == nil {
+				continue
+			}
+			//s.log.Debugf("receive message %s", string(message.Content))
+			if s.conf.ClusterMode {
+				//消息直接集群共享
+				s.pubChan <- [][]byte{[]byte(db.ServiceNewMonitorMessage), msg}
+			}
+			s.newmonitorMessageStore.InsertMessage(&db.EventLogMessage{MonitorData: msg})
+		}
+	}
+	s.errChan <- fmt.Errorf("handle monitor log core exist")
+}
+
 func (s *storeManager) handleReceiveMessage() {
 	s.log.Debug("event message store manager start handle receive message")
 loop:
@@ -301,6 +345,10 @@ func (s *storeManager) handleSubMessage() {
 				continue
 			}
 			if len(msg) == 2 {
+				if string(msg[0]) == string(db.ServiceNewMonitorMessage) {
+					s.newmonitorMessageStore.InsertMessage(&db.EventLogMessage{MonitorData: msg[1]})
+					continue
+				}
 				//s.log.Debugf("receive sub message %s", string(msg))
 				message, err := s.parsingMessage(msg[1], s.conf.MessageType)
 				if err != nil {
@@ -313,6 +361,7 @@ func (s *storeManager) handleSubMessage() {
 				if string(msg[0]) == string(db.ServiceMonitorMessage) {
 					s.monitorMessageStore.InsertMessage(message)
 				}
+
 			}
 		}
 	}

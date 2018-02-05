@@ -21,7 +21,9 @@ package dao
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/db/model"
@@ -87,7 +89,7 @@ func (t *TenantDaoImpl) GetALLTenants() ([]*model.Tenants, error) {
 }
 
 //GetALLTenants GetALLTenants
-func (t *TenantDaoImpl) GetPagedTenants(offset,len int) ([]*model.Tenants, error) {
+func (t *TenantDaoImpl) GetPagedTenants(offset, len int) ([]*model.Tenants, error) {
 
 	var tenants []*model.Tenants
 	if err := t.DB.Find(&tenants).Group("").Error; err != nil {
@@ -99,6 +101,18 @@ func (t *TenantDaoImpl) GetPagedTenants(offset,len int) ([]*model.Tenants, error
 //TenantServicesDaoImpl 租户应用dao
 type TenantServicesDaoImpl struct {
 	DB *gorm.DB
+}
+
+//GetAllServices 获取全部应用信息的资源相关信息
+func (t *TenantServicesDaoImpl) GetAllServices() ([]*model.TenantServices, error) {
+	var services []*model.TenantServices
+	if err := t.DB.Select("tenant_id,service_id,service_alias,host_path,replicas,container_memory").Find(&services).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return services, nil
+		}
+		return nil, err
+	}
+	return services, nil
 }
 
 //AddModel 添加租户应用
@@ -133,9 +147,8 @@ func (t *TenantServicesDaoImpl) GetServiceByID(serviceID string) (*model.TenantS
 	return &service, nil
 }
 
-
 //GetCPUAndMEM GetCPUAndMEM
-func (t *TenantServicesDaoImpl) GetCPUAndMEM(tenantName []string) ([]*map[string]interface{}, error) {
+func (t *TenantServicesDaoImpl) GetCPUAndMEM(tenantName []string) ([]map[string]interface{}, error) {
 	if len(tenantName) == 0 {
 		rows, err := t.DB.Raw("select sum(container_cpu) as cpu,sum(container_memory * replicas) as memory from tenant_services where service_id in (select service_id from tenant_service_status where status != 'closed' && status != 'undeploy')").Rows()
 		if err != nil {
@@ -147,14 +160,14 @@ func (t *TenantServicesDaoImpl) GetCPUAndMEM(tenantName []string) ([]*map[string
 		for rows.Next() {
 			rows.Scan(&cpu, &mem)
 		}
-		var rc []*map[string]interface{}
+		var rc []map[string]interface{}
 		res := make(map[string]interface{})
 		res["cpu"] = cpu
 		res["memory"] = mem
-		rc = append(rc, &res)
+		rc = append(rc, res)
 		return rc, nil
 	}
-	var rc []*map[string]interface{}
+	var rc []map[string]interface{}
 	for _, tenant := range tenantName {
 		rows, err := t.DB.Raw("select tenant_id, sum(container_cpu) as cpu, sum(container_memory * replicas) as memory from tenant_services where service_id in (select service_id from tenant_service_status where (status != 'closed' && status != 'undeploy') && service_id in (select service_id from tenant_services where domain = (?))) group by tenant_id", tenant).Rows()
 		if err != nil {
@@ -170,16 +183,29 @@ func (t *TenantServicesDaoImpl) GetCPUAndMEM(tenantName []string) ([]*map[string
 			res["cpu"] = cpu
 			res["memory"] = mem
 			res["tenant_id"] = id
-			logrus.Infof("res is $v", res)
-			rc = append(rc, &res)
+			res["tenant_name"] = tenant
+			dirPath := fmt.Sprintf("/grdata/tenant/%s", id)
+			cmd := []string{"-sh", "-m", dirPath}
+			f, err := exec.Command("du", cmd...).Output()
+			if err != nil {
+				f = []byte("1 xxx")
+			}
+			st := strings.Split(string(f), "\t")[0]
+			//TODO: disk默认单位为MB
+			intSt, err := strconv.Atoi(st)
+			if err != nil {
+				return nil, err
+			}
+			res["disk"] = intSt
+			rc = append(rc, res)
 		}
 	}
 	return rc, nil
 }
 
 //GetPagedTenantResource GetPagedTenantResource
-func (t *TenantServicesDaoImpl) GetPagedTenantService(offset,len int) ([]map[string]interface{}, error) {
-	rows, err := t.DB.Raw("select tenant_id,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_cpu * replicas,0)) as use_cpu,sum(container_cpu*replicas) as cap_cpu,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_memory * replicas,0)) as use_memory,sum(container_memory*replicas) as cap_memory from tenant_services group by tenant_id order by use_memory desc limit ?,?",offset,len).Rows()
+func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, len int) ([]map[string]interface{}, error) {
+	rows, err := t.DB.Raw("select tenant_id,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_cpu * replicas,0)) as use_cpu,sum(container_cpu*replicas) as cap_cpu,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_memory * replicas,0)) as use_memory,sum(container_memory*replicas) as cap_memory from tenant_services group by tenant_id order by use_memory desc limit ?,?", offset, len).Rows()
 	if err != nil {
 		return nil, err
 	}
@@ -191,37 +217,37 @@ func (t *TenantServicesDaoImpl) GetPagedTenantService(offset,len int) ([]map[str
 		var useCpu int
 		var capMem int
 		var useMem int
-		rows.Scan(&tenantID, &useCpu,&capCpu,&useMem,&capMem)
+		rows.Scan(&tenantID, &useCpu, &capCpu, &useMem, &capMem)
 		res := make(map[string]interface{})
 		res["capcpu"] = capCpu
 		res["usecpu"] = useCpu
 		res["capmem"] = capMem
 		res["usemem"] = useMem
-		res["tenant"] =tenantID
+		res["tenant"] = tenantID
 		rc = append(rc, res)
 	}
 	return rc, nil
 }
 
-
 //GetTenantServiceRes GetTenantServiceRes
 func (t *TenantServicesDaoImpl) GetTenantServiceRes(uuid string) (map[string]interface{}, error) {
-	row := t.DB.Raw("select sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_cpu * replicas,0)) as use_cpu,sum(container_cpu*replicas) as cap_cpu,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_memory * replicas,0)) as use_memory,sum(container_memory*replicas) as cap_memory from tenant_services where tenant_id =? order by use_memory desc",uuid).Row()
+	row := t.DB.Raw("select sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_cpu * replicas,0)) as use_cpu,sum(container_cpu*replicas) as cap_cpu,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_memory * replicas,0)) as use_memory,sum(container_memory*replicas) as cap_memory from tenant_services where tenant_id =? order by use_memory desc", uuid).Row()
 	var capCpu int
 	var useCpu int
 	var capMem int
 	var useMem int
-	row.Scan( &useCpu,&capCpu,&useMem,&capMem)
+	row.Scan(&useCpu, &capCpu, &useMem, &capMem)
 	res := make(map[string]interface{})
 
 	res["capcpu"] = capCpu
 	res["usecpu"] = useCpu
 	res["capmem"] = capMem
 	res["usemem"] = useMem
-	res["tenant"] =uuid
-	logrus.Infof("get tenant %s service resource :%v",res)
+	res["tenant"] = uuid
+	logrus.Infof("get tenant %s service resource :%v", res)
 	return res, nil
 }
+
 //GetServiceAliasByIDs 获取应用别名
 func (t *TenantServicesDaoImpl) GetServiceAliasByIDs(uids []string) ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
@@ -702,6 +728,18 @@ type TenantServiceVolumeDaoImpl struct {
 	DB *gorm.DB
 }
 
+//GetAllVolumes 获取全部存储信息
+func (t *TenantServiceVolumeDaoImpl) GetAllVolumes() ([]*model.TenantServiceVolume, error) {
+	var volumes []*model.TenantServiceVolume
+	if err := t.DB.Find(&volumes).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return volumes, nil
+		}
+		return nil, err
+	}
+	return volumes, nil
+}
+
 //AddModel 添加应用挂载
 func (t *TenantServiceVolumeDaoImpl) AddModel(mo model.Interface) error {
 	volume := mo.(*model.TenantServiceVolume)
@@ -716,7 +754,7 @@ func (t *TenantServiceVolumeDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//UpdateModel 更新应用挂载
+//UpdateModel 更��应用挂载
 func (t *TenantServiceVolumeDaoImpl) UpdateModel(mo model.Interface) error {
 	volume := mo.(*model.TenantServiceVolume)
 	if volume.ID == 0 {

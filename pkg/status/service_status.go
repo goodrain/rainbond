@@ -1,32 +1,32 @@
-
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
- 
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
- 
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package status
 
 import (
-	"github.com/goodrain/rainbond/cmd/worker/option"
-	"github.com/goodrain/rainbond/pkg/db"
-	"github.com/goodrain/rainbond/pkg/db/model"
 	"context"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/goodrain/rainbond/cmd/worker/option"
+	"github.com/goodrain/rainbond/pkg/db"
+	"github.com/goodrain/rainbond/pkg/db/model"
 
 	"github.com/jinzhu/gorm"
 
@@ -49,6 +49,8 @@ const (
 	//升级中
 	UPGRADE  = "upgrade"
 	UNDEPLOY = "undeploy"
+	//构建中
+	DEPLOYING = "deploying"
 )
 
 //ServiceStatusManager 应用运行状态控制器
@@ -75,6 +77,7 @@ type statusManager struct {
 	checkChan             chan string
 	ignoreDelete          map[string]string
 	ignoreLock            sync.Mutex
+	status                map[string]string
 }
 
 //NewManager 创建一个应用运行状态控制器
@@ -101,6 +104,7 @@ func NewManager(conf option.Config) ServiceStatusManager {
 		StatefulSetUpdateChan: make(chan StatefulSetUpdate, 10),
 		checkChan:             make(chan string, 20),
 		ignoreDelete:          make(map[string]string),
+		status:                make(map[string]string),
 	}
 }
 
@@ -113,10 +117,17 @@ func (s *statusManager) SetStatus(serviceID, status string) error {
 		logrus.Error("set application service status error.", err.Error())
 		return err
 	}
+	//本地缓存
+	//s.status[serviceID] = status
 	return nil
 }
 
 func (s *statusManager) GetStatus(serviceID string) (string, error) {
+
+	// 本地缓存应用状态
+	// if status, ok := s.status[serviceID]; ok {
+	// 	return status, nil
+	// }
 	status, err := db.GetManager().TenantServiceStatusDao().GetTenantServiceStatus(serviceID)
 	if err != nil {
 		return "", err
@@ -196,7 +207,7 @@ func (s *statusManager) checkStatus() {
 							continue
 						}
 					} else {
-						if d.Status.ReadyReplicas >= d.Status.Replicas {
+						if d.Status.ReadyReplicas >= d.Status.Replicas && d.Status.Replicas != 0 {
 							s.SetStatus(serviceID, RUNNING)
 							break
 						} else {
@@ -219,7 +230,7 @@ func (s *statusManager) checkStatus() {
 							continue
 						}
 					} else {
-						if d.Status.ReadyReplicas >= d.Status.Replicas {
+						if d.Status.ReadyReplicas >= d.Status.Replicas && d.Status.Replicas != 0 {
 							s.SetStatus(serviceID, RUNNING)
 							break
 						} else {
@@ -243,7 +254,7 @@ func (s *statusManager) checkStatus() {
 					} else {
 						readycount := s.getReadyCount(d.Namespace,
 							d.Labels["name"], d.Labels["version"])
-						if readycount >= d.Status.Replicas {
+						if readycount >= d.Status.Replicas && d.Status.Replicas != 0 {
 							s.SetStatus(serviceID, RUNNING)
 							break
 						} else {
@@ -265,7 +276,7 @@ func (s *statusManager) checkStatus() {
 							continue
 						}
 					} else {
-						if d.Status.ReadyReplicas >= d.Status.Replicas {
+						if d.Status.ReadyReplicas >= d.Status.Replicas && d.Status.Replicas != 0 {
 							s.SetStatus(serviceID, RUNNING)
 							break
 						}

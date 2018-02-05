@@ -218,7 +218,8 @@ func (k *K8sServiceBuild) createOuterService(port *model.TenantServicesPort) *v1
 		"key":              "",
 		"event_id":         k.eventID,
 	}
-	if port.Protocol == "stream" { //stream 协议获取映射端口
+	//if port.Protocol == "stream" { //stream 协议获取映射端口
+	if port.Protocol != "http" { //stream 协议获取映射端口
 		mapPort, err := k.dbmanager.TenantServiceLBMappingPortDao().GetTenantServiceLBMappingPortByService(k.serviceID)
 		if err != nil {
 			logrus.Error("get tenant service lb map port error", err.Error())
@@ -228,6 +229,7 @@ func (k *K8sServiceBuild) createOuterService(port *model.TenantServicesPort) *v1
 		}
 	}
 	var servicePort v1.ServicePort
+	//TODO: udp, tcp
 	if port.Protocol == "udp" {
 		servicePort.Protocol = "UDP"
 	} else {

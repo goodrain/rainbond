@@ -90,6 +90,8 @@ func (m *manager) StartReplicationController(serviceID string, logger event.Logg
 	}
 	return result, nil
 }
+
+//CheckVersionInfo CheckVersionInfo
 func CheckVersionInfo(version *model.VersionInfo) bool {
 	if !strings.Contains(strings.ToLower(version.FinalStatus),"success") {
 		return false

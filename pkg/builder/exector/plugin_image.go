@@ -92,23 +92,20 @@ func (e *exectorManager) pluginImageBuild(in []byte) {
 			err := e.run(&tb, config, logger)
 			if err != nil {
 				logrus.Errorf("exec plugin build from image error:%s", err.Error())
-				if retry < 3 {
-					logger.Info("镜像构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
-				} else {
-					version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(tb.PluginID, tb.VersionID)
-					if err != nil {
-						logrus.Errorf("get version error, %v", err)
-					}
-					version.Status = "failure"
-					if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
-						logrus.Errorf("update version error, %v", err)
-					}
-					logger.Info("镜像构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
-				}
+				logger.Info("镜像构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 			} else {
-				break
+				return
 			}
 		}
+		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(tb.PluginID, tb.VersionID)
+		if err != nil {
+			logrus.Errorf("get version error, %v", err)
+		}
+		version.Status = "failure"
+		if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
+			logrus.Errorf("update version error, %v", err)
+		}
+		logger.Info("镜像构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 	}()
 }
 

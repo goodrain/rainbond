@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"reflect"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
@@ -145,6 +146,7 @@ func (d *DiscoverAction) DiscoverListeners(
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf(
 			"get env %s error: %v", namespace+serviceAlias+pluginID, err))
 	}
+	
 	logrus.Debugf("process go on")
 	//TODO: console控制尽量不把小于1000的端口给用户使用
 	var vhL []*node_model.PieceHTTPVirtualHost
@@ -195,6 +197,11 @@ func (d *DiscoverAction) DiscoverListeners(
 			}
 			if ok {
 				logrus.Debugf("port protocol is %s", portProtocol)
+				//TODO: resource protocol support
+				if portProtocol != "http" && portProtocol != "https" {
+					portProtocol = "stream"
+				}
+				logrus.Debugf("port protocol is %s after trans", portProtocol)
 				switch portProtocol {
 				case "stream":
 					ptr := &node_model.PieceTCPRoute{
@@ -279,17 +286,25 @@ func (d *DiscoverAction) DiscoverListeners(
 								}
 							}
 						}
-						prs := &node_model.PieceHTTPRoutes{
-							TimeoutMS: 0,
-							Prefix:    d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, options).(string),
-							Cluster:   fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
-							//Headers: d.ToolsGetRouterItem(destServiceAlias,
-							//	node_model.HEADERS, &sr).([]*node_model.PieceHeader),
+						headers := d.ToolsGetRouterItem(
+							destServiceAlias,
+							node_model.HEADERS, options)
+						prs := make(map[string]interface{})
+						prs["timeout_ms"] = 0
+						prs["prefix"] = d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, options).(string)
+						c := make(map[string]interface{})
+						c["name"] = fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
+						c["weight"] = d.ToolsGetRouterItem(destServiceAlias, node_model.WEIGHT, options).(int)
+						var wc node_model.WeightedClusters
+						wc.Clusters = []map[string]interface{}{c}
+						prs["weighted_clusters"] = wc
+						if len(headers.([]node_model.PieceHeader)) != 0 {
+							prs["headers"] = headers
 						}
 						pvh := &node_model.PieceHTTPVirtualHost{
 							Name:    fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
 							Domains: d.ToolsGetRouterItem(destServiceAlias, node_model.DOMAINS, options).([]string),
-							Routes:  []*node_model.PieceHTTPRoutes{prs},
+							Routes:  []map[string]interface{}{prs},
 						}
 						vhL = append(vhL, pvh)
 					}
@@ -308,8 +323,62 @@ func (d *DiscoverAction) DiscoverListeners(
 			Name:   "router",
 			Config: make(map[string]string),
 		}
+		var newVHL []*node_model.PieceHTTPVirtualHost	
+		if len(vhL) > 1 {
+			domainL := d.CheckSameDomainAndPrefix(resources)
+			logrus.Debugf("domainL is %v", domainL)
+			if len(domainL) > 0 {
+				//存在相同的domain设置
+				for d := range domainL {
+					var c []map[string]interface{}
+					var r []interface{}
+					var pvh node_model.PieceHTTPVirtualHost	
+					prs := make(map[string]interface{})
+					prs["timeout_ms"] = 0
+					for _, v := range vhL {
+						if pvh.Name == "" {
+							pvh.Name = v.Name
+							pvh.Domains = v.Domains
+							pvh.Routes = []map[string]interface{}{prs}
+						}
+						if v.Domains[0] == d {
+							switch domainL[d]{
+							case node_model.MODELWEIGHT:
+								prs["prefix"] = v.Routes.([]map[string]interface{})[0]["prefix"].(string)
+								if hasHeader, ok := v.Routes.([]map[string]interface{})[0]["headers"].([]node_model.PieceHeader); ok {
+									prs["headers"] = hasHeader	
+								}
+								//pieceCluster := v.Routes.([]map[string]interface{})[0]["weighted_clusters"].(node_model.WeightedClusters).Clusters[0]
+								c = append(c, v.Routes.([]map[string]interface{})[0]["weighted_clusters"].(node_model.WeightedClusters).Clusters[0])
+							case node_model.MODELPREFIX:
+								r = append(r, v.Routes.([]map[string]interface{})[0])
+							}
+						}else {
+							newVHL = append(newVHL, v)
+						}
+					}
+					if len(r) != 0 {
+						pvh.Routes = r
+						newVHL = append(newVHL, &pvh)
+					}
+					if len(c) != 0 {
+						var wc node_model.WeightedClusters
+						wc.Clusters = c
+						prs["weighted_clusters"] = wc
+						logrus.Debugf("prs is %v", prs)
+						pvh.Routes = []map[string]interface{}{prs}
+						newVHL = append(newVHL, &pvh)
+					}
+				}
+			}else {
+				newVHL = vhL
+			}
+		}else {
+			newVHL = vhL
+		}
+		logrus.Debugf("newVHL is %v", newVHL)
 		rcg := &node_model.RouteConfig{
-			VirtualHosts: vhL,
+			VirtualHosts: newVHL,
 		}
 		lhc := &node_model.LDSHTTPConfig{
 			CodecType:   "auto",
@@ -333,6 +402,64 @@ func (d *DiscoverAction) DiscoverListeners(
 		Listeners: ldsL,
 	}
 	return lds, nil
+}
+
+//Duplicate Duplicate
+func Duplicate(a interface{}) (ret []interface{}) {
+	va := reflect.ValueOf(a)
+	for i := 0; i < va.Len(); i++ {
+	   if i > 0 && reflect.DeepEqual(va.Index(i-1).Interface(), va.Index(i).Interface()) {
+		  continue
+	   }
+	   ret = append(ret, va.Index(i).Interface())
+	}
+	return ret
+}
+
+//CheckSameDomainAndPrefix 检查是否存在相同domain以及prefix
+func (d *DiscoverAction)CheckSameDomainAndPrefix(resources *api_model.ResourceSpec) (map[string]string){
+	baseServices := resources.BaseServices
+	domainL := make(map[string]string)
+	if len(baseServices) == 0 {
+		logrus.Debugf("has no base services resources")
+		return domainL
+	}
+	filterL := make(map[string]int)
+	for _, bs := range baseServices {
+		l := len(filterL)
+		domainName, _:= bs.Options[node_model.DOMAINS].(string)
+		filterL[domainName] = 0
+		if len(filterL) == l {
+			domainL[domainName] = "use"
+		}
+	}
+	for d := range domainL {
+		prefixM := make(map[string]int)
+		for _, bs := range baseServices {
+			domainName, _ := bs.Options[node_model.DOMAINS].(string)
+			if domainName == d {
+				prefix, _ := bs.Options[node_model.PREFIX].(string)
+				prefixM[prefix] = 0
+			}
+			// if strings.Contains(domainName, ","){
+			// 	mm := strings.Split(domainName, ",")
+			// 	for _, n := range mm {
+			// 		if n == d {
+			// 			prefix, _ := bs.Options[node_model.PREFIX].(string)
+			// 			prefixM[prefix] = 0
+			// 			continue
+			// 		}
+			// 	}
+			// }
+		}
+		logrus.Debugf("prefixM is %v", prefixM)
+		if len(prefixM) == 1 {
+			domainL[d] = node_model.MODELWEIGHT
+		}else{
+			domainL[d] = node_model.MODELPREFIX
+		}
+	}
+	return domainL
 }
 
 //DiscoverClusters cds
@@ -495,8 +622,7 @@ func (d *DiscoverAction) ToolsBuildPieceLDS() {}
 
 //ToolsGetRouterItem ToolsGetRouterItem
 func (d *DiscoverAction) ToolsGetRouterItem(
-	destAlias, kind string,
-	sr map[string]interface{}) interface{} {
+	destAlias, kind string, sr map[string]interface{}) interface{} {
 	switch kind {
 	case node_model.PREFIX:
 		if prefix, ok := sr[node_model.PREFIX]; ok {
@@ -549,26 +675,52 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 				logrus.Errorf("strcon max retry error")
 				return 3
 			}
-			if mxr > 0 && mxr < 10 {
-				return mxr
-			}
-			if mxr == 11 {
-				return 0
-			}
+			return mxr
 		}
 		return 3
 	case node_model.HEADERS:
-		return ""
+		if headers, ok := sr[node_model.HEADERS]; ok {
+			var np []node_model.PieceHeader 
+			parents := strings.Split(headers.(string), ";")
+			for _, h := range parents {
+				headers := strings.Split(h, ":")
+				//has_header:no 默认
+				if len(headers) == 2 {
+					if headers[0] == "has_header" && headers[1] == "no" {
+						continue
+					}
+					ph := node_model.PieceHeader{
+						Name: headers[0],
+						Value: headers[1],
+					}
+					np = append(np, ph)
+				}
+			}
+			return np
+		}
+		var rc []node_model.PieceHeader
+		return rc
 	case node_model.DOMAINS:
 		if domain, ok := sr[node_model.DOMAINS]; ok {
-			if destAlias != "" {
-				return []string{destAlias, domain.(string)}
+			if strings.Contains(domain.(string), ","){
+				mm := strings.Split(domain.(string), ",")
+				return mm
 			}
 			return []string{domain.(string)}
 		}
 		return []string{destAlias}
+	case node_model.WEIGHT:
+		if weight, ok := sr[node_model.WEIGHT]; ok {
+			w, err := strconv.Atoi(weight.(string))
+			if err != nil {
+				return 100
+			}
+			return w
+		}
+		return 100
+	default:
+		return nil
 	}
-	return ""
 }
 
 //ToolsGetRainbondResources 获取rainbond自定义resources

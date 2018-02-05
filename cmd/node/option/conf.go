@@ -114,7 +114,24 @@ type Conf struct {
 	// 默认 300
 	LockTTL int64
 
-	Etcd client.Config
+	Etcd             client.Config
+	StatsdConfig     StatsdConfig
+	UDPMonitorConfig UDPMonitorConfig
+}
+
+//StatsdConfig StatsdConfig
+type StatsdConfig struct {
+	StatsdListenAddress string
+	StatsdListenUDP     string
+	StatsdListenTCP     string
+	MappingConfig       string
+	ReadBuffer          int
+}
+
+//UDPMonitorConfig UDPMonitorConfig
+type UDPMonitorConfig struct {
+	ListenHost string
+	ListenPort string
 }
 
 //AddFlags AddFlags
@@ -153,6 +170,11 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	//fs.StringSliceVar(&a.EventServerAddress, "event-servers", []string{"http://127.0.0.1:6363"}, "event message server address.")
 	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
 	fs.StringVar(&a.DBConnectionInfo, "mysql", "admin:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
+	fs.StringVar(&a.StatsdConfig.StatsdListenAddress, "statsd.listen-address", "", "The UDP address on which to receive statsd metric lines. DEPRECATED, use statsd.listen-udp instead.")
+	fs.StringVar(&a.StatsdConfig.StatsdListenUDP, "statsd.listen-udp", ":9125", "The UDP address on which to receive statsd metric lines. \"\" disables it.")
+	fs.StringVar(&a.StatsdConfig.StatsdListenTCP, "statsd.listen-tcp", ":9125", "The TCP address on which to receive statsd metric lines. \"\" disables it.")
+	fs.StringVar(&a.StatsdConfig.MappingConfig, "statsd.mapping-config", "", "Metric mapping configuration file name.")
+	fs.IntVar(&a.StatsdConfig.ReadBuffer, "statsd.read-buffer", 0, "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.")
 }
 
 //SetLog 设置log

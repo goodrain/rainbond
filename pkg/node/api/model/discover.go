@@ -127,7 +127,13 @@ type RouteConfig struct {
 type PieceHTTPVirtualHost struct {
 	Name    string             `json:"name"`
 	Domains []string           `json:"domains"`
-	Routes  []*PieceHTTPRoutes `json:"routes"`
+	//Routes  []*PieceHTTPRoutes `json:"routes"`
+	Routes  interface{} `json:"routes"`
+}
+
+//WeightedClusters WeightedClusters
+type WeightedClusters struct {
+	Clusters  []map[string]interface{}  `json:"clusters"`
 }
 
 //PieceHTTPRoutes PieceHTTPRoutes
@@ -135,7 +141,8 @@ type PieceHTTPRoutes struct {
 	TimeoutMS int    `json:"timeout_ms"`
 	Prefix    string `json:"prefix"`
 	Cluster   string `json:"cluster"`
-	//Headers   []*PieceHeader `json:"headers"`
+	//Headers   []PieceHeader `json:"headers"`
+	Headers   interface{} `json:"headers"`
 }
 
 //PieceHeader PieceHeader
@@ -170,4 +177,10 @@ const (
 	UPSTREAM string = "upStream"
 	//DOWNSTREAM downStream
 	DOWNSTREAM string = "downStream"
+	//WEIGHT WEIGHT
+	WEIGHT string = "WEIGHT"
+	//MODELWEIGHT MODEL_WEIGHT
+	MODELWEIGHT string = "weight_model"
+	//MODELPREFIX MODEL_PREFIX	
+	MODELPREFIX string = "prefix_model"
 )

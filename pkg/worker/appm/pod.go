@@ -431,6 +431,31 @@ func (p *PodTemplateSpecBuild) createAdapterResources(memory int, cpu int) v1.Re
 	}
 }
 
+//createPluginResources
+//memory Mb
+//cpu (core*1000)
+//TODO:插件的资源限制，CPU暂时不限制
+func (p *PodTemplateSpecBuild) createPluginResources(memory int, cpu int) v1.ResourceRequirements {
+	limits := v1.ResourceList{}
+	// limits[v1.ResourceCPU] = *resource.NewMilliQuantity(
+	// 	int64(cpu*3),
+	// 	resource.DecimalSI)
+	limits[v1.ResourceMemory] = *resource.NewQuantity(
+		int64(memory*1024*1024),
+		resource.BinarySI)
+	request := v1.ResourceList{}
+	// request[v1.ResourceCPU] = *resource.NewMilliQuantity(
+	// 	int64(cpu*2),
+	// 	resource.DecimalSI)
+	request[v1.ResourceMemory] = *resource.NewQuantity(
+		int64(memory*1024*1024),
+		resource.BinarySI)
+	return v1.ResourceRequirements{
+		Limits:   limits,
+		Requests: request,
+	}
+}
+
 func (p *PodTemplateSpecBuild) createResources() v1.ResourceRequirements {
 	var cpuRequest, cpuLimit int64
 	memory := p.service.ContainerMemory
@@ -765,10 +790,10 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]
 			return nil, nil, err
 		}
 		pc := v1.Container{
-			Name:                   pluginR.PluginID,
+			Name:                   "plugin-" + pluginR.PluginID,
 			Image:                  versionInfo.BuildLocalImage,
 			Env:                    *envs,
-			Resources:              p.createAdapterResources(versionInfo.ContainerMemory, versionInfo.ContainerCPU),
+			Resources:              p.createPluginResources(versionInfo.ContainerMemory, versionInfo.ContainerCPU),
 			TerminationMessagePath: "",
 			Args: args,
 		}
@@ -805,7 +830,7 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]
 }
 
 func (p *PodTemplateSpecBuild) getPluginModel(pluginID string) (string, error) {
-	plugin, err := p.dbmanager.TenantPluginDao().GetPluginByID(pluginID)
+	plugin, err := p.dbmanager.TenantPluginDao().GetPluginByID(pluginID, p.tenant.UUID)
 	if err != nil {
 		return "", err
 	}
@@ -855,7 +880,7 @@ func (p *PodTemplateSpecBuild) sortPlugins() ([]string, error) {
 	var mid []int
 	//TODO: 目前同种插件只能出现一个
 	for _, plugin := range p.pluginsRelation {
-		pi, err := p.dbmanager.TenantPluginDao().GetPluginByID(plugin.PluginID)
+		pi, err := p.dbmanager.TenantPluginDao().GetPluginByID(plugin.PluginID, p.tenant.UUID)
 		if err != nil {
 			return nil, err
 		}

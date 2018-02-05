@@ -1884,9 +1884,15 @@
                 "plugin_cpu",
                 "plugin_memory",
                 "build_version",
-                "info"
+                "info",
+                "tenant_id"
               ],
               "properties": {
+                "build_image": {
+                  "description": "镜像地址\nin: body",
+                  "type": "string",
+                  "x-go-name": "BuildImage"
+                },
                 "build_version": {
                   "description": "部署的版本号\nin: body",
                   "type": "string",
@@ -1917,6 +1923,11 @@
                   "type": "integer",
                   "format": "int64",
                   "x-go-name": "PluginCPU"
+                },
+                "plugin_from": {
+                  "description": "安装来源\nin: body",
+                  "type": "string",
+                  "x-go-name": "PluginFrom"
                 },
                 "plugin_memory": {
                   "description": "插件最大内存, 默认50\nin: body",
@@ -6470,6 +6481,37 @@
                 }
               }
             }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/transplugins": {
+      "post": {
+        "description": "trans plugins",
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "安装云帮默认plugins",
+        "operationId": "transPlugins",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "tenant name",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
