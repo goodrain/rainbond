@@ -906,6 +906,7 @@ type PublicShare struct {
 	EventID    string `json:"event_id" validate:"event_id"`
 	Dest       string `json:"dest" validate:"dest|in:yb,ys"`
 	ServiceID  string `json:"service_id" validate:"service_id"`
+	ShareConf  ShareConfItems `json:"share_conf" validate:"share_conf"` 
 }
 
 //SlugShare Slug 类型
@@ -922,6 +923,15 @@ type SlugShare struct {
 type ImageShare struct {
 	PublicShare
 	Image string `json:"image" validate:"image"`
+}
+
+//ShareConfItems 分享相关配置
+type ShareConfItems struct {
+	FTPHost string `json:"ftp_host" validate:"ftp_host"`
+	FTPPort int `json:"ftp_port" validate:"ftp_port"`
+	FTPUserName string `json:"ftp_username" valiate:"ftp_username"`
+	FTPPassWord string `json:"ftp_password" validate:"ftp_password"`
+	FTPNamespace string `json:"ftp_namespace" validate:"ftp_namespace"`
 }
 
 //AddDependencyStruct AddDependencyStruct

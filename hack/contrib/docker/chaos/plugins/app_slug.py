@@ -96,6 +96,8 @@ class AppSlug():
         # 检查service_key对应的文件是否存在,不存在生成
         service_dir = self.ALL_REGION_FTP_NAMESPACE + service_key
         logger.debug("mq_work.app_slug",
+                    'slug task is {}'.format(self.task))
+        logger.debug("mq_work.app_slug",
                      '*******upload dir is {}'.format(service_dir))
         utils.check_dir(service_dir)
         # 上传文件
