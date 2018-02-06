@@ -300,6 +300,7 @@ type AppPublishDao interface {
 type EventDao interface {
 	Dao
 	GetEventByEventID(eventID string) (*model.ServiceEvent, error)
+	GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEvent, error)
 	GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error)
 }
 

@@ -194,8 +194,6 @@ class AppSlug():
                     logger.debug("mq_work.app_slug",
                                  "*******ftp upload success!")
                     # self.update_publish_event(event_id=event_id, status='end', desc=u"云帮应用本地发布完毕")
-
-
                     self.user_cs_client.service_publish_success(
                         json.dumps(data))
                     try:
@@ -260,7 +258,6 @@ class AppSlug():
                         self.region_client.service_publish_success_region(data)
                     except Exception as e:
                         logger.exception(e)
-
                         self.region_client.service_publish_failure_region(data)
                         pass
 

@@ -91,12 +91,21 @@ type EventDaoImpl struct {
 func (c *EventDaoImpl) GetEventByEventID(eventID string) (*model.ServiceEvent, error) {
 	var result model.ServiceEvent
 	if err := c.DB.Where("event_id=?", eventID).Find(&result).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			//return messageRaw, nil
-		}
 		return nil, err
 	}
 	return &result, nil
+}
+
+//GetEventByEventIDs get event info
+func (c *EventDaoImpl) GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEvent, error) {
+	var result []*model.ServiceEvent
+	if err := c.DB.Where("event_id in (?)", eventIDs).Find(&result).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return result, nil
 }
 
 //GetEventByServiceID get event log message
