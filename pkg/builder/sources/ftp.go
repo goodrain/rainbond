@@ -76,7 +76,7 @@ func (f *FTPBase)UploadFile(path, file string, logger event.Logger) error {
 	if err != nil {
 		return err
 	}
-	var bufSize int64 = 1024 * 1024 * 24
+	var bufSize int64 = 1024 * 1024 * 50
 	if stat.Size() < bufSize {
 		bufSize = stat.Size()
 		logrus.Debugf("file buf size is %d", bufSize)

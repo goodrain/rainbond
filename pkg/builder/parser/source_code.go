@@ -223,6 +223,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		}
 	}
 	d.Lang = lang
+	logrus.Debugf("d. lang result is %v", d.Lang)
 	if lang == code.NO {
 		d.errappend(ErrorAndSolve(FatalError, "代码无法失败语言类型", "请参考文档查看平台语言支持规范"))
 		return d.errors

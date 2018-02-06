@@ -104,8 +104,8 @@ func (ps ParseErrorList) IsFatalError() bool {
 
 //Image 镜像
 type Image struct {
-	Name string
-	Tag  string
+	Name string `json:"name"`
+	Tag  string `json:"tag"`
 }
 
 func (i Image) String() string {
