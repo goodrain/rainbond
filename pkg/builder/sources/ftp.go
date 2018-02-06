@@ -19,8 +19,12 @@
 package sources
 
 import (
+	"github.com/Sirupsen/logrus"
+	"os"
 	"fmt"
 	"time"
+	"io"
+	"bytes"
 	"github.com/jlaffaye/ftp"
 	"github.com/goodrain/rainbond/pkg/event"
 )
@@ -63,12 +67,93 @@ func (f *FTPBase)UploadFile(path, file string, logger event.Logger) error {
 	if err = sc.ChangeDir(path); err != nil {
 		return err
 	}
-	//data, err := ioutil.ReadFile(file)
-	//if err :=  sc.Stor(path, data); err != nil {
-	//	return err
-	//}
+	fi, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer fi.Close()
+	stat, err := fi.Stat()
+	if err != nil {
+		return err
+	}
+	var bufSize int64 = 1024 * 1024 * 24
+	if stat.Size() < bufSize {
+		bufSize = stat.Size()
+		logrus.Debugf("file buf size is %d", bufSize)
+	}
+	buf := make([]byte, bufSize)
+	var i int64
+	for i = 0; i < 1024*1024*1024; i += bufSize{
+		n, err := fi.Read(buf)
+		if err != nil {
+			if err.Error() == io.EOF.Error(){
+				if n == 0 {
+					break
+				}else{
+					if err := sc.StorFrom(path, bytes.NewReader(buf[:n]), uint64(i)); err != nil {
+						return err
+					}
+				}
+			}else {
+				return err
+			}
+		} 
+		if err := sc.StorFrom(path, bytes.NewReader(buf), uint64(i)); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-
+//TransFile TransFile
+func (f *FTPBase) TransFile(path, file string) error {
+	fi, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer fi.Close()
+	stat, err := fi.Stat()
+	if err != nil {
+		return err
+	}
+	var bufSize int64 = 1024 * 1024 * 5
+	if stat.Size() < bufSize {
+		bufSize = stat.Size()
+		logrus.Debugf("file buf size is %d", bufSize)
+	}
+	buf := make([]byte, bufSize)
+	var i int64
+	for i = 0; i < 1024*1024*1024; i += bufSize{
+		n, err := fi.Read(buf)
+		if err != nil {
+			if err.Error() == io.EOF.Error(){
+				if n == 0 {
+					break
+				}else {
+					f, err := os.OpenFile(path+"/mm.tar.gz", os.O_WRONLY, 0644)
+					if err != nil {
+						return err
+					}
+					defer f.Close()
+					_, err = f.WriteAt(buf[:n], i)
+					if err != nil {
+						return err
+					}
+				}
+			}else {
+				return err
+			}
+		} 
+		f, err := os.OpenFile(path+"/mm.tar.gz", os.O_WRONLY, 0644)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		_, err = f.WriteAt(buf, i)
+		if err != nil {
+			return err
+		}
+	}
+	return nil	
+}
 

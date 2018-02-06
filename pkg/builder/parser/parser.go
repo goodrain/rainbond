@@ -27,20 +27,20 @@ import (
 
 //Port 端口
 type Port struct {
-	ContainerPort int
-	Protocol      string
+	ContainerPort int `json:"container_port"`
+	Protocol      string `json:"protocol"`
 }
 
 //Volume 存储地址
 type Volume struct {
-	VolumePath string
-	VolumeType string
+	VolumePath string  `json:"volume_path"`
+	VolumeType string `json:"volume_type"`
 }
 
 //Env env desc
 type Env struct {
-	Name  string
-	Value string
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 //ParseError 错误信息
