@@ -57,6 +57,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	//初始化租户和服务信
 	r.Use(middleware.InitTenant)
 	r.Put("/", controller.GetManager().Tenant)
+	r.Get("/", controller.GetManager().Tenant)
 	r.Delete("/", controller.GetManager().Tenant)
 	//租户中的日志
 	r.Post("/event-log", controller.GetManager().TenantLogByAction)
