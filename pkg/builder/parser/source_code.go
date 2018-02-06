@@ -98,6 +98,12 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			return d.errors
 		}
 		//获取代码
+		if sources.CheckFileExist(cacheDir) {
+			if err := sources.RemoveDir(cacheDir); err != nil {
+				//d.errappend(ErrorAndSolve(err, "清理cache dir错误", "请提交代码到仓库"))
+				return d.errors
+			}
+		}
 		rs, err := sources.GitClone(csi, cacheDir, d.logger, 5)
 		if err != nil {
 			if err == transport.ErrAuthenticationRequired {

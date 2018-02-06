@@ -19,6 +19,7 @@
 package sources
 
 import (
+	"github.com/Sirupsen/logrus"
 	"bufio"
 	"bytes"
 	"context"
@@ -61,7 +62,9 @@ func (c CodeSourceInfo) GetCodeCacheDir() string {
 	h := sha1.New()
 	h.Write([]byte(c.RepositoryURL))
 	bs := h.Sum(nil)
-	return path.Join(cacheDir, "build", c.TenantID, string(bs))
+	bsStr := fmt.Sprintf("%x", bs)
+	logrus.Debugf("git path is %s", path.Join(cacheDir, "build", c.TenantID, bsStr))
+	return path.Join(cacheDir, "build", c.TenantID, bsStr)
 }
 
 //GetCodeSourceDir 获取代码下载目录
@@ -73,7 +76,28 @@ func (c CodeSourceInfo) GetCodeSourceDir() string {
 	h := sha1.New()
 	h.Write([]byte(c.RepositoryURL))
 	bs := h.Sum(nil)
-	return path.Join(sourceDir, "build", c.TenantID, string(bs))
+	bsStr := fmt.Sprintf("%x", bs)	
+	return path.Join(sourceDir, "build", c.TenantID, bsStr)
+}
+
+//CheckFileExist CheckFileExist
+func CheckFileExist(path string) bool {
+	_, err := os.Stat(path)
+	if  err != nil {
+        if os.IsExist(err) {  
+            return true  
+        }  
+        return false  
+    }  
+    return true 
+}
+
+//RemoveDir RemoveDir
+func RemoveDir(path string) error {
+	if path == "/" {
+		return fmt.Errorf("remove wrong dir")
+	}
+	return os.RemoveAll(path)
 }
 
 //GitClone git clone code
