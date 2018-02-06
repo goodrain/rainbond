@@ -6864,6 +6864,14 @@
         "ftp_username": {
           "type": "string",
           "x-go-name": "FTPUserName"
+        },
+        "inner_registry": {
+          "type": "string",
+          "x-go-name": "InnerRegistry"
+        },
+        "outer_registry": {
+          "type": "string",
+          "x-go-name": "OuterRegistry"
         }
       },
       "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"

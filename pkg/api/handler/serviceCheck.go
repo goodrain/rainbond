@@ -26,7 +26,7 @@ import (
 	"github.com/pquerna/ffjson/ffjson"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/pkg/builder/parser"
+	"github.com/goodrain/rainbond/pkg/builder/exector"
 	api_db "github.com/goodrain/rainbond/pkg/api/db"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	tutil "github.com/goodrain/rainbond/pkg/util"
@@ -67,11 +67,9 @@ func (s *ServiceAction) ServiceCheck(scs *api_model.ServiceCheckStruct) (string,
 }
 
 //GetServiceCheckInfo 获取应用源检测信息
-func (s *ServiceAction) GetServiceCheckInfo(uuid string)(*parser.GetServiceInfo, *util.APIHandleError) {
+func (s *ServiceAction) GetServiceCheckInfo(uuid string)(*exector.ServiceCheckResult, *util.APIHandleError) {
 	k := fmt.Sprintf("/servicecheck/%s", uuid)
-	si := &parser.GetServiceInfo{
-		UUID: uuid,
-	}
+	var si exector.ServiceCheckResult
 	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
 	resp, err := s.EtcdCli.Get(ctx, k)
 	cancel()
@@ -80,11 +78,11 @@ func (s *ServiceAction) GetServiceCheckInfo(uuid string)(*parser.GetServiceInfo,
 		return nil, util.CreateAPIHandleError(500, err)
 	}
 	if resp.Count == 0 {
-		return si, nil
+		return &si, nil
 	}
 	v := resp.Kvs[0].Value
 	if err := ffjson.Unmarshal(v, &si); err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
-	return si, nil	
+	return &si, nil	
 }

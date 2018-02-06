@@ -102,6 +102,10 @@ func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 		e.pluginImageBuild(task.TaskBody)
 	case "plugin_dockerfile_build":
 		e.pluginDockerfileBuild(task.TaskBody)
+	case "slug_share":
+		e.slugShare(task.TaskBody)
+	case "image_share":
+		e.imageShare(task.TaskBody)
 	default:
 		return fmt.Errorf("`%s` tasktype can't support", task.TaskType)
 	}
@@ -309,18 +313,16 @@ func (e *exectorManager) appBuild(in []byte) {
 	//updateBuildResult(eventID,finalStatus,dest)
 }
 
-//func updateBuildResult(eventID,finalStatus,dest string)  {
-//	if dest == ""||!strings.Contains(dest,"y") {
-//		v,err:=db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
-//		if err != nil {
-//			logrus.Errorf("error get version by eventID %s  from db,details %s",eventID,err.Error())
-//			return
-//		}
-//		v.FinalStatus=finalStatus
-//		db.GetManager().VersionInfoDao().UpdateModel(v)
-//	}
-//
-//}
+func (e *exectorManager)slugShare(in []byte) {
+	i := NewSlugShareItem(in)
+	i.Logger.Info("开始分享新版本应用", map[string]string{"step": "builder-exector", "status": "starting"})	
+	
+}
+
+func (e *exectorManager)imageShare(in []byte) {
+
+}
+
 func (e *exectorManager) pluginImageBuild1(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
