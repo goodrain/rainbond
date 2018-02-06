@@ -316,7 +316,23 @@ func (e *exectorManager) appBuild(in []byte) {
 func (e *exectorManager)slugShare(in []byte) {
 	i := NewSlugShareItem(in)
 	i.Logger.Info("开始分享新版本应用", map[string]string{"step": "builder-exector", "status": "starting"})	
-	
+	go func(){
+		logrus.Debugf("start slug share")
+		defer event.GetManager().ReleaseLogger(i.Logger)
+		for n:=0; n< 3; n++ {
+			err := i.Run(time.Minute * 30)
+			if err != nil {
+				logrus.Errorf("slug share error: %s", err.Error())
+				if n < 2 {
+					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step":"build-exector", "status":"failure"})
+				}else {
+					i.Logger.Error("分享应用任务执行失败", map[string]string{"step":"build-exector", "status":"failure"})
+				}
+			}else {
+				break
+			}
+		}
+	}()
 }
 
 func (e *exectorManager)imageShare(in []byte) {

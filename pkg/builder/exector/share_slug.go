@@ -21,6 +21,7 @@ package exector
 
 
 import (
+	"github.com/goodrain/rainbond/pkg/builder/sources"
 	"time"
 	"fmt"
 	"os"
@@ -50,12 +51,29 @@ type SlugShareItem struct {
 	EventID	 		string
 	IsOuter 		string
 	Config          parseConfig.Config
+	FTPConf 		SlugFTPConf
+}
+
+//SlugFTPConf SlugFTPConf
+type SlugFTPConf struct {
+	Username 		string
+	Password		string
+	Host			string
+	Port 			int
+	FTPNamespace    string
 }
 
 //NewSlugShareItem 创建实体
 func NewSlugShareItem(in []byte) *SlugShareItem {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
+	sf := SlugFTPConf {
+		Username: gjson.GetBytes(in, "share_conf.ftp_username").String(),
+		Password: gjson.GetBytes(in, "share_conf.ftp_username").String(),
+		Host: gjson.GetBytes(in, "share_conf.ftp_host").String(),
+		Port: int(gjson.GetBytes(in, "share_conf.ftp_port").Int()),
+		FTPNamespace: gjson.GetBytes(in, "share_conf.ftp_namespace").String(),
+	}
 	return &SlugShareItem{
 		Namespace: gjson.GetBytes(in, "tenant_id").String(),
 		TenantName:  gjson.GetBytes(in, "tenant_name").String(),
@@ -63,9 +81,11 @@ func NewSlugShareItem(in []byte) *SlugShareItem {
 		ServiceID: gjson.GetBytes(in, "service_id").String(),
 		Action: gjson.GetBytes(in, "action").String(),
 		DeployVersion: gjson.GetBytes(in, "deploy_version").String(),
+		ShareID: gjson.GetBytes(in, "share_id").String(),
 		Logger: logger,
 		EventID: eventID,
 		Config: GetBuilderConfig(),
+		FTPConf: sf,
 	}
 }
 
@@ -80,7 +100,7 @@ func (i *SlugShareItem) Run(timeout time.Duration) error {
 	}
 	switch i.Dest {
 	case "ys":
-		if err := i.ShareToYS(); err != nil {
+		if err := i.ShareToYS(packageName); err != nil {
 			return err
 		}
 	case "yb":
@@ -88,7 +108,7 @@ func (i *SlugShareItem) Run(timeout time.Duration) error {
 			return err
 		}
 	default:
-		if err := i.ShareToYS(); err != nil {
+		if err := i.ShareToYS(packageName); err != nil {
 			return err
 		}
 	}
@@ -110,13 +130,24 @@ func createMD5(packageName string) (string, error) {
 
 //ShareToYB ShareToYB
 func (i *SlugShareItem)ShareToYB()error {
-
+	
 	return nil
 }
 
 //ShareToYS ShareToYS
-func (i *SlugShareItem)ShareToYS()error {
-
+func (i *SlugShareItem)ShareToYS(file string)error {
+	i.Logger.Info("开始分享云市", map[string]string{"step":"slug-share"})
+	if err:= i.UploadFtp(i.FTPConf.FTPNamespace, file); err != nil {
+		return err
+	}
+	md5, err := createMD5(file)
+	if err != nil {
+		i.Logger.Error("生成md5失败", map[string]string{"step":"slug-share", "status":"success"})
+	}
+	if err := i.UploadFtp(i.FTPConf.FTPNamespace, md5); err != nil {
+		return err
+	}
+	i.Logger.Info("分享云市完成", map[string]string{"step":"slug-share", "status":"success"})
 	return nil
 }
 
@@ -126,7 +157,14 @@ func (i *SlugShareItem)ShareInfoData() error {
 	return nil
 }
 
-//UploadFtp UploadFtp
-func (i *SlugShareItem)UploadFtp() error {
+//UploadFtp UploadFt
+func (i *SlugShareItem)UploadFtp(path, file string) error {
+	i.Logger.Info(fmt.Sprintf("开始上传代码包: %s", file), map[string]string{"step":"slug-share"})
+	ftp  := sources.NewFTPManager(i.FTPConf.Username, i.FTPConf.Password, i.FTPConf.Host)
+	err := ftp.UploadFile(path, file, i.Logger)
+	if err != nil {
+		i.Logger.Error(fmt.Sprintf("上传代码包%s失败", file), map[string]string{"step":"slug-share", "status":"failure"})
+	}
+	i.Logger.Info("代码包上传完成", map[string]string{"step":"slug-share", "status":"success"})
 	return nil
 }
