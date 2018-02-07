@@ -21,13 +21,14 @@ package sources
 import (
 	"github.com/Sirupsen/logrus"
 	"bufio"
-	"context"
 	"fmt"
 	"strings"
 	"time"
 
+	"golang.org/x/net/context"
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
+	//"github.com/docker/docker/api/types"
+	"github.com/docker/engine-api/types"
 	//"github.com/docker/docker/client"
 	"github.com/docker/engine-api/client"
 	"github.com/goodrain/rainbond/pkg/event"
@@ -71,7 +72,7 @@ func ImagePull(dockerCli *client.Client, image string, opts types.ImagePullOptio
 			break
 		}
 	}
-	ins, _, err := dockerCli.ImageInspectWithRaw(ctx, image)
+	ins, _, err := dockerCli.ImageInspectWithRaw(ctx, image, false)
 	if err != nil {
 		return nil, err
 	}

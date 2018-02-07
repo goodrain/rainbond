@@ -30,7 +30,8 @@ import (
 	"github.com/docker/engine-api/client"
 	"github.com/akkuman/parseConfig"
 	"github.com/goodrain/rainbond/pkg/builder/sources"
-	"github.com/docker/docker/api/types"
+	//"github.com/docker/docker/api/types"
+	"github.com/docker/engine-api/types"
 )
 
 //ImageShareItem ImageShareItem

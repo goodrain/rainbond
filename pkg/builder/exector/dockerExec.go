@@ -28,7 +28,8 @@ import (
 	"github.com/goodrain/rainbond/pkg/event"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
+	//"github.com/docker/docker/api/types"
+	"github.com/docker/engine-api/types"
 )
 
 func (e *exectorManager) DockerPull(image string) error {
