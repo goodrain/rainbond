@@ -180,6 +180,9 @@ func (l *LogAction) GetLinesLogs(alias string, n int) ([]byte, error) {
 	downLoadDIR := "/grdata/downloads"
 	filePath := fmt.Sprintf("%s/log/%s/stdout.log", downLoadDIR, alias)
 	if ok, err := util.FileExists(filePath); !ok {
+		if err != nil {
+			logrus.Errorf("check file exist error %s", err.Error())
+		}
 		return []byte(""), nil
 	}
 	f, err := exec.Command("tail", "-n", fmt.Sprintf("%d", n), filePath).Output()
