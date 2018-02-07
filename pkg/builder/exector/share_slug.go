@@ -31,6 +31,8 @@ import (
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/tidwall/gjson"
 	"github.com/akkuman/parseConfig"
+	"github.com/goodrain/rainbond/pkg/db"
+	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 )
 
 
@@ -51,6 +53,7 @@ type SlugShareItem struct {
 	IsOuter 		string
 	Config          parseConfig.Config
 	FTPConf 		SlugFTPConf
+	PackageName     string
 }
 
 //SlugFTPConf SlugFTPConf
@@ -79,6 +82,8 @@ func NewSlugShareItem(in []byte) *SlugShareItem {
 		TenantID: gjson.GetBytes(in, "tenant_id").String(),
 		ServiceID: gjson.GetBytes(in, "service_id").String(),
 		Action: gjson.GetBytes(in, "action").String(),
+		ServiceKey: gjson.GetBytes(in, "service_key").String(),
+		AppVersion: gjson.GetBytes(in, "app_version").String(),	
 		DeployVersion: gjson.GetBytes(in, "deploy_version").String(),
 		ShareID: gjson.GetBytes(in, "share_id").String(),
 		Logger: logger,
@@ -92,6 +97,7 @@ func NewSlugShareItem(in []byte) *SlugShareItem {
 func (i *SlugShareItem) Run(timeout time.Duration) error {
 	packageName := fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz",
 		i.TenantID, i.ServiceID, i.DeployVersion)
+	i.PackageName = packageName
 	i.Logger.Debug(fmt.Sprintf("数据中心文件路径: %s", packageName), map[string]string{"step":"slug-share"})
 	if _, err := os.Stat(packageName); err != nil {
 		i.Logger.Error(fmt.Sprintf("数据中心文件不存在: %s", packageName), map[string]string{"step":"slug-share", "status":"failure"})
@@ -156,3 +162,17 @@ func (i *SlugShareItem)UploadFtp(path, file string) error {
 	i.Logger.Info("代码包上传完成", map[string]string{"step":"slug-share", "status":"success"})
 	return nil
 }
+
+//UpdateShareStatus 更新任务执行结果
+func (i *SlugShareItem) UpdateShareStatus(status string) error {
+	result := &dbmodel.AppPublish{
+		ServiceKey: i.ServiceKey,
+		AppVersion: i.AppVersion,
+		Slug: i.PackageName,
+		Status: status,
+	}
+	if err := db.GetManager().AppPublishDao().AddModel(result); err != nil {
+		return err
+	}
+	return nil
+} 

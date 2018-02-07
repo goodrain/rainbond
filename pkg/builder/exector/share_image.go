@@ -26,12 +26,12 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/tidwall/gjson"
-	//"github.com/docker/docker/client"
 	"github.com/docker/engine-api/client"
 	"github.com/akkuman/parseConfig"
 	"github.com/goodrain/rainbond/pkg/builder/sources"
-	//"github.com/docker/docker/api/types"
 	"github.com/docker/engine-api/types"
+	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
+	"github.com/goodrain/rainbond/pkg/db"
 )
 
 //ImageShareItem ImageShareItem
@@ -49,6 +49,9 @@ type ImageShareItem struct {
 	ServiceID 		string
 	DeployVersion   string
 	ShareID 		string
+	ServiceKey      string
+	AppVersion      string
+	HubImage 		string
 	ImageConf       ImageConf
 }
 
@@ -71,6 +74,8 @@ func NewImageShareItem(in []byte) *ImageShareItem {
 		ServiceAlias: gjson.GetBytes(in, "service_alias").String(),
 		Image: gjson.GetBytes(in, "image").String(),
 		DeployVersion: gjson.GetBytes(in, "deploy_version").String(),
+		ServiceKey: gjson.GetBytes(in, "service_key").String(),
+		AppVersion: gjson.GetBytes(in, "app_version").String(),	
 		Logger: logger,
 		EventID: eventID,
 		ShareID: gjson.GetBytes(in, "share_id").String(),
@@ -101,23 +106,13 @@ func (i *ImageShareItem) ShareToYS() error {
 		i.Logger.Error(fmt.Sprintf("修改镜像tag: %s -> %s 失败", i.Image, hubImage), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
+	i.HubImage = hubImage
 	err = sources.ImagePush(i.DockerClient, hubImage, types.ImagePushOptions{}, i.Logger, 2)
 	if err != nil {
 		logrus.Errorf("push image into registry error: %s", err.Error())
 		i.Logger.Error("推送镜像至镜像仓库失败", map[string]string{"step": "builder-exector", "status":"failure"})
 		return err
 	}
-	return nil
-}
-
-//ShareToYB ShareToYB
-func (i *ImageShareItem) ShareToYB() error {
-	return nil
-}
-
-//ShareInfoData ShareInfoData
-func (i *ImageShareItem)ShareInfoData() error {
-	//TODO:
 	return nil
 }
 
@@ -128,3 +123,17 @@ func (i *ImageShareItem)RenameImage(image string) string {
 	logrus.Debugf("hub image is %s", hubImage)
 	return hubImage
 }
+
+//UpdateShareStatus 更新任务执行结果
+func (i *ImageShareItem) UpdateShareStatus(status string) error {
+	result := &dbmodel.AppPublish{
+		ServiceKey: i.ServiceKey,
+		AppVersion: i.AppVersion,
+		Image: i.HubImage,
+		Status: status,
+	}
+	if err := db.GetManager().AppPublishDao().AddModel(result); err != nil {
+		return err
+	}
+	return nil
+} 

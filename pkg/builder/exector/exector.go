@@ -317,6 +317,7 @@ func (e *exectorManager) appBuild(in []byte) {
 func (e *exectorManager)slugShare(in []byte) {
 	i := NewSlugShareItem(in)
 	i.Logger.Info("开始分享新版本应用", map[string]string{"step": "builder-exector", "status": "starting"})	
+	status := "success"
 	go func(){
 		logrus.Debugf("start slug share")
 		defer event.GetManager().ReleaseLogger(i.Logger)
@@ -328,17 +329,22 @@ func (e *exectorManager)slugShare(in []byte) {
 					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step":"build-exector", "status":"failure"})
 				}else {
 					i.Logger.Error("分享应用任务执行失败", map[string]string{"step":"build-exector", "status":"failure"})
+					status = "failure"	
 				}
 			}else {
 				break
 			}
 		}
 	}()
+	if err := i.UpdateShareStatus(status); err != nil {
+		logrus.Debugf("Add slug share result error: %s", err.Error())	
+	}
 }
 
 func (e *exectorManager)imageShare(in []byte) {
 	i := NewImageShareItem(in)
 	i.Logger.Info("开始分享新版本应用", map[string]string{"step": "builder-exector", "status": "starting"})	
+	status := "success"
 	go func(){
 		logrus.Debugf("start image share")
 		defer event.GetManager().ReleaseLogger(i.Logger)
@@ -350,12 +356,16 @@ func (e *exectorManager)imageShare(in []byte) {
 					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step":"build-exector", "status":"failure"})
 				}else {
 					i.Logger.Error("分享应用任务执行失败", map[string]string{"step":"build-exector", "status":"failure"})
+					status = "failure"		
 				}
 			}else {
 				break
 			}
 		}
 	}()
+	if err := i.UpdateShareStatus(status); err != nil {
+		logrus.Debugf("Add image share result error: %s", err.Error())	
+	}
 }
 
 func (e *exectorManager) pluginImageBuild1(in []byte) {
