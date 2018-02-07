@@ -84,8 +84,10 @@ func (s *ServiceAction) GetServiceCheckInfo(uuid string)(*exector.ServiceCheckRe
 	if err := ffjson.Unmarshal(v, &si); err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
+
 	if si.CheckStatus == "" {
 		si.CheckStatus = "Checking"
+		logrus.Debugf("checking is %v", si)
 	}
 	return &si, nil	
 }

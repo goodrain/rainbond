@@ -51,6 +51,9 @@ type SourceCodeParse struct {
 	dockerclient *client.Client
 	logger       event.Logger
 	Lang         code.Lang
+	Runtime			  bool		`json:"runtime"`
+	Library			  bool		`json:"library"`
+	Procfile		  bool		`json:"procfile"`
 }
 
 //CreateSourceCodeParse create parser
@@ -250,12 +253,15 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	if !spec.Conform {
 		return d.errors
 	}
+	d.Library = true
 	//如果是dockerfile 解析dockerfile文件
 	if lang == code.Dockerfile {
 		if ok := d.parseDockerfileInfo(path.Join(buildPath, "Dockerfile")); !ok {
 			return d.errors
 		}
 	}
+	d.Runtime = code.CheckRuntime(buildPath, lang)
+	d.Procfile = true
 	return d.errors
 }
 
@@ -317,6 +323,11 @@ func (d *SourceCodeParse) GetLang() code.Lang {
 	return d.Lang
 }
 
+//GetRuntime GetRuntime
+func (d *SourceCodeParse)GetRuntime() bool {
+	return d.Runtime
+}
+
 //GetServiceInfo 获取service info
 func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 	serviceInfo := ServiceInfo{
@@ -328,6 +339,9 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 		Branchs: d.GetBranchs(),
 		Memory:  d.memory,
 		Lang:    d.GetLang(),
+		Library: true,
+		Procfile: true,
+		Runtime: true,
 	}
 	return []ServiceInfo{serviceInfo}
 }

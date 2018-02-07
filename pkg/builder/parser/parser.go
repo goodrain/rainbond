@@ -134,6 +134,9 @@ type ServiceInfo struct {
 	Branchs           []string `json:"branchs,omitempty"`
 	Memory            int      `json:"memory"`
 	Lang 			  code.Lang 	   `json:"language"`	  
+	Runtime			  bool		`json:"runtime"`
+	Library			  bool		`json:"library"`
+	Procfile		  bool		`json:"procfile"`
 }
 
 //GetServiceInfo GetServiceInfo
