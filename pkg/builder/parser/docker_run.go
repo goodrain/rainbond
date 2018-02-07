@@ -28,7 +28,8 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
+	//"github.com/docker/docker/client"
+	"github.com/docker/engine-api/client"
 )
 
 //DockerRunOrImageParse docker run 命令解析或直接镜像名解析

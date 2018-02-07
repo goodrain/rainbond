@@ -27,7 +27,8 @@ import (
 	"github.com/goodrain/rainbond/pkg/event"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
+	//"github.com/docker/docker/client"
+	"github.com/docker/engine-api/client"
 )
 
 //DockerComposeParse docker compose 文件解析

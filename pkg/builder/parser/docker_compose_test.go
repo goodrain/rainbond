@@ -22,7 +22,8 @@ import (
 	"testing"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/client"
+	//"github.com/docker/docker/client"
+	"github.com/docker/engine-api/client"
 )
 
 var dockercompose = `

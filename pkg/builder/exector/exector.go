@@ -23,7 +23,8 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/client"
+	//"github.com/docker/docker/client"
+	"github.com/docker/engine-api/client"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/pkg/db/config"
 	"github.com/goodrain/rainbond/pkg/event"

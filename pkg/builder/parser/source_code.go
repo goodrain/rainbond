@@ -33,7 +33,8 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/client"
+	//"github.com/docker/docker/client"
+	"github.com/docker/engine-api/client"
 )
 
 
