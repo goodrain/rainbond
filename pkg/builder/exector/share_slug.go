@@ -46,7 +46,6 @@ type SlugShareItem struct {
 	ServiceID       string
 	DeployVersion   string
 	TenantID        string 
-	Dest 			string
 	ShareID 		string
 	EventID	 		string
 	IsOuter 		string
@@ -98,19 +97,8 @@ func (i *SlugShareItem) Run(timeout time.Duration) error {
 		i.Logger.Error(fmt.Sprintf("数据中心文件不存在: %s", packageName), map[string]string{"step":"slug-share", "status":"failure"})
 		return err
 	}
-	switch i.Dest {
-	case "ys":
-		if err := i.ShareToYS(packageName); err != nil {
-			return err
-		}
-	case "yb":
-		if err := i.ShareToYB(); err != nil {
-			return err
-		}
-	default:
-		if err := i.ShareToYS(packageName); err != nil {
-			return err
-		}
+	if err := i.ShareToYS(packageName); err != nil {
+		return err
 	}
 	return nil
 }

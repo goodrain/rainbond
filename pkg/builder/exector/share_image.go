@@ -21,11 +21,15 @@ package exector
 
 
 import (
+	"github.com/Sirupsen/logrus"
 	"time"
+	"fmt"
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/tidwall/gjson"
 	"github.com/docker/docker/client"
 	"github.com/akkuman/parseConfig"
+	"github.com/goodrain/rainbond/pkg/builder/sources"
+	"github.com/docker/docker/api/types"
 )
 
 //ImageShareItem ImageShareItem
@@ -42,14 +46,12 @@ type ImageShareItem struct {
 	TenantID        string
 	ServiceID 		string
 	DeployVersion   string
-	Dest  			string
 	ShareID 		string
 	ImageConf       ImageConf
 }
 
 //ImageConf ImageConf
 type ImageConf struct {
-	InnerRegistry string
 	OuterRegistry string
 }
 
@@ -59,7 +61,6 @@ func NewImageShareItem(in []byte) *ImageShareItem {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	ic := ImageConf {
-		InnerRegistry: gjson.GetBytes(in, "share_conf.inner_registry").String(),
 		OuterRegistry: gjson.GetBytes(in, "share_conf.outer_registry").String(),
 	}
 	return &ImageShareItem{
@@ -67,7 +68,6 @@ func NewImageShareItem(in []byte) *ImageShareItem {
 		TenantName:  gjson.GetBytes(in, "tenant_name").String(),
 		ServiceAlias: gjson.GetBytes(in, "service_alias").String(),
 		Image: gjson.GetBytes(in, "image").String(),
-		Dest: gjson.GetBytes(in, "dest").String(),
 		DeployVersion: gjson.GetBytes(in, "deploy_version").String(),
 		Logger: logger,
 		EventID: eventID,
@@ -79,25 +79,32 @@ func NewImageShareItem(in []byte) *ImageShareItem {
 
 //Run Run
 func (i *ImageShareItem) Run(timeout time.Duration) error {
-	switch i.Dest {
-	case "ys":
-		if err := i.ShareToYS(); err != nil {
-			return err
-		}
-	case "yb":
-		if err := i.ShareToYB(); err != nil {
-			return err
-		}
-	default:
-		if err := i.ShareToYS(); err != nil {
-			return err
-		}
+	if err := i.ShareToYS(); err != nil {
+		return err
 	}
 	return nil
 }
 
 //ShareToYS ShareToYS
 func (i *ImageShareItem) ShareToYS() error {
+	_, err := sources.ImagePull(i.DockerClient, i.Image, types.ImagePullOptions{}, i.Logger, 3)
+	if err != nil {
+		logrus.Errorf("pull image %s error: %s", i.Image, err.Error())
+		i.Logger.Error(fmt.Sprintf("拉取镜像: %s失败， %s", i.Image, err.Error()), map[string]string{"step": "builder-exector", "status":"failure"})
+		return err
+	}
+	hubImage := i.RenameImage(i.Image)
+	if err := sources.ImageTag(i.DockerClient, i.Image, hubImage, i.Logger, 1); err != nil {
+		logrus.Errorf("change image tag error: %s", err.Error())
+		i.Logger.Error(fmt.Sprintf("修改镜像tag: %s -> %s 失败", i.Image, hubImage), map[string]string{"step": "builder-exector", "status": "failure"})
+		return err
+	}
+	err = sources.ImagePush(i.DockerClient, hubImage, types.ImagePushOptions{}, i.Logger, 2)
+	if err != nil {
+		logrus.Errorf("push image into registry error: %s", err.Error())
+		i.Logger.Error("推送镜像至镜像仓库失败", map[string]string{"step": "builder-exector", "status":"failure"})
+		return err
+	}
 	return nil
 }
 
@@ -106,3 +113,16 @@ func (i *ImageShareItem) ShareToYB() error {
 	return nil
 }
 
+//ShareInfoData ShareInfoData
+func (i *ImageShareItem)ShareInfoData() error {
+	//TODO:
+	return nil
+}
+
+//RenameImage RenameImage
+func (i *ImageShareItem)RenameImage(image string) string {
+	im := sources.ImageNameHandle(image)
+	hubImage := fmt.Sprintf("%s/%s:%s", i.ImageConf.OuterRegistry, im.Name, im.Tag)
+	logrus.Debugf("hub image is %s", hubImage)
+	return hubImage
+}
