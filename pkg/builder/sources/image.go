@@ -42,18 +42,22 @@ func ImagePull(dockerCli *client.Client, image string, opts types.ImagePullOptio
 		//进度信息
 		logger.Info(fmt.Sprintf("开始获取镜像：%s", image), map[string]string{"step": "pullimage"})
 	}
-	_, err := reference.ParseAnyReference(image)
+	rf, err := reference.ParseAnyReference(image)
 	if err != nil {
+		logrus.Errorf("reference image error: %s", err.Error())
 		return nil, err
 	}
+	logrus.Debugf("rf is %s", rf)
 	//最少一分钟
 	if timeout < 1 {
 		timeout = 1
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
-	readcloser, err := dockerCli.ImagePull(ctx, image, opts)
+	//TODO: 使用1.12版本api的bug “repository name must be canonical”，使用rf.String()完整的镜像地址
+	readcloser, err := dockerCli.ImagePull(ctx, rf.String(), opts)
 	if err != nil {
+		logrus.Debugf("image name: %s readcloser error: %v", image, err.Error())
 		if strings.HasSuffix(err.Error(), "does not exist or no pull access") {
 			return nil, fmt.Errorf("Image(%s) does not exist or no pull access", image)
 		}

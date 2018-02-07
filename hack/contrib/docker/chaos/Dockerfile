@@ -41,6 +41,6 @@ ENV RELEASE_DESC=__RELEASE_DESC__
 
 WORKDIR $WORK_DIR
 
-USER rain
+#USER rain
 
 ENTRYPOINT ["/run/entrypoint.sh"]
