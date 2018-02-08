@@ -52,19 +52,32 @@ func NewFTPManager(username, password, host string, port...int) *FTPBase {
 	return fb
 }
 
-//UploadFile UploadFile
-func (f *FTPBase)UploadFile(path, file string, logger event.Logger) error {
+//LoginFTP LoginFTP
+func (f *FTPBase)LoginFTP(logger event.Logger) (*ftp.ServerConn, error){
 	sc, err:= ftp.DialTimeout(fmt.Sprintf("%s:%d", f.Host, f.Port), 5*time.Second)
 	if err != nil {
 		logger.Error("ftp服务器连接错误", map[string]string{"step":"slug-share", "status":"failure"})
-		return err
+		return nil, err
 	}
 	if err := sc.Login(f.UserName, f.PassWord); err != nil {
 		logger.Error("ftp服务器登录错误", map[string]string{"step":"slug-share", "status":"failure"})
+		return nil, err
+	}
+	return sc, nil
+}
+
+//LogoutFTP LogoutFTP
+func (f *FTPBase)LogoutFTP(sc *ftp.ServerConn, logger event.Logger) error {
+	if err := sc.Logout(); err != nil {
+		logger.Error("ftp服务器登出错误", map[string]string{"step":"slug-share", "status":"failure"})
 		return err
 	}
-	defer sc.Logout()
-	if err = sc.ChangeDir(path); err != nil {
+	return nil
+}
+
+//UploadFile UploadFile
+func (f *FTPBase)UploadFile(sc *ftp.ServerConn, path, file string, logger event.Logger) error {
+	if err := sc.ChangeDir(path); err != nil {
 		return err
 	}
 	fi, err := os.Open(file)
@@ -76,6 +89,7 @@ func (f *FTPBase)UploadFile(path, file string, logger event.Logger) error {
 	if err != nil {
 		return err
 	}
+	//TODO: 大于缓冲区大小的文件，存在误差
 	var bufSize int64 = 1024 * 1024 * 50
 	if stat.Size() < bufSize {
 		bufSize = stat.Size()
@@ -157,3 +171,16 @@ func (f *FTPBase) TransFile(path, file string) error {
 	return nil	
 }
 
+//CheckMd5FileName ListFile
+func (f *FTPBase) CheckMd5FileName(sc *ftp.ServerConn, path , md5file string) (bool, error) {
+	entrys, err := sc.NameList(path)
+	if err != nil {
+		return false, err
+	}
+	for _, entry := range entrys{
+		if entry == md5file {
+			return true, nil
+		}
+	}
+	return false, nil
+}

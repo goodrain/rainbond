@@ -932,7 +932,6 @@ type ShareConfItems struct {
 	FTPUserName string `json:"ftp_username" valiate:"ftp_username"`
 	FTPPassWord string `json:"ftp_password" validate:"ftp_password"`
 	FTPNamespace string `json:"ftp_namespace" validate:"ftp_namespace"`
-	InnerRegistry string `json:"inner_registry" validate:"inner_registry"`
 	OuterRegistry string `json:"outer_registry" validate:"outer_registry"`
 }
 
