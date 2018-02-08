@@ -330,6 +330,8 @@ func (t *TenantStruct) Tenant(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
 		t.AddTenant(w, r)
+	case "GET":
+		t.GetTenants(w, r)
 	}
 }
 
@@ -418,6 +420,36 @@ func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnError(r, w, 400, "args error, need eid or tenatn_id / tenant_name")
 	return
+}
+
+//GetTenants GetTenants
+func (t *TenantStruct) GetTenants(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation GET /v2/tenants v2 getTenants
+	//
+	// 获取所有租户信息
+	//
+	// get tenant
+	//
+	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//       "$ref": "#/responses/commandResponse"
+	//     description: 统一返回格式
+	tenants, err := handler.GetTenantManager().GetTenants()
+	if err != nil {
+		httputil.ReturnError(r, w, 500, "get tenant error")
+		return
+	}
+	httputil.ReturnSuccess(r, w, tenants)
 }
 
 //DeleteTenant DeleteTenant
@@ -1746,7 +1778,7 @@ func (t *TenantStruct) TransPlugins(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)	
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
 	rc := make(map[string]string)
 	err := handler.GetTenantManager().TransPlugins(tenantID, tenantName, tps.Body.FromTenantName, tps.Body.PluginsID)

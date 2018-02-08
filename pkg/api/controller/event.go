@@ -7,7 +7,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/goodrain/rainbond/pkg/db"
-	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 )
 
@@ -43,14 +42,10 @@ func (e *TenantStruct) Event(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 400, "bad request")
 		return
 	}
-	result := []*dbmodel.ServiceEvent{}
-	for _, v := range eventIDS {
-		serviceEvent, err := db.GetManager().ServiceEventDao().GetEventByEventID(v)
-		if err != nil {
-			logrus.Warnf("can't find event by given id %s ,details %s", v, err.Error())
-			continue
-		}
-		result = append(result, serviceEvent)
+	serviceEvents, err := db.GetManager().ServiceEventDao().GetEventByEventIDs(eventIDS)
+	if err != nil {
+		logrus.Warnf("can't find event by given id ,details %s", err.Error())
+		httputil.ReturnError(r, w, 500, err.Error())
 	}
-	httputil.ReturnSuccess(r, w, result)
+	httputil.ReturnSuccess(r, w, serviceEvents)
 }
