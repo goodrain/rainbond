@@ -4,10 +4,10 @@
 ----
 Rainbond是国内首个开源的生产级无服务器PasS平台，深度整合基于Kubernetes的容器管理、多类型CI/CD应用构建与交付、多数据中心的资源管理等技术提供完整的云原生应用管理解决方案，构建出应用、基础设施之间的互联互通生态体系。
 
-Rainbond历经超过五年的生产运营打磨和验证，形成目前理念最新、生态最完整的无服务器PasS平台。如今，我们选择开源、拥抱社区，期望吸收最好的想法和实践，进一步完善和提升云帮，让更多企业和个人用户享受“以应用为中心”的技术体验。
+Rainbond历经5年+生产运营打磨和验证，形成目前理念最新、生态最完整的无服务器PaaS平台。如今，我们选择开源、拥抱社区，期望吸收最好的想法和实践，进一步完善和提升云帮，让更多企业和个人用户享受“以应用为中心”的技术体验。
 
 ----
-[设计理念](http://www.rainbond.com/docs/stable/getting-started/design-concept.html) · [技术架构](http://www.rainbond.com/docs/stable/getting-started/architecture.html) · [应用场景](getting-started/scenario-microservice.html) · [系统安装](http://www.rainbond.com/docs/stable/getting-started/pre-install.html)
+[在线体验](https://user.goodrain.com) · [设计理念](http://www.rainbond.com/docs/stable/getting-started/design-concept.html) · [技术架构](http://www.rainbond.com/docs/stable/getting-started/architecture.html) · [应用场景](getting-started/scenario-microservice.html) · [系统安装](http://www.rainbond.com/docs/stable/getting-started/pre-install.html)
 
 ----
 ## 使用Rainbond
