@@ -23,9 +23,10 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"github.com/goodrain/rainbond/pkg/node/utils"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/pkg/node/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
@@ -33,17 +34,17 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 
-	httputil "github.com/goodrain/rainbond/pkg/util/http"
-	"strconv"
-	"github.com/goodrain/rainbond/pkg/node/core/k8s"
-	"io/ioutil"
 	"errors"
+	"io/ioutil"
+	"strconv"
+
+	"github.com/goodrain/rainbond/pkg/node/core/k8s"
+	httputil "github.com/goodrain/rainbond/pkg/util/http"
 )
 
 func init() {
 	prometheus.MustRegister(version.NewCollector("node_exporter"))
 }
-
 
 //NewNode 创建一个节点
 func NewNode(w http.ResponseWriter, r *http.Request) {
@@ -51,9 +52,9 @@ func NewNode(w http.ResponseWriter, r *http.Request) {
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &node, nil); !ok {
 		return
 	}
-	if node.Role == nil ||len(node.Role)==0{
-		err:=utils.CreateAPIHandleError(400, fmt.Errorf("node role must not null"))
-		err.Handle(r,w)
+	if node.Role == nil || len(node.Role) == 0 {
+		err := utils.CreateAPIHandleError(400, fmt.Errorf("node role must not null"))
+		err.Handle(r, w)
 		return
 	}
 	if err := nodeService.AddNode(&node); err != nil {
@@ -86,37 +87,37 @@ func GetNodes(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-	for _,v:=range nodes {
+	for _, v := range nodes {
 		handleStatus(v)
 	}
 	httputil.ReturnSuccess(r, w, nodes)
 }
 
-func handleStatus(v *model.HostNode){
+func handleStatus(v *model.HostNode) {
 
-	if v.NodeStatus!=nil{
-		for _,condiction:=range v.Conditions{
-			if condiction.Status=="True" &&(condiction.Type=="OutOfDisk"||condiction.Type=="MemoryPressure"||condiction.Type=="DiskPressure"){
-				v.Status="error"
+	if v.NodeStatus != nil {
+		for _, condiction := range v.Conditions {
+			if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
+				v.Status = "error"
 				return
 			}
-			if v.Status == "unschedulable"||v.Status=="init"||v.Status=="init_success"||v.Status=="init_failed"||v.Status=="installing"||v.Status=="install_success"||v.Status=="install_failed" {
+			if v.Status == "unschedulable" || v.Status == "init" || v.Status == "init_success" || v.Status == "init_failed" || v.Status == "installing" || v.Status == "install_success" || v.Status == "install_failed" {
 
-			}else{
-				if condiction.Type=="Ready"&&condiction.Status=="True" {
-					v.Status="running"
+			} else {
+				if condiction.Type == "Ready" && condiction.Status == "True" {
+					v.Status = "running"
 				}
 			}
 		}
 	}
-	if v.Role.HasRule("manage") {//manage install_success == runnint
-		if v.Status=="init"||v.Status=="init_success"||v.Status=="init_failed"||v.Status=="installing"||v.Status=="install_failed"{
+	if v.Role.HasRule("manage") { //manage install_success == runnint
+		if v.Status == "init" || v.Status == "init_success" || v.Status == "init_failed" || v.Status == "installing" || v.Status == "install_failed" {
 			return
 		}
 		if v.Alived {
-			for _,condition:=range v.Conditions{
-				if condition.Type=="NodeInit"&&condition.Status=="True"{
-					v.Status="running"
+			for _, condition := range v.Conditions {
+				if condition.Type == "NodeInit" && condition.Status == "True" {
+					v.Status = "running"
 				}
 			}
 		}
@@ -158,49 +159,49 @@ func GetRuleNodes(w http.ResponseWriter, r *http.Request) {
 
 func Install(w http.ResponseWriter, r *http.Request) {
 	nodeID := strings.TrimSpace(chi.URLParam(r, "node_id"))
-	if len(nodeID)==0 {
-		err:=utils.APIHandleError{
-			Code:404,
-			Err:errors.New(fmt.Sprintf("can't find node by node_id %s", nodeID)),
+	if len(nodeID) == 0 {
+		err := utils.APIHandleError{
+			Code: 404,
+			Err:  errors.New(fmt.Sprintf("can't find node by node_id %s", nodeID)),
 		}
-		err.Handle(r,w)
+		err.Handle(r, w)
 		return
 	}
 	nodeService.InstallNode(nodeID)
 
-	httputil.ReturnSuccess(r,w,nil)
+	httputil.ReturnSuccess(r, w, nil)
 }
 
 func InitStatus(w http.ResponseWriter, r *http.Request) {
 	nodeIP := strings.TrimSpace(chi.URLParam(r, "node_ip"))
-	if len(nodeIP)==0 {
-		err:=utils.APIHandleError{
-			Code:404,
-			Err:errors.New(fmt.Sprintf("can't find node by node_ip %s", nodeIP)),
+	if len(nodeIP) == 0 {
+		err := utils.APIHandleError{
+			Code: 404,
+			Err:  errors.New(fmt.Sprintf("can't find node by node_ip %s", nodeIP)),
 		}
-		err.Handle(r,w)
+		err.Handle(r, w)
 		return
 	}
-	status,err:=nodeService.InitStatus(nodeIP)
+	status, err := nodeService.InitStatus(nodeIP)
 	if err != nil {
-		err.Handle(r,w)
+		err.Handle(r, w)
 		return
 	}
 	httputil.ReturnSuccess(r, w, status)
 }
 func Resource(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
-	if len(nodeUID)==0 {
-		err:=utils.APIHandleError{
-			Code:404,
-			Err:errors.New(fmt.Sprintf("can't find node by node_id %s",nodeUID)),
+	if len(nodeUID) == 0 {
+		err := utils.APIHandleError{
+			Code: 404,
+			Err:  errors.New(fmt.Sprintf("can't find node by node_id %s", nodeUID)),
 		}
-		err.Handle(r,w)
+		err.Handle(r, w)
 		return
 	}
-	res,err:=nodeService.GetNodeResource(nodeUID)
+	res, err := nodeService.GetNodeResource(nodeUID)
 	if err != nil {
-		err.Handle(r,w)
+		err.Handle(r, w)
 		return
 	}
 	httputil.ReturnSuccess(r, w, res)
@@ -209,17 +210,17 @@ func Resource(w http.ResponseWriter, r *http.Request) {
 //UpNode 节点上线，计算节点操作
 func CheckNode(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
-	if len(nodeUID)==0 {
-		err:=utils.APIHandleError{
-			Code:404,
-			Err:errors.New(fmt.Sprintf("can't find node by node_id %s",nodeUID)),
+	if len(nodeUID) == 0 {
+		err := utils.APIHandleError{
+			Code: 404,
+			Err:  errors.New(fmt.Sprintf("can't find node by node_id %s", nodeUID)),
 		}
-		err.Handle(r,w)
+		err.Handle(r, w)
 		return
 	}
-	final,err:=nodeService.CheckNode(nodeUID)
+	final, err := nodeService.CheckNode(nodeUID)
 	if err != nil {
-		err.Handle(r,w)
+		err.Handle(r, w)
 		return
 	}
 
@@ -228,24 +229,23 @@ func CheckNode(w http.ResponseWriter, r *http.Request) {
 func dealSeq(tasks []*model.ExecedTask) {
 	var firsts []*model.ExecedTask
 	var keymap map[string]*model.ExecedTask
-	for _,v:=range tasks{
-		keymap[v.ID]=v
+	for _, v := range tasks {
+		keymap[v.ID] = v
 		if len(v.Depends) == 0 {
-			v.Seq=0
-			firsts=append(firsts,v)
+			v.Seq = 0
+			firsts = append(firsts, v)
 		}
 	}
-	for _,v:=range firsts{
-		dealLoopSeq(v,keymap)
+	for _, v := range firsts {
+		dealLoopSeq(v, keymap)
 	}
 }
 func dealLoopSeq(task *model.ExecedTask, keymap map[string]*model.ExecedTask) {
-	for _,next:=range task.Next{
-		keymap[next].Seq=task.Seq+1
-		dealLoopSeq(keymap[next],keymap)
+	for _, next := range task.Next {
+		keymap[next].Seq = task.Seq + 1
+		dealLoopSeq(keymap[next], keymap)
 	}
 }
-
 
 //DeleteRainbondNode 节点删除
 func DeleteRainbondNode(w http.ResponseWriter, r *http.Request) {
@@ -282,17 +282,17 @@ func UnCordon(w http.ResponseWriter, r *http.Request) {
 func PutLabel(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
 	var label = make(map[string]string)
-	in,error:=ioutil.ReadAll(r.Body)
+	in, error := ioutil.ReadAll(r.Body)
 	if error != nil {
-		logrus.Errorf("error read from request ,details %s",error.Error())
+		logrus.Errorf("error read from request ,details %s", error.Error())
 		return
 	}
-	error=json.Unmarshal(in,&label)
-	if error!=nil {
-		logrus.Errorf("error unmarshal labels  ,details %s",error.Error())
+	error = json.Unmarshal(in, &label)
+	if error != nil {
+		logrus.Errorf("error unmarshal labels  ,details %s", error.Error())
 		return
 	}
-	err:= nodeService.PutNodeLabel(nodeUID, label)
+	err := nodeService.PutNodeLabel(nodeUID, label)
 	if err != nil {
 		err.Handle(r, w)
 		return
@@ -322,7 +322,6 @@ func UpNode(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, node)
 }
 
-
 //UpNode 节点实例，计算节点操作
 func Instances(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
@@ -331,9 +330,9 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-	ps, error := k8s.GetPodsByNodeName(node.HostName)
+	ps, error := k8s.GetPodsByNodeName(nodeUID)
 	if error != nil {
-		httputil.ReturnError(r,w,404,error.Error())
+		httputil.ReturnError(r, w, 404, error.Error())
 		return
 	}
 
@@ -342,10 +341,10 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 	var cpuL int64
 	var memR int64
 	var memL int64
-	capCPU:=node.NodeStatus.Capacity.Cpu().Value()
-	capMEM:=node.NodeStatus.Capacity.Memory().Value()
+	capCPU := node.NodeStatus.Capacity.Cpu().Value()
+	capMEM := node.NodeStatus.Capacity.Memory().Value()
 	for _, v := range ps {
-		logrus.Infof("pos 's node name is %s and node is %s",v.Spec.NodeName,node.HostName)
+		logrus.Infof("pos 's node name is %s and node is %s", v.Spec.NodeName, node.HostName)
 		if v.Spec.NodeName != node.InternalIP {
 			continue
 		}
@@ -370,7 +369,7 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 
 		memR += rm
 
-		logrus.Infof("namespace %s,podid %s :limit cpu %v,requests cpu %v,limit mem %v,request mem %v,cap cpu is %v,cap mem is %v", pod.Namespace, pod.Name, lc, rc, lm, rm,capCPU,capMEM)
+		logrus.Infof("namespace %s,podid %s :limit cpu %v,requests cpu %v,limit mem %v,request mem %v,cap cpu is %v,cap mem is %v", pod.Namespace, pod.Name, lc, rc, lm, rm, capCPU, capMEM)
 
 		pod.CPURequests = strconv.FormatFloat(float64(rc)/float64(1000), 'f', 2, 64)
 
@@ -381,7 +380,7 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 
 		pod.MemoryRequests = strconv.Itoa(int(rm))
 		pod.MemoryRequestsR = strconv.FormatFloat(float64(rm*100)/float64(capMEM), 'f', 1, 64)
-		pod.TenantName=v.Labels["tenant_name"]
+		pod.TenantName = v.Labels["tenant_name"]
 		pod.MemoryLimits = strconv.Itoa(int(lm))
 		pod.MemoryLimitsR = strconv.FormatFloat(float64(lm*100)/float64(capMEM), 'f', 1, 64)
 

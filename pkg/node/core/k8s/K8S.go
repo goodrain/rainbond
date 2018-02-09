@@ -440,10 +440,12 @@ func getPodsToDeletion(nodeName string) (pods []v1.Pod, err error) {
 	}
 	return pods, nil
 }
+
+//GetPodsByNodeName get pods by nodename
 func GetPodsByNodeName(nodeName string) (pods []v1.Pod, err error) {
 	podList, err := K8S.Clientset.Core().Pods(metav1.NamespaceAll).List(metav1.ListOptions{
-		//FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName}).String()
-		})
+		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName}).String(),
+	})
 
 	if err != nil {
 		return pods, err
