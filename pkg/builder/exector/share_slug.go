@@ -122,42 +122,42 @@ func createMD5(packageName string) (string, error) {
 	return packageName+".md5", nil
 }
 
-//ShareToYB ShareToYB
-func (i *SlugShareItem)ShareToYB()error {
-	
-	return nil
-}
-
 //ShareToYS ShareToYS
 func (i *SlugShareItem)ShareToYS(file string)error {
 	i.Logger.Info("开始分享云市", map[string]string{"step":"slug-share"})
-	if err:= i.UploadFtp(i.FTPConf.FTPNamespace, file); err != nil {
-		return err
-	}
 	md5, err := createMD5(file)
 	if err != nil {
 		i.Logger.Error("生成md5失败", map[string]string{"step":"slug-share", "status":"success"})
 	}
-	if err := i.UploadFtp(i.FTPConf.FTPNamespace, md5); err != nil {
+	if err := i.UploadFtp(i.FTPConf.FTPNamespace, file, md5); err != nil {
 		return err
 	}
 	i.Logger.Info("分享云市完成", map[string]string{"step":"slug-share", "status":"success"})
 	return nil
 }
 
-//ShareInfoData ShareInfoData
-func (i *SlugShareItem)ShareInfoData() error {
-	//TODO:
-	return nil
-}
-
 //UploadFtp UploadFt
-func (i *SlugShareItem)UploadFtp(path, file string) error {
+func (i *SlugShareItem)UploadFtp(path, file, md5 string) error {
 	i.Logger.Info(fmt.Sprintf("开始上传代码包: %s", file), map[string]string{"step":"slug-share"})
 	ftp  := sources.NewFTPManager(i.FTPConf.Username, i.FTPConf.Password, i.FTPConf.Host)
-	err := ftp.UploadFile(path, file, i.Logger)
+	sc, err := ftp.LoginFTP(i.Logger)
 	if err != nil {
+		return err
+	}
+	defer ftp.LogoutFTP(sc, i.Logger)
+	bl, err := ftp.CheckMd5FileName(sc, path, md5)
+	if err != nil {
+		return err
+	}
+	if bl {
+		i.Logger.Info(fmt.Sprintf("文件(%s)已上传", file), map[string]string{"step":"slug-share", "status":"success"})
+		return nil
+	}
+	if err := ftp.UploadFile(sc, path, file, i.Logger); err != nil {
 		i.Logger.Error(fmt.Sprintf("上传代码包%s失败", file), map[string]string{"step":"slug-share", "status":"failure"})
+	}
+	if err := ftp.UploadFile(sc, path, md5, i.Logger); err != nil {
+		i.Logger.Error("上传md5文件失败", map[string]string{"step":"slug-share", "status":"failure"})
 	}
 	i.Logger.Info("代码包上传完成", map[string]string{"step":"slug-share", "status":"success"})
 	return nil

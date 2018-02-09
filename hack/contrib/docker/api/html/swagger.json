@@ -6865,10 +6865,6 @@
           "type": "string",
           "x-go-name": "FTPUserName"
         },
-        "inner_registry": {
-          "type": "string",
-          "x-go-name": "InnerRegistry"
-        },
         "outer_registry": {
           "type": "string",
           "x-go-name": "OuterRegistry"
