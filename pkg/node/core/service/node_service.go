@@ -272,7 +272,7 @@ func (n *NodeService) InitStatus(nodeIP string) (*model.InitStatus, *utils.APIHa
 			status.HostID = node.ID
 		} else if val.Type == model.NodeInit && val.Status == model.ConditionFalse {
 			status.Status = 1
-			status.StatusCN = fmt.Sprintf("初始化失��,%s", val.Message)
+			status.StatusCN = fmt.Sprintf("初始化失�����,%s", val.Message)
 		} else {
 			status.Status = 2
 			status.StatusCN = "初始化中"
@@ -305,9 +305,6 @@ func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *
 	var memLimit int64
 	var memRequest int64
 	for _, v := range ps {
-		if v.Spec.NodeName != node.InternalIP {
-			continue
-		}
 		lc := v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
 		cpuLimit += lc
 		lm := v.Spec.Containers[0].Resources.Limits.Memory().Value()

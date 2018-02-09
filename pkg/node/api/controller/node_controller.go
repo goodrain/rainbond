@@ -344,18 +344,14 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 	capCPU := node.NodeStatus.Capacity.Cpu().Value()
 	capMEM := node.NodeStatus.Capacity.Memory().Value()
 	for _, v := range ps {
-		logrus.Infof("pos 's node name is %s and node is %s", v.Spec.NodeName, node.HostName)
-		if v.Spec.NodeName != node.InternalIP {
-			continue
-		}
 		pod := &model.Pods{}
 		pod.Namespace = v.Namespace
-		serviceId := v.Labels["name"]
-		if serviceId == "" {
+		serviceID := v.Labels["name"]
+		if serviceID == "" {
 			continue
 		}
 		pod.Name = v.Name
-		pod.Id = serviceId
+		pod.Id = serviceID
 
 		lc := v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
 		cpuL += lc
@@ -368,9 +364,6 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 		rm := v.Spec.Containers[0].Resources.Requests.Memory().Value()
 
 		memR += rm
-
-		logrus.Infof("namespace %s,podid %s :limit cpu %v,requests cpu %v,limit mem %v,request mem %v,cap cpu is %v,cap mem is %v", pod.Namespace, pod.Name, lc, rc, lm, rm, capCPU, capMEM)
-
 		pod.CPURequests = strconv.FormatFloat(float64(rc)/float64(1000), 'f', 2, 64)
 
 		pod.CPURequestsR = strconv.FormatFloat(float64(rc/10)/float64(capCPU), 'f', 1, 64)
