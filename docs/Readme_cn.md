@@ -47,7 +47,7 @@ $make images
 ## 社区支持
 ### 微信交流群
 <img src="https://github.com/goodrain/rainbond/blob/master/docs/Wechat.jpeg" width="30%">
-*微信扫面二维码添加好友*   
+*微信扫描二维码添加好友*
 
 ### Rainbond用户交流群(QQ)：
 
