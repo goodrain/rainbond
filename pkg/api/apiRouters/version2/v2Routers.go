@@ -191,7 +191,7 @@ func (v2 *V2) clusterRouter() chi.Router {
 
 func (v2 *V2) resourcesRouter() chi.Router {
 	r := chi.NewRouter()
-	r.Post("/tenants", controller.GetManager().TenantResources)
+	r.Post("/tenants", controller.GetManager().Tenant)
 	r.Get("/tenants/sum", controller.GetManager().SumTenants)
 	//tenants's resource
 	r.Get("/tenants/res", controller.GetManager().TenantsWithResource)
