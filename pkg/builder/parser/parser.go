@@ -22,18 +22,19 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
 	"github.com/goodrain/rainbond/pkg/builder/parser/code"
 )
 
 //Port 端口
 type Port struct {
-	ContainerPort int `json:"container_port"`
+	ContainerPort int    `json:"container_port"`
 	Protocol      string `json:"protocol"`
 }
 
 //Volume 存储地址
 type Volume struct {
-	VolumePath string  `json:"volume_path"`
+	VolumePath string `json:"volume_path"`
 	VolumeType string `json:"volume_type"`
 }
 
@@ -46,8 +47,8 @@ type Env struct {
 //ParseError 错误信息
 type ParseError struct {
 	ErrorType   ParseErrorType `json:"error_type"`
-	ErrorInfo   string `json:"error_info"`
-	SolveAdvice string `json:"solve_advice"`
+	ErrorInfo   string         `json:"error_info"`
+	SolveAdvice string         `json:"solve_advice"`
 }
 
 //ParseErrorList 错误列表
@@ -79,6 +80,11 @@ func ErrorAndSolve(errtype ParseErrorType, errorInfo, SolveAdvice string) ParseE
 		SolveAdvice: SolveAdvice,
 	}
 	return parseError
+}
+
+//SolveAdvice 构建a标签建议
+func SolveAdvice(actionType, message string) string {
+	return fmt.Sprintf("<a action_type=\"%s\">%s</a>", actionType, message)
 }
 
 func (p ParseError) Error() string {
@@ -124,25 +130,25 @@ type Lang string
 
 //ServiceInfo 智能获取的应用信息
 type ServiceInfo struct {
-	Ports             []Port   `json:"ports"`
-	Envs              []Env    `json:"envs"`
-	Volumes           []Volume `json:"volumes"`
-	Image             Image    `json:"image"`
-	Args              []string `json:"args"`
-	DependServices    []string `json:"depends,omitempty"`
-	ServiceDeployType string   `json:"deploy_type,omitempty"`
-	Branchs           []string `json:"branchs,omitempty"`
-	Memory            int      `json:"memory"`
-	Lang 			  code.Lang 	   `json:"language"`	  
-	Runtime			  bool		`json:"runtime"`
-	Library			  bool		`json:"library"`
-	Procfile		  bool		`json:"procfile"`
+	Ports             []Port    `json:"ports"`
+	Envs              []Env     `json:"envs"`
+	Volumes           []Volume  `json:"volumes"`
+	Image             Image     `json:"image"`
+	Args              []string  `json:"args"`
+	DependServices    []string  `json:"depends,omitempty"`
+	ServiceDeployType string    `json:"deploy_type,omitempty"`
+	Branchs           []string  `json:"branchs,omitempty"`
+	Memory            int       `json:"memory"`
+	Lang              code.Lang `json:"language"`
+	Runtime           bool      `json:"runtime"`
+	Library           bool      `json:"library"`
+	Procfile          bool      `json:"procfile"`
 }
 
 //GetServiceInfo GetServiceInfo
 type GetServiceInfo struct {
-	UUID 		string `json:"uuid"`
-	Source 		string `json:"source"`
+	UUID   string `json:"uuid"`
+	Source string `json:"source"`
 }
 
 //GetPortProtocol 获取端口协议

@@ -32,11 +32,9 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
-	"github.com/Sirupsen/logrus"
 	//"github.com/docker/docker/client"
 	"github.com/docker/engine-api/client"
 )
-
 
 //SourceCodeParse docker run 命令解析或直接镜像名解析
 type SourceCodeParse struct {
@@ -52,9 +50,9 @@ type SourceCodeParse struct {
 	dockerclient *client.Client
 	logger       event.Logger
 	Lang         code.Lang
-	Runtime			  bool		`json:"runtime"`
-	Library			  bool		`json:"library"`
-	Procfile		  bool		`json:"procfile"`
+	Runtime      bool `json:"runtime"`
+	Library      bool `json:"library"`
+	Procfile     bool `json:"procfile"`
 }
 
 //CreateSourceCodeParse create parser
@@ -98,7 +96,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		ep, err := transport.NewEndpoint(csi.RepositoryURL)
 		if err != nil {
 			d.logger.Error("Git项目仓库地址格式错误", map[string]string{"step": "parse"})
-			d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", "请确认并修改仓库地址"))
+			d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", SolveAdvice("modify_url", "请确认并修改仓库地址")))
 			return d.errors
 		}
 		//获取代码
@@ -112,13 +110,9 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		if err != nil {
 			if err == transport.ErrAuthenticationRequired {
 				if ep.Protocol == "ssh" {
-					solve := `
-					请将以下SSH Key配置到仓库安全设置中：
-					` + sources.GetPublicKey() + `
-					`
-					d.errappend(ErrorAndSolve(FatalError, "Git项目仓库需要安全验证", solve))
+					d.errappend(ErrorAndSolve(FatalError, "Git项目仓库需要安全验证", SolveAdvice("get_publickey", "请获取授权Key配置到你的仓库项目中")))
 				} else {
-					d.errappend(ErrorAndSolve(FatalError, "Git项目仓库需要安全验证", "请提供正确的账号密码"))
+					d.errappend(ErrorAndSolve(FatalError, "Git项目仓库需要安全验证", SolveAdvice("modify_userpass", "请提供正确的账号密码")))
 				}
 				return d.errors
 			}
@@ -153,54 +147,54 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			return gitFunc()
 		}
 	case "svn":
-	default: 
+	default:
 		//按照git处理处理
 		if gitFunc() != nil {
 			return gitFunc()
-		}	
+		}
 		//验证仓库地址
-	    // 	ep, err := transport.NewEndpoint(csi.RepositoryURL)
-	    // 	if err != nil {
-	    // 		d.logger.Error("Git项目仓库地址格式错误", map[string]string{"step": "parse"})
-	    // 		d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", "请确认并修改仓库地址"))
-	    // 		return d.errors
-	    // 	}
-	    // 	//获取代码
-	    // 	rs, err := sources.GitClone(csi, cacheDir, d.logger, 5)
-	    // 	if err != nil {
-	    // 		if err == transport.ErrAuthenticationRequired {
-	    // 			if ep.Protocol == "ssh" {
-	    // 				solve := `
-	    // 				请将以下SSH Key配置到仓库安全设置中：
-	    // 				` + sources.GetPublicKey() + `
-	    // 				`
-	    // 				d.errappend(ErrorAndSolve(FatalError, "Git项目仓库需要安全验证", solve))
-	    // 			} else {
-	    // 				d.errappend(ErrorAndSolve(FatalError, "Git项目仓库需要安全验证", "请提供正确的账号密码"))
-	    // 			}
-	    // 			return d.errors
-	    // 		}
-	    // 		if err == plumbing.ErrReferenceNotFound {
-	    // 			solve := "请到代码仓库查看正确的分支情况"
-	    // 			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("Git项目仓库指定分支 %s 不存在", csi.Branch), solve))
-	    // 			return d.errors
-	    // 		}
-	    // 		d.errappend(Errorf(FatalError, err.Error()))
-	    // 		return d.errors
-	    // 	}
-	    // 	//获取分支
-	    // 	branch, err := rs.Branches()
-	    // 	if err == nil {
-	    // 		branch.ForEach(func(re *plumbing.Reference) error {
-	    // 			name := re.Name()
-	    // 			if name.IsBranch() {
-	    // 				d.branchs = append(d.branchs, name.Short())
-	    // 			}
-	    // 			return nil
-	    // 		})
-	    // 	} else {
-	    // 		d.branchs = append(d.branchs, csi.Branch)
-	    // 	}
+		// 	ep, err := transport.NewEndpoint(csi.RepositoryURL)
+		// 	if err != nil {
+		// 		d.logger.Error("Git项目仓库地址格式错误", map[string]string{"step": "parse"})
+		// 		d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", "请确认并修改仓库地址"))
+		// 		return d.errors
+		// 	}
+		// 	//获取代码
+		// 	rs, err := sources.GitClone(csi, cacheDir, d.logger, 5)
+		// 	if err != nil {
+		// 		if err == transport.ErrAuthenticationRequired {
+		// 			if ep.Protocol == "ssh" {
+		// 				solve := `
+		// 				请将以下SSH Key配置到仓库安全设置中：
+		// 				` + sources.GetPublicKey() + `
+		// 				`
+		// 				d.errappend(ErrorAndSolve(FatalError, "Git项目仓库需要安全验证", solve))
+		// 			} else {
+		// 				d.errappend(ErrorAndSolve(FatalError, "Git项目仓库需要安全验证", "请提供正确的账号密码"))
+		// 			}
+		// 			return d.errors
+		// 		}
+		// 		if err == plumbing.ErrReferenceNotFound {
+		// 			solve := "请到代码仓库查看正确的分支情况"
+		// 			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("Git项目仓库指定分支 %s 不存在", csi.Branch), solve))
+		// 			return d.errors
+		// 		}
+		// 		d.errappend(Errorf(FatalError, err.Error()))
+		// 		return d.errors
+		// 	}
+		// 	//获取分支
+		// 	branch, err := rs.Branches()
+		// 	if err == nil {
+		// 		branch.ForEach(func(re *plumbing.Reference) error {
+		// 			name := re.Name()
+		// 			if name.IsBranch() {
+		// 				d.branchs = append(d.branchs, name.Short())
+		// 			}
+		// 			return nil
+		// 		})
+		// 	} else {
+		// 		d.branchs = append(d.branchs, csi.Branch)
+		// 	}
 	}
 
 	//读取云帮配置文件
@@ -234,12 +228,11 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		}
 	}
 	d.Lang = lang
-	logrus.Debugf("d. lang result is %v", d.Lang)
 	if lang == code.NO {
-		d.errappend(ErrorAndSolve(FatalError, "代码无法失败语言类型", "请参考文档查看平台语言支持规范"))
+		d.errappend(ErrorAndSolve(FatalError, "代码无法识别语言类型", "请参考文档查看平台语言支持规范"))
 		return d.errors
 	}
-	//判断代码规范
+	//判断代码������������范
 	spec := code.CheckCodeSpecification(buildPath, lang)
 	if spec.Advice != nil {
 		for k, v := range spec.Advice {
@@ -325,24 +318,24 @@ func (d *SourceCodeParse) GetLang() code.Lang {
 }
 
 //GetRuntime GetRuntime
-func (d *SourceCodeParse)GetRuntime() bool {
+func (d *SourceCodeParse) GetRuntime() bool {
 	return d.Runtime
 }
 
 //GetServiceInfo 获取service info
 func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 	serviceInfo := ServiceInfo{
-		Ports:   d.GetPorts(),
-		Envs:    d.GetEnvs(),
-		Volumes: d.GetVolumes(),
-		Image:   d.GetImage(),
-		Args:    d.GetArgs(),
-		Branchs: d.GetBranchs(),
-		Memory:  d.memory,
-		Lang:    d.GetLang(),
-		Library: true,
+		Ports:    d.GetPorts(),
+		Envs:     d.GetEnvs(),
+		Volumes:  d.GetVolumes(),
+		Image:    d.GetImage(),
+		Args:     d.GetArgs(),
+		Branchs:  d.GetBranchs(),
+		Memory:   d.memory,
+		Lang:     d.GetLang(),
+		Library:  true,
 		Procfile: true,
-		Runtime: true,
+		Runtime:  true,
 	}
 	return []ServiceInfo{serviceInfo}
 }
