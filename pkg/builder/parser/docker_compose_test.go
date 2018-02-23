@@ -280,13 +280,31 @@ volumes:
   db-data:
 `
 
+var dockercompose20 = `
+version: '2.0'
+
+services:
+  nginx:
+    restart: always
+    image: nginx:1.11.6-alpine
+    ports:
+      - 8080:80
+      - 80:80
+      - 443:443
+    volumes:
+      - ./conf.d:/etc/nginx/conf.d
+      - ./log:/var/log/nginx
+      - ./www:/var/www
+      - /etc/letsencrypt:/etc/letsencrypt
+`
+
 func TestDockerComposeParse(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	dockerclient, err := client.NewEnvClient()
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := CreateDockerComposeParse(dockercompose3, dockerclient, nil)
+	p := CreateDockerComposeParse(dockercompose20, dockerclient, nil)
 	if err := p.Parse(); err != nil {
 		logrus.Errorf(err.Error())
 		return

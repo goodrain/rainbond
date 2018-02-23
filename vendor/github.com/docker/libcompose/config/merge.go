@@ -31,7 +31,9 @@ func CreateConfig(bytes []byte) (*Config, error) {
 	if err := yaml.Unmarshal(bytes, &config); err != nil {
 		return nil, err
 	}
-
+	if config.Version == "2.0" {
+		config.Version = "2"
+	}
 	if config.Version != "2" {
 		var baseRawServices RawServiceMap
 		if err := yaml.Unmarshal(bytes, &baseRawServices); err != nil {
