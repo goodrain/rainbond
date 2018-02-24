@@ -25,6 +25,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/builder/parser"
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/ghodss/yaml"
 )
 
 //ServiceCheckInput 任务输入数据
@@ -89,7 +90,14 @@ func (e *exectorManager) serviceCheck(in []byte) {
 	case "docker-run":
 		pr = parser.CreateDockerRunOrImageParse(input.SourceBody, e.DockerClient, logger)
 	case "docker-compose":
-		pr = parser.CreateDockerComposeParse(input.SourceBody, e.DockerClient, logger)
+		logrus.Debugf("source body is %v", input.SourceBody)
+		y, err := yaml.JSONToYAML([]byte(input.SourceBody))
+		if err != nil {
+			logrus.Errorf("json bytes format is error, %s", input.SourceBody)
+			logger.Error("dockercompose文件格式不正确。", map[string]string{"step": "callback", "status":"failure"})
+			return
+		}
+		pr = parser.CreateDockerComposeParse(string(y), e.DockerClient, logger)
 	case "sourcecode":
 		pr = parser.CreateSourceCodeParse(input.SourceBody, logger)
 	}

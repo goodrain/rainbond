@@ -298,13 +298,34 @@ services:
       - /etc/letsencrypt:/etc/letsencrypt
 `
 
+var dockerInput = `version: '2.0'\r\nservices:\r\n  db:\r\n    image: mysql:latest\r\n    ports:\r\n      - 3306:3306\r\n    volumes:\r\n      - ./wp-data:/docker-entrypoint-initdb.d\r\n    environment:\r\n      MYSQL_DATABASE: wordpress\r\n      MYSQL_ROOT_PASSWORD: password`
+
+var composeJson = `{
+  "version": "2.0",
+  "services": {
+   "db": {
+    "image": "mysql:latest",
+    "ports": [
+     "3306:3306"
+    ],
+    "volumes": [
+     "./wp-data:/docker-entrypoint-initdb.d"
+    ],
+    "environment": {
+     "MYSQL_DATABASE": "wordpress",
+     "MYSQL_ROOT_PASSWORD": "password"
+    }
+   }
+  }
+ }`
+
 func TestDockerComposeParse(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	dockerclient, err := client.NewEnvClient()
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := CreateDockerComposeParse(dockercompose20, dockerclient, nil)
+	p := CreateDockerComposeParse(composeJson, dockerclient, nil)
 	if err := p.Parse(); err != nil {
 		logrus.Errorf(err.Error())
 		return
