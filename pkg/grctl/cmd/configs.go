@@ -81,6 +81,7 @@ func NewCmdConfigs() cli.Command {
 					if err != nil {
 						return err
 					}
+					fmt.Printf("configs %s put success \n", key)
 					return nil
 				},
 			},
