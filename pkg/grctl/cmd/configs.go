@@ -53,10 +53,10 @@ func NewCmdConfigs() cli.Command {
 			},
 			cli.Command{
 				Name:  "put",
-				Usage: "update database configs",
+				Usage: "put database configs",
 				Action: func(c *cli.Context) error {
-					key := c.Args().Get(1)
-					value := c.Args().Get(2)
+					key := c.Args().Get(0)
+					value := c.Args().Get(1)
 					configs, err := clients.NodeClient.Configs().Get()
 					if err != nil {
 						return err
