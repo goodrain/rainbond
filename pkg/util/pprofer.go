@@ -30,15 +30,15 @@ import (
 //ProfilerSetup pprof route
 func ProfilerSetup(r *chi.Mux) {
 	r.HandleFunc("/vars", expVars)
-	r.HandleFunc("/pprof/", pprof.Index)
-	r.HandleFunc("/pprof/cmdline", pprof.Cmdline)
-	r.HandleFunc("/pprof/profile", pprof.Profile)
-	r.HandleFunc("/pprof/symbol", pprof.Symbol)
-	r.HandleFunc("/pprof/trace", pprof.Trace)
-	r.HandleFunc("/pprof/block", pprof.Handler("block").ServeHTTP)
-	r.HandleFunc("/pprof/heap", pprof.Handler("heap").ServeHTTP)
-	r.HandleFunc("/pprof/goroutine", pprof.Handler("goroutine").ServeHTTP)
-	r.HandleFunc("/pprof/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
+	r.HandleFunc("/debug/pprof/", pprof.Index)
+	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	r.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	r.HandleFunc("/debug/pprof/block", pprof.Handler("block").ServeHTTP)
+	r.HandleFunc("/debug/pprof/heap", pprof.Handler("heap").ServeHTTP)
+	r.HandleFunc("/debug/pprof/goroutine", pprof.Handler("goroutine").ServeHTTP)
+	r.HandleFunc("/debug/pprof/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
 }
 
 // Replicated from expvar.go as not public.
