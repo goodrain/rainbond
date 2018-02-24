@@ -343,6 +343,7 @@ func (e *exectorManager)slugShare(in []byte) {
 
 func (e *exectorManager)imageShare(in []byte) {
 	i := NewImageShareItem(in)
+	i.DockerClient = e.DockerClient
 	i.Logger.Info("开始分享新版本应用", map[string]string{"step": "builder-exector", "status": "starting"})	
 	status := "success"
 	go func(){
