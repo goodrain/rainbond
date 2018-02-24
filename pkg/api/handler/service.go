@@ -810,7 +810,8 @@ func (s *ServiceAction) ShareCloud(c *api_model.CloudShareStruct) error {
 		}
 		bs.User = "define"
 		bs.TaskBody = bodyJ
-		bs.TaskType = "app_slug"
+		//bs.TaskType = "app_slug"
+		bs.TaskType = "slug_share"
 	case "app_image":
 		if c.Body.Image.ServiceID != "" {
 			service, err := db.GetManager().TenantServiceDao().GetServiceByID(c.Body.Image.ServiceID)
@@ -825,7 +826,7 @@ func (s *ServiceAction) ShareCloud(c *api_model.CloudShareStruct) error {
 		}
 		bs.User = "define"
 		bs.TaskBody = bodyJ
-		bs.TaskType = "app_image"
+		bs.TaskType = "image_share"
 	default:
 		return fmt.Errorf("need share kind")
 	}
