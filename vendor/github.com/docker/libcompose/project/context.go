@@ -1,7 +1,6 @@
 package project
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
