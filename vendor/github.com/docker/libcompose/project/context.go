@@ -76,7 +76,8 @@ func (c *Context) determineProject() error {
 	c.ProjectName = normalizeName(name)
 
 	if c.ProjectName == "" {
-		return fmt.Errorf("Falied to determine project name")
+		//return fmt.Errorf("Falied to determine project name")
+		c.ProjectName="builder"
 	}
 
 	return nil
