@@ -26,9 +26,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/event"
 
-	//"github.com/docker/docker/api/types"
 	"github.com/docker/engine-api/types"
-	//"github.com/docker/docker/client"
 	"github.com/docker/engine-api/client"
 )
 

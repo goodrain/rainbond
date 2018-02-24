@@ -23,7 +23,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	//"github.com/docker/docker/client"
-	"github.com/docker/engine-api/client"
+  "github.com/docker/engine-api/client"
+  "github.com/ghodss/yaml"
 )
 
 var dockercompose = `
@@ -300,32 +301,23 @@ services:
 
 var dockerInput = `version: '2.0'\r\nservices:\r\n  db:\r\n    image: mysql:latest\r\n    ports:\r\n      - 3306:3306\r\n    volumes:\r\n      - ./wp-data:/docker-entrypoint-initdb.d\r\n    environment:\r\n      MYSQL_DATABASE: wordpress\r\n      MYSQL_ROOT_PASSWORD: password`
 
-var composeJson = `{
-  "version": "2.0",
-  "services": {
-   "db": {
-    "image": "mysql:latest",
-    "ports": [
-     "3306:3306"
-    ],
-    "volumes": [
-     "./wp-data:/docker-entrypoint-initdb.d"
-    ],
-    "environment": {
-     "MYSQL_DATABASE": "wordpress",
-     "MYSQL_ROOT_PASSWORD": "password"
-    }
-   }
-  }
- }`
+//var composeJ = `{"version": "2.0","services": {"db": {"image": "mysql:latest","ports": ["3306:3306"],"volumes": ["./wp-data:/docker-entrypoint-initdb.d"],"environment": {"MYSQL_DATABASE": "wordpress","MYSQL_ROOT_PASSWORD": "password"}}}}`
 
+var mmJ = "{\"services\": {\"db\": {\"environment\": {\"MYSQL_ROOT_PASSWORD\": \"password\", \"MYSQL_DATABASE\": \"wordpress\"}, \"image\": \"mysql:latest\", \"ports\": [\"3306:3306\"], \"volumes\": [\"./wp-data:/docker-entrypoint-initdb.d\"]}}, \"version\": \"2.0\"}"
+var composeJ = `{"version": "2.0","services": {"db": {"image": "mysql:latest","ports": ["3306:3306"],"volumes": ["./wp-data:/docker-entrypoint-initdb.d"],"environment": {"MYSQL_DATABASE": "wordpress","MYSQL_ROOT_PASSWORD": "password"}}}}`
+        
 func TestDockerComposeParse(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	dockerclient, err := client.NewEnvClient()
 	if err != nil {
 		t.Fatal(err)
-	}
-	p := CreateDockerComposeParse(composeJson, dockerclient, nil)
+  }
+  y, err := yaml.JSONToYAML([]byte(composeJ))
+  if err != nil {
+    fmt.Printf("yaml error, %v", err.Error())
+  }
+  fmt.Printf("yaml is %s", string(y))
+	p := CreateDockerComposeParse(string(y), dockerclient, nil)
 	if err := p.Parse(); err != nil {
 		logrus.Errorf(err.Error())
 		return
