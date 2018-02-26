@@ -180,8 +180,12 @@ func dockerComposeToKomposeMapping(composeObject *types.Config) (ComposeObject, 
 		// Standard import
 		// No need to modify before importation
 		name := composeServiceConfig.Name
+		logrus.Debugf("compose 3 service conf name is %s", name)
 		serviceConfig := ServiceConfig{}
 		serviceConfig.ContainerName = composeServiceConfig.ContainerName
+		if serviceConfig.ContainerName == "" {
+			serviceConfig.ContainerName = name
+		}
 		serviceConfig.Image = composeServiceConfig.Image
 		serviceConfig.WorkingDir = composeServiceConfig.WorkingDir
 		serviceConfig.Annotations = map[string]string(composeServiceConfig.Labels)
@@ -193,7 +197,6 @@ func dockerComposeToKomposeMapping(composeObject *types.Config) (ComposeObject, 
 		serviceConfig.Stdin = composeServiceConfig.StdinOpen
 		serviceConfig.Tty = composeServiceConfig.Tty
 		serviceConfig.TmpFs = composeServiceConfig.Tmpfs
-		serviceConfig.ContainerName = composeServiceConfig.ContainerName
 		serviceConfig.Command = composeServiceConfig.Entrypoint
 		serviceConfig.Args = composeServiceConfig.Command
 		serviceConfig.Labels = composeServiceConfig.Labels
