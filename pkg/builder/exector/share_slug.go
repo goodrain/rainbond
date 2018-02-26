@@ -27,7 +27,6 @@ import (
 	"fmt"
 	"os"
 	"crypto/md5"
-	"io"
 	"io/ioutil"
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/tidwall/gjson"
