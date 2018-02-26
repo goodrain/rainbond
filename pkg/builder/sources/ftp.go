@@ -78,6 +78,7 @@ func (f *FTPBase)LogoutFTP(sc *ftp.ServerConn, logger event.Logger) error {
 
 //UploadFile UploadFile
 func (f *FTPBase)UploadFile(sc *ftp.ServerConn, path, file string, logger event.Logger) error {
+	logger.Error(fmt.Sprintf("开始上传代码包:%s", file), map[string]string{"step":"slug-share"})
 	if err := sc.ChangeDir(path); err != nil {
 		return err
 	}

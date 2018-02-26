@@ -155,9 +155,11 @@ func (i *SlugShareItem)UploadFtp(path, file, md5 string) error {
 	}
 	if err := ftp.UploadFile(sc, path, file, i.Logger); err != nil {
 		i.Logger.Error(fmt.Sprintf("上传代码包%s失败", file), map[string]string{"step":"slug-share", "status":"failure"})
+		return err
 	}
 	if err := ftp.UploadFile(sc, path, md5, i.Logger); err != nil {
 		i.Logger.Error("上传md5文件失败", map[string]string{"step":"slug-share", "status":"failure"})
+		return err
 	}
 	i.Logger.Info("代码包上传完成", map[string]string{"step":"slug-share", "status":"success"})
 	return nil
