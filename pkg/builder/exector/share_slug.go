@@ -21,6 +21,7 @@ package exector
 
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/builder/sources"
 	"time"
 	"fmt"
@@ -71,7 +72,7 @@ func NewSlugShareItem(in []byte) *SlugShareItem {
 	logger := event.GetManager().GetLogger(eventID)
 	sf := SlugFTPConf {
 		Username: gjson.GetBytes(in, "share_conf.ftp_username").String(),
-		Password: gjson.GetBytes(in, "share_conf.ftp_username").String(),
+		Password: gjson.GetBytes(in, "share_conf.ftp_password").String(),
 		Host: gjson.GetBytes(in, "share_conf.ftp_host").String(),
 		Port: int(gjson.GetBytes(in, "share_conf.ftp_port").Int()),
 		FTPNamespace: gjson.GetBytes(in, "share_conf.ftp_namespace").String(),
@@ -129,7 +130,10 @@ func (i *SlugShareItem)ShareToYS(file string)error {
 	if err != nil {
 		i.Logger.Error("生成md5失败", map[string]string{"step":"slug-share", "status":"success"})
 	}
-	if err := i.UploadFtp(i.FTPConf.FTPNamespace, file, md5); err != nil {
+	logrus.Debugf("md5 path is %s", md5)
+	ftpUpPath := fmt.Sprintf("%s%s", i.FTPConf.FTPNamespace, i.ServiceKey)
+	if err := i.UploadFtp(ftpUpPath, file, md5); err != nil {
+		logrus.Errorf("upload file to ftp error: %s", err.Error())
 		return err
 	}
 	i.Logger.Info("分享云市完成", map[string]string{"step":"slug-share", "status":"success"})
@@ -139,7 +143,7 @@ func (i *SlugShareItem)ShareToYS(file string)error {
 //UploadFtp UploadFt
 func (i *SlugShareItem)UploadFtp(path, file, md5 string) error {
 	i.Logger.Info(fmt.Sprintf("开始上传代码包: %s", file), map[string]string{"step":"slug-share"})
-	ftp  := sources.NewFTPManager(i.FTPConf.Username, i.FTPConf.Password, i.FTPConf.Host)
+	ftp  := sources.NewFTPManager(i.FTPConf.Username, i.FTPConf.Password, i.FTPConf.Host, i.FTPConf.Port)
 	sc, err := ftp.LoginFTP(i.Logger)
 	if err != nil {
 		return err
@@ -155,9 +159,11 @@ func (i *SlugShareItem)UploadFtp(path, file, md5 string) error {
 	}
 	if err := ftp.UploadFile(sc, path, file, i.Logger); err != nil {
 		i.Logger.Error(fmt.Sprintf("上传代码包%s失败", file), map[string]string{"step":"slug-share", "status":"failure"})
+		return err
 	}
 	if err := ftp.UploadFile(sc, path, md5, i.Logger); err != nil {
 		i.Logger.Error("上传md5文件失败", map[string]string{"step":"slug-share", "status":"failure"})
+		return err
 	}
 	i.Logger.Info("代码包上传完成", map[string]string{"step":"slug-share", "status":"success"})
 	return nil
