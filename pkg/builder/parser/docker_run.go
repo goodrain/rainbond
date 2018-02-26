@@ -19,6 +19,7 @@
 package parser
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -73,15 +74,19 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 	//docker run
 	if strings.HasPrefix(d.source, "docker") {
 		d.dockerun(strings.Split(d.source, " "))
+		if d.image.String() == "" || d.image.String() == ":" {
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称识别失败"), "请确认DockerRun命令是否合法"))
+			return d.errors
+		}
 		if _, err := reference.ParseAnyReference(d.image.String()); err != nil {
-			d.errappend(Errorf(FatalError, "Error parsing reference: %q is not a valid repository/tag", d.image))
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称(%s)不合法", d.image.String()), "请确认输入镜像名是否正确"))
 			return d.errors
 		}
 	} else {
 		//else image
 		_, err := reference.ParseAnyReference(d.source)
 		if err != nil {
-			d.errappend(Errorf(FatalError, "Error parsing reference: %q is not a valid repository/tag", d.source))
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称(%s)不合法", d.image.String()), "请确认输入镜像名是否正确"))
 			return d.errors
 		}
 		d.image = parseImageName(d.source)
@@ -156,8 +161,10 @@ func (d *DockerRunOrImageParse) dockerun(source []string) {
 				case "memory", "m":
 					d.memory = readmemory(s)
 				}
+				name = ""
 			}
 		} else {
+			fmt.Printf("Name %s S : %s \n", name, s)
 			switch name {
 			case "e", "env":
 				info := strings.Split(s, "=")

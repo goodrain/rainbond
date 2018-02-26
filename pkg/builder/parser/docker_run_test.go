@@ -27,16 +27,7 @@ import (
 	"github.com/docker/engine-api/client"
 )
 
-var dockerrun = `
-docker run --name my-custom-nginx-container \
--d -it \
--v=/host/path/nginx.conf:/etc/nginx/nginx.conf:ro \
--e=xxx=xxx \
---public 90:90 \
--m 10g \
- mysql
-
-`
+var dockerrun = `docker run -d -p 8080:8080 -e PWD=1qa2ws --name=tomcat_demo tomcat`
 
 func TestParse(t *testing.T) {
 	dockerclient, err := client.NewEnvClient()
