@@ -71,7 +71,7 @@ func NewSlugShareItem(in []byte) *SlugShareItem {
 	logger := event.GetManager().GetLogger(eventID)
 	sf := SlugFTPConf {
 		Username: gjson.GetBytes(in, "share_conf.ftp_username").String(),
-		Password: gjson.GetBytes(in, "share_conf.ftp_username").String(),
+		Password: gjson.GetBytes(in, "share_conf.ftp_password").String(),
 		Host: gjson.GetBytes(in, "share_conf.ftp_host").String(),
 		Port: int(gjson.GetBytes(in, "share_conf.ftp_port").Int()),
 		FTPNamespace: gjson.GetBytes(in, "share_conf.ftp_namespace").String(),
@@ -139,7 +139,7 @@ func (i *SlugShareItem)ShareToYS(file string)error {
 //UploadFtp UploadFt
 func (i *SlugShareItem)UploadFtp(path, file, md5 string) error {
 	i.Logger.Info(fmt.Sprintf("开始上传代码包: %s", file), map[string]string{"step":"slug-share"})
-	ftp  := sources.NewFTPManager(i.FTPConf.Username, i.FTPConf.Password, i.FTPConf.Host)
+	ftp  := sources.NewFTPManager(i.FTPConf.Username, i.FTPConf.Password, i.FTPConf.Host, i.FTPConf.Port)
 	sc, err := ftp.LoginFTP(i.Logger)
 	if err != nil {
 		return err

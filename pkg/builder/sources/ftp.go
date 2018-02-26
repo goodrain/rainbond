@@ -59,6 +59,7 @@ func (f *FTPBase)LoginFTP(logger event.Logger) (*ftp.ServerConn, error){
 		logger.Error("ftp服务器连接错误", map[string]string{"step":"slug-share", "status":"failure"})
 		return nil, err
 	}
+	logrus.Debugf("user name is %s, password is %s", f.UserName, f.PassWord)
 	if err := sc.Login(f.UserName, f.PassWord); err != nil {
 		logger.Error("ftp服务器登录错误", map[string]string{"step":"slug-share", "status":"failure"})
 		return nil, err
