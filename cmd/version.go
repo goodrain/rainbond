@@ -23,11 +23,8 @@ import (
 	"os"
 )
 
-//CodeVersion 代码版本
-const CodeVersion = "0.0.0"
-
 //ShowVersion 显示版本
 func ShowVersion(module string) {
-	fmt.Printf("Rainbond %s %s\n", module, CodeVersion)
+	fmt.Printf("Rainbond %s %s\n", module, os.Getenv("RELEASE_DESC"))
 	os.Exit(0)
 }

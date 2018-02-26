@@ -24,6 +24,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/goodrain/rainbond/pkg/util"
+
 	"github.com/coreos/etcd/client"
 	"github.com/goodrain/rainbond/cmd/api/option"
 
@@ -71,6 +73,9 @@ func NewManager(c option.Config) *Manager {
 	//simple authz
 	if os.Getenv("TOKEN") != "" {
 		r.Use(apimiddleware.FullToken)
+	}
+	if os.Getenv("DEBUG") == "true" {
+		util.ProfilerSetup(r)
 	}
 	//simple api version
 	r.Use(apimiddleware.APIVersion)

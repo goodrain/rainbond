@@ -118,8 +118,10 @@ class RepoBuilder():
         num = 0
         while num < 2:
             try:
-                shell.call("timeout -k 9 {2} git clone {0} {1}".format(
-                    self.repo_url, self.source_dir, CLONE_TIMEOUT))
+                cmdstr = "timeout -k 9 {2} git clone {0} {1}".format(self.repo_url, self.source_dir, CLONE_TIMEOUT)
+                if "github.com" in self.repo_url:
+                    cmdstr = "timeout -k 9 {2} git clone -c http.proxy=http://127.0.0.1:18888 {0} {1}".format(self.repo_url, self.source_dir, CLONE_TIMEOUT)
+                shell.call(cmdstr)
                 result = True
                 break
             except shell.ExecException, e:
