@@ -19,6 +19,7 @@
 package parser
 
 import (
+	"github.com/Sirupsen/logrus"
 	"strings"
 
 	"github.com/goodrain/rainbond/pkg/builder/parser/compose"
@@ -47,6 +48,7 @@ type serviceInfoFromDC struct {
 	image   Image
 	args    []string
 	depends []string
+	imageAlias string
 }
 
 //GetPorts 获取端口列表
@@ -96,6 +98,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 		return d.errors
 	}
 	for kev, sc := range co.ServiceConfigs {
+		logrus.Debugf("service config is %v, container name is %s", sc, sc.ContainerName)
 		ports := make(map[int]*Port)
 		for _, p := range sc.Port {
 			pro := string(p.Protocol)
@@ -129,6 +132,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 			image:   parseImageName(sc.Image),
 			args:    sc.Args,
 			depends: sc.Links,
+			imageAlias: sc.ContainerName,
 		}
 		if sc.DependsON != nil {
 			service.depends = sc.DependsON
@@ -189,6 +193,7 @@ func (d *DockerComposeParse) GetServiceInfo() []ServiceInfo {
 			Args:           service.args,
 			DependServices: service.depends,
 			Memory:         service.memory,
+			ImageAlias: 	service.imageAlias,
 		}
 		sis = append(sis, si)
 	}

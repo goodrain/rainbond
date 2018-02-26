@@ -143,6 +143,7 @@ type ServiceInfo struct {
 	Runtime           bool      `json:"runtime"`
 	Library           bool      `json:"library"`
 	Procfile          bool      `json:"procfile"`
+	ImageAlias 		  string    `json:"image_alias"`
 }
 
 //GetServiceInfo GetServiceInfo

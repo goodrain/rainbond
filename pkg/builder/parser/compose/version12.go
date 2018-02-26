@@ -224,8 +224,9 @@ func libComposeToKomposeMapping(composeObject *project.Project) (ComposeObject, 
 		if err != nil {
 			return ComposeObject{}, fmt.Errorf("kompose.service.type can't be set if service doesn't expose any ports.")
 		}
-
+		logrus.Debugf("inner service conf is %v", composeServiceConfig)
 		// convert compose labels to annotations
+		serviceConfig.ContainerName = composeServiceConfig.ContainerName
 		serviceConfig.Annotations = map[string]string(composeServiceConfig.Labels)
 		serviceConfig.CPUQuota = int64(composeServiceConfig.CPUQuota)
 		serviceConfig.CapAdd = composeServiceConfig.CapAdd
