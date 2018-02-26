@@ -21,6 +21,7 @@ package exector
 
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/builder/sources"
 	"time"
 	"fmt"
@@ -129,7 +130,10 @@ func (i *SlugShareItem)ShareToYS(file string)error {
 	if err != nil {
 		i.Logger.Error("生成md5失败", map[string]string{"step":"slug-share", "status":"success"})
 	}
-	if err := i.UploadFtp(i.FTPConf.FTPNamespace, file, md5); err != nil {
+	logrus.Debugf("md5 path is %s", md5)
+	ftpUpPath := fmt.Sprintf("%s%s", i.FTPConf.FTPNamespace, i.ServiceKey)
+	if err := i.UploadFtp(ftpUpPath, file, md5); err != nil {
+		logrus.Errorf("upload file to ftp error: %s", err.Error())
 		return err
 	}
 	i.Logger.Info("分享云市完成", map[string]string{"step":"slug-share", "status":"success"})
