@@ -114,10 +114,14 @@ func createMD5(packageName string) (string, error) {
 	file, err := os.Open(packageName)
     if err != nil {
         return "", err
+	}
+	defer file.Close()
+	body, err := ioutil.ReadAll(file)
+    if err != nil {
+        return "", err
     }
-    md5h := md5.New()
-    io.Copy(md5h, file)
-	if err := ioutil.WriteFile(packageName+".md5", md5h.Sum([]byte("")), 0644); err != nil {
+    value := md5.Sum(body)
+	if err := ioutil.WriteFile(packageName+".md5", value[:], 0644); err != nil {
 		return "", err
 	}
 	return packageName+".md5", nil
