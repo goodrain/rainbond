@@ -26,7 +26,7 @@ import (
 	"time"
 	"fmt"
 	"os"
-	"crypto/md5"
+	"os/exec"
 	"io/ioutil"
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/tidwall/gjson"
@@ -110,17 +110,12 @@ func (i *SlugShareItem) Run(timeout time.Duration) error {
 }
 
 func createMD5(packageName string) (string, error) {
-	file, err := os.Open(packageName)
-    if err != nil {
-        return "", err
+	f, err := exec.Command("md5sum", packageName).Output()
+	if err != nil {
+		return "", err
 	}
-	defer file.Close()
-	body, err := ioutil.ReadAll(file)
-    if err != nil {
-        return "", err
-    }
-    value := md5.Sum(body)
-	if err := ioutil.WriteFile(packageName+".md5", value[:], 0644); err != nil {
+	logrus.Debugf("md5 value is %s", string(f))
+	if err := ioutil.WriteFile(packageName+".md5", f, 0644); err != nil {
 		return "", err
 	}
 	return packageName+".md5", nil
