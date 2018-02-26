@@ -1807,6 +1807,12 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 			return err
 		}
 	}
+	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteLabelByServiceID(serviceID); err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			tx.Rollback()
+			return err
+		}
+	}
 	//TODO: 删除plugin etcd资源
 	prefixK := fmt.Sprintf("/resources/define/%s/%s", service.TenantID, service.ServiceAlias)
 	logrus.Debugf("prefix is %s", prefixK)
