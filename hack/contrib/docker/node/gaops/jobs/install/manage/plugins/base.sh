@@ -110,6 +110,7 @@ function make_domain() {
 
         docker pull hub.goodrain.com/dc-deploy/archiver:domain
         #docker run -it --rm hub.goodrain.com/dc-deploy/archiver:domain init --ip $IP > /tmp/domain.log
+        [ -d "/data/.domain.log" ] && rm -rf /data/.domain.log
         [ -f "/data/.domain.log" ] && echo "" > /data/.domain.log || touch /data/.domain.log
         
         log.info "check ip_forward for domain"

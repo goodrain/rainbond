@@ -146,7 +146,7 @@ services:
     volumes:
         - /grdata/services/prometheus/data:/prometheusdata
         - /etc/goodrain/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-    command: --web.listen-address=":9999" --storage.tsdb.path="/prometheusdata" --config.file="/etc/prometheus/prometheus.yml"
+    command: --web.listen-address=":9999" --storage.tsdb.path="/prometheusdata" --storage.tsdb.retention=7d --config.file="/etc/prometheus/prometheus.yml"
     logging:
         driver: "json-file"
         options:
