@@ -63,6 +63,7 @@ type SlugFTPConf struct {
 	Host			string
 	Port 			int
 	FTPNamespace    string
+	LocalNamespace  string
 }
 
 //NewSlugShareItem 创建实体
@@ -75,6 +76,7 @@ func NewSlugShareItem(in []byte) *SlugShareItem {
 		Host: gjson.GetBytes(in, "share_conf.ftp_host").String(),
 		Port: int(gjson.GetBytes(in, "share_conf.ftp_port").Int()),
 		FTPNamespace: gjson.GetBytes(in, "share_conf.ftp_namespace").String(),
+		LocalNamespace: gjson.GetBytes(in, "share_conf.local_namespace").String(),
 	}
 	return &SlugShareItem{
 		Namespace: gjson.GetBytes(in, "tenant_id").String(),
@@ -103,22 +105,61 @@ func (i *SlugShareItem) Run(timeout time.Duration) error {
 		i.Logger.Error(fmt.Sprintf("数据中心文件不存在: %s", packageName), map[string]string{"step":"slug-share", "status":"failure"})
 		return err
 	}
-	if err := i.ShareToYS(packageName); err != nil {
+	shareTag := true
+	if i.FTPConf.Host != "" && i.FTPConf.Username != ""  {
+		//share YS
+		if err := i.ShareToYS(packageName); err != nil {
+			return err
+		}
+		shareTag = false
+	}
+	if i.FTPConf.LocalNamespace != "" {
+		if err := i.ShareToYB(packageName); err != nil {
+			return err
+		}
+	}
+	if i.FTPConf.LocalNamespace == "" && shareTag {
+		err := fmt.Errorf("rainbond share local_namespace can't be null")
+		i.Logger.Error(fmt.Sprintf("分享配置错误，至少需要配置云帮分享目录: %s", packageName), map[string]string{"step":"slug-share", "status":"failure"})
 		return err
 	}
 	return nil
 }
 
 func createMD5(packageName string) (string, error) {
+	md5Path := packageName+".md5"
+	_, err := os.Stat(md5Path)
+	if err == nil {
+		//md5 file exist
+		return md5Path, nil
+	}
 	f, err := exec.Command("md5sum", packageName).Output()
 	if err != nil {
 		return "", err
 	}
 	logrus.Debugf("md5 value is %s", string(f))
-	if err := ioutil.WriteFile(packageName+".md5", f, 0644); err != nil {
+	if err := ioutil.WriteFile(md5Path, f, 0644); err != nil {
 		return "", err
 	}
-	return packageName+".md5", nil
+	return md5Path, nil
+}
+
+//ShareToYB ShareToYB
+func (i *SlugShareItem)ShareToYB(file string) error {
+	i.Logger.Info("开始分享云帮", map[string]string{"step":"slug-share"})
+	md5, err := createMD5(file)
+	if err != nil {
+		i.Logger.Error("生成md5失败", map[string]string{"step":"slug-share", "status":"success"})
+	}
+	logrus.Debugf("md5 path is %s", md5)
+	localPath := fmt.Sprintf("%s%s/",i.FTPConf.LocalNamespace,i.ServiceKey)
+	_, err = exec.Command("cp", "rf",file+"*", localPath).Output()
+	if err != nil {
+		i.Logger.Info("分享云帮失败", map[string]string{"step":"callback", "status":"failure"})	
+		return err
+	}
+	i.Logger.Info("分享云帮完成", map[string]string{"step":"slug-share", "status":"success"})
+	return nil
 }
 
 //ShareToYS ShareToYS
@@ -180,3 +221,8 @@ func (i *SlugShareItem) UpdateShareStatus(status string) error {
 	}
 	return nil
 } 
+
+//CheckMD5FileExist CheckMD5FileExist
+func (i *SlugShareItem)CheckMD5FileExist(md5path, packageName string) bool {
+	return false
+}
