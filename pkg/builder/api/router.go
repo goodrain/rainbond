@@ -18,6 +18,8 @@
 package api
 
 import (
+	"github.com/goodrain/rainbond/pkg/util"
+
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/pkg/builder/api/controller"
 )
@@ -46,5 +48,6 @@ func APIServer() *chi.Mux {
 			r.Get("/", controller.GetEventsByIds)
 		})
 	})
+	util.ProfilerSetup(r)
 	return r
 }

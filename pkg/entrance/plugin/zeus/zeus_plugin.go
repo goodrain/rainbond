@@ -547,7 +547,6 @@ func (z *zeus) createVSssl() (VSssl, error) {
 			maps = append(maps, &m)
 		}
 	}
-	logrus.Debug("create https mapping: ", maps)
 	ssl.ServerCertHostMapping = maps
 	//默认证书名
 	ssl.ServerCertDefault = "goodrain.com"
@@ -582,6 +581,8 @@ func (z *zeus) UpdateVirtualService(services ...*object.VirtualServiceObject) er
 			basic.Protocol = "udp"
 		} else if vs.Protocol != "http" {
 			basic.Protocol = "stream"
+		} else {
+			basic.Protocol = "http"
 		}
 		vsPro := VSProperties{
 			Basic: basic,
@@ -612,6 +613,7 @@ func (z *zeus) UpdateVirtualService(services ...*object.VirtualServiceObject) er
 		}
 		err = z.put(z.getVSURL(vs.Name), body)
 		if err != nil {
+			logrus.Errorf("put Virtual Service error. %s", err.Error())
 			return err
 		}
 	}

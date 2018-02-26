@@ -25,6 +25,7 @@ PROCFILE=""
 # bin
 JQBIN="$WORK_DIR/bin/jq"
 GITBIN="/usr/bin/git clone -q"
+GITBINC="/usr/bin/git clone -c http.proxy=http://127.0.0.1:18888 -q"
 
 # path
 SOURCE_DIR="/cache/build/${TENANT_ID}/source/${SERVICE_ID}"
@@ -39,7 +40,14 @@ LIBDIR="$WORK_DIR/lib"
 set -e
 # 克隆代码
 CLONE_TIMEOUT=180
+if [[ $GITURL == *github.com* ]]
+then
+timeout -k 9 $CLONE_TIMEOUT $GITBINC  $GITURL $SOURCE_DIR > /dev/null 2>&1
+else
 timeout -k 9 $CLONE_TIMEOUT $GITBIN  $GITURL $SOURCE_DIR > /dev/null 2>&1
+fi
+
+
 if [ $? -eq 124 ];then
     echo "timeout in $CLONE_TIMEOUT: $GITURL"
     exit 1

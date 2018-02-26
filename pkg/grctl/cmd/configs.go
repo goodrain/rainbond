@@ -20,9 +20,11 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/apcera/termtables"
 	"github.com/goodrain/rainbond/pkg/grctl/clients"
+	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/urfave/cli"
 )
 
@@ -46,6 +48,40 @@ func NewCmdConfigs() cli.Command {
 						taskTable.AddRow(config.Name, config.CNName, config.ValueType, config.Value)
 					}
 					fmt.Println(taskTable.Render())
+					return nil
+				},
+			},
+			cli.Command{
+				Name:  "put",
+				Usage: "put database configs",
+				Action: func(c *cli.Context) error {
+					key := c.Args().Get(0)
+					value := c.Args().Get(1)
+					configs, err := clients.NodeClient.Configs().Get()
+					if err != nil {
+						return err
+					}
+					gc := configs.Get(key)
+					if gc == nil {
+						gcnew := model.ConfigUnit{
+							Name: key,
+						}
+						configs.Add(gcnew)
+						gc = configs.Get(key)
+					}
+					if strings.Contains(value, ",") {
+						vas := strings.Split(value, ",")
+						gc.ValueType = "array"
+						gc.Value = vas
+					} else {
+						gc.ValueType = "string"
+						gc.Value = value
+					}
+					err = clients.NodeClient.Configs().Put(configs)
+					if err != nil {
+						return err
+					}
+					fmt.Printf("configs %s put success \n", key)
 					return nil
 				},
 			},

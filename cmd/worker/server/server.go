@@ -33,6 +33,9 @@ import (
 	"github.com/goodrain/rainbond/pkg/worker/executor"
 	"github.com/goodrain/rainbond/pkg/worker/monitor"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/Sirupsen/logrus"
 )
 
@@ -93,6 +96,10 @@ func Run(s *option.Worker) error {
 		return err
 	}
 	defer exporterManager.Stop()
+
+	//step 6 :enable pprof api
+	logrus.Info("pprof api listen port 3229")
+	go http.ListenAndServe(":3229", nil)
 
 	logrus.Info("worker begin running...")
 	//step finally: listen Signal
