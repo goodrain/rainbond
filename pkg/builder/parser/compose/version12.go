@@ -167,6 +167,10 @@ func libComposeToKomposeMapping(composeObject *project.Project) (ComposeObject, 
 		serviceConfig.Build = composeServiceConfig.Build.Context
 		newName := normalizeServiceNames(composeServiceConfig.ContainerName)
 		serviceConfig.ContainerName = newName
+		if serviceConfig.ContainerName == "" {
+			serviceConfig.ContainerName = name
+		}
+		logrus.Debugf("newName is %s, name is %s", newName, name)
 		if newName != composeServiceConfig.ContainerName {
 			logrus.Infof("Container name in service %q has been changed from %q to %q", name, composeServiceConfig.ContainerName, newName)
 		}
@@ -226,7 +230,6 @@ func libComposeToKomposeMapping(composeObject *project.Project) (ComposeObject, 
 		}
 		logrus.Debugf("inner service conf is %v", composeServiceConfig)
 		// convert compose labels to annotations
-		serviceConfig.ContainerName = composeServiceConfig.ContainerName
 		serviceConfig.Annotations = map[string]string(composeServiceConfig.Labels)
 		serviceConfig.CPUQuota = int64(composeServiceConfig.CPUQuota)
 		serviceConfig.CapAdd = composeServiceConfig.CapAdd
