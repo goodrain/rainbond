@@ -24,22 +24,20 @@ import (
 	"github.com/goodrain/rainbond/pkg/event"
 )
 
-func TestFTPUpload(t *testing.T) {
-	ftp := NewFTPManager("scott", "tiger", "127.0.0.1", 11021)
+func TestFTPUp(t *testing.T) {
 	logger := event.GetManager().GetLogger("system")
-	upfile := "/Users/pujielan/Downloads/ShadowsocksX-NG.1.7.0.zip"
-	err := ftp.UploadFile("/", upfile, logger)
+	ftp := NewFTPConnManager(logger, "goodrain-admin", "goodrain123465", "139.196.88.57", 10021)
+	defer ftp.FTP.Close()
+	upfile := "/Users/pujielan/Downloads/http.conf"
+	if err := ftp.FTPLogin(logger); err != nil {
+		t.Fatal(err)	
+	}
+	path := "app-publish/application/"
+	curPath, err := ftp.FTPCWD(logger, path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	//t.Logf("%+v", __)
-}
-
-func TestTransFile(t *testing.T) {
-	ftp := NewFTPManager("scott", "tiger", "127.0.0.1", 11021)
-	upfile := "/Users/pujielan/Downloads/ShadowsocksX-NG.1.7.0.zip"
-	err := ftp.TransFile("/Users/pujielan/Downloads", upfile)
-	if err != nil {
+	if err := ftp.FTPUpload(logger, curPath, upfile); err != nil {
 		t.Fatal(err)
 	}
 	//t.Logf("%+v", __)
