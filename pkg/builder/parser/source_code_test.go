@@ -51,10 +51,8 @@ type ServiceCheckResult struct {
 func TestSourceCode(t *testing.T) {
 	sc := sources.CodeSourceInfo{
 		ServerType:    "",
-		RepositoryURL: "http://code.goodrain.com/goodrain/goodrain_web.git",
+		RepositoryURL: "https://github.com/barnettZQG/fserver.git",
 		Branch:        "master",
-		User:          "barnett",
-		Password:      "5258423Zqg",
 	}
 	b, _ := json.Marshal(sc)
 	p := CreateSourceCodeParse(string(b), nil)

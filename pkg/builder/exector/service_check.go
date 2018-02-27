@@ -109,8 +109,11 @@ func (e *exectorManager) serviceCheck(in []byte) {
 	errList := pr.Parse()
 	if errList != nil {
 		for i, err := range errList {
-			if err.SolveAdvice == "" {
+			if err.SolveAdvice == "" && input.SourceType != "sourcecode" {
 				errList[i].SolveAdvice = fmt.Sprintf("解析器认为镜像名为:%s,请确认是否正确或镜像是否存在", pr.GetImage())
+			}
+			if err.SolveAdvice == "" && input.SourceType == "sourcecode" {
+				errList[i].SolveAdvice = fmt.Sprintf("源码智能解析失败，请联系客服")
 			}
 		}
 	}

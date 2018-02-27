@@ -23,6 +23,8 @@ import (
 	"path"
 	"strconv"
 
+	"github.com/Sirupsen/logrus"
+
 	"github.com/pquerna/ffjson/ffjson"
 
 	"github.com/goodrain/rainbond/pkg/builder/parser/code"
@@ -88,6 +90,11 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	if csi.ServerType == "" {
 		csi.ServerType = "git"
 	}
+	if csi.RepositoryURL == "" {
+		d.logger.Error("Git项目仓库地址不能为空", map[string]string{"step": "parse"})
+		d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", SolveAdvice("modify_url", "请确认并修改仓库地址")))
+		return d.errors
+	}
 	cacheDir := csi.GetCodeCacheDir()
 
 	gitFunc := func() ParseErrorList {
@@ -120,7 +127,8 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("Git项目仓库指定分支 %s 不存在", csi.Branch), solve))
 				return d.errors
 			}
-			d.errappend(Errorf(FatalError, err.Error()))
+			logrus.Errorf("git clone error,%s", err.Error())
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("获取代码失败"), "请确认仓库能否正常访问，或联系客服咨询"))
 			return d.errors
 		}
 		//获取分支
@@ -142,11 +150,17 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	//获取代码仓库
 	switch csi.ServerType {
 	case "git":
-		return gitFunc()
+		if err := gitFunc(); err != nil && err.IsFatalError() {
+			return err
+		}
 	case "svn":
+		d.errappend(ErrorAndSolve(FatalError, "svn协议暂时不支持", "请使用git协议仓库"))
+		return d.errors
 	default:
 		//按照git处理处理
-		return gitFunc()
+		if err := gitFunc(); err != nil && err.IsFatalError() {
+			return err
+		}
 	}
 
 	//读取云帮配置文件
@@ -175,11 +189,12 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			} else if err == code.ErrCodeNotExist {
 				d.errappend(ErrorAndSolve(FatalError, "仓库中代码不存在", "请提交代码到仓库"))
 			} else {
-				d.errappend(ErrorAndSolve(FatalError, "代码无法失败语言类型", "请参考文档查看平台语言支持规范"))
+				d.errappend(ErrorAndSolve(FatalError, "代码无法识别语言类型", "请参考文档查看平台语言支持规范"))
 			}
 			return d.errors
 		}
 	}
+	fmt.Println(lang == code.NO, lang)
 	d.Lang = lang
 	if lang == code.NO {
 		d.errappend(ErrorAndSolve(FatalError, "代码无法识别语言类型", "请参考文档查看平台语言支持规范"))

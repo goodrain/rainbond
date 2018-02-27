@@ -19,7 +19,6 @@
 package sources
 
 import (
-	"github.com/Sirupsen/logrus"
 	"bufio"
 	"bytes"
 	"context"
@@ -30,6 +29,8 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 
@@ -76,20 +77,20 @@ func (c CodeSourceInfo) GetCodeSourceDir() string {
 	h := sha1.New()
 	h.Write([]byte(c.RepositoryURL))
 	bs := h.Sum(nil)
-	bsStr := fmt.Sprintf("%x", bs)	
+	bsStr := fmt.Sprintf("%x", bs)
 	return path.Join(sourceDir, "build", c.TenantID, bsStr)
 }
 
 //CheckFileExist CheckFileExist
 func CheckFileExist(path string) bool {
 	_, err := os.Stat(path)
-	if  err != nil {
-        if os.IsExist(err) {  
-            return true  
-        }  
-        return false  
-    }  
-    return true 
+	if err != nil {
+		if os.IsExist(err) {
+			return true
+		}
+		return false
+	}
+	return true
 }
 
 //RemoveDir RemoveDir
@@ -116,11 +117,11 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
-	stop := make(chan struct{})
-	progress := createProgress(ctx, logger, stop)
+	//stop := make(chan struct{})
+	//progress := createProgress(ctx, logger, stop)
 	opts := &git.CloneOptions{
 		URL:               csi.RepositoryURL,
-		Progress:          progress,
+		Progress:          os.Stdout,
 		SingleBranch:      false,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	}
