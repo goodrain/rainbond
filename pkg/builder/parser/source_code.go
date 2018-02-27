@@ -143,58 +143,11 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	//获取代码仓库
 	switch csi.ServerType {
 	case "git":
-		if gitFunc() != nil {
-			return gitFunc()
-		}
+		return gitFunc()
 	case "svn":
 	default:
 		//按照git处理处理
-		if gitFunc() != nil {
-			return gitFunc()
-		}
-		//验证仓库地址
-		// 	ep, err := transport.NewEndpoint(csi.RepositoryURL)
-		// 	if err != nil {
-		// 		d.logger.Error("Git项目仓库地址格式错误", map[string]string{"step": "parse"})
-		// 		d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", "请确认并修改仓库地址"))
-		// 		return d.errors
-		// 	}
-		// 	//获取代码
-		// 	rs, err := sources.GitClone(csi, cacheDir, d.logger, 5)
-		// 	if err != nil {
-		// 		if err == transport.ErrAuthenticationRequired {
-		// 			if ep.Protocol == "ssh" {
-		// 				solve := `
-		// 				请将以下SSH Key配置到仓库安全设置中：
-		// 				` + sources.GetPublicKey() + `
-		// 				`
-		// 				d.errappend(ErrorAndSolve(FatalError, "Git项目仓库需要安全验证", solve))
-		// 			} else {
-		// 				d.errappend(ErrorAndSolve(FatalError, "Git项目仓库需要安全验证", "请提供正确的账号密码"))
-		// 			}
-		// 			return d.errors
-		// 		}
-		// 		if err == plumbing.ErrReferenceNotFound {
-		// 			solve := "请到代码仓库查看正确的分支情况"
-		// 			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("Git项目仓库指定分支 %s 不存在", csi.Branch), solve))
-		// 			return d.errors
-		// 		}
-		// 		d.errappend(Errorf(FatalError, err.Error()))
-		// 		return d.errors
-		// 	}
-		// 	//获取分支
-		// 	branch, err := rs.Branches()
-		// 	if err == nil {
-		// 		branch.ForEach(func(re *plumbing.Reference) error {
-		// 			name := re.Name()
-		// 			if name.IsBranch() {
-		// 				d.branchs = append(d.branchs, name.Short())
-		// 			}
-		// 			return nil
-		// 		})
-		// 	} else {
-		// 		d.branchs = append(d.branchs, csi.Branch)
-		// 	}
+		return gitFunc()
 	}
 
 	//读取云帮配置文件
