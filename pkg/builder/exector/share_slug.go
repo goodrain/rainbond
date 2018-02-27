@@ -26,6 +26,7 @@ import (
 	"time"
 	"fmt"
 	"os"
+	"strings"
 	"os/exec"
 	"io/ioutil"
 	"github.com/goodrain/rainbond/pkg/event"
@@ -137,8 +138,9 @@ func createMD5(packageName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	md5In := strings.Split(string(f), "")
 	logrus.Debugf("md5 value is %s", string(f))
-	if err := ioutil.WriteFile(md5Path, f, 0644); err != nil {
+	if err := ioutil.WriteFile(md5Path, []byte(md5In[0]), 0644); err != nil {
 		return "", err
 	}
 	return md5Path, nil
