@@ -149,7 +149,7 @@ func (i *SlugShareItem)ShareToYB(file string) error {
 	i.Logger.Info("开始分享云帮", map[string]string{"step":"slug-share"})
 	md5, err := createMD5(file)
 	if err != nil {
-		i.Logger.Error("生成md5失败", map[string]string{"step":"slug-share", "status":"success"})
+		i.Logger.Error("生成md5失败", map[string]string{"step":"slug-share", "status":"failure"})
 	}
 	logrus.Debugf("md5 path is %s", md5)
 	localPath := fmt.Sprintf("%s%s/",i.FTPConf.LocalNamespace,i.ServiceKey)
@@ -182,26 +182,16 @@ func (i *SlugShareItem)ShareToYS(file string)error {
 //UploadFtp UploadFt
 func (i *SlugShareItem)UploadFtp(path, file, md5 string) error {
 	i.Logger.Info(fmt.Sprintf("开始上传代码包: %s", file), map[string]string{"step":"slug-share"})
-	ftp  := sources.NewFTPManager(i.FTPConf.Username, i.FTPConf.Password, i.FTPConf.Host, i.FTPConf.Port)
-	sc, err := ftp.LoginFTP(i.Logger)
+	ftp  := sources.NewFTPConnManager(i.Logger, i.FTPConf.Username, i.FTPConf.Password, i.FTPConf.Host, i.FTPConf.Port)
+	if err := ftp.FTPLogin(i.Logger); err != nil {
+		return err
+	}
+	defer ftp.FTP.Close()
+	curPath, err := ftp.FTPCWD(i.Logger, path)
 	if err != nil {
 		return err
 	}
-	defer ftp.LogoutFTP(sc, i.Logger)
-	bl, err := ftp.CheckMd5FileName(sc, path, md5)
-	if err != nil {
-		return err
-	}
-	if bl {
-		i.Logger.Info(fmt.Sprintf("文件(%s)已上传", file), map[string]string{"step":"slug-share", "status":"success"})
-		return nil
-	}
-	if err := ftp.UploadFile(sc, path, file, i.Logger); err != nil {
-		i.Logger.Error(fmt.Sprintf("上传代码包%s失败", file), map[string]string{"step":"slug-share", "status":"failure"})
-		return err
-	}
-	if err := ftp.UploadFile(sc, path, md5, i.Logger); err != nil {
-		i.Logger.Error("上传md5文件失败", map[string]string{"step":"slug-share", "status":"failure"})
+	if err := ftp.FTPUpload(i.Logger, curPath, file, md5); err != nil {
 		return err
 	}
 	i.Logger.Info("代码包上传完成", map[string]string{"step":"slug-share", "status":"success"})
