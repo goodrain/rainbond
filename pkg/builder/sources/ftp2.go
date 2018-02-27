@@ -104,7 +104,7 @@ func (f *FTPConn) FTPUpload(logger event.Logger, path string, files ...string) e
 			return err
 		}
 		filename := getFileName(filepath)
-		upPath := path + filename
+		upPath := path + "/" + filename
 		if err := f.FTP.Cwd(upPath); err != nil {
 			if strings.Contains(err.Error(), "550"){
 				if err := f.FTP.Stor(upPath, file); err != nil {
