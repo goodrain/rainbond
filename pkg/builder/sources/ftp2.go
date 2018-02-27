@@ -103,8 +103,8 @@ func (f *FTPConn) FTPUpload(logger event.Logger, path string, files ...string) e
 			logger.Error(fmt.Sprintf("读取文件%s错误", filepath), map[string]string{"step":"slug-share", "status":"failure"})
 			return err
 		}
-		upPath := path + "/" + filepath
 		filename := getFileName(filepath)
+		upPath := path + filename
 		if err := f.FTP.Cwd(upPath); err != nil {
 			if strings.Contains(err.Error(), "550"){
 				if err := f.FTP.Stor(upPath, file); err != nil {
