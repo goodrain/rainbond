@@ -19,8 +19,11 @@
 package parser
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
+
+	"github.com/goodrain/rainbond/pkg/builder/sources"
 )
 
 func TestParseDockerfileInfo(t *testing.T) {
@@ -35,4 +38,35 @@ func TestParseDockerfileInfo(t *testing.T) {
 	}
 	parse.parseDockerfileInfo("./Dockerfile")
 	fmt.Println(parse.GetServiceInfo())
+}
+
+//ServiceCheckResult 应用检测结果
+type ServiceCheckResult struct {
+	//检测状态 Success Failure
+	CheckStatus string         `json:"check_status"`
+	ErrorInfos  ParseErrorList `json:"error_infos"`
+	ServiceInfo []ServiceInfo  `json:"service_info"`
+}
+
+func TestSourceCode(t *testing.T) {
+	sc := sources.CodeSourceInfo{
+		ServerType:    "",
+		RepositoryURL: "http://code.goodrain.com/goodrain/goodrain_web.git",
+		Branch:        "master",
+		User:          "barnett",
+		Password:      "5258423Zqg",
+	}
+	b, _ := json.Marshal(sc)
+	p := CreateSourceCodeParse(string(b), nil)
+	err := p.Parse()
+	if err != nil && err.IsFatalError() {
+		t.Fatal(err)
+	}
+	re := ServiceCheckResult{
+		CheckStatus: "Failure",
+		ErrorInfos:  err,
+		ServiceInfo: p.GetServiceInfo(),
+	}
+	body, _ := json.Marshal(re)
+	fmt.Printf("%s \n", string(body))
 }

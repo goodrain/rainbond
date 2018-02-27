@@ -19,13 +19,14 @@
 package exector
 
 import (
-	"fmt"
 	"context"
+	"fmt"
+
 	"github.com/Sirupsen/logrus"
+	"github.com/ghodss/yaml"
 	"github.com/goodrain/rainbond/pkg/builder/parser"
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/pquerna/ffjson/ffjson"
-	"github.com/ghodss/yaml"
 )
 
 //ServiceCheckInput 任务输入数据
@@ -46,9 +47,9 @@ type ServiceCheckInput struct {
 //ServiceCheckResult 应用检测结果
 type ServiceCheckResult struct {
 	//检测状态 Success Failure
-	CheckStatus string `json:"check_status"`
+	CheckStatus string                `json:"check_status"`
 	ErrorInfos  parser.ParseErrorList `json:"error_infos"`
-	ServiceInfo []parser.ServiceInfo `json:"service_info"`
+	ServiceInfo []parser.ServiceInfo  `json:"service_info"`
 }
 
 //CreateResult 创建检测结果
@@ -94,7 +95,7 @@ func (e *exectorManager) serviceCheck(in []byte) {
 		y, err := yaml.JSONToYAML([]byte(input.SourceBody))
 		if err != nil {
 			logrus.Errorf("json bytes format is error, %s", input.SourceBody)
-			logger.Error("dockercompose文件格式不正确。", map[string]string{"step": "callback", "status":"failure"})
+			logger.Error("dockercompose文件格式不正确。", map[string]string{"step": "callback", "status": "failure"})
 			return
 		}
 		pr = parser.CreateDockerComposeParse(string(y), e.DockerClient, logger)
@@ -126,7 +127,9 @@ func (e *exectorManager) serviceCheck(in []byte) {
 		logrus.Errorf("mashal servicecheck value error, %v", err)
 		logger.Error("格式化检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
 	}
-	_, err = e.EtcdCli.Put(context.TODO(), k, string(vj))
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err = e.EtcdCli.Put(ctx, k, string(vj))
+	cancel()
 	if err != nil {
 		logrus.Errorf("put servicecheck k %s into etcd error, %v", k, err)
 		logger.Error("存储检测结果失败。", map[string]string{"step": "callback", "status": "failure"})

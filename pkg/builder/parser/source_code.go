@@ -69,7 +69,6 @@ func CreateSourceCodeParse(source string, logger event.Logger) Parser {
 }
 
 //Parse 获取代码 解析代码 检验代码
-//eg. git ssh://git@gr5042d6.7804f67d.ali-sh-s1.goodrain.net:20905/root/test.git master root password
 func (d *SourceCodeParse) Parse() ParseErrorList {
 	if d.source == "" {
 		d.logger.Error("源码检查输入参数错误", map[string]string{"step": "parse"})
@@ -202,8 +201,9 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	if err != nil {
 		if err == code.ErrRainbondFileNotFound {
 			d.errappend(ErrorAndSolve(NegligibleError, "rainbondfile未定义", "可以参考文档说明配置此文件定义应用属性"))
+		} else {
+			d.errappend(ErrorAndSolve(NegligibleError, "rainbondfile定义格式有误", "可以参考文档说明配置此文件定义应用属性"))
 		}
-		d.errappend(ErrorAndSolve(NegligibleError, "rainbondfile定义格式有误", "可以参考文档说明配置此文件定义应用属性"))
 	}
 	//判断对象目录
 	var buildPath = cacheDir
