@@ -234,6 +234,7 @@ func (i *SourceCodeBuildItem) buildCode() error {
 		"-r", i.Runtime,
 		"-g", i.Lang,
 		"--name", buildName}
+	logrus.Debugf("build cmd is %v", cmd)
 	if len(i.BuildEnvs) != 0 {
 		if i.BuildEnvs["NO_CACHE"] == "true" {
 			if err := os.RemoveAll(i.CacheDir); err != nil {
