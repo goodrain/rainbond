@@ -212,6 +212,8 @@ func (i *SourceCodeBuildItem) buildCode() error {
 	i.Logger.Info("开始编译代码包", map[string]string{"step": "build-exector"})
 	packageName := fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz",
 	i.TenantID, i.ServiceID, i.DeployVersion)
+	tgzPath := fmt.Sprintf("/grdata/build/tenant/%s/slug/%s",
+		i.TenantID, i.ServiceID)	
 	logfile := fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.log",
 		i.TenantID, i.ServiceID, i.DeployVersion)
 	//repos := strings.Split(i.CodeSouceInfo.RepositoryURL, " ")
@@ -224,7 +226,7 @@ func (i *SourceCodeBuildItem) buildCode() error {
 		"-b", i.CodeSouceInfo.Branch,
 		"-s", i.SourceDir,
 		"-c", i.CacheDir,
-		"-d", packageName,
+		"-d", tgzPath,
 		"-v", i.DeployVersion,
 		"-l", logfile,
 		"-tid", i.TenantID,
@@ -232,6 +234,7 @@ func (i *SourceCodeBuildItem) buildCode() error {
 		"-r", i.Runtime,
 		"-g", i.Lang,
 		"--name", buildName}
+	logrus.Debugf("build cmd is %v", cmd)
 	if len(i.BuildEnvs) != 0 {
 		buildEnvStr := ""
 		mm := []string{}
