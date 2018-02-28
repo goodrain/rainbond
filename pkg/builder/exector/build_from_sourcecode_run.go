@@ -279,6 +279,8 @@ func (i *SourceCodeBuildItem) CreateUpgradeTaskBody() *model.RollingUpgradeTaskB
 	return &model.RollingUpgradeTaskBody{
 		TenantID: i.TenantID,
 		ServiceID: i.ServiceID,
+		//TODO: 区分curr version 与 new version 
+		CurrentDeployVersion: i.DeployVersion,
 		NewDeployVersion: i.DeployVersion,
 		EventID: i.EventID,
 	}

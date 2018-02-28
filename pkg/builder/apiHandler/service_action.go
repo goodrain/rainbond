@@ -19,34 +19,32 @@
 package apiHandler
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/pquerna/ffjson/ffjson"
 	"os"
 	"strings"
 	"net/http"
 	"fmt"
 	"bytes"
-	"strconv"
 	"github.com/goodrain/rainbond/pkg/worker/discover/model"
 )
 
 //UpgradeService 滚动升级
 func UpgradeService(tenantName, serviceAlias string ,ru *model.RollingUpgradeTaskBody) error {
 	url := fmt.Sprintf("http://127.0.0.1:8888/v2/tenants/%s/services/%s/upgrade", tenantName, serviceAlias)
-	version, err := strconv.Atoi(ru.CurrentDeployVersion)
-	if err != nil {
-		return err
-	}
+	logrus.Debugf("rolling update new version: %s, url is %s", ru.NewDeployVersion, url)
 	raw := struct {
-		DeployVersion int `json:"deploy_version"`
+		DeployVersion string `json:"deploy_version"`
 		EventID  string `json:"event_id"`
 	}{
-		DeployVersion:version,
+		DeployVersion:ru.CurrentDeployVersion,
 		EventID:ru.EventID,
 	}
 	rawBody, err := ffjson.Marshal(raw)
 	if err != nil {
 		return err
 	}
+	logrus.Debugf("rawbody is %v", rawBody)
 	return publicRequest("post", url,rawBody)
 }
 
