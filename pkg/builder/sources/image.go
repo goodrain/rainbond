@@ -48,7 +48,6 @@ func ImagePull(dockerCli *client.Client, image string, opts types.ImagePullOptio
 		logrus.Errorf("reference image error: %s", err.Error())
 		return nil, err
 	}
-	logrus.Debugf("rf is %s", rf)
 	//最少一分钟
 	if timeout < 1 {
 		timeout = 1
@@ -72,6 +71,7 @@ func ImagePull(dockerCli *client.Client, image string, opts types.ImagePullOptio
 				//进度信息
 				logger.Debug(string(line), map[string]string{"step": "progress"})
 			}
+			fmt.Println(string(line))
 		} else {
 			break
 		}
