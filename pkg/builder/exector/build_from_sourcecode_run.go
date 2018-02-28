@@ -213,14 +213,14 @@ func (i *SourceCodeBuildItem) buildCode() error {
 	i.TenantID, i.ServiceID, i.DeployVersion)
 	logfile := fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.log",
 		i.TenantID, i.ServiceID, i.DeployVersion)
-	repos := strings.Split(i.CodeSouceInfo.RepositoryURL, " ")
+	//repos := strings.Split(i.CodeSouceInfo.RepositoryURL, " ")
 	buildCMD := "plugins/scripts/build.pl"
 	buildName := func(s, buildVersion string) string {
 		mm := []byte(s)
 		return string(mm[:8]) + "_" + buildVersion
 	}(i.ServiceID, i.DeployVersion)
 	cmd := []string{buildCMD,
-		"-b", repos[1],
+		"-b", i.CodeSouceInfo.Branch,
 		"-s", i.SourceDir,
 		"-c", i.CacheDir,
 		"-d", packageName,
