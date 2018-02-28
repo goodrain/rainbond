@@ -26,6 +26,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/goodrain/rainbond/pkg/util"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/builder/parser/code"
 	"github.com/goodrain/rainbond/pkg/event"
@@ -105,7 +107,7 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 	}
 	scb.CacheDir = fmt.Sprintf("/cache/build/%s/cache/%s", scb.TenantID, scb.ServiceID)
 	scb.SourceDir = scb.CodeSouceInfo.GetCodeSourceDir()
-	scb.TGZDir = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s,", scb.TenantID, scb.ServiceID)
+	scb.TGZDir = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s", scb.TenantID, scb.ServiceID)
 	return scb
 }
 
@@ -116,6 +118,11 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	// 2.check dockerfile/ source_code
 	// 3.build
 	// 4.upload image /upload slug
+	if err := i.prepare(); err != nil {
+		logrus.Errorf("prepare build code error: %s", err.Error())
+		i.Logger.Error(fmt.Sprintf("准备源码构建失败"), map[string]string{"step": "builder-exector", "status": "failure"})
+		return err
+	}
 	_, err := sources.GitClone(i.CodeSouceInfo, i.SourceDir, i.Logger, 3)
 	if err != nil {
 		logrus.Errorf("pull git code error: %s", err.Error())
@@ -210,14 +217,22 @@ func (i *SourceCodeBuildItem) buildImage() error {
 	}
 	return nil
 }
-
+func (i *SourceCodeBuildItem) prepare() error {
+	if err := util.CheckAndCreateDir(i.CacheDir); err != nil {
+		return err
+	}
+	if err := util.CheckAndCreateDir(i.TGZDir); err != nil {
+		return err
+	}
+	return nil
+}
 func (i *SourceCodeBuildItem) buildCode() error {
 	i.Logger.Info("开始编译代码包", map[string]string{"step": "build-exector"})
 	packageName := fmt.Sprintf("%s/%s.tgz", i.TGZDir, i.DeployVersion)
 	logfile := fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.log",
 		i.TenantID, i.ServiceID, i.DeployVersion)
 	logrus.Debugf("packageName %s logfile %s", packageName, logfile)
-	buildCMD := "plugins/scripts/build.pl"
+	buildCMD := "perl plugins/scripts/build.pl"
 	buildName := func(s, buildVersion string) string {
 		mm := []byte(s)
 		return string(mm[:8]) + "_" + buildVersion
