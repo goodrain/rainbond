@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -38,6 +39,7 @@ type DiskCache struct {
 	dbmanager     db.Manager
 	statusManager status.ServiceStatusManager
 	ctx           context.Context
+	lock          sync.Mutex
 }
 
 //CreatDiskCache 创建
@@ -66,6 +68,8 @@ func (d *DiskCache) Start() {
 }
 
 func (d *DiskCache) setcache() {
+	d.lock.Lock()
+	defer d.lock.Unlock()
 	logrus.Info("start get all service disk size")
 	start := time.Now()
 	d.cache = nil
@@ -110,10 +114,16 @@ func (d *DiskCache) setcache() {
 			}
 		}
 	}
-	logrus.Infof("end get all service disk size,time consum %d s", time.Now().Sub(start).Seconds())
+	logrus.Infof("end get all service disk size,time consum %2.f s", time.Now().Sub(start).Seconds())
 }
 
 //Get 获取磁盘统计结果
 func (d *DiskCache) Get() map[string]float64 {
-	return d.cache
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	newcache := make(map[string]float64)
+	for k, v := range d.cache {
+		newcache[k] = v
+	}
+	return newcache
 }
