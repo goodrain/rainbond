@@ -140,6 +140,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		i.Logger.Error("启动应用失败，请手动启动", map[string]string{"step": "callback", "status": "failure"})
 		logrus.Errorf("rolling update service error, %s", err.Error())
 	}
+	i.Logger.Info("应用启动成功", map[string]string{"step":"build-exector"})
 	return nil
 }
 
@@ -213,14 +214,14 @@ func (i *SourceCodeBuildItem) buildCode() error {
 	i.TenantID, i.ServiceID, i.DeployVersion)
 	logfile := fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.log",
 		i.TenantID, i.ServiceID, i.DeployVersion)
-	repos := strings.Split(i.CodeSouceInfo.RepositoryURL, " ")
+	//repos := strings.Split(i.CodeSouceInfo.RepositoryURL, " ")
 	buildCMD := "plugins/scripts/build.pl"
 	buildName := func(s, buildVersion string) string {
 		mm := []byte(s)
 		return string(mm[:8]) + "_" + buildVersion
 	}(i.ServiceID, i.DeployVersion)
 	cmd := []string{buildCMD,
-		"-b", repos[1],
+		"-b", i.CodeSouceInfo.Branch,
 		"-s", i.SourceDir,
 		"-c", i.CacheDir,
 		"-d", packageName,
@@ -279,6 +280,8 @@ func (i *SourceCodeBuildItem) CreateUpgradeTaskBody() *model.RollingUpgradeTaskB
 	return &model.RollingUpgradeTaskBody{
 		TenantID: i.TenantID,
 		ServiceID: i.ServiceID,
+		//TODO: 区分curr version 与 new version 
+		CurrentDeployVersion: i.DeployVersion,
 		NewDeployVersion: i.DeployVersion,
 		EventID: i.EventID,
 	}
