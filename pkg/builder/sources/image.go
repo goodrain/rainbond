@@ -19,20 +19,21 @@
 package sources
 
 import (
-	"github.com/Sirupsen/logrus"
 	"bufio"
 	"fmt"
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
+	"github.com/Sirupsen/logrus"
+
 	"github.com/docker/distribution/reference"
+	"golang.org/x/net/context"
 	//"github.com/docker/docker/api/types"
 	"github.com/docker/engine-api/types"
 	//"github.com/docker/docker/client"
 	"github.com/docker/engine-api/client"
-	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/goodrain/rainbond/pkg/builder/model"
+	"github.com/goodrain/rainbond/pkg/event"
 )
 
 //ImagePull 拉取镜像
@@ -71,7 +72,6 @@ func ImagePull(dockerCli *client.Client, image string, opts types.ImagePullOptio
 				//进度信息
 				logger.Debug(string(line), map[string]string{"step": "progress"})
 			}
-			fmt.Println(string(line))
 		} else {
 			break
 		}
@@ -96,34 +96,34 @@ func ImageTag(dockerCli *client.Client, source, target string, logger event.Logg
 		logrus.Debugf("image tag err: %s", err.Error())
 		return err
 	}
-	logger.Info("镜像tag修改完成", map[string]string{"step":"changetag"})
+	logger.Info("镜像tag修改完成", map[string]string{"step": "changetag"})
 	return nil
 }
 
 //ImageNameHandle 解析imagename
 func ImageNameHandle(imageName string) *model.ImageName {
 	var i model.ImageName
-	if strings.Contains(imageName, "/"){
+	if strings.Contains(imageName, "/") {
 		mm := strings.Split(imageName, "/")
 		i.Host = mm[0]
 		names := strings.Join(mm[1:], "/")
-		if strings.Contains(names, ":"){
+		if strings.Contains(names, ":") {
 			nn := strings.Split(names, ":")
 			i.Name = nn[0]
 			i.Tag = nn[1]
-		}else {
+		} else {
 			i.Name = names
 			i.Tag = "latest"
 		}
-	}else {
-		if strings.Contains(imageName, ":"){
+	} else {
+		if strings.Contains(imageName, ":") {
 			nn := strings.Split(imageName, ":")
 			i.Name = nn[0]
 			i.Tag = nn[1]
-		}else {
+		} else {
 			i.Name = imageName
 			i.Tag = "latest"
-		}	
+		}
 	}
 	return &i
 }
@@ -147,7 +147,7 @@ func ImagePush(dockerCli *client.Client, image string, opts types.ImagePushOptio
 			return fmt.Errorf("Image(%s) does not exist", image)
 		}
 		return err
-	}	
+	}
 	defer readcloser.Close()
 	r := bufio.NewReader(readcloser)
 	for {
@@ -156,11 +156,10 @@ func ImagePush(dockerCli *client.Client, image string, opts types.ImagePushOptio
 				//进度信息
 				logger.Debug(string(line), map[string]string{"step": "progress"})
 			}
-			fmt.Println(string(line))
 		} else {
 			break
 		}
-	}	
+	}
 	return nil
 }
 
@@ -183,6 +182,6 @@ func ImageBuild(dockerCli *client.Client, options types.ImageBuildOptions, logge
 		} else {
 			break
 		}
-	}	
+	}
 	return nil
 }
