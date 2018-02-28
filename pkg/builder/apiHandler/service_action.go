@@ -44,7 +44,6 @@ func UpgradeService(tenantName, serviceAlias string ,ru *model.RollingUpgradeTas
 	if err != nil {
 		return err
 	}
-	logrus.Debugf("rawbody is %v", rawBody)
 	return publicRequest("post", url,rawBody)
 }
 
