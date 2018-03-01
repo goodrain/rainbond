@@ -123,12 +123,28 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		i.Logger.Error(fmt.Sprintf("准备源码构建失败"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	_, err := sources.GitClone(i.CodeSouceInfo, i.SourceDir, i.Logger, 3)
+	rs, err := sources.GitClone(i.CodeSouceInfo, i.SourceDir, i.Logger, 3)
 	if err != nil {
 		logrus.Errorf("pull git code error: %s", err.Error())
-		i.Logger.Error(fmt.Sprintf("拉取代码失败, %s", err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
+		i.Logger.Error(fmt.Sprintf("拉取代码失败，请重试"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
+	//识别代码信息
+	commits, err := rs.CommitObjects()
+	if err != nil {
+		logrus.Errorf("get code commits info error: %s", err.Error())
+		i.Logger.Error(fmt.Sprintf("读取代码版本信息失败"), map[string]string{"step": "builder-exector", "status": "failure"})
+		return err
+	}
+	commit, err := commits.Next()
+	if err != nil {
+		logrus.Errorf("get code commit info error: %s", err.Error())
+		i.Logger.Error(fmt.Sprintf("读取代码版本信息失败"), map[string]string{"step": "builder-exector", "status": "failure"})
+		return err
+	}
+	info := fmt.Sprintf("版本:%s 上传者:%s Commit:%s ", commit.Hash.String()[0:7], commit.Author, commit.Message)
+	i.Logger.Info(info, map[string]string{"step": "code-version"})
+
 	if i.Lang == string(code.Dockerfile) {
 		i.Logger.Info("代码识别出Dockerfile,直接构建镜像。", map[string]string{"step": "builder-exector"})
 		if err := i.buildImage(); err != nil {

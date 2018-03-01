@@ -49,6 +49,9 @@ func (e *EventBarrel) insert(m *db.EventLogMessage) error {
 	if e.size > e.maxNumber {
 		return errors.New("received message number more than peer event max message number")
 	}
+	if m.Step == "progress" { //进度日志不存储
+		return nil
+	}
 	e.barrel = append(e.barrel, m)
 	e.size++      //消息数据总数
 	e.analysis(m) //同步分析
