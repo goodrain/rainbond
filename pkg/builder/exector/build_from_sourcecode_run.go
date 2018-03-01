@@ -251,10 +251,14 @@ func (i *SourceCodeBuildItem) buildImage() error {
 		logrus.Errorf("update service from db error: %s", err.Error())
 		return err
 	}
-	i.Logger.Info("应用同步完成，开始启动应用", map[string]string{"step": "build-exector"})
-	if err := apiHandler.UpgradeService(i.TenantName, i.ServiceAlias, i.CreateUpgradeTaskBody()); err != nil {
-		i.Logger.Error("启动应用失败，请手动启动", map[string]string{"step": "callback", "status": "failure"})
-		logrus.Errorf("rolling update service error, %s", err.Error())
+	vi := &dbmodel.VersionInfo{
+		DeliveredType: "image",
+		DeliveredPath: buildImageName,
+		EventID:       i.EventID,
+		FinalStatus:   "success",
+	}
+	if err := i.UpdateVersionInfo(vi); err != nil {
+		logrus.Errorf("update version info error: %s", err.Error())
 	}
 	return nil
 }
@@ -345,6 +349,7 @@ func (i *SourceCodeBuildItem) buildCode() error {
 		DeliveredType: "slug",
 		DeliveredPath: packageName,
 		EventID:       i.EventID,
+		FinalStatus:   "success",
 	}
 	if err := i.UpdateVersionInfo(vi); err != nil {
 		logrus.Errorf("update version info error: %s", err.Error())
