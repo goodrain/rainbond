@@ -71,7 +71,6 @@ func ImagePull(dockerCli *client.Client, image string, opts types.ImagePullOptio
 				//进度信息
 				logger.Debug(string(line), map[string]string{"step": "progress"})
 			}
-			fmt.Println(string(line))
 		} else {
 			break
 		}
@@ -171,14 +170,12 @@ func ImageBuild(dockerCli *client.Client, options types.ImageBuildOptions, logge
 	if err != nil {
 		return err
 	}
-	logrus.Debugf("rc. type is %s", rc.OSType)
 	r := bufio.NewReader(rc.Body)
 	for {
 		if line, _, err := r.ReadLine(); err == nil {
 			if logger != nil {
-				logger.Debug(string(line), map[string]string{"step": "progress"})
+				logger.Debug(string(line), map[string]string{"step": "dockerbuild"})
 			}
-			fmt.Println(string(line))
 		} else {
 			break
 		}

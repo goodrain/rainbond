@@ -54,6 +54,15 @@ func CheckAndCreateDir(path string) error {
 	return nil
 }
 
+//DirIsEmpty 验证目录是否为空
+func DirIsEmpty(dir string) bool {
+	infos, _ := ioutil.ReadDir(dir)
+	if len(infos) == 0 {
+		return true
+	}
+	return false
+}
+
 //OpenOrCreateFile open or create file
 func OpenOrCreateFile(filename string) (*os.File, error) {
 	return os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0777)

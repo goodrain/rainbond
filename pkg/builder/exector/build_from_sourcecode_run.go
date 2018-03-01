@@ -224,17 +224,24 @@ func (i *SourceCodeBuildItem) prepare() error {
 	if err := util.CheckAndCreateDir(i.TGZDir); err != nil {
 		return err
 	}
+	if !util.DirIsEmpty(i.SourceDir) {
+		os.RemoveAll(i.SourceDir)
+	}
+	if err := util.CheckAndCreateDir(i.SourceDir); err != nil {
+		return err
+	}
 	os.Chown(i.CacheDir, 200, 200)
 	os.Chown(i.TGZDir, 200, 200)
 	return nil
 }
+
 func (i *SourceCodeBuildItem) buildCode() error {
 	i.Logger.Info("开始编译代码包", map[string]string{"step": "build-exector"})
 	packageName := fmt.Sprintf("%s/%s.tgz", i.TGZDir, i.DeployVersion)
 	logfile := fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.log",
 		i.TenantID, i.ServiceID, i.DeployVersion)
 	logrus.Debugf("packageName %s logfile %s", packageName, logfile)
-	buildCMD := "perl plugins/scripts/build.pl"
+	buildCMD := "plugins/scripts/build.pl"
 	buildName := func(s, buildVersion string) string {
 		mm := []byte(s)
 		return string(mm[:8]) + "_" + buildVersion
@@ -277,14 +284,14 @@ func (i *SourceCodeBuildItem) buildCode() error {
 
 	if err := ShowExec("perl", cmd, i.Logger); err != nil {
 		i.Logger.Error("编译代码包失败", map[string]string{"step": "build-code", "status": "failure"})
-		logrus.Error("build perl error")
+		logrus.Error("build perl error,", err.Error())
 		return err
 	}
 	i.Logger.Info("编译代码包完成。", map[string]string{"step": "build-code", "status": "success"})
 	fileInfo, err := os.Stat(packageName)
 	if err != nil {
 		i.Logger.Error("构建代码包检测失败", map[string]string{"step": "build-code", "status": "failure"})
-		logrus.Errorf("build package check error")
+		logrus.Error("build package check error", err.Error())
 		return err
 	}
 	if fileInfo.Size() == 0 {

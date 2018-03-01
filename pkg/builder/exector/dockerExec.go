@@ -76,11 +76,6 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 	}()
 	errW := cmd.Wait()
 	if errW != nil {
-		//bytesErr, errR := ioutil.ReadAll(stderr)
-		//logrus.Debugf(fmt.Sprintf("builder error: %v", errR))
-		//logrus.Debugf(fmt.Sprintf("builder error: %v", string(bytesErr)))
-		//logger[0].Error(fmt.Sprintf("build Error: %v", string(bytesErr)), map[string]string{"step": "builder-exector"})
-		//return errR
 		go func() {
 			readerr := bufio.NewReader(stderr)
 			for {

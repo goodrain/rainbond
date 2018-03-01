@@ -24,14 +24,14 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	//"github.com/docker/docker/client"
-	"github.com/docker/engine-api/client"
 	"github.com/coreos/etcd/clientv3"
+	"github.com/docker/engine-api/client"
+	"github.com/goodrain/rainbond/pkg/db"
 	"github.com/goodrain/rainbond/pkg/db/config"
+	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/goodrain/rainbond/pkg/mq/api/grpc/pb"
 	"github.com/tidwall/gjson"
-	"github.com/goodrain/rainbond/pkg/db"
-	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 )
 
 //Manager 任务执行管理器
@@ -62,14 +62,13 @@ func NewManager(conf config.Config) (Manager, error) {
 	}
 	return &exectorManager{
 		DockerClient: dockerClient,
-		EtcdCli: etcdCli,
-		
+		EtcdCli:      etcdCli,
 	}, nil
 }
 
 type exectorManager struct {
 	DockerClient *client.Client
-	EtcdCli *clientv3.Client
+	EtcdCli      *clientv3.Client
 }
 
 //TaskType:
@@ -152,7 +151,7 @@ func (e *exectorManager) appImage(in []byte) {
 func (e *exectorManager) buildFromImage(in []byte) {
 	i := NewImageBuildItem(in)
 	i.DockerClient = e.DockerClient
-	i.Logger.Info("从镜像构建应用任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})	
+	i.Logger.Info("从镜像构建应用任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
 		logrus.Debugf("start build from image worker")
@@ -162,12 +161,12 @@ func (e *exectorManager) buildFromImage(in []byte) {
 			if err != nil {
 				logrus.Errorf("build from image error: %s", err.Error())
 				if n < 2 {
-					i.Logger.Error("从镜像构建应用任务执行失败，开始重试", map[string]string{"step": "build-exector", "status":"failure"})
-				}else {
-					i.Logger.Error("从镜像构建应用任务执行失败", map[string]string{"step": "callback", "status":"failure"})
+					i.Logger.Error("从镜像构建应用任务执行失败，开始重试", map[string]string{"step": "build-exector", "status": "failure"})
+				} else {
+					i.Logger.Error("从镜像构建应用任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 					status = "failure"
 				}
-			}else {
+			} else {
 				break
 			}
 		}
@@ -177,25 +176,25 @@ func (e *exectorManager) buildFromImage(in []byte) {
 	}
 }
 
-func (e *exectorManager) buildFromSourceCode(in []byte){
+func (e *exectorManager) buildFromSourceCode(in []byte) {
 	i := NewSouceCodeBuildItem(in)
 	i.DockerClient = e.DockerClient
-	i.Logger.Info("从源码构建应用任务开始执行", map[string]string{"step":"builder-exector", "status":"starting"})
+	i.Logger.Info("从源码构建应用任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
 		logrus.Debugf("start build from source code")
 		defer event.GetManager().ReleaseLogger(i.Logger)
-		for n:=0; n< 3; n++ {
+		for n := 0; n < 3; n++ {
 			err := i.Run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("build from source code error: %s", err.Error())
 				if n < 2 {
-					i.Logger.Error("从源码构建应用任务执行失败，开始重试", map[string]string{"step":"build-exector", "status":"failure"})
-				}else {
-					i.Logger.Error("从源码构建应用任务执行失败", map[string]string{"step":"build-exector", "status":"failure"})
+					i.Logger.Error("从源码构建应用任务执行失败，开始重试", map[string]string{"step": "build-exector", "status": "failure"})
+				} else {
+					i.Logger.Error("从源码构建应用任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 					status = "failure"
 				}
-			}else {
+			} else {
 				break
 			}
 		}
@@ -208,7 +207,7 @@ func (e *exectorManager) buildFromSourceCode(in []byte){
 	}
 }
 
-func (e *exectorManager) buildFromYS(in []byte){}
+func (e *exectorManager) buildFromYS(in []byte) {}
 func (e *exectorManager) appSlug(in []byte) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
@@ -314,58 +313,58 @@ func (e *exectorManager) appBuild(in []byte) {
 	//updateBuildResult(eventID,finalStatus,dest)
 }
 
-func (e *exectorManager)slugShare(in []byte) {
+func (e *exectorManager) slugShare(in []byte) {
 	i := NewSlugShareItem(in)
-	i.Logger.Info("开始分享新版本应用", map[string]string{"step": "builder-exector", "status": "starting"})	
+	i.Logger.Info("开始分享新版本应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
-	go func(){
+	go func() {
 		logrus.Debugf("start slug share")
 		defer event.GetManager().ReleaseLogger(i.Logger)
-		for n:=0; n< 3; n++ {
+		for n := 0; n < 3; n++ {
 			err := i.Run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("slug share error: %s", err.Error())
 				if n < 2 {
-					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step":"build-exector", "status":"failure"})
-				}else {
-					i.Logger.Error("分享应用任务执行失败", map[string]string{"step":"build-exector", "status":"failure"})
-					status = "failure"	
+					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step": "build-exector", "status": "failure"})
+				} else {
+					i.Logger.Error("分享应用任务执行失败", map[string]string{"step": "build-exector", "status": "failure"})
+					status = "failure"
 				}
-			}else {
+			} else {
 				break
 			}
 		}
 	}()
 	if err := i.UpdateShareStatus(status); err != nil {
-		logrus.Debugf("Add slug share result error: %s", err.Error())	
+		logrus.Debugf("Add slug share result error: %s", err.Error())
 	}
 }
 
-func (e *exectorManager)imageShare(in []byte) {
+func (e *exectorManager) imageShare(in []byte) {
 	i := NewImageShareItem(in)
 	i.DockerClient = e.DockerClient
-	i.Logger.Info("开始分享新版本应用", map[string]string{"step": "builder-exector", "status": "starting"})	
+	i.Logger.Info("开始分享新版本应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
-	go func(){
+	go func() {
 		logrus.Debugf("start image share")
 		defer event.GetManager().ReleaseLogger(i.Logger)
-		for n:=0; n< 3; n++ {
+		for n := 0; n < 3; n++ {
 			err := i.Run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("image share error: %s", err.Error())
 				if n < 2 {
-					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step":"build-exector", "status":"failure"})
-				}else {
-					i.Logger.Error("分享应用任务执行失败", map[string]string{"step":"build-exector", "status":"failure"})
-					status = "failure"		
+					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step": "build-exector", "status": "failure"})
+				} else {
+					i.Logger.Error("分享应用任务执行失败", map[string]string{"step": "build-exector", "status": "failure"})
+					status = "failure"
 				}
-			}else {
+			} else {
 				break
 			}
 		}
 	}()
 	if err := i.UpdateShareStatus(status); err != nil {
-		logrus.Debugf("Add image share result error: %s", err.Error())	
+		logrus.Debugf("Add image share result error: %s", err.Error())
 	}
 }
 
