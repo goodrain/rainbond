@@ -206,22 +206,6 @@ func ImageBuild(dockerCli *client.Client, contextDir string, options types.Image
 	if err != nil {
 		return err
 	}
-	// progBuff := bytes.NewBuffer(nil)
-	// go func() {
-	// 	r := bufio.NewReader(progBuff)
-	// 	for {
-	// 		if line, _, err := r.ReadLine(); err == nil {
-	// 			if logger != nil {
-	// 				logger.Debug(string(line), map[string]string{"step": "dockerbuild"})
-	// 			}
-	// 		} else {
-	// 			break
-	// 		}
-	// 	}
-	// }()
-	// Setup an upload progress bar
-	// progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(progBuff, true)
-	// var body io.Reader = progress.NewProgressReader(buildCtx, progressOutput, 0, "", "Sending build context to Docker daemon")
 	rc, err := dockerCli.ImageBuild(ctx, buildCtx, options)
 	if err != nil {
 		return err
@@ -230,7 +214,7 @@ func ImageBuild(dockerCli *client.Client, contextDir string, options types.Image
 	for {
 		if line, _, err := r.ReadLine(); err == nil {
 			if logger != nil {
-				logger.Debug(string(line), map[string]string{"step": "dockerbuild"})
+				logger.Debug(string(line), map[string]string{"step": "build-progress"})
 			} else {
 				fmt.Println(string(line))
 			}
