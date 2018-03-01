@@ -224,6 +224,8 @@ func (i *SourceCodeBuildItem) prepare() error {
 	if err := util.CheckAndCreateDir(i.TGZDir); err != nil {
 		return err
 	}
+	os.Chown(i.CacheDir, 200, 200)
+	os.Chown(i.TGZDir, 200, 200)
 	return nil
 }
 func (i *SourceCodeBuildItem) buildCode() error {
