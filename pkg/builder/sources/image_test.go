@@ -21,6 +21,9 @@ package sources
 import (
 	"fmt"
 	"testing"
+
+	"github.com/docker/engine-api/client"
+	"github.com/docker/engine-api/types"
 )
 
 func TestImageName(t *testing.T) {
@@ -33,5 +36,16 @@ func TestImageName(t *testing.T) {
 	for _, i := range imageName {
 		in := ImageNameHandle(i)
 		fmt.Printf("host: %s, name: %s, tag: %s\n", in.Host, in.Name, in.Tag)
+	}
+}
+
+func TestBuildImage(t *testing.T) {
+	dc, _ := client.NewEnvClient()
+	buildOptions := types.ImageBuildOptions{
+		Tags:   []string{"build:test"},
+		Remove: true,
+	}
+	if err := ImageBuild(dc, "/tmp/gost", buildOptions, nil, 5); err != nil {
+		t.Fatal(err)
 	}
 }
