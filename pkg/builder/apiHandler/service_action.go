@@ -19,41 +19,43 @@
 package apiHandler
 
 import (
-	"github.com/Sirupsen/logrus"
-	"github.com/pquerna/ffjson/ffjson"
+	"bytes"
+	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"strings"
-	"net/http"
-	"fmt"
-	"bytes"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/worker/discover/model"
+	"github.com/pquerna/ffjson/ffjson"
 )
 
 //UpgradeService 滚动升级
-func UpgradeService(tenantName, serviceAlias string ,ru *model.RollingUpgradeTaskBody) error {
+func UpgradeService(tenantName, serviceAlias string, ru *model.RollingUpgradeTaskBody) error {
 	url := fmt.Sprintf("http://127.0.0.1:8888/v2/tenants/%s/services/%s/upgrade", tenantName, serviceAlias)
 	logrus.Debugf("rolling update new version: %s, url is %s", ru.NewDeployVersion, url)
 	raw := struct {
 		DeployVersion string `json:"deploy_version"`
-		EventID  string `json:"event_id"`
+		EventID       string `json:"event_id"`
 	}{
-		DeployVersion:ru.CurrentDeployVersion,
-		EventID:ru.EventID,
+		DeployVersion: ru.CurrentDeployVersion,
+		EventID:       ru.EventID,
 	}
 	rawBody, err := ffjson.Marshal(raw)
 	if err != nil {
 		return err
 	}
-	return publicRequest("post", url,rawBody)
+	return publicRequest("post", url, rawBody)
 }
 
-func publicRequest(method, url string, body...[]byte) error {
+func publicRequest(method, url string, body ...[]byte) error {
 	client := &http.Client{}
 	var rawBody *bytes.Buffer
 	if len(body) != 0 {
-		rawBody = bytes.NewBuffer(body[0])  
-	}else {
-		rawBody = nil 
+		rawBody = bytes.NewBuffer(body[0])
+	} else {
+		rawBody = nil
 	}
 	request, _ := http.NewRequest(strings.ToUpper(method), url, rawBody)
 	token := os.Getenv("TOKEN")
@@ -61,9 +63,13 @@ func publicRequest(method, url string, body...[]byte) error {
 		request.Header.Set("Authorization", "Token "+token)
 	}
 	response, _ := client.Do(request)
-    if response.StatusCode == 200 {
-        //body, _ := ioutil.ReadAll(response.Body)
-        return nil
+	if response.StatusCode == 200 {
+		return nil
 	}
-	return fmt.Errorf("send upgrade mission error")
+	str := ""
+	if response != nil && response.Body != nil {
+		body, _ := ioutil.ReadAll(response.Body)
+		str = string(body)
+	}
+	return fmt.Errorf("send upgrade mission error,response body:%s", str)
 }

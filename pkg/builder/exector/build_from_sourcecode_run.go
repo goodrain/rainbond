@@ -165,6 +165,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	if err := apiHandler.UpgradeService(i.TenantName, i.ServiceAlias, i.CreateUpgradeTaskBody()); err != nil {
 		i.Logger.Error("启动应用失败，请手动启动", map[string]string{"step": "callback", "status": "failure"})
 		logrus.Errorf("rolling update service error, %s", err.Error())
+		return err
 	}
 	i.Logger.Info("应用启动成功", map[string]string{"step": "build-exector"})
 	return nil

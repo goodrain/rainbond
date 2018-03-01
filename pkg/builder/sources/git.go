@@ -141,11 +141,13 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 		opts.Auth = sshAuth
 		rs, err = git.PlainCloneContext(ctx, sourceDir, false, opts)
 	} else {
-		httpAuth := &http.BasicAuth{
-			Username: csi.User,
-			Password: csi.Password,
+		if csi.User != "" && csi.Password != "" {
+			httpAuth := &http.BasicAuth{
+				Username: csi.User,
+				Password: csi.Password,
+			}
+			opts.Auth = httpAuth
 		}
-		opts.Auth = httpAuth
 		rs, err = git.PlainCloneContext(ctx, sourceDir, false, opts)
 	}
 	if err != nil {
