@@ -142,7 +142,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		i.Logger.Error(fmt.Sprintf("读取代码版本信息失败"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	info := fmt.Sprintf("版本:%s 上传者:%s Commit:%s ", commit.Hash.String()[0:7], commit.Author, commit.Message)
+	info := fmt.Sprintf("版本:%s 上传者:%s Commit:%s ", commit.Hash.String()[0:7], commit.Author.Name, commit.Message)
 	i.Logger.Info(info, map[string]string{"step": "code-version"})
 
 	if i.Lang == string(code.Dockerfile) {

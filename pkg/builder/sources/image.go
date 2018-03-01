@@ -20,7 +20,10 @@ package sources
 
 import (
 	"bufio"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -143,23 +146,51 @@ func ImagePush(dockerCli *client.Client, image string, opts types.ImagePushOptio
 	readcloser, err := dockerCli.ImagePush(ctx, image, opts)
 	if err != nil {
 		if strings.HasSuffix(err.Error(), "does not exist") {
+			if logger != nil {
+				logger.Error(fmt.Sprintf("镜像：%s不存在，不能推送", image), map[string]string{"step": "pushimage"})
+			}
 			return fmt.Errorf("Image(%s) does not exist", image)
 		}
 		return err
 	}
-	defer readcloser.Close()
-	r := bufio.NewReader(readcloser)
-	for {
-		if line, _, err := r.ReadLine(); err == nil {
-			if logger != nil {
-				//进度信息
-				logger.Debug(string(line), map[string]string{"step": "progress"})
+	if readcloser != nil {
+		defer readcloser.Close()
+		r := bufio.NewReader(readcloser)
+		for {
+			if line, _, err := r.ReadLine(); err == nil {
+				if logger != nil {
+					//进度信息
+					logger.Debug(string(line), map[string]string{"step": "progress"})
+				}
+			} else {
+				break
 			}
-		} else {
-			break
 		}
 	}
 	return nil
+}
+
+// EncodeAuthToBase64 serializes the auth configuration as JSON base64 payload
+func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
+	buf, err := json.Marshal(authConfig)
+	if err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(buf), nil
+}
+
+// ImagePushPrivileged push the image
+func imagePushPrivileged(ctx context.Context, dockerCli *client.Client, authConfig types.AuthConfig, ref string, requestPrivilege types.RequestPrivilegeFunc) (io.ReadCloser, error) {
+	encodedAuth, err := EncodeAuthToBase64(authConfig)
+	if err != nil {
+		return nil, err
+	}
+	options := types.ImagePushOptions{
+		RegistryAuth:  encodedAuth,
+		PrivilegeFunc: requestPrivilege,
+	}
+
+	return dockerCli.ImagePush(ctx, ref, options)
 }
 
 //ImageBuild ImageBuild
