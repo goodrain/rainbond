@@ -220,7 +220,17 @@ func (i *SourceCodeBuildItem) buildImage() error {
 		logrus.Errorf("build image error: %s", err.Error())
 		return err
 	}
-	err = sources.ImagePush(i.DockerClient, buildImageName, types.ImagePushOptions{}, i.Logger, 2)
+	auth, err := sources.EncodeAuthToBase64(types.AuthConfig{Username: "", Password: ""})
+	if err != nil {
+		logrus.Errorf("make auth base63 push image error: %s", err.Error())
+		i.Logger.Error(fmt.Sprintf("推送镜像内部错误"), map[string]string{"step": "builder-exector", "status": "failure"})
+		return err
+	}
+	ipo := types.ImagePushOptions{
+		All:          true,
+		RegistryAuth: auth,
+	}
+	err = sources.ImagePush(i.DockerClient, buildImageName, ipo, i.Logger, 2)
 	i.Logger.Info("镜像构建成功，开始推送镜像至仓库", map[string]string{"step": "builder-exector"})
 	if err != nil {
 		i.Logger.Error("推送镜像失败", map[string]string{"step": "builder-exector"})
