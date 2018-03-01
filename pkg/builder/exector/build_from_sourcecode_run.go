@@ -149,7 +149,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		i.Logger.Info("代码识别出Dockerfile,直接构建镜像。", map[string]string{"step": "builder-exector"})
 		if err := i.buildImage(); err != nil {
 			logrus.Errorf("build from dockerfile error: %s", err.Error())
-			i.Logger.Error("解析Dockerfile发生异常", map[string]string{"step": "builder-exector", "status": "failure"})
+			i.Logger.Error("基于Dockerfile构建应用发生错误，请分析日志查找原因", map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
 	} else {
@@ -186,6 +186,8 @@ func (i *SourceCodeBuildItem) buildImage() error {
 	i.Logger.Info("开始解析Dockerfile", map[string]string{"step": "builder-exector"})
 	_, err := sources.ParseFile(filepath)
 	if err != nil {
+		logrus.Error("parse dockerfile error.", err.Error())
+		i.Logger.Error(fmt.Sprintf("预解析Dockerfile失败"), map[string]string{"step": "builder-exector"})
 		return err
 	}
 	reg := regexp.MustCompile(`.*(?:\:|\/)([\w\-\.]+)/([\w\-\.]+)\.git`)
@@ -203,16 +205,15 @@ func (i *SourceCodeBuildItem) buildImage() error {
 	buildImageName := strings.ToLower(fmt.Sprintf("%s/%s_%s", REGISTRYDOMAIN, name, tag))
 	i.Logger.Info(fmt.Sprintf("构建镜像名称为: %s", buildImageName), map[string]string{"step": "builder-exector"})
 	buildOptions := types.ImageBuildOptions{
-		Tags:       []string{buildImageName},
-		Dockerfile: filepath,
-		Remove:     true,
+		Tags:   []string{buildImageName},
+		Remove: true,
 	}
 	if _, ok := i.BuildEnvs["NO_CACHE"]; ok {
 		buildOptions.NoCache = true
 	} else {
 		buildOptions.NoCache = false
 	}
-	err = sources.ImageBuild(i.DockerClient, buildOptions, i.Logger, 3)
+	err = sources.ImageBuild(i.DockerClient, i.SourceDir, buildOptions, i.Logger, 3)
 	i.Logger.Info("开始构建镜像: ", map[string]string{"step": "builder-exector"})
 	if err != nil {
 		i.Logger.Error(fmt.Sprintf("构造镜像%s失败: %s", buildImageName, err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})

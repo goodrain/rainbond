@@ -20,6 +20,7 @@ package sources
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -34,6 +35,9 @@ import (
 	//"github.com/docker/docker/api/types"
 	"github.com/docker/engine-api/types"
 	//"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/engine-api/client"
 	"github.com/goodrain/rainbond/pkg/builder/model"
 	"github.com/goodrain/rainbond/pkg/event"
@@ -194,10 +198,34 @@ func imagePushPrivileged(ctx context.Context, dockerCli *client.Client, authConf
 }
 
 //ImageBuild ImageBuild
-func ImageBuild(dockerCli *client.Client, options types.ImageBuildOptions, logger event.Logger, timeout int) error {
+func ImageBuild(dockerCli *client.Client, contextDir string, options types.ImageBuildOptions, logger event.Logger, timeout int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
-	rc, err := dockerCli.ImageBuild(ctx, nil, options)
+	buildCtx, err := archive.TarWithOptions(contextDir, &archive.TarOptions{
+		Compression:     archive.Uncompressed,
+		ExcludePatterns: []string{""},
+		IncludeFiles:    []string{"."},
+	})
+	if err != nil {
+		return err
+	}
+	progBuff := bytes.NewBuffer(nil)
+	go func() {
+		r := bufio.NewReader(progBuff)
+		for {
+			if line, _, err := r.ReadLine(); err == nil {
+				if logger != nil {
+					logger.Debug(string(line), map[string]string{"step": "dockerbuild"})
+				}
+			} else {
+				break
+			}
+		}
+	}()
+	// Setup an upload progress bar
+	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(progBuff, true)
+	var body io.Reader = progress.NewProgressReader(buildCtx, progressOutput, 0, "", "Sending build context to Docker daemon")
+	rc, err := dockerCli.ImageBuild(ctx, body, options)
 	if err != nil {
 		return err
 	}
