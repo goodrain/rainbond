@@ -1704,16 +1704,16 @@ func (s *ServiceAction) GetPods(serviceID string) ([]*dbmodel.K8sPod, error) {
 
 //TransServieToDelete trans service info to delete table
 func (s *ServiceAction) TransServieToDelete(serviceID string) error {
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	if err != nil {
+		return err
+	}
 	status, err := db.GetManager().TenantServiceStatusDao().GetTenantServiceStatus(serviceID)
 	if err != nil {
 		return err
 	}
 	if status.Status != "closed" && status.Status != "undeploy" && status.Status != "" {
 		return fmt.Errorf("unclosed")
-	}
-	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
-	if err != nil {
-		return err
 	}
 	tx := db.GetManager().Begin()
 	//此处的原因，必须使用golang 1.8 以上版本编译
