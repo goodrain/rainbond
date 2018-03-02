@@ -160,14 +160,14 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		checkDeployVersion(r)
 		if err := s.buildFromImage(r, service); err != nil {
 			logger.Error("镜像构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
-			return err	
+			return err
 		}
 		logger.Info("镜像构建应用任务发送成功 ", map[string]string{"step": "image-service", "status": "starting"})
 		return nil
 	case "build_from_source_code":
 		checkDeployVersion(r)
 		if err := s.buildFromSourceCode(r, service); err != nil {
-			logger.Error("源码构建应用任务发送失败 "+ err.Error(), map[string]string{"step":"callback", "status":"failure"})
+			logger.Error("源码构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
 		}
 		logger.Info("源码构建应用任务发送成功 ", map[string]string{"step": "source-service", "status": "starting"})
@@ -192,7 +192,7 @@ func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service 
 	} else {
 		body["operator"] = r.Body.Operator
 	}
-	body["image"] = service.ImageName
+	body["image"] = r.Body.ImageURL
 	body["service_id"] = service.ID
 	body["deploy_version"] = r.Body.DeployVersion
 	body["app_version"] = service.ServiceVersion
@@ -210,13 +210,13 @@ func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service 
 
 func (s *ServiceAction) buildFromSourceCode(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
 	logrus.Debugf("build_from_source_code")
-	if r.Body.RepoURL == "" || r.Body.Branch == "" ||r.Body.DeployVersion == "" || r.Body.EventID == "" {
+	if r.Body.RepoURL == "" || r.Body.Branch == "" || r.Body.DeployVersion == "" || r.Body.EventID == "" {
 		return fmt.Errorf("args error")
-	}	
+	}
 	body := make(map[string]interface{})
 	if r.Body.Operator == "" {
 		body["operator"] = "define"
-	}else {
+	} else {
 		body["operator"] = r.Body.Operator
 	}
 	body["tenant_id"] = service.TenantID
@@ -238,7 +238,7 @@ func (s *ServiceAction) buildFromSourceCode(r *api_model.BuildServiceStruct, ser
 	}
 	body["expire"] = 180
 	logrus.Debugf("app_build body is %v", body)
-	return s.sendTask(body, "build_from_source_code")	
+	return s.sendTask(body, "build_from_source_code")
 }
 
 func (s *ServiceAction) sourceBuild(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
