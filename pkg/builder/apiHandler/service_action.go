@@ -39,7 +39,7 @@ func UpgradeService(tenantName, serviceAlias string, ru *model.RollingUpgradeTas
 		DeployVersion string `json:"deploy_version"`
 		EventID       string `json:"event_id"`
 	}{
-		DeployVersion: ru.CurrentDeployVersion,
+		DeployVersion: ru.NewDeployVersion,
 		EventID:       ru.EventID,
 	}
 	rawBody, err := ffjson.Marshal(raw)
