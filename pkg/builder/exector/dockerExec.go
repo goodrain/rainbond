@@ -27,7 +27,6 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/event"
 
-	"github.com/Sirupsen/logrus"
 	//"github.com/docker/docker/api/types"
 	"github.com/docker/engine-api/types"
 )
@@ -58,7 +57,6 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 	stderr, _ := cmd.StderrPipe()
 	errC := cmd.Start()
 	if errC != nil {
-		logrus.Debugf(fmt.Sprintf("builder: %v", errC))
 		logger[0].Error(fmt.Sprintf("builder:%v", errC), map[string]string{"step": "build-exector"})
 		return errC
 	}
@@ -69,8 +67,6 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 			if errL != nil || io.EOF == errL {
 				break
 			}
-			//fmt.Print(line)
-			logrus.Debugf(fmt.Sprintf("builder: %v", line))
 			logger[0].Debug(fmt.Sprintf("builder:%v", line), map[string]string{"step": "build-exector"})
 		}
 	}()
@@ -83,7 +79,6 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 				if errL != nil || io.EOF == errL {
 					break
 				}
-				logrus.Errorf(fmt.Sprintf("builder err: %v", line))
 				logger[0].Error(fmt.Sprintf("builder err:%v", line), map[string]string{"step": "build-exector"})
 			}
 		}()

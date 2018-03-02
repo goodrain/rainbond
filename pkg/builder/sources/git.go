@@ -20,7 +20,6 @@ package sources
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"crypto/sha1"
 	"fmt"
@@ -29,6 +28,8 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"github.com/twinj/uuid"
 
 	"github.com/Sirupsen/logrus"
 
@@ -247,14 +248,21 @@ func createProgress(ctx context.Context, logger event.Logger, stop chan struct{}
 	if logger == nil {
 		return os.Stdout
 	}
-	buffer := bytes.NewBuffer([]byte{})
-	var reader = bufio.NewReader(buffer)
+	name := "/tmp/" + uuid.NewV4().String()
+	bufferfile, err := os.OpenFile(name, os.O_RDWR|os.O_WRONLY, 755)
+	if err != nil {
+		return os.Stdout
+	}
+	var reader = bufio.NewReader(bufferfile)
 	go func() {
+		defer func() {
+			bufferfile.Close()
+			os.RemoveAll(name)
+		}()
 		defer close(stop)
 		for {
 			select {
 			case <-ctx.Done():
-				fmt.Println("asdsadas" + string(buffer.Bytes()))
 				return
 			default:
 				line, _, err := reader.ReadLine()
@@ -262,10 +270,9 @@ func createProgress(ctx context.Context, logger event.Logger, stop chan struct{}
 					fmt.Println("err", err.Error())
 					return
 				}
-				fmt.Println(string(line))
 				logger.Debug(string(line), map[string]string{"step": "code_progress"})
 			}
 		}
 	}()
-	return buffer
+	return bufferfile
 }

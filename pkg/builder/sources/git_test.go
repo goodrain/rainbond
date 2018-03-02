@@ -31,10 +31,8 @@ func init() {
 }
 func TestGitClone(t *testing.T) {
 	csi := CodeSourceInfo{
-		RepositoryURL: "https://github.com/Gemrails/envoy_discover_service.git",
+		RepositoryURL: "git@github.com:goodrain/rainbond.git",
 		Branch:        "master",
-		User:          "root",
-		Password:      "5258423zqg",
 	}
 	//logger := event.GetManager().GetLogger("system")
 	res, err := GitClone(csi, "/tmp/privatetest", nil, 2)

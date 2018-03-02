@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"path"
 	"strconv"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 
@@ -134,6 +135,11 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			if err == transport.ErrEmptyRemoteRepository {
 				solve := SolveAdvice("open_repo", "请确认已提交代码")
 				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("Git项目仓库无有效文件"), solve))
+				return d.errors
+			}
+			if strings.Contains(err.Error(), "ssh: unable to authenticate") {
+				solve := SolveAdvice("get_publickey", "请获取授权Key配置到你的仓库项目试试？")
+				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("远程仓库SSH验证错误"), solve))
 				return d.errors
 			}
 			logrus.Errorf("git clone error,%s", err.Error())

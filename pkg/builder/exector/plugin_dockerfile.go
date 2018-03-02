@@ -186,7 +186,6 @@ func gitclone(gitURL string, sourceDir string, logger event.Logger, repo string)
 			}
 			errC := cmd.Start()
 			if errC != nil {
-				logrus.Debugf(fmt.Sprintf("builder: %v", errC))
 				logger.Error(fmt.Sprintf("builder:%v", errC), map[string]string{"step": "build-exector"})
 				return errC
 			}
@@ -198,7 +197,6 @@ func gitclone(gitURL string, sourceDir string, logger event.Logger, repo string)
 						break
 					}
 					//fmt.Print(line)
-					logrus.Debugf(fmt.Sprintf("builder: %v", line))
 					logger.Debug(fmt.Sprintf("builder:%v", line), map[string]string{"step": "build-exector"})
 				}
 			}()
