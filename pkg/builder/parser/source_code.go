@@ -95,27 +95,26 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", SolveAdvice("modify_url", "请确认并修改仓库地址")))
 		return d.errors
 	}
-	cacheDir := csi.GetCodeCacheDir()
-
+	//验证仓库地址
+	buildInfo, err := sources.CreateRepostoryBuildInfo(csi.RepositoryURL, csi.TenantID)
+	if err != nil {
+		d.logger.Error("Git项目仓库地址格式错误", map[string]string{"step": "parse"})
+		d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", SolveAdvice("modify_url", "请确认并修改仓库地址")))
+		return d.errors
+	}
 	gitFunc := func() ParseErrorList {
-		//验证仓库地址
-		ep, err := transport.NewEndpoint(csi.RepositoryURL)
-		if err != nil {
-			d.logger.Error("Git项目仓库地址格式错误", map[string]string{"step": "parse"})
-			d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", SolveAdvice("modify_url", "请确认并修改仓库地址")))
-			return d.errors
-		}
 		//获取代码
-		if sources.CheckFileExist(cacheDir) {
-			if err := sources.RemoveDir(cacheDir); err != nil {
+		if sources.CheckFileExist(buildInfo.GetCodeHome()) {
+			if err := sources.RemoveDir(buildInfo.GetCodeHome()); err != nil {
 				//d.errappend(ErrorAndSolve(err, "清理cache dir错误", "请提交代码到仓库"))
 				return d.errors
 			}
 		}
-		rs, err := sources.GitClone(csi, cacheDir, d.logger, 5)
+		csi.RepositoryURL = buildInfo.RepostoryURL
+		rs, err := sources.GitClone(csi, buildInfo.GetCodeHome(), d.logger, 5)
 		if err != nil {
-			if err == transport.ErrAuthenticationRequired {
-				if ep.Protocol == "ssh" {
+			if err == transport.ErrAuthenticationRequired || err == transport.ErrAuthorizationFailed {
+				if buildInfo.GetProtocol() == "ssh" {
 					d.errappend(ErrorAndSolve(FatalError, "Git项目仓库需要安全验证", SolveAdvice("get_publickey", "请获取授权Key配置到你的仓库项目中")))
 				} else {
 					d.errappend(ErrorAndSolve(FatalError, "Git项目仓库需要安全验证", SolveAdvice("modify_userpass", "请提供正确的账号密码")))
@@ -125,6 +124,16 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			if err == plumbing.ErrReferenceNotFound {
 				solve := "请到代码仓库查看正确的分支情况"
 				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("Git项目仓库指定分支 %s 不存在", csi.Branch), solve))
+				return d.errors
+			}
+			if err == transport.ErrRepositoryNotFound {
+				solve := SolveAdvice("modify_repo", "请确认仓库地址是否正确")
+				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("Git项目仓库不存在"), solve))
+				return d.errors
+			}
+			if err == transport.ErrEmptyRemoteRepository {
+				solve := SolveAdvice("open_repo", "请确认已提交代码")
+				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("Git项目仓库无有效文件"), solve))
 				return d.errors
 			}
 			logrus.Errorf("git clone error,%s", err.Error())
@@ -164,7 +173,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	}
 
 	//读取云帮配置文件
-	rbdfileConfig, err := code.ReadRainbondFile(cacheDir)
+	rbdfileConfig, err := code.ReadRainbondFile(buildInfo.GetCodeHome())
 	if err != nil {
 		if err == code.ErrRainbondFileNotFound {
 			d.errappend(ErrorAndSolve(NegligibleError, "rainbondfile未定义", "可以参考文档说明配置此文件定义应用属性"))
@@ -173,10 +182,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		}
 	}
 	//判断对象目录
-	var buildPath = cacheDir
-	if rbdfileConfig != nil && rbdfileConfig.BuildPath != "" {
-		buildPath = path.Join(cacheDir, rbdfileConfig.BuildPath)
-	}
+	var buildPath = buildInfo.GetCodeBuildAbsPath()
 	//解析代码类型
 	var lang code.Lang
 	if rbdfileConfig != nil && rbdfileConfig.Language != "" {

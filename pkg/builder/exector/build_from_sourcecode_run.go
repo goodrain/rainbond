@@ -50,16 +50,16 @@ var REGISTRYDOMAIN = "goodrain.me"
 
 //SourceCodeBuildItem SouceCodeBuildItem
 type SourceCodeBuildItem struct {
-	Namespace     string       `json:"namespace"`
-	TenantName    string       `json:"tenant_name"`
-	ServiceAlias  string       `json:"service_alias"`
-	Action        string       `json:"action"`
-	DestImage     string       `json:"dest_image"`
-	Logger        event.Logger `json:"logger"`
-	EventID       string       `json:"event_id"`
-	CacheDir      string       `json:"cache_dir"`
-	SourceDir     string       `json:"source_dir"`
-	TGZDir        string       `json:"tgz_dir"`
+	Namespace    string       `json:"namespace"`
+	TenantName   string       `json:"tenant_name"`
+	ServiceAlias string       `json:"service_alias"`
+	Action       string       `json:"action"`
+	DestImage    string       `json:"dest_image"`
+	Logger       event.Logger `json:"logger"`
+	EventID      string       `json:"event_id"`
+	CacheDir     string       `json:"cache_dir"`
+	//SourceDir     string       `json:"source_dir"`
+	TGZDir        string `json:"tgz_dir"`
 	DockerClient  *client.Client
 	Config        parseConfig.Config
 	TenantID      string
@@ -69,6 +69,7 @@ type SourceCodeBuildItem struct {
 	Runtime       string
 	BuildEnvs     map[string]string
 	CodeSouceInfo sources.CodeSourceInfo
+	RepoInfo      *sources.RepostoryBuildInfo
 }
 
 //NewSouceCodeBuildItem 创建实体
@@ -106,7 +107,7 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 		BuildEnvs:     be,
 	}
 	scb.CacheDir = fmt.Sprintf("/cache/build/%s/cache/%s", scb.TenantID, scb.ServiceID)
-	scb.SourceDir = scb.CodeSouceInfo.GetCodeSourceDir()
+	//scb.SourceDir = scb.CodeSouceInfo.GetCodeSourceDir()
 	scb.TGZDir = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s", scb.TenantID, scb.ServiceID)
 	return scb
 }
@@ -118,12 +119,19 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	// 2.check dockerfile/ source_code
 	// 3.build
 	// 4.upload image /upload slug
+	rbi, err := sources.CreateRepostoryBuildInfo(i.CodeSouceInfo.RepositoryURL, i.TenantID)
+	if err != nil {
+		i.Logger.Error("Git项目仓库地址格式错误", map[string]string{"step": "parse"})
+		return err
+	}
+	i.RepoInfo = rbi
 	if err := i.prepare(); err != nil {
 		logrus.Errorf("prepare build code error: %s", err.Error())
 		i.Logger.Error(fmt.Sprintf("准备源码构建失败"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	rs, err := sources.GitClone(i.CodeSouceInfo, i.SourceDir, i.Logger, 3)
+	i.CodeSouceInfo.RepositoryURL = rbi.RepostoryURL
+	rs, err := sources.GitClone(i.CodeSouceInfo, rbi.GetCodeHome(), i.Logger, 5)
 	if err != nil {
 		logrus.Errorf("pull git code error: %s", err.Error())
 		i.Logger.Error(fmt.Sprintf("拉取代码失败，请重试"), map[string]string{"step": "builder-exector", "status": "failure"})
@@ -173,7 +181,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 
 //IsDockerfile CheckDockerfile
 func (i *SourceCodeBuildItem) IsDockerfile() bool {
-	filepath := path.Join(i.SourceDir, "Dockerfile")
+	filepath := path.Join(i.RepoInfo.GetCodeBuildAbsPath(), "Dockerfile")
 	_, err := os.Stat(filepath)
 	if err != nil {
 		return false
@@ -182,7 +190,7 @@ func (i *SourceCodeBuildItem) IsDockerfile() bool {
 }
 
 func (i *SourceCodeBuildItem) buildImage() error {
-	filepath := path.Join(i.SourceDir, "Dockerfile")
+	filepath := path.Join(i.RepoInfo.GetCodeBuildAbsPath(), "Dockerfile")
 	i.Logger.Info("开始解析Dockerfile", map[string]string{"step": "builder-exector"})
 	_, err := sources.ParseFile(filepath)
 	if err != nil {
@@ -213,7 +221,7 @@ func (i *SourceCodeBuildItem) buildImage() error {
 	} else {
 		buildOptions.NoCache = false
 	}
-	err = sources.ImageBuild(i.DockerClient, i.SourceDir, buildOptions, i.Logger, 3)
+	err = sources.ImageBuild(i.DockerClient, i.RepoInfo.GetCodeBuildAbsPath(), buildOptions, i.Logger, 3)
 	i.Logger.Info("开始构建镜像: ", map[string]string{"step": "builder-exector"})
 	if err != nil {
 		i.Logger.Error(fmt.Sprintf("构造镜像%s失败: %s", buildImageName, err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
@@ -269,10 +277,10 @@ func (i *SourceCodeBuildItem) prepare() error {
 	if err := util.CheckAndCreateDir(i.TGZDir); err != nil {
 		return err
 	}
-	if !util.DirIsEmpty(i.SourceDir) {
-		os.RemoveAll(i.SourceDir)
+	if !util.DirIsEmpty(i.RepoInfo.GetCodeHome()) {
+		os.RemoveAll(i.RepoInfo.GetCodeHome())
 	}
-	if err := util.CheckAndCreateDir(i.SourceDir); err != nil {
+	if err := util.CheckAndCreateDir(i.RepoInfo.GetCodeHome()); err != nil {
 		return err
 	}
 	os.Chown(i.CacheDir, 200, 200)
@@ -293,7 +301,7 @@ func (i *SourceCodeBuildItem) buildCode() error {
 	}(i.ServiceID, i.DeployVersion)
 	cmd := []string{buildCMD,
 		"-b", i.CodeSouceInfo.Branch,
-		"-s", i.SourceDir,
+		"-s", i.RepoInfo.GetCodeBuildAbsPath(),
 		"-c", i.CacheDir,
 		"-d", i.TGZDir,
 		"-v", i.DeployVersion,

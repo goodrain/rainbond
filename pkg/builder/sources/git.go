@@ -70,15 +70,20 @@ func (c CodeSourceInfo) GetCodeCacheDir() string {
 
 //GetCodeSourceDir 获取代码下载目录
 func (c CodeSourceInfo) GetCodeSourceDir() string {
+	return GetCodeSourceDir(c.RepositoryURL, c.TenantID)
+}
+
+//GetCodeSourceDir 获取源码下载目录
+func GetCodeSourceDir(RepositoryURL, tenantID string) string {
 	sourceDir := os.Getenv("SOURCE_DIR")
 	if sourceDir == "" {
-		sourceDir = "/source"
+		sourceDir = "/grdata/source"
 	}
 	h := sha1.New()
-	h.Write([]byte(c.RepositoryURL))
+	h.Write([]byte(RepositoryURL))
 	bs := h.Sum(nil)
 	bsStr := fmt.Sprintf("%x", bs)
-	return path.Join(sourceDir, "build", c.TenantID, bsStr)
+	return path.Join(sourceDir, "build", tenantID, bsStr)
 }
 
 //CheckFileExist CheckFileExist
@@ -117,11 +122,11 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
-	//stop := make(chan struct{})
-	//progress := createProgress(ctx, logger, stop)
+	stop := make(chan struct{})
+	progress := createProgress(ctx, logger, stop)
 	opts := &git.CloneOptions{
 		URL:               csi.RepositoryURL,
-		Progress:          os.Stdout,
+		Progress:          progress,
 		SingleBranch:      false,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	}
@@ -159,6 +164,24 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 		if err == transport.ErrAuthenticationRequired {
 			if logger != nil {
 				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源需要授权访问。"), map[string]string{"step": "callback", "status": "failure"})
+			}
+			return rs, err
+		}
+		if err == transport.ErrAuthorizationFailed {
+			if logger != nil {
+				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源鉴权失败。"), map[string]string{"step": "callback", "status": "failure"})
+			}
+			return rs, err
+		}
+		if err == transport.ErrRepositoryNotFound {
+			if logger != nil {
+				logger.Error(fmt.Sprintf("拉取代码发生错误，仓库不存在。"), map[string]string{"step": "callback", "status": "failure"})
+			}
+			return rs, err
+		}
+		if err == transport.ErrEmptyRemoteRepository {
+			if logger != nil {
+				logger.Error(fmt.Sprintf("拉取代码发生错误，远程仓库为空。"), map[string]string{"step": "callback", "status": "failure"})
 			}
 			return rs, err
 		}
