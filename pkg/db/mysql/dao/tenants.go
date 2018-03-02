@@ -439,10 +439,8 @@ func (t *TenantServicesPortDaoImpl) GetPort(serviceID string, port int) (*model.
 
 //DELPortsByServiceID DELPortsByServiceID
 func (t *TenantServicesPortDaoImpl) DELPortsByServiceID(serviceID string) error {
-	ports := &model.TenantServicesPort{
-		ServiceID: serviceID,
-	}
-	if err := t.DB.Where("service_id=?", serviceID).Where(ports).Error; err != nil {
+	var port model.TenantServicesPort
+	if err := t.DB.Where("service_id=?", serviceID).Delete(&port).Error; err != nil {
 		return err
 	}
 	return nil
