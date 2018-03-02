@@ -21,7 +21,6 @@ package version2
 import (
 	"github.com/goodrain/rainbond/pkg/api/controller"
 	"github.com/goodrain/rainbond/pkg/api/middleware"
-	builder_controller "github.com/goodrain/rainbond/pkg/builder/api"
 
 	"github.com/go-chi/chi"
 )

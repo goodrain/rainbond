@@ -26,8 +26,8 @@ import (
 	"github.com/goodrain/rainbond/cmd/builder/option"
 	"github.com/goodrain/rainbond/pkg/builder/discover"
 	"github.com/goodrain/rainbond/pkg/builder/exector"
-	"github.com/goodrain/rainbond/pkg/db/config"
 	"github.com/goodrain/rainbond/pkg/db"
+	"github.com/goodrain/rainbond/pkg/db/config"
 	"github.com/goodrain/rainbond/pkg/event"
 
 	"net/http"

@@ -225,7 +225,6 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 //GetPrivateFile 获取私钥文件地址
 func GetPrivateFile() string {
 	home, _ := Home()
-	home = "/root"
 	if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa")); ok {
 		return path.Join(home, "/.ssh/builder_rsa")
 	}

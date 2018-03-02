@@ -18,15 +18,29 @@
 package api
 
 import (
+	"net/http"
+
+	"github.com/goodrain/rainbond/pkg/builder/sources"
+
 	"github.com/goodrain/rainbond/pkg/util"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/pkg/builder/api/controller"
+	httputil "github.com/goodrain/rainbond/pkg/util/http"
 )
 
 func APIServer() *chi.Mux {
 	r := chi.NewRouter()
 	r.Route("/v2/builder", func(r chi.Router) {
+		r.Get("/publickey", func(w http.ResponseWriter, r *http.Request) {
+			key := sources.GetPublicKey()
+			bean := struct {
+				Key string `json:"public_key"`
+			}{
+				Key: key,
+			}
+			httputil.ReturnSuccess(r, w, bean)
+		})
 		r.Route("/codecheck", func(r chi.Router) {
 			r.Post("/", controller.AddCodeCheck)
 			r.Put("/service/{serviceID}", controller.Update)
