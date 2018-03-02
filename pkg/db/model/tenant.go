@@ -359,7 +359,7 @@ func (t *TenantServiceLable) TableName() string {
 //TenantServiceStatus 应用实时状态
 type TenantServiceStatus struct {
 	Model
-	ServiceID string `gorm:"column:service_id;size:32"`
+	ServiceID string `gorm:"column:service_id;size:32;unique_index"`
 	Status    string `gorm:"column:status;size:24"`
 	//undeploy 1, closed 2, stopping 3, starting 4, running 5
 }

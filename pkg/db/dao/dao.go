@@ -283,6 +283,7 @@ type ServiceStatusDao interface {
 	GetRunningService() ([]*model.TenantServiceStatus, error)
 	GetTenantStatus(tenantID string) ([]*model.TenantServiceStatus, error)
 	GetTenantServicesStatus(serviceIDs []string) ([]*model.TenantServiceStatus, error)
+	DeleteByServiceID(serviceID string) error
 }
 
 //CodeCheckResultDao CodeCheckResultDao

@@ -1024,7 +1024,7 @@ func (t *ServiceLabelDaoImpl) DeleteModel(serviceID string, args ...interface{})
 //DeleteLabelByServiceID 删除应用全部label
 func (t *ServiceLabelDaoImpl) DeleteLabelByServiceID(serviceID string) error {
 	label := &model.TenantServiceLable{
-		ServiceID:  serviceID,
+		ServiceID: serviceID,
 	}
 	if err := t.DB.Where("service_id=?", serviceID).Delete(label).Error; err != nil {
 		return err
@@ -1172,6 +1172,15 @@ func (t *ServiceStatusDaoImpl) GetRunningService() ([]*model.TenantServiceStatus
 		return nil, err
 	}
 	return statuss, nil
+}
+
+//DeleteByServiceID 状态删除
+func (t *ServiceStatusDaoImpl) DeleteByServiceID(serviceID string) error {
+	var status model.TenantServiceStatus
+	if err := t.DB.Where("service_id=?", serviceID).Delete(&status).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 //GetTenantStatus GetTenantStatus

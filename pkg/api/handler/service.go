@@ -1708,7 +1708,7 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	if err != nil {
 		return err
 	}
-	if status.Status != "closed" && status.Status != "undeploy" {
+	if status.Status != "closed" && status.Status != "undeploy" && status.Status != "" {
 		return fmt.Errorf("unclosed")
 	}
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
@@ -1808,6 +1808,13 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 		}
 	}
 	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteLabelByServiceID(serviceID); err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			tx.Rollback()
+			return err
+		}
+	}
+	//删除应用状态
+	if db.GetManager().TenantServiceStatusDaoTransactions(tx).DeleteByServiceID(serviceID); err != nil {
 		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			tx.Rollback()
 			return err
