@@ -327,3 +327,13 @@ func dirents(dir string) []os.FileInfo {
 	}
 	return entries
 }
+
+//RemoveSpaces 去除空格项
+func RemoveSpaces(sources []string) (re []string) {
+	for _, s := range sources {
+		if s != " " {
+			re = append(re, s)
+		}
+	}
+	return
+}

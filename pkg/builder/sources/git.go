@@ -239,7 +239,7 @@ func GetPublicKey() string {
 	if home == "" {
 		home = "/root"
 	}
-	if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa.pub")); ok {
+	if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder.pub")); ok {
 		body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/builder_rsa.pub"))
 		return string(body)
 	}

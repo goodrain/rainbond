@@ -23,6 +23,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/goodrain/rainbond/pkg/util"
+
 	"github.com/goodrain/rainbond/pkg/builder/sources"
 	"github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/event"
@@ -129,6 +131,7 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 
 func (d *DockerRunOrImageParse) dockerun(source []string) {
 	var name string
+	source = util.RemoveSpaces(source)
 	for i, s := range source {
 		if s == "docker" || s == "run" {
 			continue

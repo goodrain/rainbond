@@ -346,7 +346,9 @@ func (p *PodTemplateSpecBuild) createArgs() (args []string) {
 	if p.service.ContainerCMD == "" {
 		return
 	}
-	return strings.Split(p.service.ContainerCMD, " ")
+	args = strings.Split(p.service.ContainerCMD, " ")
+	args = util.RemoveSpaces(args)
+	return args
 }
 func (p *PodTemplateSpecBuild) createProbe(mode string) *v1.Probe {
 	//TODO:应用创建时如果有开端口，创建默认探针
