@@ -164,7 +164,6 @@ func (d *DockerRunOrImageParse) dockerun(source []string) {
 				name = ""
 			}
 		} else {
-			fmt.Printf("Name %s S : %s \n", name, s)
 			switch name {
 			case "e", "env":
 				info := strings.Split(s, "=")

@@ -20,6 +20,7 @@ package sources
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/sha1"
 	"fmt"
@@ -28,8 +29,6 @@ import (
 	"path"
 	"strings"
 	"time"
-
-	"github.com/twinj/uuid"
 
 	"github.com/Sirupsen/logrus"
 
@@ -123,8 +122,7 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
-	stop := make(chan struct{})
-	progress := createProgress(ctx, logger, stop)
+	progress := createProgress(ctx, logger)
 	opts := &git.CloneOptions{
 		URL:               csi.RepositoryURL,
 		Progress:          progress,
@@ -250,22 +248,14 @@ func GetPublicKey() string {
 }
 
 //createProgress create git log progress
-func createProgress(ctx context.Context, logger event.Logger, stop chan struct{}) sideband.Progress {
+func createProgress(ctx context.Context, logger event.Logger) sideband.Progress {
 	if logger == nil {
 		return os.Stdout
 	}
-	name := "/tmp/" + uuid.NewV4().String()
-	bufferfile, err := os.OpenFile(name, os.O_RDWR|os.O_WRONLY, 755)
-	if err != nil {
-		return os.Stdout
-	}
+	bufferfile := bytes.NewBuffer([]byte{})
+	fmt.Println("logger progress")
 	var reader = bufio.NewReader(bufferfile)
 	go func() {
-		defer func() {
-			bufferfile.Close()
-			os.RemoveAll(name)
-		}()
-		defer close(stop)
 		for {
 			select {
 			case <-ctx.Done():
@@ -273,10 +263,13 @@ func createProgress(ctx context.Context, logger event.Logger, stop chan struct{}
 			default:
 				line, _, err := reader.ReadLine()
 				if err != nil {
-					fmt.Println("err", err.Error())
-					return
+					if err.Error() != "EOF" {
+						fmt.Println("read git log err", err.Error())
+					}
 				}
-				logger.Debug(string(line), map[string]string{"step": "code_progress"})
+				if len(line) > 0 {
+					logger.Debug(string(line), map[string]string{"step": "code_progress"})
+				}
 			}
 		}
 	}()
