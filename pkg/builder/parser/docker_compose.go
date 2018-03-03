@@ -19,16 +19,18 @@
 package parser
 
 import (
-	"github.com/Sirupsen/logrus"
+	"fmt"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/pkg/builder/parser/compose"
 	"github.com/goodrain/rainbond/pkg/builder/sources"
 	"github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/event"
 
-	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/client"
+	"github.com/docker/engine-api/types"
 )
 
 //DockerComposeParse docker compose 文件解析
@@ -40,14 +42,14 @@ type DockerComposeParse struct {
 	source       string
 }
 type serviceInfoFromDC struct {
-	ports   map[int]*Port
-	volumes map[string]*Volume
-	envs    map[string]*Env
-	source  string
-	memory  int
-	image   Image
-	args    []string
-	depends []string
+	ports      map[int]*Port
+	volumes    map[string]*Volume
+	envs       map[string]*Env
+	source     string
+	memory     int
+	image      Image
+	args       []string
+	depends    []string
 	imageAlias string
 }
 
@@ -94,7 +96,9 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 	comp := compose.Compose{}
 	co, err := comp.LoadBytes([][]byte{[]byte(d.source)})
 	if err != nil {
-		d.errappend(Errorf(FatalError, err.Error()))
+		logrus.Warning("parse compose file error,", err.Error())
+		d.logger.Error(fmt.Sprintf("解析ComposeFile失败 %s", err.Error()), map[string]string{"step": "compose-parse"})
+		d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("ComposeFile解析错误"), SolveAdvice("modify_compose", "请确认ComposeFile输入是否语法正确")))
 		return d.errors
 	}
 	for kev, sc := range co.ServiceConfigs {
@@ -125,13 +129,13 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 			}
 		}
 		service := serviceInfoFromDC{
-			ports:   ports,
-			volumes: volumes,
-			envs:    envs,
-			memory:  int(sc.MemLimit),
-			image:   parseImageName(sc.Image),
-			args:    sc.Args,
-			depends: sc.Links,
+			ports:      ports,
+			volumes:    volumes,
+			envs:       envs,
+			memory:     int(sc.MemLimit),
+			image:      parseImageName(sc.Image),
+			args:       sc.Args,
+			depends:    sc.Links,
 			imageAlias: sc.ContainerName,
 		}
 		if sc.DependsON != nil {
@@ -143,7 +147,11 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 		//获取镜像，验证是否存在
 		imageInspect, err := sources.ImagePull(d.dockerclient, service.image.String(), types.ImagePullOptions{}, d.logger, 5)
 		if err != nil {
-			d.errappend(Errorf(FatalError, err.Error()))
+			if strings.Contains(err.Error(), "No such image") {
+				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)不存在", service.image.String()), SolveAdvice("modify_compose", "请确认ComposeFile输入镜像名是否正确")))
+			} else {
+				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)获取失败", service.image.String()), SolveAdvice("modify_compose", "请确认ComposeFile输入镜像可以正常获取")))
+			}
 			return d.errors
 		}
 		if imageInspect != nil && imageInspect.ContainerConfig != nil {
@@ -193,7 +201,7 @@ func (d *DockerComposeParse) GetServiceInfo() []ServiceInfo {
 			Args:           service.args,
 			DependServices: service.depends,
 			Memory:         service.memory,
-			ImageAlias: 	service.imageAlias,
+			ImageAlias:     service.imageAlias,
 		}
 		sis = append(sis, si)
 	}

@@ -77,18 +77,18 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 	if strings.HasPrefix(d.source, "docker") {
 		d.dockerun(strings.Split(d.source, " "))
 		if d.image.String() == "" || d.image.String() == ":" {
-			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称识别失败"), SolveAdvice("modify_dockerrun", "请确认输入DockerRun命令是否正确")))
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称识别失败"), SolveAdvice("modify_image", "请确认输入DockerRun命令是否正确")))
 			return d.errors
 		}
 		if _, err := reference.ParseAnyReference(d.image.String()); err != nil {
-			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称(%s)不合法", d.image.String()), SolveAdvice("modify_dockerrun", "请确认输入DockerRun命令是否正确")))
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称(%s)不合法", d.image.String()), SolveAdvice("modify_image", "请确认输入DockerRun命令是否正确")))
 			return d.errors
 		}
 	} else {
 		//else image
 		_, err := reference.ParseAnyReference(d.source)
 		if err != nil {
-			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称(%s)不合法", d.image.String()), SolveAdvice("modify_dockerimage", "请确认输入镜像名是否正确")))
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称(%s)不合法", d.image.String()), SolveAdvice("modify_image", "请确认输入镜像名是否正确")))
 			return d.errors
 		}
 		d.image = parseImageName(d.source)
@@ -96,7 +96,11 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 	//获取镜像，验证是否存在
 	imageInspect, err := sources.ImagePull(d.dockerclient, d.image.String(), types.ImagePullOptions{}, d.logger, 5)
 	if err != nil {
-		d.errappend(Errorf(FatalError, err.Error()))
+		if strings.Contains(err.Error(), "No such image") {
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)不存在", d.image.String()), SolveAdvice("modify_image", "请确认输入镜像名是否正确")))
+		} else {
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)获取失败", d.image.String()), SolveAdvice("modify_image", "请确认输入镜像可以正常获取")))
+		}
 		return d.errors
 	}
 	if imageInspect != nil && imageInspect.ContainerConfig != nil {
