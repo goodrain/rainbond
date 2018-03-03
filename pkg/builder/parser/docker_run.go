@@ -77,18 +77,18 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 	if strings.HasPrefix(d.source, "docker") {
 		d.dockerun(strings.Split(d.source, " "))
 		if d.image.String() == "" || d.image.String() == ":" {
-			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称识别失败"), "请确认DockerRun命令是否合法"))
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称识别失败"), SolveAdvice("modify_dockerrun", "请确认输入DockerRun命令是否正确")))
 			return d.errors
 		}
 		if _, err := reference.ParseAnyReference(d.image.String()); err != nil {
-			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称(%s)不合法", d.image.String()), "请确认输入镜像名是否正确"))
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称(%s)不合法", d.image.String()), SolveAdvice("modify_dockerrun", "请确认输入DockerRun命令是否正确")))
 			return d.errors
 		}
 	} else {
 		//else image
 		_, err := reference.ParseAnyReference(d.source)
 		if err != nil {
-			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称(%s)不合法", d.image.String()), "请确认输入镜像名是否正确"))
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称(%s)不合法", d.image.String()), SolveAdvice("modify_dockerimage", "请确认输入镜像名是否正确")))
 			return d.errors
 		}
 		d.image = parseImageName(d.source)
