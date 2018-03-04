@@ -31,7 +31,6 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/util"
 
-	"github.com/goodrain/rainbond/cmd/api/option"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 
 	"github.com/Sirupsen/logrus"
@@ -50,10 +49,10 @@ type LogAction struct {
 }
 
 //CreateLogManager get log manager
-func CreateLogManager(conf option.Config) (*LogAction, error) {
+func CreateLogManager(etcdEndpoint []string) *LogAction {
 	return &LogAction{
-		EtcdEndpoints: conf.EtcdEndpoint,
-	}, nil
+		EtcdEndpoints: etcdEndpoint,
+	}
 }
 
 //GetLogList get log list

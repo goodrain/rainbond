@@ -38,7 +38,6 @@ type V2Manager interface {
 	Entrance(w http.ResponseWriter, r *http.Request)
 	TsdbQuery(w http.ResponseWriter, r *http.Request)
 
-
 	apiFunc.TenantInterface
 	apiFunc.ServiceInterface
 	apiFunc.LogInterface
@@ -66,11 +65,11 @@ func NewManager(conf option.Config) *V2Routes {
 	nodeProxy := proxy.CreateProxy("acp_node", "http", conf.NodeAPI)
 	discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("acp_node", nodeProxy)
 	v2r.AcpNodeStruct.HTTPProxy = nodeProxy
-	logrus.Debugf("v2r node api is %v", nodeProxy)
+	logrus.Debugf("create  node api proxy success")
 
 	entranceProxy := proxy.CreateProxy("acp_entrance", "http", conf.EntranceAPI)
 	discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("acp_entrance", entranceProxy)
 	v2r.EntranceStruct.HTTPProxy = entranceProxy
-	logrus.Debugf("v2r entrance api is %v", entranceProxy)
+	logrus.Debugf("create  entrance api proxy success")
 	return &v2r
 }

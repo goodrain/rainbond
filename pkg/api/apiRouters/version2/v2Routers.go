@@ -40,7 +40,6 @@ func (v2 *V2) Routes() chi.Router {
 	r.Mount("/cluster", v2.clusterRouter())
 	r.Mount("/resources", v2.resourcesRouter())
 	r.Mount("/prometheus", v2.prometheusRouter())
-	r.Mount("/builder", builder_controller.APIServer())
 	return r
 }
 
@@ -114,6 +113,8 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Get("/status", controller.GetManager().StatusService)
 	//构建版本列表
 	r.Get("/buildlist", controller.GetManager().BuildList)
+	//应用分享
+	r.Post("/share", controller.GetManager().Share)
 
 	//应用日志相关
 	r.Post("/log", controller.GetManager().Logs)

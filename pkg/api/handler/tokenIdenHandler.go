@@ -59,7 +59,7 @@ func CreateTokenIdenHandler(conf option.Config) error {
 	if err != nil {
 		return err
 	}
-	return nil
+	return defaultTokenIdenHandler.InitTokenMap()
 }
 
 func createDefaultSourceURI() error {

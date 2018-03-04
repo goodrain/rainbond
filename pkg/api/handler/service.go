@@ -36,7 +36,6 @@ import (
 
 	"github.com/pquerna/ffjson/ffjson"
 
-	"github.com/goodrain/rainbond/cmd/api/option"
 	api_db "github.com/goodrain/rainbond/pkg/api/db"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
@@ -60,50 +59,13 @@ type ServiceAction struct {
 }
 
 //CreateManager create Manger
-func CreateManager(conf option.Config) (*ServiceAction, error) {
-	mq := api_db.MQManager{
-		Endpoint: conf.MQAPI,
-	}
-	mqClient, errMQ := mq.NewMQManager()
-	if errMQ != nil {
-		logrus.Errorf("new MQ manager failed, %v", errMQ)
-		return nil, errMQ
-	}
-	logrus.Debugf("mqclient is %v", mqClient)
-	k8s := api_db.K8SManager{
-		K8SConfig: conf.KubeConfig,
-	}
-	kubeClient, errK := k8s.NewKubeConnection()
-	if errK != nil {
-		logrus.Errorf("create kubeclient failed, %v", errK)
-		return nil, errK
-	}
-	etcdCli, err := clientv3.New(clientv3.Config{
-		Endpoints:   conf.EtcdEndpoint,
-		DialTimeout: 5 * time.Second,
-	})
-	if err != nil {
-		logrus.Errorf("create etcd client v3 error, %v", err)
-		return nil, err
-	}
+func CreateManager(mqClient pb.TaskQueueClient,
+	kubeClient *kubernetes.Clientset,
+	etcdCli *clientv3.Client) *ServiceAction {
 	return &ServiceAction{
 		MQClient:   mqClient,
 		KubeClient: kubeClient,
 		EtcdCli:    etcdCli,
-	}, nil
-}
-func checkDeployVersion(r *api_model.BuildServiceStruct) {
-	eventID := r.Body.EventID
-	logger := event.GetManager().GetLogger(eventID)
-	if len(r.Body.DeployVersion) == 0 {
-
-		version, err := db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
-		if err != nil {
-			logger.Info("获取部署版本信息失败", map[string]string{"step": "callback", "status": "failure"})
-			return
-		}
-		r.Body.DeployVersion = version.BuildVersion
-		logrus.Infof("change deploy version to %s", r.Body.DeployVersion)
 	}
 }
 
@@ -122,7 +84,6 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 	switch r.Body.Kind {
 	case "source":
 		//源码构建
-		checkDeployVersion(r)
 		if err := s.sourceBuild(r, service); err != nil {
 			logger.Error("源码构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -131,7 +92,6 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		return nil
 	case "slug":
 		//源码构建的分享至云市安装回平台
-		checkDeployVersion(r)
 		if err := s.slugBuild(r, service); err != nil {
 			logger.Error("slug构建应用任务发送失败"+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -140,7 +100,6 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		return nil
 	case "image":
 		//镜像构建
-		checkDeployVersion(r)
 		if err := s.imageBuild(r, service); err != nil {
 			logger.Error("镜像构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -149,7 +108,6 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		return nil
 	case "market":
 		//镜像构建分享至云市安装回平台
-		checkDeployVersion(r)
 		if err := s.marketBuild(r, service); err != nil {
 			logger.Error("云市构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -157,7 +115,6 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		logger.Info("云市构建应用任务发送成功 ", map[string]string{"step": "market-service", "status": "starting"})
 		return nil
 	case "build_from_image":
-		checkDeployVersion(r)
 		if err := s.buildFromImage(r, service); err != nil {
 			logger.Error("镜像构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -165,7 +122,6 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		logger.Info("镜像构建应用任务发送成功 ", map[string]string{"step": "image-service", "status": "starting"})
 		return nil
 	case "build_from_source_code":
-		checkDeployVersion(r)
 		if err := s.buildFromSourceCode(r, service); err != nil {
 			logger.Error("源码构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err

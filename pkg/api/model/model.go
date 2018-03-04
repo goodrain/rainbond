@@ -662,15 +662,15 @@ type BuildServiceStruct struct {
 		// branch 分支信息
 		// in: body
 		// required: false
-		Branch  string `json:"branch" validate:"branch"`
+		Branch string `json:"branch" validate:"branch"`
 		// 操作人员
 		// in: body
 		// required: false
-		Lang string `json:"lang" validate:"lang"`
-		Runtime string `json:"runtime" validate:"runtime"`
-		ServiceType string `json:"service_type" validate:"service_type"`
-		User string `json:"user" validate:"user"`
-		Password string `json:"password" validate:"password"`
+		Lang         string `json:"lang" validate:"lang"`
+		Runtime      string `json:"runtime" validate:"runtime"`
+		ServiceType  string `json:"service_type" validate:"service_type"`
+		User         string `json:"user" validate:"user"`
+		Password     string `json:"password" validate:"password"`
 		Operator     string `json:"operator" validate:"operator"`
 		TenantName   string `json:"tenant_name"`
 		ServiceAlias string `json:"service_alias"`
@@ -898,15 +898,15 @@ type CloudShareStruct struct {
 
 //PublicShare share共用结构
 type PublicShare struct {
-	ServiceKey string `json:"service_key" validate:"service_key"`
-	APPVersion string `json:"app_version" validate:"app_version"`
-	IsOuter    bool   `json:"is_outer" validate:"is_outer"`
-	Action     string `json:"action" validate:"action"`
-	ShareID    string `json:"share_id" validate:"share_id"`
-	EventID    string `json:"event_id" validate:"event_id"`
-	Dest       string `json:"dest" validate:"dest|in:yb,ys"`
-	ServiceID  string `json:"service_id" validate:"service_id"`
-	ShareConf  ShareConfItems `json:"share_conf" validate:"share_conf"` 
+	ServiceKey string         `json:"service_key" validate:"service_key"`
+	APPVersion string         `json:"app_version" validate:"app_version"`
+	IsOuter    bool           `json:"is_outer" validate:"is_outer"`
+	Action     string         `json:"action" validate:"action"`
+	ShareID    string         `json:"share_id" validate:"share_id"`
+	EventID    string         `json:"event_id" validate:"event_id"`
+	Dest       string         `json:"dest" validate:"dest|in:yb,ys"`
+	ServiceID  string         `json:"service_id" validate:"service_id"`
+	ShareConf  ShareConfItems `json:"share_conf" validate:"share_conf"`
 }
 
 //SlugShare Slug 类型
@@ -927,11 +927,11 @@ type ImageShare struct {
 
 //ShareConfItems 分享相关配置
 type ShareConfItems struct {
-	FTPHost string `json:"ftp_host" validate:"ftp_host"`
-	FTPPort int `json:"ftp_port" validate:"ftp_port"`
-	FTPUserName string `json:"ftp_username" valiate:"ftp_username"`
-	FTPPassWord string `json:"ftp_password" validate:"ftp_password"`
-	FTPNamespace string `json:"ftp_namespace" validate:"ftp_namespace"`
+	FTPHost       string `json:"ftp_host" validate:"ftp_host"`
+	FTPPort       int    `json:"ftp_port" validate:"ftp_port"`
+	FTPUserName   string `json:"ftp_username" valiate:"ftp_username"`
+	FTPPassWord   string `json:"ftp_password" validate:"ftp_password"`
+	FTPNamespace  string `json:"ftp_namespace" validate:"ftp_namespace"`
 	OuterRegistry string `json:"outer_registry" validate:"outer_registry"`
 }
 
@@ -1293,4 +1293,38 @@ type GetSupportProtocols struct {
 	// in: path
 	// required: true
 	TenantName string `json:"tenant_name"`
+}
+
+//ServiceShare service share
+// swagger:parameters shareService
+type ServiceShare struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
+	// in: path
+	// required: true
+	ServiceAlias string `json:"service_alias"`
+	//in: body
+	Body struct {
+		//in: body
+		//应用分享Key
+		ServiceKey string `json:"service_key" validate:"service_key|required"`
+		AppVersion string `json:"app_version" validate:"app_version|required"`
+		EventID    string `json:"event_id"`
+		ShareUser  string `json:"share_user"`
+		ShareScope string `json:"share_scope"`
+		ImageInfo  struct {
+			HubURL      string `json:"hub_url"`
+			HubUser     string `json:"hub_user"`
+			HubPassword string `json:"hub_password"`
+			Namespace   string `json:"namespace"`
+		} `json:"image_info,omitempty"`
+		SlugInfo struct {
+			Namespace   string `json:"namespace"`
+			FTPHost     string `json:"ftp_host"`
+			FTPPort     string `json:"ftp_port"`
+			FTPUser     string `json:"ftp_user"`
+			FTPPassword string `json:"ftp_password"`
+		} `json:"slug_info,omitempty"`
+	}
 }

@@ -19,10 +19,9 @@
 package handler
 
 import (
-	"github.com/goodrain/rainbond/cmd/api/option"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
-	"github.com/goodrain/rainbond/pkg/builder/exector"
 	"github.com/goodrain/rainbond/pkg/api/util"
+	"github.com/goodrain/rainbond/pkg/builder/exector"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/worker/discover/model"
 )
@@ -70,22 +69,5 @@ type ServiceHandler interface {
 	UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError
 	DeleteComplexEnvs(tenantID, serviceAlias, pluginID string) *util.APIHandleError
 	ServiceCheck(*api_model.ServiceCheckStruct) (string, string, *util.APIHandleError)
-	GetServiceCheckInfo(uuid string)(*exector.ServiceCheckResult, *util.APIHandleError)
-}
-
-var defaultServieHandler ServiceHandler
-
-//CreateServiceManger create service manager
-func CreateServiceManger(conf option.Config) error {
-	var err error
-	defaultServieHandler, err = CreateManager(conf)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-//GetServiceManager get manager
-func GetServiceManager() ServiceHandler {
-	return defaultServieHandler
+	GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError)
 }

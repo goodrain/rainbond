@@ -62,6 +62,7 @@ type ServiceInterface interface {
 	Probe(w http.ResponseWriter, r *http.Request)
 	ServiceLabel(w http.ResponseWriter, r *http.Request)
 	NodeLabel(w http.ResponseWriter, r *http.Request)
+	Share(w http.ResponseWriter, r *http.Request)
 }
 
 //EntranceInterface EntranceInterface

@@ -16,28 +16,22 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package handler
+package sources
 
 import (
-	"github.com/goodrain/rainbond/cmd/api/option"
+	"testing"
+
+	"github.com/goodrain/rainbond/pkg/event"
 )
 
-//RootFuncHandler root function handler interface
-type RootFuncHandler interface {
+func init() {
+	event.NewManager(event.EventConfig{
+		DiscoverAddress: []string{"127.0.0.1:2379"},
+	})
 }
-
-var defaultRootFuncHandler RootFuncHandler
-
-//CreateRootFuncHandler create root func handler
-func CreateRootFuncHandler(conf option.Config) error {
-	if defaultRootFuncHandler != nil {
-		return nil
+func TestCopyFileWithProgress(t *testing.T) {
+	logger := event.GetManager().GetLogger("system")
+	if err := CopyFileWithProgress("/tmp/src.tgz", "/tmp/desc1.tgz", logger); err != nil {
+		t.Fatal(err)
 	}
-	defaultRootFuncHandler = CreateRootFuncManager(conf)
-	return nil
-}
-
-//GetRootFuncHandler get root handler
-func GetRootFuncHandler() RootFuncHandler {
-	return defaultRootFuncHandler
 }

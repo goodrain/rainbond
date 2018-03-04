@@ -27,7 +27,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
-	"github.com/goodrain/rainbond/cmd/api/option"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
 )
@@ -38,19 +37,10 @@ type NetRulesAction struct {
 }
 
 //CreateNetRulesManager get net rules manager
-func CreateNetRulesManager(conf option.Config) (*NetRulesAction, error) {
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   conf.EtcdEndpoint,
-		DialTimeout: 5 * time.Second,
-	})
-	if err != nil {
-		logrus.Errorf("create etcd client v3 error, %v", err)
-		return nil, err
-	}
-	defer cli.Close()
+func CreateNetRulesManager(etcdCli *clientv3.Client) *NetRulesAction {
 	return &NetRulesAction{
-		etcdCli: cli,
-	}, nil
+		etcdCli: etcdCli,
+	}
 }
 
 //CreateDownStreamNetRules CreateDownStreamNetRules

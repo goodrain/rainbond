@@ -19,7 +19,6 @@
 package handler
 
 import (
-	"github.com/goodrain/rainbond/cmd/api/option"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
@@ -28,7 +27,7 @@ import (
 //PluginHandler plugin handler
 type PluginHandler interface {
 	CreatePluginAct(cps *api_model.CreatePluginStruct) *util.APIHandleError
-	UpdatePluginAct(pluginID,tenantID string, cps *api_model.UpdatePluginStruct) *util.APIHandleError
+	UpdatePluginAct(pluginID, tenantID string, cps *api_model.UpdatePluginStruct) *util.APIHandleError
 	DeletePluginAct(pluginID, tenantID string) *util.APIHandleError
 	GetPlugins(tenantID string) ([]*dbmodel.TenantPlugin, *util.APIHandleError)
 	AddDefaultEnv(est *api_model.ENVStruct) *util.APIHandleError
@@ -40,24 +39,4 @@ type PluginHandler interface {
 	DeletePluginBuildVersion(pluginID, versionID string) *util.APIHandleError
 	GetDefaultEnv(pluginID, versionID string) ([]*dbmodel.TenantPluginDefaultENV, *util.APIHandleError)
 	GetEnvsWhichCanBeSet(serviceID, pluginID string) (interface{}, *util.APIHandleError)
-}
-
-var defaultPluginHandler PluginHandler
-
-//CreatePluginHandler create plugin handler
-func CreatePluginHandler(conf option.Config) error {
-	var err error
-	if defaultPluginHandler != nil {
-		return nil
-	}
-	defaultPluginHandler, err = CreatePluginManager(conf)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-//GetPluginManager get manager
-func GetPluginManager() PluginHandler {
-	return defaultPluginHandler
 }

@@ -19,7 +19,6 @@
 package handler
 
 import (
-	"github.com/goodrain/rainbond/cmd/api/option"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
@@ -39,25 +38,5 @@ type TenantHandler interface {
 	GetTenantsResources(tr *api_model.TenantResources) ([]map[string]interface{}, error)
 	TenantsSum() (int, error)
 	GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHandleError)
-	TransPlugins(tenantID, tenantName, fromTenant string, pluginList []string)  *util.APIHandleError
-}
-
-var defaultTenantHandler TenantHandler
-
-//CreateTenantManger create tenant manager
-func CreateTenantManger(conf option.Config) error {
-	var err error
-	if defaultTenantHandler != nil {
-		return nil
-	}
-	defaultTenantHandler, err = CreateTenManager(conf)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-//GetTenantManager get manager
-func GetTenantManager() TenantHandler {
-	return defaultTenantHandler
+	TransPlugins(tenantID, tenantName, fromTenant string, pluginList []string) *util.APIHandleError
 }

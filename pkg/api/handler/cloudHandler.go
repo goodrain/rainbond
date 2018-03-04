@@ -19,7 +19,6 @@
 package handler
 
 import (
-	"github.com/goodrain/rainbond/cmd/api/option"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
@@ -30,24 +29,4 @@ type CloudHandler interface {
 	TokenDispatcher(gt *api_model.GetUserToken) (*api_model.TokenInfo, *util.APIHandleError)
 	GetTokenInfo(eid string) (*dbmodel.RegionUserInfo, *util.APIHandleError)
 	UpdateTokenTime(eid string, vd int) *util.APIHandleError
-}
-
-var defaultCloudHandler CloudHandler
-
-//CreateCloudHandler create define sources handler
-func CreateCloudHandler(conf option.Config) error {
-	var err error
-	if defaultCloudHandler != nil {
-		return nil
-	}
-	defaultCloudHandler, err = CreateCloudManager(conf)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-//GetCloudManager get manager
-func GetCloudManager() CloudHandler {
-	return defaultCloudHandler
 }

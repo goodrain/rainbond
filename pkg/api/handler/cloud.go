@@ -50,13 +50,13 @@ type CloudAction struct {
 }
 
 //CreateCloudManager get cloud manager
-func CreateCloudManager(conf option.Config) (*CloudAction, error) {
+func CreateCloudManager(conf option.Config) *CloudAction {
 	return &CloudAction{
 		APISSL:    conf.APISSL,
 		RegionTag: conf.RegionTag,
 		CAPath:    conf.APICertFile,
 		KeyPath:   conf.APIKeyFile,
-	}, nil
+	}
 }
 
 //TokenDispatcher token

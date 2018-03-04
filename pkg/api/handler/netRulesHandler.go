@@ -19,7 +19,6 @@
 package handler
 
 import (
-	"github.com/goodrain/rainbond/cmd/api/option"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
 )
@@ -37,24 +36,4 @@ type NetRulesHandler interface {
 	UpdateDownStreamNetRule(
 		tenantID string,
 		urs *api_model.UpdateNetDownStreamRuleStruct) *util.APIHandleError
-}
-
-var defaultNetRulesHandler NetRulesHandler
-
-//CreateNetRulesHandler create plugin handler
-func CreateNetRulesHandler(conf option.Config) error {
-	var err error
-	if defaultNetRulesHandler != nil {
-		return nil
-	}
-	defaultNetRulesHandler, err = CreateNetRulesManager(conf)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-//GetRulesManager get manager
-func GetRulesManager() NetRulesHandler {
-	return defaultNetRulesHandler
 }

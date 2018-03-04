@@ -512,7 +512,10 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
+	if len(build.Body.DeployVersion) == 0 {
+		httputil.ReturnError(r, w, 400, "deploy version can not be empty.")
+		return
+	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
@@ -525,29 +528,26 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	if status != 0 {
 		return
 	}
-	version := dbmodel.VersionInfo{}
-	version.EventID = sEvent.EventID
-	version.ServiceID = serviceID
-	version.RepoURL = build.Body.RepoURL
-	version.Kind = build.Body.Kind
-	version.BuildVersion = build.Body.DeployVersion
-
+	version := dbmodel.VersionInfo{
+		EventID:      sEvent.EventID,
+		ServiceID:    serviceID,
+		RepoURL:      build.Body.RepoURL,
+		Kind:         build.Body.Kind,
+		BuildVersion: build.Body.DeployVersion,
+	}
+	err = db.GetManager().VersionInfoDao().AddModel(&version)
+	if err != nil {
+		logrus.Infof("error add version %v ,details %s", version, err.Error())
+		httputil.ReturnError(r, w, 500, "create service version error.")
+		return
+	}
 	build.Body.EventID = sEvent.EventID
 	if err := handler.GetServiceManager().ServiceBuild(tenantID, serviceID, &build); err != nil {
-		logrus.Debugf("build service error")
+		logrus.Error("build service error", err.Error())
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("build service error, %v", err))
 		return
 	}
-	logrus.Debugf("equeue mq build task success")
-
-	err = db.GetManager().VersionInfoDao().AddModel(&version)
-
-	if err != nil {
-		logrus.Infof("error add version %v ,details %s", version, err.Error())
-	}
-	logrus.Debugf("equeue mq build task success")
 	httputil.ReturnSuccess(r, w, sEvent)
-	//w.WriteHeader(200)
 }
 
 //BuildList BuildList
@@ -662,7 +662,7 @@ func (t *TenantStruct) CheckCode(w http.ResponseWriter, r *http.Request) {
 func (t *TenantStruct) ShareCloud(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/tenants/{tenant_name}/cloud-share v2 sharecloud
 	//
-	// 云市分享
+	// 云市分享 （v3.5弃用）
 	//
 	// share cloud
 	//

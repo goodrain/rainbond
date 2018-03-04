@@ -16,28 +16,4 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package handler
-
-import (
-	"github.com/goodrain/rainbond/cmd/api/option"
-)
-
-//RootFuncHandler root function handler interface
-type RootFuncHandler interface {
-}
-
-var defaultRootFuncHandler RootFuncHandler
-
-//CreateRootFuncHandler create root func handler
-func CreateRootFuncHandler(conf option.Config) error {
-	if defaultRootFuncHandler != nil {
-		return nil
-	}
-	defaultRootFuncHandler = CreateRootFuncManager(conf)
-	return nil
-}
-
-//GetRootFuncHandler get root handler
-func GetRootFuncHandler() RootFuncHandler {
-	return defaultRootFuncHandler
-}
+package share

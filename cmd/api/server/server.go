@@ -56,51 +56,9 @@ func Run(s *option.APIServer) error {
 	}
 	defer event.CloseManager()
 
-	//TODO:
-	//创建mq manager
-	//创建k8s manager
-
-	//CreateEventHandler create event handler
-	if err := handler.CreateEventHandler(s.Config); err != nil {
-		logrus.Errorf("create event handler manager error, %v", err)
-		return err
-	}
-	//创建Servie manager
-	if err := handler.CreateServiceManger(s.Config); err != nil {
-		logrus.Errorf("create servie manager error, %v", err)
-		return err
-	}
-	//创建Plugin manager
-	if err := handler.CreatePluginHandler(s.Config); err != nil {
-		logrus.Errorf("create plugin manager error, %v", err)
-		return err
-	}
-	//创建Tenant manager
-	if err := handler.CreateTenantManger(s.Config); err != nil {
-		logrus.Errorf("create tenant manager error, %v", err)
-		return err
-	}
-	//创建NetRule manager
-	if err := handler.CreateNetRulesHandler(s.Config); err != nil {
-		logrus.Errorf("create net-rule manager error, %v", err)
-		return err
-	}
-	//创建sources manager
-	if err := handler.CreateSourcesHandler(s.Config); err != nil {
-		logrus.Errorf("create sources manager error, %v", err)
-		return err
-	}
-	if err := handler.CreateCloudHandler(s.Config); err != nil {
-		logrus.Errorf("create cloud auth manager error, %v", err)
-		return err
-	}
-	if err := handler.CreateTokenIdenHandler(s.Config); err != nil {
-		logrus.Errorf("create token identification mannager error, %v", err)
-		return err
-	}
-	//初始化token信息
-	if err := handler.GetTokenIdenHandler().InitTokenMap(); err != nil {
-		logrus.Errorf("init token records error, %v", err)
+	//创建handle
+	if err := handler.InitHandle(s.Config); err != nil {
+		logrus.Errorf("init all handle error, %v", err)
 		return err
 	}
 	//创建license manager
