@@ -19,6 +19,7 @@
 package exector
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -28,8 +29,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/pkg/builder/sources"
-	"github.com/goodrain/rainbond/pkg/db"
-	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/pquerna/ffjson/ffjson"
 )
@@ -82,13 +81,11 @@ func (i *SlugShareItem) ShareService() error {
 		i.Logger.Error(fmt.Sprintf("数据中心应用代码包不存在，请先构建应用"), map[string]string{"step": "slug-share", "status": "failure"})
 		return err
 	}
-	shareTag := true
 	if i.ShareInfo.SlugInfo.FTPHost != "" && i.ShareInfo.SlugInfo.FTPPort != "" {
 		//share YS
 		if err := i.ShareToFTP(); err != nil {
 			return err
 		}
-		shareTag = false
 	} else {
 		if err := i.ShareToLocal(); err != nil {
 			return err
@@ -124,14 +121,8 @@ func (i *SlugShareItem) ShareToFTP() error {
 	if err != nil {
 		i.Logger.Error("生成md5失败", map[string]string{"step": "slug-share", "status": "failure"})
 	}
-	logrus.Debugf("md5 path is %s", md5)
-	localPath := fmt.Sprintf("%s%s/", i.FTPConf.LocalNamespace, i.ServiceKey)
-	_, err = exec.Command("cp", "rf", file+"*", localPath).Output()
-	if err != nil {
-		i.Logger.Info("分享云帮失败", map[string]string{"step": "callback", "status": "failure"})
-		return err
-	}
-	i.Logger.Info("分享云帮完成", map[string]string{"step": "slug-share", "status": "success"})
+	_ = md5
+	//TODO:
 	return nil
 }
 
@@ -181,15 +172,18 @@ func (i *SlugShareItem) UploadFtp(path, file, md5 string) error {
 
 //UpdateShareStatus 更新任务执行结果
 func (i *SlugShareItem) UpdateShareStatus(status string) error {
-	result := &dbmodel.AppPublish{
-		ServiceKey: i.ServiceKey,
-		AppVersion: i.AppVersion,
-		Slug:       i.PackageName,
-		Status:     status,
+	var ss = ShareStatus{
+		ShareID: i.ShareID,
+		Status:  status,
 	}
-	if err := db.GetManager().AppPublishDao().AddModel(result); err != nil {
-		return err
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err := i.EtcdCli.Put(ctx, fmt.Sprintf("/rainbond/shareresult/%s", i.ShareID), ss.String())
+	if err != nil {
+		logrus.Errorf("put shareresult  %s into etcd error, %v", i.ShareID, err)
+		i.Logger.Error("存储检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
 	}
+	i.Logger.Info("创建检测结果成功。", map[string]string{"step": "latest", "status": "success"})
 	return nil
 }
 
