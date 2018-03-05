@@ -674,6 +674,14 @@ type BuildServiceStruct struct {
 		Operator     string `json:"operator" validate:"operator"`
 		TenantName   string `json:"tenant_name"`
 		ServiceAlias string `json:"service_alias"`
+		//用于云市代码包创建
+		SlugInfo struct {
+			SlugPath    string `json:"slug_path"`
+			FTPHost     string `json:"ftp_host"`
+			FTPPort     string `json:"ftp_port"`
+			FTPUser     string `json:"ftp_user"`
+			FTPPassword string `json:"ftp_password"`
+		} `json:"slug_info"`
 	}
 }
 

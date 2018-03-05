@@ -50,6 +50,8 @@ type ImageBuildItem struct {
 	TenantID      string
 	ServiceID     string
 	DeployVersion string
+	HubUser       string
+	HubPassword   string
 }
 
 //NewImageBuildItem 创建实体
@@ -62,6 +64,8 @@ func NewImageBuildItem(in []byte) *ImageBuildItem {
 		ServiceAlias:  gjson.GetBytes(in, "service_alias").String(),
 		Image:         gjson.GetBytes(in, "image").String(),
 		DeployVersion: gjson.GetBytes(in, "deploy_version").String(),
+		HubUser:       gjson.GetBytes(in, "user").String(),
+		HubPassword:   gjson.GetBytes(in, "password").String(),
 		Logger:        logger,
 		EventID:       eventID,
 		Config:        GetBuilderConfig(),
@@ -82,7 +86,7 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 		i.Logger.Error(fmt.Sprintf("修改镜像tag: %s -> %s 失败", i.Image, localImageURL), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	auth, err := sources.EncodeAuthToBase64(types.AuthConfig{Username: "", Password: ""})
+	auth, err := sources.EncodeAuthToBase64(types.AuthConfig{Username: i.HubUser, Password: i.HubPassword})
 	if err != nil {
 		logrus.Errorf("make auth base63 push image error: %s", err.Error())
 		i.Logger.Error(fmt.Sprintf("推送镜像内部错误"), map[string]string{"step": "builder-exector", "status": "failure"})
@@ -105,6 +109,8 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 	}
 	if err := i.StorageVersionInfo(localImageURL); err != nil {
 		logrus.Errorf("storage version info error, ignor it: %s", err.Error())
+		i.Logger.Error("更新应用版本信息失败", map[string]string{"step": "callback", "status": "failure"})
+		return err
 	}
 	i.Logger.Info("应用同步完成，开始启动应用", map[string]string{"step": "build-exector"})
 	if err := apiHandler.UpgradeService(i.TenantName, i.ServiceAlias, i.CreateUpgradeTaskBody()); err != nil {

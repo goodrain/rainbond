@@ -128,13 +128,34 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		}
 		logger.Info("源码构建应用任务发送成功 ", map[string]string{"step": "source-service", "status": "starting"})
 		return nil
+	case "build_from_market_image":
+		if err := s.buildFromImage(r, service); err != nil {
+			logger.Error("镜像构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
+			return err
+		}
+		logger.Info("云市镜像构建应用任务发送成功 ", map[string]string{"step": "image-service", "status": "starting"})
+		return nil
+	case "build_from_market_slug":
+		return nil
 	default:
 		return fmt.Errorf("unexpect kind")
 	}
 }
-
+func (s *ServiceAction) buildFromMarketSlug(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
+	body := make(map[string]interface{})
+	if r.Body.Operator == "" {
+		body["operator"] = "define"
+	} else {
+		body["operator"] = r.Body.Operator
+	}
+	body["deploy_version"] = r.Body.DeployVersion
+	body["event_id"] = r.Body.EventID
+	body["tenant_name"] = r.Body.TenantName
+	body["service_alias"] = r.Body.ServiceAlias
+	body["slug_info"] = r.Body.SlugInfo
+	return s.sendTask(body, "build_from_market_slug")
+}
 func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
-	logrus.Debugf("build_from_images")
 	if r.Body.EventID == "" {
 		return fmt.Errorf("args error")
 	}
@@ -160,7 +181,10 @@ func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service 
 	body["action"] = "download_and_deploy"
 	body["dep_sids"] = dependIds
 	body["code_from"] = "image_manual"
-	logrus.Debugf("image_manual body is %v", body)
+	if r.Body.User != "" && r.Body.Password != "" {
+		body["user"] = r.Body.User
+		body["password"] = r.Body.Password
+	}
 	return s.sendTask(body, "build_from_image")
 }
 

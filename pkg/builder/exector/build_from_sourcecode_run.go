@@ -267,6 +267,8 @@ func (i *SourceCodeBuildItem) buildImage() error {
 	}
 	if err := i.UpdateVersionInfo(vi); err != nil {
 		logrus.Errorf("update version info error: %s", err.Error())
+		i.Logger.Error("更新应用版本信息失败", map[string]string{"step": "callback", "status": "failure"})
+		return err
 	}
 	return nil
 }
@@ -361,6 +363,8 @@ func (i *SourceCodeBuildItem) buildCode() error {
 	}
 	if err := i.UpdateVersionInfo(vi); err != nil {
 		logrus.Errorf("update version info error: %s", err.Error())
+		i.Logger.Error("更新应用版本信息失败", map[string]string{"step": "callback", "status": "failure"})
+		return err
 	}
 	return nil
 }

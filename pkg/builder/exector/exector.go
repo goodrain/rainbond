@@ -86,8 +86,8 @@ func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 		e.buildFromImage(task.TaskBody)
 	case "build_from_source_code":
 		e.buildFromSourceCode(task.TaskBody)
-	case "build_from_ys":
-		e.buildFromYS(task.TaskBody)
+	case "build_from_market_slug":
+		e.buildFromMarketSlug(task.TaskBody)
 	case "app_slug":
 		e.appSlug(task.TaskBody)
 	case "image_manual":
@@ -207,8 +207,33 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 	}
 }
 
-//buildFromYS 从云市来源构建应用
-func (e *exectorManager) buildFromYS(in []byte) {
+//buildFromMarketSlug 从云市来源源码包构建应用
+func (e *exectorManager) buildFromMarketSlug(in []byte) {
+	eventID := gjson.GetBytes(in, "event_id").String()
+	logger := event.GetManager().GetLogger(eventID)
+	logger.Info("云市应用代码包构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
+	i, err := NewMarketSlugItem(in)
+	if err != nil {
+		logrus.Error("create build from market slug task error.", err.Error())
+		return
+	}
+	i.Logger.Info("开始构建应用", map[string]string{"step": "builder-exector", "status": "starting"})
+	go func() {
+		defer event.GetManager().ReleaseLogger(i.Logger)
+		for n := 0; n < 2; n++ {
+			err := i.Run()
+			if err != nil {
+				logrus.Errorf("image share error: %s", err.Error())
+				if n < 2 {
+					i.Logger.Error("应用构建失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
+				} else {
+					i.Logger.Error("构建应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})
+				}
+			} else {
+				break
+			}
+		}
+	}()
 
 }
 
