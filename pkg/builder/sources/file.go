@@ -24,6 +24,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/twinj/uuid"
+
 	"github.com/goodrain/rainbond/pkg/util"
 
 	"github.com/goodrain/rainbond/pkg/event"
@@ -67,6 +69,7 @@ func CopyFileWithProgress(src, dst string, logger event.Logger) error {
 	allSize := srcStat.Size()
 	var written int64
 	buf := make([]byte, 1024*1024)
+	progressID := uuid.NewV4().String()[0:7]
 	for {
 		nr, er := srcFile.Read(buf)
 		if nr > 0 {
@@ -104,7 +107,7 @@ func CopyFileWithProgress(src, dst string, logger event.Logger) error {
 				progress += " "
 			}
 			progress += "]"
-			message := fmt.Sprintf(`{"progress":"%s","progressDetail":{"current":%d,"total":%d},"id":"%s"}`, progress, written, allSize, srcFile.Name())
+			message := fmt.Sprintf(`{"progress":"%s","progressDetail":{"current":%d,"total":%d},"id":"%s"}`, progress, written, allSize, progressID)
 			logger.Debug(message, map[string]string{"step": "progress"})
 		}
 	}

@@ -21,6 +21,7 @@ package controller
 import (
 	"net/http"
 
+	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/pkg/api/handler"
 	"github.com/goodrain/rainbond/pkg/api/middleware"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
@@ -68,6 +69,38 @@ func (t *TenantStruct) Share(w http.ResponseWriter, r *http.Request) {
 	}
 	ccs.Body.EventID = sEvent.EventID
 	res, errS := handler.GetShareHandle().Share(serviceID, ccs)
+	if errS != nil {
+		errS.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, res)
+}
+
+//ShareResult 获取分享结果
+func (t *TenantStruct) ShareResult(w http.ResponseWriter, r *http.Request) {
+	//ShareResult ShareResult
+	// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/share  v2 get_share_result
+	//
+	// 获取分享应用介质结果
+	//
+	// share service
+	//
+	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//       "$ref": "#/responses/commandResponse"
+	//     description: 统一返回格式
+	shareID := chi.URLParam(r, "share_id")
+	res, errS := handler.GetShareHandle().ShareResult(shareID)
 	if errS != nil {
 		errS.Handle(r, w)
 		return

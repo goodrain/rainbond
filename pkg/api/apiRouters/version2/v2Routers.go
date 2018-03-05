@@ -115,6 +115,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Get("/buildlist", controller.GetManager().BuildList)
 	//应用分享
 	r.Post("/share", controller.GetManager().Share)
+	r.Get("/share/{share_id}", controller.GetManager().ShareResult)
 
 	//应用日志相关
 	r.Post("/log", controller.GetManager().Logs)

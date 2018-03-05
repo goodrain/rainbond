@@ -63,6 +63,7 @@ type ServiceInterface interface {
 	ServiceLabel(w http.ResponseWriter, r *http.Request)
 	NodeLabel(w http.ResponseWriter, r *http.Request)
 	Share(w http.ResponseWriter, r *http.Request)
+	ShareResult(w http.ResponseWriter, r *http.Request)
 }
 
 //EntranceInterface EntranceInterface

@@ -124,7 +124,7 @@ func (t *TenantServices) IsSlug() bool {
 }
 
 //CreateShareImage 生成镜像分享的地址
-func (t *TenantServices) CreateShareImage(hubURL, namespace string) (string, error) {
+func (t *TenantServices) CreateShareImage(hubURL, namespace, version string) (string, error) {
 	_, err := reference.ParseAnyReference(t.ImageName)
 	if err != nil {
 		logrus.Errorf("reference image error: %s", err.Error())
@@ -133,6 +133,7 @@ func (t *TenantServices) CreateShareImage(hubURL, namespace string) (string, err
 	image := ParseImage(t.ImageName)
 	image.Host = hubURL
 	image.Namespace = namespace
+	image.Name = image.Name + "_" + version
 	return image.String(), nil
 }
 
@@ -165,8 +166,8 @@ func ParseImage(name string) (image Image) {
 }
 
 //CreateShareSlug 生成源码包分享的地址
-func (t *TenantServices) CreateShareSlug(servicekey, namespace string) string {
-	return fmt.Sprintf("%s/%s/%s.tgz", namespace, servicekey, t.DeployVersion)
+func (t *TenantServices) CreateShareSlug(servicekey, namespace, version string) string {
+	return fmt.Sprintf("%s/%s/%s_%s.tgz", namespace, servicekey, version, t.DeployVersion)
 }
 
 //ChangeDelete ChangeDelete

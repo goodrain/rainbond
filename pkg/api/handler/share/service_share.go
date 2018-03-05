@@ -22,6 +22,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/goodrain/rainbond/pkg/builder/exector"
+
 	"github.com/twinj/uuid"
 
 	"github.com/pquerna/ffjson/ffjson"
@@ -50,10 +52,6 @@ type APIResult struct {
 	SlugPath  string `json:"slug_path,omitempty"`
 }
 
-//InfoResult 分享结果查询
-type InfoResult struct {
-}
-
 //Share 分享应用
 func (s *ServiceShareHandle) Share(serviceID string, ss api_model.ServiceShare) (*APIResult, *util.APIHandleError) {
 
@@ -71,7 +69,7 @@ func (s *ServiceShareHandle) Share(serviceID string, ss api_model.ServiceShare) 
 	var bs api_db.BuildTaskStruct
 	if service.IsSlug() {
 		shareSlugInfo := ss.Body.SlugInfo
-		slugPath := service.CreateShareSlug(ss.Body.ServiceKey, shareSlugInfo.Namespace)
+		slugPath := service.CreateShareSlug(ss.Body.ServiceKey, shareSlugInfo.Namespace, ss.Body.AppVersion)
 		if ss.Body.SlugInfo.FTPHost == "" {
 			slugPath = fmt.Sprintf("/grdata/build/tenant/app_publish/%s", slugPath)
 		}
@@ -94,7 +92,7 @@ func (s *ServiceShareHandle) Share(serviceID string, ss api_model.ServiceShare) 
 		bs.User = ss.Body.ShareUser
 	} else {
 		shareImageInfo := ss.Body.ImageInfo
-		shareImageName, err = service.CreateShareImage(shareImageInfo.HubURL, shareImageInfo.Namespace)
+		shareImageName, err = service.CreateShareImage(shareImageInfo.HubURL, shareImageInfo.Namespace, ss.Body.AppVersion)
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
 		}
@@ -127,6 +125,20 @@ func (s *ServiceShareHandle) Share(serviceID string, ss api_model.ServiceShare) 
 }
 
 //ShareResult 分享应用结果查询
-func (s *ServiceShareHandle) ShareResult(shareID string) (InfoResult, *util.APIHandleError) {
-	return InfoResult{}, nil
+func (s *ServiceShareHandle) ShareResult(shareID string) (i exector.ShareStatus, e *util.APIHandleError) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	res, err := s.EtcdCli.Get(ctx, fmt.Sprintf("/rainbond/shareresult/%s", shareID))
+	if err != nil {
+		e = util.CreateAPIHandleError(500, err)
+	} else {
+		if res.Count == 0 {
+			i.ShareID = "shareID"
+		} else {
+			if err := ffjson.Unmarshal(res.Kvs[0].Value, &i); err != nil {
+				return i, util.CreateAPIHandleError(500, err)
+			}
+		}
+	}
+	return
 }
