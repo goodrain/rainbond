@@ -137,5 +137,5 @@ func (e *exectorManager) serviceCheck(in []byte) {
 		logrus.Errorf("put servicecheck k %s into etcd error, %v", k, err)
 		logger.Error("存储检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
 	}
-	logger.Info("创建检测结果成功。", map[string]string{"step": "latest", "status": "success"})
+	logger.Info("创建检测结果成功。", map[string]string{"step": "last", "status": "success"})
 }

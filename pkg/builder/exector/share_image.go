@@ -128,6 +128,6 @@ func (i *ImageShareItem) UpdateShareStatus(status string) error {
 		logrus.Errorf("put shareresult  %s into etcd error, %v", i.ShareID, err)
 		i.Logger.Error("存储检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
 	}
-	i.Logger.Info("创建检测结果成功。", map[string]string{"step": "latest", "status": "success"})
+	i.Logger.Info("创建检测结果成功。", map[string]string{"step": "last", "status": "success"})
 	return nil
 }
