@@ -43,7 +43,9 @@ func CopyFileWithProgress(src, dst string, logger event.Logger) error {
 		}
 		return err
 	}
-	dstFile, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY, 0644)
+	// 先删除文件如果存在
+	os.RemoveAll(dst)
+	dstFile, err := os.OpenFile(dst, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
 	if err != nil {
 		if logger != nil {
 			logger.Error("打开目标文件失败", map[string]string{"step": "share"})
