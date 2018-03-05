@@ -102,9 +102,9 @@ func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 		e.pluginImageBuild(task.TaskBody)
 	case "plugin_dockerfile_build":
 		e.pluginDockerfileBuild(task.TaskBody)
-	case "slug_share":
+	case "share-slug":
 		e.slugShare(task.TaskBody)
-	case "image_share":
+	case "share-image":
 		e.imageShare(task.TaskBody)
 	default:
 		return fmt.Errorf("`%s` tasktype can't support", task.TaskType)
