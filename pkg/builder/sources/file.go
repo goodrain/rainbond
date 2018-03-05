@@ -22,6 +22,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+
+	"github.com/goodrain/rainbond/pkg/util"
 
 	"github.com/goodrain/rainbond/pkg/event"
 )
@@ -40,6 +43,14 @@ func CopyFileWithProgress(src, dst string, logger event.Logger) error {
 	if err != nil {
 		if logger != nil {
 			logger.Error("打开源文件失败", map[string]string{"step": "share"})
+		}
+		return err
+	}
+	// 验证并创建目标目录
+	dir := filepath.Dir(dst)
+	if err := util.CheckAndCreateDir(dir); err != nil {
+		if logger != nil {
+			logger.Error("检测并创建目标文件目录失败", map[string]string{"step": "share"})
 		}
 		return err
 	}

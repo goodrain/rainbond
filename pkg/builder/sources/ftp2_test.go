@@ -26,11 +26,11 @@ import (
 
 func TestFTPUp(t *testing.T) {
 	logger := event.GetManager().GetLogger("system")
-	ftp := NewFTPConnManager(logger, "goodrain-admin", "goodrain123465", "139.196.88.57", 10021)
+	ftp := NewFTPConnManager(logger, "goodrain-admin", "goodrain123465", "139.196.88.57", "10021")
 	defer ftp.FTP.Close()
 	upfile := "/Users/pujielan/Downloads/http.conf"
 	if err := ftp.FTPLogin(logger); err != nil {
-		t.Fatal(err)	
+		t.Fatal(err)
 	}
 	path := "app-publish/application/"
 	curPath, err := ftp.FTPCWD(logger, path)

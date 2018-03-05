@@ -31,7 +31,7 @@ func init() {
 }
 func TestCopyFileWithProgress(t *testing.T) {
 	logger := event.GetManager().GetLogger("system")
-	if err := CopyFileWithProgress("/tmp/src.tgz", "/tmp/desc1.tgz", logger); err != nil {
+	if err := CopyFileWithProgress("/tmp/src.tgz", "/tmp/abc/desc1.tgz", logger); err != nil {
 		t.Fatal(err)
 	}
 }
