@@ -30,7 +30,7 @@ func init() {
 	})
 }
 func TestPushFile(t *testing.T) {
-	sftpClient, err := NewSFTPClient("foo", "pass", "22.gr6ac909.0mi9zp2q.lfsdo.goodrain.org", 20004)
+	sftpClient, err := NewSFTPClient("foo", "pass", "22.gr6ac909.0mi9zp2q.lfsdo.goodrain.org", "20004")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestPushFile(t *testing.T) {
 }
 
 func TestDownloadFile(t *testing.T) {
-	sftpClient, err := NewSFTPClient("foo", "pass", "22.gr6ac909.0mi9zp2q.lfsdo.goodrain.org", 20004)
+	sftpClient, err := NewSFTPClient("foo", "pass", "22.gr6ac909.0mi9zp2q.lfsdo.goodrain.org", "20004")
 	if err != nil {
 		t.Fatal(err)
 	}

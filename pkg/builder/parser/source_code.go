@@ -142,6 +142,11 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("远程仓库SSH验证错误"), solve))
 				return d.errors
 			}
+			if strings.Contains(err.Error(), "context deadline exceeded") {
+				solve := "请确认源码仓库能否正常访问"
+				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("获取代码超时"), solve))
+				return d.errors
+			}
 			logrus.Errorf("git clone error,%s", err.Error())
 			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("获取代码失败"), "请确认仓库能否正常访问，或联系客服咨询"))
 			return d.errors

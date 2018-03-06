@@ -31,11 +31,11 @@ func init() {
 }
 func TestGitClone(t *testing.T) {
 	csi := CodeSourceInfo{
-		RepositoryURL: "ssh://git@gr5042d6.7804f67d.ali-sh-s1.goodrain.net:20905/root/private2018.git",
+		RepositoryURL: "https://github.com/yitznewton/2048.git",
 		Branch:        "master",
 	}
 	logger := event.GetManager().GetLogger("system")
-	res, err := GitClone(csi, "/tmp/privatetest", logger, 2)
+	res, err := GitClone(csi, "/tmp/privatetest", logger, 1)
 	if err != nil {
 		t.Fatal(err)
 	}

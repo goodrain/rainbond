@@ -95,7 +95,7 @@ func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 	case "code_check":
 		e.codeCheck(task.TaskBody)
 	case "service_check":
-		e.serviceCheck(task.TaskBody)
+		go e.serviceCheck(task.TaskBody)
 	case "app_build":
 		e.appBuild(task.TaskBody)
 	case "plugin_image_build":
@@ -156,7 +156,7 @@ func (e *exectorManager) buildFromImage(in []byte) {
 	go func() {
 		logrus.Debugf("start build from image worker")
 		defer event.GetManager().ReleaseLogger(i.Logger)
-		for n := 0; n < 3; n++ {
+		for n := 0; n < 2; n++ {
 			err := i.Run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("build from image error: %s", err.Error())
@@ -184,7 +184,7 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 	go func() {
 		logrus.Debugf("start build from source code")
 		defer event.GetManager().ReleaseLogger(i.Logger)
-		for n := 0; n < 3; n++ {
+		for n := 0; n < 2; n++ {
 			err := i.Run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("build from source code error: %s", err.Error())

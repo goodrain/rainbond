@@ -196,6 +196,12 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 			}
 			return rs, err
 		}
+		if strings.Contains(err.Error(), "context deadline exceeded") {
+			if logger != nil {
+				logger.Error(fmt.Sprintf("获取代码超时"), map[string]string{"step": "callback", "status": "failure"})
+			}
+			return rs, err
+		}
 	}
 	return rs, err
 }
