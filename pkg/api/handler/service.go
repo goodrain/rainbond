@@ -156,14 +156,13 @@ func (s *ServiceAction) buildFromMarketSlug(r *api_model.BuildServiceStruct, ser
 	body["deploy_version"] = r.Body.DeployVersion
 	body["event_id"] = r.Body.EventID
 	body["tenant_name"] = r.Body.TenantName
+	body["tenant_id"] = service.TenantID
+	body["service_id"] = service.ServiceID
 	body["service_alias"] = r.Body.ServiceAlias
 	body["slug_info"] = r.Body.SlugInfo
 	return s.sendTask(body, "build_from_market_slug")
 }
 func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
-	if r.Body.EventID == "" {
-		return fmt.Errorf("args error")
-	}
 	dependIds, err := db.GetManager().TenantServiceRelationDao().GetTenantServiceRelations(service.ServiceID)
 	if err != nil {
 		return err

@@ -100,6 +100,7 @@ func (s *ServiceShareHandle) Share(serviceID string, ss api_model.ServiceShare) 
 			"share_info":       ss.Body,
 			"service_alias":    ss.ServiceAlias,
 			"service_id":       serviceID,
+			"tenant_id":        tenantID,
 			"tenant_name":      ss.TenantName,
 			"image_name":       shareImageName,
 			"share_id":         shareID,

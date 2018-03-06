@@ -24,6 +24,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Sirupsen/logrus"
+
 	"github.com/twinj/uuid"
 
 	"github.com/goodrain/rainbond/pkg/util"
@@ -38,6 +40,7 @@ func CopyFileWithProgress(src, dst string, logger event.Logger) error {
 		if logger != nil {
 			logger.Error("打开源文件失败", map[string]string{"step": "share"})
 		}
+		logrus.Errorf("open file %s error", src)
 		return err
 	}
 	defer srcFile.Close()

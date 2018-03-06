@@ -124,11 +124,8 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 
 //ImageNameHandler 根据平台配置处理镜像名称
 func (i *ImageBuildItem) ImageNameHandler(source string) string {
-	currRegistry := i.Config.Get("publish > image > curr_registry").(string)
-	allRegistry := i.Config.Get("publish > image > all_registry").(string)
-	logrus.Debugf("curr all resigtry is %s, %s", currRegistry, allRegistry)
 	imageModel := sources.ImageNameHandle(source)
-	localImageURL := fmt.Sprintf("%s/%s:%s_%s", currRegistry, imageModel.Name, imageModel.Tag, i.ServiceAlias)
+	localImageURL := fmt.Sprintf("%s/%s:%s", "goodrain.me", imageModel.Name, i.DeployVersion)
 	return localImageURL
 }
 
