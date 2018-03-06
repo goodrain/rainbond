@@ -70,19 +70,29 @@ func NewMarketSlugItem(in []byte) (*MarketSlugItem, error) {
 //Run Run
 func (i *MarketSlugItem) Run() error {
 	if i.SlugInfo.FTPHost != "" && i.SlugInfo.FTPPort != "" {
-
+		sFTPClient, err := sources.NewSFTPClient(i.SlugInfo.FTPUser, i.SlugInfo.FTPPassword, i.SlugInfo.FTPHost, i.SlugInfo.FTPPort)
+		if err != nil {
+			i.Logger.Error("创建FTP客户端失败", map[string]string{"step": "slug-share", "status": "failure"})
+			return err
+		}
+		defer sFTPClient.Close()
+		if err := sFTPClient.DownloadFile(i.SlugInfo.SlugPath, i.TGZPath, i.Logger); err != nil {
+			i.Logger.Error("源码包远程FTP获取失败，安装失败", map[string]string{"step": "callback", "status": "failure"})
+			logrus.Errorf("copy slug file error when build service, %s", err.Error())
+			return nil
+		}
 	} else {
 		if err := sources.CopyFileWithProgress(i.SlugInfo.SlugPath, i.TGZPath, i.Logger); err != nil {
 			i.Logger.Error("源码包本地获取失败，安装失败", map[string]string{"step": "callback", "status": "failure"})
 			logrus.Errorf("copy slug file error when build service, %s", err.Error())
 			return nil
 		}
-		if err := os.Chown(i.TGZPath, 200, 200); err != nil {
-			os.Remove(i.TGZPath)
-			i.Logger.Error("源码包本地获取失败，安装失败", map[string]string{"step": "callback", "status": "failure"})
-			logrus.Errorf("chown slug file error when build service, %s", err.Error())
-			return nil
-		}
+	}
+	if err := os.Chown(i.TGZPath, 200, 200); err != nil {
+		os.Remove(i.TGZPath)
+		i.Logger.Error("源码包本地获取失败，安装失败", map[string]string{"step": "callback", "status": "failure"})
+		logrus.Errorf("chown slug file error when build service, %s", err.Error())
+		return nil
 	}
 	i.Logger.Info("应用构建完成", map[string]string{"step": "build-code", "status": "success"})
 	vi := &dbmodel.VersionInfo{

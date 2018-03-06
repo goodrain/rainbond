@@ -82,7 +82,6 @@ func (i *SlugShareItem) ShareService() error {
 		return err
 	}
 	if i.ShareInfo.SlugInfo.FTPHost != "" && i.ShareInfo.SlugInfo.FTPPort != "" {
-		//share YS
 		if err := i.ShareToFTP(); err != nil {
 			return err
 		}
@@ -120,9 +119,23 @@ func (i *SlugShareItem) ShareToFTP() error {
 	md5, err := createMD5(file)
 	if err != nil {
 		i.Logger.Error("生成md5失败", map[string]string{"step": "slug-share", "status": "failure"})
+		return err
 	}
-	_ = md5
-	//TODO:
+	sFTPClient, err := sources.NewSFTPClient(i.ShareInfo.SlugInfo.FTPUser, i.ShareInfo.SlugInfo.FTPPassword, i.ShareInfo.SlugInfo.FTPHost, i.ShareInfo.SlugInfo.FTPPort)
+	if err != nil {
+		i.Logger.Error("创建FTP客户端失败", map[string]string{"step": "slug-share", "status": "failure"})
+		return err
+	}
+	defer sFTPClient.Close()
+	if err := sFTPClient.PushFile(md5, i.SlugPath+".md5", i.Logger); err != nil {
+		i.Logger.Error("上传MD5文件失败", map[string]string{"step": "slug-share", "status": "failure"})
+		return err
+	}
+	if err := sFTPClient.PushFile(i.LocalSlugPath, i.SlugPath, i.Logger); err != nil {
+		i.Logger.Error("上传源码包文件失败", map[string]string{"step": "slug-share", "status": "failure"})
+		return err
+	}
+	i.Logger.Info("分享云市远程服务器完成", map[string]string{"step": "slug-share", "status": "success"})
 	return nil
 }
 
@@ -133,6 +146,7 @@ func (i *SlugShareItem) ShareToLocal() error {
 	md5, err := createMD5(file)
 	if err != nil {
 		i.Logger.Error("生成md5失败", map[string]string{"step": "slug-share", "status": "success"})
+		return err
 	}
 	if err := sources.CopyFileWithProgress(i.LocalSlugPath, i.SlugPath, i.Logger); err != nil {
 		os.Remove(i.SlugPath)
@@ -148,25 +162,6 @@ func (i *SlugShareItem) ShareToLocal() error {
 		return err
 	}
 	i.Logger.Info("分享数据中心本地完成", map[string]string{"step": "slug-share", "status": "success"})
-	return nil
-}
-
-//UploadFtp UploadFt
-func (i *SlugShareItem) UploadFtp(path, file, md5 string) error {
-	i.Logger.Info(fmt.Sprintf("开始上传代码包: %s", file), map[string]string{"step": "slug-share"})
-	ftp := sources.NewFTPConnManager(i.Logger, i.ShareInfo.SlugInfo.FTPUser, i.ShareInfo.SlugInfo.FTPPassword, i.ShareInfo.SlugInfo.FTPHost, i.ShareInfo.SlugInfo.FTPPort)
-	if err := ftp.FTPLogin(i.Logger); err != nil {
-		return err
-	}
-	defer ftp.FTP.Close()
-	curPath, err := ftp.FTPCWD(i.Logger, path)
-	if err != nil {
-		return err
-	}
-	if err := ftp.FTPUpload(i.Logger, curPath, file, md5); err != nil {
-		return err
-	}
-	i.Logger.Info("代码包上传完成", map[string]string{"step": "slug-share", "status": "success"})
 	return nil
 }
 

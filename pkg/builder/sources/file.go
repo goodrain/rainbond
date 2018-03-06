@@ -67,6 +67,21 @@ func CopyFileWithProgress(src, dst string, logger event.Logger) error {
 	}
 	defer dstFile.Close()
 	allSize := srcStat.Size()
+	return CopyWithProgress(srcFile, dstFile, allSize, logger)
+}
+
+//SrcFile  源文件
+type SrcFile interface {
+	Read([]byte) (int, error)
+}
+
+//DstFile  目标文件
+type DstFile interface {
+	Write([]byte) (int, error)
+}
+
+//CopyWithProgress copy file
+func CopyWithProgress(srcFile SrcFile, dstFile DstFile, allSize int64, logger event.Logger) (err error) {
 	var written int64
 	buf := make([]byte, 1024*1024)
 	progressID := uuid.NewV4().String()[0:7]

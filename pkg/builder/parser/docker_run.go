@@ -180,7 +180,7 @@ func (d *DockerRunOrImageParse) dockerun(source []string) {
 			case "p", "public":
 				info := strings.Split(s, ":")
 				if len(info) == 2 {
-					port, _ := strconv.Atoi(info[0])
+					port, _ := strconv.Atoi(info[1])
 					if port != 0 {
 						d.ports[port] = &Port{ContainerPort: port, Protocol: GetPortProtocol(port)}
 					}

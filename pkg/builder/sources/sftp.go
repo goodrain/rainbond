@@ -1,0 +1,274 @@
+// RAINBOND, Application Management Platform
+// Copyright (C) 2014-2017 Goodrain Co., Ltd.
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version. For any non-GPL usage of Rainbond,
+// one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
+// must be obtained first.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+package sources
+
+import (
+	"fmt"
+	"io"
+	"net"
+	"os"
+	"path/filepath"
+	"strconv"
+
+	"github.com/twinj/uuid"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/pkg/event"
+	"github.com/goodrain/rainbond/pkg/util"
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
+
+	"github.com/pkg/sftp"
+)
+
+//SFTPClient sFTP客户端
+type SFTPClient struct {
+	UserName   string `json:"username"`
+	PassWord   string `json:"password"`
+	Host       string `json:"host"`
+	Port       int    `json:"int"`
+	conn       *ssh.Client
+	sftpClient *sftp.Client
+}
+
+//NewSFTPClient NewSFTPClient
+func NewSFTPClient(username, password, host, port string) (*SFTPClient, error) {
+	fb := &SFTPClient{
+		UserName: username,
+		PassWord: password,
+		Host:     host,
+	}
+	if len(port) != 0 {
+		var err error
+		fb.Port, err = strconv.Atoi(port)
+		if err != nil {
+			fb.Port = 21
+		}
+	} else {
+		fb.Port = 21
+	}
+	var auths []ssh.AuthMethod
+	if aconn, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK")); err == nil {
+		auths = append(auths, ssh.PublicKeysCallback(agent.NewClient(aconn).Signers))
+	}
+	if fb.PassWord != "" {
+		auths = append(auths, ssh.Password(fb.PassWord))
+	}
+	config := ssh.ClientConfig{
+		User:            username,
+		Auth:            auths,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+	addr := fmt.Sprintf("%s:%d", host, port)
+	conn, err := ssh.Dial("tcp", addr, &config)
+	if err != nil {
+		logrus.Errorf("unable to connect to [%s]: %v", addr, err)
+		return nil, err
+	}
+	c, err := sftp.NewClient(conn, sftp.MaxPacket(1<<15))
+	if err != nil {
+		logrus.Errorf("unable to start sftp subsytem: %v", err)
+		return nil, err
+	}
+	fb.conn = conn
+	fb.sftpClient = c
+	return fb, nil
+}
+
+//Close 关闭啊
+func (s *SFTPClient) Close() {
+	if s.sftpClient != nil {
+		s.sftpClient.Close()
+	}
+	if s.conn != nil {
+		s.conn.Close()
+	}
+}
+
+//PushFile PushFile
+func (s *SFTPClient) PushFile(src, dst string, logger event.Logger) error {
+	logger.Info(fmt.Sprintf("开始上传代码包到FTP服务器"), map[string]string{"step": "slug-share"})
+
+	srcFile, err := os.OpenFile(src, os.O_RDONLY, 0644)
+	if err != nil {
+		if logger != nil {
+			logger.Error("打开源文件失败", map[string]string{"step": "share"})
+		}
+		return err
+	}
+	defer srcFile.Close()
+	srcStat, err := srcFile.Stat()
+	if err != nil {
+		if logger != nil {
+			logger.Error("打开源文件失败", map[string]string{"step": "share"})
+		}
+		return err
+	}
+	// 验证并创建目标目录
+	dir := filepath.Dir(dst)
+	_, err = s.sftpClient.Stat(dir)
+	if err != nil {
+		if err.Error() == "file does not exist" {
+			err := s.MkdirAll(dir)
+			if err != nil {
+				if logger != nil {
+					logger.Error("创建目标文件目录失败", map[string]string{"step": "share"})
+				}
+				return err
+			}
+		} else {
+			if logger != nil {
+				logger.Error("检测目标文件目录失败", map[string]string{"step": "share"})
+			}
+			return err
+		}
+	}
+	// 先删除文件如果存在
+	s.sftpClient.Remove(dst)
+	dstFile, err := s.sftpClient.Create(dst)
+	if err != nil {
+		if logger != nil {
+			logger.Error("打开目标文件失败", map[string]string{"step": "share"})
+		}
+		return err
+	}
+	defer dstFile.Close()
+	allSize := srcStat.Size()
+	var written int64
+	buf := make([]byte, 1024*1024)
+	progressID := uuid.NewV4().String()[0:7]
+	for {
+		nr, er := srcFile.Read(buf)
+		if nr > 0 {
+			nw, ew := dstFile.Write(buf[0:nr])
+			if nw > 0 {
+				written += int64(nw)
+			}
+			if ew != nil {
+				err = ew
+				break
+			}
+			if nr != nw {
+				err = io.ErrShortWrite
+				break
+			}
+		}
+		if er != nil {
+			if er != io.EOF {
+				err = er
+			}
+			break
+		}
+		if logger != nil {
+			progress := "["
+			i := int((float64(written) / float64(allSize)) * 50)
+			if i == 0 {
+				i = 1
+			}
+			fmt.Println(i)
+			for j := 0; j < i; j++ {
+				progress += "="
+			}
+			progress += ">"
+			for len(progress) < 50 {
+				progress += " "
+			}
+			progress += "]"
+			message := fmt.Sprintf(`{"progress":"%s","progressDetail":{"current":%d,"total":%d},"id":"%s"}`, progress, written, allSize, progressID)
+			logger.Debug(message, map[string]string{"step": "progress"})
+		}
+	}
+	if err != nil {
+		return err
+	}
+	if written != allSize {
+		return io.ErrShortWrite
+	}
+	return nil
+}
+
+//DownloadFile DownloadFile
+func (s *SFTPClient) DownloadFile(src, dst string, logger event.Logger) error {
+	logger.Info(fmt.Sprintf("开始从FTP服务器下载代码包"), map[string]string{"step": "slug-share"})
+
+	srcFile, err := s.sftpClient.OpenFile(src, 0644)
+	if err != nil {
+		if logger != nil {
+			logger.Error("打开源文件失败", map[string]string{"step": "share"})
+		}
+		return err
+	}
+	defer srcFile.Close()
+	srcStat, err := srcFile.Stat()
+	if err != nil {
+		if logger != nil {
+			logger.Error("打开源文件失败", map[string]string{"step": "share"})
+		}
+		return err
+	}
+	// 验证并创建目标目录
+	dir := filepath.Dir(dst)
+	if err := util.CheckAndCreateDir(dir); err != nil {
+		if logger != nil {
+			logger.Error("检测并创建目标文件目录失败", map[string]string{"step": "share"})
+		}
+		return err
+	}
+	// 先删除文件如果存在
+	os.Remove(dst)
+	dstFile, err := os.OpenFile(dst, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	if err != nil {
+		if logger != nil {
+			logger.Error("打开目标文件失败", map[string]string{"step": "share"})
+		}
+		return err
+	}
+	defer dstFile.Close()
+	allSize := srcStat.Size()
+	return CopyWithProgress(srcFile, dstFile, allSize, logger)
+}
+
+//FileExist 文件是否存在
+func (s *SFTPClient) FileExist(filepath string) (bool, error) {
+	if _, err := s.sftpClient.Stat(filepath); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+//MkdirAll 创建目录，递归
+func (s *SFTPClient) MkdirAll(dirpath string) error {
+	parentDir := filepath.Dir(dirpath)
+	_, err := s.sftpClient.Stat(parentDir)
+	if err != nil {
+		if err.Error() == "file does not exist" {
+			err := s.MkdirAll(parentDir)
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+	err = s.sftpClient.Mkdir(dirpath)
+	if err != nil {
+		return err
+	}
+	return nil
+}
