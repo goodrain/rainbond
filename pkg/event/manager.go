@@ -19,7 +19,6 @@
 package event
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -389,5 +388,4 @@ func (l *logger) send(message string, info map[string]string) {
 	if err == nil && l.sendChan != nil {
 		util.SendNoBlocking(log, l.sendChan)
 	}
-	fmt.Println(message)
 }
