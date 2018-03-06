@@ -136,6 +136,11 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		logger.Info("云市镜像构建应用任务发送成功 ", map[string]string{"step": "image-service", "status": "starting"})
 		return nil
 	case "build_from_market_slug":
+		if err := s.buildFromMarketSlug(r, service); err != nil {
+			logger.Error("云市源码包构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
+			return err
+		}
+		logger.Info("云市源码包构建应用任务发送成功 ", map[string]string{"step": "image-service", "status": "starting"})
 		return nil
 	default:
 		return fmt.Errorf("unexpect kind")
