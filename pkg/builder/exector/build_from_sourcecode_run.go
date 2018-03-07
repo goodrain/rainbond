@@ -200,18 +200,14 @@ func (i *SourceCodeBuildItem) buildImage() error {
 	}
 	reg := regexp.MustCompile(`.*(?:\:|\/)([\w\-\.]+)/([\w\-\.]+)\.git`)
 	rc := reg.FindSubmatch([]byte(i.CodeSouceInfo.RepositoryURL))
-	logrus.Debugf("reg git url piece is %s", rc)
-	pieceID := func(s string) string {
-		mm := []byte(s)
-		return string(mm[12:])
-	}(i.ServiceID)
-	if len(rc) != 3 {
-		return fmt.Errorf("git—url识别错误")
+	var name string
+	if len(rc) == 3 {
+		name = fmt.Sprintf("%s_%s_%s", i.ServiceAlias, string(rc[1]), string(rc[2]))
+	} else {
+		name = fmt.Sprintf("%s_%s", i.ServiceAlias, "dockerfilebuild")
 	}
-	name := fmt.Sprintf("%s_%s_%s", pieceID, string(rc[1]), string(rc[2]))
 	tag := i.DeployVersion
-	buildImageName := strings.ToLower(fmt.Sprintf("%s/%s_%s", REGISTRYDOMAIN, name, tag))
-	i.Logger.Info(fmt.Sprintf("构建镜像名称为: %s", buildImageName), map[string]string{"step": "builder-exector"})
+	buildImageName := strings.ToLower(fmt.Sprintf("%s/%s:%s", REGISTRYDOMAIN, name, tag))
 	buildOptions := types.ImageBuildOptions{
 		Tags:   []string{buildImageName},
 		Remove: true,
@@ -221,8 +217,8 @@ func (i *SourceCodeBuildItem) buildImage() error {
 	} else {
 		buildOptions.NoCache = false
 	}
+	i.Logger.Info("开始构建镜像", map[string]string{"step": "builder-exector"})
 	err = sources.ImageBuild(i.DockerClient, i.RepoInfo.GetCodeBuildAbsPath(), buildOptions, i.Logger, 3)
-	i.Logger.Info("开始构建镜像: ", map[string]string{"step": "builder-exector"})
 	if err != nil {
 		i.Logger.Error(fmt.Sprintf("构造镜像%s失败: %s", buildImageName, err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())
