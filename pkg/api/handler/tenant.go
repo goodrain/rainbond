@@ -137,7 +137,6 @@ func (t *TenantAction) StatsMemCPU(services []*dbmodel.TenantServices) (*api_mod
 			}
 			status = servicesStatus.Status
 		}
-		logrus.Debugf("status is %s, cpus is %v, mem is %v", status, service.ContainerCPU, service.ContainerMemory)
 		if status == "undeploy" || status == "closed" {
 			continue
 		}

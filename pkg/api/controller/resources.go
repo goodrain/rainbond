@@ -95,7 +95,6 @@ func (t *TenantStruct) AllTenantResources(w http.ResponseWriter, r *http.Request
 		}
 		statsInfo, _ := handler.GetTenantManager().StatsMemCPU(services)
 		statsInfo.UUID = tenant.UUID
-		logrus.Debugf("stats info is %v", statsInfo)
 		ts.Data = append(ts.Data, statsInfo)
 	}
 	httputil.ReturnSuccess(r, w, ts.Data)
@@ -1711,7 +1710,6 @@ func (t *TenantStruct) SingleTenantResources(w http.ResponseWriter, r *http.Requ
 	statsInfo, _ := handler.GetTenantManager().StatsMemCPU(services)
 	//900ms
 	statsInfo.UUID = tenantID
-	logrus.Debugf("stats info is %v", statsInfo)
 	httputil.ReturnSuccess(r, w, statsInfo)
 	return
 }
