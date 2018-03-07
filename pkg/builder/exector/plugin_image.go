@@ -40,14 +40,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/engine-api/types"
+	"github.com/goodrain/rainbond/pkg/builder/sources"
+
 	"github.com/goodrain/rainbond/pkg/db"
 	"github.com/goodrain/rainbond/pkg/event"
 
 	"github.com/pquerna/ffjson/ffjson"
 
 	"github.com/goodrain/rainbond/pkg/builder/model"
-
-	"os/exec"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/akkuman/parseConfig"
@@ -88,7 +89,7 @@ func (e *exectorManager) pluginImageBuild(in []byte) {
 	go func() {
 		logrus.Info("start exec build plugin from image worker")
 		defer event.GetManager().ReleaseLogger(logger)
-		for retry := 0; retry < 3; retry++ {
+		for retry := 0; retry < 2; retry++ {
 			err := e.run(&tb, config, logger)
 			if err != nil {
 				logrus.Errorf("exec plugin build from image error:%s", err.Error())
@@ -120,61 +121,54 @@ func getConf(confPath string) parseConfig.Config {
 	return parseConfig.New(confPath)
 }
 
-func (e exectorManager) run(t *model.BuildPluginTaskBody, c parseConfig.Config, logger event.Logger) error {
-	if err := pull(t.ImageURL, logger); err != nil {
+func (e *exectorManager) run(t *model.BuildPluginTaskBody, c parseConfig.Config, logger event.Logger) error {
+
+	if _, err := sources.ImagePull(e.DockerClient, t.ImageURL, types.ImagePullOptions{}, logger, 5); err != nil {
 		logrus.Errorf("pull image %v error, %v", t.ImageURL, err)
-		logger.Info("拉取镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
+		logger.Error("拉取镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	//TODO: 权限问题  dial unix /var/run/docker.sock: connect: permission denied"
-	//if err := e.DockerPull(t.ImageURL); err != nil {
-	//	logrus.Errorf("pull image %v error, %v", t.ImageURL, err)
-	//	logger.Info("拉取镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
-	//	return err
-	//}
 
 	logger.Info("拉取镜像完成", map[string]string{"step": "build-exector", "status": "complete"})
-	curImage, err := setTag(c.Get("publish > image > curr_registry").(string), t.ImageURL, t.PluginID)
+	newTag := createTag(t.ImageURL, t.PluginID)
+	err := sources.ImageTag(e.DockerClient, t.ImageURL, newTag, logger, 1)
 	if err != nil {
-		logrus.Errorf("set tag error, %v", err)
-		logger.Info("修改镜像tag失败", map[string]string{"step": "builder-exector", "status": "failure"})
+		logrus.Errorf("set plugin image tag error, %v", err)
+		logger.Error("修改镜像tag失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-
-	if err := push(curImage, logger); err != nil {
-		logrus.Errorf("push image %s error, %v", curImage, err)
-		logger.Info("推送镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
+	logger.Info("修改镜像Tag完成", map[string]string{"step": "build-exector", "status": "complete"})
+	auth, err := sources.EncodeAuthToBase64(types.AuthConfig{Username: "", Password: ""})
+	if err != nil {
+		logrus.Errorf("make auth base63 push image error: %s", err.Error())
+		logger.Error(fmt.Sprintf("推送镜像内部错误"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	//TODO: 权限
-	//if err := e.DockerPush(curImage); err != nil {
-	//	logrus.Errorf("push image %s error, %v", curImage, err)
-	//	logger.Info("推送镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
-	//	return err
-	//}
+	ipo := types.ImagePushOptions{
+		RegistryAuth: auth,
+	}
+	if err := sources.ImagePush(e.DockerClient, newTag, ipo, logger, 5); err != nil {
+		logrus.Errorf("push image %s error, %v", newTag, err)
+		logger.Error("推送镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
+		return err
+	}
 
 	version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(t.PluginID, t.VersionID)
 	if err != nil {
+		logger.Error("更新插件版本信息错误", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	version.BuildLocalImage = curImage
+	version.BuildLocalImage = newTag
 	version.Status = "complete"
 	if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
+		logger.Error("更新插件版本信息错误", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	logger.Info("从镜像构建插件完成", map[string]string{"step": "last", "status": "success"})
 	return nil
 }
 
-func pull(image string, logger event.Logger) error {
-	mm := []string{"-P", "docker", "pull", image}
-	if err := ShowExec("sudo", mm, logger); err != nil {
-		return err
-	}
-	return nil
-}
-
-func setTag(curRegistry string, image string, alias string) (string, error) {
+func createTag(image string, alias string) string {
 	//alias is pluginID
 	mm := strings.Split(image, "/")
 	tag := "latest"
@@ -186,20 +180,6 @@ func setTag(curRegistry string, image string, alias string) (string, error) {
 	} else {
 		iName = image
 	}
-	curImage := fmt.Sprintf("%s/%s:%s", curRegistry, iName, tag+"_"+alias)
-	_, err := exec.Command("sudo", "-P", "docker", "tag", image, curImage).Output()
-	if err != nil {
-		return "", err
-	}
-	logrus.Debugf("set tag: sudo -P docker tag %s %s", image, curImage)
-	return curImage, nil
-}
-
-func push(curImage string, logger event.Logger) error {
-	mm := []string{"-P", "docker", "push", curImage}
-	logrus.Debugf("push images: sudo -P docker push %s", curImage)
-	if err := ShowExec("sudo", mm, logger); err != nil {
-		return err
-	}
-	return nil
+	curImage := fmt.Sprintf("goodrain.me/%s:%s", iName, tag+"_"+alias)
+	return curImage
 }
