@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/builder/sources"
+	"github.com/goodrain/rainbond/pkg/util"
 
 	"github.com/goodrain/rainbond/pkg/db"
 	"github.com/goodrain/rainbond/pkg/event"
@@ -99,6 +100,12 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config
 	sourceDir := fmt.Sprintf(formatSourceDir, t.TenantID, t.VersionID)
 	if t.Repo == "" {
 		t.Repo = "master"
+	}
+	if !util.DirIsEmpty(sourceDir) {
+		os.RemoveAll(sourceDir)
+	}
+	if err := util.CheckAndCreateDir(sourceDir); err != nil {
+		return err
 	}
 	if _, err := sources.GitClone(sources.CodeSourceInfo{RepositoryURL: t.GitURL, Branch: t.Repo}, sourceDir, logger, 4); err != nil {
 		logger.Error("拉取代码失败", map[string]string{"step": "builder-exector", "status": "failure"})
