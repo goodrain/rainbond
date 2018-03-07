@@ -26,6 +26,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
+
 	"github.com/goodrain/rainbond/pkg/util"
 
 	"github.com/Sirupsen/logrus"
@@ -70,6 +72,7 @@ type SourceCodeBuildItem struct {
 	BuildEnvs     map[string]string
 	CodeSouceInfo sources.CodeSourceInfo
 	RepoInfo      *sources.RepostoryBuildInfo
+	commit        *object.Commit
 }
 
 //NewSouceCodeBuildItem 创建实体
@@ -150,6 +153,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		i.Logger.Error(fmt.Sprintf("读取代码版本信息失败"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
+	i.commit = commit
 	info := fmt.Sprintf("版本:%s 上传者:%s Commit:%s ", commit.Hash.String()[0:7], commit.Author.Name, commit.Message)
 	i.Logger.Info(info, map[string]string{"step": "code-version"})
 
@@ -260,6 +264,9 @@ func (i *SourceCodeBuildItem) buildImage() error {
 		DeliveredPath: buildImageName,
 		EventID:       i.EventID,
 		FinalStatus:   "success",
+		CodeVersion:   i.commit.Hash.String(),
+		CommitMsg:     i.commit.Message,
+		Author:        i.commit.Author.Name,
 	}
 	if err := i.UpdateVersionInfo(vi); err != nil {
 		logrus.Errorf("update version info error: %s", err.Error())
@@ -389,12 +396,12 @@ func (i *SourceCodeBuildItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
 	if vi.DeliveredPath != "" {
 		version.DeliveredPath = vi.DeliveredPath
 	}
-	if vi.EventID != "" {
-		version.EventID = vi.EventID
-	}
 	if vi.FinalStatus != "" {
 		version.FinalStatus = vi.FinalStatus
 	}
+	version.CommitMsg = vi.CommitMsg
+	version.Author = vi.Author
+	version.CodeVersion = vi.CodeVersion
 	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
 		return err
 	}
