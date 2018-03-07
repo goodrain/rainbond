@@ -226,6 +226,7 @@ func (p *PluginAction) BuildPluginManual(bps *api_model.BuildPluginStruct) (*dbm
 	case "image":
 		pbv, err := p.ImageBuildPlugin(bps, plugin)
 		if err != nil {
+			logrus.Error("build plugin from image error ", err.Error())
 			logger.Error("从镜像构建插件任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return nil, util.CreateAPIHandleError(500, fmt.Errorf("build plugin from image error"))
 		}
@@ -234,6 +235,7 @@ func (p *PluginAction) BuildPluginManual(bps *api_model.BuildPluginStruct) (*dbm
 	case "dockerfile":
 		pbv, err := p.DockerfileBuildPlugin(bps, plugin)
 		if err != nil {
+			logrus.Error("build plugin from image error ", err.Error())
 			logger.Error("从dockerfile构建插件任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return nil, util.CreateAPIHandleError(500, fmt.Errorf("build plugin from dockerfile error"))
 		}
