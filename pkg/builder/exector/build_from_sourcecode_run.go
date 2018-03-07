@@ -385,7 +385,7 @@ func (i *SourceCodeBuildItem) CreateUpgradeTaskBody() *model.RollingUpgradeTaskB
 
 //UpdateVersionInfo 更新任务执行结果
 func (i *SourceCodeBuildItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
-	version, err := db.GetManager().VersionInfoDao().GetVersionByEventID(i.EventID)
+	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(i.DeployVersion, i.ServiceID)
 	if err != nil {
 		return err
 	}

@@ -42,7 +42,7 @@ func TestImageName(t *testing.T) {
 func TestBuildImage(t *testing.T) {
 	dc, _ := client.NewEnvClient()
 	buildOptions := types.ImageBuildOptions{
-		Tags:   []string{"build:test"},
+		Tags:   []string{"goodrain.me/gr1e1a6c_goodrain-apps_gost:20180307135753"},
 		Remove: true,
 	}
 	if err := ImageBuild(dc, "/tmp/gost", buildOptions, nil, 5); err != nil {

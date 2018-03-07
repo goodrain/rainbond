@@ -353,8 +353,8 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 				d.envs[cm.Value[0]] = &Env{Name: cm.Value[0], Value: cm.Value[1]}
 			}
 		case "expose":
-			if len(cm.Value) == 1 {
-				port, _ := strconv.Atoi(cm.Value[0])
+			for _, v := range cm.Value {
+				port, _ := strconv.Atoi(v)
 				if port != 0 {
 					d.ports[port] = &Port{ContainerPort: port, Protocol: GetPortProtocol(port)}
 				}

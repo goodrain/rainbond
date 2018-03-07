@@ -130,7 +130,7 @@ func (i *MarketSlugItem) CreateUpgradeTaskBody() *model.RollingUpgradeTaskBody {
 
 //UpdateVersionInfo 更新任务执行结果
 func (i *MarketSlugItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
-	version, err := db.GetManager().VersionInfoDao().GetVersionByEventID(i.EventID)
+	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(i.DeployVersion, i.ServiceID)
 	if err != nil {
 		return err
 	}

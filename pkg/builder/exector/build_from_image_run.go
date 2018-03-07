@@ -150,7 +150,7 @@ func (i *ImageBuildItem) StorageLocalImageURL(imageURL string) error {
 
 //StorageVersionInfo 存储version信息
 func (i *ImageBuildItem) StorageVersionInfo(imageURL string) error {
-	version, err := db.GetManager().VersionInfoDao().GetVersionByEventID(i.EventID)
+	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(i.DeployVersion, i.ServiceID)
 	if err != nil {
 		return err
 	}

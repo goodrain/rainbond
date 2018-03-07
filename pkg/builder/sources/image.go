@@ -146,7 +146,7 @@ func ImagePush(dockerCli *client.Client, image string, opts types.ImagePushOptio
 	defer cancel()
 	readcloser, err := dockerCli.ImagePush(ctx, image, opts)
 	if err != nil {
-		if strings.HasSuffix(err.Error(), "does not exist") {
+		if strings.Contains(err.Error(), "does not exist") {
 			if logger != nil {
 				logger.Error(fmt.Sprintf("镜像：%s不存在，不能推送", image), map[string]string{"step": "pushimage"})
 			}
@@ -210,16 +210,19 @@ func ImageBuild(dockerCli *client.Client, contextDir string, options types.Image
 	if err != nil {
 		return err
 	}
-	r := bufio.NewReader(rc.Body)
-	for {
-		if line, _, err := r.ReadLine(); err == nil {
-			if logger != nil {
-				logger.Debug(string(line), map[string]string{"step": "build-progress"})
+	if rc.Body != nil {
+		defer rc.Body.Close()
+		r := bufio.NewReader(rc.Body)
+		for {
+			if line, _, err := r.ReadLine(); err == nil {
+				if logger != nil {
+					logger.Debug(string(line), map[string]string{"step": "build-progress"})
+				} else {
+					fmt.Println(string(line))
+				}
 			} else {
-				fmt.Println(string(line))
+				break
 			}
-		} else {
-			break
 		}
 	}
 	return nil
