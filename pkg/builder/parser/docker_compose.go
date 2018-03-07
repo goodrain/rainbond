@@ -200,8 +200,12 @@ func (d *DockerComposeParse) GetServiceInfo() []ServiceInfo {
 			Image:          service.image,
 			Args:           service.args,
 			DependServices: service.depends,
-			Memory:         service.memory,
 			ImageAlias:     service.imageAlias,
+		}
+		if service.memory != 0 {
+			si.Memory = service.memory
+		} else {
+			si.Memory = 128
 		}
 		sis = append(sis, si)
 	}

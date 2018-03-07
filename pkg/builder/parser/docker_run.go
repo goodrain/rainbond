@@ -270,5 +270,8 @@ func (d *DockerRunOrImageParse) GetServiceInfo() []ServiceInfo {
 		Branchs: d.GetBranchs(),
 		Memory:  d.memory,
 	}
+	if serviceInfo.Memory == 0 {
+		serviceInfo.Memory = 256
+	}
 	return []ServiceInfo{serviceInfo}
 }

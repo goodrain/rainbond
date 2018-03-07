@@ -211,7 +211,6 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			return d.errors
 		}
 	}
-	fmt.Println(lang == code.NO, lang)
 	d.Lang = lang
 	if lang == code.NO {
 		d.errappend(ErrorAndSolve(FatalError, "代码无法识别语言类型", "请参考文档查看平台语言支持规范"))
@@ -240,8 +239,23 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		}
 	}
 	d.Runtime = code.CheckRuntime(buildPath, lang)
+	d.memory = getRecommendedMemory(lang)
 	d.Procfile = true
 	return d.errors
+}
+
+func getRecommendedMemory(lang code.Lang) int {
+	//java语言推荐1024
+	if lang == code.JavaJar || lang == code.JavaMaven || lang == code.JaveWar {
+		return 1024
+	}
+	if lang == code.Python {
+		return 512
+	}
+	if lang == code.Nodejs {
+		return 512
+	}
+	return 128
 }
 
 func (d *SourceCodeParse) errappend(pe ParseError) {
