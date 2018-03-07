@@ -91,7 +91,6 @@ func (i *ImageShareItem) ShareService() error {
 		return err
 	}
 	ipo := types.ImagePushOptions{
-		All:          true,
 		RegistryAuth: auth,
 	}
 	err = sources.ImagePush(i.DockerClient, i.ImageName, ipo, i.Logger, 8)

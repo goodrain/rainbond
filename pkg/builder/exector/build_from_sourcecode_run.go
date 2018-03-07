@@ -235,11 +235,10 @@ func (i *SourceCodeBuildItem) buildImage() error {
 		return err
 	}
 	ipo := types.ImagePushOptions{
-		All:          true,
 		RegistryAuth: auth,
 	}
-	err = sources.ImagePush(i.DockerClient, buildImageName, ipo, i.Logger, 2)
 	i.Logger.Info("镜像构建成功，开始推送镜像至仓库", map[string]string{"step": "builder-exector"})
+	err = sources.ImagePush(i.DockerClient, buildImageName, ipo, i.Logger, 2)
 	if err != nil {
 		i.Logger.Error("推送镜像失败", map[string]string{"step": "builder-exector"})
 		logrus.Errorf("push image error: %s", err.Error())
