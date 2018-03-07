@@ -24,6 +24,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/goodrain/rainbond/pkg/api/discover"
+
 	"github.com/goodrain/rainbond/pkg/util"
 
 	"github.com/coreos/etcd/client"
@@ -193,6 +195,7 @@ func (m *Manager) EventLogInstance(w http.ResponseWriter, r *http.Request) {
 func (m *Manager) PrometheusAPI(w http.ResponseWriter, r *http.Request) {
 	if m.prometheusProxy == nil {
 		m.prometheusProxy = proxy.CreateProxy("prometheus", "http", []string{"127.0.0.1:9999"})
+		discover.GetEndpointDiscover(m.conf.EtcdEndpoint).AddProject("prometheus", m.prometheusProxy)
 	}
 	m.prometheusProxy.Proxy(w, r)
 }
