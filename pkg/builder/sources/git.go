@@ -259,7 +259,6 @@ func createProgress(ctx context.Context, logger event.Logger) sideband.Progress 
 		return os.Stdout
 	}
 	bufferfile := bytes.NewBuffer([]byte{})
-	fmt.Println("logger progress")
 	var reader = bufio.NewReader(bufferfile)
 	go func() {
 		for {
@@ -274,7 +273,8 @@ func createProgress(ctx context.Context, logger event.Logger) sideband.Progress 
 					}
 				}
 				if len(line) > 0 {
-					logger.Debug(string(line), map[string]string{"step": "code_progress"})
+					message := fmt.Sprintf(`{"progress":"%s","id":"%s"}`, string(line), "获取源码:")
+					logger.Debug(message, map[string]string{"step": "progress"})
 				}
 			}
 		}

@@ -124,7 +124,7 @@ func CopyWithProgress(srcFile SrcFile, dstFile DstFile, allSize int64, logger ev
 			for len(progress) < 50 {
 				progress += " "
 			}
-			progress += "]"
+			progress += fmt.Sprintf("] %d MB/%d MB", int(written/1024/1024), int(allSize/1024/1024))
 			message := fmt.Sprintf(`{"progress":"%s","progressDetail":{"current":%d,"total":%d},"id":"%s"}`, progress, written, allSize, progressID)
 			logger.Debug(message, map[string]string{"step": "progress"})
 		}

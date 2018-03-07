@@ -20,13 +20,10 @@ package sources
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"path/filepath"
 	"strconv"
-
-	"github.com/twinj/uuid"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/event"
@@ -150,57 +147,7 @@ func (s *SFTPClient) PushFile(src, dst string, logger event.Logger) error {
 	}
 	defer dstFile.Close()
 	allSize := srcStat.Size()
-	var written int64
-	buf := make([]byte, 1024*1024)
-	progressID := uuid.NewV4().String()[0:7]
-	for {
-		nr, er := srcFile.Read(buf)
-		if nr > 0 {
-			nw, ew := dstFile.Write(buf[0:nr])
-			if nw > 0 {
-				written += int64(nw)
-			}
-			if ew != nil {
-				err = ew
-				break
-			}
-			if nr != nw {
-				err = io.ErrShortWrite
-				break
-			}
-		}
-		if er != nil {
-			if er != io.EOF {
-				err = er
-			}
-			break
-		}
-		if logger != nil {
-			progress := "["
-			i := int((float64(written) / float64(allSize)) * 50)
-			if i == 0 {
-				i = 1
-			}
-			fmt.Println(i)
-			for j := 0; j < i; j++ {
-				progress += "="
-			}
-			progress += ">"
-			for len(progress) < 50 {
-				progress += " "
-			}
-			progress += "]"
-			message := fmt.Sprintf(`{"progress":"%s","progressDetail":{"current":%d,"total":%d},"id":"%s"}`, progress, written, allSize, progressID)
-			logger.Debug(message, map[string]string{"step": "progress"})
-		}
-	}
-	if err != nil {
-		return err
-	}
-	if written != allSize {
-		return io.ErrShortWrite
-	}
-	return nil
+	return CopyWithProgress(srcFile, dstFile, allSize, logger)
 }
 
 //DownloadFile DownloadFile
