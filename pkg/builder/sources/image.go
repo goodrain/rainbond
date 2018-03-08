@@ -215,10 +215,13 @@ func ImageBuild(dockerCli *client.Client, contextDir string, options types.Image
 		r := bufio.NewReader(rc.Body)
 		for {
 			if line, _, err := r.ReadLine(); err == nil {
-				if logger != nil {
-					logger.Debug(string(line), map[string]string{"step": "build-progress"})
-				} else {
-					fmt.Println(string(line))
+				if len(line) > 0 {
+					message := strings.Replace(string(line), "\n", "", -1)
+					if logger != nil {
+						logger.Debug(message, map[string]string{"step": "build-progress"})
+					} else {
+						fmt.Println(message)
+					}
 				}
 			} else {
 				break
