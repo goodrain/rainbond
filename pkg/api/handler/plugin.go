@@ -531,6 +531,14 @@ func (p *PluginAction) GetPluginBuildVersion(pluginID, versionID string) (*dbmod
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError(fmt.Sprintf("get plugin build version by id %v", versionID), err)
 	}
+	if version.Status == "building" {
+		//check build whether timeout
+		if buildTime, err := time.Parse(time.RFC3339, version.BuildTime); err != nil {
+			if buildTime.Add(time.Minute * 5).Before(time.Now()) {
+				version.Status = "timeout"
+			}
+		}
+	}
 	return version, nil
 }
 
