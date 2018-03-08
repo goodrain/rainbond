@@ -26,7 +26,7 @@ import (
 
 func init() {
 	event.NewManager(event.EventConfig{
-		DiscoverAddress: []string{"127.0.0.1:2379"},
+		DiscoverAddress: []string{"172.17.0.1:2379"},
 	})
 }
 func TestGitClone(t *testing.T) {
