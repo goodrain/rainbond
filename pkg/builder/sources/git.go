@@ -274,6 +274,7 @@ func createProgress(ctx context.Context, logger event.Logger) sideband.Progress 
 				}
 				if len(line) > 0 {
 					progess := strings.Replace(string(line), "\r", "", -1)
+					progess = strings.Replace(progess, "\n", "", -1)
 					message := fmt.Sprintf(`{"progress":"%s","id":"%s"}`, progess, "获取源码:")
 					logger.Debug(message, map[string]string{"step": "progress"})
 				}

@@ -217,6 +217,8 @@ func ImageBuild(dockerCli *client.Client, contextDir string, options types.Image
 			if line, _, err := r.ReadLine(); err == nil {
 				if len(line) > 0 {
 					message := strings.Replace(string(line), "\n", "", -1)
+					message = strings.Replace(message, "\r", "", -1)
+					message = strings.Replace(message, "\u003e", ">", -1)
 					if logger != nil {
 						logger.Debug(message, map[string]string{"step": "build-progress"})
 					} else {
