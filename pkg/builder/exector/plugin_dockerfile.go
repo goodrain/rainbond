@@ -74,7 +74,7 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 	go func() {
 		logrus.Info("start exec build plugin from image worker")
 		defer event.GetManager().ReleaseLogger(logger)
-		for retry := 0; retry < 3; retry++ {
+		for retry := 0; retry < 2; retry++ {
 			err := e.runD(&tb, config, logger)
 			if err != nil {
 				logrus.Errorf("exec plugin build from dockerfile error:%s", err.Error())
