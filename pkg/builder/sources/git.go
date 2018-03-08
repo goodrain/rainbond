@@ -258,7 +258,7 @@ func createProgress(ctx context.Context, logger event.Logger) sideband.Progress 
 	if logger == nil {
 		return os.Stdout
 	}
-	bufferfile := bytes.NewBuffer([]byte{})
+	bufferfile := bytes.NewBuffer(nil)
 	var reader = bufio.NewReader(bufferfile)
 	go func() {
 		for {

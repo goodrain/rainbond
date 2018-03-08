@@ -105,7 +105,6 @@ func createMD5(packageName string) (string, error) {
 		return "", err
 	}
 	md5In := strings.Split(string(f), "")
-	logrus.Debugf("md5 value is %s", string(f))
 	if err := ioutil.WriteFile(md5Path, []byte(md5In[0]), 0644); err != nil {
 		return "", err
 	}
