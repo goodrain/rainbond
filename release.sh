@@ -47,12 +47,12 @@ function prepare() {
 function build() {
 	echo "---> Build Binary For ACP"
 	echo "acp plugins version:$release_desc"
-	sed -i "s/0.0.0/$release_desc/g" ./cmd/version.go
+	# sed -i "s/0.0.0/$release_desc/g" ./cmd/version.go
 	echo "build rainbond-node"
     docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/${BASE_NAME}-node ./cmd/node
 	echo "build rainbond-grctl"
 	docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/${BASE_NAME}-grctl ./cmd/grctl
-	sed -i "s/$release_desc/0.0.0/g" ./cmd/version.go
+	# sed -i "s/$release_desc/0.0.0/g" ./cmd/version.go
 }
 
 function build::rpm() {
