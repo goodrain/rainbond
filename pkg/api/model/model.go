@@ -679,7 +679,7 @@ type BuildServiceStruct struct {
 			SlugPath    string `json:"slug_path"`
 			FTPHost     string `json:"ftp_host"`
 			FTPPort     string `json:"ftp_port"`
-			FTPUser     string `json:"ftp_user"`
+			FTPUser     string `json:"ftp_username"`
 			FTPPassword string `json:"ftp_password"`
 		} `json:"slug_info"`
 	}

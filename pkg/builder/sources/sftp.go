@@ -72,7 +72,7 @@ func NewSFTPClient(username, password, host, port string) (*SFTPClient, error) {
 		Auth:            auths,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
-	addr := fmt.Sprintf("%s:%d", host, port)
+	addr := fmt.Sprintf("%s:%d", host, fb.Port)
 	conn, err := ssh.Dial("tcp", addr, &config)
 	if err != nil {
 		logrus.Errorf("unable to connect to [%s]: %v", addr, err)
