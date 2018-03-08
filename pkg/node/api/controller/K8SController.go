@@ -279,22 +279,16 @@ func GetNodeBasic(w http.ResponseWriter, r *http.Request) {
 	outRespSuccess(w, hostnode, nil)
 }
 
+//Resources 数据中心资源统计
 func Resources(w http.ResponseWriter, r *http.Request) {
-	nodeList, err := k8s.K8S.Core().Nodes().List(metav1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("error get nodes from k8s ,details %s", err.Error())
-		api.ReturnError(r, w, 500, "failed,details "+err.Error())
-		return
-	}
 	result := new(model.Resource)
 	cpuR := 0
 	memR := 0
-	for _, v := range nodeList.Items {
-
-		ps, _ := k8s.GetPodsByNodeName(v.Name)
-		for _, pv := range ps {
-			rc := pv.Spec.Containers[0].Resources.Requests.Cpu().String()
-			rm := pv.Spec.Containers[0].Resources.Requests.Memory().String()
+	ps, _ := k8s.GetAllPods()
+	for _, pv := range ps {
+		for _, c := range pv.Spec.Containers {
+			rc := c.Resources.Requests.Cpu().String()
+			rm := c.Resources.Requests.Memory().String()
 			cpuR += getCpuInt(rc)
 			memR += convertMemoryToMBInt(rm, true)
 		}
@@ -312,16 +306,16 @@ func CapRes(w http.ResponseWriter, r *http.Request) {
 	}
 	var capCpu int64
 	var capMem int64
-	for _,v:=range nodes{
+	for _, v := range nodes {
 		if v.NodeStatus != nil {
-			capCpu+=v.NodeStatus.Capacity.Cpu().Value()
-			capMem+=v.NodeStatus.Capacity.Memory().Value()
+			capCpu += v.NodeStatus.Capacity.Cpu().Value()
+			capMem += v.NodeStatus.Capacity.Memory().Value()
 		}
 	}
 
 	result := new(model.Resource)
-	result.CpuR=int(capCpu)
-	result.MemR=int(capMem)
+	result.CpuR = int(capCpu)
+	result.MemR = int(capMem)
 	logrus.Infof("get cpu %v and mem %v", capCpu, capMem)
 	api.ReturnSuccess(r, w, result)
 }
@@ -334,31 +328,31 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 	}
 	var capCpu int64
 	var capMem int64
-	for _,v:=range nodes{
-		if v.NodeStatus != nil&&v.Unschedulable==false {
-
-			capCpu+=v.NodeStatus.Capacity.Cpu().Value()
-			capMem+=v.NodeStatus.Capacity.Memory().Value()
+	for _, v := range nodes {
+		if v.NodeStatus != nil && v.Unschedulable == false {
+			capCpu += v.NodeStatus.Capacity.Cpu().Value()
+			capMem += v.NodeStatus.Capacity.Memory().Value()
 		}
 	}
-	ps, _ := k8s.GetPodsByNodeName("")
-	var cpuR int64= 0
-	var memR int64= 0
+	ps, _ := k8s.GetAllPods()
+	var cpuR int64 = 0
+	var memR int64 = 0
 	for _, pv := range ps {
-		rc := pv.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
-		rm := pv.Spec.Containers[0].Resources.Requests.Memory().Value()
-		cpuR += rc
-		memR += rm
+		for _, c := range pv.Spec.Containers {
+			rc := c.Resources.Requests.Cpu().MilliValue()
+			rm := c.Resources.Requests.Memory().Value()
+			cpuR += rc
+			memR += rm
+		}
 	}
-	podMemRequestMB:=memR/1024/1024
-	logrus.Infof("get total cpu request %v,memory request %v  by value",cpuR,podMemRequestMB)
+	podMemRequestMB := memR / 1024 / 1024
 	result := new(model.ClusterResource)
-	result.CapCpu=int(capCpu)
-	result.CapMem=int(capMem)/1024/1024
-	result.ReqCpu = float32(cpuR)/1000
+	result.CapCpu = int(capCpu)
+	result.CapMem = int(capMem) / 1024 / 1024
+	result.ReqCpu = float32(cpuR) / 1000
 	result.ReqMem = int(podMemRequestMB)
-	result.Node=len(nodes)
-	result.Tenant=0
+	result.Node = len(nodes)
+	result.Tenant = 0
 	api.ReturnSuccess(r, w, result)
 }
 func UpdateNode(w http.ResponseWriter, r *http.Request) {

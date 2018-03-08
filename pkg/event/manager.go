@@ -172,7 +172,9 @@ func (m *manager) Error(err error) {
 }
 func (m *manager) Close() error {
 	m.cancel()
-	m.dis.Stop()
+	if m.dis != nil {
+		m.dis.Stop()
+	}
 	return nil
 }
 

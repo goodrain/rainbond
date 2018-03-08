@@ -21,7 +21,6 @@ package version2
 import (
 	"github.com/goodrain/rainbond/pkg/api/controller"
 	"github.com/goodrain/rainbond/pkg/api/middleware"
-	builder_controller "github.com/goodrain/rainbond/pkg/builder/api"
 
 	"github.com/go-chi/chi"
 )
@@ -41,7 +40,6 @@ func (v2 *V2) Routes() chi.Router {
 	r.Mount("/cluster", v2.clusterRouter())
 	r.Mount("/resources", v2.resourcesRouter())
 	r.Mount("/prometheus", v2.prometheusRouter())
-	r.Mount("/builder", builder_controller.APIServer())
 	return r
 }
 
@@ -66,6 +64,8 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/transplugins", controller.GetManager().TransPlugins)
 	//代码检测
 	r.Post("/code-check", controller.GetManager().CheckCode)
+	r.Post("/servicecheck", controller.Check)
+	r.Get("/servicecheck/{uuid}", controller.GetServiceCheckInfo)
 	r.Post("/cloud-share", controller.GetManager().ShareCloud)
 	r.Get("/resources", controller.GetManager().SingleTenantResources)
 	r.Get("/certificates", controller.GetManager().Entrance)
@@ -113,6 +113,9 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Get("/status", controller.GetManager().StatusService)
 	//构建版本列表
 	r.Get("/buildlist", controller.GetManager().BuildList)
+	//应用分享
+	r.Post("/share", controller.GetManager().Share)
+	r.Get("/share/{share_id}", controller.GetManager().ShareResult)
 
 	//应用日志相关
 	r.Post("/log", controller.GetManager().Logs)

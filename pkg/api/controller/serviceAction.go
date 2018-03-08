@@ -228,6 +228,9 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 
 	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "start", tenantID, "")
 	handleStatus(status, err, w, r)
+	if status != 0 {
+		return
+	}
 
 	eventID := sEvent.EventID
 
@@ -282,6 +285,9 @@ func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "stop", tenantID, "")
 	handleStatus(status, err, w, r)
+	if status != 0 {
+		return
+	}
 	//save event
 	eventID := sEvent.EventID
 	logger := event.GetManager().GetLogger(eventID)
@@ -334,6 +340,9 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "restart", tenantID, "")
 	handleStatus(status, err, w, r)
+	if status != 0 {
+		return
+	}
 	//save event
 	eventID := sEvent.EventID
 	logger := event.GetManager().GetLogger(eventID)
@@ -395,7 +404,9 @@ func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "update", tenantID, "")
 	handleStatus(status, err, w, r)
-
+	if status != 0 {
+		return
+	}
 	eventID := sEvent.EventID
 	logger := event.GetManager().GetLogger(eventID)
 	defer event.CloseManager()
@@ -450,6 +461,9 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "update", tenantID, "")
 	handleStatus(status, err, w, r)
+	if status != 0 {
+		return
+	}
 	//save event
 	eventID := sEvent.EventID
 	logger := event.GetManager().GetLogger(eventID)
@@ -498,7 +512,10 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
+	if len(build.Body.DeployVersion) == 0 {
+		httputil.ReturnError(r, w, 400, "deploy version can not be empty.")
+		return
+	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
@@ -508,30 +525,29 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 
 	sEvent, status, err := createEvent(build.Body.EventID, serviceID, "build", tenantID, build.Body.DeployVersion)
 	handleStatus(status, err, w, r)
-
-	version := dbmodel.VersionInfo{}
-	version.EventID = sEvent.EventID
-	version.ServiceID = serviceID
-	version.RepoURL = build.Body.RepoURL
-	version.Kind = build.Body.Kind
-	version.BuildVersion = build.Body.DeployVersion
-
+	if status != 0 {
+		return
+	}
+	version := dbmodel.VersionInfo{
+		EventID:      sEvent.EventID,
+		ServiceID:    serviceID,
+		RepoURL:      build.Body.RepoURL,
+		Kind:         build.Body.Kind,
+		BuildVersion: build.Body.DeployVersion,
+	}
+	err = db.GetManager().VersionInfoDao().AddModel(&version)
+	if err != nil {
+		logrus.Infof("error add version %v ,details %s", version, err.Error())
+		httputil.ReturnError(r, w, 500, "create service version error.")
+		return
+	}
 	build.Body.EventID = sEvent.EventID
 	if err := handler.GetServiceManager().ServiceBuild(tenantID, serviceID, &build); err != nil {
-		logrus.Debugf("build service error")
+		logrus.Error("build service error", err.Error())
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("build service error, %v", err))
 		return
 	}
-	logrus.Debugf("equeue mq build task success")
-
-	err = db.GetManager().VersionInfoDao().AddModel(&version)
-
-	if err != nil {
-		logrus.Infof("error add version %v ,details %s", version, err.Error())
-	}
-	logrus.Debugf("equeue mq build task success")
 	httputil.ReturnSuccess(r, w, sEvent)
-	//w.WriteHeader(200)
 }
 
 //BuildList BuildList
@@ -578,6 +594,9 @@ func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 
 	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "update", tenantID, data["deploy_version"].(string))
 	handleStatus(status, err, w, r)
+	if status != 0 {
+		return
+	}
 
 	eventID := sEvent.EventID
 	logger := event.GetManager().GetLogger(eventID)
@@ -643,7 +662,7 @@ func (t *TenantStruct) CheckCode(w http.ResponseWriter, r *http.Request) {
 func (t *TenantStruct) ShareCloud(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/tenants/{tenant_name}/cloud-share v2 sharecloud
 	//
-	// 云市分享
+	// 云市分享 （v3.5弃用）
 	//
 	// share cloud
 	//
@@ -712,6 +731,9 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "rollback", tenantID, data["deploy_version"].(string))
 	handleStatus(status, err, w, r)
+	if status != 0 {
+		return
+	}
 	eventID := sEvent.EventID
 	logger := event.GetManager().GetLogger(eventID)
 	defer event.CloseManager()

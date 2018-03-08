@@ -20,6 +20,7 @@ package server
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -67,7 +68,17 @@ func NewManager(c option.Config) *Manager {
 	//Sets a http.Request's RemoteAddr to either X-Forwarded-For or X-Real-IP
 	r.Use(middleware.RealIP)
 	//Logs the start and end of each request with the elapsed processing time
-	r.Use(middleware.Logger)
+	if c.LoggerFile != "" {
+		logerFile, err := os.OpenFile(c.LoggerFile, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0644)
+		if err != nil {
+			logrus.Errorf("open logger file %s error %s", c.LoggerFile, err.Error())
+		} else {
+			requestLog := middleware.RequestLogger(&middleware.DefaultLogFormatter{Logger: log.New(logerFile, "", log.LstdFlags)})
+			r.Use(requestLog)
+		}
+	} else {
+		r.Use(middleware.DefaultLogger)
+	}
 	//Gracefully absorb panics and prints the stack trace
 	r.Use(middleware.Recoverer)
 	//request time out

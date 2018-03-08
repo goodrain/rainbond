@@ -659,12 +659,29 @@ type BuildServiceStruct struct {
 		// in: body
 		// required: false
 		RepoURL string `json:"repo_url" validate:"repo_url"`
+		// branch 分支信息
+		// in: body
+		// required: false
+		Branch string `json:"branch" validate:"branch"`
 		// 操作人员
 		// in: body
 		// required: false
+		Lang         string `json:"lang" validate:"lang"`
+		Runtime      string `json:"runtime" validate:"runtime"`
+		ServiceType  string `json:"service_type" validate:"service_type"`
+		User         string `json:"user" validate:"user"`
+		Password     string `json:"password" validate:"password"`
 		Operator     string `json:"operator" validate:"operator"`
 		TenantName   string `json:"tenant_name"`
 		ServiceAlias string `json:"service_alias"`
+		//用于云市代码包创建
+		SlugInfo struct {
+			SlugPath    string `json:"slug_path"`
+			FTPHost     string `json:"ftp_host"`
+			FTPPort     string `json:"ftp_port"`
+			FTPUser     string `json:"ftp_user"`
+			FTPPassword string `json:"ftp_password"`
+		} `json:"slug_info"`
 	}
 }
 
@@ -831,6 +848,45 @@ type CheckCodeStruct struct {
 	}
 }
 
+//ServiceCheckStruct 应用检测，支持源码检测，镜像检测，dockerrun检测
+//swagger:parameters serviceCheck
+type ServiceCheckStruct struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
+	// in: body
+	Body struct {
+		//uuid
+		// in: body
+		CheckUUID string `json:"uuid"`
+		//检测来源类型
+		// in: body
+		// required: true
+		SourceType string `json:"source_type" validate:"source_type|required|in:docker-run,docker-compose,sourcecode"`
+
+		// 检测来源定义，
+		// 代码： https://github.com/shurcooL/githubql.git master
+		// docker-run: docker run --name xxx nginx:latest nginx
+		// docker-compose: compose全文
+		// in: body
+		// required: true
+		SourceBody string `json:"source_body" validate:"source_body|required"`
+		TenantID   string
+		EventID    string `json:"event_id"`
+	}
+}
+
+//GetServiceCheckInfoStruct 获取应用检测信息
+//swagger:parameters getServiceCheckInfo
+type GetServiceCheckInfoStruct struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
+	// in: path
+	// required: true
+	UUID string `json:"uuid"`
+}
+
 //CloudShareStruct CloudShareStruct
 //swagger:parameters sharecloud
 type CloudShareStruct struct {
@@ -850,14 +906,15 @@ type CloudShareStruct struct {
 
 //PublicShare share共用结构
 type PublicShare struct {
-	ServiceKey string `json:"service_key" validate:"service_key"`
-	APPVersion string `json:"app_version" validate:"app_version"`
-	IsOuter    bool   `json:"is_outer" validate:"is_outer"`
-	Action     string `json:"action" validate:"action"`
-	ShareID    string `json:"share_id" validate:"share_id"`
-	EventID    string `json:"event_id" validate:"event_id"`
-	Dest       string `json:"dest" validate:"dest|in:yb,ys"`
-	ServiceID  string `json:"service_id" validate:"service_id"`
+	ServiceKey string         `json:"service_key" validate:"service_key"`
+	APPVersion string         `json:"app_version" validate:"app_version"`
+	IsOuter    bool           `json:"is_outer" validate:"is_outer"`
+	Action     string         `json:"action" validate:"action"`
+	ShareID    string         `json:"share_id" validate:"share_id"`
+	EventID    string         `json:"event_id" validate:"event_id"`
+	Dest       string         `json:"dest" validate:"dest|in:yb,ys"`
+	ServiceID  string         `json:"service_id" validate:"service_id"`
+	ShareConf  ShareConfItems `json:"share_conf" validate:"share_conf"`
 }
 
 //SlugShare Slug 类型
@@ -874,6 +931,16 @@ type SlugShare struct {
 type ImageShare struct {
 	PublicShare
 	Image string `json:"image" validate:"image"`
+}
+
+//ShareConfItems 分享相关配置
+type ShareConfItems struct {
+	FTPHost       string `json:"ftp_host" validate:"ftp_host"`
+	FTPPort       int    `json:"ftp_port" validate:"ftp_port"`
+	FTPUserName   string `json:"ftp_username" valiate:"ftp_username"`
+	FTPPassWord   string `json:"ftp_password" validate:"ftp_password"`
+	FTPNamespace  string `json:"ftp_namespace" validate:"ftp_namespace"`
+	OuterRegistry string `json:"outer_registry" validate:"outer_registry"`
 }
 
 //AddDependencyStruct AddDependencyStruct
@@ -1234,4 +1301,38 @@ type GetSupportProtocols struct {
 	// in: path
 	// required: true
 	TenantName string `json:"tenant_name"`
+}
+
+//ServiceShare service share
+// swagger:parameters shareService
+type ServiceShare struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
+	// in: path
+	// required: true
+	ServiceAlias string `json:"service_alias"`
+	//in: body
+	Body struct {
+		//in: body
+		//应用分享Key
+		ServiceKey string `json:"service_key" validate:"service_key|required"`
+		AppVersion string `json:"app_version" validate:"app_version|required"`
+		EventID    string `json:"event_id"`
+		ShareUser  string `json:"share_user"`
+		ShareScope string `json:"share_scope"`
+		ImageInfo  struct {
+			HubURL      string `json:"hub_url"`
+			HubUser     string `json:"hub_user"`
+			HubPassword string `json:"hub_password"`
+			Namespace   string `json:"namespace"`
+		} `json:"image_info,omitempty"`
+		SlugInfo struct {
+			Namespace   string `json:"namespace"`
+			FTPHost     string `json:"ftp_host"`
+			FTPPort     string `json:"ftp_port"`
+			FTPUser     string `json:"ftp_user"`
+			FTPPassword string `json:"ftp_password"`
+		} `json:"slug_info,omitempty"`
+	}
 }

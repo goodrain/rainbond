@@ -25,7 +25,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
-	"github.com/goodrain/rainbond/cmd/api/option"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
 	"github.com/pquerna/ffjson/ffjson"
@@ -37,19 +36,10 @@ type SourcesAction struct {
 }
 
 //CreateSourcesManager get sources manager
-func CreateSourcesManager(conf option.Config) (*SourcesAction, error) {
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   conf.EtcdEndpoint,
-		DialTimeout: 5 * time.Second,
-	})
-	if err != nil {
-		logrus.Errorf("create etcd client v3 error, %v", err)
-		return nil, err
-	}
-	defer cli.Close()
+func CreateSourcesManager(etcdCli *clientv3.Client) *SourcesAction {
 	return &SourcesAction{
-		etcdCli: cli,
-	}, nil
+		etcdCli: etcdCli,
+	}
 }
 
 //CreateDefineSources CreateDefineSources

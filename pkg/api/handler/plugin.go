@@ -28,7 +28,6 @@ import (
 
 	"github.com/jinzhu/gorm"
 
-	"github.com/goodrain/rainbond/cmd/api/option"
 	api_db "github.com/goodrain/rainbond/pkg/api/db"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
@@ -50,19 +49,10 @@ type PluginAction struct {
 }
 
 //CreatePluginManager get plugin manager
-func CreatePluginManager(conf option.Config) (*PluginAction, error) {
-	mq := api_db.MQManager{
-		Endpoint: conf.MQAPI,
-	}
-	mqClient, errMQ := mq.NewMQManager()
-	if errMQ != nil {
-		logrus.Errorf("new MQ manager failed, %v", errMQ)
-		return nil, errMQ
-	}
-	logrus.Debugf("mqclient is %v", mqClient)
+func CreatePluginManager(mqClient pb.TaskQueueClient) *PluginAction {
 	return &PluginAction{
 		MQClient: mqClient,
-	}, nil
+	}
 }
 
 //CreatePluginAct PluginAct
@@ -236,6 +226,7 @@ func (p *PluginAction) BuildPluginManual(bps *api_model.BuildPluginStruct) (*dbm
 	case "image":
 		pbv, err := p.ImageBuildPlugin(bps, plugin)
 		if err != nil {
+			logrus.Error("build plugin from image error ", err.Error())
 			logger.Error("从镜像构建插件任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return nil, util.CreateAPIHandleError(500, fmt.Errorf("build plugin from image error"))
 		}
@@ -244,6 +235,7 @@ func (p *PluginAction) BuildPluginManual(bps *api_model.BuildPluginStruct) (*dbm
 	case "dockerfile":
 		pbv, err := p.DockerfileBuildPlugin(bps, plugin)
 		if err != nil {
+			logrus.Error("build plugin from image error ", err.Error())
 			logger.Error("从dockerfile构建插件任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return nil, util.CreateAPIHandleError(500, fmt.Errorf("build plugin from dockerfile error"))
 		}

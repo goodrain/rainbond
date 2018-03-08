@@ -48,6 +48,7 @@ type Config struct {
 	WebsocketAddr     string
 	Opentsdb          string
 	RegionTag         string
+	LoggerFile        string
 }
 
 //APIServer  apiserver server
@@ -87,6 +88,7 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&a.EtcdEndpoint, "etcd", []string{"http://127.0.0.1:2379"}, "etcd server or proxy address")
 	fs.StringVar(&a.Opentsdb, "opentsdb", "127.0.0.1:4242", "opentsdb server config")
 	fs.StringVar(&a.RegionTag, "region-tag", "test-ali", "region tag setting")
+	fs.StringVar(&a.LoggerFile, "logger-file", "/logs/request.log", "request log file path")
 }
 
 //SetLog 设置log

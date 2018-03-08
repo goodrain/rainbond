@@ -24,6 +24,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -53,6 +54,15 @@ func CheckAndCreateDir(path string) error {
 	return nil
 }
 
+//DirIsEmpty 验证目录是否为空
+func DirIsEmpty(dir string) bool {
+	infos, _ := ioutil.ReadDir(dir)
+	if len(infos) == 0 {
+		return true
+	}
+	return false
+}
+
 //OpenOrCreateFile open or create file
 func OpenOrCreateFile(filename string) (*os.File, error) {
 	return os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0777)
@@ -66,6 +76,63 @@ func FileExists(filename string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+//SearchFileBody 搜索文件中是否含有指定字符串
+func SearchFileBody(filename, searchStr string) bool {
+	body, _ := ioutil.ReadFile(filename)
+	return strings.Contains(string(body), searchStr)
+}
+
+//IsHaveFile 指定目录是否含有文件
+//.开头文件除外
+func IsHaveFile(path string) bool {
+	files, _ := ioutil.ReadDir(path)
+	for _, file := range files {
+		if !strings.HasPrefix(file.Name(), ".") {
+			return true
+		}
+	}
+	return false
+}
+
+//SearchFile 搜索指定目录是否有指定文件，指定搜索目录层数，-1为全目录搜索
+func SearchFile(pathDir, name string, level int) bool {
+	if level == 0 {
+		return false
+	}
+	files, _ := ioutil.ReadDir(pathDir)
+	var dirs []os.FileInfo
+	for _, file := range files {
+		if file.IsDir() {
+			dirs = append(dirs, file)
+			continue
+		}
+		if file.Name() == name {
+			return true
+		}
+	}
+	if level == 1 {
+		return false
+	}
+	for _, dir := range dirs {
+		ok := SearchFile(path.Join(pathDir, dir.Name()), name, level-1)
+		if ok {
+			return ok
+		}
+	}
+	return false
+}
+
+//FileExistsWithSuffix 指定目录是否含有指定后缀的文件
+func FileExistsWithSuffix(pathDir, suffix string) bool {
+	files, _ := ioutil.ReadDir(pathDir)
+	for _, file := range files {
+		if strings.HasSuffix(file.Name(), suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 //CmdRunWithTimeout exec cmd with timeout
@@ -259,4 +326,14 @@ func dirents(dir string) []os.FileInfo {
 		return nil
 	}
 	return entries
+}
+
+//RemoveSpaces 去除空格项
+func RemoveSpaces(sources []string) (re []string) {
+	for _, s := range sources {
+		if s != " " && s != "" {
+			re = append(re, s)
+		}
+	}
+	return
 }

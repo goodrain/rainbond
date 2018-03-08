@@ -19,17 +19,18 @@
 package exector
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/pkg/builder/sources"
+	"github.com/goodrain/rainbond/pkg/util"
 
 	"github.com/goodrain/rainbond/pkg/db"
 	"github.com/goodrain/rainbond/pkg/event"
 
+	"github.com/docker/engine-api/types"
 	"github.com/pquerna/ffjson/ffjson"
 
 	"github.com/goodrain/rainbond/pkg/builder/model"
@@ -73,7 +74,7 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 	go func() {
 		logrus.Info("start exec build plugin from image worker")
 		defer event.GetManager().ReleaseLogger(logger)
-		for retry := 0; retry < 3; retry++ {
+		for retry := 0; retry < 2; retry++ {
 			err := e.runD(&tb, config, logger)
 			if err != nil {
 				logrus.Errorf("exec plugin build from dockerfile error:%s", err.Error())
@@ -96,14 +97,19 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 
 func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config, logger event.Logger) error {
 	logger.Info("开始拉取代码", map[string]string{"step": "build-exector"})
-	logrus.Debugf("开始拉取代码")
 	sourceDir := fmt.Sprintf(formatSourceDir, t.TenantID, t.VersionID)
 	if t.Repo == "" {
 		t.Repo = "master"
 	}
-	if err := clone(t.GitURL, sourceDir, logger, t.Repo); err != nil {
+	if !util.DirIsEmpty(sourceDir) {
+		os.RemoveAll(sourceDir)
+	}
+	if err := util.CheckAndCreateDir(sourceDir); err != nil {
+		return err
+	}
+	if _, err := sources.GitClone(sources.CodeSourceInfo{RepositoryURL: t.GitURL, Branch: t.Repo}, sourceDir, logger, 4); err != nil {
 		logger.Error("拉取代码失败", map[string]string{"step": "builder-exector", "status": "failure"})
-		logrus.Errorf("拉取代码失败，%v", err)
+		logrus.Errorf("[plugin]git clone code error %v", err)
 		return err
 	}
 	if !checkDockerfile(sourceDir) {
@@ -113,31 +119,48 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config
 	}
 
 	logger.Info("代码检测为dockerfile，开始编译", map[string]string{"step": "build-exector"})
-	curImage, err := buildImage(t.VersionID, t.GitURL, sourceDir, c.Get("publish > image > curr_registry").(string), logger)
+	mm := strings.Split(t.GitURL, "/")
+	n1 := strings.Split(mm[len(mm)-1], ".")[0]
+	buildImageName := strings.ToLower(fmt.Sprintf("goodrain.me/%s_%s", n1, t.VersionID))
+	buildOptions := types.ImageBuildOptions{
+		Tags:   []string{buildImageName},
+		Remove: true,
+	}
+	if noCache := os.Getenv("NO_CACHE"); noCache != "" {
+		buildOptions.NoCache = true
+	} else {
+		buildOptions.NoCache = false
+	}
+	logger.Info("开始构建镜像", map[string]string{"step": "builder-exector"})
+	err := sources.ImageBuild(e.DockerClient, sourceDir, buildOptions, logger, 5)
 	if err != nil {
-		logrus.Errorf("build error, %v", err)
+		logger.Error(fmt.Sprintf("构造镜像%s失败: %s", buildImageName, err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
+		logrus.Errorf("[plugin]build image error: %s", err.Error())
 		return err
 	}
-	logger.Info(fmt.Sprintf("镜像编译完成，开始推送镜像，镜像名为 %s", curImage), map[string]string{"step": "build-exector"})
-
-	if err := push(curImage, logger); err != nil {
-		logger.Error("推送镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
-		logrus.Error("推送镜像失败")
+	auth, err := sources.EncodeAuthToBase64(types.AuthConfig{Username: "", Password: ""})
+	if err != nil {
+		logrus.Errorf("make auth base63 push image error: %s", err.Error())
+		logger.Error(fmt.Sprintf("推送镜像内部错误"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	//TODO: 权限
-	//if err := e.DockerPush(curImage); err != nil {
-	//	logger.Info("推送镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
-	//	return err
-	//}
-
+	ipo := types.ImagePushOptions{
+		RegistryAuth: auth,
+	}
+	logger.Info("镜像构建成功，开始推送镜像至仓库", map[string]string{"step": "builder-exector"})
+	err = sources.ImagePush(e.DockerClient, buildImageName, ipo, logger, 2)
+	if err != nil {
+		logger.Error("推送镜像失败", map[string]string{"step": "builder-exector"})
+		logrus.Errorf("push image error: %s", err.Error())
+		return err
+	}
 	logger.Info("推送镜像完成", map[string]string{"step": "build-exector"})
 	version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(t.PluginID, t.VersionID)
 	if err != nil {
 		logrus.Errorf("get version error, %v", err)
 		return err
 	}
-	version.BuildLocalImage = curImage
+	version.BuildLocalImage = buildImageName
 	version.Status = "complete"
 	if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
 		logrus.Errorf("update version error, %v", err)
@@ -147,109 +170,9 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config
 	return nil
 }
 
-func clone(gitURL string, sourceDir string, logger event.Logger, repo string) error {
-	path := fmt.Sprintf("%s/.git/config", sourceDir)
-	_, err := os.Stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			logrus.Debugf("clone: %s", fmt.Sprintf("git clone -b %s %s %s", repo, gitURL, sourceDir))
-			mm := []string{"clone", "-b", repo, gitURL, sourceDir}
-			if err := ShowExec("git", mm, logger); err != nil {
-				return err
-			}
-		} else {
-			logrus.Debugf("file check error: %v", err)
-			return err
-		}
-	} else {
-		logrus.Debugf("pull: %s", fmt.Sprintf("sudo -P git -C %s pull", sourceDir))
-		mm := []string{"-C", sourceDir, "pull"}
-		if err := ShowExec("git", mm, logger); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func gitclone(gitURL string, sourceDir string, logger event.Logger, repo string) error {
-	path := fmt.Sprintf("%s/.git/config", sourceDir)
-	_, err := os.Stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			logrus.Debugf("clone: %s", fmt.Sprintf("git clone -b %s %s %s", repo, gitURL, sourceDir))
-			mm := []string{"-P", "git", "clone", "-b", repo, gitURL, sourceDir}
-			cmd := exec.Command("sudo", mm...)
-			stdout, err := cmd.StdoutPipe()
-			if err != nil {
-				logrus.Errorf(fmt.Sprintf("builder err: %v", err))
-				return err
-			}
-			errC := cmd.Start()
-			if errC != nil {
-				logrus.Debugf(fmt.Sprintf("builder: %v", errC))
-				logger.Error(fmt.Sprintf("builder:%v", errC), map[string]string{"step": "build-exector"})
-				return errC
-			}
-			reader := bufio.NewReader(stdout)
-			go func() {
-				for {
-					line, errL := reader.ReadString('\n')
-					if errL != nil || io.EOF == errL {
-						break
-					}
-					//fmt.Print(line)
-					logrus.Debugf(fmt.Sprintf("builder: %v", line))
-					logger.Debug(fmt.Sprintf("builder:%v", line), map[string]string{"step": "build-exector"})
-				}
-			}()
-			errW := cmd.Wait()
-			logrus.Debugf("errw is %v", errW)
-			if errW != nil {
-				cierr := strings.Split(errW.Error(), "\n")
-				if strings.Contains(errW.Error(), "Cloning into") && len(cierr) < 3 {
-					logrus.Errorf(fmt.Sprintf("builder:%v", errW))
-					logger.Error(fmt.Sprintf("builder:%v", errW), map[string]string{"step": "build-exector"})
-					return errW
-				}
-			}
-			return nil
-		}
-		logrus.Debugf("file check error: %v", err)
-		return err
-	}
-	logrus.Debugf("pull: %s", fmt.Sprintf("sudo -P git -C %s pull", sourceDir))
-	mm := []string{"-P", "git", "-C", sourceDir, "pull"}
-	if err := ShowExec("sudo", mm, logger); err != nil {
-		return err
-	}
-	return nil
-}
-
 func checkDockerfile(sourceDir string) bool {
 	if _, err := os.Stat(fmt.Sprintf("%s/Dockerfile", sourceDir)); os.IsNotExist(err) {
 		return false
 	}
 	return true
-}
-
-func buildImage(version, gitURL, sourceDir, curRegistry string, logger event.Logger) (string, error) {
-	mm := strings.Split(gitURL, "/")
-	n1 := strings.Split(mm[len(mm)-1], ".")[0]
-	imageName := fmt.Sprintf("%s/%s_%s", curRegistry, n1, version)
-	//imagename must be lower
-	logrus.Debugf("image name is %v", imageName)
-	if os.Getenv("NO_CACHE") == "" {
-		mm := []string{"-P", "docker", "build", "-t", imageName, "--no-cache", sourceDir}
-		logrus.Debugf("build image: sudo -P docker build -t %s --no-cache %s", imageName, sourceDir)
-		if err := ShowExec("sudo", mm, logger); err != nil {
-			return "", err
-		}
-	} else {
-		mm := []string{"-P", "docker", "build", "-t", imageName, sourceDir}
-		logrus.Debugf("build image: sudo -P docker build -t %s %s", imageName, sourceDir)
-		if err := ShowExec("sudo", mm, logger); err != nil {
-			return "", err
-		}
-	}
-	return imageName, nil
 }

@@ -217,6 +217,7 @@ type TenantServiceLabelDao interface {
 	Dao
 	DelDao
 	GetTenantServiceLabel(serviceID string) ([]*model.TenantServiceLable, error)
+	DeleteLabelByServiceID(serviceID string) error
 	GetTenantServiceNodeSelectorLabel(serviceID string) ([]*model.TenantServiceLable, error)
 	GetTenantServiceAffinityLabel(serviceID string) ([]*model.TenantServiceLable, error)
 	GetTenantServiceTypeLabel(serviceID string) (*model.TenantServiceLable, error)
@@ -282,6 +283,7 @@ type ServiceStatusDao interface {
 	GetRunningService() ([]*model.TenantServiceStatus, error)
 	GetTenantStatus(tenantID string) ([]*model.TenantServiceStatus, error)
 	GetTenantServicesStatus(serviceIDs []string) ([]*model.TenantServiceStatus, error)
+	DeleteByServiceID(serviceID string) error
 }
 
 //CodeCheckResultDao CodeCheckResultDao

@@ -36,7 +36,6 @@ import (
 
 	"github.com/pquerna/ffjson/ffjson"
 
-	"github.com/goodrain/rainbond/cmd/api/option"
 	api_db "github.com/goodrain/rainbond/pkg/api/db"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
@@ -60,50 +59,13 @@ type ServiceAction struct {
 }
 
 //CreateManager create Manger
-func CreateManager(conf option.Config) (*ServiceAction, error) {
-	mq := api_db.MQManager{
-		Endpoint: conf.MQAPI,
-	}
-	mqClient, errMQ := mq.NewMQManager()
-	if errMQ != nil {
-		logrus.Errorf("new MQ manager failed, %v", errMQ)
-		return nil, errMQ
-	}
-	logrus.Debugf("mqclient is %v", mqClient)
-	k8s := api_db.K8SManager{
-		K8SConfig: conf.KubeConfig,
-	}
-	kubeClient, errK := k8s.NewKubeConnection()
-	if errK != nil {
-		logrus.Errorf("create kubeclient failed, %v", errK)
-		return nil, errK
-	}
-	etcdCli, err := clientv3.New(clientv3.Config{
-		Endpoints:   conf.EtcdEndpoint,
-		DialTimeout: 5 * time.Second,
-	})
-	if err != nil {
-		logrus.Errorf("create etcd client v3 error, %v", err)
-		return nil, err
-	}
+func CreateManager(mqClient pb.TaskQueueClient,
+	kubeClient *kubernetes.Clientset,
+	etcdCli *clientv3.Client) *ServiceAction {
 	return &ServiceAction{
 		MQClient:   mqClient,
 		KubeClient: kubeClient,
 		EtcdCli:    etcdCli,
-	}, nil
-}
-func checkDeployVersion(r *api_model.BuildServiceStruct) {
-	eventID := r.Body.EventID
-	logger := event.GetManager().GetLogger(eventID)
-	if len(r.Body.DeployVersion) == 0 {
-
-		version, err := db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
-		if err != nil {
-			logger.Info("获取部署版本信息失败", map[string]string{"step": "callback", "status": "failure"})
-			return
-		}
-		r.Body.DeployVersion = version.BuildVersion
-		logrus.Infof("change deploy version to %s", r.Body.DeployVersion)
 	}
 }
 
@@ -122,7 +84,6 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 	switch r.Body.Kind {
 	case "source":
 		//源码构建
-		checkDeployVersion(r)
 		if err := s.sourceBuild(r, service); err != nil {
 			logger.Error("源码构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -131,7 +92,6 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		return nil
 	case "slug":
 		//源码构建的分享至云市安装回平台
-		checkDeployVersion(r)
 		if err := s.slugBuild(r, service); err != nil {
 			logger.Error("slug构建应用任务发送失败"+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -140,7 +100,6 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		return nil
 	case "image":
 		//镜像构建
-		checkDeployVersion(r)
 		if err := s.imageBuild(r, service); err != nil {
 			logger.Error("镜像构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -149,16 +108,121 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		return nil
 	case "market":
 		//镜像构建分享至云市安装回平台
-		checkDeployVersion(r)
 		if err := s.marketBuild(r, service); err != nil {
 			logger.Error("云市构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
 		}
 		logger.Info("云市构建应用任务发送成功 ", map[string]string{"step": "market-service", "status": "starting"})
 		return nil
+	case "build_from_image":
+		if err := s.buildFromImage(r, service); err != nil {
+			logger.Error("镜像构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
+			return err
+		}
+		logger.Info("镜像构建应用任务发送成功 ", map[string]string{"step": "image-service", "status": "starting"})
+		return nil
+	case "build_from_source_code":
+		if err := s.buildFromSourceCode(r, service); err != nil {
+			logger.Error("源码构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
+			return err
+		}
+		logger.Info("源码构建应用任务发送成功 ", map[string]string{"step": "source-service", "status": "starting"})
+		return nil
+	case "build_from_market_image":
+		if err := s.buildFromImage(r, service); err != nil {
+			logger.Error("镜像构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
+			return err
+		}
+		logger.Info("云市镜像构建应用任务发送成功 ", map[string]string{"step": "image-service", "status": "starting"})
+		return nil
+	case "build_from_market_slug":
+		if err := s.buildFromMarketSlug(r, service); err != nil {
+			logger.Error("云市源码包构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
+			return err
+		}
+		logger.Info("云市源码包构建应用任务发送成功 ", map[string]string{"step": "image-service", "status": "starting"})
+		return nil
 	default:
 		return fmt.Errorf("unexpect kind")
 	}
+}
+func (s *ServiceAction) buildFromMarketSlug(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
+	body := make(map[string]interface{})
+	if r.Body.Operator == "" {
+		body["operator"] = "define"
+	} else {
+		body["operator"] = r.Body.Operator
+	}
+	body["deploy_version"] = r.Body.DeployVersion
+	body["event_id"] = r.Body.EventID
+	body["tenant_name"] = r.Body.TenantName
+	body["tenant_id"] = service.TenantID
+	body["service_id"] = service.ServiceID
+	body["service_alias"] = r.Body.ServiceAlias
+	body["slug_info"] = r.Body.SlugInfo
+	return s.sendTask(body, "build_from_market_slug")
+}
+func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
+	dependIds, err := db.GetManager().TenantServiceRelationDao().GetTenantServiceRelations(service.ServiceID)
+	if err != nil {
+		return err
+	}
+	body := make(map[string]interface{})
+	if r.Body.Operator == "" {
+		body["operator"] = "define"
+	} else {
+		body["operator"] = r.Body.Operator
+	}
+	body["image"] = r.Body.ImageURL
+	body["service_id"] = service.ID
+	body["deploy_version"] = r.Body.DeployVersion
+	body["app_version"] = service.ServiceVersion
+	body["namespace"] = service.Namespace
+	body["operator"] = r.Body.Operator
+	body["event_id"] = r.Body.EventID
+	body["tenant_name"] = r.Body.TenantName
+	body["service_alias"] = r.Body.ServiceAlias
+	body["action"] = "download_and_deploy"
+	body["dep_sids"] = dependIds
+	body["code_from"] = "image_manual"
+	if r.Body.User != "" && r.Body.Password != "" {
+		body["user"] = r.Body.User
+		body["password"] = r.Body.Password
+	}
+	return s.sendTask(body, "build_from_image")
+}
+
+func (s *ServiceAction) buildFromSourceCode(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
+	logrus.Debugf("build_from_source_code")
+	if r.Body.RepoURL == "" || r.Body.Branch == "" || r.Body.DeployVersion == "" || r.Body.EventID == "" {
+		return fmt.Errorf("args error")
+	}
+	body := make(map[string]interface{})
+	if r.Body.Operator == "" {
+		body["operator"] = "define"
+	} else {
+		body["operator"] = r.Body.Operator
+	}
+	body["tenant_id"] = service.TenantID
+	body["service_id"] = service.ServiceID
+	body["repo_url"] = r.Body.RepoURL
+	body["action"] = r.Body.Action
+	body["lang"] = r.Body.Lang
+	body["runtime"] = r.Body.Runtime
+	body["deploy_version"] = r.Body.DeployVersion
+	body["event_id"] = r.Body.EventID
+	body["envs"] = r.Body.ENVS
+	body["tenant_name"] = r.Body.TenantName
+	body["branch"] = r.Body.Branch
+	body["server_type"] = r.Body.ServiceType
+	body["service_alias"] = r.Body.ServiceAlias
+	if r.Body.User != "" && r.Body.Password != "" {
+		body["user"] = r.Body.User
+		body["password"] = r.Body.Password
+	}
+	body["expire"] = 180
+	logrus.Debugf("app_build body is %v", body)
+	return s.sendTask(body, "build_from_source_code")
 }
 
 func (s *ServiceAction) sourceBuild(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
@@ -539,7 +603,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 				//共享文件��储
 				case dbmodel.ShareFileVolumeType.String():
 					volumn.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, sc.TenantID, volumn.ServiceID, volumn.VolumePath)
-				//本地文件存储
+				//本地文件存�����
 				case dbmodel.LocalVolumeType.String():
 					serviceType, err := db.GetManager().TenantServiceLabelDao().GetTenantServiceTypeLabel(volumn.ServiceID)
 					if err != nil {
@@ -730,7 +794,8 @@ func (s *ServiceAction) ShareCloud(c *api_model.CloudShareStruct) error {
 		}
 		bs.User = "define"
 		bs.TaskBody = bodyJ
-		bs.TaskType = "app_slug"
+		//bs.TaskType = "app_slug"
+		bs.TaskType = "slug_share"
 	case "app_image":
 		if c.Body.Image.ServiceID != "" {
 			service, err := db.GetManager().TenantServiceDao().GetServiceByID(c.Body.Image.ServiceID)
@@ -745,7 +810,7 @@ func (s *ServiceAction) ShareCloud(c *api_model.CloudShareStruct) error {
 		}
 		bs.User = "define"
 		bs.TaskBody = bodyJ
-		bs.TaskType = "app_image"
+		bs.TaskType = "image_share"
 	default:
 		return fmt.Errorf("need share kind")
 	}
@@ -1623,16 +1688,16 @@ func (s *ServiceAction) GetPods(serviceID string) ([]*dbmodel.K8sPod, error) {
 
 //TransServieToDelete trans service info to delete table
 func (s *ServiceAction) TransServieToDelete(serviceID string) error {
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	if err != nil {
+		return err
+	}
 	status, err := db.GetManager().TenantServiceStatusDao().GetTenantServiceStatus(serviceID)
 	if err != nil {
 		return err
 	}
-	if status.Status != "closed" && status.Status != "undeploy" {
+	if status.Status != "closed" && status.Status != "undeploy" && status.Status != "" {
 		return fmt.Errorf("unclosed")
-	}
-	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
-	if err != nil {
-		return err
 	}
 	tx := db.GetManager().Begin()
 	//此处的原因，必须使用golang 1.8 以上版本编译
@@ -1726,10 +1791,24 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 			return err
 		}
 	}
-	//TODO: 删除plugin etcd资源
+	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteLabelByServiceID(serviceID); err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			tx.Rollback()
+			return err
+		}
+	}
+	//删除应用状态
+	if db.GetManager().TenantServiceStatusDaoTransactions(tx).DeleteByServiceID(serviceID); err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			tx.Rollback()
+			return err
+		}
+	}
+	//删除plugin etcd资源
 	prefixK := fmt.Sprintf("/resources/define/%s/%s", service.TenantID, service.ServiceAlias)
-	logrus.Debugf("prefix is %s", prefixK)
-	_, err = s.EtcdCli.Delete(context.TODO(), prefixK, clientv3.WithPrefix())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err = s.EtcdCli.Delete(ctx, prefixK, clientv3.WithPrefix())
 	if err != nil {
 		logrus.Errorf("delete prefix %s from etcd error, %v", prefixK, err)
 		tx.Rollback()
@@ -1738,251 +1817,6 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return err
-	}
-	return nil
-}
-
-//GetTenantServicePluginRelation GetTenantServicePluginRelation
-func (s *ServiceAction) GetTenantServicePluginRelation(serviceID string) ([]*dbmodel.TenantServicePluginRelation, *util.APIHandleError) {
-	gps, err := db.GetManager().TenantServicePluginRelationDao().GetALLRelationByServiceID(serviceID)
-	if err != nil {
-		return nil, util.CreateAPIHandleErrorFromDBError("get service relation by ID", err)
-	}
-	return gps, nil
-}
-
-//TenantServiceDeletePluginRelation 删除应用的plugin依赖
-func (s *ServiceAction) TenantServiceDeletePluginRelation(serviceID, pluginID string) *util.APIHandleError {
-	tx := db.GetManager().Begin()
-	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteRelationByServiceIDAndPluginID(serviceID, pluginID); err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("delete plugin relation", err)
-	}
-	if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByPluginID(serviceID, pluginID); err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("delete relation env", err)
-	}
-	if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteAllPluginMappingPortByServiceID(serviceID); err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("delete upstream plugin mapping port", err)
-	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("commit delete err", err)
-	}
-	return nil
-}
-
-//SetTenantServicePluginRelation SetTenantServicePluginRelation
-func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID string, pss *api_model.PluginSetStruct) *util.APIHandleError {
-	tx := db.GetManager().Begin()
-	plugin, err := db.GetManager().TenantPluginDao().GetPluginByID(pss.Body.PluginID, tenantID)
-	if err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("get plugin by plugin id", err)
-	}
-
-	catePlugin := strings.Split(plugin.PluginModel, ":")[0]
-	//TODO:检查是否存在该大类插件
-	crt, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelLikePluginByServiceID(
-		serviceID,
-		catePlugin,
-	)
-	if err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("check plugin model", err)
-	}
-	if crt {
-		tx.Rollback()
-		return util.CreateAPIHandleError(400, fmt.Errorf("can not add this kind plugin, a same kind plugin has been linked"))
-	}
-	if plugin.PluginModel == dbmodel.UpNetPlugin {
-		ports, err := db.GetManager().TenantServicesPortDao().GetPortsByServiceID(serviceID)
-		if err != nil {
-			tx.Rollback()
-			return util.CreateAPIHandleErrorFromDBError("get ports by service id", err)
-		}
-		for _, p := range ports {
-			if p.IsInnerService || p.IsOuterService {
-				pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).SetPluginMappingPort(
-					tenantID,
-					serviceID,
-					dbmodel.UpNetPlugin,
-					p.ContainerPort,
-				)
-				if err != nil {
-					tx.Rollback()
-					logrus.Errorf(fmt.Sprintf("set upstream port %d error, %v", p.ContainerPort, err))
-					return util.CreateAPIHandleErrorFromDBError(
-						fmt.Sprintf("set upstream port %d error ", p.ContainerPort),
-						err,
-					)
-				}
-				logrus.Debugf("set plugin upsteam port %d->%d", p.ContainerPort, pluginPort)
-				continue
-			}
-		}
-	}
-	relation := &dbmodel.TenantServicePluginRelation{
-		VersionID:   pss.Body.VersionID,
-		ServiceID:   serviceID,
-		PluginID:    pss.Body.PluginID,
-		Switch:      pss.Body.Switch,
-		PluginModel: plugin.PluginModel,
-	}
-	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).AddModel(relation); err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("set service plugin relation", err)
-	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("commit set service plugin relation", err)
-	}
-	return nil
-}
-
-//UpdateTenantServicePluginRelation UpdateTenantServicePluginRelation
-func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss *api_model.PluginSetStruct) *util.APIHandleError {
-	relation, err := db.GetManager().TenantServicePluginRelationDao().GetRelateionByServiceIDAndPluginID(serviceID, pss.Body.PluginID)
-	if err != nil {
-		return util.CreateAPIHandleErrorFromDBError("get relation by serviceid and pluginid", err)
-	}
-	relation.VersionID = pss.Body.VersionID
-	relation.Switch = pss.Body.Switch
-	err = db.GetManager().TenantServicePluginRelationDao().UpdateModel(relation)
-	if err != nil {
-		return util.CreateAPIHandleErrorFromDBError("update relation between plugin and service", err)
-	}
-	return nil
-}
-
-//SetVersionEnv SetVersionEnv
-func (s *ServiceAction) SetVersionEnv(sve *api_model.SetVersionEnv) *util.APIHandleError {
-	if len(sve.Body.ConfigEnvs.NormalEnvs) != 0 {
-		if err := s.normalEnvs(sve); err != nil {
-			return util.CreateAPIHandleErrorFromDBError("set version env", err)
-		}
-	}
-	if sve.Body.ConfigEnvs.ComplexEnvs != nil {
-		if err := s.complexEnvs(sve); err != nil {
-			if strings.Contains(err.Error(), "is exist") {
-				return util.CreateAPIHandleError(405, err)
-			}
-			return util.CreateAPIHandleError(500, fmt.Errorf("set complex error, %v", err))
-		}
-	}
-	if len(sve.Body.ConfigEnvs.NormalEnvs) == 0 && sve.Body.ConfigEnvs.ComplexEnvs == nil {
-		return util.CreateAPIHandleError(200, fmt.Errorf("no envs need to be changed"))
-	}
-	return nil
-}
-
-func (s *ServiceAction) normalEnvs(sve *api_model.SetVersionEnv) error {
-	tx := db.GetManager().Begin()
-	for _, env := range sve.Body.ConfigEnvs.NormalEnvs {
-		tpv := &dbmodel.TenantPluginVersionEnv{
-			PluginID:  sve.PluginID,
-			ServiceID: sve.Body.ServiceID,
-			EnvName:   env.EnvName,
-			EnvValue:  env.EnvValue,
-		}
-		if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).AddModel(tpv); err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-	return nil
-}
-
-func (s *ServiceAction) complexEnvs(sve *api_model.SetVersionEnv) error {
-	k := fmt.Sprintf("/resources/define/%s/%s/%s",
-		sve.Body.TenantID,
-		sve.ServiceAlias,
-		sve.PluginID)
-	if CheckKeyIfExist(s.EtcdCli, k) {
-		return fmt.Errorf("key %v is exist", k)
-	}
-	v, err := ffjson.Marshal(sve.Body.ConfigEnvs.ComplexEnvs)
-	if err != nil {
-		logrus.Errorf("mashal etcd value error, %v", err)
-		return err
-	}
-	_, err = s.EtcdCli.Put(context.TODO(), k, string(v))
-	if err != nil {
-		logrus.Errorf("put k %s into etcd error, %v", k, err)
-		return err
-	}
-	return nil
-}
-
-//DeleteComplexEnvs DeleteComplexEnvs
-func (s *ServiceAction) DeleteComplexEnvs(tenantID, serviceAlias, pluginID string) *util.APIHandleError {
-	k := fmt.Sprintf("/resources/define/%s/%s/%s",
-		tenantID,
-		serviceAlias,
-		pluginID)
-	_, err := s.EtcdCli.Delete(context.TODO(), k)
-	if err != nil {
-		logrus.Errorf("delete k %s from etcd error, %v", k, err)
-		return util.CreateAPIHandleError(500, fmt.Errorf("delete k %s from etcd error, %v", k, err))
-	}
-	return nil
-}
-
-//UpdateVersionEnv UpdateVersionEnv
-func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError {
-	if len(uve.Body.ConfigEnvs.NormalEnvs) != 0 {
-		if err := s.upNormalEnvs(uve); err != nil {
-			return util.CreateAPIHandleErrorFromDBError("update version env", err)
-		}
-	}
-	if uve.Body.ConfigEnvs.ComplexEnvs != nil {
-		if err := s.upComplexEnvs(uve); err != nil {
-			if strings.Contains(err.Error(), "is not exist") {
-				return util.CreateAPIHandleError(405, err)
-			}
-			return util.CreateAPIHandleError(500, fmt.Errorf("update complex error, %v", err))
-		}
-	}
-	if len(uve.Body.ConfigEnvs.NormalEnvs) == 0 && uve.Body.ConfigEnvs.ComplexEnvs == nil {
-		return util.CreateAPIHandleError(200, fmt.Errorf("no envs need to be changed"))
-	}
-	return nil
-}
-
-func (s *ServiceAction) upNormalEnvs(uve *api_model.SetVersionEnv) *util.APIHandleError {
-	err := db.GetManager().TenantPluginVersionENVDao().DeleteEnvByPluginID(uve.Body.ServiceID, uve.PluginID)
-	if err != nil {
-		return util.CreateAPIHandleErrorFromDBError("delete version env", err)
-	}
-	if err := s.normalEnvs(uve); err != nil {
-		return util.CreateAPIHandleErrorFromDBError("update version env", err)
-	}
-	return nil
-}
-
-func (s *ServiceAction) upComplexEnvs(uve *api_model.SetVersionEnv) *util.APIHandleError {
-	k := fmt.Sprintf("/resources/define/%s/%s/%s",
-		uve.Body.TenantID,
-		uve.ServiceAlias,
-		uve.PluginID)
-	if !CheckKeyIfExist(s.EtcdCli, k) {
-		return util.CreateAPIHandleError(404,
-			fmt.Errorf("key %v is not exist", k))
-	}
-	v, err := ffjson.Marshal(uve.Body.ConfigEnvs.ComplexEnvs)
-	if err != nil {
-		logrus.Errorf("mashal etcd value error, %v", err)
-		return util.CreateAPIHandleError(500, err)
-	}
-	_, err = s.EtcdCli.Put(context.TODO(), k, string(v))
-	if err != nil {
-		logrus.Errorf("put k %s into etcd error, %v", k, err)
-		return util.CreateAPIHandleError(500, err)
 	}
 	return nil
 }

@@ -19,7 +19,6 @@
 package handler
 
 import (
-	"github.com/goodrain/rainbond/cmd/api/option"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
 )
@@ -40,24 +39,4 @@ type SourcesHandler interface {
 	UpdateDefineSources(
 		tenantID string,
 		ss *api_model.SetDefineSourcesStruct) *util.APIHandleError
-}
-
-var defaultSourcesHandler SourcesHandler
-
-//CreateSourcesHandler create define sources handler
-func CreateSourcesHandler(conf option.Config) error {
-	var err error
-	if defaultSourcesHandler != nil {
-		return nil
-	}
-	defaultSourcesHandler, err = CreateSourcesManager(conf)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-//GetSourcesManager get manager
-func GetSourcesManager() SourcesHandler {
-	return defaultSourcesHandler
 }

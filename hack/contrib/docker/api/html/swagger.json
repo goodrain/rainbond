@@ -2192,6 +2192,118 @@
         }
       }
     },
+    "/v2/tenants/{tenant_name}/servicecheck": {
+      "post": {
+        "description": "service check",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "应用构建源检测，支持docker run ,docker compose, source code",
+        "operationId": "serviceCheck",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "source_type",
+                "source_body"
+              ],
+              "properties": {
+                "TenantID": {
+                  "type": "string"
+                },
+                "event_id": {
+                  "type": "string",
+                  "x-go-name": "EventID"
+                },
+                "source_body": {
+                  "description": "检测来源定义，\n代码： https://github.com/shurcooL/githubql.git master\ndocker-run: docker run --name xxx nginx:latest nginx\ndocker-compose: compose全文\nin: body",
+                  "type": "string",
+                  "x-go-name": "SourceBody"
+                },
+                "source_type": {
+                  "description": "检测来源类型\nin: body",
+                  "type": "string",
+                  "x-go-name": "SourceType"
+                },
+                "uuid": {
+                  "description": "uuid\nin: body",
+                  "type": "string",
+                  "x-go-name": "CheckUUID"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/servicecheck/{uuid}": {
+      "get": {
+        "description": "get service check info",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取构建检测信息 ",
+        "operationId": "getServiceCheckInfo",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "UUID",
+            "name": "uuid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
     "/v2/tenants/{tenant_name}/services": {
       "get": {
         "description": "get services info in tenant",
@@ -2644,6 +2756,11 @@
                   "type": "string",
                   "x-go-name": "Action"
                 },
+                "branch": {
+                  "description": "branch 分支信息\nin: body",
+                  "type": "string",
+                  "x-go-name": "Branch"
+                },
                 "deploy_version": {
                   "description": "部署的版本号\nin: body",
                   "type": "string",
@@ -2672,23 +2789,43 @@
                   "type": "string",
                   "x-go-name": "Kind"
                 },
-                "operator": {
+                "lang": {
                   "description": "操作人员\nin: body",
                   "type": "string",
+                  "x-go-name": "Lang"
+                },
+                "operator": {
+                  "type": "string",
                   "x-go-name": "Operator"
+                },
+                "password": {
+                  "type": "string",
+                  "x-go-name": "Password"
                 },
                 "repo_url": {
                   "description": "git地址\nin: body",
                   "type": "string",
                   "x-go-name": "RepoURL"
                 },
+                "runtime": {
+                  "type": "string",
+                  "x-go-name": "Runtime"
+                },
                 "service_alias": {
                   "type": "string",
                   "x-go-name": "ServiceAlias"
                 },
+                "service_type": {
+                  "type": "string",
+                  "x-go-name": "ServiceType"
+                },
                 "tenant_name": {
                   "type": "string",
                   "x-go-name": "TenantName"
+                },
+                "user": {
+                  "type": "string",
+                  "x-go-name": "User"
                 }
               }
             }
@@ -6559,6 +6696,9 @@
           "type": "string",
           "x-go-name": "ServiceKey"
         },
+        "share_conf": {
+          "$ref": "#/definitions/ShareConfItems"
+        },
         "share_id": {
           "type": "string",
           "x-go-name": "ShareID"
@@ -6700,6 +6840,38 @@
       },
       "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
     },
+    "ShareConfItems": {
+      "description": "ShareConfItems 分享相关配置",
+      "type": "object",
+      "properties": {
+        "ftp_host": {
+          "type": "string",
+          "x-go-name": "FTPHost"
+        },
+        "ftp_namespace": {
+          "type": "string",
+          "x-go-name": "FTPNamespace"
+        },
+        "ftp_password": {
+          "type": "string",
+          "x-go-name": "FTPPassWord"
+        },
+        "ftp_port": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "FTPPort"
+        },
+        "ftp_username": {
+          "type": "string",
+          "x-go-name": "FTPUserName"
+        },
+        "outer_registry": {
+          "type": "string",
+          "x-go-name": "OuterRegistry"
+        }
+      },
+      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+    },
     "SlugShare": {
       "description": "SlugShare Slug 类型",
       "type": "object",
@@ -6735,6 +6907,9 @@
         "service_key": {
           "type": "string",
           "x-go-name": "ServiceKey"
+        },
+        "share_conf": {
+          "$ref": "#/definitions/ShareConfItems"
         },
         "share_id": {
           "type": "string",

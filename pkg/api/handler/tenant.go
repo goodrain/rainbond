@@ -24,8 +24,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/goodrain/rainbond/cmd/api/option"
-	api_db "github.com/goodrain/rainbond/pkg/api/db"
 	"github.com/goodrain/rainbond/pkg/api/util"
 	"github.com/goodrain/rainbond/pkg/mq/api/grpc/pb"
 
@@ -48,41 +46,14 @@ type TenantAction struct {
 }
 
 //CreateTenManager create Manger
-func CreateTenManager(conf option.Config) (*TenantAction, error) {
-	mq := api_db.MQManager{
-		Endpoint: conf.MQAPI,
-	}
-	mqClient, errMQ := mq.NewMQManager()
-	if errMQ != nil {
-		logrus.Errorf("new MQ manager failed, %v", errMQ)
-		return nil, errMQ
-	}
-	logrus.Debugf("mqclient is %v", mqClient)
-	k8s := api_db.K8SManager{
-		K8SConfig: conf.KubeConfig,
-	}
-	kubeClient, errK := k8s.NewKubeConnection()
-	if errK != nil {
-		logrus.Errorf("create kubeclient failed, %v", errK)
-		return nil, errK
-	}
-	/*
-		opentsdbManager := api_db.OpentsdbManager{
-			Endpoint: conf.Opentsdb,
-		}
-		opentsdb, errO := opentsdbManager.NewOpentsdbManager()
-		if errO != nil {
-			logrus.Errorf("create opentsdbclient failed, %v", errO)
-			return nil, errK
-		}
-	*/
-	opentsdbAPI := fmt.Sprintf("%s/api", conf.Opentsdb)
+func CreateTenManager(MQClient pb.TaskQueueClient, KubeClient *kubernetes.Clientset, opentsdb string) *TenantAction {
+	opentsdbAPI := fmt.Sprintf("%s/api", opentsdb)
 	return &TenantAction{
-		MQClient:   mqClient,
-		KubeClient: kubeClient,
+		MQClient:   MQClient,
+		KubeClient: KubeClient,
 		//OpentsdbClient: opentsdb,
 		OpentsdbAPI: opentsdbAPI,
-	}, nil
+	}
 }
 
 //GetTenants get tenants
@@ -166,7 +137,6 @@ func (t *TenantAction) StatsMemCPU(services []*dbmodel.TenantServices) (*api_mod
 			}
 			status = servicesStatus.Status
 		}
-		logrus.Debugf("status is %s, cpus is %v, mem is %v", status, service.ContainerCPU, service.ContainerMemory)
 		if status == "undeploy" || status == "closed" {
 			continue
 		}
@@ -249,7 +219,7 @@ func (t *TenantAction) GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHand
 }
 
 //TransPlugins TransPlugins
-func (t *TenantAction) TransPlugins(tenantID, tenantName, fromTenant string, pluginList []string)  *util.APIHandleError {
+func (t *TenantAction) TransPlugins(tenantID, tenantName, fromTenant string, pluginList []string) *util.APIHandleError {
 	tenantInfo, err := db.GetManager().TenantDao().GetTenantIDByName(fromTenant)
 	if err != nil {
 		return util.CreateAPIHandleErrorFromDBError("get tenant infos", err)

@@ -18,10 +18,15 @@
 
 package model
 
-import "time"
-import "strings"
-import "fmt"
-import "os"
+import (
+	"fmt"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
+)
 
 //Model 默认字段
 type Model struct {
@@ -116,6 +121,53 @@ type TenantServices struct {
 //IsSlug 是否是slug应用
 func (t *TenantServices) IsSlug() bool {
 	return strings.HasPrefix(t.ImageName, "goodrain.me/runner")
+}
+
+//CreateShareImage 生成镜像分享的地址
+func (t *TenantServices) CreateShareImage(hubURL, namespace, version string) (string, error) {
+	_, err := reference.ParseAnyReference(t.ImageName)
+	if err != nil {
+		logrus.Errorf("reference image error: %s", err.Error())
+		return "", err
+	}
+	image := ParseImage(t.ImageName)
+	image.Host = hubURL
+	image.Namespace = namespace
+	image.Name = image.Name + "_" + version
+	return image.String(), nil
+}
+
+//Image 镜像
+type Image struct {
+	Host      string
+	Namespace string
+	Name      string
+}
+
+func (i Image) String() string {
+	return fmt.Sprintf("%s/%s/%s", i.Host, i.Namespace, i.Name)
+}
+
+//ParseImage 简单解析镜像名
+func ParseImage(name string) (image Image) {
+	i := strings.IndexRune(name, '/')
+	if i == -1 || (!strings.ContainsAny(name[:i], ".:") && name[:i] != "localhost") {
+		image.Host, image.Name = "docker.io", name
+	} else {
+		image.Host, image.Name = name[:i], name[i+1:]
+	}
+
+	j := strings.IndexRune(image.Name, '/')
+	if j != -1 {
+		image.Namespace = image.Name[:j]
+		image.Name = image.Name[j+1:]
+	}
+	return
+}
+
+//CreateShareSlug 生成源码包分享的地址
+func (t *TenantServices) CreateShareSlug(servicekey, namespace, version string) string {
+	return fmt.Sprintf("%s/%s/%s_%s.tgz", namespace, servicekey, version, t.DeployVersion)
 }
 
 //ChangeDelete ChangeDelete
@@ -359,7 +411,7 @@ func (t *TenantServiceLable) TableName() string {
 //TenantServiceStatus 应用实时状态
 type TenantServiceStatus struct {
 	Model
-	ServiceID string `gorm:"column:service_id;size:32"`
+	ServiceID string `gorm:"column:service_id;size:32;unique_index"`
 	Status    string `gorm:"column:status;size:24"`
 	//undeploy 1, closed 2, stopping 3, starting 4, running 5
 }
