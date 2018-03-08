@@ -53,7 +53,7 @@ type SlugShareItem struct {
 			Namespace   string `json:"namespace"`
 			FTPHost     string `json:"ftp_host"`
 			FTPPort     string `json:"ftp_port"`
-			FTPUser     string `json:"ftp_user"`
+			FTPUser     string `json:"ftp_username"`
 			FTPPassword string `json:"ftp_password"`
 		} `json:"slug_info,omitempty"`
 	} `json:"share_info"`
