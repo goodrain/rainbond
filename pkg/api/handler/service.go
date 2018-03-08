@@ -1858,7 +1858,6 @@ func CheckLabel(serviceID string) bool {
 		return false
 	}
 	if serviceLabel != nil && len(serviceLabel) > 0 {
-		logrus.Debugf("length serviceLabel, %v, %+v", len(serviceLabel), *(serviceLabel[0]))
 		return true
 	}
 	return false
