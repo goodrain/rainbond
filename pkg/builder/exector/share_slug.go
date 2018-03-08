@@ -73,7 +73,7 @@ func NewSlugShareItem(in []byte, etcdCli *clientv3.Client) (*SlugShareItem, erro
 	return &ssi, nil
 }
 
-//Run Run
+//ShareService  Run
 func (i *SlugShareItem) ShareService() error {
 
 	logrus.Debugf("分享应用，数据中心文件路径: %s ，分享目标路径 %s", i.LocalSlugPath, i.SlugPath)
@@ -176,9 +176,13 @@ func (i *SlugShareItem) UpdateShareStatus(status string) error {
 	_, err := i.EtcdCli.Put(ctx, fmt.Sprintf("/rainbond/shareresult/%s", i.ShareID), ss.String())
 	if err != nil {
 		logrus.Errorf("put shareresult  %s into etcd error, %v", i.ShareID, err)
-		i.Logger.Error("存储检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
+		i.Logger.Error("存储分享结果失败。", map[string]string{"step": "callback", "status": "failure"})
 	}
-	i.Logger.Info("创建检测结果成功。", map[string]string{"step": "last", "status": "success"})
+	if status == "success" {
+		i.Logger.Info("创建分享结果成功,分享成功", map[string]string{"step": "last", "status": "success"})
+	} else {
+		i.Logger.Info("创建分享结果成功,分享失败", map[string]string{"step": "callback", "status": "failure"})
+	}
 	return nil
 }
 
