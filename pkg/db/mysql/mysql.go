@@ -177,7 +177,8 @@ func (m *Manager) patchTable() {
 				(8,"node_manager", "/v2/tasktemps"),
 				(9,"node_manager", "/v2/configs"),
 				(10,"server_source", "/v2/builder"),
-				(11,"server_source", "/v2/tenants");
+				(11,"server_source", "/v2/tenants"),
+				(12,"server_source","/api/v1");
 			`
 			m.db.Exec(insertSQL)
 		}
