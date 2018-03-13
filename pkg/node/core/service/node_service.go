@@ -209,10 +209,10 @@ func (n *NodeService) InstallNode(nodeID string) *utils.APIHandleError {
 	}
 	nodes := []string{node.ID}
 	if node.Role.HasRule("manage") {
-		err := taskService.ExecTask("check_manage_base_services", nodes)
-		if err != nil {
-			return err
-		}
+		//err := taskService.ExecTask("check_manage_base_services", nodes)
+		//if err != nil {
+		//	return err
+		//}
 		err = taskService.ExecTask("check_manage_services", nodes)
 		if err != nil {
 			return err
@@ -335,7 +335,7 @@ func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *
 func (n *NodeService) CheckNode(nodeUID string) (*model.InstallStatus, *utils.APIHandleError) {
 	descMap := make(map[string]string)
 	descMap["check_compute_services"] = "检测计算节点所需服务"
-	descMap["check_manage_base_services"] = "检测管理节点所需基础服务"
+	//descMap["check_manage_base_services"] = "检测管理节点所需基础服务"
 	descMap["check_manage_services"] = "检测管理节点所需服务"
 	descMap["create_host_id_list"] = "API支持服务"
 	descMap["do_rbd_images"] = "拉取镜像"

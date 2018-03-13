@@ -90,14 +90,16 @@ func (ts *PrometheusService)GetTasksByNode(n *model.HostNode)([]*model.Task,*uti
 		}
 		return result,nil
 	}else if n.Role.HasRule("manage") &&len(n.Role)==1{
-		checkTask:=[]string{"check_manage_base_services","check_manage_services"}
+		//checkTask:=[]string{"check_manage_base_services","check_manage_services"}
+		checkTask:=[]string{"check_manage_services"}
 		result,err:=ts.getTasksByCheck(checkTask,n.ID)
 		if err != nil {
 			return nil,err
 		}
 		return result,nil
 	}else {
-		checkTask:=[]string{"check_manage_base_services","check_manage_services","check_compute_services"}
+		//checkTask:=[]string{"check_manage_base_services","check_manage_services","check_compute_services"}
+		checkTask:=[]string{"check_manage_services","check_compute_services"}
 		//tids:=[]string{"do_rbd_images","install_acp_plugins","install_base_plugins","install_db","install_docker","install_k8s","install_manage_ready","install_network","install_plugins","install_storage","install_webcli","update_dns","update_entrance_services","create_host_id_list","install_kubelet_manage","install_compute_ready_manage"}
 		result,err:=ts.getTasksByCheck(checkTask,n.ID)
 		if err != nil {

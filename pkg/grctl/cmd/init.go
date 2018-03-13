@@ -212,17 +212,17 @@ func initCluster(c *cli.Context) error {
 		return err
 	}
 
-	error = clients.NodeClient.Tasks().Exec("check_manage_base_services", []string{hostID})
-	if error != nil {
-		logrus.Errorf("error exec task:%s,details %s", "check_manage_base_services", error.String())
-		return error.Err
-	}
+	//error = clients.NodeClient.Tasks().Exec("check_manage_base_services", []string{hostID})
+	//if error != nil {
+	//	logrus.Errorf("error exec task:%s,details %s", "check_manage_base_services", error.String())
+	//	return error.Err
+	//}
 	error = clients.NodeClient.Tasks().Exec("check_manage_services", []string{hostID})
 	if error != nil {
 		logrus.Errorf("error exec task:%s,details %s", "check_manage_services", error.String())
 		return error.Err
 	}
-	Status("check_manage_base_services", []string{hostID})
+	//Status("check_manage_base_services", []string{hostID})
 	Status("check_manage_services", []string{hostID})
 	fmt.Println("install manage node success,next you can :")
 	fmt.Println("	add compute node--grctl node add -h")
