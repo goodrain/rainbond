@@ -25,6 +25,8 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"strings"
@@ -32,14 +34,14 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
-	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
-
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/goodrain/rainbond/pkg/util"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/protocol/packp/sideband"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport/client"
+	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
@@ -145,8 +147,19 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 		opts.Auth = sshAuth
 		rs, err = git.PlainCloneContext(ctx, sourceDir, false, opts)
 	} else {
+		// only proxy github
+		// but when setting, other request will be proxyed
+		if strings.Contains(csi.RepositoryURL, "github.com") && os.Getenv("GITHUB_PROXY") != "" {
+			proxyURL, _ := url.Parse(os.Getenv("GITHUB_PROXY"))
+			customClient := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
+			customClient.Timeout = time.Second * 10
+			client.InstallProtocol("https", githttp.NewClient(customClient))
+			defer func() {
+				client.InstallProtocol("https", githttp.DefaultClient)
+			}()
+		}
 		if csi.User != "" && csi.Password != "" {
-			httpAuth := &http.BasicAuth{
+			httpAuth := &githttp.BasicAuth{
 				Username: csi.User,
 				Password: csi.Password,
 			}

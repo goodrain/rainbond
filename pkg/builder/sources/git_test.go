@@ -31,7 +31,7 @@ func init() {
 }
 func TestGitClone(t *testing.T) {
 	csi := CodeSourceInfo{
-		RepositoryURL: "git@code.goodrain.com:goodrain/tcm.git",
+		RepositoryURL: "https://github.com/prometheus/prometheus.git",
 		Branch:        "master",
 	}
 	logger := event.GetManager().GetLogger("system")
