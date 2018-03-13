@@ -232,10 +232,10 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (res [
 					disk, _ = strconv.Atoi(re[1].(string))
 				}
 				if _, ok := resmp[tenantID]; ok {
-					resmp[tenantID]["disk"] = disk
+					resmp[tenantID]["disk"] = disk / 1024
 				} else {
 					resmp[tenantID] = make(map[string]interface{})
-					resmp[tenantID]["disk"] = disk
+					resmp[tenantID]["disk"] = disk / 1024
 				}
 			}
 		}
@@ -288,10 +288,10 @@ func (t *TenantAction) GetServicesResources(tr *api_model.ServicesResources) (re
 					disk, _ = strconv.Atoi(re[1].(string))
 				}
 				if _, ok := resmp[serviceID]; ok {
-					resmp[serviceID]["disk"] = disk
+					resmp[serviceID]["disk"] = disk / 1024
 				} else {
 					resmp[serviceID] = make(map[string]interface{})
-					resmp[serviceID]["disk"] = disk
+					resmp[serviceID]["disk"] = disk / 1024
 				}
 			}
 		}

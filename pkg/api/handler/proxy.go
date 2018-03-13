@@ -39,7 +39,7 @@ func InitProxy(conf option.Config) {
 		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("builder", builderProxy)
 	}
 	if prometheusProxy == nil {
-		prometheusProxy = proxy.CreateProxy("prometheus", "http", []string{"106.14.145.76:9999"})
+		prometheusProxy = proxy.CreateProxy("prometheus", "http", []string{"127.0.0.1:9999"})
 		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("prometheus", prometheusProxy)
 	}
 
