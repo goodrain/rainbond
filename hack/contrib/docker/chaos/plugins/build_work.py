@@ -110,7 +110,8 @@ class RepoBuilder():
                   self.build_log_dir):
             if not os.path.exists(d):
                 os.makedirs(d)
-        os.chown(self.tgz_dir, 200, 200)        
+        os.chown(self.tgz_dir, 200, 200)
+        os.chown(self.cache_dir, 200, 200)
 
     def clone(self):
         self.log.info("开始拉取代码。。", step="build-worker")
