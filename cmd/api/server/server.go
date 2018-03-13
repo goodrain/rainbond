@@ -55,20 +55,13 @@ func Run(s *option.APIServer) error {
 		return err
 	}
 	defer event.CloseManager()
-
+	//初始化 middleware
+	handler.InitProxy(s.Config)
 	//创建handle
 	if err := handler.InitHandle(s.Config); err != nil {
 		logrus.Errorf("init all handle error, %v", err)
 		return err
 	}
-	//创建license manager
-	// if err := handler.CreateLicenseManger(); err != nil {
-	// 	logrus.Errorf("create tenant manager error, %v", err)
-	//}
-	//创建license验证 manager
-	// if err := handler.CreateLicensesInfoManager(); err != nil {
-	// 	logrus.Errorf("create license check manager error, %v", err)
-	// }
 	//创建v2Router manager
 	if err := controller.CreateV2RouterManager(s.Config); err != nil {
 		logrus.Errorf("create v2 route manager error, %v", err)

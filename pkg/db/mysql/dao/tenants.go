@@ -21,9 +21,7 @@ package dao
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/db/model"
@@ -88,6 +86,21 @@ func (t *TenantDaoImpl) GetALLTenants() ([]*model.Tenants, error) {
 	return tenants, nil
 }
 
+//GetTenantIDsByNames get tenant ids by names
+func (t *TenantDaoImpl) GetTenantIDsByNames(names []string) (re []string, err error) {
+	rows, err := t.DB.Raw("select uuid from tenants where name in (?)", names).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var uuid string
+		rows.Scan(&uuid)
+		re = append(re, uuid)
+	}
+	return
+}
+
 //GetALLTenants GetALLTenants
 func (t *TenantDaoImpl) GetPagedTenants(offset, len int) ([]*model.Tenants, error) {
 
@@ -147,63 +160,61 @@ func (t *TenantServicesDaoImpl) GetServiceByID(serviceID string) (*model.TenantS
 	return &service, nil
 }
 
-//GetCPUAndMEM GetCPUAndMEM
-func (t *TenantServicesDaoImpl) GetCPUAndMEM(tenantName []string) ([]map[string]interface{}, error) {
-	if len(tenantName) == 0 {
-		rows, err := t.DB.Raw("select sum(container_cpu) as cpu,sum(container_memory * replicas) as memory from tenant_services where service_id in (select service_id from tenant_service_status where status != 'closed' && status != 'undeploy')").Rows()
-		if err != nil {
-			return nil, err
-		}
-		defer rows.Close()
-		var cpu int
-		var mem int
-		for rows.Next() {
-			rows.Scan(&cpu, &mem)
-		}
-		var rc []map[string]interface{}
+//GetServiceMemoryByTenantIDs get service memory by tenant ids
+func (t *TenantServicesDaoImpl) GetServiceMemoryByTenantIDs(tenantIDs []string) (map[string]map[string]interface{}, error) {
+	rows, err := t.DB.Raw("select tenant_id, sum(container_cpu) as cpu,sum(container_memory * replicas) as memory from tenant_services where tenant_id in (?) and service_id in (select service_id from tenant_service_status where status != 'closed' && status != 'undeploy') group by tenant_id", tenantIDs).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var rc = make(map[string]map[string]interface{})
+	for rows.Next() {
+		var cpu, mem int
+		var tenantID string
+		rows.Scan(&tenantID, &cpu, &mem)
 		res := make(map[string]interface{})
 		res["cpu"] = cpu
 		res["memory"] = mem
-		rc = append(rc, res)
-		return rc, nil
+		rc[tenantID] = res
 	}
-	var rc []map[string]interface{}
-	for _, tenant := range tenantName {
-		rows, err := t.DB.Raw("select tenant_id, sum(container_cpu) as cpu, sum(container_memory * replicas) as memory from tenant_services where service_id in (select service_id from tenant_service_status where (status != 'closed' && status != 'undeploy') && service_id in (select service_id from tenant_services where domain = (?))) group by tenant_id", tenant).Rows()
-		if err != nil {
-			return nil, err
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var cpu int
-			var mem int
-			var id string
-			rows.Scan(&id, &cpu, &mem)
-			res := make(map[string]interface{})
-			res["cpu"] = cpu
-			res["memory"] = mem
-			res["tenant_id"] = id
-			res["tenant_name"] = tenant
-			dirPath := fmt.Sprintf("/grdata/tenant/%s", id)
-			cmd := []string{"-sh", "-m", dirPath}
-			f, err := exec.Command("du", cmd...).Output()
-			if err != nil {
-				f = []byte("1 xxx")
-			}
-			st := strings.Split(string(f), "\t")[0]
-			//TODO: disk默认单位为MB
-			intSt, err := strconv.Atoi(st)
-			if err != nil {
-				return nil, err
-			}
-			res["disk"] = intSt
-			rc = append(rc, res)
+	for _, sid := range tenantIDs {
+		if _, ok := rc[sid]; !ok {
+			rc[sid] = make(map[string]interface{})
+			rc[sid]["cpu"] = 0
+			rc[sid]["memory"] = 0
 		}
 	}
 	return rc, nil
 }
 
-//GetPagedTenantResource GetPagedTenantResource
+//GetServiceMemoryByServiceIDs get service memory by service ids
+func (t *TenantServicesDaoImpl) GetServiceMemoryByServiceIDs(serviceIDs []string) (map[string]map[string]interface{}, error) {
+	rows, err := t.DB.Raw("select service_id, container_cpu as cpu,container_memory * replicas as memory from tenant_services where service_id in (?) and service_id in (select service_id from tenant_service_status where status != 'closed' && status != 'undeploy')", serviceIDs).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var rc = make(map[string]map[string]interface{})
+	for rows.Next() {
+		var cpu, mem int
+		var serviceID string
+		rows.Scan(&serviceID, &cpu, &mem)
+		res := make(map[string]interface{})
+		res["cpu"] = cpu
+		res["memory"] = mem
+		rc[serviceID] = res
+	}
+	for _, sid := range serviceIDs {
+		if _, ok := rc[sid]; !ok {
+			rc[sid] = make(map[string]interface{})
+			rc[sid]["cpu"] = 0
+			rc[sid]["memory"] = 0
+		}
+	}
+	return rc, nil
+}
+
+//GetPagedTenantService GetPagedTenantResource
 func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, len int) ([]map[string]interface{}, error) {
 	rows, err := t.DB.Raw("select tenant_id,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_cpu * replicas,0)) as use_cpu,sum(container_cpu*replicas) as cap_cpu,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_memory * replicas,0)) as use_memory,sum(container_memory*replicas) as cap_memory from tenant_services group by tenant_id order by use_memory desc limit ?,?", offset, len).Rows()
 	if err != nil {

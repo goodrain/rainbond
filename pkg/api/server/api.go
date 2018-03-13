@@ -25,7 +25,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/goodrain/rainbond/pkg/api/discover"
+	"github.com/goodrain/rainbond/pkg/api/handler"
 
 	"github.com/goodrain/rainbond/pkg/util"
 
@@ -60,8 +60,6 @@ type Manager struct {
 //NewManager newManager
 func NewManager(c option.Config) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
-	//初始化 middleware
-	apimiddleware.InitProxy(c)
 	//controller.CreateV2RouterManager(c)
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID) //每个请求的上下文中注册一个id
@@ -205,9 +203,5 @@ func (m *Manager) EventLogInstance(w http.ResponseWriter, r *http.Request) {
 
 //PrometheusAPI prometheus api 代理
 func (m *Manager) PrometheusAPI(w http.ResponseWriter, r *http.Request) {
-	if m.prometheusProxy == nil {
-		m.prometheusProxy = proxy.CreateProxy("prometheus", "http", []string{"127.0.0.1:9999"})
-		discover.GetEndpointDiscover(m.conf.EtcdEndpoint).AddProject("prometheus", m.prometheusProxy)
-	}
-	m.prometheusProxy.Proxy(w, r)
+	handler.GetPrometheusProxy().Proxy(w, r)
 }

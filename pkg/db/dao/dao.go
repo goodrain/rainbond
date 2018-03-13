@@ -38,6 +38,7 @@ type TenantDao interface {
 	GetTenantIDByName(tenantName string) (*model.Tenants, error)
 	GetALLTenants() ([]*model.Tenants, error)
 	GetPagedTenants(offset, len int) ([]*model.Tenants, error)
+	GetTenantIDsByNames(names []string) ([]string, error)
 }
 
 //LicenseDao LicenseDao
@@ -64,7 +65,8 @@ type TenantServiceDao interface {
 	GetServicesByTenantID(tenantID string) ([]*model.TenantServices, error)
 	GetServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error)
 	DeleteServiceByServiceID(serviceID string) error
-	GetCPUAndMEM(tenantName []string) ([]map[string]interface{}, error)
+	GetServiceMemoryByTenantIDs(tenantIDs []string) (map[string]map[string]interface{}, error)
+	GetServiceMemoryByServiceIDs(serviceIDs []string) (map[string]map[string]interface{}, error)
 	GetPagedTenantService(offset, len int) ([]map[string]interface{}, error)
 	GetTenantServiceRes(uuid string) (map[string]interface{}, error)
 	GetAllServices() ([]*model.TenantServices, error)

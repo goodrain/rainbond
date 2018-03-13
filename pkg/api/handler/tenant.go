@@ -19,9 +19,11 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/api/util"
@@ -150,24 +152,6 @@ func (t *TenantAction) StatsMemCPU(services []*dbmodel.TenantServices) (*api_mod
 	return si, nil
 }
 
-//QueryTsdb QueryTsdb
-/*
-func (t *TenantAction) QueryTsdb(md *api_model.MontiorData) (*tsdbClient.QueryResponse, error) {
-	st2 := time.Now().Unix()
-	queryParam := tsdbClient.QueryParam{
-		Start:   md.Body.Start,
-		End:     st2,
-		Queries: md.Body.Queries,
-	}
-	queryResp, err := t.OpentsdbClient.Query(queryParam)
-	if err != nil {
-		logrus.Errorf("query tsdb error %v", err)
-		return nil, err
-	}
-	return queryResp, nil
-}
-*/
-
 //HTTPTsdb HTTPTsdb
 func (t *TenantAction) HTTPTsdb(md *api_model.MontiorData) ([]byte, error) {
 	uri := fmt.Sprintf("/query?start=%s&m=%s", md.Body.Start, md.Body.Queries)
@@ -193,11 +177,124 @@ func (t *TenantAction) HTTPTsdb(md *api_model.MontiorData) ([]byte, error) {
 	return body, nil
 }
 
-//GetTenantsResources GetTenantsResources
-func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) ([]map[string]interface{}, error) {
-	//返回全部资源
-	//TODO: 应用关闭，硬盘存储资源仍会占用
-	return db.GetManager().TenantServiceDao().GetCPUAndMEM(tr.Body.TenantName)
+// QueryResult contains result data for a query.
+type QueryResult struct {
+	Data struct {
+		Type   string                   `json:"resultType"`
+		Result []map[string]interface{} `json:"result"`
+	} `json:"data"`
+	Status string `json:"status"`
+}
+
+//GetTenantsResources Gets the resource usage of the specified tenant.
+func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (res []map[string]interface{}, err error) {
+	ids, err := db.GetManager().TenantDao().GetTenantIDsByNames(tr.Body.TenantNames)
+	if err != nil {
+		return nil, err
+	}
+	resmp, err := db.GetManager().TenantServiceDao().GetServiceMemoryByTenantIDs(ids)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range resmp {
+		v["tenant_id"] = k
+		res = append(res, v)
+	}
+	//query disk used in prometheus
+	proxy := GetPrometheusProxy()
+	query := fmt.Sprintf(`sum(app_resource_appfs{tenant_id=~"%s"}) by(tenant_id)`, strings.Join(ids, "|"))
+	query = strings.Replace(query, " ", "%20", -1)
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", query), nil)
+	if err != nil {
+		logrus.Error("create request prometheus api error ", err.Error())
+		return
+	}
+	result, err := proxy.Do(req)
+	if err != nil {
+		logrus.Error("do proxy request prometheus api error ", err.Error())
+		return
+	}
+	if result.Body != nil {
+		defer result.Body.Close()
+		if result.StatusCode != 200 {
+			return res, nil
+		}
+		var qres QueryResult
+		err = json.NewDecoder(result.Body).Decode(&qres)
+		if err == nil {
+			for _, re := range qres.Data.Result {
+				var tenantID string
+				var disk int
+				if tid, ok := re["metric"].(map[string]interface{}); ok {
+					tenantID = tid["tenant_id"].(string)
+				}
+				if re, ok := (re["value"]).([]interface{}); ok && len(re) == 2 {
+					disk, _ = strconv.Atoi(re[1].(string))
+				}
+				if _, ok := resmp[tenantID]; ok {
+					resmp[tenantID]["disk"] = disk
+				} else {
+					resmp[tenantID] = make(map[string]interface{})
+					resmp[tenantID]["disk"] = disk
+				}
+			}
+			for k, v := range resmp {
+				v["tenant_id"] = k
+				res = append(res, v)
+			}
+		}
+	}
+	return res, nil
+}
+
+//GetServicesResources Gets the resource usage of the specified service.
+func (t *TenantAction) GetServicesResources(tr *api_model.ServicesResources) (re map[string]map[string]interface{}, err error) {
+	resmp, err := db.GetManager().TenantServiceDao().GetServiceMemoryByServiceIDs(tr.Body.ServiceIDs)
+	if err != nil {
+		return nil, err
+	}
+	re = resmp
+	//query disk used in prometheus
+	proxy := GetPrometheusProxy()
+	query := fmt.Sprintf(`app_resource_appfs{service_id=~"%s"}`, strings.Join(tr.Body.ServiceIDs, "|"))
+	query = strings.Replace(query, " ", "%20", -1)
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", query), nil)
+	if err != nil {
+		logrus.Error("create request prometheus api error ", err.Error())
+		return
+	}
+	result, err := proxy.Do(req)
+	if err != nil {
+		logrus.Error("do proxy request prometheus api error ", err.Error())
+		return
+	}
+	if result.Body != nil {
+		defer result.Body.Close()
+		if result.StatusCode != 200 {
+			return re, nil
+		}
+		var qres QueryResult
+		err = json.NewDecoder(result.Body).Decode(&qres)
+		if err == nil {
+			for _, re := range qres.Data.Result {
+				var serviceID string
+				var disk int
+				if tid, ok := re["metric"].(map[string]interface{}); ok {
+					serviceID = tid["service_id"].(string)
+				}
+				if re, ok := (re["value"]).([]interface{}); ok && len(re) == 2 {
+					disk, _ = strconv.Atoi(re[1].(string))
+				}
+				if _, ok := resmp[serviceID]; ok {
+					resmp[serviceID]["disk"] = disk
+				} else {
+					resmp[serviceID] = make(map[string]interface{})
+					resmp[serviceID]["disk"] = disk
+				}
+			}
+		}
+	}
+	return resmp, nil
 }
 
 //TenantsSum TenantsSum

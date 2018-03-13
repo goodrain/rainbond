@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package middleware
+package handler
 
 import (
 	"github.com/goodrain/rainbond/cmd/api/option"
@@ -26,7 +26,7 @@ import (
 
 var nodeProxy proxy.Proxy
 var builderProxy proxy.Proxy
-
+var prometheusProxy proxy.Proxy
 
 //InitProxy 初始化
 func InitProxy(conf option.Config) {
@@ -38,13 +38,24 @@ func InitProxy(conf option.Config) {
 		builderProxy = proxy.CreateProxy("builder", "http", conf.BuilderAPI)
 		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("builder", builderProxy)
 	}
+	if prometheusProxy == nil {
+		prometheusProxy = proxy.CreateProxy("prometheus", "http", []string{"106.14.145.76:9999"})
+		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("prometheus", prometheusProxy)
+	}
+
 }
 
 //GetNodeProxy GetNodeProxy
 func GetNodeProxy() proxy.Proxy {
 	return nodeProxy
 }
+
 //GetBuilderProxy GetNodeProxy
 func GetBuilderProxy() proxy.Proxy {
 	return builderProxy
+}
+
+//GetPrometheusProxy GetPrometheusProxy
+func GetPrometheusProxy() proxy.Proxy {
+	return prometheusProxy
 }

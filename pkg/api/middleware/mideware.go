@@ -23,6 +23,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/goodrain/rainbond/pkg/api/handler"
+
 	"github.com/jinzhu/gorm"
 
 	"github.com/goodrain/rainbond/pkg/db"
@@ -98,7 +100,7 @@ func InitPlugin(next http.Handler) http.Handler {
 			httputil.ReturnError(r, w, 404, "need plugin id")
 			return
 		}
-		_, err := db.GetManager().TenantPluginDao().GetPluginByID(pluginID,tenantID)
+		_, err := db.GetManager().TenantPluginDao().GetPluginByID(pluginID, tenantID)
 		if err != nil {
 			if err.Error() == gorm.ErrRecordNotFound.Error() {
 				httputil.ReturnError(r, w, 404, "cant find plugin")
@@ -131,43 +133,30 @@ func SetLog(next http.Handler) http.Handler {
 func Proxy(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.RequestURI, "/v2/nodes") {
-			GetNodeProxy().Proxy(w, r)
+			handler.GetNodeProxy().Proxy(w, r)
 			return
 		}
 		if strings.HasPrefix(r.RequestURI, "/v2/builder") {
-			GetBuilderProxy().Proxy(w, r)
+			handler.GetBuilderProxy().Proxy(w, r)
 			return
 		}
 		if strings.HasPrefix(r.RequestURI, "/v2/tasks") {
-			GetNodeProxy().Proxy(w, r)
+			handler.GetNodeProxy().Proxy(w, r)
 			return
 		}
 		if strings.HasPrefix(r.RequestURI, "/v2/tasktemps") {
-			GetNodeProxy().Proxy(w, r)
+			handler.GetNodeProxy().Proxy(w, r)
 			return
 		}
 		if strings.HasPrefix(r.RequestURI, "/v2/taskgroups") {
-			GetNodeProxy().Proxy(w, r)
+			handler.GetNodeProxy().Proxy(w, r)
 			return
 		}
 		if strings.HasPrefix(r.RequestURI, "/v2/configs") {
-			GetNodeProxy().Proxy(w, r)
+			handler.GetNodeProxy().Proxy(w, r)
 			return
 		}
 		next.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(fn)
 }
-
-//SetAPI set api 设置api到会话中
-/*
-func (v2 *V2Routes) SetAPI(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		V1API := v2.V1API
-		ctx := context.WithValue(r.Context(), key("v1_api"), V1API)
-		logrus.Debugf("set api to ctx, api is %v", V1API)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	}
-	return http.HandlerFunc(fn)
-}
-*/

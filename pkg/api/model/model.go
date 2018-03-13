@@ -351,14 +351,15 @@ type ServiceStruct struct {
 
 	Domain string `json:"domain" validate:"domain"`
 
-	ServiceLabel string                          `json:"service_label"  validate:"service_label"`
-	NodeLabel    string                          `json:"node_label"  validate:"node_label"`
-	Operator     string                          `json:"operator"  validate:"operator"`
-	RepoURL      string                          `json:"repo_url" validate:"repo_url"`
-	DependIDs    []dbmodel.TenantServiceRelation `json:"depend_ids"`
-	VolumesInfo  []dbmodel.TenantServiceVolume   `json:"volumes_info"`
-	EnvsInfo     []dbmodel.TenantServiceEnvVar   `json:"envs_info"`
-	PortsInfo    []dbmodel.TenantServicesPort    `json:"ports_info"`
+	ServiceLabel   string                               `json:"service_label"  validate:"service_label"`
+	NodeLabel      string                               `json:"node_label"  validate:"node_label"`
+	Operator       string                               `json:"operator"  validate:"operator"`
+	RepoURL        string                               `json:"repo_url" validate:"repo_url"`
+	DependIDs      []dbmodel.TenantServiceRelation      `json:"depend_ids"`
+	VolumesInfo    []dbmodel.TenantServiceVolume        `json:"volumes_info"`
+	DepVolumesInfo []dbmodel.TenantServiceMountRelation `json:"dep_volumes_info"`
+	EnvsInfo       []dbmodel.TenantServiceEnvVar        `json:"envs_info"`
+	PortsInfo      []dbmodel.TenantServicesPort         `json:"ports_info"`
 }
 
 //DependService struct for depend service
@@ -401,7 +402,18 @@ type TenantResources struct {
 	Body struct {
 		// in: body
 		// required: true
-		TenantName []string `json:"tenant_name" validate:"tenant_name"`
+		TenantNames []string `json:"tenant_name" validate:"tenant_name"`
+	}
+}
+
+//ServicesResources ServicesResources
+// swagger:parameters serviceResources
+type ServicesResources struct {
+	// in: body
+	Body struct {
+		// in: body
+		// required: true
+		ServiceIDs []string `json:"service_ids" validate:"service_ids"`
 	}
 }
 

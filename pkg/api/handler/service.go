@@ -545,6 +545,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	ports := sc.PortsInfo
 	envs := sc.EnvsInfo
 	volumns := sc.VolumesInfo
+	dependVolumes := sc.DepVolumesInfo
 	dependIds := sc.DependIDs
 	logrus.Infof("creating new service,deploy version is %s", ts.DeployVersion)
 	ts.DeployVersion = ""
@@ -624,6 +625,23 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 				logrus.Errorf("add volumn %v error, %v", volumn.HostPath, err)
 				tx.Rollback()
 				return err
+			}
+		}
+	}
+	//dependVolumes
+	if len(dependVolumes) > 0 {
+		for _, depVolume := range dependVolumes {
+			depVolume.ServiceID = ts.ServiceID
+			depVolume.TenantID = ts.TenantID
+			volume, err := db.GetManager().TenantServiceVolumeDao().GetVolumeByServiceIDAndName(depVolume.DependServiceID, depVolume.VolumeName)
+			if err != nil {
+				tx.Rollback()
+				return fmt.Errorf("find volume %s error %s", depVolume.VolumeName, err.Error())
+			}
+			depVolume.HostPath = volume.HostPath
+			if err := db.GetManager().TenantServiceMountRelationDaoTransactions(tx).AddModel(&depVolume); err != nil {
+				tx.Rollback()
+				return fmt.Errorf("add dep volume %s error %s", depVolume.VolumeName, err.Error())
 			}
 		}
 	}

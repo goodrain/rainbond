@@ -21,6 +21,7 @@ package proxy
 import (
 	"net/http"
 	"net/http/httputil"
+	"strings"
 )
 
 //HTTPProxy HTTPProxy
@@ -45,6 +46,17 @@ func (h *HTTPProxy) Proxy(w http.ResponseWriter, r *http.Request) {
 //UpdateEndpoints 更新端点
 func (h *HTTPProxy) UpdateEndpoints(endpoints ...string) {
 	h.endpoints = CreateEndpoints(endpoints)
+}
+
+//Do do proxy
+func (h *HTTPProxy) Do(r *http.Request) (*http.Response, error) {
+	endpoint := h.lb.Select(r, h.endpoints)
+	if strings.HasPrefix(endpoint.String(), "http") {
+		r.URL.Host = strings.Replace(endpoint.String(), "http://", "", 1)
+	} else {
+		r.URL.Host = endpoint.String()
+	}
+	return http.DefaultClient.Do(r)
 }
 
 func createHTTPProxy(name string, endpoints []string) *HTTPProxy {
