@@ -238,10 +238,6 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (res [
 					resmp[tenantID]["disk"] = disk
 				}
 			}
-			for k, v := range resmp {
-				v["tenant_id"] = k
-				res = append(res, v)
-			}
 		}
 	}
 	return res, nil
