@@ -240,6 +240,12 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (res [
 			}
 		}
 	}
+	//set disk 0
+	for i, v := range res {
+		if _, ok := v["disk"]; !ok {
+			res[i]["disk"] = 0
+		}
+	}
 	return res, nil
 }
 
