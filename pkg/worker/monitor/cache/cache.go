@@ -35,7 +35,10 @@ import (
 
 //DiskCache 磁盘异步统计
 type DiskCache struct {
-	cache         map[string]float64
+	cache []struct {
+		Key   string
+		Value float64
+	}
 	dbmanager     db.Manager
 	statusManager status.ServiceStatusManager
 	ctx           context.Context
@@ -68,12 +71,12 @@ func (d *DiskCache) Start() {
 }
 
 func (d *DiskCache) setcache() {
-	d.lock.Lock()
-	defer d.lock.Unlock()
 	logrus.Info("start get all service disk size")
 	start := time.Now()
-	d.cache = nil
-	d.cache = make(map[string]float64)
+	var diskcache []struct {
+		Key   string
+		Value float64
+	}
 	services, err := d.dbmanager.TenantServiceDao().GetAllServices()
 	if err != nil {
 		logrus.Errorln("Error get tenant service when select db :", err)
@@ -95,7 +98,13 @@ func (d *DiskCache) setcache() {
 		//默认目录
 		size := util.GetDirSize(fmt.Sprintf("%s/tenant/%s/service/%s", sharePath, service.TenantID, service.ServiceID))
 		if size != 0 {
-			d.cache[service.ServiceID+"_"+service.TenantID] = size
+			diskcache = append(diskcache, struct {
+				Key   string
+				Value float64
+			}{
+				Key:   service.ServiceID + "_" + service.TenantID,
+				Value: size,
+			})
 		}
 		cache[service.ServiceID] = service
 	}
@@ -110,20 +119,25 @@ func (d *DiskCache) setcache() {
 			//默认目录
 			size := util.GetDirSize(fmt.Sprintf("%s/tenant/%s/service/%s", localPath, gettenantID(v.ServiceID), v.ServiceID))
 			if size != 0 {
-				d.cache[v.ServiceID+"_"+gettenantID(v.ServiceID)] += size
+				diskcache = append(diskcache, struct {
+					Key   string
+					Value float64
+				}{
+					Key:   v.ServiceID + "_" + gettenantID(v.ServiceID),
+					Value: size,
+				})
 			}
 		}
 	}
+	d.cache = diskcache
 	logrus.Infof("end get all service disk size,time consum %2.f s", time.Now().Sub(start).Seconds())
 }
 
 //Get 获取磁盘统计结果
 func (d *DiskCache) Get() map[string]float64 {
-	d.lock.Lock()
-	defer d.lock.Unlock()
 	newcache := make(map[string]float64)
-	for k, v := range d.cache {
-		newcache[k] = v
+	for _, v := range d.cache {
+		newcache[v.Key] += v.Value
 	}
 	return newcache
 }
