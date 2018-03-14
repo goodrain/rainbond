@@ -22,8 +22,6 @@ Choose Rainbond for the same reasons disruptive companies do: it serve as a easy
 * Public and private application market with complete application sharing mechanism
 * Multiple data center and across data center application deployment
 
----
-
 ## Quick Start
 
 1. [Install Rainbond](http://www.rainbond.com/docs/stable/getting-started/pre-install.html)
