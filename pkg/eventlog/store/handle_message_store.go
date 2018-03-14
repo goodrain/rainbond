@@ -1,18 +1,18 @@
 // RAINBOND, Application Management Platform
 // Copyright (C) 2014-2017 Goodrain Co., Ltd.
-
+ 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
-
+ 
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-
+ 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
@@ -290,12 +290,11 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					webhook.GetManager().RunWebhookWithParameter(webhook.UpDateEventStatus, nil,
 						map[string]interface{}{"event_id": eventID, "status": status, "message": message})
 
-
 					event := model.ServiceEvent{}
 					event.EventID = eventID
 					event.Status = status
 					event.Message = message
-					logrus.Infof("updating event %s's status: %s",eventID,status)
+					logrus.Infof("updating event %s's status: %s", eventID, status)
 					cdb.GetManager().ServiceEventDao().UpdateModel(&event)
 
 					//todo  get version_info by event_id ,update final_status,optional delete
