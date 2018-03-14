@@ -185,16 +185,7 @@ func (t *TenantServices) Autodomain(tenantName string, containerPort int) string
 	if strings.Contains(exDomain, ":") {
 		exDomain = strings.Split(exDomain, ":")[0]
 	}
-	if t.PortType == "dif_protocol" {
-		return fmt.Sprintf("%s.%s.%s", t.ServiceAlias, tenantName, exDomain)
-	}
-	if t.PortType == "multi_outer" {
-		return fmt.Sprintf("%d.%s.%s.%s", containerPort, t.ServiceAlias, tenantName, exDomain)
-	}
-	if t.PortType == "one_outer" {
-		return fmt.Sprintf("%s.%s.%s", t.ServiceAlias, tenantName, exDomain)
-	}
-	return ""
+	return fmt.Sprintf("%d.%s.%s.%s", containerPort, t.ServiceAlias, tenantName, exDomain)
 }
 
 //TableName 表名
