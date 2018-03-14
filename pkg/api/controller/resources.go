@@ -132,6 +132,38 @@ func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+//ServiceResources ServiceResources
+func (t *TenantStruct) ServiceResources(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation POST /v2/resources/services v2 serviceResources
+	//
+	// 应用资源使用情况
+	//
+	// get service resources
+	//
+	// ---
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//       "$ref": "#/responses/commandResponse"
+	//     description: 统一返回格式
+	var tr api_model.ServicesResources
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tr.Body, nil)
+	if !ok {
+		return
+	}
+	rep, err := handler.GetTenantManager().GetServicesResources(&tr)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get resources error, %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, rep)
+	return
+}
+
 //TenantsQuery TenantsQuery
 func (t *TenantStruct) TenantsQuery(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants/query/{tenant_name} v2 tenants

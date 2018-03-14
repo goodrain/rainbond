@@ -36,6 +36,7 @@ type TenantHandler interface {
 	//QueryTsdb(md *api_model.MontiorData) (*tsdbClient.QueryResponse, error)
 	HTTPTsdb(md *api_model.MontiorData) ([]byte, error)
 	GetTenantsResources(tr *api_model.TenantResources) ([]map[string]interface{}, error)
+	GetServicesResources(tr *api_model.ServicesResources) (map[string]map[string]interface{}, error)
 	TenantsSum() (int, error)
 	GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHandleError)
 	TransPlugins(tenantID, tenantName, fromTenant string, pluginList []string) *util.APIHandleError
