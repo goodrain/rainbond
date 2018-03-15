@@ -170,10 +170,10 @@ func (e *exectorManager) buildFromImage(in []byte) {
 				break
 			}
 		}
+		if err := i.UpdateVersionInfo(status); err != nil {
+			logrus.Debugf("update version Info error: %s", err.Error())
+		}
 	}()
-	if err := i.UpdateVersionInfo(status); err != nil {
-		logrus.Debugf("update version Info error: %s", err.Error())
-	}
 }
 
 func (e *exectorManager) buildFromSourceCode(in []byte) {
@@ -198,13 +198,13 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 				break
 			}
 		}
+		vi := &dbmodel.VersionInfo{
+			FinalStatus: status,
+		}
+		if err := i.UpdateVersionInfo(vi); err != nil {
+			logrus.Debugf("update version Info error: %s", err.Error())
+		}
 	}()
-	vi := &dbmodel.VersionInfo{
-		FinalStatus: status,
-	}
-	if err := i.UpdateVersionInfo(vi); err != nil {
-		logrus.Debugf("update version Info error: %s", err.Error())
-	}
 }
 
 //buildFromMarketSlug 从云市来源源码包构建应用
