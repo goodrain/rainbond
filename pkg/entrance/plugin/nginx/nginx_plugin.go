@@ -524,8 +524,13 @@ func (n *nginxAPI) addStreamNode(sns *StreamNodeS) bool {
 		logrus.Warnf("<LBNGINX>[addStreanNode to upstream %s node is none", sns.PoolName)
 		return true
 	}
+	vs, err := n.ctx.Store.GetVSByPoolName(sns.PoolName)
+	if err != nil {
+		logrus.Error("<LBNGINX> get vs info when add stream node error,", err)
+		return false
+	}
 	// loglolol
-	p, err := n.StreamPoolInfo(sns.PoolName, "66666")
+	p, err := n.StreamPoolInfo(sns.PoolName, fmt.Sprintf("%d", vs.Port))
 	if err != nil {
 		logrus.Error(err)
 		return false

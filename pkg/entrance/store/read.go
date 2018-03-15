@@ -19,9 +19,11 @@
 package store
 
 import (
-	"github.com/goodrain/rainbond/pkg/entrance/core/object"
 	"encoding/json"
 	"fmt"
+	"strings"
+
+	"github.com/goodrain/rainbond/pkg/entrance/core/object"
 
 	"github.com/coreos/etcd/client"
 )
@@ -34,6 +36,7 @@ type ReadStore interface {
 	GetPools(poolNames map[string]string) ([]*object.PoolObject, error)
 	GetRule(rule *object.RuleObject) (*object.RuleObject, error)
 	GetRuleByPool(protocol string, poolName string) ([]*object.RuleObject, error)
+	GetVSByPoolName(poolName string) (*object.VirtualServiceObject, error)
 }
 
 //GetAllPools 获取全部pools
@@ -99,6 +102,29 @@ func (m *Manager) GetAllVSs() ([]*object.VirtualServiceObject, error) {
 		vs = append(vs, i.Data.(*object.VirtualServiceObject))
 	}
 	return vs, nil
+}
+
+//GetVSByPoolName get vs by pool name
+func (m *Manager) GetVSByPoolName(poolName string) (*object.VirtualServiceObject, error) {
+	//vzrd9po6@grcb0909_5000.Pool -> vzrd9po6_grcb0909_5000.VS
+	vsname := strings.Replace(poolName, "@", "_", 1)
+	vsname = strings.Replace(vsname, ".Pool", ".VS", 1)
+	res, err := m.keysAPI.Get(m.ctx, m.cluster.GetPrefix()+"/vs/"+vsname, &client.GetOptions{Recursive: true})
+	if err != nil {
+		return nil, err
+	}
+	for _, node := range res.Node.Nodes {
+		oldData := node.Value
+		i := &SourceInfo{
+			Data: &object.VirtualServiceObject{},
+		}
+		err = json.Unmarshal([]byte(oldData), i)
+		if err != nil {
+			return nil, err
+		}
+		return i.Data.(*object.VirtualServiceObject), nil
+	}
+	return nil, fmt.Errorf("can not found vs")
 }
 
 //GetRule get rule by *object.RuleObject
