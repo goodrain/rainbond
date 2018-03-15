@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
+
 	"github.com/goodrain/rainbond/pkg/entrance/core/object"
 
 	"github.com/coreos/etcd/client"
@@ -113,8 +115,8 @@ func (m *Manager) GetVSByPoolName(poolName string) (*object.VirtualServiceObject
 	if err != nil {
 		return nil, err
 	}
-	for _, node := range res.Node.Nodes {
-		oldData := node.Value
+	if res.Node != nil {
+		oldData := res.Node.Value
 		i := &SourceInfo{
 			Data: &object.VirtualServiceObject{},
 		}
@@ -124,6 +126,7 @@ func (m *Manager) GetVSByPoolName(poolName string) (*object.VirtualServiceObject
 		}
 		return i.Data.(*object.VirtualServiceObject), nil
 	}
+	logrus.Debugf("pool name is %s,vs store path is %s", poolName, m.cluster.GetPrefix()+"/vs/"+vsname)
 	return nil, fmt.Errorf("can not found vs")
 }
 
