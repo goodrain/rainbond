@@ -227,7 +227,7 @@ func (e *exectorManager) buildFromMarketSlug(in []byte) {
 				if n < 1 {
 					i.Logger.Error("应用构建失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
-					i.Logger.Error("构建应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})
+					i.Logger.Error("构建应用任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
 				break
