@@ -1183,6 +1183,18 @@ func (t *ServiceStatusDaoImpl) GetRunningService() ([]*model.TenantServiceStatus
 	return statuss, nil
 }
 
+//GetNeedBillingService get need billing service status
+func (t *ServiceStatusDaoImpl) GetNeedBillingService() ([]*model.TenantServiceStatus, error) {
+	var statuss []*model.TenantServiceStatus
+	if err := t.DB.Where("status not in (?)", []string{"closed", "undeploy", "deploying"}).Find(&statuss).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return statuss, nil
+		}
+		return nil, err
+	}
+	return statuss, nil
+}
+
 //DeleteByServiceID 状态删除
 func (t *ServiceStatusDaoImpl) DeleteByServiceID(serviceID string) error {
 	var status model.TenantServiceStatus

@@ -91,6 +91,12 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		e.scrapeErrors.WithLabelValues("db.getservices").Inc()
 		e.error.Set(1)
 	}
+	status, err := e.statusManager.GetNeedBillingStatus()
+	if err != nil {
+		logrus.Errorln("Error scraping for tenant service when select db :", err)
+		e.scrapeErrors.WithLabelValues("db.getservices").Inc()
+		e.error.Set(1)
+	}
 	localPath := os.Getenv("LOCAL_DATA_PATH")
 	sharePath := os.Getenv("SHARE_DATA_PATH")
 	if localPath == "" {
@@ -101,10 +107,8 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	}
 	//获取内存使用情况
 	for _, service := range services {
-		if appstatus, err := e.statusManager.GetStatus(service.ServiceID); err == nil {
-			if appstatus != status.CLOSED && appstatus != status.UNDEPLOY && appstatus != status.DEPLOYING {
-				e.memoryUse.WithLabelValues(service.TenantID, service.ServiceID, appstatus).Set(float64(service.ContainerMemory * service.Replicas))
-			}
+		if status, ok := status[service.ServiceID]; ok {
+			e.memoryUse.WithLabelValues(service.TenantID, service.ServiceID, status).Set(float64(service.ContainerMemory * service.Replicas))
 		}
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.memory")

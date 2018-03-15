@@ -160,7 +160,7 @@ func (e *exectorManager) buildFromImage(in []byte) {
 			err := i.Run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("build from image error: %s", err.Error())
-				if n < 2 {
+				if n < 1 {
 					i.Logger.Error("从镜像构建应用任务执行失败，开始重试", map[string]string{"step": "build-exector", "status": "failure"})
 				} else {
 					i.Logger.Error("从镜像构建应用任务执行失败", map[string]string{"step": "callback", "status": "failure"})
@@ -188,7 +188,7 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 			err := i.Run(time.Minute * 30)
 			if err != nil {
 				logrus.Errorf("build from source code error: %s", err.Error())
-				if n < 2 {
+				if n < 1 {
 					i.Logger.Error("从源码构建应用任务执行失败，开始重试", map[string]string{"step": "build-exector", "status": "failure"})
 				} else {
 					i.Logger.Error("从源码构建应用任务执行失败", map[string]string{"step": "callback", "status": "failure"})
@@ -224,7 +224,7 @@ func (e *exectorManager) buildFromMarketSlug(in []byte) {
 			err := i.Run()
 			if err != nil {
 				logrus.Errorf("image share error: %s", err.Error())
-				if n < 2 {
+				if n < 1 {
 					i.Logger.Error("应用构建失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					i.Logger.Error("构建应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})
@@ -352,11 +352,11 @@ func (e *exectorManager) slugShare(in []byte) {
 	status := "success"
 	go func() {
 		defer event.GetManager().ReleaseLogger(i.Logger)
-		for n := 0; n < 3; n++ {
+		for n := 0; n < 2; n++ {
 			err := i.ShareService()
 			if err != nil {
 				logrus.Errorf("image share error: %s", err.Error())
-				if n < 2 {
+				if n < 1 {
 					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					i.Logger.Error("分享应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})
@@ -383,11 +383,11 @@ func (e *exectorManager) imageShare(in []byte) {
 	status := "success"
 	go func() {
 		defer event.GetManager().ReleaseLogger(i.Logger)
-		for n := 0; n < 3; n++ {
+		for n := 0; n < 2; n++ {
 			err := i.ShareService()
 			if err != nil {
 				logrus.Errorf("image share error: %s", err.Error())
-				if n < 2 {
+				if n < 1 {
 					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					i.Logger.Error("分享应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})

@@ -61,6 +61,7 @@ type ServiceStatusManager interface {
 	Start() error
 	Stop() error
 	SyncStatus()
+	GetNeedBillingStatus() (map[string]string, error)
 	IgnoreDelete(name string)
 	RmIgnoreDelete(name string)
 }
@@ -141,6 +142,18 @@ func (s *statusManager) GetStatus(serviceID string) (string, error) {
 		return "", err
 	}
 	return service.CurStatus, nil
+}
+
+func (s *statusManager) GetNeedBillingStatus() (map[string]string, error) {
+	status, err := db.GetManager().TenantServiceStatusDao().GetNeedBillingService()
+	if err != nil {
+		return nil, err
+	}
+	re := make(map[string]string)
+	for _, s := range status {
+		re[s.ServiceID] = s.Status
+	}
+	return re, nil
 }
 
 func (s *statusManager) Start() error {
