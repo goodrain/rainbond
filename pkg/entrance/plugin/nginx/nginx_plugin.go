@@ -842,7 +842,7 @@ func (n *nginxAPI) pUpStreamDomainServer(p *MethodHTTPArgs) {
 func (n *nginxAPI) pUpStreamStream(p *MethodHTTPArgs) {
 	for _, baseURL := range splitURL(n.ctx.Option["streamapi"]) {
 		port := "66666"
-		if p.PoolName != nil || p.PoolName.Port != "" {
+		if p.PoolName != nil && p.PoolName.Port != "" {
 			port = p.PoolName.Port
 		}
 		url := fmt.Sprintf("%s/upstream/stream/%s/%s", baseURL, p.UpStreamName, port)
