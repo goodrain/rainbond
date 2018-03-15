@@ -22,7 +22,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"regexp"
 	"strings"
@@ -393,7 +392,6 @@ func handleErr(errs []error) error {
 
 func (n *nginxAPI) readPoolName(poolname string) (*PoolName, error) {
 	// %s@%s_%d.Pool poolname format
-	logrus.Debugf("readpoolname is %s", poolname)
 	var p PoolName
 	poolExp := regexp.MustCompile(PoolExpString)
 	lPoolExp := poolExp.FindStringSubmatch(poolname)
@@ -408,15 +406,12 @@ func (n *nginxAPI) readPoolName(poolname string) (*PoolName, error) {
 }
 
 func (n *nginxAPI) StreamPoolInfo(poolname, mapport string) (*PoolName, error) {
-	// %s@%s_%d.Pool poolname format
-	logrus.Debugf("readpoolname is %s", poolname)
 	var p PoolName
 	poolExp := regexp.MustCompile(PoolExpString)
 	lPoolExp := poolExp.FindStringSubmatch(poolname)
 	if len(lPoolExp) != 4 {
 		return &p, errors.New("PoolName is unexpect.Please check")
 	}
-	logrus.Debugf("%v", lPoolExp)
 	p.Tenantname = lPoolExp[1]
 	p.Servicename = lPoolExp[2]
 	p.Port = mapport
@@ -586,7 +581,6 @@ func (n *nginxAPI) deleteStreamNode(sns *StreamNodeS) bool {
 		return true
 	}
 	upstream := reUpStream(sns.NodeList)
-
 	pha := &MethodHTTPArgs{
 		UpStreamName: sns.PoolName,
 		UpStream:     upstream,
@@ -790,7 +784,6 @@ func (n *nginxAPI) drainPool(dps *DrainPoolS) bool {
 func (n *nginxAPI) pHTTPDomain(domain string, p *MethodHTTPArgs) {
 	for _, baseURL := range splitURL(n.ctx.Option["httpapi"]) {
 		url := fmt.Sprintf("%s/server/%s", baseURL, domain)
-		logrus.Debugf("phttpdomain url is %s, method is %v", url, p.Method)
 		resp, err := n.urlPPAction(p.Method, url, p.UpStream)
 		if err != nil {
 			logrus.Error(err)
@@ -848,8 +841,10 @@ func (n *nginxAPI) pUpStreamDomainServer(p *MethodHTTPArgs) {
 
 func (n *nginxAPI) pUpStreamStream(p *MethodHTTPArgs) {
 	for _, baseURL := range splitURL(n.ctx.Option["streamapi"]) {
-		url := fmt.Sprintf("%s/upstream/stream/%s", baseURL, p.UpStreamName)
-		logrus.Debugf("pupstreamstream url is %s, method is %v", url, p.Method)
+		if p.PoolName.Port == "" {
+			p.PoolName.Port = "66666"
+		}
+		url := fmt.Sprintf("%s/upstream/stream/%s/%s", baseURL, p.UpStreamName, p.PoolName.Port)
 		resp, err := n.urlPPAction(p.Method, url, p.UpStream)
 		if err != nil {
 			logrus.Error(err)
@@ -883,9 +878,7 @@ func (n *nginxAPI) pHTTP(p *MethodHTTPArgs) {
 }
 
 func (n *nginxAPI) urlPPAction(method HTTPMETHOD, url string, stream []byte) (*http.Response, error) {
-	body := ioutil.NopCloser(strings.NewReader(string(stream)))
-	logrus.Debugf("body is %v", body)
-	req, err := http.NewRequest(string(method), url, body)
+	req, err := http.NewRequest(string(method), url, bytes.NewBuffer(stream))
 	if err != nil {
 		hr := &http.Response{
 			Status: "500",
