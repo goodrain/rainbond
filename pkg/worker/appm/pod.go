@@ -750,7 +750,7 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 	}
 
 	//处理当前应用用户定义环境变量
-	es, err := p.dbmanager.TenantServiceEnvVarDao().GetServiceEnvs(p.serviceID, []string{"inner", "both"})
+	es, err := p.dbmanager.TenantServiceEnvVarDao().GetServiceEnvs(p.serviceID, []string{"inner", "both", "outer"})
 	if err != nil {
 		return nil, err
 	}

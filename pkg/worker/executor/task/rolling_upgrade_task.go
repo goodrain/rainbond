@@ -81,7 +81,11 @@ func (s *rollingUpgradeTask) BeforeRun() {
 			s.serviceType = dbmodel.TypeReplicationController
 		}
 	}
-	s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, status.UPGRADE)
+	if serviceStatus, err := s.taskManager.statusManager.GetStatus(s.modelTask.ServiceID); err == nil && (serviceStatus == status.UNDEPLOY || serviceStatus == status.DEPLOYING) {
+		s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, status.STARTING)
+	} else {
+		s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, status.UPGRADE)
+	}
 }
 
 func (s *rollingUpgradeTask) AfterRun() {
