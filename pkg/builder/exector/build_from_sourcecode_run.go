@@ -291,7 +291,7 @@ func (i *SourceCodeBuildItem) prepare() error {
 		if err := os.RemoveAll(i.CacheDir); err != nil {
 			logrus.Error("remove cache dir error", err.Error())
 		}
-		if err := os.MkdirAll(i.CacheDir, os.ModeDir); err != nil {
+		if err := os.MkdirAll(i.CacheDir, 0755); err != nil {
 			logrus.Error("make cache dir error", err.Error())
 		}
 	}
