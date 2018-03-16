@@ -287,6 +287,14 @@ func (i *SourceCodeBuildItem) prepare() error {
 	if err := util.CheckAndCreateDir(i.RepoInfo.GetCodeHome()); err != nil {
 		return err
 	}
+	if i.BuildEnvs["NO_CACHE"] == "true" {
+		if err := os.RemoveAll(i.CacheDir); err != nil {
+			logrus.Error("remove cache dir error", err.Error())
+		}
+		if err := os.MkdirAll(i.CacheDir, os.ModeDir); err != nil {
+			logrus.Error("make cache dir error", err.Error())
+		}
+	}
 	os.Chown(i.CacheDir, 200, 200)
 	os.Chown(i.TGZDir, 200, 200)
 	return nil
@@ -317,14 +325,6 @@ func (i *SourceCodeBuildItem) buildCode() error {
 		"--name", buildName}
 	logrus.Debugf("build cmd is %v", cmd)
 	if len(i.BuildEnvs) != 0 {
-		if i.BuildEnvs["NO_CACHE"] == "true" {
-			if err := os.RemoveAll(i.CacheDir); err != nil {
-				logrus.Error("remove cache dir error", err.Error())
-			}
-			if err := os.MkdirAll(i.CacheDir, os.ModeDir); err != nil {
-				logrus.Error("make cache dir error", err.Error())
-			}
-		}
 		buildEnvStr := ""
 		mm := []string{}
 		for k, v := range i.BuildEnvs {
