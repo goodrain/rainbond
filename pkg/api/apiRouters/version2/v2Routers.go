@@ -82,6 +82,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Mount("/plugin/{plugin_id}", v2.pluginRouter())
 	r.Mount("/sources", v2.defineSourcesRouter())
 	r.Get("/event", controller.GetManager().Event)
+	r.Get("/chargesverify", controller.ChargesVerifyController)
 
 	return r
 }

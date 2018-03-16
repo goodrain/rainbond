@@ -59,6 +59,7 @@ func InitTenant(next http.Handler) http.Handler {
 		}
 		ctx := context.WithValue(r.Context(), ContextKey("tenant_name"), tenantName)
 		ctx = context.WithValue(ctx, ContextKey("tenant_id"), tenant.UUID)
+		ctx = context.WithValue(ctx, ContextKey("tenant"), tenant)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)
