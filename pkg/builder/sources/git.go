@@ -152,7 +152,7 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 		if strings.Contains(csi.RepositoryURL, "github.com") && os.Getenv("GITHUB_PROXY") != "" {
 			proxyURL, _ := url.Parse(os.Getenv("GITHUB_PROXY"))
 			customClient := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
-			customClient.Timeout = time.Second * 10
+			customClient.Timeout = time.Minute * time.Duration(timeout)
 			client.InstallProtocol("https", githttp.NewClient(customClient))
 			defer func() {
 				client.InstallProtocol("https", githttp.DefaultClient)
