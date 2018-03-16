@@ -369,8 +369,10 @@ class RepoBuilder():
             try:
                 shutil.rmtree(self.cache_dir)
                 os.makedirs(self.cache_dir)
+                os.chown(self.cache_dir, 200, 200)
                 self.log.debug(
                     "清理缓存目录{0}".format(self.cache_dir), step="build_code")
+                
             except Exception as e:
                 self.log.error(
                     "清理缓存目录{0}失败{1}".format(self.cache_dir, e.message),
