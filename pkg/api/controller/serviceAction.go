@@ -213,8 +213,6 @@ func handleStatus(status int, err error, w http.ResponseWriter, r *http.Request)
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
-
-	logrus.Debugf("trans start service")
 	rules := validator.MapData{
 		"event_id": []string{},
 	}
@@ -222,7 +220,15 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
+	// TODO:
+	// if os.Getenv("PUBLIC_CLOUD") == "true" {
+	// 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	// 	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
+	// 	if err := publiccloud.ChargeSverify(tenant, service.ContainerMemory*service.Replicas, "start"); err != nil {
+	// 		err.Handle(r, w)
+	// 		return
+	// 	}
+	// }
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 

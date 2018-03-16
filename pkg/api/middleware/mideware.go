@@ -87,6 +87,7 @@ func InitService(next http.Handler) http.Handler {
 		serviceID := service.ServiceID
 		ctx := context.WithValue(r.Context(), ContextKey("service_alias"), serviceAlias)
 		ctx = context.WithValue(ctx, ContextKey("service_id"), serviceID)
+		ctx = context.WithValue(ctx, ContextKey("service"), service)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)

@@ -19,14 +19,12 @@
 package controller
 
 import (
-	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 
-	"github.com/pquerna/ffjson/ffjson"
+	"github.com/goodrain/rainbond/pkg/api/handler/publiccloud"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/pkg/db"
 	"github.com/goodrain/rainbond/pkg/db/model"
 
@@ -58,8 +56,8 @@ import (
 func ChargesVerifyController(w http.ResponseWriter, r *http.Request) {
 
 	if publicCloud := os.Getenv("PUBLIC_CLOUD"); publicCloud != "true" {
-
 		httputil.ReturnSuccess(r, w, nil)
+		return
 	}
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*model.Tenants)
 	if tenant.EID == "" {
@@ -80,35 +78,15 @@ func ChargesVerifyController(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 400, "quantity  can not found")
 		return
 	}
+	quantityInt, err := strconv.Atoi(quantity)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, "quantity type must be int")
+		return
+	}
 	reason := r.FormValue("reason")
-	api := fmt.Sprintf("%s/openapi/v1/enterprises/%s/memory-apply?quantity=%s&tid=%s&reason=%s", cloudAPI, tenant.EID, quantity, tenant.UUID, reason)
-	req, err := http.NewRequest("GET", api, nil)
-	if err != nil {
-		logrus.Error("create request cloud api error", err.Error())
-		httputil.ReturnError(r, w, 400, "create request cloud api error")
+	if err := publiccloud.ChargeSverify(tenant, quantityInt, reason); err != nil {
+		err.Handle(r, w)
 		return
 	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		logrus.Error("create request cloud api error", err.Error())
-		httputil.ReturnError(r, w, 400, "create request cloud api error")
-		return
-	}
-	if res.StatusCode == 200 {
-		httputil.ReturnSuccess(r, w, nil)
-		return
-	}
-	if res.Body != nil {
-		defer res.Body.Close()
-		rebody, _ := ioutil.ReadAll(res.Body)
-		var re = make(map[string]interface{})
-		if err := ffjson.Unmarshal(rebody, &re); err == nil {
-			if msg, ok := re["msg"]; ok {
-				httputil.ReturnError(r, w, res.StatusCode, msg.(string))
-				return
-			}
-		}
-	}
-	httputil.ReturnError(r, w, res.StatusCode, "none")
-	return
+	httputil.ReturnSuccess(r, w, nil)
 }
