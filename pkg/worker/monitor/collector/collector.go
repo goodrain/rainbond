@@ -107,8 +107,8 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	}
 	//获取内存使用情况
 	for _, service := range services {
-		if status, ok := status[service.ServiceID]; ok {
-			e.memoryUse.WithLabelValues(service.TenantID, service.ServiceID, status).Set(float64(service.ContainerMemory * service.Replicas))
+		if _, ok := status[service.ServiceID]; ok {
+			e.memoryUse.WithLabelValues(service.TenantID, service.ServiceID).Set(float64(service.ContainerMemory * service.Replicas))
 		}
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.memory")
@@ -155,7 +155,7 @@ func New(statusManager status.ServiceStatusManager, cache *cache.DiskCache) *Exp
 			Namespace: namespace,
 			Name:      "appmemory",
 			Help:      "tenant service memory used.",
-		}, []string{"tenant_id", "service_id", "service_status"}),
+		}, []string{"tenant_id", "service_id"}),
 		fsUse: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Name:      "appfs",
