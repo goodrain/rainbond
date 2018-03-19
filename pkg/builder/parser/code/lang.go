@@ -63,6 +63,9 @@ var NO Lang = "no"
 //Dockerfile Lang
 var Dockerfile Lang = "dockerfile"
 
+//Docker Lang
+var Docker Lang = "docker"
+
 //Python Lang
 var Python Lang = "Python"
 

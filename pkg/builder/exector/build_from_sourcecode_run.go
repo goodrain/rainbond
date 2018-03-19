@@ -157,7 +157,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	info := fmt.Sprintf("版本:%s 上传者:%s Commit:%s ", commit.Hash.String()[0:7], commit.Author.Name, commit.Message)
 	i.Logger.Info(info, map[string]string{"step": "code-version"})
 
-	if i.Lang == string(code.Dockerfile) {
+	if i.Lang == string(code.Dockerfile) || i.Lang == string(code.Docker) {
 		i.Logger.Info("代码识别出Dockerfile,直接构建镜像。", map[string]string{"step": "builder-exector"})
 		if err := i.buildImage(); err != nil {
 			logrus.Errorf("build from dockerfile error: %s", err.Error())
@@ -171,7 +171,6 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 			i.Logger.Error("编译代码包过程遇到异常", map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
-
 	}
 	i.Logger.Info("应用同步完成，开始启动应用", map[string]string{"step": "build-exector"})
 	if err := apiHandler.UpgradeService(i.TenantName, i.ServiceAlias, i.CreateUpgradeTaskBody()); err != nil {
