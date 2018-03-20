@@ -64,14 +64,13 @@ func GetCmds() []cli.Command {
 func Common(c *cli.Context) {
 	config, err := conf.LoadConfig(c)
 	if err != nil {
-		logrus.Warnf("Load config file error.", err.Error())
+		logrus.Warn("Load config file error.", err.Error())
 	}
-
-	if err := clients.InitClient(*config.Kubernets); err != nil {
+	if err := clients.InitClient(c.GlobalString("kubeconfig")); err != nil {
 		logrus.Errorf("error config k8s,details %s", err.Error())
 	}
 	//clients.SetInfo(config.RegionAPI.URL, config.RegionAPI.Token)
-	if err := clients.InitRegionClient(*config.RegionAPI); err != nil {
+	if err := clients.InitRegionClient(config.RegionAPI); err != nil {
 		logrus.Warnf("error config region")
 	}
 	if err := clients.InitNodeClient("http://127.0.0.1:6100/v2"); err != nil {

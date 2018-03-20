@@ -299,21 +299,18 @@ func getAppInfoV2(c *cli.Context) error {
 	// http://dev.goodrain.org/#/team/x749pdls/region/private-center/app/gr7c6929/overview
 	var tenantName, serviceAlias string
 	if strings.HasPrefix(value, "http") {
-		url, err := url.Parse(value)
-		if err != nil {
-			logrus.Error("Parse the app url error.", err.Error())
+		fmt.Println(value)
+		info := strings.Split(value, "#")
+		if len(info) < 2 {
+			return errors.New("参数错误")
 		}
-		paths := strings.Split(url.Path[1:], "/")
+		paths := strings.Split(info[1], "/")
 		if len(paths) < 7 {
 			logrus.Error("参数错误")
 			return errors.New("参数错误")
 		}
-		if paths[0] == "#" {
-			tenantName = paths[2]
-			serviceAlias = paths[6]
-		} else {
-			logrus.Error("The app url is not valid", paths[0])
-		}
+		tenantName = paths[2]
+		serviceAlias = paths[6]
 	} else if strings.Contains(value, "/") {
 		paths := strings.Split(value, "/")
 		if len(paths) < 2 {

@@ -19,20 +19,30 @@
 package clients
 
 import (
+	"path"
+
+	"github.com/goodrain/rainbond/pkg/builder/sources"
+
 	"github.com/Sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
-	"github.com/goodrain/rainbond/cmd/grctl/option"
-	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
+//K8SClient K8SClient
 var K8SClient *kubernetes.Clientset
 
-func InitClient(kube option.Kubernets) error {
-	var config rest.Config
-	config.Host = kube.Master
-	// creates the clientset
-	var err error
-	K8SClient, err = kubernetes.NewForConfig(&config)
+//InitClient init k8s client
+func InitClient(kubeconfig string) error {
+	if kubeconfig == "" {
+		homePath, _ := sources.Home()
+		kubeconfig = path.Join(homePath, ".kube/config")
+	}
+	// use the current context in kubeconfig
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		panic(err.Error())
+	}
+	K8SClient, err = kubernetes.NewForConfig(config)
 	if err != nil {
 		logrus.Error("Create kubernetes client error.", err.Error())
 		return err
