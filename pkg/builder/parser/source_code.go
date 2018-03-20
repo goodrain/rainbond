@@ -365,6 +365,7 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 			}
 		}
 	}
-
+	// dockerfile empty args
+	d.args = []string{}
 	return true
 }

@@ -36,7 +36,7 @@ type OpentsdbStruct struct{}
 func (tsdb *OpentsdbStruct) TsdbQuery(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/opentsdb/query v2 oentsdbquery
 	//
-	// 监控数据查询
+	// 监控数据查询(废弃)
 	//
 	// query opentsdb
 	//

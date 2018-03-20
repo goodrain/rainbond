@@ -456,7 +456,7 @@ func (n *nginxAPI) addDomain(ads *AddDomainS) bool {
 		Method:   MethodPOST,
 	}
 	n.pHTTP(pha)
-	if !bytes.HasPrefix([]byte(ads.Domain), []byte(fmt.Sprintf("%s.%s", p.Port, p.Servicename))) {
+	if !strings.HasPrefix(ads.Domain, fmt.Sprintf("%s.%s", p.Port, p.Servicename)) {
 		if ads.HTTPS && ads.CertificateName != "" {
 			httpsInfo := bytes.NewBuffer(nil)
 			httpsInfo.WriteString(`https=https`)
@@ -783,7 +783,7 @@ func (n *nginxAPI) drainPool(dps *DrainPoolS) bool {
 
 func (n *nginxAPI) pHTTPDomain(domain string, p *MethodHTTPArgs) {
 	for _, baseURL := range splitURL(n.ctx.Option["httpapi"]) {
-		url := fmt.Sprintf("%s/server/%s", baseURL, domain)
+		url := fmt.Sprintf("%s/server/%s/%s", baseURL, domain, p.PoolName)
 		resp, err := n.urlPPAction(p.Method, url, p.UpStream)
 		if err != nil {
 			logrus.Error(err)

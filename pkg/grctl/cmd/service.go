@@ -17,28 +17,30 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package cmd
+
 import (
-	"github.com/urfave/cli"
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/pkg/grctl/clients"
-	"strings"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
-	"github.com/tidwall/gjson"
 	"fmt"
 	"net/url"
-	"github.com/gorilla/websocket"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"encoding/json"
-	"github.com/apcera/termtables"
-	"github.com/gosuri/uitable"
-	"time"
-	"github.com/goodrain/rainbond/pkg/api/util"
 	"os"
-	"strconv"
-	"crypto/sha256"
 	"os/exec"
-	"github.com/goodrain/rainbond/cmd/grctl/option"
 	"path"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/apcera/termtables"
+	"github.com/goodrain/rainbond/cmd/grctl/option"
+	"github.com/goodrain/rainbond/pkg/api/util"
+	"github.com/goodrain/rainbond/pkg/grctl/clients"
+	"github.com/gorilla/websocket"
+	"github.com/gosuri/uitable"
+	"github.com/tidwall/gjson"
+	"github.com/urfave/cli"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func NewCmdService() cli.Command {
@@ -78,7 +80,6 @@ func NewCmdService() cli.Command {
 					Common(c)
 					return startService(c)
 				},
-
 			},
 			cli.Command{
 				Name:  "stop",
@@ -131,13 +132,11 @@ func NewCmdService() cli.Command {
 				},
 			},
 		},
-
 	}
 	return c
 }
 
-
-func GetEventLogf(eventID ,server string) {
+func GetEventLogf(eventID, server string) {
 
 	//if c.String("event_log_server") != "" {
 	//	server = c.String("event_log_server")
@@ -197,38 +196,37 @@ func getEventLog(c *cli.Context) error {
 			fmt.Printf("[%s](%s) %s \n", strings.ToUpper(level), time, m)
 		}
 	} else {
-		ts:=c.Args().Get(1)
-		tas:=strings.Split(ts,"/")
-		dl,err:=clients.RegionClient.Tenants().Get(tas[0]).Services().EventLog(tas[1],eventID,"debug")
+		ts := c.Args().Get(1)
+		tas := strings.Split(ts, "/")
+		dl, err := clients.RegionClient.Tenants().Get(tas[0]).Services().EventLog(tas[1], eventID, "debug")
 		if err != nil {
 			return err
 		}
 
-		for _,v:=range dl{
-			aa,_:=json.Marshal(v)
+		for _, v := range dl {
+			aa, _ := json.Marshal(v)
 			fmt.Println(string(aa))
 		}
 	}
 	return nil
 }
 
-
-func stopTenantService(c *cli.Context) error  {
+func stopTenantService(c *cli.Context) error {
 	//GET /v2/tenants/{tenant_name}/services/{service_alias}
 	//POST /v2/tenants/{tenant_name}/services/{service_alias}/stop
 
 	tenantID := c.Args().First()
-	eventID:=c.Args().Get(1)
-	services,err:=clients.RegionClient.Tenants().Get(tenantID).Services().List()
+	eventID := c.Args().Get(1)
+	services, err := clients.RegionClient.Tenants().Get(tenantID).Services().List()
 	handleErr(err)
-	for _,service:=range services{
-		err:=clients.RegionClient.Tenants().Get(tenantID).Services().Stop(service.ServiceAlias,eventID)
+	for _, service := range services {
+		err := clients.RegionClient.Tenants().Get(tenantID).Services().Stop(service.ServiceAlias, eventID)
 		if c.Bool("f") {
 			server := "127.0.0.1:6363"
 			if c.String("event_log_server") != "" {
 				server = c.String("event_log_server")
 			}
-			GetEventLogf(eventID,server)
+			GetEventLogf(eventID, server)
 		}
 		//err = region.StopService(service["service_id"].(string), service["deploy_version"].(string))
 		if err != nil {
@@ -239,7 +237,7 @@ func stopTenantService(c *cli.Context) error  {
 	return nil
 }
 
-func startService(c *cli.Context) error  {
+func startService(c *cli.Context) error {
 	//GET /v2/tenants/{tenant_name}/services/{service_alias}
 	//POST /v2/tenants/{tenant_name}/services/{service_alias}/stop
 
@@ -247,22 +245,21 @@ func startService(c *cli.Context) error  {
 	serviceAlias := c.Args().First()
 	info := strings.Split(serviceAlias, "/")
 
-	eventID:=c.Args().Get(1)
+	eventID := c.Args().Get(1)
 
-
-	service,err:=clients.RegionClient.Tenants().Get(info[0]).Services().Get(info[1])
+	service, err := clients.RegionClient.Tenants().Get(info[0]).Services().Get(info[1])
 	handleErr(err)
-	if service==nil {
-		return errors.New("应用不存在:"+info[1])
+	if service == nil {
+		return errors.New("应用不存在:" + info[1])
 	}
-	err=clients.RegionClient.Tenants().Get(info[0]).Services().Start(info[1],eventID)
+	err = clients.RegionClient.Tenants().Get(info[0]).Services().Start(info[1], eventID)
 	handleErr(err)
 	if c.Bool("f") {
 		server := "127.0.0.1:6363"
 		if c.String("event_log_server") != "" {
 			server = c.String("event_log_server")
 		}
-		GetEventLogf(eventID,server)
+		GetEventLogf(eventID, server)
 	}
 
 	//err = region.StopService(service["service_id"].(string), service["deploy_version"].(string))
@@ -273,26 +270,25 @@ func startService(c *cli.Context) error  {
 	return nil
 }
 
-
 func stopService(c *cli.Context) error {
 
 	serviceAlias := c.Args().First()
 	info := strings.Split(serviceAlias, "/")
 
-	eventID:=c.Args().Get(1)
-	service,err:=clients.RegionClient.Tenants().Get(info[0]).Services().Get(info[1])
+	eventID := c.Args().Get(1)
+	service, err := clients.RegionClient.Tenants().Get(info[0]).Services().Get(info[1])
 	handleErr(err)
-	if service==nil {
-		return errors.New("应用不存在:"+info[1])
+	if service == nil {
+		return errors.New("应用不存在:" + info[1])
 	}
-	err=clients.RegionClient.Tenants().Get(info[0]).Services().Stop(info[1],eventID)
+	err = clients.RegionClient.Tenants().Get(info[0]).Services().Stop(info[1], eventID)
 	handleErr(err)
 	if c.Bool("f") {
 		server := "127.0.0.1:6363"
 		if c.String("event_log_server") != "" {
 			server = c.String("event_log_server")
 		}
-		GetEventLogf(eventID,server)
+		GetEventLogf(eventID, server)
 	}
 	return nil
 }
@@ -300,6 +296,7 @@ func stopService(c *cli.Context) error {
 func getAppInfoV2(c *cli.Context) error {
 	value := c.Args().First()
 	// https://user.goodrain.com/apps/goodrain/dev-debug/detail/
+	// http://dev.goodrain.org/#/team/x749pdls/region/private-center/app/gr7c6929/overview
 	var tenantName, serviceAlias string
 	if strings.HasPrefix(value, "http") {
 		url, err := url.Parse(value)
@@ -307,13 +304,13 @@ func getAppInfoV2(c *cli.Context) error {
 			logrus.Error("Parse the app url error.", err.Error())
 		}
 		paths := strings.Split(url.Path[1:], "/")
-		if len(paths) < 2 {
+		if len(paths) < 7 {
 			logrus.Error("参数错误")
 			return errors.New("参数错误")
 		}
-		if paths[0] == "apps" {
-			tenantName = paths[1]
-			serviceAlias = paths[2]
+		if paths[0] == "#" {
+			tenantName = paths[2]
+			serviceAlias = paths[6]
 		} else {
 			logrus.Error("The app url is not valid", paths[0])
 		}
@@ -328,7 +325,7 @@ func getAppInfoV2(c *cli.Context) error {
 	} else {
 		serviceAlias = value
 	}
-	service,err := clients.RegionClient.Tenants().Get(tenantName).Services().Get(serviceAlias)
+	service, err := clients.RegionClient.Tenants().Get(tenantName).Services().Get(serviceAlias)
 	handleErr(err)
 	if service == nil {
 		fmt.Println("not found")
@@ -362,7 +359,7 @@ func getAppInfoV2(c *cli.Context) error {
 	//serviceOption := metav1.ListOptions{LabelSelector: "spec.selector.name="+"gr2a2e1b" }
 
 	services, error := clients.K8SClient.Core().Services(tenantID).List(serviceOption)
-	handleErr(util.CreateAPIHandleError(500,error))
+	handleErr(util.CreateAPIHandleError(500, error))
 
 	serviceTable := termtables.CreateTable()
 	serviceTable.AddHeaders("Name", "IP", "Port")
@@ -477,6 +474,7 @@ func GetServiceAliasID(ServiceID string) string {
 	}
 	return ServiceID
 }
+
 // grctrl log SERVICE_ID
 func getLogInfo(c *cli.Context) error {
 	value := c.Args().Get(0)
