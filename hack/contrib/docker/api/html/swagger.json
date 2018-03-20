@@ -1152,6 +1152,50 @@
         }
       }
     },
+    "/v2/resources/services": {
+      "post": {
+        "description": "get service resources",
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "应用资源使用情况",
+        "operationId": "serviceResources",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "required": [
+                "service_ids"
+              ],
+              "properties": {
+                "service_ids": {
+                  "description": "in: body",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "x-go-name": "ServiceIDs"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
     "/v2/resources/tenants": {
       "post": {
         "description": "get tenant resources",
@@ -1180,7 +1224,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "x-go-name": "TenantName"
+                  "x-go-name": "TenantNames"
                 }
               }
             }
@@ -1281,6 +1325,30 @@
       }
     },
     "/v2/tenants": {
+      "get": {
+        "description": "get tenant",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取所有租户信息",
+        "operationId": "getTenants",
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
       "post": {
         "description": "add tenant",
         "consumes": [
@@ -1368,6 +1436,32 @@
         }
       }
     },
+    "/v2/tenants/{tenant_name}/chargesverify": {
+      "post": {
+        "description": "service charges verify",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "应用扩大资源申请接口，公有云云市验证，私有云不验证",
+        "operationId": "chargesverify",
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
     "/v2/tenants/{tenant_name}/cloud-share": {
       "post": {
         "description": "share cloud",
@@ -1382,7 +1476,7 @@
         "tags": [
           "v2"
         ],
-        "summary": "云市分享",
+        "summary": "云市分享 （v3.5弃用）",
         "operationId": "sharecloud",
         "parameters": [
           {
@@ -2818,6 +2912,33 @@
                 "service_type": {
                   "type": "string",
                   "x-go-name": "ServiceType"
+                },
+                "slug_info": {
+                  "description": "用于云市代码包创建",
+                  "type": "object",
+                  "properties": {
+                    "ftp_host": {
+                      "type": "string",
+                      "x-go-name": "FTPHost"
+                    },
+                    "ftp_password": {
+                      "type": "string",
+                      "x-go-name": "FTPPassword"
+                    },
+                    "ftp_port": {
+                      "type": "string",
+                      "x-go-name": "FTPPort"
+                    },
+                    "ftp_username": {
+                      "type": "string",
+                      "x-go-name": "FTPUser"
+                    },
+                    "slug_path": {
+                      "type": "string",
+                      "x-go-name": "SlugPath"
+                    }
+                  },
+                  "x-go-name": "SlugInfo"
                 },
                 "tenant_name": {
                   "type": "string",
@@ -5424,6 +5545,150 @@
                   "description": "标签值,格式为\"v1\"\nin: bod",
                   "type": "string",
                   "x-go-name": "LabelValues"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      }
+    },
+    "/v2/tenants/{tenant_name}/services/{service_alias}/share": {
+      "get": {
+        "description": "share service",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "获取分享应用介质结果",
+        "operationId": "get_share_result",
+        "responses": {
+          "default": {
+            "description": "统一返回格式",
+            "schema": {
+              "$ref": "#/responses/commandResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "share service",
+        "consumes": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "produces": [
+          "application/json",
+          "application/xml"
+        ],
+        "tags": [
+          "v2"
+        ],
+        "summary": "分享应用介质",
+        "operationId": "shareService",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "TenantName",
+            "name": "tenant_name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "ServiceAlias",
+            "name": "service_alias",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "app_version": {
+                  "type": "string",
+                  "x-go-name": "AppVersion"
+                },
+                "event_id": {
+                  "type": "string",
+                  "x-go-name": "EventID"
+                },
+                "image_info": {
+                  "type": "object",
+                  "properties": {
+                    "hub_password": {
+                      "type": "string",
+                      "x-go-name": "HubPassword"
+                    },
+                    "hub_url": {
+                      "type": "string",
+                      "x-go-name": "HubURL"
+                    },
+                    "hub_user": {
+                      "type": "string",
+                      "x-go-name": "HubUser"
+                    },
+                    "namespace": {
+                      "type": "string",
+                      "x-go-name": "Namespace"
+                    }
+                  },
+                  "x-go-name": "ImageInfo"
+                },
+                "service_key": {
+                  "description": "in: body\n应用分享Key",
+                  "type": "string",
+                  "x-go-name": "ServiceKey"
+                },
+                "share_scope": {
+                  "type": "string",
+                  "x-go-name": "ShareScope"
+                },
+                "share_user": {
+                  "type": "string",
+                  "x-go-name": "ShareUser"
+                },
+                "slug_info": {
+                  "type": "object",
+                  "properties": {
+                    "ftp_host": {
+                      "type": "string",
+                      "x-go-name": "FTPHost"
+                    },
+                    "ftp_password": {
+                      "type": "string",
+                      "x-go-name": "FTPPassword"
+                    },
+                    "ftp_port": {
+                      "type": "string",
+                      "x-go-name": "FTPPort"
+                    },
+                    "ftp_username": {
+                      "type": "string",
+                      "x-go-name": "FTPUser"
+                    },
+                    "namespace": {
+                      "type": "string",
+                      "x-go-name": "Namespace"
+                    }
+                  },
+                  "x-go-name": "SlugInfo"
                 }
               }
             }
