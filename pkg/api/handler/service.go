@@ -1554,8 +1554,18 @@ func (s *ServiceAction) ServiceProbe(tsp *dbmodel.ServiceProbe, action string) e
 			return err
 		}
 	case "update":
-		if err := db.GetManager().ServiceProbeDao().UpdateModel(tsp); err != nil {
+		probes, err := db.GetManager().ServiceProbeDao().GetServiceProbes(tsp.ServiceID)
+		if err != nil {
 			return err
+		}
+		for _, p := range probes {
+			if p.Mode == tsp.Mode {
+				tsp.ID = p.ID
+				if err := db.GetManager().ServiceProbeDao().UpdateModel(tsp); err != nil {
+					return err
+				}
+				return nil
+			}
 		}
 	case "delete":
 		if err := db.GetManager().ServiceProbeDao().DeleteModel(tsp.ServiceID, tsp.ProbeID); err != nil {
