@@ -45,7 +45,7 @@ func TestBuildImage(t *testing.T) {
 		Tags:   []string{"goodrain.me/gr1e1a6c_goodrain-apps_mysql:20180307135753"},
 		Remove: true,
 	}
-	if err := ImageBuild(dc, "/tmp/gost/mysql/5.5", buildOptions, nil, 5); err != nil {
+	if err := ImageBuild(dc, "/Users/qingguo/tmp/nginx", buildOptions, nil, 1); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -221,7 +221,7 @@ func (i *SourceCodeBuildItem) buildImage() error {
 		buildOptions.NoCache = false
 	}
 	i.Logger.Info("开始构建镜像", map[string]string{"step": "builder-exector"})
-	err = sources.ImageBuild(i.DockerClient, i.RepoInfo.GetCodeBuildAbsPath(), buildOptions, i.Logger, 3)
+	err = sources.ImageBuild(i.DockerClient, i.RepoInfo.GetCodeBuildAbsPath(), buildOptions, i.Logger, 5)
 	if err != nil {
 		i.Logger.Error(fmt.Sprintf("构造镜像%s失败: %s", buildImageName, err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())
@@ -237,12 +237,13 @@ func (i *SourceCodeBuildItem) buildImage() error {
 		RegistryAuth: auth,
 	}
 	i.Logger.Info("镜像构建成功，开始推送镜像至仓库", map[string]string{"step": "builder-exector"})
-	err = sources.ImagePush(i.DockerClient, buildImageName, ipo, i.Logger, 2)
+	err = sources.ImagePush(i.DockerClient, buildImageName, ipo, i.Logger, 5)
 	if err != nil {
 		i.Logger.Error("推送镜像失败", map[string]string{"step": "builder-exector"})
 		logrus.Errorf("push image error: %s", err.Error())
 		return err
 	}
+	i.Logger.Info("镜像推送镜像至仓库成功", map[string]string{"step": "builder-exector"})
 	//更新应用的镜像名称
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(i.ServiceID)
 	if err != nil {

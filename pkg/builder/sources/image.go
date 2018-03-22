@@ -158,13 +158,21 @@ func ImagePush(dockerCli *client.Client, image string, opts types.ImagePushOptio
 		defer readcloser.Close()
 		r := bufio.NewReader(readcloser)
 		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
 			if line, _, err := r.ReadLine(); err == nil {
 				if logger != nil {
 					//进度信息
 					logger.Debug(string(line), map[string]string{"step": "progress"})
 				}
 			} else {
-				break
+				if err.Error() == "EOF" {
+					return nil
+				}
+				return err
 			}
 		}
 	}
@@ -214,6 +222,11 @@ func ImageBuild(dockerCli *client.Client, contextDir string, options types.Image
 		defer rc.Body.Close()
 		r := bufio.NewReader(rc.Body)
 		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
 			if line, _, err := r.ReadLine(); err == nil {
 				if len(line) > 0 {
 					message := strings.Replace(string(line), "\n", "", -1)
@@ -228,7 +241,10 @@ func ImageBuild(dockerCli *client.Client, contextDir string, options types.Image
 					}
 				}
 			} else {
-				break
+				if err.Error() == "EOF" {
+					return nil
+				}
+				return err
 			}
 		}
 	}
