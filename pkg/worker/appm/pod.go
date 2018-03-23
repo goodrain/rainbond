@@ -21,6 +21,7 @@ package appm
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/goodrain/rainbond/pkg/db"
@@ -318,7 +319,7 @@ func (p *PodTemplateSpecBuild) createContainer(volumeMounts []v1.VolumeMount, en
 		ReadinessProbe:         p.createProbe("readiness"),
 		LivenessProbe:          p.createProbe("liveness"),
 		VolumeMounts:           volumeMounts,
-		Args:                   p.createArgs(),
+		Args:                   p.createArgs(*envs),
 	}
 	containers = append(containers, c1)
 
@@ -342,14 +343,41 @@ func (p *PodTemplateSpecBuild) createContainer(volumeMounts []v1.VolumeMount, en
 	}
 	return containers
 }
-func (p *PodTemplateSpecBuild) createArgs() (args []string) {
+func (p *PodTemplateSpecBuild) createArgs(envs []v1.EnvVar) (args []string) {
 	if p.service.ContainerCMD == "" {
 		return
 	}
-	args = strings.Split(p.service.ContainerCMD, " ")
+	cmd := p.service.ContainerCMD
+	var reg = regexp.MustCompile(`(?U)\$\{.*\}`)
+	resultKey := reg.FindAllString(cmd, -1)
+	for _, rk := range resultKey {
+		value := getenv(GetConfigKey(rk), envs)
+		cmd = strings.Replace(cmd, rk, value, -1)
+	}
+	args = strings.Split(cmd, " ")
 	args = util.RemoveSpaces(args)
 	return args
 }
+
+//GetConfigKey 获取配置key
+func GetConfigKey(rk string) string {
+	if len(rk) < 4 {
+		return ""
+	}
+	left := strings.Index(rk, "{")
+	right := strings.Index(rk, "}")
+	return rk[left+1 : right]
+}
+
+func getenv(key string, envs []v1.EnvVar) string {
+	for _, env := range envs {
+		if env.Name == key {
+			return env.Value
+		}
+	}
+	return ""
+}
+
 func (p *PodTemplateSpecBuild) createProbe(mode string) *v1.Probe {
 	//TODO:应用创建时如果有开端口，创建默认探针
 	probe, err := p.dbmanager.ServiceProbeDao().GetServiceUsedProbe(p.serviceID, mode)

@@ -19,10 +19,14 @@
 package appm
 
 import (
+	"fmt"
+	"regexp"
+	"strings"
+	"testing"
+
 	"github.com/goodrain/rainbond/pkg/db"
 	dbconfig "github.com/goodrain/rainbond/pkg/db/config"
 	"github.com/goodrain/rainbond/pkg/event"
-	"testing"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -39,7 +43,7 @@ func init() {
 	})
 }
 func TestCreateEnv(t *testing.T) {
-	builder, err := PodTemplateSpecBuilder("2f29882148c19f5f84e3a7cedf6097c7", event.GetManager().GetLogger("system"))
+	builder, err := PodTemplateSpecBuilder("2f29882148c19f5f84e3a7cedf6097c7", event.GetManager().GetLogger("system"), "string")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +55,7 @@ func TestCreateEnv(t *testing.T) {
 }
 
 func TestBuild(t *testing.T) {
-	builder, err := PodTemplateSpecBuilder("2f29882148c19f5f84e3a7cedf6097c7", event.GetManager().GetLogger("system"))
+	builder, err := PodTemplateSpecBuilder("2f29882148c19f5f84e3a7cedf6097c7", event.GetManager().GetLogger("system"), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,4 +64,17 @@ func TestBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(temp)
+}
+
+func TestArgsBuild(t *testing.T) {
+	cmd := "docker build ${ABC}sadas ${CCD}"
+	var reg = regexp.MustCompile(`(?U)\$\{.*\}`)
+	resultKey := reg.FindAllString(cmd, -1)
+	envs := map[string]string{"ABC": "asdasd", "CCD": "asdasdsssss"}
+	for _, rk := range resultKey {
+		value := envs[GetConfigKey(rk)]
+		cmd = strings.Replace(cmd, rk, value, -1)
+	}
+	args := strings.Split(cmd, " ")
+	fmt.Println(args)
 }
