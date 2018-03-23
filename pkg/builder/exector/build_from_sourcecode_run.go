@@ -228,7 +228,7 @@ func (i *SourceCodeBuildItem) buildImage() error {
 		return err
 	}
 	// check image exist
-	_, err := sources.ImageInspectWithRaw(i.DestImage, buildImageName)
+	_, err = sources.ImageInspectWithRaw(i.DockerClient, buildImageName)
 	if err != nil {
 		i.Logger.Error(fmt.Sprintf("构造镜像%s失败,请查看Debug日志", buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("get image inspect error: %s", err.Error())
