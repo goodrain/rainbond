@@ -250,3 +250,14 @@ func ImageBuild(dockerCli *client.Client, contextDir string, options types.Image
 	}
 	return nil
 }
+
+//ImageInspectWithRaw get image inspect
+func ImageInspectWithRaw(dockerCli *client.Client, image string) (*types.ImageInspect, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ins, _, err := dockerCli.ImageInspectWithRaw(ctx, image, false)
+	if err != nil {
+		return nil, err
+	}
+	return &ins, nil
+}

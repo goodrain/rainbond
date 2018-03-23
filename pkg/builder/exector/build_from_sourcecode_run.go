@@ -223,10 +223,18 @@ func (i *SourceCodeBuildItem) buildImage() error {
 	i.Logger.Info("开始构建镜像", map[string]string{"step": "builder-exector"})
 	err = sources.ImageBuild(i.DockerClient, i.RepoInfo.GetCodeBuildAbsPath(), buildOptions, i.Logger, 5)
 	if err != nil {
-		i.Logger.Error(fmt.Sprintf("构造镜像%s失败: %s", buildImageName, err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
+		i.Logger.Error(fmt.Sprintf("构造镜像%s失败", buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())
 		return err
 	}
+	// check image exist
+	_, err := sources.ImageInspectWithRaw(i.DestImage, buildImageName)
+	if err != nil {
+		i.Logger.Error(fmt.Sprintf("构造镜像%s失败,请查看Debug日志", buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
+		logrus.Errorf("get image inspect error: %s", err.Error())
+		return err
+	}
+	// push image
 	auth, err := sources.EncodeAuthToBase64(types.AuthConfig{Username: "", Password: ""})
 	if err != nil {
 		logrus.Errorf("make auth base63 push image error: %s", err.Error())
