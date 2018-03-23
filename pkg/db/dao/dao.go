@@ -36,7 +36,8 @@ type TenantDao interface {
 	Dao
 	GetTenantByUUID(uuid string) (*model.Tenants, error)
 	GetTenantIDByName(tenantName string) (*model.Tenants, error)
-	GetALLTenants() ([]*model.Tenants, error)
+	GetALLTenants() ([]*model.Tenants, error)	
+	GetTenantByEid(eid string ) ([]*model.Tenants, error)
 	GetPagedTenants(offset, len int) ([]*model.Tenants, error)
 	GetTenantIDsByNames(names []string) ([]string, error)
 }

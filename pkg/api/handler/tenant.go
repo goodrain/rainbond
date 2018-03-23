@@ -66,6 +66,13 @@ func (t *TenantAction) GetTenants() ([]*dbmodel.Tenants, error) {
 	}
 	return tenants, err
 }
+func  (t *TenantAction) GetTenantsByEid(eid string) ([] *dbmodel.Tenants, error){
+	tenants, err := db.GetManager().TenantDao().GetTenantByEid(eid)
+	if err != nil {
+		return nil, err
+	}
+	return tenants, err
+}
 
 //GetTenantsPaged GetTenantsPaged
 func (t *TenantAction) GetTenantsPaged(offset, len int) ([]*dbmodel.Tenants, error) {

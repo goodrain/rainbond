@@ -85,6 +85,14 @@ func (t *TenantDaoImpl) GetALLTenants() ([]*model.Tenants, error) {
 	}
 	return tenants, nil
 }
+//GetTenantsByEid 
+func (t *TenantDaoImpl)	GetTenantByEid(eid string)([]*model.Tenants,error){
+	var tenants []*model.Tenants
+	if err := t.DB.Where("eid = ?", eid).Find(&tenants).Error; err != nil {
+		return nil, err
+	}
+	return tenants,nil
+}
 
 //GetTenantIDsByNames get tenant ids by names
 func (t *TenantDaoImpl) GetTenantIDsByNames(names []string) (re []string, err error) {

@@ -29,6 +29,7 @@ type TenantHandler interface {
 	GetTenants() ([]*dbmodel.Tenants, error)
 	GetTenantsPaged(offset, len int) ([]*dbmodel.Tenants, error)
 	GetTenantsByName(name string) (*dbmodel.Tenants, error)
+    GetTenantsByEid(eid string) ([]*dbmodel.Tenants, error)
 	GetTenantsByUUID(uuid string) (*dbmodel.Tenants, error)
 	GetTenantsName() ([]string, error)
 	StatsMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error)

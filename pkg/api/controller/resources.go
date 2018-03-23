@@ -361,7 +361,7 @@ func (t *TenantStruct) Tenant(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
 		t.AddTenant(w, r)
-	case "GET":
+	case "GET":	
 		t.GetTenants(w, r)
 	}
 }
@@ -475,12 +475,24 @@ func (t *TenantStruct) GetTenants(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	tenants, err := handler.GetTenantManager().GetTenants()
-	if err != nil {
+	   value:= r.FormValue("eid")
+	   id:=len(value)
+	  if id==0 {	 
+		tenants , err := handler.GetTenantManager().GetTenants()
+		if err != nil {
+			httputil.ReturnError(r, w, 500, "get tenant error")
+			return
+			}
+		httputil.ReturnSuccess(r, w, tenants)
+		return 
+	  }
+	
+	  tenants,err :=handler.GetTenantManager().GetTenantsByEid(value)
+	  if err!=nil{
 		httputil.ReturnError(r, w, 500, "get tenant error")
-		return
-	}
-	httputil.ReturnSuccess(r, w, tenants)
+		return 
+	  }
+	 httputil.ReturnSuccess(r, w, tenants)
 }
 
 //DeleteTenant DeleteTenant
