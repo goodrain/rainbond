@@ -72,32 +72,25 @@ type exectorManager struct {
 }
 
 //TaskType:
-//app_image 云市镜像构建
-//app_slug 云市代码包构建
-//image_manual 自定义镜像
-//code_check 代码检测
-//app_build 源码构建
+//build_from_image build app from docker image
+//build_from_source_code build app from source code
+//build_from_market_slug build app from app market by download slug
+//service_check check service source info
+//plugin_image_build build plugin from image
+//plugin_dockerfile_build build plugin from dockerfile
+//share-slug share app with slug
+//share-image share app with image
 func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 
 	switch task.TaskType {
-	case "app_image":
-		e.appImage(task.TaskBody)
 	case "build_from_image":
 		e.buildFromImage(task.TaskBody)
 	case "build_from_source_code":
 		e.buildFromSourceCode(task.TaskBody)
 	case "build_from_market_slug":
 		e.buildFromMarketSlug(task.TaskBody)
-	case "app_slug":
-		e.appSlug(task.TaskBody)
-	case "image_manual":
-		e.imageManual(task.TaskBody)
-	case "code_check":
-		e.codeCheck(task.TaskBody)
 	case "service_check":
 		go e.serviceCheck(task.TaskBody)
-	case "app_build":
-		e.appBuild(task.TaskBody)
 	case "plugin_image_build":
 		e.pluginImageBuild(task.TaskBody)
 	case "plugin_dockerfile_build":
@@ -112,42 +105,6 @@ func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 	return nil
 }
 
-const appImage = "plugins/app_image.pyc"
-const appSlug = "plugins/app_slug.pyc"
-const appBuild = "plugins/build_work.pyc"
-const codeCheck = "plugins/code_check.pyc"
-const imageManual = "plugins/image_manual.pyc"
-const pluginImage = "plugins/plugin_image.pyc"
-const pluginDockerfile = "plugins/plugin_dockerfile.pyc"
-
-func (e *exectorManager) appImage(in []byte) {
-	eventID := gjson.GetBytes(in, "event_id").String()
-	//dest := gjson.GetBytes(in, "dest").String()
-	//finalStatus:="failure"
-	logger := event.GetManager().GetLogger(eventID)
-	logger.Info("应用镜像构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
-	w := NewWorker(appImage, "", nil, in)
-	go func() {
-		logrus.Info("start exec app image worker")
-		defer event.GetManager().ReleaseLogger(logger)
-		for i := 0; i < 3; i++ {
-			_, err := w.run(time.Minute * 30)
-			if err != nil {
-				logrus.Errorf("exec app image python shell error:%s", err.Error())
-				if i < 2 {
-					logger.Info("应用镜像构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
-				} else {
-					logger.Info("应用镜像构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
-				}
-			} else {
-				//finalStatus="success"
-				//updateBuildResult(eventID,finalStatus,dest)
-				break
-			}
-		}
-	}()
-	//updateBuildResult(eventID,finalStatus,dest)
-}
 func (e *exectorManager) buildFromImage(in []byte) {
 	i := NewImageBuildItem(in)
 	i.DockerClient = e.DockerClient
@@ -237,111 +194,6 @@ func (e *exectorManager) buildFromMarketSlug(in []byte) {
 
 }
 
-func (e *exectorManager) appSlug(in []byte) {
-	eventID := gjson.GetBytes(in, "event_id").String()
-	logger := event.GetManager().GetLogger(eventID)
-	logger.Info("应用代码包构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
-	w := NewWorker(appSlug, "", nil, in)
-	go func() {
-		logrus.Info("start exec app slug worker")
-		defer event.GetManager().ReleaseLogger(logger)
-		for i := 0; i < 3; i++ {
-			_, err := w.run(time.Minute * 30)
-			if err != nil {
-				logrus.Errorf("exec app slug python shell error:%s", err.Error())
-				if i < 2 {
-					logger.Info("应用代码包构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
-				} else {
-					logger.Info("应用代码包构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
-				}
-			} else {
-				break
-			}
-		}
-	}()
-}
-func (e *exectorManager) imageManual(in []byte) {
-	eventID := gjson.GetBytes(in, "event_id").String()
-	logger := event.GetManager().GetLogger(eventID)
-	//dest := gjson.GetBytes(in, "dest").String()
-	//finalStatus:="failure"
-
-	logger.Info("应用镜像构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
-	w := NewWorker(imageManual, "", nil, in)
-	go func() {
-		defer event.GetManager().ReleaseLogger(logger)
-		logrus.Info("start exec image manual worker")
-		for i := 0; i < 3; i++ {
-			_, err := w.run(time.Minute * 30)
-			if err != nil {
-				logrus.Errorf("exec image manual python shell error:%s", err.Error())
-				if i < 2 {
-					logger.Info("应用镜像构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
-				} else {
-					logger.Info("应用镜像构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
-				}
-			} else {
-				//finalStatus="success"
-				//updateBuildResult(eventID,finalStatus,dest)
-				break
-			}
-		}
-	}()
-	//updateBuildResult(eventID,finalStatus,dest)
-}
-func (e *exectorManager) codeCheck(in []byte) {
-	eventID := gjson.GetBytes(in, "event_id").String()
-	logger := event.GetManager().GetLogger(eventID)
-	logger.Info("应用代码检测任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
-	w := NewWorker(codeCheck, "", nil, in)
-	go func() {
-		logrus.Info("start exec code check worker")
-		defer event.GetManager().ReleaseLogger(logger)
-		for i := 0; i < 3; i++ {
-			_, err := w.run(time.Minute * 30)
-			if err != nil {
-				logrus.Errorf("exec code check python shell error:%s", err.Error())
-				if i < 2 {
-					logger.Info("应用镜像构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
-				} else {
-					logger.Info("应用镜像构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
-				}
-			} else {
-				break
-			}
-		}
-	}()
-}
-func (e *exectorManager) appBuild(in []byte) {
-	eventID := gjson.GetBytes(in, "event_id").String()
-	//finalStatus:="failure"
-	//dest := gjson.GetBytes(in, "dest").String()
-	logger := event.GetManager().GetLogger(eventID)
-	logger.Info("应用编译构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
-
-	w := NewWorker(appBuild, "", nil, in)
-	go func() {
-		logrus.Info("start exec build app worker")
-		defer event.GetManager().ReleaseLogger(logger)
-		for i := 0; i < 3; i++ {
-			_, err := w.run(time.Minute * 30)
-			if err != nil {
-				logrus.Errorf("exec app build python shell error:%s", err.Error())
-				if i < 2 {
-					logger.Info("应用编译构建任务执行失败,开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
-				} else {
-					logger.Info("应用编译构建任务执行失败", map[string]string{"step": "callback", "status": "failure"})
-				}
-			} else {
-				//finalStatus="success"
-				//updateBuildResult(eventID,finalStatus,dest)
-				break
-			}
-		}
-	}()
-	//updateBuildResult(eventID,finalStatus,dest)
-}
-
 func (e *exectorManager) slugShare(in []byte) {
 	i, err := NewSlugShareItem(in, e.EtcdCli)
 	if err != nil {
@@ -400,56 +252,6 @@ func (e *exectorManager) imageShare(in []byte) {
 		}
 		if err := i.UpdateShareStatus(status); err != nil {
 			logrus.Debugf("Add image share result error: %s", err.Error())
-		}
-	}()
-}
-
-func (e *exectorManager) pluginImageBuild1(in []byte) {
-	eventID := gjson.GetBytes(in, "event_id").String()
-	logger := event.GetManager().GetLogger(eventID)
-	logger.Info("从镜像构建插件任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
-
-	w := NewWorker(pluginImage, "", nil, in)
-	go func() {
-		logrus.Info("start exec build plugin from image worker")
-		defer event.GetManager().ReleaseLogger(logger)
-		for i := 0; i < 3; i++ {
-			_, err := w.run(time.Minute * 30)
-			if err != nil {
-				logrus.Errorf("exec plugin build from image python shell error:%s", err.Error())
-				if i < 2 {
-					logger.Info("镜像构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
-				} else {
-					logger.Info("镜像构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
-				}
-			} else {
-				break
-			}
-		}
-	}()
-}
-
-func (e *exectorManager) pluginDockerfileBuild1(in []byte) {
-	eventID := gjson.GetBytes(in, "event_id").String()
-	logger := event.GetManager().GetLogger(eventID)
-	logger.Info("从dockerfile构建插件任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
-
-	w := NewWorker(pluginDockerfile, "", nil, in)
-	go func() {
-		logrus.Info("start exec build plugin from image worker")
-		defer event.GetManager().ReleaseLogger(logger)
-		for i := 0; i < 3; i++ {
-			_, err := w.run(time.Minute * 30)
-			if err != nil {
-				logrus.Errorf("exec plugin build from image python shell error:%s", err.Error())
-				if i < 2 {
-					logger.Info("dockerfile构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
-				} else {
-					logger.Info("dockerfile构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
-				}
-			} else {
-				break
-			}
 		}
 	}()
 }

@@ -313,13 +313,11 @@ func (i *SourceCodeBuildItem) buildCode() error {
 	packageName := fmt.Sprintf("%s/%s.tgz", i.TGZDir, i.DeployVersion)
 	logfile := fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.log",
 		i.TenantID, i.ServiceID, i.DeployVersion)
-	logrus.Debugf("packageName %s logfile %s", packageName, logfile)
-	buildCMD := "plugins/scripts/build.pl"
 	buildName := func(s, buildVersion string) string {
 		mm := []byte(s)
 		return string(mm[:8]) + "_" + buildVersion
 	}(i.ServiceID, i.DeployVersion)
-	cmd := []string{buildCMD,
+	cmd := []string{"build.pl",
 		"-b", i.CodeSouceInfo.Branch,
 		"-s", i.RepoInfo.GetCodeBuildAbsPath(),
 		"-c", i.CacheDir,
@@ -331,7 +329,6 @@ func (i *SourceCodeBuildItem) buildCode() error {
 		"-r", i.Runtime,
 		"-g", i.Lang,
 		"--name", buildName}
-	logrus.Debugf("build cmd is %v", cmd)
 	if len(i.BuildEnvs) != 0 {
 		buildEnvStr := ""
 		mm := []string{}

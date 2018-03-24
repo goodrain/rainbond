@@ -36,7 +36,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/builder/model"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/akkuman/parseConfig"
 )
 
 const (
@@ -46,7 +45,6 @@ const (
 )
 
 func (e *exectorManager) pluginDockerfileBuild(in []byte) {
-	config := getConf(configPath)
 	var tb model.BuildPluginTaskBody
 	if err := ffjson.Unmarshal(in, &tb); err != nil {
 		logrus.Errorf("unmarshal taskbody error, %v", err)
@@ -75,7 +73,7 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 		logrus.Info("start exec build plugin from image worker")
 		defer event.GetManager().ReleaseLogger(logger)
 		for retry := 0; retry < 2; retry++ {
-			err := e.runD(&tb, config, logger)
+			err := e.runD(&tb, logger)
 			if err != nil {
 				logrus.Errorf("exec plugin build from dockerfile error:%s", err.Error())
 				logger.Info("dockerfile构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
@@ -95,7 +93,7 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 	}()
 }
 
-func (e *exectorManager) runD(t *model.BuildPluginTaskBody, c parseConfig.Config, logger event.Logger) error {
+func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger) error {
 	logger.Info("开始拉取代码", map[string]string{"step": "build-exector"})
 	sourceDir := fmt.Sprintf(formatSourceDir, t.TenantID, t.VersionID)
 	if t.Repo == "" {
