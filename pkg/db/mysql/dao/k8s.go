@@ -305,7 +305,7 @@ func (t *ServiceProbeDaoImpl) AddModel(mo model.Interface) error {
 //UpdateModel 更新应用Probe
 func (t *ServiceProbeDaoImpl) UpdateModel(mo model.Interface) error {
 	probe := mo.(*model.ServiceProbe)
-	if probe.ProbeID == "" {
+	if probe.ProbeID == "" || probe.ID == 0 {
 		return fmt.Errorf("probe id can not be empty when update ")
 	}
 	if err := t.DB.Save(probe).Error; err != nil {

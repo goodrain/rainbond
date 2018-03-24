@@ -55,7 +55,7 @@ func (s *startTask) RunError(e error) {
 		//应用启动超时，怎么处理？
 		//是否关闭应用？
 		//暂时不自动关闭
-		s.logger.Error("应用启动超时，请留意应用状态变化进行后续操作", map[string]string{"step": "callback", "status": "failure"})
+		s.logger.Error("应用启动超时，情稍等并注意应用状态", map[string]string{"step": "callback", "status": "timeout"})
 		return
 	}
 	if e.Error() == "deploy info is exist" {

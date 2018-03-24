@@ -1564,7 +1564,6 @@ func (s *ServiceAction) ServiceProbe(tsp *dbmodel.ServiceProbe, action string) e
 				if err := db.GetManager().ServiceProbeDao().UpdateModel(tsp); err != nil {
 					return err
 				}
-				return nil
 			}
 		}
 	case "delete":

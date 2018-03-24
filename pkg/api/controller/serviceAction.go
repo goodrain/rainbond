@@ -45,8 +45,6 @@ func createEvent(eventID, serviceID, optType, tenantID, deployVersion string) (*
 	if eventID == "" {
 		eventID = tutil.NewUUID()
 	}
-
-	logrus.Infof("creating event,id is %s", eventID)
 	event := dbmodel.ServiceEvent{}
 	event.EventID = eventID
 	event.ServiceID = serviceID
@@ -79,43 +77,16 @@ func createEvent(eventID, serviceID, optType, tenantID, deployVersion string) (*
 
 	status, err := checkCanAddEvent(serviceID, event.EventID)
 	if err != nil {
-		logrus.Errorf("error check event")
+		logrus.Errorf("error check event", err.Error())
 		return nil, status, nil
 	}
 	if status == 0 {
 		db.GetManager().ServiceEventDao().AddModel(&event)
-		go autoTimeOut(&event)
 		return &event, status, nil
 	}
 	return nil, status, nil
 }
-func autoTimeOut(event *dbmodel.ServiceEvent) {
-	var timer *time.Timer
-	if event.OptType == "build" {
-		timer = time.NewTimer(3 * time.Minute)
-	} else {
-		timer = time.NewTimer(30 * time.Second)
-	}
-	for {
-		select {
 
-		case <-timer.C:
-			//时间到，检查是否完成，未完成设置为timeout
-			e, err := db.GetManager().ServiceEventDao().GetEventByEventID(event.EventID)
-			if err != nil {
-				return
-			}
-			if e.FinalStatus == "" {
-				//未完成
-				e.FinalStatus = "timeout"
-				logrus.Warnf("event id:%s time out,", event.EventID)
-				err = db.GetManager().ServiceEventDao().UpdateModel(e)
-				return
-			}
-			return
-		}
-	}
-}
 func checkCanAddEvent(s, eventID string) (int, error) {
 	events, err := db.GetManager().ServiceEventDao().GetEventByServiceID(s)
 	if err != nil {

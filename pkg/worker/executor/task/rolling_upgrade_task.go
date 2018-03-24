@@ -57,12 +57,12 @@ func (s *rollingUpgradeTask) RunError(e error) {
 		//应用启动超时，怎么处理？
 		//是否关闭应用？
 		//暂时不自动关闭
-		s.logger.Error("滚动更新超时，应用关闭或启动缓慢，状态将由后台处理", map[string]string{"step": "callback", "status": "failure"})
+		s.logger.Error("应用升级或启动超时，情稍等并注意应用状态", map[string]string{"step": "callback", "status": "timeout"})
 	} else {
 		//TODO:
 		//是否还原到原版本
 		if e.Error() == "应用容器重启" {
-			s.logger.Error("滚动升级失败，应用启动失败，请查询应用日志", map[string]string{"step": "callback", "status": "failure"})
+			s.logger.Error("滚动升级失败，应用发生重启，请查询应用日志", map[string]string{"step": "callback", "status": "failure"})
 		} else if e.Error() != "dont't support" {
 			s.logger.Error("滚动升级失败，请重试", map[string]string{"step": "callback", "status": "failure"})
 		}
