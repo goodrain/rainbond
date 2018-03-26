@@ -885,6 +885,11 @@ func (s *ServiceAction) EnvAttr(action string, at *dbmodel.TenantServiceEnvVar) 
 			logrus.Errorf("delete env %v error, %v", at.AttrName, err)
 			return err
 		}
+	case "update":
+		if err:=db.GetManager().TenantServiceEnvVarDao().UpdateModel(at);err!=nil{
+			logrus.Errorf("update env %v error,%v",at.AttrName,err)
+			return err
+		}	
 	}
 	return nil
 }

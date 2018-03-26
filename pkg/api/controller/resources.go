@@ -1116,6 +1116,8 @@ func (t *TenantStruct) Env(w http.ResponseWriter, r *http.Request) {
 		t.DeleteEnv(w, r)
 	case "POST":
 		t.AddEnv(w, r)
+	case "PUT":
+		t.UpdateEnv(w,r)
 	}
 }
 
@@ -1163,7 +1165,51 @@ func (t *TenantStruct) AddEnv(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
-
+//UpdateEnv UpdateEnv
+// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/env v2 update Env
+//
+// 修改环境变量
+//
+// update env var
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func (t *TenantStruct) UpdateEnv(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("update update update")
+	var envM api_model.AddTenantServiceEnvVar
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &envM, nil) {
+		return
+	}
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	var envD dbmodel.TenantServiceEnvVar
+	envD.AttrName = envM.AttrName
+	envD.AttrValue = envM.AttrValue
+	envD.TenantID = tenantID
+	envD.ServiceID = serviceID
+	envD.ContainerPort = envM.ContainerPort
+	envD.IsChange = true
+	envD.Name = envM.Name
+	envD.Scope = envM.Scope	
+	if err := handler.GetServiceManager().EnvAttr("update", &envD); err != nil {
+		logrus.Errorf("update env error, %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("update env error, %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)	
+}
 //DeleteEnv DeleteEnv
 // swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/env v2 deleteEnv
 //
