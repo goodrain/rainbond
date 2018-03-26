@@ -192,7 +192,7 @@ func (d *DockerRunOrImageParse) dockerun(source []string) {
 				}
 			case "memory", "m":
 				d.memory = readmemory(s)
-			case "", "d", "i", "t", "it":
+			case "", "d", "i", "t", "it","P":
 				d.image = parseImageName(s)
 				if len(source) > i+1 {
 					d.args = source[i+1:]
