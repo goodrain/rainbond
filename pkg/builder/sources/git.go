@@ -72,17 +72,17 @@ func (c CodeSourceInfo) GetCodeCacheDir() string {
 
 //GetCodeSourceDir 获取代码下载目录
 func (c CodeSourceInfo) GetCodeSourceDir() string {
-	return GetCodeSourceDir(c.RepositoryURL, c.TenantID)
+	return GetCodeSourceDir(c.RepositoryURL, c.Branch, c.TenantID)
 }
 
 //GetCodeSourceDir 获取源码下载目录
-func GetCodeSourceDir(RepositoryURL, tenantID string) string {
+func GetCodeSourceDir(RepositoryURL, branch, tenantID string) string {
 	sourceDir := os.Getenv("SOURCE_DIR")
 	if sourceDir == "" {
 		sourceDir = "/grdata/source"
 	}
 	h := sha1.New()
-	h.Write([]byte(RepositoryURL))
+	h.Write([]byte(RepositoryURL + branch))
 	bs := h.Sum(nil)
 	bsStr := fmt.Sprintf("%x", bs)
 	return path.Join(sourceDir, "build", tenantID, bsStr)
