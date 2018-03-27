@@ -129,6 +129,7 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 		URL:               csi.RepositoryURL,
 		Progress:          progress,
 		SingleBranch:      false,
+		Depth:             1,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	}
 	if csi.Branch != "" {
@@ -250,6 +251,7 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 		Progress:          progress,
 		SingleBranch:      true,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+		Depth:             1,
 	}
 	if csi.Branch != "" {
 		opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", csi.Branch))

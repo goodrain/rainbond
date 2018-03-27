@@ -45,11 +45,11 @@ func TestGitClone(t *testing.T) {
 
 func TestGitPullOrClone(t *testing.T) {
 	csi := CodeSourceInfo{
-		RepositoryURL: "http://code.goodrain.com/demo/2048.git",
+		RepositoryURL: "git@code.goodrain.com:goodrain/goodrain_web.git",
 		Branch:        "master",
 	}
 	//logger := event.GetManager().GetLogger("system")
-	res, err := GitCloneOrPull(csi, "/tmp/2048", nil, 1)
+	res, err := GitCloneOrPull(csi, "/tmp/goodrain_web", nil, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
