@@ -235,9 +235,142 @@ func retryAuth(ep *transport.Endpoint, csi CodeSourceInfo) (transport.AuthMethod
 
 //GitPull git pull code
 func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
-	var rs *git.Repository
+	if logger != nil {
+		//进度信息
+		logger.Info(fmt.Sprintf("开始从Git源(%s)获取代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})
+	}
+	//最少一分钟
+	if timeout < 1 {
+		timeout = 1
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
+	defer cancel()
+	progress := createProgress(ctx, logger)
+	opts := &git.PullOptions{
+		Progress:          progress,
+		SingleBranch:      true,
+		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+	}
+	if csi.Branch != "" {
+		opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", csi.Branch))
+	}
+	ep, err := transport.NewEndpoint(csi.RepositoryURL)
+	if err != nil {
+		return nil, err
+	}
+	if ep.Protocol == "ssh" {
+		publichFile := GetPrivateFile()
+		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
+		if auerr != nil {
+			if logger != nil {
+				logger.Error(fmt.Sprintf("创建PublicKeys错误"), map[string]string{"step": "callback", "status": "failure"})
+			}
+			return nil, auerr
+		}
+		opts.Auth = sshAuth
+	} else {
+		// only proxy github
+		// but when setting, other request will be proxyed
+		if strings.Contains(csi.RepositoryURL, "github.com") && os.Getenv("GITHUB_PROXY") != "" {
+			proxyURL, _ := url.Parse(os.Getenv("GITHUB_PROXY"))
+			customClient := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
+			customClient.Timeout = time.Minute * time.Duration(timeout)
+			client.InstallProtocol("https", githttp.NewClient(customClient))
+			defer func() {
+				client.InstallProtocol("https", githttp.DefaultClient)
+			}()
+		}
+		if csi.User != "" && csi.Password != "" {
+			httpAuth := &githttp.BasicAuth{
+				Username: csi.User,
+				Password: csi.Password,
+			}
+			opts.Auth = httpAuth
+		}
+	}
+	rs, err := git.PlainOpen(sourceDir)
+	if err != nil {
+		return nil, err
+	}
+	tree, err := rs.Worktree()
+	if err != nil {
+		return nil, err
+	}
+	err = tree.PullContext(ctx, opts)
+	if err != nil {
+		if reerr := os.RemoveAll(sourceDir); reerr != nil {
+			if logger != nil {
+				logger.Error(fmt.Sprintf("拉取代码发生错误删除代码目录失败。"), map[string]string{"step": "callback", "status": "failure"})
+			}
+		}
+		if err == transport.ErrAuthenticationRequired {
+			if logger != nil {
+				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源需要授权访问。"), map[string]string{"step": "callback", "status": "failure"})
+			}
+			return rs, err
+		}
+		if err == transport.ErrAuthorizationFailed {
+			if logger != nil {
+				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源鉴权失败。"), map[string]string{"step": "callback", "status": "failure"})
+			}
+			return rs, err
+		}
+		if err == transport.ErrRepositoryNotFound {
+			if logger != nil {
+				logger.Error(fmt.Sprintf("拉取代码发生错误，仓库不存在。"), map[string]string{"step": "callback", "status": "failure"})
+			}
+			return rs, err
+		}
+		if err == transport.ErrEmptyRemoteRepository {
+			if logger != nil {
+				logger.Error(fmt.Sprintf("拉取代码发生错误，远程仓库为空。"), map[string]string{"step": "callback", "status": "failure"})
+			}
+			return rs, err
+		}
+		if err == plumbing.ErrReferenceNotFound {
+			if logger != nil {
+				logger.Error(fmt.Sprintf("代码分支(%s)不存在。", csi.Branch), map[string]string{"step": "callback", "status": "failure"})
+			}
+			return rs, fmt.Errorf("branch %s is not exist", csi.Branch)
+		}
+		if strings.Contains(err.Error(), "ssh: unable to authenticate") {
+			if logger != nil {
+				logger.Error(fmt.Sprintf("远程代码库需要配置SSH Key。"), map[string]string{"step": "callback", "status": "failure"})
+			}
+			return rs, err
+		}
+		if strings.Contains(err.Error(), "context deadline exceeded") {
+			if logger != nil {
+				logger.Error(fmt.Sprintf("获取代码超时"), map[string]string{"step": "callback", "status": "failure"})
+			}
+			return rs, err
+		}
+		if strings.Contains(err.Error(), "already up-to-date") {
+			return rs, nil
+		}
+	}
+	return rs, err
+}
 
-	return rs, nil
+//GitCloneOrPull if code exist in local,use git pull.
+func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
+	if ok, err := util.FileExists(path.Join(sourceDir, ".git")); err == nil && ok {
+		fmt.Println("git pull")
+		re, err := GitPull(csi, sourceDir, logger, timeout)
+		if err == nil && re != nil {
+			return re, nil
+		}
+		logrus.Error("git pull source code error,", err.Error())
+	}
+	// empty the sourceDir
+	if reerr := os.RemoveAll(sourceDir); reerr != nil {
+		logrus.Error("empty the source code dir error,", reerr.Error())
+		if logger != nil {
+			logger.Error(fmt.Sprintf("清空代码目录失败。"), map[string]string{"step": "callback", "status": "failure"})
+		}
+	}
+	fmt.Println("git clone")
+	return GitClone(csi, sourceDir, logger, timeout)
 }
 
 //GetPrivateFile 获取私钥文件地址

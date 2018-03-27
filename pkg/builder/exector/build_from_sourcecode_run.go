@@ -134,7 +134,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		return err
 	}
 	i.CodeSouceInfo.RepositoryURL = rbi.RepostoryURL
-	rs, err := sources.GitClone(i.CodeSouceInfo, rbi.GetCodeHome(), i.Logger, 5)
+	rs, err := sources.GitCloneOrPull(i.CodeSouceInfo, rbi.GetCodeHome(), i.Logger, 5)
 	if err != nil {
 		logrus.Errorf("pull git code error: %s", err.Error())
 		i.Logger.Error(fmt.Sprintf("拉取代码失败，请重试"), map[string]string{"step": "builder-exector", "status": "failure"})
@@ -289,13 +289,13 @@ func (i *SourceCodeBuildItem) prepare() error {
 	if err := util.CheckAndCreateDir(i.TGZDir); err != nil {
 		return err
 	}
-	if !util.DirIsEmpty(i.RepoInfo.GetCodeHome()) {
-		os.RemoveAll(i.RepoInfo.GetCodeHome())
-	}
 	if err := util.CheckAndCreateDir(i.RepoInfo.GetCodeHome()); err != nil {
 		return err
 	}
 	if i.BuildEnvs["NO_CACHE"] == "true" {
+		if !util.DirIsEmpty(i.RepoInfo.GetCodeHome()) {
+			os.RemoveAll(i.RepoInfo.GetCodeHome())
+		}
 		if err := os.RemoveAll(i.CacheDir); err != nil {
 			logrus.Error("remove cache dir error", err.Error())
 		}

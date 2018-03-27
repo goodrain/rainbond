@@ -31,11 +31,24 @@ func init() {
 }
 func TestGitClone(t *testing.T) {
 	csi := CodeSourceInfo{
-		RepositoryURL: "https://github.com/prometheus/prometheus.git",
+		RepositoryURL: "git@code.goodrain.com:goodrain/goodrain_web.git",
 		Branch:        "master",
 	}
-	logger := event.GetManager().GetLogger("system")
-	res, err := GitClone(csi, "/tmp/privatetest", logger, 1)
+	//logger := event.GetManager().GetLogger("system")
+	res, err := GitClone(csi, "/tmp/goodrain_web", nil, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", res)
+}
+
+func TestGitPullOrClone(t *testing.T) {
+	csi := CodeSourceInfo{
+		RepositoryURL: "git@code.goodrain.com:goodrain/goodrain_web.git",
+		Branch:        "master",
+	}
+	//logger := event.GetManager().GetLogger("system")
+	res, err := GitCloneOrPull(csi, "/tmp/goodrain_web", nil, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
