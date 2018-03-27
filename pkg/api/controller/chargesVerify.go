@@ -52,7 +52,7 @@ import (
 //   default:
 //     schema:
 //       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//     description: 状态码非200，表示验证过程发生错误。状态码200，msg代表实际状态：success, illegal_quantity, missing_tenant, owned_fee, region_unauthorized, lack_of_memory
 func ChargesVerifyController(w http.ResponseWriter, r *http.Request) {
 
 	if publicCloud := os.Getenv("PUBLIC_CLOUD"); publicCloud != "true" {
@@ -68,10 +68,6 @@ func ChargesVerifyController(w http.ResponseWriter, r *http.Request) {
 		}
 		tenant.EID = eid
 		db.GetManager().TenantDao().UpdateModel(tenant)
-	}
-	cloudAPI := os.Getenv("CLOUD_API")
-	if cloudAPI == "" {
-		cloudAPI = "http://api.goodrain.com"
 	}
 	quantity := r.FormValue("quantity")
 	if quantity == "" {

@@ -41,7 +41,7 @@ func ChargeSverify(tenant *model.Tenants, quantity int, reason string) *util.API
 	if regionName == "" {
 		return util.CreateAPIHandleError(500, fmt.Errorf("region name must define in api by env REGION_NAME"))
 	}
-	api := fmt.Sprintf("%s/openapi/v1/enterprises/%s/memory-apply?quantity=%d&tid=%s&reason=%s&region=%s", cloudAPI, tenant.EID, quantity, tenant.UUID, reason, regionName)
+	api := fmt.Sprintf("%s/openapi/console/v1/enterprises/%s/memory-apply?quantity=%d&tid=%s&reason=%s&region=%s", cloudAPI, tenant.EID, quantity, tenant.UUID, reason, regionName)
 	req, err := http.NewRequest("GET", api, nil)
 	if err != nil {
 		logrus.Error("create request cloud api error", err.Error())
@@ -51,9 +51,6 @@ func ChargeSverify(tenant *model.Tenants, quantity int, reason string) *util.API
 	if err != nil {
 		logrus.Error("create request cloud api error", err.Error())
 		return util.CreateAPIHandleError(400, fmt.Errorf("create request cloud api error"))
-	}
-	if res.StatusCode == 200 {
-		return nil
 	}
 	if res.Body != nil {
 		defer res.Body.Close()
