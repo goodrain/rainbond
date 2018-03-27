@@ -62,7 +62,10 @@ func publicRequest(method, url string, body ...[]byte) error {
 	if token != "" {
 		request.Header.Set("Authorization", "Token "+token)
 	}
-	response, _ := client.Do(request)
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
 	if response.StatusCode == 200 {
 		return nil
 	}

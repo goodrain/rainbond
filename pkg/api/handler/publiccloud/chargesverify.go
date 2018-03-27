@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/pquerna/ffjson/ffjson"
 
@@ -41,6 +42,7 @@ func ChargeSverify(tenant *model.Tenants, quantity int, reason string) *util.API
 	if regionName == "" {
 		return util.CreateAPIHandleError(500, fmt.Errorf("region name must define in api by env REGION_NAME"))
 	}
+	reason = strings.Replace(reason, " ", "%20", -1)
 	api := fmt.Sprintf("%s/openapi/console/v1/enterprises/%s/memory-apply?quantity=%d&tid=%s&reason=%s&region=%s", cloudAPI, tenant.EID, quantity, tenant.UUID, reason, regionName)
 	req, err := http.NewRequest("GET", api, nil)
 	if err != nil {
@@ -55,6 +57,7 @@ func ChargeSverify(tenant *model.Tenants, quantity int, reason string) *util.API
 	if res.Body != nil {
 		defer res.Body.Close()
 		rebody, _ := ioutil.ReadAll(res.Body)
+		logrus.Debugf("read memory-apply response (%s)", string(rebody))
 		var re = make(map[string]interface{})
 		if err := ffjson.Unmarshal(rebody, &re); err == nil {
 			if msg, ok := re["msg"]; ok {
