@@ -298,11 +298,6 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 	}
 	err = tree.PullContext(ctx, opts)
 	if err != nil {
-		if reerr := os.RemoveAll(sourceDir); reerr != nil {
-			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误删除代码目录失败。"), map[string]string{"step": "callback", "status": "failure"})
-			}
-		}
 		if err == transport.ErrAuthenticationRequired {
 			if logger != nil {
 				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源需要授权访问。"), map[string]string{"step": "callback", "status": "failure"})
@@ -355,7 +350,6 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 //GitCloneOrPull if code exist in local,use git pull.
 func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
 	if ok, err := util.FileExists(path.Join(sourceDir, ".git")); err == nil && ok {
-		fmt.Println("git pull")
 		re, err := GitPull(csi, sourceDir, logger, timeout)
 		if err == nil && re != nil {
 			return re, nil
@@ -369,7 +363,6 @@ func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, t
 			logger.Error(fmt.Sprintf("清空代码目录失败。"), map[string]string{"step": "callback", "status": "failure"})
 		}
 	}
-	fmt.Println("git clone")
 	return GitClone(csi, sourceDir, logger, timeout)
 }
 
