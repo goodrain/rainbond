@@ -29,13 +29,13 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 	"time"
+	"unicode/utf8"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
-	"github.com/Sirupsen/logrus"
 )
 
 const (
@@ -380,15 +380,16 @@ func (b *Exporter) Listen(e <-chan Events) {
 	}
 }
 
-// 循环检查Exporter对象中的性能指标数据是否有过期，有则清除
-func (b *Exporter) GCollector(){
-	var HP int64 = b.vitality
-    timer := time.NewTicker(time.Minute)
-
+//GCollector 循环检查Exporter对象中的性能指标数据是否有过期，有则清除
+func (b *Exporter) GCollector() {
+	var HP = b.vitality
+	timer := time.NewTicker(time.Second * 10)
+	defer timer.Stop()
 	for {
+		select {
+		case <-timer.C:
+		}
 		currentTime := time.Now().Unix()
-		logrus.Infoln("start clean exporter data")
-
 		oldCounters := len(b.Counters.Elements)
 		oldGauges := len(b.Gauges.Elements)
 		oldHistograms := len(b.Histograms.Elements)
@@ -397,7 +398,6 @@ func (b *Exporter) GCollector(){
 		for k, v := range b.Counters.Elements {
 			oldTime := v.GetTimestamp()
 			if (currentTime - oldTime) > HP {
-				logrus.Infoln("remove past due Counter:", k)
 				delete(b.Counters.Elements, k)
 			}
 		}
@@ -405,7 +405,6 @@ func (b *Exporter) GCollector(){
 		for k, v := range b.Gauges.Elements {
 			oldTime := v.GetTimestamp()
 			if (currentTime - oldTime) > HP {
-				logrus.Infoln("remove past due Gauge:", k)
 				delete(b.Gauges.Elements, k)
 			}
 		}
@@ -413,7 +412,6 @@ func (b *Exporter) GCollector(){
 		for k, v := range b.Histograms.Elements {
 			oldTime := v.GetTimestamp()
 			if (currentTime - oldTime) > HP {
-				logrus.Infoln("remove past due Histogram:", k)
 				delete(b.Counters.Elements, k)
 			}
 		}
@@ -421,19 +419,15 @@ func (b *Exporter) GCollector(){
 		for k, v := range b.Summaries.Elements {
 			oldTime := v.GetTimestamp()
 			if (currentTime - oldTime) > HP {
-				logrus.Infoln("remove past due Summarie:", k)
 				delete(b.Counters.Elements, k)
 			}
 		}
 
-		logrus.Infof("current amount for Counters: %v => %v", oldCounters, len(b.Counters.Elements))
-		logrus.Infof("current amount for Gauges: %v => %v", oldGauges, len(b.Gauges.Elements))
-		logrus.Infof("current amount for Histograms: %v => %v", oldHistograms, len(b.Histograms.Elements))
-		logrus.Infof("current amount for Summaries: %v => %v", oldSummaries, len(b.Summaries.Elements))
-
-		select{
-		case <-timer.C:
-		}
+		logrus.Debugf("current amount for Counters: %v => %v", oldCounters, len(b.Counters.Elements))
+		logrus.Debugf("current amount for Gauges: %v => %v", oldGauges, len(b.Gauges.Elements))
+		logrus.Debugf("current amount for Histograms: %v => %v", oldHistograms, len(b.Histograms.Elements))
+		logrus.Debugf("current amount for Summaries: %v => %v", oldSummaries, len(b.Summaries.Elements))
+		logrus.Info("clean exporter data complete")
 	}
 }
 
