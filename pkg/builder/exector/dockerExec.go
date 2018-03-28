@@ -20,32 +20,13 @@ package exector
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"io"
 	"os/exec"
 
 	"github.com/goodrain/rainbond/pkg/event"
-
 	//"github.com/docker/docker/api/types"
-	"github.com/docker/engine-api/types"
 )
-
-func (e *exectorManager) DockerPull(image string) error {
-	_, err := e.DockerClient.ImagePull(context.Background(), image, types.ImagePullOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (e *exectorManager) DockerPush(image string) error {
-	_, err := e.DockerClient.ImagePush(context.Background(), image, types.ImagePushOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 //ShowExec ShowExec
 func ShowExec(command string, params []string, logger ...event.Logger) error {

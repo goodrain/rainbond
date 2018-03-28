@@ -49,3 +49,17 @@ func TestBuildImage(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestPushImage(t *testing.T) {
+	dc, _ := client.NewEnvClient()
+	auth, err := EncodeAuthToBase64(types.AuthConfig{Username: "", Password: ""})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pushOptions := types.ImagePushOptions{
+		RegistryAuth: auth,
+	}
+	if err := ImagePush(dc, "hub.goodrain.com/goodrain/mysql", pushOptions, nil, 2); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -138,16 +138,7 @@ func (e *exectorManager) run(t *model.BuildPluginTaskBody, c parseConfig.Config,
 		return err
 	}
 	logger.Info("修改镜像Tag完成", map[string]string{"step": "build-exector", "status": "complete"})
-	auth, err := sources.EncodeAuthToBase64(types.AuthConfig{Username: "", Password: ""})
-	if err != nil {
-		logrus.Errorf("make auth base63 push image error: %s", err.Error())
-		logger.Error(fmt.Sprintf("推送镜像内部错误"), map[string]string{"step": "builder-exector", "status": "failure"})
-		return err
-	}
-	ipo := types.ImagePushOptions{
-		RegistryAuth: auth,
-	}
-	if err := sources.ImagePush(e.DockerClient, newTag, ipo, logger, 5); err != nil {
+	if err := sources.ImagePush(e.DockerClient, newTag, types.ImagePushOptions{}, logger, 5); err != nil {
 		logrus.Errorf("push image %s error, %v", newTag, err)
 		logger.Error("推送镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
