@@ -29,6 +29,7 @@ import (
 type Counter interface {
 	Metric
 	Collector
+	Animate
 
 	// Inc increments the counter by 1. Use Add to increment it by arbitrary
 	// non-negative values.

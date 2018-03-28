@@ -42,6 +42,7 @@ import (
 type Histogram interface {
 	Metric
 	Collector
+	Animate
 
 	// Observe adds a single observation to the histogram.
 	Observe(float64)
@@ -231,6 +232,15 @@ type histogram struct {
 	counts      []uint64
 
 	labelPairs []*dto.LabelPair
+	timestamp int64
+}
+
+func (this *histogram) SetTimestamp(current int64){
+	this.timestamp = current
+}
+
+func (this *histogram) GetTimestamp() int64 {
+	return this.timestamp
 }
 
 func (h *histogram) Desc() *Desc {

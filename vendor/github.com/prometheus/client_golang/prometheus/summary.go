@@ -48,6 +48,7 @@ const quantileLabel = "quantile"
 type Summary interface {
 	Metric
 	Collector
+	Animate
 
 	// Observe adds a single observation to the summary.
 	Observe(float64)
@@ -264,6 +265,15 @@ type summary struct {
 	headStream                       *quantile.Stream
 	headStreamIdx                    int
 	headStreamExpTime, hotBufExpTime time.Time
+	timestamp int64
+}
+
+func (this *summary) SetTimestamp(current int64){
+	this.timestamp = current
+}
+
+func (this *summary) GetTimestamp() int64 {
+	return this.timestamp
 }
 
 func (s *summary) Desc() *Desc {

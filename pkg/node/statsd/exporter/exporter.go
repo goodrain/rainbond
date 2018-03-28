@@ -30,10 +30,12 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
+	"github.com/Sirupsen/logrus"
 )
 
 const (
@@ -236,6 +238,7 @@ type Exporter struct {
 	Summaries  *SummaryContainer
 	Histograms *HistogramContainer
 	mapper     *MetricMapper
+	vitality   int64
 }
 
 func escapeMetricName(metricName string) string {
@@ -260,6 +263,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 			var help string
 			metricName := ""
 			prometheusLabels := event.Labels()
+			timestamp := time.Now().Unix()
 
 			mapping, labels, present := b.mapper.getMapping(event.MetricName())
 			if mapping == nil {
@@ -297,7 +301,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 				)
 				if err == nil {
 					counter.Add(event.Value())
-
+					counter.SetTimestamp(timestamp)
 					eventStats.WithLabelValues("counter").Inc()
 				} else {
 					log.Debugf(regErrF, metricName, err)
@@ -314,6 +318,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 				if err == nil {
 					if ev.relative {
 						gauge.Add(event.Value())
+						gauge.SetTimestamp(timestamp)
 					} else {
 						gauge.Set(event.Value())
 					}
@@ -348,7 +353,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 						log.Debugf(regErrF, metricName, err)
 						conflictingEventStats.WithLabelValues("timer").Inc()
 					}
-
+					histogram.SetTimestamp(timestamp)
 				case timerTypeDefault, timerTypeSummary:
 					summary, err := b.Summaries.Get(
 						metricName,
@@ -362,7 +367,7 @@ func (b *Exporter) Listen(e <-chan Events) {
 						log.Debugf(regErrF, metricName, err)
 						conflictingEventStats.WithLabelValues("timer").Inc()
 					}
-
+					summary.SetTimestamp(timestamp)
 				default:
 					panic(fmt.Sprintf("unknown timer type '%s'", t))
 				}
@@ -375,6 +380,63 @@ func (b *Exporter) Listen(e <-chan Events) {
 	}
 }
 
+// 循环检查Exporter对象中的性能指标数据是否有过期，有则清除
+func (b *Exporter) GCollector(){
+	var HP int64 = b.vitality
+    timer := time.NewTicker(time.Minute)
+
+	for {
+		currentTime := time.Now().Unix()
+		logrus.Infoln("start clean exporter data")
+
+		oldCounters := len(b.Counters.Elements)
+		oldGauges := len(b.Gauges.Elements)
+		oldHistograms := len(b.Histograms.Elements)
+		oldSummaries := len(b.Summaries.Elements)
+
+		for k, v := range b.Counters.Elements {
+			oldTime := v.GetTimestamp()
+			if (currentTime - oldTime) > HP {
+				logrus.Infoln("remove past due Counter:", k)
+				delete(b.Counters.Elements, k)
+			}
+		}
+
+		for k, v := range b.Gauges.Elements {
+			oldTime := v.GetTimestamp()
+			if (currentTime - oldTime) > HP {
+				logrus.Infoln("remove past due Gauge:", k)
+				delete(b.Gauges.Elements, k)
+			}
+		}
+
+		for k, v := range b.Histograms.Elements {
+			oldTime := v.GetTimestamp()
+			if (currentTime - oldTime) > HP {
+				logrus.Infoln("remove past due Histogram:", k)
+				delete(b.Counters.Elements, k)
+			}
+		}
+
+		for k, v := range b.Summaries.Elements {
+			oldTime := v.GetTimestamp()
+			if (currentTime - oldTime) > HP {
+				logrus.Infoln("remove past due Summarie:", k)
+				delete(b.Counters.Elements, k)
+			}
+		}
+
+		logrus.Infof("current amount for Counters: %v => %v", oldCounters, len(b.Counters.Elements))
+		logrus.Infof("current amount for Gauges: %v => %v", oldGauges, len(b.Gauges.Elements))
+		logrus.Infof("current amount for Histograms: %v => %v", oldHistograms, len(b.Histograms.Elements))
+		logrus.Infof("current amount for Summaries: %v => %v", oldSummaries, len(b.Summaries.Elements))
+
+		select{
+		case <-timer.C:
+		}
+	}
+}
+
 //NewExporter new exporter
 func NewExporter(mapper *MetricMapper, Register prometheus.Registerer) *Exporter {
 	return &Exporter{
@@ -383,6 +445,7 @@ func NewExporter(mapper *MetricMapper, Register prometheus.Registerer) *Exporter
 		Summaries:  NewSummaryContainer(Register),
 		Histograms: NewHistogramContainer(mapper, Register),
 		mapper:     mapper,
+		vitality:   20,
 	}
 }
 

@@ -24,6 +24,7 @@ package prometheus
 type Gauge interface {
 	Metric
 	Collector
+	Animate
 
 	// Set sets the Gauge to an arbitrary value.
 	Set(float64)
