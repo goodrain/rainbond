@@ -77,20 +77,20 @@ func (i *MarketSlugItem) Run() error {
 		}
 		defer sFTPClient.Close()
 		if err := sFTPClient.DownloadFile(i.SlugInfo.SlugPath, i.TGZPath, i.Logger); err != nil {
-			i.Logger.Error("源码包远程FTP获取失败，安装失败", map[string]string{"step": "callback", "status": "failure"})
+			i.Logger.Error("源码包远程FTP获取失败，安装失败", map[string]string{"step": "slug-share", "status": "failure"})
 			logrus.Errorf("copy slug file error when build service, %s", err.Error())
 			return nil
 		}
 	} else {
 		if err := sources.CopyFileWithProgress(i.SlugInfo.SlugPath, i.TGZPath, i.Logger); err != nil {
-			i.Logger.Error("源码包本地获取失败，安装失败", map[string]string{"step": "callback", "status": "failure"})
+			i.Logger.Error("源码包本地获取失败，安装失败", map[string]string{"step": "slug-share", "status": "failure"})
 			logrus.Errorf("copy slug file error when build service, %s", err.Error())
 			return nil
 		}
 	}
 	if err := os.Chown(i.TGZPath, 200, 200); err != nil {
 		os.Remove(i.TGZPath)
-		i.Logger.Error("源码包本地获取失败，安装失败", map[string]string{"step": "callback", "status": "failure"})
+		i.Logger.Error("源码包本地获取失败，安装失败", map[string]string{"step": "slug-share", "status": "failure"})
 		logrus.Errorf("chown slug file error when build service, %s", err.Error())
 		return nil
 	}
@@ -103,12 +103,12 @@ func (i *MarketSlugItem) Run() error {
 	}
 	if err := i.UpdateVersionInfo(vi); err != nil {
 		logrus.Errorf("update version info error: %s", err.Error())
-		i.Logger.Error("更新应用版本信息失败", map[string]string{"step": "callback", "status": "failure"})
+		i.Logger.Error("更新应用版本信息失败", map[string]string{"step": "slug-share", "status": "failure"})
 		return err
 	}
 	i.Logger.Info("应用同步完成，开始启动应用", map[string]string{"step": "build-exector"})
 	if err := apiHandler.UpgradeService(i.TenantName, i.ServiceAlias, i.CreateUpgradeTaskBody()); err != nil {
-		i.Logger.Error("启动应用失败，请手动启动", map[string]string{"step": "callback", "status": "failure"})
+		i.Logger.Error("启动应用失败，请手动启动", map[string]string{"step": "slug-share", "status": "failure"})
 		logrus.Errorf("rolling update service error, %s", err.Error())
 		return err
 	}
