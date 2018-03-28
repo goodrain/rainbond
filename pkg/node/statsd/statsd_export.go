@@ -116,7 +116,10 @@ func (e *Exporter) Start() error {
 	exporter := exporter.NewExporter(mapper, e.register)
 	e.exporter = exporter
 	e.mapper = mapper
+
 	go exporter.Listen(events)
+	go exporter.GCollector()
+
 	return nil
 }
 
