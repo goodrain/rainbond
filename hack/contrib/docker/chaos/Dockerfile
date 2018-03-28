@@ -2,7 +2,7 @@ FROM goodrainapps/alpine:3.4
 
 MAINTAINER zengqg@goodrain.com
 
-RUN apk --no-cache add openssl git perl
+RUN apk --no-cache add openssl git perl openssh-client
 
 ENV PKG_URL="http://goodrain-pkg.oss-cn-shanghai.aliyuncs.com/pkg"
 
