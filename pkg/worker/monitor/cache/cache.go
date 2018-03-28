@@ -80,10 +80,12 @@ func (d *DiskCache) setcache() {
 	services, err := d.dbmanager.TenantServiceDao().GetAllServices()
 	if err != nil {
 		logrus.Errorln("Error get tenant service when select db :", err)
+		return
 	}
 	volumes, err := d.dbmanager.TenantServiceVolumeDao().GetAllVolumes()
 	if err != nil {
 		logrus.Errorln("Error get tenant service volume when select db :", err)
+		return
 	}
 	localPath := os.Getenv("LOCAL_DATA_PATH")
 	sharePath := os.Getenv("SHARE_DATA_PATH")
