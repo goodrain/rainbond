@@ -100,8 +100,7 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 		i.Logger.Error(fmt.Sprintf("修改镜像tag: %s -> %s 失败", i.Image, localImageURL), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	ipo := types.ImagePushOptions{}
-	err = sources.ImagePush(i.DockerClient, localImageURL, ipo, i.Logger, 10)
+	err = sources.ImagePush(i.DockerClient, localImageURL, types.ImagePushOptions{}, i.Logger, 10)
 	if err != nil {
 		logrus.Errorf("push image into registry error: %s", err.Error())
 		i.Logger.Error("推送镜像至镜像仓库失败", map[string]string{"step": "builder-exector", "status": "failure"})

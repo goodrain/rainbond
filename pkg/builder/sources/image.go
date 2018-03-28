@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -141,6 +142,17 @@ func ImagePush(dockerCli *client.Client, image string, opts types.ImagePushOptio
 	//最少一分钟
 	if timeout < 1 {
 		timeout = 1
+	}
+	if opts.RegistryAuth == "" {
+		pushauth, err := EncodeAuthToBase64(types.AuthConfig{Username: os.Getenv("LOCAL_HUB_USER"), Password: os.Getenv("LOCAL_HUB_PASS")})
+		if err != nil {
+			logrus.Errorf("make auth base63 push image error: %s", err.Error())
+			if logger != nil {
+				logger.Error(fmt.Sprintf("生成获取镜像的Token失败"), map[string]string{"step": "builder-exector", "status": "failure"})
+			}
+			return err
+		}
+		opts.RegistryAuth = pushauth
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
