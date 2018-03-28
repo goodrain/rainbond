@@ -95,6 +95,10 @@ func (i *ImageShareItem) ShareService() error {
 	}
 	err = sources.ImagePush(i.DockerClient, i.ImageName, ipo, i.Logger, 8)
 	if err != nil {
+		if err.Error() == "authentication required" {
+			i.Logger.Error("镜像仓库授权失败", map[string]string{"step": "builder-exector", "status": "failure"})
+			return err
+		}
 		logrus.Errorf("push image into registry error: %s", err.Error())
 		i.Logger.Error("推送镜像至镜像仓库失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err

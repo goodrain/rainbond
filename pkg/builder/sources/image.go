@@ -176,6 +176,11 @@ func ImagePush(dockerCli *client.Client, image string, opts types.ImagePushOptio
 			default:
 			}
 			if line, _, err := r.ReadLine(); err == nil {
+				//if receive a login contains authentication required.
+				//it means authentication failure
+				if strings.Contains(string(line), "authentication required") {
+					return fmt.Errorf("authentication required")
+				}
 				if logger != nil {
 					//进度信息
 					logger.Debug(string(line), map[string]string{"step": "progress"})
