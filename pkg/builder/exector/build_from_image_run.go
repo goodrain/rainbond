@@ -74,7 +74,24 @@ func NewImageBuildItem(in []byte) *ImageBuildItem {
 
 //Run Run
 func (i *ImageBuildItem) Run(timeout time.Duration) error {
-	_, err := sources.ImagePull(i.DockerClient, i.Image, types.ImagePullOptions{}, i.Logger, 3)
+	var pullipo types.ImagePullOptions
+	if i.HubUser != "" && i.HubPassword != "" {
+		auth, err := sources.EncodeAuthToBase64(types.AuthConfig{Username: i.HubUser, Password: i.HubPassword})
+		if err != nil {
+			logrus.Errorf("make auth base63 push image error: %s", err.Error())
+			i.Logger.Error(fmt.Sprintf("生成获取镜像的Token失败"), map[string]string{"step": "builder-exector", "status": "failure"})
+			return err
+		}
+		pullipo = types.ImagePullOptions{
+			All:          true,
+			RegistryAuth: auth,
+		}
+	} else {
+		pullipo = types.ImagePullOptions{
+			All: true,
+		}
+	}
+	_, err := sources.ImagePull(i.DockerClient, i.Image, pullipo, i.Logger, 3)
 	if err != nil {
 		logrus.Errorf("pull image %s error: %s", i.Image, err.Error())
 		i.Logger.Error(fmt.Sprintf("获取指定镜像: %s失败", i.Image), map[string]string{"step": "builder-exector", "status": "failure"})
@@ -86,16 +103,7 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 		i.Logger.Error(fmt.Sprintf("修改镜像tag: %s -> %s 失败", i.Image, localImageURL), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	auth, err := sources.EncodeAuthToBase64(types.AuthConfig{Username: i.HubUser, Password: i.HubPassword})
-	if err != nil {
-		logrus.Errorf("make auth base63 push image error: %s", err.Error())
-		i.Logger.Error(fmt.Sprintf("推送镜像内部错误"), map[string]string{"step": "builder-exector", "status": "failure"})
-		return err
-	}
-	ipo := types.ImagePushOptions{
-		All:          true,
-		RegistryAuth: auth,
-	}
+	ipo := types.ImagePushOptions{}
 	err = sources.ImagePush(i.DockerClient, localImageURL, ipo, i.Logger, 10)
 	if err != nil {
 		logrus.Errorf("push image into registry error: %s", err.Error())

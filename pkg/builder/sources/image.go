@@ -175,6 +175,7 @@ func ImagePush(dockerCli *client.Client, image string, opts types.ImagePushOptio
 				return err
 			}
 		}
+
 	}
 	return nil
 }
