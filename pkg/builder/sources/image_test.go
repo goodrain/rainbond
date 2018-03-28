@@ -57,7 +57,6 @@ func TestPushImage(t *testing.T) {
 		t.Fatal(err)
 	}
 	pushOptions := types.ImagePushOptions{
-		All:          true,
 		RegistryAuth: auth,
 	}
 	if err := ImagePush(dc, "hub.goodrain.com/goodrain/mysql", pushOptions, nil, 2); err != nil {

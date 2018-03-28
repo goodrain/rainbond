@@ -83,13 +83,10 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 			return err
 		}
 		pullipo = types.ImagePullOptions{
-			All:          true,
 			RegistryAuth: auth,
 		}
 	} else {
-		pullipo = types.ImagePullOptions{
-			All: true,
-		}
+		pullipo = types.ImagePullOptions{}
 	}
 	_, err := sources.ImagePull(i.DockerClient, i.Image, pullipo, i.Logger, 3)
 	if err != nil {
