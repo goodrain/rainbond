@@ -399,6 +399,7 @@ func (b *Exporter) GCollector() {
 			oldTime := v.GetTimestamp()
 			if (currentTime - oldTime) > HP {
 				delete(b.Counters.Elements, k)
+				b.Counters.Register.Unregister(v)
 			}
 		}
 
@@ -406,20 +407,23 @@ func (b *Exporter) GCollector() {
 			oldTime := v.GetTimestamp()
 			if (currentTime - oldTime) > HP {
 				delete(b.Gauges.Elements, k)
+				b.Gauges.Register.Unregister(v)
 			}
 		}
 
 		for k, v := range b.Histograms.Elements {
 			oldTime := v.GetTimestamp()
 			if (currentTime - oldTime) > HP {
-				delete(b.Counters.Elements, k)
+				delete(b.Histograms.Elements, k)
+				b.Histograms.Register.Unregister(v)
 			}
 		}
 
 		for k, v := range b.Summaries.Elements {
 			oldTime := v.GetTimestamp()
 			if (currentTime - oldTime) > HP {
-				delete(b.Counters.Elements, k)
+				delete(b.Summaries.Elements, k)
+				b.Summaries.Register.Unregister(v)
 			}
 		}
 
