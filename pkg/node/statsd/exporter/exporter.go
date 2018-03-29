@@ -380,10 +380,9 @@ func (b *Exporter) Listen(e <-chan Events) {
 	}
 }
 
-//循环检查Exporter对象中的性能指标数据是否有过期
-//有则清除
+// 循环检查Exporter对象中的性能指标数据是否有过期，有则清除
 func (b *Exporter) GCollector(){
-	HP := b.vitality
+	var HP int64 = b.vitality
     timer := time.NewTicker(time.Minute)
 
 	for {

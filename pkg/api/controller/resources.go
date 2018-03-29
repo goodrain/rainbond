@@ -1196,6 +1196,7 @@ func (t *TenantStruct) UpdateEnv(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	var envD dbmodel.TenantServiceEnvVar
 	envD.AttrName = envM.AttrName
+	envD.ID=envM.ID
 	envD.AttrValue = envM.AttrValue
 	envD.TenantID = tenantID
 	envD.ServiceID = serviceID

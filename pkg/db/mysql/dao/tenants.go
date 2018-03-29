@@ -588,6 +588,9 @@ func (t *TenantServiceEnvVarDaoImpl) AddModel(mo model.Interface) error {
 //UpdateModel 更新应用环境变量
 func (t *TenantServiceEnvVarDaoImpl) UpdateModel(mo model.Interface) error {
 	relation := mo.(*model.TenantServiceEnvVar)
+	if relation.ID == 0 {	
+		return fmt.Errorf("relation id can not be empty when update")
+	}
 	if err := t.DB.Save(relation).Error; err != nil {
 		return err
 	}
