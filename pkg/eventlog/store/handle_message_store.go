@@ -27,7 +27,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/eventlog/conf"
 	"github.com/goodrain/rainbond/pkg/eventlog/db"
-	"github.com/goodrain/rainbond/pkg/eventlog/exit/webhook"
 	"github.com/goodrain/rainbond/pkg/eventlog/util"
 	"golang.org/x/net/context"
 
@@ -287,8 +286,8 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					eventID := event[1]
 					status := event[2]
 					message := event[3]
-					webhook.GetManager().RunWebhookWithParameter(webhook.UpDateEventStatus, nil,
-						map[string]interface{}{"event_id": eventID, "status": status, "message": message})
+					// webhook.GetManager().RunWebhookWithParameter(webhook.UpDateEventStatus, nil,
+					// 	map[string]interface{}{"event_id": eventID, "status": status, "message": message})
 
 					event := model.ServiceEvent{}
 					event.EventID = eventID
@@ -304,9 +303,8 @@ func (h *handleMessageStore) handleBarrelEvent() {
 				if len(event) == 3 {
 					eventID := event[1]
 					codeVersion := strings.TrimSpace(event[2])
-					webhook.GetManager().RunWebhookWithParameter(webhook.UpdateEventCodeVersion, nil,
-						map[string]interface{}{"event_id": eventID, "code_version": codeVersion})
-
+					// webhook.GetManager().RunWebhookWithParameter(webhook.UpdateEventCodeVersion, nil,
+					// 	map[string]interface{}{"event_id": eventID, "code_version": codeVersion})
 					event := model.ServiceEvent{}
 					event.EventID = eventID
 					event.CodeVersion = codeVersion

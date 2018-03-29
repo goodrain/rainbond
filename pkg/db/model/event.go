@@ -18,7 +18,7 @@
 
 package model
 
-//EventLogMessage event log message struct
+//ServiceEvent event struct
 type ServiceEvent struct {
 	Model
 	EventID          string `gorm:"column:event_id;size:40"`
@@ -32,8 +32,8 @@ type ServiceEvent struct {
 	FinalStatus      string `gorm:"column:final_status;size:40"`
 	DeployVersion    string `gorm:"column:deploy_version;size:40"`
 	OldDeployVersion string `gorm:"column:old_deploy_version;size:40"`
-	CodeVersion      string `gorm:"column:code_version;size:40"`
-	OldCodeVersion   string `gorm:"column:old_code_version;size:40"`
+	CodeVersion      string `gorm:"column:code_version;size:200"`
+	OldCodeVersion   string `gorm:"column:old_code_version;size:200"`
 	Message          string `gorm:"column:message"`
 }
 

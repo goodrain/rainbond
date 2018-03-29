@@ -370,6 +370,9 @@ func (i *SourceCodeBuildItem) buildCode() error {
 		DeliveredPath: packageName,
 		EventID:       i.EventID,
 		FinalStatus:   "success",
+		CodeVersion:   i.commit.Hash.String(),
+		CommitMsg:     i.commit.Message,
+		Author:        i.commit.Author.Name,
 	}
 	if err := i.UpdateVersionInfo(vi); err != nil {
 		logrus.Errorf("update version info error: %s", err.Error())
