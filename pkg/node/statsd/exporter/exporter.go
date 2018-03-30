@@ -318,11 +318,11 @@ func (b *Exporter) Listen(e <-chan Events) {
 				if err == nil {
 					if ev.relative {
 						gauge.Add(event.Value())
-						gauge.SetTimestamp(timestamp)
 					} else {
 						gauge.Set(event.Value())
 					}
 
+					gauge.SetTimestamp(timestamp)
 					eventStats.WithLabelValues("gauge").Inc()
 				} else {
 					log.Debugf(regErrF, metricName, err)
@@ -348,12 +348,13 @@ func (b *Exporter) Listen(e <-chan Events) {
 					)
 					if err == nil {
 						histogram.Observe(event.Value() / 1000) // prometheus presumes seconds, statsd millisecond
+						histogram.SetTimestamp(timestamp)
 						eventStats.WithLabelValues("timer").Inc()
 					} else {
 						log.Debugf(regErrF, metricName, err)
 						conflictingEventStats.WithLabelValues("timer").Inc()
 					}
-					histogram.SetTimestamp(timestamp)
+
 				case timerTypeDefault, timerTypeSummary:
 					summary, err := b.Summaries.Get(
 						metricName,
@@ -362,12 +363,13 @@ func (b *Exporter) Listen(e <-chan Events) {
 					)
 					if err == nil {
 						summary.Observe(event.Value())
+						summary.SetTimestamp(timestamp)
 						eventStats.WithLabelValues("timer").Inc()
 					} else {
 						log.Debugf(regErrF, metricName, err)
 						conflictingEventStats.WithLabelValues("timer").Inc()
 					}
-					summary.SetTimestamp(timestamp)
+
 				default:
 					panic(fmt.Sprintf("unknown timer type '%s'", t))
 				}
