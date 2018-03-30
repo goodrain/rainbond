@@ -147,7 +147,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		i.Logger.Error(fmt.Sprintf("读取代码版本信息失败"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	commit, err := commits.Next()
+	commit, err := sources.GetLastCommit(commits)
 	if err != nil {
 		logrus.Errorf("get code commit info error: %s", err.Error())
 		i.Logger.Error(fmt.Sprintf("读取代码版本信息失败"), map[string]string{"step": "builder-exector", "status": "failure"})

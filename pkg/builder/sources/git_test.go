@@ -32,15 +32,38 @@ func init() {
 }
 func TestGitClone(t *testing.T) {
 	csi := CodeSourceInfo{
-		RepositoryURL: "git@code.goodrain.com:goodrain/goodrain_web.git",
+		RepositoryURL: "git@code.goodrain.com:goodrain/test.git",
 		Branch:        "master",
 	}
 	//logger := event.GetManager().GetLogger("system")
-	res, err := GitClone(csi, "/tmp/goodrain_web", nil, 1)
+	res, err := GitClone(csi, "/tmp/test3", nil, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("%+v", res)
+}
+
+func TestGitPull(t *testing.T) {
+	csi := CodeSourceInfo{
+		RepositoryURL: "git@code.goodrain.com:goodrain/test.git",
+		Branch:        "master",
+	}
+	//logger := event.GetManager().GetLogger("system")
+	res, err := GitPull(csi, "/tmp/test3", nil, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	commits, err := res.CommitObjects()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
+		commit, err := commits.Next()
+		if err != nil {
+			break
+		}
+		t.Logf("%+v", commit)
+	}
 }
 
 func TestGitPullOrClone(t *testing.T) {

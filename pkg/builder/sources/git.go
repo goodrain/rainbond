@@ -24,6 +24,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -31,6 +32,8 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
 
 	"github.com/Sirupsen/logrus"
 
@@ -238,7 +241,7 @@ func retryAuth(ep *transport.Endpoint, csi CodeSourceInfo) (transport.AuthMethod
 func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
 	if logger != nil {
 		//进度信息
-		logger.Info(fmt.Sprintf("开始从Git源(%s)获取代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})
+		logger.Info(fmt.Sprintf("开始从Git源(%s)更新代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})
 	}
 	//最少一分钟
 	if timeout < 1 {
@@ -302,25 +305,25 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 	if err != nil {
 		if err == transport.ErrAuthenticationRequired {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源需要授权访问。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("更新代码发生错误，代码源需要授权访问。"), map[string]string{"step": "callback", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == transport.ErrAuthorizationFailed {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源鉴权失败。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("更新代码发生错误，代码源鉴权失败。"), map[string]string{"step": "callback", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == transport.ErrRepositoryNotFound {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误，仓库不存在。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("更新代码发生错误，仓库不存在。"), map[string]string{"step": "callback", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == transport.ErrEmptyRemoteRepository {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误，远程仓库为空。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("更新代码发生错误，远程仓库为空。"), map[string]string{"step": "callback", "status": "failure"})
 			}
 			return rs, err
 		}
@@ -338,7 +341,7 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 		}
 		if strings.Contains(err.Error(), "context deadline exceeded") {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("获取代码超时"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("更新代码超时"), map[string]string{"step": "callback", "status": "failure"})
 			}
 			return rs, err
 		}
@@ -366,6 +369,19 @@ func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, t
 		}
 	}
 	return GitClone(csi, sourceDir, logger, timeout)
+}
+
+//GetLastCommit get last commit info
+func GetLastCommit(commits object.CommitIter) (*object.Commit, error) {
+	for {
+		commit, err := commits.Next()
+		if err == io.EOF {
+			return commit, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
 }
 
 //GetPrivateFile 获取私钥文件地址
