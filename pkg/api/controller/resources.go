@@ -1187,7 +1187,6 @@ func (t *TenantStruct) AddEnv(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) UpdateEnv(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("update update update")
 	var envM api_model.AddTenantServiceEnvVar
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &envM, nil) {
 		return
