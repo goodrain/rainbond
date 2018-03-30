@@ -20,6 +20,7 @@ package exector
 
 import (
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -156,6 +157,12 @@ func (e *exectorManager) buildFromImage(in []byte) {
 	go func() {
 		logrus.Debugf("start build from image worker")
 		defer event.GetManager().ReleaseLogger(i.Logger)
+		defer func() {
+			if r := recover(); r != nil {
+				debug.PrintStack()
+				i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+			}
+		}()
 		for n := 0; n < 2; n++ {
 			err := i.Run(time.Minute * 30)
 			if err != nil {
@@ -184,6 +191,12 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 	go func() {
 		logrus.Debugf("start build from source code")
 		defer event.GetManager().ReleaseLogger(i.Logger)
+		defer func() {
+			if r := recover(); r != nil {
+				debug.PrintStack()
+				i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+			}
+		}()
 		for n := 0; n < 2; n++ {
 			err := i.Run(time.Minute * 30)
 			if err != nil {
@@ -220,6 +233,12 @@ func (e *exectorManager) buildFromMarketSlug(in []byte) {
 	i.Logger.Info("开始构建应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	go func() {
 		defer event.GetManager().ReleaseLogger(i.Logger)
+		defer func() {
+			if r := recover(); r != nil {
+				debug.PrintStack()
+				i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+			}
+		}()
 		for n := 0; n < 2; n++ {
 			err := i.Run()
 			if err != nil {
@@ -245,6 +264,12 @@ func (e *exectorManager) appSlug(in []byte) {
 	go func() {
 		logrus.Info("start exec app slug worker")
 		defer event.GetManager().ReleaseLogger(logger)
+		defer func() {
+			if r := recover(); r != nil {
+				debug.PrintStack()
+				logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+			}
+		}()
 		for i := 0; i < 3; i++ {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {
@@ -413,6 +438,12 @@ func (e *exectorManager) pluginImageBuild1(in []byte) {
 	go func() {
 		logrus.Info("start exec build plugin from image worker")
 		defer event.GetManager().ReleaseLogger(logger)
+		defer func() {
+			if r := recover(); r != nil {
+				debug.PrintStack()
+				logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+			}
+		}()
 		for i := 0; i < 3; i++ {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {
@@ -438,6 +469,12 @@ func (e *exectorManager) pluginDockerfileBuild1(in []byte) {
 	go func() {
 		logrus.Info("start exec build plugin from image worker")
 		defer event.GetManager().ReleaseLogger(logger)
+		defer func() {
+			if r := recover(); r != nil {
+				debug.PrintStack()
+				logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+			}
+		}()
 		for i := 0; i < 3; i++ {
 			_, err := w.run(time.Minute * 30)
 			if err != nil {

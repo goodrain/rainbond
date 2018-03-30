@@ -21,6 +21,7 @@ package exector
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/ghodss/yaml"
@@ -84,6 +85,13 @@ func (e *exectorManager) serviceCheck(in []byte) {
 		return
 	}
 	logger := event.GetManager().GetLogger(input.EventID)
+	defer event.GetManager().ReleaseLogger(logger)
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+		}
+	}()
 	logger.Info("开始应用构建源检测", map[string]string{"step": "starting"})
 	logrus.Infof("start check service by type: %s ", input.SourceType)
 	var pr parser.Parser
