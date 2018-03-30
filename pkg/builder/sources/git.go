@@ -373,14 +373,16 @@ func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, t
 
 //GetLastCommit get last commit info
 func GetLastCommit(commits object.CommitIter) (*object.Commit, error) {
+	var lastcommit *object.Commit
 	for {
 		commit, err := commits.Next()
 		if err == io.EOF {
-			return commit, nil
+			return lastcommit, nil
 		}
 		if err != nil {
 			return nil, err
 		}
+		lastcommit = commit
 	}
 }
 
