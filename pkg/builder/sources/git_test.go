@@ -57,16 +57,15 @@ func TestGitPull(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for {
-		commit, err := commits.Next()
-		if err != nil {
-			break
-		}
-		t.Logf("%+v", commit)
+	commit, err := GetLastCommit(commits)
+	if err != nil {
+		t.Fatal(err)
 	}
+	t.Logf("%v", commit)
 }
 
 func TestGitPullOrClone(t *testing.T) {
+	t.SkipNow()
 	csi := CodeSourceInfo{
 		RepositoryURL: "git@code.goodrain.com:goodrain/test.git",
 		Branch:        "master2",
@@ -81,7 +80,7 @@ func TestGitPullOrClone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	commit, err := commits.Next()
+	commit, err := GetLastCommit(commits)
 	if err != nil && err != io.EOF {
 		t.Fatal(err)
 	}

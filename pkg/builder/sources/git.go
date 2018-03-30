@@ -382,7 +382,9 @@ func GetLastCommit(commits object.CommitIter) (*object.Commit, error) {
 		if err != nil {
 			return nil, err
 		}
-		lastcommit = commit
+		if lastcommit == nil || commit.Committer.When.After(lastcommit.Committer.When) {
+			lastcommit = commit
+		}
 	}
 }
 
