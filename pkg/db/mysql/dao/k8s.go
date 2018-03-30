@@ -305,6 +305,38 @@ func (t *ServiceProbeDaoImpl) AddModel(mo model.Interface) error {
 //UpdateModel 更新应用Probe
 func (t *ServiceProbeDaoImpl) UpdateModel(mo model.Interface) error {
 	probe := mo.(*model.ServiceProbe)
+	var tspD model.ServiceProbe
+	tspD.Cmd = probe.Cmd
+	tspD.FailureThreshold = probe.FailureThreshold
+	tspD.HTTPHeader = probe.HTTPHeader
+	tspD.InitialDelaySecond = probe.InitialDelaySecond
+	tspD.IsUsed = probe.IsUsed
+	tspD.Mode = probe.Mode
+	tspD.Path = probe.Path
+	tspD.PeriodSecond = probe.PeriodSecond
+	tspD.Port = probe.Port
+	tspD.ProbeID = probe.ProbeID
+	tspD.Scheme = probe.Scheme
+	tspD.SuccessThreshold = probe.SuccessThreshold
+	tspD.TimeoutSecond = probe.TimeoutSecond
+	tspD.ServiceID =probe.ServiceID
+	if err:=t.DB.Where("service_id= ? ",probe.ServiceID).Find(probe).Error;err!=nil{
+		return err		
+	}
+	probe.Cmd =tspD.Cmd
+	probe.FailureThreshold=tspD.FailureThreshold 
+	probe.HTTPHeader =tspD.HTTPHeader 
+	probe.InitialDelaySecond=tspD.InitialDelaySecond 
+	probe.IsUsed=tspD.IsUsed
+	probe.Mode=tspD.Mode 
+	probe.Path=tspD.Path 
+	probe.PeriodSecond=tspD.PeriodSecond 
+	probe.Port=tspD.Port 
+	probe.ProbeID=tspD.ProbeID 
+	probe.Scheme=tspD.Scheme 
+	probe.SuccessThreshold=tspD.SuccessThreshold 
+	probe.TimeoutSecond=tspD.TimeoutSecond 
+	probe.ServiceID=tspD.ServiceID 
 	if probe.ProbeID == "" || probe.ID == 0 {
 		return fmt.Errorf("probe id can not be empty when update ")
 	}
