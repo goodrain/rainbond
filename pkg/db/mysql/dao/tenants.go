@@ -589,7 +589,7 @@ func (t *TenantServiceEnvVarDaoImpl) AddModel(mo model.Interface) error {
 //UpdateModel 更新应用环境变量
 func (t *TenantServiceEnvVarDaoImpl) UpdateModel(mo model.Interface) error {
 	env := mo.(*model.TenantServiceEnvVar)
-	if err := t.DB.Where("service_id=? && name = ? and attr_name = ?", env.ServiceID, env.Name, env.AttrName).Find(env).Error; err != nil {
+	if err := t.DB.Where("service_id=? and attr_name = ?", env.ServiceID, env.AttrName).Find(env).Error; err != nil {
 		return err
 	}
 	if err := t.DB.Save(env).Error; err != nil {
