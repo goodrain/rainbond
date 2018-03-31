@@ -1200,7 +1200,7 @@ func (t *TenantStruct) UpdateEnv(w http.ResponseWriter, r *http.Request) {
 	envD.TenantID = tenantID
 	envD.ServiceID = serviceID
 	envD.ContainerPort = envM.ContainerPort
-	envD.IsChange = true
+	envD.IsChange = envM.IsChange
 	envD.Name = envM.Name
 	envD.Scope = envM.Scope
 	if err := handler.GetServiceManager().EnvAttr("update", &envD); err != nil {

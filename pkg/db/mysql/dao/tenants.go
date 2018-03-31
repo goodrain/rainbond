@@ -589,13 +589,17 @@ func (t *TenantServiceEnvVarDaoImpl) AddModel(mo model.Interface) error {
 //UpdateModel 更新应用环境变量
 func (t *TenantServiceEnvVarDaoImpl) UpdateModel(mo model.Interface) error {
 	env := mo.(*model.TenantServiceEnvVar)
-	if err := t.DB.Where("service_id=? and attr_name = ?", env.ServiceID, env.AttrName).Find(env).Error; err != nil {
-		return err
+	if env.ID == 0 {
+		var oldEnv model.TenantServiceEnvVar
+		if err := t.DB.Where("service_id=? and attr_name = ?", env.ServiceID, env.AttrName).Find(&oldEnv).Error; err != nil {
+			return err
+		}
+		if oldEnv.ID == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		env.ID = oldEnv.ID
 	}
-	if err := t.DB.Save(env).Error; err != nil {
-		return err
-	}
-	return nil
+	return t.DB.Save(env).Error
 }
 
 //DeleteModel 删除env
