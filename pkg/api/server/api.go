@@ -67,7 +67,7 @@ func NewManager(c option.Config) *Manager {
 	r.Use(middleware.RealIP)
 	//Logs the start and end of each request with the elapsed processing time
 	if c.LoggerFile != "" {
-		logerFile, err := os.OpenFile(c.LoggerFile, os.O_CREATE|os.O_RDWR, 0644)
+		logerFile, err := os.OpenFile(c.LoggerFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
 		if err != nil {
 			logrus.Errorf("open logger file %s error %s", c.LoggerFile, err.Error())
 			r.Use(middleware.DefaultLogger)
