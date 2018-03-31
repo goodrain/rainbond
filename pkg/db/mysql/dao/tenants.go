@@ -589,7 +589,7 @@ func (t *TenantServiceEnvVarDaoImpl) AddModel(mo model.Interface) error {
 //UpdateModel 更新应用环境变量,只能更新环境变量值
 func (t *TenantServiceEnvVarDaoImpl) UpdateModel(mo model.Interface) error {
 	env := mo.(*model.TenantServiceEnvVar)
-	return t.DB.Where("service_id=? and attr_name = ?", env.ServiceID, env.AttrName).Update("attr_value", env.AttrValue).Error
+	return t.DB.Table(env.TableName()).Where("service_id=? and attr_name = ?", env.ServiceID, env.AttrName).Update("attr_value", env.AttrValue).Error
 }
 
 //DeleteModel 删除env
