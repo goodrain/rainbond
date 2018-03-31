@@ -85,13 +85,14 @@ func (t *TenantDaoImpl) GetALLTenants() ([]*model.Tenants, error) {
 	}
 	return tenants, nil
 }
-//GetTenantsByEid 
-func (t *TenantDaoImpl)	GetTenantByEid(eid string)([]*model.Tenants,error){
+
+//GetTenantsByEid
+func (t *TenantDaoImpl) GetTenantByEid(eid string) ([]*model.Tenants, error) {
 	var tenants []*model.Tenants
 	if err := t.DB.Where("eid = ?", eid).Find(&tenants).Error; err != nil {
 		return nil, err
 	}
-	return tenants,nil
+	return tenants, nil
 }
 
 //GetTenantIDsByNames get tenant ids by names
@@ -587,16 +588,14 @@ func (t *TenantServiceEnvVarDaoImpl) AddModel(mo model.Interface) error {
 
 //UpdateModel 更新应用环境变量
 func (t *TenantServiceEnvVarDaoImpl) UpdateModel(mo model.Interface) error {
-	relation := mo.(*model.TenantServiceEnvVar)
-	attrValue:=relation.AttrValue
-	if err:=t.DB.Where("name = ? and attr_name = ?",relation.Name,relation.AttrName).Find(relation).Error;err!=nil{
-		return err		
+	env := mo.(*model.TenantServiceEnvVar)
+	if err := t.DB.Where("service_id=? && name = ? and attr_name = ?", env.ServiceID, env.Name, env.AttrName).Find(env).Error; err != nil {
+		return err
 	}
-	relation.AttrValue=attrValue
-	if err := t.DB.Save(relation).Error; err != nil {
-	 	return err
-	}	
-	 	return nil
+	if err := t.DB.Save(env).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 //DeleteModel 删除env
