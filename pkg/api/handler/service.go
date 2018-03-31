@@ -886,10 +886,10 @@ func (s *ServiceAction) EnvAttr(action string, at *dbmodel.TenantServiceEnvVar) 
 			return err
 		}
 	case "update":
-		if err:=db.GetManager().TenantServiceEnvVarDao().UpdateModel(at);err!=nil{
-			logrus.Errorf("update env %v error,%v",at.AttrName,err)
+		if err := db.GetManager().TenantServiceEnvVarDao().UpdateModel(at); err != nil {
+			logrus.Errorf("update env %v error,%v", at.AttrName, err)
 			return err
-		}	
+		}
 	}
 	return nil
 }
@@ -1559,17 +1559,8 @@ func (s *ServiceAction) ServiceProbe(tsp *dbmodel.ServiceProbe, action string) e
 			return err
 		}
 	case "update":
-		probes, err := db.GetManager().ServiceProbeDao().GetServiceProbes(tsp.ServiceID)
-		if err != nil {
+		if err := db.GetManager().ServiceProbeDao().UpdateModel(tsp); err != nil {
 			return err
-		}
-		for _, p := range probes {
-			if p.Mode == tsp.Mode {
-				tsp.ID = p.ID
-				if err := db.GetManager().ServiceProbeDao().UpdateModel(tsp); err != nil {
-					return err
-				}
-			}
 		}
 	case "delete":
 		if err := db.GetManager().ServiceProbeDao().DeleteModel(tsp.ServiceID, tsp.ProbeID); err != nil {

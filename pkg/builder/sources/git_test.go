@@ -32,11 +32,11 @@ func init() {
 }
 func TestGitClone(t *testing.T) {
 	csi := CodeSourceInfo{
-		RepositoryURL: "git@code.goodrain.com:goodrain/test.git",
+		RepositoryURL: "https://github.com/goodrain/rainbond-docs.git",
 		Branch:        "master",
 	}
 	//logger := event.GetManager().GetLogger("system")
-	res, err := GitClone(csi, "/tmp/test3", nil, 1)
+	res, err := GitClone(csi, "/tmp/rainbonddoc", nil, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,4 +85,12 @@ func TestGitPullOrClone(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("%+v", commit)
+}
+
+func TestGetCodeCacheDir(t *testing.T) {
+	csi := CodeSourceInfo{
+		RepositoryURL: "git@121.196.222.148:summersoft/yycx_cache.git",
+		Branch:        "aomi_20180327",
+	}
+	t.Log(csi.GetCodeSourceDir())
 }

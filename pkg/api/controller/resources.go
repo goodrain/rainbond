@@ -361,7 +361,7 @@ func (t *TenantStruct) Tenant(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
 		t.AddTenant(w, r)
-	case "GET":	
+	case "GET":
 		t.GetTenants(w, r)
 	}
 }
@@ -475,24 +475,24 @@ func (t *TenantStruct) GetTenants(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	   value:= r.FormValue("eid")
-	   id:=len(value)
-	  if id==0 {	 
-		tenants , err := handler.GetTenantManager().GetTenants()
+	value := r.FormValue("eid")
+	id := len(value)
+	if id == 0 {
+		tenants, err := handler.GetTenantManager().GetTenants()
 		if err != nil {
 			httputil.ReturnError(r, w, 500, "get tenant error")
 			return
-			}
+		}
 		httputil.ReturnSuccess(r, w, tenants)
-		return 
-	  }
-	
-	  tenants,err :=handler.GetTenantManager().GetTenantsByEid(value)
-	  if err!=nil{
+		return
+	}
+
+	tenants, err := handler.GetTenantManager().GetTenantsByEid(value)
+	if err != nil {
 		httputil.ReturnError(r, w, 500, "get tenant error")
-		return 
-	  }
-	 httputil.ReturnSuccess(r, w, tenants)
+		return
+	}
+	httputil.ReturnSuccess(r, w, tenants)
 }
 
 //DeleteTenant DeleteTenant
@@ -1117,7 +1117,7 @@ func (t *TenantStruct) Env(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		t.AddEnv(w, r)
 	case "PUT":
-		t.UpdateEnv(w,r)
+		t.UpdateEnv(w, r)
 	}
 }
 
@@ -1165,6 +1165,7 @@ func (t *TenantStruct) AddEnv(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
+
 //UpdateEnv UpdateEnv
 // swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/env v2 update Env
 //
@@ -1195,21 +1196,22 @@ func (t *TenantStruct) UpdateEnv(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	var envD dbmodel.TenantServiceEnvVar
 	envD.AttrName = envM.AttrName
-	envD.ID=envM.ID
+	envD.ID = envM.ID
 	envD.AttrValue = envM.AttrValue
 	envD.TenantID = tenantID
 	envD.ServiceID = serviceID
 	envD.ContainerPort = envM.ContainerPort
 	envD.IsChange = true
 	envD.Name = envM.Name
-	envD.Scope = envM.Scope	
+	envD.Scope = envM.Scope
 	if err := handler.GetServiceManager().EnvAttr("update", &envD); err != nil {
 		logrus.Errorf("update env error, %v", err)
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("update env error, %v", err))
 		return
 	}
-	httputil.ReturnSuccess(r, w, nil)	
+	httputil.ReturnSuccess(r, w, nil)
 }
+
 //DeleteEnv DeleteEnv
 // swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/env v2 deleteEnv
 //
@@ -1686,7 +1688,6 @@ func (t *TenantStruct) UpdateProbe(w http.ResponseWriter, r *http.Request) {
 	tspD.Scheme = tsp.Scheme
 	tspD.SuccessThreshold = tsp.SuccessThreshold
 	tspD.TimeoutSecond = tsp.TimeoutSecond
-	tspD.ServiceID = serviceID
 	//注意端口问题
 	if err := handler.GetServiceManager().ServiceProbe(&tspD, "update"); err != nil {
 		if err.Error() == gorm.ErrRecordNotFound.Error() {
