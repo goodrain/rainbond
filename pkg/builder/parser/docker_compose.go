@@ -143,7 +143,17 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 		}
 		d.services[kev] = &service
 	}
-	for _, service := range d.services {
+	for serviceName, service := range d.services {
+		//验证depends是否完整
+		for i, depend := range service.depends {
+			if strings.Contains(depend, ":") {
+				service.depends[i] = strings.Split(depend, ":")[0]
+			}
+			if _, ok := d.services[service.depends[i]]; !ok {
+				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("服务%s依赖项定义错误", serviceName), SolveAdvice("modify_compose", fmt.Sprintf("请确认ComposeFile中%s服务的依赖服务是否正确", serviceName))))
+				return d.errors
+			}
+		}
 		//获取镜像，验证是否存在
 		imageInspect, err := sources.ImagePull(d.dockerclient, service.image.String(), types.ImagePullOptions{}, d.logger, 5)
 		if err != nil {
