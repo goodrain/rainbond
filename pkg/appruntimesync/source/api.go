@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package status
+package source
 
 import (
 	"fmt"
@@ -44,6 +44,27 @@ const (
 	REMOVE
 	SYNCED
 )
+
+// DeploymentUpdate describes an operation of deployment, sent on the channel.
+// You can add, update or remove single endpoints by setting Op == ADD|UPDATE|REMOVE.
+type DeploymentUpdate struct {
+	Deployment *v1beta1.Deployment
+	Op         Operation
+}
+
+// RCUpdate describes an operation of endpoints, sent on the channel.
+// You can add, update or remove single endpoints by setting Op == ADD|UPDATE|REMOVE.
+type RCUpdate struct {
+	RC *v1.ReplicationController
+	Op Operation
+}
+
+// StatefulSetUpdate describes an operation of endpoints, sent on the channel.
+// You can add, update or remove single endpoints by setting Op == ADD|UPDATE|REMOVE.
+type StatefulSetUpdate struct {
+	StatefulSet *v1beta1.StatefulSet
+	Op          Operation
+}
 
 // NewSourceAPI creates config source that watches for changes to the services and pods.
 func NewSourceAPI(v1get cache.Getter, batev1 cache.Getter, period time.Duration, rcsChan chan<- RCUpdate, deploymentsChan chan<- DeploymentUpdate, statefulChan chan<- StatefulSetUpdate, stopCh <-chan struct{}) {

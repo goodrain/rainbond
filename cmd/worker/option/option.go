@@ -39,6 +39,7 @@ type Config struct {
 	NodeName             string
 	NodeAPI              string
 	Listen               string
+	HostIP               string
 }
 
 //Worker  worker server
@@ -68,7 +69,8 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&a.MaxTasks, "max-tasks", 50, "the max tasks for per node")
 	fs.StringVar(&a.MQAPI, "mq-api", "127.0.0.1:6300", "acp_mq api")
 	fs.StringVar(&a.RunMode, "run", "sync", "sync data when worker start")
-	fs.StringVar(&a.NodeName, "node-name", "", "the name of this name,it must be global unique name")
+	fs.StringVar(&a.NodeName, "node-name", "", "the name of this worker,it must be global unique name")
+	fs.StringVar(&a.HostIP, "host-ip", "", "the ip of this worker,it must be global connected ip")
 	fs.StringVar(&a.NodeAPI, "node-api", "http://172.30.42.1:6100", "node discover api, node docker endpoints")
 }
 

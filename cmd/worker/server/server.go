@@ -19,15 +19,17 @@
 package server
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/goodrain/rainbond/cmd/worker/option"
+	"github.com/goodrain/rainbond/pkg/appruntimesync"
+	"github.com/goodrain/rainbond/pkg/appruntimesync/client"
 	"github.com/goodrain/rainbond/pkg/db"
 	"github.com/goodrain/rainbond/pkg/db/config"
 	"github.com/goodrain/rainbond/pkg/event"
-	"github.com/goodrain/rainbond/pkg/status"
 	"github.com/goodrain/rainbond/pkg/worker/appm"
 	"github.com/goodrain/rainbond/pkg/worker/discover"
 	"github.com/goodrain/rainbond/pkg/worker/executor"
@@ -60,13 +62,22 @@ func Run(s *option.Worker) error {
 	defer event.CloseManager()
 
 	//step 2 : create status watching
-	statusManager := status.NewManager(s.Config)
-	if err := statusManager.Start(); err != nil {
+	if s.RunMode == "sync" {
+		ars := appruntimesync.CreateAppRuntimeSync(s.Config)
+		if err := ars.Start(); err != nil {
+			return err
+		}
+		go ars.SyncStatus()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	statusClient, err := client.NewClient(ctx, client.AppRuntimeSyncClientConf{
+		EtcdEndpoints: s.Config.EtcdEndPoints,
+	})
+	if err != nil {
 		return err
 	}
-	defer statusManager.Stop()
-
-	appmm, err := appm.NewManager(s.Config, statusManager)
+	appmm, err := appm.NewManager(s.Config, statusClient)
 	if err != nil {
 		return err
 	}
@@ -74,24 +85,23 @@ func Run(s *option.Worker) error {
 
 	if s.RunMode == "sync" {
 		go appmm.SyncData()
-		go statusManager.SyncStatus()
 	}
 	//step 3 : create executor module
-	executorManager, err := executor.NewManager(s.Config, statusManager, appmm)
+	executorManager, err := executor.NewManager(s.Config, statusClient, appmm)
 	if err != nil {
 		return err
 	}
 	executorManager.Start()
 	defer executorManager.Stop()
 	//step 4 : create discover module
-	taskManager := discover.NewTaskManager(s.Config, executorManager, statusManager)
+	taskManager := discover.NewTaskManager(s.Config, executorManager, statusClient)
 	if err := taskManager.Start(); err != nil {
 		return err
 	}
 	defer taskManager.Stop()
 
 	//step 5 :create application use resource exporter.
-	exporterManager := monitor.NewManager(s.Config, statusManager)
+	exporterManager := monitor.NewManager(s.Config, statusClient)
 	if err := exporterManager.Start(); err != nil {
 		return err
 	}

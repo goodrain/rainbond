@@ -19,14 +19,15 @@
 package appm
 
 import (
-	"github.com/goodrain/rainbond/cmd/worker/option"
-	"github.com/goodrain/rainbond/pkg/db"
-	"github.com/goodrain/rainbond/pkg/db/model"
-	"github.com/goodrain/rainbond/pkg/event"
-	"github.com/goodrain/rainbond/pkg/status"
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/goodrain/rainbond/cmd/worker/option"
+	"github.com/goodrain/rainbond/pkg/appruntimesync/client"
+	"github.com/goodrain/rainbond/pkg/db"
+	"github.com/goodrain/rainbond/pkg/db/model"
+	"github.com/goodrain/rainbond/pkg/event"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
@@ -81,14 +82,14 @@ type manager struct {
 	conf            option.Config
 	dbmanager       db.Manager
 	statusCache     *CacheManager
-	statusManager   status.ServiceStatusManager
+	statusManager   *client.AppRuntimeSyncClient
 	podManager      *PodCacheManager
 	informerFactory informers.SharedInformerFactory
 	stop            chan struct{}
 }
 
 //NewManager 创建manager
-func NewManager(conf option.Config, statusManager status.ServiceStatusManager) (Manager, error) {
+func NewManager(conf option.Config, statusManager *client.AppRuntimeSyncClient) (Manager, error) {
 	c, err := clientcmd.BuildConfigFromFlags("", conf.KubeConfig)
 	if err != nil {
 		logrus.Error("read kube config file error.", err)
@@ -264,6 +265,13 @@ func (m *manager) SyncData() {
 	if len(deletelist) > 0 {
 		m.dbmanager.K8sDeployReplicationDao().BeachDelete(deletelist)
 	}
+	//反向同步
+	//TODO:
+	// res, err := m.kubeclient.Core().ReplicationControllers(v1.NamespaceAll).List(v1.ListOptions{})
+	// if err == nil && res.Size() > 0 {
+	// 	for _, rc := range res.Items {
+	// 	}
+	// }
 	//step2 :同步tenant_service_pod
 	//TODO:
 }

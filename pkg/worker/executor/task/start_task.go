@@ -21,10 +21,10 @@ package task
 import (
 	"fmt"
 
+	status "github.com/goodrain/rainbond/pkg/appruntimesync/client"
 	"github.com/goodrain/rainbond/pkg/db"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/event"
-	"github.com/goodrain/rainbond/pkg/status"
 	"github.com/goodrain/rainbond/pkg/util"
 	"github.com/goodrain/rainbond/pkg/worker/appm"
 	"github.com/goodrain/rainbond/pkg/worker/discover/model"
@@ -146,7 +146,7 @@ func (s *startTask) Run() error {
 		}
 	}
 	if isExist {
-		appstatus, _ := s.taskManager.statusManager.GetStatus(s.modelTask.ServiceID)
+		appstatus := s.taskManager.statusManager.GetStatus(s.modelTask.ServiceID)
 		if appstatus == status.CLOSED {
 			//is app status is CLOSED 考虑是手动
 			//db.GetManager().K8sDeployReplicationDao().DeleteK8sDeployReplicationByService(s.modelTask.ServiceID)

@@ -23,9 +23,9 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/cmd/worker/option"
+	status "github.com/goodrain/rainbond/pkg/appruntimesync/client"
 	"github.com/goodrain/rainbond/pkg/db"
 	"github.com/goodrain/rainbond/pkg/event"
-	"github.com/goodrain/rainbond/pkg/status"
 	"github.com/goodrain/rainbond/pkg/worker/discover/model"
 	"github.com/goodrain/rainbond/pkg/worker/executor"
 
@@ -37,11 +37,11 @@ type Manager struct {
 	ctx           context.Context
 	c             option.Config
 	execManager   executor.Manager
-	statusManager status.ServiceStatusManager
+	statusManager *status.AppRuntimeSyncClient
 }
 
 //NewManager now handle
-func NewManager(ctx context.Context, config option.Config, execManager executor.Manager, statusManager status.ServiceStatusManager) *Manager {
+func NewManager(ctx context.Context, config option.Config, execManager executor.Manager, statusManager *status.AppRuntimeSyncClient) *Manager {
 
 	return &Manager{
 		ctx:           ctx,
@@ -107,8 +107,8 @@ func (m *Manager) startExec(task *model.Task) int {
 		return 1
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
-	curStatus, errS := m.statusManager.GetStatus(body.ServiceID)
-	if errS != nil {
+	curStatus := m.statusManager.GetStatus(body.ServiceID)
+	if curStatus == "unknow" {
 		logger.Error("应用实时状态获取失败", map[string]string{"step": "callback", "status": "failure"})
 		event.GetManager().ReleaseLogger(logger)
 		return 1
@@ -138,8 +138,8 @@ func (m *Manager) stopExec(task *model.Task) int {
 		return 1
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
-	curStatus, errS := m.statusManager.GetStatus(body.ServiceID)
-	if errS != nil {
+	curStatus := m.statusManager.GetStatus(body.ServiceID)
+	if curStatus == "unknow" {
 		logger.Error("应用实时状态获取失败", map[string]string{"step": "callback", "status": "failure"})
 		event.GetManager().ReleaseLogger(logger)
 		return 1
@@ -179,8 +179,8 @@ func (m *Manager) restartExec(task *model.Task) int {
 		return 1
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
-	curStatus, errS := m.statusManager.GetStatus(body.ServiceID)
-	if errS != nil {
+	curStatus := m.statusManager.GetStatus(body.ServiceID)
+	if curStatus == "unknow" {
 		logger.Error("应用实时状态获取失败，稍后操作", map[string]string{"step": "callback", "status": "failure"})
 		event.GetManager().ReleaseLogger(logger)
 		return 1
@@ -276,8 +276,8 @@ func (m *Manager) verticalScalingExec(task *model.Task) int {
 		event.GetManager().ReleaseLogger(logger)
 		return 1
 	}
-	sta, _ := m.statusManager.GetStatus(body.ServiceID)
-	if sta == status.CLOSED {
+	curStatus := m.statusManager.GetStatus(body.ServiceID)
+	if m.statusManager.IsClosedStatus(curStatus) {
 		logger.Error("应用未部署，垂直升级成功", map[string]string{"step": "last", "status": "success"})
 		return 0
 	}

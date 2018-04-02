@@ -19,24 +19,18 @@
 package status
 
 import (
-	"github.com/goodrain/rainbond/pkg/db"
 	"fmt"
+
+	"github.com/goodrain/rainbond/pkg/appruntimesync/source"
+	"github.com/goodrain/rainbond/pkg/db"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/apis/apps/v1beta1"
 )
 
-// StatefulSetUpdate describes an operation of endpoints, sent on the channel.
-// You can add, update or remove single endpoints by setting Op == ADD|UPDATE|REMOVE.
-type StatefulSetUpdate struct {
-	StatefulSet *v1beta1.StatefulSet
-	Op          Operation
-}
-
-func (s *statusManager) handleStatefulUpdate(update StatefulSetUpdate) {
+func (s *StatusManager) handleStatefulUpdate(update source.StatefulSetUpdate) {
 	if update.StatefulSet == nil {
 		return
 	}
@@ -64,7 +58,7 @@ func (s *statusManager) handleStatefulUpdate(update StatefulSetUpdate) {
 		update.StatefulSet.Labels["name"],
 		update.StatefulSet.Labels["version"])
 	switch update.Op {
-	case ADD:
+	case source.ADD:
 		if update.StatefulSet.Status.Replicas == 0 {
 			return
 		}
@@ -73,7 +67,7 @@ func (s *statusManager) handleStatefulUpdate(update StatefulSetUpdate) {
 			s.SetStatus(serviceID, RUNNING)
 		}
 		if readycount < update.StatefulSet.Status.Replicas {
-			status, _ := s.GetStatus(serviceID)
+			status := s.GetStatus(serviceID)
 			if status == RUNNING {
 				s.SetStatus(serviceID, ABNORMAL)
 			}
@@ -81,11 +75,11 @@ func (s *statusManager) handleStatefulUpdate(update StatefulSetUpdate) {
 				s.SetStatus(serviceID, STARTING)
 			}
 		}
-	case UPDATE:
+	case source.UPDATE:
 		if update.StatefulSet.Status.Replicas == 0 {
 			return
 		}
-		status, _ := s.GetStatus(serviceID)
+		status := s.GetStatus(serviceID)
 		//Ready数量==需要实例数量，应用在运行中
 		if readycount >= update.StatefulSet.Status.Replicas {
 			if status != STOPPING && status != UPGRADE {
@@ -97,7 +91,7 @@ func (s *statusManager) handleStatefulUpdate(update StatefulSetUpdate) {
 				s.SetStatus(serviceID, ABNORMAL)
 			}
 		}
-	case REMOVE:
+	case source.REMOVE:
 		// if deploy, _ := db.GetManager().K8sDeployReplicationDao().GetK8sDeployReplicationByService(serviceID); len(deploy) == 1 {
 		// 	s.SetStatus(serviceID, CLOSED)
 		// 	db.GetManager().K8sDeployReplicationDao().DeleteK8sDeployReplication(update.StatefulSet.Name)
@@ -111,7 +105,7 @@ func (s *statusManager) handleStatefulUpdate(update StatefulSetUpdate) {
 	}
 }
 
-func (s *statusManager) getReadyCount(namespace, name, version string) int32 {
+func (s *StatusManager) getReadyCount(namespace, name, version string) int32 {
 	pods, err := s.ClientSet.Core().Pods(namespace).List(metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("name=%s,version=%s", name, version),
 	})

@@ -19,12 +19,13 @@
 package executor
 
 import (
-	"github.com/goodrain/rainbond/cmd/worker/option"
-	"github.com/goodrain/rainbond/pkg/status"
-	"github.com/goodrain/rainbond/pkg/worker/appm"
-	"github.com/goodrain/rainbond/pkg/worker/executor/task"
 	"fmt"
 	"sync"
+
+	"github.com/goodrain/rainbond/cmd/worker/option"
+	status "github.com/goodrain/rainbond/pkg/appruntimesync/client"
+	"github.com/goodrain/rainbond/pkg/worker/appm"
+	"github.com/goodrain/rainbond/pkg/worker/executor/task"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -47,11 +48,11 @@ type manager struct {
 	// Lock for accessing & mutating workers
 	workerLock    sync.RWMutex
 	taskManager   *task.TaskManager
-	statusManager status.ServiceStatusManager
+	statusManager *status.AppRuntimeSyncClient
 }
 
 //NewManager newManager
-func NewManager(conf option.Config, statusManager status.ServiceStatusManager, appmm appm.Manager) (Manager, error) {
+func NewManager(conf option.Config, statusManager *status.AppRuntimeSyncClient, appmm appm.Manager) (Manager, error) {
 	return &manager{
 		workers:       make(map[workerKey]Worker),
 		taskManager:   task.NewTaskManager(appmm, statusManager),

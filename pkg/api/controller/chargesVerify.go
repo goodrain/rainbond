@@ -33,7 +33,7 @@ import (
 )
 
 //ChargesVerifyController service charges verify
-// swagger:operation POST /v2/tenants/{tenant_name}/chargesverify v2 chargesverify
+// swagger:operation GET /v2/tenants/{tenant_name}/chargesverify v2 chargesverify
 //
 // 应用扩大资源申请接口，公有云云市验证，私有云不验证
 //

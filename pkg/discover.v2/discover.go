@@ -20,7 +20,6 @@ package discover
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -81,7 +80,7 @@ func GetDiscover(opt config.DiscoverConfig) (Discover, error) {
 		ctx:      ctx,
 		cancel:   cancel,
 		client:   client,
-		prefix:   "/traefik",
+		prefix:   "/rainbond/discover",
 	}
 	return etcdD, nil
 }
@@ -231,7 +230,7 @@ func (e *etcdDiscover) discover(name string, callback CallbackUpdate) {
 	if endpoints != nil && len(endpoints) > 0 {
 		callback.UpdateEndpoints(config.SYNC, endpoints...)
 	}
-	watch := e.client.Watch(ctx, fmt.Sprintf("%s/backends/%s/servers", e.prefix, name), clientv3.WithPrefix())
+	watch := e.client.Watch(ctx, fmt.Sprintf("%s/%s", e.prefix, name), clientv3.WithPrefix())
 	for {
 		select {
 		case <-e.ctx.Done():
@@ -244,22 +243,11 @@ func (e *etcdDiscover) discover(name string, callback CallbackUpdate) {
 			for _, event := range res.Events {
 				if event.Kv != nil {
 					var end *config.Endpoint
-					if strings.HasSuffix(string(event.Kv.Key), "/url") { //服务地址变化
-						kstep := strings.Split(string(event.Kv.Key), "/")
-						if len(kstep) > 2 {
-							serverName := kstep[len(kstep)-2]
-							serverURL := string(event.Kv.Value)
-							end = &config.Endpoint{Name: serverName, URL: serverURL, Mode: 0}
-						}
-					}
-					if strings.HasSuffix(string(event.Kv.Key), "/weight") { //获取服务地址
-						kstep := strings.Split(string(event.Kv.Key), "/")
-						if len(kstep) > 2 {
-							serverName := kstep[len(kstep)-2]
-							serverWeight := string(event.Kv.Value)
-							weight, _ := strconv.Atoi(serverWeight)
-							end = &config.Endpoint{Name: serverName, Weight: weight, Mode: 1}
-						}
+					kstep := strings.Split(string(event.Kv.Key), "/")
+					if len(kstep) > 2 {
+						serverName := kstep[len(kstep)-1]
+						serverURL := string(event.Kv.Value)
+						end = &config.Endpoint{Name: serverName, URL: serverURL, Mode: 0}
 					}
 					if end != nil { //获取服务地址
 						switch event.Type {
@@ -282,7 +270,7 @@ func (e *etcdDiscover) discover(name string, callback CallbackUpdate) {
 func (e *etcdDiscover) list(name string) []*config.Endpoint {
 	ctx, cancel := context.WithTimeout(e.ctx, time.Second*10)
 	defer cancel()
-	res, err := e.client.Get(ctx, fmt.Sprintf("%s/backends/%s/servers", e.prefix, name), clientv3.WithPrefix())
+	res, err := e.client.Get(ctx, fmt.Sprintf("%s/%s", e.prefix, name), clientv3.WithPrefix())
 	if err != nil {
 		logrus.Errorf("list all servers of %s error.%s", name, err.Error())
 		return nil
@@ -296,36 +284,15 @@ func (e *etcdDiscover) list(name string) []*config.Endpoint {
 func makeEndpointForKvs(kvs []*mvccpb.KeyValue) (res []*config.Endpoint) {
 	var ends = make(map[string]*config.Endpoint)
 	for _, kv := range kvs {
-		if strings.HasSuffix(string(kv.Key), "/url") { //获取服务地址
-			kstep := strings.Split(string(kv.Key), "/")
-			if len(kstep) > 2 {
-				serverName := kstep[len(kstep)-2]
-				serverURL := string(kv.Value)
-				if en, ok := ends[serverName]; ok {
-					en.URL = serverURL
-				} else {
-					ends[serverName] = &config.Endpoint{Name: serverName, URL: serverURL}
-				}
-			}
-		}
-		if strings.HasSuffix(string(kv.Key), "/weight") { //获取服务权重
-			kstep := strings.Split(string(kv.Key), "/")
-			if len(kstep) > 2 {
-				serverName := kstep[len(kstep)-2]
-				serverWeight := string(kv.Value)
-				if en, ok := ends[serverName]; ok {
-					var err error
-					en.Weight, err = strconv.Atoi(serverWeight)
-					if err != nil {
-						logrus.Error("get server weight error.", err.Error())
-					}
-				} else {
-					weight, err := strconv.Atoi(serverWeight)
-					if err != nil {
-						logrus.Error("get server weight error.", err.Error())
-					}
-					ends[serverName] = &config.Endpoint{Name: serverName, Weight: weight}
-				}
+		//获取服务地址
+		kstep := strings.Split(string(kv.Key), "/")
+		if len(kstep) > 2 {
+			serverName := kstep[len(kstep)-1]
+			serverURL := string(kv.Value)
+			if en, ok := ends[serverName]; ok {
+				en.URL = serverURL
+			} else {
+				ends[serverName] = &config.Endpoint{Name: serverName, URL: serverURL}
 			}
 		}
 	}

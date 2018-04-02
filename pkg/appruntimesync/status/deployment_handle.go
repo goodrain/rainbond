@@ -19,31 +19,22 @@
 package status
 
 import (
+	"github.com/goodrain/rainbond/pkg/appruntimesync/source"
 	"github.com/goodrain/rainbond/pkg/db"
 
-	"github.com/jinzhu/gorm"
-
 	"github.com/Sirupsen/logrus"
-
-	"k8s.io/client-go/pkg/api/v1"
+	"github.com/jinzhu/gorm"
 )
 
-// RCUpdate describes an operation of endpoints, sent on the channel.
-// You can add, update or remove single endpoints by setting Op == ADD|UPDATE|REMOVE.
-type RCUpdate struct {
-	RC *v1.ReplicationController
-	Op Operation
-}
-
-func (s *statusManager) handleRCUpdate(update RCUpdate) {
-	if update.RC == nil {
+func (s *StatusManager) handleDeploymentUpdate(update source.DeploymentUpdate) {
+	if update.Deployment == nil {
 		return
 	}
 	var serviceID string
-	deployIndo, err := db.GetManager().K8sDeployReplicationDao().GetK8sDeployReplication(update.RC.Name)
+	deployIndo, err := db.GetManager().K8sDeployReplicationDao().GetK8sDeployReplication(update.Deployment.Name)
 	if err != nil {
-		if update.RC.Spec.Template != nil && len(update.RC.Spec.Template.Spec.Containers) > 0 {
-			for _, env := range update.RC.Spec.Template.Spec.Containers[0].Env {
+		if len(update.Deployment.Spec.Template.Spec.Containers) > 0 {
+			for _, env := range update.Deployment.Spec.Template.Spec.Containers[0].Env {
 				if env.Name == "SERVICE_ID" {
 					serviceID = env.Value
 				}
@@ -56,19 +47,19 @@ func (s *statusManager) handleRCUpdate(update RCUpdate) {
 		serviceID = deployIndo.ServiceID
 	}
 	if serviceID == "" {
-		logrus.Error("handle application(rc) status error. service id is empty")
+		logrus.Error("handle application(Deployment) status error. service id is empty")
 		return
 	}
 	switch update.Op {
-	case ADD:
-		if update.RC.Status.Replicas == 0 {
+	case source.ADD:
+		if update.Deployment.Status.Replicas == 0 {
 			return
 		}
-		if update.RC.Status.ReadyReplicas >= update.RC.Status.Replicas {
+		if update.Deployment.Status.ReadyReplicas >= update.Deployment.Status.Replicas {
 			s.SetStatus(serviceID, RUNNING)
 		}
-		if update.RC.Status.ReadyReplicas < update.RC.Status.Replicas {
-			status, _ := s.GetStatus(serviceID)
+		if update.Deployment.Status.ReadyReplicas < update.Deployment.Status.Replicas {
+			status, _ := s.status[serviceID]
 			if status == RUNNING {
 				s.SetStatus(serviceID, ABNORMAL)
 			}
@@ -76,32 +67,32 @@ func (s *statusManager) handleRCUpdate(update RCUpdate) {
 				s.SetStatus(serviceID, STARTING)
 			}
 		}
-	case UPDATE:
-		if update.RC.Status.Replicas == 0 {
+	case source.UPDATE:
+		if update.Deployment.Status.Replicas == 0 {
 			return
 		}
-		status, _ := s.GetStatus(serviceID)
+		status := s.GetStatus(serviceID)
 		//Ready数量==需要实例数量，应用在运行中
-		if update.RC.Status.ReadyReplicas >= update.RC.Status.Replicas {
+		if update.Deployment.Status.ReadyReplicas >= update.Deployment.Status.Replicas {
 			if status != STOPPING && status != UPGRADE {
 				s.SetStatus(serviceID, RUNNING)
 			}
 		}
-		if update.RC.Status.ReadyReplicas < update.RC.Status.Replicas {
-			if status == RUNNING && !s.isIgnoreDelete(update.RC.Name) {
+		if update.Deployment.Status.ReadyReplicas < update.Deployment.Status.Replicas {
+			if status == RUNNING && !s.isIgnoreDelete(update.Deployment.Name) {
 				s.SetStatus(serviceID, ABNORMAL)
 			}
 		}
-	case REMOVE:
+	case source.REMOVE:
 		// if deploy, _ := db.GetManager().K8sDeployReplicationDao().GetK8sDeployReplicationByService(serviceID); len(deploy) == 1 {
 		// 	s.SetStatus(serviceID, CLOSED)
-		// 	db.GetManager().K8sDeployReplicationDao().DeleteK8sDeployReplication(update.RC.Name)
+		// 	db.GetManager().K8sDeployReplicationDao().DeleteK8sDeployReplication(update.Deployment.Name)
 		// }
-		if !s.isIgnoreDelete(update.RC.Name) {
+		if !s.isIgnoreDelete(update.Deployment.Name) {
 			s.SetStatus(serviceID, CLOSED)
-			db.GetManager().K8sDeployReplicationDao().DeleteK8sDeployReplication(update.RC.Name)
+			db.GetManager().K8sDeployReplicationDao().DeleteK8sDeployReplication(update.Deployment.Name)
 		} else {
-			s.RmIgnoreDelete(update.RC.Name)
+			s.RmIgnoreDelete(update.Deployment.Name)
 		}
 	}
 }

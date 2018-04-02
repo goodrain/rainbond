@@ -27,8 +27,8 @@ import (
 	"github.com/goodrain/rainbond/pkg/worker/monitor/cache"
 
 	"github.com/Sirupsen/logrus"
+	status "github.com/goodrain/rainbond/pkg/appruntimesync/client"
 	"github.com/goodrain/rainbond/pkg/db"
-	"github.com/goodrain/rainbond/pkg/status"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -42,7 +42,7 @@ type Exporter struct {
 	fsUse         *prometheus.GaugeVec
 	workerUp      prometheus.Gauge
 	dbmanager     db.Manager
-	statusManager status.ServiceStatusManager
+	statusManager *status.AppRuntimeSyncClient
 	cache         *cache.DiskCache
 }
 
@@ -126,7 +126,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 var namespace = "app_resource"
 
 //New 创建一个收集器
-func New(statusManager status.ServiceStatusManager, cache *cache.DiskCache) *Exporter {
+func New(statusManager *status.AppRuntimeSyncClient, cache *cache.DiskCache) *Exporter {
 	return &Exporter{
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,

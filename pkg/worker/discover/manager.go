@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/cmd/worker/option"
+	status "github.com/goodrain/rainbond/pkg/appruntimesync/client"
 	"github.com/goodrain/rainbond/pkg/mq/api/grpc/client"
 	"github.com/goodrain/rainbond/pkg/mq/api/grpc/pb"
-	"github.com/goodrain/rainbond/pkg/status"
 	"github.com/goodrain/rainbond/pkg/worker/discover/model"
 	"github.com/goodrain/rainbond/pkg/worker/executor"
 	"github.com/goodrain/rainbond/pkg/worker/handle"
@@ -51,7 +51,7 @@ type TaskManager struct {
 }
 
 //NewTaskManager return *TaskManager
-func NewTaskManager(c option.Config, executor executor.Manager, statusManager status.ServiceStatusManager) *TaskManager {
+func NewTaskManager(c option.Config, executor executor.Manager, statusManager *status.AppRuntimeSyncClient) *TaskManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	handleManager := handle.NewManager(ctx, c, executor, statusManager)
 	return &TaskManager{

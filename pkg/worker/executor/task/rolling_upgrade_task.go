@@ -28,7 +28,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/worker/appm"
 	"github.com/goodrain/rainbond/pkg/worker/discover/model"
 
-	"github.com/goodrain/rainbond/pkg/status"
+	status "github.com/goodrain/rainbond/pkg/appruntimesync/client"
 
 	"github.com/Sirupsen/logrus"
 	"k8s.io/client-go/pkg/api/v1"
@@ -81,7 +81,7 @@ func (s *rollingUpgradeTask) BeforeRun() {
 			s.serviceType = dbmodel.TypeReplicationController
 		}
 	}
-	if serviceStatus, err := s.taskManager.statusManager.GetStatus(s.modelTask.ServiceID); err == nil && (serviceStatus == status.UNDEPLOY || serviceStatus == status.DEPLOYING) {
+	if serviceStatus := s.taskManager.statusManager.GetStatus(s.modelTask.ServiceID); s.taskManager.statusManager.IsClosedStatus(serviceStatus) {
 		s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, status.STARTING)
 	} else {
 		s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, status.UPGRADE)

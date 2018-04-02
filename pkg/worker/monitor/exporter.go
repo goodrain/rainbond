@@ -24,7 +24,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
-	"github.com/goodrain/rainbond/pkg/status"
+	status "github.com/goodrain/rainbond/pkg/appruntimesync/client"
 	"github.com/goodrain/rainbond/pkg/worker/monitor/cache"
 	"github.com/goodrain/rainbond/pkg/worker/monitor/collector"
 	"github.com/prometheus/client_golang/prometheus"
@@ -38,12 +38,12 @@ type ExporterManager struct {
 	cancel        context.CancelFunc
 	config        option.Config
 	stopChan      chan struct{}
-	statusManager status.ServiceStatusManager
+	statusManager *status.AppRuntimeSyncClient
 	cache         *cache.DiskCache
 }
 
 //NewManager return *NewManager
-func NewManager(c option.Config, statusManager status.ServiceStatusManager) *ExporterManager {
+func NewManager(c option.Config, statusManager *status.AppRuntimeSyncClient) *ExporterManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	cache := cache.CreatDiskCache(ctx, statusManager)
 	return &ExporterManager{

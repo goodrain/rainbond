@@ -19,10 +19,10 @@
 package task
 
 import (
+	status "github.com/goodrain/rainbond/pkg/appruntimesync/client"
 	"github.com/goodrain/rainbond/pkg/db"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 	"github.com/goodrain/rainbond/pkg/event"
-	"github.com/goodrain/rainbond/pkg/status"
 	"github.com/goodrain/rainbond/pkg/util"
 	"github.com/goodrain/rainbond/pkg/worker/appm"
 	"github.com/goodrain/rainbond/pkg/worker/discover/model"

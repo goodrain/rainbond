@@ -27,9 +27,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	status "github.com/goodrain/rainbond/pkg/appruntimesync/client"
 	"github.com/goodrain/rainbond/pkg/db"
 	"github.com/goodrain/rainbond/pkg/db/model"
-	"github.com/goodrain/rainbond/pkg/status"
 	"github.com/goodrain/rainbond/pkg/util"
 )
 
@@ -40,13 +40,13 @@ type DiskCache struct {
 		Value float64
 	}
 	dbmanager     db.Manager
-	statusManager status.ServiceStatusManager
+	statusManager *status.AppRuntimeSyncClient
 	ctx           context.Context
 	lock          sync.Mutex
 }
 
 //CreatDiskCache 创建
-func CreatDiskCache(ctx context.Context, statusManager status.ServiceStatusManager) *DiskCache {
+func CreatDiskCache(ctx context.Context, statusManager *status.AppRuntimeSyncClient) *DiskCache {
 	return &DiskCache{
 		dbmanager:     db.GetManager(),
 		statusManager: statusManager,

@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,16 +24,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/goodrain/rainbond/pkg/appruntimesync/source"
+	"github.com/jinzhu/gorm"
+	"k8s.io/client-go/kubernetes"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/pkg/db"
 	"github.com/goodrain/rainbond/pkg/db/model"
-
-	"github.com/jinzhu/gorm"
-
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/Sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -53,128 +51,48 @@ const (
 	DEPLOYING = "deploying"
 )
 
-//ServiceStatusManager 应用运行状态控制器
-type ServiceStatusManager interface {
-	SetStatus(serviceID, status string) error
-	GetStatus(serviceID string) (string, error)
-	CheckStatus(serviceID string)
-	Start() error
-	Stop() error
-	SyncStatus()
-	GetNeedBillingStatus() (map[string]string, error)
-	IgnoreDelete(name string)
-	RmIgnoreDelete(name string)
-}
-
-type statusManager struct {
+type StatusManager struct {
 	c                     option.Config
-	stopChan              chan struct{}
-	Ctx                   context.Context
-	Cancel                context.CancelFunc
-	ClientSet             *kubernetes.Clientset
-	StatefulSetUpdateChan chan StatefulSetUpdate
-	RCUpdateChan          chan RCUpdate
-	DeploymentUpdateChan  chan DeploymentUpdate
+	ctx                   context.Context
+	StatefulSetUpdateChan chan source.StatefulSetUpdate
+	RCUpdateChan          chan source.RCUpdate
+	DeploymentUpdateChan  chan source.DeploymentUpdate
 	checkChan             chan string
 	ignoreDelete          map[string]string
 	ignoreLock            sync.Mutex
 	status                map[string]string
+	statusLock            sync.RWMutex
+	ClientSet             *kubernetes.Clientset
 }
 
 //NewManager 创建一个应用运行状态控制器
-func NewManager(conf option.Config) ServiceStatusManager {
-	ctx, cancel := context.WithCancel(context.Background())
-	kubeconfig := conf.KubeConfig
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		logrus.Error(err)
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		logrus.Error(err)
-	}
-	logrus.Info("Kube client api create success.")
-	return &statusManager{
-		c:                     conf,
-		Ctx:                   ctx,
-		stopChan:              make(chan struct{}),
-		Cancel:                cancel,
+func NewManager(ctx context.Context, clientset *kubernetes.Clientset) *StatusManager {
+	return &StatusManager{
+		ctx:                   ctx,
 		ClientSet:             clientset,
-		RCUpdateChan:          make(chan RCUpdate, 10),
-		DeploymentUpdateChan:  make(chan DeploymentUpdate, 10),
-		StatefulSetUpdateChan: make(chan StatefulSetUpdate, 10),
+		RCUpdateChan:          make(chan source.RCUpdate, 10),
+		DeploymentUpdateChan:  make(chan source.DeploymentUpdate, 10),
+		StatefulSetUpdateChan: make(chan source.StatefulSetUpdate, 10),
 		checkChan:             make(chan string, 20),
 		ignoreDelete:          make(map[string]string),
 		status:                make(map[string]string),
 	}
 }
 
-func (s *statusManager) SetStatus(serviceID, status string) error {
-	if err := db.GetManager().TenantServiceStatusDao().SetTenantServiceStatus(serviceID, status); err != nil {
-		logrus.Error("set application status error.", err.Error())
-		return err
-	}
-	if err := db.GetManager().TenantServiceDao().SetTenantServiceStatus(serviceID, status); err != nil {
-		logrus.Error("set application service status error.", err.Error())
-		return err
-	}
-	//本地缓存
-	//s.status[serviceID] = status
-	return nil
-}
-
-func (s *statusManager) GetStatus(serviceID string) (string, error) {
-
-	// 本地缓存应用状态
-	// if status, ok := s.status[serviceID]; ok {
-	// 	return status, nil
-	// }
-	status, err := db.GetManager().TenantServiceStatusDao().GetTenantServiceStatus(serviceID)
-	if err != nil {
-		return "", err
-	}
-	if status != nil {
-		return status.Status, nil
-	}
-	//历史数据兼容
-	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
-	if err != nil {
-		return "", err
-	}
-	return service.CurStatus, nil
-}
-
-func (s *statusManager) GetNeedBillingStatus() (map[string]string, error) {
-	status, err := db.GetManager().TenantServiceStatusDao().GetNeedBillingService()
-	if err != nil {
-		return nil, err
-	}
-	re := make(map[string]string)
-	for _, s := range status {
-		re[s.ServiceID] = s.Status
-	}
-	return re, nil
-}
-
-func (s *statusManager) Start() error {
+//Start start
+func (s *StatusManager) Start() error {
 	logrus.Info("status manager starting...")
 	go s.checkStatus()
 	go s.handleUpdate()
-	NewSourceAPI(s.ClientSet.Core().RESTClient(),
-		s.ClientSet.AppsV1beta1().RESTClient(),
-		15*time.Minute,
-		s.RCUpdateChan,
-		s.DeploymentUpdateChan,
-		s.StatefulSetUpdateChan,
-		s.stopChan,
-	)
 	logrus.Info("status manager started")
 	return nil
 }
-func (s *statusManager) handleUpdate() {
+
+//handleUpdate
+func (s *StatusManager) handleUpdate() {
 	for {
 		select {
-		case <-s.Ctx.Done():
+		case <-s.ctx.Done():
 			return
 		case update := <-s.RCUpdateChan:
 			s.handleRCUpdate(update)
@@ -186,10 +104,10 @@ func (s *statusManager) handleUpdate() {
 	}
 }
 
-func (s *statusManager) checkStatus() {
+func (s *StatusManager) checkStatus() {
 	for {
 		select {
-		case <-s.Ctx.Done():
+		case <-s.ctx.Done():
 			return
 		case serviceID := <-s.checkChan:
 			deployInfo, err := db.GetManager().K8sDeployReplicationDao().GetK8sDeployReplicationByService(serviceID)
@@ -302,22 +220,67 @@ func (s *statusManager) checkStatus() {
 	}
 }
 
-func (s *statusManager) CheckStatus(serviceID string) {
+//SetStatus set app status
+func (s *StatusManager) SetStatus(serviceID, status string) error {
+	if err := db.GetManager().TenantServiceStatusDao().SetTenantServiceStatus(serviceID, status); err != nil {
+		logrus.Error("set application status error.", err.Error())
+		return err
+	}
+	if err := db.GetManager().TenantServiceDao().SetTenantServiceStatus(serviceID, status); err != nil {
+		logrus.Error("set application service status error.", err.Error())
+		return err
+	}
+	//cache
+	s.statusLock.Lock()
+	defer s.statusLock.Unlock()
+	s.status[serviceID] = status
+	return nil
+}
+
+//GetStatus get app status
+func (s *StatusManager) GetStatus(serviceID string) string {
+	s.statusLock.RLock()
+	defer s.statusLock.RUnlock()
+	if status, ok := s.status[serviceID]; ok {
+		return status
+	}
+	return "unknow"
+}
+
+//GetAllStatus get all app status
+func (s *StatusManager) GetAllStatus() map[string]string {
+	s.statusLock.RLock()
+	defer s.statusLock.RUnlock()
+	var re = make(map[string]string)
+	for k, v := range s.status {
+		re[k] = v
+	}
+	return re
+}
+
+//GetNeedBillingStatus get need billing app status
+func (s *StatusManager) GetNeedBillingStatus() (map[string]string, error) {
+	status, err := db.GetManager().TenantServiceStatusDao().GetNeedBillingService()
+	if err != nil {
+		return nil, err
+	}
+	re := make(map[string]string)
+	for _, s := range status {
+		re[s.ServiceID] = s.Status
+	}
+	return re, nil
+}
+
+//CheckStatus check app status
+func (s *StatusManager) CheckStatus(serviceID string) {
 	select {
 	case s.checkChan <- serviceID:
 	default:
 	}
 }
 
-//Stop 停止
-func (s *statusManager) Stop() error {
-	logrus.Info("Source manager is stoping.")
-	close(s.stopChan)
-	s.Cancel()
-	return nil
-}
-
-func (s *statusManager) SaveDeployInfo(serviceID, tenantID, deployVersion, replicationID, replicationType string) (*model.K8sDeployReplication, error) {
+//SaveDeployInfo save app deploy info
+func (s *StatusManager) SaveDeployInfo(serviceID, tenantID, deployVersion, replicationID, replicationType string) (*model.K8sDeployReplication, error) {
 	deploy := &model.K8sDeployReplication{
 		TenantID:        tenantID,
 		ServiceID:       serviceID,
@@ -333,7 +296,8 @@ func (s *statusManager) SaveDeployInfo(serviceID, tenantID, deployVersion, repli
 	return deploy, nil
 }
 
-func (s *statusManager) SyncStatus() {
+//SyncStatus sync app status
+func (s *StatusManager) SyncStatus() {
 	all, err := db.GetManager().TenantServiceStatusDao().GetRunningService()
 	if err != nil {
 		logrus.Error("get all running and starting service error")
@@ -345,13 +309,7 @@ func (s *statusManager) SyncStatus() {
 		}
 	}
 }
-
-func (s *statusManager) IgnoreDelete(name string) {
-	s.ignoreLock.Lock()
-	defer s.ignoreLock.Unlock()
-	s.ignoreDelete[name] = name
-}
-func (s *statusManager) isIgnoreDelete(name string) bool {
+func (s *StatusManager) isIgnoreDelete(name string) bool {
 	s.ignoreLock.Lock()
 	defer s.ignoreLock.Unlock()
 	if _, ok := s.ignoreDelete[name]; ok {
@@ -360,10 +318,18 @@ func (s *statusManager) isIgnoreDelete(name string) bool {
 	return false
 }
 
-func (s *statusManager) RmIgnoreDelete(name string) {
+//RmIgnoreDelete remove ignore delete info
+func (s *StatusManager) RmIgnoreDelete(name string) {
 	s.ignoreLock.Lock()
 	defer s.ignoreLock.Unlock()
 	if _, ok := s.ignoreDelete[name]; ok {
 		delete(s.ignoreDelete, name)
 	}
+}
+
+//IgnoreDelete  add ignore delete info
+func (s *StatusManager) IgnoreDelete(name string) {
+	s.ignoreLock.Lock()
+	defer s.ignoreLock.Unlock()
+	s.ignoreDelete[name] = name
 }
