@@ -52,6 +52,7 @@ type ImageShareItem struct {
 			HubUser     string `json:"hub_user"`
 			HubPassword string `json:"hub_password"`
 			Namespace   string `json:"namespace"`
+			IsTrust     bool   `json:"is_trust,omitempty"`
 		} `json:"image_info,omitempty"`
 	} `json:"share_info"`
 	DockerClient *client.Client
@@ -68,6 +69,9 @@ func NewImageShareItem(in []byte, DockerClient *client.Client, EtcdCli *clientv3
 	isi.Logger = event.GetManager().GetLogger(eventID)
 	isi.DockerClient = DockerClient
 	isi.EtcdCli = EtcdCli
+	if isi.ShareInfo.ImageInfo.HubURL == "hub.goodrain.com" {
+		isi.ShareInfo.ImageInfo.IsTrust = true
+	}
 	return &isi, nil
 }
 
@@ -84,16 +88,11 @@ func (i *ImageShareItem) ShareService() error {
 		i.Logger.Error(fmt.Sprintf("修改镜像tag: %s -> %s 失败", i.LocalImageName, i.ImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	auth, err := sources.EncodeAuthToBase64(types.AuthConfig{Username: i.ShareInfo.ImageInfo.HubUser, Password: i.ShareInfo.ImageInfo.HubPassword})
-	if err != nil {
-		logrus.Errorf("make auth base63 push image error: %s", err.Error())
-		i.Logger.Error(fmt.Sprintf("推送镜像内部错误"), map[string]string{"step": "builder-exector", "status": "failure"})
-		return err
+	if i.ShareInfo.ImageInfo.IsTrust {
+		err = sources.TrustedImagePush(i.DockerClient, i.ImageName, i.ShareInfo.ImageInfo.HubUser, i.ShareInfo.ImageInfo.HubPassword, i.Logger, 8)
+	} else {
+		err = sources.ImagePush(i.DockerClient, i.ImageName, i.ShareInfo.ImageInfo.HubUser, i.ShareInfo.ImageInfo.HubPassword, i.Logger, 8)
 	}
-	ipo := types.ImagePushOptions{
-		RegistryAuth: auth,
-	}
-	err = sources.ImagePush(i.DockerClient, i.ImageName, ipo, i.Logger, 8)
 	if err != nil {
 		if err.Error() == "authentication required" {
 			i.Logger.Error("镜像仓库授权失败", map[string]string{"step": "builder-exector", "status": "failure"})

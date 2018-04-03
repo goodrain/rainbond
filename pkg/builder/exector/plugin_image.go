@@ -138,7 +138,7 @@ func (e *exectorManager) run(t *model.BuildPluginTaskBody, c parseConfig.Config,
 		return err
 	}
 	logger.Info("修改镜像Tag完成", map[string]string{"step": "build-exector", "status": "complete"})
-	if err := sources.ImagePush(e.DockerClient, newTag, types.ImagePushOptions{}, logger, 5); err != nil {
+	if err := sources.ImagePush(e.DockerClient, newTag, "", "", logger, 5); err != nil {
 		logrus.Errorf("push image %s error, %v", newTag, err)
 		logger.Error("推送镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err

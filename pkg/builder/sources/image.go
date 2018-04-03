@@ -23,7 +23,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"time"
@@ -134,7 +133,7 @@ func ImageNameHandle(imageName string) *model.ImageName {
 
 //ImagePush 推送镜像
 //timeout 分钟为单位
-func ImagePush(dockerCli *client.Client, image string, opts types.ImagePushOptions, logger event.Logger, timeout int) error {
+func ImagePush(dockerCli *client.Client, image, user, pass string, logger event.Logger, timeout int) error {
 	if logger != nil {
 		//进度信息
 		logger.Info(fmt.Sprintf("开始推送镜像：%s", image), map[string]string{"step": "pushimage"})
@@ -143,17 +142,30 @@ func ImagePush(dockerCli *client.Client, image string, opts types.ImagePushOptio
 	if timeout < 1 {
 		timeout = 1
 	}
-	if opts.RegistryAuth == "" {
-		pushauth, err := EncodeAuthToBase64(types.AuthConfig{Username: os.Getenv("LOCAL_HUB_USER"), Password: os.Getenv("LOCAL_HUB_PASS")})
-		if err != nil {
-			logrus.Errorf("make auth base63 push image error: %s", err.Error())
-			if logger != nil {
-				logger.Error(fmt.Sprintf("生成获取镜像的Token失败"), map[string]string{"step": "builder-exector", "status": "failure"})
-			}
-			return err
-		}
-		opts.RegistryAuth = pushauth
+	if user == "" {
+		user = os.Getenv("LOCAL_HUB_USER")
 	}
+	if pass == "" {
+		pass = os.Getenv("LOCAL_HUB_PASS")
+	}
+	ref, err := reference.ParseNormalizedNamed(image)
+	if err != nil {
+		return err
+	}
+	var opts types.ImagePushOptions
+	pushauth, err := EncodeAuthToBase64(types.AuthConfig{
+		Username:      user,
+		Password:      pass,
+		ServerAddress: reference.Domain(ref),
+	})
+	if err != nil {
+		logrus.Errorf("make auth base63 push image error: %s", err.Error())
+		if logger != nil {
+			logger.Error(fmt.Sprintf("生成获取镜像的Token失败"), map[string]string{"step": "builder-exector", "status": "failure"})
+		}
+		return err
+	}
+	opts.RegistryAuth = pushauth
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
 	readcloser, err := dockerCli.ImagePush(ctx, image, opts)
@@ -181,9 +193,17 @@ func ImagePush(dockerCli *client.Client, image string, opts types.ImagePushOptio
 				if strings.Contains(string(line), "authentication required") {
 					return fmt.Errorf("authentication required")
 				}
+				if strings.Contains(string(line), "requested access to the resource is denied") {
+					return fmt.Errorf("requested access to the resource is denied")
+				}
+				if strings.Contains(string(line), "incorrect username or password") {
+					return fmt.Errorf("incorrect username or password")
+				}
 				if logger != nil {
 					//进度信息
 					logger.Debug(string(line), map[string]string{"step": "progress"})
+				} else {
+					fmt.Println(string(line))
 				}
 			} else {
 				if err.Error() == "EOF" {
@@ -197,6 +217,60 @@ func ImagePush(dockerCli *client.Client, image string, opts types.ImagePushOptio
 	return nil
 }
 
+//TrustedImagePush push image to trusted registry
+func TrustedImagePush(dockerCli *client.Client, image, user, pass string, logger event.Logger, timeout int) error {
+	if err := CheckTrustedRepositories(image, user, pass); err != nil {
+		return err
+	}
+	return ImagePush(dockerCli, image, user, pass, logger, timeout)
+}
+
+//CheckTrustedRepositories check Repositories is exist ,if not create it.
+func CheckTrustedRepositories(image, user, pass string) error {
+	ref, err := reference.ParseNormalizedNamed(image)
+	if err != nil {
+		return err
+	}
+	var server string
+	if reference.IsNameOnly(ref) {
+		server = "docker.io"
+	} else {
+		server = reference.Domain(ref)
+	}
+	cli, err := createTrustedRegistryClient(server, user, pass)
+	if err != nil {
+		return err
+	}
+	var namespace, repName string
+	infos := strings.Split(reference.TrimNamed(ref).String(), "/")
+	if len(infos) == 3 && infos[0] == server {
+		namespace = infos[1]
+		repName = infos[2]
+	}
+	if len(infos) == 2 {
+		namespace = infos[0]
+		repName = infos[1]
+	}
+	_, err = cli.GetRepository(namespace, repName)
+	if err != nil {
+		if err.Error() == "resource does not exist" {
+			rep := Repostory{
+				Name:             repName,
+				ShortDescription: fmt.Sprintf("push image for %s", image),
+				LongDescription:  fmt.Sprintf("push image for %s", image),
+				Visibility:       "private",
+			}
+			err := cli.CreateRepository(namespace, &rep)
+			if err != nil {
+				return fmt.Errorf("create repostory error,%s", err.Error())
+			}
+			return nil
+		}
+		return fmt.Errorf("get repostory error,%s", err.Error())
+	}
+	return err
+}
+
 // EncodeAuthToBase64 serializes the auth configuration as JSON base64 payload
 func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 	buf, err := json.Marshal(authConfig)
@@ -204,20 +278,6 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(buf), nil
-}
-
-// ImagePushPrivileged push the image
-func imagePushPrivileged(ctx context.Context, dockerCli *client.Client, authConfig types.AuthConfig, ref string, requestPrivilege types.RequestPrivilegeFunc) (io.ReadCloser, error) {
-	encodedAuth, err := EncodeAuthToBase64(authConfig)
-	if err != nil {
-		return nil, err
-	}
-	options := types.ImagePushOptions{
-		RegistryAuth:  encodedAuth,
-		PrivilegeFunc: requestPrivilege,
-	}
-
-	return dockerCli.ImagePush(ctx, ref, options)
 }
 
 //ImageBuild ImageBuild

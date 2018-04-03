@@ -52,14 +52,21 @@ func TestBuildImage(t *testing.T) {
 
 func TestPushImage(t *testing.T) {
 	dc, _ := client.NewEnvClient()
-	auth, err := EncodeAuthToBase64(types.AuthConfig{Username: "", Password: ""})
-	if err != nil {
+	if err := ImagePush(dc, "hub.goodrain.com/zengqg-test/etcd:v2.2.0", "zengqg-test", "zengqg-test", nil, 2); err != nil {
 		t.Fatal(err)
 	}
-	pushOptions := types.ImagePushOptions{
-		RegistryAuth: auth,
+}
+
+func TestTrustedImagePush(t *testing.T) {
+	dc, _ := client.NewEnvClient()
+	if err := TrustedImagePush(dc, "hub.goodrain.com/zengqg-test/etcd:v2.2.0", "zengqg-test", "zengqg-test", nil, 2); err != nil {
+		t.Fatal(err)
 	}
-	if err := ImagePush(dc, "hub.goodrain.com/goodrain/mysql", pushOptions, nil, 2); err != nil {
+}
+
+func TestCheckTrustedRepositories(t *testing.T) {
+	err := CheckTrustedRepositories("hub.goodrain.com/zengqg-test/etcd2:v2.2.0", "zengqg-test", "zengqg-test")
+	if err != nil {
 		t.Fatal(err)
 	}
 }

@@ -234,18 +234,8 @@ func (i *SourceCodeBuildItem) buildImage() error {
 		logrus.Errorf("get image inspect error: %s", err.Error())
 		return err
 	}
-	// push image
-	pushauth, err := sources.EncodeAuthToBase64(types.AuthConfig{Username: os.Getenv("LOCAL_HUB_USER"), Password: os.Getenv("LOCAL_HUB_PASS")})
-	if err != nil {
-		logrus.Errorf("make auth base63 push image error: %s", err.Error())
-		i.Logger.Error(fmt.Sprintf("生成获取镜像的Token失败"), map[string]string{"step": "builder-exector", "status": "failure"})
-		return err
-	}
-	ipo := types.ImagePushOptions{
-		RegistryAuth: pushauth,
-	}
 	i.Logger.Info("镜像构建成功，开始推送镜像至仓库", map[string]string{"step": "builder-exector"})
-	err = sources.ImagePush(i.DockerClient, buildImageName, ipo, i.Logger, 5)
+	err = sources.ImagePush(i.DockerClient, buildImageName, "", "", i.Logger, 5)
 	if err != nil {
 		i.Logger.Error("推送镜像失败", map[string]string{"step": "builder-exector"})
 		logrus.Errorf("push image error: %s", err.Error())
