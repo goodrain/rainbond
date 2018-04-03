@@ -39,6 +39,7 @@ import (
 	api_db "github.com/goodrain/rainbond/pkg/api/db"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
+	"github.com/goodrain/rainbond/pkg/appruntimesync/client"
 	dbmodel "github.com/goodrain/rainbond/pkg/db/model"
 	core_util "github.com/goodrain/rainbond/pkg/util"
 	"github.com/goodrain/rainbond/pkg/worker/discover/model"
@@ -56,16 +57,18 @@ type ServiceAction struct {
 	MQClient   pb.TaskQueueClient
 	KubeClient *kubernetes.Clientset
 	EtcdCli    *clientv3.Client
+	statusCli  *client.AppRuntimeSyncClient
 }
 
 //CreateManager create Manger
 func CreateManager(mqClient pb.TaskQueueClient,
 	kubeClient *kubernetes.Clientset,
-	etcdCli *clientv3.Client) *ServiceAction {
+	etcdCli *clientv3.Client, statusCli *client.AppRuntimeSyncClient) *ServiceAction {
 	return &ServiceAction{
 		MQClient:   mqClient,
 		KubeClient: kubeClient,
 		EtcdCli:    etcdCli,
+		statusCli:  statusCli,
 	}
 }
 
@@ -657,11 +660,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	}
 
 	//status表
-	if err := db.GetManager().TenantServiceStatusDaoTransactions(tx).AddModel(&dbmodel.TenantServiceStatus{
-		ServiceID: ts.ServiceID,
-		Status:    "undeploy",
-	}); err != nil {
-		logrus.Errorf("add status %v error, %v", ts.ServiceID, err)
+	if err := s.statusCli.SetStatus(ts.ServiceID, "undeploy"); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -1621,43 +1620,27 @@ func (s *ServiceAction) GetStatus(serviceID string) (*api_model.StatusList, erro
 		CurStatus:     services.CurStatus,
 		StatusCN:      TransStatus(services.CurStatus),
 	}
-	servicesStatus, err := db.GetManager().TenantServiceStatusDao().GetTenantServiceStatus(serviceID)
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, err
-	}
-	if servicesStatus != nil {
-		sl.CurStatus = servicesStatus.Status
-		sl.StatusCN = TransStatus(sl.CurStatus)
+	status := s.statusCli.GetStatus(serviceID)
+	if status != "" {
+		sl.CurStatus = status
+		sl.StatusCN = TransStatus(status)
 	}
 	return sl, nil
 }
 
 //GetServicesStatus  获取一组应用状态，若 serviceIDs为空,获取租户所有应用状态
-func (s *ServiceAction) GetServicesStatus(tenantID string, serviceIDs []string) ([]*dbmodel.TenantServiceStatus, error) {
+func (s *ServiceAction) GetServicesStatus(tenantID string, serviceIDs []string) map[string]string {
 	if serviceIDs == nil || len(serviceIDs) == 0 {
-		return db.GetManager().TenantServiceStatusDao().GetTenantStatus(tenantID)
-	}
-	statusList, err := db.GetManager().TenantServiceStatusDao().GetTenantServicesStatus(serviceIDs)
-	if err != nil {
-		return nil, err
-	}
-	/*
-		for _, serviceID := range serviceIDs {
-			if !CheckLabel(serviceID) {
-				s, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
-				if err != nil {
-					continue
-					//return nil, err
-				}
-				tss := &dbmodel.TenantServiceStatus{
-					ServiceID: serviceID,
-					Status:    s.CurStatus,
-				}
-				statusList = append(statusList, tss)
-			}
+		services, _ := db.GetManager().TenantServiceDao().GetServicesByTenantID(tenantID)
+		for _, s := range services {
+			serviceIDs = append(serviceIDs, s.ServiceID)
 		}
-	*/
-	return statusList, nil
+	}
+	if len(serviceIDs) > 0 {
+		status := s.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
+		return status
+	}
+	return nil
 }
 
 //CreateTenant create tenant
@@ -1715,11 +1698,8 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	if err != nil {
 		return err
 	}
-	status, err := db.GetManager().TenantServiceStatusDao().GetTenantServiceStatus(serviceID)
-	if err != nil {
-		return err
-	}
-	if status.Status != "closed" && status.Status != "undeploy" && status.Status != "" {
+	status := s.statusCli.GetStatus("serviceID")
+	if s.statusCli.IsClosedStatus(status) {
 		return fmt.Errorf("unclosed")
 	}
 	tx := db.GetManager().Begin()

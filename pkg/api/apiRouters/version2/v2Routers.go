@@ -34,7 +34,6 @@ func (v2 *V2) Routes() chi.Router {
 	r.Get("/show", controller.GetManager().Show)
 	r.Post("/show", controller.GetManager().Show)
 	r.Mount("/tenants", v2.tenantRouter())
-	r.Mount("/opentsdb", v2.opentsdbRouter())
 	r.Mount("/nodes", v2.nodesRouter())
 	r.Mount("/job", v2.jobsRouter())
 	r.Mount("/cluster", v2.clusterRouter())
@@ -47,7 +46,7 @@ func (v2 *V2) tenantRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/", controller.GetManager().Tenant)
 	r.Mount("/{tenant_name}", v2.tenantNameRouter())
-	r.Get("/",controller.GetManager().Tenant)
+	r.Get("/", controller.GetManager().Tenant)
 	return r
 }
 
@@ -202,12 +201,6 @@ func (v2 *V2) resourcesRouter() chi.Router {
 	r.Get("/tenants/res/page/{curPage}/size/{pageLen}", controller.GetManager().TenantsWithResource)
 	r.Get("/tenants/query/{tenant_name}", controller.GetManager().TenantsQuery)
 	r.Get("/tenants/{tenant_name}/res", controller.GetManager().TenantsGetByName)
-	return r
-}
-
-func (v2 *V2) opentsdbRouter() chi.Router {
-	r := chi.NewRouter()
-	r.Post("/query", controller.GetManager().TsdbQuery)
 	return r
 }
 

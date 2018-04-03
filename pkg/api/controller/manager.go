@@ -25,6 +25,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/api/apiFunc"
 	"github.com/goodrain/rainbond/pkg/api/discover"
 	"github.com/goodrain/rainbond/pkg/api/proxy"
+	"github.com/goodrain/rainbond/pkg/appruntimesync/client"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -36,7 +37,6 @@ type V2Manager interface {
 	Jobs(w http.ResponseWriter, r *http.Request)
 	Apps(w http.ResponseWriter, r *http.Request)
 	Entrance(w http.ResponseWriter, r *http.Request)
-	TsdbQuery(w http.ResponseWriter, r *http.Request)
 
 	apiFunc.TenantInterface
 	apiFunc.ServiceInterface
@@ -49,8 +49,8 @@ type V2Manager interface {
 var defaultV2Manager V2Manager
 
 //CreateV2RouterManager 创建manager
-func CreateV2RouterManager(conf option.Config) error {
-	defaultV2Manager = NewManager(conf)
+func CreateV2RouterManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) error {
+	defaultV2Manager = NewManager(conf, statusCli)
 	return nil
 }
 
@@ -60,8 +60,9 @@ func GetManager() V2Manager {
 }
 
 //NewManager new manager
-func NewManager(conf option.Config) *V2Routes {
+func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) *V2Routes {
 	var v2r V2Routes
+	v2r.TenantStruct.StatusCli = statusCli
 	nodeProxy := proxy.CreateProxy("acp_node", "http", conf.NodeAPI)
 	discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("acp_node", nodeProxy)
 	v2r.AcpNodeStruct.HTTPProxy = nodeProxy

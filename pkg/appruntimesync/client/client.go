@@ -145,6 +145,19 @@ func (a *AppRuntimeSyncClient) GetStatus(serviceID string) string {
 	return status.Status[serviceID]
 }
 
+//GetStatuss get multiple app status
+func (a *AppRuntimeSyncClient) GetStatuss(serviceIDs string) map[string]string {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	status, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.StatusRequest{
+		ServiceIds: serviceIDs,
+	})
+	if err != nil {
+		return nil
+	}
+	return status.Status
+}
+
 //GetAllStatus get all status
 func (a *AppRuntimeSyncClient) GetAllStatus() map[string]string {
 	ctx, cancel := context.WithCancel(context.Background())

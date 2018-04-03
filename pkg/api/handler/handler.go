@@ -27,10 +27,11 @@ import (
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	api_db "github.com/goodrain/rainbond/pkg/api/db"
+	"github.com/goodrain/rainbond/pkg/appruntimesync/client"
 )
 
 //InitHandle 初始化handle
-func InitHandle(conf option.Config) error {
+func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) error {
 	mq := api_db.MQManager{
 		Endpoint: conf.MQAPI,
 	}
@@ -55,9 +56,9 @@ func InitHandle(conf option.Config) error {
 		logrus.Errorf("create etcd client v3 error, %v", err)
 		return err
 	}
-	defaultServieHandler = CreateManager(mqClient, kubeClient, etcdCli)
+	defaultServieHandler = CreateManager(mqClient, kubeClient, etcdCli, statusCli)
 	defaultPluginHandler = CreatePluginManager(mqClient)
-	defaultTenantHandler = CreateTenManager(mqClient, kubeClient, conf.Opentsdb)
+	defaultTenantHandler = CreateTenManager(mqClient, kubeClient, statusCli)
 	defaultNetRulesHandler = CreateNetRulesManager(etcdCli)
 	defaultSourcesHandler = CreateSourcesManager(etcdCli)
 	defaultCloudHandler = CreateCloudManager(conf)

@@ -20,9 +20,9 @@ package service
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
-	"reflect"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
@@ -146,7 +146,7 @@ func (d *DiscoverAction) DiscoverListeners(
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf(
 			"get env %s error: %v", namespace+serviceAlias+pluginID, err))
 	}
-	
+
 	logrus.Debugf("process go on")
 	//TODO: console控制尽量不把小于1000的端口给用户使用
 	var vhL []*node_model.PieceHTTPVirtualHost
@@ -316,14 +316,13 @@ func (d *DiscoverAction) DiscoverListeners(
 		}
 	}
 	if len(vhL) != 0 {
-		logrus.Debugf("vhl len is not 0")
 		httpPort := 80
 		hsf := &node_model.HTTPSingleFileter{
 			Type:   "decoder",
 			Name:   "router",
 			Config: make(map[string]string),
 		}
-		var newVHL []*node_model.PieceHTTPVirtualHost	
+		var newVHL []*node_model.PieceHTTPVirtualHost
 		if len(vhL) > 1 {
 			domainL := d.CheckSameDomainAndPrefix(resources)
 			logrus.Debugf("domainL is %v", domainL)
@@ -332,7 +331,7 @@ func (d *DiscoverAction) DiscoverListeners(
 				for d := range domainL {
 					var c []map[string]interface{}
 					var r []interface{}
-					var pvh node_model.PieceHTTPVirtualHost	
+					var pvh node_model.PieceHTTPVirtualHost
 					prs := make(map[string]interface{})
 					prs["timeout_ms"] = 0
 					for _, v := range vhL {
@@ -342,18 +341,18 @@ func (d *DiscoverAction) DiscoverListeners(
 							pvh.Routes = []map[string]interface{}{prs}
 						}
 						if v.Domains[0] == d {
-							switch domainL[d]{
+							switch domainL[d] {
 							case node_model.MODELWEIGHT:
 								prs["prefix"] = v.Routes.([]map[string]interface{})[0]["prefix"].(string)
 								if hasHeader, ok := v.Routes.([]map[string]interface{})[0]["headers"].([]node_model.PieceHeader); ok {
-									prs["headers"] = hasHeader	
+									prs["headers"] = hasHeader
 								}
 								//pieceCluster := v.Routes.([]map[string]interface{})[0]["weighted_clusters"].(node_model.WeightedClusters).Clusters[0]
 								c = append(c, v.Routes.([]map[string]interface{})[0]["weighted_clusters"].(node_model.WeightedClusters).Clusters[0])
 							case node_model.MODELPREFIX:
 								r = append(r, v.Routes.([]map[string]interface{})[0])
 							}
-						}else {
+						} else {
 							newVHL = append(newVHL, v)
 						}
 					}
@@ -370,10 +369,10 @@ func (d *DiscoverAction) DiscoverListeners(
 						newVHL = append(newVHL, &pvh)
 					}
 				}
-			}else {
+			} else {
 				newVHL = vhL
 			}
-		}else {
+		} else {
 			newVHL = vhL
 		}
 		logrus.Debugf("newVHL is %v", newVHL)
@@ -408,16 +407,16 @@ func (d *DiscoverAction) DiscoverListeners(
 func Duplicate(a interface{}) (ret []interface{}) {
 	va := reflect.ValueOf(a)
 	for i := 0; i < va.Len(); i++ {
-	   if i > 0 && reflect.DeepEqual(va.Index(i-1).Interface(), va.Index(i).Interface()) {
-		  continue
-	   }
-	   ret = append(ret, va.Index(i).Interface())
+		if i > 0 && reflect.DeepEqual(va.Index(i-1).Interface(), va.Index(i).Interface()) {
+			continue
+		}
+		ret = append(ret, va.Index(i).Interface())
 	}
 	return ret
 }
 
 //CheckSameDomainAndPrefix 检查是否存在相同domain以及prefix
-func (d *DiscoverAction)CheckSameDomainAndPrefix(resources *api_model.ResourceSpec) (map[string]string){
+func (d *DiscoverAction) CheckSameDomainAndPrefix(resources *api_model.ResourceSpec) map[string]string {
 	baseServices := resources.BaseServices
 	domainL := make(map[string]string)
 	if len(baseServices) == 0 {
@@ -427,7 +426,7 @@ func (d *DiscoverAction)CheckSameDomainAndPrefix(resources *api_model.ResourceSp
 	filterL := make(map[string]int)
 	for _, bs := range baseServices {
 		l := len(filterL)
-		domainName, _:= bs.Options[node_model.DOMAINS].(string)
+		domainName, _ := bs.Options[node_model.DOMAINS].(string)
 		filterL[domainName] = 0
 		if len(filterL) == l {
 			domainL[domainName] = "use"
@@ -455,7 +454,7 @@ func (d *DiscoverAction)CheckSameDomainAndPrefix(resources *api_model.ResourceSp
 		logrus.Debugf("prefixM is %v", prefixM)
 		if len(prefixM) == 1 {
 			domainL[d] = node_model.MODELWEIGHT
-		}else{
+		} else {
 			domainL[d] = node_model.MODELPREFIX
 		}
 	}
@@ -680,7 +679,7 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 		return 3
 	case node_model.HEADERS:
 		if headers, ok := sr[node_model.HEADERS]; ok {
-			var np []node_model.PieceHeader 
+			var np []node_model.PieceHeader
 			parents := strings.Split(headers.(string), ";")
 			for _, h := range parents {
 				headers := strings.Split(h, ":")
@@ -690,7 +689,7 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 						continue
 					}
 					ph := node_model.PieceHeader{
-						Name: headers[0],
+						Name:  headers[0],
 						Value: headers[1],
 					}
 					np = append(np, ph)
@@ -702,7 +701,7 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 		return rc
 	case node_model.DOMAINS:
 		if domain, ok := sr[node_model.DOMAINS]; ok {
-			if strings.Contains(domain.(string), ","){
+			if strings.Contains(domain.(string), ",") {
 				mm := strings.Split(domain.(string), ",")
 				return mm
 			}

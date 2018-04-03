@@ -19,6 +19,7 @@
 package server
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -29,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/api/discover"
 	"github.com/goodrain/rainbond/pkg/api/handler"
 	"github.com/goodrain/rainbond/pkg/api/server"
+	"github.com/goodrain/rainbond/pkg/appruntimesync/client"
 	"github.com/goodrain/rainbond/pkg/event"
 
 	"github.com/Sirupsen/logrus"
@@ -55,15 +57,25 @@ func Run(s *option.APIServer) error {
 		return err
 	}
 	defer event.CloseManager()
+	//create app status client
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cli, err := client.NewClient(ctx, client.AppRuntimeSyncClientConf{
+		EtcdEndpoints: s.Config.EtcdEndpoint,
+	})
+	if err != nil {
+		logrus.Errorf("create app status client error, %v", err)
+		return err
+	}
 	//初始化 middleware
 	handler.InitProxy(s.Config)
 	//创建handle
-	if err := handler.InitHandle(s.Config); err != nil {
+	if err := handler.InitHandle(s.Config, cli); err != nil {
 		logrus.Errorf("init all handle error, %v", err)
 		return err
 	}
 	//创建v2Router manager
-	if err := controller.CreateV2RouterManager(s.Config); err != nil {
+	if err := controller.CreateV2RouterManager(s.Config, cli); err != nil {
 		logrus.Errorf("create v2 route manager error, %v", err)
 	}
 	// 启动api

@@ -21,12 +21,11 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/goodrain/rainbond/pkg/api/util"
+	"github.com/goodrain/rainbond/pkg/appruntimesync/client"
 	"github.com/goodrain/rainbond/pkg/mq/api/grpc/pb"
 
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
@@ -43,18 +42,14 @@ import (
 type TenantAction struct {
 	MQClient   pb.TaskQueueClient
 	KubeClient *kubernetes.Clientset
-	//OpentsdbClient tsdbClient.Client
-	OpentsdbAPI string
+	statusCli  *client.AppRuntimeSyncClient
 }
 
 //CreateTenManager create Manger
-func CreateTenManager(MQClient pb.TaskQueueClient, KubeClient *kubernetes.Clientset, opentsdb string) *TenantAction {
-	opentsdbAPI := fmt.Sprintf("%s/api", opentsdb)
+func CreateTenManager(MQClient pb.TaskQueueClient, KubeClient *kubernetes.Clientset, statusCli *client.AppRuntimeSyncClient) *TenantAction {
 	return &TenantAction{
 		MQClient:   MQClient,
 		KubeClient: KubeClient,
-		//OpentsdbClient: opentsdb,
-		OpentsdbAPI: opentsdbAPI,
 	}
 }
 
@@ -66,7 +61,7 @@ func (t *TenantAction) GetTenants() ([]*dbmodel.Tenants, error) {
 	}
 	return tenants, err
 }
-func  (t *TenantAction) GetTenantsByEid(eid string) ([] *dbmodel.Tenants, error){
+func (t *TenantAction) GetTenantsByEid(eid string) ([]*dbmodel.Tenants, error) {
 	tenants, err := db.GetManager().TenantDao().GetTenantByEid(eid)
 	if err != nil {
 		return nil, err
@@ -137,16 +132,8 @@ func (t *TenantAction) StatsMemCPU(services []*dbmodel.TenantServices) (*api_mod
 	cpus := 0
 	mem := 0
 	for _, service := range services {
-		status := service.CurStatus
-		label := CheckLabel(service.ServiceID)
-		if label {
-			servicesStatus, err := db.GetManager().TenantServiceStatusDao().GetTenantServiceStatus(service.ServiceID)
-			if err != nil {
-				continue
-			}
-			status = servicesStatus.Status
-		}
-		if status == "undeploy" || status == "closed" {
+		status := t.statusCli.GetStatus(service.ServiceID)
+		if t.statusCli.IsClosedStatus(status) {
 			continue
 		}
 		cpus += service.ContainerCPU
@@ -157,31 +144,6 @@ func (t *TenantAction) StatsMemCPU(services []*dbmodel.TenantServices) (*api_mod
 		MEM: mem,
 	}
 	return si, nil
-}
-
-//HTTPTsdb HTTPTsdb
-func (t *TenantAction) HTTPTsdb(md *api_model.MontiorData) ([]byte, error) {
-	uri := fmt.Sprintf("/query?start=%s&m=%s", md.Body.Start, md.Body.Queries)
-	logrus.Debugf(fmt.Sprintf("uri is %v", uri))
-	url := fmt.Sprintf("http://%s%s", t.OpentsdbAPI, uri)
-	logrus.Debugf(fmt.Sprintf("url is %v", url))
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{
-		Timeout: time.Second * 3,
-	}
-	response, errR := client.Do(req)
-	if errR != nil {
-		return nil, errR
-	}
-	body, errB := ioutil.ReadAll(response.Body)
-	if errB != nil {
-		return nil, errB
-	}
-	return body, nil
 }
 
 // QueryResult contains result data for a query.

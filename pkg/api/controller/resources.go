@@ -37,6 +37,7 @@ import (
 	validator "github.com/thedevsaddam/govalidator"
 
 	"github.com/goodrain/rainbond/pkg/api/handler"
+	"github.com/goodrain/rainbond/pkg/appruntimesync/client"
 	httputil "github.com/goodrain/rainbond/pkg/util/http"
 
 	"github.com/Sirupsen/logrus"
@@ -49,7 +50,6 @@ type V2Routes struct {
 	AcpNodeStruct
 	EntranceStruct
 	EventLogStruct
-	OpentsdbStruct
 }
 
 //Show test
@@ -73,7 +73,9 @@ func (v2 *V2Routes) Show(w http.ResponseWriter, r *http.Request) {
 }
 
 //TenantStruct tenant struct
-type TenantStruct struct{}
+type TenantStruct struct {
+	StatusCli *client.AppRuntimeSyncClient
+}
 
 //AllTenantResources GetResources
 func (t *TenantStruct) AllTenantResources(w http.ResponseWriter, r *http.Request) {
@@ -738,18 +740,12 @@ func (t *TenantStruct) StatusServiceList(w http.ResponseWriter, r *http.Request)
 	//logrus.Info(services.Body.ServiceIDs)
 	serviceList := services.Body.ServiceIDs
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	statusList, err := handler.GetServiceManager().GetServicesStatus(tenantID, serviceList)
-	if err != nil {
-		if err.Error() == gorm.ErrRecordNotFound.Error() {
-			httputil.ReturnError(r, w, 404, err.Error())
-			return
-		}
-		httputil.ReturnError(r, w, 500, err.Error())
-		return
-	}
+	statusList := handler.GetServiceManager().GetServicesStatus(tenantID, serviceList)
 	var info = make([]map[string]string, 0)
-	for _, s := range statusList {
-		info = append(info, map[string]string{"service_id": s.ServiceID, "status": s.Status, "status_cn": TransStatus(s.Status)})
+	if statusList != nil {
+		for k, v := range statusList {
+			info = append(info, map[string]string{"service_id": k, "status": v, "status_cn": TransStatus(v)})
+		}
 	}
 	httputil.ReturnSuccess(r, w, info)
 }

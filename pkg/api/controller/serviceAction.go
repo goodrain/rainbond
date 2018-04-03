@@ -330,11 +330,10 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 		EventID:   eventID,
 		TaskType:  "restart",
 	}
-	curStatus, err := db.GetManager().TenantServiceStatusDao().GetTenantServiceStatus(serviceID)
-	if err == nil {
-		if curStatus.Status == "closed" {
-			startStopStruct.TaskType = "start"
-		}
+
+	curStatus := t.StatusCli.GetStatus(serviceID)
+	if curStatus == "closed" {
+		startStopStruct.TaskType = "start"
 	}
 	if err := handler.GetServiceManager().StartStopService(startStopStruct); err != nil {
 		logger.Error("应用重启任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})

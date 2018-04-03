@@ -56,7 +56,7 @@ type ServiceHandler interface {
 	ServiceProbe(tsp *dbmodel.ServiceProbe, action string) error
 	RollBack(rs *api_model.RollbackStruct) error
 	GetStatus(serviceID string) (*api_model.StatusList, error)
-	GetServicesStatus(tenantID string, services []string) ([]*dbmodel.TenantServiceStatus, error)
+	GetServicesStatus(tenantID string, services []string) map[string]string
 	CreateTenant(*dbmodel.Tenants) error
 	CreateTenandIDAndName(eid string) (string, string, error)
 	GetPods(serviceID string) ([]*dbmodel.K8sPod, error)

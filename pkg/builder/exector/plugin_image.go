@@ -38,7 +38,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/docker/engine-api/types"
 	"github.com/goodrain/rainbond/pkg/builder/sources"
@@ -71,21 +70,6 @@ func (e *exectorManager) pluginImageBuild(in []byte) {
 	eventID := tb.EventID
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("从镜像构建插件任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
-	go func() {
-		time.Sleep(buildingTimeout * time.Second)
-		logrus.Debugf("building plugin time-out time is reach")
-		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(tb.PluginID, tb.VersionID)
-		if err != nil {
-			logrus.Errorf("get version error, %v", err)
-		}
-		if version.Status != "complete" {
-			version.Status = "timeout"
-			if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
-				logrus.Errorf("update version error, %v", err)
-			}
-			logger.Info("插件构建超时，修改插件状态失败", map[string]string{"step": "callback", "status": "failure"})
-		}
-	}()
 	go func() {
 		logrus.Info("start exec build plugin from image worker")
 		defer event.GetManager().ReleaseLogger(logger)
