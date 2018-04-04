@@ -59,8 +59,8 @@ func (t *TenantStruct) Share(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	evenType := "share-yb"
-	if ccs.Body.ShareScope == "ys" {
-		evenType = "share-yb"
+	if ccs.Body.ShareScope == "goodrain" {
+		evenType = "share-ys"
 	}
 	sEvent, status, err := createEvent(ccs.Body.EventID, serviceID, evenType, tenantID, "")
 	handleStatus(status, err, w, r)

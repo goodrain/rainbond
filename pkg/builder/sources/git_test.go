@@ -89,8 +89,8 @@ func TestGitPullOrClone(t *testing.T) {
 
 func TestGetCodeCacheDir(t *testing.T) {
 	csi := CodeSourceInfo{
-		RepositoryURL: "git@121.196.222.148:summersoft/yycx_cache.git",
-		Branch:        "aomi_20180327",
+		RepositoryURL: "git@code.goodrain.com:app/goodrain_frontend.git",
+		Branch:        "test",
 	}
 	t.Log(csi.GetCodeSourceDir())
 }

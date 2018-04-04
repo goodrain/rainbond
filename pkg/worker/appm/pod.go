@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/goodrain/rainbond/pkg/db"
@@ -769,13 +770,11 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 		}
 		envs = append(envs, v1.EnvVar{Name: "MONITOR_PORT", Value: portStr})
 	}
+	if len(ports) == 1 {
+		envs = append(envs, v1.EnvVar{Name: "PORT", Value: strconv.Itoa(ports[0].ContainerPort)})
+	}
 	//TODO: 设置网络类型环境变量，从系统环境变量中获取
 	envs = append(envs, v1.EnvVar{Name: "CUR_NET", Value: os.Getenv("CUR_NET")})
-	//处理SLUG环境变量
-	//源码构建的应用
-	//新版此环境变量不生效，使用挂载方式加载slug包
-	if strings.HasPrefix(p.service.ImageName, "goodrain.me/runner") {
-	}
 
 	//处理当前应用用户定义环境变量
 	es, err := p.dbmanager.TenantServiceEnvVarDao().GetServiceEnvs(p.serviceID, []string{"inner", "both", "outer"})
