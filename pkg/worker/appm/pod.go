@@ -759,7 +759,10 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 	}
 	if ports != nil && len(ports) > 0 {
 		var portStr string
-		for _, port := range ports {
+		for i, port := range ports {
+			if i == 0 {
+				envs = append(envs, v1.EnvVar{Name: "PORT", Value: strconv.Itoa(ports[0].ContainerPort)})
+			}
 			if portStr != "" {
 				portStr += ":"
 			}
@@ -769,9 +772,6 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 			}
 		}
 		envs = append(envs, v1.EnvVar{Name: "MONITOR_PORT", Value: portStr})
-	}
-	if len(ports) == 1 {
-		envs = append(envs, v1.EnvVar{Name: "PORT", Value: strconv.Itoa(ports[0].ContainerPort)})
 	}
 	//TODO: 设置网络类型环境变量，从系统环境变量中获取
 	envs = append(envs, v1.EnvVar{Name: "CUR_NET", Value: os.Getenv("CUR_NET")})
