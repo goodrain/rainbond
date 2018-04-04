@@ -131,7 +131,7 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 	opts := &git.CloneOptions{
 		URL:               csi.RepositoryURL,
 		Progress:          progress,
-		SingleBranch:      false,
+		SingleBranch:      true,
 		Depth:             1,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	}
@@ -376,6 +376,8 @@ func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, t
 }
 
 //GetLastCommit get last commit info
+//获取代码的深度为1，commits是每个分支的最新一次提交
+//从中获取制定分支的最后一次提交信息
 func GetLastCommit(commits object.CommitIter) (*object.Commit, error) {
 	var lastcommit *object.Commit
 	for {

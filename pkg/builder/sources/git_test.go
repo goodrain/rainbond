@@ -65,10 +65,9 @@ func TestGitPull(t *testing.T) {
 }
 
 func TestGitPullOrClone(t *testing.T) {
-	t.SkipNow()
 	csi := CodeSourceInfo{
-		RepositoryURL: "git@code.goodrain.com:goodrain/test.git",
-		Branch:        "master2",
+		RepositoryURL: "git@code.goodrain.com:app/goodrain_frontend.git",
+		Branch:        "test",
 	}
 	//logger := event.GetManager().GetLogger("system")
 	res, err := GitCloneOrPull(csi, "/tmp/test2", nil, 1)
@@ -90,7 +89,7 @@ func TestGitPullOrClone(t *testing.T) {
 func TestGetCodeCacheDir(t *testing.T) {
 	csi := CodeSourceInfo{
 		RepositoryURL: "git@code.goodrain.com:app/goodrain_frontend.git",
-		Branch:        "test",
+		Branch:        "master",
 	}
 	t.Log(csi.GetCodeSourceDir())
 }
