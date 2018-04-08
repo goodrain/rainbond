@@ -129,8 +129,9 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 	opts := &git.CloneOptions{
 		URL:               csi.RepositoryURL,
 		Progress:          progress,
-		SingleBranch:      false,
+		SingleBranch:      true,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+		Depth:             1,
 	}
 	if csi.Branch != "" {
 		opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", csi.Branch))
