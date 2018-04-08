@@ -11,7 +11,7 @@ all: build pkgs images ## build linux binaries, build linux packages, build imag
 clean: 
 	@rm -rf ${BIN_PATH}/*
 
-build: build-mq build-worker build-chaos build-mqcli build-node build-entrance build-eventlog build-webcli build-grctl build-api ## build all binaries
+build: build-mq build-worker build-chaos build-mqcli build-node build-entrance  build-webcli build-grctl build-api ## build all binaries without event-log 
 build-mq:
 	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-mq ./cmd/mq
 build-worker:
