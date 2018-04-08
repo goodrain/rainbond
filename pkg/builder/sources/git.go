@@ -39,6 +39,7 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/event"
 	"github.com/goodrain/rainbond/pkg/util"
+	netssh "golang.org/x/crypto/ssh"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/protocol/packp/sideband"
@@ -148,6 +149,7 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 			}
 			return nil, auerr
 		}
+		sshAuth.HostKeyCallbackHelper.HostKeyCallback = netssh.InsecureIgnoreHostKey()
 		opts.Auth = sshAuth
 		rs, err = git.PlainCloneContext(ctx, sourceDir, false, opts)
 	} else {
@@ -276,6 +278,7 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 			}
 			return nil, auerr
 		}
+		sshAuth.HostKeyCallbackHelper.HostKeyCallback = netssh.InsecureIgnoreHostKey()
 		opts.Auth = sshAuth
 	} else {
 		// only proxy github
