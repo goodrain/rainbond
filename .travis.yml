@@ -1,0 +1,18 @@
+language: go
+
+go_import_path: github.com/goodrain/rainbond
+
+go:
+  - "1.8.3"
+
+# https://docs.travis-ci.com/user/customizing-the-build/#Rows-that-are-Allowed-to-Fail
+env:
+
+# Run coverage tests.
+matrix:
+  fast_finish: true
+  allow_failures:
+    - go: "1.8.3"
+
+script:
+  - make build
