@@ -30,7 +30,7 @@ import (
 	"k8s.io/client-go/pkg/api/v1"
 )
 
-func (s *StatusManager) handleStatefulUpdate(update source.StatefulSetUpdate) {
+func (s *Manager) handleStatefulUpdate(update source.StatefulSetUpdate) {
 	if update.StatefulSet == nil {
 		return
 	}
@@ -105,7 +105,7 @@ func (s *StatusManager) handleStatefulUpdate(update source.StatefulSetUpdate) {
 	}
 }
 
-func (s *StatusManager) getReadyCount(namespace, name, version string) int32 {
+func (s *Manager) getReadyCount(namespace, name, version string) int32 {
 	pods, err := s.ClientSet.Core().Pods(namespace).List(metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("name=%s,version=%s", name, version),
 	})

@@ -26,7 +26,7 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-func (s *StatusManager) handleDeploymentUpdate(update source.DeploymentUpdate) {
+func (s *Manager) handleDeploymentUpdate(update source.DeploymentUpdate) {
 	if update.Deployment == nil {
 		return
 	}

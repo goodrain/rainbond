@@ -1186,6 +1186,18 @@ func (t *ServiceStatusDaoImpl) GetRunningService() ([]*model.TenantServiceStatus
 	return statuss, nil
 }
 
+//GetAll get all app status
+func (t *ServiceStatusDaoImpl) GetAll() ([]*model.TenantServiceStatus, error) {
+	var statuss []*model.TenantServiceStatus
+	if err := t.DB.Find(&statuss).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return statuss, nil
+		}
+		return nil, err
+	}
+	return statuss, nil
+}
+
 //GetNeedBillingService get need billing service status
 func (t *ServiceStatusDaoImpl) GetNeedBillingService() ([]*model.TenantServiceStatus, error) {
 	var statuss []*model.TenantServiceStatus

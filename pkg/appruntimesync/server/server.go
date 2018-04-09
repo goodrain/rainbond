@@ -36,13 +36,13 @@ import (
 
 //AppRuntimeSyncServer AppRuntimeSyncServer
 type AppRuntimeSyncServer struct {
-	*status.StatusManager
-	c         option.Config
-	stopChan  chan struct{}
-	Ctx       context.Context
-	Cancel    context.CancelFunc
-	ClientSet *kubernetes.Clientset
-	podCache  *pod.CacheManager
+	StatusManager *status.Manager
+	c             option.Config
+	stopChan      chan struct{}
+	Ctx           context.Context
+	Cancel        context.CancelFunc
+	ClientSet     *kubernetes.Clientset
+	podCache      *pod.CacheManager
 }
 
 //NewAppRuntimeSyncServer create app runtime sync server
@@ -77,19 +77,19 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 func (a *AppRuntimeSyncServer) GetAppStatus(ctx context.Context, sr *pb.StatusRequest) (*pb.StatusMessage, error) {
 	var re pb.StatusMessage
 	if sr.ServiceIds == "" {
-		re.Status = a.GetAllStatus()
+		re.Status = a.StatusManager.GetAllStatus()
 		return &re, nil
 	}
 	re.Status = make(map[string]string)
 	if strings.Contains(sr.ServiceIds, ",") {
 		ids := strings.Split(sr.ServiceIds, ",")
 		for _, id := range ids {
-			re.Status[id] = a.GetStatus(id)
+			re.Status[id] = a.StatusManager.GetStatus(id)
 		}
 		return &re, nil
 	}
 	fmt.Printf("get app status %s", sr.ServiceIds)
-	re.Status[sr.ServiceIds] = a.GetStatus(sr.ServiceIds)
+	re.Status[sr.ServiceIds] = a.StatusManager.GetStatus(sr.ServiceIds)
 	return &re, nil
 }
 
@@ -97,7 +97,7 @@ func (a *AppRuntimeSyncServer) GetAppStatus(ctx context.Context, sr *pb.StatusRe
 func (a *AppRuntimeSyncServer) SetAppStatus(ctx context.Context, ps *pb.StatusMessage) (*pb.ErrorMessage, error) {
 	if ps.Status != nil {
 		for k, v := range ps.Status {
-			a.SetStatus(k, v)
+			a.StatusManager.SetStatus(k, v)
 		}
 	}
 	return &pb.ErrorMessage{Message: "success"}, nil
@@ -132,9 +132,9 @@ func (a *AppRuntimeSyncServer) Start() error {
 	go source.NewSourceAPI(a.ClientSet.Core().RESTClient(),
 		a.ClientSet.AppsV1beta1().RESTClient(),
 		15*time.Minute,
-		a.RCUpdateChan,
-		a.DeploymentUpdateChan,
-		a.StatefulSetUpdateChan,
+		a.StatusManager.RCUpdateChan,
+		a.StatusManager.DeploymentUpdateChan,
+		a.StatusManager.StatefulSetUpdateChan,
 		a.stopChan,
 	)
 	logrus.Info("k8s source watching started...")

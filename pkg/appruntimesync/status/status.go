@@ -51,7 +51,8 @@ const (
 	DEPLOYING = "deploying"
 )
 
-type StatusManager struct {
+//Manager app status manager
+type Manager struct {
 	c                     option.Config
 	ctx                   context.Context
 	StatefulSetUpdateChan chan source.StatefulSetUpdate
@@ -65,9 +66,9 @@ type StatusManager struct {
 	ClientSet             *kubernetes.Clientset
 }
 
-//NewManager 创建一个应用运行状态控制器
-func NewManager(ctx context.Context, clientset *kubernetes.Clientset) *StatusManager {
-	return &StatusManager{
+//NewManager create app runtime status manager
+func NewManager(ctx context.Context, clientset *kubernetes.Clientset) *Manager {
+	return &Manager{
 		ctx:                   ctx,
 		ClientSet:             clientset,
 		RCUpdateChan:          make(chan source.RCUpdate, 10),
@@ -80,8 +81,9 @@ func NewManager(ctx context.Context, clientset *kubernetes.Clientset) *StatusMan
 }
 
 //Start start
-func (s *StatusManager) Start() error {
+func (s *Manager) Start() error {
 	logrus.Info("status manager starting...")
+	s.cacheAllAPPStatus()
 	go s.checkStatus()
 	go s.handleUpdate()
 	logrus.Info("status manager started")
@@ -89,7 +91,7 @@ func (s *StatusManager) Start() error {
 }
 
 //handleUpdate
-func (s *StatusManager) handleUpdate() {
+func (s *Manager) handleUpdate() {
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -104,7 +106,7 @@ func (s *StatusManager) handleUpdate() {
 	}
 }
 
-func (s *StatusManager) checkStatus() {
+func (s *Manager) checkStatus() {
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -220,25 +222,38 @@ func (s *StatusManager) checkStatus() {
 	}
 }
 
+//cacheAllAPPStatus get all app status cache
+func (s *Manager) cacheAllAPPStatus() {
+	all, err := db.GetManager().TenantServiceStatusDao().GetAll()
+	if err != nil {
+		logrus.Error("get all running and starting service error")
+		return
+	}
+	if len(all) > 0 {
+		for _, sta := range all {
+			s.cacheStatus(sta.ServiceID, sta.Status)
+		}
+	}
+}
+
 //SetStatus set app status
-func (s *StatusManager) SetStatus(serviceID, status string) error {
+func (s *Manager) SetStatus(serviceID, status string) error {
+	s.cacheStatus(serviceID, status)
 	if err := db.GetManager().TenantServiceStatusDao().SetTenantServiceStatus(serviceID, status); err != nil {
 		logrus.Error("set application status error.", err.Error())
 		return err
 	}
-	if err := db.GetManager().TenantServiceDao().SetTenantServiceStatus(serviceID, status); err != nil {
-		logrus.Error("set application service status error.", err.Error())
-		return err
-	}
-	//cache
-	s.statusLock.Lock()
-	defer s.statusLock.Unlock()
-	s.status[serviceID] = status
 	return nil
 }
 
+func (s *Manager) cacheStatus(serviceID, status string) {
+	s.statusLock.Lock()
+	defer s.statusLock.Unlock()
+	s.status[serviceID] = status
+}
+
 //GetStatus get app status
-func (s *StatusManager) GetStatus(serviceID string) string {
+func (s *Manager) GetStatus(serviceID string) string {
 	s.statusLock.RLock()
 	defer s.statusLock.RUnlock()
 	if status, ok := s.status[serviceID]; ok {
@@ -248,7 +263,7 @@ func (s *StatusManager) GetStatus(serviceID string) string {
 }
 
 //GetAllStatus get all app status
-func (s *StatusManager) GetAllStatus() map[string]string {
+func (s *Manager) GetAllStatus() map[string]string {
 	s.statusLock.RLock()
 	defer s.statusLock.RUnlock()
 	var re = make(map[string]string)
@@ -258,21 +273,8 @@ func (s *StatusManager) GetAllStatus() map[string]string {
 	return re
 }
 
-//GetNeedBillingStatus get need billing app status
-func (s *StatusManager) GetNeedBillingStatus() (map[string]string, error) {
-	status, err := db.GetManager().TenantServiceStatusDao().GetNeedBillingService()
-	if err != nil {
-		return nil, err
-	}
-	re := make(map[string]string)
-	for _, s := range status {
-		re[s.ServiceID] = s.Status
-	}
-	return re, nil
-}
-
 //CheckStatus check app status
-func (s *StatusManager) CheckStatus(serviceID string) {
+func (s *Manager) CheckStatus(serviceID string) {
 	select {
 	case s.checkChan <- serviceID:
 	default:
@@ -280,7 +282,7 @@ func (s *StatusManager) CheckStatus(serviceID string) {
 }
 
 //SaveDeployInfo save app deploy info
-func (s *StatusManager) SaveDeployInfo(serviceID, tenantID, deployVersion, replicationID, replicationType string) (*model.K8sDeployReplication, error) {
+func (s *Manager) SaveDeployInfo(serviceID, tenantID, deployVersion, replicationID, replicationType string) (*model.K8sDeployReplication, error) {
 	deploy := &model.K8sDeployReplication{
 		TenantID:        tenantID,
 		ServiceID:       serviceID,
@@ -297,19 +299,12 @@ func (s *StatusManager) SaveDeployInfo(serviceID, tenantID, deployVersion, repli
 }
 
 //SyncStatus sync app status
-func (s *StatusManager) SyncStatus() {
-	all, err := db.GetManager().TenantServiceStatusDao().GetRunningService()
-	if err != nil {
-		logrus.Error("get all running and starting service error")
-		return
-	}
-	if len(all) > 0 {
-		for _, sta := range all {
-			s.CheckStatus(sta.ServiceID)
-		}
+func (s *Manager) SyncStatus() {
+	for k := range s.status {
+		s.CheckStatus(k)
 	}
 }
-func (s *StatusManager) isIgnoreDelete(name string) bool {
+func (s *Manager) isIgnoreDelete(name string) bool {
 	s.ignoreLock.Lock()
 	defer s.ignoreLock.Unlock()
 	if _, ok := s.ignoreDelete[name]; ok {
@@ -319,7 +314,7 @@ func (s *StatusManager) isIgnoreDelete(name string) bool {
 }
 
 //RmIgnoreDelete remove ignore delete info
-func (s *StatusManager) RmIgnoreDelete(name string) {
+func (s *Manager) RmIgnoreDelete(name string) {
 	s.ignoreLock.Lock()
 	defer s.ignoreLock.Unlock()
 	if _, ok := s.ignoreDelete[name]; ok {
@@ -328,7 +323,7 @@ func (s *StatusManager) RmIgnoreDelete(name string) {
 }
 
 //IgnoreDelete  add ignore delete info
-func (s *StatusManager) IgnoreDelete(name string) {
+func (s *Manager) IgnoreDelete(name string) {
 	s.ignoreLock.Lock()
 	defer s.ignoreLock.Unlock()
 	s.ignoreDelete[name] = name

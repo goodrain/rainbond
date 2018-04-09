@@ -36,8 +36,8 @@ type TenantDao interface {
 	Dao
 	GetTenantByUUID(uuid string) (*model.Tenants, error)
 	GetTenantIDByName(tenantName string) (*model.Tenants, error)
-	GetALLTenants() ([]*model.Tenants, error)	
-	GetTenantByEid(eid string ) ([]*model.Tenants, error)
+	GetALLTenants() ([]*model.Tenants, error)
+	GetTenantByEid(eid string) ([]*model.Tenants, error)
 	GetPagedTenants(offset, len int) ([]*model.Tenants, error)
 	GetTenantIDsByNames(names []string) ([]string, error)
 }
@@ -284,6 +284,7 @@ type ServiceStatusDao interface {
 	GetTenantServiceStatus(serviceID string) (*model.TenantServiceStatus, error)
 	SetTenantServiceStatus(serviceID, status string) error
 	GetRunningService() ([]*model.TenantServiceStatus, error)
+	GetAll() ([]*model.TenantServiceStatus, error)
 	GetNeedBillingService() ([]*model.TenantServiceStatus, error)
 	GetTenantStatus(tenantID string) ([]*model.TenantServiceStatus, error)
 	GetTenantServicesStatus(serviceIDs []string) ([]*model.TenantServiceStatus, error)

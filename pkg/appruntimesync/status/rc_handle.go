@@ -27,7 +27,7 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-func (s *StatusManager) handleRCUpdate(update source.RCUpdate) {
+func (s *Manager) handleRCUpdate(update source.RCUpdate) {
 	if update.RC == nil {
 		return
 	}
