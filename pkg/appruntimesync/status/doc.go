@@ -17,16 +17,7 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 /*
-Package appruntimesync provides a grpc server and client code
-
-This package is based on the resource status in Kubernete maintenance application status.
-
-Server code demo:
-		ars := appruntimesync.CreateAppRuntimeSync(s.Config)
-		if err := ars.Start(); err != nil {
-			return err
-		}
-		defer ars.Stop()
-		go ars.SyncStatus()
+Package status check app status from kubernetes rc,statefulset and deployment
+It save app status to db and provides query
 */
-package appruntimesync
+package status

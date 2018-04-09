@@ -67,6 +67,7 @@ func Run(s *option.Worker) error {
 		if err := ars.Start(); err != nil {
 			return err
 		}
+		defer ars.Stop()
 		go ars.SyncStatus()
 	}
 	ctx, cancel := context.WithCancel(context.Background())

@@ -16,6 +16,22 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+/*
+Package client provides app runtime client code
+
+Client code demo:
+
+    //create app status client
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cli, err := client.NewClient(ctx, client.AppRuntimeSyncClientConf{
+		EtcdEndpoints: s.Config.EtcdEndpoint,
+	})
+	if err != nil {
+		logrus.Errorf("create app status client error, %v", err)
+		return err
+	}
+*/
 package client
 
 import (

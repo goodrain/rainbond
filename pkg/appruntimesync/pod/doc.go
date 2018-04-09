@@ -17,16 +17,8 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 /*
-Package appruntimesync provides a grpc server and client code
-
-This package is based on the resource status in Kubernete maintenance application status.
-
-Server code demo:
-		ars := appruntimesync.CreateAppRuntimeSync(s.Config)
-		if err := ars.Start(); err != nil {
-			return err
-		}
-		defer ars.Stop()
-		go ars.SyncStatus()
+Package pod  cache kubernetes pod in memory and db
+It handle local scheduler pod host ip info.
+It will provides query pod list by app
 */
-package appruntimesync
+package pod
