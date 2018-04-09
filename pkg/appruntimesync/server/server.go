@@ -42,7 +42,7 @@ type AppRuntimeSyncServer struct {
 	Ctx       context.Context
 	Cancel    context.CancelFunc
 	ClientSet *kubernetes.Clientset
-	podCache  *pod.PodCacheManager
+	podCache  *pod.CacheManager
 }
 
 //NewAppRuntimeSyncServer create app runtime sync server
@@ -60,7 +60,7 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 	logrus.Info("Kube client api create success.")
 	statusManager := status.NewManager(ctx, clientset)
 	stopChan := make(chan struct{})
-	podCache := pod.NewPodCacheManager(clientset, stopChan)
+	podCache := pod.NewCacheManager(clientset, stopChan)
 	arss := &AppRuntimeSyncServer{
 		c:         conf,
 		Ctx:       ctx,
