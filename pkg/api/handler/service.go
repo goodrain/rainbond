@@ -537,31 +537,27 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		logrus.Errorf("trans service struct to json failed. %v", err)
 		return err
 	}
-
 	var ts dbmodel.TenantServices
 	if err := ffjson.Unmarshal(jsonSC, &ts); err != nil {
 		logrus.Errorf("trans json to tenant service error, %v", err)
 		return err
 	}
-
 	ts.UpdateTime = time.Now()
 	ports := sc.PortsInfo
 	envs := sc.EnvsInfo
 	volumns := sc.VolumesInfo
 	dependVolumes := sc.DepVolumesInfo
 	dependIds := sc.DependIDs
-	logrus.Infof("creating new service,deploy version is %s", ts.DeployVersion)
 	ts.DeployVersion = ""
-	tx := db.GetManager().Begin()
 
-	//服务信息表
+	tx := db.GetManager().Begin()
+	//create app
 	if err := db.GetManager().TenantServiceDaoTransactions(tx).AddModel(&ts); err != nil {
 		logrus.Errorf("add service error, %v", err)
 		tx.Rollback()
 		return err
 	}
-	//TODO:
-	//env
+	//set app envs
 	if len(envs) > 0 {
 		for _, env := range envs {
 			env.ServiceID = ts.ServiceID
@@ -573,7 +569,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			}
 		}
 	}
-	//port
+	//set app port
 	if len(ports) > 0 {
 		for _, port := range ports {
 			port.ServiceID = ts.ServiceID
@@ -585,7 +581,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			}
 		}
 	}
-	//volumns
+	//set app volumns
 	if len(volumns) > 0 {
 		localPath := os.Getenv("LOCAL_DATA_PATH")
 		sharePath := os.Getenv("SHARE_DATA_PATH")
@@ -631,7 +627,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			}
 		}
 	}
-	//dependVolumes
+	//set app dependVolumes
 	if len(dependVolumes) > 0 {
 		for _, depVolume := range dependVolumes {
 			depVolume.ServiceID = ts.ServiceID
@@ -648,7 +644,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			}
 		}
 	}
-	//depend_ids
+	//set app depends
 	if len(dependIds) > 0 {
 		for _, id := range dependIds {
 			if err := db.GetManager().TenantServiceRelationDaoTransactions(tx).AddModel(&id); err != nil {
@@ -659,12 +655,12 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		}
 	}
 
-	//status表
+	//set app status
 	if err := s.statusCli.SetStatus(ts.ServiceID, "undeploy"); err != nil {
 		tx.Rollback()
 		return err
 	}
-	//label表
+	//set app label
 	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&dbmodel.TenantServiceLable{
 		ServiceID:  ts.ServiceID,
 		LabelKey:   core_model.LabelKeyServiceType,
@@ -678,6 +674,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		tx.Rollback()
 		return err
 	}
+	logrus.Debugf("create a new app %s success", ts.ServiceAlias)
 	return nil
 }
 

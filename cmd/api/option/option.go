@@ -49,6 +49,7 @@ type Config struct {
 	Opentsdb          string
 	RegionTag         string
 	LoggerFile        string
+	Debug             bool
 }
 
 //APIServer  apiserver server
@@ -89,6 +90,7 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.Opentsdb, "opentsdb", "127.0.0.1:4242", "opentsdb server config")
 	fs.StringVar(&a.RegionTag, "region-tag", "test-ali", "region tag setting")
 	fs.StringVar(&a.LoggerFile, "logger-file", "/logs/request.log", "request log file path")
+	fs.BoolVar(&a.Debug, "debug", false, "open debug will enable pprof")
 }
 
 //SetLog 设置log

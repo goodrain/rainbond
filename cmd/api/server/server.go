@@ -91,7 +91,7 @@ func Run(s *option.APIServer) error {
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
 	select {
 	case s := <-term:
-		logrus.Errorf("Received a Signal  %s, exiting gracefully...", s.String())
+		logrus.Infof("Received a Signal  %s, exiting gracefully...", s.String())
 	case err := <-errChan:
 		logrus.Errorf("Received a error %s, exiting gracefully...", err.Error())
 	}

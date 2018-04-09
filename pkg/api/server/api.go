@@ -86,12 +86,13 @@ func NewManager(c option.Config) *Manager {
 	if os.Getenv("TOKEN") != "" {
 		r.Use(apimiddleware.FullToken)
 	}
-	if os.Getenv("DEBUG") == "true" {
-		util.ProfilerSetup(r)
-	}
 	//simple api version
 	r.Use(apimiddleware.APIVersion)
 	r.Use(apimiddleware.Proxy)
+
+	if c.Debug {
+		util.ProfilerSetup(r)
+	}
 
 	r.Get("/monitor", func(res http.ResponseWriter, req *http.Request) {
 		res.Write([]byte("ok"))
