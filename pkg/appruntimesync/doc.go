@@ -35,4 +35,4 @@ Client code demo:
 	}
 
 */
-package appruntimesync //import
+package appruntimesync
