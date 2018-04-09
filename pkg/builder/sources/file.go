@@ -116,7 +116,6 @@ func CopyWithProgress(srcFile SrcFile, dstFile DstFile, allSize int64, logger ev
 			if i == 0 {
 				i = 1
 			}
-			fmt.Println(i)
 			for j := 0; j < i; j++ {
 				progress += "="
 			}

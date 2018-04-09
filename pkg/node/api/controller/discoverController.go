@@ -60,7 +60,7 @@ func ListenerDiscover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(200)
-	w.Write([]byte(ldsJ))
+	w.Write(ldsJ)
 }
 
 //ClusterDiscover ClusterDiscover
@@ -78,7 +78,7 @@ func ClusterDiscover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(200)
-	w.Write([]byte(cdsJ))
+	w.Write(cdsJ)
 }
 
 //RoutesDiscover RoutesDiscover

@@ -76,7 +76,7 @@ func NewSlugShareItem(in []byte, etcdCli *clientv3.Client) (*SlugShareItem, erro
 //ShareService  Run
 func (i *SlugShareItem) ShareService() error {
 
-	logrus.Debugf("分享应用，数据中心文件路径: %s ，分享目标路径 %s", i.LocalSlugPath, i.SlugPath)
+	logrus.Debugf("share app local slug path: %s ,target path: %s", i.LocalSlugPath, i.SlugPath)
 	if _, err := os.Stat(i.LocalSlugPath); err != nil {
 		i.Logger.Error(fmt.Sprintf("数据中心应用代码包不存在，请先构建应用"), map[string]string{"step": "slug-share", "status": "failure"})
 		return err
@@ -114,7 +114,7 @@ func createMD5(packageName string) (string, error) {
 //ShareToFTP ShareToFTP
 func (i *SlugShareItem) ShareToFTP() error {
 	file := i.LocalSlugPath
-	i.Logger.Info("开始分享云帮", map[string]string{"step": "slug-share"})
+	i.Logger.Info("开始上传应用介质到FTP服务器", map[string]string{"step": "slug-share"})
 	md5, err := createMD5(file)
 	if err != nil {
 		i.Logger.Error("生成md5失败", map[string]string{"step": "slug-share", "status": "failure"})

@@ -162,7 +162,9 @@ func (e *EventLogStruct) LogSocket(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if strings.Contains(err.Error(), "exist") {
 			httputil.ReturnError(r, w, 404, err.Error())
+			return
 		}
+		logrus.Errorf("get docker log instance error. %s", err.Error())
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
