@@ -16,17 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package appm
+package pod
 
 import (
-	"github.com/goodrain/rainbond/pkg/db"
-	"github.com/goodrain/rainbond/pkg/db/model"
-	"github.com/goodrain/rainbond/pkg/util"
 	"fmt"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/goodrain/rainbond/pkg/db"
+	"github.com/goodrain/rainbond/pkg/db/model"
+	"github.com/goodrain/rainbond/pkg/util"
 
 	"github.com/pquerna/ffjson/ffjson"
 
@@ -42,8 +43,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-//PodCacheManager pod缓存
-type PodCacheManager struct {
+//CacheManager pod cache manager
+type CacheManager struct {
 	caches      map[string]*v1.Pod
 	lock        sync.Mutex
 	kubeclient  *kubernetes.Clientset
@@ -51,11 +52,11 @@ type PodCacheManager struct {
 	cacheWatchs []*cacheWatch
 }
 
-//NewPodCacheManager 创建pod缓存器
-func NewPodCacheManager(kubeclient *kubernetes.Clientset) *PodCacheManager {
-	m := &PodCacheManager{
+//NewCacheManager create pod cache manager and start it
+func NewCacheManager(kubeclient *kubernetes.Clientset, stop chan struct{}) *CacheManager {
+	m := &CacheManager{
 		kubeclient: kubeclient,
-		stop:       make(chan struct{}),
+		stop:       stop,
 		caches:     make(map[string]*v1.Pod),
 	}
 	lw := NewListWatchPodFromClient(kubeclient.Core().RESTClient())
@@ -73,7 +74,7 @@ func NewPodCacheManager(kubeclient *kubernetes.Clientset) *PodCacheManager {
 	return m
 }
 
-func (c *PodCacheManager) addCachePod() func(obj interface{}) {
+func (c *CacheManager) addCachePod() func(obj interface{}) {
 	return func(obj interface{}) {
 		pod, ok := obj.(*v1.Pod)
 		if !ok {
@@ -93,8 +94,9 @@ func (c *PodCacheManager) addCachePod() func(obj interface{}) {
 	}
 }
 
-//此处不通过获取部署信息，由于pod创建时可能部署信息未存储
-func (c *PodCacheManager) savePod(pod *v1.Pod) error {
+// savePod save pod info to db
+// From pod basic information.
+func (c *CacheManager) savePod(pod *v1.Pod) error {
 	creater, err := c.getPodCreator(pod)
 	if err != nil {
 		logrus.Error("add cache pod error:", err.Error())
@@ -114,18 +116,23 @@ loop:
 		logrus.Warningf("Pod (%s) can not found SERVICE_ID", pod.Name)
 		return nil
 	}
-	if err := db.GetManager().K8sPodDao().AddModel(&model.K8sPod{
+	dbPod := &model.K8sPod{
 		ServiceID:       serviceID,
 		ReplicationID:   creater.Reference.Name,
 		ReplicationType: strings.ToLower(creater.Reference.Kind),
 		PodName:         pod.Name,
-	}); err != nil {
+	}
+	dbPod.CreatedAt = time.Now()
+	if pod.Status.StartTime != nil && !pod.Status.StartTime.IsZero() {
+		dbPod.CreatedAt = pod.Status.StartTime.Time
+	}
+	if err := db.GetManager().K8sPodDao().AddModel(dbPod); err != nil {
 		if !strings.HasSuffix(err.Error(), "is exist") {
 			logrus.Error("save service pod relation error.", err.Error())
 			return err
 		}
 	}
-	//本地调度POD,存储调度信息，下次调度时直接使用
+	//local scheduler pod host ip save
 	if v, ok := pod.Labels["local-scheduler"]; ok && v == "true" {
 		if pod.Status.HostIP != "" {
 			if err := db.GetManager().LocalSchedulerDao().AddModel(&model.LocalScheduler{
@@ -142,7 +149,7 @@ loop:
 	}
 	return nil
 }
-func (c *PodCacheManager) getPodCreator(pod *v1.Pod) (*api.SerializedReference, error) {
+func (c *CacheManager) getPodCreator(pod *v1.Pod) (*api.SerializedReference, error) {
 	creatorRef, found := pod.ObjectMeta.Annotations[api.CreatedByAnnotation]
 	if !found {
 		return nil, fmt.Errorf("not found pod creator name")
@@ -154,7 +161,7 @@ func (c *PodCacheManager) getPodCreator(pod *v1.Pod) (*api.SerializedReference, 
 	}
 	return sr, nil
 }
-func (c *PodCacheManager) updateCachePod() func(oldObj, newObj interface{}) {
+func (c *CacheManager) updateCachePod() func(oldObj, newObj interface{}) {
 	return func(_, obj interface{}) {
 		pod, ok := obj.(*v1.Pod)
 		if !ok {
@@ -173,7 +180,7 @@ func (c *PodCacheManager) updateCachePod() func(oldObj, newObj interface{}) {
 		}
 	}
 }
-func (c *PodCacheManager) deleteCachePod() func(obj interface{}) {
+func (c *CacheManager) deleteCachePod() func(obj interface{}) {
 	return func(obj interface{}) {
 		pod, ok := obj.(*v1.Pod)
 		if !ok {
@@ -197,7 +204,7 @@ func (c *PodCacheManager) deleteCachePod() func(obj interface{}) {
 }
 
 //Watch pod cache watch
-func (c *PodCacheManager) Watch(labelSelector string) watch.Interface {
+func (c *CacheManager) Watch(labelSelector string) watch.Interface {
 	lbs := strings.Split(labelSelector, ",")
 	sort.Strings(lbs)
 	labelSelector = strings.Join(lbs, ",")
@@ -212,8 +219,8 @@ func (c *PodCacheManager) Watch(labelSelector string) watch.Interface {
 	return w
 }
 
-//RemoveWatch 移除watch
-func (c *PodCacheManager) RemoveWatch(w *cacheWatch) {
+//RemoveWatch remove watch
+func (c *CacheManager) RemoveWatch(w *cacheWatch) {
 	if c.cacheWatchs == nil {
 		return
 	}
@@ -224,7 +231,7 @@ func (c *PodCacheManager) RemoveWatch(w *cacheWatch) {
 		}
 	}
 }
-func (c *PodCacheManager) sendCache(w *cacheWatch) {
+func (c *CacheManager) sendCache(w *cacheWatch) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	for _, pod := range c.caches {
@@ -238,7 +245,7 @@ type cacheWatch struct {
 	id            string
 	ch            chan watch.Event
 	labelSelector string
-	m             *PodCacheManager
+	m             *CacheManager
 }
 
 func (c *cacheWatch) satisfied(pod *v1.Pod) bool {

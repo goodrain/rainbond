@@ -23,17 +23,15 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
-
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/pkg/appruntimesync/pb"
+	"github.com/goodrain/rainbond/pkg/appruntimesync/pod"
 	"github.com/goodrain/rainbond/pkg/appruntimesync/source"
 	"github.com/goodrain/rainbond/pkg/appruntimesync/status"
-
+	"golang.org/x/net/context"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/Sirupsen/logrus"
 )
 
 //AppRuntimeSyncServer AppRuntimeSyncServer
@@ -44,6 +42,7 @@ type AppRuntimeSyncServer struct {
 	Ctx       context.Context
 	Cancel    context.CancelFunc
 	ClientSet *kubernetes.Clientset
+	podCache  *pod.PodCacheManager
 }
 
 //NewAppRuntimeSyncServer create app runtime sync server
@@ -60,12 +59,15 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 	}
 	logrus.Info("Kube client api create success.")
 	statusManager := status.NewManager(ctx, clientset)
+	stopChan := make(chan struct{})
+	podCache := pod.NewPodCacheManager(clientset, stopChan)
 	arss := &AppRuntimeSyncServer{
 		c:         conf,
 		Ctx:       ctx,
-		stopChan:  make(chan struct{}),
+		stopChan:  stopChan,
 		Cancel:    cancel,
 		ClientSet: clientset,
+		podCache:  podCache,
 	}
 	arss.StatusManager = statusManager
 	return arss

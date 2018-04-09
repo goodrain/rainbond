@@ -83,7 +83,6 @@ type manager struct {
 	dbmanager       db.Manager
 	statusCache     *CacheManager
 	statusManager   *client.AppRuntimeSyncClient
-	podManager      *PodCacheManager
 	informerFactory informers.SharedInformerFactory
 	stop            chan struct{}
 }
@@ -101,22 +100,13 @@ func NewManager(conf option.Config, statusManager *client.AppRuntimeSyncClient) 
 		return nil, err
 	}
 	cacheManager := NewCacheManager()
-	podManager := NewPodCacheManager(clientset)
-	//informerFactory := informers.NewSharedInformerFactory(clientset, 0)
-	//stop := make(chan struct{})
-	//informerFactory.Start(stop)
 	return &manager{kubeclient: clientset, conf: conf,
 		dbmanager:     db.GetManager(),
 		statusCache:   cacheManager,
 		statusManager: statusManager,
-		podManager:    podManager,
-		//informerFactory: informerFactory,
-		//stop:            stop,
 	}, nil
 }
 func (m *manager) Stop() {
-	close(m.podManager.stop)
-	//close(m.stop)
 }
 
 //HorizontalScaling 水平伸缩

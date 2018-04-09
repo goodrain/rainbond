@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,30 +16,23 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-// Rainbond datacenter api binary
-package main
+/*
+Package appruntimesync provides a grpc server and client code
 
-import (
-	"fmt"
-	"os"
+This package is based on the resource status in Kubernete maintenance application status.
 
-	"github.com/goodrain/rainbond/cmd"
-	"github.com/goodrain/rainbond/cmd/api/option"
-	"github.com/goodrain/rainbond/cmd/api/server"
+Client code demo:
 
-	"github.com/spf13/pflag"
-)
-
-func main() {
-	if len(os.Args) > 1 && os.Args[1] == "version" {
-		cmd.ShowVersion("api")
+    //create app status client
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cli, err := client.NewClient(ctx, client.AppRuntimeSyncClientConf{
+		EtcdEndpoints: s.Config.EtcdEndpoint,
+	})
+	if err != nil {
+		logrus.Errorf("create app status client error, %v", err)
+		return err
 	}
-	s := option.NewAPIServer()
-	s.AddFlags(pflag.CommandLine)
-	pflag.Parse()
-	s.SetLog()
-	if err := server.Run(s); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-}
+
+*/
+package appruntimesync

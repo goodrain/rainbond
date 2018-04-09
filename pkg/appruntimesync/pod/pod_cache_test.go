@@ -16,10 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package appm
+package pod
 
 import (
 	"testing"
+
+	"github.com/goodrain/rainbond/pkg/db/config"
+
+	"github.com/goodrain/rainbond/pkg/db"
 
 	"github.com/Sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
@@ -39,9 +43,16 @@ func TestSatisfied(t *testing.T) {
 	}
 	t.Log("False")
 }
-
+func init() {
+	if err := db.CreateManager(config.Config{
+		MysqlConnectionInfo: "root:admin@tcp(127.0.0.1:3306)/region",
+		DBType:              "mysql",
+	}); err != nil {
+		logrus.Error(err)
+	}
+}
 func TestNewPodCacheManager(t *testing.T) {
-	c, err := clientcmd.BuildConfigFromFlags("", "../../../admin.kubeconfig")
+	c, err := clientcmd.BuildConfigFromFlags("", "../../../test/admin.kubeconfig")
 	if err != nil {
 		logrus.Error("read kube config file error.", err)
 		return
@@ -51,7 +62,7 @@ func TestNewPodCacheManager(t *testing.T) {
 		logrus.Error("create kube api client error", err)
 		return
 	}
-	podCache := NewPodCacheManager(clientset)
+	podCache := NewCacheManager(clientset, make(chan struct{}))
 	w := podCache.Watch("")
 	defer w.Stop()
 	for {
@@ -63,7 +74,7 @@ func TestNewPodCacheManager(t *testing.T) {
 }
 
 func TestRemoveWatch(t *testing.T) {
-	c, err := clientcmd.BuildConfigFromFlags("", "../../../admin.kubeconfig")
+	c, err := clientcmd.BuildConfigFromFlags("", "../../../test/admin.kubeconfig")
 	if err != nil {
 		logrus.Error("read kube config file error.", err)
 		return
@@ -73,7 +84,7 @@ func TestRemoveWatch(t *testing.T) {
 		logrus.Error("create kube api client error", err)
 		return
 	}
-	podCache := NewPodCacheManager(clientset)
+	podCache := NewCacheManager(clientset, make(chan struct{}))
 	b := podCache.Watch("a=b")
 	b.Stop()
 	podCache.Watch("c=d")
