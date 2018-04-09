@@ -17,21 +17,25 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package cmd
+
 import (
-	"github.com/urfave/cli"
-	"github.com/goodrain/rainbond/pkg/grctl/clients"
 	"fmt"
-	"github.com/apcera/termtables"
+
 	"github.com/Sirupsen/logrus"
+	"github.com/apcera/termtables"
+	"github.com/goodrain/rainbond/pkg/grctl/clients"
+	"github.com/urfave/cli"
 )
+
+//NewCmdTenant tenant cmd
 func NewCmdTenant() cli.Command {
-	c:=cli.Command{
-		Name: "tenant",
-		Usage: "获取租户应用（包括未运行）信息。 grctl tenant -h",
-		Subcommands:[]cli.Command{
+	c := cli.Command{
+		Name:  "tenant",
+		Usage: "grctl tenant -h",
+		Subcommands: []cli.Command{
 			cli.Command{
-				Name: "get",
-				Usage: "获取应用运行详细信息。grctl tenant get TENANT_NAME",
+				Name:  "get",
+				Usage: "get all app details by specified tenant name",
 				Action: func(c *cli.Context) error {
 					Common(c)
 					return getTenantInfo(c)
@@ -39,7 +43,7 @@ func NewCmdTenant() cli.Command {
 			},
 			cli.Command{
 				Name:  "res",
-				Usage: "获取租户占用资源信息。 grctl tenant res TENANT_NAME",
+				Usage: "get tenant resource details by specified tenant name",
 				Action: func(c *cli.Context) error {
 					Common(c)
 					return findTenantResourceUsage(c)
@@ -47,11 +51,11 @@ func NewCmdTenant() cli.Command {
 			},
 			cli.Command{
 				Name:  "batchstop",
-				Usage: "批量停止租户应用。grctl tenant batchstop tenant_name",
+				Usage: "batch stop app by specified tenant name",
 				Flags: []cli.Flag{
 					cli.BoolFlag{
 						Name:  "f",
-						Usage: "添加此参数日志持续输出。",
+						Usage: "Continuous log output",
 					},
 					cli.StringFlag{
 						Name:  "event_log_server",
@@ -68,14 +72,13 @@ func NewCmdTenant() cli.Command {
 	return c
 }
 
-
 // grctrl tenant TENANT_NAME
 func getTenantInfo(c *cli.Context) error {
 	tenantID := c.Args().First()
 
-	services,err:=clients.RegionClient.Tenants().Get(tenantID).Services().List()
+	services, err := clients.RegionClient.Tenants().Get(tenantID).Services().List()
 	handleErr(err)
-	if services !=nil{
+	if services != nil {
 		table := termtables.CreateTable()
 		table.AddHeaders("租户ID", "服务ID", "服务别名", "应用状态", "Deploy版本")
 		for _, service := range services {
@@ -83,24 +86,22 @@ func getTenantInfo(c *cli.Context) error {
 		}
 		fmt.Println(table.Render())
 		return nil
-	}else {
-		logrus.Error("get nothing")
-		return nil
 	}
-
+	logrus.Error("get nothing")
+	return nil
 }
-func findTenantResourceUsage(c *cli.Context) error  {
+func findTenantResourceUsage(c *cli.Context) error {
 	tenantID := c.Args().First()
-	services,err:=clients.RegionClient.Tenants().Get(tenantID).Services().List()
+	services, err := clients.RegionClient.Tenants().Get(tenantID).Services().List()
 	handleErr(err)
-	var cpuUsage float32 =0
-	var cpuUnit float32=1000
-	var memoryUsage int64=0
-	for _,service:=range services{
-		cpuUsage+=float32(service.ContainerCPU)
-		memoryUsage+=int64(service.ContainerMemory)
+	var cpuUsage float32
+	var cpuUnit float32 = 1000
+	var memoryUsage int64
+	for _, service := range services {
+		cpuUsage += float32(service.ContainerCPU)
+		memoryUsage += int64(service.ContainerMemory)
 	}
-	fmt.Printf("租户 %s 占用CPU : %v 核; 占用Memory : %d M",tenantID, cpuUsage/cpuUnit,memoryUsage)
+	fmt.Printf("租户 %s 占用CPU : %v 核; 占用Memory : %d M", tenantID, cpuUsage/cpuUnit, memoryUsage)
 	fmt.Println()
 	return nil
 }
