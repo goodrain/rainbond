@@ -185,6 +185,7 @@ func (d *DiscoverAction) DiscoverListeners(
 				continue
 			}
 		}
+		var portMap = make(map[int32]int, 0)
 		for _, service := range services.Items {
 			serviceType, ok := service.Labels["service_type"]
 			if !ok || serviceType != "inner" {
@@ -193,12 +194,35 @@ func (d *DiscoverAction) DiscoverListeners(
 				}
 			}
 			port := service.Spec.Ports[0].Port
+			clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
+			if _, ok := portMap[port]; !ok {
+				ptr := &envoyv1.TCPRoute{
+					Cluster: clusterName,
+				}
+				lrs := &envoyv1.TCPRouteConfig{
+					Routes: []*envoyv1.TCPRoute{ptr},
+				}
+				lcg := &envoyv1.TCPProxyFilterConfig{
+					StatPrefix:  clusterName,
+					RouteConfig: lrs,
+				}
+				lfs := &envoyv1.NetworkFilter{
+					Name:   "tcp_proxy",
+					Config: lcg,
+				}
+				plds := &envoyv1.Listener{
+					Name:       clusterName,
+					Address:    fmt.Sprintf("tcp://127.0.0.1:%d", port),
+					Filters:    []*envoyv1.NetworkFilter{lfs},
+					BindToPort: true,
+				}
+				ldsL = append(ldsL, plds)
+			}
 			portProtocol, ok := service.Labels["port_protocol"]
 			if !ok {
 				logrus.Debugf("have no port Protocol")
 			}
 			if ok {
-				clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
 				//TODO: support more protocol
 				switch portProtocol {
 				case "http", "https":
@@ -279,29 +303,7 @@ func (d *DiscoverAction) DiscoverListeners(
 						vhL = append(vhL, pvh)
 					}
 					continue
-
 				default:
-					ptr := &envoyv1.TCPRoute{
-						Cluster: clusterName,
-					}
-					lrs := &envoyv1.TCPRouteConfig{
-						Routes: []*envoyv1.TCPRoute{ptr},
-					}
-					lcg := &envoyv1.TCPProxyFilterConfig{
-						StatPrefix:  clusterName,
-						RouteConfig: lrs,
-					}
-					lfs := &envoyv1.NetworkFilter{
-						Name:   "tcp_proxy",
-						Config: lcg,
-					}
-					plds := &envoyv1.Listener{
-						Name:       clusterName,
-						Address:    fmt.Sprintf("tcp://127.0.0.1:%d", port),
-						Filters:    []*envoyv1.NetworkFilter{lfs},
-						BindToPort: true,
-					}
-					ldsL = append(ldsL, plds)
 					continue
 				}
 			}
