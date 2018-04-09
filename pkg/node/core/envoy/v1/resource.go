@@ -639,7 +639,7 @@ func (*RedisProxyFilterConfig) IsNetworkFilterConfig() {}
 
 // NetworkFilter definition
 type NetworkFilter struct {
-	Type   string              `json:"type"`
+	Type   string              `json:"-"`
 	Name   string              `json:"name"`
 	Config NetworkFilterConfig `json:"config"`
 }
