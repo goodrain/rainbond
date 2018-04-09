@@ -244,9 +244,10 @@ func (d *DiscoverAction) DiscoverListeners(
 							Config: lhc,
 						}
 						plds := &envoyv1.Listener{
-							Name:    fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port),
-							Address: fmt.Sprintf("tcp://0.0.0.0:%d", port),
-							Filters: []*envoyv1.NetworkFilter{lfs},
+							Name:       fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port),
+							Address:    fmt.Sprintf("tcp://0.0.0.0:%d", port),
+							Filters:    []*envoyv1.NetworkFilter{lfs},
+							BindToPort: true,
 						}
 						ldsL = append(ldsL, plds)
 					} else {
@@ -295,9 +296,10 @@ func (d *DiscoverAction) DiscoverListeners(
 						Config: lcg,
 					}
 					plds := &envoyv1.Listener{
-						Name:    clusterName,
-						Address: fmt.Sprintf("tcp://127.0.0.1:%d", port),
-						Filters: []*envoyv1.NetworkFilter{lfs},
+						Name:       clusterName,
+						Address:    fmt.Sprintf("tcp://127.0.0.1:%d", port),
+						Filters:    []*envoyv1.NetworkFilter{lfs},
+						BindToPort: true,
 					}
 					ldsL = append(ldsL, plds)
 					continue
@@ -372,9 +374,10 @@ func (d *DiscoverAction) DiscoverListeners(
 			Config: lhc,
 		}
 		plds := &envoyv1.Listener{
-			Name:    fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias),
-			Address: fmt.Sprintf("tcp://127.0.0.1:%d", 80),
-			Filters: []*envoyv1.NetworkFilter{lfs},
+			Name:       fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias),
+			Address:    fmt.Sprintf("tcp://127.0.0.1:%d", 80),
+			Filters:    []*envoyv1.NetworkFilter{lfs},
+			BindToPort: true,
 		}
 		ldsL = append(ldsL, plds)
 	}
