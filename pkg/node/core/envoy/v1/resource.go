@@ -525,7 +525,7 @@ type HTTPFilterConfig struct {
 	RouteConfig       *HTTPRouteConfig       `json:"route_config,omitempty"`
 	RDS               *RDS                   `json:"rds,omitempty"`
 	Filters           []HTTPFilter           `json:"filters"`
-	AccessLog         []AccessLog            `json:"access_log"`
+	AccessLog         []AccessLog            `json:"access_log,omitempty"`
 }
 
 // IsNetworkFilterConfig marks HTTPFilterConfig as an implementation of NetworkFilterConfig
