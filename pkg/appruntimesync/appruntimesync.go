@@ -46,13 +46,14 @@ type AppRuntimeSync struct {
 }
 
 //Start start if have master right
+//start grpc server
 func (a *AppRuntimeSync) Start() error {
 	a.srss.Start()
 	go a.startAppRuntimeSync()
 	return a.registServer()
 }
 
-//Stop 停止
+//Stop stop app runtime sync server
 func (a *AppRuntimeSync) Stop() error {
 	a.srss.Stop()
 	if a.keepalive != nil {

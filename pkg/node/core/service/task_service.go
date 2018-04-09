@@ -36,7 +36,7 @@ import (
 	"github.com/twinj/uuid"
 )
 
-//TaskService 处理taskAPI
+//TaskService task services
 type TaskService struct {
 	SavePath string
 	conf     *option.Conf
@@ -45,7 +45,7 @@ type TaskService struct {
 
 var taskService *TaskService
 
-//CreateTaskService 创建Task service
+//CreateTaskService create task service
 func CreateTaskService(c *option.Conf, ms *masterserver.MasterServer) *TaskService {
 	if taskService == nil {
 		taskService = &TaskService{
@@ -56,19 +56,19 @@ func CreateTaskService(c *option.Conf, ms *masterserver.MasterServer) *TaskServi
 	}
 	return taskService
 }
-func (ts *TaskService)getTasksByCheck(checkTasks []string,nodeID string) ([]*model.Task, *utils.APIHandleError) {
+func (ts *TaskService) getTasksByCheck(checkTasks []string, nodeID string) ([]*model.Task, *utils.APIHandleError) {
 	var result []*model.Task
 	var nextTask []string
-	for _,v:=range checkTasks{
-		checkTask,err:=taskService.GetTask(v)
+	for _, v := range checkTasks {
+		checkTask, err := taskService.GetTask(v)
 		if err != nil {
-			return nil,err
+			return nil, err
 		}
-		for _,out:=range checkTask.OutPut{
+		for _, out := range checkTask.OutPut {
 			if out.NodeID == nodeID {
-				for _,status:=range out.Status{
-					for _,v:=range status.NextTask{
-						nextTask=append(nextTask,v)
+				for _, status := range out.Status {
+					for _, v := range status.NextTask {
+						nextTask = append(nextTask, v)
 					}
 				}
 			}
@@ -77,43 +77,46 @@ func (ts *TaskService)getTasksByCheck(checkTasks []string,nodeID string) ([]*mod
 	}
 	//tids:=[]string{"do_rbd_images","install_acp_plugins","install_base_plugins","install_db",
 	//	"install_docker","install_k8s","install_manage_ready","install_network","install_plugins","install_storage","install_webcli","update_dns","update_entrance_services","create_host_id_list"}
-	for _,v:=range nextTask{
-		task,err:=taskService.GetTask(v)
+	for _, v := range nextTask {
+		task, err := taskService.GetTask(v)
 		if err != nil {
-			return nil,err
+			return nil, err
 		}
-		result=append(result, task)
+		result = append(result, task)
 	}
-	return result,nil
+	return result, nil
 }
-func (ts *TaskService)GetTasksByNode(n *model.HostNode)([]*model.Task,*utils.APIHandleError)  {
-	if n.Role.HasRule("compute") &&len(n.Role)==1{
-		checkTask:=[]string{"check_compute_services"}
+
+//GetTasksByNode get tasks by node
+func (ts *TaskService) GetTasksByNode(n *model.HostNode) ([]*model.Task, *utils.APIHandleError) {
+	if n.Role.HasRule("compute") && len(n.Role) == 1 {
+		checkTask := []string{"check_compute_services"}
 		//tids:=[]string{"install_compute_ready","update_dns_compute","install_storage_client","install_network_compute","install_plugins_compute","install_docker_compute","install_kubelet"}
-		result,err:=ts.getTasksByCheck(checkTask,n.ID)
+		result, err := ts.getTasksByCheck(checkTask, n.ID)
 		if err != nil {
-			return nil,err
+			return nil, err
 		}
-		return result,nil
-	}else if n.Role.HasRule("manage") &&len(n.Role)==1{
+		return result, nil
+	} else if n.Role.HasRule("manage") && len(n.Role) == 1 {
 		//checkTask:=[]string{"check_manage_base_services","check_manage_services"}
-		checkTask:=[]string{"check_manage_services"}
-		result,err:=ts.getTasksByCheck(checkTask,n.ID)
+		checkTask := []string{"check_manage_services"}
+		result, err := ts.getTasksByCheck(checkTask, n.ID)
 		if err != nil {
-			return nil,err
+			return nil, err
 		}
-		return result,nil
-	}else {
+		return result, nil
+	} else {
 		//checkTask:=[]string{"check_manage_base_services","check_manage_services","check_compute_services"}
-		checkTask:=[]string{"check_manage_services","check_compute_services"}
+		checkTask := []string{"check_manage_services", "check_compute_services"}
 		//tids:=[]string{"do_rbd_images","install_acp_plugins","install_base_plugins","install_db","install_docker","install_k8s","install_manage_ready","install_network","install_plugins","install_storage","install_webcli","update_dns","update_entrance_services","create_host_id_list","install_kubelet_manage","install_compute_ready_manage"}
-		result,err:=ts.getTasksByCheck(checkTask,n.ID)
+		result, err := ts.getTasksByCheck(checkTask, n.ID)
 		if err != nil {
-			return nil,err
+			return nil, err
 		}
-		return result,nil
+		return result, nil
 	}
 }
+
 //AddTask add task
 func (ts *TaskService) AddTask(t *model.Task) *utils.APIHandleError {
 	if t.ID == "" {
@@ -181,7 +184,7 @@ func (ts *TaskService) GetTasks() ([]*model.Task, *utils.APIHandleError) {
 	return result, nil
 }
 
-//GetTask 获取Task
+//GetTask get task by taskID
 func (ts *TaskService) GetTask(taskID string) (*model.Task, *utils.APIHandleError) {
 	var task *model.Task
 	task = ts.ms.TaskEngine.GetTask(taskID)
@@ -191,7 +194,7 @@ func (ts *TaskService) GetTask(taskID string) (*model.Task, *utils.APIHandleErro
 	return task, nil
 }
 
-//DeleteTask 删除Task
+//DeleteTask delete task by taskID
 func (ts *TaskService) DeleteTask(taskID string) *utils.APIHandleError {
 	task, err := ts.GetTask(taskID)
 	if err != nil {
@@ -219,7 +222,7 @@ func (ts *TaskService) DeleteTask(taskID string) *utils.APIHandleError {
 	return nil
 }
 
-//ExecTask 执行任务API处理
+//ExecTask exec a task in nodes
 func (ts *TaskService) ExecTask(taskID string, nodes []string) *utils.APIHandleError {
 	t, err := ts.GetTask(taskID)
 	if err != nil {
@@ -260,7 +263,7 @@ func (ts *TaskService) ReloadStaticTasks() {
 	ts.ms.TaskEngine.LoadStaticTask()
 }
 
-//TaskTempService 任务模版
+//TaskTempService task temp service
 type TaskTempService struct {
 	SavePath string
 	conf     *option.Conf
@@ -268,7 +271,7 @@ type TaskTempService struct {
 
 var taskTempService *TaskTempService
 
-//CreateTaskTempService 创建Task service
+//CreateTaskTempService create task temp service
 func CreateTaskTempService(c *option.Conf) *TaskTempService {
 	if taskTempService == nil {
 		taskTempService = &TaskTempService{
@@ -279,7 +282,7 @@ func CreateTaskTempService(c *option.Conf) *TaskTempService {
 	return taskTempService
 }
 
-//SaveTaskTemp add task
+//SaveTaskTemp add task temp
 func (ts *TaskTempService) SaveTaskTemp(t *model.TaskTemp) *utils.APIHandleError {
 	if t.ID == "" {
 		t.ID = uuid.NewV4().String()
@@ -294,7 +297,7 @@ func (ts *TaskTempService) SaveTaskTemp(t *model.TaskTemp) *utils.APIHandleError
 	return nil
 }
 
-//GetTaskTemp add task
+//GetTaskTemp get task temp
 func (ts *TaskTempService) GetTaskTemp(tempID string) (*model.TaskTemp, *utils.APIHandleError) {
 	res, err := store.DefalutClient.Get(ts.SavePath + "/" + tempID)
 	if err != nil {
@@ -314,7 +317,7 @@ func (ts *TaskTempService) GetTaskTemp(tempID string) (*model.TaskTemp, *utils.A
 	return &task, nil
 }
 
-//DeleteTaskTemp 删除任务模版
+//DeleteTaskTemp delete task temp
 func (ts *TaskTempService) DeleteTaskTemp(tempID string) *utils.APIHandleError {
 	_, err := ts.GetTaskTemp(tempID)
 	if err != nil {
@@ -327,7 +330,7 @@ func (ts *TaskTempService) DeleteTaskTemp(tempID string) *utils.APIHandleError {
 	return nil
 }
 
-//TaskGroupService 任务组
+//TaskGroupService task group
 type TaskGroupService struct {
 	SavePath string
 	conf     *option.Conf
@@ -336,7 +339,7 @@ type TaskGroupService struct {
 
 var taskGroupService *TaskGroupService
 
-//CreateTaskGroupService 创建Task group service
+//CreateTaskGroupService create Task group service
 func CreateTaskGroupService(c *option.Conf, ms *masterserver.MasterServer) *TaskGroupService {
 	if taskGroupService == nil {
 		taskGroupService = &TaskGroupService{
@@ -393,7 +396,7 @@ func (ts *TaskGroupService) GetTaskGroups() ([]*model.TaskGroup, *utils.APIHandl
 	return tasks, nil
 }
 
-//GetTaskGroup 获取Task
+//GetTaskGroup get Task group
 func (ts *TaskGroupService) GetTaskGroup(taskGroupID string) (*model.TaskGroup, *utils.APIHandleError) {
 	res, err := store.DefalutClient.Get(ts.SavePath + "/" + taskGroupID)
 	if err != nil {
@@ -413,8 +416,8 @@ func (ts *TaskGroupService) GetTaskGroup(taskGroupID string) (*model.TaskGroup, 
 	return &task, nil
 }
 
-//DeleteTaskGroup 删除TaskGroup
-//删除Group不删除包含的Task
+//DeleteTaskGroup delete TaskGroup
+//delete group but do not delete task in this group
 func (ts *TaskGroupService) DeleteTaskGroup(taskGroupID string) *utils.APIHandleError {
 	taskGroup, err := ts.GetTaskGroup(taskGroupID)
 	if err != nil {
@@ -430,7 +433,7 @@ func (ts *TaskGroupService) DeleteTaskGroup(taskGroupID string) *utils.APIHandle
 	return nil
 }
 
-//ExecTaskGroup 执行组任务API处理
+//ExecTaskGroup exec group task
 func (ts *TaskGroupService) ExecTaskGroup(taskGroupID string, nodes []string) *utils.APIHandleError {
 	t, err := ts.GetTaskGroup(taskGroupID)
 	if err != nil {

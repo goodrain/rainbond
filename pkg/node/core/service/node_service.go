@@ -72,19 +72,19 @@ func (n *NodeService) AddNode(node *model.APIHostNode) *utils.APIHandleError {
 	if _, err := rbnode.Update(); err != nil {
 		return utils.CreateAPIHandleErrorFromDBError("save node", err)
 	}
-	//判断是否需要安装
+	//Determine if the node needs to be installed.
 	n.nodecluster.CheckNodeInstall(rbnode)
 	return nil
 }
 
-//DeleteNode 删除节点信息
-//只有节点状态属于（离线状态）才能删除
+//DeleteNode delete node
+//only node status is offline and node can be deleted
 func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 	node := n.nodecluster.GetNode(nodeID)
 	if node.Alived {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("node is online, can not delete"))
 	}
-	//TODO:计算节点，判断节点是否下线
+	//TODO:compute node check node is offline
 	if node.Role.HasRule(model.ComputeNode) {
 		if node.NodeStatus != nil {
 			return utils.CreateAPIHandleError(400, fmt.Errorf("node is k8s compute node, can not delete"))
@@ -97,7 +97,7 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 	return nil
 }
 
-//GetNode 获取node
+//GetNode get node info
 func (n *NodeService) GetNode(nodeID string) (*model.HostNode, *utils.APIHandleError) {
 	node := n.nodecluster.GetNode(nodeID)
 	if node == nil {
@@ -117,7 +117,7 @@ func (n *NodeService) GetAllNode() ([]*model.HostNode, *utils.APIHandleError) {
 	return nodes, nil
 }
 
-//CordonNode 设置节点不可调度熟悉
+//CordonNode set node is unscheduler
 func (n *NodeService) CordonNode(nodeID string, unschedulable bool) *utils.APIHandleError {
 	hostNode, apierr := n.GetNode(nodeID)
 	if apierr != nil {
@@ -126,16 +126,15 @@ func (n *NodeService) CordonNode(nodeID string, unschedulable bool) *utils.APIHa
 	if !hostNode.Role.HasRule(model.ComputeNode) {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
 	}
-	//更新节点状态
+	//update k8s node unshcedulable status
 	hostNode.Unschedulable = unschedulable
-	//k8s节点存在
+	//update node status
 	if unschedulable {
 		hostNode.Status = "unschedulable"
 	} else {
 		hostNode.Status = "running"
 	}
 	if hostNode.NodeStatus != nil {
-		//true表示drain，不可调度
 		node, err := k8s.CordonOrUnCordon(hostNode.ID, unschedulable)
 		if err != nil {
 			return utils.CreateAPIHandleError(500, fmt.Errorf("set node schedulable info error,%s", err.Error()))
@@ -146,7 +145,7 @@ func (n *NodeService) CordonNode(nodeID string, unschedulable bool) *utils.APIHa
 	return nil
 }
 
-//PutNodeLabel 更新node label
+//PutNodeLabel update node label
 func (n *NodeService) PutNodeLabel(nodeID string, labels map[string]string) *utils.APIHandleError {
 	hostNode, apierr := n.GetNode(nodeID)
 	if apierr != nil {
@@ -164,7 +163,7 @@ func (n *NodeService) PutNodeLabel(nodeID string, labels map[string]string) *uti
 	return nil
 }
 
-//DownNode 节点下线
+//DownNode down node
 func (n *NodeService) DownNode(nodeID string) (*model.HostNode, *utils.APIHandleError) {
 	hostNode, apierr := n.GetNode(nodeID)
 	if apierr != nil {
@@ -183,7 +182,7 @@ func (n *NodeService) DownNode(nodeID string) (*model.HostNode, *utils.APIHandle
 	return hostNode, nil
 }
 
-//UpNode 节点上线
+//UpNode up node
 func (n *NodeService) UpNode(nodeID string) (*model.HostNode, *utils.APIHandleError) {
 	hostNode, apierr := n.GetNode(nodeID)
 	if apierr != nil {
@@ -201,6 +200,8 @@ func (n *NodeService) UpNode(nodeID string) (*model.HostNode, *utils.APIHandleEr
 	n.nodecluster.UpdateNode(hostNode)
 	return hostNode, nil
 }
+
+//InstallNode install a node
 func (n *NodeService) InstallNode(nodeID string) *utils.APIHandleError {
 	time.Sleep(3 * time.Second)
 	node, err := n.GetNode(nodeID)
@@ -228,6 +229,8 @@ func (n *NodeService) InstallNode(nodeID string) *utils.APIHandleError {
 	n.nodecluster.UpdateNode(node)
 	return nil
 }
+
+//InitStatus node init status
 func (n *NodeService) InitStatus(nodeIP string) (*model.InitStatus, *utils.APIHandleError) {
 	var hostnode model.HostNode
 	gotNode := false
@@ -245,34 +248,28 @@ func (n *NodeService) InitStatus(nodeIP string) (*model.InitStatus, *utils.APIHa
 				break
 			}
 		}
-
 		if i > 0 {
 			time.Sleep(time.Second)
 		}
 		i++
 	}
 	if i != 10 {
-
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("can't find node with given ip %s", nodeIP))
 	}
-
 	nodeUID := hostnode.ID
-
 	node, err := n.GetNode(nodeUID)
 	if err != nil {
 		return nil, err
 	}
 	var status model.InitStatus
 	for _, val := range node.Conditions {
-
 		if node.Alived || (val.Type == model.NodeInit && val.Status == model.ConditionTrue) {
-			//初始化成功
 			status.Status = 0
 			status.StatusCN = "初始化成功"
 			status.HostID = node.ID
 		} else if val.Type == model.NodeInit && val.Status == model.ConditionFalse {
 			status.Status = 1
-			status.StatusCN = fmt.Sprintf("初始化失�����,%s", val.Message)
+			status.StatusCN = fmt.Sprintf("初始化失败,%s", val.Message)
 		} else {
 			status.Status = 2
 			status.StatusCN = "初始化中"
@@ -285,12 +282,12 @@ func (n *NodeService) InitStatus(nodeIP string) (*model.InitStatus, *utils.APIHa
 	return &status, nil
 }
 
+//GetNodeResource get node resource
 func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *utils.APIHandleError) {
 	node, err := n.GetNode(nodeUID)
 	if err != nil {
 		return nil, err
 	}
-
 	if !node.Role.HasRule("compute") {
 
 	}
@@ -298,8 +295,8 @@ func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *
 	if error != nil {
 		return nil, utils.CreateAPIHandleError(404, err)
 	}
-	var cpuTotal int64 = node.AvailableCPU
-	var memTotal int64 = node.AvailableMemory
+	var cpuTotal = node.AvailableCPU
+	var memTotal = node.AvailableMemory
 	var cpuLimit int64
 	var cpuRequest int64
 	var memLimit int64
@@ -308,9 +305,7 @@ func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *
 		lc := v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
 		cpuLimit += lc
 		lm := v.Spec.Containers[0].Resources.Limits.Memory().Value()
-
 		memLimit += lm
-
 		//logrus.Infof("pod %s limit cpu is %s",v.Name,v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue())
 		rc := v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 		cpuRequest += rc
@@ -318,7 +313,6 @@ func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *
 		memRequest += rm
 	}
 	var res model.NodePodResource
-
 	res.CPULimits = cpuLimit
 	//logrus.Infof("node %s cpu limit is %v",cpuLimit)
 	res.CPURequests = cpuRequest
@@ -332,6 +326,8 @@ func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *
 	res.MemoryRequestsR = strconv.FormatFloat(float64(res.MemoryRequests*100)/float64(res.MemR), 'f', 2, 64)
 	return &res, nil
 }
+
+//CheckNode check node install status
 func (n *NodeService) CheckNode(nodeUID string) (*model.InstallStatus, *utils.APIHandleError) {
 	descMap := make(map[string]string)
 	descMap["check_compute_services"] = "检测计算节点所需服务"
@@ -371,8 +367,8 @@ func (n *NodeService) CheckNode(nodeUID string) (*model.InstallStatus, *utils.AP
 
 	var final model.InstallStatus
 	var result []*model.ExecedTask
-	var installStatus int = 1   //0 success 1 ing  2 failed
-	var statusCN string = "安装中" //0 success 1 ing  2 failed
+	var installStatus = 1 //0 success 1 ing  2 failed
+	var statusCN = "安装中"  //0 success 1 ing  2 failed
 	successCount := 0
 	for _, v := range tasks {
 		var task model.ExecedTask
@@ -382,7 +378,7 @@ func (n *NodeService) CheckNode(nodeUID string) (*model.InstallStatus, *utils.AP
 			task.Status = strings.ToLower(taskStatus.Status)
 			task.CompleteStatus = taskStatus.CompleStatus
 			if strings.ToLower(task.Status) == "complete" && strings.ToLower(task.CompleteStatus) == "success" {
-				successCount += 1
+				successCount++
 			}
 			if strings.ToLower(task.Status) == "parse task output error" {
 				task.Status = "failure"
