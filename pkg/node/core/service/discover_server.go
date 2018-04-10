@@ -126,6 +126,86 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*envoyv1.SDSHost, 
 	return sds, nil
 }
 
+//DiscoverClusters cds discover
+//create cluster by get depend app endpoints from plugin config
+func (d *DiscoverAction) DiscoverClusters(
+	tenantService,
+	serviceCluster string) (*envoyv1.CDSCluter, *util.APIHandleError) {
+	nn := strings.Split(tenantService, "_")
+	if len(nn) != 3 {
+		return nil, util.CreateAPIHandleError(400, fmt.Errorf("namesapces and service_alias not in good format"))
+	}
+	namespace := nn[0]
+	pluginID := nn[1]
+	serviceAlias := nn[2]
+	var cds = &envoyv1.CDSCluter{}
+	resources, err := d.ToolsGetRainbondResources(namespace, serviceAlias, pluginID)
+	if err != nil {
+		if strings.Contains(err.Error(), "is not exist") {
+			return cds, nil
+		}
+		logrus.Warnf("in lds get env %s error: %v", namespace+serviceAlias+pluginID, err)
+		return nil, util.CreateAPIHandleError(500, fmt.Errorf(
+			"get env %s error: %v", namespace+serviceAlias+pluginID, err))
+	}
+	if resources.BaseServices != nil && len(resources.BaseServices) > 0 {
+		clusters, err := d.upstreamClusters(serviceAlias, namespace, resources.BaseServices)
+		if err != nil {
+			return nil, err
+		}
+		cds.Clusters.Append(clusters)
+	}
+	return cds, nil
+}
+
+//upstreamClusters handle upstream app cluster
+// handle kubernetes inner service
+func (d *DiscoverAction) upstreamClusters(serviceAlias, namespace string, dependsServices []*api_model.BaseService) (cdsClusters envoyv1.Clusters, err *util.APIHandleError) {
+	for _, destService := range dependsServices {
+		destServiceAlias := destService.DependServiceAlias
+		labelname := fmt.Sprintf("name=%sService", destServiceAlias)
+		services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+		if err != nil {
+			return nil, util.CreateAPIHandleError(500, err)
+		}
+		if len(services.Items) == 0 {
+			continue
+		}
+		for _, service := range services.Items {
+			inner, ok := service.Labels["service_type"]
+			port := service.Spec.Ports[0]
+			//originPort := service.Labels["origin_port"]
+			options := destService.Options
+			if !ok || inner != "inner" {
+				continue
+			}
+			circuits := d.ToolsGetRouterItem(destServiceAlias, node_model.LIMITS, options).(int)
+			maxRequests := d.ToolsGetRouterItem(destServiceAlias, node_model.MaxRequests, options).(int)
+			maxRetries := d.ToolsGetRouterItem(destServiceAlias, node_model.MaxRetries, options).(int)
+			maxPendingRequests := d.ToolsGetRouterItem(destServiceAlias, node_model.MaxPendingRequests, options).(int)
+			cb := &envoyv1.CircuitBreaker{
+				Default: envoyv1.DefaultCBPriority{
+					MaxConnections:     circuits,
+					MaxPendingRequests: maxPendingRequests,
+					MaxRequests:        maxRequests,
+					MaxRetries:         maxRetries,
+				},
+			}
+			pcds := &envoyv1.Cluster{
+				Name:             fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port),
+				Type:             "sds",
+				ConnectTimeoutMs: 250,
+				LbType:           "round_robin",
+				ServiceName:      fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port),
+				CircuitBreaker:   cb,
+			}
+			cdsClusters = append(cdsClusters, pcds)
+			continue
+		}
+	}
+	return
+}
+
 // DiscoverListeners lds
 // create listens by get depend app endpoints from plugin config
 func (d *DiscoverAction) DiscoverListeners(
@@ -148,10 +228,24 @@ func (d *DiscoverAction) DiscoverListeners(
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf(
 			"get env %s error: %v", namespace+serviceAlias+pluginID, err))
 	}
+	if resources.BaseServices != nil && len(resources.BaseServices) > 0 {
+		listeners, err := d.upstreamListener(serviceAlias, namespace, resources.BaseServices)
+		if err != nil {
+			return nil, err
+		}
+		lds.Listeners.Append(listeners)
+	}
+
+	return lds, nil
+}
+
+//upstreamListener handle upstream app listener
+// handle kubernetes inner service
+func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, dependsServices []*api_model.BaseService) (envoyv1.Listeners, *util.APIHandleError) {
 	var vhL []*envoyv1.VirtualHost
 	var ldsL envoyv1.Listeners
 	var portMap = make(map[int32]int, 0)
-	for _, destService := range resources.BaseServices {
+	for _, destService := range dependsServices {
 		destServiceAlias := destService.DependServiceAlias
 		labelname := fmt.Sprintf("name=%sService", destService.DependServiceAlias)
 		services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
@@ -159,20 +253,8 @@ func (d *DiscoverAction) DiscoverListeners(
 			return nil, util.CreateAPIHandleError(500, err)
 		}
 		if len(services.Items) == 0 {
-			if destServiceAlias == serviceAlias {
-				labelname := fmt.Sprintf("name=%sServiceOUT", destServiceAlias)
-				var err error
-				services, err = k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
-				if err != nil {
-					return nil, util.CreateAPIHandleError(500, err)
-				}
-				if len(services.Items) == 0 {
-					continue
-				}
-			} else {
-				logrus.Debugf("inner endpoints items length is 0, continue")
-				continue
-			}
+			logrus.Debugf("inner endpoints items length is 0, continue")
+			continue
 		}
 		for _, service := range services.Items {
 			serviceType, ok := service.Labels["service_type"]
@@ -185,114 +267,37 @@ func (d *DiscoverAction) DiscoverListeners(
 			clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
 			if _, ok := portMap[port]; !ok {
 				if v, ok := destService.Options["LISTEN"]; !ok || v == "true" {
-					ptr := &envoyv1.TCPRoute{
-						Cluster: clusterName,
-					}
-					lrs := &envoyv1.TCPRouteConfig{
-						Routes: []*envoyv1.TCPRoute{ptr},
-					}
-					lcg := &envoyv1.TCPProxyFilterConfig{
-						StatPrefix:  clusterName,
-						RouteConfig: lrs,
-					}
-					lfs := &envoyv1.NetworkFilter{
-						Name:   "tcp_proxy",
-						Config: lcg,
-					}
-					plds := &envoyv1.Listener{
-						Name:       clusterName,
-						Address:    fmt.Sprintf("tcp://127.0.0.1:%d", port),
-						Filters:    []*envoyv1.NetworkFilter{lfs},
-						BindToPort: true,
-					}
+					plds := envoyv1.CreateTCPCommonListener(clusterName, port)
 					ldsL = append(ldsL, plds)
 					portMap[port] = 1
 				}
 			}
 			portProtocol, ok := service.Labels["port_protocol"]
 			if !ok {
-				logrus.Debugf("have no port Protocol")
+				portProtocol = destService.Protocol
 			}
-			if ok {
+			if portProtocol != "" {
 				//TODO: support more protocol
 				switch portProtocol {
 				case "http", "https":
-					if destServiceAlias == serviceAlias {
-						//current app
-						var vhLThin []*envoyv1.VirtualHost
-						options := make(map[string]interface{})
-						if resources != nil {
-							for _, bp := range resources.BasePorts {
-								if bp.ServiceAlias == serviceAlias && int32(bp.Port) == port {
-									options = bp.Options
-								}
-							}
-						}
-						prs := &envoyv1.HTTPRoute{
-							TimeoutMS: 0,
-							Prefix:    d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, options).(string),
-							Cluster:   clusterName,
-						}
-						pvh := &envoyv1.VirtualHost{
-							Name: clusterName,
-							//current app domain default is *
-							Domains: []string{"*"},
-							Routes:  []*envoyv1.HTTPRoute{prs},
-						}
-						vhLThin = append(vhLThin, pvh)
-						hsf := envoyv1.HTTPFilter{
-							Type:   "decoder",
-							Name:   "router",
-							Config: make(map[string]string),
-						}
-						rcg := &envoyv1.HTTPRouteConfig{
-							VirtualHosts: vhLThin,
-						}
-						lhc := &envoyv1.HTTPFilterConfig{
-							CodecType:   "auto",
-							StatPrefix:  "ingress_http",
-							RouteConfig: rcg,
-							Filters:     []envoyv1.HTTPFilter{hsf},
-						}
-						lfs := &envoyv1.NetworkFilter{
-							Name:   "http_connection_manager",
-							Config: lhc,
-						}
-						plds := &envoyv1.Listener{
-							Name:       fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port),
-							Address:    fmt.Sprintf("tcp://0.0.0.0:%d", port),
-							Filters:    []*envoyv1.NetworkFilter{lfs},
-							BindToPort: true,
-						}
-						ldsL = append(ldsL, plds)
-					} else {
-						//depend app
-						options := make(map[string]interface{})
-						if resources != nil {
-							for _, bp := range resources.BaseServices {
-								if bp.DependServiceAlias == destServiceAlias && int32(bp.Port) == port {
-									options = bp.Options
-								}
-							}
-						}
-						var prs envoyv1.HTTPRoute
-						prs.TimeoutMS = 0
-						prs.Prefix = d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, options).(string)
-						wcn := &envoyv1.WeightedClusterEntry{
-							Name:   clusterName,
-							Weight: d.ToolsGetRouterItem(destServiceAlias, node_model.WEIGHT, options).(int),
-						}
-						prs.WeightedClusters = &envoyv1.WeightedCluster{
-							Clusters: []*envoyv1.WeightedClusterEntry{wcn},
-						}
-						prs.Headers = d.ToolsGetRouterItem(destServiceAlias, node_model.HEADERS, options).([]envoyv1.Header)
-						pvh := &envoyv1.VirtualHost{
-							Name:    fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
-							Domains: d.ToolsGetRouterItem(destServiceAlias, node_model.DOMAINS, options).([]string),
-							Routes:  []*envoyv1.HTTPRoute{&prs},
-						}
-						vhL = append(vhL, pvh)
+					options := destService.Options
+					var prs envoyv1.HTTPRoute
+					prs.TimeoutMS = 0
+					prs.Prefix = d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, options).(string)
+					wcn := &envoyv1.WeightedClusterEntry{
+						Name:   clusterName,
+						Weight: d.ToolsGetRouterItem(destServiceAlias, node_model.WEIGHT, options).(int),
 					}
+					prs.WeightedClusters = &envoyv1.WeightedCluster{
+						Clusters: []*envoyv1.WeightedClusterEntry{wcn},
+					}
+					prs.Headers = d.ToolsGetRouterItem(destServiceAlias, node_model.HEADERS, options).([]envoyv1.Header)
+					pvh := &envoyv1.VirtualHost{
+						Name:    fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
+						Domains: d.ToolsGetRouterItem(destServiceAlias, node_model.DOMAINS, options).([]string),
+						Routes:  []*envoyv1.HTTPRoute{&prs},
+					}
+					vhL = append(vhL, pvh)
 					continue
 				default:
 					continue
@@ -300,82 +305,12 @@ func (d *DiscoverAction) DiscoverListeners(
 			}
 		}
 	}
+	// create common http listener
 	if len(vhL) != 0 {
-		var newVHL []*envoyv1.VirtualHost
-		if len(vhL) > 1 {
-			domainL := d.CheckSameDomainAndPrefix(resources)
-			if len(domainL) > 0 {
-				for d := range domainL {
-					var c []*envoyv1.WeightedClusterEntry
-					var r []*envoyv1.HTTPRoute
-					var pvh envoyv1.VirtualHost
-					var prs envoyv1.HTTPRoute
-					prs.TimeoutMS = 0
-					for _, v := range vhL {
-						if pvh.Name == "" {
-							pvh.Name = v.Name
-							pvh.Domains = v.Domains
-							pvh.Routes = []*envoyv1.HTTPRoute{&prs}
-						}
-						if v.Domains[0] == d {
-							switch domainL[d] {
-							case node_model.MODELWEIGHT:
-								prs.Prefix = v.Routes[0].Prefix
-								prs.Headers = v.Routes[0].Headers
-								c = append(c, v.Routes[0].WeightedClusters.Clusters[0])
-							case node_model.MODELPREFIX:
-								r = append(r, v.Routes[0])
-							}
-						} else {
-							newVHL = append(newVHL, v)
-						}
-					}
-					if len(r) != 0 {
-						pvh.Routes = r
-						newVHL = append(newVHL, &pvh)
-					}
-					if len(c) != 0 {
-						var wc envoyv1.WeightedCluster
-						wc.Clusters = c
-						prs.WeightedClusters = &wc
-						pvh.Routes = []*envoyv1.HTTPRoute{&prs}
-						newVHL = append(newVHL, &pvh)
-					}
-				}
-			} else {
-				newVHL = vhL
-			}
-		} else {
-			newVHL = vhL
-		}
-		rcg := &envoyv1.HTTPRouteConfig{
-			VirtualHosts: newVHL,
-		}
-		hsf := envoyv1.HTTPFilter{
-			Type:   "decoder",
-			Name:   "router",
-			Config: make(map[string]string),
-		}
-		lhc := &envoyv1.HTTPFilterConfig{
-			CodecType:   "auto",
-			StatPrefix:  "ingress_http",
-			RouteConfig: rcg,
-			Filters:     []envoyv1.HTTPFilter{hsf},
-		}
-		lfs := &envoyv1.NetworkFilter{
-			Name:   "http_connection_manager",
-			Config: lhc,
-		}
-		plds := &envoyv1.Listener{
-			Name:       fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias),
-			Address:    fmt.Sprintf("tcp://127.0.0.1:%d", 80),
-			Filters:    []*envoyv1.NetworkFilter{lfs},
-			BindToPort: true,
-		}
+		plds := envoyv1.CreateHTTPCommonListener(fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias), vhL...)
 		ldsL = append(ldsL, plds)
 	}
-	lds.Listeners = ldsL
-	return lds, nil
+	return ldsL, nil
 }
 
 //Duplicate Duplicate
@@ -426,7 +361,6 @@ func (d *DiscoverAction) CheckSameDomainAndPrefix(resources *api_model.ResourceS
 			// 	}
 			// }
 		}
-		logrus.Debugf("prefixM is %v", prefixM)
 		if len(prefixM) == 1 {
 			domainL[d] = node_model.MODELWEIGHT
 		} else {
@@ -434,106 +368,6 @@ func (d *DiscoverAction) CheckSameDomainAndPrefix(resources *api_model.ResourceS
 		}
 	}
 	return domainL
-}
-
-//DiscoverClusters cds discover
-//create cluster by get depend app endpoints from plugin config
-func (d *DiscoverAction) DiscoverClusters(
-	tenantService,
-	serviceCluster string) (*envoyv1.CDSCluter, *util.APIHandleError) {
-	nn := strings.Split(tenantService, "_")
-	if len(nn) != 3 {
-		return nil, util.CreateAPIHandleError(400, fmt.Errorf("namesapces and service_alias not in good format"))
-	}
-	namespace := nn[0]
-	pluginID := nn[1]
-	serviceAlias := nn[2]
-	var cds = &envoyv1.CDSCluter{}
-	resources, err := d.ToolsGetRainbondResources(namespace, serviceAlias, pluginID)
-	if err != nil {
-		if strings.Contains(err.Error(), "is not exist") {
-			return cds, nil
-		}
-		logrus.Warnf("in lds get env %s error: %v", namespace+serviceAlias+pluginID, err)
-		return nil, util.CreateAPIHandleError(500, fmt.Errorf(
-			"get env %s error: %v", namespace+serviceAlias+pluginID, err))
-	}
-	var cdsClusters []*envoyv1.Cluster
-	for _, destService := range resources.BaseServices {
-		destServiceAlias := destService.DependServiceAlias
-		labelname := fmt.Sprintf("name=%sService", destServiceAlias)
-		services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
-		if err != nil {
-			return nil, util.CreateAPIHandleError(500, err)
-		}
-		if len(services.Items) == 0 {
-			if destServiceAlias == serviceAlias {
-				labelname := fmt.Sprintf("name=%sServiceOUT", destServiceAlias)
-				var err error
-				services, err = k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
-				if err != nil {
-					return nil, util.CreateAPIHandleError(500, err)
-				}
-			}
-		}
-		selfCount := 0
-		for _, service := range services.Items {
-			inner, ok := service.Labels["service_type"]
-			port := service.Spec.Ports[0]
-			originPort := service.Labels["origin_port"]
-			options := make(map[string]interface{})
-			if (!ok || inner != "inner") && serviceAlias != destServiceAlias {
-				continue
-			}
-			if (serviceAlias == destServiceAlias) && selfCount == 1 {
-				continue
-			}
-			if serviceAlias == destServiceAlias {
-				if resources != nil {
-					for _, bp := range resources.BasePorts {
-						logrus.Debugf("bp.servicealias: %s, serviceAlias: %s, bp.Port:%s, originPort: %s",
-							bp.ServiceAlias, serviceAlias, fmt.Sprintf("%d", bp.Port), originPort)
-						if bp.ServiceAlias == serviceAlias && fmt.Sprintf("%d", bp.Port) == originPort {
-							options = bp.Options
-						}
-					}
-				}
-			} else {
-				if resources != nil {
-					for _, bp := range resources.BaseServices {
-						if bp.DependServiceAlias == destServiceAlias && int32(bp.Port) == port.Port {
-							options = bp.Options
-						}
-					}
-				}
-			}
-			selfCount++
-			circuits := d.ToolsGetRouterItem(destServiceAlias, node_model.LIMITS, options).(int)
-			maxRequests := d.ToolsGetRouterItem(destServiceAlias, node_model.MaxRequests, options).(int)
-			maxRetries := d.ToolsGetRouterItem(destServiceAlias, node_model.MaxRetries, options).(int)
-			maxPendingRequests := d.ToolsGetRouterItem(destServiceAlias, node_model.MaxPendingRequests, options).(int)
-			cb := &envoyv1.CircuitBreaker{
-				Default: envoyv1.DefaultCBPriority{
-					MaxConnections:     circuits,
-					MaxPendingRequests: maxPendingRequests,
-					MaxRequests:        maxRequests,
-					MaxRetries:         maxRetries,
-				},
-			}
-			pcds := &envoyv1.Cluster{
-				Name:             fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port),
-				Type:             "sds",
-				ConnectTimeoutMs: 250,
-				LbType:           "round_robin",
-				ServiceName:      fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port),
-				CircuitBreaker:   cb,
-			}
-			cdsClusters = append(cdsClusters, pcds)
-			continue
-		}
-	}
-	cds.Clusters = cdsClusters
-	return cds, nil
 }
 
 //ToolsGetSourcesEnv rds

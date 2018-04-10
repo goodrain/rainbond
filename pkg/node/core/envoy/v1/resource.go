@@ -713,6 +713,68 @@ type Listener struct {
 // Listeners is a collection of listeners
 type Listeners []*Listener
 
+//Append append some listeners
+func (l *Listeners) Append(new Listeners) {
+	*l = append(*l, new...)
+}
+
+//CreateHTTPCommonListener create simple http common listener
+//listen port 80
+func CreateHTTPCommonListener(name string, vh ...*VirtualHost) *Listener {
+	rcg := &HTTPRouteConfig{
+		VirtualHosts: vh,
+	}
+	hsf := HTTPFilter{
+		Type:   "decoder",
+		Name:   "router",
+		Config: make(map[string]string),
+	}
+	lhc := &HTTPFilterConfig{
+		CodecType:   "auto",
+		StatPrefix:  "ingress_http",
+		RouteConfig: rcg,
+		Filters:     []HTTPFilter{hsf},
+	}
+	lfs := &NetworkFilter{
+		Name:   "http_connection_manager",
+		Config: lhc,
+	}
+	plds := &Listener{
+		Name:       name,
+		Address:    fmt.Sprintf("tcp://127.0.0.1:%d", 80),
+		Filters:    []*NetworkFilter{lfs},
+		BindToPort: true,
+	}
+	return plds
+}
+
+//CreateTCPCommonListener create tcp simple common listener
+//listen the specified port
+//associate the specified cluster.
+func CreateTCPCommonListener(clusterName string, port int32) *Listener {
+	ptr := &TCPRoute{
+		Cluster: clusterName,
+	}
+	lrs := &TCPRouteConfig{
+		Routes: []*TCPRoute{ptr},
+	}
+	lcg := &TCPProxyFilterConfig{
+		StatPrefix:  clusterName,
+		RouteConfig: lrs,
+	}
+	lfs := &NetworkFilter{
+		Name:   "tcp_proxy",
+		Config: lcg,
+	}
+	plds := &Listener{
+		Name:       clusterName,
+		Address:    fmt.Sprintf("tcp://127.0.0.1:%d", port),
+		Filters:    []*NetworkFilter{lfs},
+		BindToPort: true,
+	}
+	return plds
+}
+
 // Normalize sorts and de-duplicates listeners by address
 func (listeners Listeners) normalize() Listeners {
 	out := make(Listeners, 0, len(listeners))
@@ -816,11 +878,16 @@ type OutlierDetection struct {
 // Clusters is a collection of clusters
 type Clusters []*Cluster
 
+//Append append some clusters
+func (c *Clusters) Append(new Clusters) {
+	*c = append(*c, new...)
+}
+
 // Normalize deduplicates and sorts clusters by name
-func (clusters Clusters) Normalize() Clusters {
-	out := make(Clusters, 0, len(clusters))
+func (c Clusters) Normalize() Clusters {
+	out := make(Clusters, 0, len(c))
 	set := make(map[string]bool)
-	for _, cluster := range clusters {
+	for _, cluster := range c {
 		if !set[cluster.Name] {
 			set[cluster.Name] = true
 			out = append(out, cluster)
