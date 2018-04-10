@@ -126,8 +126,8 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*envoyv1.SDSHost, 
 	return sds, nil
 }
 
-//DiscoverListeners lds
-// create listens by get depend app endpoints
+// DiscoverListeners lds
+// create listens by get depend app endpoints from plugin config
 func (d *DiscoverAction) DiscoverListeners(
 	tenantService, serviceCluster string) (*envoyv1.LDSListener, *util.APIHandleError) {
 	nn := strings.Split(tenantService, "_")
@@ -138,10 +138,6 @@ func (d *DiscoverAction) DiscoverListeners(
 	namespace := nn[0]
 	pluginID := nn[1]
 	serviceAlias := nn[2]
-	mm := strings.Split(serviceCluster, "_")
-	if len(mm) == 0 {
-		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
-	}
 	lds := &envoyv1.LDSListener{}
 	resources, err := d.ToolsGetRainbondResources(namespace, serviceAlias, pluginID)
 	if err != nil {
@@ -394,7 +390,7 @@ func Duplicate(a interface{}) (ret []interface{}) {
 	return ret
 }
 
-//CheckSameDomainAndPrefix 检查是否存在相同domain以及prefix
+//CheckSameDomainAndPrefix check there is same domain or prefix
 func (d *DiscoverAction) CheckSameDomainAndPrefix(resources *api_model.ResourceSpec) map[string]string {
 	baseServices := resources.BaseServices
 	domainL := make(map[string]string)
@@ -440,7 +436,8 @@ func (d *DiscoverAction) CheckSameDomainAndPrefix(resources *api_model.ResourceS
 	return domainL
 }
 
-//DiscoverClusters cds
+//DiscoverClusters cds discover
+//create cluster by get depend app endpoints from plugin config
 func (d *DiscoverAction) DiscoverClusters(
 	tenantService,
 	serviceCluster string) (*envoyv1.CDSCluter, *util.APIHandleError) {
@@ -461,12 +458,9 @@ func (d *DiscoverAction) DiscoverClusters(
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf(
 			"get env %s error: %v", namespace+serviceAlias+pluginID, err))
 	}
-	mm := strings.Split(serviceCluster, "_")
-	if len(mm) == 0 {
-		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service_name is not in good format"))
-	}
 	var cdsClusters []*envoyv1.Cluster
-	for _, destServiceAlias := range mm {
+	for _, destService := range resources.BaseServices {
+		destServiceAlias := destService.DependServiceAlias
 		labelname := fmt.Sprintf("name=%sService", destServiceAlias)
 		services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
 		if err != nil {
