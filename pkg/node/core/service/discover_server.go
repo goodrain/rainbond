@@ -154,38 +154,30 @@ func (d *DiscoverAction) DiscoverListeners(
 	}
 	var vhL []*envoyv1.VirtualHost
 	var ldsL envoyv1.Listeners
-	for _, destServiceAlias := range mm {
-		labelname := fmt.Sprintf("name=%sService", destServiceAlias)
-		endpoint, err := k8s.K8S.Core().Endpoints(namespace).List(metav1.ListOptions{LabelSelector: labelname})
-		if err != nil {
-			return nil, util.CreateAPIHandleError(500, err)
-		}
+	var portMap = make(map[int32]int, 0)
+	for _, destService := range resources.BaseServices {
+		destServiceAlias := destService.DependServiceAlias
+		labelname := fmt.Sprintf("name=%sService", destService.DependServiceAlias)
 		services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
 		}
-		if len(endpoint.Items) == 0 {
+		if len(services.Items) == 0 {
 			if destServiceAlias == serviceAlias {
 				labelname := fmt.Sprintf("name=%sServiceOUT", destServiceAlias)
 				var err error
-				endpoint, err = k8s.K8S.Core().Endpoints(namespace).List(metav1.ListOptions{LabelSelector: labelname})
-				if err != nil {
-					return nil, util.CreateAPIHandleError(500, err)
-				}
-				if len(endpoint.Items) == 0 {
-					logrus.Debugf("outer endpoints items length is 0, continue")
-					continue
-				}
 				services, err = k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
 				if err != nil {
 					return nil, util.CreateAPIHandleError(500, err)
+				}
+				if len(services.Items) == 0 {
+					continue
 				}
 			} else {
 				logrus.Debugf("inner endpoints items length is 0, continue")
 				continue
 			}
 		}
-		var portMap = make(map[int32]int, 0)
 		for _, service := range services.Items {
 			serviceType, ok := service.Labels["service_type"]
 			if !ok || serviceType != "inner" {
@@ -196,27 +188,30 @@ func (d *DiscoverAction) DiscoverListeners(
 			port := service.Spec.Ports[0].Port
 			clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
 			if _, ok := portMap[port]; !ok {
-				ptr := &envoyv1.TCPRoute{
-					Cluster: clusterName,
+				if v, ok := destService.Options["LISTEN"]; !ok || v == "true" {
+					ptr := &envoyv1.TCPRoute{
+						Cluster: clusterName,
+					}
+					lrs := &envoyv1.TCPRouteConfig{
+						Routes: []*envoyv1.TCPRoute{ptr},
+					}
+					lcg := &envoyv1.TCPProxyFilterConfig{
+						StatPrefix:  clusterName,
+						RouteConfig: lrs,
+					}
+					lfs := &envoyv1.NetworkFilter{
+						Name:   "tcp_proxy",
+						Config: lcg,
+					}
+					plds := &envoyv1.Listener{
+						Name:       clusterName,
+						Address:    fmt.Sprintf("tcp://127.0.0.1:%d", port),
+						Filters:    []*envoyv1.NetworkFilter{lfs},
+						BindToPort: true,
+					}
+					ldsL = append(ldsL, plds)
+					portMap[port] = 1
 				}
-				lrs := &envoyv1.TCPRouteConfig{
-					Routes: []*envoyv1.TCPRoute{ptr},
-				}
-				lcg := &envoyv1.TCPProxyFilterConfig{
-					StatPrefix:  clusterName,
-					RouteConfig: lrs,
-				}
-				lfs := &envoyv1.NetworkFilter{
-					Name:   "tcp_proxy",
-					Config: lcg,
-				}
-				plds := &envoyv1.Listener{
-					Name:       clusterName,
-					Address:    fmt.Sprintf("tcp://127.0.0.1:%d", port),
-					Filters:    []*envoyv1.NetworkFilter{lfs},
-					BindToPort: true,
-				}
-				ldsL = append(ldsL, plds)
 			}
 			portProtocol, ok := service.Labels["port_protocol"]
 			if !ok {
