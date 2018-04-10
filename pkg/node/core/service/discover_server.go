@@ -486,8 +486,8 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 		}
 		return 3
 	case node_model.HEADERS:
+		var np []envoyv1.Header
 		if headers, ok := sr[node_model.HEADERS]; ok {
-			var np []envoyv1.Header
 			parents := strings.Split(headers.(string), ";")
 			for _, h := range parents {
 				headers := strings.Split(h, ":")
@@ -503,10 +503,8 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 					np = append(np, ph)
 				}
 			}
-			return np
 		}
-		var rc []envoyv1.Header
-		return rc
+		return np
 	case node_model.DOMAINS:
 		if domain, ok := sr[node_model.DOMAINS]; ok {
 			if strings.Contains(domain.(string), ",") {

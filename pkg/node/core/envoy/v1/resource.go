@@ -19,6 +19,7 @@
 package v1
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -330,6 +331,18 @@ func (route *HTTPRoute) CatchAll() bool {
 	return len(route.Headers) == 0 && route.Path == "" && route.Prefix == "/"
 }
 
+//BasicHash returns hash string by route path\prefix\header
+func (route *HTTPRoute) BasicHash() string {
+	key := sha256.New()
+	var header string
+	sort.Sort(route.Headers)
+	for _, h := range route.Headers {
+		header += h.Name + h.Value
+	}
+	key.Write([]byte(route.Path + route.Prefix + header))
+	return string(key.Sum(nil))
+}
+
 // CombinePathPrefix checks that the route applies for a given path and prefix
 // match and updates the path and the prefix in the route. If the route is
 // incompatible with the path or the prefix, returns nil.  Either path or
@@ -417,6 +430,7 @@ func (host *VirtualHost) clusters() Clusters {
 
 //UniqVirtualHost according to the rules of VirtualHost in http route
 //merge the VirtualHost that have same domain
+//if have same domain, prifix, path and header,support weight
 func UniqVirtualHost(vhs []*VirtualHost) (revhs []*VirtualHost) {
 	var domains = make(map[string]*VirtualHost, 0)
 	for _, vh := range vhs {
@@ -429,6 +443,45 @@ func UniqVirtualHost(vhs []*VirtualHost) (revhs []*VirtualHost) {
 		}
 	}
 	for _, v := range domains {
+		//supprot weight if have same prifix, path and header
+		var keys = make(map[string]*HTTPRoute, 0)
+		for _, route := range v.Routes {
+			key := route.BasicHash()
+			if cacheroute, ok := keys[key]; ok {
+				cacheroute.WeightedClusters.Clusters = append(cacheroute.WeightedClusters.Clusters, route.WeightedClusters.Clusters...)
+			} else {
+				keys[key] = route
+			}
+		}
+		var routes []*HTTPRoute
+		for _, v := range keys {
+			var total int
+			var i int
+			for i = 0; i < len(v.WeightedClusters.Clusters)-1; i++ {
+				total += v.WeightedClusters.Clusters[i].Weight
+				if total >= 100 {
+					break
+				}
+			}
+			if total > 100 {
+				v.WeightedClusters.Clusters[i].Weight = v.WeightedClusters.Clusters[i].Weight - (total - 100)
+				if i+1 < len(v.WeightedClusters.Clusters) {
+					for j := i + 1; j < len(v.WeightedClusters.Clusters); j++ {
+						v.WeightedClusters.Clusters[j].Weight = 0
+					}
+				}
+			}
+			if total == 100 && i+1 < len(v.WeightedClusters.Clusters) {
+				for j := i + 1; j < len(v.WeightedClusters.Clusters); j++ {
+					v.WeightedClusters.Clusters[j].Weight = 0
+				}
+			}
+			if total < 100 {
+				v.WeightedClusters.Clusters[i].Weight = 100 - total
+			}
+			routes = append(routes, v)
+		}
+		v.Routes = routes
 		revhs = append(revhs, v)
 	}
 	return
