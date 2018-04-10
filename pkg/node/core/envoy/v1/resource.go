@@ -415,6 +415,25 @@ func (host *VirtualHost) clusters() Clusters {
 	return out
 }
 
+//UniqVirtualHost according to the rules of VirtualHost in http route
+//merge the VirtualHost that have same domain
+func UniqVirtualHost(vhs []*VirtualHost) (revhs []*VirtualHost) {
+	var domains = make(map[string]*VirtualHost, 0)
+	for _, vh := range vhs {
+		for _, domain := range vh.Domains {
+			if cahcevh, ok := domains[domain]; ok {
+				cahcevh.Routes = append(cahcevh.Routes, vh.Routes...)
+			} else {
+				domains[domain] = vh
+			}
+		}
+	}
+	for _, v := range domains {
+		revhs = append(revhs, v)
+	}
+	return
+}
+
 // HTTPRouteConfig definition
 type HTTPRouteConfig struct {
 	ValidateClusters bool           `json:"validate_clusters"`

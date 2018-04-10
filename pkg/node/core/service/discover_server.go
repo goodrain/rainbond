@@ -307,7 +307,8 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 	}
 	// create common http listener
 	if len(vhL) != 0 {
-		plds := envoyv1.CreateHTTPCommonListener(fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias), vhL...)
+		newVHL := envoyv1.UniqVirtualHost(vhL)
+		plds := envoyv1.CreateHTTPCommonListener(fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias), newVHL...)
 		ldsL = append(ldsL, plds)
 	}
 	return ldsL, nil
