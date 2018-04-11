@@ -28,6 +28,8 @@ Choose Rainbond for the same reasons disruptive companies do: it serve as a easy
 * Pluggable data center supports various types of load balancing, SDN networks, various types of storage systems development
 * Public and private application market with complete application sharing mechanism
 * Multiple data center and across data center application deployment
+* The management node (platform service) HA available.
+* Compute cluster automation management, scale on demand, complete node monitoring.
 
 ## Quick Start
 
