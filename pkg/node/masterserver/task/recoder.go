@@ -40,7 +40,7 @@ func (t *TaskEngine) startHandleJobRecord() {
 			}
 		}
 	}
-	ch := store.DefalutClient.Watch(t.config.ExecutionRecordPath, client.WithPrefix())
+	ch := store.DefalutClient.WatchByCtx(t.ctx, t.config.ExecutionRecordPath, client.WithPrefix())
 	for {
 		select {
 		case <-t.ctx.Done():

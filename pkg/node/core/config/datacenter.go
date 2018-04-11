@@ -93,7 +93,7 @@ func CreateDataCenterConfig() *DataCenterConfig {
 func (d *DataCenterConfig) Start() {
 	go func() {
 		logrus.Info("datacenter config listener start")
-		ch := store.DefalutClient.Watch(d.options.ConfigStoragePath+"/global", client.WithPrefix())
+		ch := store.DefalutClient.WatchByCtx(d.ctx, d.options.ConfigStoragePath+"/global", client.WithPrefix())
 		for {
 			select {
 			case <-d.ctx.Done():

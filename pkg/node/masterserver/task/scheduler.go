@@ -222,7 +222,7 @@ func (t *TaskEngine) loadAndWatchJobs() {
 	}
 	logrus.Infof("load exist job success,count %d", len(t.jobs))
 	go func() {
-		ch := store.DefalutClient.Watch(t.config.JobPath, client.WithPrefix())
+		ch := store.DefalutClient.WatchByCtx(t.ctx, t.config.JobPath, client.WithPrefix())
 		for {
 			select {
 			case <-t.ctx.Done():

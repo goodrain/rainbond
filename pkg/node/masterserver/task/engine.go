@@ -218,7 +218,7 @@ func (t *TaskEngine) loadAndWatchTasks() error {
 		}
 	}
 	go func() {
-		ch := store.DefalutClient.Watch("/rainbond/store/tasks/", client.WithPrefix(), client.WithRev(res.Header.Revision))
+		ch := store.DefalutClient.WatchByCtx(t.ctx, "/rainbond/store/tasks/", client.WithPrefix(), client.WithRev(res.Header.Revision))
 		for {
 			select {
 			case <-t.ctx.Done():
