@@ -57,6 +57,7 @@ func WaitPrefixEvents(c *clientv3.Client, prefix string, rev int64, evs []mvccpb
 	return waitEvents(wc, evs), nil
 }
 
+//waitEvents this will return nil
 func waitEvents(wc clientv3.WatchChan, evs []mvccpb.Event_EventType) *clientv3.Event {
 	i := 0
 	for wresp := range wc {

@@ -71,6 +71,9 @@ func (q *Queue) Dequeue() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if ev == nil {
+		return "", fmt.Errorf("event is nil")
+	}
 	if ev.Kv == nil {
 		return "", fmt.Errorf("event key value is nil")
 	}
