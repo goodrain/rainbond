@@ -65,7 +65,7 @@ func (a *AppRuntimeSync) Start(errchan chan error) {
 }
 func (a *AppRuntimeSync) start(errchan chan error) {
 	for {
-		master, err := etcdlock.CreateMasterLock(a.conf.EtcdEndPoints, "/rainbond/workermaster", fmt.Sprintf("%s:%d", a.conf.HostIP, 6535), 10)
+		master, err := etcdlock.CreateMasterLock(a.conf.EtcdEndPoints, "/rainbond/workermaster", fmt.Sprintf("%s:%d", a.hostIP, 6535), 10)
 		if err != nil {
 			errchan <- err
 			return
@@ -82,7 +82,7 @@ func (a *AppRuntimeSync) start(errchan chan error) {
 					a.registServer()
 				}
 				if event.Type == etcdlock.MasterDeleted {
-					errchan <- fmt.Errorf("worker node %s exit ", fmt.Sprintf("%s:%d", a.conf.HostIP, 6535))
+					errchan <- fmt.Errorf("worker node %s exit ", fmt.Sprintf("%s:%d", a.hostIP, 6535))
 					return
 				}
 				if event.Type == etcdlock.MasterError {
