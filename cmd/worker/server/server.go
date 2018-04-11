@@ -61,15 +61,12 @@ func Run(s *option.Worker) error {
 	}
 	defer event.CloseManager()
 
-	//step 2 : create status watching
-	if s.RunMode == "sync" {
-		ars := appruntimesync.CreateAppRuntimeSync(s.Config)
-		if err := ars.Start(); err != nil {
-			return err
-		}
-		defer ars.Stop()
-		go ars.SyncStatus()
-	}
+	//step 2 : create and start app runtime module
+	errchan := make(chan error, 2)
+	ars := appruntimesync.CreateAppRuntimeSync(s.Config)
+	ars.Start(errchan)
+	defer ars.Stop()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	statusClient, err := client.NewClient(ctx, client.AppRuntimeSyncClientConf{
@@ -119,6 +116,8 @@ func Run(s *option.Worker) error {
 	select {
 	case <-term:
 		logrus.Warn("Received SIGTERM, exiting gracefully...")
+	case <-errchan:
+		logrus.Warnf("Received Master worker election error:%s", err.Error())
 	case err := <-errChan:
 		logrus.Errorf("Received a error %s, exiting gracefully...", err.Error())
 	}

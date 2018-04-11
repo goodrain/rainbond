@@ -20,7 +20,6 @@ package discover
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"time"
 
@@ -45,7 +44,6 @@ type TaskManager struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	config        option.Config
-	stopChan      chan struct{}
 	handleManager *handle.Manager
 	client        pb.TaskQueueClient
 }
@@ -58,7 +56,6 @@ func NewTaskManager(c option.Config, executor executor.Manager, statusManager *s
 		ctx:           ctx,
 		cancel:        cancel,
 		config:        c,
-		stopChan:      make(chan struct{}),
 		handleManager: handleManager,
 	}
 }
@@ -133,13 +130,5 @@ func (t *TaskManager) Do() {
 func (t *TaskManager) Stop() error {
 	logrus.Info("discover manager is stoping.")
 	t.cancel()
-	tick := time.NewTicker(time.Second * 3)
-	select {
-	case <-t.stopChan:
-		return nil
-	case <-tick.C:
-		logrus.Error("task queue listen closed time out")
-		return fmt.Errorf("task queue listen closed time out")
-	}
-
+	return nil
 }

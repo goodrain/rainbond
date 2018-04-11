@@ -23,12 +23,15 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/goodrain/rainbond/pkg/util"
+
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/pkg/appruntimesync/pb"
 	"github.com/goodrain/rainbond/pkg/appruntimesync/server"
 	discover "github.com/goodrain/rainbond/pkg/discover.v2"
+	"github.com/goodrain/rainbond/pkg/util/etcd/etcdlock"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -43,19 +46,69 @@ type AppRuntimeSync struct {
 	cancel    context.CancelFunc
 	srss      *server.AppRuntimeSyncServer
 	keepalive *discover.KeepAlive
+	master    etcdlock.MasterInterface
+	hostIP    string
 }
 
 //Start start if have master right
 //start grpc server
-func (a *AppRuntimeSync) Start() error {
-	a.srss.Start()
-	go a.startAppRuntimeSync()
-	return a.registServer()
+func (a *AppRuntimeSync) Start(errchan chan error) {
+	if a.hostIP == "" {
+		ip, err := util.LocalIP()
+		if err != nil {
+			logrus.Errorf("get ip failed,details %s", err.Error())
+			errchan <- err
+		}
+		a.hostIP = ip.String()
+	}
+	go a.start(errchan)
+}
+func (a *AppRuntimeSync) start(errchan chan error) {
+	for {
+		master, err := etcdlock.CreateMasterLock(a.conf.EtcdEndPoints, "/rainbond/workermaster", fmt.Sprintf("%s:%d", a.conf.HostIP, 6535), 10)
+		if err != nil {
+			errchan <- err
+			return
+		}
+		a.master = master
+		master.Start()
+	loop:
+		for {
+			select {
+			case event := <-master.EventsChan():
+				if event.Type == etcdlock.MasterAdded {
+					a.srss.Start()
+					go a.startAppRuntimeSync()
+					a.registServer()
+				}
+				if event.Type == etcdlock.MasterDeleted {
+					errchan <- fmt.Errorf("worker node %s exit ", fmt.Sprintf("%s:%d", a.conf.HostIP, 6535))
+					return
+				}
+				if event.Type == etcdlock.MasterError {
+					a.master.Stop()
+					if a.keepalive != nil {
+						a.keepalive.Stop()
+						a.keepalive = nil
+					}
+					break loop
+				}
+			}
+		}
+		select {
+		case <-a.ctx.Done():
+			return
+		default:
+		}
+	}
 }
 
 //Stop stop app runtime sync server
 func (a *AppRuntimeSync) Stop() error {
 	a.srss.Stop()
+	if a.master != nil {
+		a.master.Stop()
+	}
 	if a.keepalive != nil {
 		a.keepalive.Stop()
 	}
@@ -81,6 +134,7 @@ func CreateAppRuntimeSync(conf option.Config) *AppRuntimeSync {
 		conf:   conf,
 		server: grpc.NewServer(),
 		srss:   server.NewAppRuntimeSyncServer(conf),
+		hostIP: conf.HostIP,
 	}
 	pb.RegisterAppRuntimeSyncServer(ars.server, ars.srss)
 	// Register reflection service on gRPC server.
@@ -96,9 +150,4 @@ func (a *AppRuntimeSync) startAppRuntimeSync() error {
 		return err
 	}
 	return a.server.Serve(lis)
-}
-
-//SyncStatus sync status
-func (a *AppRuntimeSync) SyncStatus() {
-	a.srss.StatusManager.SyncStatus()
 }

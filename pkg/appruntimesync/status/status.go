@@ -86,6 +86,7 @@ func (s *Manager) Start() error {
 	s.cacheAllAPPStatus()
 	go s.checkStatus()
 	go s.handleUpdate()
+	go s.SyncStatus()
 	logrus.Info("status manager started")
 	return nil
 }
