@@ -110,7 +110,7 @@ func (t *TaskEngine) GetValidationCriteria(task *model.Task) (vas []ValidationCr
 	return
 }
 
-//DependRun DependRun
+//DependsRun DependRun
 func (t *TaskEngine) DependsRun(node string, task *model.Task) (bool, error) {
 	for _, dep := range task.Temp.Depends {
 		depTask := t.GetTask(dep.DependTaskID)

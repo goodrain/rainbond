@@ -41,7 +41,7 @@ type TaskManager struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	config option.Config
-	client pb.TaskQueueClient
+	client *client.MQClient
 	exec   exector.Manager
 }
 
@@ -58,7 +58,7 @@ func NewTaskManager(c option.Config, exec exector.Manager) *TaskManager {
 
 //Start 启动
 func (t *TaskManager) Start() error {
-	client, err := client.NewMqClient(t.config.MQAPI)
+	client, err := client.NewMqClient(t.config.EtcdEndPoints, t.config.MQAPI)
 	if err != nil {
 		logrus.Errorf("new Mq client error, %v", err)
 		return err
@@ -112,4 +112,8 @@ func (t *TaskManager) Do() {
 func (t *TaskManager) Stop() error {
 	logrus.Info("discover manager is stoping.")
 	t.cancel()
+	if t.client != nil {
+		t.client.Close()
+	}
+	return nil
 }

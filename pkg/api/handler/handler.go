@@ -33,7 +33,8 @@ import (
 //InitHandle 初始化handle
 func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) error {
 	mq := api_db.MQManager{
-		Endpoint: conf.MQAPI,
+		EtcdEndpoint:  conf.EtcdEndpoint,
+		DefaultServer: conf.MQAPI,
 	}
 	mqClient, errMQ := mq.NewMQManager()
 	if errMQ != nil {

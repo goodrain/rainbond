@@ -102,7 +102,7 @@ func NewClient(ctx context.Context, conf AppRuntimeSyncClientConf) (*AppRuntimeS
 	b := grpc.RoundRobin(r)
 	arsc.cc, err = grpc.DialContext(ctx, "/rainbond/discover/app_sync_runtime_server", grpc.WithBalancer(b), grpc.WithInsecure())
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	arsc.AppRuntimeSyncClient = pb.NewAppRuntimeSyncClient(arsc.cc)
 	return &arsc, nil

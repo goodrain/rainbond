@@ -93,19 +93,15 @@ func CreateEventManager(conf option.Config) error {
 	return nil
 }
 
-//TODO:
-//create mq manager
-
-//create k8s manager
-
 //MQManager mq manager
 type MQManager struct {
-	Endpoint string
+	EtcdEndpoint  []string
+	DefaultServer string
 }
 
 //NewMQManager new mq manager
-func (m *MQManager) NewMQManager() (pb.TaskQueueClient, error) {
-	client, err := client.NewMqClient(m.Endpoint)
+func (m *MQManager) NewMQManager() (*client.MQClient, error) {
+	client, err := client.NewMqClient(m.EtcdEndpoint, m.DefaultServer)
 	if err != nil {
 		logrus.Errorf("new mq manager error, %v", err)
 		return client, err

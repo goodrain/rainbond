@@ -32,7 +32,7 @@ import (
 )
 
 func TestClient(t *testing.T) {
-	c, err := NewMqClient("127.0.0.1:6300")
+	c, err := NewMqClient([]string{"127.0.0.1:2379"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestClient(t *testing.T) {
 
 func TestClientScaling(t *testing.T) {
 	t.SkipNow()
-	client, err := NewMqClient("127.0.0.1:6300")
+	client, err := NewMqClient([]string{"127.0.0.1:2379"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestClientScaling(t *testing.T) {
 
 func TestClientUpgrade(t *testing.T) {
 	t.SkipNow()
-	client, err := NewMqClient("127.0.0.1:6300")
+	client, err := NewMqClient([]string{"127.0.0.1:2379"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestClientUpgrade(t *testing.T) {
 }
 func TestBuilder(t *testing.T) {
 	t.SkipNow()
-	c, err := NewMqClient("127.0.0.1:6300")
+	c, err := NewMqClient([]string{"127.0.0.1:2379"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestChaosTask(t *testing.T) {
 		EventID:    "system",
 	}
 	body, _ := ffjson.Marshal(sci)
-	client, err := NewMqClient("127.0.0.1:6300")
+	client, err := NewMqClient([]string{"127.0.0.1:2379"})
 	if err != nil {
 		t.Fatal(err)
 	}

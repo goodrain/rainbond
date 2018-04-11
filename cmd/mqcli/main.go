@@ -39,11 +39,12 @@ var mode string
 func main() {
 	AddFlags(pflag.CommandLine)
 	pflag.Parse()
-	c, err := client.NewMqClient(server)
+	c, err := client.NewMqClient(nil, server)
 	if err != nil {
 		logrus.Error("new mq client error.", err.Error())
 		os.Exit(1)
 	}
+	defer c.Close()
 	if mode == "enqueue" {
 		re, err := c.Enqueue(context.Background(), &pb.EnqueueRequest{
 			Topic: topic,
