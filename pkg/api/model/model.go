@@ -1289,7 +1289,7 @@ type ServiceProbe struct {
 	//检测超时时间
 	TimeoutSecond int `gorm:"column:timeout_second;size:3;default:30" json:"timeout_second" validate:"timeout_second"`
 	//是否启用
-	IsUsed int `gorm:"column:is_used;size:1;default:1" json:"is_used" validate:"is_used|in:0,1"`
+	IsUsed int `gorm:"column:is_used;size:1;default:0" json:"is_used" validate:"is_used|in:0,1"`
 	//标志为失败的检测次数
 	FailureThreshold int `gorm:"column:failure_threshold;size:2;default:3" json:"failure_threshold" validate:"failure_threshold"`
 	//标志为成功的检测次数
