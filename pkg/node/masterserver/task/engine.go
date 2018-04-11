@@ -28,6 +28,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/goodrain/rainbond/pkg/util/etcd/etcdlock"
+
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/mvcc/mvccpb"
@@ -78,55 +80,53 @@ func CreateTaskEngine(nodeCluster *node.NodeCluster, node *model.HostNode) *Task
 	return task
 }
 
-//Start 启动
-func (t *TaskEngine) Start() error {
-	//加载所有task信息并监听变化
+//Start start
+func (t *TaskEngine) Start(errchan chan error) error {
+	//load all task and wath change event
 	if err := t.loadAndWatchTasks(); err != nil {
 		return err
 	}
 	t.LoadStaticTask()
-	//以下工作器只能由一个节点完成
-	//step1 获取调度权限，如果master节点多点部署，只能有一个节点具有调度权
-	var timer = time.NewTimer(time.Second * 4)
-	go func() {
-		defer close(t.down)
-		for {
-			select {
-			case <-t.ctx.Done():
-				return
-			case <-timer.C:
-			}
-			if ok, err := t.haveMaster(); ok {
-				logrus.Infof("Current node(%s) have task scheduler authority", t.currentNode.HostName)
-				keepchan := make(chan struct{}, 1)
-				go t.keepMaster(keepchan)
-				go t.startScheduler()
-				go t.startHandleJobRecord()
-				select {
-				case <-t.ctx.Done():
-					t.deleteMaster()
-					t.stopScheduler()
-					t.stopHandleJobRecord()
-					return
-				case <-keepchan:
-					t.deleteMaster()
-					t.stopScheduler()
-					t.stopHandleJobRecord()
-					continue
-				}
-			} else if err != nil {
-				logrus.Error("check current node Whether has a scheduling authority error,", err.Error())
-			}
-			timer.Reset(time.Second * 4)
-		}
-	}()
+	go t.start(errchan)
 	return nil
 }
+func (t *TaskEngine) start(errchan chan error) {
+	for {
+		master, err := etcdlock.CreateMasterLock(t.config.Etcd.Endpoints, "/rainbond/nodetaskscheduler", t.currentNode.HostName, 10)
+		if err != nil {
+			errchan <- err
+			return
+		}
+		master.Start()
+	loop:
+		for {
+			select {
+			case event := <-master.EventsChan():
+				if event.Type == etcdlock.MasterAdded {
+					logrus.Infof("Current node(%s) have task scheduler authority", t.currentNode.HostName)
+					go t.startScheduler()
+					go t.startHandleJobRecord()
+				}
+				if event.Type == etcdlock.MasterError {
+					t.deleteMaster()
+					t.stopScheduler()
+					t.stopHandleJobRecord()
+					master.Stop()
+					break loop
+				}
+			}
+		}
+	}
+}
+
+//deprecated
 func (t *TaskEngine) deleteMaster() error {
 	key := "/rainbond/task/scheduler/authority"
 	_, err := store.DefalutClient.Delete(key)
 	return err
 }
+
+//deprecated
 func (t *TaskEngine) haveMaster() (bool, error) {
 	key := "/rainbond/task/scheduler/authority"
 	lgr, err := store.DefalutClient.Grant(8)
@@ -173,6 +173,7 @@ func (t *TaskEngine) haveMaster() (bool, error) {
 	return resp.Succeeded, nil
 }
 
+//deprecated
 func (t *TaskEngine) keepMaster(errchan chan struct{}) {
 	duration := time.Second * 3
 	timer := time.NewTimer(duration)
@@ -202,7 +203,6 @@ keep:
 //Stop 启动
 func (t *TaskEngine) Stop() {
 	t.cancel()
-	<-t.down
 }
 
 //watchTasks watchTasks

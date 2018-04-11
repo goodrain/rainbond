@@ -43,7 +43,7 @@ import (
 
 //Run start run
 func Run(s *option.Worker) error {
-	errChan := make(chan error)
+	errChan := make(chan error, 2)
 	dbconfig := config.Config{
 		DBType:              s.Config.DBType,
 		MysqlConnectionInfo: s.Config.MysqlConnectionInfo,
@@ -62,9 +62,8 @@ func Run(s *option.Worker) error {
 	defer event.CloseManager()
 
 	//step 2 : create and start app runtime module
-	errchan := make(chan error, 2)
 	ars := appruntimesync.CreateAppRuntimeSync(s.Config)
-	ars.Start(errchan)
+	ars.Start(errChan)
 	defer ars.Stop()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -116,8 +115,6 @@ func Run(s *option.Worker) error {
 	select {
 	case <-term:
 		logrus.Warn("Received SIGTERM, exiting gracefully...")
-	case <-errchan:
-		logrus.Warnf("Received Master worker election error:%s", err.Error())
 	case err := <-errChan:
 		logrus.Errorf("Received a error %s, exiting gracefully...", err.Error())
 	}

@@ -20,6 +20,8 @@ package server
 
 import (
 	"fmt"
+	"os"
+	"syscall"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/pkg/node/api/controller"
@@ -42,11 +44,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os/exec"
+	"os/signal"
 	"strconv"
 	"strings"
 
 	"github.com/goodrain/rainbond/pkg/node/api"
-	"github.com/goodrain/rainbond/pkg/node/event"
 )
 
 //Run start run
@@ -85,6 +87,7 @@ func Run(c *option.Conf) error {
 		logrus.Errorf(err.Error())
 		return err
 	}
+	defer s.Stop(nil)
 	//master服务在node服务之后启动
 	var ms *masterserver.MasterServer
 	if c.RunMode == "master" {
@@ -97,11 +100,11 @@ func Run(c *option.Conf) error {
 			getInfoForMaster(s)
 		}
 		ms.Cluster.UpdateNode(s.HostNode)
-		if err := ms.Start(); err != nil {
+		if err := ms.Start(errChan); err != nil {
 			logrus.Errorf(err.Error())
 			return err
 		}
-		event.On(event.EXIT, ms.Stop)
+		defer ms.Stop(nil)
 	}
 	//statsd exporter
 	registry := prometheus.NewRegistry()
@@ -120,14 +123,19 @@ func Run(c *option.Conf) error {
 		return err
 	}
 	defer apiManager.Stop()
-	// 注册退出事件
-	//todo conf.Exit cronsun.exit 重写
-	event.On(event.EXIT, s.Stop, option.Exit, job.Exit, controller.Exist)
-	// 监听退出信号
-	event.Wait()
-	// 处理退出事件
-	event.Emit(event.EXIT, nil)
-	logrus.Infof("exit success")
+
+	defer job.Exit(nil)
+	defer controller.Exist(nil)
+	defer option.Exit(nil)
+	//step finally: listen Signal
+	term := make(chan os.Signal)
+	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
+	select {
+	case <-term:
+		logrus.Warn("Received SIGTERM, exiting gracefully...")
+	case err := <-errChan:
+		logrus.Errorf("Received a error %s, exiting gracefully...", err.Error())
+	}
 	logrus.Info("See you next time!")
 	return nil
 }

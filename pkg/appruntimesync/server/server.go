@@ -19,7 +19,6 @@
 package server
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -88,7 +87,6 @@ func (a *AppRuntimeSyncServer) GetAppStatus(ctx context.Context, sr *pb.StatusRe
 		}
 		return &re, nil
 	}
-	fmt.Printf("get app status %s", sr.ServiceIds)
 	re.Status[sr.ServiceIds] = a.StatusManager.GetStatus(sr.ServiceIds)
 	return &re, nil
 }
