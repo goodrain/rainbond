@@ -36,7 +36,6 @@ limitations under the License.
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/docker/engine-api/types"
@@ -50,18 +49,9 @@ import (
 	"github.com/goodrain/rainbond/pkg/builder/model"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/akkuman/parseConfig"
 )
 
-//const dockerBin = "docker"
-const dockerBin = "sudo -P docker"
-const configPath = "plugins/config.json"
-
 func (e *exectorManager) pluginImageBuild(in []byte) {
-	if err := checkConf(configPath); err != nil {
-		logrus.Errorf("config check error, %v", err)
-	}
-	config := getConf(configPath)
 	var tb model.BuildPluginTaskBody
 	if err := ffjson.Unmarshal(in, &tb); err != nil {
 		logrus.Errorf("unmarshal taskbody error, %v", err)
@@ -74,7 +64,7 @@ func (e *exectorManager) pluginImageBuild(in []byte) {
 		logrus.Info("start exec build plugin from image worker")
 		defer event.GetManager().ReleaseLogger(logger)
 		for retry := 0; retry < 2; retry++ {
-			err := e.run(&tb, config, logger)
+			err := e.run(&tb, logger)
 			if err != nil {
 				logrus.Errorf("exec plugin build from image error:%s", err.Error())
 				logger.Info("镜像构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
@@ -94,18 +84,7 @@ func (e *exectorManager) pluginImageBuild(in []byte) {
 	}()
 }
 
-func checkConf(confPath string) error {
-	if _, err := os.Stat(confPath); os.IsNotExist(err) {
-		return fmt.Errorf("config.json is not exist")
-	}
-	return nil
-}
-
-func getConf(confPath string) parseConfig.Config {
-	return parseConfig.New(confPath)
-}
-
-func (e *exectorManager) run(t *model.BuildPluginTaskBody, c parseConfig.Config, logger event.Logger) error {
+func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) error {
 
 	if _, err := sources.ImagePull(e.DockerClient, t.ImageURL, types.ImagePullOptions{}, logger, 5); err != nil {
 		logrus.Errorf("pull image %v error, %v", t.ImageURL, err)

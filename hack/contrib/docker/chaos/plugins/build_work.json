@@ -1,1 +1,0 @@
-{ "envs": {}, "expire": 180, "deploy_version": "20170905172818", "repo_url": "--branch master --depth 1 http://code.goodrain.com/demo/2048.git", "service_id": "59fbd0a74e7dfbf594fba0f8953593f8", "event_id": "018d406d2ec6438eb8040a893db36ffe", "tenant_id": "232bd923d3794b979974bb21b863608b", "action": "upgrade", "operator": "barnett2" }

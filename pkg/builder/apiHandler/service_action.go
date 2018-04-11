@@ -33,7 +33,11 @@ import (
 
 //UpgradeService 滚动升级
 func UpgradeService(tenantName, serviceAlias string, ru *model.RollingUpgradeTaskBody) error {
-	url := fmt.Sprintf("http://127.0.0.1:8888/v2/tenants/%s/services/%s/upgrade", tenantName, serviceAlias)
+	api := os.Getenv("REGION_API")
+	if api == "" {
+		api = "http://region.goodrain.me:8888"
+	}
+	url := fmt.Sprintf("%s/v2/tenants/%s/services/%s/upgrade", api, tenantName, serviceAlias)
 	logrus.Debugf("rolling update new version: %s, url is %s", ru.NewDeployVersion, url)
 	raw := struct {
 		DeployVersion string `json:"deploy_version"`
