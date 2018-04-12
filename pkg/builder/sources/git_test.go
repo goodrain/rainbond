@@ -46,18 +46,14 @@ func TestGitClone(t *testing.T) {
 func TestGitPull(t *testing.T) {
 	csi := CodeSourceInfo{
 		RepositoryURL: "git@code.goodrain.com:goodrain/test.git",
-		Branch:        "master",
+		Branch:        "master2",
 	}
 	//logger := event.GetManager().GetLogger("system")
-	res, err := GitPull(csi, "/tmp/test3", nil, 1)
+	res, err := GitPull(csi, "/tmp/master2", nil, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	commits, err := res.CommitObjects()
-	if err != nil {
-		t.Fatal(err)
-	}
-	commit, err := GetLastCommit(commits)
+	commit, err := GetLastCommit(res)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,20 +62,16 @@ func TestGitPull(t *testing.T) {
 
 func TestGitPullOrClone(t *testing.T) {
 	csi := CodeSourceInfo{
-		RepositoryURL: "git@code.goodrain.com:app/goodrain_frontend.git",
-		Branch:        "test",
+		RepositoryURL: "git@code.goodrain.com:goodrain/goodrain_web.git",
+		Branch:        "publiccloud",
 	}
 	//logger := event.GetManager().GetLogger("system")
-	res, err := GitCloneOrPull(csi, "/tmp/test2", nil, 1)
+	res, err := GitCloneOrPull(csi, "/tmp/goodrainweb", nil, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	//识别代码信息
-	commits, err := res.CommitObjects()
-	if err != nil {
-		t.Fatal(err)
-	}
-	commit, err := GetLastCommit(commits)
+	//get last commit
+	commit, err := GetLastCommit(res)
 	if err != nil && err != io.EOF {
 		t.Fatal(err)
 	}
@@ -88,8 +80,8 @@ func TestGitPullOrClone(t *testing.T) {
 
 func TestGetCodeCacheDir(t *testing.T) {
 	csi := CodeSourceInfo{
-		RepositoryURL: "git@code.goodrain.com:app/goodrain_frontend.git",
-		Branch:        "master",
+		RepositoryURL: "git@121.196.222.148:summersoft/yycx_push.git",
+		Branch:        "test",
 	}
 	t.Log(csi.GetCodeSourceDir())
 }

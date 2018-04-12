@@ -19,6 +19,7 @@
 package pod
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"sort"
 	"strings"
@@ -50,6 +51,32 @@ type CacheManager struct {
 	kubeclient  *kubernetes.Clientset
 	stop        chan struct{}
 	cacheWatchs []*cacheWatch
+	oomInfos    map[string]*AbnormalInfo
+	errorInfos  map[string]*AbnormalInfo
+}
+
+//AbnormalInfo pod Abnormal info
+//Record the container exception exit information in pod.
+type AbnormalInfo struct {
+	ServiceID     string    `json:"service_id"`
+	ServiceAlias  string    `json:"service_alias"`
+	PodName       string    `json:"pod_name"`
+	ContainerName string    `json:"container_name"`
+	Reason        string    `json:"reson"`
+	Message       string    `json:"message"`
+	CreateTime    time.Time `json:"create_time"`
+	Count         int       `json:"count"`
+}
+
+//Hash get AbnormalInfo hash
+func (a AbnormalInfo) Hash() string {
+	hash := sha256.New()
+	hash.Write([]byte(a.ServiceID + a.ServiceAlias + a.PodName + a.ContainerName))
+	return string(hash.Sum(nil))
+}
+func (a AbnormalInfo) String() string {
+	return fmt.Sprintf("ServiceID: %s;ServiceAlias: %s;PodName: %s ; ContainerName: %s; Reason: %s; Message: %s",
+		a.ServiceID, a.ServiceAlias, a.PodName, a.ContainerName, a.Reason, a.Message)
 }
 
 //NewCacheManager create pod cache manager and start it
@@ -58,6 +85,8 @@ func NewCacheManager(kubeclient *kubernetes.Clientset, stop chan struct{}) *Cach
 		kubeclient: kubeclient,
 		stop:       stop,
 		caches:     make(map[string]*v1.Pod),
+		oomInfos:   make(map[string]*AbnormalInfo),
+		errorInfos: make(map[string]*AbnormalInfo),
 	}
 	lw := NewListWatchPodFromClient(kubeclient.Core().RESTClient())
 	_, rcController := cache.NewInformer(
@@ -168,6 +197,8 @@ func (c *CacheManager) updateCachePod() func(oldObj, newObj interface{}) {
 			utilruntime.HandleError(fmt.Errorf("cannot convert to *v1.Pod: %v", obj))
 			return
 		}
+		//Analyze the cause of pod update.
+		c.analyzePodStatus(pod)
 		c.lock.Lock()
 		defer c.lock.Unlock()
 		if err := c.savePod(pod); err != nil {
@@ -177,6 +208,64 @@ func (c *CacheManager) updateCachePod() func(oldObj, newObj interface{}) {
 			if w.satisfied(pod) {
 				w.send(watch.Event{Type: watch.Modified, Object: pod})
 			}
+		}
+	}
+}
+func getServiceInfoFromPod(pod *v1.Pod) AbnormalInfo {
+	var ai AbnormalInfo
+	if len(pod.Spec.Containers) > 0 {
+		var i = 0
+		container := pod.Spec.Containers[0]
+		for _, env := range container.Env {
+			if env.Name == "SERVICE_ID" {
+				ai.ServiceID = env.Value
+				i++
+			}
+			if env.Name == "SERVICE_NAME" {
+				ai.ServiceAlias = env.Value
+				i++
+			}
+			if i == 2 {
+				break
+			}
+		}
+	}
+	ai.PodName = pod.Name
+	return ai
+}
+func (c *CacheManager) analyzePodStatus(pod *v1.Pod) {
+	for _, containerStatus := range pod.Status.ContainerStatuses {
+		if containerStatus.LastTerminationState.Terminated != nil {
+			ai := getServiceInfoFromPod(pod)
+			ai.ContainerName = containerStatus.Name
+			ai.Reason = containerStatus.LastTerminationState.Terminated.Reason
+			ai.Message = containerStatus.LastTerminationState.Terminated.Message
+			ai.CreateTime = time.Now()
+			c.addAbnormalInfo(&ai)
+		}
+	}
+}
+
+func (c *CacheManager) addAbnormalInfo(ai *AbnormalInfo) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	switch ai.Reason {
+	case "OOMKilled":
+		if oldai, ok := c.oomInfos[ai.Hash()]; ok {
+			oldai.Count++
+			logrus.Errorf("OOM Killed:%s", ai)
+		} else {
+			logrus.Errorf("First OOM Killed:%s", ai)
+			c.oomInfos[ai.Hash()] = ai
+		}
+	default:
+		if oldai, ok := c.errorInfos[ai.Hash()]; ok {
+			oldai.Count++
+			logrus.Errorf("Container Exist:%s", ai)
+		} else {
+			logrus.Errorf("First Container Exist:%s", ai)
+			c.errorInfos[ai.Hash()] = ai
 		}
 	}
 }

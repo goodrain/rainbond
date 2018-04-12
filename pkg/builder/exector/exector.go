@@ -82,7 +82,6 @@ type exectorManager struct {
 //share-slug share app with slug
 //share-image share app with image
 func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
-
 	switch task.TaskType {
 	case "build_from_image":
 		e.buildFromImage(task.TaskBody)
@@ -117,6 +116,7 @@ func (e *exectorManager) buildFromImage(in []byte) {
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
 			if r := recover(); r != nil {
+				fmt.Println(r)
 				debug.PrintStack()
 				i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
 			}
@@ -153,6 +153,7 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
 			if r := recover(); r != nil {
+				fmt.Println(r)
 				debug.PrintStack()
 				i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
 			}
@@ -195,6 +196,7 @@ func (e *exectorManager) buildFromMarketSlug(in []byte) {
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
 			if r := recover(); r != nil {
+				fmt.Println(r)
 				debug.PrintStack()
 				i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
 			}
@@ -227,6 +229,13 @@ func (e *exectorManager) slugShare(in []byte) {
 	status := "success"
 	go func() {
 		defer event.GetManager().ReleaseLogger(i.Logger)
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println(r)
+				debug.PrintStack()
+				i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+			}
+		}()
 		for n := 0; n < 2; n++ {
 			err := i.ShareService()
 			if err != nil {
@@ -259,6 +268,13 @@ func (e *exectorManager) imageShare(in []byte) {
 	status := "success"
 	go func() {
 		defer event.GetManager().ReleaseLogger(i.Logger)
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println(r)
+				debug.PrintStack()
+				i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+			}
+		}()
 		for n := 0; n < 2; n++ {
 			err := i.ShareService()
 			if err != nil {

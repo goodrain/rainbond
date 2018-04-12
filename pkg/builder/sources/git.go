@@ -24,7 +24,6 @@ import (
 	"context"
 	"crypto/sha1"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -257,10 +256,9 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 	defer cancel()
 	progress := createProgress(ctx, logger)
 	opts := &git.PullOptions{
-		Progress:          progress,
-		SingleBranch:      true,
-		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
-		Depth:             1,
+		Progress:     progress,
+		SingleBranch: true,
+		Depth:        3,
 	}
 	if csi.Branch != "" {
 		opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", csi.Branch))
@@ -352,7 +350,7 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 			}
 			return rs, err
 		}
-		if strings.Contains(err.Error(), "already up-to-date") {
+		if err == git.NoErrAlreadyUpToDate {
 			return rs, nil
 		}
 	}
@@ -379,22 +377,13 @@ func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, t
 }
 
 //GetLastCommit get last commit info
-//获取代码的深度为1，commits是每个分支的最新一次提交
-//从中获取制定分支的最后一次提交信息
-func GetLastCommit(commits object.CommitIter) (*object.Commit, error) {
-	var lastcommit *object.Commit
-	for {
-		commit, err := commits.Next()
-		if err == io.EOF {
-			return lastcommit, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		if lastcommit == nil || commit.Committer.When.After(lastcommit.Committer.When) {
-			lastcommit = commit
-		}
+//get commit by head reference
+func GetLastCommit(re *git.Repository) (*object.Commit, error) {
+	ref, err := re.Head()
+	if err != nil {
+		return nil, err
 	}
+	return re.CommitObject(ref.Hash())
 }
 
 //GetPrivateFile 获取私钥文件地址
