@@ -19,12 +19,13 @@
 package store
 
 import (
-	"github.com/goodrain/rainbond/pkg/entrance/cluster"
-	"github.com/goodrain/rainbond/cmd/entrance/option"
-	"github.com/goodrain/rainbond/pkg/entrance/core/object"
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/goodrain/rainbond/cmd/entrance/option"
+	"github.com/goodrain/rainbond/pkg/entrance/cluster"
+	"github.com/goodrain/rainbond/pkg/entrance/core/object"
 
 	"golang.org/x/net/context"
 
@@ -44,7 +45,7 @@ type Manager struct {
 	cancel  context.CancelFunc
 }
 
-//ErrTypeUnknown 资源类型未知
+//ErrTypeUnknown unknown source type error
 var ErrTypeUnknown = errors.New("object type unknown")
 
 //NewManager create a manager
@@ -69,7 +70,7 @@ func NewManager(conf option.Config, cluster *cluster.Manager) (*Manager, error) 
 	return m, nil
 }
 
-//checkHealth 检测相关初始化资源是否创建
+//checkHealth check path is created
 func (m *Manager) checkHealth() error {
 	if err := m.createDir(m.cluster.GetPrefix() + "/pool"); err != nil {
 		return fmt.Errorf("init etcd dir %s error.%s", m.cluster.GetPrefix()+"/pool", err.Error())
@@ -119,12 +120,12 @@ func (m *Manager) createDir(key string) error {
 	return err
 }
 
-//CreateMutex 创建分布式锁
+//CreateMutex Create a distributed lock
 func (m *Manager) CreateMutex(key string) *cluster.Mutex {
 	return cluster.New(m.cluster.GetPrefix()+key, 20, m.client)
 }
 
-//GetSource 获取资源
+//GetSource get specified type source from etcd
 func (m *Manager) GetSource(o object.Object) (object.Object, error) {
 	switch o.(type) {
 	case *object.PoolObject:
@@ -178,8 +179,8 @@ func (m *Manager) GetSource(o object.Object) (object.Object, error) {
 	}
 }
 
-//DeleteSource 删除资源
-//if result=false and err==nil 资源无权操作
+//DeleteSource delete source
+//if result=false and err==nil this entrance do not call plugin
 func (m *Manager) DeleteSource(o object.Object) (bool, error) {
 	switch o.(type) {
 	case *object.PoolObject:
@@ -204,15 +205,21 @@ func (m *Manager) DeleteSource(o object.Object) (bool, error) {
 	case *object.NodeObject:
 		node := o.(*object.NodeObject)
 		if len(node.Host) == 0 || node.Port == 0 {
-			//更新源资源中没有host ip ,从旧数据中获取
+			//The incoming node may be don't have host or port
+			//get host or port from history data
+			//if key is not exist return false
 			old, err := m.GetSource(o)
 			if err == nil {
-				//保证缓存数据中存在host 和port
 				node.Host = old.(*object.NodeObject).Host
 				node.Port = old.(*object.NodeObject).Port
 				logrus.Infof("When delete node.Host is nil then get node.host from old sources. node.host is %v", node.Host)
 			} else {
-				logrus.Error("Get old node source on update node error.", err.Error())
+				if cerr, ok := err.(client.Error); ok {
+					if cerr.Code == client.ErrorCodeKeyNotFound {
+						return false, nil
+					}
+				}
+				logrus.Error("Get old node source on delete node error.", err.Error())
 			}
 		}
 		return m.delete(m.cluster.GetPrefix() + "/node/" + node.PoolName + "/" + o.GetName())
@@ -225,10 +232,10 @@ func (m *Manager) DeleteSource(o object.Object) (bool, error) {
 	}
 }
 
-//AddSource 存储资源
-// if  result=false and err==nil 无权操作资源
-// if result=true and err==nil 操作资源成功
-// if result=false and err!=nil 操作错误，需要重试或报错。
+//AddSource save source
+// if  result=false and err==nil this entrance do not call plugin
+// if result=true and err==nil this entrance need call plugin
+// if result=false and err!=nil need retry or return err
 func (m *Manager) AddSource(o object.Object) (bool, error) {
 	switch o.(type) {
 	case *object.PoolObject:
@@ -255,11 +262,11 @@ func (m *Manager) AddSource(o object.Object) (bool, error) {
 	}
 }
 
-//UpdateSource 更新资源
-// if  result=false and err==nil 无权操作资源
-// if result=true and err==nil 操作资源成功
-// if result=false and err!=nil 操作错误，需要重试或报错。
-//返回值：是否已上线／是否有操作权／错误
+//UpdateSource update source
+// if result=false and err==nil this entrance do not call plugin
+// if result=true and err==nil this entrance need call plugin
+// if result=false and err!=nil need retry or return err
+//return：isOnline／isCouldCallPlugin／error
 func (m *Manager) UpdateSource(o object.Object) (bool, bool, error) {
 	switch o.(type) {
 	case *object.PoolObject:
@@ -323,7 +330,7 @@ func (m *Manager) updateOnline(key string, i *SourceInfo) error {
 	return nil
 }
 
-//UpdateSourceOnline 更新资源是否上线状态
+//UpdateSourceOnline update source online status
 func (m *Manager) UpdateSourceOnline(o object.Object, IsOnline bool) error {
 	logrus.Infof("update source %s online status is %v", o.GetName(), IsOnline)
 	i := &SourceInfo{
@@ -384,7 +391,7 @@ func (m *Manager) save(key string, source object.Object) (bool, error) {
 }
 
 //update
-//返回值：是否已上线／是否有操作权／错误
+//return：isOnline／isCouldCallPlugin／error
 func (m *Manager) update(key string, source object.Object, info *SourceInfo) (bool, bool, error) {
 	if key == "" || source == nil {
 		return false, false, errors.New("key or source can not nil")
@@ -466,15 +473,13 @@ func (m *Manager) delete(key string) (bool, error) {
 	return true, nil
 }
 
-//SourceInfo 资源信息
+//SourceInfo source info
 type SourceInfo struct {
 	Data       object.Object `json:"data"`
 	Index      int64         `json:"index"`
 	UpdateTime string        `json:"update_time"`
 	Operation  string        `json:"operation"`
-	//TODO:增加此字段处理
-	//此资源是否已经在负载均衡中处理成功
-	//操作后更新本字段
+	//true: this source already call plugin
 	IsOnline bool `json:"is_handle"`
 }
 
@@ -491,7 +496,7 @@ func (m *Manager) get(key string, i *SourceInfo) error {
 	return nil
 }
 
-//GetAllRule 获取全部rule,通过协议
+//GetAllRule get all rules objects by protocol
 // protocol could be http or https
 func (m *Manager) GetAllRule(protocol string) ([]*object.RuleObject, error) {
 	if protocol != "http" && protocol != "https" {
@@ -519,7 +524,7 @@ func (m *Manager) GetAllRule(protocol string) ([]*object.RuleObject, error) {
 	return rules, nil
 }
 
-//GetRuleByPool 获取指定pool下的所有rule
+//GetRuleByPool get all rules objects by pool name
 func (m *Manager) GetRuleByPool(protocol string, poolName string) ([]*object.RuleObject, error) {
 	res, err := m.keysAPI.Get(m.ctx, m.cluster.GetPrefix()+"/rule/"+protocol+"/"+poolName, &client.GetOptions{
 		Recursive: true,
@@ -541,14 +546,14 @@ func (m *Manager) GetRuleByPool(protocol string, poolName string) ([]*object.Rul
 	return rules, nil
 }
 
-//GetNodeByPool 通过池名获取全部node
+//GetNodeByPool get all nodes objects by poolName
 func (m *Manager) GetNodeByPool(poolName string) ([]*object.NodeObject, error) {
 	var nodes []*object.NodeObject
 	res, err := m.keysAPI.Get(m.ctx, m.cluster.GetPrefix()+"/node/"+poolName, &client.GetOptions{
 		Recursive: true,
 	})
 	if err != nil {
-		if client.IsKeyNotFound(err) { //如果键不存在，不返回错误
+		if client.IsKeyNotFound(err) {
 			return nodes, nil
 		}
 		return nil, err
@@ -558,7 +563,7 @@ func (m *Manager) GetNodeByPool(poolName string) ([]*object.NodeObject, error) {
 			Data: &object.NodeObject{},
 		}
 		err = json.Unmarshal([]byte(node.Value), &info)
-		if err != nil { //若一个发生错误，则不返回数据并返回错误
+		if err != nil {
 			return nil, err
 		}
 		nodes = append(nodes, info.Data.(*object.NodeObject))
@@ -566,7 +571,7 @@ func (m *Manager) GetNodeByPool(poolName string) ([]*object.NodeObject, error) {
 	return nodes, nil
 }
 
-//GetPools 获取全部pools信息，不重复
+//GetPools Gets the specified pool.
 func (m *Manager) GetPools(poolNames map[string]string) ([]*object.PoolObject, error) {
 	var pools []*object.PoolObject
 	for poolName := range poolNames {
