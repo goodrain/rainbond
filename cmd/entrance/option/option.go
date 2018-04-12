@@ -43,6 +43,7 @@ type Config struct {
 	RegTime              int64
 	HostIP               string
 	HostName             string
+	Debug                bool
 }
 
 //ACPLBServer lb worker server
@@ -80,6 +81,7 @@ func (a *ACPLBServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Int64Var(&a.RegTime, "ttl", 30, "register keepalive time")
 	fs.StringVar(&a.HostIP, "hostIP", "", "Current node Intranet IP")
 	fs.StringVar(&a.HostName, "hostName", "", "Current node host name")
+	fs.BoolVar(&a.Debug, "debug", false, "if debug true will open pprof")
 }
 
 //SetLog 设置log

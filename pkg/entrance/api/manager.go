@@ -19,14 +19,15 @@
 package api
 
 import (
+	"net/http"
+
+	"github.com/goodrain/rainbond/cmd/entrance/option"
 	"github.com/goodrain/rainbond/pkg/entrance/api/controller"
 	"github.com/goodrain/rainbond/pkg/entrance/api/model"
 	apistore "github.com/goodrain/rainbond/pkg/entrance/api/store"
-	"github.com/goodrain/rainbond/cmd/entrance/option"
 	"github.com/goodrain/rainbond/pkg/entrance/core"
 	"github.com/goodrain/rainbond/pkg/entrance/core/monitor"
 	"github.com/goodrain/rainbond/pkg/entrance/store"
-	"net/http"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -98,12 +99,15 @@ func (m *Manager) Start(errChan chan error) {
 			errChan <- err
 		}
 	}()
-	go func() {
-		if err := http.ListenAndServe(":6101", nil); err != nil {
-			logrus.Error("entrance api listen error.", err.Error())
-			errChan <- err
-		}
-	}()
+
+	if m.conf.Debug {
+		go func() {
+			if err := http.ListenAndServe(":6101", nil); err != nil {
+				logrus.Error("entrance api listen error.", err.Error())
+				errChan <- err
+			}
+		}()
+	}
 }
 
 func (m *Manager) doc() {
