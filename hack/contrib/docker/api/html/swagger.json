@@ -4253,10 +4253,22 @@
                 "version_id"
               ],
               "properties": {
+                "plugin_cpu": {
+                  "description": "插件CPU权重, 默认125\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "PluginCPU"
+                },
                 "plugin_id": {
                   "description": "插件id\nin: body",
                   "type": "string",
                   "x-go-name": "PluginID"
+                },
+                "plugin_memory": {
+                  "description": "插件最大内存, 默认64\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "PluginMemory"
                 },
                 "switch": {
                   "description": "开关\nin: body",
@@ -4321,10 +4333,22 @@
                 "version_id"
               ],
               "properties": {
+                "plugin_cpu": {
+                  "description": "插件CPU权重, 默认125\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "PluginCPU"
+                },
                 "plugin_id": {
                   "description": "插件id\nin: body",
                   "type": "string",
                   "x-go-name": "PluginID"
+                },
+                "plugin_memory": {
+                  "description": "插件最大内存, 默认64\nin: body",
+                  "type": "integer",
+                  "format": "int64",
+                  "x-go-name": "PluginMemory"
                 },
                 "switch": {
                   "description": "开关\nin: body",
