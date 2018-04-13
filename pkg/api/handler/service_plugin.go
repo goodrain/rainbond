@@ -69,7 +69,6 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 		return util.CreateAPIHandleErrorFromDBError("get plugin by plugin id", err)
 	}
 	catePlugin := strings.Split(plugin.PluginModel, ":")[0]
-	//TODO:检查是否存在该大类插件
 	crt, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelLikePluginByServiceID(
 		serviceID,
 		catePlugin,
@@ -79,6 +78,10 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 	}
 	if crt {
 		return util.CreateAPIHandleError(400, fmt.Errorf("can not add this kind plugin, a same kind plugin has been linked"))
+	}
+	pluginversion, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(plugin.PluginID, pss.Body.VersionID)
+	if err != nil {
+		return util.CreateAPIHandleErrorFromDBError("plugin version get error ", err)
 	}
 	tx := db.GetManager().Begin()
 	if plugin.PluginModel == dbmodel.UpNetPlugin {
@@ -109,11 +112,13 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 		}
 	}
 	relation := &dbmodel.TenantServicePluginRelation{
-		VersionID:   pss.Body.VersionID,
-		ServiceID:   serviceID,
-		PluginID:    pss.Body.PluginID,
-		Switch:      pss.Body.Switch,
-		PluginModel: plugin.PluginModel,
+		VersionID:       pss.Body.VersionID,
+		ServiceID:       serviceID,
+		PluginID:        pss.Body.PluginID,
+		Switch:          pss.Body.Switch,
+		PluginModel:     plugin.PluginModel,
+		ContainerCPU:    pluginversion.ContainerCPU,
+		ContainerMemory: pluginversion.ContainerMemory,
 	}
 	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).AddModel(relation); err != nil {
 		tx.Rollback()
@@ -134,6 +139,12 @@ func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss 
 	}
 	relation.VersionID = pss.Body.VersionID
 	relation.Switch = pss.Body.Switch
+	if pss.Body.PluginCPU != 0 {
+		relation.ContainerCPU = pss.Body.PluginCPU
+	}
+	if pss.Body.PluginMemory != 0 {
+		relation.ContainerCPU = pss.Body.PluginMemory
+	}
 	err = db.GetManager().TenantServicePluginRelationDao().UpdateModel(relation)
 	if err != nil {
 		return util.CreateAPIHandleErrorFromDBError("update relation between plugin and service", err)

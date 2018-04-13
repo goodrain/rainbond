@@ -18,75 +18,56 @@
 
 package model
 
-//TenantPlugin 插件表
+//TenantPlugin plugin model
 type TenantPlugin struct {
 	Model
-	//插件id
 	PluginID string `gorm:"column:plugin_id;size:32"`
-	//插件名称
+	//plugin name
 	PluginName string `gorm:"column:plugin_name;size:32" json:"plugin_name"`
-	//插件用途描述
+	//plugin describe
 	PluginInfo string `gorm:"column:plugin_info;size:100" json:"plugin_info"`
-	//插件docker地址
+	//plugin build by docker image name
 	ImageURL string `gorm:"column:image_url" json:"image_url"`
-	//git地址
+	//plugin build by git code url
 	GitURL string `gorm:"column:git_url" json:"git_url"`
-	//构建模式
+	//build mode
 	BuildModel string `gorm:"column:build_model" json:"build_model"`
-	//插件模式
+	//plugin model
 	PluginModel string `gorm:"column:plugin_model" json:"plugin_model"`
-	//租户id
+	//tenant id
 	TenantID string `gorm:"column:tenant_id" json:"tenant_id"`
-	//tenant_name 统计cpu mem使用
+	//tenant_name Used to calculate CPU and Memory.
 	Domain string `gorm:"column:domain" json:"domain"`
-	//gitlab; github
+	//gitlab; github The deprecated
 	CodeFrom string `gorm:"column:code_from" json:"code_from"`
 }
 
-//TableName 表名
+//TableName table name
 func (t *TenantPlugin) TableName() string {
 	return "tenant_plugin"
 }
 
-//TenantPluginDefaultENV 插件默认环境变量
+//TenantPluginDefaultENV plugin default env config
 type TenantPluginDefaultENV struct {
 	Model
-	//对应插件id
+	//plugin id
 	PluginID string `gorm:"column:plugin_id" json:"plugin_id"`
-	//构建版本
+	//plugin version
 	VersionID string `gorm:"column:version_id;size:32" json:"version_id"`
-	//配置项名称
+	//env name
 	ENVName string `gorm:"column:env_name" json:"env_name"`
-	//配置项值
+	//env value
 	ENVValue string `gorm:"column:env_value" json:"env_value"`
-	//使用人是否可改
+	//value is change
 	IsChange bool `gorm:"column:is_change;default:false" json:"is_change"`
 }
 
-//TableName 表名
+//TableName table name
 func (t *TenantPluginDefaultENV) TableName() string {
 	return "tenant_plugin_default_env"
 }
 
-//TenantPluginDefaultConf 插件默认配置表 由console提供
-type TenantPluginDefaultConf struct {
-	Model
-	//对应插件id
-	PluginID string `gorm:"column:plugin_id"`
-	//配置项名称
-	ConfName string `gorm:"column:conf_name"`
-	//配置项值
-	ConfValue string `gorm:"column:conf_value"`
-	//配置项类型，由console提供
-	ConfType string `gorm:"column:conf_type"`
-}
-
-//TableName 表名
-func (t *TenantPluginDefaultConf) TableName() string {
-	return "tenant_plugin_default_conf"
-}
-
-//TenantPluginBuildVersion 插件构建版本表
+//TenantPluginBuildVersion plugin build version
 type TenantPluginBuildVersion struct {
 	Model
 	VersionID       string `gorm:"column:version_id;size:32" json:"version_id"`
@@ -99,15 +80,15 @@ type TenantPluginBuildVersion struct {
 	GitURL          string `gorm:"column:git_url" json:"git_url"`
 	Info            string `gorm:"column:info" json:"info"`
 	Status          string `gorm:"column:status;size:24" json:"status"`
-	// 容器CPU权重
+	// container default cpu
 	ContainerCPU int `gorm:"column:container_cpu;default:125" json:"container_cpu"`
-	// 容器最大内存
-	ContainerMemory int `gorm:"column:container_memory;default:50" json:"container_memory"`
-	// 容器启动命令
+	// container default memory
+	ContainerMemory int `gorm:"column:container_memory;default:64" json:"container_memory"`
+	// container args
 	ContainerCMD string `gorm:"column:container_cmd;size:2048" json:"container_cmd"`
 }
 
-//TableName 表名
+//TableName table name
 func (t *TenantPluginBuildVersion) TableName() string {
 	return "tenant_plugin_build_version"
 }
@@ -122,7 +103,7 @@ type TenantPluginVersionEnv struct {
 	ServiceID string `gorm:"column:service_id" json:"service_id"`
 }
 
-//TableName 表名
+//TableName table name
 func (t *TenantPluginVersionEnv) TableName() string {
 	return "tenant_plugin_version_env"
 }
@@ -134,10 +115,14 @@ type TenantServicePluginRelation struct {
 	PluginID    string `gorm:"column:plugin_id;size:32" json:"plugin_id"`
 	ServiceID   string `gorm:"column:service_id;size:32" json:"service_id"`
 	PluginModel string `gorm:"column:plugin_model;size:24" json:"plugin_model"`
-	Switch      bool   `gorm:"column:switch;default:false" json:"switch"`
+	// container default cpu  v3.5.1 add
+	ContainerCPU int `gorm:"column:container_cpu;default:125" json:"container_cpu"`
+	// container default memory  v3.5.1 add
+	ContainerMemory int  `gorm:"column:container_memory;default:64" json:"container_memory"`
+	Switch          bool `gorm:"column:switch;default:false" json:"switch"`
 }
 
-//TableName 表名
+//TableName table name
 func (t *TenantServicePluginRelation) TableName() string {
 	return "tenant_service_plugin_relation"
 }

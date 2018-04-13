@@ -802,7 +802,7 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]
 	}
 	netPlugin := false
 	for _, pluginR := range p.pluginsRelation {
-		//是否启动插件
+		//if plugin not enable,ignore it
 		if pluginR.Switch == false {
 			continue
 		}
@@ -822,7 +822,7 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]
 			Name:                   "plugin-" + pluginR.PluginID,
 			Image:                  versionInfo.BuildLocalImage,
 			Env:                    *envs,
-			Resources:              p.createPluginResources(versionInfo.ContainerMemory, versionInfo.ContainerCPU),
+			Resources:              p.createPluginResources(pluginR.ContainerMemory, pluginR.ContainerCPU),
 			TerminationMessagePath: "",
 			Args: args,
 		}
@@ -839,7 +839,7 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]
 		}
 		containers = append(containers, pc)
 	}
-	//构建proxy容器
+	//if need proxy but not install net plugin
 	if p.needProxy && !netPlugin {
 		c2 := v1.Container{
 			Name: "adapter-" + p.serviceID[len(p.serviceID)-20:],
@@ -907,7 +907,7 @@ func (p *PodTemplateSpecBuild) createPluginEnvs(pluginID string, mainEnvs *[]v1.
 func (p *PodTemplateSpecBuild) sortPlugins() ([]string, error) {
 	var pid []string
 	var mid []int
-	//TODO: 目前同种插件只能出现一个
+	//one app could have one plugin of same mode
 	for _, plugin := range p.pluginsRelation {
 		pi, err := p.dbmanager.TenantPluginDao().GetPluginByID(plugin.PluginID, p.tenant.UUID)
 		if err != nil {

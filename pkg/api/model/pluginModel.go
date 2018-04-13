@@ -285,6 +285,14 @@ type PluginSetStruct struct {
 		//in: body
 		//required: false
 		Switch bool `json:"switch" validate:"switch|bool"`
+		// 插件CPU权重, 默认125
+		// in: body
+		// required: false
+		PluginCPU int `json:"plugin_cpu" validate:"plugin_cpu"`
+		// 插件最大内存, 默认64
+		// in: body
+		// required: false
+		PluginMemory int `json:"plugin_memory" validate:"plugin_memory"`
 	}
 }
 
@@ -411,5 +419,5 @@ type TransPlugins struct {
 		// in: body
 		// required: true
 		PluginsID []string `json:"plugins_id" validate:"plugins_id"`
-	}		
+	}
 }

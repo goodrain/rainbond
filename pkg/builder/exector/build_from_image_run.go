@@ -28,7 +28,7 @@ import (
 	//"github.com/docker/docker/api/types"
 	"github.com/docker/engine-api/types"
 	//"github.com/docker/docker/client"
-	"github.com/akkuman/parseConfig"
+
 	"github.com/docker/engine-api/client"
 	"github.com/goodrain/rainbond/pkg/builder/apiHandler"
 	"github.com/goodrain/rainbond/pkg/builder/sources"
@@ -46,7 +46,6 @@ type ImageBuildItem struct {
 	Logger        event.Logger `json:"logger"`
 	EventID       string       `json:"event_id"`
 	DockerClient  *client.Client
-	Config        parseConfig.Config
 	TenantID      string
 	ServiceID     string
 	DeployVersion string
@@ -68,7 +67,6 @@ func NewImageBuildItem(in []byte) *ImageBuildItem {
 		HubPassword:   gjson.GetBytes(in, "password").String(),
 		Logger:        logger,
 		EventID:       eventID,
-		Config:        GetBuilderConfig(),
 	}
 }
 

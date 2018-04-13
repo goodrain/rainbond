@@ -18,22 +18,6 @@
 
 package mysql
 
-/*
-Copyright 2017 The Goodrain Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 import (
 	"sync"
 
@@ -54,7 +38,7 @@ type Manager struct {
 	models  []model.Interface
 }
 
-//CreateManager 创建manager
+//CreateManager create manager
 func CreateManager(config config.Config) (*Manager, error) {
 	var db *gorm.DB
 	if config.DBType == "mysql" {
@@ -99,7 +83,7 @@ func (m *Manager) Print(v ...interface{}) {
 	logrus.Info(v)
 }
 
-//RegisterTableModel 注册表结构
+//RegisterTableModel register table model
 func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.Tenants{})
 	m.models = append(m.models, &model.TenantServices{})
@@ -132,7 +116,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.RegionProcotols{})
 }
 
-//CheckTable 检测表结构
+//CheckTable check and create tables
 func (m *Manager) CheckTable() {
 	m.initOne.Do(func() {
 		for _, md := range m.models {
@@ -152,6 +136,10 @@ func (m *Manager) CheckTable() {
 						logrus.Infof("auto create cockroachdb table %s to db success", md.TableName())
 					}
 				}
+			} else {
+				if err := m.db.AutoMigrate(md).Error; err != nil {
+					logrus.Errorf("auto Migrate table %s to db error."+err.Error(), md.TableName())
+				}
 			}
 		}
 		m.patchTable()
@@ -159,10 +147,7 @@ func (m *Manager) CheckTable() {
 }
 
 func (m *Manager) patchTable() {
-	// m.db.Exec("alter table tenant_services add replica_id varchar(32)")
-	// m.db.Exec("alter table tenant_services add status int(11) default 0")
-	// m.db.Exec("alter table tenant_services add node_label varchar(40)")
-	//权限组
+	// Permissions set
 	var rac model.RegionAPIClass
 	if err := m.db.Where("class_level=? and prefix=?", "server_source", "/v2/show").Find(&rac).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -184,7 +169,7 @@ func (m *Manager) patchTable() {
 		}
 	}
 
-	//协议族支持
+	//Port Protocol support
 	var rps model.RegionProcotols
 	if err := m.db.Where("protocol_group=? and protocol_child=?", "http", "http").Find(&rps).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {

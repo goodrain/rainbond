@@ -200,7 +200,6 @@ func (p *PluginAction) GetEnvsWhichCanBeSet(serviceID, pluginID string) (interfa
 
 //BuildPluginManual BuildPluginManual
 func (p *PluginAction) BuildPluginManual(bps *api_model.BuildPluginStruct) (*dbmodel.TenantPluginBuildVersion, *util.APIHandleError) {
-	//TODO: 生成event_id
 	eventID := bps.Body.EventID
 	logger := event.GetManager().GetLogger(eventID)
 	defer event.CloseManager()

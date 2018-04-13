@@ -38,7 +38,7 @@ import (
 	//"github.com/docker/docker/api/types"
 	"github.com/docker/engine-api/types"
 	//"github.com/docker/docker/client"
-	"github.com/akkuman/parseConfig"
+
 	"github.com/docker/engine-api/client"
 	"github.com/goodrain/rainbond/pkg/builder/apiHandler"
 	"github.com/goodrain/rainbond/pkg/builder/sources"
@@ -63,7 +63,6 @@ type SourceCodeBuildItem struct {
 	//SourceDir     string       `json:"source_dir"`
 	TGZDir        string `json:"tgz_dir"`
 	DockerClient  *client.Client
-	Config        parseConfig.Config
 	TenantID      string
 	ServiceID     string
 	DeployVersion string
@@ -75,7 +74,7 @@ type SourceCodeBuildItem struct {
 	commit        *object.Commit
 }
 
-//NewSouceCodeBuildItem 创建实体
+//NewSouceCodeBuildItem create
 func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
@@ -83,10 +82,9 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 		ServerType:    gjson.GetBytes(in, "server_type").String(),
 		RepositoryURL: gjson.GetBytes(in, "repo_url").String(),
 		Branch:        gjson.GetBytes(in, "branch").String(),
-		//TODO: user password api发出任务时判断是否存在，不存在则套用define
-		User:     gjson.GetBytes(in, "user").String(),
-		Password: gjson.GetBytes(in, "password").String(),
-		TenantID: gjson.GetBytes(in, "tenant_id").String(),
+		User:          gjson.GetBytes(in, "user").String(),
+		Password:      gjson.GetBytes(in, "password").String(),
+		TenantID:      gjson.GetBytes(in, "tenant_id").String(),
 	}
 	envs := gjson.GetBytes(in, "envs").String()
 	be := make(map[string]string)
@@ -103,7 +101,6 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 		DeployVersion: gjson.GetBytes(in, "deploy_version").String(),
 		Logger:        logger,
 		EventID:       eventID,
-		Config:        GetBuilderConfig(),
 		CodeSouceInfo: csi,
 		Lang:          gjson.GetBytes(in, "lang").String(),
 		Runtime:       gjson.GetBytes(in, "runtime").String(),
