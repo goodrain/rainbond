@@ -110,7 +110,7 @@ func (t *TenantStruct) UpdatePlugin(w http.ResponseWriter, r *http.Request) {
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ups.Body, nil); !ok {
 		return
 	}
-	if err := handler.GetPluginManager().UpdatePluginAct(pluginID,tenantID, &ups); err != nil {
+	if err := handler.GetPluginManager().UpdatePluginAct(pluginID, tenantID, &ups); err != nil {
 		err.Handle(r, w)
 		return
 	}
@@ -422,11 +422,12 @@ func (t *TenantStruct) updatePluginSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().UpdateTenantServicePluginRelation(serviceID, &pss); err != nil {
+	relation, err := handler.GetServiceManager().UpdateTenantServicePluginRelation(serviceID, &pss)
+	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	httputil.ReturnSuccess(r, w, nil)
+	httputil.ReturnSuccess(r, w, relation)
 }
 
 // swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/plugin v2 addPluginSet
@@ -457,11 +458,12 @@ func (t *TenantStruct) addPluginSet(w http.ResponseWriter, r *http.Request) {
 	}
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	if err := handler.GetServiceManager().SetTenantServicePluginRelation(tenantID, serviceID, &pss); err != nil {
+	re, err := handler.GetServiceManager().SetTenantServicePluginRelation(tenantID, serviceID, &pss)
+	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	httputil.ReturnSuccess(r, w, nil)
+	httputil.ReturnSuccess(r, w, re)
 }
 
 // swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/plugin v2 getPluginSet

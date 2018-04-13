@@ -63,10 +63,10 @@ func (s *ServiceAction) TenantServiceDeletePluginRelation(serviceID, pluginID st
 }
 
 //SetTenantServicePluginRelation SetTenantServicePluginRelation
-func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID string, pss *api_model.PluginSetStruct) *util.APIHandleError {
+func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID string, pss *api_model.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError) {
 	plugin, err := db.GetManager().TenantPluginDao().GetPluginByID(pss.Body.PluginID, tenantID)
 	if err != nil {
-		return util.CreateAPIHandleErrorFromDBError("get plugin by plugin id", err)
+		return nil, util.CreateAPIHandleErrorFromDBError("get plugin by plugin id", err)
 	}
 	catePlugin := strings.Split(plugin.PluginModel, ":")[0]
 	crt, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelLikePluginByServiceID(
@@ -74,21 +74,21 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 		catePlugin,
 	)
 	if err != nil {
-		return util.CreateAPIHandleErrorFromDBError("check plugin model", err)
+		return nil, util.CreateAPIHandleErrorFromDBError("check plugin model", err)
 	}
 	if crt {
-		return util.CreateAPIHandleError(400, fmt.Errorf("can not add this kind plugin, a same kind plugin has been linked"))
+		return nil, util.CreateAPIHandleError(400, fmt.Errorf("can not add this kind plugin, a same kind plugin has been linked"))
 	}
 	pluginversion, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(plugin.PluginID, pss.Body.VersionID)
 	if err != nil {
-		return util.CreateAPIHandleErrorFromDBError("plugin version get error ", err)
+		return nil, util.CreateAPIHandleErrorFromDBError("plugin version get error ", err)
 	}
 	tx := db.GetManager().Begin()
 	if plugin.PluginModel == dbmodel.UpNetPlugin {
 		ports, err := db.GetManager().TenantServicesPortDao().GetPortsByServiceID(serviceID)
 		if err != nil {
 			tx.Rollback()
-			return util.CreateAPIHandleErrorFromDBError("get ports by service id", err)
+			return nil, util.CreateAPIHandleErrorFromDBError("get ports by service id", err)
 		}
 		for _, p := range ports {
 			if p.IsInnerService || p.IsOuterService {
@@ -101,7 +101,7 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 				if err != nil {
 					tx.Rollback()
 					logrus.Errorf(fmt.Sprintf("set upstream port %d error, %v", p.ContainerPort, err))
-					return util.CreateAPIHandleErrorFromDBError(
+					return nil, util.CreateAPIHandleErrorFromDBError(
 						fmt.Sprintf("set upstream port %d error ", p.ContainerPort),
 						err,
 					)
@@ -122,20 +122,20 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 	}
 	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).AddModel(relation); err != nil {
 		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("set service plugin relation", err)
+		return nil, util.CreateAPIHandleErrorFromDBError("set service plugin relation", err)
 	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("commit set service plugin relation", err)
+		return nil, util.CreateAPIHandleErrorFromDBError("commit set service plugin relation", err)
 	}
-	return nil
+	return relation, nil
 }
 
 //UpdateTenantServicePluginRelation UpdateTenantServicePluginRelation
-func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss *api_model.PluginSetStruct) *util.APIHandleError {
+func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss *api_model.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError) {
 	relation, err := db.GetManager().TenantServicePluginRelationDao().GetRelateionByServiceIDAndPluginID(serviceID, pss.Body.PluginID)
 	if err != nil {
-		return util.CreateAPIHandleErrorFromDBError("get relation by serviceid and pluginid", err)
+		return nil, util.CreateAPIHandleErrorFromDBError("get relation by serviceid and pluginid", err)
 	}
 	relation.VersionID = pss.Body.VersionID
 	relation.Switch = pss.Body.Switch
@@ -143,13 +143,13 @@ func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss 
 		relation.ContainerCPU = pss.Body.PluginCPU
 	}
 	if pss.Body.PluginMemory != 0 {
-		relation.ContainerCPU = pss.Body.PluginMemory
+		relation.ContainerMemory = pss.Body.PluginMemory
 	}
 	err = db.GetManager().TenantServicePluginRelationDao().UpdateModel(relation)
 	if err != nil {
-		return util.CreateAPIHandleErrorFromDBError("update relation between plugin and service", err)
+		return nil, util.CreateAPIHandleErrorFromDBError("update relation between plugin and service", err)
 	}
-	return nil
+	return relation, nil
 }
 
 //SetVersionEnv SetVersionEnv
