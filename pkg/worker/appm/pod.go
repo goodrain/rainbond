@@ -631,7 +631,7 @@ func (p *PodTemplateSpecBuild) createVolumes(envs *[]v1.EnvVar) ([]v1.Volume, []
 	return volumes, volumeMounts, nil
 }
 func (p *PodTemplateSpecBuild) createVolumeObj(VolumeType model.VolumeType, name, mountPath, hostPath string, readOnly bool, volumeMounts *[]v1.VolumeMount, volumes *[]v1.Volume) {
-	//保证挂载目录不重复
+	//Ensure mount directory is unique.
 	if _, ok := p.volumeMount[mountPath]; ok {
 		return
 	}
@@ -660,12 +660,13 @@ func (p *PodTemplateSpecBuild) createVolumeObj(VolumeType model.VolumeType, name
 		}
 		*volumes = append(*volumes, vo)
 	}
-	//TODO:处理其他存储类型
+	//TODO:handle other volume type
 }
 
+//createEnv create app env
 func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 	var envs []v1.EnvVar
-	//处理service表中的环境变量
+	//set app history env
 	if p.service.ContainerEnv != "" {
 		vs := strings.Split(p.service.ContainerEnv, ",")
 		for _, s := range vs {
@@ -678,7 +679,7 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 			}
 		}
 	}
-	//处理默认添加的环境变量
+	//set default env
 	envs = append(envs, v1.EnvVar{Name: "TENANT_ID", Value: p.service.TenantID})
 	envs = append(envs, v1.EnvVar{Name: "SERVICE_ID", Value: p.service.ServiceID})
 	envs = append(envs, v1.EnvVar{Name: "SERVICE_VERSION", Value: p.service.ServiceVersion})
@@ -689,7 +690,7 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 	envs = append(envs, v1.EnvVar{Name: "EVENT_ID", Value: p.eventID})
 
 	var envsAll []*model.TenantServiceEnvVar
-	//处理依赖服务的环境变量
+	//set relation app outer env
 	relations, err := p.dbmanager.TenantServiceRelationDao().GetTenantServiceRelations(p.serviceID)
 	if err != nil {
 		return nil, err
@@ -707,7 +708,6 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 			if es != nil {
 				envsAll = append(envsAll, es...)
 			}
-			//创建依赖应用环境变量
 			serviceAliass, err := p.dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
 			if err != nil {
 				return nil, err
@@ -720,13 +720,11 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 				Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
 			}
 			envs = append(envs, v1.EnvVar{Name: "DEPEND_SERVICE", Value: Depend})
-			//需要启动proxy
 			p.needProxy = true
 		}
 	}
-	//TODO:处理应用特性增强相关环境变量
 
-	//处理依赖反相关系环境变量
+	//set app relation env
 	relations, err = p.dbmanager.TenantServiceRelationDao().GetTenantServiceRelationsByDependServiceID(p.serviceID)
 	if err != nil {
 		return nil, err
@@ -737,7 +735,6 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 			relationIDs = append(relationIDs, r.ServiceID)
 		}
 		if len(relationIDs) > 0 {
-			//创建依赖应用环境变量
 			serviceAliass, err := p.dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
 			if err != nil {
 				return nil, err
@@ -752,7 +749,7 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 			envs = append(envs, v1.EnvVar{Name: "REVERSE_DEPEND_SERVICE", Value: Depend})
 		}
 	}
-	//处理应用端口和网络环境变量
+	//set app port and net env
 	ports, err := p.dbmanager.TenantServicesPortDao().GetPortsByServiceID(p.serviceID)
 	if err != nil {
 		return nil, err
@@ -773,10 +770,10 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 		}
 		envs = append(envs, v1.EnvVar{Name: "MONITOR_PORT", Value: portStr})
 	}
-	//TODO: 设置网络类型环境变量，从系统环境变量中获取
+	//set net mode env by get from system
 	envs = append(envs, v1.EnvVar{Name: "CUR_NET", Value: os.Getenv("CUR_NET")})
 
-	//处理当前应用用户定义环境变量
+	//set app custom envs
 	es, err := p.dbmanager.TenantServiceEnvVarDao().GetServiceEnvs(p.serviceID, []string{"inner", "both", "outer"})
 	if err != nil {
 		return nil, err
@@ -834,7 +831,7 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]
 			initContainers = append(initContainers, pc)
 			continue
 		}
-		if pluginModel == model.UpNetPlugin || pluginModel == model.DownNetPlugin {
+		if pluginModel == model.DownNetPlugin {
 			netPlugin = true
 		}
 		containers = append(containers, pc)
