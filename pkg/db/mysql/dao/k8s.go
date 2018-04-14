@@ -205,6 +205,8 @@ func (t *K8sDeployReplicationDaoImpl) GetK8sDeployReplicationByService(serviceID
 	}
 	return deploy, nil
 }
+
+//DeleteK8sDeployReplicationByService delete deploy info by service
 func (t *K8sDeployReplicationDaoImpl) DeleteK8sDeployReplicationByService(serviceID string) error {
 	var deploy model.K8sDeployReplication
 	if err := t.DB.Model(&deploy).Where("service_id=?", serviceID).Update("is_delete", true).Error; err != nil {
@@ -218,11 +220,11 @@ type K8sPodDaoImpl struct {
 	DB *gorm.DB
 }
 
-//AddModel 添加应用Pod
+//AddModel save or update app pod info
 func (t *K8sPodDaoImpl) AddModel(mo model.Interface) error {
 	pod := mo.(*model.K8sPod)
 	var oldPod model.K8sPod
-	if ok := t.DB.Where("pod_name = ?", pod.PodName).Find(&oldPod).RecordNotFound(); ok {
+	if ok := t.DB.Where("pod_name=?", pod.PodName).Find(&oldPod).RecordNotFound(); ok {
 		if err := t.DB.Create(pod).Error; err != nil {
 			return err
 		}
@@ -235,7 +237,7 @@ func (t *K8sPodDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//UpdateModel 更新应用Pod
+//UpdateModel update pod info
 func (t *K8sPodDaoImpl) UpdateModel(mo model.Interface) error {
 	pod := mo.(*model.K8sPod)
 	if pod.ID == 0 {
@@ -247,6 +249,7 @@ func (t *K8sPodDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
+//DeleteK8sPod delete pod by service
 func (t *K8sPodDaoImpl) DeleteK8sPod(serviceID string) error {
 	var pod model.K8sPod
 	if err := t.DB.Where("service_id=?", serviceID).Delete(&pod).Error; err != nil {
@@ -255,6 +258,7 @@ func (t *K8sPodDaoImpl) DeleteK8sPod(serviceID string) error {
 	return nil
 }
 
+//DeleteK8sPodByName delete pod by name
 func (t *K8sPodDaoImpl) DeleteK8sPodByName(podName string) error {
 	var pod model.K8sPod
 	if err := t.DB.Where("pod_name=?", podName).Delete(&pod).Error; err != nil {
