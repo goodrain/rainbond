@@ -520,7 +520,13 @@ func (t *TenantServicesStreamPluginPortDaoImpl) SetPluginMappingPort(
 	if err != nil {
 		return 0, err
 	}
-	//给予的端口范围
+	//if have been allocated,return
+	for _, oldp := range ports {
+		if oldp.ContainerPort == containerPort {
+			return oldp.PluginPort, nil
+		}
+	}
+	//Distribution port range
 	minPort := 65301
 	maxPort := 65400
 	newPort := &model.TenantServicesStreamPluginPort{

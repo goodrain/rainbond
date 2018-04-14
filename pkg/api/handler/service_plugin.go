@@ -42,7 +42,7 @@ func (s *ServiceAction) GetTenantServicePluginRelation(serviceID string) ([]*dbm
 	return gps, nil
 }
 
-//TenantServiceDeletePluginRelation 删除应用的plugin依赖
+//TenantServiceDeletePluginRelation uninstall plugin for app
 func (s *ServiceAction) TenantServiceDeletePluginRelation(serviceID, pluginID string) *util.APIHandleError {
 	tx := db.GetManager().Begin()
 	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteRelationByServiceIDAndPluginID(serviceID, pluginID); err != nil {
