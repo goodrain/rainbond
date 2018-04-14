@@ -215,9 +215,6 @@ func (d *DiscoverAction) downstreamClusters(serviceAlias, namespace string, port
 			},
 		}
 		localhost := fmt.Sprintf("tcp://127.0.0.1:%d", port.Port)
-		if port.Protocol == "http" {
-			localhost = fmt.Sprintf("http://127.0.0.1:%d", port.Port)
-		}
 		pcds := &envoyv1.Cluster{
 			Name:             fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
 			Type:             "static",
