@@ -297,7 +297,7 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 			clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
 			if _, ok := portMap[port]; !ok {
 				if v, ok := destService.Options["LISTEN"]; !ok || v == "true" {
-					plds := envoyv1.CreateTCPCommonListener(clusterName, fmt.Sprintf("tcp:127.0.0.1:%d", port))
+					plds := envoyv1.CreateTCPCommonListener(clusterName, fmt.Sprintf("tcp://127.0.0.1:%d", port))
 					ldsL = append(ldsL, plds)
 					portMap[port] = 1
 				}

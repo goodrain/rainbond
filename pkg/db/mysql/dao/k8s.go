@@ -35,7 +35,7 @@ type K8sServiceDaoImpl struct {
 func (t *K8sServiceDaoImpl) AddModel(mo model.Interface) error {
 	service := mo.(*model.K8sService)
 	var oldService model.K8sService
-	if ok := t.DB.Where("service_id = ? and container_port =? and is_out=?", service.ServiceID, service.ContainerPort, service.IsOut).Find(&oldService).RecordNotFound(); ok {
+	if ok := t.DB.Where("service_id=? and container_port=? and is_out=?", service.ServiceID, service.ContainerPort, service.IsOut).Find(&oldService).RecordNotFound(); ok {
 		if err := t.DB.Create(service).Error; err != nil {
 			return err
 		}
@@ -296,7 +296,7 @@ type ServiceProbeDaoImpl struct {
 func (t *ServiceProbeDaoImpl) AddModel(mo model.Interface) error {
 	probe := mo.(*model.ServiceProbe)
 	var oldProbe model.ServiceProbe
-	if ok := t.DB.Where("service_id = ? and mode = ?", probe.ServiceID, probe.Mode).Find(&oldProbe).RecordNotFound(); ok {
+	if ok := t.DB.Where("service_id=? and mode=?", probe.ServiceID, probe.Mode).Find(&oldProbe).RecordNotFound(); ok {
 		if err := t.DB.Create(probe).Error; err != nil {
 			return err
 		}
@@ -376,7 +376,7 @@ type LocalSchedulerDaoImpl struct {
 func (t *LocalSchedulerDaoImpl) AddModel(mo model.Interface) error {
 	ls := mo.(*model.LocalScheduler)
 	var oldLs model.ServiceProbe
-	if ok := t.DB.Where("service_id = ? and pod_name = ?", ls.ServiceID, ls.PodName).Find(&oldLs).RecordNotFound(); ok {
+	if ok := t.DB.Where("service_id=? and pod_name=?", ls.ServiceID, ls.PodName).Find(&oldLs).RecordNotFound(); ok {
 		if err := t.DB.Create(ls).Error; err != nil {
 			return err
 		}

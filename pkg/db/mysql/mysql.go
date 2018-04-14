@@ -114,6 +114,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.TenantServicesStreamPluginPort{})
 	m.models = append(m.models, &model.RegionAPIClass{})
 	m.models = append(m.models, &model.RegionProcotols{})
+	m.models = append(m.models, &model.LocalScheduler{})
 }
 
 //CheckTable check and create tables
