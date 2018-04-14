@@ -199,7 +199,7 @@ func (d *DiscoverAction) upstreamClusters(serviceAlias, namespace string, depend
 }
 
 //downstreamClusters handle app self cluster
-// handle kubernetes inner service
+//only local port
 func (d *DiscoverAction) downstreamClusters(serviceAlias, namespace string, ports []*api_model.BasePort) (cdsClusters envoyv1.Clusters, err *util.APIHandleError) {
 	for _, port := range ports {
 		maxConnection := d.ToolsGetRouterItem("", node_model.MaxConnections, port.Options).(int)
@@ -214,12 +214,16 @@ func (d *DiscoverAction) downstreamClusters(serviceAlias, namespace string, port
 				MaxRetries:         maxRetries,
 			},
 		}
+		localhost := fmt.Sprintf("tcp://127.0.0.1:%d", port.Port)
+		if port.Protocol == "http" {
+			localhost = fmt.Sprintf("http://127.0.0.1:%d", port.Port)
+		}
 		pcds := &envoyv1.Cluster{
 			Name:             fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
 			Type:             "static",
 			ConnectTimeoutMs: 250,
 			LbType:           "round_robin",
-			Hosts:            []envoyv1.Host{envoyv1.Host{URL: fmt.Sprintf("127.0.0.1:%d", port.Port)}},
+			Hosts:            []envoyv1.Host{envoyv1.Host{URL: localhost}},
 			CircuitBreaker:   cb,
 		}
 		cdsClusters = append(cdsClusters, pcds)
