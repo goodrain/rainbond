@@ -155,6 +155,13 @@ func (d *DiscoverAction) DiscoverClusters(
 		}
 		cds.Clusters.Append(clusters)
 	}
+	if resources.BasePorts != nil && len(resources.BasePorts) > 0 {
+		clusters, err := d.downstreamClusters(serviceAlias, namespace, resources.BasePorts)
+		if err != nil {
+			return nil, err
+		}
+		cds.Clusters.Append(clusters)
+	}
 	return cds, nil
 }
 
@@ -344,7 +351,7 @@ func (d *DiscoverAction) downstreamListener(serviceAlias, namespace string, port
 		port := int32(p.Port)
 		clusterName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
 		if _, ok := portMap[port]; !ok {
-			plds := envoyv1.CreateTCPCommonListener(clusterName, fmt.Sprintf("tcp://0.0.0.0:%d", port))
+			plds := envoyv1.CreateTCPCommonListener(clusterName, fmt.Sprintf("tcp://0.0.0.0:%d", p.ListenPort))
 			ldsL = append(ldsL, plds)
 			portMap[port] = 1
 		}
