@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jinzhu/gorm"
+
 	"github.com/Sirupsen/logrus"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
@@ -44,16 +46,22 @@ func (s *ServiceAction) GetTenantServicePluginRelation(serviceID string) ([]*dbm
 func (s *ServiceAction) TenantServiceDeletePluginRelation(serviceID, pluginID string) *util.APIHandleError {
 	tx := db.GetManager().Begin()
 	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteRelationByServiceIDAndPluginID(serviceID, pluginID); err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("delete plugin relation", err)
+		if err != gorm.ErrRecordNotFound {
+			tx.Rollback()
+			return util.CreateAPIHandleErrorFromDBError("delete plugin relation", err)
+		}
 	}
 	if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByPluginID(serviceID, pluginID); err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("delete relation env", err)
+		if err != gorm.ErrRecordNotFound {
+			tx.Rollback()
+			return util.CreateAPIHandleErrorFromDBError("delete relation env", err)
+		}
 	}
 	if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteAllPluginMappingPortByServiceID(serviceID); err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("delete upstream plugin mapping port", err)
+		if err != gorm.ErrRecordNotFound {
+			tx.Rollback()
+			return util.CreateAPIHandleErrorFromDBError("delete upstream plugin mapping port", err)
+		}
 	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
@@ -83,33 +91,48 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("plugin version get error ", err)
 	}
-	tx := db.GetManager().Begin()
+	var openPorts = make(map[int]bool)
 	if plugin.PluginModel == dbmodel.UpNetPlugin {
 		ports, err := db.GetManager().TenantServicesPortDao().GetPortsByServiceID(serviceID)
 		if err != nil {
-			tx.Rollback()
 			return nil, util.CreateAPIHandleErrorFromDBError("get ports by service id", err)
 		}
 		for _, p := range ports {
 			if p.IsInnerService || p.IsOuterService {
+				openPorts[p.ContainerPort] = true
+			}
+		}
+	}
+	tx := db.GetManager().Begin()
+	if configs := pss.Body.ConfigEnvs.ComplexEnvs; configs != nil {
+		if configs.BasePorts != nil && plugin.PluginModel == dbmodel.UpNetPlugin {
+			for _, p := range configs.BasePorts {
 				pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).SetPluginMappingPort(
 					tenantID,
 					serviceID,
 					dbmodel.UpNetPlugin,
-					p.ContainerPort,
+					p.Port,
 				)
 				if err != nil {
 					tx.Rollback()
-					logrus.Errorf(fmt.Sprintf("set upstream port %d error, %v", p.ContainerPort, err))
+					logrus.Errorf(fmt.Sprintf("set upstream port %d error, %v", p.Port, err))
 					return nil, util.CreateAPIHandleErrorFromDBError(
-						fmt.Sprintf("set upstream port %d error ", p.ContainerPort),
+						fmt.Sprintf("set upstream port %d error ", p.Port),
 						err,
 					)
 				}
-				logrus.Debugf("set plugin upsteam port %d->%d", p.ContainerPort, pluginPort)
-				continue
+				logrus.Debugf("set plugin upsteam port %d->%d", p.Port, pluginPort)
+				p.ListenPort = pluginPort
 			}
 		}
+		if err := s.upComplexEnvs(plugin.TenantID, pss.ServiceAlias, plugin.PluginID, pss.Body.ConfigEnvs.ComplexEnvs); err != nil {
+			tx.Rollback()
+			return nil, util.CreateAPIHandleError(500, fmt.Errorf("set complex error, %v", err))
+		}
+	}
+	if err := s.normalEnvs(tx, serviceID, plugin.PluginID, pss.Body.ConfigEnvs.NormalEnvs); err != nil {
+		tx.Rollback()
+		return nil, util.CreateAPIHandleErrorFromDBError("set service plugin env error ", err)
 	}
 	relation := &dbmodel.TenantServicePluginRelation{
 		VersionID:       pss.Body.VersionID,
@@ -152,67 +175,17 @@ func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss 
 	return relation, nil
 }
 
-//SetVersionEnv SetVersionEnv
-func (s *ServiceAction) SetVersionEnv(sve *api_model.SetVersionEnv) *util.APIHandleError {
-	if len(sve.Body.ConfigEnvs.NormalEnvs) != 0 {
-		if err := s.normalEnvs(sve); err != nil {
-			return util.CreateAPIHandleErrorFromDBError("set version env", err)
-		}
-	}
-	if sve.Body.ConfigEnvs.ComplexEnvs != nil {
-		if err := s.complexEnvs(sve); err != nil {
-			if strings.Contains(err.Error(), "is exist") {
-				return util.CreateAPIHandleError(405, err)
-			}
-			return util.CreateAPIHandleError(500, fmt.Errorf("set complex error, %v", err))
-		}
-	}
-	if len(sve.Body.ConfigEnvs.NormalEnvs) == 0 && sve.Body.ConfigEnvs.ComplexEnvs == nil {
-		return util.CreateAPIHandleError(200, fmt.Errorf("no envs need to be changed"))
-	}
-	return nil
-}
-
-func (s *ServiceAction) normalEnvs(sve *api_model.SetVersionEnv) error {
-	tx := db.GetManager().Begin()
-	for _, env := range sve.Body.ConfigEnvs.NormalEnvs {
+func (s *ServiceAction) normalEnvs(tx *gorm.DB, serviceID, pluginID string, envs []*api_model.VersionEnv) error {
+	for _, env := range envs {
 		tpv := &dbmodel.TenantPluginVersionEnv{
-			PluginID:  sve.PluginID,
-			ServiceID: sve.Body.ServiceID,
+			PluginID:  pluginID,
+			ServiceID: serviceID,
 			EnvName:   env.EnvName,
 			EnvValue:  env.EnvValue,
 		}
 		if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).AddModel(tpv); err != nil {
-			tx.Rollback()
 			return err
 		}
-	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-	return nil
-}
-
-func (s *ServiceAction) complexEnvs(sve *api_model.SetVersionEnv) error {
-	k := fmt.Sprintf("/resources/define/%s/%s/%s",
-		sve.Body.TenantID,
-		sve.ServiceAlias,
-		sve.PluginID)
-	if CheckKeyIfExist(s.EtcdCli, k) {
-		return fmt.Errorf("key %v is exist", k)
-	}
-	v, err := ffjson.Marshal(sve.Body.ConfigEnvs.ComplexEnvs)
-	if err != nil {
-		logrus.Errorf("mashal etcd value error, %v", err)
-		return err
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	_, err = s.EtcdCli.Put(ctx, k, string(v))
-	if err != nil {
-		logrus.Errorf("put k %s into etcd error, %v", k, err)
-		return err
 	}
 	return nil
 }
@@ -235,13 +208,39 @@ func (s *ServiceAction) DeleteComplexEnvs(tenantID, serviceAlias, pluginID strin
 
 //UpdateVersionEnv UpdateVersionEnv
 func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError {
+	plugin, err := db.GetManager().TenantPluginDao().GetPluginByID(uve.PluginID, uve.Body.TenantID)
+	if err != nil {
+		return util.CreateAPIHandleErrorFromDBError("get plugin by plugin id", err)
+	}
+	tx := db.GetManager().Begin()
 	if len(uve.Body.ConfigEnvs.NormalEnvs) != 0 {
-		if err := s.upNormalEnvs(uve); err != nil {
+		if err := s.upNormalEnvs(tx, uve); err != nil {
+			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("update version env", err)
 		}
 	}
 	if uve.Body.ConfigEnvs.ComplexEnvs != nil {
-		if err := s.upComplexEnvs(uve); err != nil {
+		if uve.Body.ConfigEnvs.ComplexEnvs.BasePorts != nil && plugin.PluginModel == dbmodel.UpNetPlugin {
+			for _, p := range uve.Body.ConfigEnvs.ComplexEnvs.BasePorts {
+				pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).SetPluginMappingPort(
+					uve.Body.TenantID,
+					uve.Body.ServiceID,
+					dbmodel.UpNetPlugin,
+					p.Port,
+				)
+				if err != nil {
+					tx.Rollback()
+					logrus.Errorf(fmt.Sprintf("set upstream port %d error, %v", p.Port, err))
+					return util.CreateAPIHandleErrorFromDBError(
+						fmt.Sprintf("set upstream port %d error ", p.Port),
+						err,
+					)
+				}
+				logrus.Debugf("set plugin upsteam port %d->%d", p.Port, pluginPort)
+				p.ListenPort = pluginPort
+			}
+		}
+		if err := s.upComplexEnvs(uve.Body.TenantID, uve.ServiceAlias, uve.PluginID, uve.Body.ConfigEnvs.ComplexEnvs); err != nil {
 			if strings.Contains(err.Error(), "is not exist") {
 				return util.CreateAPIHandleError(405, err)
 			}
@@ -254,27 +253,25 @@ func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.API
 	return nil
 }
 
-func (s *ServiceAction) upNormalEnvs(uve *api_model.SetVersionEnv) *util.APIHandleError {
+func (s *ServiceAction) upNormalEnvs(tx *gorm.DB, uve *api_model.SetVersionEnv) *util.APIHandleError {
 	err := db.GetManager().TenantPluginVersionENVDao().DeleteEnvByPluginID(uve.Body.ServiceID, uve.PluginID)
 	if err != nil {
-		return util.CreateAPIHandleErrorFromDBError("delete version env", err)
+		if err != gorm.ErrRecordNotFound {
+			return util.CreateAPIHandleErrorFromDBError("delete version env", err)
+		}
 	}
-	if err := s.normalEnvs(uve); err != nil {
+	if err := s.normalEnvs(tx, uve.Body.ServiceID, uve.PluginID, uve.Body.ConfigEnvs.NormalEnvs); err != nil {
 		return util.CreateAPIHandleErrorFromDBError("update version env", err)
 	}
 	return nil
 }
 
-func (s *ServiceAction) upComplexEnvs(uve *api_model.SetVersionEnv) *util.APIHandleError {
-	k := fmt.Sprintf("/resources/define/%s/%s/%s",
-		uve.Body.TenantID,
-		uve.ServiceAlias,
-		uve.PluginID)
-	if !CheckKeyIfExist(s.EtcdCli, k) {
-		return util.CreateAPIHandleError(404,
-			fmt.Errorf("key %v is not exist", k))
+func (s *ServiceAction) upComplexEnvs(tenantID, serviceAlias, pluginID string, config *api_model.ResourceSpec) *util.APIHandleError {
+	if config == nil {
+		return nil
 	}
-	v, err := ffjson.Marshal(uve.Body.ConfigEnvs.ComplexEnvs)
+	k := fmt.Sprintf("/resources/define/%s/%s/%s", tenantID, serviceAlias, pluginID)
+	v, err := ffjson.Marshal(config)
 	if err != nil {
 		logrus.Errorf("mashal etcd value error, %v", err)
 		return util.CreateAPIHandleError(500, err)

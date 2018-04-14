@@ -273,26 +273,30 @@ type PluginSetStruct struct {
 	ServiceAlias string `json:"service_alias"`
 	// in: body
 	Body struct {
-		//插件id
+		//plugin id
 		//in: body
 		//required: true
 		PluginID string `json:"plugin_id" validate:"plugin_id"`
-		//插件版本
+		// plugin version
 		//in: body
 		//required: true
 		VersionID string `json:"version_id" validate:"version_id"`
-		//开关
+		// plugin is uesd
 		//in: body
 		//required: false
 		Switch bool `json:"switch" validate:"switch|bool"`
-		// 插件CPU权重, 默认125
+		// plugin cpu size default 125
 		// in: body
 		// required: false
 		PluginCPU int `json:"plugin_cpu" validate:"plugin_cpu"`
-		// 插件最大内存, 默认64
+		// plugin memory size default 64
 		// in: body
 		// required: false
 		PluginMemory int `json:"plugin_memory" validate:"plugin_memory"`
+		// app plugin config
+		// in: body
+		// required: true
+		ConfigEnvs ConfigEnvs `json:"config_envs" validate:"config_envs"`
 	}
 }
 

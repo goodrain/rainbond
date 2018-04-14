@@ -93,13 +93,16 @@ type ResourceSpec struct {
 	BaseNormal   BaseEnv        `json:"base_normal"`
 }
 
-//BasePort 基于当前应用端口结构
+//BasePort base of current app ports
 type BasePort struct {
-	ServiceAlias string                 `json:"service_alias"`
-	ServiceID    string                 `json:"service_id"`
-	Port         int                    `json:"port"`
-	Protocol     string                 `json:"protocol"`
-	Options      map[string]interface{} `json:"options"`
+	ServiceAlias string `json:"service_alias"`
+	ServiceID    string `json:"service_id"`
+	//Port is the real app port
+	Port int `json:"port"`
+	//ListenPort is mesh listen port, proxy connetion to real app port
+	ListenPort int                    `json:"listen_port"`
+	Protocol   string                 `json:"protocol"`
+	Options    map[string]interface{} `json:"options"`
 }
 
 //BaseService 基于依赖应用及端口结构

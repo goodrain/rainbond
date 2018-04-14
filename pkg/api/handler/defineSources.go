@@ -45,22 +45,19 @@ func CreateSourcesManager(etcdCli *clientv3.Client) *SourcesAction {
 //CreateDefineSources CreateDefineSources
 func (s *SourcesAction) CreateDefineSources(
 	tenantID string, ss *api_model.SetDefineSourcesStruct) *util.APIHandleError {
-
 	sourceAlias := ss.Body.SourceSpec.Alias
 	k := fmt.Sprintf("/resources/define/%s/%s/%s",
 		tenantID,
 		sourceAlias,
 		ss.Body.SourceSpec.SourceBody.EnvName)
-	if CheckKeyIfExist(s.etcdCli, k) {
-		return util.CreateAPIHandleError(405,
-			fmt.Errorf("key %v is exist", ss.Body.SourceSpec.SourceBody.EnvName))
-	}
 	v, err := ffjson.Marshal(ss.Body.SourceSpec)
 	if err != nil {
 		logrus.Errorf("mashal etcd value error, %v", err)
 		return util.CreateAPIHandleError(500, err)
 	}
-	_, err = s.etcdCli.Put(context.TODO(), k, string(v))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err = s.etcdCli.Put(ctx, k, string(v))
 	if err != nil {
 		logrus.Errorf("put k %s into etcd error, %v", k, err)
 		return util.CreateAPIHandleError(500, err)
@@ -72,22 +69,19 @@ func (s *SourcesAction) CreateDefineSources(
 //UpdateDefineSources UpdateDefineSources
 func (s *SourcesAction) UpdateDefineSources(
 	tenantID string, ss *api_model.SetDefineSourcesStruct) *util.APIHandleError {
-
 	sourceAlias := ss.Body.SourceSpec.Alias
 	k := fmt.Sprintf("/resources/define/%s/%s/%s",
 		tenantID,
 		sourceAlias,
 		ss.Body.SourceSpec.SourceBody.EnvName)
-	if !CheckKeyIfExist(s.etcdCli, k) {
-		return util.CreateAPIHandleError(404,
-			fmt.Errorf("key %v is not exist", ss.Body.SourceSpec.SourceBody.EnvName))
-	}
 	v, err := ffjson.Marshal(ss.Body.SourceSpec)
 	if err != nil {
 		logrus.Errorf("mashal etcd value error, %v", err)
 		return util.CreateAPIHandleError(500, err)
 	}
-	_, err = s.etcdCli.Put(context.TODO(), k, string(v))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err = s.etcdCli.Put(ctx, k, string(v))
 	if err != nil {
 		logrus.Errorf("put k %s into etcd error, %v", k, err)
 		return util.CreateAPIHandleError(500, err)
@@ -103,11 +97,9 @@ func (s *SourcesAction) DeleteDefineSources(tenantID, sourceAlias, envName strin
 		tenantID,
 		sourceAlias,
 		envName)
-	if !CheckKeyIfExist(s.etcdCli, k) {
-		return util.CreateAPIHandleError(404,
-			fmt.Errorf("key %v is not exist", envName))
-	}
-	_, err := s.etcdCli.Delete(context.TODO(), k)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err := s.etcdCli.Delete(ctx, k)
 	if err != nil {
 		logrus.Errorf("delete k %s from etcd error, %v", k, err)
 		return util.CreateAPIHandleError(500, err)
@@ -126,8 +118,8 @@ func (s *SourcesAction) GetDefineSources(
 		sourceAlias,
 		envName)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	resp, err := s.etcdCli.Get(ctx, k)
-	cancel()
 	if err != nil {
 		logrus.Errorf("get etcd k %s error, %v", k, err)
 		return nil, util.CreateAPIHandleError(500, err)
@@ -141,19 +133,4 @@ func (s *SourcesAction) GetDefineSources(
 		return nil, util.CreateAPIHandleError(500, err)
 	}
 	return &ss, nil
-}
-
-//CheckKeyIfExist CheckKeyIfExist
-func CheckKeyIfExist(etcdCli *clientv3.Client, k string) bool {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	resp, err := etcdCli.Get(ctx, k)
-	cancel()
-	if err != nil {
-		logrus.Errorf("get etcd value error, %v", err)
-		return false
-	}
-	if resp.Count != 0 {
-		return true
-	}
-	return false
 }

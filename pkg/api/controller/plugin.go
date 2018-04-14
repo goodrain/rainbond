@@ -566,52 +566,10 @@ func (t *TenantStruct) GePluginEnvWhichCanBeSet(w http.ResponseWriter, r *http.R
 	httputil.ReturnSuccess(r, w, envs)
 }
 
-//SetVersionEnv SetVersionEnv
-// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/setenv v2 setVersionEnv
-//
-// 设置用户可配的环境变量
-//
-// set version env
-//
-// ---
-// consumes:
-// - application/json
-// - application/x-protobuf
-//
-// produces:
-// - application/json
-// - application/xml
-//
-// responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
-func (t *TenantStruct) SetVersionEnv(w http.ResponseWriter, r *http.Request) {
-	var sve api_model.SetVersionEnv
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &sve.Body, nil)
-	if !ok {
-		return
-	}
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	pluginID := chi.URLParam(r, "plugin_id")
-	sve.PluginID = pluginID
-	sve.Body.TenantID = tenantID
-	sve.ServiceAlias = serviceAlias
-	sve.Body.ServiceID = serviceID
-	if err := handler.GetServiceManager().SetVersionEnv(&sve); err != nil {
-		err.Handle(r, w)
-		return
-	}
-	httputil.ReturnSuccess(r, w, nil)
-}
-
 //UpdateVersionEnv UpdateVersionEnv
 // swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/upenv v2 updateVersionEnv
 //
-// 修改用户可配的环境变量
+// modify the app plugin config info. it will Thermal effect
 //
 // update version env
 //

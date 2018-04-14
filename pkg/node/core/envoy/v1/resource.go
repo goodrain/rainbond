@@ -823,7 +823,7 @@ func CreateHTTPCommonListener(name string, vh ...*VirtualHost) *Listener {
 //CreateTCPCommonListener create tcp simple common listener
 //listen the specified port
 //associate the specified cluster.
-func CreateTCPCommonListener(clusterName string, port int32) *Listener {
+func CreateTCPCommonListener(clusterName string, address string) *Listener {
 	ptr := &TCPRoute{
 		Cluster: clusterName,
 	}
@@ -840,7 +840,7 @@ func CreateTCPCommonListener(clusterName string, port int32) *Listener {
 	}
 	plds := &Listener{
 		Name:       clusterName,
-		Address:    fmt.Sprintf("tcp://127.0.0.1:%d", port),
+		Address:    address,
 		Filters:    []*NetworkFilter{lfs},
 		BindToPort: true,
 	}

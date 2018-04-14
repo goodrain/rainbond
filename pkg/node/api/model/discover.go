@@ -25,14 +25,14 @@ const (
 	HEADERS string = "HEADERS"
 	//DOMAINS DOMAINS
 	DOMAINS string = "DOMAINS"
-	//LIMITS LIMITS
-	LIMITS string = "LIMITS"
-	//MaxPendingRequests MaxPendingRequests
+	//MaxConnections The maximum number of connections that Envoy will make to the upstream cluster. If not specified, the default is 1024.
+	MaxConnections string = "MaxConnections"
+	//MaxPendingRequests The maximum number of pending requests that Envoy will allow to the upstream cluster. If not specified, the default is 1024
 	MaxPendingRequests string = "MaxPendingRequests"
-	//MaxRequests MaxRequests
+	//MaxRequests The maximum number of parallel requests that Envoy will make to the upstream cluster. If not specified, the default is 1024.
 	MaxRequests string = "MaxRequests"
-	//MaxRetries MaxRetries
-	MaxRetries string = "MaxRetries"
+	//MaxActiveRetries  The maximum number of parallel retries that Envoy will allow to the upstream cluster. If not specified, the default is 3.
+	MaxActiveRetries string = "MaxActiveRetries"
 	//UPSTREAM upStream
 	UPSTREAM string = "upStream"
 	//DOWNSTREAM downStream

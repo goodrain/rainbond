@@ -80,8 +80,6 @@ func (p *PluginAction) UpdatePluginAct(pluginID, tenantID string, cps *api_model
 	if err != nil {
 		return util.CreateAPIHandleErrorFromDBError("get old plugin info", err)
 	}
-	//全量更新，但pluginID和所在租户不提供修改
-	//TODO: 是否允许修改pluginModel,会影响该插件的性质
 	tp.PluginInfo = cps.Body.PluginInfo
 	tp.PluginModel = cps.Body.PluginModel
 	tp.PluginName = cps.Body.PluginName
@@ -97,7 +95,6 @@ func (p *PluginAction) UpdatePluginAct(pluginID, tenantID string, cps *api_model
 
 //DeletePluginAct DeletePluginAct
 func (p *PluginAction) DeletePluginAct(pluginID, tenantID string) *util.APIHandleError {
-	//TODO: 事务
 	tx := db.GetManager().Begin()
 	err := db.GetManager().TenantPluginDaoTransactions(tx).DeletePluginByID(pluginID, tenantID)
 	if err != nil {
@@ -111,7 +108,7 @@ func (p *PluginAction) DeletePluginAct(pluginID, tenantID string) *util.APIHandl
 	return nil
 }
 
-//GetPlugins 获取当前租户下所有的plugins
+//GetPlugins get all plugins by tenantID
 func (p *PluginAction) GetPlugins(tenantID string) ([]*dbmodel.TenantPlugin, *util.APIHandleError) {
 	plugins, err := db.GetManager().TenantPluginDao().GetPluginsByTenantID(tenantID)
 	if err != nil {

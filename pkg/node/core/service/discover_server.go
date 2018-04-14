@@ -174,22 +174,8 @@ func (d *DiscoverAction) upstreamClusters(serviceAlias, namespace string, depend
 		for _, service := range services.Items {
 			inner, ok := service.Labels["service_type"]
 			port := service.Spec.Ports[0]
-			//originPort := service.Labels["origin_port"]
-			options := destService.Options
 			if !ok || inner != "inner" {
 				continue
-			}
-			circuits := d.ToolsGetRouterItem(destServiceAlias, node_model.LIMITS, options).(int)
-			maxRequests := d.ToolsGetRouterItem(destServiceAlias, node_model.MaxRequests, options).(int)
-			maxRetries := d.ToolsGetRouterItem(destServiceAlias, node_model.MaxRetries, options).(int)
-			maxPendingRequests := d.ToolsGetRouterItem(destServiceAlias, node_model.MaxPendingRequests, options).(int)
-			cb := &envoyv1.CircuitBreaker{
-				Default: envoyv1.DefaultCBPriority{
-					MaxConnections:     circuits,
-					MaxPendingRequests: maxPendingRequests,
-					MaxRequests:        maxRequests,
-					MaxRetries:         maxRetries,
-				},
 			}
 			pcds := &envoyv1.Cluster{
 				Name:             fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port),
@@ -197,11 +183,40 @@ func (d *DiscoverAction) upstreamClusters(serviceAlias, namespace string, depend
 				ConnectTimeoutMs: 250,
 				LbType:           "round_robin",
 				ServiceName:      fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port),
-				CircuitBreaker:   cb,
 			}
 			cdsClusters = append(cdsClusters, pcds)
 			continue
 		}
+	}
+	return
+}
+
+//downstreamClusters handle app self cluster
+// handle kubernetes inner service
+func (d *DiscoverAction) downstreamClusters(serviceAlias, namespace string, ports []*api_model.BasePort) (cdsClusters envoyv1.Clusters, err *util.APIHandleError) {
+	for _, port := range ports {
+		maxConnection := d.ToolsGetRouterItem("", node_model.MaxConnections, port.Options).(int)
+		maxRequests := d.ToolsGetRouterItem("", node_model.MaxRequests, port.Options).(int)
+		maxRetries := d.ToolsGetRouterItem("", node_model.MaxActiveRetries, port.Options).(int)
+		maxPendingRequests := d.ToolsGetRouterItem("", node_model.MaxPendingRequests, port.Options).(int)
+		cb := &envoyv1.CircuitBreaker{
+			Default: envoyv1.DefaultCBPriority{
+				MaxConnections:     maxConnection,
+				MaxPendingRequests: maxPendingRequests,
+				MaxRequests:        maxRequests,
+				MaxRetries:         maxRetries,
+			},
+		}
+		pcds := &envoyv1.Cluster{
+			Name:             fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
+			Type:             "static",
+			ConnectTimeoutMs: 250,
+			LbType:           "round_robin",
+			Hosts:            []envoyv1.Host{envoyv1.Host{URL: fmt.Sprintf("127.0.0.1:%d", port.Port)}},
+			CircuitBreaker:   cb,
+		}
+		cdsClusters = append(cdsClusters, pcds)
+		continue
 	}
 	return
 }
@@ -230,6 +245,13 @@ func (d *DiscoverAction) DiscoverListeners(
 	}
 	if resources.BaseServices != nil && len(resources.BaseServices) > 0 {
 		listeners, err := d.upstreamListener(serviceAlias, namespace, resources.BaseServices)
+		if err != nil {
+			return nil, err
+		}
+		lds.Listeners.Append(listeners)
+	}
+	if resources.BasePorts != nil && len(resources.BasePorts) > 0 {
+		listeners, err := d.downstreamListener(serviceAlias, namespace, resources.BasePorts)
 		if err != nil {
 			return nil, err
 		}
@@ -267,7 +289,7 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 			clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
 			if _, ok := portMap[port]; !ok {
 				if v, ok := destService.Options["LISTEN"]; !ok || v == "true" {
-					plds := envoyv1.CreateTCPCommonListener(clusterName, port)
+					plds := envoyv1.CreateTCPCommonListener(clusterName, fmt.Sprintf("tcp:127.0.0.1:%d", port))
 					ldsL = append(ldsL, plds)
 					portMap[port] = 1
 				}
@@ -310,6 +332,22 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 		newVHL := envoyv1.UniqVirtualHost(vhL)
 		plds := envoyv1.CreateHTTPCommonListener(fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias), newVHL...)
 		ldsL = append(ldsL, plds)
+	}
+	return ldsL, nil
+}
+
+//downstreamListener handle app self port listener
+func (d *DiscoverAction) downstreamListener(serviceAlias, namespace string, ports []*api_model.BasePort) (envoyv1.Listeners, *util.APIHandleError) {
+	var ldsL envoyv1.Listeners
+	var portMap = make(map[int32]int, 0)
+	for _, p := range ports {
+		port := int32(p.Port)
+		clusterName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
+		if _, ok := portMap[port]; !ok {
+			plds := envoyv1.CreateTCPCommonListener(clusterName, fmt.Sprintf("tcp://0.0.0.0:%d", port))
+			ldsL = append(ldsL, plds)
+			portMap[port] = 1
+		}
 	}
 	return ldsL, nil
 }
@@ -436,15 +474,12 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 			return prefix
 		}
 		return "/"
-	case node_model.LIMITS:
-		if circuit, ok := sr[node_model.LIMITS]; ok {
+	case node_model.MaxConnections:
+		if circuit, ok := sr[node_model.MaxConnections]; ok {
 			cc, err := strconv.Atoi(circuit.(string))
 			if err != nil {
 				logrus.Errorf("strcon circuit error")
 				return 1024
-			}
-			if cc == 10250 {
-				return 0
 			}
 			return cc
 		}
@@ -456,9 +491,6 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 				logrus.Errorf("strcon max request error")
 				return 1024
 			}
-			if mrt == 10250 {
-				return 0
-			}
 			return mrt
 		}
 		return 1024
@@ -469,14 +501,11 @@ func (d *DiscoverAction) ToolsGetRouterItem(
 				logrus.Errorf("strcon max pending request error")
 				return 1024
 			}
-			if mpr == 10250 {
-				return 0
-			}
 			return mpr
 		}
 		return 1024
-	case node_model.MaxRetries:
-		if maxRetries, ok := sr[node_model.MaxRetries]; ok {
+	case node_model.MaxActiveRetries:
+		if maxRetries, ok := sr[node_model.MaxActiveRetries]; ok {
 			mxr, err := strconv.Atoi(maxRetries.(string))
 			if err != nil {
 				logrus.Errorf("strcon max retry error")
