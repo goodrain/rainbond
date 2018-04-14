@@ -932,10 +932,10 @@ type CircuitBreaker struct {
 
 // DefaultCBPriority defines the circuit breaker for default cluster priority
 type DefaultCBPriority struct {
-	MaxConnections     int `json:"max_connections,omitempty"`
-	MaxPendingRequests int `json:"max_pending_requests,omitempty"`
-	MaxRequests        int `json:"max_requests,omitempty"`
-	MaxRetries         int `json:"max_retries,omitempty"`
+	MaxConnections     int `json:"max_connections"`
+	MaxPendingRequests int `json:"max_pending_requests"`
+	MaxRequests        int `json:"max_requests"`
+	MaxRetries         int `json:"max_retries"`
 }
 
 // OutlierDetection definition
