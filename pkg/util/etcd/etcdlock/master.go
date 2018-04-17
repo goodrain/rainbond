@@ -133,6 +133,7 @@ func (m *masterLock) campaign() error {
 	if err := m.election.Campaign(ctx, m.prop); err != nil {
 		return err
 	}
+slect:
 	for {
 		select {
 		case res := <-m.election.Observe(ctx):
@@ -140,10 +141,16 @@ func (m *masterLock) campaign() error {
 				if string(res.Kvs[0].Value) == m.prop {
 					logrus.Infof("current node is be elected master")
 					m.eventchan <- MasterEvent{Type: MasterAdded, Master: string(res.Kvs[0].Value)}
+					break slect
 				} else {
 					logrus.Infof("Current node is not master node, master is %s", string(res.Kvs[0].Value))
 				}
 			}
+		}
+	}
+	// if select master
+	for {
+		select {
 		case <-m.ctx.Done():
 			return m.resign()
 		case <-m.session.Done():
