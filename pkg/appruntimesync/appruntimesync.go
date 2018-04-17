@@ -107,6 +107,7 @@ func (a *AppRuntimeSync) selectMaster(errchan chan error) {
 
 //Stop stop app runtime sync server
 func (a *AppRuntimeSync) Stop() error {
+	a.cancel()
 	a.srss.Stop()
 	if a.master != nil {
 		a.master.Stop()
@@ -132,8 +133,11 @@ func (a *AppRuntimeSync) registServer() error {
 
 //CreateAppRuntimeSync create app runtime sync model
 func CreateAppRuntimeSync(conf option.Config) *AppRuntimeSync {
+	ctx, cancel := context.WithCancel(context.Background())
 	ars := &AppRuntimeSync{
 		conf:   conf,
+		ctx:    ctx,
+		cancel: cancel,
 		server: grpc.NewServer(),
 		srss:   server.NewAppRuntimeSyncServer(conf),
 		hostIP: conf.HostIP,
