@@ -116,7 +116,9 @@ func Run(s *option.Worker) error {
 	case <-term:
 		logrus.Warn("Received SIGTERM, exiting gracefully...")
 	case err := <-errChan:
-		logrus.Errorf("Received a error %s, exiting gracefully...", err.Error())
+		if err != nil {
+			logrus.Errorf("Received a error %s, exiting gracefully...", err.Error())
+		}
 	}
 	logrus.Info("See you next time!")
 	return nil

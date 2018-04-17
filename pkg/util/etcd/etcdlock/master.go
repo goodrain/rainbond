@@ -49,6 +49,7 @@ const (
 type MasterEvent struct {
 	Type   MasterEventType // event type
 	Master string          // identity of the lock holder
+	Error  error
 }
 
 //MasterInterface Interface used by the etcd master lock clients.
@@ -132,7 +133,6 @@ func (m *masterLock) campaign() error {
 	if err := m.election.Campaign(ctx, m.prop); err != nil {
 		return err
 	}
-elected:
 	for {
 		select {
 		case res := <-m.election.Observe(ctx):
@@ -140,7 +140,6 @@ elected:
 				if string(res.Kvs[0].Value) == m.prop {
 					logrus.Infof("current node is be elected master")
 					m.eventchan <- MasterEvent{Type: MasterAdded, Master: string(res.Kvs[0].Value)}
-					break elected
 				} else {
 					logrus.Infof("Current node is not master node, master is %s", string(res.Kvs[0].Value))
 				}
@@ -148,11 +147,10 @@ elected:
 		case <-m.ctx.Done():
 			return m.resign()
 		case <-m.session.Done():
-			m.eventchan <- MasterEvent{Type: MasterError, Master: ""}
+			m.eventchan <- MasterEvent{Type: MasterError, Error: errors.New("elect: session expired")}
 			return errors.New("elect: session expired")
 		}
 	}
-	return nil
 }
 func (m *masterLock) resign() error {
 	ctx, cancel := context.WithCancel(m.ctx)

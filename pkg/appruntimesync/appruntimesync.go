@@ -98,7 +98,10 @@ func (a *AppRuntimeSync) selectMaster(errchan chan error) {
 				return
 			}
 			if event.Type == etcdlock.MasterError {
-				errchan <- err
+				if event.Error.Error() == "elect: session expired" {
+					//TODO:if etcd error. worker restart
+				}
+				errchan <- event.Error
 				return
 			}
 		}
