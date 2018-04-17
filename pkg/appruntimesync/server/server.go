@@ -59,7 +59,7 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 	logrus.Info("Kube client api create success.")
 	statusManager := status.NewManager(ctx, clientset)
 	stopChan := make(chan struct{})
-	podCache := pod.NewCacheManager(clientset, stopChan)
+	podCache := pod.NewCacheManager(clientset)
 	arss := &AppRuntimeSyncServer{
 		c:         conf,
 		Ctx:       ctx,
@@ -127,6 +127,7 @@ func (a *AppRuntimeSyncServer) Start() error {
 	if err := a.StatusManager.Start(); err != nil {
 		return err
 	}
+	logrus.Info("k8s source watching started...")
 	go source.NewSourceAPI(a.ClientSet.Core().RESTClient(),
 		a.ClientSet.AppsV1beta1().RESTClient(),
 		15*time.Minute,
@@ -135,7 +136,7 @@ func (a *AppRuntimeSyncServer) Start() error {
 		a.StatusManager.StatefulSetUpdateChan,
 		a.stopChan,
 	)
-	logrus.Info("k8s source watching started...")
+	a.podCache.Start()
 	logrus.Info("app runtime sync server started...")
 	return nil
 }
@@ -144,4 +145,5 @@ func (a *AppRuntimeSyncServer) Start() error {
 func (a *AppRuntimeSyncServer) Stop() {
 	a.Cancel()
 	close(a.stopChan)
+	a.podCache.Stop()
 }

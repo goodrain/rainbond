@@ -63,7 +63,7 @@ func Run(s *option.Worker) error {
 
 	//step 2 : create and start app runtime module
 	ars := appruntimesync.CreateAppRuntimeSync(s.Config)
-	ars.Start(errChan)
+	go ars.Start(errChan)
 	defer ars.Stop()
 
 	ctx, cancel := context.WithCancel(context.Background())

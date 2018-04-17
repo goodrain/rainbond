@@ -61,44 +61,46 @@ func (a *AppRuntimeSync) Start(errchan chan error) {
 		}
 		a.hostIP = ip.String()
 	}
-	go a.start(errchan)
-}
-func (a *AppRuntimeSync) start(errchan chan error) {
 	for {
-		master, err := etcdlock.CreateMasterLock(a.conf.EtcdEndPoints, "/rainbond/workermaster", fmt.Sprintf("%s:%d", a.hostIP, 6535), 10)
-		if err != nil {
-			errchan <- err
-			return
-		}
-		a.master = master
-		master.Start()
-	loop:
-		for {
-			select {
-			case event := <-master.EventsChan():
-				if event.Type == etcdlock.MasterAdded {
-					a.srss.Start()
-					go a.startAppRuntimeSync()
-					a.registServer()
-				}
-				if event.Type == etcdlock.MasterDeleted {
-					errchan <- fmt.Errorf("worker node %s exit ", fmt.Sprintf("%s:%d", a.hostIP, 6535))
-					return
-				}
-				if event.Type == etcdlock.MasterError {
-					a.master.Stop()
-					if a.keepalive != nil {
-						a.keepalive.Stop()
-						a.keepalive = nil
-					}
-					break loop
-				}
-			}
-		}
+		//master node select
+		a.selectMaster(errchan)
 		select {
 		case <-a.ctx.Done():
 			return
 		default:
+		}
+	}
+}
+func (a *AppRuntimeSync) selectMaster(errchan chan error) {
+	master, err := etcdlock.CreateMasterLock(a.conf.EtcdEndPoints, "/rainbond/workermaster", fmt.Sprintf("%s:%d", a.hostIP, 6535), 10)
+	if err != nil {
+		errchan <- err
+		return
+	}
+	a.master = master
+	master.Start()
+	for {
+		select {
+		case event := <-master.EventsChan():
+			if event.Type == etcdlock.MasterAdded {
+				if err := a.srss.Start(); err != nil {
+					errchan <- err
+					return
+				}
+				go a.startAppRuntimeSync()
+				if err := a.registServer(); err != nil {
+					errchan <- err
+					return
+				}
+			}
+			if event.Type == etcdlock.MasterDeleted {
+				errchan <- fmt.Errorf("master node delete")
+				return
+			}
+			if event.Type == etcdlock.MasterError {
+				errchan <- err
+				return
+			}
 		}
 	}
 }

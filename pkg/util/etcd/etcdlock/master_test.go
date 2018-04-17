@@ -50,6 +50,7 @@ func TestMasterLock(t *testing.T) {
 			}
 		case event := <-master2.EventsChan():
 			logrus.Info(event, time.Now())
+			master2.Stop()
 			if event.Type == MasterDeleted {
 				logrus.Info("delete")
 				return
