@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sync"
 
 	"github.com/goodrain/rainbond/pkg/util"
 
@@ -49,6 +50,7 @@ type AppRuntimeSync struct {
 	master    etcdlock.MasterInterface
 	hostIP    string
 	masterRun bool
+	once      sync.Once
 }
 
 //Start start if have master right
@@ -65,7 +67,7 @@ func (a *AppRuntimeSync) Start(errchan chan error) {
 	util.Exec(a.ctx, func() error {
 		a.selectMaster(errchan)
 		return nil
-	}, 0)
+	}, 1)
 }
 func (a *AppRuntimeSync) selectMaster(errchan chan error) {
 	master, err := etcdlock.CreateMasterLock(a.conf.EtcdEndPoints, "/rainbond/workermaster", fmt.Sprintf("%s:%d", a.hostIP, 6535), 10)
@@ -113,14 +115,16 @@ func (a *AppRuntimeSync) selectMaster(errchan chan error) {
 
 //Stop stop app runtime sync server
 func (a *AppRuntimeSync) Stop() error {
-	a.cancel()
-	a.srss.Stop()
-	if a.master != nil {
-		a.master.Stop()
-	}
-	if a.keepalive != nil {
-		a.keepalive.Stop()
-	}
+	a.once.Do(func() {
+		a.cancel()
+		a.srss.Stop()
+		if a.master != nil {
+			a.master.Stop()
+		}
+		if a.keepalive != nil {
+			a.keepalive.Stop()
+		}
+	})
 	return nil
 }
 

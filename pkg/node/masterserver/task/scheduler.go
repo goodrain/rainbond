@@ -30,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/core/config"
 	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
+	"github.com/goodrain/rainbond/pkg/util"
 )
 
 //Scheduler 调度器
@@ -221,13 +222,14 @@ func (t *TaskEngine) loadAndWatchJobs() {
 		}
 	}
 	logrus.Infof("load exist job success,count %d", len(t.jobs))
-	go func() {
-		ch := store.DefalutClient.WatchByCtx(t.ctx, t.config.JobPath, client.WithPrefix())
+	go util.Exec(t.ctx, func() error {
+		ctx, cancel := context.WithCancel(t.ctx)
+		defer cancel()
+		ch := store.DefalutClient.WatchByCtx(ctx, t.config.JobPath, client.WithPrefix())
 		for event := range ch {
 			if err := event.Err(); err != nil {
 				logrus.Error("watch job error,", err.Error())
-				time.Sleep(time.Second * 3)
-				continue
+				return nil
 			}
 			for _, ev := range event.Events {
 				switch {
@@ -243,7 +245,8 @@ func (t *TaskEngine) loadAndWatchJobs() {
 				}
 			}
 		}
-	}()
+		return nil
+	}, 3)
 }
 
 func (t *TaskEngine) andOrUpdateJob(jb *job.Job) {

@@ -178,7 +178,7 @@ func (n *NodeCluster) GetNode(id string) *model.HostNode {
 }
 
 func (n *NodeCluster) loadAndWatchNodes() error {
-	//加载节点信息
+	//load rainbonde node info
 	noderes, err := n.client.Get(option.Config.NodePath, client.WithPrefix())
 	if err != nil {
 		return fmt.Errorf("load cluster nodes error:%s", err.Error())
@@ -188,7 +188,7 @@ func (n *NodeCluster) loadAndWatchNodes() error {
 			n.CacheNode(node)
 		}
 	}
-	//加载rainbond节点在线信息
+	//load rainbond node online info
 	onlineres, err := n.client.Get(option.Config.OnlineNodePath, client.WithPrefix())
 	if err != nil {
 		return fmt.Errorf("load cluster nodes error:%s", err.Error())
@@ -252,7 +252,7 @@ func (n *NodeCluster) loadAndWatchNodes() error {
 				}
 			}
 		}
-	}, 0)
+	}, 1)
 	return nil
 }
 
