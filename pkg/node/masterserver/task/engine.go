@@ -219,21 +219,16 @@ func (t *TaskEngine) loadAndWatchTasks() error {
 	}
 	go func() {
 		ch := store.DefalutClient.WatchByCtx(t.ctx, "/rainbond/store/tasks/", client.WithPrefix(), client.WithRev(res.Header.Revision))
-		for {
-			select {
-			case <-t.ctx.Done():
-				return
-			case event := <-ch:
-				for _, ev := range event.Events {
-					switch {
-					case ev.IsCreate(), ev.IsModify():
-						if task := t.getTaskFromKV(ev.Kv); task != nil {
-							t.CacheTask(task)
-						}
-					case ev.Type == client.EventTypeDelete:
-						if task := t.getTaskFromKey(string(ev.Kv.Key)); task != nil {
-							t.RemoveTask(task)
-						}
+		for event := range ch {
+			for _, ev := range event.Events {
+				switch {
+				case ev.IsCreate(), ev.IsModify():
+					if task := t.getTaskFromKV(ev.Kv); task != nil {
+						t.CacheTask(task)
+					}
+				case ev.Type == client.EventTypeDelete:
+					if task := t.getTaskFromKey(string(ev.Kv.Key)); task != nil {
+						t.RemoveTask(task)
 					}
 				}
 			}

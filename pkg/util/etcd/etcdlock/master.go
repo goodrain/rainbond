@@ -131,6 +131,7 @@ func (m *masterLock) campaign() error {
 	ctx, cancel := context.WithCancel(m.ctx)
 	defer cancel()
 	if err := m.election.Campaign(ctx, m.prop); err != nil {
+		m.eventchan <- MasterEvent{Type: MasterError, Error: err}
 		return err
 	}
 slect:

@@ -41,24 +41,19 @@ func (t *TaskEngine) startHandleJobRecord() {
 		}
 	}
 	ch := store.DefalutClient.WatchByCtx(t.ctx, t.config.ExecutionRecordPath, client.WithPrefix())
-	for {
-		select {
-		case <-t.ctx.Done():
-			return
-		case event := <-ch:
-			if err := event.Err(); err != nil {
-				logrus.Error("watch job recoder error,", err.Error())
-				time.Sleep(time.Second * 3)
-				continue
-			}
-			for _, ev := range event.Events {
-				switch {
-				case ev.IsCreate():
-					var er job.ExecutionRecord
-					if err := ffjson.Unmarshal(ev.Kv.Value, &er); err == nil {
-						if !er.IsHandle {
-							t.handleJobRecord(&er)
-						}
+	for event := range ch {
+		if err := event.Err(); err != nil {
+			logrus.Error("watch job recoder error,", err.Error())
+			time.Sleep(time.Second * 3)
+			continue
+		}
+		for _, ev := range event.Events {
+			switch {
+			case ev.IsCreate():
+				var er job.ExecutionRecord
+				if err := ffjson.Unmarshal(ev.Kv.Value, &er); err == nil {
+					if !er.IsHandle {
+						t.handleJobRecord(&er)
 					}
 				}
 			}

@@ -94,21 +94,17 @@ func (d *DataCenterConfig) Start() {
 	go func() {
 		logrus.Info("datacenter config listener start")
 		ch := store.DefalutClient.WatchByCtx(d.ctx, d.options.ConfigStoragePath+"/global", client.WithPrefix())
-		for {
-			select {
-			case <-d.ctx.Done():
-				return
-			case event := <-ch:
-				for _, e := range event.Events {
-					switch {
-					case e.IsCreate(), e.IsModify():
-						d.PutConfigKV(e.Kv)
-					case e.Type == client.EventTypeDelete:
-						d.DeleteConfig(util.GetIDFromKey(string(e.Kv.Key)))
-					}
+		for event := range ch {
+			for _, e := range event.Events {
+				switch {
+				case e.IsCreate(), e.IsModify():
+					d.PutConfigKV(e.Kv)
+				case e.Type == client.EventTypeDelete:
+					d.DeleteConfig(util.GetIDFromKey(string(e.Kv.Key)))
 				}
 			}
 		}
+		d.Stop()
 	}()
 }
 
