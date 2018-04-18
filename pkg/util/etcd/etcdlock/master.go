@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/Sirupsen/logrus"
 
@@ -48,6 +49,7 @@ const (
 type MasterEvent struct {
 	Type   MasterEventType // event type
 	Master string          // identity of the lock holder
+	Error  error
 }
 
 //MasterInterface Interface used by the etcd master lock clients.
@@ -78,6 +80,7 @@ type masterLock struct {
 	eventchan     chan MasterEvent
 	ttl           int64
 	leaseID       clientv3.LeaseID
+	once          sync.Once
 }
 
 //CreateMasterLock  create master lock
@@ -114,6 +117,7 @@ func CreateMasterLock(etcdEndpoints []string, election string, prop string, ttl 
 		etcdEndpoints: etcdEndpoints,
 		election:      e,
 		session:       s,
+		ttl:           ttl,
 		eventchan:     make(chan MasterEvent, 2),
 		leaseID:       lease.ID,
 	}
@@ -124,24 +128,40 @@ func CreateMasterLock(etcdEndpoints []string, election string, prop string, ttl 
 // it is elected, an error occurs, or the context is cancelled.
 func (m *masterLock) campaign() error {
 	logrus.Infof("start campaign master")
-	if err := m.election.Campaign(m.ctx, m.prop); err != nil {
+	ctx, cancel := context.WithCancel(m.ctx)
+	defer cancel()
+	if err := m.election.Campaign(ctx, m.prop); err != nil {
+		m.eventchan <- MasterEvent{Type: MasterError, Error: err}
 		return err
 	}
-	//elected
-	logrus.Infof("current node is be elected master")
-	select {
-	case res := <-m.election.Observe(m.ctx):
-		m.eventchan <- MasterEvent{Type: MasterAdded, Master: string(res.Kvs[0].Value)}
-	case <-m.ctx.Done():
-		return m.resign()
-	case <-m.session.Done():
-		m.eventchan <- MasterEvent{Type: MasterError, Master: ""}
-		return errors.New("elect: session expired")
+slect:
+	for {
+		select {
+		case res := <-m.election.Observe(ctx):
+			if len(res.Kvs) > 0 {
+				if string(res.Kvs[0].Value) == m.prop {
+					logrus.Infof("current node is be elected master")
+					m.eventchan <- MasterEvent{Type: MasterAdded, Master: string(res.Kvs[0].Value)}
+					break slect
+				} else {
+					logrus.Infof("Current node is not master node, master is %s", string(res.Kvs[0].Value))
+				}
+			}
+		}
 	}
-	return nil
+	// if select master
+	for {
+		select {
+		case <-m.ctx.Done():
+			return m.resign()
+		case <-m.session.Done():
+			m.eventchan <- MasterEvent{Type: MasterError, Error: errors.New("elect: session expired")}
+			return errors.New("elect: session expired")
+		}
+	}
 }
 func (m *masterLock) resign() error {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(m.ctx)
 	defer cancel()
 	return m.election.Resign(ctx)
 }
@@ -150,8 +170,10 @@ func (m *masterLock) Start() {
 }
 
 func (m *masterLock) Stop() {
-	m.cancel()
-	m.resign()
+	m.once.Do(func() {
+		m.cancel()
+		m.resign()
+	})
 }
 
 func (m *masterLock) EventsChan() <-chan MasterEvent {

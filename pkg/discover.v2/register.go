@@ -21,6 +21,7 @@ package discover
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -42,6 +43,7 @@ type KeepAlive struct {
 	Done         chan struct{}
 	etcdClient   *client.Client
 	gRPCResolver *etcdnaming.GRPCResolver
+	once         sync.Once
 }
 
 //CreateKeepAlive create keepalive for server
@@ -141,13 +143,15 @@ func (k *KeepAlive) reg() error {
 }
 
 //Stop 结束
-func (k *KeepAlive) Stop() error {
-	close(k.Done)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	if err := k.gRPCResolver.Update(ctx, k.etcdKey(), naming.Update{Op: naming.Delete, Addr: k.Endpoint}); err != nil {
-		return err
-	}
-	logrus.Infof("cancel %s server endpoint %s from etcd", k.ServerName, k.Endpoint)
-	return nil
+func (k *KeepAlive) Stop() {
+	k.once.Do(func() {
+		close(k.Done)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		if err := k.gRPCResolver.Update(ctx, k.etcdKey(), naming.Update{Op: naming.Delete, Addr: k.Endpoint}); err != nil {
+			logrus.Errorf("cancel %s server endpoint %s from etcd error %s", k.ServerName, k.Endpoint, err.Error())
+		} else {
+			logrus.Infof("cancel %s server endpoint %s from etcd", k.ServerName, k.Endpoint)
+		}
+	})
 }

@@ -456,7 +456,6 @@ func (z *zeus) updateRule(scheme string) error {
 		rules := CreateHTTPRule(rs)
 		err = z.put(z.getRuleURL(rules.Name()), rules.Bytes())
 	}
-
 	return err
 }
 
