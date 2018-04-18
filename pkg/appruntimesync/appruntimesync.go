@@ -48,6 +48,7 @@ type AppRuntimeSync struct {
 	keepalive *discover.KeepAlive
 	master    etcdlock.MasterInterface
 	hostIP    string
+	masterRun bool
 }
 
 //Start start if have master right
@@ -61,15 +62,10 @@ func (a *AppRuntimeSync) Start(errchan chan error) {
 		}
 		a.hostIP = ip.String()
 	}
-	for {
-		//master node select
+	util.Exec(a.ctx, func() error {
 		a.selectMaster(errchan)
-		select {
-		case <-a.ctx.Done():
-			return
-		default:
-		}
-	}
+		return nil
+	}, 0)
 }
 func (a *AppRuntimeSync) selectMaster(errchan chan error) {
 	master, err := etcdlock.CreateMasterLock(a.conf.EtcdEndPoints, "/rainbond/workermaster", fmt.Sprintf("%s:%d", a.hostIP, 6535), 10)
@@ -79,6 +75,7 @@ func (a *AppRuntimeSync) selectMaster(errchan chan error) {
 	}
 	a.master = master
 	master.Start()
+	defer master.Stop()
 	for {
 		select {
 		case event := <-master.EventsChan():
@@ -92,16 +89,22 @@ func (a *AppRuntimeSync) selectMaster(errchan chan error) {
 					errchan <- err
 					return
 				}
+				a.masterRun = true
 			}
 			if event.Type == etcdlock.MasterDeleted {
-				errchan <- fmt.Errorf("master node delete")
+				if a.masterRun {
+					errchan <- fmt.Errorf("master node delete")
+				}
 				return
 			}
 			if event.Type == etcdlock.MasterError {
 				if event.Error.Error() == "elect: session expired" {
 					//TODO:if etcd error. worker restart
 				}
-				errchan <- event.Error
+				//if this is master node, exit
+				if a.masterRun {
+					errchan <- event.Error
+				}
 				return
 			}
 		}

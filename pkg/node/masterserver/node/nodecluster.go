@@ -163,7 +163,7 @@ func (n *NodeCluster) GetNode(id string) *model.HostNode {
 			if node.Unschedulable {
 				node.Status = "unschedulable"
 			} else {
-				node.Status="running"
+				node.Status = "running"
 			}
 			if node.AvailableCPU == 0 {
 				node.AvailableCPU = node.NodeStatus.Allocatable.Cpu().Value()
@@ -202,14 +202,19 @@ func (n *NodeCluster) loadAndWatchNodes() error {
 			}
 		}
 	}
-	go func() {
-		ch := n.client.Watch(option.Config.NodePath, client.WithPrefix(), client.WithRev(noderes.Header.Revision))
-		onlineCh := n.client.Watch(option.Config.OnlineNodePath, client.WithPrefix(), client.WithRev(onlineres.Header.Revision))
+	go util.Exec(n.ctx, func() error {
+		ctx, cancel := context.WithCancel(n.ctx)
+		defer cancel()
+		ch := n.client.WatchByCtx(ctx, option.Config.NodePath, client.WithPrefix(), client.WithRev(noderes.Header.Revision))
+		onlineCh := n.client.WatchByCtx(ctx, option.Config.OnlineNodePath, client.WithPrefix(), client.WithRev(onlineres.Header.Revision))
 		for {
 			select {
 			case <-n.ctx.Done():
-				return
-			case event := <-ch:
+				return nil
+			case event, ok := <-ch:
+				if !ok {
+					return nil
+				}
 				for _, ev := range event.Events {
 					switch {
 					case ev.IsCreate(), ev.IsModify():
@@ -222,7 +227,10 @@ func (n *NodeCluster) loadAndWatchNodes() error {
 						}
 					}
 				}
-			case event := <-onlineCh:
+			case event, ok := <-onlineCh:
+				if !ok {
+					return nil
+				}
 				for _, ev := range event.Events {
 					switch {
 					case ev.IsCreate(), ev.IsModify():
@@ -244,7 +252,7 @@ func (n *NodeCluster) loadAndWatchNodes() error {
 				}
 			}
 		}
-	}()
+	}, 0)
 	return nil
 }
 
