@@ -1696,7 +1696,7 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 		return err
 	}
 	status := s.statusCli.GetStatus(serviceID)
-	if s.statusCli.IsClosedStatus(status) {
+	if !s.statusCli.IsClosedStatus(status) {
 		return fmt.Errorf("unclosed")
 	}
 	tx := db.GetManager().Begin()
