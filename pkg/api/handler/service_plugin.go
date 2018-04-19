@@ -261,7 +261,7 @@ func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.API
 }
 
 func (s *ServiceAction) upNormalEnvs(tx *gorm.DB, uve *api_model.SetVersionEnv) *util.APIHandleError {
-	err := db.GetManager().TenantPluginVersionENVDao().DeleteEnvByPluginID(uve.Body.ServiceID, uve.PluginID)
+	err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByPluginID(uve.Body.ServiceID, uve.PluginID)
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
 			return util.CreateAPIHandleErrorFromDBError("delete version env", err)
