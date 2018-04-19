@@ -20,3 +20,4 @@ package core
 
 import _ "github.com/goodrain/rainbond/pkg/entrance/plugin/nginx"
 import _ "github.com/goodrain/rainbond/pkg/entrance/plugin/zeus"
+import _ "github.com/goodrain/rainbond/pkg/entrance/plugin/openresty"
