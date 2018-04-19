@@ -1695,7 +1695,7 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	if err != nil {
 		return err
 	}
-	status := s.statusCli.GetStatus("serviceID")
+	status := s.statusCli.GetStatus(serviceID)
 	if s.statusCli.IsClosedStatus(status) {
 		return fmt.Errorf("unclosed")
 	}
