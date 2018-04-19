@@ -105,7 +105,7 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 		return nil, fmt.Errorf("create volume in pod template error :%v", err.Error())
 	}
 	//step3.0:构建initContainer
-	initContainers, plugincontainers, err := p.createPluginsContainer(envs)
+	initContainers, plugincontainers, err := p.createPluginsContainer(volumeMounts, envs)
 	if err != nil {
 		return nil, fmt.Errorf("create plugin container error. %v", err.Error())
 	}
@@ -297,7 +297,7 @@ func (p *PodTemplateSpecBuild) CreateUpstreamPluginMappingPort(
 
 func (p *PodTemplateSpecBuild) createContainer(volumeMounts []v1.VolumeMount, envs *[]v1.EnvVar) []v1.Container {
 	var containers []v1.Container
-	//构建容器名称,主容器必须为第一容器
+	//create app container
 	var containerName string
 	for _, e := range *envs {
 		if e.Name == "CONTAINERNAME" {
@@ -323,25 +323,6 @@ func (p *PodTemplateSpecBuild) createContainer(volumeMounts []v1.VolumeMount, en
 		Args:                   p.createArgs(*envs),
 	}
 	containers = append(containers, c1)
-
-	//构建日志收集容器
-	var LogMatch bool
-	for _, e := range *envs {
-		if e.Name == "LOG_MATCH" {
-			LogMatch = true
-			break
-		}
-	}
-	if LogMatch {
-		c3 := v1.Container{
-			Env:   *envs,
-			Name:  "extension-log-" + p.serviceID[len(p.serviceID)-20:],
-			Stdin: true,
-			Image: "goodrain.me/fluentd-auto:stdin",
-			TerminationMessagePath: "",
-		}
-		containers = append(containers, c3)
-	}
 	return containers
 }
 func (p *PodTemplateSpecBuild) createArgs(envs []v1.EnvVar) (args []string) {
@@ -791,7 +772,7 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 	return &envs, nil
 }
 
-func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]v1.Container, []v1.Container, error) {
+func (p *PodTemplateSpecBuild) createPluginsContainer(volumeMounts []v1.VolumeMount, mainEnvs *[]v1.EnvVar) ([]v1.Container, []v1.Container, error) {
 	var containers []v1.Container
 	var initContainers []v1.Container
 	if len(p.pluginsRelation) == 0 && !p.needProxy {
@@ -821,7 +802,8 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(mainEnvs *[]v1.EnvVar) ([]
 			Env:                    *envs,
 			Resources:              p.createPluginResources(pluginR.ContainerMemory, pluginR.ContainerCPU),
 			TerminationMessagePath: "",
-			Args: args,
+			Args:         args,
+			VolumeMounts: volumeMounts,
 		}
 		pluginModel, err := p.getPluginModel(pluginR.PluginID)
 		if err != nil {
