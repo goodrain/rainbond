@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sync"
 
 	"github.com/goodrain/rainbond/pkg/util"
 
@@ -48,6 +49,8 @@ type AppRuntimeSync struct {
 	keepalive *discover.KeepAlive
 	master    etcdlock.MasterInterface
 	hostIP    string
+	masterRun bool
+	once      sync.Once
 }
 
 //Start start if have master right
@@ -61,57 +64,67 @@ func (a *AppRuntimeSync) Start(errchan chan error) {
 		}
 		a.hostIP = ip.String()
 	}
-	go a.start(errchan)
+	util.Exec(a.ctx, func() error {
+		a.selectMaster(errchan)
+		return nil
+	}, 1)
 }
-func (a *AppRuntimeSync) start(errchan chan error) {
+func (a *AppRuntimeSync) selectMaster(errchan chan error) {
+	master, err := etcdlock.CreateMasterLock(a.conf.EtcdEndPoints, "/rainbond/workermaster", fmt.Sprintf("%s:%d", a.hostIP, 6535), 10)
+	if err != nil {
+		errchan <- err
+		return
+	}
+	a.master = master
+	master.Start()
+	defer master.Stop()
 	for {
-		master, err := etcdlock.CreateMasterLock(a.conf.EtcdEndPoints, "/rainbond/workermaster", fmt.Sprintf("%s:%d", a.hostIP, 6535), 10)
-		if err != nil {
-			errchan <- err
-			return
-		}
-		a.master = master
-		master.Start()
-	loop:
-		for {
-			select {
-			case event := <-master.EventsChan():
-				if event.Type == etcdlock.MasterAdded {
-					a.srss.Start()
-					go a.startAppRuntimeSync()
-					a.registServer()
-				}
-				if event.Type == etcdlock.MasterDeleted {
-					errchan <- fmt.Errorf("worker node %s exit ", fmt.Sprintf("%s:%d", a.hostIP, 6535))
+		select {
+		case event := <-master.EventsChan():
+			if event.Type == etcdlock.MasterAdded {
+				if err := a.srss.Start(); err != nil {
+					errchan <- err
 					return
 				}
-				if event.Type == etcdlock.MasterError {
-					a.master.Stop()
-					if a.keepalive != nil {
-						a.keepalive.Stop()
-						a.keepalive = nil
-					}
-					break loop
+				go a.startAppRuntimeSync()
+				if err := a.registServer(); err != nil {
+					errchan <- err
+					return
 				}
+				a.masterRun = true
 			}
-		}
-		select {
-		case <-a.ctx.Done():
-			return
-		default:
+			if event.Type == etcdlock.MasterDeleted {
+				if a.masterRun {
+					errchan <- fmt.Errorf("master node delete")
+				}
+				return
+			}
+			if event.Type == etcdlock.MasterError {
+				if event.Error.Error() == "elect: session expired" {
+					//TODO:if etcd error. worker restart
+				}
+				//if this is master node, exit
+				if a.masterRun {
+					errchan <- event.Error
+				}
+				return
+			}
 		}
 	}
 }
 
 //Stop stop app runtime sync server
 func (a *AppRuntimeSync) Stop() error {
-	a.srss.Stop()
-	if a.master != nil {
-		a.master.Stop()
-	}
-	if a.keepalive != nil {
-		a.keepalive.Stop()
-	}
+	a.once.Do(func() {
+		a.cancel()
+		a.srss.Stop()
+		if a.master != nil {
+			a.master.Stop()
+		}
+		if a.keepalive != nil {
+			a.keepalive.Stop()
+		}
+	})
 	return nil
 }
 
@@ -130,8 +143,11 @@ func (a *AppRuntimeSync) registServer() error {
 
 //CreateAppRuntimeSync create app runtime sync model
 func CreateAppRuntimeSync(conf option.Config) *AppRuntimeSync {
+	ctx, cancel := context.WithCancel(context.Background())
 	ars := &AppRuntimeSync{
 		conf:   conf,
+		ctx:    ctx,
+		cancel: cancel,
 		server: grpc.NewServer(),
 		srss:   server.NewAppRuntimeSyncServer(conf),
 		hostIP: conf.HostIP,

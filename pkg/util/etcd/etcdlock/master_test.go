@@ -42,14 +42,15 @@ func TestMasterLock(t *testing.T) {
 	for {
 		select {
 		case event := <-master1.EventsChan():
-			logrus.Info(event, time.Now())
-			master1.Stop()
+			logrus.Info("master1", event, time.Now())
+			//master1.Stop()
 			if event.Type == MasterDeleted {
 				logrus.Info("delete")
 				return
 			}
 		case event := <-master2.EventsChan():
-			logrus.Info(event, time.Now())
+			logrus.Info("master2", event, time.Now())
+			//master2.Stop()
 			if event.Type == MasterDeleted {
 				logrus.Info("delete")
 				return

@@ -63,7 +63,7 @@ func Run(s *option.Worker) error {
 
 	//step 2 : create and start app runtime module
 	ars := appruntimesync.CreateAppRuntimeSync(s.Config)
-	ars.Start(errChan)
+	go ars.Start(errChan)
 	defer ars.Stop()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -116,7 +116,9 @@ func Run(s *option.Worker) error {
 	case <-term:
 		logrus.Warn("Received SIGTERM, exiting gracefully...")
 	case err := <-errChan:
-		logrus.Errorf("Received a error %s, exiting gracefully...", err.Error())
+		if err != nil {
+			logrus.Errorf("Received a error %s, exiting gracefully...", err.Error())
+		}
 	}
 	logrus.Info("See you next time!")
 	return nil

@@ -582,8 +582,8 @@ func (m *manager) ExecRule(fun func(...*object.RuleObject) error, pools ...*obje
 	for i := 0; i < 3; i++ {
 		err = fun(pools...)
 		if err != nil {
+			logrus.Errorf("exec rule error %s", err)
 			m.pluginErrorSize++
-			time.Sleep(time.Millisecond * 10)
 		} else {
 			break
 		}

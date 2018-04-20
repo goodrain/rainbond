@@ -882,7 +882,7 @@ func (t *TenantStruct) AddNodeLabel(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("add node label failure, %v", err))
 		return
 	}
-	httputil.ReturnSuccess(r, w, 200)
+	httputil.ReturnSuccess(r, w, nil)
 }
 
 //DeleteNodeLabel DeleteLabel

@@ -41,7 +41,7 @@ Rainbond深度整合基于Kubernetes的容器管理、Service Mesh微服务架�
 
 ## Roadmap
 
-[>>3.5.1-Planning](https://github.com/goodrain/rainbond/projects/3)
+[>>3.6-Roadmap](https://github.com/goodrain/rainbond/projects/3)
 
 ## 参与贡献
 

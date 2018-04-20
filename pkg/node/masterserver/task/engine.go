@@ -28,6 +28,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/goodrain/rainbond/pkg/util"
+
 	"github.com/goodrain/rainbond/pkg/util/etcd/etcdlock"
 
 	"github.com/Sirupsen/logrus"
@@ -59,6 +61,7 @@ type TaskEngine struct {
 	down                chan struct{}
 	masterID            client.LeaseID
 	scheduler           *Scheduler
+	masterRun           bool
 }
 
 //CreateTaskEngine 创建task管理引擎
@@ -87,127 +90,57 @@ func (t *TaskEngine) Start(errchan chan error) error {
 		return err
 	}
 	t.LoadStaticTask()
-	go t.start(errchan)
+	go util.Exec(t.ctx, func() error {
+		t.start(errchan)
+		return nil
+	}, 1)
 	return nil
 }
 func (t *TaskEngine) start(errchan chan error) {
-	for {
-		master, err := etcdlock.CreateMasterLock(t.config.Etcd.Endpoints, "/rainbond/nodetaskscheduler", t.currentNode.HostName, 10)
-		if err != nil {
-			errchan <- err
-			return
-		}
-		master.Start()
-	loop:
-		for {
-			select {
-			case event := <-master.EventsChan():
-				if event.Type == etcdlock.MasterAdded {
-					logrus.Infof("Current node(%s) have task scheduler authority", t.currentNode.HostName)
-					go t.startScheduler()
-					go t.startHandleJobRecord()
-				}
-				if event.Type == etcdlock.MasterError {
-					t.deleteMaster()
-					t.stopScheduler()
-					t.stopHandleJobRecord()
-					master.Stop()
-					break loop
-				}
-			}
-		}
-	}
-}
-
-//deprecated
-func (t *TaskEngine) deleteMaster() error {
-	key := "/rainbond/task/scheduler/authority"
-	_, err := store.DefalutClient.Delete(key)
-	return err
-}
-
-//deprecated
-func (t *TaskEngine) haveMaster() (bool, error) {
-	key := "/rainbond/task/scheduler/authority"
-	lgr, err := store.DefalutClient.Grant(8)
+	master, err := etcdlock.CreateMasterLock(t.config.Etcd.Endpoints, "/rainbond/nodetaskscheduler", t.currentNode.HostName, 10)
 	if err != nil {
-		return false, err
+		errchan <- err
+		return
 	}
-	ctx, cancel := context.WithTimeout(t.ctx, time.Second*3)
-	resp, err := store.DefalutClient.Txn(ctx).
-		If(client.Compare(client.CreateRevision(key), "=", 0)).
-		Then(client.OpPut(key, t.currentNode.HostName, client.WithLease(lgr.ID))).
-		Commit()
-	cancel()
-	if err != nil {
-		return false, err
-	}
-	if !resp.Succeeded {
-		//判断是否为自己注册
-		res, err := store.DefalutClient.Get(key)
-		if err == nil && res != nil && len(res.Kvs) == 1 {
-			if string(res.Kvs[0].Value) == t.currentNode.HostName {
-				return true, nil
-			}
-		}
-		//监控变化
-		ctx, cancel := context.WithCancel(t.ctx)
-		defer cancel()
-		ch := store.DefalutClient.WatchByCtx(ctx, key)
-		for {
-			select {
-			case <-t.ctx.Done():
-				return false, nil
-			case events := <-ch:
-				for _, event := range events.Events {
-					//watch 到删除操作，返回去获取权限
-					if event.Type == client.EventTypeDelete {
-						logrus.Infof("get event that master offline,will strive for master node permissions.")
-						return false, nil
-					}
-				}
-			}
-		}
-	}
-	t.masterID = lgr.ID
-	return resp.Succeeded, nil
-}
-
-//deprecated
-func (t *TaskEngine) keepMaster(errchan chan struct{}) {
-	duration := time.Second * 3
-	timer := time.NewTimer(duration)
-keep:
+	master.Start()
+	defer master.Stop()
 	for {
 		select {
-		case <-timer.C:
-			if t.masterID > 0 {
-				for i := 0; i < 3; i++ {
-					_, err := store.DefalutClient.KeepAliveOnce(t.masterID)
-					if err == nil {
-						timer.Reset(duration)
-						continue keep
-					}
-					logrus.Warnf("lid[%x] keepAlive err: %s, will retry...", t.masterID, err.Error())
-					time.Sleep(time.Second * 1)
+		case event := <-master.EventsChan():
+			if event.Type == etcdlock.MasterAdded {
+				logrus.Infof("Current node(%s) have task scheduler authority", t.currentNode.HostName)
+				go t.startScheduler()
+				go t.startHandleJobRecord()
+				t.masterRun = true
+			}
+			if event.Type == etcdlock.MasterDeleted {
+				if t.masterRun {
+					errchan <- fmt.Errorf("master node delete")
 				}
-				logrus.Errorf("lid[%x] keepAlive err,master closed", t.masterID)
-				t.masterID = 0
-				errchan <- struct{}{}
+				return
+			}
+			if event.Type == etcdlock.MasterError {
+				if event.Error.Error() == "elect: session expired" {
+					//TODO:if etcd error. worker restart
+				}
+				//if this is master node, exit
+				if t.masterRun {
+					errchan <- event.Error
+				}
 				return
 			}
 		}
 	}
 }
 
-//Stop 启动
+//Stop task engine stop
 func (t *TaskEngine) Stop() {
 	t.cancel()
 }
 
 //watchTasks watchTasks
 func (t *TaskEngine) loadAndWatchTasks() error {
-	//加载节点信息
+	//load rainbond task info
 	res, err := store.DefalutClient.Get("/rainbond/store/tasks/", client.WithPrefix())
 	if err != nil {
 		return fmt.Errorf("load tasks error:%s", err.Error())
@@ -217,28 +150,26 @@ func (t *TaskEngine) loadAndWatchTasks() error {
 			t.CacheTask(task)
 		}
 	}
-	go func() {
-		ch := store.DefalutClient.WatchByCtx(t.ctx, "/rainbond/store/tasks/", client.WithPrefix(), client.WithRev(res.Header.Revision))
-		for {
-			select {
-			case <-t.ctx.Done():
-				return
-			case event := <-ch:
-				for _, ev := range event.Events {
-					switch {
-					case ev.IsCreate(), ev.IsModify():
-						if task := t.getTaskFromKV(ev.Kv); task != nil {
-							t.CacheTask(task)
-						}
-					case ev.Type == client.EventTypeDelete:
-						if task := t.getTaskFromKey(string(ev.Kv.Key)); task != nil {
-							t.RemoveTask(task)
-						}
+	go util.Exec(t.ctx, func() error {
+		ctx, cancel := context.WithCancel(t.ctx)
+		defer cancel()
+		ch := store.DefalutClient.WatchByCtx(ctx, "/rainbond/store/tasks/", client.WithPrefix(), client.WithRev(res.Header.Revision))
+		for event := range ch {
+			for _, ev := range event.Events {
+				switch {
+				case ev.IsCreate(), ev.IsModify():
+					if task := t.getTaskFromKV(ev.Kv); task != nil {
+						t.CacheTask(task)
+					}
+				case ev.Type == client.EventTypeDelete:
+					if task := t.getTaskFromKey(string(ev.Kv.Key)); task != nil {
+						t.RemoveTask(task)
 					}
 				}
 			}
 		}
-	}()
+		return nil
+	}, 1)
 	return nil
 }
 
