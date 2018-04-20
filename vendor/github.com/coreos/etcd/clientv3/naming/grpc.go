@@ -35,6 +35,7 @@ type GRPCResolver struct {
 	Client *etcd.Client
 }
 
+//Update Update
 func (gr *GRPCResolver) Update(ctx context.Context, target string, nm naming.Update, opts ...etcd.OpOption) (err error) {
 	switch nm.Op {
 	case naming.Add:
@@ -44,13 +45,16 @@ func (gr *GRPCResolver) Update(ctx context.Context, target string, nm naming.Upd
 		}
 		_, err = gr.Client.KV.Put(ctx, target+"/"+nm.Addr, string(v), opts...)
 	case naming.Delete:
-		_, err = gr.Client.Delete(ctx, target+"/"+nm.Addr, opts...)
+		if gr.Client != nil {
+			_, err = gr.Client.Delete(ctx, target+"/"+nm.Addr, opts...)
+		}
 	default:
 		return status.Error(codes.InvalidArgument, "naming: bad naming op")
 	}
 	return err
 }
 
+//Resolve Resolve
 func (gr *GRPCResolver) Resolve(target string) (naming.Watcher, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	w := &gRPCWatcher{c: gr.Client, target: target + "/", ctx: ctx, cancel: cancel}

@@ -1095,10 +1095,8 @@ func (t *ServiceLabelDaoImpl) GetTenantServiceTypeLabel(serviceID string) (*mode
 
 //DELTenantServiceLabelsByLabelvaluesAndServiceID DELTenantServiceLabelsByLabelvaluesAndServiceID
 func (t *ServiceLabelDaoImpl) DELTenantServiceLabelsByLabelvaluesAndServiceID(serviceID string, labelValues []string) error {
-	label := &model.TenantServiceLable{
-		ServiceID: serviceID,
-	}
-	if err := t.DB.Where("service_id=? and label_value=? and label_key in (?)", serviceID, "node_select", labelValues).Delete(label).Error; err != nil {
+	var label model.TenantServiceLable
+	if err := t.DB.Where("service_id=? and label_value=? and label_key in (?)", serviceID, model.LabelKeyNodeSelector, labelValues).Delete(&label).Error; err != nil {
 		return err
 	}
 	return nil

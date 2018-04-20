@@ -91,25 +91,23 @@ func CreateDataCenterConfig() *DataCenterConfig {
 
 //Start 启动，监听配置变化
 func (d *DataCenterConfig) Start() {
-	go func() {
+	go util.Exec(d.ctx, func() error {
+		ctx, cancel := context.WithCancel(d.ctx)
+		defer cancel()
 		logrus.Info("datacenter config listener start")
-		ch := store.DefalutClient.WatchByCtx(d.ctx, d.options.ConfigStoragePath+"/global", client.WithPrefix())
-		for {
-			select {
-			case <-d.ctx.Done():
-				return
-			case event := <-ch:
-				for _, e := range event.Events {
-					switch {
-					case e.IsCreate(), e.IsModify():
-						d.PutConfigKV(e.Kv)
-					case e.Type == client.EventTypeDelete:
-						d.DeleteConfig(util.GetIDFromKey(string(e.Kv.Key)))
-					}
+		ch := store.DefalutClient.WatchByCtx(ctx, d.options.ConfigStoragePath+"/global", client.WithPrefix())
+		for event := range ch {
+			for _, e := range event.Events {
+				switch {
+				case e.IsCreate(), e.IsModify():
+					d.PutConfigKV(e.Kv)
+				case e.Type == client.EventTypeDelete:
+					d.DeleteConfig(util.GetIDFromKey(string(e.Kv.Key)))
 				}
 			}
 		}
-	}()
+		return nil
+	}, 1)
 }
 
 //Stop 停止监听

@@ -19,6 +19,7 @@
 package task
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/node/api/model"
 	"github.com/goodrain/rainbond/pkg/node/core/job"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
+	"github.com/goodrain/rainbond/pkg/util"
 	"github.com/pquerna/ffjson/ffjson"
 )
 
@@ -40,16 +42,14 @@ func (t *TaskEngine) startHandleJobRecord() {
 			}
 		}
 	}
-	ch := store.DefalutClient.WatchByCtx(t.ctx, t.config.ExecutionRecordPath, client.WithPrefix())
-	for {
-		select {
-		case <-t.ctx.Done():
-			return
-		case event := <-ch:
+	util.Exec(t.ctx, func() error {
+		ctx, cancel := context.WithCancel(t.ctx)
+		defer cancel()
+		ch := store.DefalutClient.WatchByCtx(ctx, t.config.ExecutionRecordPath, client.WithPrefix())
+		for event := range ch {
 			if err := event.Err(); err != nil {
 				logrus.Error("watch job recoder error,", err.Error())
-				time.Sleep(time.Second * 3)
-				continue
+				return nil
 			}
 			for _, ev := range event.Events {
 				switch {
@@ -63,7 +63,8 @@ func (t *TaskEngine) startHandleJobRecord() {
 				}
 			}
 		}
-	}
+		return nil
+	}, 1)
 }
 
 //stopHandleJobRecord

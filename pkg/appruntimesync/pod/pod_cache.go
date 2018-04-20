@@ -46,13 +46,14 @@ import (
 
 //CacheManager pod cache manager
 type CacheManager struct {
-	caches      map[string]*v1.Pod
-	lock        sync.Mutex
-	kubeclient  *kubernetes.Clientset
-	stop        chan struct{}
-	cacheWatchs []*cacheWatch
-	oomInfos    map[string]*AbnormalInfo
-	errorInfos  map[string]*AbnormalInfo
+	caches       map[string]*v1.Pod
+	lock         sync.Mutex
+	kubeclient   *kubernetes.Clientset
+	stop         chan struct{}
+	cacheWatchs  []*cacheWatch
+	oomInfos     map[string]*AbnormalInfo
+	errorInfos   map[string]*AbnormalInfo
+	rcController cache.Controller
 }
 
 //AbnormalInfo pod Abnormal info
@@ -80,10 +81,10 @@ func (a AbnormalInfo) String() string {
 }
 
 //NewCacheManager create pod cache manager and start it
-func NewCacheManager(kubeclient *kubernetes.Clientset, stop chan struct{}) *CacheManager {
+func NewCacheManager(kubeclient *kubernetes.Clientset) *CacheManager {
 	m := &CacheManager{
 		kubeclient: kubeclient,
-		stop:       stop,
+		stop:       make(chan struct{}),
 		caches:     make(map[string]*v1.Pod),
 		oomInfos:   make(map[string]*AbnormalInfo),
 		errorInfos: make(map[string]*AbnormalInfo),
@@ -99,8 +100,19 @@ func NewCacheManager(kubeclient *kubernetes.Clientset, stop chan struct{}) *Cach
 			DeleteFunc: m.deleteCachePod(),
 		},
 	)
-	go rcController.Run(m.stop)
+	m.rcController = rcController
 	return m
+}
+
+//Start start watch pod event
+func (c *CacheManager) Start() {
+	logrus.Info("pod source watching started...")
+	go c.rcController.Run(c.stop)
+}
+
+//Stop stop
+func (c *CacheManager) Stop() {
+	close(c.stop)
 }
 
 func (c *CacheManager) addCachePod() func(obj interface{}) {

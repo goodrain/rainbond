@@ -198,7 +198,19 @@ func (a *AppRuntimeSyncClient) CheckStatus(serviceID string) {
 
 //GetNeedBillingStatus get need billing status
 func (a *AppRuntimeSyncClient) GetNeedBillingStatus() (map[string]string, error) {
-	return nil, nil
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	re, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.StatusRequest{})
+	if err != nil {
+		return nil, err
+	}
+	var res = make(map[string]string)
+	for k, v := range re.Status {
+		if !a.IsClosedStatus(v) {
+			res[k] = v
+		}
+	}
+	return res, nil
 }
 
 //IgnoreDelete IgnoreDelete

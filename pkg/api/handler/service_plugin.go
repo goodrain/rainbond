@@ -242,19 +242,26 @@ func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.API
 		}
 		if err := s.upComplexEnvs(uve.Body.TenantID, uve.ServiceAlias, uve.PluginID, uve.Body.ConfigEnvs.ComplexEnvs); err != nil {
 			if strings.Contains(err.Error(), "is not exist") {
+				tx.Rollback()
 				return util.CreateAPIHandleError(405, err)
 			}
+			tx.Rollback()
 			return util.CreateAPIHandleError(500, fmt.Errorf("update complex error, %v", err))
 		}
 	}
-	if len(uve.Body.ConfigEnvs.NormalEnvs) == 0 && uve.Body.ConfigEnvs.ComplexEnvs == nil {
-		return util.CreateAPIHandleError(200, fmt.Errorf("no envs need to be changed"))
+	if err := s.upNormalEnvs(tx, uve); err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleError(500, fmt.Errorf("update env config error, %v", err))
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleErrorFromDBError("commit set service plugin env", err)
 	}
 	return nil
 }
 
 func (s *ServiceAction) upNormalEnvs(tx *gorm.DB, uve *api_model.SetVersionEnv) *util.APIHandleError {
-	err := db.GetManager().TenantPluginVersionENVDao().DeleteEnvByPluginID(uve.Body.ServiceID, uve.PluginID)
+	err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByPluginID(uve.Body.ServiceID, uve.PluginID)
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
 			return util.CreateAPIHandleErrorFromDBError("delete version env", err)
