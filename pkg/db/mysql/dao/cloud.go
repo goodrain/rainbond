@@ -66,6 +66,15 @@ func (t *RegionUserInfoDaoImpl) GetTokenByEid(eid string) (*model.RegionUserInfo
 	return &rui, nil
 }
 
+//GetTokenByTokenID GetTokenByTokenID
+func (t *RegionUserInfoDaoImpl) GetTokenByTokenID(token string) (*model.RegionUserInfo, error) {
+	var rui model.RegionUserInfo
+	if err := t.DB.Where("token=?", token).Find(&rui).Error; err != nil {
+		return nil, err
+	}
+	return &rui, nil
+}
+
 //GetALLTokenInValidityPeriod GetALLTokenInValidityPeriod
 func (t *RegionUserInfoDaoImpl) GetALLTokenInValidityPeriod() ([]*model.RegionUserInfo, error) {
 	var ruis []*model.RegionUserInfo
