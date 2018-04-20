@@ -45,23 +45,19 @@ func (this *NginxUpstream) AddNode(node NginxNode) {
 	this.Servers = append(this.Servers, node)
 }
 
-type NginxHttpServer struct {
-	Name         string            `json:"name"`
-	Domain       string            `json:"domain"`
-	Port         int32             `json:"port"`
-	Path         string            `json:"path"`
-	Protocol     string            `json:"protocol"` // http and https only
-	Cert         string            `json:"cert"`
-	Key          string            `json:"key"`
-	Options      map[string]string `json:"options"`
-	Upstream     string            `json:"upstream"`
-	TransferHTTP bool              `json:"transferHTTP"`
-}
-
-type NginxStreamServer struct {
+type NginxServer struct {
 	Name     string            `json:"name"`
+	Domain   string            `json:"domain"`
 	Port     int32             `json:"port"`
+	Path     string            `json:"path"`
+	Protocol string            `json:"protocol"` // http and https only
+	Cert     string            `json:"cert"`
+	Key      string            `json:"key"`
 	Options  map[string]string `json:"options"`
 	Upstream string            `json:"upstream"`
-	Protocol string            `json:"protocol"` // tcp and udp only
+	ToHTTPS  bool              `json:"toHTTPS"`
+}
+
+type Options struct {
+	Protocol string	`json:"protocol"`	// http/https/tcp/udp
 }
