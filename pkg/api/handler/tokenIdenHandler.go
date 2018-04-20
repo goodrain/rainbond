@@ -121,6 +121,11 @@ func GetDefaultTokenMap() map[string]*dbmodel.RegionUserInfo {
 	return defaultTokenMap
 }
 
+//SetTokenCache SetTokenCache
+func SetTokenCache(info *dbmodel.RegionUserInfo) {
+	defaultTokenMap[info.Token] = info
+}
+
 //GetDefaultSourceURI GetDefaultSourceURI
 func GetDefaultSourceURI() map[string][]*dbmodel.RegionAPIClass {
 	return defaultSourceURI
