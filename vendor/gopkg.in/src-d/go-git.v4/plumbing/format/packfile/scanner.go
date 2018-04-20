@@ -64,8 +64,8 @@ func NewScanner(r io.Reader) *Scanner {
 	crc := crc32.NewIEEE()
 	return &Scanner{
 		r: &teeReader{
-			newByteReadSeeker(seeker),
-			crc,
+			reader: newByteReadSeeker(seeker),
+			w:      crc,
 		},
 		crc:        crc,
 		IsSeekable: ok,
@@ -400,7 +400,8 @@ type reader interface {
 
 type teeReader struct {
 	reader
-	w hash.Hash32
+	w   hash.Hash32
+	buf [1]byte
 }
 
 func (r *teeReader) Read(p []byte) (n int, err error) {
@@ -416,7 +417,8 @@ func (r *teeReader) Read(p []byte) (n int, err error) {
 func (r *teeReader) ReadByte() (b byte, err error) {
 	b, err = r.reader.ReadByte()
 	if err == nil {
-		_, err := r.w.Write([]byte{b})
+		r.buf[0] = b
+		_, err := r.w.Write(r.buf[:])
 		if err != nil {
 			return 0, err
 		}

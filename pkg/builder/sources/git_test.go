@@ -36,7 +36,7 @@ func TestGitClone(t *testing.T) {
 		Branch:        "master",
 	}
 	//logger := event.GetManager().GetLogger("system")
-	res, err := GitClone(csi, "/tmp/rainbonddoc", nil, 1)
+	res, err := GitClone(csi, "/tmp/rainbonddoc2", nil, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
