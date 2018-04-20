@@ -63,6 +63,9 @@ func ImagePull(dockerCli *client.Client, image string, opts types.ImagePullOptio
 	if err != nil {
 		logrus.Debugf("image name: %s readcloser error: %v", image, err.Error())
 		if strings.HasSuffix(err.Error(), "does not exist or no pull access") {
+			if logger != nil {
+				logger.Error(fmt.Sprintf("镜像：%s不存在或无权获取", image), map[string]string{"step": "pullimage"})
+			}
 			return nil, fmt.Errorf("Image(%s) does not exist or no pull access", image)
 		}
 		return nil, err
