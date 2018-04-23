@@ -64,11 +64,12 @@ func New(ctx plugin.Context) (plugin.Plugin, error) {
 	z.User = ctx.Option["user"]
 	z.Password = ctx.Option["password"]
 	v := ctx.Option["urls"]
-	if strings.Contains(v, ",") {
-		z.Endpoints = strings.Split(v, ",")
-	} else {
-		z.Endpoints = append(z.Endpoints, v)
+
+	for _, endpoint := range strings.Split(v, "-") {
+		logrus.Info("Add endpoint for zeus ", endpoint)
+		z.Endpoints = append(z.Endpoints, endpoint)
 	}
+
 	return z, nil
 }
 

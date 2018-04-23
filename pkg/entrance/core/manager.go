@@ -504,6 +504,7 @@ func (m *manager) Scrape(ch chan<- prometheus.Metric, namespace, exporter string
 	)
 	plugin, err := m.pluginManager.GetDefaultPlugin(m.storeManager)
 	if err != nil {
+		logrus.Error(err)
 		ch <- prometheus.MustNewConstMetric(pluginDesc, prometheus.GaugeValue, 0, plugin.GetName())
 	} else {
 		if ok := plugin.GetPluginStatus(); ok {
