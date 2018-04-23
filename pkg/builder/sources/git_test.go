@@ -21,6 +21,7 @@ package sources
 import (
 	"io"
 	"testing"
+	"time"
 
 	"github.com/goodrain/rainbond/pkg/event"
 )
@@ -31,16 +32,19 @@ func init() {
 	})
 }
 func TestGitClone(t *testing.T) {
+	start := time.Now()
 	csi := CodeSourceInfo{
 		RepositoryURL: "https://github.com/goodrain/rainbond-docs.git",
 		Branch:        "master",
 	}
 	//logger := event.GetManager().GetLogger("system")
-	res, err := GitClone(csi, "/tmp/rainbonddoc2", nil, 1)
+	res, err := GitClone(csi, "/tmp/rainbonddoc3", nil, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("%+v", res)
+	t.Logf("Take %d ms", time.Now().Unix()-start.Unix())
+	commit, err := GetLastCommit(res)
+	t.Logf("%+v %+v", commit, err)
 }
 
 func TestGitPull(t *testing.T) {
@@ -66,7 +70,7 @@ func TestGitPullOrClone(t *testing.T) {
 		Branch:        "publiccloud",
 	}
 	//logger := event.GetManager().GetLogger("system")
-	res, err := GitCloneOrPull(csi, "/tmp/goodrainweb", nil, 1)
+	res, err := GitCloneOrPull(csi, "/tmp/goodrainweb2", nil, 1)
 	if err != nil {
 		t.Fatal(err)
 	}

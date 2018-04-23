@@ -28,7 +28,6 @@ import (
 	"github.com/goodrain/rainbond/cmd/node/option"
 	api_model "github.com/goodrain/rainbond/pkg/api/model"
 	"github.com/goodrain/rainbond/pkg/api/util"
-	node_model "github.com/goodrain/rainbond/pkg/node/api/model"
 	envoyv1 "github.com/goodrain/rainbond/pkg/node/core/envoy/v1"
 	"github.com/goodrain/rainbond/pkg/node/core/k8s"
 	"github.com/goodrain/rainbond/pkg/node/core/store"
@@ -185,11 +184,13 @@ func (d *DiscoverAction) upstreamClusters(serviceAlias, namespace string, depend
 				continue
 			}
 			pcds := &envoyv1.Cluster{
-				Name:             fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port),
+				Name:             fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
 				Type:             "sds",
 				ConnectTimeoutMs: 250,
 				LbType:           "round_robin",
 				ServiceName:      fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port),
+				OutlierDetection: envoyv1.CreatOutlierDetection(destService.Options),
+				CircuitBreaker:   envoyv1.CreateCircuitBreaker(destService.Options),
 			}
 			cdsClusters = append(cdsClusters, pcds)
 			continue
@@ -202,18 +203,6 @@ func (d *DiscoverAction) upstreamClusters(serviceAlias, namespace string, depend
 //only local port
 func (d *DiscoverAction) downstreamClusters(serviceAlias, namespace string, ports []*api_model.BasePort) (cdsClusters envoyv1.Clusters, err *util.APIHandleError) {
 	for _, port := range ports {
-		maxConnection := d.ToolsGetRouterItem("", node_model.MaxConnections, port.Options).(int)
-		maxRequests := d.ToolsGetRouterItem("", node_model.MaxRequests, port.Options).(int)
-		maxRetries := d.ToolsGetRouterItem("", node_model.MaxActiveRetries, port.Options).(int)
-		maxPendingRequests := d.ToolsGetRouterItem("", node_model.MaxPendingRequests, port.Options).(int)
-		cb := &envoyv1.CircuitBreaker{
-			Default: envoyv1.DefaultCBPriority{
-				MaxConnections:     maxConnection,
-				MaxPendingRequests: maxPendingRequests,
-				MaxRequests:        maxRequests,
-				MaxRetries:         maxRetries,
-			},
-		}
 		localhost := fmt.Sprintf("tcp://127.0.0.1:%d", port.Port)
 		pcds := &envoyv1.Cluster{
 			Name:             fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
@@ -221,7 +210,7 @@ func (d *DiscoverAction) downstreamClusters(serviceAlias, namespace string, port
 			ConnectTimeoutMs: 250,
 			LbType:           "round_robin",
 			Hosts:            []envoyv1.Host{envoyv1.Host{URL: localhost}},
-			CircuitBreaker:   cb,
+			CircuitBreaker:   envoyv1.CreateCircuitBreaker(port.Options),
 		}
 		cdsClusters = append(cdsClusters, pcds)
 		continue
@@ -287,14 +276,13 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 			continue
 		}
 		for _, service := range services.Items {
-			serviceType, ok := service.Labels["service_type"]
-			if !ok || serviceType != "inner" {
-				if destServiceAlias != serviceAlias {
-					continue
-				}
+			inner, ok := service.Labels["service_type"]
+			if !ok || inner != "inner" {
+				continue
 			}
 			port := service.Spec.Ports[0].Port
-			clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
+			// Unique by listen port
+			clusterName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
 			if _, ok := portMap[port]; !ok {
 				if v, ok := destService.Options["LISTEN"]; !ok || v == "true" {
 					plds := envoyv1.CreateTCPCommonListener(clusterName, fmt.Sprintf("tcp://127.0.0.1:%d", port))
@@ -313,18 +301,18 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 					options := destService.Options
 					var prs envoyv1.HTTPRoute
 					prs.TimeoutMS = 0
-					prs.Prefix = d.ToolsGetRouterItem(destServiceAlias, node_model.PREFIX, options).(string)
+					prs.Prefix = envoyv1.GetOptionValues(envoyv1.KeyPrefix, options).(string)
 					wcn := &envoyv1.WeightedClusterEntry{
 						Name:   clusterName,
-						Weight: d.ToolsGetRouterItem(destServiceAlias, node_model.WEIGHT, options).(int),
+						Weight: envoyv1.GetOptionValues(envoyv1.KeyWeight, options).(int),
 					}
 					prs.WeightedClusters = &envoyv1.WeightedCluster{
 						Clusters: []*envoyv1.WeightedClusterEntry{wcn},
 					}
-					prs.Headers = d.ToolsGetRouterItem(destServiceAlias, node_model.HEADERS, options).([]envoyv1.Header)
+					prs.Headers = envoyv1.GetOptionValues(envoyv1.KeyHeaders, options).([]envoyv1.Header)
 					pvh := &envoyv1.VirtualHost{
 						Name:    fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port),
-						Domains: d.ToolsGetRouterItem(destServiceAlias, node_model.DOMAINS, options).([]string),
+						Domains: envoyv1.GetOptionValues(envoyv1.KeyDomains, options).([]string),
 						Routes:  []*envoyv1.HTTPRoute{&prs},
 					}
 					vhL = append(vhL, pvh)
@@ -370,51 +358,6 @@ func Duplicate(a interface{}) (ret []interface{}) {
 		ret = append(ret, va.Index(i).Interface())
 	}
 	return ret
-}
-
-//CheckSameDomainAndPrefix check there is same domain or prefix
-func (d *DiscoverAction) CheckSameDomainAndPrefix(resources *api_model.ResourceSpec) map[string]string {
-	baseServices := resources.BaseServices
-	domainL := make(map[string]string)
-	if len(baseServices) == 0 {
-		logrus.Debugf("has no base services resources")
-		return domainL
-	}
-	filterL := make(map[string]int)
-	for _, bs := range baseServices {
-		l := len(filterL)
-		domainName, _ := bs.Options[node_model.DOMAINS].(string)
-		filterL[domainName] = 0
-		if len(filterL) == l {
-			domainL[domainName] = "use"
-		}
-	}
-	for d := range domainL {
-		prefixM := make(map[string]int)
-		for _, bs := range baseServices {
-			domainName, _ := bs.Options[node_model.DOMAINS].(string)
-			if domainName == d {
-				prefix, _ := bs.Options[node_model.PREFIX].(string)
-				prefixM[prefix] = 0
-			}
-			// if strings.Contains(domainName, ","){
-			// 	mm := strings.Split(domainName, ",")
-			// 	for _, n := range mm {
-			// 		if n == d {
-			// 			prefix, _ := bs.Options[node_model.PREFIX].(string)
-			// 			prefixM[prefix] = 0
-			// 			continue
-			// 		}
-			// 	}
-			// }
-		}
-		if len(prefixM) == 1 {
-			domainL[d] = node_model.MODELWEIGHT
-		} else {
-			domainL[d] = node_model.MODELPREFIX
-		}
-	}
-	return domainL
 }
 
 //ToolsGetSourcesEnv rds
@@ -468,101 +411,6 @@ func (d *DiscoverAction) ToolsGetMainPodEnvs(namespace, serviceAlias string) (
 		}
 	}
 	return nil, util.CreateAPIHandleError(404, fmt.Errorf("have no envs for plugin"))
-}
-
-//ToolsBuildPieceLDS ToolsBuildPieceLDS
-func (d *DiscoverAction) ToolsBuildPieceLDS() {}
-
-//ToolsGetRouterItem ToolsGetRouterItem
-func (d *DiscoverAction) ToolsGetRouterItem(
-	destAlias, kind string, sr map[string]interface{}) interface{} {
-	switch kind {
-	case node_model.PREFIX:
-		if prefix, ok := sr[node_model.PREFIX]; ok {
-			return prefix
-		}
-		return "/"
-	case node_model.MaxConnections:
-		if circuit, ok := sr[node_model.MaxConnections]; ok {
-			cc, err := strconv.Atoi(circuit.(string))
-			if err != nil {
-				logrus.Errorf("strcon circuit error")
-				return 1024
-			}
-			return cc
-		}
-		return 1024
-	case node_model.MaxRequests:
-		if maxRequest, ok := sr[node_model.MaxRequests]; ok {
-			mrt, err := strconv.Atoi(maxRequest.(string))
-			if err != nil {
-				logrus.Errorf("strcon max request error")
-				return 1024
-			}
-			return mrt
-		}
-		return 1024
-	case node_model.MaxPendingRequests:
-		if maxPendingRequests, ok := sr[node_model.MaxPendingRequests]; ok {
-			mpr, err := strconv.Atoi(maxPendingRequests.(string))
-			if err != nil {
-				logrus.Errorf("strcon max pending request error")
-				return 1024
-			}
-			return mpr
-		}
-		return 1024
-	case node_model.MaxActiveRetries:
-		if maxRetries, ok := sr[node_model.MaxActiveRetries]; ok {
-			mxr, err := strconv.Atoi(maxRetries.(string))
-			if err != nil {
-				logrus.Errorf("strcon max retry error")
-				return 3
-			}
-			return mxr
-		}
-		return 3
-	case node_model.HEADERS:
-		var np []envoyv1.Header
-		if headers, ok := sr[node_model.HEADERS]; ok {
-			parents := strings.Split(headers.(string), ";")
-			for _, h := range parents {
-				headers := strings.Split(h, ":")
-				//has_header:no 默认
-				if len(headers) == 2 {
-					if headers[0] == "has_header" && headers[1] == "no" {
-						continue
-					}
-					ph := envoyv1.Header{
-						Name:  headers[0],
-						Value: headers[1],
-					}
-					np = append(np, ph)
-				}
-			}
-		}
-		return np
-	case node_model.DOMAINS:
-		if domain, ok := sr[node_model.DOMAINS]; ok {
-			if strings.Contains(domain.(string), ",") {
-				mm := strings.Split(domain.(string), ",")
-				return mm
-			}
-			return []string{domain.(string)}
-		}
-		return []string{destAlias}
-	case node_model.WEIGHT:
-		if weight, ok := sr[node_model.WEIGHT]; ok {
-			w, err := strconv.Atoi(weight.(string))
-			if err != nil {
-				return 100
-			}
-			return w
-		}
-		return 100
-	default:
-		return nil
-	}
 }
 
 //ToolsGetRainbondResources get plugin configs from etcd
