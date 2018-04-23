@@ -192,7 +192,7 @@ func (this *openresty) doEach(method string, url string, body interface{}) (e er
 		return errors.New(errMsg)
 	}
 
-	logrus.Info(method, " ", url)
+	logrus.Debug(method, " ", url)
 	return nil
 }
 
@@ -446,7 +446,7 @@ func (this *openresty) UpdateRule(rules ...*object.RuleObject) error {
 			key = pair.PrivateKey
 		}
 
-		openrestyRule := NginxHttpServer{
+		openrestyRule := NginxServer{
 			rule.Name,
 			rule.DomainName,
 			int32(port),
@@ -476,7 +476,12 @@ func (this *openresty) UpdateRule(rules ...*object.RuleObject) error {
 func (this *openresty) DeleteRule(rules ...*object.RuleObject) error {
 	var errs []error
 	for _, rule := range(rules) {
-		err := this.doEach(DELETE, this.urlServer(rule.Name+"?protocol=http"), nil)
+		protocol := "http"
+		if rule.HTTPS {
+			protocol = "https"
+		}
+
+		err := this.doEach(DELETE, this.urlServer(rule.Name), Options{protocol})
 
 		if err != nil {
 			errs = append(errs, err)
@@ -514,12 +519,16 @@ func (this *openresty) UpdateVirtualService(services ...*object.VirtualServiceOb
 			continue
 		}
 
-		openrestyRule := NginxStreamServer{
-			service.Name,
-			service.Port,
-			map[string]string{},
-			upstreamName,
-			service.Protocol,
+		if service.Protocol == "" {
+			service.Protocol = "tcp"
+		}
+
+		openrestyRule := NginxServer{
+			Name: service.Name,
+			Port: service.Port,
+			Options: map[string]string{},
+			Upstream: upstreamName,
+			Protocol: service.Protocol,
 		}
 
 		// build json data and request api
@@ -539,8 +548,12 @@ func (this *openresty) UpdateVirtualService(services ...*object.VirtualServiceOb
 func (this *openresty) DeleteVirtualService(services ...*object.VirtualServiceObject) error {
 	var errs []error
 	for _, service := range services {
-		// build json data and request api
-		err := this.doEach(DELETE, this.urlServer(service.Name)+"?protocol=tcp", nil)
+
+		if service.Protocol == "" {
+			service.Protocol = "tcp"
+		}
+
+		err := this.doEach(DELETE, this.urlServer(service.Name), Options{service.Protocol})
 		if err != nil {
 			errs = append(errs, err)
 			logrus.Error(err)
@@ -566,12 +579,37 @@ func (this *openresty) Stop() error {return nil}
 func (this *openresty) GetName() string {return "openresty"}
 
 func (this *openresty) GetPluginStatus() bool {
-	err := this.doEach(GET, "/health", nil)
-	if err != nil {
-		logrus.Error(err)
-		return false
+	health := true
+	method := GET
+
+	for _, endpoint := range this.getHealthEndpoints() {
+		request, err := http.NewRequest(method, endpoint.Addr + "/health", nil)
+		if err != nil {
+			health = false
+			logrus.Debug(method, fmt.Sprintf(" %s %s", endpoint.Addr, err.Error()))
+			continue
+		}
+
+		response, err := this.client.Do(request)
+		if err != nil {
+			health = false
+			logrus.Debug(method, fmt.Sprintf(" %s %s", endpoint.Addr, err.Error()))
+			continue
+		}
+
+		if response.StatusCode != HTTP_OK  {
+			health = false
+			b, err := ioutil.ReadAll(response.Body)
+			if err != nil {
+				logrus.Debug(method, fmt.Sprintf(" %s %s", endpoint.Addr, err.Error()))
+			} else {
+				logrus.Debug(method, fmt.Sprintf(" %s %s", endpoint.Addr, string(b)))
+			}
+			continue
+		}
 	}
-	return true
+
+	return health
 }
 
 //Check check openresty plugin optins
