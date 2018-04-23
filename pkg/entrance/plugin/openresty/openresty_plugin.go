@@ -660,7 +660,7 @@ func New(ctx plugin.Context) (plugin.Plugin, error) {
 		password: ctx.Option["password"],
 	}
 
-	for _, url := range strings.Split(ctx.Option["urls"], ",") {
+	for _, url := range strings.Split(ctx.Option["urls"], "-") {
 		logrus.Info("Add endpoint for openresty ", url)
 		plugin.endpoints = append(plugin.endpoints, NginxInstance{Addr: url, State:"health"})
 	}
