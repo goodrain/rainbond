@@ -299,13 +299,17 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 			}
 			port := service.Spec.Ports[0].Port
 			// Unique by listen port
-			clusterName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
-			if _, ok := portMap[port]; !ok {
-				if v, ok := destService.Options["LISTEN"]; !ok || v == "true" {
-					plds := envoyv1.CreateTCPCommonListener(clusterName, fmt.Sprintf("tcp://127.0.0.1:%d", port))
-					ldsL = append(ldsL, plds)
-					portMap[port] = 1
-				}
+			if index, ok := portMap[port]; !ok {
+				clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
+				plds := envoyv1.CreateTCPCommonListener(clusterName, fmt.Sprintf("tcp://127.0.0.1:%d", port))
+				ldsL = append(ldsL, plds)
+				portMap[port] = len(ldsL) - 1
+			} else if index != -1 {
+				clusterName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
+				plds := envoyv1.CreateTCPCommonListener(clusterName, fmt.Sprintf("tcp://127.0.0.1:%d", port))
+				ldsL[index] = plds
+				//only create one cluster for same port
+				portMap[port] = -1
 			}
 			portProtocol, ok := service.Labels["port_protocol"]
 			if !ok {
