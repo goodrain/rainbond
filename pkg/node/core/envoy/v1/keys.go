@@ -151,11 +151,11 @@ func GetOptionValues(kind string, sr map[string]interface{}) interface{} {
 		if in, ok := sr[KeyIntervalMS]; ok {
 			w, err := strconv.Atoi(in.(string))
 			if err != nil {
-				return 10000
+				return int64(10000)
 			}
-			return w
+			return int64(w)
 		}
-		return 10000
+		return int64(10000)
 	case KeyConsecutiveErrors:
 		if in, ok := sr[KeyConsecutiveErrors]; ok {
 			w, err := strconv.Atoi(in.(string))
@@ -169,11 +169,11 @@ func GetOptionValues(kind string, sr map[string]interface{}) interface{} {
 		if in, ok := sr[KeyBaseEjectionTimeMS]; ok {
 			w, err := strconv.Atoi(in.(string))
 			if err != nil {
-				return 30000
+				return int64(30000)
 			}
-			return w
+			return int64(w)
 		}
-		return 30000
+		return int64(30000)
 	case KeyMaxEjectionPercent:
 		if in, ok := sr[KeyMaxEjectionPercent]; ok {
 			w, err := strconv.Atoi(in.(string))
