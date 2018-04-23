@@ -167,6 +167,7 @@ func (d *DiscoverAction) DiscoverClusters(
 //upstreamClusters handle upstream app cluster
 // handle kubernetes inner service
 func (d *DiscoverAction) upstreamClusters(serviceAlias, namespace string, dependsServices []*api_model.BaseService) (cdsClusters envoyv1.Clusters, err *util.APIHandleError) {
+	var portMap = make(map[int32]int)
 	for _, destService := range dependsServices {
 		destServiceAlias := destService.DependServiceAlias
 		labelname := fmt.Sprintf("name=%sService", destServiceAlias)
@@ -184,7 +185,7 @@ func (d *DiscoverAction) upstreamClusters(serviceAlias, namespace string, depend
 				continue
 			}
 			pcds := &envoyv1.Cluster{
-				Name:             fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
+				Name:             fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port),
 				Type:             "sds",
 				ConnectTimeoutMs: 250,
 				LbType:           "round_robin",
@@ -193,6 +194,22 @@ func (d *DiscoverAction) upstreamClusters(serviceAlias, namespace string, depend
 				CircuitBreaker:   envoyv1.CreateCircuitBreaker(destService.Options),
 			}
 			cdsClusters = append(cdsClusters, pcds)
+			//create cluster base unique port
+			if count, ok := portMap[port.Port]; ok && count == 1 {
+				pcds := &envoyv1.Cluster{
+					Name:             fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
+					Type:             "sds",
+					ConnectTimeoutMs: 250,
+					LbType:           "round_robin",
+					ServiceName:      fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port),
+					OutlierDetection: envoyv1.CreatOutlierDetection(destService.Options),
+					CircuitBreaker:   envoyv1.CreateCircuitBreaker(destService.Options),
+				}
+				cdsClusters = append(cdsClusters, pcds)
+				portMap[port.Port] = 2
+			} else {
+				portMap[port.Port] = 1
+			}
 			continue
 		}
 	}
@@ -295,6 +312,7 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 				portProtocol = destService.Protocol
 			}
 			if portProtocol != "" {
+				clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
 				//TODO: support more protocol
 				switch portProtocol {
 				case "http", "https":
