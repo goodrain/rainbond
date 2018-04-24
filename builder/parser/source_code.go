@@ -216,7 +216,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		d.errappend(ErrorAndSolve(FatalError, "代码无法识别语言类型", "请参考文档查看平台语言支持规范"))
 		return d.errors
 	}
-	//判断代码������������范
+	//check code Specification
 	spec := code.CheckCodeSpecification(buildPath, lang)
 	if spec.Advice != nil {
 		for k, v := range spec.Advice {
@@ -240,7 +240,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	}
 	d.Runtime = code.CheckRuntime(buildPath, lang)
 	d.memory = getRecommendedMemory(lang)
-	d.Procfile = true
+	d.Procfile = code.CheckProcfile(buildPath, lang)
 	return d.errors
 }
 
@@ -332,9 +332,9 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 		Branchs:  d.GetBranchs(),
 		Memory:   d.memory,
 		Lang:     d.GetLang(),
-		Library:  true,
-		Procfile: true,
-		Runtime:  true,
+		Library:  d.Library,
+		Procfile: d.Procfile,
+		Runtime:  d.Runtime,
 	}
 	return []ServiceInfo{serviceInfo}
 }

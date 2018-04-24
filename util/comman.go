@@ -337,3 +337,12 @@ func RemoveSpaces(sources []string) (re []string) {
 	}
 	return
 }
+
+//CmdExec CmdExec
+func CmdExec(args string) (string, error) {
+	out, err := exec.Command("bash", "-c", args).Output()
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
