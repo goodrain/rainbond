@@ -162,6 +162,7 @@ loop:
 		ReplicationID:   creater.Reference.Name,
 		ReplicationType: strings.ToLower(creater.Reference.Kind),
 		PodName:         pod.Name,
+		PodIP:           pod.Status.PodIP,
 	}
 	dbPod.CreatedAt = time.Now()
 	if pod.Status.StartTime != nil && !pod.Status.StartTime.IsZero() {

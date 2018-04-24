@@ -66,6 +66,7 @@ type K8sPod struct {
 	ReplicationID   string `gorm:"column:rc_id;size:32"`
 	ReplicationType string `gorm:"column:rc_type;"`
 	PodName         string `gorm:"column:pod_name;size:60"`
+	PodIP           string `gorm:"column:pod_ip;size:32"`
 }
 
 //TableName 表名
