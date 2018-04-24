@@ -24,7 +24,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/goodrain/rainbond/pkg/node/utils"
+	"github.com/goodrain/rainbond/node/utils"
 	"github.com/prometheus/node_exporter/collector"
 
 	"github.com/Sirupsen/logrus"

@@ -23,20 +23,20 @@ import (
 	"path"
 	"syscall"
 
-	"github.com/goodrain/rainbond/pkg/discover"
-	"github.com/goodrain/rainbond/pkg/eventlog/cluster"
-	"github.com/goodrain/rainbond/pkg/eventlog/conf"
-	"github.com/goodrain/rainbond/pkg/eventlog/entry"
-	"github.com/goodrain/rainbond/pkg/eventlog/exit/web"
-	"github.com/goodrain/rainbond/pkg/eventlog/exit/webhook"
-	"github.com/goodrain/rainbond/pkg/eventlog/store"
+	"github.com/goodrain/rainbond/discover"
+	"github.com/goodrain/rainbond/eventlog/cluster"
+	"github.com/goodrain/rainbond/eventlog/conf"
+	"github.com/goodrain/rainbond/eventlog/entry"
+	"github.com/goodrain/rainbond/eventlog/exit/web"
+	"github.com/goodrain/rainbond/eventlog/exit/webhook"
+	"github.com/goodrain/rainbond/eventlog/store"
 
 	"os"
 
 	"fmt"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/pkg/eventlog/db"
+	"github.com/goodrain/rainbond/eventlog/db"
 	"github.com/spf13/pflag"
 )
 
