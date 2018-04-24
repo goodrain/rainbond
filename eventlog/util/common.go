@@ -33,7 +33,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/tidwall/gjson"
-	"github.com/twinj/uuid"
 )
 
 func Source(l *logrus.Entry) *logrus.Entry {
@@ -87,17 +86,12 @@ func ExternalIP() (net.IP, error) {
 }
 
 //GetHostID 获取机器ID
-func GetHostID() (string, error) {
-	_, err := os.Stat("/etc/goodrain/host_uuid.conf")
+func GetHostID(nodeIDFile string) (string, error) {
+	_, err := os.Stat(nodeIDFile)
 	if err != nil {
-		uid := uuid.NewV4().String()
-		err = ioutil.WriteFile("/etc/goodrain/host_uuid.conf", []byte("host_uuid="+uid), 0777)
-		if err != nil {
-			logrus.Error("Write host_uuid file error.", err.Error())
-		}
-		return uid, nil
+		return "", err
 	}
-	body, err := ioutil.ReadFile("/etc/goodrain/host_uuid.conf")
+	body, err := ioutil.ReadFile(nodeIDFile)
 	if err != nil {
 		return "", err
 	}
@@ -114,7 +108,7 @@ var rex *regexp.Regexp
 func Format(source map[string]gjson.Result) map[string]interface{} {
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Warnf("error deal with source msg %v",source)
+			logrus.Warnf("error deal with source msg %v", source)
 		}
 	}()
 	if rex == nil {

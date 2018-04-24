@@ -91,6 +91,7 @@ type DiscoverConf struct {
 	HomePath      string
 	DockerLogPort int
 	WebPort       int
+	NodeIDFile    string
 }
 
 type PubSubConf struct {

@@ -120,7 +120,7 @@ func (d *EtcdDiscoverManager) RegisteredInstance(host string, port int, stopRegi
 		instance.PubPort = port
 		instance.DockerLogPort = d.conf.DockerLogPort
 		instance.WebPort = d.conf.WebPort
-		hostID, err := util.GetHostID()
+		hostID, err := util.GetHostID(d.conf.NodeIDFile)
 		if err != nil {
 			d.log.Error("Read host id from file error.", err.Error())
 			hostID = uuid.NewV4().String()

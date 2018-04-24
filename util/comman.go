@@ -169,7 +169,7 @@ func CmdRunWithTimeout(cmd *exec.Cmd, timeout time.Duration) (bool, error) {
 //ID是节点的唯一标识，acp_node将把ID与机器信息的绑定关系维护于etcd中
 func ReadHostID(filePath string) (string, error) {
 	if filePath == "" {
-		filePath = "/etc/goodrain/host_uuid.conf"
+		filePath = "/opt/rainbond/etc/node/node_host_uuid.conf"
 	}
 	_, err := os.Stat(filePath)
 	if err != nil {

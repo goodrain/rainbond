@@ -109,6 +109,7 @@ func (s *LogServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&s.Conf.WebHook.ConsoleToken, "webhook.console.token", "", "console web api token")
 	fs.StringVar(&s.Conf.Entry.NewMonitorMessageServerConf.ListenerHost, "monitor.udp.host", "0.0.0.0", "receive new monitor udp server host")
 	fs.IntVar(&s.Conf.Entry.NewMonitorMessageServerConf.ListenerPort, "monitor.udp.port", 6166, "receive new monitor udp server port")
+	fs.StringVar(&s.Conf.Cluster.Discover.NodeIDFile, "nodeid-file", "/opt/rainbond/etc/node/node_host_uuid.conf", "the unique ID for this node. Just specify, don't modify")
 }
 
 //InitLog 初始化log
