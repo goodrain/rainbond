@@ -193,16 +193,11 @@ func InitMapping() (*MetricMapper, error) {
 		Labels: prometheus.Labels{"service_id": "$1", "port": "$2", "protocol": "$3", "client": "$4"},
 	}
 	m6 := metricMapping{
-		Match:  "*.*.*.client-request.unusual.*",
-		Name:   "app_client_request_unusual",
-		Labels: prometheus.Labels{"service_id": "$1", "port": "$2", "protocol": "$3", "client": "$4"},
-	}
-	m7 := metricMapping{
 		Match:  "*.*.*.client-requesttime.*",
 		Name:   "app_client_requesttime",
 		Labels: prometheus.Labels{"service_id": "$1", "port": "$2", "protocol": "$3", "client": "$4"},
 	}
-	n.Mappings = append(n.Mappings, m1, m2, m3, m4, m5, m6, m7)
+	n.Mappings = append(n.Mappings, m1, m2, m3, m4, m5, m6)
 	if n.Defaults.Buckets == nil || len(n.Defaults.Buckets) == 0 {
 		n.Defaults.Buckets = prometheus.DefBuckets
 	}
