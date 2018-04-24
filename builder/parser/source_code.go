@@ -54,7 +54,7 @@ type SourceCodeParse struct {
 	logger       event.Logger
 	Lang         code.Lang
 	Runtime      bool `json:"runtime"`
-	Library      bool `json:"library"`
+	Dependencies bool `json:"dependencies"`
 	Procfile     bool `json:"procfile"`
 }
 
@@ -231,13 +231,13 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	if !spec.Conform {
 		return d.errors
 	}
-	d.Library = true
 	//如果是dockerfile 解析dockerfile文件
 	if lang == code.Dockerfile {
 		if ok := d.parseDockerfileInfo(path.Join(buildPath, "Dockerfile")); !ok {
 			return d.errors
 		}
 	}
+	d.Dependencies = code.CheckDependencies(buildPath, lang)
 	d.Runtime = code.CheckRuntime(buildPath, lang)
 	d.memory = getRecommendedMemory(lang)
 	d.Procfile = code.CheckProcfile(buildPath, lang)
@@ -324,17 +324,17 @@ func (d *SourceCodeParse) GetRuntime() bool {
 //GetServiceInfo 获取service info
 func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 	serviceInfo := ServiceInfo{
-		Ports:    d.GetPorts(),
-		Envs:     d.GetEnvs(),
-		Volumes:  d.GetVolumes(),
-		Image:    d.GetImage(),
-		Args:     d.GetArgs(),
-		Branchs:  d.GetBranchs(),
-		Memory:   d.memory,
-		Lang:     d.GetLang(),
-		Library:  d.Library,
-		Procfile: d.Procfile,
-		Runtime:  d.Runtime,
+		Ports:        d.GetPorts(),
+		Envs:         d.GetEnvs(),
+		Volumes:      d.GetVolumes(),
+		Image:        d.GetImage(),
+		Args:         d.GetArgs(),
+		Branchs:      d.GetBranchs(),
+		Memory:       d.memory,
+		Lang:         d.GetLang(),
+		Dependencies: d.Dependencies,
+		Procfile:     d.Procfile,
+		Runtime:      d.Runtime,
 	}
 	return []ServiceInfo{serviceInfo}
 }

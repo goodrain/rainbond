@@ -141,9 +141,9 @@ type ServiceInfo struct {
 	Memory            int       `json:"memory"`
 	Lang              code.Lang `json:"language"`
 	Runtime           bool      `json:"runtime"`
-	Library           bool      `json:"library"`
+	Dependencies      bool      `json:"dependencies"`
 	Procfile          bool      `json:"procfile"`
-	ImageAlias 		  string    `json:"image_alias"`
+	ImageAlias        string    `json:"image_alias"`
 }
 
 //GetServiceInfo GetServiceInfo
