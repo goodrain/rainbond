@@ -62,6 +62,7 @@ type metricMapping struct {
 	HelpText  string            `yaml:"help"`
 }
 
+//InitFromYAMLString InitFromYAMLString
 func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 	var n MetricMapper
 
@@ -133,6 +134,7 @@ func (m *MetricMapper) InitFromYAMLString(fileContents string) error {
 	return nil
 }
 
+//InitFromFile InitFromFile
 func (m *MetricMapper) InitFromFile(fileName string) error {
 	mappingStr, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -160,4 +162,46 @@ func (m *MetricMapper) getMapping(statsdMetric string) (*metricMapping, promethe
 	}
 
 	return nil, nil, false
+}
+
+//InitMapping init mapping config
+func InitMapping() *MetricMapper {
+	var metricMapper MetricMapper
+	m1 := metricMapping{
+		Match:  "*.*.*.request.*",
+		Name:   "app_request",
+		Labels: prometheus.Labels{"service_id": "$1", "port": "$2", "protocol": "$3", "method": "$4"},
+	}
+	m2 := metricMapping{
+		Match:  "*.*.*.request.unusual.*",
+		Name:   "app_request_unusual",
+		Labels: prometheus.Labels{"service_id": "$1", "port": "$2", "protocol": "$3", "code": "$4"},
+	}
+	m3 := metricMapping{
+		Match:  "*.*.*.requesttime.*",
+		Name:   "app_requesttime",
+		Labels: prometheus.Labels{"service_id": "$1", "port": "$2", "protocol": "$3", "mode": "$4"},
+	}
+	m4 := metricMapping{
+		Match:  "*.*.*.requestclient",
+		Name:   "app_requestclient",
+		Labels: prometheus.Labels{"service_id": "$1", "port": "$2", "protocol": "$3"},
+	}
+	m5 := metricMapping{
+		Match:  "*.*.*.client-request.*",
+		Name:   "app_client-request",
+		Labels: prometheus.Labels{"service_id": "$1", "port": "$2", "protocol": "$3", "client": "$4"},
+	}
+	m6 := metricMapping{
+		Match:  "*.*.*.client-request.unusual.*",
+		Name:   "app_client-request_unusual",
+		Labels: prometheus.Labels{"service_id": "$1", "port": "$2", "protocol": "$3", "client": "$4"},
+	}
+	m7 := metricMapping{
+		Match:  "*.*.*.client-requesttime.*",
+		Name:   "app_client-requesttime",
+		Labels: prometheus.Labels{"service_id": "$1", "port": "$2", "protocol": "$3", "client": "$4"},
+	}
+	metricMapper.Mappings = append(metricMapper.Mappings, m1, m2, m3, m4, m5, m6, m7)
+	return &metricMapper
 }

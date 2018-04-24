@@ -103,16 +103,16 @@ func (e *Exporter) Start() error {
 		go tl.Listen(events)
 	}
 
-	mapper := &exporter.MetricMapper{}
-	if e.mappingConfig != "" {
-		err := mapper.InitFromFile(e.mappingConfig)
-		if err != nil {
-			logrus.Fatal("Error loading config:", err)
-			return err
-		}
-		//观察文件变化进行重新reload是有风险的,采用API重新加载
-		//go watchConfig(e.mappingConfig, mapper)
-	}
+	mapper := exporter.InitMapping()
+	// if e.mappingConfig != "" {
+	// 	err := mapper.InitFromFile(e.mappingConfig)
+	// 	if err != nil {
+	// 		logrus.Fatal("Error loading config:", err)
+	// 		return err
+	// 	}
+	// 	//观察文件变化进行重新reload是有风险的,采用API重新加载
+	// 	//go watchConfig(e.mappingConfig, mapper)
+	// }
 	exporter := exporter.NewExporter(mapper, e.register)
 	e.exporter = exporter
 	e.mapper = mapper
