@@ -165,8 +165,8 @@ func (m *MetricMapper) getMapping(statsdMetric string) (*metricMapping, promethe
 }
 
 //InitMapping init mapping config
-func InitMapping() *MetricMapper {
-	var metricMapper MetricMapper
+func InitMapping() (*MetricMapper, error) {
+	var n MetricMapper
 	m1 := metricMapping{
 		Match:  "*.*.*.request.*",
 		Name:   "app_request",
@@ -189,19 +189,70 @@ func InitMapping() *MetricMapper {
 	}
 	m5 := metricMapping{
 		Match:  "*.*.*.client-request.*",
-		Name:   "app_client-request",
+		Name:   "app_client_request",
 		Labels: prometheus.Labels{"service_id": "$1", "port": "$2", "protocol": "$3", "client": "$4"},
 	}
 	m6 := metricMapping{
 		Match:  "*.*.*.client-request.unusual.*",
-		Name:   "app_client-request_unusual",
+		Name:   "app_client_request_unusual",
 		Labels: prometheus.Labels{"service_id": "$1", "port": "$2", "protocol": "$3", "client": "$4"},
 	}
 	m7 := metricMapping{
 		Match:  "*.*.*.client-requesttime.*",
-		Name:   "app_client-requesttime",
+		Name:   "app_client_requesttime",
 		Labels: prometheus.Labels{"service_id": "$1", "port": "$2", "protocol": "$3", "client": "$4"},
 	}
-	metricMapper.Mappings = append(metricMapper.Mappings, m1, m2, m3, m4, m5, m6, m7)
-	return &metricMapper
+	n.Mappings = append(n.Mappings, m1, m2, m3, m4, m5, m6, m7)
+	if n.Defaults.Buckets == nil || len(n.Defaults.Buckets) == 0 {
+		n.Defaults.Buckets = prometheus.DefBuckets
+	}
+
+	if n.Defaults.MatchType == matchTypeDefault {
+		n.Defaults.MatchType = matchTypeGlob
+	}
+	for i := range n.Mappings {
+		currentMapping := &n.Mappings[i]
+
+		// check that label is correct
+		for k := range currentMapping.Labels {
+			if !metricNameRE.MatchString(k) {
+				return nil, fmt.Errorf("invalid label key: %s", k)
+			}
+		}
+
+		if currentMapping.Name == "" {
+			return nil, fmt.Errorf("line %d: metric mapping didn't set a metric name", i)
+		}
+
+		if !metricNameRE.MatchString(currentMapping.Name) {
+			return nil, fmt.Errorf("metric name '%s' doesn't match regex '%s'", currentMapping.Name, metricNameRE)
+		}
+
+		if currentMapping.MatchType == "" {
+			currentMapping.MatchType = n.Defaults.MatchType
+		}
+
+		if currentMapping.MatchType == matchTypeGlob {
+			if !metricLineRE.MatchString(currentMapping.Match) {
+				return nil, fmt.Errorf("invalid match: %s", currentMapping.Match)
+			}
+			// Translate the glob-style metric match line into a proper regex that we
+			// can use to match metrics later on.
+			metricRe := strings.Replace(currentMapping.Match, ".", "\\.", -1)
+			metricRe = strings.Replace(metricRe, "*", "([^.]*)", -1)
+			currentMapping.regex = regexp.MustCompile("^" + metricRe + "$")
+		} else {
+			currentMapping.regex = regexp.MustCompile(currentMapping.Match)
+		}
+
+		if currentMapping.TimerType == "" {
+			currentMapping.TimerType = n.Defaults.TimerType
+		}
+
+		if currentMapping.Buckets == nil || len(currentMapping.Buckets) == 0 {
+			currentMapping.Buckets = n.Defaults.Buckets
+		}
+
+	}
+	return &n, nil
 }
