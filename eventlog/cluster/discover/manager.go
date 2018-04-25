@@ -37,6 +37,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/twinj/uuid"
 	"golang.org/x/net/context"
+	"github.com/coreos/etcd/mvcc/mvccpb"
 )
 
 //Manager 节点动态发现管理器
@@ -138,18 +139,13 @@ func (d *EtcdDiscoverManager) RegisteredInstance(host string, port int, stopRegi
 			time.Sleep(time.Second * 10)
 			continue
 		}
-		_, err = d.etcdAPI.Set(d.context, fmt.Sprintf("%s/instance/%s:%d", d.conf.HomePath, instance.HostIP, instance.PubPort), string(data), nil)
+		_, err = d.etcdclientv3.Put(d.context, fmt.Sprintf("%s/instance/%s:%d", d.conf.HomePath, instance.HostIP, instance.PubPort), string(data))
 		if err != nil {
-			if cerr, ok := err.(client.Error); ok {
-				if cerr.Code == client.ErrorCodeNodeExist {
-					goto success
-				}
-			}
 			d.log.Error("Register instance data to etcd error.", err.Error())
 			time.Sleep(time.Second * 10)
 			continue
 		}
-	success:
+
 		d.selfInstance = instance
 		go d.discover()
 		d.log.Infof("Register instance in cluster success. HostID:%s HostIP:%s PubPort:%d", instance.HostID, instance.HostIP, instance.PubPort)
@@ -189,10 +185,10 @@ func (d *EtcdDiscoverManager) Run() error {
 		d.log.Error("Create etcd v3 client error.", err.Error())
 		return err
 	}
-	_, err = api.Get(d.context, d.conf.HomePath+"/instance", nil)
+	_, err = d.etcdclientv3.Get(d.context, d.conf.HomePath+"/instance")
 	if err != nil {
 		if client.IsKeyNotFound(err) {
-			_, err = api.Set(d.context, d.conf.HomePath+"/instance", "", &client.SetOptions{Dir: true})
+			_, err = d.etcdclientv3.Put(d.context, d.conf.HomePath+"/instance", "")
 			if err != nil {
 				if cerr, ok := err.(client.Error); ok {
 					if cerr.Code != client.ErrorCodeNodeExist {
@@ -217,11 +213,15 @@ func (d *EtcdDiscoverManager) discover() {
 	tike := time.NewTicker(time.Second * 5)
 	defer tike.Stop()
 	for {
-		res, err := d.etcdAPI.Get(d.context, d.conf.HomePath+"/instance", &client.GetOptions{Recursive: true})
+		res, err := d.etcdclientv3.Get(d.context, d.conf.HomePath+"/instance/", clientv3.WithPrefix())
 		if err != nil {
 			d.log.Error("Get instance info from etcd error.", err.Error())
 		} else {
-			for _, node := range res.Node.Nodes {
+			for _, kv := range res.Kvs {
+				node := &client.Node{
+					Key: string(kv.Key),
+					Value: string(kv.Value),
+				}
 				d.add(node)
 			}
 			break
@@ -232,24 +232,23 @@ func (d *EtcdDiscoverManager) discover() {
 			return
 		}
 	}
-	watcher := d.etcdAPI.Watcher(d.conf.HomePath+"/instance", &client.WatcherOptions{Recursive: true})
+	watcher := d.etcdclientv3.Watch(d.context, d.conf.HomePath+"/instance/", clientv3.WithPrefix())
+
 	for !d.stopDiscover {
-		res, err := watcher.Next(d.context)
-		if err != nil {
-			if err.Error() != "context canceled" {
-				d.log.Error("Watcher instance change error.", err.Error())
-				select {
-				case <-tike.C:
-				case <-d.context.Done():
-					return
-				}
+		res, ok := <-watcher
+		if !ok {
+			break
+		}
+
+		for _, event := range res.Events {
+			node := &client.Node{
+				Key: string(event.Kv.Key),
+				Value: string(event.Kv.Value),
 			}
-		} else {
-			switch res.Action {
-			case "set":
-				d.add(res.Node)
-			case "delete":
-				node := res.Node
+			switch event.Type {
+			case mvccpb.PUT:
+				d.add(node)
+			case mvccpb.DELETE:
 				//忽略自己
 				if strings.HasSuffix(node.Key, fmt.Sprintf("/%s:%d", d.selfInstance.HostIP, d.selfInstance.PubPort)) {
 					continue
@@ -272,18 +271,9 @@ func (d *EtcdDiscoverManager) discover() {
 					d.MonitorDelInstances() <- instance
 					d.log.Infof("A instance offline %s", instance.HostName)
 				}
-			case "update":
-				node := res.Node
-				res, err := d.etcdAPI.Get(d.context, node.Key, nil)
-				if err != nil {
-					d.log.Error("Get instance info from etcd error.", err.Error())
-				}
-				d.update(res.Node)
-			case "create":
-				//d.log.Debug("etcd create:", res.Node)
-				d.add(res.Node)
 			}
 		}
+
 	}
 	d.log.Debug("discover manager discover core stop")
 }
@@ -298,9 +288,25 @@ func (d *EtcdDiscoverManager) add(node *client.Node) {
 	if err := json.Unmarshal([]byte(node.Value), &instance); err != nil {
 		d.log.Error("Unmarshal instance data that from etcd error.", err.Error())
 	} else {
-		d.log.Infof("Find an instance.IP:%s, Port:%d, HostName:%s HostID: %s", instance.HostIP.String(), instance.PubPort, instance.HostName, instance.HostID)
-		d.MonitorAddInstances() <- &instance
-		d.othersInstance = append(d.othersInstance, &instance)
+		if strings.HasSuffix(node.Key, fmt.Sprintf("/%s:%d", d.selfInstance.HostIP, d.selfInstance.PubPort)) {
+			d.selfInstance = &instance
+		}
+
+		isExist := false
+		for _, i := range d.othersInstance {
+			if i.HostID == instance.HostID {
+				*i = instance
+				d.log.Debug("update the instance " + i.HostID)
+				isExist = true
+				break
+			}
+		}
+
+		if !isExist {
+			d.log.Infof("Find an instance.IP:%s, Port:%d, HostName:%s HostID: %s", instance.HostIP.String(), instance.PubPort, instance.HostName, instance.HostID)
+			d.MonitorAddInstances() <- &instance
+			d.othersInstance = append(d.othersInstance, &instance)
+		}
 	}
 
 }
@@ -347,7 +353,7 @@ func (d *EtcdDiscoverManager) Stop() {
 
 //CancellationInstance 注销实例
 func (d *EtcdDiscoverManager) CancellationInstance(instance *Instance) {
-	_, err := d.etcdAPI.Delete(d.context, fmt.Sprintf("%s/instance/%s:%d", d.conf.HomePath, instance.HostIP, instance.PubPort), nil)
+	_, err := d.etcdclientv3.Delete(d.context, fmt.Sprintf("%s/instance/%s:%d", d.conf.HomePath, instance.HostIP, instance.PubPort))
 	if err != nil && !client.IsKeyNotFound(err) {
 		d.log.Error("Cancellation Instance from etcd error.", err.Error())
 	} else {
@@ -373,7 +379,7 @@ func (d *EtcdDiscoverManager) UpdateInstance(instance *Instance) {
 		d.log.Error("Create update instance data error.", err.Error())
 		return
 	}
-	_, err = d.etcdAPI.Update(d.context, fmt.Sprintf("%s/instance/%s:%d", d.conf.HomePath, instance.HostIP, instance.PubPort), string(data))
+	_, err = d.etcdclientv3.Put(d.context, fmt.Sprintf("%s/instance/%s:%d", d.conf.HomePath, instance.HostIP, instance.PubPort), string(data))
 	if err != nil && !client.IsKeyNotFound(err) {
 		d.log.Error(" Update Instance from etcd error.", err.Error())
 	}
