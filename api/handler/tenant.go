@@ -50,6 +50,7 @@ func CreateTenManager(MQClient pb.TaskQueueClient, KubeClient *kubernetes.Client
 	return &TenantAction{
 		MQClient:   MQClient,
 		KubeClient: KubeClient,
+		statusCli:  statusCli,
 	}
 }
 
@@ -61,6 +62,8 @@ func (t *TenantAction) GetTenants() ([]*dbmodel.Tenants, error) {
 	}
 	return tenants, err
 }
+
+//GetTenantsByEid GetTenantsByEid
 func (t *TenantAction) GetTenantsByEid(eid string) ([]*dbmodel.Tenants, error) {
 	tenants, err := db.GetManager().TenantDao().GetTenantByEid(eid)
 	if err != nil {
