@@ -177,6 +177,9 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 	var result = make(map[string]map[string]interface{}, len(ids))
 	status := t.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
 	for k, v := range status {
+		if s, ok := serviceMap[k]; !ok || s == nil {
+			continue
+		}
 		if _, ok := result[serviceMap[k].TenantID]; !ok {
 			result[serviceMap[k].TenantID] = map[string]interface{}{"tenant_id": k, "cpu": 0, "memory": 0, "disk": 0}
 		}
