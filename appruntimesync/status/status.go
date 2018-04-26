@@ -234,18 +234,6 @@ func (s *Manager) cacheAllAPPStatus() {
 			s.cacheStatus(sta.ServiceID, sta.Status)
 		}
 	}
-	allServic, err := db.GetManager().TenantServiceDao().GetAllServices()
-	if err != nil {
-		logrus.Error("get all  service error")
-		return
-	}
-	if len(allServic) == len(all) {
-		return
-	}
-	for i, ser := range allServic {
-		logrus.Debugf("(%d)check service %s status", i, ser.ServiceID)
-		s.CheckStatus(ser.ServiceID)
-	}
 
 }
 
@@ -313,8 +301,20 @@ func (s *Manager) SaveDeployInfo(serviceID, tenantID, deployVersion, replication
 
 //SyncStatus sync app status
 func (s *Manager) SyncStatus() {
-	for k := range s.status {
-		s.CheckStatus(k)
+	allServic, err := db.GetManager().TenantServiceDao().GetAllServices()
+	if err != nil {
+		logrus.Error("get all  service error")
+		return
+	}
+	if len(allServic) == len(s.status) {
+		for k := range s.status {
+			s.CheckStatus(k)
+		}
+		return
+	}
+	for i, ser := range allServic {
+		logrus.Debugf("(%d)check service %s status", i, ser.ServiceID)
+		s.CheckStatus(ser.ServiceID)
 	}
 }
 func (s *Manager) isIgnoreDelete(name string) bool {
