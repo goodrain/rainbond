@@ -304,7 +304,7 @@ func (t *TenantServicesDaoImpl) GetServicesByTenantID(tenantID string) ([]*model
 //GetServicesByTenantIDs GetServicesByTenantIDs
 func (t *TenantServicesDaoImpl) GetServicesByTenantIDs(tenantIDs []string) ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
-	if err := t.DB.Where("tenant_id in (tenantIDs)", tenantIDs).Find(&services).Error; err != nil {
+	if err := t.DB.Where("tenant_id in (?)", tenantIDs).Find(&services).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return services, nil
 		}

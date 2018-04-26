@@ -235,6 +235,18 @@ func (s *Manager) cacheAllAPPStatus() {
 			s.cacheStatus(sta.ServiceID, sta.Status)
 		}
 	}
+	allServic, err := db.GetManager().TenantServiceDao().GetAllServices()
+	if err != nil {
+		logrus.Error("get all  service error")
+		return
+	}
+	if len(allServic) == len(all) {
+		return
+	}
+	for _, ser := range allServic {
+		s.CheckStatus(ser.ServiceID)
+	}
+
 }
 
 //SetStatus set app status

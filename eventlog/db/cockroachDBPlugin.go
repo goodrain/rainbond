@@ -21,23 +21,22 @@ package db
 import (
 	"database/sql"
 	"errors"
-	"github.com/goodrain/rainbond/eventlog/conf"
 	"log"
 	"time"
+
+	"github.com/goodrain/rainbond/eventlog/conf"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/pquerna/ffjson/ffjson"
 )
 
-var initTableSQL = `CREATE TABLE if not exists event_log_message (
-	"ID" INT NOT NULL DEFAULT unique_rowid(),
-	create_time TIMESTAMP WITH TIME ZONE NULL,
-	event_id STRING(40) NULL,
-	start_time STRING(40) NULL,
-	message BYTES NULL,
-	CONSTRAINT "primary" PRIMARY KEY ("ID" ASC),
-	FAMILY "primary" ("ID", create_time, event_id, start_time, message)
- );`
+var initTableSQL = `CREATE TABLE IF NOT EXISTS event_log_message (
+	"ID" integer,
+	event_id character varying(40),
+	start_time character varying(40),
+	message bytea,
+	PRIMARY KEY (ID)
+)`
 
 type cockroachPlugin struct {
 	conf conf.DBConf

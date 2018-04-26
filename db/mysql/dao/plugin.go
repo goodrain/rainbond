@@ -143,15 +143,6 @@ func (t *PluginDefaultENVDaoImpl) GetDefaultENVSByPluginID(pluginID, versionID s
 	return envs, nil
 }
 
-//GetDefaultENVSByPluginIDCantBeSet GetDefaultENVSByPluginIDCantBeSet
-// func (t *PluginDefaultENVDaoImpl) GetDefaultENVSByPluginIDCantBeSet(pluginID string) ([]*model.TenantPluginDefaultENV, error) {
-// 	var envs []*model.TenantPluginDefaultENV
-// 	if err := t.DB.Where("plugin_id=? and is_change=0", pluginID).Find(&envs).Error; err != nil {
-// 		return nil, err
-// 	}
-// 	return envs, nil
-// }
-
 //DeleteDefaultENVByName DeleteDefaultENVByName
 func (t *PluginDefaultENVDaoImpl) DeleteDefaultENVByName(pluginID, name, versionID string) error {
 	relation := &model.TenantPluginDefaultENV{
@@ -189,7 +180,7 @@ func (t *PluginDefaultENVDaoImpl) DeleteAllDefaultENVByPluginID(pluginID string)
 //GetDefaultEnvWhichCanBeSetByPluginID GetDefaultEnvWhichCanBeSetByPluginID
 func (t *PluginDefaultENVDaoImpl) GetDefaultEnvWhichCanBeSetByPluginID(pluginID, versionID string) ([]*model.TenantPluginDefaultENV, error) {
 	var envs []*model.TenantPluginDefaultENV
-	if err := t.DB.Where("plugin_id=? and is_change=1 and version_id=?", pluginID, versionID).Find(&envs).Error; err != nil {
+	if err := t.DB.Where("plugin_id=? and is_change=? and version_id=?", pluginID, true, versionID).Find(&envs).Error; err != nil {
 		return nil, err
 	}
 	return envs, nil
@@ -388,7 +379,7 @@ func (t *TenantServicePluginRelationDaoImpl) DeleteRelationByServiceIDAndPluginI
 //CheckSomeModelPluginByServiceID 检查是否绑定了某种插件且处于启用状态
 func (t *TenantServicePluginRelationDaoImpl) CheckSomeModelPluginByServiceID(serviceID, pluginModel string) (bool, error) {
 	var relations []*model.TenantServicePluginRelation
-	if err := t.DB.Where("service_id=? and plugin_model=? and switch=1", serviceID, pluginModel).Find(&relations).Error; err != nil {
+	if err := t.DB.Where("service_id=? and plugin_model=? and switch=?", serviceID, pluginModel, true).Find(&relations).Error; err != nil {
 		return false, err
 	}
 	if len(relations) == 1 {
