@@ -36,6 +36,7 @@ type restartTask struct {
 	logger      event.Logger
 	taskManager *TaskManager
 	serviceType string
+	stopChan    chan struct{}
 }
 
 func (s *restartTask) RunSuccess() {
@@ -123,18 +124,19 @@ func (s *restartTask) RollBack() {
 }
 func (s *restartTask) Run() error {
 	s.logger.Info("应用重新启动任务开始执行", map[string]string{"step": "worker-executor", "status": "starting"})
-	//step1 停止应用
-	s.logger.Info("开始移除Service", map[string]string{"step": "worker-executor", "status": "starting"})
-	err := s.taskManager.appm.StopService(s.modelTask.ServiceID, s.logger)
-	if err != nil {
-		s.logger.Error("移除Service发生错误"+err.Error(), map[string]string{"step": "callback", "status": "failure"})
-		return err
-	}
-	s.logger.Info("移除Service完成", map[string]string{"step": "worker-executor", "status": "success"})
 	switch s.serviceType {
 	case dbmodel.TypeStatefulSet:
+		//step1 停止应用
+		s.logger.Info("开始移除Service", map[string]string{"step": "worker-executor", "status": "starting"})
+		err := s.taskManager.appm.StopService(s.modelTask.ServiceID, s.logger)
+		if err != nil {
+			s.logger.Error("移除Service发生错误"+err.Error(), map[string]string{"step": "callback", "status": "failure"})
+			return err
+		}
+		s.logger.Info("移除Service完成", map[string]string{"step": "worker-executor", "status": "success"})
+
 		s.logger.Info("开始移除StatefulSet", map[string]string{"step": "worker-executor", "status": "starting"})
-		err := s.taskManager.appm.StopStatefulSet(s.modelTask.ServiceID, s.logger)
+		err = s.taskManager.appm.StopStatefulSet(s.modelTask.ServiceID, s.logger)
 		if err != nil && err.Error() != "time out" {
 			s.logger.Info("移除StatefulSet失败"+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -150,7 +152,7 @@ func (s *restartTask) Run() error {
 		break
 	case dbmodel.TypeDeployment:
 		s.logger.Info("开始移除Deployment", map[string]string{"step": "worker-executor", "status": "starting"})
-		err = s.taskManager.appm.StopDeployment(s.modelTask.ServiceID, s.logger)
+		err := s.taskManager.appm.StopDeployment(s.modelTask.ServiceID, s.logger)
 		if err != nil && err.Error() != "time out" {
 			s.logger.Info("移除Deployment失败"+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
@@ -163,18 +165,32 @@ func (s *restartTask) Run() error {
 		}
 		break
 	case dbmodel.TypeReplicationController:
-		s.logger.Info("开始移除ReplicationController", map[string]string{"step": "worker-executor", "status": "starting"})
-		err = s.taskManager.appm.StopReplicationController(s.modelTask.ServiceID, s.logger)
-		if err != nil && err.Error() != "time out" {
-			s.logger.Info("移除ReplicationController失败"+err.Error(), map[string]string{"step": "callback", "status": "failure"})
+		s.logger.Info("开始滚动升级ReplicationController", map[string]string{"step": "worker-executor", "status": "starting"})
+		rc, upgradeError := s.taskManager.appm.RollingUpgradeReplicationControllerCompatible(s.modelTask.ServiceID, s.stopChan, s.logger)
+		if upgradeError != nil && upgradeError.Error() != appm.ErrTimeOut.Error() {
+			logrus.Error(upgradeError.Error())
+			s.logger.Info("应用滚动升级发生错误", map[string]string{"step": "worker-executor", "status": "failure"})
+			return upgradeError
+		}
+		err := s.taskManager.appm.UpdateService(s.modelTask.ServiceID, s.logger, rc.Name, dbmodel.TypeReplicationController)
+		if err != nil {
+			logrus.Error(err.Error())
+			s.logger.Info("应用Service升级发生错误", map[string]string{"step": "worker-executor", "status": "failure"})
 			return err
 		}
-		s.logger.Info("移除ReplicationController完成", map[string]string{"step": "worker-executor", "status": "success"})
-		s.logger.Info("应用部署类型为无状态应用", map[string]string{"step": "worker-executor"})
-		s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, status.STARTING)
-		if err := s.startReplicationController(); err != nil {
-			return err
-		}
+
+		//s.logger.Info("开始移除ReplicationController", map[string]string{"step": "worker-executor", "status": "starting"})
+		//err = s.taskManager.appm.StopReplicationController(s.modelTask.ServiceID, s.logger)
+		//if err != nil && err.Error() != "time out" {
+		//	s.logger.Info("移除ReplicationController失败"+err.Error(), map[string]string{"step": "callback", "status": "failure"})
+		//	return err
+		//}
+		//s.logger.Info("移除ReplicationController完成", map[string]string{"step": "worker-executor", "status": "success"})
+		//s.logger.Info("应用部署类型为无状态应用", map[string]string{"step": "worker-executor"})
+		//s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, status.STARTING)
+		//if err := s.startReplicationController(); err != nil {
+		//	return err
+		//}
 		break
 	}
 	return nil
