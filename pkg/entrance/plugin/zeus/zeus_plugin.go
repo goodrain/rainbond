@@ -497,20 +497,20 @@ func (z *zeus) AddDomain(domains ...*object.DomainObject) error {
 	return z.UpdateDomain(domains...)
 }
 func (z *zeus) UpdateDomain(domains ...*object.DomainObject) error {
-	var https, http bool
-	for _, do := range domains {
-		if do.Protocol == "https" {
-			https = true
-		} else {
-			http = true
-		}
-	}
-	if https {
-		return z.updateRule("https")
-	}
-	if http {
-		return z.updateRule("http")
-	}
+	// var https, http bool
+	// for _, do := range domains {
+	// 	if do.Protocol == "https" {
+	// 		https = true
+	// 	} else {
+	// 		http = true
+	// 	}
+	// }
+	// if https {
+	// 	return z.updateRule("https")
+	// }
+	// if http {
+	// 	return z.updateRule("http")
+	// }
 	return nil
 }
 func (z *zeus) DeleteDomain(domains ...*object.DomainObject) error {
