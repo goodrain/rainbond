@@ -50,7 +50,7 @@ func CreateManager(config config.Config) (*Manager, error) {
 	}
 	if config.DBType == "cockroachdb" {
 		var err error
-		addr := config.MysqlConnectionInfo + "?sslmode=disable"
+		addr := config.MysqlConnectionInfo
 		db, err = gorm.Open("postgres", addr)
 		if err != nil {
 			return nil, err
