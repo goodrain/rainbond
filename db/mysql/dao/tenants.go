@@ -170,8 +170,8 @@ func (t *TenantServicesDaoImpl) GetServiceByID(serviceID string) (*model.TenantS
 }
 
 //GetServiceMemoryByTenantIDs get service memory by tenant ids
-func (t *TenantServicesDaoImpl) GetServiceMemoryByTenantIDs(tenantIDs []string) (map[string]map[string]interface{}, error) {
-	rows, err := t.DB.Raw("select tenant_id, sum(container_cpu) as cpu,sum(container_memory * replicas) as memory from tenant_services where tenant_id in (?) and service_id in (select service_id from tenant_service_status where status != 'closed' && status != 'undeploy') group by tenant_id", tenantIDs).Rows()
+func (t *TenantServicesDaoImpl) GetServiceMemoryByTenantIDs(tenantIDs []string, runningServiceIDs []string) (map[string]map[string]interface{}, error) {
+	rows, err := t.DB.Raw("select tenant_id, sum(container_cpu) as cpu,sum(container_memory * replicas) as memory from tenant_services where tenant_id in (?) and service_id in (?) group by tenant_id", tenantIDs, runningServiceIDs).Rows()
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +198,7 @@ func (t *TenantServicesDaoImpl) GetServiceMemoryByTenantIDs(tenantIDs []string) 
 
 //GetServiceMemoryByServiceIDs get service memory by service ids
 func (t *TenantServicesDaoImpl) GetServiceMemoryByServiceIDs(serviceIDs []string) (map[string]map[string]interface{}, error) {
-	rows, err := t.DB.Raw("select service_id, container_cpu as cpu,container_memory * replicas as memory from tenant_services where service_id in (?) and service_id in (select service_id from tenant_service_status where status != 'closed' && status != 'undeploy')", serviceIDs).Rows()
+	rows, err := t.DB.Raw("select service_id, container_cpu as cpu,container_memory * replicas as memory from tenant_services where service_id in (?)", serviceIDs).Rows()
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +292,19 @@ func (t *TenantServicesDaoImpl) GetServiceByTenantIDAndServiceAlias(tenantID, se
 //GetServicesByTenantID GetServicesByTenantID
 func (t *TenantServicesDaoImpl) GetServicesByTenantID(tenantID string) ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
-	if err := t.DB.Where("tenant_id= ?", tenantID).Select("tenant_id,service_alias,service_id,replica_id").Find(&services).Error; err != nil {
+	if err := t.DB.Where("tenant_id=?", tenantID).Find(&services).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return services, nil
+		}
+		return nil, err
+	}
+	return services, nil
+}
+
+//GetServicesByTenantIDs GetServicesByTenantIDs
+func (t *TenantServicesDaoImpl) GetServicesByTenantIDs(tenantIDs []string) ([]*model.TenantServices, error) {
+	var services []*model.TenantServices
+	if err := t.DB.Where("tenant_id in (tenantIDs)", tenantIDs).Find(&services).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return services, nil
 		}

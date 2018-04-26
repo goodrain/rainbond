@@ -34,7 +34,7 @@ type TenantHandler interface {
 	GetTenantsName() ([]string, error)
 	StatsMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error)
 	TotalMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error)
-	GetTenantsResources(tr *api_model.TenantResources) ([]map[string]interface{}, error)
+	GetTenantsResources(tr *api_model.TenantResources) (map[string]map[string]interface{}, error)
 	GetServicesResources(tr *api_model.ServicesResources) (map[string]map[string]interface{}, error)
 	TenantsSum() (int, error)
 	GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHandleError)
