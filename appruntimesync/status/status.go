@@ -308,13 +308,13 @@ func (s *Manager) SyncStatus() {
 	}
 	if len(allServic) == len(s.status) {
 		for k := range s.status {
-			s.CheckStatus(k)
+			s.checkChan <- k
 		}
 		return
 	}
 	for i, ser := range allServic {
 		logrus.Debugf("(%d)check service %s status", i, ser.ServiceID)
-		s.CheckStatus(ser.ServiceID)
+		s.checkChan <- ser.ServiceID
 	}
 }
 func (s *Manager) isIgnoreDelete(name string) bool {
