@@ -64,9 +64,10 @@ type TenantServiceDao interface {
 	GetServiceByTenantIDAndServiceAlias(tenantID, serviceName string) (*model.TenantServices, error)
 	SetTenantServiceStatus(serviceID, status string) error
 	GetServicesByTenantID(tenantID string) ([]*model.TenantServices, error)
+	GetServicesByTenantIDs(tenantIDs []string) ([]*model.TenantServices, error)
 	GetServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error)
 	DeleteServiceByServiceID(serviceID string) error
-	GetServiceMemoryByTenantIDs(tenantIDs []string) (map[string]map[string]interface{}, error)
+	GetServiceMemoryByTenantIDs(tenantIDs, serviceIDs []string) (map[string]map[string]interface{}, error)
 	GetServiceMemoryByServiceIDs(serviceIDs []string) (map[string]map[string]interface{}, error)
 	GetPagedTenantService(offset, len int) ([]map[string]interface{}, error)
 	GetTenantServiceRes(uuid string) (map[string]interface{}, error)

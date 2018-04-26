@@ -130,6 +130,10 @@ func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get resources error, %v", err))
 		return
 	}
+	var re = make([]map[string]interface{}, len(rep))
+	for _, v := range rep {
+		re = append(re, v)
+	}
 	httputil.ReturnSuccess(r, w, rep)
 	return
 }

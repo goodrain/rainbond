@@ -50,6 +50,7 @@ func CreateTenManager(MQClient pb.TaskQueueClient, KubeClient *kubernetes.Client
 	return &TenantAction{
 		MQClient:   MQClient,
 		KubeClient: KubeClient,
+		statusCli:  statusCli,
 	}
 }
 
@@ -61,6 +62,8 @@ func (t *TenantAction) GetTenants() ([]*dbmodel.Tenants, error) {
 	}
 	return tenants, err
 }
+
+//GetTenantsByEid GetTenantsByEid
 func (t *TenantAction) GetTenantsByEid(eid string) ([]*dbmodel.Tenants, error) {
 	tenants, err := db.GetManager().TenantDao().GetTenantByEid(eid)
 	if err != nil {
@@ -156,18 +159,31 @@ type QueryResult struct {
 }
 
 //GetTenantsResources Gets the resource usage of the specified tenant.
-func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (res []map[string]interface{}, err error) {
+func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[string]map[string]interface{}, error) {
 	ids, err := db.GetManager().TenantDao().GetTenantIDsByNames(tr.Body.TenantNames)
 	if err != nil {
 		return nil, err
 	}
-	resmp, err := db.GetManager().TenantServiceDao().GetServiceMemoryByTenantIDs(ids)
+	services, err := db.GetManager().TenantServiceDao().GetServicesByTenantIDs(ids)
 	if err != nil {
 		return nil, err
 	}
-	for k, v := range resmp {
-		v["tenant_id"] = k
-		res = append(res, v)
+	var serviceIDs []string
+	var serviceMap = make(map[string]*dbmodel.TenantServices, len(services))
+	for _, s := range services {
+		serviceIDs = append(serviceIDs, s.ServiceID)
+		serviceMap[s.ServiceID] = s
+	}
+	var result = make(map[string]map[string]interface{}, len(ids))
+	status := t.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
+	for k, v := range status {
+		if _, ok := result[serviceMap[k].TenantID]; !ok {
+			result[serviceMap[k].TenantID] = map[string]interface{}{"tenant_id": k, "cpu": 0, "memory": 0, "disk": 0}
+		}
+		if !t.statusCli.IsClosedStatus(v) {
+			result[serviceMap[k].TenantID]["cpu"] = result[serviceMap[k].TenantID]["cpu"].(int) + (serviceMap[k].ContainerCPU * serviceMap[k].Replicas)
+			result[serviceMap[k].TenantID]["memory"] = result[serviceMap[k].TenantID]["memory"].(int) + (serviceMap[k].ContainerMemory * serviceMap[k].Replicas)
+		}
 	}
 	//query disk used in prometheus
 	proxy := GetPrometheusProxy()
@@ -176,20 +192,20 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (res [
 	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", query), nil)
 	if err != nil {
 		logrus.Error("create request prometheus api error ", err.Error())
-		return
+		return result, nil
 	}
-	result, err := proxy.Do(req)
+	presult, err := proxy.Do(req)
 	if err != nil {
 		logrus.Error("do proxy request prometheus api error ", err.Error())
-		return
+		return result, nil
 	}
-	if result.Body != nil {
-		defer result.Body.Close()
-		if result.StatusCode != 200 {
-			return res, nil
+	if presult.Body != nil {
+		defer presult.Body.Close()
+		if presult.StatusCode != 200 {
+			return result, nil
 		}
 		var qres QueryResult
-		err = json.NewDecoder(result.Body).Decode(&qres)
+		err = json.NewDecoder(presult.Body).Decode(&qres)
 		if err == nil {
 			for _, re := range qres.Data.Result {
 				var tenantID string
@@ -200,31 +216,35 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (res [
 				if re, ok := (re["value"]).([]interface{}); ok && len(re) == 2 {
 					disk, _ = strconv.Atoi(re[1].(string))
 				}
-				if _, ok := resmp[tenantID]; ok {
-					resmp[tenantID]["disk"] = disk / 1024
-				} else {
-					resmp[tenantID] = make(map[string]interface{})
-					resmp[tenantID]["disk"] = disk / 1024
+				if _, ok := result[tenantID]; ok {
+					result[tenantID]["disk"] = disk / 1024
 				}
 			}
 		}
 	}
-	//set disk 0
-	for i, v := range res {
-		if _, ok := v["disk"]; !ok {
-			res[i]["disk"] = 0
-		}
-	}
-	return res, nil
+	return result, nil
 }
 
 //GetServicesResources Gets the resource usage of the specified service.
 func (t *TenantAction) GetServicesResources(tr *api_model.ServicesResources) (re map[string]map[string]interface{}, err error) {
-	resmp, err := db.GetManager().TenantServiceDao().GetServiceMemoryByServiceIDs(tr.Body.ServiceIDs)
+	status := t.statusCli.GetStatuss(strings.Join(tr.Body.ServiceIDs, ","))
+	var running, closed []string
+	for k, v := range status {
+		if !t.statusCli.IsClosedStatus(v) {
+			running = append(running, k)
+		} else {
+			closed = append(closed, k)
+		}
+	}
+	resmp, err := db.GetManager().TenantServiceDao().GetServiceMemoryByServiceIDs(running)
 	if err != nil {
 		return nil, err
 	}
+	for _, c := range closed {
+		resmp[c] = map[string]interface{}{"memory": 0, "cpu": 0}
+	}
 	re = resmp
+
 	//query disk used in prometheus
 	proxy := GetPrometheusProxy()
 	query := fmt.Sprintf(`app_resource_appfs{service_id=~"%s"}`, strings.Join(tr.Body.ServiceIDs, "|"))

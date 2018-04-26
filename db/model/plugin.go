@@ -25,7 +25,7 @@ type TenantPlugin struct {
 	//plugin name
 	PluginName string `gorm:"column:plugin_name;size:32" json:"plugin_name"`
 	//plugin describe
-	PluginInfo string `gorm:"column:plugin_info;size:100" json:"plugin_info"`
+	PluginInfo string `gorm:"column:plugin_info;size:255" json:"plugin_info"`
 	//plugin build by docker image name
 	ImageURL string `gorm:"column:image_url" json:"image_url"`
 	//plugin build by git code url
