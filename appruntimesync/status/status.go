@@ -123,7 +123,6 @@ func (s *Manager) checkStatus() {
 				continue
 			}
 			if deployInfo == nil || len(deployInfo) == 0 {
-				logrus.Info("deployInfo is nil or length is 0.")
 				s.SetStatus(serviceID, CLOSED)
 				continue
 			}
@@ -243,7 +242,8 @@ func (s *Manager) cacheAllAPPStatus() {
 	if len(allServic) == len(all) {
 		return
 	}
-	for _, ser := range allServic {
+	for i, ser := range allServic {
+		logrus.Debugf("(%d)check service %s status", i, ser.ServiceID)
 		s.CheckStatus(ser.ServiceID)
 	}
 

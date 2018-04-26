@@ -31,11 +31,10 @@ import (
 )
 
 var initTableSQL = `CREATE TABLE IF NOT EXISTS event_log_message (
-	"ID" integer,
+	"ID"  SERIAL PRIMARY KEY,
 	event_id character varying(40),
 	start_time character varying(40),
-	message bytea,
-	PRIMARY KEY (ID)
+	message bytea
 )`
 
 type cockroachPlugin struct {

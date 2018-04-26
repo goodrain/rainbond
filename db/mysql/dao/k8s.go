@@ -192,7 +192,7 @@ func (t *K8sDeployReplicationDaoImpl) DeleteK8sDeployReplicationByServiceAndVers
 }
 func (t *K8sDeployReplicationDaoImpl) BeachDelete(deletelist []uint) error {
 	var deploy model.K8sDeployReplication
-	if err := t.DB.Where("ID in (?)", deletelist).Delete(&deploy).Error; err != nil {
+	if err := t.DB.Where("\"ID\" in (?)", deletelist).Delete(&deploy).Error; err != nil {
 		return err
 	}
 	return nil
