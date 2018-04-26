@@ -63,6 +63,7 @@ type Manager interface {
 	StartReplicationController(serviceID string, logger event.Logger) (*v1.ReplicationController, error)
 	StopReplicationController(serviceID string, logger event.Logger) error
 	RollingUpgradeReplicationController(serviceID string, stopChan chan struct{}, logger event.Logger) (*v1.ReplicationController, error)
+	RollingUpgradeReplicationControllerCompatible(serviceID string, stopChan chan struct{}, logger event.Logger) (*v1.ReplicationController, error)
 	StartDeployment(serviceID string, logger event.Logger) (*v1beta1.Deployment, error)
 	StopDeployment(serviceID string, logger event.Logger) error
 	//TODO:

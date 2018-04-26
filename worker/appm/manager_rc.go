@@ -336,6 +336,157 @@ func (m *manager) RollingUpgradeReplicationController(serviceID string, stopChan
 	return rc, nil
 }
 
+//RollingUpgradeReplicationControllerCompatible 滚动升级RC
+//该方法的存在是为了兼容旧应用，如旧版MySQL被设为无状态类型，所以要先删除实例再创建新实例
+func (m *manager) RollingUpgradeReplicationControllerCompatible(serviceID string, stopChan chan struct{}, logger event.Logger) (*v1.ReplicationController, error) {
+	deploys, err := m.dbmanager.K8sDeployReplicationDao().GetK8sDeployReplicationByService(serviceID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			logger.Info("应用未部署，开始启动应用", map[string]string{"step": "worker-appm", "status": "success"})
+			return m.StartReplicationController(serviceID, logger)
+		}
+		logrus.Error("get old deploy info error.", err.Error())
+		logger.Error("获取当前应用部署信息失败", map[string]string{"step": "worker-appm", "status": "error"})
+		return nil, err
+	}
+	var deploy *model.K8sDeployReplication
+	if deploys != nil || len(deploys) > 0 {
+		for _, d := range deploys {
+			if !d.IsDelete {
+				deploy = d
+			}
+		}
+	}
+	if deploy == nil {
+		logger.Info("应用未部署，开始启动应用", map[string]string{"step": "worker-appm", "status": "success"})
+		return m.StartReplicationController(serviceID, logger)
+	}
+	logger.Info("创建ReplicationController资源开始", map[string]string{"step": "worker-appm", "status": "starting"})
+	builder, err := ReplicationControllerBuilder(serviceID, logger, m.conf.NodeAPI)
+	if err != nil {
+		logrus.Error("create ReplicationController builder error.", err.Error())
+		logger.Error("创建ReplicationController Builder失败", map[string]string{"step": "worker-appm", "status": "error"})
+		return nil, err
+	}
+	rc, err := builder.Build()
+	if err != nil {
+		logrus.Error("build ReplicationController error.", err.Error())
+		logger.Error("创建ReplicationController失败", map[string]string{"step": "worker-appm", "status": "error"})
+		return nil, err
+	}
+	var replicas = rc.Spec.Replicas
+	rc.Spec.Replicas = int32Ptr(0)
+	result, err := m.kubeclient.Core().ReplicationControllers(builder.GetTenant()).Create(rc)
+	if err != nil {
+		logrus.Error("deploy ReplicationController to apiserver error.", err.Error())
+		logger.Error("部署ReplicationController到集群失败", map[string]string{"step": "worker-appm", "status": "error"})
+		return nil, err
+	}
+	var oldRCName = deploy.ReplicationID
+	newDeploy := &model.K8sDeployReplication{
+		ReplicationID:   rc.Name,
+		DeployVersion:   rc.Labels["version"],
+		ReplicationType: model.TypeReplicationController,
+		TenantID:        deploy.TenantID,
+		ServiceID:       serviceID,
+	}
+	err = m.dbmanager.K8sDeployReplicationDao().AddModel(newDeploy)
+	if err != nil {
+		m.kubeclient.Core().ReplicationControllers(builder.GetTenant()).Delete(rc.Name, &metav1.DeleteOptions{})
+		logrus.Error("save new deploy info to db error.", err.Error())
+		logger.Error("添加部署信息失败", map[string]string{"step": "worker-appm", "status": "error"})
+		return nil, err
+	}
+	//保证删除旧RC
+	defer func() {
+		//step3 delete old rc
+		//注入status模块，忽略本RC的感知
+		m.statusManager.IgnoreDelete(oldRCName)
+		err = m.kubeclient.Core().ReplicationControllers(builder.GetTenant()).Delete(oldRCName, &metav1.DeleteOptions{})
+		if err != nil {
+			if err = checkNotFoundError(err); err != nil {
+				logrus.Error("delete ReplicationController error.", err.Error())
+				logger.Error("从集群中删除ReplicationController失败", map[string]string{"step": "worker-appm", "status": "error"})
+			}
+		}
+		m.dbmanager.K8sDeployReplicationDao().DeleteK8sDeployReplicationByServiceAndVersion(deploy.ServiceID, deploy.DeployVersion)
+	}()
+	//step2 sync pod number
+	logger.Info("开始滚动替换实例", map[string]string{"step": "worker-appm", "status": "starting"})
+	var i int32
+	for i = 1; i <= *replicas; i++ {
+		if err := m.rollingUpgradeCompatible(builder.GetTenant(), serviceID, oldRCName, result.Name, (*replicas)-i, i, logger); err != nil {
+			return nil, err
+		}
+		select {
+		case <-stopChan:
+			logger.Info("应用滚动升级停止。", map[string]string{"step": "worker-appm"})
+			return nil, nil
+		default:
+			//延时1s
+			//TODO: 外层传入时间间隔
+			if i < *replicas {
+				time.Sleep(time.Second * 1)
+			}
+		}
+	}
+	//删除未移除成功的pod
+	logger.Info("开始移除残留的Pod实例", map[string]string{"step": "worker-appm", "status": "starting"})
+	pods, err := m.dbmanager.K8sPodDao().GetPodByReplicationID(oldRCName)
+	if err != nil {
+		logrus.Error("get more than need by deleted pod from db error.", err.Error())
+		logger.Error("查询更过需要被移除的Pod失败", map[string]string{"step": "worker-appm", "status": "error"})
+	}
+	if pods != nil && len(pods) > 0 {
+		for i := range pods {
+			pod := pods[i]
+			err = m.kubeclient.CoreV1().Pods(builder.GetTenant()).Delete(pod.PodName, &metav1.DeleteOptions{})
+			if err != nil {
+				if err = checkNotFoundError(err); err != nil {
+					logrus.Errorf("delete pod (%s) from k8s api error %s", pod.PodName, err.Error())
+				}
+			} else {
+				logger.Info(fmt.Sprintf("实例(%s)已停止并移除", pod.PodName), map[string]string{"step": "worker-appm"})
+			}
+		}
+	}
+	logger.Info("移除残留的Pod实例完成", map[string]string{"step": "worker-appm", "status": "success"})
+	return rc, nil
+}
+
+//该方法的存在是为了兼容旧应用，如旧版MySQL被设为无状态类型，所以要先删除实例再创建新实例
+func (m *manager) rollingUpgradeCompatible(namespace, serviceID, oldRC, newRC string, oldReplicase, newReplicas int32, logger event.Logger) error {
+	logger.Info(fmt.Sprintf("新版实例数:%d,旧版实例数:%d,替换开始", newReplicas, oldReplicase), map[string]string{"step": "worker-appm", "status": "starting"})
+	// first delete old pods
+	rc, err := m.kubeclient.Core().ReplicationControllers(namespace).Patch(oldRC, types.StrategicMergePatchType, Replicas(int(oldReplicase)))
+	if err != nil {
+		logrus.Error("patch ReplicationController info error.", err.Error())
+		logger.Error(fmt.Sprintf("更改ReplicationController Pod数量为%d失败", oldReplicase), map[string]string{"step": "worker-appm", "status": "error"})
+		return err
+	}
+	err = m.waitReplicationController("down", serviceID, oldReplicase, logger, rc)
+	if err != nil && err.Error() != ErrTimeOut.Error() {
+		logrus.Errorf("patch ReplicationController replicas to %d and watch error.%v", oldReplicase, err.Error())
+		logger.Error(fmt.Sprintf("更改ReplicationController Pod数量为%d结果检测失败", oldReplicase), map[string]string{"step": "worker-appm", "status": "error"})
+		return err
+	}
+	// create new pods
+	rc, err = m.kubeclient.Core().ReplicationControllers(namespace).Patch(newRC, types.StrategicMergePatchType, Replicas(int(newReplicas)))
+	if err != nil {
+		logrus.Error("patch ReplicationController info error.", err.Error())
+		logger.Error(fmt.Sprintf("更改ReplicationController Pod数量为%d失败", newReplicas), map[string]string{"step": "worker-appm", "status": "error"})
+		return err
+	}
+	err = m.waitReplicationController("up", serviceID, newReplicas, logger, rc)
+	if err != nil && err.Error() != ErrTimeOut.Error() {
+		logrus.Errorf("patch ReplicationController replicas to %d and watch error.%v", newReplicas, err.Error())
+		logger.Error(fmt.Sprintf("更改ReplicationController Pod数量为%d结果检测失败", newReplicas), map[string]string{"step": "worker-appm", "status": "error"})
+		return err
+	}
+	logger.Info(fmt.Sprintf("新版实例数:%d,旧版实例数:%d,替换完成", newReplicas, oldReplicase), map[string]string{"step": "worker-appm", "status": "starting"})
+	return nil
+}
+
 func (m *manager) rollingUpgrade(namespace, serviceID, oldRC, newRC string, oldReplicase, newReplicas int32, logger event.Logger) error {
 	logger.Info(fmt.Sprintf("新版实例数:%d,旧版实例数:%d,替换开始", newReplicas, oldReplicase), map[string]string{"step": "worker-appm", "status": "starting"})
 	rc, err := m.kubeclient.Core().ReplicationControllers(namespace).Patch(newRC, types.StrategicMergePatchType, Replicas(int(newReplicas)))
