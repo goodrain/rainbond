@@ -187,3 +187,21 @@ func TestCockroachDBDeleteService(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestCockroachDBSaveDeployInfo(t *testing.T) {
+	if err := CreateManager(dbconfig.Config{
+		MysqlConnectionInfo: "postgresql://root@localhost:5432/region?sslmode=disable",
+		DBType:              "cockroachdb",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	err := GetManager().K8sDeployReplicationDao().AddModel(&model.K8sDeployReplication{
+		TenantID:        "asdasd",
+		ServiceID:       "asdasdasdasd",
+		ReplicationID:   "asdasdadsasdasdasd",
+		ReplicationType: model.TypeReplicationController,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
