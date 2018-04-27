@@ -18,8 +18,6 @@
 
 package model
 
-import "time"
-
 //TableName 表名
 func (t *RegionAPIClass) TableName() string {
 	return "region_api_class"
@@ -27,13 +25,12 @@ func (t *RegionAPIClass) TableName() string {
 
 //RegionAPIClass RegionAPIClass
 type RegionAPIClass struct {
-	ID         uint      `gorm:"column:ID"`
-	CreatedAt  time.Time `gorm:"column:create_time"`
-	ClassLevel string    `gorm:"column:class_level;size:24;primary_key" json:"class_level"`
-	Prefix     string    `gorm:"column:prefix;size:128;primary_key" json:"prefix"`
-	URI        string    `gorm:"column:uri;size:256" json:"uri"`
-	Alias      string    `gorm:"column:alias;size:64" json:"alias"`
-	Remark     string    `gorm:"column:remark;size:64" json:"remark"`
+	Model
+	ClassLevel string `gorm:"column:class_level;size:24;" json:"class_level"`
+	Prefix     string `gorm:"column:prefix;size:128;" json:"prefix"`
+	URI        string `gorm:"column:uri;size:256" json:"uri"`
+	Alias      string `gorm:"column:alias;size:64" json:"alias"`
+	Remark     string `gorm:"column:remark;size:64" json:"remark"`
 }
 
 //NODEMANAGER NODEMANAGER

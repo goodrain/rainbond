@@ -18,8 +18,6 @@
 
 package model
 
-import "time"
-
 //TableName 表名
 func (t *RegionProcotols) TableName() string {
 	return "region_protocols"
@@ -27,12 +25,11 @@ func (t *RegionProcotols) TableName() string {
 
 //RegionProcotols RegionProcotol
 type RegionProcotols struct {
-	ID            uint      `gorm:"column:ID"`
-	CreatedAt     time.Time `gorm:"column:create_time"`
-	ProtocolGroup string    `gorm:"column:protocol_group;size:32;primary_key" json:"protocol_group"`
-	ProtocolChild string    `gorm:"column:protocol_child;size:32;primary_key" json:"protocol_child"`
-	APIVersion    string    `gorm:"column:api_version;size:8" json:"api_version"`
-	IsSupport     bool      `gorm:"column:is_support;default:false" json:"is_support"`
+	Model
+	ProtocolGroup string `gorm:"column:protocol_group;size:32;" json:"protocol_group"`
+	ProtocolChild string `gorm:"column:protocol_child;size:32;" json:"protocol_child"`
+	APIVersion    string `gorm:"column:api_version;size:8" json:"api_version"`
+	IsSupport     bool   `gorm:"column:is_support;default:false" json:"is_support"`
 }
 
 //STREAMGROUP STREAMGROUP

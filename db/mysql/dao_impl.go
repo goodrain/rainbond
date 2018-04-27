@@ -430,3 +430,10 @@ func (m *Manager) RegionProcotolsDao() dao.RegionProcotolsDao {
 		DB: m.db,
 	}
 }
+
+//RegionProcotolsDaoTransactions RegionProcotolsDao
+func (m *Manager) RegionProcotolsDaoTransactions(db *gorm.DB) dao.RegionProcotolsDao {
+	return &mysqldao.RegionProcotolsDaoImpl{
+		DB: db,
+	}
+}

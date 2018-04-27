@@ -152,21 +152,35 @@ func (m *Manager) patchTable() {
 	var rac model.RegionAPIClass
 	if err := m.db.Where("class_level=? and prefix=?", "server_source", "/v2/show").Find(&rac).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			insertSQL := `INSERT INTO region_api_class(ID,class_level, prefix)
-			VALUES (1,"server_source", "/v2/show"),
-				(2,"server_source", "/v2/resources"),
-				(3,"server_source", "/v2/opentsdb"),
-				(4,"node_manager", "/v2/nodes"),
-				(5,"node_manager", "/v2/job"),
-				(6,"node_manager", "/v2/tasks"),
-				(7,"node_manager", "/v2/taskgroups"),
-				(8,"node_manager", "/v2/tasktemps"),
-				(9,"node_manager", "/v2/configs"),
-				(10,"server_source", "/v2/builder"),
-				(11,"server_source", "/v2/tenants"),
-				(12,"server_source","/api/v1");
-			`
-			m.db.Exec(insertSQL)
+			data := map[string]string{
+				"/v2/show":       "server_source",
+				"/v2/opentsdb":   "server_source",
+				"/v2/resources":  "server_source",
+				"/v2/builder":    "server_source",
+				"/v2/tenants":    "server_source",
+				"/api/v1":        "server_source",
+				"/v2/nodes":      "node_manager",
+				"/v2/job":        "node_manager",
+				"/v2/tasks":      "node_manager",
+				"/v2/taskgroups": "node_manager",
+				"/v2/tasktemps":  "node_manager",
+				"/v2/configs":    "node_manager",
+			}
+			tx := m.Begin()
+			var rollback bool
+			for k, v := range data {
+				if err := m.RegionAPIClassDaoTransactions(tx).AddModel(&model.RegionAPIClass{
+					ClassLevel: v,
+					Prefix:     k,
+				}); err != nil {
+					tx.Rollback()
+					rollback = true
+					break
+				}
+			}
+			if !rollback {
+				tx.Commit()
+			}
 		}
 	}
 
@@ -174,13 +188,29 @@ func (m *Manager) patchTable() {
 	var rps model.RegionProcotols
 	if err := m.db.Where("protocol_group=? and protocol_child=?", "http", "http").Find(&rps).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			m.db.Exec(`
-				insert into region_protocols(ID,protocol_group,protocol_child,api_version,is_support) VALUES(1,"http","http","v2",1),
-			 (2,"stream","mysql","v2",1),
-			 (3,"stream","udp","v2",1),
-			 (4,"stream","tcp","v2",1),
-			 (5,"http","grpc","v2",0)
-			 `)
+			data := map[string][]string{
+				"http":   []string{"http"},
+				"stream": []string{"mysql", "tcp", "udp"},
+			}
+			tx := m.Begin()
+			var rollback bool
+			for k, v := range data {
+				for _, v1 := range v {
+					if err := m.RegionProcotolsDaoTransactions(tx).AddModel(&model.RegionProcotols{
+						ProtocolGroup: k,
+						ProtocolChild: v1,
+						APIVersion:    "v2",
+						IsSupport:     true,
+					}); err != nil {
+						tx.Rollback()
+						rollback = true
+						break
+					}
+				}
+			}
+			if !rollback {
+				tx.Commit()
+			}
 		}
 	}
 }

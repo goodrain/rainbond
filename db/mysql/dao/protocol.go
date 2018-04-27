@@ -35,7 +35,7 @@ type RegionProcotolsDaoImpl struct {
 func (t *RegionProcotolsDaoImpl) AddModel(mo model.Interface) error {
 	info := mo.(*model.RegionProcotols)
 	var oldInfo model.RegionProcotols
-	if ok := t.DB.Where("protocol_group = ? and ProtocolChild = ?", info.ProtocolGroup, info.ProtocolChild).Find(&oldInfo).RecordNotFound(); ok {
+	if ok := t.DB.Where("protocol_group = ? and protocol_child = ?", info.ProtocolGroup, info.ProtocolChild).Find(&oldInfo).RecordNotFound(); ok {
 		if err := t.DB.Create(info).Error; err != nil {
 			return err
 		}
@@ -60,7 +60,7 @@ func (t *RegionProcotolsDaoImpl) UpdateModel(mo model.Interface) error {
 //GetAllSupportProtocol 获取当前数据中心支持的所有协议
 func (t *RegionProcotolsDaoImpl) GetAllSupportProtocol(version string) ([]*model.RegionProcotols, error) {
 	var rpss []*model.RegionProcotols
-	if err := t.DB.Where("api_version= ? and is_support = 1", version).Find(&rpss).Error; err != nil {
+	if err := t.DB.Where("api_version= ? and is_support = ?", version, true).Find(&rpss).Error; err != nil {
 		return nil, err
 	}
 	return rpss, nil

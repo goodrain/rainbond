@@ -156,7 +156,34 @@ func TestGetMem(t *testing.T) {
 	// if err != nil {
 	// 	t.Fatal(err)
 	// }
-	var rc []string
-	a, b, err := GetManager().TenantServiceDao().GetCPUAndMEM(rc)
-	t.Log(a, b, err)
+}
+
+func TestCockroachDBCreateService(t *testing.T) {
+	if err := CreateManager(dbconfig.Config{
+		MysqlConnectionInfo: "postgresql://root@localhost:5432/region?sslmode=disable",
+		DBType:              "cockroachdb",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	err := GetManager().TenantServiceDao().AddModel(&model.TenantServices{
+		TenantID:     "asdasd",
+		ServiceID:    "asdasdasdasd",
+		ServiceAlias: "grasdasdasdads",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCockroachDBDeleteService(t *testing.T) {
+	if err := CreateManager(dbconfig.Config{
+		MysqlConnectionInfo: "postgresql://root@localhost:5432/region?sslmode=disable",
+		DBType:              "cockroachdb",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	err := GetManager().TenantServiceDao().DeleteServiceByServiceID("asdasdasdasd")
+	if err != nil {
+		t.Fatal(err)
+	}
 }
