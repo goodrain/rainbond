@@ -754,20 +754,40 @@ func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantR
 
 //GetTenantRes get pagedTenantServiceRes(s)
 func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, error) {
-	services, err := db.GetManager().TenantServiceDao().GetTenantServiceRes(uuid)
+	services, err := db.GetManager().TenantServiceDao().GetServicesByTenantID(uuid)
 	if err != nil {
 		logrus.Errorf("get service by id error, %v, %v", services, err)
 		return nil, err
 	}
-	logrus.Infof("get tenant service res is %v", services)
+	var serviceIDs string
+	var AllocatedCPU, AllocatedMEM int
+	var serMap = make(map[string]*dbmodel.TenantServices, len(services))
+	for _, ser := range services {
+		if serviceIDs == "" {
+			serviceIDs += ser.ServiceID
+		} else {
+			serviceIDs += "," + ser.ServiceID
+		}
+		AllocatedCPU += ser.ContainerCPU
+		AllocatedMEM += ser.ContainerMemory
+		serMap[ser.ServiceID] = ser
+	}
+	status := s.statusCli.GetStatuss(serviceIDs)
+	var UsedCPU, UsedMEM int
+	for k, v := range status {
+		if !s.statusCli.IsClosedStatus(v) {
+			UsedCPU += serMap[k].ContainerCPU
+			UsedMEM += serMap[k].ContainerMemory
+		}
+	}
 	var res api_model.TenantResource
 	res.UUID = uuid
 	res.Name = ""
 	res.EID = ""
-	res.AllocatedCPU = services["capcpu"].(int)
-	res.AllocatedMEM = services["capmem"].(int)
-	res.UsedCPU = services["usecpu"].(int)
-	res.UsedMEM = services["usemem"].(int)
+	res.AllocatedCPU = AllocatedCPU
+	res.AllocatedMEM = AllocatedMEM
+	res.UsedCPU = UsedCPU
+	res.UsedMEM = UsedMEM
 	return &res, nil
 }
 
