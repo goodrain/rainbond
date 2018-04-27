@@ -7,7 +7,7 @@
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
 
-[Website](http://www.rainbond.com) • [Docs](https://www.rainbond.com/docs/stable/) • [Public Cloud](https://sso.goodrain.com/#/login/https%3A%2F%2Fwww.goodrain.com%2F%23%2Findex)
+[Website](http://www.rainbond.com) • [Docs](https://www.rainbond.com/docs/stable/) • [Public Cloud](https://sso.goodrain.com/#/login/https%3A%2F%2Fwww.goodrain.com%2F%23%2Findex) • [中文README](https://github.com/goodrain/rainbond/blob/V3.6/readme_zh.md)
 
 **Rainbond** is an application-centric Platform as a Service, with innovative concept and complete ecological comes from continuous verification and optimization.
 
