@@ -120,7 +120,7 @@ func (s *rollingUpgradeTask) Run() error {
 		return fmt.Errorf("dont't support")
 	case dbmodel.TypeReplicationController:
 		var rc *v1.ReplicationController
-		rc, upgradeError = s.taskManager.appm.RollingUpgradeReplicationControllerCompatible(s.modelTask.ServiceID, s.stopChan, s.logger)
+		rc, upgradeError = s.taskManager.appm.RollingUpgradeReplicationController(s.modelTask.ServiceID, s.stopChan, s.logger)
 		if upgradeError != nil && upgradeError.Error() != appm.ErrTimeOut.Error() {
 			logrus.Error(upgradeError.Error())
 			s.logger.Info("应用滚动升级发生错误", map[string]string{"step": "worker-executor", "status": "failure"})

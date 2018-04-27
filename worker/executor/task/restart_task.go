@@ -165,17 +165,17 @@ func (s *restartTask) Run() error {
 		}
 		break
 	case dbmodel.TypeReplicationController:
-		s.logger.Info("开始滚动升级ReplicationController", map[string]string{"step": "worker-executor", "status": "starting"})
+		s.logger.Info("开始重启ReplicationController", map[string]string{"step": "worker-executor", "status": "starting"})
 		rc, upgradeError := s.taskManager.appm.RollingUpgradeReplicationControllerCompatible(s.modelTask.ServiceID, s.stopChan, s.logger)
 		if upgradeError != nil && upgradeError.Error() != appm.ErrTimeOut.Error() {
 			logrus.Error(upgradeError.Error())
-			s.logger.Info("应用滚动升级发生错误", map[string]string{"step": "worker-executor", "status": "failure"})
+			s.logger.Info("应用重启升级发生错误", map[string]string{"step": "worker-executor", "status": "failure"})
 			return upgradeError
 		}
 		err := s.taskManager.appm.UpdateService(s.modelTask.ServiceID, s.logger, rc.Name, dbmodel.TypeReplicationController)
 		if err != nil {
 			logrus.Error(err.Error())
-			s.logger.Info("应用Service升级发生错误", map[string]string{"step": "worker-executor", "status": "failure"})
+			s.logger.Info("应用Service重启发生错误", map[string]string{"step": "worker-executor", "status": "failure"})
 			return err
 		}
 
