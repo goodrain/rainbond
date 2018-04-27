@@ -7,7 +7,7 @@
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
 
-[网站](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/stable/) • [公有云](https://sso.goodrain.com/#/login/https%3A%2F%2Fwww.goodrain.com%2F%23%2Findex)
+[网站](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/stable/) • [公有云](https://sso.goodrain.com/#/login/https%3A%2F%2Fwww.goodrain.com%2F%23%2Findex) • [README in English](https://github.com/goodrain/rainbond/blob/V3.6/readme.md)
 
 **Rainbond**是以应用为中心的PaaS，领先的理念和完整的生态源自于不断的验证和优化。
 
