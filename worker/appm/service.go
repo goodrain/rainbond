@@ -278,5 +278,6 @@ func (k *K8sServiceBuild) createStatefulService(ports []*model.TenantServicesPor
 		ClusterIP: "None",
 	}
 	service.Spec = spec
+	service.Annotations = map[string]string{"service.alpha.kubernetes.io/tolerate-unready-endpoints": "true"}
 	return &service
 }
