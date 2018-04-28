@@ -249,6 +249,7 @@ type K8sDeployReplicationDao interface {
 	GetK8sDeployReplicationByService(serviceID string) ([]*model.K8sDeployReplication, error)
 	GetK8sCurrentDeployReplicationByService(serviceID string) (*model.K8sDeployReplication, error)
 	DeleteK8sDeployReplicationByServiceAndVersion(serviceID, version string) error
+	DeleteK8sDeployReplicationByServiceAndMarked(serviceID string) error
 	//不真正删除，设置IS_DELETE 为true
 	DeleteK8sDeployReplicationByService(serviceID string) error
 	GetReplications() ([]*model.K8sDeployReplication, error)

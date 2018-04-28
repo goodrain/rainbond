@@ -420,7 +420,7 @@ func (m *manager) RollingUpgradeReplicationControllerCompatible(serviceID string
 				logger.Error("从集群中删除ReplicationController失败", map[string]string{"step": "worker-appm", "status": "error"})
 			}
 		}
-		m.dbmanager.K8sDeployReplicationDao().DeleteK8sDeployReplicationByServiceAndVersion(deploy.ServiceID, deploy.DeployVersion)
+		m.dbmanager.K8sDeployReplicationDao().DeleteK8sDeployReplicationByServiceAndMarked(deploy.ServiceID)
 	}()
 	//step2 sync pod number
 	logger.Info("开始滚动替换实例", map[string]string{"step": "worker-appm", "status": "starting"})
