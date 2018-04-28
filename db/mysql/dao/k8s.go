@@ -185,7 +185,7 @@ func (t *K8sDeployReplicationDaoImpl) DeleteK8sDeployReplication(replicationID s
 }
 func (t *K8sDeployReplicationDaoImpl) DeleteK8sDeployReplicationByServiceAndVersion(serviceID, version string) error {
 	var deploy model.K8sDeployReplication
-	if err := t.DB.Where("service_id=? and deploy_version=?", serviceID, version).Delete(&deploy).Error; err != nil {
+	if err := t.DB.Where("service_id=? and deploy_version=? and is_delete=?", serviceID, version, true).Delete(&deploy).Error; err != nil {
 		return err
 	}
 	return nil
