@@ -45,7 +45,7 @@ func (t *TenantDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("tenant uuid  %s is exist", tenant.UUID)
+		return fmt.Errorf("tenant uuid  %s or name %s is exist", tenant.UUID, tenant.Name)
 	}
 	return nil
 }
@@ -142,7 +142,7 @@ func (t *TenantServicesDaoImpl) AddModel(mo model.Interface) error {
 	service := mo.(*model.TenantServices)
 	var oldService model.TenantServices
 	if ok := t.DB.Where("service_alias = ? and tenant_id=?", service.ServiceAlias, service.TenantID).Find(&oldService).RecordNotFound(); ok {
-		if err := t.DB.Save(service).Error; err != nil {
+		if err := t.DB.Create(service).Error; err != nil {
 			return err
 		}
 	} else {

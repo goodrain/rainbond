@@ -34,13 +34,13 @@ func TestTenantDao(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	// err := GetManager().TenantDao().AddModel(&model.Tenants{
-	// 	Name: "barnett3",
-	// 	UUID: util.NewUUID(),
-	// })
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
+	err := GetManager().TenantDao().AddModel(&model.Tenants{
+		Name: "barnett4",
+		UUID: util.NewUUID(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	tenant, err := GetManager().TenantDao().GetTenantByUUID("27bbdd119b24444696dc51aa2f41eef8")
 	if err != nil {
 		t.Fatal(err)
@@ -173,7 +173,7 @@ func TestCockroachDBCreateService(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	err := GetManager().TenantServiceDeleteDao().AddModel(&model.TenantServicesDelete{
+	err := GetManager().TenantServiceDao().AddModel(&model.TenantServices{
 		TenantID:     "asdasd",
 		ServiceID:    "asdasdasdasd",
 		ServiceAlias: "grasdasdasdads",
