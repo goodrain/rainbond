@@ -231,7 +231,6 @@ func (this *openresty) UpdatePool(originalPools ...*object.PoolObject) error {
 		if err != nil {
 			logrus.Error("Failed get vs by pool name: ", err)
 			protocol = "http"
-			continue
 		}
 
 		// build pool for openresty by original nodes
@@ -293,7 +292,6 @@ func (this *openresty) DeletePool(pools ...*object.PoolObject) error {
 		if err != nil {
 			logrus.Error("Failed get vs by pool name: ", err)
 			protocol = "http"
-			continue
 		}
 
 		// request all openresty instance by rest api
