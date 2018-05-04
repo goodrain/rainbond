@@ -190,6 +190,13 @@ func (t *K8sDeployReplicationDaoImpl) DeleteK8sDeployReplicationByServiceAndVers
 	}
 	return nil
 }
+func (t *K8sDeployReplicationDaoImpl) DeleteK8sDeployReplicationByServiceAndMarked(serviceID string) error {
+	var deploy model.K8sDeployReplication
+	if err := t.DB.Where("service_id=? and is_delete=?", serviceID, true).Delete(&deploy).Error; err != nil {
+		return err
+	}
+	return nil
+}
 func (t *K8sDeployReplicationDaoImpl) BeachDelete(deletelist []uint) error {
 	var deploy model.K8sDeployReplication
 	if err := t.DB.Where("\"ID\" in (?)", deletelist).Delete(&deploy).Error; err != nil {

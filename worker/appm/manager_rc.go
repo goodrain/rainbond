@@ -374,6 +374,8 @@ func (m *manager) RollingUpgradeReplicationControllerCompatible(serviceID string
 		logger.Error("创建ReplicationController失败", map[string]string{"step": "worker-appm", "status": "error"})
 		return nil, err
 	}
+
+	// create new empty rc in k8s
 	var replicas = rc.Spec.Replicas
 	rc.Spec.Replicas = int32Ptr(0)
 	result, err := m.kubeclient.Core().ReplicationControllers(builder.GetTenant()).Create(rc)
@@ -382,6 +384,15 @@ func (m *manager) RollingUpgradeReplicationControllerCompatible(serviceID string
 		logger.Error("部署ReplicationController到集群失败", map[string]string{"step": "worker-appm", "status": "error"})
 		return nil, err
 	}
+
+	// mark for ready to delete the old rc in db
+	deploy.IsDelete = true
+	err = m.dbmanager.K8sDeployReplicationDao().UpdateModel(deploy)
+	if err != nil {
+		logrus.Error("Failed to mark for ready to delete the rc in db: ", err)
+	}
+
+	// create new rc in db
 	var oldRCName = deploy.ReplicationID
 	newDeploy := &model.K8sDeployReplication{
 		ReplicationID:   rc.Name,
@@ -397,7 +408,7 @@ func (m *manager) RollingUpgradeReplicationControllerCompatible(serviceID string
 		logger.Error("添加部署信息失败", map[string]string{"step": "worker-appm", "status": "error"})
 		return nil, err
 	}
-	//保证删除旧RC
+
 	defer func() {
 		//step3 delete old rc
 		//注入status模块，忽略本RC的感知
@@ -409,7 +420,7 @@ func (m *manager) RollingUpgradeReplicationControllerCompatible(serviceID string
 				logger.Error("从集群中删除ReplicationController失败", map[string]string{"step": "worker-appm", "status": "error"})
 			}
 		}
-		m.dbmanager.K8sDeployReplicationDao().DeleteK8sDeployReplicationByServiceAndVersion(deploy.ServiceID, deploy.DeployVersion)
+		m.dbmanager.K8sDeployReplicationDao().DeleteK8sDeployReplicationByServiceAndMarked(deploy.ServiceID)
 	}()
 	//step2 sync pod number
 	logger.Info("开始滚动替换实例", map[string]string{"step": "worker-appm", "status": "starting"})
