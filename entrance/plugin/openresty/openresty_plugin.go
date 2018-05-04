@@ -295,7 +295,7 @@ func (this *openresty) DeletePool(pools ...*object.PoolObject) error {
 		}
 
 		// request all openresty instance by rest api
-		err = this.doEach(DELETE, this.urlPool(upstreamName), map[string]string{"protocol": protocol})
+		err = this.doEach(DELETE, this.urlPool(upstreamName), Options{protocol})
 
 		if err != nil {
 			errs = append(errs, err)
@@ -342,7 +342,14 @@ func (this *openresty) GetNode(name string) *object.NodeObject {
 }
 
 func (this *openresty) deleteUpstream(poolName string) error {
-	if err := this.doEach(DELETE, this.urlPool(poolName), nil); err != nil {
+	protocol := "tcp"
+	_, err := this.ctx.Store.GetVSByPoolName(poolName)
+	if err != nil {
+		logrus.Error("Failed get vs by pool name: ", err)
+		protocol = "http"
+	}
+
+	if err := this.doEach(DELETE, this.urlPool(poolName), Options{protocol}); err != nil {
 		return err
 	}
 
