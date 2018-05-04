@@ -37,8 +37,9 @@ type NginxNode struct {
 }
 
 type NginxUpstream struct {
-	Name    string      `json:"name"`
-	Servers []NginxNode `json:"servers"`
+	Name     string      `json:"name"`
+	Servers  []NginxNode `json:"servers"`
+	Protocol string      `json:"protocol"`
 }
 
 func (this *NginxUpstream) AddNode(node NginxNode) {
@@ -59,5 +60,5 @@ type NginxServer struct {
 }
 
 type Options struct {
-	Protocol string	`json:"protocol"`	// http/https/tcp/udp
+	Protocol string `json:"protocol"` // http/https/tcp/udp
 }

@@ -34,6 +34,7 @@ import(
 	"io"
 	"net/url"
 	"github.com/Sirupsen/logrus"
+	"github.com/prometheus/prometheus/pkg/pool"
 )
 
 const (
@@ -221,13 +222,21 @@ func (this *openresty) UpdatePool(originalPools ...*object.PoolObject) error {
 		}
 
 		if len(originalNodes) < 1 {
-			logrus.Info("Delete update the pool, because no servers are inside the pool ", originalPool.Name)
+			logrus.Info("Delete the pool, because no servers are inside the pool ", originalPool.Name)
 			this.deleteUpstream(originalPool.Name)
 			continue
 		}
 
+		protocol := "tcp"
+		_, err = this.ctx.Store.GetVSByPoolName(originalPool.Name)
+		if err != nil {
+			logrus.Error("Failed get vs by pool name: ", err)
+			protocol = "http"
+			continue
+		}
+
 		// build pool for openresty by original nodes
-		pool := NginxUpstream{upstreamName, []NginxNode{}}
+		pool := NginxUpstream{upstreamName, []NginxNode{}, protocol}
 		for _, originalNode := range(originalNodes){
 			state := originalNode.State
 			if state == "" {
@@ -280,8 +289,16 @@ func (this *openresty) DeletePool(pools ...*object.PoolObject) error {
 			continue
 		}
 
+		protocol := "tcp"
+		_, err = this.ctx.Store.GetVSByPoolName(pool.Name)
+		if err != nil {
+			logrus.Error("Failed get vs by pool name: ", err)
+			protocol = "http"
+			continue
+		}
+
 		// request all openresty instance by rest api
-		err = this.doEach(DELETE, this.urlPool(upstreamName), nil)
+		err = this.doEach(DELETE, this.urlPool(upstreamName), map[string]string{"protocol": protocol})
 
 		if err != nil {
 			errs = append(errs, err)
