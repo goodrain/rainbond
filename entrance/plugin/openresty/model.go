@@ -42,8 +42,8 @@ type NginxUpstream struct {
 	Protocol string      `json:"protocol"`
 }
 
-func (this *NginxUpstream) AddNode(node NginxNode) {
-	this.Servers = append(this.Servers, node)
+func (u *NginxUpstream) AddNode(node NginxNode) {
+	u.Servers = append(u.Servers, node)
 }
 
 type NginxServer struct {
