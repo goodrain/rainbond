@@ -18,10 +18,8 @@ func (cn *conn) QueryContext(ctx context.Context, query string, args []driver.Na
 		list[i] = nv.Value
 	}
 	finish := cn.watchCancel(ctx)
-	fmt.Println(query)
 	r, err := cn.query(query, list)
 	if err != nil {
-		fmt.Printf("ExecContext(%s) Error %s \n", query, err)
 		if finish != nil {
 			finish()
 		}
@@ -33,7 +31,6 @@ func (cn *conn) QueryContext(ctx context.Context, query string, args []driver.Na
 
 // Implement the "ExecerContext" interface
 func (cn *conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	fmt.Println("ExecContext")
 	list := make([]driver.Value, len(args))
 	for i, nv := range args {
 		list[i] = nv.Value

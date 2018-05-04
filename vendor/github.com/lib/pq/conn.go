@@ -802,7 +802,6 @@ func (cn *conn) prepareTo(q, stmtName string) *stmt {
 }
 
 func (cn *conn) Prepare(q string) (_ driver.Stmt, err error) {
-	fmt.Println("Prepare", q)
 	if cn.bad {
 		return nil, driver.ErrBadConn
 	}
@@ -838,7 +837,6 @@ func (cn *conn) Close() (err error) {
 
 // Implement the "Queryer" interface
 func (cn *conn) Query(query string, args []driver.Value) (driver.Rows, error) {
-	fmt.Println(query, args)
 	return cn.query(query, args)
 }
 
@@ -879,7 +877,6 @@ func (cn *conn) query(query string, args []driver.Value) (_ *rows, err error) {
 
 // Implement the optional "Execer" interface for one-shot queries
 func (cn *conn) Exec(query string, args []driver.Value) (res driver.Result, err error) {
-	fmt.Println("Exec", query, args)
 	if cn.bad {
 		return nil, driver.ErrBadConn
 	}
