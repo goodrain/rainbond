@@ -34,7 +34,6 @@ import(
 	"io"
 	"net/url"
 	"github.com/Sirupsen/logrus"
-	"github.com/prometheus/prometheus/pkg/pool"
 )
 
 const (
@@ -364,8 +363,15 @@ func (this *openresty) mustCreateUpstream(poolName string, poolAlias string) err
 		return err
 	}
 
+	protocol := "tcp"
+	_, err = this.ctx.Store.GetVSByPoolName(poolName)
+	if err != nil {
+		logrus.Error("Failed get vs by pool name: ", err)
+		protocol = "http"
+	}
+
 	// build pool for openresty by original nodes
-	pool := NginxUpstream{poolAlias, []NginxNode{}}
+	pool := NginxUpstream{poolAlias, []NginxNode{}, protocol}
 	for _, originalNode := range(originalNodes){
 		state := originalNode.State
 		if state == "" {
