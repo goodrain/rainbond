@@ -72,6 +72,21 @@ type exectorManager struct {
 	EtcdCli      *clientv3.Client
 }
 
+//Worker worker interface
+type Worker interface {
+	Run(timeout time.Duration) error
+	GetLogger() event.Logger
+	Name() string
+	Stop() error
+}
+
+var workerCreaterList = make(map[string]func([]byte) Worker)
+
+//RegisterWorker register worker creater
+func RegisterWorker(name string, fun func([]byte) Worker) {
+	workerCreaterList[name] = fun
+}
+
 //TaskType:
 //build_from_image build app from docker image
 //build_from_source_code build app from source code
@@ -100,8 +115,29 @@ func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 	case "share-image":
 		e.imageShare(task.TaskBody)
 	default:
-		return fmt.Errorf("`%s` tasktype can't support", task.TaskType)
+		return e.exec(task.TaskType, task.TaskBody)
 	}
+
+	return nil
+}
+
+func (e *exectorManager) exec(workerName string, in []byte) error {
+	creater, ok := workerCreaterList[workerName]
+	if !ok {
+		return fmt.Errorf("`%s` tasktype can't support", workerName)
+	}
+	worker := creater(in)
+	go func() {
+		defer event.GetManager().ReleaseLogger(worker.GetLogger())
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println(r)
+				debug.PrintStack()
+				worker.GetLogger().Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+			}
+		}()
+		worker.Run(time.Minute * 10)
+	}()
 	return nil
 }
 
