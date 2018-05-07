@@ -41,7 +41,7 @@ func init() {
 }
 
 //NewExportApp create
-func NewExportApp(in []byte) Worker {
+func NewExportApp(in []byte) TaskWorker {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	return &ExportApp{

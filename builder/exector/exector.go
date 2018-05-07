@@ -72,18 +72,18 @@ type exectorManager struct {
 	EtcdCli      *clientv3.Client
 }
 
-//Worker worker interface
-type Worker interface {
+//TaskWorker worker interface
+type TaskWorker interface {
 	Run(timeout time.Duration) error
 	GetLogger() event.Logger
 	Name() string
 	Stop() error
 }
 
-var workerCreaterList = make(map[string]func([]byte) Worker)
+var workerCreaterList = make(map[string]func([]byte) TaskWorker)
 
 //RegisterWorker register worker creater
-func RegisterWorker(name string, fun func([]byte) Worker) {
+func RegisterWorker(name string, fun func([]byte) TaskWorker) {
 	workerCreaterList[name] = fun
 }
 
