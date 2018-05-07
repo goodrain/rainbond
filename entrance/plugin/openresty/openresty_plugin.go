@@ -1,66 +1,61 @@
 // Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
 
-// This program is free software: you can redistribute it and/or modify
+// o program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. For any non-GPL usage of Rainbond,
 // one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
 // must be obtained first.
 
-// This program is distributed in the hope that it will be useful,
+// o program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with this program. If not, see <http://www.gnu.org/licenses/>.
+// along with o program. If not, see <http://www.gnu.org/licenses/>.
 
 package openresty
 
-import(
-	"net/http"
+import (
 	"errors"
+	"net/http"
 
+	"bytes"
+	"crypto/tls"
+	"encoding/json"
+	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/entrance/core/object"
 	"github.com/goodrain/rainbond/entrance/plugin"
-	"fmt"
-	"encoding/json"
-	"bytes"
+	"io"
 	"io/ioutil"
-	"crypto/tls"
+	"net/url"
 	"strings"
 	"time"
-	"io"
-	"net/url"
-	"github.com/Sirupsen/logrus"
 )
 
 const (
-	GET = "GET"
-	POST = "POST"
+	GET    = "GET"
+	POST   = "POST"
 	UPDATE = "UPDATE"
 	DELETE = "DELETE"
 
-	GET_OK = 200
-	POST_OK = 201
-	UPDATE_OK = 202
-	DELETE_OK = 204
-	HTTP_OK = 205
+	httpOk = 205
 )
-
 
 type openresty struct {
 	APIVersion string
 	ctx        plugin.Context
 	client     *http.Client
-	user string
-	password string
-	endpoints []NginxInstance
+	user       string
+	password   string
+	endpoints  []NginxInstance
 }
 
 var defaultNodeList = []NginxNode{
-	NginxNode{
+	{
 		"Active",
 		"127.0.0.1:404",
 		1,
@@ -71,12 +66,12 @@ func init() {
 	plugin.RegistPluginOptionCheck("openresty", Check)
 }
 
-func (this *openresty) urlPool(srcName string) string {
-	return fmt.Sprintf("/%s/upstreams/%s", this.APIVersion, srcName)
+func (o *openresty) urlPool(srcName string) string {
+	return fmt.Sprintf("/%s/upstreams/%s", o.APIVersion, srcName)
 }
 
-func (this *openresty) urlServer(srcName string) string {
-	return fmt.Sprintf("/api/%s/servers/%s", this.APIVersion, srcName)
+func (o *openresty) urlServer(srcName string) string {
+	return fmt.Sprintf("/api/%s/servers/%s", o.APIVersion, srcName)
 }
 
 // pool name => domain name
@@ -132,9 +127,9 @@ func reduceErr(errs []error) error {
 	return errors.New(msg)
 }
 
-func (this *openresty) getHealthEndpoints() []NginxInstance {
-	arr := []NginxInstance{}
-	for _, ins := range this.endpoints {
+func (o *openresty) getHealthEndpoints() []NginxInstance {
+	arr := make([]NginxInstance, 0, len(o.endpoints))
+	for _, ins := range o.endpoints {
 		if ins.State == "health" {
 			arr = append(arr, ins)
 		}
@@ -143,10 +138,10 @@ func (this *openresty) getHealthEndpoints() []NginxInstance {
 }
 
 // 调用后台openresty实例的API，如果有多个openresty实例，则循环调用
-func (this *openresty) doEach(method string, url string, body interface{}) (e error) {
+func (o *openresty) doEach(method string, url string, body interface{}) (e error) {
 	var errMsg string
 
-	for _, endpoint := range this.getHealthEndpoints() {
+	for _, endpoint := range o.getHealthEndpoints() {
 		var bodyReader io.Reader
 
 		if body != nil {
@@ -160,21 +155,21 @@ func (this *openresty) doEach(method string, url string, body interface{}) (e er
 			bodyReader = bytes.NewReader(jsonPool)
 		}
 
-		request, err := http.NewRequest(method, endpoint.Addr + url, bodyReader)
+		request, err := http.NewRequest(method, endpoint.Addr+url, bodyReader)
 		if err != nil {
 			errMsg += err.Error() + "; "
 			logrus.Error(method, " ", err)
 			continue
 		}
 
-		response, err := this.client.Do(request)
+		response, err := o.client.Do(request)
 		if err != nil {
 			errMsg += err.Error() + "; "
 			logrus.Error(method, " ", err)
 			continue
 		}
 
-		if response.StatusCode != HTTP_OK  {
+		if response.StatusCode != httpOk {
 			b, err := ioutil.ReadAll(response.Body)
 			if err != nil {
 				errMsg += err.Error() + "; "
@@ -196,16 +191,16 @@ func (this *openresty) doEach(method string, url string, body interface{}) (e er
 	return nil
 }
 
-func (this *openresty) AddPool(originalPools ...*object.PoolObject) error {
-	return this.UpdatePool(originalPools...)
+func (o *openresty) AddPool(originalPools ...*object.PoolObject) error {
+	return o.UpdatePool(originalPools...)
 }
 
 // 根据pool名字拼接出一个没有后缀的域名，该字名将作为nginx端的upstream名字，后缀部分由nginx端补齐
 // nginx默认会试图将所有请求根据请求头中的host字段转发到名字与该host字段值相同的upstream
-func (this *openresty) UpdatePool(originalPools ...*object.PoolObject) error {
+func (o *openresty) UpdatePool(pools ...*object.PoolObject) error {
 	var errs []error
 
-	for _, originalPool := range(originalPools) {
+	for _, originalPool := range pools {
 		upstreamName, err := getUpstreamNameByPool(originalPool.Name)
 		if err != nil {
 			logrus.Error(fmt.Sprintf("Failed to update pool %s: %s", originalPool.Name, err))
@@ -213,7 +208,7 @@ func (this *openresty) UpdatePool(originalPools ...*object.PoolObject) error {
 		}
 
 		// get nodes from store, for example etcd.
-		originalNodes, err := this.ctx.Store.GetNodeByPool(originalPool.Name)
+		originalNodes, err := o.ctx.Store.GetNodeByPool(originalPool.Name)
 		if err != nil {
 			logrus.Error("Failed to GetNodeByPool: ", err.Error())
 			errs = append(errs, err)
@@ -221,14 +216,20 @@ func (this *openresty) UpdatePool(originalPools ...*object.PoolObject) error {
 		}
 
 		if len(originalNodes) < 1 {
-			logrus.Info("Delete update the pool, because no servers are inside the pool ", originalPool.Name)
-			this.deleteUpstream(originalPool.Name)
+			logrus.Info("Delete the pool, because no servers are inside the pool ", originalPool.Name)
+			o.deleteUpstream(originalPool.Name)
 			continue
 		}
 
+		protocol := "tcp"
+		_, err = o.ctx.Store.GetVSByPoolName(originalPool.Name)
+		if err != nil {
+			protocol = "http"
+		}
+
 		// build pool for openresty by original nodes
-		pool := NginxUpstream{upstreamName, []NginxNode{}}
-		for _, originalNode := range(originalNodes){
+		pool := NginxUpstream{upstreamName, []NginxNode{}, protocol}
+		for _, originalNode := range originalNodes {
 			state := originalNode.State
 			if state == "" {
 				state = "Active"
@@ -258,7 +259,7 @@ func (this *openresty) UpdatePool(originalPools ...*object.PoolObject) error {
 		}
 
 		// push data to all openresty instance by rest api
-		err = this.doEach(UPDATE, this.urlPool(pool.Name), pool)
+		err = o.doEach(UPDATE, o.urlPool(pool.Name), pool)
 
 		if err != nil {
 			errs = append(errs, err)
@@ -270,18 +271,24 @@ func (this *openresty) UpdatePool(originalPools ...*object.PoolObject) error {
 	return reduceErr(errs)
 }
 
-func (this *openresty) DeletePool(pools ...*object.PoolObject) error {
+func (o *openresty) DeletePool(pools ...*object.PoolObject) error {
 	var errs []error
 
-	for _, pool := range(pools) {
+	for _, pool := range pools {
 		upstreamName, err := getUpstreamNameByPool(pool.Name)
 		if err != nil {
 			logrus.Error(fmt.Sprintf("Failed to update vs %s: %s", pool.Name, err))
 			continue
 		}
 
+		protocol := "tcp"
+		_, err = o.ctx.Store.GetVSByPoolName(pool.Name)
+		if err != nil {
+			protocol = "http"
+		}
+
 		// request all openresty instance by rest api
-		err = this.doEach(DELETE, this.urlPool(upstreamName), nil)
+		err = o.doEach(DELETE, o.urlPool(upstreamName), Options{protocol})
 
 		if err != nil {
 			errs = append(errs, err)
@@ -294,41 +301,47 @@ func (this *openresty) DeletePool(pools ...*object.PoolObject) error {
 	return reduceErr(errs)
 }
 
-func (this *openresty) GetPool(name string) *object.PoolObject {
+func (o *openresty) GetPool(name string) *object.PoolObject {
 	return nil
 }
 
-func (this *openresty) AddNode(nodes ...*object.NodeObject) error {
-	return this.UpdateNode(nodes...)
+func (o *openresty) AddNode(nodes ...*object.NodeObject) error {
+	return o.UpdateNode(nodes...)
 }
 
 // 将node根据所属pool分类，根据每个pool名字取出该pool下所有node，然后全量更新
-func (this *openresty) UpdateNode(nodes ...*object.NodeObject) error {
+func (o *openresty) UpdateNode(nodes ...*object.NodeObject) error {
 	poolNames := make(map[string]string, 0)
 
 	for _, node := range nodes {
 		poolNames[node.PoolName] = node.NodeName
 	}
 
-	pools, err := this.ctx.Store.GetPools(poolNames)
+	pools, err := o.ctx.Store.GetPools(poolNames)
 	if err != nil {
 		logrus.Error(err)
 		return err
 	}
 
-	return this.UpdatePool(pools...)
+	return o.UpdatePool(pools...)
 }
 
-func (this *openresty) DeleteNode(nodes ...*object.NodeObject) error {
-	return this.UpdateNode(nodes...)
+func (o *openresty) DeleteNode(nodes ...*object.NodeObject) error {
+	return o.UpdateNode(nodes...)
 }
 
-func (this *openresty) GetNode(name string) *object.NodeObject {
+func (o *openresty) GetNode(name string) *object.NodeObject {
 	return nil
 }
 
-func (this *openresty) deleteUpstream(poolName string) error {
-	if err := this.doEach(DELETE, this.urlPool(poolName), nil); err != nil {
+func (o *openresty) deleteUpstream(poolName string) error {
+	protocol := "tcp"
+	_, err := o.ctx.Store.GetVSByPoolName(poolName)
+	if err != nil {
+		protocol = "http"
+	}
+
+	if err := o.doEach(DELETE, o.urlPool(poolName), Options{protocol}); err != nil {
 		return err
 	}
 
@@ -339,17 +352,23 @@ func (this *openresty) deleteUpstream(poolName string) error {
 // 比如在nginx中创建server时该server对应的upstream必须存在，此时应该执行此函数
 // 如果集群中不存在该upstream次源，则创建一个默认upstream
 // poolName指该pool在entrance中的名字，poolAlias指nginx中upstream的名字，一般为一个无后缀域名
-func (this *openresty) mustCreateUpstream(poolName string, poolAlias string) error {
+func (o *openresty) mustCreateUpstream(poolName string, poolAlias string) error {
 	// get nodes from store, for example etcd.
-	originalNodes, err := this.ctx.Store.GetNodeByPool(poolName)
+	originalNodes, err := o.ctx.Store.GetNodeByPool(poolName)
 	if err != nil {
 		logrus.Error("Failed to GetNodeByPool: ", err.Error())
 		return err
 	}
 
+	protocol := "tcp"
+	_, err = o.ctx.Store.GetVSByPoolName(poolName)
+	if err != nil {
+		protocol = "http"
+	}
+
 	// build pool for openresty by original nodes
-	pool := NginxUpstream{poolAlias, []NginxNode{}}
-	for _, originalNode := range(originalNodes){
+	pool := NginxUpstream{poolAlias, []NginxNode{}, protocol}
+	for _, originalNode := range originalNodes {
 		state := originalNode.State
 		if state == "" {
 			state = "Active"
@@ -379,7 +398,7 @@ func (this *openresty) mustCreateUpstream(poolName string, poolAlias string) err
 	}
 
 	// push data to all openresty instance by rest api
-	err = this.doEach(UPDATE, this.urlPool(pool.Name), pool)
+	err = o.doEach(UPDATE, o.urlPool(pool.Name), pool)
 
 	if err != nil {
 		return err
@@ -388,14 +407,14 @@ func (this *openresty) mustCreateUpstream(poolName string, poolAlias string) err
 	return nil
 }
 
-func (this *openresty) AddRule(rules ...*object.RuleObject) error {
-	return this.UpdateRule(rules...)
+func (o *openresty) AddRule(rules ...*object.RuleObject) error {
+	return o.UpdateRule(rules...)
 }
 
 // 负责L7相关负载均衡，当某应用被创建或添加自定义域名时该方法会被执行
 // 在后端的nginx中创建一个server对象，作用是将该规则包含的自定义域名的请求转发到该应用默认的upstream
 // 如果该域名是自定义域名，则跳过创建该server，因为nginx自动根据域名将请求转发到相同名字的upstream
-func (this *openresty) UpdateRule(rules ...*object.RuleObject) error {
+func (o *openresty) UpdateRule(rules ...*object.RuleObject) error {
 	var errs []error
 
 	for _, rule := range rules {
@@ -422,7 +441,7 @@ func (this *openresty) UpdateRule(rules ...*object.RuleObject) error {
 
 		// custom domain name => default upstream
 		// myapp.sycki.com => 5000.grb5060d.vzrd9po6.tvga8.goodrain.org
-		err = this.mustCreateUpstream(rule.PoolName, defaultDomain)
+		err = o.mustCreateUpstream(rule.PoolName, defaultDomain)
 		if err != nil {
 			logrus.Error("Failed to updata the rule: ", err.Error())
 			continue
@@ -436,7 +455,7 @@ func (this *openresty) UpdateRule(rules ...*object.RuleObject) error {
 		if protocol == "https" {
 			port = 443
 
-			pair, err := this.ctx.Store.GetCertificate(rule.CertificateName)
+			pair, err := o.ctx.Store.GetCertificate(rule.CertificateName)
 			if err != nil {
 				logrus.Error("Failed to updata the rule: ", err.Error())
 				continue
@@ -460,28 +479,27 @@ func (this *openresty) UpdateRule(rules ...*object.RuleObject) error {
 		}
 
 		// build json data and request api
-		err = this.doEach(UPDATE, this.urlServer(rule.Name), openrestyRule)
+		err = o.doEach(UPDATE, o.urlServer(rule.Name), openrestyRule)
 		if err != nil {
 			errs = append(errs, err)
 			logrus.Error(err)
 			continue
 		}
 
-
 	}
 
 	return reduceErr(errs)
 }
 
-func (this *openresty) DeleteRule(rules ...*object.RuleObject) error {
+func (o *openresty) DeleteRule(rules ...*object.RuleObject) error {
 	var errs []error
-	for _, rule := range(rules) {
+	for _, rule := range rules {
 		protocol := "http"
 		if rule.HTTPS {
 			protocol = "https"
 		}
 
-		err := this.doEach(DELETE, this.urlServer(rule.Name), Options{protocol})
+		err := o.doEach(DELETE, o.urlServer(rule.Name), Options{protocol})
 
 		if err != nil {
 			errs = append(errs, err)
@@ -491,17 +509,17 @@ func (this *openresty) DeleteRule(rules ...*object.RuleObject) error {
 	return reduceErr(errs)
 }
 
-func (this *openresty) GetRule(name string) *object.RuleObject {
+func (o *openresty) GetRule(name string) *object.RuleObject {
 	return nil
 }
 
-func (this *openresty) AddVirtualService(services ...*object.VirtualServiceObject) error {
-	return this.UpdateVirtualService(services...)
+func (o *openresty) AddVirtualService(services ...*object.VirtualServiceObject) error {
+	return o.UpdateVirtualService(services...)
 }
 
 // 负责L4相关负载均衡，当某应用添加外部端口时该方法会被执行
 // 在后端的nginx中创建一个server对象，作用是将该规则包含的自定义域名的请求转发到该应用默认的upstream
-func (this *openresty) UpdateVirtualService(services ...*object.VirtualServiceObject) error {
+func (o *openresty) UpdateVirtualService(services ...*object.VirtualServiceObject) error {
 	var errs []error
 	for _, service := range services {
 		upstreamName, err := getUpstreamNameByVs(service.Name)
@@ -512,7 +530,7 @@ func (this *openresty) UpdateVirtualService(services ...*object.VirtualServiceOb
 
 		poolName := strings.Replace(strings.Replace(service.Name, "_", "@", 1), "VS", "Pool", 1)
 
-		err = this.mustCreateUpstream(poolName, upstreamName)
+		err = o.mustCreateUpstream(poolName, upstreamName)
 		if err != nil {
 			logrus.Error("Failed update pool for create vs: ", err.Error())
 			errs = append(errs, err)
@@ -524,15 +542,15 @@ func (this *openresty) UpdateVirtualService(services ...*object.VirtualServiceOb
 		}
 
 		openrestyRule := NginxServer{
-			Name: service.Name,
-			Port: service.Port,
-			Options: map[string]string{},
+			Name:     service.Name,
+			Port:     service.Port,
+			Options:  map[string]string{},
 			Upstream: upstreamName,
 			Protocol: service.Protocol,
 		}
 
 		// build json data and request api
-		err = this.doEach(UPDATE, this.urlServer(openrestyRule.Name), openrestyRule)
+		err = o.doEach(UPDATE, o.urlServer(openrestyRule.Name), openrestyRule)
 		if err != nil {
 			logrus.Error("Failed update vs: ", err.Error())
 			errs = append(errs, err)
@@ -545,7 +563,7 @@ func (this *openresty) UpdateVirtualService(services ...*object.VirtualServiceOb
 	return reduceErr(errs)
 }
 
-func (this *openresty) DeleteVirtualService(services ...*object.VirtualServiceObject) error {
+func (o *openresty) DeleteVirtualService(services ...*object.VirtualServiceObject) error {
 	var errs []error
 	for _, service := range services {
 
@@ -553,7 +571,7 @@ func (this *openresty) DeleteVirtualService(services ...*object.VirtualServiceOb
 			service.Protocol = "tcp"
 		}
 
-		err := this.doEach(DELETE, this.urlServer(service.Name), Options{service.Protocol})
+		err := o.doEach(DELETE, o.urlServer(service.Name), Options{service.Protocol})
 		if err != nil {
 			errs = append(errs, err)
 			logrus.Error(err)
@@ -565,39 +583,39 @@ func (this *openresty) DeleteVirtualService(services ...*object.VirtualServiceOb
 	return reduceErr(errs)
 }
 
-func (this *openresty) GetVirtualService(name string) *object.VirtualServiceObject {return nil}
+func (o *openresty) GetVirtualService(name string) *object.VirtualServiceObject { return nil }
 
-func (this *openresty) AddDomain(domains ...*object.DomainObject) error {return nil}
-func (this *openresty) UpdateDomain(domains ...*object.DomainObject) error {return nil}
-func (this *openresty) DeleteDomain(domains ...*object.DomainObject) error {return nil}
-func (this *openresty) GetDomain(name string) *object.DomainObject {return nil}
+func (o *openresty) AddDomain(domains ...*object.DomainObject) error    { return nil }
+func (o *openresty) UpdateDomain(domains ...*object.DomainObject) error { return nil }
+func (o *openresty) DeleteDomain(domains ...*object.DomainObject) error { return nil }
+func (o *openresty) GetDomain(name string) *object.DomainObject         { return nil }
 
-func (this *openresty) AddCertificate(cas ...*object.Certificate) error {return nil}
-func (this *openresty) DeleteCertificate(cas ...*object.Certificate) error {return nil}
+func (o *openresty) AddCertificate(cas ...*object.Certificate) error    { return nil }
+func (o *openresty) DeleteCertificate(cas ...*object.Certificate) error { return nil }
 
-func (this *openresty) Stop() error {return nil}
-func (this *openresty) GetName() string {return "openresty"}
+func (o *openresty) Stop() error     { return nil }
+func (o *openresty) GetName() string { return "openresty" }
 
-func (this *openresty) GetPluginStatus() bool {
+func (o *openresty) GetPluginStatus() bool {
 	health := true
 	method := GET
 
-	for _, endpoint := range this.getHealthEndpoints() {
-		request, err := http.NewRequest(method, endpoint.Addr + "/health", nil)
+	for _, endpoint := range o.getHealthEndpoints() {
+		request, err := http.NewRequest(method, endpoint.Addr+"/health", nil)
 		if err != nil {
 			health = false
 			logrus.Debug(method, fmt.Sprintf(" %s %s", endpoint.Addr, err.Error()))
 			continue
 		}
 
-		response, err := this.client.Do(request)
+		response, err := o.client.Do(request)
 		if err != nil {
 			health = false
 			logrus.Debug(method, fmt.Sprintf(" %s %s", endpoint.Addr, err.Error()))
 			continue
 		}
 
-		if response.StatusCode != HTTP_OK  {
+		if response.StatusCode != httpOk {
 			health = false
 			b, err := ioutil.ReadAll(response.Body)
 			if err != nil {
@@ -626,12 +644,12 @@ func Check(ctx plugin.Context) error {
 				endpoints = append(endpoints, v)
 			}
 			for _, end := range endpoints {
-				url, err := url.Parse(end)
+				u, err := url.Parse(end)
 				if err != nil {
-					return fmt.Errorf("openresty endpoint url %s is invalid. %s", url, err.Error())
+					return fmt.Errorf("openresty endpoint u %s is invalid. %s", u, err.Error())
 				}
-				if url.Scheme != "https" && url.Scheme != "http" {
-					return fmt.Errorf("openresty endpoint url %s is invalid. scheme must be https", url)
+				if u.Scheme != "https" && u.Scheme != "http" {
+					return fmt.Errorf("openresty endpoint u %s is invalid. scheme must be https", u)
 				}
 			}
 		case "httpapi":
@@ -649,21 +667,21 @@ func New(ctx plugin.Context) (plugin.Plugin, error) {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 
-	plugin := &openresty{
+	p := &openresty{
 		APIVersion: "v1",
-		ctx: ctx,
+		ctx:        ctx,
 		client: &http.Client{
 			Timeout:   3 * time.Second,
 			Transport: tr,
 		},
-		user: ctx.Option["user"],
+		user:     ctx.Option["user"],
 		password: ctx.Option["password"],
 	}
 
-	for _, url := range strings.Split(ctx.Option["urls"], "-") {
-		logrus.Info("Add endpoint for openresty ", url)
-		plugin.endpoints = append(plugin.endpoints, NginxInstance{Addr: url, State:"health"})
+	for _, u := range strings.Split(ctx.Option["urls"], "-") {
+		logrus.Info("Add endpoint for openresty ", u)
+		p.endpoints = append(p.endpoints, NginxInstance{Addr: u, State: "health"})
 	}
 
-	return plugin, nil
+	return p, nil
 }
