@@ -23,7 +23,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -341,4 +344,38 @@ func ImageInspectWithRaw(dockerCli *client.Client, image string) (*types.ImageIn
 		return nil, err
 	}
 	return &ins, nil
+}
+
+//ImageSave save image to tar file
+// destination destination file name eg. /tmp/xxx.tar
+func ImageSave(dockerCli *client.Client, image, destination string) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	rc, err := dockerCli.ImageSave(ctx, []string{image})
+	if err != nil {
+		return err
+	}
+	return CopyToFile(destination, rc)
+}
+
+// CopyToFile writes the content of the reader to the specified file
+func CopyToFile(outfile string, r io.Reader) error {
+	// We use sequential file access here to avoid depleting the standby list
+	// on Windows. On Linux, this is a call directly to ioutil.TempFile
+	tmpFile, err := os.OpenFile(path.Join(filepath.Dir(outfile), ".docker_temp_"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	tmpPath := tmpFile.Name()
+	_, err = io.Copy(tmpFile, r)
+	tmpFile.Close()
+	if err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	if err = os.Rename(tmpPath, outfile); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	return nil
 }
