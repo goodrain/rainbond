@@ -348,14 +348,64 @@ func ImageInspectWithRaw(dockerCli *client.Client, image string) (*types.ImageIn
 
 //ImageSave save image to tar file
 // destination destination file name eg. /tmp/xxx.tar
-func ImageSave(dockerCli *client.Client, image, destination string) error {
+func ImageSave(dockerCli *client.Client, image, destination string, logger event.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	rc, err := dockerCli.ImageSave(ctx, []string{image})
 	if err != nil {
 		return err
 	}
+	defer rc.Close()
 	return CopyToFile(destination, rc)
+}
+
+//ImageImport save image to tar file
+// source source file name eg. /tmp/xxx.tar
+func ImageImport(dockerCli *client.Client, image, source string, logger event.Logger) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	file, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	isource := types.ImageImportSource{
+		Source:     file,
+		SourceName: "-",
+	}
+
+	options := types.ImageImportOptions{}
+
+	readcloser, err := dockerCli.ImageImport(ctx, isource, image, options)
+	if err != nil {
+		return err
+	}
+	if readcloser != nil {
+		defer readcloser.Close()
+		r := bufio.NewReader(readcloser)
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+			if line, _, err := r.ReadLine(); err == nil {
+				if logger != nil {
+					logger.Debug(string(line), map[string]string{"step": "progress"})
+				} else {
+					fmt.Println(string(line))
+				}
+			} else {
+				if err.Error() == "EOF" {
+					return nil
+				}
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // CopyToFile writes the content of the reader to the specified file
