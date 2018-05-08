@@ -34,6 +34,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"os"
+	"strconv"
 )
 
 const (
@@ -46,12 +48,14 @@ const (
 )
 
 type openresty struct {
-	APIVersion string
-	ctx        plugin.Context
-	client     *http.Client
-	user       string
-	password   string
-	endpoints  []NginxInstance
+	APIVersion       string
+	ctx              plugin.Context
+	client           *http.Client
+	user             string
+	password         string
+	endpoints        []NginxInstance
+	defaultHttpPort  int
+	defaultHttpsPort int
 }
 
 var defaultNodeList = []NginxNode{
@@ -447,13 +451,13 @@ func (o *openresty) UpdateRule(rules ...*object.RuleObject) error {
 			continue
 		}
 
-		port := 80
+		port := o.defaultHttpPort
 		var path = "/"
 		var cert, key string
 
 		// get cert key pair if https
 		if protocol == "https" {
-			port = 443
+			port = o.defaultHttpsPort
 
 			pair, err := o.ctx.Store.GetCertificate(rule.CertificateName)
 			if err != nil {
@@ -682,6 +686,18 @@ func New(ctx plugin.Context) (plugin.Plugin, error) {
 		logrus.Info("Add endpoint for openresty ", u)
 		p.endpoints = append(p.endpoints, NginxInstance{Addr: u, State: "health"})
 	}
+
+	defaultHttpPort, err := strconv.Atoi(os.Getenv("DEFAULT_HTTP_PORT"))
+	if err != nil || defaultHttpPort == 0 {
+		defaultHttpPort = 1080
+	}
+	defaultHttpsPort, err := strconv.Atoi(os.Getenv("DEFAULT_HTTPS_PORT"))
+	if err != nil || defaultHttpsPort == 0 {
+		defaultHttpsPort = 10443
+	}
+
+	p.defaultHttpPort = defaultHttpPort
+	p.defaultHttpsPort = defaultHttpsPort
 
 	return p, nil
 }
