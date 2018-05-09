@@ -84,6 +84,8 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Mount("/sources", v2.defineSourcesRouter())
 	r.Get("/event", controller.GetManager().Event)
 	r.Get("/chargesverify", controller.ChargesVerifyController)
+	//get some service pod info
+	r.Get("/pods", controller.Pods)
 
 	return r
 }

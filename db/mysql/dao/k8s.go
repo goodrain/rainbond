@@ -20,6 +20,7 @@ package dao
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/db/model"
@@ -274,8 +275,20 @@ func (t *K8sPodDaoImpl) DeleteK8sPodByName(podName string) error {
 	return nil
 }
 
+//GetPodByService get pod from serviceids
+// if serviceID support multiple split from ","
 func (t *K8sPodDaoImpl) GetPodByService(serviceID string) ([]*model.K8sPod, error) {
 	var pods []*model.K8sPod
+	if strings.Contains(serviceID, ",") {
+		serviceIDs := strings.Split(serviceID, ",")
+		if err := t.DB.Where("service_id in (?)", serviceIDs).Find(&pods).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return pods, nil
+			}
+			return nil, err
+		}
+		return pods, nil
+	}
 	if err := t.DB.Where("service_id=?", serviceID).Find(&pods).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return pods, nil
@@ -284,6 +297,8 @@ func (t *K8sPodDaoImpl) GetPodByService(serviceID string) ([]*model.K8sPod, erro
 	}
 	return pods, nil
 }
+
+//GetPodByReplicationID get pod by replication
 func (t *K8sPodDaoImpl) GetPodByReplicationID(replicationID string) ([]*model.K8sPod, error) {
 	var pods []*model.K8sPod
 	if err := t.DB.Where("rc_id=?", replicationID).Find(&pods).Error; err != nil {
