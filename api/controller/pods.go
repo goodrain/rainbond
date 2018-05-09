@@ -57,7 +57,7 @@ func Pods(w http.ResponseWriter, r *http.Request) {
 			if serviceIDs == "" {
 				serviceIDs += s.ServiceID
 			} else {
-				serviceIDs = "," + s.ServiceID
+				serviceIDs += "," + s.ServiceID
 			}
 		}
 	}
