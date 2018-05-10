@@ -43,6 +43,7 @@ type PodTemplateSpecBuild struct {
 	serviceID, eventID string
 	needProxy          bool
 	hostName           string
+	nodenetwork        bool
 	service            *model.TenantServices
 	tenant             *model.Tenants
 	pluginsRelation    []*model.TenantServicePluginRelation
@@ -125,6 +126,7 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 		Containers:   containers,
 		NodeSelector: nodeSelector,
 		Affinity:     p.createAffinity(),
+		HostNetwork:  p.nodenetwork,
 	}
 	if len(initContainers) != 0 {
 		podSpec.InitContainers = initContainers
@@ -766,6 +768,9 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 	for _, e := range envsAll {
 		if e.AttrName == "HOSTNAME" {
 			p.hostName = e.AttrValue
+		}
+		if e.AttrName == "NODENETWORK" {
+			p.nodenetwork = true
 		}
 		envs = append(envs, v1.EnvVar{Name: e.AttrName, Value: e.AttrValue})
 	}
