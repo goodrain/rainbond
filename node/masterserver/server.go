@@ -64,15 +64,15 @@ func NewMasterServer(modelnode *model.HostNode, k8sClient *kubernetes.Clientset)
 
 //Start master node start
 func (m *MasterServer) Start(errchan chan error) error {
-	m.datacenterConfig.Start()
+	// m.datacenterConfig.Start()
 	if err := m.Cluster.Start(); err != nil {
 		logrus.Error("node cluster start error,", err.Error())
 		return err
 	}
-	if err := m.TaskEngine.Start(errchan); err != nil {
-		logrus.Error("task engin start error,", err.Error())
-		return err
-	}
+	// if err := m.TaskEngine.Start(errchan); err != nil {
+	// 	logrus.Error("task engin start error,", err.Error())
+	// 	return err
+	// }
 	return nil
 }
 
