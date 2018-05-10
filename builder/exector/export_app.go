@@ -483,7 +483,7 @@ func (i *ExportApp) generateTarFile() error {
 	// /grdata/export-app/myapp-1.0 -> myapp-1.0
 	baseName := path.Base(i.SourceDir)
 	// 打包整个目录为tar包
-	err := exec.Command(fmt.Sprintf("sh", "-c", "cd %s ; rm -rf %s.tar ; tar -cf %s.tar %s", dirName, baseName, baseName, baseName)).Run()
+	err := exec.Command("sh", "-c", fmt.Sprintf("cd %s ; rm -rf %s.tar ; tar -cf %s.tar %s", dirName, baseName, baseName, baseName)).Run()
 	if err != nil {
 		i.Logger.Error("打包应用失败", map[string]string{"step": "export-app", "status": "failure"})
 		logrus.Errorf("Failed to create tar file for group key %s: %v", i.GroupKey, err)
