@@ -26,6 +26,8 @@ import (
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
@@ -36,8 +38,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/model"
 )
 
 //ExportApp Export app to specified format(rainbond-app or dockercompose)
@@ -57,12 +57,11 @@ func init() {
 
 //NewExportApp create
 func NewExportApp(in []byte) TaskWorker {
-	logrus.Debug("Build export app struct from json: ", string(in))
-
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	return &ExportApp{
 		GroupKey:  gjson.GetBytes(in, "group_key").String(),
+		Version:   gjson.GetBytes(in, "version").String(),
 		Format:    gjson.GetBytes(in, "format").String(),
 		SourceDir: gjson.GetBytes(in, "source_dir").String(),
 		Logger:    logger,
