@@ -4250,33 +4250,37 @@
               "type": "object",
               "required": [
                 "plugin_id",
-                "version_id"
+                "version_id",
+                "config_envs"
               ],
               "properties": {
+                "config_envs": {
+                  "$ref": "#/definitions/ConfigEnvs"
+                },
                 "plugin_cpu": {
-                  "description": "插件CPU权重, 默认125\nin: body",
+                  "description": "plugin cpu size default 125\nin: body",
                   "type": "integer",
                   "format": "int64",
                   "x-go-name": "PluginCPU"
                 },
                 "plugin_id": {
-                  "description": "插件id\nin: body",
+                  "description": "plugin id\nin: body",
                   "type": "string",
                   "x-go-name": "PluginID"
                 },
                 "plugin_memory": {
-                  "description": "插件最大内存, 默认64\nin: body",
+                  "description": "plugin memory size default 64\nin: body",
                   "type": "integer",
                   "format": "int64",
                   "x-go-name": "PluginMemory"
                 },
                 "switch": {
-                  "description": "开关\nin: body",
+                  "description": "plugin is uesd\nin: body",
                   "type": "boolean",
                   "x-go-name": "Switch"
                 },
                 "version_id": {
-                  "description": "插件版本\nin: body",
+                  "description": "plugin version\nin: body",
                   "type": "string",
                   "x-go-name": "VersionID"
                 }
@@ -4330,33 +4334,37 @@
               "type": "object",
               "required": [
                 "plugin_id",
-                "version_id"
+                "version_id",
+                "config_envs"
               ],
               "properties": {
+                "config_envs": {
+                  "$ref": "#/definitions/ConfigEnvs"
+                },
                 "plugin_cpu": {
-                  "description": "插件CPU权重, 默认125\nin: body",
+                  "description": "plugin cpu size default 125\nin: body",
                   "type": "integer",
                   "format": "int64",
                   "x-go-name": "PluginCPU"
                 },
                 "plugin_id": {
-                  "description": "插件id\nin: body",
+                  "description": "plugin id\nin: body",
                   "type": "string",
                   "x-go-name": "PluginID"
                 },
                 "plugin_memory": {
-                  "description": "插件最大内存, 默认64\nin: body",
+                  "description": "plugin memory size default 64\nin: body",
                   "type": "integer",
                   "format": "int64",
                   "x-go-name": "PluginMemory"
                 },
                 "switch": {
-                  "description": "开关\nin: body",
+                  "description": "plugin is uesd\nin: body",
                   "type": "boolean",
                   "x-go-name": "Switch"
                 },
                 "version_id": {
-                  "description": "插件版本\nin: body",
+                  "description": "plugin version\nin: body",
                   "type": "string",
                   "x-go-name": "VersionID"
                 }
@@ -4474,79 +4482,6 @@
         }
       }
     },
-    "/v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/setenv": {
-      "post": {
-        "description": "set version env",
-        "consumes": [
-          "application/json",
-          "application/x-protobuf"
-        ],
-        "produces": [
-          "application/json",
-          "application/xml"
-        ],
-        "tags": [
-          "v2"
-        ],
-        "summary": "设置用户可配的环境变量",
-        "operationId": "setVersionEnv",
-        "parameters": [
-          {
-            "type": "string",
-            "x-go-name": "TenantName",
-            "name": "tenant_name",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "x-go-name": "ServiceAlias",
-            "name": "service_alias",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "x-go-name": "PluginID",
-            "description": "插件id",
-            "name": "plugin_id",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "Body",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "required": [
-                "config_envs"
-              ],
-              "properties": {
-                "config_envs": {
-                  "$ref": "#/definitions/ConfigEnvs"
-                },
-                "service_id": {
-                  "type": "string",
-                  "x-go-name": "ServiceID"
-                },
-                "tenant_id": {
-                  "type": "string",
-                  "x-go-name": "TenantID"
-                }
-              }
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": "统一返回格式",
-            "schema": {
-              "$ref": "#/responses/commandResponse"
-            }
-          }
-        }
-      }
-    },
     "/v2/tenants/{tenant_name}/services/{service_alias}/plugin/{plugin_id}/upenv": {
       "put": {
         "description": "update version env",
@@ -4561,7 +4496,7 @@
         "tags": [
           "v2"
         ],
-        "summary": "修改用户可配的环境变量",
+        "summary": "modify the app plugin config info. it will Thermal effect",
         "operationId": "updateVersionEnv",
         "parameters": [
           {
@@ -6809,7 +6744,7 @@
           "x-go-name": "Items"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     },
     "BaseEnv": {
       "description": "BaseEnv 无平台定义类型，普通kv",
@@ -6823,12 +6758,18 @@
           "x-go-name": "Options"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     },
     "BasePort": {
-      "description": "BasePort 基于当前应用端口结构",
+      "description": "BasePort base of current app ports",
       "type": "object",
       "properties": {
+        "listen_port": {
+          "description": "ListenPort is mesh listen port, proxy connetion to real app port",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "ListenPort"
+        },
         "options": {
           "type": "object",
           "additionalProperties": {
@@ -6837,6 +6778,7 @@
           "x-go-name": "Options"
         },
         "port": {
+          "description": "Port is the real app port",
           "type": "integer",
           "format": "int64",
           "x-go-name": "Port"
@@ -6854,7 +6796,7 @@
           "x-go-name": "ServiceID"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     },
     "BaseService": {
       "description": "BaseService 基于依赖应用及端口结构",
@@ -6893,7 +6835,7 @@
           "x-go-name": "ServiceID"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     },
     "ConfigEnvs": {
       "description": "ConfigEnvs Config",
@@ -6910,7 +6852,7 @@
           "x-go-name": "NormalEnvs"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     },
     "HeaderRules": {
       "description": "HeaderRules HeaderRules",
@@ -6925,7 +6867,7 @@
           "x-go-name": "Value"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     },
     "ImageShare": {
       "description": "ImageShare image 类型",
@@ -6971,7 +6913,7 @@
           "x-go-name": "ShareID"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     },
     "Item": {
       "description": "Item source值,键值对形式",
@@ -6986,7 +6928,7 @@
           "x-go-name": "Value"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     },
     "NetDownStreamRules": {
       "description": "NetDownStreamRules NetDownStreamRules",
@@ -7043,7 +6985,7 @@
           "x-go-name": "ServiceID"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     },
     "PluginDefaultENV": {
       "description": "PluginDefaultENV 插件默认环境变量",
@@ -7081,7 +7023,7 @@
           "x-go-name": "VersionID"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     },
     "ResourceSpec": {
       "description": "ResourceSpec 资源结构体",
@@ -7105,7 +7047,7 @@
           "x-go-name": "BaseServices"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     },
     "ShareConfItems": {
       "description": "ShareConfItems 分享相关配置",
@@ -7137,7 +7079,7 @@
           "x-go-name": "OuterRegistry"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     },
     "SlugShare": {
       "description": "SlugShare Slug 类型",
@@ -7187,7 +7129,7 @@
           "x-go-name": "TenantID"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     },
     "SourceSpec": {
       "description": "SourceSpec SourceSpec",
@@ -7220,7 +7162,7 @@
           "x-go-name": "Info"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     },
     "SoureBody": {
       "description": "SoureBody SoureBody",
@@ -7235,7 +7177,7 @@
           "x-go-name": "EnvVal"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     },
     "TenantServiceEnvVar": {
       "description": "TenantServiceEnvVar  应用环境变量",
@@ -7280,7 +7222,7 @@
           "x-go-name": "TenantID"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/db/model"
+      "x-go-package": "github.com/goodrain/rainbond/db/model"
     },
     "TenantServiceRelation": {
       "description": "TenantServiceRelation 应用依赖关系",
@@ -7313,7 +7255,7 @@
           "x-go-name": "TenantID"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/db/model"
+      "x-go-package": "github.com/goodrain/rainbond/db/model"
     },
     "TenantServiceVolume": {
       "description": "TenantServiceVolume 应用持久化纪录",
@@ -7359,7 +7301,7 @@
           "x-go-name": "VolumeType"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/db/model"
+      "x-go-package": "github.com/goodrain/rainbond/db/model"
     },
     "TenantServicesPort": {
       "description": "TenantServicesPort 应用端口信息",
@@ -7404,7 +7346,7 @@
           "x-go-name": "TenantID"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     },
     "Values": {
       "description": "It is typically used for query parameters and form values.\nUnlike in the http.Header map, the keys in a Values map\nare case-sensitive.",
@@ -7437,7 +7379,7 @@
           "x-go-name": "EnvValue"
         }
       },
-      "x-go-package": "github.com/goodrain/rainbond/pkg/api/model"
+      "x-go-package": "github.com/goodrain/rainbond/api/model"
     }
   },
   "responses": {

@@ -24,20 +24,20 @@ import (
 	"syscall"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/pkg/node/api/controller"
-	"github.com/goodrain/rainbond/pkg/node/core/job"
-	"github.com/goodrain/rainbond/pkg/node/core/k8s"
-	"github.com/goodrain/rainbond/pkg/node/core/store"
-	"github.com/goodrain/rainbond/pkg/node/masterserver"
-	"github.com/goodrain/rainbond/pkg/node/monitormessage"
-	"github.com/goodrain/rainbond/pkg/node/nodeserver"
-	"github.com/goodrain/rainbond/pkg/node/statsd"
+	"github.com/goodrain/rainbond/node/api/controller"
+	"github.com/goodrain/rainbond/node/core/job"
+	"github.com/goodrain/rainbond/node/core/k8s"
+	"github.com/goodrain/rainbond/node/core/store"
+	"github.com/goodrain/rainbond/node/masterserver"
+	"github.com/goodrain/rainbond/node/monitormessage"
+	"github.com/goodrain/rainbond/node/nodeserver"
+	"github.com/goodrain/rainbond/node/statsd"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/client-go/pkg/api/v1"
 
 	"github.com/Sirupsen/logrus"
 
-	eventLog "github.com/goodrain/rainbond/pkg/event"
+	eventLog "github.com/goodrain/rainbond/event"
 
 	"bytes"
 	"encoding/json"
@@ -48,7 +48,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/goodrain/rainbond/pkg/node/api"
+	"github.com/goodrain/rainbond/node/api"
 )
 
 //Run start run

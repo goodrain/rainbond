@@ -24,16 +24,16 @@ import (
 	"syscall"
 
 	"github.com/goodrain/rainbond/cmd/builder/option"
-	"github.com/goodrain/rainbond/pkg/builder/discover"
-	"github.com/goodrain/rainbond/pkg/builder/exector"
-	"github.com/goodrain/rainbond/pkg/db"
-	"github.com/goodrain/rainbond/pkg/db/config"
-	"github.com/goodrain/rainbond/pkg/event"
+	"github.com/goodrain/rainbond/builder/discover"
+	"github.com/goodrain/rainbond/builder/exector"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/config"
+	"github.com/goodrain/rainbond/event"
 
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/pkg/builder/api"
+	"github.com/goodrain/rainbond/builder/api"
 )
 
 //Run start run

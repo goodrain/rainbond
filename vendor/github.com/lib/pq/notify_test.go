@@ -7,7 +7,6 @@ import (
 	"os"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -124,6 +123,9 @@ func TestConnUnlisten(t *testing.T) {
 	}
 
 	_, err = db.Exec("NOTIFY notify_test")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = expectNotification(t, channel, "notify_test", "")
 	if err != nil {
@@ -160,6 +162,9 @@ func TestConnUnlistenAll(t *testing.T) {
 	}
 
 	_, err = db.Exec("NOTIFY notify_test")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = expectNotification(t, channel, "notify_test", "")
 	if err != nil {
@@ -235,15 +240,10 @@ func TestConnExecDeadlock(t *testing.T) {
 	// calls Close on the net.Conn; equivalent to a network failure
 	l.Close()
 
-	var done int32 = 0
-	go func() {
-		time.Sleep(10 * time.Second)
-		if atomic.LoadInt32(&done) != 1 {
-			panic("timed out")
-		}
-	}()
+	defer time.AfterFunc(10*time.Second, func() {
+		panic("timed out")
+	}).Stop()
 	wg.Wait()
-	atomic.StoreInt32(&done, 1)
 }
 
 // Test for ListenerConn being closed while a slow query is executing
@@ -271,15 +271,11 @@ func TestListenerConnCloseWhileQueryIsExecuting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var done int32 = 0
-	go func() {
-		time.Sleep(10 * time.Second)
-		if atomic.LoadInt32(&done) != 1 {
-			panic("timed out")
-		}
-	}()
+
+	defer time.AfterFunc(10*time.Second, func() {
+		panic("timed out")
+	}).Stop()
 	wg.Wait()
-	atomic.StoreInt32(&done, 1)
 }
 
 func TestNotifyExtra(t *testing.T) {

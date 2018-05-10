@@ -24,8 +24,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/grctl/option"
-	"github.com/goodrain/rainbond/pkg/grctl/clients"
-	"github.com/goodrain/rainbond/pkg/grctl/cmd"
+	"github.com/goodrain/rainbond/grctl/clients"
+	"github.com/goodrain/rainbond/grctl/cmd"
 	"github.com/urfave/cli"
 )
 

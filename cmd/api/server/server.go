@@ -25,13 +25,13 @@ import (
 	"syscall"
 
 	"github.com/goodrain/rainbond/cmd/api/option"
-	"github.com/goodrain/rainbond/pkg/api/controller"
-	"github.com/goodrain/rainbond/pkg/api/db"
-	"github.com/goodrain/rainbond/pkg/api/discover"
-	"github.com/goodrain/rainbond/pkg/api/handler"
-	"github.com/goodrain/rainbond/pkg/api/server"
-	"github.com/goodrain/rainbond/pkg/appruntimesync/client"
-	"github.com/goodrain/rainbond/pkg/event"
+	"github.com/goodrain/rainbond/api/controller"
+	"github.com/goodrain/rainbond/api/db"
+	"github.com/goodrain/rainbond/api/discover"
+	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/api/server"
+	"github.com/goodrain/rainbond/appruntimesync/client"
+	"github.com/goodrain/rainbond/event"
 
 	"github.com/Sirupsen/logrus"
 )

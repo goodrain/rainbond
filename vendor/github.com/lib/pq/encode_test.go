@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"strings"
+	"regexp"
 	"testing"
 	"time"
 
@@ -37,6 +37,8 @@ var timeTests = []struct {
 }{
 	{"22001-02-03", time.Date(22001, time.February, 3, 0, 0, 0, 0, time.FixedZone("", 0))},
 	{"2001-02-03", time.Date(2001, time.February, 3, 0, 0, 0, 0, time.FixedZone("", 0))},
+	{"0001-12-31 BC", time.Date(0, time.December, 31, 0, 0, 0, 0, time.FixedZone("", 0))},
+	{"2001-02-03 BC", time.Date(-2000, time.February, 3, 0, 0, 0, 0, time.FixedZone("", 0))},
 	{"2001-02-03 04:05:06", time.Date(2001, time.February, 3, 4, 5, 6, 0, time.FixedZone("", 0))},
 	{"2001-02-03 04:05:06.000001", time.Date(2001, time.February, 3, 4, 5, 6, 1000, time.FixedZone("", 0))},
 	{"2001-02-03 04:05:06.00001", time.Date(2001, time.February, 3, 4, 5, 6, 10000, time.FixedZone("", 0))},
@@ -86,15 +88,22 @@ func TestParseTs(t *testing.T) {
 }
 
 var timeErrorTests = []string{
+	"BC",
+	" BC",
 	"2001",
 	"2001-2-03",
 	"2001-02-3",
 	"2001-02-03 ",
+	"2001-02-03 B",
 	"2001-02-03 04",
 	"2001-02-03 04:",
 	"2001-02-03 04:05",
+	"2001-02-03 04:05 B",
+	"2001-02-03 04:05 BC",
 	"2001-02-03 04:05:",
 	"2001-02-03 04:05:6",
+	"2001-02-03 04:05:06 B",
+	"2001-02-03 04:05:06BC",
 	"2001-02-03 04:05:06.123 B",
 }
 
@@ -141,22 +150,22 @@ var formatTimeTests = []struct {
 	time     time.Time
 	expected string
 }{
-	{time.Time{}, "0001-01-01T00:00:00Z"},
-	{time.Date(2001, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", 0)), "2001-02-03T04:05:06.123456789Z"},
-	{time.Date(2001, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", 2*60*60)), "2001-02-03T04:05:06.123456789+02:00"},
-	{time.Date(2001, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", -6*60*60)), "2001-02-03T04:05:06.123456789-06:00"},
-	{time.Date(2001, time.February, 3, 4, 5, 6, 0, time.FixedZone("", -(7*60*60+30*60+9))), "2001-02-03T04:05:06-07:30:09"},
+	{time.Time{}, "0001-01-01 00:00:00Z"},
+	{time.Date(2001, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", 0)), "2001-02-03 04:05:06.123456789Z"},
+	{time.Date(2001, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", 2*60*60)), "2001-02-03 04:05:06.123456789+02:00"},
+	{time.Date(2001, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", -6*60*60)), "2001-02-03 04:05:06.123456789-06:00"},
+	{time.Date(2001, time.February, 3, 4, 5, 6, 0, time.FixedZone("", -(7*60*60+30*60+9))), "2001-02-03 04:05:06-07:30:09"},
 
-	{time.Date(1, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", 0)), "0001-02-03T04:05:06.123456789Z"},
-	{time.Date(1, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", 2*60*60)), "0001-02-03T04:05:06.123456789+02:00"},
-	{time.Date(1, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", -6*60*60)), "0001-02-03T04:05:06.123456789-06:00"},
+	{time.Date(1, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", 0)), "0001-02-03 04:05:06.123456789Z"},
+	{time.Date(1, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", 2*60*60)), "0001-02-03 04:05:06.123456789+02:00"},
+	{time.Date(1, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", -6*60*60)), "0001-02-03 04:05:06.123456789-06:00"},
 
-	{time.Date(0, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", 0)), "0001-02-03T04:05:06.123456789Z BC"},
-	{time.Date(0, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", 2*60*60)), "0001-02-03T04:05:06.123456789+02:00 BC"},
-	{time.Date(0, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", -6*60*60)), "0001-02-03T04:05:06.123456789-06:00 BC"},
+	{time.Date(0, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", 0)), "0001-02-03 04:05:06.123456789Z BC"},
+	{time.Date(0, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", 2*60*60)), "0001-02-03 04:05:06.123456789+02:00 BC"},
+	{time.Date(0, time.February, 3, 4, 5, 6, 123456789, time.FixedZone("", -6*60*60)), "0001-02-03 04:05:06.123456789-06:00 BC"},
 
-	{time.Date(1, time.February, 3, 4, 5, 6, 0, time.FixedZone("", -(7*60*60+30*60+9))), "0001-02-03T04:05:06-07:30:09"},
-	{time.Date(0, time.February, 3, 4, 5, 6, 0, time.FixedZone("", -(7*60*60+30*60+9))), "0001-02-03T04:05:06-07:30:09 BC"},
+	{time.Date(1, time.February, 3, 4, 5, 6, 0, time.FixedZone("", -(7*60*60+30*60+9))), "0001-02-03 04:05:06-07:30:09"},
+	{time.Date(0, time.February, 3, 4, 5, 6, 0, time.FixedZone("", -(7*60*60+30*60+9))), "0001-02-03 04:05:06-07:30:09 BC"},
 }
 
 func TestFormatTs(t *testing.T) {
@@ -164,6 +173,26 @@ func TestFormatTs(t *testing.T) {
 		val := string(formatTs(tt.time))
 		if val != tt.expected {
 			t.Errorf("%d: incorrect time format %q, want %q", i, val, tt.expected)
+		}
+	}
+}
+
+func TestFormatTsBackend(t *testing.T) {
+	db := openTestConn(t)
+	defer db.Close()
+
+	var str string
+	err := db.QueryRow("SELECT '2001-02-03T04:05:06.007-08:09:10'::time::text").Scan(&str)
+	if err == nil {
+		t.Fatalf("PostgreSQL is accepting an ISO timestamp input for time")
+	}
+
+	for i, tt := range formatTimeTests {
+		for _, typ := range []string{"date", "time", "timetz", "timestamp", "timestamptz"} {
+			err = db.QueryRow("SELECT $1::"+typ+"::text", tt.time).Scan(&str)
+			if err != nil {
+				t.Errorf("%d: incorrect time format for %v on the backend: %v", i, typ, err)
+			}
 		}
 	}
 }
@@ -238,9 +267,7 @@ func TestTimestampWithOutTimezone(t *testing.T) {
 			t.Fatalf("Could not run query: %v", err)
 		}
 
-		n := r.Next()
-
-		if n != true {
+		if !r.Next() {
 			t.Fatal("Expected at least one row")
 		}
 
@@ -260,8 +287,7 @@ func TestTimestampWithOutTimezone(t *testing.T) {
 				expected, result)
 		}
 
-		n = r.Next()
-		if n != false {
+		if r.Next() {
 			t.Fatal("Expected only one row")
 		}
 	}
@@ -278,24 +304,27 @@ func TestInfinityTimestamp(t *testing.T) {
 	var err error
 	var resultT time.Time
 
-	expectedErrorStrPrefix := `sql: Scan error on column index 0: unsupported`
+	expectedErrorStrRegexp := regexp.MustCompile(
+		`^sql: Scan error on column index 0(, name "timestamp(tz)?"|): unsupported`)
+
 	type testCases []struct {
-		Query                string
-		Param                string
-		ExpectedErrStrPrefix string
-		ExpectedVal          interface{}
+		Query                  string
+		Param                  string
+		ExpectedErrorStrRegexp *regexp.Regexp
+		ExpectedVal            interface{}
 	}
 	tc := testCases{
-		{"SELECT $1::timestamp", "-infinity", expectedErrorStrPrefix, "-infinity"},
-		{"SELECT $1::timestamptz", "-infinity", expectedErrorStrPrefix, "-infinity"},
-		{"SELECT $1::timestamp", "infinity", expectedErrorStrPrefix, "infinity"},
-		{"SELECT $1::timestamptz", "infinity", expectedErrorStrPrefix, "infinity"},
+		{"SELECT $1::timestamp", "-infinity", expectedErrorStrRegexp, "-infinity"},
+		{"SELECT $1::timestamptz", "-infinity", expectedErrorStrRegexp, "-infinity"},
+		{"SELECT $1::timestamp", "infinity", expectedErrorStrRegexp, "infinity"},
+		{"SELECT $1::timestamptz", "infinity", expectedErrorStrRegexp, "infinity"},
 	}
 	// try to assert []byte to time.Time
 	for _, q := range tc {
 		err = db.QueryRow(q.Query, q.Param).Scan(&resultT)
-		if !strings.HasPrefix(err.Error(), q.ExpectedErrStrPrefix) {
-			t.Errorf("Scanning -/+infinity, expected error to have prefix %q, got %q", q.ExpectedErrStrPrefix, err)
+		if !q.ExpectedErrorStrRegexp.MatchString(err.Error()) {
+			t.Errorf("Scanning -/+infinity, expected error to match regexp %q, got %q",
+				q.ExpectedErrorStrRegexp, err)
 		}
 	}
 	// yield []byte
@@ -350,17 +379,17 @@ func TestInfinityTimestamp(t *testing.T) {
 		t.Errorf("Scanning -infinity, expected time %q, got %q", y1500, resultT.String())
 	}
 
-	y_1500 := time.Date(-1500, time.January, 1, 0, 0, 0, 0, time.UTC)
+	ym1500 := time.Date(-1500, time.January, 1, 0, 0, 0, 0, time.UTC)
 	y11500 := time.Date(11500, time.January, 1, 0, 0, 0, 0, time.UTC)
 	var s string
-	err = db.QueryRow("SELECT $1::timestamp::text", y_1500).Scan(&s)
+	err = db.QueryRow("SELECT $1::timestamp::text", ym1500).Scan(&s)
 	if err != nil {
 		t.Errorf("Encoding -infinity, expected no error, got %q", err)
 	}
 	if s != "-infinity" {
 		t.Errorf("Encoding -infinity, expected %q, got %q", "-infinity", s)
 	}
-	err = db.QueryRow("SELECT $1::timestamptz::text", y_1500).Scan(&s)
+	err = db.QueryRow("SELECT $1::timestamptz::text", ym1500).Scan(&s)
 	if err != nil {
 		t.Errorf("Encoding -infinity, expected no error, got %q", err)
 	}
@@ -702,8 +731,7 @@ func TestAppendEscapedText(t *testing.T) {
 }
 
 func TestAppendEscapedTextExistingBuffer(t *testing.T) {
-	var buf []byte
-	buf = []byte("123\t")
+	buf := []byte("123\t")
 	if esc := appendEscapedText(buf, "hallo\tescape"); string(esc) != "123\thallo\\tescape" {
 		t.Fatal(string(esc))
 	}

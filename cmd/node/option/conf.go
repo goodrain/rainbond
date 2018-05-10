@@ -24,7 +24,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/goodrain/rainbond/pkg/node/utils"
+	"github.com/goodrain/rainbond/node/utils"
 	"github.com/prometheus/node_exporter/collector"
 
 	"github.com/Sirupsen/logrus"
@@ -139,7 +139,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the log level")
 	fs.StringVar(&a.PrometheusAPI, "prometheus", "http://localhost:9999", "the prometheus api")
 	fs.StringVar(&a.NodePath, "nodePath", "/rainbond/nodes", "the path of node in etcd")
-	fs.StringVar(&a.HostIDFile, "nodeid-file", "/etc/goodrain/host_uuid.conf", "the unique ID for this node. Just specify, don't modify")
+	fs.StringVar(&a.HostIDFile, "nodeid-file", "/opt/rainbond/etc/node/node_host_uuid.conf", "the unique ID for this node. Just specify, don't modify")
 	fs.StringVar(&a.OnlineNodePath, "onlineNodePath", "/rainbond/onlinenodes", "the path of master node in etcd")
 	fs.StringVar(&a.Proc, "procPath", "/rainbond/task/proc/", "the path of proc in etcd")
 	fs.StringVar(&a.HostIP, "hostIP", "", "the host ip you can define. default get ip from eth0")
@@ -237,7 +237,7 @@ func (c *Conf) parse() error {
 	c.Group = cleanKeyPrefix(c.Group)
 	c.Noticer = cleanKeyPrefix(c.Noticer)
 	//固定值
-	c.HostIDFile = "/etc/goodrain/host_uuid.conf"
+	c.HostIDFile = "/opt/rainbond/etc/node/node_host_uuid.conf"
 	return nil
 }
 
