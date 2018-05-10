@@ -50,6 +50,7 @@ type V2Routes struct {
 	AcpNodeStruct
 	EntranceStruct
 	EventLogStruct
+	AppStruct
 }
 
 //Show test

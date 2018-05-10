@@ -1348,3 +1348,14 @@ type ServiceShare struct {
 		} `json:"slug_info,omitempty"`
 	}
 }
+
+type ExportAppStruct struct {
+	SourceDir string `json:"source_dir"`
+	Body      struct {
+		EventID       string `json:"event_id"`
+		GroupKey      string `json:"group_key"`
+		Version       string `json:"version"`
+		Format        string `json:"format"`
+		GroupMetadata string `json:"group_metadata"`
+	}
+}

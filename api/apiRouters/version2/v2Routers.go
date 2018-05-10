@@ -40,6 +40,7 @@ func (v2 *V2) Routes() chi.Router {
 	r.Mount("/resources", v2.resourcesRouter())
 	r.Mount("/prometheus", v2.prometheusRouter())
 	r.Get("/event", controller.GetManager().Event)
+	r.Mount("/app", v2.appRouter())
 	return r
 }
 
@@ -209,5 +210,15 @@ func (v2 *V2) resourcesRouter() chi.Router {
 
 func (v2 *V2) prometheusRouter() chi.Router {
 	r := chi.NewRouter()
+	return r
+}
+
+func (v2 *V2) appRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Post("/export", controller.GetManager().ExportApp)
+	r.Post("/import", controller.GetManager().ImportApp)
+	r.Post("/export-runnable", controller.GetManager().ExportRunnableApp)
+	r.Post("/backup", controller.GetManager().BackupApp)
+	r.Post("/recover", controller.GetManager().RecoverApp)
 	return r
 }

@@ -49,7 +49,7 @@ func InitTenant(next http.Handler) http.Handler {
 		}
 		tenant, err := db.GetManager().TenantDao().GetTenantIDByName(tenantName)
 		if err != nil {
-			logrus.Errorf("get tenant by tenantName error, %v", err)
+			logrus.Errorf("get tenant by tenantName error: %s %v", tenantName, err)
 			if err.Error() == gorm.ErrRecordNotFound.Error() {
 				httputil.ReturnError(r, w, 404, "cant find tenant")
 				return

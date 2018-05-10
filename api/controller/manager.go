@@ -44,6 +44,7 @@ type V2Manager interface {
 	apiFunc.PluginInterface
 	apiFunc.RulesInterface
 	apiFunc.SourcesInterface
+	apiFunc.AppInterface
 }
 
 var defaultV2Manager V2Manager

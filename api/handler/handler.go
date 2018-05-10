@@ -59,6 +59,7 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 	}
 	defaultServieHandler = CreateManager(mqClient, kubeClient, etcdCli, statusCli)
 	defaultPluginHandler = CreatePluginManager(mqClient)
+	defaultAppHandler = CreateAppManager(mqClient)
 	defaultTenantHandler = CreateTenManager(mqClient, kubeClient, statusCli)
 	defaultNetRulesHandler = CreateNetRulesManager(etcdCli)
 	defaultSourcesHandler = CreateSourcesManager(etcdCli)
@@ -87,6 +88,8 @@ func GetServiceManager() ServiceHandler {
 }
 
 var defaultPluginHandler PluginHandler
+
+var defaultAppHandler AppAction
 
 //GetPluginManager get manager
 func GetPluginManager() PluginHandler {
@@ -126,4 +129,8 @@ var defaultEventHandler EventHandler
 //GetEventHandler get event handler
 func GetEventHandler() EventHandler {
 	return defaultEventHandler
+}
+
+func GetAppHandler() AppAction {
+	return defaultAppHandler
 }

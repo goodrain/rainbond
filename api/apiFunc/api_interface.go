@@ -131,3 +131,11 @@ type SourcesInterface interface {
 	GetDefineSource(w http.ResponseWriter, r *http.Request)
 	UpdateDefineSource(w http.ResponseWriter, r *http.Request)
 }
+
+type AppInterface interface {
+	ExportApp(w http.ResponseWriter, r *http.Request)
+	ImportApp(w http.ResponseWriter, r *http.Request)
+	ExportRunnableApp(w http.ResponseWriter, r *http.Request)
+	BackupApp(w http.ResponseWriter, r *http.Request)
+	RecoverApp(w http.ResponseWriter, r *http.Request)
+}
