@@ -57,6 +57,8 @@ func init() {
 
 //NewExportApp create
 func NewExportApp(in []byte) TaskWorker {
+	logrus.Debug("Build export app struct from json: ", string(in))
+
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	return &ExportApp{
@@ -163,7 +165,7 @@ func (i *ExportApp) parseApps() ([]gjson.Result, error) {
 	data, err := ioutil.ReadFile(fmt.Sprintf("%s/metadata.json", i.SourceDir))
 	if err != nil {
 		i.Logger.Error("导出应用失败，没有找到应用信息", map[string]string{"step": "read-metadata", "status": "failure"})
-		logrus.Error("Failed to export rainbond app:", err)
+		logrus.Error("Failed to export rainbond app: ", err)
 		return nil, err
 	}
 
@@ -171,7 +173,7 @@ func (i *ExportApp) parseApps() ([]gjson.Result, error) {
 	if len(arr) < 1 {
 		i.Logger.Error("解析应用列表信息失败", map[string]string{"step": "parse-apps", "status": "failure"})
 		err := errors.New("Not found app in the metadata.")
-		logrus.Error("Failed to get apps from json:", err)
+		logrus.Error("Failed to get apps from json: ", err)
 		return nil, err
 	}
 
@@ -214,7 +216,7 @@ func (i *ExportApp) exportImage(app gjson.Result) error {
 	if err != nil {
 		i.Logger.Error(fmt.Sprintf("拉取镜像失败：%s", image),
 			map[string]string{"step": "pull-image", "status": "failure"})
-		logrus.Error("Failed to pull image:", err)
+		logrus.Error("Failed to pull image: ", err)
 	}
 
 	// save image to tar file
@@ -222,7 +224,7 @@ func (i *ExportApp) exportImage(app gjson.Result) error {
 	if err != nil {
 		i.Logger.Error(fmt.Sprintf("保存镜像失败：%s", image),
 			map[string]string{"step": "save-image", "status": "failure"})
-		logrus.Error("Failed to save image:", err)
+		logrus.Error("Failed to save image: ", err)
 		return err
 	}
 
@@ -285,7 +287,7 @@ func (i *ExportApp) saveApps() error {
 
 		ftpClient, err := sources.NewSFTPClient(ftpUsername, ftpPassword, ftpPort, ftpHost)
 		if err != nil {
-			logrus.Error("Failed to create ftp client:", err)
+			logrus.Error("Failed to create ftp client: ", err)
 			return err
 		}
 
@@ -362,7 +364,7 @@ func (i *ExportApp) exportRunnerImage() error {
 		if err != nil {
 			i.Logger.Error(fmt.Sprintf("拉取镜像失败：%s", image),
 				map[string]string{"step": "pull-image", "status": "failure"})
-			logrus.Error("Failed to pull image:", err)
+			logrus.Error("Failed to pull image: ", err)
 		}
 
 		err = sources.ImageSave(i.DockerClient, image, buildToLinuxFileName(image), i.Logger)
@@ -459,14 +461,14 @@ func (i *ExportApp) generateDockerComposeYaml() error {
 	content, err := yaml.Marshal(y)
 	if err != nil {
 		i.Logger.Error(fmt.Sprintf("生成YAML文件失败：%v", err), map[string]string{"step": "build-yaml", "status": "failure"})
-		logrus.Error("Failed to build yaml file:", err)
+		logrus.Error("Failed to build yaml file: ", err)
 		return err
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/docker-compose.yaml", i.SourceDir), content, 0644)
 	if err != nil {
 		i.Logger.Error(fmt.Sprintf("创建YAML文件失败：%v", err), map[string]string{"step": "create-yaml", "status": "failure"})
-		logrus.Error("Failed to create yaml file:", err)
+		logrus.Error("Failed to create yaml file: ", err)
 		return err
 	}
 
@@ -491,7 +493,7 @@ func (i *ExportApp) generateTarFile() error {
 	}
 
 	i.Logger.Info("打包应用成功", map[string]string{"step": "export-app", "status": "success"})
-	logrus.Infof("Success to export app by group key:", i.GroupKey)
+	logrus.Info("Success to export app by group key: ", i.GroupKey)
 	return nil
 }
 
