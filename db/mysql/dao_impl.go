@@ -437,3 +437,10 @@ func (m *Manager) RegionProcotolsDaoTransactions(db *gorm.DB) dao.RegionProcotol
 		DB: db,
 	}
 }
+
+//AppDao 应用导入导出数据
+func (m *Manager) AppDao() dao.AppDao {
+	return &mysqldao.AppDaoImpl{
+		DB: m.db,
+	}
+}

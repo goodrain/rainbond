@@ -36,6 +36,8 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"github.com/goodrain/rainbond/db/mysql/dao"
+	"github.com/goodrain/rainbond/db"
 )
 
 //ExportApp Export app to specified format(rainbond-app or dockercompose)
@@ -70,7 +72,7 @@ func NewExportApp(in []byte) TaskWorker {
 func (i *ExportApp) Run(timeout time.Duration) error {
 	if i.Format == "rainbond-app" {
 		return i.exportRainbondAPP()
-	} else if i.Format == "dockercompose" {
+	} else if i.Format == "docker-compose" {
 		return i.exportDockerCompose()
 	}
 	return nil
@@ -85,6 +87,11 @@ func (i *ExportApp) exportRainbondAPP() error {
 
 	// 打包整个目录为tar包
 	if err := i.generateTarFile(); err != nil {
+		return err
+	}
+
+	// 更新应用状态
+	if err := i.updateStatus(); err != nil {
 		return err
 	}
 
@@ -115,6 +122,11 @@ func (i *ExportApp) exportDockerCompose() error {
 
 	// 打包整个目录为tar包
 	if err := i.generateTarFile(); err != nil {
+		return err
+	}
+
+	// 更新应用状态
+	if err := i.updateStatus(); err != nil {
 		return err
 	}
 
@@ -463,7 +475,7 @@ func (i *ExportApp) generateTarFile() error {
 	// /grdata/export-app/myapp-1.0 -> myapp-1.0
 	baseName := path.Base(i.SourceDir)
 	// 打包整个目录为tar包
-	err := exec.Command(fmt.Sprintf("cd %s ; tar -cf %s.tar %s", dirName, baseName, baseName)).Run()
+	err := exec.Command(fmt.Sprintf("cd %s ; rm -rf %s.tar ; tar -cf %s.tar %s", dirName, baseName, baseName, baseName)).Run()
 	if err != nil {
 		i.Logger.Error("打包应用失败", map[string]string{"step": "export-app", "status": "failure"})
 		logrus.Errorf("Failed to create tar file for group key %s: %v", i.GroupKey, err)
@@ -472,6 +484,24 @@ func (i *ExportApp) generateTarFile() error {
 
 	i.Logger.Info("打包应用成功", map[string]string{"step": "export-app", "status": "success"})
 	logrus.Infof("Success to export app by group key:", i.GroupKey)
+	return nil
+}
+
+func (i *ExportApp) updateStatus() error {
+	res, err := db.GetManager().AppDao().Get(i.GroupKey, i.Version)
+	if err != nil {
+		err = errors.New(fmt.Sprintf("Failed to get app %s from db: %v", i.GroupKey, err))
+		return err
+	}
+
+	app := res.(*dao.AppStatus)
+	app.Status = "success"
+
+	if db.GetManager().AppDao().UpdateModel(app); err != nil {
+		err = errors.New(fmt.Sprintf("Failed to update app %s: %v", i.GroupKey, err))
+		return err
+	}
+
 	return nil
 }
 

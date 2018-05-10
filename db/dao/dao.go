@@ -42,6 +42,13 @@ type TenantDao interface {
 	GetTenantIDsByNames(names []string) ([]string, error)
 }
 
+//TenantDao tenant dao
+type AppDao interface {
+	Dao
+	DelDao
+	Get(groupKey, version string) (interface{}, error)
+}
+
 //LicenseDao LicenseDao
 type LicenseDao interface {
 	Dao

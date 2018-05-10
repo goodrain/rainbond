@@ -23,6 +23,7 @@ import (
 	"time"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/db/mysql/dao"
 )
 
 //ServiceGetCommon path参数
@@ -1354,8 +1355,23 @@ type ExportAppStruct struct {
 	Body      struct {
 		EventID       string `json:"event_id"`
 		GroupKey      string `json:"group_key"`
+		GroupName     string `json:"group_name"`
 		Version       string `json:"version"`
-		Format        string `json:"format"`
+		Format        string `json:"format"` // only rainbond-app/docker-compose
 		GroupMetadata string `json:"group_metadata"`
+	}
+}
+
+func NewAppStatusFrom(exportApp *ExportAppStruct) *dao.AppStatus {
+	return &dao.AppStatus{
+		GroupKey:  exportApp.Body.GroupKey,
+		GroupName: exportApp.Body.GroupName, // TODO 以后可能会去掉
+		Version:   exportApp.Body.Version,
+		Format:    exportApp.Body.Format,
+		EventID:   exportApp.Body.EventID,
+		SourceDir: exportApp.SourceDir,
+		Status:    "exporting",
+		TarFile:   exportApp.SourceDir + ".tar",
+		TimeStamp: time.Now().Nanosecond(),
 	}
 }
