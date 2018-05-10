@@ -36,8 +36,8 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"github.com/goodrain/rainbond/db/mysql/dao"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/model"
 )
 
 //ExportApp Export app to specified format(rainbond-app or dockercompose)
@@ -494,7 +494,7 @@ func (i *ExportApp) updateStatus() error {
 		return err
 	}
 
-	app := res.(*dao.AppStatus)
+	app := res.(*model.AppStatus)
 	app.Status = "success"
 
 	if db.GetManager().AppDao().UpdateModel(app); err != nil {

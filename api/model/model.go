@@ -23,7 +23,6 @@ import (
 	"time"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/db/mysql/dao"
 )
 
 //ServiceGetCommon path参数
@@ -1362,8 +1361,8 @@ type ExportAppStruct struct {
 	}
 }
 
-func NewAppStatusFrom(exportApp *ExportAppStruct) *dao.AppStatus {
-	return &dao.AppStatus{
+func NewAppStatusFrom(exportApp *ExportAppStruct) *dbmodel.AppStatus {
+	return &dbmodel.AppStatus{
 		GroupKey:  exportApp.Body.GroupKey,
 		GroupName: exportApp.Body.GroupName, // TODO 以后可能会去掉
 		Version:   exportApp.Body.Version,
