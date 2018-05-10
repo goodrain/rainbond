@@ -28,6 +28,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/entrance/core/object"
 
 	"github.com/coreos/etcd/client"
+	"errors"
 )
 
 //ReadStore 只读存储接口
@@ -39,6 +40,7 @@ type ReadStore interface {
 	GetRule(rule *object.RuleObject) (*object.RuleObject, error)
 	GetRuleByPool(protocol string, poolName string) ([]*object.RuleObject, error)
 	GetVSByPoolName(poolName string) (*object.VirtualServiceObject, error)
+	GetCertificate(certName string) (*object.Certificate, error)
 }
 
 //GetAllPools 获取全部pools
@@ -141,4 +143,17 @@ func (m *Manager) GetRule(rule *object.RuleObject) (*object.RuleObject, error) {
 		return nil, err
 	}
 	return i.Data.(*object.RuleObject), nil
+}
+
+//Get cert key pair
+func (m *Manager) GetCertificate(certName string) (*object.Certificate, error) {
+	key := fmt.Sprintf("%s/certificate/%s", m.cluster.GetPrefix(), certName)
+	i := &SourceInfo{
+		Data: &object.Certificate{},
+	}
+	err := m.get(key, i)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Failed to GetCertificate %s: %s", key, err.Error()))
+	}
+	return i.Data.(*object.Certificate), nil
 }
