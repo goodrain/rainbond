@@ -186,14 +186,14 @@ func (i *ExportApp) replaceMetadata(old, new string) error {
 }
 
 func (i *ExportApp) exportImage(app gjson.Result) error {
-	serviceName := app.Get(".service_cname").String()
+	serviceName := app.Get("service_cname").String()
 	serviceName = unicode2zh(serviceName)
 
 	serviceDir := fmt.Sprintf("%s/%s", i.SourceDir, serviceName)
 	os.MkdirAll(serviceDir, 0755)
 
 	// 处理掉文件名中冒号等不合法字符
-	image := app.Get(".image").String()
+	image := app.Get("image").String()
 	tarFileName := buildToLinuxFileName(image)
 
 	// 如果是runner镜像则跳过
@@ -234,14 +234,14 @@ func (i *ExportApp) saveApps() error {
 	i.Logger.Info("开始打包应用", map[string]string{"step": "export-app", "status": "success"})
 
 	for _, app := range apps {
-		serviceName := app.Get(".service_cname").String()
+		serviceName := app.Get("service_cname").String()
 		serviceName = unicode2zh(serviceName)
 
 		serviceDir := fmt.Sprintf("%s/%s", i.SourceDir, serviceName)
 		os.MkdirAll(serviceDir, 0755)
 
 		// 如果该slug文件存在于本地，则直接复制，然后修改json中的share_slug_path字段
-		shareSlugPath := app.Get(".share_slug_path").String()
+		shareSlugPath := app.Get("share_slug_path").String()
 		tarFileName := buildToLinuxFileName(shareSlugPath)
 		_, err := os.Stat(shareSlugPath)
 		if os.IsExist(err) {
@@ -255,7 +255,7 @@ func (i *ExportApp) saveApps() error {
 
 		// 如果这个字段存在于该app中，则认为该app是源码部署方式，并从ftp下载相应slug文件
 		// 否则认为该app是镜像方式部署，然后下载相应镜像即可
-		ftpHost := app.Get(".service_slug.ftp_host").String()
+		ftpHost := app.Get("service_slug.ftp_host").String()
 		if ftpHost == "" {
 			logrus.Infof("Not found fields ftp_host for service key %s", serviceName)
 
@@ -271,9 +271,9 @@ func (i *ExportApp) saveApps() error {
 			map[string]string{"step": "parse-slug", "status": "failure"})
 
 		// 提取tfp服务器信息
-		ftpPort := app.Get(".service_slug.ftp_port").String()
-		ftpUsername := app.Get(".service_slug.ftp_username").String()
-		ftpPassword := app.Get(".service_slug.ftp_password").String()
+		ftpPort := app.Get("service_slug.ftp_port").String()
+		ftpUsername := app.Get("service_slug.ftp_username").String()
+		ftpPassword := app.Get("service_slug.ftp_password").String()
 
 		ftpClient, err := sources.NewSFTPClient(ftpUsername, ftpPassword, ftpPort, ftpHost)
 		if err != nil {

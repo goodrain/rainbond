@@ -28,7 +28,7 @@ func CreateAppManager(mqClient pb.TaskQueueClient) *AppAction {
 }
 
 func (a *AppAction) Complete(tr *model.ExportAppStruct) error {
-	appName := gjson.Get(tr.Body.GroupMetadata, ".group_name").String()
+	appName := gjson.Get(tr.Body.GroupMetadata, "group_name").String()
 	if appName == "" {
 		err := errors.New("Failed to get group name form metadata.")
 		logrus.Error(err)
@@ -79,7 +79,7 @@ func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
 
 // TODO 与ExportApp函数唯一不同的是导出目录，以后有可能合并
 func (a *AppAction) ExportRunnableApp(tr *model.ExportAppStruct) error {
-	appName := gjson.Get(tr.Body.GroupMetadata, ".group_name").String()
+	appName := gjson.Get(tr.Body.GroupMetadata, "group_name").String()
 	if appName == "" {
 		err := errors.New("Failed to get group name form metadata.")
 		logrus.Error(err)
