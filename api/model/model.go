@@ -1354,23 +1354,39 @@ type ExportAppStruct struct {
 	Body      struct {
 		EventID       string `json:"event_id"`
 		GroupKey      string `json:"group_key"`
-		GroupName     string `json:"group_name"`
 		Version       string `json:"version"`
 		Format        string `json:"format"` // only rainbond-app/docker-compose
 		GroupMetadata string `json:"group_metadata"`
 	}
 }
 
-func NewAppStatusFrom(exportApp *ExportAppStruct) *dbmodel.AppStatus {
+func BuildMQBodyFrom(app *ExportAppStruct) *MQBody {
+	return &MQBody{
+		EventID:   app.Body.EventID,
+		GroupKey:  app.Body.GroupKey,
+		Version:   app.Body.Version,
+		Format:    app.Body.Format,
+		SourceDir: app.SourceDir,
+	}
+}
+
+type MQBody struct {
+	EventID   string `json:"event_id"`
+	GroupKey  string `json:"group_key"`
+	Version   string `json:"version"`
+	Format    string `json:"format"` // only rainbond-app/docker-compose
+	SourceDir string `json:"source_dir"`
+}
+
+func NewAppStatusFrom(app *ExportAppStruct) *dbmodel.AppStatus {
 	return &dbmodel.AppStatus{
-		GroupKey:  exportApp.Body.GroupKey,
-		GroupName: exportApp.Body.GroupName, // TODO 以后可能会去掉
-		Version:   exportApp.Body.Version,
-		Format:    exportApp.Body.Format,
-		EventID:   exportApp.Body.EventID,
-		SourceDir: exportApp.SourceDir,
+		GroupKey:  app.Body.GroupKey,
+		Version:   app.Body.Version,
+		Format:    app.Body.Format,
+		EventID:   app.Body.EventID,
+		SourceDir: app.SourceDir,
 		Status:    "exporting",
-		TarFile:   exportApp.SourceDir + ".tar",
+		TarFile:   app.SourceDir + ".tar",
 		TimeStamp: time.Now().Nanosecond(),
 	}
 }

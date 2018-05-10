@@ -35,7 +35,6 @@ func (a *AppAction) Complete(tr *model.ExportAppStruct) error {
 		return err
 	}
 
-	tr.Body.GroupName = appName
 	appName = unicode2zh(appName)
 	tr.SourceDir = fmt.Sprintf("/grdata/export-app/%s-%s", appName, tr.Body.Version)
 
@@ -47,7 +46,7 @@ func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
 		return util.CreateAPIHandleErrorFromDBError("Failed to export app", err)
 	}
 
-	mqBody, err := json.Marshal(BuildExportAppBody(tr))
+	mqBody, err := json.Marshal(model.BuildMQBodyFrom(tr))
 	if err != nil {
 		logrus.Error("Failed to encode json from ExportAppStruct:", err)
 		return err
@@ -87,14 +86,13 @@ func (a *AppAction) ExportRunnableApp(tr *model.ExportAppStruct) error {
 	}
 
 	appName = unicode2zh(appName)
-
 	tr.SourceDir = fmt.Sprintf("/grdata/export-runnable-app/%s-%s", appName, tr.Body.Version)
 
 	if err := saveMetadata(tr); err != nil {
 		return util.CreateAPIHandleErrorFromDBError("Failed to export app", err)
 	}
 
-	mqBody, err := json.Marshal(BuildExportAppBody(tr))
+	mqBody, err := json.Marshal(model.BuildMQBodyFrom(tr))
 	if err != nil {
 		logrus.Error("Failed to encode json from ExportAppStruct:", err)
 		return err
@@ -121,22 +119,6 @@ func (a *AppAction) ExportRunnableApp(tr *model.ExportAppStruct) error {
 	logrus.Debugf("equeue mq build plugin from image success")
 
 	return nil
-}
-
-func BuildExportAppBody(tr *model.ExportAppStruct) *ExportAppBody {
-	return &ExportAppBody{
-		EventID:    tr.Body.EventID,
-		ServiceKey: tr.Body.GroupKey,
-		Format:     tr.Body.Format,
-		SourceDir:  tr.SourceDir,
-	}
-}
-
-type ExportAppBody struct {
-	EventID    string `json:"event_id"`
-	ServiceKey string `json:"service_key"`
-	Format     string `json:"format"`
-	SourceDir  string `json:"source_dir"`
 }
 
 func saveMetadata(tr *model.ExportAppStruct) error {
