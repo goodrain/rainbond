@@ -21,9 +21,14 @@ package controller
 import (
 	"io/ioutil"
 	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/jinzhu/gorm"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
+	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -66,4 +71,137 @@ func (e *TenantStruct) Event(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, err.Error())
 	}
 	httputil.ReturnSuccess(r, w, serviceEvents)
+}
+
+//GetNotificationEvents GetNotificationEvent
+//support query from start and end time or all
+// swagger:operation GET  /v2/notificationEvent v2/notificationEvent getevents
+//
+// 获取数据中心通知事件
+//
+// get events
+//
+// ---
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func GetNotificationEvents(w http.ResponseWriter, r *http.Request) {
+	var startTime, endTime time.Time
+	start := r.FormValue("start")
+	end := r.FormValue("end")
+	if si, err := strconv.Atoi(start); err == nil {
+		startTime = time.Unix(int64(si), 0)
+	}
+	if ei, err := strconv.Atoi(end); err == nil {
+		endTime = time.Unix(int64(ei), 0)
+	}
+	res, err := db.GetManager().NotificationEventDao().GetNotificationEventByTime(startTime, endTime)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, res)
+}
+
+//Handle Handle
+// swagger:parameters handlenotify
+type Handle struct {
+	Body struct {
+		//in: body
+		//handle message
+		HandleMessage string `json:"handle_message" validate:"handle_message|required"`
+	}
+}
+
+//HandleNotificationEvent HandleNotificationEvent
+// swagger:operation PUT  /v2/notificationEvent/{hash} v2/notificationEvent handlenotify
+//
+// 处理通知事件
+//
+// get events
+//
+// ---
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func HandleNotificationEvent(w http.ResponseWriter, r *http.Request) {
+	hash := chi.URLParam(r, "hash")
+	if hash == "" {
+		httputil.ReturnError(r, w, 400, "hash id do not empty")
+		return
+	}
+	var handle Handle
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &handle.Body, nil)
+	if !ok {
+		return
+	}
+	event, err := db.GetManager().NotificationEventDao().GetNotificationEventByHash(hash)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			httputil.ReturnError(r, w, 404, "not found")
+			return
+		}
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	event.IsHandle = true
+	event.HandleMessage = handle.Body.HandleMessage
+	err = db.GetManager().NotificationEventDao().UpdateModel(event)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			httputil.ReturnError(r, w, 404, "not found")
+			return
+		}
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, event)
+}
+
+//GetNotificationEvent GetNotificationEvent
+// swagger:operation GET  /v2/notificationEvent/{hash} v2/notificationEvent getevents
+//
+// 获取通知事件
+//
+// get events
+//
+// ---
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//   default:
+//     schema:
+//       "$ref": "#/responses/commandResponse"
+//     description: 统一返回格式
+func GetNotificationEvent(w http.ResponseWriter, r *http.Request) {
+
+	hash := chi.URLParam(r, "hash")
+	if hash == "" {
+		httputil.ReturnError(r, w, 400, "hash id do not empty")
+		return
+	}
+	event, err := db.GetManager().NotificationEventDao().GetNotificationEventByHash(hash)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			httputil.ReturnError(r, w, 404, "not found")
+			return
+		}
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, event)
 }

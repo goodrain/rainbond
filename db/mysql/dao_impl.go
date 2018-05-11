@@ -437,3 +437,10 @@ func (m *Manager) RegionProcotolsDaoTransactions(db *gorm.DB) dao.RegionProcotol
 		DB: db,
 	}
 }
+
+//NotificationEventDao NotificationEventDao
+func (m *Manager) NotificationEventDao() dao.NotificationEventDao {
+	return &mysqldao.NotificationEventDaoImpl{
+		DB: m.db,
+	}
+}

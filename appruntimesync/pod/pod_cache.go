@@ -262,25 +262,41 @@ func (c *CacheManager) analyzePodStatus(pod *v1.Pod) {
 func (c *CacheManager) addAbnormalInfo(ai *AbnormalInfo) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-
 	switch ai.Reason {
 	case "OOMKilled":
 		if oldai, ok := c.oomInfos[ai.Hash()]; ok {
 			oldai.Count++
-			logrus.Errorf("OOM Killed:%s", ai)
 		} else {
-			logrus.Errorf("First OOM Killed:%s", ai)
+			ai.Count++
 			c.oomInfos[ai.Hash()] = ai
 		}
+		db.GetManager().NotificationEventDao().AddModel(&model.NotificationEvent{
+			Kind:    "service",
+			KindID:  c.oomInfos[ai.Hash()].ServiceID,
+			Hash:    ai.Hash(),
+			Type:    "UnNormal",
+			Message: c.oomInfos[ai.Hash()].Message,
+			Reason:  "OOMKilled",
+			Count:   c.oomInfos[ai.Hash()].Count,
+		})
 	default:
 		if oldai, ok := c.errorInfos[ai.Hash()]; ok {
 			oldai.Count++
-			logrus.Errorf("Container Exist:%s", ai)
 		} else {
-			logrus.Errorf("First Container Exist:%s", ai)
+			ai.Count++
 			c.errorInfos[ai.Hash()] = ai
 		}
+		db.GetManager().NotificationEventDao().AddModel(&model.NotificationEvent{
+			Kind:    "service",
+			KindID:  c.oomInfos[ai.Hash()].ServiceID,
+			Hash:    ai.Hash(),
+			Type:    "UnNormal",
+			Message: c.oomInfos[ai.Hash()].Message,
+			Reason:  c.oomInfos[ai.Hash()].Reason,
+			Count:   c.oomInfos[ai.Hash()].Count,
+		})
 	}
+
 }
 func (c *CacheManager) deleteCachePod() func(obj interface{}) {
 	return func(obj interface{}) {

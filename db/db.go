@@ -97,6 +97,8 @@ type Manager interface {
 	RegionAPIClassDaoTransactions(db *gorm.DB) dao.RegionAPIClassDao
 
 	RegionProcotolsDao() dao.RegionProcotolsDao
+
+	NotificationEventDao() dao.NotificationEventDao
 }
 
 var defaultManager Manager

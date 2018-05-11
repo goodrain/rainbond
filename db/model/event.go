@@ -18,6 +18,8 @@
 
 package model
 
+import "time"
+
 //ServiceEvent event struct
 type ServiceEvent struct {
 	Model
@@ -40,4 +42,28 @@ type ServiceEvent struct {
 //TableName 表名
 func (t *ServiceEvent) TableName() string {
 	return "service_event"
+}
+
+//NotificationEvent NotificationEvent
+type NotificationEvent struct {
+	Model
+	//Kind could be service, tenant, cluster, node
+	Kind string `gorm:"column:kind;size:40"`
+	//KindID could be service_id,tenant_id,cluster_id,node_id
+	KindID string `gorm:"column:kind_id;size:40"`
+	Hash   string `gorm:"column:hash;size:40"`
+	//Type could be Normal UnNormal Notification
+	Type          string    `gorm:"column:type;size:40"`
+	Message       string    `gorm:"column:message;size:200"`
+	Reason        string    `gorm:"column:reson;size:200"`
+	Count         int       `gorm:"column:count;"`
+	LastTime      time.Time `gorm:"column:last_time;"`
+	FirstTime     time.Time `gorm:"column:first_time;"`
+	IsHandle      bool      `gorm:"column:is_handle;"`
+	HandleMessage string    `gorm:"column:handle_message;"`
+}
+
+//TableName table name
+func (n *NotificationEvent) TableName() string {
+	return "notification_event"
 }

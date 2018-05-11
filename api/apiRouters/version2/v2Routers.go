@@ -35,7 +35,7 @@ func (v2 *V2) Routes() chi.Router {
 	r.Post("/show", controller.GetManager().Show)
 	r.Mount("/tenants", v2.tenantRouter())
 	r.Mount("/nodes", v2.nodesRouter())
-	r.Mount("/job", v2.jobsRouter())
+	r.Mount("/notificationEvent", v2.notificationEventRouter())
 	r.Mount("/cluster", v2.clusterRouter())
 	r.Mount("/resources", v2.resourcesRouter())
 	r.Mount("/prometheus", v2.prometheusRouter())
@@ -220,5 +220,13 @@ func (v2 *V2) appRouter() chi.Router {
 	r.Post("/export-runnable", controller.GetManager().ExportRunnableApp)
 	r.Post("/backup", controller.GetManager().BackupApp)
 	r.Post("/recover", controller.GetManager().RecoverApp)
+	return r
+}
+
+func (v2 *V2) notificationEventRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/", controller.GetNotificationEvents)
+	r.Put("/{hash}", controller.HandleNotificationEvent)
+	r.Get("/{hash}", controller.GetNotificationEvent)
 	return r
 }

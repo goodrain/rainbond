@@ -119,3 +119,90 @@ func (c *EventDaoImpl) GetEventByServiceID(serviceID string) ([]*model.ServiceEv
 	}
 	return result, nil
 }
+
+//NotificationEventDaoImpl NotificationEventDaoImpl
+type NotificationEventDaoImpl struct {
+	DB *gorm.DB
+}
+
+//AddModel AddModel
+func (c *NotificationEventDaoImpl) AddModel(mo model.Interface) error {
+	result := mo.(*model.NotificationEvent)
+	result.LastTime = time.Now()
+	result.FirstTime = time.Now()
+	var oldResult model.NotificationEvent
+	if ok := c.DB.Where("hash=?", result.Hash).Find(&oldResult).RecordNotFound(); ok {
+		if err := c.DB.Create(result).Error; err != nil {
+			return err
+		}
+	} else {
+		logrus.Infoln("event result is exist")
+		return c.UpdateModel(mo)
+	}
+	return nil
+}
+
+//UpdateModel UpdateModel
+func (c *NotificationEventDaoImpl) UpdateModel(mo model.Interface) error {
+	result := mo.(*model.NotificationEvent)
+	var oldResult model.NotificationEvent
+	if ok := c.DB.Where("hash=?", result.Hash).Find(&oldResult).RecordNotFound(); !ok {
+		result.FirstTime = oldResult.FirstTime
+		result.ID = oldResult.ID
+	}
+	return c.DB.Save(result).Error
+}
+
+//GetNotificationEventByKind GetNotificationEventByKind
+func (c *NotificationEventDaoImpl) GetNotificationEventByKind(kind, kindID string) ([]*model.NotificationEvent, error) {
+	var result []*model.NotificationEvent
+	if err := c.DB.Where("kind=? and kind_id=?", kind, kindID).Find(&result).Order("last_time DESC").Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return result, nil
+		}
+		return nil, err
+	}
+	return result, nil
+}
+
+//GetNotificationEventByTime GetNotificationEventByTime
+func (c *NotificationEventDaoImpl) GetNotificationEventByTime(start, end time.Time) ([]*model.NotificationEvent, error) {
+	var result []*model.NotificationEvent
+	if !start.IsZero() && !end.IsZero() {
+		if err := c.DB.Where("last_time>? and last_time<?", start, end).Find(&result).Order("last_time DESC").Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return result, nil
+			}
+			return nil, err
+		}
+		return result, nil
+	}
+	if err := c.DB.Where("last_time<?", time.Now()).Find(&result).Order("last_time DESC").Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return result, nil
+		}
+		return nil, err
+	}
+	return result, nil
+}
+
+//GetNotificationEventNotHandle GetNotificationEventNotHandle
+func (c *NotificationEventDaoImpl) GetNotificationEventNotHandle() ([]*model.NotificationEvent, error) {
+	var result []*model.NotificationEvent
+	if err := c.DB.Where("is_handle=?", false).Find(&result).Order("last_time DESC").Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return result, nil
+		}
+		return nil, err
+	}
+	return result, nil
+}
+
+//GetNotificationEventByHash GetNotificationEventByHash
+func (c *NotificationEventDaoImpl) GetNotificationEventByHash(hash string) (*model.NotificationEvent, error) {
+	var result model.NotificationEvent
+	if err := c.DB.Where("hash=?", hash).Find(&result).Error; err != nil {
+		return nil, err
+	}
+	return &result, nil
+}

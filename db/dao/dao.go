@@ -18,7 +18,11 @@
 
 package dao
 
-import "github.com/goodrain/rainbond/db/model"
+import (
+	"time"
+
+	"github.com/goodrain/rainbond/db/model"
+)
 
 //Dao 数据持久化层接口
 type Dao interface {
@@ -341,4 +345,13 @@ type RegionProcotolsDao interface {
 	Dao
 	GetAllSupportProtocol(version string) ([]*model.RegionProcotols, error)
 	GetProtocolGroupByProtocolChild(version, protocolChild string) (*model.RegionProcotols, error)
+}
+
+//NotificationEventDao NotificationEventDao
+type NotificationEventDao interface {
+	Dao
+	GetNotificationEventByHash(hash string) (*model.NotificationEvent, error)
+	GetNotificationEventByKind(kind, kindID string) ([]*model.NotificationEvent, error)
+	GetNotificationEventByTime(start, end time.Time) ([]*model.NotificationEvent, error)
+	GetNotificationEventNotHandle() ([]*model.NotificationEvent, error)
 }
