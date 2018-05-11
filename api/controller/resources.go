@@ -133,7 +133,9 @@ func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 	}
 	var re = make([]map[string]interface{}, len(rep))
 	for _, v := range rep {
-		re = append(re, v)
+		if v != nil {
+			re = append(re, v)
+		}
 	}
 	httputil.ReturnSuccess(r, w, re)
 	return
