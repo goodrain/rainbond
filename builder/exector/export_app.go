@@ -57,15 +57,22 @@ func init() {
 
 //NewExportApp create
 func NewExportApp(in []byte) TaskWorker {
+	dockerClient, err := client.NewEnvClient()
+	if err != nil {
+		logrus.Error("Failed to create task for export app: ", err)
+		return nil
+	}
+
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	return &ExportApp{
-		GroupKey:  gjson.GetBytes(in, "group_key").String(),
-		Version:   gjson.GetBytes(in, "version").String(),
-		Format:    gjson.GetBytes(in, "format").String(),
-		SourceDir: gjson.GetBytes(in, "source_dir").String(),
-		Logger:    logger,
-		EventID:   eventID,
+		GroupKey:     gjson.GetBytes(in, "group_key").String(),
+		Version:      gjson.GetBytes(in, "version").String(),
+		Format:       gjson.GetBytes(in, "format").String(),
+		SourceDir:    gjson.GetBytes(in, "source_dir").String(),
+		Logger:       logger,
+		EventID:      eventID,
+		DockerClient: dockerClient,
 	}
 }
 
@@ -266,7 +273,7 @@ func (i *ExportApp) saveApps() error {
 		// 否则认为该app是镜像方式部署，然后下载相应镜像即可
 		ftpHost := app.Get("service_slug.ftp_host").String()
 		if ftpHost == "" {
-			logrus.Infof("The service is image model deploy %s", serviceName)
+			logrus.Infof("The service is image model deploy: %s", serviceName)
 
 			// 下载镜像到应用导出目录
 			if err := i.exportImage(app); err != nil {
