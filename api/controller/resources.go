@@ -131,7 +131,7 @@ func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get resources error, %v", err))
 		return
 	}
-	var re = make([]map[string]interface{}, len(rep))
+	var re []map[string]interface{}
 	for _, v := range rep {
 		if v != nil {
 			re = append(re, v)
