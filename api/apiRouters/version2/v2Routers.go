@@ -217,7 +217,6 @@ func (v2 *V2) appRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/export", controller.GetManager().ExportApp)
 	r.Post("/import", controller.GetManager().ImportApp)
-	r.Post("/export-runnable", controller.GetManager().ExportRunnableApp)
 	r.Post("/backup", controller.GetManager().BackupApp)
 	r.Post("/recover", controller.GetManager().RecoverApp)
 	return r

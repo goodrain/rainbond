@@ -35,59 +35,19 @@ func (a *AppAction) Complete(tr *model.ExportAppStruct) error {
 		return err
 	}
 
-	appName = unicode2zh(appName)
-	tr.SourceDir = fmt.Sprintf("/grdata/export-app/%s-%s", appName, tr.Body.Version)
-
-	return nil
-}
-
-func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
-	if err := saveMetadata(tr); err != nil {
-		return util.CreateAPIHandleErrorFromDBError("Failed to export app", err)
-	}
-
-	mqBody, err := json.Marshal(model.BuildMQBodyFrom(tr))
-	if err != nil {
-		logrus.Error("Failed to encode json from ExportAppStruct:", err)
-		return err
-	}
-
-	ts := &db.BuildTaskStruct{
-		TaskType: "export_app",
-		TaskBody: mqBody,
-	}
-
-	eq, err := db.BuildTaskBuild(ts)
-	if err != nil {
-		logrus.Error("Failed to BuildTaskBuild for ExportApp:", err)
-		return err
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	_, err = a.MQClient.Enqueue(ctx, eq)
-	cancel()
-	if err != nil {
-		logrus.Error("Failed to Enqueue MQ for ExportApp:", err)
-		return err
-	}
-	logrus.Debugf("equeue mq build plugin from image success")
-
-	return nil
-}
-
-
-// TODO 与ExportApp函数唯一不同的是导出目录，以后有可能合并
-func (a *AppAction) ExportRunnableApp(tr *model.ExportAppStruct) error {
-	appName := gjson.Get(tr.Body.GroupMetadata, "group_name").String()
-	if appName == "" {
-		err := errors.New("Failed to get group name form metadata.")
+	if tr.Body.Format != "rainbond-app" && tr.Body.Format != "docker-compose" {
+		err := errors.New("Unsupported the format: " + tr.Body.Format)
 		logrus.Error(err)
 		return err
 	}
 
 	appName = unicode2zh(appName)
-	tr.SourceDir = fmt.Sprintf("/grdata/export-runnable-app/%s-%s", appName, tr.Body.Version)
+	tr.SourceDir = fmt.Sprintf("/grdata/%s/%s-%s", tr.Body.Format, appName, tr.Body.Version)
 
+	return nil
+}
+
+func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
 	if err := saveMetadata(tr); err != nil {
 		return util.CreateAPIHandleErrorFromDBError("Failed to export app", err)
 	}

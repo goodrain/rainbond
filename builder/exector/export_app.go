@@ -38,6 +38,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"github.com/goodrain/rainbond/webcli/app"
 )
 
 //ExportApp Export app to specified format(rainbond-app or dockercompose)
@@ -90,6 +91,8 @@ func (i *ExportApp) Run(timeout time.Duration) error {
 			i.updateStatus("failed")
 		}
 		return err
+	} else {
+		return errors.New("Unsupported the format: " + i.Format)
 	}
 	return nil
 }
@@ -182,11 +185,13 @@ func (i *ExportApp) parseApps() ([]gjson.Result, error) {
 		logrus.Error("Failed to get apps from json: ", err)
 		return nil, err
 	}
+	logrus.Debug("Success to parse apps array from metadata, count: ", len(arr))
 
 	return arr, nil
 }
 
 func (i *ExportApp) replaceMetadata(old, new string) error {
+	logrus.Debugf("Change json file from %s to %s", old, new)
 	fileName := fmt.Sprintf("%s/metadata.json", i.SourceDir)
 
 	data, err := ioutil.ReadFile(fileName)
@@ -197,6 +202,7 @@ func (i *ExportApp) replaceMetadata(old, new string) error {
 	context := strings.Replace(string(data), old, new, -1)
 
 	err = ioutil.WriteFile(fileName, []byte(context), 0644)
+	logrus.Errorf("Failed to change json file from %s to %s", old, new)
 
 	return err
 }
@@ -214,6 +220,7 @@ func (i *ExportApp) exportImage(app gjson.Result) error {
 
 	// 如果是runner镜像则跳过
 	if checkIsRunner(image) {
+		logrus.Debug("Skip the runner image: ", image)
 		return nil
 	}
 
@@ -233,6 +240,7 @@ func (i *ExportApp) exportImage(app gjson.Result) error {
 		logrus.Error("Failed to save image: ", err)
 		return err
 	}
+	logrus.Debug("Success to save image file: ", image)
 
 	return nil
 }
@@ -256,17 +264,21 @@ func (i *ExportApp) saveApps() error {
 		serviceDir := fmt.Sprintf("%s/%s", i.SourceDir, serviceName)
 		os.MkdirAll(serviceDir, 0755)
 
+		logrus.Debug("Create directory for service: ", serviceDir)
+
 		// 如果该slug文件存在于本地，则直接复制，然后修改json中的share_slug_path字段
 		shareSlugPath := app.Get("share_slug_path").String()
 		tarFileName := buildToLinuxFileName(shareSlugPath)
 		_, err := os.Stat(shareSlugPath)
-		if os.IsExist(err) {
+		if shareSlugPath != "" && os.IsExist(err) {
+			logrus.Debug("The slug file was exist already, direct copy to service dir: ", shareSlugPath)
 			err = exec.Command(fmt.Sprintf("cp %s %s/%s", shareSlugPath, serviceDir, tarFileName)).Run()
 			if err == nil {
 				// 当导出格式为rainbond-app时，要修改json文件中share_slug_path字段，以便在导入时将每个组件与slug文件对应起来
 				i.replaceMetadata(shareSlugPath, tarFileName)
-				return nil
+				continue
 			}
+			logrus.Debug("Failed to copy the slug file to service dir: ", shareSlugPath)
 		}
 
 		// 如果这个字段存在于该app中，则认为该app是源码部署方式，并从ftp下载相应slug文件
@@ -274,17 +286,17 @@ func (i *ExportApp) saveApps() error {
 		ftpHost := app.Get("service_slug.ftp_host").String()
 		if ftpHost == "" {
 			logrus.Infof("The service is image model deploy: %s", serviceName)
-
 			// 下载镜像到应用导出目录
 			if err := i.exportImage(app); err != nil {
 				return err
 			}
 
-			return nil
+			continue
 		}
 
 		i.Logger.Info(fmt.Sprintf("解析应用源码信息：%s", serviceName),
 			map[string]string{"step": "parse-slug", "status": "failure"})
+		logrus.Debug("Ready download slug file: ", shareSlugPath)
 
 		// 提取tfp服务器信息
 		ftpPort := app.Get("service_slug.ftp_port").String()
@@ -307,6 +319,7 @@ func (i *ExportApp) saveApps() error {
 			logrus.Errorf("Failed to download slug file for group key %s: %v", i.GroupKey, err)
 			return err
 		}
+		logrus.Debug("Success to download slug file: ", shareSlugPath)
 
 		i.replaceMetadata(shareSlugPath, tarFileName)
 	}
@@ -352,6 +365,7 @@ func (i *ExportApp) exportRunnerImage() error {
 	isExist := false
 	var image string
 
+	logrus.Debug("Ready export runner image")
 	apps, err := i.parseApps()
 	if err != nil {
 		return err
@@ -360,6 +374,7 @@ func (i *ExportApp) exportRunnerImage() error {
 	for _, app := range apps {
 		image = app.Get("image").String()
 		if checkIsRunner(image) {
+			logrus.Debug("Discovered runner image at service: ", app.Get("service_cname"))
 			isExist = true
 			break
 		}
@@ -373,7 +388,7 @@ func (i *ExportApp) exportRunnerImage() error {
 			logrus.Error("Failed to pull image: ", err)
 		}
 
-		err = sources.ImageSave(i.DockerClient, image, buildToLinuxFileName(image), i.Logger)
+		err = sources.ImageSave(i.DockerClient, image, fmt.Sprintf("%s/%s.image.tar", i.SourceDir, image), i.Logger)
 		if err != nil {
 			i.Logger.Error(fmt.Sprintf("保存镜像失败：%s", image),
 				map[string]string{"step": "save-image", "status": "failure"})
@@ -382,6 +397,7 @@ func (i *ExportApp) exportRunnerImage() error {
 		}
 	}
 
+	logrus.Debug("Success to download runner image: ", image)
 	return nil
 }
 
@@ -446,6 +462,7 @@ func (i *ExportApp) generateDockerComposeYaml() error {
 		if checkIsRunner(image) {
 			volume := fmt.Sprintf("%s:/tmp/slug/slug.tgz", app.Get("share_slug_path"))
 			volumes = append(volumes, volume)
+			logrus.Debug("Mount the slug file to runner image: ", volume)
 		}
 
 		service := &Service{

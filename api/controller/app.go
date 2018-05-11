@@ -43,30 +43,6 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 	//TODO
 }
 
-// TODO 目前与ExportApp函数一致，以后可能会合并
-func (a *AppStruct) ExportRunnableApp(w http.ResponseWriter, r *http.Request) {
-	var tr model.ExportAppStruct
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tr.Body, nil)
-	if !ok {
-		return
-	}
-
-	err := handler.GetAppHandler().ExportRunnableApp(&tr)
-	if err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Failed to export runnable app: %v", err))
-		return
-	}
-
-	app := model.NewAppStatusFrom(&tr)
-	if err := db.GetManager().AppDao().AddModel(app); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Failed to export runnable app %s: %v", app.GroupKey, err))
-		return
-	}
-
-	httputil.ReturnSuccess(r, w, nil)
-	return
-}
-
 func (a *AppStruct) BackupApp(w http.ResponseWriter, r *http.Request) {
 	//TODO
 }
