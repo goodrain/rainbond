@@ -97,7 +97,7 @@ func (s *restartTask) RunError(e error) {
 }
 
 func (s *restartTask) BeforeRun() {
-	s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, "stoping")
+	s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, status.UPGRADE)
 	label, err := db.GetManager().TenantServiceLabelDao().GetTenantServiceTypeLabel(s.modelTask.ServiceID)
 	if err == nil && label != nil {
 		if label.LabelValue == util.StatefulServiceType {

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd $((dirname $0))
+cd $(dirname $0)
 cmd="$1"
 [[ x$cmd == x ]] && cmd=start
 
@@ -24,16 +24,27 @@ check::dependency(){
   }
 }
 
+import::image(){
+  find . -name '*.image.tar' | xargs -I LOADIMAGES docker load -i LOADIMAGES
+}
+
+gen::config(){
+  sed -i 's/""//g' docker-compose.yaml
+  sed -i "s|__GROUP_DIR__|$(pwd)|g" docker-compose.yaml
+}
+
 start(){
+  import::image
   docker-compose -f docker-compose.yaml up -d
 }
 
 stop(){
-  docker-compose -f docker-compose.yaml down -d
+  docker-compose -f docker-compose.yaml down
 }
 
 main(){
   check::dependency || exit $?
+  gen::config
 
   eval "$cmd"
 }

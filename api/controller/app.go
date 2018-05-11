@@ -1,16 +1,16 @@
 package controller
 
 import (
-	"fmt"
 	"net/http"
+	"fmt"
 
 	"github.com/goodrain/rainbond/api/handler"
+	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
-	httputil "github.com/goodrain/rainbond/util/http"
 )
 
-type AppStruct struct{}
+type AppStruct struct {}
 
 func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 	var tr model.ExportAppStruct
@@ -30,6 +30,8 @@ func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	app := model.NewAppStatusFrom(&tr)
+
+	db.GetManager().AppDao().DeleteModel(app.GroupKey, app.Version)
 	if err := db.GetManager().AppDao().AddModel(app); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Failed to export app %s: %v", app.GroupKey, err))
 		return

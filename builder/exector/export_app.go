@@ -362,7 +362,7 @@ func checkIsRunner(image string) bool {
 
 func (i *ExportApp) exportRunnerImage() error {
 	isExist := false
-	var image string
+	var image, tarFileName string
 
 	logrus.Debug("Ready export runner image")
 	apps, err := i.parseApps()
@@ -372,6 +372,7 @@ func (i *ExportApp) exportRunnerImage() error {
 
 	for _, app := range apps {
 		image = app.Get("image").String()
+		tarFileName = buildToLinuxFileName(image)
 		if checkIsRunner(image) {
 			logrus.Debug("Discovered runner image at service: ", app.Get("service_cname"))
 			isExist = true
@@ -380,47 +381,51 @@ func (i *ExportApp) exportRunnerImage() error {
 	}
 
 	if isExist {
-		_, err := sources.ImagePull(i.DockerClient, image, types.ImagePullOptions{}, i.Logger, 15)
-		if err != nil {
-			i.Logger.Error(fmt.Sprintf("拉取镜像失败：%s", image),
-				map[string]string{"step": "pull-image", "status": "failure"})
-			logrus.Error("Failed to pull image: ", err)
-		}
+		logrus.Debug("Not discovered runner image: ", image)
+		return nil
+	}
 
-		err = sources.ImageSave(i.DockerClient, image, fmt.Sprintf("%s/%s.image.tar", i.SourceDir, image), i.Logger)
-		if err != nil {
-			i.Logger.Error(fmt.Sprintf("保存镜像失败：%s", image),
-				map[string]string{"step": "save-image", "status": "failure"})
-			logrus.Error("Failed to save image:", err)
-			return err
-		}
+	_, err = sources.ImagePull(i.DockerClient, image, types.ImagePullOptions{}, i.Logger, 5)
+	if err != nil {
+		i.Logger.Error(fmt.Sprintf("拉取镜像失败：%s", image),
+			map[string]string{"step": "pull-image", "status": "failure"})
+		logrus.Error("Failed to pull image: ", err)
+	}
+
+	err = sources.ImageSave(i.DockerClient, image, fmt.Sprintf("%s/%s.image.tar", i.SourceDir, tarFileName), i.Logger)
+	if err != nil {
+		i.Logger.Error(fmt.Sprintf("保存镜像失败：%s", image),
+			map[string]string{"step": "save-image", "status": "failure"})
+		logrus.Error("Failed to save image: ", err)
+		return err
 	}
 
 	logrus.Debug("Success to download runner image: ", image)
-	return nil
-}
 
-type Service struct {
-	Image         string            `yaml:"image"`
-	ContainerName string            `yaml:"container_name"`
-	NetworkMode   string            `yaml:"network_mode"`
-	Restart       string            `yaml:"restart"`
-	Volumes       []string          `yaml:"volumes"`
-	Command       []string          `yaml:"command"`
-	Environment   map[string]string `yaml:"environment"`
-	Loggin        struct {
-		Driver  string `yaml:"driver"`
-		Options struct {
-			MaxSize string `yaml:"max-size"`
-			MaxFile string `yaml:"max-file"`
-		}
-	} `yaml:"options"`
+	return nil
 }
 
 type DockerComposeYaml struct {
 	Version  string              `yaml:"version"`
-	Volumes  []string            `yaml:"volumes"`
-	Services map[string]*Service `yaml:"services"`
+	Volumes  map[string]string   `yaml:"volumes,omitempty"`
+	Services map[string]*Service `yaml:"services,omitempty"`
+}
+
+type Service struct {
+	Image         string            `yaml:"image"`
+	ContainerName string            `yaml:"container_name,omitempty"`
+	Restart       string            `yaml:"restart,omitempty"`
+	NetworkMode   string            `yaml:"network_mode,omitempty"`
+	Volumes       []string          `yaml:"volumes,omitempty"`
+	Command       string            `yaml:"command,omitempty"`
+	Environment   map[string]string `yaml:"environment,omitempty"`
+	Loggin        struct {
+		Driver  string `yaml:"driver,omitempty"`
+		Options struct {
+			MaxSize string `yaml:"max-size,omitempty"`
+			MaxFile string `yaml:"max-file,omitempty"`
+		}
+	} `yaml:"logging,omitempty"`
 }
 
 func (i *ExportApp) generateDockerComposeYaml() error {
@@ -432,45 +437,65 @@ func (i *ExportApp) generateDockerComposeYaml() error {
 
 	y := &DockerComposeYaml{
 		Version:  "2.1",
-		Volumes:  make([]string, 0, 3),
+		Volumes:  make(map[string]string, 5),
 		Services: make(map[string]*Service, 5),
 	}
 
 	i.Logger.Info("开始生成YAML文件", map[string]string{"step": "build-yaml", "status": "failure"})
 
 	for _, app := range apps {
+		image := app.Get("image").String()
 		appName := app.Get("service_cname").String()
+		appName = unicode2zh(appName)
 		volumes := make([]string, 0, 3)
 		envs := make(map[string]string, 10)
 
-		for _, itme := range app.Get("service_volume_map_list").Array() {
-			volumeName := itme.Get("volume_name").String() + ":"
-			volumePath := itme.Get("volume_path").String()
+		// 如果该组件是镜像方式部署，需要做两件事
+		// 1. 在.volumes中创建一个volume
+		// 2. 在.services.volumes中做映射
+		for _, item := range app.Get("service_volume_map_list").Array() {
+			volumeName := item.Get("volume_name").String()
+			volumeName = buildToLinuxFileName(volumeName)
+			volumePath := item.Get("volume_path").String()
 
-			y.Volumes = append(y.Volumes, volumeName)
-			volumes = append(volumes, volumeName+volumePath)
+			y.Volumes[volumeName] = ""
+			volumes = append(volumes, fmt.Sprintf("%s:%s", volumeName, volumePath))
 		}
 
+		// 如果该组件是源码方式部署，则挂载slug文件到runner容器内
+		if checkIsRunner(image) {
+			volume := fmt.Sprintf("__GROUP_DIR__/%s/%s:/tmp/slug/slug.tgz", appName, app.Get("share_slug_path"))
+			volumes = append(volumes, volume)
+			logrus.Debug("Mount the slug file to runner image: ", volume)
+		}
+
+		// 处理环境变量
 		for k, v := range app.Get("service_env_map_list").Map() {
 			envs[k] = v.String()
 		}
 
-		image := app.Get("image").String()
+		for _, item := range app.Get("service_connect_info_map_list").Array() {
+			key := item.Get("attr_name").String()
+			value := item.Get("attr_value").String()
+			envs[key] = value
+		}
 
-		// 如果该组件是源码方式部署，则挂载slug文件到runner容器内
-		if checkIsRunner(image) {
-			volume := fmt.Sprintf("%s:/tmp/slug/slug.tgz", app.Get("share_slug_path"))
-			volumes = append(volumes, volume)
-			logrus.Debug("Mount the slug file to runner image: ", volume)
+		// 如果该app依赖了另了个app-b，则把app-b中所有公开环境变量注入到该app
+		for _, item := range app.Get("dep_service_map_list").Array() {
+			serviceKey := item.Get("dep_service_key").String()
+			depEnvs := i.getPublicEnvByKey(serviceKey, &apps)
+			for k, v := range depEnvs {
+				envs[k] = v
+			}
 		}
 
 		service := &Service{
 			Image:         image,
 			ContainerName: appName,
-			NetworkMode:   "host",
 			Restart:       "always",
+			NetworkMode:   "host",
 			Volumes:       volumes,
-			Command:       []string{app.Get("cmd").String()},
+			Command:       app.Get("cmd").String(),
 			Environment:   envs,
 		}
 		service.Loggin.Driver = "json-file"
@@ -497,11 +522,30 @@ func (i *ExportApp) generateDockerComposeYaml() error {
 	return nil
 }
 
-func (i *ExportApp) generateStartScript() error {
-	if err := exec.Command(fmt.Sprintf("cp /src/export-app/run.sh %s/", i.SourceDir)).Run(); err != nil {
-		logrus.Error("Failed to generate start script to: ", i.SourceDir)
+func (i *ExportApp) getPublicEnvByKey(serviceKey string, apps *[]gjson.Result) map[string]string {
+	envs := make(map[string]string, 5)
+	for _, app := range *apps {
+		appKey := app.Get("service_key").String()
+		if appKey == serviceKey {
+			for _, item := range app.Get("service_connect_info_map_list").Array() {
+				key := item.Get("attr_name").String()
+				value := item.Get("attr_value").String()
+				envs[key] = value
+			}
+			break
+		}
 	}
-	
+
+	return envs
+}
+
+func (i *ExportApp) generateStartScript() error {
+	if err := exec.Command("cp", "/src/export-app/run.sh", i.SourceDir).Run(); err != nil {
+		err = errors.New("Failed to generate start script to: " + i.SourceDir)
+		logrus.Error(err)
+		return err
+	}
+
 	logrus.Debug("Success to generate start script to: ", i.SourceDir)
 	return nil
 }
@@ -550,7 +594,12 @@ func buildToLinuxFileName(fileName string) string {
 	}
 
 	arr := strings.Split(fileName, "/")
-	fileName = arr[len(arr)-1]
+
+	if str := arr[len(arr)-1]; str == "" {
+		fileName = strings.Replace(fileName, "/", "-", -1)
+	} else {
+		fileName = str
+	}
 
 	fileName = strings.Replace(fileName, ":", "-", -1)
 	fileName = strings.TrimSpace(fileName)

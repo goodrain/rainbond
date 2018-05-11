@@ -48,6 +48,10 @@ func (a *AppDaoImpl) DeleteModel(groupKey string, arg ...interface{}) error {
 	}
 
 	var app model.AppStatus
+	if ok := a.DB.Where("group_key = ? and version = ?", app.GroupKey, app.Version).Find(&app).RecordNotFound(); ok {
+		return nil
+	}
+
 	return a.DB.Where("group_key = ? and version = ?", groupKey, version).Delete(&app).Error
 }
 
