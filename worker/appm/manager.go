@@ -23,8 +23,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/appruntimesync/client"
+	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
@@ -156,7 +156,7 @@ func (m *manager) HorizontalScaling(serviceID string, oldReplicas int32, logger 
 		logger.Info("应用未部署，操作完成", map[string]string{"step": "worker-appm", "status": "success"})
 		return ErrNotDeploy
 	}
-	//水平升级过程 状态管理器会任务应用运行移除，此时忽略异常
+	//水平升级过程 状态管理器会任务应用运行异常，此时忽略异常
 	m.statusManager.IgnoreDelete(deploy.ReplicationID)
 	defer m.statusManager.RmIgnoreDelete(deploy.ReplicationID)
 

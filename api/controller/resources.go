@@ -135,7 +135,7 @@ func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 	for _, v := range rep {
 		re = append(re, v)
 	}
-	httputil.ReturnSuccess(r, w, rep)
+	httputil.ReturnSuccess(r, w, re)
 	return
 }
 
