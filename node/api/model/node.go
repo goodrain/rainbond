@@ -152,10 +152,11 @@ func (h *HostNode) UpdataK8sCondition(conditions []v1.NodeCondition) {
 
 //DeleteCondition DeleteCondition
 func (h *HostNode) DeleteCondition(types ...NodeConditionType) {
-	for i, c := range h.Conditions {
-		for _, t := range types {
+	for _, t := range types {
+		for i, c := range h.Conditions {
 			if c.Type.Compare(t) {
 				h.Conditions = append(h.Conditions[:i], h.Conditions[i+1:]...)
+				break
 			}
 		}
 	}
