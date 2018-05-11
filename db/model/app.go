@@ -2,7 +2,6 @@ package model
 
 type AppStatus struct {
 	GroupKey  string `gorm:"column:group_key;size:64;primary_key"`
-	GroupName string `gorm:"column:group_name;size:64"`
 	Version   string `gorm:"column:version;size:32"`
 	Format    string `gorm:"column:format;size:32"` // only rainbond-app/docker-compose
 	EventID   string `gorm:"column:event_id;size:32"`
