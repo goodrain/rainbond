@@ -64,10 +64,8 @@ func (t *PluginDaoImpl) GetPluginByID(id, tenantID string) (*model.TenantPlugin,
 
 //DeletePluginByID DeletePluginByID
 func (t *PluginDaoImpl) DeletePluginByID(id, tenantID string) error {
-	relation := &model.TenantPlugin{
-		PluginID: id,
-	}
-	if err := t.DB.Where("plugin_id=? and tenant_id=?", id, tenantID).Delete(relation).Error; err != nil {
+	var plugin model.TenantPlugin
+	if err := t.DB.Where("plugin_id=? and tenant_id=?", id, tenantID).Delete(&plugin).Error; err != nil {
 		return err
 	}
 	return nil

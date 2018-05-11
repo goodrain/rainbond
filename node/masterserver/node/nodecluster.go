@@ -137,6 +137,7 @@ func (n *NodeCluster) UpdateNode(node *model.HostNode) {
 	n.nodes[node.ID] = node
 	n.client.Put(option.Config.NodePath+"/"+node.ID, node.String())
 }
+
 func (n *NodeCluster) getNodeFromKV(kv *mvccpb.KeyValue) *model.HostNode {
 	var node model.HostNode
 	if err := ffjson.Unmarshal(kv.Value, &node); err != nil {
