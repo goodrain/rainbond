@@ -38,7 +38,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"github.com/goodrain/rainbond/webcli/app"
 )
 
 //ExportApp Export app to specified format(rainbond-app or dockercompose)
@@ -499,7 +498,12 @@ func (i *ExportApp) generateDockerComposeYaml() error {
 }
 
 func (i *ExportApp) generateStartScript() error {
-	return exec.Command(fmt.Sprintf("cp /src/export-app/run.sh %s/", i.SourceDir)).Run()
+	if err := exec.Command(fmt.Sprintf("cp /src/export-app/run.sh %s/", i.SourceDir)).Run(); err != nil {
+		logrus.Error("Failed to generate start script to: ", i.SourceDir)
+	}
+	
+	logrus.Debug("Success to generate start script to: ", i.SourceDir)
+	return nil
 }
 
 func (i *ExportApp) generateTarFile() error {
