@@ -1355,7 +1355,38 @@ type ExportAppStruct struct {
 		EventID       string `json:"event_id"`
 		GroupKey      string `json:"group_key"`
 		Version       string `json:"version"`
-		Format        string `json:"format"`
+		Format        string `json:"format"` // only rainbond-app/docker-compose
 		GroupMetadata string `json:"group_metadata"`
+	}
+}
+
+func BuildMQBodyFrom(app *ExportAppStruct) *MQBody {
+	return &MQBody{
+		EventID:   app.Body.EventID,
+		GroupKey:  app.Body.GroupKey,
+		Version:   app.Body.Version,
+		Format:    app.Body.Format,
+		SourceDir: app.SourceDir,
+	}
+}
+
+type MQBody struct {
+	EventID   string `json:"event_id"`
+	GroupKey  string `json:"group_key"`
+	Version   string `json:"version"`
+	Format    string `json:"format"` // only rainbond-app/docker-compose
+	SourceDir string `json:"source_dir"`
+}
+
+func NewAppStatusFrom(app *ExportAppStruct) *dbmodel.AppStatus {
+	return &dbmodel.AppStatus{
+		GroupKey:  app.Body.GroupKey,
+		Version:   app.Body.Version,
+		Format:    app.Body.Format,
+		EventID:   app.Body.EventID,
+		SourceDir: app.SourceDir,
+		Status:    "exporting",
+		TarFile:   app.SourceDir + ".tar",
+		TimeStamp: time.Now().Nanosecond(),
 	}
 }

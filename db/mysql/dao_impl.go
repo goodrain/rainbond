@@ -444,3 +444,10 @@ func (m *Manager) NotificationEventDao() dao.NotificationEventDao {
 		DB: m.db,
 	}
 }
+
+//AppDao app export and import info
+func (m *Manager) AppDao() dao.AppDao {
+	return &mysqldao.AppDaoImpl{
+		DB: m.db,
+	}
+}

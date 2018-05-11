@@ -89,8 +89,6 @@ func GetServiceManager() ServiceHandler {
 
 var defaultPluginHandler PluginHandler
 
-var defaultAppHandler AppAction
-
 //GetPluginManager get manager
 func GetPluginManager() PluginHandler {
 	return defaultPluginHandler
@@ -131,6 +129,8 @@ func GetEventHandler() EventHandler {
 	return defaultEventHandler
 }
 
-func GetAppHandler() AppAction {
+var defaultAppHandler *AppAction
+
+func GetAppHandler() *AppAction {
 	return defaultAppHandler
 }

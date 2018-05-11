@@ -21,29 +21,38 @@ type AppAction struct {
 	MQClient pb.TaskQueueClient
 }
 
-func CreateAppManager(mqClient pb.TaskQueueClient) AppAction {
-	return AppAction{
+func CreateAppManager(mqClient pb.TaskQueueClient) *AppAction {
+	return &AppAction{
 		MQClient: mqClient,
 	}
 }
 
-func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
-	appName := gjson.Get(tr.Body.GroupMetadata, ".group_name").String()
+func (a *AppAction) Complete(tr *model.ExportAppStruct) error {
+	appName := gjson.Get(tr.Body.GroupMetadata, "group_name").String()
 	if appName == "" {
 		err := errors.New("Failed to get group name form metadata.")
 		logrus.Error(err)
 		return err
 	}
 
+	if tr.Body.Format != "rainbond-app" && tr.Body.Format != "docker-compose" {
+		err := errors.New("Unsupported the format: " + tr.Body.Format)
+		logrus.Error(err)
+		return err
+	}
+
 	appName = unicode2zh(appName)
+	tr.SourceDir = fmt.Sprintf("/grdata/%s/%s-%s", tr.Body.Format, appName, tr.Body.Version)
 
- 	tr.SourceDir = fmt.Sprintf("/grdata/export-app/%s-%s", appName, tr.Body.Version)
+	return nil
+}
 
+func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
 	if err := saveMetadata(tr); err != nil {
 		return util.CreateAPIHandleErrorFromDBError("Failed to export app", err)
 	}
 
-	mqBody, err := json.Marshal(BuildExportAppBody(tr))
+	mqBody, err := json.Marshal(model.BuildMQBodyFrom(tr))
 	if err != nil {
 		logrus.Error("Failed to encode json from ExportAppStruct:", err)
 		return err
@@ -72,30 +81,11 @@ func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
 	return nil
 }
 
-func BuildExportAppBody(tr *model.ExportAppStruct) *ExportAppBody {
-	return &ExportAppBody{
-		EventID:    tr.Body.EventID,
-		ServiceKey: tr.Body.GroupKey,
-		Format:     tr.Body.Format,
-		SourceDir:  tr.SourceDir,
-	}
-}
-
-type ExportAppBody struct {
-	EventID    string `json:"event_id"`
-	ServiceKey string `json:"service_key"`
-	Format     string `json:"format"`
-	SourceDir  string `json:"source_dir"`
-}
-
 func saveMetadata(tr *model.ExportAppStruct) error {
-	err := os.MkdirAll(tr.SourceDir, os.ModePerm)
-	if err != nil {
-		logrus.Error("Failed to save metadata", err)
-		return err
-	}
+	os.RemoveAll(tr.SourceDir)
+	os.MkdirAll(tr.SourceDir, 0755)
 
-	err = ioutil.WriteFile(fmt.Sprintf("%s/metadata.json", tr.SourceDir), []byte(tr.Body.GroupMetadata), 0644)
+	err := ioutil.WriteFile(fmt.Sprintf("%s/metadata.json", tr.SourceDir), []byte(tr.Body.GroupMetadata), 0644)
 	if err != nil {
 		logrus.Error("Failed to save metadata", err)
 		return err
