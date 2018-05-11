@@ -266,7 +266,7 @@ func (i *ExportApp) saveApps() error {
 		// 否则认为该app是镜像方式部署，然后下载相应镜像即可
 		ftpHost := app.Get("service_slug.ftp_host").String()
 		if ftpHost == "" {
-			logrus.Infof("Not found fields ftp_host for service key %s", serviceName)
+			logrus.Infof("The service is image model deploy %s", serviceName)
 
 			// 下载镜像到应用导出目录
 			if err := i.exportImage(app); err != nil {
@@ -284,7 +284,7 @@ func (i *ExportApp) saveApps() error {
 		ftpUsername := app.Get("service_slug.ftp_username").String()
 		ftpPassword := app.Get("service_slug.ftp_password").String()
 
-		ftpClient, err := sources.NewSFTPClient(ftpUsername, ftpPassword, ftpPort, ftpHost)
+		ftpClient, err := sources.NewSFTPClient(ftpUsername, ftpPassword, ftpHost, ftpPort)
 		if err != nil {
 			logrus.Error("Failed to create ftp client: ", err)
 			return err
