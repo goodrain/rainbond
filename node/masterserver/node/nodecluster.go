@@ -318,6 +318,7 @@ func (n *NodeCluster) loadAndWatchK8sNodes() {
 					if node, ok := event.Object.(*v1.Node); ok {
 						if rbnode := n.GetNode(node.Name); rbnode != nil {
 							rbnode.NodeStatus = nil
+							rbnode.DeleteCondition(model.NodeReady, model.OutOfDisk, model.MemoryPressure, model.DiskPressure)
 							n.UpdateNode(rbnode)
 						}
 					}
