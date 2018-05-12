@@ -51,8 +51,7 @@ Please read [CONTRIBUTING](https://github.com/goodrain/rainbond/blob/master/CONT
 
 ## Community
 
-* WeChat: add WeChat ID "**zqg5258423**" to join Rainbond WeChat group  
-* Stack Overflow: https://stackoverflow.com/questions/tagged/rainbond
+* WeChat: add WeChat ID "**zqg5258423**" to join Rainbond WeChat group
 
 ## License
 
