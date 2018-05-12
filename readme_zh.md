@@ -59,7 +59,7 @@ Rainbond深度整合基于Kubernetes的容器管理、Service Mesh微服务架�
 
 ## 社区
 
-* 微信：添加微信号 "**qingguo-wei**" 并接受邀请入群  
+* 微信：添加微信号 "**zqg5258423**" 并接受邀请入群  
 * Stack Overflow: https://stackoverflow.com/questions/tagged/rainbond
 
 ## License
