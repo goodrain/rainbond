@@ -71,7 +71,10 @@ build-image-webcli:
 	@bash ./release.sh webcli
 
 run-api:build-api
-	${BIN_PATH}/${BASE_NAME}-api --log-level=debug --mysql="root:admin@tcp(127.0.0.1:3306)/region" --kube-config="`PWD`/test/admin.kubeconfig"
+	${BIN_PATH}/${BASE_NAME}-api --log-level=debug \
+	   --mysql="root:admin@tcp(127.0.0.1:3306)/region" \
+	   --kube-config="`PWD`/test/admin.kubeconfig" \
+	   --etcd=http://127.0.0.1:4001,http://127.0.0.1:2379
 run-mq:build-mq
 	${BIN_PATH}/${BASE_NAME}-mq --log-level=debug
 run-worker:build-worker
