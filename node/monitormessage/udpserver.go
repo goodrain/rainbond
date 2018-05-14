@@ -38,19 +38,21 @@ type UDPServer struct {
 	ListenerPort        int
 	eventServerEndpoint []string
 	client              net.Conn
+	etcdEndpoints       []string
 }
 
 //CreateUDPServer create udpserver
-func CreateUDPServer(lisHost string, lisPort int) *UDPServer {
+func CreateUDPServer(lisHost string, lisPort int, etcdEndpoints []string) *UDPServer {
 	return &UDPServer{
-		ListenerHost: lisHost,
-		ListenerPort: lisPort,
+		ListenerHost:  lisHost,
+		ListenerPort:  lisPort,
+		etcdEndpoints: etcdEndpoints,
 	}
 }
 
 //Start start
 func (u *UDPServer) Start() error {
-	dis, err := discover.GetDiscover(config.DiscoverConfig{})
+	dis, err := discover.GetDiscover(config.DiscoverConfig{EtcdClusterEndpoints: u.etcdEndpoints})
 	if err != nil {
 		return err
 	}

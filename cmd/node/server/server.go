@@ -113,7 +113,7 @@ func Run(c *option.Conf) error {
 		logrus.Errorf("start statsd exporter server error,%s", err.Error())
 		return err
 	}
-	meserver := monitormessage.CreateUDPServer("0.0.0.0", 6666)
+	meserver := monitormessage.CreateUDPServer("0.0.0.0", 6666, c.Etcd.Endpoints)
 	if err := meserver.Start(); err != nil {
 		return err
 	}
