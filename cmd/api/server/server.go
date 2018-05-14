@@ -24,13 +24,13 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/api/controller"
 	"github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/server"
 	"github.com/goodrain/rainbond/appruntimesync/client"
+	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/event"
 
 	"github.com/Sirupsen/logrus"
@@ -53,7 +53,10 @@ func Run(s *option.APIServer) error {
 		logrus.Debugf("create event manager error, %v", err)
 	}
 
-	if err := event.NewManager(event.EventConfig{EventLogServers: s.Config.EventLogServers}); err != nil {
+	if err := event.NewManager(event.EventConfig{
+		EventLogServers: s.Config.EventLogServers,
+		DiscoverAddress: s.Config.EtcdEndpoint,
+	}); err != nil {
 		return err
 	}
 	defer event.CloseManager()

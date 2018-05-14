@@ -24,9 +24,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/appruntimesync"
 	"github.com/goodrain/rainbond/appruntimesync/client"
+	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
@@ -56,7 +56,10 @@ func Run(s *option.Worker) error {
 	}
 	defer db.CloseManager()
 
-	if err := event.NewManager(event.EventConfig{EventLogServers: s.Config.EventLogServers}); err != nil {
+	if err := event.NewManager(event.EventConfig{
+		EventLogServers: s.Config.EventLogServers,
+		DiscoverAddress: s.Config.EtcdEndPoints,
+	}); err != nil {
 		return err
 	}
 	defer event.CloseManager()
