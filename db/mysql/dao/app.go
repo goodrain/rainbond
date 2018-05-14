@@ -61,3 +61,10 @@ func (a *AppDaoImpl) Get(groupKey, version string) (interface{}, error) {
 
 	return &app, err
 }
+
+func (a *AppDaoImpl) GetByEventId(eventId string) (interface{}, error) {
+	var app model.AppStatus
+	err := a.DB.Where("event_id = ?", eventId).First(&app).Error
+
+	return &app, err
+}

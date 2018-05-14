@@ -8,37 +8,59 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	"strings"
+	"github.com/go-chi/chi"
 )
 
 type AppStruct struct {}
 
 func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
-	var tr model.ExportAppStruct
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tr.Body, nil)
-	if !ok {
-		return
+
+	switch r.Method{
+	case "POST":
+		var tr model.ExportAppStruct
+		ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tr.Body, nil)
+		if !ok {
+			return
+		}
+
+		if err := handler.GetAppHandler().Complete(&tr); err != nil {
+			return
+		}
+
+		err := handler.GetAppHandler().ExportApp(&tr)
+		if err != nil {
+			httputil.ReturnError(r, w, 501, fmt.Sprintf("Failed to export app: %v", err))
+			return
+		}
+
+		app := model.NewAppStatusFrom(&tr)
+
+		db.GetManager().AppDao().DeleteModel(app.GroupKey, app.Version)
+		if err := db.GetManager().AppDao().AddModel(app); err != nil {
+			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to export app %s: %v", app.GroupKey, err))
+			return
+		}
+
+		httputil.ReturnSuccess(r, w, nil)
+	case "GET":
+		eventId := strings.TrimSpace(chi.URLParam(r, "eventId"))
+		if eventId == "" {
+			httputil.ReturnError(r, w, 501, fmt.Sprintf("Arguments eventId is must defined."))
+			return
+		}
+
+		res, err := db.GetManager().AppDao().GetByEventId(eventId)
+		if err != nil {
+			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
+			return
+		}
+
+		status := res.(*dbmodel.AppStatus)
+		httputil.ReturnSuccess(r, w, status)
 	}
 
-	if err := handler.GetAppHandler().Complete(&tr); err != nil {
-		return
-	}
-
-	err := handler.GetAppHandler().ExportApp(&tr)
-	if err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Failed to export app: %v", err))
-		return
-	}
-
-	app := model.NewAppStatusFrom(&tr)
-
-	db.GetManager().AppDao().DeleteModel(app.GroupKey, app.Version)
-	if err := db.GetManager().AppDao().AddModel(app); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Failed to export app %s: %v", app.GroupKey, err))
-		return
-	}
-
-	httputil.ReturnSuccess(r, w, nil)
-	return
 }
 
 func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {

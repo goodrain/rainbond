@@ -216,7 +216,9 @@ func (v2 *V2) prometheusRouter() chi.Router {
 func (v2 *V2) appRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/export", controller.GetManager().ExportApp)
+	r.Get("/export/{eventId}", controller.GetManager().ExportApp)
 	r.Post("/import", controller.GetManager().ImportApp)
+	r.Get("/import/{eventId}", controller.GetManager().ExportApp)
 	r.Post("/backup", controller.GetManager().BackupApp)
 	r.Post("/recover", controller.GetManager().RecoverApp)
 	return r

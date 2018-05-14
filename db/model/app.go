@@ -1,14 +1,14 @@
 package model
 
 type AppStatus struct {
-	GroupKey  string `gorm:"column:group_key;size:64;primary_key"`
-	Version   string `gorm:"column:version;size:32"`
-	Format    string `gorm:"column:format;size:32"` // only rainbond-app/docker-compose
-	EventID   string `gorm:"column:event_id;size:32"`
-	SourceDir string `gorm:"column:source_dir;size:255"`
-	Status    string `gorm:"column:status;size:32"` // only exporting/importing/failed/success
-	TarFile   string `gorm:"column:tar_file;size:255"`
-	TimeStamp int    `gorm:"column:timestamp"`
+	EventID   string `gorm:"column:event_id;size:32;primary_key" json:"event_id"`
+	GroupKey  string `gorm:"column:group_key;size:64" json:"group_key"`
+	Version   string `gorm:"column:version;size:32" json:"version"`
+	Format    string `gorm:"column:format;size:32" json:"format"` // only rainbond-app/docker-compose
+	SourceDir string `gorm:"column:source_dir;size:255" json:"source_dir"`
+	Status    string `gorm:"column:status;size:32" json:"status"` // only exporting/importing/failed/success
+	TarFile   string `gorm:"column:tar_file;size:255" json:"tar_file"`
+	TimeStamp int    `gorm:"column:timestamp" json:"timestamp"`
 }
 
 //TableName 表名
