@@ -44,5 +44,8 @@ func TestFileSaveMessage(t *testing.T) {
 }
 
 func TestMvLogFile(t *testing.T) {
-	MvLogFile("/Users/qingguo/7b3d5546bd54152d/stdout.log.gz", "/Users/qingguo/7b3d5546bd54152d/stdout.log")
+	err := MvLogFile("/Users/qingguo/stdout.log.gz", "/tmp/stdout.log")
+	if err != nil {
+		t.Fatal(err)
+	}
 }
