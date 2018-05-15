@@ -19,11 +19,11 @@
 package db
 
 import (
+	"archive/zip"
 	"bytes"
-	"compress/gzip"
 	"crypto/sha256"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path"
 	"strconv"
@@ -110,11 +110,11 @@ func GetServiceAliasID(ServiceID string) string {
 
 //MvLogFile 更改文件名称，压缩
 func MvLogFile(newName string, filePath string) error {
-	body, err := ioutil.ReadFile(filePath)
+	info, err := os.Stat(filePath)
 	if err != nil {
 		return err
 	}
-	gBody, err := GzipEncode(body)
+	reader, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
 	if err != nil {
 		return err
 	}
@@ -124,7 +124,17 @@ func MvLogFile(newName string, filePath string) error {
 		return err
 	}
 	defer f.Close()
-	_, err = f.Write(gBody)
+	zw := zip.NewWriter(f)
+	defer zw.Close()
+	header, err := zip.FileInfoHeader(info)
+	if err != nil {
+		return err
+	}
+	writer, err := zw.CreateHeader(header)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(writer, reader)
 	if err != nil {
 		return err
 	}
@@ -138,22 +148,4 @@ func MvLogFile(newName string, filePath string) error {
 	}
 	defer new.Close()
 	return nil
-}
-func GzipEncode(in []byte) ([]byte, error) {
-	var (
-		buffer bytes.Buffer
-		out    []byte
-		err    error
-	)
-	writer := gzip.NewWriter(&buffer)
-	_, err = writer.Write(in)
-	if err != nil {
-		writer.Close()
-		return out, err
-	}
-	err = writer.Close()
-	if err != nil {
-		return out, err
-	}
-	return buffer.Bytes(), nil
 }
