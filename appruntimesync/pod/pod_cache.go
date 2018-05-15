@@ -280,7 +280,7 @@ func (c *CacheManager) addAbnormalInfo(ai *AbnormalInfo) {
 			Count:   c.oomInfos[ai.Hash()].Count,
 		})
 	default:
-		if oldai, ok := c.errorInfos[ai.Hash()]; ok {
+		if oldai, ok := c.errorInfos[ai.Hash()]; ok && oldai != nil {
 			oldai.Count++
 		} else {
 			ai.Count++
@@ -288,12 +288,12 @@ func (c *CacheManager) addAbnormalInfo(ai *AbnormalInfo) {
 		}
 		db.GetManager().NotificationEventDao().AddModel(&model.NotificationEvent{
 			Kind:    "service",
-			KindID:  c.oomInfos[ai.Hash()].ServiceID,
+			KindID:  c.errorInfos[ai.Hash()].ServiceID,
 			Hash:    ai.Hash(),
 			Type:    "UnNormal",
-			Message: c.oomInfos[ai.Hash()].Message,
-			Reason:  c.oomInfos[ai.Hash()].Reason,
-			Count:   c.oomInfos[ai.Hash()].Count,
+			Message: c.errorInfos[ai.Hash()].Message,
+			Reason:  c.errorInfos[ai.Hash()].Reason,
+			Count:   c.errorInfos[ai.Hash()].Count,
 		})
 	}
 
