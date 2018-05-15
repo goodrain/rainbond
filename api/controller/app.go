@@ -65,8 +65,8 @@ func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *AppStruct) Download(w http.ResponseWriter, r *http.Request) {
-	format := r.FormValue("format")
-	fileName := r.FormValue("fileName")
+	format := strings.TrimSpace(chi.URLParam(r, "format"))
+	fileName := strings.TrimSpace(chi.URLParam(r, "fileName"))
 	tarFile := fmt.Sprintf("%s/%s/%s", handler.GetAppHandler().GetStaticDir(), format, fileName)
 
 	_, err := os.Stat(tarFile)

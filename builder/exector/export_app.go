@@ -242,7 +242,7 @@ func (i *ExportApp) parseApps() ([]gjson.Result, error) {
 		logrus.Error("Failed to get apps from json: ", err)
 		return nil, err
 	}
-	logrus.Debug("Success to parse apps array from metadata, count: ", len(arr))
+	logrus.Debug("Successful parse apps array from metadata, count: ", len(arr))
 
 	return arr, nil
 }
@@ -259,9 +259,12 @@ func (i *ExportApp) replaceMetadata(old, new string) error {
 	context := strings.Replace(string(data), old, new, -1)
 
 	err = ioutil.WriteFile(fileName, []byte(context), 0644)
-	logrus.Errorf("Failed to change json file from %s to %s", old, new)
+	if err != nil {
+		logrus.Errorf("Failed to change json file from %s to %s", old, new)
+		return err
+	}
 
-	return err
+	return nil
 }
 
 func (i *ExportApp) exportImage(app gjson.Result) error {
@@ -297,7 +300,7 @@ func (i *ExportApp) exportImage(app gjson.Result) error {
 		logrus.Error("Failed to save image: ", err)
 		return err
 	}
-	logrus.Debug("Success to save image file: ", image)
+	logrus.Debug("Successful save image file: ", image)
 
 	return nil
 }
@@ -376,7 +379,7 @@ func (i *ExportApp) saveApps() error {
 			logrus.Errorf("Failed to download slug file for group key %s: %v", i.GroupKey, err)
 			return err
 		}
-		logrus.Debug("Success to download slug file: ", shareSlugPath)
+		logrus.Debug("Successful download slug file: ", shareSlugPath)
 
 		i.replaceMetadata(shareSlugPath, tarFileName)
 	}
@@ -438,8 +441,8 @@ func (i *ExportApp) exportRunnerImage() error {
 		}
 	}
 
-	if isExist {
-		logrus.Debug("Not discovered runner image: ", image)
+	if !isExist {
+		logrus.Debug("Not discovered runner image in any service.")
 		return nil
 	}
 
@@ -458,7 +461,7 @@ func (i *ExportApp) exportRunnerImage() error {
 		return err
 	}
 
-	logrus.Debug("Success to download runner image: ", image)
+	logrus.Debug("Successful download runner image: ", image)
 
 	return nil
 }
@@ -604,7 +607,7 @@ func (i *ExportApp) generateStartScript() error {
 		return err
 	}
 
-	logrus.Debug("Success to generate start script to: ", i.SourceDir)
+	logrus.Debug("Successful generate start script to: ", i.SourceDir)
 	return nil
 }
 
@@ -622,7 +625,7 @@ func (i *ExportApp) generateTarFile() error {
 	}
 
 	i.Logger.Info("打包应用成功", map[string]string{"step": "export-app", "status": "success"})
-	logrus.Info("Success to export app by group key: ", i.GroupKey)
+	logrus.Info("Successful export app by group key: ", i.GroupKey)
 	return nil
 }
 
