@@ -189,13 +189,13 @@ func (i *ExportApp) GetLogger() event.Logger {
 // isLatest 如果该应用已经打包过且是最新版则返回true
 func (i *ExportApp) isLatest() bool {
 	md5File := fmt.Sprintf("%s/metadata.json.md5", i.SourceDir)
-	_, err := os.Stat(md5File)
-	if !os.IsExist(err) {
-		logrus.Debug("The export app tar file is not found.")
+
+	if _, err := os.Stat(md5File); os.IsNotExist(err) {
+		logrus.Debug("The export app md5 file is not found: ", md5File)
 		return false
 	}
 
-	err = exec.Command("sh", "-c", fmt.Sprintf("cd %s ; md5sum -c metadata.json.md5", i.SourceDir)).Run()
+	err := exec.Command("md5sum", "-c", md5File).Run()
 	if err != nil {
 		logrus.Debug("The export app tar file is not latest.")
 		return false

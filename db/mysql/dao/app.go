@@ -17,7 +17,7 @@ func (a *AppDaoImpl) AddModel(mo model.Interface) error {
 	}
 
 	var old model.AppStatus
-	if ok := a.DB.Where("group_key = ? and version = ?", app.GroupKey, app.Version).Find(&old).RecordNotFound(); ok {
+	if ok := a.DB.Where("event_id = ?", app.EventID).Find(&old).RecordNotFound(); ok {
 		if err := a.DB.Create(app).Error; err != nil {
 			return err
 		}
@@ -33,7 +33,7 @@ func (a *AppDaoImpl) UpdateModel(mo model.Interface) error {
 	}
 
 	return a.DB.Table(app.TableName()).
-		Where("group_key = ? and version = ?", app.GroupKey, app.Version).
+		Where("event_id = ?", app.EventID).
 		Update(app).Error
 }
 

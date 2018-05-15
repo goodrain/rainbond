@@ -38,7 +38,7 @@ func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 
 		app := model.NewAppStatusFrom(&tr)
 
-		db.GetManager().AppDao().DeleteModel(app.GroupKey, app.Version)
+		db.GetManager().AppDao().DeleteModelByEventId(app.EventID)
 		if err := db.GetManager().AppDao().AddModel(app); err != nil {
 			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to export app %s: %v", app.GroupKey, err))
 			return
@@ -69,10 +69,8 @@ func (a *AppStruct) Download(w http.ResponseWriter, r *http.Request) {
 	fileName := strings.TrimSpace(chi.URLParam(r, "fileName"))
 	tarFile := fmt.Sprintf("%s/%s/%s", handler.GetAppHandler().GetStaticDir(), format, fileName)
 
-	_, err := os.Stat(tarFile)
-
 	// return status code 502 if the file not exists.
-	if !os.IsExist(err) {
+	if _, err := os.Stat(tarFile); os.IsNotExist(err) {
 		httputil.ReturnError(r, w, 502, fmt.Sprintf("Not found export app tar file: %s", tarFile))
 		return
 	}
