@@ -30,17 +30,17 @@ func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err := handler.GetAppHandler().ExportApp(&tr)
-		if err != nil {
-			httputil.ReturnError(r, w, 501, fmt.Sprintf("Failed to export app: %v", err))
-			return
-		}
-
+		// 要先更新数据库再通知builder组件
 		app := model.NewAppStatusFrom(&tr)
-
 		db.GetManager().AppDao().DeleteModelByEventId(app.EventID)
 		if err := db.GetManager().AppDao().AddModel(app); err != nil {
 			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to export app %s: %v", app.GroupKey, err))
+			return
+		}
+
+		err := handler.GetAppHandler().ExportApp(&tr)
+		if err != nil {
+			httputil.ReturnError(r, w, 501, fmt.Sprintf("Failed to export app: %v", err))
 			return
 		}
 

@@ -100,6 +100,7 @@ func (i *ExportApp) Run(timeout time.Duration) error {
 func (i *ExportApp) exportRainbondAPP() error {
 	// 如果该应用已经打包过且是最新版，则跳过打包并返回成功
 	if ok := i.isLatest(); ok {
+		i.updateStatus("success")
 		return nil
 	}
 
@@ -130,6 +131,7 @@ func (i *ExportApp) exportRainbondAPP() error {
 func (i *ExportApp) exportDockerCompose() error {
 	// 如果该应用已经打包过且是最新版，则跳过打包并返回成功
 	if ok := i.isLatest(); ok {
+		i.updateStatus("success")
 		return nil
 	}
 
@@ -606,23 +608,26 @@ func (i *ExportApp) generateTarFile() error {
 		return err
 	}
 
-	i.Logger.Info("打包应用成功", map[string]string{"step": "export-app", "status": "success"})
-	logrus.Info("Successful export app by group key: ", i.GroupKey)
-	return nil
-}
-
-func (i *ExportApp) updateStatus(status string) error {
 	// 生成MD5值并写入到文件，以便在下次收到该请求时决定是否该重新打包该应用
 	metadataFile := fmt.Sprintf("%s/metadata.json", i.SourceDir)
 	if err := exec.Command("sh", "-c", fmt.Sprintf("md5sum %s > %s.md5", metadataFile, metadataFile)).Run(); err != nil {
 		err = errors.New(fmt.Sprintf("Failed to create md5 file: %v", err))
+		logrus.Error(err)
 		return err
 	}
 
+	i.Logger.Info("打包应用成功", map[string]string{"step": "export-app", "status": "success"})
+	logrus.Info("Successful export app by event id: ", i.EventID)
+	return nil
+}
+
+func (i *ExportApp) updateStatus(status string) error {
+	logrus.Debug("Update app status in database to: ", status)
 	// 从数据库中获取该应用的状态信息
 	res, err := db.GetManager().AppDao().GetByEventId(i.EventID)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("Failed to get app %s from db: %v", i.GroupKey, err))
+		err = errors.New(fmt.Sprintf("Failed to get app %s from db: %v", i.EventID, err))
+		logrus.Error(err)
 		return err
 	}
 
@@ -632,7 +637,8 @@ func (i *ExportApp) updateStatus(status string) error {
 	app.TimeStamp = time.Now().Nanosecond()
 
 	if err := db.GetManager().AppDao().UpdateModel(app); err != nil {
-		err = errors.New(fmt.Sprintf("Failed to update app %s: %v", i.GroupKey, err))
+		err = errors.New(fmt.Sprintf("Failed to update app %s: %v", i.EventID, err))
+		logrus.Error(err)
 		return err
 	}
 
