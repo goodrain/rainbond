@@ -55,6 +55,15 @@ func (a *AppDaoImpl) DeleteModel(groupKey string, arg ...interface{}) error {
 	return a.DB.Where("group_key = ? and version = ?", groupKey, version).Delete(&app).Error
 }
 
+func (a *AppDaoImpl) DeleteModelByEventId(eventId string) error {
+	var app model.AppStatus
+	if ok := a.DB.Where("event_id = ?", eventId).Find(&app).RecordNotFound(); ok {
+		return nil
+	}
+
+	return a.DB.Where("event_id = ?", eventId).Delete(&app).Error
+}
+
 func (a *AppDaoImpl) Get(groupKey, version string) (interface{}, error) {
 	var app model.AppStatus
 	err := a.DB.Where("group_key = ? and version = ?", groupKey, version).First(&app).Error

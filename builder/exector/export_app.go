@@ -98,6 +98,16 @@ func (i *ExportApp) Run(timeout time.Duration) error {
 
 // 组目录命名规则，将组名中unicode转为中文，并去掉空格，"JAVA-ETCD\\u5206\\u4eab\\u7ec4" -> "JAVA-ETCD分享组"
 func (i *ExportApp) exportRainbondAPP() error {
+	// 如果该应用已经打包过且是最新版，则跳过打包并返回成功
+	if ok := i.isLatest(); ok {
+		return nil
+	}
+
+	// 删除旧应用组目录，然后重新生成该应用包
+	if err := i.CleanSourceDir(); err != nil {
+		return err
+	}
+
 	// 保存用应镜像和slug包
 	if err := i.saveApps(); err != nil {
 		return err
@@ -118,6 +128,16 @@ func (i *ExportApp) exportRainbondAPP() error {
 
 // 组目录命名规则，将组名中unicode转为中文，并去掉空格，"JAVA-ETCD\\u5206\\u4eab\\u7ec4" -> "JAVA-ETCD分享组"
 func (i *ExportApp) exportDockerCompose() error {
+	// 如果该应用已经打包过且是最新版，则跳过打包并返回成功
+	if ok := i.isLatest(); ok {
+		return nil
+	}
+
+	// 删除旧应用组目录，然后重新生成该应用包
+	if err := i.CleanSourceDir(); err != nil {
+		return err
+	}
+
 	// 保存用应镜像和slug包
 	if err := i.saveApps(); err != nil {
 		return err
@@ -166,6 +186,44 @@ func (i *ExportApp) GetLogger() event.Logger {
 	return i.Logger
 }
 
+// isLatest 如果该应用已经打包过且是最新版则返回true
+func (i *ExportApp) isLatest() bool {
+	md5File := fmt.Sprintf("%s/metadata.json.md5", i.SourceDir)
+	_, err := os.Stat(md5File)
+	if !os.IsExist(err) {
+		logrus.Debug("The export app tar file is not found.")
+		return false
+	}
+
+	err = exec.Command("sh", "-c", fmt.Sprintf("cd %s ; md5sum -c metadata.json.md5", i.SourceDir)).Run()
+	if err != nil {
+		logrus.Debug("The export app tar file is not latest.")
+		return false
+	}
+
+	return true
+}
+
+func (i *ExportApp) CleanSourceDir() error {
+	metaFile := fmt.Sprintf("%s/metadata.json", i.SourceDir)
+
+	data, err := ioutil.ReadFile(metaFile)
+	if err != nil {
+		logrus.Error("Failed to read metadata file: ", err)
+		return err
+	}
+
+	os.RemoveAll(i.SourceDir)
+	os.MkdirAll(i.SourceDir, 0755)
+
+	if err := ioutil.WriteFile(metaFile, data, 0644); err != nil {
+		logrus.Error("Failed to write metadata file: ", err)
+		return err
+	}
+
+	return nil
+}
+
 //parseApps get apps array from metadata.json
 func (i *ExportApp) parseApps() ([]gjson.Result, error) {
 	i.Logger.Info("解析应用信息", map[string]string{"step": "export-app", "status": "success"})
@@ -173,7 +231,7 @@ func (i *ExportApp) parseApps() ([]gjson.Result, error) {
 	data, err := ioutil.ReadFile(fmt.Sprintf("%s/metadata.json", i.SourceDir))
 	if err != nil {
 		i.Logger.Error("导出应用失败，没有找到应用信息", map[string]string{"step": "read-metadata", "status": "failure"})
-		logrus.Error("Failed to export rainbond app: ", err)
+		logrus.Error("Failed to read metadata file: ", err)
 		return nil, err
 	}
 
@@ -579,8 +637,15 @@ func (i *ExportApp) updateStatus(status string) error {
 	app.Status = status
 	app.TimeStamp = time.Now().Nanosecond()
 
-	if db.GetManager().AppDao().UpdateModel(app); err != nil {
+	if err := db.GetManager().AppDao().UpdateModel(app); err != nil {
 		err = errors.New(fmt.Sprintf("Failed to update app %s: %v", i.GroupKey, err))
+		return err
+	}
+
+	// 生成MD5值并写入到文件，以便在下次收到该请求时决定是否该重新打包该应用
+	metadataFile := fmt.Sprintf("%s/metadata.json", i.SourceDir)
+	if err := exec.Command("sh", "-c", fmt.Sprintf("md5sum %s > %s.md5", metadataFile, metadataFile)).Run(); err != nil {
+		err = errors.New(fmt.Sprintf("Failed to create md5 file: %v", err))
 		return err
 	}
 

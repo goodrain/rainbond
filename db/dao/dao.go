@@ -52,6 +52,7 @@ type AppDao interface {
 	DelDao
 	Get(groupKey, version string) (interface{}, error)
 	GetByEventId(eventId string) (interface{}, error)
+	DeleteModelByEventId(eventId string) error
 }
 
 //LicenseDao LicenseDao

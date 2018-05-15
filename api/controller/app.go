@@ -11,6 +11,7 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"strings"
 	"github.com/go-chi/chi"
+	"os"
 )
 
 type AppStruct struct {}
@@ -61,6 +62,26 @@ func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnSuccess(r, w, status)
 	}
 
+}
+
+func (a *AppStruct) Download(w http.ResponseWriter, r *http.Request) {
+	format := r.FormValue("format")
+	fileName := r.FormValue("fileName")
+	tarFile := fmt.Sprintf("%s/%s/%s", handler.GetAppHandler().GetStaticDir(), format, fileName)
+
+	_, err := os.Stat(tarFile)
+
+	// return status code 502 if the file not exists.
+	if !os.IsExist(err) {
+		httputil.ReturnError(r, w, 502, fmt.Sprintf("Not found export app tar file: %s", tarFile))
+		return
+	}
+
+	http.ServeFile(w, r, tarFile)
+}
+
+func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
+	//TODO
 }
 
 func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {

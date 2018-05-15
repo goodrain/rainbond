@@ -18,12 +18,18 @@ import (
 )
 
 type AppAction struct {
-	MQClient pb.TaskQueueClient
+	MQClient  pb.TaskQueueClient
+	staticDir string
+}
+
+func (a *AppAction) GetStaticDir() string {
+	return a.staticDir
 }
 
 func CreateAppManager(mqClient pb.TaskQueueClient) *AppAction {
 	return &AppAction{
-		MQClient: mqClient,
+		MQClient:  mqClient,
+		staticDir: "/grdata/app",
 	}
 }
 
@@ -42,16 +48,18 @@ func (a *AppAction) Complete(tr *model.ExportAppStruct) error {
 	}
 
 	appName = unicode2zh(appName)
-	tr.SourceDir = fmt.Sprintf("/grdata/%s/%s-%s", tr.Body.Format, appName, tr.Body.Version)
+	tr.SourceDir = fmt.Sprintf("%s/%s/%s-%s", a.staticDir, tr.Body.Format, appName, tr.Body.Version)
 
 	return nil
 }
 
 func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
+	// 保存元数据到组目录
 	if err := saveMetadata(tr); err != nil {
 		return util.CreateAPIHandleErrorFromDBError("Failed to export app", err)
 	}
 
+	// 构建MQ事件对象
 	mqBody, err := json.Marshal(model.BuildMQBodyFrom(tr))
 	if err != nil {
 		logrus.Error("Failed to encode json from ExportAppStruct:", err)
@@ -69,6 +77,7 @@ func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
 		return err
 	}
 
+	// 写入事件到MQ中
 	ctx, cancel := context.WithCancel(context.Background())
 	_, err = a.MQClient.Enqueue(ctx, eq)
 	cancel()
@@ -82,9 +91,10 @@ func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
 }
 
 func saveMetadata(tr *model.ExportAppStruct) error {
-	os.RemoveAll(tr.SourceDir)
+	// 创建应用组目录
 	os.MkdirAll(tr.SourceDir, 0755)
 
+	// 写入元数据到文件
 	err := ioutil.WriteFile(fmt.Sprintf("%s/metadata.json", tr.SourceDir), []byte(tr.Body.GroupMetadata), 0644)
 	if err != nil {
 		logrus.Error("Failed to save metadata", err)
