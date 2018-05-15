@@ -134,6 +134,8 @@ type SourcesInterface interface {
 
 type AppInterface interface {
 	ExportApp(w http.ResponseWriter, r *http.Request)
+	Download(w http.ResponseWriter, r *http.Request)
+	Upload(w http.ResponseWriter, r *http.Request)
 	ImportApp(w http.ResponseWriter, r *http.Request)
 	BackupApp(w http.ResponseWriter, r *http.Request)
 	RecoverApp(w http.ResponseWriter, r *http.Request)

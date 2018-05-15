@@ -22,7 +22,9 @@ import (
 	"net/url"
 	"time"
 
+	"fmt"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"strings"
 )
 
 //ServiceGetCommon path参数
@@ -1379,14 +1381,19 @@ type MQBody struct {
 }
 
 func NewAppStatusFrom(app *ExportAppStruct) *dbmodel.AppStatus {
+	tarFile := app.SourceDir + ".tar"
+	fields := strings.Split(tarFile, "/")
+	tarName := fields[len(fields)-1]
+	tarFileHref := fmt.Sprintf("/v2/app/download/%s/%s", app.Body.Format, tarName)
 	return &dbmodel.AppStatus{
-		GroupKey:  app.Body.GroupKey,
-		Version:   app.Body.Version,
-		Format:    app.Body.Format,
-		EventID:   app.Body.EventID,
-		SourceDir: app.SourceDir,
-		Status:    "exporting",
-		TarFile:   app.SourceDir + ".tar",
-		TimeStamp: time.Now().Nanosecond(),
+		GroupKey:    app.Body.GroupKey,
+		Version:     app.Body.Version,
+		Format:      app.Body.Format,
+		EventID:     app.Body.EventID,
+		SourceDir:   app.SourceDir,
+		Status:      "exporting",
+		TarFile:     tarFile,
+		TarFileHref: tarFileHref,
+		TimeStamp:   time.Now().Nanosecond(),
 	}
 }

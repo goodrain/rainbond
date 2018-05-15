@@ -50,7 +50,9 @@ type TenantDao interface {
 type AppDao interface {
 	Dao
 	DelDao
-	Get(groupKey, version string) (interface{}, error)
+    Get(groupKey, version, format string) (interface{}, error)
+	GetByEventId(eventId string) (interface{}, error)
+	DeleteModelByEventId(eventId string) error
 }
 
 //LicenseDao LicenseDao
