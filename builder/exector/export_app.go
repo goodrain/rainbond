@@ -249,26 +249,6 @@ func (i *ExportApp) parseApps() ([]gjson.Result, error) {
 	return arr, nil
 }
 
-func (i *ExportApp) replaceMetadata(old, new string) error {
-	logrus.Debugf("Change json file from %s to %s", old, new)
-	fileName := fmt.Sprintf("%s/metadata.json", i.SourceDir)
-
-	data, err := ioutil.ReadFile(fileName)
-	if err != nil {
-		return err
-	}
-
-	context := strings.Replace(string(data), old, new, -1)
-
-	err = ioutil.WriteFile(fileName, []byte(context), 0644)
-	if err != nil {
-		logrus.Errorf("Failed to change json file from %s to %s", old, new)
-		return err
-	}
-
-	return nil
-}
-
 func (i *ExportApp) exportImage(app gjson.Result) error {
 	serviceName := app.Get("service_cname").String()
 	serviceName = unicode2zh(serviceName)
@@ -332,14 +312,13 @@ func (i *ExportApp) saveApps() error {
 		shareSlugPath := app.Get("share_slug_path").String()
 		tarFileName := buildToLinuxFileName(shareSlugPath)
 		_, err := os.Stat(shareSlugPath)
-		if shareSlugPath != "" && os.IsExist(err) {
+		if shareSlugPath != "" && err == nil {
 			logrus.Debug("The slug file was exist already, direct copy to service dir: ", shareSlugPath)
 			err = exec.Command(fmt.Sprintf("cp %s %s/%s", shareSlugPath, serviceDir, tarFileName)).Run()
 			if err == nil {
-				// 当导出格式为rainbond-app时，要修改json文件中share_slug_path字段，以便在导入时将每个组件与slug文件对应起来
-				i.replaceMetadata(shareSlugPath, tarFileName)
 				continue
 			}
+			// 如果copy失败则忽略，在下一步中下载该slug包
 			logrus.Debug("Failed to copy the slug file to service dir: ", shareSlugPath)
 		}
 
@@ -383,7 +362,6 @@ func (i *ExportApp) saveApps() error {
 		}
 		logrus.Debug("Successful download slug file: ", shareSlugPath)
 
-		i.replaceMetadata(shareSlugPath, tarFileName)
 	}
 	return nil
 }
@@ -527,7 +505,9 @@ func (i *ExportApp) generateDockerComposeYaml() error {
 
 		// 如果该组件是源码方式部署，则挂载slug文件到runner容器内
 		if checkIsRunner(image) {
-			volume := fmt.Sprintf("__GROUP_DIR__/%s/%s:/tmp/slug/slug.tgz", appName, app.Get("share_slug_path"))
+			shareSlugPath := app.Get("share_slug_path").String()
+			tarFileName := buildToLinuxFileName(shareSlugPath)
+			volume := fmt.Sprintf("__GROUP_DIR__/%s/%s:/tmp/slug/slug.tgz", appName, tarFileName)
 			volumes = append(volumes, volume)
 			logrus.Debug("Mount the slug file to runner image: ", volume)
 		}
@@ -632,25 +612,27 @@ func (i *ExportApp) generateTarFile() error {
 }
 
 func (i *ExportApp) updateStatus(status string) error {
+	// 生成MD5值并写入到文件，以便在下次收到该请求时决定是否该重新打包该应用
+	metadataFile := fmt.Sprintf("%s/metadata.json", i.SourceDir)
+	if err := exec.Command("sh", "-c", fmt.Sprintf("md5sum %s > %s.md5", metadataFile, metadataFile)).Run(); err != nil {
+		err = errors.New(fmt.Sprintf("Failed to create md5 file: %v", err))
+		return err
+	}
+
+	// 从数据库中获取该应用的状态信息
 	res, err := db.GetManager().AppDao().GetByEventId(i.EventID)
 	if err != nil {
 		err = errors.New(fmt.Sprintf("Failed to get app %s from db: %v", i.GroupKey, err))
 		return err
 	}
 
+	// 在数据库中更新该应用的状态信息
 	app := res.(*model.AppStatus)
 	app.Status = status
 	app.TimeStamp = time.Now().Nanosecond()
 
 	if err := db.GetManager().AppDao().UpdateModel(app); err != nil {
 		err = errors.New(fmt.Sprintf("Failed to update app %s: %v", i.GroupKey, err))
-		return err
-	}
-
-	// 生成MD5值并写入到文件，以便在下次收到该请求时决定是否该重新打包该应用
-	metadataFile := fmt.Sprintf("%s/metadata.json", i.SourceDir)
-	if err := exec.Command("sh", "-c", fmt.Sprintf("md5sum %s > %s.md5", metadataFile, metadataFile)).Run(); err != nil {
-		err = errors.New(fmt.Sprintf("Failed to create md5 file: %v", err))
 		return err
 	}
 
