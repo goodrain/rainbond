@@ -38,17 +38,22 @@ func (a *AppDaoImpl) UpdateModel(mo model.Interface) error {
 }
 
 func (a *AppDaoImpl) DeleteModel(groupKey string, arg ...interface{}) error {
-	if len(arg) < 1 {
+	if len(arg) < 2 {
 		return errors.New("Must define version for delete AppStatus in mysql.")
 	}
 
 	version, ok := arg[0].(string)
 	if !ok {
-		return errors.New("Failed to convert interface to string")
+		return errors.New("Failed to convert interface to string for version")
+	}
+
+	format, ok := arg[1].(string)
+	if !ok {
+		return errors.New("Failed to convert interface to string for format")
 	}
 
 	var app model.AppStatus
-	if ok := a.DB.Where("group_key = ? and version = ?", app.GroupKey, app.Version).Find(&app).RecordNotFound(); ok {
+	if ok := a.DB.Where("group_key = ? and version = ? and format = ?", app.GroupKey, app.Version, format).Find(&app).RecordNotFound(); ok {
 		return nil
 	}
 
@@ -64,9 +69,9 @@ func (a *AppDaoImpl) DeleteModelByEventId(eventId string) error {
 	return a.DB.Where("event_id = ?", eventId).Delete(&app).Error
 }
 
-func (a *AppDaoImpl) Get(groupKey, version string) (interface{}, error) {
+func (a *AppDaoImpl) Get(groupKey, version, format string) (interface{}, error) {
 	var app model.AppStatus
-	err := a.DB.Where("group_key = ? and version = ?", groupKey, version).First(&app).Error
+	err := a.DB.Where("group_key = ? and version = ? and format = ?", groupKey, version, format).First(&app).Error
 
 	return &app, err
 }

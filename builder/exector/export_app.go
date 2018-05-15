@@ -201,10 +201,12 @@ func (i *ExportApp) isLatest() bool {
 		return false
 	}
 
+	logrus.Debug("The export app tar file is latest.")
 	return true
 }
 
 func (i *ExportApp) CleanSourceDir() error {
+	logrus.Debug("Ready clean the source directory.")
 	metaFile := fmt.Sprintf("%s/metadata.json", i.SourceDir)
 
 	data, err := ioutil.ReadFile(metaFile)
@@ -630,7 +632,7 @@ func (i *ExportApp) generateTarFile() error {
 }
 
 func (i *ExportApp) updateStatus(status string) error {
-	res, err := db.GetManager().AppDao().Get(i.GroupKey, i.Version)
+	res, err := db.GetManager().AppDao().GetByEventId(i.EventID)
 	if err != nil {
 		err = errors.New(fmt.Sprintf("Failed to get app %s from db: %v", i.GroupKey, err))
 		return err
