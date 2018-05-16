@@ -18,7 +18,10 @@
 
 package util
 
-import "testing"
+import (
+	"runtime"
+	"testing"
+)
 
 func TestOpenOrCreateFile(t *testing.T) {
 	file, err := OpenOrCreateFile("./test.log")
@@ -35,5 +38,13 @@ func TestDeweight(t *testing.T) {
 }
 
 func TestGetDirSize(t *testing.T) {
-	t.Log(GetDirSize("/Users/qingguo/gopath"))
+	t.Log(GetDirSize("/go"))
+	memStats := &runtime.MemStats{}
+	runtime.ReadMemStats(memStats)
+}
+
+func TestGetDirSizeByCmd(t *testing.T) {
+	t.Log(GetDirSizeByCmd("/go"))
+	memStats := &runtime.MemStats{}
+	runtime.ReadMemStats(memStats)
 }

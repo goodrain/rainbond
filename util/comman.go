@@ -26,6 +26,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -261,6 +262,23 @@ func Deweight(data *[]string) {
 		}
 	}
 	*data = result
+}
+
+//GetDirSizeByCmd get dir sizes by du command
+//return kb
+func GetDirSizeByCmd(path string) float64 {
+	out, err := CmdExec(fmt.Sprintf("du -sk %s", path))
+	if err != nil {
+		fmt.Println(err)
+		return 0
+	}
+	info := strings.Split(out, "	")
+	fmt.Println(info)
+	if len(info) < 2 {
+		return 0
+	}
+	i, _ := strconv.Atoi(info[0])
+	return float64(i)
 }
 
 //GetDirSize kb为单位
