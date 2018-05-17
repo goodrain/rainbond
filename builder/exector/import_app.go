@@ -58,13 +58,28 @@ func NewImportApp(in []byte) TaskWorker {
 
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
-	return &ExportApp{
+	return &ImportApp{
 		Format:       gjson.GetBytes(in, "format").String(),
 		SourceDir:    gjson.GetBytes(in, "source_dir").String(),
 		Logger:       logger,
 		EventID:      eventID,
 		DockerClient: dockerClient,
 	}
+}
+
+//Stop stop
+func (i *ImportApp) Stop() error {
+	return nil
+}
+
+//Name return worker name
+func (i *ImportApp) Name() string {
+	return "export_app"
+}
+
+//GetLogger GetLogger
+func (i *ImportApp) GetLogger() event.Logger {
+	return i.Logger
 }
 
 //Run Run
