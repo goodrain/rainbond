@@ -48,8 +48,10 @@ func (a *AppAction) Complete(tr *model.ExportAppStruct) error {
 		return err
 	}
 
+	version := gjson.Get(tr.Body.GroupMetadata, "group_version").String()
+
 	appName = unicode2zh(appName)
-	tr.SourceDir = fmt.Sprintf("%s/%s/%s-%s", a.staticDir, tr.Body.Format, appName, tr.Body.Version)
+	tr.SourceDir = fmt.Sprintf("%s/%s/%s-%s", a.staticDir, tr.Body.Format, appName, version)
 
 	return nil
 }

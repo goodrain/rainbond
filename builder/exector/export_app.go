@@ -481,6 +481,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 	}
 
 	i.Logger.Info("开始生成YAML文件", map[string]string{"step": "build-yaml", "status": "failure"})
+	logrus.Debug("Build docker compose yaml file in directory: ", i.SourceDir)
 
 	for _, app := range apps {
 		image := app.Get("image").String()
@@ -627,16 +628,9 @@ func (i *ExportApp) updateStatus(status string) error {
 		return err
 	}
 
-	data, err := ioutil.ReadFile(fmt.Sprintf("%s/metadata.json", i.SourceDir))
-	if err != nil {
-		logrus.Error("Failed to read metadata file for update status: ", err)
-		return err
-	}
-
 	// 在数据库中更新该应用的状态信息
 	app := res.(*model.AppStatus)
 	app.Status = status
-	app.Metadata = string(data)
 
 	if err := db.GetManager().AppDao().UpdateModel(app); err != nil {
 		err = errors.New(fmt.Sprintf("Failed to update app %s: %v", i.EventID, err))

@@ -6,7 +6,7 @@ type AppStatus struct {
 	SourceDir   string `gorm:"column:source_dir;size:255" json:"source_dir"`
 	Status      string `gorm:"column:status;size:32" json:"status"` // only exporting/importing/failed/success
 	TarFileHref string `gorm:"column:tar_file_href;size:255" json:"tar_file_href"`
-	Metadata    string `gorm:"column:metadata" json:"metadata"`
+	Metadata    string `gorm:"column:metadata;type:text;" json:"metadata"`
 }
 
 //TableName 表名

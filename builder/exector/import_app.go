@@ -26,14 +26,63 @@ import (
 	"strings"
 	"path/filepath"
 	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/tidwall/gjson"
+	"github.com/goodrain/rainbond/event"
+	"github.com/docker/engine-api/client"
+	"time"
+	"github.com/goodrain/rainbond/db"
+	"errors"
+	"github.com/goodrain/rainbond/db/model"
 )
 
 func init() {
-	RegisterWorker("import_app", NewExportApp)
+	RegisterWorker("import_app", NewImportApp)
+}
+
+//ExportApp Export app to specified format(rainbond-app or dockercompose)
+type ImportApp struct {
+	EventID      string `json:"event_id"`
+	Format       string `json:"format"`
+	SourceDir    string `json:"source_dir"`
+	Logger       event.Logger
+	DockerClient *client.Client
+}
+
+//NewExportApp create
+func NewImportApp(in []byte) TaskWorker {
+	dockerClient, err := client.NewEnvClient()
+	if err != nil {
+		logrus.Error("Failed to create task for export app: ", err)
+		return nil
+	}
+
+	eventID := gjson.GetBytes(in, "event_id").String()
+	logger := event.GetManager().GetLogger(eventID)
+	return &ExportApp{
+		Format:       gjson.GetBytes(in, "format").String(),
+		SourceDir:    gjson.GetBytes(in, "source_dir").String(),
+		Logger:       logger,
+		EventID:      eventID,
+		DockerClient: dockerClient,
+	}
+}
+
+//Run Run
+func (i *ImportApp) Run(timeout time.Duration) error {
+	if i.Format == "rainbond-app" {
+		err := i.importApp()
+		if err != nil {
+			i.updateStatus("failed")
+		}
+		return err
+	} else {
+		return errors.New("Unsupported the format: " + i.Format)
+	}
+	return nil
 }
 
 // 组目录命名规则，将组名中unicode转为中文，并去掉空格，"JAVA-ETCD\\u5206\\u4eab\\u7ec4" -> "JAVA-ETCD分享组"
-func (i *ExportApp) importApp() error {
+func (i *ImportApp) importApp() error {
 	// 解压tar包
 	if err := i.unzip(); err != nil {
 		return err
@@ -52,7 +101,7 @@ func (i *ExportApp) importApp() error {
 	return nil
 }
 
-func (i *ExportApp) unzip() error {
+func (i *ImportApp) unzip() error {
 	cmd := fmt.Sprintf("cd %s && rm -rf %s && tar -xf %s.tar", filepath.Dir(i.SourceDir), i.SourceDir, i.SourceDir)
 	err := exec.Command("sh", "-c", cmd).Run()
 	if err != nil {
@@ -64,7 +113,30 @@ func (i *ExportApp) unzip() error {
 	return err
 }
 
-func (i *ExportApp) loadApps() error {
+//parseApps get apps array from metadata.json
+func (i *ImportApp) parseApps() ([]gjson.Result, error) {
+	i.Logger.Info("解析应用信息", map[string]string{"step": "export-app", "status": "success"})
+
+	data, err := ioutil.ReadFile(fmt.Sprintf("%s/metadata.json", i.SourceDir))
+	if err != nil {
+		i.Logger.Error("导出应用失败，没有找到应用信息", map[string]string{"step": "read-metadata", "status": "failure"})
+		logrus.Error("Failed to read metadata file: ", err)
+		return nil, err
+	}
+
+	arr := gjson.GetBytes(data, "apps").Array()
+	if len(arr) < 1 {
+		i.Logger.Error("解析应用列表信息失败", map[string]string{"step": "parse-apps", "status": "failure"})
+		err := errors.New("not found apps in the metadata")
+		logrus.Error("Failed to get apps from json: ", err)
+		return nil, err
+	}
+	logrus.Debug("Successful parse apps array from metadata, count: ", len(arr))
+
+	return arr, nil
+}
+
+func (i *ImportApp) loadApps() error {
 	apps, err := i.parseApps()
 	if err != nil {
 		return err
@@ -137,5 +209,35 @@ func (i *ExportApp) loadApps() error {
 	}
 
 	logrus.Debug("Successful load apps for group: ", i.SourceDir)
+	return nil
+}
+
+func (i *ImportApp) updateStatus(status string) error {
+	logrus.Debug("Update app status in database to: ", status)
+	// 从数据库中获取该应用的状态信息
+	res, err := db.GetManager().AppDao().GetByEventId(i.EventID)
+	if err != nil {
+		err = errors.New(fmt.Sprintf("Failed to get app %s from db: %v", i.EventID, err))
+		logrus.Error(err)
+		return err
+	}
+
+	data, err := ioutil.ReadFile(fmt.Sprintf("%s/metadata.json", i.SourceDir))
+	if err != nil {
+		logrus.Error("Failed to read metadata file for update status: ", err)
+		return err
+	}
+
+	// 在数据库中更新该应用的状态信息
+	app := res.(*model.AppStatus)
+	app.Status = status
+	app.Metadata = string(data)
+
+	if err := db.GetManager().AppDao().UpdateModel(app); err != nil {
+		err = errors.New(fmt.Sprintf("Failed to update app %s: %v", i.EventID, err))
+		logrus.Error(err)
+		return err
+	}
+
 	return nil
 }

@@ -61,8 +61,7 @@ func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		status := res.(*dbmodel.AppStatus)
-		httputil.ReturnSuccess(r, w, status)
+		httputil.ReturnSuccess(r, w, res)
 	}
 
 }

@@ -31,6 +31,7 @@ import::image(){
 gen::config(){
   sed -i 's/""//g' docker-compose.yaml
   sed -i "s|__GROUP_DIR__|$(pwd)|g" docker-compose.yaml
+  sed -i "s/\*\*None\*\*/$(uuidgen | tr -d -)/g" docker-compose.yaml
 }
 
 start(){
