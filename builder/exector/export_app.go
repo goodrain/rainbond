@@ -43,8 +43,6 @@ import (
 //ExportApp Export app to specified format(rainbond-app or dockercompose)
 type ExportApp struct {
 	EventID      string `json:"event_id"`
-	GroupKey     string `json:"service_key"`
-	Version      string `json:"version"`
 	Format       string `json:"format"`
 	SourceDir    string `json:"source_dir"`
 	Logger       event.Logger
@@ -66,8 +64,6 @@ func NewExportApp(in []byte) TaskWorker {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	return &ExportApp{
-		GroupKey:     gjson.GetBytes(in, "group_key").String(),
-		Version:      gjson.GetBytes(in, "version").String(),
 		Format:       gjson.GetBytes(in, "format").String(),
 		SourceDir:    gjson.GetBytes(in, "source_dir").String(),
 		Logger:       logger,
@@ -115,7 +111,7 @@ func (i *ExportApp) exportRainbondAPP() error {
 	}
 
 	// 打包整个目录为tar包
-	if err := i.generateTarFile(); err != nil {
+	if err := i.zip(); err != nil {
 		return err
 	}
 
@@ -151,17 +147,17 @@ func (i *ExportApp) exportDockerCompose() error {
 	}
 
 	// 在主目录中生成文件：docker-compose.yaml
-	if err := i.generateDockerComposeYaml(); err != nil {
+	if err := i.buildDockerComposeYaml(); err != nil {
 		return err
 	}
 
 	// 生成应用启动脚本
-	if err := i.generateStartScript(); err != nil {
+	if err := i.buildStartScript(); err != nil {
 		return err
 	}
 
 	// 打包整个目录为tar包
-	if err := i.generateTarFile(); err != nil {
+	if err := i.zip(); err != nil {
 		return err
 	}
 
@@ -359,7 +355,7 @@ func (i *ExportApp) saveApps() error {
 		err = ftpClient.DownloadFile(shareSlugPath, fmt.Sprintf("%s/%s", serviceDir, tarFileName), i.Logger)
 		ftpClient.Close()
 		if err != nil {
-			logrus.Errorf("Failed to download slug file for group key %s: %v", i.GroupKey, err)
+			logrus.Errorf("Failed to download slug file for group %s: %v", i.SourceDir, err)
 			return err
 		}
 		logrus.Debug("Successful download slug file: ", shareSlugPath)
@@ -471,7 +467,7 @@ type Service struct {
 	} `yaml:"logging,omitempty"`
 }
 
-func (i *ExportApp) generateDockerComposeYaml() error {
+func (i *ExportApp) buildDockerComposeYaml() error {
 	// 因为在保存apps的步骤中更新了json文件，所以要重新加载
 	apps, err := i.parseApps()
 	if err != nil {
@@ -584,7 +580,7 @@ func (i *ExportApp) getPublicEnvByKey(serviceKey string, apps *[]gjson.Result) m
 	return envs
 }
 
-func (i *ExportApp) generateStartScript() error {
+func (i *ExportApp) buildStartScript() error {
 	if err := exec.Command("cp", "/src/export-app/run.sh", i.SourceDir).Run(); err != nil {
 		err = errors.New("Failed to generate start script to: " + i.SourceDir)
 		logrus.Error(err)
@@ -595,7 +591,7 @@ func (i *ExportApp) generateStartScript() error {
 	return nil
 }
 
-func (i *ExportApp) generateTarFile() error {
+func (i *ExportApp) zip() error {
 	// /grdata/export-app/myapp-1.0 -> /grdata/export-app
 	dirName := path.Dir(i.SourceDir)
 	// /grdata/export-app/myapp-1.0 -> myapp-1.0
@@ -604,7 +600,7 @@ func (i *ExportApp) generateTarFile() error {
 	err := exec.Command("sh", "-c", fmt.Sprintf("cd %s ; rm -rf %s.tar ; tar -cf %s.tar %s", dirName, baseName, baseName, baseName)).Run()
 	if err != nil {
 		i.Logger.Error("打包应用失败", map[string]string{"step": "export-app", "status": "failure"})
-		logrus.Errorf("Failed to create tar file for group key %s: %v", i.GroupKey, err)
+		logrus.Errorf("Failed to create tar file for group %s: %v", i.SourceDir, err)
 		return err
 	}
 
@@ -631,10 +627,16 @@ func (i *ExportApp) updateStatus(status string) error {
 		return err
 	}
 
+	data, err := ioutil.ReadFile(fmt.Sprintf("%s/metadata.json", i.SourceDir))
+	if err != nil {
+		logrus.Error("Failed to read metadata file for update status: ", err)
+		return err
+	}
+
 	// 在数据库中更新该应用的状态信息
 	app := res.(*model.AppStatus)
 	app.Status = status
-	app.TimeStamp = time.Now().Nanosecond()
+	app.Metadata = string(data)
 
 	if err := db.GetManager().AppDao().UpdateModel(app); err != nil {
 		err = errors.New(fmt.Sprintf("Failed to update app %s: %v", i.EventID, err))

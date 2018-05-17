@@ -359,6 +359,26 @@ func ImageSave(dockerCli *client.Client, image, destination string, logger event
 	return CopyToFile(destination, rc)
 }
 
+//ImageSave save image to tar file
+// destination destination file name eg. /tmp/xxx.tar
+func ImageLoad(dockerCli *client.Client, tarFile string, logger event.Logger) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	reader, err := os.OpenFile(tarFile, os.O_RDONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	_, err = dockerCli.ImageLoad(ctx, reader, false)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 //ImageImport save image to tar file
 // source source file name eg. /tmp/xxx.tar
 func ImageImport(dockerCli *client.Client, image, source string, logger event.Logger) error {

@@ -49,8 +49,6 @@ type TenantDao interface {
 //TenantDao tenant dao
 type AppDao interface {
 	Dao
-	DelDao
-    Get(groupKey, version, format string) (interface{}, error)
 	GetByEventId(eventId string) (interface{}, error)
 	DeleteModelByEventId(eventId string) error
 }
