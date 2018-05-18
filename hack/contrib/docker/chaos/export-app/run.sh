@@ -15,13 +15,41 @@ iprint(){
 check::dependency(){
   which docker &> /dev/null || {
     eprint 'Not found docker command!'
-    return 11
+
+    install::docker || {
+      eprint 'Failed to install docker!'
+      return 11
+    }
+    
+    iprint 'successful install docker!'
+    return 0
   }
 
   which docker-compose &> /dev/null || {
     eprint 'Not found docker-compose command!'
-    return 13
+    
+    install::docker-compose || {
+      eprint 'Failed to install docker-compose!'
+      return 13
+    }
+
+    iprint 'successful install docker-compose!'
+    return 0
   }
+}
+
+install::docker(){
+  wget -O /etc/yum.repos.d/docker-ce.repo https://download.docker.com/linux/centos/docker-ce.repo &&
+  yum install -y docker-ce &&
+  which docker &>/dev/null &&
+  systemctl start docker &&
+  systemctl enable docker
+}
+
+install::docker-compose(){
+  curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+  chmod +x /usr/local/bin/docker-compose
+  which docker-compose &>/dev/null
 }
 
 import::image(){
