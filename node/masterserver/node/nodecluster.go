@@ -137,6 +137,7 @@ func (n *NodeCluster) UpdateNode(node *model.HostNode) {
 	n.nodes[node.ID] = node
 	n.client.Put(option.Config.NodePath+"/"+node.ID, node.String())
 }
+
 func (n *NodeCluster) getNodeFromKV(kv *mvccpb.KeyValue) *model.HostNode {
 	var node model.HostNode
 	if err := ffjson.Unmarshal(kv.Value, &node); err != nil {
@@ -159,24 +160,55 @@ func (n *NodeCluster) GetNode(id string) *model.HostNode {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	if node, ok := n.nodes[id]; ok {
-		if node.NodeStatus != nil {
-			if node.Unschedulable {
-				node.Status = "unschedulable"
-			} else {
-				node.Status = "running"
-			}
-			if node.AvailableCPU == 0 {
-				node.AvailableCPU = node.NodeStatus.Allocatable.Cpu().Value()
-			}
-			if node.AvailableMemory == 0 {
-				node.AvailableMemory = node.NodeStatus.Allocatable.Memory().Value()
-			}
-		}
+		n.handleNodeStatus(node)
 		return node
 	}
 	return nil
 }
+func (n *NodeCluster) handleNodeStatus(v *model.HostNode) {
+	if v.Role.HasRule("compute") {
+		if v.NodeStatus != nil {
+			if v.Unschedulable {
+				v.Status = "unschedulable"
+			}
+			if v.AvailableCPU == 0 {
+				v.AvailableCPU = v.NodeStatus.Allocatable.Cpu().Value()
+			}
+			if v.AvailableMemory == 0 {
+				v.AvailableMemory = v.NodeStatus.Allocatable.Memory().Value()
+			}
+			for _, condiction := range v.Conditions {
+				if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
+					v.Status = "error"
+					return
+				}
+				if v.Status == "unschedulable" || v.Status == "init" || v.Status == "init_success" || v.Status == "init_failed" || v.Status == "installing" || v.Status == "install_success" || v.Status == "install_failed" {
 
+				} else {
+					if condiction.Type == "Ready" && condiction.Status == "True" {
+						v.Status = "running"
+					} else {
+						v.Status = "notready"
+					}
+				}
+			}
+		} else {
+			v.Status = "down"
+		}
+	}
+	if v.Role.HasRule("manage") { //manage install_success == runnint
+		if v.Status == "init" || v.Status == "init_success" || v.Status == "init_failed" || v.Status == "installing" || v.Status == "install_failed" {
+			return
+		}
+		if v.Alived {
+			for _, condition := range v.Conditions {
+				if condition.Type == "NodeInit" && condition.Status == "True" {
+					v.Status = "running"
+				}
+			}
+		}
+	}
+}
 func (n *NodeCluster) loadAndWatchNodes() error {
 	//load rainbonde node info
 	noderes, err := n.client.Get(option.Config.NodePath, client.WithPrefix())
@@ -317,6 +349,7 @@ func (n *NodeCluster) loadAndWatchK8sNodes() {
 					if node, ok := event.Object.(*v1.Node); ok {
 						if rbnode := n.GetNode(node.Name); rbnode != nil {
 							rbnode.NodeStatus = nil
+							rbnode.DeleteCondition(model.NodeReady, model.OutOfDisk, model.MemoryPressure, model.DiskPressure)
 							n.UpdateNode(rbnode)
 						}
 					}
@@ -444,21 +477,9 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 func (n *NodeCluster) GetAllNode() (nodes []*model.HostNode) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
-	for _, node := range n.nodes {
-		if node.NodeStatus != nil {
-			if node.Unschedulable {
-				node.Status = "unschedulable"
-			} else {
-				node.Status = "schedulable"
-			}
-			if node.AvailableCPU == 0 {
-				node.AvailableCPU = node.NodeStatus.Allocatable.Cpu().Value()
-			}
-			if node.AvailableMemory == 0 {
-				node.AvailableMemory = node.NodeStatus.Allocatable.Memory().Value()
-			}
-		}
-		nodes = append(nodes, node)
+	for _, v := range n.nodes {
+		n.handleNodeStatus(v)
+		nodes = append(nodes, v)
 	}
 	return
 }

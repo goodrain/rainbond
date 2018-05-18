@@ -1,27 +1,28 @@
 package controller
 
 import (
-	"net/http"
 	"fmt"
+	"net/http"
 
+	"io"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
-	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"strings"
-	"github.com/go-chi/chi"
-	"os"
-	"io"
-	"path/filepath"
-	"io/ioutil"
+	httputil "github.com/goodrain/rainbond/util/http"
 )
 
-type AppStruct struct {}
+type AppStruct struct{}
 
 func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 
-	switch r.Method{
+	switch r.Method {
 	case "POST":
 		var tr model.ExportAppStruct
 		ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tr.Body, nil)
@@ -96,12 +97,12 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 	fileName := fmt.Sprintf("%s/%s", dirName, header.Filename)
 	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		httputil.ReturnError(r, w, 502, "Failed to open file: " + err.Error())
+		httputil.ReturnError(r, w, 502, "Failed to open file: "+err.Error())
 	}
 	defer file.Close()
 
 	if _, err := io.Copy(file, reader); err != nil {
-		httputil.ReturnError(r, w, 503, "Failed to write file: " + err.Error())
+		httputil.ReturnError(r, w, 503, "Failed to write file: "+err.Error())
 	}
 	httputil.ReturnSuccess(r, w, "Successful upload file.")
 }
@@ -109,7 +110,7 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		var app = dbmodel.AppStatus {
+		var app = dbmodel.AppStatus{
 			Format: "rainbond-app",
 			Status: "importing",
 		}
@@ -164,7 +165,6 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 
 		httputil.ReturnSuccess(r, w, res)
 	}
-
 
 }
 

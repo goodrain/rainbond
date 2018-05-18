@@ -25,9 +25,9 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/cmd/node/option"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/cmd/node/option"
 	envoyv1 "github.com/goodrain/rainbond/node/core/envoy/v1"
 	"github.com/goodrain/rainbond/node/core/k8s"
 	"github.com/goodrain/rainbond/node/core/store"
@@ -93,6 +93,9 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*envoyv1.SDSHost, 
 	}
 	var sdsL []*envoyv1.DiscoverHost
 	for key, item := range endpoints.Items {
+		if len(item.Subsets) < 1 {
+			continue
+		}
 		addressList := item.Subsets[0].Addresses
 		if len(addressList) == 0 {
 			addressList = item.Subsets[0].NotReadyAddresses

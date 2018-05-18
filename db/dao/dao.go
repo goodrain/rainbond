@@ -338,6 +338,7 @@ type RegionUserInfoDao interface {
 	Dao
 	GetALLTokenInValidityPeriod() ([]*model.RegionUserInfo, error)
 	GetTokenByEid(eid string) (*model.RegionUserInfo, error)
+	GetTokenByTokenID(token string) (*model.RegionUserInfo, error)
 }
 
 //RegionAPIClassDao RegionAPIClassDao

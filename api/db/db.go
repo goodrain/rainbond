@@ -77,7 +77,10 @@ func CreateEventManager(conf option.Config) error {
 	var err error
 	for tryTime < 4 {
 		tryTime++
-		if err = event.NewManager(event.EventConfig{EventLogServers: conf.EventLogServers}); err != nil {
+		if err = event.NewManager(event.EventConfig{
+			EventLogServers: conf.EventLogServers,
+			DiscoverAddress: conf.EtcdEndpoint,
+		}); err != nil {
 			logrus.Errorf("get event manager failed, try time is %v,%s", tryTime, err.Error())
 			time.Sleep((5 + tryTime*10) * time.Second)
 		} else {

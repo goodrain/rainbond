@@ -29,7 +29,7 @@ import (
 
 	"github.com/goodrain/rainbond/util"
 
-	"github.com/coreos/etcd/client"
+	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/api/option"
 
 	"github.com/goodrain/rainbond/api/apiRouters/doc"
@@ -175,23 +175,24 @@ func (m *Manager) Run() {
 
 //EventLogInstance 查询event server instance
 func (m *Manager) EventLogInstance(w http.ResponseWriter, r *http.Request) {
-	etcdclient, err := client.New(client.Config{
+	etcdclient, err := clientv3.New(clientv3.Config{
 		Endpoints: m.conf.EtcdEndpoint,
 	})
 	if err != nil {
 		w.WriteHeader(500)
 		return
 	}
-	keyAPI := client.NewKeysAPI(etcdclient)
-	res, err := keyAPI.Get(context.Background(), "/event/instance", &client.GetOptions{Recursive: true})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	res, err := etcdclient.Get(ctx, "/event/instance", clientv3.WithPrefix())
 	if err != nil {
 		w.WriteHeader(500)
 		return
 	}
-	if res.Node != nil && res.Node.Nodes.Len() > 0 {
+	if res.Kvs != nil && len(res.Kvs) > 0 {
 		result := `{"data":{"instance":[`
-		for _, node := range res.Node.Nodes {
-			result += node.Value + ","
+		for _, kv := range res.Kvs {
+			result += string(kv.Value) + ","
 		}
 		result = result[:len(result)-1] + `]},"ok":true}`
 		w.Write([]byte(result))

@@ -86,7 +86,7 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 	} else {
 		pullipo = types.ImagePullOptions{}
 	}
-	_, err := sources.ImagePull(i.DockerClient, i.Image, pullipo, i.Logger, 3)
+	_, err := sources.ImagePull(i.DockerClient, i.Image, pullipo, i.Logger, 10)
 	if err != nil {
 		logrus.Errorf("pull image %s error: %s", i.Image, err.Error())
 		i.Logger.Error(fmt.Sprintf("获取指定镜像: %s失败", i.Image), map[string]string{"step": "builder-exector", "status": "failure"})

@@ -96,7 +96,20 @@ func (p *PluginAction) UpdatePluginAct(pluginID, tenantID string, cps *api_model
 //DeletePluginAct DeletePluginAct
 func (p *PluginAction) DeletePluginAct(pluginID, tenantID string) *util.APIHandleError {
 	tx := db.GetManager().Begin()
-	err := db.GetManager().TenantPluginDaoTransactions(tx).DeletePluginByID(pluginID, tenantID)
+	//step1: delete service plugin relation
+	err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteALLRelationByPluginID(pluginID)
+	if err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleErrorFromDBError("delete plugin relation", err)
+	}
+	//step2: delete plugin build version
+	err = db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).DeleteBuildVersionByPluginID(pluginID)
+	if err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleErrorFromDBError("delete plugin build version", err)
+	}
+	//step3: delete plugin
+	err = db.GetManager().TenantPluginDaoTransactions(tx).DeletePluginByID(pluginID, tenantID)
 	if err != nil {
 		tx.Rollback()
 		return util.CreateAPIHandleErrorFromDBError("delete plugin", err)

@@ -79,6 +79,7 @@ type HostNode struct {
 }
 
 type NodeList []*HostNode
+
 func (list NodeList) Len() int {
 	return len(list)
 }
@@ -96,7 +97,9 @@ func (list NodeList) Swap(i, j int) {
 	list[i] = list[j]
 	list[j] = temp
 }
+
 type TaskResult []*ExecedTask
+
 func (c TaskResult) Len() int {
 	return len(c)
 }
@@ -104,11 +107,11 @@ func (c TaskResult) Swap(i, j int) {
 	c[i], c[j] = c[j], c[i]
 }
 func (c TaskResult) Less(i, j int) bool {
-	if c[i].Status == "complete"&&(c[j].Status=="start"||c[j].Status=="wait") {
+	if c[i].Status == "complete" && (c[j].Status == "start" || c[j].Status == "wait") {
 		return true
 	}
-	if c[i].Status=="start" {
-		if c[j].Status=="complete" {
+	if c[i].Status == "start" {
+		if c[j].Status == "complete" {
 			return false
 		}
 		if c[j].Status == "wait" {
@@ -116,11 +119,12 @@ func (c TaskResult) Less(i, j int) bool {
 		}
 		return true
 	}
-	if c[i].Status=="wait" {
+	if c[i].Status == "wait" {
 		return false
 	}
 	return true
 }
+
 //GetNodeFromKV 从etcd解析node信息
 func GetNodeFromKV(kv *mvccpb.KeyValue) *HostNode {
 	var node HostNode
@@ -143,6 +147,18 @@ func (h *HostNode) UpdataK8sCondition(conditions []v1.NodeCondition) {
 			Message:            con.Message,
 		}
 		h.UpdataCondition(rbcon)
+	}
+}
+
+//DeleteCondition DeleteCondition
+func (h *HostNode) DeleteCondition(types ...NodeConditionType) {
+	for _, t := range types {
+		for i, c := range h.Conditions {
+			if c.Type.Compare(t) {
+				h.Conditions = append(h.Conditions[:i], h.Conditions[i+1:]...)
+				break
+			}
+		}
 	}
 }
 
@@ -215,7 +231,10 @@ const (
 	// InstallNotReady means  the installation task was not completed in this node.
 	InstallNotReady NodeConditionType = "InstallNotReady"
 	// NodeInit means node already install rainbond node and regist
-	NodeInit NodeConditionType = "NodeInit"
+	NodeInit       NodeConditionType = "NodeInit"
+	OutOfDisk      NodeConditionType = "OutOfDisk"
+	MemoryPressure NodeConditionType = "MemoryPressure"
+	DiskPressure   NodeConditionType = "DiskPressure"
 )
 
 //Compare 比较

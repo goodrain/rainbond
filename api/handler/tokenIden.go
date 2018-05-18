@@ -111,7 +111,12 @@ func (t *TokenIdenAction) CheckToken(token, uri string) bool {
 	//logrus.Debugf("default token map is %v", m)
 	regionInfo, ok := m[token]
 	if !ok {
-		return false
+		var err error
+		regionInfo, err = db.GetManager().RegionUserInfoDao().GetTokenByTokenID(token)
+		if err != nil {
+			return false
+		}
+		SetTokenCache(regionInfo)
 	}
 	if regionInfo.ValidityPeriod < int(time.Now().Unix()) {
 		return false

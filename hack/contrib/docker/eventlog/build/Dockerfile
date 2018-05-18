@@ -1,4 +1,4 @@
-FROM golang:1.7-alpine
+FROM golang:1.8.3-alpine
 
 RUN apk --no-cache add pkgconfig gcc musl-dev
 

@@ -458,6 +458,10 @@ func (t *TenantStruct) addPluginSet(w http.ResponseWriter, r *http.Request) {
 	}
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
+	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
+	pss.ServiceAlias = serviceAlias
+	pss.TenantName = tenantName
 	re, err := handler.GetServiceManager().SetTenantServicePluginRelation(tenantID, serviceID, &pss)
 	if err != nil {
 		err.Handle(r, w)
