@@ -53,7 +53,7 @@ import (
 
 //Run start run
 func Run(c *option.Conf) error {
-	errChan := make(chan error, 1)
+	errChan := make(chan error, 3)
 	err := eventLog.NewManager(eventLog.EventConfig{
 		EventLogServers: c.EventLogServer,
 		DiscoverAddress: c.Etcd.Endpoints,
@@ -83,7 +83,7 @@ func Run(c *option.Conf) error {
 	if err != nil {
 		return err
 	}
-	if err := s.Run(); err != nil {
+	if err := s.Run(errChan); err != nil {
 		logrus.Errorf(err.Error())
 		return err
 	}
