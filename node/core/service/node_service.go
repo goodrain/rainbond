@@ -38,11 +38,11 @@ import (
 //NodeService node service
 type NodeService struct {
 	c           *option.Conf
-	nodecluster *node.NodeCluster
+	nodecluster *node.Cluster
 }
 
 //CreateNodeService create
-func CreateNodeService(c *option.Conf, nodecluster *node.NodeCluster) *NodeService {
+func CreateNodeService(c *option.Conf, nodecluster *node.Cluster) *NodeService {
 	return &NodeService{
 		c:           c,
 		nodecluster: nodecluster,

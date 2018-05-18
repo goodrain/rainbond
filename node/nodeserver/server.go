@@ -19,12 +19,17 @@
 package nodeserver
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/goodrain/rainbond/node/core/job"
+
+	"github.com/goodrain/rainbond/util/watch"
 
 	conf "github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/api/model"
@@ -58,6 +63,8 @@ type NodeServer struct {
 	*store.Client
 	*model.HostNode
 	*cron.Cron
+	ctx      context.Context
+	cancel   context.CancelFunc
 	jobs     Jobs // 和结点相关的任务
 	onceJobs Jobs //记录执行的单任务
 	jobLock  sync.Mutex
@@ -85,69 +92,57 @@ func (n *NodeServer) Regist() error {
 		return err
 	}
 	n.lID = resp.ID
+	logrus.Infof("node(%s) registe success", n.HostName)
 	return nil
 }
 
 //Run 启动
-func (n *NodeServer) Run() (err error) {
+func (n *NodeServer) Run(errchan chan error) (err error) {
+	n.ctx, n.cancel = context.WithCancel(context.Background())
 	n.Regist()
 	go n.keepAlive()
-	defer func() {
-		if err != nil {
-			n.Stop(nil)
-		}
-	}()
-	if err = n.loadJobs(); err != nil {
-		return
-	}
+	go n.watchJobs(errchan)
 	n.Cron.Start()
-	go n.watchJobs()
-	logrus.Info("node registe success")
 	if err := corejob.StartProc(); err != nil {
 		logrus.Warnf("[process key will not timeout]proc lease id set err: %s", err.Error())
 	}
 	return
 }
-func (n *NodeServer) loadJobs() (err error) {
-	jobs, err := corejob.GetJobs(n.HostNode)
+
+func (n *NodeServer) watchJobs(errChan chan error) error {
+	watcher := watch.New(store.DefalutClient.Client, "")
+	watchChan, err := watcher.WatchList(n.ctx, n.Conf.JobPath, "")
 	if err != nil {
+		errChan <- err
 		return err
 	}
-	if len(jobs) == 0 {
-		return
-	}
-	for _, job := range jobs {
-		n.addJob(job)
-	}
-	return
-}
-
-func (n *NodeServer) watchJobs() {
-	rch := corejob.WatchJobs()
-	for wresp := range rch {
-		for _, ev := range wresp.Events {
-			switch {
-			case ev.IsCreate():
-				j, err := corejob.GetJobFromKv(ev.Kv)
-				if err != nil {
-					logrus.Warnf("err: %s, kv: %s", err.Error(), ev.Kv.String())
-					continue
-				}
-				n.addJob(j)
-			case ev.IsModify():
-				j, err := corejob.GetJobFromKv(ev.Kv)
-				if err != nil {
-					logrus.Warnf("err: %s, kv: %s", err.Error(), ev.Kv.String())
-					continue
-				}
-				n.modJob(j)
-			case ev.Type == client.EventTypeDelete:
-				n.delJob(corejob.GetIDFromKey(string(ev.Kv.Key)))
-			default:
-				logrus.Warnf("unknown event type[%v] from job[%s]", ev.Type, string(ev.Kv.Key))
+	defer watchChan.Stop()
+	for event := range watchChan.ResultChan() {
+		switch event.Type {
+		case watch.Added:
+			j := new(job.Job)
+			err := j.Decode(event.GetValue())
+			if err != nil {
+				logrus.Errorf("decode job error :%s", err)
+				continue
 			}
+			n.addJob(j)
+		case watch.Modified:
+			j := new(job.Job)
+			err := j.Decode(event.GetValue())
+			if err != nil {
+				logrus.Errorf("decode job error :%s", err)
+				continue
+			}
+			n.modJob(j)
+		case watch.Deleted:
+			n.delJob(event.GetKey())
+		default:
+			logrus.Errorf("watch job error:%v", event.Error)
+			errChan <- event.Error
 		}
 	}
+	return nil
 }
 
 //添加job缓存
@@ -258,6 +253,7 @@ func (n *NodeServer) runOnceJob(j *corejob.Job) {
 
 //Stop 停止服务
 func (n *NodeServer) Stop(i interface{}) {
+	n.cancel()
 	n.HostNode.Down()
 	close(n.done)
 	n.HostNode.Del()

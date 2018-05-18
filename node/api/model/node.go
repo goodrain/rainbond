@@ -78,6 +78,15 @@ type HostNode struct {
 	ClusterNode
 }
 
+//Decode decode node info
+func (n *HostNode) Decode(data []byte) error {
+	if err := ffjson.Unmarshal(data, n); err != nil {
+		logrus.Error("decode node info error:", err.Error())
+		return err
+	}
+	return nil
+}
+
 type NodeList []*HostNode
 
 func (list NodeList) Len() int {

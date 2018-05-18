@@ -23,10 +23,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/goodrain/rainbond/util/watch"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/pquerna/ffjson/ffjson"
@@ -36,21 +37,21 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 
-	client "github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/api/model"
 	"github.com/goodrain/rainbond/node/core/config"
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
+	k8swatch "k8s.io/apimachinery/pkg/watch"
 )
 
-//NodeCluster 节点管理器
-type NodeCluster struct {
+//Cluster  node  controller
+type Cluster struct {
 	ctx              context.Context
 	cancel           context.CancelFunc
 	nodes            map[string]*model.HostNode
+	nodeonline       map[string]string
 	lock             sync.Mutex
 	client           *store.Client
 	k8sClient        *kubernetes.Clientset
@@ -59,10 +60,10 @@ type NodeCluster struct {
 	datacenterConfig *config.DataCenterConfig
 }
 
-//CreateNodeCluster 创建节点管理器
-func CreateNodeCluster(k8sClient *kubernetes.Clientset, node *model.HostNode, datacenterConfig *config.DataCenterConfig) *NodeCluster {
+//CreateCluster create node controller
+func CreateCluster(k8sClient *kubernetes.Clientset, node *model.HostNode, datacenterConfig *config.DataCenterConfig) *Cluster {
 	ctx, cancel := context.WithCancel(context.Background())
-	nc := NodeCluster{
+	nc := Cluster{
 		ctx:              ctx,
 		cancel:           cancel,
 		nodes:            make(map[string]*model.HostNode, 5),
@@ -76,17 +77,16 @@ func CreateNodeCluster(k8sClient *kubernetes.Clientset, node *model.HostNode, da
 }
 
 //Start 启动
-func (n *NodeCluster) Start() error {
-	if err := n.loadAndWatchNodes(); err != nil {
-		return err
-	}
+func (n *Cluster) Start(errchan chan error) error {
+	go n.loadAndWatchNodes(errchan)
+	go n.loadAndWatchNodeOnlines(errchan)
 	go n.loadAndWatchK8sNodes()
 	go n.worker()
 	return nil
 }
 
 //Stop 停止
-func (n *NodeCluster) Stop(i interface{}) {
+func (n *Cluster) Stop(i interface{}) {
 	n.cancel()
 }
 func exists(path string) bool {
@@ -100,25 +100,11 @@ func exists(path string) bool {
 	return true
 }
 
-//RegToHost 注册节点
+//RegToHost regist node id to hosts file
 func RegToHost(node *model.HostNode, opt string) {
-	if !exists("/usr/share/gr-rainbond-node/gaops/jobs/cron/common/node_update_hosts.sh") {
-		return
-	}
-	uuid := node.ID
-	internalIP := node.InternalIP
-	logrus.Infof("node 's hostname is %s", node.HostName)
-	cmd := exec.Command("bash", "/usr/share/gr-rainbond-node/gaops/jobs/cron/common/node_update_hosts.sh", uuid, internalIP, opt)
-	outbuf := bytes.NewBuffer(nil)
-	cmd.Stdout = outbuf
-	err := cmd.Run()
-	if err != nil {
-		logrus.Errorf("error update /etc/hosts,details %s", err.Error())
-		return
-	}
-	logrus.Infof("update /etc/hosts %s %s success", uuid, internalIP)
+
 }
-func (n *NodeCluster) worker() {
+func (n *Cluster) worker() {
 	for {
 		select {
 		case <-n.ctx.Done():
@@ -131,14 +117,13 @@ func (n *NodeCluster) worker() {
 }
 
 //UpdateNode 更新节点信息
-func (n *NodeCluster) UpdateNode(node *model.HostNode) {
+func (n *Cluster) UpdateNode(node *model.HostNode) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	n.nodes[node.ID] = node
 	n.client.Put(option.Config.NodePath+"/"+node.ID, node.String())
 }
-
-func (n *NodeCluster) getNodeFromKV(kv *mvccpb.KeyValue) *model.HostNode {
+func (n *Cluster) getNodeFromKV(kv *mvccpb.KeyValue) *model.HostNode {
 	var node model.HostNode
 	if err := ffjson.Unmarshal(kv.Value, &node); err != nil {
 		logrus.Error("parse node info error:", err.Error())
@@ -146,17 +131,17 @@ func (n *NodeCluster) getNodeFromKV(kv *mvccpb.KeyValue) *model.HostNode {
 	}
 	return &node
 }
-func (n *NodeCluster) getNodeFromKey(key string) *model.HostNode {
+func (n *Cluster) getNodeIDFromKey(key string) string {
 	index := strings.LastIndex(key, "/")
 	if index < 0 {
-		return nil
+		return ""
 	}
 	id := key[index+1:]
-	return n.GetNode(id)
+	return id
 }
 
 //GetNode 从缓存获取节点信息
-func (n *NodeCluster) GetNode(id string) *model.HostNode {
+func (n *Cluster) GetNode(id string) *model.HostNode {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	if node, ok := n.nodes[id]; ok {
@@ -165,7 +150,7 @@ func (n *NodeCluster) GetNode(id string) *model.HostNode {
 	}
 	return nil
 }
-func (n *NodeCluster) handleNodeStatus(v *model.HostNode) {
+func (n *Cluster) handleNodeStatus(v *model.HostNode) {
 	if v.Role.HasRule("compute") {
 		if v.NodeStatus != nil {
 			if v.Unschedulable {
@@ -209,86 +194,79 @@ func (n *NodeCluster) handleNodeStatus(v *model.HostNode) {
 		}
 	}
 }
-func (n *NodeCluster) loadAndWatchNodes() error {
-	//load rainbonde node info
-	noderes, err := n.client.Get(option.Config.NodePath, client.WithPrefix())
+func (n *Cluster) loadAndWatchNodeOnlines(errChan chan error) {
+	watcher := watch.New(store.DefalutClient.Client, "")
+	nodeonlinewatchChan, err := watcher.WatchList(n.ctx, option.Config.OnlineNodePath, "")
 	if err != nil {
-		return fmt.Errorf("load cluster nodes error:%s", err.Error())
+		errChan <- err
 	}
-	for _, kv := range noderes.Kvs {
-		if node := n.getNodeFromKV(kv); node != nil {
+	defer nodeonlinewatchChan.Stop()
+	for event := range nodeonlinewatchChan.ResultChan() {
+		switch event.Type {
+		case watch.Added, watch.Modified:
+			nodeID := n.getNodeIDFromKey(event.GetKey())
+			if node := n.GetNode(nodeID); node != nil {
+				if !node.Alived {
+					node.Alived = true
+					node.UpTime = time.Now()
+					n.UpdateNode(node)
+				}
+			} else {
+				n.lock.Lock()
+				n.nodeonline[nodeID] = "online"
+				n.lock.Unlock()
+			}
+		case watch.Deleted:
+			nodeID := n.getNodeIDFromKey(event.GetKey())
+			if node := n.GetNode(nodeID); node != nil {
+				if node.Alived {
+					node.Alived = false
+					node.UpTime = time.Now()
+					n.UpdateNode(node)
+				}
+			} else {
+				n.lock.Lock()
+				n.nodeonline[nodeID] = "offline"
+				n.lock.Unlock()
+			}
+		case watch.Error:
+			errChan <- event.Error
+		}
+	}
+
+}
+func (n *Cluster) loadAndWatchNodes(errChan chan error) {
+	watcher := watch.New(n.client.Client, "")
+	nodewatchChan, err := watcher.WatchList(n.ctx, option.Config.NodePath, "")
+	if err != nil {
+		errChan <- err
+	}
+	defer nodewatchChan.Stop()
+	for ev := range nodewatchChan.ResultChan() {
+		switch ev.Type {
+		case watch.Added, watch.Modified:
+			node := new(model.HostNode)
+			if err := node.Decode(ev.GetValue()); err != nil {
+				logrus.Errorf("decode node info error :%s", err)
+				continue
+			}
 			n.CacheNode(node)
-		}
-	}
-	//load rainbond node online info
-	onlineres, err := n.client.Get(option.Config.OnlineNodePath, client.WithPrefix())
-	if err != nil {
-		return fmt.Errorf("load cluster nodes error:%s", err.Error())
-	}
-	for _, kv := range onlineres.Kvs {
-		if node := n.getNodeFromKey(string(kv.Key)); node != nil {
-			if !node.Alived {
-				node.Alived = true
-				node.UpTime = time.Now()
-				n.UpdateNode(node)
+			RegToHost(node, "add")
+		case watch.Deleted:
+			node := new(model.HostNode)
+			if err := node.Decode(ev.GetPreValue()); err != nil {
+				logrus.Errorf("decode node info error :%s", err)
+				continue
 			}
+			n.RemoveNode(node.ID)
+			RegToHost(node, "del")
+		case watch.Error:
+			errChan <- ev.Error
 		}
 	}
-	go util.Exec(n.ctx, func() error {
-		ctx, cancel := context.WithCancel(n.ctx)
-		defer cancel()
-		ch := n.client.WatchByCtx(ctx, option.Config.NodePath, client.WithPrefix(), client.WithRev(noderes.Header.Revision))
-		onlineCh := n.client.WatchByCtx(ctx, option.Config.OnlineNodePath, client.WithPrefix(), client.WithRev(onlineres.Header.Revision))
-		for {
-			select {
-			case <-n.ctx.Done():
-				return nil
-			case event, ok := <-ch:
-				if !ok {
-					return nil
-				}
-				for _, ev := range event.Events {
-					switch {
-					case ev.IsCreate(), ev.IsModify():
-						if node := n.getNodeFromKV(ev.Kv); node != nil {
-							n.CacheNode(node)
-						}
-					case ev.Type == client.EventTypeDelete:
-						if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
-							n.RemoveNode(node)
-						}
-					}
-				}
-			case event, ok := <-onlineCh:
-				if !ok {
-					return nil
-				}
-				for _, ev := range event.Events {
-					switch {
-					case ev.IsCreate(), ev.IsModify():
-						if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
-							node.Alived = true
-							node.UpTime = time.Now()
-							//getInfoForMaster(node)
-							n.UpdateNode(node)
-							RegToHost(node, "add")
-						}
-					case ev.Type == client.EventTypeDelete:
-						if node := n.getNodeFromKey(string(ev.Kv.Key)); node != nil {
-							node.Alived = false
-							node.DownTime = time.Now()
-							n.UpdateNode(node)
-							RegToHost(node, "del")
-						}
-					}
-				}
-			}
-		}
-	}, 1)
-	return nil
 }
 
-func (n *NodeCluster) loadAndWatchK8sNodes() {
+func (n *Cluster) loadAndWatchK8sNodes() {
 	for {
 		list, err := n.k8sClient.Core().Nodes().List(metav1.ListOptions{})
 		if err != nil {
@@ -328,7 +306,7 @@ func (n *NodeCluster) loadAndWatchK8sNodes() {
 					break loop
 				}
 				switch {
-				case event.Type == watch.Added, event.Type == watch.Modified:
+				case event.Type == k8swatch.Added, event.Type == k8swatch.Modified:
 					if node, ok := event.Object.(*v1.Node); ok {
 						//k8s node name is rainbond node id
 						if rbnode := n.GetNode(node.Name); rbnode != nil {
@@ -345,7 +323,7 @@ func (n *NodeCluster) loadAndWatchK8sNodes() {
 							n.UpdateNode(rbnode)
 						}
 					}
-				case event.Type == watch.Deleted:
+				case event.Type == k8swatch.Deleted:
 					if node, ok := event.Object.(*v1.Node); ok {
 						if rbnode := n.GetNode(node.Name); rbnode != nil {
 							rbnode.NodeStatus = nil
@@ -364,16 +342,16 @@ func (n *NodeCluster) loadAndWatchK8sNodes() {
 }
 
 //InstallNode 安装节点
-func (n *NodeCluster) InstallNode() {
+func (n *Cluster) InstallNode() {
 
 }
 
 //CheckNodeInstall 简称节点是否安装 rainbond node
 //如果未安装，尝试安装
-func (n *NodeCluster) CheckNodeInstall(node *model.HostNode) {
+func (n *Cluster) CheckNodeInstall(node *model.HostNode) {
 	n.checkInstall <- node
 }
-func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
+func (n *Cluster) checkNodeInstall(node *model.HostNode) {
 	initCondition := model.NodeCondition{
 		Type: model.NodeInit,
 	}
@@ -474,7 +452,7 @@ func (n *NodeCluster) checkNodeInstall(node *model.HostNode) {
 }
 
 //GetAllNode 获取全部节点
-func (n *NodeCluster) GetAllNode() (nodes []*model.HostNode) {
+func (n *Cluster) GetAllNode() (nodes []*model.HostNode) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	for _, v := range n.nodes {
@@ -485,24 +463,32 @@ func (n *NodeCluster) GetAllNode() (nodes []*model.HostNode) {
 }
 
 //CacheNode 添加节点到缓存
-func (n *NodeCluster) CacheNode(node *model.HostNode) {
+func (n *Cluster) CacheNode(node *model.HostNode) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
+	if status, ok := n.nodeonline[node.ID]; ok {
+		if status == "online" {
+			node.Alived = true
+		} else {
+			node.Alived = false
+		}
+		delete(n.nodeonline, node.ID)
+	}
 	logrus.Debugf("add or update a rainbon node id:%s hostname:%s ip:%s", node.ID, node.HostName, node.InternalIP)
 	n.nodes[node.ID] = node
 }
 
 //RemoveNode 从缓存移除节点
-func (n *NodeCluster) RemoveNode(node *model.HostNode) {
+func (n *Cluster) RemoveNode(nodeID string) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
-	if _, ok := n.nodes[node.ID]; ok {
-		delete(n.nodes, node.ID)
+	if _, ok := n.nodes[nodeID]; ok {
+		delete(n.nodes, nodeID)
 	}
 }
 
 //UpdateNodeCondition 更新节点状态
-func (n *NodeCluster) UpdateNodeCondition(nodeID, ctype, cvalue string) {
+func (n *Cluster) UpdateNodeCondition(nodeID, ctype, cvalue string) {
 	node := n.GetNode(nodeID)
 	if node == nil {
 		return
@@ -519,7 +505,7 @@ func (n *NodeCluster) UpdateNodeCondition(nodeID, ctype, cvalue string) {
 }
 
 //GetLabelsNode 返回匹配labels的节点ID
-func (n *NodeCluster) GetLabelsNode(labels map[string]string) []string {
+func (n *Cluster) GetLabelsNode(labels map[string]string) []string {
 	var nodes []string
 	for _, node := range n.nodes {
 		if checkLables(node, labels) {
