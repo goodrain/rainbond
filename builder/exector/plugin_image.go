@@ -70,7 +70,7 @@ func (e *exectorManager) pluginImageBuild(in []byte) {
 
 func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) error {
 
-	if _, err := sources.ImagePull(e.DockerClient, t.ImageURL, types.ImagePullOptions{}, logger, 5); err != nil {
+	if _, err := sources.ImagePull(e.DockerClient, t.ImageURL, types.ImagePullOptions{}, logger, 10); err != nil {
 		logrus.Errorf("pull image %v error, %v", t.ImageURL, err)
 		logger.Error("拉取镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
@@ -85,7 +85,7 @@ func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) 
 		return err
 	}
 	logger.Info("修改镜像Tag完成", map[string]string{"step": "build-exector", "status": "complete"})
-	if err := sources.ImagePush(e.DockerClient, newTag, "", "", logger, 5); err != nil {
+	if err := sources.ImagePush(e.DockerClient, newTag, "", "", logger, 10); err != nil {
 		logrus.Errorf("push image %s error, %v", newTag, err)
 		logger.Error("推送镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err

@@ -153,11 +153,9 @@ func (n *node) Get(node string) (*model.HostNode, *util.APIHandleError) {
 	var res utilhttp.ResponseBody
 	var gc model.HostNode
 	res.Bean = &gc
-	logrus.Infof("res is %v", res)
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
 	}
-	logrus.Infof("res is %v", res)
 	if gc, ok := res.Bean.(*model.HostNode); ok {
 		return gc, nil
 	}
@@ -210,7 +208,7 @@ func (n *node) Add(node *model.APIHostNode) *util.APIHandleError {
 		return util.CreateAPIHandleError(400, err)
 	}
 	resp, code, err := n.client.Request(n.prefix, "POST", body)
-	return n.client.handleErrAndCodeWithMsg(resp,err, code)
+	return n.client.handleErrAndCodeWithMsg(resp, err, code)
 }
 func (n *node) Label(nid string, label map[string]string) *util.APIHandleError {
 	body, err := json.Marshal(label)
@@ -218,28 +216,28 @@ func (n *node) Label(nid string, label map[string]string) *util.APIHandleError {
 		return util.CreateAPIHandleError(400, err)
 	}
 	resp, code, err := n.client.Request(n.prefix+"/"+nid+"/labels", "PUT", body)
-	return n.client.handleErrAndCodeWithMsg(resp,err, code)
+	return n.client.handleErrAndCodeWithMsg(resp, err, code)
 }
 
 func (n *node) Delete(nid string) *util.APIHandleError {
 	resp, code, err := n.client.Request(n.prefix+"/"+nid, "DELETE", nil)
-	return n.client.handleErrAndCodeWithMsg(resp,err, code)
+	return n.client.handleErrAndCodeWithMsg(resp, err, code)
 }
 func (n *node) Up(nid string) *util.APIHandleError {
 	resp, code, err := n.client.Request(n.prefix+"/"+nid+"/up", "POST", nil)
-	return n.client.handleErrAndCodeWithMsg(resp,err, code)
+	return n.client.handleErrAndCodeWithMsg(resp, err, code)
 }
 func (n *node) Down(nid string) *util.APIHandleError {
 	resp, code, err := n.client.Request(n.prefix+"/"+nid+"/down", "POST", nil)
-	return n.client.handleErrAndCodeWithMsg(resp,err, code)
+	return n.client.handleErrAndCodeWithMsg(resp, err, code)
 }
 func (n *node) UnSchedulable(nid string) *util.APIHandleError {
 	resp, code, err := n.client.Request(n.prefix+"/"+nid+"/unschedulable", "PUT", nil)
-	return n.client.handleErrAndCodeWithMsg(resp,err, code)
+	return n.client.handleErrAndCodeWithMsg(resp, err, code)
 }
 func (n *node) ReSchedulable(nid string) *util.APIHandleError {
 	resp, code, err := n.client.Request(n.prefix+"/"+nid+"/reschedulable", "PUT", nil)
-	return n.client.handleErrAndCodeWithMsg(resp,err, code)
+	return n.client.handleErrAndCodeWithMsg(resp, err, code)
 }
 
 func (t *task) Get(id string) (*model.Task, *util.APIHandleError) {
@@ -300,27 +298,27 @@ func (t *task) Exec(taskID string, nodes []string) *util.APIHandleError {
 	}
 	url := t.prefix + "/" + taskID + "/exec"
 	resp, code, err := nodeclient.Request(url, "POST", body)
-	return t.client.handleErrAndCodeWithMsg(resp,err, code)
+	return t.client.handleErrAndCodeWithMsg(resp, err, code)
 }
 func (t *task) Add(task *model.Task) *util.APIHandleError {
 
 	body, _ := json.Marshal(task)
 	url := t.prefix
 	resp, code, err := nodeclient.Request(url, "POST", body)
-	return t.client.handleErrAndCodeWithMsg(resp,err, code)
+	return t.client.handleErrAndCodeWithMsg(resp, err, code)
 }
 func (t *task) AddGroup(group *model.TaskGroup) *util.APIHandleError {
 	body, _ := json.Marshal(group)
 	url := "/taskgroups"
 	resp, code, err := nodeclient.Request(url, "POST", body)
-	return t.client.handleErrAndCodeWithMsg(resp,err, code)
+	return t.client.handleErrAndCodeWithMsg(resp, err, code)
 }
 
 //Refresh 刷新静态配置
 func (t *task) Refresh() *util.APIHandleError {
 	url := t.prefix + "/taskreload"
 	resp, code, err := nodeclient.Request(url, "PUT", nil)
-	return t.client.handleErrAndCodeWithMsg(resp,err, code)
+	return t.client.handleErrAndCodeWithMsg(resp, err, code)
 }
 
 type TaskStatus struct {
@@ -417,12 +415,12 @@ func (r *RNodeClient) handleErrAndCode(err error, code int) *util.APIHandleError
 	}
 	return nil
 }
-func (r *RNodeClient) handleErrAndCodeWithMsg(resp []byte,err error, code int) *util.APIHandleError {
+func (r *RNodeClient) handleErrAndCodeWithMsg(resp []byte, err error, code int) *util.APIHandleError {
 	if err != nil {
 		return util.CreateAPIHandleError(code, err)
 	}
 	if code != 200 {
-		return util.CreateAPIHandleError(code, fmt.Errorf("error with code %d , %s" , code,string(resp)))
+		return util.CreateAPIHandleError(code, fmt.Errorf("error with code %d , %s", code, string(resp)))
 	}
 	return nil
 }

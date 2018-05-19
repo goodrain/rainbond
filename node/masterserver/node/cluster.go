@@ -277,6 +277,7 @@ func (n *Cluster) loadAndWatchK8sNodes() {
 		for _, node := range list.Items {
 			if cn, ok := n.nodes[node.Name]; ok {
 				cn.NodeStatus = &node.Status
+				cn.NodeStatus.Images = nil
 				cn.UpdataK8sCondition(node.Status.Conditions)
 				n.UpdateNode(cn)
 			} else {
