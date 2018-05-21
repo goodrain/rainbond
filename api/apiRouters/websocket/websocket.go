@@ -41,3 +41,10 @@ func LogRoutes() chi.Router {
 	r.Get("/{gid}/{filename}", controller.GetLogFile().Get)
 	return r
 }
+
+//LogRoutes 应用导出包下载路由
+func AppRoutes() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/download/{format}/{fileName}", controller.GetManager().Download)
+	return r
+}

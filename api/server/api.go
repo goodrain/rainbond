@@ -152,6 +152,7 @@ func (m *Manager) Run() {
 		websocketRouter := chi.NewRouter()
 		websocketRouter.Mount("/", websocket.Routes())
 		websocketRouter.Mount("/logs", websocket.LogRoutes())
+		websocketRouter.Mount("/app", websocket.AppRoutes())
 		if m.conf.WebsocketSSL {
 			logrus.Infof("websocket listen on (HTTPs) 0.0.0.0%v", m.conf.WebsocketAddr)
 			logrus.Fatal(http.ListenAndServeTLS(m.conf.WebsocketAddr, m.conf.WebsocketCertFile, m.conf.WebsocketKeyFile, websocketRouter))
