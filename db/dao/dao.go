@@ -49,7 +49,7 @@ type TenantDao interface {
 //TenantDao tenant dao
 type AppDao interface {
 	Dao
-	GetByEventId(eventId string) (interface{}, error)
+	GetByEventId(eventId string) (*model.AppStatus, error)
 	DeleteModelByEventId(eventId string) error
 }
 

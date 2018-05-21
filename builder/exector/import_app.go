@@ -26,7 +26,6 @@ import (
 	"github.com/docker/engine-api/client"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
-	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/tidwall/gjson"
 	"io/ioutil"
@@ -323,11 +322,10 @@ func (i *ImportApp) updateStatus(status string) error {
 	}
 
 	// 在数据库中更新该应用的状态信息
-	app := res.(*dbmodel.AppStatus)
-	app.Status = status
-	app.Metadata = string(data)
+	res.Status = status
+	res.Metadata = string(data)
 
-	if err := db.GetManager().AppDao().UpdateModel(app); err != nil {
+	if err := db.GetManager().AppDao().UpdateModel(res); err != nil {
 		err = errors.New(fmt.Sprintf("Failed to update app %s: %v", i.EventID, err))
 		logrus.Error(err)
 		return err

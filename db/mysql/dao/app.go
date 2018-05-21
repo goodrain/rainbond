@@ -46,7 +46,7 @@ func (a *AppDaoImpl) DeleteModelByEventId(eventId string) error {
 	return a.DB.Where("event_id = ?", eventId).Delete(&app).Error
 }
 
-func (a *AppDaoImpl) GetByEventId(eventId string) (interface{}, error) {
+func (a *AppDaoImpl) GetByEventId(eventId string) (*model.AppStatus, error) {
 	var app model.AppStatus
 	err := a.DB.Where("event_id = ?", eventId).First(&app).Error
 
