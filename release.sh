@@ -8,27 +8,15 @@ DOCKER_PATH=./hack/contrib/docker/$1
 BASE_NAME=rainbond
 releasedir=./.release
 distdir=${releasedir}/dist
-gaopsdir=/hack/contrib/docker/node/gaops
 
 
-gitDescribe=$(git describe --tag|sed 's/^v//')
-describe_items=($(echo $gitDescribe | tr '-' ' '))
-branch_info=($(git branch | grep '^*' | cut -d ' ' -f 2))
-describe_len=${#describe_items[@]}
-VERSION=$(git branch | grep '^*' | cut -d ' ' -f 2 | tr '-' " " | awk '{print $2}')
+VERSION=$(git branch | grep '^*' | cut -d ' ' -f 2 | awk -F'V' '{print $2}')
+buildTime=$(date +%F-%H)
 git_commit=$(git log -n 1 --pretty --format=%h)
-
-if [ $describe_len -ge 3 ];then
-    #buildRelease=${describe_items[-2]}.${describe_items[-1]}
-	buildRelease=${describe_items[*]: -2:1}.${describe_items[*]: -1}
-else
-    buildRelease=0.$git_commit
-fi
 if [ -z "$VERSION" ];then
     VERSION=cloud
 fi
-
-release_desc=${branch_info}-${VERSION}-${buildRelease}
+release_desc=${VERSION}-${git_commit}-${buildTime}
 
 function prepare() {
 	rm -rf $releasedir
@@ -36,17 +24,12 @@ function prepare() {
     path=$PWD
     #git clone $gaops  $releasedir/tmp
     [ ! -d "$distdir/usr/local/" ] && mkdir -p $distdir/usr/local/bin
-    [ ! -d "$distdir/usr/share/gr-rainbond-node/gaops/" ] && mkdir -pv $distdir/usr/share/gr-rainbond-node/gaops
-    cd $releasedir/tmp
-    cp -a $path$gaopsdir/* ./
-    tar zcf  ../dist/usr/share/gr-rainbond-node/gaops/gaops.tgz ./ 
-    cd $path
-    rm -rf $releasedir/tmp
+
 }
 
 function build() {
-	echo "---> Build Binary For ACP"
-	echo "acp plugins version:$release_desc"
+	echo "---> Build Binary For RBD"
+	echo "rbd plugins version:$release_desc"
 	# sed -i "s/0.0.0/$release_desc/g" ./cmd/version.go
 	echo "build rainbond-node"
     docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/${BASE_NAME}-node ./cmd/node
@@ -66,7 +49,7 @@ function build::deb() {
 }
 
 function build::image() {
-	echo "---> Build Image:$1 FOR ACP"
+	echo "---> Build Image:$1 FOR RBD"
 	
 	if [ "$1" = "eventlog" ];then
 		docker build -t goodraim.me/event-build:v1 ${DOCKER_PATH}/build
@@ -87,22 +70,6 @@ case $1 in
 	build)
 		prepare
 		build
-	;;
-	rpm)
-		prepare
-		build
-		build::rpm
-	;;
-	deb)
-		prepare
-		build
-		build::deb
-	;;
-	dev_deb)
-		build::deb
-	;;
-	dev_rpm)
-		build::rpm
 	;;
 	pkg)
 		prepare
