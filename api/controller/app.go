@@ -5,16 +5,13 @@ import (
 	"net/http"
 
 	"io"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
-	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -35,7 +32,7 @@ func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// 要先更新数据库再通知builder组件
-		app := model.NewAppStatusFrom(&tr)
+		app := model.NewAppStatusFromExport(&tr)
 		db.GetManager().AppDao().DeleteModelByEventId(app.EventID)
 		if err := db.GetManager().AppDao().AddModel(app); err != nil {
 			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to export app %s: %v", app.EventID, err))
@@ -110,40 +107,27 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		var app = dbmodel.AppStatus{
+		var importApp = model.ImportAppStruct{
 			Format: "rainbond-app",
-			Status: "importing",
 		}
 
-		ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &app, nil)
+		ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &importApp, nil)
 		if !ok {
 			return
 		}
 
 		// 获取tar包所在目录
-		sourceDir := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), app.EventID)
-		files, err := ioutil.ReadDir(sourceDir)
-		if err != nil {
-			httputil.ReturnError(r, w, 500, err.Error())
-			return
-		}
-
-		// 获取tar包的不含后缀的文件名
-		name := files[0].Name()
-		ex := filepath.Ext(files[0].Name())
-		name = files[0].Name()[:len(name)-len(ex)]
-
-		// tar包解压后的目录
-		app.SourceDir = fmt.Sprintf("%s/%s", sourceDir, name)
+		importApp.SourceDir = fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), importApp.EventID)
 
 		// 要先更新数据库再通知builder组件
+		app := model.NewAppStatusFromImport(&importApp)
 		db.GetManager().AppDao().DeleteModelByEventId(app.EventID)
-		if err := db.GetManager().AppDao().AddModel(&app); err != nil {
-			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to import app %s: %v", name, err))
+		if err := db.GetManager().AppDao().AddModel(app); err != nil {
+			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to import app %s: %v", app.SourceDir, err))
 			return
 		}
 
-		err = handler.GetAppHandler().ImportApp(&app)
+		err := handler.GetAppHandler().ImportApp(&importApp)
 		if err != nil {
 			httputil.ReturnError(r, w, 501, fmt.Sprintf("Failed to import app: %v", err))
 			return

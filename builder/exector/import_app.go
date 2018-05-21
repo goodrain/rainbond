@@ -19,20 +19,22 @@
 package exector
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Sirupsen/logrus"
+	"github.com/bitly/go-simplejson"
+	"github.com/docker/engine-api/client"
+	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/db"
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/event"
+	"github.com/tidwall/gjson"
 	"io/ioutil"
 	"os/exec"
-	"strings"
 	"path/filepath"
-	"github.com/goodrain/rainbond/builder/sources"
-	"github.com/tidwall/gjson"
-	"github.com/goodrain/rainbond/event"
-	"github.com/docker/engine-api/client"
+	"strings"
 	"time"
-	"github.com/goodrain/rainbond/db"
-	"errors"
-	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/api/model"
 )
 
 func init() {
@@ -44,6 +46,8 @@ type ImportApp struct {
 	EventID      string `json:"event_id"`
 	Format       string `json:"format"`
 	SourceDir    string `json:"source_dir"`
+	ServiceImage model.ServiceImage
+	ServiceSlug  model.ServiceSlug
 	Logger       event.Logger
 	DockerClient *client.Client
 }
@@ -57,10 +61,15 @@ func NewImportApp(in []byte) TaskWorker {
 	}
 
 	eventID := gjson.GetBytes(in, "event_id").String()
+	serviceImage := gjson.GetBytes(in, "service_image").Value().(model.ServiceImage)
+	serviceSlug := gjson.GetBytes(in, "service_image").Value().(model.ServiceSlug)
 	logger := event.GetManager().GetLogger(eventID)
+
 	return &ImportApp{
 		Format:       gjson.GetBytes(in, "format").String(),
 		SourceDir:    gjson.GetBytes(in, "source_dir").String(),
+		ServiceImage: serviceImage,
+		ServiceSlug:  serviceSlug,
 		Logger:       logger,
 		EventID:      eventID,
 		DockerClient: dockerClient,
@@ -103,12 +112,42 @@ func (i *ImportApp) importApp() error {
 		return err
 	}
 
-	// 上传镜像和源码包到仓库中
-	if err := i.loadApps(); err != nil {
+	// 如果目录下有多个子目录，则认为每个子目录是一个应用组，循环导入之
+	dirs, err := ioutil.ReadDir(i.SourceDir)
+	if err != nil {
+		logrus.Error("Failed to read dir for import app: ", i.SourceDir)
 		return err
 	}
 
-	// 更橷应用状态
+	oldSourceDir := i.SourceDir
+	var errMsg string
+	for _, dir := range dirs {
+		if dir.IsDir() {
+			continue
+		}
+
+		i.SourceDir = filepath.Join(i.SourceDir, dir.Name())
+
+		// 修改json元数据中的镜像和源码包仓库地址为指定地址
+		if err := i.replaceRepo(); err != nil {
+			logrus.Errorf("Failed to change repo address in metadata json for %s: %s", i.SourceDir, err)
+			errMsg = fmt.Sprintf("%s; %s", errMsg, err.Error())
+			continue
+		}
+
+		// 上传镜像和源码包到仓库中
+		if err := i.loadApps(); err != nil {
+			logrus.Errorf("Failed to load apps for %s: %s", i.SourceDir, err)
+			errMsg = fmt.Sprintf("%s; %s", errMsg, err.Error())
+			continue
+		}
+	}
+	i.SourceDir = oldSourceDir
+	if errMsg != "" {
+		return errors.New(errMsg)
+	}
+
+	// 更新应用状态
 	if err := i.updateStatus("success"); err != nil {
 		return err
 	}
@@ -116,8 +155,9 @@ func (i *ImportApp) importApp() error {
 	return nil
 }
 
+// i.SourceDir = "/grdata/app/import/n7brv4/web-app"
 func (i *ImportApp) unzip() error {
-	cmd := fmt.Sprintf("cd %s && rm -rf %s && tar -xf %s.tar", filepath.Dir(i.SourceDir), i.SourceDir, i.SourceDir)
+	cmd := fmt.Sprintf("cd %s && tar -xf *.tar", i.SourceDir)
 	err := exec.Command("sh", "-c", cmd).Run()
 	if err != nil {
 		logrus.Error("Failed to unzip for import app: ", i.SourceDir, ".tar")
@@ -126,6 +166,45 @@ func (i *ImportApp) unzip() error {
 
 	logrus.Debug("Failed to unzip for import app: ", i.SourceDir, ".tar")
 	return err
+}
+
+// 替换元数据中的镜像和源码包的仓库地址
+func (i *ImportApp) replaceRepo() error {
+	metaFile := fmt.Sprintf("%s/metadata.json", i.SourceDir)
+	logrus.Debug("Change image and slug repo address in: ", metaFile)
+
+	data, err := ioutil.ReadFile(metaFile)
+	logrus.Debug("old json: ", string(data))
+	meta, err := simplejson.NewJson(data)
+	if err != nil {
+		return err
+	}
+
+	apps, err := meta.Get("apps").Array()
+	if err != nil {
+		return err
+	}
+
+	for index := range apps {
+		app := meta.Get("apps").GetIndex(index)
+		if _, ok := app.CheckGet("service_image"); ok {
+			app.Set("service_image", i.ServiceImage)
+		}
+
+		if _, ok := app.CheckGet("service_slug"); ok {
+			app.Set("service_slug", i.ServiceSlug)
+		}
+		apps[index] = app
+	}
+
+	meta.Set("apps", apps)
+	data, err = meta.Bytes()
+	if err != nil {
+		return err
+	}
+	logrus.Debug("new json: ", string(data))
+
+	return ioutil.WriteFile(metaFile, data, 0644)
 }
 
 //parseApps get apps array from metadata.json
@@ -244,7 +323,7 @@ func (i *ImportApp) updateStatus(status string) error {
 	}
 
 	// 在数据库中更新该应用的状态信息
-	app := res.(*model.AppStatus)
+	app := res.(*dbmodel.AppStatus)
 	app.Status = status
 	app.Metadata = string(data)
 
