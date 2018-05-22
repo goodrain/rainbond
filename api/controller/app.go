@@ -97,7 +97,7 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 
 		httputil.ReturnSuccess(r, w, "successful")
 	case "GET":
-		dirs, err := ioutil.ReadDir(handler.GetAppHandler().GetStaticDir())
+		dirs, err := ioutil.ReadDir(fmt.Sprintf("%s/import", handler.GetAppHandler().GetStaticDir()))
 		if err != nil {
 			httputil.ReturnError(r, w, 502, "Failed to list import id in directory.")
 			return
