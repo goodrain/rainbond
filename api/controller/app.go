@@ -95,7 +95,7 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		httputil.ReturnSuccess(r, w, "successful")
+		httputil.ReturnSuccess(r, w, map[string]string{"path": dirName})
 	case "GET":
 		apps, err := ioutil.ReadDir(dirName)
 		if err != nil {
@@ -111,7 +111,7 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 			appArr = append(appArr, dir.Name())
  		}
 
-		httputil.ReturnSuccess(r, w, appArr)
+		httputil.ReturnSuccess(r, w, map[string][]string{"apps": appArr})
 	case "DELETE":
 		err := os.RemoveAll(dirName)
 		if err != nil {
