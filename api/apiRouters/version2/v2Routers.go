@@ -221,6 +221,10 @@ func (v2 *V2) appRouter() chi.Router {
 	r.Get("/download/{format}/{fileName}", controller.GetManager().Download)
 	r.Post("/upload", controller.GetManager().Upload)
 
+	r.Post("/import/ids/{eventId}", controller.GetManager().ImportID)
+	r.Get("/import/ids", controller.GetManager().ImportID)
+	r.Delete("/import/ids/{eventId}", controller.GetManager().ImportID)
+
 	r.Post("/import", controller.GetManager().ImportApp)
 	r.Get("/import/{eventId}", controller.GetManager().ExportApp)
 

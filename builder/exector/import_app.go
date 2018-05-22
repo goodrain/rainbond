@@ -198,7 +198,6 @@ func (i *ImportApp) replaceRepo() error {
 	logrus.Debug("Change image and slug repo address in: ", metaFile)
 
 	data, err := ioutil.ReadFile(metaFile)
-	logrus.Debug("old json: ", string(data))
 	meta, err := simplejson.NewJson(data)
 	if err != nil {
 		return err
@@ -226,7 +225,6 @@ func (i *ImportApp) replaceRepo() error {
 	if err != nil {
 		return err
 	}
-	logrus.Debug("new json: ", string(data))
 
 	return ioutil.WriteFile(metaFile, data, 0644)
 }

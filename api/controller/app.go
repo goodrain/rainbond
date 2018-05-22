@@ -13,6 +13,7 @@ import (
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"io/ioutil"
 )
 
 type AppStruct struct{}
@@ -78,8 +79,64 @@ func (a *AppStruct) Download(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, tarFile)
 }
 
+func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		eventId := strings.TrimSpace(chi.URLParam(r, "eventId"))
+		if eventId == "" {
+			httputil.ReturnError(r, w, 501, "Failed to parse eventId.")
+			return
+		}
+
+		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
+		err := os.MkdirAll(dirName, 0755)
+		if err != nil {
+			httputil.ReturnError(r, w, 502, "Failed to create directory by event id: " + err.Error())
+			return
+		}
+
+		httputil.ReturnSuccess(r, w, "successful")
+	case "GET":
+		dirs, err := ioutil.ReadDir(handler.GetAppHandler().GetStaticDir())
+		if err != nil {
+			httputil.ReturnError(r, w, 502, "Failed to list import id in directory.")
+			return
+		}
+
+		dirArr := make([]string, 0, 10)
+		for _, dir := range dirs {
+			if !dir.IsDir() {
+				continue
+			}
+			dirArr = append(dirArr, dir.Name())
+ 		}
+
+		httputil.ReturnSuccess(r, w, dirArr)
+	case "DELETE":
+		eventId := strings.TrimSpace(chi.URLParam(r, "eventId"))
+		if eventId == "" {
+			httputil.ReturnError(r, w, 501, "Failed to parse eventId.")
+			return
+		}
+
+		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
+		err := os.RemoveAll(dirName)
+		if err != nil {
+			httputil.ReturnError(r, w, 502, "Failed to delete directory by id: " + eventId)
+			return
+		}
+
+		httputil.ReturnSuccess(r, w, "successful")
+	}
+
+}
+
 func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 	eventId := r.FormValue("eventId")
+	if eventId == "" {
+		httputil.ReturnError(r, w, 500, "Failed to parse eventId.")
+		return
+	}
 
 	reader, header, err := r.FormFile("appTarFile")
 	if err != nil {
@@ -101,7 +158,7 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 	if _, err := io.Copy(file, reader); err != nil {
 		httputil.ReturnError(r, w, 503, "Failed to write file: "+err.Error())
 	}
-	httputil.ReturnSuccess(r, w, "Successful upload file.")
+	httputil.ReturnSuccess(r, w, "successful")
 }
 
 func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
