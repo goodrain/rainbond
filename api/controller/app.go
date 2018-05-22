@@ -80,15 +80,15 @@ func (a *AppStruct) Download(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
+	eventId := strings.TrimSpace(chi.URLParam(r, "eventId"))
+	if eventId == "" {
+		httputil.ReturnError(r, w, 501, "Failed to parse eventId.")
+		return
+	}
+	dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
+
 	switch r.Method {
 	case "POST":
-		eventId := strings.TrimSpace(chi.URLParam(r, "eventId"))
-		if eventId == "" {
-			httputil.ReturnError(r, w, 501, "Failed to parse eventId.")
-			return
-		}
-
-		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
 		err := os.MkdirAll(dirName, 0755)
 		if err != nil {
 			httputil.ReturnError(r, w, 502, "Failed to create directory by event id: " + err.Error())
@@ -97,29 +97,22 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 
 		httputil.ReturnSuccess(r, w, "successful")
 	case "GET":
-		dirs, err := ioutil.ReadDir(fmt.Sprintf("%s/import", handler.GetAppHandler().GetStaticDir()))
+		apps, err := ioutil.ReadDir(dirName)
 		if err != nil {
 			httputil.ReturnError(r, w, 502, "Failed to list import id in directory.")
 			return
 		}
 
-		dirArr := make([]string, 0, 10)
-		for _, dir := range dirs {
-			if !dir.IsDir() {
+		appArr := make([]string, 0, 10)
+		for _, dir := range apps {
+			if dir.IsDir() {
 				continue
 			}
-			dirArr = append(dirArr, dir.Name())
+			appArr = append(appArr, dir.Name())
  		}
 
-		httputil.ReturnSuccess(r, w, dirArr)
+		httputil.ReturnSuccess(r, w, appArr)
 	case "DELETE":
-		eventId := strings.TrimSpace(chi.URLParam(r, "eventId"))
-		if eventId == "" {
-			httputil.ReturnError(r, w, 501, "Failed to parse eventId.")
-			return
-		}
-
-		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
 		err := os.RemoveAll(dirName)
 		if err != nil {
 			httputil.ReturnError(r, w, 502, "Failed to delete directory by id: " + eventId)
