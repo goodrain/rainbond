@@ -67,6 +67,7 @@ func CreateCluster(k8sClient *kubernetes.Clientset, node *model.HostNode, datace
 		ctx:              ctx,
 		cancel:           cancel,
 		nodes:            make(map[string]*model.HostNode, 5),
+		nodeonline:       make(map[string]string, 10),
 		client:           store.DefalutClient,
 		k8sClient:        k8sClient,
 		currentNode:      node,
