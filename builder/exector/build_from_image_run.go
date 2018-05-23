@@ -158,6 +158,7 @@ func (i *ImageBuildItem) StorageVersionInfo(imageURL string) error {
 	}
 	version.DeliveredType = "image"
 	version.DeliveredPath = imageURL
+	version.ImageName = imageURL
 	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
 		return err
 	}

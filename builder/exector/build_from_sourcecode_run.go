@@ -384,6 +384,9 @@ func (i *SourceCodeBuildItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
 	}
 	if vi.DeliveredPath != "" {
 		version.DeliveredPath = vi.DeliveredPath
+		if vi.DeliveredType == "image" {
+			version.ImageName = vi.DeliveredPath
+		}
 	}
 	if vi.FinalStatus != "" {
 		version.FinalStatus = vi.FinalStatus

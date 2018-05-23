@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/util"
 
 	"github.com/Sirupsen/logrus"
@@ -179,6 +180,9 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 		b.BackupSize += util.GetFileSize(fmt.Sprintf("/grdata/tmp/%s_%s.zip", b.GroupID, b.Version))
 		os.Remove(fmt.Sprintf("/grdata/tmp/%s_%s.zip", b.GroupID, b.Version))
 	}
+	if err := b.updateBackupStatu("success"); err != nil {
+		return err
+	}
 	return nil
 }
 func (b *BackupAPPNew) uploadSlug(app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
@@ -214,11 +218,11 @@ func (b *BackupAPPNew) uploadImage(app *RegionServiceSnapshot, version *dbmodel.
 		if err != nil {
 			return fmt.Errorf("create backup image error %s", err)
 		}
-		info, err := sources.ImagePull(b.DockerClient, version.ImageName, types.ImagePullOptions{}, b.Logger, 10)
+		info, err := sources.ImagePull(b.DockerClient, version.DeliveredPath, types.ImagePullOptions{}, b.Logger, 10)
 		if err != nil {
 			return fmt.Errorf("pull image when backup error %s", err)
 		}
-		if err := sources.ImageTag(b.DockerClient, version.ImageName, backupImage, b.Logger, 1); err != nil {
+		if err := sources.ImageTag(b.DockerClient, version.DeliveredPath, backupImage, b.Logger, 1); err != nil {
 			return fmt.Errorf("change  image tag when backup error %s", err)
 		}
 		if b.ImageInfo.IsTrust {
@@ -235,7 +239,7 @@ func (b *BackupAPPNew) uploadImage(app *RegionServiceSnapshot, version *dbmodel.
 		b.BackupSize += info.Size
 	} else {
 		dstDir := fmt.Sprintf("%s/app_%s/image_%s.tar", b.SourceDir, app.ServiceID, version.BuildVersion)
-		if err := sources.ImageSave(b.DockerClient, version.ImageName, dstDir, b.Logger); err != nil {
+		if err := sources.ImageSave(b.DockerClient, version.DeliveredPath, dstDir, b.Logger); err != nil {
 			b.Logger.Error(util.Translation("save image to local dir error"), map[string]string{"step": "backup_builder", "status": "failure"})
 			logrus.Errorf("save image to local dir error when backup app, %s", err.Error())
 			return err
@@ -264,5 +268,17 @@ func (b *BackupAPPNew) ErrorCallBack(err error) {
 	if err != nil {
 		logrus.Errorf("backup group app failure %s", err)
 		b.Logger.Error(util.Translation("backup group app failure"), map[string]string{"step": "callback", "status": "failure"})
+		b.updateBackupStatu("failed")
 	}
+}
+
+func (b *BackupAPPNew) updateBackupStatu(status string) error {
+	backupstatus, err := db.GetManager().AppBackupDao().GetAppBackup(b.BackupID)
+	if err != nil {
+		logrus.Errorf("update backup group app history failure %s", err)
+		return err
+	}
+	backupstatus.Status = status
+	backupstatus.BuckupSize = int(b.BackupSize)
+	return db.GetManager().AppBackupDao().UpdateModel(backupstatus)
 }

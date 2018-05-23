@@ -72,6 +72,7 @@ func (a *AppBackupDaoImpl) AddModel(mo model.Interface) error {
 		if err := a.DB.Create(app).Error; err != nil {
 			return err
 		}
+		return nil
 	}
 	return fmt.Errorf("backup info exist with id %s", app.BackupID)
 }
@@ -91,7 +92,8 @@ func (a *AppBackupDaoImpl) UpdateModel(mo model.Interface) error {
 //CheckHistory CheckHistory
 func (a *AppBackupDaoImpl) CheckHistory(groupID, version string) bool {
 	var app model.AppBackup
-	return a.DB.Where("(group_id = ? and status =?) or version=? ", groupID, "starting", version).Find(&app).RecordNotFound()
+	exist := a.DB.Where("(group_id = ? and status =?) or version=? ", groupID, "starting", version).Find(&app).RecordNotFound()
+	return !exist
 }
 
 //GetAppBackups GetAppBackups

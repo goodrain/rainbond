@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/goodrain/rainbond/event"
 
@@ -115,6 +116,9 @@ func (h *BackupHandle) NewBackup(b Backup) (*dbmodel.AppBackup, *util.APIHandleE
 	//snapshot the app metadata of region and write
 	if err := h.snapshot(b.Body.ServiceIDs, sourceDir); err != nil {
 		os.RemoveAll(sourceDir)
+		if strings.HasPrefix(err.Error(), "Statefulset app must be closed") {
+			return nil, util.CreateAPIHandleError(401, fmt.Errorf("snapshot group apps error,%s", err))
+		}
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf("snapshot group apps error,%s", err))
 	}
 	logger.Info(core_util.Translation("write region level metadata success"), map[string]string{"step": "back-api"})
@@ -201,15 +205,15 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string) error {
 		status := h.statusCli.GetStatus(id)
 		serviceType, err := db.GetManager().TenantServiceLabelDao().GetTenantServiceTypeLabel(id)
 		if err != nil {
-			return fmt.Errorf("Get service deploy type error,%s", err)
+			return fmt.Errorf("Get service deploy type error,%s", err.Error())
 		}
 		if status != client.CLOSED && serviceType.LabelValue == core_util.StatefulServiceType {
-			return fmt.Errorf("Statefulset app must be closed before backup,%s", err)
+			return fmt.Errorf("Statefulset app must be closed before backup,%s", err.Error())
 		}
 		data.ServiceStatus = status
 		service, err := db.GetManager().TenantServiceDao().GetServiceByID(id)
 		if err != nil {
-			return fmt.Errorf("Get service(%s) error %s", id, err)
+			return fmt.Errorf("Get service(%s) error %s", id, err.Error())
 		}
 		data.Service = service
 		serviceProbes, err := db.GetManager().ServiceProbeDao().GetServiceProbes(id)
