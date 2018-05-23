@@ -31,11 +31,11 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/tidwall/gjson"
 	"io/ioutil"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 	"os"
+	"github.com/goodrain/rainbond/util"
 )
 
 func init() {
@@ -147,8 +147,7 @@ func (i *ImportApp) importApp() error {
 			os.RemoveAll(i.SourceDir)
 		}
 
-		cmd := fmt.Sprintf("tar -xf %s -C %s/", appFile, oldSourceDir)
-		err := exec.Command("sh", "-c", cmd).Run()
+		err := util.Unzip(appFile, oldSourceDir)
 		if err != nil {
 			logrus.Errorf("Failed to unzip tar %s: %v", appFile, err)
 			i.updateStatusForApp(app, "failed")
@@ -235,19 +234,6 @@ func (i *ImportApp) importApp() error {
 	}
 
 	return nil
-}
-
-// i.SourceDir = "/grdata/app/import/n7brv4/web-app"
-func (i *ImportApp) unzip() error {
-	cmd := fmt.Sprintf("cd %s && tar -xf *.tar", i.SourceDir)
-	err := exec.Command("sh", "-c", cmd).Run()
-	if err != nil {
-		logrus.Errorf("Failed to unzip tars in dir %s: %v", i.SourceDir, err)
-		return err
-	}
-
-	logrus.Debug("Successful unzip tars in dir: ", i.SourceDir)
-	return err
 }
 
 // 替换元数据中的镜像和源码包的仓库地址

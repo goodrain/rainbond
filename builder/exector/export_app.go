@@ -25,7 +25,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
 	"strconv"
 	"strings"
 
@@ -38,6 +37,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 	"gopkg.in/yaml.v2"
+	"github.com/goodrain/rainbond/util"
 )
 
 //ExportApp Export app to specified format(rainbond-app or dockercompose)
@@ -596,12 +596,7 @@ func (i *ExportApp) ErrorCallBack(err error) {
 }
 
 func (i *ExportApp) zip() error {
-	// /grdata/export-app/myapp-1.0 -> /grdata/export-app
-	dirName := path.Dir(i.SourceDir)
-	// /grdata/export-app/myapp-1.0 -> myapp-1.0
-	baseName := path.Base(i.SourceDir)
-	// 打包整个目录为tar包
-	err := exec.Command("sh", "-c", fmt.Sprintf("cd %s ; rm -rf %s.tar ; tar -cf %s.tar %s", dirName, baseName, baseName, baseName)).Run()
+	err := util.Zip(i.SourceDir, i.SourceDir + ".tar")
 	if err != nil {
 		i.Logger.Error("打包应用失败", map[string]string{"step": "export-app", "status": "failure"})
 		logrus.Errorf("Failed to create tar file for group %s: %v", i.SourceDir, err)
