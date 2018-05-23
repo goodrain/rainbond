@@ -9,10 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"fmt"
-	"io/ioutil"
-	"os"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/model"
