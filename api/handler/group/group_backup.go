@@ -100,7 +100,7 @@ func (h *BackupHandle) NewBackup(b Backup) (*dbmodel.AppBackup, *util.APIHandleE
 	}
 	//check last backup task whether complete or version whether exist
 	if db.GetManager().AppBackupDao().CheckHistory(b.Body.GroupID, b.Body.Version) {
-		return nil, util.CreateAPIHandleError(400, fmt.Errorf("last backup task do not complete"))
+		return nil, util.CreateAPIHandleError(400, fmt.Errorf("last backup task do not complete or have restore backup or version is exist"))
 	}
 	//check all service exist
 	if alias, err := db.GetManager().TenantServiceDao().GetServiceAliasByIDs(b.Body.ServiceIDs); len(alias) != len(b.Body.ServiceIDs) || err != nil {
@@ -277,4 +277,78 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string) error {
 		return util.CreateAPIHandleError(500, fmt.Errorf("write region_apps_metadata file error,%s", err))
 	}
 	return nil
+}
+
+//BackupRestoreResult BackupRestoreResult
+type BackupRestoreResult struct {
+	Metadata string             `json:"metadata"`
+	Backup   *dbmodel.AppBackup `json:"backup"`
+}
+
+//BackupRestore BackupRestore
+type BackupRestore struct {
+	BackupID string `json:"backup_id"`
+	Body     struct {
+		SlugInfo struct {
+			FTPNamespace string `json:"ftp_namespace"`
+			FTPHost      string `json:"ftp_host"`
+			FTPPort      string `json:"ftp_port"`
+			FTPUser      string `json:"ftp_username"`
+			FTPPassword  string `json:"ftp_password"`
+		} `json:"slug_info,omitempty"`
+		ImageInfo struct {
+			HubURL      string `json:"hub_url"`
+			HubUser     string `json:"hub_user"`
+			HubPassword string `json:"hub_password"`
+			Namespace   string `json:"namespace"`
+			IsTrust     bool   `json:"is_trust,omitempty"`
+		} `json:"image_info,omitempty"`
+		EventID string `json:"event_id"`
+	}
+}
+
+//RestoreBackup restore a backup version
+//all app could be closed before restore
+func (h *BackupHandle) RestoreBackup(br BackupRestore) (*dbmodel.AppBackup, *util.APIHandleError) {
+	logger := event.GetManager().GetLogger(br.Body.EventID)
+	backup, Aerr := h.GetBackup(br.BackupID)
+	if Aerr != nil {
+		return nil, Aerr
+	}
+	var dataMap = map[string]interface{}{
+		"slug_info":   br.Body.SlugInfo,
+		"image_info":  br.Body.ImageInfo,
+		"backup_data": backup,
+	}
+	data, err := ffjson.Marshal(dataMap)
+	if err != nil {
+		return nil, util.CreateAPIHandleError(500, fmt.Errorf("build task body data error,%s", err))
+	}
+	//Initiate a data backup task.
+	task := &apidb.BuildTaskStruct{
+		TaskType: "backup_apps_restore",
+		TaskBody: data,
+	}
+	eq, err := apidb.BuildTaskBuild(task)
+	if err != nil {
+		logrus.Error("Failed to BuildTaskBuild for BackupApp:", err)
+		return nil, util.CreateAPIHandleError(500, fmt.Errorf("build task error,%s", err))
+	}
+	// 写入事件到MQ中
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err = h.MQClient.Enqueue(ctx, eq)
+	if err != nil {
+		logrus.Error("Failed to Enqueue MQ for BackupApp:", err)
+		return nil, util.CreateAPIHandleError(500, fmt.Errorf("build enqueue task error,%s", err))
+	}
+	logger.Info(core_util.Translation("Asynchronous tasks are sent successfully"), map[string]string{"step": "back-api"})
+	backup.Status = "restore"
+	db.GetManager().AppBackupDao().UpdateModel(backup)
+	return backup, nil
+}
+
+//RestoreBackupResult RestoreBackupResult
+func (h *BackupHandle) RestoreBackupResult(backupID string) (*BackupRestoreResult, *util.APIHandleError) {
+	return nil, nil
 }

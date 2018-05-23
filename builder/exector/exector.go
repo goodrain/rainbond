@@ -217,11 +217,17 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 				break
 			}
 		}
-		vi := &dbmodel.VersionInfo{
-			FinalStatus: status,
-		}
-		if err := i.UpdateVersionInfo(vi); err != nil {
-			logrus.Debugf("update version Info error: %s", err.Error())
+		if status == "failure" {
+			vi := &dbmodel.VersionInfo{
+				FinalStatus: status,
+				EventID:     i.EventID,
+				CodeVersion: i.commit.Hash.String(),
+				CommitMsg:   i.commit.Message,
+				Author:      i.commit.Author.Name,
+			}
+			if err := i.UpdateVersionInfo(vi); err != nil {
+				logrus.Debugf("update version Info error: %s", err.Error())
+			}
 		}
 	}()
 }

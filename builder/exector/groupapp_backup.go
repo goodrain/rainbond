@@ -62,6 +62,7 @@ type BackupAPPNew struct {
 		IsTrust     bool   `json:"is_trust,omitempty"`
 	} `json:"image_info,omitempty"`
 	SourceDir    string `json:"source_dir"`
+	SourceType   string `json:"source_type"`
 	BackupID     string `json:"backup_id"`
 	BackupSize   int64
 	Logger       event.Logger
@@ -164,6 +165,7 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 		return err
 	}
 	os.RemoveAll(b.SourceDir)
+	b.SourceDir = fmt.Sprintf("%s.zip", b.SourceDir)
 	//upload app backup data to online server(sftp) if mode is full-online
 	if b.Mode == "full-online" && b.SlugInfo.FTPHost != "" && b.SlugInfo.FTPPort != "" {
 		b.Logger.Info(fmt.Sprintf("开始上传备份元数据到云端"), map[string]string{"step": "backup_builder", "status": "starting"})
@@ -180,7 +182,9 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 			return err
 		}
 		//Statistical backup size
-		os.Remove(fmt.Sprintf("%s.zip", b.SourceDir))
+		os.Remove(b.SourceDir)
+		b.SourceDir = dstDir
+		b.SourceType = "sftp"
 	}
 	b.BackupSize += util.GetFileSize(fmt.Sprintf("%s.zip", b.SourceDir))
 	if err := b.updateBackupStatu("success"); err != nil {
@@ -284,6 +288,8 @@ func (b *BackupAPPNew) updateBackupStatu(status string) error {
 		return err
 	}
 	backupstatus.Status = status
+	backupstatus.SourceDir = b.SourceDir
+	backupstatus.SourceType = b.SourceType
 	backupstatus.BuckupSize = int(b.BackupSize)
 	return db.GetManager().AppBackupDao().UpdateModel(backupstatus)
 }

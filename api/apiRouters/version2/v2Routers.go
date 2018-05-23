@@ -90,7 +90,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	//app backup
 	r.Get("/groupapp/backups", controller.Backups)
 	r.Get("/groupapp/backups/{backup_id}", controller.GetBackup)
-	r.Get("/groupapp/restore", controller.Restore)
+	r.Post("/groupapp/backups/{backup_id}/restore", controller.Restore)
 	r.Post("/groupapp/backups", controller.NewBackups)
 
 	return r

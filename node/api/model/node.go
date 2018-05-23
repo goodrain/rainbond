@@ -172,31 +172,20 @@ func (h *HostNode) DeleteCondition(types ...NodeConditionType) {
 }
 
 //UpdataCondition 更新状态
-func (h *HostNode) UpdataCondition(conditions ...NodeCondition) {
-	var ready = ConditionTrue
+func (n *HostNode) UpdataCondition(conditions ...NodeCondition) {
 	for _, newcon := range conditions {
-		if newcon.Status != ConditionTrue {
-			ready = ConditionFalse
-		}
 		var update bool
-		if h.Conditions != nil {
-			for i, con := range h.Conditions {
+		if n.Conditions != nil {
+			for i, con := range n.Conditions {
 				if con.Type.Compare(newcon.Type) {
-					h.Conditions[i] = newcon
+					n.Conditions[i] = newcon
 					update = true
-				}
-				if con.Type.Compare(NodeReady) {
-					con.Status = ready
-					con.LastTransitionTime = time.Now()
-					con.LastHeartbeatTime = time.Now()
-					con.Reason = newcon.Reason
-					con.Message = newcon.Message
-					h.Conditions[i] = con
+					break
 				}
 			}
 		}
 		if !update {
-			h.Conditions = append(h.Conditions, newcon)
+			n.Conditions = append(n.Conditions, newcon)
 		}
 	}
 

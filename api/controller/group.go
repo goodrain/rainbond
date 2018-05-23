@@ -60,7 +60,18 @@ func NewBackups(w http.ResponseWriter, r *http.Request) {
 
 //Restore restore group app
 func Restore(w http.ResponseWriter, r *http.Request) {
-
+	var br group.BackupRestore
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &br.Body, nil)
+	if !ok {
+		return
+	}
+	br.BackupID = chi.URLParam(r, "backup_id")
+	bean, err := handler.GetAPPBackupHandler().RestoreBackup(br)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, bean)
 }
 
 //GetBackup get one backup status

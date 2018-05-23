@@ -92,7 +92,7 @@ func (a *AppBackupDaoImpl) UpdateModel(mo model.Interface) error {
 //CheckHistory CheckHistory
 func (a *AppBackupDaoImpl) CheckHistory(groupID, version string) bool {
 	var app model.AppBackup
-	exist := a.DB.Where("(group_id = ? and status =?) or version=? ", groupID, "starting", version).Find(&app).RecordNotFound()
+	exist := a.DB.Where("(group_id = ? and status in ?) or version=? ", groupID, []string{"starting", "restore"}, version).Find(&app).RecordNotFound()
 	return !exist
 }
 
