@@ -318,17 +318,6 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants  error, %v", err))
 		return
 	}
-
-	for _, v := range resource {
-		tenant, err := handler.GetTenantManager().GetTenantsByUUID(v.UUID)
-		if err != nil {
-			httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants  error, %v", err))
-			return
-		}
-		v.Name = tenant.Name
-		v.EID = tenant.EID
-	}
-
 	var ret api_model.PagedTenantResList
 	ret.List = resource
 	ret.Length = len(rep)

@@ -747,13 +747,13 @@ func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantR
 	var result []*api_model.TenantResource
 	for _, v := range services {
 		var res api_model.TenantResource
-		res.UUID = v["tenant"].(string)
-		res.Name = ""
-		res.EID = ""
-		res.AllocatedCPU = v["capcpu"].(int)
-		res.AllocatedMEM = v["capmem"].(int)
-		res.UsedCPU = v["usecpu"].(int)
-		res.UsedMEM = v["usemem"].(int)
+		res.UUID, _ = v["tenant"].(string)
+		res.Name, _ = v["tenant_name"].(string)
+		res.EID, _ = v["eid"].(string)
+		res.AllocatedCPU, _ = v["capcpu"].(int)
+		res.AllocatedMEM, _ = v["capmem"].(int)
+		res.UsedCPU, _ = v["usecpu"].(int)
+		res.UsedMEM, _ = v["usemem"].(int)
 		result = append(result, &res)
 	}
 	return result, nil

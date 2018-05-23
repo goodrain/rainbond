@@ -224,48 +224,61 @@ func (t *TenantServicesDaoImpl) GetServiceMemoryByServiceIDs(serviceIDs []string
 }
 
 //GetPagedTenantService GetPagedTenantResource
-func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, len int, serviceIDs []string) ([]map[string]interface{}, error) {
-	rows, err := t.DB.Raw("select tenant_id,sum(if (service_id in (?),container_cpu * replicas,0)) as use_cpu,sum(container_cpu*replicas) as cap_cpu,sum(if (service_id in (?),container_memory * replicas,0)) as use_memory,sum(container_memory*replicas) as cap_memory from tenant_services group by tenant_id order by use_memory desc limit ?,?", offset, len).Rows()
+func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, length int, serviceIDs []string) ([]map[string]interface{}, error) {
+
+	rows, err := t.DB.Raw("SELECT tenant_id, SUM(container_cpu * replicas) AS use_cpu, SUM(container_memory * replicas) AS use_memory FROM tenant_services where service_id in (?) GROUP BY tenant_id ORDER BY use_memory DESC LIMIT ?,?", serviceIDs, offset, length).Rows()
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var rc []map[string]interface{}
+	var rc = make(map[string]*map[string]interface{}, length-offset)
+	var result []map[string]interface{}
+	var tenantIDs []string
 	for rows.Next() {
 		var tenantID string
-		var capCPU int
 		var useCPU int
-		var capMem int
 		var useMem int
-		rows.Scan(&tenantID, &useCPU, &capCPU, &useMem, &capMem)
+		rows.Scan(&tenantID, &useCPU, &useMem)
 		res := make(map[string]interface{})
-		res["capcpu"] = capCPU
 		res["usecpu"] = useCPU
-		res["capmem"] = capMem
 		res["usemem"] = useMem
 		res["tenant"] = tenantID
-		rc = append(rc, res)
+		rc[tenantID] = &res
+		result = append(result, res)
+		tenantIDs = append(tenantIDs, tenantID)
 	}
-	return rc, nil
-}
-
-//GetTenantServiceRes GetTenantServiceRes
-func (t *TenantServicesDaoImpl) GetTenantServiceRes(uuid string) (map[string]interface{}, error) {
-	row := t.DB.Raw("select sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_cpu * replicas,0)) as use_cpu,sum(container_cpu*replicas) as cap_cpu,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_memory * replicas,0)) as use_memory,sum(container_memory*replicas) as cap_memory from tenant_services where tenant_id =? order by use_memory desc", uuid).Row()
-	var capCpu int
-	var useCpu int
-	var capMem int
-	var useMem int
-	row.Scan(&useCpu, &capCpu, &useMem, &capMem)
-	res := make(map[string]interface{})
-
-	res["capcpu"] = capCpu
-	res["usecpu"] = useCpu
-	res["capmem"] = capMem
-	res["usemem"] = useMem
-	res["tenant"] = uuid
-	logrus.Infof("get tenant %s service resource :%v", res)
-	return res, nil
+	newrows, err := t.DB.Raw("SELECT tenant_id, SUM(container_cpu * replicas) AS cap_cpu, SUM(container_memory * replicas) AS cap_memory FROM tenant_services where tenant_id in (?) GROUP BY tenant_id", tenantIDs).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer newrows.Close()
+	for newrows.Next() {
+		var tenantID string
+		var capCPU int
+		var capMem int
+		newrows.Scan(&tenantID, &capCPU, &capMem)
+		if _, ok := rc[tenantID]; ok {
+			s := (*rc[tenantID])
+			s["capcpu"] = capCPU
+			s["capmem"] = capMem
+			*rc[tenantID] = s
+		}
+	}
+	tenants, err := t.DB.Raw("SELECT uuid,name,eid from tenants where uuid in (?)", tenantIDs).Rows()
+	defer tenants.Close()
+	for tenants.Next() {
+		var tenantID string
+		var name string
+		var eid string
+		newrows.Scan(&tenantID, &name, &eid)
+		if _, ok := rc[tenantID]; ok {
+			s := (*rc[tenantID])
+			s["eid"] = eid
+			s["tenant_name"] = name
+			*rc[tenantID] = s
+		}
+	}
+	return result, nil
 }
 
 //GetServiceAliasByIDs 获取应用别名
