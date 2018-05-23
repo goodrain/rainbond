@@ -113,23 +113,13 @@ func createMD5(packageName string) (string, error) {
 
 //ShareToFTP ShareToFTP
 func (i *SlugShareItem) ShareToFTP() error {
-	file := i.LocalSlugPath
 	i.Logger.Info("开始上传应用介质到FTP服务器", map[string]string{"step": "slug-share"})
-	md5, err := createMD5(file)
-	if err != nil {
-		i.Logger.Error("生成md5失败", map[string]string{"step": "slug-share", "status": "failure"})
-		return err
-	}
 	sFTPClient, err := sources.NewSFTPClient(i.ShareInfo.SlugInfo.FTPUser, i.ShareInfo.SlugInfo.FTPPassword, i.ShareInfo.SlugInfo.FTPHost, i.ShareInfo.SlugInfo.FTPPort)
 	if err != nil {
 		i.Logger.Error("创建FTP客户端失败", map[string]string{"step": "slug-share", "status": "failure"})
 		return err
 	}
 	defer sFTPClient.Close()
-	if err := sFTPClient.PushFile(md5, i.SlugPath+".md5", i.Logger); err != nil {
-		i.Logger.Error("上传MD5文件失败", map[string]string{"step": "slug-share", "status": "failure"})
-		return err
-	}
 	if err := sFTPClient.PushFile(i.LocalSlugPath, i.SlugPath, i.Logger); err != nil {
 		i.Logger.Error("上传源码包文件失败", map[string]string{"step": "slug-share", "status": "failure"})
 		return err

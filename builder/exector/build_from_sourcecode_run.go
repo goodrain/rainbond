@@ -353,7 +353,6 @@ func (i *SourceCodeBuildItem) buildCode() error {
 		CommitMsg:     i.commit.Message,
 		Author:        i.commit.Author.Name,
 	}
-	logrus.Debugf("update app version commit info %s, author %s", i.commit.Message, i.commit.Author.Name)
 	if err := i.UpdateVersionInfo(vi); err != nil {
 		logrus.Errorf("update version info error: %s", err.Error())
 		i.Logger.Error("更新应用版本信息失败", map[string]string{"step": "build-code", "status": "failure"})
@@ -392,6 +391,7 @@ func (i *SourceCodeBuildItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
 	version.CommitMsg = vi.CommitMsg
 	version.Author = vi.Author
 	version.CodeVersion = vi.CodeVersion
+	logrus.Debugf("update app version %+v", *version)
 	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
 		return err
 	}

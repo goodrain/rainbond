@@ -78,12 +78,14 @@ type TaskWorker interface {
 	GetLogger() event.Logger
 	Name() string
 	Stop() error
+	//ErrorCallBack if run error will callback
+	ErrorCallBack(err error)
 }
 
-var workerCreaterList = make(map[string]func([]byte) TaskWorker)
+var workerCreaterList = make(map[string]func([]byte) (TaskWorker, error))
 
 //RegisterWorker register worker creater
-func RegisterWorker(name string, fun func([]byte) TaskWorker) {
+func RegisterWorker(name string, fun func([]byte) (TaskWorker, error)) {
 	workerCreaterList[name] = fun
 }
 
@@ -126,7 +128,11 @@ func (e *exectorManager) exec(workerName string, in []byte) error {
 	if !ok {
 		return fmt.Errorf("`%s` tasktype can't support", workerName)
 	}
-	worker := creater(in)
+	worker, err := creater(in)
+	if err != nil {
+		logrus.Errorf("create worker for builder error.%s", err)
+		return err
+	}
 	go func() {
 		defer event.GetManager().ReleaseLogger(worker.GetLogger())
 		defer func() {
@@ -136,7 +142,9 @@ func (e *exectorManager) exec(workerName string, in []byte) error {
 				worker.GetLogger().Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
 			}
 		}()
-		worker.Run(time.Minute * 10)
+		if err := worker.Run(time.Minute * 10); err != nil {
+			worker.ErrorCallBack(err)
+		}
 	}()
 	return nil
 }

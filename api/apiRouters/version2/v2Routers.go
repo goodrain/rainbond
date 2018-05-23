@@ -87,6 +87,11 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Get("/chargesverify", controller.ChargesVerifyController)
 	//get some service pod info
 	r.Get("/pods", controller.Pods)
+	//app backup
+	r.Get("/groupapp/backups", controller.Backups)
+	r.Get("/groupapp/backups/{backup_id}", controller.GetBackup)
+	r.Get("/groupapp/restore", controller.Restore)
+	r.Post("/groupapp/backups", controller.NewBackups)
 
 	return r
 }
@@ -223,9 +228,6 @@ func (v2 *V2) appRouter() chi.Router {
 
 	r.Post("/import", controller.GetManager().ImportApp)
 	r.Get("/import/{eventId}", controller.GetManager().ExportApp)
-
-	r.Post("/backup", controller.GetManager().BackupApp)
-	r.Post("/recover", controller.GetManager().RecoverApp)
 	return r
 }
 

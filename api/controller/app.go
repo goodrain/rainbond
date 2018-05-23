@@ -167,11 +167,3 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
-
-func (a *AppStruct) BackupApp(w http.ResponseWriter, r *http.Request) {
-	//TODO
-}
-
-func (a *AppStruct) RecoverApp(w http.ResponseWriter, r *http.Request) {
-	//TODO
-}

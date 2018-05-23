@@ -3,19 +3,20 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"strconv"
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
-	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"io/ioutil"
-	"os"
-	"fmt"
-	"github.com/tidwall/gjson"
+	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/pkg/errors"
-	"strings"
-	"strconv"
+	"github.com/tidwall/gjson"
 )
 
 type AppAction struct {
@@ -56,6 +57,7 @@ func (a *AppAction) Complete(tr *model.ExportAppStruct) error {
 	return nil
 }
 
+//ExportApp ExportApp
 func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
 	// 保存元数据到组目录
 	if err := saveMetadata(tr); err != nil {
@@ -88,7 +90,6 @@ func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
 		logrus.Error("Failed to Enqueue MQ for ExportApp:", err)
 		return err
 	}
-	logrus.Debugf("equeue mq build plugin from image success")
 
 	return nil
 }
@@ -119,7 +120,6 @@ func (a *AppAction) ImportApp(app *dbmodel.AppStatus) error {
 
 	return nil
 }
-
 
 func saveMetadata(tr *model.ExportAppStruct) error {
 	// 创建应用组目录

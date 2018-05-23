@@ -22,6 +22,13 @@ import (
 	"time"
 
 	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path"
+	"strconv"
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
@@ -32,12 +39,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"path"
-	"strconv"
-	"strings"
 )
 
 //ExportApp Export app to specified format(rainbond-app or dockercompose)
@@ -54,11 +55,11 @@ func init() {
 }
 
 //NewExportApp create
-func NewExportApp(in []byte) TaskWorker {
+func NewExportApp(in []byte) (TaskWorker, error) {
 	dockerClient, err := client.NewEnvClient()
 	if err != nil {
 		logrus.Error("Failed to create task for export app: ", err)
-		return nil
+		return nil, err
 	}
 
 	eventID := gjson.GetBytes(in, "event_id").String()
@@ -69,7 +70,7 @@ func NewExportApp(in []byte) TaskWorker {
 		Logger:       logger,
 		EventID:      eventID,
 		DockerClient: dockerClient,
-	}
+	}, nil
 }
 
 //Run Run
@@ -86,10 +87,8 @@ func (i *ExportApp) Run(timeout time.Duration) error {
 			i.updateStatus("failed")
 		}
 		return err
-	} else {
-		return errors.New("Unsupported the format: " + i.Format)
 	}
-	return nil
+	return errors.New("Unsupported the format: " + i.Format)
 }
 
 // 组目录命名规则，将组名中unicode转为中文，并去掉空格，"JAVA-ETCD\\u5206\\u4eab\\u7ec4" -> "JAVA-ETCD分享组"
@@ -590,6 +589,11 @@ func (i *ExportApp) buildStartScript() error {
 
 	logrus.Debug("Successful generate start script to: ", i.SourceDir)
 	return nil
+}
+
+//ErrorCallBack if run error will callback
+func (i *ExportApp) ErrorCallBack(err error) {
+
 }
 
 func (i *ExportApp) zip() error {

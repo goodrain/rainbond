@@ -13,3 +13,22 @@ type AppStatus struct {
 func (t *AppStatus) TableName() string {
 	return "app_status"
 }
+
+//AppBackup app backup info
+type AppBackup struct {
+	Model
+	EventID  string `gorm:"column:event_id;size:32;" json:"event_id"`
+	BackupID string `gorm:"column:backup_id;size:32;" json:"backup_id"`
+	GroupID  string `gorm:"column:group_id;size:32;" json:"group_id"`
+	//Status in starting,failed,success
+	Status     string `gorm:"column:status;size:32" json:"status"`
+	Version    string `gorm:"column:version;size:32" json:"version"`
+	SourceDir  string `gorm:"column:source_dir;size:255" json:"source_dir"`
+	BackupMode string `gorm:"column:backup_mode;size:32" json:"backup_mode"`
+	BuckupSize int    `gorm:"column:backup_size" json:"backup_size"`
+}
+
+//TableName 表名
+func (t *AppBackup) TableName() string {
+	return "app_backup"
+}

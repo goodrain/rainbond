@@ -117,6 +117,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.LocalScheduler{})
 	m.models = append(m.models, &model.NotificationEvent{})
 	m.models = append(m.models, &model.AppStatus{})
+	m.models = append(m.models, &model.AppBackup{})
 }
 
 //CheckTable check and create tables

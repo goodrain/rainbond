@@ -21,13 +21,15 @@ package handler
 import (
 	"time"
 
+	"github.com/goodrain/rainbond/api/handler/group"
+
 	"github.com/goodrain/rainbond/api/handler/share"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
-	"github.com/goodrain/rainbond/cmd/api/option"
 	api_db "github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/appruntimesync/client"
+	"github.com/goodrain/rainbond/cmd/api/option"
 )
 
 //InitHandle 初始化handle
@@ -64,6 +66,7 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 	defaultNetRulesHandler = CreateNetRulesManager(etcdCli)
 	defaultSourcesHandler = CreateSourcesManager(etcdCli)
 	defaultCloudHandler = CreateCloudManager(conf)
+	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli)
 	//需要使用etcd v2 API
 	defaultEventHandler = CreateLogManager(conf.EtcdEndpoint)
 	shareHandler = &share.ServiceShareHandle{MQClient: mqClient, EtcdCli: etcdCli}
@@ -131,6 +134,14 @@ func GetEventHandler() EventHandler {
 
 var defaultAppHandler *AppAction
 
+//GetAppHandler GetAppHandler
 func GetAppHandler() *AppAction {
 	return defaultAppHandler
+}
+
+var defaultAPPBackupHandler *group.BackupHandle
+
+//GetAPPBackupHandler GetAPPBackupHandler
+func GetAPPBackupHandler() *group.BackupHandle {
+	return defaultAPPBackupHandler
 }

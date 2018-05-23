@@ -1,8 +1,10 @@
 package dao
 
 import (
-	"github.com/jinzhu/gorm"
+	"fmt"
+
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
 
@@ -51,4 +53,70 @@ func (a *AppDaoImpl) GetByEventId(eventId string) (interface{}, error) {
 	err := a.DB.Where("event_id = ?", eventId).First(&app).Error
 
 	return &app, err
+}
+
+//AppBackupDaoImpl group app backup info store mysql impl
+type AppBackupDaoImpl struct {
+	DB *gorm.DB
+}
+
+//AddModel AddModel
+func (a *AppBackupDaoImpl) AddModel(mo model.Interface) error {
+	app, ok := mo.(*model.AppBackup)
+	if !ok {
+		return errors.New("Failed to convert interface to AppStatus")
+	}
+
+	var old model.AppBackup
+	if ok := a.DB.Where("backup_id = ?", app.BackupID).Find(&old).RecordNotFound(); ok {
+		if err := a.DB.Create(app).Error; err != nil {
+			return err
+		}
+	}
+	return fmt.Errorf("backup info exist with id %s", app.BackupID)
+}
+
+//UpdateModel UpdateModel
+func (a *AppBackupDaoImpl) UpdateModel(mo model.Interface) error {
+	app, ok := mo.(*model.AppBackup)
+	if !ok {
+		return errors.New("Failed to convert interface to AppStatus")
+	}
+	if app.ID == 0 {
+		return errors.New("Primary id can not be 0 when update")
+	}
+	return a.DB.Where("backup_id = ?", app.BackupID).Update(app).Error
+}
+
+//CheckHistory CheckHistory
+func (a *AppBackupDaoImpl) CheckHistory(groupID, version string) bool {
+	var app model.AppBackup
+	return a.DB.Where("(group_id = ? and status =?) or version=? ", groupID, "starting", version).Find(&app).RecordNotFound()
+}
+
+//GetAppBackups GetAppBackups
+func (a *AppBackupDaoImpl) GetAppBackups(groupID string) ([]*model.AppBackup, error) {
+	var apps []*model.AppBackup
+	if err := a.DB.Where("group_id = ?", groupID).Find(&apps).Error; err != nil {
+		return nil, err
+	}
+	return apps, nil
+}
+
+//DeleteAppBackup DeleteAppBackup
+func (a *AppBackupDaoImpl) DeleteAppBackup(backupID string) error {
+	var app model.AppBackup
+	if err := a.DB.Where("backup_id = ?", backupID).Delete(&app).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+//GetAppBackup GetAppBackup
+func (a *AppBackupDaoImpl) GetAppBackup(backupID string) (*model.AppBackup, error) {
+	var app model.AppBackup
+	if err := a.DB.Where("backup_id = ?", backupID).Find(&app).Error; err != nil {
+		return nil, err
+	}
+	return &app, nil
 }

@@ -48,3 +48,15 @@ func TestGetDirSizeByCmd(t *testing.T) {
 	memStats := &runtime.MemStats{}
 	runtime.ReadMemStats(memStats)
 }
+
+func TestZip(t *testing.T) {
+	if err := Zip("/Users/qingguo/gopath/src/github.com/goodrain/rainbond", "/tmp/rainbond.zip"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUnzip(t *testing.T) {
+	if err := Unzip("/tmp/rainbond.zip", "/tmp/rainbond"); err != nil {
+		t.Fatal(err)
+	}
+}

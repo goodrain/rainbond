@@ -222,7 +222,7 @@ type TenantServiceVolumeDao interface {
 type TenantServiceLBMappingPortDao interface {
 	Dao
 	GetTenantServiceLBMappingPort(serviceID string, containerPort int) (*model.TenantServiceLBMappingPort, error)
-	GetTenantServiceLBMappingPortByService(serviceID string) (*model.TenantServiceLBMappingPort, error)
+	GetTenantServiceLBMappingPortByService(serviceID string) ([]*model.TenantServiceLBMappingPort, error)
 	CreateTenantServiceLBMappingPort(serviceID string, containerPort int) (*model.TenantServiceLBMappingPort, error)
 	DELServiceLBMappingPortByServiceID(serviceID string) error
 }
@@ -362,4 +362,13 @@ type NotificationEventDao interface {
 	GetNotificationEventByKind(kind, kindID string) ([]*model.NotificationEvent, error)
 	GetNotificationEventByTime(start, end time.Time) ([]*model.NotificationEvent, error)
 	GetNotificationEventNotHandle() ([]*model.NotificationEvent, error)
+}
+
+//AppBackupDao group app backup history
+type AppBackupDao interface {
+	Dao
+	CheckHistory(groupID, version string) bool
+	GetAppBackups(groupID string) ([]*model.AppBackup, error)
+	DeleteAppBackup(backupID string) error
+	GetAppBackup(backupID string) (*model.AppBackup, error)
 }

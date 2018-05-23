@@ -971,12 +971,12 @@ func (t *TenantServiceLBMappingPortDaoImpl) CreateTenantServiceLBMappingPort(ser
 }
 
 //GetTenantServiceLBMappingPortByService 获取端口映射
-func (t *TenantServiceLBMappingPortDaoImpl) GetTenantServiceLBMappingPortByService(serviceID string) (*model.TenantServiceLBMappingPort, error) {
-	var mapPort model.TenantServiceLBMappingPort
+func (t *TenantServiceLBMappingPortDaoImpl) GetTenantServiceLBMappingPortByService(serviceID string) ([]*model.TenantServiceLBMappingPort, error) {
+	var mapPort []*model.TenantServiceLBMappingPort
 	if err := t.DB.Where("service_id=?", serviceID).Find(&mapPort).Error; err != nil {
 		return nil, err
 	}
-	return &mapPort, nil
+	return mapPort, nil
 }
 
 //DELServiceLBMappingPortByServiceID DELServiceLBMappingPortByServiceID

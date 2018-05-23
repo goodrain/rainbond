@@ -220,7 +220,7 @@ func (k *K8sServiceBuild) createOuterService(port *model.TenantServicesPort) *v1
 	}
 	//if port.Protocol == "stream" { //stream 协议获取映射端口
 	if port.Protocol != "http" { //stream 协议获取映射端口
-		mapPort, err := k.dbmanager.TenantServiceLBMappingPortDao().GetTenantServiceLBMappingPortByService(k.serviceID)
+		mapPort, err := k.dbmanager.TenantServiceLBMappingPortDao().GetTenantServiceLBMappingPort(k.serviceID, port.ContainerPort)
 		if err != nil {
 			logrus.Error("get tenant service lb map port error", err.Error())
 			service.Labels["lbmap_port"] = "0"

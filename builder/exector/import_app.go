@@ -19,20 +19,21 @@
 package exector
 
 import (
+	"errors"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"io/ioutil"
 	"os/exec"
-	"strings"
 	"path/filepath"
-	"github.com/goodrain/rainbond/builder/sources"
-	"github.com/tidwall/gjson"
-	"github.com/goodrain/rainbond/event"
-	"github.com/docker/engine-api/client"
+	"strings"
 	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/engine-api/client"
+	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
-	"errors"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/event"
+	"github.com/tidwall/gjson"
 )
 
 func init() {
@@ -49,11 +50,11 @@ type ImportApp struct {
 }
 
 //NewExportApp create
-func NewImportApp(in []byte) TaskWorker {
+func NewImportApp(in []byte) (TaskWorker, error) {
 	dockerClient, err := client.NewEnvClient()
 	if err != nil {
 		logrus.Error("Failed to create task for export app: ", err)
-		return nil
+		return nil, err
 	}
 
 	eventID := gjson.GetBytes(in, "event_id").String()
@@ -64,7 +65,7 @@ func NewImportApp(in []byte) TaskWorker {
 		Logger:       logger,
 		EventID:      eventID,
 		DockerClient: dockerClient,
-	}
+	}, nil
 }
 
 //Stop stop
@@ -90,10 +91,8 @@ func (i *ImportApp) Run(timeout time.Duration) error {
 			i.updateStatus("failed")
 		}
 		return err
-	} else {
-		return errors.New("Unsupported the format: " + i.Format)
 	}
-	return nil
+	return errors.New("Unsupported the format: " + i.Format)
 }
 
 // 组目录命名规则，将组名中unicode转为中文，并去掉空格，"JAVA-ETCD\\u5206\\u4eab\\u7ec4" -> "JAVA-ETCD分享组"
@@ -227,6 +226,11 @@ func (i *ImportApp) loadApps() error {
 	return nil
 }
 
+//ErrorCallBack if run error will callback
+func (i *ImportApp) ErrorCallBack(err error) {
+
+}
+
 func (i *ImportApp) updateStatus(status string) error {
 	logrus.Debug("Update app status in database to: ", status)
 	// 从数据库中获取该应用的状态信息
@@ -249,7 +253,7 @@ func (i *ImportApp) updateStatus(status string) error {
 	app.Metadata = string(data)
 
 	if err := db.GetManager().AppDao().UpdateModel(app); err != nil {
-		err = errors.New(fmt.Sprintf("Failed to update app %s: %v", i.EventID, err))
+		err = fmt.Errorf("Failed to update app %s: %v", i.EventID, err)
 		logrus.Error(err)
 		return err
 	}
