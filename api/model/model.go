@@ -1394,11 +1394,12 @@ func NewAppStatusFromExport(app *ExportAppStruct) *dbmodel.AppStatus {
 }
 
 type ImportAppStruct struct {
-	EventID   string `json:"event_id"`
-	SourceDir string `json:"source_dir"`
-	Format    string `json:"format"`
+	EventID      string       `json:"event_id"`
+	SourceDir    string       `json:"source_dir"`
+	Apps         []string     `json:"apps"`
+	Format       string       `json:"format"`
 	ServiceImage ServiceImage `json:"service_image"`
-	ServiceSlug  ServiceSlug `json:"service_slug"`
+	ServiceSlug  ServiceSlug  `json:"service_slug"`
 }
 
 type ServiceImage struct {
@@ -1417,10 +1418,21 @@ type ServiceSlug struct {
 }
 
 func NewAppStatusFromImport(app *ImportAppStruct) *dbmodel.AppStatus {
+	var apps string
+	for _, app := range app.Apps {
+		app += ":importing"
+		if apps == "" {
+			apps += app
+		} else {
+			apps += "," + app
+		}
+	}
+
 	return &dbmodel.AppStatus{
 		EventID:   app.EventID,
 		Format:    app.Format,
 		SourceDir: app.SourceDir,
+		Apps:      apps,
 		Status:    "importing",
 	}
 }
