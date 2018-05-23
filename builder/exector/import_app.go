@@ -35,6 +35,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"os"
 )
 
 func init() {
@@ -133,12 +134,20 @@ func (i *ImportApp) importApp() error {
 	oldSourceDir := i.SourceDir
 	var datas = "["
 	for _, app := range i.Apps {
-		appFile := filepath.Join(i.SourceDir, app)
+		if err := i.updateStatusForApp(app, "importing"); err != nil {
+			logrus.Errorf("Failed to update status to importing for app %s: %v", app, err)
+		}
+
+		appFile := filepath.Join(oldSourceDir, app)
 		noSuffixLen := len(appFile) - len(filepath.Ext(appFile))
 		i.SourceDir = appFile[:noSuffixLen]
 
 		// unzip
-		cmd := fmt.Sprintf("rm -rf %s && tar -xf %s -C %s/", i.SourceDir, appFile, oldSourceDir)
+		if _, err := os.Stat(i.SourceDir); err == nil {
+			os.RemoveAll(i.SourceDir)
+		}
+
+		cmd := fmt.Sprintf("tar -xf %s -C %s/", appFile, oldSourceDir)
 		err := exec.Command("sh", "-c", cmd).Run()
 		if err != nil {
 			logrus.Errorf("Failed to unzip tar %s: %v", appFile, err)
@@ -206,6 +215,11 @@ func (i *ImportApp) importApp() error {
 			datas += string(data)
 		} else {
 			datas += ", " + string(data)
+		}
+
+		if err := i.updateStatusForApp(app, "success"); err != nil {
+			logrus.Errorf("Failed to update status to success for app %s: %v", app, err)
+			continue
 		}
 
 		logrus.Debug("Successful import app: ", appFile)
@@ -377,7 +391,7 @@ func (i *ImportApp) updateStatus(status, data string) error {
 	// 从数据库中获取该应用的状态信息
 	res, err := db.GetManager().AppDao().GetByEventId(i.EventID)
 	if err != nil {
-		err = fmt.Errorf("Failed to get app %s from db: %v", i.EventID, err)
+		err = fmt.Errorf("failed to get app %s from db: %v", i.EventID, err)
 		logrus.Error(err)
 		return err
 	}
@@ -387,7 +401,7 @@ func (i *ImportApp) updateStatus(status, data string) error {
 	res.Metadata = data
 
 	if err := db.GetManager().AppDao().UpdateModel(res); err != nil {
-		err = fmt.Errorf("Failed to update app %s: %v", i.EventID, err)
+		err = fmt.Errorf("failed to update app %s: %v", i.EventID, err)
 		logrus.Error(err)
 		return err
 	}
@@ -396,7 +410,7 @@ func (i *ImportApp) updateStatus(status, data string) error {
 }
 
 func (i *ImportApp) updateStatusForApp(app, status string) error {
-	logrus.Debug("Update app status in database to: ", status)
+	logrus.Debugf("Update status in database for app %s to: %s", app, status)
 	// 从数据库中获取该应用的状态信息
 	res, err := db.GetManager().AppDao().GetByEventId(i.EventID)
 	if err != nil {
@@ -406,9 +420,9 @@ func (i *ImportApp) updateStatusForApp(app, status string) error {
 	}
 
 	// 在数据库中更新该应用的状态信息
-	apps := str2map(res.Apps)
-	apps[app] = status
-	res.Apps = map2str(apps)
+	appsMap := str2map(res.Apps)
+	appsMap[app] = status
+	res.Apps = map2str(appsMap)
 
 	if err := db.GetManager().AppDao().UpdateModel(res); err != nil {
 		err = errors.New(fmt.Sprintf("Failed to update app %s: %v", i.EventID, err))

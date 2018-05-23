@@ -1420,7 +1420,7 @@ type ServiceSlug struct {
 func NewAppStatusFromImport(app *ImportAppStruct) *dbmodel.AppStatus {
 	var apps string
 	for _, app := range app.Apps {
-		app += ":importing"
+		app += ":pending"
 		if apps == "" {
 			apps += app
 		} else {
