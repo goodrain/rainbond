@@ -140,6 +140,7 @@ func (e *exectorManager) exec(workerName string, in []byte) error {
 				fmt.Println(r)
 				debug.PrintStack()
 				worker.GetLogger().Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+				worker.ErrorCallBack(fmt.Errorf("%s", r))
 			}
 		}()
 		if err := worker.Run(time.Minute * 10); err != nil {
