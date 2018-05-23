@@ -80,7 +80,7 @@ type TenantServiceDao interface {
 	DeleteServiceByServiceID(serviceID string) error
 	GetServiceMemoryByTenantIDs(tenantIDs, serviceIDs []string) (map[string]map[string]interface{}, error)
 	GetServiceMemoryByServiceIDs(serviceIDs []string) (map[string]map[string]interface{}, error)
-	GetPagedTenantService(offset, len int) ([]map[string]interface{}, error)
+	GetPagedTenantService(offset, len int, serviceIDs []string) ([]map[string]interface{}, error)
 	GetTenantServiceRes(uuid string) (map[string]interface{}, error)
 	GetAllServices() ([]*model.TenantServices, error)
 }

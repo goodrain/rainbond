@@ -732,7 +732,14 @@ func (s *ServiceAction) GetService(tenantID string) ([]*dbmodel.TenantServices, 
 
 //GetPagedTenantRes get pagedTenantServiceRes(s)
 func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantResource, error) {
-	services, err := db.GetManager().TenantServiceDao().GetPagedTenantService(offset, len)
+	allstatus := s.statusCli.GetAllStatus()
+	var serviceIDs []string
+	for k, v := range allstatus {
+		if !s.statusCli.IsClosedStatus(v) {
+			serviceIDs = append(serviceIDs, k)
+		}
+	}
+	services, err := db.GetManager().TenantServiceDao().GetPagedTenantService(offset, len, serviceIDs)
 	if err != nil {
 		logrus.Errorf("get service by id error, %v, %v", services, err)
 		return nil, err

@@ -224,8 +224,8 @@ func (t *TenantServicesDaoImpl) GetServiceMemoryByServiceIDs(serviceIDs []string
 }
 
 //GetPagedTenantService GetPagedTenantResource
-func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, len int) ([]map[string]interface{}, error) {
-	rows, err := t.DB.Raw("select tenant_id,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_cpu * replicas,0)) as use_cpu,sum(container_cpu*replicas) as cap_cpu,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_memory * replicas,0)) as use_memory,sum(container_memory*replicas) as cap_memory from tenant_services group by tenant_id order by use_memory desc limit ?,?", offset, len).Rows()
+func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, len int, serviceIDs []string) ([]map[string]interface{}, error) {
+	rows, err := t.DB.Raw("select tenant_id,sum(if (service_id in (?),container_cpu * replicas,0)) as use_cpu,sum(container_cpu*replicas) as cap_cpu,sum(if (service_id in (?),container_memory * replicas,0)) as use_memory,sum(container_memory*replicas) as cap_memory from tenant_services group by tenant_id order by use_memory desc limit ?,?", offset, len).Rows()
 	if err != nil {
 		return nil, err
 	}
@@ -233,14 +233,14 @@ func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, len int) ([]map[st
 	var rc []map[string]interface{}
 	for rows.Next() {
 		var tenantID string
-		var capCpu int
-		var useCpu int
+		var capCPU int
+		var useCPU int
 		var capMem int
 		var useMem int
-		rows.Scan(&tenantID, &useCpu, &capCpu, &useMem, &capMem)
+		rows.Scan(&tenantID, &useCPU, &capCPU, &useMem, &capMem)
 		res := make(map[string]interface{})
-		res["capcpu"] = capCpu
-		res["usecpu"] = useCpu
+		res["capcpu"] = capCPU
+		res["usecpu"] = useCPU
 		res["capmem"] = capMem
 		res["usemem"] = useMem
 		res["tenant"] = tenantID
