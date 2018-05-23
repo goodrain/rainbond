@@ -8,12 +8,14 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"io/ioutil"
+	"path/filepath"
 )
 
 type AppStruct struct{}
@@ -108,8 +110,12 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 			if dir.IsDir() {
 				continue
 			}
+			ex := filepath.Ext(dir.Name())
+			if ex != ".tar" {
+				continue
+			}
 			appArr = append(appArr, dir.Name())
- 		}
+		}
 
 		httputil.ReturnSuccess(r, w, map[string][]string{"apps": appArr})
 	case "DELETE":
@@ -131,6 +137,7 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logrus.Debug("Start receive upload file: ", eventId)
 	reader, header, err := r.FormFile("appTarFile")
 	if err != nil {
 		httputil.ReturnError(r, w, 501, "Failed to parse upload file.")
@@ -148,9 +155,12 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
+	logrus.Debug("Start write file to: ", fileName)
 	if _, err := io.Copy(file, reader); err != nil {
 		httputil.ReturnError(r, w, 503, "Failed to write file: "+err.Error())
 	}
+
+	logrus.Debug("successful write file to: ", fileName)
 	httputil.ReturnSuccess(r, w, "successful")
 }
 
@@ -200,4 +210,12 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnSuccess(r, w, res)
 	}
 
+}
+
+func (a *AppStruct) BackupApp(w http.ResponseWriter, r *http.Request) {
+	//TODO
+}
+
+func (a *AppStruct) RecoverApp(w http.ResponseWriter, r *http.Request) {
+	//TODO
 }
