@@ -377,6 +377,9 @@ func CmdExec(args string) (string, error) {
 
 //Zip zip compressing source dir to target file
 func Zip(source, target string) error {
+	if err := CheckAndCreateDir(filepath.Dir(target)); err != nil {
+		return err
+	}
 	zipfile, err := os.Create(target)
 	if err != nil {
 		return err

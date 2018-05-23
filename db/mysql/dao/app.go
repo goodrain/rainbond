@@ -86,7 +86,7 @@ func (a *AppBackupDaoImpl) UpdateModel(mo model.Interface) error {
 	if app.ID == 0 {
 		return errors.New("Primary id can not be 0 when update")
 	}
-	return a.DB.Where("backup_id = ?", app.BackupID).Update(app).Error
+	return a.DB.Table(app.TableName()).Where("backup_id = ?", app.BackupID).Update(app).Error
 }
 
 //CheckHistory CheckHistory

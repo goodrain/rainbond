@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -145,6 +146,7 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 		for _, volume := range app.ServiceVolume {
 			if volume.HostPath != "" && !util.DirIsEmpty(volume.HostPath) {
 				dstDir := fmt.Sprintf("%s/data_%s/%s.zip", b.SourceDir, app.ServiceID, strings.Replace(volume.VolumeName, "/", "", -1))
+				util.CheckAndCreateDir(filepath.Dir(dstDir))
 				if err := util.Zip(volume.HostPath, dstDir); err != nil {
 					logrus.Errorf("backup service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
 					return err
@@ -154,16 +156,17 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 		b.Logger.Info(fmt.Sprintf("完成备份应用(%s)持久化数据", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
 		//TODO:backup relation volume data?
 	}
+	if strings.HasSuffix(b.SourceDir, "/") {
+		b.SourceDir = b.SourceDir[:len(b.SourceDir)-2]
+	}
+	if err := util.Zip(b.SourceDir, fmt.Sprintf("%s.zip", b.SourceDir)); err != nil {
+		b.Logger.Info(fmt.Sprintf("压缩备份元数据失败"), map[string]string{"step": "backup_builder", "status": "starting"})
+		return err
+	}
+	os.RemoveAll(b.SourceDir)
 	//upload app backup data to online server(sftp) if mode is full-online
 	if b.Mode == "full-online" && b.SlugInfo.FTPHost != "" && b.SlugInfo.FTPPort != "" {
 		b.Logger.Info(fmt.Sprintf("开始上传备份元数据到云端"), map[string]string{"step": "backup_builder", "status": "starting"})
-		if err := util.CheckAndCreateDir("/grdata/tmp"); err != nil {
-			return err
-		}
-		if err := util.Zip(b.SourceDir, fmt.Sprintf("/grdata/tmp/%s_%s.zip", b.GroupID, b.Version)); err != nil {
-			b.Logger.Info(fmt.Sprintf("压缩备份元数据失败"), map[string]string{"step": "backup_builder", "status": "starting"})
-			return err
-		}
 		sFTPClient, err := sources.NewSFTPClient(b.SlugInfo.FTPUser, b.SlugInfo.FTPPassword, b.SlugInfo.FTPHost, b.SlugInfo.FTPPort)
 		if err != nil {
 			b.Logger.Error(util.Translation("create ftp client error"), map[string]string{"step": "backup_builder", "status": "failure"})
@@ -171,15 +174,15 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 		}
 		defer sFTPClient.Close()
 		dstDir := fmt.Sprintf("%s/backup/%s_%s/metadata_data.zip", b.SlugInfo.FTPNamespace, b.GroupID, b.Version)
-		if err := sFTPClient.PushFile(fmt.Sprintf("/grdata/tmp/%s_%s.zip", b.GroupID, b.Version), dstDir, b.Logger); err != nil {
+		if err := sFTPClient.PushFile(fmt.Sprintf("%s.zip", b.SourceDir), dstDir, b.Logger); err != nil {
 			b.Logger.Error(util.Translation("push slug file to sftp server error"), map[string]string{"step": "backup_builder", "status": "failure"})
 			logrus.Errorf("push  slug file error when backup app , %s", err.Error())
 			return err
 		}
 		//Statistical backup size
-		b.BackupSize += util.GetFileSize(fmt.Sprintf("/grdata/tmp/%s_%s.zip", b.GroupID, b.Version))
-		os.Remove(fmt.Sprintf("/grdata/tmp/%s_%s.zip", b.GroupID, b.Version))
+		os.Remove(fmt.Sprintf("%s.zip", b.SourceDir))
 	}
+	b.BackupSize += util.GetFileSize(fmt.Sprintf("%s.zip", b.SourceDir))
 	if err := b.updateBackupStatu("success"); err != nil {
 		return err
 	}
@@ -203,6 +206,7 @@ func (b *BackupAPPNew) uploadSlug(app *RegionServiceSnapshot, version *dbmodel.V
 		b.BackupSize += util.GetFileSize(version.DeliveredPath)
 	} else {
 		dstDir := fmt.Sprintf("%s/app_%s/slug_%s.tgz", b.SourceDir, app.ServiceID, version.BuildVersion)
+		util.CheckAndCreateDir(filepath.Dir(dstDir))
 		if err := sources.CopyFileWithProgress(version.DeliveredPath, dstDir, b.Logger); err != nil {
 			b.Logger.Error(util.Translation("push slug file to local dir error"), map[string]string{"step": "backup_builder", "status": "failure"})
 			logrus.Errorf("copy slug file error when backup app, %s", err.Error())
@@ -239,6 +243,7 @@ func (b *BackupAPPNew) uploadImage(app *RegionServiceSnapshot, version *dbmodel.
 		b.BackupSize += info.Size
 	} else {
 		dstDir := fmt.Sprintf("%s/app_%s/image_%s.tar", b.SourceDir, app.ServiceID, version.BuildVersion)
+		util.CheckAndCreateDir(filepath.Dir(dstDir))
 		if err := sources.ImageSave(b.DockerClient, version.DeliveredPath, dstDir, b.Logger); err != nil {
 			b.Logger.Error(util.Translation("save image to local dir error"), map[string]string{"step": "backup_builder", "status": "failure"})
 			logrus.Errorf("save image to local dir error when backup app, %s", err.Error())
