@@ -9,11 +9,14 @@ import (
 	"strconv"
 	"strings"
 
+	"fmt"
+	"io/ioutil"
+	"os"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
-	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
@@ -94,8 +97,8 @@ func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
 	return nil
 }
 
-func (a *AppAction) ImportApp(app *dbmodel.AppStatus) error {
-	mqBody, err := json.Marshal(app)
+func (a *AppAction) ImportApp(importApp *model.ImportAppStruct) error {
+	mqBody, err := json.Marshal(importApp)
 
 	ts := &db.BuildTaskStruct{
 		TaskType: "import_app",

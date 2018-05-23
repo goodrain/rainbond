@@ -39,18 +39,18 @@ func (a *AppDaoImpl) UpdateModel(mo model.Interface) error {
 		Update(app).Error
 }
 
-func (a *AppDaoImpl) DeleteModelByEventId(eventId string) error {
+func (a *AppDaoImpl) DeleteModelByEventId(eventID string) error {
 	var app model.AppStatus
-	if ok := a.DB.Where("event_id = ?", eventId).Find(&app).RecordNotFound(); ok {
+	if ok := a.DB.Where("event_id = ?", eventID).Find(&app).RecordNotFound(); ok {
 		return nil
 	}
 
-	return a.DB.Where("event_id = ?", eventId).Delete(&app).Error
+	return a.DB.Where("event_id = ?", eventID).Delete(&app).Error
 }
 
-func (a *AppDaoImpl) GetByEventId(eventId string) (interface{}, error) {
+func (a *AppDaoImpl) GetByEventId(eventID string) (*model.AppStatus, error) {
 	var app model.AppStatus
-	err := a.DB.Where("event_id = ?", eventId).First(&app).Error
+	err := a.DB.Where("event_id = ?", eventID).First(&app).Error
 
 	return &app, err
 }

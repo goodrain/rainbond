@@ -28,12 +28,16 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/bitly/go-simplejson"
 	"github.com/docker/engine-api/client"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/tidwall/gjson"
+
+	"encoding/json"
+
+	"github.com/goodrain/rainbond/api/model"
 )
 
 func init() {
@@ -45,11 +49,13 @@ type ImportApp struct {
 	EventID      string `json:"event_id"`
 	Format       string `json:"format"`
 	SourceDir    string `json:"source_dir"`
+	ServiceImage model.ServiceImage
+	ServiceSlug  model.ServiceSlug
 	Logger       event.Logger
 	DockerClient *client.Client
 }
 
-//NewExportApp create
+//NewImportApp create
 func NewImportApp(in []byte) (TaskWorker, error) {
 	dockerClient, err := client.NewEnvClient()
 	if err != nil {
@@ -58,10 +64,25 @@ func NewImportApp(in []byte) (TaskWorker, error) {
 	}
 
 	eventID := gjson.GetBytes(in, "event_id").String()
+	var serviceImage model.ServiceImage
+	var serviceSlug model.ServiceSlug
+	if err := json.Unmarshal([]byte(gjson.GetBytes(in, "service_image").String()), &serviceImage); err != nil {
+		logrus.Error("Failed to unmarshal service_image for import: ", err)
+		return nil, err
+	}
+
+	if err := json.Unmarshal([]byte(gjson.GetBytes(in, "service_slug").String()), &serviceSlug); err != nil {
+		logrus.Error("Failed to unmarshal service_slug for import app: ", err)
+		return nil, err
+	}
+
 	logger := event.GetManager().GetLogger(eventID)
+
 	return &ImportApp{
 		Format:       gjson.GetBytes(in, "format").String(),
 		SourceDir:    gjson.GetBytes(in, "source_dir").String(),
+		ServiceImage: serviceImage,
+		ServiceSlug:  serviceSlug,
 		Logger:       logger,
 		EventID:      eventID,
 		DockerClient: dockerClient,
@@ -88,7 +109,7 @@ func (i *ImportApp) Run(timeout time.Duration) error {
 	if i.Format == "rainbond-app" {
 		err := i.importApp()
 		if err != nil {
-			i.updateStatus("failed")
+			i.updateStatus("failed", "")
 		}
 		return err
 	}
@@ -102,29 +123,111 @@ func (i *ImportApp) importApp() error {
 		return err
 	}
 
-	// 上传镜像和源码包到仓库中
-	if err := i.loadApps(); err != nil {
+	// 如果目录下有多个子目录，则认为每个子目录是一个应用组，循环导入之
+	dirs, err := ioutil.ReadDir(i.SourceDir)
+	if err != nil {
+		logrus.Error("Failed to read dir for import app: ", i.SourceDir)
 		return err
 	}
 
-	// 更橷应用状态
-	if err := i.updateStatus("success"); err != nil {
+	oldSourceDir := i.SourceDir
+	var errMsg string
+	var datas = "["
+	for _, dir := range dirs {
+		if !dir.IsDir() {
+			continue
+		}
+
+		i.SourceDir = filepath.Join(i.SourceDir, dir.Name())
+
+		// 修改json元数据中的镜像和源码包仓库地址为指定地址
+		if err := i.replaceRepo(); err != nil {
+			logrus.Errorf("Failed to change repo address in metadata json for %s: %v", i.SourceDir, err)
+			errMsg = fmt.Sprintf("%s; %s", errMsg, err.Error())
+			continue
+		}
+
+		// 上传镜像和源码包到仓库中
+		if err := i.loadApps(); err != nil {
+			logrus.Errorf("Failed to load apps for %s: %v", i.SourceDir, err)
+			errMsg = fmt.Sprintf("%s; %s", errMsg, err.Error())
+			continue
+		}
+
+		data, err := ioutil.ReadFile(fmt.Sprintf("%s/metadata.json", i.SourceDir))
+		if err != nil {
+			logrus.Error("Failed to read metadata file for update status: ", err)
+			return err
+		}
+		if datas == "[" {
+			datas += string(data)
+		} else {
+			datas += ", " + string(data)
+		}
+
+	}
+	datas += "]"
+	i.SourceDir = oldSourceDir
+	if errMsg != "" {
+		return errors.New(errMsg)
+	}
+
+	// 更新应用状态
+	if err := i.updateStatus("success", datas); err != nil {
 		return err
 	}
 
 	return nil
 }
 
+// i.SourceDir = "/grdata/app/import/n7brv4/web-app"
 func (i *ImportApp) unzip() error {
-	cmd := fmt.Sprintf("cd %s && rm -rf %s && tar -xf %s.tar", filepath.Dir(i.SourceDir), i.SourceDir, i.SourceDir)
+	cmd := fmt.Sprintf("cd %s && tar -xf *.tar", i.SourceDir)
 	err := exec.Command("sh", "-c", cmd).Run()
 	if err != nil {
-		logrus.Error("Failed to unzip for import app: ", i.SourceDir, ".tar")
+		logrus.Errorf("Failed to unzip tars in dir %s: %v", i.SourceDir, err)
 		return err
 	}
 
-	logrus.Debug("Failed to unzip for import app: ", i.SourceDir, ".tar")
+	logrus.Debug("Successful unzip tars in dir: ", i.SourceDir)
 	return err
+}
+
+// 替换元数据中的镜像和源码包的仓库地址
+func (i *ImportApp) replaceRepo() error {
+	metaFile := fmt.Sprintf("%s/metadata.json", i.SourceDir)
+	logrus.Debug("Change image and slug repo address in: ", metaFile)
+
+	data, err := ioutil.ReadFile(metaFile)
+	meta, err := simplejson.NewJson(data)
+	if err != nil {
+		return err
+	}
+
+	apps, err := meta.Get("apps").Array()
+	if err != nil {
+		return err
+	}
+
+	for index := range apps {
+		app := meta.Get("apps").GetIndex(index)
+		if _, ok := app.CheckGet("service_image"); ok {
+			app.Set("service_image", i.ServiceImage)
+		}
+
+		if _, ok := app.CheckGet("service_slug"); ok {
+			app.Set("service_slug", i.ServiceSlug)
+		}
+		apps[index] = app
+	}
+
+	meta.Set("apps", apps)
+	data, err = meta.MarshalJSON()
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(metaFile, data, 0644)
 }
 
 //parseApps get apps array from metadata.json
@@ -230,29 +333,21 @@ func (i *ImportApp) loadApps() error {
 func (i *ImportApp) ErrorCallBack(err error) {
 
 }
-
-func (i *ImportApp) updateStatus(status string) error {
+func (i *ImportApp) updateStatus(status, data string) error {
 	logrus.Debug("Update app status in database to: ", status)
 	// 从数据库中获取该应用的状态信息
 	res, err := db.GetManager().AppDao().GetByEventId(i.EventID)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("Failed to get app %s from db: %v", i.EventID, err))
+		err = fmt.Errorf("Failed to get app %s from db: %v", i.EventID, err)
 		logrus.Error(err)
 		return err
 	}
 
-	data, err := ioutil.ReadFile(fmt.Sprintf("%s/metadata.json", i.SourceDir))
-	if err != nil {
-		logrus.Error("Failed to read metadata file for update status: ", err)
-		return err
-	}
-
 	// 在数据库中更新该应用的状态信息
-	app := res.(*model.AppStatus)
-	app.Status = status
-	app.Metadata = string(data)
+	res.Status = status
+	res.Metadata = data
 
-	if err := db.GetManager().AppDao().UpdateModel(app); err != nil {
+	if err := db.GetManager().AppDao().UpdateModel(res); err != nil {
 		err = fmt.Errorf("Failed to update app %s: %v", i.EventID, err)
 		logrus.Error(err)
 		return err
