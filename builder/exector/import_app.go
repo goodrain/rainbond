@@ -29,13 +29,14 @@ import (
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
 	"github.com/tidwall/gjson"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
-	"os"
-	"github.com/goodrain/rainbond/util"
+	"os/exec"
 )
 
 func init() {
@@ -120,12 +121,12 @@ func (i *ImportApp) Run(timeout time.Duration) error {
 		err := i.importApp()
 		if err != nil {
 			i.updateStatus("failed", "")
+			return err
 		}
-		return err
+		return nil
 	} else {
 		return errors.New("Unsupported the format: " + i.Format)
 	}
-	return nil
 }
 
 // 组目录命名规则，将组名中unicode转为中文，并去掉空格，"JAVA-ETCD\\u5206\\u4eab\\u7ec4" -> "JAVA-ETCD分享组"
@@ -133,26 +134,44 @@ func (i *ImportApp) importApp() error {
 
 	oldSourceDir := i.SourceDir
 	var datas = "["
+	tmpDir := oldSourceDir + "/TmpUnzipDir"
 	for _, app := range i.Apps {
 		if err := i.updateStatusForApp(app, "importing"); err != nil {
 			logrus.Errorf("Failed to update status to importing for app %s: %v", app, err)
 		}
 
 		appFile := filepath.Join(oldSourceDir, app)
-		noSuffixLen := len(appFile) - len(filepath.Ext(appFile))
-		i.SourceDir = appFile[:noSuffixLen]
 
-		// unzip
+		os.MkdirAll(tmpDir, 0755)
+
+		err := exec.Command("sh", "-c", fmt.Sprintf("tar -xf %s -C %s/", appFile, tmpDir)).Run()
+		if err != nil {
+			err := util.Unzip(appFile, tmpDir)
+			if err != nil {
+				logrus.Errorf("Failed to unzip tar %s: %v", appFile, err)
+				i.updateStatusForApp(app, "failed")
+				continue
+			}
+		}
+
+		files, _ := ioutil.ReadDir(tmpDir)
+		if len(files) < 1 {
+			logrus.Errorf("Failed to read files in tmp dir %s: %v", appFile, err)
+			continue
+		}
+
+		i.SourceDir = fmt.Sprintf("%s/%s", oldSourceDir, files[0].Name())
 		if _, err := os.Stat(i.SourceDir); err == nil {
 			os.RemoveAll(i.SourceDir)
 		}
 
-		err := util.Unzip(appFile, oldSourceDir)
+		err = os.Rename(fmt.Sprintf("%s/%s", tmpDir, files[0].Name()), i.SourceDir)
 		if err != nil {
-			logrus.Errorf("Failed to unzip tar %s: %v", appFile, err)
-			i.updateStatusForApp(app, "failed")
+			logrus.Errorf("Failed to mv source dir to %s: %v", i.SourceDir, err)
 			continue
 		}
+
+		os.RemoveAll(tmpDir)
 
 		// push image and slug file
 
@@ -220,6 +239,8 @@ func (i *ImportApp) importApp() error {
 			logrus.Errorf("Failed to update status to success for app %s: %v", app, err)
 			continue
 		}
+
+		os.Rename(appFile, appFile + ".success")
 
 		logrus.Debug("Successful import app: ", appFile)
 
