@@ -94,7 +94,7 @@ func (h *BackupHandle) NewBackup(b Backup) (*dbmodel.AppBackup, *util.APIHandleE
 		EventID:    b.Body.EventID,
 		BackupID:   core_util.NewUUID(),
 		GroupID:    b.Body.GroupID,
-		Status:     "staring",
+		Status:     "starting",
 		Version:    b.Body.Version,
 		BackupMode: b.Body.Mode,
 	}

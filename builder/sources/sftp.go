@@ -103,11 +103,11 @@ func (s *SFTPClient) checkMd5(src, dst string, logger event.Logger) (bool, error
 		return false, err
 	}
 	existmd5, err := s.FileExist(dst + ".md5")
-	if err != nil {
+	if err != nil && err.Error() != "file does not exist" {
 		return false, err
 	}
 	exist, err := s.FileExist(dst)
-	if err != nil {
+	if err != nil && err.Error() != "file does not exist" {
 		return false, err
 	}
 	if exist && existmd5 {
