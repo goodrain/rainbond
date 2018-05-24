@@ -36,6 +36,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"os/exec"
 )
 
 func init() {
@@ -143,11 +144,14 @@ func (i *ImportApp) importApp() error {
 
 		os.MkdirAll(tmpDir, 0755)
 
-		err := util.Unzip(appFile, tmpDir)
+		err := exec.Command("sh", "-c", fmt.Sprintf("tar -xf %s -C %s/", appFile, tmpDir)).Run()
 		if err != nil {
-			logrus.Errorf("Failed to unzip tar %s: %v", appFile, err)
-			i.updateStatusForApp(app, "failed")
-			continue
+			err := util.Unzip(appFile, tmpDir)
+			if err != nil {
+				logrus.Errorf("Failed to unzip tar %s: %v", appFile, err)
+				i.updateStatusForApp(app, "failed")
+				continue
+			}
 		}
 
 		files, _ := ioutil.ReadDir(tmpDir)
@@ -235,6 +239,8 @@ func (i *ImportApp) importApp() error {
 			logrus.Errorf("Failed to update status to success for app %s: %v", app, err)
 			continue
 		}
+
+		os.Rename(appFile, appFile + ".success")
 
 		logrus.Debug("Successful import app: ", appFile)
 
