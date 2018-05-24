@@ -58,11 +58,11 @@ type Backup struct {
 		Mode       string   `json:"mode" validate:"mode|required|in:full-online,full-offline"`
 		Version    string   `json:"version" validate:"version|required"`
 		SlugInfo   struct {
-			FTPNamespace string `json:"ftp_namespace"`
-			FTPHost      string `json:"ftp_host"`
-			FTPPort      string `json:"ftp_port"`
-			FTPUser      string `json:"ftp_username"`
-			FTPPassword  string `json:"ftp_password"`
+			Namespace   string `json:"namespace"`
+			FTPHost     string `json:"ftp_host"`
+			FTPPort     string `json:"ftp_port"`
+			FTPUser     string `json:"ftp_username"`
+			FTPPassword string `json:"ftp_password"`
 		} `json:"slug_info,omitempty"`
 		ImageInfo struct {
 			HubURL      string `json:"hub_url"`
@@ -290,11 +290,11 @@ type BackupRestore struct {
 	BackupID string `json:"backup_id"`
 	Body     struct {
 		SlugInfo struct {
-			FTPNamespace string `json:"ftp_namespace"`
-			FTPHost      string `json:"ftp_host"`
-			FTPPort      string `json:"ftp_port"`
-			FTPUser      string `json:"ftp_username"`
-			FTPPassword  string `json:"ftp_password"`
+			Namespace   string `json:"namespace"`
+			FTPHost     string `json:"ftp_host"`
+			FTPPort     string `json:"ftp_port"`
+			FTPUser     string `json:"ftp_username"`
+			FTPPassword string `json:"ftp_password"`
 		} `json:"slug_info,omitempty"`
 		ImageInfo struct {
 			HubURL      string `json:"hub_url"`

@@ -48,11 +48,11 @@ type BackupAPPNew struct {
 	Version  string `json:"version"`
 	EventID  string
 	SlugInfo struct {
-		FTPNamespace string `json:"ftp_namespace"`
-		FTPHost      string `json:"ftp_host"`
-		FTPPort      string `json:"ftp_port"`
-		FTPUser      string `json:"ftp_username"`
-		FTPPassword  string `json:"ftp_password"`
+		Namespace   string `json:"namespace"`
+		FTPHost     string `json:"ftp_host"`
+		FTPPort     string `json:"ftp_port"`
+		FTPUser     string `json:"ftp_username"`
+		FTPPassword string `json:"ftp_password"`
 	} `json:"slug_info"`
 	ImageInfo struct {
 		HubURL      string `json:"hub_url"`
@@ -175,7 +175,7 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 			return err
 		}
 		defer sFTPClient.Close()
-		dstDir := fmt.Sprintf("%s/backup/%s_%s/metadata_data.zip", b.SlugInfo.FTPNamespace, b.GroupID, b.Version)
+		dstDir := fmt.Sprintf("%s/backup/%s_%s/metadata_data.zip", b.SlugInfo.Namespace, b.GroupID, b.Version)
 		if err := sFTPClient.PushFile(b.SourceDir, dstDir, b.Logger); err != nil {
 			b.Logger.Error(util.Translation("push slug file to sftp server error"), map[string]string{"step": "backup_builder", "status": "failure"})
 			logrus.Errorf("push  slug file error when backup app , %s", err.Error())
@@ -200,7 +200,7 @@ func (b *BackupAPPNew) uploadSlug(app *RegionServiceSnapshot, version *dbmodel.V
 			return err
 		}
 		defer sFTPClient.Close()
-		dstDir := fmt.Sprintf("%s/backup/%s_%s/app_%s/%s.tgz", b.SlugInfo.FTPNamespace, b.GroupID, b.Version, app.ServiceID, version.BuildVersion)
+		dstDir := fmt.Sprintf("%s/backup/%s_%s/app_%s/%s.tgz", b.SlugInfo.Namespace, b.GroupID, b.Version, app.ServiceID, version.BuildVersion)
 		if err := sFTPClient.PushFile(version.DeliveredPath, dstDir, b.Logger); err != nil {
 			b.Logger.Error(util.Translation("push slug file to sftp server error"), map[string]string{"step": "backup_builder", "status": "failure"})
 			logrus.Errorf("push  slug file error when backup app , %s", err.Error())
