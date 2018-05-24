@@ -126,13 +126,13 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 		b.Logger.Info(fmt.Sprintf("开始备份应用(%s)运行环境", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
 		for i := range app.Versions {
 			if version := app.Versions[len(app.Versions)-1-i]; version != nil && version.BuildVersion == app.Service.DeployVersion {
-				if version.DeliveredType == "slug" {
+				if version.DeliveredType == "slug" && version.FinalStatus == "success" {
 					if err := b.uploadSlug(app, version); err != nil {
 						logrus.Errorf("upload app slug file error.%s", err.Error())
 						return err
 					}
 				}
-				if version.DeliveredType == "image" {
+				if version.DeliveredType == "image" && version.FinalStatus == "success" {
 					if err := b.uploadImage(app, version); err != nil {
 						logrus.Errorf("upload app image error.%s", err.Error())
 						return err
@@ -164,6 +164,7 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 		b.Logger.Info(fmt.Sprintf("压缩备份元数据失败"), map[string]string{"step": "backup_builder", "status": "starting"})
 		return err
 	}
+	b.BackupSize += util.GetFileSize(fmt.Sprintf("%s.zip", b.SourceDir))
 	os.RemoveAll(b.SourceDir)
 	b.SourceDir = fmt.Sprintf("%s.zip", b.SourceDir)
 	//upload app backup data to online server(sftp) if mode is full-online
@@ -186,7 +187,6 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 		b.SourceDir = dstDir
 		b.SourceType = "sftp"
 	}
-	b.BackupSize += util.GetFileSize(fmt.Sprintf("%s.zip", b.SourceDir))
 	if err := b.updateBackupStatu("success"); err != nil {
 		return err
 	}
