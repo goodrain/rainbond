@@ -226,7 +226,8 @@ func (t *TenantServicesDaoImpl) GetServiceMemoryByServiceIDs(serviceIDs []string
 //GetPagedTenantService GetPagedTenantResource
 func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, length int, serviceIDs []string) ([]map[string]interface{}, int, error) {
 	var count int
-	if err := t.DB.Raw("SELECT count(tenant_id) FROM tenant_services where service_id in (?) GROUP BY tenant_id", serviceIDs).Scan(&count).Error; err != nil {
+	var service model.TenantServices
+	if err := t.DB.Table(service.TableName()).Where("service_id in (?)", serviceIDs).Group("tenant_id").Count(&count).Error; err != nil {
 		return nil, count, err
 	}
 	rows, err := t.DB.Raw("SELECT tenant_id, SUM(container_cpu * replicas) AS use_cpu, SUM(container_memory * replicas) AS use_memory FROM tenant_services where service_id in (?) GROUP BY tenant_id ORDER BY use_memory DESC LIMIT ?,?", serviceIDs, offset, length).Rows()
