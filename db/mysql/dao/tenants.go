@@ -224,14 +224,17 @@ func (t *TenantServicesDaoImpl) GetServiceMemoryByServiceIDs(serviceIDs []string
 }
 
 //GetPagedTenantService GetPagedTenantResource
-func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, length int, serviceIDs []string) ([]map[string]interface{}, error) {
-
+func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, length int, serviceIDs []string) ([]map[string]interface{}, int, error) {
+	var count int
+	if err := t.DB.Raw("SELECT count(tenant_id) FROM tenant_services where service_id in (?) GROUP BY tenant_id", serviceIDs).Scan(&count).Error; err != nil {
+		return nil, count, err
+	}
 	rows, err := t.DB.Raw("SELECT tenant_id, SUM(container_cpu * replicas) AS use_cpu, SUM(container_memory * replicas) AS use_memory FROM tenant_services where service_id in (?) GROUP BY tenant_id ORDER BY use_memory DESC LIMIT ?,?", serviceIDs, offset, length).Rows()
 	if err != nil {
-		return nil, err
+		return nil, count, err
 	}
 	defer rows.Close()
-	var rc = make(map[string]*map[string]interface{}, length-offset)
+	var rc = make(map[string]*map[string]interface{}, length)
 	var result []map[string]interface{}
 	var tenantIDs []string
 	for rows.Next() {
@@ -249,7 +252,7 @@ func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, length int, servic
 	}
 	newrows, err := t.DB.Raw("SELECT tenant_id, SUM(container_cpu * replicas) AS cap_cpu, SUM(container_memory * replicas) AS cap_memory FROM tenant_services where tenant_id in (?) GROUP BY tenant_id", tenantIDs).Rows()
 	if err != nil {
-		return nil, err
+		return nil, count, err
 	}
 	defer newrows.Close()
 	for newrows.Next() {
@@ -270,7 +273,7 @@ func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, length int, servic
 		var tenantID string
 		var name string
 		var eid string
-		newrows.Scan(&tenantID, &name, &eid)
+		tenants.Scan(&tenantID, &name, &eid)
 		if _, ok := rc[tenantID]; ok {
 			s := (*rc[tenantID])
 			s["eid"] = eid
@@ -278,7 +281,7 @@ func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, length int, servic
 			*rc[tenantID] = s
 		}
 	}
-	return result, nil
+	return result, count, nil
 }
 
 //GetServiceAliasByIDs 获取应用别名

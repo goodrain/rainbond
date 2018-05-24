@@ -308,19 +308,14 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("bad request, %v", err))
 		return
 	}
-	rep, err := handler.GetTenantManager().GetTenants()
-	if err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants error, %v", err))
-		return
-	}
-	resource, err := handler.GetServiceManager().GetPagedTenantRes((curPage-1)*pageLen, pageLen)
+	resource, count, err := handler.GetServiceManager().GetPagedTenantRes((curPage-1)*pageLen, pageLen)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants  error, %v", err))
 		return
 	}
 	var ret api_model.PagedTenantResList
 	ret.List = resource
-	ret.Length = len(rep)
+	ret.Length = count
 	httputil.ReturnSuccess(r, w, ret)
 	return
 }

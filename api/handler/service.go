@@ -731,7 +731,7 @@ func (s *ServiceAction) GetService(tenantID string) ([]*dbmodel.TenantServices, 
 }
 
 //GetPagedTenantRes get pagedTenantServiceRes(s)
-func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantResource, error) {
+func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantResource, int, error) {
 	allstatus := s.statusCli.GetAllStatus()
 	var serviceIDs []string
 	for k, v := range allstatus {
@@ -739,10 +739,10 @@ func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantR
 			serviceIDs = append(serviceIDs, k)
 		}
 	}
-	services, err := db.GetManager().TenantServiceDao().GetPagedTenantService(offset, len, serviceIDs)
+	services, count, err := db.GetManager().TenantServiceDao().GetPagedTenantService(offset, len, serviceIDs)
 	if err != nil {
 		logrus.Errorf("get service by id error, %v, %v", services, err)
-		return nil, err
+		return nil, count, err
 	}
 	var result []*api_model.TenantResource
 	for _, v := range services {
@@ -756,7 +756,7 @@ func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantR
 		res.UsedMEM, _ = v["usemem"].(int)
 		result = append(result, &res)
 	}
-	return result, nil
+	return result, count, nil
 }
 
 //GetTenantRes get pagedTenantServiceRes(s)
