@@ -176,7 +176,7 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 		}
 		defer sFTPClient.Close()
 		dstDir := fmt.Sprintf("%s/backup/%s_%s/metadata_data.zip", b.SlugInfo.FTPNamespace, b.GroupID, b.Version)
-		if err := sFTPClient.PushFile(fmt.Sprintf("%s.zip", b.SourceDir), dstDir, b.Logger); err != nil {
+		if err := sFTPClient.PushFile(b.SourceDir, dstDir, b.Logger); err != nil {
 			b.Logger.Error(util.Translation("push slug file to sftp server error"), map[string]string{"step": "backup_builder", "status": "failure"})
 			logrus.Errorf("push  slug file error when backup app , %s", err.Error())
 			return err
