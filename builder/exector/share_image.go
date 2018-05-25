@@ -25,7 +25,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/engine-api/client"
-	"github.com/docker/engine-api/types"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"github.com/pquerna/ffjson/ffjson"
@@ -77,7 +76,7 @@ func NewImageShareItem(in []byte, DockerClient *client.Client, EtcdCli *clientv3
 
 //ShareService ShareService
 func (i *ImageShareItem) ShareService() error {
-	_, err := sources.ImagePull(i.DockerClient, i.LocalImageName, types.ImagePullOptions{}, i.Logger, 3)
+	_, err := sources.ImagePull(i.DockerClient, i.LocalImageName, "", "", i.Logger, 10)
 	if err != nil {
 		logrus.Errorf("pull image %s error: %s", i.LocalImageName, err.Error())
 		i.Logger.Error(fmt.Sprintf("拉取应用镜像: %s失败", i.LocalImageName), map[string]string{"step": "builder-exector", "status": "failure"})

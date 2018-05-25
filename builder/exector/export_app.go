@@ -30,14 +30,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/engine-api/client"
-	"github.com/docker/engine-api/types"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 	"gopkg.in/yaml.v2"
-	"github.com/goodrain/rainbond/util"
 )
 
 //ExportApp Export app to specified format(rainbond-app or dockercompose)
@@ -263,7 +262,7 @@ func (i *ExportApp) exportImage(app gjson.Result) error {
 	}
 
 	// docker pull image-name
-	_, err := sources.ImagePull(i.DockerClient, image, types.ImagePullOptions{}, i.Logger, 15)
+	_, err := sources.ImagePull(i.DockerClient, image, "", "", i.Logger, 15)
 	if err != nil {
 		i.Logger.Error(fmt.Sprintf("拉取镜像失败：%s", image),
 			map[string]string{"step": "pull-image", "status": "failure"})
@@ -422,7 +421,7 @@ func (i *ExportApp) exportRunnerImage() error {
 		return nil
 	}
 
-	_, err = sources.ImagePull(i.DockerClient, image, types.ImagePullOptions{}, i.Logger, 5)
+	_, err = sources.ImagePull(i.DockerClient, image, "", "", i.Logger, 10)
 	if err != nil {
 		i.Logger.Error(fmt.Sprintf("拉取镜像失败：%s", image),
 			map[string]string{"step": "pull-image", "status": "failure"})
@@ -596,7 +595,7 @@ func (i *ExportApp) ErrorCallBack(err error) {
 }
 
 func (i *ExportApp) zip() error {
-	err := util.Zip(i.SourceDir, i.SourceDir + ".tar")
+	err := util.Zip(i.SourceDir, i.SourceDir+".tar")
 	if err != nil {
 		i.Logger.Error("打包应用失败", map[string]string{"step": "export-app", "status": "failure"})
 		logrus.Errorf("Failed to create tar file for group %s: %v", i.SourceDir, err)

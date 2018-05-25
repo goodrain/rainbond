@@ -32,7 +32,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/engine-api/client"
-	"github.com/docker/engine-api/types"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/pquerna/ffjson/ffjson"
@@ -124,21 +123,18 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 	for _, app := range appSnapshots {
 		//backup app image or code slug file
 		b.Logger.Info(fmt.Sprintf("开始备份应用(%s)运行环境", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
-		for i := range app.Versions {
-			if version := app.Versions[len(app.Versions)-1-i]; version != nil && version.BuildVersion == app.Service.DeployVersion {
-				if version.DeliveredType == "slug" && version.FinalStatus == "success" {
-					if err := b.uploadSlug(app, version); err != nil {
-						logrus.Errorf("upload app slug file error.%s", err.Error())
-						return err
-					}
+		for _, version := range app.Versions {
+			if version.DeliveredType == "slug" && version.FinalStatus == "success" {
+				if err := b.uploadSlug(app, version); err != nil {
+					logrus.Errorf("upload app slug file error.%s", err.Error())
+					return err
 				}
-				if version.DeliveredType == "image" && version.FinalStatus == "success" {
-					if err := b.uploadImage(app, version); err != nil {
-						logrus.Errorf("upload app image error.%s", err.Error())
-						return err
-					}
+			}
+			if version.DeliveredType == "image" && version.FinalStatus == "success" {
+				if err := b.uploadImage(app, version); err != nil {
+					logrus.Errorf("upload app image error.%s", err.Error())
+					return err
 				}
-				break
 			}
 		}
 		b.Logger.Info(fmt.Sprintf("完成备份应用(%s)运行环境", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
@@ -147,7 +143,6 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 		for _, volume := range app.ServiceVolume {
 			if volume.HostPath != "" && !util.DirIsEmpty(volume.HostPath) {
 				dstDir := fmt.Sprintf("%s/data_%s/%s.zip", b.SourceDir, app.ServiceID, strings.Replace(volume.VolumeName, "/", "", -1))
-				util.CheckAndCreateDir(filepath.Dir(dstDir))
 				if err := util.Zip(volume.HostPath, dstDir); err != nil {
 					logrus.Errorf("backup service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
 					return err
@@ -226,7 +221,7 @@ func (b *BackupAPPNew) uploadImage(app *RegionServiceSnapshot, version *dbmodel.
 		if err != nil {
 			return fmt.Errorf("create backup image error %s", err)
 		}
-		info, err := sources.ImagePull(b.DockerClient, version.DeliveredPath, types.ImagePullOptions{}, b.Logger, 10)
+		info, err := sources.ImagePull(b.DockerClient, version.DeliveredPath, "", "", b.Logger, 10)
 		if err != nil {
 			return fmt.Errorf("pull image when backup error %s", err)
 		}

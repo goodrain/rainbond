@@ -50,13 +50,13 @@ func TestGetDirSizeByCmd(t *testing.T) {
 }
 
 func TestZip(t *testing.T) {
-	if err := Zip("/Users/qingguo/gopath/src/github.com/goodrain/rainbond", "/tmp/rainbond.zip"); err != nil {
+	if err := Zip("/tmp/test/", "/tmp/test.zip"); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestUnzip(t *testing.T) {
-	if err := Unzip("/tmp/rainbond.zip", "/tmp/rainbond"); err != nil {
+	if err := Unzip("/tmp/test.aaa.zip", "/tmp/rainbond"); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -30,7 +30,6 @@ import (
 	"github.com/goodrain/rainbond/event"
 
 	"github.com/docker/engine-api/client"
-	"github.com/docker/engine-api/types"
 )
 
 //DockerComposeParse docker compose 文件解析
@@ -155,7 +154,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 			}
 		}
 		//获取镜像，验证是否存在
-		imageInspect, err := sources.ImagePull(d.dockerclient, service.image.String(), types.ImagePullOptions{}, d.logger, 5)
+		imageInspect, err := sources.ImagePull(d.dockerclient, service.image.String(), "", "", d.logger, 10)
 		if err != nil {
 			if strings.Contains(err.Error(), "No such image") {
 				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)不存在", service.image.String()), SolveAdvice("modify_compose", "请确认ComposeFile输入镜像名是否正确")))

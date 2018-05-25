@@ -17,19 +17,3 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package exector
-
-import (
-	"fmt"
-	"testing"
-)
-
-func TestSetTag(t *testing.T) {
-	curR := "goodrain.me"
-	image := "alpine"
-	alias := "gr123123"
-	mm, err := setTag(curR, image, alias)
-	if err != nil {
-		t.Error(err)
-	}
-	fmt.Println(mm)
-}

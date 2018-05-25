@@ -24,6 +24,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/handler/group"
+	"github.com/goodrain/rainbond/api/middleware"
 
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -66,6 +67,8 @@ func Restore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	br.BackupID = chi.URLParam(r, "backup_id")
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	br.Body.TenantID = tenantID
 	bean, err := handler.GetAPPBackupHandler().RestoreBackup(br)
 	if err != nil {
 		err.Handle(r, w)

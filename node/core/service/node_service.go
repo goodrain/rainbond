@@ -289,7 +289,7 @@ func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *
 		return nil, err
 	}
 	if !node.Role.HasRule("compute") {
-
+		return nil, utils.CreateAPIHandleError(401, fmt.Errorf("node is not compute node"))
 	}
 	ps, error := k8s.GetPodsByNodeName(nodeUID)
 	if error != nil {

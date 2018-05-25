@@ -18,20 +18,28 @@
 
 package util
 
+import "os"
+
 var translationMetadata = map[string]string{
-	"write console level metadata success":     "写控制台级应用元数据成功",
-	"write region level metadata success":      "写数据中心级应用元数据成功",
-	"Asynchronous tasks are sent successfully": "异步任务发送成功",
-	"create ftp client error":                  "创建FTP客户端失败",
-	"push slug file to local dir error":        "上传应用代码包到本地目录失败",
-	"push slug file to sftp server error":      "上传应用代码包到服务端失败",
-	"save image to local dir error":            "保存镜像到本地目录失败",
-	"save image to hub error":                  "保存镜像到仓库失败",
+	"write console level metadata success":         "写控制台级应用元数据成功",
+	"write region level metadata success":          "写数据中心级应用元数据成功",
+	"Asynchronous tasks are sent successfully":     "异步任务发送成功",
+	"create ftp client error":                      "创建FTP客户端失败",
+	"push slug file to local dir error":            "上传应用代码包到本地目录失败",
+	"push slug file to sftp server error":          "上传应用代码包到服务端失败",
+	"down slug file from sftp server error":        "从服务端下载文件失败",
+	"save image to local dir error":                "保存镜像到本地目录失败",
+	"save image to hub error":                      "保存镜像到仓库失败",
+	"Please try again or contact customer service": "后端服务开小差，请重试或联系客服",
+	"unzip metadata file error":                    "解压数据失败",
 }
 
 //Translation Translation English to Chinese
 func Translation(english string) string {
 	if chinese, ok := translationMetadata[english]; ok {
+		if os.Getenv("RAINBOND_LANG") == "en" {
+			return english
+		}
 		return chinese
 	}
 	return english

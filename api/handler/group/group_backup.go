@@ -304,6 +304,12 @@ type BackupRestore struct {
 			IsTrust     bool   `json:"is_trust,omitempty"`
 		} `json:"image_info,omitempty"`
 		EventID string `json:"event_id"`
+		//need restore target tenant id
+		TenantID string `json:"tenant_id"`
+		//RestoreMode(cdct) current datacenter and current tenant
+		//RestoreMode(cdot) current datacenter and other tenant
+		//RestoreMode(od)     other datacenter
+		RestoreMode string `json:"restore_mode"`
 	}
 }
 
@@ -315,14 +321,18 @@ func (h *BackupHandle) RestoreBackup(br BackupRestore) (*dbmodel.AppBackup, *uti
 	if Aerr != nil {
 		return nil, Aerr
 	}
+	if backup.Status != "success" || backup.SourceDir == "" || backup.SourceType == "" {
+		return nil, util.CreateAPIHandleErrorf(500, "backup can not be restore")
+	}
 	var dataMap = map[string]interface{}{
-		"slug_info":   br.Body.SlugInfo,
-		"image_info":  br.Body.ImageInfo,
-		"backup_data": backup,
+		"slug_info":  br.Body.SlugInfo,
+		"image_info": br.Body.ImageInfo,
+		"backup_id":  backup.BackupID,
+		"tenant_id":  br.Body.TenantID,
 	}
 	data, err := ffjson.Marshal(dataMap)
 	if err != nil {
-		return nil, util.CreateAPIHandleError(500, fmt.Errorf("build task body data error,%s", err))
+		return nil, util.CreateAPIHandleErrorf(500, "build task body data error,%s", err)
 	}
 	//Initiate a data backup task.
 	task := &apidb.BuildTaskStruct{

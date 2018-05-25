@@ -45,10 +45,24 @@ import (
 
 //ImagePull 拉取镜像
 //timeout 分钟为单位
-func ImagePull(dockerCli *client.Client, image string, opts types.ImagePullOptions, logger event.Logger, timeout int) (*types.ImageInspect, error) {
+func ImagePull(dockerCli *client.Client, image string, username, password string, logger event.Logger, timeout int) (*types.ImageInspect, error) {
 	if logger != nil {
 		//进度信息
 		logger.Info(fmt.Sprintf("开始获取镜像：%s", image), map[string]string{"step": "pullimage"})
+	}
+	var pullipo types.ImagePullOptions
+	if username != "" && password != "" {
+		auth, err := EncodeAuthToBase64(types.AuthConfig{Username: username, Password: password})
+		if err != nil {
+			logrus.Errorf("make auth base63 push image error: %s", err.Error())
+			logger.Error(fmt.Sprintf("生成获取镜像的Token失败"), map[string]string{"step": "builder-exector", "status": "failure"})
+			return nil, err
+		}
+		pullipo = types.ImagePullOptions{
+			RegistryAuth: auth,
+		}
+	} else {
+		pullipo = types.ImagePullOptions{}
 	}
 	rf, err := reference.ParseAnyReference(image)
 	if err != nil {
@@ -62,7 +76,7 @@ func ImagePull(dockerCli *client.Client, image string, opts types.ImagePullOptio
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
 	//TODO: 使用1.12版本api的bug “repository name must be canonical”，使用rf.String()完整的镜像地址
-	readcloser, err := dockerCli.ImagePull(ctx, rf.String(), opts)
+	readcloser, err := dockerCli.ImagePull(ctx, rf.String(), pullipo)
 	if err != nil {
 		logrus.Debugf("image name: %s readcloser error: %v", image, err.Error())
 		if strings.HasSuffix(err.Error(), "does not exist or no pull access") {

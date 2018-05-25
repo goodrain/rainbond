@@ -32,6 +32,7 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	"github.com/goodrain/rainbond/util"
 	"github.com/tidwall/gjson"
 )
 
@@ -139,7 +140,7 @@ func (e *exectorManager) exec(workerName string, in []byte) error {
 			if r := recover(); r != nil {
 				fmt.Println(r)
 				debug.PrintStack()
-				worker.GetLogger().Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+				worker.GetLogger().Error(util.Translation("Please try again or contact customer service"), map[string]string{"step": "callback", "status": "failure"})
 				worker.ErrorCallBack(fmt.Errorf("%s", r))
 			}
 		}()
