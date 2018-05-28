@@ -126,7 +126,7 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 		// build tokens for env in pod
 		tokensJson, err := json.Marshal(map[string]string{
 			"random_str": randomStr,
-			"api_url":    "http://172.30.42.1:6100/verified",
+			"api_url":    "http://172.30.42.1:6100/v2/verified",
 		})
 		if err != nil {
 			logrus.Error("filed to marshal json for env tokens.")
