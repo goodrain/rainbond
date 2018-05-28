@@ -73,12 +73,12 @@ type AppPublish struct {
 	DestYS     bool   `json:"dest_ys,omitempty"`
 	DestYB     bool   `json:"dest_yb,omitempty"`
 	ShareID    string `json:"share_id,omitempty"`
-	Status    string `json:"status,omitempty"`
+	Status     string `json:"status,omitempty"`
 }
 
 //ImageName ImageName
 type ImageName struct {
-	Host 	string `json:"host"`
-	Name 	string `json:"name"`
-	Tag 	string `json:"tag"`
+	Host string `json:"host"`
+	Name string `json:"name"`
+	Tag  string `json:"tag"`
 }

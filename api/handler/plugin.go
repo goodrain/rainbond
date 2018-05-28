@@ -254,6 +254,7 @@ func (p *PluginAction) BuildPluginManual(bps *api_model.BuildPluginStruct) (*dbm
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("unexpect kind"))
 	}
 }
+
 func createVersionID(s []byte) string {
 	h := md5.New()
 	h.Write(s)
@@ -359,16 +360,17 @@ func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *
 		tpbv = pbv
 	}
 	taskBody := &builder_model.BuildPluginTaskBody{
-		TenantID:     b.Body.TenantID,
-		PluginID:     b.PluginID,
-		Operator:     b.Body.Operator,
-		ImageURL:     plugin.ImageURL,
-		EventID:      b.Body.EventID,
-		Kind:         plugin.BuildModel,
-		PluginCMD:    b.Body.PluginCMD,
-		PluginCPU:    b.Body.PluginCPU,
-		PluginMemory: b.Body.PluginMemory,
-		VersionID:    b.Body.BuildVersion,
+		TenantID:      b.Body.TenantID,
+		PluginID:      b.PluginID,
+		Operator:      b.Body.Operator,
+		DeployVersion: b.Body.BuildVersion,
+		ImageURL:      plugin.ImageURL,
+		EventID:       b.Body.EventID,
+		Kind:          plugin.BuildModel,
+		PluginCMD:     b.Body.PluginCMD,
+		PluginCPU:     b.Body.PluginCPU,
+		PluginMemory:  b.Body.PluginMemory,
+		VersionID:     b.Body.BuildVersion,
 	}
 	jtask, errJ := ffjson.Marshal(taskBody)
 	if errJ != nil {
@@ -479,17 +481,18 @@ func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plu
 		tpbv = pbv
 	}
 	taskBody := &builder_model.BuildPluginTaskBody{
-		TenantID:     b.Body.TenantID,
-		PluginID:     b.PluginID,
-		Operator:     b.Body.Operator,
-		EventID:      b.Body.EventID,
-		Repo:         b.Body.RepoURL,
-		GitURL:       plugin.GitURL,
-		Kind:         plugin.BuildModel,
-		VersionID:    b.Body.BuildVersion,
-		PluginCMD:    b.Body.PluginCMD,
-		PluginCPU:    b.Body.PluginCPU,
-		PluginMemory: b.Body.PluginMemory,
+		TenantID:      b.Body.TenantID,
+		PluginID:      b.PluginID,
+		Operator:      b.Body.Operator,
+		EventID:       b.Body.EventID,
+		Repo:          b.Body.RepoURL,
+		GitURL:        plugin.GitURL,
+		Kind:          plugin.BuildModel,
+		VersionID:     b.Body.BuildVersion,
+		DeployVersion: b.Body.BuildVersion,
+		PluginCMD:     b.Body.PluginCMD,
+		PluginCPU:     b.Body.PluginCPU,
+		PluginMemory:  b.Body.PluginMemory,
 	}
 	jtask, errJ := ffjson.Marshal(taskBody)
 	if errJ != nil {

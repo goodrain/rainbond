@@ -76,7 +76,7 @@ func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) 
 	}
 
 	logger.Info("拉取镜像完成", map[string]string{"step": "build-exector", "status": "complete"})
-	newTag := createTag(t.ImageURL, t.PluginID)
+	newTag := createPluginImageTag(t.ImageURL, t.PluginID, t.DeployVersion)
 	err := sources.ImageTag(e.DockerClient, t.ImageURL, newTag, logger, 1)
 	if err != nil {
 		logrus.Errorf("set plugin image tag error, %v", err)
@@ -89,7 +89,6 @@ func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) 
 		logger.Error("推送镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-
 	version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(t.PluginID, t.VersionID)
 	if err != nil {
 		logger.Error("更新插件版本信息错误", map[string]string{"step": "builder-exector", "status": "failure"})
@@ -105,7 +104,7 @@ func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) 
 	return nil
 }
 
-func createTag(image string, alias string) string {
+func createPluginImageTag(image string, pluginid, version string) string {
 	//alias is pluginID
 	mm := strings.Split(image, "/")
 	tag := "latest"
@@ -117,6 +116,6 @@ func createTag(image string, alias string) string {
 	} else {
 		iName = image
 	}
-	curImage := fmt.Sprintf("goodrain.me/%s:%s", iName, tag+"_"+alias)
+	curImage := fmt.Sprintf("goodrain.me/plugin_%s_%s:%s_%s", iName, pluginid, tag, version)
 	return curImage
 }

@@ -88,16 +88,24 @@ func ImagePull(dockerCli *client.Client, image string, username, password string
 		return nil, err
 	}
 	defer readcloser.Close()
-	r := bufio.NewReader(readcloser)
+	dec := json.NewDecoder(readcloser)
 	for {
-		if line, _, err := r.ReadLine(); err == nil {
-			if logger != nil {
-				//进度信息
-				logger.Debug(string(line), map[string]string{"step": "progress"})
-			}
-		} else {
-			break
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
 		}
+		var jm JSONMessage
+		if err := dec.Decode(&jm); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		if jm.Error != nil {
+			return nil, jm.Error
+		}
+		logger.Debug(jm.JSONString(), map[string]string{"step": "progress"})
 	}
 	ins, _, err := dockerCli.ImageInspectWithRaw(ctx, image, false)
 	if err != nil {
@@ -200,37 +208,24 @@ func ImagePush(dockerCli *client.Client, image, user, pass string, logger event.
 	}
 	if readcloser != nil {
 		defer readcloser.Close()
-		r := bufio.NewReader(readcloser)
+		dec := json.NewDecoder(readcloser)
 		for {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
 			}
-			if line, _, err := r.ReadLine(); err == nil {
-				//if receive a login contains authentication required.
-				//it means authentication failure
-				if strings.Contains(string(line), "authentication required") {
-					return fmt.Errorf("authentication required")
-				}
-				if strings.Contains(string(line), "requested access to the resource is denied") {
-					return fmt.Errorf("requested access to the resource is denied")
-				}
-				if strings.Contains(string(line), "incorrect username or password") {
-					return fmt.Errorf("incorrect username or password")
-				}
-				if logger != nil {
-					//进度信息
-					logger.Debug(string(line), map[string]string{"step": "progress"})
-				} else {
-					fmt.Println(string(line))
-				}
-			} else {
-				if err.Error() == "EOF" {
-					return nil
+			var jm JSONMessage
+			if err := dec.Decode(&jm); err != nil {
+				if err == io.EOF {
+					break
 				}
 				return err
 			}
+			if jm.Error != nil {
+				return jm.Error
+			}
+			logger.Debug(jm.JSONString(), map[string]string{"step": "progress"})
 		}
 
 	}
@@ -318,32 +313,24 @@ func ImageBuild(dockerCli *client.Client, contextDir string, options types.Image
 	}
 	if rc.Body != nil {
 		defer rc.Body.Close()
-		r := bufio.NewReader(rc.Body)
+		dec := json.NewDecoder(rc.Body)
 		for {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
 			}
-			if line, _, err := r.ReadLine(); err == nil {
-				if len(line) > 0 {
-					message := strings.Replace(string(line), "\n", "", -1)
-					message = strings.Replace(message, "\r", "", -1)
-					message = strings.Replace(message, "\u003e", ">", -1)
-					if len(message) > 0 {
-						if logger != nil {
-							logger.Debug(message, map[string]string{"step": "build-progress"})
-						} else {
-							fmt.Println(message)
-						}
-					}
-				}
-			} else {
-				if err.Error() == "EOF" {
-					return nil
+			var jm JSONMessage
+			if err := dec.Decode(&jm); err != nil {
+				if err == io.EOF {
+					break
 				}
 				return err
 			}
+			if jm.Error != nil {
+				return jm.Error
+			}
+			logger.Debug(jm.JSONString(), map[string]string{"step": "build-progress"})
 		}
 	}
 	return nil

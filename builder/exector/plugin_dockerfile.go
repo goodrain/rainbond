@@ -102,7 +102,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger)
 	logger.Info("代码检测为dockerfile，开始编译", map[string]string{"step": "build-exector"})
 	mm := strings.Split(t.GitURL, "/")
 	n1 := strings.Split(mm[len(mm)-1], ".")[0]
-	buildImageName := strings.ToLower(fmt.Sprintf("goodrain.me/%s_%s", n1, t.VersionID))
+	buildImageName := fmt.Sprintf("goodrain.me/plugin_%s_%s:%s", n1, t.PluginID, t.DeployVersion)
 	buildOptions := types.ImageBuildOptions{
 		Tags:   []string{buildImageName},
 		Remove: true,

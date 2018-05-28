@@ -70,7 +70,10 @@ func (t *TenantPluginDefaultENV) TableName() string {
 //TenantPluginBuildVersion plugin build version
 type TenantPluginBuildVersion struct {
 	Model
-	VersionID       string `gorm:"column:version_id;size:32" json:"version_id"`
+	//plugin version eg v1.0.0
+	VersionID string `gorm:"column:version_id;size:32" json:"version_id"`
+	//deploy version eg 20180528071717
+	DeployVersion   string `gorm:"column:deploy_version;size:32" json:"deploy_version"`
 	PluginID        string `gorm:"column:plugin_id;size:32" json:"plugin_id"`
 	Kind            string `gorm:"column:kind;size:24" json:"kind"`
 	BaseImage       string `gorm:"column:base_image;size:100" json:"base_image"`
