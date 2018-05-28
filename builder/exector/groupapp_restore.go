@@ -65,10 +65,11 @@ type BackupAPPRestore struct {
 	//RestoreMode(cdct) current datacenter and current tenant
 	//RestoreMode(cdot) current datacenter and other tenant
 	//RestoreMode(od)     other datacenter
-	RestoreMode   string `json:"restore_mode"`
-	RestoreID     string `json:"restore_id"`
-	DockerClient  *client.Client
-	cacheDir      string
+	RestoreMode  string `json:"restore_mode"`
+	RestoreID    string `json:"restore_id"`
+	DockerClient *client.Client
+	cacheDir     string
+	//serviceChange  key: oldServiceID
 	serviceChange map[string]*Info
 	etcdcli       *clientv3.Client
 }
@@ -259,18 +260,19 @@ func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionS
 func (b *BackupAPPRestore) clear() {
 	//clear db
 	manager := db.GetManager()
-	for k := range b.serviceChange {
-		manager.TenantServiceDao().DeleteServiceByServiceID(k)
-		manager.TenantServicesPortDao().DELPortsByServiceID(k)
-		manager.ServiceProbeDao().DELServiceProbesByServiceID(k)
-		manager.TenantServiceLBMappingPortDao().DELServiceLBMappingPortByServiceID(k)
-		manager.TenantServiceEnvVarDao().DELServiceEnvsByServiceID(k)
-		manager.TenantServiceLabelDao().DeleteLabelByServiceID(k)
-		manager.TenantServiceMountRelationDao().DELTenantServiceMountRelationByServiceID(k)
-		manager.TenantServicePluginRelationDao().DeleteALLRelationByServiceID(k)
-		manager.TenantServiceRelationDao().DELRelationsByServiceID(k)
-		manager.TenantServiceVolumeDao().DeleteTenantServiceVolumesByServiceID(k)
-		manager.VersionInfoDao().DeleteVersionByServiceID(k)
+	for _, v := range b.serviceChange {
+		serviceID := v.ServiceID
+		manager.TenantServiceDao().DeleteServiceByServiceID(serviceID)
+		manager.TenantServicesPortDao().DELPortsByServiceID(serviceID)
+		manager.ServiceProbeDao().DELServiceProbesByServiceID(serviceID)
+		manager.TenantServiceLBMappingPortDao().DELServiceLBMappingPortByServiceID(serviceID)
+		manager.TenantServiceEnvVarDao().DELServiceEnvsByServiceID(serviceID)
+		manager.TenantServiceLabelDao().DeleteLabelByServiceID(serviceID)
+		manager.TenantServiceMountRelationDao().DELTenantServiceMountRelationByServiceID(serviceID)
+		manager.TenantServicePluginRelationDao().DeleteALLRelationByServiceID(serviceID)
+		manager.TenantServiceRelationDao().DELRelationsByServiceID(serviceID)
+		manager.TenantServiceVolumeDao().DeleteTenantServiceVolumesByServiceID(serviceID)
+		manager.VersionInfoDao().DeleteVersionByServiceID(serviceID)
 	}
 	//clear cache data
 	os.RemoveAll(b.cacheDir)
@@ -372,10 +374,14 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshots []*RegionServiceSnapshot
 						tx.Rollback()
 						return fmt.Errorf("create new app lb port when restore backup error. %s", err.Error())
 					}
-					if b.serviceChange[app.ServiceID].LBPorts == nil {
-						b.serviceChange[app.ServiceID].LBPorts = map[int]int{maport.ContainerPort: maport.Port}
+					info := b.serviceChange[b.getOldServiceID(app.ServiceID)]
+					if info == nil {
+						continue
+					}
+					if info.LBPorts == nil {
+						info.LBPorts = map[int]int{maport.ContainerPort: maport.Port}
 					} else {
-						b.serviceChange[app.ServiceID].LBPorts[maport.ContainerPort] = maport.Port
+						info.LBPorts[maport.ContainerPort] = maport.Port
 					}
 				} else {
 					tx.Rollback()
@@ -418,8 +424,24 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshots []*RegionServiceSnapshot
 				return fmt.Errorf("create app relation when restore backup error. %s", err.Error())
 			}
 		}
+		localPath := os.Getenv("LOCAL_DATA_PATH")
+		sharePath := os.Getenv("SHARE_DATA_PATH")
+		if localPath == "" {
+			localPath = "/grlocaldata"
+		}
+		if sharePath == "" {
+			sharePath = "/grdata"
+		}
 		for _, a := range app.ServiceVolume {
 			a.ID = 0
+			switch a.VolumeType {
+			//nfs
+			case dbmodel.ShareFileVolumeType.String():
+				a.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, b.TenantID, a.ServiceID, a.VolumePath)
+			//local
+			case dbmodel.LocalVolumeType.String():
+				a.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, b.TenantID, a.ServiceID, a.VolumePath)
+			}
 			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).AddModel(a); err != nil {
 				tx.Rollback()
 				return fmt.Errorf("create app volume when restore backup error. %s", err.Error())
