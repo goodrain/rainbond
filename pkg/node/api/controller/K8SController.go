@@ -40,6 +40,7 @@ import (
 	"strconv"
 
 	"github.com/goodrain/rainbond/pkg/node/api/model"
+	"github.com/goodrain/rainbond/pkg/node/core/store"
 )
 
 func GetNodeDetails(w http.ResponseWriter, r *http.Request) {
@@ -476,6 +477,29 @@ func AddNode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	outRespSuccess(w, nil, nil)
+}
+
+func GetVerified(w http.ResponseWriter, r *http.Request) {
+	verifiedId := strings.TrimSpace(chi.URLParam(r, "verified_id"))
+	logrus.Info("GET verified information by id: ", verifiedId)
+
+	rep, err := store.DefalutClient.Get(store.PlatformVerifiedPrefix + verifiedId)
+	if err != nil || len(rep.Kvs) < 1 {
+		info, _ := json.Marshal(map[string]string{
+			"code": "401",
+			"data": "failed to verified.",
+		})
+		w.WriteHeader(401)
+		w.Write(info)
+		return
+	}
+
+	info, _ := json.Marshal(map[string]string{
+		"code": "200",
+		"data": string(rep.Kvs[0].Value),
+	})
+	w.WriteHeader(200)
+	w.Write(info)
 }
 
 func outSuccess(w http.ResponseWriter) {

@@ -32,10 +32,15 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"encoding/json"
+	"github.com/goodrain/rainbond/pkg/worker/etcd"
+	"github.com/twinj/uuid"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/pkg/api/v1"
+	"crypto/cipher"
+	"crypto/aes"
 )
 
 //PodTemplateSpecBuild pod build
@@ -100,6 +105,88 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create envs in pod template error :%v", err.Error())
 	}
+	//step1.1:如果环境变量中存在PLATFORM_VARIFIED则为容器注入TOKENS信息
+	PLATFORM_VERIFIED := false
+	for _, env := range *envs {
+		if env.Name == "PLATFORM_VERIFIED" && env.Value == "true" {
+			PLATFORM_VERIFIED = true
+			break
+		}
+	}
+
+	if PLATFORM_VERIFIED {
+		logrus.Info("generate verified info for service: ", p.serviceID)
+		id := uuid.NewV4().String()
+		id = strings.Replace(id, "-", "", -1)
+		iv := []byte(id[:16])
+
+		randomStr := uuid.NewV4().String()
+		randomStr = strings.Replace(randomStr, "-", "", -1)
+
+		// build tokens for env in pod
+		tokensJson, err := json.Marshal(map[string]string{
+			"random_str": randomStr,
+			"api_url":    "http://172.30.42.1:6100/verified",
+		})
+		if err != nil {
+			logrus.Error("filed to marshal json for env tokens.")
+			return nil, err
+		}
+
+		// create a aes block by key
+		block, err := aes.NewCipher([]byte(id))
+		if err != nil {
+			println(err)
+		}
+
+		// create cfb encoder by block and IV
+		cfb := cipher.NewCFBEncrypter(block, iv)
+
+		// encoding json string for env
+		encode := make([]byte, len(tokensJson))
+		cfb.XORKeyStream(encode, tokensJson)
+		tokens := fmt.Sprintf("%x", encode)
+
+		idEnv := v1.EnvVar{
+			Name:  "ID",
+			Value: id,
+		}
+		tokensEnv := v1.EnvVar{
+			Name:  "TOKENS",
+			Value: tokens,
+		}
+		*envs = append(*envs, idEnv, tokensEnv)
+
+		// build tokens for enterprise and save to etcd
+		tokensJson, err = json.Marshal(map[string]string{
+			"random_str":      randomStr,
+			"enterprise_id":   p.tenant.EID,
+			"enterprise_name": p.tenant.Name,
+			"service_key":     p.service.ServiceKey,
+		})
+		if err != nil {
+			logrus.Error("filed to marshal json for etcd tokens.")
+			return nil, err
+		}
+
+		// recreate cfb encoder by block and IV
+		cfb = cipher.NewCFBEncrypter(block, iv)
+
+		// encoding json string for etcd
+		encode = make([]byte, len(tokensJson))
+		cfb.XORKeyStream(encode, tokensJson)
+		tokens = fmt.Sprintf("%x", encode)
+
+		// write tokens information to etcd
+		_, err = etcd.Put(etcd.PlatformVerifiedPrefix + id, tokens)
+		if err != nil {
+			logrus.Error("failed put tokens to etcd by id: ", id)
+			return nil, err
+		}
+
+		logrus.Debug("put tokens to etcd by id: ", etcd.PlatformVerifiedPrefix + id)
+	}
+
 	//step2:构建挂载定义
 	volumes, volumeMounts, err := p.createVolumes(envs)
 	if err != nil {

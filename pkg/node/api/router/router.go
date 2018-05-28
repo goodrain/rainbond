@@ -117,6 +117,11 @@ func Routers(mode string) *chi.Mux {
 			})
 			r.Put("/tasks/taskreload", controller.ReloadStaticTasks)
 		}
+
+		r.Route("/verified", func(r chi.Router) {
+			r.Get("/{verified_id}", controller.GetVerified)
+		})
+
 	})
 	//节点监控
 	r.Get("/node/metrics", controller.NodeExporter)
