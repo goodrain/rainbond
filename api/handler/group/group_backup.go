@@ -430,6 +430,7 @@ type BackupCopy struct {
 func (h *BackupHandle) BackupCopy(b BackupCopy) (*dbmodel.AppBackup, *util.APIHandleError) {
 	b.Body.ID = 0
 	b.Body.CreatedAt = time.Now()
+	b.Body.BackupID = core_util.NewUUID()
 	if err := db.GetManager().AppBackupDao().AddModel(&b.Body); err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("copy backup", err)
 	}
