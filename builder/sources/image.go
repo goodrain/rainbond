@@ -463,3 +463,11 @@ func CopyToFile(outfile string, r io.Reader) error {
 	}
 	return nil
 }
+
+//ImageRemove remove image
+func ImageRemove(dockerCli *client.Client, image string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err := dockerCli.ImageRemove(ctx, image, types.ImageRemoveOptions{})
+	return err
+}

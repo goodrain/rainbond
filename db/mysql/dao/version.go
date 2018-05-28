@@ -21,14 +21,15 @@ package dao
 import (
 	"github.com/goodrain/rainbond/db/model"
 
-	"github.com/jinzhu/gorm"
 	"fmt"
+
+	"github.com/jinzhu/gorm"
 )
 
-
-func (c *VersionInfoDaoImpl) DeleteVersionByEventID(eventID string) error{
+//DeleteVersionByEventID DeleteVersionByEventID
+func (c *VersionInfoDaoImpl) DeleteVersionByEventID(eventID string) error {
 	version := &model.VersionInfo{
-		EventID:eventID,
+		EventID: eventID,
 	}
 	if err := c.DB.Where("event_id = ? ", eventID).Delete(version).Error; err != nil {
 		return err
@@ -36,6 +37,14 @@ func (c *VersionInfoDaoImpl) DeleteVersionByEventID(eventID string) error{
 	return nil
 }
 
+//DeleteVersionByServiceID DeleteVersionByServiceID
+func (c *VersionInfoDaoImpl) DeleteVersionByServiceID(serviceID string) error {
+	var version model.VersionInfo
+	if err := c.DB.Where("service_id = ? ", serviceID).Delete(&version).Error; err != nil {
+		return err
+	}
+	return nil
+}
 
 //AddModel AddModel
 func (c *VersionInfoDaoImpl) AddModel(mo model.Interface) error {
@@ -51,7 +60,6 @@ func (c *VersionInfoDaoImpl) AddModel(mo model.Interface) error {
 	}
 	return nil
 }
-
 
 //UpdateModel UpdateModel
 func (c *VersionInfoDaoImpl) UpdateModel(mo model.Interface) error {
@@ -80,9 +88,9 @@ func (c *VersionInfoDaoImpl) GetVersionByEventID(eventID string) (*model.Version
 }
 
 //GetEventLogMessages get event log message
-func (c *VersionInfoDaoImpl) GetVersionByDeployVersion(version,serviceID string) (*model.VersionInfo, error) {
+func (c *VersionInfoDaoImpl) GetVersionByDeployVersion(version, serviceID string) (*model.VersionInfo, error) {
 	var result model.VersionInfo
-	if err := c.DB.Where("build_version =? and service_id = ?", version,serviceID).Find(&result).Error; err != nil {
+	if err := c.DB.Where("build_version =? and service_id = ?", version, serviceID).Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, err
 		}
@@ -90,7 +98,6 @@ func (c *VersionInfoDaoImpl) GetVersionByDeployVersion(version,serviceID string)
 	}
 	return &result, nil
 }
-
 
 //GetEventLogMessages get event log message
 func (c *VersionInfoDaoImpl) GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error) {

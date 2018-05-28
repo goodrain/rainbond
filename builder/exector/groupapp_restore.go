@@ -119,9 +119,9 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 	b.cacheDir = cacheDir
 	switch backup.SourceType {
 	case "sftp":
-		b.downloadFromFTP(backup.SourceDir)
+		b.downloadFromFTP(backup)
 	default:
-		b.downloadFromLocal(backup.SourceDir)
+		b.downloadFromLocal(backup)
 	}
 	//read metadata file
 	metadata, err := ioutil.ReadFile(fmt.Sprintf("%s/region_apps_metadata.json", b.cacheDir))
@@ -147,8 +147,8 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 	if err := b.restoreVersionAndData(backup, appSnapshots); err != nil {
 		return err
 	}
-
 	//save result
+	b.saveResult("success", "")
 	return nil
 }
 func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appSnapshots []*RegionServiceSnapshot) error {
@@ -258,11 +258,22 @@ func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionS
 //if restore error, will clear
 func (b *BackupAPPRestore) clear() {
 	//clear db
-
-	//clear version data
-
+	manager := db.GetManager()
+	for k := range b.serviceChange {
+		manager.TenantServiceDao().DeleteServiceByServiceID(k)
+		manager.TenantServicesPortDao().DELPortsByServiceID(k)
+		manager.ServiceProbeDao().DELServiceProbesByServiceID(k)
+		manager.TenantServiceLBMappingPortDao().DELServiceLBMappingPortByServiceID(k)
+		manager.TenantServiceEnvVarDao().DELServiceEnvsByServiceID(k)
+		manager.TenantServiceLabelDao().DeleteLabelByServiceID(k)
+		manager.TenantServiceMountRelationDao().DELTenantServiceMountRelationByServiceID(k)
+		manager.TenantServicePluginRelationDao().DeleteALLRelationByServiceID(k)
+		manager.TenantServiceRelationDao().DELRelationsByServiceID(k)
+		manager.TenantServiceVolumeDao().DeleteTenantServiceVolumesByServiceID(k)
+		manager.VersionInfoDao().DeleteVersionByServiceID(k)
+	}
 	//clear cache data
-
+	os.RemoveAll(b.cacheDir)
 }
 func (b *BackupAPPRestore) modify(appSnapshots []*RegionServiceSnapshot) error {
 	for _, app := range appSnapshots {
@@ -436,20 +447,20 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshots []*RegionServiceSnapshot
 	return nil
 }
 
-func (b *BackupAPPRestore) downloadFromLocal(sourceDir string) error {
+func (b *BackupAPPRestore) downloadFromLocal(backup *dbmodel.AppBackup) error {
+	sourceDir := backup.SourceDir
 	err := util.Unzip(sourceDir, b.cacheDir)
 	if err != nil {
 		b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "backup_builder", "status": "failure"})
 		logrus.Errorf("unzip file error when restore backup app , %s", err.Error())
 		return err
 	}
-	filename := filepath.Base(sourceDir)
-	infos := strings.Split(filename, ".")
-	b.cacheDir = filepath.Join(b.cacheDir, infos[0])
+	b.cacheDir = filepath.Join(b.cacheDir, fmt.Sprintf("%s_%s", backup.GroupID, backup.Version))
 	return nil
 }
 
-func (b *BackupAPPRestore) downloadFromFTP(sourceDir string) error {
+func (b *BackupAPPRestore) downloadFromFTP(backup *dbmodel.AppBackup) error {
+	sourceDir := backup.SourceDir
 	sFTPClient, err := sources.NewSFTPClient(b.SlugInfo.FTPUser, b.SlugInfo.FTPPassword, b.SlugInfo.FTPHost, b.SlugInfo.FTPPort)
 	if err != nil {
 		b.Logger.Error(util.Translation("create ftp client error"), map[string]string{"step": "backup_builder", "status": "failure"})
@@ -468,9 +479,7 @@ func (b *BackupAPPRestore) downloadFromFTP(sourceDir string) error {
 		logrus.Errorf("unzip file error when restore backup app , %s", err.Error())
 		return err
 	}
-	filename := filepath.Base(sourceDir)
-	infos := strings.Split(filename, ".")
-	b.cacheDir = filepath.Join(b.cacheDir, infos[0])
+	b.cacheDir = filepath.Join(b.cacheDir, fmt.Sprintf("%s_%s", backup.GroupID, backup.Version))
 	return nil
 }
 

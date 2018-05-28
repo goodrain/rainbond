@@ -330,6 +330,7 @@ type VersionInfoDao interface {
 	GetVersionByDeployVersion(version, serviceID string) (*model.VersionInfo, error)
 	GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error)
 	DeleteVersionByEventID(eventID string) error
+	DeleteVersionByServiceID(serviceID string) error
 }
 
 //RegionUserInfoDao UserRegionInfoDao
