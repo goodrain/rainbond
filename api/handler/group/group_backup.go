@@ -342,7 +342,7 @@ func (h *BackupHandle) RestoreBackup(br BackupRestore) (*RestoreResult, *util.AP
 		return nil, Aerr
 	}
 	if backup.Status != "success" || backup.SourceDir == "" || backup.SourceType == "" {
-		return nil, util.CreateAPIHandleErrorf(500, "backup can not be restore")
+		return nil, util.CreateAPIHandleErrorf(500, "backup can not be restored")
 	}
 	var restoreID string
 	if br.Body.EventID != "" {
@@ -386,7 +386,12 @@ func (h *BackupHandle) RestoreBackup(br BackupRestore) (*RestoreResult, *util.AP
 		RestoreMode: br.Body.RestoreMode,
 		RestoreID:   restoreID,
 	}
-
+	body, _ := ffjson.Marshal(rr)
+	_, err = h.etcdCli.Put(ctx, "/rainbond/backup_restore/"+restoreID, string(body))
+	if err != nil {
+		logrus.Errorf("save backup restore history error.")
+		return nil, util.CreateAPIHandleError(500, err)
+	}
 	return rr, nil
 }
 
