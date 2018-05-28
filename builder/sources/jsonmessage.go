@@ -24,8 +24,6 @@ package sources
 
 import (
 	"encoding/json"
-
-	"github.com/pquerna/ffjson/ffjson"
 )
 
 //JSONMessage JSONMessage
@@ -46,7 +44,7 @@ type JSONMessage struct {
 
 //JSONString return json string
 func (j *JSONMessage) JSONString() string {
-	re, _ := ffjson.Marshal(j)
+	re, _ := j.Aux.MarshalJSON()
 	return string(re)
 }
 
