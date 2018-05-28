@@ -243,6 +243,12 @@ func (i *ImportApp) importApp() error {
 	datas += "]"
 	i.SourceDir = oldSourceDir
 
+	metadatasFile := fmt.Sprintf("%s/metadatas.json", i.SourceDir)
+	if err := ioutil.WriteFile(metadatasFile, []byte(datas), 0644); err != nil {
+		logrus.Errorf("Failed to load apps %s: %v", i.SourceDir, err)
+		return nil
+	}
+
 	// 更新应用状态
 	if err := i.updateStatus("success", datas); err != nil {
 		logrus.Errorf("Failed to load apps %s: %v", i.SourceDir, err)
@@ -400,7 +406,6 @@ func (i *ImportApp) updateStatus(status, data string) error {
 
 	// 在数据库中更新该应用的状态信息
 	res.Status = status
-	res.Metadata = data
 
 	if err := db.GetManager().AppDao().UpdateModel(res); err != nil {
 		err = fmt.Errorf("failed to update app %s: %v", i.EventID, err)
