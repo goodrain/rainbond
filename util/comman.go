@@ -483,3 +483,32 @@ func Unzip(archive, target string) error {
 
 	return nil
 }
+
+//GetParentDirectory GetParentDirectory
+func GetParentDirectory(dirctory string) string {
+	return substr(dirctory, 0, strings.LastIndex(dirctory, "/"))
+}
+
+func substr(s string, pos, length int) string {
+	runes := []rune(s)
+	l := pos + length
+	if l > len(runes) {
+		l = len(runes)
+	}
+	return string(runes[pos:l])
+}
+
+//Rename move file
+func Rename(old, new string) error {
+	_, err := os.Stat(GetParentDirectory(new))
+	if err != nil {
+		if err == os.ErrNotExist {
+			if err := os.MkdirAll(GetParentDirectory(new), 0755); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+	return os.Rename(old, new)
+}

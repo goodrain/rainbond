@@ -181,7 +181,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 					logrus.Errorf("restore service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
 					return err
 				}
-				err := os.Rename(filepath.Join(tmpDir, strings.Replace(volume.VolumeName, "/", "", -1)), volume.HostPath)
+				err := util.Rename(tmpDir, util.GetParentDirectory(volume.HostPath))
 				if err != nil {
 					return err
 				}
