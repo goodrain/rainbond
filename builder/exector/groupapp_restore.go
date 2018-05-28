@@ -19,12 +19,15 @@
 package exector
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/coreos/etcd/clientv3"
 
 	"github.com/goodrain/rainbond/builder/sources"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -63,9 +66,11 @@ type BackupAPPRestore struct {
 	//RestoreMode(cdot) current datacenter and other tenant
 	//RestoreMode(od)     other datacenter
 	RestoreMode   string `json:"restore_mode"`
+	RestoreID     string `json:"restore_id"`
 	DockerClient  *client.Client
 	cacheDir      string
 	serviceChange map[string]*Info
+	etcdcli       *clientv3.Client
 }
 
 //Info service cache info
@@ -81,18 +86,14 @@ func init() {
 }
 
 //BackupAPPRestoreCreater create
-func BackupAPPRestoreCreater(in []byte) (TaskWorker, error) {
-	dockerClient, err := client.NewEnvClient()
-	if err != nil {
-		logrus.Error("Failed to create task for export app: ", err)
-		return nil, err
-	}
+func BackupAPPRestoreCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	backupRestore := &BackupAPPRestore{
 		Logger:        logger,
 		EventID:       eventID,
-		DockerClient:  dockerClient,
+		DockerClient:  m.DockerClient,
+		etcdcli:       m.EtcdCli,
 		serviceChange: make(map[string]*Info, 0),
 	}
 	if err := ffjson.Unmarshal(in, &backupRestore); err != nil {
@@ -494,5 +495,37 @@ func (b *BackupAPPRestore) ErrorCallBack(err error) {
 		logrus.Errorf("restore backup group app failure %s", err)
 		b.Logger.Error(util.Translation("restore backup group app failure"), map[string]string{"step": "callback", "status": "failure"})
 		b.clear()
+		b.saveResult("failure", err.Error())
 	}
+}
+
+//RestoreResult RestoreResult
+type RestoreResult struct {
+	Status        string           `json:"status"`
+	Message       string           `json:"message"`
+	CreateTime    time.Time        `json:"create_time"`
+	ServiceChange map[string]*Info `json:"service_change"`
+	BackupID      string           `json:"backup_id"`
+	RestoreMode   string           `json:"restore_mode"`
+	EventID       string           `json:"event_id"`
+	RestoreID     string           `json:"restore_id"`
+	CacheDir      string           `json:"cache_dir"`
+}
+
+func (b *BackupAPPRestore) saveResult(status, message string) {
+	var rr = RestoreResult{
+		Status:        status,
+		Message:       message,
+		CreateTime:    time.Now(),
+		ServiceChange: b.serviceChange,
+		BackupID:      b.BackupID,
+		RestoreMode:   b.RestoreMode,
+		EventID:       b.EventID,
+		RestoreID:     b.RestoreID,
+		CacheDir:      b.cacheDir,
+	}
+	body, _ := ffjson.Marshal(rr)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	b.etcdcli.Put(ctx, "/rainbond/backup_restore/"+rr.RestoreID, string(body))
 }

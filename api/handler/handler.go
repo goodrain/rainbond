@@ -66,7 +66,7 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 	defaultNetRulesHandler = CreateNetRulesManager(etcdCli)
 	defaultSourcesHandler = CreateSourcesManager(etcdCli)
 	defaultCloudHandler = CreateCloudManager(conf)
-	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli)
+	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli, etcdCli)
 	//需要使用etcd v2 API
 	defaultEventHandler = CreateLogManager(conf.EtcdEndpoint)
 	shareHandler = &share.ServiceShareHandle{MQClient: mqClient, EtcdCli: etcdCli}

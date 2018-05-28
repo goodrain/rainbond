@@ -24,6 +24,9 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
+
+	"github.com/coreos/etcd/clientv3"
 
 	"github.com/goodrain/rainbond/event"
 
@@ -80,11 +83,12 @@ type Backup struct {
 type BackupHandle struct {
 	MQClient  pb.TaskQueueClient
 	statusCli *client.AppRuntimeSyncClient
+	etcdCli   *clientv3.Client
 }
 
 //CreateBackupHandle CreateBackupHandle
-func CreateBackupHandle(MQClient pb.TaskQueueClient, statusCli *client.AppRuntimeSyncClient) *BackupHandle {
-	return &BackupHandle{MQClient: MQClient, statusCli: statusCli}
+func CreateBackupHandle(MQClient pb.TaskQueueClient, statusCli *client.AppRuntimeSyncClient, etcdCli *clientv3.Client) *BackupHandle {
+	return &BackupHandle{MQClient: MQClient, statusCli: statusCli, etcdCli: etcdCli}
 }
 
 //NewBackup new backup task
@@ -279,12 +283,6 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string) error {
 	return nil
 }
 
-//BackupRestoreResult BackupRestoreResult
-type BackupRestoreResult struct {
-	Metadata string             `json:"metadata"`
-	Backup   *dbmodel.AppBackup `json:"backup"`
-}
-
 //BackupRestore BackupRestore
 type BackupRestore struct {
 	BackupID string `json:"backup_id"`
@@ -313,9 +311,31 @@ type BackupRestore struct {
 	}
 }
 
+//RestoreResult RestoreResult
+type RestoreResult struct {
+	Status        string           `json:"status"`
+	Message       string           `json:"message"`
+	CreateTime    time.Time        `json:"create_time"`
+	ServiceChange map[string]*Info `json:"service_change"`
+	BackupID      string           `json:"backup_id"`
+	RestoreMode   string           `json:"restore_mode"`
+	EventID       string           `json:"event_id"`
+	RestoreID     string           `json:"restore_id"`
+	Metadata      string           `json:"metadata"`
+	CacheDir      string           `json:"cache_dir"`
+}
+
+//Info service cache info
+type Info struct {
+	ServiceID    string
+	ServiceAlias string
+	Status       string
+	LBPorts      map[int]int
+}
+
 //RestoreBackup restore a backup version
 //all app could be closed before restore
-func (h *BackupHandle) RestoreBackup(br BackupRestore) (*dbmodel.AppBackup, *util.APIHandleError) {
+func (h *BackupHandle) RestoreBackup(br BackupRestore) (*RestoreResult, *util.APIHandleError) {
 	logger := event.GetManager().GetLogger(br.Body.EventID)
 	backup, Aerr := h.GetBackup(br.BackupID)
 	if Aerr != nil {
@@ -324,11 +344,17 @@ func (h *BackupHandle) RestoreBackup(br BackupRestore) (*dbmodel.AppBackup, *uti
 	if backup.Status != "success" || backup.SourceDir == "" || backup.SourceType == "" {
 		return nil, util.CreateAPIHandleErrorf(500, "backup can not be restore")
 	}
+	var restoreID string
+	if br.Body.EventID != "" {
+		restoreID = br.Body.EventID
+	}
+	restoreID = core_util.NewUUID()
 	var dataMap = map[string]interface{}{
 		"slug_info":  br.Body.SlugInfo,
 		"image_info": br.Body.ImageInfo,
 		"backup_id":  backup.BackupID,
 		"tenant_id":  br.Body.TenantID,
+		"restore_id": restoreID,
 	}
 	data, err := ffjson.Marshal(dataMap)
 	if err != nil {
@@ -353,12 +379,39 @@ func (h *BackupHandle) RestoreBackup(br BackupRestore) (*dbmodel.AppBackup, *uti
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf("build enqueue task error,%s", err))
 	}
 	logger.Info(core_util.Translation("Asynchronous tasks are sent successfully"), map[string]string{"step": "back-api"})
-	backup.Status = "restore"
-	db.GetManager().AppBackupDao().UpdateModel(backup)
-	return backup, nil
+	var rr = &RestoreResult{
+		Status:      "starting",
+		BackupID:    br.BackupID,
+		EventID:     br.Body.EventID,
+		RestoreMode: br.Body.RestoreMode,
+		RestoreID:   restoreID,
+	}
+
+	return rr, nil
 }
 
 //RestoreBackupResult RestoreBackupResult
-func (h *BackupHandle) RestoreBackupResult(backupID string) (*BackupRestoreResult, *util.APIHandleError) {
-	return nil, nil
+func (h *BackupHandle) RestoreBackupResult(restoreID string) (*RestoreResult, *util.APIHandleError) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	res, err := h.etcdCli.Get(ctx, "/rainbond/backup_restore/"+restoreID)
+	if err != nil {
+		return nil, util.CreateAPIHandleError(500, err)
+	}
+	if res.Count == 0 {
+		return nil, util.CreateAPIHandleError(404, fmt.Errorf("restore result not exist "))
+	}
+	var rr RestoreResult
+	if err := ffjson.Unmarshal(res.Kvs[0].Value, &rr); err != nil {
+		return nil, util.CreateAPIHandleError(500, err)
+	}
+	if rr.Status == "success" {
+		//write console level metadata.
+		body, err := ioutil.ReadFile(fmt.Sprintf("%s/console_apps_metadata.json", rr.CacheDir))
+		if err != nil {
+			return nil, util.CreateAPIHandleError(500, fmt.Errorf("read metadata file error,%s", err))
+		}
+		rr.Metadata = string(body)
+	}
+	return &rr, nil
 }

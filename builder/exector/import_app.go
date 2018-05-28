@@ -22,6 +22,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/docker/engine-api/client"
@@ -31,19 +38,13 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	"github.com/tidwall/gjson"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
-	"os/exec"
 )
 
 func init() {
 	RegisterWorker("import_app", NewImportApp)
 }
 
-//ExportApp Export app to specified format(rainbond-app or dockercompose)
+//ImportApp Export app to specified format(rainbond-app or dockercompose)
 type ImportApp struct {
 	EventID      string   `json:"event_id"`
 	Format       string   `json:"format"`
@@ -55,14 +56,8 @@ type ImportApp struct {
 	DockerClient *client.Client
 }
 
-//NewExportApp create
-func NewImportApp(in []byte) (TaskWorker, error) {
-	dockerClient, err := client.NewEnvClient()
-	if err != nil {
-		logrus.Error("Failed to create task for export app: ", err)
-		return nil, err
-	}
-
+//NewImportApp create
+func NewImportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	var serviceImage model.ServiceImage
 	if err := json.Unmarshal([]byte(gjson.GetBytes(in, "service_image").String()), &serviceImage); err != nil {
@@ -91,7 +86,7 @@ func NewImportApp(in []byte) (TaskWorker, error) {
 		ServiceSlug:  serviceSlug,
 		Logger:       logger,
 		EventID:      eventID,
-		DockerClient: dockerClient,
+		DockerClient: m.DockerClient,
 	}, nil
 }
 
@@ -240,7 +235,7 @@ func (i *ImportApp) importApp() error {
 			continue
 		}
 
-		os.Rename(appFile, appFile + ".success")
+		os.Rename(appFile, appFile+".success")
 
 		logrus.Debug("Successful import app: ", appFile)
 

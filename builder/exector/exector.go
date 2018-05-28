@@ -83,10 +83,10 @@ type TaskWorker interface {
 	ErrorCallBack(err error)
 }
 
-var workerCreaterList = make(map[string]func([]byte) (TaskWorker, error))
+var workerCreaterList = make(map[string]func([]byte, *exectorManager) (TaskWorker, error))
 
 //RegisterWorker register worker creater
-func RegisterWorker(name string, fun func([]byte) (TaskWorker, error)) {
+func RegisterWorker(name string, fun func([]byte, *exectorManager) (TaskWorker, error)) {
 	workerCreaterList[name] = fun
 }
 
@@ -129,7 +129,7 @@ func (e *exectorManager) exec(workerName string, in []byte) error {
 	if !ok {
 		return fmt.Errorf("`%s` tasktype can't support", workerName)
 	}
-	worker, err := creater(in)
+	worker, err := creater(in, e)
 	if err != nil {
 		logrus.Errorf("create worker for builder error.%s", err)
 		return err

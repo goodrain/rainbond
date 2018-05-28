@@ -73,18 +73,13 @@ func init() {
 }
 
 //BackupAPPNewCreater create
-func BackupAPPNewCreater(in []byte) (TaskWorker, error) {
-	dockerClient, err := client.NewEnvClient()
-	if err != nil {
-		logrus.Error("Failed to create task for export app: ", err)
-		return nil, err
-	}
+func BackupAPPNewCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	backupNew := &BackupAPPNew{
 		Logger:       logger,
 		EventID:      eventID,
-		DockerClient: dockerClient,
+		DockerClient: m.DockerClient,
 	}
 	if err := ffjson.Unmarshal(in, &backupNew); err != nil {
 		return nil, err

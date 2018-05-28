@@ -77,6 +77,17 @@ func Restore(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, bean)
 }
 
+//RestoreResult restore group app result
+func RestoreResult(w http.ResponseWriter, r *http.Request) {
+	restoreID := chi.URLParam(r, "restore_id")
+	bean, err := handler.GetAPPBackupHandler().RestoreBackupResult(restoreID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, bean)
+}
+
 //GetBackup get one backup status
 func GetBackup(w http.ResponseWriter, r *http.Request) {
 	backupID := chi.URLParam(r, "backup_id")
