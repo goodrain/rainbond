@@ -105,7 +105,11 @@ func ImagePull(dockerCli *client.Client, image string, username, password string
 		if jm.Error != nil {
 			return nil, jm.Error
 		}
-		logger.Debug(jm.JSONString(), map[string]string{"step": "progress"})
+		if logger != nil {
+			logger.Debug(jm.JSONString(), map[string]string{"step": "progress"})
+		} else {
+			fmt.Println(jm.JSONString())
+		}
 	}
 	ins, _, err := dockerCli.ImageInspectWithRaw(ctx, image, false)
 	if err != nil {
