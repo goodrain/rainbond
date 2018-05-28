@@ -420,3 +420,18 @@ func (h *BackupHandle) RestoreBackupResult(restoreID string) (*RestoreResult, *u
 	}
 	return &rr, nil
 }
+
+//BackupCopy BackupCopy
+type BackupCopy struct {
+	Body dbmodel.AppBackup
+}
+
+//BackupCopy BackupCopy
+func (h *BackupHandle) BackupCopy(b BackupCopy) (*dbmodel.AppBackup, *util.APIHandleError) {
+	b.Body.ID = 0
+	b.Body.CreatedAt = time.Now()
+	if err := db.GetManager().AppBackupDao().AddModel(&b.Body); err != nil {
+		return nil, util.CreateAPIHandleErrorFromDBError("copy backup", err)
+	}
+	return &b.Body, nil
+}

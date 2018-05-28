@@ -59,6 +59,21 @@ func NewBackups(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, bean)
 }
 
+//BackupCopy backup copy
+func BackupCopy(w http.ResponseWriter, r *http.Request) {
+	var gb group.BackupCopy
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &gb.Body, nil)
+	if !ok {
+		return
+	}
+	bean, err := handler.GetAPPBackupHandler().BackupCopy(gb)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, bean)
+}
+
 //Restore restore group app
 func Restore(w http.ResponseWriter, r *http.Request) {
 	var br group.BackupRestore

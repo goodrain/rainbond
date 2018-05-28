@@ -502,7 +502,7 @@ func substr(s string, pos, length int) string {
 func Rename(old, new string) error {
 	_, err := os.Stat(GetParentDirectory(new))
 	if err != nil {
-		if err == os.ErrNotExist {
+		if err == os.ErrNotExist || strings.Contains(err.Error(), "no such file or directory") {
 			if err := os.MkdirAll(GetParentDirectory(new), 0755); err != nil {
 				return err
 			}
