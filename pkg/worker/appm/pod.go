@@ -161,7 +161,7 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 		tokensJson, err = json.Marshal(map[string]string{
 			"random_str":      randomStr,
 			"enterprise_id":   p.tenant.EID,
-			"enterprise_name": p.tenant.Name,
+			"enterprise_name": "",
 			"service_key":     p.service.ServiceKey,
 		})
 		if err != nil {
