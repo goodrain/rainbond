@@ -33,6 +33,13 @@ type BuildPluginTaskBody struct {
 	PluginCMD     string `json:"plugin_cmd"`
 	PluginCPU     int    `json:"plugin_cpu"`
 	PluginMemory  int    `json:"plugin_memory"`
+	ImageInfo     struct {
+		HubURL      string `json:"hub_url"`
+		HubUser     string `json:"hub_user"`
+		HubPassword string `json:"hub_password"`
+		Namespace   string `json:"namespace"`
+		IsTrust     bool   `json:"is_trust,omitempty"`
+	} `json:"image_info,omitempty"`
 }
 
 //BuildPluginVersion BuildPluginVersion

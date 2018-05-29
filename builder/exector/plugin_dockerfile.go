@@ -64,7 +64,7 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 				return
 			}
 		}
-		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(tb.PluginID, tb.VersionID)
+		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByDeployVersion(tb.PluginID, tb.VersionID, tb.DeployVersion)
 		if err != nil {
 			logrus.Errorf("get version error, %v", err)
 		}
@@ -127,7 +127,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger)
 		return err
 	}
 	logger.Info("推送镜像完成", map[string]string{"step": "build-exector"})
-	version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(t.PluginID, t.VersionID)
+	version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByDeployVersion(t.PluginID, t.VersionID, t.DeployVersion)
 	if err != nil {
 		logrus.Errorf("get version error, %v", err)
 		return err

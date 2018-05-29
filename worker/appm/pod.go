@@ -784,7 +784,7 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(volumeMounts []v1.VolumeMo
 		if pluginR.Switch == false {
 			continue
 		}
-		versionInfo, err := p.dbmanager.TenantPluginBuildVersionDao().GetBuildVersionByVersionID(pluginR.PluginID, pluginR.VersionID)
+		versionInfo, err := p.dbmanager.TenantPluginBuildVersionDao().GetLastBuildVersionByVersionID(pluginR.PluginID, pluginR.VersionID)
 		if err != nil {
 			return nil, nil, err
 		}

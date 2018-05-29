@@ -60,3 +60,9 @@ func TestUnzip(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestCreateVersionByTime(t *testing.T) {
+	if re := CreateVersionByTime(); re != "" {
+		t.Log(re)
+	}
+}

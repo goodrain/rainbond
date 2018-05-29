@@ -18,6 +18,11 @@
 
 package model
 
+import (
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
+)
+
 //TenantPlugin plugin model
 type TenantPlugin struct {
 	Model
@@ -94,6 +99,24 @@ type TenantPluginBuildVersion struct {
 //TableName table name
 func (t *TenantPluginBuildVersion) TableName() string {
 	return "tenant_plugin_build_version"
+}
+
+//CreateShareImage CreateShareImage
+func (t *TenantPluginBuildVersion) CreateShareImage(hubURL, namespace string) (string, error) {
+	_, err := reference.ParseAnyReference(t.BuildLocalImage)
+	if err != nil {
+		logrus.Errorf("reference image error: %s", err.Error())
+		return "", err
+	}
+	image := ParseImage(t.BuildLocalImage)
+	if hubURL != "" {
+		image.Host = hubURL
+	}
+	if namespace != "" {
+		image.Namespace = namespace
+	}
+	image.Name = image.Name + "_" + t.VersionID + ":" + t.DeployVersion
+	return image.String(), nil
 }
 
 //TenantPluginVersionEnv TenantPluginVersionEnv

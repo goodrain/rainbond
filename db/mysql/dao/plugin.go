@@ -256,6 +256,24 @@ func (t *PluginBuildVersionDaoImpl) GetBuildVersionByVersionID(pluginID, version
 	return &version, nil
 }
 
+//GetBuildVersionByDeployVersion GetBuildVersionByDeployVersion
+func (t *PluginBuildVersionDaoImpl) GetBuildVersionByDeployVersion(pluginID, versionID, deployVersion string) (*model.TenantPluginBuildVersion, error) {
+	var version model.TenantPluginBuildVersion
+	if err := t.DB.Where("plugin_id=? and version_id = ? and deploy_version=?", pluginID, versionID, deployVersion).Find(&version).Error; err != nil {
+		return nil, err
+	}
+	return &version, nil
+}
+
+//GetLastBuildVersionByVersionID get last success build version
+func (t *PluginBuildVersionDaoImpl) GetLastBuildVersionByVersionID(pluginID, versionID string) (*model.TenantPluginBuildVersion, error) {
+	var version model.TenantPluginBuildVersion
+	if err := t.DB.Where("plugin_id=? and version_id = ? and status=?", pluginID, versionID, "complete").Order("ID desc").Limit("1").Find(&version).Error; err != nil {
+		return nil, err
+	}
+	return &version, nil
+}
+
 //PluginVersionEnvDaoImpl PluginVersionEnvDaoImpl
 type PluginVersionEnvDaoImpl struct {
 	DB *gorm.DB

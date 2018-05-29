@@ -128,6 +128,8 @@ type TenantPluginBuildVersionDao interface {
 	DeleteBuildVersionByPluginID(pluginID string) error
 	GetBuildVersionByPluginID(pluginID string) ([]*model.TenantPluginBuildVersion, error)
 	GetBuildVersionByVersionID(pluginID, versionID string) (*model.TenantPluginBuildVersion, error)
+	GetLastBuildVersionByVersionID(pluginID, versionID string) (*model.TenantPluginBuildVersion, error)
+	GetBuildVersionByDeployVersion(pluginID, versionID, deployVersion string) (*model.TenantPluginBuildVersion, error)
 }
 
 //TenantPluginVersionEnvDao TenantPluginVersionEnvDao

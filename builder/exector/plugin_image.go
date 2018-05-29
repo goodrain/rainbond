@@ -55,7 +55,7 @@ func (e *exectorManager) pluginImageBuild(in []byte) {
 				return
 			}
 		}
-		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(tb.PluginID, tb.VersionID)
+		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByDeployVersion(tb.PluginID, tb.VersionID, tb.DeployVersion)
 		if err != nil {
 			logrus.Errorf("get version error, %v", err)
 		}
@@ -74,7 +74,6 @@ func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) 
 		logger.Error("拉取镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-
 	logger.Info("拉取镜像完成", map[string]string{"step": "build-exector", "status": "complete"})
 	newTag := createPluginImageTag(t.ImageURL, t.PluginID, t.DeployVersion)
 	err := sources.ImageTag(e.DockerClient, t.ImageURL, newTag, logger, 1)
@@ -89,7 +88,7 @@ func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) 
 		logger.Error("推送镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(t.PluginID, t.VersionID)
+	version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByDeployVersion(t.PluginID, t.VersionID, t.DeployVersion)
 	if err != nil {
 		logger.Error("更新插件版本信息错误", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err

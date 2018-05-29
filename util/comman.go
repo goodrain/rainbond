@@ -512,3 +512,10 @@ func Rename(old, new string) error {
 	}
 	return os.Rename(old, new)
 }
+
+//CreateVersionByTime create version number
+func CreateVersionByTime() string {
+	now := time.Now()
+	re := fmt.Sprintf("%d%d%d%d%d%d%d", now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond())
+	return re
+}
