@@ -260,6 +260,7 @@ func (s *Manager) GetStatus(serviceID string) string {
 	if status, ok := s.status[serviceID]; ok {
 		return status
 	}
+	s.CheckStatus(serviceID)
 	return "unknow"
 }
 
