@@ -43,7 +43,7 @@ type PluginShareHandle struct {
 type PluginResult struct {
 	EventID   string `json:"event_id"`
 	ShareID   string `json:"share_id"`
-	ImageName string `json:"image_name,omitempty"`
+	ImageName string `json:"image_name"`
 }
 
 //PluginShare PluginShare

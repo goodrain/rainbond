@@ -79,7 +79,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/services", controller.GetManager().CreateService)
 	r.Post("/plugin", controller.GetManager().PluginAction)
 	r.Post("/plugins/{plugin_id}/share", controller.GetManager().SharePlugin)
-	r.Post("/plugins/{plugin_id}/share/{share_id}", controller.GetManager().SharePluginResult)
+	r.Get("/plugins/{plugin_id}/share/{share_id}", controller.GetManager().SharePluginResult)
 	r.Get("/plugin", controller.GetManager().PluginAction)
 	r.Post("/services_status", controller.GetManager().StatusServiceList)
 	r.Mount("/services/{service_alias}", v2.serviceRouter())
