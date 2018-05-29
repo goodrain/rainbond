@@ -417,6 +417,14 @@ func (h *BackupHandle) RestoreBackupResult(restoreID string) (*RestoreResult, *u
 			return nil, util.CreateAPIHandleError(500, fmt.Errorf("read metadata file error,%s", err))
 		}
 		rr.Metadata = string(body)
+		//set app status
+		for _, v := range rr.ServiceChange {
+			if v.Status == client.UNDEPLOY {
+				h.statusCli.SetStatus(v.ServiceID, client.UNDEPLOY)
+			} else {
+				h.statusCli.SetStatus(v.ServiceID, client.CLOSED)
+			}
+		}
 	}
 	return &rr, nil
 }
