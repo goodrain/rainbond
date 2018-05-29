@@ -235,7 +235,7 @@ func (v2 *V2) appRouter() chi.Router {
 	r.Delete("/import/ids/{eventId}", controller.GetManager().ImportID)
 
 	r.Post("/import", controller.GetManager().ImportApp)
-	r.Get("/import/{eventId}", controller.GetManager().ExportApp)
+	r.Get("/import/{eventId}", controller.GetManager().ImportApp)
 	return r
 }
 
