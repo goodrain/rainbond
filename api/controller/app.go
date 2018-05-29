@@ -207,14 +207,16 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		metadatasFile := fmt.Sprintf("%s/metadatas.json", res.SourceDir)
-		data, err := ioutil.ReadFile(metadatasFile)
-		if err != nil {
-			httputil.ReturnError(r, w, 503, fmt.Sprintf("Can not read apps metadata from metadatas.json file: %v", err))
-			return
-		}
+		if res.Status == "success" {
+			metadatasFile := fmt.Sprintf("%s/metadatas.json", res.SourceDir)
+			data, err := ioutil.ReadFile(metadatasFile)
+			if err != nil {
+				httputil.ReturnError(r, w, 503, fmt.Sprintf("Can not read apps metadata from metadatas.json file: %v", err))
+				return
+			}
 
-		res.Metadata = string(data)
+			res.Metadata = string(data)
+		}
 
 		httputil.ReturnSuccess(r, w, res)
 	}
