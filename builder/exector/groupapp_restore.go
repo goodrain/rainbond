@@ -569,7 +569,7 @@ func (b *BackupAPPRestore) ErrorCallBack(err error) {
 		logrus.Errorf("restore backup group app failure %s", err)
 		b.Logger.Error(util.Translation("restore backup group app failure"), map[string]string{"step": "callback", "status": "failure"})
 		b.clear()
-		b.saveResult("failure", err.Error())
+		b.saveResult("failed", err.Error())
 	}
 }
 

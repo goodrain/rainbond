@@ -241,8 +241,11 @@ func (p *PluginAction) BuildPluginManual(bps *api_model.BuildPluginStruct) (*dbm
 //buildPlugin buildPlugin
 func (p *PluginAction) buildPlugin(b *api_model.BuildPluginStruct, plugin *dbmodel.TenantPlugin) (
 	*dbmodel.TenantPluginBuildVersion, error) {
-	if plugin.ImageURL == "" {
+	if plugin.ImageURL == "" && plugin.BuildModel == "image" {
 		return nil, fmt.Errorf("need image url")
+	}
+	if plugin.GitURL == "" && plugin.BuildModel == "dockerfile" {
+		return nil, fmt.Errorf("need git repo url")
 	}
 	if b.Body.Operator == "" {
 		b.Body.Operator = "define"

@@ -193,12 +193,12 @@ type PluginBuildVersionDaoImpl struct {
 func (t *PluginBuildVersionDaoImpl) AddModel(mo model.Interface) error {
 	version := mo.(*model.TenantPluginBuildVersion)
 	var oldVersion model.TenantPluginBuildVersion
-	if ok := t.DB.Where("plugin_id =? and version_id = ?", version.PluginID, version.VersionID).Find(&oldVersion).RecordNotFound(); ok {
+	if ok := t.DB.Where("plugin_id =? and version_id = ? and deploy_version=?", version.PluginID, version.VersionID, version.DeployVersion).Find(&oldVersion).RecordNotFound(); ok {
 		if err := t.DB.Create(version).Error; err != nil {
 			return err
 		}
 	} else {
-		return fmt.Errorf("plugin build version %s is exist", version.VersionID)
+		return fmt.Errorf("plugin build version %s and deploy_verson %s is exist", version.VersionID, version.DeployVersion)
 	}
 	return nil
 }
