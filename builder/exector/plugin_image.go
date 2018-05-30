@@ -58,6 +58,7 @@ func (e *exectorManager) pluginImageBuild(in []byte) {
 		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByDeployVersion(tb.PluginID, tb.VersionID, tb.DeployVersion)
 		if err != nil {
 			logrus.Errorf("get version error, %v", err)
+			return
 		}
 		version.Status = "failure"
 		if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {

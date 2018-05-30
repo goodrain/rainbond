@@ -288,7 +288,7 @@ func (p *PluginAction) buildPlugin(b *api_model.BuildPluginStruct, plugin *dbmod
 		TenantID:      b.Body.TenantID,
 		PluginID:      b.PluginID,
 		Operator:      b.Body.Operator,
-		DeployVersion: b.Body.BuildVersion,
+		DeployVersion: b.Body.DeployVersion,
 		ImageURL:      plugin.ImageURL,
 		EventID:       b.Body.EventID,
 		Kind:          plugin.BuildModel,
