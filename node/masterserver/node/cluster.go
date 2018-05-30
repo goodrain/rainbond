@@ -156,6 +156,7 @@ func (n *Cluster) handleNodeStatus(v *model.HostNode) {
 		if v.NodeStatus != nil {
 			if v.Unschedulable {
 				v.Status = "unschedulable"
+				return
 			}
 			if v.AvailableCPU == 0 {
 				v.AvailableCPU = v.NodeStatus.Allocatable.Cpu().Value()
@@ -285,6 +286,7 @@ func (n *Cluster) loadAndWatchK8sNodes() {
 			if cn, ok := n.nodes[node.Name]; ok {
 				cn.NodeStatus = &node.Status
 				cn.NodeStatus.Images = nil
+				cn.Unschedulable = node.Spec.Unschedulable
 				cn.UpdataK8sCondition(node.Status.Conditions)
 				n.UpdateNode(cn)
 			} else {

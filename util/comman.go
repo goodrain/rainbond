@@ -519,3 +519,18 @@ func CreateVersionByTime() string {
 	re := fmt.Sprintf("%d%d%d%d%d%d%d", now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond())
 	return re
 }
+
+// GetDirList get all lower level dir
+func GetDirList(dirpath string) ([]string, error) {
+	var dirlist []string
+	list, err := ioutil.ReadDir(dirpath)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range list {
+		if f.IsDir() {
+			dirlist = append(dirlist, f.Name())
+		}
+	}
+	return dirlist, nil
+}

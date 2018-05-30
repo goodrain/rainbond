@@ -152,6 +152,14 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 	b.saveResult("success", "")
 	return nil
 }
+func (b *BackupAPPRestore) getServiceType(labels []*dbmodel.TenantServiceLable) string {
+	for _, l := range labels {
+		if l.LabelKey == dbmodel.LabelKeyServiceType {
+			return l.LabelValue
+		}
+	}
+	return util.StatelessServiceType
+}
 func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appSnapshots []*RegionServiceSnapshot) error {
 	for _, app := range appSnapshots {
 		//backup app image or code slug file
@@ -181,6 +189,26 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 					logrus.Errorf("restore service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
 					return err
 				}
+				//if app type is statefulset, change pod hostpath
+				if b.getServiceType(app.ServiceLabel) == util.StatefulServiceType {
+					list, err := util.GetDirList(volume.HostPath)
+					if err != nil {
+						logrus.Errorf("restore statefulset service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
+						return err
+					}
+					for _, podName := range list {
+						newNameTmp := strings.Split(podName, "-")
+						newNameTmp[0] = b.serviceChange[b.getOldServiceID(app.ServiceID)].ServiceAlias
+						newName := strings.Join(newNameTmp, "-")
+						err := util.Rename(filepath.Join(tmpDir, podName), filepath.Join(tmpDir, newName))
+						if err != nil {
+							return err
+						}
+						if err := os.Chmod(filepath.Join(tmpDir, newName), 0777); err != nil {
+							return err
+						}
+					}
+				}
 				err := util.Rename(tmpDir, util.GetParentDirectory(volume.HostPath))
 				if err != nil {
 					return err
@@ -188,6 +216,21 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 				if err := os.Chmod(volume.HostPath, 0777); err != nil {
 					return err
 				}
+			}
+		}
+		if app.Service.HostPath != "" {
+			dstDir := fmt.Sprintf("%s/data_%s/%s_common.zip", b.cacheDir, b.getOldServiceID(app.ServiceID), b.getOldServiceID(app.ServiceID))
+			tmpDir := fmt.Sprintf("/grdata/tmp/%s_%s", app.ServiceID, app.ServiceID)
+			if err := util.Unzip(dstDir, tmpDir); err != nil {
+				logrus.Errorf("restore service(%s) common data error.%s", app.ServiceID, err.Error())
+				return err
+			}
+			err := util.Rename(tmpDir, util.GetParentDirectory(app.Service.HostPath))
+			if err != nil {
+				return err
+			}
+			if err := os.Chmod(app.Service.HostPath, 0777); err != nil {
+				return err
 			}
 		}
 		b.Logger.Info(fmt.Sprintf("完成恢复应用(%s)持久化数据", app.Service.ServiceAlias), map[string]string{"step": "restore_builder", "status": "success"})

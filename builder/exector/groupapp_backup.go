@@ -144,6 +144,13 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 				}
 			}
 		}
+		if app.Service.HostPath != "" && !util.DirIsEmpty(app.Service.HostPath) {
+			dstDir := fmt.Sprintf("%s/data_%s/%s_common.zip", b.SourceDir, app.ServiceID, app.ServiceID)
+			if err := util.Zip(app.Service.HostPath, dstDir); err != nil {
+				logrus.Errorf("backup service(%s) common data error.%s", app.ServiceID, err.Error())
+				return err
+			}
+		}
 		b.Logger.Info(fmt.Sprintf("完成备份应用(%s)持久化数据", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
 		//TODO:backup relation volume data?
 	}
