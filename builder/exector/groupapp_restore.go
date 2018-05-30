@@ -197,15 +197,16 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 						logrus.Errorf("restore statefulset service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
 						return err
 					}
-					for _, podName := range list {
-						newNameTmp := strings.Split(podName, "-")
+					for _, path := range list {
+						newNameTmp := strings.Split(filepath.Base(path), "-")
 						newNameTmp[0] = b.serviceChange[b.getOldServiceID(app.ServiceID)].ServiceAlias
 						newName := strings.Join(newNameTmp, "-")
-						err := util.Rename(filepath.Join(tmpDir, podName), filepath.Join(tmpDir, newName))
+						newpath := filepath.Join(util.GetParentDirectory(path), newName)
+						err := util.Rename(path, newpath)
 						if err != nil {
 							return err
 						}
-						if err := os.Chmod(filepath.Join(tmpDir, newName), 0777); err != nil {
+						if err := os.Chmod(newpath, 0777); err != nil {
 							return err
 						}
 					}

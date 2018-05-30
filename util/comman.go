@@ -530,7 +530,7 @@ func GetDirList(dirpath string, level int) ([]string, error) {
 	for _, f := range list {
 		if f.IsDir() {
 			if level <= 1 {
-				dirlist = append(dirlist, f.Name())
+				dirlist = append(dirlist, filepath.Join(dirpath, f.Name()))
 			} else {
 				list, err := GetDirList(filepath.Join(dirpath, f.Name()), level-1)
 				if err != nil {
