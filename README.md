@@ -43,8 +43,17 @@ Choose Rainbond for the same reasons disruptive companies do: it serve as a easy
 
 ## Roadmap
 
-[>>3.6-Roadmap](https://github.com/goodrain/rainbond/projects/3)     
-[>>3.7-Roadmap](https://github.com/goodrain/rainbond/projects/4)
+Read the [Roadmap](https://github.com/goodrain/rainbond-docs/blob/master/v3.6/roadmap.md).
+
+## Control UI
+
+<img src="./docs/buildfromsourcecode.gif" href="http://www.rainbond.com/docs/stable">
+
+* Source code creation application process
+
+<img src="./docs/topology.gif" href="http://www.rainbond.com/docs/stable">
+
+* Business application group topology diagram,The network topology, applied relational topology and real-time monitoring are shown here.
 
 ## Contributing
 
