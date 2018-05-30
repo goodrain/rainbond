@@ -59,8 +59,8 @@ func CheckAndCreateDir(path string) error {
 
 //DirIsEmpty 验证目录是否为空
 func DirIsEmpty(dir string) bool {
-	infos, _ := ioutil.ReadDir(dir)
-	if len(infos) == 0 {
+	infos, err := ioutil.ReadDir(dir)
+	if len(infos) == 0 || err != nil {
 		return true
 	}
 	return false
@@ -521,7 +521,7 @@ func CreateVersionByTime() string {
 }
 
 // GetDirList get all lower level dir
-func GetDirList(dirpath string) ([]string, error) {
+func GetDirList(dirpath string, level int) ([]string, error) {
 	var dirlist []string
 	list, err := ioutil.ReadDir(dirpath)
 	if err != nil {
@@ -529,7 +529,15 @@ func GetDirList(dirpath string) ([]string, error) {
 	}
 	for _, f := range list {
 		if f.IsDir() {
-			dirlist = append(dirlist, f.Name())
+			if level <= 1 {
+				dirlist = append(dirlist, f.Name())
+			} else {
+				list, err := GetDirList(filepath.Join(dirpath, f.Name()), level-1)
+				if err != nil {
+					return nil, err
+				}
+				dirlist = append(dirlist, list...)
+			}
 		}
 	}
 	return dirlist, nil

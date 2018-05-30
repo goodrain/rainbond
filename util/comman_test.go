@@ -68,7 +68,7 @@ func TestCreateVersionByTime(t *testing.T) {
 }
 
 func TestGetDirList(t *testing.T) {
-	list, err := GetDirList("/tmp/back")
+	list, err := GetDirList("/tmp", 2)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -191,7 +191,8 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 				}
 				//if app type is statefulset, change pod hostpath
 				if b.getServiceType(app.ServiceLabel) == util.StatefulServiceType {
-					list, err := util.GetDirList(volume.HostPath)
+					//Next two level directory
+					list, err := util.GetDirList(tmpDir, 2)
 					if err != nil {
 						logrus.Errorf("restore statefulset service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
 						return err
