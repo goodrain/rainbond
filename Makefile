@@ -40,7 +40,7 @@ rpm: ## build the rpm packages
 pkgs:
 	@bash ./release.sh pkg
 	
-images: build-image-worker build-image-mq build-image-chaos build-image-entrance build-image-eventlog build-image-api build-image-webcli ## build all images
+images: build-image-worker build-image-mq build-image-chaos build-image-entrance build-image-eventlog build-image-api build-image-webcli build-image-cni-tools ## build all images
 build-image-worker:
 	@echo "🐳 $@"
 	@bash ./release.sh worker
@@ -50,9 +50,9 @@ build-image-mq:
 build-image-chaos:
 	@echo "🐳 $@"
 	@bash ./release.sh chaos
-build-image-node:
+build-image-cni-tools:
 	@echo "🐳 $@"
-	@bash ./release.sh node
+	@bash ./release.sh build
 #	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ${BASE_DOCKER}/node/${BASE_NAME}-node ./cmd/node
 build-image-entrance:
 	@echo "🐳 $@"
