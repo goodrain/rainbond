@@ -54,6 +54,7 @@ type SourceCodeParse struct {
 	logger       event.Logger
 	Lang         code.Lang
 	Runtime      bool `json:"runtime"`
+	Dependencies bool `json:"dependencies"`
 	Library      bool `json:"library"`
 	Procfile     bool `json:"procfile"`
 }
@@ -238,9 +239,10 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			return d.errors
 		}
 	}
+	d.Dependencies = code.CheckDependencies(buildPath, lang)
 	d.Runtime = code.CheckRuntime(buildPath, lang)
 	d.memory = getRecommendedMemory(lang)
-	d.Procfile = true
+	d.Procfile = code.CheckProcfile(buildPath, lang)
 	return d.errors
 }
 
@@ -332,9 +334,9 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 		Branchs:  d.GetBranchs(),
 		Memory:   d.memory,
 		Lang:     d.GetLang(),
-		Library:  true,
-		Procfile: true,
-		Runtime:  true,
+		Library:  d.Dependencies,
+		Procfile: d.Procfile,
+		Runtime:  d.Runtime,
 	}
 	return []ServiceInfo{serviceInfo}
 }

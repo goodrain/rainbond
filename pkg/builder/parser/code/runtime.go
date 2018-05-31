@@ -20,39 +20,48 @@ package code
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
+	"io/ioutil"
+	"path"
+
+	"github.com/bitly/go-simplejson"
+	"github.com/goodrain/rainbond/pkg/util"
 )
 
 //CheckRuntime CheckRuntime
-func CheckRuntime(buildPath string,lang Lang) bool {
+func CheckRuntime(buildPath string, lang Lang) bool {
 	switch lang {
 	case PHP:
-		//TODO: JQ??
-		return false
-	case Python:
-		rf, bl := FileExist(buildPath, "runtime.txt")
-		if ! bl {
+		if ok, _ := util.FileExists(path.Join(buildPath, "composer.json")); !ok {
 			return false
 		}
-		cmd := fmt.Sprintf(`grep -i python %s | grep -E -o "[0-9]+(.[0-9]+)?(.[0-9]+)?"`, rf)
-		runtime, err := CmdExec(cmd)
+		body, err := ioutil.ReadFile(path.Join(buildPath, "composer.json"))
 		if err != nil {
 			return false
 		}
-		if runtime != "" {
+		json, err := simplejson.NewJson(body)
+		if err != nil {
+			return false
+		}
+		if json.Get("require") != nil && json.Get("require").Get("php") != nil {
 			return true
 		}
 		return false
+	case Python:
+		if ok, _ := util.FileExists(path.Join(buildPath, "runtime.txt")); ok {
+			//TODO:check runtime rules : python-2.7.3
+			return true
+		}
+		return false
+
 	case Ruby:
 		return true
-	case JavaMaven, JaveWar:
-		rf, bl := FileExist(buildPath, "system.properties")
-		if ! bl {
+	case JavaMaven, JaveWar, JavaJar:
+		ok, err := util.FileExists(path.Join(buildPath, "system.properties"))
+		if !ok || err != nil {
 			return false
-		}	
-		cmd := fmt.Sprintf(`grep -i "java.runtime.version" %s | grep  -E -o "[0-9]+(.[0-9]+)?(.[0-9]+)?"`, rf)
-		runtime, err := CmdExec(cmd)
+		}
+		cmd := fmt.Sprintf(`grep -i "java.runtime.version" %s | grep  -E -o "[0-9]+(.[0-9]+)?(.[0-9]+)?"`, path.Join(buildPath, "system.properties"))
+		runtime, err := util.CmdExec(cmd)
 		if err != nil {
 			return false
 		}
@@ -61,32 +70,11 @@ func CheckRuntime(buildPath string,lang Lang) bool {
 		}
 		return false
 	case Nodejs:
-		//TODO: JQ？
 		return false
 	default:
 		return false
 	}
 }
-
-//FileExist FileExist
-func FileExist(buildPath, filename string) (string, bool) {
-	rf := fmt.Sprintf("%s/%s", buildPath, filename)
-	_, err := os.Stat(rf)
-	if err != nil {
-		return rf, false
-	}
-	return rf, true
-}
-
-//CmdExec CmdExec
-func CmdExec(args string) (string, error){
-	out, err := exec.Command("bash", "-c", args).Output()
-	if err != nil {
-			return "", err
-	}
-	return string(out), nil
-}
-
 
 /*
 function detect_runtimes(){
