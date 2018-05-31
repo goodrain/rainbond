@@ -621,6 +621,10 @@ func (t *TenantStruct) SharePlugin(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if sp.Body.ImageInfo.HubURL == "" || sp.Body.ImageInfo.Namespace == "" {
+		httputil.ReturnError(r, w, 400, "hub url or hub namespace can not be empty")
+		return
+	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	sp.TenantID = tenantID
 	sp.PluginID = chi.URLParam(r, "plugin_id")

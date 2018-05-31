@@ -65,10 +65,10 @@ type PluginShare struct {
 		ShareUser     string `json:"share_user"`
 		ShareScope    string `json:"share_scope"`
 		ImageInfo     struct {
-			HubURL      string `json:"hub_url"`
+			HubURL      string `json:"hub_url" validate:"hub_url|required"`
 			HubUser     string `json:"hub_user"`
 			HubPassword string `json:"hub_password"`
-			Namespace   string `json:"namespace"`
+			Namespace   string `json:"namespace" validate:"namespace|required"`
 		} `json:"image_info,omitempty"`
 	}
 }

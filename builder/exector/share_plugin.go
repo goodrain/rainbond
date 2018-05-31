@@ -62,6 +62,7 @@ func SharePluginItemCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 		Logger:       logger,
 		EventID:      eventID,
 		DockerClient: m.DockerClient,
+		EtcdCli:      m.EtcdCli,
 	}
 	if err := ffjson.Unmarshal(in, &pluginShare); err != nil {
 		return nil, err
