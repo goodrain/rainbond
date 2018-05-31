@@ -54,6 +54,10 @@ build-image-node:
 	@echo "🐳 $@"
 	@bash ./release.sh node
 #	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ${BASE_DOCKER}/node/${BASE_NAME}-node ./cmd/node
+build-image-monitor:
+	@echo "🐳 $@"
+	@bash ./release.sh monitor
+
 build-image-entrance:
 	@echo "🐳 $@"
 	@cp -r ${BASE_DOCKER}/dist ${BASE_DOCKER}/entrance/dist
