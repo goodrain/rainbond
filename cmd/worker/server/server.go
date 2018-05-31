@@ -39,6 +39,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/pkg/worker/etcd"
 )
 
 //Run start run
@@ -90,6 +91,9 @@ func Run(s *option.Worker) error {
 	}
 	executorManager.Start()
 	defer executorManager.Stop()
+	// init etcd client
+	etcd.Init(s.Config)
+	defer etcd.Destroy()
 	//step 4 : create discover module
 	taskManager := discover.NewTaskManager(s.Config, executorManager, statusClient)
 	if err := taskManager.Start(); err != nil {

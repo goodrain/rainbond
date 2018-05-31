@@ -33,6 +33,10 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+const (
+	PlatformVerifiedPrefix = "/rainbond/verified/"
+)
+
 var (
 	//DefalutClient etcd client
 	DefalutClient *Client
