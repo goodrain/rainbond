@@ -93,21 +93,72 @@ func GetNodes(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nodes)
 }
 
-func handleStatus(v *model.HostNode) {
+// func handleStatus(v *model.HostNode) {
 
-	if v.NodeStatus != nil {
-		for _, condiction := range v.Conditions {
-			if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
-				v.Status = "error"
+// 	if v.NodeStatus != nil {
+// 		for _, condiction := range v.Conditions {
+// 			if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
+// 				v.Status = "error"
+// 				return
+// 			}
+// 			if v.Status == "unschedulable" || v.Status == "init" || v.Status == "init_success" || v.Status == "init_failed" || v.Status == "installing" || v.Status == "install_success" || v.Status == "install_failed" {
+
+// 			} else {
+// 				if condiction.Type == "Ready" && condiction.Status == "True" {
+// 					v.Status = "running"
+// 				}
+// 			}
+// 		}
+// 	}
+// 	if v.Role.HasRule("manage") { //manage install_success == runnint
+// 		if v.Status == "init" || v.Status == "init_success" || v.Status == "init_failed" || v.Status == "installing" || v.Status == "install_failed" {
+// 			return
+// 		}
+// 		if v.Alived {
+// 			for _, condition := range v.Conditions {
+// 				if condition.Type == "NodeInit" && condition.Status == "True" {
+// 					v.Status = "running"
+// 				}
+// 			}
+// 		}
+// 	}
+// }
+func handleStatus(v *model.HostNode) {
+	if v.Role.HasRule("compute") {
+		if v.NodeStatus != nil {
+			if v.Unschedulable {
+				v.Status = "unschedulable"
 				return
 			}
-			if v.Status == "unschedulable" || v.Status == "init" || v.Status == "init_success" || v.Status == "init_failed" || v.Status == "installing" || v.Status == "install_success" || v.Status == "install_failed" {
+			if v.AvailableCPU == 0 {
+				v.AvailableCPU = v.NodeStatus.Allocatable.Cpu().Value()
+			}
+			if v.AvailableMemory == 0 {
+				v.AvailableMemory = v.NodeStatus.Allocatable.Memory().Value()
+			}
+			var haveready bool
+			for _, condiction := range v.Conditions {
+				if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
+					v.Status = "error"
+					return
+				}
+				if v.Status == "unschedulable" || v.Status == "init" || v.Status == "init_success" || v.Status == "init_failed" || v.Status == "installing" || v.Status == "install_success" || v.Status == "install_failed" {
 
-			} else {
-				if condiction.Type == "Ready" && condiction.Status == "True" {
-					v.Status = "running"
+				}
+				if condiction.Type == "Ready" {
+					haveready = true
+					if condiction.Status == "True" {
+						v.Status = "running"
+					} else {
+						v.Status = "notready"
+					}
 				}
 			}
+			if !haveready {
+				v.Status = "notready"
+			}
+		} else {
+			v.Status = "down"
 		}
 	}
 	if v.Role.HasRule("manage") { //manage install_success == runnint
