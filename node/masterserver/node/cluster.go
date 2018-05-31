@@ -189,7 +189,7 @@ func (n *Cluster) handleNodeStatus(v *model.HostNode) {
 			v.Status = "down"
 		}
 	}
-	if v.Role.HasRule("manage") { //manage install_success == runnint
+	if v.Role.HasRule("manage") && !v.Role.HasRule("compute") { //manage install_success == runnint
 		if v.Status == "init" || v.Status == "init_success" || v.Status == "init_failed" || v.Status == "installing" || v.Status == "install_failed" {
 			return
 		}

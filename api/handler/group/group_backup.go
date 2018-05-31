@@ -211,7 +211,7 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string) error {
 		if err != nil {
 			return fmt.Errorf("Get service deploy type error,%s", err.Error())
 		}
-		if status != client.CLOSED && serviceType.LabelValue == core_util.StatefulServiceType {
+		if status != client.CLOSED && serviceType != nil && serviceType.LabelValue == core_util.StatefulServiceType {
 			return fmt.Errorf("Statefulset app must be closed before backup,%s", err.Error())
 		}
 		data.ServiceStatus = status
