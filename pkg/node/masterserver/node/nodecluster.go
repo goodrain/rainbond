@@ -268,6 +268,7 @@ func (n *NodeCluster) loadAndWatchK8sNodes() {
 			if cn, ok := n.nodes[node.Name]; ok {
 				cn.NodeStatus = &node.Status
 				cn.UpdataK8sCondition(node.Status.Conditions)
+				cn.Unschedulable = node.Spec.Unschedulable
 				n.UpdateNode(cn)
 			} else {
 				logrus.Warningf("k8s node %s can not exist in rainbond cluster.", node.Name)
