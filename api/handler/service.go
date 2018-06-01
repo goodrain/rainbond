@@ -1494,11 +1494,12 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, ac
 		}
 	case "delete":
 		if tsv.VolumeName != "" {
-			if err := db.GetManager().TenantServiceVolumeDao().DeleteModel(tsv.ServiceID, tsv.VolumeName); err != nil {
+			err := db.GetManager().TenantServiceVolumeDao().DeleteModel(tsv.ServiceID, tsv.VolumeName)
+			if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
 		} else {
-			if err := db.GetManager().TenantServiceVolumeDao().DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath); err != nil {
+			if err := db.GetManager().TenantServiceVolumeDao().DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
 		}

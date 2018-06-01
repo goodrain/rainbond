@@ -123,7 +123,7 @@ func (s *PluginShareHandle) ShareResult(shareID string) (i exector.ShareStatus, 
 		e = util.CreateAPIHandleError(500, err)
 	} else {
 		if res.Count == 0 {
-			i.ShareID = "shareID"
+			i.ShareID = shareID
 		} else {
 			if err := ffjson.Unmarshal(res.Kvs[0].Value, &i); err != nil {
 				return i, util.CreateAPIHandleError(500, err)
