@@ -431,16 +431,33 @@ func (h *BackupHandle) RestoreBackupResult(restoreID string) (*RestoreResult, *u
 
 //BackupCopy BackupCopy
 type BackupCopy struct {
-	Body dbmodel.AppBackup
+	Body struct {
+		EventID string `json:"event_id" validate:"event_id|required"`
+		GroupID string `json:"group_id" validate:"group_id|required"`
+		//Status in starting,failed,success,restore
+		Status     string `json:"status" validate:"status|required"`
+		Version    string `json:"version" validate:"version|required"`
+		SourceDir  string `json:"source_dir" validate:"source_dir|required"`
+		SourceType string ` json:"source_type" validate:"source_type|required"`
+		BackupMode string `json:"backup_mode" validate:"backup_mode|required"`
+		BuckupSize int    `json:"backup_size" validate:"backup_size|required"`
+	}
 }
 
 //BackupCopy BackupCopy
 func (h *BackupHandle) BackupCopy(b BackupCopy) (*dbmodel.AppBackup, *util.APIHandleError) {
-	b.Body.ID = 0
-	b.Body.CreatedAt = time.Now()
-	b.Body.BackupID = core_util.NewUUID()
-	if err := db.GetManager().AppBackupDao().AddModel(&b.Body); err != nil {
+	var ab dbmodel.AppBackup
+	ab.BackupID = core_util.NewUUID()
+	ab.EventID = b.Body.EventID
+	ab.GroupID = b.Body.GroupID
+	ab.Status = b.Body.Status
+	ab.Version = b.Body.Version
+	ab.SourceDir = b.Body.SourceDir
+	ab.SourceType = b.Body.SourceType
+	ab.BackupMode = b.Body.BackupMode
+	ab.BuckupSize = b.Body.BuckupSize
+	if err := db.GetManager().AppBackupDao().AddModel(&ab); err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("copy backup", err)
 	}
-	return &b.Body, nil
+	return &ab, nil
 }
