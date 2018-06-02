@@ -42,6 +42,7 @@ func (e *Node) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	newArr := utils.TrimAndSort(endpoints)
 
 	if utils.ArrCompare(e.sortedEndpoints, newArr) {
+		logrus.Debugf("The endpoints is not modify: %s", e.Name())
 		return
 	}
 
@@ -60,9 +61,9 @@ func (e *Node) Name() string {
 }
 
 func (e *Node) toScrape() *prometheus.ScrapeConfig {
-	ts := make([]model.LabelSet, 0, len(e.sortedEndpoints))
+	ts := make([]string, 0, len(e.sortedEndpoints))
 	for _, end := range e.sortedEndpoints {
-		ts = append(ts, model.LabelSet{model.AddressLabel: model.LabelValue(end)})
+		ts = append(ts, end)
 	}
 
 	return &prometheus.ScrapeConfig{
@@ -76,7 +77,7 @@ func (e *Node) toScrape() *prometheus.ScrapeConfig {
 				{
 					Targets: ts,
 					Labels: map[model.LabelName]model.LabelValue{
-						"component": "acp_entrance",
+						"component": model.LabelValue(e.Name()),
 					},
 				},
 			},
@@ -111,7 +112,8 @@ func (e *Node) Modify(event *watch.Event) {
 
 func (e *Node) Delete(event *watch.Event) {
 	for i, end := range e.endpoints {
-		if end.URL == event.GetValueString() {
+		url := gjson.Get(event.GetValueString(), "external_ip").String() + ":6100"
+		if end.URL == url {
 			e.endpoints = append(e.endpoints[:i], e.endpoints[i+1:]...)
 			e.UpdateEndpoints(e.endpoints...)
 			break

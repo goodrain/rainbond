@@ -32,8 +32,8 @@ import (
 	"os"
 	"syscall"
 	"os/signal"
-	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/tidwall/gjson"
+	"github.com/goodrain/rainbond/monitor/prometheus"
 )
 
 type Monitor struct {
@@ -42,50 +42,25 @@ type Monitor struct {
 	cancel      context.CancelFunc
 	client      *v3.Client
 	timeout     time.Duration
-	stopperList []chan bool
-
+	manager     *prometheus.Manager
 	discover1   discover1.Discover
 	discover3   discover3.Discover
 }
 
 func (d *Monitor) Start() {
-	// create prometheus manager
-	p := prometheus.NewManager(d.config)
-	// start prometheus daemon and watching tis status in all time, exit monitor process if start failed
-	p.StartDaemon(d.GetStopper())
-
-	d.discover1.AddProject("event_log_event_grpc", &callback.EventLog{Prometheus: p})
-	d.discover1.AddProject("acp_entrance", &callback.Entrance{Prometheus: p})
-	d.discover3.AddProject("app_sync_runtime_server", &callback.AppStatus{Prometheus: p})
+	d.discover1.AddProject("event_log_event_http", &callback.EventLog{Prometheus: d.manager})
+	d.discover1.AddProject("acp_entrance", &callback.Entrance{Prometheus: d.manager})
+	d.discover3.AddProject("app_sync_runtime_server", &callback.AppStatus{Prometheus: d.manager})
+	d.discover3.AddProject("prometheus", &callback.Prometheus{Prometheus: d.manager})
 
 	// node and app runtime metrics needs to be monitored separately
-	go d.discoverNodes(&callback.Node{Prometheus: p}, &callback.App{Prometheus: p}, d.GetStopper())
+	go d.discoverNodes(&callback.Node{Prometheus: d.manager}, &callback.App{Prometheus: d.manager}, d.ctx.Done())
 
-	d.listenStop()
+	// monitor etcd members
+	go d.discoverEtcd(&callback.Etcd{Prometheus: d.manager}, d.ctx.Done())
 }
 
-func (d *Monitor) discoverNodes(node *callback.Node, app *callback.App, done chan bool) {
-	// get all exist nodes by etcd
-	resp, err := d.client.Get(d.ctx, "/rainbond/nodes/", v3.WithPrefix())
-	if err != nil {
-		logrus.Error("failed to get all nodes: ", err)
-		return
-	}
-
-	for _, kv := range resp.Kvs {
-		url := gjson.GetBytes(kv.Value, "external_ip").String() + ":6100"
-		end := &config.Endpoint{
-			URL: url,
-		}
-
-		node.AddEndpoint(end)
-
-		isSlave := gjson.GetBytes(kv.Value, "labels.rainbond_node_rule_compute").String()
-		if isSlave == "true" {
-			app.AddEndpoint(end)
-		}
-	}
-
+func (d *Monitor) discoverNodes(node *callback.Node, app *callback.App, done <-chan struct{}) {
 	// start listen node modified
 	watcher := watch.New(d.client, "")
 	w, err := watcher.WatchList(d.ctx, "/rainbond/nodes", "")
@@ -130,7 +105,6 @@ func (d *Monitor) discoverNodes(node *callback.Node, app *callback.App, done cha
 			}
 		case <-done:
 			logrus.Info("stop discover nodes because received stop signal.")
-			close(done)
 			return
 		}
 
@@ -138,13 +112,12 @@ func (d *Monitor) discoverNodes(node *callback.Node, app *callback.App, done cha
 
 }
 
-func (d *Monitor) discoverEtcd(e *callback.Etcd, done chan bool) {
-	t := time.Tick(time.Second * 5)
+func (d *Monitor) discoverEtcd(e *callback.Etcd, done <-chan struct{}) {
+	t := time.Tick(time.Minute)
 	for {
 		select {
 		case <-done:
 			logrus.Info("stop discover etcd because received stop signal.")
-			close(done)
 			return
 		case <-t:
 			resp, err := d.client.MemberList(d.ctx)
@@ -168,39 +141,25 @@ func (d *Monitor) discoverEtcd(e *callback.Etcd, done chan bool) {
 }
 
 func (d *Monitor) Stop() {
-	logrus.Info("Stop all child process for monitor.")
-	for _, ch := range d.stopperList {
-		ch <- true
-	}
-
+	logrus.Info("Stopping all child process for monitor")
+	d.cancel()
 	d.discover1.Stop()
 	d.discover3.Stop()
 	d.client.Close()
-	d.cancel()
-
-	time.Sleep(time.Second)
 }
 
-func (d *Monitor) GetStopper() chan bool {
-	ch := make(chan bool, 1)
-	d.stopperList = append(d.stopperList, ch)
-
-	return ch
-}
-
-func (d *Monitor) listenStop() {
+func (d *Monitor) ListenStop() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM)
 
 	sig := <- sigs
 	signal.Ignore(syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM)
 
+	logrus.Warn("monitor manager received signal: ", sig.String())
 	close(sigs)
-	logrus.Warn("monitor manager received signal: ", sig)
-	d.Stop()
 }
 
-func NewMonitor(opt *option.Config) *Monitor {
+func NewMonitor(opt *option.Config, p *prometheus.Manager) *Monitor {
 	ctx, cancel := context.WithCancel(context.Background())
 	defaultTimeout := time.Second * 3
 
@@ -230,6 +189,7 @@ func NewMonitor(opt *option.Config) *Monitor {
 		config:    opt,
 		ctx:       ctx,
 		cancel:    cancel,
+		manager:   p,
 		client:    cli,
 		discover1: dc1,
 		discover3: dc3,

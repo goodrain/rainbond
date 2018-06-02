@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/prometheus/common/model"
 	"time"
+	"github.com/tidwall/gjson"
 )
 
 // Prometheus 指prometheus的运行指标，数据来源于prometheus自身API
@@ -36,9 +37,15 @@ type Prometheus struct {
 }
 
 func (e *Prometheus) UpdateEndpoints(endpoints ...*config.Endpoint) {
+	// 用v3 API注册，返回json格试，所以要提前处理一下
+	for i, end := range endpoints {
+		endpoints[i].URL = gjson.Get(end.URL, "Addr").String()
+	}
+
 	newArr := utils.TrimAndSort(endpoints)
 
 	if utils.ArrCompare(e.sortedEndpoints, newArr) {
+		logrus.Debugf("The endpoints is not modify: %s", e.Name())
 		return
 	}
 
@@ -57,14 +64,14 @@ func (e *Prometheus) Name() string {
 }
 
 func (e *Prometheus) toScrape() *prometheus.ScrapeConfig {
-	ts := make([]model.LabelSet, 0, len(e.sortedEndpoints))
+	ts := make([]string, 0, len(e.sortedEndpoints))
 	for _, end := range e.sortedEndpoints {
-		ts = append(ts, model.LabelSet{model.AddressLabel: model.LabelValue(end)})
+		ts = append(ts, end)
 	}
 
 	return &prometheus.ScrapeConfig{
 		JobName:        e.Name(),
-		ScrapeInterval: model.Duration(5 * time.Minute),
+		ScrapeInterval: model.Duration(time.Minute),
 		ScrapeTimeout:  model.Duration(30 * time.Second),
 		MetricsPath:    "/metrics",
 		HonorLabels:    true,
@@ -73,7 +80,7 @@ func (e *Prometheus) toScrape() *prometheus.ScrapeConfig {
 				{
 					Targets: ts,
 					Labels: map[model.LabelName]model.LabelValue{
-						"component": "acp_entrance",
+						"component": model.LabelValue(e.Name()),
 					},
 				},
 			},
