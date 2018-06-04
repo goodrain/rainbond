@@ -27,6 +27,7 @@ import (
 	"github.com/prometheus/common/model"
 	"time"
 	"strings"
+	"github.com/tidwall/gjson"
 )
 
 // AppStatus 指app性能数据，被选举为leader的worker，也就是app_sync_runtime_server所在的节点
@@ -38,6 +39,11 @@ type AppStatus struct {
 }
 
 func (e *AppStatus) UpdateEndpoints(endpoints ...*config.Endpoint) {
+	// 用v3 API注册，返回json格试，所以要提前处理一下
+	for i, end := range endpoints {
+		endpoints[i].URL = gjson.Get(end.URL, "Addr").String()
+	}
+
 	newArr := utils.TrimAndSort(endpoints)
 
 	// change port
@@ -46,6 +52,7 @@ func (e *AppStatus) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	}
 
 	if utils.ArrCompare(e.sortedEndpoints, newArr) {
+		logrus.Debugf("The endpoints is not modify: %s", e.Name())
 		return
 	}
 
@@ -64,14 +71,14 @@ func (e *AppStatus) Name() string {
 }
 
 func (e *AppStatus) toScrape() *prometheus.ScrapeConfig {
-	ts := make([]model.LabelSet, 0, len(e.sortedEndpoints))
+	ts := make([]string, 0, len(e.sortedEndpoints))
 	for _, end := range e.sortedEndpoints {
-		ts = append(ts, model.LabelSet{model.AddressLabel: model.LabelValue(end)})
+		ts = append(ts, end)
 	}
 
 	return &prometheus.ScrapeConfig{
 		JobName:        e.Name(),
-		ScrapeInterval: model.Duration(5 * time.Minute),
+		ScrapeInterval: model.Duration(time.Minute),
 		ScrapeTimeout:  model.Duration(30 * time.Second),
 		MetricsPath:    "/metrics",
 		HonorLabels:    true,
@@ -80,7 +87,7 @@ func (e *AppStatus) toScrape() *prometheus.ScrapeConfig {
 				{
 					Targets: ts,
 					Labels: map[model.LabelName]model.LabelValue{
-						"component": "acp_entrance",
+						"component": model.LabelValue(e.Name()),
 					},
 				},
 			},

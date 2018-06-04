@@ -22,6 +22,7 @@ import (
 	"github.com/goodrain/rainbond/cmd/monitor/option"
 	"github.com/spf13/pflag"
 	"github.com/goodrain/rainbond/monitor"
+	"github.com/goodrain/rainbond/monitor/prometheus"
 )
 
 func main() {
@@ -31,6 +32,19 @@ func main() {
 
 	c.CompleteConfig()
 
-	m := monitor.NewMonitor(c)
+	// start prometheus daemon and watching tis status in all time, exit monitor process if start failed
+	p := prometheus.NewManager(c)
+	p.StartDaemon()
+	defer p.StopDaemon()
+
+	// register prometheus address to etcd cluster
+	p.Registry.Start()
+	defer p.Registry.Stop()
+
+	// start watching components from etcd, and update modify to prometheus config
+	m := monitor.NewMonitor(c, p)
 	m.Start()
+	defer m.Stop()
+
+	m.ListenStop()
 }

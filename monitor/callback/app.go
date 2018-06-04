@@ -27,6 +27,7 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/tidwall/gjson"
 	"time"
+	"github.com/goodrain/rainbond/monitor/utils"
 )
 
 // App 指app运行时信息，来源于所有子节点上的node
@@ -40,8 +41,17 @@ type App struct {
 }
 
 func (e *App) UpdateEndpoints(endpoints ...*config.Endpoint) {
+	newArr := utils.TrimAndSort(endpoints)
 
-	return
+	if utils.ArrCompare(e.sortedEndpoints, newArr) {
+		logrus.Debugf("The endpoints is not modify: %s", e.Name())
+		return
+	}
+
+	e.sortedEndpoints = newArr
+
+	scrape := e.toScrape()
+	e.Prometheus.UpdateScrape(scrape)
 }
 
 func (e *App) Error(err error) {
@@ -53,9 +63,9 @@ func (e *App) Name() string {
 }
 
 func (e *App) toScrape() *prometheus.ScrapeConfig {
-	ts := make([]model.LabelSet, 0, len(e.sortedEndpoints))
+	ts := make([]string, 0, len(e.sortedEndpoints))
 	for _, end := range e.sortedEndpoints {
-		ts = append(ts, model.LabelSet{model.AddressLabel: model.LabelValue(end)})
+		ts = append(ts, end)
 	}
 
 	return &prometheus.ScrapeConfig{
@@ -69,7 +79,7 @@ func (e *App) toScrape() *prometheus.ScrapeConfig {
 				{
 					Targets: ts,
 					Labels: map[model.LabelName]model.LabelValue{
-						"component": "acp_entrance",
+						"component": model.LabelValue(e.Name()),
 					},
 				},
 			},
@@ -104,7 +114,8 @@ func (e *App) Modify(event *watch.Event) {
 
 func (e *App) Delete(event *watch.Event) {
 	for i, end := range e.endpoints {
-		if end.URL == event.GetValueString() {
+		url := gjson.Get(event.GetValueString(), "external_ip").String() + ":6100"
+		if end.URL == url {
 			e.endpoints = append(e.endpoints[:i], e.endpoints[i+1:]...)
 			e.UpdateEndpoints(e.endpoints...)
 			break
