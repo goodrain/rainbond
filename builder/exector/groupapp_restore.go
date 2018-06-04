@@ -522,7 +522,12 @@ func (b *BackupAPPRestore) downloadFromLocal(backup *dbmodel.AppBackup) error {
 		logrus.Errorf("unzip file error when restore backup app , %s", err.Error())
 		return err
 	}
-	b.cacheDir = filepath.Join(b.cacheDir, fmt.Sprintf("%s_%s", backup.GroupID, backup.Version))
+	dirs, err := util.GetDirList(b.cacheDir, 1)
+	if err != nil || len(dirs) < 1 {
+		b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "backup_builder", "status": "failure"})
+		return fmt.Errorf("find metadata cache dir error after unzip file")
+	}
+	b.cacheDir = filepath.Join(b.cacheDir, dirs[0])
 	return nil
 }
 
@@ -546,7 +551,12 @@ func (b *BackupAPPRestore) downloadFromFTP(backup *dbmodel.AppBackup) error {
 		logrus.Errorf("unzip file error when restore backup app , %s", err.Error())
 		return err
 	}
-	b.cacheDir = filepath.Join(b.cacheDir, fmt.Sprintf("%s_%s", backup.GroupID, backup.Version))
+	dirs, err := util.GetDirList(b.cacheDir, 1)
+	if err != nil || len(dirs) < 1 {
+		b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "backup_builder", "status": "failure"})
+		return fmt.Errorf("find metadata cache dir error after unzip file")
+	}
+	b.cacheDir = filepath.Join(b.cacheDir, dirs[0])
 	return nil
 }
 

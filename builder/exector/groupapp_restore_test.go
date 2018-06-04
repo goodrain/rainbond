@@ -41,7 +41,10 @@ func TestDownloadFromLocal(t *testing.T) {
 		t.Fatal("create cache dir error", err.Error())
 	}
 	b.cacheDir = cacheDir
-	if err := b.downloadFromLocal("/tmp/rainbond.zip"); err != nil {
+	if err := b.downloadFromFTP(&dbmodel.AppBackup{
+		EventID:  "test",
+		BackupID: "ccc",
+	}); err != nil {
 		t.Fatal("downloadFromLocal error", err.Error())
 	}
 	t.Log(b.cacheDir)
@@ -51,7 +54,7 @@ func TestModify(t *testing.T) {
 	var b = BackupAPPRestore{
 		BackupID:      "test",
 		EventID:       "test",
-		serviceChange: make(map[string]Info, 0),
+		serviceChange: make(map[string]*Info, 0),
 		Logger:        event.GetTestLogger(),
 	}
 	var appSnapshots = []*RegionServiceSnapshot{
