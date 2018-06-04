@@ -40,11 +40,17 @@ type AppStatus struct {
 
 func (e *AppStatus) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	// 用v3 API注册，返回json格试，所以要提前处理一下
-	for i, end := range endpoints {
-		endpoints[i].URL = gjson.Get(end.URL, "Addr").String()
+	newEndpoints := make([]*config.Endpoint, 0, len(endpoints))
+	for _, end := range endpoints {
+		newEnd := *end
+		newEndpoints = append(newEndpoints, &newEnd)
 	}
 
-	newArr := utils.TrimAndSort(endpoints)
+	for i, end := range endpoints {
+		newEndpoints[i].URL = gjson.Get(end.URL, "Addr").String()
+	}
+
+	newArr := utils.TrimAndSort(newEndpoints)
 
 	// change port
 	for i, end := range newArr {

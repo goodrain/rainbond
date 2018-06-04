@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
-	discover3 "github.com/goodrain/rainbond/discover.v2"
+	"github.com/goodrain/rainbond/discover"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
@@ -30,6 +30,7 @@ import (
 	"time"
 	"os"
 	"syscall"
+	"net"
 )
 
 type Manager struct {
@@ -37,7 +38,7 @@ type Manager struct {
 	Opt        *option.Config
 	Config     *Config
 	Process    *os.Process
-	Registry   *discover3.KeepAlive
+	Registry   *discover.KeepAlive
 	httpClient *http.Client
 	l          *sync.Mutex
 }
@@ -47,7 +48,7 @@ func NewManager(config *option.Config) *Manager {
 		Timeout: time.Second * 3,
 	}
 
-	reg, err := discover3.CreateKeepAlive(config.EtcdEndpoints, "prometheus", "http", config.BindIp, config.Port)
+	reg, err := discover.CreateKeepAlive(config.EtcdEndpoints, "prometheus", config.BindIp, config.BindIp, config.Port)
 	if err != nil {
 		panic(err)
 	}
@@ -66,12 +67,12 @@ func NewManager(config *option.Config) *Manager {
 }
 
 func (p *Manager) StartDaemon() {
-	logrus.Info("Start daemon for prometheus.")
+	logrus.Info("Starting prometheus.")
 
 	procAttr := &os.ProcAttr{
 		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
 	}
-	process, err := os.StartProcess("/bin/prometheus", p.Opt.Args, procAttr)
+	process, err := os.StartProcess("/bin/prometheus", p.Opt.StartArgs, procAttr)
 	if err != nil {
 		if err != nil {
 			logrus.Error("Can not start prometheus daemon: ", err)
@@ -81,36 +82,31 @@ func (p *Manager) StartDaemon() {
 	p.Process = process
 
 	// waiting started
-	for i := 0; i < 15; i++ {
+	for i := 0; i < 10; i++ {
 		time.Sleep(time.Second)
-		if _, err = os.FindProcess(process.Pid); err == nil {
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", p.Opt.Port), time.Second)
+		if err == nil {
 			logrus.Info("The prometheus daemon is started.")
+			conn.Close()
 			return
+		} else {
+			logrus.Info("Wait prometheus to start: ", err)
 		}
 	}
 
-	logrus.Error("Timeout start prometheus daemon: ", err)
+	logrus.Error("Timeout start prometheus daemon.")
 	os.Exit(13)
 }
 
 func (p *Manager) StopDaemon() {
 	logrus.Info("Stopping prometheus daemon ...")
-	//exec.Command("sh", "-c", "kill `pgrep prometheus` ; while pgrep prometheus; do sleep 1; done").Run()
-	p.Process.Kill()
+	p.Process.Signal(syscall.SIGTERM)
 	p.Process.Wait()
 	logrus.Info("Stopped prometheus daemon.")
 }
 
 func (p *Manager) RestartDaemon() error {
 	logrus.Debug("Restart daemon for prometheus.")
-	//request, err := http.NewRequest("POST", p.ApiUrl+"/-/reload", nil)
-	//if err != nil {
-	//	logrus.Error("Create request to load config error: ", err)
-	//	return err
-	//}
-	//
-	//_, err = p.httpClient.Do(request)
-
 	if err := p.Process.Signal(syscall.SIGHUP); err != nil {
 		logrus.Error("Failed to restart daemon for prometheus: ", err)
 		return err
@@ -124,14 +120,15 @@ func (p *Manager) LoadConfig() error {
 	context, err := ioutil.ReadFile(p.Opt.ConfigFile)
 	if err != nil {
 		logrus.Error("Failed to read prometheus config file: ", err)
-		return err
+		logrus.Info("Init config file by default values.")
+		return nil
 	}
 
 	if err := yaml.Unmarshal(context, p.Config); err != nil {
 		logrus.Error("Unmarshal prometheus config string to object error.", err.Error())
 		return err
 	}
-	logrus.Debugf("Loaded config file to memory: %+v", p.Config) //TODO
+	logrus.Debugf("Loaded config file to memory: %+v", p.Config)
 
 	return nil
 }

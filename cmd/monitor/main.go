@@ -28,6 +28,7 @@ import (
 func main() {
 	c := option.NewConfig()
 	c.AddFlag(pflag.CommandLine)
+	c.AddPrometheusFlag(pflag.CommandLine)
 	pflag.Parse()
 
 	c.CompleteConfig()

@@ -22,8 +22,8 @@ import (
 	"context"
 	v3 "github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
-	discover1 "github.com/goodrain/rainbond/discover"
-	discover3 "github.com/goodrain/rainbond/discover.v2"
+	discoverv1 "github.com/goodrain/rainbond/discover"
+	discoverv2 "github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/callback"
 	"github.com/goodrain/rainbond/util/watch"
@@ -37,21 +37,21 @@ import (
 )
 
 type Monitor struct {
-	config      *option.Config
-	ctx         context.Context
-	cancel      context.CancelFunc
-	client      *v3.Client
-	timeout     time.Duration
-	manager     *prometheus.Manager
-	discover1   discover1.Discover
-	discover3   discover3.Discover
+	config     *option.Config
+	ctx        context.Context
+	cancel     context.CancelFunc
+	client     *v3.Client
+	timeout    time.Duration
+	manager    *prometheus.Manager
+	discoverv1 discoverv1.Discover
+	discoverv2 discoverv2.Discover
 }
 
 func (d *Monitor) Start() {
-	d.discover1.AddProject("event_log_event_http", &callback.EventLog{Prometheus: d.manager})
-	d.discover1.AddProject("acp_entrance", &callback.Entrance{Prometheus: d.manager})
-	d.discover3.AddProject("app_sync_runtime_server", &callback.AppStatus{Prometheus: d.manager})
-	d.discover3.AddProject("prometheus", &callback.Prometheus{Prometheus: d.manager})
+	d.discoverv1.AddProject("prometheus", &callback.Prometheus{Prometheus: d.manager})
+	d.discoverv1.AddProject("event_log_event_http", &callback.EventLog{Prometheus: d.manager})
+	d.discoverv1.AddProject("acp_entrance", &callback.Entrance{Prometheus: d.manager})
+	d.discoverv2.AddProject("app_sync_runtime_server", &callback.AppStatus{Prometheus: d.manager})
 
 	// node and app runtime metrics needs to be monitored separately
 	go d.discoverNodes(&callback.Node{Prometheus: d.manager}, &callback.App{Prometheus: d.manager}, d.ctx.Done())
@@ -143,8 +143,8 @@ func (d *Monitor) discoverEtcd(e *callback.Etcd, done <-chan struct{}) {
 func (d *Monitor) Stop() {
 	logrus.Info("Stopping all child process for monitor")
 	d.cancel()
-	d.discover1.Stop()
-	d.discover3.Stop()
+	d.discoverv1.Stop()
+	d.discoverv2.Stop()
 	d.client.Close()
 }
 
@@ -171,14 +171,14 @@ func NewMonitor(opt *option.Config, p *prometheus.Manager) *Monitor {
 		logrus.Fatal(err)
 	}
 
-	dc1, err := discover1.GetDiscover(config.DiscoverConfig{
+	dc1, err := discoverv1.GetDiscover(config.DiscoverConfig{
 		EtcdClusterEndpoints: opt.EtcdEndpoints,
 	})
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
-	dc3, err := discover3.GetDiscover(config.DiscoverConfig{
+	dc3, err := discoverv2.GetDiscover(config.DiscoverConfig{
 		EtcdClusterEndpoints: opt.EtcdEndpoints,
 	})
 	if err != nil {
@@ -186,14 +186,14 @@ func NewMonitor(opt *option.Config, p *prometheus.Manager) *Monitor {
 	}
 
 	d := &Monitor{
-		config:    opt,
-		ctx:       ctx,
-		cancel:    cancel,
-		manager:   p,
-		client:    cli,
-		discover1: dc1,
-		discover3: dc3,
-		timeout:   defaultTimeout,
+		config:     opt,
+		ctx:        ctx,
+		cancel:     cancel,
+		manager:    p,
+		client:     cli,
+		discoverv1: dc1,
+		discoverv2: dc3,
+		timeout:    defaultTimeout,
 	}
 
 	return d

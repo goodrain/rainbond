@@ -26,7 +26,6 @@ import (
 	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/prometheus/common/model"
 	"time"
-	"github.com/tidwall/gjson"
 )
 
 // Prometheus 指prometheus的运行指标，数据来源于prometheus自身API
@@ -37,11 +36,6 @@ type Prometheus struct {
 }
 
 func (e *Prometheus) UpdateEndpoints(endpoints ...*config.Endpoint) {
-	// 用v3 API注册，返回json格试，所以要提前处理一下
-	for i, end := range endpoints {
-		endpoints[i].URL = gjson.Get(end.URL, "Addr").String()
-	}
-
 	newArr := utils.TrimAndSort(endpoints)
 
 	if utils.ArrCompare(e.sortedEndpoints, newArr) {

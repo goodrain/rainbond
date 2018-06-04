@@ -27,7 +27,7 @@ import (
 func TrimAndSort(endpoints []*config.Endpoint) []string {
 	arr := make([]string, 0, len(endpoints))
 	for _, end := range endpoints {
-		url := strings.TrimLeft(end.URL, "https://")
+		url := strings.TrimLeft(end.URL, "shttp://")
 		arr = append(arr, url)
 	}
 

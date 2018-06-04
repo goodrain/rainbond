@@ -19,22 +19,68 @@
 package option
 
 import (
-	"github.com/spf13/pflag"
-	"github.com/Sirupsen/logrus"
 	"fmt"
+	"github.com/Sirupsen/logrus"
+	"github.com/spf13/pflag"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
+	"time"
 )
 
 type Config struct {
-	EtcdEndpoints []string
-	LogLevel      string
-	ConfigFile    string
-	BindIp        string
-	Port          int
-	Options       string
-	Args          []string
+	EtcdEndpoints        []string
+	LogLevel             string
+	AdvertiseAddr        string
+	BindIp               string
+	Port                 int
+
+	StartArgs            []string
+	ConfigFile           string
+	LocalStoragePath     string
+	Web                  Web
+	Tsdb                 Tsdb
+	WebTimeout           string
+	RemoteFlushDeadline  string
+	AlertmanagerCapacity string
+	AlertmanagerTimeout  string
+	QueryLookbackDelta   string
+	QueryTimeout         string
+	QueryMaxConcurrency  string
+}
+
+// Options for the web Handler.
+type Web struct {
+	ListenAddress        string
+	ReadTimeout          time.Duration
+	MaxConnections       int
+	ExternalURL          string
+	RoutePrefix          string
+	UseLocalAssets       bool
+	UserAssetsPath       string
+	ConsoleTemplatesPath string
+	ConsoleLibrariesPath string
+	EnableLifecycle      bool
+	EnableAdminAPI       bool
+}
+
+// Options of the DB storage.
+type Tsdb struct {
+	// The interval at which the write ahead log is flushed to disc.
+	WALFlushInterval time.Duration
+
+	// The timestamp range of head blocks after which they get persisted.
+	// It's the minimum duration of any persisted block.
+	MinBlockDuration string
+
+	// The maximum timestamp range of compacted blocks.
+	MaxBlockDuration string
+
+	// Duration for how long to retain data.
+	Retention string
+
+	// Disable creation and consideration of lockfile.
+	NoLockfile bool
 }
 
 func NewConfig() *Config {
@@ -42,53 +88,115 @@ func NewConfig() *Config {
 
 	config := &Config{
 		EtcdEndpoints: []string{"http://127.0.0.1:2379"},
-		ConfigFile:    "/etc/prometheus/prometheus.yml",
+		AdvertiseAddr: host + ":9999",
 		BindIp:        host,
 		Port:          9999,
 		LogLevel:      "info",
+
+		ConfigFile:           "/etc/prometheus/prometheus.yml",
+		LocalStoragePath:     "/prometheusdata",
+		WebTimeout:           "5m",
+		RemoteFlushDeadline:  "1m",
+		AlertmanagerCapacity: "10000",
+		AlertmanagerTimeout:  "10s",
+		QueryLookbackDelta:   "5m",
+		QueryTimeout:         "2m",
+		QueryMaxConcurrency:  "20",
+		Web: Web{
+			ListenAddress:        "0.0.0.0:9999",
+			ReadTimeout:          time.Minute * 5,
+			MaxConnections:       512,
+			ConsoleTemplatesPath: "consoles",
+			ConsoleLibrariesPath: "console_libraries",
+		},
+		Tsdb: Tsdb{
+			MinBlockDuration: "2h",
+			Retention:        "7d",
+		},
 	}
 
-	defaultOptions := "--web.listen-address=%s:%d --config.file=%s --storage.tsdb.path=/prometheusdata --storage.tsdb.retention=7d --log.level=%s"
-	defaultOptions = fmt.Sprintf(defaultOptions, config.BindIp, config.Port, config.ConfigFile, config.LogLevel)
-
-	config.Options = defaultOptions
 	return config
 }
 
 func (c *Config) AddFlag(cmd *pflag.FlagSet) {
-	cmd.StringArrayVar(&c.EtcdEndpoints, "etcd-endpoints", c.EtcdEndpoints, "etcd endpoints list")
-	cmd.StringVar(&c.Options, "prometheus-options", c.Options, "specified options for prometheus")
+	cmd.StringArrayVar(&c.EtcdEndpoints, "etcd-endpoints", c.EtcdEndpoints, "etcd endpoints list.")
+	cmd.StringVar(&c.AdvertiseAddr, "advertise-addr", c.AdvertiseAddr, "advertise address, and registry into etcd.")
+}
+
+func (c *Config) AddPrometheusFlag(cmd *pflag.FlagSet) {
+	cmd.StringVar(&c.ConfigFile, "config.file", c.ConfigFile, "Prometheus configuration file path.")
+
+	cmd.StringVar(&c.Web.ListenAddress, "web.listen-address", c.Web.ListenAddress, "Address to listen on for UI, API, and telemetry.")
+
+	cmd.StringVar(&c.WebTimeout, "web.read-timeout", c.WebTimeout, "Maximum duration before timing out read of the request, and closing idle connections.")
+
+	cmd.IntVar(&c.Web.MaxConnections, "web.max-connections", c.Web.MaxConnections, "Maximum number of simultaneous connections.")
+
+	cmd.StringVar(&c.Web.ExternalURL, "web.external-url", c.Web.ExternalURL, "The URL under which Prometheus is externally reachable (for example, if Prometheus is served via a reverse proxy). Used for generating relative and absolute links back to Prometheus itself. If the URL has a path portion, it will be used to prefix all HTTP endpoints served by Prometheus. If omitted, relevant URL components will be derived automatically.")
+
+	cmd.StringVar(&c.Web.RoutePrefix, "web.route-prefix", c.Web.RoutePrefix, "Prefix for the internal routes of Web endpoints. Defaults to path of --Web.external-url.")
+
+	cmd.StringVar(&c.Web.UserAssetsPath, "web.user-assets", c.Web.UserAssetsPath, "Path to static asset directory, available at /user.")
+
+	cmd.BoolVar(&c.Web.EnableLifecycle, "web.enable-lifecycle", c.Web.EnableLifecycle, "Enable shutdown and reload via HTTP request.")
+
+	cmd.BoolVar(&c.Web.EnableAdminAPI, "web.enable-admin-api", c.Web.EnableAdminAPI, "Enable API endpoints for admin control actions.")
+
+	cmd.StringVar(&c.Web.ConsoleTemplatesPath, "web.console.templates", c.Web.ConsoleTemplatesPath, "Path to the console template directory, available at /consoles.")
+
+	cmd.StringVar(&c.Web.ConsoleLibrariesPath, "web.console.libraries", c.Web.ConsoleLibrariesPath, "Path to the console library directory.")
+
+	cmd.StringVar(&c.LocalStoragePath, "storage.tsdb.path", c.LocalStoragePath, "Base path for metrics storage.")
+
+	cmd.StringVar(&c.Tsdb.MinBlockDuration, "storage.tsdb.min-block-duration", c.Tsdb.MinBlockDuration, "Minimum duration of a data block before being persisted. For use in testing.")
+
+	cmd.StringVar(&c.Tsdb.MaxBlockDuration, "storage.tsdb.max-block-duration", c.Tsdb.MaxBlockDuration,
+		"Maximum duration compacted blocks may span. For use in testing. (Defaults to 10% of the retention period).")
+
+	cmd.StringVar(&c.Tsdb.Retention, "storage.tsdb.retention", c.Tsdb.Retention, "How long to retain samples in storage.")
+
+	cmd.BoolVar(&c.Tsdb.NoLockfile, "storage.tsdb.no-lockfile", c.Tsdb.NoLockfile, "Do not create lockfile in data directory.")
+
+	cmd.StringVar(&c.RemoteFlushDeadline, "storage.remote.flush-deadline", c.RemoteFlushDeadline, "How long to wait flushing sample on shutdown or config reload.")
+
+	cmd.StringVar(&c.AlertmanagerCapacity, "alertmanager.notification-queue-capacity", c.AlertmanagerCapacity, "The capacity of the queue for pending Alertmanager notifications.")
+
+	cmd.StringVar(&c.AlertmanagerTimeout, "alertmanager.timeout", c.AlertmanagerTimeout, "Timeout for sending alerts to Alertmanager.")
+
+	cmd.StringVar(&c.QueryLookbackDelta, "query.lookback-delta", c.QueryLookbackDelta, "The delta difference allowed for retrieving metrics during expression evaluations.")
+
+	cmd.StringVar(&c.QueryTimeout, "query.timeout", c.QueryTimeout, "Maximum time a query may take before being aborted.")
+
+	cmd.StringVar(&c.QueryMaxConcurrency, "query.max-concurrency", c.QueryMaxConcurrency, "Maximum number of queries executed concurrently.")
+
+	cmd.StringVar(&c.LogLevel, "log.level", c.LogLevel, "log level.")
 }
 
 func (c *Config) CompleteConfig() {
 	// parse values from prometheus options to config
-	args := strings.Split(c.Options, " ")
-	for i := 0; i < len(args); i++  {
-		kv := strings.Split(args[i], "=")
-		if len(kv) < 2 {
-			kv = append(kv, args[i])
-			i++
-		}
-
-		switch kv[0] {
-		case "--web.listen-address":
-			ipPort := strings.Split(kv[1], ":")
-			if ipPort[0] != "" {
-				c.BindIp = ipPort[0]
-			}
-			port, err := strconv.Atoi(ipPort[1])
-			if err == nil && port != 0 {
-				c.Port = port
-			}
-		case "--config.file":
-			c.ConfigFile = kv[1]
-		case "--log.level":
-			c.LogLevel = kv[1]
-		}
+	ipPort := strings.TrimLeft(c.AdvertiseAddr, "shttp://")
+	ipPortArr := strings.Split(ipPort, ":")
+	c.BindIp = ipPortArr[0]
+	port, err := strconv.Atoi(ipPortArr[1])
+	if err == nil {
+		c.Port = port
 	}
 
-	c.Args = append(c.Args, os.Args[0])
-	c.Args = append(c.Args, args...)
+	defaultOptions := "--log.level=%s --web.listen-address=%s --config.file=%s --storage.tsdb.path=%s --storage.tsdb.retention=%s"
+	defaultOptions = fmt.Sprintf(defaultOptions, c.LogLevel, c.Web.ListenAddress, c.ConfigFile, c.LocalStoragePath, c.Tsdb.Retention)
+	if c.Tsdb.NoLockfile {
+		defaultOptions += " --storage.tsdb.no-lockfile"
+	}
+	if c.Web.EnableAdminAPI {
+		defaultOptions += " --web.enable-admin-api"
+	}
+	if c.Web.EnableLifecycle {
+		defaultOptions += " --web.enable-lifecycle"
+	}
+
+	args := strings.Split(defaultOptions, " ")
+	c.StartArgs = append(c.StartArgs, os.Args[0])
+	c.StartArgs = append(c.StartArgs, args...)
 
 	level, err := logrus.ParseLevel(c.LogLevel)
 	if err != nil {
