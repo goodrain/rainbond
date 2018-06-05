@@ -19,29 +19,32 @@
 package prometheus
 
 import (
+	"context"
+	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
 	"github.com/goodrain/rainbond/discover"
+	"github.com/prometheus/common/model"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"net/http"
-	"sync"
-	"time"
-	"os"
-	"syscall"
-	"github.com/prometheus/common/model"
 	"net"
-	"fmt"
+	"net/http"
+	"os"
+	"sync"
+	"syscall"
+	"time"
+	"errors"
 )
 
 const (
 	STARTING = iota
 	STARTED
-	STOPPING
 	STOPPED
 )
 
 type Manager struct {
+	cancel     context.CancelFunc
+	ctx        context.Context
 	Opt        *option.Config
 	Config     *Config
 	Process    *os.Process
@@ -62,10 +65,10 @@ func NewManager(config *option.Config) *Manager {
 	}
 
 	m := &Manager{
-		Opt:        config,
-		Config:     &Config{
+		Opt: config,
+		Config: &Config{
 			GlobalConfig: GlobalConfig{
-				ScrapeInterval: model.Duration(time.Second * 5),
+				ScrapeInterval:     model.Duration(time.Second * 5),
 				EvaluationInterval: model.Duration(time.Second * 10),
 			},
 		},
@@ -78,9 +81,8 @@ func NewManager(config *option.Config) *Manager {
 	return m
 }
 
-func (p *Manager) StartDaemon() {
+func (p *Manager) StartDaemon(errchan chan error) {
 	logrus.Info("Starting prometheus.")
-	p.Status  = STARTING
 
 	// start prometheus
 	procAttr := &os.ProcAttr{
@@ -108,31 +110,26 @@ func (p *Manager) StartDaemon() {
 		time.Sleep(time.Second)
 	}
 
-	p.Status  = STARTED
+	p.Status = STARTED
 
 	// listen prometheus is exit
 	go func() {
-		p.Process.Wait()
-		logrus.Warn("Exited prometheus unexpected.")
-		if p.Status != STOPPING {
-			p.Status = STOPPING
-
-			logrus.Info("Send signal to monitor.")
-			self, err := os.FindProcess(os.Getpid())
-			if err == nil {
-				self.Signal(syscall.SIGTERM)
-			}
+		_, err := p.Process.Wait()
+		logrus.Warn("Exited prometheus unexpectedly.")
+		if err == nil {
+			err = errors.New("exited prometheus unexpectedly")
 		}
+
+		p.Status = STOPPED
+		errchan <- err
 	}()
 }
 
 func (p *Manager) StopDaemon() {
-	if p.Status != STOPPING {
-		p.Status = STOPPING
+	if p.Status != STOPPED {
 		logrus.Info("Stopping prometheus daemon ...")
 		p.Process.Signal(syscall.SIGTERM)
 		p.Process.Wait()
-		p.Status = STOPPED
 		logrus.Info("Stopped prometheus daemon.")
 	}
 }
@@ -150,14 +147,14 @@ func (p *Manager) RestartDaemon() error {
 
 func (p *Manager) LoadConfig() error {
 	logrus.Info("Load prometheus config file.")
-	context, err := ioutil.ReadFile(p.Opt.ConfigFile)
+	content, err := ioutil.ReadFile(p.Opt.ConfigFile)
 	if err != nil {
 		logrus.Error("Failed to read prometheus config file: ", err)
 		logrus.Info("Init config file by default values.")
 		return nil
 	}
 
-	if err := yaml.Unmarshal(context, p.Config); err != nil {
+	if err := yaml.Unmarshal(content, p.Config); err != nil {
 		logrus.Error("Unmarshal prometheus config string to object error.", err.Error())
 		return err
 	}

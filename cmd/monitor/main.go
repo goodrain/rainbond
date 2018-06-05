@@ -19,11 +19,14 @@
 package main
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
-	"github.com/spf13/pflag"
 	"github.com/goodrain/rainbond/monitor"
 	"github.com/goodrain/rainbond/monitor/prometheus"
-	"github.com/goodrain/rainbond/monitor/utils"
+	"github.com/spf13/pflag"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -36,7 +39,9 @@ func main() {
 
 	// start prometheus daemon and watching tis status in all time, exit monitor process if start failed
 	p := prometheus.NewManager(c)
-	p.StartDaemon()
+	errChan := make(chan error, 1)
+	defer close(errChan)
+	p.StartDaemon(errChan)
 	defer p.StopDaemon()
 
 	// register prometheus address to etcd cluster
@@ -48,5 +53,18 @@ func main() {
 	m.Start()
 	defer m.Stop()
 
-	utils.ListenStop()
+	//step finally: listen Signal
+	term := make(chan os.Signal)
+	defer close(term)
+	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case <-term:
+		logrus.Warn("Received SIGTERM, exiting monitor gracefully...")
+	case err := <-errChan:
+		if err != nil {
+			logrus.Errorf("Received a error %s from prometheus, exiting monitor gracefully...", err.Error())
+		}
+	}
+	logrus.Info("See you next time!")
 }
