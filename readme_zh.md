@@ -66,7 +66,9 @@ Rainbond深度整合基于Kubernetes的容器管理、Service Mesh微服务架�
 
 Rainbond遵循LGPL-3.0 license协议发布，详情查看[LICENSE](https://github.com/goodrain/rainbond/blob/master/LICENSE)及[Licensing](https://github.com/goodrain/rainbond/blob/master/Licensing.md)。
 
-## 感谢开源项目
+## 鸣谢
+
+感谢以下开源项目
 
 * [kubernetes](https://github.com/kubernetes/kubernetes)
 * [docker/moby](https://github.com/moby/moby)
