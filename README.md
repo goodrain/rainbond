@@ -67,3 +67,21 @@ Please read [CONTRIBUTING](https://github.com/goodrain/rainbond/blob/master/CONT
 
 Rainbond is under the LGPL-3.0 license, see [LICENSE](https://github.com/goodrain/rainbond/blob/master/LICENSE) and [Licensing](https://github.com/goodrain/rainbond/blob/master/Licensing.md) for details.
 
+## Acknowledgment
+
+Thanks for the following open source project
+
+* [kubernetes](https://github.com/kubernetes/kubernetes)
+* [docker/moby](https://github.com/moby/moby)
+* [heroku buildpack](https://github.com/heroku)
+* [openresty](https://github.com/openresty/)
+* [calico](https://github.com/projectcalico)
+* [midonet](https://github.com/midonet/midonet)
+* [etcd](https://github.com/coreos/etcd)
+* [prometheus](https://github.com/prometheus/prometheus)
+* [glusterfs](https://github.com/gluster/glusterfs)
+* [ceph](https://github.com/ceph/ceph)
+* [cockroachDB](https://github.com/cockroachdb/cockroach)
+* [mysql](https://github.com/mysqljs/mysql)
+* [Weave Scope](https://github.com/weaveworks/scope)
+* [Ant Design](https://github.com/ant-design/ant-design)
