@@ -19,7 +19,6 @@
 package prometheus
 
 import (
-	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
 	"github.com/goodrain/rainbond/discover"
@@ -30,14 +29,23 @@ import (
 	"time"
 	"os"
 	"syscall"
+	"github.com/prometheus/common/model"
 	"net"
+	"fmt"
+)
+
+const (
+	STARTING = iota
+	STARTED
+	STOPPING
+	STOPPED
 )
 
 type Manager struct {
-	ApiUrl     string
 	Opt        *option.Config
 	Config     *Config
 	Process    *os.Process
+	Status     int
 	Registry   *discover.KeepAlive
 	httpClient *http.Client
 	l          *sync.Mutex
@@ -54,9 +62,13 @@ func NewManager(config *option.Config) *Manager {
 	}
 
 	m := &Manager{
-		ApiUrl:     fmt.Sprintf("http://127.0.0.1:%d", config.Port),
 		Opt:        config,
-		Config:     &Config{},
+		Config:     &Config{
+			GlobalConfig: GlobalConfig{
+				ScrapeInterval: model.Duration(time.Second * 5),
+				EvaluationInterval: model.Duration(time.Second * 10),
+			},
+		},
 		Registry:   reg,
 		httpClient: client,
 		l:          &sync.Mutex{},
@@ -68,7 +80,9 @@ func NewManager(config *option.Config) *Manager {
 
 func (p *Manager) StartDaemon() {
 	logrus.Info("Starting prometheus.")
+	p.Status  = STARTING
 
+	// start prometheus
 	procAttr := &os.ProcAttr{
 		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
 	}
@@ -82,36 +96,55 @@ func (p *Manager) StartDaemon() {
 	p.Process = process
 
 	// waiting started
-	for i := 0; i < 10; i++ {
-		time.Sleep(time.Second)
+	for {
 		conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", p.Opt.Port), time.Second)
 		if err == nil {
 			logrus.Info("The prometheus daemon is started.")
 			conn.Close()
-			return
+			break
 		} else {
 			logrus.Info("Wait prometheus to start: ", err)
 		}
+		time.Sleep(time.Second)
 	}
 
-	logrus.Error("Timeout start prometheus daemon.")
-	os.Exit(13)
+	p.Status  = STARTED
+
+	// listen prometheus is exit
+	go func() {
+		p.Process.Wait()
+		logrus.Warn("Exited prometheus unexpected.")
+		if p.Status != STOPPING {
+			p.Status = STOPPING
+
+			logrus.Info("Send signal to monitor.")
+			self, err := os.FindProcess(os.Getpid())
+			if err == nil {
+				self.Signal(syscall.SIGTERM)
+			}
+		}
+	}()
 }
 
 func (p *Manager) StopDaemon() {
-	logrus.Info("Stopping prometheus daemon ...")
-	p.Process.Signal(syscall.SIGTERM)
-	p.Process.Wait()
-	logrus.Info("Stopped prometheus daemon.")
+	if p.Status != STOPPING {
+		p.Status = STOPPING
+		logrus.Info("Stopping prometheus daemon ...")
+		p.Process.Signal(syscall.SIGTERM)
+		p.Process.Wait()
+		p.Status = STOPPED
+		logrus.Info("Stopped prometheus daemon.")
+	}
 }
 
 func (p *Manager) RestartDaemon() error {
-	logrus.Debug("Restart daemon for prometheus.")
-	if err := p.Process.Signal(syscall.SIGHUP); err != nil {
-		logrus.Error("Failed to restart daemon for prometheus: ", err)
-		return err
+	if p.Status == STARTED {
+		logrus.Debug("Restart daemon for prometheus.")
+		if err := p.Process.Signal(syscall.SIGHUP); err != nil {
+			logrus.Error("Failed to restart daemon for prometheus: ", err)
+			return err
+		}
 	}
-
 	return nil
 }
 

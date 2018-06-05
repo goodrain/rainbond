@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/goodrain/rainbond/monitor"
 	"github.com/goodrain/rainbond/monitor/prometheus"
+	"github.com/goodrain/rainbond/monitor/utils"
 )
 
 func main() {
@@ -47,5 +48,5 @@ func main() {
 	m.Start()
 	defer m.Stop()
 
-	m.ListenStop()
+	utils.ListenStop()
 }

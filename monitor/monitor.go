@@ -20,20 +20,17 @@ package monitor
 
 import (
 	"context"
+	"github.com/Sirupsen/logrus"
 	v3 "github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
 	discoverv1 "github.com/goodrain/rainbond/discover"
 	discoverv2 "github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/callback"
-	"github.com/goodrain/rainbond/util/watch"
-	"time"
-	"github.com/Sirupsen/logrus"
-	"os"
-	"syscall"
-	"os/signal"
-	"github.com/tidwall/gjson"
 	"github.com/goodrain/rainbond/monitor/prometheus"
+	"github.com/goodrain/rainbond/util/watch"
+	"github.com/tidwall/gjson"
+	"time"
 )
 
 type Monitor struct {
@@ -146,17 +143,6 @@ func (d *Monitor) Stop() {
 	d.discoverv1.Stop()
 	d.discoverv2.Stop()
 	d.client.Close()
-}
-
-func (d *Monitor) ListenStop() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM)
-
-	sig := <- sigs
-	signal.Ignore(syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM)
-
-	logrus.Warn("monitor manager received signal: ", sig.String())
-	close(sigs)
 }
 
 func NewMonitor(opt *option.Config, p *prometheus.Manager) *Monitor {

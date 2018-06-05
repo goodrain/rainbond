@@ -22,6 +22,10 @@ import (
 	"strings"
 	"sort"
 	"github.com/goodrain/rainbond/discover/config"
+	"os"
+	"syscall"
+	"github.com/Sirupsen/logrus"
+	"os/signal"
 )
 
 func TrimAndSort(endpoints []*config.Endpoint) []string {
@@ -48,4 +52,15 @@ func ArrCompare(arr1, arr2 []string) bool {
 	}
 
 	return true
+}
+
+func ListenStop() {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM)
+
+	sig := <- sigs
+	signal.Ignore(syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM)
+
+	logrus.Warn("monitor manager received signal: ", sig.String())
+	close(sigs)
 }
