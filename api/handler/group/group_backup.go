@@ -350,11 +350,12 @@ func (h *BackupHandle) RestoreBackup(br BackupRestore) (*RestoreResult, *util.AP
 	}
 	restoreID = core_util.NewUUID()
 	var dataMap = map[string]interface{}{
-		"slug_info":  br.Body.SlugInfo,
-		"image_info": br.Body.ImageInfo,
-		"backup_id":  backup.BackupID,
-		"tenant_id":  br.Body.TenantID,
-		"restore_id": restoreID,
+		"slug_info":    br.Body.SlugInfo,
+		"image_info":   br.Body.ImageInfo,
+		"backup_id":    backup.BackupID,
+		"tenant_id":    br.Body.TenantID,
+		"restore_id":   restoreID,
+		"restore_mode": br.Body.RestoreMode,
 	}
 	data, err := ffjson.Marshal(dataMap)
 	if err != nil {
