@@ -182,7 +182,8 @@ func (h *BackupHandle) DeleteBackup(backupID string) *util.APIHandleError {
 	//if status != success it could be deleted
 	//if status == success, backup mode must be offline could be deleted
 	if backup.Status != "success" || backup.BackupMode == "full-offline" {
-		if er := db.GetManager().AppBackupDao().DeleteAppBackup(backupID); er != nil {
+		backup.Deleted = true
+		if er := db.GetManager().AppBackupDao().UpdateModel(backup); er != nil {
 			return util.CreateAPIHandleErrorFromDBError("delete backup error", er)
 		}
 		return nil
