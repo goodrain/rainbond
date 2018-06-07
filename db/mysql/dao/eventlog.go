@@ -68,7 +68,7 @@ func (e *EventLogMessageDaoImpl) DeleteServiceEventLog() error {
 	for _,v := range messageRaw{
 		start_time := v.StartTime
 		tm2, _ := time.Parse("2006-02-01T15:04:05+08:00", start_time)
-		fmt.Println(tm2)
+		fmt.Println(now.Unix() - tm2.Unix())
 		if now.Unix() - tm2.Unix() > 2592000{
 			fmt.Println("大于一个月")
 			e.DB.Delete(v)

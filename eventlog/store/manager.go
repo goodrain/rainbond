@@ -268,8 +268,7 @@ func (s *storeManager) cleanlog(pathname string) {
 				fmt.Println(fi.Name(),"文件名")
 				if fi.Name() == "stdout.log" {
 					fmt.Println("stout.log continue")
-					continue
-
+					break
 				}
 				lis := strings.Split(fi.Name(), ".")[0]
 				fmt.Println(lis,"lis")
@@ -283,11 +282,11 @@ func (s *storeManager) cleanlog(pathname string) {
 					_, err := os.Stat(pathname)
 					if os.IsNotExist(err) {
 						fmt.Println("文件不存在")
-						continue
+						break
 					}
 					if err != nil {
 						fmt.Println("出错")
-						continue
+						break
 					}
 					os.Remove(pathname) //删除文件
 					fmt.Println("删除成功")
