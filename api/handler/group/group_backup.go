@@ -173,6 +173,23 @@ func (h *BackupHandle) GetBackup(backupID string) (*dbmodel.AppBackup, *util.API
 	return backup, nil
 }
 
+//DeleteBackup delete backup
+func (h *BackupHandle) DeleteBackup(backupID string) *util.APIHandleError {
+	backup, err := h.GetBackup(backupID)
+	if err != nil {
+		return err
+	}
+	//if status != success it could be deleted
+	//if status == success, backup mode must be offline could be deleted
+	if backup.Status != "success" || backup.BackupMode == "full-offline" {
+		if er := db.GetManager().AppBackupDao().DeleteAppBackup(backupID); er != nil {
+			return util.CreateAPIHandleErrorFromDBError("delete backup error", er)
+		}
+		return nil
+	}
+	return util.CreateAPIHandleErrorf(400, "backup success do not support delete.")
+}
+
 //GetBackupByGroupID get some backup info by group id
 func (h *BackupHandle) GetBackupByGroupID(groupID string) ([]*dbmodel.AppBackup, *util.APIHandleError) {
 	backups, err := db.GetManager().AppBackupDao().GetAppBackups(groupID)

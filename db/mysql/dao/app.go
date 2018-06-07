@@ -92,14 +92,14 @@ func (a *AppBackupDaoImpl) UpdateModel(mo model.Interface) error {
 //CheckHistory CheckHistory
 func (a *AppBackupDaoImpl) CheckHistory(groupID, version string) bool {
 	var app model.AppBackup
-	exist := a.DB.Where("(group_id = ? and status in (?)) or version=? ", groupID, []string{"starting", "restore"}, version).Find(&app).RecordNotFound()
+	exist := a.DB.Where("((group_id = ? and status in (?)) or version=?) and deleted=? ", groupID, []string{"starting", "restore"}, version, false).Find(&app).RecordNotFound()
 	return !exist
 }
 
 //GetAppBackups GetAppBackups
 func (a *AppBackupDaoImpl) GetAppBackups(groupID string) ([]*model.AppBackup, error) {
 	var apps []*model.AppBackup
-	if err := a.DB.Where("group_id = ?", groupID).Find(&apps).Error; err != nil {
+	if err := a.DB.Where("group_id = ? and deleted=?", groupID, false).Find(&apps).Error; err != nil {
 		return nil, err
 	}
 	return apps, nil
@@ -117,8 +117,26 @@ func (a *AppBackupDaoImpl) DeleteAppBackup(backupID string) error {
 //GetAppBackup GetAppBackup
 func (a *AppBackupDaoImpl) GetAppBackup(backupID string) (*model.AppBackup, error) {
 	var app model.AppBackup
-	if err := a.DB.Where("backup_id = ?", backupID).Find(&app).Error; err != nil {
+	if err := a.DB.Where("backup_id = ? and deleted=?", backupID, false).Find(&app).Error; err != nil {
 		return nil, err
 	}
 	return &app, nil
+}
+
+//GetDeleteAppBackup GetDeleteAppBackup
+func (a *AppBackupDaoImpl) GetDeleteAppBackup(backupID string) (*model.AppBackup, error) {
+	var app model.AppBackup
+	if err := a.DB.Where("backup_id = ? and deleted=?", backupID, true).Find(&app).Error; err != nil {
+		return nil, err
+	}
+	return &app, nil
+}
+
+//GetDeleteAppBackups GetDeleteAppBackups
+func (a *AppBackupDaoImpl) GetDeleteAppBackups() ([]*model.AppBackup, error) {
+	var apps []*model.AppBackup
+	if err := a.DB.Where("deleted=?", true).Find(&apps).Error; err != nil {
+		return nil, err
+	}
+	return apps, nil
 }

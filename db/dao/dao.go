@@ -375,4 +375,6 @@ type AppBackupDao interface {
 	GetAppBackups(groupID string) ([]*model.AppBackup, error)
 	DeleteAppBackup(backupID string) error
 	GetAppBackup(backupID string) (*model.AppBackup, error)
+	GetDeleteAppBackup(backupID string) (*model.AppBackup, error)
+	GetDeleteAppBackups() ([]*model.AppBackup, error)
 }
