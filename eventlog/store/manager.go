@@ -257,25 +257,31 @@ func (s *storeManager) cleanlog(pathname string) {
 	defer timer.Stop()
 	for {
 		//do something
-		rd, _ := ioutil.ReadDir(pathname)
+		rd, err := ioutil.ReadDir(pathname)
+		s.log.Debug(err)
 		for _, fi := range rd {
 			if fi.IsDir() {
-
+				s.log.Debug(pathname)
 				s.cleanlog(pathname + "/" + fi.Name())
 			} else {
 				fmt.Println(fi.Name())
+				s.log.Debug(fi.Name())
 				if fi.Name() == "stdout.log" {
+
 					continue
+					s.log.Debug("stout.log continue")
 				}
 				lis := strings.Split(fi.Name(), ".")[0]
 				loc, _ := time.LoadLocation("Local")
 				theTime, _ := time.ParseInLocation("2006-1-2", lis, loc)
 				sumD := now.Sub(theTime)
 				fmt.Printf("%v 天\n", sumD.Hours()/24)
+				s.log.Debug(sumD.Hours()/24)
 				if sumD.Hours()/24 > 7 {
 
 					_, err := os.Stat(pathname)
 					if os.IsNotExist(err) {
+						s.log.Debug("文件不存在")
 						continue
 					}
 					if err != nil {
@@ -283,6 +289,7 @@ func (s *storeManager) cleanlog(pathname string) {
 						continue
 					}
 					os.Remove(pathname) //删除文件
+					s.log.Debug("删除成功")
 				}
 
 			}
