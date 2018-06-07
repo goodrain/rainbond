@@ -31,6 +31,7 @@ import (
 	grpc1 "google.golang.org/grpc"
 
 	"github.com/Sirupsen/logrus"
+	mysql "github.com/goodrain/rainbond/db"
 )
 
 //WTOPIC is builder
@@ -65,8 +66,26 @@ func (t *TaskManager) Start() error {
 	}
 	t.client = client
 	go t.Do()
+	go t.cleanVersion()
 	logrus.Info("start discover success.")
 	return nil
+}
+
+func (t *TaskManager) cleanVersion() {
+	timer := time.NewTimer(time.Hour * 24)
+	defer timer.Stop()
+	for {
+		m := mysql.GetManager()
+		m.VersionInfoDao().CheanViesion()
+		select {
+		case <-t.ctx.Done():
+			return
+		case <-timer.C:
+			timer.Reset(time.Hour * 24)
+
+		}
+	}
+
 }
 
 //Do do

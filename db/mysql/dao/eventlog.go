@@ -23,7 +23,6 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"time"
-	"fmt"
 )
 
 //EventLogMessageDaoImpl EventLogMessageDaoImpl
@@ -64,18 +63,11 @@ func (e *EventLogMessageDaoImpl) DeleteServiceEventLog() error {
 	if err := e.DB.Find(&messageRaw).Error; err != nil{
 		return err
 	}
-	fmt.Println(len(messageRaw),"列表长度")
 	for _,v := range messageRaw{
 		start_time := v.StartTime
-		fmt.Println(start_time)
 		tm2, _ := time.Parse("2006-01-02T15:04:05+08:00", start_time)
-
-		fmt.Println(tm2)
-		fmt.Println(now.Unix() - tm2.Unix())
 		if now.Unix() - tm2.Unix() > 2620800{
-			fmt.Println("大于一个月")
-			//e.DB.Delete(v)
-			fmt.Println("删除成功")
+			e.DB.Delete(v)
 		}
 	}
 	return nil
