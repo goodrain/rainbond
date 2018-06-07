@@ -114,13 +114,19 @@ func (c *VersionInfoDaoImpl) GetVersionByServiceID(serviceID string) ([]*model.V
 }
 
 func (c *VersionInfoDaoImpl) CheanViesion() {
+	now := time.Now()
 	var result []*model.VersionInfo
-	timestamp := time.Now().Unix() - 2592000
+	timestamp := now.Unix() - 2592000
 	fmt.Println(timestamp)
 	c.DB.Where("delivered_type = ?", "slug").Find(&result)
 	fmt.Println(len(result),"源码查询数量")
 	for _,v := range result {
-		fmt.Println(v.CreatedAt)
+		creat_time := v.CreatedAt
+		fmt.Println("时间：",creat_time.Unix())
+		if creat_time.Unix() < timestamp{
+			fmt.Println(creat_time,"符合要求")
+		}
+
 		path := v.DeliveredPath
 		_, err := os.Stat(path)
 		if os.IsNotExist(err) {
