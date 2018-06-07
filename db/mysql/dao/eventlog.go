@@ -67,6 +67,7 @@ func (e *EventLogMessageDaoImpl) DeleteServiceEventLog() error {
 	fmt.Println(len(messageRaw),"列表长度")
 	for _,v := range messageRaw{
 		start_time := v.StartTime
+		fmt.Println(start_time)
 		tm2, _ := time.Parse("2006-02-01 15:04:05 +0000 UTC", start_time)
 		fmt.Println(tm2.Unix())
 		fmt.Println(tm2)
