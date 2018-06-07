@@ -252,7 +252,7 @@ func (s *storeManager) Run() error {
 // clean service log that before 7 days in every 24h
 // clean event log that before 30 days message in every 24h
 func (s *storeManager) cleanlog(pathname string) {
-	timer := time.NewTimer(time.Hour * 24)
+	timer := time.NewTimer(time.Minute * 2)
 	defer timer.Stop()
 	for {
 		//do something
@@ -272,7 +272,7 @@ func (s *storeManager) cleanlog(pathname string) {
 		case <-s.context.Done():
 			return
 		case <-timer.C:
-			timer.Reset(time.Hour * 24)
+			timer.Reset(time.Minute * 2)
 		}
 	}
 
@@ -313,7 +313,7 @@ func (s *storeManager) delfile(pathname, filename string) {
 
 
 func (s *storeManager) delServiceEventlog() {
-	timer := time.NewTimer(time.Hour * 24)
+	timer := time.NewTimer(time.Minute * 2)
 	defer timer.Stop()
 	for {
 		m := mysql.GetManager()
@@ -323,7 +323,7 @@ func (s *storeManager) delServiceEventlog() {
 		case <-s.context.Done():
 			return
 		case <-timer.C:
-			timer.Reset(time.Hour * 24)
+			timer.Reset(time.Minute * 2)
 
 		}
 	}
