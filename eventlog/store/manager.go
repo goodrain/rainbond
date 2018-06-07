@@ -40,7 +40,10 @@ import (
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tidwall/gjson"
-	"golang.org/x/net/context"
+	"context"
+	mysql "github.com/goodrain/rainbond/db"
+	"io/ioutil"
+	"os"
 )
 
 //Manager 存储管理器
@@ -240,7 +243,76 @@ func (s *storeManager) Run() error {
 		go s.handleMonitorMessage()
 	}
 	go s.handleNewMonitorMessage()
+	go s.cleanlog("/grdata/logs")
+	go s.delServiceEventlog()
 	return nil
+}
+
+//cleandata
+// clean service log that before 7 days in every 24h
+// clean event log that before 30 days message in every 24h
+func (s *storeManager) cleanlog(pathname string) {
+	now := time.Now()
+	timer := time.NewTimer(time.Hour * 24)
+	defer timer.Stop()
+	for {
+		//do something
+		rd, _ := ioutil.ReadDir(pathname)
+		for _, fi := range rd {
+			if fi.IsDir() {
+
+				s.cleanlog(pathname + "/" + fi.Name())
+			} else {
+				fmt.Println(fi.Name())
+				if fi.Name() == "stdout.log" {
+					continue
+				}
+				lis := strings.Split(fi.Name(), ".")[0]
+				loc, _ := time.LoadLocation("Local")
+				theTime, _ := time.ParseInLocation("2006-1-2", lis, loc)
+				sumD := now.Sub(theTime)
+				fmt.Printf("%v 天\n", sumD.Hours()/24)
+				if sumD.Hours()/24 > 7 {
+
+					_, err := os.Stat(pathname)
+					if os.IsNotExist(err) {
+						continue
+					}
+					if err != nil {
+
+						continue
+					}
+					os.Remove(pathname) //删除文件
+				}
+
+			}
+		}
+		logrus.Info("time:", time.Now())
+		select {
+		case <-s.context.Done():
+			return
+		case <-timer.C:
+			timer.Reset(time.Hour * 24)
+		}
+	}
+
+}
+
+func (s *storeManager) delServiceEventlog() {
+	timer := time.NewTimer(time.Hour * 24)
+	defer timer.Stop()
+	for {
+		m := mysql.GetManager()
+		m.EventLogDao().DeleteServiceEventLog()
+		logrus.Info("time:", time.Now())
+		select {
+		case <-s.context.Done():
+			return
+		case <-timer.C:
+			timer.Reset(time.Hour * 24)
+
+		}
+	}
 }
 
 func (s *storeManager) checkHealth() {

@@ -65,6 +65,7 @@ type EventLogDao interface {
 	Dao
 	GetEventLogMessages(eventID string) ([]*model.EventLogMessage, error)
 	DeleteServiceLog(serviceID string) error
+	DeleteServiceEventLog() error
 }
 
 //TenantServiceDao TenantServiceDao

@@ -22,6 +22,7 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 
 	"github.com/jinzhu/gorm"
+	"time"
 )
 
 //EventLogMessageDaoImpl EventLogMessageDaoImpl
@@ -53,5 +54,21 @@ func (e *EventLogMessageDaoImpl) GetEventLogMessages(eventID string) ([]*model.E
 
 //DeleteServiceLog TODO:
 func (e *EventLogMessageDaoImpl) DeleteServiceLog(serviceID string) error {
+	return nil
+}
+
+func (e *EventLogMessageDaoImpl) DeleteServiceEventLog() error {
+	now := time.Now()
+	var messageRaw []*model.EventLogMessage
+	if err := e.DB.Find(&messageRaw).Error; err != nil{
+		return err
+	}
+	for _,v := range messageRaw{
+		start_time := v.StartTime
+		tm2, _ := time.Parse("2006-02-01T15:04:05+08:00", start_time)
+		if now.Unix() - tm2.Unix() > 2592000{
+			e.DB.Delete(v)
+		}
+	}
 	return nil
 }
