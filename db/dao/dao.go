@@ -226,6 +226,8 @@ type TenantServiceLBMappingPortDao interface {
 	GetTenantServiceLBMappingPortByService(serviceID string) ([]*model.TenantServiceLBMappingPort, error)
 	CreateTenantServiceLBMappingPort(serviceID string, containerPort int) (*model.TenantServiceLBMappingPort, error)
 	DELServiceLBMappingPortByServiceID(serviceID string) error
+	DELServiceLBMappingPortByServiceIDAndPort(serviceID string, lbPort int) error
+	GetLBPortByTenantAndPort(tenantID string, lbport int) (*model.TenantServiceLBMappingPort, error)
 }
 
 //TenantServiceLabelDao TenantServiceLabelDao

@@ -23,8 +23,9 @@ import (
 	"time"
 
 	"fmt"
-	dbmodel "github.com/goodrain/rainbond/db/model"
 	"strings"
+
+	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
 //ServiceGetCommon path参数
@@ -457,6 +458,26 @@ type ServicePortInnerOrOuter struct {
 		// in: body
 		// required: true
 		Operation string `json:"operation"  validate:"operation|required|in:open,close"`
+	}
+}
+
+// ServiceLBPortChange change lb port
+// swagger:parameters changelbport
+type ServiceLBPortChange struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
+	// in: path
+	// required: true
+	ServiceAlias string `json:"service_alias"`
+	// in: path
+	// required: true
+	Port int `json:"port"`
+	//in: body
+	Body struct {
+		// in: body
+		// required: true
+		ChangePort int `json:"change_port"  validate:"change_port|required"`
 	}
 }
 

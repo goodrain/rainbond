@@ -152,6 +152,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Delete("/ports/{port}", controller.GetManager().Ports)
 	r.Put("/ports/{port}/outer", controller.GetManager().PortOuterController)
 	r.Put("/ports/{port}/inner", controller.GetManager().PortInnerController)
+	r.Put("/ports/{port}/changelbport", controller.GetManager().ChangeLBPort)
 
 	//应用版本回滚(act)
 	r.Post("/rollback", controller.GetManager().RollBack)
