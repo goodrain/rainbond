@@ -264,6 +264,7 @@ func (s *storeManager) cleanlog(pathname string) {
 				fmt.Println(pathname,"pathname")
 				s.cleanlog(pathname + "/" + fi.Name())
 			} else {
+				fmt.Println("是一个文件")
 				fmt.Println(fi.Name(),"文件名")
 				if fi.Name() == "stdout.log" {
 					fmt.Println("stout.log continue")
@@ -271,6 +272,7 @@ func (s *storeManager) cleanlog(pathname string) {
 
 				}
 				lis := strings.Split(fi.Name(), ".")[0]
+				fmt.Println(lis,"lis")
 				loc, _ := time.LoadLocation("Local")
 				theTime, _ := time.ParseInLocation("2006-1-2", lis, loc)
 				sumD := now.Sub(theTime)
