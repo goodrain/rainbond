@@ -252,7 +252,6 @@ func (s *storeManager) Run() error {
 // clean service log that before 7 days in every 24h
 // clean event log that before 30 days message in every 24h
 func (s *storeManager) cleanlog(pathname string) {
-	now := time.Now()
 	timer := time.NewTimer(time.Hour * 24)
 	defer timer.Stop()
 	for {
@@ -264,34 +263,7 @@ func (s *storeManager) cleanlog(pathname string) {
 				fmt.Println(pathname,"pathname")
 				s.cleanlog(pathname + "/" + fi.Name())
 			} else {
-				fmt.Println("是一个文件")
-				fmt.Println(fi.Name(),"文件名")
-				if fi.Name() == "stdout.log" {
-					fmt.Println("stout.log continue")
-					break
-				}
-				lis := strings.Split(fi.Name(), ".")[0]
-				fmt.Println(lis,"lis")
-				loc, _ := time.LoadLocation("Local")
-				theTime, _ := time.ParseInLocation("2006-1-2", lis, loc)
-				sumD := now.Sub(theTime)
-				fmt.Printf("%v 天\n", sumD.Hours()/24)
-				fmt.Println(sumD.Hours()/24,"天")
-				if sumD.Hours()/24 > 7 {
-
-					_, err := os.Stat(pathname)
-					if os.IsNotExist(err) {
-						fmt.Println("文件不存在")
-						break
-					}
-					if err != nil {
-						fmt.Println("出错")
-						break
-					}
-					os.Remove(pathname) //删除文件
-					fmt.Println("删除成功")
-				}
-
+				s.delfile(pathname + "/" + fi.Name(), fi.Name())
 			}
 		}
 		logrus.Info("time:", time.Now())
@@ -304,6 +276,40 @@ func (s *storeManager) cleanlog(pathname string) {
 	}
 
 }
+
+func (s *storeManager) delfile(pathname, filename string) {
+		fmt.Println(pathname,"是一个文件")
+		now := time.Now()
+		if filename == "stdout.log" {
+			fmt.Println("stout.log return")
+			return
+
+		}
+		lis := strings.Split(filename, ".")[0]
+		fmt.Println(lis,"lis")
+		loc, _ := time.LoadLocation("Local")
+		theTime, _ := time.ParseInLocation("2006-1-2", lis, loc)
+		sumD := now.Sub(theTime)
+		fmt.Printf("%v 天\n", sumD.Hours()/24)
+		fmt.Println(sumD.Hours()/24,"天")
+		if sumD.Hours()/24 > 7 {
+
+			_, err := os.Stat(pathname)
+			if os.IsNotExist(err) {
+				fmt.Println("文件不存在")
+				return
+			}
+			if err != nil {
+				fmt.Println("出错")
+				return
+			}
+			os.Remove(pathname) //删除文件
+			fmt.Println("删除成功")
+		}
+
+	}
+
+
 
 func (s *storeManager) delServiceEventlog() {
 	timer := time.NewTimer(time.Hour * 24)
