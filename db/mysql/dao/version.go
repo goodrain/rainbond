@@ -117,9 +117,10 @@ func (c *VersionInfoDaoImpl) CheanViesion() {
 	var result []*model.VersionInfo
 	timestamp := time.Now().Unix() - 2592000
 	fmt.Println(timestamp)
-	c.DB.Raw("SELECT delivered_path FROM version_info WHERE create_time < ? AND delivered_type = ?", timestamp,"slug").Find(&result)
+	c.DB.Where("delivered_type = ?", "slug").Find(&result)
 	fmt.Println(len(result),"源码查询数量")
 	for _,v := range result {
+		fmt.Println(v.CreatedAt)
 		path := v.DeliveredPath
 		_, err := os.Stat(path)
 		if os.IsNotExist(err) {
