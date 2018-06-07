@@ -262,7 +262,7 @@ func (s *storeManager) cleanlog(pathname string) {
 			fmt.Println(fi,"fi")
 			if fi.IsDir() {
 				fmt.Println(pathname,"pathname")
-				s.cleanlog(pathname + "/" + fi.Name())
+				go s.cleanlog(pathname + "/" + fi.Name())
 			} else {
 				s.delfile(pathname + "/" + fi.Name(), fi.Name())
 			}
