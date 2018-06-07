@@ -26,6 +26,8 @@ import (
 	"github.com/jinzhu/gorm"
 	"time"
 	"os"
+	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/docker/engine-api/client"
 )
 
 //DeleteVersionByEventID DeleteVersionByEventID
@@ -122,11 +124,12 @@ func (c *VersionInfoDaoImpl) CheanViesion() {
 	fmt.Println(len(result),"源码查询数量")
 	for _,v := range result {
 		creat_time := v.CreatedAt
-		fmt.Println("时间：",creat_time.Unix())
+
 		if creat_time.Unix() < timestamp{
 			fmt.Println(creat_time,"符合要求")
+		}else {
+			fmt.Println(creat_time, "不符合要求")
 		}
-
 		path := v.DeliveredPath
 		_, err := os.Stat(path)
 		if os.IsNotExist(err) {
@@ -136,23 +139,25 @@ func (c *VersionInfoDaoImpl) CheanViesion() {
 		if err != nil {
 			continue
 		}
-		//os.Remove(path) //删除文件
+		os.Remove(path) //删除文件
 		fmt.Println(path, "源码文件删除成功")
+		break
 
 	}
 	var image_result []*model.VersionInfo
-	c.DB.Where("create_time < ? AND delivered_type = ?", timestamp,"image").Find(&image_result)
+	c.DB.Where("delivered_type = ?","image").Find(&image_result)
 	fmt.Println(len(image_result),"镜像查询数量")
-	//for _,v := range result {
-	//	image_path := v.DeliveredPath
-	//	dc, _ := client.NewEnvClient()
-	//	err := sources.ImageRemove(dc,image_path)
-	//	if err!= nil{
-	//		fmt.Println("错误",err)
-	//	}else{
-	//		fmt.Println("删除镜像成功")
-	//	}
-	//
-	//}
+	for _,v := range result {
+		image_path := v.DeliveredPath
+		dc, _ := client.NewEnvClient()
+		err := sources.ImageRemove(dc,image_path)
+		if err!= nil{
+			fmt.Println("错误",err)
+		}else{
+			fmt.Println("删除镜像成功")
+			break
+		}
+
+	}
 
 }
