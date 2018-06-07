@@ -259,6 +259,7 @@ func (s *storeManager) cleanlog(pathname string) {
 		rd, err := ioutil.ReadDir(pathname)
 		fmt.Println(err)
 		for _, fi := range rd {
+			fmt.Println(fi,"fi")
 			if fi.IsDir() {
 				fmt.Println(pathname,"pathname")
 				s.cleanlog(pathname + "/" + fi.Name())
