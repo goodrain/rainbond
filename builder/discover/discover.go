@@ -107,6 +107,11 @@ func (t *TaskManager) cleanVersion() {
 			filePath := v.DeliveredPath
 			if err := os.Remove(filePath); err != nil {
 				if strings.Contains(err.Error(), "no such file or directory") {
+					logrus.Error(err)
+					if err := m.VersionInfoDao().DeleteVersionInfo(v); err != nil {
+						logrus.Error(err)
+						return
+					}
 					continue
 				} else {
 					logrus.Error(err)
@@ -116,10 +121,7 @@ func (t *TaskManager) cleanVersion() {
 
 			os.Remove(filePath) //remove file
 			logrus.Info("File deleted:", filePath)
-			if err := m.VersionInfoDao().DeleteVersionInfo(v); err != nil {
-				logrus.Error(err)
-				return
-			}
+
 		}
 
 		imageResult, err := m.VersionInfoDao().GetVersionInfo(datetime, "image", serviceIdList)
@@ -133,13 +135,14 @@ func (t *TaskManager) cleanVersion() {
 			err := sources.ImageRemove(dc, imagePath) //remove image
 			if err != nil && strings.Contains(err.Error(), "No such image") {
 				logrus.Error(err)
+				if err := m.VersionInfoDao().DeleteVersionInfo(v); err != nil {
+					logrus.Error(err)
+					return
+				}
 				continue
 			}
 			logrus.Info("Image deletion successful:", imagePath)
-			if err := m.VersionInfoDao().DeleteVersionInfo(v); err != nil {
-				logrus.Error(err)
-				return
-			}
+
 		}
 		// deleted version information that failed thirty days ago
 		m.VersionInfoDao().DeleteFailureVersionInfo(datetime, "failure", serviceIdList)
