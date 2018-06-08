@@ -290,6 +290,7 @@ func (s *storeManager) deleteFile(filename string) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println(theTime)
 	if now.After(theTime.Add(7 * time.Hour * 24)) {
 		if err := os.Remove(filename); err != nil {
 			if !strings.Contains(err.Error(), "No such file or directory") {
@@ -312,6 +313,7 @@ func (s *storeManager) delServiceEventlog() {
 			for _, v := range messageRaw {
 				startTime := v.StartTime
 				tm2, _ := time.Parse("2006-01-02T15:04:05+08:00", startTime)
+				fmt.Println("quanbu",tm2)
 				if now.After(tm2.Add(30 * time.Hour * 24)) {
 					fmt.Println("符合条件",tm2)
 					if err := m.EventLogDao().DeleteServiceEventLog(v); err != nil {
