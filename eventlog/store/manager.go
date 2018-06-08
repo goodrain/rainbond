@@ -263,7 +263,6 @@ func (s *storeManager) cleanLog() {
 		if err != nil {
 			logrus.Error("list log dir error, ", err.Error())
 		} else {
-			fmt.Println(files)
 			for _, fi := range files {
 				if err := s.delfile(fi); err != nil {
 					logrus.Errorf("delete log file %s error. %s", fi, err.Error())
@@ -297,9 +296,7 @@ func (s *storeManager) delfile(filename string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("时间", theTime)
 	if now.After(theTime.Add(7 * time.Hour * 24)) {
-		fmt.Println("大于七天")
 		if err := os.Remove(filename); err != nil {
 			if !strings.Contains(err.Error(), "No such file or directory") {
 				return err
@@ -317,16 +314,13 @@ func (s *storeManager) delServiceEventlog() {
 	defer timer.Stop()
 	for {
 		messageRaw, err := m.EventLogDao().GetAllServiceEventLog()
-		fmt.Println("多少数据", len(messageRaw))
 		if err != nil {
 			logrus.Error("not search query")
 		} else {
 			for _, v := range messageRaw {
 				startTime := v.StartTime
 				tm2, _ := time.Parse("2006-01-02T15:04:05+08:00", startTime)
-				fmt.Println("日志时间",tm2)
 				if now.After(tm2.Add(30 * time.Hour * 24)) {
-					fmt.Println("超过30天的", tm2)
 					if err := m.EventLogDao().DeleteServiceEventLog(v); err != nil {
 						logrus.Error("Failed to delete the log")
 					}

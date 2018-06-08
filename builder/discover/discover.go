@@ -72,10 +72,10 @@ func (t *TaskManager) Start() error {
 }
 
 func (t *TaskManager) cleanVersion() {
+	m := mysql.GetManager()
 	timer := time.NewTimer(time.Hour * 24)
 	defer timer.Stop()
 	for {
-		m := mysql.GetManager()
 		m.VersionInfoDao().CheanViesion()
 		select {
 		case <-t.ctx.Done():
