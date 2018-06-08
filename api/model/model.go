@@ -1361,6 +1361,7 @@ type ServiceShare struct {
 			HubUser     string `json:"hub_user"`
 			HubPassword string `json:"hub_password"`
 			Namespace   string `json:"namespace"`
+			IsTrust     bool   `json:"is_trust,omitempty" validate:"is_trust"`
 		} `json:"image_info,omitempty"`
 		SlugInfo struct {
 			Namespace   string `json:"namespace"`
