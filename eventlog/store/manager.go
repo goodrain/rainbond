@@ -264,7 +264,7 @@ func (s *storeManager) cleanLog() {
 			logrus.Error("list log dir error, ", err.Error())
 		} else {
 			for _, fi := range files {
-				if err := s.delfile(fi); err != nil {
+				if err := s.deleteFile(fi); err != nil {
 					logrus.Errorf("delete log file %s error. %s", fi, err.Error())
 				}
 			}
@@ -279,7 +279,7 @@ func (s *storeManager) cleanLog() {
 
 }
 
-func (s *storeManager) delfile(filename string) error {
+func (s *storeManager) deleteFile(filename string) error {
 	now := time.Now()
 	if strings.HasSuffix(filename, "stdout.log") {
 		return nil
@@ -343,7 +343,7 @@ func (s *storeManager) checkHealth() {
 
 func (s *storeManager) parsingMessage(msg []byte, messageType string) (*db.EventLogMessage, error) {
 	if msg == nil {
-		return nil, errors.New("Unable parsing nil message")
+		return nil, errors.New("unable parsing nil message")
 	}
 	//message := s.pool.Get().(*db.EventLogMessage)不能使用对象池，会阻塞进程
 	var message db.EventLogMessage
@@ -354,11 +354,11 @@ func (s *storeManager) parsingMessage(msg []byte, messageType string) (*db.Event
 			return &message, err
 		}
 		if message.EventID == "" {
-			return &message, errors.New("Are not present in the message event_id.")
+			return &message, errors.New("are not present in the message event_id")
 		}
 		return &message, nil
 	}
-	return nil, errors.New("Unable to process configuration of message format type.")
+	return nil, errors.New("unable to process configuration of message format type")
 }
 
 //handleNewMonitorMessage 处理新监控数据

@@ -128,5 +128,20 @@ func (c *VersionInfoDaoImpl) DeleteVersionInfo(obj *model.VersionInfo) error {
 	} else {
 		return err
 	}
+}
 
+func (c *VersionInfoDaoImpl) DeleteFailureVersionInfo(timePoint time.Time, status string) error {
+	if err := c.DB.Where("create_time  < ? AND final_status = ?", timePoint, status).Delete(&model.VersionInfo{}).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+
+func (c *VersionInfoDaoImpl) SearchVersionInfo() ([]*model.Result, error) {
+	var results []*model.Result
+	if err := c.DB.Table("version_info").Select("service_id as serviceId, count(ID) as total").Group("service_id").Having("count(ID) > ?", 5).Scan(&results).Error; err != nil {
+		return nil, err
+	}
+	return results, nil
 }

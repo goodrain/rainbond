@@ -32,9 +32,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	mysql "github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/builder/sources"
-	imageclient "github.com/docker/engine-api/client"
-	"strings"
 	"fmt"
 )
 
@@ -77,70 +74,74 @@ func (t *TaskManager) Start() error {
 
 //清除三十天以前的应用构建版本数据
 func (t *TaskManager) cleanVersion() {
-	dc, _ := imageclient.NewEnvClient()
-	now := time.Now()
-	datetime := now.AddDate(0, -1, 0)
+	//dc, _ := imageclient.NewEnvClient()
+	//now := time.Now()
+	//datetime := now.AddDate(0, -1, 0)
 	m := mysql.GetManager()
 	timer := time.NewTimer(time.Hour * 24)
 	defer timer.Stop()
-	for {
-		result, err := m.VersionInfoDao().GetVersionInfo(datetime, "slug")
-		if err != nil {
-			logrus.Error(err)
-			return
-		}
 
-		for _, v := range result {
-			filePath := v.DeliveredPath
-			if err := os.Remove(filePath); err != nil {
-				if strings.Contains(err.Error(), "no such file or directory") {
-					continue
-				} else {
-					logrus.Error(err)
-					return
-				}
-			}
-
-			os.Remove(filePath) //删除文件
-			logrus.Info("File deleted:", filePath)
-			if err := m.VersionInfoDao().DeleteVersionInfo(v); err != nil {
-				logrus.Error(err)
-				return
-			}else {
-				fmt.Println("删除成功！！！！！！！！！")
-				break
-			}
-		}
-
-		imageResult, err := m.VersionInfoDao().GetVersionInfo(datetime, "image")
-		if err != nil {
-			logrus.Error(err)
-			return
-		}
-		for _, v := range imageResult {
-			imagePath := v.DeliveredPath
-			err := sources.ImageRemove(dc, imagePath)
-			if err != nil && strings.Contains(err.Error(), "No such image") {
-				logrus.Error(err)
-				continue
-			}
-			logrus.Info("Image deletion successful:", imagePath)
-			if err := m.VersionInfoDao().DeleteVersionInfo(v); err != nil {
-				logrus.Error(err)
-				return
-			}else {
-				fmt.Println("删除成功！！！！！！！！！")
-				break
-			}
-		}
-		select {
-		case <-t.ctx.Done():
-			return
-		case <-timer.C:
-			timer.Reset(time.Hour * 24)
-
-		}
+	results,err := m.VersionInfoDao().SearchVersionInfo()
+	if err!=nil{
+		fmt.Println("err",err)
+	}else{
+		fmt.Println("长度",len(results))
+		fmt.Println(results)
 	}
+	//for {
+	//	result, err := m.VersionInfoDao().GetVersionInfo(datetime, "slug")
+	//	if err != nil {
+	//		logrus.Error(err)
+	//		return
+	//	}
+	//
+	//	for _, v := range result {
+	//		filePath := v.DeliveredPath
+	//		if err := os.Remove(filePath); err != nil {
+	//			if strings.Contains(err.Error(), "no such file or directory") {
+	//				continue
+	//			} else {
+	//				logrus.Error(err)
+	//				return
+	//			}
+	//		}
+	//
+	//		os.Remove(filePath) //remove file
+	//		logrus.Info("File deleted:", filePath)
+	//		if err := m.VersionInfoDao().DeleteVersionInfo(v); err != nil {
+	//			logrus.Error(err)
+	//			return
+	//		}
+	//	}
+	//
+	//	imageResult, err := m.VersionInfoDao().GetVersionInfo(datetime, "image")
+	//	if err != nil {
+	//		logrus.Error(err)
+	//		return
+	//	}
+	//	for _, v := range imageResult {
+	//		imagePath := v.DeliveredPath
+	//		err := sources.ImageRemove(dc, imagePath) //remove image
+	//		if err != nil && strings.Contains(err.Error(), "No such image") {
+	//			logrus.Error(err)
+	//			continue
+	//		}
+	//		logrus.Info("Image deletion successful:", imagePath)
+	//		if err := m.VersionInfoDao().DeleteVersionInfo(v); err != nil {
+	//			logrus.Error(err)
+	//			return
+	//		}
+	//	}
+	//	// deleted version information that failed thirty days ago
+	//	m.VersionInfoDao().DeleteFailureVersionInfo(datetime, "failure")
+	//	select {
+	//	case <-t.ctx.Done():
+	//		return
+	//	case <-timer.C:
+	//		timer.Reset(time.Hour * 24)
+	//
+	//	}
+	//}
 
 }
 
