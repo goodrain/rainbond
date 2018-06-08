@@ -91,6 +91,7 @@ func (t *TaskManager) cleanVersion() {
 
 		for _, v := range result {
 			filePath := v.DeliveredPath
+			fmt.Println(v.CreatedAt)
 			_, err := os.Stat(filePath)
 
 			if os.IsNotExist(err) {
@@ -121,6 +122,7 @@ func (t *TaskManager) cleanVersion() {
 		for _, v := range imageResult {
 			imagePath := v.DeliveredPath
 			fmt.Println(imagePath)
+			fmt.Println(v.CreatedAt)
 			err := sources.ImageRemove(dc, imagePath)
 			if err != nil {
 				logrus.Error(err)
