@@ -160,7 +160,7 @@ func (e *EventLogStruct) LogSocket(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	value, err := handler.GetEventHandler().GetLogInstance(serviceID)
 	if err != nil {
-		if strings.Contains(err.Error(), "exist") {
+		if strings.Contains(err.Error(), "Key not found") {
 			httputil.ReturnError(r, w, 404, err.Error())
 			return
 		}
