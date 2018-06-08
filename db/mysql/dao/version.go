@@ -138,10 +138,13 @@ func (c *VersionInfoDaoImpl) DeleteFailureVersionInfo(timePoint time.Time, statu
 }
 
 
-func (c *VersionInfoDaoImpl) SearchVersionInfo() ([]*model.Result, error) {
-	var results []*model.Result
-	if err := c.DB.Table("version_info").Select("service_id as ServiceId, count(ID) as total").Group("service_id").Having("count(ID) > ?", 5).Scan(&results).Error; err != nil {
-		return nil, err
+func (c *VersionInfoDaoImpl) SearchVersionInfo() ([]*model.VersionInfo, error) {
+	var result []*model.VersionInfo
+	if err := c.DB.Table("version_info").Select("service_id as ServiceId, count(ID) as total").Group("service_id").Having("count(ID) > ?", 5).Scan(&result).Error; err != nil {
+		return nil,err
+	}else {
+		return result, nil
+
 	}
-	return results, nil
+
 }

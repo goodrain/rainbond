@@ -81,16 +81,15 @@ func (t *TaskManager) cleanVersion() {
 	timer := time.NewTimer(time.Hour * 24)
 	defer timer.Stop()
 
-	results,err := m.VersionInfoDao().SearchVersionInfo()
+	result,err := m.VersionInfoDao().SearchVersionInfo()
 	if err!=nil{
 		fmt.Println("err",err)
 	}else{
-		fmt.Println("长度",len(results))
-		fmt.Println(results)
+		fmt.Println("长度",len(result))
+		fmt.Println(result)
 	}
-	for _,v := range results {
-		fmt.Println("total",v.Total)
-		fmt.Println("serviceid",v.ServiceId)
+	for _,v :=range result{
+		fmt.Println("serviceid",v.ServiceID)
 	}
 	//for {
 	//	result, err := m.VersionInfoDao().GetVersionInfo(datetime, "slug")

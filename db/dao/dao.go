@@ -341,7 +341,7 @@ type VersionInfoDao interface {
 	GetVersionInfo(timePoint time.Time, deliveredType string) ([]*model.VersionInfo, error)
 	DeleteVersionInfo(obj *model.VersionInfo) error
 	DeleteFailureVersionInfo(timePoint time.Time, status string) error
-	SearchVersionInfo() ([]*model.Result, error)
+	SearchVersionInfo() ([]*model.VersionInfo, error)
 }
 
 //RegionUserInfoDao UserRegionInfoDao

@@ -40,7 +40,4 @@ func (t *VersionInfo) TableName() string {
 	return "version_info"
 }
 
-type Result struct {
-	ServiceId string
-	Total     int
-}
+
