@@ -93,7 +93,7 @@ func (t *TaskManager) cleanVersion() {
 		for _, v := range result {
 			filePath := v.DeliveredPath
 			if err := os.Remove(filePath); err != nil {
-				if strings.Contains(err.Error(), "No such file or directory") {
+				if strings.Contains(err.Error(), "no such file or directory") {
 					continue
 				} else {
 					logrus.Error(err)
