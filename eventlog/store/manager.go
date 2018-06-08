@@ -253,9 +253,7 @@ func (s *storeManager) Run() error {
 // clean service log that before 7 days in every 24h
 // clean event log that before 30 days message in every 24h
 func (s *storeManager) cleanLog() {
-	timer := time.NewTimer(time.Hour * 24)
-	defer timer.Stop()
-	for {
+	coreutil.Exec(s.context, func() error {
 		//do something
 		pathname := s.conf.DB.HomePath
 		logrus.Infof("start clean history service log %s", pathname)
@@ -269,13 +267,9 @@ func (s *storeManager) cleanLog() {
 				}
 			}
 		}
-		select {
-		case <-s.context.Done():
-			return
-		case <-timer.C:
-			timer.Reset(time.Hour * 24)
-		}
-	}
+		return nil
+	},time.Hour * 24)
+
 
 }
 
@@ -309,10 +303,8 @@ func (s *storeManager) deleteFile(filename string) error {
 
 func (s *storeManager) delServiceEventlog() {
 	m := mysql.GetManager()
-	now := time.Now()
-	timer := time.NewTimer(time.Hour * 24)
-	defer timer.Stop()
-	for {
+	coreutil.Exec(s.context, func() error {
+		now := time.Now()
 		messageRaw, err := m.EventLogDao().GetAllServiceEventLog()
 		if err != nil {
 			logrus.Error("not search query")
@@ -327,14 +319,11 @@ func (s *storeManager) delServiceEventlog() {
 				}
 			}
 		}
-		select {
-		case <-s.context.Done():
-			return
-		case <-timer.C:
-			timer.Reset(time.Hour * 24)
+		return nil
 
-		}
-	}
+	},time.Hour * 24)
+
+
 }
 
 func (s *storeManager) checkHealth() {

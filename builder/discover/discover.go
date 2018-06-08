@@ -27,15 +27,9 @@ import (
 	"github.com/goodrain/rainbond/builder/exector"
 	"github.com/goodrain/rainbond/mq/api/grpc/client"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
-
+	"github.com/Sirupsen/logrus"
 	grpc1 "google.golang.org/grpc"
 
-	"github.com/Sirupsen/logrus"
-	mysql "github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/builder/sources"
-	"strings"
-	imageclient "github.com/docker/engine-api/client"
-	"fmt"
 )
 
 //WTOPIC is builder
@@ -70,91 +64,8 @@ func (t *TaskManager) Start() error {
 	}
 	t.client = client
 	go t.Do()
-	go t.cleanVersion()
 	logrus.Info("start discover success.")
 	return nil
-}
-
-//清除三十天以前的应用构建版本数据
-func (t *TaskManager) cleanVersion() {
-	dc, _ := imageclient.NewEnvClient()
-	now := time.Now()
-	datetime := now.AddDate(0, -1, 0)
-	serviceIdList := make([]string, 100)
-	m := mysql.GetManager()
-	timer := time.NewTimer(time.Hour * 24)
-	defer timer.Stop()
-
-	for {
-		results, err := m.VersionInfoDao().SearchVersionInfo()
-		if err != nil {
-			fmt.Println("err", err)
-		} else {
-			fmt.Println("长度", len(results))
-		}
-		for _, v := range results {
-			fmt.Println("serviceid", v.ServiceID)
-			serviceIdList = append(serviceIdList, v.ServiceID)
-		}
-		fmt.Println(serviceIdList)
-		fileResult, err := m.VersionInfoDao().GetVersionInfo(datetime, "slug", serviceIdList)
-		if err != nil {
-			logrus.Error(err)
-			return
-		}
-		fmt.Println("源码个数", len(fileResult))
-		for _, v := range fileResult {
-			filePath := v.DeliveredPath
-			if err := os.Remove(filePath); err != nil {
-				if strings.Contains(err.Error(), "no such file or directory") {
-					logrus.Error(err)
-					if err := m.VersionInfoDao().DeleteVersionInfo(v); err != nil {
-						logrus.Error(err)
-						return
-					}
-					continue
-				} else {
-					logrus.Error(err)
-					return
-				}
-			}
-
-			os.Remove(filePath) //remove file
-			logrus.Info("File deleted:", filePath)
-
-		}
-
-		imageResult, err := m.VersionInfoDao().GetVersionInfo(datetime, "image", serviceIdList)
-		if err != nil {
-			logrus.Error(err)
-			return
-		}
-		fmt.Println("镜像个数", len(imageResult))
-		for _, v := range imageResult {
-			imagePath := v.DeliveredPath
-			err := sources.ImageRemove(dc, imagePath) //remove image
-			if err != nil && strings.Contains(err.Error(), "No such image") {
-				logrus.Error(err)
-				if err := m.VersionInfoDao().DeleteVersionInfo(v); err != nil {
-					logrus.Error(err)
-					return
-				}
-				continue
-			}
-			logrus.Info("Image deletion successful:", imagePath)
-
-		}
-		// deleted version information that failed thirty days ago
-		m.VersionInfoDao().DeleteFailureVersionInfo(datetime, "failure", serviceIdList)
-		select {
-		case <-t.ctx.Done():
-			return
-		case <-timer.C:
-			timer.Reset(time.Hour * 24)
-
-		}
-	}
-
 }
 
 //Do do

@@ -112,10 +112,10 @@ func (c *VersionInfoDaoImpl) GetVersionByServiceID(serviceID string) ([]*model.V
 	return result, nil
 }
 
-func (c *VersionInfoDaoImpl) GetVersionInfo(timePoint time.Time, deliveredType string, serviceIdList []string) ([]*model.VersionInfo, error) {
+func (c *VersionInfoDaoImpl) GetVersionInfo(timePoint time.Time, serviceIdList []string) ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
 
-	if err := c.DB.Where("service_id in (?) AND create_time  < ? AND delivered_type = ?", serviceIdList, timePoint, deliveredType).Find(&result).Error; err != nil {
+	if err := c.DB.Where("service_id in (?) AND create_time  < ?", serviceIdList, timePoint).Find(&result).Error; err != nil {
 		return nil, err
 	}
 	return result, nil
