@@ -89,7 +89,8 @@ func (t *TaskManager) cleanVersion() {
 		fmt.Println(results)
 	}
 	for _,v := range results {
-		fmt.Println(v.ServiceId,v.Total)
+		fmt.Println("total",v.Total)
+		fmt.Println("serviceid",v.ServiceId)
 	}
 	//for {
 	//	result, err := m.VersionInfoDao().GetVersionInfo(datetime, "slug")
