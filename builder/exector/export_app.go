@@ -246,7 +246,7 @@ func (i *ExportApp) exportImage(app gjson.Result) error {
 	os.MkdirAll(serviceDir, 0755)
 
 	// 处理掉文件名中冒号等不合法字符
-	image := app.Get("image").String()
+	image := app.Get("share_image").String()
 	tarFileName := buildToLinuxFileName(image)
 
 	// 如果是runner镜像则跳过
@@ -258,9 +258,22 @@ func (i *ExportApp) exportImage(app gjson.Result) error {
 	// docker pull image-name
 	_, err := sources.ImagePull(i.DockerClient, image, "", "", i.Logger, 15)
 	if err != nil {
-		i.Logger.Error(fmt.Sprintf("拉取镜像失败：%s", image),
-			map[string]string{"step": "pull-image", "status": "failure"})
-		logrus.Error("Failed to pull image: ", err)
+		// 处理掉文件名中冒号等不合法字符
+		image := app.Get("image").String()
+
+		// 如果是runner镜像则跳过
+		if checkIsRunner(image) {
+			logrus.Debug("Skip the runner image: ", image)
+			return nil
+		}
+
+		// docker pull image-name
+		_, err := sources.ImagePull(i.DockerClient, image, "", "", i.Logger, 15)
+		if err != nil {
+			i.Logger.Error(fmt.Sprintf("拉取镜像失败：%s", image),
+				map[string]string{"step": "pull-image", "status": "failure"})
+			logrus.Error("Failed to pull image: ", err)
+		}
 	}
 
 	// save image to tar file
