@@ -34,6 +34,7 @@ import (
 	mysql "github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/builder/sources"
 	imageclient "github.com/docker/engine-api/client"
+	"strings"
 	"fmt"
 )
 
@@ -74,6 +75,7 @@ func (t *TaskManager) Start() error {
 	return nil
 }
 
+//清除三十天以前的应用构建版本数据
 func (t *TaskManager) cleanVersion() {
 	dc, _ := imageclient.NewEnvClient()
 	now := time.Now()
@@ -87,30 +89,27 @@ func (t *TaskManager) cleanVersion() {
 			logrus.Error(err)
 			return
 		}
-		fmt.Println("文件数量",len(result))
 
 		for _, v := range result {
 			filePath := v.DeliveredPath
-			fmt.Println(v.CreatedAt)
-			_, err := os.Stat(filePath)
-
-			if os.IsNotExist(err) {
-				fmt.Println(filePath,"源码文件不存在")
-				logrus.Info("The source file to be deleted does not exist")
-				continue
+			if err := os.Remove(filePath); err != nil {
+				if strings.Contains(err.Error(), "No such file or directory") {
+					continue
+				} else {
+					logrus.Error(err)
+					return
+				}
 			}
-			if err != nil {
+
+			os.Remove(filePath) //删除文件
+			logrus.Info("File deleted:", filePath)
+			if err := m.VersionInfoDao().DeleteVersionInfo(v); err != nil {
 				logrus.Error(err)
 				return
+			}else {
+				fmt.Println("删除成功！！！！！！！！！")
+				break
 			}
-			//if err := os.Remove(filePath); err != nil {
-			//	if !strings.Contains(err.Error(), "No such file or directory") {
-			//		continue
-			//	}
-			//}
-
-			//os.Remove(filePath) //删除文件
-			fmt.Println(filePath, "源码文件删除成功")
 		}
 
 		imageResult, err := m.VersionInfoDao().GetVersionInfo(datetime, "image")
@@ -118,21 +117,22 @@ func (t *TaskManager) cleanVersion() {
 			logrus.Error(err)
 			return
 		}
-		fmt.Println("镜像数量",len(imageResult))
 		for _, v := range imageResult {
 			imagePath := v.DeliveredPath
-			fmt.Println(imagePath)
-			fmt.Println(v.CreatedAt)
 			err := sources.ImageRemove(dc, imagePath)
-			if err != nil {
+			if err != nil && strings.Contains(err.Error(), "No such image") {
 				logrus.Error(err)
-				fmt.Println("错误", err)
 				continue
-			} else {
-				fmt.Println("删除镜像成功")
+			}
+			logrus.Info("Image deletion successful:", imagePath)
+			if err := m.VersionInfoDao().DeleteVersionInfo(v); err != nil {
+				logrus.Error(err)
+				return
+			}else {
+				fmt.Println("删除成功！！！！！！！！！")
+				break
 			}
 		}
-
 		select {
 		case <-t.ctx.Done():
 			return
@@ -143,8 +143,6 @@ func (t *TaskManager) cleanVersion() {
 	}
 
 }
-
-
 
 //Do do
 func (t *TaskManager) Do() {

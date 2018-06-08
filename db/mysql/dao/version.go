@@ -112,7 +112,6 @@ func (c *VersionInfoDaoImpl) GetVersionByServiceID(serviceID string) ([]*model.V
 	return result, nil
 }
 
-
 func (c *VersionInfoDaoImpl) GetVersionInfo(timePoint time.Time, deliveredType string) ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
 
@@ -120,5 +119,14 @@ func (c *VersionInfoDaoImpl) GetVersionInfo(timePoint time.Time, deliveredType s
 		return nil, err
 	}
 	return result, nil
+
+}
+
+func (c *VersionInfoDaoImpl) DeleteVersionInfo(obj *model.VersionInfo) error {
+	if err := c.DB.Delete(obj).Error; err != nil {
+		return nil
+	} else {
+		return err
+	}
 
 }

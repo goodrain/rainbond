@@ -339,6 +339,7 @@ type VersionInfoDao interface {
 	DeleteVersionByEventID(eventID string) error
 	DeleteVersionByServiceID(serviceID string) error
 	GetVersionInfo(timePoint time.Time, deliveredType string) ([]*model.VersionInfo, error)
+	DeleteVersionInfo(obj *model.VersionInfo) error
 }
 
 //RegionUserInfoDao UserRegionInfoDao
