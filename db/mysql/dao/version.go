@@ -139,9 +139,9 @@ func (c *VersionInfoDaoImpl) CheanViesion() {
 		if err != nil {
 			continue
 		}
-		os.Remove(path) //删除文件
+		//os.Remove(path) //删除文件
 		fmt.Println(path, "源码文件删除成功")
-		break
+
 
 	}
 	var image_result []*model.VersionInfo

@@ -23,6 +23,7 @@ import (
 
 	"github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/eventlog/util"
+	coreutil "github.com/goodrain/rainbond/util"
 
 	"github.com/goodrain/rainbond/eventlog/conf"
 
@@ -42,8 +43,8 @@ import (
 	"github.com/tidwall/gjson"
 	"context"
 	mysql "github.com/goodrain/rainbond/db"
-	"io/ioutil"
 	"os"
+	"path/filepath"
 )
 
 //Manager 存储管理器
@@ -243,28 +244,32 @@ func (s *storeManager) Run() error {
 		go s.handleMonitorMessage()
 	}
 	go s.handleNewMonitorMessage()
-	go s.cleanlog("/grdata/logs")
+	go s.cleanLog()
 	go s.delServiceEventlog()
 	return nil
 }
 
-//cleandata
+//cleanLog
 // clean service log that before 7 days in every 24h
 // clean event log that before 30 days message in every 24h
-func (s *storeManager) cleanlog(pathname string) {
+func (s *storeManager) cleanLog() {
 	timer := time.NewTimer(time.Hour * 24)
 	defer timer.Stop()
 	for {
 		//do something
-		rd, _ := ioutil.ReadDir(pathname)
-		for _, fi := range rd {
-			if fi.IsDir() {
-				go s.cleanlog(pathname + "/" + fi.Name())
-			} else {
-				s.delfile(pathname + "/" + fi.Name(), fi.Name())
+		pathname := s.conf.DB.HomePath
+		logrus.Infof("start clean history service log %s", pathname)
+		files, err := coreutil.GetFileList(pathname, 2)
+		if err != nil {
+			logrus.Error("list log dir error, ", err.Error())
+		} else {
+			fmt.Println(files)
+			for _, fi := range files {
+				if err := s.delfile(fi); err != nil {
+					logrus.Errorf("delete log file %s error. %s", fi, err.Error())
+				}
 			}
 		}
-		logrus.Info("time:", time.Now())
 		select {
 		case <-s.context.Done():
 			return
@@ -275,42 +280,59 @@ func (s *storeManager) cleanlog(pathname string) {
 
 }
 
-func (s *storeManager) delfile(pathname, filename string) {
-		now := time.Now()
-		if filename == "stdout.log" {
-			return
-
-		}
-		lis := strings.Split(filename, ".")[0]
-		loc, _ := time.LoadLocation("Local")
-		theTime, _ := time.ParseInLocation("2006-1-2", lis, loc)
-		sumD := now.Sub(theTime)
-		fmt.Printf("%v 天\n", sumD.Hours()/24)
-		if sumD.Hours()/24 > 7 {
-
-			_, err := os.Stat(pathname)
-			if os.IsNotExist(err) {
-				fmt.Println("文件不存在")
-				return
-			}
-			if err != nil {
-				return
-			}
-			os.Remove(pathname) //删除文件
-			fmt.Println(pathname, "删除成功")
-		}
+func (s *storeManager) delfile(filename string) error {
+	now := time.Now()
+	if strings.HasSuffix(filename, "stdout.log") {
+		return nil
 
 	}
-
-
+	name := filepath.Base(filename)
+	lis := strings.Split(name, ".")
+	if len(lis) < 1 {
+		return errors.New("file name format error")
+	}
+	date := lis[0]
+	loc, _ := time.LoadLocation("Local")
+	theTime, err := time.ParseInLocation("2006-1-2", date, loc)
+	if err != nil {
+		return err
+	}
+	fmt.Println("时间", theTime)
+	if now.After(theTime.Add(7 * time.Hour * 24)) {
+		fmt.Println("大于七天")
+		if err := os.Remove(filename); err != nil {
+			if !strings.Contains(err.Error(), "No such file or directory") {
+				return err
+			}
+		}
+		logrus.Debug("clean service log %s", filename)
+	}
+	return nil
+}
 
 func (s *storeManager) delServiceEventlog() {
+	m := mysql.GetManager()
+	now := time.Now()
 	timer := time.NewTimer(time.Hour * 24)
 	defer timer.Stop()
 	for {
-		m := mysql.GetManager()
-		m.EventLogDao().DeleteServiceEventLog()
-		logrus.Info("time:", time.Now())
+		messageRaw, err := m.EventLogDao().GetAllServiceEventLog()
+		fmt.Println("多少数据", len(messageRaw))
+		if err != nil {
+			logrus.Error("not search query")
+		} else {
+			for _, v := range messageRaw {
+				startTime := v.StartTime
+				tm2, _ := time.Parse("2006-01-02T15:04:05+08:00", startTime)
+				fmt.Println("日志时间",tm2)
+				if now.After(tm2.Add(30 * time.Hour * 24)) {
+					fmt.Println("超过30天的", tm2)
+					if err := m.EventLogDao().DeleteServiceEventLog(v); err != nil {
+						logrus.Error("Failed to delete the log")
+					}
+				}
+			}
+		}
 		select {
 		case <-s.context.Done():
 			return

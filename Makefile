@@ -91,11 +91,11 @@ run-chaos:build-chaos
 run-eventlog:build-eventlog
 	${BIN_PATH}/${BASE_NAME}-eventlog \
 	 --log.level=debug --discover.etcd.addr=http://127.0.0.1:2379 \
-	 --db.url="root:admin@tcp(127.0.0.1:3306)/event" \
+	 --db.url="root:@tcp(127.0.0.1:3306)/region" \
 	 --dockerlog.mode=stream \
 	 --message.dockerlog.handle.core.number=2 \
 	 --message.garbage.file="/tmp/garbage.log" \
-	 --docker.log.homepath="/Users/qingguo/tmp"
+	 --docker.log.homepath="/Users/zhoujunhao/logs"
 run-node:build-node
 	${BIN_PATH}/${BASE_NAME}-node \
 	 --run-mode=master --kube-conf=`pwd`/test/admin.kubeconfig \
