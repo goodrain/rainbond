@@ -76,7 +76,7 @@ func (t *TaskManager) cleanVersion() {
 	timer := time.NewTimer(time.Hour * 24)
 	defer timer.Stop()
 	for {
-		m.VersionInfoDao().CheanViesion()
+		m.VersionInfoDao().CheanViesionInfo()
 		select {
 		case <-t.ctx.Done():
 			return
