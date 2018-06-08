@@ -88,6 +88,9 @@ func (t *TaskManager) cleanVersion() {
 		fmt.Println("长度",len(results))
 		fmt.Println(results)
 	}
+	for _,v := range results {
+		fmt.Println(v.ServiceId,v.Total)
+	}
 	//for {
 	//	result, err := m.VersionInfoDao().GetVersionInfo(datetime, "slug")
 	//	if err != nil {
