@@ -30,6 +30,7 @@ import (
 
 	"github.com/docker/engine-api/client"
 	"github.com/goodrain/rainbond/builder/sources"
+	"fmt"
 )
 
 type CleanManager struct {
@@ -67,11 +68,13 @@ func (t *CleanManager) Start(errchan chan error) error {
 		for _, v := range results {
 			serviceIdList = append(serviceIdList, v.ServiceID)
 		}
-
+		fmt.Println("大于五个的列表",serviceIdList)
 		versions, err := db.GetManager().VersionInfoDao().GetVersionInfo(datetime, serviceIdList)
 		if err != nil {
 			logrus.Error(err)
 		}
+		fmt.Println("大于30天",len(versions))
+
 		for _, v := range versions {
 
 			if v.DeliveredType == "image" {

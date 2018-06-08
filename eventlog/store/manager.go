@@ -313,6 +313,7 @@ func (s *storeManager) delServiceEventlog() {
 				startTime := v.StartTime
 				tm2, _ := time.Parse("2006-01-02T15:04:05+08:00", startTime)
 				if now.After(tm2.Add(30 * time.Hour * 24)) {
+					fmt.Println("符合条件",tm2)
 					if err := m.EventLogDao().DeleteServiceEventLog(v); err != nil {
 						logrus.Error("Failed to delete the log")
 					}
