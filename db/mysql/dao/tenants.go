@@ -1012,6 +1012,24 @@ func (t *TenantServiceLBMappingPortDaoImpl) DELServiceLBMappingPortByServiceID(s
 	return nil
 }
 
+//DELServiceLBMappingPortByServiceIDAndPort DELServiceLBMappingPortByServiceIDAndPort
+func (t *TenantServiceLBMappingPortDaoImpl) DELServiceLBMappingPortByServiceIDAndPort(serviceID string, lbport int) error {
+	var mapPorts model.TenantServiceLBMappingPort
+	if err := t.DB.Where("service_id=? and port=?", serviceID, lbport).Delete(&mapPorts).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetLBPortByTenantAndPort  GetLBPortByTenantAndPort
+func (t *TenantServiceLBMappingPortDaoImpl) GetLBPortByTenantAndPort(tenantID string, lbport int) (*model.TenantServiceLBMappingPort, error) {
+	var mapPort model.TenantServiceLBMappingPort
+	if err := t.DB.Raw("select * from tenant_lb_mapping_port where port=? and service_id in(select service_id from tenant_services where tenant_id=?)", lbport, tenantID).Scan(&mapPort).Error; err != nil {
+		return nil, err
+	}
+	return &mapPort, nil
+}
+
 //ServiceLabelDaoImpl ServiceLabelDaoImpl
 type ServiceLabelDaoImpl struct {
 	DB *gorm.DB

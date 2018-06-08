@@ -1536,6 +1536,29 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+//ChangeLBPort change lb mapping port
+//only support change to existing port in this tenants
+func (t *TenantStruct) ChangeLBPort(w http.ResponseWriter, r *http.Request) {
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	portStr := chi.URLParam(r, "port")
+	containerPort, err := strconv.Atoi(portStr)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, "port must be a number")
+		return
+	}
+	var data api_model.ServiceLBPortChange
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &(data.Body), nil) {
+		return
+	}
+	mapport, errc := handler.GetServiceManager().ChangeLBPort(tenantID, serviceID, containerPort, data.Body.ChangePort)
+	if errc != nil {
+		errc.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, mapport)
+}
+
 //Pods pods
 // swagger:operation GET  /v2/tenants/{tenant_name}/services/{service_alias}/pods v2 getPodsInfo
 //

@@ -115,7 +115,7 @@ func (t *TenantPluginBuildVersion) CreateShareImage(hubURL, namespace string) (s
 	if namespace != "" {
 		image.Namespace = namespace
 	}
-	image.Name = image.Name + "_" + t.VersionID + ":" + t.DeployVersion
+	image.Name = image.Name + "_" + t.VersionID
 	return image.String(), nil
 }
 

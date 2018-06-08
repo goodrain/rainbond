@@ -229,6 +229,8 @@ type TenantServiceLBMappingPortDao interface {
 	GetTenantServiceLBMappingPortByService(serviceID string) ([]*model.TenantServiceLBMappingPort, error)
 	CreateTenantServiceLBMappingPort(serviceID string, containerPort int) (*model.TenantServiceLBMappingPort, error)
 	DELServiceLBMappingPortByServiceID(serviceID string) error
+	DELServiceLBMappingPortByServiceIDAndPort(serviceID string, lbPort int) error
+	GetLBPortByTenantAndPort(tenantID string, lbport int) (*model.TenantServiceLBMappingPort, error)
 }
 
 //TenantServiceLabelDao TenantServiceLabelDao
@@ -377,4 +379,6 @@ type AppBackupDao interface {
 	GetAppBackups(groupID string) ([]*model.AppBackup, error)
 	DeleteAppBackup(backupID string) error
 	GetAppBackup(backupID string) (*model.AppBackup, error)
+	GetDeleteAppBackup(backupID string) (*model.AppBackup, error)
+	GetDeleteAppBackups() ([]*model.AppBackup, error)
 }

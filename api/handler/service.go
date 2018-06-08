@@ -1456,6 +1456,42 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 	return nil
 }
 
+//ChangeLBPort change lb mapping port
+//only support change to existing port in this tenants
+func (s *ServiceAction) ChangeLBPort(tenantID, serviceID string, containerPort, changelbPort int) (*dbmodel.TenantServiceLBMappingPort, *util.APIHandleError) {
+	oldmapport, err := db.GetManager().TenantServiceLBMappingPortDao().GetLBPortByTenantAndPort(tenantID, changelbPort)
+	if err != nil {
+		logrus.Errorf("change lb port check error, %s", err.Error())
+		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
+	}
+	mapport, err := db.GetManager().TenantServiceLBMappingPortDao().GetTenantServiceLBMappingPort(serviceID, containerPort)
+	if err != nil {
+		logrus.Errorf("change lb port get error, %s", err.Error())
+		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
+	}
+	port := oldmapport.Port
+	oldmapport.Port = mapport.Port
+	mapport.Port = port
+	tx := db.GetManager().Begin()
+	if err := db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).DELServiceLBMappingPortByServiceIDAndPort(oldmapport.ServiceID, port); err != nil {
+		tx.Rollback()
+		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
+	}
+	if err := db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).UpdateModel(mapport); err != nil {
+		tx.Rollback()
+		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
+	}
+	if err := db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).AddModel(oldmapport); err != nil {
+		tx.Rollback()
+		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
+	}
+	return mapport, nil
+}
+
 //VolumnVar var volumn
 func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, action string) *util.APIHandleError {
 	localPath := os.Getenv("LOCAL_DATA_PATH")

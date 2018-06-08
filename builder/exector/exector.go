@@ -53,6 +53,9 @@ func NewManager(conf config.Config) (Manager, error) {
 		Endpoints:   conf.EtcdEndPoints,
 		DialTimeout: 5 * time.Second,
 	})
+	if err != nil {
+		return nil, err
+	}
 	err = db.CreateManager(conf)
 	if err != nil {
 		return nil, err

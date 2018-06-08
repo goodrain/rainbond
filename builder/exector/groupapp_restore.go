@@ -325,22 +325,22 @@ func (b *BackupAPPRestore) clear() {
 func (b *BackupAPPRestore) modify(appSnapshots []*RegionServiceSnapshot) error {
 	for _, app := range appSnapshots {
 		oldServiceID := app.ServiceID
-		if b.RestoreMode == "cdot" || b.RestoreMode == "od" {
-			//change tenant
-			app.Service.TenantID = b.TenantID
-			for _, port := range app.ServicePort {
-				port.TenantID = b.TenantID
-			}
-			for _, relation := range app.ServiceRelation {
-				relation.TenantID = b.TenantID
-			}
-			for _, env := range app.ServiceEnv {
-				env.TenantID = b.TenantID
-			}
-			for _, smr := range app.ServiceMntRelation {
-				smr.TenantID = b.TenantID
-			}
+		// if b.RestoreMode == "cdot" || b.RestoreMode == "od" {
+		//change tenant
+		app.Service.TenantID = b.TenantID
+		for _, port := range app.ServicePort {
+			port.TenantID = b.TenantID
 		}
+		for _, relation := range app.ServiceRelation {
+			relation.TenantID = b.TenantID
+		}
+		for _, env := range app.ServiceEnv {
+			env.TenantID = b.TenantID
+		}
+		for _, smr := range app.ServiceMntRelation {
+			smr.TenantID = b.TenantID
+		}
+		//}
 		//change service_id and service_alias
 		newServiceID := util.NewUUID()
 		newServiceAlias := "gr" + newServiceID[26:]

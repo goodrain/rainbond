@@ -94,6 +94,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/groupapp/backups", controller.NewBackups)
 	r.Post("/groupapp/backupcopy", controller.BackupCopy)
 	r.Get("/groupapp/backups/{backup_id}", controller.GetBackup)
+	r.Delete("/groupapp/backups/{backup_id}", controller.DeleteBackup)
 	r.Post("/groupapp/backups/{backup_id}/restore", controller.Restore)
 	r.Get("/groupapp/backups/{backup_id}/restore/{restore_id}", controller.RestoreResult)
 
@@ -152,6 +153,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Delete("/ports/{port}", controller.GetManager().Ports)
 	r.Put("/ports/{port}/outer", controller.GetManager().PortOuterController)
 	r.Put("/ports/{port}/inner", controller.GetManager().PortInnerController)
+	r.Put("/ports/{port}/changelbport", controller.GetManager().ChangeLBPort)
 
 	//应用版本回滚(act)
 	r.Post("/rollback", controller.GetManager().RollBack)

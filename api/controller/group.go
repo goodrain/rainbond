@@ -113,3 +113,14 @@ func GetBackup(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, bean)
 }
+
+//DeleteBackup delete backup
+func DeleteBackup(w http.ResponseWriter, r *http.Request) {
+	backupID := chi.URLParam(r, "backup_id")
+	err := handler.GetAPPBackupHandler().DeleteBackup(backupID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}

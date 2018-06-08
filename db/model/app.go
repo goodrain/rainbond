@@ -28,6 +28,7 @@ type AppBackup struct {
 	SourceType string `gorm:"column:source_type;size:255;default:'local'" json:"source_type"`
 	BackupMode string `gorm:"column:backup_mode;size:32" json:"backup_mode"`
 	BuckupSize int    `gorm:"column:backup_size" json:"backup_size"`
+	Deleted    bool   `gorm:"column:deleted" json:"deleted"`
 }
 
 //TableName 表名
