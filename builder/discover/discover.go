@@ -32,6 +32,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	mysql "github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/builder/sources"
+	imageclient "github.com/docker/engine-api/client"
+	"fmt"
 )
 
 //WTOPIC is builder
@@ -72,11 +75,59 @@ func (t *TaskManager) Start() error {
 }
 
 func (t *TaskManager) cleanVersion() {
+	dc, _ := imageclient.NewEnvClient()
+	now := time.Now()
+	datetime := now.AddDate(0, -1, 0)
 	m := mysql.GetManager()
 	timer := time.NewTimer(time.Hour * 24)
 	defer timer.Stop()
 	for {
-		m.VersionInfoDao().CheanViesionInfo()
+		result, err := m.VersionInfoDao().GetVersionInfo(datetime, "slug")
+		if err != nil {
+			logrus.Error(err)
+			return
+		}
+		fmt.Println("文件数量",len(result))
+
+		for _, v := range result {
+			filePath := v.DeliveredPath
+			_, err := os.Stat(filePath)
+			if err != nil {
+				logrus.Error(err)
+				return
+			}
+			//if err := os.Remove(filePath); err != nil {
+			//	if !strings.Contains(err.Error(), "No such file or directory") {
+			//		continue
+			//	}
+			//}
+			if os.IsNotExist(err) {
+				fmt.Println(filePath,"源码文件不存在")
+				logrus.Info("The source file to be deleted does not exist")
+				continue
+			}
+			//os.Remove(filePath) //删除文件
+			fmt.Println(filePath, "源码文件删除成功")
+		}
+
+		imageResult, err := m.VersionInfoDao().GetVersionInfo(datetime, "image")
+		if err != nil {
+			logrus.Error(err)
+			return
+		}
+		fmt.Println("镜像数量",len(imageResult))
+		for _, v := range imageResult {
+			imagePath := v.DeliveredPath
+			err := sources.ImageRemove(dc, imagePath)
+			if err != nil {
+				logrus.Error(err)
+				fmt.Println("错误", err)
+				continue
+			} else {
+				fmt.Println("删除镜像成功")
+			}
+		}
+
 		select {
 		case <-t.ctx.Done():
 			return
@@ -87,6 +138,8 @@ func (t *TaskManager) cleanVersion() {
 	}
 
 }
+
+
 
 //Do do
 func (t *TaskManager) Do() {

@@ -25,9 +25,6 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"time"
-	"os"
-	"github.com/goodrain/rainbond/builder/sources"
-	"github.com/docker/engine-api/client"
 )
 
 //DeleteVersionByEventID DeleteVersionByEventID
@@ -115,50 +112,13 @@ func (c *VersionInfoDaoImpl) GetVersionByServiceID(serviceID string) ([]*model.V
 	return result, nil
 }
 
-func (c *VersionInfoDaoImpl) CheanViesionInfo() {
-	now := time.Now()
+
+func (c *VersionInfoDaoImpl) GetVersionInfo(timePoint time.Time, deliveredType string) ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
-	//timestamp := now.Unix() - 2592000
-	timestamp := now.AddDate(0, -1, 0)
-	fmt.Println("当前时间",timestamp)
-	c.DB.Where("create_time  < ? AND delivered_type = ?", timestamp, "slug").Find(&result)
-	fmt.Println(len(result),"源码查询数量")
-	for _,v := range result {
-		CreatTime := v.CreatedAt
 
-		if CreatTime.Before(timestamp){
-			fmt.Println(CreatTime,"符合要求")
-		}else {
-			fmt.Println(CreatTime, "不符合要求")
-		}
-		path := v.DeliveredPath
-		_, err := os.Stat(path)
-		if os.IsNotExist(err) {
-			fmt.Println("源码文件不存在")
-			continue
-		}
-		if err != nil {
-			continue
-		}
-		//os.Remove(path) //删除文件
-		fmt.Println(path, "源码文件删除成功")
-
-
+	if err := c.DB.Where("create_time  < ? AND delivered_type = ?", timePoint, deliveredType).Find(&result).Error; err != nil {
+		return nil, err
 	}
-	var image_result []*model.VersionInfo
-	c.DB.Where("delivered_type = ?","image").Find(&image_result)
-	fmt.Println(len(image_result),"镜像查询数量")
-	for _,v := range result {
-		image_path := v.DeliveredPath
-		dc, _ := client.NewEnvClient()
-		err := sources.ImageRemove(dc,image_path)
-		if err!= nil{
-			fmt.Println("错误",err)
-		}else{
-			fmt.Println("删除镜像成功")
-			break
-		}
-
-	}
+	return result, nil
 
 }
