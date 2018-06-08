@@ -92,6 +92,12 @@ func (t *TaskManager) cleanVersion() {
 		for _, v := range result {
 			filePath := v.DeliveredPath
 			_, err := os.Stat(filePath)
+
+			if os.IsNotExist(err) {
+				fmt.Println(filePath,"源码文件不存在")
+				logrus.Info("The source file to be deleted does not exist")
+				continue
+			}
 			if err != nil {
 				logrus.Error(err)
 				return
@@ -101,11 +107,7 @@ func (t *TaskManager) cleanVersion() {
 			//		continue
 			//	}
 			//}
-			if os.IsNotExist(err) {
-				fmt.Println(filePath,"源码文件不存在")
-				logrus.Info("The source file to be deleted does not exist")
-				continue
-			}
+
 			//os.Remove(filePath) //删除文件
 			fmt.Println(filePath, "源码文件删除成功")
 		}
@@ -118,6 +120,7 @@ func (t *TaskManager) cleanVersion() {
 		fmt.Println("镜像数量",len(imageResult))
 		for _, v := range imageResult {
 			imagePath := v.DeliveredPath
+			fmt.Println(imagePath)
 			err := sources.ImageRemove(dc, imagePath)
 			if err != nil {
 				logrus.Error(err)
