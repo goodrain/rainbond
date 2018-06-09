@@ -455,13 +455,14 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshots []*RegionServiceSnapshot
 				return fmt.Errorf("create app mount relation when restore backup error. %s", err.Error())
 			}
 		}
-		for _, a := range app.PluginRelation {
-			a.ID = 0
-			if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).AddModel(a); err != nil {
-				tx.Rollback()
-				return fmt.Errorf("create app plugin when restore backup error. %s", err.Error())
-			}
-		}
+		//TODO: support service plugin backup and restore
+		// for _, a := range app.PluginRelation {
+		// 	a.ID = 0
+		// 	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).AddModel(a); err != nil {
+		// 		tx.Rollback()
+		// 		return fmt.Errorf("create app plugin when restore backup error. %s", err.Error())
+		// 	}
+		// }
 		for _, a := range app.ServiceRelation {
 			a.ID = 0
 			if err := db.GetManager().TenantServiceRelationDaoTransactions(tx).AddModel(a); err != nil {
