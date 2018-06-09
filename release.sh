@@ -22,7 +22,6 @@ function prepare() {
 	rm -rf $releasedir
     mkdir -pv $releasedir/{tmp,dist}
     path=$PWD
-    #git clone $gaops  $releasedir/tmp
     [ ! -d "$distdir/usr/local/" ] && mkdir -p $distdir/usr/local/bin
 
 }
@@ -30,12 +29,21 @@ function prepare() {
 function build() {
 	echo "---> Build Binary For RBD"
 	echo "rbd plugins version:$release_desc"
-	# sed -i "s/0.0.0/$release_desc/g" ./cmd/version.go
-	echo "build rainbond-node"
-    docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/${BASE_NAME}-node ./cmd/node
-	echo "build rainbond-grctl"
-	docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/${BASE_NAME}-grctl ./cmd/grctl
-	# sed -i "s/$release_desc/0.0.0/g" ./cmd/version.go
+	
+	echo "build node"
+    docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/node ./cmd/node
+	echo "build grctl"
+	docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/grctl ./cmd/grctl
+
+	cd $releasedir/dist/usr/local/
+	tar zcf pkg.tgz `find . -maxdepth 1|sed 1d`
+
+	cat >Dockerfile <<EOF
+FROM alpine:3.6
+COPY pkg.tgz /
+EOF
+	docker build -t rainbond/cni:rbd_v3.6 .
+	
 }
 
 function build::rpm() {
