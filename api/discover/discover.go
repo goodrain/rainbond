@@ -51,7 +51,7 @@ func CreateEndpointDiscover(etcdEndpoints []string) (EndpointDiscover, error) {
 		}
 		defaultEndpointDiscover = &endpointDiscover{
 			dis:      dis,
-			projects: make(map[string]proxy.Proxy),
+			projects: make(map[string]*defalt),
 		}
 	}
 	return defaultEndpointDiscover, nil
@@ -63,18 +63,21 @@ func GetEndpointDiscover(etcdEndpoints []string) EndpointDiscover {
 }
 
 type endpointDiscover struct {
-	projects map[string]proxy.Proxy
+	projects map[string]*defalt
 	lock     sync.Mutex
 	dis      corediscover.Discover
 }
 
-func (e *endpointDiscover) AddProject(name string, proxy proxy.Proxy) {
+func (e *endpointDiscover) AddProject(name string, pro proxy.Proxy) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
-	if _, ok := e.projects[name]; !ok {
-		e.projects[name] = proxy
-		e.dis.AddProject(name, &defalt{name, proxy})
+	if def, ok := e.projects[name]; !ok {
+		e.projects[name] = &defalt{name: name, proxys: []proxy.Proxy{pro}}
+		e.dis.AddProject(name, e.projects[name])
+	} else {
+		def.proxys = append(def.proxys, pro)
 	}
+
 }
 func (e *endpointDiscover) Remove(name string) {
 	e.lock.Lock()
@@ -88,8 +91,8 @@ func (e *endpointDiscover) Stop() {
 }
 
 type defalt struct {
-	name  string
-	proxy proxy.Proxy
+	name   string
+	proxys []proxy.Proxy
 }
 
 func (e *defalt) Error(err error) {
@@ -105,10 +108,12 @@ func (e *defalt) UpdateEndpoints(endpoints ...*corediscoverconfig.Endpoint) {
 		}
 	}
 	logrus.Debugf("endstr is %v, name is %v", endStr, e.name)
-	e.proxy.UpdateEndpoints(endStr...)
+	for _, p := range e.proxys {
+		p.UpdateEndpoints(endStr...)
+	}
 }
 
 //when watch occurred error,will exec this method
 func (e *endpointDiscover) Error(err error) {
-
+	logrus.Errorf("discover error %s", err.Error())
 }
