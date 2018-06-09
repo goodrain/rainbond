@@ -50,15 +50,13 @@ func (c *VersionInfoDaoImpl) DeleteVersionByServiceID(serviceID string) error {
 func (c *VersionInfoDaoImpl) AddModel(mo model.Interface) error {
 	result := mo.(*model.VersionInfo)
 	var oldResult model.VersionInfo
-	if ok := c.DB.Where("event_id=?", result.EventID).Find(&oldResult).RecordNotFound(); ok {
+	if ok := c.DB.Where("build_version=? and service_id=?", result.BuildVersion, result.ServiceID).Find(&oldResult).RecordNotFound(); ok {
 		if err := c.DB.Create(result).Error; err != nil {
 			return err
 		}
-	} else {
-		fmt.Errorf("version is exist")
 		return nil
 	}
-	return nil
+	return fmt.Errorf("service %s build version %s is exist", result.ServiceID, result.BuildVersion)
 }
 
 //UpdateModel UpdateModel
@@ -70,12 +68,12 @@ func (c *VersionInfoDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
-//EventLogMessageDaoImpl EventLogMessageDaoImpl
+//VersionInfoDaoImpl VersionInfoDaoImpl
 type VersionInfoDaoImpl struct {
 	DB *gorm.DB
 }
 
-//GetEventLogMessages get event log message
+//GetVersionByEventID get version by event id
 func (c *VersionInfoDaoImpl) GetVersionByEventID(eventID string) (*model.VersionInfo, error) {
 	var result model.VersionInfo
 	if err := c.DB.Where("event_id=?", eventID).Find(&result).Error; err != nil {
@@ -87,7 +85,7 @@ func (c *VersionInfoDaoImpl) GetVersionByEventID(eventID string) (*model.Version
 	return &result, nil
 }
 
-//GetEventLogMessages get event log message
+//GetVersionByDeployVersion get version by deploy version
 func (c *VersionInfoDaoImpl) GetVersionByDeployVersion(version, serviceID string) (*model.VersionInfo, error) {
 	var result model.VersionInfo
 	if err := c.DB.Where("build_version =? and service_id = ?", version, serviceID).Find(&result).Error; err != nil {
@@ -99,7 +97,7 @@ func (c *VersionInfoDaoImpl) GetVersionByDeployVersion(version, serviceID string
 	return &result, nil
 }
 
-//GetEventLogMessages get event log message
+//GetVersionByServiceID get versions by service id
 func (c *VersionInfoDaoImpl) GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
 	if err := c.DB.Where("service_id=?", serviceID).Find(&result).Error; err != nil {
