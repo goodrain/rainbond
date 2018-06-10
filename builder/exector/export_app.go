@@ -311,7 +311,7 @@ func (i *ExportApp) saveApps() error {
 		_, err := os.Stat(shareSlugPath)
 		if shareSlugPath != "" && err == nil {
 			logrus.Debug("The slug file was exist already, direct copy to service dir: ", shareSlugPath)
-			err = exec.Command(fmt.Sprintf("cp %s %s/%s", shareSlugPath, serviceDir, tarFileName)).Run()
+			err = exec.Command("cp", shareSlugPath, fmt.Sprintf("%s/%s", serviceDir, tarFileName)).Run()
 			if err == nil {
 				continue
 			}
