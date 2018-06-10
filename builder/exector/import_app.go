@@ -353,8 +353,11 @@ func (i *ImportApp) loadApps() error {
 			user := app.Get("service_image.hub_user").String()
 			pass := app.Get("service_image.hub_password").String()
 			if err := sources.ImagePush(i.DockerClient, image, user, pass, i.Logger, 15); err != nil {
-				logrus.Error("Failed to load image for service: ", serviceName)
-				return err
+				image = app.Get("share_image").String()
+				if err := sources.ImagePush(i.DockerClient, image, user, pass, i.Logger, 15); err != nil {
+					logrus.Error("Failed to load image for service: ", serviceName)
+					return err
+				}
 			}
 
 			logrus.Debug("Successful load and push the image ", image)

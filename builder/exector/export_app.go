@@ -259,13 +259,8 @@ func (i *ExportApp) exportImage(app gjson.Result) error {
 	_, err := sources.ImagePull(i.DockerClient, image, "", "", i.Logger, 15)
 	if err != nil {
 		// 处理掉文件名中冒号等不合法字符
-		image := app.Get("image").String()
-
-		// 如果是runner镜像则跳过
-		if checkIsRunner(image) {
-			logrus.Debug("Skip the runner image: ", image)
-			return nil
-		}
+		image = app.Get("image").String()
+		tarFileName = buildToLinuxFileName(image)
 
 		// docker pull image-name
 		_, err := sources.ImagePull(i.DockerClient, image, "", "", i.Logger, 15)
@@ -653,12 +648,12 @@ func buildToLinuxFileName(fileName string) string {
 	arr := strings.Split(fileName, "/")
 
 	if str := arr[len(arr)-1]; str == "" {
-		fileName = strings.Replace(fileName, "/", "-", -1)
+		fileName = strings.Replace(fileName, "/", "---", -1)
 	} else {
 		fileName = str
 	}
 
-	fileName = strings.Replace(fileName, ":", "-", -1)
+	fileName = strings.Replace(fileName, ":", "--", -1)
 	fileName = strings.TrimSpace(fileName)
 
 	return fileName
