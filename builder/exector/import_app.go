@@ -373,8 +373,16 @@ func (i *ImportApp) loadApps() error {
 
 			ftpClient, err := sources.NewSFTPClient(ftpUsername, ftpPassword, ftpHost, ftpPort)
 			if err != nil {
-				logrus.Error("Failed to create ftp client: ", err)
-				return err
+				// 如果指定的ftp服务器不存在则铐到本地
+				os.MkdirAll(filepath.Base(shareSlugPath), 0755)
+				err = exec.Command("cp", fileName, shareSlugPath).Run()
+				if err != nil {
+					logrus.Error("Failed to copy slug file to local directory: ", err)
+					return err
+				}
+
+				logrus.Info("Successful copy slug file to local directory.")
+				continue
 			}
 
 			// 开始上传文件
