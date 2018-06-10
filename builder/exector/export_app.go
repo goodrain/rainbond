@@ -316,13 +316,12 @@ func (i *ExportApp) saveApps() error {
 				continue
 			}
 			// 如果copy失败则忽略，在下一步中下载该slug包
-			logrus.Debug("Failed to copy the slug file to service dir: ", shareSlugPath)
+			logrus.Debugf("Failed to copy the slug file to service dir %s: %v", shareSlugPath, err)
 		}
 
 		// 如果这个字段存在于该app中，则认为该app是源码部署方式，并从ftp下载相应slug文件
 		// 否则认为该app是镜像方式部署，然后下载相应镜像即可
-		ftpHost := app.Get("share_slug_path").String()
-		if ftpHost == "" {
+		if shareSlugPath == "" {
 			logrus.Infof("The service is image model deploy: %s", serviceName)
 			// 下载镜像到应用导出目录
 			if err := i.exportImage(app); err != nil {
@@ -337,6 +336,7 @@ func (i *ExportApp) saveApps() error {
 		logrus.Debug("Ready download slug file: ", shareSlugPath)
 
 		// 提取tfp服务器信息
+		ftpHost := app.Get("service_slug.ftp_host").String()
 		ftpPort := app.Get("service_slug.ftp_port").String()
 		ftpUsername := app.Get("service_slug.ftp_username").String()
 		ftpPassword := app.Get("service_slug.ftp_password").String()
