@@ -321,7 +321,7 @@ func (i *ExportApp) saveApps() error {
 
 		// 如果这个字段存在于该app中，则认为该app是源码部署方式，并从ftp下载相应slug文件
 		// 否则认为该app是镜像方式部署，然后下载相应镜像即可
-		ftpHost := app.Get("service_slug.ftp_host").String()
+		ftpHost := app.Get("share_slug_path").String()
 		if ftpHost == "" {
 			logrus.Infof("The service is image model deploy: %s", serviceName)
 			// 下载镜像到应用导出目录
@@ -639,7 +639,7 @@ func (i *ExportApp) updateStatus(status string) error {
 	return nil
 }
 
-// 只保留"/"后面的部分，并去掉不合法字符
+// 只保留"/"后面的部分，并去掉不合法字符，一般用于把镜像名变为将要导出的文件名
 func buildToLinuxFileName(fileName string) string {
 	if fileName == "" {
 		return fileName
