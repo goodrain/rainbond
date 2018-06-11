@@ -2,7 +2,7 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/goodrain/rainbond)](https://goreportcard.com/report/github.com/goodrain/rainbond) 
 [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
-![Rainbond version](https://img.shields.io/badge/version-v3.5-brightgreen.svg)
+![Rainbond version](https://img.shields.io/badge/version-v3.6-brightgreen.svg)
 [![Build Status](https://travis-ci.org/goodrain/rainbond.svg?branch=master)](https://travis-ci.org/goodrain/rainbond)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
@@ -29,7 +29,8 @@ Choose Rainbond for the same reasons disruptive companies do: it serve as a easy
 * Public and private application market with complete application sharing mechanism
 * Multiple data center and across data center application deployment
 * The management node (platform service) HA available.
-* Compute cluster automation management, scale on demand, complete node monitoring.
+* Cluster automatic operation and maintenance, monitoring multidimensional indicators.
+* Provide complete business solution cloud delivery process.
 
 ## Quick Start
 
