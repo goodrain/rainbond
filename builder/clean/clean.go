@@ -70,13 +70,14 @@ func (t *Manager) Start(errchan chan error) error {
 			for _, v := range results {
 				serviceIDList = append(serviceIDList, v.ServiceID)
 			}
+			logrus.Info("More than 5 versions of the application",len(serviceIDList))
 			versions, err := db.GetManager().VersionInfoDao().GetVersionInfo(datetime, serviceIDList)
 			if err != nil {
 				logrus.Error(err)
 			}
 
 			for _, v := range versions {
-
+				logrus.Info(v.CreatedAt,v.ID)
 				if v.DeliveredType == "image" {
 					imagePath := v.DeliveredPath
 					err := sources.ImageRemove(t.dclient, imagePath) //remove image
