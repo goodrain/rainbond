@@ -34,7 +34,6 @@ import (
 	"syscall"
 	"time"
 	"errors"
-	"io"
 )
 
 const (
