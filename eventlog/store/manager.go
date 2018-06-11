@@ -37,14 +37,15 @@ import (
 
 	"bytes"
 
+	"context"
+	"os"
+	"path/filepath"
+
 	"github.com/Sirupsen/logrus"
+	mysql "github.com/goodrain/rainbond/db"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tidwall/gjson"
-	"context"
-	mysql "github.com/goodrain/rainbond/db"
-	"os"
-	"path/filepath"
 )
 
 //Manager 存储管理器
@@ -268,9 +269,7 @@ func (s *storeManager) cleanLog() {
 			}
 		}
 		return nil
-	},time.Hour * 24)
-
-
+	}, time.Hour*24)
 }
 
 func (s *storeManager) deleteFile(filename string) error {
@@ -321,8 +320,7 @@ func (s *storeManager) delServiceEventlog() {
 		}
 		return nil
 
-	},time.Hour * 24)
-
+	}, time.Hour*24)
 
 }
 

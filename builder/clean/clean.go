@@ -19,11 +19,12 @@
 package clean
 
 import (
+	"context"
 	"os"
 	"strings"
-	"github.com/Sirupsen/logrus"
-	"context"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/util"
@@ -32,19 +33,21 @@ import (
 	"github.com/goodrain/rainbond/builder/sources"
 )
 
-type CleanManager struct {
+//Manager CleanManager
+type Manager struct {
 	dclient *client.Client
 	ctx     context.Context
 	cancel  context.CancelFunc
 }
 
-func CreateCleanManager() (*CleanManager, error) {
+//CreateCleanManager create clean manager
+func CreateCleanManager() (*Manager, error) {
 	dclient, err := client.NewEnvClient()
 	if err != nil {
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	c := &CleanManager{
+	c := &Manager{
 		dclient: dclient,
 		ctx:     ctx,
 		cancel:  cancel,
@@ -52,79 +55,81 @@ func CreateCleanManager() (*CleanManager, error) {
 	return c, nil
 }
 
-//清除三十天以前的应用构建版本数据
-func (t *CleanManager) Start(errchan chan error) error {
-
-	err := util.Exec(t.ctx, func() error {
-		now := time.Now()
-		datetime := now.AddDate(0, -1, 0)
-		// Find more than five versions
-		results, err := db.GetManager().VersionInfoDao().SearchVersionInfo()
-		if err != nil {
-			logrus.Error(err)
-		}
-		var serviceIdList []string
-		for _, v := range results {
-			serviceIdList = append(serviceIdList, v.ServiceID)
-		}
-		versions, err := db.GetManager().VersionInfoDao().GetVersionInfo(datetime, serviceIdList)
-		if err != nil {
-			logrus.Error(err)
-		}
-
-		for _, v := range versions {
-
-			if v.DeliveredType == "image" {
-				imagePath := v.DeliveredPath
-				err := sources.ImageRemove(t.dclient, imagePath) //remove image
-				if err != nil && strings.Contains(err.Error(), "No such image") {
-					logrus.Error(err)
-					if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
-						logrus.Error(err)
-						continue
-					}
-				}
-				if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
-					logrus.Error(err)
-					continue
-				}
-				logrus.Info("Image deletion successful:", imagePath)
-
+//Start start clean
+func (t *Manager) Start(errchan chan error) error {
+	run := func() {
+		err := util.Exec(t.ctx, func() error {
+			now := time.Now()
+			datetime := now.AddDate(0, -1, 0)
+			// Find more than five versions
+			results, err := db.GetManager().VersionInfoDao().SearchVersionInfo()
+			if err != nil {
+				logrus.Error(err)
 			}
-			if v.DeliveredType == "slug" {
-				filePath := v.DeliveredPath
-				if err := os.Remove(filePath); err != nil {
-					if strings.Contains(err.Error(), "no such file or directory") {
+			var serviceIDList []string
+			for _, v := range results {
+				serviceIDList = append(serviceIDList, v.ServiceID)
+			}
+			versions, err := db.GetManager().VersionInfoDao().GetVersionInfo(datetime, serviceIDList)
+			if err != nil {
+				logrus.Error(err)
+			}
+
+			for _, v := range versions {
+
+				if v.DeliveredType == "image" {
+					imagePath := v.DeliveredPath
+					err := sources.ImageRemove(t.dclient, imagePath) //remove image
+					if err != nil && strings.Contains(err.Error(), "No such image") {
 						logrus.Error(err)
 						if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
 							logrus.Error(err)
 							continue
 						}
-					} else {
+					}
+					if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
 						logrus.Error(err)
 						continue
-
 					}
+					logrus.Info("Image deletion successful:", imagePath)
+
 				}
-				if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
-					logrus.Error(err)
-					continue
+				if v.DeliveredType == "slug" {
+					filePath := v.DeliveredPath
+					if err := os.Remove(filePath); err != nil {
+						if strings.Contains(err.Error(), "no such file or directory") {
+							logrus.Error(err)
+							if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
+								logrus.Error(err)
+								continue
+							}
+						} else {
+							logrus.Error(err)
+							continue
+
+						}
+					}
+					if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
+						logrus.Error(err)
+						continue
+					}
+					logrus.Info("file deletion successful:", filePath)
+
 				}
-				logrus.Info("file deletion successful:", filePath)
 
 			}
-
+			return nil
+		}, 24*time.Hour)
+		if err != nil {
+			errchan <- err
 		}
-		return nil
-	}, 24*time.Hour)
-	if err != nil {
-		return err
 	}
+	go run()
 	return nil
 }
 
-//Stop 停止
-func (t *CleanManager) Stop() error {
+//Stop stop
+func (t *Manager) Stop() error {
 	logrus.Info("CleanManager is stoping.")
 	t.cancel()
 	return nil
