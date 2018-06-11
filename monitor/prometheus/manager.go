@@ -34,6 +34,7 @@ import (
 	"syscall"
 	"time"
 	"errors"
+	"io"
 )
 
 const (
@@ -63,6 +64,8 @@ func NewManager(config *option.Config) *Manager {
 	if err != nil {
 		panic(err)
 	}
+
+	ioutil.WriteFile(config.ConfigFile, []byte(""), 0644)
 
 	m := &Manager{
 		Opt: config,
