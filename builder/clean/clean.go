@@ -70,20 +70,21 @@ func (t *Manager) Start(errchan chan error) error {
 			for _, v := range results {
 				serviceIDList = append(serviceIDList, v.ServiceID)
 			}
-			logrus.Info("More than 5 versions of the application",serviceIDList)
+			logrus.Info("More than 5 versions of the application", serviceIDList)
 			versions, err := db.GetManager().VersionInfoDao().GetVersionInfo(datetime, serviceIDList)
 			if err != nil {
 				logrus.Error(err)
 			}
 
 			for _, v := range versions {
-				logrus.Info(v.CreatedAt,v.ID)
+				logrus.Info(v.CreatedAt, v.ID)
 				if v.DeliveredType == "image" {
 					imagePath := v.DeliveredPath
 					err := sources.ImageRemove(t.dclient, imagePath) //remove image
-					if err != nil && strings.Contains(err.Error(), "No such image") {
-						logrus.Error(err)
-						if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
+					if err != nil {
+						if strings.Contains(err.Error(), "No such image") {
+							logrus.Error(err)
+						} else {
 							logrus.Error(err)
 							continue
 						}
@@ -100,10 +101,6 @@ func (t *Manager) Start(errchan chan error) error {
 					if err := os.Remove(filePath); err != nil {
 						if strings.Contains(err.Error(), "no such file or directory") {
 							logrus.Error(err)
-							if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
-								logrus.Error(err)
-								continue
-							}
 						} else {
 							logrus.Error(err)
 							continue
