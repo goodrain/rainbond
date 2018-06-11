@@ -23,6 +23,7 @@ import (
 
 	"github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/eventlog/util"
+	coreutil "github.com/goodrain/rainbond/util"
 
 	"github.com/goodrain/rainbond/eventlog/conf"
 
@@ -36,11 +37,15 @@ import (
 
 	"bytes"
 
+	"context"
+	"os"
+	"path/filepath"
+
 	"github.com/Sirupsen/logrus"
+	mysql "github.com/goodrain/rainbond/db"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tidwall/gjson"
-	"golang.org/x/net/context"
 )
 
 //Manager 存储管理器
@@ -240,7 +245,83 @@ func (s *storeManager) Run() error {
 		go s.handleMonitorMessage()
 	}
 	go s.handleNewMonitorMessage()
+	go s.cleanLog()
+	go s.delServiceEventlog()
 	return nil
+}
+
+//cleanLog
+// clean service log that before 7 days in every 24h
+// clean event log that before 30 days message in every 24h
+func (s *storeManager) cleanLog() {
+	coreutil.Exec(s.context, func() error {
+		//do something
+		pathname := s.conf.DB.HomePath
+		logrus.Infof("start clean history service log %s", pathname)
+		files, err := coreutil.GetFileList(pathname, 2)
+		if err != nil {
+			logrus.Error("list log dir error, ", err.Error())
+		} else {
+			for _, fi := range files {
+				if err := s.deleteFile(fi); err != nil {
+					logrus.Errorf("delete log file %s error. %s", fi, err.Error())
+				}
+			}
+		}
+		return nil
+	}, time.Hour*24)
+}
+
+func (s *storeManager) deleteFile(filename string) error {
+	now := time.Now()
+	if strings.HasSuffix(filename, "stdout.log") {
+		return nil
+
+	}
+	name := filepath.Base(filename)
+	lis := strings.Split(name, ".")
+	if len(lis) < 1 {
+		return errors.New("file name format error")
+	}
+	date := lis[0]
+	loc, _ := time.LoadLocation("Local")
+	theTime, err := time.ParseInLocation("2006-1-2", date, loc)
+	if err != nil {
+		return err
+	}
+	if now.After(theTime.Add(7 * time.Hour * 24)) {
+		if err := os.Remove(filename); err != nil {
+			if !strings.Contains(err.Error(), "No such file or directory") {
+				return err
+			}
+		}
+		logrus.Debug("clean service log %s", filename)
+	}
+	return nil
+}
+
+func (s *storeManager) delServiceEventlog() {
+	m := mysql.GetManager()
+	coreutil.Exec(s.context, func() error {
+		now := time.Now()
+		messageRaw, err := m.EventLogDao().GetAllServiceEventLog()
+		if err != nil {
+			logrus.Error("not search query")
+		} else {
+			for _, v := range messageRaw {
+				startTime := v.StartTime
+				tm2, _ := time.Parse("2006-01-02T15:04:05+08:00", startTime)
+				if now.After(tm2.Add(30 * time.Hour * 24)) {
+					if err := m.EventLogDao().DeleteServiceEventLog(v); err != nil {
+						logrus.Error("Failed to delete the log")
+					}
+				}
+			}
+		}
+		return nil
+
+	}, time.Hour*24)
+
 }
 
 func (s *storeManager) checkHealth() {
@@ -249,7 +330,7 @@ func (s *storeManager) checkHealth() {
 
 func (s *storeManager) parsingMessage(msg []byte, messageType string) (*db.EventLogMessage, error) {
 	if msg == nil {
-		return nil, errors.New("Unable parsing nil message")
+		return nil, errors.New("unable parsing nil message")
 	}
 	//message := s.pool.Get().(*db.EventLogMessage)不能使用对象池，会阻塞进程
 	var message db.EventLogMessage
@@ -260,11 +341,11 @@ func (s *storeManager) parsingMessage(msg []byte, messageType string) (*db.Event
 			return &message, err
 		}
 		if message.EventID == "" {
-			return &message, errors.New("Are not present in the message event_id.")
+			return &message, errors.New("are not present in the message event_id")
 		}
 		return &message, nil
 	}
-	return nil, errors.New("Unable to process configuration of message format type.")
+	return nil, errors.New("unable to process configuration of message format type")
 }
 
 //handleNewMonitorMessage 处理新监控数据

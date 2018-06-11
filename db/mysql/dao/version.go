@@ -24,6 +24,7 @@ import (
 	"fmt"
 
 	"github.com/jinzhu/gorm"
+	"time"
 )
 
 //DeleteVersionByEventID DeleteVersionByEventID
@@ -107,4 +108,40 @@ func (c *VersionInfoDaoImpl) GetVersionByServiceID(serviceID string) ([]*model.V
 		return nil, err
 	}
 	return result, nil
+}
+
+func (c *VersionInfoDaoImpl) GetVersionInfo(timePoint time.Time, serviceIdList []string) ([]*model.VersionInfo, error) {
+	var result []*model.VersionInfo
+
+	if err := c.DB.Where("service_id in (?) AND create_time  < ?", serviceIdList, timePoint).Find(&result).Error; err != nil {
+		return nil, err
+	}
+	return result, nil
+
+}
+
+func (c *VersionInfoDaoImpl) DeleteVersionInfo(obj *model.VersionInfo) error {
+	if err := c.DB.Delete(obj).Error; err != nil {
+		return nil
+	} else {
+		return err
+	}
+}
+
+func (c *VersionInfoDaoImpl) DeleteFailureVersionInfo(timePoint time.Time, status string, serviceIdList []string) error {
+	if err := c.DB.Where("service_id in (?) AND create_time  < ? AND final_status = ?", serviceIdList, timePoint, status).Delete(&model.VersionInfo{}).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *VersionInfoDaoImpl) SearchVersionInfo() ([]*model.VersionInfo, error) {
+	var result []*model.VersionInfo
+	if err := c.DB.Table("version_info").Select("service_id").Group("service_id").Having("count(ID) > ?", 5).Scan(&result).Error; err != nil {
+		return nil, err
+	} else {
+		return result, nil
+
+	}
+
 }

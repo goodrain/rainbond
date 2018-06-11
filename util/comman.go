@@ -543,6 +543,26 @@ func GetDirList(dirpath string, level int) ([]string, error) {
 	return dirlist, nil
 }
 
+func GetFileList(dirpath string, level int) ([]string, error) {
+	var dirlist []string
+	list, err := ioutil.ReadDir(dirpath)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range list {
+		if !f.IsDir() && level <= 1 {
+			dirlist = append(dirlist, filepath.Join(dirpath, f.Name()))
+		} else if level > 1 && f.IsDir() {
+			list, err := GetFileList(filepath.Join(dirpath, f.Name()), level-1)
+			if err != nil {
+				return nil, err
+			}
+			dirlist = append(dirlist, list...)
+		}
+	}
+	return dirlist, nil
+}
+
 // GetDirNameList get all lower level dir
 func GetDirNameList(dirpath string, level int) ([]string, error) {
 	var dirlist []string

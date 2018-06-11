@@ -65,6 +65,9 @@ type EventLogDao interface {
 	Dao
 	GetEventLogMessages(eventID string) ([]*model.EventLogMessage, error)
 	DeleteServiceLog(serviceID string) error
+	DeleteServiceEventLog(obj *model.EventLogMessage) error
+	GetAllServiceEventLog() ([]*model.EventLogMessage, error)
+
 }
 
 //TenantServiceDao TenantServiceDao
@@ -335,6 +338,10 @@ type VersionInfoDao interface {
 	GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error)
 	DeleteVersionByEventID(eventID string) error
 	DeleteVersionByServiceID(serviceID string) error
+	GetVersionInfo(timePoint time.Time, serviceIdList []string) ([]*model.VersionInfo, error)
+	DeleteVersionInfo(obj *model.VersionInfo) error
+	DeleteFailureVersionInfo(timePoint time.Time, status string, serviceIdList []string) error
+	SearchVersionInfo() ([]*model.VersionInfo, error)
 }
 
 //RegionUserInfoDao UserRegionInfoDao
