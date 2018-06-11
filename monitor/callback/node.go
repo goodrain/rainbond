@@ -57,7 +57,7 @@ func (e *Node) Error(err error) {
 }
 
 func (e *Node) Name() string {
-	return "node"
+	return "rbd_node"
 }
 
 func (e *Node) toScrape() *prometheus.ScrapeConfig {
@@ -68,10 +68,9 @@ func (e *Node) toScrape() *prometheus.ScrapeConfig {
 
 	return &prometheus.ScrapeConfig{
 		JobName:        e.Name(),
-		ScrapeInterval: model.Duration(1 * time.Minute),
+		ScrapeInterval: model.Duration(30 * time.Second),
 		ScrapeTimeout:  model.Duration(30 * time.Second),
 		MetricsPath:    "/node/metrics",
-		HonorLabels:    true,
 		ServiceDiscoveryConfig: prometheus.ServiceDiscoveryConfig{
 			StaticConfigs: []*prometheus.Group{
 				{

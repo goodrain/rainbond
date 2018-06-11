@@ -84,10 +84,9 @@ func (e *AppStatus) toScrape() *prometheus.ScrapeConfig {
 
 	return &prometheus.ScrapeConfig{
 		JobName:        e.Name(),
-		ScrapeInterval: model.Duration(time.Minute),
-		ScrapeTimeout:  model.Duration(30 * time.Second),
+		ScrapeInterval: model.Duration(5 * time.Minute),
+		ScrapeTimeout:  model.Duration(60 * time.Second),
 		MetricsPath:    "/metrics",
-		HonorLabels:    true,
 		ServiceDiscoveryConfig: prometheus.ServiceDiscoveryConfig{
 			StaticConfigs: []*prometheus.Group{
 				{

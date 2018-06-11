@@ -69,7 +69,7 @@ func NewManager(config *option.Config) *Manager {
 		Config: &Config{
 			GlobalConfig: GlobalConfig{
 				ScrapeInterval:     model.Duration(time.Second * 5),
-				EvaluationInterval: model.Duration(time.Second * 10),
+				EvaluationInterval: model.Duration(time.Second * 30),
 			},
 		},
 		Registry:   reg,
