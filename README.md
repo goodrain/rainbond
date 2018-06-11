@@ -18,7 +18,8 @@ Choose Rainbond for the same reasons disruptive companies do: it serve as a easy
 ## Features
 
 * Kubernetes scheduling system intergated
-* Application-centric console
+* Application-centric product definition
+* As the basic system to build the cloud native datacenter
 * Supports multiple microservice architecture (Spring Cloud, Dubbo and api gateway)
 * Native microservice governance (service discovery, dynamic routing, limiting and fuse) based on extendable Service Mesh 
 * Business-level application performance analysis supports multiple types protocols (HTTP, Mysql, PostgreSQL)
