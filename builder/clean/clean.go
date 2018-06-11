@@ -70,7 +70,7 @@ func (t *Manager) Start(errchan chan error) error {
 			for _, v := range results {
 				serviceIDList = append(serviceIDList, v.ServiceID)
 			}
-			logrus.Info("More than 5 versions of the application",len(serviceIDList))
+			logrus.Info("More than 5 versions of the application",serviceIDList)
 			versions, err := db.GetManager().VersionInfoDao().GetVersionInfo(datetime, serviceIDList)
 			if err != nil {
 				logrus.Error(err)
