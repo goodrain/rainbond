@@ -23,7 +23,7 @@ func (c *CheanManager) Start() {
 	logrus.Info("clean 开始工作...")
 	go c.Run()
 	go c.cleanStatefulset()
-	go c.cleanService()
+	//go c.cleanService()
 }
 
 
