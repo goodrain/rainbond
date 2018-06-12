@@ -81,15 +81,14 @@ func (c *CheanManager) Run() {
 	diffList := SliceDiff(nameList, allList)
 	fmt.Println(diffList)
 
-	for _, v := range diffList {
-		err := c.kubeclient.Namespaces().Delete(v, &meta_v1.DeleteOptions{})
-		if err != nil {
-			fmt.Println("删除错误", err)
-		}
-
-		logrus.Info("删除成功:", v)
-		break
-	}
+	//for _, v := range diffList {
+	//	err := c.kubeclient.Namespaces().Delete(v, &meta_v1.DeleteOptions{})
+	//	if err != nil {
+	//		fmt.Println(err)
+	//	}
+	//
+	//	logrus.Info("删除成功:", v)
+	//}
 
 }
 
@@ -160,16 +159,6 @@ func (c *CheanManager) cleanStatefulset() {
 	//	c.kubeclient.ReplicationControllers(k).Delete(v,&meta_v1.DeleteOptions{})
 	//}
 
-	service2, err := c.kubeclient.Services("824b2e9dcc4d461a852ddea20369d377").List(meta_v1.ListOptions{})
-	if err != nil {
-		logrus.Error("错误5", err)
-	}
-	for _, v := range service2.Items {
-		fmt.Println("name",v.Name)
-		fmt.Println("genname",v.GenerateName)
-
-	}
-
 	fmt.Println("结束")
 
 }
@@ -177,7 +166,7 @@ func (c *CheanManager) cleanStatefulset() {
 func (c *CheanManager) cleanService() {
 
 	ServivesMap := make(map[string][]string)
-	//ServivesDeleteMap := make(map[string]string)
+	ServivesDeleteMap := make(map[string]string)
 
 	services, err := db.GetManager().K8sServiceDao().GetAllK8sService()
 	if err != nil {
@@ -193,17 +182,28 @@ func (c *CheanManager) cleanService() {
 		}
 
 	}
-	//for k, valuse := range ServivesMap {
-	//	ServicesList, err := c.kubeclient.Services(k).List(meta_v1.ListOptions{})
-	//	if err != nil {
-	//		logrus.Error(err)
-	//	}
-	//	for _, v := range ServicesList.Items {
-	//		if !InSlice(v.GenerateName, valuse) {
-	//			ServivesDeleteMap[k] = v.GenerateName
-	//		}
-	//	}
-	//}
+	for k, valuse := range ServivesMap {
+		ServicesList, err := c.kubeclient.Services(k).List(meta_v1.ListOptions{})
+		if err != nil {
+			logrus.Error(err)
+		}
+		for _, v := range ServicesList.Items {
+			if !InSlice(v.Name, valuse) {
+				ServivesDeleteMap[k] = v.Name
+			}
+		}
+	}
 
-fmt.Println(ServivesMap)
+	fmt.Println(ServivesMap)
+	fmt.Println(ServivesDeleteMap)
+
+	for k, v := range ServivesDeleteMap {
+		err := c.kubeclient.Services(k).Delete(v, &meta_v1.DeleteOptions{})
+		if err!=nil {
+			logrus.Error(err)
+		}
+		logrus.Info("删除service成功：",k,v)
+		break
+	}
+
 }
