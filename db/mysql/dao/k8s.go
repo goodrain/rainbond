@@ -223,6 +223,14 @@ func (t *K8sDeployReplicationDaoImpl) DeleteK8sDeployReplicationByService(servic
 	return nil
 }
 
+func (t *K8sDeployReplicationDaoImpl) GetK8sDeployReplicationByIsDelete(isDelete bool) ([]*model.K8sDeployReplication, error) {
+	var deploy []*model.K8sDeployReplication
+	if err := t.DB.Model(&deploy).Where("is_delete=?", isDelete).Find(&deploy).Error; err != nil {
+		return nil, err
+	}
+	return deploy, nil
+}
+
 //K8sPodDaoImpl k8s pod dao
 type K8sPodDaoImpl struct {
 	DB *gorm.DB
