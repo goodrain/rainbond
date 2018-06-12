@@ -29,5 +29,9 @@ func (c *CheanManager) Run() {
 		fmt.Println(err)
 	}
 	//fmt.Println("namespaces：",Namespaces1)
-	fmt.Println(Namespaces1.Items)
+	fmt.Println(Namespaces1.ListMeta)
+	fmt.Println(Namespaces1.ResourceVersion)
+	fmt.Println(Namespaces1.Descriptor())
+	fmt.Println(Namespaces1.String())
+
 }
