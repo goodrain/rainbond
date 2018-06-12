@@ -23,8 +23,8 @@ func NewCheanManager(kubeclient *kubernetes.Clientset) *CheanManager {
 func (c *CheanManager) Start() {
 	logrus.Info("clean up module starts....")
 	go c.DeleteNamespaces()
-	//go c.cleanStatefulset()
-	//go c.cleanService()
+	go c.DeletecleanStaAndRep()
+	go c.DeleteService()
 }
 
 // InSlice checks given string in string slice or not.
@@ -38,26 +38,40 @@ func InSlice(v string, sl []string) bool {
 }
 
 // SliceDiff returns diff slice of slice1 - slice2.
-func SliceDiff(slice1, slice2 []string) (diffslice []string) {
+func SliceDiff(slice1, slice2 []string) (diffSlice []string) {
 	for _, v := range slice1 {
 		if !InSlice(v, slice2) {
-			diffslice = append(diffslice, v)
+			diffSlice = append(diffSlice, v)
 		}
 	}
 	return
 }
 
 // SliceIntersect returns slice that are present in all the slice1 and slice2.
-func SliceIntersect(slice1, slice2 *[]string) (Intersectslice []string) {
-	for _, v := range *slice1 {
-		if InSlice(v, *slice2) {
-			Intersectslice = append(Intersectslice, v)
+func SliceIntersect(slice1, slice2 []string) (IntersectSlice []string) {
+	for _, v := range slice1 {
+		if InSlice(v, slice2) {
+			IntersectSlice = append(IntersectSlice, v)
 		}
 	}
 	return
 }
 
-func (c *CheanManager) cleanNamespaces() (*[]string) {
+func MapIntersect(map1, map2 map[string]string) (IntersectMap map[string]string) {
+	intersectMap := make(map[string]string)
+	for k, v := range map2 {
+		v2,ok:= map1[k]
+		if ok {
+			if v == v2{
+				intersectMap[k] = v
+			}
+		}
+
+	}
+	return intersectMap
+}
+
+func (c *CheanManager) cleanNamespaces() ([]string) {
 	nameList := make([]string, 0, 200)
 	allList := make([]string, 0, 300)
 	Namespaces, err := c.kubeclient.CoreV1().Namespaces().List(meta_v1.ListOptions{})
@@ -82,20 +96,11 @@ func (c *CheanManager) cleanNamespaces() (*[]string) {
 	}
 
 	diffList := SliceDiff(nameList, allList)
-	return &diffList
-
-	//for _, v := range diffList {
-	//	err := c.kubeclient.Namespaces().Delete(v, &meta_v1.DeleteOptions{})
-	//	if err != nil {
-	//		fmt.Println(err)
-	//	}
-	//
-	//	logrus.Info("delete namespaces success:", v)
-	//}
+	return diffList
 
 }
 
-func (c *CheanManager) cleanStatefulset() (*map[string]string,*map[string]string) {
+func (c *CheanManager) cleanStaAndRep() (map[string]string, map[string]string) {
 
 	StatefulSetsMap := make(map[string][]string)
 	ReplicationControllersMap := make(map[string][]string)
@@ -150,7 +155,7 @@ func (c *CheanManager) cleanStatefulset() (*map[string]string,*map[string]string
 		}
 	}
 
-	return &StadeleteMap, &RepdeleteMap
+	return StadeleteMap, RepdeleteMap
 
 	//for k, v := range StadeleteMap {
 	//	if err := c.kubeclient.StatefulSets(k).Delete(v, &meta_v1.DeleteOptions{}); err != nil {
@@ -167,7 +172,7 @@ func (c *CheanManager) cleanStatefulset() (*map[string]string,*map[string]string
 
 }
 
-func (c *CheanManager) cleanService() *map[string]string {
+func (c *CheanManager) cleanService() map[string]string {
 
 	ServivesMap := make(map[string][]string)
 	ServivesDeleteMap := make(map[string]string)
@@ -198,7 +203,7 @@ func (c *CheanManager) cleanService() *map[string]string {
 		}
 	}
 
-	return &ServivesDeleteMap
+	return ServivesDeleteMap
 	//
 	//for k, v := range ServivesDeleteMap {
 	//	err := c.kubeclient.Services(k).Delete(v, &meta_v1.DeleteOptions{})
@@ -210,15 +215,52 @@ func (c *CheanManager) cleanService() *map[string]string {
 
 }
 
+func (c *CheanManager) DeleteNamespaces() {
 
-func (c *CheanManager) DeleteNamespaces(){
-
-	diffList :=c.cleanNamespaces()
+	diffList := c.cleanNamespaces()
 	fmt.Println(diffList)
-	time.AfterFunc(time.Second *10, func() {
-		newdiffList :=c.cleanNamespaces()
-		deleteList := SliceIntersect(newdiffList,diffList)
-		fmt.Println("delete:",deleteList)
+	time.AfterFunc(time.Second*10, func() {
+		newdiffList := c.cleanNamespaces()
+		deleteList := SliceIntersect(newdiffList, diffList)
+		fmt.Println("delete:", deleteList)
+		//for _, v := range deleteList {
+		//	err := c.kubeclient.Namespaces().Delete(v, &meta_v1.DeleteOptions{})
+		//	if err != nil {
+		//		fmt.Println(err)
+		//	}
+		//
+		//	logrus.Info("delete namespaces success:", v)
+		//}
 	})
+
+}
+
+func (c *CheanManager) DeletecleanStaAndRep() {
+	StadeleteMap, RepdeleteMap := c.cleanStaAndRep()
+	fmt.Println(StadeleteMap)
+	fmt.Println(RepdeleteMap)
+
+	time.AfterFunc(time.Second*10, func() {
+		newStadeleteMap, newRepdeleteMap := c.cleanStaAndRep()
+		deleteStadeleteMap := MapIntersect(StadeleteMap,newStadeleteMap)
+		deleteRepdeleteMap := MapIntersect(RepdeleteMap,newRepdeleteMap)
+
+		fmt.Println("deleteStadeleteMap",deleteStadeleteMap)
+		fmt.Println("deleteRepdeleteMap",deleteRepdeleteMap)
+
+	})
+}
+
+
+func (c *CheanManager) DeleteService() {
+	ServivesDeleteMap := c.cleanService()
+
+	fmt.Println(ServivesDeleteMap)
+	time.AfterFunc(time.Second*10, func() {
+		newServivesDeleteMap := c.cleanService()
+		deleteService :=MapIntersect(ServivesDeleteMap,newServivesDeleteMap)
+		fmt.Println("deleteService",deleteService)
+	})
+
 
 }
