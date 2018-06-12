@@ -7,7 +7,7 @@
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
 
-[网站](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/stable/) • [公有云](https://sso.goodrain.com/#/login/https%3A%2F%2Fwww.goodrain.com%2F%23%2Findex) • [README in English](https://github.com/goodrain/rainbond/blob/V3.6/readme.md)
+[网站](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/stable/) • [公有云](https://console.goodrain.com) • [README in English](https://github.com/goodrain/rainbond/blob/V3.6/readme.md)
 
 **Rainbond**是以应用为中心的PaaS，领先的理念和完整的生态源自于不断的验证和优化。
 
@@ -24,8 +24,10 @@ Rainbond深度整合基于Kubernetes的容器管理、Service Mesh微服务架�
 * 支持基于源代码（Java、PHP、Python、Golang、Ruby等）构建应用
 * 支持基于私有Git仓库、Github等公有仓库的应用持续构建和部署
 * 支持基于Docker容器镜像、Docker-Run命令、DockerCompose文件智能快捷构建应用
+* 支持应用组级全量备份与恢复，跨租户或跨数据中心迁移应用（业务）组。
 * 数据中心插件化支持部署不同的负载均衡、SDN网络、各类型存储系统
-* 公有、私有应用商店支持，完善的应用分享体系
+* 应用插件体系支持，灵活扩展应用附属功能，例如：日志处理、防火墙、流量分析等
+* 公有、私有应用市场支持，完善的应用分享体系
 * 多数据中心、跨数据中心应用调度部署
 * 管理节点（平台服务）高可用支持
 * 计算集群自动化管理与运维，按需伸缩，全面的节点与集群监控
