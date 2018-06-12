@@ -150,14 +150,18 @@ func (c *CheanManager) cleanStatefulset() {
 	fmt.Println("StadeleteList", StadeleteMap)
 	fmt.Println("RepdeleteList", RepdeleteMap)
 
-	//for k,v:=range StadeleteMap{
-	//	c.kubeclient.StatefulSets(k).Delete(v,&meta_v1.DeleteOptions{})
-	//
-	//}
-	//
-	//for k,v := range RepdeleteMap{
-	//	c.kubeclient.ReplicationControllers(k).Delete(v,&meta_v1.DeleteOptions{})
-	//}
+	for k,v:=range StadeleteMap{
+		if err := c.kubeclient.StatefulSets(k).Delete(v,&meta_v1.DeleteOptions{});err!=nil{
+			logrus.Error(err)
+		}
+
+	}
+
+	for k,v := range RepdeleteMap{
+		if err:=c.kubeclient.ReplicationControllers(k).Delete(v,&meta_v1.DeleteOptions{});err!=nil{
+			logrus.Error(err)
+		}
+	}
 
 	fmt.Println("结束")
 
@@ -188,6 +192,7 @@ func (c *CheanManager) cleanService() {
 			logrus.Error(err)
 		}
 		for _, v := range ServicesList.Items {
+			fmt.Println("xxx",v.Namespace,v.Name)
 			if !InSlice(v.Name, valuse) {
 				ServivesDeleteMap[k] = v.Name
 			}
