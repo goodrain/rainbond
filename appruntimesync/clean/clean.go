@@ -138,6 +138,7 @@ func (c *CheanManager) cleanStatefulset(){
 			logrus.Error("错误3",err)
 		}
 		for _,v := range StatefulSetsList.Items{
+			fmt.Println("sta:",v.Name)
 			if InSlice(v.Name,valuse){
 				StadeleteList[k] = v.Name
 			}
@@ -150,6 +151,7 @@ func (c *CheanManager) cleanStatefulset(){
 			logrus.Error("错误4",err)
 		}
 		for _,v := range ReplicationControllersList.Items{
+			fmt.Println("rep:",v.Name)
 			if InSlice(v.Name,valuse){
 				RepdeleteList[k] = v.Name
 			}
@@ -159,10 +161,10 @@ func (c *CheanManager) cleanStatefulset(){
 	fmt.Println("StadeleteList",StadeleteList)
 	fmt.Println("RepdeleteList",RepdeleteList)
 
-}
+	fmt.Println("xxx",StatefulSetsMap)
+	fmt.Println("vvvv",ReplicationControllersMap)
 
 
-func (c *CheanManager) cleanService() {
 
 	service,err := c.kubeclient.CoreV1().Services("3e2fe69f5d3b4bf7b6bf7b5ba97e8b74").List(meta_v1.ListOptions{})
 	if err != nil{
@@ -174,5 +176,12 @@ func (c *CheanManager) cleanService() {
 		fmt.Println(v.Namespace)
 		fmt.Println(v.UID)
 	}
+
+
+}
+
+
+func (c *CheanManager) cleanService() {
+
 
 }
