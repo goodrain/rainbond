@@ -255,6 +255,7 @@ type K8sServiceDao interface {
 	GetK8sServiceByReplicationIDAndPort(replicationID string, port int, isOut bool) (*model.K8sService, error)
 	DeleteK8sServiceByReplicationIDAndPort(replicationID string, port int, isOut bool) error
 	DeleteK8sServiceByName(k8sServiceName string) error
+	GetAllK8sService() ([]*model.K8sService, error)
 }
 
 //K8sDeployReplicationDao 部署信息

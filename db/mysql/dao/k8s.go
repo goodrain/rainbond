@@ -113,6 +113,16 @@ func (t *K8sServiceDaoImpl) DeleteK8sServiceByName(k8sServiceName string) error 
 	return nil
 }
 
+func (t *K8sServiceDaoImpl) GetAllK8sService() ([]*model.K8sService, error) {
+	var services []*model.K8sService
+	if err := t.DB.Find(&services).Error; err != nil {
+		return nil, err
+	} else {
+		return services, err
+	}
+
+}
+
 type K8sDeployReplicationDaoImpl struct {
 	DB *gorm.DB
 }
