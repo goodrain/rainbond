@@ -28,10 +28,16 @@ func (c *CheanManager) Run() {
 	if err != nil{
 		fmt.Println(err)
 	}
-	//fmt.Println("namespaces：",Namespaces1)
-	fmt.Println(Namespaces1.ListMeta)
-	fmt.Println(Namespaces1.ResourceVersion)
-	fmt.Println(Namespaces1.Descriptor())
-	fmt.Println(Namespaces1.String())
+
+	fmt.Println("namespaces：",Namespaces1.Items)
+
+	fmt.Println(Namespaces1.Items[1].Name)
+	fmt.Println(Namespaces1.Items[1].Spec)
+	fmt.Println(Namespaces1.Items[1].GenerateName)
+	fmt.Println(Namespaces1.Items[1].Labels)
+	fmt.Println(Namespaces1.Items[1].Namespace)
+	fmt.Println(Namespaces1.Items[1].UID)
+	
+
 
 }
