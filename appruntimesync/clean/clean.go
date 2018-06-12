@@ -125,20 +125,21 @@ func (c *CheanManager) cleanStatefulset(){
 
 		if v.ReplicationType == "replicationcontroller"{
 			if _,ok := ReplicationControllersMap[v.TenantID];ok{
-				ReplicationControllersMap[v.TenantID] = append(StatefulSetsMap[v.TenantID], v.ReplicationID)
+				ReplicationControllersMap[v.TenantID] = append(ReplicationControllersMap[v.TenantID], v.ReplicationID)
 			}else {
 				ReplicationControllersMap[v.TenantID] = []string{v.ReplicationID}
 			}
 		}
 	}
-
+	i:=1
 	for k,valuse := range StatefulSetsMap{
 		StatefulSetsList,err := c.kubeclient.StatefulSets(k).List(meta_v1.ListOptions{})
 		if err != nil{
 			logrus.Error("错误3",err)
 		}
 		for _,v := range StatefulSetsList.Items{
-			fmt.Println("sta:",v.Name)
+			fmt.Println("sta:",v.Name,i)
+			i++
 			if InSlice(v.Name,valuse){
 				StadeleteList[k] = v.Name
 			}
@@ -151,7 +152,8 @@ func (c *CheanManager) cleanStatefulset(){
 			logrus.Error("错误4",err)
 		}
 		for _,v := range ReplicationControllersList.Items{
-			fmt.Println("rep:",v.Name)
+			fmt.Println("rep:",v.Name,i)
+			i++
 			if InSlice(v.Name,valuse){
 				RepdeleteList[k] = v.Name
 			}
