@@ -28,5 +28,6 @@ func (c *CheanManager) Run() {
 	if err != nil{
 		fmt.Println(err)
 	}
-	fmt.Println("namespaces：",Namespaces1)
+	//fmt.Println("namespaces：",Namespaces1)
+	fmt.Println(Namespaces1.Items)
 }
