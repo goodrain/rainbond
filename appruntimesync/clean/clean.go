@@ -102,26 +102,9 @@ func (c *CheanManager) cleanStatefulset(){
 
 	StatefulSetsMap := make(map[string][]string)
 	ReplicationControllersMap := make(map[string][]string)
-	StadeleteList := make([]string,0,20)
-	RepdeleteList := make([]string,0,20)
-	//StatefulSets, _ := c.kubeclient.StatefulSets("824b2e9dcc4d461a852ddea20369d377").List(meta_v1.ListOptions{})
-	//ReplicationControllers, _ := c.kubeclient.ReplicationControllers("c69c40ecedae41ca9fbb6c3cec0926f2").List(meta_v1.ListOptions{})
-	//
-	//for _,v:=range StatefulSets.Items{
-	//	fmt.Println(v.Name)
-	//	fmt.Println(v.Labels)
-	//}
-	//err2 := c.kubeclient.StatefulSets("824b2e9dcc4d461a852ddea20369d377").Delete("grd1b4e0",meta_v1.NewDeleteOptions(0))
-	//
-	//fmt.Println("----------------------")
-	//for _,v:=range ReplicationControllers.Items{
-	//	fmt.Println(v.Name)
-	//	fmt.Println(v.Labels)
-	//}
-	//if err2!=nil{
-	//	fmt.Println("错误",err2)
-	//}
-	//
+	StadeleteList := make(map[string]string)
+	RepdeleteList := make(map[string]string)
+
 	isDeleteList,err := db.GetManager().K8sDeployReplicationDao().GetK8sDeployReplicationByIsDelete(true)
 	if err!= nil{
 		logrus.Error(err)
@@ -156,7 +139,7 @@ func (c *CheanManager) cleanStatefulset(){
 		}
 		for _,v := range StatefulSetsList.Items{
 			if InSlice(v.Name,valuse){
-				StadeleteList = append(StadeleteList, v.Name)
+				StadeleteList[k] = v.Name
 			}
 		}
 	}
@@ -168,7 +151,7 @@ func (c *CheanManager) cleanStatefulset(){
 		}
 		for _,v := range ReplicationControllersList.Items{
 			if InSlice(v.Name,valuse){
-				RepdeleteList = append(RepdeleteList, v.Name)
+				RepdeleteList[k] = v.Name
 			}
 		}
 	}
