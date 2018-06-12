@@ -23,6 +23,7 @@ func (c *CheanManager) Start() {
 	logrus.Info("clean 开始工作...")
 	go c.Run()
 	go c.cleanStatefulset()
+	go c.cleanService()
 }
 
 
@@ -154,7 +155,7 @@ func (c *CheanManager) cleanStatefulset(){
 			logrus.Error("错误3",err)
 		}
 		for _,v := range StatefulSetsList.Items{
-			if !InSlice(v.Name,valuse){
+			if InSlice(v.Name,valuse){
 				StadeleteList = append(StadeleteList, v.Name)
 			}
 		}
@@ -166,7 +167,7 @@ func (c *CheanManager) cleanStatefulset(){
 			logrus.Error("错误4",err)
 		}
 		for _,v := range ReplicationControllersList.Items{
-			if !InSlice(v.Name,valuse){
+			if InSlice(v.Name,valuse){
 				RepdeleteList = append(RepdeleteList, v.Name)
 			}
 		}
@@ -177,3 +178,18 @@ func (c *CheanManager) cleanStatefulset(){
 
 }
 
+
+func (c *CheanManager) cleanService() {
+
+	service,err := c.kubeclient.CoreV1().Services("3e2fe69f5d3b4bf7b6bf7b5ba97e8b74").List(meta_v1.ListOptions{})
+	if err != nil{
+		logrus.Error("错误5",err)
+	}
+	for _,v :=range service.Items{
+		fmt.Println(v.Name)
+		fmt.Println(v.Labels)
+		fmt.Println(v.Namespace)
+		fmt.Println(v.UID)
+	}
+
+}
