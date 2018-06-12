@@ -91,6 +91,8 @@ func (c *CheanManager) Run() {
 		if err != nil{
 			fmt.Println("删除错误",err)
 		}
+
+		logrus.Info("删除成功:",v)
 		break
 	}
 
@@ -102,8 +104,8 @@ func (c *CheanManager) cleanStatefulset(){
 
 	StatefulSetsMap := make(map[string][]string)
 	ReplicationControllersMap := make(map[string][]string)
-	StadeleteList := make(map[string]string)
-	RepdeleteList := make(map[string]string)
+	StadeleteMap := make(map[string]string)
+	RepdeleteMap := make(map[string]string)
 
 	isDeleteList,err := db.GetManager().K8sDeployReplicationDao().GetK8sDeployReplicationByIsDelete(true)
 	if err!= nil{
@@ -131,17 +133,14 @@ func (c *CheanManager) cleanStatefulset(){
 			}
 		}
 	}
-	i:=1
 	for k,valuse := range StatefulSetsMap{
 		StatefulSetsList,err := c.kubeclient.StatefulSets(k).List(meta_v1.ListOptions{})
 		if err != nil{
-			logrus.Error("错误3",err)
+			logrus.Error(err)
 		}
 		for _,v := range StatefulSetsList.Items{
-			fmt.Println("sta:",v.Name,i)
-			i++
 			if InSlice(v.Name,valuse){
-				StadeleteList[k] = v.Name
+				StadeleteMap[k] = v.Name
 			}
 		}
 	}
@@ -149,26 +148,29 @@ func (c *CheanManager) cleanStatefulset(){
 	for k,valuse := range ReplicationControllersMap{
 		ReplicationControllersList,err := c.kubeclient.ReplicationControllers(k).List(meta_v1.ListOptions{})
 		if err != nil{
-			logrus.Error("错误4",err)
+			logrus.Error(err)
 		}
 		for _,v := range ReplicationControllersList.Items{
-			fmt.Println("rep:",v.Name,i)
-			i++
 			if InSlice(v.Name,valuse){
-				RepdeleteList[k] = v.Name
+				RepdeleteMap[k] = v.Name
 			}
 		}
 	}
 
-	fmt.Println("StadeleteList",StadeleteList)
-	fmt.Println("RepdeleteList",RepdeleteList)
+	fmt.Println("StadeleteList",StadeleteMap)
+	fmt.Println("RepdeleteList",RepdeleteMap)
 
-	fmt.Println("xxx",StatefulSetsMap)
-	fmt.Println("vvvv",ReplicationControllersMap)
+	//for k,v:=range StadeleteMap{
+	//	c.kubeclient.StatefulSets(k).Delete(v,&meta_v1.DeleteOptions{})
+	//
+	//}
+	//
+	//for k,v := range RepdeleteMap{
+	//	c.kubeclient.ReplicationControllers(k).Delete(v,&meta_v1.DeleteOptions{})
+	//}
 
 
-
-	service,err := c.kubeclient.CoreV1().Services("3e2fe69f5d3b4bf7b6bf7b5ba97e8b74").List(meta_v1.ListOptions{})
+	service,err := c.kubeclient.Services("3e2fe69f5d3b4bf7b6bf7b5ba97e8b74").List(meta_v1.ListOptions{})
 	if err != nil{
 		logrus.Error("错误5",err)
 	}
@@ -179,11 +181,26 @@ func (c *CheanManager) cleanStatefulset(){
 		fmt.Println(v.UID)
 	}
 
+	service2,err := c.kubeclient.Services("824b2e9dcc4d461a852ddea20369d377").List(meta_v1.ListOptions{})
+	if err != nil{
+		logrus.Error("错误5",err)
+	}
+	for _,v :=range service2.Items{
+		fmt.Println(v.Name)
+		fmt.Println(v.Labels)
+		fmt.Println(v.Namespace)
+		fmt.Println(v.UID)
+		fmt.Println(v.ClusterName)
+		fmt.Println(v.Initializers)
+	}
+
+	fmt.Println("结束")
+
 
 }
 
 
-func (c *CheanManager) cleanService() {
-
-
-}
+//func (c *CheanManager) cleanService() {
+//
+//
+//}
