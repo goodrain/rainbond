@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/ash
 if [ "$1" = "bash" ];then
-    exec /bin/bash
+    exec /bin/ash
 elif [ "$1" = "version" ];then
     echo ${RELEASE_DESC}
 else
-    exec /usr/bin/rainbond-webcli $@
+    exec /run/rainbond-monitor $@
 fi

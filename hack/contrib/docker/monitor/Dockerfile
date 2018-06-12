@@ -5,6 +5,8 @@ VOLUME ["/prometheusdata"]
 
 ENV RELEASE_DESC=__RELEASE_DESC__
 
-COPY rainbond-monitor /usr/bin/monitor
+COPY rainbond-monitor /run/rainbond-monitor
 
-ENTRYPOINT ["/usr/bin/monitor"]
+ADD entrypoint.sh /run/entrypoint.sh
+
+ENTRYPOINT ["/run/entrypoint.sh"]
