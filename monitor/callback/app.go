@@ -70,7 +70,7 @@ func (e *App) toScrape() *prometheus.ScrapeConfig {
 
 	return &prometheus.ScrapeConfig{
 		JobName:        e.Name(),
-		ScrapeInterval: model.Duration(1 * time.Minute),
+		ScrapeInterval: model.Duration(5 * time.Second),
 		ScrapeTimeout:  model.Duration(30 * time.Second),
 		MetricsPath:    "/app/metrics",
 		ServiceDiscoveryConfig: prometheus.ServiceDiscoveryConfig{
