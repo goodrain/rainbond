@@ -1286,3 +1286,12 @@ func (t *ServiceStatusDaoImpl) GetTenantServicesStatus(serviceIDs []string) ([]*
 	}
 	return statuss, nil
 }
+
+
+func (t *TenantDaoImpl) GetTenant(nameUUIDs []string) ([]*model.Tenants, error) {
+	var query []*model.Tenants
+	if err := t.DB.Not("UUID", nameUUIDs).Find(&query).Error; err != nil {
+		return nil, err
+	}
+	return query, nil
+}
