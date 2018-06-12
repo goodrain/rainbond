@@ -25,9 +25,43 @@ func (c *CheanManager) Start() {
 }
 
 
+
+// InSlice checks given string in string slice or not.
+func InSlice(v string, sl []string) bool {
+	for _, vv := range sl {
+		if vv == v {
+			return true
+		}
+	}
+	return false
+}
+
+
+// SliceDiff returns diff slice of slice1 - slice2.
+func SliceDiff(slice1, slice2 []string) (diffslice []string) {
+	for _, v := range slice1 {
+		if !InSlice(v, slice2) {
+			diffslice = append(diffslice, v)
+		}
+	}
+	return
+}
+
+// SliceIntersect returns slice that are present in all the slice1 and slice2.
+func SliceIntersect(slice1, slice2 []string) (diffslice []string) {
+	for _, v := range slice1 {
+		if InSlice(v, slice2) {
+			diffslice = append(diffslice, v)
+		}
+	}
+	return
+}
+
+
+
 func (c *CheanManager) Run() {
 	nameList := make([]string, 0, 200)
-	alllist := make([]string, 0, 300)
+	allList := make([]string, 0, 300)
 	Namespaces1, err := c.kubeclient.CoreV1().Namespaces().List(meta_v1.ListOptions{})
 	if err != nil {
 		fmt.Println(err)
@@ -39,12 +73,14 @@ func (c *CheanManager) Run() {
 	}
 	fmt.Println(len(nameList), nameList[0], nameList[2])
 
-	ALLTeantsList, err := db.GetManager().TenantDao().GetALLTenants()
+	AllTenantsList, err := db.GetManager().TenantDao().GetALLTenants()
 
-	for _, v := range ALLTeantsList {
-		alllist = append(alllist, v.UUID)
+	for _, v := range AllTenantsList {
+		allList = append(allList, v.UUID)
 	}
 
+	diffList := SliceDiff(nameList,allList)
+	fmt.Println(diffList)
 
 	StatefulSets, err := c.kubeclient.StatefulSets("824b2e9dcc4d461a852ddea20369d377").List(meta_v1.ListOptions{})
 	ReplicationControllers, err := c.kubeclient.ReplicationControllers("c69c40ecedae41ca9fbb6c3cec0926f2").List(meta_v1.ListOptions{})
@@ -54,13 +90,14 @@ func (c *CheanManager) Run() {
 		fmt.Println(v.Labels)
 	}
 	err2 := c.kubeclient.StatefulSets("824b2e9dcc4d461a852ddea20369d377").Delete("grd1b4e0",meta_v1.NewDeleteOptions(0))
-	if err2!=nil{
-		fmt.Println("错误",err2)
-	}
+
 	fmt.Println("----------------------")
 	for _,v:=range ReplicationControllers.Items{
 		fmt.Println(v.Name)
 		fmt.Println(v.Labels)
+	}
+	if err2!=nil{
+		fmt.Println("错误",err2)
 	}
 
 
