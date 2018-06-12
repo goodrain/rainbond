@@ -24,21 +24,58 @@ func (c *CheanManager) Start() {
 	go c.Run()
 }
 
+
+func checkSliceBInA(a []string, b []string) (isIn bool, diffSlice []string) {
+
+	lengthA := len(a)
+
+	for _, valueB := range b {
+
+		temp := valueB //遍历取出B中的元素
+
+		for j := 0; j < lengthA; j++ {
+			if temp == a[j] { //如果相同 比较下一个
+				break
+			} else {
+				if lengthA == (j + 1) { //如果不同 查看a的元素个数及当前比较元素的位置 将不同的元素添加到返回slice中
+					diffSlice = append(diffSlice, temp)
+					fmt.Println("---->", diffSlice)
+				}
+			}
+		}
+	}
+
+	if len(diffSlice) == 0 {
+		isIn = true
+	} else {
+		isIn = false
+	}
+
+	return isIn, diffSlice
+}
+
 func (c *CheanManager) Run() {
-	nameList := make([]string,0,200)
+	nameList := make([]string, 0, 200)
+	alllist := make([]string,0,300)
 	Namespaces1, err := c.kubeclient.CoreV1().Namespaces().List(meta_v1.ListOptions{})
-	if err != nil{
+	if err != nil {
 		fmt.Println(err)
 	}
 
-for _,v := range Namespaces1.Items{
+	for _, v := range Namespaces1.Items {
 
-	nameList = append(nameList, v.Name)
-}
-fmt.Println(len(nameList),nameList[0],nameList[2])
+		nameList = append(nameList, v.Name)
+	}
+	fmt.Println(len(nameList), nameList[0], nameList[2])
 
-deleteList,err := db.GetManager().TenantDao().GetTenant(nameList)
-fmt.Println(deleteList)
+	ALLTeantsList, err := db.GetManager().TenantDao().GetALLTenants()
 
-//c.kubeclient.CoreV1().Namespaces().Delete()
+
+	for _, v := range ALLTeantsList {
+		alllist = append(alllist, v.UUID)
+	}
+
+	isIn,diffSlice := checkSliceBInA(nameList,alllist)
+	fmt.Println(isIn,diffSlice)
+
 }
