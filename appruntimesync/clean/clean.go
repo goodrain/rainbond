@@ -341,6 +341,7 @@ func queryTenantServiceResource(m *Manager) []Resource {
 		}
 		fmt.Println("sss",s)
 		m.waiting = append(m.waiting, s)
+		fmt.Println("列表",m.waiting)
 	}
 
 	return nil
@@ -474,7 +475,7 @@ func (m *Manager) CollectingTasks() {
 				fmt.Println("xx",v(m))
 			}
 			return nil
-		}, time.Minute*24)
+		}, time.Second*24)
 
 }
 
@@ -492,5 +493,5 @@ func (m *Manager) PerformTasks() {
 			fmt.Println("结束")
 			m.waiting = nil
 			return nil
-		}, time.Minute*12)
+		}, time.Second*12)
 }
