@@ -37,7 +37,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 	"gopkg.in/yaml.v2"
+	"regexp"
 )
+
+var re = regexp.MustCompile(`\s`)
 
 //ExportApp Export app to specified format(rainbond-app or dockercompose)
 type ExportApp struct {
@@ -654,7 +657,7 @@ func buildToLinuxFileName(fileName string) string {
 	}
 
 	fileName = strings.Replace(fileName, ":", "--", -1)
-	fileName = strings.TrimSpace(fileName)
+	fileName = re.ReplaceAllString(fileName, "")
 
 	return fileName
 }
