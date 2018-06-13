@@ -339,6 +339,7 @@ func queryTenantServiceResource(m *Manager) []Resource {
 			id:         v,
 			namespaces: v,
 		}
+		fmt.Println("sss",s)
 		m.waiting = append(m.waiting, s)
 	}
 
@@ -440,8 +441,8 @@ func NewManager(ctx context.Context, kubeclient *kubernetes.Clientset) *Manager 
 
 func (m *Manager) Start() {
 	logrus.Info("clean up module starts....")
-	m.CollectingTasks()
-	m.PerformTasks()
+	go m.CollectingTasks()
+	go m.PerformTasks()
 
 }
 
@@ -466,20 +467,19 @@ func SliceDiff(slice1, slice2 []string) (diffSlice []string) {
 }
 
 func (m *Manager) CollectingTasks() {
-	run := func() {
+
 		util.Exec(m.ctx, func() error {
 			for _, v := range m.queryResource {
 				v(m)
-				fmt.Println(v(m))
+				fmt.Println("xx",v(m))
 			}
 			return nil
 		}, time.Minute*24)
-	}
-	go run()
+
 }
 
 func (m *Manager) PerformTasks() {
-	run := func() {
+
 		util.Exec(m.ctx, func() error {
 			fmt.Println("长度", m.waiting)
 			for _, v := range m.waiting {
@@ -493,6 +493,4 @@ func (m *Manager) PerformTasks() {
 			m.waiting = nil
 			return nil
 		}, time.Minute*12)
-	}
-	go run()
 }
