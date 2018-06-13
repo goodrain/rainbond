@@ -423,6 +423,7 @@ func queryRcResource(m *Manager) []Resource {
 			}
 		}
 	}
+	fmt.Println("列表RcList",RcList)
 	return RcList
 }
 
@@ -508,7 +509,7 @@ func (m *Manager) PerformTasks() {
 		for m.l.Len() > 1 {
 			rs := m.l.Back()
 			if res, ok := rs.Value.(Resource); ok {
-				fmt.Println("res",res)
+				fmt.Println("res",res.Name())
 				if res.IsTimeout() {
 					if res.IsClean() {
 						if err := res.DeleteResources(); err != nil {
