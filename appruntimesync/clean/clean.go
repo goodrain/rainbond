@@ -472,8 +472,8 @@ func (m *Manager) CollectingTasks() {
 		util.Exec(m.ctx, func() error {
 			for _, v := range m.queryResource {
 				v(m)
-				fmt.Println("xx",v(m))
 			}
+			fmt.Println("收集完毕")
 			return nil
 		}, time.Second*24)
 
@@ -482,7 +482,7 @@ func (m *Manager) CollectingTasks() {
 func (m *Manager) PerformTasks() {
 
 		util.Exec(m.ctx, func() error {
-		
+
 			for _, v := range m.waiting {
 				fmt.Println("vvvv",v)
 				if v.IsTimeout() {
@@ -491,7 +491,8 @@ func (m *Manager) PerformTasks() {
 					}
 				}
 			}
-			fmt.Println("结束")
+			m.waiting = nil
+			fmt.Println("清理结束")
 			m.waiting = nil
 			return nil
 		}, time.Second*12)
