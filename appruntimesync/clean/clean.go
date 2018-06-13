@@ -39,9 +39,9 @@ func NewCheanManager(ctx context.Context, kubeclient *kubernetes.Clientset) *Che
 
 func (c *CheanManager) Start() {
 	logrus.Info("clean up module starts....")
-	go c.CollectingTasks()
+	c.CollectingTasks()
 	fmt.Println("TaskSlice",TaskSlice)
-	go c.PerformTasks()
+	c.PerformTasks()
 }
 
 // InSlice checks given string in string slice or not.
@@ -307,16 +307,17 @@ func (c *CheanManager) DeleteResources(deleteMap map[string]string) {
 }
 
 func (c *CheanManager) CollectingTasks() {
-	util.Exec(c.ctx, func() error {
+	run := func() { util.Exec(c.ctx, func() error {
 		c.cleanNamespaces()
 		c.cleanStaAndRep()
 		c.cleanService()
 		return nil
-	}, time.Minute*24)
+	}, time.Minute*24)}
+	go run()
 }
 
 func (c *CheanManager) PerformTasks() {
-	util.Exec(c.ctx, func() error {
+	run := func() {util.Exec(c.ctx, func() error {
 		fmt.Println("长度：",len(TaskSlice))
 		for _, v := range TaskSlice {
 			if v.IsTimeout() {
@@ -324,5 +325,6 @@ func (c *CheanManager) PerformTasks() {
 			}
 		}
 		return nil
-	}, time.Minute*12)
+	}, time.Minute*12)}
+	go run()
 }
