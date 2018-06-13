@@ -125,6 +125,8 @@ func queryK8sServiceResource(m *Manager) []Resource {
 			}
 		}
 	}
+	fmt.Println("列表serviceList",serviceList)
+
 	return serviceList
 }
 
@@ -198,6 +200,7 @@ func queryDeploymentResource(m *Manager) []Resource {
 			}
 		}
 	}
+	fmt.Println("列表DeploymentDelList",DeploymentDelList)
 	return DeploymentDelList
 }
 
@@ -272,6 +275,7 @@ func queryStatefulResource(m *Manager) []Resource {
 			}
 		}
 	}
+	fmt.Println("StatefulSetList列表",StatefulSetList)
 	return StatefulSetList
 }
 
@@ -347,7 +351,7 @@ func queryTenantServiceResource(m *Manager) []Resource {
 		NamespacesList = append(NamespacesList, s)
 
 	}
-	fmt.Println("列表", NamespacesList)
+	fmt.Println("列表NamespacesList", NamespacesList)
 	return NamespacesList
 }
 
