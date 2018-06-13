@@ -151,4 +151,5 @@ func (a *AppRuntimeSyncServer) Stop() {
 	a.Cancel()
 	close(a.stopChan)
 	a.podCache.Stop()
+	a.clean.Stop()
 }

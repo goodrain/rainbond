@@ -292,7 +292,8 @@ func (t *tenantServiceResource) DeleteResources() error {
 }
 
 func (t *tenantServiceResource) IsClean() bool {
-	isNotExist := db.GetManager().TenantDao().GetTenantByUUIDIsExist(t.namespaces)
+	//isNotExist := db.GetManager().TenantDao().GetTenantByUUIDIsExist(t.namespaces)
+	isNotExist := db.GetManager().TenantDao().GetTenantByUUIDIsExist("7d42566df3b54ac78568b9a7558ecfbb")
 	fmt.Println("isNotExist", isNotExist)
 	if isNotExist {
 		return true
@@ -339,11 +340,11 @@ func queryTenantServiceResource(m *Manager) []Resource {
 			id:         v,
 			namespaces: v,
 		}
-		fmt.Println("sss",s)
+		fmt.Println("sss", s)
 		m.waiting = append(m.waiting, s)
 
 	}
-	fmt.Println("列表",m.waiting)
+	fmt.Println("列表", m.waiting)
 	return nil
 }
 
@@ -422,6 +423,7 @@ type Manager struct {
 	kubeclient    *kubernetes.Clientset
 	waiting       []Resource
 	queryResource []func(*Manager) []Resource
+	cancel        context.CancelFunc
 }
 
 func NewManager(ctx context.Context, kubeclient *kubernetes.Clientset) *Manager {
@@ -438,13 +440,6 @@ func NewManager(ctx context.Context, kubeclient *kubernetes.Clientset) *Manager 
 	}
 	m.queryResource = queryResource
 	return m
-}
-
-func (m *Manager) Start() {
-	logrus.Info("clean up module starts....")
-	go m.CollectingTasks()
-	go m.PerformTasks()
-
 }
 
 // InSlice checks given string in string slice or not.
@@ -469,31 +464,44 @@ func SliceDiff(slice1, slice2 []string) (diffSlice []string) {
 
 func (m *Manager) CollectingTasks() {
 
-		util.Exec(m.ctx, func() error {
-			for _, v := range m.queryResource {
-				v(m)
-			}
-			fmt.Println("收集完毕")
-			return nil
-		}, time.Second*24)
+	util.Exec(m.ctx, func() error {
+		for _, v := range m.queryResource {
+			v(m)
+		}
+		fmt.Println("收集完毕")
+		return nil
+	}, time.Second*24)
 
 }
 
 func (m *Manager) PerformTasks() {
 
-		util.Exec(m.ctx, func() error {
+	util.Exec(m.ctx, func() error {
 
-			for _, v := range m.waiting {
-				fmt.Println("vvvv",v)
-				if v.IsTimeout() {
-					if v.IsClean() {
-						v.DeleteResources()
-					}
+		for _, v := range m.waiting {
+			fmt.Println("vvvv", v)
+			if v.IsTimeout() {
+				if v.IsClean() {
+					v.DeleteResources()
 				}
 			}
-			m.waiting = nil
-			fmt.Println("清理结束")
-			m.waiting = nil
-			return nil
-		}, time.Second*12)
+		}
+		m.waiting = nil
+		fmt.Println("清理结束")
+		m.waiting = nil
+		return nil
+	}, time.Second*12)
+}
+
+func (m *Manager) Start() error {
+	logrus.Info("clean up module starts....")
+	go m.CollectingTasks()
+	go m.PerformTasks()
+	return nil
+
+}
+func (m *Manager) Stop() error {
+	logrus.Info("CleanResource is stoping.")
+	m.cancel()
+	return nil
 }
