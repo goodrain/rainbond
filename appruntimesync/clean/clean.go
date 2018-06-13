@@ -262,6 +262,7 @@ func queryStatefulResource(m *Manager) []Resource {
 	fmt.Println(StatefulSetsMap)
 	for k, valuse := range StatefulSetsMap {
 		StatefulSetsList, err := m.kubeclient.StatefulSets(k).List(meta_v1.ListOptions{})
+		fmt.Println(StatefulSetsList.Items)
 		if err != nil {
 			logrus.Error(err)
 		}
