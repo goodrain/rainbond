@@ -120,6 +120,7 @@ func queryK8sServiceResource(m *Manager) []Resource {
 		if ok {
 			if !InSlice(v.Name, val) {
 				s := &k8sServiceResource{
+					manager:m,
 					createTime: time.Now(),
 					namespaces: v.Namespace,
 					id:         v.Name,
@@ -199,6 +200,7 @@ func queryDeploymentResource(m *Manager) []Resource {
 		if ok {
 			if InSlice(v.Name, val) {
 				s := &deploymentResource{
+					manager:m,
 					createTime: time.Now(),
 					namespaces: v.Namespace,
 					id:         v.Name,
@@ -228,6 +230,7 @@ func (s *statefulResource) DeleteResources() error {
 		logrus.Error(err)
 		return err
 	} else {
+		fmt.Println("删除成功")
 		logrus.Info("delete statefulset success：", s.id)
 		return nil
 	}
@@ -279,6 +282,7 @@ func queryStatefulResource(m *Manager) []Resource {
 		if ok {
 			if InSlice(v.Name, val) {
 				s := &statefulResource{
+					manager:m,
 					createTime: time.Now(),
 					namespaces: v.Namespace,
 					id:         v.Name,
@@ -360,6 +364,7 @@ func queryTenantServiceResource(m *Manager) []Resource {
 	diffList := SliceDiff(nameList, allList)
 	for _, v := range diffList {
 		s := &tenantServiceResource{
+			manager:m,
 			createTime: time.Now(),
 			id:         v,
 			namespaces: v,
@@ -432,6 +437,7 @@ func queryRcResource(m *Manager) []Resource {
 		if ok {
 			if InSlice(v.Name, val) {
 				s := &rcResource{
+					manager:m,
 					namespaces: v.Namespace,
 					id:         v.Name,
 					createTime: time.Now(),
