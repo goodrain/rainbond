@@ -117,12 +117,14 @@ func (c *CheanManager) cleanNamespaces() {
 	for _, v := range diffList {
 		diffMap[v] = v
 	}
+	fmt.Println("diffMap:",diffMap)
 
 	TaskSlice = append(TaskSlice, &CheanManager{
 		data:   diffMap,
 		period: time.Now(),
 		genre:  "namespaces",
 	})
+	fmt.Println("1结束")
 
 }
 
@@ -180,17 +182,20 @@ func (c *CheanManager) cleanStaAndRep() {
 			}
 		}
 	}
+	fmt.Println("statefulset：",StadeleteMap)
 	TaskSlice = append(TaskSlice, &CheanManager{
 		data:   StadeleteMap,
 		period: time.Now(),
 		genre:  "statefulset",
 	})
-
+	fmt.Println("2结束")
+	fmt.Println("replicationcontroller：",RepdeleteMap)
 	TaskSlice = append(TaskSlice, &CheanManager{
 		data:   RepdeleteMap,
 		period: time.Now(),
 		genre:  "replicationcontroller",
 	})
+	fmt.Println("3结束")
 
 }
 
@@ -225,11 +230,13 @@ func (c *CheanManager) cleanService() {
 		}
 	}
 
+	fmt.Println("services：",ServivesDeleteMap)
 	TaskSlice = append(TaskSlice, &CheanManager{
 		data:   ServivesDeleteMap,
 		period: time.Now(),
 		genre:  "services",
 	})
+	fmt.Println("4结束")
 
 }
 
@@ -310,6 +317,7 @@ func (c *CheanManager) CollectingTasks() {
 
 func (c *CheanManager) PerformTasks() {
 	util.Exec(c.ctx, func() error {
+		fmt.Println("长度：",len(TaskSlice))
 		for _, v := range TaskSlice {
 			if v.IsTimeout() {
 				v.DeleteResources(v.data)
