@@ -43,7 +43,7 @@ type AppRuntimeSyncServer struct {
 	Cancel        context.CancelFunc
 	ClientSet     *kubernetes.Clientset
 	podCache      *pod.CacheManager
-	clean         *clean.CheanManager
+	clean         *clean.Manager
 }
 
 //NewAppRuntimeSyncServer create app runtime sync server
@@ -62,7 +62,7 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 	statusManager := status.NewManager(ctx, clientset)
 	stopChan := make(chan struct{})
 	podCache := pod.NewCacheManager(clientset)
-	Clean := clean.NewCheanManager(ctx, clientset)
+	Clean := clean.NewManager(ctx, clientset)
 	arss := &AppRuntimeSyncServer{
 		c:         conf,
 		Ctx:       ctx,

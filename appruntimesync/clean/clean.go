@@ -442,6 +442,7 @@ func (m *Manager) Start() {
 	logrus.Info("clean up module starts....")
 	m.CollectingTasks()
 	m.PerformTasks()
+
 }
 
 // InSlice checks given string in string slice or not.
@@ -469,6 +470,7 @@ func (m *Manager) CollectingTasks() {
 		util.Exec(m.ctx, func() error {
 			for _, v := range m.queryResource {
 				v(m)
+				fmt.Println(v(m))
 			}
 			return nil
 		}, time.Minute*24)
