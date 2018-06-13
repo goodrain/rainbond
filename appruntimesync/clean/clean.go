@@ -259,12 +259,14 @@ func queryStatefulResource(m *Manager) []Resource {
 		}
 
 	}
+	fmt.Println(StatefulSetsMap)
 	for k, valuse := range StatefulSetsMap {
 		StatefulSetsList, err := m.kubeclient.StatefulSets(k).List(meta_v1.ListOptions{})
 		if err != nil {
 			logrus.Error(err)
 		}
 		for _, v := range StatefulSetsList.Items {
+			fmt.Println(v.Namespace,v.Name)
 			if InSlice(v.Name, valuse) {
 				s := &statefulResource{
 					createTime: time.Now(),
