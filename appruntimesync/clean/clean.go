@@ -8,7 +8,6 @@ import (
 	"time"
 	"github.com/goodrain/rainbond/util"
 	"context"
-	"fmt"
 	"container/list"
 	"k8s.io/client-go/pkg/api/v1"
 )
@@ -57,7 +56,7 @@ type k8sServiceResource struct {
 
 func (k *k8sServiceResource) IsTimeout() bool {
 	now := time.Now()
-	if now.After(k.createTime.Add(time.Second * 0)) {
+	if now.After(k.createTime.Add(time.Minute * 5)) {
 		return true
 	}
 	return false
@@ -120,7 +119,7 @@ func queryK8sServiceResource(m *Manager) []Resource {
 		if ok {
 			if !InSlice(v.Name, val) {
 				s := &k8sServiceResource{
-					manager:m,
+					manager:    m,
 					createTime: time.Now(),
 					namespaces: v.Namespace,
 					id:         v.Name,
@@ -131,14 +130,12 @@ func queryK8sServiceResource(m *Manager) []Resource {
 
 	}
 
-	fmt.Println("列表serviceList", serviceList)
-
 	return serviceList
 }
 
 func (d *deploymentResource) IsTimeout() bool {
 	now := time.Now()
-	if now.After(d.createTime.Add(time.Second * 0)) {
+	if now.After(d.createTime.Add(time.Minute * 5)) {
 		return true
 	}
 	return false
@@ -200,7 +197,7 @@ func queryDeploymentResource(m *Manager) []Resource {
 		if ok {
 			if InSlice(v.Name, val) {
 				s := &deploymentResource{
-					manager:m,
+					manager:    m,
 					createTime: time.Now(),
 					namespaces: v.Namespace,
 					id:         v.Name,
@@ -211,13 +208,12 @@ func queryDeploymentResource(m *Manager) []Resource {
 
 	}
 
-	fmt.Println("列表DeploymentDelList", DeploymentDelList)
 	return DeploymentDelList
 }
 
 func (s *statefulResource) IsTimeout() bool {
 	now := time.Now()
-	if now.After(s.createTime.Add(time.Second * 0)) {
+	if now.After(s.createTime.Add(time.Minute * 5)) {
 		return true
 	}
 	return false
@@ -230,7 +226,6 @@ func (s *statefulResource) DeleteResources() error {
 		logrus.Error(err)
 		return err
 	} else {
-		fmt.Println("删除成功")
 		logrus.Info("delete statefulset success：", s.id)
 		return nil
 	}
@@ -271,7 +266,6 @@ func queryStatefulResource(m *Manager) []Resource {
 		}
 
 	}
-	fmt.Println(StatefulSetsMap)
 
 	StatefulSetsList, err := m.kubeclient.StatefulSets(v1.NamespaceAll).List(meta_v1.ListOptions{})
 	if err != nil {
@@ -282,46 +276,41 @@ func queryStatefulResource(m *Manager) []Resource {
 		if ok {
 			if InSlice(v.Name, val) {
 				s := &statefulResource{
-					manager:m,
+					manager:    m,
 					createTime: time.Now(),
 					namespaces: v.Namespace,
 					id:         v.Name,
 				}
 				StatefulSetList = append(StatefulSetList, s)
-			}else {
-				fmt.Println("存在的",v.Namespace,v.Name)
 			}
 		}
 
 	}
 
-	fmt.Println("StatefulSetList列表", StatefulSetList)
 	return StatefulSetList
 }
 
 func (t *tenantServiceResource) IsTimeout() bool {
 	now := time.Now()
-	if now.After(t.createTime.Add(time.Second * 0)) {
+	if now.After(t.createTime.Add(time.Minute * 5)) {
 		return true
 	}
 	return false
 }
 
 func (t *tenantServiceResource) DeleteResources() error {
-	//if err := t.manager.kubeclient.Namespaces().Delete(t.namespaces, &meta_v1.DeleteOptions{}); err != nil {
-	//	logrus.Error(err)
-	//	return err
-	//} else {
-	//	logrus.Info("delete namespaces success：", t.namespaces)
-	//	return nil
-	//}
-	fmt.Println("删除", t.id, t.namespaces)
+	if err := t.manager.kubeclient.Namespaces().Delete(t.namespaces, &meta_v1.DeleteOptions{}); err != nil {
+		logrus.Error(err)
+		return err
+	} else {
+		logrus.Info("delete namespaces success：", t.namespaces)
+		return nil
+	}
 	return nil
 }
 
 func (t *tenantServiceResource) IsClean() bool {
 	isNotExist := db.GetManager().TenantDao().GetTenantByUUIDIsExist(t.namespaces)
-	fmt.Println("isNotExist", isNotExist)
 	if isNotExist {
 		return true
 	}
@@ -364,7 +353,7 @@ func queryTenantServiceResource(m *Manager) []Resource {
 	diffList := SliceDiff(nameList, allList)
 	for _, v := range diffList {
 		s := &tenantServiceResource{
-			manager:m,
+			manager:    m,
 			createTime: time.Now(),
 			id:         v,
 			namespaces: v,
@@ -372,13 +361,12 @@ func queryTenantServiceResource(m *Manager) []Resource {
 		NamespacesList = append(NamespacesList, s)
 
 	}
-	fmt.Println("列表NamespacesList", NamespacesList)
 	return NamespacesList
 }
 
 func (r *rcResource) IsTimeout() bool {
 	now := time.Now()
-	if now.After(r.createTime.Add(time.Second * 0)) {
+	if now.After(r.createTime.Add(time.Minute * 5)) {
 		return true
 	}
 	return false
@@ -437,7 +425,7 @@ func queryRcResource(m *Manager) []Resource {
 		if ok {
 			if InSlice(v.Name, val) {
 				s := &rcResource{
-					manager:m,
+					manager:    m,
 					namespaces: v.Namespace,
 					id:         v.Name,
 					createTime: time.Now(),
@@ -448,7 +436,6 @@ func queryRcResource(m *Manager) []Resource {
 
 	}
 
-	fmt.Println("列表RcList", RcList)
 	return RcList
 }
 
@@ -460,21 +447,6 @@ type Manager struct {
 	cancel        context.CancelFunc
 	l             list.List
 }
-
-//type Queue struct{
-//	datas []Resource
-//
-//}
-//
-//func (q *Queue) Add(Resource) error{
-//
-//}
-//
-//func (q *Queue) Pop() (Resource,error){
-//
-//}
-
-//var l = list.New()
 
 func NewManager(ctx context.Context, kubeclient *kubernetes.Clientset) *Manager {
 	m := &Manager{
@@ -524,7 +496,7 @@ func (m *Manager) CollectingTasks() {
 			}
 		}
 		return nil
-	}, time.Second*24)
+	}, time.Hour*24)
 
 }
 
@@ -534,7 +506,6 @@ func (m *Manager) PerformTasks() {
 		for m.l.Len() > 1 {
 			rs := m.l.Back()
 			if res, ok := rs.Value.(Resource); ok {
-				fmt.Println("res", res.Name())
 				if res.IsTimeout() {
 					if res.IsClean() {
 						if err := res.DeleteResources(); err != nil {
@@ -548,11 +519,11 @@ func (m *Manager) PerformTasks() {
 					}
 				}
 			} else {
-				logrus.Error("转换失败")
+				logrus.Error("Type conversion failed")
 			}
 		}
 		return nil
-	}, time.Second*12)
+	}, time.Hour*12)
 }
 
 func (m *Manager) Start() error {
