@@ -239,9 +239,9 @@ func (t *K8sDeployReplicationDaoImpl) DeleteK8sDeployReplicationByService(servic
 	return nil
 }
 
-func (t *K8sDeployReplicationDaoImpl) GetK8sDeployReplicationByIsDelete(isDelete bool) ([]*model.K8sDeployReplication, error) {
+func (t *K8sDeployReplicationDaoImpl) GetK8sDeployReplicationByIsDelete(rcType string, isDelete bool) ([]*model.K8sDeployReplication, error) {
 	var deploy []*model.K8sDeployReplication
-	if err := t.DB.Model(&deploy).Where("is_delete=?", isDelete).Find(&deploy).Error; err != nil {
+	if err := t.DB.Model(&deploy).Where("rc_type=? AND is_delete=?",rcType, isDelete).Find(&deploy).Error; err != nil {
 		return nil, err
 	}
 	return deploy, nil

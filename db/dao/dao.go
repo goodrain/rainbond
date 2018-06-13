@@ -274,7 +274,7 @@ type K8sDeployReplicationDao interface {
 	DeleteK8sDeployReplicationByService(serviceID string) error
 	GetReplications() ([]*model.K8sDeployReplication, error)
 	BeachDelete([]uint) error
-	GetK8sDeployReplicationByIsDelete(isDelete bool) ([]*model.K8sDeployReplication, error)
+	GetK8sDeployReplicationByIsDelete(rcType string, isDelete bool) ([]*model.K8sDeployReplication, error)
 	GetK8sDeployReplicationIsExist(tenantId string, RcType string, RcId string, isDelete bool) (IsExist bool)
 }
 
