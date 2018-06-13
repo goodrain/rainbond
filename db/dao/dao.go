@@ -44,6 +44,7 @@ type TenantDao interface {
 	GetTenantByEid(eid string) ([]*model.Tenants, error)
 	GetPagedTenants(offset, len int) ([]*model.Tenants, error)
 	GetTenantIDsByNames(names []string) ([]string, error)
+	GetTenantByUUIDIsExist(uuid string) (bool)
 }
 
 //TenantDao tenant dao
@@ -256,6 +257,7 @@ type K8sServiceDao interface {
 	DeleteK8sServiceByReplicationIDAndPort(replicationID string, port int, isOut bool) error
 	DeleteK8sServiceByName(k8sServiceName string) error
 	GetAllK8sService() ([]*model.K8sService, error)
+	K8sServiceIsExist(tenantId string, K8sServiceID string) bool
 }
 
 //K8sDeployReplicationDao 部署信息
@@ -273,6 +275,7 @@ type K8sDeployReplicationDao interface {
 	GetReplications() ([]*model.K8sDeployReplication, error)
 	BeachDelete([]uint) error
 	GetK8sDeployReplicationByIsDelete(isDelete bool) ([]*model.K8sDeployReplication, error)
+	GetK8sDeployReplicationIsExist(tenantId string, RcType string, RcId string, isDelete bool) (IsExist bool)
 }
 
 //K8sPodDao pod info dao

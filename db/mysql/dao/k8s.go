@@ -123,6 +123,12 @@ func (t *K8sServiceDaoImpl) GetAllK8sService() ([]*model.K8sService, error) {
 
 }
 
+func (t *K8sServiceDaoImpl) K8sServiceIsExist(tenantId string, K8sServiceID string) bool {
+	var services model.K8sService
+	isExist := t.DB.Where("tenant_id=? AND inner_service_id=?", tenantId, K8sServiceID).First(&services).RecordNotFound()
+	return isExist
+}
+
 type K8sDeployReplicationDaoImpl struct {
 	DB *gorm.DB
 }
@@ -239,6 +245,12 @@ func (t *K8sDeployReplicationDaoImpl) GetK8sDeployReplicationByIsDelete(isDelete
 		return nil, err
 	}
 	return deploy, nil
+}
+
+func (t *K8sDeployReplicationDaoImpl) GetK8sDeployReplicationIsExist(tenantId string, RcType string, RcId string, isDelete bool) (IsExist bool) {
+	var deploy model.K8sDeployReplication
+	isExist := t.DB.Model(&deploy).Where("tenant_id=? AND rc_type=? AND rc_id=? AND is_delete=?", tenantId, RcType, RcId, isDelete).First(&deploy).RecordNotFound()
+	return isExist
 }
 
 //K8sPodDaoImpl k8s pod dao

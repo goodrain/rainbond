@@ -68,6 +68,14 @@ func (t *TenantDaoImpl) GetTenantByUUID(uuid string) (*model.Tenants, error) {
 	return &tenant, nil
 }
 
+//GetTenantByUUIDIsExist 获取租户
+func (t *TenantDaoImpl) GetTenantByUUIDIsExist(uuid string) (bool) {
+	var tenant model.Tenants
+	isExist := t.DB.Where("uuid = ?", uuid).First(&tenant).RecordNotFound()
+	return isExist
+
+}
+
 //GetTenantIDByName 获取租户
 func (t *TenantDaoImpl) GetTenantIDByName(name string) (*model.Tenants, error) {
 	var tenant model.Tenants

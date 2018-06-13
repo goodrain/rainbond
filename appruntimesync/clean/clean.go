@@ -6,25 +6,42 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	"time"
+	"github.com/goodrain/rainbond/util"
+	"context"
 	"fmt"
 )
 
-type CheanManager struct {
-	kubeclient *kubernetes.Clientset
+type CheanUp interface {
+	IsTimeout() bool
+	DeleteResources(map[string]string)
+
 }
 
-func NewCheanManager(kubeclient *kubernetes.Clientset) *CheanManager {
+type CheanManager struct {
+	ctx        context.Context
+	kubeclient *kubernetes.Clientset
+	data       map[string]string
+	period     time.Time
+	genre      string
+}
+
+
+var TaskSlice = make([]*CheanManager, 0, 100)
+
+func NewCheanManager(ctx context.Context, kubeclient *kubernetes.Clientset) *CheanManager {
 	m := &CheanManager{
+		ctx:        ctx,
 		kubeclient: kubeclient,
 	}
+
 	return m
 }
 
 func (c *CheanManager) Start() {
 	logrus.Info("clean up module starts....")
-	go c.DeleteNamespaces()
-	go c.DeletecleanStaAndRep()
-	go c.DeleteService()
+	go c.CollectingTasks()
+	fmt.Println("TaskSlice",TaskSlice)
+	go c.PerformTasks()
 }
 
 // InSlice checks given string in string slice or not.
@@ -60,9 +77,9 @@ func SliceIntersect(slice1, slice2 []string) (IntersectSlice []string) {
 func MapIntersect(map1, map2 map[string]string) (IntersectMap map[string]string) {
 	intersectMap := make(map[string]string)
 	for k, v := range map2 {
-		v2,ok:= map1[k]
+		v2, ok := map1[k]
 		if ok {
-			if v == v2{
+			if v == v2 {
 				intersectMap[k] = v
 			}
 		}
@@ -71,9 +88,10 @@ func MapIntersect(map1, map2 map[string]string) (IntersectMap map[string]string)
 	return intersectMap
 }
 
-func (c *CheanManager) cleanNamespaces() ([]string) {
+func (c *CheanManager) cleanNamespaces() {
 	nameList := make([]string, 0, 200)
 	allList := make([]string, 0, 300)
+	diffMap := make(map[string]string)
 	Namespaces, err := c.kubeclient.CoreV1().Namespaces().List(meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Error(err)
@@ -96,11 +114,19 @@ func (c *CheanManager) cleanNamespaces() ([]string) {
 	}
 
 	diffList := SliceDiff(nameList, allList)
-	return diffList
+	for _, v := range diffList {
+		diffMap[v] = v
+	}
+
+	TaskSlice = append(TaskSlice, &CheanManager{
+		data:   diffMap,
+		period: time.Now(),
+		genre:  "namespaces",
+	})
 
 }
 
-func (c *CheanManager) cleanStaAndRep() (map[string]string, map[string]string) {
+func (c *CheanManager) cleanStaAndRep() {
 
 	StatefulSetsMap := make(map[string][]string)
 	ReplicationControllersMap := make(map[string][]string)
@@ -154,25 +180,21 @@ func (c *CheanManager) cleanStaAndRep() (map[string]string, map[string]string) {
 			}
 		}
 	}
+	TaskSlice = append(TaskSlice, &CheanManager{
+		data:   StadeleteMap,
+		period: time.Now(),
+		genre:  "statefulset",
+	})
 
-	return StadeleteMap, RepdeleteMap
-
-	//for k, v := range StadeleteMap {
-	//	if err := c.kubeclient.StatefulSets(k).Delete(v, &meta_v1.DeleteOptions{}); err != nil {
-	//		logrus.Error(err)
-	//	}
-	//
-	//}
-	//
-	//for k, v := range RepdeleteMap {
-	//	if err := c.kubeclient.ReplicationControllers(k).Delete(v, &meta_v1.DeleteOptions{}); err != nil {
-	//		logrus.Error(err)
-	//	}
-	//}
+	TaskSlice = append(TaskSlice, &CheanManager{
+		data:   RepdeleteMap,
+		period: time.Now(),
+		genre:  "replicationcontroller",
+	})
 
 }
 
-func (c *CheanManager) cleanService() map[string]string {
+func (c *CheanManager) cleanService() {
 
 	ServivesMap := make(map[string][]string)
 	ServivesDeleteMap := make(map[string]string)
@@ -203,64 +225,96 @@ func (c *CheanManager) cleanService() map[string]string {
 		}
 	}
 
-	return ServivesDeleteMap
-	//
-	//for k, v := range ServivesDeleteMap {
-	//	err := c.kubeclient.Services(k).Delete(v, &meta_v1.DeleteOptions{})
-	//	if err != nil {
-	//		logrus.Error(err)
-	//	}
-	//	logrus.Info("delete service success：", v)
-	//}
-
-}
-
-func (c *CheanManager) DeleteNamespaces() {
-
-	diffList := c.cleanNamespaces()
-	fmt.Println(diffList)
-	time.AfterFunc(time.Second*10, func() {
-		newdiffList := c.cleanNamespaces()
-		deleteList := SliceIntersect(newdiffList, diffList)
-		fmt.Println("delete:", deleteList)
-		//for _, v := range deleteList {
-		//	err := c.kubeclient.Namespaces().Delete(v, &meta_v1.DeleteOptions{})
-		//	if err != nil {
-		//		fmt.Println(err)
-		//	}
-		//
-		//	logrus.Info("delete namespaces success:", v)
-		//}
+	TaskSlice = append(TaskSlice, &CheanManager{
+		data:   ServivesDeleteMap,
+		period: time.Now(),
+		genre:  "services",
 	})
 
 }
 
-func (c *CheanManager) DeletecleanStaAndRep() {
-	StadeleteMap, RepdeleteMap := c.cleanStaAndRep()
-	fmt.Println(StadeleteMap)
-	fmt.Println(RepdeleteMap)
-
-	time.AfterFunc(time.Second*10, func() {
-		newStadeleteMap, newRepdeleteMap := c.cleanStaAndRep()
-		deleteStadeleteMap := MapIntersect(StadeleteMap,newStadeleteMap)
-		deleteRepdeleteMap := MapIntersect(RepdeleteMap,newRepdeleteMap)
-
-		fmt.Println("deleteStadeleteMap",deleteStadeleteMap)
-		fmt.Println("deleteRepdeleteMap",deleteRepdeleteMap)
-
-	})
+func (c *CheanManager) IsTimeout() bool {
+	now := time.Now()
+	if now.After(c.period.Add(time.Second *0)) {
+		return true
+	}
+	return false
 }
 
+func (c *CheanManager) DeleteResources(deleteMap map[string]string) {
 
-func (c *CheanManager) DeleteService() {
-	ServivesDeleteMap := c.cleanService()
+	if c.genre == "namespaces" {
+		for _, v := range deleteMap {
+			isExist := db.GetManager().TenantDao().GetTenantByUUIDIsExist(v)
+			fmt.Println("isExist",isExist)
+			if isExist {
+				if err := c.kubeclient.Namespaces().Delete(v, &meta_v1.DeleteOptions{}); err != nil {
+					logrus.Error(err)
+				} else {
+					logrus.Info("delete namespaces success：", v)
+				}
 
-	fmt.Println(ServivesDeleteMap)
-	time.AfterFunc(time.Second*10, func() {
-		newServivesDeleteMap := c.cleanService()
-		deleteService :=MapIntersect(ServivesDeleteMap,newServivesDeleteMap)
-		fmt.Println("deleteService",deleteService)
-	})
+			}
 
+		}
+	}
 
+	if c.genre == "statefulset" {
+		for k, v := range deleteMap {
+			isExist := db.GetManager().K8sDeployReplicationDao().GetK8sDeployReplicationIsExist(k, "statefulset", v, false)
+			if isExist {
+				if err := c.kubeclient.StatefulSets(k).Delete(v, &meta_v1.DeleteOptions{}); err != nil {
+					logrus.Error(err)
+				} else {
+					logrus.Info("delete statefulset success：", v)
+				}
+			}
+		}
+	}
+
+	if c.genre == "replicationcontroller" {
+		for k, v := range deleteMap {
+			isExist := db.GetManager().K8sDeployReplicationDao().GetK8sDeployReplicationIsExist(k, "replicationcontroller", v, false)
+			if isExist {
+				if err := c.kubeclient.ReplicationControllers(k).Delete(v, &meta_v1.DeleteOptions{}); err != nil {
+					logrus.Error(err)
+				} else {
+					logrus.Info("delete replicationcontroller success：", v)
+				}
+			}
+		}
+	}
+
+	if c.genre == "services" {
+		for k, v := range deleteMap {
+			isExist := db.GetManager().K8sServiceDao().K8sServiceIsExist(k, v)
+			if isExist {
+				if err := c.kubeclient.Services(k).Delete(v, &meta_v1.DeleteOptions{}); err != nil {
+					logrus.Error(err)
+				} else {
+					logrus.Info("delete service success：", v)
+				}
+			}
+		}
+	}
+}
+
+func (c *CheanManager) CollectingTasks() {
+	util.Exec(c.ctx, func() error {
+		c.cleanNamespaces()
+		c.cleanStaAndRep()
+		c.cleanService()
+		return nil
+	}, time.Minute*24)
+}
+
+func (c *CheanManager) PerformTasks() {
+	util.Exec(c.ctx, func() error {
+		for _, v := range TaskSlice {
+			if v.IsTimeout() {
+				v.DeleteResources(v.data)
+			}
+		}
+		return nil
+	}, time.Minute*12)
 }
