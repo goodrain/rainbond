@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"container/list"
+	"k8s.io/client-go/pkg/api/v1"
 )
 
 //Resource should be clean resource
@@ -109,23 +110,27 @@ func queryK8sServiceResource(m *Manager) []Resource {
 		}
 
 	}
-	for k, valuse := range ServivesMap {
-		ServicesList, err := m.kubeclient.Services(k).List(meta_v1.ListOptions{})
-		if err != nil {
-			logrus.Error(err)
-		}
-		for _, v := range ServicesList.Items {
-			if !InSlice(v.Name, valuse) {
+
+	ServicesList, err := m.kubeclient.Services(v1.NamespaceAll).List(meta_v1.ListOptions{})
+	if err != nil {
+		logrus.Error(err)
+	}
+	for _, v := range ServicesList.Items {
+		val, ok := ServivesMap[v.Namespace]
+		if ok {
+			if !InSlice(v.Name, val) {
 				s := &k8sServiceResource{
 					createTime: time.Now(),
-					namespaces: k,
+					namespaces: v.Namespace,
 					id:         v.Name,
 				}
 				serviceList = append(serviceList, s)
 			}
 		}
+
 	}
-	fmt.Println("列表serviceList",serviceList)
+
+	fmt.Println("列表serviceList", serviceList)
 
 	return serviceList
 }
@@ -184,23 +189,27 @@ func queryDeploymentResource(m *Manager) []Resource {
 		}
 
 	}
-	for k, valuse := range DeploymentMap {
-		DeploymentList, err := m.kubeclient.AppsV1beta1().Deployments(k).List(meta_v1.ListOptions{})
-		if err != nil {
-			logrus.Error(err)
-		}
-		for _, v := range DeploymentList.Items {
-			if InSlice(v.Name, valuse) {
+
+	DeploymentList, err := m.kubeclient.AppsV1beta1().Deployments(v1.NamespaceAll).List(meta_v1.ListOptions{})
+	if err != nil {
+		logrus.Error(err)
+	}
+	for _, v := range DeploymentList.Items {
+		val, ok := DeploymentMap[v.Namespace]
+		if ok {
+			if InSlice(v.Name, val) {
 				s := &deploymentResource{
 					createTime: time.Now(),
-					namespaces: k,
+					namespaces: v.Namespace,
 					id:         v.Name,
 				}
 				DeploymentDelList = append(DeploymentDelList, s)
 			}
 		}
+
 	}
-	fmt.Println("列表DeploymentDelList",DeploymentDelList)
+
+	fmt.Println("列表DeploymentDelList", DeploymentDelList)
 	return DeploymentDelList
 }
 
@@ -260,25 +269,29 @@ func queryStatefulResource(m *Manager) []Resource {
 
 	}
 	fmt.Println(StatefulSetsMap)
-	for k, valuse := range StatefulSetsMap {
-		StatefulSetsList, err := m.kubeclient.StatefulSets(k).List(meta_v1.ListOptions{})
-		fmt.Println(StatefulSetsList.Items)
-		if err != nil {
-			logrus.Error(err)
-		}
-		for _, v := range StatefulSetsList.Items {
-			fmt.Println(v.Namespace,v.Name)
-			if InSlice(v.Name, valuse) {
+
+	StatefulSetsList, err := m.kubeclient.StatefulSets(v1.NamespaceAll).List(meta_v1.ListOptions{})
+	if err != nil {
+		logrus.Error(err)
+	}
+	for _, v := range StatefulSetsList.Items {
+		val, ok := StatefulSetsMap[v.Namespace]
+		if ok {
+			if InSlice(v.Name, val) {
 				s := &statefulResource{
 					createTime: time.Now(),
-					namespaces: k,
+					namespaces: v.Namespace,
 					id:         v.Name,
 				}
 				StatefulSetList = append(StatefulSetList, s)
+			}else {
+				fmt.Println("存在的",v.Namespace,v.Name)
 			}
 		}
+
 	}
-	fmt.Println("StatefulSetList列表",StatefulSetList)
+
+	fmt.Println("StatefulSetList列表", StatefulSetList)
 	return StatefulSetList
 }
 
@@ -410,23 +423,26 @@ func queryRcResource(m *Manager) []Resource {
 		}
 	}
 
-	for k, valuse := range ReplicationControllersMap {
-		ReplicationControllersList, err := m.kubeclient.ReplicationControllers(k).List(meta_v1.ListOptions{})
-		if err != nil {
-			logrus.Error(err)
-		}
-		for _, v := range ReplicationControllersList.Items {
-			if InSlice(v.Name, valuse) {
+	ReplicationControllersList, err := m.kubeclient.ReplicationControllers(v1.NamespaceAll).List(meta_v1.ListOptions{})
+	if err != nil {
+		logrus.Error(err)
+	}
+	for _, v := range ReplicationControllersList.Items {
+		val, ok := ReplicationControllersMap[v.Namespace]
+		if ok {
+			if InSlice(v.Name, val) {
 				s := &rcResource{
-					namespaces: k,
+					namespaces: v.Namespace,
 					id:         v.Name,
 					createTime: time.Now(),
 				}
 				RcList = append(RcList, s)
 			}
 		}
+
 	}
-	fmt.Println("列表RcList",RcList)
+
+	fmt.Println("列表RcList", RcList)
 	return RcList
 }
 
@@ -512,7 +528,7 @@ func (m *Manager) PerformTasks() {
 		for m.l.Len() > 1 {
 			rs := m.l.Back()
 			if res, ok := rs.Value.(Resource); ok {
-				fmt.Println("res",res.Name())
+				fmt.Println("res", res.Name())
 				if res.IsTimeout() {
 					if res.IsClean() {
 						if err := res.DeleteResources(); err != nil {
