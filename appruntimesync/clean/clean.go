@@ -341,9 +341,9 @@ func queryTenantServiceResource(m *Manager) []Resource {
 		}
 		fmt.Println("sss",s)
 		m.waiting = append(m.waiting, s)
-		fmt.Println("列表",m.waiting)
-	}
 
+	}
+	fmt.Println("列表",m.waiting)
 	return nil
 }
 
@@ -482,8 +482,9 @@ func (m *Manager) CollectingTasks() {
 func (m *Manager) PerformTasks() {
 
 		util.Exec(m.ctx, func() error {
-			fmt.Println("长度", m.waiting)
+		
 			for _, v := range m.waiting {
+				fmt.Println("vvvv",v)
 				if v.IsTimeout() {
 					if v.IsClean() {
 						v.DeleteResources()
