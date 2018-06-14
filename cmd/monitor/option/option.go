@@ -29,11 +29,12 @@ import (
 )
 
 type Config struct {
-	EtcdEndpoints        []string
-	LogLevel             string
-	AdvertiseAddr        string
-	BindIp               string
-	Port                 int
+	EtcdEndpointsLine string
+	EtcdEndpoints     []string
+	LogLevel          string
+	AdvertiseAddr     string
+	BindIp            string
+	Port              int
 
 	StartArgs            []string
 	ConfigFile           string
@@ -87,11 +88,12 @@ func NewConfig() *Config {
 	host, _ := os.Hostname()
 
 	config := &Config{
-		EtcdEndpoints: []string{"http://127.0.0.1:2379"},
-		AdvertiseAddr: host + ":9999",
-		BindIp:        host,
-		Port:          9999,
-		LogLevel:      "info",
+		EtcdEndpointsLine: "http://127.0.0.1:2379",
+		EtcdEndpoints:     []string{},
+		AdvertiseAddr:     host + ":9999",
+		BindIp:            host,
+		Port:              9999,
+		LogLevel:          "info",
 
 		ConfigFile:           "/etc/prometheus/prometheus.yml",
 		LocalStoragePath:     "/prometheusdata",
@@ -119,7 +121,7 @@ func NewConfig() *Config {
 }
 
 func (c *Config) AddFlag(cmd *pflag.FlagSet) {
-	cmd.StringArrayVar(&c.EtcdEndpoints, "etcd-endpoints", c.EtcdEndpoints, "etcd endpoints list.")
+	cmd.StringVar(&c.EtcdEndpointsLine, "etcd-endpoints", c.EtcdEndpointsLine, "etcd endpoints list.")
 	cmd.StringVar(&c.AdvertiseAddr, "advertise-addr", c.AdvertiseAddr, "advertise address, and registry into etcd.")
 }
 
@@ -173,6 +175,16 @@ func (c *Config) AddPrometheusFlag(cmd *pflag.FlagSet) {
 }
 
 func (c *Config) CompleteConfig() {
+	// parse etcd urls line to array
+	for _, url := range strings.Split(c.EtcdEndpointsLine, ",") {
+		c.EtcdEndpoints = append(c.EtcdEndpoints, url)
+	}
+
+	if len(c.EtcdEndpoints) < 1 {
+		logrus.Error("Must define the etcd endpoints by --etcd-endpoints")
+		os.Exit(17)
+	}
+
 	// parse values from prometheus options to config
 	ipPort := strings.TrimLeft(c.AdvertiseAddr, "shttp://")
 	ipPortArr := strings.Split(ipPort, ":")

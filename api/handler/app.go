@@ -16,7 +16,10 @@ import (
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
+	"regexp"
 )
+
+var re = regexp.MustCompile(`\s`)
 
 type AppAction struct {
 	MQClient  pb.TaskQueueClient
@@ -160,7 +163,7 @@ func unicode2zh(uText string) (context string) {
 
 	}
 
-	context = strings.TrimSpace(context)
+	context = re.ReplaceAllString(context, "")
 
 	return context
 }
