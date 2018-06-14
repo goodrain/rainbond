@@ -73,11 +73,12 @@ func (e *EventLogMessageDaoImpl) DeleteServiceEventLog(obj *model.EventLogMessag
 }
 
 func (e *EventLogMessageDaoImpl) DeleteServiceEventLogByEventId(eventId string) error {
-	var messageRaw *model.EventLogMessage
-	if err := e.DB.Where("event_id=?", eventId).Delete(&messageRaw).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil
-		}
+	var messageRaw []*model.EventLogMessage
+	isNotExist := e.DB.Where("event_id=?", eventId).First(&messageRaw).RecordNotFound()
+	if isNotExist{
+		return nil
+	}
+	if err := e.DB.Where("event_id=?", eventId).Delete(&messageRaw).Error;err!=nil{
 		return err
 	}
 	return nil
