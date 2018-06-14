@@ -97,7 +97,7 @@ func (i *PluginShareItem) Run(timeout time.Duration) error {
 		i.Logger.Error("推送镜像至镜像仓库失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	return nil
+	return i.updateShareStatus("success")
 }
 
 //Stop stop
