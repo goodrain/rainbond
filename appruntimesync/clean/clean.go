@@ -80,7 +80,7 @@ func (t *tenantServiceResource) DeleteResources() error {
 		if v.FinalStatus == "success" {
 			if v.DeliveredType == "slug" {
 				if err := os.Remove(v.DeliveredPath); err != nil {
-					if !strings.Contains(err.Error(), "No such file or directory") {
+					if !strings.Contains(err.Error(), "no such file or directory") {
 						return err
 					}
 				}
@@ -527,6 +527,7 @@ func QueryRcResource(m *Manager) []Resource {
 	}
 	fmt.Println("ReplicationControllersMap",ReplicationControllersMap)
 	for _, v := range ReplicationControllersList.Items {
+		fmt.Println("命名空间",v.Namespace)
 		val, ok := ReplicationControllersMap[v.Namespace]
 		if ok {
 			fmt.Println("ok:",v.Namespace)
@@ -632,6 +633,7 @@ func (m *Manager) PerformTasks() {
 						if err := res.DeleteResources(); err != nil {
 							logrus.Error("failed to delete:", err)
 						}
+						logrus.Info("DeleteResources success!")
 					}
 					m.l.Remove(rs)
 				}
