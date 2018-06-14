@@ -192,6 +192,9 @@ func (k *K8sServiceBuild) createInnerService(port *model.TenantServicesPort) *v1
 		"name":          k.service.ServiceAlias + "Service",
 		"port_protocol": port.Protocol,
 	}
+	if k.service.Replicas <= 1 {
+		service.Labels["rainbond.com/tolerate-unready-endpoints"] = "true"
+	}
 	service.Annotations = k.createServiceAnnotations()
 	var servicePort v1.ServicePort
 	if port.Protocol == "udp" {
@@ -226,6 +229,9 @@ func (k *K8sServiceBuild) createOuterService(port *model.TenantServicesPort) *v1
 		"ca":               "",
 		"key":              "",
 		"event_id":         k.eventID,
+	}
+	if k.service.Replicas <= 1 {
+		service.Labels["rainbond.com/tolerate-unready-endpoints"] = "true"
 	}
 	service.Annotations = k.createServiceAnnotations()
 	//if port.Protocol == "stream" { //stream 协议获取映射端口
