@@ -388,7 +388,7 @@ logrus.Info("StatefulSetList",StatefulSetList)
 
 func (n *nameSpacesResource) IsTimeout() bool {
 	now := time.Now()
-	if now.After(n.createTime.Add(time.Minute * 5)) {
+	if now.After(n.createTime.Add(time.Second * 10)) {
 		return true
 	}
 	return false
