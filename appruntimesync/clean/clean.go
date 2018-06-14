@@ -14,8 +14,6 @@ import (
 	"os"
 	"strings"
 	"github.com/docker/engine-api/client"
-	"github.com/goodrain/rainbond/builder/sources"
-	"fmt"
 )
 
 //Resource should be clean resource
@@ -84,22 +82,15 @@ func (t *tenantServiceResource) DeleteResources() error {
 						return err
 					}
 				}
-				logrus.Info("Clean up deleted application build resources successfully:", v.DeliveredPath)
-			}
-			if v.DeliveredType == "image" {
-				err := sources.ImageRemove(t.manager.dclient, v.DeliveredPath) //remove image
-				if err != nil {
-					if !strings.Contains(err.Error(), "No such image") {
-						return err
-					}
-				}
-				logrus.Info("Clean up deleted application build resources successfully:", v.DeliveredPath)
+				logrus.Info("Clean up deleted application build resources file successfully:", v.DeliveredPath)
 
+				if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
+					return err
+				}
 			}
+
 		}
-		if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
-			return err
-		}
+
 
 	}
 
@@ -118,9 +109,9 @@ func (t *tenantServiceResource) DeleteResources() error {
 		}
 	}
 
-	if err := db.GetManager().TenantServiceDeleteDao().DeleteTenantServicesDelete(t.query); err != nil {
-		return err
-	}
+	//if err := db.GetManager().TenantServiceDeleteDao().DeleteTenantServicesDelete(t.query); err != nil {
+	//	return err
+	//}
 	logrus.Info("Application related data clean up successfully,serviceID:", t.serviceId)
 	return nil
 }
@@ -234,7 +225,7 @@ func QueryK8sServiceResource(m *Manager) []Resource {
 		}
 
 	}
-
+logrus.Info("serviceList",serviceList)
 	return serviceList
 }
 
@@ -312,7 +303,7 @@ func QueryDeploymentResource(m *Manager) []Resource {
 		}
 
 	}
-
+logrus.Info("DeploymentDelList",DeploymentDelList)
 	return DeploymentDelList
 }
 
@@ -391,7 +382,7 @@ func QueryStatefulResource(m *Manager) []Resource {
 		}
 
 	}
-
+logrus.Info("StatefulSetList",StatefulSetList)
 	return StatefulSetList
 }
 
@@ -466,6 +457,7 @@ func QueryNameSpacesResource(m *Manager) []Resource {
 		NamespacesList = append(NamespacesList, s)
 
 	}
+	logrus.Info("NamespacesList",NamespacesList)
 	return NamespacesList
 }
 
@@ -525,15 +517,11 @@ func QueryRcResource(m *Manager) []Resource {
 	if err != nil {
 		logrus.Error(err)
 	}
-	fmt.Println("ReplicationControllersMap",ReplicationControllersMap)
 	for _, v := range ReplicationControllersList.Items {
-		fmt.Println("命名空间",v.Namespace)
 		val, ok := ReplicationControllersMap[v.Namespace]
 		if ok {
-			fmt.Println("ok:",v.Namespace)
 
 			if InSlice(v.Name, val) {
-				fmt.Println("存在：", v.Name)
 				s := &rcResource{
 					manager:    m,
 					namespaces: v.Namespace,
@@ -541,15 +529,10 @@ func QueryRcResource(m *Manager) []Resource {
 					createTime: time.Now(),
 				}
 				RcList = append(RcList, s)
-			}else {
-				fmt.Println("不存在：",v.Name)
 			}
-		}else {
-			fmt.Println("no",v.Namespace)
 		}
-
 	}
-
+	logrus.Info("RcList",RcList)
 	return RcList
 }
 
@@ -633,7 +616,6 @@ func (m *Manager) PerformTasks() {
 						if err := res.DeleteResources(); err != nil {
 							logrus.Error("failed to delete:", err)
 						}
-						logrus.Info("DeleteResources success!")
 					}
 					m.l.Remove(rs)
 				}
