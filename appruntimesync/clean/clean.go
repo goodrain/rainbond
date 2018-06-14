@@ -14,7 +14,6 @@ import (
 	"os"
 	"strings"
 	"github.com/docker/engine-api/client"
-	"fmt"
 )
 
 //Resource should be clean resource
@@ -92,7 +91,6 @@ func (t *tenantServiceResource) DeleteResources() error {
 
 		}
 
-
 	}
 
 	EventList, err := db.GetManager().ServiceEventDao().GetEventByServiceID(t.serviceId)
@@ -110,9 +108,9 @@ func (t *tenantServiceResource) DeleteResources() error {
 		}
 	}
 
-	//if err := db.GetManager().TenantServiceDeleteDao().DeleteTenantServicesDelete(t.query); err != nil {
-	//	return err
-	//}
+	if err := db.GetManager().TenantServiceDeleteDao().DeleteTenantServicesDelete(t.query); err != nil {
+		return err
+	}
 	logrus.Info("Application related data clean up successfully,serviceID:", t.serviceId)
 	return nil
 }
@@ -211,9 +209,7 @@ func QueryK8sServiceResource(m *Manager) []Resource {
 	if err != nil {
 		logrus.Error(err)
 	}
-	fmt.Println("ServivesMap",ServivesMap)
 	for _, v := range ServicesList.Items {
-		fmt.Println("service",v.Namespace,v.Name)
 		val, ok := ServivesMap[v.Namespace]
 		if ok {
 			if !InSlice(v.Name, val) {
@@ -228,7 +224,7 @@ func QueryK8sServiceResource(m *Manager) []Resource {
 		}
 
 	}
-logrus.Info("serviceList",serviceList)
+	logrus.Info("serviceList", serviceList)
 	return serviceList
 }
 
@@ -306,7 +302,7 @@ func QueryDeploymentResource(m *Manager) []Resource {
 		}
 
 	}
-logrus.Info("DeploymentDelList",DeploymentDelList)
+	logrus.Info("DeploymentDelList", DeploymentDelList)
 	return DeploymentDelList
 }
 
@@ -385,7 +381,7 @@ func QueryStatefulResource(m *Manager) []Resource {
 		}
 
 	}
-logrus.Info("StatefulSetList",StatefulSetList)
+	logrus.Info("StatefulSetList", StatefulSetList)
 	return StatefulSetList
 }
 
@@ -460,7 +456,7 @@ func QueryNameSpacesResource(m *Manager) []Resource {
 		NamespacesList = append(NamespacesList, s)
 
 	}
-	logrus.Info("NamespacesList",NamespacesList)
+	logrus.Info("NamespacesList", NamespacesList)
 	return NamespacesList
 }
 
@@ -535,7 +531,7 @@ func QueryRcResource(m *Manager) []Resource {
 			}
 		}
 	}
-	logrus.Info("RcList",RcList)
+	logrus.Info("RcList", RcList)
 	return RcList
 }
 
@@ -604,7 +600,7 @@ func (m *Manager) CollectingTasks() {
 			}
 		}
 		return nil
-	}, time.Second*20)
+	}, time.Minute*5)
 
 }
 
@@ -627,7 +623,7 @@ func (m *Manager) PerformTasks() {
 			}
 		}
 		return nil
-	}, time.Second*10)
+	}, time.Minute*3)
 }
 
 func (m *Manager) Start() error {
