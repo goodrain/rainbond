@@ -122,11 +122,12 @@ func (c *EventDaoImpl) GetEventByServiceID(serviceID string) ([]*model.ServiceEv
 
 //GetEventByServiceID delete event log
 func (c *EventDaoImpl) DelEventByServiceID(serviceID string) (error) {
-	var result  *model.ServiceEvent
-	if err := c.DB.Where("service_id=?", serviceID).Delete(&result).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			//return messageRaw, nil
-		}
+	var result  []*model.ServiceEvent
+	isNoteExist := c.DB.Where("service_id=?", serviceID).Find(&result).RecordNotFound()
+	if isNoteExist{
+		return nil
+	}
+	if err := c.DB.Where("service_id=?", serviceID).Delete(result).Error;err!= nil{
 		return err
 	}
 	return nil
