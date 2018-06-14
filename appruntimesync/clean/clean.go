@@ -137,7 +137,7 @@ func (t *tenantServiceResource) Type() string {
 	return "tenantService"
 }
 
-func queryTenantServiceResource(m *Manager) []Resource {
+func QueryTenantServiceResource(m *Manager) []Resource {
 	TenantServiceList := make([]Resource, 0, 100)
 	now := time.Now()
 	create_time := now.AddDate(0, 0, -7)
@@ -196,7 +196,7 @@ func (k *k8sServiceResource) Type() string {
 	return "k8sService"
 }
 
-func queryK8sServiceResource(m *Manager) []Resource {
+func QueryK8sServiceResource(m *Manager) []Resource {
 	ServivesMap := make(map[string][]string)
 	serviceList := make([]Resource, 0, 100)
 
@@ -275,7 +275,7 @@ func (d *deploymentResource) Type() string {
 	return "deployment"
 }
 
-func queryDeploymentResource(m *Manager) []Resource {
+func QueryDeploymentResource(m *Manager) []Resource {
 	DeploymentMap := make(map[string][]string)
 	DeploymentDelList := make([]Resource, 0, 100)
 	DeleteList, err := db.GetManager().K8sDeployReplicationDao().GetK8sDeployReplicationByIsDelete("deployment", true)
@@ -354,7 +354,7 @@ func (s *statefulResource) Type() string {
 	return "statefulset"
 }
 
-func queryStatefulResource(m *Manager) []Resource {
+func QueryStatefulResource(m *Manager) []Resource {
 	StatefulSetsMap := make(map[string][]string)
 	StatefulSetList := make([]Resource, 0, 100)
 	DeleteList, err := db.GetManager().K8sDeployReplicationDao().GetK8sDeployReplicationByIsDelete("statefulset", true)
@@ -430,7 +430,7 @@ func (n *nameSpacesResource) Type() string {
 	return "namespaces"
 }
 
-func queryNameSpacesResource(m *Manager) []Resource {
+func QueryNameSpacesResource(m *Manager) []Resource {
 	nameList := make([]string, 0, 200)
 	allList := make([]string, 0, 300)
 	NamespacesList := make([]Resource, 0, 100)
@@ -505,7 +505,7 @@ func (r *rcResource) Type() string {
 	return "replicationcontroller"
 }
 
-func queryRcResource(m *Manager) []Resource {
+func QueryRcResource(m *Manager) []Resource {
 	ReplicationControllersMap := make(map[string][]string)
 	RcList := make([]Resource, 0, 100)
 	DeleteList, err := db.GetManager().K8sDeployReplicationDao().GetK8sDeployReplicationByIsDelete("replicationcontroller", true)
@@ -525,10 +525,14 @@ func queryRcResource(m *Manager) []Resource {
 	if err != nil {
 		logrus.Error(err)
 	}
+	fmt.Println("ReplicationControllersMap",ReplicationControllersMap)
 	for _, v := range ReplicationControllersList.Items {
 		val, ok := ReplicationControllersMap[v.Namespace]
 		if ok {
+			fmt.Println("ok:",v.Namespace)
+
 			if InSlice(v.Name, val) {
+				fmt.Println("存在：", v.Name)
 				s := &rcResource{
 					manager:    m,
 					namespaces: v.Namespace,
@@ -536,7 +540,11 @@ func queryRcResource(m *Manager) []Resource {
 					createTime: time.Now(),
 				}
 				RcList = append(RcList, s)
+			}else {
+				fmt.Println("不存在：",v.Name)
 			}
+		}else {
+			fmt.Println("no",v.Namespace)
 		}
 
 	}
@@ -560,12 +568,12 @@ func NewManager(ctx context.Context, kubeclient *kubernetes.Clientset) (*Manager
 		kubeclient: kubeclient,
 	}
 	queryResource := []func(*Manager) []Resource{
-		queryRcResource,
-		queryNameSpacesResource,
-		queryStatefulResource,
-		queryDeploymentResource,
-		queryK8sServiceResource,
-		queryTenantServiceResource,
+		QueryRcResource,
+		QueryNameSpacesResource,
+		QueryStatefulResource,
+		QueryDeploymentResource,
+		QueryK8sServiceResource,
+		QueryTenantServiceResource,
 	}
 	m.queryResource = queryResource
 	dclient, err := client.NewEnvClient()
@@ -622,10 +630,7 @@ func (m *Manager) PerformTasks() {
 				if res.IsTimeout() {
 					if res.IsClean() {
 						if err := res.DeleteResources(); err != nil {
-							logrus.Error("failed to delete：", err.Error())
-						}else {
-							fmt.Println("成功")
-							break
+							logrus.Error("failed to delete:", err)
 						}
 					}
 					m.l.Remove(rs)
