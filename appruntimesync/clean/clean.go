@@ -14,6 +14,7 @@ import (
 	"os"
 	"strings"
 	"github.com/docker/engine-api/client"
+	"fmt"
 )
 
 //Resource should be clean resource
@@ -210,7 +211,9 @@ func QueryK8sServiceResource(m *Manager) []Resource {
 	if err != nil {
 		logrus.Error(err)
 	}
+	fmt.Println("ServivesMap",ServivesMap)
 	for _, v := range ServicesList.Items {
+		fmt.Println("service",v.Namespace,v.Name)
 		val, ok := ServivesMap[v.Namespace]
 		if ok {
 			if !InSlice(v.Name, val) {
@@ -388,7 +391,7 @@ logrus.Info("StatefulSetList",StatefulSetList)
 
 func (n *nameSpacesResource) IsTimeout() bool {
 	now := time.Now()
-	if now.After(n.createTime.Add(time.Second * 10)) {
+	if now.After(n.createTime.Add(time.Minute * 5)) {
 		return true
 	}
 	return false
