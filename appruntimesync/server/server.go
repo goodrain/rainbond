@@ -62,7 +62,10 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 	statusManager := status.NewManager(ctx, clientset)
 	stopChan := make(chan struct{})
 	podCache := pod.NewCacheManager(clientset)
-	Clean := clean.NewManager(ctx, clientset)
+	Clean,err := clean.NewManager(ctx, clientset)
+	if err!= nil{
+		logrus.Error(err)
+	}
 	arss := &AppRuntimeSyncServer{
 		c:         conf,
 		Ctx:       ctx,

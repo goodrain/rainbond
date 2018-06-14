@@ -409,6 +409,25 @@ func (t *TenantServicesDeleteImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
+func (t *TenantServicesDeleteImpl) GetTenantServicesDeleteByCreateTime(createTime time.Time) ([]*model.TenantServicesDelete, error) {
+	var ServiceDel []*model.TenantServicesDelete
+	if err := t.DB.Where("create_time < ?", createTime).Find(&ServiceDel).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return ServiceDel, nil
+		}
+		return nil,err
+	}
+	return ServiceDel, nil
+}
+
+func (t *TenantServicesDeleteImpl) DeleteTenantServicesDelete(record *model.TenantServicesDelete) error {
+	if err := t.DB.Delete(record).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+
 //TenantServicesPortDaoImpl 租户应用端口操作
 type TenantServicesPortDaoImpl struct {
 	DB *gorm.DB
@@ -1294,4 +1313,3 @@ func (t *ServiceStatusDaoImpl) GetTenantServicesStatus(serviceIDs []string) ([]*
 	}
 	return statuss, nil
 }
-

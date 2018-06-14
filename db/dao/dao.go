@@ -68,6 +68,7 @@ type EventLogDao interface {
 	DeleteServiceLog(serviceID string) error
 	DeleteServiceEventLog(obj *model.EventLogMessage) error
 	GetAllServiceEventLog() ([]*model.EventLogMessage, error)
+	DeleteServiceEventLogByEventId(eventId string) error
 
 }
 
@@ -91,6 +92,8 @@ type TenantServiceDao interface {
 //TenantServiceDeleteDao TenantServiceDeleteDao
 type TenantServiceDeleteDao interface {
 	Dao
+	GetTenantServicesDeleteByCreateTime(createTime time.Time) ([]*model.TenantServicesDelete, error)
+	DeleteTenantServicesDelete(record *model.TenantServicesDelete) error
 }
 
 //TenantServicesPortDao TenantServicesPortDao
@@ -333,6 +336,7 @@ type EventDao interface {
 	GetEventByEventID(eventID string) (*model.ServiceEvent, error)
 	GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEvent, error)
 	GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error)
+	DelEventByServiceID(serviceID string) (error)
 }
 
 //VersionInfoDao VersionInfoDao

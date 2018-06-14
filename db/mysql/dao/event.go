@@ -120,6 +120,18 @@ func (c *EventDaoImpl) GetEventByServiceID(serviceID string) ([]*model.ServiceEv
 	return result, nil
 }
 
+//GetEventByServiceID delete event log
+func (c *EventDaoImpl) DelEventByServiceID(serviceID string) (error) {
+	var result  *model.ServiceEvent
+	if err := c.DB.Where("service_id=?", serviceID).Delete(&result).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			//return messageRaw, nil
+		}
+		return err
+	}
+	return nil
+}
+
 //NotificationEventDaoImpl NotificationEventDaoImpl
 type NotificationEventDaoImpl struct {
 	DB *gorm.DB

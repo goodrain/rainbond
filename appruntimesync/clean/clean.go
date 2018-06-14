@@ -10,6 +10,12 @@ import (
 	"context"
 	"container/list"
 	"k8s.io/client-go/pkg/api/v1"
+	"github.com/goodrain/rainbond/db/model"
+	"os"
+	"strings"
+	"github.com/docker/engine-api/client"
+	"github.com/goodrain/rainbond/builder/sources"
+	"fmt"
 )
 
 //Resource should be clean resource
@@ -21,11 +27,18 @@ type Resource interface {
 	Type() string
 }
 
+type nameSpacesResource struct {
+	manager    *Manager
+	namespaces string
+	id         string
+	createTime time.Time
+}
+
 type tenantServiceResource struct {
 	manager    *Manager
-	id         string
-	namespaces string
+	serviceId  string
 	createTime time.Time
+	query      *model.TenantServicesDelete
 }
 
 type rcResource struct {
@@ -52,6 +65,98 @@ type k8sServiceResource struct {
 	id         string
 	namespaces string
 	createTime time.Time
+}
+
+func (t *tenantServiceResource) IsTimeout() bool {
+	return true
+
+}
+func (t *tenantServiceResource) DeleteResources() error {
+	versionInfoList, err := db.GetManager().VersionInfoDao().GetVersionByServiceID(t.serviceId)
+	if err != nil {
+		return err
+	}
+	for _, v := range versionInfoList {
+		if v.FinalStatus == "success" {
+			if v.DeliveredType == "slug" {
+				if err := os.Remove(v.DeliveredPath); err != nil {
+					if !strings.Contains(err.Error(), "No such file or directory") {
+						return err
+					}
+				}
+				logrus.Info("Clean up deleted application build resources successfully:", v.DeliveredPath)
+			}
+			if v.DeliveredType == "image" {
+				err := sources.ImageRemove(t.manager.dclient, v.DeliveredPath) //remove image
+				if err != nil {
+					if !strings.Contains(err.Error(), "No such image") {
+						return err
+					}
+				}
+				logrus.Info("Clean up deleted application build resources successfully:", v.DeliveredPath)
+
+			}
+		}
+		if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
+			return err
+		}
+
+	}
+
+	EventList, err := db.GetManager().ServiceEventDao().GetEventByServiceID(t.serviceId)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range EventList {
+		err := db.GetManager().EventLogDao().DeleteServiceEventLogByEventId(v.EventID)
+		if err != nil {
+			return err
+		}
+		if err := db.GetManager().ServiceEventDao().DelEventByServiceID(t.serviceId); err != nil {
+			return err
+		}
+	}
+
+	if err := db.GetManager().TenantServiceDeleteDao().DeleteTenantServicesDelete(t.query); err != nil {
+		return err
+	}
+	logrus.Info("Application related data clean up successfully,serviceID:", t.serviceId)
+	return nil
+}
+
+func (t *tenantServiceResource) IsClean() bool {
+	return true
+}
+
+func (t *tenantServiceResource) Name() string {
+	return t.serviceId
+}
+
+func (t *tenantServiceResource) Type() string {
+	return "tenantService"
+}
+
+func queryTenantServiceResource(m *Manager) []Resource {
+	TenantServiceList := make([]Resource, 0, 100)
+	now := time.Now()
+	create_time := now.AddDate(0, 0, -7)
+	serviceDelList, err := db.GetManager().TenantServiceDeleteDao().GetTenantServicesDeleteByCreateTime(create_time)
+	if err != nil {
+		logrus.Error(err)
+	} else {
+
+	}
+	for _, v := range serviceDelList {
+		s := &tenantServiceResource{
+			serviceId:  v.ServiceID,
+			createTime: time.Now(),
+			query:      v,
+			manager:    m,
+		}
+		TenantServiceList = append(TenantServiceList, s)
+	}
+	return TenantServiceList
 }
 
 func (k *k8sServiceResource) IsTimeout() bool {
@@ -290,42 +395,42 @@ func queryStatefulResource(m *Manager) []Resource {
 	return StatefulSetList
 }
 
-func (t *tenantServiceResource) IsTimeout() bool {
+func (n *nameSpacesResource) IsTimeout() bool {
 	now := time.Now()
-	if now.After(t.createTime.Add(time.Minute * 5)) {
+	if now.After(n.createTime.Add(time.Minute * 5)) {
 		return true
 	}
 	return false
 }
 
-func (t *tenantServiceResource) DeleteResources() error {
-	if err := t.manager.kubeclient.Namespaces().Delete(t.namespaces, &meta_v1.DeleteOptions{}); err != nil {
+func (n *nameSpacesResource) DeleteResources() error {
+	if err := n.manager.kubeclient.Namespaces().Delete(n.namespaces, &meta_v1.DeleteOptions{}); err != nil {
 		logrus.Error(err)
 		return err
 	} else {
-		logrus.Info("delete namespaces success：", t.namespaces)
+		logrus.Info("delete namespaces success：", n.namespaces)
 		return nil
 	}
 	return nil
 }
 
-func (t *tenantServiceResource) IsClean() bool {
-	isNotExist := db.GetManager().TenantDao().GetTenantByUUIDIsExist(t.namespaces)
+func (n *nameSpacesResource) IsClean() bool {
+	isNotExist := db.GetManager().TenantDao().GetTenantByUUIDIsExist(n.namespaces)
 	if isNotExist {
 		return true
 	}
 	return false
 }
 
-func (t *tenantServiceResource) Name() string {
-	return t.id
+func (n *nameSpacesResource) Name() string {
+	return n.id
 }
 
-func (t *tenantServiceResource) Type() string {
+func (n *nameSpacesResource) Type() string {
 	return "namespaces"
 }
 
-func queryTenantServiceResource(m *Manager) []Resource {
+func queryNameSpacesResource(m *Manager) []Resource {
 	nameList := make([]string, 0, 200)
 	allList := make([]string, 0, 300)
 	NamespacesList := make([]Resource, 0, 100)
@@ -352,7 +457,7 @@ func queryTenantServiceResource(m *Manager) []Resource {
 
 	diffList := SliceDiff(nameList, allList)
 	for _, v := range diffList {
-		s := &tenantServiceResource{
+		s := &nameSpacesResource{
 			manager:    m,
 			createTime: time.Now(),
 			id:         v,
@@ -446,22 +551,30 @@ type Manager struct {
 	queryResource []func(*Manager) []Resource
 	cancel        context.CancelFunc
 	l             list.List
+	dclient       *client.Client
 }
 
-func NewManager(ctx context.Context, kubeclient *kubernetes.Clientset) *Manager {
+func NewManager(ctx context.Context, kubeclient *kubernetes.Clientset) (*Manager, error) {
 	m := &Manager{
 		ctx:        ctx,
 		kubeclient: kubeclient,
 	}
 	queryResource := []func(*Manager) []Resource{
 		queryRcResource,
-		queryTenantServiceResource,
+		queryNameSpacesResource,
 		queryStatefulResource,
 		queryDeploymentResource,
 		queryK8sServiceResource,
+		queryTenantServiceResource,
 	}
 	m.queryResource = queryResource
-	return m
+	dclient, err := client.NewEnvClient()
+	if err != nil {
+		return nil, err
+	}
+	m.dclient = dclient
+
+	return m, nil
 }
 
 // InSlice checks given string in string slice or not.
@@ -496,7 +609,7 @@ func (m *Manager) CollectingTasks() {
 			}
 		}
 		return nil
-	}, time.Hour*24)
+	}, time.Second*20)
 
 }
 
@@ -509,21 +622,20 @@ func (m *Manager) PerformTasks() {
 				if res.IsTimeout() {
 					if res.IsClean() {
 						if err := res.DeleteResources(); err != nil {
-							logrus.Error(err)
-							m.l.Remove(rs)
-						} else {
-							m.l.Remove(rs)
+							logrus.Error("failed to delete：", err.Error())
+						}else {
+							fmt.Println("成功")
+							break
 						}
-					} else {
-						m.l.Remove(rs)
 					}
+					m.l.Remove(rs)
 				}
 			} else {
 				logrus.Error("Type conversion failed")
 			}
 		}
 		return nil
-	}, time.Hour*12)
+	}, time.Second*10)
 }
 
 func (m *Manager) Start() error {
