@@ -179,7 +179,7 @@ func (k *K8sServiceBuild) BuildOnPort(p int, isOut bool) (*v1.Service, error) {
 //createServiceAnnotations create service annotation
 func (k *K8sServiceBuild) createServiceAnnotations() map[string]string {
 	var annotations = make(map[string]string)
-	if k.service.Replicas > 1 {
+	if k.service.Replicas <= 1 {
 		annotations["rainbond.com/tolerate-unready-endpoints"] = "true"
 	}
 	return annotations
