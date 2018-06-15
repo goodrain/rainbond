@@ -31,9 +31,9 @@ function build() {
 	echo "rbd plugins version:$release_desc"
 	
 	echo "build node"
-    docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/node ./cmd/node
+    docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s -X cmd.version=$(release_desc)'  -o $releasedir/dist/usr/local/bin/node ./cmd/node
 	echo "build grctl"
-	docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o $releasedir/dist/usr/local/bin/grctl ./cmd/grctl
+	docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s -X cmd.version=$(release_desc)'  -o $releasedir/dist/usr/local/bin/grctl ./cmd/grctl
 
 	cd $releasedir/dist/usr/local/
 	tar zcf pkg.tgz `find . -maxdepth 1|sed 1d`
@@ -61,14 +61,14 @@ function build::image() {
 	
 	if [ "$1" = "eventlog" ];then
 		docker build -t goodraim.me/event-build:v1 ${DOCKER_PATH}/build
-		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} goodraim.me/event-build:v1 go build  -ldflags '-w -s'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/eventlog
+		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} goodraim.me/event-build:v1 go build  -ldflags '-w -s -X cmd.version=$(release_desc)'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/eventlog
 	elif [ "$1" = "chaos" ];then
-		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/builder
+		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s -X cmd.version=$(release_desc)'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/builder
 	elif [ "$1" = "monitor" ];then
-		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags "-w -s -extldflags '-static'" -tags 'netgo static_build' -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
+		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags "-w -s -extldflags '-static' -X cmd.version=$(release_desc)" -tags 'netgo static_build' -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
 		#go build -ldflags "-w -s -extldflags '-static'" -tags 'netgo static_build' -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/monitor
 	else
-		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
+		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s -X cmd.version=$(release_desc)'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
 	fi
 	cd  ${DOCKER_PATH}
 	sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
