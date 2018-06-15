@@ -204,8 +204,18 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 	temp := v1.PodTemplateSpec{
 		Spec: podSpec,
 	}
+	temp.Annotations = p.createPodAnnotations()
 	temp.Labels = labels
 	return &temp, nil
+}
+
+//createPodAnnotations create pod annotation
+func (p *PodTemplateSpecBuild) createPodAnnotations() map[string]string {
+	var annotations = make(map[string]string)
+	if p.service.Replicas <= 1 {
+		annotations["rainbond.com/tolerate-unready-endpoints"] = "true"
+	}
+	return annotations
 }
 
 //TODO:
