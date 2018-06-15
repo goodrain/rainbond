@@ -89,6 +89,10 @@ func (t *tenantServiceResource) DeleteResources() error {
 				}
 			}
 
+		} else {
+			if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
+				return err
+			}
 		}
 
 	}
