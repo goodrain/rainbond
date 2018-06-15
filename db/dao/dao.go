@@ -44,6 +44,7 @@ type TenantDao interface {
 	GetTenantByEid(eid string) ([]*model.Tenants, error)
 	GetPagedTenants(offset, len int) ([]*model.Tenants, error)
 	GetTenantIDsByNames(names []string) ([]string, error)
+	GetTenantByUUIDIsExist(uuid string) (bool)
 }
 
 //TenantDao tenant dao
@@ -67,6 +68,7 @@ type EventLogDao interface {
 	DeleteServiceLog(serviceID string) error
 	DeleteServiceEventLog(obj *model.EventLogMessage) error
 	GetAllServiceEventLog() ([]*model.EventLogMessage, error)
+	DeleteServiceEventLogByEventId(eventId string) error
 
 }
 
@@ -90,6 +92,8 @@ type TenantServiceDao interface {
 //TenantServiceDeleteDao TenantServiceDeleteDao
 type TenantServiceDeleteDao interface {
 	Dao
+	GetTenantServicesDeleteByCreateTime(createTime time.Time) ([]*model.TenantServicesDelete, error)
+	DeleteTenantServicesDelete(record *model.TenantServicesDelete) error
 }
 
 //TenantServicesPortDao TenantServicesPortDao
@@ -255,6 +259,8 @@ type K8sServiceDao interface {
 	GetK8sServiceByReplicationIDAndPort(replicationID string, port int, isOut bool) (*model.K8sService, error)
 	DeleteK8sServiceByReplicationIDAndPort(replicationID string, port int, isOut bool) error
 	DeleteK8sServiceByName(k8sServiceName string) error
+	GetAllK8sService() ([]*model.K8sService, error)
+	K8sServiceIsExist(tenantId string, K8sServiceID string) bool
 }
 
 //K8sDeployReplicationDao 部署信息
@@ -271,6 +277,8 @@ type K8sDeployReplicationDao interface {
 	DeleteK8sDeployReplicationByService(serviceID string) error
 	GetReplications() ([]*model.K8sDeployReplication, error)
 	BeachDelete([]uint) error
+	GetK8sDeployReplicationByIsDelete(rcType string, isDelete bool) ([]*model.K8sDeployReplication, error)
+	GetK8sDeployReplicationIsExist(tenantId string, RcType string, RcId string, isDelete bool) (IsExist bool)
 }
 
 //K8sPodDao pod info dao
@@ -328,6 +336,7 @@ type EventDao interface {
 	GetEventByEventID(eventID string) (*model.ServiceEvent, error)
 	GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEvent, error)
 	GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error)
+	DelEventByServiceID(serviceID string) (error)
 }
 
 //VersionInfoDao VersionInfoDao

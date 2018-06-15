@@ -31,6 +31,7 @@ import (
 	"golang.org/x/net/context"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"github.com/goodrain/rainbond/appruntimesync/clean"
 )
 
 //AppRuntimeSyncServer AppRuntimeSyncServer
@@ -42,6 +43,7 @@ type AppRuntimeSyncServer struct {
 	Cancel        context.CancelFunc
 	ClientSet     *kubernetes.Clientset
 	podCache      *pod.CacheManager
+	clean         *clean.Manager
 }
 
 //NewAppRuntimeSyncServer create app runtime sync server
@@ -60,6 +62,10 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 	statusManager := status.NewManager(ctx, clientset)
 	stopChan := make(chan struct{})
 	podCache := pod.NewCacheManager(clientset)
+	Clean,err := clean.NewManager(ctx, clientset)
+	if err!= nil{
+		logrus.Error(err)
+	}
 	arss := &AppRuntimeSyncServer{
 		c:         conf,
 		Ctx:       ctx,
@@ -67,6 +73,7 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 		Cancel:    cancel,
 		ClientSet: clientset,
 		podCache:  podCache,
+		clean:     Clean,
 	}
 	arss.StatusManager = statusManager
 	return arss
@@ -137,6 +144,7 @@ func (a *AppRuntimeSyncServer) Start() error {
 		a.stopChan,
 	)
 	a.podCache.Start()
+	a.clean.Start()
 	logrus.Info("app runtime sync server started...")
 	return nil
 }
@@ -146,4 +154,5 @@ func (a *AppRuntimeSyncServer) Stop() {
 	a.Cancel()
 	close(a.stopChan)
 	a.podCache.Stop()
+	a.clean.Stop()
 }
