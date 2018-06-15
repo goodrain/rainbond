@@ -164,7 +164,6 @@ func (k *k8sServiceResource) IsTimeout() bool {
 
 func (k *k8sServiceResource) DeleteResources() error {
 	if err := k.manager.kubeclient.Services(k.namespaces).Delete(k.id, &meta_v1.DeleteOptions{}); err != nil {
-		logrus.Error(err)
 		return err
 	} else {
 		logrus.Info("delete k8sServiceResource success：", k.id)
@@ -243,7 +242,6 @@ func (d *deploymentResource) IsTimeout() bool {
 
 func (d *deploymentResource) DeleteResources() error {
 	if err := d.manager.kubeclient.AppsV1beta1().Deployments(d.namespaces).Delete(d.id, &meta_v1.DeleteOptions{}); err != nil {
-		logrus.Error(err)
 		return err
 	} else {
 		logrus.Info("delete deployment success：", d.id)
@@ -322,7 +320,6 @@ func (s *statefulResource) IsTimeout() bool {
 func (s *statefulResource) DeleteResources() error {
 
 	if err := s.manager.kubeclient.StatefulSets(s.namespaces).Delete(s.id, &meta_v1.DeleteOptions{}); err != nil {
-		logrus.Error(err)
 		return err
 	} else {
 		logrus.Info("delete statefulset success：", s.id)
@@ -399,7 +396,6 @@ func (n *nameSpacesResource) IsTimeout() bool {
 
 func (n *nameSpacesResource) DeleteResources() error {
 	if err := n.manager.kubeclient.Namespaces().Delete(n.namespaces, &meta_v1.DeleteOptions{}); err != nil {
-		logrus.Error(err)
 		return err
 	} else {
 		logrus.Info("delete namespaces success：", n.namespaces)
@@ -474,7 +470,6 @@ func (r *rcResource) IsTimeout() bool {
 
 func (r *rcResource) DeleteResources() error {
 	if err := r.manager.kubeclient.ReplicationControllers(r.namespaces).Delete(r.id, &meta_v1.DeleteOptions{}); err != nil {
-		logrus.Error(err)
 		return err
 	} else {
 		logrus.Info("delete replicationcontroller success：", r.id)
@@ -617,7 +612,10 @@ func (m *Manager) PerformTasks() {
 				if res.IsTimeout() {
 					if res.IsClean() {
 						if err := res.DeleteResources(); err != nil {
-							logrus.Error("failed to delete:", err)
+							if !strings.Contains(err.Error(), "not found") {
+								logrus.Error("failed to delete:", err)
+							}
+
 						}
 					}
 					m.l.Remove(rs)
