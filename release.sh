@@ -31,9 +31,9 @@ function build() {
 	echo "rbd plugins version:$release_desc"
 	
 	echo "build node"
-    docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s -X cmd.version=$(release_desc)'  -o $releasedir/dist/usr/local/bin/node ./cmd/node
+    docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/node ./cmd/node
 	echo "build grctl"
-	docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags '-w -s -X cmd.version=$(release_desc)'  -o $releasedir/dist/usr/local/bin/grctl ./cmd/grctl
+	docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/grctl ./cmd/grctl
 
 	cd $releasedir/dist/usr/local/
 	tar zcf pkg.tgz `find . -maxdepth 1|sed 1d`
