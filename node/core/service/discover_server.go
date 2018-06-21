@@ -386,6 +386,7 @@ func Duplicate(a interface{}) (ret []interface{}) {
 }
 
 //ToolsGetSourcesEnv rds
+//envName maybe is plugin id
 func (d *DiscoverAction) ToolsGetSourcesEnv(
 	namespace, sourceAlias, envName string) ([]byte, *util.APIHandleError) {
 	k := fmt.Sprintf("/resources/define/%s/%s/%s", namespace, sourceAlias, envName)
