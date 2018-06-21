@@ -241,7 +241,7 @@ type BuildPluginStruct struct {
 			HubPassword string `json:"hub_password"`
 			Namespace   string `json:"namespace"`
 			IsTrust     bool   `json:"is_trust,omitempty"`
-		}
+		} `json:"ImageInfo" validate:"ImageInfo"`
 	}
 }
 
