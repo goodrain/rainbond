@@ -546,9 +546,13 @@ func (t *TenantStruct) BuildVersionIsExist(w http.ResponseWriter, r *http.Reques
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	buildVersion := chi.URLParam(r, "build_version")
 	_, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(buildVersion, serviceID)
-	if err != nil {
+	if err != nil && err!=gorm.ErrRecordNotFound {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get build version status erro, %v", err))
+		return
+	}
+	if err == gorm.ErrRecordNotFound{
 		statusMap["status"] = false
-	} else {
+	}else {
 		statusMap["status"] = true
 	}
 	httputil.ReturnSuccess(r, w, statusMap)
