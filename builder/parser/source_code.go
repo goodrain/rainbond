@@ -349,8 +349,9 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 	for _, cm := range commands {
 		switch cm.Cmd {
 		case "env":
-			if len(cm.Value) == 2 {
-				d.envs[cm.Value[0]] = &Env{Name: cm.Value[0], Value: cm.Value[1]}
+			for i := 0; i < len(cm.Value); i++ {
+				d.envs[cm.Value[i]] = &Env{Name: cm.Value[i], Value: cm.Value[i+1]}
+				i++
 			}
 		case "expose":
 			for _, v := range cm.Value {
