@@ -49,6 +49,7 @@ func (v2 *V2) tenantRouter() chi.Router {
 	r.Post("/", controller.GetManager().Tenant)
 	r.Mount("/{tenant_name}", v2.tenantNameRouter())
 	r.Get("/", controller.GetManager().Tenant)
+	r.Get("/services-count", controller.GetManager().ServicesCount)
 	return r
 }
 
@@ -128,12 +129,12 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Get("/status", controller.GetManager().StatusService)
 	//构建版本列表
 	r.Get("/build-list", controller.GetManager().BuildList)
+	//构建版本操作
 	r.Get("/build-version/{build_version}",controller.GetManager().BuildVersionInfo)
 	r.Delete("/build-version/{build_version}",controller.GetManager().BuildVersionInfo)
 	//应用分享
 	r.Post("/share", controller.GetManager().Share)
 	r.Get("/share/{share_id}", controller.GetManager().ShareResult)
-
 	//应用日志相关
 	r.Post("/log", controller.GetManager().Logs)
 	r.Get("/log-file", controller.GetManager().LogList)
