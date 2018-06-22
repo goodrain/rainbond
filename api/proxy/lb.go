@@ -77,6 +77,16 @@ func (e *EndpointList) Selec(i int) Endpoint {
 	return (*e)[i]
 }
 
+//HaveEndpoint Whether or not there is a endpoint
+func (e *EndpointList) HaveEndpoint(endpoint string) bool {
+	for _, en := range *e {
+		if en.String() == endpoint {
+			return true
+		}
+	}
+	return false
+}
+
 //CreateEndpoints CreateEndpoints
 func CreateEndpoints(endpoints []string) EndpointList {
 	var epl EndpointList
@@ -138,8 +148,13 @@ func (s *SelectBalance) Select(r *http.Request, endpoints EndpointList) Endpoint
 	if r.URL != nil {
 		hostID := r.URL.Query().Get("host_id")
 		if e, ok := s.hostIDMap[hostID]; ok {
-			return Endpoint(e)
+			if endpoints.HaveEndpoint(e) {
+				return Endpoint(e)
+			}
 		}
+	}
+	if len(endpoints) > 0 {
+		return endpoints[0]
 	}
 	return Endpoint(s.hostIDMap["local"])
 }
