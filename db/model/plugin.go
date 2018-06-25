@@ -81,8 +81,8 @@ type TenantPluginBuildVersion struct {
 	DeployVersion   string `gorm:"column:deploy_version;size:32" json:"deploy_version"`
 	PluginID        string `gorm:"column:plugin_id;size:32" json:"plugin_id"`
 	Kind            string `gorm:"column:kind;size:24" json:"kind"`
-	BaseImage       string `gorm:"column:base_image;size:100" json:"base_image"`
-	BuildLocalImage string `gorm:"column:build_local_image;size:100" json:"build_local_image"`
+	BaseImage       string `gorm:"column:base_image;size:200" json:"base_image"`
+	BuildLocalImage string `gorm:"column:build_local_image;size:200" json:"build_local_image"`
 	BuildTime       string `gorm:"column:build_time" json:"build_time"`
 	Repo            string `gorm:"column:repo" json:"repo"`
 	GitURL          string `gorm:"column:git_url" json:"git_url"`
