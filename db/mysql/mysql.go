@@ -217,4 +217,11 @@ func (m *Manager) patchTable() {
 			}
 		}
 	}
+	//set plugin version image name length
+	if err := m.db.Exec("alter table tenant_plugin_build_version modify column base_image varchar(200);").Error; err != nil {
+		logrus.Errorf("alter table tenant_plugin_build_version error %s", err.Error())
+	}
+	if err := m.db.Exec("alter table tenant_plugin_build_version modify column build_local_image varchar(200);").Error; err != nil {
+		logrus.Errorf("alter table tenant_plugin_build_version error %s", err.Error())
+	}
 }

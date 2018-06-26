@@ -40,11 +40,11 @@ Rainbond深度整合基于Kubernetes的容器管理、Service Mesh微服务架�
 
 ## 架构
 
-<img src="./docs/rainbond_architecture.png" href="http://www.rainbond.com/docs/stable/getting-started/architecture.html">
+<img src="https://static.goodrain.com/images/docs/3.6/architecture/architecture.png" href="http://www.rainbond.com/docs/stable/architecture/architecture.html">
 
 ## Roadmap
 
-点击查看Rainbond版本开发计划 [Roadmap](https://github.com/goodrain/rainbond-docs/blob/master/v3.6/roadmap.md)
+点击查看Rainbond版本开发计划 [Roadmap](https://github.com/goodrain/rainbond-docs/blob/master/v3.6/architecture/roadmap.md)
 
 ## 产品图示
 

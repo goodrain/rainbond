@@ -241,6 +241,14 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	d.Runtime = code.CheckRuntime(buildPath, lang)
 	d.memory = getRecommendedMemory(lang)
 	d.Procfile = code.CheckProcfile(buildPath, lang)
+	//handle profile env
+	for k, v := range rbdfileConfig.Envs {
+		d.envs[k] = &Env{Name: k, Value: v}
+	}
+	//handle profile port
+	for _, port := range rbdfileConfig.Ports {
+		d.ports[port.Port] = &Port{ContainerPort: port.Port, Protocol: port.Protocol}
+	}
 	return d.errors
 }
 
@@ -253,6 +261,9 @@ func getRecommendedMemory(lang code.Lang) int {
 		return 512
 	}
 	if lang == code.Nodejs {
+		return 512
+	}
+	if lang == code.PHP {
 		return 512
 	}
 	return 128

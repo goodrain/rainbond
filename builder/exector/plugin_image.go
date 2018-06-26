@@ -116,6 +116,8 @@ func createPluginImageTag(image string, pluginid, version string) string {
 	} else {
 		iName = image
 	}
-	curImage := fmt.Sprintf("goodrain.me/plugin_%s_%s:%s_%s", iName, pluginid, tag, version)
-	return curImage
+	if strings.HasPrefix(iName, "plugin") {
+		return fmt.Sprintf("goodrain.me/%s:%s_%s", iName, pluginid, version)
+	}
+	return fmt.Sprintf("goodrain.me/plugin_%s_%s:%s_%s", iName, pluginid, tag, version)
 }
