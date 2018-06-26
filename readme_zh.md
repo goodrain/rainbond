@@ -44,7 +44,7 @@ Rainbond深度整合基于Kubernetes的容器管理、Service Mesh微服务架�
 
 ## Roadmap
 
-点击查看Rainbond版本开发计划 [Roadmap](https://github.com/goodrain/rainbond-docs/blob/master/v3.6/roadmap.md)
+点击查看Rainbond版本开发计划 [Roadmap](https://github.com/goodrain/rainbond-docs/blob/master/v3.6/architecture/roadmap.md)
 
 ## 产品图示
 
