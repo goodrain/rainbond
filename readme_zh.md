@@ -34,9 +34,9 @@ Rainbond深度整合基于Kubernetes的容器管理、Service Mesh微服务架�
 
 ## 快速开始
 
-1. [安装Rainbond](http://www.rainbond.com/docs/stable/getting-started/pre-install.html)
-2. [创建应用](http://www.rainbond.com/docs/stable/user-app-docs/addapp/addapp-code.html)
-3. [搭建微服务架构](http://www.rainbond.com/docs/stable/user-app-docs/addapp/addapp-cloud_framework.html)
+1. [安装Rainbond](https://www.rainbond.com/docs/stable/getting-started/before-installation.html)
+2. [创建第一个应用](https://www.rainbond.com/docs/stable/user-manual/create-an-app.html)
+3. [搭建ServiceMesh微服务架构](https://www.rainbond.com/docs/stable/microservice/service-mesh/overview.html)
 
 ## 架构
 
