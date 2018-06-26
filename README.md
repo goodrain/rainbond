@@ -43,7 +43,7 @@ Choose Rainbond for the same reasons disruptive companies do: it serve as a easy
 
 ## Architecture
 
-<img src="https://static.goodrain.com/images/docs/3.6/architecture/architecture.png" href="http://www.rainbond.com/docs/stable/overview/architecture.html">
+<img src="https://static.goodrain.com/images/docs/3.6/architecture/architecture.png" href="http://www.rainbond.com/docs/stable/architecture/architecture.html">
 
 ## Roadmap
 
