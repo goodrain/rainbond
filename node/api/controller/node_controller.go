@@ -318,29 +318,51 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 		pod.Name = v.Name
 		pod.Id = serviceID
 
-		lc := v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
-		cpuL += lc
-		lm := v.Spec.Containers[0].Resources.Limits.Memory().Value()
+		ConditionsStatuss := v.Status.Conditions
+		for _,val := range ConditionsStatuss{
+			if val.Type == "Ready"{
+				pod.Status = model.ConditionStatus(val.Status)
+			}
+		}
 
-		memL += lm
 
-		rc := v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
-		cpuR += rc
-		rm := v.Spec.Containers[0].Resources.Requests.Memory().Value()
+		//lc := v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
+		lc := v.Spec.Containers
+		for _,v:=range lc{
+			cpuL += v.Resources.Limits.Cpu().MilliValue()
+		}
 
-		memR += rm
-		pod.CPURequests = strconv.FormatFloat(float64(rc)/float64(1000), 'f', 2, 64)
+		//lm := v.Spec.Containers[0].Resources.Limits.Memory().Value()
+		lm := v.Spec.Containers
+		for _,v:=range lm{
+			memL += v.Resources.Limits.Memory().Value()
+		}
 
-		pod.CPURequestsR = strconv.FormatFloat(float64(rc/10)/float64(capCPU), 'f', 1, 64)
 
-		pod.CPULimits = strconv.FormatFloat(float64(lc)/float64(1000), 'f', 2, 64)
-		pod.CPULimitsR = strconv.FormatFloat(float64(lc/10)/float64(capCPU), 'f', 1, 64)
+		//rc := v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
+		rc := v.Spec.Containers
+		for _,v:=range rc{
+			cpuR+=v.Resources.Requests.Cpu().MilliValue()
+		}
 
-		pod.MemoryRequests = strconv.Itoa(int(rm))
-		pod.MemoryRequestsR = strconv.FormatFloat(float64(rm*100)/float64(capMEM), 'f', 1, 64)
+		//rm := v.Spec.Containers[0].Resources.Requests.Memory().Value()
+		rm := v.Spec.Containers
+		for _,v :=range rm{
+			memR += v.Resources.Requests.Memory().Value()
+		}
+
+		pod.CPURequests = strconv.FormatFloat(float64(cpuR)/float64(1000), 'f', 2, 64)
+
+		pod.CPURequestsR = strconv.FormatFloat(float64(cpuR/10)/float64(capCPU), 'f', 1, 64)
+
+		pod.CPULimits = strconv.FormatFloat(float64(cpuL)/float64(1000), 'f', 2, 64)
+		pod.CPULimitsR = strconv.FormatFloat(float64(cpuL/10)/float64(capCPU), 'f', 1, 64)
+
+		pod.MemoryRequests = strconv.Itoa(int(memR))
+		pod.MemoryRequestsR = strconv.FormatFloat(float64(memR*100)/float64(capMEM), 'f', 1, 64)
 		pod.TenantName = v.Labels["tenant_name"]
-		pod.MemoryLimits = strconv.Itoa(int(lm))
-		pod.MemoryLimitsR = strconv.FormatFloat(float64(lm*100)/float64(capMEM), 'f', 1, 64)
+		pod.MemoryLimits = strconv.Itoa(int(memL))
+		pod.MemoryLimitsR = strconv.FormatFloat(float64(memL*100)/float64(capMEM), 'f', 1, 64)
 
 		pods = append(pods, pod)
 	}
