@@ -181,14 +181,15 @@ func DoRequest(baseAPI, query, queryType, method string, body []byte) ([]byte, i
 
 //Resource 资源
 type ClusterResource struct {
-	Node    int     `json:"node"`
-	Tenant  int     `json:"tenant"`
-	CapCpu  int     `json:"cap_cpu"`
-	CapMem  int     `json:"cap_mem"`
-	ReqCpu  float32 `json:"req_cpu"`
-	ReqMem  int     `json:"req_mem"`
-	CapDisk uint64  `json:"cap_disk"`
-	ReqDisk uint64  `json:"req_disk"`
+	Node    int      `json:"node"`
+	Tenant  int      `json:"tenant"`
+	CapCpu  int      `json:"cap_cpu"`
+	CapMem  int      `json:"cap_mem"`
+	ReqCpu  float32  `json:"req_cpu"`
+	ReqMem  int      `json:"req_mem"`
+	CapDisk uint64   `json:"cap_disk"`
+	ReqDisk uint64   `json:"req_disk"`
+	IpList  []string `json:"ip_list"`
 }
 
 type FirstConfig struct {

@@ -342,6 +342,7 @@ func DiskUsage(path string) (disk DiskStatus) {
 
 func RegionRes(w http.ResponseWriter, r *http.Request) {
 	nodeList := make([]string, 0, 10)
+	IpList := make([]string,0,10)
 	nodes, err := nodeService.GetAllNode()
 	if err != nil {
 		err.Handle(r, w)
@@ -351,10 +352,12 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 	var capMem int64
 	for _, v := range nodes {
 		if v.NodeStatus != nil && v.Unschedulable == false {
+			IpList= append(IpList, v.InternalIP+":node内部ip")
+			IpList= append(IpList, v.ExternalIP+":node外部ip")
 			capCpu += v.NodeStatus.Capacity.Cpu().Value()
 			capMem += v.NodeStatus.Capacity.Memory().Value()
 		} else {
-			nodeList = append(nodeList, v.ID)
+			nodeList = append(nodeList, v.InternalIP)
 		}
 	}
 	ps, _ := k8s.GetAllPods()
@@ -362,9 +365,10 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 	var memR int64 = 0
 	flag := true
 	for _, pv := range ps {
-		nodeName := pv.Spec.NodeName
+		nodeIp := pv.Status.HostIP
+		IpList = append(IpList, nodeIp+":podip")
 		for _, v := range nodeList {
-			if nodeName == v {
+			if nodeIp == v {
 				flag = false
 			}
 		}
@@ -388,6 +392,7 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 	result.Tenant = 0
 	result.CapDisk = disk.All
 	result.ReqDisk = disk.Used
+	result.IpList = IpList
 
 	api.ReturnSuccess(r, w, result)
 }
