@@ -342,7 +342,6 @@ func DiskUsage(path string) (disk DiskStatus) {
 
 func RegionRes(w http.ResponseWriter, r *http.Request) {
 	nodeList := make([]string, 0, 10)
-	IpList := make([]string,0,10)
 	nodes, err := nodeService.GetAllNode()
 	if err != nil {
 		err.Handle(r, w)
