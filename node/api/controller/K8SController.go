@@ -352,8 +352,6 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 	var capMem int64
 	for _, v := range nodes {
 		if v.NodeStatus != nil && v.Unschedulable == false {
-			IpList= append(IpList, v.InternalIP+":node内部ip")
-			IpList= append(IpList, v.ExternalIP+":node外部ip")
 			capCpu += v.NodeStatus.Capacity.Cpu().Value()
 			capMem += v.NodeStatus.Capacity.Memory().Value()
 		} else {
@@ -363,10 +361,9 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 	ps, _ := k8s.GetAllPods()
 	var cpuR int64 = 0
 	var memR int64 = 0
-	flag := true
 	for _, pv := range ps {
+		flag := true
 		nodeIp := pv.Status.HostIP
-		IpList = append(IpList, nodeIp+":podip")
 		for _, v := range nodeList {
 			if nodeIp == v {
 				flag = false
@@ -392,7 +389,6 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 	result.Tenant = 0
 	result.CapDisk = disk.All
 	result.ReqDisk = disk.Used
-	result.IpList = IpList
 
 	api.ReturnSuccess(r, w, result)
 }
