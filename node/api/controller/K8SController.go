@@ -321,7 +321,6 @@ func CapRes(w http.ResponseWriter, r *http.Request) {
 	api.ReturnSuccess(r, w, result)
 }
 
-
 type DiskStatus struct {
 	All  uint64 `json:"all"`
 	Used uint64 `json:"used"`
@@ -342,7 +341,7 @@ func DiskUsage(path string) (disk DiskStatus) {
 }
 
 func RegionRes(w http.ResponseWriter, r *http.Request) {
-	nodeList := make([]string,0,5)
+	nodeList := make([]string, 0, 10)
 	nodes, err := nodeService.GetAllNode()
 	if err != nil {
 		err.Handle(r, w)
@@ -352,26 +351,33 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 	var capMem int64
 	for _, v := range nodes {
 		if v.NodeStatus != nil && v.Unschedulable == false {
-			nodeList = append(nodeList,v.ID)
-			nodeList = append(nodeList, v.HostName)
 			capCpu += v.NodeStatus.Capacity.Cpu().Value()
 			capMem += v.NodeStatus.Capacity.Memory().Value()
+		} else {
+			nodeList = append(nodeList, v.ID)
 		}
 	}
 	ps, _ := k8s.GetAllPods()
 	var cpuR int64 = 0
 	var memR int64 = 0
+	flag := true
 	for _, pv := range ps {
-		s := pv.Spec.NodeName
-		nodeList = append(nodeList, s)
-		for _, c := range pv.Spec.Containers {
-			rc := c.Resources.Requests.Cpu().MilliValue()
-			rm := c.Resources.Requests.Memory().Value()
-			cpuR += rc
-			memR += rm
+		nodeName := pv.Spec.NodeName
+		for _, v := range nodeList {
+			if nodeName == v {
+				flag = false
+			}
+		}
+		if flag {
+			for _, c := range pv.Spec.Containers {
+				rc := c.Resources.Requests.Cpu().MilliValue()
+				rm := c.Resources.Requests.Memory().Value()
+				cpuR += rc
+				memR += rm
+			}
 		}
 	}
-	disk :=DiskUsage("/grdata")
+	disk := DiskUsage("/grdata")
 	podMemRequestMB := memR / 1024 / 1024
 	result := new(model.ClusterResource)
 	result.CapCpu = int(capCpu)
@@ -382,8 +388,6 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 	result.Tenant = 0
 	result.CapDisk = disk.All
 	result.ReqDisk = disk.Used
-	result.NodeName = nodeList
-
 
 	api.ReturnSuccess(r, w, result)
 }
