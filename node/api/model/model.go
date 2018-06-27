@@ -189,6 +189,7 @@ type ClusterResource struct {
 	ReqMem  int     `json:"req_mem"`
 	CapDisk uint64  `json:"cap_disk"`
 	ReqDisk uint64  `json:"req_disk"`
+	NodeName []string  `json:"node_name"`
 }
 
 type FirstConfig struct {
