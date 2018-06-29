@@ -229,6 +229,11 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 			}
 			err := util.Rename(tmpDir, util.GetParentDirectory(app.Service.HostPath))
 			if err != nil {
+				if strings.Contains(err.Error(), "file exists") {
+					if err := util.MergeDir(tmpDir, util.GetParentDirectory(app.Service.HostPath)); err != nil {
+						return err
+					}
+				}
 				return err
 			}
 			if err := os.Chmod(app.Service.HostPath, 0777); err != nil {

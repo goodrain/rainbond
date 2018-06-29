@@ -74,3 +74,9 @@ func TestGetDirList(t *testing.T) {
 	}
 	t.Log(list)
 }
+
+func TestMergeDir(t *testing.T) {
+	if err := MergeDir("/tmp/ctr-944254844/", "/tmp/cache"); err != nil {
+		t.Fatal(err)
+	}
+}
