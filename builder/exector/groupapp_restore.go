@@ -264,7 +264,7 @@ func (b *BackupAPPRestore) downloadSlug(backup *dbmodel.AppBackup, app *RegionSe
 		dstDir := fmt.Sprintf("%s/backup/%s_%s/app_%s/%s.tgz", b.SlugInfo.Namespace, backup.GroupID, backup.Version, b.getOldServiceID(app.ServiceID), version.BuildVersion)
 		if err := sFTPClient.DownloadFile(dstDir, version.DeliveredPath, b.Logger); err != nil {
 			b.Logger.Error(util.Translation("down slug file from sftp server error"), map[string]string{"step": "restore_builder", "status": "failure"})
-			logrus.Errorf("down  slug file error when backup app , %s", err.Error())
+			logrus.Errorf("down %s  slug file error when backup app , %s", dstDir, err.Error())
 			return err
 		}
 	} else {
