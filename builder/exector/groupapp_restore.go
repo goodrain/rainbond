@@ -186,8 +186,11 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 				dstDir := fmt.Sprintf("%s/data_%s/%s.zip", b.cacheDir, b.getOldServiceID(app.ServiceID), strings.Replace(volume.VolumeName, "/", "", -1))
 				tmpDir := fmt.Sprintf("/grdata/tmp/%s_%d", volume.ServiceID, volume.ID)
 				if err := util.Unzip(dstDir, tmpDir); err != nil {
-					logrus.Errorf("restore service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
-					return err
+					if !strings.Contains(err.Error(), "no such file") {
+						logrus.Errorf("restore service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
+						return err
+					}
+					os.MkdirAll(tmpDir, 0777)
 				}
 				//if app type is statefulset, change pod hostpath
 				if b.getServiceType(app.ServiceLabel) == util.StatefulServiceType {
