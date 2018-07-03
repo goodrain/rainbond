@@ -23,15 +23,15 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/cmd/worker/option"
+	"github.com/goodrain/rainbond/appruntimesync/clean"
 	"github.com/goodrain/rainbond/appruntimesync/pb"
 	"github.com/goodrain/rainbond/appruntimesync/pod"
 	"github.com/goodrain/rainbond/appruntimesync/source"
 	"github.com/goodrain/rainbond/appruntimesync/status"
+	"github.com/goodrain/rainbond/cmd/worker/option"
 	"golang.org/x/net/context"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"github.com/goodrain/rainbond/appruntimesync/clean"
 )
 
 //AppRuntimeSyncServer AppRuntimeSyncServer
@@ -54,6 +54,8 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 	if err != nil {
 		logrus.Error(err)
 	}
+	config.QPS = 50
+	config.Burst = 100
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		logrus.Error(err)
@@ -62,8 +64,8 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 	statusManager := status.NewManager(ctx, clientset)
 	stopChan := make(chan struct{})
 	podCache := pod.NewCacheManager(clientset)
-	Clean,err := clean.NewManager(ctx, clientset)
-	if err!= nil{
+	Clean, err := clean.NewManager(ctx, clientset)
+	if err != nil {
 		logrus.Error(err)
 	}
 	arss := &AppRuntimeSyncServer{

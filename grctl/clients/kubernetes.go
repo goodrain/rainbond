@@ -42,6 +42,8 @@ func InitClient(kubeconfig string) error {
 	if err != nil {
 		panic(err.Error())
 	}
+	config.QPS = 50
+	config.Burst = 100
 	K8SClient, err = kubernetes.NewForConfig(config)
 	if err != nil {
 		logrus.Error("Create kubernetes client error.", err.Error())
