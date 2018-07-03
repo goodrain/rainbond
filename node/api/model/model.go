@@ -39,53 +39,53 @@ type Resource struct {
 }
 type NodePodResource struct {
 	AllocatedResources `json:"allocatedresources"`
-	Resource `json:"allocatable"`
+	Resource           `json:"allocatable"`
 }
 type InitStatus struct {
-	Status int `json:"status"`
+	Status   int    `json:"status"`
 	StatusCN string `json:"cn"`
-	HostID string `json:"uuid"`
+	HostID   string `json:"uuid"`
 }
 type InstallStatus struct {
-	Status int `json:"status"`
-	StatusCN string `json:"cn"`
-	Tasks []*ExecedTask `json:"tasks"`
+	Status   int           `json:"status"`
+	StatusCN string        `json:"cn"`
+	Tasks    []*ExecedTask `json:"tasks"`
 }
 type AllocatedResources struct {
-	CPURequests int64
-	CPULimits int64
-	MemoryRequests int64
-	MemoryLimits int64
+	CPURequests     int64
+	CPULimits       int64
+	MemoryRequests  int64
+	MemoryLimits    int64
 	MemoryRequestsR string
-	MemoryLimitsR string
-	CPURequestsR string
-	CPULimitsR string
-
+	MemoryLimitsR   string
+	CPURequestsR    string
+	CPULimitsR      string
 }
 type ExecedTask struct {
-	ID string `json:"id"`
-	Seq int `json:"seq"`
-	Desc string `json:"desc"`
-	Status string `json:"status"`
-	CompleteStatus string `json:"complete_status"`
-	ErrorMsg string `json:"err_msg"`
-	Depends []string `json:"dep"`
-	Next []string `json:"next"`
+	ID             string   `json:"id"`
+	Seq            int      `json:"seq"`
+	Desc           string   `json:"desc"`
+	Status         string   `json:"status"`
+	CompleteStatus string   `json:"complete_status"`
+	ErrorMsg       string   `json:"err_msg"`
+	Depends        []string `json:"dep"`
+	Next           []string `json:"next"`
 }
 type Prome struct {
-	Status string `json:"status"`
-	Data PromeData `json:"data"`
+	Status string    `json:"status"`
+	Data   PromeData `json:"data"`
 }
 type PromeData struct {
-	ResultType string `json:"resultType"`
-	Result []*PromeResultCore `json:"result"`
+	ResultType string             `json:"resultType"`
+	Result     []*PromeResultCore `json:"result"`
 }
 
 type PromeResultCore struct {
 	Metric map[string]string `json:"metric"`
-	Value []interface{} `json:"value"`
-	Values []interface{} `json:"values"`
+	Value  []interface{}     `json:"value"`
+	Values []interface{}     `json:"values"`
 }
+
 //swagger:parameters createToken
 type Expr struct {
 	Body struct {
@@ -98,7 +98,7 @@ type Expr struct {
 
 type PrometheusInterface interface {
 	Query(query string) *Prome
-	QueryRange(query string,start,end,step string) *Prome
+	QueryRange(query string, start, end, step string) *Prome
 }
 
 type PrometheusAPI struct {
@@ -106,60 +106,61 @@ type PrometheusAPI struct {
 }
 
 //Get Get
-func (s *PrometheusAPI) Query(query string) (*Prome,*utils.APIHandleError) {
-	resp, code, err := DoRequest(s.API,query,"query", "GET", nil)
+func (s *PrometheusAPI) Query(query string) (*Prome, *utils.APIHandleError) {
+	resp, code, err := DoRequest(s.API, query, "query", "GET", nil)
 	if err != nil {
-		return nil,utils.CreateAPIHandleError(400,err)
+		return nil, utils.CreateAPIHandleError(400, err)
 	}
-	if code==422 {
-		return nil,utils.CreateAPIHandleError(422,fmt.Errorf("unprocessable entity,expression %s can't be executed",query))
+	if code == 422 {
+		return nil, utils.CreateAPIHandleError(422, fmt.Errorf("unprocessable entity,expression %s can't be executed", query))
 	}
-	if code==400 {
-		return nil,utils.CreateAPIHandleError(400,fmt.Errorf("bad request,error to request query %s",query))
+	if code == 400 {
+		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("bad request,error to request query %s", query))
 	}
-	if code==503 {
-		return nil,utils.CreateAPIHandleError(503,fmt.Errorf("service unavailable"))
+	if code == 503 {
+		return nil, utils.CreateAPIHandleError(503, fmt.Errorf("service unavailable"))
 	}
 	var prome Prome
-	err=ffjson.Unmarshal(resp,&prome)
+	err = ffjson.Unmarshal(resp, &prome)
 	if err != nil {
-		return nil,utils.CreateAPIHandleError(500,err)
+		return nil, utils.CreateAPIHandleError(500, err)
 	}
-	return &prome,nil
+	return &prome, nil
 }
+
 //Get Get
-func (s *PrometheusAPI) QueryRange(query string,start,end,step string) (*Prome,*utils.APIHandleError) {
+func (s *PrometheusAPI) QueryRange(query string, start, end, step string) (*Prome, *utils.APIHandleError) {
 	//logrus.Infof("prometheus api is %s",s.API)
-	uri:=fmt.Sprintf("%v&start=%v&end=%v&step=%v",query,start,end,step)
-	resp, code, err := DoRequest(s.API,uri,"query_range", "GET", nil)
+	uri := fmt.Sprintf("%v&start=%v&end=%v&step=%v", query, start, end, step)
+	resp, code, err := DoRequest(s.API, uri, "query_range", "GET", nil)
 	if err != nil {
-		return nil,utils.CreateAPIHandleError(400,err)
+		return nil, utils.CreateAPIHandleError(400, err)
 	}
-	if code==422 {
-		return nil,utils.CreateAPIHandleError(422,fmt.Errorf("unprocessable entity,expression %s can't be executed",query))
+	if code == 422 {
+		return nil, utils.CreateAPIHandleError(422, fmt.Errorf("unprocessable entity,expression %s can't be executed", query))
 	}
-	if code==400 {
-		return nil,utils.CreateAPIHandleError(400,fmt.Errorf("bad request,error to request query %s",query))
+	if code == 400 {
+		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("bad request,error to request query %s", query))
 	}
-	if code==503 {
-		return nil,utils.CreateAPIHandleError(503,fmt.Errorf("service unavailable"))
+	if code == 503 {
+		return nil, utils.CreateAPIHandleError(503, fmt.Errorf("service unavailable"))
 	}
 	var prome Prome
-	err=ffjson.Unmarshal(resp,&prome)
+	err = ffjson.Unmarshal(resp, &prome)
 	if err != nil {
-		return nil,utils.CreateAPIHandleError(500,err)
+		return nil, utils.CreateAPIHandleError(500, err)
 	}
-	return &prome,nil
+	return &prome, nil
 }
-func DoRequest(baseAPI,query,queryType, method string, body []byte) ([]byte, int, error) {
-	api:=baseAPI+"/api/v1/"+queryType+"?"
-	query="query="+query
-	query=strings.Replace(query,"+","%2B",-1)
-	val,err:=url2.ParseQuery(query)
+func DoRequest(baseAPI, query, queryType, method string, body []byte) ([]byte, int, error) {
+	api := baseAPI + "/api/v1/" + queryType + "?"
+	query = "query=" + query
+	query = strings.Replace(query, "+", "%2B", -1)
+	val, err := url2.ParseQuery(query)
 	if err != nil {
-		return nil,0,err
+		return nil, 0, err
 	}
-	encoded:=val.Encode()
+	encoded := val.Encode()
 	//logrus.Infof("uri is %s",api+encoded)
 	request, err := http.NewRequest(method, api+encoded, nil)
 	if err != nil {
@@ -180,12 +181,14 @@ func DoRequest(baseAPI,query,queryType, method string, body []byte) ([]byte, int
 
 //Resource 资源
 type ClusterResource struct {
-	Node   int     `json:"node"`
-	Tenant int     `json:"tenant"`
-	CapCpu int     `json:"cap_cpu"`
-	CapMem int     `json:"cap_mem"`
-	ReqCpu float32 `json:"req_cpu"`
-	ReqMem int     `json:"req_mem"`
+	Node    int      `json:"node"`
+	Tenant  int      `json:"tenant"`
+	CapCpu  int      `json:"cap_cpu"`
+	CapMem  int      `json:"cap_mem"`
+	ReqCpu  float32  `json:"req_cpu"`
+	ReqMem  int      `json:"req_mem"`
+	CapDisk uint64   `json:"cap_disk"`
+	ReqDisk uint64   `json:"req_disk"`
 }
 
 type FirstConfig struct {
@@ -400,18 +403,19 @@ type ResponseBody struct {
 	Body  Body   `json:"body,omitempty"`
 }
 type Pods struct {
-	Namespace       string `json:"namespace"`
-	Id              string `json:"id"`
-	Name            string `json:"name"`
-	TenantName      string `json:"tenant_name"`
-	CPURequests     string `json:"cpurequest"`
-	CPURequestsR    string `json:"cpurequestr"`
-	CPULimits       string `json:"cpulimits"`
-	CPULimitsR      string `json:"cpulimitsr"`
-	MemoryRequests  string `json:"memoryrequests"`
-	MemoryRequestsR string `json:"memoryrequestsr"`
-	MemoryLimits    string `json:"memorylimits"`
-	MemoryLimitsR   string `json:"memorylimitsr"`
+	Namespace       string          `json:"namespace"`
+	Id              string          `json:"id"`
+	Name            string          `json:"name"`
+	TenantName      string          `json:"tenant_name"`
+	CPURequests     string          `json:"cpurequest"`
+	CPURequestsR    string          `json:"cpurequestr"`
+	CPULimits       string          `json:"cpulimits"`
+	CPULimitsR      string          `json:"cpulimitsr"`
+	MemoryRequests  string          `json:"memoryrequests"`
+	MemoryRequestsR string          `json:"memoryrequestsr"`
+	MemoryLimits    string          `json:"memorylimits"`
+	MemoryLimitsR   string          `json:"memorylimitsr"`
+	Status          ConditionStatus `json:"status"`
 }
 
 //NodeDetails NodeDetails

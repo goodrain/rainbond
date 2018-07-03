@@ -37,6 +37,7 @@ type TenantInterface interface {
 	SingleTenantResources(w http.ResponseWriter, r *http.Request)
 	GetSupportProtocols(w http.ResponseWriter, r *http.Request)
 	TransPlugins(w http.ResponseWriter, r *http.Request)
+	ServicesCount(w http.ResponseWriter, r *http.Request)
 }
 
 //ServiceInterface ServiceInterface
@@ -66,6 +67,7 @@ type ServiceInterface interface {
 	NodeLabel(w http.ResponseWriter, r *http.Request)
 	Share(w http.ResponseWriter, r *http.Request)
 	ShareResult(w http.ResponseWriter, r *http.Request)
+	BuildVersionInfo(w http.ResponseWriter, r *http.Request)
 }
 
 //EntranceInterface EntranceInterface

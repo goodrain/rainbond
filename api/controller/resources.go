@@ -42,6 +42,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/renstorm/fuzzysearch/fuzzy"
+	"github.com/goodrain/rainbond/db"
 )
 
 //V2Routes v2Routes
@@ -496,6 +497,26 @@ func (t *TenantStruct) DeleteTenant(w http.ResponseWriter, r *http.Request) {
 //UpdateTenant UpdateTenant
 func (t *TenantStruct) UpdateTenant(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("update tenant"))
+}
+
+//Get all apps and status
+func (t *TenantStruct) ServicesCount(w http.ResponseWriter, r *http.Request) {
+	ServicesInfoList := make([]*api_model.StatusList,0,300)
+	ServiceList,err := db.GetManager().TenantServiceDao().GetAllServicesID()
+	if err!= nil{
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("select service error, %v", err))
+		return
+	}
+	for _,v :=range ServiceList{
+		statusList, err := handler.GetServiceManager().GetStatus(v.ServiceID)
+		if err != nil {
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("get service list error,%v", err))
+			return
+		}
+		ServicesInfoList = append(ServicesInfoList, statusList)
+
+	}
+	httputil.ReturnSuccess(r, w, ServicesInfoList)
 }
 
 //ServicesInfo GetServiceInfo

@@ -145,6 +145,18 @@ func (t *TenantServicesDaoImpl) GetAllServices() ([]*model.TenantServices, error
 	return services, nil
 }
 
+func (t *TenantServicesDaoImpl) GetAllServicesID() ([]*model.TenantServices, error) {
+	var services []*model.TenantServices
+	if err := t.DB.Select("service_id,service_alias,tenant_id").Find(&services).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return services, nil
+		}
+		return nil, err
+	}
+	return services, nil
+}
+
+
 //AddModel 添加租户应用
 func (t *TenantServicesDaoImpl) AddModel(mo model.Interface) error {
 	service := mo.(*model.TenantServices)
