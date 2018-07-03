@@ -544,10 +544,11 @@ type Manager struct {
 	dclient       *client.Client
 }
 
-func NewManager(ctx context.Context, kubeclient *kubernetes.Clientset) (*Manager, error) {
+func NewManager(ctx context.Context, cancel context.CancelFunc, kubeclient *kubernetes.Clientset) (*Manager, error) {
 	m := &Manager{
 		ctx:        ctx,
 		kubeclient: kubeclient,
+		cancel:     cancel,
 	}
 	queryResource := []func(*Manager) []Resource{
 		QueryRcResource,
