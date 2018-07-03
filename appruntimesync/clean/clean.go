@@ -1,19 +1,20 @@
 package clean
 
 import (
-	"k8s.io/client-go/kubernetes"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/db"
-	"time"
-	"github.com/goodrain/rainbond/util"
-	"context"
 	"container/list"
-	"k8s.io/client-go/pkg/api/v1"
-	"github.com/goodrain/rainbond/db/model"
+	"context"
 	"os"
 	"strings"
+	"time"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/engine-api/client"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/util"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/v1"
 )
 
 //Resource should be clean resource
@@ -539,7 +540,6 @@ type Manager struct {
 	kubeclient    *kubernetes.Clientset
 	waiting       []Resource
 	queryResource []func(*Manager) []Resource
-	cancel        context.CancelFunc
 	l             list.List
 	dclient       *client.Client
 }
@@ -637,6 +637,5 @@ func (m *Manager) Start() error {
 }
 func (m *Manager) Stop() error {
 	logrus.Info("CleanResource is stoping.")
-	m.cancel()
 	return nil
 }
