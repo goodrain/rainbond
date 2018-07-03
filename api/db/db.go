@@ -124,6 +124,8 @@ func (k *K8SManager) NewKubeConnection() (*kubernetes.Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
+	conf.QPS = 50
+	conf.Burst = 100
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(conf)
 	if err != nil {

@@ -161,6 +161,7 @@ func (m *Manager) patchTable() {
 				"/v2/resources":  "server_source",
 				"/v2/builder":    "server_source",
 				"/v2/tenants":    "server_source",
+				"/v2/app":        "server_source",
 				"/api/v1":        "server_source",
 				"/v2/nodes":      "node_manager",
 				"/v2/job":        "node_manager",

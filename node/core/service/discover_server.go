@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	api_model "github.com/goodrain/rainbond/api/model"
@@ -171,7 +172,8 @@ func (d *DiscoverAction) DiscoverClusters(
 // handle kubernetes inner service
 func (d *DiscoverAction) upstreamClusters(serviceAlias, namespace string, dependsServices []*api_model.BaseService) (cdsClusters envoyv1.Clusters, err *util.APIHandleError) {
 	var portMap = make(map[int32]int)
-	for _, destService := range dependsServices {
+	for i := range dependsServices {
+		destService := dependsServices[i]
 		destServiceAlias := destService.DependServiceAlias
 		labelname := fmt.Sprintf("name=%sService", destServiceAlias)
 		services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
@@ -222,7 +224,8 @@ func (d *DiscoverAction) upstreamClusters(serviceAlias, namespace string, depend
 //downstreamClusters handle app self cluster
 //only local port
 func (d *DiscoverAction) downstreamClusters(serviceAlias, namespace string, ports []*api_model.BasePort) (cdsClusters envoyv1.Clusters, err *util.APIHandleError) {
-	for _, port := range ports {
+	for i := range ports {
+		port := ports[i]
 		localhost := fmt.Sprintf("tcp://127.0.0.1:%d", port.Port)
 		pcds := &envoyv1.Cluster{
 			Name:             fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
@@ -284,13 +287,16 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 	var vhL []*envoyv1.VirtualHost
 	var ldsL envoyv1.Listeners
 	var portMap = make(map[int32]int, 0)
-	for _, destService := range dependsServices {
+	for i := range dependsServices {
+		destService := dependsServices[i]
 		destServiceAlias := destService.DependServiceAlias
 		labelname := fmt.Sprintf("name=%sService", destService.DependServiceAlias)
+		start := time.Now()
 		services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
 		}
+		fmt.Printf("get %s service cost time %s \n", destService.DependServiceAlias, time.Now().Sub(start).String())
 		if len(services.Items) == 0 {
 			logrus.Debugf("inner endpoints items length is 0, continue")
 			continue
@@ -351,6 +357,12 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 	// create common http listener
 	if len(vhL) != 0 {
 		newVHL := envoyv1.UniqVirtualHost(vhL)
+		for i, lds := range ldsL {
+			if lds.Address == "tcp://127.0.0.1:80" {
+				ldsL = append(ldsL[:i], ldsL[i+1:]...)
+				break
+			}
+		}
 		plds := envoyv1.CreateHTTPCommonListener(fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias), newVHL...)
 		ldsL = append(ldsL, plds)
 	}
@@ -361,7 +373,8 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 func (d *DiscoverAction) downstreamListener(serviceAlias, namespace string, ports []*api_model.BasePort) (envoyv1.Listeners, *util.APIHandleError) {
 	var ldsL envoyv1.Listeners
 	var portMap = make(map[int32]int, 0)
-	for _, p := range ports {
+	for i := range ports {
+		p := ports[i]
 		port := int32(p.Port)
 		clusterName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
 		if _, ok := portMap[port]; !ok {

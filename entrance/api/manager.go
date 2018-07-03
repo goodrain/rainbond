@@ -72,6 +72,8 @@ func NewManager(c option.Config, coreManager core.Manager, readStore store.ReadS
 	if err != nil {
 		logrus.Error(err)
 	}
+	conf.QPS = 50
+	conf.Burst = 100
 	clientset, err := kubernetes.NewForConfig(conf)
 	if err != nil {
 		logrus.Error(err)

@@ -19,16 +19,17 @@
 package source
 
 import (
-	"github.com/goodrain/rainbond/cmd/entrance/option"
-	"github.com/goodrain/rainbond/entrance/core"
-	"github.com/goodrain/rainbond/entrance/core/object"
-	"github.com/goodrain/rainbond/entrance/source/config"
 	"bytes"
 	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/cmd/entrance/option"
+	"github.com/goodrain/rainbond/entrance/core"
+	"github.com/goodrain/rainbond/entrance/core/object"
+	"github.com/goodrain/rainbond/entrance/source/config"
 
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -62,6 +63,8 @@ func NewSourceManager(c option.Config, coreManager core.Manager, errChan chan er
 	if err != nil {
 		logrus.Error(err)
 	}
+	conf.QPS = 50
+	conf.Burst = 100
 	clientset, err := kubernetes.NewForConfig(conf)
 	if err != nil {
 		logrus.Error(err)

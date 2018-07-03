@@ -186,8 +186,11 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 				dstDir := fmt.Sprintf("%s/data_%s/%s.zip", b.cacheDir, b.getOldServiceID(app.ServiceID), strings.Replace(volume.VolumeName, "/", "", -1))
 				tmpDir := fmt.Sprintf("/grdata/tmp/%s_%d", volume.ServiceID, volume.ID)
 				if err := util.Unzip(dstDir, tmpDir); err != nil {
-					logrus.Errorf("restore service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
-					return err
+					if !strings.Contains(err.Error(), "no such file") {
+						logrus.Errorf("restore service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
+						return err
+					}
+					os.MkdirAll(tmpDir, 0777)
 				}
 				//if app type is statefulset, change pod hostpath
 				if b.getServiceType(app.ServiceLabel) == util.StatefulServiceType {
@@ -229,6 +232,11 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 			}
 			err := util.Rename(tmpDir, util.GetParentDirectory(app.Service.HostPath))
 			if err != nil {
+				if strings.Contains(err.Error(), "file exists") {
+					if err := util.MergeDir(tmpDir, util.GetParentDirectory(app.Service.HostPath)); err != nil {
+						return err
+					}
+				}
 				return err
 			}
 			if err := os.Chmod(app.Service.HostPath, 0777); err != nil {
@@ -256,10 +264,10 @@ func (b *BackupAPPRestore) downloadSlug(backup *dbmodel.AppBackup, app *RegionSe
 			return err
 		}
 		defer sFTPClient.Close()
-		dstDir := fmt.Sprintf("%s/backup/%s_%s/app_%s/%s.tgz", b.SlugInfo.Namespace, backup.GroupID, backup.Version, b.getOldServiceID(app.ServiceID), version.BuildVersion)
+		dstDir := fmt.Sprintf("%s/app_%s/%s.tgz", filepath.Dir(backup.SourceDir), b.getOldServiceID(app.ServiceID), version.BuildVersion)
 		if err := sFTPClient.DownloadFile(dstDir, version.DeliveredPath, b.Logger); err != nil {
 			b.Logger.Error(util.Translation("down slug file from sftp server error"), map[string]string{"step": "restore_builder", "status": "failure"})
-			logrus.Errorf("down  slug file error when backup app , %s", err.Error())
+			logrus.Errorf("down %s slug file error when backup app , %s", dstDir, err.Error())
 			return err
 		}
 	} else {

@@ -513,6 +513,20 @@ func Rename(old, new string) error {
 	return os.Rename(old, new)
 }
 
+//MergeDir MergeDir
+func MergeDir(fromdir, todir string) error {
+	files, err := ioutil.ReadDir(fromdir)
+	if err != nil {
+		return err
+	}
+	for _, f := range files {
+		if err := os.Rename(path.Join(fromdir, f.Name()), path.Join(todir, f.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 //CreateVersionByTime create version number
 func CreateVersionByTime() string {
 	now := time.Now()

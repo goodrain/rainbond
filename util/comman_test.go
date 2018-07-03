@@ -19,6 +19,7 @@
 package util
 
 import (
+	"path/filepath"
 	"runtime"
 	"testing"
 )
@@ -73,4 +74,11 @@ func TestGetDirList(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(list)
+}
+
+func TestMergeDir(t *testing.T) {
+	t.Log(filepath.Dir("/tmp/cache/asdasd"))
+	if err := MergeDir("/tmp/ctr-944254844/", "/tmp/cache"); err != nil {
+		t.Fatal(err)
+	}
 }
