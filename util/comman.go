@@ -28,6 +28,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -403,22 +404,23 @@ func Zip(source, target string) error {
 		if err != nil {
 			return err
 		}
-
 		header, err := zip.FileInfoHeader(info)
 		if err != nil {
 			return err
 		}
-
 		if baseDir != "" {
 			header.Name = filepath.Join(baseDir, strings.TrimPrefix(path, source))
 		}
-
 		if info.IsDir() {
 			header.Name += "/"
 		} else {
 			header.Method = zip.Deflate
 		}
-
+		//set file uid and
+		elem := reflect.ValueOf(info.Sys()).Elem()
+		uid := elem.FieldByName("Uid").Uint()
+		gid := elem.FieldByName("Gid").Uint()
+		header.Comment = fmt.Sprintf("%d/%d", uid, gid)
 		writer, err := archive.CreateHeader(header)
 		if err != nil {
 			return err
@@ -473,6 +475,16 @@ func Unzip(archive, target string) error {
 
 			if _, err := io.Copy(targetFile, fileReader); err != nil {
 				return err
+			}
+			if file.Comment != "" && strings.Contains(file.Comment, "/") {
+				guid := strings.Split(file.Comment, "/")
+				if len(guid) == 2 {
+					uid, _ := strconv.Atoi(guid[0])
+					gid, _ := strconv.Atoi(guid[1])
+					if err := os.Chown(path, uid, gid); err != nil {
+						return err
+					}
+				}
 			}
 			return nil
 		}
