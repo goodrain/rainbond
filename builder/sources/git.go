@@ -146,7 +146,7 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 	}
 	var rs *git.Repository
 	if ep.Protocol == "ssh" {
-		publichFile := GetPrivateFile()
+		publichFile := GetPrivateFile(csi.TenantID)
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
 		if auerr != nil {
 			if logger != nil {
@@ -274,7 +274,7 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 		return nil, err
 	}
 	if ep.Protocol == "ssh" {
-		publichFile := GetPrivateFile()
+		publichFile := GetPrivateFile(csi.TenantID)
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
 		if auerr != nil {
 			if logger != nil {
@@ -393,63 +393,52 @@ func GetLastCommit(re *git.Repository) (*object.Commit, error) {
 }
 
 //GetPrivateFile 获取私钥文件地址
-func GetPrivateFile() string {
+func GetPrivateFile(tenantId string) string {
 	home, _ := Home()
 	if home == "" {
 		home = "/root"
 	}
-	//if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa")); ok {
-	//	return path.Join(home, "/.ssh/builder_rsa")
-	//}
-	//return path.Join(home, "/.ssh/id_rsa")
-	if ok, _ := util.FileExists(path.Join(home, "/.ssh/zhoujunhao")); ok {
-		return path.Join(home, "/.ssh/zhoujunhao")
+	if ok, _ := util.FileExists(path.Join(home, "/.ssh/"+tenantId)); ok {
+		return path.Join(home, "/.ssh/"+tenantId)
 	}
-	return path.Join(home, "/.ssh/zhoujunhao")
+	return path.Join(home, "/.ssh/"+tenantId)
 
 }
 
 //GetPublicKey 获取公钥
-func GetPublicKey() string {
+func GetPublicKey(tenantId string) string {
 	home, _ := Home()
 	if home == "" {
 		home = "/root"
 	}
-	tenant_id := "zhoujunhao"
-	Publickey:= tenant_id+ ".pub"
-	Privatekey := tenant_id
-	//if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa.pub")); ok {
-	//	body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/builder_rsa.pub"))
-	//	return string(body)
-	//}
-	//body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/id_rsa.pub"))
-	//return string(body)
+	PublicKey := tenantId + ".pub"
+	PrivateKey := tenantId
 
-	if ok, _ := util.FileExists(path.Join(home, "/.ssh/"+Publickey)); ok {
-		body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/"+Publickey))
+	if ok, _ := util.FileExists(path.Join(home, "/.ssh/"+PublicKey)); ok {
+		body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/"+PublicKey))
 		return string(body)
 	}
-	x,y,err :=MakeSSHKeyPair()
-	if err!=nil{
-		fmt.Println("MakeSSHKeyPairerr",err)
+	Private, Public, err := MakeSSHKeyPair()
+	if err != nil {
+		logrus.Error("MakeSSHKeyPairError:", err)
 	}
-	file,err :=os.Create(path.Join(home, "/.ssh/"+Privatekey))
-	file2,err2 :=os.Create(path.Join(home, "/.ssh/"+Publickey))
-	if err!=nil{
+	PrivateKeyFile, err := os.Create(path.Join(home, "/.ssh/"+PrivateKey))
+	if err != nil {
 		fmt.Println(err)
-	}else {
-		file.WriteString(x)
+	} else {
+		PrivateKeyFile.WriteString(Private)
 	}
-	if err2!=nil{
+	PublicKeyFile, err2 := os.Create(path.Join(home, "/.ssh/"+PublicKey))
+
+	if err2 != nil {
 		fmt.Println(err)
-	}else {
-		file2.WriteString(y)
+	} else {
+		PublicKeyFile.WriteString(Public)
 	}
-	body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/"+Publickey))
+	body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/"+PublicKey))
 	return string(body)
 
 }
-
 
 func GenerateKey(bits int) (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	private, err := rsa.GenerateKey(rand.Reader, bits)
