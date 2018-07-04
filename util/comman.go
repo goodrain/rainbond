@@ -458,6 +458,16 @@ func Unzip(archive, target string) error {
 			path := filepath.Join(target, file.Name)
 			if file.FileInfo().IsDir() {
 				os.MkdirAll(path, file.Mode())
+				if file.Comment != "" && strings.Contains(file.Comment, "/") {
+					guid := strings.Split(file.Comment, "/")
+					if len(guid) == 2 {
+						uid, _ := strconv.Atoi(guid[0])
+						gid, _ := strconv.Atoi(guid[1])
+						if err := os.Chown(path, uid, gid); err != nil {
+							return err
+						}
+					}
+				}
 				return nil
 			}
 
