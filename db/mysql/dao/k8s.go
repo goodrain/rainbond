@@ -241,7 +241,7 @@ func (t *K8sDeployReplicationDaoImpl) DeleteK8sDeployReplicationByService(servic
 
 func (t *K8sDeployReplicationDaoImpl) GetK8sDeployReplicationByIsDelete(rcType string, isDelete bool) ([]*model.K8sDeployReplication, error) {
 	var deploy []*model.K8sDeployReplication
-	if err := t.DB.Model(&deploy).Where("rc_type=? AND is_delete=?",rcType, isDelete).Find(&deploy).Error; err != nil {
+	if err := t.DB.Model(&deploy).Where("rc_type=? AND is_delete=?", rcType, isDelete).Find(&deploy).Error; err != nil {
 		return nil, err
 	}
 	return deploy, nil
@@ -256,6 +256,14 @@ func (t *K8sDeployReplicationDaoImpl) GetK8sDeployReplicationIsExist(tenantId st
 //K8sPodDaoImpl k8s pod dao
 type K8sPodDaoImpl struct {
 	DB *gorm.DB
+}
+
+func (t *K8sPodDaoImpl) GetK8sPodByNotInPodNameList(podNameList []string) ([]*model.K8sPod, error) {
+	var Pods []*model.K8sPod
+	if err := t.DB.Not("pod_name", podNameList).Find(&Pods).Error; err != nil {
+		return nil, err
+	}
+	return Pods, nil
 }
 
 //AddModel save or update app pod info

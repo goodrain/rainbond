@@ -46,6 +46,11 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/client"
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
+	"crypto/rsa"
+	"encoding/pem"
+	"crypto/x509"
+	sshkey "golang.org/x/crypto/ssh"
+	"crypto/rand"
 )
 
 //CodeSourceInfo 代码源信息
@@ -393,10 +398,15 @@ func GetPrivateFile() string {
 	if home == "" {
 		home = "/root"
 	}
-	if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa")); ok {
-		return path.Join(home, "/.ssh/builder_rsa")
+	//if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa")); ok {
+	//	return path.Join(home, "/.ssh/builder_rsa")
+	//}
+	//return path.Join(home, "/.ssh/id_rsa")
+	if ok, _ := util.FileExists(path.Join(home, "/.ssh/zhoujunhao")); ok {
+		return path.Join(home, "/.ssh/zhoujunhao")
 	}
-	return path.Join(home, "/.ssh/id_rsa")
+	return path.Join(home, "/.ssh/zhoujunhao")
+
 }
 
 //GetPublicKey 获取公钥
@@ -405,12 +415,92 @@ func GetPublicKey() string {
 	if home == "" {
 		home = "/root"
 	}
-	if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa.pub")); ok {
-		body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/builder_rsa.pub"))
+	tenant_id := "zhoujunhao"
+	Publickey:= tenant_id+ ".pub"
+	Privatekey := tenant_id
+	//if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa.pub")); ok {
+	//	body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/builder_rsa.pub"))
+	//	return string(body)
+	//}
+	//body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/id_rsa.pub"))
+	//return string(body)
+
+	if ok, _ := util.FileExists(path.Join(home, "/.ssh/"+Publickey)); ok {
+		body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/"+Publickey))
 		return string(body)
 	}
-	body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/id_rsa.pub"))
+	x,y,err :=MakeSSHKeyPair()
+	if err!=nil{
+		fmt.Println("MakeSSHKeyPairerr",err)
+	}
+	file,err :=os.Create(Privatekey)
+	file2,err2 :=os.Create(Publickey)
+	if err!=nil{
+		fmt.Println(err)
+	}else {
+		file.WriteString(x)
+	}
+	if err2!=nil{
+		fmt.Println(err)
+	}else {
+		file2.WriteString(y)
+	}
+	body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/"+Publickey))
 	return string(body)
+
+}
+
+
+func GenerateKey(bits int) (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	private, err := rsa.GenerateKey(rand.Reader, bits)
+	if err != nil {
+		return nil, nil, err
+	}
+	return private, &private.PublicKey, nil
+
+}
+
+func EncodePrivateKey(private *rsa.PrivateKey) []byte {
+	return pem.EncodeToMemory(&pem.Block{
+		Bytes: x509.MarshalPKCS1PrivateKey(private),
+		Type:  "RSA PRIVATE KEY",
+	})
+}
+
+func EncodePublicKey(public *rsa.PublicKey) ([]byte, error) {
+	publicBytes, err := x509.MarshalPKIXPublicKey(public)
+	if err != nil {
+		return nil, err
+	}
+	return pem.EncodeToMemory(&pem.Block{
+		Bytes: publicBytes,
+		Type:  "PUBLIC KEY",
+	}), nil
+}
+
+//EncodeSSHKey
+func EncodeSSHKey(public *rsa.PublicKey) ([]byte, error) {
+	publicKey, err := sshkey.NewPublicKey(public)
+	if err != nil {
+		return nil, err
+	}
+	return sshkey.MarshalAuthorizedKey(publicKey), nil
+}
+
+func MakeSSHKeyPair() (string, string, error) {
+
+	pkey, pubkey, err := GenerateKey(2048)
+	if err != nil {
+		return "", "", err
+	}
+
+	pub, err := EncodeSSHKey(pubkey)
+	if err != nil {
+		return "", "", err
+	}
+
+	//glog.Info("privateKey=[%s]\n pubKey=[%s]",string(EncodePrivateKey(pkey)),string(pub))
+	return string(EncodePrivateKey(pkey)), string(pub), nil
 }
 
 //createProgress create git log progress

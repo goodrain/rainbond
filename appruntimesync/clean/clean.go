@@ -15,6 +15,7 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
+	"fmt"
 )
 
 //Resource should be clean resource
@@ -64,6 +65,65 @@ type k8sServiceResource struct {
 	id         string
 	namespaces string
 	createTime time.Time
+}
+
+type servicePodResource struct {
+	manager    *Manager
+	podName    string
+	createTime time.Time
+}
+
+func (p *servicePodResource) IsTimeout() bool {
+	return true
+}
+
+func (p *servicePodResource) DeleteResources() error {
+	if err := db.GetManager().K8sPodDao().DeleteK8sPodByName(p.podName); err != nil {
+		return err
+	}
+	logrus.Info("delete servicePodResource success：", p.podName)
+	return nil
+}
+
+func (p *servicePodResource) IsClean() bool {
+	return true
+
+}
+
+func (p *servicePodResource) Name() string {
+	return p.podName
+}
+
+func (p *servicePodResource) Type() string {
+	return "ServicePod"
+}
+
+func QueryPodsResource(m *Manager) []Resource {
+	podsNameList := make([]string, 0, 100)
+	k8sPodsList := make([]Resource, 0, 100)
+	podsList, err := m.kubeclient.Pods(v1.NamespaceAll).List(meta_v1.ListOptions{})
+	if err != nil {
+		logrus.Error(err.Error())
+	}
+
+	for _, v := range podsList.Items {
+		podsNameList = append(podsNameList, v.Name)
+	}
+	val, err := db.GetManager().K8sPodDao().GetK8sPodByNotInPodNameList(podsNameList)
+	if err != nil {
+		logrus.Error(err)
+	}
+	for _, v := range val {
+		s := &servicePodResource{
+			podName:    v.PodName,
+			createTime: time.Now(),
+			manager:    m,
+		}
+		k8sPodsList = append(k8sPodsList, s)
+	}
+	logrus.Info(k8sPodsList)
+	fmt.Println(podsNameList)
+	return k8sPodsList
 }
 
 func (t *tenantServiceResource) IsTimeout() bool {
@@ -228,7 +288,6 @@ func QueryK8sServiceResource(m *Manager) []Resource {
 		}
 
 	}
-	logrus.Info("serviceList", serviceList)
 	return serviceList
 }
 
@@ -305,7 +364,6 @@ func QueryDeploymentResource(m *Manager) []Resource {
 		}
 
 	}
-	logrus.Info("DeploymentDelList", DeploymentDelList)
 	return DeploymentDelList
 }
 
@@ -383,7 +441,6 @@ func QueryStatefulResource(m *Manager) []Resource {
 		}
 
 	}
-	logrus.Info("StatefulSetList", StatefulSetList)
 	return StatefulSetList
 }
 
@@ -457,7 +514,6 @@ func QueryNameSpacesResource(m *Manager) []Resource {
 		NamespacesList = append(NamespacesList, s)
 
 	}
-	logrus.Info("NamespacesList", NamespacesList)
 	return NamespacesList
 }
 
@@ -531,7 +587,6 @@ func QueryRcResource(m *Manager) []Resource {
 			}
 		}
 	}
-	logrus.Info("RcList", RcList)
 	return RcList
 }
 
@@ -556,6 +611,7 @@ func NewManager(ctx context.Context, kubeclient *kubernetes.Clientset) (*Manager
 		QueryDeploymentResource,
 		QueryK8sServiceResource,
 		QueryTenantServiceResource,
+		QueryPodsResource,
 	}
 	m.queryResource = queryResource
 	dclient, err := client.NewEnvClient()
