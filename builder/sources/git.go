@@ -39,7 +39,7 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	netssh "golang.org/x/crypto/ssh"
-	git "gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/protocol/packp/sideband"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
@@ -456,17 +456,6 @@ func EncodePrivateKey(private *rsa.PrivateKey) []byte {
 	})
 }
 
-func EncodePublicKey(public *rsa.PublicKey) ([]byte, error) {
-	publicBytes, err := x509.MarshalPKIXPublicKey(public)
-	if err != nil {
-		return nil, err
-	}
-	return pem.EncodeToMemory(&pem.Block{
-		Bytes: publicBytes,
-		Type:  "PUBLIC KEY",
-	}), nil
-}
-
 //EncodeSSHKey
 func EncodeSSHKey(public *rsa.PublicKey) ([]byte, error) {
 	publicKey, err := sshkey.NewPublicKey(public)
@@ -476,6 +465,7 @@ func EncodeSSHKey(public *rsa.PublicKey) ([]byte, error) {
 	return sshkey.MarshalAuthorizedKey(publicKey), nil
 }
 
+//生成公钥和私钥
 func MakeSSHKeyPair() (string, string, error) {
 
 	pkey, pubkey, err := GenerateKey(2048)
@@ -488,7 +478,6 @@ func MakeSSHKeyPair() (string, string, error) {
 		return "", "", err
 	}
 
-	//glog.Info("privateKey=[%s]\n pubKey=[%s]",string(EncodePrivateKey(pkey)),string(pub))
 	return string(EncodePrivateKey(pkey)), string(pub), nil
 }
 

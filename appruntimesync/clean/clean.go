@@ -15,7 +15,6 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
-	"fmt"
 )
 
 //Resource should be clean resource
@@ -121,8 +120,6 @@ func QueryPodsResource(m *Manager) []Resource {
 		}
 		k8sPodsList = append(k8sPodsList, s)
 	}
-	logrus.Info(k8sPodsList)
-	fmt.Println(podsNameList)
 	return k8sPodsList
 }
 
