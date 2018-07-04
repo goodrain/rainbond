@@ -433,8 +433,8 @@ func GetPublicKey() string {
 	if err!=nil{
 		fmt.Println("MakeSSHKeyPairerr",err)
 	}
-	file,err :=os.Create(Privatekey)
-	file2,err2 :=os.Create(Publickey)
+	file,err :=os.Create(path.Join(home, "/.ssh/"+Privatekey))
+	file2,err2 :=os.Create(path.Join(home, "/.ssh/"+Publickey))
 	if err!=nil{
 		fmt.Println(err)
 	}else {
