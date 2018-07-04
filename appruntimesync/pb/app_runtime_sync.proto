@@ -3,10 +3,11 @@ package pb;
 
 service AppRuntimeSync {
   rpc GetAppStatus (StatusRequest) returns (StatusMessage) {}
+  rpc GetAppDisk (StatusRequest) returns (DiskMessage) {}
   rpc SetAppStatus (StatusMessage) returns (ErrorMessage) {}
   rpc CheckAppStatus (StatusRequest) returns (ErrorMessage) {}
-  rpc	IgnoreDeleteEvent (Ignore) returns (ErrorMessage) {}
-	rpc RmIgnoreDeleteEvent (Ignore) returns (ErrorMessage) {}
+  rpc IgnoreDeleteEvent (Ignore) returns (ErrorMessage) {}
+ rpc RmIgnoreDeleteEvent (Ignore) returns (ErrorMessage) {}
 }
 
 message Ignore {
@@ -19,6 +20,10 @@ message StatusRequest {
 
 message StatusMessage {
   map<string, string> status = 1;
+}
+
+message DiskMessage {
+  map<string, double> disks = 1;
 }
 
 message ErrorMessage {

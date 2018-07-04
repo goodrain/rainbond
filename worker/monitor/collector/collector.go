@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/worker/monitor/cache"
 
 	"github.com/Sirupsen/logrus"
 	status "github.com/goodrain/rainbond/appruntimesync/client"
@@ -43,7 +42,6 @@ type Exporter struct {
 	workerUp      prometheus.Gauge
 	dbmanager     db.Manager
 	statusManager *status.AppRuntimeSyncClient
-	cache         *cache.DiskCache
 }
 
 var scrapeDurationDesc = prometheus.NewDesc(
@@ -113,7 +111,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.memory")
 	scrapeTime = time.Now()
-	diskcache := e.cache.Get()
+	diskcache := e.statusManager.GetAppDisk()
 	for k, v := range diskcache {
 		key := strings.Split(k, "_")
 		if len(key) == 2 {
@@ -126,7 +124,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 var namespace = "app_resource"
 
 //New 创建一个收集器
-func New(statusManager *status.AppRuntimeSyncClient, cache *cache.DiskCache) *Exporter {
+func New(statusManager *status.AppRuntimeSyncClient) *Exporter {
 	return &Exporter{
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
@@ -163,6 +161,5 @@ func New(statusManager *status.AppRuntimeSyncClient, cache *cache.DiskCache) *Ex
 		}, []string{"tenant_id", "service_id", "volume_type"}),
 		dbmanager:     db.GetManager(),
 		statusManager: statusManager,
-		cache:         cache,
 	}
 }
