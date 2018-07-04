@@ -258,6 +258,14 @@ type K8sPodDaoImpl struct {
 	DB *gorm.DB
 }
 
+func (t *K8sPodDaoImpl) GetK8sPodByNotInPodNameList(podNameList []string) ([]*model.K8sPod, error) {
+	var Pods []*model.K8sPod
+	if err := t.DB.Not("pod_name", podNameList).Find(&Pods).Error; err != nil {
+		return nil, err
+	}
+	return Pods, nil
+}
+
 //AddModel save or update app pod info
 func (t *K8sPodDaoImpl) AddModel(mo model.Interface) error {
 	pod := mo.(*model.K8sPod)

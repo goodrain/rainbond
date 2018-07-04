@@ -289,6 +289,7 @@ type K8sPodDao interface {
 	DeleteK8sPodByName(podName string) error
 	GetPodByService(serviceID string) ([]*model.K8sPod, error)
 	GetPodByReplicationID(replicationID string) ([]*model.K8sPod, error)
+	GetK8sPodByNotInPodNameList(podNameList []string) ([]*model.K8sPod, error)
 }
 
 //LocalSchedulerDao 本地调度信息
