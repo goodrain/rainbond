@@ -32,6 +32,7 @@ import (
 	"golang.org/x/net/context"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"github.com/goodrain/rainbond/appruntimesync/cache"
 )
 
 //AppRuntimeSyncServer AppRuntimeSyncServer
@@ -44,6 +45,7 @@ type AppRuntimeSyncServer struct {
 	ClientSet     *kubernetes.Clientset
 	podCache      *pod.CacheManager
 	clean         *clean.Manager
+	cache         *cache.DiskCache
 }
 
 //NewAppRuntimeSyncServer create app runtime sync server
@@ -68,6 +70,10 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 	if err != nil {
 		logrus.Error(err)
 	}
+
+	// disk used info collector
+	c := cache.CreatDiskCache(ctx)
+
 	arss := &AppRuntimeSyncServer{
 		c:         conf,
 		Ctx:       ctx,
@@ -76,6 +82,7 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 		ClientSet: clientset,
 		podCache:  podCache,
 		clean:     Clean,
+		cache:     c,
 	}
 	arss.StatusManager = statusManager
 	return arss
@@ -97,6 +104,13 @@ func (a *AppRuntimeSyncServer) GetAppStatus(ctx context.Context, sr *pb.StatusRe
 		return &re, nil
 	}
 	re.Status[sr.ServiceIds] = a.StatusManager.GetStatus(sr.ServiceIds)
+	return &re, nil
+}
+
+//GetDiskStatus get app disk information
+func (a *AppRuntimeSyncServer) GetAppDisk(ctx context.Context, sr *pb.StatusRequest) (*pb.DiskMessage, error) {
+	var re pb.DiskMessage
+	re.Disks = a.cache.Get()
 	return &re, nil
 }
 
@@ -147,6 +161,7 @@ func (a *AppRuntimeSyncServer) Start() error {
 	)
 	a.podCache.Start()
 	a.clean.Start()
+	go a.cache.Start()
 	logrus.Info("app runtime sync server started...")
 	return nil
 }

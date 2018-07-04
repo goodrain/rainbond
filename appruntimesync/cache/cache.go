@@ -19,7 +19,6 @@
 package cache
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"sync"
@@ -27,9 +26,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
-	status "github.com/goodrain/rainbond/appruntimesync/client"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"golang.org/x/net/context"
 	"github.com/goodrain/rainbond/util"
 )
 
@@ -40,16 +39,14 @@ type DiskCache struct {
 		Value float64
 	}
 	dbmanager     db.Manager
-	statusManager *status.AppRuntimeSyncClient
 	ctx           context.Context
 	lock          sync.Mutex
 }
 
 //CreatDiskCache 创建
-func CreatDiskCache(ctx context.Context, statusManager *status.AppRuntimeSyncClient) *DiskCache {
+func CreatDiskCache(ctx context.Context) *DiskCache {
 	return &DiskCache{
 		dbmanager:     db.GetManager(),
-		statusManager: statusManager,
 		ctx:           ctx,
 	}
 }
