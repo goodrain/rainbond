@@ -51,13 +51,13 @@ func TestGetDirSizeByCmd(t *testing.T) {
 }
 
 func TestZip(t *testing.T) {
-	if err := Zip("/tmp/test/", "/tmp/test.zip"); err != nil {
+	if err := Zip("/tmp/cache", "/tmp/cache.zip"); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestUnzip(t *testing.T) {
-	if err := Unzip("/tmp/test.aaa.zip", "/tmp/rainbond"); err != nil {
+	if err := Unzip("/tmp/cache.zip", "/tmp/cache0"); err != nil {
 		t.Fatal(err)
 	}
 }
