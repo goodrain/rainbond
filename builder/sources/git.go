@@ -22,7 +22,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto/sha1"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -62,6 +61,7 @@ type CodeSourceInfo struct {
 	Password      string `json:"password"`
 	//避免项目之间冲突，代码缓存目录提高到租户
 	TenantID string `json:"tenant_id"`
+	ServiceID string `json:"service_id"`
 }
 
 //GetCodeCacheDir 获取代码缓存目录
@@ -70,30 +70,30 @@ func (c CodeSourceInfo) GetCodeCacheDir() string {
 	if cacheDir == "" {
 		cacheDir = "/cache"
 	}
-	h := sha1.New()
-	h.Write([]byte(c.RepositoryURL))
-	bs := h.Sum(nil)
-	bsStr := fmt.Sprintf("%x", bs)
-	logrus.Debugf("git path is %s", path.Join(cacheDir, "build", c.TenantID, bsStr))
-	return path.Join(cacheDir, "build", c.TenantID, bsStr)
+	//h := sha1.New()
+	//h.Write([]byte(c.RepositoryURL))
+	//bs := h.Sum(nil)
+	//bsStr := fmt.Sprintf("%x", bs)
+	logrus.Debugf("git path is %s", path.Join(cacheDir, "build", c.TenantID, c.ServiceID))
+	return path.Join(cacheDir, "build", c.TenantID, c.ServiceID)
 }
 
 //GetCodeSourceDir 获取代码下载目录
 func (c CodeSourceInfo) GetCodeSourceDir() string {
-	return GetCodeSourceDir(c.RepositoryURL, c.Branch, c.TenantID)
+	return GetCodeSourceDir(c.RepositoryURL, c.Branch, c.TenantID, c.ServiceID)
 }
 
 //GetCodeSourceDir 获取源码下载目录
-func GetCodeSourceDir(RepositoryURL, branch, tenantID string) string {
+func GetCodeSourceDir(RepositoryURL, branch, tenantID string, ServiceID string) string {
 	sourceDir := os.Getenv("SOURCE_DIR")
 	if sourceDir == "" {
 		sourceDir = "/grdata/source"
 	}
-	h := sha1.New()
-	h.Write([]byte(RepositoryURL + branch))
-	bs := h.Sum(nil)
-	bsStr := fmt.Sprintf("%x", bs)
-	return path.Join(sourceDir, "build", tenantID, bsStr)
+	//h := sha1.New()
+	//h.Write([]byte(RepositoryURL + branch))
+	//bs := h.Sum(nil)
+	//bsStr := fmt.Sprintf("%x", bs)
+	return path.Join(sourceDir, "build", tenantID, ServiceID)
 }
 
 //CheckFileExist CheckFileExist
@@ -121,7 +121,6 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 	GetPrivateFileParam := csi.TenantID
 	flag := true
 Loop:
-	fmt.Println(GetPrivateFileParam, flag)
 	if logger != nil {
 		//进度信息
 		logger.Info(fmt.Sprintf("开始从Git源(%s)获取代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})
@@ -263,7 +262,6 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 	GetPrivateFileParam := csi.TenantID
 	flag := true
 Loop:
-	fmt.Println(GetPrivateFileParam, flag)
 	if logger != nil {
 		//进度信息
 		logger.Info(fmt.Sprintf("开始从Git源(%s)更新代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})

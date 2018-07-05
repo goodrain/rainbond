@@ -97,7 +97,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		return d.errors
 	}
 	//验证仓库地址
-	buildInfo, err := sources.CreateRepostoryBuildInfo(csi.RepositoryURL, csi.Branch, csi.TenantID)
+	buildInfo, err := sources.CreateRepostoryBuildInfo(csi.RepositoryURL, csi.Branch, csi.TenantID, csi.ServiceID)
 	if err != nil {
 		d.logger.Error("Git项目仓库地址格式错误", map[string]string{"step": "parse"})
 		d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", SolveAdvice("modify_url", "请确认并修改仓库地址")))

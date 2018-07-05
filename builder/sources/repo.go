@@ -61,7 +61,7 @@ func (r *RepostoryBuildInfo) GetProtocol() string {
 }
 
 //CreateRepostoryBuildInfo 创建源码编译信息
-func CreateRepostoryBuildInfo(repoURL, branch, tenantID string) (*RepostoryBuildInfo, error) {
+func CreateRepostoryBuildInfo(repoURL, branch, tenantID string, ServiceID string) (*RepostoryBuildInfo, error) {
 	// repoURL= github.com/goodrain/xxx.git?dir=home
 	ep, err := transport.NewEndpoint(repoURL)
 	if err != nil {
@@ -75,9 +75,9 @@ func CreateRepostoryBuildInfo(repoURL, branch, tenantID string) (*RepostoryBuild
 	if index > -1 && len(repoURL) > index+5 {
 		fmt.Println(repoURL[index+5:], repoURL[:index])
 		rbi.BuildPath = repoURL[index+5:]
-		rbi.CodeHome = GetCodeSourceDir(repoURL[:index], branch, tenantID)
+		rbi.CodeHome = GetCodeSourceDir(repoURL[:index], branch, tenantID, ServiceID)
 		rbi.RepostoryURL = repoURL[:index]
 	}
-	rbi.CodeHome = GetCodeSourceDir(repoURL, branch, tenantID)
+	rbi.CodeHome = GetCodeSourceDir(repoURL, branch, tenantID, ServiceID)
 	return rbi, nil
 }

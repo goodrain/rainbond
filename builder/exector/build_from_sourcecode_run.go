@@ -85,6 +85,7 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 		User:          gjson.GetBytes(in, "user").String(),
 		Password:      gjson.GetBytes(in, "password").String(),
 		TenantID:      gjson.GetBytes(in, "tenant_id").String(),
+		ServiceID:     gjson.GetBytes(in, "service_id").String(),
 	}
 	envs := gjson.GetBytes(in, "envs").String()
 	be := make(map[string]string)
@@ -119,7 +120,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	// 2.check dockerfile/ source_code
 	// 3.build
 	// 4.upload image /upload slug
-	rbi, err := sources.CreateRepostoryBuildInfo(i.CodeSouceInfo.RepositoryURL, i.CodeSouceInfo.Branch, i.TenantID)
+	rbi, err := sources.CreateRepostoryBuildInfo(i.CodeSouceInfo.RepositoryURL, i.CodeSouceInfo.Branch, i.TenantID, i.ServiceID)
 	if err != nil {
 		i.Logger.Error("Git项目仓库地址格式错误", map[string]string{"step": "parse"})
 		return err
