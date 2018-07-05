@@ -121,7 +121,7 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 	GetPrivateFileParam := csi.TenantID
 	flag := true
 Loop:
-	fmt.Println(GetPrivateFileParam,flag)
+	fmt.Println(GetPrivateFileParam, flag)
 	if logger != nil {
 		//进度信息
 		logger.Info(fmt.Sprintf("开始从Git源(%s)获取代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})
@@ -199,14 +199,6 @@ Loop:
 			return rs, err
 		}
 		if err == transport.ErrAuthorizationFailed {
-			logrus.Info("鉴权失败")
-
-			if flag {
-				GetPrivateFileParam = "builder_rsa"
-				flag = false
-				goto Loop
-			}
-			fmt.Println("第二次1")
 			if logger != nil {
 				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源鉴权失败。"), map[string]string{"step": "callback", "status": "failure"})
 			}
@@ -231,14 +223,12 @@ Loop:
 			return rs, fmt.Errorf("branch %s is not exist", csi.Branch)
 		}
 		if strings.Contains(err.Error(), "ssh: unable to authenticate") {
-			logrus.Info("没有找到ssh")
 
 			if flag {
 				GetPrivateFileParam = "builder_rsa"
 				flag = false
 				goto Loop
 			}
-			fmt.Println("第二次2")
 			if logger != nil {
 				logger.Error(fmt.Sprintf("远程代码库需要配置SSH Key。"), map[string]string{"step": "callback", "status": "failure"})
 			}
@@ -273,7 +263,7 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 	GetPrivateFileParam := csi.TenantID
 	flag := true
 Loop:
-	fmt.Println(GetPrivateFileParam,flag)
+	fmt.Println(GetPrivateFileParam, flag)
 	if logger != nil {
 		//进度信息
 		logger.Info(fmt.Sprintf("开始从Git源(%s)更新代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})
@@ -345,14 +335,6 @@ Loop:
 			return rs, err
 		}
 		if err == transport.ErrAuthorizationFailed {
-			logrus.Info("鉴权失败")
-
-			if flag {
-				GetPrivateFileParam = "builder_rsa"
-				flag = false
-				goto Loop
-			}
-			fmt.Println("第二次1")
 
 			if logger != nil {
 				logger.Error(fmt.Sprintf("更新代码发生错误，代码源鉴权失败。"), map[string]string{"step": "callback", "status": "failure"})
@@ -378,14 +360,12 @@ Loop:
 			return rs, fmt.Errorf("branch %s is not exist", csi.Branch)
 		}
 		if strings.Contains(err.Error(), "ssh: unable to authenticate") {
-			logrus.Info("没有找到ssh")
 
 			if flag {
 				GetPrivateFileParam = "builder_rsa"
 				flag = false
 				goto Loop
 			}
-			fmt.Println("第二次2")
 			if logger != nil {
 				logger.Error(fmt.Sprintf("远程代码库需要配置SSH Key。"), map[string]string{"step": "callback", "status": "failure"})
 			}
@@ -439,7 +419,7 @@ func GetPrivateFile(tenantId string) string {
 	if home == "" {
 		home = "/root"
 	}
-	if tenantId=="builder_rsa"{
+	if tenantId == "builder_rsa" {
 		if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa")); ok {
 			return path.Join(home, "/.ssh/builder_rsa")
 		}
