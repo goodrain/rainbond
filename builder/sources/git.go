@@ -118,9 +118,9 @@ func RemoveDir(path string) error {
 
 //GitClone git clone code
 func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
-Loop:
 	GetPrivateFileParam := csi.TenantID
 	flag := true
+Loop:
 	if logger != nil {
 		//进度信息
 		logger.Info(fmt.Sprintf("开始从Git源(%s)获取代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})
@@ -199,9 +199,10 @@ Loop:
 		}
 		if err == transport.ErrAuthorizationFailed {
 			logrus.Info("鉴权失败")
-			GetPrivateFileParam = "builder_rsa"
-			flag = false
+
 			if flag {
+				GetPrivateFileParam = "builder_rsa"
+				flag = false
 				goto Loop
 			}
 			if logger != nil {
@@ -259,9 +260,9 @@ func retryAuth(ep *transport.Endpoint, csi CodeSourceInfo) (transport.AuthMethod
 
 //GitPull git pull code
 func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
-Loop:
 	GetPrivateFileParam := csi.TenantID
 	flag := true
+Loop:
 	if logger != nil {
 		//进度信息
 		logger.Info(fmt.Sprintf("开始从Git源(%s)更新代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})
@@ -334,9 +335,10 @@ Loop:
 		}
 		if err == transport.ErrAuthorizationFailed {
 			logrus.Info("鉴权失败")
-			GetPrivateFileParam = "builder_rsa"
-			flag = false
+
 			if flag {
+				GetPrivateFileParam = "builder_rsa"
+				flag = false
 				goto Loop
 			}
 
@@ -417,8 +419,11 @@ func GetPrivateFile(tenantId string) string {
 	if home == "" {
 		home = "/root"
 	}
-	if ok, _ := util.FileExists(path.Join(home, "/.ssh/"+tenantId)); ok {
-		return path.Join(home, "/.ssh/"+tenantId)
+	if tenantId=="builder_rsa"{
+		if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa")); ok {
+			return path.Join(home, "/.ssh/builder_rsa")
+		}
+		return path.Join(home, "/.ssh/id_rsa")
 	}
 	return path.Join(home, "/.ssh/"+tenantId)
 
