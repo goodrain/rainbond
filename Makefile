@@ -76,7 +76,7 @@ build-image-webcli:
 
 run-api:build-api
 	${BIN_PATH}/${BASE_NAME}-api --log-level=debug \
-	   --mysql="root:admin@tcp(127.0.0.1:3306)/region" \
+	   --mysql="root:@tcp(127.0.0.1:3306)/region" \
 	   --kube-config="`PWD`/test/admin.kubeconfig" \
 	   --etcd=http://127.0.0.1:4001,http://127.0.0.1:2379
 run-mq:build-mq
@@ -91,7 +91,7 @@ run-chaos:build-chaos
 run-eventlog:build-eventlog
 	${BIN_PATH}/${BASE_NAME}-eventlog \
 	 --log.level=debug --discover.etcd.addr=http://127.0.0.1:2379 \
-	 --db.url="root:admin@tcp(127.0.0.1:3306)/event" \
+	 --db.url="root:@tcp(127.0.0.1:3306)/event" \
 	 --dockerlog.mode=stream \
 	 --message.dockerlog.handle.core.number=2 \
 	 --message.garbage.file="/tmp/garbage.log" \

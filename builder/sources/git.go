@@ -118,6 +118,9 @@ func RemoveDir(path string) error {
 
 //GitClone git clone code
 func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
+Loop:
+	GetPrivateFileParam := csi.TenantID
+	flag := true
 	if logger != nil {
 		//进度信息
 		logger.Info(fmt.Sprintf("开始从Git源(%s)获取代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})
@@ -146,7 +149,7 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 	}
 	var rs *git.Repository
 	if ep.Protocol == "ssh" {
-		publichFile := GetPrivateFile(csi.TenantID)
+		publichFile := GetPrivateFile(GetPrivateFileParam)
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
 		if auerr != nil {
 			if logger != nil {
@@ -195,6 +198,12 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 			return rs, err
 		}
 		if err == transport.ErrAuthorizationFailed {
+			logrus.Info("鉴权失败")
+			GetPrivateFileParam = "builder_rsa"
+			flag = false
+			if flag {
+				goto Loop
+			}
 			if logger != nil {
 				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源鉴权失败。"), map[string]string{"step": "callback", "status": "failure"})
 			}
@@ -250,6 +259,9 @@ func retryAuth(ep *transport.Endpoint, csi CodeSourceInfo) (transport.AuthMethod
 
 //GitPull git pull code
 func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
+Loop:
+	GetPrivateFileParam := csi.TenantID
+	flag := true
 	if logger != nil {
 		//进度信息
 		logger.Info(fmt.Sprintf("开始从Git源(%s)更新代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})
@@ -274,7 +286,7 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 		return nil, err
 	}
 	if ep.Protocol == "ssh" {
-		publichFile := GetPrivateFile(csi.TenantID)
+		publichFile := GetPrivateFile(GetPrivateFileParam)
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
 		if auerr != nil {
 			if logger != nil {
@@ -321,6 +333,13 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 			return rs, err
 		}
 		if err == transport.ErrAuthorizationFailed {
+			logrus.Info("鉴权失败")
+			GetPrivateFileParam = "builder_rsa"
+			flag = false
+			if flag {
+				goto Loop
+			}
+
 			if logger != nil {
 				logger.Error(fmt.Sprintf("更新代码发生错误，代码源鉴权失败。"), map[string]string{"step": "callback", "status": "failure"})
 			}
