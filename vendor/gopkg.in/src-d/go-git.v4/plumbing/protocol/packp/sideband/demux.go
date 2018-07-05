@@ -110,10 +110,12 @@ func (d *Demuxer) nextPackData() ([]byte, error) {
 		return nil, io.EOF
 	}
 
-	content = d.s.Bytes()
+	payload := d.s.Bytes()
+	content = make([]byte, len(payload))
+	copy(content, payload)
 
 	size := len(content)
-	if size <= 1 {
+	if size < 1 {
 		return nil, nil
 	} else if size > d.max {
 		return nil, ErrMaxPackedExceeded
