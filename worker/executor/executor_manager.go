@@ -49,6 +49,7 @@ type manager struct {
 	workerLock    sync.RWMutex
 	taskManager   *task.TaskManager
 	statusManager *status.AppRuntimeSyncClient
+	wg            sync.WaitGroup
 }
 
 //NewManager newManager
@@ -70,7 +71,9 @@ func (m *manager) Stop() {
 	for _, w := range m.workers {
 		w.Cancel()
 	}
-
+	logrus.Info("Waiting for all threads to complete.")
+	m.wg.Wait()
+	logrus.Info("All threads is exited.")
 }
 
 // Key uniquely identifying container probes
@@ -93,7 +96,8 @@ func (m *manager) AddTask(t task.Task) error {
 		return fmt.Errorf("worker %s:%s is exist ", t.TaskID(), t.Logger().Event())
 	}
 	worker := newWorker(m, t)
-	go worker.Start()
+	m.wg.Add(1)
+	go worker.Start(m.wg)
 	m.workers[workerKey{t.TaskID(), t.Logger().Event()}] = worker
 	return nil
 }

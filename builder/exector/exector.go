@@ -34,6 +34,7 @@ import (
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/util"
 	"github.com/tidwall/gjson"
+	"sync"
 )
 
 //Manager 任务执行管理器
@@ -74,6 +75,7 @@ func NewManager(conf config.Config) (Manager, error) {
 type exectorManager struct {
 	DockerClient *client.Client
 	EtcdCli      *clientv3.Client
+	wg           sync.WaitGroup
 }
 
 //TaskWorker worker interface
@@ -103,6 +105,8 @@ func RegisterWorker(name string, fun func([]byte, *exectorManager) (TaskWorker, 
 //share-slug share app with slug
 //share-image share app with image
 func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
+	e.wg.Add(1)
+
 	switch task.TaskType {
 	case "build_from_image":
 		e.buildFromImage(task.TaskBody)
@@ -138,6 +142,7 @@ func (e *exectorManager) exec(workerName string, in []byte) error {
 		return err
 	}
 	go func() {
+		defer e.wg.Done()
 		defer event.GetManager().ReleaseLogger(worker.GetLogger())
 		defer func() {
 			if r := recover(); r != nil {
@@ -161,6 +166,7 @@ func (e *exectorManager) buildFromImage(in []byte) {
 	i.Logger.Info("从镜像构建应用任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
+		defer e.wg.Done()
 		logrus.Debugf("start build from image worker")
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
@@ -198,6 +204,7 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 	i.Logger.Info("从源码构建应用任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
+		defer e.wg.Done()
 		logrus.Debugf("start build from source code")
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
@@ -248,6 +255,7 @@ func (e *exectorManager) buildFromMarketSlug(in []byte) {
 	}
 	i.Logger.Info("开始构建应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	go func() {
+		defer e.wg.Done()
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
 			if r := recover(); r != nil {
@@ -283,6 +291,7 @@ func (e *exectorManager) slugShare(in []byte) {
 	i.Logger.Info("开始分享应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
+		defer e.wg.Done()
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
 			if r := recover(); r != nil {
@@ -322,6 +331,7 @@ func (e *exectorManager) imageShare(in []byte) {
 	i.Logger.Info("开始分享应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
+		defer e.wg.Done()
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
 			if r := recover(); r != nil {
@@ -355,5 +365,8 @@ func (e *exectorManager) Start() error {
 	return nil
 }
 func (e *exectorManager) Stop() error {
+	logrus.Info("Waiting for all threads to exit.")
+	e.wg.Wait()
+	logrus.Info("All threads is exited.")
 	return nil
 }
