@@ -30,24 +30,25 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	envoyv1 "github.com/goodrain/rainbond/node/core/envoy/v1"
-	"github.com/goodrain/rainbond/node/core/k8s"
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/pquerna/ffjson/ffjson"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/informers"
 )
 
 //DiscoverAction DiscoverAction
 type DiscoverAction struct {
-	conf    *option.Conf
-	etcdCli *store.Client
+	conf            *option.Conf
+	etcdCli         *store.Client
+	sharedInformers informers.SharedInformerFactory
 }
 
 //CreateDiscoverActionManager CreateDiscoverActionManager
-func CreateDiscoverActionManager(conf *option.Conf) *DiscoverAction {
+func CreateDiscoverActionManager(conf *option.Conf, sharedInformers informers.SharedInformerFactory) *DiscoverAction {
 	return &DiscoverAction{
-		conf:    conf,
-		etcdCli: store.DefalutClient,
+		conf:            conf,
+		etcdCli:         store.DefalutClient,
+		sharedInformers: sharedInformers,
 	}
 }
 
@@ -63,28 +64,34 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*envoyv1.SDSHost, 
 	dPort := mm[3]
 
 	labelname := fmt.Sprintf("name=%sService", destServiceAlias)
-	endpoints, err := k8s.K8S.Core().Endpoints(namespace).List(metav1.ListOptions{LabelSelector: labelname})
-	//logrus.Debugf("labelname is %s, endpoints is %v, items is %v", labelname, endpoints, endpoints.Items)
+	selector, err := labels.Parse(labelname)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
-	services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+	endpoints, err := d.sharedInformers.Core().V1().Endpoints().Lister().Endpoints(namespace).List(selector)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
-	if len(endpoints.Items) == 0 {
+	services, err := d.sharedInformers.Core().V1().Services().Lister().Services(namespace).List(selector)
+	if err != nil {
+		return nil, util.CreateAPIHandleError(500, err)
+	}
+	if len(endpoints) == 0 {
 		if destServiceAlias == serviceAlias {
 			labelname := fmt.Sprintf("name=%sServiceOUT", destServiceAlias)
-			var err error
-			endpoints, err = k8s.K8S.Core().Endpoints(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+			selector, err := labels.Parse(labelname)
 			if err != nil {
 				return nil, util.CreateAPIHandleError(500, err)
 			}
-			if len(endpoints.Items) == 0 {
+			endpoints, err = d.sharedInformers.Core().V1().Endpoints().Lister().Endpoints(namespace).List(selector)
+			if err != nil {
+				return nil, util.CreateAPIHandleError(500, err)
+			}
+			if len(endpoints) == 0 {
 				logrus.Debugf("outer endpoints items length is 0, continue")
 				return nil, util.CreateAPIHandleError(400, fmt.Errorf("outer have no endpoints"))
 			}
-			services, err = k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+			services, err = d.sharedInformers.Core().V1().Services().Lister().Services(namespace).List(selector)
 			if err != nil {
 				return nil, util.CreateAPIHandleError(500, err)
 			}
@@ -93,7 +100,7 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*envoyv1.SDSHost, 
 		}
 	}
 	var sdsL []*envoyv1.DiscoverHost
-	for key, item := range endpoints.Items {
+	for key, item := range endpoints {
 		if len(item.Subsets) < 1 {
 			continue
 		}
@@ -105,9 +112,9 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*envoyv1.SDSHost, 
 		if dPort != fmt.Sprintf("%d", port) {
 			continue
 		}
-		toport := int(services.Items[key].Spec.Ports[0].Port)
+		toport := int(services[key].Spec.Ports[0].Port)
 		if serviceAlias == destServiceAlias {
-			if originPort, ok := services.Items[key].Labels["origin_port"]; ok {
+			if originPort, ok := services[key].Labels["origin_port"]; ok {
 				origin, err := strconv.Atoi(originPort)
 				if err != nil {
 					return nil, util.CreateAPIHandleError(500, fmt.Errorf("have no origin_port"))
@@ -176,14 +183,18 @@ func (d *DiscoverAction) upstreamClusters(serviceAlias, namespace string, depend
 		destService := dependsServices[i]
 		destServiceAlias := destService.DependServiceAlias
 		labelname := fmt.Sprintf("name=%sService", destServiceAlias)
-		services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+		selector, err := labels.Parse(labelname)
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
 		}
-		if len(services.Items) == 0 {
+		services, err := d.sharedInformers.Core().V1().Services().Lister().Services(namespace).List(selector)
+		if err != nil {
+			return nil, util.CreateAPIHandleError(500, err)
+		}
+		if len(services) == 0 {
 			continue
 		}
-		for _, service := range services.Items {
+		for _, service := range services {
 			inner, ok := service.Labels["service_type"]
 			port := service.Spec.Ports[0]
 			if !ok || inner != "inner" {
@@ -290,18 +301,22 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 	for i := range dependsServices {
 		destService := dependsServices[i]
 		destServiceAlias := destService.DependServiceAlias
-		labelname := fmt.Sprintf("name=%sService", destService.DependServiceAlias)
 		start := time.Now()
-		services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+		labelname := fmt.Sprintf("name=%sService", destServiceAlias)
+		selector, err := labels.Parse(labelname)
+		if err != nil {
+			return nil, util.CreateAPIHandleError(500, err)
+		}
+		services, err := d.sharedInformers.Core().V1().Services().Lister().Services(namespace).List(selector)
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
 		}
 		fmt.Printf("get %s service cost time %s \n", destService.DependServiceAlias, time.Now().Sub(start).String())
-		if len(services.Items) == 0 {
+		if len(services) == 0 {
 			logrus.Debugf("inner endpoints items length is 0, continue")
 			continue
 		}
-		for _, service := range services.Items {
+		for _, service := range services {
 			inner, ok := service.Labels["service_type"]
 			if !ok || inner != "inner" {
 				continue
@@ -413,43 +428,6 @@ func (d *DiscoverAction) ToolsGetSourcesEnv(
 		return v, nil
 	}
 	return []byte{}, nil
-}
-
-//ToolsGetK8SServiceList GetK8SServiceList
-func (d *DiscoverAction) ToolsGetK8SServiceList(uuid string) (*v1.ServiceList, error) {
-	serviceList, err := k8s.K8S.Core().Services(uuid).List(metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return serviceList, nil
-}
-
-//ToolsGetMainPodEnvs ToolsGetMainPodEnvs
-func (d *DiscoverAction) ToolsGetMainPodEnvs(namespace, serviceAlias string) (
-	*[]v1.EnvVar,
-	*util.APIHandleError) {
-	labelname := fmt.Sprintf("name=%s", serviceAlias)
-	pods, err := k8s.K8S.Core().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelname})
-	logrus.Debugf("service_alias %s pod is %v", serviceAlias, pods)
-	if err != nil {
-		return nil, util.CreateAPIHandleError(500, err)
-	}
-	if len(pods.Items) == 0 {
-		return nil,
-			util.CreateAPIHandleError(404, fmt.Errorf("have no pod for discover"))
-	}
-	if len(pods.Items[0].Spec.Containers) < 2 {
-		return nil,
-			util.CreateAPIHandleError(404, fmt.Errorf("have no net plugins for discover"))
-	}
-	for _, c := range pods.Items[0].Spec.Containers {
-		for _, e := range c.Env {
-			if e.Name == "PLUGIN_MOEL" && strings.Contains(e.Value, "net-plugin") {
-				return &c.Env, nil
-			}
-		}
-	}
-	return nil, util.CreateAPIHandleError(404, fmt.Errorf("have no envs for plugin"))
 }
 
 //ToolsGetRainbondResources get plugin configs from etcd
