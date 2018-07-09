@@ -20,8 +20,11 @@ package k8s
 
 import (
 	"testing"
+	"time"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/informers"
 )
 
 func init() {
@@ -35,4 +38,24 @@ func TestGetPodsByNodeName(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(pods)
+}
+
+func TestSharedInformerFactory(t *testing.T) {
+	sharedInformers := informers.NewSharedInformerFactory(K8S, time.Hour*10)
+	sharedInformers.Core().V1().Nodes().Informer()
+	stop := make(chan struct{})
+	sharedInformers.Start(stop)
+	selector, err := labels.Parse("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 10; i++ {
+		nodes, err := sharedInformers.Core().V1().Nodes().Lister().List(selector)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log(nodes)
+		time.Sleep(time.Second * 5)
+	}
+
 }

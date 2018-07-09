@@ -76,7 +76,9 @@ func Run(c *option.Conf) error {
 			c.K8SConfPath, err)
 	}
 	sharedInformers := informers.NewSharedInformerFactory(k8s.K8S, c.MinResyncPeriod)
-	go sharedInformers.Start(stop)
+	sharedInformers.Core().V1().Services().Informer()
+	sharedInformers.Core().V1().Endpoints().Informer()
+	sharedInformers.Start(stop)
 
 	s, err := nodeserver.NewNodeServer(c) //todo 配置文件 done
 	if err != nil {
