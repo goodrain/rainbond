@@ -2,12 +2,12 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/goodrain/rainbond)](https://goreportcard.com/report/github.com/goodrain/rainbond) 
 [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
-![Rainbond version](https://img.shields.io/badge/version-v3.6-brightgreen.svg)
+![Rainbond version](https://img.shields.io/badge/version-v3.7-brightgreen.svg)
 [![Build Status](https://travis-ci.org/goodrain/rainbond.svg?branch=master)](https://travis-ci.org/goodrain/rainbond)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
 
-[Website](http://www.rainbond.com) • [Docs](https://www.rainbond.com/docs/stable/) • [Public Cloud](https://console.goodrain.com) • [中文README](https://github.com/goodrain/rainbond/blob/V3.6/readme_zh.md)
+[Website](http://www.rainbond.com) • [Docs](https://www.rainbond.com/docs/stable/) • [Public Cloud](https://console.goodrain.com) • [中文README](https://github.com/goodrain/rainbond/blob/V3.7/readme_zh.md)
 
 **Rainbond** is an application-centric Platform as a Service, with innovative concept and complete ecological comes from continuous verification and optimization.
 
