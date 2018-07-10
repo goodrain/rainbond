@@ -35,6 +35,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/api"
 	"github.com/goodrain/rainbond/builder/clean"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 //Run start run
@@ -79,6 +81,10 @@ func Run(s *option.Builder) error {
 		return err
 	}
 	defer cle.Stop()
+
+	exporter := exector.NewExporter()
+	prometheus.MustRegister(exporter)
+	http.Handle(s.Config.PrometheusMetricPath, promhttp.Handler())
 
 	r := api.APIServer()
 	logrus.Info("builder api listen port 3228")
