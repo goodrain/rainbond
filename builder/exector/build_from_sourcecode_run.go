@@ -105,6 +105,7 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 		Lang:          gjson.GetBytes(in, "lang").String(),
 		Runtime:       gjson.GetBytes(in, "runtime").String(),
 		BuildEnvs:     be,
+		commit:        &object.Commit{},
 	}
 	scb.CacheDir = fmt.Sprintf("/cache/build/%s/cache/%s", scb.TenantID, scb.ServiceID)
 	//scb.SourceDir = scb.CodeSouceInfo.GetCodeSourceDir()
@@ -134,7 +135,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	rs, err := sources.GitCloneOrPull(i.CodeSouceInfo, rbi.GetCodeHome(), i.Logger, 5)
 	if err != nil {
 		logrus.Errorf("pull git code error: %s", err.Error())
-		i.Logger.Error(fmt.Sprintf("拉取代码失败，请重试"), map[string]string{"step": "builder-exector", "status": "failure"})
+		i.Logger.Error(fmt.Sprintf("拉取代码失败，请确保代码可以被正常下载"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	//get last commit

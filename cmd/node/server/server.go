@@ -33,6 +33,7 @@ import (
 	"github.com/goodrain/rainbond/node/nodeserver"
 	"github.com/goodrain/rainbond/node/statsd"
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/pkg/api/v1"
 
 	"github.com/Sirupsen/logrus"
@@ -69,15 +70,16 @@ func Run(c *option.Conf) error {
 		return fmt.Errorf("Connect to ETCD %s failed: %s",
 			c.Etcd.Endpoints, err)
 	}
-	if c.K8SConfPath != "" {
-		if err := k8s.NewK8sClient(c); err != nil {
-			return fmt.Errorf("Connect to K8S %s failed: %s",
-				c.K8SConfPath, err)
-		}
-	} else {
-		return fmt.Errorf("Connect to K8S %s failed: kubeconfig file not found",
-			c.K8SConfPath)
+	stop := make(chan struct{})
+	if err := k8s.NewK8sClient(c); err != nil {
+		return fmt.Errorf("Connect to K8S %s failed: %s",
+			c.K8SConfPath, err)
 	}
+	sharedInformers := informers.NewSharedInformerFactory(k8s.K8S, c.MinResyncPeriod)
+	sharedInformers.Core().V1().Services().Informer()
+	sharedInformers.Core().V1().Endpoints().Informer()
+	sharedInformers.Start(stop)
+	defer close(stop)
 
 	s, err := nodeserver.NewNodeServer(c) //todo 配置文件 done
 	if err != nil {
@@ -118,7 +120,7 @@ func Run(c *option.Conf) error {
 		return err
 	}
 	//启动API服务
-	apiManager := api.NewManager(*s.Conf, s.HostNode, ms, exporter)
+	apiManager := api.NewManager(*s.Conf, s.HostNode, ms, exporter, sharedInformers)
 	if err := apiManager.Start(errChan); err != nil {
 		return err
 	}

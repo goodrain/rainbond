@@ -331,7 +331,7 @@ func walkDir(dir string, wg *sync.WaitGroup, fileSizes chan<- int64, concurrent 
 	defer func() {
 		<-concurrent
 	}()
-	for _, entry := range dirents(dir) {
+	for _, entry := range listDirNonSymlink(dir) {
 		if entry.IsDir() { //目录
 			wg.Add(1)
 			subDir := filepath.Join(dir, entry.Name())
@@ -342,11 +342,11 @@ func walkDir(dir string, wg *sync.WaitGroup, fileSizes chan<- int64, concurrent 
 	}
 }
 
-//sema is a counting semaphore for limiting concurrency in dirents
+//sema is a counting semaphore for limiting concurrency in listDir
 var sema = make(chan struct{}, 20)
 
 //读取目录dir下的文件信息
-func dirents(dir string) []os.FileInfo {
+func listDir(dir string) []os.FileInfo {
 	sema <- struct{}{}
 	defer func() { <-sema }()
 	entries, err := ioutil.ReadDir(dir)
@@ -355,6 +355,25 @@ func dirents(dir string) []os.FileInfo {
 		return nil
 	}
 	return entries
+}
+
+// 列出指定目录下的非软链类型的所有条目
+func listDirNonSymlink(dir string) []os.FileInfo {
+	sema <- struct{}{}
+	defer func() { <-sema }()
+	entries, err := ioutil.ReadDir(dir)
+	if err != nil {
+		logrus.Errorf("get file sizt: %v\n", err)
+		return nil
+	}
+
+	var result []os.FileInfo
+	for i := range entries {
+		if entries[i].Mode() & os.ModeSymlink == 0 {
+			result = append(result, entries[i])
+		}
+	}
+	return result
 }
 
 //RemoveSpaces 去除空格项

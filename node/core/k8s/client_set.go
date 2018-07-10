@@ -19,8 +19,6 @@
 package k8s
 
 import (
-	"time"
-
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -41,7 +39,6 @@ func NewK8sClient(cfg *option.Conf) error {
 	if err != nil {
 		return err
 	}
-	config.Timeout = time.Second * 5
 	config.QPS = 50
 	config.Burst = 100
 	cli, err := kubernetes.NewForConfig(config)
