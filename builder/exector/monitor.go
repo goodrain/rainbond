@@ -49,7 +49,6 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 // Collect implements prometheus.Collector.
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	e.scrape(ch)
-	ch <- e.healthStatus
 }
 
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
