@@ -43,14 +43,24 @@ func TestGetPodsByNodeName(t *testing.T) {
 func TestSharedInformerFactory(t *testing.T) {
 	sharedInformers := informers.NewSharedInformerFactory(K8S, time.Hour*10)
 	sharedInformers.Core().V1().Nodes().Informer()
+	sharedInformers.Core().V1().Services().Informer()
 	stop := make(chan struct{})
 	sharedInformers.Start(stop)
+	time.Sleep(time.Second * 30)
 	selector, err := labels.Parse("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 2; i++ {
 		nodes, err := sharedInformers.Core().V1().Nodes().Lister().List(selector)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log(nodes)
+	}
+	for i := 0; i < 2; i++ {
+		selector, _ := labels.Parse("name=gr87b487Service")
+		nodes, err := sharedInformers.Core().V1().Services().Lister().Services("824b2e9dcc4d461a852ddea20369d377").List(selector)
 		if err != nil {
 			t.Fatal(err)
 		}

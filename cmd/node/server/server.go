@@ -79,6 +79,7 @@ func Run(c *option.Conf) error {
 	sharedInformers.Core().V1().Services().Informer()
 	sharedInformers.Core().V1().Endpoints().Informer()
 	sharedInformers.Start(stop)
+	defer close(stop)
 
 	s, err := nodeserver.NewNodeServer(c) //todo 配置文件 done
 	if err != nil {

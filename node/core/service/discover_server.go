@@ -322,25 +322,19 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 				continue
 			}
 			port := service.Spec.Ports[0].Port
+			clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
 			// Unique by listen port
-			if index, ok := portMap[port]; !ok {
-				clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
-				plds := envoyv1.CreateTCPCommonListener(clusterName, fmt.Sprintf("tcp://127.0.0.1:%d", port))
+			if _, ok := portMap[port]; !ok {
+				listenerName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
+				plds := envoyv1.CreateTCPCommonListener(listenerName, clusterName, fmt.Sprintf("tcp://127.0.0.1:%d", port))
 				ldsL = append(ldsL, plds)
 				portMap[port] = len(ldsL) - 1
-			} else if index != -1 {
-				clusterName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
-				plds := envoyv1.CreateTCPCommonListener(clusterName, fmt.Sprintf("tcp://127.0.0.1:%d", port))
-				ldsL[index] = plds
-				//only create one cluster for same port
-				portMap[port] = -1
 			}
 			portProtocol, ok := service.Labels["port_protocol"]
 			if !ok {
 				portProtocol = destService.Protocol
 			}
 			if portProtocol != "" {
-				clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
 				//TODO: support more protocol
 				switch portProtocol {
 				case "http", "https":
@@ -393,7 +387,7 @@ func (d *DiscoverAction) downstreamListener(serviceAlias, namespace string, port
 		port := int32(p.Port)
 		clusterName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
 		if _, ok := portMap[port]; !ok {
-			plds := envoyv1.CreateTCPCommonListener(clusterName, fmt.Sprintf("tcp://0.0.0.0:%d", p.ListenPort))
+			plds := envoyv1.CreateTCPCommonListener(clusterName, clusterName, fmt.Sprintf("tcp://0.0.0.0:%d", p.ListenPort))
 			ldsL = append(ldsL, plds)
 			portMap[port] = 1
 		}
