@@ -41,6 +41,7 @@ func ProfilerSetup(r *chi.Mux) {
 	r.HandleFunc("/debug/pprof/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
 }
 
+
 // Replicated from expvar.go as not public.
 func expVars(w http.ResponseWriter, r *http.Request) {
 	first := true

@@ -84,9 +84,8 @@ func Run(s *option.Builder) error {
 
 	exporter := exector.NewExporter()
 	prometheus.MustRegister(exporter)
-	http.Handle(s.Config.PrometheusMetricPath, promhttp.Handler())
-
 	r := api.APIServer()
+	r.Handle(s.Config.PrometheusMetricPath, promhttp.Handler())
 	logrus.Info("builder api listen port 3228")
 	go http.ListenAndServe(":3228", r)
 
