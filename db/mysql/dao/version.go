@@ -101,7 +101,7 @@ func (c *VersionInfoDaoImpl) GetVersionByDeployVersion(version, serviceID string
 //GetVersionByServiceID get versions by service id
 func (c *VersionInfoDaoImpl) GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
-	if err := c.DB.Where("service_id=?", serviceID).Find(&result).Error; err != nil {
+	if err := c.DB.Where("service_id=? AND final_status=?", serviceID, "success").Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			//return messageRaw, nil
 		}
