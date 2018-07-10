@@ -29,6 +29,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
+	"github.com/goodrain/rainbond/worker/discover"
+	httputil "github.com/goodrain/rainbond/util/http"
 )
 
 //ExporterManager app resource exporter
@@ -76,6 +78,10 @@ func (t *ExporterManager) Start() error {
 			</body>
 			</html>
 			`))
+	})
+	http.HandleFunc("/worker/health", func(w http.ResponseWriter, r *http.Request) {
+		healthStatus := discover.HealthCheck()
+		httputil.ReturnSuccess(r,w,healthStatus)
 	})
 	log.Infoln("Listening on", t.config.Listen)
 	go func() {

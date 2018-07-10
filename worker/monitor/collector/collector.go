@@ -29,6 +29,7 @@ import (
 	status "github.com/goodrain/rainbond/appruntimesync/client"
 	"github.com/goodrain/rainbond/db"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/goodrain/rainbond/worker/discover"
 )
 
 //Exporter 收集器
@@ -42,6 +43,7 @@ type Exporter struct {
 	workerUp      prometheus.Gauge
 	dbmanager     db.Manager
 	statusManager *status.AppRuntimeSyncClient
+	healthStatus  prometheus.Gauge
 }
 
 var scrapeDurationDesc = prometheus.NewDesc(
@@ -119,6 +121,16 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		}
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.fs")
+
+	healthInfo := discover.HealthCheck()
+	healthStatus :=healthInfo["status"]
+	var val float64
+	if healthStatus == "health"{
+		val = 0
+	}else {
+		val = 1
+	}
+	ch <- prometheus.MustNewConstMetric(e.healthStatus.Desc(), prometheus.GaugeValue, val)
 }
 
 var namespace = "app_resource"
@@ -159,6 +171,12 @@ func New(statusManager *status.AppRuntimeSyncClient) *Exporter {
 			Name:      "appfs",
 			Help:      "tenant service fs used.",
 		}, []string{"tenant_id", "service_id", "volume_type"}),
+		healthStatus:prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: "worker",
+			Subsystem: "exporter",
+			Name:      "worker_health_status",
+			Help:      "worker component health status.",
+		}),
 		dbmanager:     db.GetManager(),
 		statusManager: statusManager,
 	}

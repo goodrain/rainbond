@@ -2,6 +2,7 @@ package exector
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/goodrain/rainbond/worker/discover"
 )
 
 // Metric name parts.
@@ -53,6 +54,14 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 
+	healthInfo := discover.HealthCheck()
+	healthStatus := healthInfo["status"]
+	var val float64
+	if healthStatus == "health"{
+		val = 0
+	}else {
+		val = 1
+	}
 
-	ch <- prometheus.MustNewConstMetric(e.healthStatus.Desc(), prometheus.GaugeValue, 0)
+	ch <- prometheus.MustNewConstMetric(e.healthStatus.Desc(), prometheus.GaugeValue, val)
 }
