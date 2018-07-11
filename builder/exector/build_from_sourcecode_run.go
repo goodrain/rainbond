@@ -41,6 +41,7 @@ import (
 
 	"github.com/docker/engine-api/client"
 	"github.com/goodrain/rainbond/builder/apiHandler"
+	"github.com/goodrain/rainbond/builder/build"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -149,22 +150,34 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	info := fmt.Sprintf("版本:%s 上传者:%s Commit:%s ", commit.Hash.String()[0:7], commit.Author.Name, commit.Message)
 	i.Logger.Info(info, map[string]string{"step": "code-version"})
 
-	if i.Lang == string(code.Dockerfile) || i.Lang == string(code.Docker) {
+	switch i.Lang {
+	case string(code.Dockerfile), string(code.Docker):
 		i.Logger.Info("代码识别出Dockerfile,直接构建镜像。", map[string]string{"step": "builder-exector"})
 		if err := i.buildImage(); err != nil {
 			logrus.Errorf("build from dockerfile error: %s", err.Error())
 			i.Logger.Error("基于Dockerfile构建应用发生错误，请分析日志查找原因", map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
-	} else {
-		i.Logger.Info("开始代码构建", map[string]string{"step": "builder-exector"})
+	case string(code.NetCore):
+		i.Logger.Info("开始代码编译并构建镜像", map[string]string{"step": "builder-exector"})
+		res, err := i.codeBuild()
+		if err != nil {
+			logrus.Errorf("build from source code error: %s", err.Error())
+			i.Logger.Error("源码编译异常,查看上诉日志排查", map[string]string{"step": "builder-exector", "status": "failure"})
+			return err
+		}
+		if err := i.UpdateBuildVersionInfo(res); err != nil {
+			return err
+		}
+	default:
+		i.Logger.Info("开始代码编译", map[string]string{"step": "builder-exector"})
 		if err := i.buildCode(); err != nil {
 			logrus.Errorf("build from source code error: %s", err.Error())
 			i.Logger.Error("编译代码包过程遇到异常", map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
 	}
-	i.Logger.Info("应用同步完成，开始启动应用", map[string]string{"step": "build-exector"})
+	i.Logger.Info("应用构建完成，开始启动应用", map[string]string{"step": "build-exector"})
 	if err := apiHandler.UpgradeService(i.TenantName, i.ServiceAlias, i.CreateUpgradeTaskBody()); err != nil {
 		i.Logger.Error("启动应用任务发送失败，请手动启动", map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("rolling update service error, %s", err.Error())
@@ -172,6 +185,28 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	}
 	i.Logger.Info("应用启动任务发送成功", map[string]string{"step": "build-exector"})
 	return nil
+}
+func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
+	codeBuild, err := build.GetBuild(code.Lang(i.Lang))
+	if err != nil {
+		logrus.Errorf("get code build error: %s", err.Error())
+		i.Logger.Error("源码编译异常", map[string]string{"step": "builder-exector", "status": "failure"})
+		return nil, err
+	}
+	buildReq := &build.Request{
+		SourceDir:     i.RepoInfo.GetCodeBuildAbsPath(),
+		CacheDir:      i.CacheDir,
+		RepositoryURL: i.RepoInfo.RepostoryURL,
+		ServiceAlias:  i.ServiceAlias,
+		DeployVersion: i.DeployVersion,
+		Commit:        build.Commit{User: i.commit.Author.Name, Message: i.commit.Message, Hash: i.commit.Hash.String()},
+		Lang:          code.Lang(i.Lang),
+		BuildEnvs:     i.BuildEnvs,
+		Logger:        i.Logger,
+		DockerClient:  i.DockerClient,
+	}
+	res, err := codeBuild.Build(buildReq)
+	return res, err
 }
 
 //IsDockerfile CheckDockerfile
@@ -291,6 +326,7 @@ func (i *SourceCodeBuildItem) prepare() error {
 	return nil
 }
 
+//buildCode build code by buildingpack
 func (i *SourceCodeBuildItem) buildCode() error {
 	i.Logger.Info("开始编译代码包", map[string]string{"step": "build-exector"})
 	packageName := fmt.Sprintf("%s/%s.tgz", i.TGZDir, i.DeployVersion)
@@ -397,6 +433,25 @@ func (i *SourceCodeBuildItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
 	version.CodeVersion = vi.CodeVersion
 	logrus.Debugf("update app version %+v", *version)
 	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
+		return err
+	}
+	return nil
+}
+
+//UpdateBuildVersionInfo update service build version info to db
+func (i *SourceCodeBuildItem) UpdateBuildVersionInfo(res *build.Response) error {
+	vi := &dbmodel.VersionInfo{
+		DeliveredType: string(res.MediumType),
+		DeliveredPath: res.MediumPath,
+		EventID:       i.EventID,
+		FinalStatus:   "success",
+		CodeVersion:   i.commit.Hash.String(),
+		CommitMsg:     i.commit.Message,
+		Author:        i.commit.Author.Name,
+	}
+	if err := i.UpdateVersionInfo(vi); err != nil {
+		logrus.Errorf("update version info error: %s", err.Error())
+		i.Logger.Error("更新应用版本信息失败", map[string]string{"step": "build-code", "status": "failure"})
 		return err
 	}
 	return nil

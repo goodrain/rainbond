@@ -1,0 +1,8 @@
+FROM microsoft/dotnet:2.1-sdk-alpine
+WORKDIR /app
+
+# copy csproj and restore as distinct layers
+COPY . .
+RUN dotnet restore
+RUN dotnet publish -c Release -o /out
+CMD ["cp","-r","/out/","/tmp/"]

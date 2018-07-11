@@ -183,7 +183,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		}
 	}
 
-	//读取云帮配置文件
+	//read rainbondfile
 	rbdfileConfig, err := code.ReadRainbondFile(buildInfo.GetCodeHome())
 	if err != nil {
 		if err == code.ErrRainbondFileNotFound {

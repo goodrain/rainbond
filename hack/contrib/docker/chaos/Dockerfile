@@ -11,6 +11,7 @@ RUN apk --no-cache add openssl git perl openssh-client && \
 
 COPY rainbond-chaos entrypoint.sh build.pl /run/
 COPY export-app /src/export-app
+COPY build-app /src/build-app
 
 WORKDIR $WORK_DIR
 
