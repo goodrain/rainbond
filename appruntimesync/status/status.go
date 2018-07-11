@@ -116,14 +116,18 @@ func (s *Manager) checkStatus() {
 			deployInfo, err := db.GetManager().K8sDeployReplicationDao().GetK8sDeployReplicationByService(serviceID)
 			if err != nil {
 				if err == gorm.ErrRecordNotFound {
-					s.SetStatus(serviceID, CLOSED)
+					if s.GetStatus(serviceID) != UNDEPLOY && s.GetStatus(serviceID) != DEPLOYING {
+						s.SetStatus(serviceID, CLOSED)
+					}
 					continue
 				}
 				logrus.Error("get deploy info error where check application status.", err.Error())
 				continue
 			}
 			if deployInfo == nil || len(deployInfo) == 0 {
-				s.SetStatus(serviceID, CLOSED)
+				if s.GetStatus(serviceID) != UNDEPLOY && s.GetStatus(serviceID) != DEPLOYING {
+					s.SetStatus(serviceID, CLOSED)
+				}
 				continue
 			}
 			switch deployInfo[0].ReplicationType {

@@ -369,7 +369,7 @@ func listDirNonSymlink(dir string) []os.FileInfo {
 
 	var result []os.FileInfo
 	for i := range entries {
-		if entries[i].Mode() & os.ModeSymlink == 0 {
+		if entries[i].Mode()&os.ModeSymlink == 0 {
 			result = append(result, entries[i])
 		}
 	}
@@ -562,7 +562,9 @@ func MergeDir(fromdir, todir string) error {
 	}
 	for _, f := range files {
 		if err := os.Rename(path.Join(fromdir, f.Name()), path.Join(todir, f.Name())); err != nil {
-			return err
+			if !strings.Contains(err.Error(), "file exists") {
+				return err
+			}
 		}
 	}
 	return nil
