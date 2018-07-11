@@ -207,6 +207,12 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 						newpath := filepath.Join(util.GetParentDirectory(path), newName)
 						err := util.Rename(path, newpath)
 						if err != nil {
+							if strings.Contains(err.Error(), "file exists") {
+								if err := util.MergeDir(path, newpath); err != nil {
+									return err
+								}
+								return nil
+							}
 							return err
 						}
 						if err := os.Chmod(newpath, 0777); err != nil {
@@ -216,6 +222,12 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 				}
 				err := util.Rename(tmpDir, util.GetParentDirectory(volume.HostPath))
 				if err != nil {
+					if strings.Contains(err.Error(), "file exists") {
+						if err := util.MergeDir(tmpDir, util.GetParentDirectory(volume.HostPath)); err != nil {
+							return err
+						}
+						return nil
+					}
 					return err
 				}
 				if err := os.Chmod(volume.HostPath, 0777); err != nil {
@@ -236,6 +248,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 					if err := util.MergeDir(tmpDir, util.GetParentDirectory(app.Service.HostPath)); err != nil {
 						return err
 					}
+					return nil
 				}
 				return err
 			}
