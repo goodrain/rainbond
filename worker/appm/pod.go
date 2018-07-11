@@ -594,6 +594,7 @@ func (p *PodTemplateSpecBuild) createVolumes(envs *[]v1.EnvVar) ([]v1.Volume, []
 	//处理slug挂载
 	if strings.HasPrefix(p.service.ImageName, "goodrain.me/runner") {
 		var slugPath string
+		var isSlug = true
 		for _, e := range *envs {
 			if e.Name == "SLUG_PATH" {
 				slugPath = e.Value
@@ -608,12 +609,16 @@ func (p *PodTemplateSpecBuild) createVolumes(envs *[]v1.EnvVar) ([]v1.Volume, []
 			if err != nil {
 				logrus.Warnf("error get slug path from versioninfo table by key %s,prepare use path", p.service.DeployVersion)
 			} else {
-				if len(versionInfo.DeliveredPath) != 0 {
+				if versionInfo.DeliveredType == "image" {
+					isSlug = false
+				} else if len(versionInfo.DeliveredPath) != 0 {
 					slugPath = versionInfo.DeliveredPath
 				}
 			}
 		}
-		p.createVolumeObj(model.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", slugPath, true, &volumeMounts, &volumes)
+		if isSlug {
+			p.createVolumeObj(model.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", slugPath, true, &volumeMounts, &volumes)
+		}
 	}
 	//有依赖的服务需要启动grproxy,挂载kubeconfig
 	if p.needProxy {
