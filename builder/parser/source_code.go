@@ -250,6 +250,9 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		for _, port := range rbdfileConfig.Ports {
 			d.ports[port.Port] = &Port{ContainerPort: port.Port, Protocol: port.Protocol}
 		}
+		if rbdfileConfig.Cmd != "" {
+			d.args = strings.Split(rbdfileConfig.Cmd, " ")
+		}
 	}
 	return d.errors
 }

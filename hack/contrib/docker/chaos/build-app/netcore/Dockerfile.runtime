@@ -1,4 +1,4 @@
 FROM microsoft/dotnet:2.1-aspnetcore-runtime-alpine
 WORKDIR /app
 COPY . .
-ENTRYPOINT ["dotnet", "aspnetapp.dll"]
+CMD ["dotnet"]
