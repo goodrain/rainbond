@@ -231,6 +231,9 @@ func netcore(homepath string) Lang {
 	if ok := util.FileExistsWithSuffix(homepath, ".sln"); ok {
 		return NetCore
 	}
+	if ok := util.FileExistsWithSuffix(homepath, ".csproj"); ok {
+		return NetCore
+	}
 	return NO
 }
 
