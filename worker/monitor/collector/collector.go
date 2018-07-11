@@ -44,6 +44,8 @@ type Exporter struct {
 	dbmanager     db.Manager
 	statusManager *status.AppRuntimeSyncClient
 	healthStatus  prometheus.Gauge
+	taskNum       prometheus.Gauge
+	taskError     prometheus.Gauge
 }
 
 var scrapeDurationDesc = prometheus.NewDesc(
@@ -131,6 +133,8 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		val = 0
 	}
 	ch <- prometheus.MustNewConstMetric(e.healthStatus.Desc(), prometheus.GaugeValue, val)
+	ch <- prometheus.MustNewConstMetric(e.taskNum.Desc(), prometheus.GaugeValue, discover.TaskNum)
+	ch <- prometheus.MustNewConstMetric(e.taskError.Desc(), prometheus.GaugeValue, discover.TaskError)
 }
 
 var namespace = "app_resource"
@@ -176,6 +180,18 @@ func New(statusManager *status.AppRuntimeSyncClient) *Exporter {
 			Subsystem: "exporter",
 			Name:      "worker_health_status",
 			Help:      "worker component health status.",
+		}),
+		taskNum: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: "exporter",
+			Name:      "worker_task_number",
+			Help:      "worker total number of tasks.",
+		}),
+		taskError: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: "exporter",
+			Name:      "worker_task_error",
+			Help:      "worker number of task errors.",
 		}),
 		dbmanager:     db.GetManager(),
 		statusManager: statusManager,

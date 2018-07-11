@@ -16,6 +16,8 @@ const (
 //Exporter collects entrance metrics. It implements prometheus.Collector.
 type Exporter struct {
 	healthStatus prometheus.Gauge
+	taskNum prometheus.Gauge
+	taskError prometheus.Gauge
 }
 
 //NewExporter new a exporter
@@ -26,6 +28,18 @@ func NewExporter() *Exporter {
 			Subsystem: exporter,
 			Name:      "builder_health_status",
 			Help:      "builder component health status.",
+		}),
+		taskNum:prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: exporter,
+			Name:      "builder_task_number",
+			Help:      "builder number of tasks",
+		}),
+		taskError:prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: exporter,
+			Name:      "builder_task_error",
+			Help:      "builder number of task errors",
 		}),
 	}
 }
@@ -64,4 +78,6 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	}
 
 	ch <- prometheus.MustNewConstMetric(e.healthStatus.Desc(), prometheus.GaugeValue, val)
+	ch <- prometheus.MustNewConstMetric(e.taskNum.Desc(), prometheus.GaugeValue, TaskNum)
+	ch <- prometheus.MustNewConstMetric(e.taskError.Desc(), prometheus.GaugeValue, ErrorNum)
 }

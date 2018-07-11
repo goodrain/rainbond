@@ -44,5 +44,5 @@ func (h HealthStatus) Register(container *restful.Container) {
 
 func (h *HealthStatus) healthCheck(request *restful.Request, response *restful.Response) {
 
-	NewSuccessResponse(map[string]string{"status": "health", "info": ""}, nil, response)
+	NewSuccessResponse(map[string]string{"status": "health", "info": "entrance service health"}, nil, response)
 }

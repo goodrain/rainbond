@@ -41,6 +41,8 @@ import (
 const WTOPIC string = "worker"
 
 var healthStatus = make(map[string]string,1)
+var TaskNum float64 = 0
+var TaskError float64 = 0
 
 //TaskManager task
 type TaskManager struct {
@@ -116,6 +118,9 @@ func (t *TaskManager) Do() {
 				continue
 			}
 			rc := t.handleManager.AnalystToExec(transData)
+			if rc == 1{
+				TaskError += 1
+			}
 			if rc == 9 {
 				logrus.Debugf("rc is 9, enqueue task to mq")
 				ctx, cancel := context.WithCancel(t.ctx)
@@ -129,6 +134,8 @@ func (t *TaskManager) Do() {
 					logrus.Errorf("enqueue task %v to mq topic %v Error", data, WTOPIC)
 					continue
 				}
+			}else {
+				TaskNum += 1
 			}
 			logrus.Debugf("handle task AnalystToExec %d", rc)
 		}
