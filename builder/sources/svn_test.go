@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,14 +19,15 @@
 package sources
 
 import (
-	"fmt"
 	"testing"
+	"time"
+
+	"github.com/goodrain/rainbond/event"
 )
 
-func TestCreateRepostoryBuildInfo(t *testing.T) {
-	info, err := CreateRepostoryBuildInfo("ssh://git@gr5042d6.7804f67d.ali-sh-s1.goodrain.net:20905/root/private2018.git?dir=abc", "master", "ADSASDADAD", "")
+func TestSvnClone(t *testing.T) {
+	_, err := SvnClone("/tmp/svn", "https://github.com/goodrain/lb-openresty.git", "", "", event.GetTestLogger(), time.Second*600)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf("%+v \n", info)
 }

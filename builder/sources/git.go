@@ -35,9 +35,15 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	netssh "golang.org/x/crypto/ssh"
+	sshkey "golang.org/x/crypto/ssh"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/protocol/packp/sideband"
@@ -45,11 +51,6 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/client"
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
-	"crypto/rsa"
-	"encoding/pem"
-	"crypto/x509"
-	sshkey "golang.org/x/crypto/ssh"
-	"crypto/rand"
 )
 
 //CodeSourceInfo 代码源信息
@@ -60,7 +61,7 @@ type CodeSourceInfo struct {
 	User          string `json:"user"`
 	Password      string `json:"password"`
 	//避免项目之间冲突，代码缓存目录提高到租户
-	TenantID string `json:"tenant_id"`
+	TenantID  string `json:"tenant_id"`
 	ServiceID string `json:"service_id"`
 }
 
@@ -521,6 +522,7 @@ func createProgress(ctx context.Context, logger event.Logger) sideband.Progress 
 					if err.Error() != "EOF" {
 						fmt.Println("read git log err", err.Error())
 					}
+					return
 				}
 				if len(line) > 0 {
 					progess := strings.Replace(string(line), "\r", "", -1)
