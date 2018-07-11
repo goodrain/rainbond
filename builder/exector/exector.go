@@ -185,6 +185,7 @@ func (e *exectorManager) buildFromImage(in []byte) {
 				} else {
 					i.Logger.Error("从镜像构建应用任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 					status = "failure"
+
 				}
 			} else {
 				break

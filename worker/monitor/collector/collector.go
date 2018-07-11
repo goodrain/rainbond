@@ -123,12 +123,12 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.fs")
 
 	healthInfo := discover.HealthCheck()
-	healthStatus :=healthInfo["status"]
+	healthStatus := healthInfo["status"]
 	var val float64
-	if healthStatus == "health"{
-		val = 0
-	}else {
+	if healthStatus == "health" {
 		val = 1
+	} else {
+		val = 0
 	}
 	ch <- prometheus.MustNewConstMetric(e.healthStatus.Desc(), prometheus.GaugeValue, val)
 }
@@ -171,8 +171,8 @@ func New(statusManager *status.AppRuntimeSyncClient) *Exporter {
 			Name:      "appfs",
 			Help:      "tenant service fs used.",
 		}, []string{"tenant_id", "service_id", "volume_type"}),
-		healthStatus:prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: "worker",
+		healthStatus: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
 			Subsystem: "exporter",
 			Name:      "worker_health_status",
 			Help:      "worker component health status.",

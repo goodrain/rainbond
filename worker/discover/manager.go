@@ -56,7 +56,7 @@ func NewTaskManager(c option.Config, executor executor.Manager, statusManager *s
 	ctx, cancel := context.WithCancel(context.Background())
 	handleManager := handle.NewManager(ctx, c, executor, statusManager)
 	healthStatus["status"] = "health"
-	healthStatus["info"] = "service health"
+	healthStatus["info"] = "worker service health"
 	return &TaskManager{
 		ctx:           ctx,
 		cancel:        cancel,
@@ -84,8 +84,6 @@ func (t *TaskManager) Start() error {
 func (t *TaskManager) Do() {
 	logrus.Info("start receive task from mq")
 	hostname, _ := os.Hostname()
-	timeoutNum := 0
-	errorNum := 0
 	for {
 		select {
 		case <-t.ctx.Done():
@@ -105,20 +103,10 @@ func (t *TaskManager) Do() {
 					return
 				}
 				if grpc1.ErrorDesc(err) == "context timeout" {
-					timeoutNum += 1
-					if timeoutNum > 10 {
-						healthStatus["status"] = "unusual"
-						healthStatus["info"] = "context timeout more than ten times"
-					}
 					continue
 				}
 				logrus.Error("receive task error.", err.Error())
 				time.Sleep(time.Second * 2)
-				errorNum += 1
-				if errorNum > 10 {
-					healthStatus["status"] = "unusual"
-					healthStatus["info"] = err.Error()
-				}
 				continue
 			}
 			logrus.Debugf("receive a task: %v", data)

@@ -51,7 +51,7 @@ type TaskManager struct {
 func NewTaskManager(c option.Config, exec exector.Manager) *TaskManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	healthStatus["status"] = "health"
-	healthStatus["info"] = "service health"
+	healthStatus["info"] = "builder service health"
 	return &TaskManager{
 		ctx:          ctx,
 		cancel:       cancel,
@@ -78,8 +78,6 @@ func (t *TaskManager) Start() error {
 //Do do
 func (t *TaskManager) Do() {
 	hostName, _ := os.Hostname()
-	timeoutNum := 0
-	errorNum := 0
 	for {
 		select {
 		case <-t.ctx.Done():
@@ -101,20 +99,10 @@ func (t *TaskManager) Do() {
 				}
 				if grpc1.ErrorDesc(err) == "context timeout" {
 					logrus.Warn(err.Error())
-					timeoutNum += 1
-					if timeoutNum > 10 {
-						healthStatus["status"] = "unusual"
-						healthStatus["info"] = "context timeout more than ten times"
-					}
 					continue
 				}
 				logrus.Error(err.Error())
 				time.Sleep(time.Second * 2)
-				errorNum += 1
-				if errorNum > 10 {
-					healthStatus["status"] = "unusual"
-					healthStatus["info"] = err.Error()
-				}
 				continue
 			}
 			logrus.Debugf("Receive a task: %s", data.String())
