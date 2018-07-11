@@ -1,8 +1,9 @@
-package exector
+package monitor
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/goodrain/rainbond/builder/discover"
+	"github.com/goodrain/rainbond/builder/exector"
 )
 
 // Metric name parts.
@@ -78,6 +79,6 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	}
 
 	ch <- prometheus.MustNewConstMetric(e.healthStatus.Desc(), prometheus.GaugeValue, val)
-	ch <- prometheus.MustNewConstMetric(e.taskNum.Desc(), prometheus.GaugeValue, TaskNum)
-	ch <- prometheus.MustNewConstMetric(e.taskError.Desc(), prometheus.GaugeValue, ErrorNum)
+	ch <- prometheus.MustNewConstMetric(e.taskNum.Desc(), prometheus.GaugeValue, exector.TaskNum)
+	ch <- prometheus.MustNewConstMetric(e.taskError.Desc(), prometheus.GaugeValue, exector.ErrorNum)
 }

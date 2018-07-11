@@ -25,6 +25,7 @@ import (
 
 	"github.com/goodrain/rainbond/builder/discover"
 	"github.com/goodrain/rainbond/builder/exector"
+	"github.com/goodrain/rainbond/builder/monitor"
 	"github.com/goodrain/rainbond/cmd/builder/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
@@ -82,7 +83,7 @@ func Run(s *option.Builder) error {
 	}
 	defer cle.Stop()
 
-	exporter := exector.NewExporter()
+	exporter := monitor.NewExporter()
 	prometheus.MustRegister(exporter)
 	r := api.APIServer()
 	r.Handle(s.Config.PrometheusMetricPath, promhttp.Handler())
