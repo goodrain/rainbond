@@ -190,7 +190,10 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 						logrus.Errorf("restore service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
 						return err
 					}
-					os.MkdirAll(tmpDir, 0777)
+					//backup data is not exist because dir is empty.
+					//so create host path and continue
+					os.MkdirAll(volume.HostPath, 0777)
+					continue
 				}
 				//if app type is statefulset, change pod hostpath
 				if b.getServiceType(app.ServiceLabel) == util.StatefulServiceType {
@@ -211,9 +214,9 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 								if err := util.MergeDir(path, newpath); err != nil {
 									return err
 								}
-								return nil
+							} else {
+								return err
 							}
-							return err
 						}
 						if err := os.Chmod(newpath, 0777); err != nil {
 							return err
@@ -226,9 +229,9 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 						if err := util.MergeDir(tmpDir, util.GetParentDirectory(volume.HostPath)); err != nil {
 							return err
 						}
-						return nil
+					} else {
+						return err
 					}
-					return err
 				}
 				if err := os.Chmod(volume.HostPath, 0777); err != nil {
 					return err
@@ -239,21 +242,27 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 			dstDir := fmt.Sprintf("%s/data_%s/%s_common.zip", b.cacheDir, b.getOldServiceID(app.ServiceID), b.getOldServiceID(app.ServiceID))
 			tmpDir := fmt.Sprintf("/grdata/tmp/%s_%s", app.ServiceID, app.ServiceID)
 			if err := util.Unzip(dstDir, tmpDir); err != nil {
-				logrus.Errorf("restore service(%s) common data error.%s", app.ServiceID, err.Error())
-				return err
-			}
-			err := util.Rename(tmpDir, util.GetParentDirectory(app.Service.HostPath))
-			if err != nil {
-				if strings.Contains(err.Error(), "file exists") {
-					if err := util.MergeDir(tmpDir, util.GetParentDirectory(app.Service.HostPath)); err != nil {
+				if !strings.Contains(err.Error(), "no such file") {
+					logrus.Errorf("restore service(%s) default volume data error.%s", app.ServiceID, err.Error())
+					return err
+				}
+				//backup data is not exist because dir is empty.
+				//so create host path and continue
+				os.MkdirAll(app.Service.HostPath, 0777)
+			} else {
+				err := util.Rename(tmpDir, util.GetParentDirectory(app.Service.HostPath))
+				if err != nil {
+					if strings.Contains(err.Error(), "file exists") {
+						if err := util.MergeDir(tmpDir, util.GetParentDirectory(app.Service.HostPath)); err != nil {
+							return err
+						}
+					} else {
 						return err
 					}
-					return nil
 				}
-				return err
-			}
-			if err := os.Chmod(app.Service.HostPath, 0777); err != nil {
-				return err
+				if err := os.Chmod(app.Service.HostPath, 0777); err != nil {
+					return err
+				}
 			}
 		}
 		b.Logger.Info(fmt.Sprintf("完成恢复应用(%s)持久化数据", app.Service.ServiceAlias), map[string]string{"step": "restore_builder", "status": "success"})
