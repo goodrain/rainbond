@@ -29,7 +29,6 @@ import (
 	"github.com/goodrain/rainbond/webcli/app"
 
 	"github.com/Sirupsen/logrus"
-	"net/http"
 )
 
 //Run start run
@@ -56,11 +55,6 @@ func Run(s *option.WebCliServer) error {
 		return err
 	}
 	defer keepalive.Stop()
-
-	r := app.APIServer()
-	logrus.Info("webcli api listen port 6369")
-	go http.ListenAndServe(":6369", r)
-
 	//step finally: listen Signal
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
