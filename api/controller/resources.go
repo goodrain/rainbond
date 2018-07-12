@@ -42,7 +42,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/renstorm/fuzzysearch/fuzzy"
-	"github.com/goodrain/rainbond/db"
 )
 
 //V2Routes v2Routes
