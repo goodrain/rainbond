@@ -501,7 +501,22 @@ func (t *TenantStruct) UpdateTenant(w http.ResponseWriter, r *http.Request) {
 //Get all apps and status
 func (t *TenantStruct) ServicesCount(w http.ResponseWriter, r *http.Request) {
 	allStatus := t.StatusCli.GetAllStatus()
-	fmt.Println(allStatus)
+	var closed int = 0
+	var running int = 0
+	var abnormal int = 0
+	for _, v := range allStatus {
+		switch v {
+		case "closed":
+			closed += 1
+		case "running":
+			running += 1
+		case "abnormal":
+			abnormal += 1
+
+		}
+
+	}
+	serviceCount := map[string]int{"total":len(allStatus),"running":running,"closed":closed,"abnormal":abnormal}
 	//ServicesInfoList := make([]*api_model.StatusList,0,300)
 	//ServiceList,err := db.GetManager().TenantServiceDao().GetAllServicesID()
 	//if err!= nil{
@@ -517,7 +532,7 @@ func (t *TenantStruct) ServicesCount(w http.ResponseWriter, r *http.Request) {
 	//	ServicesInfoList = append(ServicesInfoList, statusList)
 	//
 	//}
-	httputil.ReturnSuccess(r, w, allStatus)
+	httputil.ReturnSuccess(r, w, serviceCount)
 }
 
 //ServicesInfo GetServiceInfo
