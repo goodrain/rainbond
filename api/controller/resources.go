@@ -34,7 +34,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/jinzhu/gorm"
-	"github.com/thedevsaddam/govalidator"
+	validator "github.com/thedevsaddam/govalidator"
 
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/appruntimesync/client"
@@ -517,21 +517,6 @@ func (t *TenantStruct) ServicesCount(w http.ResponseWriter, r *http.Request) {
 
 	}
 	serviceCount := map[string]int{"total":len(allStatus),"running":running,"closed":closed,"abnormal":abnormal}
-	//ServicesInfoList := make([]*api_model.StatusList,0,300)
-	//ServiceList,err := db.GetManager().TenantServiceDao().GetAllServicesID()
-	//if err!= nil{
-	//	httputil.ReturnError(r, w, 500, fmt.Sprintf("select service error, %v", err))
-	//	return
-	//}
-	//for _,v :=range ServiceList{
-	//	statusList, err := handler.GetServiceManager().GetStatus(v.ServiceID)
-	//	if err != nil {
-	//		httputil.ReturnError(r, w, 500, fmt.Sprintf("get service list error,%v", err))
-	//		return
-	//	}
-	//	ServicesInfoList = append(ServicesInfoList, statusList)
-	//
-	//}
 	httputil.ReturnSuccess(r, w, serviceCount)
 }
 

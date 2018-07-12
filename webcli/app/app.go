@@ -33,6 +33,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/kr/pty"
 	"github.com/yudai/umutex"
+	httputil "github.com/goodrain/rainbond/util/http"
 )
 
 type App struct {
@@ -107,6 +108,7 @@ func (app *App) Run() error {
 	endpoint := net.JoinHostPort(app.options.Address, app.options.Port)
 
 	wsHandler := http.HandlerFunc(app.handleWS)
+	health := http.HandlerFunc(app.healthCheck)
 
 	var siteMux = http.NewServeMux()
 
@@ -117,6 +119,7 @@ func (app *App) Run() error {
 	wsMux := http.NewServeMux()
 	wsMux.Handle("/", siteHandler)
 	wsMux.Handle("/docker_console", wsHandler)
+	wsMux.Handle("/health", health)
 	siteHandler = (http.Handler(wsMux))
 
 	siteHandler = wrapLogger(siteHandler)
@@ -140,6 +143,10 @@ func (app *App) makeServer(addr string, handler *http.Handler) (*http.Server, er
 	}
 
 	return server, nil
+}
+
+func (app *App) healthCheck(w http.ResponseWriter, r *http.Request)  {
+	httputil.ReturnSuccess(r,w,map[string]string{"status": "health", "info": "webcli service health"})
 }
 
 func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
