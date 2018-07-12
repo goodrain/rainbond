@@ -130,16 +130,16 @@ type storeManager struct {
 }
 
 func (s *storeManager) HealthCheck() map[string]string {
-	receiveChan := len(s.receiveChan) >= 300
-	pubChan := len(s.pubChan) >= 300
-	subChan := len(s.subChan) >= 300
-	dockerLogChan := len(s.dockerLogChan) >= 2048
-	monitorMessageChan := len(s.monitorMessageChan) >= 100
-	newmonitorMessageChan := len(s.newmonitorMessageChan) >= 2048
+	receiveChan := len(s.receiveChan) == 300
+	pubChan := len(s.pubChan) == 300
+	subChan := len(s.subChan) == 300
+	dockerLogChan := len(s.dockerLogChan) == 2048
+	monitorMessageChan := len(s.monitorMessageChan) == 100
+	newmonitorMessageChan := len(s.newmonitorMessageChan) == 2048
 	if receiveChan || pubChan || subChan || dockerLogChan || monitorMessageChan || newmonitorMessageChan {
-		return map[string]string{"status": "health", "info": "eventlog service health"}
+		return map[string]string{"status": "unusual", "info": "channel blockage"}
 	}
-	return map[string]string{"status": "unusual", "info": "channel blockage"}
+	return map[string]string{"status": "health", "info": "eventlog service health"}
 }
 
 //Scrape prometheue monitor metrics
