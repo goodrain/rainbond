@@ -25,6 +25,7 @@ import (
 	"github.com/goodrain/rainbond/node/core/config"
 	"github.com/goodrain/rainbond/node/core/service"
 	"github.com/goodrain/rainbond/node/masterserver"
+	"k8s.io/client-go/informers"
 )
 
 var datacenterConfig *config.DataCenterConfig
@@ -37,9 +38,9 @@ var nodeService *service.NodeService
 var discoverService *service.DiscoverAction
 
 //Init 初始化
-func Init(c *option.Conf, ms *masterserver.MasterServer) {
+func Init(c *option.Conf, ms *masterserver.MasterServer, sharedInformers informers.SharedInformerFactory) {
 	if ms != nil {
-		prometheusService=service.CreatePrometheusService(c,ms)
+		prometheusService = service.CreatePrometheusService(c, ms)
 		taskService = service.CreateTaskService(c, ms)
 		taskTempService = service.CreateTaskTempService(c)
 		taskGroupService = service.CreateTaskGroupService(c, ms)
@@ -47,7 +48,7 @@ func Init(c *option.Conf, ms *masterserver.MasterServer) {
 		nodeService = service.CreateNodeService(c, ms.Cluster)
 	}
 	appService = service.CreateAppService(c)
-	discoverService = service.CreateDiscoverActionManager(c)
+	discoverService = service.CreateDiscoverActionManager(c, sharedInformers)
 }
 
 //Exist 退出

@@ -28,6 +28,7 @@ import (
 	"github.com/goodrain/rainbond/node/statsd"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"k8s.io/client-go/informers"
 
 	"github.com/goodrain/rainbond/node/api/controller"
 	"github.com/goodrain/rainbond/node/api/model"
@@ -59,10 +60,10 @@ type Manager struct {
 }
 
 //NewManager api manager
-func NewManager(c option.Conf, node *model.HostNode, ms *masterserver.MasterServer, exporter *statsd.Exporter) *Manager {
+func NewManager(c option.Conf, node *model.HostNode, ms *masterserver.MasterServer, exporter *statsd.Exporter, sharedInformers informers.SharedInformerFactory) *Manager {
 	r := router.Routers(c.RunMode)
 	ctx, cancel := context.WithCancel(context.Background())
-	controller.Init(&c, ms)
+	controller.Init(&c, ms, sharedInformers)
 	m := &Manager{
 		ctx:      ctx,
 		cancel:   cancel,

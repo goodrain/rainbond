@@ -44,16 +44,22 @@ type NodeManager struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
 	cluster    client.ClusterClient
-	monitor    *monitor.Manager
-	healthy    *healthy.Manager
-	controller *controller.Manager
-	taskrun    *taskrun.Manager
+	monitor    monitor.Manager
+	healthy    healthy.Manager
+	controller controller.Manager
+	taskrun    taskrun.Manager
 	cfg        *option.Conf
 }
 
 //NewNodeManager new a node manager
-func NewNodeManager() *NodeManager {
-	return &NodeManager{}
+func NewNodeManager(conf *option.Conf) *NodeManager {
+	ctx, cancel := context.WithCancel(context.Background())
+	nodem := &NodeManager{
+		cfg:    conf,
+		ctx:    ctx,
+		cancel: cancel,
+	}
+	return nodem
 }
 
 //Start start
@@ -62,8 +68,46 @@ func (n *NodeManager) Start(errchan chan error) {
 		errchan <- err
 		return
 	}
-	go n.heartbeat()
+	if err := n.controller.Start(); err != nil {
+		errchan <- fmt.Errorf("start node controller error,%s", err.Error())
+		return
+	}
+	services, err := n.controller.GetAllService()
+	if err != nil {
+		errchan <- fmt.Errorf("get all services error,%s", err.Error())
+		return
+	}
+	if err := n.healthy.AddServices(services); err != nil {
+		errchan <- fmt.Errorf("get all services error,%s", err.Error())
+		return
+	}
+	if err := n.healthy.Start(); err != nil {
+		errchan <- fmt.Errorf("node healty start error,%s", err.Error())
+		return
+	}
+	go n.monitor.Start(errchan)
+	go n.taskrun.Start(errchan)
+	n.heartbeat()
+}
 
+//Stop Stop
+func (n *NodeManager) Stop() {
+	n.cancel()
+	if n.taskrun != nil {
+		n.taskrun.Stop()
+	}
+	if n.controller != nil {
+		n.controller.Stop()
+	}
+	if n.monitor != nil {
+		n.monitor.Stop()
+	}
+	if n.healthy != nil {
+		n.healthy.Stop()
+	}
+	if n.cluster != nil {
+		n.cluster.Stop()
+	}
 }
 
 //checkNodeHealthy check current node healthy.
