@@ -43,6 +43,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
+	httputil "github.com/goodrain/rainbond/util/http"
 )
 
 type Manager struct {
@@ -105,6 +106,7 @@ func NewManager(c option.Config) (*Manager, error) {
 	}
 	go func() {
 		Prometheus()
+		health()
 		if err := http.ListenAndServe(":6301", nil); err != nil {
 			logrus.Error("mq pprof listen error.", err.Error())
 		}
@@ -184,4 +186,12 @@ func Prometheus() {
 	exporter := monitor.NewExporter()
 	prometheus.MustRegister(exporter)
 	http.Handle("/metrics", promhttp.Handler())
+}
+
+func health() {
+	http.HandleFunc("/health", checkHalth)
+}
+
+func checkHalth(w http.ResponseWriter, r *http.Request) {
+	httputil.ReturnSuccess(r, w, map[string]string{"status": "health", "info": "mq service health"})
 }
