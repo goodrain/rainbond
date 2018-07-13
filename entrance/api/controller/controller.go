@@ -34,6 +34,7 @@ func Register(container *restful.Container, coreManager core.Manager, readStore 
 	DomainSource{coreManager, readStore, apiStoreManager, 10000}.Register(container)
 	NodeSource{coreManager, readStore, apiStoreManager, clientSet}.Register(container)
 	PodSource{apiStoreManager}.Register(container)
+	HealthStatus{apiStoreManager}.Register(container)
 }
 
 //ResponseType 返回内容

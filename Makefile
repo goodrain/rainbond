@@ -87,7 +87,9 @@ run-worker:build-worker
 	--mysql="root:@tcp(127.0.0.1:3306)/region" \
 	--kube-config=./test/admin.kubeconfig
 run-chaos:build-chaos
-	${BIN_PATH}/${BASE_NAME}-chaos
+	${BIN_PATH}/${BASE_NAME}-chaos \
+	--log-level=debug  \
+    --mysql="root:@tcp(127.0.0.1:3306)/region" \
 run-eventlog:build-eventlog
 	${BIN_PATH}/${BASE_NAME}-eventlog \
 	 --log.level=debug --discover.etcd.addr=http://127.0.0.1:2379 \

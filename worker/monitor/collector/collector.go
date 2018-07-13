@@ -29,6 +29,7 @@ import (
 	status "github.com/goodrain/rainbond/appruntimesync/client"
 	"github.com/goodrain/rainbond/db"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/goodrain/rainbond/worker/discover"
 )
 
 //Exporter 收集器
@@ -42,6 +43,9 @@ type Exporter struct {
 	workerUp      prometheus.Gauge
 	dbmanager     db.Manager
 	statusManager *status.AppRuntimeSyncClient
+	healthStatus  prometheus.Gauge
+	taskNum       prometheus.Gauge
+	taskError     prometheus.Gauge
 }
 
 var scrapeDurationDesc = prometheus.NewDesc(
@@ -119,6 +123,18 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		}
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.fs")
+
+	healthInfo := discover.HealthCheck()
+	healthStatus := healthInfo["status"]
+	var val float64
+	if healthStatus == "health" {
+		val = 1
+	} else {
+		val = 0
+	}
+	ch <- prometheus.MustNewConstMetric(e.healthStatus.Desc(), prometheus.GaugeValue, val)
+	ch <- prometheus.MustNewConstMetric(e.taskNum.Desc(), prometheus.GaugeValue, discover.TaskNum)
+	ch <- prometheus.MustNewConstMetric(e.taskError.Desc(), prometheus.GaugeValue, discover.TaskError)
 }
 
 var namespace = "app_resource"
@@ -159,6 +175,24 @@ func New(statusManager *status.AppRuntimeSyncClient) *Exporter {
 			Name:      "appfs",
 			Help:      "tenant service fs used.",
 		}, []string{"tenant_id", "service_id", "volume_type"}),
+		healthStatus: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: "exporter",
+			Name:      "worker_health_status",
+			Help:      "worker component health status.",
+		}),
+		taskNum: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: "exporter",
+			Name:      "worker_task_number",
+			Help:      "worker total number of tasks.",
+		}),
+		taskError: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: "exporter",
+			Name:      "worker_task_error",
+			Help:      "worker number of task errors.",
+		}),
 		dbmanager:     db.GetManager(),
 		statusManager: statusManager,
 	}

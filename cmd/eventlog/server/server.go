@@ -196,6 +196,7 @@ func (s *LogServer) Run() error {
 	if err != nil {
 		return err
 	}
+	healthInfo := storeManager.HealthCheck()
 	if err := storeManager.Run(); err != nil {
 		return err
 	}
@@ -207,7 +208,7 @@ func (s *LogServer) Run() error {
 		}
 		defer s.Cluster.Stop()
 	}
-	s.SocketServer = web.NewSocket(s.Conf.WebSocket, log.WithField("module", "SocketServer"), storeManager, s.Cluster)
+	s.SocketServer = web.NewSocket(s.Conf.WebSocket, log.WithField("module", "SocketServer"), storeManager, s.Cluster, healthInfo)
 	if err := s.SocketServer.Run(); err != nil {
 		return err
 	}
