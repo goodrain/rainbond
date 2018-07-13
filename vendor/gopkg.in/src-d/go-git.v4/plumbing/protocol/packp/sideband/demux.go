@@ -37,6 +37,8 @@ type Demuxer struct {
 
 	max     int
 	pending []byte
+	bufSize int
+	buf     []byte
 
 	// Progress is where the progress messages are stored
 	Progress Progress
@@ -49,11 +51,16 @@ func NewDemuxer(t Type, r io.Reader) *Demuxer {
 		max = MaxPackedSize
 	}
 
+	// buffer default size 8KB
+	size := 8 * 1024
+
 	return &Demuxer{
-		t:   t,
-		r:   r,
-		max: max,
-		s:   pktline.NewScanner(r),
+		t:       t,
+		r:       r,
+		max:     max,
+		bufSize: size,
+		buf:     make([]byte, size),
+		s:       pktline.NewScanner(r),
 	}
 }
 
@@ -110,10 +117,19 @@ func (d *Demuxer) nextPackData() ([]byte, error) {
 		return nil, io.EOF
 	}
 
-	content = d.s.Bytes()
+	payload := d.s.Bytes()
+	size := len(payload)
 
-	size := len(content)
-	if size <= 1 {
+	if d.bufSize < size {
+		content = make([]byte, size)
+		copy(content, payload)
+	} else {
+		length := copy(d.buf, payload)
+		content = d.buf[:length]
+	}
+
+	size = len(content)
+	if size < 1 {
 		return nil, nil
 	} else if size > d.max {
 		return nil, ErrMaxPackedExceeded

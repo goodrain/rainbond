@@ -29,6 +29,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -383,7 +384,7 @@ func walkDir(dir string, wg *sync.WaitGroup, fileSizes chan<- int64, concurrent 
 //sema is a counting semaphore for limiting concurrency in listDir
 var sema = make(chan struct{}, 20)
 
-// 列出指定目录下的所有条目
+//读取目录dir下的文件信息
 func listDir(dir string) []os.FileInfo {
 	sema <- struct{}{}
 	defer func() { <-sema }()
@@ -461,22 +462,23 @@ func Zip(source, target string) error {
 		if err != nil {
 			return err
 		}
-
 		header, err := zip.FileInfoHeader(info)
 		if err != nil {
 			return err
 		}
-
 		if baseDir != "" {
 			header.Name = filepath.Join(baseDir, strings.TrimPrefix(path, source))
 		}
-
 		if info.IsDir() {
 			header.Name += "/"
 		} else {
 			header.Method = zip.Deflate
 		}
-
+		//set file uid and
+		elem := reflect.ValueOf(info.Sys()).Elem()
+		uid := elem.FieldByName("Uid").Uint()
+		gid := elem.FieldByName("Gid").Uint()
+		header.Comment = fmt.Sprintf("%d/%d", uid, gid)
 		writer, err := archive.CreateHeader(header)
 		if err != nil {
 			return err
@@ -514,6 +516,16 @@ func Unzip(archive, target string) error {
 			path := filepath.Join(target, file.Name)
 			if file.FileInfo().IsDir() {
 				os.MkdirAll(path, file.Mode())
+				if file.Comment != "" && strings.Contains(file.Comment, "/") {
+					guid := strings.Split(file.Comment, "/")
+					if len(guid) == 2 {
+						uid, _ := strconv.Atoi(guid[0])
+						gid, _ := strconv.Atoi(guid[1])
+						if err := os.Chown(path, uid, gid); err != nil {
+							return err
+						}
+					}
+				}
 				return nil
 			}
 
@@ -531,6 +543,16 @@ func Unzip(archive, target string) error {
 
 			if _, err := io.Copy(targetFile, fileReader); err != nil {
 				return err
+			}
+			if file.Comment != "" && strings.Contains(file.Comment, "/") {
+				guid := strings.Split(file.Comment, "/")
+				if len(guid) == 2 {
+					uid, _ := strconv.Atoi(guid[0])
+					gid, _ := strconv.Atoi(guid[1])
+					if err := os.Chown(path, uid, gid); err != nil {
+						return err
+					}
+				}
 			}
 			return nil
 		}
@@ -572,6 +594,7 @@ func Rename(old, new string) error {
 }
 
 //MergeDir MergeDir
+//if Subdirectories already exist, Don't replace
 func MergeDir(fromdir, todir string) error {
 	files, err := ioutil.ReadDir(fromdir)
 	if err != nil {
@@ -579,7 +602,9 @@ func MergeDir(fromdir, todir string) error {
 	}
 	for _, f := range files {
 		if err := os.Rename(path.Join(fromdir, f.Name()), path.Join(todir, f.Name())); err != nil {
-			return err
+			if !strings.Contains(err.Error(), "file exists") {
+				return err
+			}
 		}
 	}
 	return nil
