@@ -20,6 +20,7 @@ package controller
 
 //Manager Manager
 type Manager interface {
-	Start(errchan chan error)
+	Start() error
+	GetAllService() ([]*Service, error)
 	Stop() error
 }
