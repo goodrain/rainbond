@@ -158,10 +158,10 @@ func (s *storeManager) Scrape(ch chan<- prometheus.Metric, namespace, exporter, 
 		"the handle chan cache size.",
 		[]string{"from", "chan"}, nil,
 	)
-	healthDesc := prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, exporter, "eventlog_health_status"),
-		"eventlog service status.",
-		nil, nil,
+	var healthDesc = prometheus.NewDesc(
+		prometheus.BuildFQName("", "", "health_status"),
+		"health status.",
+		[]string{"service_name"}, nil,
 	)
 	healthInfo := s.HealthCheck()
 	if healthInfo["status"] == "health" {
@@ -172,7 +172,7 @@ func (s *storeManager) Scrape(ch chan<- prometheus.Metric, namespace, exporter, 
 	ch <- prometheus.MustNewConstMetric(chanDesc, prometheus.GaugeValue, float64(len(s.dockerLogChan)), from, "container_log")
 	ch <- prometheus.MustNewConstMetric(chanDesc, prometheus.GaugeValue, float64(len(s.monitorMessageChan)), from, "monitor_message")
 	ch <- prometheus.MustNewConstMetric(chanDesc, prometheus.GaugeValue, float64(len(s.receiveChan)), from, "event_message")
-	ch <- prometheus.MustNewConstMetric(healthDesc, prometheus.GaugeValue, healthStatus)
+	ch <- prometheus.MustNewConstMetric(healthDesc, prometheus.GaugeValue, healthStatus, "eventlog")
 	return nil
 }
 

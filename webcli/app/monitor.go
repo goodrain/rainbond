@@ -15,27 +15,25 @@ const (
 
 //Exporter collects entrance metrics. It implements prometheus.Collector.
 type Exporter struct {
-	healthStatus prometheus.Gauge
-	ExecuteCommandTotal prometheus.Gauge
-	ExecuteCommandFailed prometheus.Gauge
+	ExecuteCommandTotal prometheus.Counter
+	ExecuteCommandFailed prometheus.Counter
 }
+var healthDesc = prometheus.NewDesc(
+	prometheus.BuildFQName("", "", "health_status"),
+	"health status.",
+	[]string{"service_name"}, nil,
+)
 
 //NewExporter new a exporter
 func NewExporter() *Exporter {
 	return &Exporter{
-		healthStatus: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: exporter,
-			Name:      "webcli_health_status",
-			Help:      "webcli component health status.",
-		}),
-		ExecuteCommandTotal:prometheus.NewGauge(prometheus.GaugeOpts{
+		ExecuteCommandTotal:prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: exporter,
 			Name:      "execute_command_total",
 			Help:      "Total number of execution commands",
 		}),
-		ExecuteCommandFailed:prometheus.NewGauge(prometheus.GaugeOpts{
+		ExecuteCommandFailed:prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: exporter,
 			Name:      "execute_command_failed",
@@ -68,7 +66,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 
-	ch <- prometheus.MustNewConstMetric(e.healthStatus.Desc(), prometheus.GaugeValue, 1)
-	ch <- prometheus.MustNewConstMetric(e.ExecuteCommandTotal.Desc(), prometheus.GaugeValue, ExecuteCommandTotal)
-	ch <- prometheus.MustNewConstMetric(e.ExecuteCommandFailed.Desc(), prometheus.GaugeValue, ExecuteCommandFailed)
+	ch <- prometheus.MustNewConstMetric(healthDesc, prometheus.GaugeValue, 1, "webcli")
+	ch <- prometheus.MustNewConstMetric(e.ExecuteCommandTotal.Desc(), prometheus.CounterValue, ExecuteCommandTotal)
+	ch <- prometheus.MustNewConstMetric(e.ExecuteCommandFailed.Desc(), prometheus.CounterValue, ExecuteCommandFailed)
 }

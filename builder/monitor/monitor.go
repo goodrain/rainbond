@@ -16,27 +16,26 @@ const (
 
 //Exporter collects entrance metrics. It implements prometheus.Collector.
 type Exporter struct {
-	healthStatus prometheus.Gauge
-	taskNum prometheus.Gauge
-	taskError prometheus.Gauge
+	taskNum prometheus.Counter
+	taskError prometheus.Counter
 }
+
+var healthDesc = prometheus.NewDesc(
+	prometheus.BuildFQName("", "", "health_status"),
+	"health status.",
+	[]string{"service_name"}, nil,
+)
 
 //NewExporter new a exporter
 func NewExporter() *Exporter {
 	return &Exporter{
-		healthStatus: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: exporter,
-			Name:      "builder_health_status",
-			Help:      "builder component health status.",
-		}),
-		taskNum:prometheus.NewGauge(prometheus.GaugeOpts{
+		taskNum:prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: exporter,
 			Name:      "builder_task_number",
 			Help:      "builder number of tasks",
 		}),
-		taskError:prometheus.NewGauge(prometheus.GaugeOpts{
+		taskError:prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: exporter,
 			Name:      "builder_task_error",
@@ -78,7 +77,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		val = 0
 	}
 
-	ch <- prometheus.MustNewConstMetric(e.healthStatus.Desc(), prometheus.GaugeValue, val)
-	ch <- prometheus.MustNewConstMetric(e.taskNum.Desc(), prometheus.GaugeValue, exector.TaskNum)
-	ch <- prometheus.MustNewConstMetric(e.taskError.Desc(), prometheus.GaugeValue, exector.ErrorNum)
+	ch <- prometheus.MustNewConstMetric(healthDesc, prometheus.GaugeValue, val, "builder")
+	ch <- prometheus.MustNewConstMetric(e.taskNum.Desc(), prometheus.CounterValue, exector.TaskNum)
+	ch <- prometheus.MustNewConstMetric(e.taskError.Desc(), prometheus.CounterValue, exector.ErrorNum)
 }
