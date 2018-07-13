@@ -43,15 +43,21 @@ type Exporter struct {
 	workerUp      prometheus.Gauge
 	dbmanager     db.Manager
 	statusManager *status.AppRuntimeSyncClient
-	healthStatus  prometheus.Gauge
-	taskNum       prometheus.Gauge
-	taskError     prometheus.Gauge
+	healthStatus  *prometheus.GaugeVec
+	taskNum       prometheus.Counter
+	taskError     prometheus.Counter
 }
 
 var scrapeDurationDesc = prometheus.NewDesc(
 	prometheus.BuildFQName(namespace, "exporter", "collector_duration_seconds"),
 	"Collector time duration.",
 	[]string{"collector"}, nil,
+)
+
+var healthDesc = prometheus.NewDesc(
+	prometheus.BuildFQName(namespace, "exporter", "health_status"),
+	"health status.",
+	[]string{"service_name"}, nil,
 )
 
 //Describe Describe
@@ -132,9 +138,9 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	} else {
 		val = 0
 	}
-	ch <- prometheus.MustNewConstMetric(e.healthStatus.Desc(), prometheus.GaugeValue, val)
-	ch <- prometheus.MustNewConstMetric(e.taskNum.Desc(), prometheus.GaugeValue, discover.TaskNum)
-	ch <- prometheus.MustNewConstMetric(e.taskError.Desc(), prometheus.GaugeValue, discover.TaskError)
+	ch <- prometheus.MustNewConstMetric(healthDesc, prometheus.GaugeValue, val, "service_name.worker")
+	ch <- prometheus.MustNewConstMetric(e.taskNum.Desc(), prometheus.CounterValue, discover.TaskNum)
+	ch <- prometheus.MustNewConstMetric(e.taskError.Desc(), prometheus.CounterValue, discover.TaskError)
 }
 
 var namespace = "app_resource"
@@ -175,19 +181,19 @@ func New(statusManager *status.AppRuntimeSyncClient) *Exporter {
 			Name:      "appfs",
 			Help:      "tenant service fs used.",
 		}, []string{"tenant_id", "service_id", "volume_type"}),
-		healthStatus: prometheus.NewGauge(prometheus.GaugeOpts{
+		healthStatus: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: "exporter",
 			Name:      "worker_health_status",
 			Help:      "worker component health status.",
-		}),
-		taskNum: prometheus.NewGauge(prometheus.GaugeOpts{
+		}, []string{"service_name"}),
+		taskNum: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "exporter",
 			Name:      "worker_task_number",
 			Help:      "worker total number of tasks.",
 		}),
-		taskError: prometheus.NewGauge(prometheus.GaugeOpts{
+		taskError: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "exporter",
 			Name:      "worker_task_error",

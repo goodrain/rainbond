@@ -22,8 +22,8 @@ import "github.com/goodrain/rainbond/node/nodem/controller"
 
 //Manager Manager
 type Manager interface {
-	GetServiceHeadthy(serviceName string) *ServiceHealth
-	WatchServiceHeadthy() <-chan *ServiceHealth
+	GetServiceHealthy(serviceName string) *ServiceHealth
+	WatchServiceHealthy() <-chan *ServiceHealth
 	Start() error
 	AddServices([]*controller.Service) error
 	Stop() error
@@ -31,4 +31,7 @@ type Manager interface {
 
 //ServiceHealth ServiceHealth
 type ServiceHealth struct {
+
+
 }
+
