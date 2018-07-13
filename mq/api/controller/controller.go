@@ -78,8 +78,6 @@ func (u MQSource) Register(container *restful.Container) {
 				Bean: discovermodel.Task{},
 			},
 		})) // from the request
-	ws.Route(ws.GET("/health").To(u.health),
-	) // from the request
 	container.Add(ws)
 }
 
@@ -185,10 +183,6 @@ func (u *MQSource) dequeue(request *restful.Request, response *restful.Response)
 	}
 	NewSuccessResponse(task, nil, response)
 	logrus.Debugf("Consume a task from queue :%s", strings.TrimSpace(value))
-}
-
-func (u *MQSource) health(request *restful.Request, response *restful.Response) {
-	NewSuccessResponse(map[string]string{"status":"health","info":"mq service health"}, nil, response)
 }
 
 func (u *MQSource) getAllTopics(request *restful.Request, response *restful.Response) {
