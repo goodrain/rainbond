@@ -18,17 +18,13 @@
 
 package healthy
 
-import "github.com/goodrain/rainbond/node/nodem/controller"
+import "github.com/goodrain/rainbond/node/nodem/service"
 
 //Manager Manager
 type Manager interface {
-	GetServiceHeadthy(serviceName string) *ServiceHealth
-	WatchServiceHeadthy() <-chan *ServiceHealth
+	GetServiceHeadthy(serviceName string) *service.Health
+	WatchServiceHeadthy() <-chan *service.Health
 	Start() error
-	AddServices([]*controller.Service) error
+	AddServices([]*service.Service) error
 	Stop() error
-}
-
-//ServiceHealth ServiceHealth
-type ServiceHealth struct {
 }

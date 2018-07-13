@@ -24,20 +24,20 @@ import (
 	"strconv"
 
 	"github.com/goodrain/rainbond/discover"
+	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/masterserver"
 	"github.com/goodrain/rainbond/node/statsd"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"k8s.io/client-go/informers"
 
 	"github.com/goodrain/rainbond/node/api/controller"
-	"github.com/goodrain/rainbond/node/api/model"
 	"github.com/goodrain/rainbond/node/api/router"
 
 	"context"
 	"strings"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
+	nodeclient "github.com/goodrain/rainbond/node/nodem/client"
 
 	_ "net/http/pprof"
 
@@ -52,7 +52,7 @@ type Manager struct {
 	cancel    context.CancelFunc
 	conf      option.Conf
 	router    *chi.Mux
-	node      *model.HostNode
+	node      *nodeclient.HostNode
 	lID       client.LeaseID // lease id
 	ms        *masterserver.MasterServer
 	keepalive *discover.KeepAlive
@@ -60,10 +60,10 @@ type Manager struct {
 }
 
 //NewManager api manager
-func NewManager(c option.Conf, node *model.HostNode, ms *masterserver.MasterServer, exporter *statsd.Exporter, sharedInformers informers.SharedInformerFactory) *Manager {
+func NewManager(c option.Conf, node *nodeclient.HostNode, ms *masterserver.MasterServer, exporter *statsd.Exporter, kubecli kubecache.KubeClient) *Manager {
 	r := router.Routers(c.RunMode)
 	ctx, cancel := context.WithCancel(context.Background())
-	controller.Init(&c, ms, sharedInformers)
+	controller.Init(&c, ms, kubecli)
 	m := &Manager{
 		ctx:      ctx,
 		cancel:   cancel,

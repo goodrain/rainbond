@@ -18,9 +18,13 @@
 
 package controller
 
+import (
+	"github.com/goodrain/rainbond/node/nodem/service"
+)
+
 //Manager Manager
 type Manager interface {
 	Start() error
-	GetAllService() ([]*Service, error)
+	GetAllService() ([]*service.Service, error)
 	Stop() error
 }

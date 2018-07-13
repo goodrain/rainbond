@@ -16,12 +16,23 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package controller
+package kubecache
 
-import "github.com/goodrain/rainbond/node/nodem/healthy"
+import (
+	"testing"
 
-//Service Service
-type Service struct {
-	Name          string
-	ServiceHealth *healthy.ServiceHealth
+	"github.com/goodrain/rainbond/cmd/node/option"
+)
+
+func TestNewKubeClient(t *testing.T) {
+	client, err := NewKubeClient(&option.Conf{K8SConfPath: "/Users/qingguo/gopath/src/github.com/goodrain/rainbond/test/admin.kubeconfig"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	nodes, err := client.GetNodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(nodes)
+	client.Stop()
 }

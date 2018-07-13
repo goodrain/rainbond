@@ -24,8 +24,8 @@ import (
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/core/config"
 	"github.com/goodrain/rainbond/node/core/service"
+	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/masterserver"
-	"k8s.io/client-go/informers"
 )
 
 var datacenterConfig *config.DataCenterConfig
@@ -36,19 +36,21 @@ var taskGroupService *service.TaskGroupService
 var appService *service.AppService
 var nodeService *service.NodeService
 var discoverService *service.DiscoverAction
+var kubecli kubecache.KubeClient
 
 //Init 初始化
-func Init(c *option.Conf, ms *masterserver.MasterServer, sharedInformers informers.SharedInformerFactory) {
+func Init(c *option.Conf, ms *masterserver.MasterServer, kube kubecache.KubeClient) {
 	if ms != nil {
 		prometheusService = service.CreatePrometheusService(c, ms)
 		taskService = service.CreateTaskService(c, ms)
 		taskTempService = service.CreateTaskTempService(c)
 		taskGroupService = service.CreateTaskGroupService(c, ms)
 		datacenterConfig = config.GetDataCenterConfig()
-		nodeService = service.CreateNodeService(c, ms.Cluster)
+		nodeService = service.CreateNodeService(c, ms.Cluster, kube)
 	}
 	appService = service.CreateAppService(c)
-	discoverService = service.CreateDiscoverActionManager(c, sharedInformers)
+	discoverService = service.CreateDiscoverActionManager(c, kube)
+	kubecli = kube
 }
 
 //Exist 退出

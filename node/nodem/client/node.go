@@ -53,6 +53,7 @@ func (a APIHostNode) Clone() *HostNode {
 		RootPass:   a.RootPass,
 		Role:       a.Role,
 		Labels:     a.Labels,
+		NodeStatus: &NodeStatus{},
 	}
 	return hn
 }
@@ -82,6 +83,29 @@ type NodeStatus struct {
 	Status     string          `json:"status"`
 	Conditions []NodeCondition `json:"conditions,omitempty"`
 	NodeInfo   NodeSystemInfo  `json:"nodeInfo,omitempty" protobuf:"bytes,7,opt,name=nodeInfo"`
+}
+
+//UpdateK8sNodeStatus update rainbond node status by k8s node
+func (n *HostNode) UpdateK8sNodeStatus(k8sNode v1.Node) {
+	status := k8sNode.Status
+	n.UpdataK8sCondition(status.Conditions)
+	n.NodeStatus.NodeInfo = NodeSystemInfo{
+		MachineID:               status.NodeInfo.MachineID,
+		SystemUUID:              status.NodeInfo.SystemUUID,
+		BootID:                  status.NodeInfo.BootID,
+		KernelVersion:           status.NodeInfo.KernelVersion,
+		OSImage:                 status.NodeInfo.OSImage,
+		OperatingSystem:         status.NodeInfo.OperatingSystem,
+		ContainerRuntimeVersion: status.NodeInfo.ContainerRuntimeVersion,
+		Architecture:            status.NodeInfo.Architecture,
+	}
+	n.Unschedulable = k8sNode.Spec.Unschedulable
+
+	if n.Unschedulable {
+		n.Status = "unschedulable"
+	} else {
+		n.Status = "running"
+	}
 }
 
 // NodeSystemInfo is a set of ids/uuids to uniquely identify the node.

@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/node/api/model"
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/node/masterserver"
+	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/utils"
 
 	"github.com/Sirupsen/logrus"
@@ -88,7 +89,7 @@ func (ts *TaskService) getTasksByCheck(checkTasks []string, nodeID string) ([]*m
 }
 
 //GetTasksByNode get tasks by node
-func (ts *TaskService) GetTasksByNode(n *model.HostNode) ([]*model.Task, *utils.APIHandleError) {
+func (ts *TaskService) GetTasksByNode(n *client.HostNode) ([]*model.Task, *utils.APIHandleError) {
 	if n.Role.HasRule("compute") && len(n.Role) == 1 {
 		checkTask := []string{"check_compute_services"}
 		//tids:=[]string{"install_compute_ready","update_dns_compute","install_storage_client","install_network_compute","install_plugins_compute","install_docker_compute","install_kubelet"}

@@ -20,10 +20,6 @@ package nodeserver
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -32,10 +28,9 @@ import (
 	"github.com/goodrain/rainbond/util/watch"
 
 	conf "github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/node/api/model"
 	corejob "github.com/goodrain/rainbond/node/core/job"
 	"github.com/goodrain/rainbond/node/core/store"
-	"github.com/goodrain/rainbond/util"
+	nodeclient "github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/robfig/cron"
 
 	"github.com/Sirupsen/logrus"
@@ -61,7 +56,7 @@ type Jobs map[string]*corejob.Job
 //NodeServer node manager server
 type NodeServer struct {
 	*store.Client
-	*model.HostNode
+	*nodeclient.HostNode
 	*cron.Cron
 	ctx      context.Context
 	cancel   context.CancelFunc
@@ -147,7 +142,7 @@ func (n *NodeServer) watchJobs(errChan chan error) error {
 
 //添加job缓存
 func (n *NodeServer) addJob(j *corejob.Job) {
-	if !j.IsRunOn(n.HostNode) {
+	if !j.IsRunOn(n.HostNode.ID) {
 		return
 	}
 	//一次性任务
@@ -158,7 +153,7 @@ func (n *NodeServer) addJob(j *corejob.Job) {
 	n.jobLock.Lock()
 	defer n.jobLock.Unlock()
 	n.jobs[j.ID] = j
-	cmds := j.Cmds(n.HostNode)
+	cmds := j.Cmds()
 	if len(cmds) == 0 {
 		return
 	}
@@ -177,7 +172,7 @@ func (n *NodeServer) delJob(id string) {
 	if !ok {
 		return
 	}
-	cmds := job.Cmds(n.HostNode)
+	cmds := job.Cmds()
 	if len(cmds) == 0 {
 		return
 	}
@@ -189,7 +184,7 @@ func (n *NodeServer) delJob(id string) {
 }
 
 func (n *NodeServer) modJob(job *corejob.Job) {
-	if !job.IsRunOn(n.HostNode) {
+	if !job.IsRunOn(n.HostNode.ID) {
 		return
 	}
 	//一次性任务
@@ -203,11 +198,11 @@ func (n *NodeServer) modJob(job *corejob.Job) {
 		n.addJob(job)
 		return
 	}
-	prevCmds := oJob.Cmds(n.HostNode)
+	prevCmds := oJob.Cmds()
 
 	job.Count = oJob.Count
 	*oJob = *job
-	cmds := oJob.Cmds(n.HostNode)
+	cmds := oJob.Cmds()
 	for id, cmd := range cmds {
 		n.modCmd(cmd)
 		delete(prevCmds, id)
@@ -291,16 +286,16 @@ func (n *NodeServer) keepAlive() {
 
 //NewNodeServer new server
 func NewNodeServer(cfg *conf.Conf) (*NodeServer, error) {
-	currentNode, err := GetCurrentNode(cfg)
-	if err != nil {
-		return nil, err
-	}
+	//currentNode, err := GetCurrentNode(cfg)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	if cfg.TTL == 0 {
 		cfg.TTL = 10
 	}
 	n := &NodeServer{
-		Client:   store.DefalutClient,
-		HostNode: currentNode,
+		Client: store.DefalutClient,
+		//HostNode: currentNode,
 		Cron:     cron.New(),
 		jobs:     make(Jobs, 8),
 		onceJobs: make(Jobs, 8),
@@ -311,72 +306,4 @@ func NewNodeServer(cfg *conf.Conf) (*NodeServer, error) {
 		done:     make(chan struct{}),
 	}
 	return n, nil
-}
-
-//GetCurrentNode 获取当前节点
-func GetCurrentNode(cfg *conf.Conf) (*model.HostNode, error) {
-	uid, err := util.ReadHostID(cfg.HostIDFile)
-	if err != nil {
-		return nil, fmt.Errorf("Get host id error:%s", err.Error())
-	}
-	res, err := store.DefalutClient.Get(cfg.NodePath + "/" + uid)
-	if err != nil {
-		return nil, fmt.Errorf("Get host info error:%s", err.Error())
-	}
-	var node model.HostNode
-	if res.Count == 0 {
-		if cfg.HostIP == "" {
-			ip, err := util.LocalIP()
-			if err != nil {
-				return nil, err
-			}
-			cfg.HostIP = ip.String()
-		}
-		node = CreateNode(cfg, uid, cfg.HostIP)
-	} else {
-		n := model.GetNodeFromKV(res.Kvs[0])
-		if n == nil {
-			return nil, fmt.Errorf("Get node info from etcd error")
-		}
-		node = *n
-	}
-	node.Role = strings.Split(cfg.NodeRule, ",")
-	if node.Labels == nil || len(node.Labels) < 1 {
-		node.Labels = map[string]string{}
-	}
-	for _, rule := range node.Role {
-		node.Labels["rainbond_node_rule_"+rule] = "true"
-	}
-	if node.HostName == "" {
-		hostname, _ := os.Hostname()
-		node.HostName = hostname
-	}
-	if node.ClusterNode.PID == "" {
-		node.ClusterNode.PID = strconv.Itoa(os.Getpid())
-	}
-	node.Labels["rainbond_node_hostname"] = node.HostName
-	node.Labels["rainbond_node_ip"] = node.InternalIP
-	node.UpdataCondition(model.NodeCondition{
-		Type:               model.NodeInit,
-		Status:             model.ConditionTrue,
-		LastHeartbeatTime:  time.Now(),
-		LastTransitionTime: time.Now(),
-	})
-	node.Mode = cfg.RunMode
-	return &node, nil
-}
-
-//CreateNode 创建节点信息
-func CreateNode(cfg *conf.Conf, nodeID, ip string) model.HostNode {
-	HostNode := model.HostNode{
-		ID: nodeID,
-		ClusterNode: model.ClusterNode{
-			PID:        strconv.Itoa(os.Getpid()),
-			Conditions: make([]model.NodeCondition, 0),
-		},
-		InternalIP: ip,
-		ExternalIP: ip,
-		CreateTime: time.Now(),
-	}
-	return HostNode
 }

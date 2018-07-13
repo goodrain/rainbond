@@ -26,6 +26,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -38,7 +39,6 @@ import (
 	"io/ioutil"
 	"strconv"
 
-	"github.com/goodrain/rainbond/node/core/k8s"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -48,7 +48,7 @@ func init() {
 
 //NewNode 创建一个节点
 func NewNode(w http.ResponseWriter, r *http.Request) {
-	var node model.APIHostNode
+	var node client.APIHostNode
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &node, nil); !ok {
 		return
 	}
@@ -66,11 +66,11 @@ func NewNode(w http.ResponseWriter, r *http.Request) {
 
 //NewMultipleNode 多节点添加操作
 func NewMultipleNode(w http.ResponseWriter, r *http.Request) {
-	var nodes []model.APIHostNode
+	var nodes []client.APIHostNode
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &nodes, nil); !ok {
 		return
 	}
-	var successnodes []model.APIHostNode
+	var successnodes []client.APIHostNode
 	for _, node := range nodes {
 		if err := nodeService.AddNode(&node); err != nil {
 			continue
@@ -113,7 +113,7 @@ func GetRuleNodes(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-	var masternodes []*model.HostNode
+	var masternodes []*client.HostNode
 	for _, node := range nodes {
 		if node.Role.HasRule(rule) {
 			masternodes = append(masternodes, node)
@@ -295,7 +295,7 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-	ps, error := k8s.GetPodsByNodeName(nodeUID)
+	ps, error := kubecli.GetPodsByNodes(nodeUID)
 	if error != nil {
 		httputil.ReturnError(r, w, 404, error.Error())
 		return
@@ -306,8 +306,13 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 	var cpuL int64
 	var memR int64
 	var memL int64
-	capCPU := node.NodeStatus.Capacity.Cpu().Value()
-	capMEM := node.NodeStatus.Capacity.Memory().Value()
+	capCPU := node.AvailableCPU
+	capMEM := node.AvailableMemory
+	k8snode, _ := kubecli.GetNode(nodeUID)
+	if k8snode != nil {
+		capCPU = k8snode.Status.Allocatable.Cpu().Value()
+		capMEM = k8snode.Status.Allocatable.Memory().Value()
+	}
 	for _, v := range ps {
 		pod := &model.Pods{}
 		pod.Namespace = v.Namespace
@@ -319,35 +324,33 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 		pod.Id = serviceID
 
 		ConditionsStatuss := v.Status.Conditions
-		for _,val := range ConditionsStatuss{
-			if val.Type == "Ready"{
-				pod.Status = model.ConditionStatus(val.Status)
+		for _, val := range ConditionsStatuss {
+			if val.Type == "Ready" {
+				pod.Status = string(val.Status)
 			}
 		}
 
-
 		//lc := v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
 		lc := v.Spec.Containers
-		for _,v:=range lc{
+		for _, v := range lc {
 			cpuL += v.Resources.Limits.Cpu().MilliValue()
 		}
 
 		//lm := v.Spec.Containers[0].Resources.Limits.Memory().Value()
 		lm := v.Spec.Containers
-		for _,v:=range lm{
+		for _, v := range lm {
 			memL += v.Resources.Limits.Memory().Value()
 		}
 
-
 		//rc := v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 		rc := v.Spec.Containers
-		for _,v:=range rc{
-			cpuR+=v.Resources.Requests.Cpu().MilliValue()
+		for _, v := range rc {
+			cpuR += v.Resources.Requests.Cpu().MilliValue()
 		}
 
 		//rm := v.Spec.Containers[0].Resources.Requests.Memory().Value()
 		rm := v.Spec.Containers
-		for _,v :=range rm{
+		for _, v := range rm {
 			memR += v.Resources.Requests.Memory().Value()
 		}
 

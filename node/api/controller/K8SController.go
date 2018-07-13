@@ -19,10 +19,6 @@
 package controller
 
 import (
-	conf "github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/node/core/k8s"
-
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -31,33 +27,31 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	//"k8s.io/client-go/pkg/api/v1"
-	"github.com/coreos/etcd/client"
+
 	//"k8s.io/apimachinery/pkg/types"
 
 	"strconv"
 
-	"github.com/goodrain/rainbond/node/api/model"
 	"syscall"
+
+	"github.com/goodrain/rainbond/node/api/model"
 )
 
+//GetNodeDetails GetNodeDetails
 func GetNodeDetails(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
-	hostNode, err := k8s.GetSource(conf.Config.K8SNode + nodeUID)
+	hostNode, err := nodeService.GetNode(nodeUID)
 	if err != nil {
-		logrus.Infof("getting resource of node uid %s", nodeUID)
+		logrus.Infof("getting node by  uid %s", nodeUID)
 		outRespDetails(w, 404, "error get resource "+nodeUID+" from etcd "+err.Error(), "找不到指定节点", nil, nil)
 		return
 	}
-	node, err := k8s.GetNodeByName(hostNode.HostName)
-	if err != nil {
+	node, erre := kubecli.GetNodeByName(hostNode.HostName)
+	if erre != nil {
 		outRespDetails(w, 404, "error get node "+nodeUID+" from core "+err.Error(), "找不到指定节点", nil, nil)
 		return
 	}
-	logrus.Debugf("geting node %s 's details from core", nodeUID)
-
 	d := &model.NodeDetails{}
 	d.Status = hostNode.Status
 	d.Name = node.Name
@@ -84,13 +78,11 @@ func GetNodeDetails(w http.ResponseWriter, r *http.Request) {
 	am := node.Status.Allocatable.Memory().String()
 	ac["memory"] = strconv.Itoa(convertMemoryToMBInt(am, false)) + " M"
 	ac["pods"] = string(node.Status.Allocatable.Pods().String())
-
 	d.Allocatable = ac
-
 	d.SystemInfo = node.Status.NodeInfo
-	ps, err := k8s.GetPodsByNodeName(hostNode.HostName)
-	if err != nil {
-
+	ps, erre := kubecli.GetPodsByNodes(node.Name)
+	if erre != nil {
+		logrus.Errorf("error get node pod %s", hostNode.ID)
 	}
 	rs := make(map[string]string)
 	cpuR := 0
@@ -105,12 +97,12 @@ func GetNodeDetails(w http.ResponseWriter, r *http.Request) {
 	for _, v := range ps {
 		pod := &model.Pods{}
 		pod.Namespace = v.Namespace
-		serviceId := v.Labels["name"]
-		if serviceId == "" {
+		serviceID := v.Labels["name"]
+		if serviceID == "" {
 			continue
 		}
 		pod.Name = v.Name
-		pod.Id = serviceId
+		pod.Id = serviceID
 
 		lc := v.Spec.Containers[0].Resources.Limits.Cpu().String()
 		cpuL += getCpuInt(lc)
@@ -269,9 +261,10 @@ func getFinalRate(cpu bool, value string, capCpu, capMemMB string) (result strin
 	return
 }
 
+//GetNodeBasic GetNodeBasic
 func GetNodeBasic(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
-	hostnode, err := k8s.GetSource(conf.Config.K8SNode + nodeUID)
+	hostnode, err := nodeService.GetNode(nodeUID)
 	if err != nil {
 		logrus.Infof("getting resource of node uid %s", nodeUID)
 		outRespDetails(w, 404, "error get resource "+nodeUID+" from etcd "+err.Error(), "找不到指定节点", nil, nil)
@@ -285,7 +278,7 @@ func Resources(w http.ResponseWriter, r *http.Request) {
 	result := new(model.Resource)
 	cpuR := 0
 	memR := 0
-	ps, _ := k8s.GetAllPods()
+	ps, _ := kubecli.GetAllPods()
 	for _, pv := range ps {
 		for _, c := range pv.Spec.Containers {
 			rc := c.Resources.Requests.Cpu().String()
@@ -299,25 +292,25 @@ func Resources(w http.ResponseWriter, r *http.Request) {
 	logrus.Infof("get cpu %v and mem %v", cpuR, memR)
 	api.ReturnSuccess(r, w, result)
 }
+
+//CapRes CapRes
 func CapRes(w http.ResponseWriter, r *http.Request) {
-	nodes, err := nodeService.GetAllNode()
+	nodes, err := kubecli.GetNodes()
 	if err != nil {
-		err.Handle(r, w)
+		api.ReturnError(r, w, 500, err.Error())
 		return
 	}
-	var capCpu int64
+	var capCPU int64
 	var capMem int64
 	for _, v := range nodes {
-		if v.NodeStatus != nil {
-			capCpu += v.NodeStatus.Capacity.Cpu().Value()
-			capMem += v.NodeStatus.Capacity.Memory().Value()
-		}
+		capCPU += v.Status.Capacity.Cpu().Value()
+		capMem += v.Status.Capacity.Memory().Value()
 	}
 
 	result := new(model.Resource)
-	result.CpuR = int(capCpu)
+	result.CpuR = int(capCPU)
 	result.MemR = int(capMem)
-	logrus.Infof("get cpu %v and mem %v", capCpu, capMem)
+	logrus.Infof("get cpu %v and mem %v", capCPU, capMem)
 	api.ReturnSuccess(r, w, result)
 }
 
@@ -340,36 +333,29 @@ func DiskUsage(path string) (disk DiskStatus) {
 	return
 }
 
+//RegionRes RegionRes
 func RegionRes(w http.ResponseWriter, r *http.Request) {
-	nodeList := make([]string, 0, 10)
-	nodes, err := nodeService.GetAllNode()
+	usedNodeList := make([]string, 0, 10)
+	nodes, err := kubecli.GetNodes()
 	if err != nil {
-		err.Handle(r, w)
+		api.ReturnError(r, w, 500, err.Error())
 		return
 	}
-	var capCpu int64
+	var capCPU int64
 	var capMem int64
 	for _, v := range nodes {
-		if v.NodeStatus != nil && v.Unschedulable == false {
-			capCpu += v.NodeStatus.Capacity.Cpu().Value()
-			capMem += v.NodeStatus.Capacity.Memory().Value()
-		} else {
-			nodeList = append(nodeList, v.InternalIP)
+		if v.Spec.Unschedulable == false {
+			capCPU += v.Status.Capacity.Cpu().Value()
+			capMem += v.Status.Capacity.Memory().Value()
+			usedNodeList = append(usedNodeList, v.Name)
 		}
 	}
-	ps, _ := k8s.GetAllPods()
-	var cpuR int64 = 0
-	var memR int64 = 0
-	for _, pv := range ps {
-		flag := true
-		nodeIp := pv.Status.HostIP
-		for _, v := range nodeList {
-			if nodeIp == v {
-				flag = false
-			}
-		}
-		if flag {
-			for _, c := range pv.Spec.Containers {
+	var cpuR int64
+	var memR int64
+	for _, node := range usedNodeList {
+		pods, _ := kubecli.GetPodsByNodes(node)
+		for _, pod := range pods {
+			for _, c := range pod.Spec.Containers {
 				rc := c.Resources.Requests.Cpu().MilliValue()
 				rm := c.Resources.Requests.Memory().Value()
 				cpuR += rc
@@ -380,7 +366,7 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 	disk := DiskUsage("/grdata")
 	podMemRequestMB := memR / 1024 / 1024
 	result := new(model.ClusterResource)
-	result.CapCpu = int(capCpu)
+	result.CapCpu = int(capCPU)
 	result.CapMem = int(capMem) / 1024 / 1024
 	result.ReqCpu = float32(cpuR) / 1000
 	result.ReqMem = int(podMemRequestMB)
@@ -391,135 +377,89 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 
 	api.ReturnSuccess(r, w, result)
 }
-func UpdateNode(w http.ResponseWriter, r *http.Request) {
 
-	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
-	node := new(model.HostNode)
-	decoder := json.NewDecoder(r.Body)
-	defer r.Body.Close()
-	err := decoder.Decode(node)
+// func AddNode(w http.ResponseWriter, r *http.Request) {
 
-	if err != nil {
-		outRespDetails(w, 400, "bad request", "更新失败，参数错误", nil, nil)
-		return
-	}
-	updatedK8SNode, err := k8s.CreateK8sNode(node)
+// 	// swagger:operation PUT /v2/node/{node} v2 AddNode
+// 	//
+// 	// 重新上线计算节点
+// 	//
+// 	// add node
+// 	//
+// 	// ---
+// 	// produces:
+// 	// - application/json
+// 	// parameters:
+// 	// - name: name
+// 	//   in: path
+// 	//   description: nodeuid
+// 	//   required: true
+// 	//   type: string
+// 	//   format: string
+// 	//
+// 	// Responses:
+// 	//   '200':
+// 	//    description: '{"ok":true}'
 
-	_, err = k8s.K8S.Core().Nodes().Update(updatedK8SNode)
-	if err != nil {
-		outRespDetails(w, 500, "patch core node failed :"+err.Error(), "更新k8s node 失败", nil, nil)
-		return
-	}
-	err = k8s.AddSource(conf.Config.K8SNode+nodeUID, node)
-	data, _ := json.Marshal(node)
-	logrus.Debugf("updating node %s to %s", nodeUID, string(data))
-	if err != nil {
-		if err := k8s.K8S.Core().Nodes().Delete(node.HostName, nil); err != nil {
-			logrus.Errorf("Unable to register node %q to etcd: error deleting old node: %v", node.HostName, err)
-		} else {
-			logrus.Errorf("Deleted old node object %q", node.HostName)
-		}
-		if cerr, ok := err.(client.Error); ok {
-			if cerr.Code == client.ErrorCodeNodeExist {
-				outRespDetails(w, 400, "node exist", "节点已存在", nil, nil)
-				return
-			}
-		}
-		outRespDetails(w, 500, "error saving node ", "存储节点信息失败", nil, nil)
+// 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
+// 	//k8snode,err:=core.GetNodeByName(nodeName) //maybe bug fixed
 
-		return
-	}
-	result := []interface{}{}
-	result = append(result, node)
-	outRespSuccess(w, nil, result)
-}
+// 	node, err := k8s.GetSource(conf.Config.K8SNode + nodeUID)
+// 	if err != nil {
+// 		outRespDetails(w, http.StatusBadRequest, "error get node from etcd ", "etcd获取节点信息失败", nil, nil)
+// 		return
+// 	}
+// 	if node.Status == "offline" && node.Role.HasRule("tree") {
+// 		_, err := k8s.K8S.Core().Nodes().Get(node.HostName, metav1.GetOptions{})
+// 		if err != nil {
+// 			if apierrors.IsNotFound(err) {
+// 				logrus.Info("create node to kubernetes")
+// 				newk8sNode, err := k8s.CreateK8sNode(node)
+// 				if err != nil {
+// 					outRespDetails(w, 500, "create node failed "+err.Error(), "解析创建node失败", nil, nil)
+// 					return
+// 				}
+// 				realK8SNode, err := k8s.K8S.Core().Nodes().Create(newk8sNode)
+// 				logrus.Infof("重新上线后node uid为 %s ,下线之前node uid 为 %s ", string(realK8SNode.UID), nodeUID)
+// 				if err != nil {
+// 					if !apierrors.IsAlreadyExists(err) {
+// 						node.Status = "running"
+// 					}
+// 					outRespDetails(w, 500, "create node failed "+err.Error(), "创建k8s节点失败", nil, nil)
+// 					return
+// 				}
+// 				logrus.Debugf("reup node %s (old),creating core node ", nodeUID)
+// 				hostNode, err := k8s.GetSource(conf.Config.K8SNode + string(nodeUID))
+// 				if err != nil {
+// 					outRespDetails(w, 500, "get node resource failed "+err.Error(), "etcd获取node资源失败", nil, nil)
+// 					return
+// 				}
+// 				hostNode.ID = string(realK8SNode.UID)
+// 				hostNode.Status = "running"
+// 				//更改状态
+// 				data, _ := json.Marshal(hostNode)
+// 				logrus.Infof("adding node :%s online ,updated to %s ", string(realK8SNode.UID), string(data))
+// 				err = k8s.AddSource(conf.Config.K8SNode+hostNode.ID, hostNode)
+// 				if err != nil {
+// 					outRespDetails(w, 500, "add new node failed "+err.Error(), "添加新node信息失败", nil, nil)
+// 					return
+// 				}
+// 				err = k8s.DeleteSource(conf.Config.K8SNode + nodeUID)
+// 				if err != nil {
+// 					outRespDetails(w, 500, "delete old node failed "+err.Error(), "删除老node信息失败", nil, nil)
+// 					return
+// 				}
 
-func AddNode(w http.ResponseWriter, r *http.Request) {
+// 				logrus.Infof("adding node :%s online ,updated to %s ", string(realK8SNode.UID), string(data))
+// 			}
+// 		}
+// 	}
 
-	// swagger:operation PUT /v2/node/{node} v2 AddNode
-	//
-	// 重新上线计算节点
-	//
-	// add node
-	//
-	// ---
-	// produces:
-	// - application/json
-	// parameters:
-	// - name: name
-	//   in: path
-	//   description: nodeuid
-	//   required: true
-	//   type: string
-	//   format: string
-	//
-	// Responses:
-	//   '200':
-	//    description: '{"ok":true}'
-
-	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
-	//k8snode,err:=core.GetNodeByName(nodeName) //maybe bug fixed
-
-	node, err := k8s.GetSource(conf.Config.K8SNode + nodeUID)
-	if err != nil {
-		outRespDetails(w, http.StatusBadRequest, "error get node from etcd ", "etcd获取节点信息失败", nil, nil)
-		return
-	}
-	if node.Status == "offline" && node.Role.HasRule("tree") {
-		_, err := k8s.K8S.Core().Nodes().Get(node.HostName, metav1.GetOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				logrus.Info("create node to kubernetes")
-				newk8sNode, err := k8s.CreateK8sNode(node)
-				if err != nil {
-					outRespDetails(w, 500, "create node failed "+err.Error(), "解析创建node失败", nil, nil)
-					return
-				}
-				realK8SNode, err := k8s.K8S.Core().Nodes().Create(newk8sNode)
-				logrus.Infof("重新上线后node uid为 %s ,下线之前node uid 为 %s ", string(realK8SNode.UID), nodeUID)
-				if err != nil {
-					if !apierrors.IsAlreadyExists(err) {
-						node.Status = "running"
-					}
-					outRespDetails(w, 500, "create node failed "+err.Error(), "创建k8s节点失败", nil, nil)
-					return
-				}
-				logrus.Debugf("reup node %s (old),creating core node ", nodeUID)
-				hostNode, err := k8s.GetSource(conf.Config.K8SNode + string(nodeUID))
-				if err != nil {
-					outRespDetails(w, 500, "get node resource failed "+err.Error(), "etcd获取node资源失败", nil, nil)
-					return
-				}
-				hostNode.ID = string(realK8SNode.UID)
-				hostNode.Status = "running"
-				//更改状态
-				data, _ := json.Marshal(hostNode)
-				logrus.Infof("adding node :%s online ,updated to %s ", string(realK8SNode.UID), string(data))
-				err = k8s.AddSource(conf.Config.K8SNode+hostNode.ID, hostNode)
-				if err != nil {
-					outRespDetails(w, 500, "add new node failed "+err.Error(), "添加新node信息失败", nil, nil)
-					return
-				}
-				err = k8s.DeleteSource(conf.Config.K8SNode + nodeUID)
-				if err != nil {
-					outRespDetails(w, 500, "delete old node failed "+err.Error(), "删除老node信息失败", nil, nil)
-					return
-				}
-
-				logrus.Infof("adding node :%s online ,updated to %s ", string(realK8SNode.UID), string(data))
-			}
-		}
-	}
-
-	outRespSuccess(w, nil, nil)
-}
+// 	outRespSuccess(w, nil, nil)
+// }
 
 func outSuccess(w http.ResponseWriter) {
 	s := `{"ok":true}`
 	w.WriteHeader(200)
 	fmt.Fprint(w, s)
-}
-
-type Success struct {
-	ok bool `json:"ok"`
 }

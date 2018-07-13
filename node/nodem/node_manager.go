@@ -63,31 +63,27 @@ func NewNodeManager(conf *option.Conf) *NodeManager {
 }
 
 //Start start
-func (n *NodeManager) Start(errchan chan error) {
+func (n *NodeManager) Start(errchan chan error) error {
 	if err := n.init(); err != nil {
-		errchan <- err
-		return
+		return err
 	}
 	if err := n.controller.Start(); err != nil {
-		errchan <- fmt.Errorf("start node controller error,%s", err.Error())
-		return
+		return fmt.Errorf("start node controller error,%s", err.Error())
 	}
 	services, err := n.controller.GetAllService()
 	if err != nil {
-		errchan <- fmt.Errorf("get all services error,%s", err.Error())
-		return
+		return fmt.Errorf("get all services error,%s", err.Error())
 	}
 	if err := n.healthy.AddServices(services); err != nil {
-		errchan <- fmt.Errorf("get all services error,%s", err.Error())
-		return
+		return fmt.Errorf("get all services error,%s", err.Error())
 	}
 	if err := n.healthy.Start(); err != nil {
-		errchan <- fmt.Errorf("node healty start error,%s", err.Error())
-		return
+		return fmt.Errorf("node healty start error,%s", err.Error())
 	}
 	go n.monitor.Start(errchan)
 	go n.taskrun.Start(errchan)
-	n.heartbeat()
+	go n.heartbeat()
+	return nil
 }
 
 //Stop Stop
@@ -104,9 +100,6 @@ func (n *NodeManager) Stop() {
 	}
 	if n.healthy != nil {
 		n.healthy.Stop()
-	}
-	if n.cluster != nil {
-		n.cluster.Stop()
 	}
 }
 
@@ -170,7 +163,7 @@ func (n *NodeManager) init() error {
 		node.AvailableMemory = int64(node.NodeStatus.NodeInfo.MemorySize)
 	}
 	if node.AvailableCPU == 0 {
-		node.AvailableCPU = int64(runtime.NumCPU()) * 1000
+		node.AvailableCPU = int64(runtime.NumCPU())
 	}
 	return nil
 }
@@ -191,6 +184,11 @@ func (n *NodeManager) getCurrentNode(uid string) (*client.HostNode, error) {
 	}
 	node := CreateNode(uid, n.cfg.HostIP)
 	return &node, nil
+}
+
+//GetCurrentNode get current node
+func (n *NodeManager) GetCurrentNode() *client.HostNode {
+	return &n.HostNode
 }
 
 //CreateNode new node

@@ -23,11 +23,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/masterserver/task"
+	"github.com/goodrain/rainbond/node/nodem/client"
 
-	"k8s.io/client-go/kubernetes"
-
-	"github.com/goodrain/rainbond/node/api/model"
 	"github.com/goodrain/rainbond/node/core/config"
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/node/masterserver/node"
@@ -36,7 +35,7 @@ import (
 //MasterServer 主节点服务
 type MasterServer struct {
 	*store.Client
-	*model.HostNode
+	*client.HostNode
 	Cluster          *node.Cluster
 	TaskEngine       *task.TaskEngine
 	ctx              context.Context
@@ -45,10 +44,10 @@ type MasterServer struct {
 }
 
 //NewMasterServer 创建master节点
-func NewMasterServer(modelnode *model.HostNode, k8sClient *kubernetes.Clientset) (*MasterServer, error) {
+func NewMasterServer(modelnode *client.HostNode, kubecli kubecache.KubeClient) (*MasterServer, error) {
 	datacenterConfig := config.GetDataCenterConfig()
 	ctx, cancel := context.WithCancel(context.Background())
-	nodecluster := node.CreateCluster(k8sClient, modelnode, datacenterConfig)
+	nodecluster := node.CreateCluster(kubecli, modelnode, datacenterConfig)
 	taskengin := task.CreateTaskEngine(nodecluster, modelnode)
 	ms := &MasterServer{
 		Client:           store.DefalutClient,
