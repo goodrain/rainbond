@@ -46,9 +46,15 @@ type Exporter struct {
 	totalScrapes  prometheus.Counter
 	scrapeErrors  *prometheus.CounterVec
 	lbPluginUp    prometheus.Gauge
-	enqueueNumber prometheus.Gauge
-	dequeueNumber prometheus.Gauge
+	enqueueNumber prometheus.Counter
+	dequeueNumber prometheus.Counter
 }
+
+var healthDesc = prometheus.NewDesc(
+	prometheus.BuildFQName("", "", "health_status"),
+	"health status.",
+	[]string{"service_name"}, nil,
+)
 
 //NewExporter new a exporter
 func NewExporter() *Exporter {
@@ -76,12 +82,12 @@ func NewExporter() *Exporter {
 			Name:      "up",
 			Help:      "Whether the default lb plugin is up.",
 		}),
-		enqueueNumber: prometheus.NewGauge(prometheus.GaugeOpts{
+		enqueueNumber: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "enqueue_number",
 			Help:      "Message queue enqueue total.",
 		}),
-		dequeueNumber: prometheus.NewGauge(prometheus.GaugeOpts{
+		dequeueNumber: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "dequeue_number",
 			Help:      "Message queue dequeue total.",
@@ -117,6 +123,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	e.totalScrapes.Inc()
-	ch <- prometheus.MustNewConstMetric(e.enqueueNumber.Desc(), prometheus.GaugeValue, mq.EnqueueNumber)
-	ch <- prometheus.MustNewConstMetric(e.dequeueNumber.Desc(), prometheus.GaugeValue, mq.DequeueNumber)
+	ch <- prometheus.MustNewConstMetric(e.enqueueNumber.Desc(), prometheus.CounterValue, mq.EnqueueNumber)
+	ch <- prometheus.MustNewConstMetric(e.dequeueNumber.Desc(), prometheus.CounterValue, mq.DequeueNumber)
+	ch <- prometheus.MustNewConstMetric(healthDesc, prometheus.GaugeValue, 1, "mq")
 }

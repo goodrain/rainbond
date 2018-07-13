@@ -16,7 +16,6 @@ const (
 
 //Exporter collects entrance metrics. It implements prometheus.Collector.
 type Exporter struct {
-	healthStatus prometheus.Gauge
 	taskNum prometheus.Counter
 	taskError prometheus.Counter
 }
@@ -30,12 +29,6 @@ var healthDesc = prometheus.NewDesc(
 //NewExporter new a exporter
 func NewExporter() *Exporter {
 	return &Exporter{
-		healthStatus: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: exporter,
-			Name:      "builder_health_status",
-			Help:      "builder component health status.",
-		}),
 		taskNum:prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: exporter,

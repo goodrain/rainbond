@@ -42,6 +42,12 @@ var (
 	)
 )
 
+var healthDesc = prometheus.NewDesc(
+	prometheus.BuildFQName("", "", "health_status"),
+	"health status.",
+	[]string{"service_name"}, nil,
+)
+
 //Exporter collects entrance metrics. It implements prometheus.Collector.
 type Exporter struct {
 	error        prometheus.Gauge
@@ -49,7 +55,6 @@ type Exporter struct {
 	scrapeErrors *prometheus.CounterVec
 	lbPluginUp   prometheus.Gauge
 	coreManager  core.Manager
-	healthStatus prometheus.Gauge
 }
 
 //NewExporter new a exporter
@@ -77,12 +82,6 @@ func NewExporter(coreManager core.Manager) *Exporter {
 			Namespace: namespace,
 			Name:      "up",
 			Help:      "Whether the default lb plugin is up.",
-		}),
-		healthStatus:prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: exporter,
-			Name:      "entrance_health_status",
-			Help:      "entrance component health status.",
 		}),
 		coreManager: coreManager,
 	}
@@ -120,5 +119,5 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		logrus.Error("core manager scrape for prometheus error.", err.Error())
 		e.error.Set(1)
 	}
-	ch <- prometheus.MustNewConstMetric(e.healthStatus.Desc(), prometheus.GaugeValue, 1)
+	ch <- prometheus.MustNewConstMetric(healthDesc, prometheus.GaugeValue, 1, "entrance")
 }
