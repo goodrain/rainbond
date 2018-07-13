@@ -34,10 +34,15 @@ import (
 	grpc1 "google.golang.org/grpc"
 
 	"github.com/Sirupsen/logrus"
+	"fmt"
 )
 
 //WTOPIC is worker
 const WTOPIC string = "worker"
+
+var healthStatus = make(map[string]string,1)
+var TaskNum float64 = 0
+var TaskError float64 = 0
 
 //TaskManager task
 type TaskManager struct {
@@ -52,6 +57,8 @@ type TaskManager struct {
 func NewTaskManager(c option.Config, executor executor.Manager, statusManager *status.AppRuntimeSyncClient) *TaskManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	handleManager := handle.NewManager(ctx, c, executor, statusManager)
+	healthStatus["status"] = "health"
+	healthStatus["info"] = "worker service health"
 	return &TaskManager{
 		ctx:           ctx,
 		cancel:        cancel,
@@ -65,6 +72,8 @@ func (t *TaskManager) Start() error {
 	client, err := client.NewMqClient(t.config.EtcdEndPoints, t.config.MQAPI)
 	if err != nil {
 		logrus.Errorf("new Mq client error, %v", err)
+		healthStatus["status"] = "unusual"
+		healthStatus["info"] = fmt.Sprintf("new Mq client error, %v", err)
 		return err
 	}
 	t.client = client
@@ -91,6 +100,8 @@ func (t *TaskManager) Do() {
 				}
 				if grpc1.ErrorDesc(err) == "context canceled" {
 					logrus.Info("receive task core context canceled")
+					healthStatus["status"] = "unusual"
+					healthStatus["info"] = "receive task core context canceled"
 					return
 				}
 				if grpc1.ErrorDesc(err) == "context timeout" {
@@ -107,6 +118,9 @@ func (t *TaskManager) Do() {
 				continue
 			}
 			rc := t.handleManager.AnalystToExec(transData)
+			if rc == 1{
+				TaskError += 1
+			}
 			if rc == 9 {
 				logrus.Debugf("rc is 9, enqueue task to mq")
 				ctx, cancel := context.WithCancel(t.ctx)
@@ -120,6 +134,8 @@ func (t *TaskManager) Do() {
 					logrus.Errorf("enqueue task %v to mq topic %v Error", data, WTOPIC)
 					continue
 				}
+			}else {
+				TaskNum += 1
 			}
 			logrus.Debugf("handle task AnalystToExec %d", rc)
 		}
@@ -134,4 +150,9 @@ func (t *TaskManager) Stop() error {
 		t.client.Close()
 	}
 	return nil
+}
+
+// 组件的健康检查
+func HealthCheck() map[string]string {
+	return healthStatus
 }

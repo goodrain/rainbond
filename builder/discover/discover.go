@@ -29,29 +29,34 @@ import (
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/Sirupsen/logrus"
 	grpc1 "google.golang.org/grpc"
-
+	"fmt"
 )
 
 //WTOPIC is builder
 const WTOPIC string = "builder"
 
+var healthStatus = make(map[string]string,1)
+
+
 //TaskManager task
 type TaskManager struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	config option.Config
-	client *client.MQClient
-	exec   exector.Manager
+	ctx          context.Context
+	cancel       context.CancelFunc
+	config       option.Config
+	client       *client.MQClient
+	exec         exector.Manager
 }
 
 //NewTaskManager return *TaskManager
 func NewTaskManager(c option.Config, exec exector.Manager) *TaskManager {
 	ctx, cancel := context.WithCancel(context.Background())
+	healthStatus["status"] = "health"
+	healthStatus["info"] = "builder service health"
 	return &TaskManager{
-		ctx:    ctx,
-		cancel: cancel,
-		config: c,
-		exec:   exec,
+		ctx:          ctx,
+		cancel:       cancel,
+		config:       c,
+		exec:         exec,
 	}
 }
 
@@ -60,6 +65,8 @@ func (t *TaskManager) Start() error {
 	client, err := client.NewMqClient(t.config.EtcdEndPoints, t.config.MQAPI)
 	if err != nil {
 		logrus.Errorf("new Mq client error, %v", err)
+		healthStatus["status"] = "unusual"
+		healthStatus["info"] = fmt.Sprintf("new Mq client error, %v", err)
 		return err
 	}
 	t.client = client
@@ -86,6 +93,8 @@ func (t *TaskManager) Do() {
 				}
 				if grpc1.ErrorDesc(err) == "context canceled" {
 					logrus.Warn("grpc dequeue context canceled")
+					healthStatus["status"] = "unusual"
+					healthStatus["info"] = "grpc dequeue context canceled"
 					return
 				}
 				if grpc1.ErrorDesc(err) == "context timeout" {
@@ -115,4 +124,9 @@ func (t *TaskManager) Stop() error {
 		t.client.Close()
 	}
 	return nil
+}
+
+// 组件的健康检查
+func HealthCheck() map[string]string {
+	return healthStatus
 }

@@ -37,6 +37,9 @@ import (
 	"sync"
 )
 
+var TaskNum float64 = 0
+var ErrorNum float64 = 0
+
 //Manager 任务执行管理器
 type Manager interface {
 	AddTask(*pb.TaskMessage) error
@@ -106,7 +109,7 @@ func RegisterWorker(name string, fun func([]byte, *exectorManager) (TaskWorker, 
 //share-image share app with image
 func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 	e.wg.Add(1)
-
+	TaskNum += 1
 	switch task.TaskType {
 	case "build_from_image":
 		e.buildFromImage(task.TaskBody)
@@ -153,6 +156,7 @@ func (e *exectorManager) exec(workerName string, in []byte) error {
 			}
 		}()
 		if err := worker.Run(time.Minute * 10); err != nil {
+			ErrorNum += 1
 			worker.ErrorCallBack(err)
 		}
 	}()
@@ -183,8 +187,10 @@ func (e *exectorManager) buildFromImage(in []byte) {
 				if n < 1 {
 					i.Logger.Error("从镜像构建应用任务执行失败，开始重试", map[string]string{"step": "build-exector", "status": "failure"})
 				} else {
+					ErrorNum += 1
 					i.Logger.Error("从镜像构建应用任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 					status = "failure"
+
 				}
 			} else {
 				break
@@ -221,6 +227,7 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 				if n < 1 {
 					i.Logger.Error("从源码构建应用任务执行失败，开始重试", map[string]string{"step": "build-exector", "status": "failure"})
 				} else {
+					ErrorNum += 1
 					i.Logger.Error("从源码构建应用任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 					status = "failure"
 				}
@@ -271,6 +278,7 @@ func (e *exectorManager) buildFromMarketSlug(in []byte) {
 				if n < 1 {
 					i.Logger.Error("应用构建失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
+					ErrorNum += 1
 					i.Logger.Error("构建应用任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
@@ -307,6 +315,7 @@ func (e *exectorManager) slugShare(in []byte) {
 				if n < 1 {
 					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
+					ErrorNum += 1
 					i.Logger.Error("分享应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})
 					status = "failure"
 				}
@@ -347,6 +356,7 @@ func (e *exectorManager) imageShare(in []byte) {
 				if n < 1 {
 					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
+					ErrorNum += 1
 					i.Logger.Error("分享应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})
 					status = "failure"
 				}

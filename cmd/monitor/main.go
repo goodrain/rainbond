@@ -27,6 +27,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"github.com/goodrain/rainbond/monitor/api"
+	"net/http"
 )
 
 func main() {
@@ -52,6 +54,10 @@ func main() {
 	m := monitor.NewMonitor(c, p)
 	m.Start()
 	defer m.Stop()
+
+	r := api.APIServer()
+	logrus.Info("monitor api listen port 3329")
+	go http.ListenAndServe(":3329", r)
 
 	//step finally: listen Signal
 	term := make(chan os.Signal)
