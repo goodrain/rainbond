@@ -20,6 +20,7 @@ package util
 
 import (
 	"archive/zip"
+	"crypto/md5"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -34,7 +35,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/twinj/uuid"
 )
 
 //CheckAndCreateDir check and create dir
@@ -177,7 +177,10 @@ func ReadHostID(filePath string) (string, error) {
 	_, err := os.Stat(filePath)
 	if err != nil {
 		if strings.HasSuffix(err.Error(), "no such file or directory") {
-			uid := uuid.NewV4().String()
+			uid, err := CreateHostID()
+			if err != nil {
+				return "", err
+			}
 			err = ioutil.WriteFile(filePath, []byte("host_uuid="+uid), 0777)
 			if err != nil {
 				logrus.Error("Write host_uuid file error.", err.Error())
@@ -195,6 +198,42 @@ func ReadHostID(filePath string) (string, error) {
 		return info[1], nil
 	}
 	return "", fmt.Errorf("Invalid host uuid from file")
+}
+
+//CreateHostID create host id by mac addr
+func CreateHostID() (string, error) {
+	macAddrs := getMacAddrs()
+	if macAddrs == nil || len(macAddrs) == 0 {
+		return "", fmt.Errorf("read macaddr error when create node id")
+	}
+	ip, _ := LocalIP()
+	hash := md5.New()
+	hash.Write([]byte(macAddrs[0] + ip.String()))
+	uid := fmt.Sprintf("%x", hash.Sum(nil))
+	if len(uid) >= 32 {
+		return uid[:32], nil
+	}
+	for i := len(uid); i < 32; i++ {
+		uid = uid + "0"
+	}
+	return uid, nil
+}
+
+func getMacAddrs() (macAddrs []string) {
+	netInterfaces, err := net.Interfaces()
+	if err != nil {
+		fmt.Printf("fail to get net interfaces: %v", err)
+		return macAddrs
+	}
+
+	for _, netInterface := range netInterfaces {
+		macAddr := netInterface.HardwareAddr.String()
+		if len(macAddr) == 0 {
+			continue
+		}
+		macAddrs = append(macAddrs, macAddr)
+	}
+	return macAddrs
 }
 
 //LocalIP 获取本机 ip
@@ -368,7 +407,7 @@ func listDirNonSymlink(dir string) []os.FileInfo {
 
 	var result []os.FileInfo
 	for i := range entries {
-		if entries[i].Mode() & os.ModeSymlink == 0 {
+		if entries[i].Mode()&os.ModeSymlink == 0 {
 			result = append(result, entries[i])
 		}
 	}

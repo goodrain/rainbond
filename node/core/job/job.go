@@ -55,6 +55,12 @@ const (
 	KindInterval // 一个任务执行间隔内允许执行一次
 )
 
+//Event JobEvent
+type Event struct {
+	EventType string `json:"event_type"`
+	Job       Job    `json:"job"`
+}
+
 //Job 需要执行的任务
 type Job struct {
 	ID      string   `json:"id"`

@@ -43,7 +43,7 @@ import (
 	"github.com/goodrain/rainbond/node/core/job"
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/node/masterserver/node"
-	"github.com/goodrain/rainbond/node/nodeserver"
+	"github.com/goodrain/rainbond/node/nodem/taskrun"
 	"github.com/pquerna/ffjson/ffjson"
 )
 
@@ -55,7 +55,7 @@ type TaskEngine struct {
 	cancel              context.CancelFunc
 	config              *option.Conf
 	tasks               map[string]*model.Task
-	jobs                nodeserver.Jobs
+	jobs                taskrun.Jobs
 	tasksLock, jobsLock sync.Mutex
 	dataCenterConfig    *config.DataCenterConfig
 	nodeCluster         *node.Cluster
@@ -73,7 +73,7 @@ func CreateTaskEngine(nodeCluster *node.Cluster, node *model.HostNode) *TaskEngi
 		ctx:              ctx,
 		cancel:           cancel,
 		tasks:            make(map[string]*model.Task),
-		jobs:             make(nodeserver.Jobs),
+		jobs:             make(taskrun.Jobs),
 		config:           option.Config,
 		dataCenterConfig: config.GetDataCenterConfig(),
 		nodeCluster:      nodeCluster,

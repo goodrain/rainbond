@@ -82,3 +82,11 @@ func TestMergeDir(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestCreateHostID(t *testing.T) {
+	uid, err := CreateHostID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(uid)
+}

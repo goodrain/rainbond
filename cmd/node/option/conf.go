@@ -102,7 +102,7 @@ type Conf struct {
 	DBType              string
 	DBConnectionInfo    string
 
-	TTL        int64 // 节点超时时间，单位秒
+	TTL        int64 // node heartbeat to master TTL
 	ReqTimeout int   // 请求超时时间，单位秒
 	// 执行任务信息过期时间，单位秒
 	// 0 为不过期
