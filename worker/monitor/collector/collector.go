@@ -43,7 +43,6 @@ type Exporter struct {
 	workerUp      prometheus.Gauge
 	dbmanager     db.Manager
 	statusManager *status.AppRuntimeSyncClient
-	healthStatus  *prometheus.GaugeVec
 	taskNum       prometheus.Counter
 	taskError     prometheus.Counter
 }
@@ -55,7 +54,7 @@ var scrapeDurationDesc = prometheus.NewDesc(
 )
 
 var healthDesc = prometheus.NewDesc(
-	prometheus.BuildFQName(namespace, "exporter", "health_status"),
+	prometheus.BuildFQName("", "", "health_status"),
 	"health status.",
 	[]string{"service_name"}, nil,
 )
@@ -138,7 +137,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	} else {
 		val = 0
 	}
-	ch <- prometheus.MustNewConstMetric(healthDesc, prometheus.GaugeValue, val, "service_name.worker")
+	ch <- prometheus.MustNewConstMetric(healthDesc, prometheus.GaugeValue, val, "worker")
 	ch <- prometheus.MustNewConstMetric(e.taskNum.Desc(), prometheus.CounterValue, discover.TaskNum)
 	ch <- prometheus.MustNewConstMetric(e.taskError.Desc(), prometheus.CounterValue, discover.TaskError)
 }
@@ -181,12 +180,6 @@ func New(statusManager *status.AppRuntimeSyncClient) *Exporter {
 			Name:      "appfs",
 			Help:      "tenant service fs used.",
 		}, []string{"tenant_id", "service_id", "volume_type"}),
-		healthStatus: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: "exporter",
-			Name:      "worker_health_status",
-			Help:      "worker component health status.",
-		}, []string{"service_name"}),
 		taskNum: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "exporter",
