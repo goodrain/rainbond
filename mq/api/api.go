@@ -143,7 +143,7 @@ func (m *Manager) Start(errChan chan error) {
 	if err != nil {
 		errChan <- err
 	}
-	//m.prometheus()
+	m.prometheus()
 	go func() {
 		if err := m.server.Server(); err != nil {
 			logrus.Error("mq api listen error.", err.Error())
