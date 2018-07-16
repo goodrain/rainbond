@@ -196,16 +196,18 @@ func request(url, method string, body []byte) ([]byte, int, error) {
 	if region.token != "" {
 		request.Header.Set("Authorization", "Token "+region.token)
 	}
-
 	res, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return nil, 500, err
 	}
-
 	data, err := ioutil.ReadAll(res.Body)
-	defer res.Body.Close()
+	if res.Body != nil {
+		defer res.Body.Close()
+	}
 	return data, res.StatusCode, err
 }
+
+//NewRegion NewRegion
 func NewRegion(regionAPI, token, authType string) *Region {
 	if region == nil {
 		region = &Region{
@@ -305,8 +307,10 @@ func (r *resourcesTenant) Get() (*model.TenantResource, *util.APIHandleError) {
 	if err != nil {
 		return nil, handleErrAndCode(err, code)
 	}
+	var reb utilhttp.ResponseBody
 	var rt model.TenantResource
-	if err := json.Unmarshal(res, &rt); err != nil {
+	reb.Bean = &rt
+	if err := json.Unmarshal(res, &reb); err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
 	}
 	return &rt, nil

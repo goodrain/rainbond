@@ -224,17 +224,19 @@ func stopTenantService(c *cli.Context) error {
 	services, err := clients.RegionClient.Tenants().Get(tenantID).Services().List()
 	handleErr(err)
 	for _, service := range services {
-		err := clients.RegionClient.Tenants().Get(tenantID).Services().Stop(service.ServiceAlias, eventID)
-		if c.Bool("f") {
-			server := "127.0.0.1:6363"
-			if c.String("event_log_server") != "" {
-				server = c.String("event_log_server")
+		if service.CurStatus != "closed" && service.CurStatus != "closing" {
+			err := clients.RegionClient.Tenants().Get(tenantID).Services().Stop(service.ServiceAlias, eventID)
+			if c.Bool("f") {
+				server := "127.0.0.1:6363"
+				if c.String("event_log_server") != "" {
+					server = c.String("event_log_server")
+				}
+				GetEventLogf(eventID, server)
 			}
-			GetEventLogf(eventID, server)
-		}
-		if err != nil {
-			logrus.Error("停止应用失败:" + err.Error())
-			return err
+			if err != nil {
+				logrus.Error("停止应用失败:" + err.Error())
+				return err
+			}
 		}
 	}
 	return nil

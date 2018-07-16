@@ -83,12 +83,21 @@ func getTenantInfo(c *cli.Context) error {
 	services, err := clients.RegionClient.Tenants().Get(tenantID).Services().List()
 	handleErr(err)
 	if services != nil {
-		table := termtables.CreateTable()
-		table.AddHeaders("租户ID", "服务ID", "服务别名", "应用状态", "Deploy版本")
+		runtable := termtables.CreateTable()
+		closedtable := termtables.CreateTable()
+		runtable.AddHeaders("服务别名", "应用状态", "Deploy版本", "实例数量", "内存占用")
+		closedtable.AddHeaders("租户ID", "服务ID", "服务别名", "应用状态", "Deploy版本")
 		for _, service := range services {
-			table.AddRow(service.TenantID, service.ServiceID, service.ServiceAlias, service.CurStatus, service.DeployVersion)
+			if service.CurStatus != "closed" && service.CurStatus != "closing" && service.CurStatus != "undeploy" && service.CurStatus != "deploying" {
+				runtable.AddRow(service.ServiceAlias, service.CurStatus, service.DeployVersion, service.Replicas, fmt.Sprintf("%d Mb", service.ContainerMemory*service.Replicas))
+			} else {
+				closedtable.AddRow(service.TenantID, service.ServiceID, service.ServiceAlias, service.CurStatus, service.DeployVersion)
+			}
 		}
-		fmt.Println(table.Render())
+		fmt.Println("运行中的应用：")
+		fmt.Println(runtable.Render())
+		fmt.Println("不在运行的应用：")
+		fmt.Println(closedtable.Render())
 		return nil
 	}
 	return nil
@@ -104,12 +113,13 @@ func findTenantResourceUsage(c *cli.Context) error {
 	table := uitable.New()
 	table.Wrap = true // wrap columns
 	table.AddRow("租户名：", resources.Name)
+	table.AddRow("租户ID：", resources.UUID)
 	table.AddRow("企业ID：", resources.EID)
-	table.AddRow("总分配CPU资源：", float64(resources.AllocatedCPU)/1000, "Core")
-	table.AddRow("总分配内存资源：", resources.AllocatedMEM, "Mb")
-	table.AddRow("正使用CPU资源：", float64(resources.UsedCPU)/1000, "Core")
-	table.AddRow("正使用内存资源：", resources.UsedMEM, "Mb")
-	table.AddRow("正使用磁盘资源：", resources.UsedDisk/1024/1024, "Mb")
+	table.AddRow("正使用CPU资源：", fmt.Sprintf("%.2f Core", float64(resources.UsedCPU)/1000))
+	table.AddRow("正使用内存资源：", fmt.Sprintf("%d %s", resources.UsedMEM, "Mb"))
+	table.AddRow("正使用磁盘资源：", fmt.Sprintf("%.2f Mb", resources.UsedDisk/1024/1024))
+	table.AddRow("总分配CPU资源：", fmt.Sprintf("%.2f Core", float64(resources.AllocatedCPU)/1000))
+	table.AddRow("总分配内存资源：", fmt.Sprintf("%d %s", resources.AllocatedMEM, "Mb"))
 	fmt.Println(table)
 	return nil
 }
