@@ -37,7 +37,7 @@ import (
 type MasterServer struct {
 	*store.Client
 	*model.HostNode
-	Cluster          *node.NodeCluster
+	Cluster          *node.Cluster
 	TaskEngine       *task.TaskEngine
 	ctx              context.Context
 	cancel           context.CancelFunc
@@ -48,7 +48,7 @@ type MasterServer struct {
 func NewMasterServer(modelnode *model.HostNode, k8sClient *kubernetes.Clientset) (*MasterServer, error) {
 	datacenterConfig := config.GetDataCenterConfig()
 	ctx, cancel := context.WithCancel(context.Background())
-	nodecluster := node.CreateNodeCluster(k8sClient, modelnode, datacenterConfig)
+	nodecluster := node.CreateCluster(k8sClient, modelnode, datacenterConfig)
 	taskengin := task.CreateTaskEngine(nodecluster, modelnode)
 	ms := &MasterServer{
 		Client:           store.DefalutClient,
@@ -65,7 +65,7 @@ func NewMasterServer(modelnode *model.HostNode, k8sClient *kubernetes.Clientset)
 //Start master node start
 func (m *MasterServer) Start(errchan chan error) error {
 	m.datacenterConfig.Start()
-	if err := m.Cluster.Start(); err != nil {
+	if err := m.Cluster.Start(errchan); err != nil {
 		logrus.Error("node cluster start error,", err.Error())
 		return err
 	}

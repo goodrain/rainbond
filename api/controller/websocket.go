@@ -94,6 +94,7 @@ func GetMonitorMessage() *MonitorMessage {
 		monitorMessage = &MonitorMessage{
 			socketproxy: proxy.CreateProxy("monitormessage", "websocket", defaultEventLogEndpoints),
 		}
+		discover.GetEndpointDiscover(defaultEtcdEndpoints).AddProject("event_log_event_http", monitorMessage.socketproxy)
 	}
 	return monitorMessage
 }
@@ -116,6 +117,7 @@ func GetEventLog() *EventLog {
 		eventLog = &EventLog{
 			socketproxy: proxy.CreateProxy("eventlog", "websocket", defaultEventLogEndpoints),
 		}
+		discover.GetEndpointDiscover(defaultEtcdEndpoints).AddProject("event_log_event_http", eventLog.socketproxy)
 	}
 	return eventLog
 }

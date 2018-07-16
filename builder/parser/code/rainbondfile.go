@@ -31,8 +31,16 @@ import (
 
 //RainbondFileConfig 云帮源码配置文件
 type RainbondFileConfig struct {
-	Language  string `yaml:"language"`
-	BuildPath string `yaml:"buildpath"`
+	Language  string            `yaml:"language"`
+	BuildPath string            `yaml:"buildpath"`
+	Ports     []Port            `yaml:"ports"`
+	Envs      map[string]string `yaml:"envs"`
+}
+
+//Port Port
+type Port struct {
+	Port     int    `yaml:"port"`
+	Protocol string `yaml:"procotol"`
 }
 
 //ReadRainbondFile 读取云帮代码配置

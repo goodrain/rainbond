@@ -117,6 +117,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.LocalScheduler{})
 	m.models = append(m.models, &model.NotificationEvent{})
 	m.models = append(m.models, &model.AppStatus{})
+	m.models = append(m.models, &model.AppBackup{})
 }
 
 //CheckTable check and create tables
@@ -160,6 +161,7 @@ func (m *Manager) patchTable() {
 				"/v2/resources":  "server_source",
 				"/v2/builder":    "server_source",
 				"/v2/tenants":    "server_source",
+				"/v2/app":        "server_source",
 				"/api/v1":        "server_source",
 				"/v2/nodes":      "node_manager",
 				"/v2/job":        "node_manager",
@@ -214,5 +216,12 @@ func (m *Manager) patchTable() {
 				tx.Commit()
 			}
 		}
+	}
+	//set plugin version image name length
+	if err := m.db.Exec("alter table tenant_plugin_build_version modify column base_image varchar(200);").Error; err != nil {
+		logrus.Errorf("alter table tenant_plugin_build_version error %s", err.Error())
+	}
+	if err := m.db.Exec("alter table tenant_plugin_build_version modify column build_local_image varchar(200);").Error; err != nil {
+		logrus.Errorf("alter table tenant_plugin_build_version error %s", err.Error())
 	}
 }

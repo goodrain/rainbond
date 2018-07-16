@@ -105,6 +105,7 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 		Lang:          gjson.GetBytes(in, "lang").String(),
 		Runtime:       gjson.GetBytes(in, "runtime").String(),
 		BuildEnvs:     be,
+		commit:        &object.Commit{},
 	}
 	scb.CacheDir = fmt.Sprintf("/cache/build/%s/cache/%s", scb.TenantID, scb.ServiceID)
 	//scb.SourceDir = scb.CodeSouceInfo.GetCodeSourceDir()
@@ -134,7 +135,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	rs, err := sources.GitCloneOrPull(i.CodeSouceInfo, rbi.GetCodeHome(), i.Logger, 5)
 	if err != nil {
 		logrus.Errorf("pull git code error: %s", err.Error())
-		i.Logger.Error(fmt.Sprintf("拉取代码失败，请重试"), map[string]string{"step": "builder-exector", "status": "failure"})
+		i.Logger.Error(fmt.Sprintf("拉取代码失败，请确保代码可以被正常下载"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	//get last commit
@@ -353,7 +354,6 @@ func (i *SourceCodeBuildItem) buildCode() error {
 		CommitMsg:     i.commit.Message,
 		Author:        i.commit.Author.Name,
 	}
-	logrus.Debugf("update app version commit info %s, author %s", i.commit.Message, i.commit.Author.Name)
 	if err := i.UpdateVersionInfo(vi); err != nil {
 		logrus.Errorf("update version info error: %s", err.Error())
 		i.Logger.Error("更新应用版本信息失败", map[string]string{"step": "build-code", "status": "failure"})
@@ -385,6 +385,9 @@ func (i *SourceCodeBuildItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
 	}
 	if vi.DeliveredPath != "" {
 		version.DeliveredPath = vi.DeliveredPath
+		if vi.DeliveredType == "image" {
+			version.ImageName = vi.DeliveredPath
+		}
 	}
 	if vi.FinalStatus != "" {
 		version.FinalStatus = vi.FinalStatus
@@ -392,6 +395,7 @@ func (i *SourceCodeBuildItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
 	version.CommitMsg = vi.CommitMsg
 	version.Author = vi.Author
 	version.CodeVersion = vi.CodeVersion
+	logrus.Debugf("update app version %+v", *version)
 	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
 		return err
 	}

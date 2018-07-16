@@ -18,6 +18,11 @@
 
 package model
 
+import (
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
+)
+
 //TenantPlugin plugin model
 type TenantPlugin struct {
 	Model
@@ -70,11 +75,14 @@ func (t *TenantPluginDefaultENV) TableName() string {
 //TenantPluginBuildVersion plugin build version
 type TenantPluginBuildVersion struct {
 	Model
-	VersionID       string `gorm:"column:version_id;size:32" json:"version_id"`
+	//plugin version eg v1.0.0
+	VersionID string `gorm:"column:version_id;size:32" json:"version_id"`
+	//deploy version eg 20180528071717
+	DeployVersion   string `gorm:"column:deploy_version;size:32" json:"deploy_version"`
 	PluginID        string `gorm:"column:plugin_id;size:32" json:"plugin_id"`
 	Kind            string `gorm:"column:kind;size:24" json:"kind"`
-	BaseImage       string `gorm:"column:base_image;size:100" json:"base_image"`
-	BuildLocalImage string `gorm:"column:build_local_image;size:100" json:"build_local_image"`
+	BaseImage       string `gorm:"column:base_image;size:200" json:"base_image"`
+	BuildLocalImage string `gorm:"column:build_local_image;size:200" json:"build_local_image"`
 	BuildTime       string `gorm:"column:build_time" json:"build_time"`
 	Repo            string `gorm:"column:repo" json:"repo"`
 	GitURL          string `gorm:"column:git_url" json:"git_url"`
@@ -91,6 +99,24 @@ type TenantPluginBuildVersion struct {
 //TableName table name
 func (t *TenantPluginBuildVersion) TableName() string {
 	return "tenant_plugin_build_version"
+}
+
+//CreateShareImage CreateShareImage
+func (t *TenantPluginBuildVersion) CreateShareImage(hubURL, namespace string) (string, error) {
+	_, err := reference.ParseAnyReference(t.BuildLocalImage)
+	if err != nil {
+		logrus.Errorf("reference image error: %s", err.Error())
+		return "", err
+	}
+	image := ParseImage(t.BuildLocalImage)
+	if hubURL != "" {
+		image.Host = hubURL
+	}
+	if namespace != "" {
+		image.Namespace = namespace
+	}
+	image.Name = image.Name + "_" + t.VersionID
+	return image.String(), nil
 }
 
 //TenantPluginVersionEnv TenantPluginVersionEnv

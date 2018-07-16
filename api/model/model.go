@@ -23,8 +23,9 @@ import (
 	"time"
 
 	"fmt"
-	dbmodel "github.com/goodrain/rainbond/db/model"
 	"strings"
+
+	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
 //ServiceGetCommon path参数
@@ -457,6 +458,26 @@ type ServicePortInnerOrOuter struct {
 		// in: body
 		// required: true
 		Operation string `json:"operation"  validate:"operation|required|in:open,close"`
+	}
+}
+
+// ServiceLBPortChange change lb port
+// swagger:parameters changelbport
+type ServiceLBPortChange struct {
+	// in: path
+	// required: true
+	TenantName string `json:"tenant_name"`
+	// in: path
+	// required: true
+	ServiceAlias string `json:"service_alias"`
+	// in: path
+	// required: true
+	Port int `json:"port"`
+	//in: body
+	Body struct {
+		// in: body
+		// required: true
+		ChangePort int `json:"change_port"  validate:"change_port|required"`
 	}
 }
 
@@ -1340,6 +1361,7 @@ type ServiceShare struct {
 			HubUser     string `json:"hub_user"`
 			HubPassword string `json:"hub_password"`
 			Namespace   string `json:"namespace"`
+			IsTrust     bool   `json:"is_trust,omitempty" validate:"is_trust"`
 		} `json:"image_info,omitempty"`
 		SlugInfo struct {
 			Namespace   string `json:"namespace"`
@@ -1355,9 +1377,9 @@ type ExportAppStruct struct {
 	SourceDir string `json:"source_dir"`
 	Body      struct {
 		EventID       string `json:"event_id"`
-		GroupKey      string `json:"group_key"`
-		Version       string `json:"version"`
-		Format        string `json:"format"` // only rainbond-app/docker-compose
+		GroupKey      string `json:"group_key"` // TODO 考虑去掉
+		Version       string `json:"version"`   // TODO 考虑去掉
+		Format        string `json:"format"`    // only rainbond-app/docker-compose
 		GroupMetadata string `json:"group_metadata"`
 	}
 }
@@ -1380,20 +1402,59 @@ type MQBody struct {
 	SourceDir string `json:"source_dir"`
 }
 
-func NewAppStatusFrom(app *ExportAppStruct) *dbmodel.AppStatus {
-	tarFile := app.SourceDir + ".tar"
-	fields := strings.Split(tarFile, "/")
+func NewAppStatusFromExport(app *ExportAppStruct) *dbmodel.AppStatus {
+	fields := strings.Split(app.SourceDir, "/")
 	tarName := fields[len(fields)-1]
-	tarFileHref := fmt.Sprintf("/v2/app/download/%s/%s", app.Body.Format, tarName)
+	tarFileHref := fmt.Sprintf("/v2/app/download/%s/%s.tar", app.Body.Format, tarName)
 	return &dbmodel.AppStatus{
-		GroupKey:    app.Body.GroupKey,
-		Version:     app.Body.Version,
 		Format:      app.Body.Format,
 		EventID:     app.Body.EventID,
 		SourceDir:   app.SourceDir,
 		Status:      "exporting",
-		TarFile:     tarFile,
 		TarFileHref: tarFileHref,
-		TimeStamp:   time.Now().Nanosecond(),
+	}
+}
+
+type ImportAppStruct struct {
+	EventID      string       `json:"event_id"`
+	SourceDir    string       `json:"source_dir"`
+	Apps         []string     `json:"apps"`
+	Format       string       `json:"format"`
+	ServiceImage ServiceImage `json:"service_image"`
+	ServiceSlug  ServiceSlug  `json:"service_slug"`
+}
+
+type ServiceImage struct {
+	HubUrl      string `json:"hub_url"`
+	HubUser     string `json:"hub_user"`
+	HubPassword string `json:"hub_password"`
+	NameSpace   string `json:"namespace"`
+}
+
+type ServiceSlug struct {
+	FtpHost     string `json:"ftp_host"`
+	FtpPort     string `json:"ftp_port"`
+	FtpUsername string `json:"ftp_username"`
+	FtpPassword string `json:"ftp_password"`
+	NameSpace   string `json:"namespace"`
+}
+
+func NewAppStatusFromImport(app *ImportAppStruct) *dbmodel.AppStatus {
+	var apps string
+	for _, app := range app.Apps {
+		app += ":pending"
+		if apps == "" {
+			apps += app
+		} else {
+			apps += "," + app
+		}
+	}
+
+	return &dbmodel.AppStatus{
+		EventID:   app.EventID,
+		Format:    app.Format,
+		SourceDir: app.SourceDir,
+		Apps:      apps,
+		Status:    "importing",
 	}
 }

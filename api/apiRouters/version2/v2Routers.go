@@ -78,6 +78,8 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	//创建应用
 	r.Post("/services", controller.GetManager().CreateService)
 	r.Post("/plugin", controller.GetManager().PluginAction)
+	r.Post("/plugins/{plugin_id}/share", controller.GetManager().SharePlugin)
+	r.Get("/plugins/{plugin_id}/share/{share_id}", controller.GetManager().SharePluginResult)
 	r.Get("/plugin", controller.GetManager().PluginAction)
 	r.Post("/services_status", controller.GetManager().StatusServiceList)
 	r.Mount("/services/{service_alias}", v2.serviceRouter())
@@ -87,6 +89,14 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Get("/chargesverify", controller.ChargesVerifyController)
 	//get some service pod info
 	r.Get("/pods", controller.Pods)
+	//app backup
+	r.Get("/groupapp/backups", controller.Backups)
+	r.Post("/groupapp/backups", controller.NewBackups)
+	r.Post("/groupapp/backupcopy", controller.BackupCopy)
+	r.Get("/groupapp/backups/{backup_id}", controller.GetBackup)
+	r.Delete("/groupapp/backups/{backup_id}", controller.DeleteBackup)
+	r.Post("/groupapp/backups/{backup_id}/restore", controller.Restore)
+	r.Get("/groupapp/backups/{backup_id}/restore/{restore_id}", controller.RestoreResult)
 
 	return r
 }
@@ -143,6 +153,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Delete("/ports/{port}", controller.GetManager().Ports)
 	r.Put("/ports/{port}/outer", controller.GetManager().PortOuterController)
 	r.Put("/ports/{port}/inner", controller.GetManager().PortInnerController)
+	r.Put("/ports/{port}/changelbport", controller.GetManager().ChangeLBPort)
 
 	//应用版本回滚(act)
 	r.Post("/rollback", controller.GetManager().RollBack)
@@ -219,13 +230,14 @@ func (v2 *V2) appRouter() chi.Router {
 	r.Get("/export/{eventId}", controller.GetManager().ExportApp)
 
 	r.Get("/download/{format}/{fileName}", controller.GetManager().Download)
-	r.Get("/upload/rainbond-app/{fileName}", controller.GetManager().Upload)
+	r.Post("/upload", controller.GetManager().Upload)
+
+	r.Post("/import/ids/{eventId}", controller.GetManager().ImportID)
+	r.Get("/import/ids/{eventId}", controller.GetManager().ImportID)
+	r.Delete("/import/ids/{eventId}", controller.GetManager().ImportID)
 
 	r.Post("/import", controller.GetManager().ImportApp)
-	r.Get("/import/{eventId}", controller.GetManager().ExportApp)
-
-	r.Post("/backup", controller.GetManager().BackupApp)
-	r.Post("/recover", controller.GetManager().RecoverApp)
+	r.Get("/import/{eventId}", controller.GetManager().ImportApp)
 	return r
 }
 

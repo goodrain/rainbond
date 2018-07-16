@@ -100,6 +100,10 @@ func (l *LogAction) GetLogInstance(serviceID string) (string, error) {
 	etcdclient, err := client.New(client.Config{
 		Endpoints: l.EtcdEndpoints,
 	})
+	if err != nil {
+		return "", err
+	}
+
 	value, err := client.NewKeysAPI(etcdclient).Get(context.Background(),
 		fmt.Sprintf("/event/dockerloginstacne/%s", serviceID),
 		nil)

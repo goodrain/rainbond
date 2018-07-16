@@ -407,6 +407,18 @@ func (j *Job) String() string {
 	return string(data)
 }
 
+//Decode Decode
+func (j *Job) Decode(data []byte) error {
+	if err := json.Unmarshal(data, j); err != nil {
+		err = fmt.Errorf("job decode err: %s", err.Error())
+		return err
+	}
+	if err := j.Valid(); err != nil {
+		return err
+	}
+	return nil
+}
+
 //CountRunning 获取结点正在执行任务的数量
 func (j *Job) CountRunning() (int64, error) {
 	resp, err := store.DefalutClient.Get(conf.Config.Proc+j.NodeID+"/"+j.ID, client.WithPrefix(), client.WithCountOnly())

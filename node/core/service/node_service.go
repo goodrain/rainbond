@@ -38,11 +38,11 @@ import (
 //NodeService node service
 type NodeService struct {
 	c           *option.Conf
-	nodecluster *node.NodeCluster
+	nodecluster *node.Cluster
 }
 
 //CreateNodeService create
-func CreateNodeService(c *option.Conf, nodecluster *node.NodeCluster) *NodeService {
+func CreateNodeService(c *option.Conf, nodecluster *node.Cluster) *NodeService {
 	return &NodeService{
 		c:           c,
 		nodecluster: nodecluster,
@@ -172,11 +172,11 @@ func (n *NodeService) DownNode(nodeID string) (*model.HostNode, *utils.APIHandle
 	if !hostNode.Role.HasRule(model.ComputeNode) || hostNode.NodeStatus == nil {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node is not k8s node or it not up"))
 	}
-	hostNode.Status = "down"
 	err := k8s.DeleteNode(hostNode.ID)
 	if err != nil {
 		return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node down error,%s", err.Error()))
 	}
+	hostNode.Status = "down"
 	hostNode.NodeStatus = nil
 	n.nodecluster.UpdateNode(hostNode)
 	return hostNode, nil
@@ -289,7 +289,7 @@ func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *
 		return nil, err
 	}
 	if !node.Role.HasRule("compute") {
-
+		return nil, utils.CreateAPIHandleError(401, fmt.Errorf("node is not compute node"))
 	}
 	ps, error := k8s.GetPodsByNodeName(nodeUID)
 	if error != nil {

@@ -20,6 +20,7 @@ package sources
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -97,11 +98,48 @@ func (s *SFTPClient) Close() {
 		s.conn.Close()
 	}
 }
+func (s *SFTPClient) checkMd5(src, dst string, logger event.Logger) (bool, error) {
+	if err := util.CreateFileHash(src, src+".md5"); err != nil {
+		return false, err
+	}
+	existmd5, err := s.FileExist(dst + ".md5")
+	if err != nil && err.Error() != "file does not exist" {
+		return false, err
+	}
+	exist, err := s.FileExist(dst)
+	if err != nil && err.Error() != "file does not exist" {
+		return false, err
+	}
+	if exist && existmd5 {
+		if err := s.DownloadFile(dst+".md5", src+".md5.old", logger); err != nil {
+			return false, err
+		}
+		old, err := ioutil.ReadFile(src + ".md5.old")
+		if err != nil {
+			return false, err
+		}
+		os.Remove(src + ".md5.old")
+		new, err := ioutil.ReadFile(src + ".md5")
+		if err != nil {
+			return false, err
+		}
+		if string(old) == string(new) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
 
 //PushFile PushFile
 func (s *SFTPClient) PushFile(src, dst string, logger event.Logger) error {
 	logger.Info(fmt.Sprintf("开始上传代码包到FTP服务器"), map[string]string{"step": "slug-share"})
-
+	ok, err := s.checkMd5(src, dst, logger)
+	if err != nil {
+		return err
+	}
+	if ok {
+		return nil
+	}
 	srcFile, err := os.OpenFile(src, os.O_RDONLY, 0644)
 	if err != nil {
 		if logger != nil {
@@ -117,7 +155,7 @@ func (s *SFTPClient) PushFile(src, dst string, logger event.Logger) error {
 		}
 		return err
 	}
-	// 验证并创建目标目录
+	// check or create dir
 	dir := filepath.Dir(dst)
 	_, err = s.sftpClient.Stat(dir)
 	if err != nil {
@@ -136,7 +174,7 @@ func (s *SFTPClient) PushFile(src, dst string, logger event.Logger) error {
 			return err
 		}
 	}
-	// 先删除文件如果存在
+	// remove all file if exist
 	s.sftpClient.Remove(dst)
 	dstFile, err := s.sftpClient.Create(dst)
 	if err != nil {
@@ -147,7 +185,21 @@ func (s *SFTPClient) PushFile(src, dst string, logger event.Logger) error {
 	}
 	defer dstFile.Close()
 	allSize := srcStat.Size()
-	return CopyWithProgress(srcFile, dstFile, allSize, logger)
+	if err := CopyWithProgress(srcFile, dstFile, allSize, logger); err != nil {
+		return err
+	}
+	// write remote md5 file
+	md5, _ := ioutil.ReadFile(src + ".md5")
+	dstMd5File, err := s.sftpClient.Create(dst + ".md5")
+	if err != nil {
+		logrus.Errorf("create md5 file in sftp server error.%s", err.Error())
+		return nil
+	}
+	defer dstMd5File.Close()
+	if _, err := dstMd5File.Write(md5); err != nil {
+		logrus.Errorf("write md5 file in sftp server error.%s", err.Error())
+	}
+	return nil
 }
 
 //DownloadFile DownloadFile

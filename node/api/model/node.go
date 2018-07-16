@@ -78,7 +78,17 @@ type HostNode struct {
 	ClusterNode
 }
 
+//Decode decode node info
+func (n *HostNode) Decode(data []byte) error {
+	if err := ffjson.Unmarshal(data, n); err != nil {
+		logrus.Error("decode node info error:", err.Error())
+		return err
+	}
+	return nil
+}
+
 type NodeList []*HostNode
+
 func (list NodeList) Len() int {
 	return len(list)
 }
@@ -96,7 +106,9 @@ func (list NodeList) Swap(i, j int) {
 	list[i] = list[j]
 	list[j] = temp
 }
+
 type TaskResult []*ExecedTask
+
 func (c TaskResult) Len() int {
 	return len(c)
 }
@@ -104,11 +116,11 @@ func (c TaskResult) Swap(i, j int) {
 	c[i], c[j] = c[j], c[i]
 }
 func (c TaskResult) Less(i, j int) bool {
-	if c[i].Status == "complete"&&(c[j].Status=="start"||c[j].Status=="wait") {
+	if c[i].Status == "complete" && (c[j].Status == "start" || c[j].Status == "wait") {
 		return true
 	}
-	if c[i].Status=="start" {
-		if c[j].Status=="complete" {
+	if c[i].Status == "start" {
+		if c[j].Status == "complete" {
 			return false
 		}
 		if c[j].Status == "wait" {
@@ -116,11 +128,12 @@ func (c TaskResult) Less(i, j int) bool {
 		}
 		return true
 	}
-	if c[i].Status=="wait" {
+	if c[i].Status == "wait" {
 		return false
 	}
 	return true
 }
+
 //GetNodeFromKV 从etcd解析node信息
 func GetNodeFromKV(kv *mvccpb.KeyValue) *HostNode {
 	var node HostNode
@@ -132,7 +145,7 @@ func GetNodeFromKV(kv *mvccpb.KeyValue) *HostNode {
 }
 
 //UpdataK8sCondition 更新k8s节点的状态到rainbond节点
-func (h *HostNode) UpdataK8sCondition(conditions []v1.NodeCondition) {
+func (n *HostNode) UpdataK8sCondition(conditions []v1.NodeCondition) {
 	for _, con := range conditions {
 		rbcon := NodeCondition{
 			Type:               NodeConditionType(con.Type),
@@ -142,39 +155,39 @@ func (h *HostNode) UpdataK8sCondition(conditions []v1.NodeCondition) {
 			Reason:             con.Reason,
 			Message:            con.Message,
 		}
-		h.UpdataCondition(rbcon)
+		n.UpdataCondition(rbcon)
+	}
+}
+
+//DeleteCondition DeleteCondition
+func (h *HostNode) DeleteCondition(types ...NodeConditionType) {
+	for _, t := range types {
+		for i, c := range h.Conditions {
+			if c.Type.Compare(t) {
+				h.Conditions = append(h.Conditions[:i], h.Conditions[i+1:]...)
+				break
+			}
+		}
 	}
 }
 
 //UpdataCondition 更新状态
-func (h *HostNode) UpdataCondition(conditions ...NodeCondition) {
-	var ready = ConditionTrue
+func (n *HostNode) UpdataCondition(conditions ...NodeCondition) {
 	for _, newcon := range conditions {
-		if newcon.Status != ConditionTrue {
-			ready = ConditionFalse
-		}
 		var update bool
-		if h.Conditions != nil {
-			for i, con := range h.Conditions {
+		if n.Conditions != nil {
+			for i, con := range n.Conditions {
 				if con.Type.Compare(newcon.Type) {
-					h.Conditions[i] = newcon
+					n.Conditions[i] = newcon
 					update = true
-				}
-				if con.Type.Compare(NodeReady) {
-					con.Status = ready
-					con.LastTransitionTime = time.Now()
-					con.LastHeartbeatTime = time.Now()
-					con.Reason = newcon.Reason
-					con.Message = newcon.Message
-					h.Conditions[i] = con
+					break
 				}
 			}
 		}
 		if !update {
-			h.Conditions = append(h.Conditions, newcon)
+			n.Conditions = append(n.Conditions, newcon)
 		}
 	}
-
 }
 
 //HostRule 节点角色
@@ -215,7 +228,10 @@ const (
 	// InstallNotReady means  the installation task was not completed in this node.
 	InstallNotReady NodeConditionType = "InstallNotReady"
 	// NodeInit means node already install rainbond node and regist
-	NodeInit NodeConditionType = "NodeInit"
+	NodeInit       NodeConditionType = "NodeInit"
+	OutOfDisk      NodeConditionType = "OutOfDisk"
+	MemoryPressure NodeConditionType = "MemoryPressure"
+	DiskPressure   NodeConditionType = "DiskPressure"
 )
 
 //Compare 比较

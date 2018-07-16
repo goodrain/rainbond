@@ -32,6 +32,7 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	"github.com/goodrain/rainbond/util"
 	"github.com/tidwall/gjson"
 )
 
@@ -52,6 +53,9 @@ func NewManager(conf config.Config) (Manager, error) {
 		Endpoints:   conf.EtcdEndPoints,
 		DialTimeout: 5 * time.Second,
 	})
+	if err != nil {
+		return nil, err
+	}
 	err = db.CreateManager(conf)
 	if err != nil {
 		return nil, err
@@ -78,12 +82,14 @@ type TaskWorker interface {
 	GetLogger() event.Logger
 	Name() string
 	Stop() error
+	//ErrorCallBack if run error will callback
+	ErrorCallBack(err error)
 }
 
-var workerCreaterList = make(map[string]func([]byte) TaskWorker)
+var workerCreaterList = make(map[string]func([]byte, *exectorManager) (TaskWorker, error))
 
 //RegisterWorker register worker creater
-func RegisterWorker(name string, fun func([]byte) TaskWorker) {
+func RegisterWorker(name string, fun func([]byte, *exectorManager) (TaskWorker, error)) {
 	workerCreaterList[name] = fun
 }
 
@@ -126,17 +132,24 @@ func (e *exectorManager) exec(workerName string, in []byte) error {
 	if !ok {
 		return fmt.Errorf("`%s` tasktype can't support", workerName)
 	}
-	worker := creater(in)
+	worker, err := creater(in, e)
+	if err != nil {
+		logrus.Errorf("create worker for builder error.%s", err)
+		return err
+	}
 	go func() {
 		defer event.GetManager().ReleaseLogger(worker.GetLogger())
 		defer func() {
 			if r := recover(); r != nil {
 				fmt.Println(r)
 				debug.PrintStack()
-				worker.GetLogger().Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+				worker.GetLogger().Error(util.Translation("Please try again or contact customer service"), map[string]string{"step": "callback", "status": "failure"})
+				worker.ErrorCallBack(fmt.Errorf("%s", r))
 			}
 		}()
-		worker.Run(time.Minute * 10)
+		if err := worker.Run(time.Minute * 10); err != nil {
+			worker.ErrorCallBack(err)
+		}
 	}()
 	return nil
 }
@@ -208,11 +221,17 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 				break
 			}
 		}
-		vi := &dbmodel.VersionInfo{
-			FinalStatus: status,
-		}
-		if err := i.UpdateVersionInfo(vi); err != nil {
-			logrus.Debugf("update version Info error: %s", err.Error())
+		if status == "failure" {
+			vi := &dbmodel.VersionInfo{
+				FinalStatus: status,
+				EventID:     i.EventID,
+				CodeVersion: i.commit.Hash.String(),
+				CommitMsg:   i.commit.Message,
+				Author:      i.commit.Author.Name,
+			}
+			if err := i.UpdateVersionInfo(vi); err != nil {
+				logrus.Debugf("update version Info error: %s", err.Error())
+			}
 		}
 	}()
 }

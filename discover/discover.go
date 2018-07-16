@@ -25,6 +25,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/goodrain/rainbond/util/watch"
+
 	"github.com/goodrain/rainbond/discover/config"
 
 	"golang.org/x/net/context"
@@ -60,7 +62,7 @@ type Discover interface {
 //GetDiscover 获取服务发现管理器
 func GetDiscover(opt config.DiscoverConfig) (Discover, error) {
 	if opt.EtcdClusterEndpoints == nil || len(opt.EtcdClusterEndpoints) == 0 {
-		opt.EtcdClusterEndpoints = []string{"127.0.0.1:2379"}
+		return nil, fmt.Errorf("no etcd server endpoints")
 	}
 	if opt.Ctx == nil {
 		opt.Ctx = context.Background()
@@ -76,11 +78,12 @@ func GetDiscover(opt config.DiscoverConfig) (Discover, error) {
 		cancel()
 		return nil, err
 	}
+	watcher := watch.New(client, "")
 	etcdD := &etcdDiscover{
 		projects: make(map[string]CallbackUpdate),
 		ctx:      ctx,
 		cancel:   cancel,
-		client:   client,
+		watcher:  watcher,
 		prefix:   "/traefik",
 	}
 	return etcdD, nil
@@ -91,7 +94,7 @@ type etcdDiscover struct {
 	lock     sync.Mutex
 	ctx      context.Context
 	cancel   context.CancelFunc
-	client   *clientv3.Client
+	watcher  watch.Watch
 	prefix   string
 }
 type defaultCallBackUpdate struct {
@@ -224,73 +227,50 @@ func (e *etcdDiscover) removeProject(name string) {
 }
 
 func (e *etcdDiscover) discover(name string, callback CallbackUpdate) {
-	ctx, cancel := context.WithCancel(e.ctx)
-	defer cancel()
 	defer e.removeProject(name)
-	endpoints := e.list(name)
-	if endpoints != nil && len(endpoints) > 0 {
-		callback.UpdateEndpoints(config.SYNC, endpoints...)
+	watchChan, err := e.watcher.WatchList(e.ctx, fmt.Sprintf("%s/backends/%s/servers", e.prefix, name), "")
+	if err != nil {
+		callback.Error(err)
+		return
 	}
-	watch := e.client.Watch(ctx, fmt.Sprintf("%s/backends/%s/servers", e.prefix, name), clientv3.WithPrefix())
-	for {
-		select {
-		case <-e.ctx.Done():
-			return
-		case res := <-watch:
-			if err := res.Err(); err != nil {
-				callback.Error(err)
-				return
-			}
-			for _, event := range res.Events {
-				if event.Kv != nil {
-					var end *config.Endpoint
-					if strings.HasSuffix(string(event.Kv.Key), "/url") { //服务地址变化
-						kstep := strings.Split(string(event.Kv.Key), "/")
-						if len(kstep) > 2 {
-							serverName := kstep[len(kstep)-2]
-							serverURL := string(event.Kv.Value)
-							end = &config.Endpoint{Name: serverName, URL: serverURL, Mode: 0}
-						}
-					}
-					if strings.HasSuffix(string(event.Kv.Key), "/weight") { //获取服务地址
-						kstep := strings.Split(string(event.Kv.Key), "/")
-						if len(kstep) > 2 {
-							serverName := kstep[len(kstep)-2]
-							serverWeight := string(event.Kv.Value)
-							weight, _ := strconv.Atoi(serverWeight)
-							end = &config.Endpoint{Name: serverName, Weight: weight, Mode: 1}
-						}
-					}
-					if end != nil { //获取服务地址
-						switch event.Type {
-						case mvccpb.DELETE:
-							callback.UpdateEndpoints(config.DELETE, end)
-						case mvccpb.PUT:
-							if event.Kv.Version == 1 {
-								callback.UpdateEndpoints(config.ADD, end)
-							} else {
-								callback.UpdateEndpoints(config.UPDATE, end)
-							}
-						}
-					}
-				}
+	defer watchChan.Stop()
+	for event := range watchChan.ResultChan() {
+		var end *config.Endpoint
+		if strings.HasSuffix(event.GetKey(), "/url") { //服务地址变化
+			kstep := strings.Split(event.GetKey(), "/")
+			if len(kstep) > 2 {
+				serverName := kstep[len(kstep)-2]
+				serverURL := event.GetValueString()
+				end = &config.Endpoint{Name: serverName, URL: serverURL, Mode: 0}
 			}
 		}
-
+		if strings.HasSuffix(event.GetKey(), "/weight") { //获取服务地址
+			kstep := strings.Split(event.GetKey(), "/")
+			if len(kstep) > 2 {
+				serverName := kstep[len(kstep)-2]
+				serverWeight := event.GetValueString()
+				weight, _ := strconv.Atoi(serverWeight)
+				end = &config.Endpoint{Name: serverName, Weight: weight, Mode: 1}
+			}
+		}
+		switch event.Type {
+		case watch.Added:
+			if end != nil {
+				callback.UpdateEndpoints(config.ADD, end)
+			}
+		case watch.Modified:
+			if end != nil {
+				callback.UpdateEndpoints(config.UPDATE, end)
+			}
+		case watch.Deleted:
+			if end != nil {
+				callback.UpdateEndpoints(config.DELETE, end)
+			}
+		case watch.Error:
+			callback.Error(event.Error)
+			return
+		}
 	}
-}
-func (e *etcdDiscover) list(name string) []*config.Endpoint {
-	ctx, cancel := context.WithTimeout(e.ctx, time.Second*10)
-	defer cancel()
-	res, err := e.client.Get(ctx, fmt.Sprintf("%s/backends/%s/servers", e.prefix, name), clientv3.WithPrefix())
-	if err != nil {
-		logrus.Errorf("list all servers of %s error.%s", name, err.Error())
-		return nil
-	}
-	if res.Count == 0 {
-		return nil
-	}
-	return makeEndpointForKvs(res.Kvs)
 }
 
 func makeEndpointForKvs(kvs []*mvccpb.KeyValue) (res []*config.Endpoint) {

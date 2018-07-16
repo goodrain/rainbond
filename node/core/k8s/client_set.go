@@ -39,6 +39,8 @@ func NewK8sClient(cfg *option.Conf) error {
 	if err != nil {
 		return err
 	}
+	config.QPS = 50
+	config.Burst = 100
 	cli, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return err

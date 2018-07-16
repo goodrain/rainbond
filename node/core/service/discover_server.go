@@ -23,30 +23,32 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/cmd/node/option"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/cmd/node/option"
 	envoyv1 "github.com/goodrain/rainbond/node/core/envoy/v1"
-	"github.com/goodrain/rainbond/node/core/k8s"
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/pquerna/ffjson/ffjson"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/informers"
 )
 
 //DiscoverAction DiscoverAction
 type DiscoverAction struct {
-	conf    *option.Conf
-	etcdCli *store.Client
+	conf            *option.Conf
+	etcdCli         *store.Client
+	sharedInformers informers.SharedInformerFactory
 }
 
 //CreateDiscoverActionManager CreateDiscoverActionManager
-func CreateDiscoverActionManager(conf *option.Conf) *DiscoverAction {
+func CreateDiscoverActionManager(conf *option.Conf, sharedInformers informers.SharedInformerFactory) *DiscoverAction {
 	return &DiscoverAction{
-		conf:    conf,
-		etcdCli: store.DefalutClient,
+		conf:            conf,
+		etcdCli:         store.DefalutClient,
+		sharedInformers: sharedInformers,
 	}
 }
 
@@ -62,28 +64,34 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*envoyv1.SDSHost, 
 	dPort := mm[3]
 
 	labelname := fmt.Sprintf("name=%sService", destServiceAlias)
-	endpoints, err := k8s.K8S.Core().Endpoints(namespace).List(metav1.ListOptions{LabelSelector: labelname})
-	//logrus.Debugf("labelname is %s, endpoints is %v, items is %v", labelname, endpoints, endpoints.Items)
+	selector, err := labels.Parse(labelname)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
-	services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+	endpoints, err := d.sharedInformers.Core().V1().Endpoints().Lister().Endpoints(namespace).List(selector)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
-	if len(endpoints.Items) == 0 {
+	services, err := d.sharedInformers.Core().V1().Services().Lister().Services(namespace).List(selector)
+	if err != nil {
+		return nil, util.CreateAPIHandleError(500, err)
+	}
+	if len(endpoints) == 0 {
 		if destServiceAlias == serviceAlias {
 			labelname := fmt.Sprintf("name=%sServiceOUT", destServiceAlias)
-			var err error
-			endpoints, err = k8s.K8S.Core().Endpoints(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+			selector, err := labels.Parse(labelname)
 			if err != nil {
 				return nil, util.CreateAPIHandleError(500, err)
 			}
-			if len(endpoints.Items) == 0 {
+			endpoints, err = d.sharedInformers.Core().V1().Endpoints().Lister().Endpoints(namespace).List(selector)
+			if err != nil {
+				return nil, util.CreateAPIHandleError(500, err)
+			}
+			if len(endpoints) == 0 {
 				logrus.Debugf("outer endpoints items length is 0, continue")
 				return nil, util.CreateAPIHandleError(400, fmt.Errorf("outer have no endpoints"))
 			}
-			services, err = k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+			services, err = d.sharedInformers.Core().V1().Services().Lister().Services(namespace).List(selector)
 			if err != nil {
 				return nil, util.CreateAPIHandleError(500, err)
 			}
@@ -92,7 +100,10 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*envoyv1.SDSHost, 
 		}
 	}
 	var sdsL []*envoyv1.DiscoverHost
-	for key, item := range endpoints.Items {
+	for key, item := range endpoints {
+		if len(item.Subsets) < 1 {
+			continue
+		}
 		addressList := item.Subsets[0].Addresses
 		if len(addressList) == 0 {
 			addressList = item.Subsets[0].NotReadyAddresses
@@ -101,9 +112,9 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*envoyv1.SDSHost, 
 		if dPort != fmt.Sprintf("%d", port) {
 			continue
 		}
-		toport := int(services.Items[key].Spec.Ports[0].Port)
+		toport := int(services[key].Spec.Ports[0].Port)
 		if serviceAlias == destServiceAlias {
-			if originPort, ok := services.Items[key].Labels["origin_port"]; ok {
+			if originPort, ok := services[key].Labels["origin_port"]; ok {
 				origin, err := strconv.Atoi(originPort)
 				if err != nil {
 					return nil, util.CreateAPIHandleError(500, fmt.Errorf("have no origin_port"))
@@ -168,17 +179,22 @@ func (d *DiscoverAction) DiscoverClusters(
 // handle kubernetes inner service
 func (d *DiscoverAction) upstreamClusters(serviceAlias, namespace string, dependsServices []*api_model.BaseService) (cdsClusters envoyv1.Clusters, err *util.APIHandleError) {
 	var portMap = make(map[int32]int)
-	for _, destService := range dependsServices {
+	for i := range dependsServices {
+		destService := dependsServices[i]
 		destServiceAlias := destService.DependServiceAlias
 		labelname := fmt.Sprintf("name=%sService", destServiceAlias)
-		services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+		selector, err := labels.Parse(labelname)
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
 		}
-		if len(services.Items) == 0 {
+		services, err := d.sharedInformers.Core().V1().Services().Lister().Services(namespace).List(selector)
+		if err != nil {
+			return nil, util.CreateAPIHandleError(500, err)
+		}
+		if len(services) == 0 {
 			continue
 		}
-		for _, service := range services.Items {
+		for _, service := range services {
 			inner, ok := service.Labels["service_type"]
 			port := service.Spec.Ports[0]
 			if !ok || inner != "inner" {
@@ -219,7 +235,8 @@ func (d *DiscoverAction) upstreamClusters(serviceAlias, namespace string, depend
 //downstreamClusters handle app self cluster
 //only local port
 func (d *DiscoverAction) downstreamClusters(serviceAlias, namespace string, ports []*api_model.BasePort) (cdsClusters envoyv1.Clusters, err *util.APIHandleError) {
-	for _, port := range ports {
+	for i := range ports {
+		port := ports[i]
 		localhost := fmt.Sprintf("tcp://127.0.0.1:%d", port.Port)
 		pcds := &envoyv1.Cluster{
 			Name:             fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
@@ -281,42 +298,43 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 	var vhL []*envoyv1.VirtualHost
 	var ldsL envoyv1.Listeners
 	var portMap = make(map[int32]int, 0)
-	for _, destService := range dependsServices {
+	for i := range dependsServices {
+		destService := dependsServices[i]
 		destServiceAlias := destService.DependServiceAlias
-		labelname := fmt.Sprintf("name=%sService", destService.DependServiceAlias)
-		services, err := k8s.K8S.Core().Services(namespace).List(metav1.ListOptions{LabelSelector: labelname})
+		start := time.Now()
+		labelname := fmt.Sprintf("name=%sService", destServiceAlias)
+		selector, err := labels.Parse(labelname)
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
 		}
-		if len(services.Items) == 0 {
+		services, err := d.sharedInformers.Core().V1().Services().Lister().Services(namespace).List(selector)
+		if err != nil {
+			return nil, util.CreateAPIHandleError(500, err)
+		}
+		fmt.Printf("get %s service cost time %s \n", destService.DependServiceAlias, time.Now().Sub(start).String())
+		if len(services) == 0 {
 			logrus.Debugf("inner endpoints items length is 0, continue")
 			continue
 		}
-		for _, service := range services.Items {
+		for _, service := range services {
 			inner, ok := service.Labels["service_type"]
 			if !ok || inner != "inner" {
 				continue
 			}
 			port := service.Spec.Ports[0].Port
+			clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
 			// Unique by listen port
-			if index, ok := portMap[port]; !ok {
-				clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
-				plds := envoyv1.CreateTCPCommonListener(clusterName, fmt.Sprintf("tcp://127.0.0.1:%d", port))
+			if _, ok := portMap[port]; !ok {
+				listenerName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
+				plds := envoyv1.CreateTCPCommonListener(listenerName, clusterName, fmt.Sprintf("tcp://127.0.0.1:%d", port))
 				ldsL = append(ldsL, plds)
 				portMap[port] = len(ldsL) - 1
-			} else if index != -1 {
-				clusterName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
-				plds := envoyv1.CreateTCPCommonListener(clusterName, fmt.Sprintf("tcp://127.0.0.1:%d", port))
-				ldsL[index] = plds
-				//only create one cluster for same port
-				portMap[port] = -1
 			}
 			portProtocol, ok := service.Labels["port_protocol"]
 			if !ok {
 				portProtocol = destService.Protocol
 			}
 			if portProtocol != "" {
-				clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, port)
 				//TODO: support more protocol
 				switch portProtocol {
 				case "http", "https":
@@ -348,6 +366,12 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 	// create common http listener
 	if len(vhL) != 0 {
 		newVHL := envoyv1.UniqVirtualHost(vhL)
+		for i, lds := range ldsL {
+			if lds.Address == "tcp://127.0.0.1:80" {
+				ldsL = append(ldsL[:i], ldsL[i+1:]...)
+				break
+			}
+		}
 		plds := envoyv1.CreateHTTPCommonListener(fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias), newVHL...)
 		ldsL = append(ldsL, plds)
 	}
@@ -358,11 +382,12 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 func (d *DiscoverAction) downstreamListener(serviceAlias, namespace string, ports []*api_model.BasePort) (envoyv1.Listeners, *util.APIHandleError) {
 	var ldsL envoyv1.Listeners
 	var portMap = make(map[int32]int, 0)
-	for _, p := range ports {
+	for i := range ports {
+		p := ports[i]
 		port := int32(p.Port)
 		clusterName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
 		if _, ok := portMap[port]; !ok {
-			plds := envoyv1.CreateTCPCommonListener(clusterName, fmt.Sprintf("tcp://0.0.0.0:%d", p.ListenPort))
+			plds := envoyv1.CreateTCPCommonListener(clusterName, clusterName, fmt.Sprintf("tcp://0.0.0.0:%d", p.ListenPort))
 			ldsL = append(ldsL, plds)
 			portMap[port] = 1
 		}
@@ -383,6 +408,7 @@ func Duplicate(a interface{}) (ret []interface{}) {
 }
 
 //ToolsGetSourcesEnv rds
+//envName maybe is plugin id
 func (d *DiscoverAction) ToolsGetSourcesEnv(
 	namespace, sourceAlias, envName string) ([]byte, *util.APIHandleError) {
 	k := fmt.Sprintf("/resources/define/%s/%s/%s", namespace, sourceAlias, envName)
@@ -396,43 +422,6 @@ func (d *DiscoverAction) ToolsGetSourcesEnv(
 		return v, nil
 	}
 	return []byte{}, nil
-}
-
-//ToolsGetK8SServiceList GetK8SServiceList
-func (d *DiscoverAction) ToolsGetK8SServiceList(uuid string) (*v1.ServiceList, error) {
-	serviceList, err := k8s.K8S.Core().Services(uuid).List(metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return serviceList, nil
-}
-
-//ToolsGetMainPodEnvs ToolsGetMainPodEnvs
-func (d *DiscoverAction) ToolsGetMainPodEnvs(namespace, serviceAlias string) (
-	*[]v1.EnvVar,
-	*util.APIHandleError) {
-	labelname := fmt.Sprintf("name=%s", serviceAlias)
-	pods, err := k8s.K8S.Core().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelname})
-	logrus.Debugf("service_alias %s pod is %v", serviceAlias, pods)
-	if err != nil {
-		return nil, util.CreateAPIHandleError(500, err)
-	}
-	if len(pods.Items) == 0 {
-		return nil,
-			util.CreateAPIHandleError(404, fmt.Errorf("have no pod for discover"))
-	}
-	if len(pods.Items[0].Spec.Containers) < 2 {
-		return nil,
-			util.CreateAPIHandleError(404, fmt.Errorf("have no net plugins for discover"))
-	}
-	for _, c := range pods.Items[0].Spec.Containers {
-		for _, e := range c.Env {
-			if e.Name == "PLUGIN_MOEL" && strings.Contains(e.Value, "net-plugin") {
-				return &c.Env, nil
-			}
-		}
-	}
-	return nil, util.CreateAPIHandleError(404, fmt.Errorf("have no envs for plugin"))
 }
 
 //ToolsGetRainbondResources get plugin configs from etcd

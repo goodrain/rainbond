@@ -29,7 +29,7 @@ import (
 )
 
 //ShowExec ShowExec
-func ShowExec(command string, params []string, logger ...event.Logger) error {
+func ShowExec(command string, params []string, logger event.Logger) error {
 	cmd := exec.Command(command, params...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -38,7 +38,9 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 	stderr, _ := cmd.StderrPipe()
 	errC := cmd.Start()
 	if errC != nil {
-		logger[0].Error(fmt.Sprintf("builder:%v", errC), map[string]string{"step": "build-exector"})
+		if logger != nil {
+			logger.Error(fmt.Sprintf("builder:%v", errC), map[string]string{"step": "build-exector"})
+		}
 		return errC
 	}
 	reader := bufio.NewReader(stdout)
@@ -48,7 +50,9 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 			if errL != nil || io.EOF == errL {
 				break
 			}
-			logger[0].Debug(fmt.Sprintf("builder:%v", line), map[string]string{"step": "build-exector"})
+			if logger != nil {
+				logger.Info(fmt.Sprintf("builder:%v", line), map[string]string{"step": "build-exector"})
+			}
 		}
 	}()
 	errW := cmd.Wait()
@@ -60,7 +64,9 @@ func ShowExec(command string, params []string, logger ...event.Logger) error {
 				if errL != nil || io.EOF == errL {
 					break
 				}
-				logger[0].Error(fmt.Sprintf("builder err:%v", line), map[string]string{"step": "build-exector"})
+				if logger != nil {
+					logger.Error(fmt.Sprintf("builder err:%v", line), map[string]string{"step": "build-exector"})
+				}
 			}
 		}()
 		return errW

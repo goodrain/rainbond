@@ -34,10 +34,10 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/client"
 	"github.com/coreos/etcd/clientv3"
+	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/twinj/uuid"
 	"golang.org/x/net/context"
-	"github.com/coreos/etcd/mvcc/mvccpb"
 )
 
 //Manager 节点动态发现管理器
@@ -139,7 +139,9 @@ func (d *EtcdDiscoverManager) RegisteredInstance(host string, port int, stopRegi
 			time.Sleep(time.Second * 10)
 			continue
 		}
-		_, err = d.etcdclientv3.Put(d.context, fmt.Sprintf("%s/instance/%s:%d", d.conf.HomePath, instance.HostIP, instance.PubPort), string(data))
+		ctx, cancel := context.WithCancel(d.context)
+		_, err = d.etcdclientv3.Put(ctx, fmt.Sprintf("%s/instance/%s:%d", d.conf.HomePath, instance.HostIP, instance.PubPort), string(data))
+		cancel()
 		if err != nil {
 			d.log.Error("Register instance data to etcd error.", err.Error())
 			time.Sleep(time.Second * 10)
@@ -185,26 +187,6 @@ func (d *EtcdDiscoverManager) Run() error {
 		d.log.Error("Create etcd v3 client error.", err.Error())
 		return err
 	}
-	_, err = d.etcdclientv3.Get(d.context, d.conf.HomePath+"/instance")
-	if err != nil {
-		if client.IsKeyNotFound(err) {
-			_, err = d.etcdclientv3.Put(d.context, d.conf.HomePath+"/instance", "")
-			if err != nil {
-				if cerr, ok := err.(client.Error); ok {
-					if cerr.Code != client.ErrorCodeNodeExist {
-						d.log.Errorf("Create dir key `%s/instance/` to etcd error.%s", d.conf.HomePath, cerr.Message)
-						return err
-					}
-				} else {
-					d.log.Errorf("Create dir key `%s/instance/` to etcd error. %s", d.conf.HomePath, err.Error())
-					return err
-				}
-			}
-		} else {
-			d.log.Errorf("Can't get `%s/instance` status. %s", d.conf.HomePath, err.Error())
-			return err
-		}
-	}
 	return nil
 }
 
@@ -213,13 +195,15 @@ func (d *EtcdDiscoverManager) discover() {
 	tike := time.NewTicker(time.Second * 5)
 	defer tike.Stop()
 	for {
-		res, err := d.etcdclientv3.Get(d.context, d.conf.HomePath+"/instance/", clientv3.WithPrefix())
+		ctx, cancel := context.WithCancel(d.context)
+		res, err := d.etcdclientv3.Get(ctx, d.conf.HomePath+"/instance/", clientv3.WithPrefix())
+		cancel()
 		if err != nil {
 			d.log.Error("Get instance info from etcd error.", err.Error())
 		} else {
 			for _, kv := range res.Kvs {
 				node := &client.Node{
-					Key: string(kv.Key),
+					Key:   string(kv.Key),
 					Value: string(kv.Value),
 				}
 				d.add(node)
@@ -232,7 +216,9 @@ func (d *EtcdDiscoverManager) discover() {
 			return
 		}
 	}
-	watcher := d.etcdclientv3.Watch(d.context, d.conf.HomePath+"/instance/", clientv3.WithPrefix())
+	ctx, cancel := context.WithCancel(d.context)
+	defer cancel()
+	watcher := d.etcdclientv3.Watch(ctx, d.conf.HomePath+"/instance/", clientv3.WithPrefix())
 
 	for !d.stopDiscover {
 		res, ok := <-watcher
@@ -242,7 +228,7 @@ func (d *EtcdDiscoverManager) discover() {
 
 		for _, event := range res.Events {
 			node := &client.Node{
-				Key: string(event.Kv.Key),
+				Key:   string(event.Kv.Key),
 				Value: string(event.Kv.Value),
 			}
 			switch event.Type {
@@ -353,14 +339,14 @@ func (d *EtcdDiscoverManager) Stop() {
 
 //CancellationInstance 注销实例
 func (d *EtcdDiscoverManager) CancellationInstance(instance *Instance) {
-	_, err := d.etcdclientv3.Delete(d.context, fmt.Sprintf("%s/instance/%s:%d", d.conf.HomePath, instance.HostIP, instance.PubPort))
+	ctx, cancel := context.WithTimeout(d.context, time.Second*5)
+	defer cancel()
+	_, err := d.etcdclientv3.Delete(ctx, fmt.Sprintf("%s/instance/%s:%d", d.conf.HomePath, instance.HostIP, instance.PubPort))
 	if err != nil && !client.IsKeyNotFound(err) {
 		d.log.Error("Cancellation Instance from etcd error.", err.Error())
 	} else {
 		d.log.Info("Cancellation Instance from etcd")
 	}
-	ctx, cancel := context.WithTimeout(d.context, time.Second*5)
-	defer cancel()
 	_, err = d.etcdclientv3.Delete(ctx, fmt.Sprintf("/traefik/backends/event_log_event_grpc/servers/%s/url", instance.HostID))
 	if err != nil {
 		d.log.Error("Cancellation Instance from etcdv3 error.", err.Error())
@@ -379,7 +365,9 @@ func (d *EtcdDiscoverManager) UpdateInstance(instance *Instance) {
 		d.log.Error("Create update instance data error.", err.Error())
 		return
 	}
-	_, err = d.etcdclientv3.Put(d.context, fmt.Sprintf("%s/instance/%s:%d", d.conf.HomePath, instance.HostIP, instance.PubPort), string(data))
+	ctx, cancel := context.WithTimeout(d.context, time.Second*5)
+	defer cancel()
+	_, err = d.etcdclientv3.Put(ctx, fmt.Sprintf("%s/instance/%s:%d", d.conf.HomePath, instance.HostIP, instance.PubPort), string(data))
 	if err != nil && !client.IsKeyNotFound(err) {
 		d.log.Error(" Update Instance from etcd error.", err.Error())
 	}

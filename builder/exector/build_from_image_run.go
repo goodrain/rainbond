@@ -26,7 +26,7 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/tidwall/gjson"
 	//"github.com/docker/docker/api/types"
-	"github.com/docker/engine-api/types"
+
 	//"github.com/docker/docker/client"
 
 	"github.com/docker/engine-api/client"
@@ -72,21 +72,7 @@ func NewImageBuildItem(in []byte) *ImageBuildItem {
 
 //Run Run
 func (i *ImageBuildItem) Run(timeout time.Duration) error {
-	var pullipo types.ImagePullOptions
-	if i.HubUser != "" && i.HubPassword != "" {
-		auth, err := sources.EncodeAuthToBase64(types.AuthConfig{Username: i.HubUser, Password: i.HubPassword})
-		if err != nil {
-			logrus.Errorf("make auth base63 push image error: %s", err.Error())
-			i.Logger.Error(fmt.Sprintf("生成获取镜像的Token失败"), map[string]string{"step": "builder-exector", "status": "failure"})
-			return err
-		}
-		pullipo = types.ImagePullOptions{
-			RegistryAuth: auth,
-		}
-	} else {
-		pullipo = types.ImagePullOptions{}
-	}
-	_, err := sources.ImagePull(i.DockerClient, i.Image, pullipo, i.Logger, 3)
+	_, err := sources.ImagePull(i.DockerClient, i.Image, i.HubUser, i.HubPassword, i.Logger, 10)
 	if err != nil {
 		logrus.Errorf("pull image %s error: %s", i.Image, err.Error())
 		i.Logger.Error(fmt.Sprintf("获取指定镜像: %s失败", i.Image), map[string]string{"step": "builder-exector", "status": "failure"})
@@ -158,6 +144,7 @@ func (i *ImageBuildItem) StorageVersionInfo(imageURL string) error {
 	}
 	version.DeliveredType = "image"
 	version.DeliveredPath = imageURL
+	version.ImageName = imageURL
 	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
 		return err
 	}

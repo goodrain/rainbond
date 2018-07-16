@@ -23,9 +23,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/goodrain/rainbond/cmd/builder/option"
 	"github.com/goodrain/rainbond/builder/discover"
 	"github.com/goodrain/rainbond/builder/exector"
+	"github.com/goodrain/rainbond/cmd/builder/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
@@ -34,6 +34,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/api"
+	"github.com/goodrain/rainbond/builder/clean"
 )
 
 //Run start run
@@ -49,7 +50,10 @@ func Run(s *option.Builder) error {
 	if err := db.CreateManager(dbconfig); err != nil {
 		return err
 	}
-	if err := event.NewManager(event.EventConfig{EventLogServers: s.Config.EventLogServers}); err != nil {
+	if err := event.NewManager(event.EventConfig{
+		EventLogServers: s.Config.EventLogServers,
+		DiscoverAddress: s.Config.EtcdEndPoints,
+	}); err != nil {
 		return err
 	}
 	defer event.CloseManager()
@@ -66,6 +70,15 @@ func Run(s *option.Builder) error {
 		return err
 	}
 	defer dis.Stop()
+
+	cle, err := clean.CreateCleanManager()
+	if err != nil {
+		return err
+	}
+	if err := cle.Start(errChan); err != nil {
+		return err
+	}
+	defer cle.Stop()
 
 	r := api.APIServer()
 	logrus.Info("builder api listen port 3228")

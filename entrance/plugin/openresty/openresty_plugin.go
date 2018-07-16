@@ -75,7 +75,7 @@ func (o *openresty) urlPool(srcName string) string {
 }
 
 func (o *openresty) urlServer(srcName string) string {
-	return fmt.Sprintf("/api/%s/servers/%s", o.APIVersion, srcName)
+	return fmt.Sprintf("/%s/servers/%s", o.APIVersion, srcName)
 }
 
 // pool name => domain name

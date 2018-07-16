@@ -20,13 +20,9 @@ package handler
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/jinzhu/gorm"
 
 	api_db "github.com/goodrain/rainbond/api/db"
 	api_model "github.com/goodrain/rainbond/api/model"
@@ -35,6 +31,7 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	core_util "github.com/goodrain/rainbond/util"
 
 	"github.com/pquerna/ffjson/ffjson"
 
@@ -96,7 +93,20 @@ func (p *PluginAction) UpdatePluginAct(pluginID, tenantID string, cps *api_model
 //DeletePluginAct DeletePluginAct
 func (p *PluginAction) DeletePluginAct(pluginID, tenantID string) *util.APIHandleError {
 	tx := db.GetManager().Begin()
-	err := db.GetManager().TenantPluginDaoTransactions(tx).DeletePluginByID(pluginID, tenantID)
+	//step1: delete service plugin relation
+	err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteALLRelationByPluginID(pluginID)
+	if err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleErrorFromDBError("delete plugin relation", err)
+	}
+	//step2: delete plugin build version
+	err = db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).DeleteBuildVersionByPluginID(pluginID)
+	if err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleErrorFromDBError("delete plugin build version", err)
+	}
+	//step3: delete plugin
+	err = db.GetManager().TenantPluginDaoTransactions(tx).DeletePluginByID(pluginID, tenantID)
 	if err != nil {
 		tx.Rollback()
 		return util.CreateAPIHandleErrorFromDBError("delete plugin", err)
@@ -204,23 +214,9 @@ func (p *PluginAction) BuildPluginManual(bps *api_model.BuildPluginStruct) (*dbm
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError(fmt.Sprintf("get plugin by %v", bps.PluginID), err)
 	}
-	if bps.Body.PluginFrom != "" {
-		switch bps.Body.PluginFrom {
-		case "yb":
-			pbv, err := p.InstallPluginFromYB(bps, plugin)
-			if err != nil {
-				logrus.Debugf("install plugin from yb error %s", err.Error())
-				return nil, util.CreateAPIHandleError(500, fmt.Errorf("install plugin from yb error"))
-			}
-			return pbv, nil
-		case "ys":
-		default:
-			return nil, util.CreateAPIHandleError(400, fmt.Errorf("unexpect plugin from"))
-		}
-	}
 	switch plugin.BuildModel {
 	case "image":
-		pbv, err := p.ImageBuildPlugin(bps, plugin)
+		pbv, err := p.buildPlugin(bps, plugin)
 		if err != nil {
 			logrus.Error("build plugin from image error ", err.Error())
 			logger.Error("从镜像构建插件任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
@@ -229,7 +225,7 @@ func (p *PluginAction) BuildPluginManual(bps *api_model.BuildPluginStruct) (*dbm
 		logger.Info("从镜像构建插件任务发送成功 ", map[string]string{"step": "image-plugin", "status": "starting"})
 		return pbv, nil
 	case "dockerfile":
-		pbv, err := p.DockerfileBuildPlugin(bps, plugin)
+		pbv, err := p.buildPlugin(bps, plugin)
 		if err != nil {
 			logrus.Error("build plugin from image error ", err.Error())
 			logger.Error("从dockerfile构建插件任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
@@ -241,30 +237,45 @@ func (p *PluginAction) BuildPluginManual(bps *api_model.BuildPluginStruct) (*dbm
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("unexpect kind"))
 	}
 }
-func createVersionID(s []byte) string {
-	h := md5.New()
-	h.Write(s)
-	return hex.EncodeToString(h.Sum(nil))
-}
 
-//InstallPluginFromYB InstallPluginFromYB
-func (p *PluginAction) InstallPluginFromYB(b *api_model.BuildPluginStruct, plugin *dbmodel.TenantPlugin) (
+//buildPlugin buildPlugin
+func (p *PluginAction) buildPlugin(b *api_model.BuildPluginStruct, plugin *dbmodel.TenantPlugin) (
 	*dbmodel.TenantPluginBuildVersion, error) {
+	if plugin.ImageURL == "" && plugin.BuildModel == "image" {
+		return nil, fmt.Errorf("need image url")
+	}
+	if plugin.GitURL == "" && plugin.BuildModel == "dockerfile" {
+		return nil, fmt.Errorf("need git repo url")
+	}
 	if b.Body.Operator == "" {
 		b.Body.Operator = "define"
 	}
+	if b.Body.BuildVersion == "" {
+		return nil, fmt.Errorf("build version can not be empty")
+	}
+	if b.Body.DeployVersion == "" {
+		b.Body.DeployVersion = core_util.CreateVersionByTime()
+	}
 	pbv := &dbmodel.TenantPluginBuildVersion{
 		VersionID:       b.Body.BuildVersion,
+		DeployVersion:   b.Body.DeployVersion,
 		PluginID:        b.PluginID,
 		Kind:            plugin.BuildModel,
+		Repo:            b.Body.RepoURL,
+		GitURL:          plugin.GitURL,
 		BaseImage:       plugin.ImageURL,
-		BuildLocalImage: b.Body.BuildImage,
 		ContainerCPU:    b.Body.PluginCPU,
 		ContainerMemory: b.Body.PluginMemory,
 		ContainerCMD:    b.Body.PluginCMD,
 		BuildTime:       time.Now().Format(time.RFC3339),
 		Info:            b.Body.Info,
-		Status:          "complete",
+		Status:          "building",
+	}
+	if b.Body.PluginCPU == 0 {
+		pbv.ContainerCPU = 125
+	}
+	if b.Body.PluginMemory == 0 {
+		pbv.ContainerMemory = 50
 	}
 	if err := db.GetManager().TenantPluginBuildVersionDao().AddModel(pbv); err != nil {
 		if !strings.Contains(err.Error(), "exist") {
@@ -272,244 +283,57 @@ func (p *PluginAction) InstallPluginFromYB(b *api_model.BuildPluginStruct, plugi
 			return nil, err
 		}
 	}
-	return pbv, nil
-}
-
-//ImageBuildPlugin ImageBuildPlugin
-func (p *PluginAction) ImageBuildPlugin(b *api_model.BuildPluginStruct, plugin *dbmodel.TenantPlugin) (
-	*dbmodel.TenantPluginBuildVersion, error) {
-	if plugin.ImageURL == "" {
-		return nil, fmt.Errorf("need image url")
-	}
-	if b.Body.Operator == "" {
-		b.Body.Operator = "define"
-	}
-	//TODO: build_version create in console
-	//diffStr := fmt.Sprintf("%s%s%s%s", b.TenantName, plugin.ImageURL, b.PluginID, time.Now().Format(time.RFC3339))
-	//buildVersion := createVersionID([]byte(diffStr))
-	rebuild := false
-	tpbv, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(
-		b.PluginID, b.Body.BuildVersion)
-	if err != nil {
-		if err.Error() == gorm.ErrRecordNotFound.Error() {
-			rebuild = false
-		} else {
-			return nil, err
-		}
-	} else {
-		rebuild = true
-	}
-	tx := db.GetManager().Begin()
-	if rebuild {
-		tpbv.Info = b.Body.Info
-		tpbv.Status = "building"
-		tpbv.BuildTime = time.Now().Format(time.RFC3339)
-		if b.Body.PluginCPU == 0 {
-			tpbv.ContainerCPU = 125
-		}
-		if b.Body.PluginMemory == 0 {
-			tpbv.ContainerMemory = 50
-		}
-		if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).UpdateModel(tpbv); err != nil {
-			if err != nil {
-				tx.Rollback()
-				logrus.Errorf("build plugin error: %s", err.Error())
-				return nil, err
-			}
-		}
-	} else {
-		pbv := &dbmodel.TenantPluginBuildVersion{
-			VersionID:       b.Body.BuildVersion,
-			PluginID:        b.PluginID,
-			Kind:            plugin.BuildModel,
-			BaseImage:       plugin.ImageURL,
-			ContainerCPU:    b.Body.PluginCPU,
-			ContainerMemory: b.Body.PluginMemory,
-			ContainerCMD:    b.Body.PluginCMD,
-			BuildTime:       time.Now().Format(time.RFC3339),
-			Info:            b.Body.Info,
-			Status:          "building",
-		}
-		if b.Body.PluginCPU == 0 {
-			pbv.ContainerCPU = 125
-		}
-		if b.Body.PluginMemory == 0 {
-			pbv.ContainerMemory = 50
-		}
-		if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).AddModel(pbv); err != nil {
-			if !strings.Contains(err.Error(), "exist") {
-				tx.Rollback()
-				logrus.Errorf("build plugin error: %s", err.Error())
-				return nil, err
-			}
-		}
-		tpbv = pbv
+	var updateVersion = func() {
+		pbv.Status = "failure"
+		db.GetManager().TenantPluginBuildVersionDao().UpdateModel(pbv)
 	}
 	taskBody := &builder_model.BuildPluginTaskBody{
-		TenantID:     b.Body.TenantID,
-		PluginID:     b.PluginID,
-		Operator:     b.Body.Operator,
-		ImageURL:     plugin.ImageURL,
-		EventID:      b.Body.EventID,
-		Kind:         plugin.BuildModel,
-		PluginCMD:    b.Body.PluginCMD,
-		PluginCPU:    b.Body.PluginCPU,
-		PluginMemory: b.Body.PluginMemory,
-		VersionID:    b.Body.BuildVersion,
+		TenantID:      b.Body.TenantID,
+		PluginID:      b.PluginID,
+		Operator:      b.Body.Operator,
+		DeployVersion: b.Body.DeployVersion,
+		ImageURL:      plugin.ImageURL,
+		EventID:       b.Body.EventID,
+		Kind:          plugin.BuildModel,
+		PluginCMD:     b.Body.PluginCMD,
+		PluginCPU:     b.Body.PluginCPU,
+		PluginMemory:  b.Body.PluginMemory,
+		VersionID:     b.Body.BuildVersion,
+		ImageInfo:     b.Body.ImageInfo,
+		Repo:          b.Body.RepoURL,
+		GitURL:        plugin.GitURL,
 	}
 	jtask, errJ := ffjson.Marshal(taskBody)
 	if errJ != nil {
-		tx.Rollback()
 		logrus.Debugf("unmarshall jtask error, %v", errJ)
+		updateVersion()
 		return nil, errJ
 	}
+	taskType := "plugin_image_build"
+	if plugin.BuildModel == "dockerfile" {
+		taskType = "plugin_dockerfile_build"
+	}
 	ts := &api_db.BuildTaskStruct{
-		TaskType: "plugin_image_build",
+		TaskType: taskType,
 		TaskBody: jtask,
 		User:     b.Body.Operator,
 	}
 	eq, err := api_db.BuildTaskBuild(ts)
 	if err != nil {
 		logrus.Errorf("build equeue build plugin from image error, %v", err)
-		tx.Rollback()
+		updateVersion()
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	_, err = p.MQClient.Enqueue(ctx, eq)
-	cancel()
 	if err != nil {
+		updateVersion()
 		logrus.Errorf("equque mq error, %v", err)
-		tx.Rollback()
 		return nil, err
-	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		logrus.Debugf("commit mysql error, %v", err)
-		return nil, nil
 	}
 	logrus.Debugf("equeue mq build plugin from image success")
-	return tpbv, nil
-}
-
-//DockerfileBuildPlugin DockerfileBuildPlugin
-func (p *PluginAction) DockerfileBuildPlugin(b *api_model.BuildPluginStruct, plugin *dbmodel.TenantPlugin) (
-	*dbmodel.TenantPluginBuildVersion, error) {
-	if plugin.GitURL == "" {
-		return nil, fmt.Errorf("need git url")
-	}
-	if b.Body.RepoURL == "" {
-		b.Body.RepoURL = "master"
-	}
-	if b.Body.Operator == "" {
-		b.Body.Operator = "define"
-	}
-	// TODO: build_version create in console
-	// diffStr := fmt.Sprintf("%s%s%s%s", b.TenantName, b.Body.RepoURL, b.PluginID, time.Now().Format(time.RFC3339))
-	// buildVersion := createVersionID([]byte(diffStr))
-	rebuild := false
-	tpbv, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(
-		b.PluginID, b.Body.BuildVersion)
-	if err != nil {
-		if err.Error() == gorm.ErrRecordNotFound.Error() {
-			rebuild = false
-		} else {
-			return nil, err
-		}
-	} else {
-		rebuild = true
-	}
-	tx := db.GetManager().Begin()
-	if rebuild {
-		tpbv.Info = b.Body.Info
-		tpbv.Status = "building"
-		tpbv.BuildTime = time.Now().Format(time.RFC3339)
-		if b.Body.PluginCPU == 0 {
-			tpbv.ContainerCPU = 125
-		}
-		if b.Body.PluginMemory == 0 {
-			tpbv.ContainerMemory = 50
-		}
-		if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).UpdateModel(tpbv); err != nil {
-			if err != nil {
-				tx.Rollback()
-				logrus.Errorf("build plugin error: %s", err.Error())
-				return nil, err
-			}
-		}
-	} else {
-		pbv := &dbmodel.TenantPluginBuildVersion{
-			VersionID:       b.Body.BuildVersion,
-			PluginID:        b.PluginID,
-			Kind:            plugin.BuildModel,
-			Repo:            b.Body.RepoURL,
-			GitURL:          plugin.GitURL,
-			Info:            b.Body.Info,
-			ContainerCPU:    b.Body.PluginCPU,
-			ContainerMemory: b.Body.PluginMemory,
-			ContainerCMD:    b.Body.PluginCMD,
-			BuildTime:       time.Now().Format(time.RFC3339),
-			Status:          "building",
-		}
-		if b.Body.PluginCPU == 0 {
-			pbv.ContainerCPU = 125
-		}
-		if b.Body.PluginMemory == 0 {
-			pbv.ContainerMemory = 50
-		}
-		if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).AddModel(pbv); err != nil {
-			if !strings.Contains(err.Error(), "exist") {
-				tx.Rollback()
-				logrus.Errorf("build plugin error: %s", err.Error())
-				return nil, err
-			}
-		}
-		tpbv = pbv
-	}
-	taskBody := &builder_model.BuildPluginTaskBody{
-		TenantID:     b.Body.TenantID,
-		PluginID:     b.PluginID,
-		Operator:     b.Body.Operator,
-		EventID:      b.Body.EventID,
-		Repo:         b.Body.RepoURL,
-		GitURL:       plugin.GitURL,
-		Kind:         plugin.BuildModel,
-		VersionID:    b.Body.BuildVersion,
-		PluginCMD:    b.Body.PluginCMD,
-		PluginCPU:    b.Body.PluginCPU,
-		PluginMemory: b.Body.PluginMemory,
-	}
-	jtask, errJ := ffjson.Marshal(taskBody)
-	if errJ != nil {
-		tx.Rollback()
-		logrus.Debugf("unmarshall jtask error, %v", errJ)
-		return nil, errJ
-	}
-	ts := &api_db.BuildTaskStruct{
-		TaskType: "plugin_dockerfile_build",
-		TaskBody: jtask,
-		User:     b.Body.Operator,
-	}
-	eq, err := api_db.BuildTaskBuild(ts)
-	if err != nil {
-		logrus.Errorf("build equeue build plugin from dockerfile error, %v", err)
-		tx.Rollback()
-		return nil, err
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	_, errE := p.MQClient.Enqueue(ctx, eq)
-	cancel()
-	if errE != nil {
-		logrus.Errorf("equque mq error, %v", err)
-		tx.Rollback()
-		return nil, err
-	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		logrus.Debugf("commit mysql error, %v", err)
-		return nil, nil
-	}
-	logrus.Debugf("equeue mq build plugin from dockerfile success")
-	return tpbv, nil
+	return pbv, nil
 }
 
 //GetAllPluginBuildVersions GetAllPluginBuildVersions

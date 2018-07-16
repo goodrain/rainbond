@@ -41,7 +41,7 @@ import (
 
 func handleErr(err *util.APIHandleError) {
 	if err != nil && err.Err != nil {
-		fmt.Printf("%v\n",err.String())
+		fmt.Printf("%v\n", err.String())
 		os.Exit(1)
 	}
 }
@@ -105,26 +105,16 @@ func fileExist(path string) bool {
 }
 func handleStatus(serviceTable *termtables.Table, ready bool, v *model.HostNode) {
 	if v.Role.HasRule("compute") && !v.Role.HasRule("manage") {
-		if ready {
-			//	 true of false
-			serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Alived, !v.Unschedulable, ready)
-		} else {
-			//scheduable==false
-
-			serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Alived, false, ready)
-		}
+		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Status, v.Alived, !v.Unschedulable, ready)
 	} else if v.Role.HasRule("manage") && !v.Role.HasRule("compute") {
 		//scheduable="n/a"
-		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Alived, "N/A", ready)
+		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Status, v.Alived, "N/A", "N/A")
 	} else if v.Role.HasRule("compute") && v.Role.HasRule("manage") {
-		if !ready {
-			//n/a
-			serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Alived, "N/A", ready)
-		} else {
-			serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Alived, !v.Unschedulable, ready)
-		}
+		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Status, v.Alived, !v.Unschedulable, ready)
 	}
 }
+
+//NewCmdNode NewCmdNode
 func NewCmdNode() cli.Command {
 	c := cli.Command{
 		Name:  "node",
@@ -168,28 +158,20 @@ func NewCmdNode() cli.Command {
 					list, err := clients.NodeClient.Nodes().List()
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Alived", "Schedulable", "Ready")
+					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "Alived", "Schedulable", "Ready")
 					var rest []*model.HostNode
 					for _, v := range list {
-						var ready bool=false
-						if isNodeReady(v){
-							ready=true
-						}
 						if v.Role.HasRule("manage") {
-							handleStatus(serviceTable,ready,v)
-						}else{
-							rest=append(rest,v)
+							handleStatus(serviceTable, isNodeReady(v), v)
+						} else {
+							rest = append(rest, v)
 						}
 					}
 					if len(rest) > 0 {
 						serviceTable.AddSeparator()
 					}
 					for _, v := range rest {
-						var ready bool = false
-						if v.NodeStatus != nil {
-							ready = true
-						}
-						handleStatus(serviceTable, ready, v)
+						handleStatus(serviceTable, isNodeReady(v), v)
 					}
 					fmt.Println(serviceTable.Render())
 					return nil
@@ -376,7 +358,7 @@ func NewCmdNode() cli.Command {
 
 						var hostNode *model.HostNode
 						timer := time.NewTimer(15 * time.Second)
-						gotNode:=false
+						gotNode := false
 						for !gotNode {
 							time.Sleep(3 * time.Second)
 							list, err := clients.NodeClient.Nodes().List()
@@ -385,7 +367,7 @@ func NewCmdNode() cli.Command {
 								if node.InternalIP == v.InternalIP {
 									hostNode = v
 									timer.Stop()
-									gotNode=true
+									gotNode = true
 									//todo  初始化其它节点失败判定
 								}
 							}
@@ -405,13 +387,13 @@ func NewCmdNode() cli.Command {
 							default:
 								for _, v := range list {
 									if node.InternalIP == v.InternalIP {
-										hostNode=v
+										hostNode = v
 										break
 									}
 								}
 								for _, val := range hostNode.Conditions {
 									fmt.Println("正在判断节点状态，请稍等")
-									if hostNode.Alived||(val.Type==model.NodeInit&&val.Status==model.ConditionTrue) {
+									if hostNode.Alived || (val.Type == model.NodeInit && val.Status == model.ConditionTrue) {
 										fmt.Printf("节点 %s 初始化成功", hostNode.ID)
 										fmt.Println()
 										header = append(header, string(val.Type))

@@ -19,6 +19,7 @@
 package event
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -388,4 +389,34 @@ func (l *logger) send(message string, info map[string]string) {
 	if err == nil && l.sendChan != nil {
 		util.SendNoBlocking(log, l.sendChan)
 	}
+}
+
+//GetTestLogger GetTestLogger
+func GetTestLogger() Logger {
+	return &testLogger{}
+}
+
+type testLogger struct {
+}
+
+func (l *testLogger) GetChan() chan []byte {
+	return nil
+}
+func (l *testLogger) SetChan(ch chan []byte) {
+
+}
+func (l *testLogger) Event() string {
+	return "test"
+}
+func (l *testLogger) CreateTime() time.Time {
+	return time.Now()
+}
+func (l *testLogger) Info(message string, info map[string]string) {
+	fmt.Println("info:", message)
+}
+func (l *testLogger) Error(message string, info map[string]string) {
+	fmt.Println("error:", message)
+}
+func (l *testLogger) Debug(message string, info map[string]string) {
+	fmt.Println("debug:", message)
 }

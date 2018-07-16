@@ -196,8 +196,8 @@ func (z *zeus) put(url string, body []byte) error {
 			logrus.Debug("PUT:" + string(result))
 		}
 	}
-	if req.StatusCode != 201 {
-		return Err(err, "Zeus put request error", req.StatusCode)
+	if req.StatusCode >= 300 {
+		return Err(fmt.Errorf("put zeus error code %d", req.StatusCode), "Zeus put request error", req.StatusCode)
 	}
 	return Err(err, "", 0)
 }
@@ -233,8 +233,8 @@ func (z *zeus) delete(url string) error {
 			logrus.Debug("DELETE:" + string(result))
 		}
 	}
-	if req.StatusCode != 204 {
-		return Err(err, "Zeus delete request error. ", req.StatusCode)
+	if req.StatusCode >= 300 {
+		return Err(fmt.Errorf("delete zeus error code %d", req.StatusCode), "Zeus delete request error", req.StatusCode)
 	}
 	return Err(err, "", 0)
 }
@@ -264,7 +264,7 @@ func (z *zeus) get(url string) ([]byte, error) {
 		return nil, Err(err, "", 0)
 	}
 	if req.StatusCode != 200 {
-		return nil, Err(err, "Zeus get request error.", req.StatusCode)
+		return nil, Err(fmt.Errorf("delete zeus error code %d", req.StatusCode), "Zeus delete request error", req.StatusCode)
 	}
 	if req.Body != nil {
 		defer req.Body.Close()
@@ -498,20 +498,20 @@ func (z *zeus) AddDomain(domains ...*object.DomainObject) error {
 	return z.UpdateDomain(domains...)
 }
 func (z *zeus) UpdateDomain(domains ...*object.DomainObject) error {
-	var https, http bool
-	for _, do := range domains {
-		if do.Protocol == "https" {
-			https = true
-		} else {
-			http = true
-		}
-	}
-	if https {
-		return z.updateRule("https")
-	}
-	if http {
-		return z.updateRule("http")
-	}
+	// var https, http bool
+	// for _, do := range domains {
+	// 	if do.Protocol == "https" {
+	// 		https = true
+	// 	} else {
+	// 		http = true
+	// 	}
+	// }
+	// if https {
+	// 	return z.updateRule("https")
+	// }
+	// if http {
+	// 	return z.updateRule("http")
+	// }
 	return nil
 }
 func (z *zeus) DeleteDomain(domains ...*object.DomainObject) error {

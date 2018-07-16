@@ -18,7 +18,11 @@
 
 package util
 
-import "testing"
+import (
+	"path/filepath"
+	"runtime"
+	"testing"
+)
 
 func TestOpenOrCreateFile(t *testing.T) {
 	file, err := OpenOrCreateFile("./test.log")
@@ -35,5 +39,46 @@ func TestDeweight(t *testing.T) {
 }
 
 func TestGetDirSize(t *testing.T) {
-	t.Log(GetDirSize("/Users/qingguo/gopath"))
+	t.Log(GetDirSize("/go"))
+	memStats := &runtime.MemStats{}
+	runtime.ReadMemStats(memStats)
+}
+
+func TestGetDirSizeByCmd(t *testing.T) {
+	t.Log(GetDirSizeByCmd("/go"))
+	memStats := &runtime.MemStats{}
+	runtime.ReadMemStats(memStats)
+}
+
+func TestZip(t *testing.T) {
+	if err := Zip("/tmp/cache", "/tmp/cache.zip"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUnzip(t *testing.T) {
+	if err := Unzip("/tmp/cache.zip", "/tmp/cache0"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCreateVersionByTime(t *testing.T) {
+	if re := CreateVersionByTime(); re != "" {
+		t.Log(re)
+	}
+}
+
+func TestGetDirList(t *testing.T) {
+	list, err := GetDirList("/tmp", 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(list)
+}
+
+func TestMergeDir(t *testing.T) {
+	t.Log(filepath.Dir("/tmp/cache/asdasd"))
+	if err := MergeDir("/tmp/ctr-944254844/", "/tmp/cache"); err != nil {
+		t.Fatal(err)
+	}
 }

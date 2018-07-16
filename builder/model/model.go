@@ -33,6 +33,13 @@ type BuildPluginTaskBody struct {
 	PluginCMD     string `json:"plugin_cmd"`
 	PluginCPU     int    `json:"plugin_cpu"`
 	PluginMemory  int    `json:"plugin_memory"`
+	ImageInfo     struct {
+		HubURL      string `json:"hub_url"`
+		HubUser     string `json:"hub_user"`
+		HubPassword string `json:"hub_password"`
+		Namespace   string `json:"namespace"`
+		IsTrust     bool   `json:"is_trust,omitempty"`
+	} `json:"image_info,omitempty"`
 }
 
 //BuildPluginVersion BuildPluginVersion
@@ -73,12 +80,12 @@ type AppPublish struct {
 	DestYS     bool   `json:"dest_ys,omitempty"`
 	DestYB     bool   `json:"dest_yb,omitempty"`
 	ShareID    string `json:"share_id,omitempty"`
-	Status    string `json:"status,omitempty"`
+	Status     string `json:"status,omitempty"`
 }
 
 //ImageName ImageName
 type ImageName struct {
-	Host 	string `json:"host"`
-	Name 	string `json:"name"`
-	Tag 	string `json:"tag"`
+	Host string `json:"host"`
+	Name string `json:"name"`
+	Tag  string `json:"tag"`
 }

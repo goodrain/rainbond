@@ -206,10 +206,14 @@ type BuildPluginStruct struct {
 		// in: body
 		// required: false
 		PluginCMD string `json:"plugin_cmd" validate:"plugin_cmd"`
-		// 部署的版本号
+		// 插件的版本号
 		// in: body
 		// required: true
 		BuildVersion string `json:"build_version" validate:"build_version|required"`
+		// 插件构建版本号
+		// in: body
+		// required: true
+		DeployVersion string `json:"deploy_version" validate:"deploy_version"`
 		// git地址分支信息，默认为master
 		// in: body
 		// required: false
@@ -226,14 +230,18 @@ type BuildPluginStruct struct {
 		// in: body
 		// required: true
 		TenantID string `json:"tenant_id" validate:"tenant_id"`
-		//安装来源
-		// in: body
-		// required: false
-		PluginFrom string `json:"plugin_from" validate:"plugin_from"`
 		// 镜像地址
 		// in: body
 		// required: false
 		BuildImage string `json:"build_image" validate:"build_image"`
+		//ImageInfo
+		ImageInfo struct {
+			HubURL      string `json:"hub_url"`
+			HubUser     string `json:"hub_user"`
+			HubPassword string `json:"hub_password"`
+			Namespace   string `json:"namespace"`
+			IsTrust     bool   `json:"is_trust,omitempty"`
+		} `json:"ImageInfo" validate:"ImageInfo"`
 	}
 }
 

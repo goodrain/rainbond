@@ -18,27 +18,10 @@
 
 package exector
 
-/*
-Copyright 2017 The Goodrain Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/engine-api/types"
 	"github.com/goodrain/rainbond/builder/sources"
 
 	"github.com/goodrain/rainbond/db"
@@ -72,9 +55,10 @@ func (e *exectorManager) pluginImageBuild(in []byte) {
 				return
 			}
 		}
-		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(tb.PluginID, tb.VersionID)
+		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByDeployVersion(tb.PluginID, tb.VersionID, tb.DeployVersion)
 		if err != nil {
 			logrus.Errorf("get version error, %v", err)
+			return
 		}
 		version.Status = "failure"
 		if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
@@ -86,14 +70,13 @@ func (e *exectorManager) pluginImageBuild(in []byte) {
 
 func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) error {
 
-	if _, err := sources.ImagePull(e.DockerClient, t.ImageURL, types.ImagePullOptions{}, logger, 5); err != nil {
+	if _, err := sources.ImagePull(e.DockerClient, t.ImageURL, t.ImageInfo.HubUser, t.ImageInfo.HubPassword, logger, 10); err != nil {
 		logrus.Errorf("pull image %v error, %v", t.ImageURL, err)
 		logger.Error("拉取镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-
 	logger.Info("拉取镜像完成", map[string]string{"step": "build-exector", "status": "complete"})
-	newTag := createTag(t.ImageURL, t.PluginID)
+	newTag := createPluginImageTag(t.ImageURL, t.PluginID, t.DeployVersion)
 	err := sources.ImageTag(e.DockerClient, t.ImageURL, newTag, logger, 1)
 	if err != nil {
 		logrus.Errorf("set plugin image tag error, %v", err)
@@ -101,13 +84,12 @@ func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) 
 		return err
 	}
 	logger.Info("修改镜像Tag完成", map[string]string{"step": "build-exector", "status": "complete"})
-	if err := sources.ImagePush(e.DockerClient, newTag, "", "", logger, 5); err != nil {
+	if err := sources.ImagePush(e.DockerClient, newTag, "", "", logger, 10); err != nil {
 		logrus.Errorf("push image %s error, %v", newTag, err)
 		logger.Error("推送镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-
-	version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(t.PluginID, t.VersionID)
+	version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByDeployVersion(t.PluginID, t.VersionID, t.DeployVersion)
 	if err != nil {
 		logger.Error("更新插件版本信息错误", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
@@ -122,7 +104,7 @@ func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) 
 	return nil
 }
 
-func createTag(image string, alias string) string {
+func createPluginImageTag(image string, pluginid, version string) string {
 	//alias is pluginID
 	mm := strings.Split(image, "/")
 	tag := "latest"
@@ -134,6 +116,8 @@ func createTag(image string, alias string) string {
 	} else {
 		iName = image
 	}
-	curImage := fmt.Sprintf("goodrain.me/%s:%s", iName, tag+"_"+alias)
-	return curImage
+	if strings.HasPrefix(iName, "plugin") {
+		return fmt.Sprintf("goodrain.me/%s:%s_%s", iName, pluginid, version)
+	}
+	return fmt.Sprintf("goodrain.me/plugin_%s_%s:%s_%s", iName, pluginid, tag, version)
 }

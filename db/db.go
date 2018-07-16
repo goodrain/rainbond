@@ -100,6 +100,7 @@ type Manager interface {
 	RegionProcotolsDao() dao.RegionProcotolsDao
 
 	NotificationEventDao() dao.NotificationEventDao
+	AppBackupDao() dao.AppBackupDao
 }
 
 var defaultManager Manager

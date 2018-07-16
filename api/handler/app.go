@@ -3,19 +3,23 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"strconv"
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
-	"io/ioutil"
-	"os"
-	"fmt"
-	"github.com/tidwall/gjson"
 	"github.com/pkg/errors"
-	"strings"
-	"strconv"
+	"github.com/tidwall/gjson"
+	"regexp"
 )
+
+var re = regexp.MustCompile(`\s`)
 
 type AppAction struct {
 	MQClient  pb.TaskQueueClient
@@ -47,12 +51,15 @@ func (a *AppAction) Complete(tr *model.ExportAppStruct) error {
 		return err
 	}
 
+	version := gjson.Get(tr.Body.GroupMetadata, "group_version").String()
+
 	appName = unicode2zh(appName)
-	tr.SourceDir = fmt.Sprintf("%s/%s/%s-%s", a.staticDir, tr.Body.Format, appName, tr.Body.Version)
+	tr.SourceDir = fmt.Sprintf("%s/%s/%s-%s", a.staticDir, tr.Body.Format, appName, version)
 
 	return nil
 }
 
+//ExportApp ExportApp
 func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
 	// 保存元数据到组目录
 	if err := saveMetadata(tr); err != nil {
@@ -83,6 +90,32 @@ func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
 	cancel()
 	if err != nil {
 		logrus.Error("Failed to Enqueue MQ for ExportApp:", err)
+		return err
+	}
+
+	return nil
+}
+
+func (a *AppAction) ImportApp(importApp *model.ImportAppStruct) error {
+	mqBody, err := json.Marshal(importApp)
+
+	ts := &db.BuildTaskStruct{
+		TaskType: "import_app",
+		TaskBody: mqBody,
+	}
+
+	eq, err := db.BuildTaskBuild(ts)
+	if err != nil {
+		logrus.Error("Failed to BuildTaskBuild for ImportApp:", err)
+		return err
+	}
+
+	// 写入事件到MQ中
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err = a.MQClient.Enqueue(ctx, eq)
+	cancel()
+	if err != nil {
+		logrus.Error("Failed to MQ Enqueue for ImportApp:", err)
 		return err
 	}
 	logrus.Debugf("equeue mq build plugin from image success")
@@ -130,7 +163,7 @@ func unicode2zh(uText string) (context string) {
 
 	}
 
-	context = strings.TrimSpace(context)
+	context = re.ReplaceAllString(context, "")
 
 	return context
 }

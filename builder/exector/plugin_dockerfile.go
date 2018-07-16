@@ -64,9 +64,10 @@ func (e *exectorManager) pluginDockerfileBuild(in []byte) {
 				return
 			}
 		}
-		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(tb.PluginID, tb.VersionID)
+		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByDeployVersion(tb.PluginID, tb.VersionID, tb.DeployVersion)
 		if err != nil {
 			logrus.Errorf("get version error, %v", err)
+			return
 		}
 		version.Status = "failure"
 		if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
@@ -102,7 +103,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger)
 	logger.Info("代码检测为dockerfile，开始编译", map[string]string{"step": "build-exector"})
 	mm := strings.Split(t.GitURL, "/")
 	n1 := strings.Split(mm[len(mm)-1], ".")[0]
-	buildImageName := strings.ToLower(fmt.Sprintf("goodrain.me/%s_%s", n1, t.VersionID))
+	buildImageName := fmt.Sprintf("goodrain.me/plugin_%s_%s:%s", n1, t.PluginID, t.DeployVersion)
 	buildOptions := types.ImageBuildOptions{
 		Tags:   []string{buildImageName},
 		Remove: true,
@@ -127,7 +128,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger)
 		return err
 	}
 	logger.Info("推送镜像完成", map[string]string{"step": "build-exector"})
-	version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(t.PluginID, t.VersionID)
+	version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByDeployVersion(t.PluginID, t.VersionID, t.DeployVersion)
 	if err != nil {
 		logrus.Errorf("get version error, %v", err)
 		return err

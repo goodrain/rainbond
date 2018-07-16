@@ -279,7 +279,7 @@ func GetNodeBasic(w http.ResponseWriter, r *http.Request) {
 	outRespSuccess(w, hostnode, nil)
 }
 
-//Resources 数据中心资源统计
+//Resources specified node scheduler resources info
 func Resources(w http.ResponseWriter, r *http.Request) {
 	result := new(model.Resource)
 	cpuR := 0

@@ -77,7 +77,10 @@ func CreateEventManager(conf option.Config) error {
 	var err error
 	for tryTime < 4 {
 		tryTime++
-		if err = event.NewManager(event.EventConfig{EventLogServers: conf.EventLogServers}); err != nil {
+		if err = event.NewManager(event.EventConfig{
+			EventLogServers: conf.EventLogServers,
+			DiscoverAddress: conf.EtcdEndpoint,
+		}); err != nil {
 			logrus.Errorf("get event manager failed, try time is %v,%s", tryTime, err.Error())
 			time.Sleep((5 + tryTime*10) * time.Second)
 		} else {
@@ -121,6 +124,8 @@ func (k *K8SManager) NewKubeConnection() (*kubernetes.Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
+	conf.QPS = 50
+	conf.Burst = 100
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(conf)
 	if err != nil {

@@ -1,8 +1,10 @@
 package dao
 
 import (
-	"github.com/jinzhu/gorm"
+	"fmt"
+
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
 
@@ -37,48 +39,104 @@ func (a *AppDaoImpl) UpdateModel(mo model.Interface) error {
 		Update(app).Error
 }
 
-func (a *AppDaoImpl) DeleteModel(groupKey string, arg ...interface{}) error {
-	if len(arg) < 2 {
-		return errors.New("Must define version for delete AppStatus in mysql.")
-	}
-
-	version, ok := arg[0].(string)
-	if !ok {
-		return errors.New("Failed to convert interface to string for version")
-	}
-
-	format, ok := arg[1].(string)
-	if !ok {
-		return errors.New("Failed to convert interface to string for format")
-	}
-
+func (a *AppDaoImpl) DeleteModelByEventId(eventID string) error {
 	var app model.AppStatus
-	if ok := a.DB.Where("group_key = ? and version = ? and format = ?", app.GroupKey, app.Version, format).Find(&app).RecordNotFound(); ok {
+	if ok := a.DB.Where("event_id = ?", eventID).Find(&app).RecordNotFound(); ok {
 		return nil
 	}
 
-	return a.DB.Where("group_key = ? and version = ?", groupKey, version).Delete(&app).Error
+	return a.DB.Where("event_id = ?", eventID).Delete(&app).Error
 }
 
-func (a *AppDaoImpl) DeleteModelByEventId(eventId string) error {
+func (a *AppDaoImpl) GetByEventId(eventID string) (*model.AppStatus, error) {
 	var app model.AppStatus
-	if ok := a.DB.Where("event_id = ?", eventId).Find(&app).RecordNotFound(); ok {
-		return nil
-	}
-
-	return a.DB.Where("event_id = ?", eventId).Delete(&app).Error
-}
-
-func (a *AppDaoImpl) Get(groupKey, version, format string) (interface{}, error) {
-	var app model.AppStatus
-	err := a.DB.Where("group_key = ? and version = ? and format = ?", groupKey, version, format).First(&app).Error
+	err := a.DB.Where("event_id = ?", eventID).First(&app).Error
 
 	return &app, err
 }
 
-func (a *AppDaoImpl) GetByEventId(eventId string) (interface{}, error) {
-	var app model.AppStatus
-	err := a.DB.Where("event_id = ?", eventId).First(&app).Error
+//AppBackupDaoImpl group app backup info store mysql impl
+type AppBackupDaoImpl struct {
+	DB *gorm.DB
+}
 
-	return &app, err
+//AddModel AddModel
+func (a *AppBackupDaoImpl) AddModel(mo model.Interface) error {
+	app, ok := mo.(*model.AppBackup)
+	if !ok {
+		return errors.New("Failed to convert interface to AppStatus")
+	}
+
+	var old model.AppBackup
+	if ok := a.DB.Where("backup_id = ?", app.BackupID).Find(&old).RecordNotFound(); ok {
+		if err := a.DB.Create(app).Error; err != nil {
+			return err
+		}
+		return nil
+	}
+	return fmt.Errorf("backup info exist with id %s", app.BackupID)
+}
+
+//UpdateModel UpdateModel
+func (a *AppBackupDaoImpl) UpdateModel(mo model.Interface) error {
+	app, ok := mo.(*model.AppBackup)
+	if !ok {
+		return errors.New("Failed to convert interface to AppStatus")
+	}
+	if app.ID == 0 {
+		return errors.New("Primary id can not be 0 when update")
+	}
+	return a.DB.Table(app.TableName()).Where("backup_id = ?", app.BackupID).Update(app).Error
+}
+
+//CheckHistory CheckHistory
+func (a *AppBackupDaoImpl) CheckHistory(groupID, version string) bool {
+	var app model.AppBackup
+	exist := a.DB.Where("((group_id = ? and status in (?)) or version=?) and deleted=? ", groupID, []string{"starting", "restore"}, version, false).Find(&app).RecordNotFound()
+	return !exist
+}
+
+//GetAppBackups GetAppBackups
+func (a *AppBackupDaoImpl) GetAppBackups(groupID string) ([]*model.AppBackup, error) {
+	var apps []*model.AppBackup
+	if err := a.DB.Where("group_id = ? and deleted=?", groupID, false).Find(&apps).Error; err != nil {
+		return nil, err
+	}
+	return apps, nil
+}
+
+//DeleteAppBackup DeleteAppBackup
+func (a *AppBackupDaoImpl) DeleteAppBackup(backupID string) error {
+	var app model.AppBackup
+	if err := a.DB.Where("backup_id = ?", backupID).Delete(&app).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+//GetAppBackup GetAppBackup
+func (a *AppBackupDaoImpl) GetAppBackup(backupID string) (*model.AppBackup, error) {
+	var app model.AppBackup
+	if err := a.DB.Where("backup_id = ? and deleted=?", backupID, false).Find(&app).Error; err != nil {
+		return nil, err
+	}
+	return &app, nil
+}
+
+//GetDeleteAppBackup GetDeleteAppBackup
+func (a *AppBackupDaoImpl) GetDeleteAppBackup(backupID string) (*model.AppBackup, error) {
+	var app model.AppBackup
+	if err := a.DB.Where("backup_id = ? and deleted=?", backupID, true).Find(&app).Error; err != nil {
+		return nil, err
+	}
+	return &app, nil
+}
+
+//GetDeleteAppBackups GetDeleteAppBackups
+func (a *AppBackupDaoImpl) GetDeleteAppBackups() ([]*model.AppBackup, error) {
+	var apps []*model.AppBackup
+	if err := a.DB.Where("deleted=?", true).Find(&apps).Error; err != nil {
+		return nil, err
+	}
+	return apps, nil
 }

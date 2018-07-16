@@ -175,6 +175,9 @@ func GetPortProtocol(port int) string {
 	if port == 1080 {
 		return "udp"
 	}
+	if port == 6379 {
+		return "tcp"
+	}
 	if port > 1 && port < 5000 {
 		return "tcp"
 	}

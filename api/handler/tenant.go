@@ -169,15 +169,15 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 		return nil, err
 	}
 	var serviceIDs []string
-	var serviceMap = make(map[string]*dbmodel.TenantServices, len(services))
+	var serviceMap = make(map[string]dbmodel.TenantServices, len(services))
 	for _, s := range services {
 		serviceIDs = append(serviceIDs, s.ServiceID)
-		serviceMap[s.ServiceID] = s
+		serviceMap[s.ServiceID] = *s
 	}
 	var result = make(map[string]map[string]interface{}, len(ids))
 	status := t.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
 	for k, v := range status {
-		if s, ok := serviceMap[k]; !ok || s == nil {
+		if _, ok := serviceMap[k]; !ok {
 			continue
 		}
 		if _, ok := result[serviceMap[k].TenantID]; !ok {

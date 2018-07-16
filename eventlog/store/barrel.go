@@ -237,7 +237,7 @@ func (r *dockerLogEventBarrel) addSubChan(subID string) chan *db.EventLogMessage
 	if sub, ok := r.subSocketChan[subID]; ok {
 		return sub
 	}
-	ch := make(chan *db.EventLogMessage, 10)
+	ch := make(chan *db.EventLogMessage, 100)
 	go r.pushCashMessage(ch, subID)
 	return ch
 }

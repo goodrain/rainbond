@@ -241,6 +241,16 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	d.Runtime = code.CheckRuntime(buildPath, lang)
 	d.memory = getRecommendedMemory(lang)
 	d.Procfile = code.CheckProcfile(buildPath, lang)
+	if rbdfileConfig != nil {
+		//handle profile env
+		for k, v := range rbdfileConfig.Envs {
+			d.envs[k] = &Env{Name: k, Value: v}
+		}
+		//handle profile port
+		for _, port := range rbdfileConfig.Ports {
+			d.ports[port.Port] = &Port{ContainerPort: port.Port, Protocol: port.Protocol}
+		}
+	}
 	return d.errors
 }
 
@@ -253,6 +263,9 @@ func getRecommendedMemory(lang code.Lang) int {
 		return 512
 	}
 	if lang == code.Nodejs {
+		return 512
+	}
+	if lang == code.PHP {
 		return 512
 	}
 	return 128
@@ -349,8 +362,9 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 	for _, cm := range commands {
 		switch cm.Cmd {
 		case "env":
-			if len(cm.Value) == 2 {
-				d.envs[cm.Value[0]] = &Env{Name: cm.Value[0], Value: cm.Value[1]}
+			for i := 0; i < len(cm.Value); i++ {
+				d.envs[cm.Value[i]] = &Env{Name: cm.Value[i], Value: cm.Value[i+1]}
+				i++
 			}
 		case "expose":
 			for _, v := range cm.Value {

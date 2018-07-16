@@ -131,11 +131,13 @@ func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get resources error, %v", err))
 		return
 	}
-	var re = make([]map[string]interface{}, len(rep))
+	var re []map[string]interface{}
 	for _, v := range rep {
-		re = append(re, v)
+		if v != nil {
+			re = append(re, v)
+		}
 	}
-	httputil.ReturnSuccess(r, w, rep)
+	httputil.ReturnSuccess(r, w, re)
 	return
 }
 
@@ -306,30 +308,14 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("bad request, %v", err))
 		return
 	}
-	rep, err := handler.GetTenantManager().GetTenants()
-	if err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants error, %v", err))
-		return
-	}
-	resource, err := handler.GetServiceManager().GetPagedTenantRes((curPage-1)*pageLen, pageLen)
+	resource, count, err := handler.GetServiceManager().GetPagedTenantRes((curPage-1)*pageLen, pageLen)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants  error, %v", err))
 		return
 	}
-
-	for _, v := range resource {
-		tenant, err := handler.GetTenantManager().GetTenantsByUUID(v.UUID)
-		if err != nil {
-			httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants  error, %v", err))
-			return
-		}
-		v.Name = tenant.Name
-		v.EID = tenant.EID
-	}
-
 	var ret api_model.PagedTenantResList
 	ret.List = resource
-	ret.Length = len(rep)
+	ret.Length = count
 	httputil.ReturnSuccess(r, w, ret)
 	return
 }
@@ -1548,6 +1534,29 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 		}
 	}
 	httputil.ReturnSuccess(r, w, nil)
+}
+
+//ChangeLBPort change lb mapping port
+//only support change to existing port in this tenants
+func (t *TenantStruct) ChangeLBPort(w http.ResponseWriter, r *http.Request) {
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	portStr := chi.URLParam(r, "port")
+	containerPort, err := strconv.Atoi(portStr)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, "port must be a number")
+		return
+	}
+	var data api_model.ServiceLBPortChange
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &(data.Body), nil) {
+		return
+	}
+	mapport, errc := handler.GetServiceManager().ChangeLBPort(tenantID, serviceID, containerPort, data.Body.ChangePort)
+	if errc != nil {
+		errc.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, mapport)
 }
 
 //Pods pods

@@ -191,7 +191,7 @@ func (m *manager) delete(source object.Object) {
 }
 
 func (m *manager) update(source object.Object) {
-	isHandle, ok, err := m.storeManager.UpdateSource(source)
+	isOnline, ok, err := m.storeManager.UpdateSource(source)
 	if err != nil {
 		logrus.Errorf("Update %s to store error.%s", source.GetName(), err.Error())
 		//TODO 判断是否已经存储，获取到操作权后失败。如果是，怎么协调集群其他点进行重试。
@@ -202,14 +202,20 @@ func (m *manager) update(source object.Object) {
 		switch source.(type) {
 		case *object.NodeObject:
 			node := source.(*object.NodeObject)
-			logrus.Debugf("updateupdate Ready is %v, isHandle is %v, host is %v", node.Ready, isHandle, node.Host)
-			if !node.Ready && isHandle {
-				logrus.Info(node.NodeName, " node is not ready and is online, should offline it.")
-				err := m.handleDelete(node)
-				if err == nil {
-					err := m.storeManager.UpdateSourceOnline(node, false)
-					if err != nil {
-						logrus.Errorf("update a node %s online status is false error.%s", node.NodeName, err.Error())
+			logrus.Debugf("updateupdate Ready is %v, isOnline is %v, host is %v", node.Ready, isOnline, node.Host)
+			if !node.Ready && isOnline {
+				//if pool have one node,If this node is not-ready,could not online it.
+				//If the only one node is a real failure,The effect is the same for offline and online
+				//But if the node is not real failure.It shouldn't be offline.
+				nodes, _ := m.storeManager.GetNodeByPool(node.PoolName)
+				if len(nodes) > 1 {
+					logrus.Info(node.NodeName, " node is not ready and pool have multiple nodes is online, should offline it.")
+					err := m.handleDelete(node)
+					if err == nil {
+						err := m.storeManager.UpdateSourceOnline(node, false)
+						if err != nil {
+							logrus.Errorf("update a node %s online status is false error.%s", node.NodeName, err.Error())
+						}
 					}
 				}
 			} else if node.Ready {

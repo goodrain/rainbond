@@ -27,10 +27,9 @@ import (
 	"github.com/goodrain/rainbond/builder/exector"
 	"github.com/goodrain/rainbond/mq/api/grpc/client"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
-
+	"github.com/Sirupsen/logrus"
 	grpc1 "google.golang.org/grpc"
 
-	"github.com/Sirupsen/logrus"
 )
 
 //WTOPIC is builder

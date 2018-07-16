@@ -788,6 +788,7 @@ func (w *watchGrpcStream) openWatchClient() (ws pb.Watch_WatchClient, err error)
 		if isHaltErr(w.ctx, err) {
 			return nil, v3rpc.Error(err)
 		}
+		time.Sleep(time.Millisecond * 200)
 	}
 	return ws, nil
 }

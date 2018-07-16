@@ -100,5 +100,6 @@ func (a *APIServer) SetLog() {
 		fmt.Println("set log level error." + err.Error())
 		return
 	}
+	logrus.Infof("Etcd Server : %+v", a.Config.EtcdEndpoint)
 	logrus.SetLevel(level)
 }

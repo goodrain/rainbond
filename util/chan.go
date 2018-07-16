@@ -47,17 +47,18 @@ func IntermittentExec(ctx context.Context, f func(), t time.Duration) {
 
 //Exec 上下文执行
 func Exec(ctx context.Context, f func() error, wait time.Duration) error {
+	timer:=time.NewTimer(wait)
+	defer timer.Stop()
 	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-			re := f()
+		re := f()
 			if re != nil {
 				return re
 			}
+			timer.Reset(wait)
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-timer.C:
 		}
-		//wait 1 second
-		time.Sleep(wait)
 	}
 }

@@ -55,3 +55,31 @@ func (e *EventLogMessageDaoImpl) GetEventLogMessages(eventID string) ([]*model.E
 func (e *EventLogMessageDaoImpl) DeleteServiceLog(serviceID string) error {
 	return nil
 }
+
+func (e *EventLogMessageDaoImpl) GetAllServiceEventLog() ([]*model.EventLogMessage, error) {
+	var messageRaw []*model.EventLogMessage
+	if err := e.DB.Find(&messageRaw).Error; err != nil {
+		return nil, err
+	}
+	return messageRaw, nil
+
+}
+
+func (e *EventLogMessageDaoImpl) DeleteServiceEventLog(obj *model.EventLogMessage) error {
+	if err := e.DB.Delete(obj).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *EventLogMessageDaoImpl) DeleteServiceEventLogByEventId(eventId string) error {
+	var messageRaw []*model.EventLogMessage
+	isNotExist := e.DB.Where("event_id=?", eventId).First(&messageRaw).RecordNotFound()
+	if isNotExist{
+		return nil
+	}
+	if err := e.DB.Where("event_id=?", eventId).Delete(&messageRaw).Error;err!=nil{
+		return err
+	}
+	return nil
+}

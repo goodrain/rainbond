@@ -176,6 +176,14 @@ func (k *K8sServiceBuild) BuildOnPort(p int, isOut bool) (*v1.Service, error) {
 	return nil, fmt.Errorf("tenant service port %d is not exist", p)
 }
 
+//createServiceAnnotations create service annotation
+func (k *K8sServiceBuild) createServiceAnnotations() map[string]string {
+	var annotations = make(map[string]string)
+	if k.service.Replicas <= 1 {
+		annotations["rainbond.com/tolerate-unready-endpoints"] = "true"
+	}
+	return annotations
+}
 func (k *K8sServiceBuild) createInnerService(port *model.TenantServicesPort) *v1.Service {
 	var service v1.Service
 	service.Name = fmt.Sprintf("service-%d-%d", port.ID, port.ContainerPort)
@@ -184,6 +192,10 @@ func (k *K8sServiceBuild) createInnerService(port *model.TenantServicesPort) *v1
 		"name":          k.service.ServiceAlias + "Service",
 		"port_protocol": port.Protocol,
 	}
+	if k.service.Replicas <= 1 {
+		service.Labels["rainbond.com/tolerate-unready-endpoints"] = "true"
+	}
+	service.Annotations = k.createServiceAnnotations()
 	var servicePort v1.ServicePort
 	if port.Protocol == "udp" {
 		servicePort.Protocol = "UDP"
@@ -218,9 +230,13 @@ func (k *K8sServiceBuild) createOuterService(port *model.TenantServicesPort) *v1
 		"key":              "",
 		"event_id":         k.eventID,
 	}
+	if k.service.Replicas <= 1 {
+		service.Labels["rainbond.com/tolerate-unready-endpoints"] = "true"
+	}
+	service.Annotations = k.createServiceAnnotations()
 	//if port.Protocol == "stream" { //stream 协议获取映射端口
 	if port.Protocol != "http" { //stream 协议获取映射端口
-		mapPort, err := k.dbmanager.TenantServiceLBMappingPortDao().GetTenantServiceLBMappingPortByService(k.serviceID)
+		mapPort, err := k.dbmanager.TenantServiceLBMappingPortDao().GetTenantServiceLBMappingPort(k.serviceID, port.ContainerPort)
 		if err != nil {
 			logrus.Error("get tenant service lb map port error", err.Error())
 			service.Labels["lbmap_port"] = "0"

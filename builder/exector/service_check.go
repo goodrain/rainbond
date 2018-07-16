@@ -88,6 +88,7 @@ func (e *exectorManager) serviceCheck(in []byte) {
 	defer event.GetManager().ReleaseLogger(logger)
 	defer func() {
 		if r := recover(); r != nil {
+			logrus.Errorf("service check error: %v", r)
 			debug.PrintStack()
 			logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
 		}

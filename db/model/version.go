@@ -39,3 +39,5 @@ type VersionInfo struct {
 func (t *VersionInfo) TableName() string {
 	return "version_info"
 }
+
+

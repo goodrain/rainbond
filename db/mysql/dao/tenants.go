@@ -68,6 +68,14 @@ func (t *TenantDaoImpl) GetTenantByUUID(uuid string) (*model.Tenants, error) {
 	return &tenant, nil
 }
 
+//GetTenantByUUIDIsExist 获取租户
+func (t *TenantDaoImpl) GetTenantByUUIDIsExist(uuid string) (bool) {
+	var tenant model.Tenants
+	isExist := t.DB.Where("uuid = ?", uuid).First(&tenant).RecordNotFound()
+	return isExist
+
+}
+
 //GetTenantIDByName 获取租户
 func (t *TenantDaoImpl) GetTenantIDByName(name string) (*model.Tenants, error) {
 	var tenant model.Tenants
@@ -224,48 +232,70 @@ func (t *TenantServicesDaoImpl) GetServiceMemoryByServiceIDs(serviceIDs []string
 }
 
 //GetPagedTenantService GetPagedTenantResource
-func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, len int) ([]map[string]interface{}, error) {
-	rows, err := t.DB.Raw("select tenant_id,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_cpu * replicas,0)) as use_cpu,sum(container_cpu*replicas) as cap_cpu,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_memory * replicas,0)) as use_memory,sum(container_memory*replicas) as cap_memory from tenant_services group by tenant_id order by use_memory desc limit ?,?", offset, len).Rows()
+func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, length int, serviceIDs []string) ([]map[string]interface{}, int, error) {
+	var count int
+	var service model.TenantServices
+	var result []map[string]interface{}
+	if len(serviceIDs) == 0 {
+		return result, count, nil
+	}
+	var re []*model.TenantServices
+	if err := t.DB.Table(service.TableName()).Select("tenant_id").Where("service_id in (?)", serviceIDs).Group("tenant_id").Find(&re).Error; err != nil {
+		return nil, count, err
+	}
+	count = len(re)
+	rows, err := t.DB.Raw("SELECT tenant_id, SUM(container_cpu * replicas) AS use_cpu, SUM(container_memory * replicas) AS use_memory FROM tenant_services where service_id in (?) GROUP BY tenant_id ORDER BY use_memory DESC LIMIT ?,?", serviceIDs, offset, length).Rows()
 	if err != nil {
-		return nil, err
+		return nil, count, err
 	}
 	defer rows.Close()
-	var rc []map[string]interface{}
+	var rc = make(map[string]*map[string]interface{}, length)
+	var tenantIDs []string
 	for rows.Next() {
 		var tenantID string
-		var capCpu int
-		var useCpu int
-		var capMem int
+		var useCPU int
 		var useMem int
-		rows.Scan(&tenantID, &useCpu, &capCpu, &useMem, &capMem)
+		rows.Scan(&tenantID, &useCPU, &useMem)
 		res := make(map[string]interface{})
-		res["capcpu"] = capCpu
-		res["usecpu"] = useCpu
-		res["capmem"] = capMem
+		res["usecpu"] = useCPU
 		res["usemem"] = useMem
 		res["tenant"] = tenantID
-		rc = append(rc, res)
+		rc[tenantID] = &res
+		result = append(result, res)
+		tenantIDs = append(tenantIDs, tenantID)
 	}
-	return rc, nil
-}
-
-//GetTenantServiceRes GetTenantServiceRes
-func (t *TenantServicesDaoImpl) GetTenantServiceRes(uuid string) (map[string]interface{}, error) {
-	row := t.DB.Raw("select sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_cpu * replicas,0)) as use_cpu,sum(container_cpu*replicas) as cap_cpu,sum(if (cur_status != 'closed' && cur_status != 'undeploy',container_memory * replicas,0)) as use_memory,sum(container_memory*replicas) as cap_memory from tenant_services where tenant_id =? order by use_memory desc", uuid).Row()
-	var capCpu int
-	var useCpu int
-	var capMem int
-	var useMem int
-	row.Scan(&useCpu, &capCpu, &useMem, &capMem)
-	res := make(map[string]interface{})
-
-	res["capcpu"] = capCpu
-	res["usecpu"] = useCpu
-	res["capmem"] = capMem
-	res["usemem"] = useMem
-	res["tenant"] = uuid
-	logrus.Infof("get tenant %s service resource :%v", res)
-	return res, nil
+	newrows, err := t.DB.Raw("SELECT tenant_id, SUM(container_cpu * replicas) AS cap_cpu, SUM(container_memory * replicas) AS cap_memory FROM tenant_services where tenant_id in (?) GROUP BY tenant_id", tenantIDs).Rows()
+	if err != nil {
+		return nil, count, err
+	}
+	defer newrows.Close()
+	for newrows.Next() {
+		var tenantID string
+		var capCPU int
+		var capMem int
+		newrows.Scan(&tenantID, &capCPU, &capMem)
+		if _, ok := rc[tenantID]; ok {
+			s := (*rc[tenantID])
+			s["capcpu"] = capCPU
+			s["capmem"] = capMem
+			*rc[tenantID] = s
+		}
+	}
+	tenants, err := t.DB.Raw("SELECT uuid,name,eid from tenants where uuid in (?)", tenantIDs).Rows()
+	defer tenants.Close()
+	for tenants.Next() {
+		var tenantID string
+		var name string
+		var eid string
+		tenants.Scan(&tenantID, &name, &eid)
+		if _, ok := rc[tenantID]; ok {
+			s := (*rc[tenantID])
+			s["eid"] = eid
+			s["tenant_name"] = name
+			*rc[tenantID] = s
+		}
+	}
+	return result, count, nil
 }
 
 //GetServiceAliasByIDs 获取应用别名
@@ -378,6 +408,25 @@ func (t *TenantServicesDeleteImpl) UpdateModel(mo model.Interface) error {
 	}
 	return nil
 }
+
+func (t *TenantServicesDeleteImpl) GetTenantServicesDeleteByCreateTime(createTime time.Time) ([]*model.TenantServicesDelete, error) {
+	var ServiceDel []*model.TenantServicesDelete
+	if err := t.DB.Where("create_time < ?", createTime).Find(&ServiceDel).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return ServiceDel, nil
+		}
+		return nil,err
+	}
+	return ServiceDel, nil
+}
+
+func (t *TenantServicesDeleteImpl) DeleteTenantServicesDelete(record *model.TenantServicesDelete) error {
+	if err := t.DB.Delete(record).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
 
 //TenantServicesPortDaoImpl 租户应用端口操作
 type TenantServicesPortDaoImpl struct {
@@ -854,7 +903,7 @@ type TenantServiceLBMappingPortDaoImpl struct {
 func (t *TenantServiceLBMappingPortDaoImpl) AddModel(mo model.Interface) error {
 	mapPort := mo.(*model.TenantServiceLBMappingPort)
 	var oldMapPort model.TenantServiceLBMappingPort
-	if ok := t.DB.Where("service_id=? and port=?", mapPort.ServiceID, mapPort.ContainerPort).Find(&oldMapPort).RecordNotFound(); ok {
+	if ok := t.DB.Where("(service_id=? and container_port=?) or port=? ", mapPort.ServiceID, mapPort.ContainerPort, mapPort.Port).Find(&oldMapPort).RecordNotFound(); ok {
 		if err := t.DB.Create(mapPort).Error; err != nil {
 			return err
 		}
@@ -971,12 +1020,12 @@ func (t *TenantServiceLBMappingPortDaoImpl) CreateTenantServiceLBMappingPort(ser
 }
 
 //GetTenantServiceLBMappingPortByService 获取端口映射
-func (t *TenantServiceLBMappingPortDaoImpl) GetTenantServiceLBMappingPortByService(serviceID string) (*model.TenantServiceLBMappingPort, error) {
-	var mapPort model.TenantServiceLBMappingPort
+func (t *TenantServiceLBMappingPortDaoImpl) GetTenantServiceLBMappingPortByService(serviceID string) ([]*model.TenantServiceLBMappingPort, error) {
+	var mapPort []*model.TenantServiceLBMappingPort
 	if err := t.DB.Where("service_id=?", serviceID).Find(&mapPort).Error; err != nil {
 		return nil, err
 	}
-	return &mapPort, nil
+	return mapPort, nil
 }
 
 //DELServiceLBMappingPortByServiceID DELServiceLBMappingPortByServiceID
@@ -988,6 +1037,24 @@ func (t *TenantServiceLBMappingPortDaoImpl) DELServiceLBMappingPortByServiceID(s
 		return err
 	}
 	return nil
+}
+
+//DELServiceLBMappingPortByServiceIDAndPort DELServiceLBMappingPortByServiceIDAndPort
+func (t *TenantServiceLBMappingPortDaoImpl) DELServiceLBMappingPortByServiceIDAndPort(serviceID string, lbport int) error {
+	var mapPorts model.TenantServiceLBMappingPort
+	if err := t.DB.Where("service_id=? and port=?", serviceID, lbport).Delete(&mapPorts).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetLBPortByTenantAndPort  GetLBPortByTenantAndPort
+func (t *TenantServiceLBMappingPortDaoImpl) GetLBPortByTenantAndPort(tenantID string, lbport int) (*model.TenantServiceLBMappingPort, error) {
+	var mapPort model.TenantServiceLBMappingPort
+	if err := t.DB.Raw("select * from tenant_lb_mapping_port where port=? and service_id in(select service_id from tenant_services where tenant_id=?)", lbport, tenantID).Scan(&mapPort).Error; err != nil {
+		return nil, err
+	}
+	return &mapPort, nil
 }
 
 //ServiceLabelDaoImpl ServiceLabelDaoImpl

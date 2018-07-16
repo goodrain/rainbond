@@ -19,30 +19,23 @@
 package config
 
 import (
-	"os"
 	"strings"
 	"testing"
 
-	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/api/model"
-	"github.com/goodrain/rainbond/node/core/store"
-
-	"github.com/Sirupsen/logrus"
-
-	"github.com/coreos/etcd/clientv3"
 )
 
 func init() {
-	err := store.NewClient(&option.Conf{Etcd: clientv3.Config{
-		Endpoints: []string{"127.0.0.1:2379"},
-	}})
-	if err != nil {
-		logrus.Error(err.Error())
-		os.Exit(1)
-	}
-	option.Config = &option.Conf{
-		ConfigStoragePath: "/rainbond/configs",
-	}
+	// err := store.NewClient(&option.Conf{Etcd: clientv3.Config{
+	// 	Endpoints: []string{"127.0.0.1:2379"},
+	// }})
+	// if err != nil {
+	// 	logrus.Error(err.Error())
+	// 	os.Exit(1)
+	// }
+	// option.Config = &option.Conf{
+	// 	ConfigStoragePath: "/rainbond/configs",
+	// }
 }
 func TestGetDataCenterConfig(t *testing.T) {
 	str := "asdadad,"

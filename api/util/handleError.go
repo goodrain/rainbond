@@ -19,10 +19,11 @@
 package util
 
 import (
-	httputil "github.com/goodrain/rainbond/util/http"
 	"fmt"
 	"net/http"
 	"strings"
+
+	httputil "github.com/goodrain/rainbond/util/http"
 
 	"github.com/jinzhu/gorm"
 
@@ -40,6 +41,14 @@ func CreateAPIHandleError(code int, err error) *APIHandleError {
 	return &APIHandleError{
 		Code: code,
 		Err:  err,
+	}
+}
+
+//CreateAPIHandleErrorf create handle error
+func CreateAPIHandleErrorf(code int, format string, args ...interface{}) *APIHandleError {
+	return &APIHandleError{
+		Code: code,
+		Err:  fmt.Errorf(format, args...),
 	}
 }
 

@@ -19,13 +19,17 @@
 package util
 
 import (
+	"archive/zip"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -56,8 +60,8 @@ func CheckAndCreateDir(path string) error {
 
 //DirIsEmpty 验证目录是否为空
 func DirIsEmpty(dir string) bool {
-	infos, _ := ioutil.ReadDir(dir)
-	if len(infos) == 0 {
+	infos, err := ioutil.ReadDir(dir)
+	if len(infos) == 0 || err != nil {
 		return true
 	}
 	return false
@@ -263,6 +267,31 @@ func Deweight(data *[]string) {
 	*data = result
 }
 
+//GetDirSizeByCmd get dir sizes by du command
+//return kb
+func GetDirSizeByCmd(path string) float64 {
+	out, err := CmdExec(fmt.Sprintf("du -sk %s", path))
+	if err != nil {
+		fmt.Println(err)
+		return 0
+	}
+	info := strings.Split(out, "	")
+	fmt.Println(info)
+	if len(info) < 2 {
+		return 0
+	}
+	i, _ := strconv.Atoi(info[0])
+	return float64(i)
+}
+
+//GetFileSize get file size
+func GetFileSize(path string) int64 {
+	if fileInfo, err := os.Stat(path); err == nil {
+		return fileInfo.Size()
+	}
+	return 0
+}
+
 //GetDirSize kb为单位
 func GetDirSize(path string) float64 {
 	if ok, err := FileExists(path); err != nil || !ok {
@@ -302,7 +331,7 @@ func walkDir(dir string, wg *sync.WaitGroup, fileSizes chan<- int64, concurrent 
 	defer func() {
 		<-concurrent
 	}()
-	for _, entry := range dirents(dir) {
+	for _, entry := range listDirNonSymlink(dir) {
 		if entry.IsDir() { //目录
 			wg.Add(1)
 			subDir := filepath.Join(dir, entry.Name())
@@ -313,11 +342,11 @@ func walkDir(dir string, wg *sync.WaitGroup, fileSizes chan<- int64, concurrent 
 	}
 }
 
-//sema is a counting semaphore for limiting concurrency in dirents
+//sema is a counting semaphore for limiting concurrency in listDir
 var sema = make(chan struct{}, 20)
 
 //读取目录dir下的文件信息
-func dirents(dir string) []os.FileInfo {
+func listDir(dir string) []os.FileInfo {
 	sema <- struct{}{}
 	defer func() { <-sema }()
 	entries, err := ioutil.ReadDir(dir)
@@ -326,6 +355,25 @@ func dirents(dir string) []os.FileInfo {
 		return nil
 	}
 	return entries
+}
+
+// 列出指定目录下的非软链类型的所有条目
+func listDirNonSymlink(dir string) []os.FileInfo {
+	sema <- struct{}{}
+	defer func() { <-sema }()
+	entries, err := ioutil.ReadDir(dir)
+	if err != nil {
+		logrus.Errorf("get file sizt: %v\n", err)
+		return nil
+	}
+
+	var result []os.FileInfo
+	for i := range entries {
+		if entries[i].Mode()&os.ModeSymlink == 0 {
+			result = append(result, entries[i])
+		}
+	}
+	return result
 }
 
 //RemoveSpaces 去除空格项
@@ -345,4 +393,252 @@ func CmdExec(args string) (string, error) {
 		return "", err
 	}
 	return string(out), nil
+}
+
+//Zip zip compressing source dir to target file
+func Zip(source, target string) error {
+	if err := CheckAndCreateDir(filepath.Dir(target)); err != nil {
+		return err
+	}
+	zipfile, err := os.Create(target)
+	if err != nil {
+		return err
+	}
+	defer zipfile.Close()
+
+	archive := zip.NewWriter(zipfile)
+	defer archive.Close()
+
+	info, err := os.Stat(source)
+	if err != nil {
+		return nil
+	}
+
+	var baseDir string
+	if info.IsDir() {
+		baseDir = filepath.Base(source)
+	}
+
+	filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		header, err := zip.FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+		if baseDir != "" {
+			header.Name = filepath.Join(baseDir, strings.TrimPrefix(path, source))
+		}
+		if info.IsDir() {
+			header.Name += "/"
+		} else {
+			header.Method = zip.Deflate
+		}
+		//set file uid and
+		elem := reflect.ValueOf(info.Sys()).Elem()
+		uid := elem.FieldByName("Uid").Uint()
+		gid := elem.FieldByName("Gid").Uint()
+		header.Comment = fmt.Sprintf("%d/%d", uid, gid)
+		writer, err := archive.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		_, err = io.Copy(writer, file)
+		return err
+	})
+
+	return err
+}
+
+//Unzip archive file to target dir
+func Unzip(archive, target string) error {
+	reader, err := zip.OpenReader(archive)
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(target, 0755); err != nil {
+		return err
+	}
+
+	for _, file := range reader.File {
+		run := func() error {
+			path := filepath.Join(target, file.Name)
+			if file.FileInfo().IsDir() {
+				os.MkdirAll(path, file.Mode())
+				if file.Comment != "" && strings.Contains(file.Comment, "/") {
+					guid := strings.Split(file.Comment, "/")
+					if len(guid) == 2 {
+						uid, _ := strconv.Atoi(guid[0])
+						gid, _ := strconv.Atoi(guid[1])
+						if err := os.Chown(path, uid, gid); err != nil {
+							return err
+						}
+					}
+				}
+				return nil
+			}
+
+			fileReader, err := file.Open()
+			if err != nil {
+				return err
+			}
+			defer fileReader.Close()
+
+			targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+			if err != nil {
+				return err
+			}
+			defer targetFile.Close()
+
+			if _, err := io.Copy(targetFile, fileReader); err != nil {
+				return err
+			}
+			if file.Comment != "" && strings.Contains(file.Comment, "/") {
+				guid := strings.Split(file.Comment, "/")
+				if len(guid) == 2 {
+					uid, _ := strconv.Atoi(guid[0])
+					gid, _ := strconv.Atoi(guid[1])
+					if err := os.Chown(path, uid, gid); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		}
+		if err := run(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+//GetParentDirectory GetParentDirectory
+func GetParentDirectory(dirctory string) string {
+	return substr(dirctory, 0, strings.LastIndex(dirctory, "/"))
+}
+
+func substr(s string, pos, length int) string {
+	runes := []rune(s)
+	l := pos + length
+	if l > len(runes) {
+		l = len(runes)
+	}
+	return string(runes[pos:l])
+}
+
+//Rename move file
+func Rename(old, new string) error {
+	_, err := os.Stat(GetParentDirectory(new))
+	if err != nil {
+		if err == os.ErrNotExist || strings.Contains(err.Error(), "no such file or directory") {
+			if err := os.MkdirAll(GetParentDirectory(new), 0755); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+	return os.Rename(old, new)
+}
+
+//MergeDir MergeDir
+func MergeDir(fromdir, todir string) error {
+	files, err := ioutil.ReadDir(fromdir)
+	if err != nil {
+		return err
+	}
+	for _, f := range files {
+		if err := os.Rename(path.Join(fromdir, f.Name()), path.Join(todir, f.Name())); err != nil {
+			if !strings.Contains(err.Error(), "file exists") {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+//CreateVersionByTime create version number
+func CreateVersionByTime() string {
+	now := time.Now()
+	re := fmt.Sprintf("%d%d%d%d%d%d%d", now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond())
+	return re
+}
+
+// GetDirList get all lower level dir
+func GetDirList(dirpath string, level int) ([]string, error) {
+	var dirlist []string
+	list, err := ioutil.ReadDir(dirpath)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range list {
+		if f.IsDir() {
+			if level <= 1 {
+				dirlist = append(dirlist, filepath.Join(dirpath, f.Name()))
+			} else {
+				list, err := GetDirList(filepath.Join(dirpath, f.Name()), level-1)
+				if err != nil {
+					return nil, err
+				}
+				dirlist = append(dirlist, list...)
+			}
+		}
+	}
+	return dirlist, nil
+}
+
+func GetFileList(dirpath string, level int) ([]string, error) {
+	var dirlist []string
+	list, err := ioutil.ReadDir(dirpath)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range list {
+		if !f.IsDir() && level <= 1 {
+			dirlist = append(dirlist, filepath.Join(dirpath, f.Name()))
+		} else if level > 1 && f.IsDir() {
+			list, err := GetFileList(filepath.Join(dirpath, f.Name()), level-1)
+			if err != nil {
+				return nil, err
+			}
+			dirlist = append(dirlist, list...)
+		}
+	}
+	return dirlist, nil
+}
+
+// GetDirNameList get all lower level dir
+func GetDirNameList(dirpath string, level int) ([]string, error) {
+	var dirlist []string
+	list, err := ioutil.ReadDir(dirpath)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range list {
+		if f.IsDir() {
+			if level <= 1 {
+				dirlist = append(dirlist, f.Name())
+			} else {
+				list, err := GetDirList(filepath.Join(dirpath, f.Name()), level-1)
+				if err != nil {
+					return nil, err
+				}
+				dirlist = append(dirlist, list...)
+			}
+		}
+	}
+	return dirlist, nil
 }

@@ -731,25 +731,32 @@ func (s *ServiceAction) GetService(tenantID string) ([]*dbmodel.TenantServices, 
 }
 
 //GetPagedTenantRes get pagedTenantServiceRes(s)
-func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantResource, error) {
-	services, err := db.GetManager().TenantServiceDao().GetPagedTenantService(offset, len)
+func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantResource, int, error) {
+	allstatus := s.statusCli.GetAllStatus()
+	var serviceIDs []string
+	for k, v := range allstatus {
+		if !s.statusCli.IsClosedStatus(v) {
+			serviceIDs = append(serviceIDs, k)
+		}
+	}
+	services, count, err := db.GetManager().TenantServiceDao().GetPagedTenantService(offset, len, serviceIDs)
 	if err != nil {
 		logrus.Errorf("get service by id error, %v, %v", services, err)
-		return nil, err
+		return nil, count, err
 	}
 	var result []*api_model.TenantResource
 	for _, v := range services {
 		var res api_model.TenantResource
-		res.UUID = v["tenant"].(string)
-		res.Name = ""
-		res.EID = ""
-		res.AllocatedCPU = v["capcpu"].(int)
-		res.AllocatedMEM = v["capmem"].(int)
-		res.UsedCPU = v["usecpu"].(int)
-		res.UsedMEM = v["usemem"].(int)
+		res.UUID, _ = v["tenant"].(string)
+		res.Name, _ = v["tenant_name"].(string)
+		res.EID, _ = v["eid"].(string)
+		res.AllocatedCPU, _ = v["capcpu"].(int)
+		res.AllocatedMEM, _ = v["capmem"].(int)
+		res.UsedCPU, _ = v["usecpu"].(int)
+		res.UsedMEM, _ = v["usemem"].(int)
 		result = append(result, &res)
 	}
-	return result, nil
+	return result, count, nil
 }
 
 //GetTenantRes get pagedTenantServiceRes(s)
@@ -1449,6 +1456,42 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 	return nil
 }
 
+//ChangeLBPort change lb mapping port
+//only support change to existing port in this tenants
+func (s *ServiceAction) ChangeLBPort(tenantID, serviceID string, containerPort, changelbPort int) (*dbmodel.TenantServiceLBMappingPort, *util.APIHandleError) {
+	oldmapport, err := db.GetManager().TenantServiceLBMappingPortDao().GetLBPortByTenantAndPort(tenantID, changelbPort)
+	if err != nil {
+		logrus.Errorf("change lb port check error, %s", err.Error())
+		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
+	}
+	mapport, err := db.GetManager().TenantServiceLBMappingPortDao().GetTenantServiceLBMappingPort(serviceID, containerPort)
+	if err != nil {
+		logrus.Errorf("change lb port get error, %s", err.Error())
+		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
+	}
+	port := oldmapport.Port
+	oldmapport.Port = mapport.Port
+	mapport.Port = port
+	tx := db.GetManager().Begin()
+	if err := db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).DELServiceLBMappingPortByServiceIDAndPort(oldmapport.ServiceID, port); err != nil {
+		tx.Rollback()
+		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
+	}
+	if err := db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).UpdateModel(mapport); err != nil {
+		tx.Rollback()
+		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
+	}
+	if err := db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).AddModel(oldmapport); err != nil {
+		tx.Rollback()
+		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
+	}
+	return mapport, nil
+}
+
 //VolumnVar var volumn
 func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, action string) *util.APIHandleError {
 	localPath := os.Getenv("LOCAL_DATA_PATH")
@@ -1487,11 +1530,12 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, ac
 		}
 	case "delete":
 		if tsv.VolumeName != "" {
-			if err := db.GetManager().TenantServiceVolumeDao().DeleteModel(tsv.ServiceID, tsv.VolumeName); err != nil {
+			err := db.GetManager().TenantServiceVolumeDao().DeleteModel(tsv.ServiceID, tsv.VolumeName)
+			if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
 		} else {
-			if err := db.GetManager().TenantServiceVolumeDao().DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath); err != nil {
+			if err := db.GetManager().TenantServiceVolumeDao().DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
 		}

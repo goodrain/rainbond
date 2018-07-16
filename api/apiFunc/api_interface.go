@@ -55,6 +55,7 @@ type ServiceInterface interface {
 	PutPorts(w http.ResponseWriter, r *http.Request)
 	PortOuterController(w http.ResponseWriter, r *http.Request)
 	PortInnerController(w http.ResponseWriter, r *http.Request)
+	ChangeLBPort(w http.ResponseWriter, r *http.Request)
 	RollBack(w http.ResponseWriter, r *http.Request)
 	AddVolume(w http.ResponseWriter, r *http.Request)
 	DeleteVolume(w http.ResponseWriter, r *http.Request)
@@ -114,6 +115,8 @@ type PluginInterface interface {
 	GePluginEnvWhichCanBeSet(w http.ResponseWriter, r *http.Request)
 	UpdateVersionEnv(w http.ResponseWriter, r *http.Request)
 	GetPluginDefaultEnvs(w http.ResponseWriter, r *http.Request)
+	SharePlugin(w http.ResponseWriter, r *http.Request)
+	SharePluginResult(w http.ResponseWriter, r *http.Request)
 }
 
 //RulesInterface RulesInterface
@@ -136,7 +139,6 @@ type AppInterface interface {
 	ExportApp(w http.ResponseWriter, r *http.Request)
 	Download(w http.ResponseWriter, r *http.Request)
 	Upload(w http.ResponseWriter, r *http.Request)
+	ImportID(w http.ResponseWriter, r *http.Request)
 	ImportApp(w http.ResponseWriter, r *http.Request)
-	BackupApp(w http.ResponseWriter, r *http.Request)
-	RecoverApp(w http.ResponseWriter, r *http.Request)
 }

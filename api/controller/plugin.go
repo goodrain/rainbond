@@ -21,10 +21,12 @@ package controller
 import (
 	"net/http"
 
-	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
+	"github.com/goodrain/rainbond/api/handler/share"
 
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/api/middleware"
+	"github.com/goodrain/rainbond/util"
 
 	api_model "github.com/goodrain/rainbond/api/model"
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -458,6 +460,10 @@ func (t *TenantStruct) addPluginSet(w http.ResponseWriter, r *http.Request) {
 	}
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
+	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
+	pss.ServiceAlias = serviceAlias
+	pss.TenantName = tenantName
 	re, err := handler.GetServiceManager().SetTenantServicePluginRelation(tenantID, serviceID, &pss)
 	if err != nil {
 		err.Handle(r, w)
@@ -606,4 +612,40 @@ func (t *TenantStruct) UpdateVersionEnv(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
+}
+
+//SharePlugin share tenants plugin
+func (t *TenantStruct) SharePlugin(w http.ResponseWriter, r *http.Request) {
+	var sp share.PluginShare
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &sp.Body, nil)
+	if !ok {
+		return
+	}
+	if sp.Body.ImageInfo.HubURL == "" || sp.Body.ImageInfo.Namespace == "" {
+		httputil.ReturnError(r, w, 400, "hub url or hub namespace can not be empty")
+		return
+	}
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	sp.TenantID = tenantID
+	sp.PluginID = chi.URLParam(r, "plugin_id")
+	if sp.Body.EventID == "" {
+		sp.Body.EventID = util.NewUUID()
+	}
+	res, errS := handler.GetPluginShareHandle().Share(sp)
+	if errS != nil {
+		errS.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, res)
+}
+
+//SharePluginResult SharePluginResult
+func (t *TenantStruct) SharePluginResult(w http.ResponseWriter, r *http.Request) {
+	shareID := chi.URLParam(r, "share_id")
+	res, errS := handler.GetPluginShareHandle().ShareResult(shareID)
+	if errS != nil {
+		errS.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, res)
 }

@@ -1,12 +1,12 @@
 GO_LDFLAGS=-ldflags " -w"
-VERSION=3.5
+VERSION=3.6
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 BASE_DOCKER=./hack/contrib/docker
 BIN_PATH=./_output/${VERSION}
 
 default: help
-all: build pkgs images ## build linux binaries, build linux packages, build images for docker
+all: build images ## build linux binaries, build images for docker
 
 clean: 
 	@rm -rf ${BIN_PATH}/*
@@ -33,14 +33,14 @@ build-api:
 build-webcli:
 	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-webcli ./cmd/webcli
 	
-deb: ## build the deb packages
+deb:
 	@bash ./release.sh deb
-rpm: ## build the rpm packages
+rpm: 
 	@bash ./release.sh rpm
 pkgs:
 	@bash ./release.sh pkg
 	
-images: build-image-worker build-image-mq build-image-chaos build-image-entrance build-image-eventlog build-image-api build-image-webcli ## build all images
+images: build-image-worker build-image-mq build-image-chaos build-image-entrance build-image-eventlog build-image-api build-image-webcli build-image-cni-tools ## build all images
 build-image-worker:
 	@echo "🐳 $@"
 	@bash ./release.sh worker
@@ -50,10 +50,14 @@ build-image-mq:
 build-image-chaos:
 	@echo "🐳 $@"
 	@bash ./release.sh chaos
-build-image-node:
+build-image-cni-tools:
 	@echo "🐳 $@"
-	@bash ./release.sh node
+	@bash ./release.sh build
 #	@docker run -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:1.8.3 go build  ${GO_LDFLAGS}  -o ${BASE_DOCKER}/node/${BASE_NAME}-node ./cmd/node
+build-image-monitor:
+	@echo "🐳 $@"
+	@bash ./release.sh monitor
+
 build-image-entrance:
 	@echo "🐳 $@"
 	@cp -r ${BASE_DOCKER}/dist ${BASE_DOCKER}/entrance/dist
@@ -71,13 +75,16 @@ build-image-webcli:
 	@bash ./release.sh webcli
 
 run-api:build-api
-	${BIN_PATH}/${BASE_NAME}-api --log-level=debug --mysql="root:admin@tcp(127.0.0.1:3306)/region" --kube-config="`PWD`/test/admin.kubeconfig"
+	${BIN_PATH}/${BASE_NAME}-api --log-level=debug \
+	   --mysql="root:admin@tcp(127.0.0.1:3306)/region" \
+	   --kube-config="`PWD`/test/admin.kubeconfig" \
+	   --etcd=http://127.0.0.1:4001,http://127.0.0.1:2379
 run-mq:build-mq
 	${BIN_PATH}/${BASE_NAME}-mq --log-level=debug
 run-worker:build-worker
 	CUR_NET=midonet EX_DOMAIN=test-ali.goodrain.net:10080 ${BIN_PATH}/${BASE_NAME}-worker \
 	--log-level=debug  \
-	--mysql="root:admin@tcp(127.0.0.1:3306)/region" \
+	--mysql="root:@tcp(127.0.0.1:3306)/region" \
 	--kube-config=./test/admin.kubeconfig
 run-chaos:build-chaos
 	${BIN_PATH}/${BASE_NAME}-chaos
@@ -97,15 +104,11 @@ run-node:build-node
 	 --statsd.mapping-config=`pwd`/test/mapper.yml \
 	 --log-level=debug
 
-doc: ## build the docs 
+doc:  
 	@cd cmd/api && swagger generate spec -o ../../hack/contrib/docker/api/html/swagger.json
 
 help: ## this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-	@echo "\033[32m ❗❗❗ eventlog,entrance,chaos,mq,worker,webcli,api not support deb/rpm \033[0m"
-	@echo "\033[32m ❗❗❗ node,grctl not support image \033[0m"
-	@echo "\033[32m  plugin: node,grctl,eventlog,entrance,chaos,mq,worker,webcli,api  \033[0m"
-	@echo "\033[32m   \033[0m"
 	@echo "\033[36m 🤔 single plugin,how to work?   \033[0m"
 	@echo "\033[01;34mmake build-<plugin>\033[0m Just like: make build-mq"
 	@echo "\033[01;34mmake build-image-<plugin>\033[0m Just like: make build-image-mq"

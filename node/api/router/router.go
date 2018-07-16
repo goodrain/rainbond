@@ -53,7 +53,6 @@ func Routers(mode string) *chi.Mux {
 				r.Get("/datacenter", controller.GetDatacenterConfig)
 				r.Put("/datacenter", controller.PutDatacenterConfig)
 			})
-
 			r.Route("/nodes", func(r chi.Router) {
 				r.Get("/fullres", controller.RegionRes)
 				r.Get("/resources", controller.Resources)
@@ -88,7 +87,6 @@ func Routers(mode string) *chi.Mux {
 				r.Put("/prometheus/start/{start}/end/{end}/step/{step}/expr", controller.GetExpr)
 
 			})
-
 			//TODO:
 			//任务执行框架相关API
 			//任务

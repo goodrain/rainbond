@@ -98,6 +98,11 @@ func (t Task) String() string {
 	return string(res)
 }
 
+//Decode Decode
+func (t *Task) Decode(data []byte) error {
+	return ffjson.Unmarshal(data, t)
+}
+
 //UpdataOutPut 更新状态
 func (t *Task) UpdataOutPut(output TaskOutPut) {
 	updateIndex := -1

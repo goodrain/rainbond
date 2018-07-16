@@ -23,11 +23,12 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/cmd/worker/option"
+	"github.com/goodrain/rainbond/appruntimesync/clean"
 	"github.com/goodrain/rainbond/appruntimesync/pb"
 	"github.com/goodrain/rainbond/appruntimesync/pod"
 	"github.com/goodrain/rainbond/appruntimesync/source"
 	"github.com/goodrain/rainbond/appruntimesync/status"
+	"github.com/goodrain/rainbond/cmd/worker/option"
 	"golang.org/x/net/context"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -42,6 +43,7 @@ type AppRuntimeSyncServer struct {
 	Cancel        context.CancelFunc
 	ClientSet     *kubernetes.Clientset
 	podCache      *pod.CacheManager
+	clean         *clean.Manager
 }
 
 //NewAppRuntimeSyncServer create app runtime sync server
@@ -52,6 +54,8 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 	if err != nil {
 		logrus.Error(err)
 	}
+	config.QPS = 50
+	config.Burst = 100
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		logrus.Error(err)
@@ -60,6 +64,10 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 	statusManager := status.NewManager(ctx, clientset)
 	stopChan := make(chan struct{})
 	podCache := pod.NewCacheManager(clientset)
+	Clean, err := clean.NewManager(ctx, clientset)
+	if err != nil {
+		logrus.Error(err)
+	}
 	arss := &AppRuntimeSyncServer{
 		c:         conf,
 		Ctx:       ctx,
@@ -67,6 +75,7 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 		Cancel:    cancel,
 		ClientSet: clientset,
 		podCache:  podCache,
+		clean:     Clean,
 	}
 	arss.StatusManager = statusManager
 	return arss
@@ -137,6 +146,7 @@ func (a *AppRuntimeSyncServer) Start() error {
 		a.stopChan,
 	)
 	a.podCache.Start()
+	a.clean.Start()
 	logrus.Info("app runtime sync server started...")
 	return nil
 }
@@ -146,4 +156,5 @@ func (a *AppRuntimeSyncServer) Stop() {
 	a.Cancel()
 	close(a.stopChan)
 	a.podCache.Stop()
+	a.clean.Stop()
 }

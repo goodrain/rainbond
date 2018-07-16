@@ -2,12 +2,12 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/goodrain/rainbond)](https://goreportcard.com/report/github.com/goodrain/rainbond) 
 [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
-![Rainbond version](https://img.shields.io/badge/version-v3.5-brightgreen.svg)
+![Rainbond version](https://img.shields.io/badge/version-v3.6-brightgreen.svg)
 [![Build Status](https://travis-ci.org/goodrain/rainbond.svg?branch=master)](https://travis-ci.org/goodrain/rainbond)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
 
-[Website](http://www.rainbond.com) • [Docs](https://www.rainbond.com/docs/stable/) • [Public Cloud](https://sso.goodrain.com/#/login/https%3A%2F%2Fwww.goodrain.com%2F%23%2Findex) • [中文README](https://github.com/goodrain/rainbond/blob/V3.6/readme_zh.md)
+[Website](http://www.rainbond.com) • [Docs](https://www.rainbond.com/docs/stable/) • [Public Cloud](https://console.goodrain.com) • [中文README](https://github.com/goodrain/rainbond/blob/V3.6/readme_zh.md)
 
 **Rainbond** is an application-centric Platform as a Service, with innovative concept and complete ecological comes from continuous verification and optimization.
 
@@ -18,18 +18,22 @@ Choose Rainbond for the same reasons disruptive companies do: it serve as a easy
 ## Features
 
 * Kubernetes scheduling system intergated
-* Application-centric console
+* Application-centric product definition
+* As the basic system to build the cloud native datacenter
 * Supports multiple microservice architecture (Spring Cloud, Dubbo and api gateway)
 * Native microservice governance (service discovery, dynamic routing, limiting and fuse) based on extendable Service Mesh 
 * Business-level application performance analysis supports multiple types protocols (HTTP, Mysql, PostgreSQL)
 * Build applications from source codeS (Java, PHP, Python, Golang, Ruby, etc.)
 * Continuous build and deployment from private and public git repositories
 * Quick application build with container image, docker-run command and docker-compose
+* Support application group full backup and recovery, migration of application groups across tenants or across data centers.
 * Pluggable data center supports various types of load balancing, SDN networks, various types of storage systems development
+* Application plug-in system support, flexible extension of application ancillary functions, such as log processing, firewall, traffic analysis, etc
 * Public and private application market with complete application sharing mechanism
 * Multiple data center and across data center application deployment
 * The management node (platform service) HA available.
-* Compute cluster automation management, scale on demand, complete node monitoring.
+* Cluster automatic operation and maintenance, monitoring multidimensional indicators.
+* Provide complete business solution cloud delivery process.
 
 ## Quick Start
 
@@ -39,11 +43,21 @@ Choose Rainbond for the same reasons disruptive companies do: it serve as a easy
 
 ## Architecture
 
-<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_architecture.png" href="http://www.rainbond.com/docs/stable/getting-started/architecture.html">
+<img src="https://static.goodrain.com/images/docs/3.6/architecture/architecture.png" href="http://www.rainbond.com/docs/stable/architecture/architecture.html">
 
 ## Roadmap
 
-[>>3.6-Roadmap](https://github.com/goodrain/rainbond/projects/3)
+Read the [Roadmap](https://github.com/goodrain/rainbond-docs/blob/master/v3.6/architecture/roadmap.md).
+
+## Control UI
+
+<img src="./docs/buildfromsourcecode.gif" href="http://www.rainbond.com/docs/stable">
+
+* Source code creation application process
+
+<img src="./docs/topology.gif" href="http://www.rainbond.com/docs/stable">
+
+* Business application group topology diagram,The network topology, applied relational topology and real-time monitoring are shown here.
 
 ## Contributing
 
@@ -57,3 +71,21 @@ Please read [CONTRIBUTING](https://github.com/goodrain/rainbond/blob/master/CONT
 
 Rainbond is under the LGPL-3.0 license, see [LICENSE](https://github.com/goodrain/rainbond/blob/master/LICENSE) and [Licensing](https://github.com/goodrain/rainbond/blob/master/Licensing.md) for details.
 
+## Acknowledgment
+
+Thanks for the following open source project
+
+* [Kubernetes](https://github.com/kubernetes/kubernetes)
+* [Docker/Moby](https://github.com/moby/moby)
+* [Heroku Buildpacks](https://github.com/heroku?utf8=%E2%9C%93&q=buildpack&type=&language=)
+* [OpenResty](https://github.com/openresty/)
+* [Calico](https://github.com/projectcalico)
+* [Midonet](https://github.com/midonet/midonet)
+* [Etcd](https://github.com/coreos/etcd)
+* [Prometheus](https://github.com/prometheus/prometheus)
+* [GlusterFS](https://github.com/gluster/glusterfs)
+* [Ceph](https://github.com/ceph/ceph)
+* [CockroachDB](https://github.com/cockroachdb/cockroach)
+* [MySQL](https://github.com/mysql/mysql-server)
+* [Weave Scope](https://github.com/weaveworks/scope)
+* [Ant Design](https://github.com/ant-design/ant-design)

@@ -64,10 +64,8 @@ func (t *PluginDaoImpl) GetPluginByID(id, tenantID string) (*model.TenantPlugin,
 
 //DeletePluginByID DeletePluginByID
 func (t *PluginDaoImpl) DeletePluginByID(id, tenantID string) error {
-	relation := &model.TenantPlugin{
-		PluginID: id,
-	}
-	if err := t.DB.Where("plugin_id=? and tenant_id=?", id, tenantID).Delete(relation).Error; err != nil {
+	var plugin model.TenantPlugin
+	if err := t.DB.Where("plugin_id=? and tenant_id=?", id, tenantID).Delete(&plugin).Error; err != nil {
 		return err
 	}
 	return nil
@@ -195,12 +193,12 @@ type PluginBuildVersionDaoImpl struct {
 func (t *PluginBuildVersionDaoImpl) AddModel(mo model.Interface) error {
 	version := mo.(*model.TenantPluginBuildVersion)
 	var oldVersion model.TenantPluginBuildVersion
-	if ok := t.DB.Where("plugin_id =? and version_id = ?", version.PluginID, version.VersionID).Find(&oldVersion).RecordNotFound(); ok {
+	if ok := t.DB.Where("plugin_id =? and version_id = ? and deploy_version=?", version.PluginID, version.VersionID, version.DeployVersion).Find(&oldVersion).RecordNotFound(); ok {
 		if err := t.DB.Create(version).Error; err != nil {
 			return err
 		}
 	} else {
-		return fmt.Errorf("plugin build version %s is exist", version.VersionID)
+		return fmt.Errorf("plugin build version %s and deploy_verson %s is exist", version.VersionID, version.DeployVersion)
 	}
 	return nil
 }
@@ -253,6 +251,24 @@ func (t *PluginBuildVersionDaoImpl) GetBuildVersionByPluginID(pluginID string) (
 func (t *PluginBuildVersionDaoImpl) GetBuildVersionByVersionID(pluginID, versionID string) (*model.TenantPluginBuildVersion, error) {
 	var version model.TenantPluginBuildVersion
 	if err := t.DB.Where("plugin_id=? and version_id = ? ", pluginID, versionID).Find(&version).Error; err != nil {
+		return nil, err
+	}
+	return &version, nil
+}
+
+//GetBuildVersionByDeployVersion GetBuildVersionByDeployVersion
+func (t *PluginBuildVersionDaoImpl) GetBuildVersionByDeployVersion(pluginID, versionID, deployVersion string) (*model.TenantPluginBuildVersion, error) {
+	var version model.TenantPluginBuildVersion
+	if err := t.DB.Where("plugin_id=? and version_id = ? and deploy_version=?", pluginID, versionID, deployVersion).Find(&version).Error; err != nil {
+		return nil, err
+	}
+	return &version, nil
+}
+
+//GetLastBuildVersionByVersionID get last success build version
+func (t *PluginBuildVersionDaoImpl) GetLastBuildVersionByVersionID(pluginID, versionID string) (*model.TenantPluginBuildVersion, error) {
+	var version model.TenantPluginBuildVersion
+	if err := t.DB.Where("plugin_id=? and version_id = ? and status=?", pluginID, versionID, "complete").Order("ID desc").Limit("1").Find(&version).Error; err != nil {
 		return nil, err
 	}
 	return &version, nil

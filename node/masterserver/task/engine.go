@@ -28,6 +28,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/goodrain/rainbond/util/watch"
+
 	"github.com/goodrain/rainbond/util"
 
 	"github.com/goodrain/rainbond/util/etcd/etcdlock"
@@ -56,7 +58,7 @@ type TaskEngine struct {
 	jobs                nodeserver.Jobs
 	tasksLock, jobsLock sync.Mutex
 	dataCenterConfig    *config.DataCenterConfig
-	nodeCluster         *node.NodeCluster
+	nodeCluster         *node.Cluster
 	currentNode         *model.HostNode
 	down                chan struct{}
 	masterID            client.LeaseID
@@ -65,7 +67,7 @@ type TaskEngine struct {
 }
 
 //CreateTaskEngine 创建task管理引擎
-func CreateTaskEngine(nodeCluster *node.NodeCluster, node *model.HostNode) *TaskEngine {
+func CreateTaskEngine(nodeCluster *node.Cluster, node *model.HostNode) *TaskEngine {
 	ctx, cancel := context.WithCancel(context.Background())
 	task := &TaskEngine{
 		ctx:              ctx,
@@ -86,9 +88,7 @@ func CreateTaskEngine(nodeCluster *node.NodeCluster, node *model.HostNode) *Task
 //Start start
 func (t *TaskEngine) Start(errchan chan error) error {
 	//load all task and wath change event
-	if err := t.loadAndWatchTasks(); err != nil {
-		return err
-	}
+	go t.loadAndWatchTasks(errchan)
 	t.LoadStaticTask()
 	go util.Exec(t.ctx, func() error {
 		t.start(errchan)
@@ -139,38 +139,33 @@ func (t *TaskEngine) Stop() {
 }
 
 //watchTasks watchTasks
-func (t *TaskEngine) loadAndWatchTasks() error {
-	//load rainbond task info
-	res, err := store.DefalutClient.Get("/rainbond/store/tasks/", client.WithPrefix())
+func (t *TaskEngine) loadAndWatchTasks(errChan chan error) {
+	watcher := watch.New(store.DefalutClient.Client, "")
+	taskwatchChan, err := watcher.WatchList(t.ctx, "/rainbond/store/tasks/", "")
 	if err != nil {
-		return fmt.Errorf("load tasks error:%s", err.Error())
+		errChan <- err
 	}
-	for _, kv := range res.Kvs {
-		if task := t.getTaskFromKV(kv); task != nil {
-			t.CacheTask(task)
-		}
-	}
-	go util.Exec(t.ctx, func() error {
-		ctx, cancel := context.WithCancel(t.ctx)
-		defer cancel()
-		ch := store.DefalutClient.WatchByCtx(ctx, "/rainbond/store/tasks/", client.WithPrefix(), client.WithRev(res.Header.Revision))
-		for event := range ch {
-			for _, ev := range event.Events {
-				switch {
-				case ev.IsCreate(), ev.IsModify():
-					if task := t.getTaskFromKV(ev.Kv); task != nil {
-						t.CacheTask(task)
-					}
-				case ev.Type == client.EventTypeDelete:
-					if task := t.getTaskFromKey(string(ev.Kv.Key)); task != nil {
-						t.RemoveTask(task)
-					}
-				}
+	defer taskwatchChan.Stop()
+	for ev := range taskwatchChan.ResultChan() {
+		switch ev.Type {
+		case watch.Added, watch.Modified:
+			task := new(model.Task)
+			if err := task.Decode(ev.GetValue()); err != nil {
+				logrus.Errorf("decode task info error :%s", err)
+				continue
 			}
+			t.CacheTask(task)
+		case watch.Deleted:
+			task := new(model.Task)
+			if err := task.Decode(ev.GetPreValue()); err != nil {
+				logrus.Errorf("decode task info error :%s", err)
+				continue
+			}
+			t.RemoveTask(task)
+		case watch.Error:
+			errChan <- ev.Error
 		}
-		return nil
-	}, 1)
-	return nil
+	}
 }
 
 func (t *TaskEngine) getTaskFromKey(key string) *model.Task {
