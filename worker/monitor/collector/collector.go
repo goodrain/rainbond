@@ -28,8 +28,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	status "github.com/goodrain/rainbond/appruntimesync/client"
 	"github.com/goodrain/rainbond/db"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/goodrain/rainbond/worker/discover"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 //Exporter 收集器
@@ -120,7 +120,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.memory")
 	scrapeTime = time.Now()
-	diskcache := e.statusManager.GetAppDisk()
+	diskcache := e.statusManager.GetAllAppDisk()
 	for k, v := range diskcache {
 		key := strings.Split(k, "_")
 		if len(key) == 2 {
