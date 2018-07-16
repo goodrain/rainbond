@@ -276,7 +276,7 @@ func handleErrAndCode(err error, code int) *util.APIHandleError {
 
 //Resources about resources
 func (r *Region) Resources() ResourcesInterface {
-	return &resources{prefix: "/resources"}
+	return &resources{prefix: "/v2/resources"}
 }
 
 //ResourcesInterface ResourcesInterface
