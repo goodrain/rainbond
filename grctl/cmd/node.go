@@ -424,29 +424,28 @@ func NewCmdNode() cli.Command {
 	return c
 }
 
-func NewCmdNodeRes() cli.Command {
+//NewCmdCluster cmd for cluster
+func NewCmdCluster() cli.Command {
 	c := cli.Command{
-		Name:  "noderes",
-		Usage: "获取计算节点资源信息  grctl noderes",
+		Name:  "cluster",
+		Usage: "获取集群信息  grctl cluster",
 		Action: func(c *cli.Context) error {
 			Common(c)
-			return getNodeWithResource(c)
+			return getClusterInfo(c)
 		},
 	}
 	return c
 }
 
-func getNodeWithResource(c *cli.Context) error {
+func getClusterInfo(c *cli.Context) error {
 	ns, err := clients.K8SClient.Core().Nodes().List(metav1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("获取节点列表失败,details: %s", err.Error())
 		return err
 	}
-
 	table := termtables.CreateTable()
 	table.AddHeaders("NodeName", "Version", "CapCPU(核)", "AllocatableCPU(核)", "UsedCPU(核)", "CapMemory(M)", "AllocatableMemory(M)", "UsedMemory(M)")
 	for _, v := range ns.Items {
-
 		podList, err := clients.K8SClient.Core().Pods(metav1.NamespaceAll).List(metav1.ListOptions{FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": v.Name}).String()})
 		if err != nil {
 
@@ -479,6 +478,7 @@ func getNodeWithResource(c *cli.Context) error {
 	fmt.Println(table.Render())
 	return nil
 }
+
 func isNodeReady(node *client.HostNode) bool {
 	if node.NodeStatus == nil {
 		return false

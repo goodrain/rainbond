@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,28 +16,30 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package clients
+package region
 
 import (
-	"github.com/goodrain/rainbond/api/region"
-	"github.com/goodrain/rainbond/cmd/grctl/option"
+	"reflect"
+
+	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
-//RegionClient region api
-var RegionClient region.Region
+var modelRegistry = make(map[string]reflect.Type)
 
-//NodeClient  node api
-var NodeClient *region.RNodeClient
-
-//InitRegionClient init region api client
-func InitRegionClient(reg option.RegionAPI) error {
-	RegionClient = region.NewRegion(reg.URL, reg.Token, reg.Type)
-	return nil
+func init() {
+	registerType("tenants", &[]*dbmodel.Tenants{})
+	registerType("tenant", &dbmodel.Tenants{})
 }
 
-//InitNodeClient init node api client
-func InitNodeClient(nodeAPI string) error {
-	region.NewNode("http://127.0.0.1:6100/v2")
-	NodeClient = region.GetNode()
-	return nil
+func registerType(name string, elem interface{}) {
+	t := reflect.TypeOf(elem).Elem()
+	modelRegistry[name] = t
+}
+
+func newStruct(name string) (interface{}, bool) {
+	elem, ok := modelRegistry[name]
+	if !ok {
+		return nil, false
+	}
+	return reflect.New(elem).Elem().Interface(), true
 }

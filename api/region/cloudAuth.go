@@ -18,95 +18,85 @@
 
 package region
 
-import (
-	"fmt"
+// //DefineCloudAuth DefineCloudAuth
+// func (t *tenant) DefineCloudAuth(gt *api_model.GetUserToken) DefineCloudAuthInterface {
+// 	return &DefineCloudAuth{
+// 		GT: gt,
+// 	}
+// }
 
-	"github.com/pquerna/ffjson/ffjson"
+// //DefineCloudAuth DefineCloudAuth
+// type DefineCloudAuth struct {
+// 	GT *api_model.GetUserToken
+// }
 
-	"github.com/Sirupsen/logrus"
-	api_model "github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/api/util"
-)
+// //DefineCloudAuthInterface DefineCloudAuthInterface
+// type DefineCloudAuthInterface interface {
+// 	GetToken() ([]byte, error)
+// 	PostToken() ([]byte, error)
+// 	PutToken() error
+// }
 
-//DefineCloudAuth DefineCloudAuth
-func (t *tenant) DefineCloudAuth(gt *api_model.GetUserToken) DefineCloudAuthInterface {
-	return &DefineCloudAuth{
-		GT: gt,
-	}
-}
+// //GetToken GetToken
+// func (d *DefineCloudAuth) GetToken() ([]byte, error) {
+// 	resp, code, err := request(
+// 		fmt.Sprintf("/cloud/auth/%s", d.GT.Body.EID),
+// 		"GET",
+// 		nil,
+// 	)
+// 	if err != nil {
+// 		return nil, util.CreateAPIHandleError(code, err)
+// 	}
+// 	if code > 400 {
+// 		if code == 404 {
+// 			return nil, util.CreateAPIHandleError(code, fmt.Errorf("eid %s is not exist", d.GT.Body.EID))
+// 		}
+// 		return nil, util.CreateAPIHandleError(code, fmt.Errorf("get eid infos %s failed", d.GT.Body.EID))
+// 	}
+// 	//valJ, err := simplejson.NewJson(resp)
+// 	return resp, nil
+// }
 
-//DefineCloudAuth DefineCloudAuth
-type DefineCloudAuth struct {
-	GT *api_model.GetUserToken
-}
+// //PostToken PostToken
+// func (d *DefineCloudAuth) PostToken() ([]byte, error) {
+// 	data, err := ffjson.Marshal(d.GT.Body)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	resp, code, err := request(
+// 		"/cloud/auth",
+// 		"POST",
+// 		data,
+// 	)
+// 	if err != nil {
+// 		logrus.Errorf("create auth token error, %v", err)
+// 		return nil, util.CreateAPIHandleError(code, err)
+// 	}
+// 	if code > 400 {
+// 		logrus.Errorf("create auth token error")
+// 		return nil, util.CreateAPIHandleError(code, fmt.Errorf("cretae auth token failed"))
+// 	}
+// 	return resp, nil
+// }
 
-//DefineCloudAuthInterface DefineCloudAuthInterface
-type DefineCloudAuthInterface interface {
-	GetToken() ([]byte, error)
-	PostToken() ([]byte, error)
-	PutToken() error
-}
-
-//GetToken GetToken
-func (d *DefineCloudAuth) GetToken() ([]byte, error) {
-	resp, code, err := request(
-		fmt.Sprintf("/cloud/auth/%s", d.GT.Body.EID),
-		"GET",
-		nil,
-	)
-	if err != nil {
-		return nil, util.CreateAPIHandleError(code, err)
-	}
-	if code > 400 {
-		if code == 404 {
-			return nil, util.CreateAPIHandleError(code, fmt.Errorf("eid %s is not exist", d.GT.Body.EID))
-		}
-		return nil, util.CreateAPIHandleError(code, fmt.Errorf("get eid infos %s failed", d.GT.Body.EID))
-	}
-	//valJ, err := simplejson.NewJson(resp)
-	return resp, nil
-}
-
-//PostToken PostToken
-func (d *DefineCloudAuth) PostToken() ([]byte, error) {
-	data, err := ffjson.Marshal(d.GT.Body)
-	if err != nil {
-		return nil, err
-	}
-	resp, code, err := request(
-		"/cloud/auth",
-		"POST",
-		data,
-	)
-	if err != nil {
-		logrus.Errorf("create auth token error, %v", err)
-		return nil, util.CreateAPIHandleError(code, err)
-	}
-	if code > 400 {
-		logrus.Errorf("create auth token error")
-		return nil, util.CreateAPIHandleError(code, fmt.Errorf("cretae auth token failed"))
-	}
-	return resp, nil
-}
-
-//PutToken PutToken
-func (d *DefineCloudAuth) PutToken() error {
-	data, err := ffjson.Marshal(d.GT.Body)
-	if err != nil {
-		return err
-	}
-	_, code, err := request(
-		fmt.Sprintf("/cloud/auth/%s", d.GT.Body.EID),
-		"PUT",
-		data,
-	)
-	if err != nil {
-		logrus.Errorf("create auth token error, %v", err)
-		return util.CreateAPIHandleError(code, err)
-	}
-	if code > 400 {
-		logrus.Errorf("create auth token error")
-		return util.CreateAPIHandleError(code, fmt.Errorf("cretae auth token failed"))
-	}
-	return nil
-}
+// //PutToken PutToken
+// func (d *DefineCloudAuth) PutToken() error {
+// 	data, err := ffjson.Marshal(d.GT.Body)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	_, code, err := request(
+// 		fmt.Sprintf("/cloud/auth/%s", d.GT.Body.EID),
+// 		"PUT",
+// 		data,
+// 	)
+// 	if err != nil {
+// 		logrus.Errorf("create auth token error, %v", err)
+// 		return util.CreateAPIHandleError(code, err)
+// 	}
+// 	if code > 400 {
+// 		logrus.Errorf("create auth token error")
+// 		return util.CreateAPIHandleError(code, fmt.Errorf("cretae auth token failed"))
+// 	}
+// 	return nil
+// }

@@ -80,7 +80,7 @@ func getTenantInfo(c *cli.Context) error {
 		fmt.Println("Please provide tenant name")
 		os.Exit(1)
 	}
-	services, err := clients.RegionClient.Tenants().Get(tenantID).Services().List()
+	services, err := clients.RegionClient.Tenants(tenantID).Services("").List()
 	handleErr(err)
 	if services != nil {
 		runtable := termtables.CreateTable()
@@ -117,7 +117,7 @@ func findTenantResourceUsage(c *cli.Context) error {
 	table.AddRow("企业ID：", resources.EID)
 	table.AddRow("正使用CPU资源：", fmt.Sprintf("%.2f Core", float64(resources.UsedCPU)/1000))
 	table.AddRow("正使用内存资源：", fmt.Sprintf("%d %s", resources.UsedMEM, "Mb"))
-	table.AddRow("正使用磁盘资源：", fmt.Sprintf("%.2f Mb", resources.UsedDisk/1024/1024))
+	table.AddRow("正使用磁盘资源：", fmt.Sprintf("%.2f Mb", resources.UsedDisk/1024))
 	table.AddRow("总分配CPU资源：", fmt.Sprintf("%.2f Core", float64(resources.AllocatedCPU)/1000))
 	table.AddRow("总分配内存资源：", fmt.Sprintf("%d %s", resources.AllocatedMEM, "Mb"))
 	fmt.Println(table)

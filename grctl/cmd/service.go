@@ -198,7 +198,7 @@ func getEventLog(c *cli.Context) error {
 	} else {
 		ts := c.Args().Get(1)
 		tas := strings.Split(ts, "/")
-		dl, err := clients.RegionClient.Tenants().Get(tas[0]).Services().EventLog(tas[1], eventID, "debug")
+		dl, err := clients.RegionClient.Tenants(tas[0]).Services(tas[1]).EventLog(eventID, "debug")
 		if err != nil {
 			return err
 		}
@@ -215,17 +215,17 @@ func stopTenantService(c *cli.Context) error {
 	//GET /v2/tenants/{tenant_name}/services/{service_alias}
 	//POST /v2/tenants/{tenant_name}/services/{service_alias}/stop
 
-	tenantID := c.Args().First()
-	if tenantID == "" {
+	tenantName := c.Args().First()
+	if tenantName == "" {
 		fmt.Println("Please provide tenant name")
 		os.Exit(1)
 	}
 	eventID := "system"
-	services, err := clients.RegionClient.Tenants().Get(tenantID).Services().List()
+	services, err := clients.RegionClient.Tenants(tenantName).Services("").List()
 	handleErr(err)
 	for _, service := range services {
 		if service.CurStatus != "closed" && service.CurStatus != "closing" {
-			err := clients.RegionClient.Tenants().Get(tenantID).Services().Stop(service.ServiceAlias, eventID)
+			_, err := clients.RegionClient.Tenants(tenantName).Services(service.ServiceAlias).Stop(eventID)
 			if c.Bool("f") {
 				server := "127.0.0.1:6363"
 				if c.String("event_log_server") != "" {
@@ -252,12 +252,12 @@ func startService(c *cli.Context) error {
 
 	eventID := c.Args().Get(1)
 
-	service, err := clients.RegionClient.Tenants().Get(info[0]).Services().Get(info[1])
+	service, err := clients.RegionClient.Tenants(info[0]).Services(info[1]).Get()
 	handleErr(err)
 	if service == nil {
 		return errors.New("应用不存在:" + info[1])
 	}
-	err = clients.RegionClient.Tenants().Get(info[0]).Services().Start(info[1], eventID)
+	_, err = clients.RegionClient.Tenants(info[0]).Services(info[1]).Start(eventID)
 	handleErr(err)
 	if c.Bool("f") {
 		server := "127.0.0.1:6363"
@@ -281,12 +281,12 @@ func stopService(c *cli.Context) error {
 	info := strings.Split(serviceAlias, "/")
 
 	eventID := c.Args().Get(1)
-	service, err := clients.RegionClient.Tenants().Get(info[0]).Services().Get(info[1])
+	service, err := clients.RegionClient.Tenants(info[0]).Services(info[1]).Get()
 	handleErr(err)
 	if service == nil {
 		return errors.New("应用不存在:" + info[1])
 	}
-	err = clients.RegionClient.Tenants().Get(info[0]).Services().Stop(info[1], eventID)
+	_, err = clients.RegionClient.Tenants(info[0]).Services(info[1]).Stop(eventID)
 	handleErr(err)
 	if c.Bool("f") {
 		server := "127.0.0.1:6363"
@@ -327,7 +327,7 @@ func getAppInfoV2(c *cli.Context) error {
 	} else {
 		serviceAlias = value
 	}
-	service, err := clients.RegionClient.Tenants().Get(tenantName).Services().Get(serviceAlias)
+	service, err := clients.RegionClient.Tenants(tenantName).Services(serviceAlias).Get()
 	handleErr(err)
 	if service == nil {
 		fmt.Println("not found")
@@ -336,8 +336,8 @@ func getAppInfoV2(c *cli.Context) error {
 
 	table := uitable.New()
 	table.Wrap = true // wrap columns
-	tenantID := service["tenantId"]
-	serviceID := service["serviceId"]
+	tenantID := service.TenantID
+	serviceID := service.ServiceID
 	//volumes:=service[""]
 
 	table.AddRow("Namespace:", tenantID)
@@ -345,7 +345,7 @@ func getAppInfoV2(c *cli.Context) error {
 	//table.AddRow("Volume:", volumes)
 
 	option := metav1.ListOptions{LabelSelector: "name=" + serviceAlias}
-	ps, err := clients.RegionClient.Tenants().Get(tenantName).Services().Pods(serviceAlias)
+	ps, err := clients.RegionClient.Tenants(tenantName).Services(serviceAlias).Pods()
 	handleErr(err)
 
 	var rcMap = make(map[string]string)
