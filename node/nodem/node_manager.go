@@ -28,7 +28,10 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/coreos/etcd/clientv3"
+	"github.com/coreos/etcd/version"
 	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/node/api"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/controller"
 	"github.com/goodrain/rainbond/node/nodem/healthy"
@@ -49,17 +52,40 @@ type NodeManager struct {
 	controller controller.Manager
 	taskrun    taskrun.Manager
 	cfg        *option.Conf
+	apim       *api.Manager
 }
 
 //NewNodeManager new a node manager
-func NewNodeManager(conf *option.Conf) *NodeManager {
+func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
+	etcdcli, err := clientv3.New(conf.Etcd)
+	if err != nil {
+		return nil, err
+	}
+	taskrun, err := taskrun.Newmanager(conf, etcdcli)
+	if err != nil {
+		return nil, err
+	}
+	cluster := client.NewClusterClient(conf, etcdcli)
+	monitor, err := monitor.CreateManager(conf)
+	if err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	nodem := &NodeManager{
-		cfg:    conf,
-		ctx:    ctx,
-		cancel: cancel,
+		cfg:     conf,
+		ctx:     ctx,
+		cancel:  cancel,
+		taskrun: taskrun,
+		cluster: cluster,
+		monitor: monitor,
 	}
-	return nodem
+	return nodem, nil
+}
+
+//AddAPIManager AddApiManager
+func (n *NodeManager) AddAPIManager(apim *api.Manager) error {
+	n.apim = apim
+	return n.monitor.SetAPIRoute(apim)
 }
 
 //Start start
@@ -67,19 +93,19 @@ func (n *NodeManager) Start(errchan chan error) error {
 	if err := n.init(); err != nil {
 		return err
 	}
-	if err := n.controller.Start(); err != nil {
-		return fmt.Errorf("start node controller error,%s", err.Error())
-	}
-	services, err := n.controller.GetAllService()
-	if err != nil {
-		return fmt.Errorf("get all services error,%s", err.Error())
-	}
-	if err := n.healthy.AddServices(services); err != nil {
-		return fmt.Errorf("get all services error,%s", err.Error())
-	}
-	if err := n.healthy.Start(); err != nil {
-		return fmt.Errorf("node healty start error,%s", err.Error())
-	}
+	// if err := n.controller.Start(); err != nil {
+	// 	return fmt.Errorf("start node controller error,%s", err.Error())
+	// }
+	// services, err := n.controller.GetAllService()
+	// if err != nil {
+	// 	return fmt.Errorf("get all services error,%s", err.Error())
+	// }
+	// if err := n.healthy.AddServices(services); err != nil {
+	// 	return fmt.Errorf("get all services error,%s", err.Error())
+	// }
+	// if err := n.healthy.Start(); err != nil {
+	// 	return fmt.Errorf("node healty start error,%s", err.Error())
+	// }
 	go n.monitor.Start(errchan)
 	go n.taskrun.Start(errchan)
 	go n.heartbeat()
@@ -89,6 +115,7 @@ func (n *NodeManager) Start(errchan chan error) error {
 //Stop Stop
 func (n *NodeManager) Stop() {
 	n.cancel()
+	n.cluster.DownNode(&n.HostNode)
 	if n.taskrun != nil {
 		n.taskrun.Stop()
 	}
@@ -165,6 +192,7 @@ func (n *NodeManager) init() error {
 	if node.AvailableCPU == 0 {
 		node.AvailableCPU = int64(runtime.NumCPU())
 	}
+	node.Version = version.Version
 	return nil
 }
 

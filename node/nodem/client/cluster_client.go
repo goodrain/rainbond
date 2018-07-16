@@ -19,7 +19,11 @@
 package client
 
 import (
+	"context"
+	"time"
+
 	"github.com/coreos/etcd/clientv3"
+	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/core/config"
 	"github.com/goodrain/rainbond/node/core/job"
 )
@@ -27,6 +31,7 @@ import (
 //ClusterClient ClusterClient
 type ClusterClient interface {
 	UpdateStatus(*HostNode) error
+	DownNode(*HostNode) error
 	GetMasters() ([]*HostNode, error)
 	GetNode(nodeID string) (*HostNode, error)
 	GetDataCenterConfig() (*config.DataCenterConfig, error)
@@ -37,17 +42,28 @@ type ClusterClient interface {
 }
 
 //NewClusterClient new cluster client
-func NewClusterClient(etcdClient *clientv3.Client) ClusterClient {
+func NewClusterClient(conf *option.Conf, etcdClient *clientv3.Client) ClusterClient {
 	return &etcdClusterClient{
 		etcdClient: etcdClient,
+		conf:       conf,
 	}
+
 }
 
 type etcdClusterClient struct {
 	etcdClient *clientv3.Client
+	conf       *option.Conf
+	onlineLes  clientv3.LeaseID
 }
 
-func (e *etcdClusterClient) UpdateStatus(*HostNode) error {
+func (e *etcdClusterClient) UpdateStatus(n *HostNode) error {
+	n.UpTime = time.Now()
+	if err := e.Update(n); err != nil {
+		return err
+	}
+	if err := e.nodeOnlinePut(n); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -65,4 +81,44 @@ func (e *etcdClusterClient) WatchJobs() <-chan *job.Event {
 
 func (e *etcdClusterClient) GetNode(nodeID string) (*HostNode, error) {
 	return nil, nil
+}
+
+//nodeOnlinePut onde noline status update
+func (e *etcdClusterClient) nodeOnlinePut(h *HostNode) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	if e.onlineLes != 0 {
+		if _, err := e.etcdClient.KeepAlive(ctx, e.onlineLes); err == nil {
+			return nil
+		}
+		e.onlineLes = 0
+	}
+	les, err := e.etcdClient.Grant(ctx, 30)
+	if err != nil {
+		return err
+	}
+	e.onlineLes = les.ID
+	_, err = e.etcdClient.Put(ctx, e.conf.OnlineNodePath+"/"+h.ID, h.PID, clientv3.WithLease(les.ID))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+//Update update node info
+func (e *etcdClusterClient) Update(h *HostNode) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	_, err := e.etcdClient.Put(ctx, e.conf.NodePath+"/"+h.ID, h.String())
+	return err
+}
+
+//Down node
+func (e *etcdClusterClient) DownNode(h *HostNode) error {
+	h.Alived, h.DownTime = false, time.Now()
+	e.Update(h)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	_, err := e.etcdClient.Delete(ctx, e.conf.OnlineNodePath+h.ID)
+	return err
 }

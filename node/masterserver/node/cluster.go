@@ -151,25 +151,22 @@ func (n *Cluster) GetNode(id string) *client.HostNode {
 }
 func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 	if v.Role.HasRule("compute") {
-		if v.NodeStatus != nil {
-			if v.Unschedulable {
+		k8sNode, err := n.kubecli.GetNode(v.ID)
+		if err != nil {
+			logrus.Errorf("get k8s node error:%s", err.Error())
+			v.Status = "error"
+			return
+		}
+		if k8sNode != nil {
+			if v.Unschedulable || k8sNode.Spec.Unschedulable {
 				v.Status = "unschedulable"
 				return
 			}
-			// if v.AvailableCPU == 0 {
-			// 	v.AvailableCPU = v.NodeStatus.Allocatable.Cpu().Value()
-			// }
-			// if v.AvailableMemory == 0 {
-			// 	v.AvailableMemory = v.NodeStatus.Allocatable.Memory().Value()
-			// }
 			var haveready bool
-			for _, condiction := range v.NodeStatus.Conditions {
+			for _, condiction := range k8sNode.Status.Conditions {
 				if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
 					v.Status = "error"
 					return
-				}
-				if v.Status == "unschedulable" || v.Status == "init" || v.Status == "init_success" || v.Status == "init_failed" || v.Status == "installing" || v.Status == "install_success" || v.Status == "install_failed" {
-
 				}
 				if condiction.Type == "Ready" {
 					haveready = true
@@ -193,10 +190,13 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		}
 		if v.Alived {
 			for _, condition := range v.NodeStatus.Conditions {
-				if condition.Type == "NodeInit" && condition.Status == "True" {
+				if condition.Type == "Ready" && condition.Status == "True" {
 					v.Status = "running"
+					return
 				}
 			}
+		} else {
+			v.Status = "down"
 		}
 	}
 }

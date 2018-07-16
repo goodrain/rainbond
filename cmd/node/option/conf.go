@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/node/utils"
-	"github.com/prometheus/node_exporter/collector"
 
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
@@ -55,15 +54,6 @@ func Init() error {
 	Config.SetLog()
 	if err := Config.parse(); err != nil {
 		return err
-	}
-	// This instance is only used to check collector creation and logging.
-	nc, err := collector.NewNodeCollector()
-	if err != nil {
-		logrus.Fatalf("Couldn't create collector: %s", err)
-	}
-	logrus.Infof("Enabled collectors:")
-	for n := range nc.Collectors {
-		logrus.Infof(" - %s", n)
 	}
 	initialized = true
 	return nil
@@ -241,11 +231,4 @@ func (c *Conf) parse() error {
 	//固定值
 	c.HostIDFile = "/opt/rainbond/etc/node/node_host_uuid.conf"
 	return nil
-}
-
-func Exit(i interface{}) {
-	close(exitChan)
-	if watcher != nil {
-		watcher.Close()
-	}
 }

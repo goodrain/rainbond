@@ -24,23 +24,18 @@ import (
 	"syscall"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/node/api"
 	"github.com/goodrain/rainbond/node/api/controller"
-	"github.com/goodrain/rainbond/node/core/job"
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/masterserver"
-	"github.com/goodrain/rainbond/node/monitormessage"
 	"github.com/goodrain/rainbond/node/nodem"
-	"github.com/goodrain/rainbond/node/statsd"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/Sirupsen/logrus"
 
 	eventLog "github.com/goodrain/rainbond/event"
 
 	"os/signal"
-
-	"github.com/goodrain/rainbond/node/api"
 )
 
 //Run start run
@@ -61,14 +56,15 @@ func Run(c *option.Conf) error {
 		return err
 	}
 	defer kubecli.Stop()
-
 	// init etcd client
 	if err = store.NewClient(c); err != nil {
 		return fmt.Errorf("Connect to ETCD %s failed: %s",
 			c.Etcd.Endpoints, err)
 	}
-
-	nodemanager := nodem.NewNodeManager(c)
+	nodemanager, err := nodem.NewNodeManager(c)
+	if err != nil {
+		return fmt.Errorf("create node manager failed: %s", err)
+	}
 	if err := nodemanager.Start(errChan); err != nil {
 		return fmt.Errorf("start node manager failed: %s", err)
 	}
@@ -87,27 +83,17 @@ func Run(c *option.Conf) error {
 		}
 		defer ms.Stop(nil)
 	}
-	//statsd exporter
-	registry := prometheus.NewRegistry()
-	exporter := statsd.CreateExporter(c.StatsdConfig, registry)
-	if err := exporter.Start(); err != nil {
-		logrus.Errorf("start statsd exporter server error,%s", err.Error())
-		return err
-	}
-	meserver := monitormessage.CreateUDPServer("0.0.0.0", 6666, c.Etcd.Endpoints)
-	if err := meserver.Start(); err != nil {
-		return err
-	}
-	//启动API服务
-	apiManager := api.NewManager(*c, nodemanager.GetCurrentNode(), ms, exporter, kubecli)
+	//create api manager
+	apiManager := api.NewManager(*c, nodemanager.GetCurrentNode(), ms, kubecli)
 	if err := apiManager.Start(errChan); err != nil {
+		return err
+	}
+	if err := nodemanager.AddAPIManager(apiManager); err != nil {
 		return err
 	}
 	defer apiManager.Stop()
 
-	defer job.Exit(nil)
 	defer controller.Exist(nil)
-	defer option.Exit(nil)
 	//step finally: listen Signal
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
