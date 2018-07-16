@@ -20,10 +20,28 @@ package service
 
 //Service Service
 type Service struct {
-	Name          string
-	ServiceHealth *Health
+	Name          string   `yaml:"name"`
+	ServiceHealth *Health  `yaml:"service_health"`
+	Unit          []string `yaml:"unit"`
+	Service       []string `yaml:"service"`
+	Install       []string `yaml:"install"`
+}
+
+// default config for all services
+type Services struct {
+	Version  string     `yaml:"version"`
+	Services []*Service `yaml:"services"`
+}
+
+// service list of the node
+type ServiceList struct {
+	Version  string `yaml:"version"`
+	Services []struct {
+		Name string `yaml:"name"`
+	} `yaml:"services"`
 }
 
 //Health ServiceHealth
 type Health struct {
+	Model string `yaml:"model"`
 }

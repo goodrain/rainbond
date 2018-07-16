@@ -108,6 +108,11 @@ type Conf struct {
 	StatsdConfig     StatsdConfig
 	UDPMonitorConfig UDPMonitorConfig
 	MinResyncPeriod  time.Duration
+
+	// for node controller
+	DefaultConfigFile string
+	ServiceListFile   string
+
 }
 
 //StatsdConfig StatsdConfig

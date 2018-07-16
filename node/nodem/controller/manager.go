@@ -18,8 +18,12 @@
 
 package controller
 
-import (
-	"github.com/goodrain/rainbond/node/nodem/service"
+import "github.com/goodrain/rainbond/node/nodem/service"
+
+const (
+	Init  = "create"
+	Add   = "add"
+	Start = "start"
 )
 
 //Manager Manager

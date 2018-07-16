@@ -61,6 +61,7 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 	if err != nil {
 		return nil, err
 	}
+	controller := controller.NewLinuxManager(conf)
 	taskrun, err := taskrun.Newmanager(conf, etcdcli)
 	if err != nil {
 		return nil, err
@@ -72,12 +73,13 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	nodem := &NodeManager{
-		cfg:     conf,
-		ctx:     ctx,
-		cancel:  cancel,
-		taskrun: taskrun,
-		cluster: cluster,
-		monitor: monitor,
+		cfg:        conf,
+		ctx:        ctx,
+		cancel:     cancel,
+		controller: controller,
+		taskrun:    taskrun,
+		cluster:    cluster,
+		monitor:    monitor,
 	}
 	return nodem, nil
 }
@@ -93,9 +95,9 @@ func (n *NodeManager) Start(errchan chan error) error {
 	if err := n.init(); err != nil {
 		return err
 	}
-	// if err := n.controller.Start(); err != nil {
-	// 	return fmt.Errorf("start node controller error,%s", err.Error())
-	// }
+	 if err := n.controller.Start(); err != nil {
+	 	return fmt.Errorf("start node controller error,%s", err.Error())
+	 }
 	// services, err := n.controller.GetAllService()
 	// if err != nil {
 	// 	return fmt.Errorf("get all services error,%s", err.Error())
