@@ -161,12 +161,25 @@ func (a *AppRuntimeSyncClient) GetStatus(serviceID string) string {
 	return status.Status[serviceID]
 }
 
-//GetAllStatus get all status
-func (a *AppRuntimeSyncClient) GetAppDisk() map[string]float64 {
+//GetAllAppDisk get all service disk
+func (a *AppRuntimeSyncClient) GetAllAppDisk() map[string]float64 {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	status, err := a.AppRuntimeSyncClient.GetAppDisk(ctx, &pb.StatusRequest{
 		ServiceIds: "",
+	})
+	if err != nil {
+		return nil
+	}
+	return status.Disks
+}
+
+//GetAppsDisk get define service disk
+func (a *AppRuntimeSyncClient) GetAppsDisk(serviceIDs string) map[string]float64 {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	status, err := a.AppRuntimeSyncClient.GetAppDisk(ctx, &pb.StatusRequest{
+		ServiceIds: serviceIDs,
 	})
 	if err != nil {
 		return nil

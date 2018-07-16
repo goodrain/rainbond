@@ -28,6 +28,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/goodrain/rainbond/node/api/model"
+	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/pquerna/ffjson/ffjson"
 	//"github.com/goodrain/rainbond/grctl/cmd"
 	"errors"
@@ -83,10 +84,10 @@ type TaskInterface interface {
 	Refresh() *util.APIHandleError
 }
 type NodeInterface interface {
-	Rule(rule string) ([]*model.HostNode, *util.APIHandleError)
-	Get(node string) (*model.HostNode, *util.APIHandleError)
-	List() ([]*model.HostNode, *util.APIHandleError)
-	Add(node *model.APIHostNode) *util.APIHandleError
+	Rule(rule string) ([]*client.HostNode, *util.APIHandleError)
+	Get(node string) (*client.HostNode, *util.APIHandleError)
+	List() ([]*client.HostNode, *util.APIHandleError)
+	Add(node *client.APIHostNode) *util.APIHandleError
 	Up(nid string) *util.APIHandleError
 	Down(nid string) *util.APIHandleError
 	UnSchedulable(nid string) *util.APIHandleError
@@ -142,7 +143,7 @@ func (c *configs) Put(gc *model.GlobalConfig) *util.APIHandleError {
 	return nil
 }
 
-func (n *node) Get(node string) (*model.HostNode, *util.APIHandleError) {
+func (n *node) Get(node string) (*client.HostNode, *util.APIHandleError) {
 	body, code, err := n.client.Request(n.prefix+"/"+node, "GET", nil)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
@@ -151,17 +152,17 @@ func (n *node) Get(node string) (*model.HostNode, *util.APIHandleError) {
 		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
 	}
 	var res utilhttp.ResponseBody
-	var gc model.HostNode
+	var gc client.HostNode
 	res.Bean = &gc
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
 	}
-	if gc, ok := res.Bean.(*model.HostNode); ok {
+	if gc, ok := res.Bean.(*client.HostNode); ok {
 		return gc, nil
 	}
 	return nil, nil
 }
-func (n *node) Rule(rule string) ([]*model.HostNode, *util.APIHandleError) {
+func (n *node) Rule(rule string) ([]*client.HostNode, *util.APIHandleError) {
 	body, code, err := n.client.Request(n.prefix+"/rule/"+rule, "GET", nil)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
@@ -170,17 +171,17 @@ func (n *node) Rule(rule string) ([]*model.HostNode, *util.APIHandleError) {
 		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
 	}
 	var res utilhttp.ResponseBody
-	var gc []*model.HostNode
+	var gc []*client.HostNode
 	res.List = &gc
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
 	}
-	if gc, ok := res.List.(*[]*model.HostNode); ok {
+	if gc, ok := res.List.(*[]*client.HostNode); ok {
 		return *gc, nil
 	}
 	return nil, nil
 }
-func (n *node) List() ([]*model.HostNode, *util.APIHandleError) {
+func (n *node) List() ([]*client.HostNode, *util.APIHandleError) {
 	body, code, err := n.client.Request(n.prefix, "GET", nil)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
@@ -189,12 +190,12 @@ func (n *node) List() ([]*model.HostNode, *util.APIHandleError) {
 		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
 	}
 	var res utilhttp.ResponseBody
-	var gc []*model.HostNode
+	var gc []*client.HostNode
 	res.List = &gc
 	if err := ffjson.Unmarshal(body, &res); err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
 	}
-	if gc, ok := res.List.(*[]*model.HostNode); ok {
+	if gc, ok := res.List.(*[]*client.HostNode); ok {
 		return *gc, nil
 	}
 	return nil, nil
@@ -202,7 +203,7 @@ func (n *node) List() ([]*model.HostNode, *util.APIHandleError) {
 
 // put/post 类
 
-func (n *node) Add(node *model.APIHostNode) *util.APIHandleError {
+func (n *node) Add(node *client.APIHostNode) *util.APIHandleError {
 	body, err := json.Marshal(node)
 	if err != nil {
 		return util.CreateAPIHandleError(400, err)

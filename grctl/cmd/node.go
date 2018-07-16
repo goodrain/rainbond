@@ -33,7 +33,7 @@ import (
 	"github.com/apcera/termtables"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/grctl/clients"
-	"github.com/goodrain/rainbond/node/api/model"
+	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -77,7 +77,7 @@ func NewCmdShow() cli.Command {
 	return c
 }
 
-func getExternalIP(path string, node []*model.HostNode) []string {
+func getExternalIP(path string, node []*client.HostNode) []string {
 	var result []string
 	if fileExist(path) {
 		externalIP, err := ioutil.ReadFile(path)
@@ -103,7 +103,7 @@ func fileExist(path string) bool {
 	}
 	return false
 }
-func handleStatus(serviceTable *termtables.Table, ready bool, v *model.HostNode) {
+func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode) {
 	if v.Role.HasRule("compute") && !v.Role.HasRule("manage") {
 		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Status, v.Alived, !v.Unschedulable, ready)
 	} else if v.Role.HasRule("manage") && !v.Role.HasRule("compute") {
@@ -159,7 +159,7 @@ func NewCmdNode() cli.Command {
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
 					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "Alived", "Schedulable", "Ready")
-					var rest []*model.HostNode
+					var rest []*client.HostNode
 					for _, v := range list {
 						if v.Role.HasRule("manage") {
 							handleStatus(serviceTable, isNodeReady(v), v)
@@ -344,7 +344,7 @@ func NewCmdNode() cli.Command {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					var node model.APIHostNode
+					var node client.APIHostNode
 					if c.IsSet("Role") {
 						node.Role = append(node.Role, c.String("Role"))
 						node.InternalIP = c.String("InternalIP")
@@ -356,7 +356,7 @@ func NewCmdNode() cli.Command {
 						handleErr(err)
 						fmt.Println("开始初始化节点")
 
-						var hostNode *model.HostNode
+						var hostNode *client.HostNode
 						timer := time.NewTimer(15 * time.Second)
 						gotNode := false
 						for !gotNode {
@@ -391,9 +391,9 @@ func NewCmdNode() cli.Command {
 										break
 									}
 								}
-								for _, val := range hostNode.Conditions {
+								for _, val := range hostNode.NodeStatus.Conditions {
 									fmt.Println("正在判断节点状态，请稍等")
-									if hostNode.Alived || (val.Type == model.NodeInit && val.Status == model.ConditionTrue) {
+									if hostNode.Alived || (val.Type == client.NodeInit && val.Status == client.ConditionTrue) {
 										fmt.Printf("节点 %s 初始化成功", hostNode.ID)
 										fmt.Println()
 										header = append(header, string(val.Type))
@@ -402,7 +402,7 @@ func NewCmdNode() cli.Command {
 										tableC.AddRow(content)
 										fmt.Println(tableC.Render())
 										return nil
-									} else if val.Type == model.NodeInit && val.Status == model.ConditionFalse {
+									} else if val.Type == client.NodeInit && val.Status == client.ConditionFalse {
 										fmt.Printf("节点 %s 初始化失败:%s", hostNode.ID, val.Reason)
 										return nil
 									} else {
@@ -479,7 +479,7 @@ func getNodeWithResource(c *cli.Context) error {
 	fmt.Println(table.Render())
 	return nil
 }
-func isNodeReady(node *model.HostNode) bool {
+func isNodeReady(node *client.HostNode) bool {
 	if node.NodeStatus == nil {
 		return false
 	}

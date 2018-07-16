@@ -195,6 +195,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					return
 				}
 			}
+			v.Status = "error"
 		} else {
 			v.Status = "down"
 		}

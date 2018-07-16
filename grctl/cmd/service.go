@@ -33,8 +33,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/apcera/termtables"
-	"github.com/goodrain/rainbond/cmd/grctl/option"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/cmd/grctl/option"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/gorilla/websocket"
 	"github.com/gosuri/uitable"
@@ -216,7 +216,11 @@ func stopTenantService(c *cli.Context) error {
 	//POST /v2/tenants/{tenant_name}/services/{service_alias}/stop
 
 	tenantID := c.Args().First()
-	eventID := c.Args().Get(1)
+	if tenantID == "" {
+		fmt.Println("Please provide tenant name")
+		os.Exit(1)
+	}
+	eventID := "system"
 	services, err := clients.RegionClient.Tenants().Get(tenantID).Services().List()
 	handleErr(err)
 	for _, service := range services {
@@ -228,7 +232,6 @@ func stopTenantService(c *cli.Context) error {
 			}
 			GetEventLogf(eventID, server)
 		}
-		//err = region.StopService(service["service_id"].(string), service["deploy_version"].(string))
 		if err != nil {
 			logrus.Error("停止应用失败:" + err.Error())
 			return err

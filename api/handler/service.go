@@ -727,6 +727,16 @@ func (s *ServiceAction) GetService(tenantID string) ([]*dbmodel.TenantServices, 
 		logrus.Errorf("get service by id error, %v, %v", services, err)
 		return nil, err
 	}
+	var serviceIDs []string
+	for _, s := range services {
+		serviceIDs = append(serviceIDs, s.ServiceID)
+	}
+	status := s.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
+	for _, s := range services {
+		if status, ok := status[s.ServiceID]; ok {
+			s.CurStatus = status
+		}
+	}
 	return services, nil
 }
 
@@ -787,6 +797,11 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 			UsedMEM += serMap[k].ContainerMemory
 		}
 	}
+	disks := s.statusCli.GetAppsDisk(serviceIDs)
+	var value float64
+	for _, v := range disks {
+		value += v
+	}
 	var res api_model.TenantResource
 	res.UUID = uuid
 	res.Name = ""
@@ -795,6 +810,7 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 	res.AllocatedMEM = AllocatedMEM
 	res.UsedCPU = UsedCPU
 	res.UsedMEM = UsedMEM
+	res.UsedDisk = value
 	return &res, nil
 }
 

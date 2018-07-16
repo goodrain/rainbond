@@ -25,8 +25,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"path"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/goodrain/rainbond/api/model"
 	api_model "github.com/goodrain/rainbond/api/model"
@@ -188,7 +188,6 @@ func (s *services) Start(name, eventID string) *util.APIHandleError {
 }
 
 func request(url, method string, body []byte) ([]byte, int, error) {
-	logrus.Infof("req url is %s", region.regionAPI+url)
 	request, err := http.NewRequest(method, region.regionAPI+url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, 500, err
@@ -273,4 +272,42 @@ func handleErrAndCode(err error, code int) *util.APIHandleError {
 		return util.CreateAPIHandleError(code, fmt.Errorf("error with code %d", code))
 	}
 	return nil
+}
+
+//Resources about resources
+func (r *Region) Resources() ResourcesInterface {
+	return &resources{prefix: "/resources"}
+}
+
+//ResourcesInterface ResourcesInterface
+type ResourcesInterface interface {
+	Tenants(tenantName string) ResourcesTenantInterface
+}
+
+type resources struct {
+	prefix string
+}
+
+func (r *resources) Tenants(tenantName string) ResourcesTenantInterface {
+	return &resourcesTenant{prefix: path.Join(r.prefix, "tenants", tenantName)}
+}
+
+//ResourcesTenantInterface ResourcesTenantInterface
+type ResourcesTenantInterface interface {
+	Get() (*model.TenantResource, *util.APIHandleError)
+}
+type resourcesTenant struct {
+	prefix string
+}
+
+func (r *resourcesTenant) Get() (*model.TenantResource, *util.APIHandleError) {
+	res, code, err := request(r.prefix+"/res", "GET", nil)
+	if err != nil {
+		return nil, handleErrAndCode(err, code)
+	}
+	var rt model.TenantResource
+	if err := json.Unmarshal(res, &rt); err != nil {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	return &rt, nil
 }

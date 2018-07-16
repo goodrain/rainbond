@@ -21,6 +21,7 @@ package cache
 import (
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,8 +29,8 @@ import (
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
-	"golang.org/x/net/context"
 	"github.com/goodrain/rainbond/util"
+	"golang.org/x/net/context"
 )
 
 //DiskCache 磁盘异步统计
@@ -38,16 +39,16 @@ type DiskCache struct {
 		Key   string
 		Value float64
 	}
-	dbmanager     db.Manager
-	ctx           context.Context
-	lock          sync.Mutex
+	dbmanager db.Manager
+	ctx       context.Context
+	lock      sync.Mutex
 }
 
 //CreatDiskCache 创建
 func CreatDiskCache(ctx context.Context) *DiskCache {
 	return &DiskCache{
-		dbmanager:     db.GetManager(),
-		ctx:           ctx,
+		dbmanager: db.GetManager(),
+		ctx:       ctx,
 	}
 }
 
@@ -139,4 +140,26 @@ func (d *DiskCache) Get() map[string]float64 {
 		newcache[v.Key] += v.Value
 	}
 	return newcache
+}
+
+//GetTenantDisk GetTenantDisk
+func (d *DiskCache) GetTenantDisk(tenantID string) float64 {
+	var value float64
+	for _, v := range d.cache {
+		if strings.HasSuffix(v.Key, "_"+tenantID) {
+			value += v.Value
+		}
+	}
+	return value
+}
+
+//GetServiceDisk GetServiceDisk
+func (d *DiskCache) GetServiceDisk(serviceID string) float64 {
+	var value float64
+	for _, v := range d.cache {
+		if strings.HasPrefix(v.Key, serviceID+"_") {
+			value += v.Value
+		}
+	}
+	return value
 }

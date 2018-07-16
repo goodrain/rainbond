@@ -30,14 +30,14 @@ type PagedTenantResList struct {
 //TenantResource path参数
 //swagger:parameters getVolumes getDepVolumes
 type TenantResource struct {
-	AllocatedCPU int `json:"alloc_cpu"`
-	AllocatedMEM int `json:"alloc_memory"`
-
-	UsedCPU int    `json:"used_cpu"`
-	UsedMEM int    `json:"used_memory"`
-	Name    string `json:"name"`
-	UUID    string `json:"uuid"`
-	EID     string `json:"eid"`
+	AllocatedCPU int     `json:"alloc_cpu"`
+	AllocatedMEM int     `json:"alloc_memory"`
+	UsedCPU      int     `json:"used_cpu"`
+	UsedMEM      int     `json:"used_memory"`
+	UsedDisk     float64 `json:"used_disk"`
+	Name         string  `json:"name"`
+	UUID         string  `json:"uuid"`
+	EID          string  `json:"eid"`
 }
 
 func (list TenantResList) Len() int {

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/appruntimesync/cache"
 	"github.com/goodrain/rainbond/appruntimesync/clean"
 	"github.com/goodrain/rainbond/appruntimesync/pb"
 	"github.com/goodrain/rainbond/appruntimesync/pod"
@@ -32,7 +33,6 @@ import (
 	"golang.org/x/net/context"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"github.com/goodrain/rainbond/appruntimesync/cache"
 )
 
 //AppRuntimeSyncServer AppRuntimeSyncServer
@@ -107,10 +107,20 @@ func (a *AppRuntimeSyncServer) GetAppStatus(ctx context.Context, sr *pb.StatusRe
 	return &re, nil
 }
 
-//GetDiskStatus get app disk information
+//GetAppDisk get app disk information
 func (a *AppRuntimeSyncServer) GetAppDisk(ctx context.Context, sr *pb.StatusRequest) (*pb.DiskMessage, error) {
 	var re pb.DiskMessage
-	re.Disks = a.cache.Get()
+	if sr.ServiceIds == "" {
+		re.Disks = a.cache.Get()
+		return &re, nil
+	}
+	services := strings.Split(sr.ServiceIds, ",")
+	var rev = make(map[string]float64)
+	for _, s := range services {
+		value := a.cache.GetServiceDisk(s)
+		rev[s] = value
+	}
+	re.Disks = rev
 	return &re, nil
 }
 
