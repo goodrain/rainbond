@@ -247,7 +247,7 @@ func (b *BackupAPPNew) uploadImage(app *RegionServiceSnapshot, version *dbmodel.
 		util.CheckAndCreateDir(filepath.Dir(dstDir))
 		if err := sources.ImageSave(b.DockerClient, version.DeliveredPath, dstDir, b.Logger); err != nil {
 			b.Logger.Error(util.Translation("save image to local dir error"), map[string]string{"step": "backup_builder", "status": "failure"})
-			logrus.Errorf("save image to local dir error when backup app, %s", err.Error())
+			logrus.Errorf("save image(%s) to local dir error when backup app, %s", version.DeliveredPath, err.Error())
 			return err
 		}
 	}
