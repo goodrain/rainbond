@@ -141,6 +141,7 @@ func (n *NodeManager) heartbeat() {
 		if err := n.cluster.UpdateStatus(&n.HostNode); err != nil {
 			logrus.Errorf("update node status error %s", err.Error())
 		}
+		logrus.Info("update node status success")
 		return nil
 	}, time.Second*time.Duration(n.cfg.TTL))
 }

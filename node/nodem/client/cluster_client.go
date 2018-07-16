@@ -58,6 +58,7 @@ type etcdClusterClient struct {
 
 func (e *etcdClusterClient) UpdateStatus(n *HostNode) error {
 	n.UpTime = time.Now()
+	n.Alived = true
 	if err := e.Update(n); err != nil {
 		return err
 	}

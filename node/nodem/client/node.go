@@ -131,7 +131,7 @@ type NodeSystemInfo struct {
 	// The Architecture reported by the node
 	Architecture string `json:"architecture"`
 
-	MemorySize uint32 `json:"memorySize"`
+	MemorySize uint64 `json:"memorySize"`
 }
 
 //Decode decode node info

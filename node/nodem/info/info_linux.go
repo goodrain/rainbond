@@ -22,9 +22,9 @@ package info
 
 import (
 	"bufio"
-	"exec"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
 	"syscall"
@@ -61,18 +61,18 @@ func readOS() map[string]string {
 		if err != nil {
 			return info
 		}
-		lines := strings.Split(line, "=")
+		lines := strings.Split(string(line), "=")
 		if len(lines) >= 2 {
 			info[lines[0]] = lines[1]
 		}
 	}
 }
 
-func getMemory() (total uint32, free uint32) {
+func getMemory() (total uint64, free uint64) {
 	sysInfo := new(syscall.Sysinfo_t)
 	err := syscall.Sysinfo(sysInfo)
 	if err == nil {
-		return sysInfo.Totalram * uint32(syscall.Getpagesize()), sysInfo.Freeram * uint32(syscall.Getpagesize())
+		return sysInfo.Totalram * uint64(syscall.Getpagesize()), sysInfo.Freeram * uint64(syscall.Getpagesize())
 	}
 	return 0, 0
 }
