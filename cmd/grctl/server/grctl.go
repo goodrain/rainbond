@@ -23,19 +23,18 @@ import (
 	"sort"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/cmd/grctl/option"
+	version "github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/grctl/cmd"
 	"github.com/urfave/cli"
 )
 
-//var App *cli.App=cli.NewApp()
 var App *cli.App
 
+//Run Run
 func Run() error {
-
 	App = cli.NewApp()
-	App.Version = option.Version
+	App.Version = version.GetVersion()
 	App.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "config, c",

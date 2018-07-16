@@ -21,13 +21,13 @@ build-chaos:
 build-mqcli:
 	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-mqcli ./cmd/mqcli
 build-node:
-	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-node ./cmd/node
+	@./release.sh localbuild node
 build-entrance:
 	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-entrance ./cmd/entrance	
 build-eventlog:
 	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-eventlog ./cmd/eventlog
 build-grctl:
-	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-grctl ./cmd/grctl
+	@./release.sh localbuild grctl
 build-api:
 	go build ${GO_LDFLAGS} -o ${BIN_PATH}/${BASE_NAME}-api ./cmd/api
 build-webcli:

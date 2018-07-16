@@ -29,7 +29,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
-	"github.com/coreos/etcd/version"
+	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/api"
 	"github.com/goodrain/rainbond/node/nodem/client"
@@ -193,7 +193,7 @@ func (n *NodeManager) init() error {
 	if node.AvailableCPU == 0 {
 		node.AvailableCPU = int64(runtime.NumCPU())
 	}
-	node.Version = version.Version
+	node.Version = cmd.GetVersion()
 	return nil
 }
 

@@ -23,7 +23,6 @@ function prepare() {
     mkdir -pv $releasedir/{tmp,dist}
     path=$PWD
     [ ! -d "$distdir/usr/local/" ] && mkdir -p $distdir/usr/local/bin
-
 }
 
 function build() {
@@ -44,6 +43,17 @@ COPY pkg.tgz /
 EOF
 	docker build -t rainbond/cni:rbd_v3.6 .
 	
+}
+
+function localbuild() {
+    echo "start local build"
+	if [ "$1" = "node" ];then
+    echo "build node"
+    go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o _output/${VERSION}/rainbond-node ./cmd/node
+	elif [ "$1" = "grctl" ];then
+	echo "build grctl"
+	go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o _output/${VERSION}/rainbond-grctl ./cmd/grctl
+	fi
 }
 
 function build::rpm() {
@@ -84,9 +94,13 @@ case $1 in
 	;;
 	pkg)
 		prepare
-		build
+		build 
 		build::rpm
 		build::deb
+	;;
+	localbuild)
+		prepare
+		localbuild $2
 	;;
 	*)
 		build::image $1

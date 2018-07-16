@@ -32,6 +32,10 @@ func ShowVersion(module string) {
 	} else {
 		fmt.Printf("Rainbond %s %s\n", module, os.Getenv("RELEASE_DESC"))
 	}
-
 	os.Exit(0)
+}
+
+//GetVersion GetVersion
+func GetVersion() string {
+	return version
 }
