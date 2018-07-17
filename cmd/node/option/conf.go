@@ -24,8 +24,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/goodrain/rainbond/node/utils"
-
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/fsnotify/fsnotify"
@@ -112,7 +110,6 @@ type Conf struct {
 	// for node controller
 	DefaultConfigFile string
 	ServiceListFile   string
-
 }
 
 //StatsdConfig StatsdConfig
@@ -211,11 +208,12 @@ func cleanKeyPrefix(p string) string {
 	return p
 }
 
+//parse parse
 func (c *Conf) parse() error {
-	err := utils.LoadExtendConf(*confFile, c)
-	if err != nil {
-		return err
-	}
+	// err := utils.LoadExtendConf(*confFile, c)
+	// if err != nil {
+	// 	return err
+	// }
 
 	if c.Etcd.DialTimeout > 0 {
 		c.Etcd.DialTimeout *= time.Second
@@ -227,12 +225,12 @@ func (c *Conf) parse() error {
 		c.LockTTL = 300
 	}
 
-	c.NodePath = cleanKeyPrefix(c.NodePath)
-	c.Proc = cleanKeyPrefix(c.Proc)
-	c.JobPath = cleanKeyPrefix(c.JobPath)
-	c.Lock = cleanKeyPrefix(c.Lock)
-	c.Group = cleanKeyPrefix(c.Group)
-	c.Noticer = cleanKeyPrefix(c.Noticer)
+	// c.NodePath = cleanKeyPrefix(c.NodePath)
+	// c.Proc = cleanKeyPrefix(c.Proc)
+	// c.JobPath = cleanKeyPrefix(c.JobPath)
+	// c.Lock = cleanKeyPrefix(c.Lock)
+	// c.Group = cleanKeyPrefix(c.Group)
+	// c.Noticer = cleanKeyPrefix(c.Noticer)
 	//固定值
 	c.HostIDFile = "/opt/rainbond/etc/node/node_host_uuid.conf"
 	return nil

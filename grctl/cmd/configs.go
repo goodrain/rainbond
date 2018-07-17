@@ -38,7 +38,7 @@ func NewCmdConfigs() cli.Command {
 				Name:  "get",
 				Usage: "get all datacenter configs",
 				Action: func(c *cli.Context) error {
-					configs, err := clients.NodeClient.Configs().Get()
+					configs, err := clients.RegionClient.Configs().Get()
 					if err != nil {
 						return err
 					}
@@ -57,7 +57,7 @@ func NewCmdConfigs() cli.Command {
 				Action: func(c *cli.Context) error {
 					key := c.Args().Get(0)
 					value := c.Args().Get(1)
-					configs, err := clients.NodeClient.Configs().Get()
+					configs, err := clients.RegionClient.Configs().Get()
 					if err != nil {
 						return err
 					}
@@ -77,7 +77,7 @@ func NewCmdConfigs() cli.Command {
 						gc.ValueType = "string"
 						gc.Value = value
 					}
-					err = clients.NodeClient.Configs().Put(configs)
+					err = clients.RegionClient.Configs().Put(configs)
 					if err != nil {
 						return err
 					}

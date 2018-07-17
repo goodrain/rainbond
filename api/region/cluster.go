@@ -19,27 +19,32 @@
 package region
 
 import (
-	"reflect"
-
-	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/node/api/model"
+	utilhttp "github.com/goodrain/rainbond/util/http"
 )
 
-var modelRegistry = make(map[string]reflect.Type)
-
-func init() {
-	registerType("tenants", &[]*dbmodel.Tenants{})
-	registerType("tenant", &dbmodel.Tenants{})
+//ClusterInterface cluster api
+type ClusterInterface interface {
+	GetClusterInfo() (*model.ClusterResource, *util.APIHandleError)
 }
 
-func registerType(name string, elem interface{}) {
-	t := reflect.TypeOf(elem).Elem()
-	modelRegistry[name] = t
+func (r *regionImpl) Cluster() ClusterInterface {
+	return &cluster{prefix: "/v2/cluster", regionImpl: *r}
 }
 
-func newStruct(name string) (interface{}, bool) {
-	elem, ok := modelRegistry[name]
-	if !ok {
-		return nil, false
+type cluster struct {
+	regionImpl
+	prefix string
+}
+
+func (c *cluster) GetClusterInfo() (*model.ClusterResource, *util.APIHandleError) {
+	var cr model.ClusterResource
+	var decode utilhttp.ResponseBody
+	decode.Bean = &cr
+	code, err := c.DoRequest(c.prefix, "GET", nil, &decode)
+	if err != nil {
+		return nil, handleErrAndCode(err, code)
 	}
-	return reflect.New(elem).Elem().Interface(), true
+	return &cr, nil
 }

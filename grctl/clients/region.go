@@ -26,18 +26,8 @@ import (
 //RegionClient region api
 var RegionClient region.Region
 
-//NodeClient  node api
-var NodeClient *region.RNodeClient
-
 //InitRegionClient init region api client
 func InitRegionClient(reg option.RegionAPI) error {
 	RegionClient = region.NewRegion(reg.URL, reg.Token, reg.Type)
-	return nil
-}
-
-//InitNodeClient init node api client
-func InitNodeClient(nodeAPI string) error {
-	region.NewNode("http://127.0.0.1:6100/v2")
-	NodeClient = region.GetNode()
 	return nil
 }

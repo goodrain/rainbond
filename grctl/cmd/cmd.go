@@ -38,12 +38,12 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdShow())
 
 	//task相关命令
-	cmds = append(cmds, NewCmdTasks())
+	//cmds = append(cmds, NewCmdTasks())
 	//数据中心配置相关命令
 	cmds = append(cmds, NewCmdConfigs())
 
 	//cmds = append(cmds, NewCmdComputeGroup())
-	cmds = append(cmds, NewCmdInstall())
+	//cmds = append(cmds, NewCmdInstall())
 	//cmds = append(cmds, NewCmdInstallStatus())
 
 	cmds = append(cmds, NewCmdDomain())
@@ -73,8 +73,4 @@ func Common(c *cli.Context) {
 	if err := clients.InitRegionClient(config.RegionAPI); err != nil {
 		logrus.Warnf("error config region")
 	}
-	if err := clients.InitNodeClient("http://127.0.0.1:6100/v2"); err != nil {
-		logrus.Warnf("error config region")
-	}
-
 }

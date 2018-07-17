@@ -22,9 +22,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/Sirupsen/logrus"
 	version "github.com/goodrain/rainbond/cmd"
-	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/grctl/cmd"
 	"github.com/urfave/cli"
 )
@@ -38,16 +36,12 @@ func Run() error {
 	App.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "config, c",
-			Value: "/etc/goodrain/grctl.json",
-			Usage: "Load configuration from `FILE`",
+			Value: "",
+			Usage: "default <USER_HOME>/grctl.yaml",
 		},
 	}
 	sort.Sort(cli.FlagsByName(App.Flags))
 	sort.Sort(cli.CommandsByName(App.Commands))
 	App.Commands = cmd.GetCmds()
-	if err := clients.InitNodeClient("http://127.0.0.1:6100/v2"); err != nil {
-		logrus.Warnf("error config region")
-	}
-
 	return App.Run(os.Args)
 }

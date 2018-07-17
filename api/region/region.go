@@ -47,7 +47,10 @@ var AllTenant string
 type Region interface {
 	Tenants(name string) TenantInterface
 	Resources() ResourcesInterface
-	//Nodes() NodeInterface
+	Tasks() TaskInterface
+	Nodes() NodeInterface
+	Cluster() ClusterInterface
+	Configs() ConfigsInterface
 	Version() string
 	DoRequest(path, method string, body io.Reader, decode *utilhttp.ResponseBody) (int, error)
 }
@@ -242,8 +245,10 @@ func (r *regionImpl) DoRequest(path, method string, body io.Reader, decode *util
 	if res.Body != nil {
 		defer res.Body.Close()
 	}
-	if err := json.NewDecoder(res.Body).Decode(decode); err != nil {
-		return res.StatusCode, err
+	if decode != nil {
+		if err := json.NewDecoder(res.Body).Decode(decode); err != nil {
+			return res.StatusCode, err
+		}
 	}
 	return res.StatusCode, err
 }

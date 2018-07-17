@@ -89,7 +89,7 @@ func NewCmdInstallStatus() cli.Command {
 		Action: func(c *cli.Context) error {
 			taskID := c.String("taskID")
 			if taskID == "" {
-				tasks, err := clients.NodeClient.Tasks().List()
+				tasks, err := clients.RegionClient.Tasks().List()
 				if err != nil {
 					logrus.Errorf("error get task list,details %s", err.Error())
 					return nil
@@ -192,12 +192,12 @@ func initCluster(c *cli.Context) error {
 	var error *util.APIHandleError
 	for i := 0; i < 10; i++ {
 		time.Sleep(time.Second * 2)
-		gc, error = clients.NodeClient.Configs().Get()
+		gc, error = clients.RegionClient.Configs().Get()
 		if err == nil && gc != nil {
 			for _, nc := range newConfigs {
 				gc.Add(nc)
 			}
-			error = clients.NodeClient.Configs().Put(gc)
+			error = clients.RegionClient.Configs().Put(gc)
 			break
 		}
 	}
@@ -217,7 +217,7 @@ func initCluster(c *cli.Context) error {
 	//	logrus.Errorf("error exec task:%s,details %s", "check_manage_base_services", error.String())
 	//	return error.Err
 	//}
-	error = clients.NodeClient.Tasks().Exec("check_manage_services", []string{hostID})
+	error = clients.RegionClient.Tasks().Exec("check_manage_services", []string{hostID})
 	if error != nil {
 		logrus.Errorf("error exec task:%s,details %s", "check_manage_services", error.String())
 		return error.Err

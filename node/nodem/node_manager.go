@@ -95,9 +95,9 @@ func (n *NodeManager) Start(errchan chan error) error {
 	if err := n.init(); err != nil {
 		return err
 	}
-	 if err := n.controller.Start(); err != nil {
-	 	return fmt.Errorf("start node controller error,%s", err.Error())
-	 }
+	if err := n.controller.Start(); err != nil {
+		return fmt.Errorf("start node controller error,%s", err.Error())
+	}
 	// services, err := n.controller.GetAllService()
 	// if err != nil {
 	// 	return fmt.Errorf("get all services error,%s", err.Error())
