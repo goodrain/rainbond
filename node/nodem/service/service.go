@@ -22,9 +22,13 @@ package service
 type Service struct {
 	Name          string   `yaml:"name"`
 	ServiceHealth *Health  `yaml:"service_health"`
-	Unit          []string `yaml:"unit"`
-	Service       []string `yaml:"service"`
-	Install       []string `yaml:"install"`
+	Dependences   []string `yaml:"dependences"`
+	Type          string   `yaml:"type"`
+	PreStart      string   `yaml:"pre_start"`
+	Start         string   `yaml:"start"`
+	Stop          string   `yaml:"stop"`
+	RestartPolicy string   `yaml:"restart_policy"`
+	RestartSec    string   `yaml:"restart_sec"`
 }
 
 // default config for all services

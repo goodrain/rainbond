@@ -1,5 +1,5 @@
+// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
-// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -18,11 +18,20 @@
 
 package controller
 
-import "github.com/goodrain/rainbond/node/nodem/service"
+import (
+	"github.com/goodrain/rainbond/node/nodem/service"
+)
 
-//Manager Manager
-type Manager interface {
-	Start() error
-	GetAllService() ([]*service.Service, error)
-	Stop() error
+type Controller interface {
+	WriteAllConfig() error
+	RemoveAllConfig() error
+	EnableAll() error
+	DisableAll() error
+	CheckBeforeStart() bool
+	StartAll() error
+	StartByName(serviceName string) error
+	StopAll() error
+	StopByName(serviceName string) error
+	ReLoadServices() error
+	GetAllService() []*service.Service
 }

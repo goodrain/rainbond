@@ -61,12 +61,12 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	controller := controller.NewLinuxManager(conf)
 	taskrun, err := taskrun.Newmanager(conf, etcdcli)
 	if err != nil {
 		return nil, err
 	}
 	cluster := client.NewClusterClient(conf, etcdcli)
+	controller := controller.NewManagerService(conf, cluster)
 	monitor, err := monitor.CreateManager(conf)
 	if err != nil {
 		return nil, err

@@ -1,5 +1,5 @@
+// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
-// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -18,11 +18,32 @@
 
 package controller
 
-import "github.com/goodrain/rainbond/node/nodem/service"
+import (
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/node/nodem/service"
+	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/node/nodem/client"
+)
 
-//Manager Manager
-type Manager interface {
-	Start() error
-	GetAllService() ([]*service.Service, error)
-	Stop() error
+type ManagerService struct {
+	controller Controller
+}
+
+func (m *ManagerService) GetAllService() ([]*service.Service, error) {
+	return m.controller.GetAllService(), nil
+}
+
+func (m *ManagerService) Start() error {
+	logrus.Info("Starting node controller manager with linux.")
+	return m.controller.ReLoadServices()
+}
+
+func (m *ManagerService) Stop() error {
+	return nil
+}
+
+func NewManagerService(conf *option.Conf, cluster client.ClusterClient) *ManagerService {
+	return &ManagerService{
+		NewControllerSystemd(conf, cluster),
+	}
 }

@@ -169,6 +169,8 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.StatsdConfig.MappingConfig, "statsd.mapping-config", "", "Metric mapping configuration file name.")
 	fs.IntVar(&a.StatsdConfig.ReadBuffer, "statsd.read-buffer", 0, "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.")
 	fs.DurationVar(&a.MinResyncPeriod, "min-resync-period", time.Hour*12, "The resync period in reflectors will be random between MinResyncPeriod and 2*MinResyncPeriod")
+	fs.StringVar(&a.DefaultConfigFile, "default-config-file", "/opt/rainbond/conf/default-config.yaml", "All rainbond components config file")
+	fs.StringVar(&a.ServiceListFile, "service-list-file", "/opt/rainbond/conf/manager-services.yaml", "A list of the node include components")
 }
 
 //SetLog 设置log
