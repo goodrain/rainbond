@@ -138,6 +138,10 @@ func Proxy(next http.Handler) http.Handler {
 			handler.GetNodeProxy().Proxy(w, r)
 			return
 		}
+		if strings.HasPrefix(r.RequestURI, "/v2/cluster") {
+			handler.GetNodeProxy().Proxy(w, r)
+			return
+		}
 		if strings.HasPrefix(r.RequestURI, "/v2/builder") {
 			handler.GetBuilderProxy().Proxy(w, r)
 			return

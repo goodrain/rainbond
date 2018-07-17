@@ -53,8 +53,11 @@ func Routers(mode string) *chi.Mux {
 				r.Get("/datacenter", controller.GetDatacenterConfig)
 				r.Put("/datacenter", controller.PutDatacenterConfig)
 			})
+			r.Route("/cluster", func(r chi.Router) {
+				r.Get("/", controller.ClusterInfo)
+			})
 			r.Route("/nodes", func(r chi.Router) {
-				r.Get("/fullres", controller.RegionRes)
+				r.Get("/fullres", controller.ClusterInfo)
 				r.Get("/resources", controller.Resources)
 				r.Get("/capres", controller.CapRes)
 				r.Get("/", controller.GetNodes)

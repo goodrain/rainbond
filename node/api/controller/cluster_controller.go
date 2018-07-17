@@ -333,8 +333,8 @@ func DiskUsage(path string) (disk DiskStatus) {
 	return
 }
 
-//RegionRes RegionRes
-func RegionRes(w http.ResponseWriter, r *http.Request) {
+//ClusterInfo ClusterInfo
+func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 	usedNodeList := make([]string, 0, 10)
 	nodes, err := kubecli.GetNodes()
 	if err != nil {
@@ -365,98 +365,24 @@ func RegionRes(w http.ResponseWriter, r *http.Request) {
 	}
 	disk := DiskUsage("/grdata")
 	podMemRequestMB := memR / 1024 / 1024
-	result := new(model.ClusterResource)
-	result.CapCpu = int(capCPU)
-	result.CapMem = int(capMem) / 1024 / 1024
-	result.ReqCpu = float32(cpuR) / 1000
-	result.ReqMem = int(podMemRequestMB)
-	result.Node = len(nodes)
-	result.Tenant = 0
-	result.CapDisk = disk.All
-	result.ReqDisk = disk.Used
-
+	result := &model.ClusterResource{
+		CapCPU:      int(capCPU),
+		CapMem:      int(capMem) / 1024 / 1024,
+		ReqCPU:      float32(cpuR) / 1000,
+		ReqMem:      int(podMemRequestMB),
+		ComputeNode: len(nodes),
+		CapDisk:     disk.All,
+		ReqDisk:     disk.Used,
+	}
+	allnodes, _ := nodeService.GetAllNode()
+	result.AllNode = len(allnodes)
+	for _, n := range allnodes {
+		if n.Status != "running" {
+			result.NotReadyNode++
+		}
+	}
 	api.ReturnSuccess(r, w, result)
 }
-
-// func AddNode(w http.ResponseWriter, r *http.Request) {
-
-// 	// swagger:operation PUT /v2/node/{node} v2 AddNode
-// 	//
-// 	// 重新上线计算节点
-// 	//
-// 	// add node
-// 	//
-// 	// ---
-// 	// produces:
-// 	// - application/json
-// 	// parameters:
-// 	// - name: name
-// 	//   in: path
-// 	//   description: nodeuid
-// 	//   required: true
-// 	//   type: string
-// 	//   format: string
-// 	//
-// 	// Responses:
-// 	//   '200':
-// 	//    description: '{"ok":true}'
-
-// 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
-// 	//k8snode,err:=core.GetNodeByName(nodeName) //maybe bug fixed
-
-// 	node, err := k8s.GetSource(conf.Config.K8SNode + nodeUID)
-// 	if err != nil {
-// 		outRespDetails(w, http.StatusBadRequest, "error get node from etcd ", "etcd获取节点信息失败", nil, nil)
-// 		return
-// 	}
-// 	if node.Status == "offline" && node.Role.HasRule("tree") {
-// 		_, err := k8s.K8S.Core().Nodes().Get(node.HostName, metav1.GetOptions{})
-// 		if err != nil {
-// 			if apierrors.IsNotFound(err) {
-// 				logrus.Info("create node to kubernetes")
-// 				newk8sNode, err := k8s.CreateK8sNode(node)
-// 				if err != nil {
-// 					outRespDetails(w, 500, "create node failed "+err.Error(), "解析创建node失败", nil, nil)
-// 					return
-// 				}
-// 				realK8SNode, err := k8s.K8S.Core().Nodes().Create(newk8sNode)
-// 				logrus.Infof("重新上线后node uid为 %s ,下线之前node uid 为 %s ", string(realK8SNode.UID), nodeUID)
-// 				if err != nil {
-// 					if !apierrors.IsAlreadyExists(err) {
-// 						node.Status = "running"
-// 					}
-// 					outRespDetails(w, 500, "create node failed "+err.Error(), "创建k8s节点失败", nil, nil)
-// 					return
-// 				}
-// 				logrus.Debugf("reup node %s (old),creating core node ", nodeUID)
-// 				hostNode, err := k8s.GetSource(conf.Config.K8SNode + string(nodeUID))
-// 				if err != nil {
-// 					outRespDetails(w, 500, "get node resource failed "+err.Error(), "etcd获取node资源失败", nil, nil)
-// 					return
-// 				}
-// 				hostNode.ID = string(realK8SNode.UID)
-// 				hostNode.Status = "running"
-// 				//更改状态
-// 				data, _ := json.Marshal(hostNode)
-// 				logrus.Infof("adding node :%s online ,updated to %s ", string(realK8SNode.UID), string(data))
-// 				err = k8s.AddSource(conf.Config.K8SNode+hostNode.ID, hostNode)
-// 				if err != nil {
-// 					outRespDetails(w, 500, "add new node failed "+err.Error(), "添加新node信息失败", nil, nil)
-// 					return
-// 				}
-// 				err = k8s.DeleteSource(conf.Config.K8SNode + nodeUID)
-// 				if err != nil {
-// 					outRespDetails(w, 500, "delete old node failed "+err.Error(), "删除老node信息失败", nil, nil)
-// 					return
-// 				}
-
-// 				logrus.Infof("adding node :%s online ,updated to %s ", string(realK8SNode.UID), string(data))
-// 			}
-// 		}
-// 	}
-
-// 	outRespSuccess(w, nil, nil)
-// }
 
 func outSuccess(w http.ResponseWriter) {
 	s := `{"ok":true}`

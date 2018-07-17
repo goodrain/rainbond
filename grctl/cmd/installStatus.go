@@ -198,32 +198,32 @@ func Status(task string, nodes []string) {
 	lastState = "Start"
 	for checkFail < 3 {
 		time.Sleep(3 * time.Second)
-		taskE, err := clients.NodeClient.Tasks().Get(task)
+		taskE, err := clients.RegionClient.Tasks().Get(task)
 		if err != nil {
 
-			logrus.Warnf("error get task %s ,details %s,retry", task,err.String())
+			logrus.Warnf("error get task %s ,details %s,retry", task, err.String())
 			checkFail += 1
 			continue
 		}
 		//status,error:=clients.NodeClient.Tasks().Status(task)
-		status,err:=clients.NodeClient.Tasks().HandleTaskStatus(task)
-		if err != nil||status==nil {
-			logrus.Warnf("error get task %s status,details %s,retry",task,err.String())
-			checkFail+=1
+		status, err := clients.RegionClient.Tasks().GetTaskStatus(task)
+		if err != nil || status == nil {
+			logrus.Warnf("error get task %s status,details %s,retry", task, err.String())
+			checkFail += 1
 			continue
 		}
-		for k,v:=range *status{
+		for k, v := range status {
 			//不是当前任务需要检测的status
 			if !set[k] {
 				fmt.Print("..")
 				continue
 			}
-			if strings.Contains(v.Status, "error")||strings.Contains(v.CompleStatus,"Failure")||strings.Contains(v.CompleStatus,"Unknow") {
-				checkFail+=1
-				fmt.Errorf("error executing task %s",task)
-				for _,v:=range taskE.OutPut{
-					if set[v.NodeID]{
-						fmt.Printf("on %s :\n %s",v.NodeID,v.Body)
+			if strings.Contains(v.Status, "error") || strings.Contains(v.CompleStatus, "Failure") || strings.Contains(v.CompleStatus, "Unknow") {
+				checkFail += 1
+				fmt.Errorf("error executing task %s", task)
+				for _, v := range taskE.OutPut {
+					if set[v.NodeID] {
+						fmt.Printf("on %s :\n %s", v.NodeID, v.Body)
 					}
 				}
 				os.Exit(1)
@@ -233,13 +233,13 @@ func Status(task string, nodes []string) {
 			} else {
 				fmt.Print("..")
 			}
-			lastState=v.Status
-			if v.Status=="complete"||v.CompleStatus=="Success"{
-				fmt.Printf("task %s is %s %s\n",task,v.Status,v.CompleStatus)
-				lastState=v.Status
-				taskFinished:=taskE
-				var  nextTasks []string
-				for _,v:=range taskFinished.OutPut{
+			lastState = v.Status
+			if v.Status == "complete" || v.CompleStatus == "Success" {
+				fmt.Printf("task %s is %s %s\n", task, v.Status, v.CompleStatus)
+				lastState = v.Status
+				taskFinished := taskE
+				var nextTasks []string
+				for _, v := range taskFinished.OutPut {
 					if !set[v.NodeID] {
 						continue
 					}
@@ -272,7 +272,7 @@ func Task(c *cli.Context, task string, status bool) error {
 	if len(nodes) == 0 {
 		return fmt.Errorf("nodes can not be empty")
 	}
-	err := clients.NodeClient.Tasks().Exec(task, nodes)
+	err := clients.RegionClient.Tasks().Exec(task, nodes)
 	if err != nil {
 		logrus.Errorf("error exec task:%s,details %s", task, err.Error())
 		return err

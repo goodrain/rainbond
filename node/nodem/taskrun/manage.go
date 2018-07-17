@@ -20,6 +20,7 @@ package taskrun
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -48,7 +49,7 @@ type manager struct {
 	*cron.Cron
 	ctx      context.Context
 	cancel   context.CancelFunc
-	Conf     option.Conf
+	Conf     *option.Conf
 	jobs     Jobs // 和结点相关的任务
 	onceJobs Jobs //记录执行的单任务
 	jobLock  sync.Mutex
@@ -76,6 +77,7 @@ func (n *manager) watchJobs(errChan chan error) error {
 		switch event.Type {
 		case watch.Added:
 			j := new(job.Job)
+			//fmt.Println(string(event.GetValue()))
 			err := j.Decode(event.GetValue())
 			if err != nil {
 				logrus.Errorf("decode job error :%s", err)
@@ -84,6 +86,7 @@ func (n *manager) watchJobs(errChan chan error) error {
 			n.addJob(j)
 		case watch.Modified:
 			j := new(job.Job)
+			fmt.Println(string(event.GetValue()))
 			err := j.Decode(event.GetValue())
 			if err != nil {
 				logrus.Errorf("decode job error :%s", err)
@@ -229,6 +232,7 @@ func Newmanager(cfg *option.Conf, etcdCli *clientv3.Client) (Manager, error) {
 		delIDs:   make(map[string]bool, 8),
 		ttl:      cfg.TTL,
 		etcdcli:  etcdCli,
+		Conf:     cfg,
 	}
 	return n, nil
 }

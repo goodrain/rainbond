@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,18 +16,35 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package clients
+package region
 
 import (
-	"github.com/goodrain/rainbond/api/region"
-	"github.com/goodrain/rainbond/cmd/grctl/option"
+	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/node/api/model"
+	utilhttp "github.com/goodrain/rainbond/util/http"
 )
 
-//RegionClient region api
-var RegionClient region.Region
+//ClusterInterface cluster api
+type ClusterInterface interface {
+	GetClusterInfo() (*model.ClusterResource, *util.APIHandleError)
+}
 
-//InitRegionClient init region api client
-func InitRegionClient(reg option.RegionAPI) error {
-	RegionClient = region.NewRegion(reg.URL, reg.Token, reg.Type)
-	return nil
+func (r *regionImpl) Cluster() ClusterInterface {
+	return &cluster{prefix: "/v2/cluster", regionImpl: *r}
+}
+
+type cluster struct {
+	regionImpl
+	prefix string
+}
+
+func (c *cluster) GetClusterInfo() (*model.ClusterResource, *util.APIHandleError) {
+	var cr model.ClusterResource
+	var decode utilhttp.ResponseBody
+	decode.Bean = &cr
+	code, err := c.DoRequest(c.prefix, "GET", nil, &decode)
+	if err != nil {
+		return nil, handleErrAndCode(err, code)
+	}
+	return &cr, nil
 }

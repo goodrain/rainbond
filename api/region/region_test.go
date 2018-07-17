@@ -56,3 +56,23 @@ func TestDoRequest(t *testing.T) {
 	}
 	t.Logf("%+v", tenants)
 }
+
+func TestListNodes(t *testing.T) {
+	region := NewRegion("http://kubeapi.goodrain.me:8888", "", "")
+	services, err := region.Nodes().List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range services {
+		t.Logf("%+v", s)
+	}
+}
+
+func TestGetNodes(t *testing.T) {
+	region := NewRegion("http://kubeapi.goodrain.me:8888", "", "")
+	node, err := region.Nodes().Get("a134eab8-3d42-40f5-84a5-fcf2b7a44b31")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", node)
+}

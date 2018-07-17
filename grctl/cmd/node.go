@@ -25,9 +25,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/apcera/termtables"
@@ -35,8 +33,6 @@ import (
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/urfave/cli"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 )
 
 func handleErr(err *util.APIHandleError) {
@@ -50,7 +46,8 @@ func NewCmdShow() cli.Command {
 		Name:  "show",
 		Usage: "显示region安装完成后访问地址",
 		Action: func(c *cli.Context) error {
-			manageHosts, err := clients.NodeClient.Nodes().Rule("manage")
+			Common(c)
+			manageHosts, err := clients.RegionClient.Nodes().GetNodeByRule("manage")
 			handleErr(err)
 			ips := getExternalIP("/etc/goodrain/envs/.exip", manageHosts)
 			fmt.Println("Manage your apps with webui：")
@@ -124,13 +121,13 @@ func NewCmdNode() cli.Command {
 				Name:  "get",
 				Usage: "get hostID/internal ip",
 				Action: func(c *cli.Context) error {
+					Common(c)
 					id := c.Args().First()
 					if id == "" {
 						logrus.Errorf("need args")
 						return nil
 					}
-
-					nodes, err := clients.NodeClient.Nodes().List()
+					nodes, err := clients.RegionClient.Nodes().List()
 					handleErr(err)
 					for _, v := range nodes {
 						if v.InternalIP == id {
@@ -139,7 +136,7 @@ func NewCmdNode() cli.Command {
 						}
 					}
 
-					v, err := clients.NodeClient.Nodes().Get(id)
+					v, err := clients.RegionClient.Nodes().Get(id)
 					handleErr(err)
 					nodeByte, _ := json.Marshal(v)
 					var out bytes.Buffer
@@ -155,7 +152,8 @@ func NewCmdNode() cli.Command {
 				Name:  "list",
 				Usage: "list",
 				Action: func(c *cli.Context) error {
-					list, err := clients.NodeClient.Nodes().List()
+					Common(c)
+					list, err := clients.RegionClient.Nodes().List()
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
 					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "Alived", "Schedulable", "Ready")
@@ -181,12 +179,13 @@ func NewCmdNode() cli.Command {
 				Name:  "up",
 				Usage: "up hostID",
 				Action: func(c *cli.Context) error {
+					Common(c)
 					id := c.Args().First()
 					if id == "" {
 						logrus.Errorf("need hostID")
 						return nil
 					}
-					err := clients.NodeClient.Nodes().Up(id)
+					err := clients.RegionClient.Nodes().Up(id)
 					handleErr(err)
 					return nil
 				},
@@ -195,12 +194,13 @@ func NewCmdNode() cli.Command {
 				Name:  "down",
 				Usage: "down hostID",
 				Action: func(c *cli.Context) error {
+					Common(c)
 					id := c.Args().First()
 					if id == "" {
 						logrus.Errorf("need hostID")
 						return nil
 					}
-					err := clients.NodeClient.Nodes().Down(id)
+					err := clients.RegionClient.Nodes().Down(id)
 					handleErr(err)
 					return nil
 				},
@@ -209,18 +209,19 @@ func NewCmdNode() cli.Command {
 				Name:  "unscheduable",
 				Usage: "unscheduable hostID",
 				Action: func(c *cli.Context) error {
+					Common(c)
 					id := c.Args().First()
 					if id == "" {
 						logrus.Errorf("need hostID")
 						return nil
 					}
-					node, err := clients.NodeClient.Nodes().Get(id)
+					node, err := clients.RegionClient.Nodes().Get(id)
 					handleErr(err)
 					if !node.Role.HasRule("compute") {
 						logrus.Errorf("管理节点不支持此功能")
 						return nil
 					}
-					err = clients.NodeClient.Nodes().UnSchedulable(id)
+					err = clients.RegionClient.Nodes().UnSchedulable(id)
 					handleErr(err)
 					return nil
 				},
@@ -229,18 +230,19 @@ func NewCmdNode() cli.Command {
 				Name:  "rescheduable",
 				Usage: "rescheduable hostID",
 				Action: func(c *cli.Context) error {
+					Common(c)
 					id := c.Args().First()
 					if id == "" {
 						logrus.Errorf("need hostID")
 						return nil
 					}
-					node, err := clients.NodeClient.Nodes().Get(id)
+					node, err := clients.RegionClient.Nodes().Get(id)
 					handleErr(err)
 					if !node.Role.HasRule("compute") {
 						logrus.Errorf("管理节点不支持此功能")
 						return nil
 					}
-					err = clients.NodeClient.Nodes().ReSchedulable(id)
+					err = clients.RegionClient.Nodes().ReSchedulable(id)
 					handleErr(err)
 					return nil
 				},
@@ -249,12 +251,13 @@ func NewCmdNode() cli.Command {
 				Name:  "delete",
 				Usage: "delete hostID",
 				Action: func(c *cli.Context) error {
+					Common(c)
 					id := c.Args().First()
 					if id == "" {
 						logrus.Errorf("need hostID")
 						return nil
 					}
-					err := clients.NodeClient.Nodes().Delete(id)
+					err := clients.RegionClient.Nodes().Delete(id)
 					handleErr(err)
 					return nil
 				},
@@ -263,23 +266,18 @@ func NewCmdNode() cli.Command {
 				Name:  "rule",
 				Usage: "rule ruleName",
 				Action: func(c *cli.Context) error {
+					Common(c)
 					rule := c.Args().First()
 					if rule == "" {
 						logrus.Errorf("need rule name")
 						return nil
 					}
-					hostnodes, err := clients.NodeClient.Nodes().Rule(rule)
+					hostnodes, err := clients.RegionClient.Nodes().GetNodeByRule(rule)
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Alived", "Schedulable", "Ready")
+					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "Alived", "Schedulable", "Ready")
 					for _, v := range hostnodes {
-
-						var ready bool = false
-						if v.NodeStatus != nil {
-							ready = true
-						}
-						handleStatus(serviceTable, ready, v)
-
+						handleStatus(serviceTable, isNodeReady(v), v)
 					}
 					return nil
 				},
@@ -300,6 +298,7 @@ func NewCmdNode() cli.Command {
 					},
 				},
 				Action: func(c *cli.Context) error {
+					Common(c)
 					hostID := c.Args().First()
 					if hostID == "" {
 						logrus.Errorf("need hostID")
@@ -309,7 +308,7 @@ func NewCmdNode() cli.Command {
 					v := c.String("val")
 					label := make(map[string]string)
 					label[k] = v
-					err := clients.NodeClient.Nodes().Label(hostID, label)
+					err := clients.RegionClient.Nodes().Label(hostID, label)
 					handleErr(err)
 					return nil
 				},
@@ -344,6 +343,7 @@ func NewCmdNode() cli.Command {
 					},
 				},
 				Action: func(c *cli.Context) error {
+					Common(c)
 					var node client.APIHostNode
 					if c.IsSet("Role") {
 						node.Role = append(node.Role, c.String("Role"))
@@ -352,131 +352,75 @@ func NewCmdNode() cli.Command {
 						node.ExternalIP = c.String("ExternalIP")
 						node.RootPass = c.String("RootPass")
 
-						err := clients.NodeClient.Nodes().Add(&node)
+						err := clients.RegionClient.Nodes().Add(&node)
 						handleErr(err)
-						fmt.Println("开始初始化节点")
+						fmt.Println("success add node")
 
-						var hostNode *client.HostNode
-						timer := time.NewTimer(15 * time.Second)
-						gotNode := false
-						for !gotNode {
-							time.Sleep(3 * time.Second)
-							list, err := clients.NodeClient.Nodes().List()
-							handleErr(err)
-							for _, v := range list {
-								if node.InternalIP == v.InternalIP {
-									hostNode = v
-									timer.Stop()
-									gotNode = true
-									//todo  初始化其它节点失败判定
-								}
-							}
-						}
-						fmt.Println("添加节点成功，正在初始化")
-						tableC := termtables.CreateTable()
-						var header []string
-						var content []string
-						for {
-							time.Sleep(3 * time.Second)
-							list, err := clients.NodeClient.Nodes().List()
-							handleErr(err)
-							select {
-							case <-timer.C:
-								fmt.Println("添加节点超时，请检查etcd")
-								return nil
-							default:
-								for _, v := range list {
-									if node.InternalIP == v.InternalIP {
-										hostNode = v
-										break
-									}
-								}
-								for _, val := range hostNode.NodeStatus.Conditions {
-									fmt.Println("正在判断节点状态，请稍等")
-									if hostNode.Alived || (val.Type == client.NodeInit && val.Status == client.ConditionTrue) {
-										fmt.Printf("节点 %s 初始化成功", hostNode.ID)
-										fmt.Println()
-										header = append(header, string(val.Type))
-										content = append(content, string(val.Status))
-										tableC.AddHeaders(header)
-										tableC.AddRow(content)
-										fmt.Println(tableC.Render())
-										return nil
-									} else if val.Type == client.NodeInit && val.Status == client.ConditionFalse {
-										fmt.Printf("节点 %s 初始化失败:%s", hostNode.ID, val.Reason)
-										return nil
-									} else {
-										fmt.Printf("..")
-									}
-								}
-							}
-						}
+						// var hostNode *client.HostNode
+						// timer := time.NewTimer(15 * time.Second)
+						// gotNode := false
+						// for !gotNode {
+						// 	time.Sleep(3 * time.Second)
+						// 	list, err := clients.RegionClient.Nodes().List()
+						// 	handleErr(err)
+						// 	for _, v := range list {
+						// 		if node.InternalIP == v.InternalIP {
+						// 			hostNode = v
+						// 			timer.Stop()
+						// 			gotNode = true
+						// 			//todo  初始化其它节点失败判定
+						// 		}
+						// 	}
+						// }
+						// fmt.Println("添加节点成功，正在初始化")
+						// tableC := termtables.CreateTable()
+						// var header []string
+						// var content []string
+						// for {
+						// 	time.Sleep(3 * time.Second)
+						// 	list, err := clients.RegionClient.Nodes().List()
+						// 	handleErr(err)
+						// 	select {
+						// 	case <-timer.C:
+						// 		fmt.Println("添加节点超时，请检查etcd")
+						// 		return nil
+						// 	default:
+						// 		for _, v := range list {
+						// 			if node.InternalIP == v.InternalIP {
+						// 				hostNode = v
+						// 				break
+						// 			}
+						// 		}
+						// 		for _, val := range hostNode.NodeStatus.Conditions {
+						// 			fmt.Println("正在判断节点状态，请稍等")
+						// 			if hostNode.Alived || (val.Type == client.NodeInit && val.Status == client.ConditionTrue) {
+						// 				fmt.Printf("节点 %s 初始化成功", hostNode.ID)
+						// 				fmt.Println()
+						// 				header = append(header, string(val.Type))
+						// 				content = append(content, string(val.Status))
+						// 				tableC.AddHeaders(header)
+						// 				tableC.AddRow(content)
+						// 				fmt.Println(tableC.Render())
+						// 				return nil
+						// 			} else if val.Type == client.NodeInit && val.Status == client.ConditionFalse {
+						// 				fmt.Printf("节点 %s 初始化失败:%s", hostNode.ID, val.Reason)
+						// 				return nil
+						// 			} else {
+						// 				fmt.Printf("..")
+						// 			}
+						// 		}
+						// 	}
+						// }
 
-						fmt.Println("节点初始化结束")
+						// fmt.Println("节点初始化结束")
 						return nil
 					}
-
 					return errors.New("role must not null")
 				},
 			},
 		},
 	}
 	return c
-}
-
-//NewCmdCluster cmd for cluster
-func NewCmdCluster() cli.Command {
-	c := cli.Command{
-		Name:  "cluster",
-		Usage: "获取集群信息  grctl cluster",
-		Action: func(c *cli.Context) error {
-			Common(c)
-			return getClusterInfo(c)
-		},
-	}
-	return c
-}
-
-func getClusterInfo(c *cli.Context) error {
-	ns, err := clients.K8SClient.Core().Nodes().List(metav1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("获取节点列表失败,details: %s", err.Error())
-		return err
-	}
-	table := termtables.CreateTable()
-	table.AddHeaders("NodeName", "Version", "CapCPU(核)", "AllocatableCPU(核)", "UsedCPU(核)", "CapMemory(M)", "AllocatableMemory(M)", "UsedMemory(M)")
-	for _, v := range ns.Items {
-		podList, err := clients.K8SClient.Core().Pods(metav1.NamespaceAll).List(metav1.ListOptions{FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": v.Name}).String()})
-		if err != nil {
-
-		}
-		var cpuPerNode = 0
-		memPerNode := 0
-		for _, p := range podList.Items {
-			status := string(p.Status.Phase)
-
-			if status != "Running" {
-				continue
-			}
-			memPerPod := 0
-
-			memPerPod += int(p.Spec.Containers[0].Resources.Requests.Memory().Value())
-			cpuOfPod := p.Spec.Containers[0].Resources.Requests.Cpu().String()
-			if strings.Contains(cpuOfPod, "m") {
-				cpuOfPod = strings.Replace(cpuOfPod, "m", "", -1)
-			}
-			cpuI, _ := strconv.Atoi(cpuOfPod)
-			cpuPerNode += cpuI
-			memPerNode += memPerPod
-		}
-		capCPU := v.Status.Capacity.Cpu().Value()
-		capMem := v.Status.Capacity.Memory().Value()
-		allocCPU := v.Status.Allocatable.Cpu().Value()
-		allocMem := v.Status.Allocatable.Memory().Value()
-		table.AddRow(v.Name, v.Status.NodeInfo.KubeletVersion, capCPU, allocCPU, float32(cpuPerNode)/1000, capMem/1024/1024, allocMem/1024/1024, memPerNode/1024/1024)
-	}
-	fmt.Println(table.Render())
-	return nil
 }
 
 func isNodeReady(node *client.HostNode) bool {
@@ -492,34 +436,4 @@ func isNodeReady(node *client.HostNode) bool {
 	}
 
 	return false
-}
-func getNode(c *cli.Context) error {
-	ns, err := clients.K8SClient.Core().Nodes().List(metav1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("获取节点列表失败,details: %s", err.Error())
-		return err
-	}
-	table := termtables.CreateTable()
-	table.AddHeaders("Name", "Status", "Namespace", "Unschedulable", "KubeletVersion", "Labels")
-
-	for _, v := range ns.Items {
-		cs := v.Status.Conditions
-		status := "unknown"
-		for _, cv := range cs {
-			status = string(cv.Status)
-			if strings.Contains(status, "rue") {
-				status = string(cv.Type)
-				break
-			}
-		}
-		m := v.Labels
-		labels := ""
-		for k := range m {
-			labels += k
-			labels += " "
-		}
-		table.AddRow(v.Name, status, v.Namespace, v.Spec.Unschedulable, v.Status.NodeInfo.KubeletVersion, labels)
-	}
-	fmt.Println(table.Render())
-	return nil
 }

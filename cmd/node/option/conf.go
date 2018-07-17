@@ -24,8 +24,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/goodrain/rainbond/node/utils"
-
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/fsnotify/fsnotify"
@@ -112,7 +110,6 @@ type Conf struct {
 	// for node controller
 	DefaultConfigFile string
 	ServiceListFile   string
-
 }
 
 //StatsdConfig StatsdConfig
@@ -172,6 +169,8 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.StatsdConfig.MappingConfig, "statsd.mapping-config", "", "Metric mapping configuration file name.")
 	fs.IntVar(&a.StatsdConfig.ReadBuffer, "statsd.read-buffer", 0, "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.")
 	fs.DurationVar(&a.MinResyncPeriod, "min-resync-period", time.Hour*12, "The resync period in reflectors will be random between MinResyncPeriod and 2*MinResyncPeriod")
+	fs.StringVar(&a.DefaultConfigFile, "default-config-file", "/opt/rainbond/conf/default-config.yaml", "All rainbond components config file")
+	fs.StringVar(&a.ServiceListFile, "service-list-file", "/opt/rainbond/conf/manager-services.yaml", "A list of the node include components")
 }
 
 //SetLog 设置log
@@ -211,12 +210,8 @@ func cleanKeyPrefix(p string) string {
 	return p
 }
 
+//parse parse
 func (c *Conf) parse() error {
-	err := utils.LoadExtendConf(*confFile, c)
-	if err != nil {
-		return err
-	}
-
 	if c.Etcd.DialTimeout > 0 {
 		c.Etcd.DialTimeout *= time.Second
 	}
@@ -226,14 +221,5 @@ func (c *Conf) parse() error {
 	if c.LockTTL < 2 {
 		c.LockTTL = 300
 	}
-
-	c.NodePath = cleanKeyPrefix(c.NodePath)
-	c.Proc = cleanKeyPrefix(c.Proc)
-	c.JobPath = cleanKeyPrefix(c.JobPath)
-	c.Lock = cleanKeyPrefix(c.Lock)
-	c.Group = cleanKeyPrefix(c.Group)
-	c.Noticer = cleanKeyPrefix(c.Noticer)
-	//固定值
-	c.HostIDFile = "/opt/rainbond/etc/node/node_host_uuid.conf"
 	return nil
 }

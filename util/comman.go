@@ -33,6 +33,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -681,4 +682,14 @@ func GetDirNameList(dirpath string, level int) ([]string, error) {
 		}
 	}
 	return dirlist, nil
+}
+
+//DiskUsage  disk usage of path/disk
+func DiskUsage(path string) (tatol, free uint64) {
+	fs := syscall.Statfs_t{}
+	err := syscall.Statfs(path, &fs)
+	if err != nil {
+		return
+	}
+	return fs.Blocks * uint64(fs.Bsize), fs.Bfree * uint64(fs.Bsize)
 }

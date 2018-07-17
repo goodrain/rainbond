@@ -16,18 +16,34 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package clients
+package controller
 
 import (
-	"github.com/goodrain/rainbond/api/region"
-	"github.com/goodrain/rainbond/cmd/grctl/option"
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/node/nodem/service"
+	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/node/nodem/client"
 )
 
-//RegionClient region api
-var RegionClient region.Region
+type ManagerService struct {
+	controller Controller
+}
 
-//InitRegionClient init region api client
-func InitRegionClient(reg option.RegionAPI) error {
-	RegionClient = region.NewRegion(reg.URL, reg.Token, reg.Type)
+func (m *ManagerService) GetAllService() ([]*service.Service, error) {
+	return m.controller.GetAllService(), nil
+}
+
+func (m *ManagerService) Start() error {
+	logrus.Info("Starting node controller manager with linux.")
+	return m.controller.ReLoadServices()
+}
+
+func (m *ManagerService) Stop() error {
 	return nil
+}
+
+func NewManagerService(conf *option.Conf, cluster client.ClusterClient) *ManagerService {
+	return &ManagerService{
+		NewControllerSystemd(conf, cluster),
+	}
 }

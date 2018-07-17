@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
 	"github.com/apcera/termtables"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/node/api/model"
@@ -36,16 +37,6 @@ func NewCmdTasks() cli.Command {
 		Usage: "系统任务相关命令，grctl tasks -h",
 		Subcommands: []cli.Command{
 			cli.Command{
-				Name:  "static-refresh",
-				Usage: "Refresh static task config",
-				Action: func(c *cli.Context) error {
-					if err := clients.NodeClient.Tasks().Refresh(); err != nil {
-						return err
-					}
-					return nil
-				},
-			},
-			cli.Command{
 				Name:  "list",
 				Usage: "List all task",
 				Flags: []cli.Flag{
@@ -55,7 +46,7 @@ func NewCmdTasks() cli.Command {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					tasks, err := clients.NodeClient.Tasks().List()
+					tasks, err := clients.RegionClient.Tasks().List()
 					if err != nil {
 						return err
 					}
@@ -126,7 +117,7 @@ func NewCmdTasks() cli.Command {
 					if taskID == "" {
 						fmt.Println("Please specified task id")
 					}
-					task, err := clients.NodeClient.Tasks().Get(taskID)
+					task, err := clients.RegionClient.Tasks().Get(taskID)
 					if err != nil {
 						return fmt.Errorf("get task error,%s", err.Error())
 					}
@@ -158,7 +149,7 @@ func NewCmdTasks() cli.Command {
 						fmt.Println("Please specified nodeid use `-n`")
 					}
 					//fmt.Printf("node is %s task id is %s",nodeID,taskID)
-					err := clients.NodeClient.Tasks().Exec(taskID, []string{nodeID})
+					err := clients.RegionClient.Tasks().Exec(taskID, []string{nodeID})
 					handleErr(err)
 					return nil
 				},
@@ -178,7 +169,7 @@ func getDependTask(task *model.Task, path string) {
 	for k, v := range depends {
 
 		tid := v.DependTaskID
-		taskD, err := clients.NodeClient.Tasks().Get(tid)
+		taskD, err := clients.RegionClient.Tasks().Get(tid)
 		handleErr(err)
 		//fmt.Print("task %s depend %s",task.ID,taskD.Task.ID)
 		if k == 0 {

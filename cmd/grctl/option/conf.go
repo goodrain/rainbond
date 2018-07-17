@@ -19,12 +19,14 @@
 package option
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"os"
+	"path"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/urfave/cli"
+	yaml "gopkg.in/yaml.v2"
 	//"strings"
 )
 
@@ -32,30 +34,30 @@ var config Config
 
 //Config Config
 type Config struct {
-	RegionMysql   RegionMysql `json:"RegionMysql"`
-	Kubernets     Kubernets   `json:"Kubernets"`
-	RegionAPI     RegionAPI   `json:"RegionAPI"`
-	DockerLogPath string      `json:"DockerLogPath"`
+	RegionMysql   RegionMysql `yaml:"region_db"`
+	Kubernets     Kubernets   `yaml:"kube"`
+	RegionAPI     RegionAPI   `yaml:"region_api"`
+	DockerLogPath string      `yaml:"docker_log_path"`
 }
 
 //RegionMysql RegionMysql
 type RegionMysql struct {
-	URL      string `json:"URL"`
-	Pass     string `json:"Pass"`
-	User     string `json:"User"`
-	Database string `json:"Database"`
+	URL      string `yaml:"url"`
+	Pass     string `yaml:"pass"`
+	User     string `yaml:"user"`
+	Database string `yaml:"database"`
 }
 
 //Kubernets Kubernets
 type Kubernets struct {
-	Master string
+	Master string `yaml:"master"`
 }
 
 //RegionAPI RegionAPI
 type RegionAPI struct {
-	URL   string
-	Token string
-	Type  string
+	URL   string `yaml:"url"`
+	Token string `yaml:"token"`
+	Type  string `yaml:"type"`
 }
 
 //LoadConfig 加载配置
@@ -71,16 +73,21 @@ func LoadConfig(ctx *cli.Context) (Config, error) {
 			Database: os.Getenv("MYSQL_DB"),
 		},
 	}
-	_, err := os.Stat(ctx.GlobalString("config"))
-	if err != nil {
-		return config, err
+	configfile := ctx.GlobalString("config")
+	if configfile == "" {
+		home, _ := sources.Home()
+		configfile = path.Join(home, "grctl.yaml")
 	}
-	data, err := ioutil.ReadFile(ctx.GlobalString("config"))
+	_, err := os.Stat(configfile)
+	if err != nil {
+		return config, nil
+	}
+	data, err := ioutil.ReadFile(configfile)
 	if err != nil {
 		logrus.Warning("Read config file error ,will get config from region.", err.Error())
 		return config, err
 	}
-	if err := json.Unmarshal(data, &config); err != nil {
+	if err := yaml.Unmarshal(data, &config); err != nil {
 		logrus.Warning("Read config file error ,will get config from region.", err.Error())
 		return config, err
 	}

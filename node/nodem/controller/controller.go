@@ -1,5 +1,5 @@
+// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
-// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,30 +16,22 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package region
+package controller
 
 import (
-	"reflect"
-
-	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/node/nodem/service"
 )
 
-var modelRegistry = make(map[string]reflect.Type)
-
-func init() {
-	registerType("tenants", &[]*dbmodel.Tenants{})
-	registerType("tenant", &dbmodel.Tenants{})
-}
-
-func registerType(name string, elem interface{}) {
-	t := reflect.TypeOf(elem).Elem()
-	modelRegistry[name] = t
-}
-
-func newStruct(name string) (interface{}, bool) {
-	elem, ok := modelRegistry[name]
-	if !ok {
-		return nil, false
-	}
-	return reflect.New(elem).Elem().Interface(), true
+type Controller interface {
+	WriteAllConfig() error
+	RemoveAllConfig() error
+	EnableAll() error
+	DisableAll() error
+	CheckBeforeStart() bool
+	StartAll() error
+	StartByName(serviceName string) error
+	StopAll() error
+	StopByName(serviceName string) error
+	ReLoadServices() error
+	GetAllService() []*service.Service
 }
