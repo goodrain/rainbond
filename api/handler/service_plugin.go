@@ -76,10 +76,9 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("get plugin by plugin id", err)
 	}
-	catePlugin := strings.Split(plugin.PluginModel, ":")[0]
 	crt, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelLikePluginByServiceID(
 		serviceID,
-		catePlugin,
+		plugin.PluginModel,
 	)
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("check plugin model", err)
