@@ -338,7 +338,7 @@ func (p *PodTemplateSpecBuild) createContainer(volumeMounts []v1.VolumeMount, en
 	}
 	c1 := v1.Container{
 		Name:                   containerName,
-		Image:                  p.versionInfo.DeliveredPath,
+		Image:                  p.service.ImageName,
 		Env:                    *envs,
 		Ports:                  p.createPorts(),
 		Resources:              p.createResources(),
@@ -347,6 +347,12 @@ func (p *PodTemplateSpecBuild) createContainer(volumeMounts []v1.VolumeMount, en
 		LivenessProbe:          p.createProbe("liveness"),
 		VolumeMounts:           volumeMounts,
 		Args:                   p.createArgs(*envs),
+	}
+	if p.versionInfo.DeliveredType == "slug" {
+		c1.Image = "goodrain.me/runner"
+	}
+	if p.versionInfo.DeliveredType == "image" {
+		c1.Image = p.versionInfo.DeliveredPath
 	}
 	containers = append(containers, c1)
 	return containers
