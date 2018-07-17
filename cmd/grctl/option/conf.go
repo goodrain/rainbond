@@ -80,7 +80,7 @@ func LoadConfig(ctx *cli.Context) (Config, error) {
 	}
 	_, err := os.Stat(configfile)
 	if err != nil {
-		return config, err
+		return config, nil
 	}
 	data, err := ioutil.ReadFile(configfile)
 	if err != nil {

@@ -210,11 +210,6 @@ func cleanKeyPrefix(p string) string {
 
 //parse parse
 func (c *Conf) parse() error {
-	// err := utils.LoadExtendConf(*confFile, c)
-	// if err != nil {
-	// 	return err
-	// }
-
 	if c.Etcd.DialTimeout > 0 {
 		c.Etcd.DialTimeout *= time.Second
 	}
@@ -224,14 +219,5 @@ func (c *Conf) parse() error {
 	if c.LockTTL < 2 {
 		c.LockTTL = 300
 	}
-
-	// c.NodePath = cleanKeyPrefix(c.NodePath)
-	// c.Proc = cleanKeyPrefix(c.Proc)
-	// c.JobPath = cleanKeyPrefix(c.JobPath)
-	// c.Lock = cleanKeyPrefix(c.Lock)
-	// c.Group = cleanKeyPrefix(c.Group)
-	// c.Noticer = cleanKeyPrefix(c.Noticer)
-	//固定值
-	c.HostIDFile = "/opt/rainbond/etc/node/node_host_uuid.conf"
 	return nil
 }

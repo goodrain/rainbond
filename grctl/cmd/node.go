@@ -46,6 +46,7 @@ func NewCmdShow() cli.Command {
 		Name:  "show",
 		Usage: "显示region安装完成后访问地址",
 		Action: func(c *cli.Context) error {
+			Common(c)
 			manageHosts, err := clients.RegionClient.Nodes().GetNodeByRule("manage")
 			handleErr(err)
 			ips := getExternalIP("/etc/goodrain/envs/.exip", manageHosts)
@@ -120,12 +121,12 @@ func NewCmdNode() cli.Command {
 				Name:  "get",
 				Usage: "get hostID/internal ip",
 				Action: func(c *cli.Context) error {
+					Common(c)
 					id := c.Args().First()
 					if id == "" {
 						logrus.Errorf("need args")
 						return nil
 					}
-
 					nodes, err := clients.RegionClient.Nodes().List()
 					handleErr(err)
 					for _, v := range nodes {
@@ -151,6 +152,7 @@ func NewCmdNode() cli.Command {
 				Name:  "list",
 				Usage: "list",
 				Action: func(c *cli.Context) error {
+					Common(c)
 					list, err := clients.RegionClient.Nodes().List()
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
@@ -177,6 +179,7 @@ func NewCmdNode() cli.Command {
 				Name:  "up",
 				Usage: "up hostID",
 				Action: func(c *cli.Context) error {
+					Common(c)
 					id := c.Args().First()
 					if id == "" {
 						logrus.Errorf("need hostID")
@@ -191,6 +194,7 @@ func NewCmdNode() cli.Command {
 				Name:  "down",
 				Usage: "down hostID",
 				Action: func(c *cli.Context) error {
+					Common(c)
 					id := c.Args().First()
 					if id == "" {
 						logrus.Errorf("need hostID")
@@ -205,6 +209,7 @@ func NewCmdNode() cli.Command {
 				Name:  "unscheduable",
 				Usage: "unscheduable hostID",
 				Action: func(c *cli.Context) error {
+					Common(c)
 					id := c.Args().First()
 					if id == "" {
 						logrus.Errorf("need hostID")
@@ -225,6 +230,7 @@ func NewCmdNode() cli.Command {
 				Name:  "rescheduable",
 				Usage: "rescheduable hostID",
 				Action: func(c *cli.Context) error {
+					Common(c)
 					id := c.Args().First()
 					if id == "" {
 						logrus.Errorf("need hostID")
@@ -245,6 +251,7 @@ func NewCmdNode() cli.Command {
 				Name:  "delete",
 				Usage: "delete hostID",
 				Action: func(c *cli.Context) error {
+					Common(c)
 					id := c.Args().First()
 					if id == "" {
 						logrus.Errorf("need hostID")
@@ -259,6 +266,7 @@ func NewCmdNode() cli.Command {
 				Name:  "rule",
 				Usage: "rule ruleName",
 				Action: func(c *cli.Context) error {
+					Common(c)
 					rule := c.Args().First()
 					if rule == "" {
 						logrus.Errorf("need rule name")
@@ -290,6 +298,7 @@ func NewCmdNode() cli.Command {
 					},
 				},
 				Action: func(c *cli.Context) error {
+					Common(c)
 					hostID := c.Args().First()
 					if hostID == "" {
 						logrus.Errorf("need hostID")
@@ -334,6 +343,7 @@ func NewCmdNode() cli.Command {
 					},
 				},
 				Action: func(c *cli.Context) error {
+					Common(c)
 					var node client.APIHostNode
 					if c.IsSet("Role") {
 						node.Role = append(node.Role, c.String("Role"))

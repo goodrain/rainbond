@@ -119,8 +119,12 @@ func (n *node) Delete(nid string) *util.APIHandleError {
 	if err != nil {
 		return util.CreateAPIHandleError(code, err)
 	}
+	if code != 200 {
+		return util.CreateAPIHandleError(code, fmt.Errorf("delete node error"))
+	}
 	return nil
 }
+
 func (n *node) Up(nid string) *util.APIHandleError {
 	code, err := n.DoRequest(n.prefix+"/"+nid+"/up", "POST", nil, nil)
 	if err != nil {

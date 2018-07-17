@@ -47,12 +47,12 @@ func getClusterInfo(c *cli.Context) error {
 	handleErr(err)
 	table := uitable.New()
 	table.AddRow("", "Used/Total", "Use of")
-	table.AddRow("CPU", fmt.Sprintf("%f.2/%d", clusterInfo.ReqCPU, clusterInfo.CapCPU),
+	table.AddRow("CPU", fmt.Sprintf("%2.f/%d", clusterInfo.ReqCPU, clusterInfo.CapCPU),
 		fmt.Sprintf("%d", int(clusterInfo.ReqCPU*100/float32(clusterInfo.CapCPU)))+"%")
 	table.AddRow("Memory", fmt.Sprintf("%d/%d", clusterInfo.ReqMem, clusterInfo.CapMem),
 		fmt.Sprintf("%d", int(float32(clusterInfo.ReqMem*100)/float32(clusterInfo.CapMem)))+"%")
-	table.AddRow("DistributedDisk", fmt.Sprintf("%d/%d", clusterInfo.ReqDisk, clusterInfo.CapDisk),
-		fmt.Sprintf("%d", int(float32(clusterInfo.ReqDisk*100)/float32(clusterInfo.CapDisk)))+"%")
+	table.AddRow("DistributedDisk", fmt.Sprintf("%dGb/%dGb", clusterInfo.ReqDisk/1024/1024/1024, clusterInfo.CapDisk/1024/1024/1024),
+		fmt.Sprintf("%.2f", float32(clusterInfo.ReqDisk*100)/float32(clusterInfo.CapDisk))+"%")
 	fmt.Println(table)
 
 	//show node detail

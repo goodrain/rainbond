@@ -120,6 +120,6 @@ func (e *etcdClusterClient) DownNode(h *HostNode) error {
 	e.Update(h)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	_, err := e.etcdClient.Delete(ctx, e.conf.OnlineNodePath+h.ID)
+	_, err := e.etcdClient.Delete(ctx, e.conf.OnlineNodePath+"/"+h.ID)
 	return err
 }
