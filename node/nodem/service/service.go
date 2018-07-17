@@ -43,5 +43,20 @@ type ServiceList struct {
 
 //Health ServiceHealth
 type Health struct {
+	Name string`yaml:"name"`
 	Model string `yaml:"model"`
+	Address string `yaml:"addr"`
+	Path string `yaml:"path"`
+}
+
+type HealthStatus struct {
+	Name string`yaml:"name"`
+	Status string `yaml:"status"`
+	Info string `yaml:"info"`
+}
+
+type ProbeResult struct {
+	Name string`yaml:"name"`
+	Status string `yaml:"name"`
+	Info   string `yaml:"name"`
 }

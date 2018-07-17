@@ -18,13 +18,99 @@
 
 package healthy
 
-import "github.com/goodrain/rainbond/node/nodem/service"
+import (
+	"github.com/goodrain/rainbond/node/nodem/service"
+	"context"
+	"github.com/goodrain/rainbond/util"
+	"time"
+)
 
 //Manager Manager
 type Manager interface {
-	GetServiceHeadthy(serviceName string) *service.Health
-	WatchServiceHeadthy() <-chan *service.Health
+	GetServiceHealthy(serviceName string) *service.HealthStatus
+	WatchServiceHealthy() <-chan *service.HealthStatus
 	Start() error
 	AddServices([]*service.Service) error
 	Stop() error
+}
+
+type ProbeManager struct {
+	services []*service.Service
+	ctx      context.Context
+	cancel   context.CancelFunc
+}
+
+func (p *ProbeManager) AddServices(inner []*service.Service) error {
+	p.services = inner
+	return nil
+}
+
+func NewProbeManager(inner []*service.Service) (*ProbeManager,error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &ProbeManager{
+		services: inner,
+		ctx:      ctx,
+		cancel:   cancel,
+	},nil
+}
+
+func (p *ProbeManager) Start() error {
+
+	resultsChan := make(chan service.ProbeResult)
+	for _, v := range p.services {
+		if v.ServiceHealth.Model == "http" {
+			h := &HttpProbe{
+				address:     v.ServiceHealth.Address,
+				path:        v.ServiceHealth.Path,
+				ctx:         p.ctx,
+				cancel:      p.cancel,
+				resultsChan: resultsChan,
+			}
+			go h.Check()
+		}
+
+	}
+	return nil
+}
+
+func (p *ProbeManager) Stop() error {
+	p.cancel()
+	return nil
+}
+
+func (p *ProbeManager) GetServiceHealthy(serviceName string) *service.HealthStatus {
+	for _, v := range p.services {
+		if v.Name == serviceName {
+			if v.ServiceHealth.Model == "http" {
+				healthMap := GetHttpHealth(v.ServiceHealth.Address, v.ServiceHealth.Path)
+
+				return &service.HealthStatus{
+					Status: healthMap["status"],
+					Info:   healthMap["info"],
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (p *ProbeManager) WatchServiceHealthy() <-chan *service.HealthStatus {
+	healthChannel := make(chan *service.HealthStatus, 10)
+	util.Exec(p.ctx, func() error {
+		for _, v := range p.services {
+			if v.ServiceHealth.Model == "http" {
+				healthMap := GetHttpHealth(v.ServiceHealth.Address, v.ServiceHealth.Path)
+
+				result := &service.HealthStatus{
+					Name:   v.ServiceHealth.Name,
+					Status: healthMap["status"],
+					Info:   healthMap["info"],
+				}
+				healthChannel <- result
+			}
+		}
+		return nil
+	},time.Second*3)
+
+	return healthChannel
 }
