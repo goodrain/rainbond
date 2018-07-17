@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	etcdReg = regexp.MustCompile(`${(\w)}`)
+	ArgsReg = regexp.MustCompile(`\$\{(\w+)\}`)
 )
 
 func ToConfig(svc *Service, cluster client.ClusterClient) []byte {
@@ -41,9 +41,7 @@ func ToConfig(svc *Service, cluster client.ClusterClient) []byte {
 		return nil
 	}
 
-	s := Lines{}
-
-	s.AddTitle("[Unit]")
+	s := Lines{"[Unit]"}
 	s.Add("Description", svc.Name)
 	for _, d := range svc.Dependences {
 		s.Add("After", d+".service")
@@ -55,23 +53,25 @@ func ToConfig(svc *Service, cluster client.ClusterClient) []byte {
 		s.Add("Type", svc.Type)
 		s.Add("RemainAfterExit", "yes")
 	}
-	s.Add("ExecStartPre", fmt.Sprintf(`bash -c "%s"`, svc.PreStart))
-	s.Add("ExecStart", fmt.Sprintf(`bash -c "%s"`, svc.Start))
-	s.Add("ExecStop", fmt.Sprintf(`bash -c "%s"`, svc.Stop))
+	s.Add("ExecStartPre", fmt.Sprintf(`-/bin/bash -c "%s"`, svc.PreStart))
+	s.Add("ExecStart", fmt.Sprintf(`/bin/bash -c "%s"`, svc.Start))
+	s.Add("ExecStop", fmt.Sprintf(`/bin/bash -c "%s"`, svc.Stop))
 	s.Add("Restart", svc.RestartPolicy)
 	s.Add("RestartSec", svc.RestartSec)
 
 	s.AddTitle("[Install]")
 	s.Add("WantedBy", "multi-user.target")
 
+	logrus.Debugf("check is need inject args into service %s", svc.Name)
 	result := InjectConfig(s.Get(), cluster)
 
 	return []byte(result)
 }
 
 func InjectConfig(content string, cluster client.ClusterClient) string {
-	for _, parantheses := range etcdReg.FindAllString(content, -1) {
-		group := etcdReg.FindStringSubmatch(parantheses)
+	for _, parantheses := range ArgsReg.FindAllString(content, -1) {
+		logrus.Debugf("discover inject args template %s", parantheses)
+		group := ArgsReg.FindStringSubmatch(parantheses)
 		if group == nil || len(group) < 2 {
 			logrus.Warnf("Not found group for ", parantheses)
 			continue
@@ -82,7 +82,9 @@ func InjectConfig(content string, cluster client.ClusterClient) string {
 			continue
 		}
 		content = strings.Replace(content, group[0], line, 1)
+		logrus.Debugf("inject args into service %s => %s", group[1], line)
 	}
+
 	return content
 }
 
@@ -91,14 +93,14 @@ type Lines struct {
 }
 
 func (l *Lines) AddTitle(line string) {
-	l.str = fmt.Sprintf("%s\n%s", l, line)
+	l.str = fmt.Sprintf("%s\n\n%s", l.str, line)
 }
 
 func (l *Lines) Add(k, v string) {
 	if v == "" {
 		return
 	}
-	l.str = fmt.Sprintf("%s\n%s=%s", l, k, v)
+	l.str = fmt.Sprintf("%s\n%s=%s", l.str, k, v)
 }
 
 func (l *Lines) Get() string {
