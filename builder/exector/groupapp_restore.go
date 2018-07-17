@@ -190,7 +190,10 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 						logrus.Errorf("restore service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
 						return err
 					}
-					os.MkdirAll(tmpDir, 0777)
+					//backup data is not exist because dir is empty.
+					//so create host path and continue
+					os.MkdirAll(volume.HostPath, 0777)
+					continue
 				}
 				//if app type is statefulset, change pod hostpath
 				if b.getServiceType(app.ServiceLabel) == util.StatefulServiceType {
