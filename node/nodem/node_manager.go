@@ -39,6 +39,7 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/monitor"
 	"github.com/goodrain/rainbond/node/nodem/taskrun"
 	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/node/nodem/service"
 )
 
 //NodeManager node manager
@@ -98,16 +99,35 @@ func (n *NodeManager) Start(errchan chan error) error {
 	if err := n.controller.Start(); err != nil {
 		return fmt.Errorf("start node controller error,%s", err.Error())
 	}
-	// services, err := n.controller.GetAllService()
-	// if err != nil {
-	// 	return fmt.Errorf("get all services error,%s", err.Error())
-	// }
-	// if err := n.healthy.AddServices(services); err != nil {
-	// 	return fmt.Errorf("get all services error,%s", err.Error())
-	// }
-	// if err := n.healthy.Start(); err != nil {
-	// 	return fmt.Errorf("node healty start error,%s", err.Error())
-	// }
+	//services, err := n.controller.GetAllService()
+	//if err != nil {
+	//	return fmt.Errorf("get all services error,%s", err.Error())
+	//}
+	v := make([]*service.Service, 0, 10)
+	x := &service.Service{
+		Name: "builder",
+		ServiceHealth: &service.Health{
+			Name:    "builder",
+			Model:   "http",
+			Address: "127.0.0.1:3228",
+			Path:    "/v2/builder/health",
+		},
+	}
+	v = append(v, x)
+
+	manage, err := healthy.NewProbeManager(v)
+	if err != nil {
+		return fmt.Errorf("get all services error,%s", err.Error())
+	}
+	if err := manage.Start(); err != nil {
+		return fmt.Errorf("node healty start error,%s", err.Error())
+	}
+	HealthStatus := manage.WatchServiceHealthy()
+	for {
+		health := <-HealthStatus
+		logrus.Info(health.Name, health.Status)
+	}
+
 	go n.monitor.Start(errchan)
 	go n.taskrun.Start(errchan)
 	go n.heartbeat()

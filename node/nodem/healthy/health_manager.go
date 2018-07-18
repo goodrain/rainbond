@@ -23,6 +23,7 @@ import (
 	"context"
 	"github.com/goodrain/rainbond/util"
 	"time"
+	"github.com/Sirupsen/logrus"
 )
 
 //Manager Manager
@@ -45,17 +46,18 @@ func (p *ProbeManager) AddServices(inner []*service.Service) error {
 	return nil
 }
 
-func NewProbeManager(inner []*service.Service) (*ProbeManager,error) {
+func NewProbeManager(inner []*service.Service) (*ProbeManager, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ProbeManager{
 		services: inner,
 		ctx:      ctx,
 		cancel:   cancel,
-	},nil
+	}, nil
 }
 
 func (p *ProbeManager) Start() error {
 
+	logrus.Info("health mode start")
 	resultsChan := make(chan service.HealthStatus)
 	for _, v := range p.services {
 		if v.ServiceHealth.Model == "http" {
@@ -110,7 +112,7 @@ func (p *ProbeManager) WatchServiceHealthy() <-chan *service.HealthStatus {
 			}
 		}
 		return nil
-	},time.Second*3)
+	}, time.Second*3)
 
 	return healthChannel
 }
