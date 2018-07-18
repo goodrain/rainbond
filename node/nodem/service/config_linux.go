@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	ArgsReg = regexp.MustCompile(`\$\{([\w+])\}`)
+	ArgsReg = regexp.MustCompile(`\$\{(\w+)\}`)
 )
 
 func ToConfig(svc *Service, cluster client.ClusterClient) []byte {
