@@ -23,6 +23,7 @@ import (
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/service"
+	"fmt"
 )
 
 type ManagerService struct {
@@ -51,11 +52,13 @@ func (m *ManagerService) Online() error {
 	hostIp := m.cluster.GetOptions().HostIP
 	services, _ := m.GetAllService()
 	for _, s := range services {
-		key := s.GetRegKey()
-		oldEndpoints := m.cluster.GetEndpoints(key)
-		if exist := isExistEndpoint(oldEndpoints, s.GetRegValue(hostIp)); !exist {
-			oldEndpoints = append(oldEndpoints, s.GetRegValue(hostIp))
-			m.cluster.SetEndpoints(key, oldEndpoints)
+		for _, end := range s.Endpoints {
+			endpoint := toEndpoint(end, hostIp)
+			oldEndpoints := m.cluster.GetEndpoints(end.Name)
+			if exist := isExistEndpoint(oldEndpoints, endpoint); !exist {
+				oldEndpoints = append(oldEndpoints, endpoint)
+				m.cluster.SetEndpoints(end.Name, oldEndpoints)
+			}
 		}
 	}
 
@@ -72,11 +75,12 @@ func (m *ManagerService) Offline() error {
 	hostIp := m.cluster.GetOptions().HostIP
 	services, _ := m.GetAllService()
 	for _, s := range services {
-		key := s.GetRegKey()
-		endPoint := s.GetRegValue(hostIp)
-		oldEndpoints := m.cluster.GetEndpoints(key)
-		if exist := isExistEndpoint(oldEndpoints, endPoint); exist {
-			m.cluster.SetEndpoints(key, rmEndpointFrom(oldEndpoints, endPoint))
+		for _, end := range s.Endpoints {
+			endpoint := toEndpoint(end, hostIp)
+			oldEndpoints := m.cluster.GetEndpoints(end.Name)
+			if exist := isExistEndpoint(oldEndpoints, endpoint); exist {
+				m.cluster.SetEndpoints(end.Name, rmEndpointFrom(oldEndpoints, endpoint))
+			}
 		}
 	}
 
@@ -104,6 +108,13 @@ func rmEndpointFrom(etcdEndPoints []string, end string) []string {
 		}
 	}
 	return endPoints
+}
+
+func toEndpoint(reg *service.Endpoint, ip string) string {
+	if reg.Protocol == "" {
+		return fmt.Sprintf("%s:%s", ip, reg.Port)
+	}
+	return fmt.Sprintf("%s://%s:%s", reg.Protocol, ip, reg.Port)
 }
 
 func NewManagerService(conf *option.Conf, cluster client.ClusterClient) *ManagerService {

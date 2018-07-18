@@ -18,31 +18,18 @@
 
 package service
 
-import "fmt"
-
 //Service Service
 type Service struct {
-	Name            string    `yaml:"name"`
-	ServiceRegistry *Registry `yaml:"registry,omitempty"`
-	ServiceHealth   *Health   `yaml:"health"`
-	Dependences     []string  `yaml:"dependences"`
-	Type            string    `yaml:"type,omitempty"`
-	PreStart        string    `yaml:"pre_start,omitempty"`
-	Start           string    `yaml:"start"`
-	Stop            string    `yaml:"stop,omitempty"`
-	RestartPolicy   string    `yaml:"restart_policy,omitempty"`
-	RestartSec      string    `yaml:"restart_sec,omitempty"`
-}
-
-func (s *Service) GetRegKey() string {
-	return s.Name
-}
-
-func (s *Service) GetRegValue(ip string) string {
-	if s.ServiceRegistry.Protocol == "" {
-		return fmt.Sprintf("%s:%s", ip, s.ServiceRegistry.Port)
-	}
-	return fmt.Sprintf("%s://%s:%s", s.ServiceRegistry.Protocol, ip, s.ServiceRegistry.Port)
+	Name          string      `yaml:"name"`
+	Endpoints     []*Endpoint `yaml:"endpoints,omitempty"`
+	ServiceHealth *Health     `yaml:"health"`
+	Dependences   []string    `yaml:"dependences"`
+	Type          string      `yaml:"type,omitempty"`
+	PreStart      string      `yaml:"pre_start,omitempty"`
+	Start         string      `yaml:"start"`
+	Stop          string      `yaml:"stop,omitempty"`
+	RestartPolicy string      `yaml:"restart_policy,omitempty"`
+	RestartSec    string      `yaml:"restart_sec,omitempty"`
 }
 
 // default config of all services
@@ -59,9 +46,10 @@ type ServiceList struct {
 	} `yaml:"services"`
 }
 
-type Registry struct {
+type Endpoint struct {
+	Name     string `yaml:"name"`
 	Protocol string `yaml:"protocol,omitempty"`
-	Port     string `yaml:"port,omitempty"`
+	Port     string `yaml:"port"`
 }
 
 //Health ServiceHealth
