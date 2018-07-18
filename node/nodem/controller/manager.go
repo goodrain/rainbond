@@ -25,4 +25,6 @@ type Manager interface {
 	Start() error
 	GetAllService() ([]*service.Service, error)
 	Stop() error
+	Online() error
+	Offline() error
 }
