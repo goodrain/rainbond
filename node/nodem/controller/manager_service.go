@@ -48,8 +48,7 @@ func (m *ManagerService) Stop() error {
 // start all service of on the node
 func (m *ManagerService) Online() error {
 	// registry local services endpoint into cluster manager
-	config, _ := m.cluster.GetDataCenterConfig()
-	hostIp := config.GetOptions().HostIP
+	hostIp := m.cluster.GetOptions().HostIP
 	services, _ := m.GetAllService()
 	for _, s := range services {
 		key := s.GetRegKey()
@@ -70,8 +69,7 @@ func (m *ManagerService) Online() error {
 // stop all service of on the node
 func (m *ManagerService) Offline() error {
 	// Anti-registry local services endpoint from cluster manager
-	config, _ := m.cluster.GetDataCenterConfig()
-	hostIp := config.GetOptions().HostIP
+	hostIp := m.cluster.GetOptions().HostIP
 	services, _ := m.GetAllService()
 	for _, s := range services {
 		key := s.GetRegKey()

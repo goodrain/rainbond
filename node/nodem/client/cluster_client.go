@@ -35,6 +35,7 @@ type ClusterClient interface {
 	GetMasters() ([]*HostNode, error)
 	GetNode(nodeID string) (*HostNode, error)
 	GetDataCenterConfig() (*config.DataCenterConfig, error)
+	GetOptions() *option.Conf
 	GetEndpoints(key string) []string
 	SetEndpoints(key string, value []string)
 	WatchJobs() <-chan *job.Event
@@ -76,6 +77,10 @@ func (e *etcdClusterClient) GetMasters() ([]*HostNode, error) {
 
 func (e *etcdClusterClient) GetDataCenterConfig() (*config.DataCenterConfig, error) {
 	return nil, nil
+}
+
+func (e *etcdClusterClient) GetOptions() *option.Conf {
+	return e.conf
 }
 
 func (e *etcdClusterClient) GetEndpoints(key string) []string {

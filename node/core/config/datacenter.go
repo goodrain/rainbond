@@ -240,7 +240,3 @@ func (d *DataCenterConfig) GetGroupConfig(groupID string) *GroupContext {
 	d.groupConfigs[groupID] = c
 	return c
 }
-
-func (d *DataCenterConfig) GetOptions() *option.Conf {
-	return d.options
-}
