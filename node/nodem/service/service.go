@@ -39,7 +39,7 @@ type Services struct {
 
 // service list of the node
 type ServiceList struct {
-	Version  string `yaml:"version"`
+	Version string `yaml:"version"`
 	Services []struct {
 		Name string `yaml:"name"`
 	} `yaml:"services"`
@@ -47,20 +47,14 @@ type ServiceList struct {
 
 //Health ServiceHealth
 type Health struct {
-	Name string`yaml:"name"`
-	Model string `yaml:"model"`
+	Name    string `yaml:"name"`
+	Model   string `yaml:"model"`
 	Address string `yaml:"addr"`
-	Path string `yaml:"path"`
+	Path    string `yaml:"path"`
 }
 
 type HealthStatus struct {
-	Name string`yaml:"name"`
+	Name   string `yaml:"name"`
 	Status string `yaml:"status"`
-	Info string `yaml:"info"`
-}
-
-type ProbeResult struct {
-	Name string`yaml:"name"`
-	Status string `yaml:"name"`
-	Info   string `yaml:"name"`
+	Info   string `yaml:"info"`
 }

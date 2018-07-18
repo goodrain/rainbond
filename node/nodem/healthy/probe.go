@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"time"
+	"github.com/Sirupsen/logrus"
 )
 
 type Probe interface {
@@ -19,7 +20,7 @@ type HttpProbe struct {
 	name        string
 	address     string
 	path        string
-	resultsChan chan<- service.ProbeResult
+	resultsChan chan<- service.HealthStatus
 	ctx         context.Context
 	cancel      context.CancelFunc
 }
@@ -27,7 +28,7 @@ type HttpProbe struct {
 func (h *HttpProbe) Check() {
 	util.Exec(h.ctx, func() error {
 		HealthMap := GetHttpHealth(h.address, h.path)
-		result := service.ProbeResult{
+		result := service.HealthStatus{
 			Name:   h.name,
 			Status: HealthMap["status"],
 			Info:   HealthMap["info"],
@@ -46,7 +47,7 @@ func GetHttpHealth(address string, path string) map[string]string {
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		// handle error
+		logrus.Error(err)
 	}
 
 	//{"bean":{"info":"eventlog service health","status":"health"}}
@@ -59,7 +60,7 @@ func GetHttpHealth(address string, path string) map[string]string {
 
 	err = json.Unmarshal(body, &m)
 	if err != nil {
-		fmt.Println("反序列化出错")
+		logrus.Error("Deserialization error:",err)
 	}
 
 	if m.Bean.Status == "unusual"{

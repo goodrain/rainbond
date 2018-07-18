@@ -56,7 +56,7 @@ func NewProbeManager(inner []*service.Service) (*ProbeManager,error) {
 
 func (p *ProbeManager) Start() error {
 
-	resultsChan := make(chan service.ProbeResult)
+	resultsChan := make(chan service.HealthStatus)
 	for _, v := range p.services {
 		if v.ServiceHealth.Model == "http" {
 			h := &HttpProbe{
