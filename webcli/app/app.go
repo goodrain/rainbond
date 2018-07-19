@@ -186,7 +186,7 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cmd := exec.Command("kubectl", "--namespace", init.TenantID, "exec", "-ti", init.PodName, "/bin/bash")
+	cmd := exec.Command("kubectl", "--namespace", init.TenantID, "exec", "-ti", init.PodName, "/bin/sh")
 	ptyIo, err := pty.Start(cmd)
 	if err != nil {
 		log.Print("Failed to execute command")
