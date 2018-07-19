@@ -76,13 +76,22 @@ func InjectConfig(content string, cluster client.ClusterClient) string {
 			logrus.Warnf("Not found group for ", parantheses)
 			continue
 		}
-		line := cluster.GetConfig(group[1])
-		if line == "" {
-			logrus.Warnf("Not found config %s for inject config.", group[1])
+		endpoints := cluster.GetEndpoints(group[1])
+		if len(endpoints) < 1 {
+			logrus.Warnf("Not found endpoints of key %s when inject config.", group[1])
 			continue
 		}
+		line := ""
+		for _, end := range endpoints {
+			if line == "" {
+				line = end
+			}else{
+				line += ","
+				line += end
+			}
+		}
 		content = strings.Replace(content, group[0], line, 1)
-		logrus.Debugf("inject args into service %s => %s", group[1], line)
+		logrus.Debugf("inject args into service %s => %v", group[1], endpoints)
 	}
 
 	return content

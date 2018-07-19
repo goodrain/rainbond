@@ -23,8 +23,8 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/node/nodem/service"
 	"github.com/goodrain/rainbond/node/nodem/client"
+	"github.com/goodrain/rainbond/node/nodem/service"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
@@ -32,16 +32,6 @@ import (
 	"regexp"
 )
 
-
-/*
-从本地读取所有服务配置
-从本地读取所有服务列表
-生成配置文件
-启动etcd
-启动db
-挂载NFS
-启动所有
- */
 type ControllerSystemd struct {
 	SysConfigDir string
 	NodeType     string
@@ -174,36 +164,23 @@ func (m *ControllerSystemd) StopByName(serviceName string) error {
 func LoadServices(defaultConfigFile, serviceListFile string) ([]*service.Service, error) {
 	logrus.Info("Loading all services.")
 
-	//services, err := loadServicesFromEtcd(etcdCli)
-	//if err == nil {
-	//	return services, nil
-	//}
-
 	services, err := loadServicesFromLocal(defaultConfigFile, serviceListFile)
 	if err != nil {
 		return nil, err
 	}
 
-	//err = SaveServicesToEtcd(etcdCli, services)
-	//if err != nil {
-	//	return services, err
-	//}
-
 	return services, nil
-}
-
-// TODO put etcd and mysql endpoint info after start all services
-func  (m *ControllerSystemd) UpdateConfigToDataCenter() {
-
 }
 
 func (m *ControllerSystemd) GetAllService() []*service.Service {
 	return m.services
 }
 
-// 1. reload services config from local file system
-// 2. regenerate systemd config
-// 3. start all services of status is not running
+/*
+1. reload services config from local file system
+2. regenerate systemd config
+3. start all services of status is not running
+*/
 func (m *ControllerSystemd) ReLoadServices() error {
 	services, err := LoadServices(m.conf.DefaultConfigFile, m.conf.ServiceListFile)
 	if err != nil {
@@ -229,28 +206,6 @@ func (m *ControllerSystemd) ReLoadServices() error {
 
 	return nil
 }
-
-//func loadServicesFromEtcd(etcdCli *clientv3.Client) ([]*service.Service, error) {
-//	ctx := context.Background()
-//	resp, err := etcdCli.Get(ctx, "/node/services/", clientv3.WithPrefix())
-//	if err != nil || len(resp.Kvs) < 1 {
-//		err := fmt.Errorf("Not found components info in etcd, will init the node cluster.")
-//		logrus.Error(err)
-//		return nil, err
-//	}
-//
-//	services := make([]*service.Service, 0, len(resp.Kvs))
-//	for _, kv := range resp.Kvs {
-//		var service service.Service
-//		err := yaml.Unmarshal(kv.Value, &service)
-//		if err != nil {
-//			logrus.Errorf("Failed to parse service from etcd.")
-//		}
-//		services = append(services, &service)
-//	}
-//
-//	return services, nil
-//}
 
 func loadServicesFromLocal(defaultConfigFile, serviceListFile string) ([]*service.Service, error) {
 	logrus.Info("Loading all services from local.")

@@ -20,18 +20,19 @@ package service
 
 //Service Service
 type Service struct {
-	Name          string   `yaml:"name"`
-	ServiceHealth *Health  `yaml:"service_health"`
-	Dependences   []string `yaml:"dependences"`
-	Type          string   `yaml:"type"`
-	PreStart      string   `yaml:"pre_start"`
-	Start         string   `yaml:"start"`
-	Stop          string   `yaml:"stop"`
-	RestartPolicy string   `yaml:"restart_policy"`
-	RestartSec    string   `yaml:"restart_sec"`
+	Name          string      `yaml:"name"`
+	Endpoints     []*Endpoint `yaml:"endpoints,omitempty"`
+	ServiceHealth *Health     `yaml:"health"`
+	Dependences   []string    `yaml:"dependences"`
+	Type          string      `yaml:"type,omitempty"`
+	PreStart      string      `yaml:"pre_start,omitempty"`
+	Start         string      `yaml:"start"`
+	Stop          string      `yaml:"stop,omitempty"`
+	RestartPolicy string      `yaml:"restart_policy,omitempty"`
+	RestartSec    string      `yaml:"restart_sec,omitempty"`
 }
 
-// default config for all services
+// default config of all services
 type Services struct {
 	Version  string     `yaml:"version"`
 	Services []*Service `yaml:"services"`
@@ -39,22 +40,34 @@ type Services struct {
 
 // service list of the node
 type ServiceList struct {
-	Version string `yaml:"version"`
+	Version  string `yaml:"version"`
 	Services []struct {
 		Name string `yaml:"name"`
 	} `yaml:"services"`
 }
 
+type Endpoint struct {
+	Name     string `yaml:"name"`
+	Protocol string `yaml:"protocol,omitempty"`
+	Port     string `yaml:"port"`
+}
+
 //Health ServiceHealth
 type Health struct {
-	Name    string `yaml:"name"`
+	Name    string `yaml:"name,omitempty"`
 	Model   string `yaml:"model"`
 	Address string `yaml:"addr"`
-	Path    string `yaml:"path"`
+	Path    string `yaml:"path,omitempty"`
 }
 
 type HealthStatus struct {
 	Name   string `yaml:"name"`
 	Status string `yaml:"status"`
 	Info   string `yaml:"info"`
+}
+
+type ProbeResult struct {
+	Name   string `yaml:"name"`
+	Status string `yaml:"name"`
+	Info   string `yaml:"name"`
 }
