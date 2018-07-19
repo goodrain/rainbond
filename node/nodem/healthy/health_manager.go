@@ -24,119 +24,18 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util"
 	"time"
+	"fmt"
+	"errors"
 )
 
 //Manager Manager
 type Manager interface {
-	GetServiceHealthy(serviceName string) *service.HealthStatus
+	GetServiceHealthy(serviceName string) (*service.HealthStatus, error)
 	WatchServiceHealthy(serviceName string) Watcher
 	CloseWatch(serviceName string, id string) error
 	Start() error
 	AddServices([]*service.Service) error
 	Stop() error
-}
-
-func CreateManager() Manager {
-	ctx, cancel := context.WithCancel(context.Background())
-	statusChan := make(chan *service.HealthStatus, 100)
-	status := make(map[string]*service.HealthStatus)
-	watches := make(map[string]map[string]*watcher)
-	m := &probeManager{
-		ctx:        ctx,
-		cancel:     cancel,
-		statusChan: statusChan,
-		status:     status,
-		watches:    watches,
-	}
-
-	return m
-}
-
-type probeManager struct {
-	services []*service.Service
-	status   map[string]*service.HealthStatus
-	ctx      context.Context
-	cancel   context.CancelFunc
-	watches  map[string]map[string]*watcher
-	//lock sync.Mutex
-	statusChan chan *service.HealthStatus
-}
-
-func (p *probeManager) AddServices(inner []*service.Service) error {
-	p.services = inner
-	return nil
-}
-
-func (p *probeManager) Start() (error) {
-
-	logrus.Info("health mode start")
-
-	for _, v := range p.services {
-		if v.ServiceHealth.Model == "http" {
-			h := &HttpProbe{
-				name:           v.ServiceHealth.Name,
-				address:        v.ServiceHealth.Address,
-				ctx:            p.ctx,
-				cancel:         p.cancel,
-				resultsChan:    p.statusChan,
-				TimeInterval:   v.ServiceHealth.TimeInterval,
-				MaxErrorNumber: v.ServiceHealth.MaxErrorNumber,
-			}
-			go h.Check()
-		}
-
-	}
-	go p.processResult()
-	time.Sleep(time.Second*5)
-	go p.SubscriptionPush()
-	return nil
-}
-
-func (p *probeManager) processResult() {
-
-	for {
-		result := <-p.statusChan
-		p.status[result.Name] = result
-	}
-}
-
-func (p *probeManager) SubscriptionPush() {
-	for {
-
-
-	for _, service := range p.services {
-		if watcherMap, ok := p.watches[service.Name]; ok {
-			for _, watcher := range watcherMap {
-				watcher.statusChan <- p.status[service.Name]
-			}
-
-		}
-	}
-}}
-
-func (p *probeManager) Stop() error {
-	p.cancel()
-	return nil
-}
-func (p *probeManager) CloseWatch(serviceName string, id string) error {
-	channel := p.watches[serviceName][id].statusChan
-	close(channel)
-	return nil
-}
-func (p *probeManager) GetServiceHealthy(serviceName string) *service.HealthStatus {
-	for _, v := range p.services {
-		if v.Name == serviceName {
-			if v.ServiceHealth.Model == "http" {
-				healthMap := GetHttpHealth(v.ServiceHealth.Address)
-
-				return &service.HealthStatus{
-					Status: healthMap["status"],
-					Info:   healthMap["info"],
-				}
-			}
-		}
-	}
-	return nil
 }
 
 type Watcher interface {
@@ -148,6 +47,128 @@ type watcher struct {
 	statusChan  chan *service.HealthStatus
 	id          string
 	serviceName string
+}
+
+type probeManager struct {
+	services   []*service.Service
+	status     map[string]*service.HealthStatus
+	ctx        context.Context
+	cancel     context.CancelFunc
+	watches    map[string]map[string]*watcher
+	statusChan chan *service.HealthStatus
+	errorNum   map[string]int
+	errorTime  map[string]time.Time
+	errorFlag  map[string]bool
+}
+
+func CreateManager() Manager {
+	ctx, cancel := context.WithCancel(context.Background())
+	statusChan := make(chan *service.HealthStatus, 100)
+	status := make(map[string]*service.HealthStatus)
+	watches := make(map[string]map[string]*watcher)
+	errorNum := make(map[string]int)
+	errorTime := make(map[string]time.Time)
+	errorFlag := make(map[string]bool)
+	m := &probeManager{
+		ctx:        ctx,
+		cancel:     cancel,
+		statusChan: statusChan,
+		status:     status,
+		watches:    watches,
+		errorNum:   errorNum,
+		errorTime:  errorTime,
+		errorFlag:  errorFlag,
+	}
+
+	return m
+}
+
+func (p *probeManager) AddServices(inner []*service.Service) error {
+	p.services = inner
+	return nil
+}
+
+func (p *probeManager) Start() (error) {
+
+	logrus.Info("health mode start")
+	go p.HandleStatus()
+	for _, v := range p.services {
+		if v.ServiceHealth.Model == "http" {
+			h := &HttpProbe{
+				name:         v.ServiceHealth.Name,
+				address:      v.ServiceHealth.Address,
+				ctx:          p.ctx,
+				cancel:       p.cancel,
+				resultsChan:  p.statusChan,
+				TimeInterval: v.ServiceHealth.TimeInterval,
+			}
+			go h.Check()
+		}
+
+	}
+	return nil
+}
+
+func (p *probeManager) updateServiceStatus(status *service.HealthStatus) {
+
+	if status.Status != service.Stat_healthy {
+		number := p.errorNum[status.Name] + 1
+		p.errorNum[status.Name] = number
+		status.ErrorNumber = number
+		if !p.errorFlag[status.Name] {
+			p.errorTime[status.Name] = time.Now()
+			p.errorFlag[status.Name] = true
+		}
+		status.ErrorTime = time.Now().Sub(p.errorTime[status.Name])
+		p.status[status.Name] = status
+
+	} else {
+		p.errorNum[status.Name] = 0
+		status.ErrorNumber = 0
+		p.errorFlag[status.Name] = false
+		status.ErrorTime = 0
+		p.status[status.Name] = status
+	}
+
+	fmt.Println(p.status[status.Name], "vvvvv")
+
+}
+func (p *probeManager) HandleStatus() {
+	for {
+		select {
+		case status := <-p.statusChan:
+			p.updateServiceStatus(status)
+			if watcherMap, ok := p.watches[status.Name]; ok {
+				for _, watcher := range watcherMap {
+					watcher.statusChan <- status
+				}
+			}
+		case <-p.ctx.Done():
+			return
+		}
+	}
+}
+
+func (p *probeManager) Stop() error {
+	p.cancel()
+	return nil
+}
+func (p *probeManager) CloseWatch(serviceName string, id string) error {
+	channel := p.watches[serviceName][id].statusChan
+	close(channel)
+	return nil
+}
+func (p *probeManager) GetServiceHealthy(serviceName string) (*service.HealthStatus, error) {
+	if v, ok := p.status[serviceName]; ok {
+		if v == nil {
+			time.Sleep(time.Second * 3)
+			return v, nil
+		} else {
+			return v, nil
+		}
+	}
+	return nil, errors.New("The service does not exist")
+
 }
 
 func (w *watcher) Watch() *service.HealthStatus {

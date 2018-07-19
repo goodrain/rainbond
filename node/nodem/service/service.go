@@ -18,6 +18,13 @@
 
 package service
 
+import "time"
+
+const (
+	Stat_healthy   string = "healthy"   //健康
+	Stat_unhealthy string = "unhealthy" //出现异常
+)
+
 //Service Service
 type Service struct {
 	Name          string      `yaml:"name"`
@@ -40,7 +47,7 @@ type Services struct {
 
 // service list of the node
 type ServiceList struct {
-	Version string `yaml:"version"`
+	Version  string `yaml:"version"`
 	Services []struct {
 		Name string `yaml:"name"`
 	} `yaml:"services"`
@@ -54,15 +61,16 @@ type Endpoint struct {
 
 //Health ServiceHealth
 type Health struct {
-	Name         string `yaml:"name"`
-	Model        string `yaml:"model"`
-	Address      string `yaml:"address"`
-	TimeInterval int `yaml:"time_interval"`
-	MaxErrorNumber  int `yaml:"max_error_number"`
+	Name           string `yaml:"name"`
+	Model          string `yaml:"model"`
+	Address        string `yaml:"address"`
+	TimeInterval   int    `yaml:"time_interval"`
 }
 
 type HealthStatus struct {
-	Name   string `yaml:"name"`
-	Status string `yaml:"status"`
-	Info string `yaml:"info"`
+	Name   string
+	Status string
+	ErrorNumber int
+	ErrorTime time.Duration
+	Info   string
 }

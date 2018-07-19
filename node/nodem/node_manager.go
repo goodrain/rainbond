@@ -71,6 +71,7 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 	if err != nil {
 		return nil, err
 	}
+	m := healthy.CreateManager()
 	ctx, cancel := context.WithCancel(context.Background())
 	nodem := &NodeManager{
 		cfg:        conf,
@@ -80,6 +81,7 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 		taskrun:    taskrun,
 		cluster:    cluster,
 		monitor:    monitor,
+		healthy:    m,
 	}
 	return nodem, nil
 }
@@ -102,8 +104,7 @@ func (n *NodeManager) Start(errchan chan error) error {
 	if err != nil {
 		return fmt.Errorf("get all services error,%s", err.Error())
 	}
-
-	if err := n.healthy.AddServices(services); err!=nil{
+	if err := n.healthy.AddServices(services); err != nil {
 		return fmt.Errorf("get all services error,%s", err.Error())
 	}
 
