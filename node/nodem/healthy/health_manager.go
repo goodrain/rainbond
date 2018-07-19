@@ -42,37 +42,33 @@ type ProbeManager struct {
 }
 
 func (p *ProbeManager) AddServices(inner []*service.Service) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	p.ctx = ctx
+	p.cancel = cancel
 	p.services = inner
 	return nil
 }
 
-func NewProbeManager(inner []*service.Service) (*ProbeManager, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	return &ProbeManager{
-		services: inner,
-		ctx:      ctx,
-		cancel:   cancel,
-	}, nil
-}
 
-func (p *ProbeManager) Start() error {
+func (p *ProbeManager) Start() (chan service.HealthStatus, error) {
 
 	logrus.Info("health mode start")
-	resultsChan := make(chan service.HealthStatus)
+	ResultsChan := make(chan service.HealthStatus, 100)
 	for _, v := range p.services {
 		if v.ServiceHealth.Model == "http" {
 			h := &HttpProbe{
+				name:        v.ServiceHealth.Name,
 				address:     v.ServiceHealth.Address,
 				path:        v.ServiceHealth.Path,
 				ctx:         p.ctx,
 				cancel:      p.cancel,
-				resultsChan: resultsChan,
+				resultsChan: ResultsChan,
 			}
 			go h.Check()
 		}
 
 	}
-	return nil
+	return ResultsChan, nil
 }
 
 func (p *ProbeManager) Stop() error {
@@ -97,22 +93,24 @@ func (p *ProbeManager) GetServiceHealthy(serviceName string) *service.HealthStat
 }
 
 func (p *ProbeManager) WatchServiceHealthy() <-chan *service.HealthStatus {
-	healthChannel := make(chan *service.HealthStatus, 10)
-	util.Exec(p.ctx, func() error {
-		for _, v := range p.services {
-			if v.ServiceHealth.Model == "http" {
-				healthMap := GetHttpHealth(v.ServiceHealth.Address, v.ServiceHealth.Path)
-
-				result := &service.HealthStatus{
-					Name:   v.ServiceHealth.Name,
-					Status: healthMap["status"],
-					Info:   healthMap["info"],
+	healthChannel := make(chan *service.HealthStatus, 100)
+	function := func() {
+		util.Exec(p.ctx, func() error {
+			for _, v := range p.services {
+				if v.ServiceHealth.Model == "http" {
+					healthMap := GetHttpHealth(v.ServiceHealth.Address, v.ServiceHealth.Path)
+					result := &service.HealthStatus{
+						Name:   v.ServiceHealth.Name,
+						Status: healthMap["status"],
+						Info:   healthMap["info"],
+					}
+					healthChannel <- result
 				}
-				healthChannel <- result
 			}
-		}
-		return nil
-	}, time.Second*3)
+			return nil
+		}, time.Second*8)
+	}
+	go function()
 
 	return healthChannel
 }

@@ -2,14 +2,10 @@ package healthy
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"github.com/goodrain/rainbond/node/nodem/service"
 	"github.com/goodrain/rainbond/util"
-	"io/ioutil"
 	"net/http"
 	"time"
-	"github.com/Sirupsen/logrus"
 )
 
 type Probe interface {
@@ -20,7 +16,7 @@ type HttpProbe struct {
 	name        string
 	address     string
 	path        string
-	resultsChan chan<- service.HealthStatus
+	resultsChan chan service.HealthStatus
 	ctx         context.Context
 	cancel      context.CancelFunc
 }
@@ -35,40 +31,17 @@ func (h *HttpProbe) Check() {
 		}
 		h.resultsChan <- result
 		return nil
-	}, time.Second*3)
+	}, time.Second*8)
 }
 
 func GetHttpHealth(address string, path string) map[string]string {
 	resp, err := http.Get("http://" + address + path)
-	defer resp.Body.Close()
 	if err != nil {
 		return map[string]string{"status": "unusual", "info": "Service exception, request error"}
 	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		logrus.Error(err)
+	if resp.StatusCode >= 400 {
+		return map[string]string{"status": "unusual", "info": "Service unusual"}
 	}
-
-	//{"bean":{"info":"eventlog service health","status":"health"}}
-	m := struct {
-		Bean struct {
-			Info   string `json:"info"`
-			Status string `json:"status"`
-		} `json:"bean"`
-	}{}
-
-	err = json.Unmarshal(body, &m)
-	if err != nil {
-		logrus.Error("Deserialization error:",err)
-	}
-
-	if m.Bean.Status == "unusual"{
-		return map[string]string{"status": m.Bean.Status, "info": m.Bean.Info}
-	}
-
-	fmt.Println(string(body))
-
 	return map[string]string{"status": "health", "info": "service health"}
 
 }
