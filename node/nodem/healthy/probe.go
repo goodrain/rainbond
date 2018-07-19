@@ -8,39 +8,60 @@ import (
 	"time"
 )
 
+var errorNum int = 0
+
 type Probe interface {
 	Check() map[string]string
 }
 
 type HttpProbe struct {
-	name        string
-	address     string
-	path        string
-	resultsChan chan service.HealthStatus
-	ctx         context.Context
-	cancel      context.CancelFunc
+	name           string
+	address        string
+	resultsChan    chan *service.HealthStatus
+	ctx            context.Context
+	cancel         context.CancelFunc
+	TimeInterval   int
+	MaxErrorNumber int
 }
 
 func (h *HttpProbe) Check() {
 	util.Exec(h.ctx, func() error {
-		HealthMap := GetHttpHealth(h.address, h.path)
-		result := service.HealthStatus{
-			Name:   h.name,
-			Status: HealthMap["status"],
-			Info:   HealthMap["info"],
+		HealthMap := GetHttpHealth(h.address)
+
+		if HealthMap["status"] != "health" {
+			errorNum += 1
+		} else {
+			errorNum = 0
 		}
-		h.resultsChan <- result
+
+		if errorNum >= h.MaxErrorNumber {
+			result := &service.HealthStatus{
+				Name:   h.name,
+				Status: "death",
+				Info:   "More than the maximum number of errors, needs to be restarted",
+			}
+			h.resultsChan <- result
+		} else {
+			result := &service.HealthStatus{
+				Name:   h.name,
+				Status: HealthMap["status"],
+				Info:   HealthMap["info"],
+			}
+			h.resultsChan <- result
+		}
+
 		return nil
-	}, time.Second*8)
+	}, time.Second*time.Duration(h.TimeInterval))
 }
 
-func GetHttpHealth(address string, path string) map[string]string {
-	resp, err := http.Get("http://" + address + path)
+func GetHttpHealth(address string) map[string]string {
+	resp, err := http.Get("http://" + address)
 	if err != nil {
-		return map[string]string{"status": "unusual", "info": "Service exception, request error"}
+		return map[string]string{"status": "disconnect", "info": "Request service is unreachable"}
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		return map[string]string{"status": "unusual", "info": "Service unusual"}
+		return map[string]string{"status": "unhealthy", "info": "Service unhealthy"}
 	}
 	return map[string]string{"status": "health", "info": "service health"}
 

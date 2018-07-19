@@ -21,66 +21,113 @@ package healthy
 import (
 	"github.com/goodrain/rainbond/node/nodem/service"
 	"context"
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util"
 	"time"
-	"github.com/Sirupsen/logrus"
 )
 
 //Manager Manager
 type Manager interface {
 	GetServiceHealthy(serviceName string) *service.HealthStatus
-	WatchServiceHealthy() <-chan *service.HealthStatus
+	WatchServiceHealthy(serviceName string) Watcher
+	CloseWatch(serviceName string, id string) error
 	Start() error
 	AddServices([]*service.Service) error
 	Stop() error
 }
 
-type ProbeManager struct {
-	services []*service.Service
-	ctx      context.Context
-	cancel   context.CancelFunc
+func CreateManager() Manager {
+	ctx, cancel := context.WithCancel(context.Background())
+	statusChan := make(chan *service.HealthStatus, 100)
+	status := make(map[string]*service.HealthStatus)
+	watches := make(map[string]map[string]*watcher)
+	m := &probeManager{
+		ctx:        ctx,
+		cancel:     cancel,
+		statusChan: statusChan,
+		status:     status,
+		watches:    watches,
+	}
+
+	return m
 }
 
-func (p *ProbeManager) AddServices(inner []*service.Service) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	p.ctx = ctx
-	p.cancel = cancel
+type probeManager struct {
+	services []*service.Service
+	status   map[string]*service.HealthStatus
+	ctx      context.Context
+	cancel   context.CancelFunc
+	watches  map[string]map[string]*watcher
+	//lock sync.Mutex
+	statusChan chan *service.HealthStatus
+}
+
+func (p *probeManager) AddServices(inner []*service.Service) error {
 	p.services = inner
 	return nil
 }
 
-
-func (p *ProbeManager) Start() (chan service.HealthStatus, error) {
+func (p *probeManager) Start() (error) {
 
 	logrus.Info("health mode start")
-	ResultsChan := make(chan service.HealthStatus, 100)
+
 	for _, v := range p.services {
 		if v.ServiceHealth.Model == "http" {
 			h := &HttpProbe{
-				name:        v.ServiceHealth.Name,
-				address:     v.ServiceHealth.Address,
-				path:        v.ServiceHealth.Path,
-				ctx:         p.ctx,
-				cancel:      p.cancel,
-				resultsChan: ResultsChan,
+				name:           v.ServiceHealth.Name,
+				address:        v.ServiceHealth.Address,
+				ctx:            p.ctx,
+				cancel:         p.cancel,
+				resultsChan:    p.statusChan,
+				TimeInterval:   v.ServiceHealth.TimeInterval,
+				MaxErrorNumber: v.ServiceHealth.MaxErrorNumber,
 			}
 			go h.Check()
 		}
 
 	}
-	return ResultsChan, nil
-}
-
-func (p *ProbeManager) Stop() error {
-	p.cancel()
+	go p.processResult()
+	time.Sleep(time.Second*5)
+	go p.SubscriptionPush()
 	return nil
 }
 
-func (p *ProbeManager) GetServiceHealthy(serviceName string) *service.HealthStatus {
+func (p *probeManager) processResult() {
+
+	for {
+		result := <-p.statusChan
+		p.status[result.Name] = result
+	}
+}
+
+func (p *probeManager) SubscriptionPush() {
+	for {
+
+
+	for _, service := range p.services {
+		if watcherMap, ok := p.watches[service.Name]; ok {
+			for _, watcher := range watcherMap {
+				watcher.statusChan <- p.status[service.Name]
+			}
+
+		}
+	}
+}}
+
+func (p *probeManager) Stop() error {
+	p.cancel()
+	return nil
+}
+func (p *probeManager) CloseWatch(serviceName string, id string) error {
+	channel := p.watches[serviceName][id].statusChan
+	close(channel)
+	return nil
+}
+func (p *probeManager) GetServiceHealthy(serviceName string) *service.HealthStatus {
 	for _, v := range p.services {
 		if v.Name == serviceName {
 			if v.ServiceHealth.Model == "http" {
-				healthMap := GetHttpHealth(v.ServiceHealth.Address, v.ServiceHealth.Path)
+				healthMap := GetHttpHealth(v.ServiceHealth.Address)
 
 				return &service.HealthStatus{
 					Status: healthMap["status"],
@@ -92,25 +139,38 @@ func (p *ProbeManager) GetServiceHealthy(serviceName string) *service.HealthStat
 	return nil
 }
 
-func (p *ProbeManager) WatchServiceHealthy() <-chan *service.HealthStatus {
-	healthChannel := make(chan *service.HealthStatus, 100)
-	function := func() {
-		util.Exec(p.ctx, func() error {
-			for _, v := range p.services {
-				if v.ServiceHealth.Model == "http" {
-					healthMap := GetHttpHealth(v.ServiceHealth.Address, v.ServiceHealth.Path)
-					result := &service.HealthStatus{
-						Name:   v.ServiceHealth.Name,
-						Status: healthMap["status"],
-						Info:   healthMap["info"],
-					}
-					healthChannel <- result
-				}
-			}
-			return nil
-		}, time.Second*8)
-	}
-	go function()
+type Watcher interface {
+	Watch() *service.HealthStatus
+	Close() error
+}
+type watcher struct {
+	manager     Manager
+	statusChan  chan *service.HealthStatus
+	id          string
+	serviceName string
+}
 
-	return healthChannel
+func (w *watcher) Watch() *service.HealthStatus {
+	return <-w.statusChan
+}
+func (w *watcher) Close() error {
+	return w.manager.CloseWatch(w.serviceName, w.id)
+}
+
+func (p *probeManager) WatchServiceHealthy(serviceName string) Watcher {
+	healthChannel := make(chan *service.HealthStatus, 10)
+	w := &watcher{
+		manager:     p,
+		statusChan:  healthChannel,
+		id:          util.NewUUID(),
+		serviceName: serviceName,
+	}
+	if s, ok := p.watches[serviceName]; ok {
+		s[w.id] = w
+	} else {
+		p.watches[serviceName] = map[string]*watcher{
+			w.id: w,
+		}
+	}
+	return w
 }
