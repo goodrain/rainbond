@@ -61,12 +61,12 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	controller := controller.NewLinuxManager(conf)
 	taskrun, err := taskrun.Newmanager(conf, etcdcli)
 	if err != nil {
 		return nil, err
 	}
 	cluster := client.NewClusterClient(conf, etcdcli)
+	controller := controller.NewManagerService(conf, cluster)
 	monitor, err := monitor.CreateManager(conf)
 	if err != nil {
 		return nil, err
@@ -98,16 +98,19 @@ func (n *NodeManager) Start(errchan chan error) error {
 	if err := n.controller.Start(); err != nil {
 		return fmt.Errorf("start node controller error,%s", err.Error())
 	}
-	// services, err := n.controller.GetAllService()
-	// if err != nil {
-	// 	return fmt.Errorf("get all services error,%s", err.Error())
-	// }
-	// if err := n.healthy.AddServices(services); err != nil {
-	// 	return fmt.Errorf("get all services error,%s", err.Error())
-	// }
-	// if err := n.healthy.Start(); err != nil {
-	// 	return fmt.Errorf("node healty start error,%s", err.Error())
-	// }
+	services, err := n.controller.GetAllService()
+	if err != nil {
+		return fmt.Errorf("get all services error,%s", err.Error())
+	}
+
+	if err := n.healthy.AddServices(services); err!=nil{
+		return fmt.Errorf("get all services error,%s", err.Error())
+	}
+
+	if err := n.healthy.Start(); err != nil {
+		return fmt.Errorf("node healty start error,%s", err.Error())
+	}
+
 	go n.monitor.Start(errchan)
 	go n.taskrun.Start(errchan)
 	go n.heartbeat()

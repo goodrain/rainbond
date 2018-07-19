@@ -16,101 +16,68 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// +build linux
 package controller
 
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/node/nodem/client"
+	"github.com/goodrain/rainbond/node/nodem/service"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"os/exec"
 	"os"
-	"github.com/goodrain/rainbond/node/nodem/service"
+	"os/exec"
+	"regexp"
 )
 
-type LinuxManager struct {
+type ControllerSystemd struct {
 	SysConfigDir string
 	NodeType     string
 	StartType    string
 
 	// all services
 	services []*service.Service
-	conf       *option.Conf
+	conf     *option.Conf
+	cluster  client.ClusterClient
+	regBlock *regexp.Regexp
 }
 
 // At the stage you want to load the configurations of all rainbond components
-func NewLinuxManager(conf *option.Conf) *LinuxManager {
-	services, err := LoadServices(conf.DefaultConfigFile, conf.ServiceListFile)
-	if err != nil {
-		logrus.Error("Failed to new linux manager: ", err)
-		panic(err)
-	}
-
-	return &LinuxManager{
+func NewControllerSystemd(conf *option.Conf, cluster client.ClusterClient) *ControllerSystemd {
+	return &ControllerSystemd{
 		conf:         conf,
+		cluster:      cluster,
 		SysConfigDir: "/etc/systemd/system",
-		services:     services,
 	}
-}
-
-func (m *LinuxManager) GetAllService() ([]*service.Service, error) {
-	return m.services, nil
-}
-
-func (m *LinuxManager) Start() error {
-	if err := m.GenerateAndOverwriteAllConfig(); err != nil {
-		return err
-	}
-
-	m.DisableAll()
-	if err := m.EnableAll(); err != nil {
-		return err
-	}
-
-	m.CheckBeforeUp()
-
-	m.StartAll()
-
-	return nil
-}
-
-func (m *LinuxManager) Stop() error {
-	return nil
 }
 
 // for all rainbond components generate config file of systemd
-func (m *LinuxManager) GenerateAndOverwriteAllConfig() error {
+func (m *ControllerSystemd) WriteAllConfig() error {
+	logrus.Info("Write all service config to systemd.")
 	for _, v := range m.services {
 		fileName := fmt.Sprintf("%s/%s.service", m.SysConfigDir, v.Name)
-		if err := ioutil.WriteFile(fileName, m.ToConfig(v), 0644); err != nil {
+		content := service.ToConfig(v, m.cluster)
+		if content == nil {
+			logrus.Error("can not generate config for service ", v.Name)
+			continue
+		}
+		if err := ioutil.WriteFile(fileName, content, 0644); err != nil {
 			logrus.Warnf("Generate config file %s: %v, has been ignored.", fileName, err)
 		}
 	}
 
+	err := exec.Command("/usr/bin/systemctl", "daemon-reload").Run()
+	if err != nil {
+		logrus.Errorf("reload all services %s: %v", err)
+	}
+
 	return nil
 }
 
-func (m *LinuxManager) ToConfig(s *service.Service) []byte {
-	result := "[Unit]"
-	for i := range s.Unit {
-		result = fmt.Sprintf("%s\n%s", result, s.Unit[i])
-	}
-
-	result = fmt.Sprintf("%s\n[Service]", result)
-	for i := range s.Service {
-		result = fmt.Sprintf("%s\n%s", result, s.Service[i])
-	}
-
-	result = fmt.Sprintf("%s\n[Install]", result)
-	for i := range s.Install {
-		result = fmt.Sprintf("%s\n%s", result, s.Install[i])
-	}
-
-	return []byte(result)
-}
-
-func (m *LinuxManager) RemoveAllConfig() error {
+func (m *ControllerSystemd) RemoveAllConfig() error {
+	logrus.Info("Remote all service config to systemd.")
 	for _, v := range m.services {
 		fileName := fmt.Sprintf("%s/%s.service", m.SysConfigDir, v.Name)
 		_, err := os.Stat(fileName)
@@ -122,8 +89,8 @@ func (m *LinuxManager) RemoveAllConfig() error {
 	return nil
 }
 
-// TODO
-func (m *LinuxManager) EnableAll() error {
+func (m *ControllerSystemd) EnableAll() error {
+	logrus.Info("Enable all services.")
 	for _, s := range m.services {
 		err := exec.Command("/usr/bin/systemctl", "enable", s.Name).Run()
 		if err != nil {
@@ -134,7 +101,8 @@ func (m *LinuxManager) EnableAll() error {
 	return nil
 }
 
-func (m *LinuxManager) DisableAll() error {
+func (m *ControllerSystemd) DisableAll() error {
+	logrus.Info("Disable all service config to systemd.")
 	for _, s := range m.services {
 		err := exec.Command("/usr/bin/systemctl", "disable", s.Name).Run()
 		if err != nil {
@@ -145,21 +113,16 @@ func (m *LinuxManager) DisableAll() error {
 	return nil
 }
 
-// TODO
-func (m *LinuxManager) CheckBeforeUp() bool {
+func (m *ControllerSystemd) CheckBeforeStart() bool {
+	logrus.Info("Checking environments.")
 
 	return true
 }
 
-func (m *LinuxManager) StartAll() error {
-	m.DisableAll()
-	err := m.EnableAll()
-	if err != nil {
-		logrus.Errorf("Start all service: %v", err)
-		return err
-	}
+func (m *ControllerSystemd) StartAll() error {
+	logrus.Info("Starting all services.")
 
-	err = exec.Command("/usr/bin/systemctl", "start", "multi-user.target").Run()
+	err := exec.Command("/usr/bin/systemctl", "start", "multi-user.target").Run()
 	if err != nil {
 		logrus.Errorf("Start target multi-user: %v", err)
 		return err
@@ -168,7 +131,7 @@ func (m *LinuxManager) StartAll() error {
 	return nil
 }
 
-func (m *LinuxManager) StartByName(serviceName string) error {
+func (m *ControllerSystemd) StartByName(serviceName string) error {
 	err := exec.Command("/usr/bin/systemctl", "start", serviceName).Run()
 	if err != nil {
 		logrus.Errorf("Start service %s: %v", serviceName, err)
@@ -177,7 +140,8 @@ func (m *LinuxManager) StartByName(serviceName string) error {
 	return nil
 }
 
-func (m *LinuxManager) StopAll() error {
+func (m *ControllerSystemd) StopAll() error {
+	logrus.Info("Stop all services.")
 	for _, s := range m.services {
 		err := exec.Command("/usr/bin/systemctl", "stop", s.Name).Run()
 		if err != nil {
@@ -188,7 +152,7 @@ func (m *LinuxManager) StopAll() error {
 	return nil
 }
 
-func (m *LinuxManager) StopByName(serviceName string) error {
+func (m *ControllerSystemd) StopByName(serviceName string) error {
 	err := exec.Command("/usr/bin/systemctl", "stop", serviceName).Run()
 	if err != nil {
 		logrus.Errorf("Stop service %s: %v", serviceName, err)
@@ -197,41 +161,55 @@ func (m *LinuxManager) StopByName(serviceName string) error {
 	return nil
 }
 
-// TODO
-func GetStartType() string {
-
-	return ""
-}
-
-// TODO
 func LoadServices(defaultConfigFile, serviceListFile string) ([]*service.Service, error) {
-	t := GetStartType()
-	switch t {
-	case Init:
-		return loadServicesFromLocal(defaultConfigFile, serviceListFile)
-	case Add:
+	logrus.Info("Loading all services.")
 
-	case Start:
-
+	services, err := loadServicesFromLocal(defaultConfigFile, serviceListFile)
+	if err != nil {
+		return nil, err
 	}
-	return nil, nil
+
+	return services, nil
 }
 
-func (m *LinuxManager) ReLoadServices() error {
-	defaultConfigFile := m.conf.DefaultConfigFile
-	serviceListFile := m.conf.ServiceListFile
+func (m *ControllerSystemd) GetAllService() []*service.Service {
+	return m.services
+}
 
-	services, err := LoadServices(defaultConfigFile, serviceListFile)
+/*
+1. reload services config from local file system
+2. regenerate systemd config
+3. start all services of status is not running
+*/
+func (m *ControllerSystemd) ReLoadServices() error {
+	services, err := LoadServices(m.conf.DefaultConfigFile, m.conf.ServiceListFile)
 	if err != nil {
-		logrus.Error("Filed to reload services info: ", err)
+		logrus.Error("Failed to load all services: ", err)
 		return err
 	}
 	m.services = services
+
+	if err := m.WriteAllConfig(); err != nil {
+		return err
+	}
+
+	m.DisableAll()
+	if err := m.EnableAll(); err != nil {
+		return err
+	}
+
+	if ok := m.CheckBeforeStart(); !ok {
+		return fmt.Errorf("check environments is not passed")
+	}
+
+	m.StartAll()
 
 	return nil
 }
 
 func loadServicesFromLocal(defaultConfigFile, serviceListFile string) ([]*service.Service, error) {
+	logrus.Info("Loading all services from local.")
+
 	// load default-configs.yaml
 	content, err := ioutil.ReadFile(defaultConfigFile)
 	if err != nil {
@@ -264,7 +242,7 @@ func loadServicesFromLocal(defaultConfigFile, serviceListFile string) ([]*servic
 	}
 
 	// parse services with the node type
-	services := make([]*service.Service, len(defaultConfigs.Services))
+	services := make([]*service.Service, 0, len(defaultConfigs.Services))
 	for _, item := range serviceList.Services {
 		if s, ok := defaultConfigsMap[item.Name]; ok {
 			services = append(services, s)

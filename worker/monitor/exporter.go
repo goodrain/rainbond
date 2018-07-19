@@ -81,6 +81,9 @@ func (t *ExporterManager) Start() error {
 	})
 	http.HandleFunc("/worker/health", func(w http.ResponseWriter, r *http.Request) {
 		healthStatus := discover.HealthCheck()
+		if healthStatus["status"] != "health"{
+			httputil.ReturnError(r,w,400,"worker service unusual")
+		}
 		httputil.ReturnSuccess(r,w,healthStatus)
 	})
 	log.Infoln("Listening on", t.config.Listen)

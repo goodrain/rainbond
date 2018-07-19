@@ -20,15 +20,11 @@ package controller
 
 import "github.com/goodrain/rainbond/node/nodem/service"
 
-const (
-	Init  = "create"
-	Add   = "add"
-	Start = "start"
-)
-
 //Manager Manager
 type Manager interface {
 	Start() error
 	GetAllService() ([]*service.Service, error)
 	Stop() error
+	Online() error
+	Offline() error
 }

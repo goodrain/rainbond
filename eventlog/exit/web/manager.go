@@ -466,6 +466,9 @@ func (s *SocketServer) listen() {
 	})
 	http.HandleFunc("/event_push", s.receiveEventMessage)
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		if s.healthInfo["status"] != "health"{
+			httputil.ReturnError(r,w,400,"eventlog service unusual")
+		}
 		httputil.ReturnSuccess(r,w,s.healthInfo)
 	})
 	//monitor setting

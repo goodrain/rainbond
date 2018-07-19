@@ -279,27 +279,12 @@ func (o *openresty) DeletePool(pools ...*object.PoolObject) error {
 	var errs []error
 
 	for _, pool := range pools {
-		upstreamName, err := getUpstreamNameByPool(pool.Name)
-		if err != nil {
-			logrus.Error(fmt.Sprintf("Failed to update vs %s: %s", pool.Name, err))
-			continue
-		}
-
-		protocol := "tcp"
-		_, err = o.ctx.Store.GetVSByPoolName(pool.Name)
-		if err != nil {
-			protocol = "http"
-		}
-
-		// request all openresty instance by rest api
-		err = o.doEach(DELETE, o.urlPool(upstreamName), Options{protocol})
-
+		err := o.deleteUpstream(pool.Name)
 		if err != nil {
 			errs = append(errs, err)
 			logrus.Error(err)
 			continue
 		}
-
 	}
 
 	return reduceErr(errs)
@@ -339,13 +324,19 @@ func (o *openresty) GetNode(name string) *object.NodeObject {
 }
 
 func (o *openresty) deleteUpstream(poolName string) error {
+	upstreamName, err := getUpstreamNameByPool(poolName)
+	if err != nil {
+		logrus.Error(fmt.Sprintf("Failed to get upstream name %s: %s", poolName, err))
+		return err
+	}
+
 	protocol := "tcp"
-	_, err := o.ctx.Store.GetVSByPoolName(poolName)
+	_, err = o.ctx.Store.GetVSByPoolName(poolName)
 	if err != nil {
 		protocol = "http"
 	}
 
-	if err := o.doEach(DELETE, o.urlPool(poolName), Options{protocol}); err != nil {
+	if err := o.doEach(DELETE, o.urlPool(upstreamName), Options{protocol}); err != nil {
 		return err
 	}
 

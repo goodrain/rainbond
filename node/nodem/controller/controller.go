@@ -19,28 +19,19 @@
 package controller
 
 import (
-	apistore "github.com/goodrain/rainbond/entrance/api/store"
-	"github.com/emicklei/go-restful"
+	"github.com/goodrain/rainbond/node/nodem/service"
 )
 
-//PodSource 查询应用实例的端口映射情况
-type HealthStatus struct {
-	apiStoreManager *apistore.Manager
-}
-
-//Register 注册
-func (h HealthStatus) Register(container *restful.Container) {
-	ws := new(restful.WebService)
-	ws.Path("/health").
-		Doc("Get service health").
-		Param(ws.PathParameter("pod_name", "pod name").DataType("string")).
-		Consumes(restful.MIME_XML, restful.MIME_JSON).
-		Produces(restful.MIME_JSON, restful.MIME_XML) // you can specify this per route as well
-
-	ws.Route(ws.GET("/").To(h.healthCheck)) // on the response
-	container.Add(ws)
-}
-
-func (h *HealthStatus) healthCheck(request *restful.Request, response *restful.Response) {
-	NewSuccessResponse(map[string]string{"status": "health", "info": "entrance service health"}, nil, response)
+type Controller interface {
+	WriteAllConfig() error
+	RemoveAllConfig() error
+	EnableAll() error
+	DisableAll() error
+	CheckBeforeStart() bool
+	StartAll() error
+	StartByName(serviceName string) error
+	StopAll() error
+	StopByName(serviceName string) error
+	ReLoadServices() error
+	GetAllService() []*service.Service
 }
