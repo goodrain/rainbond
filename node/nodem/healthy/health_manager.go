@@ -37,7 +37,7 @@ type Manager interface {
 }
 
 type Watcher interface {
-	Watch() *service.HealthStatus
+	Watch() <-chan *service.HealthStatus
 	Close() error
 }
 type watcher struct {
@@ -161,8 +161,8 @@ func (p *probeManager) GetServiceHealthy(serviceName string) (*service.HealthSta
 
 }
 
-func (w *watcher) Watch() *service.HealthStatus {
-	return <-w.statusChan
+func (w *watcher) Watch() <-chan *service.HealthStatus {
+	return w.statusChan
 }
 func (w *watcher) Close() error {
 	return w.manager.CloseWatch(w.serviceName, w.id)

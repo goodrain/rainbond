@@ -61,16 +61,16 @@ type Endpoint struct {
 
 //Health ServiceHealth
 type Health struct {
-	Name           string `yaml:"name"`
-	Model          string `yaml:"model"`
-	Address        string `yaml:"address"`
-	TimeInterval   int    `yaml:"time_interval"`
+	Name         string `yaml:"name"`
+	Model        string `yaml:"model"`
+	Address      string `yaml:"address"`
+	TimeInterval int    `yaml:"time_interval"`
 }
 
 type HealthStatus struct {
-	Name   string
-	Status string
+	Name        string
+	Status      string
 	ErrorNumber int
-	ErrorTime time.Duration
-	Info   string
+	ErrorTime   time.Duration
+	Info        string
 }

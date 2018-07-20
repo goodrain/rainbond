@@ -23,15 +23,13 @@ import (
 )
 
 type Controller interface {
-	WriteAllConfig() error
-	RemoveAllConfig() error
-	EnableAll() error
-	DisableAll() error
+	StartService(name string) error
+	StopService(name string) error
+	StartList(list []*service.Service) error
+	StopList(list []*service.Service) error
+	WriteConfig(s *service.Service) error
+	RemoveConfig(name string) error
+	EnableService(name string) error
+	DisableService(name string) error
 	CheckBeforeStart() bool
-	StartAll() error
-	StartByName(serviceName string) error
-	StopAll() error
-	StopByName(serviceName string) error
-	ReLoadServices() error
-	GetAllService() []*service.Service
 }

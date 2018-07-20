@@ -19,30 +19,50 @@
 package controller
 
 import (
+	"context"
+	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/nodem/client"
+	"github.com/goodrain/rainbond/node/nodem/healthy"
 	"github.com/goodrain/rainbond/node/nodem/service"
-	"fmt"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
 )
 
 type ManagerService struct {
-	controller Controller
-	cluster    client.ClusterClient
+	ctx            context.Context
+	cancel         context.CancelFunc
+	conf           *option.Conf
+	ctr            Controller
+	cluster        client.ClusterClient
+	healthyManager healthy.Manager
+	services       []*service.Service
 }
 
 func (m *ManagerService) GetAllService() ([]*service.Service, error) {
-	return m.controller.GetAllService(), nil
+	return m.services, nil
 }
 
-// start manager
+// start and monitor all service
 func (m *ManagerService) Start() error {
 	logrus.Info("Starting node controller manager.")
-	return m.Online()
+
+	err := m.Online()
+	if err != nil {
+		return err
+	}
+
+	for _, s := range m.services {
+		go m.SyncService(s.Name)
+	}
+
+	return nil
 }
 
 // stop manager
 func (m *ManagerService) Stop() error {
+	m.cancel()
 	return nil
 }
 
@@ -62,7 +82,7 @@ func (m *ManagerService) Online() error {
 		}
 	}
 
-	if err := m.controller.ReLoadServices(); err != nil {
+	if err := m.ReLoadServices(); err != nil {
 		return err
 	}
 
@@ -84,11 +104,124 @@ func (m *ManagerService) Offline() error {
 		}
 	}
 
-	if err := m.controller.StopAll(); err != nil {
+	if err := m.ctr.StopList(m.services); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// synchronize all service status to as we expect
+func (m *ManagerService) SyncService(name string) {
+	logrus.Error("Start Watcher the service status ", name)
+
+	w := m.healthyManager.WatchServiceHealthy(name)
+	if w == nil {
+		logrus.Error("Not found watcher of the service ", name)
+		return
+	}
+
+	for {
+		select {
+		case event := <-w.Watch():
+			switch event.Status {
+			case service.Stat_healthy:
+				logrus.Debug("The %s service is %s.", event.Name, event.Status)
+			case service.Stat_unhealthy:
+				if 3 <= event.ErrorNumber {
+					logrus.Infof("The %s service is %s and will be restart.", event.Name, event.Status)
+					m.ctr.StopService(event.Name)
+					m.ctr.StartService(event.Name)
+				}
+			}
+		case <-m.ctx.Done():
+			return
+		}
+	}
+}
+
+/*
+1. reload services config from local file system
+2. regenerate systemd config for all service
+3. start all services of status is not running
+*/
+func (m *ManagerService) ReLoadServices() error {
+	services, err := loadServicesFromLocal(m.conf.DefaultConfigFile, m.conf.ServiceListFile)
+	if err != nil {
+		logrus.Error("Failed to load all services: ", err)
+		return err
+	}
+	m.services = services
+
+	for _, s := range m.services {
+		err := m.ctr.WriteConfig(s)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, s := range m.services {
+		m.ctr.DisableService(s.Name)
+		err := m.ctr.EnableService(s.Name)
+		if err != nil {
+			return err
+		}
+	}
+
+	if ok := m.ctr.CheckBeforeStart(); !ok {
+		return fmt.Errorf("check environments is not passed")
+	}
+
+	m.ctr.StartList(m.services)
+
+	return nil
+}
+
+func loadServicesFromLocal(defaultConfigFile, serviceListFile string) ([]*service.Service, error) {
+	logrus.Info("Loading all services from local.")
+
+	// load default-configs.yaml
+	content, err := ioutil.ReadFile(defaultConfigFile)
+	if err != nil {
+		logrus.Error("Failed to read default configs file: ", err)
+		return nil, err
+	}
+	var defaultConfigs service.Services
+	err = yaml.Unmarshal(content, &defaultConfigs)
+	if err != nil {
+		logrus.Error("Failed to parse default configs yaml file: ", err)
+		return nil, err
+	}
+	// to map, reduce time complexity
+	defaultConfigsMap := make(map[string]*service.Service, len(defaultConfigs.Services))
+	for _, v := range defaultConfigs.Services {
+		defaultConfigsMap[v.Name] = v
+	}
+
+	// load type-service.yaml, e.g. manager-service.yaml
+	content, err = ioutil.ReadFile(serviceListFile)
+	if err != nil {
+		logrus.Error("Failed to read service list file: ", err)
+		return nil, err
+	}
+	var serviceList service.ServiceList
+	err = yaml.Unmarshal(content, &serviceList)
+	if err != nil {
+		logrus.Error("Failed to parse service list yaml file: ", err)
+		return nil, err
+	}
+
+	// parse services with the node type
+	services := make([]*service.Service, 0, len(defaultConfigs.Services))
+	for _, item := range serviceList.Services {
+		if s, ok := defaultConfigsMap[item.Name]; ok {
+			services = append(services, s)
+		} else {
+			logrus.Warn("Not found the service %s in default config list, ignore it.", item.Name)
+		}
+	}
+
+	return services, nil
 }
 
 func isExistEndpoint(etcdEndPoints []string, end string) bool {
@@ -117,9 +250,14 @@ func toEndpoint(reg *service.Endpoint, ip string) string {
 	return fmt.Sprintf("%s://%s:%s", reg.Protocol, ip, reg.Port)
 }
 
-func NewManagerService(conf *option.Conf, cluster client.ClusterClient) *ManagerService {
+func NewManagerService(conf *option.Conf, cluster client.ClusterClient, healthyManager healthy.Manager) *ManagerService {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &ManagerService{
-		NewControllerSystemd(conf, cluster),
-		cluster,
+		ctx:            ctx,
+		cancel:         cancel,
+		conf:           conf,
+		cluster:        cluster,
+		ctr:            NewControllerSystemd(conf, cluster),
+		healthyManager: healthyManager,
 	}
 }

@@ -65,13 +65,13 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 	if err != nil {
 		return nil, err
 	}
+	healthyManager := healthy.CreateManager()
 	cluster := client.NewClusterClient(conf, etcdcli)
-	controller := controller.NewManagerService(conf, cluster)
+	controller := controller.NewManagerService(conf, cluster, healthyManager)
 	monitor, err := monitor.CreateManager(conf)
 	if err != nil {
 		return nil, err
 	}
-	m := healthy.CreateManager()
 	ctx, cancel := context.WithCancel(context.Background())
 	nodem := &NodeManager{
 		cfg:        conf,
@@ -81,7 +81,7 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 		taskrun:    taskrun,
 		cluster:    cluster,
 		monitor:    monitor,
-		healthy:    m,
+		healthy:    healthyManager,
 	}
 	return nodem, nil
 }
