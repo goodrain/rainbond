@@ -24,13 +24,11 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util"
 	"time"
-	"fmt"
-	"errors"
 )
 
 //Manager Manager
 type Manager interface {
-	GetServiceHealthy(serviceName string) (*service.HealthStatus, error)
+	GetServiceHealthy(serviceName string) (*service.HealthStatus, bool)
 	WatchServiceHealthy(serviceName string) Watcher
 	CloseWatch(serviceName string, id string) error
 	Start() error
@@ -130,7 +128,6 @@ func (p *probeManager) updateServiceStatus(status *service.HealthStatus) {
 		p.status[status.Name] = status
 	}
 
-	fmt.Println(p.status[status.Name], "vvvvv")
 
 }
 func (p *probeManager) HandleStatus() {
@@ -158,16 +155,9 @@ func (p *probeManager) CloseWatch(serviceName string, id string) error {
 	close(channel)
 	return nil
 }
-func (p *probeManager) GetServiceHealthy(serviceName string) (*service.HealthStatus, error) {
-	if v, ok := p.status[serviceName]; ok {
-		if v == nil {
-			time.Sleep(time.Second * 3)
-			return v, nil
-		} else {
-			return v, nil
-		}
-	}
-	return nil, errors.New("The service does not exist")
+func (p *probeManager) GetServiceHealthy(serviceName string) (*service.HealthStatus, bool) {
+	v, ok := p.status[serviceName]
+	return v, ok
 
 }
 

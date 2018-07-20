@@ -4,6 +4,7 @@ import (
 	"testing"
 	"github.com/goodrain/rainbond/node/nodem/service"
 	"fmt"
+	"time"
 )
 
 //func TestProbeManager_Start(t *testing.T) {
@@ -105,14 +106,18 @@ func TestGetHttpHealth(t *testing.T) {
 	serviceList = append(serviceList, h3)
 	m.AddServices(serviceList)
 	m.Start()
-	for {
 
-		info,err := m.GetServiceHealthy("builder")
-		if err != nil {
+	for   {
+
+		time.Sleep(time.Second*1)
+		info, ok := m.GetServiceHealthy("builder")
+		if !ok {
+			fmt.Println("cuowu")
 		} else {
 			fmt.Println(info.Name, info.Status, info.Info, info.ErrorNumber, info.ErrorTime)
 
-		}
+
+	}
 	}
 }
 
