@@ -28,6 +28,8 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/service"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"github.com/coreos/etcd/clientv3"
+	"os/exec"
 )
 
 type ManagerService struct {
@@ -53,6 +55,7 @@ func (m *ManagerService) Start() error {
 		return err
 	}
 
+	// TODO 为服务加入目标状态字段，当下线节点后，即使服务不健康也不会重启
 	for _, s := range m.services {
 		serviceName := s.Name
 		go m.SyncService(serviceName)
@@ -69,9 +72,15 @@ func (m *ManagerService) Stop() error {
 
 // start all service of on the node
 func (m *ManagerService) Online() error {
+	services, err := loadServicesFromLocal(m.conf.DefaultConfigFile, m.conf.ServiceListFile)
+	if err != nil {
+		logrus.Error("Failed to load all services: ", err)
+		return err
+	}
+	m.services = services
+
 	// registry local services endpoint into cluster manager
 	hostIp := m.cluster.GetOptions().HostIP
-	services, _ := m.GetAllService()
 	for _, s := range services {
 		for _, end := range s.Endpoints {
 			endpoint := toEndpoint(end, hostIp)
@@ -83,9 +92,16 @@ func (m *ManagerService) Online() error {
 		}
 	}
 
-	if err := m.ReLoadServices(); err != nil {
+	err = m.WriteServices()
+	if err != nil {
 		return err
 	}
+
+	if ok := m.ctr.CheckBeforeStart(); !ok {
+		return fmt.Errorf("check environments is not passed")
+	}
+
+	m.ctr.StartList(m.services)
 
 	return nil
 }
@@ -155,13 +171,10 @@ func (m *ManagerService) SyncService(name string) {
 3. start all services of status is not running
 */
 func (m *ManagerService) ReLoadServices() error {
-	services, err := loadServicesFromLocal(m.conf.DefaultConfigFile, m.conf.ServiceListFile)
-	if err != nil {
-		logrus.Error("Failed to load all services: ", err)
-		return err
-	}
-	m.services = services
+	return m.Online()
+}
 
+func (m *ManagerService) WriteServices() error {
 	for _, s := range m.services {
 		err := m.ctr.WriteConfig(s)
 		if err != nil {
@@ -177,11 +190,14 @@ func (m *ManagerService) ReLoadServices() error {
 		}
 	}
 
-	if ok := m.ctr.CheckBeforeStart(); !ok {
-		return fmt.Errorf("check environments is not passed")
-	}
+	return nil
+}
 
-	m.ctr.StartList(m.services)
+func (m *ManagerService) RemoveServices() error {
+	for _, s := range m.services {
+		m.ctr.DisableService(s.Name)
+		m.ctr.WriteConfig(s)
+	}
 
 	return nil
 }
@@ -260,9 +276,39 @@ func toEndpoint(reg *service.Endpoint, ip string) string {
 	return fmt.Sprintf("%s://%s:%s", reg.Protocol, ip, reg.Port)
 }
 
-func NewManagerService(conf *option.Conf, cluster client.ClusterClient, healthyManager healthy.Manager) *ManagerService {
+func startRequires() error {
+	err := exec.Command("/usr/bin/systemctl", "start", "docker").Run()
+	if err != nil {
+		logrus.Errorf("Start service docker: %v", err)
+		return err
+	}
+
+	err = exec.Command("/usr/bin/systemctl", "start", "etcd").Run()
+	if err != nil {
+		logrus.Errorf("Start service etcd: %v", err)
+		return err
+	}
+
+	err = exec.Command("/usr/bin/systemctl", "start", "rbd-fs").Run()
+	if err != nil {
+		logrus.Errorf("Start service rbd-fs: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func NewManagerService(conf *option.Conf, healthyManager healthy.Manager) (*ManagerService, *clientv3.Client, client.ClusterClient) {
+	startRequires()
 	ctx, cancel := context.WithCancel(context.Background())
-	return &ManagerService{
+
+	etcdcli, err := clientv3.New(conf.Etcd)
+	if err != nil {
+		return nil, nil, nil
+	}
+	cluster := client.NewClusterClient(conf, etcdcli)
+
+	manager := &ManagerService{
 		ctx:            ctx,
 		cancel:         cancel,
 		conf:           conf,
@@ -270,4 +316,6 @@ func NewManagerService(conf *option.Conf, cluster client.ClusterClient, healthyM
 		ctr:            NewControllerSystemd(conf, cluster),
 		healthyManager: healthyManager,
 	}
+
+	return manager, etcdcli, cluster
 }

@@ -81,7 +81,7 @@ func InjectConfig(content string, cluster client.ClusterClient) string {
 		}
 		endpoints := cluster.GetEndpoints(group[1])
 		if len(endpoints) < 1 {
-			logrus.Warnf("Not found endpoints of key %s when inject config.", group[1])
+			logrus.Warnf("Failed to inject endpoints of key %s", group[1])
 			continue
 		}
 		line := ""

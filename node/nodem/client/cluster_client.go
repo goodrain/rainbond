@@ -26,6 +26,8 @@ import (
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/core/config"
 	"github.com/goodrain/rainbond/node/core/job"
+	"encoding/json"
+	"github.com/Sirupsen/logrus"
 )
 
 //ClusterClient ClusterClient
@@ -83,12 +85,41 @@ func (e *etcdClusterClient) GetOptions() *option.Conf {
 	return e.conf
 }
 
-func (e *etcdClusterClient) GetEndpoints(key string) []string {
-	return nil
+func (e *etcdClusterClient) GetEndpoints(key string) (result []string) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	resp, err := e.etcdClient.Get(ctx, key)
+	if err != nil || len(resp.Kvs) < 1 {
+		logrus.Errorf("Can not get endpoints of the key %s", key)
+		return
+	}
+
+	err = json.Unmarshal(resp.Kvs[0].Value, &result)
+	if err != nil {
+		logrus.Errorf("Can unmarshal endpoints to array of the key %s", key)
+		return
+	}
+
+	return
 }
 
 func (e *etcdClusterClient) SetEndpoints(key string, value []string) {
-	return
+	logrus.Infof("Put endpoints %s => %v", key, value)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	jsonStr, err := json.Marshal(value)
+	if err != nil {
+		logrus.Errorf("Can not marshal %s endpoints to json.", key)
+		return
+	}
+
+	_, err = e.etcdClient.Put(ctx, key, string(jsonStr))
+	if err != nil {
+		logrus.Errorf("Failed to put endpoint for %s: %v", key, err)
+	}
 }
 
 func (e *etcdClusterClient) WatchJobs() <-chan *job.Event {
