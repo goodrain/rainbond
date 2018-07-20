@@ -39,7 +39,7 @@ func (h *TcpProbe) TcpCheck() {
 func GetTcpHealth(address string) map[string]string {
 	conn, err := net.Dial("tcp",address)
 	if err != nil {
-		return map[string]string{"status": service.Stat_unhealthy, "info": "Tcp connection error"}
+		return map[string]string{"status": service.Stat_death, "info": "Tcp connection error"}
 	}
 	defer conn.Close()
 	return map[string]string{"status": service.Stat_healthy, "info": "service health"}
