@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/api"
@@ -58,17 +57,12 @@ type NodeManager struct {
 
 //NewNodeManager new a node manager
 func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
-	etcdcli, err := clientv3.New(conf.Etcd)
-	if err != nil {
-		return nil, err
-	}
+	healthyManager := healthy.CreateManager()
+	controller, etcdcli, cluster := controller.NewManagerService(conf, healthyManager)
 	taskrun, err := taskrun.Newmanager(conf, etcdcli)
 	if err != nil {
 		return nil, err
 	}
-	healthyManager := healthy.CreateManager()
-	cluster := client.NewClusterClient(conf, etcdcli)
-	controller := controller.NewManagerService(conf, cluster, healthyManager)
 	monitor, err := monitor.CreateManager(conf)
 	if err != nil {
 		return nil, err
