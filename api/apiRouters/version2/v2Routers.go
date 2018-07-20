@@ -127,7 +127,10 @@ func (v2 *V2) serviceRouter() chi.Router {
 	//应用状态获取(act)
 	r.Get("/status", controller.GetManager().StatusService)
 	//构建版本列表
-	r.Get("/buildlist", controller.GetManager().BuildList)
+	r.Get("/build-list", controller.GetManager().BuildList)
+	//构建版本操作
+	r.Get("/build-version/{build_version}",controller.GetManager().BuildVersionInfo)
+	r.Delete("/build-version/{build_version}",controller.GetManager().BuildVersionInfo)
 	//应用分享
 	r.Post("/share", controller.GetManager().Share)
 	r.Get("/share/{share_id}", controller.GetManager().ShareResult)

@@ -35,7 +35,10 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	tutil "github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
-	validator "github.com/thedevsaddam/govalidator"
+	"github.com/thedevsaddam/govalidator"
+	"github.com/jinzhu/gorm"
+	"os"
+	"github.com/go-chi/chi"
 )
 
 //TIMELAYOUT timelayout
@@ -526,8 +529,86 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, sEvent)
 }
 
+
+func (t *TenantStruct) BuildVersionIsExist(w http.ResponseWriter, r *http.Request) {
+	statusMap := make(map[string]bool)
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	buildVersion := chi.URLParam(r, "build_version")
+	_, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(buildVersion, serviceID)
+	if err != nil && err!=gorm.ErrRecordNotFound {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get build version status erro, %v", err))
+		return
+	}
+	if err == gorm.ErrRecordNotFound{
+		statusMap["status"] = false
+	}else {
+		statusMap["status"] = true
+	}
+	httputil.ReturnSuccess(r, w, statusMap)
+
+}
+
+
+func (t *TenantStruct) DeleteBuildVersion(w http.ResponseWriter, r *http.Request) {
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	buildVersion := chi.URLParam(r, "build_version")
+	val, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(buildVersion, serviceID)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("delete build version erro, %v", err))
+		return
+	}
+	if err == gorm.ErrRecordNotFound {
+
+	} else {
+		if val.DeliveredType == "slug" && val.FinalStatus == "success" {
+			if err := os.Remove(val.DeliveredPath); err != nil {
+				httputil.ReturnError(r, w, 500, fmt.Sprintf("delete build version erro, %v", err))
+				return
+
+			}
+			if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(val); err != nil {
+				httputil.ReturnError(r, w, 500, fmt.Sprintf("delete build version erro, %v", err))
+				return
+
+			}
+		}
+		if val.DeliveredType == "slug" && val.FinalStatus == "failure" {
+			if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(val); err != nil {
+				httputil.ReturnError(r, w, 500, fmt.Sprintf("delete build version erro, %v", err))
+				return
+			}
+		}
+		if val.DeliveredType == "image" {
+			if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(val); err != nil {
+				httputil.ReturnError(r, w, 500, fmt.Sprintf("delete build version erro, %v", err))
+				return
+			}
+		}
+	}
+	httputil.ReturnSuccess(r, w, nil)
+
+}
+
+func (t *TenantStruct) BuildVersionInfo(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "DELETE":
+		t.DeleteBuildVersion(w, r)
+	case "GET":
+		t.BuildVersionIsExist(w, r)
+	}
+
+}
+
 //BuildList BuildList
 func (t *TenantStruct) BuildList(w http.ResponseWriter, r *http.Request) {
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	versionInfoList, err := db.GetManager().VersionInfoDao().GetVersionByServiceID(serviceID)
+	if err != nil {
+		logrus.Error("get version info error", err.Error())
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get version info erro, %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, versionInfoList)
 }
 
 //DeployService DeployService
