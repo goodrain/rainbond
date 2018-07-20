@@ -196,7 +196,7 @@ func (m *ManagerService) WriteServices() error {
 func (m *ManagerService) RemoveServices() error {
 	for _, s := range m.services {
 		m.ctr.DisableService(s.Name)
-		m.ctr.WriteConfig(s)
+		m.ctr.RemoveConfig(s.Name)
 	}
 
 	return nil

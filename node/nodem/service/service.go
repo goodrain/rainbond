@@ -57,7 +57,7 @@ type ServiceList struct {
 
 type Endpoint struct {
 	Name     string `yaml:"name"`
-	Protocol string `yaml:"protocol,omitempty"`
+	Protocol string `yaml:"protocol"`
 	Port     string `yaml:"port"`
 }
 
