@@ -764,6 +764,7 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 		for i, port := range ports {
 			if i == 0 {
 				envs = append(envs, v1.EnvVar{Name: "PORT", Value: strconv.Itoa(ports[0].ContainerPort)})
+				envs = append(envs, v1.EnvVar{Name: "PROTOCOL", Value: ports[0].Protocol})
 			}
 			if portStr != "" {
 				portStr += ":"
