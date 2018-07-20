@@ -15,8 +15,8 @@ func TestProbeManager_Start(t *testing.T) {
 		Name: "builder",
 		ServiceHealth: &service.Health{
 			Name:         "builder",
-			Model:        "tcp",
-			Address:      "127.0.0.1:3228",
+			Model:        "cmd",
+			Address:      "lsx",
 			TimeInterval: 3,
 		},
 	}

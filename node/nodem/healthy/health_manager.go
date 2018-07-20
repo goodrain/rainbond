@@ -103,7 +103,7 @@ func (p *probeManager) Start() (error) {
 			go h.Check()
 		}
 		if v.ServiceHealth.Model == "tcp"{
-			h := &TcpProbe{
+			t := &TcpProbe{
 				name:         v.ServiceHealth.Name,
 				address:      v.ServiceHealth.Address,
 				ctx:          p.ctx,
@@ -111,7 +111,18 @@ func (p *probeManager) Start() (error) {
 				resultsChan:  p.statusChan,
 				TimeInterval: v.ServiceHealth.TimeInterval,
 			}
-			go h.TcpCheck()
+			go t.TcpCheck()
+		}
+		if v.ServiceHealth.Model == "cmd"{
+			s := &ShellProbe{
+				name:         v.ServiceHealth.Name,
+				address:      v.ServiceHealth.Address,
+				ctx:          p.ctx,
+				cancel:       p.cancel,
+				resultsChan:  p.statusChan,
+				TimeInterval: v.ServiceHealth.TimeInterval,
+			}
+			go s.ShellCheck()
 		}
 
 	}
