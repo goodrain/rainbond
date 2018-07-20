@@ -68,6 +68,7 @@ func Run(c *option.Conf) error {
 	if err := nodemanager.Start(errChan); err != nil {
 		return fmt.Errorf("start node manager failed: %s", err)
 	}
+	defer nodemanager.Stop()
 	//master服务在node服务之后启动
 	var ms *masterserver.MasterServer
 	if c.RunMode == "master" {
