@@ -9,7 +9,7 @@ import (
 )
 
 type Probe interface {
-	Check() map[string]string
+	Check()
 }
 
 type HttpProbe struct {
@@ -43,7 +43,7 @@ func (h *HttpProbe) Check() {
 func GetHttpHealth(address string) map[string]string {
 	resp, err := http.Get("http://" + address)
 	if err != nil {
-		return map[string]string{"status": service.Stat_unhealthy, "info": "Request service is unreachable"}
+		return map[string]string{"status": service.Stat_death, "info": "Request service is unreachable"}
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {

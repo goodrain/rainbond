@@ -102,6 +102,17 @@ func (p *probeManager) Start() (error) {
 			}
 			go h.Check()
 		}
+		if v.ServiceHealth.Model == "tcp"{
+			h := &TcpProbe{
+				name:         v.ServiceHealth.Name,
+				address:      v.ServiceHealth.Address,
+				ctx:          p.ctx,
+				cancel:       p.cancel,
+				resultsChan:  p.statusChan,
+				TimeInterval: v.ServiceHealth.TimeInterval,
+			}
+			go h.TcpCheck()
+		}
 
 	}
 	return nil
