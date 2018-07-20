@@ -53,9 +53,9 @@ func ToConfig(svc *Service, cluster client.ClusterClient) []byte {
 		s.Add("Type", svc.Type)
 		s.Add("RemainAfterExit", "yes")
 	}
-	s.Add("ExecStartPre", fmt.Sprintf(`-/bin/bash -c "%s"`, svc.PreStart))
-	s.Add("ExecStart", fmt.Sprintf(`/bin/bash -c "%s"`, svc.Start))
-	s.Add("ExecStop", fmt.Sprintf(`/bin/bash -c "%s"`, svc.Stop))
+	s.Add("ExecStartPre", fmt.Sprintf(`-/bin/bash -c '%s'`, svc.PreStart))
+	s.Add("ExecStart", fmt.Sprintf(`/bin/bash -c '%s'`, svc.Start))
+	s.Add("ExecStop", fmt.Sprintf(`/bin/bash -c '%s'`, svc.Stop))
 	s.Add("Restart", svc.RestartPolicy)
 	s.Add("RestartSec", svc.RestartSec)
 

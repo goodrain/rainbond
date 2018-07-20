@@ -114,13 +114,16 @@ func (m *ManagerService) Offline() error {
 
 // synchronize all service status to as we expect
 func (m *ManagerService) SyncService(name string) {
-	logrus.Error("Start Watcher the service status ", name)
+	logrus.Error("Start watch the service status ", name)
 
 	w := m.healthyManager.WatchServiceHealthy(name)
 	if w == nil {
 		logrus.Error("Not found watcher of the service ", name)
 		return
 	}
+
+	unhealthyNum := 0
+	maxUnhealthyNum := 2
 
 	for {
 		select {
@@ -129,11 +132,17 @@ func (m *ManagerService) SyncService(name string) {
 			case service.Stat_healthy:
 				logrus.Debugf("The %s service is %s.", event.Name, event.Status)
 			case service.Stat_unhealthy:
-				if 3 <= event.ErrorNumber {
+				if unhealthyNum > maxUnhealthyNum {
 					logrus.Infof("The %s service is %s and will be restart.", event.Name, event.Status)
 					m.ctr.StopService(event.Name)
 					m.ctr.StartService(event.Name)
+					unhealthyNum = 0
 				}
+				unhealthyNum++
+			case service.Stat_death:
+				logrus.Infof("The %s service is %s and will be restart.", event.Name, event.Status)
+				m.ctr.StopService(event.Name)
+				m.ctr.StartService(event.Name)
 			}
 		case <-m.ctx.Done():
 			return
@@ -217,6 +226,7 @@ func loadServicesFromLocal(defaultConfigFile, serviceListFile string) ([]*servic
 	for _, item := range serviceList.Services {
 		if s, ok := defaultConfigsMap[item.Name]; ok {
 			services = append(services, s)
+			logrus.Info("Load service ", s.Name)
 		} else {
 			logrus.Warn("Not found the service %s in default config list, ignore it.", item.Name)
 		}
