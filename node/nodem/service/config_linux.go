@@ -43,8 +43,11 @@ func ToConfig(svc *Service, cluster client.ClusterClient) []byte {
 
 	s := Lines{"[Unit]"}
 	s.Add("Description", svc.Name)
-	for _, d := range svc.Dependences {
+	for _, d := range svc.After {
 		s.Add("After", d+".service")
+	}
+
+	for _, d := range svc.Requires {
 		s.Add("Requires", d+".service")
 	}
 
@@ -53,9 +56,9 @@ func ToConfig(svc *Service, cluster client.ClusterClient) []byte {
 		s.Add("Type", svc.Type)
 		s.Add("RemainAfterExit", "yes")
 	}
-	s.Add("ExecStartPre", fmt.Sprintf(`-/bin/bash -c "%s"`, svc.PreStart))
-	s.Add("ExecStart", fmt.Sprintf(`/bin/bash -c "%s"`, svc.Start))
-	s.Add("ExecStop", fmt.Sprintf(`/bin/bash -c "%s"`, svc.Stop))
+	s.Add("ExecStartPre", fmt.Sprintf(`-/bin/bash -c '%s'`, svc.PreStart))
+	s.Add("ExecStart", fmt.Sprintf(`/bin/bash -c '%s'`, svc.Start))
+	s.Add("ExecStop", fmt.Sprintf(`/bin/bash -c '%s'`, svc.Stop))
 	s.Add("Restart", svc.RestartPolicy)
 	s.Add("RestartSec", svc.RestartSec)
 

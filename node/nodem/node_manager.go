@@ -65,8 +65,9 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 	if err != nil {
 		return nil, err
 	}
+	healthyManager := healthy.CreateManager()
 	cluster := client.NewClusterClient(conf, etcdcli)
-	controller := controller.NewManagerService(conf, cluster)
+	controller := controller.NewManagerService(conf, cluster, healthyManager)
 	monitor, err := monitor.CreateManager(conf)
 	if err != nil {
 		return nil, err
@@ -80,6 +81,7 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 		taskrun:    taskrun,
 		cluster:    cluster,
 		monitor:    monitor,
+		healthy:    healthyManager,
 	}
 	return nodem, nil
 }
@@ -102,8 +104,7 @@ func (n *NodeManager) Start(errchan chan error) error {
 	if err != nil {
 		return fmt.Errorf("get all services error,%s", err.Error())
 	}
-
-	if err := n.healthy.AddServices(services); err!=nil{
+	if err := n.healthy.AddServices(services); err != nil {
 		return fmt.Errorf("get all services error,%s", err.Error())
 	}
 

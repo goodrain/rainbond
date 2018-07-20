@@ -28,7 +28,7 @@ import (
 
 //Manager Manager
 type Manager interface {
-	GetServiceHealthy(serviceName string) *service.HealthStatus
+	GetServiceHealthy(serviceName string) (*service.HealthStatus, bool)
 	WatchServiceHealthy(serviceName string) Watcher
 	CloseWatch(serviceName string, id string) error
 	Start() error
@@ -36,30 +36,49 @@ type Manager interface {
 	Stop() error
 }
 
+type Watcher interface {
+	Watch() <-chan *service.HealthStatus
+	Close() error
+}
+type watcher struct {
+	manager     Manager
+	statusChan  chan *service.HealthStatus
+	id          string
+	serviceName string
+}
+
+type probeManager struct {
+	services   []*service.Service
+	status     map[string]*service.HealthStatus
+	ctx        context.Context
+	cancel     context.CancelFunc
+	watches    map[string]map[string]*watcher
+	statusChan chan *service.HealthStatus
+	errorNum   map[string]int
+	errorTime  map[string]time.Time
+	errorFlag  map[string]bool
+}
+
 func CreateManager() Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	statusChan := make(chan *service.HealthStatus, 100)
 	status := make(map[string]*service.HealthStatus)
 	watches := make(map[string]map[string]*watcher)
+	errorNum := make(map[string]int)
+	errorTime := make(map[string]time.Time)
+	errorFlag := make(map[string]bool)
 	m := &probeManager{
 		ctx:        ctx,
 		cancel:     cancel,
 		statusChan: statusChan,
 		status:     status,
 		watches:    watches,
+		errorNum:   errorNum,
+		errorTime:  errorTime,
+		errorFlag:  errorFlag,
 	}
 
 	return m
-}
-
-type probeManager struct {
-	services []*service.Service
-	status   map[string]*service.HealthStatus
-	ctx      context.Context
-	cancel   context.CancelFunc
-	watches  map[string]map[string]*watcher
-	//lock sync.Mutex
-	statusChan chan *service.HealthStatus
 }
 
 func (p *probeManager) AddServices(inner []*service.Service) error {
@@ -70,49 +89,73 @@ func (p *probeManager) AddServices(inner []*service.Service) error {
 func (p *probeManager) Start() (error) {
 
 	logrus.Info("health mode start")
-
+	go p.HandleStatus()
 	for _, v := range p.services {
 		if v.ServiceHealth.Model == "http" {
 			h := &HttpProbe{
-				name:           v.ServiceHealth.Name,
-				address:        v.ServiceHealth.Address,
-				ctx:            p.ctx,
-				cancel:         p.cancel,
-				resultsChan:    p.statusChan,
-				TimeInterval:   v.ServiceHealth.TimeInterval,
-				MaxErrorNumber: v.ServiceHealth.MaxErrorNumber,
+				name:         v.ServiceHealth.Name,
+				address:      v.ServiceHealth.Address,
+				ctx:          p.ctx,
+				cancel:       p.cancel,
+				resultsChan:  p.statusChan,
+				TimeInterval: v.ServiceHealth.TimeInterval,
 			}
 			go h.Check()
 		}
+		if v.ServiceHealth.Model == "tcp"{
+			h := &TcpProbe{
+				name:         v.ServiceHealth.Name,
+				address:      v.ServiceHealth.Address,
+				ctx:          p.ctx,
+				cancel:       p.cancel,
+				resultsChan:  p.statusChan,
+				TimeInterval: v.ServiceHealth.TimeInterval,
+			}
+			go h.TcpCheck()
+		}
 
 	}
-	go p.processResult()
-	time.Sleep(time.Second*5)
-	go p.SubscriptionPush()
 	return nil
 }
 
-func (p *probeManager) processResult() {
+func (p *probeManager) updateServiceStatus(status *service.HealthStatus) {
 
-	for {
-		result := <-p.statusChan
-		p.status[result.Name] = result
+	if status.Status != service.Stat_healthy {
+		number := p.errorNum[status.Name] + 1
+		p.errorNum[status.Name] = number
+		status.ErrorNumber = number
+		if !p.errorFlag[status.Name] {
+			p.errorTime[status.Name] = time.Now()
+			p.errorFlag[status.Name] = true
+		}
+		status.ErrorTime = time.Now().Sub(p.errorTime[status.Name])
+		p.status[status.Name] = status
+
+	} else {
+		p.errorNum[status.Name] = 0
+		status.ErrorNumber = 0
+		p.errorFlag[status.Name] = false
+		status.ErrorTime = 0
+		p.status[status.Name] = status
 	}
+
+
 }
-
-func (p *probeManager) SubscriptionPush() {
+func (p *probeManager) HandleStatus() {
 	for {
-
-
-	for _, service := range p.services {
-		if watcherMap, ok := p.watches[service.Name]; ok {
-			for _, watcher := range watcherMap {
-				watcher.statusChan <- p.status[service.Name]
+		select {
+		case status := <-p.statusChan:
+			p.updateServiceStatus(status)
+			if watcherMap, ok := p.watches[status.Name]; ok {
+				for _, watcher := range watcherMap {
+					watcher.statusChan <- status
+				}
 			}
-
+		case <-p.ctx.Done():
+			return
 		}
 	}
-}}
+}
 
 func (p *probeManager) Stop() error {
 	p.cancel()
@@ -123,35 +166,14 @@ func (p *probeManager) CloseWatch(serviceName string, id string) error {
 	close(channel)
 	return nil
 }
-func (p *probeManager) GetServiceHealthy(serviceName string) *service.HealthStatus {
-	for _, v := range p.services {
-		if v.Name == serviceName {
-			if v.ServiceHealth.Model == "http" {
-				healthMap := GetHttpHealth(v.ServiceHealth.Address)
+func (p *probeManager) GetServiceHealthy(serviceName string) (*service.HealthStatus, bool) {
+	v, ok := p.status[serviceName]
+	return v, ok
 
-				return &service.HealthStatus{
-					Status: healthMap["status"],
-					Info:   healthMap["info"],
-				}
-			}
-		}
-	}
-	return nil
 }
 
-type Watcher interface {
-	Watch() *service.HealthStatus
-	Close() error
-}
-type watcher struct {
-	manager     Manager
-	statusChan  chan *service.HealthStatus
-	id          string
-	serviceName string
-}
-
-func (w *watcher) Watch() *service.HealthStatus {
-	return <-w.statusChan
+func (w *watcher) Watch() <-chan *service.HealthStatus {
+	return w.statusChan
 }
 func (w *watcher) Close() error {
 	return w.manager.CloseWatch(w.serviceName, w.id)
