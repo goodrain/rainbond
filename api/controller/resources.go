@@ -73,6 +73,11 @@ func (v2 *V2Routes) Show(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("v2 urls"))
 }
 
+// show health status
+func (v2 *V2Routes) Health(w http.ResponseWriter, r *http.Request) {
+	httputil.ReturnSuccess(r,w,map[string]string{"status":"health","info":"api service health"})
+}
+
 //TenantStruct tenant struct
 type TenantStruct struct {
 	StatusCli *client.AppRuntimeSyncClient
