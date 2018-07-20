@@ -54,7 +54,8 @@ func (m *ManagerService) Start() error {
 	}
 
 	for _, s := range m.services {
-		go m.SyncService(s.Name)
+		serviceName := s.Name
+		go m.SyncService(serviceName)
 	}
 
 	return nil
@@ -126,7 +127,7 @@ func (m *ManagerService) SyncService(name string) {
 		case event := <-w.Watch():
 			switch event.Status {
 			case service.Stat_healthy:
-				logrus.Debug("The %s service is %s.", event.Name, event.Status)
+				logrus.Debugf("The %s service is %s.", event.Name, event.Status)
 			case service.Stat_unhealthy:
 				if 3 <= event.ErrorNumber {
 					logrus.Infof("The %s service is %s and will be restart.", event.Name, event.Status)
