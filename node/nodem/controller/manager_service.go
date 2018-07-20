@@ -141,7 +141,6 @@ func (m *ManagerService) SyncService(name string) {
 				unhealthyNum++
 			case service.Stat_death:
 				logrus.Infof("The %s service is %s and will be restart.", event.Name, event.Status)
-				m.ctr.StopService(event.Name)
 				m.ctr.StartService(event.Name)
 			}
 		case <-m.ctx.Done():
