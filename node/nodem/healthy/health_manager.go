@@ -24,6 +24,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util"
 	"time"
+	"github.com/goodrain/rainbond/node/nodem/client"
 )
 
 //Manager Manager
@@ -31,7 +32,7 @@ type Manager interface {
 	GetServiceHealthy(serviceName string) (*service.HealthStatus, bool)
 	WatchServiceHealthy(serviceName string) Watcher
 	CloseWatch(serviceName string, id string) error
-	Start() error
+	Start(hostNode *client.HostNode) error
 	AddServices([]*service.Service) error
 	Stop() error
 }
@@ -86,9 +87,14 @@ func (p *probeManager) AddServices(inner []*service.Service) error {
 	return nil
 }
 
-func (p *probeManager) Start() (error) {
+func (p *probeManager) Start(hostNode *client.HostNode) (error) {
 
 	logrus.Info("health mode start")
+	v := client.NodeCondition{
+		Type:   client.NodeReady,
+		Status: client.ConditionTrue,
+	}
+	hostNode.UpdataCondition(v)
 	go p.HandleStatus()
 	for _, v := range p.services {
 		if v.ServiceHealth.Model == "http" {
@@ -99,10 +105,11 @@ func (p *probeManager) Start() (error) {
 				cancel:       p.cancel,
 				resultsChan:  p.statusChan,
 				TimeInterval: v.ServiceHealth.TimeInterval,
+				hostNode:     hostNode,
 			}
 			go h.Check()
 		}
-		if v.ServiceHealth.Model == "tcp"{
+		if v.ServiceHealth.Model == "tcp" {
 			t := &TcpProbe{
 				name:         v.ServiceHealth.Name,
 				address:      v.ServiceHealth.Address,
@@ -110,10 +117,11 @@ func (p *probeManager) Start() (error) {
 				cancel:       p.cancel,
 				resultsChan:  p.statusChan,
 				TimeInterval: v.ServiceHealth.TimeInterval,
+				hostNode:     hostNode,
 			}
 			go t.TcpCheck()
 		}
-		if v.ServiceHealth.Model == "cmd"{
+		if v.ServiceHealth.Model == "cmd" {
 			s := &ShellProbe{
 				name:         v.ServiceHealth.Name,
 				address:      v.ServiceHealth.Address,
@@ -121,6 +129,7 @@ func (p *probeManager) Start() (error) {
 				cancel:       p.cancel,
 				resultsChan:  p.statusChan,
 				TimeInterval: v.ServiceHealth.TimeInterval,
+				hostNode:     hostNode,
 			}
 			go s.ShellCheck()
 		}
@@ -149,7 +158,6 @@ func (p *probeManager) updateServiceStatus(status *service.HealthStatus) {
 		status.ErrorTime = 0
 		p.status[status.Name] = status
 	}
-
 
 }
 func (p *probeManager) HandleStatus() {

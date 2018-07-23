@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"bytes"
 	"strings"
+	"github.com/goodrain/rainbond/node/nodem/client"
 )
 
 type SHELLProbe interface {
@@ -21,6 +22,7 @@ type ShellProbe struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
 	TimeInterval int
+	hostNode     *client.HostNode
 }
 
 func (h *ShellProbe) ShellCheck() {
@@ -31,6 +33,18 @@ func (h *ShellProbe) ShellCheck() {
 			Name:   h.name,
 			Status: HealthMap["status"],
 			Info:   HealthMap["info"],
+		}
+		if result.Status != service.Stat_healthy {
+			v := client.NodeCondition{
+				Type:    client.NodeConditionType(result.Name),
+				Status:  client.ConditionFalse,
+				Message: result.Info,
+			}
+			v2 := client.NodeCondition{
+				Type:   client.NodeReady,
+				Status: client.ConditionFalse,
+			}
+			h.hostNode.UpdataCondition(v, v2)
 		}
 		h.resultsChan <- result
 
@@ -46,9 +60,9 @@ func GetShellHealth(address string) map[string]string {
 	cmd.Stderr = &stderr
 
 	err := cmd.Run()
-	if err != nil{
+	if err != nil {
 		errStr := string(stderr.Bytes())
-		return map[string]string{"status":service.Stat_death, "info":strings.TrimSpace(errStr)}
+		return map[string]string{"status": service.Stat_death, "info": strings.TrimSpace(errStr)}
 	}
-	return map[string]string{"status":service.Stat_healthy, "info":"service healthy"}
+	return map[string]string{"status": service.Stat_healthy, "info": "service healthy"}
 }

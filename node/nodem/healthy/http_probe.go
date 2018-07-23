@@ -6,6 +6,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"net/http"
 	"time"
+	"github.com/goodrain/rainbond/node/nodem/client"
 )
 
 type Probe interface {
@@ -19,6 +20,7 @@ type HttpProbe struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
 	TimeInterval int
+	hostNode     *client.HostNode
 }
 
 
@@ -31,9 +33,19 @@ func (h *HttpProbe) Check() {
 				Status:      HealthMap["status"],
 				Info:        HealthMap["info"],
 			}
+			if result.Status != service.Stat_healthy{
+				v := client.NodeCondition{
+					Type:client.NodeConditionType(result.Name),
+					Status:client.ConditionFalse,
+					Message:result.Info,
+				}
+				v2 := client.NodeCondition{
+					Type:client.NodeReady,
+					Status:client.ConditionFalse,
+				}
+				h.hostNode.UpdataCondition(v,v2)
+			}
 			h.resultsChan <- result
-
-
 
 
 		return nil
