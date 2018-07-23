@@ -23,25 +23,44 @@ import (
 	"path"
 	"strings"
 
+	"github.com/goodrain/rainbond/util"
+
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 )
 
 //RepostoryBuildInfo 源码编译信息
 type RepostoryBuildInfo struct {
-	RepostoryURL string
-	BuildPath    string
-	CodeHome     string
-	ep           *transport.Endpoint
+	RepostoryURL     string
+	RepostoryURLType string
+	BuildBranch      string
+	BuildPath        string
+	CodeHome         string
+	ep               *transport.Endpoint
 }
 
 //GetCodeHome 获取代码目录
 func (r *RepostoryBuildInfo) GetCodeHome() string {
+	if r.RepostoryURLType == "svn" {
+		if ok, _ := util.FileExists(path.Join(r.CodeHome, "trunk")); ok && r.BuildBranch == "master" {
+			return path.Join(r.CodeHome, "trunk")
+		}
+		if r.BuildBranch != "" && r.BuildBranch != "master" {
+			codepath := path.Join(r.CodeHome, "branches", r.BuildBranch)
+			if ok, _ := util.FileExists(codepath); ok {
+				return codepath
+			}
+			codepath = path.Join(r.CodeHome, "Branches", r.BuildBranch)
+			if ok, _ := util.FileExists(codepath); ok {
+				return codepath
+			}
+		}
+	}
 	return r.CodeHome
 }
 
 //GetCodeBuildAbsPath 获取代码编译绝对目录
 func (r *RepostoryBuildInfo) GetCodeBuildAbsPath() string {
-	return path.Join(r.CodeHome, r.BuildPath)
+	return path.Join(r.GetCodeHome(), r.BuildPath)
 }
 
 //GetCodeBuildPath 获取代码编译相对目录
@@ -61,15 +80,18 @@ func (r *RepostoryBuildInfo) GetProtocol() string {
 }
 
 //CreateRepostoryBuildInfo 创建源码编译信息
-func CreateRepostoryBuildInfo(repoURL, branch, tenantID string, ServiceID string) (*RepostoryBuildInfo, error) {
+//repoType git or svn
+func CreateRepostoryBuildInfo(repoURL, repoType, branch, tenantID string, ServiceID string) (*RepostoryBuildInfo, error) {
 	// repoURL= github.com/goodrain/xxx.git?dir=home
 	ep, err := transport.NewEndpoint(repoURL)
 	if err != nil {
 		return nil, err
 	}
 	rbi := &RepostoryBuildInfo{
-		ep:           ep,
-		RepostoryURL: repoURL,
+		ep:               ep,
+		RepostoryURL:     repoURL,
+		RepostoryURLType: repoType,
+		BuildBranch:      branch,
 	}
 	index := strings.Index(repoURL, "?dir=")
 	if index > -1 && len(repoURL) > index+5 {

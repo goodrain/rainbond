@@ -25,6 +25,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	//"github.com/docker/docker/client"
+	"sync"
+
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/engine-api/client"
 	"github.com/goodrain/rainbond/db"
@@ -34,7 +36,6 @@ import (
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/util"
 	"github.com/tidwall/gjson"
-	"sync"
 )
 
 var TaskNum float64 = 0
@@ -239,9 +240,9 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 			vi := &dbmodel.VersionInfo{
 				FinalStatus: status,
 				EventID:     i.EventID,
-				CodeVersion: i.commit.Hash.String(),
+				CodeVersion: i.commit.Hash,
 				CommitMsg:   i.commit.Message,
-				Author:      i.commit.Author.Name,
+				Author:      i.commit.Author,
 			}
 			if err := i.UpdateVersionInfo(vi); err != nil {
 				logrus.Debugf("update version Info error: %s", err.Error())

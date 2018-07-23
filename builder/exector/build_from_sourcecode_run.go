@@ -26,11 +26,10 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
-
 	"github.com/goodrain/rainbond/util"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/event"
 	"github.com/pquerna/ffjson/ffjson"
@@ -72,7 +71,14 @@ type SourceCodeBuildItem struct {
 	BuildEnvs     map[string]string
 	CodeSouceInfo sources.CodeSourceInfo
 	RepoInfo      *sources.RepostoryBuildInfo
-	commit        *object.Commit
+	commit        Commit
+}
+
+//Commit code Commit
+type Commit struct {
+	Hash    string
+	Author  string
+	Message string
 }
 
 //NewSouceCodeBuildItem create
@@ -107,7 +113,6 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 		Lang:          gjson.GetBytes(in, "lang").String(),
 		Runtime:       gjson.GetBytes(in, "runtime").String(),
 		BuildEnvs:     be,
-		commit:        &object.Commit{},
 	}
 	scb.CacheDir = fmt.Sprintf("/cache/build/%s/cache/%s", scb.TenantID, scb.ServiceID)
 	//scb.SourceDir = scb.CodeSouceInfo.GetCodeSourceDir()
@@ -122,7 +127,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	// 2.check dockerfile/ source_code
 	// 3.build
 	// 4.upload image /upload slug
-	rbi, err := sources.CreateRepostoryBuildInfo(i.CodeSouceInfo.RepositoryURL, i.CodeSouceInfo.Branch, i.TenantID, i.ServiceID)
+	rbi, err := sources.CreateRepostoryBuildInfo(i.CodeSouceInfo.RepositoryURL, i.CodeSouceInfo.ServerType, i.CodeSouceInfo.Branch, i.TenantID, i.ServiceID)
 	if err != nil {
 		i.Logger.Error("Git项目仓库地址格式错误", map[string]string{"step": "parse"})
 		return err
@@ -134,23 +139,58 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		return err
 	}
 	i.CodeSouceInfo.RepositoryURL = rbi.RepostoryURL
-	rs, err := sources.GitCloneOrPull(i.CodeSouceInfo, rbi.GetCodeHome(), i.Logger, 5)
-	if err != nil {
-		logrus.Errorf("pull git code error: %s", err.Error())
-		i.Logger.Error(fmt.Sprintf("拉取代码失败，请确保代码可以被正常下载"), map[string]string{"step": "builder-exector", "status": "failure"})
-		return err
+	switch i.CodeSouceInfo.ServerType {
+	case "svn":
+		csi := i.CodeSouceInfo
+		svnclient := sources.NewClient(csi.User, csi.Password, csi.RepositoryURL, rbi.GetCodeHome(), i.Logger)
+		rs, err := svnclient.Checkout()
+		if err != nil {
+			logrus.Errorf("checkout svn code error: %s", err.Error())
+			i.Logger.Error(fmt.Sprintf("拉取代码失败，请确保代码可以被正常下载"), map[string]string{"step": "builder-exector", "status": "failure"})
+			return err
+		}
+		if len(rs.Logs.CommitEntrys) < 1 {
+			logrus.Errorf("get code commit info error: %s", err.Error())
+			i.Logger.Error(fmt.Sprintf("读取代码版本信息失败"), map[string]string{"step": "builder-exector", "status": "failure"})
+			return err
+		}
+		i.commit = Commit{
+			Hash:    rs.Logs.CommitEntrys[0].Revision,
+			Message: rs.Logs.CommitEntrys[0].Msg,
+			Author:  rs.Logs.CommitEntrys[0].Author,
+		}
+	default:
+		//default git
+		rs, err := sources.GitCloneOrPull(i.CodeSouceInfo, rbi.GetCodeHome(), i.Logger, 5)
+		if err != nil {
+			logrus.Errorf("pull git code error: %s", err.Error())
+			i.Logger.Error(fmt.Sprintf("拉取代码失败，请确保代码可以被正常下载"), map[string]string{"step": "builder-exector", "status": "failure"})
+			return err
+		}
+		//get last commit
+		commit, err := sources.GetLastCommit(rs)
+		if err != nil || commit == nil {
+			logrus.Errorf("get code commit info error: %s", err.Error())
+			i.Logger.Error(fmt.Sprintf("读取代码版本信息失败"), map[string]string{"step": "builder-exector", "status": "failure"})
+			return err
+		}
+		i.commit = Commit{
+			Hash:    commit.Hash.String(),
+			Author:  commit.Author.Name,
+			Message: commit.Message,
+		}
 	}
-	//get last commit
-	commit, err := sources.GetLastCommit(rs)
-	if err != nil || commit == nil {
-		logrus.Errorf("get code commit info error: %s", err.Error())
-		i.Logger.Error(fmt.Sprintf("读取代码版本信息失败"), map[string]string{"step": "builder-exector", "status": "failure"})
-		return err
-	}
-	i.commit = commit
-	info := fmt.Sprintf("版本:%s 上传者:%s Commit:%s ", commit.Hash.String()[0:7], commit.Author.Name, commit.Message)
+	info := fmt.Sprintf("版本:%s 上传者:%s Commit:%s ", i.commit.Hash[0:7], i.commit.Author, i.commit.Message)
 	i.Logger.Info(info, map[string]string{"step": "code-version"})
-
+	if _, ok := i.BuildEnvs["BUILD_REPARSE"]; ok {
+		_, lang, err := parser.ReadRbdConfigAndLang(rbi)
+		if err != nil {
+			logrus.Errorf("reparse code lange error %s", err.Error())
+			i.Logger.Error(fmt.Sprintf("重新解析代码语言错误"), map[string]string{"step": "builder-exector", "status": "failure"})
+			return err
+		}
+		i.Lang = string(lang)
+	}
 	switch i.Lang {
 	case string(code.Dockerfile), string(code.Docker):
 		i.Logger.Info("代码识别出Dockerfile,直接构建镜像。", map[string]string{"step": "builder-exector"})
@@ -200,7 +240,7 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		RepositoryURL: i.RepoInfo.RepostoryURL,
 		ServiceAlias:  i.ServiceAlias,
 		DeployVersion: i.DeployVersion,
-		Commit:        build.Commit{User: i.commit.Author.Name, Message: i.commit.Message, Hash: i.commit.Hash.String()},
+		Commit:        build.Commit{User: i.commit.Author, Message: i.commit.Message, Hash: i.commit.Hash},
 		Lang:          code.Lang(i.Lang),
 		BuildEnvs:     i.BuildEnvs,
 		Logger:        i.Logger,
@@ -289,11 +329,11 @@ func (i *SourceCodeBuildItem) buildImage() error {
 		DeliveredPath: buildImageName,
 		EventID:       i.EventID,
 		FinalStatus:   "success",
-		CodeVersion:   i.commit.Hash.String(),
+		CodeVersion:   i.commit.Hash,
 		CommitMsg:     i.commit.Message,
-		Author:        i.commit.Author.Name,
+		Author:        i.commit.Author,
 	}
-	logrus.Debugf("update app version commit info %s, author %s", i.commit.Message, i.commit.Author.Name)
+	logrus.Debugf("update app version commit info %s, author %s", i.commit.Message, i.commit.Author)
 	if err := i.UpdateVersionInfo(vi); err != nil {
 		logrus.Errorf("update version info error: %s", err.Error())
 		i.Logger.Error("更新应用版本信息失败", map[string]string{"step": "builder-exector", "status": "failure"})
@@ -387,9 +427,9 @@ func (i *SourceCodeBuildItem) buildCode() error {
 		DeliveredPath: packageName,
 		EventID:       i.EventID,
 		FinalStatus:   "success",
-		CodeVersion:   i.commit.Hash.String(),
+		CodeVersion:   i.commit.Hash,
 		CommitMsg:     i.commit.Message,
-		Author:        i.commit.Author.Name,
+		Author:        i.commit.Author,
 	}
 	if err := i.UpdateVersionInfo(vi); err != nil {
 		logrus.Errorf("update version info error: %s", err.Error())
@@ -446,9 +486,9 @@ func (i *SourceCodeBuildItem) UpdateBuildVersionInfo(res *build.Response) error 
 		DeliveredPath: res.MediumPath,
 		EventID:       i.EventID,
 		FinalStatus:   "success",
-		CodeVersion:   i.commit.Hash.String(),
+		CodeVersion:   i.commit.Hash,
 		CommitMsg:     i.commit.Message,
-		Author:        i.commit.Author.Name,
+		Author:        i.commit.Author,
 	}
 	if err := i.UpdateVersionInfo(vi); err != nil {
 		logrus.Errorf("update version info error: %s", err.Error())

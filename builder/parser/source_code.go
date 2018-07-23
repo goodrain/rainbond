@@ -89,7 +89,11 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		csi.Branch = "master"
 	}
 	if csi.ServerType == "" {
-		csi.ServerType = "git"
+		if strings.HasPrefix(csi.RepositoryURL, "svn") {
+			csi.ServerType = "svn"
+		} else {
+			csi.ServerType = "git"
+		}
 	}
 	if csi.RepositoryURL == "" {
 		d.logger.Error("Git项目仓库地址不能为空", map[string]string{"step": "parse"})
@@ -97,7 +101,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		return d.errors
 	}
 	//验证仓库地址
-	buildInfo, err := sources.CreateRepostoryBuildInfo(csi.RepositoryURL, csi.Branch, csi.TenantID, csi.ServiceID)
+	buildInfo, err := sources.CreateRepostoryBuildInfo(csi.RepositoryURL, csi.ServerType, csi.Branch, csi.TenantID, csi.ServiceID)
 	if err != nil {
 		d.logger.Error("Git项目仓库地址格式错误", map[string]string{"step": "parse"})
 		d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", SolveAdvice("modify_url", "请确认并修改仓库地址")))
@@ -167,6 +171,26 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		return nil
 	}
 
+	svnFunc := func() ParseErrorList {
+		if sources.CheckFileExist(buildInfo.GetCodeHome()) {
+			if err := sources.RemoveDir(buildInfo.GetCodeHome()); err != nil {
+				//d.errappend(ErrorAndSolve(err, "清理cache dir错误", "请提交代码到仓库"))
+				return d.errors
+			}
+		}
+		csi.RepositoryURL = buildInfo.RepostoryURL
+		svnclient := sources.NewClient(csi.User, csi.Password, csi.RepositoryURL, buildInfo.GetCodeHome(), d.logger)
+		rs, err := svnclient.Checkout()
+		if err != nil {
+			logrus.Errorf("svn checkout error,%s", err.Error())
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("获取代码失败"), "请确认仓库能否正常访问，或查看社区文档"))
+			return d.errors
+		}
+		//get branchs
+		d.branchs = rs.Branchs
+		return nil
+	}
+
 	//获取代码仓库
 	switch csi.ServerType {
 	case "git":
@@ -174,10 +198,11 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			return err
 		}
 	case "svn":
-		d.errappend(ErrorAndSolve(FatalError, "svn协议暂时不支持", "请使用git协议仓库"))
-		return d.errors
+		if err := svnFunc(); err != nil && err.IsFatalError() {
+			return err
+		}
 	default:
-		//按照git处理处理
+		//default git
 		if err := gitFunc(); err != nil && err.IsFatalError() {
 			return err
 		}
@@ -255,6 +280,24 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		}
 	}
 	return d.errors
+}
+
+//ReadRbdConfigAndLang read rainbondfile  and lang
+func ReadRbdConfigAndLang(buildInfo *sources.RepostoryBuildInfo) (*code.RainbondFileConfig, code.Lang, error) {
+	rbdfileConfig, err := code.ReadRainbondFile(buildInfo.GetCodeHome())
+	if err != nil {
+		return nil, code.NO, err
+	}
+	var lang code.Lang
+	if rbdfileConfig != nil && rbdfileConfig.Language != "" {
+		lang = code.Lang(rbdfileConfig.Language)
+	} else {
+		lang, err = code.GetLangType(buildInfo.GetCodeBuildAbsPath())
+		if err != nil {
+			return rbdfileConfig, code.NO, err
+		}
+	}
+	return rbdfileConfig, lang, nil
 }
 
 func getRecommendedMemory(lang code.Lang) int {

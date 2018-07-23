@@ -36,9 +36,9 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/healthy"
 	"github.com/goodrain/rainbond/node/nodem/info"
 	"github.com/goodrain/rainbond/node/nodem/monitor"
+	"github.com/goodrain/rainbond/node/nodem/service"
 	"github.com/goodrain/rainbond/node/nodem/taskrun"
 	"github.com/goodrain/rainbond/util"
-	"github.com/goodrain/rainbond/node/nodem/service"
 )
 
 //NodeManager node manager
@@ -136,19 +136,19 @@ func (n *NodeManager) Stop() {
 func (n *NodeManager) checkNodeHealthy() (bool, error) {
 	services, err := n.controller.GetAllService()
 	if err != nil {
-		return false,fmt.Errorf("get all services error,%s", err.Error())
+		return false, fmt.Errorf("get all services error,%s", err.Error())
 	}
-	for _,v :=range services{
-		healthyStatus,ok :=n.healthy.GetServiceHealthy(v.Name)
-		if ok{
-			if healthyStatus.Status != service.Stat_healthy{
-				return false,fmt.Errorf(healthyStatus.Info)
+	for _, v := range services {
+		healthyStatus, ok := n.healthy.GetServiceHealthy(v.Name)
+		if ok {
+			if healthyStatus.Status != service.Stat_healthy {
+				return false, fmt.Errorf(healthyStatus.Info)
 			}
-		}else {
+		} else {
 			return false, fmt.Errorf("The data is not ready yet")
 		}
 	}
-	return true,nil
+	return true, nil
 }
 
 func (n *NodeManager) heartbeat() {
