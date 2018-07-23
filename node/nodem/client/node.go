@@ -80,7 +80,7 @@ type HostNode struct {
 
 //NodeStatus node status
 type NodeStatus struct {
-	Status     string          `json:"status"`
+	Status     string          `json:"status"` //installed running offline unknown
 	Conditions []NodeCondition `json:"conditions,omitempty"`
 	NodeInfo   NodeSystemInfo  `json:"nodeInfo,omitempty" protobuf:"bytes,7,opt,name=nodeInfo"`
 }

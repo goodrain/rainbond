@@ -109,6 +109,7 @@ func (n *NodeManager) Start(errchan chan error) error {
 
 	go n.monitor.Start(errchan)
 	go n.taskrun.Start(errchan)
+	go n.checkNodeHealthy()
 	go n.heartbeat()
 	return nil
 }
@@ -133,22 +134,44 @@ func (n *NodeManager) Stop() {
 
 //checkNodeHealthy check current node healthy.
 //only healthy can controller other service start
-func (n *NodeManager) checkNodeHealthy() (bool, error) {
+func (n *NodeManager) checkNodeHealthy() error {
+	flag := true
 	services, err := n.controller.GetAllService()
 	if err != nil {
-		return false, fmt.Errorf("get all services error,%s", err.Error())
+		return fmt.Errorf("get all services error,%s", err.Error())
 	}
 	for _, v := range services {
 		healthyStatus, ok := n.healthy.GetServiceHealthy(v.Name)
 		if ok {
 			if healthyStatus.Status != service.Stat_healthy {
-				return false, fmt.Errorf(healthyStatus.Info)
+				v := client.NodeCondition{
+					Type:    client.NodeConditionType(healthyStatus.Name),
+					Status:  client.ConditionFalse,
+					Message: healthyStatus.Info,
+				}
+
+				n.HostNode.UpdataCondition(v)
+				flag = false
 			}
 		} else {
-			return false, fmt.Errorf("The data is not ready yet")
+			return fmt.Errorf("The data is not ready yet")
 		}
 	}
-	return true, nil
+	if !flag {
+		v2 := client.NodeCondition{
+			Type:    client.NodeReady,
+			Status:  client.ConditionFalse,
+			Message: "service unhealthy",
+		}
+		n.HostNode.UpdataCondition(v2)
+		return nil
+	}
+	v := client.NodeCondition{
+		Type:   client.NodeReady,
+		Status: client.ConditionTrue,
+	}
+	n.HostNode.UpdataCondition(v)
+	return nil
 }
 
 func (n *NodeManager) heartbeat() {
