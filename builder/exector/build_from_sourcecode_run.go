@@ -117,6 +117,7 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 	scb.CacheDir = fmt.Sprintf("/cache/build/%s/cache/%s", scb.TenantID, scb.ServiceID)
 	//scb.SourceDir = scb.CodeSouceInfo.GetCodeSourceDir()
 	scb.TGZDir = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s", scb.TenantID, scb.ServiceID)
+	scb.CodeSouceInfo.InitServerType()
 	return scb
 }
 

@@ -65,6 +65,15 @@ type CodeSourceInfo struct {
 	ServiceID string `json:"service_id"`
 }
 
+//InitServerType init server type
+func (c *CodeSourceInfo) InitServerType() {
+	if strings.HasPrefix(c.RepositoryURL, "svn://") || strings.HasSuffix(c.RepositoryURL, ".svn") {
+		c.ServerType = "svn"
+	} else {
+		c.ServerType = "git"
+	}
+}
+
 //GetCodeCacheDir 获取代码缓存目录
 func (c CodeSourceInfo) GetCodeCacheDir() string {
 	cacheDir := os.Getenv("CACHE_DIR")
