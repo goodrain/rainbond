@@ -20,14 +20,26 @@ package sources
 
 import (
 	"testing"
-	"time"
 
 	"github.com/goodrain/rainbond/event"
 )
 
-func TestSvnClone(t *testing.T) {
-	_, err := SvnClone("/tmp/svn", "https://github.com/goodrain/lb-openresty.git", "", "", event.GetTestLogger(), time.Second*600)
+func TestSvnCheckout(t *testing.T) {
+	client := NewClient("", "", "svn://ali-sh-s1.goodrain.net:21097/testrepo", "/tmp/svn/testrepo", event.GetTestLogger())
+
+	info, err := client.Checkout()
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Log(*info)
+}
+
+func TestSvnCheckoutBranch(t *testing.T) {
+	client := NewClient("", "", "https://github.com/goodrain/rainbond-install", "/tmp/svn/rainbond-install", event.GetTestLogger())
+
+	info, err := client.Checkout()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(*info)
 }
