@@ -109,6 +109,7 @@ func (n *NodeManager) Start(errchan chan error) error {
 
 	go n.monitor.Start(errchan)
 	go n.taskrun.Start(errchan)
+	go n.checkNodeHealthy()
 	go n.heartbeat()
 	return nil
 }
