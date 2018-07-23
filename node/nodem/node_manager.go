@@ -149,7 +149,7 @@ func (n *NodeManager) checkNodeHealthy() (error) {
 					Message:healthyStatus.Info,
 				}
 
-				client.HostNode.UpdataCondition(v)
+				n.HostNode.UpdataCondition(v)
 				flag = false
 			}
 		}else {
@@ -162,14 +162,14 @@ func (n *NodeManager) checkNodeHealthy() (error) {
 			Status:client.ConditionFalse,
 			Message:"service unhealthy",
 		}
-		client.HostNode.UpdataCondition(v2)
+		n.HostNode.UpdataCondition(v2)
 		return nil
 	}
 	v := client.NodeCondition{
 		Type:client.NodeReady,
 		Status:client.ConditionTrue,
 	}
-	client.HostNode.UpdataCondition(v)
+	n.HostNode.UpdataCondition(v)
 	return nil
 }
 
