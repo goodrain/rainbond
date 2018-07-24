@@ -44,15 +44,17 @@ EOF
 	docker build -t rainbond/cni:rbd_v3.6 .
 	
 }
-
+build_items=(api builder entrance grctl monitor mq node webcli worker eventlog)
 function localbuild() {
-    echo "start local build"
-	if [ "$1" = "node" ];then
-    echo "build node"
-    go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o _output/${VERSION}/rainbond-node ./cmd/node
-	elif [ "$1" = "grctl" ];then
-	echo "build grctl"
-	go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o _output/${VERSION}/rainbond-grctl ./cmd/grctl
+	if [ "$1" = "all" ];then
+		for item in ${build_items[@]}
+		do
+    		echo "build ${item}"
+    		go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o _output/${VERSION}/rainbond-$item ./cmd/$item
+		done	
+	else
+		echo "build $1"
+		go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o _output/${VERSION}/rainbond-$1 ./cmd/$1
 	fi
 }
 
