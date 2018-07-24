@@ -183,46 +183,81 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 				v.Status = "running"
 				v.Unschedulable = true
 				v.NodeStatus.Status = "running"
-				return
 			}
-			var haveready bool
+			//var haveready bool
 			for _, condiction := range k8sNode.Status.Conditions {
 				if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
 					v.Status = "running"
 					v.NodeStatus.Status = "running"
+
+					r := client.NodeCondition{
+						Type:   client.NodeReady,
+						Status: client.ConditionFalse,
+						LastHeartbeatTime:time.Now(),
+						LastTransitionTime:time.Now(),
+					}
+					v.UpdataCondition(r)
+					n.UpdateNode(v)
 					return
 				}
-				if condiction.Type == "Ready" {
-					haveready = true
-					//if condiction.Status == "True" {
-					//	v.Status = "running"
-					//	v.NodeStatus.Status = "running"
-					//} else {
-					//	v.Status = "running"
-					//	v.NodeStatus.Status = "running"
-					//}
+				if condiction.Status == "False" && (condiction.Type != "OutOfDisk" && condiction.Type != "MemoryPressure" && condiction.Type != "DiskPressure"){
+					v.Status = "running"
+					v.NodeStatus.Status = "running"
+
+					r := client.NodeCondition{
+						Type:   client.NodeReady,
+						Status: client.ConditionFalse,
+						LastHeartbeatTime:time.Now(),
+						LastTransitionTime:time.Now(),
+					}
+					v.UpdataCondition(r)
+					n.UpdateNode(v)
+					return
 				}
+
+				//if condiction.Type == "Ready" {
+				//	haveready = true
+				//	//if condiction.Status == "True" {
+				//	//	v.Status = "running"
+				//	//	v.NodeStatus.Status = "running"
+				//	//} else {
+				//	//	v.Status = "running"
+				//	//	v.NodeStatus.Status = "running"
+				//	//}
+				//}
 			}
-			if !haveready {
-				v.Status = "error"
-				v.NodeStatus.Status = "error"
-				r := client.NodeCondition{
-					Type:   client.NodeConditionType("ready_type_exist"),
-					Status: client.ConditionFalse,
-					LastHeartbeatTime:time.Now(),
-					LastTransitionTime:time.Now(),
-					Message:err.Error(),
-				}
-				r2 := client.NodeCondition{
-					Type:   client.NodeReady,
-					Status: client.ConditionFalse,
-					LastHeartbeatTime:time.Now(),
-					LastTransitionTime:time.Now(),
-				}
-				v.UpdataCondition(r,r2)
-				n.UpdateNode(v)
-				return
+			//if !haveready {
+			//	v.Status = "error"
+			//	v.NodeStatus.Status = "error"
+			//	r := client.NodeCondition{
+			//		Type:   client.NodeConditionType("ready_type_exist"),
+			//		Status: client.ConditionFalse,
+			//		LastHeartbeatTime:time.Now(),
+			//		LastTransitionTime:time.Now(),
+			//		Message:err.Error(),
+			//	}
+			//	r2 := client.NodeCondition{
+			//		Type:   client.NodeReady,
+			//		Status: client.ConditionFalse,
+			//		LastHeartbeatTime:time.Now(),
+			//		LastTransitionTime:time.Now(),
+			//	}
+			//	v.UpdataCondition(r,r2)
+			//	n.UpdateNode(v)
+			//	return
+			//}
+			v.Status = "running"
+			v.NodeStatus.Status = "running"
+
+			r := client.NodeCondition{
+				Type:   client.NodeReady,
+				Status: client.ConditionTrue,
+				LastHeartbeatTime:time.Now(),
+				LastTransitionTime:time.Now(),
 			}
+			v.UpdataCondition(r)
+			n.UpdateNode(v)
+
 		} else {
 			v.Status = "offline"
 			v.NodeStatus.Status = "offline"
@@ -264,7 +299,6 @@ func (n *Cluster) loadAndWatchNodeOnlines(errChan chan error) {
 				if !node.Alived {
 					node.Alived = true
 					node.UpTime = time.Now()
-					n.UpdateNode(node)
 				}
 			} else {
 				n.lock.Lock()

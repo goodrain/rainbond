@@ -40,13 +40,15 @@ func (h *TcpProbe) TcpCheck() {
 				LastTransitionTime:time.Now(),
 				Message: result.Info,
 			}
-			v2 := client.NodeCondition{
-				Type:   client.NodeReady,
-				Status: client.ConditionFalse,
+			h.hostNode.UpdataCondition(v)
+		}else {
+			v := client.NodeCondition{
+				Type:client.NodeConditionType(result.Name),
+				Status:client.ConditionTrue,
 				LastHeartbeatTime:time.Now(),
 				LastTransitionTime:time.Now(),
 			}
-			h.hostNode.UpdataCondition(v, v2)
+			h.hostNode.UpdataCondition(v)
 		}
 		h.resultsChan <- result
 		return nil

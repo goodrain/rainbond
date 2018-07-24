@@ -92,13 +92,6 @@ func (p *probeManager) AddServices(inner []*service.Service) error {
 func (p *probeManager) Start(hostNode *client.HostNode) (error) {
 
 	logrus.Info("health mode start")
-	v := client.NodeCondition{
-		Type:   client.NodeReady,
-		Status: client.ConditionTrue,
-		LastHeartbeatTime:time.Now(),
-		LastTransitionTime:time.Now(),
-	}
-	hostNode.UpdataCondition(v)
 	go p.HandleStatus()
 	for _, v := range p.services {
 		if v.ServiceHealth.Model == "http" {
