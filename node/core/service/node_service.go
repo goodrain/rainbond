@@ -183,8 +183,8 @@ func (n *NodeService) DownNode(nodeID string) (*client.HostNode, *utils.APIHandl
 	if err != nil {
 		return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node down error,%s", err.Error()))
 	}
-	hostNode.Status = "down"
-	hostNode.NodeStatus = nil
+	hostNode.Status = "offline"
+	hostNode.NodeStatus.Status = "offline"
 	n.nodecluster.UpdateNode(hostNode)
 	return hostNode, nil
 }
@@ -207,6 +207,7 @@ func (n *NodeService) UpNode(nodeID string) (*client.HostNode, *utils.APIHandleE
 	}
 	hostNode.UpdateK8sNodeStatus(*node)
 	hostNode.Status = "running"
+	hostNode.NodeStatus.Status = "running"
 	n.nodecluster.UpdateNode(hostNode)
 	return hostNode, nil
 }
@@ -236,6 +237,7 @@ func (n *NodeService) InstallNode(nodeID string) *utils.APIHandleError {
 		}
 	}
 	node.Status = "installing"
+	node.NodeStatus.Status = "installing"
 	n.nodecluster.UpdateNode(node)
 	return nil
 }

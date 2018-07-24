@@ -25,6 +25,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"time"
 	"github.com/goodrain/rainbond/node/nodem/client"
+	"sync"
 )
 
 //Manager Manager
@@ -58,6 +59,7 @@ type probeManager struct {
 	errorNum   map[string]int
 	errorTime  map[string]time.Time
 	errorFlag  map[string]bool
+	lock       sync.Mutex
 }
 
 func CreateManager() Manager {
@@ -93,6 +95,8 @@ func (p *probeManager) Start(hostNode *client.HostNode) (error) {
 	v := client.NodeCondition{
 		Type:   client.NodeReady,
 		Status: client.ConditionTrue,
+		LastHeartbeatTime:time.Now(),
+		LastTransitionTime:time.Now(),
 	}
 	hostNode.UpdataCondition(v)
 	go p.HandleStatus()
@@ -209,9 +213,11 @@ func (p *probeManager) WatchServiceHealthy(serviceName string) Watcher {
 	if s, ok := p.watches[serviceName]; ok {
 		s[w.id] = w
 	} else {
+		p.lock.Lock()
 		p.watches[serviceName] = map[string]*watcher{
 			w.id: w,
 		}
+		p.lock.Unlock()
 	}
 	return w
 }

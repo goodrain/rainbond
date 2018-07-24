@@ -38,11 +38,15 @@ func (h *ShellProbe) ShellCheck() {
 			v := client.NodeCondition{
 				Type:    client.NodeConditionType(result.Name),
 				Status:  client.ConditionFalse,
+				LastHeartbeatTime:time.Now(),
+				LastTransitionTime:time.Now(),
 				Message: result.Info,
 			}
 			v2 := client.NodeCondition{
 				Type:   client.NodeReady,
 				Status: client.ConditionFalse,
+				LastHeartbeatTime:time.Now(),
+				LastTransitionTime:time.Now(),
 			}
 			h.hostNode.UpdataCondition(v, v2)
 		}

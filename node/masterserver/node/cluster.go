@@ -155,33 +155,77 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		if err != nil {
 			logrus.Errorf("get k8s node error:%s", err.Error())
 			v.Status = "error"
+			v.NodeStatus.Status = "error"
+			r := client.NodeCondition{
+				Type:   client.NodeConditionType("get_k8s_node"),
+				Status: client.ConditionFalse,
+				LastHeartbeatTime:time.Now(),
+				LastTransitionTime:time.Now(),
+				Message:err.Error(),
+			}
+			r2 := client.NodeCondition{
+				Type:   client.NodeReady,
+				Status: client.ConditionFalse,
+				LastHeartbeatTime:time.Now(),
+				LastTransitionTime:time.Now(),
+			}
+			v.UpdataCondition(r,r2)
+			n.UpdateNode(v)
 			return
 		}
 		if k8sNode != nil {
+			if time.Now().Sub(v.UpTime) > time.Minute*5{
+				v.Status = "unknown"
+				v.NodeStatus.Status = "unknown"
+				return
+			}
 			if v.Unschedulable || k8sNode.Spec.Unschedulable {
-				v.Status = "unschedulable"
+				v.Status = "running"
+				v.Unschedulable = true
+				v.NodeStatus.Status = "running"
 				return
 			}
 			var haveready bool
 			for _, condiction := range k8sNode.Status.Conditions {
 				if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
-					v.Status = "error"
+					v.Status = "running"
+					v.NodeStatus.Status = "running"
 					return
 				}
 				if condiction.Type == "Ready" {
 					haveready = true
-					if condiction.Status == "True" {
-						v.Status = "running"
-					} else {
-						v.Status = "notready"
-					}
+					//if condiction.Status == "True" {
+					//	v.Status = "running"
+					//	v.NodeStatus.Status = "running"
+					//} else {
+					//	v.Status = "running"
+					//	v.NodeStatus.Status = "running"
+					//}
 				}
 			}
 			if !haveready {
-				v.Status = "notready"
+				v.Status = "error"
+				v.NodeStatus.Status = "error"
+				r := client.NodeCondition{
+					Type:   client.NodeConditionType("ready_type_exist"),
+					Status: client.ConditionFalse,
+					LastHeartbeatTime:time.Now(),
+					LastTransitionTime:time.Now(),
+					Message:err.Error(),
+				}
+				r2 := client.NodeCondition{
+					Type:   client.NodeReady,
+					Status: client.ConditionFalse,
+					LastHeartbeatTime:time.Now(),
+					LastTransitionTime:time.Now(),
+				}
+				v.UpdataCondition(r,r2)
+				n.UpdateNode(v)
+				return
 			}
 		} else {
-			v.Status = "down"
+			v.Status = "offline"
+			v.NodeStatus.Status = "offline"
 		}
 	}
 	if v.Role.HasRule("manage") && !v.Role.HasRule("compute") { //manage install_success == runnint
@@ -191,13 +235,17 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		if v.Alived {
 			for _, condition := range v.NodeStatus.Conditions {
 				if condition.Type == "Ready" && condition.Status == "True" {
+					v.NodeStatus.Status = "running"
 					v.Status = "running"
 					return
 				}
 			}
-			v.Status = "error"
+			v.Status = "running"
+			v.NodeStatus.Status = "running"
+
 		} else {
-			v.Status = "down"
+			v.Status = "offline"
+			v.NodeStatus.Status = "offline"
 		}
 	}
 }
@@ -257,7 +305,9 @@ func (n *Cluster) loadAndWatchNodes(errChan chan error) {
 				logrus.Errorf("decode node info error :%s", err)
 				continue
 			}
+			node.UpTime = time.Now()
 			n.CacheNode(node)
+			n.handleNodeStatus(node)
 			RegToHost(node, "add")
 		case watch.Deleted:
 			node := new(client.HostNode)
@@ -292,6 +342,7 @@ func (n *Cluster) checkNodeInstall(node *client.HostNode) {
 		n.UpdateNode(node)
 	}()
 	node.Status = "init"
+	node.NodeStatus.Status = "init"
 	errorCondition := func(reason string, err error) {
 		initCondition.Status = client.ConditionFalse
 		initCondition.LastTransitionTime = time.Now()
@@ -302,6 +353,7 @@ func (n *Cluster) checkNodeInstall(node *client.HostNode) {
 		}
 		node.NodeStatus.Conditions = append(node.NodeStatus.Conditions, initCondition)
 		node.Status = "init_failed"
+		node.NodeStatus.Status = "init_failed"
 	}
 	if node.Role == nil {
 		node.Role = []string{"compute"}
@@ -359,6 +411,7 @@ func (n *Cluster) checkNodeInstall(node *client.HostNode) {
 		logrus.Errorf("get init current node result error:%s", err.Error())
 	}
 	node.Status = "init_success"
+	node.NodeStatus.Status = "init_success"
 	if output.Global != nil {
 		for k, v := range output.Global {
 			if strings.Index(v, ",") > -1 {
