@@ -237,8 +237,11 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			return
 		}
 		if v.Alived {
+			logrus.Info("======1")
 			for _, condition := range v.NodeStatus.Conditions {
 				if condition.Status == "False"{
+					logrus.Info("======2",condition.Type)
+
 					v.Status = "running"
 					v.NodeStatus.Status = "running"
 
@@ -254,6 +257,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 				}
 
 			}
+			logrus.Info("======3")
 			v.Status = "running"
 			v.NodeStatus.Status = "running"
 			r := client.NodeCondition{
@@ -264,7 +268,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			}
 			v.UpdataCondition(r)
 			n.UpdateNode(v)
-			return
 
 		} else {
 			v.Status = "offline"
@@ -328,8 +331,8 @@ func (n *Cluster) loadAndWatchNodes(errChan chan error) {
 				continue
 			}
 			node.UpTime = time.Now()
-			n.CacheNode(node)
 			n.handleNodeStatus(node)
+			n.CacheNode(node)
 			RegToHost(node, "add")
 		case watch.Deleted:
 			node := new(client.HostNode)

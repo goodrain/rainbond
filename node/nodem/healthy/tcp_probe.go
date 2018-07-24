@@ -32,18 +32,19 @@ func (h *TcpProbe) TcpCheck() {
 			Status: HealthMap["status"],
 			Info:   HealthMap["info"],
 		}
-		if result.Status != service.Stat_healthy {
+		if HealthMap["status"] != service.Stat_healthy {
 			v := client.NodeCondition{
-				Type:    client.NodeConditionType(result.Name),
+				Type:    client.NodeConditionType(h.name),
 				Status:  client.ConditionFalse,
 				LastHeartbeatTime:time.Now(),
 				LastTransitionTime:time.Now(),
 				Message: result.Info,
 			}
 			h.hostNode.UpdataCondition(v)
-		}else {
+		}
+		if HealthMap["status"] == service.Stat_healthy{
 			v := client.NodeCondition{
-				Type:client.NodeConditionType(result.Name),
+				Type:client.NodeConditionType(h.name),
 				Status:client.ConditionTrue,
 				LastHeartbeatTime:time.Now(),
 				LastTransitionTime:time.Now(),

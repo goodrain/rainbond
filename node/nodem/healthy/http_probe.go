@@ -23,36 +23,35 @@ type HttpProbe struct {
 	hostNode     *client.HostNode
 }
 
-
 func (h *HttpProbe) Check() {
 
 	util.Exec(h.ctx, func() error {
 		HealthMap := GetHttpHealth(h.address)
-			result := &service.HealthStatus{
-				Name:        h.name,
-				Status:      HealthMap["status"],
-				Info:        HealthMap["info"],
+		result := &service.HealthStatus{
+			Name:   h.name,
+			Status: HealthMap["status"],
+			Info:   HealthMap["info"],
+		}
+		if HealthMap["status"] != service.Stat_healthy {
+			v := client.NodeCondition{
+				Type:               client.NodeConditionType(h.name),
+				Status:             client.ConditionFalse,
+				LastHeartbeatTime:  time.Now(),
+				LastTransitionTime: time.Now(),
+				Message:            result.Info,
 			}
-			if result.Status != service.Stat_healthy{
-				v := client.NodeCondition{
-					Type:client.NodeConditionType(result.Name),
-					Status:client.ConditionFalse,
-					LastHeartbeatTime:time.Now(),
-					LastTransitionTime:time.Now(),
-					Message:result.Info,
-				}
-				h.hostNode.UpdataCondition(v)
-			}else {
-				v := client.NodeCondition{
-					Type:client.NodeConditionType(result.Name),
-					Status:client.ConditionTrue,
-					LastHeartbeatTime:time.Now(),
-					LastTransitionTime:time.Now(),
-				}
-				h.hostNode.UpdataCondition(v)
+			h.hostNode.UpdataCondition(v)
+		}
+		if HealthMap["status"] == service.Stat_healthy {
+			v := client.NodeCondition{
+				Type:               client.NodeConditionType(h.name),
+				Status:             client.ConditionTrue,
+				LastHeartbeatTime:  time.Now(),
+				LastTransitionTime: time.Now(),
 			}
-			h.resultsChan <- result
-
+			h.hostNode.UpdataCondition(v)
+		}
+		h.resultsChan <- result
 
 		return nil
 	}, time.Second*time.Duration(h.TimeInterval))
