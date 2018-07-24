@@ -72,6 +72,16 @@ func (m *ControllerSystemd) StopService(serviceName string) error {
 	return nil
 }
 
+func (m *ControllerSystemd) RestartService(serviceName string) error {
+	err := exec.Command("/usr/bin/systemctl", "restart", serviceName).Run()
+	if err != nil {
+		logrus.Errorf("Restart service %s: %v", serviceName, err)
+		return err
+	}
+
+	return nil
+}
+
 func (m *ControllerSystemd) StartList(list []*service.Service) error {
 	logrus.Info("Starting all services.")
 
@@ -118,14 +128,15 @@ func (m *ControllerSystemd) DisableService(name string) error {
 
 func (m *ControllerSystemd) WriteConfig(s *service.Service) error {
 	fileName := fmt.Sprintf("%s/%s.service", m.SysConfigDir, s.Name)
-	content := service.ToConfig(s, m.cluster)
-	if content == nil {
+	content := service.ToConfig(s)
+	content = service.InjectConfig(content, m.cluster)
+	if content == "" {
 		err := fmt.Errorf("can not generate config for service %s", s.Name)
 		logrus.Error(err)
 		return err
 	}
 
-	if err := ioutil.WriteFile(fileName, content, 0644); err != nil {
+	if err := ioutil.WriteFile(fileName, []byte(content), 0644); err != nil {
 		logrus.Errorf("Generate config file %s: %v", fileName, err)
 		return err
 	}

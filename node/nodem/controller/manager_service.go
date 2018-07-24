@@ -55,7 +55,6 @@ func (m *ManagerService) Start() error {
 		return err
 	}
 
-	// TODO 为服务加入目标状态字段，当下线节点后，即使服务不健康也不会重启
 	for _, s := range m.services {
 		serviceName := s.Name
 		go m.SyncService(serviceName)
@@ -72,7 +71,7 @@ func (m *ManagerService) Stop() error {
 
 // start all service of on the node
 func (m *ManagerService) Online() error {
-	services, err := loadServicesFromLocal(m.conf.DefaultConfigFile, m.conf.ServiceListFile)
+	services, err := loadServicesFromLocal(m.conf.ServiceListFile)
 	if err != nil {
 		logrus.Error("Failed to load all services: ", err)
 		return err
@@ -82,7 +81,9 @@ func (m *ManagerService) Online() error {
 	// registry local services endpoint into cluster manager
 	hostIp := m.cluster.GetOptions().HostIP
 	for _, s := range services {
+		logrus.Debug("Parse endpoints for service: ", s.Name)
 		for _, end := range s.Endpoints {
+			logrus.Debug("Discovery endpoints: ", end.Name)
 			endpoint := toEndpoint(end, hostIp)
 			oldEndpoints := m.cluster.GetEndpoints(end.Name)
 			if exist := isExistEndpoint(oldEndpoints, endpoint); !exist {
@@ -113,6 +114,7 @@ func (m *ManagerService) Offline() error {
 	services, _ := m.GetAllService()
 	for _, s := range services {
 		for _, end := range s.Endpoints {
+			logrus.Debug("Anti-registry endpoint: ", end.Name)
 			endpoint := toEndpoint(end, hostIp)
 			oldEndpoints := m.cluster.GetEndpoints(end.Name)
 			if exist := isExistEndpoint(oldEndpoints, endpoint); exist {
@@ -146,18 +148,31 @@ func (m *ManagerService) SyncService(name string) {
 		case event := <-w.Watch():
 			switch event.Status {
 			case service.Stat_healthy:
-				logrus.Debugf("The %s service is %s.", event.Name, event.Status)
+				logrus.Debugf("[%s] check service %s.", event.Status, event.Name)
 			case service.Stat_unhealthy:
+				logrus.Infof("[%s] check service %s %d times.", event.Status, event.Name, unhealthyNum)
 				if unhealthyNum > maxUnhealthyNum {
-					logrus.Infof("The %s service is %s and will be restart.", event.Name, event.Status)
-					m.ctr.StopService(event.Name)
-					m.ctr.StartService(event.Name)
+					logrus.Infof("[%s] check service %s %d times and will be restart.", event.Status, event.Name, unhealthyNum)
+					if event.Name == "docker" {
+						logrus.Infof("Skip restart docker daemon.")
+						continue
+					}
+					m.ctr.RestartService(event.Name)
 					unhealthyNum = 0
 				}
 				unhealthyNum++
 			case service.Stat_death:
-				logrus.Infof("The %s service is %s and will be restart.", event.Name, event.Status)
-				m.ctr.StartService(event.Name)
+				logrus.Infof("[%s] check service %s %d times.", event.Status, event.Name, unhealthyNum)
+				if unhealthyNum > maxUnhealthyNum {
+					logrus.Infof("[%s] check service %s %d times and will be restart.", event.Status, event.Name, unhealthyNum)
+					if event.Name == "docker" {
+						logrus.Infof("Skip restart docker daemon.")
+						continue
+					}
+					m.ctr.RestartService(event.Name)
+					unhealthyNum = 0
+				}
+				unhealthyNum++
 			}
 		case <-m.ctx.Done():
 			return
@@ -176,18 +191,14 @@ func (m *ManagerService) ReLoadServices() error {
 
 func (m *ManagerService) WriteServices() error {
 	for _, s := range m.services {
+		if s.Name == "docker" {
+			continue
+		}
 		err := m.ctr.WriteConfig(s)
 		if err != nil {
 			return err
 		}
-	}
-
-	for _, s := range m.services {
-		m.ctr.DisableService(s.Name)
-		err := m.ctr.EnableService(s.Name)
-		if err != nil {
-			return err
-		}
+		m.ctr.EnableService(s.Name)
 	}
 
 	return nil
@@ -195,6 +206,9 @@ func (m *ManagerService) WriteServices() error {
 
 func (m *ManagerService) RemoveServices() error {
 	for _, s := range m.services {
+		if s.Name == "docker" {
+			continue
+		}
 		m.ctr.DisableService(s.Name)
 		m.ctr.RemoveConfig(s.Name)
 	}
@@ -202,52 +216,24 @@ func (m *ManagerService) RemoveServices() error {
 	return nil
 }
 
-func loadServicesFromLocal(defaultConfigFile, serviceListFile string) ([]*service.Service, error) {
+func loadServicesFromLocal(serviceListFile string) ([]*service.Service, error) {
 	logrus.Info("Loading all services from local.")
 
 	// load default-configs.yaml
-	content, err := ioutil.ReadFile(defaultConfigFile)
+	content, err := ioutil.ReadFile(serviceListFile)
 	if err != nil {
 		logrus.Error("Failed to read default configs file: ", err)
 		return nil, err
 	}
+
 	var defaultConfigs service.Services
 	err = yaml.Unmarshal(content, &defaultConfigs)
 	if err != nil {
 		logrus.Error("Failed to parse default configs yaml file: ", err)
 		return nil, err
 	}
-	// to map, reduce time complexity
-	defaultConfigsMap := make(map[string]*service.Service, len(defaultConfigs.Services))
-	for _, v := range defaultConfigs.Services {
-		defaultConfigsMap[v.Name] = v
-	}
 
-	// load type-service.yaml, e.g. manager-service.yaml
-	content, err = ioutil.ReadFile(serviceListFile)
-	if err != nil {
-		logrus.Error("Failed to read service list file: ", err)
-		return nil, err
-	}
-	var serviceList service.ServiceList
-	err = yaml.Unmarshal(content, &serviceList)
-	if err != nil {
-		logrus.Error("Failed to parse service list yaml file: ", err)
-		return nil, err
-	}
-
-	// parse services with the node type
-	services := make([]*service.Service, 0, len(defaultConfigs.Services))
-	for _, item := range serviceList.Services {
-		if s, ok := defaultConfigsMap[item.Name]; ok {
-			services = append(services, s)
-			logrus.Info("Load service ", s.Name)
-		} else {
-			logrus.Warn("Not found the service %s in default config list, ignore it.", item.Name)
-		}
-	}
-
-	return services, nil
+	return defaultConfigs.Services, nil
 }
 
 func isExistEndpoint(etcdEndPoints []string, end string) bool {
@@ -276,30 +262,45 @@ func toEndpoint(reg *service.Endpoint, ip string) string {
 	return fmt.Sprintf("%s://%s:%s", reg.Protocol, ip, reg.Port)
 }
 
-func startRequires() error {
-	err := exec.Command("/usr/bin/systemctl", "start", "docker").Run()
+func StartRequiresSystemd(conf *option.Conf) error {
+	services, err := loadServicesFromLocal(conf.ServiceListFile)
 	if err != nil {
-		logrus.Errorf("Start service docker: %v", err)
+		logrus.Error("Failed to load all services: ", err)
 		return err
 	}
 
-	err = exec.Command("/usr/bin/systemctl", "start", "etcd").Run()
+	err = exec.Command("/usr/bin/systemctl", "start", "docker").Run()
 	if err != nil {
-		logrus.Errorf("Start service etcd: %v", err)
+		fmt.Printf("Start docker daemon: %v", err)
 		return err
 	}
 
-	err = exec.Command("/usr/bin/systemctl", "start", "rbd-fs").Run()
-	if err != nil {
-		logrus.Errorf("Start service rbd-fs: %v", err)
-		return err
+	for _, s := range services {
+		if s.Name == "etcd" {
+			fileName := fmt.Sprintf("/etc/systemd/system/%s.service", s.Name)
+			content := service.ToConfig(s)
+			if content == "" {
+				err := fmt.Errorf("can not generate config for service %s", s.Name)
+				fmt.Println(err)
+				return err
+			}
+
+			if err := ioutil.WriteFile(fileName, []byte(content), 0644); err != nil {
+				fmt.Printf("Generate config file %s: %v", fileName, err)
+				return err
+			}
+			err = exec.Command("/usr/bin/systemctl", "start", s.Name).Run()
+			if err != nil {
+				fmt.Printf("Start service %s: %v", s.Name, err)
+				return err
+			}
+		}
 	}
 
 	return nil
 }
 
 func NewManagerService(conf *option.Conf, healthyManager healthy.Manager) (*ManagerService, *clientv3.Client, client.ClusterClient) {
-	startRequires()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	etcdcli, err := clientv3.New(conf.Etcd)

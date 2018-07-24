@@ -86,6 +86,7 @@ func (e *etcdClusterClient) GetOptions() *option.Conf {
 }
 
 func (e *etcdClusterClient) GetEndpoints(key string) (result []string) {
+	key = "/rainbond/endpoint/" + key
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -101,10 +102,12 @@ func (e *etcdClusterClient) GetEndpoints(key string) (result []string) {
 		return
 	}
 
+	logrus.Infof("Get endpoints %s => %v", key, result)
 	return
 }
 
 func (e *etcdClusterClient) SetEndpoints(key string, value []string) {
+	key = "/rainbond/endpoint/" + key
 	logrus.Infof("Put endpoints %s => %v", key, value)
 
 	ctx, cancel := context.WithCancel(context.Background())

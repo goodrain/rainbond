@@ -25,6 +25,7 @@ import (
 	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/cmd/node/server"
+	"github.com/goodrain/rainbond/node/nodem/controller"
 )
 
 func main() {
@@ -32,6 +33,14 @@ func main() {
 		cmd.ShowVersion("node")
 	}
 	option.Init()
+
+	if option.Config.ServiceManager == "systemd" {
+		if err := controller.StartRequiresSystemd(option.Config); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to start requires service: %v", err)
+			os.Exit(1)
+		}
+	}
+
 	if err := server.Run(option.Config); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
