@@ -214,38 +214,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					n.UpdateNode(v)
 					return
 				}
-
-				//if condiction.Type == "Ready" {
-				//	haveready = true
-				//	//if condiction.Status == "True" {
-				//	//	v.Status = "running"
-				//	//	v.NodeStatus.Status = "running"
-				//	//} else {
-				//	//	v.Status = "running"
-				//	//	v.NodeStatus.Status = "running"
-				//	//}
-				//}
 			}
-			//if !haveready {
-			//	v.Status = "error"
-			//	v.NodeStatus.Status = "error"
-			//	r := client.NodeCondition{
-			//		Type:   client.NodeConditionType("ready_type_exist"),
-			//		Status: client.ConditionFalse,
-			//		LastHeartbeatTime:time.Now(),
-			//		LastTransitionTime:time.Now(),
-			//		Message:err.Error(),
-			//	}
-			//	r2 := client.NodeCondition{
-			//		Type:   client.NodeReady,
-			//		Status: client.ConditionFalse,
-			//		LastHeartbeatTime:time.Now(),
-			//		LastTransitionTime:time.Now(),
-			//	}
-			//	v.UpdataCondition(r,r2)
-			//	n.UpdateNode(v)
-			//	return
-			//}
 			v.Status = "running"
 			v.NodeStatus.Status = "running"
 
@@ -269,14 +238,33 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		}
 		if v.Alived {
 			for _, condition := range v.NodeStatus.Conditions {
-				if condition.Type == "Ready" && condition.Status == "True" {
-					v.NodeStatus.Status = "running"
+				if condition.Status == "False"{
 					v.Status = "running"
+					v.NodeStatus.Status = "running"
+
+					r := client.NodeCondition{
+						Type:   client.NodeReady,
+						Status: client.ConditionFalse,
+						LastHeartbeatTime:time.Now(),
+						LastTransitionTime:time.Now(),
+					}
+					v.UpdataCondition(r)
+					n.UpdateNode(v)
 					return
 				}
+
 			}
 			v.Status = "running"
 			v.NodeStatus.Status = "running"
+			r := client.NodeCondition{
+				Type:   client.NodeReady,
+				Status: client.ConditionTrue,
+				LastHeartbeatTime:time.Now(),
+				LastTransitionTime:time.Now(),
+			}
+			v.UpdataCondition(r)
+			n.UpdateNode(v)
+			return
 
 		} else {
 			v.Status = "offline"
