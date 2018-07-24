@@ -30,28 +30,32 @@ var (
 	ArgsReg = regexp.MustCompile(`\$\{(\w+)\}`)
 )
 
-func ToConfig(svc *Service, cluster client.ClusterClient) []byte {
+func ToConfig(svc *Service) string {
 	if svc.Start == "" {
 		logrus.Error("service start command is empty.")
-		return nil
-	}
-	if cluster == nil {
-		logrus.Error("cluster client can not is nil, at to config.")
-		return nil
+		return ""
 	}
 
 	s := Lines{"[Unit]"}
 	s.Add("Description", svc.Name)
 	for _, d := range svc.After {
-		s.Add("After", d+".service")
+		dpd := d
+		if !strings.Contains(dpd, ".") {
+			dpd += ".service"
+		}
+		s.Add("After", dpd)
 	}
 
 	for _, d := range svc.Requires {
-		s.Add("Requires", d+".service")
+		dpd := d
+		if !strings.Contains(dpd, ".") {
+			dpd += ".service"
+		}
+		s.Add("Requires", dpd)
 	}
 
 	s.AddTitle("[Service]")
-	if svc.Type != "simple" {
+	if svc.Type == "oneshot" {
 		s.Add("Type", svc.Type)
 		s.Add("RemainAfterExit", "yes")
 	}
@@ -65,12 +69,16 @@ func ToConfig(svc *Service, cluster client.ClusterClient) []byte {
 	s.Add("WantedBy", "multi-user.target")
 
 	logrus.Debugf("check is need inject args into service %s", svc.Name)
-	result := InjectConfig(s.Get(), cluster)
 
-	return []byte(result)
+	return s.Get()
 }
 
 func InjectConfig(content string, cluster client.ClusterClient) string {
+	if cluster == nil {
+		logrus.Error("cluster client can not is nil, at to config.")
+		return ""
+	}
+
 	for _, parantheses := range ArgsReg.FindAllString(content, -1) {
 		logrus.Debugf("discover inject args template %s", parantheses)
 		group := ArgsReg.FindStringSubmatch(parantheses)

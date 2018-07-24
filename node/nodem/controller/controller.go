@@ -27,6 +27,7 @@ type Controller interface {
 	StopService(name string) error
 	StartList(list []*service.Service) error
 	StopList(list []*service.Service) error
+	RestartService(serviceName string) error
 	WriteConfig(s *service.Service) error
 	RemoveConfig(name string) error
 	EnableService(name string) error
