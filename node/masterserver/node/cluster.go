@@ -41,7 +41,7 @@ import (
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util"
-	"github.com/goodrain/rainbond/node/core/service"
+
 )
 
 const (
@@ -258,8 +258,8 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		}
 		if v.Alived {
 			if time.Now().Sub(v.UpTime) > time.Minute*2 {
-				v.Status = service.Unknown
-				v.NodeStatus.Status = service.Unknown
+				v.Status = Unknown
+				v.NodeStatus.Status = Unknown
 				v.Unschedulable = true
 				r := client.NodeCondition{
 					Type:               client.NodeReady,
