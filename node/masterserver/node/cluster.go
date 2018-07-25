@@ -179,7 +179,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			return
 		}
 		if k8sNode != nil {
-			logrus.Info(v.UpTime,"=====uptime")
+			logrus.Info(v.UpTime,"=====》》》》》》uptime")
 			if time.Now().Sub(v.UpTime) > time.Minute*5{
 				v.Status = "unknown"
 				v.NodeStatus.Status = "unknown"
@@ -341,7 +341,6 @@ func (n *Cluster) loadAndWatchNodes(errChan chan error) {
 				continue
 			}
 			println(node.ExternalIP,"=====ip")
-			node.UpTime = time.Now()
 			n.handleNodeStatus(node)
 			println("========cachenode")
 			n.CacheNode(node)
