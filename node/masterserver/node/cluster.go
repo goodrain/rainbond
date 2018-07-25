@@ -186,7 +186,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 				LastTransitionTime: time.Now(),
 			}
 			v.UpdataCondition(r, r2)
-			n.UpdateNode(v)
 			return
 		}
 		if k8sNode != nil {
@@ -201,7 +200,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					LastTransitionTime: time.Now(),
 				}
 				v.UpdataCondition(r)
-				n.UpdateNode(v)
 				return
 			}
 			if v.Unschedulable || k8sNode.Spec.Unschedulable {
@@ -222,7 +220,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 						LastTransitionTime: time.Now(),
 					}
 					v.UpdataCondition(r)
-					n.UpdateNode(v)
 					return
 				}
 				if condiction.Status == "False" && (condiction.Type != "OutOfDisk" && condiction.Type != "MemoryPressure" && condiction.Type != "DiskPressure") {
@@ -236,7 +233,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 						LastTransitionTime: time.Now(),
 					}
 					v.UpdataCondition(r)
-					n.UpdateNode(v)
 					return
 				}
 			}
@@ -250,7 +246,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 				LastTransitionTime: time.Now(),
 			}
 			v.UpdataCondition(r)
-			n.UpdateNode(v)
 
 		} else {
 			v.Status = Offline
@@ -273,7 +268,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					LastTransitionTime: time.Now(),
 				}
 				v.UpdataCondition(r)
-				n.UpdateNode(v)
 				return
 			}
 
@@ -290,7 +284,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 						LastTransitionTime: time.Now(),
 					}
 					v.UpdataCondition(r)
-					n.UpdateNode(v)
 					return
 				}
 
@@ -304,7 +297,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 				LastTransitionTime: time.Now(),
 			}
 			v.UpdataCondition(r)
-			n.UpdateNode(v)
 
 		} else {
 			v.Status = Offline
