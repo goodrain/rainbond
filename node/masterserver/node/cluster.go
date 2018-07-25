@@ -148,14 +148,12 @@ func (n *Cluster) getNodeIDFromKey(key string) string {
 //GetNode get rainbond node info
 func (n *Cluster) GetNode(id string) *client.HostNode {
 	if node, ok := n.nodes[id]; ok {
-		n.handleNodeStatus(node)
 		return node
 	}
 	return nil
 }
 func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 	if v.Role.HasRule("compute") {
-		logrus.Info("======compute")
 		k8sNode, err := n.kubecli.GetNode(v.ID)
 		if err != nil {
 			logrus.Errorf("get k8s node error:%s", err.Error())
@@ -179,8 +177,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			return
 		}
 		if k8sNode != nil {
-			logrus.Info(v.UpTime,"=====》》》》》》uptime")
-			if time.Now().Sub(v.UpTime) > time.Minute*5{
+			if time.Now().Sub(v.UpTime) > time.Minute*2{
 				v.Status = "unknown"
 				v.NodeStatus.Status = "unknown"
 				return
@@ -193,7 +190,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			//var haveready bool
 			for _, condiction := range k8sNode.Status.Conditions {
 				if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
-					logrus.Info("======c11111")
 					v.Status = "running"
 					v.NodeStatus.Status = "running"
 
@@ -208,7 +204,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					return
 				}
 				if condiction.Status == "False" && (condiction.Type != "OutOfDisk" && condiction.Type != "MemoryPressure" && condiction.Type != "DiskPressure"){
-					logrus.Info("======c22222")
 					v.Status = "running"
 					v.NodeStatus.Status = "running"
 
@@ -223,7 +218,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					return
 				}
 			}
-			logrus.Info("======c3333")
 			v.Status = "running"
 			v.NodeStatus.Status = "running"
 
@@ -242,15 +236,12 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		}
 	}
 	if v.Role.HasRule("manage") && !v.Role.HasRule("compute") { //manage install_success == runnint
-		logrus.Info("======manage")
 		if v.Status == "init" || v.Status == "init_success" || v.Status == "init_failed" || v.Status == "installing" || v.Status == "install_failed" {
 			return
 		}
 		if v.Alived {
-			logrus.Info("======1")
 			for _, condition := range v.NodeStatus.Conditions {
 				if condition.Status == "False"{
-					logrus.Info("======2",condition.Type)
 
 					v.Status = "running"
 					v.NodeStatus.Status = "running"
@@ -267,7 +258,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 				}
 
 			}
-			logrus.Info("======3")
 			v.Status = "running"
 			v.NodeStatus.Status = "running"
 			r := client.NodeCondition{
@@ -340,9 +330,7 @@ func (n *Cluster) loadAndWatchNodes(errChan chan error) {
 				logrus.Errorf("decode node info error :%s", err)
 				continue
 			}
-			println(node.ExternalIP,"=====ip")
 			n.handleNodeStatus(node)
-			println("========cachenode")
 			n.CacheNode(node)
 			RegToHost(node, "add")
 		case watch.Deleted:
@@ -493,11 +481,8 @@ func (n *Cluster) CacheNode(node *client.HostNode) {
 		}
 		delete(n.nodeonline, node.ID)
 	}
-	logrus.Info("add or update a rainbon node id:%s hostname:%s ip:%s", node.ID, node.HostName, node.InternalIP)
+	logrus.Debug("add or update a rainbon node id:%s hostname:%s ip:%s", node.ID, node.HostName, node.InternalIP)
 	n.nodes[node.ID] = node
-	for _,v :=range node.NodeStatus.Conditions{
-		println(v.Type,v.Status,"======type")
-	}
 }
 
 //RemoveNode 从缓存移除节点
