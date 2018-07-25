@@ -85,7 +85,7 @@ func Run(c *option.Conf) error {
 		defer ms.Stop(nil)
 	}
 	//create api manager
-	apiManager := api.NewManager(*c, nodemanager.GetCurrentNode(), ms, kubecli)
+	apiManager := api.NewManager(*c, nodemanager.GetCurrentNode(), nodemanager.GetController(), ms, kubecli)
 	if err := apiManager.Start(errChan); err != nil {
 		return err
 	}

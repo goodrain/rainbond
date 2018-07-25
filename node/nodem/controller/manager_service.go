@@ -22,19 +22,21 @@ import (
 	"context"
 	"fmt"
 	"github.com/Sirupsen/logrus"
+	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/healthy"
 	"github.com/goodrain/rainbond/node/nodem/service"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"github.com/coreos/etcd/clientv3"
 	"os/exec"
 )
 
 type ManagerService struct {
 	ctx            context.Context
 	cancel         context.CancelFunc
+	syncCtx        context.Context
+	syncCancel     context.CancelFunc
 	conf           *option.Conf
 	ctr            Controller
 	cluster        client.ClusterClient
@@ -55,11 +57,6 @@ func (m *ManagerService) Start() error {
 		return err
 	}
 
-	for _, s := range m.services {
-		serviceName := s.Name
-		go m.SyncService(serviceName)
-	}
-
 	return nil
 }
 
@@ -71,6 +68,7 @@ func (m *ManagerService) Stop() error {
 
 // start all service of on the node
 func (m *ManagerService) Online() error {
+	logrus.Info("Node online")
 	services, err := loadServicesFromLocal(m.conf.ServiceListFile)
 	if err != nil {
 		logrus.Error("Failed to load all services: ", err)
@@ -104,11 +102,14 @@ func (m *ManagerService) Online() error {
 
 	m.ctr.StartList(m.services)
 
+	m.StartSync()
+
 	return nil
 }
 
 // stop all service of on the node
 func (m *ManagerService) Offline() error {
+	logrus.Info("Node offline")
 	// Anti-registry local services endpoint from cluster manager
 	hostIp := m.cluster.GetOptions().HostIP
 	services, _ := m.GetAllService()
@@ -123,6 +124,8 @@ func (m *ManagerService) Offline() error {
 		}
 	}
 
+	m.StopSync()
+
 	if err := m.ctr.StopList(m.services); err != nil {
 		return err
 	}
@@ -131,53 +134,61 @@ func (m *ManagerService) Offline() error {
 }
 
 // synchronize all service status to as we expect
-func (m *ManagerService) SyncService(name string) {
-	logrus.Error("Start watch the service status ", name)
-
-	w := m.healthyManager.WatchServiceHealthy(name)
-	if w == nil {
-		logrus.Error("Not found watcher of the service ", name)
-		return
-	}
-
-	unhealthyNum := 0
-	maxUnhealthyNum := 2
-
-	for {
-		select {
-		case event := <-w.Watch():
-			switch event.Status {
-			case service.Stat_healthy:
-				logrus.Debugf("[%s] check service %s.", event.Status, event.Name)
-			case service.Stat_unhealthy:
-				logrus.Infof("[%s] check service %s %d times.", event.Status, event.Name, unhealthyNum)
-				if unhealthyNum > maxUnhealthyNum {
-					logrus.Infof("[%s] check service %s %d times and will be restart.", event.Status, event.Name, unhealthyNum)
-					if event.Name == "docker" {
-						logrus.Infof("Skip restart docker daemon.")
-						continue
-					}
-					m.ctr.RestartService(event.Name)
-					unhealthyNum = 0
-				}
-				unhealthyNum++
-			case service.Stat_death:
-				logrus.Infof("[%s] check service %s %d times.", event.Status, event.Name, unhealthyNum)
-				if unhealthyNum > maxUnhealthyNum {
-					logrus.Infof("[%s] check service %s %d times and will be restart.", event.Status, event.Name, unhealthyNum)
-					if event.Name == "docker" {
-						logrus.Infof("Skip restart docker daemon.")
-						continue
-					}
-					m.ctr.RestartService(event.Name)
-					unhealthyNum = 0
-				}
-				unhealthyNum++
-			}
-		case <-m.ctx.Done():
+func (m *ManagerService) StartSync() {
+	for _, s := range m.services {
+		name := s.Name
+		logrus.Error("Start watch the service status ", name)
+		w := m.healthyManager.WatchServiceHealthy(name)
+		if w == nil {
+			logrus.Error("Not found watcher of the service ", name)
 			return
 		}
+
+		unhealthyNum := 0
+		maxUnhealthyNum := 2
+
+		go func() {
+			for {
+				select {
+				case event := <-w.Watch():
+					switch event.Status {
+					case service.Stat_healthy:
+						logrus.Debugf("[%s] check service %s.", event.Status, event.Name)
+					case service.Stat_unhealthy:
+						logrus.Infof("[%s] check service %s %d times.", event.Status, event.Name, unhealthyNum)
+						if unhealthyNum > maxUnhealthyNum {
+							logrus.Infof("[%s] check service %s %d times and will be restart.", event.Status, event.Name, unhealthyNum)
+							if event.Name == "docker" {
+								logrus.Infof("Skip restart docker daemon.")
+								continue
+							}
+							m.ctr.RestartService(event.Name)
+							unhealthyNum = 0
+						}
+						unhealthyNum++
+					case service.Stat_death:
+						logrus.Infof("[%s] check service %s %d times.", event.Status, event.Name, unhealthyNum)
+						if unhealthyNum > maxUnhealthyNum {
+							logrus.Infof("[%s] check service %s %d times and will be restart.", event.Status, event.Name, unhealthyNum)
+							if event.Name == "docker" {
+								logrus.Infof("Skip restart docker daemon.")
+								continue
+							}
+							m.ctr.RestartService(event.Name)
+							unhealthyNum = 0
+						}
+						unhealthyNum++
+					}
+				case <-m.syncCtx.Done():
+					return
+				}
+			}
+		}()
 	}
+}
+
+func (m *ManagerService) StopSync() {
+	m.syncCancel()
 }
 
 /*
@@ -302,6 +313,7 @@ func StartRequiresSystemd(conf *option.Conf) error {
 
 func NewManagerService(conf *option.Conf, healthyManager healthy.Manager) (*ManagerService, *clientv3.Client, client.ClusterClient) {
 	ctx, cancel := context.WithCancel(context.Background())
+	SyncCtx, SyncCancel := context.WithCancel(context.Background())
 
 	etcdcli, err := clientv3.New(conf.Etcd)
 	if err != nil {
@@ -312,6 +324,8 @@ func NewManagerService(conf *option.Conf, healthyManager healthy.Manager) (*Mana
 	manager := &ManagerService{
 		ctx:            ctx,
 		cancel:         cancel,
+		syncCtx:        SyncCtx,
+		syncCancel:     SyncCancel,
 		conf:           conf,
 		cluster:        cluster,
 		ctr:            NewControllerSystemd(conf, cluster),
