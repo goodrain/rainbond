@@ -183,7 +183,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	}
 	info := fmt.Sprintf("版本:%s 上传者:%s Commit:%s ", i.commit.Hash[0:7], i.commit.Author, i.commit.Message)
 	i.Logger.Info(info, map[string]string{"step": "code-version"})
-	if _, ok := i.BuildEnvs["BUILD_REPARSE"]; ok {
+	if _, ok := i.BuildEnvs["REPARSE"]; ok {
 		_, lang, err := parser.ReadRbdConfigAndLang(rbi)
 		if err != nil {
 			logrus.Errorf("reparse code lange error %s", err.Error())
