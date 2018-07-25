@@ -160,6 +160,7 @@ func (n *Cluster) getNodeIDFromKey(key string) string {
 //GetNode get rainbond node info
 func (n *Cluster) GetNode(id string) *client.HostNode {
 	if node, ok := n.nodes[id]; ok {
+		n.handleNodeStatus(node)
 		return node
 	}
 	return nil
@@ -366,7 +367,6 @@ func (n *Cluster) loadAndWatchNodes(errChan chan error) {
 				logrus.Errorf("decode node info error :%s", err)
 				continue
 			}
-			n.handleNodeStatus(node)
 			n.CacheNode(node)
 			RegToHost(node, "add")
 		case watch.Deleted:
