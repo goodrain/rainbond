@@ -122,6 +122,12 @@ func (n *Cluster) UpdateNode(node *client.HostNode) {
 	n.client.Put(option.Config.NodePath+"/"+node.ID, node.String())
 }
 
+//UpdateNode 更新节点信息
+func (n *Cluster) UnlockUpdateNode(node *client.HostNode) {
+	n.nodes[node.ID] = node
+	n.client.Put(option.Config.NodePath+"/"+node.ID, node.String())
+}
+
 func (n *Cluster) getNodeFromKV(kv *mvccpb.KeyValue) *client.HostNode {
 	var node client.HostNode
 	if err := ffjson.Unmarshal(kv.Value, &node); err != nil {
@@ -141,10 +147,8 @@ func (n *Cluster) getNodeIDFromKey(key string) string {
 
 //GetNode get rainbond node info
 func (n *Cluster) GetNode(id string) *client.HostNode {
-	n.lock.Lock()
-	defer n.lock.Unlock()
 	if node, ok := n.nodes[id]; ok {
-		n.handleNodeStatus(node)
+		//n.handleNodeStatus(node)
 		return node
 	}
 	return nil
@@ -175,6 +179,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			return
 		}
 		if k8sNode != nil {
+			logrus.Info(v.UpTime,"=====uptime")
 			if time.Now().Sub(v.UpTime) > time.Minute*5{
 				v.Status = "unknown"
 				v.NodeStatus.Status = "unknown"
