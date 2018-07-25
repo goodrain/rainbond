@@ -134,11 +134,6 @@ func (n *Cluster) UpdateNode(node *client.HostNode) {
 	n.client.Put(option.Config.NodePath+"/"+node.ID, node.String())
 }
 
-//UpdateNode 更新节点信息
-func (n *Cluster) UnlockUpdateNode(node *client.HostNode) {
-	n.nodes[node.ID] = node
-	n.client.Put(option.Config.NodePath+"/"+node.ID, node.String())
-}
 
 func (n *Cluster) getNodeFromKV(kv *mvccpb.KeyValue) *client.HostNode {
 	var node client.HostNode
@@ -345,6 +340,7 @@ func (n *Cluster) loadAndWatchNodes(errChan chan error) {
 				logrus.Errorf("decode node info error :%s", err)
 				continue
 			}
+			n.handleNodeStatus(node)
 			n.CacheNode(node)
 			RegToHost(node, "add")
 		case watch.Deleted:
@@ -495,7 +491,10 @@ func (n *Cluster) CacheNode(node *client.HostNode) {
 		}
 		delete(n.nodeonline, node.ID)
 	}
-	logrus.Debug("add or update a rainbon node id:%s hostname:%s ip:%s", node.ID, node.HostName, node.InternalIP)
+	logrus.Debugf("add or update a rainbon node id:%s hostname:%s ip:%s", node.ID, node.HostName, node.InternalIP)
+	for _,v :=range node.NodeStatus.Conditions{
+		println(v.Type,v.Status,"=====xxxxx")
+	}
 	n.nodes[node.ID] = node
 }
 
