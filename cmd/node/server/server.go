@@ -58,8 +58,7 @@ func Run(c *option.Conf) error {
 	defer kubecli.Stop()
 	// init etcd client
 	if err = store.NewClient(c); err != nil {
-		return fmt.Errorf("Connect to ETCD %s failed: %s",
-			c.Etcd.Endpoints, err)
+		return fmt.Errorf("Connect to ETCD %s failed: %s", c.Etcd.Endpoints, err)
 	}
 	nodemanager, err := nodem.NewNodeManager(c)
 	if err != nil {
@@ -85,7 +84,7 @@ func Run(c *option.Conf) error {
 		defer ms.Stop(nil)
 	}
 	//create api manager
-	apiManager := api.NewManager(*c, nodemanager.GetCurrentNode(), nodemanager.GetController(), ms, kubecli)
+	apiManager := api.NewManager(*c, nodemanager.GetCurrentNode(), ms, kubecli)
 	if err := apiManager.Start(errChan); err != nil {
 		return err
 	}

@@ -36,7 +36,6 @@ import (
 
 	"github.com/goodrain/rainbond/cmd/node/option"
 	nodeclient "github.com/goodrain/rainbond/node/nodem/client"
-	ncontroller "github.com/goodrain/rainbond/node/nodem/controller"
 
 	_ "net/http/pprof"
 
@@ -59,10 +58,10 @@ type Manager struct {
 }
 
 //NewManager api manager
-func NewManager(c option.Conf, node *nodeclient.HostNode, ncontroller ncontroller.Manager, ms *masterserver.MasterServer, kubecli kubecache.KubeClient) *Manager {
+func NewManager(c option.Conf, node *nodeclient.HostNode, ms *masterserver.MasterServer, kubecli kubecache.KubeClient) *Manager {
 	r := router.Routers(c.RunMode)
 	ctx, cancel := context.WithCancel(context.Background())
-	controller.Init(&c, ms, kubecli, ncontroller)
+	controller.Init(&c, ms, kubecli)
 	m := &Manager{
 		ctx:    ctx,
 		cancel: cancel,

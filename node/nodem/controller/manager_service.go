@@ -27,6 +27,7 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/healthy"
 	"github.com/goodrain/rainbond/node/nodem/service"
+	"github.com/goodrain/rainbond/util/watch"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os/exec"
@@ -42,6 +43,8 @@ type ManagerService struct {
 	cluster        client.ClusterClient
 	healthyManager healthy.Manager
 	services       []*service.Service
+	etcdcli        *clientv3.Client
+	watchChan      watch.Interface
 }
 
 func (m *ManagerService) GetAllService() ([]*service.Service, error) {
@@ -52,8 +55,7 @@ func (m *ManagerService) GetAllService() ([]*service.Service, error) {
 func (m *ManagerService) Start() error {
 	logrus.Info("Starting node controller manager.")
 
-	err := m.Online()
-	if err != nil {
+	if err := m.SyncNodeStatus(); err != nil {
 		return err
 	}
 
@@ -62,8 +64,41 @@ func (m *ManagerService) Start() error {
 
 // stop manager
 func (m *ManagerService) Stop() error {
+	m.watchChan.Stop()
 	m.cancel()
 	return nil
+}
+
+func (m *ManagerService) SyncNodeStatus() error {
+	watcher := watch.New(m.etcdcli, "")
+	watchChan, err := watcher.WatchList(m.ctx, m.conf.NodePath, "")
+	if err != nil {
+		logrus.Error("Failed to Watch list for key ", m.conf.NodePath)
+		return err
+	}
+	m.watchChan = watchChan
+
+	for event := range m.watchChan.ResultChan() {
+		logrus.Debug("watch node status: ", event.Type)
+		switch event.Type {
+		case watch.Added:
+		case watch.Modified:
+			var node *client.HostNode
+			if err := node.Decode(event.GetValue()); err != nil {
+				logrus.Error("Failed to decode node from sync node event: ", err)
+			}
+			if node.Status == "offline" { // TODO const
+				m.Offline()
+			} else if node.Status == "running" {
+				m.Online()
+			}
+		case watch.Deleted:
+		default:
+			logrus.Error("watch node event error: ", event.Error)
+		}
+	}
+
+	logrus.Info("Stop sync node status from node cluster client.")
 }
 
 // start all service of on the node
@@ -102,7 +137,7 @@ func (m *ManagerService) Online() error {
 
 	m.ctr.StartList(m.services)
 
-	m.StartSync()
+	m.StartSyncService()
 
 	return nil
 }
@@ -124,7 +159,7 @@ func (m *ManagerService) Offline() error {
 		}
 	}
 
-	m.StopSync()
+	m.StopSyncService()
 
 	if err := m.ctr.StopList(m.services); err != nil {
 		return err
@@ -134,7 +169,7 @@ func (m *ManagerService) Offline() error {
 }
 
 // synchronize all service status to as we expect
-func (m *ManagerService) StartSync() {
+func (m *ManagerService) StartSyncService() {
 	for _, s := range m.services {
 		name := s.Name
 		logrus.Error("Start watch the service status ", name)
@@ -187,7 +222,7 @@ func (m *ManagerService) StartSync() {
 	}
 }
 
-func (m *ManagerService) StopSync() {
+func (m *ManagerService) StopSyncService() {
 	m.syncCancel()
 }
 
@@ -330,6 +365,7 @@ func NewManagerService(conf *option.Conf, healthyManager healthy.Manager) (*Mana
 		cluster:        cluster,
 		ctr:            NewControllerSystemd(conf, cluster),
 		healthyManager: healthyManager,
+		etcdcli:        etcdcli,
 	}
 
 	return manager, etcdcli, cluster

@@ -31,7 +31,6 @@ import (
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/masterserver/node"
 	"github.com/goodrain/rainbond/node/nodem/client"
-	"github.com/goodrain/rainbond/node/nodem/controller"
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/twinj/uuid"
 )
@@ -41,16 +40,14 @@ type NodeService struct {
 	c           *option.Conf
 	nodecluster *node.Cluster
 	kubecli     kubecache.KubeClient
-	controller  controller.Manager
 }
 
 //CreateNodeService create
-func CreateNodeService(c *option.Conf, nodecluster *node.Cluster, kubecli kubecache.KubeClient, controller controller.Manager) *NodeService {
+func CreateNodeService(c *option.Conf, nodecluster *node.Cluster, kubecli kubecache.KubeClient) *NodeService {
 	return &NodeService{
 		c:           c,
 		nodecluster: nodecluster,
 		kubecli:     kubecli,
-		controller:  controller,
 	}
 }
 
@@ -187,10 +184,6 @@ func (n *NodeService) DownNode(nodeID string) (*client.HostNode, *utils.APIHandl
 	if err != nil {
 		return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node down error,%s", err.Error()))
 	}
-	err = n.controller.Offline()
-	if err != nil {
-		return nil, utils.CreateAPIHandleError(501, fmt.Errorf("node offine error,%s", err.Error()))
-	}
 	hostNode.Status = "offline"
 	hostNode.NodeStatus.Status = "offline"
 	n.nodecluster.UpdateNode(hostNode)
@@ -206,10 +199,6 @@ func (n *NodeService) UpNode(nodeID string) (*client.HostNode, *utils.APIHandleE
 	}
 	if !hostNode.Role.HasRule(client.ComputeNode) {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node is not compute node"))
-	}
-	err := n.controller.Online()
-	if err != nil {
-		return nil, utils.CreateAPIHandleError(501, fmt.Errorf("node online error,%s", err.Error()))
 	}
 	if k8snode, _ := n.kubecli.GetNode(hostNode.ID); k8snode != nil {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node is not compute node or it not down"))
