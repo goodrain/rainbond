@@ -26,7 +26,6 @@ import (
 	"github.com/goodrain/rainbond/node/core/service"
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/masterserver"
-	"github.com/goodrain/rainbond/node/nodem/controller"
 )
 
 var datacenterConfig *config.DataCenterConfig
@@ -40,14 +39,14 @@ var discoverService *service.DiscoverAction
 var kubecli kubecache.KubeClient
 
 //Init 初始化
-func Init(c *option.Conf, ms *masterserver.MasterServer, kube kubecache.KubeClient, controller controller.Manager) {
+func Init(c *option.Conf, ms *masterserver.MasterServer, kube kubecache.KubeClient) {
 	if ms != nil {
 		prometheusService = service.CreatePrometheusService(c, ms)
 		taskService = service.CreateTaskService(c, ms)
 		taskTempService = service.CreateTaskTempService(c)
 		taskGroupService = service.CreateTaskGroupService(c, ms)
 		datacenterConfig = config.GetDataCenterConfig()
-		nodeService = service.CreateNodeService(c, ms.Cluster, kube, controller)
+		nodeService = service.CreateNodeService(c, ms.Cluster, kube)
 	}
 	appService = service.CreateAppService(c)
 	discoverService = service.CreateDiscoverActionManager(c, kube)

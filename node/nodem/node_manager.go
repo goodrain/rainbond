@@ -249,7 +249,3 @@ func CreateNode(nodeID, ip string) client.HostNode {
 	}
 	return HostNode
 }
-
-func (n *NodeManager) GetController() controller.Manager {
-	return n.controller
-}
