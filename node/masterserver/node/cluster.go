@@ -181,6 +181,15 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			if time.Now().Sub(v.UpTime) > time.Minute*2{
 				v.Status = service.Unknown
 				v.NodeStatus.Status = service.Unknown
+				v.Unschedulable = true
+				r := client.NodeCondition{
+					Type:   client.NodeReady,
+					Status: client.ConditionFalse,
+					LastHeartbeatTime:time.Now(),
+					LastTransitionTime:time.Now(),
+				}
+				v.UpdataCondition(r)
+				n.UpdateNode(v)
 				return
 			}
 			if v.Unschedulable || k8sNode.Spec.Unschedulable {
@@ -241,6 +250,21 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			return
 		}
 		if v.Alived {
+			if time.Now().Sub(v.UpTime) > time.Minute*2{
+				v.Status = service.Unknown
+				v.NodeStatus.Status = service.Unknown
+				v.Unschedulable = true
+				r := client.NodeCondition{
+					Type:   client.NodeReady,
+					Status: client.ConditionFalse,
+					LastHeartbeatTime:time.Now(),
+					LastTransitionTime:time.Now(),
+				}
+				v.UpdataCondition(r)
+				n.UpdateNode(v)
+				return
+			}
+
 			for _, condition := range v.NodeStatus.Conditions {
 				if condition.Status == "False"{
 
