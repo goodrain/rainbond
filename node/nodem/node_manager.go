@@ -153,6 +153,9 @@ func (n *NodeManager) CheckNodeHealthy() (bool, error) {
 
 func (n *NodeManager) heartbeat() {
 	util.Exec(n.ctx, func() error {
+		for _,v := range n.HostNode.NodeStatus.Conditions{
+			logrus.Info(v.Type,v.Status)
+		}
 		if err := n.cluster.UpdateStatus(&n.HostNode); err != nil {
 			logrus.Errorf("update node status error %s", err.Error())
 		}
