@@ -27,6 +27,7 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/healthy"
 	"github.com/goodrain/rainbond/node/nodem/service"
+	nodeService "github.com/goodrain/rainbond/node/core/service"
 	"github.com/goodrain/rainbond/util/watch"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -87,9 +88,9 @@ func (m *ManagerService) SyncNodeStatus() error {
 			if err := node.Decode(event.GetValue()); err != nil {
 				logrus.Error("Failed to decode node from sync node event: ", err)
 			}
-			if node.Status == "offline" { // TODO const
+			if node.Status == nodeService.Offline {
 				m.Offline()
-			} else if node.Status == "running" {
+			} else if node.Status == nodeService.Running {
 				m.Online()
 			}
 		case watch.Deleted:
@@ -99,6 +100,8 @@ func (m *ManagerService) SyncNodeStatus() error {
 	}
 
 	logrus.Info("Stop sync node status from node cluster client.")
+
+	return nil
 }
 
 // start all service of on the node
