@@ -193,6 +193,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			//var haveready bool
 			for _, condiction := range k8sNode.Status.Conditions {
 				if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
+					logrus.Info("======c11111")
 					v.Status = "running"
 					v.NodeStatus.Status = "running"
 
@@ -207,6 +208,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					return
 				}
 				if condiction.Status == "False" && (condiction.Type != "OutOfDisk" && condiction.Type != "MemoryPressure" && condiction.Type != "DiskPressure"){
+					logrus.Info("======c22222")
 					v.Status = "running"
 					v.NodeStatus.Status = "running"
 
@@ -221,6 +223,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					return
 				}
 			}
+			logrus.Info("======c3333")
 			v.Status = "running"
 			v.NodeStatus.Status = "running"
 
@@ -337,8 +340,10 @@ func (n *Cluster) loadAndWatchNodes(errChan chan error) {
 				logrus.Errorf("decode node info error :%s", err)
 				continue
 			}
+			println(node.ExternalIP,"=====ip")
 			node.UpTime = time.Now()
 			n.handleNodeStatus(node)
+			println("========cachenode")
 			n.CacheNode(node)
 			RegToHost(node, "add")
 		case watch.Deleted:
@@ -489,8 +494,11 @@ func (n *Cluster) CacheNode(node *client.HostNode) {
 		}
 		delete(n.nodeonline, node.ID)
 	}
-	logrus.Debugf("add or update a rainbon node id:%s hostname:%s ip:%s", node.ID, node.HostName, node.InternalIP)
+	logrus.Info("add or update a rainbon node id:%s hostname:%s ip:%s", node.ID, node.HostName, node.InternalIP)
 	n.nodes[node.ID] = node
+	for _,v :=range node.NodeStatus.Conditions{
+		println(v.Type,v.Status,"======type")
+	}
 }
 
 //RemoveNode 从缓存移除节点
