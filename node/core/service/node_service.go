@@ -36,15 +36,14 @@ import (
 )
 
 const (
-	Running string = "running"
-	Offline string = "offline"
-	Unknown string = "unknown"
-	Error string = "error"
-	Init string = "init"
-	InitSuccess string = "init_success"
-	InitFailed string = "init_failed"
-	Installing string = "installing"
-
+	Running     = "running"
+	Offline     = "offline"
+	Unknown     = "unknown"
+	Error       = "error"
+	Init        = "init"
+	InitSuccess = "init_success"
+	InitFailed  = "init_failed"
+	Installing  = "installing"
 )
 
 //NodeService node service
