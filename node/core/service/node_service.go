@@ -36,6 +36,18 @@ import (
 	"github.com/twinj/uuid"
 )
 
+const (
+	Running string = "running"
+	Offline string = "offline"
+	Unknown string = "unknown"
+	Error string = "error"
+	Init string = "init"
+	InitSuccess string = "init_success"
+	InitFailed string = "init_failed"
+	Installing string = "installing"
+
+)
+
 //NodeService node service
 type NodeService struct {
 	c           *option.Conf
@@ -142,7 +154,7 @@ func (n *NodeService) CordonNode(nodeID string, unschedulable bool) *utils.APIHa
 	if unschedulable {
 		hostNode.Status = "unschedulable"
 	} else {
-		hostNode.Status = "running"
+		hostNode.Status = Running
 	}
 	if k8snode != nil {
 		node, err := n.kubecli.CordonOrUnCordon(hostNode.ID, unschedulable)
@@ -191,8 +203,8 @@ func (n *NodeService) DownNode(nodeID string) (*client.HostNode, *utils.APIHandl
 	if err != nil {
 		return nil, utils.CreateAPIHandleError(501, fmt.Errorf("node offine error,%s", err.Error()))
 	}
-	hostNode.Status = "offline"
-	hostNode.NodeStatus.Status = "offline"
+	hostNode.Status = Offline
+	hostNode.NodeStatus.Status = Offline
 	n.nodecluster.UpdateNode(hostNode)
 	return hostNode, nil
 }
@@ -219,8 +231,8 @@ func (n *NodeService) UpNode(nodeID string) (*client.HostNode, *utils.APIHandleE
 		return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node up error,%s", err.Error()))
 	}
 	hostNode.UpdateK8sNodeStatus(*node)
-	hostNode.Status = "running"
-	hostNode.NodeStatus.Status = "running"
+	hostNode.Status = Running
+	hostNode.NodeStatus.Status = Running
 	n.nodecluster.UpdateNode(hostNode)
 	return hostNode, nil
 }
@@ -249,8 +261,8 @@ func (n *NodeService) InstallNode(nodeID string) *utils.APIHandleError {
 			return err
 		}
 	}
-	node.Status = "installing"
-	node.NodeStatus.Status = "installing"
+	node.Status = Installing
+	node.NodeStatus.Status = Installing
 	n.nodecluster.UpdateNode(node)
 	return nil
 }

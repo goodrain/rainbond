@@ -41,6 +41,7 @@ import (
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/node/core/service"
 )
 
 //Cluster  node  controller
@@ -157,8 +158,8 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		k8sNode, err := n.kubecli.GetNode(v.ID)
 		if err != nil {
 			logrus.Errorf("get k8s node error:%s", err.Error())
-			v.Status = "error"
-			v.NodeStatus.Status = "error"
+			v.Status = service.Error
+			v.NodeStatus.Status = service.Error
 			r := client.NodeCondition{
 				Type:   client.NodeConditionType("get_k8s_node"),
 				Status: client.ConditionFalse,
@@ -178,20 +179,20 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		}
 		if k8sNode != nil {
 			if time.Now().Sub(v.UpTime) > time.Minute*2{
-				v.Status = "unknown"
-				v.NodeStatus.Status = "unknown"
+				v.Status = service.Unknown
+				v.NodeStatus.Status = service.Unknown
 				return
 			}
 			if v.Unschedulable || k8sNode.Spec.Unschedulable {
-				v.Status = "running"
+				v.Status = service.Running
 				v.Unschedulable = true
-				v.NodeStatus.Status = "running"
+				v.NodeStatus.Status = service.Running
 			}
 			//var haveready bool
 			for _, condiction := range k8sNode.Status.Conditions {
 				if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
-					v.Status = "running"
-					v.NodeStatus.Status = "running"
+					v.Status = service.Running
+					v.NodeStatus.Status = service.Running
 
 					r := client.NodeCondition{
 						Type:   client.NodeReady,
@@ -204,8 +205,8 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					return
 				}
 				if condiction.Status == "False" && (condiction.Type != "OutOfDisk" && condiction.Type != "MemoryPressure" && condiction.Type != "DiskPressure"){
-					v.Status = "running"
-					v.NodeStatus.Status = "running"
+					v.Status = service.Running
+					v.NodeStatus.Status = service.Running
 
 					r := client.NodeCondition{
 						Type:   client.NodeReady,
@@ -218,8 +219,8 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					return
 				}
 			}
-			v.Status = "running"
-			v.NodeStatus.Status = "running"
+			v.Status = service.Running
+			v.NodeStatus.Status = service.Running
 
 			r := client.NodeCondition{
 				Type:   client.NodeReady,
@@ -231,20 +232,20 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			n.UpdateNode(v)
 
 		} else {
-			v.Status = "offline"
-			v.NodeStatus.Status = "offline"
+			v.Status = service.Offline
+			v.NodeStatus.Status = service.Offline
 		}
 	}
 	if v.Role.HasRule("manage") && !v.Role.HasRule("compute") { //manage install_success == runnint
-		if v.Status == "init" || v.Status == "init_success" || v.Status == "init_failed" || v.Status == "installing" || v.Status == "install_failed" {
+		if v.Status == service.Init || v.Status == service.InitSuccess || v.Status == service.InitFailed || v.Status == service.Installing {
 			return
 		}
 		if v.Alived {
 			for _, condition := range v.NodeStatus.Conditions {
 				if condition.Status == "False"{
 
-					v.Status = "running"
-					v.NodeStatus.Status = "running"
+					v.Status = service.Running
+					v.NodeStatus.Status = service.Running
 
 					r := client.NodeCondition{
 						Type:   client.NodeReady,
@@ -258,8 +259,8 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 				}
 
 			}
-			v.Status = "running"
-			v.NodeStatus.Status = "running"
+			v.Status = service.Running
+			v.NodeStatus.Status = service.Running
 			r := client.NodeCondition{
 				Type:   client.NodeReady,
 				Status: client.ConditionTrue,
@@ -270,8 +271,8 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			n.UpdateNode(v)
 
 		} else {
-			v.Status = "offline"
-			v.NodeStatus.Status = "offline"
+			v.Status = service.Offline
+			v.NodeStatus.Status = service.Offline
 		}
 	}
 }
