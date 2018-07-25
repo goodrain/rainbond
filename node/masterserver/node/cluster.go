@@ -148,7 +148,7 @@ func (n *Cluster) getNodeIDFromKey(key string) string {
 //GetNode get rainbond node info
 func (n *Cluster) GetNode(id string) *client.HostNode {
 	if node, ok := n.nodes[id]; ok {
-		//n.handleNodeStatus(node)
+		n.handleNodeStatus(node)
 		return node
 	}
 	return nil
