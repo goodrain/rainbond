@@ -160,10 +160,6 @@ func (m *ManagerService) StartSyncService() {
 						logrus.Infof("[%s] check service %s %d times.", event.Status, event.Name, unhealthyNum)
 						if unhealthyNum > maxUnhealthyNum {
 							logrus.Infof("[%s] check service %s %d times and will be restart.", event.Status, event.Name, unhealthyNum)
-							if event.Name == "docker" {
-								logrus.Infof("Skip restart docker daemon.")
-								continue
-							}
 							m.ctr.RestartService(event.Name)
 							unhealthyNum = 0
 						}
@@ -171,12 +167,8 @@ func (m *ManagerService) StartSyncService() {
 					case service.Stat_death:
 						logrus.Infof("[%s] check service %s %d times.", event.Status, event.Name, unhealthyNum)
 						if unhealthyNum > maxUnhealthyNum {
-							logrus.Infof("[%s] check service %s %d times and will be restart.", event.Status, event.Name, unhealthyNum)
-							if event.Name == "docker" {
-								logrus.Infof("Skip restart docker daemon.")
-								continue
-							}
-							m.ctr.RestartService(event.Name)
+							logrus.Infof("[%s] check service %s %d times and will be start.", event.Status, event.Name, unhealthyNum)
+							m.ctr.StartService(event.Name)
 							unhealthyNum = 0
 						}
 						unhealthyNum++
