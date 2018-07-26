@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/prometheus/common/model"
 	"time"
+	"github.com/tidwall/gjson"
 )
 
 type Builder struct {
@@ -35,7 +36,18 @@ type Builder struct {
 }
 
 func (b *Builder) UpdateEndpoints(endpoints ...*config.Endpoint) {
-	newArr := utils.TrimAndSort(endpoints)
+	// 用v3 API注册，返回json格试，所以要提前处理一下
+	newEndpoints := make([]*config.Endpoint, 0, len(endpoints))
+	for _, end := range endpoints {
+		newEnd := *end
+		newEndpoints = append(newEndpoints, &newEnd)
+	}
+
+	for i, end := range endpoints {
+		newEndpoints[i].URL = gjson.Get(end.URL, "Addr").String()
+	}
+
+	newArr := utils.TrimAndSort(newEndpoints)
 
 	if utils.ArrCompare(b.sortedEndpoints, newArr) {
 		logrus.Debugf("The endpoints is not modify: %s", b.Name())

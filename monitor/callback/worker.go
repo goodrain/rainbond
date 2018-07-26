@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/prometheus/common/model"
 	"time"
+	"github.com/tidwall/gjson"
 )
 
 type Worker struct {
@@ -35,7 +36,18 @@ type Worker struct {
 }
 
 func (w *Worker) UpdateEndpoints(endpoints ...*config.Endpoint) {
-	newArr := utils.TrimAndSort(endpoints)
+	// 用v3 API注册，返回json格试，所以要提前处理一下
+	newEndpoints := make([]*config.Endpoint, 0, len(endpoints))
+	for _, end := range endpoints {
+		newEnd := *end
+		newEndpoints = append(newEndpoints, &newEnd)
+	}
+
+	for i, end := range endpoints {
+		newEndpoints[i].URL = gjson.Get(end.URL, "Addr").String()
+	}
+
+	newArr := utils.TrimAndSort(newEndpoints)
 
 	if utils.ArrCompare(w.sortedEndpoints, newArr) {
 		logrus.Debugf("The endpoints is not modify: %s", w.Name())
@@ -53,7 +65,7 @@ func (w *Worker) Error(err error) {
 }
 
 func (w *Worker) Name() string {
-	return "builder"
+	return "worker"
 }
 
 func (w *Worker) toScrape() *prometheus.ScrapeConfig {
