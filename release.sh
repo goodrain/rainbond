@@ -45,6 +45,7 @@ EOF
 	
 }
 build_items=(api builder entrance grctl monitor mq node webcli worker eventlog)
+image_build_items=(api builder entrance monitor mq webcli worker eventlog)
 function localbuild() {
 	if [ "$1" = "all" ];then
 		for item in ${build_items[@]}
@@ -105,6 +106,15 @@ case $1 in
 		localbuild $2
 	;;
 	*)
+	if [ "$1" = "all" ];then
+		for item in ${image_build_items[@]}
+		do
+    		echo "build image ${item}"
+			build::image ${item}
+    		done	
+	else
+		echo "build image $1"
 		build::image $1
+	fi
 	;;
 esac
