@@ -493,7 +493,7 @@ func (n *Cluster) CacheNode(node *client.HostNode) {
 	}
 	logrus.Debugf("add or update a rainbon node id:%s hostname:%s ip:%s", node.ID, node.HostName, node.InternalIP)
 	for _,v :=range node.NodeStatus.Conditions{
-		println(v.Type,v.Status,"=====xxxxx")
+		println("====>cache node",v.Type,v.Status)
 	}
 	n.nodes[node.ID] = node
 }

@@ -93,6 +93,10 @@ func (p *probeManager) Start(hostNode *client.HostNode) (error) {
 
 	logrus.Info("health mode start")
 	go p.HandleStatus()
+	logrus.Info("services length===>",len(p.services))
+	for _,v :=range p.services{
+		logrus.Info("Need to check===>",v.ServiceHealth.Name,v.ServiceHealth.Model)
+	}
 	for _, v := range p.services {
 		if v.ServiceHealth.Model == "http" {
 			h := &HttpProbe{
@@ -136,7 +140,8 @@ func (p *probeManager) Start(hostNode *client.HostNode) (error) {
 }
 
 func (p *probeManager) updateServiceStatus(status *service.HealthStatus) {
-
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	if status.Status != service.Stat_healthy {
 		number := p.errorNum[status.Name] + 1
 		p.errorNum[status.Name] = number
