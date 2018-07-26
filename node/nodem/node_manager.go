@@ -113,10 +113,7 @@ func (n *NodeManager) Start(errchan chan error) error {
 		return fmt.Errorf("node healty start error,%s", err.Error())
 	}
 
-	if err := n.SyncNodeStatus(); err != nil {
-		return err
-	}
-
+	go n.SyncNodeStatus()
 	go n.monitor.Start(errchan)
 	go n.taskrun.Start(errchan)
 	go n.heartbeat()
@@ -139,52 +136,55 @@ func (n *NodeManager) Stop() {
 	if n.healthy != nil {
 		n.healthy.Stop()
 	}
+	if n.watchChan != nil {
+		n.watchChan.Stop()
+	}
 }
 
 func (m *NodeManager) SyncNodeStatus() error {
-	logrus.Info("Starting node status sync manager")
-	watcher := watch.New(m.etcdCli, "")
 	key := "/rainbond/nodes/target/" + m.ID
-	watchChan, err := watcher.WatchList(m.ctx, key, "")
+	logrus.Info("Starting node status sync manager: ", key)
+	watcher := watch.New(m.etcdCli, "")
+	watchChan, err := watcher.Watch(m.ctx, key, "")
 	if err != nil {
+		m.watchChan.Stop()
 		logrus.Error("Failed to Watch list for key ", key)
 		return err
 	}
 	m.watchChan = watchChan
 
-	go func() {
-		for event := range m.watchChan.ResultChan() {
-			logrus.Debug("watch event type: ", event.Type)
-			switch event.Type {
-			case watch.Added:
-			case watch.Modified:
-				var node client.HostNode
-				if err := node.Decode(event.GetValue()); err != nil {
-					logrus.Error("Failed to decode node from sync node event: ", err)
-					continue
-				}
-				logrus.Debug("watch node %s status: ",  node.ID, node.NodeStatus.Status)
-
-				if !node.Role.HasRule(client.ComputeNode) || node.NodeStatus == nil {
-					logrus.Errorf("node %s is not k8s node or it not up", node.ID)
-					continue
-				}
-
-				if node.NodeStatus.Status == nodeService.Offline &&
-					m.NodeStatus.Status != nodeService.Offline {
-					m.NodeStatus.Status = nodeService.Offline
-					m.controller.Offline()
-				} else if node.NodeStatus.Status == nodeService.Running &&
-					m.NodeStatus.Status != nodeService.Running {
-					m.NodeStatus.Status = nodeService.Running
-					m.controller.Online()
-				}
-			case watch.Deleted:
-			default:
-				logrus.Error("watch node event error: ", event.Error)
+	for event := range m.watchChan.ResultChan() {
+		logrus.Debug("watch event type: ", event.Type)
+		switch event.Type {
+		case watch.Added:
+		case watch.Modified:
+			var node client.HostNode
+			if err := node.Decode(event.GetValue()); err != nil {
+				logrus.Error("Failed to decode node from sync node event: ", err)
+				continue
 			}
+			logrus.Debugf("watch node %s status: %s",  node.ID, node.NodeStatus.Status)
+
+			if node.Role.HasRule(client.ComputeNode) {
+				logrus.Infof("node %s is not manage node, skip step stop services.", node.ID)
+				continue
+			}
+
+			logrus.Infof("Sync node status %s => %s", m.NodeStatus.Status, node.NodeStatus.Status)
+			if node.NodeStatus.Status == nodeService.Offline &&
+				m.NodeStatus.Status != nodeService.Offline {
+				m.NodeStatus.Status = nodeService.Offline
+				m.controller.Offline()
+			} else if node.NodeStatus.Status == nodeService.Running &&
+				m.NodeStatus.Status != nodeService.Running {
+				m.NodeStatus.Status = nodeService.Running
+				m.controller.Online()
+			}
+		case watch.Deleted:
+		default:
+			logrus.Error("watch node event error: ", event.Error)
 		}
-	}()
+	}
 
 	logrus.Info("Stop sync node status from node cluster client.")
 
@@ -216,7 +216,7 @@ func (n *NodeManager) heartbeat() {
 		if err := n.cluster.UpdateStatus(&n.HostNode); err != nil {
 			logrus.Errorf("update node status error %s", err.Error())
 		}
-		logrus.Info("update node status success to: ", n.HostNode.NodeStatus.Status)
+		logrus.Info("Send node heartbeat to master: ", n.HostNode.NodeStatus.Status)
 		return nil
 	}, time.Second*time.Duration(n.cfg.TTL))
 }

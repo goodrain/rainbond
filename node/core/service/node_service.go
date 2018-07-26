@@ -209,9 +209,11 @@ func (n *NodeService) DownNode(nodeID string) (*client.HostNode, *utils.APIHandl
 	if apierr != nil {
 		return nil, apierr
 	}
+	// add the node from k8s if type is compute
 	if hostNode.Role.HasRule(client.ComputeNode) || hostNode.NodeStatus == nil {
 		err := n.kubecli.DownK8sNode(hostNode.ID)
 		if err != nil {
+			logrus.Error("Failed to down node: ", err)
 			return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node down error,%s", err.Error()))
 		}
 
@@ -228,19 +230,16 @@ func (n *NodeService) UpNode(nodeID string) (*client.HostNode, *utils.APIHandleE
 	if apierr != nil {
 		return nil, apierr
 	}
-
-	// delete the node from k8s if type is compute
+	// add the node to k8s if type is compute
 	if hostNode.Role.HasRule(client.ComputeNode) {
-		if k8snode, _ := n.kubecli.GetNode(hostNode.ID); k8snode != nil {
-			return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node is not compute node or it not down"))
+		if k8snode, _ := n.kubecli.GetNode(hostNode.ID); k8snode == nil {
+			node, err := n.kubecli.UpK8sNode(hostNode)
+			if err != nil {
+				return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node up error,%s", err.Error()))
+			}
+			hostNode.UpdateK8sNodeStatus(*node)
 		}
-		node, err := n.kubecli.UpK8sNode(hostNode)
-		if err != nil {
-			return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node up error,%s", err.Error()))
-		}
-		hostNode.UpdateK8sNodeStatus(*node)
 	}
-
 	hostNode.Status = Running
 	hostNode.NodeStatus.Status = Running
 	n.nodecluster.UpdateNode(hostNode)
