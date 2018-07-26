@@ -36,6 +36,8 @@ import (
 	"syscall"
 
 	"github.com/goodrain/rainbond/node/api/model"
+	httputil "github.com/goodrain/rainbond/util/http"
+
 )
 
 //GetNodeDetails GetNodeDetails
@@ -388,4 +390,13 @@ func outSuccess(w http.ResponseWriter) {
 	s := `{"ok":true}`
 	w.WriteHeader(200)
 	fmt.Fprint(w, s)
+}
+
+func GetServicesHealthy(w http.ResponseWriter, r *http.Request) {
+	healthMap, err := nodeService.GetServicesHealthy()
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, healthMap)
 }
