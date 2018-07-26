@@ -177,7 +177,9 @@ func (m *ManagerService) StartSyncService() {
 }
 
 func (m *ManagerService) StopSyncService() {
-	m.syncCancel()
+	if m.syncCtx != nil {
+		m.syncCancel()
+	}
 }
 
 /*
