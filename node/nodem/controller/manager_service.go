@@ -53,6 +53,10 @@ func (m *ManagerService) GetAllService() ([]*service.Service, error) {
 func (m *ManagerService) Start() error {
 	logrus.Info("Starting node controller manager.")
 
+	if err := m.Online(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
