@@ -38,6 +38,7 @@ import (
 	"github.com/goodrain/rainbond/builder/clean"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	discoverv2 "github.com/goodrain/rainbond/discover.v2"
 )
 
 //Run start run
@@ -82,6 +83,16 @@ func Run(s *option.Builder) error {
 		return err
 	}
 	defer cle.Stop()
+
+	keepalive, err := discoverv2.CreateKeepAlive(s.Config.EtcdEndPoints, "builder",
+		"", s.Config.HostIP, s.Config.APIPort)
+	if err != nil {
+		return err
+	}
+	if err := keepalive.Start(); err != nil {
+		return err
+	}
+	defer keepalive.Stop()
 
 	exporter := monitor.NewExporter()
 	prometheus.MustRegister(exporter)
