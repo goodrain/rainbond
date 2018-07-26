@@ -154,6 +154,8 @@ func (n *Cluster) getNodeIDFromKey(key string) string {
 
 //GetNode get rainbond node info
 func (n *Cluster) GetNode(id string) *client.HostNode {
+	n.lock.Lock()
+	defer n.lock.Unlock()
 	if node, ok := n.nodes[id]; ok {
 		n.handleNodeStatus(node)
 		return node
@@ -472,6 +474,8 @@ func (n *Cluster) checkNodeInstall(node *client.HostNode) {
 
 //GetAllNode 获取全部节点
 func (n *Cluster) GetAllNode() (nodes []*client.HostNode) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
 	for _, v := range n.nodes {
 		n.handleNodeStatus(v)
 		nodes = append(nodes, v)
@@ -492,9 +496,6 @@ func (n *Cluster) CacheNode(node *client.HostNode) {
 		delete(n.nodeonline, node.ID)
 	}
 	logrus.Debugf("add or update a rainbon node id:%s hostname:%s ip:%s", node.ID, node.HostName, node.InternalIP)
-	for _,v :=range node.NodeStatus.Conditions{
-		println("====>cache node",v.Type,v.Status)
-	}
 	n.nodes[node.ID] = node
 }
 

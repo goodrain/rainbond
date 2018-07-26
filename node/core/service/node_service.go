@@ -130,6 +130,24 @@ func (n *NodeService) GetAllNode() ([]*client.HostNode, *utils.APIHandleError) {
 	return nodes, nil
 }
 
+func (n *NodeService) GetServicesHealthy() (map[string]string, *utils.APIHandleError) {
+	if n.nodecluster == nil {
+		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
+	}
+	StatusMap := make(map[string]string, 30)
+	nodes := n.nodecluster.GetAllNode()
+	for _, n := range nodes {
+		for _, v := range n.NodeStatus.Conditions {
+			status, ok := StatusMap[string(v.Type)]
+			if ok && status == string(client.ConditionFalse) {
+				continue
+			}
+			StatusMap[string(v.Type)] = string(v.Status)
+		}
+	}
+	return StatusMap,nil
+}
+
 //CordonNode set node is unscheduler
 func (n *NodeService) CordonNode(nodeID string, unschedulable bool) *utils.APIHandleError {
 	hostNode, apierr := n.GetNode(nodeID)
