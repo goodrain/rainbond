@@ -131,9 +131,15 @@ func (n *Cluster) UpdateNode(node *client.HostNode) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	n.nodes[node.ID] = node
-	n.client.Put(option.Config.NodePath+"/"+node.ID, node.String())
+	key := "/rainbond/nodes/target/" + node.ID
+	n.client.Put(key, node.String())
 }
 
+//UpdateNode 更新节点信息
+func (n *Cluster) UnlockUpdateNode(node *client.HostNode) {
+	n.nodes[node.ID] = node
+	n.client.Put(option.Config.NodePath+"/"+node.ID, node.String())
+}
 
 func (n *Cluster) getNodeFromKV(kv *mvccpb.KeyValue) *client.HostNode {
 	var node client.HostNode
