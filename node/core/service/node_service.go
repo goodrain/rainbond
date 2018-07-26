@@ -183,19 +183,23 @@ func (n *NodeService) PutNodeLabel(nodeID string, labels map[string]string) *uti
 
 //DownNode down node
 func (n *NodeService) DownNode(nodeID string) (*client.HostNode, *utils.APIHandleError) {
-	logrus.Info("Down node: ", nodeID)
+	println("=========2")
 	hostNode, apierr := n.GetNode(nodeID)
 	if apierr != nil {
+		println("=========3")
 		return nil, apierr
 	}
-	if !hostNode.Role.HasRule(client.ComputeNode) || hostNode.NodeStatus == nil {
-		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node is not k8s node or it not up"))
-	}
-	err := n.kubecli.DownK8sNode(hostNode.ID)
-	if err != nil {
-		return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node down error,%s", err.Error()))
-	}
+	println("=========4")//TODO
+	if hostNode.Role.HasRule(client.ComputeNode) || hostNode.NodeStatus == nil {
+		println("=========6")
+		err := n.kubecli.DownK8sNode(hostNode.ID)
+		if err != nil {
+			println("=========7")
+			return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node down error,%s", err.Error()))
+		}
 
+	}
+	println("=========8")
 	hostNode.Status = Offline
 	hostNode.NodeStatus.Status = Offline
 	n.nodecluster.UpdateNode(hostNode)
@@ -204,22 +208,23 @@ func (n *NodeService) DownNode(nodeID string) (*client.HostNode, *utils.APIHandl
 
 //UpNode up node
 func (n *NodeService) UpNode(nodeID string) (*client.HostNode, *utils.APIHandleError) {
-	logrus.Info("Up node: ", nodeID)
 	hostNode, apierr := n.GetNode(nodeID)
 	if apierr != nil {
 		return nil, apierr
 	}
-	if !hostNode.Role.HasRule(client.ComputeNode) {
-		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node is not compute node"))
+
+	// delete the node from k8s if type is compute
+	if hostNode.Role.HasRule(client.ComputeNode) {
+		if k8snode, _ := n.kubecli.GetNode(hostNode.ID); k8snode != nil {
+			return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node is not compute node or it not down"))
+		}
+		node, err := n.kubecli.UpK8sNode(hostNode)
+		if err != nil {
+			return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node up error,%s", err.Error()))
+		}
+		hostNode.UpdateK8sNodeStatus(*node)
 	}
-	if k8snode, _ := n.kubecli.GetNode(hostNode.ID); k8snode != nil {
-		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node is not compute node or it not down"))
-	}
-	node, err := n.kubecli.UpK8sNode(hostNode)
-	if err != nil {
-		return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node up error,%s", err.Error()))
-	}
-	hostNode.UpdateK8sNodeStatus(*node)
+
 	hostNode.Status = Running
 	hostNode.NodeStatus.Status = Running
 	n.nodecluster.UpdateNode(hostNode)

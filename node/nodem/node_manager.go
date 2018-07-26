@@ -37,8 +37,11 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/info"
 	"github.com/goodrain/rainbond/node/nodem/monitor"
 	"github.com/goodrain/rainbond/node/nodem/service"
+	nodeService "github.com/goodrain/rainbond/node/core/service"
 	"github.com/goodrain/rainbond/node/nodem/taskrun"
 	"github.com/goodrain/rainbond/util"
+	"github.com/coreos/etcd/clientv3"
+	"github.com/goodrain/rainbond/util/watch"
 )
 
 //NodeManager node manager
@@ -53,13 +56,15 @@ type NodeManager struct {
 	taskrun    taskrun.Manager
 	cfg        *option.Conf
 	apim       *api.Manager
+	etcdCli    *clientv3.Client
+	watchChan      watch.Interface
 }
 
 //NewNodeManager new a node manager
 func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 	healthyManager := healthy.CreateManager()
-	controller, etcdcli, cluster := controller.NewManagerService(conf, healthyManager)
-	taskrun, err := taskrun.Newmanager(conf, etcdcli)
+	controller, etcdCli, cluster := controller.NewManagerService(conf, healthyManager)
+	taskrun, err := taskrun.Newmanager(conf, etcdCli)
 	if err != nil {
 		return nil, err
 	}
@@ -77,6 +82,7 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 		cluster:    cluster,
 		monitor:    monitor,
 		healthy:    healthyManager,
+		etcdCli:etcdCli,
 	}
 	return nodem, nil
 }
@@ -131,6 +137,56 @@ func (n *NodeManager) Stop() {
 	}
 }
 
+func (m *NodeManager) SyncNodeStatus() error {
+	logrus.Info("Starting node status sync manager")
+	watcher := watch.New(m.etcdCli, "")
+	key := "/rainbond/nodes/target/" + m.ID
+	watchChan, err := watcher.WatchList(m.ctx, key, "")
+	if err != nil {
+		logrus.Error("Failed to Watch list for key ", key)
+		return err
+	}
+	m.watchChan = watchChan
+
+	go func() {
+		for event := range m.watchChan.ResultChan() {
+			logrus.Debug("watch event type: ", event.Type)
+			switch event.Type {
+			case watch.Added:
+			case watch.Modified:
+				var node client.HostNode
+				if err := node.Decode(event.GetValue()); err != nil {
+					logrus.Error("Failed to decode node from sync node event: ", err)
+					continue
+				}
+				logrus.Debug("watch node %s status: ",  node.ID, node.NodeStatus.Status)
+
+				if !node.Role.HasRule(client.ComputeNode) || node.NodeStatus == nil {
+					logrus.Errorf("node %s is not k8s node or it not up", node.ID)
+					continue
+				}
+
+				if node.NodeStatus.Status == nodeService.Offline &&
+					m.NodeStatus.Status != nodeService.Offline {
+					m.NodeStatus.Status = nodeService.Offline
+					m.controller.Offline()
+				} else if node.NodeStatus.Status == nodeService.Running &&
+					m.NodeStatus.Status != nodeService.Running {
+					m.NodeStatus.Status = nodeService.Running
+					m.controller.Online()
+				}
+			case watch.Deleted:
+			default:
+				logrus.Error("watch node event error: ", event.Error)
+			}
+		}
+	}()
+
+	logrus.Info("Stop sync node status from node cluster client.")
+
+	return nil
+}
+
 //checkNodeHealthy check current node healthy.
 //only healthy can controller other service start
 func (n *NodeManager) CheckNodeHealthy() (bool, error) {
@@ -156,7 +212,7 @@ func (n *NodeManager) heartbeat() {
 		if err := n.cluster.UpdateStatus(&n.HostNode); err != nil {
 			logrus.Errorf("update node status error %s", err.Error())
 		}
-		logrus.Info("update node status success")
+		logrus.Info("update node status success to: ", n.HostNode.NodeStatus.Status)
 		return nil
 	}, time.Second*time.Duration(n.cfg.TTL))
 }
@@ -201,6 +257,8 @@ func (n *NodeManager) init() error {
 		LastTransitionTime: time.Now(),
 	})
 	node.Mode = n.cfg.RunMode
+	node.Status = "running"
+	node.NodeStatus.Status = "running"
 	n.HostNode = *node
 	if node.AvailableMemory == 0 {
 		node.AvailableMemory = int64(node.NodeStatus.NodeInfo.MemorySize)

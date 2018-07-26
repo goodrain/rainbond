@@ -265,9 +265,10 @@ func PutLabel(w http.ResponseWriter, r *http.Request) {
 
 //DownNode 节点下线，计算节点操作
 func DownNode(w http.ResponseWriter, r *http.Request) {
-	logrus.Info("Node down")
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	logrus.Info("Node down by node api controller: ", nodeUID)
 	node, err := nodeService.DownNode(nodeUID)
+	println("==============1")
 	if err != nil {
 		err.Handle(r, w)
 		return
@@ -277,8 +278,8 @@ func DownNode(w http.ResponseWriter, r *http.Request) {
 
 //UpNode 节点上线，计算节点操作
 func UpNode(w http.ResponseWriter, r *http.Request) {
-	logrus.Info("Node up")
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	logrus.Info("Node up by node api controller: ", nodeUID)
 	node, err := nodeService.UpNode(nodeUID)
 	if err != nil {
 		err.Handle(r, w)
