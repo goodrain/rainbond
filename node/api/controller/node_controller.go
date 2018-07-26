@@ -268,7 +268,6 @@ func DownNode(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
 	logrus.Info("Node down by node api controller: ", nodeUID)
 	node, err := nodeService.DownNode(nodeUID)
-	println("==============1")
 	if err != nil {
 		err.Handle(r, w)
 		return

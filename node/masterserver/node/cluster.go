@@ -128,15 +128,11 @@ func (n *Cluster) worker() {
 
 //UpdateNode 更新节点信息
 func (n *Cluster) UpdateNode(node *client.HostNode) {
-	println("=========9")
 	n.lock.Lock()
-	println("=========10")
 	defer n.lock.Unlock()
 	n.nodes[node.ID] = node
-	println("=========11")
 	key := "/rainbond/nodes/target/" + node.ID
 	n.client.Put(key, node.String())
-	println("=========12")
 }
 
 //UpdateNode 更新节点信息

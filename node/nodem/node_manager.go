@@ -113,6 +113,10 @@ func (n *NodeManager) Start(errchan chan error) error {
 		return fmt.Errorf("node healty start error,%s", err.Error())
 	}
 
+	if err := n.SyncNodeStatus(); err != nil {
+		return err
+	}
+
 	go n.monitor.Start(errchan)
 	go n.taskrun.Start(errchan)
 	go n.heartbeat()
