@@ -201,23 +201,17 @@ func (n *NodeService) PutNodeLabel(nodeID string, labels map[string]string) *uti
 
 //DownNode down node
 func (n *NodeService) DownNode(nodeID string) (*client.HostNode, *utils.APIHandleError) {
-	println("=========2")
 	hostNode, apierr := n.GetNode(nodeID)
 	if apierr != nil {
-		println("=========3")
 		return nil, apierr
 	}
-	println("=========4")//TODO
 	if hostNode.Role.HasRule(client.ComputeNode) || hostNode.NodeStatus == nil {
-		println("=========6")
 		err := n.kubecli.DownK8sNode(hostNode.ID)
 		if err != nil {
-			println("=========7")
 			return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node down error,%s", err.Error()))
 		}
 
 	}
-	println("=========8")
 	hostNode.Status = Offline
 	hostNode.NodeStatus.Status = Offline
 	n.nodecluster.UpdateNode(hostNode)
