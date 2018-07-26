@@ -39,6 +39,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/Sirupsen/logrus"
+	discoverv2 "github.com/goodrain/rainbond/discover.v2"
 )
 
 //Run start run
@@ -112,6 +113,18 @@ func Run(s *option.Worker) error {
 	go http.ListenAndServe(":3229", nil)
 
 	logrus.Info("worker begin running...")
+
+	//step 7
+	httpkeepalive, err := discoverv2.CreateKeepAlive(s.EtcdEndPoints, "worker",
+		"", s.HostIP, 6369)
+	if err != nil {
+		return err
+	}
+	if err := httpkeepalive.Start(); err != nil {
+		return err
+	}
+	defer httpkeepalive.Stop()
+
 	//step finally: listen Signal
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
