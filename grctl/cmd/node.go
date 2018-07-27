@@ -129,6 +129,16 @@ func handleResult(v *client.HostNode, name string) string {
 	return "N/A"
 }
 
+func handleRow(name string, serviceTable *termtables.Table, v []*client.HostNode) {
+	valList := make([]string,0,10)
+	valList = append(valList, name)
+	for _,h := range v{
+		val := handleResult(h,name)
+		valList = append(valList, val)
+	}
+	serviceTable.AddRow(valList)
+}
+
 //NewCmdNode NewCmdNode
 func NewCmdNode() cli.Command {
 	c := cli.Command{
@@ -201,12 +211,19 @@ func NewCmdNode() cli.Command {
 					list, err := clients.RegionClient.Nodes().List()
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("IP", "HostName", "DiskPressure", "MemoryPressure", "NodeInit", "OutOfDisk",
-						"calico", "docker", "etcd", "kube-apiserver", "kube-controller-manager", "kube-scheduler", "kubelet", "rbd-api", "rbd-chaos", "rbd-db", "rbd-dns", "rbd-entrance",
-						"rbd-eventlog", "rbd-fs", "rbd-grafana", "rbd-hub", "rbd-lb", "rbd-monitor", "rbd-mq", "rbd-proxy", "rbd-repo", "rbd-webcli", "rbd-worker", "Ready")
-					for _, v := range list {
-						handleHealthStatus(serviceTable, v)
-					}
+					//serviceTable.AddHeaders("IP", "HostName", "DiskPressure", "MemoryPressure", "NodeInit", "OutOfDisk",
+					//	"calico", "docker", "etcd", "kube-apiserver", "kube-controller-manager", "kube-scheduler", "kubelet", "rbd-api", "rbd-chaos", "rbd-db", "rbd-dns", "rbd-entrance",
+					//	"rbd-eventlog", "rbd-fs", "rbd-grafana", "rbd-hub", "rbd-lb", "rbd-monitor", "rbd-mq", "rbd-proxy", "rbd-repo", "rbd-webcli", "rbd-worker", "Ready")
+					//for _, v := range list {
+					//	handleHealthStatus(serviceTable, v)
+					//}
+					s :=[] string {"1","2","3","4" }
+					serviceTable.AddHeaders(s)
+					handleRow("calico",serviceTable,list)
+					handleRow("docker",serviceTable,list)
+					handleRow("etcd",serviceTable,list)
+					handleRow("rbd-lb",serviceTable,list)
+
 
 					fmt.Println(serviceTable.Render())
 					return nil
