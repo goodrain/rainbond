@@ -108,9 +108,11 @@ func (n *NodeManager) Start(errchan chan error) error {
 	if err := n.healthy.AddServices(services); err != nil {
 		return fmt.Errorf("get all services error,%s", err.Error())
 	}
-
 	if err := n.healthy.Start(&n.HostNode); err != nil {
 		return fmt.Errorf("node healty start error,%s", err.Error())
+	}
+	if err := n.controller.Online(); err != nil {
+		return err
 	}
 
 	go n.SyncNodeStatus()
