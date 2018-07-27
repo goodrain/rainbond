@@ -393,6 +393,7 @@ func (i *SourceCodeBuildItem) buildCode() error {
 		"-sid", i.ServiceID,
 		"-r", i.Runtime,
 		"-g", i.Lang,
+		"-st", i.CodeSouceInfo.ServerType,
 		"--name", buildName}
 	if len(i.BuildEnvs) != 0 {
 		buildEnvStr := ""
@@ -408,7 +409,7 @@ func (i *SourceCodeBuildItem) buildCode() error {
 		cmd = append(cmd, "-e")
 		cmd = append(cmd, buildEnvStr)
 	}
-
+	logrus.Debugf("source code build cmd:%s", cmd)
 	if err := ShowExec("perl", cmd, i.Logger); err != nil {
 		i.Logger.Error("编译代码包失败", map[string]string{"step": "build-code", "status": "failure"})
 		logrus.Error("build perl error,", err.Error())
