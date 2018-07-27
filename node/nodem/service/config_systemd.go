@@ -24,11 +24,31 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"strings"
 	"github.com/Sirupsen/logrus"
+	"io/ioutil"
+	"gopkg.in/yaml.v2"
 )
 
 var (
 	ArgsReg = regexp.MustCompile(`\$\{(\w+)\}`)
 )
+
+func LoadServicesFromLocal(serviceListFile string) ([]*Service, error) {
+	// load default-configs.yaml
+	content, err := ioutil.ReadFile(serviceListFile)
+	if err != nil {
+		err = fmt.Errorf("Failed to read service list file: %s", err.Error())
+		return nil, err
+	}
+
+	var defaultConfigs Services
+	err = yaml.Unmarshal(content, &defaultConfigs)
+	if err != nil {
+		logrus.Error("Failed to parse default configs yaml file: ", err)
+		return nil, err
+	}
+
+	return defaultConfigs.Services, nil
+}
 
 func ToConfig(svc *Service) string {
 	if svc.Start == "" {

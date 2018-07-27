@@ -27,7 +27,6 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/healthy"
 	"github.com/goodrain/rainbond/node/nodem/service"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os/exec"
 )
@@ -69,7 +68,7 @@ func (m *ManagerService) Stop() error {
 // start all service of on the node
 func (m *ManagerService) Online() error {
 	logrus.Info("Doing node online by node controller manager")
-	services, err := loadServicesFromLocal(m.conf.ServiceListFile)
+	services, err := service.LoadServicesFromLocal(m.conf.ServiceListFile)
 	if err != nil {
 		logrus.Error("Failed to load all services: ", err)
 		return err
@@ -222,26 +221,6 @@ func (m *ManagerService) RemoveServices() error {
 	return nil
 }
 
-func loadServicesFromLocal(serviceListFile string) ([]*service.Service, error) {
-	logrus.Info("Loading all services from local.")
-
-	// load default-configs.yaml
-	content, err := ioutil.ReadFile(serviceListFile)
-	if err != nil {
-		logrus.Error("Failed to read default configs file: ", err)
-		return nil, err
-	}
-
-	var defaultConfigs service.Services
-	err = yaml.Unmarshal(content, &defaultConfigs)
-	if err != nil {
-		logrus.Error("Failed to parse default configs yaml file: ", err)
-		return nil, err
-	}
-
-	return defaultConfigs.Services, nil
-}
-
 func isExistEndpoint(etcdEndPoints []string, end string) bool {
 	for _, v := range etcdEndPoints {
 		if v == end {
@@ -269,7 +248,7 @@ func toEndpoint(reg *service.Endpoint, ip string) string {
 }
 
 func StartRequiresSystemd(conf *option.Conf) error {
-	services, err := loadServicesFromLocal(conf.ServiceListFile)
+	services, err := service.LoadServicesFromLocal(conf.ServiceListFile)
 	if err != nil {
 		logrus.Error("Failed to load all services: ", err)
 		return err

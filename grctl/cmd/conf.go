@@ -26,14 +26,46 @@ import (
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/node/api/model"
 	"github.com/urfave/cli"
+	"github.com/goodrain/rainbond/node/nodem/service"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 )
 
 //NewCmdConfigs 全局配置相关命令
 func NewCmdConfigs() cli.Command {
 	c := cli.Command{
-		Name:  "configs",
-		Usage: "系统任务相关命令，grctl tasks -h",
+		Name:  "conf",
+		Usage: "grctl conf",
 		Subcommands: []cli.Command{
+			cli.Command{
+				Name:  "gen",
+				Usage: "generate systemd configs by service list yaml file.",
+				Action: func(c *cli.Context) error {
+					yamlFile := c.Args().First()
+					services, err := service.LoadServicesFromLocal(yamlFile)
+					if err != nil {
+						println("Can not parse the yaml file: ", err.Error())
+						return err
+					}
+
+					targetDir := filepath.Dir(yamlFile)
+					os.Mkdir(targetDir, 0755)
+
+					for _, s := range services {
+						content := service.ToConfig(s)
+						configFile := fmt.Sprintf("%s/%s.service", targetDir, s.Name)
+						err := ioutil.WriteFile(configFile, []byte(content), 0644)
+						if err != nil {
+							println("Can not write service to file: ", err.Error())
+						}
+					}
+
+					println("Successful to generate service in: ", targetDir)
+
+					return nil
+				},
+			},
 			cli.Command{
 				Name:  "get",
 				Usage: "get all datacenter configs",
