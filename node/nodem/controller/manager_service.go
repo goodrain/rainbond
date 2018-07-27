@@ -30,7 +30,6 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"time"
-	"github.com/goodrain/rainbond/node/masterserver/node"
 )
 
 type ManagerService struct {
@@ -201,7 +200,7 @@ func (m *ManagerService) WaitStart(name string, duration time.Duration) bool {
 	for {
 		<-t
 		status, _ := m.healthyManager.GetCurrentServiceHealthy(name)
-		if status.Status == node.Running {
+		if status.Status == service.Stat_healthy {
 			return true
 		}
 		if time.Now().After(max) {
