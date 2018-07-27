@@ -33,6 +33,7 @@ import (
 //Manager Manager
 type Manager interface {
 	GetServiceHealthy(serviceName string) (*service.HealthStatus, bool)
+	GetCurrentServiceHealthy(serviceName string) (*service.HealthStatus, error)
 	WatchServiceHealthy(serviceName string) Watcher
 	CloseWatch(serviceName string, id string) error
 	Start(hostNode *client.HostNode) error

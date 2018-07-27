@@ -82,6 +82,17 @@ func (m *ControllerSystemd) RestartService(serviceName string) error {
 	return nil
 }
 
+func (m *ControllerSystemd) StatusService(name string) error {
+	cmd := fmt.Sprintf("systemctl status %s | head -3 | tail -1 | awk '{print $2}'", name)
+	err := exec.Command("/usr/bin/bash", "-c", cmd).Run()
+	if err != nil {
+		logrus.Errorf("Restart service %s: %v", name, err)
+		return err
+	}
+
+	return nil
+}
+
 func (m *ControllerSystemd) StartList(list []*service.Service) error {
 	logrus.Info("Starting all services.")
 
