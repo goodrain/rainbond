@@ -218,7 +218,7 @@ func (w *watcher) Close() error {
 }
 
 func (p *probeManager) DisableWatcher(serviceName, watcherID string) {
-	logrus.Info("Disable check healthy status of the service")
+	logrus.Info("Disable check healthy status of service: ", serviceName)
 	if s, ok := p.watches[serviceName]; ok {
 		if w, ok := s[watcherID]; ok {
 			w.enable = false
@@ -229,7 +229,7 @@ func (p *probeManager) DisableWatcher(serviceName, watcherID string) {
 }
 
 func (p *probeManager) EnableWatcher(serviceName, watcherID string) {
-	logrus.Info("Enable check healthy status of the service")
+	logrus.Info("Enable check healthy status of service: ", serviceName)
 	if s, ok := p.watches[serviceName]; ok {
 		if w, ok := s[watcherID]; ok {
 			w.enable = true

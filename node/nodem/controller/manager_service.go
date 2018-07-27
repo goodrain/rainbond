@@ -30,7 +30,6 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"time"
-	"github.com/goodrain/rainbond/node/masterserver/node"
 )
 
 type ManagerService struct {
@@ -159,6 +158,7 @@ func (m *ManagerService) StartSyncService() {
 					case service.Stat_unhealthy:
 						logrus.Debugf("is [%s] of service %s %d times.", event.Status, event.Name, event.ErrorNumber)
 						if event.ErrorNumber > 3 {
+							logrus.Infof("is [%s] of service %s %d times and restart it.", event.Status, event.Name, event.ErrorNumber)
 							// disable check healthy status of the service
 							m.healthyManager.DisableWatcher(w.GetServiceName(), w.GetID())
 							m.ctr.RestartService(event.Name)
@@ -169,7 +169,7 @@ func (m *ManagerService) StartSyncService() {
 							m.healthyManager.EnableWatcher(w.GetServiceName(), w.GetID())
 						}
 					case service.Stat_death:
-						logrus.Debugf("is [%s] of service %s %d times.", event.Status, event.Name, event.ErrorNumber)
+						logrus.Infof("is [%s] of service %s %d times and start it.", event.Status, event.Name, event.ErrorNumber)
 						// disable check healthy status of the service
 						m.healthyManager.DisableWatcher(w.GetServiceName(), w.GetID())
 						m.ctr.StartService(event.Name)
@@ -200,7 +200,7 @@ func (m *ManagerService) WaitStart(name string, duration time.Duration) bool {
 	for {
 		<-t
 		status, _ := m.healthyManager.GetCurrentServiceHealthy(name)
-		if status.Status == node.Running {
+		if status.Status == service.Stat_healthy {
 			return true
 		}
 		if time.Now().After(max) {
