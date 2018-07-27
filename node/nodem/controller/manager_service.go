@@ -148,31 +148,35 @@ func (m *ManagerService) StartSyncService() {
 
 		go func() {
 			defer w.Close()
-			unhealthyNum := 0
-			maxUnhealthyNum := 2
+
 			for {
 				select {
 				case event := <-w.Watch():
 					switch event.Status {
 					case service.Stat_healthy:
 						logrus.Debugf("[%s] check service %s.", event.Status, event.Name)
-						unhealthyNum = 0
 					case service.Stat_unhealthy:
-						logrus.Debugf("[%s] check service %s %d times.", event.Status, event.Name, unhealthyNum)
-						if unhealthyNum > maxUnhealthyNum {
-							logrus.Infof("[%s] check service %s %d times and will be restart.", event.Status, event.Name, unhealthyNum)
-							unhealthyNum = 0
+						logrus.Debugf("[%s] check service %s %d times.", event.Status, event.Name, event.ErrorNumber)
+						if event.ErrorNumber > 3 {
+							// disable check healthy status of the service
+							m.healthyManager.DisableWatcher(w.GetServiceName(), w.GetID())
 							m.ctr.RestartService(event.Name)
+							if m.WaitStart(event.Name, time.Minute) {
+								logrus.Errorf("Timeout restart the service: ", event.Name)
+							}
+							// start check healthy status of the service
+							m.healthyManager.EnableWatcher(w.GetServiceName(), w.GetID())
 						}
-						unhealthyNum++
 					case service.Stat_death:
-						logrus.Debugf("[%s] check service %s %d times.", event.Status, event.Name, unhealthyNum)
-						if unhealthyNum > maxUnhealthyNum {
-							logrus.Infof("[%s] check service %s %d times and will be start.", event.Status, event.Name, unhealthyNum)
-							m.ctr.StartService(event.Name)
-							unhealthyNum = 0
+						logrus.Debugf("[%s] check service %s %d times.", event.Status, event.Name, event.ErrorNumber)
+						// disable check healthy status of the service
+						m.healthyManager.DisableWatcher(w.GetServiceName(), w.GetID())
+						m.ctr.StartService(event.Name)
+						if m.WaitStart(event.Name, time.Minute) {
+							logrus.Errorf("Timeout start the service: ", event.Name)
 						}
-						unhealthyNum++
+						// start check healthy status of the service
+						m.healthyManager.EnableWatcher(w.GetServiceName(), w.GetID())
 					}
 				case <-m.syncCtx.Done():
 					return
