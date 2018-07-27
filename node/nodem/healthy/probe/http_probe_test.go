@@ -1,4 +1,4 @@
-package healthy
+package probe
 //
 //import (
 //	"testing"

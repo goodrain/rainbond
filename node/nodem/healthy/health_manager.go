@@ -26,6 +26,8 @@ import (
 	"time"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"sync"
+	"github.com/goodrain/rainbond/node/nodem/healthy/probe"
+	"errors"
 )
 
 //Manager Manager
@@ -42,6 +44,7 @@ type Watcher interface {
 	Watch() <-chan *service.HealthStatus
 	Close() error
 }
+
 type watcher struct {
 	manager     Manager
 	statusChan  chan *service.HealthStatus
@@ -93,44 +96,41 @@ func (p *probeManager) Start(hostNode *client.HostNode) (error) {
 
 	logrus.Info("health mode start")
 	go p.HandleStatus()
-	logrus.Info("services length===>",len(p.services))
-	for _,v :=range p.services{
-		logrus.Info("Need to check===>",v.ServiceHealth.Name,v.ServiceHealth.Model)
-	}
+	logrus.Info("services length===>", len(p.services))
 	for _, v := range p.services {
 		if v.ServiceHealth.Model == "http" {
-			h := &HttpProbe{
-				name:         v.ServiceHealth.Name,
-				address:      v.ServiceHealth.Address,
-				ctx:          p.ctx,
-				cancel:       p.cancel,
-				resultsChan:  p.statusChan,
+			h := &probe.HttpProbe{
+				Name:         v.ServiceHealth.Name,
+				Address:      v.ServiceHealth.Address,
+				Ctx:          p.ctx,
+				Cancel:       p.cancel,
+				ResultsChan:  p.statusChan,
 				TimeInterval: v.ServiceHealth.TimeInterval,
-				hostNode:     hostNode,
+				HostNode:     hostNode,
 			}
-			go h.Check()
+			go h.HttpCheck()
 		}
 		if v.ServiceHealth.Model == "tcp" {
-			t := &TcpProbe{
-				name:         v.ServiceHealth.Name,
-				address:      v.ServiceHealth.Address,
-				ctx:          p.ctx,
-				cancel:       p.cancel,
-				resultsChan:  p.statusChan,
+			t := &probe.TcpProbe{
+				Name:         v.ServiceHealth.Name,
+				Address:      v.ServiceHealth.Address,
+				Ctx:          p.ctx,
+				Cancel:       p.cancel,
+				ResultsChan:  p.statusChan,
 				TimeInterval: v.ServiceHealth.TimeInterval,
-				hostNode:     hostNode,
+				HostNode:     hostNode,
 			}
 			go t.TcpCheck()
 		}
 		if v.ServiceHealth.Model == "cmd" {
-			s := &ShellProbe{
-				name:         v.ServiceHealth.Name,
-				address:      v.ServiceHealth.Address,
-				ctx:          p.ctx,
-				cancel:       p.cancel,
-				resultsChan:  p.statusChan,
+			s := &probe.ShellProbe{
+				Name:         v.ServiceHealth.Name,
+				Address:      v.ServiceHealth.Address,
+				Ctx:          p.ctx,
+				Cancel:       p.cancel,
+				ResultsChan:  p.statusChan,
 				TimeInterval: v.ServiceHealth.TimeInterval,
-				hostNode:     hostNode,
+				HostNode:     hostNode,
 			}
 			go s.ShellCheck()
 		}
@@ -218,4 +218,44 @@ func (p *probeManager) WatchServiceHealthy(serviceName string) Watcher {
 		p.lock.Unlock()
 	}
 	return w
+}
+
+func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*service.HealthStatus, error) {
+
+	for _, v := range p.services {
+		if v.Name == serviceName {
+
+			if v.ServiceHealth.Model == "http" {
+				statusMap := probe.GetHttpHealth(v.ServiceHealth.Address)
+				result := &service.HealthStatus{
+					Name:   v.Name,
+					Status: statusMap["status"],
+					Info:   statusMap["info"],
+				}
+				return result, nil
+			}
+			if v.ServiceHealth.Model == "tcp" {
+				statusMap := probe.GetTcpHealth(v.ServiceHealth.Address)
+				result := &service.HealthStatus{
+					Name:   v.Name,
+					Status: statusMap["status"],
+					Info:   statusMap["info"],
+				}
+				return result, nil
+
+			}
+			if v.ServiceHealth.Model == "cmd" {
+				statusMap := probe.GetShellHealth(v.ServiceHealth.Address)
+				result := &service.HealthStatus{
+					Name:   v.Name,
+					Status: statusMap["status"],
+					Info:   statusMap["info"],
+				}
+				return result, nil
+			}
+		} else {
+			return nil, errors.New("the service does not exist")
+		}
+	}
+	return nil, errors.New("service list is empty")
 }
