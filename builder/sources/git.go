@@ -398,7 +398,7 @@ Loop:
 
 //GitCloneOrPull if code exist in local,use git pull.
 func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
-	if ok, err := util.FileExists(path.Join(sourceDir, ".git")); err == nil && ok {
+	if ok, err := util.FileExists(path.Join(sourceDir, ".git")); err == nil && ok && !strings.HasPrefix(csi.Branch, "tag:") {
 		re, err := GitPull(csi, sourceDir, logger, timeout)
 		if err == nil && re != nil {
 			return re, nil
