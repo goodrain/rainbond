@@ -170,7 +170,7 @@ func (m *ManagerService) StartSyncService() {
 							// disable check healthy status of the service
 							m.healthyManager.DisableWatcher(w.GetServiceName(), w.GetID())
 							m.ctr.RestartService(event.Name)
-							if m.WaitStart(event.Name, time.Minute) {
+							if !m.WaitStart(event.Name, time.Minute) {
 								logrus.Errorf("Timeout restart service: ", event.Name)
 							}
 							// start check healthy status of the service
@@ -181,8 +181,8 @@ func (m *ManagerService) StartSyncService() {
 						// disable check healthy status of the service
 						m.healthyManager.DisableWatcher(w.GetServiceName(), w.GetID())
 						m.ctr.StartService(event.Name)
-						if m.WaitStart(event.Name, time.Minute) {
-							logrus.Errorf("Timeout start service: ", event.Name)
+						if !m.WaitStart(event.Name, time.Minute) {
+							logrus.Error("Timeout start service: ", event.Name)
 						}
 						// start check healthy status of the service
 						m.healthyManager.EnableWatcher(w.GetServiceName(), w.GetID())
@@ -203,17 +203,23 @@ func (m *ManagerService) StopSyncService() {
 
 func (m *ManagerService) WaitStart(name string, duration time.Duration) bool {
 	max := time.Now().Add(duration)
-	t := time.Tick(time.Second)
+	t := time.Tick(time.Second*3)
 
 	for {
-		<-t
-		status, _ := m.healthyManager.GetCurrentServiceHealthy(name)
-		if status.Status == service.Stat_healthy {
-			return true
-		}
 		if time.Now().After(max) {
 			return false
 		}
+		status, err := m.healthyManager.GetCurrentServiceHealthy(name)
+		if err != nil {
+			logrus.Error("Can not get service current status: ", err)
+			<-t
+			continue
+		}
+		logrus.Debugf("Check service %s current status: %s", name, status.Status)
+		if status.Status == service.Stat_healthy {
+			return true
+		}
+		<-t
 	}
 }
 
