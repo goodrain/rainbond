@@ -206,19 +206,20 @@ func (m *ManagerService) WaitStart(name string, duration time.Duration) bool {
 	t := time.Tick(time.Second*3)
 
 	for {
-		<-t
+		if time.Now().After(max) {
+			return false
+		}
 		status, err := m.healthyManager.GetCurrentServiceHealthy(name)
 		if err != nil {
 			logrus.Error("Can not get service current status: ", err)
+			<-t
 			continue
 		}
 		logrus.Debugf("Check service %s current status: %s", name, status.Status)
 		if status.Status == service.Stat_healthy {
 			return true
 		}
-		if time.Now().After(max) {
-			return false
-		}
+		<-t
 	}
 }
 

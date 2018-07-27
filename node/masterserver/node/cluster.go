@@ -131,6 +131,8 @@ func (n *Cluster) UpdateNode(node *client.HostNode) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	n.nodes[node.ID] = node
+	// the value is etcd path of save node status
+	// It should come from the cmd/node/option/config object, but I found it too cumbersome to pass a value.
 	key := "/rainbond/nodes/target/" + node.ID
 	n.client.Put(key, node.String())
 }

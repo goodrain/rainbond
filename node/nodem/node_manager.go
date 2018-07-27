@@ -144,7 +144,7 @@ func (n *NodeManager) Stop() {
 }
 
 func (m *NodeManager) SyncNodeStatus() error {
-	key := "/rainbond/nodes/target/" + m.ID
+	key := fmt.Sprintf("%s/%s", m.cfg.ServiceEndpointRegPath, m.ID)
 	logrus.Info("Starting node status sync manager: ", key)
 	watcher := watch.New(m.etcdCli, "")
 	watchChan, err := watcher.Watch(m.ctx, key, "")
