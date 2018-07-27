@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/gosuri/uitable"
 	"github.com/urfave/cli"
+	"strconv"
 )
 
 //NewCmdCluster cmd for cluster
@@ -118,7 +119,7 @@ func summaryResult(list []map[string]string) (status string, errMessage string) 
 		}
 	}
 
-	status = string(upNum) + "/" + string(len(list))
+	status = strconv.Itoa(upNum) + "/" + strconv.Itoa(len(list))
 	errMessage = err
 	return
 }
