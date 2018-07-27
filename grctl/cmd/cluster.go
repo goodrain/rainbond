@@ -42,8 +42,12 @@ func NewCmdCluster() cli.Command {
 }
 
 func getClusterInfo(c *cli.Context) error {
+	println("=====.0")
 	//show cluster resource detail
 	clusterInfo, err := clients.RegionClient.Cluster().GetClusterInfo()
+	if err!= nil{
+		println("=====>1",err.Error())
+	}
 	handleErr(err)
 	table := uitable.New()
 	table.AddRow("", "Used/Total", "Use of")
@@ -54,9 +58,12 @@ func getClusterInfo(c *cli.Context) error {
 	table.AddRow("DistributedDisk", fmt.Sprintf("%dGb/%dGb", clusterInfo.ReqDisk/1024/1024/1024, clusterInfo.CapDisk/1024/1024/1024),
 		fmt.Sprintf("%.2f", float32(clusterInfo.ReqDisk*100)/float32(clusterInfo.CapDisk))+"%")
 	fmt.Println(table)
-
+println("=====>1.1")
 	//show node detail
 	list, err := clients.RegionClient.Nodes().List()
+	if err!= nil{
+		println("=====>2",err.Error())
+	}
 	handleErr(err)
 	serviceTable := termtables.CreateTable()
 	serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "Alived", "Schedulable", "Ready")

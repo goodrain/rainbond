@@ -44,6 +44,7 @@ func (c *cluster) GetClusterInfo() (*model.ClusterResource, *util.APIHandleError
 	decode.Bean = &cr
 	code, err := c.DoRequest(c.prefix, "GET", nil, &decode)
 	if err != nil {
+		println("=====3",err.Error())
 		return nil, handleErrAndCode(err, code)
 	}
 	return &cr, nil
