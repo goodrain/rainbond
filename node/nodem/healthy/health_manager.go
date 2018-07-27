@@ -201,9 +201,18 @@ func (p *probeManager) GetServiceHealthy(serviceName string) (*service.HealthSta
 
 }
 
+func (w *watcher) GetServiceName() string {
+	return w.serviceName
+}
+
+func (w *watcher) GetID() string {
+	return w.id
+}
+
 func (w *watcher) Watch() <-chan *service.HealthStatus {
 	return w.statusChan
 }
+
 func (w *watcher) Close() error {
 	return w.manager.CloseWatch(w.serviceName, w.id)
 }
