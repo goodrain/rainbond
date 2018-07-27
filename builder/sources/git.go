@@ -155,7 +155,11 @@ Loop:
 		Depth:             1,
 	}
 	if csi.Branch != "" {
-		opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", csi.Branch))
+		if strings.HasPrefix(csi.Branch, "tag:") {
+			opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/tags/%s", csi.Branch[4:]))
+		} else {
+			opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", csi.Branch))
+		}
 	}
 	var rs *git.Repository
 	if ep.Protocol == "ssh" {

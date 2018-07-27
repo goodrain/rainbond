@@ -111,6 +111,24 @@ func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode
 	}
 }
 
+func handleHealthStatus(serviceTable *termtables.Table, v *client.HostNode) {
+	serviceTable.AddRow(handleResult(v, "DiskPressure"), handleResult(v, "MemoryPressure"), handleResult(v, "NodeInit"), handleResult(v, "OutOfDisk"), handleResult(v, "calico"),
+		handleResult(v, "docker"), handleResult(v, "etcd"), handleResult(v, "kube-apiserver"), handleResult(v, "kube-controller-manager"), handleResult(v, "kube-scheduler"),
+		handleResult(v, "kubelet"), handleResult(v, "rbd-api"), handleResult(v, "rbd-chaos"), handleResult(v, "rbd-db"), handleResult(v, "rbd-dns"),
+		handleResult(v, "rbd-entrance"), handleResult(v, "rbd-eventlog"), handleResult(v, "rbd-fs"), handleResult(v, "rbd-grafana"), handleResult(v, "rbd-hub"), handleResult(v, "rbd-lb"),
+		handleResult(v, "rbd-monitor"), handleResult(v, "rbd-mq"), handleResult(v, "rbd-proxy"), handleResult(v, "rbd-repo"), handleResult(v, "rbd-webcli"), handleResult(v, "rbd-worker"),
+		handleResult(v, "Ready"))
+}
+
+func handleResult(v *client.HostNode, name string) string {
+	for _, v := range v.NodeStatus.Conditions {
+		if string(v.Type) == name {
+			return string(v.Status)
+		}
+	}
+	return "N/A"
+}
+
 //NewCmdNode NewCmdNode
 func NewCmdNode() cli.Command {
 	c := cli.Command{
@@ -183,21 +201,13 @@ func NewCmdNode() cli.Command {
 					list, err := clients.RegionClient.Nodes().List()
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("IP", "HostName", "DiskPressure","MemoryPressure","NodeInit","OutOfDisk","calico","docker","")
-					var rest []*client.HostNode
+					serviceTable.AddHeaders("IP", "HostName", "DiskPressure", "MemoryPressure", "NodeInit", "OutOfDisk",
+						"calico", "docker", "etcd", "kube-apiserver", "kube-controller-manager", "kube-scheduler", "kubelet", "rbd-api", "rbd-chaos", "rbd-db", "rbd-dns", "rbd-entrance",
+						"rbd-eventlog", "rbd-fs", "rbd-grafana", "rbd-hub", "rbd-lb", "rbd-monitor", "rbd-mq", "rbd-proxy", "rbd-repo", "rbd-webcli", "rbd-worker", "Ready")
 					for _, v := range list {
-						if v.Role.HasRule("manage") {
-							handleStatus(serviceTable, isNodeReady(v), v)
-						} else {
-							rest = append(rest, v)
-						}
+						handleHealthStatus(serviceTable, v)
 					}
-					if len(rest) > 0 {
-						serviceTable.AddSeparator()
-					}
-					for _, v := range rest {
-						handleStatus(serviceTable, isNodeReady(v), v)
-					}
+
 					fmt.Println(serviceTable.Render())
 					return nil
 				},
