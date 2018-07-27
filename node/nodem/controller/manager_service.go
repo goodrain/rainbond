@@ -53,9 +53,12 @@ func (m *ManagerService) GetAllService() ([]*service.Service, error) {
 func (m *ManagerService) Start() error {
 	logrus.Info("Starting node controller manager.")
 
-	if err := m.Online(); err != nil {
+	services, err := service.LoadServicesFromLocal(m.conf.ServiceListFile)
+	if err != nil {
+		logrus.Error("Failed to load all services: ", err)
 		return err
 	}
+	m.services = services
 
 	return nil
 }
@@ -69,16 +72,9 @@ func (m *ManagerService) Stop() error {
 // start all service of on the node
 func (m *ManagerService) Online() error {
 	logrus.Info("Doing node online by node controller manager")
-	services, err := service.LoadServicesFromLocal(m.conf.ServiceListFile)
-	if err != nil {
-		logrus.Error("Failed to load all services: ", err)
-		return err
-	}
-	m.services = services
-
 	// registry local services endpoint into cluster manager
 	hostIp := m.cluster.GetOptions().HostIP
-	for _, s := range services {
+	for _, s := range m.services {
 		logrus.Debug("Parse endpoints for service: ", s.Name)
 		for _, end := range s.Endpoints {
 			logrus.Debug("Discovery endpoints: ", end.Name)
@@ -91,7 +87,7 @@ func (m *ManagerService) Online() error {
 		}
 	}
 
-	err = m.WriteServices()
+	err := m.WriteServices()
 	if err != nil {
 		return err
 	}
@@ -130,6 +126,18 @@ func (m *ManagerService) Offline() error {
 	}
 
 	return nil
+}
+
+func (m *ManagerService) ReloadService() {
+	services, err := service.LoadServicesFromLocal(m.conf.ServiceListFile)
+	if err != nil {
+		logrus.Error("Failed to reload all services: ", err)
+		return
+	}
+	m.services = services
+
+	m.Online()
+
 }
 
 // synchronize all service status to as we expect
