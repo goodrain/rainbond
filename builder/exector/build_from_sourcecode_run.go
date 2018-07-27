@@ -181,7 +181,11 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 			Message: commit.Message,
 		}
 	}
-	info := fmt.Sprintf("版本:%s 上传者:%s Commit:%s ", i.commit.Hash[0:7], i.commit.Author, i.commit.Message)
+	hash := i.commit.Hash
+	if len(hash) >= 8 {
+		hash = i.commit.Hash[0:7]
+	}
+	info := fmt.Sprintf("版本:%s 上传者:%s Commit:%s ", hash, i.commit.Author, i.commit.Message)
 	i.Logger.Info(info, map[string]string{"step": "code-version"})
 	if _, ok := i.BuildEnvs["REPARSE"]; ok {
 		_, lang, err := parser.ReadRbdConfigAndLang(rbi)
