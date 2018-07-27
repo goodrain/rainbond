@@ -176,6 +176,33 @@ func NewCmdNode() cli.Command {
 				},
 			},
 			{
+				Name:  "health",
+				Usage: "health",
+				Action: func(c *cli.Context) error {
+					Common(c)
+					list, err := clients.RegionClient.Nodes().List()
+					handleErr(err)
+					serviceTable := termtables.CreateTable()
+					serviceTable.AddHeaders("IP", "HostName", "DiskPressure","MemoryPressure","NodeInit","OutOfDisk","calico","docker","")
+					var rest []*client.HostNode
+					for _, v := range list {
+						if v.Role.HasRule("manage") {
+							handleStatus(serviceTable, isNodeReady(v), v)
+						} else {
+							rest = append(rest, v)
+						}
+					}
+					if len(rest) > 0 {
+						serviceTable.AddSeparator()
+					}
+					for _, v := range rest {
+						handleStatus(serviceTable, isNodeReady(v), v)
+					}
+					fmt.Println(serviceTable.Render())
+					return nil
+				},
+			},
+			{
 				Name:  "up",
 				Usage: "up hostID",
 				Action: func(c *cli.Context) error {

@@ -1,3 +1,15 @@
+# Compile the project
+
+```
+# if you have golang environment
+make build
+# if you have docker environment
+make image
+# if you what build one component
+make build WHAT=api
+make image WHAT=api
+```
+
 # How to contribute
 
 Read [Contributing to Open Source on GitHub](https://guides.github.com/activities/contributing-to-open-source/) before contribute.
