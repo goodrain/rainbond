@@ -21,8 +21,8 @@ type Exporter struct {
 }
 
 var healthDesc = prometheus.NewDesc(
-	prometheus.BuildFQName("", "", "health_status"),
-	"health status.",
+	prometheus.BuildFQName(namespace, exporter, "health_status"),
+	"builder service health status.",
 	[]string{"service_name"}, nil,
 )
 
