@@ -27,6 +27,7 @@ import (
 //ClusterInterface cluster api
 type ClusterInterface interface {
 	GetClusterInfo() (*model.ClusterResource, *util.APIHandleError)
+	GetClusterHealth() (*utilhttp.ResponseBody, *util.APIHandleError)
 }
 
 func (r *regionImpl) Cluster() ClusterInterface {
@@ -44,8 +45,17 @@ func (c *cluster) GetClusterInfo() (*model.ClusterResource, *util.APIHandleError
 	decode.Bean = &cr
 	code, err := c.DoRequest(c.prefix, "GET", nil, &decode)
 	if err != nil {
-		println("=====3",err.Error())
 		return nil, handleErrAndCode(err, code)
 	}
 	return &cr, nil
+}
+
+func (c *cluster) GetClusterHealth() (*utilhttp.ResponseBody, *util.APIHandleError) {
+
+	var decode utilhttp.ResponseBody
+	code, err := c.DoRequest(c.prefix, "GET", nil, &decode)
+	if err != nil {
+		return nil, handleErrAndCode(err, code)
+	}
+	return &decode, nil
 }

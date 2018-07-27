@@ -140,10 +140,10 @@ func (n *NodeService) GetServicesHealthy() (map[string][]map[string]string, *uti
 		for _, v := range n.NodeStatus.Conditions {
 			status, ok := StatusMap[string(v.Type)]
 			if !ok {
-				StatusMap[string(v.Type)] = []map[string]string{map[string]string{"type": string(v.Type), "status": string(v.Status), "hostname": n.HostName}}
+				StatusMap[string(v.Type)] = []map[string]string{map[string]string{"type": string(v.Type), "status": string(v.Status), "message":string(v.Message), "hostname": n.HostName}}
 			} else {
 				list := status
-				list = append(list, map[string]string{"type": string(v.Type), "status": string(v.Status), "hostname": n.HostName})
+				list = append(list, map[string]string{"type": string(v.Type), "status": string(v.Status), "message":string(v.Message), "hostname": n.HostName})
 				StatusMap[string(v.Type)] = list
 			}
 

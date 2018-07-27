@@ -42,12 +42,8 @@ func NewCmdCluster() cli.Command {
 }
 
 func getClusterInfo(c *cli.Context) error {
-	println("=====.0")
 	//show cluster resource detail
 	clusterInfo, err := clients.RegionClient.Cluster().GetClusterInfo()
-	if err!= nil{
-		println("=====>1",err.Error())
-	}
 	handleErr(err)
 	table := uitable.New()
 	table.AddRow("", "Used/Total", "Use of")
@@ -58,12 +54,8 @@ func getClusterInfo(c *cli.Context) error {
 	table.AddRow("DistributedDisk", fmt.Sprintf("%dGb/%dGb", clusterInfo.ReqDisk/1024/1024/1024, clusterInfo.CapDisk/1024/1024/1024),
 		fmt.Sprintf("%.2f", float32(clusterInfo.ReqDisk*100)/float32(clusterInfo.CapDisk))+"%")
 	fmt.Println(table)
-println("=====>1.1")
 	//show node detail
 	list, err := clients.RegionClient.Nodes().List()
-	if err!= nil{
-		println("=====>2",err.Error())
-	}
 	handleErr(err)
 	serviceTable := termtables.CreateTable()
 	serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "Alived", "Schedulable", "Ready")
@@ -82,5 +74,51 @@ println("=====>1.1")
 		handleStatus(serviceTable, isNodeReady(v), v)
 	}
 	fmt.Println(serviceTable.Render())
+
+	serviceTable2 := termtables.CreateTable()
+	serviceTable2.AddHeaders("Service", "Status", "Message")
+	serviceStatusInfo := getServicesHealthy(list)
+	for name, v := range serviceStatusInfo {
+		status, message := summaryResult(v)
+		serviceTable2.AddRow(name, status, message)
+	}
+	fmt.Println(serviceTable2.Render())
+
 	return nil
+}
+
+func getServicesHealthy(nodes []*client.HostNode) (map[string][]map[string]string) {
+
+	StatusMap := make(map[string][]map[string]string, 30)
+	for _, n := range nodes {
+		for _, v := range n.NodeStatus.Conditions {
+			status, ok := StatusMap[string(v.Type)]
+			if !ok {
+				StatusMap[string(v.Type)] = []map[string]string{map[string]string{"type": string(v.Type), "status": string(v.Status), "message": string(v.Message), "hostname": n.HostName}}
+			} else {
+				list := status
+				list = append(list, map[string]string{"type": string(v.Type), "status": string(v.Status), "message": string(v.Message), "hostname": n.HostName})
+				StatusMap[string(v.Type)] = list
+			}
+
+		}
+	}
+	return StatusMap
+}
+
+func summaryResult(list []map[string]string) (status string, errMessage string) {
+	upNum := 0
+	err := "N/A"
+	for _, v := range list {
+		if v["status"] == "True" {
+			upNum += 1
+		} else {
+			err = ""
+			err = err + v["hostname"] + ":" + v["message"] + "/"
+		}
+	}
+
+	status = string(upNum) + "/" + string(len(list))
+	errMessage = err
+	return
 }
