@@ -38,6 +38,9 @@ type Manager interface {
 	Start(hostNode *client.HostNode) error
 	AddServices([]*service.Service) error
 	Stop() error
+	GetCurrentServiceHealthy(serviceName string) (*service.HealthStatus, error)
+	DisableWatcher(serviceName, watcherID string)
+	EnableWatcher(serviceName, watcherID string)
 }
 
 type Watcher interface {
@@ -50,6 +53,7 @@ type watcher struct {
 	statusChan  chan *service.HealthStatus
 	id          string
 	serviceName string
+	enable      bool
 }
 
 type probeManager struct {
@@ -169,7 +173,9 @@ func (p *probeManager) HandleStatus() {
 			p.updateServiceStatus(status)
 			if watcherMap, ok := p.watches[status.Name]; ok {
 				for _, watcher := range watcherMap {
-					watcher.statusChan <- status
+					if watcher.enable {
+						watcher.statusChan <- status
+					}
 				}
 			}
 		case <-p.ctx.Done():
@@ -198,6 +204,27 @@ func (w *watcher) Watch() <-chan *service.HealthStatus {
 }
 func (w *watcher) Close() error {
 	return w.manager.CloseWatch(w.serviceName, w.id)
+}
+
+func (p *probeManager) DisableWatcher(serviceName, watcherID string) {
+	if s, ok := p.watches[serviceName]; ok {
+		if w, ok := s[watcherID]; ok {
+			w.enable = false
+		}
+	}
+}
+
+func (p *probeManager) EnableWatcher(serviceName, watcherID string) {
+	if s, ok := p.watches[serviceName]; ok {
+		if w, ok := s[watcherID]; ok {
+			w.enable = true
+			if h, ok := p.status[serviceName]; ok {
+				h.ErrorNumber = 0
+				h.ErrorTime = 0
+			}
+		}
+
+	}
 }
 
 func (p *probeManager) WatchServiceHealthy(serviceName string) Watcher {
