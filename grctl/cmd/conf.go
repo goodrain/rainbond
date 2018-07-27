@@ -36,7 +36,7 @@ import (
 func NewCmdConfigs() cli.Command {
 	c := cli.Command{
 		Name:  "conf",
-		Usage: "grctl conf",
+		Usage: "集群和服务配置相关工具",
 		Subcommands: []cli.Command{
 			cli.Command{
 				Name:  "gen",
@@ -49,19 +49,23 @@ func NewCmdConfigs() cli.Command {
 						return err
 					}
 
-					targetDir := filepath.Dir(yamlFile)
-					os.Mkdir(targetDir, 0755)
+					dirName := filepath.Dir(yamlFile)
+					ext := filepath.Ext(yamlFile)
+					baseName := filepath.Base(yamlFile)
+					baseName = baseName[:len(baseName)-len(ext)]
+					dirName = fmt.Sprintf("%s/%s", dirName, baseName)
+					os.Mkdir(dirName, 0755)
 
 					for _, s := range services {
 						content := service.ToConfig(s)
-						configFile := fmt.Sprintf("%s/%s.service", targetDir, s.Name)
+						configFile := fmt.Sprintf("%s/%s.service", dirName, s.Name)
 						err := ioutil.WriteFile(configFile, []byte(content), 0644)
 						if err != nil {
 							println("Can not write service to file: ", err.Error())
 						}
 					}
 
-					println("Successful to generate service in: ", targetDir)
+					println("Successful to generate service in: ", dirName)
 
 					return nil
 				},
