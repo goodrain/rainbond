@@ -155,7 +155,11 @@ Loop:
 		Depth:             1,
 	}
 	if csi.Branch != "" {
-		opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", csi.Branch))
+		if strings.HasPrefix(csi.Branch, "tag:") {
+			opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/tags/%s", csi.Branch[4:]))
+		} else {
+			opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", csi.Branch))
+		}
 	}
 	var rs *git.Repository
 	if ep.Protocol == "ssh" {
@@ -163,7 +167,7 @@ Loop:
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
 		if auerr != nil {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("创建PublicKeys错误"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("创建PublicKeys错误"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return nil, auerr
 		}
@@ -198,36 +202,36 @@ Loop:
 	if err != nil {
 		if reerr := os.RemoveAll(sourceDir); reerr != nil {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误删除代码目录失败。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("拉取代码发生错误删除代码目录失败。"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 		}
 		if err == transport.ErrAuthenticationRequired {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源需要授权访问。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源需要授权访问。"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == transport.ErrAuthorizationFailed {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源鉴权失败。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源鉴权失败。"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == transport.ErrRepositoryNotFound {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误，仓库不存在。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("拉取代码发生错误，仓库不存在。"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == transport.ErrEmptyRemoteRepository {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误，远程仓库为空。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("拉取代码发生错误，远程仓库为空。"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == plumbing.ErrReferenceNotFound {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("代码分支(%s)不存在。", csi.Branch), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("代码分支(%s)不存在。", csi.Branch), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, fmt.Errorf("branch %s is not exist", csi.Branch)
 		}
@@ -239,13 +243,13 @@ Loop:
 				goto Loop
 			}
 			if logger != nil {
-				logger.Error(fmt.Sprintf("远程代码库需要配置SSH Key。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("远程代码库需要配置SSH Key。"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if strings.Contains(err.Error(), "context deadline exceeded") {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("获取代码超时"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("获取代码超时"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, err
 		}
@@ -300,7 +304,7 @@ Loop:
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
 		if auerr != nil {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("创建PublicKeys错误"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("创建PublicKeys错误"), map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return nil, auerr
 		}
@@ -338,50 +342,49 @@ Loop:
 	if err != nil {
 		if err == transport.ErrAuthenticationRequired {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("更新代码发生错误，代码源需要授权访问。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("更新代码发生错误，代码源需要授权访问。"), map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == transport.ErrAuthorizationFailed {
 
 			if logger != nil {
-				logger.Error(fmt.Sprintf("更新代码发生错误，代码源鉴权失败。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("更新代码发生错误，代码源鉴权失败。"), map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == transport.ErrRepositoryNotFound {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("更新代码发生错误，仓库不存在。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("更新代码发生错误，仓库不存在。"), map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == transport.ErrEmptyRemoteRepository {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("更新代码发生错误，远程仓库为空。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("更新代码发生错误，远程仓库为空。"), map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == plumbing.ErrReferenceNotFound {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("代码分支(%s)不存在。", csi.Branch), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("代码分支(%s)不存在。", csi.Branch), map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return rs, fmt.Errorf("branch %s is not exist", csi.Branch)
 		}
 		if strings.Contains(err.Error(), "ssh: unable to authenticate") {
-
 			if flag {
 				GetPrivateFileParam = "builder_rsa"
 				flag = false
 				goto Loop
 			}
 			if logger != nil {
-				logger.Error(fmt.Sprintf("远程代码库需要配置SSH Key。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("远程代码库需要配置SSH Key。"), map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if strings.Contains(err.Error(), "context deadline exceeded") {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("更新代码超时"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("更新代码超时"), map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return rs, err
 		}
@@ -394,7 +397,7 @@ Loop:
 
 //GitCloneOrPull if code exist in local,use git pull.
 func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
-	if ok, err := util.FileExists(path.Join(sourceDir, ".git")); err == nil && ok {
+	if ok, err := util.FileExists(path.Join(sourceDir, ".git")); err == nil && ok && !strings.HasPrefix(csi.Branch, "tag:") {
 		re, err := GitPull(csi, sourceDir, logger, timeout)
 		if err == nil && re != nil {
 			return re, nil
@@ -405,7 +408,7 @@ func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, t
 	if reerr := os.RemoveAll(sourceDir); reerr != nil {
 		logrus.Error("empty the source code dir error,", reerr.Error())
 		if logger != nil {
-			logger.Error(fmt.Sprintf("清空代码目录失败。"), map[string]string{"step": "callback", "status": "failure"})
+			logger.Error(fmt.Sprintf("清空代码目录失败。"), map[string]string{"step": "clone-code", "status": "failure"})
 		}
 	}
 	return GitClone(csi, sourceDir, logger, timeout)

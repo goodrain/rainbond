@@ -29,6 +29,8 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/service"
 	"io/ioutil"
 	"os/exec"
+	"time"
+	"github.com/goodrain/rainbond/node/masterserver/node"
 )
 
 type ManagerService struct {
@@ -144,32 +146,38 @@ func (m *ManagerService) StartSyncService() {
 			return
 		}
 
-		unhealthyNum := 0
-		maxUnhealthyNum := 2
-
 		go func() {
+			m.healthyManager.EnableWatcher(w.GetServiceName(), w.GetID())
+			defer w.Close()
+
 			for {
 				select {
 				case event := <-w.Watch():
 					switch event.Status {
 					case service.Stat_healthy:
-						logrus.Debugf("[%s] check service %s.", event.Status, event.Name)
+						logrus.Debugf("is [%s] of service %s.", event.Status, event.Name)
 					case service.Stat_unhealthy:
-						logrus.Infof("[%s] check service %s %d times.", event.Status, event.Name, unhealthyNum)
-						if unhealthyNum > maxUnhealthyNum {
-							logrus.Infof("[%s] check service %s %d times and will be restart.", event.Status, event.Name, unhealthyNum)
+						logrus.Debugf("is [%s] of service %s %d times.", event.Status, event.Name, event.ErrorNumber)
+						if event.ErrorNumber > 3 {
+							// disable check healthy status of the service
+							m.healthyManager.DisableWatcher(w.GetServiceName(), w.GetID())
 							m.ctr.RestartService(event.Name)
-							unhealthyNum = 0
+							if m.WaitStart(event.Name, time.Minute) {
+								logrus.Errorf("Timeout restart service: ", event.Name)
+							}
+							// start check healthy status of the service
+							m.healthyManager.EnableWatcher(w.GetServiceName(), w.GetID())
 						}
-						unhealthyNum++
 					case service.Stat_death:
-						logrus.Infof("[%s] check service %s %d times.", event.Status, event.Name, unhealthyNum)
-						if unhealthyNum > maxUnhealthyNum {
-							logrus.Infof("[%s] check service %s %d times and will be start.", event.Status, event.Name, unhealthyNum)
-							m.ctr.StartService(event.Name)
-							unhealthyNum = 0
+						logrus.Debugf("is [%s] of service %s %d times.", event.Status, event.Name, event.ErrorNumber)
+						// disable check healthy status of the service
+						m.healthyManager.DisableWatcher(w.GetServiceName(), w.GetID())
+						m.ctr.StartService(event.Name)
+						if m.WaitStart(event.Name, time.Minute) {
+							logrus.Errorf("Timeout start service: ", event.Name)
 						}
-						unhealthyNum++
+						// start check healthy status of the service
+						m.healthyManager.EnableWatcher(w.GetServiceName(), w.GetID())
 					}
 				case <-m.syncCtx.Done():
 					return
@@ -182,6 +190,22 @@ func (m *ManagerService) StartSyncService() {
 func (m *ManagerService) StopSyncService() {
 	if m.syncCtx != nil {
 		m.syncCancel()
+	}
+}
+
+func (m *ManagerService) WaitStart(name string, duration time.Duration) bool {
+	max := time.Now().Add(duration)
+	t := time.Tick(time.Second)
+
+	for {
+		<-t
+		status, _ := m.healthyManager.GetCurrentServiceHealthy(name)
+		if status.Status == node.Running {
+			return true
+		}
+		if time.Now().After(max) {
+			return false
+		}
 	}
 }
 

@@ -33,17 +33,19 @@ import (
 //Manager Manager
 type Manager interface {
 	GetServiceHealthy(serviceName string) (*service.HealthStatus, bool)
+	GetCurrentServiceHealthy(serviceName string) (*service.HealthStatus, error)
 	WatchServiceHealthy(serviceName string) Watcher
 	CloseWatch(serviceName string, id string) error
 	Start(hostNode *client.HostNode) error
 	AddServices([]*service.Service) error
 	Stop() error
-	GetCurrentServiceHealthy(serviceName string) (*service.HealthStatus, error)
 	DisableWatcher(serviceName, watcherID string)
 	EnableWatcher(serviceName, watcherID string)
 }
 
 type Watcher interface {
+	GetID() string
+	GetServiceName() string
 	Watch() <-chan *service.HealthStatus
 	Close() error
 }
@@ -199,22 +201,35 @@ func (p *probeManager) GetServiceHealthy(serviceName string) (*service.HealthSta
 
 }
 
+func (w *watcher) GetServiceName() string {
+	return w.serviceName
+}
+
+func (w *watcher) GetID() string {
+	return w.id
+}
+
 func (w *watcher) Watch() <-chan *service.HealthStatus {
 	return w.statusChan
 }
+
 func (w *watcher) Close() error {
 	return w.manager.CloseWatch(w.serviceName, w.id)
 }
 
 func (p *probeManager) DisableWatcher(serviceName, watcherID string) {
+	logrus.Info("Disable check healthy status of the service")
 	if s, ok := p.watches[serviceName]; ok {
 		if w, ok := s[watcherID]; ok {
 			w.enable = false
 		}
+	}else{
+		logrus.Error("Can not disable the watcher: Not found service: ", serviceName)
 	}
 }
 
 func (p *probeManager) EnableWatcher(serviceName, watcherID string) {
+	logrus.Info("Enable check healthy status of the service")
 	if s, ok := p.watches[serviceName]; ok {
 		if w, ok := s[watcherID]; ok {
 			w.enable = true
@@ -223,7 +238,8 @@ func (p *probeManager) EnableWatcher(serviceName, watcherID string) {
 				h.ErrorTime = 0
 			}
 		}
-
+	}else{
+		logrus.Error("Can not enable the watcher: Not found service: ", serviceName)
 	}
 }
 
