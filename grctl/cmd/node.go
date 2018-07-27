@@ -33,6 +33,7 @@ import (
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/urfave/cli"
+	"github.com/gosuri/uitable"
 )
 
 func handleErr(err *util.APIHandleError) {
@@ -111,33 +112,17 @@ func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode
 	}
 }
 
-func handleHealthStatus(serviceTable *termtables.Table, v *client.HostNode) {
-	serviceTable.AddRow(handleResult(v, "DiskPressure"), handleResult(v, "MemoryPressure"), handleResult(v, "NodeInit"), handleResult(v, "OutOfDisk"), handleResult(v, "calico"),
-		handleResult(v, "docker"), handleResult(v, "etcd"), handleResult(v, "kube-apiserver"), handleResult(v, "kube-controller-manager"), handleResult(v, "kube-scheduler"),
-		handleResult(v, "kubelet"), handleResult(v, "rbd-api"), handleResult(v, "rbd-chaos"), handleResult(v, "rbd-db"), handleResult(v, "rbd-dns"),
-		handleResult(v, "rbd-entrance"), handleResult(v, "rbd-eventlog"), handleResult(v, "rbd-fs"), handleResult(v, "rbd-grafana"), handleResult(v, "rbd-hub"), handleResult(v, "rbd-lb"),
-		handleResult(v, "rbd-monitor"), handleResult(v, "rbd-mq"), handleResult(v, "rbd-proxy"), handleResult(v, "rbd-repo"), handleResult(v, "rbd-webcli"), handleResult(v, "rbd-worker"),
-		handleResult(v, "Ready"))
-}
 
-func handleResult(v *client.HostNode, name string) string {
+func handleResult(table *uitable.Table, v *client.HostNode) {
+	table.AddRow("Uid:", v.ID)
+	table.AddRow("IP:", v.InternalIP)
+	table.AddRow("HostName:", v.HostName)
+
 	for _, v := range v.NodeStatus.Conditions {
-		if string(v.Type) == name {
-			return string(v.Status)
-		}
+		table.AddRow(string(v.Type),string(v.Status))
 	}
-	return "N/A"
 }
 
-func handleRow(name string, serviceTable *termtables.Table, v []*client.HostNode) {
-	valList := make([]string,0,10)
-	valList = append(valList, name)
-	for _,h := range v{
-		val := handleResult(h,name)
-		valList = append(valList, val)
-	}
-	serviceTable.AddRow(valList)
-}
 
 //NewCmdNode NewCmdNode
 func NewCmdNode() cli.Command {
@@ -205,27 +190,31 @@ func NewCmdNode() cli.Command {
 			},
 			{
 				Name:  "health",
-				Usage: "health",
+				Usage: "health hostID/internal ip",
 				Action: func(c *cli.Context) error {
 					Common(c)
-					list, err := clients.RegionClient.Nodes().List()
+					id := c.Args().First()
+					if id == "" {
+						logrus.Errorf("need args")
+						return nil
+					}
+					nodes, err := clients.RegionClient.Nodes().List()
 					handleErr(err)
-					serviceTable := termtables.CreateTable()
-					//serviceTable.AddHeaders("IP", "HostName", "DiskPressure", "MemoryPressure", "NodeInit", "OutOfDisk",
-					//	"calico", "docker", "etcd", "kube-apiserver", "kube-controller-manager", "kube-scheduler", "kubelet", "rbd-api", "rbd-chaos", "rbd-db", "rbd-dns", "rbd-entrance",
-					//	"rbd-eventlog", "rbd-fs", "rbd-grafana", "rbd-hub", "rbd-lb", "rbd-monitor", "rbd-mq", "rbd-proxy", "rbd-repo", "rbd-webcli", "rbd-worker", "Ready")
-					//for _, v := range list {
-					//	handleHealthStatus(serviceTable, v)
-					//}
-					s :=[] string {"1","2","3","4" }
-					serviceTable.AddHeaders(s)
-					handleRow("calico",serviceTable,list)
-					handleRow("docker",serviceTable,list)
-					handleRow("etcd",serviceTable,list)
-					handleRow("rbd-lb",serviceTable,list)
+					for _, v := range nodes {
+						if v.InternalIP == id {
+							id = v.ID
+							break
+						}
+					}
 
+					v, err := clients.RegionClient.Nodes().Get(id)
+					handleErr(err)
+					table := uitable.New()
+					table.Wrap = true // wrap columns
+					fmt.Printf("-------------------%s-----------------------\n", v.HostName)
+					handleResult(table,v)
 
-					fmt.Println(serviceTable.Render())
+					fmt.Println(table)
 					return nil
 				},
 			},
