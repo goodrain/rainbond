@@ -220,7 +220,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					v.UpdataCondition(r)
 					return
 				}
-				if condiction.Status == "False" && (condiction.Type != "OutOfDisk" && condiction.Type != "MemoryPressure" && condiction.Type != "DiskPressure") {
+				if condiction.Status == "False" && (condiction.Type != "OutOfDisk" && condiction.Type != "MemoryPressure" && condiction.Type != "DiskPressure" && condiction.Type != "Ready") {
 					v.Status = Running
 					v.NodeStatus.Status = Running
 
@@ -263,7 +263,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			}
 
 			for _, condition := range v.NodeStatus.Conditions {
-				if condition.Status == "False" {
+				if condition.Type != client.NodeReady && condition.Status == "False" {
 
 					v.Status = Running
 					v.NodeStatus.Status = Running
