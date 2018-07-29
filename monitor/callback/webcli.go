@@ -86,6 +86,7 @@ func (w *Webcli) toScrape() *prometheus.ScrapeConfig {
 					Targets: ts,
 					Labels: map[model.LabelName]model.LabelValue{
 						"service_name": model.LabelValue(w.Name()),
+						"component": model.LabelValue(w.Name()),
 					},
 				},
 			},

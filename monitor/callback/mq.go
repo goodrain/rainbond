@@ -65,7 +65,7 @@ func (m *Mq) Error(err error) {
 }
 
 func (m *Mq) Name() string {
-	return "webcli"
+	return "mq"
 }
 
 func (m *Mq) toScrape() *prometheus.ScrapeConfig {
@@ -86,6 +86,7 @@ func (m *Mq) toScrape() *prometheus.ScrapeConfig {
 					Targets: ts,
 					Labels: map[model.LabelName]model.LabelValue{
 						"service_name": model.LabelValue(m.Name()),
+						"component": model.LabelValue(m.Name()),
 					},
 				},
 			},
