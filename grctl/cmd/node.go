@@ -112,17 +112,22 @@ func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode
 	}
 }
 
-
 func handleResult(table *uitable.Table, v *client.HostNode) {
 	table.AddRow("Uid:", v.ID)
 	table.AddRow("IP:", v.InternalIP)
 	table.AddRow("HostName:", v.HostName)
 
 	for _, v := range v.NodeStatus.Conditions {
-		table.AddRow(string(v.Type),string(v.Status))
+		table.AddRow(string(v.Type), string(v.Status), handleMessage(string(v.Status), v.Message))
 	}
 }
 
+func handleMessage(status string, message string) string {
+	if status == "True" {
+		return "N/A"
+	}
+	return message
+}
 
 //NewCmdNode NewCmdNode
 func NewCmdNode() cli.Command {
@@ -212,7 +217,7 @@ func NewCmdNode() cli.Command {
 					table := uitable.New()
 					table.Wrap = true // wrap columns
 					fmt.Printf("-------------------%s-----------------------\n", v.HostName)
-					handleResult(table,v)
+					handleResult(table, v)
 
 					fmt.Println(table)
 					return nil

@@ -159,7 +159,7 @@ func (s *storeManager) Scrape(ch chan<- prometheus.Metric, namespace, exporter, 
 		[]string{"from", "chan"}, nil,
 	)
 	var healthDesc = prometheus.NewDesc(
-		prometheus.BuildFQName("", "", "health_status"),
+		prometheus.BuildFQName(namespace, exporter, "health_status"),
 		"health status.",
 		[]string{"service_name"}, nil,
 	)
