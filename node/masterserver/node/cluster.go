@@ -41,7 +41,6 @@ import (
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util"
-
 )
 
 const (
@@ -175,82 +174,63 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		k8sNode, err := n.kubecli.GetNode(v.ID)
 
 		if err != nil {
-			logrus.Errorf("get k8s node error:%s", err.Error())
-			v.Status = Error
-			v.NodeStatus.Status = Error
-			r := client.NodeCondition{
-				Type:               client.NodeConditionType("get_k8s_node"),
-				Status:             client.ConditionFalse,
-				LastHeartbeatTime:  time.Now(),
-				LastTransitionTime: time.Now(),
-				Message:            err.Error(),
-			}
-			r2 := client.NodeCondition{
-				Type:               client.NodeReady,
-				Status:             client.ConditionFalse,
-				LastHeartbeatTime:  time.Now(),
-				LastTransitionTime: time.Now(),
-			}
-			v.UpdataCondition(r, r2)
-			return
-		}
-		if k8sNode != nil {
-			v.UpdataK8sCondition(k8sNode.Status.Conditions)
-			if time.Now().Sub(v.UpTime) > time.Minute*2 {
-				v.Status = Unknown
-				v.NodeStatus.Status = Unknown
-				v.Unschedulable = true
-				return
-			}
-			if v.Unschedulable || k8sNode.Spec.Unschedulable {
-				v.Status = Running
-				v.Unschedulable = true
-				v.NodeStatus.Status = Running
-			}
-			//var haveready bool
-			for _, condiction := range v.NodeStatus.Conditions {
-				if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
-					v.Status = Running
-					v.NodeStatus.Status = Running
-
-					r := client.NodeCondition{
-						Type:               client.NodeReady,
-						Status:             client.ConditionFalse,
-						LastHeartbeatTime:  time.Now(),
-						LastTransitionTime: time.Now(),
-					}
-					v.UpdataCondition(r)
-					return
-				}
-				if condiction.Status == "False" && (condiction.Type != "OutOfDisk" && condiction.Type != "MemoryPressure" && condiction.Type != "DiskPressure" && condiction.Type != "Ready") {
-					v.Status = Running
-					v.NodeStatus.Status = Running
-
-					r := client.NodeCondition{
-						Type:               client.NodeReady,
-						Status:             client.ConditionFalse,
-						LastHeartbeatTime:  time.Now(),
-						LastTransitionTime: time.Now(),
-					}
-					v.UpdataCondition(r)
-					return
-				}
-			}
-			v.Status = Running
-			v.NodeStatus.Status = Running
-
-			r := client.NodeCondition{
-				Type:               client.NodeReady,
-				Status:             client.ConditionTrue,
-				LastHeartbeatTime:  time.Now(),
-				LastTransitionTime: time.Now(),
-			}
-			v.UpdataCondition(r)
-
-		} else {
+			logrus.Infof("get k8s node error:%s", err.Error())
 			v.Status = Offline
 			v.NodeStatus.Status = Offline
+			return
 		}
+		v.UpdataK8sCondition(k8sNode.Status.Conditions)
+		if time.Now().Sub(v.UpTime) > time.Minute*2 {
+			v.Status = Unknown
+			v.NodeStatus.Status = Unknown
+			v.Unschedulable = true
+			return
+		}
+		if v.Unschedulable || k8sNode.Spec.Unschedulable {
+			v.Status = Running
+			v.Unschedulable = true
+			v.NodeStatus.Status = Running
+		}
+		//var haveready bool
+		for _, condiction := range v.NodeStatus.Conditions {
+			if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
+				v.Status = Running
+				v.NodeStatus.Status = Running
+
+				r := client.NodeCondition{
+					Type:               client.NodeReady,
+					Status:             client.ConditionFalse,
+					LastHeartbeatTime:  time.Now(),
+					LastTransitionTime: time.Now(),
+				}
+				v.UpdataCondition(r)
+				return
+			}
+			if condiction.Status == "False" && (condiction.Type != "OutOfDisk" && condiction.Type != "MemoryPressure" && condiction.Type != "DiskPressure" && condiction.Type != "Ready") {
+				v.Status = Running
+				v.NodeStatus.Status = Running
+
+				r := client.NodeCondition{
+					Type:               client.NodeReady,
+					Status:             client.ConditionFalse,
+					LastHeartbeatTime:  time.Now(),
+					LastTransitionTime: time.Now(),
+				}
+				v.UpdataCondition(r)
+				return
+			}
+		}
+		v.Status = Running
+		v.NodeStatus.Status = Running
+
+		r := client.NodeCondition{
+			Type:               client.NodeReady,
+			Status:             client.ConditionTrue,
+			LastHeartbeatTime:  time.Now(),
+			LastTransitionTime: time.Now(),
+		}
+		v.UpdataCondition(r)
+
 	}
 	if v.Role.HasRule("manage") && !v.Role.HasRule("compute") { //manage install_success == runnint
 		if v.Status == Init || v.Status == InitSuccess || v.Status == InitFailed || v.Status == Installing {
@@ -260,7 +240,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			if time.Now().Sub(v.UpTime) > time.Minute*2 {
 				v.Status = Unknown
 				v.NodeStatus.Status = Unknown
-				v.Unschedulable = true
 				return
 			}
 
