@@ -55,9 +55,21 @@ func getClusterInfo(c *cli.Context) error {
 	table.AddRow("DistributedDisk", fmt.Sprintf("%dGb/%dGb", clusterInfo.ReqDisk/1024/1024/1024, clusterInfo.CapDisk/1024/1024/1024),
 		fmt.Sprintf("%.2f", float32(clusterInfo.ReqDisk*100)/float32(clusterInfo.CapDisk))+"%")
 	fmt.Println(table)
-	//show node detail
+	//show services health status
 	list, err := clients.RegionClient.Nodes().List()
 	handleErr(err)
+	serviceTable2 := termtables.CreateTable()
+	serviceTable2.AddHeaders("Service", "Status", "Message")
+	serviceStatusInfo := getServicesHealthy(list)
+	for name, v := range serviceStatusInfo {
+		if name == string(client.NodeReady){
+			continue
+		}
+		status, message := summaryResult(v)
+		serviceTable2.AddRow(name, status, message)
+	}
+	fmt.Println(serviceTable2.Render())
+	//show node detail
 	serviceTable := termtables.CreateTable()
 	serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "Alived", "Schedulable", "Ready")
 	var rest []*client.HostNode
@@ -75,16 +87,6 @@ func getClusterInfo(c *cli.Context) error {
 		handleStatus(serviceTable, isNodeReady(v), v)
 	}
 	fmt.Println(serviceTable.Render())
-
-	serviceTable2 := termtables.CreateTable()
-	serviceTable2.AddHeaders("Service", "Status", "Message")
-	serviceStatusInfo := getServicesHealthy(list)
-	for name, v := range serviceStatusInfo {
-		status, message := summaryResult(v)
-		serviceTable2.AddRow(name, status, message)
-	}
-	fmt.Println(serviceTable2.Render())
-
 	return nil
 }
 

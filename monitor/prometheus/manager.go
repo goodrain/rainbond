@@ -73,11 +73,13 @@ func NewManager(config *option.Config) *Manager {
 				ScrapeInterval:     model.Duration(time.Second * 5),
 				EvaluationInterval: model.Duration(time.Second * 30),
 			},
+			Templates: []string{"/etc/prometheus/alerting/default_rules.yml"},
 		},
 		Registry:   reg,
 		httpClient: client,
 		l:          &sync.Mutex{},
 	}
+	SaveAlertingRulesConfig()
 	m.LoadConfig()
 
 	return m
@@ -203,4 +205,44 @@ func (p *Manager) UpdateScrape(scrape *ScrapeConfig) {
 
 	p.SaveConfig()
 	p.RestartDaemon()
+}
+
+func SaveAlertingRulesConfig() error {
+	logrus.Debug("Save alerting rules config file.")
+
+	a := &AlertingRulesConfig{
+
+		Groups: []*AlertingNameConfig{
+			&AlertingNameConfig{
+
+				Name: "test",
+				Rules: []*RulesConfig{
+					&RulesConfig{
+						Alert:  "MqHealth",
+						Expr:   "acp_mq_exporter_health_status{job='mq'} = 0",
+						For:    "5m",
+						Labels: map[string]string{"service_name": "mq"},
+						Annotations: &AnnotationsConfig{
+							Summary:     "Mq unhealthy",
+							Description: "Mq unhealthy",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	data, err := yaml.Marshal(a)
+	if err != nil {
+		logrus.Error("Marshal alerting rules config to yaml error.", err.Error())
+		return err
+	}
+
+	err = ioutil.WriteFile("/etc/prometheus/alerting/default_rules.yml", data, 0644)
+	if err != nil {
+		logrus.Error("Write alerting rules config file error.", err.Error())
+		return err
+	}
+
+	return nil
 }
