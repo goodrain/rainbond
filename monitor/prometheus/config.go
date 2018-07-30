@@ -34,7 +34,6 @@ type Config struct {
 
 	RemoteWriteConfigs []*RemoteWriteConfig `yaml:"remote_write,omitempty"`
 	RemoteReadConfigs  []*RemoteReadConfig  `yaml:"remote_read,omitempty"`
-	Templates          []string             `yaml:"templates,omitempty"`
 
 	// original is the input from which the config was parsed.
 	original string

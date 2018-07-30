@@ -73,7 +73,7 @@ func NewManager(config *option.Config) *Manager {
 				ScrapeInterval:     model.Duration(time.Second * 5),
 				EvaluationInterval: model.Duration(time.Second * 30),
 			},
-			Templates: []string{"/etc/prometheus/alerting/default_rules.yml"},
+			RuleFiles:[]string{"/etc/prometheus/default_rules.yml"},
 		},
 		Registry:   reg,
 		httpClient: client,
@@ -238,7 +238,7 @@ func SaveAlertingRulesConfig() error {
 		return err
 	}
 
-	err = ioutil.WriteFile("/etc/prometheus/alerting/default_rules.yml", data, 0644)
+	err = ioutil.WriteFile("/etc/prometheus/default_rules.yml", data, 0644)
 	if err != nil {
 		logrus.Error("Write alerting rules config file error.", err.Error())
 		return err

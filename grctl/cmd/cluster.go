@@ -59,7 +59,7 @@ func getClusterInfo(c *cli.Context) error {
 	list, err := clients.RegionClient.Nodes().List()
 	handleErr(err)
 	serviceTable2 := termtables.CreateTable()
-	serviceTable2.AddHeaders("Service", "Status", "Message")
+	serviceTable2.AddHeaders("Service", "HealthyQuantity/Total", "Message")
 	serviceStatusInfo := getServicesHealthy(list)
 	for name, v := range serviceStatusInfo {
 		if name == string(client.NodeReady){
