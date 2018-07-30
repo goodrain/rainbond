@@ -40,7 +40,7 @@ function build() {
 FROM alpine:3.6
 COPY pkg.tgz /
 EOF
-	docker build -t rainbond/cni:rbd_v3.6 .
+	docker build -t rainbond/cni:rbd_v$VERSION .
 	
 }
 build_items=(api builder entrance grctl monitor mq node webcli worker eventlog)
