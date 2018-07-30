@@ -205,9 +205,12 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 				v.Unschedulable = true
 				v.NodeStatus.Status = Running
 			}
+			println("=========>len",len(k8sNode.Status.Conditions))
 			//var haveready bool
 			for _, condiction := range k8sNode.Status.Conditions {
+				println("======》",condiction.Type)
 				if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
+					println("======> 11111")
 					v.Status = Running
 					v.NodeStatus.Status = Running
 
@@ -221,6 +224,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					return
 				}
 				if condiction.Status == "False" && (condiction.Type != "OutOfDisk" && condiction.Type != "MemoryPressure" && condiction.Type != "DiskPressure" && condiction.Type != "Ready") {
+					println("======> 22222")
 					v.Status = Running
 					v.NodeStatus.Status = Running
 
@@ -234,6 +238,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					return
 				}
 			}
+			println("======> 33333")
 			v.Status = Running
 			v.NodeStatus.Status = Running
 

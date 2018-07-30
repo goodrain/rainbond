@@ -264,7 +264,9 @@ func (p *probeManager) WatchServiceHealthy(serviceName string) Watcher {
 }
 
 func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*service.HealthStatus, error) {
-
+	if len(p.services) == 0{
+		return nil,errors.New("services list is empty")
+	}
 	for _, v := range p.services {
 		if v.Name == serviceName {
 
@@ -296,9 +298,7 @@ func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*service.He
 				}
 				return result, nil
 			}
-		} else {
-			return nil, errors.New("the service does not exist")
 		}
 	}
-	return nil, errors.New("service list is empty")
+	return nil, errors.New("the service does not exist")
 }
