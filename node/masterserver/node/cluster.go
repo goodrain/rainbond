@@ -173,6 +173,7 @@ func (n *Cluster) GetNode(id string) *client.HostNode {
 func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 	if v.Role.HasRule("compute") {
 		k8sNode, err := n.kubecli.GetNode(v.ID)
+
 		if err != nil {
 			logrus.Errorf("get k8s node error:%s", err.Error())
 			v.Status = Error
@@ -194,6 +195,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			return
 		}
 		if k8sNode != nil {
+			v.UpdataK8sCondition(k8sNode.Status.Conditions)
 			if time.Now().Sub(v.UpTime) > time.Minute*2 {
 				v.Status = Unknown
 				v.NodeStatus.Status = Unknown
@@ -205,12 +207,9 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 				v.Unschedulable = true
 				v.NodeStatus.Status = Running
 			}
-			println("=========>len",len(k8sNode.Status.Conditions))
 			//var haveready bool
-			for _, condiction := range k8sNode.Status.Conditions {
-				println("======》",condiction.Type)
+			for _, condiction := range v.NodeStatus.Conditions {
 				if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
-					println("======> 11111")
 					v.Status = Running
 					v.NodeStatus.Status = Running
 
@@ -224,7 +223,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					return
 				}
 				if condiction.Status == "False" && (condiction.Type != "OutOfDisk" && condiction.Type != "MemoryPressure" && condiction.Type != "DiskPressure" && condiction.Type != "Ready") {
-					println("======> 22222")
 					v.Status = Running
 					v.NodeStatus.Status = Running
 
@@ -238,7 +236,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					return
 				}
 			}
-			println("======> 33333")
 			v.Status = Running
 			v.NodeStatus.Status = Running
 

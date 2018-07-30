@@ -32,7 +32,6 @@ import (
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/urfave/cli"
-	"github.com/gosuri/uitable"
 )
 
 func handleErr(err *util.APIHandleError) {
@@ -111,20 +110,20 @@ func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode
 	}
 }
 
-func handleResult(table *uitable.Table, v *client.HostNode) {
+func handleResult(serviceTable *termtables.Table, v *client.HostNode) {
 
 	for _, v := range v.NodeStatus.Conditions {
 		if v.Type == client.NodeReady{
 			continue
 		}
-		table.AddRow(string(v.Type), string(v.Status), handleMessage(string(v.Status), v.Message))
+		serviceTable.AddRow(string(v.Type), string(v.Status), handleMessage(string(v.Status), v.Message))
 	}
 }
 
-func extractReady(table *uitable.Table, v *client.HostNode, name string)  {
+func extractReady(serviceTable *termtables.Table, v *client.HostNode, name string)  {
 	for _, v := range v.NodeStatus.Conditions {
 		if string(v.Type) == name{
-			table.AddRow(string(v.Type), string(v.Status), handleMessage(string(v.Status), v.Message))
+			serviceTable.AddRow(string(v.Type), string(v.Status), handleMessage(string(v.Status), v.Message))
 		}
 	}
 }
@@ -221,18 +220,15 @@ func NewCmdNode() cli.Command {
 
 					v, err := clients.RegionClient.Nodes().Get(id)
 					handleErr(err)
-					table := uitable.New()
-					table.Wrap = true // wrap columns
-					fmt.Printf("------------------------%s----------------------------\n", v.HostName)
-					table.AddRow("Title", "Result", "Message")
-					table.AddRow("Uid:", v.ID)
-					table.AddRow("IP:", v.InternalIP)
-					table.AddRow("HostName:", v.HostName)
-					extractReady(table, v, "Ready")
-					fmt.Printf("------------------------%s----------------------------\n", "Service Health")
-					handleResult(table, v)
+					serviceTable := termtables.CreateTable()
+					serviceTable.AddHeaders("Title", "Result", "Message")
+					serviceTable.AddRow("Uid:", v.ID, "")
+					serviceTable.AddRow("IP:", v.InternalIP, "")
+					serviceTable.AddRow("HostName:", v.HostName, "")
+					extractReady(serviceTable, v, "Ready")
+					handleResult(serviceTable, v)
 
-					fmt.Println(table)
+					fmt.Println(serviceTable.Render())
 					return nil
 				},
 			},
