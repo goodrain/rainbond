@@ -211,7 +211,7 @@ func (m *ManagerService) WaitStart(name string, duration time.Duration) bool {
 		}
 		status, err := m.healthyManager.GetCurrentServiceHealthy(name)
 		if err != nil {
-			logrus.Error("Can not get service current status: ", err)
+			logrus.Errorf("Can not get %s service current status: %v", name, err)
 			<-t
 			continue
 		}
