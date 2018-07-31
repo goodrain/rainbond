@@ -125,7 +125,6 @@ func (n *Cluster) checkNodeStatus() {
 		nodes := n.GetAllNode()
 		for _, node := range nodes {
 			n.handleNodeStatus(node)
-			println("20===========================", node.ID)
 			ready := isReady(node.NodeStatus.Conditions)
 			logrus.Debugf("Node %s status is %v %d times.",
 				node.ID, ready, unhealthyCounter[node.ID])
@@ -136,14 +135,10 @@ func (n *Cluster) checkNodeStatus() {
 					if node.Role.HasRule(client.ComputeNode) && err == nil {
 						logrus.Infof("Node %s status is %v %d times and down it.",
 							node.ID, ready, unhealthyCounter[node.ID])
-						println("======1")
 						err := n.kubecli.DownK8sNode(node.ID)
-						println("======2")
 						if err != nil {
-							println("======3")
 							logrus.Error("Failed to delete node in k8s: ", err)
 						}
-						println("======4")
 						n, err := n.kubecli.GetNode(node.ID)
 						fmt.Printf("======== deleted: %v, %v", err, n)
 					}
@@ -151,7 +146,6 @@ func (n *Cluster) checkNodeStatus() {
 					unhealthyCounter[node.ID]++
 				}
 			} else if ready {
-				println("======0")
 				unhealthyCounter[node.ID] = 0
 				_, err := n.kubecli.GetNode(node.ID)
 				// add the node into k8s if type is compute
@@ -169,20 +163,15 @@ func (n *Cluster) checkNodeStatus() {
 }
 
 func isReady(conditions []client.NodeCondition) bool {
-	println("21=====", len(conditions))
 	for _, c := range conditions {
 		if c.Type == client.NodeReady {
 			if c.Status == client.ConditionTrue {
-				println("22=====", c.Status)
 				return true
 			} else {
-				println("23=====", c.Status)
 				return false
 			}
 		}
 	}
-
-	println("24=====")
 	return false
 }
 
