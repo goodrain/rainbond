@@ -35,11 +35,23 @@ func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
 
 	println(string(in[:]))
 
-	if err := yaml.Unmarshal(in, &RulesConfig); err != nil {
+	err = ioutil.WriteFile("/etc/prometheus/xxx.yml", in, 0644)
+	if err != nil {
+		logrus.Error("====>1", err.Error())
+	}
+
+	content, err := ioutil.ReadFile("/etc/prometheus/xxx.yml")
+	if err != nil {
+		logrus.Error("=====>2: ", err)
+
+	}
+
+	if err := yaml.Unmarshal(content, &RulesConfig); err != nil {
 		logrus.Error("Unmarshal prometheus alerting rules config string to object error.", err.Error())
 		httputil.ReturnError(r, w, 400, err.Error())
 		return
 	}
+
 
 	c.Rules.RulesConfig.LoadAlertingRulesConfig()
 	c.Rules.RulesConfig.AddRules(RulesConfig)
@@ -56,6 +68,7 @@ func (c *ControllerManager) GetRules(w http.ResponseWriter, r *http.Request) {
 		if v.Name == rulesName {
 			res := v.Rules
 			httputil.ReturnSuccess(r, w, res)
+			return
 		}
 	}
 
