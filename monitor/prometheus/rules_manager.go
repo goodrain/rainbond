@@ -18,6 +18,6 @@ type RulesConfig struct {
 	Annotations map[string]string `yaml:"annotations"`
 }
 
-func NewR()  {
-	
-}
+//func NewRulesManager()  {
+//	return &
+//}

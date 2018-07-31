@@ -268,9 +268,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			v.NodeStatus.Status = status
 			v.Unschedulable = true
 		}
-		if v.Unschedulable || k8sNode.Spec.Unschedulable {
-			v.Unschedulable = true
-		}
+
 		//var haveready bool
 		for _, condiction := range v.NodeStatus.Conditions {
 			if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
