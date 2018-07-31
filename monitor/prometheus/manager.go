@@ -52,6 +52,7 @@ type Manager struct {
 	Registry   *discover.KeepAlive
 	httpClient *http.Client
 	l          *sync.Mutex
+	AlertingRulesConfig *AlertingRulesConfig
 }
 
 func NewManager(config *option.Config) *Manager {
@@ -78,10 +79,31 @@ func NewManager(config *option.Config) *Manager {
 		Registry:   reg,
 		httpClient: client,
 		l:          &sync.Mutex{},
+		AlertingRulesConfig:&AlertingRulesConfig{
+
+			Groups: []*AlertingNameConfig{
+				&AlertingNameConfig{
+
+					Name: "test",
+					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:  "MqHealth",
+							Expr:   "acp_mq_exporter_health_status{job='mq'} < 1",
+							For:    "2m",
+							Labels: map[string]string{"service_name": "mq"},
+							Annotations: &AnnotationsConfig{
+								Summary:     "Mq unhealthy",
+								Description: "Mq unhealthy",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
-	SaveAlertingRulesConfig()
+	m.SaveAlertingRulesConfig()
 	m.LoadConfig()
-	LoadAlertingRulesConfig()
+	m.LoadAlertingRulesConfig()
 
 	return m
 }
@@ -208,32 +230,10 @@ func (p *Manager) UpdateScrape(scrape *ScrapeConfig) {
 	p.RestartDaemon()
 }
 
-func SaveAlertingRulesConfig() error {
+func (p *Manager)SaveAlertingRulesConfig() error {
 	logrus.Debug("===>Save alerting rules config file.")
 
-	a := &AlertingRulesConfig{
-
-		Groups: []*AlertingNameConfig{
-			&AlertingNameConfig{
-
-				Name: "test",
-				Rules: []*RulesConfig{
-					&RulesConfig{
-						Alert:  "MqHealth",
-						Expr:   "acp_mq_exporter_health_status{job='mq'} < 1",
-						For:    "2m",
-						Labels: map[string]string{"service_name": "mq"},
-						Annotations: &AnnotationsConfig{
-							Summary:     "Mq unhealthy",
-							Description: "Mq unhealthy",
-						},
-					},
-				},
-			},
-		},
-	}
-
-	data, err := yaml.Marshal(a)
+	data, err := yaml.Marshal(p.AlertingRulesConfig)
 	if err != nil {
 		logrus.Error("Marshal alerting rules config to yaml error.", err.Error())
 		return err
@@ -249,7 +249,7 @@ func SaveAlertingRulesConfig() error {
 }
 
 
-func LoadAlertingRulesConfig() error {
+func (p *Manager)LoadAlertingRulesConfig() error {
 	logrus.Info("======>Load AlertingRules config file.")
 	content, err := ioutil.ReadFile("/etc/prometheus/default_rules.yml")
 	if err != nil {
@@ -257,12 +257,11 @@ func LoadAlertingRulesConfig() error {
 		logrus.Info("=====>Init config file by default values.")
 		return nil
 	}
-	var alertingRules  *AlertingRulesConfig
-	if err := yaml.Unmarshal(content, alertingRules); err != nil {
+	if err := yaml.Unmarshal(content, p.AlertingRulesConfig); err != nil {
 		logrus.Error("=====>Unmarshal AlertingRulesConfig config string to object error.", err.Error())
 		return err
 	}
-	logrus.Debugf("====>Loaded config file to memory: %+v", alertingRules)
+	logrus.Debugf("====>Loaded config file to memory: %+v", p.AlertingRulesConfig)
 
 	return nil
 }

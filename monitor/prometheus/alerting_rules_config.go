@@ -29,15 +29,15 @@ type AlertingNameConfig struct {
 
 type RulesConfig struct {
 	Alert  string            `yaml:"alert"`
-	Expr   string            `yaml:"expr,omitempty"`
-	For    string            `yaml:"for,omitempty"`
-	Labels map[string]string `yaml:"labels,omitempty"`
+	Expr   string            `yaml:"expr"`
+	For    string            `yaml:"for"`
+	Labels map[string]string `yaml:"labels"`
 
-	Annotations *AnnotationsConfig `yaml:"annotations,omitempty"`
+	Annotations *AnnotationsConfig `yaml:"annotations"`
 }
 
 
 type AnnotationsConfig struct {
-	Summary     string `yaml:"summary"`
-	Description string `yaml:"description"`
+	Summary     string `yaml:"summary,omitempty"`
+	Description string `yaml:"description,omitempty"`
 }
