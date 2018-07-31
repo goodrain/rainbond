@@ -66,7 +66,7 @@ func NewRulesManager() *AlertingRulesManager {
 }
 
 func (a *AlertingRulesConfig)LoadAlertingRulesConfig() error {
-	logrus.Info("======>Load AlertingRules config file.")
+	logrus.Info("Load AlertingRules config file.")
 	content, err := ioutil.ReadFile("/etc/prometheus/rules.yml")
 	if err != nil {
 		logrus.Error("Failed to read AlertingRules config file: ", err)
@@ -77,14 +77,14 @@ func (a *AlertingRulesConfig)LoadAlertingRulesConfig() error {
 		logrus.Error("Unmarshal AlertingRulesConfig config string to object error.", err.Error())
 		return err
 	}
-	logrus.Debugf("====>Loaded config file to memory: %+v", a)
+	logrus.Debugf("Loaded config file to memory: %+v", a)
 
 	return nil
 }
 
 
 func (a *AlertingRulesConfig)SaveAlertingRulesConfig() error {
-	logrus.Debug("===>Save alerting rules config file.")
+	logrus.Debug("Save alerting rules config file.")
 
 	data, err := yaml.Marshal(a)
 	if err != nil {
@@ -105,7 +105,6 @@ func (a *AlertingRulesConfig)SaveAlertingRulesConfig() error {
 func (a *AlertingRulesConfig) AddRules(val AlertingNameConfig) error  {
 	group := a.Groups
 	group = append(group, &val)
-	a.Groups = group
 	return nil
 }
 

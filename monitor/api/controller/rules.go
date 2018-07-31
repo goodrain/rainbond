@@ -35,14 +35,14 @@ func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
 
 	println(string(in[:]))
 
-	err = ioutil.WriteFile("/etc/prometheus/xxx.yml", in, 0644)
+	err = ioutil.WriteFile("/etc/prometheus/cache_rule.yml", in, 0644)
 	if err != nil {
-		logrus.Error("====>1", err.Error())
+		logrus.Error(err.Error())
 	}
 
-	content, err := ioutil.ReadFile("/etc/prometheus/xxx.yml")
+	content, err := ioutil.ReadFile("/etc/prometheus/cache_rule.yml")
 	if err != nil {
-		logrus.Error("=====>2: ", err)
+		logrus.Error( err)
 
 	}
 
@@ -57,6 +57,7 @@ func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
 	c.Rules.RulesConfig.AddRules(RulesConfig)
 	c.Rules.RulesConfig.SaveAlertingRulesConfig()
 	c.Manager.RestartDaemon()
+	httputil.ReturnSuccess(r, w, "Add rule successfully")
 
 }
 
@@ -72,6 +73,19 @@ func (c *ControllerManager) GetRules(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	httputil.ReturnSuccess(r, w, "Did not find the rule")
+	httputil.ReturnError(r, w, 400, "Rule does not exist")
+}
 
+func (c *ControllerManager) DelRules(w http.ResponseWriter, r *http.Request) {
+	rulesName := chi.URLParam(r, "rules_name")
+	c.Rules.RulesConfig.LoadAlertingRulesConfig()
+	groupsList := c.Rules.RulesConfig.Groups
+	for i, v := range groupsList {
+		if v.Name == rulesName {
+			groupsList = append(groupsList[:i],groupsList[i+1:]...)
+			httputil.ReturnSuccess(r, w, "successfully deleted")
+			return
+		}
+	}
+	httputil.ReturnSuccess(r, w, "")
 }

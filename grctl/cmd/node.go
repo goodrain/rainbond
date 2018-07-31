@@ -100,13 +100,19 @@ func fileExist(path string) bool {
 	return false
 }
 func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode) {
+	var formatReady string
+	if ready == false{
+		formatReady = "\033[0;37;41m false \033[0m"
+	}else {
+		formatReady = "\033[0;37;42m true \033[0m"
+	}
 	if v.Role.HasRule("compute") && !v.Role.HasRule("manage") {
-		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Status, v.Alived, !v.Unschedulable, ready)
+		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Status, v.Alived, !v.Unschedulable, formatReady)
 	} else if v.Role.HasRule("manage") && !v.Role.HasRule("compute") {
 		//scheduable="n/a"
 		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Status, v.Alived, "N/A", "N/A")
 	} else if v.Role.HasRule("compute") && v.Role.HasRule("manage") {
-		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Status, v.Alived, !v.Unschedulable, ready)
+		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Status, v.Alived, !v.Unschedulable, formatReady)
 	}
 }
 
@@ -116,21 +122,36 @@ func handleResult(serviceTable *termtables.Table, v *client.HostNode) {
 		if v.Type == client.NodeReady{
 			continue
 		}
-		serviceTable.AddRow(string(v.Type), string(v.Status), handleMessage(string(v.Status), v.Message))
+		var formatReady string
+		if v.Status == client.ConditionFalse{
+			if v.Type == client.OutOfDisk || v.Type == client.MemoryPressure || v.Type==client.DiskPressure ||v.Type==client.InstallNotReady{
+				formatReady = "\033[0;37;42m false \033[0m"
+			}
+			formatReady = "\033[0;37;41m false \033[0m"
+		}else {
+			formatReady = "\033[0;37;42m true \033[0m"
+		}
+		serviceTable.AddRow(string(v.Type), formatReady, handleMessage(string(v.Status), v.Message))
 	}
 }
 
 func extractReady(serviceTable *termtables.Table, v *client.HostNode, name string)  {
 	for _, v := range v.NodeStatus.Conditions {
 		if string(v.Type) == name{
-			serviceTable.AddRow(string(v.Type), string(v.Status), handleMessage(string(v.Status), v.Message))
+			var formatReady string
+			if v.Status == client.ConditionFalse{
+				formatReady = "\033[0;37;41m false \033[0m"
+			}else {
+				formatReady = "\033[0;37;42m true \033[0m"
+			}
+			serviceTable.AddRow(string(v.Type), formatReady, handleMessage(string(v.Status), v.Message))
 		}
 	}
 }
 
 func handleMessage(status string, message string) string {
 	if status == "True" {
-		return "N/A"
+		return ""
 	}
 	return message
 }

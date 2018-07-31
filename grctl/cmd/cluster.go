@@ -120,8 +120,12 @@ func summaryResult(list []map[string]string) (status string, errMessage string) 
 			err = err + v["hostname"] + ":" + v["message"] + "/"
 		}
 	}
+	if upNum == len(list){
+		status = "\033[0;37;42m" + strconv.Itoa(upNum) + "/" + strconv.Itoa(len(list)) + " \033[0m"
+	}else {
+		status = "\\033[0;37;41m " + strconv.Itoa(upNum) + "/" + strconv.Itoa(len(list)) + " \033[0m"
+	}
 
-	status = strconv.Itoa(upNum) + "/" + strconv.Itoa(len(list))
 	errMessage = err
 	return
 }
