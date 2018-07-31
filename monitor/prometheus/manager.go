@@ -91,10 +91,20 @@ func NewManager(config *option.Config) *Manager {
 							Expr:   "acp_mq_exporter_health_status{job='mq'} < 1",
 							For:    "2m",
 							Labels: map[string]string{"service_name": "mq"},
-							Annotations: &AnnotationsConfig{
-								Summary:     "Mq unhealthy",
-								Description: "Mq unhealthy",
-							},
+							Annotations: map[string]string{"summary":"unhealthy"},
+						},
+					},
+				},
+				&AlertingNameConfig{
+
+					Name: "test2",
+					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:  "builderHealth",
+							Expr:   "acp_mq_exporter_health_status{job='mq'} < 1",
+							For:    "5m",
+							Labels: map[string]string{"service_name": "builder"},
+							Annotations: map[string]string{"summary":"unhealthy"},
 						},
 					},
 				},
@@ -267,5 +277,11 @@ func (p *Manager)LoadAlertingRulesConfig() error {
 	}
 	logrus.Debugf("====>Loaded config file to memory: %+v", p.AlertingRulesConfig)
 
+	return nil
+}
+
+func (p *Manager) AddRulesConfig(val AlertingNameConfig) error  {
+	group := p.AlertingRulesConfig.Groups
+	group = append(group, &val)
 	return nil
 }

@@ -25,6 +25,7 @@ import (
 
 	"github.com/go-chi/chi"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/goodrain/rainbond/monitor/api/controller"
 )
 
 func APIServer() *chi.Mux {
@@ -34,6 +35,9 @@ func APIServer() *chi.Mux {
 			bean := map[string]string{"status":"health","info":"monitor service health"}
 			httputil.ReturnSuccess(r, w, bean)
 		})
+	})
+	r.Route("/rules", func(r chi.Router) {
+		r.Post("/", controller.AddRules)
 	})
 	util.ProfilerSetup(r)
 	return r

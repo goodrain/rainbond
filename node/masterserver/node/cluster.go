@@ -172,30 +172,29 @@ func (n *Cluster) GetNode(id string) *client.HostNode {
 func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 	if v.Role.HasRule("compute") {
 		k8sNode, err := n.kubecli.GetNode(v.ID)
-
+		status := Running
 		if err != nil {
 			logrus.Infof("get k8s node error:%s", err.Error())
-			v.Status = Offline
-			v.NodeStatus.Status = Offline
-			return
-		}
-		v.UpdataK8sCondition(k8sNode.Status.Conditions)
-		if time.Now().Sub(v.UpTime) > time.Minute*2 {
-			v.Status = Unknown
-			v.NodeStatus.Status = Unknown
+			status = Offline
+			v.Status = status
+			v.NodeStatus.Status = status
 			v.Unschedulable = true
-			return
+		}
+		//v.UpdataK8sCondition(k8sNode.Status.Conditions)
+		if time.Now().Sub(v.UpTime) > time.Minute*2 {
+			status = Unknown
+			v.Status = status
+			v.NodeStatus.Status = status
+			v.Unschedulable = true
 		}
 		if v.Unschedulable || k8sNode.Spec.Unschedulable {
-			v.Status = Running
 			v.Unschedulable = true
-			v.NodeStatus.Status = Running
 		}
 		//var haveready bool
 		for _, condiction := range v.NodeStatus.Conditions {
 			if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
-				v.Status = Running
-				v.NodeStatus.Status = Running
+				v.Status = status
+				v.NodeStatus.Status = status
 
 				r := client.NodeCondition{
 					Type:               client.NodeReady,
@@ -207,8 +206,8 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 				return
 			}
 			if condiction.Status == "False" && (condiction.Type != "OutOfDisk" && condiction.Type != "MemoryPressure" && condiction.Type != "DiskPressure" && condiction.Type != "Ready") {
-				v.Status = Running
-				v.NodeStatus.Status = Running
+				v.Status = status
+				v.NodeStatus.Status = status
 
 				r := client.NodeCondition{
 					Type:               client.NodeReady,
@@ -220,8 +219,8 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 				return
 			}
 		}
-		v.Status = Running
-		v.NodeStatus.Status = Running
+		v.Status = status
+		v.NodeStatus.Status = status
 
 		r := client.NodeCondition{
 			Type:               client.NodeReady,
