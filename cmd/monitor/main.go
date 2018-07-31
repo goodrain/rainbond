@@ -42,6 +42,10 @@ func main() {
 
 	// start prometheus daemon and watching tis status in all time, exit monitor process if start failed
 	p := prometheus.NewManager(c)
+
+	a := prometheus.NewRulesManager()
+	controllerManager := controller.NewControllerManager(a,p)
+
 	errChan := make(chan error, 1)
 	defer close(errChan)
 	p.StartDaemon(errChan)
@@ -55,9 +59,6 @@ func main() {
 	m := monitor.NewMonitor(c, p)
 	m.Start()
 	defer m.Stop()
-
-	a := prometheus.NewRulesManager()
-	controllerManager := controller.NewControllerManager(a,p)
 
 	r := api.APIServer(controllerManager)
 	logrus.Info("monitor api listen port 3329")

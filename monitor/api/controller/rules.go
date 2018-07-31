@@ -33,6 +33,8 @@ func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
 
 	var RulesConfig prometheus.AlertingNameConfig
 
+	println(string(in[:]))
+
 	if err := yaml.Unmarshal(in, &RulesConfig); err != nil {
 		logrus.Error("Unmarshal prometheus alerting rules config string to object error.", err.Error())
 		httputil.ReturnError(r, w, 400, err.Error())

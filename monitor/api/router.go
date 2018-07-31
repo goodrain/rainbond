@@ -38,6 +38,7 @@ func APIServer(c *controller.ControllerManager) *chi.Mux {
 	})
 	r.Route("/rules", func(r chi.Router) {
 		r.Post("/", c.AddRules)
+		r.Get("/{rules_name}", c.GetRules)
 	})
 	util.ProfilerSetup(r)
 	return r
