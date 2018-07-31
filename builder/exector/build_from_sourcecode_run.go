@@ -284,9 +284,16 @@ func (i *SourceCodeBuildItem) buildImage() error {
 	}
 	tag := i.DeployVersion
 	buildImageName := strings.ToLower(fmt.Sprintf("%s/%s:%s", REGISTRYDOMAIN, name, tag))
+	args := make(map[string]string, 5)
+	for k, v := range args {
+		if strings.Contains(k, "BUILD_ARG_") {
+			args[k] = v
+		}
+	}
 	buildOptions := types.ImageBuildOptions{
-		Tags:   []string{buildImageName},
-		Remove: true,
+		Tags:      []string{buildImageName},
+		Remove:    true,
+		BuildArgs: args,
 	}
 	if _, ok := i.BuildEnvs["NO_CACHE"]; ok {
 		buildOptions.NoCache = true

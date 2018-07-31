@@ -417,6 +417,12 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 			for _, v := range cm.Value {
 				d.volumes[v] = &Volume{VolumePath: v, VolumeType: model.ShareFileVolumeType.String()}
 			}
+		case "arg":
+			for i := 0; i < len(cm.Value); i++ {
+				key := fmt.Sprintf("BUILD_ARG_%s", cm.Value[i])
+				d.envs[cm.Value[i]] = &Env{Name: key, Value: cm.Value[i+1]}
+				i++
+			}
 		}
 	}
 	// dockerfile empty args
