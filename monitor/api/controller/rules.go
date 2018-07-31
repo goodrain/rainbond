@@ -90,6 +90,7 @@ func (c *ControllerManager) DelRules(w http.ResponseWriter, r *http.Request) {
 	for i, v := range groupsList {
 		if v.Name == rulesName {
 			groupsList = append(groupsList[:i],groupsList[i+1:]...)
+			c.Rules.RulesConfig.SaveAlertingRulesConfig()
 			httputil.ReturnSuccess(r, w, "successfully deleted")
 			return
 		}
@@ -130,6 +131,7 @@ func (c *ControllerManager) RegRules(w http.ResponseWriter, r *http.Request) {
 		if v.Name == RulesConfig.Name{
 			group[i] = &RulesConfig
 			httputil.ReturnSuccess(r, w, "Update rule succeeded")
+			c.Rules.RulesConfig.SaveAlertingRulesConfig()
 			return
 		}
 	}
