@@ -74,7 +74,7 @@ func NewManager(config *option.Config) *Manager {
 				ScrapeInterval:     model.Duration(time.Second * 5),
 				EvaluationInterval: model.Duration(time.Second * 30),
 			},
-			RuleFiles:[]string{"/etc/prometheus/rules.yml"},
+			RuleFiles:[]string{"/etc/prometheus/rules.yml", "/etc/prometheus/default_rules.yml"},
 		},
 		Registry:   reg,
 		httpClient: client,
@@ -103,13 +103,17 @@ func NewManager(config *option.Config) *Manager {
 	}
 	m.SaveAlertingRulesConfig()
 	m.LoadConfig()
-	m.LoadAlertingRulesConfig()
 
 	return m
 }
 
 func (p *Manager) StartDaemon(errchan chan error) {
+	p.LoadAlertingRulesConfig()
 	logrus.Info("Starting prometheus.")
+	for _,v := range p.AlertingRulesConfig.Groups{
+		fmt.Println(v.Name)
+		fmt.Println(v.Rules)
+	}
 
 	// start prometheus
 	procAttr := &os.ProcAttr{
