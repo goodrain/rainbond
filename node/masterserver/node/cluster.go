@@ -259,7 +259,9 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			v.Unschedulable = true
 		}
 		v.Unschedulable = false
-		v.UpdataK8sCondition(k8sNode.Status.Conditions)
+		if k8sNode != nil {
+			v.UpdataK8sCondition(k8sNode.Status.Conditions)
+		}
 		if time.Now().Sub(v.UpTime) > time.Minute*2 {
 			status = Unknown
 			v.Status = status
