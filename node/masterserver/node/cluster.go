@@ -112,7 +112,7 @@ func exists(path string) bool {
 
 func (n *Cluster) checkNodeStatus() {
 	logrus.Info("Starting check node status module.")
-	var max = 10
+	var max = 30
 	var unhealthyCounter = make(map[string]int, 10)
 	var tick = time.Tick(time.Second * 2)
 
