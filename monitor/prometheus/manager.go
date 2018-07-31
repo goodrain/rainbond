@@ -82,7 +82,7 @@ func NewManager(config *option.Config, a *AlertingRulesManager) *Manager {
 		a:          a,
 	}
 	m.LoadConfig()
-	m.a.RulesConfig.SaveAlertingRulesConfig()
+	m.a.RulesConfig.InitRulesConfig()
 
 	return m
 }

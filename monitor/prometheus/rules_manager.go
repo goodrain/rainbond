@@ -4,6 +4,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"io/ioutil"
 	"gopkg.in/yaml.v2"
+	"os"
 )
 
 type AlertingRulesConfig struct {
@@ -106,4 +107,17 @@ func (a *AlertingRulesConfig) AddRules(val AlertingNameConfig) error  {
 	group = append(group, &val)
 	a.Groups = group
 	return nil
+}
+
+func (a *AlertingRulesConfig) InitRulesConfig()  {
+	_, err := os.Stat("/etc/prometheus/rules.yml")    //os.Stat获取文件信息
+	if err != nil {
+		if os.IsExist(err) {
+			return
+		}
+		a.SaveAlertingRulesConfig()
+		return
+	}
+	return
+
 }
