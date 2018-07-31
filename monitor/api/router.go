@@ -28,7 +28,7 @@ import (
 	"github.com/goodrain/rainbond/monitor/api/controller"
 )
 
-func APIServer() *chi.Mux {
+func APIServer(c *controller.ControllerManager) *chi.Mux {
 	r := chi.NewRouter()
 	r.Route("/monitor", func(r chi.Router) {
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +37,7 @@ func APIServer() *chi.Mux {
 		})
 	})
 	r.Route("/rules", func(r chi.Router) {
-		r.Post("/", controller.AddRules)
+		r.Post("/", c.AddRules)
 	})
 	util.ProfilerSetup(r)
 	return r

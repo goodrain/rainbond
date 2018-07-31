@@ -28,6 +28,7 @@ import (
 	"os/signal"
 	"syscall"
 	"github.com/goodrain/rainbond/monitor/api"
+	"github.com/goodrain/rainbond/monitor/api/controller"
 	"net/http"
 )
 
@@ -55,7 +56,10 @@ func main() {
 	m.Start()
 	defer m.Stop()
 
-	r := api.APIServer()
+	a := prometheus.NewRulesManager()
+	controllerManager := controller.NewControllerManager(a,p)
+
+	r := api.APIServer(controllerManager)
 	logrus.Info("monitor api listen port 3329")
 	go http.ListenAndServe(":3329", r)
 

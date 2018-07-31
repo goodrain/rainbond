@@ -52,7 +52,6 @@ type Manager struct {
 	Registry   *discover.KeepAlive
 	httpClient *http.Client
 	l          *sync.Mutex
-	AlertingRulesConfig *AlertingRulesConfig
 }
 
 func NewManager(config *option.Config) *Manager {
@@ -79,51 +78,14 @@ func NewManager(config *option.Config) *Manager {
 		Registry:   reg,
 		httpClient: client,
 		l:          &sync.Mutex{},
-		AlertingRulesConfig:&AlertingRulesConfig{
-
-			Groups: []*AlertingNameConfig{
-				&AlertingNameConfig{
-
-					Name: "test",
-					Rules: []*RulesConfig{
-						&RulesConfig{
-							Alert:  "MqHealth",
-							Expr:   "acp_mq_exporter_health_status{job='mq'} < 1",
-							For:    "2m",
-							Labels: map[string]string{"service_name": "mq"},
-							Annotations: map[string]string{"summary":"unhealthy"},
-						},
-					},
-				},
-				&AlertingNameConfig{
-
-					Name: "test2",
-					Rules: []*RulesConfig{
-						&RulesConfig{
-							Alert:  "builderHealth",
-							Expr:   "acp_mq_exporter_health_status{job='mq'} < 1",
-							For:    "5m",
-							Labels: map[string]string{"service_name": "builder"},
-							Annotations: map[string]string{"summary":"unhealthy"},
-						},
-					},
-				},
-			},
-		},
 	}
-	m.SaveAlertingRulesConfig()
 	m.LoadConfig()
 
 	return m
 }
 
 func (p *Manager) StartDaemon(errchan chan error) {
-	p.LoadAlertingRulesConfig()
 	logrus.Info("Starting prometheus.")
-	for _,v := range p.AlertingRulesConfig.Groups{
-		fmt.Println(v.Name)
-		fmt.Println(v.Rules)
-	}
 
 	// start prometheus
 	procAttr := &os.ProcAttr{
@@ -244,44 +206,3 @@ func (p *Manager) UpdateScrape(scrape *ScrapeConfig) {
 	p.RestartDaemon()
 }
 
-func (p *Manager)SaveAlertingRulesConfig() error {
-	logrus.Debug("===>Save alerting rules config file.")
-
-	data, err := yaml.Marshal(p.AlertingRulesConfig)
-	if err != nil {
-		logrus.Error("Marshal alerting rules config to yaml error.", err.Error())
-		return err
-	}
-
-	err = ioutil.WriteFile("/etc/prometheus/default_rules.yml", data, 0644)
-	if err != nil {
-		logrus.Error("Write alerting rules config file error.", err.Error())
-		return err
-	}
-
-	return nil
-}
-
-
-func (p *Manager)LoadAlertingRulesConfig() error {
-	logrus.Info("======>Load AlertingRules config file.")
-	content, err := ioutil.ReadFile("/etc/prometheus/default_rules.yml")
-	if err != nil {
-		logrus.Error("=====>Failed to read AlertingRules config file: ", err)
-		logrus.Info("=====>Init config file by default values.")
-		return nil
-	}
-	if err := yaml.Unmarshal(content, p.AlertingRulesConfig); err != nil {
-		logrus.Error("=====>Unmarshal AlertingRulesConfig config string to object error.", err.Error())
-		return err
-	}
-	logrus.Debugf("====>Loaded config file to memory: %+v", p.AlertingRulesConfig)
-
-	return nil
-}
-
-func (p *Manager) AddRulesConfig(val AlertingNameConfig) error  {
-	group := p.AlertingRulesConfig.Groups
-	group = append(group, &val)
-	return nil
-}
