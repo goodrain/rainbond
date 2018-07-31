@@ -401,10 +401,23 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 
 	for _, cm := range commands {
 		switch cm.Cmd {
+		case "arg":
+			for i := 0; i < len(cm.Value); i++ {
+				if kv := strings.Split(cm.Value[i], "="); len(kv) > 1 {
+					d.envs[kv[0]] = &Env{Name: kv[0], Value: kv[1]}
+				} else {
+					d.envs[cm.Value[i]] = &Env{Name: cm.Value[i], Value: cm.Value[i+1]}
+					i++
+				}
+			}
 		case "env":
 			for i := 0; i < len(cm.Value); i++ {
-				d.envs[cm.Value[i]] = &Env{Name: cm.Value[i], Value: cm.Value[i+1]}
-				i++
+				if kv := strings.Split(cm.Value[i], "="); len(kv) > 1 {
+					d.envs[kv[0]] = &Env{Name: kv[0], Value: kv[1]}
+				} else {
+					d.envs[cm.Value[i]] = &Env{Name: cm.Value[i], Value: cm.Value[i+1]}
+					i++
+				}
 			}
 		case "expose":
 			for _, v := range cm.Value {
@@ -416,12 +429,6 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 		case "volume":
 			for _, v := range cm.Value {
 				d.volumes[v] = &Volume{VolumePath: v, VolumeType: model.ShareFileVolumeType.String()}
-			}
-		case "arg":
-			for i := 0; i < len(cm.Value); i++ {
-				key := fmt.Sprintf("BUILD_ARG_%s", cm.Value[i])
-				d.envs[cm.Value[i]] = &Env{Name: key, Value: cm.Value[i+1]}
-				i++
 			}
 		}
 	}
