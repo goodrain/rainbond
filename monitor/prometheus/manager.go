@@ -79,8 +79,9 @@ func NewManager(config *option.Config) *Manager {
 		httpClient: client,
 		l:          &sync.Mutex{},
 	}
-	//SaveAlertingRulesConfig()
+	SaveAlertingRulesConfig()
 	m.LoadConfig()
+	LoadAlertingRulesConfig()
 
 	return m
 }
@@ -208,7 +209,7 @@ func (p *Manager) UpdateScrape(scrape *ScrapeConfig) {
 }
 
 func SaveAlertingRulesConfig() error {
-	logrus.Debug("Save alerting rules config file.")
+	logrus.Debug("===>Save alerting rules config file.")
 
 	a := &AlertingRulesConfig{
 
@@ -219,8 +220,8 @@ func SaveAlertingRulesConfig() error {
 				Rules: []*RulesConfig{
 					&RulesConfig{
 						Alert:  "MqHealth",
-						Expr:   "acp_mq_exporter_health_status{job='mq'} = 0",
-						For:    "5m",
+						Expr:   "acp_mq_exporter_health_status{job='mq'} < 1",
+						For:    "2m",
 						Labels: map[string]string{"service_name": "mq"},
 						Annotations: &AnnotationsConfig{
 							Summary:     "Mq unhealthy",
@@ -243,6 +244,25 @@ func SaveAlertingRulesConfig() error {
 		logrus.Error("Write alerting rules config file error.", err.Error())
 		return err
 	}
+
+	return nil
+}
+
+
+func LoadAlertingRulesConfig() error {
+	logrus.Info("======>Load AlertingRules config file.")
+	content, err := ioutil.ReadFile("/etc/prometheus/default_rules.yml")
+	if err != nil {
+		logrus.Error("=====>Failed to read AlertingRules config file: ", err)
+		logrus.Info("=====>Init config file by default values.")
+		return nil
+	}
+	var alertingRules  *AlertingRulesConfig
+	if err := yaml.Unmarshal(content, alertingRules); err != nil {
+		logrus.Error("=====>Unmarshal AlertingRulesConfig config string to object error.", err.Error())
+		return err
+	}
+	logrus.Debugf("====>Loaded config file to memory: %+v", alertingRules)
 
 	return nil
 }
