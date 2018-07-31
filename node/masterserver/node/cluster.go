@@ -90,6 +90,7 @@ func (n *Cluster) Start(errchan chan error) error {
 	go n.loadAndWatchNodes(errchan)
 	go n.loadAndWatchNodeOnlines(errchan)
 	go n.worker()
+	go n.checkNodeStatus()
 	return nil
 }
 
@@ -97,6 +98,7 @@ func (n *Cluster) Start(errchan chan error) error {
 func (n *Cluster) Stop(i interface{}) {
 	n.cancel()
 }
+
 func exists(path string) bool {
 	_, err := os.Stat(path)
 	if err == nil {
@@ -106,6 +108,82 @@ func exists(path string) bool {
 		return false
 	}
 	return true
+}
+
+func (n *Cluster) checkNodeStatus() {
+	logrus.Info("Starting check node status module.")
+	var max = 10
+	var unhealthyCounter = make(map[string]int, 10)
+	var tick = time.Tick(time.Second * 2)
+
+	for {
+		select {
+		case <-tick:
+		case <-n.ctx.Done():
+			return
+		}
+		nodes := n.GetAllNode()
+		for _, node := range nodes {
+			n.handleNodeStatus(node)
+			println("20===========================", node.ID)
+			ready := isReady(node.NodeStatus.Conditions)
+			logrus.Debugf("Node %s status is %v %d times.",
+				node.ID, ready, unhealthyCounter[node.ID])
+			if !ready {
+				if max <= unhealthyCounter[node.ID] {
+					_, err := n.kubecli.GetNode(node.ID)
+					// delete the node in k8s if type is compute
+					if node.Role.HasRule(client.ComputeNode) && err == nil {
+						logrus.Infof("Node %s status is %v %d times and down it.",
+							node.ID, ready, unhealthyCounter[node.ID])
+						println("======1")
+						err := n.kubecli.DownK8sNode(node.ID)
+						println("======2")
+						if err != nil {
+							println("======3")
+							logrus.Error("Failed to delete node in k8s: ", err)
+						}
+						println("======4")
+						n, err := n.kubecli.GetNode(node.ID)
+						fmt.Printf("======== deleted: %v, %v", err, n)
+					}
+				} else {
+					unhealthyCounter[node.ID]++
+				}
+			} else if ready {
+				println("======0")
+				unhealthyCounter[node.ID] = 0
+				_, err := n.kubecli.GetNode(node.ID)
+				// add the node into k8s if type is compute
+				if node.Role.HasRule(client.ComputeNode) && err != nil {
+					logrus.Infof("Node %s status is %v and up it.", node.ID, ready)
+					_, err := n.kubecli.UpK8sNode(node)
+					if err != nil {
+						logrus.Error("Failed to add node into k8s: ", err)
+					}
+
+				}
+			}
+		}
+	}
+}
+
+func isReady(conditions []client.NodeCondition) bool {
+	println("21=====", len(conditions))
+	for _, c := range conditions {
+		if c.Type == client.NodeReady {
+			if c.Status == client.ConditionTrue {
+				println("22=====", c.Status)
+				return true
+			} else {
+				println("23=====", c.Status)
+				return false
+			}
+		}
+	}
+
+	println("24=====")
+	return false
 }
 
 //RegToHost regist node id to hosts file
