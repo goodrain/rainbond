@@ -113,17 +113,26 @@ func summaryResult(list []map[string]string) (status string, errMessage string) 
 	upNum := 0
 	err := "N/A"
 	for _, v := range list {
-		if v["status"] == "True" {
-			upNum += 1
-		} else {
-			err = ""
-			err = err + v["hostname"] + ":" + v["message"] + "/"
+		if v["type"] == "OutOfDisk" ||v["type"] == "DiskPressure"||v["type"] == "MemoryPressure"||v["type"] == "InstallNotReady"{
+			if v["status"] == "False" {
+				upNum += 1
+			} else {
+				err = ""
+				err = err + v["hostname"] + ":" + v["message"] + "/"
+			}
+		}else {
+			if v["status"] == "True" {
+				upNum += 1
+			} else {
+				err = ""
+				err = err + v["hostname"] + ":" + v["message"] + "/"
+			}
 		}
 	}
 	if upNum == len(list){
 		status = "\033[0;37;42m" + strconv.Itoa(upNum) + "/" + strconv.Itoa(len(list)) + " \033[0m"
 	}else {
-		status = "\\033[0;37;41m " + strconv.Itoa(upNum) + "/" + strconv.Itoa(len(list)) + " \033[0m"
+		status = "\033[0;37;41m " + strconv.Itoa(upNum) + "/" + strconv.Itoa(len(list)) + " \033[0m"
 	}
 
 	errMessage = err

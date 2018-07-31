@@ -126,8 +126,9 @@ func handleResult(serviceTable *termtables.Table, v *client.HostNode) {
 		if v.Status == client.ConditionFalse{
 			if v.Type == client.OutOfDisk || v.Type == client.MemoryPressure || v.Type==client.DiskPressure ||v.Type==client.InstallNotReady{
 				formatReady = "\033[0;37;42m false \033[0m"
+			}else {
+				formatReady = "\033[0;37;41m false \033[0m"
 			}
-			formatReady = "\033[0;37;41m false \033[0m"
 		}else {
 			formatReady = "\033[0;37;42m true \033[0m"
 		}
