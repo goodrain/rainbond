@@ -26,6 +26,7 @@ import (
 	corediscoverconfig "github.com/goodrain/rainbond/discover/config"
 
 	"github.com/Sirupsen/logrus"
+	"fmt"
 )
 
 //EndpointDiscover 后端服务自动发现
@@ -104,7 +105,7 @@ func (e *defalt) UpdateEndpoints(endpoints ...*corediscoverconfig.Endpoint) {
 	var endStr []string
 	for _, end := range endpoints {
 		if end.URL != "" {
-			endStr = append(endStr, end.URL)
+			endStr = append(endStr, end.Name + "=>" + end.URL)
 		}
 	}
 	logrus.Debugf("endstr is %v, name is %v", endStr, e.name)
