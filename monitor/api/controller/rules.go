@@ -98,6 +98,7 @@ func (c *ControllerManager) RegRules(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 400, err.Error())
 		return
 	}
+	println(string(in))
 
 	var RulesConfig prometheus.AlertingNameConfig
 

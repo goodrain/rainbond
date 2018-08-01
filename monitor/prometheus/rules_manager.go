@@ -141,6 +141,19 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						},
 					},
 				},
+				&AlertingNameConfig{
+
+					Name: "WebcliHealth",
+					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:       "WebcliUnhealthy",
+							Expr:        "webcli_exporter_health_status == 0",
+							For:         "3m",
+							Labels:      map[string]string{},
+							Annotations: map[string]string{"summary": "webcli unhealthy"},
+						},
+					},
+				},
 			},
 		},
 		config: config,

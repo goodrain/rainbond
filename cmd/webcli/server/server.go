@@ -25,7 +25,7 @@ import (
 	"syscall"
 
 	"github.com/goodrain/rainbond/cmd/webcli/option"
-	"github.com/goodrain/rainbond/discover"
+	discover "github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/webcli/app"
 
 	"github.com/Sirupsen/logrus"
