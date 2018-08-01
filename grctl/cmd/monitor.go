@@ -26,7 +26,7 @@ func NewCmdAlerting() cli.Command {
 						logrus.Errorf("need args")
 						return nil
 					}
-
+					println("======name>",name)
 					v, err := clients.RegionClient.Monitor().GetRule(name)
 					println("========>", err.Error())
 					handleErr(err)

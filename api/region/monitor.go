@@ -39,11 +39,14 @@ type monitor struct {
 }
 
 func (m *monitor) GetRule(name string) (*model.AlertingNameConfig, *util.APIHandleError) {
+	println("======>1.1")
 	var ac model.AlertingNameConfig
 	var decode utilhttp.ResponseBody
 	decode.Bean = &ac
+	println("======>1.2")
 	code, err := m.DoRequest(m.prefix+"/"+name, "GET", nil, &decode)
 	if err != nil {
+		println("======err>",code,err)
 		return nil, handleErrAndCode(err, code)
 	}
 	return &ac, nil
