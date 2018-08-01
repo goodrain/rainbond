@@ -402,19 +402,29 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 	for _, cm := range commands {
 		switch cm.Cmd {
 		case "arg":
-			for i := 0; i < len(cm.Value); i++ {
+			length := len(cm.Value)
+			for i := 0; i < length; i++ {
 				if kv := strings.Split(cm.Value[i], "="); len(kv) > 1 {
 					d.envs[kv[0]] = &Env{Name: kv[0], Value: kv[1]}
 				} else {
+					if i + 1 >= length {
+						logrus.Error("Parse ARG format error at ", cm.Value[1])
+						continue
+					}
 					d.envs[cm.Value[i]] = &Env{Name: cm.Value[i], Value: cm.Value[i+1]}
 					i++
 				}
 			}
 		case "env":
+			length := len(cm.Value)
 			for i := 0; i < len(cm.Value); i++ {
 				if kv := strings.Split(cm.Value[i], "="); len(kv) > 1 {
 					d.envs[kv[0]] = &Env{Name: kv[0], Value: kv[1]}
 				} else {
+					if i + 1 >= length {
+						logrus.Error("Parse ENV format error at ", cm.Value[1])
+						continue
+					}
 					d.envs[cm.Value[i]] = &Env{Name: cm.Value[i], Value: cm.Value[i+1]}
 					i++
 				}
