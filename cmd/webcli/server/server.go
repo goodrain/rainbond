@@ -47,7 +47,7 @@ func Run(s *option.WebCliServer) error {
 		return err
 	}
 	defer ap.Exit()
-	keepalive, err := discover.CreateKeepAlive(s.EtcdEndPoints, "acp_webcli", s.HostName, s.HostIP, 6301)
+	keepalive, err := discover.CreateKeepAlive(s.EtcdEndPoints, "acp_webcli", s.HostName, s.HostIP, s.Port)
 	if err != nil {
 		return err
 	}
