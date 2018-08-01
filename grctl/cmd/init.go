@@ -19,23 +19,18 @@
 package cmd
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os/exec"
-	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
 	//"github.com/goodrain/rainbond/grctl/clients"
 
-	"github.com/goodrain/rainbond/api/util"
+	"os"
+
+	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/grctl/clients"
-	"github.com/goodrain/rainbond/node/api/model"
-	coreutil "github.com/goodrain/rainbond/util"
 )
 
 //NewCmdInit grctl init
@@ -49,7 +44,13 @@ func NewCmdInit() cli.Command {
 			},
 			cli.StringFlag{
 				Name:  "type",
-				Usage: "node type:manage/compute, manage",
+				Usage: "node type: manage or compute",
+				Value: "manage",
+			},
+			cli.StringFlag{
+				Name:  "work_dir",
+				Usage: "clone source code to the work directory",
+				Value: "/opt/rainbond/install",
 			},
 			cli.StringFlag{
 				Name:  "mip",
@@ -58,10 +59,12 @@ func NewCmdInit() cli.Command {
 			cli.StringFlag{
 				Name:  "repo_ver",
 				Usage: "repo version,3.4",
+				Value: "master",
 			},
 			cli.StringFlag{
 				Name:  "install_type",
-				Usage: "online/offline ,online",
+				Usage: "online or offline",
+				Value: "online",
 			},
 			cli.BoolFlag{
 				Name:   "test",
@@ -113,117 +116,44 @@ func NewCmdInstallStatus() cli.Command {
 }
 
 func initCluster(c *cli.Context) error {
-	url := "http://repo.goodrain.com/release/3.5/gaops/jobs/install/prepare/init.sh"
-	if c.Bool("test") {
-		url = "http://dev.repo.goodrain.com/gaops/jobs/install/prepare/init.sh"
+	// check if the rainbond is already installed
+	fmt.Println("Checking install enviremant.")
+	_, err := os.Stat("/tmp/rainbond.success")
+	if err == nil {
+		fmt.Println("Rainbond is already installed, if you whant reinstall, then please delete the file: /tmp/rainbond.success")
+		return nil
 	}
-	resp, err := http.Get(url)
 
-	if err != nil {
-		logrus.Errorf("error get init script,details %s", err.Error())
-		return err
+	// download source code from github if in online model
+	if c.String("install_type") == "online" {
+		fmt.Println("Download rainbond install package.")
+		csi := sources.CodeSourceInfo{
+			RepositoryURL: "https://github.com/goodrain/rainbond-install.git",
+			Branch:        c.String("repo_ver"),
+		}
+		os.RemoveAll(c.String("work_dir"))
+		os.MkdirAll(c.String("work_dir"), 0755)
+		_, err := sources.GitClone(csi, c.String("work_dir"), nil, 5)
+		if err != nil {
+			println(err.Error())
+			return err
+		}
 	}
-	defer resp.Body.Close()
 
-	b, _ := ioutil.ReadAll(resp.Body)
-	args := []string{c.String("etcd"), c.String("type"), c.String("mip"), c.String("repo_ver"), c.String("install_type")}
-	arg := strings.Join(args, " ")
-	argCheck := strings.Join(args, "")
-	if len(argCheck) > 0 {
-		arg += ";"
-	} else {
-		arg = ""
-	}
-	fmt.Println("begin init cluster first node,please don't exit,wait install")
-	cmd := exec.Command("bash", "-c", arg+string(b))
-	var buffe bytes.Buffer
-	cmd.Stderr = &buffe
-	stdout, _ := cmd.StdoutPipe()
-	go func() {
-		read := bufio.NewReader(stdout)
-		for {
-			line, _, err := read.ReadLine()
-			if err != nil {
-				return
-			}
-			fmt.Println(string(line))
-		}
-	}()
-	if err := cmd.Run(); err != nil {
-		logrus.Errorf("current node init error,%s", err.Error())
-		return err
-	}
-	//检测并设置init的结果
-	result := buffe.String()
-	index := strings.Index(result, "{")
-	jsonOutPut := result
-	if index > -1 {
-		jsonOutPut = result[index:]
-	}
-	fmt.Println("Result:" + jsonOutPut)
-	output, err := model.ParseTaskOutPut(jsonOutPut)
+	// start setup script to install rainbond
+	fmt.Println("Begin init cluster first node,please don't exit,wait install")
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("cd %s ; ./setup.sh %s %s", c.String("work_dir"), c.String("install_type"), c.String("repo_ver")))
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err = cmd.Run()
 	if err != nil {
-		logrus.Errorf("get init current node result error:%s", err.Error())
-		return err
-	}
-	var newConfigs []model.ConfigUnit
-	if output.Global != nil {
-		for k, v := range output.Global {
-			if strings.Index(v, ",") > -1 {
-				values := strings.Split(v, ",")
-				coreutil.Deweight(&values)
-				newConfigs = append(newConfigs, model.ConfigUnit{
-					Name:           strings.ToUpper(k),
-					Value:          values,
-					ValueType:      "array",
-					IsConfigurable: false,
-				})
-			} else {
-				newConfigs = append(newConfigs, model.ConfigUnit{
-					Name:           strings.ToUpper(k),
-					Value:          v,
-					ValueType:      "string",
-					IsConfigurable: false,
-				})
-			}
-		}
-	}
-	var gc *model.GlobalConfig
-	var error *util.APIHandleError
-	for i := 0; i < 10; i++ {
-		time.Sleep(time.Second * 2)
-		gc, error = clients.RegionClient.Configs().Get()
-		if err == nil && gc != nil {
-			for _, nc := range newConfigs {
-				gc.Add(nc)
-			}
-			error = clients.RegionClient.Configs().Put(gc)
-			break
-		}
-	}
-	if error != nil {
-		logrus.Errorf("Update Datacenter configs error,please check node status")
-		return err
-	}
-	//获取当前节点ID
-	hostID, err := coreutil.ReadHostID("")
-	if err != nil {
-		logrus.Errorf("read nodeid error,please check node status")
+		println(err.Error())
 		return err
 	}
 
-	//error = clients.NodeClient.Tasks().Exec("check_manage_base_services", []string{hostID})
-	//if error != nil {
-	//	logrus.Errorf("error exec task:%s,details %s", "check_manage_base_services", error.String())
-	//	return error.Err
-	//}
-	error = clients.RegionClient.Tasks().Exec("check_manage_services", []string{hostID})
-	if error != nil {
-		logrus.Errorf("error exec task:%s,details %s", "check_manage_services", error.String())
-		return error.Err
-	}
-	//Status("check_manage_base_services", []string{hostID})
-	Status("check_manage_services", []string{hostID})
+	ioutil.WriteFile("/tmp/rainbond.success", []byte(c.String("repo_ver")), 0644)
+
 	fmt.Println("install manage node success,next you can :")
 	fmt.Println("	add compute node--grctl node add -h")
 	fmt.Println("	install compute node--grctl install compute -h")
