@@ -37,7 +37,7 @@ func NewCmdAlerting() cli.Command {
 					//if error != nil {
 					//	handleErr(util.CreateAPIHandleError(500, err))
 					//}
-					fmt.Println(rule)
+					fmt.Println(string(rule))
 					return nil
 				},
 			},

@@ -22,6 +22,7 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/node/api/model"
 	utilhttp "github.com/goodrain/rainbond/util/http"
+	"fmt"
 )
 
 //ClusterInterface cluster api
@@ -49,6 +50,9 @@ func (m *monitor) GetRule(name string) (*model.AlertingNameConfig, *util.APIHand
 	if err != nil {
 		println("======err2>",code,err)
 		return nil, handleErrAndCode(err, code)
+	}
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("get alerting rules error code %d", code))
 	}
 	return &ac, nil
 }
