@@ -41,7 +41,7 @@ func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.Rules.RulesConfig.LoadAlertingRulesConfig()
+	c.Rules.LoadAlertingRulesConfig()
 
 	group := c.Rules.RulesConfig.Groups
 	for _, v := range group {
@@ -52,7 +52,7 @@ func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
 	}
 	group = append(group, &RulesConfig)
 	c.Rules.RulesConfig.Groups = group
-	c.Rules.RulesConfig.SaveAlertingRulesConfig()
+	c.Rules.SaveAlertingRulesConfig()
 	c.Manager.RestartDaemon()
 	httputil.ReturnSuccess(r, w, "Add rule successfully")
 
@@ -61,7 +61,7 @@ func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
 func (c *ControllerManager) GetRules(w http.ResponseWriter, r *http.Request) {
 	logrus.Infof("get rule")
 	rulesName := chi.URLParam(r, "rules_name")
-	c.Rules.RulesConfig.LoadAlertingRulesConfig()
+	c.Rules.LoadAlertingRulesConfig()
 
 	for _, v := range c.Rules.RulesConfig.Groups {
 		if v.Name == rulesName {
@@ -76,13 +76,13 @@ func (c *ControllerManager) GetRules(w http.ResponseWriter, r *http.Request) {
 func (c *ControllerManager) DelRules(w http.ResponseWriter, r *http.Request) {
 	logrus.Infof("delete rule")
 	rulesName := chi.URLParam(r, "rules_name")
-	c.Rules.RulesConfig.LoadAlertingRulesConfig()
+	c.Rules.LoadAlertingRulesConfig()
 	groupsList := c.Rules.RulesConfig.Groups
 	for i, v := range groupsList {
 		if v.Name == rulesName {
 			groupsList = append(groupsList[:i], groupsList[i+1:]...)
 			c.Rules.RulesConfig.Groups = groupsList
-			c.Rules.RulesConfig.SaveAlertingRulesConfig()
+			c.Rules.SaveAlertingRulesConfig()
 			c.Manager.RestartDaemon()
 			httputil.ReturnSuccess(r, w, "successfully deleted")
 			return
@@ -108,7 +108,7 @@ func (c *ControllerManager) RegRules(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.Rules.RulesConfig.LoadAlertingRulesConfig()
+	c.Rules.LoadAlertingRulesConfig()
 
 	group := c.Rules.RulesConfig.Groups
 	for i, v := range group {
@@ -116,7 +116,7 @@ func (c *ControllerManager) RegRules(w http.ResponseWriter, r *http.Request) {
 			group[i] = &RulesConfig
 			c.Manager.RestartDaemon()
 			httputil.ReturnSuccess(r, w, "Update rule succeeded")
-			c.Rules.RulesConfig.SaveAlertingRulesConfig()
+			c.Rules.SaveAlertingRulesConfig()
 			return
 		}
 	}
@@ -125,7 +125,7 @@ func (c *ControllerManager) RegRules(w http.ResponseWriter, r *http.Request) {
 
 func (c *ControllerManager) GetAllRules(w http.ResponseWriter, r *http.Request) {
 	logrus.Infof("get all rule")
-	c.Rules.RulesConfig.LoadAlertingRulesConfig()
+	c.Rules.LoadAlertingRulesConfig()
 	val := c.Rules.RulesConfig
 	httputil.ReturnSuccess(r, w, val)
 }
