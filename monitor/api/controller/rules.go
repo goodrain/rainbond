@@ -25,6 +25,7 @@ func NewControllerManager(a *prometheus.AlertingRulesManager, p *prometheus.Mana
 }
 
 func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
+	logrus.Info("add rules")
 	in, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		httputil.ReturnError(r, w, 400, err.Error())
@@ -57,7 +58,9 @@ func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
 	//	httputil.ReturnError(r, w, 400, err.Error())
 	//	return
 	//}
+	println("======01")
 	c.Rules.RulesConfig.LoadAlertingRulesConfig()
+	println("======02")
 
 	group := c.Rules.RulesConfig.Groups
 	for _, v := range group {
@@ -66,9 +69,14 @@ func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	println("======03")
 
+	println("=====>", RulesConfig.Name)
 	group = append(group, &RulesConfig)
+	c.Rules.RulesConfig.Groups = group
+	println("======04")
 	c.Rules.RulesConfig.SaveAlertingRulesConfig()
+	println("======05")
 	c.Manager.RestartDaemon()
 	httputil.ReturnSuccess(r, w, "Add rule successfully")
 
