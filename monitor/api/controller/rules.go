@@ -30,25 +30,29 @@ func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 400, err.Error())
 		return
 	}
-
+	println(string(in))
 	var RulesConfig prometheus.AlertingNameConfig
-
-	err = ioutil.WriteFile("/etc/prometheus/cache_rule.yml", in, 0644)
-	if err != nil {
-		logrus.Error(err.Error())
-	}
-
-	content, err := ioutil.ReadFile("/etc/prometheus/cache_rule.yml")
-	if err != nil {
-		logrus.Error( err)
-
-	}
-
-	if err := yaml.Unmarshal(content, &RulesConfig); err != nil {
-		logrus.Error("Unmarshal prometheus alerting rules config string to object error.", err.Error())
-		httputil.ReturnError(r, w, 400, err.Error())
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &RulesConfig, nil); !ok {
+		logrus.Info("参数错误")
 		return
 	}
+
+	//err = ioutil.WriteFile("/etc/prometheus/cache_rule.yml", in, 0644)
+	//if err != nil {
+	//	logrus.Error(err.Error())
+	//}
+	//
+	//content, err := ioutil.ReadFile("/etc/prometheus/cache_rule.yml")
+	//if err != nil {
+	//	logrus.Error( err)
+	//
+	//}
+	//
+	//if err := yaml.Unmarshal(content, &RulesConfig); err != nil {
+	//	logrus.Error("Unmarshal prometheus alerting rules config string to object error.", err.Error())
+	//	httputil.ReturnError(r, w, 400, err.Error())
+	//	return
+	//}
 	c.Rules.RulesConfig.LoadAlertingRulesConfig()
 
 	group := c.Rules.RulesConfig.Groups
@@ -73,8 +77,7 @@ func (c *ControllerManager) GetRules(w http.ResponseWriter, r *http.Request) {
 
 	for _, v := range c.Rules.RulesConfig.Groups {
 		if v.Name == rulesName {
-			res := v.Rules
-			httputil.ReturnSuccess(r, w, res)
+			httputil.ReturnSuccess(r, w, v)
 			return
 		}
 	}
@@ -136,4 +139,12 @@ func (c *ControllerManager) RegRules(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	httputil.ReturnError(r, w, 400,"The rule to be updated does not exist")
+}
+
+
+func (c *ControllerManager) GetAllRules(w http.ResponseWriter, r *http.Request) {
+	logrus.Infof("get all rule")
+	c.Rules.RulesConfig.LoadAlertingRulesConfig()
+	val := c.Rules.RulesConfig
+	httputil.ReturnSuccess(r, w, val)
 }

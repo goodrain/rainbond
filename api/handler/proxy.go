@@ -27,6 +27,7 @@ import (
 var nodeProxy proxy.Proxy
 var builderProxy proxy.Proxy
 var prometheusProxy proxy.Proxy
+var monitorProxy proxy.Proxy
 
 //InitProxy 初始化
 func InitProxy(conf option.Config) {
@@ -41,6 +42,10 @@ func InitProxy(conf option.Config) {
 	if prometheusProxy == nil {
 		prometheusProxy = proxy.CreateProxy("prometheus", "http", []string{"127.0.0.1:9999"})
 		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("prometheus", prometheusProxy)
+	}
+	if monitorProxy == nil {
+		monitorProxy = proxy.CreateProxy("monitor", "http", []string{"127.0.0.1:3329"})
+		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("monitor", monitorProxy)
 	}
 
 }
@@ -58,4 +63,9 @@ func GetBuilderProxy() proxy.Proxy {
 //GetPrometheusProxy GetPrometheusProxy
 func GetPrometheusProxy() proxy.Proxy {
 	return prometheusProxy
+}
+
+//GetMonitorProxy GetMonitorProxy
+func GetMonitorProxy() proxy.Proxy {
+	return monitorProxy
 }

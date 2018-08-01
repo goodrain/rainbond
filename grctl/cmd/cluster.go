@@ -55,6 +55,7 @@ func getClusterInfo(c *cli.Context) error {
 	table.AddRow("DistributedDisk", fmt.Sprintf("%dGb/%dGb", clusterInfo.ReqDisk/1024/1024/1024, clusterInfo.CapDisk/1024/1024/1024),
 		fmt.Sprintf("%.2f", float32(clusterInfo.ReqDisk*100)/float32(clusterInfo.CapDisk))+"%")
 	fmt.Println(table)
+
 	//show services health status
 	list, err := clients.RegionClient.Nodes().List()
 	handleErr(err)
@@ -111,7 +112,7 @@ func getServicesHealthy(nodes []*client.HostNode) (map[string][]map[string]strin
 
 func summaryResult(list []map[string]string) (status string, errMessage string) {
 	upNum := 0
-	err := "N/A"
+	err := ""
 	for _, v := range list {
 		if v["type"] == "OutOfDisk" ||v["type"] == "DiskPressure"||v["type"] == "MemoryPressure"||v["type"] == "InstallNotReady"{
 			if v["status"] == "False" {
@@ -130,9 +131,9 @@ func summaryResult(list []map[string]string) (status string, errMessage string) 
 		}
 	}
 	if upNum == len(list){
-		status = "\033[0;37;42m" + strconv.Itoa(upNum) + "/" + strconv.Itoa(len(list)) + " \033[0m"
+		status = "\033[0;32;32m" + strconv.Itoa(upNum) + "/" + strconv.Itoa(len(list)) + " \033[0m"
 	}else {
-		status = "\033[0;37;41m " + strconv.Itoa(upNum) + "/" + strconv.Itoa(len(list)) + " \033[0m"
+		status = "\033[0;31;31m " + strconv.Itoa(upNum) + "/" + strconv.Itoa(len(list)) + " \033[0m"
 	}
 
 	errMessage = err
