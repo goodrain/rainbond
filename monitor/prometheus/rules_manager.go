@@ -156,7 +156,7 @@ func (a *AlertingRulesManager) LoadAlertingRulesConfig() error {
 		logrus.Info("Init config file by default values.")
 		return nil
 	}
-	if err := yaml.Unmarshal(content, a); err != nil {
+	if err := yaml.Unmarshal(content, a.RulesConfig); err != nil {
 		logrus.Error("Unmarshal AlertingRulesConfig config string to object error.", err.Error())
 		return err
 	}
@@ -168,7 +168,7 @@ func (a *AlertingRulesManager) LoadAlertingRulesConfig() error {
 func (a *AlertingRulesManager) SaveAlertingRulesConfig() error {
 	logrus.Debug("Save alerting rules config file.")
 
-	data, err := yaml.Marshal(a)
+	data, err := yaml.Marshal(a.RulesConfig)
 	if err != nil {
 		logrus.Error("Marshal alerting rules config to yaml error.", err.Error())
 		return err
