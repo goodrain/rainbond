@@ -28,7 +28,8 @@ func NewCmdAlerting() cli.Command {
 					}
 					println("======name>",name)
 					v, err := clients.RegionClient.Monitor().GetRule(name)
-					println("========>", err.Error())
+					println("========>", err)
+					println("=======v>",v)
 					handleErr(err)
 					rule, _ := yaml.Marshal(v)
 					//var out bytes.Buffer

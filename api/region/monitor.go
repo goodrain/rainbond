@@ -45,8 +45,9 @@ func (m *monitor) GetRule(name string) (*model.AlertingNameConfig, *util.APIHand
 	decode.Bean = &ac
 	println("======>1.2")
 	code, err := m.DoRequest(m.prefix+"/"+name, "GET", nil, &decode)
+	println("======err1>",code,err)
 	if err != nil {
-		println("======err>",code,err)
+		println("======err2>",code,err)
 		return nil, handleErrAndCode(err, code)
 	}
 	return &ac, nil
