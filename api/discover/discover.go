@@ -26,7 +26,6 @@ import (
 	corediscoverconfig "github.com/goodrain/rainbond/discover/config"
 
 	"github.com/Sirupsen/logrus"
-	"fmt"
 )
 
 //EndpointDiscover 后端服务自动发现
