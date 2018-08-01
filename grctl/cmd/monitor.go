@@ -6,9 +6,9 @@ import (
 	"github.com/goodrain/rainbond/grctl/clients"
 	"fmt"
 	"github.com/ghodss/yaml"
+	"encoding/json"
+	"github.com/goodrain/rainbond/node/api/model"
 )
-
-
 
 //NewCmdNode NewCmdNode
 func NewCmdAlerting() cli.Command {
@@ -26,49 +26,62 @@ func NewCmdAlerting() cli.Command {
 						logrus.Errorf("need args")
 						return nil
 					}
-					println("======name>",name)
 					v, err := clients.RegionClient.Monitor().GetRule(name)
-					println("========>", err)
-					println("=======v>",v)
 					handleErr(err)
 					rule, _ := yaml.Marshal(v)
-					//var out bytes.Buffer
-					//error := json.Indent(&out, nodeByte, "", "\t")
-					//if error != nil {
-					//	handleErr(util.CreateAPIHandleError(500, err))
-					//}
 					fmt.Println(string(rule))
 					return nil
 				},
 			},
-			//{
-			//	Name:  "list",
-			//	Usage: "list",
-			//	Action: func(c *cli.Context) error {
-			//		Common(c)
-			//		list, err := clients.RegionClient.Nodes().List()
-			//		handleErr(err)
-			//		serviceTable := termtables.CreateTable()
-			//		serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "Alived", "Schedulable", "Ready")
-			//		var rest []*client.HostNode
-			//		for _, v := range list {
-			//			if v.Role.HasRule("manage") {
-			//				handleStatus(serviceTable, isNodeReady(v), v)
-			//			} else {
-			//				rest = append(rest, v)
-			//			}
-			//		}
-			//		if len(rest) > 0 {
-			//			serviceTable.AddSeparator()
-			//		}
-			//		for _, v := range rest {
-			//			handleStatus(serviceTable, isNodeReady(v), v)
-			//		}
-			//		fmt.Println(serviceTable.Render())
-			//		return nil
-			//	},
-			//},
-
+			{
+				Name:  "list",
+				Usage: "list",
+				Action: func(c *cli.Context) error {
+					Common(c)
+					list, err := clients.RegionClient.Monitor().GetAllRule()
+					handleErr(err)
+					ruleList, _ := yaml.Marshal(list)
+					fmt.Println(string(ruleList))
+					return nil
+				},
+			},
+			{
+				Name:  "del",
+				Usage: "del rule_name",
+				Action: func(c *cli.Context) error {
+					Common(c)
+					name := c.Args().First()
+					if name == "" {
+						logrus.Errorf("need args")
+						return nil
+					}
+					v, err := clients.RegionClient.Monitor().DelRule(name)
+					handleErr(err)
+					result, _ := json.Marshal(v.Bean)
+					fmt.Println(string(result))
+					return nil
+				},
+			},
+			{
+				Name:  "add",
+				Usage: "add rules",
+				Action: func(c *cli.Context) error {
+					Common(c)
+					rules := c.Args().First()
+					if rules == "" {
+						logrus.Errorf("need args")
+						return nil
+					}
+					println("====>", rules)
+					var rulesConfig model.AlertingNameConfig
+					yaml.Unmarshal([]byte(rules), &rulesConfig)
+					v, err := clients.RegionClient.Monitor().AddRule(&rulesConfig)
+					handleErr(err)
+					result, _ := json.Marshal(v.Bean)
+					fmt.Println(string(result))
+					return nil
+				},
+			},
 		},
 	}
 	return c

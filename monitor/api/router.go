@@ -41,6 +41,7 @@ func APIServer(c *controller.ControllerManager) *chi.Mux {
 			r.Put("/", c.RegRules)
 			r.Delete("/{rules_name}", c.DelRules)
 			r.Get("/{rules_name}", c.GetRules)
+			r.Get("/all", c.GetAllRules)
 	})
 	util.ProfilerSetup(r)
 	return r

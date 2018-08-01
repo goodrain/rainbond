@@ -23,11 +23,16 @@ import (
 	"github.com/goodrain/rainbond/node/api/model"
 	utilhttp "github.com/goodrain/rainbond/util/http"
 	"fmt"
+	"encoding/json"
+	"bytes"
 )
 
 //ClusterInterface cluster api
 type MonitorInterface interface {
 	GetRule(name string) (*model.AlertingNameConfig, *util.APIHandleError)
+	GetAllRule() (*model.AlertingRulesConfig, *util.APIHandleError)
+	DelRule(name string) (*utilhttp.ResponseBody, *util.APIHandleError)
+	AddRule(rules *model.AlertingNameConfig) (*utilhttp.ResponseBody, *util.APIHandleError)
 }
 
 func (r *regionImpl) Monitor() MonitorInterface {
@@ -40,15 +45,11 @@ type monitor struct {
 }
 
 func (m *monitor) GetRule(name string) (*model.AlertingNameConfig, *util.APIHandleError) {
-	println("======>1.1")
 	var ac model.AlertingNameConfig
 	var decode utilhttp.ResponseBody
 	decode.Bean = &ac
-	println("======>1.2")
 	code, err := m.DoRequest(m.prefix+"/"+name, "GET", nil, &decode)
-	println("======err1>",code,err)
 	if err != nil {
-		println("======err2>",code,err)
 		return nil, handleErrAndCode(err, code)
 	}
 	if code != 200 {
@@ -57,3 +58,45 @@ func (m *monitor) GetRule(name string) (*model.AlertingNameConfig, *util.APIHand
 	return &ac, nil
 }
 
+func (m *monitor) GetAllRule() (*model.AlertingRulesConfig, *util.APIHandleError) {
+	var ac model.AlertingRulesConfig
+	var decode utilhttp.ResponseBody
+	decode.Bean = &ac
+	code, err := m.DoRequest(m.prefix+"/all", "GET", nil, &decode)
+	if err != nil {
+		return nil, handleErrAndCode(err, code)
+	}
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("get alerting rules error code %d", code))
+	}
+	return &ac, nil
+}
+
+func (m *monitor) DelRule(name string) (*utilhttp.ResponseBody, *util.APIHandleError) {
+	var decode utilhttp.ResponseBody
+	code, err := m.DoRequest(m.prefix+"/"+name, "DELETE", nil, &decode)
+	if err != nil {
+		return nil, handleErrAndCode(err, code)
+	}
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("del alerting rules error code %d", code))
+	}
+	return &decode, nil
+}
+
+func (m *monitor) AddRule(rules *model.AlertingNameConfig) (*utilhttp.ResponseBody, *util.APIHandleError) {
+	var decode utilhttp.ResponseBody
+	body, err := json.Marshal(rules)
+	if err != nil {
+		return nil, util.CreateAPIHandleError(400, err)
+	}
+	code, err := m.DoRequest(m.prefix, "POST", bytes.NewBuffer(body), nil)
+	if err != nil {
+		println("====err>",code,err)
+		return nil, handleErrAndCode(err, code)
+	}
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("add alerting rules error code %d", code))
+	}
+	return &decode, nil
+}
