@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,32 +16,36 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package api
+package region
 
 import (
-	"net/http"
-
-	"github.com/goodrain/rainbond/util"
-
-	"github.com/go-chi/chi"
-	httputil "github.com/goodrain/rainbond/util/http"
-	"github.com/goodrain/rainbond/monitor/api/controller"
+	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/node/api/model"
+	utilhttp "github.com/goodrain/rainbond/util/http"
 )
 
-func APIServer(c *controller.ControllerManager) *chi.Mux {
-	r := chi.NewRouter()
-	r.Route("/monitor", func(r chi.Router) {
-		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-			bean := map[string]string{"status": "health", "info": "monitor service health"}
-			httputil.ReturnSuccess(r, w, bean)
-		})
-	})
-	r.Route("/v2/rules", func(r chi.Router) {
-			r.Post("/", c.AddRules)
-			r.Put("/", c.RegRules)
-			r.Delete("/{rules_name}", c.DelRules)
-			r.Get("/{rules_name}", c.GetRules)
-	})
-	util.ProfilerSetup(r)
-	return r
+//ClusterInterface cluster api
+type MonitorInterface interface {
+	GetRule(name string) (*model.AlertingNameConfig, *util.APIHandleError)
 }
+
+func (r *regionImpl) Monitor() MonitorInterface {
+	return &monitor{prefix: "/v2/rules", regionImpl: *r}
+}
+
+type monitor struct {
+	regionImpl
+	prefix string
+}
+
+func (m *monitor) GetRule(name string) (*model.AlertingNameConfig, *util.APIHandleError) {
+	var ac model.AlertingNameConfig
+	var decode utilhttp.ResponseBody
+	decode.Bean = &ac
+	code, err := m.DoRequest(m.prefix+"/"+name, "GET", nil, &decode)
+	if err != nil {
+		return nil, handleErrAndCode(err, code)
+	}
+	return &ac, nil
+}
+

@@ -73,8 +73,7 @@ func (c *ControllerManager) GetRules(w http.ResponseWriter, r *http.Request) {
 
 	for _, v := range c.Rules.RulesConfig.Groups {
 		if v.Name == rulesName {
-			res := v.Rules
-			httputil.ReturnSuccess(r, w, res)
+			httputil.ReturnSuccess(r, w, v)
 			return
 		}
 	}
