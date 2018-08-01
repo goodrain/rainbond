@@ -38,6 +38,7 @@ type Config struct {
 
 	StartArgs            []string
 	ConfigFile           string
+	AlertingRulesFile    string
 	LocalStoragePath     string
 	Web                  Web
 	Tsdb                 Tsdb
@@ -96,6 +97,7 @@ func NewConfig() *Config {
 		LogLevel:          "info",
 
 		ConfigFile:           "/etc/prometheus/prometheus.yml",
+		AlertingRulesFile:    "/etc/prometheus/rules.yml",
 		LocalStoragePath:     "/prometheusdata",
 		WebTimeout:           "5m",
 		RemoteFlushDeadline:  "1m",
@@ -127,6 +129,8 @@ func (c *Config) AddFlag(cmd *pflag.FlagSet) {
 
 func (c *Config) AddPrometheusFlag(cmd *pflag.FlagSet) {
 	cmd.StringVar(&c.ConfigFile, "config.file", c.ConfigFile, "Prometheus configuration file path.")
+
+	cmd.StringVar(&c.AlertingRulesFile, "rules-config.file", c.AlertingRulesFile, "Prometheus alerting rules config file path.")
 
 	cmd.StringVar(&c.Web.ListenAddress, "web.listen-address", c.Web.ListenAddress, "Address to listen on for UI, API, and telemetry.")
 

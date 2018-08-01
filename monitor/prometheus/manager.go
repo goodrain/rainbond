@@ -74,7 +74,7 @@ func NewManager(config *option.Config, a *AlertingRulesManager) *Manager {
 				ScrapeInterval:     model.Duration(time.Second * 5),
 				EvaluationInterval: model.Duration(time.Second * 30),
 			},
-			RuleFiles: []string{"/etc/prometheus/rules.yml"},
+			RuleFiles: []string{config.AlertingRulesFile},
 		},
 		Registry:   reg,
 		httpClient: client,
@@ -82,7 +82,7 @@ func NewManager(config *option.Config, a *AlertingRulesManager) *Manager {
 		a:          a,
 	}
 	m.LoadConfig()
-	m.a.RulesConfig.InitRulesConfig()
+	m.a.InitRulesConfig()
 
 	return m
 }

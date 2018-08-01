@@ -35,32 +35,13 @@ func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
 	var RulesConfig prometheus.AlertingNameConfig
 
 	unmarshalErr := json.Unmarshal(in, &RulesConfig)
-	if unmarshalErr != nil{
-		logrus.Info("反序列化错误",unmarshalErr)
+	if unmarshalErr != nil {
+		logrus.Info(unmarshalErr)
 		httputil.ReturnError(r, w, 400, err.Error())
 		return
 	}
 
-
-	//err = ioutil.WriteFile("/etc/prometheus/cache_rule.yml", in, 0644)
-	//if err != nil {
-	//	logrus.Error(err.Error())
-	//}
-	//
-	//content, err := ioutil.ReadFile("/etc/prometheus/cache_rule.yml")
-	//if err != nil {
-	//	logrus.Error( err)
-	//
-	//}
-	//
-	//if err := yaml.Unmarshal(content, &RulesConfig); err != nil {
-	//	logrus.Error("Unmarshal prometheus alerting rules config string to object error.", err.Error())
-	//	httputil.ReturnError(r, w, 400, err.Error())
-	//	return
-	//}
-	println("======01")
 	c.Rules.RulesConfig.LoadAlertingRulesConfig()
-	println("======02")
 
 	group := c.Rules.RulesConfig.Groups
 	for _, v := range group {
@@ -69,14 +50,9 @@ func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	println("======03")
-
-	println("=====>", RulesConfig.Name)
 	group = append(group, &RulesConfig)
 	c.Rules.RulesConfig.Groups = group
-	println("======04")
 	c.Rules.RulesConfig.SaveAlertingRulesConfig()
-	println("======05")
 	c.Manager.RestartDaemon()
 	httputil.ReturnSuccess(r, w, "Add rule successfully")
 
@@ -105,7 +81,9 @@ func (c *ControllerManager) DelRules(w http.ResponseWriter, r *http.Request) {
 	for i, v := range groupsList {
 		if v.Name == rulesName {
 			groupsList = append(groupsList[:i], groupsList[i+1:]...)
+			c.Rules.RulesConfig.Groups = groupsList
 			c.Rules.RulesConfig.SaveAlertingRulesConfig()
+			c.Manager.RestartDaemon()
 			httputil.ReturnSuccess(r, w, "successfully deleted")
 			return
 		}
@@ -124,34 +102,19 @@ func (c *ControllerManager) RegRules(w http.ResponseWriter, r *http.Request) {
 	var RulesConfig prometheus.AlertingNameConfig
 
 	unmarshalErr := json.Unmarshal(in, &RulesConfig)
-	if unmarshalErr != nil{
-		logrus.Info("反序列化错误",unmarshalErr)
+	if unmarshalErr != nil {
+		logrus.Info(unmarshalErr)
 		httputil.ReturnError(r, w, 400, err.Error())
 		return
 	}
 
-	//err = ioutil.WriteFile("/etc/prometheus/cache_rule.yml", in, 0644)
-	//if err != nil {
-	//	logrus.Error(err.Error())
-	//}
-	//
-	//content, err := ioutil.ReadFile("/etc/prometheus/cache_rule.yml")
-	//if err != nil {
-	//	logrus.Error(err)
-	//
-	//}
-	//
-	//if err := yaml.Unmarshal(content, &RulesConfig); err != nil {
-	//	logrus.Error("Unmarshal prometheus alerting rules config string to object error.", err.Error())
-	//	httputil.ReturnError(r, w, 400, err.Error())
-	//	return
-	//}
 	c.Rules.RulesConfig.LoadAlertingRulesConfig()
 
 	group := c.Rules.RulesConfig.Groups
 	for i, v := range group {
 		if v.Name == rulesName {
 			group[i] = &RulesConfig
+			c.Manager.RestartDaemon()
 			httputil.ReturnSuccess(r, w, "Update rule succeeded")
 			c.Rules.RulesConfig.SaveAlertingRulesConfig()
 			return

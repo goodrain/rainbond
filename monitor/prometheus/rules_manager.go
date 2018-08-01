@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"gopkg.in/yaml.v2"
 	"os"
+	"github.com/goodrain/rainbond/cmd/monitor/option"
+
 )
 
 type AlertingRulesConfig struct {
@@ -17,57 +19,138 @@ type AlertingNameConfig struct {
 }
 
 type RulesConfig struct {
-	Alert  string            `yaml:"alert" json:"alert"`
-	Expr   string            `yaml:"expr" json:"expr"`
-	For    string            `yaml:"for" json:"for"`
-	Labels map[string]string `yaml:"labels" json:"labels"`
+	Alert       string            `yaml:"alert" json:"alert"`
+	Expr        string            `yaml:"expr" json:"expr"`
+	For         string            `yaml:"for" json:"for"`
+	Labels      map[string]string `yaml:"labels" json:"labels"`
 	Annotations map[string]string `yaml:"annotations" json:"annotations"`
 }
 
 type AlertingRulesManager struct {
 	RulesConfig *AlertingRulesConfig
-
+	config           *option.Config
 }
 
-func NewRulesManager() *AlertingRulesManager {
-	a:= &AlertingRulesManager{
+func NewRulesManager(config *option.Config) *AlertingRulesManager {
+	a := &AlertingRulesManager{
 		RulesConfig: &AlertingRulesConfig{
-			Groups:[]*AlertingNameConfig{
+			Groups: []*AlertingNameConfig{
 				&AlertingNameConfig{
 
-					Name: "test",
+					Name: "InstanceHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
-							Alert:       "MqHealth",
-							Expr:        "acp_mq_exporter_health_status{job='mq'} < 1",
-							For:         "2m",
-							Labels:      map[string]string{"service_name": "mq"},
-							Annotations: map[string]string{"summary": "unhealthy"},
+							Alert:       "InstanceDown",
+							Expr:        "up == 0",
+							For:         "3m",
+							Labels:      map[string]string{},
+							Annotations: map[string]string{"summary": "builder {{$labels.instance}} down", "description":"{{$labels.instance}} of job {{$labels.job}} has been down for more than 3 minutes"},
 						},
 					},
 				},
 				&AlertingNameConfig{
 
-					Name: "test2",
+					Name: "BuilderHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
-							Alert:       "builderHealth",
-							Expr:        "acp_mq_exporter_health_status{job='mq'} < 1",
-							For:         "5m",
-							Labels:      map[string]string{"service_name": "builder"},
-							Annotations: map[string]string{"summary": "unhealthy"},
+							Alert:       "BuilderUnhealthy",
+							Expr:        "builder_exporter_health_status == 0",
+							For:         "3m",
+							Labels:      map[string]string{},
+							Annotations: map[string]string{"summary": "builder unhealthy"},
+						},
+						&RulesConfig{
+							Alert:       "BuilderTaskError",
+							Expr:        "builder_exporter_builder_task_error > 30",
+							For:         "3m",
+							Labels:      map[string]string{},
+							Annotations: map[string]string{"summary": "Builder execution task error number is greater than 30"},
+						},
+					},
+				},
+				&AlertingNameConfig{
+
+					Name: "WorkerHealth",
+					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:       "WorkerUnhealthy",
+							Expr:        "app_resource_exporter_health_status == 0",
+							For:         "3m",
+							Labels:      map[string]string{},
+							Annotations: map[string]string{"summary": "worker unhealthy"},
+						},
+						&RulesConfig{
+							Alert:       "WorkerTaskError",
+							Expr:        "app_resource_exporter_worker_task_error > 50",
+							For:         "3m",
+							Labels:      map[string]string{},
+							Annotations: map[string]string{"summary": "worker execution task error number is greater than 50"},
+						},
+					},
+				},
+				&AlertingNameConfig{
+
+					Name: "EntranceHealth",
+					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:       "EntranceUnHealthy",
+							Expr:        "acp_entrance_exporter_health_status == 0",
+							For:         "3m",
+							Labels:      map[string]string{},
+							Annotations: map[string]string{"summary": "entrance unhealthy"},
+						},
+					},
+				},
+				&AlertingNameConfig{
+
+					Name: "MqHealth",
+					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:       "MqUnhealthy",
+							Expr:        "acp_mq_exporter_health_status == 0",
+							For:         "3m",
+							Labels:      map[string]string{},
+							Annotations: map[string]string{"summary": "mq unhealthy"},
+						},
+						&RulesConfig{
+							Alert:       "TeamTaskMany",
+							Expr:        "acp_mq_dequeue_number-acp_mq_enqueue_number > 200",
+							For:         "3m",
+							Labels:      map[string]string{},
+							Annotations: map[string]string{"summary": "The number of tasks in the queue is greater than 200"},
+						},
+					},
+				},
+				&AlertingNameConfig{
+
+					Name: "EventlogHealth",
+					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:       "EventLogUnhealthy",
+							Expr:        "event_log_exporter_health_status == 0",
+							For:         "3m",
+							Labels:      map[string]string{},
+							Annotations: map[string]string{"summary": "eventlog unhealthy"},
+						},
+						&RulesConfig{
+							Alert:       "EventLogDown",
+							Expr:        "event_log_exporter_instanse_up == 0",
+							For:         "3m",
+							Labels:      map[string]string{},
+							Annotations: map[string]string{"summary": "eventlog service down"},
 						},
 					},
 				},
 			},
 		},
+		config: config,
 	}
 	return a
 }
 
-func (a *AlertingRulesConfig)LoadAlertingRulesConfig() error {
+func (a *AlertingRulesManager) LoadAlertingRulesConfig() error {
 	logrus.Info("Load AlertingRules config file.")
-	content, err := ioutil.ReadFile("/etc/prometheus/rules.yml")
+	content, err := ioutil.ReadFile(a.config.AlertingRulesFile)
 	if err != nil {
 		logrus.Error("Failed to read AlertingRules config file: ", err)
 		logrus.Info("Init config file by default values.")
@@ -82,8 +165,7 @@ func (a *AlertingRulesConfig)LoadAlertingRulesConfig() error {
 	return nil
 }
 
-
-func (a *AlertingRulesConfig)SaveAlertingRulesConfig() error {
+func (a *AlertingRulesManager) SaveAlertingRulesConfig() error {
 	logrus.Debug("Save alerting rules config file.")
 
 	data, err := yaml.Marshal(a)
@@ -92,7 +174,7 @@ func (a *AlertingRulesConfig)SaveAlertingRulesConfig() error {
 		return err
 	}
 
-	err = ioutil.WriteFile("/etc/prometheus/rules.yml", data, 0644)
+	err = ioutil.WriteFile(a.config.AlertingRulesFile, data, 0644)
 	if err != nil {
 		logrus.Error("Write alerting rules config file error.", err.Error())
 		return err
@@ -101,15 +183,14 @@ func (a *AlertingRulesConfig)SaveAlertingRulesConfig() error {
 	return nil
 }
 
-
-func (a *AlertingRulesConfig) AddRules(val AlertingNameConfig) error  {
-	group := a.Groups
+func (a *AlertingRulesManager) AddRules(val AlertingNameConfig) error {
+	group := a.RulesConfig.Groups
 	group = append(group, &val)
 	return nil
 }
 
-func (a *AlertingRulesConfig) InitRulesConfig()  {
-	_, err := os.Stat("/etc/prometheus/rules.yml")    //os.Stat获取文件信息
+func (a *AlertingRulesManager) InitRulesConfig() {
+	_, err := os.Stat(a.config.AlertingRulesFile) //os.Stat获取文件信息
 	if err != nil {
 		if os.IsExist(err) {
 			return

@@ -6,7 +6,6 @@ import (
 	"github.com/goodrain/rainbond/grctl/clients"
 	"fmt"
 	"github.com/ghodss/yaml"
-	"encoding/json"
 	"github.com/goodrain/rainbond/node/api/model"
 	"errors"
 )
@@ -56,10 +55,9 @@ func NewCmdAlerting() cli.Command {
 						logrus.Errorf("need args")
 						return nil
 					}
-					v, err := clients.RegionClient.Monitor().DelRule(name)
+					_, err := clients.RegionClient.Monitor().DelRule(name)
 					handleErr(err)
-					result, _ := json.Marshal(v.Bean)
-					fmt.Println(string(result))
+					fmt.Println("Delete rule succeeded")
 					return nil
 				},
 			},
@@ -78,13 +76,11 @@ func NewCmdAlerting() cli.Command {
 					if c.IsSet("Rules") {
 						rules := c.String("Rules")
 
-						println("====>", rules)
 						var rulesConfig model.AlertingNameConfig
 						yaml.Unmarshal([]byte(rules), &rulesConfig)
-						v, err := clients.RegionClient.Monitor().AddRule(&rulesConfig)
+						_, err := clients.RegionClient.Monitor().AddRule(&rulesConfig)
 						handleErr(err)
-						result, _ := json.Marshal(v.Bean)
-						fmt.Println(string(result))
+						fmt.Println("Add rule successfully")
 						return nil
 					}
 					return errors.New("rules not null")
@@ -110,13 +106,11 @@ func NewCmdAlerting() cli.Command {
 					if c.IsSet("RulesName") && c.IsSet("Rules") {
 						rules := c.String("Rules")
 						ruleName := c.String("RulesName")
-						println("====>", rules)
 						var rulesConfig model.AlertingNameConfig
 						yaml.Unmarshal([]byte(rules), &rulesConfig)
-						v, err := clients.RegionClient.Monitor().RegRule(ruleName, &rulesConfig)
+						_, err := clients.RegionClient.Monitor().RegRule(ruleName, &rulesConfig)
 						handleErr(err)
-						result, _ := json.Marshal(v.Bean)
-						fmt.Println(string(result))
+						fmt.Println("Modify rule successfully")
 						return nil
 					}
 					return errors.New("rule name or rules not null")

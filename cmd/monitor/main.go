@@ -41,7 +41,7 @@ func main() {
 	c.CompleteConfig()
 
 	// start prometheus daemon and watching tis status in all time, exit monitor process if start failed
-	a := prometheus.NewRulesManager()
+	a := prometheus.NewRulesManager(c)
 	p := prometheus.NewManager(c, a)
 	controllerManager := controller.NewControllerManager(a,p)
 
