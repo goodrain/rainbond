@@ -33,6 +33,7 @@ type MonitorInterface interface {
 	GetAllRule() (*model.AlertingRulesConfig, *util.APIHandleError)
 	DelRule(name string) (*utilhttp.ResponseBody, *util.APIHandleError)
 	AddRule(rules *model.AlertingNameConfig) (*utilhttp.ResponseBody, *util.APIHandleError)
+	RegRule(ruleName string, rules *model.AlertingNameConfig) (*utilhttp.ResponseBody, *util.APIHandleError)
 }
 
 func (r *regionImpl) Monitor() MonitorInterface {
@@ -91,6 +92,23 @@ func (m *monitor) AddRule(rules *model.AlertingNameConfig) (*utilhttp.ResponseBo
 		return nil, util.CreateAPIHandleError(400, err)
 	}
 	code, err := m.DoRequest(m.prefix, "POST", bytes.NewBuffer(body), nil)
+	if err != nil {
+		println("====err>",code,err)
+		return nil, handleErrAndCode(err, code)
+	}
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("add alerting rules error code %d", code))
+	}
+	return &decode, nil
+}
+
+func (m *monitor) RegRule(ruleName string, rules *model.AlertingNameConfig) (*utilhttp.ResponseBody, *util.APIHandleError) {
+	var decode utilhttp.ResponseBody
+	body, err := json.Marshal(rules)
+	if err != nil {
+		return nil, util.CreateAPIHandleError(400, err)
+	}
+	code, err := m.DoRequest(m.prefix+"/"+ruleName, "PUT", bytes.NewBuffer(body), nil)
 	if err != nil {
 		println("====err>",code,err)
 		return nil, handleErrAndCode(err, code)

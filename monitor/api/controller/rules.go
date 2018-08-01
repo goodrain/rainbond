@@ -6,9 +6,9 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 
 	"github.com/Sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/go-chi/chi"
+	"encoding/json"
 )
 
 type ControllerManager struct {
@@ -32,10 +32,14 @@ func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
 	}
 	println(string(in))
 	var RulesConfig prometheus.AlertingNameConfig
-	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &RulesConfig, nil); !ok {
-		logrus.Info("参数错误")
+
+	unmarshalErr := json.Unmarshal(in, &RulesConfig)
+	if unmarshalErr != nil{
+		logrus.Info("反序列化错误",unmarshalErr)
+		httputil.ReturnError(r, w, 400, err.Error())
 		return
 	}
+
 
 	//err = ioutil.WriteFile("/etc/prometheus/cache_rule.yml", in, 0644)
 	//if err != nil {
@@ -56,8 +60,8 @@ func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
 	c.Rules.RulesConfig.LoadAlertingRulesConfig()
 
 	group := c.Rules.RulesConfig.Groups
-	for _,v := range group{
-		if v.Name == RulesConfig.Name{
+	for _, v := range group {
+		if v.Name == RulesConfig.Name {
 			httputil.ReturnError(r, w, 400, "Rule already exists")
 			return
 		}
@@ -82,7 +86,7 @@ func (c *ControllerManager) GetRules(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	httputil.ReturnError(r, w, 400, "Rule does not exist")
+	httputil.ReturnError(r, w, 404, "Rule does not exist")
 }
 
 func (c *ControllerManager) DelRules(w http.ResponseWriter, r *http.Request) {
@@ -92,7 +96,7 @@ func (c *ControllerManager) DelRules(w http.ResponseWriter, r *http.Request) {
 	groupsList := c.Rules.RulesConfig.Groups
 	for i, v := range groupsList {
 		if v.Name == rulesName {
-			groupsList = append(groupsList[:i],groupsList[i+1:]...)
+			groupsList = append(groupsList[:i], groupsList[i+1:]...)
 			c.Rules.RulesConfig.SaveAlertingRulesConfig()
 			httputil.ReturnSuccess(r, w, "successfully deleted")
 			return
@@ -101,8 +105,8 @@ func (c *ControllerManager) DelRules(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, "")
 }
 
-
 func (c *ControllerManager) RegRules(w http.ResponseWriter, r *http.Request) {
+	rulesName := chi.URLParam(r, "rules_name")
 	in, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		httputil.ReturnError(r, w, 400, err.Error())
@@ -111,36 +115,42 @@ func (c *ControllerManager) RegRules(w http.ResponseWriter, r *http.Request) {
 
 	var RulesConfig prometheus.AlertingNameConfig
 
-	err = ioutil.WriteFile("/etc/prometheus/cache_rule.yml", in, 0644)
-	if err != nil {
-		logrus.Error(err.Error())
-	}
-
-	content, err := ioutil.ReadFile("/etc/prometheus/cache_rule.yml")
-	if err != nil {
-		logrus.Error( err)
-
-	}
-
-	if err := yaml.Unmarshal(content, &RulesConfig); err != nil {
-		logrus.Error("Unmarshal prometheus alerting rules config string to object error.", err.Error())
+	unmarshalErr := json.Unmarshal(in, &RulesConfig)
+	if unmarshalErr != nil{
+		logrus.Info("反序列化错误",unmarshalErr)
 		httputil.ReturnError(r, w, 400, err.Error())
 		return
 	}
+
+	//err = ioutil.WriteFile("/etc/prometheus/cache_rule.yml", in, 0644)
+	//if err != nil {
+	//	logrus.Error(err.Error())
+	//}
+	//
+	//content, err := ioutil.ReadFile("/etc/prometheus/cache_rule.yml")
+	//if err != nil {
+	//	logrus.Error(err)
+	//
+	//}
+	//
+	//if err := yaml.Unmarshal(content, &RulesConfig); err != nil {
+	//	logrus.Error("Unmarshal prometheus alerting rules config string to object error.", err.Error())
+	//	httputil.ReturnError(r, w, 400, err.Error())
+	//	return
+	//}
 	c.Rules.RulesConfig.LoadAlertingRulesConfig()
 
 	group := c.Rules.RulesConfig.Groups
-	for i,v := range group{
-		if v.Name == RulesConfig.Name{
+	for i, v := range group {
+		if v.Name == rulesName {
 			group[i] = &RulesConfig
 			httputil.ReturnSuccess(r, w, "Update rule succeeded")
 			c.Rules.RulesConfig.SaveAlertingRulesConfig()
 			return
 		}
 	}
-	httputil.ReturnError(r, w, 400,"The rule to be updated does not exist")
+	httputil.ReturnError(r, w, 404, "The rule to be updated does not exist")
 }
-
 
 func (c *ControllerManager) GetAllRules(w http.ResponseWriter, r *http.Request) {
 	logrus.Infof("get all rule")

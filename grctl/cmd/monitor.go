@@ -8,6 +8,7 @@ import (
 	"github.com/ghodss/yaml"
 	"encoding/json"
 	"github.com/goodrain/rainbond/node/api/model"
+	"errors"
 )
 
 //NewCmdNode NewCmdNode
@@ -64,22 +65,61 @@ func NewCmdAlerting() cli.Command {
 			},
 			{
 				Name:  "add",
-				Usage: "add rules",
+				Usage: "add 添加规则",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "Rules,r",
+						Value: "",
+						Usage: "Rules",
+					},
+				},
 				Action: func(c *cli.Context) error {
 					Common(c)
-					rules := c.Args().First()
-					if rules == "" {
-						logrus.Errorf("need args")
+					if c.IsSet("Rules") {
+						rules := c.String("Rules")
+
+						println("====>", rules)
+						var rulesConfig model.AlertingNameConfig
+						yaml.Unmarshal([]byte(rules), &rulesConfig)
+						v, err := clients.RegionClient.Monitor().AddRule(&rulesConfig)
+						handleErr(err)
+						result, _ := json.Marshal(v.Bean)
+						fmt.Println(string(result))
 						return nil
 					}
-					println("====>", rules)
-					var rulesConfig model.AlertingNameConfig
-					yaml.Unmarshal([]byte(rules), &rulesConfig)
-					v, err := clients.RegionClient.Monitor().AddRule(&rulesConfig)
-					handleErr(err)
-					result, _ := json.Marshal(v.Bean)
-					fmt.Println(string(result))
-					return nil
+					return errors.New("rules not null")
+				},
+			},
+			{
+				Name:  "modify",
+				Usage: "modify 修改规则",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "RulesName,rn",
+						Value: "",
+						Usage: "RulesName",
+					},
+					cli.StringFlag{
+						Name:  "Rules,r",
+						Value: "",
+						Usage: "Rules",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					Common(c)
+					if c.IsSet("RulesName") && c.IsSet("Rules") {
+						rules := c.String("Rules")
+						ruleName := c.String("RulesName")
+						println("====>", rules)
+						var rulesConfig model.AlertingNameConfig
+						yaml.Unmarshal([]byte(rules), &rulesConfig)
+						v, err := clients.RegionClient.Monitor().RegRule(ruleName, &rulesConfig)
+						handleErr(err)
+						result, _ := json.Marshal(v.Bean)
+						fmt.Println(string(result))
+						return nil
+					}
+					return errors.New("rule name or rules not null")
 				},
 			},
 		},

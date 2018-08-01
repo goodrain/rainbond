@@ -38,7 +38,7 @@ func APIServer(c *controller.ControllerManager) *chi.Mux {
 	})
 	r.Route("/v2/rules", func(r chi.Router) {
 			r.Post("/", c.AddRules)
-			r.Put("/", c.RegRules)
+			r.Put("/{rules_name}", c.RegRules)
 			r.Delete("/{rules_name}", c.DelRules)
 			r.Get("/{rules_name}", c.GetRules)
 			r.Get("/all", c.GetAllRules)
