@@ -290,8 +290,6 @@ func (i *SourceCodeBuildItem) buildImage() error {
 			args[ks[1]] = v
 		}
 	}
-	fmt.Printf("1======== %+v \n", i.BuildEnvs)
-	fmt.Printf("2======== %+v \n", args)
 	buildOptions := types.ImageBuildOptions{
 		Tags:      []string{buildImageName},
 		Remove:    true,
