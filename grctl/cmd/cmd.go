@@ -71,6 +71,6 @@ func Common(c *cli.Context) {
 	}
 	//clients.SetInfo(config.RegionAPI.URL, config.RegionAPI.Token)
 	if err := clients.InitRegionClient(config.RegionAPI); err != nil {
-		logrus.Warnf("error config region")
+		logrus.Fatal("error config region")
 	}
 }

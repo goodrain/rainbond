@@ -20,6 +20,8 @@ package region
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,6 +30,7 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/cmd"
@@ -55,16 +58,51 @@ type Region interface {
 	DoRequest(path, method string, body io.Reader, decode *utilhttp.ResponseBody) (int, error)
 }
 
+//APIConf region api config
+type APIConf struct {
+	Endpoints []string `yaml:"endpoints"`
+	Token     string   `yaml:"token"`
+	AuthType  string   `yaml:"auth_type"`
+	Cacert    string   `yaml:"client-ca-file"`
+	Cert      string   `yaml:"tls-cert-file"`
+	CertKey   string   `yaml:"tls-private-key-file"`
+}
+
 //NewRegion NewRegion
-func NewRegion(regionAPI, token, authType string) Region {
+func NewRegion(c APIConf) (Region, error) {
 	if region == nil {
-		region = &regionImpl{
-			regionAPI: regionAPI,
-			token:     token,
-			authType:  authType,
+		re := &regionImpl{
+			APIConf: c,
 		}
+		if c.Cacert != "" && c.Cert != "" && c.CertKey != "" {
+			pool := x509.NewCertPool()
+			caCrt, err := ioutil.ReadFile(c.Cacert)
+			if err != nil {
+				logrus.Errorf("read ca file err: %s", err)
+				return nil, err
+			}
+			pool.AppendCertsFromPEM(caCrt)
+
+			cliCrt, err := tls.LoadX509KeyPair(c.Cert, c.CertKey)
+			if err != nil {
+				logrus.Errorf("Loadx509keypair err: %s", err)
+				return nil, err
+			}
+			tr := &http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs:      pool,
+					Certificates: []tls.Certificate{cliCrt},
+				},
+			}
+			re.Client = &http.Client{
+				Transport: tr,
+			}
+		} else {
+			re.Client = http.DefaultClient
+		}
+		region = re
 	}
-	return region
+	return region, nil
 }
 
 //GetRegion GetRegion
@@ -73,9 +111,8 @@ func GetRegion() Region {
 }
 
 type regionImpl struct {
-	regionAPI string
-	token     string
-	authType  string
+	APIConf
+	Client *http.Client
 }
 
 //Tenants Tenants
@@ -227,18 +264,21 @@ func (s *services) Start(eventID string) (string, *util.APIHandleError) {
 	code, err := s.DoRequest(s.prefix+"/start", "POST", bytes.NewBuffer(data), nil)
 	return eventID, handleErrAndCode(err, code)
 }
+func (r *regionImpl) GetEndpoint() string {
+	return r.Endpoints[0]
+}
 
 //DoRequest do request
 func (r *regionImpl) DoRequest(path, method string, body io.Reader, decode *utilhttp.ResponseBody) (int, error) {
-	request, err := http.NewRequest(method, r.regionAPI+path, body)
+	request, err := http.NewRequest(method, r.GetEndpoint()+path, body)
 	if err != nil {
 		return 500, err
 	}
 	request.Header.Set("Content-Type", "application/json")
-	if r.token != "" {
-		request.Header.Set("Authorization", "Token "+r.token)
+	if r.Token != "" {
+		request.Header.Set("Authorization", "Token "+r.Token)
 	}
-	res, err := http.DefaultClient.Do(request)
+	res, err := r.Client.Do(request)
 	if err != nil {
 		return 500, err
 	}

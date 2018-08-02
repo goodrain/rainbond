@@ -19,15 +19,16 @@
 package clients
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/region"
-	"github.com/goodrain/rainbond/cmd/grctl/option"
 )
 
 //RegionClient region api
 var RegionClient region.Region
 
 //InitRegionClient init region api client
-func InitRegionClient(reg option.RegionAPI) error {
-	RegionClient = region.NewRegion(reg.URL, reg.Token, reg.Type)
-	return nil
+func InitRegionClient(reg region.APIConf) (err error) {
+	logrus.Info(reg)
+	RegionClient, err = region.NewRegion(reg)
+	return
 }
