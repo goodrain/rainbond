@@ -45,7 +45,15 @@ func (h *HTTPProxy) Proxy(w http.ResponseWriter, r *http.Request) {
 
 //UpdateEndpoints 更新端点
 func (h *HTTPProxy) UpdateEndpoints(endpoints ...string) {
-	h.endpoints = CreateEndpoints(endpoints)
+	ends := []string{}
+	for _, end := range endpoints {
+		if kv := strings.Split(end, "=>"); len(kv) > 1 {
+			ends = append(ends, kv[1])
+		} else {
+			ends = append(ends, end)
+		}
+	}
+	h.endpoints = CreateEndpoints(ends)
 }
 
 //Do do proxy
@@ -60,5 +68,13 @@ func (h *HTTPProxy) Do(r *http.Request) (*http.Response, error) {
 }
 
 func createHTTPProxy(name string, endpoints []string) *HTTPProxy {
-	return &HTTPProxy{name, CreateEndpoints(endpoints), NewRoundRobin()}
+	ends := []string{}
+	for _, end := range endpoints {
+		if kv := strings.Split(end, "=>"); len(kv) > 1 {
+			ends = append(ends, kv[1])
+		} else {
+			ends = append(ends, end)
+		}
+	}
+	return &HTTPProxy{name, CreateEndpoints(ends), NewRoundRobin()}
 }

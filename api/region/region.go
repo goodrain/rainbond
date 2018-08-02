@@ -55,6 +55,7 @@ type Region interface {
 	Cluster() ClusterInterface
 	Configs() ConfigsInterface
 	Version() string
+	Monitor() MonitorInterface
 	DoRequest(path, method string, body io.Reader, decode *utilhttp.ResponseBody) (int, error)
 }
 

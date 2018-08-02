@@ -102,9 +102,9 @@ func fileExist(path string) bool {
 func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode) {
 	var formatReady string
 	if ready == false{
-		formatReady = "\033[0;37;41m false \033[0m"
+		formatReady = "\033[0;31;31m false \033[0m"
 	}else {
-		formatReady = "\033[0;37;42m true \033[0m"
+		formatReady = "\033[0;32;32m true \033[0m"
 	}
 	if v.Role.HasRule("compute") && !v.Role.HasRule("manage") {
 		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Status, v.Alived, !v.Unschedulable, formatReady)
@@ -125,12 +125,12 @@ func handleResult(serviceTable *termtables.Table, v *client.HostNode) {
 		var formatReady string
 		if v.Status == client.ConditionFalse{
 			if v.Type == client.OutOfDisk || v.Type == client.MemoryPressure || v.Type==client.DiskPressure ||v.Type==client.InstallNotReady{
-				formatReady = "\033[0;37;42m false \033[0m"
+				formatReady = "\033[0;32;32m false \033[0m"
 			}else {
-				formatReady = "\033[0;37;41m false \033[0m"
+				formatReady = "\033[0;31;31m false \033[0m"
 			}
 		}else {
-			formatReady = "\033[0;37;42m true \033[0m"
+			formatReady = "\033[0;32;32m true \033[0m"
 		}
 		serviceTable.AddRow(string(v.Type), formatReady, handleMessage(string(v.Status), v.Message))
 	}
@@ -141,11 +141,11 @@ func extractReady(serviceTable *termtables.Table, v *client.HostNode, name strin
 		if string(v.Type) == name{
 			var formatReady string
 			if v.Status == client.ConditionFalse{
-				formatReady = "\033[0;37;41m false \033[0m"
+				formatReady = "\033[0;31;31m false \033[0m"
 			}else {
-				formatReady = "\033[0;37;42m true \033[0m"
+				formatReady = "\033[0;32;32m true \033[0m"
 			}
-			serviceTable.AddRow(string(v.Type), formatReady, handleMessage(string(v.Status), v.Message))
+			serviceTable.AddRow("\033[0;33;33m "+string(v.Type)+" \033[0m", formatReady, handleMessage(string(v.Status), v.Message))
 		}
 	}
 }

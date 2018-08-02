@@ -32,16 +32,16 @@ func APIServer(c *controller.ControllerManager) *chi.Mux {
 	r := chi.NewRouter()
 	r.Route("/monitor", func(r chi.Router) {
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-			bean := map[string]string{"status":"health","info":"monitor service health"}
+			bean := map[string]string{"status": "health", "info": "monitor service health"}
 			httputil.ReturnSuccess(r, w, bean)
 		})
 	})
-	r.Route("/rules", func(r chi.Router) {
-		r.Post("/", c.AddRules)
-		r.Put("/", c.RegRules)
-		r.Delete("/{rules_name}", c.DelRules)
-		r.Get("/{rules_name}", c.GetRules)
-
+	r.Route("/v2/rules", func(r chi.Router) {
+			r.Post("/", c.AddRules)
+			r.Put("/{rules_name}", c.RegRules)
+			r.Delete("/{rules_name}", c.DelRules)
+			r.Get("/{rules_name}", c.GetRules)
+			r.Get("/all", c.GetAllRules)
 	})
 	util.ProfilerSetup(r)
 	return r

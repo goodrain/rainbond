@@ -24,7 +24,7 @@ import "net/http"
 type Proxy interface {
 	Proxy(w http.ResponseWriter, r *http.Request)
 	Do(r *http.Request) (*http.Response, error)
-	UpdateEndpoints(endpoints ...string)
+	UpdateEndpoints(endpoints ...string) // format: ["name=>ip:port", ...]
 }
 
 //CreateProxy 创建代理

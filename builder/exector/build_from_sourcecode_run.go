@@ -285,9 +285,9 @@ func (i *SourceCodeBuildItem) buildImage() error {
 	tag := i.DeployVersion
 	buildImageName := strings.ToLower(fmt.Sprintf("%s/%s:%s", REGISTRYDOMAIN, name, tag))
 	args := make(map[string]string, 5)
-	for k, v := range args {
-		if strings.Contains(k, "BUILD_ARG_") {
-			args[k] = v
+	for k, v := range i.BuildEnvs {
+		if ks := strings.Split(k, "ARG_"); len(ks) > 1 {
+			args[ks[1]] = v
 		}
 	}
 	buildOptions := types.ImageBuildOptions{
