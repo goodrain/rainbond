@@ -100,7 +100,7 @@ func NewConfig() *Config {
 
 		ConfigFile:           "/etc/prometheus/prometheus.yml",
 		AlertingRulesFile:    "/etc/prometheus/rules.yml",
-		AlertManagerUrl:      "localhost:9093",
+		AlertManagerUrl:      "",
 		LocalStoragePath:     "/prometheusdata",
 		WebTimeout:           "5m",
 		RemoteFlushDeadline:  "1m",
@@ -196,6 +196,9 @@ func (c *Config) CompleteConfig() {
 
 	for _, url := range strings.Split(c.AlertManagerUrl, ",") {
 		c.AlertManagerUrlList = append(c.AlertManagerUrlList, url)
+	}
+	if len(c.AlertManagerUrlList) < 1 {
+		c.AlertManagerUrlList = []string{}
 	}
 	// parse values from prometheus options to config
 	ipPort := strings.TrimLeft(c.AdvertiseAddr, "shttp://")
