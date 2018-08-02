@@ -31,6 +31,7 @@ import (
 
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/grctl/clients"
+	"net/http"
 )
 
 //NewCmdInit grctl init
@@ -74,7 +75,8 @@ func NewCmdInit() cli.Command {
 		},
 		Usage: "初始化集群。grctl init cluster",
 		Action: func(c *cli.Context) error {
-			return initCluster(c)
+			initCluster(c)
+			return nil
 		},
 	}
 	return c
@@ -115,13 +117,13 @@ func NewCmdInstallStatus() cli.Command {
 	return c
 }
 
-func initCluster(c *cli.Context) error {
+func initCluster(c *cli.Context) {
 	// check if the rainbond is already installed
 	fmt.Println("Checking install enviremant.")
 	_, err := os.Stat("/tmp/rainbond.success")
 	if err == nil {
-		fmt.Println("Rainbond is already installed, if you whant reinstall, then please delete the file: /tmp/rainbond.success")
-		return nil
+		println("Rainbond is already installed, if you whant reinstall, then please delete the file: /tmp/rainbond.success")
+		return
 	}
 
 	// download source code from github if in online model
@@ -136,7 +138,7 @@ func initCluster(c *cli.Context) error {
 		_, err := sources.GitClone(csi, c.String("work_dir"), nil, 5)
 		if err != nil {
 			println(err.Error())
-			return err
+			return
 		}
 	}
 
@@ -149,14 +151,21 @@ func initCluster(c *cli.Context) error {
 	err = cmd.Run()
 	if err != nil {
 		println(err.Error())
-		return err
+		return
+	}
+
+	_, err = http.Get("http://127.0.0.1:7070")
+	if err != nil {
+		println("Install complete but WEB UI is can not access, please manual check node status by `grctl node list`")
+		return
 	}
 
 	ioutil.WriteFile("/tmp/rainbond.success", []byte(c.String("repo_ver")), 0644)
 
-	fmt.Println("install manage node success,next you can :")
-	fmt.Println("	add compute node--grctl node add -h")
-	fmt.Println("	install compute node--grctl install compute -h")
-	fmt.Println("	up compute node--grctl node up -h")
-	return nil
+	fmt.Println("Init manage node successful, next you can:")
+	fmt.Println("	access WEB UI: http://127.0.0.1:7070")
+	fmt.Println("	add compute node: grctl node add -h")
+	fmt.Println("	online compute node: grctl node up -h")
+
+	return
 }
