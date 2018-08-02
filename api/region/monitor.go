@@ -25,6 +25,11 @@ import (
 	"fmt"
 	"encoding/json"
 	"bytes"
+	"os"
+	"errors"
+	"io/ioutil"
+	"github.com/Sirupsen/logrus"
+	"gopkg.in/yaml.v2"
 )
 
 //ClusterInterface cluster api
@@ -32,8 +37,8 @@ type MonitorInterface interface {
 	GetRule(name string) (*model.AlertingNameConfig, *util.APIHandleError)
 	GetAllRule() (*model.AlertingRulesConfig, *util.APIHandleError)
 	DelRule(name string) (*utilhttp.ResponseBody, *util.APIHandleError)
-	AddRule(rules *model.AlertingNameConfig) (*utilhttp.ResponseBody, *util.APIHandleError)
-	RegRule(ruleName string, rules *model.AlertingNameConfig) (*utilhttp.ResponseBody, *util.APIHandleError)
+	AddRule(path string) (*utilhttp.ResponseBody, *util.APIHandleError)
+	RegRule(ruleName string, path string) (*utilhttp.ResponseBody, *util.APIHandleError)
 }
 
 func (r *regionImpl) Monitor() MonitorInterface {
@@ -54,6 +59,7 @@ func (m *monitor) GetRule(name string) (*model.AlertingNameConfig, *util.APIHand
 		return nil, handleErrAndCode(err, code)
 	}
 	if code != 200 {
+		logrus.Error("Return failure message ", decode.Bean)
 		return nil, util.CreateAPIHandleError(code, fmt.Errorf("get alerting rules error code %d", code))
 	}
 	return &ac, nil
@@ -68,6 +74,7 @@ func (m *monitor) GetAllRule() (*model.AlertingRulesConfig, *util.APIHandleError
 		return nil, handleErrAndCode(err, code)
 	}
 	if code != 200 {
+		logrus.Error("Return failure message ", decode.Bean)
 		return nil, util.CreateAPIHandleError(code, fmt.Errorf("get alerting rules error code %d", code))
 	}
 	return &ac, nil
@@ -80,40 +87,75 @@ func (m *monitor) DelRule(name string) (*utilhttp.ResponseBody, *util.APIHandleE
 		return nil, handleErrAndCode(err, code)
 	}
 	if code != 200 {
+		logrus.Error("Return failure message ", decode.Bean)
 		return nil, util.CreateAPIHandleError(code, fmt.Errorf("del alerting rules error code %d", code))
 	}
 	return &decode, nil
 }
 
-func (m *monitor) AddRule(rules *model.AlertingNameConfig) (*utilhttp.ResponseBody, *util.APIHandleError) {
+func (m *monitor) AddRule(path string) (*utilhttp.ResponseBody, *util.APIHandleError) {
+	_, err := os.Stat(path)
+	if err!= nil || !os.IsExist(err){
+		return nil, util.CreateAPIHandleError(400, errors.New("file does not exist"))
+	}
+
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		logrus.Error("Failed to read AlertingRules config file: ", err.Error())
+		return nil, util.CreateAPIHandleError(400, err)
+	}
+	var rulesConfig model.AlertingNameConfig
+	if err := yaml.Unmarshal(content, &rulesConfig); err != nil {
+		logrus.Error("Unmarshal AlertingRulesConfig config string to object error.", err.Error())
+		return nil, util.CreateAPIHandleError(400, err)
+
+	}
 	var decode utilhttp.ResponseBody
-	body, err := json.Marshal(rules)
+	body, err := json.Marshal(rulesConfig)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(400, err)
 	}
-	code, err := m.DoRequest(m.prefix, "POST", bytes.NewBuffer(body), nil)
+	code, err := m.DoRequest(m.prefix, "POST", bytes.NewBuffer(body), &decode)
 	if err != nil {
 		println("====err>",code,err)
 		return nil, handleErrAndCode(err, code)
 	}
 	if code != 200 {
+		logrus.Error("Return failure message ", decode.Bean)
 		return nil, util.CreateAPIHandleError(code, fmt.Errorf("add alerting rules error code %d", code))
 	}
 	return &decode, nil
 }
 
-func (m *monitor) RegRule(ruleName string, rules *model.AlertingNameConfig) (*utilhttp.ResponseBody, *util.APIHandleError) {
+func (m *monitor) RegRule(ruleName string, path string) (*utilhttp.ResponseBody, *util.APIHandleError) {
+	_, err := os.Stat(path)
+	if err!= nil || !os.IsExist(err){
+		return nil, util.CreateAPIHandleError(400, errors.New("file does not exist"))
+	}
+
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		logrus.Error("Failed to read AlertingRules config file: ", err.Error())
+		return nil, util.CreateAPIHandleError(400, err)
+	}
+	var rulesConfig model.AlertingNameConfig
+	if err := yaml.Unmarshal(content, &rulesConfig); err != nil {
+		logrus.Error("Unmarshal AlertingRulesConfig config string to object error.", err.Error())
+		return nil, util.CreateAPIHandleError(400, err)
+
+	}
 	var decode utilhttp.ResponseBody
-	body, err := json.Marshal(rules)
+	body, err := json.Marshal(rulesConfig)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(400, err)
 	}
-	code, err := m.DoRequest(m.prefix+"/"+ruleName, "PUT", bytes.NewBuffer(body), nil)
+	code, err := m.DoRequest(m.prefix+"/"+ruleName, "PUT", bytes.NewBuffer(body), &decode)
 	if err != nil {
 		println("====err>",code,err)
 		return nil, handleErrAndCode(err, code)
 	}
 	if code != 200 {
+		logrus.Error("Return failure message ", decode.Bean)
 		return nil, util.CreateAPIHandleError(code, fmt.Errorf("add alerting rules error code %d", code))
 	}
 	return &decode, nil

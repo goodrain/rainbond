@@ -6,7 +6,6 @@ import (
 	"github.com/goodrain/rainbond/grctl/clients"
 	"fmt"
 	"github.com/ghodss/yaml"
-	"github.com/goodrain/rainbond/node/api/model"
 	"errors"
 )
 
@@ -63,27 +62,19 @@ func NewCmdAlerting() cli.Command {
 			},
 			{
 				Name:  "add",
-				Usage: "add 添加规则",
-				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "Rules,r",
-						Value: "",
-						Usage: "Rules",
-					},
-				},
+				Usage: "add FilePath",
 				Action: func(c *cli.Context) error {
 					Common(c)
-					if c.IsSet("Rules") {
-						rules := c.String("Rules")
-
-						var rulesConfig model.AlertingNameConfig
-						yaml.Unmarshal([]byte(rules), &rulesConfig)
-						_, err := clients.RegionClient.Monitor().AddRule(&rulesConfig)
-						handleErr(err)
-						fmt.Println("Add rule successfully")
+					filePath := c.Args().First()
+					if filePath == "" {
+						logrus.Errorf("need args")
 						return nil
 					}
-					return errors.New("rules not null")
+					_, err := clients.RegionClient.Monitor().AddRule(filePath)
+					handleErr(err)
+					fmt.Println("Add rule successfully")
+					return nil
+
 				},
 			},
 			{
@@ -96,19 +87,17 @@ func NewCmdAlerting() cli.Command {
 						Usage: "RulesName",
 					},
 					cli.StringFlag{
-						Name:  "Rules,r",
+						Name:  "RulesPath,rp",
 						Value: "",
-						Usage: "Rules",
+						Usage: "RulesPath",
 					},
 				},
 				Action: func(c *cli.Context) error {
 					Common(c)
-					if c.IsSet("RulesName") && c.IsSet("Rules") {
-						rules := c.String("Rules")
+					if c.IsSet("RulesName") && c.IsSet("RulesPath") {
+						path := c.String("RulesPath")
 						ruleName := c.String("RulesName")
-						var rulesConfig model.AlertingNameConfig
-						yaml.Unmarshal([]byte(rules), &rulesConfig)
-						_, err := clients.RegionClient.Monitor().RegRule(ruleName, &rulesConfig)
+						_, err := clients.RegionClient.Monitor().RegRule(ruleName, path)
 						handleErr(err)
 						fmt.Println("Modify rule successfully")
 						return nil

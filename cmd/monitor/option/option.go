@@ -39,6 +39,7 @@ type Config struct {
 	StartArgs            []string
 	ConfigFile           string
 	AlertingRulesFile    string
+	AlertManagerUrl      string
 	LocalStoragePath     string
 	Web                  Web
 	Tsdb                 Tsdb
@@ -98,6 +99,7 @@ func NewConfig() *Config {
 
 		ConfigFile:           "/etc/prometheus/prometheus.yml",
 		AlertingRulesFile:    "/etc/prometheus/rules.yml",
+		AlertManagerUrl:      "",
 		LocalStoragePath:     "/prometheusdata",
 		WebTimeout:           "5m",
 		RemoteFlushDeadline:  "1m",
@@ -129,6 +131,8 @@ func (c *Config) AddFlag(cmd *pflag.FlagSet) {
 
 func (c *Config) AddPrometheusFlag(cmd *pflag.FlagSet) {
 	cmd.StringVar(&c.ConfigFile, "config.file", c.ConfigFile, "Prometheus configuration file path.")
+
+	cmd.StringVar(&c.AlertManagerUrl, "alertmanager.url", c.AlertManagerUrl, "AlertManager url.")
 
 	cmd.StringVar(&c.AlertingRulesFile, "rules-config.file", c.AlertingRulesFile, "Prometheus alerting rules config file path.")
 
@@ -208,6 +212,9 @@ func (c *Config) CompleteConfig() {
 	}
 	if c.Web.EnableLifecycle {
 		defaultOptions += " --web.enable-lifecycle"
+	}
+	if c.AlertManagerUrl != "" {
+		defaultOptions += " --alertmanager.url="+c.AlertManagerUrl
 	}
 
 	args := strings.Split(defaultOptions, " ")
