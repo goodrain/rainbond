@@ -32,6 +32,8 @@ import (
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"net/http"
+	"net"
+	"time"
 )
 
 //NewCmdInit grctl init
@@ -152,6 +154,22 @@ func initCluster(c *cli.Context) {
 	if err != nil {
 		println(err.Error())
 		return
+	}
+
+	fmt.Println("Waiting WEB UI started.")
+	index := 1
+	for {
+		conn, err := net.DialTimeout("tcp", "127.0.0.1:7070", time.Second)
+		println("waiting web ui is started: ", err.Error())
+		if err == nil {
+			conn.Close()
+			break
+		}
+		index++
+		if index > 30 {
+			println("Install complete but WEB UI is can not access, please manual check node status by `grctl node list`")
+			return
+		}
 	}
 
 	_, err = http.Get("http://127.0.0.1:7070")
