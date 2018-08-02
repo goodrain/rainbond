@@ -21,17 +21,17 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"strings"
 	"github.com/Sirupsen/logrus"
 	"github.com/apcera/termtables"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/urfave/cli"
+	"io/ioutil"
+	"os"
+	"strings"
+	"os/exec"
 )
 
 func handleErr(err *util.APIHandleError) {
@@ -101,9 +101,9 @@ func fileExist(path string) bool {
 }
 func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode) {
 	var formatReady string
-	if ready == false{
+	if ready == false {
 		formatReady = "\033[0;31;31m false \033[0m"
-	}else {
+	} else {
 		formatReady = "\033[0;32;32m true \033[0m"
 	}
 	if v.Role.HasRule("compute") && !v.Role.HasRule("manage") {
@@ -119,30 +119,30 @@ func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode
 func handleResult(serviceTable *termtables.Table, v *client.HostNode) {
 
 	for _, v := range v.NodeStatus.Conditions {
-		if v.Type == client.NodeReady{
+		if v.Type == client.NodeReady {
 			continue
 		}
 		var formatReady string
-		if v.Status == client.ConditionFalse{
-			if v.Type == client.OutOfDisk || v.Type == client.MemoryPressure || v.Type==client.DiskPressure ||v.Type==client.InstallNotReady{
+		if v.Status == client.ConditionFalse {
+			if v.Type == client.OutOfDisk || v.Type == client.MemoryPressure || v.Type == client.DiskPressure || v.Type == client.InstallNotReady {
 				formatReady = "\033[0;32;32m false \033[0m"
-			}else {
+			} else {
 				formatReady = "\033[0;31;31m false \033[0m"
 			}
-		}else {
+		} else {
 			formatReady = "\033[0;32;32m true \033[0m"
 		}
 		serviceTable.AddRow(string(v.Type), formatReady, handleMessage(string(v.Status), v.Message))
 	}
 }
 
-func extractReady(serviceTable *termtables.Table, v *client.HostNode, name string)  {
+func extractReady(serviceTable *termtables.Table, v *client.HostNode, name string) {
 	for _, v := range v.NodeStatus.Conditions {
-		if string(v.Type) == name{
+		if string(v.Type) == name {
 			var formatReady string
-			if v.Status == client.ConditionFalse{
+			if v.Status == client.ConditionFalse {
 				formatReady = "\033[0;31;31m false \033[0m"
-			}else {
+			} else {
 				formatReady = "\033[0;32;32m true \033[0m"
 			}
 			serviceTable.AddRow("\033[0;33;33m "+string(v.Type)+" \033[0m", formatReady, handleMessage(string(v.Status), v.Message))
@@ -161,7 +161,7 @@ func handleMessage(status string, message string) string {
 func NewCmdNode() cli.Command {
 	c := cli.Command{
 		Name:  "node",
-		Usage: "节点。grctl node",
+		Usage: "节点管理相关操作",
 		Subcommands: []cli.Command{
 			{
 				Name:  "get",
@@ -394,107 +394,80 @@ func NewCmdNode() cli.Command {
 			},
 			{
 				Name:  "add",
-				Usage: "add 添加节点",
+				Usage: "Add a node into the cluster",
 				Flags: []cli.Flag{
 					cli.StringFlag{
-						Name:  "Hostname,hn",
-						Value: "",
-						Usage: "Hostname",
+						Name:  "hostname",
+						Usage: "The option is required",
 					},
 					cli.StringFlag{
-						Name:  "InternalIP,i",
-						Value: "",
-						Usage: "InternalIP|required",
+						Name:  "internal-ip",
+						Usage: "The option is required",
 					},
 					cli.StringFlag{
-						Name:  "ExternalIP,e",
-						Value: "",
-						Usage: "ExternalIP",
+						Name:  "external-ip",
+						Usage: "Publish the ip address for external connection",
 					},
 					cli.StringFlag{
-						Name:  "RootPass,p",
-						Value: "",
-						Usage: "RootPass",
+						Name:  "root-pass",
+						Usage: "Specify the root password of the target host for login, this option conflicts with private-key",
 					},
 					cli.StringFlag{
-						Name:  "Role,ro",
-						Usage: "Role|required",
+						Name:  "private-key",
+						Usage: "Specify the private key file for login, this option conflicts with root-pass",
+					},
+					cli.StringFlag{
+						Name:  "role",
+						Usage: "The option is required, the allowed values are: [manage|compute|storage]",
 					},
 				},
 				Action: func(c *cli.Context) error {
 					Common(c)
-					var node client.APIHostNode
-					if c.IsSet("Role") {
-						node.Role = append(node.Role, c.String("Role"))
-						node.InternalIP = c.String("InternalIP")
-						node.HostName = c.String("HostName")
-						node.ExternalIP = c.String("ExternalIP")
-						node.RootPass = c.String("RootPass")
-
-						err := clients.RegionClient.Nodes().Add(&node)
-						handleErr(err)
-						fmt.Println("success add node")
-
-						// var hostNode *client.HostNode
-						// timer := time.NewTimer(15 * time.Second)
-						// gotNode := false
-						// for !gotNode {
-						// 	time.Sleep(3 * time.Second)
-						// 	list, err := clients.RegionClient.Nodes().List()
-						// 	handleErr(err)
-						// 	for _, v := range list {
-						// 		if node.InternalIP == v.InternalIP {
-						// 			hostNode = v
-						// 			timer.Stop()
-						// 			gotNode = true
-						// 			//todo  初始化其它节点失败判定
-						// 		}
-						// 	}
-						// }
-						// fmt.Println("添加节点成功，正在初始化")
-						// tableC := termtables.CreateTable()
-						// var header []string
-						// var content []string
-						// for {
-						// 	time.Sleep(3 * time.Second)
-						// 	list, err := clients.RegionClient.Nodes().List()
-						// 	handleErr(err)
-						// 	select {
-						// 	case <-timer.C:
-						// 		fmt.Println("添加节点超时，请检查etcd")
-						// 		return nil
-						// 	default:
-						// 		for _, v := range list {
-						// 			if node.InternalIP == v.InternalIP {
-						// 				hostNode = v
-						// 				break
-						// 			}
-						// 		}
-						// 		for _, val := range hostNode.NodeStatus.Conditions {
-						// 			fmt.Println("正在判断节点状态，请稍等")
-						// 			if hostNode.Alived || (val.Type == client.NodeInit && val.Status == client.ConditionTrue) {
-						// 				fmt.Printf("节点 %s 初始化成功", hostNode.ID)
-						// 				fmt.Println()
-						// 				header = append(header, string(val.Type))
-						// 				content = append(content, string(val.Status))
-						// 				tableC.AddHeaders(header)
-						// 				tableC.AddRow(content)
-						// 				fmt.Println(tableC.Render())
-						// 				return nil
-						// 			} else if val.Type == client.NodeInit && val.Status == client.ConditionFalse {
-						// 				fmt.Printf("节点 %s 初始化失败:%s", hostNode.ID, val.Reason)
-						// 				return nil
-						// 			} else {
-						// 				fmt.Printf("..")
-						// 			}
-						// 		}
-						// 	}
-						// }
-
-						// fmt.Println("节点初始化结束")
+					if !c.IsSet("role") {
+						println("role must not null")
 						return nil
 					}
-					return errors.New("role must not null")
+
+					if c.String("root-pass") != "" && c.String("private-key") != "" {
+						println("Options private-key and root-pass are conflicting")
+						return nil
+					}
+
+					model := "pass"
+					if c.String("private-key") != "" {
+						model = "key"
+					}
+
+					// start add node script
+					fmt.Println("Begin add node, please don't exit")
+					line := fmt.Sprintf("cd %s ; ./add.sh %s %s %s %s %s", c.String("role"), c.String("hostname"),
+						c.String("internal-ip"), model, c.String("root-pass"), c.String("private-key"))
+					cmd := exec.Command("bash", "-c", line)
+					cmd.Stdout = os.Stdout
+					cmd.Stderr = os.Stderr
+
+					err := cmd.Run()
+					if err != nil {
+						println(err.Error())
+						return nil
+					}
+
+					fmt.Println("Add node successful, next you can:")
+					fmt.Println("	check cluster status: grctl node list")
+					fmt.Println("	online node: grctl node up --help")
+
+					//var node client.APIHostNode
+					//node.Role = append(node.Role, c.String("role"))
+					//node.HostName = c.String("hostname")
+					//node.RootPass = c.String("root-pass")
+					//node.InternalIP = c.String("internal-ip")
+					//node.ExternalIP = c.String("external-ip")
+
+					//err := clients.RegionClient.Nodes().Add(&node)
+					//handleErr(err)
+					//fmt.Println("success add node")
+
+					return nil
 				},
 			},
 		},
