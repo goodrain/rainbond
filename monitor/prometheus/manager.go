@@ -81,9 +81,7 @@ func NewManager(config *option.Config, a *AlertingRulesManager) *Manager {
 						ServiceDiscoveryConfig:ServiceDiscoveryConfig{
 							StaticConfigs:[]*Group{
 								&Group{
-									Targets:[]string{
-										"localhost:9093",
-									},
+									Targets:config.AlertManagerUrlList,
 								},
 							},
 						},

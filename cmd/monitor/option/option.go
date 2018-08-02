@@ -40,6 +40,7 @@ type Config struct {
 	ConfigFile           string
 	AlertingRulesFile    string
 	AlertManagerUrl      string
+	AlertManagerUrlList  []string
 	LocalStoragePath     string
 	Web                  Web
 	Tsdb                 Tsdb
@@ -99,7 +100,7 @@ func NewConfig() *Config {
 
 		ConfigFile:           "/etc/prometheus/prometheus.yml",
 		AlertingRulesFile:    "/etc/prometheus/rules.yml",
-		AlertManagerUrl:      "",
+		AlertManagerUrl:      "localhost:9093",
 		LocalStoragePath:     "/prometheusdata",
 		WebTimeout:           "5m",
 		RemoteFlushDeadline:  "1m",
@@ -193,6 +194,9 @@ func (c *Config) CompleteConfig() {
 		os.Exit(17)
 	}
 
+	for _, url := range strings.Split(c.AlertManagerUrl, ",") {
+		c.AlertManagerUrlList = append(c.AlertManagerUrlList, url)
+	}
 	// parse values from prometheus options to config
 	ipPort := strings.TrimLeft(c.AdvertiseAddr, "shttp://")
 	ipPortArr := strings.Split(ipPort, ":")
@@ -212,9 +216,6 @@ func (c *Config) CompleteConfig() {
 	}
 	if c.Web.EnableLifecycle {
 		defaultOptions += " --web.enable-lifecycle"
-	}
-	if c.AlertManagerUrl != "" {
-		defaultOptions += " --alertmanager.url="+c.AlertManagerUrl
 	}
 
 	args := strings.Split(defaultOptions, " ")
