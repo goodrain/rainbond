@@ -96,7 +96,6 @@ func (m *monitor) DelRule(name string) (*utilhttp.ResponseBody, *util.APIHandleE
 func (m *monitor) AddRule(path string) (*utilhttp.ResponseBody, *util.APIHandleError) {
 	_, err := os.Stat(path)
 	if err != nil {
-		logrus.Info(err)
 		if !os.IsExist(err) {
 			return nil, util.CreateAPIHandleError(400, errors.New("file does not exist"))
 		}
@@ -132,7 +131,6 @@ func (m *monitor) AddRule(path string) (*utilhttp.ResponseBody, *util.APIHandleE
 func (m *monitor) RegRule(ruleName string, path string) (*utilhttp.ResponseBody, *util.APIHandleError) {
 	_, err := os.Stat(path)
 	if err != nil {
-		logrus.Info(err)
 		if !os.IsExist(err) {
 			return nil, util.CreateAPIHandleError(400, errors.New("file does not exist"))
 		}

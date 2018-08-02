@@ -75,6 +75,22 @@ func NewManager(config *option.Config, a *AlertingRulesManager) *Manager {
 				EvaluationInterval: model.Duration(time.Second * 30),
 			},
 			RuleFiles: []string{config.AlertingRulesFile},
+			AlertingConfig:AlertingConfig{
+				AlertmanagerConfigs:[]*AlertmanagerConfig{
+					&AlertmanagerConfig{
+						ServiceDiscoveryConfig:ServiceDiscoveryConfig{
+							StaticConfigs:[]*Group{
+								&Group{
+									Targets:[]string{
+										"localhost:9093",
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			,
 		},
 		Registry:   reg,
 		httpClient: client,
