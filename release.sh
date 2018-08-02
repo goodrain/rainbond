@@ -32,7 +32,8 @@ function build() {
     docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/node ./cmd/node
 	echo "build grctl"
 	docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/grctl ./cmd/grctl
-
+	echo "build certutil"
+	docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/grcert ./cmd/certutil
 	cd $releasedir/dist/usr/local/
 	tar zcf pkg.tgz `find . -maxdepth 1|sed 1d`
 
@@ -41,6 +42,7 @@ FROM alpine:3.6
 COPY pkg.tgz /
 EOF
 	docker build -t rainbond/cni:rbd_v$VERSION .
+	docker push rainbond/cni:rbd_v$VERSION 
 	
 }
 build_items=(api builder entrance grctl monitor mq node webcli worker eventlog)

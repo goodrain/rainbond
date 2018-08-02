@@ -27,8 +27,8 @@ deb:
 	@bash ./release.sh deb
 rpm: 
 	@bash ./release.sh rpm
-pkgs:
-	@bash ./release.sh pkg
+pkg:
+	@bash ./release.sh build
 
 run:build
 ifeq ($(WHAT),api)
