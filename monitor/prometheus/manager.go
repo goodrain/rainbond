@@ -89,8 +89,7 @@ func NewManager(config *option.Config, a *AlertingRulesManager) *Manager {
 						},
 					},
 				},
-			}
-			,
+			},
 		},
 		Registry:   reg,
 		httpClient: client,
