@@ -37,7 +37,7 @@ func Run() error {
 		cli.StringFlag{
 			Name:  "config, c",
 			Value: "",
-			Usage: "default <USER_HOME>/grctl.yaml",
+			Usage: "default <USER_HOME>/.rbd/grctl.yaml",
 		},
 	}
 	sort.Sort(cli.FlagsByName(App.Flags))
