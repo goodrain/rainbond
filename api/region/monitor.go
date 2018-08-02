@@ -95,8 +95,11 @@ func (m *monitor) DelRule(name string) (*utilhttp.ResponseBody, *util.APIHandleE
 
 func (m *monitor) AddRule(path string) (*utilhttp.ResponseBody, *util.APIHandleError) {
 	_, err := os.Stat(path)
-	if err!= nil || !os.IsExist(err){
-		return nil, util.CreateAPIHandleError(400, errors.New("file does not exist"))
+	if err != nil {
+		logrus.Info(err)
+		if !os.IsExist(err) {
+			return nil, util.CreateAPIHandleError(400, errors.New("file does not exist"))
+		}
 	}
 
 	content, err := ioutil.ReadFile(path)
@@ -117,7 +120,6 @@ func (m *monitor) AddRule(path string) (*utilhttp.ResponseBody, *util.APIHandleE
 	}
 	code, err := m.DoRequest(m.prefix, "POST", bytes.NewBuffer(body), &decode)
 	if err != nil {
-		println("====err>",code,err)
 		return nil, handleErrAndCode(err, code)
 	}
 	if code != 200 {
@@ -129,8 +131,11 @@ func (m *monitor) AddRule(path string) (*utilhttp.ResponseBody, *util.APIHandleE
 
 func (m *monitor) RegRule(ruleName string, path string) (*utilhttp.ResponseBody, *util.APIHandleError) {
 	_, err := os.Stat(path)
-	if err!= nil || !os.IsExist(err){
-		return nil, util.CreateAPIHandleError(400, errors.New("file does not exist"))
+	if err != nil {
+		logrus.Info(err)
+		if !os.IsExist(err) {
+			return nil, util.CreateAPIHandleError(400, errors.New("file does not exist"))
+		}
 	}
 
 	content, err := ioutil.ReadFile(path)
@@ -151,7 +156,6 @@ func (m *monitor) RegRule(ruleName string, path string) (*utilhttp.ResponseBody,
 	}
 	code, err := m.DoRequest(m.prefix+"/"+ruleName, "PUT", bytes.NewBuffer(body), &decode)
 	if err != nil {
-		println("====err>",code,err)
 		return nil, handleErrAndCode(err, code)
 	}
 	if code != 200 {
