@@ -634,12 +634,16 @@ func (t *TenantStruct) GetManyDeployVersion(w http.ResponseWriter, r *http.Reque
 	if !ok {
 		return
 	}
-	serviceIDs, ok := data["service_ids"].([]string)
+	serviceIDs, ok := data["service_ids"].([]interface{})
 	if !ok {
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("service ids must be a array"))
 		return
 	}
-	services, err := db.GetManager().TenantServiceDao().GetServiceByIDs(serviceIDs)
+	var list []string
+	for _, s := range serviceIDs {
+		list = append(list, s.(string))
+	}
+	services, err := db.GetManager().TenantServiceDao().GetServiceByIDs(list)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf(err.Error()))
 		return
