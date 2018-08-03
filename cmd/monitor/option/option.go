@@ -127,7 +127,7 @@ func NewConfig() *Config {
 func (c *Config) AddFlag(cmd *pflag.FlagSet) {
 	cmd.StringVar(&c.EtcdEndpointsLine, "etcd-endpoints", c.EtcdEndpointsLine, "etcd endpoints list.")
 	cmd.StringVar(&c.AdvertiseAddr, "advertise-addr", c.AdvertiseAddr, "advertise address, and registry into etcd.")
-	cmd.StringSliceVar(&c.AlertManagerUrl, "alertmanager-url", c.AlertManagerUrl, "AlertManager url.")
+	cmd.StringSliceVar(&c.AlertManagerUrl, "alertmanager-address", c.AlertManagerUrl, "AlertManager url.")
 }
 
 func (c *Config) AddPrometheusFlag(cmd *pflag.FlagSet) {
