@@ -99,7 +99,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Delete("/groupapp/backups/{backup_id}", controller.DeleteBackup)
 	r.Post("/groupapp/backups/{backup_id}/restore", controller.Restore)
 	r.Get("/groupapp/backups/{backup_id}/restore/{restore_id}", controller.RestoreResult)
-
+	r.Post("/deployversions", controller.GetManager().GetManyDeployVersion)
 	return r
 }
 
@@ -131,8 +131,9 @@ func (v2 *V2) serviceRouter() chi.Router {
 	//构建版本列表
 	r.Get("/build-list", controller.GetManager().BuildList)
 	//构建版本操作
-	r.Get("/build-version/{build_version}",controller.GetManager().BuildVersionInfo)
-	r.Delete("/build-version/{build_version}",controller.GetManager().BuildVersionInfo)
+	r.Get("/build-version/{build_version}", controller.GetManager().BuildVersionInfo)
+	r.Get("/deployversion", controller.GetManager().GetDeployVersion)
+	r.Delete("/build-version/{build_version}", controller.GetManager().BuildVersionInfo)
 	//应用分享
 	r.Post("/share", controller.GetManager().Share)
 	r.Get("/share/{share_id}", controller.GetManager().ShareResult)
