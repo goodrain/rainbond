@@ -72,11 +72,11 @@ doc:
 	@cd cmd/api && swagger generate spec -o ../../hack/contrib/docker/api/html/swagger.json
 
 cert-ca:
-	@_output/3.7/rainbond-certutil create --is-ca --ca-name=./test/ssl/ca.pem --ca-key-name=./test/ssl/ca.key.pem
+	@_output/3.7/rainbond-certutil create --is-ca --ca-name=./test/ssl/ca.pem --ca-key-name=./test/ssl/ca.key.pem --domains region.goodrain.me
 cert-server:
-	@_output/3.7/rainbond-certutil create --ca-name=./test/ssl/ca.pem --ca-key-name=./test/ssl/ca.key.pem --crt-name=./test/ssl/server.pem --crt-key-name=./test/ssl/server.key.pem
+	@_output/3.7/rainbond-certutil create --ca-name=./test/ssl/ca.pem --ca-key-name=./test/ssl/ca.key.pem --crt-name=./test/ssl/server.pem --crt-key-name=./test/ssl/server.key.pem --domains region.goodrain.me
 cert-client:
-	@_output/3.7/rainbond-certutil create --ca-name=./test/ssl/ca.pem --ca-key-name=./test/ssl/ca.key.pem --crt-name=./test/ssl/client.pem --crt-key-name=./test/ssl/client.key.pem
+	@_output/3.7/rainbond-certutil create --ca-name=./test/ssl/ca.pem --ca-key-name=./test/ssl/ca.key.pem --crt-name=./test/ssl/client.pem --crt-key-name=./test/ssl/client.key.pem --domains region.goodrain.me
 help: ## this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo "\033[36m 🤔 single plugin,how to work?   \033[0m"

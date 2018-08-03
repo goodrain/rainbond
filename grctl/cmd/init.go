@@ -122,7 +122,7 @@ func NewCmdInstallStatus() cli.Command {
 func initCluster(c *cli.Context) {
 	// check if the rainbond is already installed
 	fmt.Println("Checking install enviremant.")
-	_, err := os.Stat("/tmp/rainbond.success")
+	_, err := os.Stat("/opt/rainbond/rainbond.success")
 	if err == nil {
 		println("Rainbond is already installed, if you whant reinstall, then please delete the file: /tmp/rainbond.success")
 		return
@@ -178,7 +178,7 @@ func initCluster(c *cli.Context) {
 		return
 	}
 
-	ioutil.WriteFile("/tmp/rainbond.success", []byte(c.String("repo_ver")), 0644)
+	ioutil.WriteFile("/opt/rainbond/rainbond.success", []byte(c.String("repo_ver")), 0644)
 
 	fmt.Println("Init manage node successful, next you can:")
 	fmt.Println("	access WEB UI: http://127.0.0.1:7070")

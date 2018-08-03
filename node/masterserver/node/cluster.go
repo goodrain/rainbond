@@ -41,6 +41,7 @@ import (
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util"
+	"encoding/json"
 )
 
 const (
@@ -133,25 +134,38 @@ func (n *Cluster) checkNodeStatus() {
 					_, err := n.kubecli.GetNode(node.ID)
 					// delete the node in k8s if type is compute
 					if node.Role.HasRule(client.ComputeNode) && err == nil {
-						logrus.Infof("Node %s status is %v %d times and down it.",
+						logrus.Infof("Node %s status is %v %d times and can not scheduling.",
 							node.ID, ready, unhealthyCounter[node.ID])
-						err := n.kubecli.DownK8sNode(node.ID)
+						_, err := n.kubecli.CordonOrUnCordon(node.ID, true)
 						if err != nil {
 							logrus.Error("Failed to delete node in k8s: ", err)
 						}
-						n, err := n.kubecli.GetNode(node.ID)
-						fmt.Printf("======== deleted: %v, %v", err, n)
 					}
 				} else {
 					unhealthyCounter[node.ID]++
 				}
 			} else if ready {
+				resp, err := store.DefalutClient.Get("/rainbond/nodes/target/"+node.ID)
+				if err != nil {
+					logrus.Error(err)
+					continue
+				}
+				var targetNode client.HostNode
+				err = json.Unmarshal(resp.Kvs[0].Value, &targetNode)
+				if err != nil {
+					logrus.Error(err)
+					continue
+				}
+				if targetNode.NodeStatus.Status != Running {
+					logrus.Info("Skip open scheduling, because target node is: ", targetNode.NodeStatus.Status)
+					continue
+				}
 				unhealthyCounter[node.ID] = 0
-				_, err := n.kubecli.GetNode(node.ID)
+				_, err = n.kubecli.GetNode(node.ID)
 				// add the node into k8s if type is compute
 				if node.Role.HasRule(client.ComputeNode) && err != nil {
-					logrus.Infof("Node %s status is %v and up it.", node.ID, ready)
-					_, err := n.kubecli.UpK8sNode(node)
+					logrus.Infof("Node %s status is %v and can scheduling.", node.ID, ready)
+					_, err := n.kubecli.CordonOrUnCordon(node.ID, false)
 					if err != nil {
 						logrus.Error("Failed to add node into k8s: ", err)
 					}

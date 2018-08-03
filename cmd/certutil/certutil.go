@@ -48,6 +48,7 @@ type CertInformation struct {
 	IsCA               bool
 	Names              []pkix.AttributeTypeAndValue
 	IPAddresses        []net.IP
+	Domains            []string
 }
 
 //CreateCRT create crt
@@ -60,10 +61,10 @@ func CreateCRT(RootCa *x509.Certificate, RootKey *rsa.PrivateKey, info CertInfor
 
 	var buf []byte
 	if RootCa == nil || RootKey == nil {
-		//创建自签名证书
+		//create ca cert
 		buf, err = x509.CreateCertificate(rand.Reader, Crt, Crt, &Key.PublicKey, Key)
 	} else {
-		//使用根证书签名
+		//create cert by ca
 		buf, err = x509.CreateCertificate(rand.Reader, Crt, RootCa, &Key.PublicKey, RootKey)
 	}
 	if err != nil {
@@ -86,10 +87,11 @@ func write(filename, Type string, p []byte) error {
 	if err != nil {
 		return err
 	}
-	var b *pem.Block = &pem.Block{Bytes: p, Type: Type}
+	var b = &pem.Block{Bytes: p, Type: Type}
 	return pem.Encode(File, b)
 }
 
+//Parse Parse
 func Parse(crtPath, keyPath string) (rootcertificate *x509.Certificate, rootPrivateKey *rsa.PrivateKey, err error) {
 	rootcertificate, err = ParseCrt(crtPath)
 	if err != nil {
@@ -99,6 +101,7 @@ func Parse(crtPath, keyPath string) (rootcertificate *x509.Certificate, rootPriv
 	return
 }
 
+//ParseCrt ParseCrt
 func ParseCrt(path string) (*x509.Certificate, error) {
 	buf, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -109,6 +112,7 @@ func ParseCrt(path string) (*x509.Certificate, error) {
 	return x509.ParseCertificate(p.Bytes)
 }
 
+//ParseKey ParseKey
 func ParseKey(path string) (*rsa.PrivateKey, error) {
 	buf, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -130,13 +134,14 @@ func newCertificate(info CertInformation) *x509.Certificate {
 			Locality:           info.Locality,
 			ExtraNames:         info.Names,
 		},
-		NotBefore:             time.Now(),                   //证书的开始时间
-		NotAfter:              time.Now().AddDate(20, 0, 0), //证书的结束时间
-		BasicConstraintsValid: true,                         //基本的有效性约束
+		NotBefore:             time.Now(),                   //start time
+		NotAfter:              time.Now().AddDate(20, 0, 0), //end time
+		BasicConstraintsValid: true,                         //basic
 		IsCA:           info.IsCA,                                                                  //是否是根证书
 		ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}, //证书用途
 		KeyUsage:       x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		EmailAddresses: info.EmailAddress,
 		IPAddresses:    info.IPAddresses,
+		DNSNames:       info.Domains,
 	}
 }
