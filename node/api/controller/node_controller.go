@@ -266,6 +266,23 @@ func PutLabel(w http.ResponseWriter, r *http.Request) {
 //DownNode 节点下线，计算节点操作
 func DownNode(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	nodes, _ := nodeService.GetAllNode()
+	if nodes != nil && len(nodes) > 0 {
+		count := 0
+		for _, node := range nodes {
+			if node.Role.HasRule("manage") {
+				count++
+			}
+		}
+		if count < 2 {
+			err := utils.APIHandleError{
+				Code: 403,
+				Err:  errors.New(fmt.Sprint("manage node less one, can not down it.")),
+			}
+			err.Handle(r, w)
+			return
+		}
+	}
 	logrus.Info("Node down by node api controller: ", nodeUID)
 	node, err := nodeService.DownNode(nodeUID)
 	if err != nil {
