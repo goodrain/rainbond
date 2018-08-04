@@ -145,7 +145,7 @@ func (n *Cluster) checkNodeStatus() {
 					unhealthyCounter[node.ID]++
 				}
 			} else if ready {
-				resp, err := store.DefalutClient.Get("/rainbond/nodes/target/"+node.ID)
+				resp, err := store.DefalutClient.Get("/rainbond/nodes/target/" + node.ID)
 				if err != nil {
 					logrus.Error(err)
 					continue
@@ -260,6 +260,15 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			v.Status = status
 			v.NodeStatus.Status = status
 			v.Unschedulable = true
+			r := client.NodeCondition{
+				Type:               client.NodeReady,
+				Status:             client.ConditionFalse,
+				LastHeartbeatTime:  time.Now(),
+				LastTransitionTime: time.Now(),
+				Message:            "The node has been offline",
+			}
+			v.UpdataCondition(r)
+			return
 		}
 		v.Unschedulable = false
 		if k8sNode != nil {
@@ -270,6 +279,15 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			v.Status = status
 			v.NodeStatus.Status = status
 			v.Unschedulable = true
+			r := client.NodeCondition{
+				Type:               client.NodeReady,
+				Status:             client.ConditionFalse,
+				LastHeartbeatTime:  time.Now(),
+				LastTransitionTime: time.Now(),
+				Message:            "Node lost connection, state unknown",
+			}
+			v.UpdataCondition(r)
+			return
 		}
 
 		//var haveready bool
@@ -321,6 +339,14 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			if time.Now().Sub(v.UpTime) > time.Minute*2 {
 				v.Status = Unknown
 				v.NodeStatus.Status = Unknown
+				r := client.NodeCondition{
+					Type:               client.NodeReady,
+					Status:             client.ConditionFalse,
+					LastHeartbeatTime:  time.Now(),
+					LastTransitionTime: time.Now(),
+					Message:            "Node lost connection, state unknown",
+				}
+				v.UpdataCondition(r)
 				return
 			}
 
@@ -354,6 +380,14 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		} else {
 			v.Status = Offline
 			v.NodeStatus.Status = Offline
+			r := client.NodeCondition{
+				Type:               client.NodeReady,
+				Status:             client.ConditionFalse,
+				LastHeartbeatTime:  time.Now(),
+				LastTransitionTime: time.Now(),
+				Message:            "The node has been offline",
+			}
+			v.UpdataCondition(r)
 		}
 	}
 }
