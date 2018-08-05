@@ -63,15 +63,18 @@ func getClusterInfo(c *cli.Context) error {
 	serviceTable2.AddHeaders("Service", "HealthyQuantity/Total", "Message")
 	serviceStatusInfo := getServicesHealthy(list)
 	status, message := clusterStatus(serviceStatusInfo["Role"],serviceStatusInfo["Ready"])
-	serviceTable2.AddRow("033[0;33;33m ClusterStatus \033[0m", status, message)
+	serviceTable2.AddRow("\033[0;33;33m ClusterStatus \033[0m", status, message)
 	for name, v := range serviceStatusInfo {
+		if name == "Role"{
+			continue
+		}
 		status, message := summaryResult(v)
 		serviceTable2.AddRow(name, status, message)
 	}
 	fmt.Println(serviceTable2.Render())
 	//show node detail
 	serviceTable := termtables.CreateTable()
-	serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "Alived", "Schedulable", "Ready")
+	serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status")
 	var rest []*client.HostNode
 	for _, v := range list {
 		if v.Role.HasRule("manage") {
@@ -188,14 +191,14 @@ func clusterStatus(roleList []map[string]string, ReadyList []map[string]string) 
 	readyStatus := handleNodeReady(ReadyList)
 	roleStatus := handleRoleAndStatus(roleList)
 	if readyStatus {
-		clusterStatus = "healthy"
+		clusterStatus = "\033[0;32;32m healthy \033[0m"
 		errMessage = ""
 	} else {
-		clusterStatus = "unhealthy"
+		clusterStatus = "\033[0;31;31m unhealthy \033[0m"
 		errMessage = "There is a service exception in the cluster"
 	}
 	if !roleStatus {
-		clusterStatus = "unavailable"
+		clusterStatus = "\033[0;33;33m unavailable \033[0m"
 		errMessage = "No compute nodes or management nodes are available in the cluster"
 	}
 	return clusterStatus, errMessage
