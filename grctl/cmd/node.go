@@ -100,7 +100,7 @@ func fileExist(path string) bool {
 }
 func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode) {
 	var status string
-	if ready == true{
+	if ready == true {
 		status = "\033[0;32;32m running(healthy) \033[0m"
 	}
 	if ready == false {
@@ -109,7 +109,7 @@ func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode
 	if v.Unschedulable == true {
 		status = "\033[0;32;32m running(unschedulable) \033[0m"
 	}
-	if v.Status == "unknown"{
+	if v.Status == "unknown" {
 		status = "\033[0;31;31m unknown \033[0m"
 	}
 	if v.Status == "offline" {
@@ -195,9 +195,9 @@ func NewCmdNode() cli.Command {
 					handleErr(err)
 					table := uitable.New()
 					fmt.Printf("-------------------Node information-----------------------\n")
-					table.AddRow("\033[0;33;33status\033[0m", v.NodeStatus.Status)
-					table.AddRow("\033[0;33;33unschedulable\033[0m", v.Unschedulable)
-					table.AddRow("\033[0;33;33alived\033[0m", v.Alived)
+					table.AddRow("status", v.NodeStatus.Status)
+					table.AddRow("unschedulable", v.Unschedulable)
+					table.AddRow("alived", v.Alived)
 					table.AddRow("uuid", v.ID)
 					table.AddRow("host_name", v.HostName)
 					table.AddRow("create_time", v.CreateTime)
