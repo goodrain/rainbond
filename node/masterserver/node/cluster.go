@@ -586,10 +586,14 @@ func (n *Cluster) checkNodeInstall(node *client.HostNode) {
 
 //GetAllNode 获取全部节点
 func (n *Cluster) GetAllNode() (nodes []*client.HostNode) {
+	println("========1")
 	n.lock.Lock()
 	defer n.lock.Unlock()
+	println("========2")
 	for _, v := range n.nodes {
+		println("========3")
 		n.handleNodeStatus(v)
+		println("========4")
 		nodes = append(nodes, v)
 	}
 	return
