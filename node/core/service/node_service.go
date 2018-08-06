@@ -230,6 +230,7 @@ func (n *NodeService) UpNode(nodeID string) (*client.HostNode, *utils.APIHandleE
 	if apierr != nil {
 		return nil, apierr
 	}
+	hostNode.Unschedulable = false
 	// add the node to k8s if type is compute
 	if hostNode.Role.HasRule(client.ComputeNode) {
 		if k8snode, _ := n.kubecli.GetNode(hostNode.ID); k8snode == nil {
