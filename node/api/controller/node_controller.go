@@ -287,7 +287,7 @@ func DownNode(w http.ResponseWriter, r *http.Request) {
 			if count < 2 {
 				err := utils.APIHandleError{
 					Code: 403,
-					Err:  errors.New(fmt.Sprint("manage node less one, can not down it.")),
+					Err:  errors.New(fmt.Sprint("manage node less two, can not down it.")),
 				}
 				err.Handle(r, w)
 				return
