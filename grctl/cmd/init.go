@@ -57,13 +57,13 @@ func NewCmdInit() cli.Command {
 				Usage: "当前节点内网IP, 10.0.0.1",
 			},
 			cli.StringFlag{
-				Name:  "repo_ver",
-				Usage: "repo version,3.4",
-				Value: "master",
+				Name:  "rainbond-version",
+				Usage: "Choose a specific Rainbond version for the control plane. (default v3.7)",
+				Value: "v3.7",
 			},
 			cli.StringFlag{
-				Name:  "install_type",
-				Usage: "online or offline",
+				Name:  "install-type",
+				Usage: "defalut online.",
 				Value: "online",
 			},
 			cli.BoolFlag{
@@ -119,18 +119,18 @@ func NewCmdInstallStatus() cli.Command {
 func initCluster(c *cli.Context) {
 	// check if the rainbond is already installed
 	fmt.Println("Checking install enviremant.")
-	_, err := os.Stat("/opt/rainbond/rainbond.success")
+	_, err := os.Stat("/opt/rainbond/.rainbond.success")
 	if err == nil {
-		println("Rainbond is already installed, if you whant reinstall, then please delete the file: /tmp/rainbond.success")
+		println("Rainbond is already installed, if you whant reinstall, then please delete the file: /opt/rainbond/.rainbond.success")
 		return
 	}
 
 	// download source code from github if in online model
-	if c.String("install_type") == "online" {
+	if c.String("install-type") == "online" {
 		fmt.Println("Download rainbond install package.")
 		csi := sources.CodeSourceInfo{
 			RepositoryURL: "https://github.com/goodrain/rainbond-install.git",
-			Branch:        c.String("repo_ver"),
+			Branch:        c.String("rainbond-version"),
 		}
 		os.RemoveAll(c.String("work_dir"))
 		os.MkdirAll(c.String("work_dir"), 0755)
@@ -143,7 +143,7 @@ func initCluster(c *cli.Context) {
 
 	// start setup script to install rainbond
 	fmt.Println("Begin init cluster first node,please don't exit,wait install")
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("cd %s ; ./setup.sh %s %s", c.String("work_dir"), c.String("install_type"), c.String("repo_ver")))
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("cd %s ; ./setup.sh %s %s", c.String("work_dir"), c.String("install-type"), c.String("rainbond-version")))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -153,7 +153,7 @@ func initCluster(c *cli.Context) {
 		return
 	}
 
-	ioutil.WriteFile("/opt/rainbond/rainbond.success", []byte(c.String("repo_ver")), 0644)
+	ioutil.WriteFile("/opt/rainbond/.rainbond.success", []byte(c.String("rainbond-version")), 0644)
 
 	return
 }

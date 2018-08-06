@@ -47,7 +47,7 @@ func NewCmdShow() cli.Command {
 			Common(c)
 			manageHosts, err := clients.RegionClient.Nodes().GetNodeByRule("manage")
 			handleErr(err)
-			ips := getExternalIP("/etc/goodrain/envs/.exip", manageHosts)
+			ips := getExternalIP("/opt/rainbond/envs/.exip", manageHosts)
 			fmt.Println("Manage your apps with webui：")
 			for _, v := range ips {
 				url := v + ":7070"
@@ -393,27 +393,27 @@ func NewCmdNode() cli.Command {
 				Usage: "Add a node into the cluster",
 				Flags: []cli.Flag{
 					cli.StringFlag{
-						Name:  "hostname",
+						Name:  "hostname,host",
 						Usage: "The option is required",
 					},
 					cli.StringFlag{
-						Name:  "internal-ip",
+						Name:  "internal-ip,iip",
 						Usage: "The option is required",
 					},
 					cli.StringFlag{
-						Name:  "external-ip",
+						Name:  "external-ip,eip",
 						Usage: "Publish the ip address for external connection",
 					},
 					cli.StringFlag{
-						Name:  "root-pass",
+						Name:  "root-pass,p",
 						Usage: "Specify the root password of the target host for login, this option conflicts with private-key",
 					},
 					cli.StringFlag{
-						Name:  "private-key",
+						Name:  "private-key,key",
 						Usage: "Specify the private key file for login, this option conflicts with root-pass",
 					},
 					cli.StringFlag{
-						Name:  "role",
+						Name:  "role,r",
 						Usage: "The option is required, the allowed values are: [manage|compute|storage]",
 					},
 				},
@@ -450,7 +450,7 @@ func NewCmdNode() cli.Command {
 
 					fmt.Println("Add node successful, next you can:")
 					fmt.Println("	check cluster status: grctl node list")
-					fmt.Println("	online node: grctl node up --help")
+					//fmt.Println("	online node: grctl node up --help")
 
 					//var node client.APIHostNode
 					//node.Role = append(node.Role, c.String("role"))
