@@ -193,6 +193,7 @@ func (p *probeManager) Stop() error {
 func (p *probeManager) CloseWatch(serviceName string, id string) error {
 	channel := p.watches[serviceName][id].statusChan
 	close(channel)
+	delete(p.watches[serviceName], id)
 	return nil
 }
 func (p *probeManager) GetServiceHealthy(serviceName string) (*service.HealthStatus, bool) {

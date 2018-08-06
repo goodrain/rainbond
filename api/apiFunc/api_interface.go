@@ -38,6 +38,7 @@ type TenantInterface interface {
 	GetSupportProtocols(w http.ResponseWriter, r *http.Request)
 	TransPlugins(w http.ResponseWriter, r *http.Request)
 	ServicesCount(w http.ResponseWriter, r *http.Request)
+	GetManyDeployVersion(w http.ResponseWriter, r *http.Request)
 }
 
 //ServiceInterface ServiceInterface
@@ -68,6 +69,7 @@ type ServiceInterface interface {
 	Share(w http.ResponseWriter, r *http.Request)
 	ShareResult(w http.ResponseWriter, r *http.Request)
 	BuildVersionInfo(w http.ResponseWriter, r *http.Request)
+	GetDeployVersion(w http.ResponseWriter, r *http.Request)
 }
 
 //EntranceInterface EntranceInterface

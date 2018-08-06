@@ -29,16 +29,17 @@ import (
 
 	"time"
 
+	"os"
+
 	"github.com/Sirupsen/logrus"
+	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	tutil "github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
-	"github.com/thedevsaddam/govalidator"
-	"github.com/go-chi/chi"
 	"github.com/jinzhu/gorm"
-	"os"
+	"github.com/thedevsaddam/govalidator"
 )
 
 //TIMELAYOUT timelayout
@@ -546,13 +547,13 @@ func (t *TenantStruct) BuildVersionIsExist(w http.ResponseWriter, r *http.Reques
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	buildVersion := chi.URLParam(r, "build_version")
 	_, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(buildVersion, serviceID)
-	if err != nil && err!=gorm.ErrRecordNotFound {
+	if err != nil && err != gorm.ErrRecordNotFound {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get build version status erro, %v", err))
 		return
 	}
-	if err == gorm.ErrRecordNotFound{
+	if err == gorm.ErrRecordNotFound {
 		statusMap["status"] = false
-	}else {
+	} else {
 		statusMap["status"] = true
 	}
 	httputil.ReturnSuccess(r, w, statusMap)
@@ -607,6 +608,56 @@ func (t *TenantStruct) BuildVersionInfo(w http.ResponseWriter, r *http.Request) 
 		t.BuildVersionIsExist(w, r)
 	}
 
+}
+
+//GetDeployVersion GetDeployVersion by service
+func (t *TenantStruct) GetDeployVersion(w http.ResponseWriter, r *http.Request) {
+	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
+	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(service.DeployVersion, service.ServiceID)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get build version status erro, %v", err))
+		return
+	}
+	if err == gorm.ErrRecordNotFound {
+		httputil.ReturnError(r, w, 404, fmt.Sprintf("build version do not exist"))
+		return
+	}
+	httputil.ReturnSuccess(r, w, version)
+}
+
+//GetManyDeployVersion GetDeployVersion by some service id
+func (t *TenantStruct) GetManyDeployVersion(w http.ResponseWriter, r *http.Request) {
+	rules := validator.MapData{
+		"service_ids": []string{"required"},
+	}
+	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
+	if !ok {
+		return
+	}
+	serviceIDs, ok := data["service_ids"].([]interface{})
+	if !ok {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("service ids must be a array"))
+		return
+	}
+	var list []string
+	for _, s := range serviceIDs {
+		list = append(list, s.(string))
+	}
+	services, err := db.GetManager().TenantServiceDao().GetServiceByIDs(list)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf(err.Error()))
+		return
+	}
+	var versionList []*dbmodel.VersionInfo
+	for _, service := range services {
+		version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(service.DeployVersion, service.ServiceID)
+		if err != nil && err != gorm.ErrRecordNotFound {
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("get build version status erro, %v", err))
+			return
+		}
+		versionList = append(versionList, version)
+	}
+	httputil.ReturnSuccess(r, w, versionList)
 }
 
 //DeployService DeployService

@@ -37,13 +37,19 @@ type ControllerSystemd struct {
 	conf         *option.Conf
 	cluster      client.ClusterClient
 	regBlock     *regexp.Regexp
+	ServiceCli   string
 }
 
 // At the stage you want to load the configurations of all rainbond components
 func NewControllerSystemd(conf *option.Conf, cluster client.ClusterClient) *ControllerSystemd {
+	cli, err := exec.LookPath("systemctl")
+	if err != nil {
+		panic(err)
+	}
 	return &ControllerSystemd{
 		conf:         conf,
 		cluster:      cluster,
+		ServiceCli:   cli,
 		SysConfigDir: "/etc/systemd/system",
 	}
 }
@@ -55,7 +61,7 @@ func (m *ControllerSystemd) CheckBeforeStart() bool {
 }
 
 func (m *ControllerSystemd) StartService(serviceName string) error {
-	err := exec.Command("/usr/bin/systemctl", "start", serviceName).Run()
+	err := exec.Command(m.ServiceCli, "start", serviceName).Run()
 	if err != nil {
 		logrus.Errorf("Start service %s: %v", serviceName, err)
 		return err
@@ -64,7 +70,7 @@ func (m *ControllerSystemd) StartService(serviceName string) error {
 }
 
 func (m *ControllerSystemd) StopService(serviceName string) error {
-	err := exec.Command("/usr/bin/systemctl", "stop", serviceName).Run()
+	err := exec.Command(m.ServiceCli, "stop", serviceName).Run()
 	if err != nil {
 		logrus.Errorf("Stop service %s: %v", serviceName, err)
 		return err
@@ -73,7 +79,7 @@ func (m *ControllerSystemd) StopService(serviceName string) error {
 }
 
 func (m *ControllerSystemd) RestartService(serviceName string) error {
-	err := exec.Command("/usr/bin/systemctl", "restart", serviceName).Run()
+	err := exec.Command(m.ServiceCli, "restart", serviceName).Run()
 	if err != nil {
 		logrus.Errorf("Restart service %s: %v", serviceName, err)
 		return err
@@ -85,7 +91,7 @@ func (m *ControllerSystemd) RestartService(serviceName string) error {
 func (m *ControllerSystemd) StartList(list []*service.Service) error {
 	logrus.Info("Starting all services.")
 
-	err := exec.Command("/usr/bin/systemctl", "start", "multi-user.target").Run()
+	err := exec.Command(m.ServiceCli, "start", "multi-user.target").Run()
 	if err != nil {
 		logrus.Errorf("Start target multi-user: %v", err)
 		return err
@@ -97,7 +103,7 @@ func (m *ControllerSystemd) StartList(list []*service.Service) error {
 func (m *ControllerSystemd) StopList(list []*service.Service) error {
 	logrus.Info("Stop all services.")
 	for _, s := range list {
-		err := exec.Command("/usr/bin/systemctl", "stop", s.Name).Run()
+		err := exec.Command(m.ServiceCli, "stop", s.Name).Run()
 		if err != nil {
 			logrus.Errorf("Enable service %s: %v", s.Name, err)
 		}
@@ -108,7 +114,7 @@ func (m *ControllerSystemd) StopList(list []*service.Service) error {
 
 func (m *ControllerSystemd) EnableService(name string) error {
 	logrus.Info("Enable service config by systemd.")
-	err := exec.Command("/usr/bin/systemctl", "enable", name).Run()
+	err := exec.Command(m.ServiceCli, "enable", name).Run()
 	if err != nil {
 		logrus.Errorf("Enable service %s: %v", name, err)
 	}
@@ -118,7 +124,7 @@ func (m *ControllerSystemd) EnableService(name string) error {
 
 func (m *ControllerSystemd) DisableService(name string) error {
 	logrus.Info("Disable service config by systemd.")
-	err := exec.Command("/usr/bin/systemctl", "disable", name).Run()
+	err := exec.Command(m.ServiceCli, "disable", name).Run()
 	if err != nil {
 		logrus.Errorf("Disable service %s: %v", name, err)
 	}
@@ -141,6 +147,13 @@ func (m *ControllerSystemd) WriteConfig(s *service.Service) error {
 		return err
 	}
 
+	logrus.Info("Reload config for systemd by daemon-reload.")
+	err := exec.Command(m.ServiceCli, "daemon-reload").Run()
+	if err != nil {
+		logrus.Errorf("Reload config by systemd daemon-reload for %s: %v ", s.Name, err)
+		return err
+	}
+
 	return nil
 }
 
@@ -150,6 +163,13 @@ func (m *ControllerSystemd) RemoveConfig(name string) error {
 	_, err := os.Stat(fileName)
 	if err == nil {
 		os.Remove(fileName)
+	}
+
+	logrus.Info("Reload config for systemd by daemon-reload.")
+	err = exec.Command(m.ServiceCli, "daemon-reload").Run()
+	if err != nil {
+		logrus.Errorf("Reload config by systemd daemon-reload for %s: %v ", name, err)
+		return err
 	}
 
 	return nil

@@ -69,7 +69,7 @@ func (t *TenantDaoImpl) GetTenantByUUID(uuid string) (*model.Tenants, error) {
 }
 
 //GetTenantByUUIDIsExist 获取租户
-func (t *TenantDaoImpl) GetTenantByUUIDIsExist(uuid string) (bool) {
+func (t *TenantDaoImpl) GetTenantByUUIDIsExist(uuid string) bool {
 	var tenant model.Tenants
 	isExist := t.DB.Where("uuid = ?", uuid).First(&tenant).RecordNotFound()
 	return isExist
@@ -155,7 +155,6 @@ func (t *TenantServicesDaoImpl) GetAllServicesID() ([]*model.TenantServices, err
 	}
 	return services, nil
 }
-
 
 //AddModel 添加租户应用
 func (t *TenantServicesDaoImpl) AddModel(mo model.Interface) error {
@@ -322,6 +321,18 @@ func (t *TenantServicesDaoImpl) GetServiceAliasByIDs(uids []string) ([]*model.Te
 	return services, nil
 }
 
+//GetServiceByIDs get some service by service ids
+func (t *TenantServicesDaoImpl) GetServiceByIDs(uids []string) ([]*model.TenantServices, error) {
+	var services []*model.TenantServices
+	if err := t.DB.Where("service_id in (?)", uids).Find(&services).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return services, nil
+		}
+		return nil, err
+	}
+	return services, nil
+}
+
 //GetServiceByTenantIDAndServiceAlias 根据租户名和服务名
 func (t *TenantServicesDaoImpl) GetServiceByTenantIDAndServiceAlias(tenantID, serviceName string) (*model.TenantServices, error) {
 	var service model.TenantServices
@@ -427,7 +438,7 @@ func (t *TenantServicesDeleteImpl) GetTenantServicesDeleteByCreateTime(createTim
 		if err == gorm.ErrRecordNotFound {
 			return ServiceDel, nil
 		}
-		return nil,err
+		return nil, err
 	}
 	return ServiceDel, nil
 }
@@ -438,7 +449,6 @@ func (t *TenantServicesDeleteImpl) DeleteTenantServicesDelete(record *model.Tena
 	}
 	return nil
 }
-
 
 //TenantServicesPortDaoImpl 租户应用端口操作
 type TenantServicesPortDaoImpl struct {

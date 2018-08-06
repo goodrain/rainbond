@@ -62,8 +62,10 @@ func getClusterInfo(c *cli.Context) error {
 	serviceTable2 := termtables.CreateTable()
 	serviceTable2.AddHeaders("Service", "HealthyQuantity/Total", "Message")
 	serviceStatusInfo := getServicesHealthy(list)
+	status, message := clusterStatus(serviceStatusInfo["Role"],serviceStatusInfo["Ready"])
+	serviceTable2.AddRow("\033[0;33;33mClusterStatus\033[0m", status, message)
 	for name, v := range serviceStatusInfo {
-		if name == string(client.NodeReady){
+		if name == "Role"{
 			continue
 		}
 		status, message := summaryResult(v)
@@ -72,7 +74,7 @@ func getClusterInfo(c *cli.Context) error {
 	fmt.Println(serviceTable2.Render())
 	//show node detail
 	serviceTable := termtables.CreateTable()
-	serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "Alived", "Schedulable", "Ready")
+	serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status")
 	var rest []*client.HostNode
 	for _, v := range list {
 		if v.Role.HasRule("manage") {
@@ -94,6 +96,8 @@ func getClusterInfo(c *cli.Context) error {
 func getServicesHealthy(nodes []*client.HostNode) (map[string][]map[string]string) {
 
 	StatusMap := make(map[string][]map[string]string, 30)
+	roleList := make([]map[string]string, 0, 10)
+
 	for _, n := range nodes {
 		for _, v := range n.NodeStatus.Conditions {
 			status, ok := StatusMap[string(v.Type)]
@@ -106,7 +110,10 @@ func getServicesHealthy(nodes []*client.HostNode) (map[string][]map[string]strin
 			}
 
 		}
+		roleList = append(roleList, map[string]string{"role": n.Role.String(), "status": n.NodeStatus.Status})
+
 	}
+	StatusMap["Role"] = roleList
 	return StatusMap
 }
 
@@ -114,14 +121,14 @@ func summaryResult(list []map[string]string) (status string, errMessage string) 
 	upNum := 0
 	err := ""
 	for _, v := range list {
-		if v["type"] == "OutOfDisk" ||v["type"] == "DiskPressure"||v["type"] == "MemoryPressure"||v["type"] == "InstallNotReady"{
+		if v["type"] == "OutOfDisk" || v["type"] == "DiskPressure" || v["type"] == "MemoryPressure" || v["type"] == "InstallNotReady" {
 			if v["status"] == "False" {
 				upNum += 1
 			} else {
 				err = ""
 				err = err + v["hostname"] + ":" + v["message"] + "/"
 			}
-		}else {
+		} else {
 			if v["status"] == "True" {
 				upNum += 1
 			} else {
@@ -130,12 +137,69 @@ func summaryResult(list []map[string]string) (status string, errMessage string) 
 			}
 		}
 	}
-	if upNum == len(list){
+	if upNum == len(list) {
 		status = "\033[0;32;32m" + strconv.Itoa(upNum) + "/" + strconv.Itoa(len(list)) + " \033[0m"
-	}else {
+	} else {
 		status = "\033[0;31;31m " + strconv.Itoa(upNum) + "/" + strconv.Itoa(len(list)) + " \033[0m"
 	}
 
 	errMessage = err
 	return
+}
+
+func handleRoleAndStatus(list []map[string]string) bool {
+	var computeFlag bool
+	var manageFlag bool
+	for _, v := range list {
+		if v["role"] == "compute" && v["status"] == "running" {
+			computeFlag = true
+		}
+		if v["role"] == "manage" && v["status"] == "running" {
+			manageFlag = true
+		}
+		if (v["role"] == "compute,manage" || v["role"] == "manage,compute") && v["status"] == "running" {
+			computeFlag = true
+			manageFlag = true
+		}
+	}
+	if computeFlag && manageFlag {
+		return true
+	} else {
+		return false
+	}
+
+}
+
+func handleNodeReady(list []map[string]string) bool {
+	trueNum := 0
+	for _, v := range list {
+		if v["status"] == "True" {
+			trueNum += 1
+		}
+	}
+	if trueNum == len(list) {
+		return true
+	} else {
+		return false
+	}
+
+}
+
+func clusterStatus(roleList []map[string]string, ReadyList []map[string]string) (string, string) {
+	var clusterStatus string
+	var errMessage string
+	readyStatus := handleNodeReady(ReadyList)
+	roleStatus := handleRoleAndStatus(roleList)
+	if readyStatus {
+		clusterStatus = "\033[0;32;32mhealthy\033[0m"
+		errMessage = ""
+	} else {
+		clusterStatus = "\033[0;31;31munhealthy\033[0m"
+		errMessage = "There is a service exception in the cluster"
+	}
+	if !roleStatus {
+		clusterStatus = "\033[0;33;33munavailable\033[0m"
+		errMessage = "No compute nodes or management nodes are available in the cluster"
+	}
+	return clusterStatus, errMessage
 }

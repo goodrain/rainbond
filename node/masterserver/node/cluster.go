@@ -41,6 +41,7 @@ import (
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util"
+	"encoding/json"
 )
 
 const (
@@ -133,25 +134,38 @@ func (n *Cluster) checkNodeStatus() {
 					_, err := n.kubecli.GetNode(node.ID)
 					// delete the node in k8s if type is compute
 					if node.Role.HasRule(client.ComputeNode) && err == nil {
-						logrus.Infof("Node %s status is %v %d times and down it.",
+						logrus.Infof("Node %s status is %v %d times and can not scheduling.",
 							node.ID, ready, unhealthyCounter[node.ID])
-						err := n.kubecli.DownK8sNode(node.ID)
+						_, err := n.kubecli.CordonOrUnCordon(node.ID, true)
 						if err != nil {
 							logrus.Error("Failed to delete node in k8s: ", err)
 						}
-						n, err := n.kubecli.GetNode(node.ID)
-						fmt.Printf("======== deleted: %v, %v", err, n)
 					}
 				} else {
 					unhealthyCounter[node.ID]++
 				}
 			} else if ready {
+				resp, err := store.DefalutClient.Get("/rainbond/nodes/target/" + node.ID)
+				if err != nil {
+					logrus.Error(err)
+					continue
+				}
+				var targetNode client.HostNode
+				err = json.Unmarshal(resp.Kvs[0].Value, &targetNode)
+				if err != nil {
+					logrus.Error(err)
+					continue
+				}
+				if targetNode.NodeStatus.Status != Running {
+					logrus.Info("Skip open scheduling, because target node is: ", targetNode.NodeStatus.Status)
+					continue
+				}
 				unhealthyCounter[node.ID] = 0
-				_, err := n.kubecli.GetNode(node.ID)
+				_, err = n.kubecli.GetNode(node.ID)
 				// add the node into k8s if type is compute
 				if node.Role.HasRule(client.ComputeNode) && err != nil {
-					logrus.Infof("Node %s status is %v and up it.", node.ID, ready)
-					_, err := n.kubecli.UpK8sNode(node)
+					logrus.Infof("Node %s status is %v and can scheduling.", node.ID, ready)
+					_, err := n.kubecli.CordonOrUnCordon(node.ID, false)
 					if err != nil {
 						logrus.Error("Failed to add node into k8s: ", err)
 					}
@@ -237,8 +251,11 @@ func (n *Cluster) GetNode(id string) *client.HostNode {
 	return nil
 }
 func (n *Cluster) handleNodeStatus(v *client.HostNode) {
+	logrus.Info("=====>node")
 	if v.Role.HasRule("compute") {
+		logrus.Info("=====>compute")
 		k8sNode, err := n.kubecli.GetNode(v.ID)
+		logrus.Info(k8sNode,"====k8sNode")
 		status := Running
 		if err != nil {
 			logrus.Infof("get k8s node error:%s", err.Error())
@@ -246,16 +263,38 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			v.Status = status
 			v.NodeStatus.Status = status
 			v.Unschedulable = true
+			r := client.NodeCondition{
+				Type:               client.NodeReady,
+				Status:             client.ConditionFalse,
+				LastHeartbeatTime:  time.Now(),
+				LastTransitionTime: time.Now(),
+				Message:            "The node has been offline",
+			}
+			v.UpdataCondition(r)
+			return
 		}
 		v.Unschedulable = false
 		if k8sNode != nil {
+			logrus.Info(k8sNode.Spec.Unschedulable)
 			v.UpdataK8sCondition(k8sNode.Status.Conditions)
+			if v.Unschedulable == true || k8sNode.Spec.Unschedulable == true{
+				v.Unschedulable = true
+			}
 		}
 		if time.Now().Sub(v.UpTime) > time.Minute*2 {
 			status = Unknown
 			v.Status = status
 			v.NodeStatus.Status = status
 			v.Unschedulable = true
+			r := client.NodeCondition{
+				Type:               client.NodeReady,
+				Status:             client.ConditionFalse,
+				LastHeartbeatTime:  time.Now(),
+				LastTransitionTime: time.Now(),
+				Message:            "Node lost connection, state unknown",
+			}
+			v.UpdataCondition(r)
+			return
 		}
 
 		//var haveready bool
@@ -300,6 +339,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 
 	}
 	if v.Role.HasRule("manage") && !v.Role.HasRule("compute") { //manage install_success == runnint
+	logrus.Info("=====>manage")
 		if v.Status == Init || v.Status == InitSuccess || v.Status == InitFailed || v.Status == Installing {
 			return
 		}
@@ -307,6 +347,14 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			if time.Now().Sub(v.UpTime) > time.Minute*2 {
 				v.Status = Unknown
 				v.NodeStatus.Status = Unknown
+				r := client.NodeCondition{
+					Type:               client.NodeReady,
+					Status:             client.ConditionFalse,
+					LastHeartbeatTime:  time.Now(),
+					LastTransitionTime: time.Now(),
+					Message:            "Node lost connection, state unknown",
+				}
+				v.UpdataCondition(r)
 				return
 			}
 
@@ -340,6 +388,14 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		} else {
 			v.Status = Offline
 			v.NodeStatus.Status = Offline
+			r := client.NodeCondition{
+				Type:               client.NodeReady,
+				Status:             client.ConditionFalse,
+				LastHeartbeatTime:  time.Now(),
+				LastTransitionTime: time.Now(),
+				Message:            "The node has been offline",
+			}
+			v.UpdataCondition(r)
 		}
 	}
 }

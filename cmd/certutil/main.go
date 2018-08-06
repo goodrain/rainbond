@@ -37,6 +37,7 @@ type Config struct {
 	Address           []string
 	IsCa              bool
 	CAName, CAKeyName string
+	Domains           []string
 }
 
 func main() {
@@ -60,6 +61,11 @@ func main() {
 					Name:  "address",
 					Value: &cli.StringSlice{"127.0.0.1"},
 					Usage: "address list",
+				},
+				cli.StringSliceFlag{
+					Name:  "domains",
+					Value: &cli.StringSlice{""},
+					Usage: "domain list",
 				},
 				cli.StringFlag{
 					Name:  "ca-name",
@@ -91,6 +97,7 @@ func parseConfig(ctx *cli.Context) Config {
 	c.CAName = ctx.String("ca-name")
 	c.CrtName = ctx.String("crt-name")
 	c.KeyName = ctx.String("crt-key-name")
+	c.Domains = ctx.StringSlice("domains")
 	c.IsCa = ctx.Bool("is-ca")
 	return c
 }
@@ -130,6 +137,7 @@ func (c *Config) CreateCertInformation() CertInformation {
 		CommonName:         "rainbond",
 		CrtName:            c.CrtName,
 		KeyName:            c.KeyName,
+		Domains:            c.Domains,
 	}
 	if c.IsCa {
 		baseinfo.CrtName = c.CAName

@@ -19,8 +19,6 @@
 package cmd
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/apcera/termtables"
@@ -32,6 +30,7 @@ import (
 	"os"
 	"strings"
 	"os/exec"
+	"github.com/gosuri/uitable"
 )
 
 func handleErr(err *util.APIHandleError) {
@@ -100,19 +99,29 @@ func fileExist(path string) bool {
 	return false
 }
 func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode) {
-	var formatReady string
+	var status string
+	if ready == true {
+		status = "\033[0;32;32m running(healthy) \033[0m"
+	}
 	if ready == false {
-		formatReady = "\033[0;31;31m false \033[0m"
-	} else {
-		formatReady = "\033[0;32;32m true \033[0m"
+		status = "\033[0;32;32m running(unhealthy) \033[0m"
+	}
+	if v.Unschedulable == true {
+		status = "\033[0;32;32m running(unschedulable) \033[0m"
+	}
+	if v.Status == "unknown" {
+		status = "\033[0;31;31m unknown \033[0m"
+	}
+	if v.Status == "offline" {
+		status = "\033[0;31;31m offline \033[0m"
 	}
 	if v.Role.HasRule("compute") && !v.Role.HasRule("manage") {
-		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Status, v.Alived, !v.Unschedulable, formatReady)
+		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status)
 	} else if v.Role.HasRule("manage") && !v.Role.HasRule("compute") {
 		//scheduable="n/a"
-		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Status, v.Alived, "N/A", "N/A")
+		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status)
 	} else if v.Role.HasRule("compute") && v.Role.HasRule("manage") {
-		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, v.Status, v.Alived, !v.Unschedulable, formatReady)
+		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status)
 	}
 }
 
@@ -184,13 +193,33 @@ func NewCmdNode() cli.Command {
 
 					v, err := clients.RegionClient.Nodes().Get(id)
 					handleErr(err)
-					nodeByte, _ := json.Marshal(v)
-					var out bytes.Buffer
-					error := json.Indent(&out, nodeByte, "", "\t")
-					if error != nil {
-						handleErr(util.CreateAPIHandleError(500, err))
-					}
-					fmt.Println(out.String())
+					table := uitable.New()
+					fmt.Printf("-------------------Node information-----------------------\n")
+					table.AddRow("status", v.NodeStatus.Status)
+					table.AddRow("unschedulable", v.Unschedulable)
+					table.AddRow("alived", v.Alived)
+					table.AddRow("uuid", v.ID)
+					table.AddRow("host_name", v.HostName)
+					table.AddRow("create_time", v.CreateTime)
+					table.AddRow("internal_ip", v.InternalIP)
+					table.AddRow("external_ip", v.ExternalIP)
+					table.AddRow("role", v.Role)
+					table.AddRow("mode", v.Mode)
+					table.AddRow("available_memory", v.AvailableMemory)
+					table.AddRow("available_cpu", v.AvailableCPU)
+					table.AddRow("pid", v.PID)
+					table.AddRow("version", v.Version)
+					table.AddRow("up", v.UpTime)
+					table.AddRow("down", v.DownTime)
+					table.AddRow("connected", v.Connected)
+					fmt.Println(table)
+					fmt.Printf("-------------------ervice health-----------------------\n")
+					serviceTable := termtables.CreateTable()
+					serviceTable.AddHeaders("Title", "Result", "Message")
+					extractReady(serviceTable, v, "Ready")
+					handleResult(serviceTable, v)
+
+					fmt.Println(serviceTable.Render())
 					return nil
 				},
 			},
@@ -202,7 +231,7 @@ func NewCmdNode() cli.Command {
 					list, err := clients.RegionClient.Nodes().List()
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "Alived", "Schedulable", "Ready")
+					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status")
 					var rest []*client.HostNode
 					for _, v := range list {
 						if v.Role.HasRule("manage") {
@@ -217,39 +246,6 @@ func NewCmdNode() cli.Command {
 					for _, v := range rest {
 						handleStatus(serviceTable, isNodeReady(v), v)
 					}
-					fmt.Println(serviceTable.Render())
-					return nil
-				},
-			},
-			{
-				Name:  "health",
-				Usage: "health hostID/internal ip",
-				Action: func(c *cli.Context) error {
-					Common(c)
-					id := c.Args().First()
-					if id == "" {
-						logrus.Errorf("need args")
-						return nil
-					}
-					nodes, err := clients.RegionClient.Nodes().List()
-					handleErr(err)
-					for _, v := range nodes {
-						if v.InternalIP == id {
-							id = v.ID
-							break
-						}
-					}
-
-					v, err := clients.RegionClient.Nodes().Get(id)
-					handleErr(err)
-					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("Title", "Result", "Message")
-					serviceTable.AddRow("Uid:", v.ID, "")
-					serviceTable.AddRow("IP:", v.InternalIP, "")
-					serviceTable.AddRow("HostName:", v.HostName, "")
-					extractReady(serviceTable, v, "Ready")
-					handleResult(serviceTable, v)
-
 					fmt.Println(serviceTable.Render())
 					return nil
 				},

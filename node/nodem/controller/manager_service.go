@@ -30,6 +30,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"time"
+	"reflect"
 )
 
 type ManagerService struct {
@@ -96,6 +97,7 @@ func (m *ManagerService) Online() error {
 		return fmt.Errorf("check environments is not passed")
 	}
 
+	// start all by systemctl start multi-user.target
 	m.ctr.StartList(m.services)
 	m.StartSyncService()
 
@@ -126,18 +128,6 @@ func (m *ManagerService) Offline() error {
 	}
 
 	return nil
-}
-
-func (m *ManagerService) ReloadService() {
-	services, err := service.LoadServicesFromLocal(m.conf.ServiceListFile)
-	if err != nil {
-		logrus.Error("Failed to reload all services: ", err)
-		return
-	}
-	m.services = services
-
-	m.Online()
-
 }
 
 // synchronize all service status to as we expect
@@ -224,12 +214,43 @@ func (m *ManagerService) WaitStart(name string, duration time.Duration) bool {
 }
 
 /*
-1. reload services config from local file system
-2. regenerate systemd config for all service
-3. start all services of status is not running
+1. reload services info from local file system
+2. regenerate systemd config file and restart with config changes
+3. start all newly added services
 */
 func (m *ManagerService) ReLoadServices() error {
-	return m.Online()
+	services, err := service.LoadServicesFromLocal(m.conf.ServiceListFile)
+	if err != nil {
+		logrus.Error("Failed to reload all services: ", err)
+		return err
+	}
+
+	for _, ne := range services {
+		exists := false
+		for _, old := range m.services {
+			if ne.Name == old.Name {
+				if !reflect.DeepEqual(ne, old) {
+					logrus.Infof("Recreate service [%s]", ne.Name)
+					if err := m.ctr.WriteConfig(ne); err == nil {
+						m.ctr.EnableService(ne.Name)
+						m.ctr.RestartService(ne.Name)
+					}
+				}
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			logrus.Infof("Create service [%s]", ne.Name)
+			if err := m.ctr.WriteConfig(ne); err == nil {
+				m.ctr.EnableService(ne.Name)
+				m.ctr.StartService(ne.Name)
+			}
+		}
+	}
+
+	m.services = services
+	return nil
 }
 
 func (m *ManagerService) WriteServices() error {
@@ -291,8 +312,11 @@ func StartRequiresSystemd(conf *option.Conf) error {
 		logrus.Error("Failed to load all services: ", err)
 		return err
 	}
-
-	err = exec.Command("/usr/bin/systemctl", "start", "docker").Run()
+	cli, err := exec.LookPath("systemctl")
+	if err != nil {
+		panic(err)
+	}
+	err = exec.Command(cli, "start", "docker").Run()
 	if err != nil {
 		fmt.Printf("Start docker daemon: %v", err)
 		return err
@@ -312,7 +336,7 @@ func StartRequiresSystemd(conf *option.Conf) error {
 				fmt.Printf("Generate config file %s: %v", fileName, err)
 				return err
 			}
-			err = exec.Command("/usr/bin/systemctl", "start", s.Name).Run()
+			err = exec.Command(cli, "start", s.Name).Run()
 			if err != nil {
 				fmt.Printf("Start service %s: %v", s.Name, err)
 				return err

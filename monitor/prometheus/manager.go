@@ -75,13 +75,28 @@ func NewManager(config *option.Config, a *AlertingRulesManager) *Manager {
 				EvaluationInterval: model.Duration(time.Second * 30),
 			},
 			RuleFiles: []string{config.AlertingRulesFile},
+			AlertingConfig:AlertingConfig{
+				AlertmanagerConfigs:[]*AlertmanagerConfig{},
+			},
 		},
 		Registry:   reg,
 		httpClient: client,
 		l:          &sync.Mutex{},
 		a:          a,
 	}
+
 	m.LoadConfig()
+	al := &AlertmanagerConfig{
+		ServiceDiscoveryConfig:ServiceDiscoveryConfig{
+			StaticConfigs:[]*Group{
+				{
+					Targets:config.AlertManagerUrl,
+				},
+			},
+		},
+	}
+	m.Config.AlertingConfig.AlertmanagerConfigs = append(m.Config.AlertingConfig.AlertmanagerConfigs, al)
+	m.SaveConfig()
 	m.a.InitRulesConfig()
 
 	return m

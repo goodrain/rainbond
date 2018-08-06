@@ -152,6 +152,13 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							Labels:      map[string]string{},
 							Annotations: map[string]string{"summary": "webcli unhealthy"},
 						},
+						&RulesConfig{
+							Alert:       "WebcliUnhealthy",
+							Expr:        "webcli_exporter_execute_command_failed > 100",
+							For:         "3m",
+							Labels:      map[string]string{},
+							Annotations: map[string]string{"summary": "The number of errors that occurred while executing the command was greater than 100."},
+						},
 					},
 				},
 			},

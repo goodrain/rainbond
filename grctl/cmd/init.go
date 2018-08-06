@@ -31,7 +31,6 @@ import (
 
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/grctl/clients"
-	"net/http"
 )
 
 //NewCmdInit grctl init
@@ -120,7 +119,7 @@ func NewCmdInstallStatus() cli.Command {
 func initCluster(c *cli.Context) {
 	// check if the rainbond is already installed
 	fmt.Println("Checking install enviremant.")
-	_, err := os.Stat("/tmp/rainbond.success")
+	_, err := os.Stat("/opt/rainbond/rainbond.success")
 	if err == nil {
 		println("Rainbond is already installed, if you whant reinstall, then please delete the file: /tmp/rainbond.success")
 		return
@@ -154,18 +153,7 @@ func initCluster(c *cli.Context) {
 		return
 	}
 
-	_, err = http.Get("http://127.0.0.1:7070")
-	if err != nil {
-		println("Install complete but WEB UI is can not access, please manual check node status by `grctl node list`")
-		return
-	}
-
-	ioutil.WriteFile("/tmp/rainbond.success", []byte(c.String("repo_ver")), 0644)
-
-	fmt.Println("Init manage node successful, next you can:")
-	fmt.Println("	access WEB UI: http://127.0.0.1:7070")
-	fmt.Println("	add compute node: grctl node add -h")
-	fmt.Println("	online compute node: grctl node up -h")
+	ioutil.WriteFile("/opt/rainbond/rainbond.success", []byte(c.String("repo_ver")), 0644)
 
 	return
 }
