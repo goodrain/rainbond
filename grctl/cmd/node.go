@@ -440,7 +440,7 @@ func NewCmdNode() cli.Command {
 
 					// start add node script
 					fmt.Println("Begin add node, please don't exit")
-					line := fmt.Sprintf("cd %s ; ./add.sh %s %s %s %s %s", c.String("role"), c.String("hostname"),
+					line := fmt.Sprintf("cd /opt/rainbond/install/scripts; ./%s.sh %s %s %s %s %s", c.String("role"), c.String("hostname"),
 						c.String("internal-ip"), model, c.String("root-pass"), c.String("private-key"))
 					cmd := exec.Command("bash", "-c", line)
 					cmd.Stdout = os.Stdout
