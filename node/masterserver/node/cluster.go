@@ -252,8 +252,9 @@ func (n *Cluster) GetNode(id string) *client.HostNode {
 }
 func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 	if v.Role.HasRule("compute") {
+		logrus.Info("=====>compute")
 		k8sNode, err := n.kubecli.GetNode(v.ID)
-		println(k8sNode)
+		logrus.Info(k8sNode)
 		status := Running
 		if err != nil {
 			logrus.Infof("get k8s node error:%s", err.Error())
@@ -273,6 +274,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		}
 		v.Unschedulable = false
 		if k8sNode != nil {
+			logrus.Info(k8sNode.Spec.Unschedulable)
 			v.UpdataK8sCondition(k8sNode.Status.Conditions)
 			if v.Unschedulable == true || k8sNode.Spec.Unschedulable == true{
 				v.Unschedulable = true
