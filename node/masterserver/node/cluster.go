@@ -251,10 +251,11 @@ func (n *Cluster) GetNode(id string) *client.HostNode {
 	return nil
 }
 func (n *Cluster) handleNodeStatus(v *client.HostNode) {
+	logrus.Info("=====>node")
 	if v.Role.HasRule("compute") {
 		logrus.Info("=====>compute")
 		k8sNode, err := n.kubecli.GetNode(v.ID)
-		logrus.Info(k8sNode)
+		logrus.Info(k8sNode,"====k8sNode")
 		status := Running
 		if err != nil {
 			logrus.Infof("get k8s node error:%s", err.Error())
@@ -338,6 +339,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 
 	}
 	if v.Role.HasRule("manage") && !v.Role.HasRule("compute") { //manage install_success == runnint
+	logrus.Info("=====>manage")
 		if v.Status == Init || v.Status == InitSuccess || v.Status == InitFailed || v.Status == Installing {
 			return
 		}
