@@ -166,6 +166,10 @@ func Proxy(next http.Handler) http.Handler {
 			handler.GetMonitorProxy().Proxy(w, r)
 			return
 		}
+		if strings.HasPrefix(r.RequestURI, "/v2/notificationEvent") {
+			handler.GetNotificationEventProxy().Proxy(w, r)
+			return
+		}
 		next.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(fn)

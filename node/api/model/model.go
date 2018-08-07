@@ -31,6 +31,7 @@ import (
 	"fmt"
 	url2 "net/url"
 	"strings"
+	"time"
 )
 
 //Resource 资源
@@ -455,4 +456,22 @@ type RulesConfig struct {
 	For    string            `yaml:"for" json:"for"`
 	Labels map[string]string `yaml:"labels" json:"labels"`
 	Annotations map[string]string `yaml:"annotations" json:"annotations"`
+}
+
+//NotificationEvent NotificationEvent
+type NotificationEvent struct {
+	//Kind could be service, tenant, cluster, node
+	Kind string `json:"kind"`
+	//KindID could be service_id,tenant_id,cluster_id,node_id
+	KindID string `json:"kind_id"`
+	Hash   string `json:"hash"`
+	//Type could be Normal UnNormal Notification
+	Type          string    `json:"type"`
+	Message       string    `json:"message"`
+	Reason        string    `json:"reason"`
+	Count         int       `json:"count"`
+	LastTime      time.Time `json:"last_time"`
+	FirstTime     time.Time `json:"first_time"`
+	IsHandle      bool      `json:"is_handle"`
+	HandleMessage string    `json:"handle_message"`
 }

@@ -37,6 +37,7 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdInit())
 	cmds = append(cmds, NewCmdShow())
 	cmds = append(cmds, NewCmdAlerting())
+	cmds = append(cmds, NewCmdNotificationEvent())
 
 	//task相关命令
 	//cmds = append(cmds, NewCmdTasks())
