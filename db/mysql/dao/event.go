@@ -196,8 +196,55 @@ func (c *NotificationEventDaoImpl) GetNotificationEventByTime(start, end time.Ti
 		}
 		return nil, err
 	}
+	c.DB.Table("notification_event").Select("*").Group("kind_id").Order("last_time DESC").Limit(1).Scan(&result)
+	c.DB.Where("last_time>? and last_time<?", start, end).Group("kind_id").Order("last_time DESC").Limit(1).Find(&result)
 	return result, nil
 }
+
+
+func (c *NotificationEventDaoImpl) GetNotificationEventGrouping(start, end time.Time) ([]*model.NotificationEvent, error) {
+
+	var result []*model.NotificationEvent
+	if !start.IsZero() && !end.IsZero() {
+		if err := c.DB.Where("last_time>? and last_time<?", start, end).Group("kind_id").Order("last_time DESC").Limit(1).Find(&result).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return result, nil
+			}
+			return nil, err
+		}
+		return result, nil
+	}
+	if err := c.DB.Where("last_time>? and last_time<?", start, end).Group("kind_id").Order("last_time DESC").Limit(1).Find(&result).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return result, nil
+		}
+		return nil, err
+	}
+	return result, nil
+}
+
+func (c *NotificationEventDaoImpl) GetNotificationEventGrouping2(start, end time.Time) ([]*model.NotificationEvent, error) {
+
+	var result []*model.NotificationEvent
+	if !start.IsZero() && !end.IsZero() {
+		if err := c.DB.Table("notification_event").Select("*").Where("last_time>? and last_time<?", start, end).Group("kind_id").Order("last_time DESC").Limit(1).Scan(&result).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return result, nil
+			}
+			return nil, err
+		}
+		return result, nil
+	}
+	if err := c.DB.Table("notification_event").Select("*").Where("last_time>? and last_time<?", start, end).Group("kind_id").Order("last_time DESC").Limit(1).Scan(&result).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return result, nil
+		}
+		return nil, err
+	}
+	return result, nil
+}
+
+
 
 //GetNotificationEventNotHandle GetNotificationEventNotHandle
 func (c *NotificationEventDaoImpl) GetNotificationEventNotHandle() ([]*model.NotificationEvent, error) {

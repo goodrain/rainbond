@@ -384,6 +384,8 @@ type NotificationEventDao interface {
 	GetNotificationEventByKind(kind, kindID string) ([]*model.NotificationEvent, error)
 	GetNotificationEventByTime(start, end time.Time) ([]*model.NotificationEvent, error)
 	GetNotificationEventNotHandle() ([]*model.NotificationEvent, error)
+	GetNotificationEventGrouping(start, end time.Time) ([]*model.NotificationEvent, error)
+	GetNotificationEventGrouping2(start, end time.Time) ([]*model.NotificationEvent, error)
 }
 
 //AppBackupDao group app backup history
