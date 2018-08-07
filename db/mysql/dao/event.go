@@ -25,7 +25,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
-	"fmt"
 )
 
 //AddModel AddModel
