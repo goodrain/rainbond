@@ -25,6 +25,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	"fmt"
 )
 
 //AddModel AddModel
@@ -196,8 +197,6 @@ func (c *NotificationEventDaoImpl) GetNotificationEventByTime(start, end time.Ti
 		}
 		return nil, err
 	}
-	c.DB.Table("notification_event").Select("*").Group("kind_id").Order("last_time DESC").Limit(1).Scan(&result)
-	c.DB.Where("last_time>? and last_time<?", start, end).Group("kind_id").Order("last_time DESC").Limit(1).Find(&result)
 	return result, nil
 }
 
@@ -206,20 +205,24 @@ func (c *NotificationEventDaoImpl) GetNotificationEventGrouping(start, end time.
 
 	var result []*model.NotificationEvent
 	if !start.IsZero() && !end.IsZero() {
-		if err := c.DB.Where("last_time>? and last_time<?", start, end).Group("kind_id").Order("last_time DESC").Limit(1).Find(&result).Error; err != nil {
+		if err := c.DB.Where("last_time>? and last_time<?", start, end).Group("kind_id").Order("last_time DESC").Find(&result).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				return result, nil
+				fmt.Println("=======1")
 			}
 			return nil, err
 		}
+		fmt.Println("=======2")
 		return result, nil
 	}
-	if err := c.DB.Where("last_time>? and last_time<?", start, end).Group("kind_id").Order("last_time DESC").Limit(1).Find(&result).Error; err != nil {
+	if err := c.DB.Where("last_time>? and last_time<?", start, end).Group("kind_id").Order("last_time DESC").Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, nil
+			fmt.Println("=======1.1")
 		}
 		return nil, err
 	}
+	fmt.Println("=======2.2")
 	return result, nil
 }
 
@@ -227,20 +230,24 @@ func (c *NotificationEventDaoImpl) GetNotificationEventGrouping2(start, end time
 
 	var result []*model.NotificationEvent
 	if !start.IsZero() && !end.IsZero() {
-		if err := c.DB.Table("notification_event").Select("*").Where("last_time>? and last_time<?", start, end).Group("kind_id").Order("last_time DESC").Limit(1).Scan(&result).Error; err != nil {
+		if err := c.DB.Table("notification_event").Select("*").Where("last_time>? and last_time<?", start, end).Group("kind_id").Order("last_time DESC").Scan(&result).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				return result, nil
+				fmt.Println("=======1")
 			}
 			return nil, err
 		}
+		fmt.Println("=======2")
 		return result, nil
 	}
-	if err := c.DB.Table("notification_event").Select("*").Where("last_time>? and last_time<?", start, end).Group("kind_id").Order("last_time DESC").Limit(1).Scan(&result).Error; err != nil {
+	if err := c.DB.Table("notification_event").Select("*").Where("last_time>? and last_time<?", start, end).Group("kind_id").Order("last_time DESC").Scan(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, nil
+			fmt.Println("=======1.1")
 		}
 		return nil, err
 	}
+	fmt.Println("=======2.2")
 	return result, nil
 }
 
