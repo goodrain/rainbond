@@ -140,6 +140,8 @@ func (n *Cluster) checkNodeStatus() {
 						if err != nil {
 							logrus.Error("Failed to delete node in k8s: ", err)
 						}
+						node.Unschedulable = true
+						n.UpdateNode(node)
 					}
 				} else {
 					unhealthyCounter[node.ID]++
@@ -169,7 +171,8 @@ func (n *Cluster) checkNodeStatus() {
 					if err != nil {
 						logrus.Error("Failed to add node into k8s: ", err)
 					}
-
+					node.Unschedulable = false
+					n.UpdateNode(node)
 				}
 			}
 		}
