@@ -131,17 +131,14 @@ func (n *Cluster) checkNodeStatus() {
 				node.ID, ready, unhealthyCounter[node.ID])
 			if !ready {
 				if max <= unhealthyCounter[node.ID] {
-					_, err := n.kubecli.GetNode(node.ID)
 					// delete the node in k8s if type is compute
-					if node.Role.HasRule(client.ComputeNode) && err == nil {
+					if node.Role.HasRule(client.ComputeNode) {
 						logrus.Infof("Node %s status is %v %d times and can not scheduling.",
 							node.ID, ready, unhealthyCounter[node.ID])
 						_, err := n.kubecli.CordonOrUnCordon(node.ID, true)
 						if err != nil {
 							logrus.Error("Failed to delete node in k8s: ", err)
 						}
-						node.Unschedulable = true
-						n.UpdateNode(node)
 					}
 				} else {
 					unhealthyCounter[node.ID]++
@@ -163,16 +160,13 @@ func (n *Cluster) checkNodeStatus() {
 					continue
 				}
 				unhealthyCounter[node.ID] = 0
-				_, err = n.kubecli.GetNode(node.ID)
 				// add the node into k8s if type is compute
-				if node.Role.HasRule(client.ComputeNode) && err != nil {
+				if node.Role.HasRule(client.ComputeNode) {
 					logrus.Infof("Node %s status is %v and can scheduling.", node.ID, ready)
 					_, err := n.kubecli.CordonOrUnCordon(node.ID, false)
 					if err != nil {
 						logrus.Error("Failed to add node into k8s: ", err)
 					}
-					node.Unschedulable = false
-					n.UpdateNode(node)
 				}
 			}
 		}
