@@ -61,6 +61,8 @@ type NotificationEvent struct {
 	FirstTime     time.Time `gorm:"column:first_time;"`
 	IsHandle      bool      `gorm:"column:is_handle;"`
 	HandleMessage string    `gorm:"column:handle_message;"`
+	ServiceName   string    `json:"service_name"`
+	TenantName    string    `json:"tenant_name"`
 }
 
 //TableName table name

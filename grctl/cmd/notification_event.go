@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"errors"
 	"github.com/apcera/termtables"
-	"github.com/goodrain/rainbond/db"
 	"time"
 	"strconv"
 )
@@ -46,8 +45,7 @@ func NewCmdNotificationEvent() cli.Command {
 						serviceTable := termtables.CreateTable()
 						serviceTable.AddHeaders("ServiceName", "TenantName", "Type", "Message", "Reason", "Count", "LastTime", "FirstTime", "IsHandle", "HandleMessage")
 						for _, v := range val {
-							serviceName, tenantName := GetServiceNameAndTenantName(v.KindID)
-							serviceTable.AddRow(serviceName, tenantName, v.Type, v.Message, v.Reason, v.Count, v.LastTime, v.FirstTime, v.IsHandle, v.HandleMessage)
+							serviceTable.AddRow(v.ServiceName, v.TenantName, v.Type, v.Message, v.Reason, v.Count, v.LastTime, v.FirstTime, v.IsHandle, v.HandleMessage)
 						}
 						fmt.Println(serviceTable.Render())
 					}
@@ -59,16 +57,3 @@ func NewCmdNotificationEvent() cli.Command {
 	return c
 }
 
-func GetServiceNameAndTenantName(kind string) (serviceName string, tenantName string) {
-	service, err := db.GetManager().TenantServiceDao().GetServiceByID(kind)
-	if err != nil {
-
-		return "", ""
-	}
-	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(service.TenantID)
-	if err != nil {
-
-		return "", ""
-	}
-	return service.ServiceAlias, tenant.Name
-}

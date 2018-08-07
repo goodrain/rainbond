@@ -473,4 +473,6 @@ type NotificationEvent struct {
 	FirstTime     string `json:"FirstTime"`
 	IsHandle      bool   `json:"IsHandle"`
 	HandleMessage string `json:"HandleMessage"`
+	ServiceName   string    `json:"service_name"`
+	TenantName    string    `json:"tenant_name"`
 }

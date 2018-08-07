@@ -31,7 +31,6 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
-	"fmt"
 )
 
 //Event GetLogs
@@ -96,14 +95,12 @@ func GetNotificationEvents(w http.ResponseWriter, r *http.Request) {
 	var startTime, endTime time.Time
 	start := r.FormValue("start")
 	end := r.FormValue("end")
-	fmt.Println("======>form",start,end)
 	if si, err := strconv.Atoi(start); err == nil {
 		startTime = time.Unix(int64(si), 0)
 	}
 	if ei, err := strconv.Atoi(end); err == nil {
 		endTime = time.Unix(int64(ei), 0)
 	}
-	fmt.Println("=====>",startTime,endTime)
 	res, err := db.GetManager().NotificationEventDao().GetNotificationEventByTime(startTime, endTime)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
@@ -127,6 +124,21 @@ func GetNotificationEventsGroup(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
+	for _,v := range res{
+		service, err := db.GetManager().TenantServiceDao().GetServiceByID(v.KindID)
+		if err != nil {
+			httputil.ReturnError(r, w, 500, err.Error())
+			return
+		}
+		tenant, err := db.GetManager().TenantDao().GetTenantByUUID(service.TenantID)
+		if err != nil {
+			httputil.ReturnError(r, w, 500, err.Error())
+			return
+		}
+		v.ServiceName = service.ServiceAlias
+		v.TenantName = tenant.Name
+	}
+
 
 	httputil.ReturnSuccess(r, w, res)
 }
