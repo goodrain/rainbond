@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/appruntimesync/cache"
 	"github.com/goodrain/rainbond/appruntimesync/clean"
 	"github.com/goodrain/rainbond/appruntimesync/pb"
 	"github.com/goodrain/rainbond/appruntimesync/pod"
@@ -44,6 +45,7 @@ type AppRuntimeSyncServer struct {
 	ClientSet     *kubernetes.Clientset
 	podCache      *pod.CacheManager
 	clean         *clean.Manager
+	cache         *cache.DiskCache
 }
 
 //NewAppRuntimeSyncServer create app runtime sync server
@@ -68,6 +70,10 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 	if err != nil {
 		logrus.Error(err)
 	}
+
+	// disk used info collector
+	c := cache.CreatDiskCache(ctx)
+
 	arss := &AppRuntimeSyncServer{
 		c:         conf,
 		Ctx:       ctx,
@@ -76,6 +82,7 @@ func NewAppRuntimeSyncServer(conf option.Config) *AppRuntimeSyncServer {
 		ClientSet: clientset,
 		podCache:  podCache,
 		clean:     Clean,
+		cache:     c,
 	}
 	arss.StatusManager = statusManager
 	return arss
@@ -97,6 +104,23 @@ func (a *AppRuntimeSyncServer) GetAppStatus(ctx context.Context, sr *pb.StatusRe
 		return &re, nil
 	}
 	re.Status[sr.ServiceIds] = a.StatusManager.GetStatus(sr.ServiceIds)
+	return &re, nil
+}
+
+//GetAppDisk get app disk information
+func (a *AppRuntimeSyncServer) GetAppDisk(ctx context.Context, sr *pb.StatusRequest) (*pb.DiskMessage, error) {
+	var re pb.DiskMessage
+	if sr.ServiceIds == "" {
+		re.Disks = a.cache.Get()
+		return &re, nil
+	}
+	services := strings.Split(sr.ServiceIds, ",")
+	var rev = make(map[string]float64)
+	for _, s := range services {
+		value := a.cache.GetServiceDisk(s)
+		rev[s] = value
+	}
+	re.Disks = rev
 	return &re, nil
 }
 
@@ -147,6 +171,7 @@ func (a *AppRuntimeSyncServer) Start() error {
 	)
 	a.podCache.Start()
 	a.clean.Start()
+	go a.cache.Start()
 	logrus.Info("app runtime sync server started...")
 	return nil
 }

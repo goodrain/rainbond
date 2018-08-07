@@ -27,6 +27,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"github.com/goodrain/rainbond/monitor/api"
+	"github.com/goodrain/rainbond/monitor/api/controller"
+	"net/http"
 )
 
 func main() {
@@ -38,7 +41,10 @@ func main() {
 	c.CompleteConfig()
 
 	// start prometheus daemon and watching tis status in all time, exit monitor process if start failed
-	p := prometheus.NewManager(c)
+	a := prometheus.NewRulesManager(c)
+	p := prometheus.NewManager(c, a)
+	controllerManager := controller.NewControllerManager(a,p)
+
 	errChan := make(chan error, 1)
 	defer close(errChan)
 	p.StartDaemon(errChan)
@@ -52,6 +58,10 @@ func main() {
 	m := monitor.NewMonitor(c, p)
 	m.Start()
 	defer m.Stop()
+
+	r := api.APIServer(controllerManager)
+	logrus.Info("monitor api listen port 3329")
+	go http.ListenAndServe(":3329", r)
 
 	//step finally: listen Signal
 	term := make(chan os.Signal)

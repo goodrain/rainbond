@@ -24,7 +24,7 @@ import (
 )
 
 func TestCreateRepostoryBuildInfo(t *testing.T) {
-	info, err := CreateRepostoryBuildInfo("ssh://git@gr5042d6.7804f67d.ali-sh-s1.goodrain.net:20905/root/private2018.git?dir=abc", "master", "ADSASDADAD")
+	info, err := CreateRepostoryBuildInfo("ssh://git@gr5042d6.7804f67d.ali-sh-s1.goodrain.net:20905/root/private2018.git?dir=abc", "master", "ADSASDADAD", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

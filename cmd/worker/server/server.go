@@ -112,6 +112,7 @@ func Run(s *option.Worker) error {
 	go http.ListenAndServe(":3229", nil)
 
 	logrus.Info("worker begin running...")
+
 	//step finally: listen Signal
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)

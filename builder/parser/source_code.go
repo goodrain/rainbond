@@ -88,16 +88,14 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	if csi.Branch == "" {
 		csi.Branch = "master"
 	}
-	if csi.ServerType == "" {
-		csi.ServerType = "git"
-	}
+	csi.InitServerType()
 	if csi.RepositoryURL == "" {
 		d.logger.Error("Git项目仓库地址不能为空", map[string]string{"step": "parse"})
 		d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", SolveAdvice("modify_url", "请确认并修改仓库地址")))
 		return d.errors
 	}
 	//验证仓库地址
-	buildInfo, err := sources.CreateRepostoryBuildInfo(csi.RepositoryURL, csi.Branch, csi.TenantID)
+	buildInfo, err := sources.CreateRepostoryBuildInfo(csi.RepositoryURL, csi.ServerType, csi.Branch, csi.TenantID, csi.ServiceID)
 	if err != nil {
 		d.logger.Error("Git项目仓库地址格式错误", map[string]string{"step": "parse"})
 		d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", SolveAdvice("modify_url", "请确认并修改仓库地址")))
@@ -167,6 +165,26 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		return nil
 	}
 
+	svnFunc := func() ParseErrorList {
+		if sources.CheckFileExist(buildInfo.GetCodeHome()) {
+			if err := sources.RemoveDir(buildInfo.GetCodeHome()); err != nil {
+				//d.errappend(ErrorAndSolve(err, "清理cache dir错误", "请提交代码到仓库"))
+				return d.errors
+			}
+		}
+		csi.RepositoryURL = buildInfo.RepostoryURL
+		svnclient := sources.NewClient(csi.User, csi.Password, csi.RepositoryURL, buildInfo.GetCodeHome(), d.logger)
+		rs, err := svnclient.Checkout()
+		if err != nil {
+			logrus.Errorf("svn checkout error,%s", err.Error())
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("获取代码失败"), "请确认仓库能否正常访问，或查看社区文档"))
+			return d.errors
+		}
+		//get branchs
+		d.branchs = rs.Branchs
+		return nil
+	}
+
 	//获取代码仓库
 	switch csi.ServerType {
 	case "git":
@@ -174,16 +192,17 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			return err
 		}
 	case "svn":
-		d.errappend(ErrorAndSolve(FatalError, "svn协议暂时不支持", "请使用git协议仓库"))
-		return d.errors
+		if err := svnFunc(); err != nil && err.IsFatalError() {
+			return err
+		}
 	default:
-		//按照git处理处理
+		//default git
 		if err := gitFunc(); err != nil && err.IsFatalError() {
 			return err
 		}
 	}
 
-	//读取云帮配置文件
+	//read rainbondfile
 	rbdfileConfig, err := code.ReadRainbondFile(buildInfo.GetCodeHome())
 	if err != nil {
 		if err == code.ErrRainbondFileNotFound {
@@ -250,8 +269,29 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		for _, port := range rbdfileConfig.Ports {
 			d.ports[port.Port] = &Port{ContainerPort: port.Port, Protocol: port.Protocol}
 		}
+		if rbdfileConfig.Cmd != "" {
+			d.args = strings.Split(rbdfileConfig.Cmd, " ")
+		}
 	}
 	return d.errors
+}
+
+//ReadRbdConfigAndLang read rainbondfile  and lang
+func ReadRbdConfigAndLang(buildInfo *sources.RepostoryBuildInfo) (*code.RainbondFileConfig, code.Lang, error) {
+	rbdfileConfig, err := code.ReadRainbondFile(buildInfo.GetCodeHome())
+	if err != nil {
+		return nil, code.NO, err
+	}
+	var lang code.Lang
+	if rbdfileConfig != nil && rbdfileConfig.Language != "" {
+		lang = code.Lang(rbdfileConfig.Language)
+	} else {
+		lang, err = code.GetLangType(buildInfo.GetCodeBuildAbsPath())
+		if err != nil {
+			return rbdfileConfig, code.NO, err
+		}
+	}
+	return rbdfileConfig, lang, nil
 }
 
 func getRecommendedMemory(lang code.Lang) int {
@@ -361,10 +401,35 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 
 	for _, cm := range commands {
 		switch cm.Cmd {
+		case "arg":
+			length := len(cm.Value)
+			for i := 0; i < length; i++ {
+				if kv := strings.Split(cm.Value[i], "="); len(kv) > 1 {
+					key := "BUILD_ARG_" + kv[0]
+					d.envs[key] = &Env{Name: key, Value: kv[1]}
+				} else {
+					if i + 1 >= length {
+						logrus.Error("Parse ARG format error at ", cm.Value[1])
+						continue
+					}
+					key := "BUILD_ARG_" + cm.Value[i]
+					d.envs[key] = &Env{Name: key, Value: cm.Value[i+1]}
+					i++
+				}
+			}
 		case "env":
+			length := len(cm.Value)
 			for i := 0; i < len(cm.Value); i++ {
-				d.envs[cm.Value[i]] = &Env{Name: cm.Value[i], Value: cm.Value[i+1]}
-				i++
+				if kv := strings.Split(cm.Value[i], "="); len(kv) > 1 {
+					d.envs[kv[0]] = &Env{Name: kv[0], Value: kv[1]}
+				} else {
+					if i + 1 >= length {
+						logrus.Error("Parse ENV format error at ", cm.Value[1])
+						continue
+					}
+					d.envs[cm.Value[i]] = &Env{Name: cm.Value[i], Value: cm.Value[i+1]}
+					i++
+				}
 			}
 		case "expose":
 			for _, v := range cm.Value {

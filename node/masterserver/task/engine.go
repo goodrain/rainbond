@@ -43,7 +43,8 @@ import (
 	"github.com/goodrain/rainbond/node/core/job"
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/node/masterserver/node"
-	"github.com/goodrain/rainbond/node/nodeserver"
+	nodeclient "github.com/goodrain/rainbond/node/nodem/client"
+	"github.com/goodrain/rainbond/node/nodem/taskrun"
 	"github.com/pquerna/ffjson/ffjson"
 )
 
@@ -55,11 +56,11 @@ type TaskEngine struct {
 	cancel              context.CancelFunc
 	config              *option.Conf
 	tasks               map[string]*model.Task
-	jobs                nodeserver.Jobs
+	jobs                taskrun.Jobs
 	tasksLock, jobsLock sync.Mutex
 	dataCenterConfig    *config.DataCenterConfig
 	nodeCluster         *node.Cluster
-	currentNode         *model.HostNode
+	currentNode         *nodeclient.HostNode
 	down                chan struct{}
 	masterID            client.LeaseID
 	scheduler           *Scheduler
@@ -67,13 +68,13 @@ type TaskEngine struct {
 }
 
 //CreateTaskEngine 创建task管理引擎
-func CreateTaskEngine(nodeCluster *node.Cluster, node *model.HostNode) *TaskEngine {
+func CreateTaskEngine(nodeCluster *node.Cluster, node *nodeclient.HostNode) *TaskEngine {
 	ctx, cancel := context.WithCancel(context.Background())
 	task := &TaskEngine{
 		ctx:              ctx,
 		cancel:           cancel,
 		tasks:            make(map[string]*model.Task),
-		jobs:             make(nodeserver.Jobs),
+		jobs:             make(taskrun.Jobs),
 		config:           option.Config,
 		dataCenterConfig: config.GetDataCenterConfig(),
 		nodeCluster:      nodeCluster,

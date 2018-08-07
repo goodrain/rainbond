@@ -35,6 +35,7 @@ type RainbondFileConfig struct {
 	BuildPath string            `yaml:"buildpath"`
 	Ports     []Port            `yaml:"ports"`
 	Envs      map[string]string `yaml:"envs"`
+	Cmd       string            `yaml:"cmd"`
 }
 
 //Port Port

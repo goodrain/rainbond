@@ -25,6 +25,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	//"github.com/docker/docker/client"
+	"sync"
+
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/engine-api/client"
 	"github.com/goodrain/rainbond/db"
@@ -35,6 +37,9 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/tidwall/gjson"
 )
+
+var TaskNum float64 = 0
+var ErrorNum float64 = 0
 
 //Manager 任务执行管理器
 type Manager interface {
@@ -74,6 +79,7 @@ func NewManager(conf config.Config) (Manager, error) {
 type exectorManager struct {
 	DockerClient *client.Client
 	EtcdCli      *clientv3.Client
+	wg           sync.WaitGroup
 }
 
 //TaskWorker worker interface
@@ -103,6 +109,8 @@ func RegisterWorker(name string, fun func([]byte, *exectorManager) (TaskWorker, 
 //share-slug share app with slug
 //share-image share app with image
 func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
+	e.wg.Add(1)
+	TaskNum++
 	switch task.TaskType {
 	case "build_from_image":
 		e.buildFromImage(task.TaskBody)
@@ -138,6 +146,7 @@ func (e *exectorManager) exec(workerName string, in []byte) error {
 		return err
 	}
 	go func() {
+		defer e.wg.Done()
 		defer event.GetManager().ReleaseLogger(worker.GetLogger())
 		defer func() {
 			if r := recover(); r != nil {
@@ -148,6 +157,7 @@ func (e *exectorManager) exec(workerName string, in []byte) error {
 			}
 		}()
 		if err := worker.Run(time.Minute * 10); err != nil {
+			ErrorNum++
 			worker.ErrorCallBack(err)
 		}
 	}()
@@ -161,6 +171,7 @@ func (e *exectorManager) buildFromImage(in []byte) {
 	i.Logger.Info("从镜像构建应用任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
+		defer e.wg.Done()
 		logrus.Debugf("start build from image worker")
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
@@ -177,6 +188,7 @@ func (e *exectorManager) buildFromImage(in []byte) {
 				if n < 1 {
 					i.Logger.Error("从镜像构建应用任务执行失败，开始重试", map[string]string{"step": "build-exector", "status": "failure"})
 				} else {
+					ErrorNum++
 					i.Logger.Error("从镜像构建应用任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 					status = "failure"
 				}
@@ -198,6 +210,7 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 	i.Logger.Info("从源码构建应用任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
+		defer e.wg.Done()
 		logrus.Debugf("start build from source code")
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
@@ -214,6 +227,7 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 				if n < 1 {
 					i.Logger.Error("从源码构建应用任务执行失败，开始重试", map[string]string{"step": "build-exector", "status": "failure"})
 				} else {
+					ErrorNum++
 					i.Logger.Error("从源码构建应用任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 					status = "failure"
 				}
@@ -225,9 +239,9 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 			vi := &dbmodel.VersionInfo{
 				FinalStatus: status,
 				EventID:     i.EventID,
-				CodeVersion: i.commit.Hash.String(),
+				CodeVersion: i.commit.Hash,
 				CommitMsg:   i.commit.Message,
-				Author:      i.commit.Author.Name,
+				Author:      i.commit.Author,
 			}
 			if err := i.UpdateVersionInfo(vi); err != nil {
 				logrus.Debugf("update version Info error: %s", err.Error())
@@ -248,6 +262,7 @@ func (e *exectorManager) buildFromMarketSlug(in []byte) {
 	}
 	i.Logger.Info("开始构建应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	go func() {
+		defer e.wg.Done()
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
 			if r := recover(); r != nil {
@@ -263,6 +278,7 @@ func (e *exectorManager) buildFromMarketSlug(in []byte) {
 				if n < 1 {
 					i.Logger.Error("应用构建失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
+					ErrorNum++
 					i.Logger.Error("构建应用任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
@@ -283,6 +299,7 @@ func (e *exectorManager) slugShare(in []byte) {
 	i.Logger.Info("开始分享应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
+		defer e.wg.Done()
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
 			if r := recover(); r != nil {
@@ -298,6 +315,7 @@ func (e *exectorManager) slugShare(in []byte) {
 				if n < 1 {
 					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
+					ErrorNum++
 					i.Logger.Error("分享应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})
 					status = "failure"
 				}
@@ -322,6 +340,7 @@ func (e *exectorManager) imageShare(in []byte) {
 	i.Logger.Info("开始分享应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
+		defer e.wg.Done()
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
 			if r := recover(); r != nil {
@@ -337,6 +356,7 @@ func (e *exectorManager) imageShare(in []byte) {
 				if n < 1 {
 					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
+					ErrorNum++
 					i.Logger.Error("分享应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})
 					status = "failure"
 				}
@@ -355,5 +375,8 @@ func (e *exectorManager) Start() error {
 	return nil
 }
 func (e *exectorManager) Stop() error {
+	logrus.Info("Waiting for all threads to exit.")
+	e.wg.Wait()
+	logrus.Info("All threads is exited.")
 	return nil
 }

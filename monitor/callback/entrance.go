@@ -73,6 +73,7 @@ func (e *Entrance) toScrape() *prometheus.ScrapeConfig {
 				{
 					Targets: ts,
 					Labels: map[model.LabelName]model.LabelValue{
+						"service_name": model.LabelValue(e.Name()),
 						"component": model.LabelValue(e.Name()),
 					},
 				},

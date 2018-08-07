@@ -247,45 +247,13 @@ func (t *TenantAction) GetServicesResources(tr *api_model.ServicesResources) (re
 		resmp[c] = map[string]interface{}{"memory": 0, "cpu": 0}
 	}
 	re = resmp
-
-	//query disk used in prometheus
-	proxy := GetPrometheusProxy()
-	query := fmt.Sprintf(`app_resource_appfs{service_id=~"%s"}`, strings.Join(tr.Body.ServiceIDs, "|"))
-	query = strings.Replace(query, " ", "%20", -1)
-	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", query), nil)
-	if err != nil {
-		logrus.Error("create request prometheus api error ", err.Error())
-		return
-	}
-	result, err := proxy.Do(req)
-	if err != nil {
-		logrus.Error("do proxy request prometheus api error ", err.Error())
-		return
-	}
-	if result.Body != nil {
-		defer result.Body.Close()
-		if result.StatusCode != 200 {
-			return re, nil
-		}
-		var qres QueryResult
-		err = json.NewDecoder(result.Body).Decode(&qres)
-		if err == nil {
-			for _, re := range qres.Data.Result {
-				var serviceID string
-				var disk int
-				if tid, ok := re["metric"].(map[string]interface{}); ok {
-					serviceID = tid["service_id"].(string)
-				}
-				if re, ok := (re["value"]).([]interface{}); ok && len(re) == 2 {
-					disk, _ = strconv.Atoi(re[1].(string))
-				}
-				if _, ok := resmp[serviceID]; ok {
-					resmp[serviceID]["disk"] = disk / 1024
-				} else {
-					resmp[serviceID] = make(map[string]interface{})
-					resmp[serviceID]["disk"] = disk / 1024
-				}
-			}
+	appdisks := t.statusCli.GetAppsDisk(strings.Join(tr.Body.ServiceIDs, ","))
+	for serviceID, disk := range appdisks {
+		if _, ok := resmp[serviceID]; ok {
+			resmp[serviceID]["disk"] = disk / 1024
+		} else {
+			resmp[serviceID] = make(map[string]interface{})
+			resmp[serviceID]["disk"] = disk / 1024
 		}
 	}
 	return resmp, nil

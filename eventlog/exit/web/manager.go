@@ -44,6 +44,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
 	"github.com/twinj/uuid"
+	httputil "github.com/goodrain/rainbond/util/http"
+
 )
 
 //SocketServer socket 服务
@@ -57,10 +59,11 @@ type SocketServer struct {
 	reStart              int
 	timeout              time.Duration
 	cluster              cluster.Cluster
+	healthInfo           map[string]string
 }
 
 //NewSocket 创建zmq sub客户端
-func NewSocket(conf conf.WebSocketConf, log *logrus.Entry, storeManager store.Manager, c cluster.Cluster) *SocketServer {
+func NewSocket(conf conf.WebSocketConf, log *logrus.Entry, storeManager store.Manager, c cluster.Cluster, healthInfo map[string]string) *SocketServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	d, err := time.ParseDuration(conf.TimeOut)
 	if err != nil {
@@ -77,6 +80,7 @@ func NewSocket(conf conf.WebSocketConf, log *logrus.Entry, storeManager store.Ma
 		errorStop:    make(chan error),
 		timeout:      d,
 		cluster:      c,
+		healthInfo:healthInfo,
 	}
 }
 
@@ -461,6 +465,12 @@ func (s *SocketServer) listen() {
 		w.Write([]byte(`{"host":"` + url + `","status":"success"}`))
 	})
 	http.HandleFunc("/event_push", s.receiveEventMessage)
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		if s.healthInfo["status"] != "health"{
+			httputil.ReturnError(r,w,400,"eventlog service unusual")
+		}
+		httputil.ReturnSuccess(r,w,s.healthInfo)
+	})
 	//monitor setting
 	s.prometheus()
 

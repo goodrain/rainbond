@@ -26,11 +26,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
-	"github.com/prometheus/node_exporter/collector"
 
 	"github.com/goodrain/rainbond/node/api/model"
 
@@ -38,7 +37,6 @@ import (
 	"io/ioutil"
 	"strconv"
 
-	"github.com/goodrain/rainbond/node/core/k8s"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -48,7 +46,7 @@ func init() {
 
 //NewNode 创建一个节点
 func NewNode(w http.ResponseWriter, r *http.Request) {
-	var node model.APIHostNode
+	var node client.APIHostNode
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &node, nil); !ok {
 		return
 	}
@@ -66,11 +64,11 @@ func NewNode(w http.ResponseWriter, r *http.Request) {
 
 //NewMultipleNode 多节点添加操作
 func NewMultipleNode(w http.ResponseWriter, r *http.Request) {
-	var nodes []model.APIHostNode
+	var nodes []client.APIHostNode
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &nodes, nil); !ok {
 		return
 	}
-	var successnodes []model.APIHostNode
+	var successnodes []client.APIHostNode
 	for _, node := range nodes {
 		if err := nodeService.AddNode(&node); err != nil {
 			continue
@@ -113,7 +111,7 @@ func GetRuleNodes(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-	var masternodes []*model.HostNode
+	var masternodes []*client.HostNode
 	for _, node := range nodes {
 		if node.Role.HasRule(rule) {
 			masternodes = append(masternodes, node)
@@ -268,6 +266,35 @@ func PutLabel(w http.ResponseWriter, r *http.Request) {
 //DownNode 节点下线，计算节点操作
 func DownNode(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	n, err := nodeService.GetNode(nodeUID)
+	if err != nil {
+		err := utils.APIHandleError{
+			Code: 402,
+			Err:  errors.New(fmt.Sprint("Can not get node by nodeID")),
+		}
+		err.Handle(r, w)
+		return
+	}
+	if n.Role.HasRule("manage") {
+		nodes, _ := nodeService.GetAllNode()
+		if nodes != nil && len(nodes) > 0 {
+			count := 0
+			for _, node := range nodes {
+				if node.Role.HasRule("manage") {
+					count++
+				}
+			}
+			if count < 2 {
+				err := utils.APIHandleError{
+					Code: 403,
+					Err:  errors.New(fmt.Sprint("manage node less two, can not down it.")),
+				}
+				err.Handle(r, w)
+				return
+			}
+		}
+	}
+	logrus.Info("Node down by node api controller: ", nodeUID)
 	node, err := nodeService.DownNode(nodeUID)
 	if err != nil {
 		err.Handle(r, w)
@@ -279,6 +306,7 @@ func DownNode(w http.ResponseWriter, r *http.Request) {
 //UpNode 节点上线，计算节点操作
 func UpNode(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	logrus.Info("Node up by node api controller: ", nodeUID)
 	node, err := nodeService.UpNode(nodeUID)
 	if err != nil {
 		err.Handle(r, w)
@@ -295,7 +323,7 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-	ps, error := k8s.GetPodsByNodeName(nodeUID)
+	ps, error := kubecli.GetPodsByNodes(nodeUID)
 	if error != nil {
 		httputil.ReturnError(r, w, 404, error.Error())
 		return
@@ -306,8 +334,13 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 	var cpuL int64
 	var memR int64
 	var memL int64
-	capCPU := node.NodeStatus.Capacity.Cpu().Value()
-	capMEM := node.NodeStatus.Capacity.Memory().Value()
+	capCPU := node.AvailableCPU
+	capMEM := node.AvailableMemory
+	k8snode, _ := kubecli.GetNode(nodeUID)
+	if k8snode != nil {
+		capCPU = k8snode.Status.Allocatable.Cpu().Value()
+		capMEM = k8snode.Status.Allocatable.Memory().Value()
+	}
 	for _, v := range ps {
 		pod := &model.Pods{}
 		pod.Namespace = v.Namespace
@@ -319,35 +352,33 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 		pod.Id = serviceID
 
 		ConditionsStatuss := v.Status.Conditions
-		for _,val := range ConditionsStatuss{
-			if val.Type == "Ready"{
-				pod.Status = model.ConditionStatus(val.Status)
+		for _, val := range ConditionsStatuss {
+			if val.Type == "Ready" {
+				pod.Status = string(val.Status)
 			}
 		}
 
-
 		//lc := v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
 		lc := v.Spec.Containers
-		for _,v:=range lc{
+		for _, v := range lc {
 			cpuL += v.Resources.Limits.Cpu().MilliValue()
 		}
 
 		//lm := v.Spec.Containers[0].Resources.Limits.Memory().Value()
 		lm := v.Spec.Containers
-		for _,v:=range lm{
+		for _, v := range lm {
 			memL += v.Resources.Limits.Memory().Value()
 		}
 
-
 		//rc := v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 		rc := v.Spec.Containers
-		for _,v:=range rc{
-			cpuR+=v.Resources.Requests.Cpu().MilliValue()
+		for _, v := range rc {
+			cpuR += v.Resources.Requests.Cpu().MilliValue()
 		}
 
 		//rm := v.Spec.Containers[0].Resources.Requests.Memory().Value()
 		rm := v.Spec.Containers
-		for _,v :=range rm{
+		for _, v := range rm {
 			memR += v.Resources.Requests.Memory().Value()
 		}
 
@@ -367,39 +398,6 @@ func Instances(w http.ResponseWriter, r *http.Request) {
 		pods = append(pods, pod)
 	}
 	httputil.ReturnSuccess(r, w, pods)
-}
-
-//NodeExporter 节点监控
-func NodeExporter(w http.ResponseWriter, r *http.Request) {
-	// filters := r.URL.Query()["collect[]"]
-	// logrus.Debugln("collect query:", filters)
-	filters := []string{"cpu", "diskstats", "filesystem", "ipvs", "loadavg", "meminfo", "netdev", "netstat", "uname", "mountstats", "nfs"}
-	nc, err := collector.NewNodeCollector(filters...)
-	if err != nil {
-		logrus.Warnln("Couldn't create", err)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(fmt.Sprintf("Couldn't create %s", err)))
-		return
-	}
-	registry := prometheus.NewRegistry()
-	err = registry.Register(nc)
-	if err != nil {
-		logrus.Errorln("Couldn't register collector:", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(fmt.Sprintf("Couldn't register collector: %s", err)))
-		return
-	}
-	gatherers := prometheus.Gatherers{
-		prometheus.DefaultGatherer,
-		registry,
-	}
-	// Delegate http serving to Prometheus client library, which will call collector.Collect.
-	h := promhttp.HandlerFor(gatherers,
-		promhttp.HandlerOpts{
-			ErrorLog:      logrus.StandardLogger(),
-			ErrorHandling: promhttp.ContinueOnError,
-		})
-	h.ServeHTTP(w, r)
 }
 
 //临时存在

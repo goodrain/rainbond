@@ -18,126 +18,117 @@
 
 package region
 
-import (
-	"fmt"
-
-	"github.com/pquerna/ffjson/ffjson"
-
-	"github.com/Sirupsen/logrus"
-	api_model "github.com/goodrain/rainbond/api/model"
-)
-
 //DefineSources DefineSources
-func (t *tenant) DefineSources(ss *api_model.SourceSpec) DefineSourcesInterface {
-	return &DefineSources{
-		tenant: t,
-		Model: Body{
-			SourceSpec: ss,
-		},
-	}
-}
+// func (t *tenant) DefineSources(ss *api_model.SourceSpec) DefineSourcesInterface {
+// 	return &DefineSources{
+// 		tenant: *tenant,
+// 		Model: Body{
+// 			SourceSpec: ss,
+// 		},
+// 	}
+// }
 
-//DefineSources DefineSources
-type DefineSources struct {
-	tenant *tenant
-	Model  Body
-}
+// //DefineSources DefineSources
+// type DefineSources struct {
+// 	tenant
+// 	Model Body
+// }
 
-//Body Body
-type Body struct {
-	SourceSpec *api_model.SourceSpec `json:"source_spec"`
-}
+// //Body Body
+// type Body struct {
+// 	SourceSpec *api_model.SourceSpec `json:"source_spec"`
+// }
 
-//DefineSourcesInterface DefineSourcesInterface
-type DefineSourcesInterface interface {
-	GetSource(sourceAlias string) ([]byte, error)
-	PostSource(sourceAlias string) error
-	PutSource(SourcesAlias string) error
-	DeleteSource(sourceAlias string) error
-}
+// //DefineSourcesInterface DefineSourcesInterface
+// type DefineSourcesInterface interface {
+// 	GetSource(sourceAlias string) ([]byte, error)
+// 	PostSource(sourceAlias string) error
+// 	PutSource(SourcesAlias string) error
+// 	DeleteSource(sourceAlias string) error
+// }
 
-//GetSource GetSource
-func (d *DefineSources) GetSource(sourceAlias string) ([]byte, error) {
-	resp, status, err := request(
-		fmt.Sprintf("/v2/tenants/%s/sources/%s/%s",
-			d.tenant.tenantID, d.Model.SourceSpec.Alias, d.Model.SourceSpec.SourceBody.EnvName),
-		"GET",
-		nil,
-	)
-	if err != nil {
-		logrus.Errorf("get define source %s error, %v", d.Model.SourceSpec.SourceBody.EnvName, err)
-		return nil, err
-	}
-	if status > 400 {
-		if status == 404 {
-			return nil, fmt.Errorf("source %s is not exist", d.Model.SourceSpec.SourceBody.EnvName)
-		}
-		return nil, fmt.Errorf("get define source %s failed", d.Model.SourceSpec.SourceBody.EnvName)
-	}
-	//valJ, err := simplejson.NewJson(resp)
-	return resp, nil
-}
+// //GetSource GetSource
+// func (d *DefineSources) GetSource(sourceAlias string) ([]byte, error) {
+// 	resp, status, err := request(
+// 		fmt.Sprintf("/v2/tenants/%s/sources/%s/%s",
+// 			d.tenant.tenantID, d.Model.SourceSpec.Alias, d.Model.SourceSpec.SourceBody.EnvName),
+// 		"GET",
+// 		nil,
+// 	)
+// 	if err != nil {
+// 		logrus.Errorf("get define source %s error, %v", d.Model.SourceSpec.SourceBody.EnvName, err)
+// 		return nil, err
+// 	}
+// 	if status > 400 {
+// 		if status == 404 {
+// 			return nil, fmt.Errorf("source %s is not exist", d.Model.SourceSpec.SourceBody.EnvName)
+// 		}
+// 		return nil, fmt.Errorf("get define source %s failed", d.Model.SourceSpec.SourceBody.EnvName)
+// 	}
+// 	//valJ, err := simplejson.NewJson(resp)
+// 	return resp, nil
+// }
 
-//PostSource PostSource
-func (d *DefineSources) PostSource(sourceAlias string) error {
-	data, err := ffjson.Marshal(d.Model)
-	if err != nil {
-		return err
-	}
-	_, status, err := request(
-		fmt.Sprintf("/v2/tenants/%s/sources/%s",
-			d.tenant.tenantID, d.Model.SourceSpec.Alias),
-		"POST",
-		data,
-	)
-	if err != nil {
-		logrus.Errorf("create define source error, %v", err)
-		return err
-	}
-	if status > 400 {
-		logrus.Errorf("create define source error")
-		return fmt.Errorf("cretae define source failed")
-	}
-	return nil
-}
+// //PostSource PostSource
+// func (d *DefineSources) PostSource(sourceAlias string) error {
+// 	data, err := ffjson.Marshal(d.Model)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	_, status, err := request(
+// 		fmt.Sprintf("/v2/tenants/%s/sources/%s",
+// 			d.tenant.tenantID, d.Model.SourceSpec.Alias),
+// 		"POST",
+// 		data,
+// 	)
+// 	if err != nil {
+// 		logrus.Errorf("create define source error, %v", err)
+// 		return err
+// 	}
+// 	if status > 400 {
+// 		logrus.Errorf("create define source error")
+// 		return fmt.Errorf("cretae define source failed")
+// 	}
+// 	return nil
+// }
 
-//PutSource PutSource
-func (d *DefineSources) PutSource(sourceAlias string) error {
-	data, err := ffjson.Marshal(d.Model)
-	if err != nil {
-		return err
-	}
-	_, status, err := request(
-		fmt.Sprintf("/v2/tenants/%s/sources/%s/%s",
-			d.tenant.tenantID, d.Model.SourceSpec.Alias, d.Model.SourceSpec.SourceBody.EnvName),
-		"PUT",
-		data,
-	)
-	if err != nil {
-		logrus.Errorf("update define source error, %v", err)
-		return err
-	}
-	if status > 400 {
-		logrus.Errorf("update define source error")
-		return fmt.Errorf("update define source failed")
-	}
-	return nil
-}
+// //PutSource PutSource
+// func (d *DefineSources) PutSource(sourceAlias string) error {
+// 	data, err := ffjson.Marshal(d.Model)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	_, status, err := request(
+// 		fmt.Sprintf("/v2/tenants/%s/sources/%s/%s",
+// 			d.tenant.tenantID, d.Model.SourceSpec.Alias, d.Model.SourceSpec.SourceBody.EnvName),
+// 		"PUT",
+// 		data,
+// 	)
+// 	if err != nil {
+// 		logrus.Errorf("update define source error, %v", err)
+// 		return err
+// 	}
+// 	if status > 400 {
+// 		logrus.Errorf("update define source error")
+// 		return fmt.Errorf("update define source failed")
+// 	}
+// 	return nil
+// }
 
-//DeleteSource DeleteSource
-func (d *DefineSources) DeleteSource(sourceAlias string) error {
-	_, status, err := request(
-		fmt.Sprintf("/v2/tenants/%s/sources/%s/%s",
-			d.tenant.tenantID, d.Model.SourceSpec.Alias, d.Model.SourceSpec.SourceBody.EnvName),
-		"DELETE",
-		nil,
-	)
-	if err != nil {
-		logrus.Errorf("delete define source error, %v", err)
-		return err
-	}
-	if status > 400 {
-		logrus.Errorf("delete define source %s error", d.Model.SourceSpec.SourceBody.EnvName)
-	}
-	return nil
-}
+// //DeleteSource DeleteSource
+// func (d *DefineSources) DeleteSource(sourceAlias string) error {
+// 	_, status, err := request(
+// 		fmt.Sprintf("/v2/tenants/%s/sources/%s/%s",
+// 			d.tenant.tenantID, d.Model.SourceSpec.Alias, d.Model.SourceSpec.SourceBody.EnvName),
+// 		"DELETE",
+// 		nil,
+// 	)
+// 	if err != nil {
+// 		logrus.Errorf("delete define source error, %v", err)
+// 		return err
+// 	}
+// 	if status > 400 {
+// 		logrus.Errorf("delete define source %s error", d.Model.SourceSpec.SourceBody.EnvName)
+// 	}
+// 	return nil
+// }

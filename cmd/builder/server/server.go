@@ -25,6 +25,7 @@ import (
 
 	"github.com/goodrain/rainbond/builder/discover"
 	"github.com/goodrain/rainbond/builder/exector"
+	"github.com/goodrain/rainbond/builder/monitor"
 	"github.com/goodrain/rainbond/cmd/builder/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
@@ -35,6 +36,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/api"
 	"github.com/goodrain/rainbond/builder/clean"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	discoverv2 "github.com/goodrain/rainbond/discover.v2"
 )
 
 //Run start run
@@ -80,7 +84,20 @@ func Run(s *option.Builder) error {
 	}
 	defer cle.Stop()
 
+	keepalive, err := discoverv2.CreateKeepAlive(s.Config.EtcdEndPoints, "builder",
+		"", s.Config.HostIP, s.Config.APIPort)
+	if err != nil {
+		return err
+	}
+	if err := keepalive.Start(); err != nil {
+		return err
+	}
+	defer keepalive.Stop()
+
+	exporter := monitor.NewExporter()
+	prometheus.MustRegister(exporter)
 	r := api.APIServer()
+	r.Handle(s.Config.PrometheusMetricPath, promhttp.Handler())
 	logrus.Info("builder api listen port 3228")
 	go http.ListenAndServe(":3228", r)
 

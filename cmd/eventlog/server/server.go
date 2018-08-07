@@ -38,6 +38,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/eventlog/db"
 	"github.com/spf13/pflag"
+	"github.com/goodrain/rainbond/util"
 )
 
 type LogServer struct {
@@ -196,6 +197,7 @@ func (s *LogServer) Run() error {
 	if err != nil {
 		return err
 	}
+	healthInfo := storeManager.HealthCheck()
 	if err := storeManager.Run(); err != nil {
 		return err
 	}
@@ -207,7 +209,7 @@ func (s *LogServer) Run() error {
 		}
 		defer s.Cluster.Stop()
 	}
-	s.SocketServer = web.NewSocket(s.Conf.WebSocket, log.WithField("module", "SocketServer"), storeManager, s.Cluster)
+	s.SocketServer = web.NewSocket(s.Conf.WebSocket, log.WithField("module", "SocketServer"), storeManager, s.Cluster, healthInfo)
 	if err := s.SocketServer.Run(); err != nil {
 		return err
 	}
@@ -240,8 +242,15 @@ func (s *LogServer) Run() error {
 	}
 	defer udpkeepalive.Stop()
 
+	hostID, err := util.ReadHostID(s.Conf.Cluster.Discover.NodeIDFile)
+	if err != nil {
+		return err
+	}
+
+	id := hostID[len(hostID)-12:]
+
 	httpkeepalive, err := discover.CreateKeepAlive(s.Conf.Cluster.Discover.EtcdAddr, "event_log_event_http",
-		s.Conf.Cluster.Discover.InstanceIP, s.Conf.Cluster.Discover.InstanceIP, s.Conf.WebSocket.BindPort)
+		id, s.Conf.Cluster.Discover.InstanceIP, s.Conf.WebSocket.BindPort)
 	if err != nil {
 		return err
 	}

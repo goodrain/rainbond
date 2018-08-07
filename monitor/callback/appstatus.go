@@ -93,6 +93,7 @@ func (e *AppStatus) toScrape() *prometheus.ScrapeConfig {
 					Targets: ts,
 					Labels: map[model.LabelName]model.LabelValue{
 						"component": model.LabelValue(e.Name()),
+						"service_name": model.LabelValue(e.Name()),
 					},
 				},
 			},

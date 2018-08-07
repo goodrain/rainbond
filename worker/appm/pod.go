@@ -48,6 +48,7 @@ type PodTemplateSpecBuild struct {
 	pluginsRelation    []*model.TenantServicePluginRelation
 	dbmanager          db.Manager
 	logger             event.Logger
+	versionInfo        *model.VersionInfo
 	localScheduler     bool
 	volumeMount        map[string]string
 	NodeAPI            string
@@ -68,6 +69,20 @@ func PodTemplateSpecBuilder(serviceID string, logger event.Logger, nodeAPI strin
 	if err != nil {
 		return nil, fmt.Errorf("find plugins error. %v", err.Error())
 	}
+	versionInfo, err := dbmanager.VersionInfoDao().GetVersionByDeployVersion(service.DeployVersion, serviceID)
+	if err != nil {
+		logrus.Warnf("error get versioninfo table by key %s,prepare use default", service.DeployVersion)
+		var buildType = "image"
+		path := service.ImageName
+		if strings.HasPrefix(service.ImageName, "goodrain.me/runner") {
+			buildType = "slug"
+			path = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", service.TenantID, service.ServiceID, service.DeployVersion)
+		}
+		versionInfo = &model.VersionInfo{
+			DeliveredType: buildType,
+			DeliveredPath: path,
+		}
+	}
 	return &PodTemplateSpecBuild{
 		serviceID:       serviceID,
 		eventID:         logger.Event(),
@@ -75,6 +90,7 @@ func PodTemplateSpecBuilder(serviceID string, logger event.Logger, nodeAPI strin
 		pluginsRelation: pluginRelations,
 		service:         service,
 		tenant:          tenant,
+		versionInfo:     versionInfo,
 		logger:          logger,
 		volumeMount:     make(map[string]string),
 		NodeAPI:         nodeAPI,
@@ -331,6 +347,12 @@ func (p *PodTemplateSpecBuild) createContainer(volumeMounts []v1.VolumeMount, en
 		LivenessProbe:          p.createProbe("liveness"),
 		VolumeMounts:           volumeMounts,
 		Args:                   p.createArgs(*envs),
+	}
+	if p.versionInfo.DeliveredType == "slug" {
+		c1.Image = "goodrain.me/runner"
+	}
+	if p.versionInfo.DeliveredType == "image" {
+		c1.Image = p.versionInfo.DeliveredPath
 	}
 	containers = append(containers, c1)
 	return containers
@@ -592,7 +614,7 @@ func (p *PodTemplateSpecBuild) createVolumes(envs *[]v1.EnvVar) ([]v1.Volume, []
 		}
 	}
 	//处理slug挂载
-	if strings.HasPrefix(p.service.ImageName, "goodrain.me/runner") {
+	if p.versionInfo.DeliveredType == "slug" {
 		var slugPath string
 		for _, e := range *envs {
 			if e.Name == "SLUG_PATH" {
@@ -603,15 +625,7 @@ func (p *PodTemplateSpecBuild) createVolumes(envs *[]v1.EnvVar) ([]v1.Volume, []
 		if slugPath != "" {
 			slugPath = "/grdata/build/tenant/" + slugPath
 		} else {
-			slugPath = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", p.service.TenantID, p.service.ServiceID, p.service.DeployVersion)
-			versionInfo, err := p.dbmanager.VersionInfoDao().GetVersionByDeployVersion(p.service.DeployVersion, p.serviceID)
-			if err != nil {
-				logrus.Warnf("error get slug path from versioninfo table by key %s,prepare use path", p.service.DeployVersion)
-			} else {
-				if len(versionInfo.DeliveredPath) != 0 {
-					slugPath = versionInfo.DeliveredPath
-				}
-			}
+			slugPath = p.versionInfo.DeliveredPath
 		}
 		p.createVolumeObj(model.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", slugPath, true, &volumeMounts, &volumes)
 	}
@@ -750,6 +764,7 @@ func (p *PodTemplateSpecBuild) createEnv() (*[]v1.EnvVar, error) {
 		for i, port := range ports {
 			if i == 0 {
 				envs = append(envs, v1.EnvVar{Name: "PORT", Value: strconv.Itoa(ports[0].ContainerPort)})
+				envs = append(envs, v1.EnvVar{Name: "PROTOCOL", Value: ports[0].Protocol})
 			}
 			if portStr != "" {
 				portStr += ":"

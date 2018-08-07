@@ -20,6 +20,9 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -162,16 +165,28 @@ func (m *Manager) Run() {
 		}
 	}()
 	if m.conf.APISSL {
-		logrus.Infof("api listen on (HTTPs) 0.0.0.0%v", m.conf.APIAddrSSL)
-		logrus.Fatal(http.ListenAndServeTLS(m.conf.APIAddrSSL, m.conf.APICertFile, m.conf.APIKeyFile, m.r))
 		go func() {
-			logrus.Infof("api listen on (HTTP) 0.0.0.0%v", m.conf.APIAddr)
-			logrus.Fatal(http.ListenAndServe(m.conf.APIAddr, m.r))
+			pool := x509.NewCertPool()
+			caCrt, err := ioutil.ReadFile(m.conf.APICaFile)
+			if err != nil {
+				logrus.Fatal("ReadFile ca err:", err)
+				return
+			}
+			pool.AppendCertsFromPEM(caCrt)
+			s := &http.Server{
+				Addr:    m.conf.APIAddrSSL,
+				Handler: m.r,
+				TLSConfig: &tls.Config{
+					ClientCAs:  pool,
+					ClientAuth: tls.RequireAndVerifyClientCert,
+				},
+			}
+			logrus.Infof("api listen on (HTTPs) 0.0.0.0%v", m.conf.APIAddrSSL)
+			logrus.Fatal(s.ListenAndServeTLS(m.conf.APICertFile, m.conf.APIKeyFile))
 		}()
-	} else {
-		logrus.Infof("api listen on (HTTP) 0.0.0.0%v", m.conf.APIAddr)
-		logrus.Fatal(http.ListenAndServe(m.conf.APIAddr, m.r))
 	}
+	logrus.Infof("api listen on (HTTP) 0.0.0.0%v", m.conf.APIAddr)
+	logrus.Fatal(http.ListenAndServe(m.conf.APIAddr, m.r))
 }
 
 //EventLogInstance 查询event server instance

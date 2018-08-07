@@ -37,7 +37,6 @@ import (
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	conf "github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/node/api/model"
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/goodrain/rainbond/util"
@@ -54,6 +53,12 @@ const (
 	KindAlone    // 任何时间段只允许单机执行
 	KindInterval // 一个任务执行间隔内允许执行一次
 )
+
+//Event JobEvent
+type Event struct {
+	EventType string `json:"event_type"`
+	Job       Job    `json:"job"`
+}
 
 //Job 需要执行的任务
 type Job struct {
@@ -327,12 +332,9 @@ func GetJobAndRev(id string) (job *Job, rev int64, err error) {
 }
 
 //GetJobs 获取当前节点jobs
-func GetJobs(node *model.HostNode) (jobs map[string]*Job, err error) {
+func GetJobs(nodeID string) (jobs map[string]*Job, err error) {
 	if conf.Config.JobPath == "" {
 		return nil, fmt.Errorf("job save path can not be empty")
-	}
-	if node == nil {
-		return nil, fmt.Errorf("current node can not be nil")
 	}
 	resp, err := store.DefalutClient.Get(conf.Config.JobPath, client.WithPrefix())
 	if err != nil {
@@ -353,7 +355,7 @@ func GetJobs(node *model.HostNode) (jobs map[string]*Job, err error) {
 			logrus.Warnf("job[%s] is invalid: %s", string(j.Key), err.Error())
 			continue
 		}
-		if !job.IsRunOn(node) {
+		if !job.IsRunOn(nodeID) {
 			continue
 		}
 		jobs[job.ID] = job
@@ -608,7 +610,7 @@ func (j *Job) Avg(t, et time.Time) {
 }
 
 //Cmds 根据执行策略 创建 cmd
-func (j *Job) Cmds(node *model.HostNode) (cmds map[string]*Cmd) {
+func (j *Job) Cmds() (cmds map[string]*Cmd) {
 	cmds = make(map[string]*Cmd)
 	if j.Pause {
 		return
@@ -624,11 +626,11 @@ func (j *Job) Cmds(node *model.HostNode) (cmds map[string]*Cmd) {
 }
 
 //IsRunOn  是否在本节点执行
-func (j Job) IsRunOn(node *model.HostNode) bool {
+func (j Job) IsRunOn(nodeID string) bool {
 	if j.Scheduler == nil {
 		return false
 	}
-	if j.Scheduler.NodeID != node.ID {
+	if j.Scheduler.NodeID != nodeID {
 		return false
 	}
 	if !j.Scheduler.CanRun {

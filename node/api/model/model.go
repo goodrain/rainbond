@@ -20,12 +20,13 @@ package model
 
 import (
 	//"github.com/Sirupsen/logrus"
+	"io/ioutil"
+	"net/http"
+
 	"github.com/coreos/etcd/mvcc/mvccpb"
+	"github.com/goodrain/rainbond/node/utils"
 	"github.com/pquerna/ffjson/ffjson"
 	"k8s.io/client-go/pkg/api/v1"
-	"net/http"
-	"io/ioutil"
-	"github.com/goodrain/rainbond/node/utils"
 	//"github.com/Sirupsen/logrus"
 	"fmt"
 	url2 "net/url"
@@ -179,16 +180,18 @@ func DoRequest(baseAPI, query, queryType, method string, body []byte) ([]byte, i
 	return data, resp.StatusCode, nil
 }
 
-//Resource 资源
+//ClusterResource 资源
 type ClusterResource struct {
-	Node    int      `json:"node"`
-	Tenant  int      `json:"tenant"`
-	CapCpu  int      `json:"cap_cpu"`
-	CapMem  int      `json:"cap_mem"`
-	ReqCpu  float32  `json:"req_cpu"`
-	ReqMem  int      `json:"req_mem"`
-	CapDisk uint64   `json:"cap_disk"`
-	ReqDisk uint64   `json:"req_disk"`
+	AllNode      int     `json:"all_node"`
+	NotReadyNode int     `json:"notready_node"`
+	ComputeNode  int     `json:"compute_node"`
+	Tenant       int     `json:"tenant"`
+	CapCPU       int     `json:"cap_cpu"`
+	CapMem       int     `json:"cap_mem"`
+	ReqCPU       float32 `json:"req_cpu"`
+	ReqMem       int     `json:"req_mem"`
+	CapDisk      uint64  `json:"cap_disk"`
+	ReqDisk      uint64  `json:"req_disk"`
 }
 
 type FirstConfig struct {
@@ -403,19 +406,19 @@ type ResponseBody struct {
 	Body  Body   `json:"body,omitempty"`
 }
 type Pods struct {
-	Namespace       string          `json:"namespace"`
-	Id              string          `json:"id"`
-	Name            string          `json:"name"`
-	TenantName      string          `json:"tenant_name"`
-	CPURequests     string          `json:"cpurequest"`
-	CPURequestsR    string          `json:"cpurequestr"`
-	CPULimits       string          `json:"cpulimits"`
-	CPULimitsR      string          `json:"cpulimitsr"`
-	MemoryRequests  string          `json:"memoryrequests"`
-	MemoryRequestsR string          `json:"memoryrequestsr"`
-	MemoryLimits    string          `json:"memorylimits"`
-	MemoryLimitsR   string          `json:"memorylimitsr"`
-	Status          ConditionStatus `json:"status"`
+	Namespace       string `json:"namespace"`
+	Id              string `json:"id"`
+	Name            string `json:"name"`
+	TenantName      string `json:"tenant_name"`
+	CPURequests     string `json:"cpurequest"`
+	CPURequestsR    string `json:"cpurequestr"`
+	CPULimits       string `json:"cpulimits"`
+	CPULimitsR      string `json:"cpulimitsr"`
+	MemoryRequests  string `json:"memoryrequests"`
+	MemoryRequestsR string `json:"memoryrequestsr"`
+	MemoryLimits    string `json:"memorylimits"`
+	MemoryLimitsR   string `json:"memorylimitsr"`
+	Status          string `json:"status"`
 }
 
 //NodeDetails NodeDetails
@@ -435,4 +438,21 @@ type NodeDetails struct {
 	NonterminatedPods  []*Pods             `json:"nonterminatedpods"`
 	AllocatedResources map[string]string   `json:"allocatedresources"`
 	Events             map[string][]string `json:"events"`
+}
+
+type AlertingRulesConfig struct {
+	Groups []*AlertingNameConfig `yaml:"groups" json:"groups"`
+}
+
+type AlertingNameConfig struct {
+	Name  string         `yaml:"name" json:"name"`
+	Rules []*RulesConfig `yaml:"rules" json:"rules"`
+}
+
+type RulesConfig struct {
+	Alert  string            `yaml:"alert" json:"alert"`
+	Expr   string            `yaml:"expr" json:"expr"`
+	For    string            `yaml:"for" json:"for"`
+	Labels map[string]string `yaml:"labels" json:"labels"`
+	Annotations map[string]string `yaml:"annotations" json:"annotations"`
 }

@@ -38,6 +38,8 @@ type Config struct {
 
 	StartArgs            []string
 	ConfigFile           string
+	AlertingRulesFile    string
+	AlertManagerUrl      []string
 	LocalStoragePath     string
 	Web                  Web
 	Tsdb                 Tsdb
@@ -96,6 +98,8 @@ func NewConfig() *Config {
 		LogLevel:          "info",
 
 		ConfigFile:           "/etc/prometheus/prometheus.yml",
+		AlertingRulesFile:    "/etc/prometheus/rules.yml",
+		AlertManagerUrl:      []string{},
 		LocalStoragePath:     "/prometheusdata",
 		WebTimeout:           "5m",
 		RemoteFlushDeadline:  "1m",
@@ -123,10 +127,13 @@ func NewConfig() *Config {
 func (c *Config) AddFlag(cmd *pflag.FlagSet) {
 	cmd.StringVar(&c.EtcdEndpointsLine, "etcd-endpoints", c.EtcdEndpointsLine, "etcd endpoints list.")
 	cmd.StringVar(&c.AdvertiseAddr, "advertise-addr", c.AdvertiseAddr, "advertise address, and registry into etcd.")
+	cmd.StringSliceVar(&c.AlertManagerUrl, "alertmanager-address", c.AlertManagerUrl, "AlertManager url.")
 }
 
 func (c *Config) AddPrometheusFlag(cmd *pflag.FlagSet) {
 	cmd.StringVar(&c.ConfigFile, "config.file", c.ConfigFile, "Prometheus configuration file path.")
+
+	cmd.StringVar(&c.AlertingRulesFile, "rules-config.file", c.AlertingRulesFile, "Prometheus alerting rules config file path.")
 
 	cmd.StringVar(&c.Web.ListenAddress, "web.listen-address", c.Web.ListenAddress, "Address to listen on for UI, API, and telemetry.")
 

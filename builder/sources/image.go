@@ -334,7 +334,7 @@ func ImageBuild(dockerCli *client.Client, contextDir string, options types.Image
 			if jm.Error != nil {
 				return jm.Error
 			}
-			logger.Debug(jm.JSONString(), map[string]string{"step": "build-progress"})
+			logger.Info(jm.JSONString(), map[string]string{"step": "build-progress"})
 		}
 	}
 	return nil

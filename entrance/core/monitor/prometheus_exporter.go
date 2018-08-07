@@ -42,6 +42,12 @@ var (
 	)
 )
 
+var healthDesc = prometheus.NewDesc(
+	prometheus.BuildFQName(namespace, exporter, "health_status"),
+	"health status.",
+	[]string{"service_name"}, nil,
+)
+
 //Exporter collects entrance metrics. It implements prometheus.Collector.
 type Exporter struct {
 	error        prometheus.Gauge
@@ -113,4 +119,5 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		logrus.Error("core manager scrape for prometheus error.", err.Error())
 		e.error.Set(1)
 	}
+	ch <- prometheus.MustNewConstMetric(healthDesc, prometheus.GaugeValue, 1, "entrance")
 }

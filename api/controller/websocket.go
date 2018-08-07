@@ -36,7 +36,7 @@ type DockerConsole struct {
 }
 
 var defaultDockerConsoleEndpoints = []string{"127.0.0.1:7171"}
-var defaultEventLogEndpoints = []string{"127.0.0.1:6363"}
+var defaultEventLogEndpoints = []string{"local=>127.0.0.1:6363"}
 var defaultEtcdEndpoints = []string{"127.0.0.1:2379"}
 
 var dockerConsole *DockerConsole

@@ -26,120 +26,9 @@ import (
 	"time"
 
 	conf "github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/node/core/store"
 
 	"github.com/Sirupsen/logrus"
-	client "github.com/coreos/etcd/clientv3"
 )
-
-var (
-	lID *leaseID
-)
-
-// 维持 lease id 服务
-func StartProc() error {
-	lID = &leaseID{
-		ttl:  conf.Config.ProcTTL,
-		lk:   new(sync.RWMutex),
-		done: make(chan struct{}),
-	}
-
-	if lID.ttl == 0 {
-		return nil
-	}
-
-	err := lID.set()
-	go lID.keepAlive()
-	return err
-}
-
-func Reload(i interface{}) {
-	if lID.ttl == conf.Config.ProcTTL {
-		return
-	}
-
-	close(lID.done)
-	lID.done, lID.ttl = make(chan struct{}), conf.Config.ProcTTL
-	if conf.Config.ProcTTL == 0 {
-		return
-	}
-
-	if err := lID.set(); err != nil {
-		logrus.Warnf("proc lease id set err: %s", err.Error())
-	}
-	go lID.keepAlive()
-}
-
-func Exit(i interface{}) {
-	if lID.done != nil {
-		close(lID.done)
-	}
-}
-
-type leaseID struct {
-	ttl int64
-	ID  client.LeaseID
-	lk  *sync.RWMutex
-
-	done chan struct{}
-}
-
-func (l *leaseID) get() client.LeaseID {
-	if l.ttl == 0 {
-		return -1
-	}
-
-	l.lk.RLock()
-	id := l.ID
-	l.lk.RUnlock()
-	return id
-}
-
-func (l *leaseID) set() error {
-	id := client.LeaseID(-1)
-	resp, err := store.DefalutClient.Grant(l.ttl + 2)
-	if err == nil {
-		id = resp.ID
-	}
-
-	l.lk.Lock()
-	l.ID = id
-	l.lk.Unlock()
-	return err
-}
-
-func (l *leaseID) keepAlive() {
-	duration := time.Duration(l.ttl) * time.Second
-	timer := time.NewTimer(duration)
-	for {
-		select {
-		case <-l.done:
-			return
-		case <-timer.C:
-			if l.ttl == 0 {
-				return
-			}
-
-			id := l.get()
-			if id > 0 {
-				_, err := store.DefalutClient.KeepAliveOnce(l.ID)
-				if err == nil {
-					timer.Reset(duration)
-					continue
-				}
-
-				logrus.Warnf("proc lease id[%x] keepAlive err: %s, try to reset...", id, err.Error())
-			}
-
-			if err := l.set(); err != nil {
-				logrus.Warnf("proc lease id set err: %s, try to reset after %d seconds...", err.Error(), l.ttl)
-			} else {
-				logrus.Infof("proc set lease id[%x] success", l.get())
-			}
-			timer.Reset(duration)
-		}
-	}
-}
 
 // 当前执行中的任务信息
 // key: /cronsun/proc/node/group/jobId/pid
@@ -187,32 +76,34 @@ func (p *Process) Val() string {
 // 有可能某种原因，put 命令已经发送到 etcd server
 // 目前已知的 deadline 会出现此情况
 func (p *Process) put() (err error) {
-	if atomic.LoadInt32(&p.running) != 1 {
-		return
-	}
+	// if atomic.LoadInt32(&p.running) != 1 {
+	// 	return
+	// }
 
-	if !atomic.CompareAndSwapInt32(&p.hasPut, 0, 1) {
-		return
-	}
+	// if !atomic.CompareAndSwapInt32(&p.hasPut, 0, 1) {
+	// 	return
+	// }
 
-	id := lID.get()
-	if id < 0 {
-		if _, err = store.DefalutClient.Put(p.Key(), p.Val()); err != nil {
-			return
-		}
-	}
+	// id := lID.get()
+	// if id < 0 {
+	// 	if _, err = store.DefalutClient.Put(p.Key(), p.Val()); err != nil {
+	// 		return
+	// 	}
+	// }
 
-	_, err = store.DefalutClient.Put(p.Key(), p.Val(), client.WithLease(id))
+	// _, err = store.DefalutClient.Put(p.Key(), p.Val(), client.WithLease(id))
+	// return
 	return
 }
 
 func (p *Process) del() error {
-	if atomic.LoadInt32(&p.hasPut) != 1 {
-		return nil
-	}
+	// if atomic.LoadInt32(&p.hasPut) != 1 {
+	// 	return nil
+	// }
 
-	_, err := store.DefalutClient.Delete(p.Key())
-	return err
+	// _, err := store.DefalutClient.Delete(p.Key())
+	// return err
+	return nil
 }
 
 func (p *Process) Start() {

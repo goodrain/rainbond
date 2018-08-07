@@ -64,7 +64,7 @@ type AlertmanagerConfig struct {
 	// values arbitrarily into the overflow maps of further-down types.
 
 	ServiceDiscoveryConfig ServiceDiscoveryConfig `yaml:",inline"`
-	HTTPClientConfig       HTTPClientConfig     `yaml:",inline"`
+	HTTPClientConfig       HTTPClientConfig       `yaml:",inline"`
 
 	// The URL scheme to use when talking to Alertmanagers.
 	Scheme string `yaml:"scheme,omitempty"`
@@ -79,21 +79,21 @@ type AlertmanagerConfig struct {
 
 // RemoteWriteConfig is the configuration for writing to remote storage.
 type RemoteWriteConfig struct {
-	URL                 *URL `yaml:"url"`
+	URL                 *URL             `yaml:"url"`
 	RemoteTimeout       model.Duration   `yaml:"remote_timeout,omitempty"`
 	WriteRelabelConfigs []*RelabelConfig `yaml:"write_relabel_configs,omitempty"`
 
 	// We cannot do proper Go type embedding below as the parser will then parse
 	// values arbitrarily into the overflow maps of further-down types.
 	HTTPClientConfig HTTPClientConfig `yaml:",inline"`
-	QueueConfig      QueueConfig                  `yaml:"queue_config,omitempty"`
+	QueueConfig      QueueConfig      `yaml:"queue_config,omitempty"`
 }
 
 // RemoteReadConfig is the configuration for reading from remote storage.
 type RemoteReadConfig struct {
-	URL           *URL `yaml:"url"`
-	RemoteTimeout model.Duration   `yaml:"remote_timeout,omitempty"`
-	ReadRecent    bool             `yaml:"read_recent,omitempty"`
+	URL           *URL           `yaml:"url"`
+	RemoteTimeout model.Duration `yaml:"remote_timeout,omitempty"`
+	ReadRecent    bool           `yaml:"read_recent,omitempty"`
 	// We cannot do proper Go type embedding below as the parser will then parse
 	// values arbitrarily into the overflow maps of further-down types.
 	HTTPClientConfig HTTPClientConfig `yaml:",inline"`
@@ -149,7 +149,7 @@ type ScrapeConfig struct {
 	// values arbitrarily into the overflow maps of further-down types.
 
 	ServiceDiscoveryConfig ServiceDiscoveryConfig `yaml:",inline"`
-	HTTPClientConfig       HTTPClientConfig     `yaml:",inline"`
+	HTTPClientConfig       HTTPClientConfig       `yaml:",inline"`
 
 	// List of target relabel configurations.
 	RelabelConfigs []*RelabelConfig `yaml:"relabel_configs,omitempty"`

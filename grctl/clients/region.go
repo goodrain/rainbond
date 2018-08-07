@@ -19,26 +19,14 @@
 package clients
 
 import (
-	"github.com/goodrain/rainbond/cmd/grctl/option"
 	"github.com/goodrain/rainbond/api/region"
 )
 
 //RegionClient region api
-var RegionClient *region.Region
-
-//NodeClient  node api
-var NodeClient *region.RNodeClient
+var RegionClient region.Region
 
 //InitRegionClient init region api client
-func InitRegionClient(reg option.RegionAPI) error {
-	region.NewRegion(reg.URL, reg.Token, reg.Type)
-	RegionClient = region.GetRegion()
-	return nil
-}
-
-//InitNodeClient init node api client
-func InitNodeClient(nodeAPI string) error {
-	region.NewNode("http://127.0.0.1:6100/v2")
-	NodeClient = region.GetNode()
-	return nil
+func InitRegionClient(reg region.APIConf) (err error) {
+	RegionClient, err = region.NewRegion(reg)
+	return
 }

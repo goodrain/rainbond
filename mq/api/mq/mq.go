@@ -44,6 +44,9 @@ type ActionMQ interface {
 	Stop() error
 }
 
+var EnqueueNumber float64 = 0
+var DequeueNumber float64 = 0
+
 //NewActionMQ new etcd mq
 func NewActionMQ(ctx context.Context, c option.Config) ActionMQ {
 	etcdQueue := etcdQueue{
@@ -117,11 +120,13 @@ func (e *etcdQueue) queueKey(topic string) string {
 	return e.config.EtcdPrefix + "/" + topic
 }
 func (e *etcdQueue) Enqueue(ctx context.Context, topic, value string) error {
+	EnqueueNumber += 1
 	queue := etcdutil.NewQueue(e.client, e.queueKey(topic), ctx)
 	return queue.Enqueue(value)
 }
 
 func (e *etcdQueue) Dequeue(ctx context.Context, topic string) (string, error) {
+	DequeueNumber += 1
 	queue := etcdutil.NewQueue(e.client, e.queueKey(topic), ctx)
 	return queue.Dequeue()
 }

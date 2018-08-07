@@ -1,0 +1,12 @@
+FROM goodrainapps/alpine:3.4
+
+ADD rainbond-entrance /run/rainbond-entrance
+ADD entrypoint.sh /run/entrypoint.sh
+VOLUME [ "/etc/goodrain" ]
+
+ENV RELEASE_DESC=3.7-460b464-2018-07-26-15
+
+EXPOSE 8080
+
+ENTRYPOINT ["/run/entrypoint.sh"]
+

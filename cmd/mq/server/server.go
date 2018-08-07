@@ -52,6 +52,16 @@ func Run(s *option.MQServer) error {
 	}
 	defer keepalive.Stop()
 
+	//step 3:regist prometheus export endpoint
+	exportKeepalive, err := discover.CreateKeepAlive(s.EtcdEndPoints, "mq", s.Config.HostName, s.Config.HostIP, 6301)
+	if err != nil {
+		return err
+	}
+	if err := exportKeepalive.Start(); err != nil {
+		return err
+	}
+	defer exportKeepalive.Stop()
+
 	//step finally: listen Signal
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)

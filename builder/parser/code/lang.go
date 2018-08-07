@@ -40,6 +40,7 @@ func init() {
 	checkFuncList = append(checkFuncList, gradle)
 	checkFuncList = append(checkFuncList, grails)
 	checkFuncList = append(checkFuncList, scala)
+	checkFuncList = append(checkFuncList, netcore)
 }
 
 //ErrCodeNotExist 代码为空错误
@@ -101,6 +102,9 @@ var Gradle Lang = "Gradle"
 
 //Grails Lang
 var Grails Lang = "Grails"
+
+//NetCore Lang
+var NetCore Lang = ".NetCore"
 
 //GetLangType check code lang
 func GetLangType(homepath string) (Lang, error) {
@@ -218,6 +222,17 @@ func gradle(homepath string) Lang {
 func grails(homepath string) Lang {
 	if ok, _ := util.FileExists(path.Join(homepath, "grails-app")); ok {
 		return Grails
+	}
+	return NO
+}
+
+//netcore
+func netcore(homepath string) Lang {
+	if ok := util.FileExistsWithSuffix(homepath, ".sln"); ok {
+		return NetCore
+	}
+	if ok := util.FileExistsWithSuffix(homepath, ".csproj"); ok {
+		return NetCore
 	}
 	return NO
 }

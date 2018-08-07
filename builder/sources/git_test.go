@@ -34,7 +34,7 @@ func init() {
 func TestGitClone(t *testing.T) {
 	start := time.Now()
 	csi := CodeSourceInfo{
-		RepositoryURL: "https://github.com/goodrain/rainbond-docs.git",
+		RepositoryURL: "git@gitee.com:zhoujunhaogoodrain/webhook_test.git",
 		Branch:        "master",
 	}
 	//logger := event.GetManager().GetLogger("system")
@@ -46,10 +46,25 @@ func TestGitClone(t *testing.T) {
 	commit, err := GetLastCommit(res)
 	t.Logf("%+v %+v", commit, err)
 }
+func TestGitCloneByTag(t *testing.T) {
+	start := time.Now()
+	csi := CodeSourceInfo{
+		RepositoryURL: "https://github.com/goodrain/rainbond-install.git",
+		Branch:        "tag:v3.5.1",
+	}
+	//logger := event.GetManager().GetLogger("system")
+	res, err := GitClone(csi, "/tmp/rainbonddoc4", nil, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("Take %d ms", time.Now().Unix()-start.Unix())
+	commit, err := GetLastCommit(res)
+	t.Logf("%+v %+v", commit, err)
+}
 
 func TestGitPull(t *testing.T) {
 	csi := CodeSourceInfo{
-		RepositoryURL: "git@code.goodrain.com:goodrain/test.git",
+		RepositoryURL: "git@gitee.com:zhoujunhaogoodrain/webhook_test.git",
 		Branch:        "master2",
 	}
 	//logger := event.GetManager().GetLogger("system")
@@ -66,8 +81,7 @@ func TestGitPull(t *testing.T) {
 
 func TestGitPullOrClone(t *testing.T) {
 	csi := CodeSourceInfo{
-		RepositoryURL: "git@code.goodrain.com:goodrain/goodrain_web.git",
-		Branch:        "publiccloud",
+		RepositoryURL: "git@gitee.com:zhoujunhaogoodrain/webhook_test.git",
 	}
 	//logger := event.GetManager().GetLogger("system")
 	res, err := GitCloneOrPull(csi, "/tmp/goodrainweb2", nil, 1)

@@ -28,13 +28,15 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/builder/api/controller"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"strings"
 )
 
 func APIServer() *chi.Mux {
 	r := chi.NewRouter()
 	r.Route("/v2/builder", func(r chi.Router) {
-		r.Get("/publickey", func(w http.ResponseWriter, r *http.Request) {
-			key := sources.GetPublicKey()
+		r.Get("/publickey/{tenant_id}", func(w http.ResponseWriter, r *http.Request) {
+			tenantId := strings.TrimSpace(chi.URLParam(r, "tenant_id"))
+			key := sources.GetPublicKey(tenantId)
 			bean := struct {
 				Key string `json:"public_key"`
 			}{
@@ -61,6 +63,9 @@ func APIServer() *chi.Mux {
 		})
 		r.Route("/event", func(r chi.Router) {
 			r.Get("/", controller.GetEventsByIds)
+		})
+		r.Route("/health", func(r chi.Router) {
+			r.Get("/", controller.CheckHalth)
 		})
 	})
 	util.ProfilerSetup(r)

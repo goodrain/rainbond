@@ -22,7 +22,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto/sha1"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -36,10 +35,16 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	netssh "golang.org/x/crypto/ssh"
-	git "gopkg.in/src-d/go-git.v4"
+	sshkey "golang.org/x/crypto/ssh"
+	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/protocol/packp/sideband"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
@@ -56,7 +61,17 @@ type CodeSourceInfo struct {
 	User          string `json:"user"`
 	Password      string `json:"password"`
 	//避免项目之间冲突，代码缓存目录提高到租户
-	TenantID string `json:"tenant_id"`
+	TenantID  string `json:"tenant_id"`
+	ServiceID string `json:"service_id"`
+}
+
+//InitServerType init server type
+func (c *CodeSourceInfo) InitServerType() {
+	if strings.HasPrefix(c.RepositoryURL, "svn://") || strings.HasSuffix(c.RepositoryURL, ".svn") {
+		c.ServerType = "svn"
+	} else {
+		c.ServerType = "git"
+	}
 }
 
 //GetCodeCacheDir 获取代码缓存目录
@@ -65,30 +80,30 @@ func (c CodeSourceInfo) GetCodeCacheDir() string {
 	if cacheDir == "" {
 		cacheDir = "/cache"
 	}
-	h := sha1.New()
-	h.Write([]byte(c.RepositoryURL))
-	bs := h.Sum(nil)
-	bsStr := fmt.Sprintf("%x", bs)
-	logrus.Debugf("git path is %s", path.Join(cacheDir, "build", c.TenantID, bsStr))
-	return path.Join(cacheDir, "build", c.TenantID, bsStr)
+	//h := sha1.New()
+	//h.Write([]byte(c.RepositoryURL))
+	//bs := h.Sum(nil)
+	//bsStr := fmt.Sprintf("%x", bs)
+	logrus.Debugf("git path is %s", path.Join(cacheDir, "build", c.TenantID, c.ServiceID))
+	return path.Join(cacheDir, "build", c.TenantID, c.ServiceID)
 }
 
 //GetCodeSourceDir 获取代码下载目录
 func (c CodeSourceInfo) GetCodeSourceDir() string {
-	return GetCodeSourceDir(c.RepositoryURL, c.Branch, c.TenantID)
+	return GetCodeSourceDir(c.RepositoryURL, c.Branch, c.TenantID, c.ServiceID)
 }
 
 //GetCodeSourceDir 获取源码下载目录
-func GetCodeSourceDir(RepositoryURL, branch, tenantID string) string {
+func GetCodeSourceDir(RepositoryURL, branch, tenantID string, ServiceID string) string {
 	sourceDir := os.Getenv("SOURCE_DIR")
 	if sourceDir == "" {
 		sourceDir = "/grdata/source"
 	}
-	h := sha1.New()
-	h.Write([]byte(RepositoryURL + branch))
-	bs := h.Sum(nil)
-	bsStr := fmt.Sprintf("%x", bs)
-	return path.Join(sourceDir, "build", tenantID, bsStr)
+	//h := sha1.New()
+	//h.Write([]byte(RepositoryURL + branch))
+	//bs := h.Sum(nil)
+	//bsStr := fmt.Sprintf("%x", bs)
+	return path.Join(sourceDir, "build", tenantID, ServiceID)
 }
 
 //CheckFileExist CheckFileExist
@@ -113,6 +128,9 @@ func RemoveDir(path string) error {
 
 //GitClone git clone code
 func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
+	GetPrivateFileParam := csi.TenantID
+	flag := true
+Loop:
 	if logger != nil {
 		//进度信息
 		logger.Info(fmt.Sprintf("开始从Git源(%s)获取代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})
@@ -137,15 +155,19 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 		Depth:             1,
 	}
 	if csi.Branch != "" {
-		opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", csi.Branch))
+		if strings.HasPrefix(csi.Branch, "tag:") {
+			opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/tags/%s", csi.Branch[4:]))
+		} else {
+			opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", csi.Branch))
+		}
 	}
 	var rs *git.Repository
 	if ep.Protocol == "ssh" {
-		publichFile := GetPrivateFile()
+		publichFile := GetPrivateFile(GetPrivateFileParam)
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
 		if auerr != nil {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("创建PublicKeys错误"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("创建PublicKeys错误"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return nil, auerr
 		}
@@ -180,48 +202,54 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 	if err != nil {
 		if reerr := os.RemoveAll(sourceDir); reerr != nil {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误删除代码目录失败。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("拉取代码发生错误删除代码目录失败。"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 		}
 		if err == transport.ErrAuthenticationRequired {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源需要授权访问。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源需要授权访问。"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == transport.ErrAuthorizationFailed {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源鉴权失败。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源鉴权失败。"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == transport.ErrRepositoryNotFound {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误，仓库不存在。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("拉取代码发生错误，仓库不存在。"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == transport.ErrEmptyRemoteRepository {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误，远程仓库为空。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("拉取代码发生错误，远程仓库为空。"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == plumbing.ErrReferenceNotFound {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("代码分支(%s)不存在。", csi.Branch), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("代码分支(%s)不存在。", csi.Branch), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, fmt.Errorf("branch %s is not exist", csi.Branch)
 		}
 		if strings.Contains(err.Error(), "ssh: unable to authenticate") {
+
+			if flag {
+				GetPrivateFileParam = "builder_rsa"
+				flag = false
+				goto Loop
+			}
 			if logger != nil {
-				logger.Error(fmt.Sprintf("远程代码库需要配置SSH Key。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("远程代码库需要配置SSH Key。"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if strings.Contains(err.Error(), "context deadline exceeded") {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("获取代码超时"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("获取代码超时"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, err
 		}
@@ -245,6 +273,9 @@ func retryAuth(ep *transport.Endpoint, csi CodeSourceInfo) (transport.AuthMethod
 
 //GitPull git pull code
 func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
+	GetPrivateFileParam := csi.TenantID
+	flag := true
+Loop:
 	if logger != nil {
 		//进度信息
 		logger.Info(fmt.Sprintf("开始从Git源(%s)更新代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})
@@ -269,11 +300,11 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 		return nil, err
 	}
 	if ep.Protocol == "ssh" {
-		publichFile := GetPrivateFile()
+		publichFile := GetPrivateFile(GetPrivateFileParam)
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
 		if auerr != nil {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("创建PublicKeys错误"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("创建PublicKeys错误"), map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return nil, auerr
 		}
@@ -311,43 +342,49 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 	if err != nil {
 		if err == transport.ErrAuthenticationRequired {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("更新代码发生错误，代码源需要授权访问。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("更新代码发生错误，代码源需要授权访问。"), map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == transport.ErrAuthorizationFailed {
+
 			if logger != nil {
-				logger.Error(fmt.Sprintf("更新代码发生错误，代码源鉴权失败。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("更新代码发生错误，代码源鉴权失败。"), map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == transport.ErrRepositoryNotFound {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("更新代码发生错误，仓库不存在。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("更新代码发生错误，仓库不存在。"), map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == transport.ErrEmptyRemoteRepository {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("更新代码发生错误，远程仓库为空。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("更新代码发生错误，远程仓库为空。"), map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if err == plumbing.ErrReferenceNotFound {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("代码分支(%s)不存在。", csi.Branch), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("代码分支(%s)不存在。", csi.Branch), map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return rs, fmt.Errorf("branch %s is not exist", csi.Branch)
 		}
 		if strings.Contains(err.Error(), "ssh: unable to authenticate") {
+			if flag {
+				GetPrivateFileParam = "builder_rsa"
+				flag = false
+				goto Loop
+			}
 			if logger != nil {
-				logger.Error(fmt.Sprintf("远程代码库需要配置SSH Key。"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("远程代码库需要配置SSH Key。"), map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return rs, err
 		}
 		if strings.Contains(err.Error(), "context deadline exceeded") {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("更新代码超时"), map[string]string{"step": "callback", "status": "failure"})
+				logger.Error(fmt.Sprintf("更新代码超时"), map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return rs, err
 		}
@@ -360,7 +397,7 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 
 //GitCloneOrPull if code exist in local,use git pull.
 func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
-	if ok, err := util.FileExists(path.Join(sourceDir, ".git")); err == nil && ok {
+	if ok, err := util.FileExists(path.Join(sourceDir, ".git")); err == nil && ok && !strings.HasPrefix(csi.Branch, "tag:") {
 		re, err := GitPull(csi, sourceDir, logger, timeout)
 		if err == nil && re != nil {
 			return re, nil
@@ -371,7 +408,7 @@ func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, t
 	if reerr := os.RemoveAll(sourceDir); reerr != nil {
 		logrus.Error("empty the source code dir error,", reerr.Error())
 		if logger != nil {
-			logger.Error(fmt.Sprintf("清空代码目录失败。"), map[string]string{"step": "callback", "status": "failure"})
+			logger.Error(fmt.Sprintf("清空代码目录失败。"), map[string]string{"step": "clone-code", "status": "failure"})
 		}
 	}
 	return GitClone(csi, sourceDir, logger, timeout)
@@ -388,29 +425,95 @@ func GetLastCommit(re *git.Repository) (*object.Commit, error) {
 }
 
 //GetPrivateFile 获取私钥文件地址
-func GetPrivateFile() string {
+func GetPrivateFile(tenantId string) string {
 	home, _ := Home()
 	if home == "" {
 		home = "/root"
 	}
-	if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa")); ok {
-		return path.Join(home, "/.ssh/builder_rsa")
+	if tenantId == "builder_rsa" {
+		if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa")); ok {
+			return path.Join(home, "/.ssh/builder_rsa")
+		}
+		return path.Join(home, "/.ssh/id_rsa")
 	}
-	return path.Join(home, "/.ssh/id_rsa")
+	return path.Join(home, "/.ssh/"+tenantId)
+
 }
 
 //GetPublicKey 获取公钥
-func GetPublicKey() string {
+func GetPublicKey(tenantId string) string {
 	home, _ := Home()
 	if home == "" {
 		home = "/root"
 	}
-	if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa.pub")); ok {
-		body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/builder_rsa.pub"))
+	PublicKey := tenantId + ".pub"
+	PrivateKey := tenantId
+
+	if ok, _ := util.FileExists(path.Join(home, "/.ssh/"+PublicKey)); ok {
+		body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/"+PublicKey))
 		return string(body)
 	}
-	body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/id_rsa.pub"))
+	Private, Public, err := MakeSSHKeyPair()
+	if err != nil {
+		logrus.Error("MakeSSHKeyPairError:", err)
+	}
+	PrivateKeyFile, err := os.Create(path.Join(home, "/.ssh/"+PrivateKey))
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		PrivateKeyFile.WriteString(Private)
+	}
+	PublicKeyFile, err2 := os.Create(path.Join(home, "/.ssh/"+PublicKey))
+
+	if err2 != nil {
+		fmt.Println(err)
+	} else {
+		PublicKeyFile.WriteString(Public)
+	}
+	body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/"+PublicKey))
 	return string(body)
+
+}
+
+func GenerateKey(bits int) (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	private, err := rsa.GenerateKey(rand.Reader, bits)
+	if err != nil {
+		return nil, nil, err
+	}
+	return private, &private.PublicKey, nil
+
+}
+
+func EncodePrivateKey(private *rsa.PrivateKey) []byte {
+	return pem.EncodeToMemory(&pem.Block{
+		Bytes: x509.MarshalPKCS1PrivateKey(private),
+		Type:  "RSA PRIVATE KEY",
+	})
+}
+
+//EncodeSSHKey
+func EncodeSSHKey(public *rsa.PublicKey) ([]byte, error) {
+	publicKey, err := sshkey.NewPublicKey(public)
+	if err != nil {
+		return nil, err
+	}
+	return sshkey.MarshalAuthorizedKey(publicKey), nil
+}
+
+//生成公钥和私钥
+func MakeSSHKeyPair() (string, string, error) {
+
+	pkey, pubkey, err := GenerateKey(2048)
+	if err != nil {
+		return "", "", err
+	}
+
+	pub, err := EncodeSSHKey(pubkey)
+	if err != nil {
+		return "", "", err
+	}
+
+	return string(EncodePrivateKey(pkey)), string(pub), nil
 }
 
 //createProgress create git log progress
@@ -431,6 +534,7 @@ func createProgress(ctx context.Context, logger event.Logger) sideband.Progress 
 					if err.Error() != "EOF" {
 						fmt.Println("read git log err", err.Error())
 					}
+					return
 				}
 				if len(line) > 0 {
 					progess := strings.Replace(string(line), "\r", "", -1)

@@ -31,24 +31,24 @@ import (
 	"github.com/goodrain/rainbond/cmd/node/option"
 	envoyv1 "github.com/goodrain/rainbond/node/core/envoy/v1"
 	"github.com/goodrain/rainbond/node/core/store"
+	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/pquerna/ffjson/ffjson"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/informers"
 )
 
 //DiscoverAction DiscoverAction
 type DiscoverAction struct {
-	conf            *option.Conf
-	etcdCli         *store.Client
-	sharedInformers informers.SharedInformerFactory
+	conf    *option.Conf
+	etcdCli *store.Client
+	kubecli kubecache.KubeClient
 }
 
 //CreateDiscoverActionManager CreateDiscoverActionManager
-func CreateDiscoverActionManager(conf *option.Conf, sharedInformers informers.SharedInformerFactory) *DiscoverAction {
+func CreateDiscoverActionManager(conf *option.Conf, kubecli kubecache.KubeClient) *DiscoverAction {
 	return &DiscoverAction{
-		conf:            conf,
-		etcdCli:         store.DefalutClient,
-		sharedInformers: sharedInformers,
+		conf:    conf,
+		etcdCli: store.DefalutClient,
+		kubecli: kubecli,
 	}
 }
 
@@ -68,11 +68,11 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*envoyv1.SDSHost, 
 	if err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
-	endpoints, err := d.sharedInformers.Core().V1().Endpoints().Lister().Endpoints(namespace).List(selector)
+	endpoints, err := d.kubecli.GetEndpoints(namespace, selector)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
-	services, err := d.sharedInformers.Core().V1().Services().Lister().Services(namespace).List(selector)
+	services, err := d.kubecli.GetServices(namespace, selector)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
@@ -83,7 +83,7 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*envoyv1.SDSHost, 
 			if err != nil {
 				return nil, util.CreateAPIHandleError(500, err)
 			}
-			endpoints, err = d.sharedInformers.Core().V1().Endpoints().Lister().Endpoints(namespace).List(selector)
+			endpoints, err = d.kubecli.GetEndpoints(namespace, selector)
 			if err != nil {
 				return nil, util.CreateAPIHandleError(500, err)
 			}
@@ -91,7 +91,7 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*envoyv1.SDSHost, 
 				logrus.Debugf("outer endpoints items length is 0, continue")
 				return nil, util.CreateAPIHandleError(400, fmt.Errorf("outer have no endpoints"))
 			}
-			services, err = d.sharedInformers.Core().V1().Services().Lister().Services(namespace).List(selector)
+			services, err = d.kubecli.GetServices(namespace, selector)
 			if err != nil {
 				return nil, util.CreateAPIHandleError(500, err)
 			}
@@ -188,7 +188,7 @@ func (d *DiscoverAction) upstreamClusters(serviceAlias, namespace string, depend
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
 		}
-		services, err := d.sharedInformers.Core().V1().Services().Lister().Services(namespace).List(selector)
+		services, err := d.kubecli.GetServices(namespace, selector)
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
 		}
@@ -308,7 +308,7 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
 		}
-		services, err := d.sharedInformers.Core().V1().Services().Lister().Services(namespace).List(selector)
+		services, err := d.kubecli.GetServices(namespace, selector)
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
 		}

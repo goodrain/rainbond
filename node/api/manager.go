@@ -24,20 +24,18 @@ import (
 	"strconv"
 
 	"github.com/goodrain/rainbond/discover"
+	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/masterserver"
 	"github.com/goodrain/rainbond/node/statsd"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"k8s.io/client-go/informers"
 
 	"github.com/goodrain/rainbond/node/api/controller"
-	"github.com/goodrain/rainbond/node/api/model"
 	"github.com/goodrain/rainbond/node/api/router"
 
 	"context"
 	"strings"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
+	nodeclient "github.com/goodrain/rainbond/node/nodem/client"
 
 	_ "net/http/pprof"
 
@@ -52,7 +50,7 @@ type Manager struct {
 	cancel    context.CancelFunc
 	conf      option.Conf
 	router    *chi.Mux
-	node      *model.HostNode
+	node      *nodeclient.HostNode
 	lID       client.LeaseID // lease id
 	ms        *masterserver.MasterServer
 	keepalive *discover.KeepAlive
@@ -60,48 +58,19 @@ type Manager struct {
 }
 
 //NewManager api manager
-func NewManager(c option.Conf, node *model.HostNode, ms *masterserver.MasterServer, exporter *statsd.Exporter, sharedInformers informers.SharedInformerFactory) *Manager {
+func NewManager(c option.Conf, node *nodeclient.HostNode, ms *masterserver.MasterServer, kubecli kubecache.KubeClient) *Manager {
 	r := router.Routers(c.RunMode)
 	ctx, cancel := context.WithCancel(context.Background())
-	controller.Init(&c, ms, sharedInformers)
+	controller.Init(&c, ms, kubecli)
 	m := &Manager{
-		ctx:      ctx,
-		cancel:   cancel,
-		conf:     c,
-		router:   r,
-		node:     node,
-		ms:       ms,
-		exporter: exporter,
+		ctx:    ctx,
+		cancel: cancel,
+		conf:   c,
+		router: r,
+		node:   node,
+		ms:     ms,
 	}
-	m.router.Get("/app/metrics", m.HandleStatsd)
-	m.router.Get("/-/statsdreload", m.ReloadStatsdMappConfig)
 	return m
-}
-
-//ReloadStatsdMappConfig ReloadStatsdMappConfig
-func (m *Manager) ReloadStatsdMappConfig(w http.ResponseWriter, r *http.Request) {
-	if err := m.exporter.ReloadConfig(); err != nil {
-		w.Write([]byte(err.Error()))
-		w.WriteHeader(500)
-	} else {
-		w.Write([]byte("Success reload"))
-		w.WriteHeader(200)
-	}
-}
-
-//HandleStatsd statsd handle
-func (m *Manager) HandleStatsd(w http.ResponseWriter, r *http.Request) {
-	gatherers := prometheus.Gatherers{
-		prometheus.DefaultGatherer,
-		m.exporter.GetRegister(),
-	}
-	// Delegate http serving to Prometheus client library, which will call collector.Collect.
-	h := promhttp.HandlerFor(gatherers,
-		promhttp.HandlerOpts{
-			ErrorLog:      logrus.StandardLogger(),
-			ErrorHandling: promhttp.ContinueOnError,
-		})
-	h.ServeHTTP(w, r)
 }
 
 //Start 启动
@@ -154,11 +123,7 @@ func (m *Manager) Stop() error {
 	return nil
 }
 
-func (m *Manager) prometheus() {
-	//prometheus.MustRegister(version.NewCollector("acp_node"))
-	// exporter := monitor.NewExporter(m.coreManager)
-	// prometheus.MustRegister(exporter)
-
-	//todo 我注释的
-	//m.container.Handle(m.conf.PrometheusMetricPath, promhttp.Handler())
+//GetRouter GetRouter
+func (m *Manager) GetRouter() *chi.Mux {
+	return m.router
 }

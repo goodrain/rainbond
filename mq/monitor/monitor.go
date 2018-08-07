@@ -18,7 +18,10 @@
 
 package monitor
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/goodrain/rainbond/mq/api/mq"
+)
 
 // Metric name parts.
 const (
@@ -39,11 +42,19 @@ var (
 
 //Exporter collects entrance metrics. It implements prometheus.Collector.
 type Exporter struct {
-	error        prometheus.Gauge
-	totalScrapes prometheus.Counter
-	scrapeErrors *prometheus.CounterVec
-	lbPluginUp   prometheus.Gauge
+	error         prometheus.Gauge
+	totalScrapes  prometheus.Counter
+	scrapeErrors  *prometheus.CounterVec
+	lbPluginUp    prometheus.Gauge
+	enqueueNumber prometheus.Counter
+	dequeueNumber prometheus.Counter
 }
+
+var healthDesc = prometheus.NewDesc(
+	prometheus.BuildFQName(namespace, exporter, "health_status"),
+	"health status.",
+	[]string{"service_name"}, nil,
+)
 
 //NewExporter new a exporter
 func NewExporter() *Exporter {
@@ -70,6 +81,16 @@ func NewExporter() *Exporter {
 			Namespace: namespace,
 			Name:      "up",
 			Help:      "Whether the default lb plugin is up.",
+		}),
+		enqueueNumber: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "enqueue_number",
+			Help:      "Message queue enqueue total.",
+		}),
+		dequeueNumber: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "dequeue_number",
+			Help:      "Message queue dequeue total.",
 		}),
 	}
 }
@@ -102,4 +123,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	e.totalScrapes.Inc()
+	ch <- prometheus.MustNewConstMetric(e.enqueueNumber.Desc(), prometheus.CounterValue, mq.EnqueueNumber)
+	ch <- prometheus.MustNewConstMetric(e.dequeueNumber.Desc(), prometheus.CounterValue, mq.DequeueNumber)
+	ch <- prometheus.MustNewConstMetric(healthDesc, prometheus.GaugeValue, 1, "mq")
 }

@@ -54,7 +54,6 @@ type APIResult struct {
 
 //Share 分享应用
 func (s *ServiceShareHandle) Share(serviceID string, ss api_model.ServiceShare) (*APIResult, *util.APIHandleError) {
-
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("查询应用出错", err)
@@ -67,7 +66,7 @@ func (s *ServiceShareHandle) Share(serviceID string, ss api_model.ServiceShare) 
 	shareID := uuid.NewV4().String()
 	var slugPath, shareImageName string
 	var bs api_db.BuildTaskStruct
-	if service.IsSlug() {
+	if version.DeliveredType == "slug" {
 		shareSlugInfo := ss.Body.SlugInfo
 		slugPath = service.CreateShareSlug(ss.Body.ServiceKey, shareSlugInfo.Namespace, ss.Body.AppVersion)
 		if ss.Body.SlugInfo.FTPHost == "" {

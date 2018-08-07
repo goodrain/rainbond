@@ -127,11 +127,12 @@ type WebSocketProxy struct {
 
 func (h *WebSocketProxy) Proxy(w http.ResponseWriter, req *http.Request) {
 	endpoint := h.lb.Select(req, h.endpoints)
+	logrus.Info("Proxy webSocket to: ", endpoint)
 	path := req.RequestURI
 	if strings.Contains(path, "?") {
 		path = path[:strings.Index(path, "?")]
 	}
-	u := url.URL{Scheme: "ws", Host: endpoint.String(), Path: path}
+	u := url.URL{Scheme: "ws", Host: endpoint.GetAddr(), Path: path}
 	logrus.Infof("connecting to %s", u.String())
 	// Pass headers from the incoming request to the dialer to forward them to
 	// the final destinations.

@@ -25,11 +25,12 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	status "github.com/goodrain/rainbond/appruntimesync/client"
-	"github.com/goodrain/rainbond/worker/monitor/cache"
 	"github.com/goodrain/rainbond/worker/monitor/collector"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
+	"github.com/goodrain/rainbond/worker/discover"
+	httputil "github.com/goodrain/rainbond/util/http"
 )
 
 //ExporterManager app resource exporter
@@ -39,25 +40,22 @@ type ExporterManager struct {
 	config        option.Config
 	stopChan      chan struct{}
 	statusManager *status.AppRuntimeSyncClient
-	cache         *cache.DiskCache
 }
 
 //NewManager return *NewManager
 func NewManager(c option.Config, statusManager *status.AppRuntimeSyncClient) *ExporterManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	cache := cache.CreatDiskCache(ctx, statusManager)
 	return &ExporterManager{
 		ctx:           ctx,
 		cancel:        cancel,
 		config:        c,
 		stopChan:      make(chan struct{}),
 		statusManager: statusManager,
-		cache:         cache,
 	}
 }
 func (t *ExporterManager) handler(w http.ResponseWriter, r *http.Request) {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(collector.New(t.statusManager, t.cache))
+	registry.MustRegister(collector.New(t.statusManager))
 
 	gatherers := prometheus.Gatherers{
 		prometheus.DefaultGatherer,
@@ -81,7 +79,13 @@ func (t *ExporterManager) Start() error {
 			</html>
 			`))
 	})
-	go t.cache.Start()
+	http.HandleFunc("/worker/health", func(w http.ResponseWriter, r *http.Request) {
+		healthStatus := discover.HealthCheck()
+		if healthStatus["status"] != "health"{
+			httputil.ReturnError(r,w,400,"worker service unusual")
+		}
+		httputil.ReturnSuccess(r,w,healthStatus)
+	})
 	log.Infoln("Listening on", t.config.Listen)
 	go func() {
 		log.Fatal(http.ListenAndServe(t.config.Listen, nil))

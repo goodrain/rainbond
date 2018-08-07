@@ -24,11 +24,11 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/worker/monitor/cache"
 
 	"github.com/Sirupsen/logrus"
 	status "github.com/goodrain/rainbond/appruntimesync/client"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/worker/discover"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -43,13 +43,20 @@ type Exporter struct {
 	workerUp      prometheus.Gauge
 	dbmanager     db.Manager
 	statusManager *status.AppRuntimeSyncClient
-	cache         *cache.DiskCache
+	taskNum       prometheus.Counter
+	taskError     prometheus.Counter
 }
 
 var scrapeDurationDesc = prometheus.NewDesc(
 	prometheus.BuildFQName(namespace, "exporter", "collector_duration_seconds"),
 	"Collector time duration.",
 	[]string{"collector"}, nil,
+)
+
+var healthDesc = prometheus.NewDesc(
+	prometheus.BuildFQName(namespace, "exporter", "health_status"),
+	"health status.",
+	[]string{"service_name"}, nil,
 )
 
 //Describe Describe
@@ -113,7 +120,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.memory")
 	scrapeTime = time.Now()
-	diskcache := e.cache.Get()
+	diskcache := e.statusManager.GetAllAppDisk()
 	for k, v := range diskcache {
 		key := strings.Split(k, "_")
 		if len(key) == 2 {
@@ -121,12 +128,24 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		}
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.fs")
+
+	healthInfo := discover.HealthCheck()
+	healthStatus := healthInfo["status"]
+	var val float64
+	if healthStatus == "health" {
+		val = 1
+	} else {
+		val = 0
+	}
+	ch <- prometheus.MustNewConstMetric(healthDesc, prometheus.GaugeValue, val, "worker")
+	ch <- prometheus.MustNewConstMetric(e.taskNum.Desc(), prometheus.CounterValue, discover.TaskNum)
+	ch <- prometheus.MustNewConstMetric(e.taskError.Desc(), prometheus.CounterValue, discover.TaskError)
 }
 
 var namespace = "app_resource"
 
 //New 创建一个收集器
-func New(statusManager *status.AppRuntimeSyncClient, cache *cache.DiskCache) *Exporter {
+func New(statusManager *status.AppRuntimeSyncClient) *Exporter {
 	return &Exporter{
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
@@ -161,8 +180,19 @@ func New(statusManager *status.AppRuntimeSyncClient, cache *cache.DiskCache) *Ex
 			Name:      "appfs",
 			Help:      "tenant service fs used.",
 		}, []string{"tenant_id", "service_id", "volume_type"}),
+		taskNum: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: "exporter",
+			Name:      "worker_task_number",
+			Help:      "worker total number of tasks.",
+		}),
+		taskError: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: "exporter",
+			Name:      "worker_task_error",
+			Help:      "worker number of task errors.",
+		}),
 		dbmanager:     db.GetManager(),
 		statusManager: statusManager,
-		cache:         cache,
 	}
 }

@@ -33,7 +33,13 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/kr/pty"
 	"github.com/yudai/umutex"
+	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+var ExecuteCommandTotal float64 = 0
+var ExecuteCommandFailed float64 = 0
 
 type App struct {
 	command []string
@@ -107,6 +113,7 @@ func (app *App) Run() error {
 	endpoint := net.JoinHostPort(app.options.Address, app.options.Port)
 
 	wsHandler := http.HandlerFunc(app.handleWS)
+	health := http.HandlerFunc(app.healthCheck)
 
 	var siteMux = http.NewServeMux()
 
@@ -114,9 +121,15 @@ func (app *App) Run() error {
 
 	siteHandler = wrapHeaders(siteHandler)
 
+	exporter := NewExporter()
+	prometheus.MustRegister(exporter)
+
 	wsMux := http.NewServeMux()
 	wsMux.Handle("/", siteHandler)
 	wsMux.Handle("/docker_console", wsHandler)
+	wsMux.Handle("/health", health)
+	wsMux.Handle("/metrics", promhttp.Handler())
+
 	siteHandler = (http.Handler(wsMux))
 
 	siteHandler = wrapLogger(siteHandler)
@@ -140,6 +153,10 @@ func (app *App) makeServer(addr string, handler *http.Handler) (*http.Server, er
 	}
 
 	return server, nil
+}
+
+func (app *App) healthCheck(w http.ResponseWriter, r *http.Request) {
+	httputil.ReturnSuccess(r, w, map[string]string{"status": "health", "info": "webcli service health"})
 }
 
 func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
@@ -187,9 +204,11 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmd := exec.Command("kubectl", "--namespace", init.TenantID, "exec", "-ti", init.PodName, "/bin/bash")
+	ExecuteCommandTotal += 1
 	ptyIo, err := pty.Start(cmd)
 	if err != nil {
 		log.Print("Failed to execute command")
+		ExecuteCommandFailed += 1
 		return
 	}
 	log.Printf("Command is running for client %s with PID %d ", r.RemoteAddr, cmd.Process.Pid)

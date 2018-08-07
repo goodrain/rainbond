@@ -17,19 +17,21 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package cmd
+
 import (
-	"github.com/urfave/cli"
-	"fmt"
 	"bytes"
+	"fmt"
 	"os/exec"
-	"github.com/goodrain/rainbond/grctl/clients"
-	"github.com/Sirupsen/logrus"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/node/api/model"
+	"github.com/urfave/cli"
 )
 
 func NewCmdDomain() cli.Command {
-	c:=cli.Command{
+	c := cli.Command{
 		Name: "domain",
 		Flags: []cli.Flag{
 			cli.StringFlag{
@@ -43,17 +45,17 @@ func NewCmdDomain() cli.Command {
 		},
 		Usage: "",
 		Action: func(c *cli.Context) error {
-			ip:=c.String("ip")
-			if len(ip)==0 {
+			ip := c.String("ip")
+			if len(ip) == 0 {
 				fmt.Println("ip must not null")
 				return nil
 			}
-			domain:=c.String("domain")
-			cmd := exec.Command("bash", "/opt/rainbond/bin/.domain.sh",ip,domain)
-			outbuf:=bytes.NewBuffer(nil)
-			cmd.Stdout=outbuf
+			domain := c.String("domain")
+			cmd := exec.Command("bash", "/opt/rainbond/bin/.domain.sh", ip, domain)
+			outbuf := bytes.NewBuffer(nil)
+			cmd.Stdout = outbuf
 			cmd.Run()
-			out:=outbuf.String()
+			out := outbuf.String()
 			fmt.Println(out)
 			return nil
 		},
@@ -61,7 +63,7 @@ func NewCmdDomain() cli.Command {
 	return c
 }
 func NewCmdCheckTask() cli.Command {
-	c:=cli.Command{
+	c := cli.Command{
 		Name: "checkTask",
 		Flags: []cli.Flag{
 			cli.StringFlag{
@@ -71,90 +73,89 @@ func NewCmdCheckTask() cli.Command {
 		},
 		Usage: "",
 		Action: func(c *cli.Context) error {
-			uuid:=c.String("uuid")
-			if len(uuid)==0 {
+			uuid := c.String("uuid")
+			if len(uuid) == 0 {
 				fmt.Println("uuid must not null")
 				return nil
 			}
-			tasks,err:=clients.NodeClient.Tasks().List()
+			tasks, err := clients.RegionClient.Tasks().List()
 			if err != nil {
-				logrus.Errorf("error get task list,details %s",err.Error())
+				logrus.Errorf("error get task list,details %s", err.Error())
 				return err
 			}
 			var result []*ExecedTask
-			for _,v:=range tasks{
-				taskStatus,ok:=v.Status[uuid]
-				if ok{
-					status:=strings.ToLower(taskStatus.Status)
-					if status=="complete" ||status=="start"{
-						var taskentity =&ExecedTask{}
-						taskentity.ID=v.ID
-						taskentity.Status=taskStatus.Status
-						taskentity.Depends=[]string{}
-						dealDepend(taskentity,v)
-						dealNext(taskentity,tasks)
-						result=append(result, taskentity)
+			for _, v := range tasks {
+				taskStatus, ok := v.Status[uuid]
+				if ok {
+					status := strings.ToLower(taskStatus.Status)
+					if status == "complete" || status == "start" {
+						var taskentity = &ExecedTask{}
+						taskentity.ID = v.ID
+						taskentity.Status = taskStatus.Status
+						taskentity.Depends = []string{}
+						dealDepend(taskentity, v)
+						dealNext(taskentity, tasks)
+						result = append(result, taskentity)
 						continue
 					}
 
-				}else {
-					_,scheduled:=v.Scheduler.Status[uuid]
+				} else {
+					_, scheduled := v.Scheduler.Status[uuid]
 					if scheduled {
-						var taskentity =&ExecedTask{}
-						taskentity.ID=v.ID
-						taskentity.Depends=[]string{}
-						dealDepend(taskentity,v)
-						dealNext(taskentity,tasks)
-						allDepDone:=true
+						var taskentity = &ExecedTask{}
+						taskentity.ID = v.ID
+						taskentity.Depends = []string{}
+						dealDepend(taskentity, v)
+						dealNext(taskentity, tasks)
+						allDepDone := true
 
-						for _,dep:=range taskentity.Depends {
-							task,_:=clients.NodeClient.Tasks().Get(dep)
+						for _, dep := range taskentity.Depends {
+							task, _ := clients.RegionClient.Tasks().Get(dep)
 
-							_,depOK:=task.Status[uuid]
+							_, depOK := task.Status[uuid]
 							if !depOK {
-								allDepDone=false
+								allDepDone = false
 								break
 							}
 						}
 						if allDepDone {
-							taskentity.Status="start"
-							result=append(result, taskentity)
+							taskentity.Status = "start"
+							result = append(result, taskentity)
 						}
 
 					}
 				}
 			}
-			for _,v:=range result {
-				fmt.Printf("task %s is %s,depends is %v\n",v.ID,v.Status,v.Depends)
+			for _, v := range result {
+				fmt.Printf("task %s is %s,depends is %v\n", v.ID, v.Status, v.Depends)
 			}
 			return nil
 		},
 	}
 	return c
 }
-func dealDepend(result *ExecedTask,task *model.Task) {
+func dealDepend(result *ExecedTask, task *model.Task) {
 	if task.Temp.Depends != nil {
-		for _,v:=range task.Temp.Depends{
-			result.Depends=append(result.Depends,v.DependTaskID)
+		for _, v := range task.Temp.Depends {
+			result.Depends = append(result.Depends, v.DependTaskID)
 		}
 	}
 }
 func dealNext(task *ExecedTask, tasks []*model.Task) {
-	for _,v:=range tasks {
+	for _, v := range tasks {
 		if v.Temp.Depends != nil {
-			for _,dep:=range v.Temp.Depends{
+			for _, dep := range v.Temp.Depends {
 				if dep.DependTaskID == task.ID {
-					task.Next=append(task.Next,v.ID)
+					task.Next = append(task.Next, v.ID)
 				}
 			}
 		}
 	}
 }
+
 type ExecedTask struct {
-	ID string
-	Status string
+	ID      string
+	Status  string
 	Depends []string
-	Next []string
+	Next    []string
 }
-
-

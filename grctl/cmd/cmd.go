@@ -32,18 +32,19 @@ func GetCmds() []cli.Command {
 
 	cmds = append(cmds, NewCmdTenant())
 	cmds = append(cmds, NewCmdNode())
-	cmds = append(cmds, NewCmdNodeRes())
+	cmds = append(cmds, NewCmdCluster())
 	cmds = append(cmds, NewCmdExec())
 	cmds = append(cmds, NewCmdInit())
 	cmds = append(cmds, NewCmdShow())
+	cmds = append(cmds, NewCmdAlerting())
 
 	//task相关命令
-	cmds = append(cmds, NewCmdTasks())
+	//cmds = append(cmds, NewCmdTasks())
 	//数据中心配置相关命令
 	cmds = append(cmds, NewCmdConfigs())
 
 	//cmds = append(cmds, NewCmdComputeGroup())
-	cmds = append(cmds, NewCmdInstall())
+	//cmds = append(cmds, NewCmdInstall())
 	//cmds = append(cmds, NewCmdInstallStatus())
 
 	cmds = append(cmds, NewCmdDomain())
@@ -51,8 +52,8 @@ func GetCmds() []cli.Command {
 	//cmds = append(cmds, NewCmdBaseManageGroup())
 	//cmds = append(cmds, NewCmdManageGroup())
 
-	cmds = append(cmds, NewCmdSources())
-	cmds = append(cmds, NewCmdCloudAuth())
+	//cmds = append(cmds, NewCmdSources())
+	//cmds = append(cmds, NewCmdCloudAuth())
 	//cmds = append(cmds, NewCmdRegionNode())
 	//cmds = append(cmds, NewCmdTest())
 	//cmds = append(cmds, NewCmdPlugin())
@@ -71,10 +72,6 @@ func Common(c *cli.Context) {
 	}
 	//clients.SetInfo(config.RegionAPI.URL, config.RegionAPI.Token)
 	if err := clients.InitRegionClient(config.RegionAPI); err != nil {
-		logrus.Warnf("error config region")
+		logrus.Fatal("error config region")
 	}
-	if err := clients.InitNodeClient("http://127.0.0.1:6100/v2"); err != nil {
-		logrus.Warnf("error config region")
-	}
-
 }

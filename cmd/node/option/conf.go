@@ -24,9 +24,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/goodrain/rainbond/node/utils"
-	"github.com/prometheus/node_exporter/collector"
-
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/fsnotify/fsnotify"
@@ -55,15 +52,6 @@ func Init() error {
 	Config.SetLog()
 	if err := Config.parse(); err != nil {
 		return err
-	}
-	// This instance is only used to check collector creation and logging.
-	nc, err := collector.NewNodeCollector()
-	if err != nil {
-		logrus.Fatalf("Couldn't create collector: %s", err)
-	}
-	logrus.Infof("Enabled collectors:")
-	for n := range nc.Collectors {
-		logrus.Infof(" - %s", n)
 	}
 	initialized = true
 	return nil
@@ -102,7 +90,7 @@ type Conf struct {
 	DBType              string
 	DBConnectionInfo    string
 
-	TTL        int64 // 节点超时时间，单位秒
+	TTL        int64 // node heartbeat to master TTL
 	ReqTimeout int   // 请求超时时间，单位秒
 	// 执行任务信息过期时间，单位秒
 	// 0 为不过期
@@ -118,6 +106,11 @@ type Conf struct {
 	StatsdConfig     StatsdConfig
 	UDPMonitorConfig UDPMonitorConfig
 	MinResyncPeriod  time.Duration
+
+	// for node controller
+	ServiceListFile        string
+	ServiceEndpointRegPath string
+	ServiceManager         string
 }
 
 //StatsdConfig StatsdConfig
@@ -177,6 +170,9 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.StatsdConfig.MappingConfig, "statsd.mapping-config", "", "Metric mapping configuration file name.")
 	fs.IntVar(&a.StatsdConfig.ReadBuffer, "statsd.read-buffer", 0, "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.")
 	fs.DurationVar(&a.MinResyncPeriod, "min-resync-period", time.Hour*12, "The resync period in reflectors will be random between MinResyncPeriod and 2*MinResyncPeriod")
+	fs.StringVar(&a.ServiceListFile, "service-list-file", "/opt/rainbond/conf/manager-services.yaml", "A list of the node include components")
+	fs.StringVar(&a.ServiceEndpointRegPath, "service-endpoint-reg-path", "/rainbond/nodes/target", "For registry service entpoint info into etcd then path.")
+	fs.StringVar(&a.ServiceManager, "service-manager", "systemd", "For service management tool on the system.")
 }
 
 //SetLog 设置log
@@ -216,12 +212,8 @@ func cleanKeyPrefix(p string) string {
 	return p
 }
 
+//parse parse
 func (c *Conf) parse() error {
-	err := utils.LoadExtendConf(*confFile, c)
-	if err != nil {
-		return err
-	}
-
 	if c.Etcd.DialTimeout > 0 {
 		c.Etcd.DialTimeout *= time.Second
 	}
@@ -231,21 +223,5 @@ func (c *Conf) parse() error {
 	if c.LockTTL < 2 {
 		c.LockTTL = 300
 	}
-
-	c.NodePath = cleanKeyPrefix(c.NodePath)
-	c.Proc = cleanKeyPrefix(c.Proc)
-	c.JobPath = cleanKeyPrefix(c.JobPath)
-	c.Lock = cleanKeyPrefix(c.Lock)
-	c.Group = cleanKeyPrefix(c.Group)
-	c.Noticer = cleanKeyPrefix(c.Noticer)
-	//固定值
-	c.HostIDFile = "/opt/rainbond/etc/node/node_host_uuid.conf"
 	return nil
-}
-
-func Exit(i interface{}) {
-	close(exitChan)
-	if watcher != nil {
-		watcher.Close()
-	}
 }
