@@ -28,7 +28,6 @@ var nodeProxy proxy.Proxy
 var builderProxy proxy.Proxy
 var prometheusProxy proxy.Proxy
 var monitorProxy proxy.Proxy
-var notificationEvent proxy.Proxy
 
 //InitProxy 初始化
 func InitProxy(conf option.Config) {
@@ -47,10 +46,6 @@ func InitProxy(conf option.Config) {
 	if monitorProxy == nil {
 		monitorProxy = proxy.CreateProxy("monitor", "http", []string{"127.0.0.1:3329"})
 		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("monitor", monitorProxy)
-	}
-	if notificationEvent == nil {
-		notificationEvent = proxy.CreateProxy("notificationEvent", "http", []string{"127.0.0.1:8888"})
-		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("notificationEvent", notificationEvent)
 	}
 
 }
@@ -73,9 +68,4 @@ func GetPrometheusProxy() proxy.Proxy {
 //GetMonitorProxy GetMonitorProxy
 func GetMonitorProxy() proxy.Proxy {
 	return monitorProxy
-}
-
-//GetNotificationEventProxy
-func GetNotificationEventProxy() proxy.Proxy {
-	return notificationEvent
 }

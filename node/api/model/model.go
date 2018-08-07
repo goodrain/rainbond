@@ -31,7 +31,6 @@ import (
 	"fmt"
 	url2 "net/url"
 	"strings"
-	"time"
 )
 
 //Resource 资源
@@ -451,27 +450,27 @@ type AlertingNameConfig struct {
 }
 
 type RulesConfig struct {
-	Alert  string            `yaml:"alert" json:"alert"`
-	Expr   string            `yaml:"expr" json:"expr"`
-	For    string            `yaml:"for" json:"for"`
-	Labels map[string]string `yaml:"labels" json:"labels"`
+	Alert       string            `yaml:"alert" json:"alert"`
+	Expr        string            `yaml:"expr" json:"expr"`
+	For         string            `yaml:"for" json:"for"`
+	Labels      map[string]string `yaml:"labels" json:"labels"`
 	Annotations map[string]string `yaml:"annotations" json:"annotations"`
 }
 
 //NotificationEvent NotificationEvent
 type NotificationEvent struct {
 	//Kind could be service, tenant, cluster, node
-	Kind string `json:"kind"`
+	Kind string `json:"Kind"`
 	//KindID could be service_id,tenant_id,cluster_id,node_id
-	KindID string `json:"kind_id"`
-	Hash   string `json:"hash"`
+	KindID string `json:"KindID"`
+	Hash   string `json:"Hash"`
 	//Type could be Normal UnNormal Notification
-	Type          string    `json:"type"`
-	Message       string    `json:"message"`
-	Reason        string    `json:"reason"`
-	Count         int       `json:"count"`
-	LastTime      time.Time `json:"last_time"`
-	FirstTime     time.Time `json:"first_time"`
-	IsHandle      bool      `json:"is_handle"`
-	HandleMessage string    `json:"handle_message"`
+	Type          string `json:"Type"`
+	Message       string `json:"Message"`
+	Reason        string `json:"Reason"`
+	Count         int    `json:"Count"`
+	LastTime      string `json:"LastTime"`
+	FirstTime     string `json:"FirstTime"`
+	IsHandle      bool   `json:"IsHandle"`
+	HandleMessage string `json:"HandleMessage"`
 }
