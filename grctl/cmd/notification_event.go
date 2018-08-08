@@ -4,7 +4,6 @@ import (
 	"github.com/urfave/cli"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"fmt"
-	"errors"
 	"github.com/apcera/termtables"
 	"time"
 	"strconv"
@@ -48,8 +47,10 @@ func NewCmdNotificationEvent() cli.Command {
 							serviceTable.AddRow(v.ServiceName, v.TenantName, v.Type, v.Message, v.Reason, v.Count, v.LastTime, v.FirstTime, v.IsHandle, v.HandleMessage)
 						}
 						fmt.Println(serviceTable.Render())
+						return nil
 					}
-					return errors.New("StartTime not null")
+					fmt.Println("StartTime not null")
+					return nil
 				},
 			},
 		},
