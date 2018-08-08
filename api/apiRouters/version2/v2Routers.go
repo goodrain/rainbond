@@ -249,7 +249,6 @@ func (v2 *V2) appRouter() chi.Router {
 func (v2 *V2) notificationEventRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/", controller.GetNotificationEvents)
-	r.Get("/group", controller.GetNotificationEventsGroup)
 	r.Put("/{hash}", controller.HandleNotificationEvent)
 	r.Get("/{hash}", controller.GetNotificationEvent)
 	return r

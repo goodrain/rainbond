@@ -44,7 +44,7 @@ func (n *notification) GetNotification(start string, end string) ([]*model.Notif
 	var ne []*model.NotificationEvent
 	var decode utilhttp.ResponseBody
 	decode.List = &ne
-	code, err := n.DoRequest(n.prefix+"/group"+"?start="+start+"&"+"end="+end, "GET", nil, &decode)
+	code, err := n.DoRequest(n.prefix+"?start="+start+"&"+"end="+end, "GET", nil, &decode)
 	if err != nil {
 		return nil, handleErrAndCode(err, code)
 	}
