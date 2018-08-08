@@ -25,6 +25,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	"fmt"
 )
 
 //AddModel AddModel
@@ -144,12 +145,14 @@ func (c *NotificationEventDaoImpl) AddModel(mo model.Interface) error {
 	result.LastTime = time.Now()
 	result.FirstTime = time.Now()
 	var oldResult model.NotificationEvent
-	if ok := c.DB.Where("hash=?", result.Hash).Find(&oldResult).RecordNotFound(); ok {
+	if ok := c.DB.Where("hash = ?", result.Hash).Find(&oldResult).RecordNotFound(); ok {
+		fmt.Println("=====>没有找到记录",result.Hash)
 		if err := c.DB.Create(result).Error; err != nil {
 			return err
 		}
+		fmt.Println("===>创建记录完成")
 	} else {
-		logrus.Infoln("event result is exist")
+		logrus.Infoln("======>event result is exist")
 		return c.UpdateModel(mo)
 	}
 	return nil
@@ -159,10 +162,12 @@ func (c *NotificationEventDaoImpl) AddModel(mo model.Interface) error {
 func (c *NotificationEventDaoImpl) UpdateModel(mo model.Interface) error {
 	result := mo.(*model.NotificationEvent)
 	var oldResult model.NotificationEvent
-	if ok := c.DB.Where("hash=?", result.Hash).Find(&oldResult).RecordNotFound(); !ok {
+	if ok := c.DB.Where("hash = ?", result.Hash).Find(&oldResult).RecordNotFound(); !ok {
+		fmt.Println("=====>没找到哈希",result.Hash)
 		result.FirstTime = oldResult.FirstTime
 		result.ID = oldResult.ID
 	}
+	fmt.Println("====>保存")
 	return c.DB.Save(result).Error
 }
 
