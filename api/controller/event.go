@@ -31,6 +31,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/goodrain/rainbond/db/model"
 )
 
 //Event GetLogs
@@ -107,13 +108,15 @@ func GetNotificationEvents(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
-	for i,v := range res{
+	var resCopy = make([]*model.NotificationEvent, len(res))
+	copy(resCopy, res)
+	for _, v := range res {
 		service, err := db.GetManager().TenantServiceDao().GetServiceByID(v.KindID)
 		if err != nil {
-			if err == gorm.ErrRecordNotFound{
-				res = append(res[:i], res[i+1:]...)
+			if err == gorm.ErrRecordNotFound {
+				resCopy = RemoveElement(resCopy, v.KindID)
 				continue
-			}else {
+			} else {
 				logrus.Errorf(err.Error())
 				httputil.ReturnError(r, w, 500, err.Error())
 				return
@@ -121,21 +124,38 @@ func GetNotificationEvents(w http.ResponseWriter, r *http.Request) {
 		}
 		tenant, err := db.GetManager().TenantDao().GetTenantByUUID(service.TenantID)
 		if err != nil {
-			if err == gorm.ErrRecordNotFound{
-				res = append(res[:i], res[i+1:]...)
+			if err == gorm.ErrRecordNotFound {
+				resCopy = RemoveElement(resCopy, v.KindID)
 				continue
-			}else {
+			} else {
 				logrus.Errorf(err.Error())
 				httputil.ReturnError(r, w, 500, err.Error())
 				return
 			}
 		}
-		v.ServiceName = service.ServiceAlias
-		v.TenantName = tenant.Name
+		resCopy = SaveElement(resCopy, v.KindID, service.ServiceAlias, tenant.Name)
 	}
-	httputil.ReturnSuccess(r, w, res)
+	httputil.ReturnSuccess(r, w, resCopy)
 }
 
+func RemoveElement(valList []*model.NotificationEvent, id string) []*model.NotificationEvent {
+	for i, v := range valList {
+		if v.KindID == id {
+			valList = append(valList[:i], valList[i+1:]...)
+		}
+	}
+	return valList
+}
+
+func SaveElement(valList []*model.NotificationEvent, id string, serviceName string, tenantName string) []*model.NotificationEvent {
+	for _, v := range valList {
+		if v.KindID == id {
+			v.ServiceName = serviceName
+			v.TenantName = tenantName
+		}
+	}
+	return valList
+}
 
 //Handle Handle
 // swagger:parameters handlenotify
