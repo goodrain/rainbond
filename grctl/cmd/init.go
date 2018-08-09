@@ -146,6 +146,7 @@ func initCluster(c *cli.Context) {
 	cmd := exec.Command("bash", "-c", fmt.Sprintf("cd %s ; ./setup.sh %s %s", c.String("work_dir"), c.String("install-type"), c.String("rainbond-version")))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
 
 	err = cmd.Run()
 	if err != nil {
