@@ -106,33 +106,46 @@ func GetNotificationEvents(w http.ResponseWriter, r *http.Request) {
 	res, err := db.GetManager().NotificationEventDao().GetNotificationEventByTime(startTime, endTime)
 	if err != nil {
 		logrus.Errorf(err.Error())
+		fmt.Println("====error1")
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
+	fmt.Println("记录条数",len(res))
 	for i,v := range res{
 		service, err := db.GetManager().TenantServiceDao().GetServiceByID(v.KindID)
 		if err != nil {
+			fmt.Println("====error2")
 			if err == gorm.ErrRecordNotFound{
+				fmt.Println("====info1")
 				res = append(res[:i], res[i+1:]...)
+				fmt.Println("====info2",len(res))
 			}else {
 				logrus.Errorf(err.Error())
+				fmt.Println("error3")
 				httputil.ReturnError(r, w, 500, err.Error())
 				return
 			}
 		}
 		tenant, err := db.GetManager().TenantDao().GetTenantByUUID(service.TenantID)
 		if err != nil {
+			fmt.Println("error4")
 			if err == gorm.ErrRecordNotFound{
+				fmt.Println("error5")
 				res = append(res[:i], res[i+1:]...)
+				fmt.Println("error6",len(res))
 			}else {
+				fmt.Println("error7")
 				logrus.Errorf(err.Error())
 				httputil.ReturnError(r, w, 500, err.Error())
 				return
 			}
 		}
+		fmt.Println("info3")
 		v.ServiceName = service.ServiceAlias
 		v.TenantName = tenant.Name
+		fmt.Println("info4")
 	}
+	fmt.Println("info5")
 	httputil.ReturnSuccess(r, w, res)
 }
 
