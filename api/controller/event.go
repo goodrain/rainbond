@@ -31,6 +31,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"fmt"
 )
 
 //Event GetLogs
@@ -101,8 +102,10 @@ func GetNotificationEvents(w http.ResponseWriter, r *http.Request) {
 	if ei, err := strconv.Atoi(end); err == nil {
 		endTime = time.Unix(int64(ei), 0)
 	}
+	fmt.Println("startTime:",startTime,"endTime",endTime)
 	res, err := db.GetManager().NotificationEventDao().GetNotificationEventByTime(startTime, endTime)
 	if err != nil {
+		logrus.Errorf(err.Error())
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
@@ -112,6 +115,7 @@ func GetNotificationEvents(w http.ResponseWriter, r *http.Request) {
 			if err == gorm.ErrRecordNotFound{
 				res = append(res[:i], res[i+1:]...)
 			}else {
+				logrus.Errorf(err.Error())
 				httputil.ReturnError(r, w, 500, err.Error())
 				return
 			}
@@ -121,6 +125,7 @@ func GetNotificationEvents(w http.ResponseWriter, r *http.Request) {
 			if err == gorm.ErrRecordNotFound{
 				res = append(res[:i], res[i+1:]...)
 			}else {
+				logrus.Errorf(err.Error())
 				httputil.ReturnError(r, w, 500, err.Error())
 				return
 			}
