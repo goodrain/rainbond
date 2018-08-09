@@ -32,24 +32,25 @@ func NewCmdNotificationEvent() cli.Command {
 				},
 				Action: func(c *cli.Context) error {
 					Common(c)
-					if c.IsSet("StartTime") {
-						startTime := c.String("StartTime")
-						EndTme := c.String("EndTime")
-						if EndTme == "" {
-							NowTime := time.Now().Unix()
-							EndTme = strconv.FormatInt(NowTime, 10)
-						}
-						val, err := clients.RegionClient.Notification().GetNotification(startTime, EndTme)
-						handleErr(err)
-						serviceTable := termtables.CreateTable()
-						serviceTable.AddHeaders("ServiceName", "TenantName", "Type", "Message", "Reason", "Count", "LastTime", "FirstTime", "IsHandle", "HandleMessage")
-						for _, v := range val {
-							serviceTable.AddRow(v.ServiceName, v.TenantName, v.Type, v.Message, v.Reason, v.Count, v.LastTime, v.FirstTime, v.IsHandle, v.HandleMessage)
-						}
-						fmt.Println(serviceTable.Render())
-						return nil
+					startTime := c.String("StartTime")
+					EndTme := c.String("EndTime")
+					if startTime == "" && EndTme == ""{
+						NowTime := time.Now()
+						startTimeTimestamp := NowTime.AddDate(0,0,-3).Unix()
+						startTime = strconv.FormatInt(startTimeTimestamp, 10)
+						EndTme = strconv.FormatInt(NowTime.Unix(), 10)
+					} else if EndTme == "" && startTime != "" {
+						NowTime := time.Now().Unix()
+						EndTme = strconv.FormatInt(NowTime, 10)
 					}
-					fmt.Println("StartTime not null")
+					val, err := clients.RegionClient.Notification().GetNotification(startTime, EndTme)
+					handleErr(err)
+					serviceTable := termtables.CreateTable()
+					serviceTable.AddHeaders("ServiceName", "TenantName", "Type", "Message", "Reason", "Count", "LastTime", "FirstTime", "IsHandle", "HandleMessage")
+					for _, v := range val {
+						serviceTable.AddRow(v.ServiceName, v.TenantName, v.Type, v.Message, v.Reason, v.Count, v.LastTime, v.FirstTime, v.IsHandle, v.HandleMessage)
+					}
+					fmt.Println(serviceTable.Render())
 					return nil
 				},
 			},
@@ -57,4 +58,3 @@ func NewCmdNotificationEvent() cli.Command {
 	}
 	return c
 }
-
