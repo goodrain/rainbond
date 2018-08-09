@@ -31,7 +31,6 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
-	"fmt"
 )
 
 //Event GetLogs
