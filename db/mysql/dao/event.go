@@ -145,6 +145,7 @@ func (c *NotificationEventDaoImpl) AddModel(mo model.Interface) error {
 	result.FirstTime = time.Now()
 	var oldResult model.NotificationEvent
 	if ok := c.DB.Where("hash=?", result.Hash).Find(&oldResult).RecordNotFound(); ok {
+		logrus.Infof("create NotificationEvent:",result.Kind,result.KindID,result.FirstTime,result.LastTime)
 		if err := c.DB.Create(result).Error; err != nil {
 			return err
 		}
@@ -163,6 +164,7 @@ func (c *NotificationEventDaoImpl) UpdateModel(mo model.Interface) error {
 		result.FirstTime = oldResult.FirstTime
 		result.ID = oldResult.ID
 	}
+	logrus.Infof("UpdateModel NotificationEvent:",result.Kind,result.KindID,result.FirstTime,result.LastTime)
 	return c.DB.Save(result).Error
 }
 
