@@ -30,6 +30,8 @@ import (
 	"github.com/goodrain/rainbond/monitor/api"
 	"github.com/goodrain/rainbond/monitor/api/controller"
 	"net/http"
+	discover "github.com/goodrain/rainbond/discover.v2"
+
 )
 
 func main() {
@@ -49,6 +51,15 @@ func main() {
 	defer close(errChan)
 	p.StartDaemon(errChan)
 	defer p.StopDaemon()
+
+	keepalive, err := discover.CreateKeepAlive([]string{"http://127.0.0.1:2379"}, "cadvisor", "", "", 8080)
+	if err != nil {
+		logrus.Error(err)
+	}
+	if err := keepalive.Start(); err != nil {
+		logrus.Error(err)
+	}
+	defer keepalive.Stop()
 
 	// register prometheus address to etcd cluster
 	p.Registry.Start()
