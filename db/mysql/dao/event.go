@@ -144,7 +144,7 @@ func (c *NotificationEventDaoImpl) AddModel(mo model.Interface) error {
 	result.LastTime = time.Now()
 	result.FirstTime = time.Now()
 	var oldResult model.NotificationEvent
-	if ok := c.DB.Where("hash=?", result.Hash).Find(&oldResult).RecordNotFound(); ok {
+	if ok := c.DB.Where("hash = ?", result.Hash).Find(&oldResult).RecordNotFound(); ok {
 		if err := c.DB.Create(result).Error; err != nil {
 			return err
 		}
@@ -159,7 +159,7 @@ func (c *NotificationEventDaoImpl) AddModel(mo model.Interface) error {
 func (c *NotificationEventDaoImpl) UpdateModel(mo model.Interface) error {
 	result := mo.(*model.NotificationEvent)
 	var oldResult model.NotificationEvent
-	if ok := c.DB.Where("hash=?", result.Hash).Find(&oldResult).RecordNotFound(); !ok {
+	if ok := c.DB.Where("hash = ?", result.Hash).Find(&oldResult).RecordNotFound(); !ok {
 		result.FirstTime = oldResult.FirstTime
 		result.ID = oldResult.ID
 	}

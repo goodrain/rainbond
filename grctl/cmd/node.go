@@ -103,11 +103,14 @@ func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode
 	if ready == true {
 		status = "\033[0;32;32m running(healthy) \033[0m"
 	}
-	if ready == false {
-		status = "\033[0;32;32m running(unhealthy) \033[0m"
-	}
 	if v.Unschedulable == true {
-		status = "\033[0;32;32m running(unschedulable) \033[0m"
+		status = "\033[0;33;33m running(unschedulable) \033[0m"
+	}
+	if ready == false {
+		status = "\033[0;33;33m running(unhealthy) \033[0m"
+	}
+	if ready == false && v.Unschedulable == true {
+		status = "\033[0;33;33m running(unhealthy,unschedulable) \033[0m"
 	}
 	if v.Status == "unknown" {
 		status = "\033[0;31;31m unknown \033[0m"

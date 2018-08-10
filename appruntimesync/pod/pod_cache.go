@@ -73,7 +73,7 @@ type AbnormalInfo struct {
 func (a AbnormalInfo) Hash() string {
 	hash := sha256.New()
 	hash.Write([]byte(a.ServiceID + a.ServiceAlias + a.PodName + a.ContainerName))
-	return string(hash.Sum(nil))
+	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 func (a AbnormalInfo) String() string {
 	return fmt.Sprintf("ServiceID: %s;ServiceAlias: %s;PodName: %s ; ContainerName: %s; Reason: %s; Message: %s",

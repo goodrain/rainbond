@@ -262,7 +262,6 @@ func (m *ManagerService) WriteServices() error {
 		if err != nil {
 			return err
 		}
-		m.ctr.EnableService(s.Name)
 	}
 
 	return nil
