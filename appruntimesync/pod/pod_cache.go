@@ -278,7 +278,6 @@ func (c *CacheManager) addAbnormalInfo(ai *AbnormalInfo) {
 			Message:     c.oomInfos[ai.Hash()].Message,
 			Reason:      "OOMKilled",
 			Count:       c.oomInfos[ai.Hash()].Count,
-			ServiceName: c.oomInfos[ai.Hash()].ServiceAlias,
 		})
 	default:
 		if oldai, ok := c.errorInfos[ai.Hash()]; ok && oldai != nil {
@@ -295,7 +294,6 @@ func (c *CacheManager) addAbnormalInfo(ai *AbnormalInfo) {
 			Message:     c.errorInfos[ai.Hash()].Message,
 			Reason:      c.errorInfos[ai.Hash()].Reason,
 			Count:       c.errorInfos[ai.Hash()].Count,
-			ServiceName: c.oomInfos[ai.Hash()].ServiceAlias,
 		})
 	}
 
