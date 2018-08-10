@@ -100,7 +100,7 @@ func (e *exectorManager) serviceCheck(in []byte) {
 	var pr parser.Parser
 	switch input.SourceType {
 	case "docker-run":
-		pr = parser.CreateDockerRunOrImageParse(input.SourceBody, e.DockerClient, logger)
+		pr = parser.CreateDockerRunOrImageParse(input.Username, input.Password, input.SourceBody, e.DockerClient, logger)
 	case "docker-compose":
 		logrus.Debugf("source body is \n%v", input.SourceBody)
 		y, err := yaml.JSONToYAML([]byte(input.SourceBody))
