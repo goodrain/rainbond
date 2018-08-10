@@ -48,6 +48,9 @@ func NewCmdNotificationEvent() cli.Command {
 					serviceTable := termtables.CreateTable()
 					serviceTable.AddHeaders("ServiceName", "TenantName", "Type", "Message", "Reason", "Count", "LastTime", "FirstTime", "IsHandle", "HandleMessage")
 					for _, v := range val {
+						if v.KindID == "" || v.ServiceName == "" || v.TenantName == ""{
+							continue
+						}
 						serviceTable.AddRow(v.ServiceName, v.TenantName, v.Type, v.Message, v.Reason, v.Count, v.LastTime, v.FirstTime, v.IsHandle, v.HandleMessage)
 					}
 					fmt.Println(serviceTable.Render())
