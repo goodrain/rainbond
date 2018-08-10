@@ -41,6 +41,8 @@ type ServiceCheckInput struct {
 	// docker-run: docker run --name xxx nginx:latest nginx
 	// docker-compose: compose全文
 	SourceBody string `json:"source_body"`
+	Username   string `json:"username"`
+	Password   string `json:"password"`
 	TenantID   string
 	EventID    string `json:"event_id"`
 }
