@@ -6,7 +6,6 @@ import (
 	"gopkg.in/yaml.v2"
 	"os"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
-
 )
 
 type AlertingRulesConfig struct {
@@ -28,26 +27,13 @@ type RulesConfig struct {
 
 type AlertingRulesManager struct {
 	RulesConfig *AlertingRulesConfig
-	config           *option.Config
+	config      *option.Config
 }
 
 func NewRulesManager(config *option.Config) *AlertingRulesManager {
 	a := &AlertingRulesManager{
 		RulesConfig: &AlertingRulesConfig{
 			Groups: []*AlertingNameConfig{
-				&AlertingNameConfig{
-
-					Name: "InstanceHealth",
-					Rules: []*RulesConfig{
-						&RulesConfig{
-							Alert:       "InstanceDown",
-							Expr:        "up == 0",
-							For:         "3m",
-							Labels:      map[string]string{},
-							Annotations: map[string]string{"summary": "builder {{$labels.instance}} down", "description":"{{$labels.instance}} of job {{$labels.job}} has been down for more than 3 minutes"},
-						},
-					},
-				},
 				&AlertingNameConfig{
 
 					Name: "BuilderHealth",
@@ -158,6 +144,47 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							For:         "3m",
 							Labels:      map[string]string{},
 							Annotations: map[string]string{"summary": "The number of errors that occurred while executing the command was greater than 100."},
+						},
+					},
+				},
+				&AlertingNameConfig{
+
+					Name: "NodeHealth",
+					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:       "high_cpu_usage_on_node",
+							Expr:        "sum by(instance) (rate(process_cpu_seconds_total[5m])) * 100 > 70",
+							For:         "5m",
+							Labels:      map[string]string{"service": "node_cpu"},
+							Annotations: map[string]string{"description": "{{ $labels.instance }} is using a LOT of CPU. CPU usage is {{ humanize $value}}%.", "summary": "HIGH CPU USAGE WARNING ON '{{ $labels.instance }}'"},
+						},
+						&RulesConfig{
+							Alert:       "high_la_usage_on_node",
+							Expr:        "node_load5 > 5",
+							For:         "5m",
+							Labels:      map[string]string{"service": "node_load5"},
+							Annotations: map[string]string{"description": "{{ $labels.instance }} has a high load average. Load Average 5m is {{ humanize $value}}.", "summary": "HIGH LOAD AVERAGE WARNING ON '{{ $labels.instance }}'"},
+						},
+						&RulesConfig{
+							Alert:       "node_running_out_of_disk_space",
+							Expr:        "(node_filesystem_size{mountpoint='/'} - node_filesystem_free{mountpoint='/'}) * 100 / node_filesystem_size{mountpoint='/'} > 80",
+							For:         "5m",
+							Labels:      map[string]string{"service": "node_running_out_of_disk_space"},
+							Annotations: map[string]string{"description": "More than 80% of disk used. Disk usage {{ humanize $value }}%.", "summary": "LOW DISK SPACE WARING:NODE '{{ $labels.instance }}"},
+						},
+						&RulesConfig{
+							Alert:       "monitoring_service_down",
+							Expr:        "up == 0",
+							For:         "5m",
+							Labels:      map[string]string{"service": "service_down"},
+							Annotations: map[string]string{"description": "The monitoring service '{{ $labels.job }}' is down.", "summary": "MONITORING SERVICE DOWN WARNING:NODE '{{ $labels.instance }}'"},
+						},
+						&RulesConfig{
+							Alert:       "high_memory_usage_on_node",
+							Expr:        "((node_memory_MemTotal - node_memory_MemAvailable) / node_memory_MemTotal) * 100 > 80",
+							For:         "5m",
+							Labels:      map[string]string{"service": "node_memory"},
+							Annotations: map[string]string{"description": "{{ $labels.instance }} is using a LOT of MEMORY. MEMORY usage is over {{ humanize $value}}%.", "summary": "HIGH MEMORY USAGE WARNING TASK ON '{{ $labels.instance }}'"},
 						},
 					},
 				},
