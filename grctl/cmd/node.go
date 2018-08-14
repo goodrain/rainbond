@@ -216,7 +216,7 @@ func NewCmdNode() cli.Command {
 					table.AddRow("down", v.DownTime)
 					table.AddRow("connected", v.Connected)
 					fmt.Println(table)
-					fmt.Printf("-------------------ervice health-----------------------\n")
+					fmt.Printf("-------------------service health-----------------------\n")
 					serviceTable := termtables.CreateTable()
 					serviceTable.AddHeaders("Title", "Result", "Message")
 					extractReady(serviceTable, v, "Ready")
