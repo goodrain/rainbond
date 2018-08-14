@@ -63,21 +63,28 @@ func CreateCRT(RootCa *x509.Certificate, RootKey *rsa.PrivateKey, info CertInfor
 	if RootCa == nil || RootKey == nil {
 		//create ca cert
 		buf, err = x509.CreateCertificate(rand.Reader, Crt, Crt, &Key.PublicKey, Key)
+		if err != nil {
+			return err
+		}
+		keybuf := x509.MarshalPKCS1PrivateKey(Key)
+		err = write(info.KeyName, "PRIVATE KEY", keybuf)
 	} else {
 		//create cert by ca
 		buf, err = x509.CreateCertificate(rand.Reader, Crt, RootCa, &Key.PublicKey, RootKey)
+		if err != nil {
+			return err
+		}
+		keybuf := x509.MarshalPKCS1PrivateKey(Key)
+		err = write(info.KeyName, "RSA PRIVATE KEY", keybuf)
 	}
 	if err != nil {
 		return err
 	}
-
 	err = write(info.CrtName, "CERTIFICATE", buf)
 	if err != nil {
 		return err
 	}
-
-	buf = x509.MarshalPKCS1PrivateKey(Key)
-	return write(info.KeyName, "PRIVATE KEY", buf)
+	return nil
 }
 
 //编码写入文件
