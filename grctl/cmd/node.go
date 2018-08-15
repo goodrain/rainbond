@@ -20,17 +20,18 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/apcera/termtables"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/node/nodem/client"
-	"github.com/urfave/cli"
-	"io/ioutil"
-	"os"
-	"strings"
-	"os/exec"
 	"github.com/gosuri/uitable"
+	"github.com/urfave/cli"
 )
 
 func handleErr(err *util.APIHandleError) {

@@ -51,7 +51,7 @@ type NotificationEvent struct {
 	Kind string `gorm:"column:kind;size:40"`
 	//KindID could be service_id,tenant_id,cluster_id,node_id
 	KindID string `gorm:"column:kind_id;size:40"`
-	Hash   string `gorm:"column:hash;size:40"`
+	Hash   string `gorm:"column:hash;size:100"`
 	//Type could be Normal UnNormal Notification
 	Type          string    `gorm:"column:type;size:40"`
 	Message       string    `gorm:"column:message;size:200"`

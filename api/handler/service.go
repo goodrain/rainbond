@@ -85,6 +85,7 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		r.Body.Kind = "source"
 	}
 	switch r.Body.Kind {
+	//deprecated
 	case "source":
 		//源码构建
 		if err := s.sourceBuild(r, service); err != nil {
@@ -93,6 +94,7 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		}
 		logger.Info("源码构建应用任务发送成功 ", map[string]string{"step": "source-service", "status": "starting"})
 		return nil
+	//deprecated
 	case "slug":
 		//源码构建的分享至云市安装回平台
 		if err := s.slugBuild(r, service); err != nil {
@@ -101,6 +103,7 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		}
 		logger.Info("slug构建应用任务发送成功 ", map[string]string{"step": "source-service", "status": "starting"})
 		return nil
+	//deprecated
 	case "image":
 		//镜像构建
 		if err := s.imageBuild(r, service); err != nil {
@@ -109,6 +112,7 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		}
 		logger.Info("镜像构建应用任务发送成功 ", map[string]string{"step": "image-service", "status": "starting"})
 		return nil
+	//deprecated
 	case "market":
 		//镜像构建分享至云市安装回平台
 		if err := s.marketBuild(r, service); err != nil {
