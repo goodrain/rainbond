@@ -19,11 +19,12 @@
 package appm
 
 import (
-	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/event"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/event"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
@@ -43,13 +44,13 @@ func (m *manager) StartReplicationController(serviceID string, logger event.Logg
 		return nil, err
 	}
 	//判断应用镜像名称是否合法，非法镜像名进制启动
-	deployVersion,err:=m.dbmanager.VersionInfoDao().GetVersionByDeployVersion(builder.service.DeployVersion,serviceID)
-	imageName:=builder.service.ImageName
+	deployVersion, err := m.dbmanager.VersionInfoDao().GetVersionByDeployVersion(builder.service.DeployVersion, serviceID)
+	imageName := builder.service.ImageName
 	if err != nil {
-		logrus.Warnf("error get version info by deployversion %s,details %s",builder.service.DeployVersion,err.Error())
-	}else{
+		logrus.Warnf("error get version info by deployversion %s,details %s", builder.service.DeployVersion, err.Error())
+	} else {
 		if CheckVersionInfo(deployVersion) {
-			imageName=deployVersion.ImageName
+			imageName = deployVersion.ImageName
 		}
 	}
 	if !strings.HasPrefix(imageName, "goodrain.me/") {
@@ -93,14 +94,15 @@ func (m *manager) StartReplicationController(serviceID string, logger event.Logg
 
 //CheckVersionInfo CheckVersionInfo
 func CheckVersionInfo(version *model.VersionInfo) bool {
-	if !strings.Contains(strings.ToLower(version.FinalStatus),"success") {
+	if !strings.Contains(strings.ToLower(version.FinalStatus), "success") {
 		return false
 	}
-	if len(version.ImageName)==0||!strings.Contains(version.ImageName,"goodrain.me/") {
+	if len(version.ImageName) == 0 || !strings.Contains(version.ImageName, "goodrain.me/") {
 		return false
 	}
 	return true
 }
+
 //StopReplicationController 停止
 func (m *manager) StopReplicationController(serviceID string, logger event.Logger) error {
 	logger.Info("停止删除ReplicationController资源开始", map[string]string{"step": "worker-appm", "status": "starting"})
@@ -619,8 +621,12 @@ func (m *manager) waitRCReplicasReady(n int32, serviceID string, logger event.Lo
 			logger.Error("实例启动超时，置于后台启动，请留意应用状态", map[string]string{"step": "worker-appm", "status": "error"})
 			return ErrTimeOut
 		case event := <-watch.ResultChan():
-			state := event.Object.(*v1.ReplicationController)
-			logger.Info(fmt.Sprintf("实例正在启动，当前启动实例数 %d,就绪实例数 %d, 未启动实例数 %d ", state.Status.Replicas, state.Status.ReadyReplicas, n-state.Status.Replicas), map[string]string{"step": "worker-appm"})
+			state, ok := event.Object.(*v1.ReplicationController)
+			if ok {
+				logger.Info(fmt.Sprintf("实例正在启动，当前启动实例数 %d,就绪实例数 %d, 未启动实例数 %d ", state.Status.Replicas, state.Status.ReadyReplicas, n-state.Status.Replicas), map[string]string{"step": "worker-appm"})
+			} else {
+				logrus.Errorf("want watch rc but return %v", event.Object)
+			}
 		case event := <-podWatch.ResultChan():
 			if event.Type == "ADDED" || event.Type == "MODIFIED" {
 				pod := event.Object.(*v1.Pod)
