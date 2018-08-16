@@ -536,21 +536,13 @@ func (m *manager) waitRCReplicas(n int32, logger event.Logger, rc *v1.Replicatio
 		return nil
 	}
 	second := int32(40)
-	var deleteCount int32
+	var needdeleteCount int32
 	if rc.Status.Replicas-n > 0 {
-		deleteCount = rc.Status.Replicas - n
-		second = second * deleteCount
+		needdeleteCount = rc.Status.Replicas - n
+		second = second * needdeleteCount
 	}
 	logger.Info(fmt.Sprintf("实例开始关闭，需要关闭实例数 %d, 超时时间:%d秒 ", rc.Status.Replicas-n, second), map[string]string{"step": "worker-appm"})
 	timeout := time.Tick(time.Duration(second) * time.Second)
-	watch, err := m.kubeclient.Core().ReplicationControllers(rc.Namespace).Watch(metav1.ListOptions{
-		LabelSelector:   fmt.Sprintf("name=%s,version=%s", rc.Labels["name"], rc.Labels["version"]),
-		ResourceVersion: rc.ResourceVersion,
-	})
-	if err != nil {
-		return err
-	}
-	defer watch.Stop()
 	podWatch, err := m.kubeclient.CoreV1().Pods(rc.Namespace).Watch(metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("name=%s,version=%s", rc.Labels["name"], rc.Labels["version"]),
 	})
@@ -558,21 +550,20 @@ func (m *manager) waitRCReplicas(n int32, logger event.Logger, rc *v1.Replicatio
 		return err
 	}
 	defer podWatch.Stop()
+	var deleteCount int32
+	var total = rc.Status.Replicas
 	for {
 		select {
 		case <-timeout:
 			logger.Error("实例关闭超时，请重试！", map[string]string{"step": "worker-appm", "status": "error"})
 			return ErrTimeOut
-		case event := <-watch.ResultChan():
-			state := event.Object.(*v1.ReplicationController)
-			logger.Info(fmt.Sprintf("实例正在关闭，当前应用实例数 %d", state.Status.Replicas), map[string]string{"step": "worker-appm"})
 		case event := <-podWatch.ResultChan():
 			if event.Type == "DELETED" {
-				deleteCount--
+				deleteCount++
 				pod := event.Object.(*v1.Pod)
 				m.statusCache.RemovePod(pod.Name)
-				logger.Info(fmt.Sprintf("实例(%s)已停止并移除", pod.Name), map[string]string{"step": "worker-appm"})
-				if deleteCount <= 0 {
+				logger.Info(fmt.Sprintf("实例(%s)已停止并移除,剩余实例数 %d", pod.Name, total-deleteCount), map[string]string{"step": "worker-appm"})
+				if deleteCount >= needdeleteCount {
 					return nil
 				}
 			}
@@ -599,14 +590,6 @@ func (m *manager) waitRCReplicasReady(n int32, serviceID string, logger event.Lo
 	}
 	logger.Info(fmt.Sprintf("实例开始启动，需要启动实例数 %d, 超时时间:%d秒 ", n, second), map[string]string{"step": "worker-appm"})
 	timeout := time.Tick(time.Duration(second) * time.Second)
-	watch, err := m.kubeclient.Core().ReplicationControllers(rc.Namespace).Watch(metav1.ListOptions{
-		LabelSelector:   fmt.Sprintf("name=%s,version=%s", rc.Labels["name"], rc.Labels["version"]),
-		ResourceVersion: rc.ResourceVersion,
-	})
-	if err != nil {
-		return err
-	}
-	defer watch.Stop()
 	podWatch, err := m.kubeclient.CoreV1().Pods(rc.Namespace).Watch(metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("name=%s,version=%s", rc.Labels["name"], rc.Labels["version"]),
 	})
@@ -620,19 +603,13 @@ func (m *manager) waitRCReplicasReady(n int32, serviceID string, logger event.Lo
 		case <-timeout:
 			logger.Error("实例启动超时，置于后台启动，请留意应用状态", map[string]string{"step": "worker-appm", "status": "error"})
 			return ErrTimeOut
-		case event := <-watch.ResultChan():
-			state, ok := event.Object.(*v1.ReplicationController)
-			if ok {
-				logger.Info(fmt.Sprintf("实例正在启动，当前启动实例数 %d,就绪实例数 %d, 未启动实例数 %d ", state.Status.Replicas, state.Status.ReadyReplicas, n-state.Status.Replicas), map[string]string{"step": "worker-appm"})
-			} else {
-				logrus.Errorf("want watch rc but return %v", event.Object)
-			}
 		case event := <-podWatch.ResultChan():
 			if event.Type == "ADDED" || event.Type == "MODIFIED" {
 				pod := event.Object.(*v1.Pod)
 				status := m.statusCache.AddPod(pod.Name, logger)
 				if ok, err := status.AddStatus(pod.Status); ok {
 					readyPodCount++
+					logger.Info(fmt.Sprintf("实例正在启动，当前就绪实例数 %d, 未启动实例数 %d ", readyPodCount, n-readyPodCount), map[string]string{"step": "worker-appm"})
 					if readyPodCount >= n {
 						return nil
 					}

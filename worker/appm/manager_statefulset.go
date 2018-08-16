@@ -19,11 +19,12 @@
 package appm
 
 import (
-	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/event"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/event"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
@@ -44,13 +45,13 @@ func (m *manager) StartStatefulSet(serviceID string, logger event.Logger) (*v1be
 		return nil, err
 	}
 	//判断应用镜像名称是否合法，非法镜像名进制启动
-	deployVersion,err:=m.dbmanager.VersionInfoDao().GetVersionByDeployVersion(builder.service.DeployVersion,serviceID)
-	imageName:=builder.service.ImageName
+	deployVersion, err := m.dbmanager.VersionInfoDao().GetVersionByDeployVersion(builder.service.DeployVersion, serviceID)
+	imageName := builder.service.ImageName
 	if err != nil {
-		logrus.Warnf("error get version info by deployversion %s,details %s",builder.service.DeployVersion,err.Error())
-	}else{
+		logrus.Warnf("error get version info by deployversion %s,details %s", builder.service.DeployVersion, err.Error())
+	} else {
 		if CheckVersionInfo(deployVersion) {
-			imageName=deployVersion.ImageName
+			imageName = deployVersion.ImageName
 		}
 	}
 	if !strings.HasPrefix(imageName, "goodrain.me/") {
@@ -223,21 +224,13 @@ func (m *manager) waitStatefulReplicas(n int32, logger event.Logger, stateful *v
 		return nil
 	}
 	second := int32(40)
-	var deleteCount int32
+	var needdeleteCount int32
 	if stateful.Status.Replicas-n > 0 {
-		deleteCount = stateful.Status.Replicas - n
-		second = second * deleteCount
+		needdeleteCount = stateful.Status.Replicas - n
+		second = second * needdeleteCount
 	}
 	logger.Info(fmt.Sprintf("实例开始顺序关闭，需要关闭实例数 %d, 超时时间:%d秒 ", stateful.Status.Replicas-n, second), map[string]string{"step": "worker-appm"})
 	timeout := time.Tick(time.Duration(second) * time.Second)
-	watch, err := m.kubeclient.AppsV1beta1().StatefulSets(stateful.Namespace).Watch(metav1.ListOptions{
-		LabelSelector:   fmt.Sprintf("name=%s,version=%s", stateful.Labels["name"], stateful.Labels["version"]),
-		ResourceVersion: stateful.ResourceVersion,
-	})
-	if err != nil {
-		return err
-	}
-	defer watch.Stop()
 	podWatch, err := m.kubeclient.CoreV1().Pods(stateful.Namespace).Watch(metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("name=%s,version=%s", stateful.Labels["name"], stateful.Labels["version"]),
 	})
@@ -245,21 +238,20 @@ func (m *manager) waitStatefulReplicas(n int32, logger event.Logger, stateful *v
 		return err
 	}
 	defer podWatch.Stop()
+	total := stateful.Status.Replicas
+	var deleteCount int32
 	for {
 		select {
 		case <-timeout:
 			logger.Error("实例关闭超时，请重试！", map[string]string{"step": "worker-appm", "status": "error"})
 			return ErrTimeOut
-		case event := <-watch.ResultChan():
-			state := event.Object.(*v1beta1.StatefulSet)
-			logger.Info(fmt.Sprintf("实例正在顺序关闭，当前应用实例数 %d", state.Status.Replicas), map[string]string{"step": "worker-appm"})
 		case event := <-podWatch.ResultChan():
 			if event.Type == "DELETED" {
-				deleteCount--
+				deleteCount++
 				pod := event.Object.(*v1.Pod)
 				m.statusCache.RemovePod(pod.Name)
-				logger.Info(fmt.Sprintf("实例(%s)已停止并移除", pod.Name), map[string]string{"step": "worker-appm"})
-				if deleteCount <= 0 {
+				logger.Info(fmt.Sprintf("实例(%s)已停止并移除,当前剩余实例数 %d", pod.Name, total-deleteCount), map[string]string{"step": "worker-appm"})
+				if deleteCount >= needdeleteCount {
 					return nil
 				}
 			}
@@ -286,14 +278,6 @@ func (m *manager) waitStatefulReplicasReady(n int32, serviceID string, logger ev
 	}
 	logger.Info(fmt.Sprintf("实例开始顺序启动，需要启动实例数 %d, 超时时间:%d秒 ", n, second), map[string]string{"step": "worker-appm"})
 	timeout := time.Tick(time.Duration(second) * time.Second)
-	watch, err := m.kubeclient.AppsV1beta1().StatefulSets(stateful.Namespace).Watch(metav1.ListOptions{
-		LabelSelector:   fmt.Sprintf("name=%s,version=%s", stateful.Labels["name"], stateful.Labels["version"]),
-		ResourceVersion: stateful.ResourceVersion,
-	})
-	if err != nil {
-		return err
-	}
-	defer watch.Stop()
 	podWatch, err := m.kubeclient.CoreV1().Pods(stateful.Namespace).Watch(metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("name=%s,version=%s", stateful.Labels["name"], stateful.Labels["version"]),
 	})
@@ -307,15 +291,13 @@ func (m *manager) waitStatefulReplicasReady(n int32, serviceID string, logger ev
 		case <-timeout:
 			logger.Error("实例启动超时，置于后台启动，请留意应用状态", map[string]string{"step": "worker-appm", "status": "error"})
 			return ErrTimeOut
-		case event := <-watch.ResultChan():
-			state := event.Object.(*v1beta1.StatefulSet)
-			logger.Info(fmt.Sprintf("实例正在顺序启动，当前启动实例数 %d,未启动实例数 %d ", state.Status.Replicas, n-state.Status.Replicas), map[string]string{"step": "worker-appm"})
 		case event := <-podWatch.ResultChan():
 			if event.Type == "ADDED" || event.Type == "MODIFIED" {
 				pod := event.Object.(*v1.Pod)
 				status := m.statusCache.AddPod(pod.Name, logger)
 				if ok, err := status.AddStatus(pod.Status); ok {
 					readyPodCount++
+					logger.Info(fmt.Sprintf("实例正在顺序启动，当前就绪实例数 %d,未启动实例数 %d ", readyPodCount, n-readyPodCount), map[string]string{"step": "worker-appm"})
 					if readyPodCount >= n {
 						return nil
 					}
