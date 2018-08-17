@@ -1626,9 +1626,11 @@ func (t *TenantStruct) Pods(w http.ResponseWriter, r *http.Request) {
 	pods, err := handler.GetServiceManager().GetPods(serviceID)
 	if err != nil {
 		if err.Error() == gorm.ErrRecordNotFound.Error() {
+			logrus.Error("record notfound:",err)
 			httputil.ReturnError(r, w, 404, fmt.Sprintf("get pods error, %v", err))
 			return
 		}
+		logrus.Error("get pods error:",err)
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get pods error, %v", err))
 		return
 	}

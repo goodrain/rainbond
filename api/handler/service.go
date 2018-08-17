@@ -1778,31 +1778,32 @@ type K8sPodInfo struct {
 }
 
 //GetPods get pods
-func (s *ServiceAction) GetPods(serviceID string) ([]*K8sPodInfo, error) {
-	var podsInfoList []*K8sPodInfo
+func (s *ServiceAction) GetPods(serviceID string) ([]K8sPodInfo, error) {
+	var podsInfoList []K8sPodInfo
 	pods, err := db.GetManager().K8sPodDao().GetPodByService(serviceID)
 	if err != nil {
 		logrus.Error("GetPodByService Error:", err)
 		return nil, err
 	}
-	logrus.Info(pods)
+	logrus.Info("pods：",pods)
 	for _, v := range pods {
-		var podInfo *K8sPodInfo
+		logrus.Info("赋值前：",v.PodName)
+		var podInfo K8sPodInfo
 		podInfo.ServiceID = v.ServiceID
 		podInfo.ReplicationID = v.ReplicationID
 		podInfo.ReplicationType = v.ReplicationType
 		podInfo.PodName = v.PodName
 		podInfo.PodIP = v.PodIP
-		logrus.Info(podInfo.ServiceID,podInfo.ReplicationID,podInfo.ReplicationType,podInfo.PodName,podInfo.PodIP)
+		logrus.Info("赋值后：",podInfo.ServiceID,podInfo.ReplicationID,podInfo.ReplicationType,podInfo.PodName,podInfo.PodIP)
 		memoryUsageQuery := fmt.Sprintf(`container_memory_usage_bytes{pod_name="%s"}`, v.PodName)
 		memoryUsageMap, _ := s.GetContainerMemory(memoryUsageQuery)
-		logrus.Info(memoryUsageMap)
+		logrus.Info("memoryUsageMap",memoryUsageMap)
 		if usage, ok := memoryUsageMap[v.PodName]; ok {
 			podInfo.MemoryUsage = usage
 		}
 		memorylimitQuery := fmt.Sprintf(`container_spec_memory_limit_bytes{pod_name="%s"}`, v.PodName)
 		memoryLimitMap, _ := s.GetContainerMemory(memorylimitQuery)
-		logrus.Info(memoryUsageMap)
+		logrus.Info("memoryLimitMap",memoryLimitMap)
 		if limit, ok := memoryLimitMap[v.PodName]; ok {
 			podInfo.MemoryLimit = limit
 		}
