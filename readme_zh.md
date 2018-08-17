@@ -7,7 +7,7 @@
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
 
-[网站](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/stable/) • [公有云](https://console.goodrain.com) • [README in English](https://github.com/goodrain/rainbond/blob/V3.6/readme.md)
+[网站](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/stable/) • [公有云](https://console.goodrain.com) • [README in English](https://github.com/goodrain/rainbond/blob/V3.6/README.md)
 
 **Rainbond**是以应用为中心的PaaS，领先的理念和完整的生态源自于不断的验证和优化。
 
@@ -44,7 +44,7 @@ Rainbond深度整合基于Kubernetes的容器管理、Service Mesh微服务架�
 
 ## Roadmap
 
-点击查看Rainbond版本开发计划 [Roadmap](https://github.com/goodrain/rainbond-docs/blob/master/v3.6/architecture/roadmap.md)
+点击查看Rainbond版本开发计划 [Roadmap](http://www.rainbond.com/docs/stable/architecture/roadmap.html)
 
 ## 产品图示
 
