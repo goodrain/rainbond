@@ -1769,12 +1769,11 @@ func (s *ServiceAction) CreateTenandIDAndName(eid string) (string, string, error
 type K8sPodInfo struct {
 	ServiceID string `json:"service_id"`
 	//部署资源的ID ,例如rc ,deploment, statefulset
-	ReplicationID   string `json:"replication_id"`
-	ReplicationType string `json:"replication_type"`
-	PodName         string `json:"pod_name"`
-	PodIP           string `json:"pod_ip"`
-	MemoryUsage     string `json:"memory_usage"`
-	MemoryLimit     string `json:"memory_limit"`
+	ReplicationID   string                       `json:"replication_id"`
+	ReplicationType string                       `json:"replication_type"`
+	PodName         string                       `json:"pod_name"`
+	PodIP           string                       `json:"pod_ip"`
+	Container       map[string]map[string]string `json:"container"`
 }
 
 //GetPods get pods
@@ -1785,41 +1784,45 @@ func (s *ServiceAction) GetPods(serviceID string) ([]K8sPodInfo, error) {
 		logrus.Error("GetPodByService Error:", err)
 		return nil, err
 	}
-	logrus.Info("pods：",pods)
+	logrus.Info("pods：", pods)
 	for _, v := range pods {
-		logrus.Info("赋值前：",v.PodName)
+		logrus.Info("赋值前：", v.PodName)
 		var podInfo K8sPodInfo
+		var containerMemory map[string]map[string]string
 		podInfo.ServiceID = v.ServiceID
 		podInfo.ReplicationID = v.ReplicationID
 		podInfo.ReplicationType = v.ReplicationType
 		podInfo.PodName = v.PodName
 		podInfo.PodIP = v.PodIP
-		logrus.Info("赋值后：",podInfo.ServiceID,podInfo.ReplicationID,podInfo.ReplicationType,podInfo.PodName,podInfo.PodIP)
+		logrus.Info("赋值后：", podInfo.ServiceID, podInfo.ReplicationID, podInfo.ReplicationType, podInfo.PodName, podInfo.PodIP)
 		memoryUsageQuery := fmt.Sprintf(`container_memory_usage_bytes{pod_name="%s"}`, v.PodName)
 		memoryUsageMap, _ := s.GetContainerMemory(memoryUsageQuery)
-		logrus.Info("memoryUsageMap",memoryUsageMap)
-		if usage, ok := memoryUsageMap[v.PodName]; ok {
-			podInfo.MemoryUsage = usage
+		logrus.Info("memoryUsageMap", memoryUsageMap)
+		for k, val := range memoryUsageMap {
+			containerMemory[k] = map[string]string{"usage": val}
 		}
 		memorylimitQuery := fmt.Sprintf(`container_spec_memory_limit_bytes{pod_name="%s"}`, v.PodName)
 		memoryLimitMap, _ := s.GetContainerMemory(memorylimitQuery)
-		logrus.Info("memoryLimitMap",memoryLimitMap)
-		if limit, ok := memoryLimitMap[v.PodName]; ok {
-			podInfo.MemoryLimit = limit
+		logrus.Info("memoryLimitMap", memoryLimitMap)
+		for k2, v2 := range memoryLimitMap {
+			if val, ok := containerMemory[k2]; ok {
+				val["limit"] = v2
+			}
 		}
+		podInfo.Container = containerMemory
 		podsInfoList = append(podsInfoList, podInfo)
 
 	}
-	logrus.Info("podsInfoList",podsInfoList)
+	logrus.Info("podsInfoList", podsInfoList)
 	return podsInfoList, nil
 }
 
 // Use Prometheus to query memory resources
 func (s *ServiceAction) GetContainerMemory(query string) (map[string]string, error) {
-	memoryUsageMap := make(map[string]string,10)
+	memoryUsageMap := make(map[string]string, 10)
 	proxy := GetPrometheusProxy()
 	proQuery := strings.Replace(query, " ", "%20", -1)
-	logrus.Info("Query:",proQuery)
+	logrus.Info("Query:", proQuery)
 	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", proQuery), nil)
 	if err != nil {
 		logrus.Error("create request prometheus api error ", err.Error())
@@ -1833,7 +1836,7 @@ func (s *ServiceAction) GetContainerMemory(query string) (map[string]string, err
 	if presult.Body != nil {
 		defer presult.Body.Close()
 		if presult.StatusCode != 200 {
-			logrus.Error("StatusCode:",presult.StatusCode,err)
+			logrus.Error("StatusCode:", presult.StatusCode, err)
 			return memoryUsageMap, nil
 		}
 		var qres QueryResult
@@ -1845,23 +1848,23 @@ func (s *ServiceAction) GetContainerMemory(query string) (map[string]string, err
 				var valuesBytes string
 				if cname, ok := re["metric"].(map[string]interface{}); ok {
 					containerName = cname["container_name"].(string)
-					logrus.Info("containerName:",containerName)
-				}else {
+					logrus.Info("containerName:", containerName)
+				} else {
 					logrus.Info("metric decode error")
 				}
 				if val, ok := (re["value"]).([]interface{}); ok && len(val) == 2 {
 					valuesBytes = val[1].(string)
-					logrus.Info("valuesBytes:",valuesBytes)
-				}else {
+					logrus.Info("valuesBytes:", valuesBytes)
+				} else {
 					logrus.Info("value decode error")
 				}
 				memoryUsageMap[containerName] = valuesBytes
 			}
 			return memoryUsageMap, nil
-		}else {
+		} else {
 			logrus.Error("反序列化失败")
 		}
-	}else {
+	} else {
 		logrus.Error("Body Is empty")
 	}
 	return memoryUsageMap, nil
