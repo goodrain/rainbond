@@ -1788,7 +1788,7 @@ func (s *ServiceAction) GetPods(serviceID string) ([]K8sPodInfo, error) {
 	for _, v := range pods {
 		logrus.Info("赋值前：", v.PodName)
 		var podInfo K8sPodInfo
-		var containerMemory map[string]map[string]string
+		containerMemory := make(map[string]map[string]string, 10)
 		podInfo.ServiceID = v.ServiceID
 		podInfo.ReplicationID = v.ReplicationID
 		podInfo.ReplicationType = v.ReplicationType
@@ -1799,8 +1799,11 @@ func (s *ServiceAction) GetPods(serviceID string) ([]K8sPodInfo, error) {
 		memoryUsageMap, _ := s.GetContainerMemory(memoryUsageQuery)
 		logrus.Info("memoryUsageMap", memoryUsageMap)
 		for k, val := range memoryUsageMap {
-			containerMemory[k] = map[string]string{"usage": val}
+			if _,ok := containerMemory[k];!ok{
+				containerMemory[k] = map[string]string{"usage": val}
+			}
 		}
+		logrus.Info("containerMemory:",containerMemory)
 		memorylimitQuery := fmt.Sprintf(`container_spec_memory_limit_bytes{pod_name="%s"}`, v.PodName)
 		memoryLimitMap, _ := s.GetContainerMemory(memorylimitQuery)
 		logrus.Info("memoryLimitMap", memoryLimitMap)
