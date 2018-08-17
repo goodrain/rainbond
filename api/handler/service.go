@@ -1786,7 +1786,6 @@ func (s *ServiceAction) GetPods(serviceID string) ([]K8sPodInfo, error) {
 	}
 	logrus.Info("pods：", pods)
 	for _, v := range pods {
-		logrus.Info("赋值前：", v.PodName)
 		var podInfo K8sPodInfo
 		containerMemory := make(map[string]map[string]string, 10)
 		podInfo.ServiceID = v.ServiceID
@@ -1794,29 +1793,26 @@ func (s *ServiceAction) GetPods(serviceID string) ([]K8sPodInfo, error) {
 		podInfo.ReplicationType = v.ReplicationType
 		podInfo.PodName = v.PodName
 		podInfo.PodIP = v.PodIP
-		logrus.Info("赋值后：", podInfo.ServiceID, podInfo.ReplicationID, podInfo.ReplicationType, podInfo.PodName, podInfo.PodIP)
 		memoryUsageQuery := fmt.Sprintf(`container_memory_usage_bytes{pod_name="%s"}`, v.PodName)
 		memoryUsageMap, _ := s.GetContainerMemory(memoryUsageQuery)
 		logrus.Info("memoryUsageMap", memoryUsageMap)
 		for k, val := range memoryUsageMap {
 			if _,ok := containerMemory[k];!ok{
-				containerMemory[k] = map[string]string{"usage": val}
+				containerMemory[k] = map[string]string{"memory_usage": val}
 			}
 		}
-		logrus.Info("containerMemory:",containerMemory)
 		memorylimitQuery := fmt.Sprintf(`container_spec_memory_limit_bytes{pod_name="%s"}`, v.PodName)
 		memoryLimitMap, _ := s.GetContainerMemory(memorylimitQuery)
 		logrus.Info("memoryLimitMap", memoryLimitMap)
 		for k2, v2 := range memoryLimitMap {
 			if val, ok := containerMemory[k2]; ok {
-				val["limit"] = v2
+				val["memory_limit"] = v2
 			}
 		}
 		podInfo.Container = containerMemory
 		podsInfoList = append(podsInfoList, podInfo)
 
 	}
-	logrus.Info("podsInfoList", podsInfoList)
 	return podsInfoList, nil
 }
 
@@ -1825,7 +1821,6 @@ func (s *ServiceAction) GetContainerMemory(query string) (map[string]string, err
 	memoryUsageMap := make(map[string]string, 10)
 	proxy := GetPrometheusProxy()
 	proQuery := strings.Replace(query, " ", "%20", -1)
-	logrus.Info("Query:", proQuery)
 	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", proQuery), nil)
 	if err != nil {
 		logrus.Error("create request prometheus api error ", err.Error())
@@ -1846,18 +1841,15 @@ func (s *ServiceAction) GetContainerMemory(query string) (map[string]string, err
 		err = json.NewDecoder(presult.Body).Decode(&qres)
 		if err == nil {
 			for _, re := range qres.Data.Result {
-				logrus.Info(re)
 				var containerName string
 				var valuesBytes string
 				if cname, ok := re["metric"].(map[string]interface{}); ok {
 					containerName = cname["container_name"].(string)
-					logrus.Info("containerName:", containerName)
 				} else {
 					logrus.Info("metric decode error")
 				}
 				if val, ok := (re["value"]).([]interface{}); ok && len(val) == 2 {
 					valuesBytes = val[1].(string)
-					logrus.Info("valuesBytes:", valuesBytes)
 				} else {
 					logrus.Info("value decode error")
 				}
@@ -1865,7 +1857,7 @@ func (s *ServiceAction) GetContainerMemory(query string) (map[string]string, err
 			}
 			return memoryUsageMap, nil
 		} else {
-			logrus.Error("反序列化失败")
+			logrus.Error("Deserialization failed")
 		}
 	} else {
 		logrus.Error("Body Is empty")
