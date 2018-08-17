@@ -1782,8 +1782,10 @@ func (s *ServiceAction) GetPods(serviceID string) ([]*K8sPodInfo, error) {
 	var podsInfoList []*K8sPodInfo
 	pods, err := db.GetManager().K8sPodDao().GetPodByService(serviceID)
 	if err != nil {
+		logrus.Error("GetPodByService Error:", err)
 		return nil, err
 	}
+	logrus.Info(pods)
 	for _, v := range pods {
 		var podInfo *K8sPodInfo
 		podInfo.ServiceID = v.ServiceID
@@ -1793,11 +1795,13 @@ func (s *ServiceAction) GetPods(serviceID string) ([]*K8sPodInfo, error) {
 		podInfo.PodIP = v.PodIP
 		memoryUsageQuery := fmt.Sprintf(`container_memory_usage_bytes{pod_name="%s"}`, v.PodName)
 		memoryUsageMap, _ := s.GetContainerMemory(memoryUsageQuery)
+		logrus.Info(memoryUsageMap)
 		if usage, ok := memoryUsageMap[v.PodName]; ok {
 			podInfo.MemoryUsage = usage
 		}
 		memorylimitQuery := fmt.Sprintf(`container_spec_memory_limit_bytes{pod_name="%s"}`, v.PodName)
 		memoryLimitMap, _ := s.GetContainerMemory(memorylimitQuery)
+		logrus.Info(memoryUsageMap)
 		if limit, ok := memoryLimitMap[v.PodName]; ok {
 			podInfo.MemoryLimit = limit
 		}
@@ -1825,7 +1829,7 @@ func (s *ServiceAction) GetContainerMemory(query string) (map[string]string, err
 	if presult.Body != nil {
 		defer presult.Body.Close()
 		if presult.StatusCode != 200 {
-			logrus.Error(err)
+			logrus.Error("StatusCode:",presult.StatusCode,err)
 			return memoryUsageMap, nil
 		}
 		var qres QueryResult
