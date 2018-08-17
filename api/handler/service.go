@@ -1793,6 +1793,7 @@ func (s *ServiceAction) GetPods(serviceID string) ([]*K8sPodInfo, error) {
 		podInfo.ReplicationType = v.ReplicationType
 		podInfo.PodName = v.PodName
 		podInfo.PodIP = v.PodIP
+		logrus.Info(podInfo.ServiceID,podInfo.ReplicationID,podInfo.ReplicationType,podInfo.PodName,podInfo.PodIP)
 		memoryUsageQuery := fmt.Sprintf(`container_memory_usage_bytes{pod_name="%s"}`, v.PodName)
 		memoryUsageMap, _ := s.GetContainerMemory(memoryUsageQuery)
 		logrus.Info(memoryUsageMap)
@@ -1808,14 +1809,16 @@ func (s *ServiceAction) GetPods(serviceID string) ([]*K8sPodInfo, error) {
 		podsInfoList = append(podsInfoList, podInfo)
 
 	}
+	logrus.Info("podsInfoList",podsInfoList)
 	return podsInfoList, nil
 }
 
 // Use Prometheus to query memory resources
 func (s *ServiceAction) GetContainerMemory(query string) (map[string]string, error) {
-	memoryUsageMap := make(map[string]string)
+	memoryUsageMap := make(map[string]string,10)
 	proxy := GetPrometheusProxy()
 	proQuery := strings.Replace(query, " ", "%20", -1)
+	logrus.Info("Query:",proQuery)
 	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", proQuery), nil)
 	if err != nil {
 		logrus.Error("create request prometheus api error ", err.Error())
@@ -1836,18 +1839,29 @@ func (s *ServiceAction) GetContainerMemory(query string) (map[string]string, err
 		err = json.NewDecoder(presult.Body).Decode(&qres)
 		if err == nil {
 			for _, re := range qres.Data.Result {
+				logrus.Info(re)
 				var containerName string
-				var memoryUsageBytes string
+				var valuesBytes string
 				if cname, ok := re["metric"].(map[string]interface{}); ok {
 					containerName = cname["container_name"].(string)
+					logrus.Info("containerName:",containerName)
+				}else {
+					logrus.Info("metric decode error")
 				}
 				if val, ok := (re["value"]).([]interface{}); ok && len(val) == 2 {
-					memoryUsageBytes = val[1].(string)
+					valuesBytes = val[1].(string)
+					logrus.Info("valuesBytes:",valuesBytes)
+				}else {
+					logrus.Info("value decode error")
 				}
-				memoryUsageMap[containerName] = memoryUsageBytes
+				memoryUsageMap[containerName] = valuesBytes
 			}
 			return memoryUsageMap, nil
+		}else {
+			logrus.Error("反序列化失败")
 		}
+	}else {
+		logrus.Error("Body Is empty")
 	}
 	return memoryUsageMap, nil
 }
