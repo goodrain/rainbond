@@ -39,10 +39,6 @@ func NewCmdInit() cli.Command {
 		Name: "init",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "etcd",
-				Usage: "etcd ip,127.0.0.1",
-			},
-			cli.StringFlag{
 				Name:  "type",
 				Usage: "node type: manage or compute",
 				Value: "manage",
@@ -53,8 +49,14 @@ func NewCmdInit() cli.Command {
 				Value: "/opt/rainbond/install",
 			},
 			cli.StringFlag{
-				Name:  "mip",
-				Usage: "当前节点内网IP, 10.0.0.1",
+				Name:  "iip",
+				Usage: "manage01 local ip",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "eip",
+				Usage: "manage01 public ip",
+				Value: "0.0.0.0",
 			},
 			cli.StringFlag{
 				Name:  "rainbond-version",
@@ -65,6 +67,11 @@ func NewCmdInit() cli.Command {
 				Name:  "install-type",
 				Usage: "defalut online.",
 				Value: "online",
+			},
+			cli.StringFlag{
+				Name:  "domain",
+				Usage: "defalut custom apps domain.",
+				Value: "",
 			},
 			cli.BoolFlag{
 				Name:   "test",
@@ -143,7 +150,7 @@ func initCluster(c *cli.Context) {
 
 	// start setup script to install rainbond
 	fmt.Println("Begin init cluster first node,please don't exit,wait install")
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("cd %s ; ./setup.sh %s %s", c.String("work_dir"), c.String("install-type"), c.String("rainbond-version")))
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("cd %s ; ./setup.sh %s %s %s", c.String("work_dir"), c.String("install-type"), c.String("eip"), c.String("domain")))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin

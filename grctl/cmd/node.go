@@ -284,8 +284,8 @@ func NewCmdNode() cli.Command {
 				},
 			},
 			{
-				Name:  "unscheduable",
-				Usage: "unscheduable hostID",
+				Name:  "cordon",
+				Usage: "Mark node as unschedulable",
 				Action: func(c *cli.Context) error {
 					Common(c)
 					id := c.Args().First()
@@ -305,8 +305,8 @@ func NewCmdNode() cli.Command {
 				},
 			},
 			{
-				Name:  "rescheduable",
-				Usage: "rescheduable hostID",
+				Name:  "uncordon",
+				Usage: "Mark node as schedulable",
 				Action: func(c *cli.Context) error {
 					Common(c)
 					id := c.Args().First()
