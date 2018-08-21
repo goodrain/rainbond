@@ -139,7 +139,7 @@ func handleResult(serviceTable *termtables.Table, v *client.HostNode) {
 			if v.Type == client.OutOfDisk || v.Type == client.MemoryPressure || v.Type == client.DiskPressure || v.Type == client.InstallNotReady {
 				formatReady = "\033[0;32;32m false \033[0m"
 			} else {
-				formatReady = "\033[0;31;31m false \033[0m"
+				formatReady = "\033[0;31;31m true \033[0m"
 			}
 		} else {
 			formatReady = "\033[0;32;32m true \033[0m"
@@ -284,8 +284,8 @@ func NewCmdNode() cli.Command {
 				},
 			},
 			{
-				Name:  "unscheduable",
-				Usage: "unscheduable hostID",
+				Name:  "cordon",
+				Usage: "Mark node as unschedulable",
 				Action: func(c *cli.Context) error {
 					Common(c)
 					id := c.Args().First()
@@ -305,8 +305,8 @@ func NewCmdNode() cli.Command {
 				},
 			},
 			{
-				Name:  "rescheduable",
-				Usage: "rescheduable hostID",
+				Name:  "uncordon",
+				Usage: "Mark node as schedulable",
 				Action: func(c *cli.Context) error {
 					Common(c)
 					id := c.Args().First()
