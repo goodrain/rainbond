@@ -37,6 +37,7 @@ type TenantInterface interface {
 	SingleTenantResources(w http.ResponseWriter, r *http.Request)
 	GetSupportProtocols(w http.ResponseWriter, r *http.Request)
 	TransPlugins(w http.ResponseWriter, r *http.Request)
+	ServicesCount(w http.ResponseWriter, r *http.Request)
 }
 
 //ServiceInterface ServiceInterface
