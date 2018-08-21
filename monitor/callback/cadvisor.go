@@ -70,7 +70,7 @@ func (c *Cadvisor) toScrape() *prometheus.ScrapeConfig {
 
 	return &prometheus.ScrapeConfig{
 		JobName:        c.Name(),
-		ScrapeInterval: model.Duration(30 * time.Second),
+		ScrapeInterval: model.Duration(10 * time.Second),
 		ScrapeTimeout:  model.Duration(30 * time.Second),
 		MetricsPath:    "/metrics",
 		ServiceDiscoveryConfig: prometheus.ServiceDiscoveryConfig{
