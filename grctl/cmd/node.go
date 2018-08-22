@@ -101,12 +101,8 @@ func fileExist(path string) bool {
 }
 
 func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode, usedCpu float32, usedMemory int) {
-	cpu := "N/A"
-	memory := "N/A"
-	if usedCpu != 0 && usedMemory != 0 {
-		cpu = fmt.Sprintf("%.2f", usedCpu) + "%"
-		memory = strconv.Itoa(usedMemory) + "%"
-	}
+	cpu := fmt.Sprintf("%.2f", usedCpu) + "%"
+	memory := strconv.Itoa(usedMemory) + "%"
 	var status string
 	if ready == true {
 		status = "\033[0;32;32m running(healthy) \033[0m"
@@ -130,7 +126,7 @@ func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode
 		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status, cpu, memory)
 	} else if v.Role.HasRule("manage") && !v.Role.HasRule("compute") {
 		//scheduable="n/a"
-		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status, cpu, memory)
+		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status, "N/A", "N/A")
 	} else if v.Role.HasRule("compute") && v.Role.HasRule("manage") {
 		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status, cpu, memory)
 	}
@@ -259,6 +255,7 @@ func NewCmdNode() cli.Command {
 						handleErr(err)
 						usedCpu := nodeResource.ReqCPU / float32(nodeResource.CapCPU) * 100
 						useMemory := nodeResource.ReqMem / nodeResource.CapMem * 100
+						fmt.Println(usedCpu,useMemory)
 						handleStatus(serviceTable, isNodeReady(v), v, usedCpu, useMemory)
 					}
 					fmt.Println(serviceTable.Render())
