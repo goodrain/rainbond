@@ -264,8 +264,7 @@ func NewCmdNode() cli.Command {
 					serviceTable := termtables.CreateTable()
 					serviceTable.AddHeaders("Uid", "HostName","CapCpu(核)", "CapMemory(M)", "UsedCpu(核)", "UsedMemory(M)", "CpuLimits(核)", "MemoryLimits(M)", "CpuUsageRate", "MemoryUsedRate")
 					for _, v := range list {
-						if v.Role.HasRule("compute") || v.NodeStatus.Status != "offline" {
-							fmt.Println(v.Role,v.ID)
+						if v.Role.HasRule("compute") && v.NodeStatus.Status != "offline" {
 							nodeResource, err := clients.RegionClient.Nodes().GetNodeResource(v.ID)
 							handleErr(err)
 							serviceTable.AddRow(v.ID,v.HostName,nodeResource.CpuR, nodeResource.MemR, nodeResource.CPURequests/1000.00, nodeResource.MemoryRequests, nodeResource.CPULimits/1000.00, nodeResource.MemoryLimits, nodeResource.CPURequestsR, nodeResource.MemoryRequestsR)
