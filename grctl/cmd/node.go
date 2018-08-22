@@ -256,6 +256,7 @@ func NewCmdNode() cli.Command {
 						usedCpu := nodeResource.ReqCPU / float32(nodeResource.CapCPU) * 100
 						useMemory := nodeResource.ReqMem / nodeResource.CapMem * 100
 						fmt.Println(usedCpu,useMemory)
+						fmt.Println(nodeResource.CapMem,nodeResource.ReqMem)
 						handleStatus(serviceTable, isNodeReady(v), v, usedCpu, useMemory)
 					}
 					fmt.Println(serviceTable.Render())
