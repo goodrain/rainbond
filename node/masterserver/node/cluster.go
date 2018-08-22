@@ -155,7 +155,7 @@ func (n *Cluster) checkNodeStatus() {
 					logrus.Error(err)
 					continue
 				}
-				if targetNode.NodeStatus.Status != Running {
+				if targetNode.NodeStatus.Status != Running || targetNode.Unschedulable {
 					logrus.Info("Skip open scheduling, because target node is: ", targetNode.NodeStatus.Status)
 					continue
 				}
