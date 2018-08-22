@@ -194,6 +194,14 @@ type ClusterResource struct {
 	ReqDisk      uint64  `json:"req_disk"`
 }
 
+//node 资源
+type NodeResource struct {
+	CapCPU int     `json:"cap_cpu"`
+	CapMem int     `json:"cap_mem"`
+	ReqCPU float32 `json:"req_cpu"`
+	ReqMem int     `json:"req_mem"`
+}
+
 type FirstConfig struct {
 	StorageMode     string `json:"storage_mode"`
 	StorageHost     string `json:"storage_host,omitempty"`
@@ -450,9 +458,9 @@ type AlertingNameConfig struct {
 }
 
 type RulesConfig struct {
-	Alert  string            `yaml:"alert" json:"alert"`
-	Expr   string            `yaml:"expr" json:"expr"`
-	For    string            `yaml:"for" json:"for"`
-	Labels map[string]string `yaml:"labels" json:"labels"`
+	Alert       string            `yaml:"alert" json:"alert"`
+	Expr        string            `yaml:"expr" json:"expr"`
+	For         string            `yaml:"for" json:"for"`
+	Labels      map[string]string `yaml:"labels" json:"labels"`
 	Annotations map[string]string `yaml:"annotations" json:"annotations"`
 }

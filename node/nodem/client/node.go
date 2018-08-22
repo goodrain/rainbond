@@ -28,7 +28,7 @@ import (
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	conf "github.com/goodrain/rainbond/cmd/node/option"
-	store "github.com/goodrain/rainbond/node/core/store"
+	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/pquerna/ffjson/ffjson"
 )
 
@@ -76,6 +76,14 @@ type HostNode struct {
 	Unschedulable   bool              `json:"unschedulable"` //不可调度
 	NodeStatus      *NodeStatus       `json:"node_status,omitempty"`
 	ClusterNode
+}
+
+//node 资源
+type NodeResource struct {
+	CapCPU int     `json:"cap_cpu"`
+	CapMem int     `json:"cap_mem"`
+	ReqCPU float32 `json:"req_cpu"`
+	ReqMem int     `json:"req_mem"`
 }
 
 //NodeStatus node status

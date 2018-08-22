@@ -37,7 +37,6 @@ import (
 
 	"github.com/goodrain/rainbond/node/api/model"
 	httputil "github.com/goodrain/rainbond/util/http"
-
 )
 
 //GetNodeDetails GetNodeDetails
@@ -399,4 +398,47 @@ func GetServicesHealthy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, healthMap)
+}
+
+//GetNodeResource
+func GetNodeResource(w http.ResponseWriter, r *http.Request) {
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	hostNode, apierr := nodeService.GetNode(nodeUID)
+	if apierr != nil {
+		api.ReturnError(r, w, 500, apierr.Error())
+		return
+	}
+	node, err := kubecli.GetNodeByName(hostNode.ID)
+	if err != nil {
+		api.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	var capCPU int64
+	var capMem int64
+
+	capCPU = node.Status.Capacity.Cpu().Value()
+	capMem = node.Status.Capacity.Memory().Value()
+
+	var cpuR int64
+	var memR int64
+
+	pods, _ := kubecli.GetPodsByNodes(hostNode.ID)
+	for _, pod := range pods {
+		for _, c := range pod.Spec.Containers {
+			rc := c.Resources.Requests.Cpu().MilliValue()
+			rm := c.Resources.Requests.Memory().Value()
+			cpuR += rc
+			memR += rm
+		}
+	}
+
+	podMemRequestMB := memR / 1024 / 1024
+	result := &model.NodeResource{
+		CapCPU: int(capCPU),
+		CapMem: int(capMem) / 1024 / 1024,
+		ReqCPU: float32(cpuR) / 1000,
+		ReqMem: int(podMemRequestMB),
+	}
+
+	api.ReturnSuccess(r, w, result)
 }
