@@ -59,7 +59,7 @@ func Routers(mode string) *chi.Mux {
 			})
 			r.Route("/nodes", func(r chi.Router) {
 				r.Get("/fullres", controller.ClusterInfo)
-				r.Get("/{node_id}/resource", controller.GetNodeResource)
+				r.Get("/{node_id}/node_resource", controller.GetNodeResource)
 				r.Get("/resources", controller.Resources)
 				r.Get("/capres", controller.CapRes)
 				r.Get("/", controller.GetNodes)
@@ -75,7 +75,7 @@ func Routers(mode string) *chi.Mux {
 				r.Post("/{node_id}/up", controller.UpNode)         //节点上线
 				r.Get("/{node_id}/instance", controller.Instances) //节点实例列表
 				r.Get("/{node_id}/check", controller.CheckNode)
-				//r.Get("/{node_id}/resource", controller.Resource)
+				r.Get("/{node_id}/resource", controller.Resource)
 
 				r.Get("/{node_ip}/init", controller.InitStatus)
 				r.Post("/{node_id}/install", controller.Install)

@@ -69,7 +69,7 @@ func (n *node) GetNodeResource(node string) (*client.NodeResource, *util.APIHand
 	var res utilhttp.ResponseBody
 	var gc client.NodeResource
 	res.Bean = &gc
-	code, err := n.DoRequest(n.prefix+"/"+node+"/resource", "GET", nil, &res)
+	code, err := n.DoRequest(n.prefix+"/"+node+"/node_resource", "GET", nil, &res)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
 	}

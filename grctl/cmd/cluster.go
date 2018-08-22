@@ -90,7 +90,7 @@ func getClusterInfo(c *cli.Context) error {
 		nodeResource, err := clients.RegionClient.Nodes().GetNodeResource(v.ID)
 		handleErr(err)
 		usedCpu := nodeResource.ReqCPU / float32(nodeResource.CapCPU) * 100
-		useMemory := nodeResource.ReqMem / nodeResource.CapMem * 100
+		useMemory := nodeResource.ReqMem * 100 / nodeResource.CapMem
 		handleStatus(serviceTable, isNodeReady(v), v, usedCpu, useMemory)
 	}
 	fmt.Println(serviceTable.Render())
