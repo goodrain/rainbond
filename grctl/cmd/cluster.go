@@ -77,7 +77,7 @@ func getClusterInfo(c *cli.Context) error {
 	serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "UsedCPU", "UseMemory")
 	var rest []*client.HostNode
 	for _, v := range list {
-		if v.Role.HasRule("manage") {
+		if v.Role.HasRule("manage") || !v.Role.HasRule("compute") {
 			handleStatus(serviceTable, isNodeReady(v), v, 0, 0)
 		} else {
 			rest = append(rest, v)

@@ -245,7 +245,7 @@ func NewCmdNode() cli.Command {
 					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "UsedCPU", "UseMemory")
 					var rest []*client.HostNode
 					for _, v := range list {
-						if v.Role.HasRule("manage") {
+						if v.Role.HasRule("manage") || !v.Role.HasRule("compute") {
 							handleStatus(serviceTable, isNodeReady(v), v, 0, 0)
 						} else {
 							rest = append(rest, v)
@@ -365,9 +365,18 @@ func NewCmdNode() cli.Command {
 					hostnodes, err := clients.RegionClient.Nodes().GetNodeByRule(rule)
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "Alived", "Schedulable", "Ready")
+					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "UsedCPU", "UseMemory")
 					for _, v := range hostnodes {
-						handleStatus(serviceTable, isNodeReady(v), v)
+						if v.Role.HasRule("compute") {
+							nodeResource, err := clients.RegionClient.Nodes().GetNodeResource(v.ID)
+							handleErr(err)
+							usedCpu := nodeResource.ReqCPU / float32(nodeResource.CapCPU) * 100
+							useMemory := nodeResource.ReqMem / nodeResource.CapMem * 100
+							handleStatus(serviceTable, isNodeReady(v), v, usedCpu, useMemory)
+						} else if v.Role.HasRule("manage") {
+							handleStatus(serviceTable, isNodeReady(v), v, 0, 0)
+						}
+
 					}
 					return nil
 				},
