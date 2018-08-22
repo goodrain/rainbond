@@ -111,7 +111,7 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 		EventID:       eventID,
 		CodeSouceInfo: csi,
 		Lang:          gjson.GetBytes(in, "lang").String(),
-		Runtime:       gjson.GetBytes(in, "runtimes").String(),
+		Runtime:       gjson.GetBytes(in, "runtime").String(),
 		BuildEnvs:     be,
 	}
 	scb.CacheDir = fmt.Sprintf("/cache/build/%s/cache/%s", scb.TenantID, scb.ServiceID)
