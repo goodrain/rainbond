@@ -64,6 +64,21 @@ func (n *node) Get(node string) (*client.HostNode, *util.APIHandleError) {
 	}
 	return &gc, nil
 }
+
+func (n *node) GetNodeResource(node string) (*client.NodeResource, *util.APIHandleError) {
+	var res utilhttp.ResponseBody
+	var gc client.NodeResource
+	res.Bean = &gc
+	code, err := n.DoRequest(n.prefix+"/"+node+"/resource", "GET", nil, &res)
+	if err != nil {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
+	}
+	return &gc, nil
+}
+
 func (n *node) GetNodeByRule(rule string) ([]*client.HostNode, *util.APIHandleError) {
 	var res utilhttp.ResponseBody
 	var gc []*client.HostNode
@@ -204,6 +219,7 @@ type TaskInterface interface {
 type NodeInterface interface {
 	GetNodeByRule(rule string) ([]*client.HostNode, *util.APIHandleError)
 	Get(node string) (*client.HostNode, *util.APIHandleError)
+	GetNodeResource(node string) (*client.NodeResource, *util.APIHandleError)
 	List() ([]*client.HostNode, *util.APIHandleError)
 	Add(node *client.APIHostNode) *util.APIHandleError
 	Up(nid string) *util.APIHandleError

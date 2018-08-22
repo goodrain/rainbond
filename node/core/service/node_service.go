@@ -170,9 +170,13 @@ func (n *NodeService) CordonNode(nodeID string, unschedulable bool) *utils.APIHa
 	hostNode.Unschedulable = unschedulable
 	//update node status
 	if unschedulable {
-		hostNode.Status = "unschedulable"
+		hostNode.Status = Running
+		hostNode.NodeStatus.Status = Running
+		hostNode.Unschedulable = true
 	} else {
 		hostNode.Status = Running
+		hostNode.NodeStatus.Status = Running
+		hostNode.Unschedulable = false
 	}
 	if k8snode != nil {
 		node, err := n.kubecli.CordonOrUnCordon(hostNode.ID, unschedulable)

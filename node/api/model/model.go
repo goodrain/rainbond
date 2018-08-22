@@ -194,6 +194,14 @@ type ClusterResource struct {
 	ReqDisk      uint64  `json:"req_disk"`
 }
 
+//node 资源
+type NodeResource struct {
+	CapCPU       int     `json:"cap_cpu"`
+	CapMem       int     `json:"cap_mem"`
+	ReqCPU       float32 `json:"req_cpu"`
+	ReqMem       int     `json:"req_mem"`
+}
+
 type FirstConfig struct {
 	StorageMode     string `json:"storage_mode"`
 	StorageHost     string `json:"storage_host,omitempty"`
