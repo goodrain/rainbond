@@ -42,16 +42,6 @@ type NodePodResource struct {
 	AllocatedResources `json:"allocatedresources"`
 	Resource           `json:"allocatable"`
 }
-type InitStatus struct {
-	Status   int    `json:"status"`
-	StatusCN string `json:"cn"`
-	HostID   string `json:"uuid"`
-}
-type InstallStatus struct {
-	Status   int           `json:"status"`
-	StatusCN string        `json:"cn"`
-	Tasks    []*ExecedTask `json:"tasks"`
-}
 type AllocatedResources struct {
 	CPURequests     int64
 	CPULimits       int64
@@ -62,6 +52,17 @@ type AllocatedResources struct {
 	CPURequestsR    string
 	CPULimitsR      string
 }
+type InitStatus struct {
+	Status   int    `json:"status"`
+	StatusCN string `json:"cn"`
+	HostID   string `json:"uuid"`
+}
+type InstallStatus struct {
+	Status   int           `json:"status"`
+	StatusCN string        `json:"cn"`
+	Tasks    []*ExecedTask `json:"tasks"`
+}
+
 type ExecedTask struct {
 	ID             string   `json:"id"`
 	Seq            int      `json:"seq"`

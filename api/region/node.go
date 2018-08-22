@@ -65,11 +65,11 @@ func (n *node) Get(node string) (*client.HostNode, *util.APIHandleError) {
 	return &gc, nil
 }
 
-func (n *node) GetNodeResource(node string) (*client.NodeResource, *util.APIHandleError) {
+func (n *node) GetNodeResource(node string) (*client.NodePodResource, *util.APIHandleError) {
 	var res utilhttp.ResponseBody
-	var gc client.NodeResource
+	var gc client.NodePodResource
 	res.Bean = &gc
-	code, err := n.DoRequest(n.prefix+"/"+node+"/node_resource", "GET", nil, &res)
+	code, err := n.DoRequest(n.prefix+"/"+node+"/resource", "GET", nil, &res)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
 	}
@@ -219,7 +219,7 @@ type TaskInterface interface {
 type NodeInterface interface {
 	GetNodeByRule(rule string) ([]*client.HostNode, *util.APIHandleError)
 	Get(node string) (*client.HostNode, *util.APIHandleError)
-	GetNodeResource(node string) (*client.NodeResource, *util.APIHandleError)
+	GetNodeResource(node string) (*client.NodePodResource, *util.APIHandleError)
 	List() ([]*client.HostNode, *util.APIHandleError)
 	Add(node *client.APIHostNode) *util.APIHandleError
 	Up(nid string) *util.APIHandleError
