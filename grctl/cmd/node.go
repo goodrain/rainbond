@@ -31,6 +31,7 @@ import (
 	"strings"
 	"os/exec"
 	"github.com/gosuri/uitable"
+	"strconv"
 )
 
 func handleErr(err *util.APIHandleError) {
@@ -262,12 +263,14 @@ func NewCmdNode() cli.Command {
 					list, err := clients.RegionClient.Nodes().List()
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("Uid", "HostName","CapCpu(核)", "CapMemory(M)", "UsedCpu(核)", "UsedMemory(M)", "CpuLimits(核)", "MemoryLimits(M)", "CpuUsageRate", "MemoryUsedRate")
+					serviceTable.AddHeaders("Uid", "HostName", "CapCpu(核)", "CapMemory(M)", "UsedCpu(核)", "UsedMemory(M)", "CpuLimits(核)", "MemoryLimits(M)", "CpuUsageRate", "MemoryUsedRate")
 					for _, v := range list {
 						if v.Role.HasRule("compute") && v.NodeStatus.Status != "offline" {
 							nodeResource, err := clients.RegionClient.Nodes().GetNodeResource(v.ID)
 							handleErr(err)
-							serviceTable.AddRow(v.ID,v.HostName,nodeResource.CpuR, nodeResource.MemR, nodeResource.CPURequests/1000.00, nodeResource.MemoryRequests, nodeResource.CPULimits/1000.00, nodeResource.MemoryLimits, nodeResource.CPURequestsR, nodeResource.MemoryRequestsR)
+							CPURequests := strconv.FormatFloat(float64(nodeResource.CPURequests)/float64(1000), 'f', 2, 64)
+							CPULimits := strconv.FormatFloat(float64(nodeResource.CPULimits)/float64(1000), 'f', 2, 64)
+							serviceTable.AddRow(v.ID, v.HostName, nodeResource.CpuR, nodeResource.MemR, CPURequests, nodeResource.MemoryRequests, CPULimits, nodeResource.MemoryLimits, nodeResource.CPURequestsR, nodeResource.MemoryRequestsR)
 						}
 					}
 					fmt.Println(serviceTable.Render())
