@@ -39,6 +39,7 @@ type APIHostNode struct {
 	InternalIP string            `json:"internal_ip" validate:"internal_ip|ip"`
 	ExternalIP string            `json:"external_ip" validate:"external_ip|ip"`
 	RootPass   string            `json:"root_pass,omitempty"`
+	Privatekey string            `json:"private_key,omitempty"`
 	Role       []string          `json:"role" validate:"role|required"`
 	Labels     map[string]string `json:"labels"`
 }

@@ -33,6 +33,8 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/twinj/uuid"
+	"os/exec"
+	"os"
 )
 
 const (
@@ -73,20 +75,49 @@ func (n *NodeService) AddNode(node *client.APIHostNode) *utils.APIHandleError {
 	if node.InternalIP == "" {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("node internal ip can not be empty"))
 	}
+	if node.HostName == ""{
+		return utils.CreateAPIHandleError(400, fmt.Errorf("node hostname can not be empty"))
+	}
+
+	if node.RootPass != "" && node.Privatekey != "" {
+		return utils.CreateAPIHandleError(400, fmt.Errorf("Options private-key and root-pass are conflicting"))
+	}
 	existNode := n.nodecluster.GetAllNode()
 	for _, en := range existNode {
 		if node.InternalIP == en.InternalIP {
 			return utils.CreateAPIHandleError(400, fmt.Errorf("node internal ip %s is exist", node.InternalIP))
 		}
 	}
-	rbnode := node.Clone()
-	rbnode.CreateTime = time.Now()
-	rbnode.NodeStatus.Conditions = make([]client.NodeCondition, 0)
-	if _, err := rbnode.Update(); err != nil {
-		return utils.CreateAPIHandleErrorFromDBError("save node", err)
+	linkModel := "pass"
+	if node.Privatekey != "" {
+		linkModel = "key"
 	}
-	//Determine if the node needs to be installed.
-	n.nodecluster.CheckNodeInstall(rbnode)
+
+	// start add node script
+	logrus.Info("Begin add node, please don't exit")
+	line := fmt.Sprintf("cd /opt/rainbond/install/scripts; ./%s.sh %s %s %s %s %s", node.Role, node.HostName,
+		node.InternalIP, linkModel, node.RootPass, node.Privatekey)
+	cmd := exec.Command("bash", "-c", line)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err := cmd.Run()
+	if err != nil {
+		logrus.Error(err)
+		return utils.CreateAPIHandleError(400, err)
+	}
+
+	logrus.Info("Add node successful, next you can:")
+	logrus.Info("check cluster status: grctl node list")
+
+	//rbnode := node.Clone()
+	//rbnode.CreateTime = time.Now()
+	//rbnode.NodeStatus.Conditions = make([]client.NodeCondition, 0)
+	//if _, err := rbnode.Update(); err != nil {
+	//	return utils.CreateAPIHandleErrorFromDBError("save node", err)
+	//}
+	////Determine if the node needs to be installed.
+	//n.nodecluster.CheckNodeInstall(rbnode)
 	return nil
 }
 
@@ -353,19 +384,19 @@ func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *
 	var memLimit int64
 	var memRequest int64
 	for _, v := range ps {
-		for _,v := range v.Spec.Containers{
+		for _, v := range v.Spec.Containers {
 			lc := v.Resources.Limits.Cpu().MilliValue()
 			cpuLimit += lc
 		}
-		for _,v := range v.Spec.Containers{
+		for _, v := range v.Spec.Containers {
 			lm := v.Resources.Limits.Memory().Value()
 			memLimit += lm
 		}
-		for _,v := range v.Spec.Containers{
+		for _, v := range v.Spec.Containers {
 			rc := v.Resources.Requests.Cpu().MilliValue()
 			cpuRequest += rc
 		}
-		for _,v := range v.Spec.Containers{
+		for _, v := range v.Spec.Containers {
 			rm := v.Resources.Requests.Memory().Value()
 			memRequest += rm
 		}
