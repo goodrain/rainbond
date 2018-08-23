@@ -78,12 +78,24 @@ type HostNode struct {
 	ClusterNode
 }
 
-//node 资源
-type NodeResource struct {
-	CapCPU int     `json:"cap_cpu"`
-	CapMem int     `json:"cap_mem"`
-	ReqCPU float32 `json:"req_cpu"`
-	ReqMem int     `json:"req_mem"`
+//Resource 资源
+type Resource struct {
+	CpuR int `json:"cpu"`
+	MemR int `json:"mem"`
+}
+type NodePodResource struct {
+	AllocatedResources `json:"allocatedresources"`
+	Resource           `json:"allocatable"`
+}
+type AllocatedResources struct {
+	CPURequests     int64
+	CPULimits       int64
+	MemoryRequests  int64
+	MemoryLimits    int64
+	MemoryRequestsR string
+	MemoryLimitsR   string
+	CPURequestsR    string
+	CPULimitsR      string
 }
 
 //NodeStatus node status

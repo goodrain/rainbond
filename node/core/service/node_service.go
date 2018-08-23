@@ -140,10 +140,10 @@ func (n *NodeService) GetServicesHealthy() (map[string][]map[string]string, *uti
 		for _, v := range n.NodeStatus.Conditions {
 			status, ok := StatusMap[string(v.Type)]
 			if !ok {
-				StatusMap[string(v.Type)] = []map[string]string{map[string]string{"type": string(v.Type), "status": string(v.Status), "message":string(v.Message), "hostname": n.HostName}}
+				StatusMap[string(v.Type)] = []map[string]string{map[string]string{"type": string(v.Type), "status": string(v.Status), "message": string(v.Message), "hostname": n.HostName}}
 			} else {
 				list := status
-				list = append(list, map[string]string{"type": string(v.Type), "status": string(v.Status), "message":string(v.Message), "hostname": n.HostName})
+				list = append(list, map[string]string{"type": string(v.Type), "status": string(v.Status), "message": string(v.Message), "hostname": n.HostName})
 				StatusMap[string(v.Type)] = list
 			}
 
@@ -353,15 +353,31 @@ func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *
 	var memLimit int64
 	var memRequest int64
 	for _, v := range ps {
-		lc := v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
-		cpuLimit += lc
-		lm := v.Spec.Containers[0].Resources.Limits.Memory().Value()
-		memLimit += lm
-		//logrus.Infof("pod %s limit cpu is %s",v.Name,v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue())
-		rc := v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
-		cpuRequest += rc
-		rm := v.Spec.Containers[0].Resources.Requests.Memory().Value()
-		memRequest += rm
+		for _,v := range v.Spec.Containers{
+			lc := v.Resources.Limits.Cpu().MilliValue()
+			cpuLimit += lc
+		}
+		for _,v := range v.Spec.Containers{
+			lm := v.Resources.Limits.Memory().Value()
+			memLimit += lm
+		}
+		for _,v := range v.Spec.Containers{
+			rc := v.Resources.Requests.Cpu().MilliValue()
+			cpuRequest += rc
+		}
+		for _,v := range v.Spec.Containers{
+			rm := v.Resources.Requests.Memory().Value()
+			memRequest += rm
+		}
+		//lc := v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
+		//cpuLimit += lc
+		//lm := v.Spec.Containers[0].Resources.Limits.Memory().Value()
+		//memLimit += lm
+		////logrus.Infof("pod %s limit cpu is %s",v.Name,v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue())
+		//rc := v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
+		//cpuRequest += rc
+		//rm := v.Spec.Containers[0].Resources.Requests.Memory().Value()
+		//memRequest += rm
 	}
 	var res model.NodePodResource
 	res.CPULimits = cpuLimit

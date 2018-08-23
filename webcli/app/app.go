@@ -30,12 +30,12 @@ import (
 	"sync"
 	"text/template"
 
+	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/gorilla/websocket"
 	"github.com/kr/pty"
-	"github.com/yudai/umutex"
-	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/yudai/umutex"
 )
 
 var ExecuteCommandTotal float64 = 0
@@ -203,12 +203,12 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cmd := exec.Command("kubectl", "--namespace", init.TenantID, "exec", "-ti", init.PodName, "/bin/bash")
-	ExecuteCommandTotal += 1
+	cmd := exec.Command("kubectl", "--namespace", init.TenantID, "exec", "-ti", init.PodName, "/bin/sh")
+	ExecuteCommandTotal++
 	ptyIo, err := pty.Start(cmd)
 	if err != nil {
 		log.Print("Failed to execute command")
-		ExecuteCommandFailed += 1
+		ExecuteCommandTotal++
 		return
 	}
 	log.Printf("Command is running for client %s with PID %d ", r.RemoteAddr, cmd.Process.Pid)
