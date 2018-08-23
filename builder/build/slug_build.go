@@ -20,14 +20,15 @@ package build
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
 )
 
 func slugBuilder() (Build, error) {
@@ -41,45 +42,15 @@ type slugBuild struct {
 }
 
 func (s *slugBuild) Build(re *Request) (*Response, error) {
+	//handle cache dir
+	if _, ok := re.BuildEnvs["NO_CACHE"]; ok {
+		os.RemoveAll(re.CacheDir)
+	}
 	re.Logger.Info("开始编译代码包", map[string]string{"step": "build-exector"})
 	s.tgzDir = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s", re.TenantID, re.ServiceID)
 	s.buildCacheDir = fmt.Sprintf("/cache/build/%s/cache/%s", re.TenantID, re.ServiceID)
 	packageName := fmt.Sprintf("%s/%s.tgz", s.tgzDir, re.DeployVersion)
-	logfile := fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.log",
-		re.TenantID, re.ServiceID, re.DeployVersion)
-	buildName := func(s, buildVersion string) string {
-		mm := []byte(s)
-		return string(mm[:8]) + "_" + buildVersion
-	}(re.ServiceID, re.DeployVersion)
-	cmd := []string{"build.pl",
-		"-b", re.Branch,
-		"-s", re.SourceDir,
-		"-c", re.CacheDir,
-		"-d", s.tgzDir,
-		"-v", re.DeployVersion,
-		"-l", logfile,
-		"-tid", re.TenantID,
-		"-sid", re.ServiceID,
-		"-r", re.Runtime,
-		"-g", re.Lang.String(),
-		"-st", re.ServerType,
-		"--name", buildName}
-	if len(re.BuildEnvs) != 0 {
-		buildEnvStr := ""
-		mm := []string{}
-		for k, v := range re.BuildEnvs {
-			mm = append(mm, k+"="+v)
-		}
-		if len(mm) > 1 {
-			buildEnvStr = strings.Join(mm, ":::")
-		} else {
-			buildEnvStr = mm[0]
-		}
-		cmd = append(cmd, "-e")
-		cmd = append(cmd, buildEnvStr)
-	}
-	logrus.Debugf("source code build cmd:%s", cmd)
-	if err := s.ShowExec("perl", cmd, re.Logger); err != nil {
+	if err := s.buildInContainer(re); err != nil {
 		re.Logger.Error("编译代码包失败", map[string]string{"step": "build-code", "status": "failure"})
 		logrus.Error("build perl error,", err.Error())
 		return nil, err
@@ -102,7 +73,107 @@ func (s *slugBuild) Build(re *Request) (*Response, error) {
 	}
 	return res, nil
 }
-
+func (s *slugBuild) buildInContainer(re *Request) error {
+	dockerCmd := s.createCmd(re)
+	sourceCmd := s.createSourceCmd(re)
+	source := exec.Command(sourceCmd[0], sourceCmd[1:]...)
+	read, err := source.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	defer read.Close()
+	cmd := exec.Command(dockerCmd[0], dockerCmd[1:]...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
+	cmd.Stdin = read
+	closed := make(chan struct{})
+	defer close(closed)
+	go s.readLog(stdout, re.Logger, closed)
+	go s.readLog(stderr, re.Logger, closed)
+	if err := source.Start(); err != nil {
+		if re.Logger != nil {
+			re.Logger.Error(fmt.Sprintf("builder:Packaged source error"), map[string]string{"step": "build-exector"})
+		}
+		return fmt.Errorf("tar source dir error, %s", err.Error())
+	}
+	err = cmd.Start()
+	if err != nil {
+		if re.Logger != nil {
+			re.Logger.Error(fmt.Sprintf("builder:%v", err), map[string]string{"step": "build-exector"})
+		}
+		logrus.Errorf("start build container error:%s", err.Error())
+		return err
+	}
+	err = source.Wait()
+	if err != nil {
+		if re.Logger != nil {
+			re.Logger.Error(fmt.Sprintf("builder:%v", err), map[string]string{"step": "build-exector"})
+		}
+		logrus.Errorf("wait build container error:%s", err.Error())
+		return err
+	}
+	err = cmd.Wait()
+	if err != nil {
+		if re.Logger != nil {
+			re.Logger.Error(fmt.Sprintf("builder:%v", err), map[string]string{"step": "build-exector"})
+		}
+		logrus.Errorf("wait build container error:%s", err.Error())
+		return err
+	}
+	return nil
+}
+func (s *slugBuild) createSourceCmd(re *Request) []string {
+	var cmd []string
+	if re.ServerType == "svn" {
+		cmd = append(cmd, "tar", "-c", "--exclude=.svn", re.SourceDir)
+	}
+	if re.ServerType == "git" {
+		cmd = append(cmd, "tar", "-c", "--exclude=.git", re.SourceDir)
+	}
+	return cmd
+}
+func (s *slugBuild) createCmd(re *Request) []string {
+	var cmd []string
+	if ok, _ := util.FileExists("/var/run/docker.sock"); ok {
+		cmd = append(cmd, "docker")
+	} else {
+		// not permissions
+		cmd = append(cmd, "sudo", "-P", "docker")
+	}
+	cmd = append(cmd, "run", "-i", "--net=host", "--rm", "--name", re.ServiceID[:8]+"_"+re.DeployVersion)
+	//handle cache mount
+	cmd = append(cmd, "-v", re.CacheDir+":/tmp/cache:rw")
+	cmd = append(cmd, "-v", s.tgzDir+":/tmp/slug:rw")
+	//handle stdin and stdout
+	cmd = append(cmd, "-a", "stdin", "-a", "stdout")
+	//handle env
+	for k, v := range re.BuildEnvs {
+		if k != "" {
+			cmd = append(cmd, "-e", fmt.Sprintf(`"%s=%s"`, k, v))
+			if k == "PROC_ENV" {
+				var mapdata = make(map[string]interface{})
+				if err := json.Unmarshal(util.ToByte(v), &mapdata); err == nil {
+					if runtime, ok := mapdata["runtimes"]; ok {
+						cmd = append(cmd, "-e", fmt.Sprintf(`"%s=%s"`, "RUNTIME", runtime.(string)))
+					}
+				}
+			}
+		}
+	}
+	cmd = append(cmd, "-e", "SLUG_VERSION="+re.DeployVersion)
+	cmd = append(cmd, "-e", "SERVICE_ID="+re.ServiceID)
+	cmd = append(cmd, "-e", "TENANT_ID="+re.TenantID)
+	cmd = append(cmd, "-e", "LANGUAGE="+re.Lang.String())
+	//handle image
+	cmd = append(cmd, "goodrain.me/builder", "local")
+	return cmd
+}
 func (s *slugBuild) ShowExec(command string, params []string, logger event.Logger) error {
 	cmd := exec.Command(command, params...)
 	stdout, err := cmd.StdoutPipe()
@@ -113,8 +184,10 @@ func (s *slugBuild) ShowExec(command string, params []string, logger event.Logge
 	if err != nil {
 		return err
 	}
-	go s.readLog(stdout, logger)
-	go s.readLog(stderr, logger)
+	closed := make(chan struct{})
+	defer close(closed)
+	go s.readLog(stdout, logger, closed)
+	go s.readLog(stderr, logger, closed)
 	err = cmd.Start()
 	if err != nil {
 		if logger != nil {
@@ -134,7 +207,7 @@ func (s *slugBuild) ShowExec(command string, params []string, logger event.Logge
 	return nil
 }
 
-func (s *slugBuild) readLog(stderr io.Reader, logger event.Logger) {
+func (s *slugBuild) readLog(stderr io.Reader, logger event.Logger, closed chan struct{}) {
 	readerr := bufio.NewReader(stderr)
 	for {
 		line, _, err := readerr.ReadLine()
@@ -149,6 +222,11 @@ func (s *slugBuild) readLog(stderr io.Reader, logger event.Logger) {
 			if len(lineStr) > 0 {
 				logger.Error(fmt.Sprintf("builder:%s", lineStr), map[string]string{"step": "build-exector"})
 			}
+		}
+		select {
+		case <-closed:
+			return
+		default:
 		}
 	}
 }
