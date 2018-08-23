@@ -58,6 +58,11 @@ var ErrRainbondFileNotFound = fmt.Errorf("rainbond file not found")
 //Lang 语言类型
 type Lang string
 
+//String return lang string
+func (l Lang) String() string {
+	return string(l)
+}
+
 //NO 空语言类型
 var NO Lang = "no"
 

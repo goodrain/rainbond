@@ -155,11 +155,7 @@ Loop:
 		Depth:             1,
 	}
 	if csi.Branch != "" {
-		if strings.HasPrefix(csi.Branch, "tag:") {
-			opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/tags/%s", csi.Branch[4:]))
-		} else {
-			opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", csi.Branch))
-		}
+		opts.ReferenceName = getBranch(csi.Branch)
 	}
 	var rs *git.Repository
 	if ep.Protocol == "ssh" {
@@ -414,6 +410,20 @@ func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, t
 	return GitClone(csi, sourceDir, logger, timeout)
 }
 
+//GitCheckout checkout the specified branch
+func GitCheckout(sourceDir, branch string) error {
+	// option := git.CheckoutOptions{
+	// 	Branch: getBranch(branch),
+	// }
+	return nil
+}
+func getBranch(branch string) plumbing.ReferenceName {
+	if strings.HasPrefix(branch, "tag:") {
+		return plumbing.ReferenceName(fmt.Sprintf("refs/tags/%s", branch[4:]))
+	}
+	return plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", branch))
+}
+
 //GetLastCommit get last commit info
 //get commit by head reference
 func GetLastCommit(re *git.Repository) (*object.Commit, error) {
@@ -425,29 +435,29 @@ func GetLastCommit(re *git.Repository) (*object.Commit, error) {
 }
 
 //GetPrivateFile 获取私钥文件地址
-func GetPrivateFile(tenantId string) string {
+func GetPrivateFile(tenantID string) string {
 	home, _ := Home()
 	if home == "" {
 		home = "/root"
 	}
-	if tenantId == "builder_rsa" {
+	if tenantID == "builder_rsa" {
 		if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa")); ok {
 			return path.Join(home, "/.ssh/builder_rsa")
 		}
 		return path.Join(home, "/.ssh/id_rsa")
 	}
-	return path.Join(home, "/.ssh/"+tenantId)
+	return path.Join(home, "/.ssh/"+tenantID)
 
 }
 
 //GetPublicKey 获取公钥
-func GetPublicKey(tenantId string) string {
+func GetPublicKey(tenantID string) string {
 	home, _ := Home()
 	if home == "" {
 		home = "/root"
 	}
-	PublicKey := tenantId + ".pub"
-	PrivateKey := tenantId
+	PublicKey := tenantID + ".pub"
+	PrivateKey := tenantID
 
 	if ok, _ := util.FileExists(path.Join(home, "/.ssh/"+PublicKey)); ok {
 		body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/"+PublicKey))
@@ -475,6 +485,7 @@ func GetPublicKey(tenantId string) string {
 
 }
 
+//GenerateKey GenerateKey
 func GenerateKey(bits int) (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	private, err := rsa.GenerateKey(rand.Reader, bits)
 	if err != nil {
@@ -484,6 +495,7 @@ func GenerateKey(bits int) (*rsa.PrivateKey, *rsa.PublicKey, error) {
 
 }
 
+//EncodePrivateKey EncodePrivateKey
 func EncodePrivateKey(private *rsa.PrivateKey) []byte {
 	return pem.EncodeToMemory(&pem.Block{
 		Bytes: x509.MarshalPKCS1PrivateKey(private),
@@ -491,7 +503,7 @@ func EncodePrivateKey(private *rsa.PrivateKey) []byte {
 	})
 }
 
-//EncodeSSHKey
+//EncodeSSHKey EncodeSSHKey
 func EncodeSSHKey(public *rsa.PublicKey) ([]byte, error) {
 	publicKey, err := sshkey.NewPublicKey(public)
 	if err != nil {
@@ -500,7 +512,7 @@ func EncodeSSHKey(public *rsa.PublicKey) ([]byte, error) {
 	return sshkey.MarshalAuthorizedKey(publicKey), nil
 }
 
-//生成公钥和私钥
+//MakeSSHKeyPair make ssh key
 func MakeSSHKeyPair() (string, string, error) {
 
 	pkey, pubkey, err := GenerateKey(2048)
