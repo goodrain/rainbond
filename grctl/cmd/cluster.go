@@ -62,10 +62,10 @@ func getClusterInfo(c *cli.Context) error {
 	serviceTable2 := termtables.CreateTable()
 	serviceTable2.AddHeaders("Service", "HealthyQuantity/Total", "Message")
 	serviceStatusInfo := getServicesHealthy(list)
-	status, message := clusterStatus(serviceStatusInfo["Role"],serviceStatusInfo["Ready"])
+	status, message := clusterStatus(serviceStatusInfo["Role"], serviceStatusInfo["Ready"])
 	serviceTable2.AddRow("\033[0;33;33mClusterStatus\033[0m", status, message)
 	for name, v := range serviceStatusInfo {
-		if name == "Role"{
+		if name == "Role" {
 			continue
 		}
 		status, message := summaryResult(v)
@@ -77,7 +77,7 @@ func getClusterInfo(c *cli.Context) error {
 	serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status")
 	var rest []*client.HostNode
 	for _, v := range list {
-		if v.Role.HasRule("manage") {
+		if v.Role.HasRule("manage") || !v.Role.HasRule("compute") {
 			handleStatus(serviceTable, isNodeReady(v), v)
 		} else {
 			rest = append(rest, v)

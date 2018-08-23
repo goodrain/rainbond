@@ -59,6 +59,7 @@ func Routers(mode string) *chi.Mux {
 			})
 			r.Route("/nodes", func(r chi.Router) {
 				r.Get("/fullres", controller.ClusterInfo)
+				r.Get("/{node_id}/node_resource", controller.GetNodeResource)
 				r.Get("/resources", controller.Resources)
 				r.Get("/capres", controller.CapRes)
 				r.Get("/", controller.GetNodes)

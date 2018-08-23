@@ -273,6 +273,8 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			if v.Unschedulable == true || k8sNode.Spec.Unschedulable == true{
 				v.Unschedulable = true
 			}
+			v.AvailableCPU = k8sNode.Status.Capacity.Cpu().Value()
+			v.AvailableMemory = k8sNode.Status.Capacity.Memory().Value()
 		}
 		if time.Now().Sub(v.UpTime) > time.Minute*2 {
 			status = Unknown
