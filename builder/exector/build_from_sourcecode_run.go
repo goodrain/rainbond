@@ -204,7 +204,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 			i.Logger.Error("基于Dockerfile构建应用发生错误，请分析日志查找原因", map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
-	case string(code.NetCore):
+	default:
 		i.Logger.Info("开始代码编译并构建镜像", map[string]string{"step": "builder-exector"})
 		res, err := i.codeBuild()
 		if err != nil {
@@ -213,13 +213,6 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 			return err
 		}
 		if err := i.UpdateBuildVersionInfo(res); err != nil {
-			return err
-		}
-	default:
-		i.Logger.Info("开始代码编译", map[string]string{"step": "builder-exector"})
-		if err := i.buildCode(); err != nil {
-			logrus.Errorf("build from source code error: %s", err.Error())
-			i.Logger.Error("编译代码包过程遇到异常", map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
 	}
@@ -244,6 +237,10 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		CacheDir:      i.CacheDir,
 		RepositoryURL: i.RepoInfo.RepostoryURL,
 		ServiceAlias:  i.ServiceAlias,
+		ServiceID:     i.ServiceID,
+		TenantID:      i.TenantID,
+		ServerType:    i.CodeSouceInfo.ServerType,
+		Runtime:       i.Runtime,
 		DeployVersion: i.DeployVersion,
 		Commit:        build.Commit{User: i.commit.Author, Message: i.commit.Message, Hash: i.commit.Hash},
 		Lang:          code.Lang(i.Lang),
@@ -376,79 +373,6 @@ func (i *SourceCodeBuildItem) prepare() error {
 	}
 	os.Chown(i.CacheDir, 200, 200)
 	os.Chown(i.TGZDir, 200, 200)
-	return nil
-}
-
-//buildCode build code by buildingpack
-func (i *SourceCodeBuildItem) buildCode() error {
-	i.Logger.Info("开始编译代码包", map[string]string{"step": "build-exector"})
-	packageName := fmt.Sprintf("%s/%s.tgz", i.TGZDir, i.DeployVersion)
-	logfile := fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.log",
-		i.TenantID, i.ServiceID, i.DeployVersion)
-	buildName := func(s, buildVersion string) string {
-		mm := []byte(s)
-		return string(mm[:8]) + "_" + buildVersion
-	}(i.ServiceID, i.DeployVersion)
-	cmd := []string{"build.pl",
-		"-b", i.CodeSouceInfo.Branch,
-		"-s", i.RepoInfo.GetCodeBuildAbsPath(),
-		"-c", i.CacheDir,
-		"-d", i.TGZDir,
-		"-v", i.DeployVersion,
-		"-l", logfile,
-		"-tid", i.TenantID,
-		"-sid", i.ServiceID,
-		"-r", i.Runtime,
-		"-g", i.Lang,
-		"-st", i.CodeSouceInfo.ServerType,
-		"--name", buildName}
-	if len(i.BuildEnvs) != 0 {
-		buildEnvStr := ""
-		mm := []string{}
-		for k, v := range i.BuildEnvs {
-			mm = append(mm, k+"="+v)
-		}
-		if len(mm) > 1 {
-			buildEnvStr = strings.Join(mm, ":::")
-		} else {
-			buildEnvStr = mm[0]
-		}
-		cmd = append(cmd, "-e")
-		cmd = append(cmd, buildEnvStr)
-	}
-	logrus.Debugf("source code build cmd:%s", cmd)
-	if err := ShowExec("perl", cmd, i.Logger); err != nil {
-		i.Logger.Error("编译代码包失败", map[string]string{"step": "build-code", "status": "failure"})
-		logrus.Error("build perl error,", err.Error())
-		return err
-	}
-	i.Logger.Info("编译代码包完成。", map[string]string{"step": "build-code", "status": "success"})
-	fileInfo, err := os.Stat(packageName)
-	if err != nil {
-		i.Logger.Error("构建代码包检测失败", map[string]string{"step": "build-code", "status": "failure"})
-		logrus.Error("build package check error", err.Error())
-		return err
-	}
-	if fileInfo.Size() == 0 {
-		i.Logger.Error(fmt.Sprintf("构建失败！ 构建包大小为0 name：%s", packageName),
-			map[string]string{"step": "build-code", "status": "failure"})
-		return fmt.Errorf("build package size is 0")
-	}
-	i.Logger.Info("代码构建完成", map[string]string{"step": "build-code", "status": "success"})
-	vi := &dbmodel.VersionInfo{
-		DeliveredType: "slug",
-		DeliveredPath: packageName,
-		EventID:       i.EventID,
-		FinalStatus:   "success",
-		CodeVersion:   i.commit.Hash,
-		CommitMsg:     i.commit.Message,
-		Author:        i.commit.Author,
-	}
-	if err := i.UpdateVersionInfo(vi); err != nil {
-		logrus.Errorf("update version info error: %s", err.Error())
-		i.Logger.Error("更新应用版本信息失败", map[string]string{"step": "build-code", "status": "failure"})
-		return err
-	}
 	return nil
 }
 

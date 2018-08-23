@@ -86,8 +86,12 @@ func javaMavenCheck(buildPath string) Specification {
 			Noconform: map[string]string{"识别为JavaMaven语言，工作目录未发现pom.xml文件": "定义pom.xml文件"},
 		}
 	}
+	ok := util.SearchFileBody(path.Join(buildPath, "pom.xml"), "<modules>")
+	if ok {
+		return common()
+	}
 	//判断pom.xml中是否包含 org.springframework.boot定义
-	ok := util.SearchFileBody(path.Join(buildPath, "pom.xml"), "org.springframework.boot")
+	ok = util.SearchFileBody(path.Join(buildPath, "pom.xml"), "org.springframework.boot")
 	if !ok {
 		//默认只能打包成war包
 		war := util.SearchFileBody(path.Join(buildPath, "pom.xml"), "<packaging>war</packaging>")
