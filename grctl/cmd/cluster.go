@@ -74,11 +74,11 @@ func getClusterInfo(c *cli.Context) error {
 	fmt.Println(serviceTable2.Render())
 	//show node detail
 	serviceTable := termtables.CreateTable()
-	serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "UsedCPU", "UseMemory")
+	serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status")
 	var rest []*client.HostNode
 	for _, v := range list {
 		if v.Role.HasRule("manage") {
-			handleStatus(serviceTable, isNodeReady(v), v, 0, 0)
+			handleStatus(serviceTable, isNodeReady(v), v)
 		} else {
 			rest = append(rest, v)
 		}
@@ -87,11 +87,7 @@ func getClusterInfo(c *cli.Context) error {
 		serviceTable.AddSeparator()
 	}
 	for _, v := range rest {
-		nodeResource, err := clients.RegionClient.Nodes().GetNodeResource(v.ID)
-		handleErr(err)
-		usedCpu := nodeResource.ReqCPU / float32(nodeResource.CapCPU) * 100
-		useMemory := nodeResource.ReqMem / nodeResource.CapMem * 100
-		handleStatus(serviceTable, isNodeReady(v), v, usedCpu, useMemory)
+		handleStatus(serviceTable, isNodeReady(v), v)
 	}
 	fmt.Println(serviceTable.Render())
 	return nil

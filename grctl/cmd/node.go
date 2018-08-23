@@ -32,7 +32,6 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/gosuri/uitable"
 	"github.com/urfave/cli"
-	"strconv"
 )
 
 func handleErr(err *util.APIHandleError) {
@@ -100,13 +99,7 @@ func fileExist(path string) bool {
 	}
 	return false
 }
-func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode, usedCpu float32, usedMemory int) {
-	cpu := "N/A"
-	memory := "N/A"
-	if usedCpu != 0 && usedMemory != 0{
-		cpu = fmt.Sprintf("%.2f", usedCpu) + "%"
-		memory = strconv.Itoa(usedMemory) + "%"
-	}
+func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode) {
 	var status string
 	if ready == true {
 		status = "\033[0;32;32m running(healthy) \033[0m"
@@ -127,12 +120,12 @@ func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode
 		status = "\033[0;31;31m offline \033[0m"
 	}
 	if v.Role.HasRule("compute") && !v.Role.HasRule("manage") {
-		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status, cpu, memory)
+		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status)
 	} else if v.Role.HasRule("manage") && !v.Role.HasRule("compute") {
 		//scheduable="n/a"
-		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status, cpu, memory)
+		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status)
 	} else if v.Role.HasRule("compute") && v.Role.HasRule("manage") {
-		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status, cpu, memory)
+		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status)
 	}
 }
 
@@ -242,11 +235,11 @@ func NewCmdNode() cli.Command {
 					list, err := clients.RegionClient.Nodes().List()
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "UsedCPU", "UseMemory")
+					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status")
 					var rest []*client.HostNode
 					for _, v := range list {
 						if v.Role.HasRule("manage") {
-							handleStatus(serviceTable, isNodeReady(v), v, 0, 0)
+							handleStatus(serviceTable, isNodeReady(v), v)
 						} else {
 							rest = append(rest, v)
 						}
@@ -255,11 +248,7 @@ func NewCmdNode() cli.Command {
 						serviceTable.AddSeparator()
 					}
 					for _, v := range rest {
-						nodeResource, err := clients.RegionClient.Nodes().GetNodeResource(v.ID)
-						handleErr(err)
-						usedCpu := nodeResource.ReqCPU / float32(nodeResource.CapCPU) * 100
-						useMemory := nodeResource.ReqMem / nodeResource.CapMem * 100
-						handleStatus(serviceTable, isNodeReady(v), v, usedCpu, useMemory)
+						handleStatus(serviceTable, isNodeReady(v), v)
 					}
 					fmt.Println(serviceTable.Render())
 					return nil
@@ -365,7 +354,7 @@ func NewCmdNode() cli.Command {
 					hostnodes, err := clients.RegionClient.Nodes().GetNodeByRule(rule)
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "Alived", "Schedulable", "Ready")
+					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status")
 					for _, v := range hostnodes {
 						handleStatus(serviceTable, isNodeReady(v), v)
 					}
