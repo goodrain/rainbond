@@ -84,7 +84,6 @@ func (s *slugBuild) Build(re *Request) (*Response, error) {
 		logrus.Error("build perl error,", err.Error())
 		return nil, err
 	}
-	re.Logger.Info("编译代码包完成。", map[string]string{"step": "build-code", "status": "success"})
 	fileInfo, err := os.Stat(packageName)
 	if err != nil {
 		re.Logger.Error("构建代码包检测失败", map[string]string{"step": "build-code", "status": "failure"})

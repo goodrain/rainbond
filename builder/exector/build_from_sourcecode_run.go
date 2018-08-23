@@ -208,7 +208,6 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		i.Logger.Info("开始代码编译并构建镜像", map[string]string{"step": "builder-exector"})
 		res, err := i.codeBuild()
 		if err != nil {
-			logrus.Errorf("build from source code error: %s", err.Error())
 			i.Logger.Error("源码编译异常,查看上诉日志排查", map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
@@ -216,6 +215,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 			return err
 		}
 	}
+	//TODO:move to pipeline controller
 	i.Logger.Info("应用构建完成，开始启动应用", map[string]string{"step": "build-exector"})
 	if err := apiHandler.UpgradeService(i.TenantName, i.ServiceAlias, i.CreateUpgradeTaskBody()); err != nil {
 		i.Logger.Error("启动应用任务发送失败，请手动启动", map[string]string{"step": "builder-exector", "status": "failure"})
@@ -241,6 +241,7 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		TenantID:      i.TenantID,
 		ServerType:    i.CodeSouceInfo.ServerType,
 		Runtime:       i.Runtime,
+		Branch:        i.CodeSouceInfo.Branch,
 		DeployVersion: i.DeployVersion,
 		Commit:        build.Commit{User: i.commit.Author, Message: i.commit.Message, Hash: i.commit.Hash},
 		Lang:          code.Lang(i.Lang),
