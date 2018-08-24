@@ -20,6 +20,7 @@ package build
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -46,95 +47,61 @@ func (s *slugBuild) Build(re *Request) (*Response, error) {
 	if _, ok := re.BuildEnvs["NO_CACHE"]; ok {
 		os.RemoveAll(re.CacheDir)
 	}
-	re.Logger.Info("开始编译代码包", map[string]string{"step": "build-exector"})
+	re.Logger.Info(util.Translation("Start compiling the source code"), map[string]string{"step": "build-exector"})
 	s.tgzDir = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s", re.TenantID, re.ServiceID)
 	s.buildCacheDir = fmt.Sprintf("/cache/build/%s/cache/%s", re.TenantID, re.ServiceID)
 	packageName := fmt.Sprintf("%s/%s.tgz", s.tgzDir, re.DeployVersion)
 	if err := s.buildInContainer(re); err != nil {
-		re.Logger.Error("编译代码包失败", map[string]string{"step": "build-code", "status": "failure"})
+		re.Logger.Error(util.Translation("Compiling the source code failure"), map[string]string{"step": "build-code", "status": "failure"})
 		logrus.Error("build perl error,", err.Error())
 		return nil, err
 	}
 	fileInfo, err := os.Stat(packageName)
 	if err != nil {
-		re.Logger.Error("构建代码包检测失败", map[string]string{"step": "build-code", "status": "failure"})
+		re.Logger.Error(util.Translation("Check that the build result failure"), map[string]string{"step": "build-code", "status": "failure"})
 		logrus.Error("build package check error", err.Error())
 		return nil, fmt.Errorf("build package failure")
 	}
 	if fileInfo.Size() == 0 {
-		re.Logger.Error(fmt.Sprintf("构建失败！ 构建包大小为0 name：%s", packageName),
+		re.Logger.Error(util.Translation("Source build failure and result slug size is 0"),
 			map[string]string{"step": "build-code", "status": "failure"})
 		return nil, fmt.Errorf("build package failure")
 	}
-	re.Logger.Info("代码构建完成", map[string]string{"step": "build-code", "status": "success"})
+	re.Logger.Info(util.Translation("Compiling the source code SUCCESS"), map[string]string{"step": "build-code", "status": "success"})
 	res := &Response{
 		MediumType: "slug",
-		MediumPath: s.tgzDir,
+		MediumPath: packageName,
 	}
 	return res, nil
 }
 func (s *slugBuild) buildInContainer(re *Request) error {
 	dockerCmd := s.createCmd(re)
+	logrus.Debugf("docker cmd:%s", dockerCmd)
 	sourceCmd := s.createSourceCmd(re)
+	logrus.Debugf("source cmd:%s", sourceCmd)
 	source := exec.Command(sourceCmd[0], sourceCmd[1:]...)
-	read, err := source.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	defer read.Close()
+	source.Dir = re.SourceDir
 	cmd := exec.Command(dockerCmd[0], dockerCmd[1:]...)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
-	cmd.Stdin = read
 	closed := make(chan struct{})
 	defer close(closed)
-	go s.readLog(stdout, re.Logger, closed)
-	go s.readLog(stderr, re.Logger, closed)
-	if err := source.Start(); err != nil {
-		if re.Logger != nil {
-			re.Logger.Error(fmt.Sprintf("builder:Packaged source error"), map[string]string{"step": "build-exector"})
-		}
-		return fmt.Errorf("tar source dir error, %s", err.Error())
-	}
-	err = cmd.Start()
+	var b bytes.Buffer
+	go s.readLog(&b, re.Logger, closed)
+	commands, err := NewPipeCommand(source, cmd)
 	if err != nil {
-		if re.Logger != nil {
-			re.Logger.Error(fmt.Sprintf("builder:%v", err), map[string]string{"step": "build-exector"})
-		}
-		logrus.Errorf("start build container error:%s", err.Error())
-		return err
+		re.Logger.Error("build failure:"+err.Error(), map[string]string{"step": "build-code", "status": "failure"})
+		return fmt.Errorf("build in container error:%s", err.Error())
 	}
-	err = source.Wait()
-	if err != nil {
-		if re.Logger != nil {
-			re.Logger.Error(fmt.Sprintf("builder:%v", err), map[string]string{"step": "build-exector"})
-		}
-		logrus.Errorf("wait build container error:%s", err.Error())
-		return err
-	}
-	err = cmd.Wait()
-	if err != nil {
-		if re.Logger != nil {
-			re.Logger.Error(fmt.Sprintf("builder:%v", err), map[string]string{"step": "build-exector"})
-		}
-		logrus.Errorf("wait build container error:%s", err.Error())
-		return err
-	}
-	return nil
+	go s.readLog(commands.GetFinalStdout(), re.Logger, closed)
+	go s.readLog(commands.GetFinalStderr(), re.Logger, closed)
+	return commands.Run()
 }
 func (s *slugBuild) createSourceCmd(re *Request) []string {
 	var cmd []string
 	if re.ServerType == "svn" {
-		cmd = append(cmd, "tar", "-c", "--exclude=.svn", re.SourceDir)
+		cmd = append(cmd, "tar", "-c", "--exclude=.svn", "./")
 	}
 	if re.ServerType == "git" {
-		cmd = append(cmd, "tar", "-c", "--exclude=.git", re.SourceDir)
+		cmd = append(cmd, "tar", "-c", "--exclude=.git", "./")
 	}
 	return cmd
 }
@@ -174,38 +141,6 @@ func (s *slugBuild) createCmd(re *Request) []string {
 	cmd = append(cmd, "goodrain.me/builder", "local")
 	return cmd
 }
-func (s *slugBuild) ShowExec(command string, params []string, logger event.Logger) error {
-	cmd := exec.Command(command, params...)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
-	closed := make(chan struct{})
-	defer close(closed)
-	go s.readLog(stdout, logger, closed)
-	go s.readLog(stderr, logger, closed)
-	err = cmd.Start()
-	if err != nil {
-		if logger != nil {
-			logger.Error(fmt.Sprintf("builder:%v", err), map[string]string{"step": "build-exector"})
-		}
-		logrus.Errorf("start build container error:%s", err.Error())
-		return err
-	}
-	err = cmd.Wait()
-	if err != nil {
-		if logger != nil {
-			logger.Error(fmt.Sprintf("builder:%v", err), map[string]string{"step": "build-exector"})
-		}
-		logrus.Errorf("wait build container error:%s", err.Error())
-		return err
-	}
-	return nil
-}
 
 func (s *slugBuild) readLog(stderr io.Reader, logger event.Logger, closed chan struct{}) {
 	readerr := bufio.NewReader(stderr)
@@ -220,7 +155,7 @@ func (s *slugBuild) readLog(stderr io.Reader, logger event.Logger, closed chan s
 		if logger != nil {
 			lineStr := string(line)
 			if len(lineStr) > 0 {
-				logger.Error(fmt.Sprintf("builder:%s", lineStr), map[string]string{"step": "build-exector"})
+				logger.Error(lineStr, map[string]string{"step": "build-exector"})
 			}
 		}
 		select {
@@ -229,4 +164,75 @@ func (s *slugBuild) readLog(stderr io.Reader, logger event.Logger, closed chan s
 		default:
 		}
 	}
+}
+
+//PipeCommand PipeCommand
+type PipeCommand struct {
+	stack                    []*exec.Cmd
+	finalStdout, finalStderr io.Reader
+	pipestack                []*io.PipeWriter
+}
+
+//NewPipeCommand new pipe commands
+func NewPipeCommand(stack ...*exec.Cmd) (*PipeCommand, error) {
+	var errorbuffer bytes.Buffer
+	pipestack := make([]*io.PipeWriter, len(stack)-1)
+	i := 0
+	for ; i < len(stack)-1; i++ {
+		stdinpipe, stdoutpipe := io.Pipe()
+		stack[i].Stdout = stdoutpipe
+		stack[i].Stderr = &errorbuffer
+		stack[i+1].Stdin = stdinpipe
+		pipestack[i] = stdoutpipe
+	}
+	finalStdout, err := stack[i].StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	finalStderr, err := stack[i].StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+	pipeCommand := &PipeCommand{
+		stack:       stack,
+		pipestack:   pipestack,
+		finalStdout: finalStdout,
+		finalStderr: finalStderr,
+	}
+	return pipeCommand, nil
+}
+
+//Run Run
+func (p *PipeCommand) Run() error {
+	return call(p.stack, p.pipestack)
+}
+
+//GetFinalStdout get final command stdout reader
+func (p *PipeCommand) GetFinalStdout() io.Reader {
+	return p.finalStdout
+}
+
+//GetFinalStderr get final command stderr reader
+func (p *PipeCommand) GetFinalStderr() io.Reader {
+	return p.finalStderr
+}
+
+func call(stack []*exec.Cmd, pipes []*io.PipeWriter) (err error) {
+	if stack[0].Process == nil {
+		if err = stack[0].Start(); err != nil {
+			return err
+		}
+	}
+	if len(stack) > 1 {
+		if err = stack[1].Start(); err != nil {
+			return err
+		}
+		defer func() {
+			if err == nil {
+				pipes[0].Close()
+				err = call(stack[1:], pipes[1:])
+			}
+		}()
+	}
+	return stack[0].Wait()
 }
