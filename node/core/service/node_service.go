@@ -34,7 +34,7 @@ import (
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/twinj/uuid"
 	"os/exec"
-	"bytes"
+	"os"
 )
 
 const (
@@ -98,15 +98,12 @@ func (n *NodeService) AddNode(node *client.APIHostNode) *utils.APIHandleError {
 	line := fmt.Sprintf("cd /opt/rainbond/install/scripts; ./%s.sh %s %s %s %s %s", node.Role, node.HostName,
 		node.InternalIP, linkModel, node.RootPass, node.Privatekey)
 	cmd := exec.Command("bash", "-c", line)
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	err := cmd.Run()
 	if err != nil {
-		errStr := string(stderr.Bytes())
-		logrus.Error(errStr)
-		return utils.CreateAPIHandleError(400, fmt.Errorf(errStr))
+		logrus.Error(err)
+		return utils.CreateAPIHandleError(400, err)
 	}
 	logrus.Info("Add node successful, next you can:")
 	logrus.Info("check cluster status: grctl node list")
