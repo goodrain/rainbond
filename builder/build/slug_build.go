@@ -26,6 +26,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/event"
@@ -122,7 +123,7 @@ func (s *slugBuild) createCmd(re *Request) []string {
 	//handle env
 	for k, v := range re.BuildEnvs {
 		if k != "" {
-			cmd = append(cmd, "-e", fmt.Sprintf(`"%s=%s"`, k, v))
+			cmd = append(cmd, "-e", fmt.Sprintf("%s=%s", k, strconv.Quote(v)))
 			if k == "PROC_ENV" {
 				var mapdata = make(map[string]interface{})
 				if err := json.Unmarshal(util.ToByte(v), &mapdata); err == nil {

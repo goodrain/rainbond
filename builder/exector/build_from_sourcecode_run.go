@@ -205,7 +205,6 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 			return err
 		}
 	default:
-		i.Logger.Info("开始代码编译并构建镜像", map[string]string{"step": "builder-exector"})
 		res, err := i.codeBuild()
 		if err != nil {
 			i.Logger.Error("源码编译异常,查看上诉日志排查", map[string]string{"step": "builder-exector", "status": "failure"})
@@ -228,8 +227,8 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 	codeBuild, err := build.GetBuild(code.Lang(i.Lang))
 	if err != nil {
-		logrus.Errorf("get code build error: %s", err.Error())
-		i.Logger.Error("源码编译异常", map[string]string{"step": "builder-exector", "status": "failure"})
+		logrus.Errorf("get code build error: %s lang %s", err.Error(), i.Lang)
+		i.Logger.Error(util.Translation("No way of compiling to support this source type was found"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return nil, err
 	}
 	buildReq := &build.Request{
