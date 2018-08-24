@@ -36,7 +36,6 @@ import (
 	"os/exec"
 	"os"
 	"bytes"
-	"strings"
 )
 
 const (
@@ -102,23 +101,26 @@ func (n *NodeService) AddNode(node *client.APIHostNode) *utils.APIHandleError {
 	cmd := exec.Command("bash", "-c", line)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
+	fmt.Println(line)
 	fmt.Println("==================================================start")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	fmt.Println("==========1.1")
 	err := cmd.Run()
-	fmt.Println("==========>", string(stdout.Bytes()))
 	if err != nil {
-		logrus.Error(err)
+		fmt.Println("==========1.2")
+		logrus.Error("=====1.3",err)
 		errStr := string(stderr.Bytes())
-		logrus.Error(strings.TrimSpace(errStr))
+		logrus.Error(errStr)
 		fmt.Println("============>", errStr)
-		return utils.CreateAPIHandleError(400, fmt.Errorf(strings.TrimSpace(errStr)))
+		return utils.CreateAPIHandleError(400, fmt.Errorf(errStr))
 	}
-	fmt.Println("==========>end")
+	fmt.Println("==========1.4")
+	fmt.Println("==========>", string(stdout.Bytes()))
 	logrus.Info("Add node successful, next you can:")
 	logrus.Info("check cluster status: grctl node list")
+	fmt.Println("==========>end")
 
 	//rbnode := node.Clone()
 	//rbnode.CreateTime = time.Now()
