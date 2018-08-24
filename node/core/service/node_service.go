@@ -108,12 +108,12 @@ func (n *NodeService) AddNode(node *client.APIHostNode) *utils.APIHandleError {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
-	fmt.Println("==========>",string(stdout.Bytes()))
+	fmt.Println("==========>", string(stdout.Bytes()))
 	if err != nil {
 		logrus.Error(err)
 		errStr := string(stderr.Bytes())
 		logrus.Error(strings.TrimSpace(errStr))
-		fmt.Println("============>",errStr)
+		fmt.Println("============>", errStr)
 		return utils.CreateAPIHandleError(400, fmt.Errorf(strings.TrimSpace(errStr)))
 	}
 	fmt.Println("==========>end")
@@ -139,9 +139,12 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("node is online, can not delete"))
 	}
 	// TODO:compute node check node is offline
+	if node.NodeStatus.Status != "offline" {
+		return utils.CreateAPIHandleError(401, fmt.Errorf("node is not offline"))
+	}
 	if node.Role.HasRule(client.ComputeNode) {
 		if node.NodeStatus != nil {
-			return utils.CreateAPIHandleError(400, fmt.Errorf("node is k8s compute node, can not delete"))
+			return utils.CreateAPIHandleError(402, fmt.Errorf("node is k8s compute node, can not delete"))
 		}
 	}
 	n.nodecluster.RemoveNode(node.ID)
