@@ -35,6 +35,8 @@ import (
 	"github.com/twinj/uuid"
 	"os/exec"
 	"os"
+	"bytes"
+	"strings"
 )
 
 const (
@@ -75,7 +77,7 @@ func (n *NodeService) AddNode(node *client.APIHostNode) *utils.APIHandleError {
 	if node.InternalIP == "" {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("node internal ip can not be empty"))
 	}
-	if node.HostName == ""{
+	if node.HostName == "" {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("node hostname can not be empty"))
 	}
 
@@ -101,10 +103,15 @@ func (n *NodeService) AddNode(node *client.APIHostNode) *utils.APIHandleError {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
 		logrus.Error(err)
-		return utils.CreateAPIHandleError(400, err)
+		errStr := string(stderr.Bytes())
+		logrus.Error(strings.TrimSpace(errStr))
+		return utils.CreateAPIHandleError(400, fmt.Errorf(strings.TrimSpace(errStr)))
 	}
 
 	logrus.Info("Add node successful, next you can:")
