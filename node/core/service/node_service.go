@@ -103,17 +103,20 @@ func (n *NodeService) AddNode(node *client.APIHostNode) *utils.APIHandleError {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
+	fmt.Println("==================================================start")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
+	fmt.Println("==========>",string(stdout.Bytes()))
 	if err != nil {
 		logrus.Error(err)
 		errStr := string(stderr.Bytes())
 		logrus.Error(strings.TrimSpace(errStr))
+		fmt.Println("============>",errStr)
 		return utils.CreateAPIHandleError(400, fmt.Errorf(strings.TrimSpace(errStr)))
 	}
-
+	fmt.Println("==========>end")
 	logrus.Info("Add node successful, next you can:")
 	logrus.Info("check cluster status: grctl node list")
 
