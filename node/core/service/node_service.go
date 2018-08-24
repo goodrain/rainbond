@@ -97,23 +97,18 @@ func (n *NodeService) AddNode(node *client.APIHostNode) *utils.APIHandleError {
 	logrus.Info("Begin add node, please don't exit")
 	line := fmt.Sprintf("cd /opt/rainbond/install/scripts; ./%s.sh %s %s %s %s %s", node.Role, node.HostName,
 		node.InternalIP, linkModel, node.RootPass, node.Privatekey)
-	fmt.Println("======1", line)
 	go func() {
-		fmt.Println("======1.1", line)
 		cmd := exec.Command("bash", "-c", line)
-		fmt.Println("======1.2", line)
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
-		fmt.Println("======1.3", line)
 		err := cmd.Run()
 
 		if err != nil {
-			fmt.Println("======1.4", line)
 			errStr := string(stderr.Bytes())
-			logrus.Error(errStr)
+			logrus.Error("Error executing shell script：",errStr)
+			return
 		}
-		fmt.Println("======1.5", line)
 		logrus.Info("Add node successful")
 		logrus.Info("check cluster status: grctl node list")
 	}()
@@ -131,11 +126,6 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 	if node.NodeStatus.Status != "offline" {
 		return utils.CreateAPIHandleError(401, fmt.Errorf("node is not offline"))
 	}
-	//if node.Role.HasRule(client.ComputeNode) {
-	//	if node.NodeStatus != nil {
-	//		return utils.CreateAPIHandleError(402, fmt.Errorf("node is k8s compute node, can not delete"))
-	//	}
-	//}
 	n.nodecluster.RemoveNode(node.ID)
 	_, err := node.DeleteNode()
 	if err != nil {
