@@ -106,7 +106,7 @@ func (n *NodeService) AddNode(node *client.APIHostNode) *utils.APIHandleError {
 
 		if err != nil {
 			errStr := string(stderr.Bytes())
-			logrus.Error("Error executing shell script：",errStr)
+			logrus.Error("Error executing shell script：", errStr)
 			return
 		}
 		logrus.Info("Add node successful")
@@ -309,6 +309,7 @@ func (n *NodeService) InstallNode(nodeID string) *utils.APIHandleError {
 func (n *NodeService) InitStatus(nodeIP string) (*model.InitStatus, *utils.APIHandleError) {
 	var hostnode client.HostNode
 	gotNode := false
+	var status model.InitStatus
 	i := 0
 	for !gotNode && i < 3 {
 		list, err := n.GetAllNode()
@@ -329,14 +330,15 @@ func (n *NodeService) InitStatus(nodeIP string) (*model.InitStatus, *utils.APIHa
 		i++
 	}
 	if i != 10 {
-		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("can't find node with given ip %s", nodeIP))
+		status.Status = 3
+		status.StatusCN = "节点加入集群中"
+		return &status, nil
 	}
 	nodeUID := hostnode.ID
 	node, err := n.GetNode(nodeUID)
 	if err != nil {
 		return nil, err
 	}
-	var status model.InitStatus
 	for _, val := range node.NodeStatus.Conditions {
 		if node.Alived || (val.Type == client.NodeInit && val.Status == client.ConditionTrue) {
 			status.Status = 0
