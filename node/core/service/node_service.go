@@ -142,11 +142,11 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 	if node.NodeStatus.Status != "offline" {
 		return utils.CreateAPIHandleError(401, fmt.Errorf("node is not offline"))
 	}
-	if node.Role.HasRule(client.ComputeNode) {
-		if node.NodeStatus != nil {
-			return utils.CreateAPIHandleError(402, fmt.Errorf("node is k8s compute node, can not delete"))
-		}
-	}
+	//if node.Role.HasRule(client.ComputeNode) {
+	//	if node.NodeStatus != nil {
+	//		return utils.CreateAPIHandleError(402, fmt.Errorf("node is k8s compute node, can not delete"))
+	//	}
+	//}
 	n.nodecluster.RemoveNode(node.ID)
 	_, err := node.DeleteNode()
 	if err != nil {
