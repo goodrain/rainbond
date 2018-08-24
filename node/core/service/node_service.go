@@ -34,6 +34,7 @@ import (
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/twinj/uuid"
 	"os/exec"
+	"bytes"
 )
 
 const (
@@ -96,21 +97,26 @@ func (n *NodeService) AddNode(node *client.APIHostNode) *utils.APIHandleError {
 	logrus.Info("Begin add node, please don't exit")
 	line := fmt.Sprintf("cd /opt/rainbond/install/scripts; ./%s.sh %s %s %s %s %s", node.Role, node.HostName,
 		node.InternalIP, linkModel, node.RootPass, node.Privatekey)
-	fmt.Println("======1",line)
-	cmd := exec.Command("bash", "-c", line)
-	fmt.Println("======1.1")
-	err := cmd.Run()
-	fmt.Println("======1.2")
+	fmt.Println("======1", line)
+	go func() {
+		fmt.Println("======1.1", line)
+		cmd := exec.Command("bash", "-c", line)
+		fmt.Println("======1.2", line)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		fmt.Println("======1.3", line)
+		err := cmd.Run()
 
-	if err != nil {
-		fmt.Println("======1.3",err)
-		logrus.Error(err)
-		return utils.CreateAPIHandleError(400, err)
-	}
-	fmt.Println("======1.4")
-	logrus.Info("Add node successful, next you can:")
-	logrus.Info("check cluster status: grctl node list")
-
+		if err != nil {
+			fmt.Println("======1.4", line)
+			errStr := string(stderr.Bytes())
+			logrus.Error(errStr)
+		}
+		fmt.Println("======1.5", line)
+		logrus.Info("Add node successful")
+		logrus.Info("check cluster status: grctl node list")
+	}()
 	return nil
 }
 

@@ -59,7 +59,7 @@ func NewNode(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-	httputil.ReturnSuccess(r, w, nil)
+	httputil.ReturnSuccess(r, w, "Installing, please check the installation status")
 }
 
 //NewMultipleNode 多节点添加操作
