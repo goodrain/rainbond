@@ -271,10 +271,8 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 	flag := true
 Loop:
 	if logger != nil {
-		//进度信息
-		logger.Info(fmt.Sprintf("开始从Git源(%s)更新代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})
+		logger.Info(fmt.Sprintf("Start pull source code from %s", csi.RepositoryURL), map[string]string{"step": "clone_code"})
 	}
-	//最少一分钟
 	if timeout < 1 {
 		timeout = 1
 	}
