@@ -1,15 +1,15 @@
 FROM goodrainapps/alpine:3.4
 
-MAINTAINER zengqg@goodrain.com
+LABEL author="zengqg@goodrain.com"
 
 ENV PKG_URL="http://goodrain-pkg.oss-cn-shanghai.aliyuncs.com/pkg" \
   WORK_DIR=/run
 
-RUN apk --no-cache add openssl git perl openssh-client subversion && \
+RUN apk --no-cache add openssl git openssh-client subversion && \
   curl $PKG_URL/labor_docker.tar.gz | tar -xzC /usr/bin/ && \
   mkdir -p /src
 
-COPY rainbond-chaos entrypoint.sh build.pl /run/
+COPY rainbond-chaos entrypoint.sh /run/
 COPY export-app /src/export-app
 COPY build-app /src/build-app
 

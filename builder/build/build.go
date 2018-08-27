@@ -66,11 +66,16 @@ type Response struct {
 
 //Request build input
 type Request struct {
+	TenantID      string
 	SourceDir     string
 	CacheDir      string
 	RepositoryURL string
+	Branch        string
 	ServiceAlias  string
+	ServiceID     string
 	DeployVersion string
+	Runtime       string
+	ServerType    string
 	Commit        Commit
 	Lang          code.Lang
 	BuildEnvs     map[string]string
@@ -87,7 +92,10 @@ type Commit struct {
 
 //GetBuild GetBuild
 func GetBuild(lang code.Lang) (Build, error) {
-	return buildcreaters[lang]()
+	if fun, ok := buildcreaters[lang]; ok {
+		return fun()
+	}
+	return slugBuilder()
 }
 
 //CreateImageName create image name

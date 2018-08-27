@@ -25,6 +25,9 @@ import (
 	"sort"
 	"strconv"
 
+	"os"
+	"os/exec"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/api/model"
@@ -73,20 +76,43 @@ func (n *NodeService) AddNode(node *client.APIHostNode) *utils.APIHandleError {
 	if node.InternalIP == "" {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("node internal ip can not be empty"))
 	}
+	if node.HostName == "" {
+		return utils.CreateAPIHandleError(400, fmt.Errorf("node hostname can not be empty"))
+	}
+
+	if node.RootPass != "" && node.Privatekey != "" {
+		return utils.CreateAPIHandleError(400, fmt.Errorf("Options private-key and root-pass are conflicting"))
+	}
 	existNode := n.nodecluster.GetAllNode()
 	for _, en := range existNode {
 		if node.InternalIP == en.InternalIP {
 			return utils.CreateAPIHandleError(400, fmt.Errorf("node internal ip %s is exist", node.InternalIP))
 		}
 	}
-	rbnode := node.Clone()
-	rbnode.CreateTime = time.Now()
-	rbnode.NodeStatus.Conditions = make([]client.NodeCondition, 0)
-	if _, err := rbnode.Update(); err != nil {
-		return utils.CreateAPIHandleErrorFromDBError("save node", err)
+	linkModel := "pass"
+	if node.Privatekey != "" {
+		linkModel = "key"
 	}
-	//Determine if the node needs to be installed.
-	n.nodecluster.CheckNodeInstall(rbnode)
+
+	// start add node script
+	logrus.Info("Begin add node, please don't exit")
+	line := fmt.Sprintf("cd /opt/rainbond/install/scripts; ./%s.sh %s %s %s %s %s", node.Role, node.HostName,
+		node.InternalIP, linkModel, node.RootPass, node.Privatekey)
+	go func() {
+		fileName := node.HostName + ".log"
+		cmd := exec.Command("bash", "-c", line)
+		f, _ := os.OpenFile("/grdata/downloads/log/"+fileName, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0755)
+		cmd.Stdout = f
+		cmd.Stderr = f
+		err := cmd.Run()
+
+		if err != nil {
+			logrus.Errorf("Error executing shell script,View log file：/grdata/downloads/log/" + fileName)
+			return
+		}
+		logrus.Info("Add node successful")
+		logrus.Info("check cluster status: grctl node list")
+	}()
 	return nil
 }
 
@@ -97,12 +123,11 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 	if node.Alived {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("node is online, can not delete"))
 	}
-	//TODO:compute node check node is offline
-	if node.Role.HasRule(client.ComputeNode) {
-		if node.NodeStatus != nil {
-			return utils.CreateAPIHandleError(400, fmt.Errorf("node is k8s compute node, can not delete"))
-		}
+	// TODO:compute node check node is offline
+	if node.NodeStatus.Status != "offline" {
+		return utils.CreateAPIHandleError(401, fmt.Errorf("node is not offline"))
 	}
+	n.nodecluster.RemoveNode(node.ID)
 	_, err := node.DeleteNode()
 	if err != nil {
 		return utils.CreateAPIHandleErrorFromDBError("delete node", err)
@@ -355,19 +380,19 @@ func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *
 	var memLimit int64
 	var memRequest int64
 	for _, v := range ps {
-		for _,v := range v.Spec.Containers{
+		for _, v := range v.Spec.Containers {
 			lc := v.Resources.Limits.Cpu().MilliValue()
 			cpuLimit += lc
 		}
-		for _,v := range v.Spec.Containers{
+		for _, v := range v.Spec.Containers {
 			lm := v.Resources.Limits.Memory().Value()
 			memLimit += lm
 		}
-		for _,v := range v.Spec.Containers{
+		for _, v := range v.Spec.Containers {
 			rc := v.Resources.Requests.Cpu().MilliValue()
 			cpuRequest += rc
 		}
-		for _,v := range v.Spec.Containers{
+		for _, v := range v.Spec.Containers {
 			rm := v.Resources.Requests.Memory().Value()
 			memRequest += rm
 		}

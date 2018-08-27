@@ -171,6 +171,7 @@ func (e *exectorManager) buildFromImage(in []byte) {
 	i.Logger.Info("从镜像构建应用任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
+		start := time.Now()
 		defer e.wg.Done()
 		logrus.Debugf("start build from image worker")
 		defer event.GetManager().ReleaseLogger(i.Logger)
@@ -180,6 +181,9 @@ func (e *exectorManager) buildFromImage(in []byte) {
 				debug.PrintStack()
 				i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
 			}
+		}()
+		defer func() {
+			logrus.Debugf("complete build from source code, consuming time %s", time.Now().Sub(start).String())
 		}()
 		for n := 0; n < 2; n++ {
 			err := i.Run(time.Minute * 30)
@@ -210,6 +214,7 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 	i.Logger.Info("从源码构建应用任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
+		start := time.Now()
 		defer e.wg.Done()
 		logrus.Debugf("start build from source code")
 		defer event.GetManager().ReleaseLogger(i.Logger)
@@ -219,6 +224,9 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 				debug.PrintStack()
 				i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
 			}
+		}()
+		defer func() {
+			logrus.Debugf("complete build from source code, consuming time %s", time.Now().Sub(start).String())
 		}()
 		for n := 0; n < 2; n++ {
 			err := i.Run(time.Minute * 30)
@@ -262,6 +270,7 @@ func (e *exectorManager) buildFromMarketSlug(in []byte) {
 	}
 	i.Logger.Info("开始构建应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	go func() {
+		start := time.Now()
 		defer e.wg.Done()
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
@@ -270,6 +279,9 @@ func (e *exectorManager) buildFromMarketSlug(in []byte) {
 				debug.PrintStack()
 				i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
 			}
+		}()
+		defer func() {
+			logrus.Debugf("complete build from market slug consuming time %s", time.Now().Sub(start).String())
 		}()
 		for n := 0; n < 2; n++ {
 			err := i.Run()
