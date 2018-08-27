@@ -228,20 +228,11 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 		defer func() {
 			logrus.Debugf("Complete build from source code, consuming time %s", time.Now().Sub(start).String())
 		}()
-		for n := 0; n < 1; n++ {
-			err := i.Run(time.Minute * 30)
-			if err != nil {
-				logrus.Errorf("build from source code error: %s", err.Error())
-				if n < 1 {
-					i.Logger.Error("Build app version from source code failure and retry..", map[string]string{"step": "build-exector", "status": "failure"})
-				} else {
-					ErrorNum++
-					i.Logger.Error("Build app version from source code failure", map[string]string{"step": "callback", "status": "failure"})
-					status = "failure"
-				}
-			} else {
-				break
-			}
+		err := i.Run(time.Minute * 30)
+		if err != nil {
+			logrus.Errorf("build from source code error: %s", err.Error())
+			i.Logger.Error("Build app version from source code failure", map[string]string{"step": "callback", "status": "failure"})
+			status = "failure"
 		}
 		if status == "failure" {
 			vi := &dbmodel.VersionInfo{

@@ -132,14 +132,12 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 	flag := true
 Loop:
 	if logger != nil {
-		//进度信息
-		logger.Info(fmt.Sprintf("开始从Git源(%s)获取代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})
+		logger.Info(fmt.Sprintf("Start clone source code from %s", csi.RepositoryURL), map[string]string{"step": "clone_code"})
 	}
 	ep, err := transport.NewEndpoint(csi.RepositoryURL)
 	if err != nil {
 		return nil, err
 	}
-	//最少一分钟
 	if timeout < 1 {
 		timeout = 1
 	}
@@ -163,7 +161,7 @@ Loop:
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
 		if auerr != nil {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("创建PublicKeys错误"), map[string]string{"step": "clone-code", "status": "failure"})
+				logger.Error(fmt.Sprintf("Create PublicKeys failure"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return nil, auerr
 		}

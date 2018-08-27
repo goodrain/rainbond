@@ -51,7 +51,7 @@ func (s *slugBuild) Build(re *Request) (*Response, error) {
 	packageName := fmt.Sprintf("%s/%s.tgz", s.tgzDir, re.DeployVersion)
 	if err := s.runBuildContainer(re); err != nil {
 		re.Logger.Error(util.Translation("Compiling the source code failure"), map[string]string{"step": "build-code", "status": "failure"})
-		logrus.Error("build perl error,", err.Error())
+		logrus.Error("build slug in container error,", err.Error())
 		return nil, err
 	}
 	fileInfo, err := os.Stat(packageName)
@@ -73,77 +73,10 @@ func (s *slugBuild) Build(re *Request) (*Response, error) {
 	return res, nil
 }
 
-// func (s *slugBuild) buildInContainer(re *Request) error {
-// 	dockerCmd := s.createCmd(re)
-// 	logrus.Debugf("docker cmd:%s", dockerCmd)
-// 	sourceCmd := s.createSourceCmd(re)
-// 	logrus.Debugf("source cmd:%s", sourceCmd)
-// 	source := exec.Command(sourceCmd[0], sourceCmd[1:]...)
-// 	source.Dir = re.SourceDir
-// 	cmd := exec.Command(dockerCmd[0], dockerCmd[1:]...)
-// 	closed := make(chan struct{})
-// 	defer close(closed)
-// 	var b bytes.Buffer
-// 	go s.readLog(&b, re.Logger, closed)
-// 	commands, err := util.NewPipeCommand(source, cmd)
-// 	if err != nil {
-// 		re.Logger.Error("build failure:"+err.Error(), map[string]string{"step": "build-code", "status": "failure"})
-// 		return fmt.Errorf("build in container error:%s", err.Error())
-// 	}
-// 	go s.readLog(commands.GetFinalStdout(), re.Logger, closed)
-// 	go s.readLog(commands.GetFinalStderr(), re.Logger, closed)
-// 	return commands.Run()
-// }
-// func (s *slugBuild) createSourceCmd(re *Request) []string {
-// 	var cmd []string
-// 	if re.ServerType == "svn" {
-// 		cmd = append(cmd, "tar", "-c", "--exclude=.svn", "./")
-// 	}
-// 	if re.ServerType == "git" {
-// 		cmd = append(cmd, "tar", "-c", "--exclude=.git", "./")
-// 	}
-// 	return cmd
-// }
-// func (s *slugBuild) createCmd(re *Request) []string {
-// 	var cmd []string
-// 	if ok, _ := util.FileExists("/var/run/docker.sock"); ok {
-// 		cmd = append(cmd, "docker")
-// 	} else {
-// 		// not permissions
-// 		cmd = append(cmd, "sudo", "-P", "docker")
-// 	}
-// 	cmd = append(cmd, "run", "-i", "--net=host", "--rm", "--name", re.ServiceID[:8]+"_"+re.DeployVersion)
-// 	//handle cache mount
-// 	cmd = append(cmd, "-v", re.CacheDir+":/tmp/cache:rw")
-// 	cmd = append(cmd, "-v", s.tgzDir+":/tmp/slug:rw")
-// 	//handle stdin and stdout
-// 	cmd = append(cmd, "-a", "stdin", "-a", "stdout")
-// 	//handle env
-// 	for k, v := range re.BuildEnvs {
-// 		if k != "" {
-// 			logrus.Debugf("%s=%s", k, strconv.Quote(v))
-// 			cmd = append(cmd, "-e", fmt.Sprintf("%s=%s", k, strconv.Quote(v)))
-// 			if k == "PROC_ENV" {
-// 				var mapdata = make(map[string]interface{})
-// 				if err := json.Unmarshal(util.ToByte(v), &mapdata); err == nil {
-// 					if runtime, ok := mapdata["runtimes"]; ok {
-// 						cmd = append(cmd, "-e", fmt.Sprintf("%s=%s", "RUNTIME", strconv.Quote(runtime.(string))))
-// 					}
-// 				}
-// 			}
-// 		}
-// 	}
-// 	cmd = append(cmd, "-e", "SLUG_VERSION="+re.DeployVersion)
-// 	cmd = append(cmd, "-e", "SERVICE_ID="+re.ServiceID)
-// 	cmd = append(cmd, "-e", "TENANT_ID="+re.TenantID)
-// 	cmd = append(cmd, "-e", "LANGUAGE="+re.Lang.String())
-// 	//handle image
-// 	cmd = append(cmd, "goodrain.me/builder", "local")
-// 	return cmd
-// }
-
 func (s *slugBuild) readLog(stderr io.Reader, logger event.Logger, closed chan struct{}) {
 	readerr := bufio.NewReader(stderr)
+	logger.Info("================Build-Log-Start===============", map[string]string{"step": "build-exector"})
+	defer logger.Info("================Build-Log-End===============", map[string]string{"step": "build-exector"})
 	for {
 		line, _, err := readerr.ReadLine()
 		if err != nil {
@@ -253,7 +186,6 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 	buffer := bytes.NewBuffer(nil)
 	closed := make(chan struct{})
 	defer close(closed)
-	go s.readLog(buffer, re.Logger, closed)
 	errchan := make(chan error, 1)
 	close, err := containerService.AttachContainer(containerID, true, true, true, reader, buffer, buffer, &errchan)
 	if err != nil {
@@ -270,6 +202,7 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 	if err := <-errchan; err != nil {
 		logrus.Debugf("Error hijack: %s", err)
 	}
+	go s.readLog(buffer, re.Logger, closed)
 	status := <-statuschan
 	if status != 0 {
 		return &ErrorBuild{Code: status}
