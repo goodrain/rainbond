@@ -69,6 +69,7 @@ type Request struct {
 	TenantID      string
 	SourceDir     string
 	CacheDir      string
+	TGZDir        string
 	RepositoryURL string
 	Branch        string
 	ServiceAlias  string

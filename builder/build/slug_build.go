@@ -27,7 +27,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strconv"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/sources"
@@ -46,13 +45,9 @@ type slugBuild struct {
 }
 
 func (s *slugBuild) Build(re *Request) (*Response, error) {
-	//handle cache dir
-	if _, ok := re.BuildEnvs["NO_CACHE"]; ok {
-		os.RemoveAll(re.CacheDir)
-	}
 	re.Logger.Info(util.Translation("Start compiling the source code"), map[string]string{"step": "build-exector"})
-	s.tgzDir = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s", re.TenantID, re.ServiceID)
-	s.buildCacheDir = fmt.Sprintf("/cache/build/%s/cache/%s", re.TenantID, re.ServiceID)
+	s.tgzDir = re.TGZDir
+	s.buildCacheDir = re.CacheDir
 	packageName := fmt.Sprintf("%s/%s.tgz", s.tgzDir, re.DeployVersion)
 	if err := s.runBuildContainer(re); err != nil {
 		re.Logger.Error(util.Translation("Compiling the source code failure"), map[string]string{"step": "build-code", "status": "failure"})
@@ -160,7 +155,7 @@ func (s *slugBuild) readLog(stderr io.Reader, logger event.Logger, closed chan s
 		if logger != nil {
 			lineStr := string(line)
 			if len(lineStr) > 0 {
-				logger.Error(lineStr, map[string]string{"step": "build-exector"})
+				logger.Info(lineStr, map[string]string{"step": "build-exector"})
 			}
 		}
 		select {
@@ -185,7 +180,7 @@ func (s *slugBuild) getSourceCodeTarFile(re *Request) (*os.File, error) {
 	if err := source.Run(); err != nil {
 		return nil, err
 	}
-	return os.OpenFile(sourceTarFile, os.O_WRONLY, 0755)
+	return os.OpenFile(sourceTarFile, os.O_RDONLY, 0755)
 }
 
 func (s *slugBuild) runBuildContainer(re *Request) error {
@@ -203,9 +198,9 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 		envs = append(envs, &sources.KeyValue{Key: k, Value: v})
 		if k == "PROC_ENV" {
 			var mapdata = make(map[string]interface{})
-			if err := json.Unmarshal(util.ToByte(v), &mapdata); err == nil {
+			if err := json.Unmarshal([]byte(v), &mapdata); err == nil {
 				if runtime, ok := mapdata["runtimes"]; ok {
-					envs = append(envs, &sources.KeyValue{Key: "RUNTIME", Value: strconv.Quote(runtime.(string))})
+					envs = append(envs, &sources.KeyValue{Key: "RUNTIME", Value: runtime.(string)})
 				}
 			}
 		}
@@ -246,7 +241,7 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 	}
 	defer func() {
 		reader.Close()
-		os.Remove(reader.Name())
+		//os.Remove(reader.Name())
 	}()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -266,7 +261,7 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 		return fmt.Errorf("attach builder container error:%s", err.Error())
 	}
 	defer close()
-	statuschan := containerService.WaitExitOrRemoved(containerID, true)
+	statuschan := containerService.WaitExitOrRemoved(containerID, false)
 	//start the container
 	if err := containerService.StartContainer(containerID); err != nil {
 		containerService.RemoveContainer(containerID)

@@ -234,6 +234,7 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 	buildReq := &build.Request{
 		SourceDir:     i.RepoInfo.GetCodeBuildAbsPath(),
 		CacheDir:      i.CacheDir,
+		TGZDir:        i.TGZDir,
 		RepositoryURL: i.RepoInfo.RepostoryURL,
 		ServiceAlias:  i.ServiceAlias,
 		ServiceID:     i.ServiceID,
