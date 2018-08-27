@@ -34,7 +34,7 @@ import (
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/twinj/uuid"
 	"os/exec"
-	"bytes"
+	"os"
 )
 
 const (
@@ -98,15 +98,15 @@ func (n *NodeService) AddNode(node *client.APIHostNode) *utils.APIHandleError {
 	line := fmt.Sprintf("cd /opt/rainbond/install/scripts; ./%s.sh %s %s %s %s %s", node.Role, node.HostName,
 		node.InternalIP, linkModel, node.RootPass, node.Privatekey)
 	go func() {
+		fileName := node.HostName + ".log"
 		cmd := exec.Command("bash", "-c", line)
-		var stdout, stderr bytes.Buffer
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
+		f, _ := os.OpenFile("/grdata/downloads/log/"+fileName, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0755)
+		cmd.Stdout = f
+		cmd.Stderr = f
 		err := cmd.Run()
 
 		if err != nil {
-			errStr := string(stderr.Bytes())
-			logrus.Error("Error executing shell script：", errStr)
+			logrus.Errorf("Error executing shell script,View log file：/grdata/downloads/log/" + fileName)
 			return
 		}
 		logrus.Info("Add node successful")

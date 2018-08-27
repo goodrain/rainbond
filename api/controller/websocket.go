@@ -164,3 +164,15 @@ func isExist(filename string) bool {
 	_, err := os.Stat(filename)
 	return err == nil || os.IsExist(err)
 }
+
+
+//Get get
+func (d LogFile) GetInstallLog(w http.ResponseWriter, r *http.Request) {
+	filename := chi.URLParam(r, "filename")
+	filePath := d.Root + filename
+	if isExist(filePath) {
+		http.ServeFile(w, r, filePath)
+	} else {
+		w.WriteHeader(404)
+	}
+}
