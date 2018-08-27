@@ -185,7 +185,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	if len(hash) >= 8 {
 		hash = i.commit.Hash[0:7]
 	}
-	info := fmt.Sprintf("版本:%s 上传者:%s Commit:%s ", hash, i.commit.Author, i.commit.Message)
+	info := fmt.Sprintf("CodeVersion:%s Author:%s Commit:%s ", hash, i.commit.Author, i.commit.Message)
 	i.Logger.Info(info, map[string]string{"step": "code-version"})
 	if _, ok := i.BuildEnvs["REPARSE"]; ok {
 		_, lang, err := parser.ReadRbdConfigAndLang(rbi)
@@ -207,7 +207,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	default:
 		res, err := i.codeBuild()
 		if err != nil {
-			i.Logger.Error("源码编译异常,查看上诉日志排查", map[string]string{"step": "builder-exector", "status": "failure"})
+			i.Logger.Error("Build app version from source code failure,"+err.Error(), map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
 		if err := i.UpdateBuildVersionInfo(res); err != nil {
@@ -215,13 +215,13 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		}
 	}
 	//TODO:move to pipeline controller
-	i.Logger.Info("应用构建完成，开始启动应用", map[string]string{"step": "build-exector"})
+	i.Logger.Info("Build app version complete, will upgrade app.", map[string]string{"step": "build-exector"})
 	if err := apiHandler.UpgradeService(i.TenantName, i.ServiceAlias, i.CreateUpgradeTaskBody()); err != nil {
 		i.Logger.Error("启动应用任务发送失败，请手动启动", map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("rolling update service error, %s", err.Error())
 		return err
 	}
-	i.Logger.Info("应用启动任务发送成功", map[string]string{"step": "build-exector"})
+	i.Logger.Info("Start app task send success", map[string]string{"step": "build-exector"})
 	return nil
 }
 func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {

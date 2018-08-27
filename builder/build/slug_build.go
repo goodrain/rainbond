@@ -76,7 +76,6 @@ func (s *slugBuild) Build(re *Request) (*Response, error) {
 func (s *slugBuild) readLog(stderr io.Reader, logger event.Logger, closed chan struct{}) {
 	readerr := bufio.NewReader(stderr)
 	logger.Info("================Build-Log-Start===============", map[string]string{"step": "build-exector"})
-	defer logger.Info("================Build-Log-End===============", map[string]string{"step": "build-exector"})
 	for {
 		line, _, err := readerr.ReadLine()
 		if err != nil {
