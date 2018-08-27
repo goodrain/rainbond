@@ -466,8 +466,11 @@ func NewCmdNode() cli.Command {
 					line := fmt.Sprintf("cd /opt/rainbond/install/scripts; ./%s.sh %s %s %s %s %s", c.String("role"), c.String("hostname"),
 						c.String("internal-ip"), model, c.String("root-pass"), c.String("private-key"))
 					cmd := exec.Command("bash", "-c", line)
-					cmd.Stdout = os.Stdout
-					cmd.Stderr = os.Stderr
+					f, _ := os.OpenFile("/tmp/install.log", os.O_WRONLY|os.O_CREATE|os.O_SYNC,0755)
+					cmd.Stdout = f
+					cmd.Stderr = f
+					//cmd.Stdout = os.Stdout
+					//cmd.Stderr = os.Stderr
 
 					err := cmd.Run()
 					if err != nil {
