@@ -50,7 +50,7 @@ func NewNode(w http.ResponseWriter, r *http.Request) {
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &node, nil); !ok {
 		return
 	}
-	if node.Role == nil || len(node.Role) == 0 {
+	if node.Role == "" {
 		err := utils.CreateAPIHandleError(400, fmt.Errorf("node role must not null"))
 		err.Handle(r, w)
 		return
@@ -59,7 +59,7 @@ func NewNode(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-	httputil.ReturnSuccess(r, w, nil)
+	httputil.ReturnSuccess(r, w, "Installing, please check the installation status")
 }
 
 //NewMultipleNode 多节点添加操作
