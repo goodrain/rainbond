@@ -34,7 +34,7 @@ import (
 	"github.com/docker/engine-api/types/filters"
 	dockerstrslice "github.com/docker/engine-api/types/strslice"
 	"github.com/docker/engine-api/types/versions"
-	"github.com/moby/moby/pkg/stdcopy"
+	"github.com/goodrain/rainbond/util"
 	"golang.org/x/net/context"
 )
 
@@ -336,7 +336,7 @@ func holdHijackedConnection(ctx context.Context, inputStream io.ReadCloser, outp
 	receiveStdout := make(chan error, 1)
 	if outputStream != nil || errorStream != nil {
 		go func() {
-			_, err = stdcopy.StdCopy(outputStream, errorStream, resp.Reader)
+			_, err = util.StdCopy(outputStream, errorStream, resp.Reader)
 			logrus.Debug("[hijack] End of stdout")
 			receiveStdout <- err
 		}()
