@@ -197,10 +197,10 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 		containerService.RemoveContainer(containerID)
 		return fmt.Errorf("start builder container error:%s", err.Error())
 	}
+	go s.readLog(buffer, re.Logger, closed)
 	if err := <-errchan; err != nil {
 		logrus.Debugf("Error hijack: %s", err)
 	}
-	go s.readLog(buffer, re.Logger, closed)
 	status := <-statuschan
 	if status != 0 {
 		return &ErrorBuild{Code: status}
