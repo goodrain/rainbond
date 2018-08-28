@@ -46,12 +46,12 @@ func NewCmdNotificationEvent() cli.Command {
 					val, err := clients.RegionClient.Notification().GetNotification(startTime, EndTme)
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("ServiceName", "TenantName", "Type", "Message", "Reason", "Count", "LastTime", "FirstTime", "IsHandle", "HandleMessage")
+					serviceTable.AddHeaders("ServiceName(应用别名)", "TenantName(租户别名)", "Message(异常信息)", "Reason(异常原因)", "Count(出现次数)", "LastTime(最后一次异常时间)", "FirstTime(第一次异常时间)")
 					for _, v := range val {
 						if v.KindID == "" || v.ServiceName == "" || v.TenantName == ""{
 							continue
 						}
-						serviceTable.AddRow(v.ServiceName, v.TenantName, v.Type, v.Message, v.Reason, v.Count, v.LastTime, v.FirstTime, v.IsHandle, v.HandleMessage)
+						serviceTable.AddRow(v.ServiceName, v.TenantName, v.Message, v.Reason, v.Count, v.LastTime, v.FirstTime)
 					}
 					fmt.Println(serviceTable.Render())
 					return nil
