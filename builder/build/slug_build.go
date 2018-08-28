@@ -27,11 +27,14 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/fsnotify/fsnotify"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
+	"github.com/pquerna/ffjson/ffjson"
 )
 
 func slugBuilder() (Build, error) {
@@ -73,15 +76,74 @@ func (s *slugBuild) Build(re *Request) (*Response, error) {
 	return res, nil
 }
 
-func (s *slugBuild) readLog(stderr io.Reader, logger event.Logger, closed chan struct{}) {
-	readerr := bufio.NewReader(stderr)
+func (s *slugBuild) readLogFile(logfile string, logger event.Logger, closed chan struct{}) {
+	file, _ := os.Open(logfile)
+	watcher, _ := fsnotify.NewWatcher()
+	defer watcher.Close()
+	_ = watcher.Add(logfile)
+	readerr := bufio.NewReader(file)
 	for {
 		line, _, err := readerr.ReadLine()
 		if err != nil {
 			if err != io.EOF {
 				logrus.Errorf("Read build container log error:%s", err.Error())
+				return
 			}
+			wait := func() error {
+				for {
+					select {
+					case <-closed:
+						return nil
+					case event := <-watcher.Events:
+						if event.Op&fsnotify.Write == fsnotify.Write {
+							return nil
+						}
+					case err := <-watcher.Errors:
+						return err
+					}
+				}
+			}
+			if err := wait(); err != nil {
+				logrus.Errorf("Read build container log error:%s", err.Error())
+				return
+			}
+		}
+		if logger != nil {
+			var message = make(map[string]string)
+			if err := ffjson.Unmarshal(line, &message); err == nil {
+				if m, ok := message["log"]; ok {
+					logger.Info(m, map[string]string{"step": "build-exector"})
+				}
+			} else {
+				fmt.Println(err.Error())
+			}
+		}
+		select {
+		case <-closed:
 			return
+		default:
+		}
+	}
+}
+
+func (s *slugBuild) readLog(stderr io.Reader, logger event.Logger, closed chan struct{}) {
+	readerr := bufio.NewReader(stderr)
+	sleep := time.NewTimer(time.Second * 3)
+	defer sleep.Stop()
+	for {
+		line, _, err := readerr.ReadLine()
+		if err != nil {
+			if err != io.EOF {
+				logrus.Errorf("Read build container log error:%s", err.Error())
+				return
+			}
+			sleep.Reset(time.Second * 3)
+			select {
+			case <-closed:
+				return
+			case <-sleep.C:
+				continue
+			}
 		}
 		if logger != nil {
 			lineStr := string(line)
@@ -172,7 +234,7 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 	}
 	defer func() {
 		reader.Close()
-		//os.Remove(reader.Name())
+		os.Remove(reader.Name())
 	}()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -185,6 +247,12 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 	closed := make(chan struct{})
 	defer close(closed)
 	errchan := make(chan error, 1)
+	// containerLog, err := containerService.GetContainerLogPath(containerID)
+	// if err == nil && containerLog != "" {
+	// 	go s.readLogFile(containerLog, re.Logger, closed)
+	// } else {
+	go s.readLog(buffer, re.Logger, closed)
+	// }
 	close, err := containerService.AttachContainer(containerID, true, true, true, reader, buffer, buffer, &errchan)
 	if err != nil {
 		containerService.RemoveContainer(containerID)
@@ -197,7 +265,6 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 		containerService.RemoveContainer(containerID)
 		return fmt.Errorf("start builder container error:%s", err.Error())
 	}
-	go s.readLog(buffer, re.Logger, closed)
 	if err := <-errchan; err != nil {
 		logrus.Debugf("Error hijack: %s", err)
 	}
