@@ -350,8 +350,6 @@ func getAppInfoV2(c *cli.Context) error {
 
 	var rcMap = make(map[string]string)
 	for _, v := range ps {
-		fmt.Println(v.ReplicationType,"type")
-		fmt.Println(v.ReplicationID,"ID")
 		rcMap["Type"] = v.ReplicationType
 		rcMap["ID"] = v.ReplicationID
 		break
