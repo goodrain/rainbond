@@ -346,10 +346,13 @@ func getAppInfoV2(c *cli.Context) error {
 
 	option := metav1.ListOptions{LabelSelector: "name=" + serviceAlias}
 	ps, err := clients.RegionClient.Tenants(tenantName).Services(serviceAlias).Pods()
+	fmt.Println(ps,"ps")
 	handleErr(err)
 
 	var rcMap = make(map[string]string)
 	for _, v := range ps {
+		fmt.Println(v.ReplicationType,"type")
+		fmt.Println(v.ReplicationID,"ID")
 		rcMap["Type"] = v.ReplicationType
 		rcMap["ID"] = v.ReplicationID
 		break
