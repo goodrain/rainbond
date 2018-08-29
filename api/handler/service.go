@@ -1769,8 +1769,8 @@ func (s *ServiceAction) CreateTenandIDAndName(eid string) (string, string, error
 type K8sPodInfo struct {
 	ServiceID string `json:"service_id"`
 	//部署资源的ID ,例如rc ,deploment, statefulset
-	ReplicationID   string                       `json:"replication_id"`
-	ReplicationType string                       `json:"replication_type"`
+	ReplicationID   string                       `json:"rc_id"`
+	ReplicationType string                       `json:"rc_type"`
 	PodName         string                       `json:"pod_name"`
 	PodIP           string                       `json:"pod_ip"`
 	Container       map[string]map[string]string `json:"container"`
