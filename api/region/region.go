@@ -77,6 +77,16 @@ type serviceInfo struct {
 	TenantId      string `json:"tenantId"`
 }
 
+type podInfo struct {
+	ServiceID string `json:"service_id"`
+	//部署资源的ID ,例如rc ,deploment, statefulset
+	ReplicationID   string                       `json:"rc_id"`
+	ReplicationType string                       `json:"rc_type"`
+	PodName         string                       `json:"pod_name"`
+	PodIP           string                       `json:"pod_ip"`
+	Container       map[string]map[string]string `json:"container"`
+}
+
 //NewRegion NewRegion
 func NewRegion(c APIConf) (Region, error) {
 	if region == nil {
@@ -196,15 +206,15 @@ func (t *tenant) Services(serviceAlias string) ServiceInterface {
 //ServiceInterface ServiceInterface
 type ServiceInterface interface {
 	Get() (*serviceInfo, *util.APIHandleError)
-	Pods() ([]*dbmodel.K8sPod, *util.APIHandleError)
+	Pods() ([]*podInfo, *util.APIHandleError)
 	List() ([]*dbmodel.TenantServices, *util.APIHandleError)
 	Stop(eventID string) (string, *util.APIHandleError)
 	Start(eventID string) (string, *util.APIHandleError)
 	EventLog(eventID, level string) ([]*model.MessageData, *util.APIHandleError)
 }
 
-func (s *services) Pods() ([]*dbmodel.K8sPod, *util.APIHandleError) {
-	var gc []*dbmodel.K8sPod
+func (s *services) Pods() ([]*podInfo, *util.APIHandleError) {
+	var gc []*podInfo
 	var decode utilhttp.ResponseBody
 	decode.List = &gc
 	code, err := s.DoRequest(s.prefix+"/pods", "GET", nil, &decode)
