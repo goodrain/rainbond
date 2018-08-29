@@ -336,8 +336,8 @@ func getAppInfoV2(c *cli.Context) error {
 
 	table := uitable.New()
 	table.Wrap = true // wrap columns
-	tenantID := service.TenantID
-	serviceID := service.ServiceID
+	tenantID := service.TenantId
+	serviceID := service.ServiceId
 	//volumes:=service[""]
 
 	table.AddRow("Namespace:", tenantID)
