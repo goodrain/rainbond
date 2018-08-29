@@ -119,6 +119,7 @@ func (n *NodeService) AddNode(node *client.APIHostNode) *utils.APIHandleError {
 //DeleteNode delete node
 //only node status is offline and node can be deleted
 func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
+	fmt.Println("=======delete node")
 	node := n.nodecluster.GetNode(nodeID)
 	if node.Alived {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("node is online, can not delete"))

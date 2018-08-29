@@ -607,9 +607,11 @@ func (n *Cluster) CacheNode(node *client.HostNode) {
 
 //RemoveNode 从缓存移除节点
 func (n *Cluster) RemoveNode(nodeID string) {
+	fmt.Println("====>delete node2")
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	if _, ok := n.nodes[nodeID]; ok {
+		fmt.Println("====>delete node3")
 		delete(n.nodes, nodeID)
 	}
 }
