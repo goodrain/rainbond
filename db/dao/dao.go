@@ -75,6 +75,7 @@ type EventLogDao interface {
 type TenantServiceDao interface {
 	Dao
 	GetServiceByID(serviceID string) (*model.TenantServices, error)
+	GetServiceByServiceAlias(serviceAlias string) (*model.TenantServices, error)
 	GetServiceByIDs(serviceIDs []string) ([]*model.TenantServices, error)
 	GetServiceAliasByIDs(uids []string) ([]*model.TenantServices, error)
 	GetServiceByTenantIDAndServiceAlias(tenantID, serviceName string) (*model.TenantServices, error)

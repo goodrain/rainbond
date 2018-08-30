@@ -17,7 +17,7 @@ func NewCmdNotificationEvent() cli.Command {
 		Subcommands: []cli.Command{
 			{
 				Name:  "get",
-				Usage: "get notification",
+				Usage: "不指定起止时间默认72小时内",
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:  "StartTime,st",
@@ -54,6 +54,35 @@ func NewCmdNotificationEvent() cli.Command {
 						serviceTable.AddRow(v.ServiceName, v.TenantName, v.Message, v.Reason, v.Count, v.LastTime, v.FirstTime)
 					}
 					fmt.Println(serviceTable.Render())
+					return nil
+				},
+			},
+			{
+				Name:  "handle",
+				Usage: "handle --help",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "ServiceName,n",
+						Value: "",
+						Usage: "ServiceName",
+					},
+					cli.StringFlag{
+						Name:  "HandleMessage,m",
+						Value: "",
+						Usage: "HandleMessage",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					Common(c)
+					if !c.IsSet("ServiceName") {
+						println("ServiceName must not null")
+						return nil
+					}
+					serviceName := c.String("ServiceName")
+					handleMessage := c.String("HandleMessage")
+					_,err := clients.RegionClient.Notification().HandleNotification(serviceName, handleMessage)
+					handleErr(err)
+					fmt.Println("Handling successfully")
 					return nil
 				},
 			},

@@ -24,11 +24,14 @@ import (
 	utilhttp "github.com/goodrain/rainbond/util/http"
 	"fmt"
 	"github.com/Sirupsen/logrus"
+	"bytes"
+	"encoding/json"
 )
 
 //ClusterInterface cluster api
 type NotificationInterface interface {
 	GetNotification(start string, end string) ([]*model.NotificationEvent, *util.APIHandleError)
+	HandleNotification(serviceName string, message string) ([]*model.NotificationEvent, *util.APIHandleError)
 }
 
 func (r *regionImpl) Notification() NotificationInterface {
@@ -45,6 +48,24 @@ func (n *notification) GetNotification(start string, end string) ([]*model.Notif
 	var decode utilhttp.ResponseBody
 	decode.List = &ne
 	code, err := n.DoRequest(n.prefix+"?start="+start+"&"+"end="+end, "GET", nil, &decode)
+	if err != nil {
+		return nil, handleErrAndCode(err, code)
+	}
+	if code != 200 {
+		logrus.Error("Return failure message ", decode.Msg)
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf(decode.Msg))
+	}
+	return ne, nil
+}
+
+
+func (n *notification) HandleNotification(serviceName string, message string) ([]*model.NotificationEvent, *util.APIHandleError) {
+	var ne []*model.NotificationEvent
+	var decode utilhttp.ResponseBody
+	decode.List = &ne
+	handleMessage, err := json.Marshal(map[string]string{"handle_message":message})
+	body := bytes.NewBuffer(handleMessage)
+	code, err := n.DoRequest(n.prefix+"/"+serviceName, "PUT", body, &decode)
 	if err != nil {
 		return nil, handleErrAndCode(err, code)
 	}

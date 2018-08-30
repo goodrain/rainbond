@@ -188,6 +188,15 @@ func (t *TenantServicesDaoImpl) GetServiceByID(serviceID string) (*model.TenantS
 	return &service, nil
 }
 
+//GetServiceByID 获取服务通过服务别名
+func (t *TenantServicesDaoImpl) GetServiceByServiceAlias(serviceAlias string) (*model.TenantServices, error) {
+	var service model.TenantServices
+	if err := t.DB.Where("service_alias=?", serviceAlias).Find(&service).Error; err != nil {
+		return nil, err
+	}
+	return &service, nil
+}
+
 //GetServiceMemoryByTenantIDs get service memory by tenant ids
 func (t *TenantServicesDaoImpl) GetServiceMemoryByTenantIDs(tenantIDs []string, runningServiceIDs []string) (map[string]map[string]interface{}, error) {
 	rows, err := t.DB.Raw("select tenant_id, sum(container_cpu) as cpu,sum(container_memory * replicas) as memory from tenant_services where tenant_id in (?) and service_id in (?) group by tenant_id", tenantIDs, runningServiceIDs).Rows()
