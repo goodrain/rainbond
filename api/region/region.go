@@ -69,6 +69,13 @@ type APIConf struct {
 	CertKey   string   `yaml:"tls-private-key-file"`
 }
 
+type serviceInfo struct {
+	ServicesAlias string `json:"serviceAlias"`
+	TenantName    string `json:"tenantName"`
+	ServiceId     string `json:"serviceId"`
+	TenantId      string `json:"tenantId"`
+}
+
 //NewRegion NewRegion
 func NewRegion(c APIConf) (Region, error) {
 	if region == nil {
@@ -187,7 +194,7 @@ func (t *tenant) Services(serviceAlias string) ServiceInterface {
 
 //ServiceInterface ServiceInterface
 type ServiceInterface interface {
-	Get() (*dbmodel.TenantServices, *util.APIHandleError)
+	Get() (*serviceInfo, *util.APIHandleError)
 	Pods() ([]*dbmodel.K8sPod, *util.APIHandleError)
 	List() ([]*dbmodel.TenantServices, *util.APIHandleError)
 	Stop(eventID string) (string, *util.APIHandleError)
@@ -208,8 +215,8 @@ func (s *services) Pods() ([]*dbmodel.K8sPod, *util.APIHandleError) {
 	}
 	return gc, nil
 }
-func (s *services) Get() (*dbmodel.TenantServices, *util.APIHandleError) {
-	var service dbmodel.TenantServices
+func (s *services) Get() (*serviceInfo, *util.APIHandleError) {
+	var service serviceInfo
 	var decode utilhttp.ResponseBody
 	decode.Bean = &service
 	code, err := s.DoRequest(s.prefix, "GET", nil, &decode)
