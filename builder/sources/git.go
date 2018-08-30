@@ -37,6 +37,7 @@ import (
 
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/x509"
 	"encoding/pem"
 
@@ -74,36 +75,23 @@ func (c *CodeSourceInfo) InitServerType() {
 	}
 }
 
-//GetCodeCacheDir 获取代码缓存目录
-func (c CodeSourceInfo) GetCodeCacheDir() string {
-	cacheDir := os.Getenv("CACHE_DIR")
-	if cacheDir == "" {
-		cacheDir = "/cache"
-	}
-	//h := sha1.New()
-	//h.Write([]byte(c.RepositoryURL))
-	//bs := h.Sum(nil)
-	//bsStr := fmt.Sprintf("%x", bs)
-	logrus.Debugf("git path is %s", path.Join(cacheDir, "build", c.TenantID, c.ServiceID))
-	return path.Join(cacheDir, "build", c.TenantID, c.ServiceID)
-}
-
-//GetCodeSourceDir 获取代码下载目录
+//GetCodeSourceDir get source storage directory
 func (c CodeSourceInfo) GetCodeSourceDir() string {
 	return GetCodeSourceDir(c.RepositoryURL, c.Branch, c.TenantID, c.ServiceID)
 }
 
-//GetCodeSourceDir 获取源码下载目录
+//GetCodeSourceDir get source storage directory
+// it changes as gitrepostory address, branch, and service id change
 func GetCodeSourceDir(RepositoryURL, branch, tenantID string, ServiceID string) string {
 	sourceDir := os.Getenv("SOURCE_DIR")
 	if sourceDir == "" {
 		sourceDir = "/grdata/source"
 	}
-	//h := sha1.New()
-	//h.Write([]byte(RepositoryURL + branch))
-	//bs := h.Sum(nil)
-	//bsStr := fmt.Sprintf("%x", bs)
-	return path.Join(sourceDir, "build", tenantID, ServiceID)
+	h := sha1.New()
+	h.Write([]byte(RepositoryURL + branch + ServiceID))
+	bs := h.Sum(nil)
+	bsStr := fmt.Sprintf("%x", bs)
+	return path.Join(sourceDir, "build", tenantID, bsStr)
 }
 
 //CheckFileExist CheckFileExist
