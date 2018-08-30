@@ -17,7 +17,7 @@ func NewCmdNotificationEvent() cli.Command {
 		Subcommands: []cli.Command{
 			{
 				Name:  "get",
-				Usage: "不指定起止时间默认72小时内",
+				Usage: "获取未处理事件，不指定起止时间默认72小时内",
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:  "StartTime,st",

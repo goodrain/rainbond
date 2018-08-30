@@ -183,7 +183,7 @@ func (c *NotificationEventDaoImpl) GetNotificationEventByKind(kind, kindID strin
 func (c *NotificationEventDaoImpl) GetNotificationEventByTime(start, end time.Time) ([]*model.NotificationEvent, error) {
 	var result []*model.NotificationEvent
 	if !start.IsZero() && !end.IsZero() {
-		if err := c.DB.Where("last_time>? and last_time<?", start, end).Find(&result).Order("last_time DESC").Error; err != nil {
+		if err := c.DB.Where("last_time>? and last_time<? and is_handle=?", start, end,false).Find(&result).Order("last_time DESC").Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				return result, nil
 			}
@@ -191,7 +191,7 @@ func (c *NotificationEventDaoImpl) GetNotificationEventByTime(start, end time.Ti
 		}
 		return result, nil
 	}
-	if err := c.DB.Where("last_time<?", time.Now()).Find(&result).Order("last_time DESC").Error; err != nil {
+	if err := c.DB.Where("last_time<? and is_handle=?", time.Now(),false).Find(&result).Order("last_time DESC").Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, nil
 		}
