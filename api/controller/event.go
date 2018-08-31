@@ -145,7 +145,7 @@ type Handle struct {
 	Body struct {
 		//in: body
 		//handle message
-		HandleMessage string `json:"handle_message" validate:"handle_message|required"`
+		HandleMessage string `json:"handle_message" validate:"handle_message"`
 	}
 }
 
