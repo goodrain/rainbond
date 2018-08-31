@@ -465,3 +465,23 @@ type RulesConfig struct {
 	Labels      map[string]string `yaml:"labels" json:"labels"`
 	Annotations map[string]string `yaml:"annotations" json:"annotations"`
 }
+
+//NotificationEvent NotificationEvent
+type NotificationEvent struct {
+	//Kind could be service, tenant, cluster, node
+	Kind string `json:"Kind"`
+	//KindID could be service_id,tenant_id,cluster_id,node_id
+	KindID string `json:"KindID"`
+	Hash   string `json:"Hash"`
+	//Type could be Normal UnNormal Notification
+	Type          string `json:"Type"`
+	Message       string `json:"Message"`
+	Reason        string `json:"Reason"`
+	Count         int    `json:"Count"`
+	LastTime      string `json:"LastTime"`
+	FirstTime     string `json:"FirstTime"`
+	IsHandle      bool   `json:"IsHandle"`
+	HandleMessage string `json:"HandleMessage"`
+	ServiceName   string `json:"ServiceName"`
+	TenantName    string `json:"TenantName"`
+}
