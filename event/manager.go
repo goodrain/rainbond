@@ -314,7 +314,6 @@ func (m *handle) HandleLog() error {
 				logClient.CloseSend()
 				return nil
 			case me := <-m.cacheChan:
-				fmt.Println(string(me))
 				err := logClient.Send(&eventpb.LogMessage{Log: me})
 				if err != nil {
 					logrus.Error("send event log error.", err.Error())

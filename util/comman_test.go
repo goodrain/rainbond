@@ -95,3 +95,7 @@ func TestDiskUsage(t *testing.T) {
 	total, free := DiskUsage("/Users/qingguo")
 	t.Logf("%d GB,%d MB", total/1024/1024/1024, free/1024/1024)
 }
+
+func TestGetCurrentDir(t *testing.T) {
+	t.Log(GetCurrentDir())
+}
