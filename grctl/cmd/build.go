@@ -87,6 +87,7 @@ func build(c *cli.Context) error {
 			fatal("automatic identify failure."+err.Error(), 1)
 		}
 	}
+	prepare(dir)
 	kvenv = append(kvenv, &sources.KeyValue{Key: "LANGUAGE", Value: lang})
 	containerConfig := &sources.ContainerConfig{
 		Metadata: &sources.ContainerMetadata{
@@ -142,7 +143,7 @@ func build(c *cli.Context) error {
 		return fmt.Errorf("attach builder container error:%s", err.Error())
 	}
 	defer close()
-	statuschan := containerService.WaitExitOrRemoved(containerID, false)
+	statuschan := containerService.WaitExitOrRemoved(containerID, true)
 	//start the container
 	if err := containerService.StartContainer(containerID); err != nil {
 		containerService.RemoveContainer(containerID)
@@ -189,4 +190,11 @@ func createDockerCli() *client.Client {
 		fatal("docker client create failure:"+err.Error(), 1)
 	}
 	return cli
+}
+
+func prepare(dir string) {
+	util.CheckAndCreateDir(path.Join(dir, ".cache"))
+	util.CheckAndCreateDir(path.Join(dir, ".release"))
+	os.Chown(path.Join(dir, ".cache"), 200, 200)
+	os.Chown(path.Join(dir, ".release"), 200, 200)
 }
