@@ -56,6 +56,7 @@ type Region interface {
 	Configs() ConfigsInterface
 	Version() string
 	Monitor() MonitorInterface
+	Notification() NotificationInterface
 	DoRequest(path, method string, body io.Reader, decode *utilhttp.ResponseBody) (int, error)
 }
 
