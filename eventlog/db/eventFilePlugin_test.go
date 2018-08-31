@@ -25,7 +25,7 @@ import (
 
 func TestEventFileSaveMessage(t *testing.T) {
 	eventFilePlugin := EventFilePlugin{
-		homePath: "/tmp",
+		HomePath: "./test",
 	}
 	if err := eventFilePlugin.SaveMessage([]*EventLogMessage{
 		&EventLogMessage{
@@ -61,11 +61,45 @@ func TestEventFileSaveMessage(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	if err := eventFilePlugin.SaveMessage([]*EventLogMessage{
+		&EventLogMessage{
+			EventID: "eventidsadasd",
+			Level:   "info",
+			Message: "1ajdsnadskfasndjn afnasdfnln asdfjnajksndfjk2",
+			Time:    time.Now().Format(time.RFC3339),
+		},
+		&EventLogMessage{
+			EventID: "eventidsadasd",
+			Level:   "debug",
+			Message: "2ajdsnadskfasndjn afnasdfnln asdfjnajksndfjk2",
+			Time:    time.Now().Format(time.RFC3339),
+		},
+		&EventLogMessage{
+			EventID: "eventidsadasd",
+			Level:   "error",
+			Message: "3ajdsnadskfasndjn afnasdfnln asdfjnajksndfjk2",
+			Time:    time.Now().Format(time.RFC3339),
+		},
+		&EventLogMessage{
+			EventID: "eventidsadasd",
+			Level:   "debug",
+			Message: "4ajdsnadskfasndjn afnasdfnln asdfjnajksndfjk2",
+			Time:    time.Now().Add(time.Hour).Format(time.RFC3339),
+		},
+		&EventLogMessage{
+			EventID: "eventidsadasd",
+			Level:   "info",
+			Message: "5ajdsnadskfasndjn afnasdfnln asdfjnajksndfjk2",
+			Time:    time.Now().Format(time.RFC3339),
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGetMessage(t *testing.T) {
-	eventFilePlugin := eventFilePlugin{
-		homePath: "/tmp",
+	eventFilePlugin := EventFilePlugin{
+		HomePath: "/tmp",
 	}
 	list, err := eventFilePlugin.GetMessages("eventidsadasd", "debug")
 	if err != nil {

@@ -70,6 +70,7 @@ const (
 	REQUESTTIMEOUT = 1000 * time.Millisecond
 	//MAXRETRIES 重试
 	MAXRETRIES = 3 //  Before we abandon
+	buffersize = 1000
 )
 
 //NewManager 创建manager
@@ -112,7 +113,7 @@ func (m *manager) Start() error {
 	defer m.lock.Unlock()
 	for i := 0; i < len(m.eventServer); i++ {
 		h := handle{
-			cacheChan: make(chan []byte, 100),
+			cacheChan: make(chan []byte, buffersize),
 			stop:      make(chan struct{}),
 			server:    m.eventServer[i],
 			manager:   m,
@@ -143,7 +144,7 @@ func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
 		new[end.URL] = end.URL
 		if _, ok := m.handles[end.URL]; !ok {
 			h := handle{
-				cacheChan: make(chan []byte, 100),
+				cacheChan: make(chan []byte, buffersize),
 				stop:      make(chan struct{}),
 				server:    end.URL,
 				manager:   m,
@@ -263,7 +264,7 @@ func (m *manager) getLBChan() chan []byte {
 			return h.cacheChan
 		}
 		h := handle{
-			cacheChan: make(chan []byte, 100),
+			cacheChan: make(chan []byte, buffersize),
 			stop:      make(chan struct{}),
 			server:    server,
 			manager:   m,
@@ -273,11 +274,10 @@ func (m *manager) getLBChan() chan []byte {
 		go h.HandleLog()
 		return h.cacheChan
 	}
-	//实在选不出节点了，返回列表第一个
+	//not select, return first handle chan
 	for _, v := range m.handles {
 		return v.cacheChan
 	}
-	//列表不存在，返回nil
 	return nil
 }
 func (m *manager) RemoveHandle(server string) {
@@ -314,6 +314,7 @@ func (m *handle) HandleLog() error {
 				logClient.CloseSend()
 				return nil
 			case me := <-m.cacheChan:
+				fmt.Println(string(me))
 				err := logClient.Send(&eventpb.LogMessage{Log: me})
 				if err != nil {
 					logrus.Error("send event log error.", err.Error())

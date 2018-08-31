@@ -170,6 +170,7 @@ func (h *handleMessageStore) insertMessage(message *db.EventLogMessage) bool {
 	h.lock.RLock()
 	defer h.lock.RUnlock()
 	if barrel, ok := h.barrels[message.EventID]; ok {
+		fmt.Println(message.Message)
 		err := barrel.insert(message)
 		if err != nil {
 			h.log.Warn("insert message to barrel error.", err.Error())

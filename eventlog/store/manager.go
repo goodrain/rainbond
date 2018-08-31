@@ -297,8 +297,10 @@ func (s *storeManager) cleanLog() {
 			logrus.Error("list log dir error, ", err.Error())
 		} else {
 			for _, fi := range files {
-				if err := s.deleteFile(fi); err != nil {
-					logrus.Errorf("delete log file %s error. %s", fi, err.Error())
+				if !strings.Contains(fi, "eventlog") {
+					if err := s.deleteFile(fi); err != nil {
+						logrus.Errorf("delete log file %s error. %s", fi, err.Error())
+					}
 				}
 			}
 		}

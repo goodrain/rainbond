@@ -222,6 +222,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		return err
 	}
 	i.Logger.Info("Start app task send success", map[string]string{"step": "build-exector"})
+	event.GetManager().ReleaseLogger(i.Logger)
 	return nil
 }
 func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {

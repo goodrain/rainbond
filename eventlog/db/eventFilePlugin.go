@@ -33,10 +33,12 @@ import (
 	"github.com/goodrain/rainbond/util"
 )
 
+//EventFilePlugin EventFilePlugin
 type EventFilePlugin struct {
 	HomePath string
 }
 
+//SaveMessage save event log to file
 func (m *EventFilePlugin) SaveMessage(events []*EventLogMessage) error {
 	if len(events) == 0 {
 		return nil
@@ -63,7 +65,7 @@ func (m *EventFilePlugin) SaveMessage(events []*EventLogMessage) error {
 		writeFile.Write([]byte(e.Message))
 		writeFile.Write([]byte("\n"))
 	}
-	return err
+	return nil
 }
 
 //MessageData message data 获取指定操作的操作日志
@@ -80,6 +82,7 @@ func (a MessageDataList) Len() int           { return len(a) }
 func (a MessageDataList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a MessageDataList) Less(i, j int) bool { return a[i].Unixtime < a[j].Unixtime }
 
+//GetMessages GetMessages
 func (m *EventFilePlugin) GetMessages(eventID, level string) (MessageDataList, error) {
 	apath := path.Join(m.HomePath, "eventlog", eventID+".log")
 	eventFile, err := os.Open(apath)
@@ -168,6 +171,8 @@ func GetLevelFlag(level string) []byte {
 		return []byte("0 ")
 	}
 }
+
+//Close Close
 func (m *EventFilePlugin) Close() error {
 	return nil
 }
