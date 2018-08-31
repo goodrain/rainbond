@@ -68,8 +68,12 @@ type Manager interface {
 
 //NewManager 存储管理器
 func NewManager(conf conf.EventStoreConf, log *logrus.Entry) (Manager, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-
+	// event log do not save in db,will save in file
+	// dbPlugin, err := db.NewManager(conf.DB, log)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	conf.DB.Type = "eventfile"
 	dbPlugin, err := db.NewManager(conf.DB, log)
 	if err != nil {
 		return nil, err
@@ -79,6 +83,7 @@ func NewManager(conf conf.EventStoreConf, log *logrus.Entry) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 	storeManager := &storeManager{
 		cancel:                cancel,
 		context:               ctx,
