@@ -58,6 +58,9 @@ func (d *Monitor) Start() {
 
 	// monitor etcd members
 	go d.discoverEtcd(&callback.Etcd{Prometheus: d.manager}, d.ctx.Done())
+	
+	// monitor Cadvisor
+	go d.discoverCadvisor(&callback.Cadvisor{Prometheus: d.manager}, d.ctx.Done())
 }
 
 func (d *Monitor) discoverNodes(node *callback.Node, app *callback.App, done <-chan struct{}) {
@@ -111,6 +114,57 @@ func (d *Monitor) discoverNodes(node *callback.Node, app *callback.App, done <-c
 	}
 
 }
+
+
+func (d *Monitor) discoverCadvisor(c *callback.Cadvisor, done <-chan struct{}) {
+	// start listen node modified
+	watcher := watch.New(d.client, "")
+	w, err := watcher.WatchList(d.ctx, "/rainbond/nodes", "")
+	if err != nil {
+		logrus.Error("failed to watch list for discover all nodes: ", err)
+		return
+	}
+	defer w.Stop()
+
+	for {
+		select {
+		case event, ok := <-w.ResultChan():
+			if !ok {
+				logrus.Warn("the events channel is closed.")
+				return
+			}
+
+			switch event.Type {
+			case watch.Added:
+
+				isSlave := gjson.Get(event.GetValueString(), "labels.rainbond_node_rule_compute").String()
+				if isSlave == "true" {
+					c.Add(&event)
+				}
+			case watch.Modified:
+
+				isSlave := gjson.Get(event.GetValueString(), "labels.rainbond_node_rule_compute").String()
+				if isSlave == "true" {
+					c.Modify(&event)
+				}
+			case watch.Deleted:
+
+				isSlave := gjson.Get(event.GetValueString(), "labels.rainbond_node_rule_compute").String()
+				if isSlave == "true" {
+					c.Delete(&event)
+				}
+			case watch.Error:
+				logrus.Error("error when read a event from result chan for discover all nodes: ", event.Error)
+			}
+		case <-done:
+			logrus.Info("stop discover nodes because received stop signal.")
+			return
+		}
+
+	}
+
+}
+
 
 func (d *Monitor) discoverEtcd(e *callback.Etcd, done <-chan struct{}) {
 	t := time.Tick(time.Minute)
