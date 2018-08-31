@@ -116,7 +116,8 @@ func (m *EventFilePlugin) GetMessages(eventID, level string) (MessageDataList, e
 			}
 		}
 	}
-	sort.Sort(sort.Reverse(message))
+	//sort.Sort(sort.Reverse(message))
+	sort.Sort(message)
 	return message, nil
 }
 
