@@ -222,7 +222,16 @@ func (b *BackupAPPNew) checkVersionExist(version *dbmodel.VersionInfo) (bool, er
 		return true, nil
 	}
 	if version.DeliveredType == "slug" {
-		return util.FileExists(version.DeliveredPath)
+		islugfile, err := os.Stat(version.DeliveredPath)
+		if os.IsNotExist(err) {
+			return false, nil
+		} else if err != nil {
+			return false, err
+		}
+		if islugfile.IsDir() {
+			return false, nil
+		}
+		return true, nil
 	}
 	return false, fmt.Errorf("delivered type is invalid")
 }
