@@ -26,9 +26,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/builder/sources"
-	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/util"
+
+	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/builder/sources/registry"
+	"github.com/goodrain/rainbond/db"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/engine-api/client"
@@ -118,19 +120,34 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 	for _, app := range appSnapshots {
 		//backup app image or code slug file
 		b.Logger.Info(fmt.Sprintf("开始备份应用(%s)运行环境", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
+		haveAtLastOneVersion := false
 		for _, version := range app.Versions {
 			if version.DeliveredType == "slug" && version.FinalStatus == "success" {
+				if ok, _ := b.checkVersionExist(version); !ok {
+					version.FinalStatus = "lost"
+					continue
+				}
 				if err := b.uploadSlug(app, version); err != nil {
 					logrus.Errorf("upload app slug file error.%s", err.Error())
 					return err
 				}
+				haveAtLastOneVersion = true
 			}
 			if version.DeliveredType == "image" && version.FinalStatus == "success" {
+				if ok, _ := b.checkVersionExist(version); !ok {
+					version.FinalStatus = "lost"
+					continue
+				}
 				if err := b.uploadImage(app, version); err != nil {
 					logrus.Errorf("upload app image error.%s", err.Error())
 					return err
 				}
+				haveAtLastOneVersion = true
 			}
+		}
+		if !haveAtLastOneVersion {
+			b.Logger.Error(fmt.Sprintf("Application(%s) Backup build version failure.", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
+			return fmt.Errorf("Application(%s) Backup build version failure", app.Service.ServiceAlias)
 		}
 		b.Logger.Info(fmt.Sprintf("完成备份应用(%s)运行环境", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
 		b.Logger.Info(fmt.Sprintf("开始备份应用(%s)持久化数据", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
@@ -188,6 +205,25 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 		return err
 	}
 	return nil
+}
+func (b *BackupAPPNew) checkVersionExist(version *dbmodel.VersionInfo) (bool, error) {
+	if version.DeliveredType == "image" {
+		imageInfo := sources.ImageNameHandle(version.DeliveredPath)
+		reg, err := registry.NewInsecure(imageInfo.Host, "", "")
+		if err != nil {
+			logrus.Errorf("parse image name %s error %s", version.DeliveredPath, err.Error())
+			return false, err
+		}
+		_, err = reg.Manifest(imageInfo.Name, imageInfo.Tag)
+		if err != nil {
+			logrus.Errorf("get image %s manifest info failure, it could be not exist", version.DeliveredPath)
+			return false, err
+		}
+	}
+	if version.DeliveredType == "slug" {
+		return util.FileExists(version.DeliveredPath)
+	}
+	return false, fmt.Errorf("delivered type is invalid")
 }
 func (b *BackupAPPNew) uploadSlug(app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
 	if b.Mode == "full-online" && b.SlugInfo.FTPHost != "" && b.SlugInfo.FTPPort != "" {
