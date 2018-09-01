@@ -108,6 +108,9 @@ func WrapTransport(transport http.RoundTripper, url, username, password string) 
 
 func newFromTransport(registryURL, username, password string, transport http.RoundTripper, logf LogfCallback) (*Registry, error) {
 	url := strings.TrimSuffix(registryURL, "/")
+	if !strings.HasPrefix(url, "https") {
+		url = fmt.Sprintf("https://%s", registryURL)
+	}
 	transport = WrapTransport(transport, url, username, password)
 	registry := &Registry{
 		URL: url,

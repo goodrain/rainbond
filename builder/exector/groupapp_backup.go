@@ -211,7 +211,7 @@ func (b *BackupAPPNew) checkVersionExist(version *dbmodel.VersionInfo) (bool, er
 		imageInfo := sources.ImageNameHandle(version.DeliveredPath)
 		reg, err := registry.NewInsecure(imageInfo.Host, "", "")
 		if err != nil {
-			logrus.Errorf("parse image name %s error %s", version.DeliveredPath, err.Error())
+			logrus.Errorf("new registry client error %s", err.Error())
 			return false, err
 		}
 		_, err = reg.Manifest(imageInfo.Name, imageInfo.Tag)
