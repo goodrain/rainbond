@@ -3,7 +3,7 @@ package server
 import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/middleware"
-	"github.com/sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 // handlerWithGlobalMiddlewares wraps the handler function for a request with
