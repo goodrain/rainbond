@@ -119,7 +119,7 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 	}
 	for _, app := range appSnapshots {
 		//backup app image or code slug file
-		b.Logger.Info(fmt.Sprintf("开始备份应用(%s)运行环境", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
+		b.Logger.Info(fmt.Sprintf("Start backup Application(%s) runtime", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
 		haveAtLastOneVersion := false
 		for _, version := range app.Versions {
 			if version.DeliveredType == "slug" && version.FinalStatus == "success" {
@@ -149,8 +149,8 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 			b.Logger.Error(fmt.Sprintf("Application(%s) Backup build version failure.", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
 			return fmt.Errorf("Application(%s) Backup build version failure", app.Service.ServiceAlias)
 		}
-		b.Logger.Info(fmt.Sprintf("完成备份应用(%s)运行环境", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
-		b.Logger.Info(fmt.Sprintf("开始备份应用(%s)持久化数据", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
+		b.Logger.Info(fmt.Sprintf("Complete backup application (%s) runtime", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
+		b.Logger.Info(fmt.Sprintf("Start backup application(%s) persistent data", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
 		//backup app data
 		for _, volume := range app.ServiceVolume {
 			if volume.HostPath != "" && !util.DirIsEmpty(volume.HostPath) {
@@ -168,14 +168,14 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 				return err
 			}
 		}
-		b.Logger.Info(fmt.Sprintf("完成备份应用(%s)持久化数据", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
+		b.Logger.Info(fmt.Sprintf("Complete backup application(%s) persistent data", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
 		//TODO:backup relation volume data?
 	}
 	if strings.HasSuffix(b.SourceDir, "/") {
 		b.SourceDir = b.SourceDir[:len(b.SourceDir)-2]
 	}
 	if err := util.Zip(b.SourceDir, fmt.Sprintf("%s.zip", b.SourceDir)); err != nil {
-		b.Logger.Info(fmt.Sprintf("压缩备份元数据失败"), map[string]string{"step": "backup_builder", "status": "starting"})
+		b.Logger.Info(fmt.Sprintf("Compressed backup metadata failed"), map[string]string{"step": "backup_builder", "status": "starting"})
 		return err
 	}
 	b.BackupSize += util.GetFileSize(fmt.Sprintf("%s.zip", b.SourceDir))
@@ -183,7 +183,7 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 	b.SourceDir = fmt.Sprintf("%s.zip", b.SourceDir)
 	//upload app backup data to online server(sftp) if mode is full-online
 	if b.Mode == "full-online" && b.SlugInfo.FTPHost != "" && b.SlugInfo.FTPPort != "" {
-		b.Logger.Info(fmt.Sprintf("开始上传备份元数据到云端"), map[string]string{"step": "backup_builder", "status": "starting"})
+		b.Logger.Info(fmt.Sprintf("Start uploading backup metadata to the cloud"), map[string]string{"step": "backup_builder", "status": "starting"})
 		sFTPClient, err := sources.NewSFTPClient(b.SlugInfo.FTPUser, b.SlugInfo.FTPPassword, b.SlugInfo.FTPHost, b.SlugInfo.FTPPort)
 		if err != nil {
 			b.Logger.Error(util.Translation("create ftp client error"), map[string]string{"step": "backup_builder", "status": "failure"})
@@ -219,6 +219,7 @@ func (b *BackupAPPNew) checkVersionExist(version *dbmodel.VersionInfo) (bool, er
 			logrus.Errorf("get image %s manifest info failure, it could be not exist", version.DeliveredPath)
 			return false, err
 		}
+		return true, nil
 	}
 	if version.DeliveredType == "slug" {
 		return util.FileExists(version.DeliveredPath)

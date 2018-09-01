@@ -43,7 +43,7 @@ func Quiet(format string, args ...interface{}) {
  * Pass log messages along to Go's "log" module.
  */
 func Log(format string, args ...interface{}) {
-	logrus.Printf(format, args...)
+	logrus.Debugf(format, args...)
 }
 
 //Registry the client for  image repostory
