@@ -20,6 +20,8 @@ package event
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -340,6 +342,7 @@ type Logger interface {
 	CreateTime() time.Time
 	GetChan() chan []byte
 	SetChan(chan []byte)
+	GetWriter(step, level string) io.Writer
 }
 
 type logger struct {
@@ -390,6 +393,26 @@ func (l *logger) send(message string, info map[string]string) {
 		util.SendNoBlocking(log, l.sendChan)
 	}
 }
+func (l *logger) GetWriter(step, level string) io.Writer {
+	return &loggerWriter{
+		l:     l,
+		step:  step,
+		level: level,
+	}
+}
+
+type loggerWriter struct {
+	l     *logger
+	step  string
+	level string
+}
+
+func (l *loggerWriter) Write(b []byte) (n int, err error) {
+	if b != nil && len(b) > 0 {
+		l.l.send(string(b), map[string]string{"step": l.step, "level": l.level})
+	}
+	return len(b), nil
+}
 
 //GetTestLogger GetTestLogger
 func GetTestLogger() Logger {
@@ -419,4 +442,7 @@ func (l *testLogger) Error(message string, info map[string]string) {
 }
 func (l *testLogger) Debug(message string, info map[string]string) {
 	fmt.Println("debug:", message)
+}
+func (l *testLogger) GetWriter(step, level string) io.Writer {
+	return os.Stdout
 }

@@ -20,14 +20,12 @@ package build
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/fsnotify/fsnotify"
@@ -126,38 +124,6 @@ func (s *slugBuild) readLogFile(logfile string, logger event.Logger, closed chan
 	}
 }
 
-func (s *slugBuild) readLog(stderr io.Reader, logger event.Logger, closed chan struct{}) {
-	readerr := bufio.NewReader(stderr)
-	sleep := time.NewTimer(time.Second * 3)
-	defer sleep.Stop()
-	for {
-		line, _, err := readerr.ReadLine()
-		if err != nil {
-			if err != io.EOF {
-				logrus.Errorf("Read build container log error:%s", err.Error())
-				return
-			}
-			sleep.Reset(time.Second * 3)
-			select {
-			case <-closed:
-				return
-			case <-sleep.C:
-				continue
-			}
-		}
-		if logger != nil {
-			lineStr := string(line)
-			if len(lineStr) > 0 {
-				logger.Info(lineStr, map[string]string{"step": "build-exector"})
-			}
-		}
-		select {
-		case <-closed:
-			return
-		default:
-		}
-	}
-}
 func (s *slugBuild) getSourceCodeTarFile(re *Request) (*os.File, error) {
 	var cmd []string
 	sourceTarFile := fmt.Sprintf("%s/%s.tar", util.GetParentDirectory(re.SourceDir), re.DeployVersion)
@@ -243,17 +209,9 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 	if err != nil {
 		return fmt.Errorf("create builder container error:%s", err.Error())
 	}
-	buffer := bytes.NewBuffer(nil)
-	closed := make(chan struct{})
-	defer close(closed)
 	errchan := make(chan error, 1)
-	// containerLog, err := containerService.GetContainerLogPath(containerID)
-	// if err == nil && containerLog != "" {
-	// 	go s.readLogFile(containerLog, re.Logger, closed)
-	// } else {
-	go s.readLog(buffer, re.Logger, closed)
-	// }
-	close, err := containerService.AttachContainer(containerID, true, true, true, reader, buffer, buffer, &errchan)
+	writer := re.Logger.GetWriter("builder", "info")
+	close, err := containerService.AttachContainer(containerID, true, true, true, reader, writer, writer, &errchan)
 	if err != nil {
 		containerService.RemoveContainer(containerID)
 		return fmt.Errorf("attach builder container error:%s", err.Error())

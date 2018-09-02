@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/event"
 
 	"github.com/docker/engine-api/client"
 	"golang.org/x/net/context"
@@ -142,6 +143,9 @@ func TestStartBuildContainer(t *testing.T) {
 		AttachStdin:  true,
 		AttachStdout: true,
 		AttachStderr: true,
+		NetworkConfig: &NetworkConfig{
+			NetworkMode: "host",
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -152,7 +156,9 @@ func TestStartBuildContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tarfile.Close()
-	close, err := service.AttachContainer(containerID, true, true, true, tarfile, os.Stdout, os.Stderr, &errchan)
+	logger := event.GetTestLogger()
+	writer := logger.GetWriter("builder", "debug")
+	close, err := service.AttachContainer(containerID, true, true, true, tarfile, writer, writer, &errchan)
 	if err != nil {
 		t.Fatal(err)
 	}
