@@ -24,6 +24,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -79,7 +80,7 @@ type MessageDataList []MessageData
 
 func (a MessageDataList) Len() int           { return len(a) }
 func (a MessageDataList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a MessageDataList) Less(i, j int) bool { return a[i].Unixtime < a[j].Unixtime }
+func (a MessageDataList) Less(i, j int) bool { return a[i].Unixtime <= a[j].Unixtime }
 
 //GetMessages GetMessages
 func (m *EventFilePlugin) GetMessages(eventID, level string) (MessageDataList, error) {
@@ -118,8 +119,8 @@ func (m *EventFilePlugin) GetMessages(eventID, level string) (MessageDataList, e
 			}
 		}
 	}
-	//Multi-node eventlog is valid and not sorted for the time being
-	//sort.Sort(message)
+	//Multi-node eventlog is valid.
+	sort.Sort(message)
 	return message, nil
 }
 
