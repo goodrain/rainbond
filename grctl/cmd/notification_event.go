@@ -1,12 +1,13 @@
 package cmd
 
 import (
-	"github.com/urfave/cli"
-	"github.com/goodrain/rainbond/grctl/clients"
 	"fmt"
-	"github.com/apcera/termtables"
-	"time"
 	"strconv"
+	"time"
+
+	"github.com/apcera/termtables"
+	"github.com/goodrain/rainbond/grctl/clients"
+	"github.com/urfave/cli"
 )
 
 //NewCmdNode NewCmdNode
@@ -34,9 +35,9 @@ func NewCmdNotificationEvent() cli.Command {
 					Common(c)
 					startTime := c.String("StartTime")
 					EndTme := c.String("EndTime")
-					if startTime == "" && EndTme == ""{
+					if startTime == "" && EndTme == "" {
 						NowTime := time.Now()
-						startTimeTimestamp := NowTime.AddDate(0,0,-3).Unix()
+						startTimeTimestamp := NowTime.AddDate(0, 0, -3).Unix()
 						startTime = strconv.FormatInt(startTimeTimestamp, 10)
 						EndTme = strconv.FormatInt(NowTime.Unix(), 10)
 					} else if EndTme == "" && startTime != "" {
@@ -48,7 +49,7 @@ func NewCmdNotificationEvent() cli.Command {
 					serviceTable := termtables.CreateTable()
 					serviceTable.AddHeaders("ServiceName(应用别名)", "TenantName(租户别名)", "Message(异常信息)", "Reason(异常原因)", "Count(出现次数)", "LastTime(最后一次异常时间)", "FirstTime(第一次异常时间)")
 					for _, v := range val {
-						if v.KindID == "" || v.ServiceName == "" || v.TenantName == ""{
+						if v.KindID == "" || v.ServiceName == "" || v.TenantName == "" {
 							continue
 						}
 						serviceTable.AddRow(v.ServiceName, v.TenantName, v.Message, v.Reason, v.Count, v.LastTime, v.FirstTime)
@@ -80,7 +81,7 @@ func NewCmdNotificationEvent() cli.Command {
 					}
 					serviceName := c.String("ServiceName")
 					handleMessage := c.String("HandleMessage")
-					_,err := clients.RegionClient.Notification().HandleNotification(serviceName, handleMessage)
+					_, err := clients.RegionClient.Notification().HandleNotification(serviceName, handleMessage)
 					handleErr(err)
 					fmt.Println("Handling successfully")
 					return nil

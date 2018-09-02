@@ -26,8 +26,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"strings"
-	"time"
 
 	"github.com/goodrain/rainbond/util"
 
@@ -36,22 +34,25 @@ import (
 	"github.com/Sirupsen/logrus"
 
 	"github.com/coreos/etcd/client"
-	"github.com/pquerna/ffjson/ffjson"
 
 	"os/exec"
 
-	"github.com/goodrain/rainbond/db"
+	eventdb "github.com/goodrain/rainbond/eventlog/db"
 )
 
 //LogAction  log action struct
 type LogAction struct {
 	EtcdEndpoints []string
+	eventdb       *eventdb.EventFilePlugin
 }
 
 //CreateLogManager get log manager
 func CreateLogManager(etcdEndpoint []string) *LogAction {
 	return &LogAction{
 		EtcdEndpoints: etcdEndpoint,
+		eventdb: &eventdb.EventFilePlugin{
+			HomePath: "/grdata/logs/",
+		},
 	}
 }
 
@@ -131,49 +132,13 @@ func (l *LogAction) GetLogInstance(serviceID string) (string, error) {
 
 //GetLevelLog 获取指定操作的操作日志
 func (l *LogAction) GetLevelLog(eventID string, level string) (*api_model.DataLog, error) {
-	messages, err := db.GetManager().EventLogDao().GetEventLogMessages(eventID)
+	messageList, err := l.eventdb.GetMessages(eventID, level)
 	if err != nil {
 		return nil, err
 	}
-	var d []api_model.MessageData
-	timeLayout := "2006-01-02T15:04:05+08:00"
-	loc, _ := time.LoadLocation("Local")
-	for _, v := range messages {
-		log, err := decompress(v.Message)
-		if err != nil {
-			return nil, err
-		}
-		var mlogs []api_model.MsgStruct
-		if err := ffjson.Unmarshal(log, &mlogs); err != nil {
-			return nil, err
-		}
-		for _, msg := range mlogs {
-			if checkLevel(level, msg.Level) {
-				//兼容 {system worker worker已收到异步任务。 info 2017-09-29T10:02:44.703640}"
-				if strings.Contains(msg.Time, ".") {
-					//msg.Time = strings.Split(msg.Time, ".")[0]
-					timeLayout = "2006-01-02T15:04:05"
-				} else {
-					timeLayout = "2006-01-02T15:04:05+08:00"
-				}
-				utime, err := time.ParseInLocation(timeLayout, msg.Time, loc)
-				if err != nil {
-					return nil, err
-				}
-				md := api_model.MessageData{
-					Message:  msg.Message,
-					Time:     msg.Time,
-					Unixtime: utime.Unix(),
-				}
-				d = append(d, md)
-			}
-		}
-	}
-	//耗时
-	d = bubSort(d)
 	return &api_model.DataLog{
 		Status: "success",
-		Data:   d,
+		Data:   messageList,
 	}, nil
 }
 

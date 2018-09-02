@@ -20,17 +20,20 @@ package build
 
 import (
 	"bufio"
-	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
-	"strconv"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/fsnotify/fsnotify"
+	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
+	"github.com/pquerna/ffjson/ffjson"
 )
 
 func slugBuilder() (Build, error) {
@@ -44,17 +47,13 @@ type slugBuild struct {
 }
 
 func (s *slugBuild) Build(re *Request) (*Response, error) {
-	//handle cache dir
-	if _, ok := re.BuildEnvs["NO_CACHE"]; ok {
-		os.RemoveAll(re.CacheDir)
-	}
 	re.Logger.Info(util.Translation("Start compiling the source code"), map[string]string{"step": "build-exector"})
-	s.tgzDir = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s", re.TenantID, re.ServiceID)
-	s.buildCacheDir = fmt.Sprintf("/cache/build/%s/cache/%s", re.TenantID, re.ServiceID)
+	s.tgzDir = re.TGZDir
+	s.buildCacheDir = re.CacheDir
 	packageName := fmt.Sprintf("%s/%s.tgz", s.tgzDir, re.DeployVersion)
-	if err := s.buildInContainer(re); err != nil {
+	if err := s.runBuildContainer(re); err != nil {
 		re.Logger.Error(util.Translation("Compiling the source code failure"), map[string]string{"step": "build-code", "status": "failure"})
-		logrus.Error("build perl error,", err.Error())
+		logrus.Error("build slug in container error,", err.Error())
 		return nil, err
 	}
 	fileInfo, err := os.Stat(packageName)
@@ -75,88 +74,47 @@ func (s *slugBuild) Build(re *Request) (*Response, error) {
 	}
 	return res, nil
 }
-func (s *slugBuild) buildInContainer(re *Request) error {
-	dockerCmd := s.createCmd(re)
-	logrus.Debugf("docker cmd:%s", dockerCmd)
-	sourceCmd := s.createSourceCmd(re)
-	logrus.Debugf("source cmd:%s", sourceCmd)
-	source := exec.Command(sourceCmd[0], sourceCmd[1:]...)
-	source.Dir = re.SourceDir
-	cmd := exec.Command(dockerCmd[0], dockerCmd[1:]...)
-	closed := make(chan struct{})
-	defer close(closed)
-	var b bytes.Buffer
-	go s.readLog(&b, re.Logger, closed)
-	commands, err := NewPipeCommand(source, cmd)
-	if err != nil {
-		re.Logger.Error("build failure:"+err.Error(), map[string]string{"step": "build-code", "status": "failure"})
-		return fmt.Errorf("build in container error:%s", err.Error())
-	}
-	go s.readLog(commands.GetFinalStdout(), re.Logger, closed)
-	go s.readLog(commands.GetFinalStderr(), re.Logger, closed)
-	return commands.Run()
-}
-func (s *slugBuild) createSourceCmd(re *Request) []string {
-	var cmd []string
-	if re.ServerType == "svn" {
-		cmd = append(cmd, "tar", "-c", "--exclude=.svn", "./")
-	}
-	if re.ServerType == "git" {
-		cmd = append(cmd, "tar", "-c", "--exclude=.git", "./")
-	}
-	return cmd
-}
-func (s *slugBuild) createCmd(re *Request) []string {
-	var cmd []string
-	if ok, _ := util.FileExists("/var/run/docker.sock"); ok {
-		cmd = append(cmd, "docker")
-	} else {
-		// not permissions
-		cmd = append(cmd, "sudo", "-P", "docker")
-	}
-	cmd = append(cmd, "run", "-i", "--net=host", "--rm", "--name", re.ServiceID[:8]+"_"+re.DeployVersion)
-	//handle cache mount
-	cmd = append(cmd, "-v", re.CacheDir+":/tmp/cache:rw")
-	cmd = append(cmd, "-v", s.tgzDir+":/tmp/slug:rw")
-	//handle stdin and stdout
-	cmd = append(cmd, "-a", "stdin", "-a", "stdout")
-	//handle env
-	for k, v := range re.BuildEnvs {
-		if k != "" {
-			cmd = append(cmd, "-e", fmt.Sprintf("%s=%s", k, strconv.Quote(v)))
-			if k == "PROC_ENV" {
-				var mapdata = make(map[string]interface{})
-				if err := json.Unmarshal(util.ToByte(v), &mapdata); err == nil {
-					if runtime, ok := mapdata["runtimes"]; ok {
-						cmd = append(cmd, "-e", fmt.Sprintf(`"%s=%s"`, "RUNTIME", runtime.(string)))
-					}
-				}
-			}
-		}
-	}
-	cmd = append(cmd, "-e", "SLUG_VERSION="+re.DeployVersion)
-	cmd = append(cmd, "-e", "SERVICE_ID="+re.ServiceID)
-	cmd = append(cmd, "-e", "TENANT_ID="+re.TenantID)
-	cmd = append(cmd, "-e", "LANGUAGE="+re.Lang.String())
-	//handle image
-	cmd = append(cmd, "goodrain.me/builder", "local")
-	return cmd
-}
 
-func (s *slugBuild) readLog(stderr io.Reader, logger event.Logger, closed chan struct{}) {
-	readerr := bufio.NewReader(stderr)
+func (s *slugBuild) readLogFile(logfile string, logger event.Logger, closed chan struct{}) {
+	file, _ := os.Open(logfile)
+	watcher, _ := fsnotify.NewWatcher()
+	defer watcher.Close()
+	_ = watcher.Add(logfile)
+	readerr := bufio.NewReader(file)
 	for {
 		line, _, err := readerr.ReadLine()
 		if err != nil {
 			if err != io.EOF {
 				logrus.Errorf("Read build container log error:%s", err.Error())
+				return
 			}
-			return
+			wait := func() error {
+				for {
+					select {
+					case <-closed:
+						return nil
+					case event := <-watcher.Events:
+						if event.Op&fsnotify.Write == fsnotify.Write {
+							return nil
+						}
+					case err := <-watcher.Errors:
+						return err
+					}
+				}
+			}
+			if err := wait(); err != nil {
+				logrus.Errorf("Read build container log error:%s", err.Error())
+				return
+			}
 		}
 		if logger != nil {
-			lineStr := string(line)
-			if len(lineStr) > 0 {
-				logger.Error(lineStr, map[string]string{"step": "build-exector"})
+			var message = make(map[string]string)
+			if err := ffjson.Unmarshal(line, &message); err == nil {
+				if m, ok := message["log"]; ok {
+					logger.Info(m, map[string]string{"step": "build-exector"})
+				}
+			} else {
+				fmt.Println(err.Error())
 			}
 		}
 		select {
@@ -167,73 +125,116 @@ func (s *slugBuild) readLog(stderr io.Reader, logger event.Logger, closed chan s
 	}
 }
 
-//PipeCommand PipeCommand
-type PipeCommand struct {
-	stack                    []*exec.Cmd
-	finalStdout, finalStderr io.Reader
-	pipestack                []*io.PipeWriter
-}
-
-//NewPipeCommand new pipe commands
-func NewPipeCommand(stack ...*exec.Cmd) (*PipeCommand, error) {
-	var errorbuffer bytes.Buffer
-	pipestack := make([]*io.PipeWriter, len(stack)-1)
-	i := 0
-	for ; i < len(stack)-1; i++ {
-		stdinpipe, stdoutpipe := io.Pipe()
-		stack[i].Stdout = stdoutpipe
-		stack[i].Stderr = &errorbuffer
-		stack[i+1].Stdin = stdinpipe
-		pipestack[i] = stdoutpipe
+func (s *slugBuild) getSourceCodeTarFile(re *Request) (*os.File, error) {
+	var cmd []string
+	sourceTarFile := fmt.Sprintf("%s/%s.tar", util.GetParentDirectory(re.SourceDir), re.DeployVersion)
+	if re.ServerType == "svn" {
+		cmd = append(cmd, "tar", "-cf", sourceTarFile, "--exclude=.svn", "./")
 	}
-	finalStdout, err := stack[i].StdoutPipe()
-	if err != nil {
+	if re.ServerType == "git" {
+		cmd = append(cmd, "tar", "-cf", sourceTarFile, "--exclude=.git", "./")
+	}
+	source := exec.Command(cmd[0], cmd[1:]...)
+	source.Dir = re.SourceDir
+	logrus.Debugf("tar source code to file %s", sourceTarFile)
+	if err := source.Run(); err != nil {
 		return nil, err
 	}
-	finalStderr, err := stack[i].StderrPipe()
-	if err != nil {
-		return nil, err
+	return os.OpenFile(sourceTarFile, os.O_RDONLY, 0755)
+}
+
+func (s *slugBuild) runBuildContainer(re *Request) error {
+	envs := []*sources.KeyValue{
+		&sources.KeyValue{Key: "SLUG_VERSION", Value: re.DeployVersion},
+		&sources.KeyValue{Key: "SERVICE_ID", Value: re.ServiceID},
+		&sources.KeyValue{Key: "TENANT_ID", Value: re.TenantID},
+		&sources.KeyValue{Key: "LANGUAGE", Value: re.Lang.String()},
 	}
-	pipeCommand := &PipeCommand{
-		stack:       stack,
-		pipestack:   pipestack,
-		finalStdout: finalStdout,
-		finalStderr: finalStderr,
-	}
-	return pipeCommand, nil
-}
-
-//Run Run
-func (p *PipeCommand) Run() error {
-	return call(p.stack, p.pipestack)
-}
-
-//GetFinalStdout get final command stdout reader
-func (p *PipeCommand) GetFinalStdout() io.Reader {
-	return p.finalStdout
-}
-
-//GetFinalStderr get final command stderr reader
-func (p *PipeCommand) GetFinalStderr() io.Reader {
-	return p.finalStderr
-}
-
-func call(stack []*exec.Cmd, pipes []*io.PipeWriter) (err error) {
-	if stack[0].Process == nil {
-		if err = stack[0].Start(); err != nil {
-			return err
-		}
-	}
-	if len(stack) > 1 {
-		if err = stack[1].Start(); err != nil {
-			return err
-		}
-		defer func() {
-			if err == nil {
-				pipes[0].Close()
-				err = call(stack[1:], pipes[1:])
+	for k, v := range re.BuildEnvs {
+		envs = append(envs, &sources.KeyValue{Key: k, Value: v})
+		if k == "PROC_ENV" {
+			var mapdata = make(map[string]interface{})
+			if err := json.Unmarshal([]byte(v), &mapdata); err == nil {
+				if runtime, ok := mapdata["runtimes"]; ok {
+					envs = append(envs, &sources.KeyValue{Key: "RUNTIME", Value: runtime.(string)})
+				}
 			}
-		}()
+		}
 	}
-	return stack[0].Wait()
+	containerConfig := &sources.ContainerConfig{
+		Metadata: &sources.ContainerMetadata{
+			Name: re.ServiceID[:8] + "_" + re.DeployVersion,
+		},
+		Image: &sources.ImageSpec{
+			Image: builder.BUILDERIMAGENAME,
+		},
+		Mounts: []*sources.Mount{
+			&sources.Mount{
+				ContainerPath: "/tmp/cache",
+				HostPath:      re.CacheDir,
+				Readonly:      false,
+			},
+			&sources.Mount{
+				ContainerPath: "/tmp/slug",
+				HostPath:      s.tgzDir,
+				Readonly:      false,
+			},
+		},
+		Envs:         envs,
+		Stdin:        true,
+		StdinOnce:    true,
+		AttachStdin:  true,
+		AttachStdout: true,
+		AttachStderr: true,
+		NetworkConfig: &sources.NetworkConfig{
+			NetworkMode: "host",
+		},
+		Args: []string{"local"},
+	}
+	reader, err := s.getSourceCodeTarFile(re)
+	if err != nil {
+		return fmt.Errorf("create source code tar file error:%s", err.Error())
+	}
+	defer func() {
+		reader.Close()
+		os.Remove(reader.Name())
+	}()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	containerService := sources.CreateDockerService(ctx, re.DockerClient)
+	containerID, err := containerService.CreateContainer(containerConfig)
+	if err != nil {
+		return fmt.Errorf("create builder container error:%s", err.Error())
+	}
+	errchan := make(chan error, 1)
+	writer := re.Logger.GetWriter("builder", "info")
+	close, err := containerService.AttachContainer(containerID, true, true, true, reader, writer, writer, &errchan)
+	if err != nil {
+		containerService.RemoveContainer(containerID)
+		return fmt.Errorf("attach builder container error:%s", err.Error())
+	}
+	defer close()
+	statuschan := containerService.WaitExitOrRemoved(containerID, false)
+	//start the container
+	if err := containerService.StartContainer(containerID); err != nil {
+		containerService.RemoveContainer(containerID)
+		return fmt.Errorf("start builder container error:%s", err.Error())
+	}
+	if err := <-errchan; err != nil {
+		logrus.Debugf("Error hijack: %s", err)
+	}
+	status := <-statuschan
+	if status != 0 {
+		return &ErrorBuild{Code: status}
+	}
+	return nil
+}
+
+//ErrorBuild build error
+type ErrorBuild struct {
+	Code int
+}
+
+func (e *ErrorBuild) Error() string {
+	return fmt.Sprintf("Run build return %d", e.Code)
 }

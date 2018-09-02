@@ -11,7 +11,7 @@ import (
 
 	"github.com/docker/distribution/registry/client/transport"
 	registrytypes "github.com/docker/docker/api/types/registry"
-	"github.com/sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 // V1Endpoint stores basic information about a V1 registry endpoint.

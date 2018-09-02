@@ -29,6 +29,7 @@ import (
 
 	"github.com/coreos/etcd/clientv3"
 
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 
@@ -316,7 +317,7 @@ func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionS
 		if err := sources.ImageTag(b.DockerClient, backupImage, version.DeliveredPath, b.Logger, 1); err != nil {
 			return fmt.Errorf("change image tag when restore backup error %s", err)
 		}
-		err = sources.ImagePush(b.DockerClient, version.DeliveredPath, "", "", b.Logger, 10)
+		err = sources.ImagePush(b.DockerClient, version.DeliveredPath, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 10)
 		if err != nil {
 			return fmt.Errorf("push image to local  when restore backup error %s", err)
 		}

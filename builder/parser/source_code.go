@@ -28,6 +28,7 @@ import (
 
 	"github.com/pquerna/ffjson/ffjson"
 
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db/model"
@@ -66,7 +67,7 @@ func CreateSourceCodeParse(source string, logger event.Logger) Parser {
 		volumes: make(map[string]*Volume),
 		envs:    make(map[string]*Env),
 		logger:  logger,
-		image:   parseImageName("goodrain.me/runner"),
+		image:   parseImageName(builder.RUNNERIMAGENAME),
 		args:    []string{"start", "web"},
 	}
 }
@@ -408,7 +409,7 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 					key := "BUILD_ARG_" + kv[0]
 					d.envs[key] = &Env{Name: key, Value: kv[1]}
 				} else {
-					if i + 1 >= length {
+					if i+1 >= length {
 						logrus.Error("Parse ARG format error at ", cm.Value[1])
 						continue
 					}
@@ -423,7 +424,7 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 				if kv := strings.Split(cm.Value[i], "="); len(kv) > 1 {
 					d.envs[kv[0]] = &Env{Name: kv[0], Value: kv[1]}
 				} else {
-					if i + 1 >= length {
+					if i+1 >= length {
 						logrus.Error("Parse ENV format error at ", cm.Value[1])
 						continue
 					}

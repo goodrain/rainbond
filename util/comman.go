@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -692,4 +693,13 @@ func DiskUsage(path string) (tatol, free uint64) {
 		return
 	}
 	return fs.Blocks * uint64(fs.Bsize), fs.Bfree * uint64(fs.Bsize)
+}
+
+//GetCurrentDir get current dir
+func GetCurrentDir() string {
+	dir, err := filepath.Abs("./")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return strings.Replace(dir, "\\", "/", -1)
 }

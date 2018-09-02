@@ -26,9 +26,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/builder/sources"
-	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/util"
+
+	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/builder/sources/registry"
+	"github.com/goodrain/rainbond/db"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/engine-api/client"
@@ -117,23 +119,38 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 	}
 	for _, app := range appSnapshots {
 		//backup app image or code slug file
-		b.Logger.Info(fmt.Sprintf("开始备份应用(%s)运行环境", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
+		b.Logger.Info(fmt.Sprintf("Start backup Application(%s) runtime", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
+		haveAtLastOneVersion := false
 		for _, version := range app.Versions {
 			if version.DeliveredType == "slug" && version.FinalStatus == "success" {
+				if ok, _ := b.checkVersionExist(version); !ok {
+					version.FinalStatus = "lost"
+					continue
+				}
 				if err := b.uploadSlug(app, version); err != nil {
 					logrus.Errorf("upload app slug file error.%s", err.Error())
 					return err
 				}
+				haveAtLastOneVersion = true
 			}
 			if version.DeliveredType == "image" && version.FinalStatus == "success" {
+				if ok, _ := b.checkVersionExist(version); !ok {
+					version.FinalStatus = "lost"
+					continue
+				}
 				if err := b.uploadImage(app, version); err != nil {
 					logrus.Errorf("upload app image error.%s", err.Error())
 					return err
 				}
+				haveAtLastOneVersion = true
 			}
 		}
-		b.Logger.Info(fmt.Sprintf("完成备份应用(%s)运行环境", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
-		b.Logger.Info(fmt.Sprintf("开始备份应用(%s)持久化数据", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
+		if !haveAtLastOneVersion {
+			b.Logger.Error(fmt.Sprintf("Application(%s) Backup build version failure.", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
+			return fmt.Errorf("Application(%s) Backup build version failure", app.Service.ServiceAlias)
+		}
+		b.Logger.Info(fmt.Sprintf("Complete backup application (%s) runtime", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
+		b.Logger.Info(fmt.Sprintf("Start backup application(%s) persistent data", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
 		//backup app data
 		for _, volume := range app.ServiceVolume {
 			if volume.HostPath != "" && !util.DirIsEmpty(volume.HostPath) {
@@ -151,14 +168,14 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 				return err
 			}
 		}
-		b.Logger.Info(fmt.Sprintf("完成备份应用(%s)持久化数据", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
+		b.Logger.Info(fmt.Sprintf("Complete backup application(%s) persistent data", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
 		//TODO:backup relation volume data?
 	}
 	if strings.HasSuffix(b.SourceDir, "/") {
 		b.SourceDir = b.SourceDir[:len(b.SourceDir)-2]
 	}
 	if err := util.Zip(b.SourceDir, fmt.Sprintf("%s.zip", b.SourceDir)); err != nil {
-		b.Logger.Info(fmt.Sprintf("压缩备份元数据失败"), map[string]string{"step": "backup_builder", "status": "starting"})
+		b.Logger.Info(fmt.Sprintf("Compressed backup metadata failed"), map[string]string{"step": "backup_builder", "status": "starting"})
 		return err
 	}
 	b.BackupSize += util.GetFileSize(fmt.Sprintf("%s.zip", b.SourceDir))
@@ -166,7 +183,7 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 	b.SourceDir = fmt.Sprintf("%s.zip", b.SourceDir)
 	//upload app backup data to online server(sftp) if mode is full-online
 	if b.Mode == "full-online" && b.SlugInfo.FTPHost != "" && b.SlugInfo.FTPPort != "" {
-		b.Logger.Info(fmt.Sprintf("开始上传备份元数据到云端"), map[string]string{"step": "backup_builder", "status": "starting"})
+		b.Logger.Info(fmt.Sprintf("Start uploading backup metadata to the cloud"), map[string]string{"step": "backup_builder", "status": "starting"})
 		sFTPClient, err := sources.NewSFTPClient(b.SlugInfo.FTPUser, b.SlugInfo.FTPPassword, b.SlugInfo.FTPHost, b.SlugInfo.FTPPort)
 		if err != nil {
 			b.Logger.Error(util.Translation("create ftp client error"), map[string]string{"step": "backup_builder", "status": "failure"})
@@ -188,6 +205,35 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 		return err
 	}
 	return nil
+}
+func (b *BackupAPPNew) checkVersionExist(version *dbmodel.VersionInfo) (bool, error) {
+	if version.DeliveredType == "image" {
+		imageInfo := sources.ImageNameHandle(version.DeliveredPath)
+		reg, err := registry.NewInsecure(imageInfo.Host, "", "")
+		if err != nil {
+			logrus.Errorf("new registry client error %s", err.Error())
+			return false, err
+		}
+		_, err = reg.Manifest(imageInfo.Name, imageInfo.Tag)
+		if err != nil {
+			logrus.Errorf("get image %s manifest info failure, it could be not exist", version.DeliveredPath)
+			return false, err
+		}
+		return true, nil
+	}
+	if version.DeliveredType == "slug" {
+		islugfile, err := os.Stat(version.DeliveredPath)
+		if os.IsNotExist(err) {
+			return false, nil
+		} else if err != nil {
+			return false, err
+		}
+		if islugfile.IsDir() {
+			return false, nil
+		}
+		return true, nil
+	}
+	return false, fmt.Errorf("delivered type is invalid")
 }
 func (b *BackupAPPNew) uploadSlug(app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
 	if b.Mode == "full-online" && b.SlugInfo.FTPHost != "" && b.SlugInfo.FTPPort != "" {

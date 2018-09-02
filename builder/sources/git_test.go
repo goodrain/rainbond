@@ -38,7 +38,7 @@ func TestGitClone(t *testing.T) {
 		Branch:        "master",
 	}
 	//logger := event.GetManager().GetLogger("system")
-	res, err := GitClone(csi, "/tmp/rainbonddoc3", nil, 1)
+	res, err := GitClone(csi, "/tmp/rainbonddoc3", event.GetTestLogger(), 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func TestGitCloneByTag(t *testing.T) {
 		Branch:        "tag:v3.5.1",
 	}
 	//logger := event.GetManager().GetLogger("system")
-	res, err := GitClone(csi, "/tmp/rainbonddoc4", nil, 1)
+	res, err := GitClone(csi, "/tmp/rainbonddoc4", event.GetTestLogger(), 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestGitPull(t *testing.T) {
 		Branch:        "master2",
 	}
 	//logger := event.GetManager().GetLogger("system")
-	res, err := GitPull(csi, "/tmp/master2", nil, 1)
+	res, err := GitPull(csi, "/tmp/master2", event.GetTestLogger(), 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestGitPullOrClone(t *testing.T) {
 		RepositoryURL: "git@gitee.com:zhoujunhaogoodrain/webhook_test.git",
 	}
 	//logger := event.GetManager().GetLogger("system")
-	res, err := GitCloneOrPull(csi, "/tmp/goodrainweb2", nil, 1)
+	res, err := GitCloneOrPull(csi, "/tmp/goodrainweb2", event.GetTestLogger(), 1)
 	if err != nil {
 		t.Fatal(err)
 	}

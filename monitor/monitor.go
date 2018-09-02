@@ -20,6 +20,8 @@ package monitor
 
 import (
 	"context"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	v3 "github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
@@ -30,7 +32,6 @@ import (
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/goodrain/rainbond/util/watch"
 	"github.com/tidwall/gjson"
-	"time"
 )
 
 type Monitor struct {
@@ -115,8 +116,6 @@ func (d *Monitor) discoverNodes(node *callback.Node, app *callback.App, done <-c
 
 }
 
-
-
 func (d *Monitor) discoverCadvisor(c *callback.Cadvisor, done <-chan struct{}) {
 	// start listen node modified
 	watcher := watch.New(d.client, "")
@@ -165,8 +164,6 @@ func (d *Monitor) discoverCadvisor(c *callback.Cadvisor, done <-chan struct{}) {
 	}
 
 }
-
-
 
 func (d *Monitor) discoverEtcd(e *callback.Etcd, done <-chan struct{}) {
 	t := time.Tick(time.Minute)

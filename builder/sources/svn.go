@@ -234,24 +234,15 @@ func (c *svnclient) runWithLogger(args ...string) ([]byte, error) {
 		cmd.Env = append(os.Environ(), c.Env...)
 	}
 	cmd.Dir = c.svnDir
-	reader, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-	readererr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	startReadProgress(ctx, reader, c.logger)
-	startReadProgress(ctx, readererr, c.logger)
-	err = cmd.Run()
+	writer := c.logger.GetWriter("progress", "debug")
+	writer.SetFormat(`{"progress":"%s","id":"SVN:"}`)
+	cmd.Stdout = writer
+	cmd.Stderr = writer
+	err := cmd.Run()
 	if err != nil {
 		return nil, err
 	}
 	return nil, nil
-
 }
 
 // run 运行命令

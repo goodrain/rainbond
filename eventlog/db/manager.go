@@ -43,6 +43,10 @@ func NewManager(conf conf.DBConf, log *logrus.Entry) (Manager, error) {
 			return nil, err
 		}
 		return cdb, nil
+	case "eventfile":
+		return &EventFilePlugin{
+			HomePath: conf.HomePath,
+		}, nil
 	default:
 		my := &mysqlPlugin{
 			conf: conf,

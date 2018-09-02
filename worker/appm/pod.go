@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
@@ -74,7 +75,7 @@ func PodTemplateSpecBuilder(serviceID string, logger event.Logger, nodeAPI strin
 		logrus.Warnf("error get versioninfo table by key %s,prepare use default", service.DeployVersion)
 		var buildType = "image"
 		path := service.ImageName
-		if strings.HasPrefix(service.ImageName, "goodrain.me/runner") {
+		if strings.HasPrefix(service.ImageName, builder.RUNNERIMAGENAME) {
 			buildType = "slug"
 			path = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", service.TenantID, service.ServiceID, service.DeployVersion)
 		}
@@ -349,7 +350,7 @@ func (p *PodTemplateSpecBuild) createContainer(volumeMounts []v1.VolumeMount, en
 		Args:                   p.createArgs(*envs),
 	}
 	if p.versionInfo.DeliveredType == "slug" {
-		c1.Image = "goodrain.me/runner"
+		c1.Image = builder.RUNNERIMAGENAME
 	}
 	if p.versionInfo.DeliveredType == "image" {
 		c1.Image = p.versionInfo.DeliveredPath
@@ -827,8 +828,8 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(volumeMounts []v1.VolumeMo
 			Env:                    *envs,
 			Resources:              p.createPluginResources(pluginR.ContainerMemory, pluginR.ContainerCPU),
 			TerminationMessagePath: "",
-			Args:         args,
-			VolumeMounts: volumeMounts,
+			Args:                   args,
+			VolumeMounts:           volumeMounts,
 		}
 		pluginModel, err := p.getPluginModel(pluginR.PluginID)
 		if err != nil {
@@ -853,9 +854,9 @@ func (p *PodTemplateSpecBuild) createPluginsContainer(volumeMounts []v1.VolumeMo
 				ReadOnly:  true,
 			}},
 			TerminationMessagePath: "",
-			Env:       *mainEnvs,
-			Image:     "goodrain.me/adapter",
-			Resources: p.createAdapterResources(50, 20),
+			Env:                    *mainEnvs,
+			Image:                  "goodrain.me/adapter",
+			Resources:              p.createAdapterResources(50, 20),
 		}
 		containers = append(containers, c2)
 	}

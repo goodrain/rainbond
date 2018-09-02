@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 // GetMounts retrieves a list of mounts for the current running process.

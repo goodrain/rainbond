@@ -28,6 +28,7 @@ import (
 	"github.com/Sirupsen/logrus"
 
 	"github.com/docker/engine-api/types"
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 )
 
@@ -131,7 +132,7 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 		return nil, err
 	}
 	re.Logger.Info("镜像构建成功，开始推送镜像至仓库", map[string]string{"step": "builder-exector"})
-	err = sources.ImagePush(re.DockerClient, d.imageName, "", "", re.Logger, 5)
+	err = sources.ImagePush(re.DockerClient, d.imageName, builder.REGISTRYUSER, builder.REGISTRYPASS, re.Logger, 5)
 	if err != nil {
 		re.Logger.Error("推送镜像失败", map[string]string{"step": "builder-exector"})
 		logrus.Errorf("push image error: %s", err.Error())

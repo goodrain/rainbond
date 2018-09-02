@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/docker/libcompose/project/events"
-	log "github.com/sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 )
 
 type serviceWrapper struct {

@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 )
 
@@ -33,7 +34,7 @@ func TestParseDockerfileInfo(t *testing.T) {
 		volumes: make(map[string]*Volume),
 		envs:    make(map[string]*Env),
 		logger:  nil,
-		image:   parseImageName("goodrain.me/runner"),
+		image:   parseImageName(builder.RUNNERIMAGENAME),
 		args:    []string{"start", "web"},
 	}
 	parse.parseDockerfileInfo("./Dockerfile")

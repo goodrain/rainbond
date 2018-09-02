@@ -20,6 +20,9 @@ package event
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -70,6 +73,7 @@ const (
 	REQUESTTIMEOUT = 1000 * time.Millisecond
 	//MAXRETRIES 重试
 	MAXRETRIES = 3 //  Before we abandon
+	buffersize = 1000
 )
 
 //NewManager 创建manager
@@ -112,7 +116,7 @@ func (m *manager) Start() error {
 	defer m.lock.Unlock()
 	for i := 0; i < len(m.eventServer); i++ {
 		h := handle{
-			cacheChan: make(chan []byte, 100),
+			cacheChan: make(chan []byte, buffersize),
 			stop:      make(chan struct{}),
 			server:    m.eventServer[i],
 			manager:   m,
@@ -143,7 +147,7 @@ func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
 		new[end.URL] = end.URL
 		if _, ok := m.handles[end.URL]; !ok {
 			h := handle{
-				cacheChan: make(chan []byte, 100),
+				cacheChan: make(chan []byte, buffersize),
 				stop:      make(chan struct{}),
 				server:    end.URL,
 				manager:   m,
@@ -263,7 +267,7 @@ func (m *manager) getLBChan() chan []byte {
 			return h.cacheChan
 		}
 		h := handle{
-			cacheChan: make(chan []byte, 100),
+			cacheChan: make(chan []byte, buffersize),
 			stop:      make(chan struct{}),
 			server:    server,
 			manager:   m,
@@ -273,11 +277,10 @@ func (m *manager) getLBChan() chan []byte {
 		go h.HandleLog()
 		return h.cacheChan
 	}
-	//实在选不出节点了，返回列表第一个
+	//not select, return first handle chan
 	for _, v := range m.handles {
 		return v.cacheChan
 	}
-	//列表不存在，返回nil
 	return nil
 }
 func (m *manager) RemoveHandle(server string) {
@@ -340,6 +343,7 @@ type Logger interface {
 	CreateTime() time.Time
 	GetChan() chan []byte
 	SetChan(chan []byte)
+	GetWriter(step, level string) LoggerWriter
 }
 
 type logger struct {
@@ -391,6 +395,45 @@ func (l *logger) send(message string, info map[string]string) {
 	}
 }
 
+//LoggerWriter logger writer
+type LoggerWriter interface {
+	io.Writer
+	SetFormat(string)
+}
+
+func (l *logger) GetWriter(step, level string) LoggerWriter {
+	return &loggerWriter{
+		l:     l,
+		step:  step,
+		level: level,
+	}
+}
+
+type loggerWriter struct {
+	l     *logger
+	step  string
+	level string
+	fmt   string
+}
+
+func (l *loggerWriter) SetFormat(f string) {
+	l.fmt = f
+}
+func (l *loggerWriter) Write(b []byte) (n int, err error) {
+	if b != nil && len(b) > 0 {
+		message := string(b)
+		message = strings.Replace(message, "\r", "", -1)
+		message = strings.Replace(message, "\n", "", -1)
+		message = strings.Replace(message, "\u0000", "", -1)
+		message = strings.Replace(message, "\"", "", -1)
+		if l.fmt != "" {
+			message = fmt.Sprintf(l.fmt, message)
+		}
+		l.l.send(message, map[string]string{"step": l.step, "level": l.level})
+	}
+	return len(b), nil
+}
+
 //GetTestLogger GetTestLogger
 func GetTestLogger() Logger {
 	return &testLogger{}
@@ -419,4 +462,18 @@ func (l *testLogger) Error(message string, info map[string]string) {
 }
 func (l *testLogger) Debug(message string, info map[string]string) {
 	fmt.Println("debug:", message)
+}
+
+type testLoggerWriter struct {
+}
+
+func (l *testLoggerWriter) SetFormat(f string) {
+
+}
+func (l *testLoggerWriter) Write(b []byte) (n int, err error) {
+	return os.Stdout.Write(b)
+}
+
+func (l *testLogger) GetWriter(step, level string) LoggerWriter {
+	return &testLoggerWriter{}
 }

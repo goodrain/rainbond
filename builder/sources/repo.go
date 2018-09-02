@@ -45,6 +45,16 @@ func (r *RepostoryBuildInfo) GetCodeHome() string {
 			return path.Join(r.CodeHome, "trunk")
 		}
 		if r.BuildBranch != "" && r.BuildBranch != "master" {
+			if strings.HasPrefix(r.BuildBranch, "tag:") {
+				codepath := path.Join(r.CodeHome, "tags", r.BuildBranch[4:])
+				if ok, _ := util.FileExists(codepath); ok {
+					return codepath
+				}
+				codepath = path.Join(r.CodeHome, "Tags", r.BuildBranch[4:])
+				if ok, _ := util.FileExists(codepath); ok {
+					return codepath
+				}
+			}
 			codepath := path.Join(r.CodeHome, "branches", r.BuildBranch)
 			if ok, _ := util.FileExists(codepath); ok {
 				return codepath
