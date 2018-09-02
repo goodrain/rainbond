@@ -24,7 +24,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -119,8 +118,8 @@ func (m *EventFilePlugin) GetMessages(eventID, level string) (MessageDataList, e
 			}
 		}
 	}
-	//sort.Sort(sort.Reverse(message))
-	sort.Sort(message)
+	//Multi-node eventlog is valid and not sorted for the time being
+	//sort.Sort(message)
 	return message, nil
 }
 

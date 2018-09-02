@@ -36,6 +36,7 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/cmd/grctl/option"
 	"github.com/goodrain/rainbond/grctl/clients"
+	coreutil "github.com/goodrain/rainbond/util"
 	"github.com/gorilla/websocket"
 	"github.com/gosuri/uitable"
 	"github.com/tidwall/gjson"
@@ -43,10 +44,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+//NewCmdService application service command
 func NewCmdService() cli.Command {
 	c := cli.Command{
 		Name:  "service",
-		Usage: "服务相关，grctl service -h",
+		Usage: "about  application service operation，grctl service -h",
 		Subcommands: []cli.Command{
 			cli.Command{
 				Name: "get",
@@ -57,7 +59,7 @@ func NewCmdService() cli.Command {
 						Usage: "URL of the app. eg. https://user.goodrain.com/apps/goodrain/dev-debug/detail/ or goodrain/dev-debug",
 					},
 				},
-				Usage: "获取应用运行详细信息。grctl service get PATH",
+				Usage: "Get application service runtime detail ifno。For example <grctl service get PATH>",
 				Action: func(c *cli.Context) error {
 					Common(c)
 					return getAppInfoV2(c)
@@ -65,11 +67,11 @@ func NewCmdService() cli.Command {
 			},
 			cli.Command{
 				Name:  "start",
-				Usage: "启动应用 grctl service start goodrain/gra564a1 eventID",
+				Usage: "Start an application service, For example <grctl service start goodrain/gra564a1>",
 				Flags: []cli.Flag{
 					cli.BoolFlag{
 						Name:  "f",
-						Usage: "添加此参数日志持续输出。",
+						Usage: "Blocks the output operation log",
 					},
 					cli.StringFlag{
 						Name:  "event_log_server",
@@ -83,11 +85,11 @@ func NewCmdService() cli.Command {
 			},
 			cli.Command{
 				Name:  "stop",
-				Usage: "停止应用 grctl service stop goodrain/gra564a1 eventID",
+				Usage: "Stop an application service, For example <grctl service stop goodrain/gra564a1>",
 				Flags: []cli.Flag{
 					cli.BoolFlag{
 						Name:  "f",
-						Usage: "添加此参数日志持续输出。",
+						Usage: "Blocks the output operation log",
 					},
 					cli.StringFlag{
 						Name:  "event_log_server",
@@ -104,14 +106,14 @@ func NewCmdService() cli.Command {
 				Flags: []cli.Flag{
 					cli.BoolFlag{
 						Name:  "f",
-						Usage: "添加此参数日志持续输出。",
+						Usage: "Blocks the output operation log",
 					},
 					cli.StringFlag{
 						Name:  "event_log_server",
 						Usage: "event log server address",
 					},
 				},
-				Usage: "获取某个操作的日志 grctl service event eventID 123/gr2a2e1b ",
+				Usage: "Blocks the output operation log, For example <grctl service event eventID 123/gr2a2e1b>",
 				Action: func(c *cli.Context) error {
 					Common(c)
 					return getEventLog(c)
@@ -122,10 +124,10 @@ func NewCmdService() cli.Command {
 				Flags: []cli.Flag{
 					cli.BoolFlag{
 						Name:  "f",
-						Usage: "添加此参数日志持续输出。",
+						Usage: "Blocks the output service log",
 					},
 				},
-				Usage: "获取服务的日志。grctl service log SERVICE_ID",
+				Usage: "Get application service run log。For example <grctl service log SERVICE_ID>",
 				Action: func(c *cli.Context) error {
 					Common(c)
 					return getLogInfo(c)
@@ -167,7 +169,6 @@ func GetEventLogf(eventID, server string) {
 func getEventLog(c *cli.Context) error {
 	eventID := c.Args().First()
 	if c.Bool("f") {
-
 		server := "127.0.0.1:6363"
 		if c.String("event_log_server") != "" {
 			server = c.String("event_log_server")
@@ -202,7 +203,6 @@ func getEventLog(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
-
 		for _, v := range dl {
 			aa, _ := json.Marshal(v)
 			fmt.Println(string(aa))
@@ -220,7 +220,7 @@ func stopTenantService(c *cli.Context) error {
 		fmt.Println("Please provide tenant name")
 		os.Exit(1)
 	}
-	eventID := "system"
+	eventID := coreutil.NewUUID()
 	services, err := clients.RegionClient.Tenants(tenantName).Services("").List()
 	handleErr(err)
 	for _, service := range services {
@@ -239,6 +239,7 @@ func stopTenantService(c *cli.Context) error {
 			}
 		}
 	}
+	fmt.Println("EventID:", eventID)
 	return nil
 }
 
@@ -250,7 +251,7 @@ func startService(c *cli.Context) error {
 	serviceAlias := c.Args().First()
 	info := strings.Split(serviceAlias, "/")
 
-	eventID := c.Args().Get(1)
+	eventID := coreutil.NewUUID()
 
 	service, err := clients.RegionClient.Tenants(info[0]).Services(info[1]).Get()
 	handleErr(err)
@@ -266,12 +267,12 @@ func startService(c *cli.Context) error {
 		}
 		GetEventLogf(eventID, server)
 	}
-
 	//err = region.StopService(service["service_id"].(string), service["deploy_version"].(string))
 	if err != nil {
 		logrus.Error("启动应用失败:" + err.Error())
 		return err
 	}
+	fmt.Println("EventID:", eventID)
 	return nil
 }
 
@@ -280,7 +281,7 @@ func stopService(c *cli.Context) error {
 	serviceAlias := c.Args().First()
 	info := strings.Split(serviceAlias, "/")
 
-	eventID := c.Args().Get(1)
+	eventID := coreutil.NewUUID()
 	service, err := clients.RegionClient.Tenants(info[0]).Services(info[1]).Get()
 	handleErr(err)
 	if service == nil {
@@ -295,6 +296,7 @@ func stopService(c *cli.Context) error {
 		}
 		GetEventLogf(eventID, server)
 	}
+	fmt.Println("EventID:", eventID)
 	return nil
 }
 
