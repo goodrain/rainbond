@@ -131,10 +131,11 @@ Loop:
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
-	progress := createProgress(ctx, logger)
+	writer := logger.GetWriter("progress", "debug")
+	writer.SetFormat(`{"progress":"%s","id":"Clone:"}`)
 	opts := &git.CloneOptions{
 		URL:               csi.RepositoryURL,
-		Progress:          progress,
+		Progress:          writer,
 		SingleBranch:      true,
 		Tags:              git.NoTags,
 		RecurseSubmodules: git.NoRecurseSubmodules,
@@ -266,9 +267,10 @@ Loop:
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
-	progress := createProgress(ctx, logger)
+	writer := logger.GetWriter("progress", "debug")
+	writer.SetFormat(`{"progress":"%s","id":"Pull:"}`)
 	opts := &git.PullOptions{
-		Progress:     progress,
+		Progress:     writer,
 		SingleBranch: true,
 		Depth:        1,
 	}

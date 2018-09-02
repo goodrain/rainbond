@@ -342,7 +342,7 @@ type Logger interface {
 	CreateTime() time.Time
 	GetChan() chan []byte
 	SetChan(chan []byte)
-	GetWriter(step, level string) io.Writer
+	GetWriter(step, level string) LoggerWriter
 }
 
 type logger struct {
@@ -393,7 +393,14 @@ func (l *logger) send(message string, info map[string]string) {
 		util.SendNoBlocking(log, l.sendChan)
 	}
 }
-func (l *logger) GetWriter(step, level string) io.Writer {
+
+//LoggerWriter logger writer
+type LoggerWriter interface {
+	io.Writer
+	SetFormat(string)
+}
+
+func (l *logger) GetWriter(step, level string) LoggerWriter {
 	return &loggerWriter{
 		l:     l,
 		step:  step,
@@ -405,11 +412,19 @@ type loggerWriter struct {
 	l     *logger
 	step  string
 	level string
+	fmt   string
 }
 
+func (l *loggerWriter) SetFormat(f string) {
+	l.fmt = f
+}
 func (l *loggerWriter) Write(b []byte) (n int, err error) {
 	if b != nil && len(b) > 0 {
-		l.l.send(string(b), map[string]string{"step": l.step, "level": l.level})
+		message := string(b)
+		if l.fmt != "" {
+			message = fmt.Sprintf(l.fmt, message)
+		}
+		l.l.send(message, map[string]string{"step": l.step, "level": l.level})
 	}
 	return len(b), nil
 }
@@ -443,6 +458,17 @@ func (l *testLogger) Error(message string, info map[string]string) {
 func (l *testLogger) Debug(message string, info map[string]string) {
 	fmt.Println("debug:", message)
 }
-func (l *testLogger) GetWriter(step, level string) io.Writer {
-	return os.Stdout
+
+type testLoggerWriter struct {
+}
+
+func (l *testLoggerWriter) SetFormat(f string) {
+
+}
+func (l *testLoggerWriter) Write(b []byte) (n int, err error) {
+	return os.Stdout.Write(b)
+}
+
+func (l *testLogger) GetWriter(step, level string) LoggerWriter {
+	return &testLoggerWriter{}
 }
