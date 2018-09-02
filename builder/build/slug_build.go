@@ -29,6 +29,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/fsnotify/fsnotify"
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
@@ -143,10 +144,6 @@ func (s *slugBuild) getSourceCodeTarFile(re *Request) (*os.File, error) {
 }
 
 func (s *slugBuild) runBuildContainer(re *Request) error {
-	builderImageName := os.Getenv("BUILDER_IMAGE_NAME")
-	if builderImageName == "" {
-		builderImageName = "goodrain.me/builder"
-	}
 	envs := []*sources.KeyValue{
 		&sources.KeyValue{Key: "SLUG_VERSION", Value: re.DeployVersion},
 		&sources.KeyValue{Key: "SERVICE_ID", Value: re.ServiceID},
@@ -169,7 +166,7 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 			Name: re.ServiceID[:8] + "_" + re.DeployVersion,
 		},
 		Image: &sources.ImageSpec{
-			Image: builderImageName,
+			Image: builder.BUILDERIMAGENAME,
 		},
 		Mounts: []*sources.Mount{
 			&sources.Mount{

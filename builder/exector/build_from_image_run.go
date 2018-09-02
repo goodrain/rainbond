@@ -22,9 +22,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/goodrain/rainbond/builder"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/event"
 	"github.com/tidwall/gjson"
+
 	//"github.com/docker/docker/api/types"
 
 	//"github.com/docker/docker/client"
@@ -84,7 +87,7 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 		i.Logger.Error(fmt.Sprintf("修改镜像tag: %s -> %s 失败", i.Image, localImageURL), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	err = sources.ImagePush(i.DockerClient, localImageURL, "", "", i.Logger, 10)
+	err = sources.ImagePush(i.DockerClient, localImageURL, builder.REGISTRYUSER, builder.REGISTRYPASS, i.Logger, 30)
 	if err != nil {
 		logrus.Errorf("push image into registry error: %s", err.Error())
 		i.Logger.Error("推送镜像至镜像仓库失败", map[string]string{"step": "builder-exector", "status": "failure"})
@@ -113,7 +116,7 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 //ImageNameHandler 根据平台配置处理镜像名称
 func (i *ImageBuildItem) ImageNameHandler(source string) string {
 	imageModel := sources.ImageNameHandle(source)
-	localImageURL := fmt.Sprintf("%s/%s:%s", "goodrain.me", imageModel.Name, i.DeployVersion)
+	localImageURL := fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, imageModel.Name, i.DeployVersion)
 	return localImageURL
 }
 

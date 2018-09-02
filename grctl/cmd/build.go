@@ -28,6 +28,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/engine-api/client"
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/util"
@@ -53,7 +54,7 @@ func NewSourceBuildCmd() cli.Command {
 			cli.StringFlag{
 				Name:  "image",
 				Usage: "builder image name",
-				Value: "goodrain.me/builder",
+				Value: builder.BUILDERIMAGENAME,
 			},
 			cli.StringSliceFlag{
 				Name:  "env",
