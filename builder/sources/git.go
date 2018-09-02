@@ -19,8 +19,6 @@
 package sources
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -47,7 +45,6 @@ import (
 	sshkey "golang.org/x/crypto/ssh"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/protocol/packp/sideband"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/client"
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
@@ -275,7 +272,7 @@ Loop:
 		Depth:        1,
 	}
 	if csi.Branch != "" {
-		opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", csi.Branch))
+		opts.ReferenceName = getBranch(csi.Branch)
 	}
 	ep, err := transport.NewEndpoint(csi.RepositoryURL)
 	if err != nil {
@@ -512,39 +509,4 @@ func MakeSSHKeyPair() (string, string, error) {
 	}
 
 	return string(EncodePrivateKey(pkey)), string(pub), nil
-}
-
-//createProgress create git log progress
-func createProgress(ctx context.Context, logger event.Logger) sideband.Progress {
-	if logger == nil {
-		return os.Stdout
-	}
-	buffer := bytes.NewBuffer(make([]byte, 4096))
-	var reader = bufio.NewReader(buffer)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				line, _, err := reader.ReadLine()
-				if err != nil {
-					if err.Error() != "EOF" {
-						fmt.Println("read git log err", err.Error())
-					}
-					return
-				}
-				if len(line) > 0 {
-					progess := strings.Replace(string(line), "\r", "", -1)
-					progess = strings.Replace(progess, "\n", "", -1)
-					progess = strings.Replace(progess, "\u0000", "", -1)
-					if len(progess) > 0 {
-						message := fmt.Sprintf(`{"progress":"%s","id":"%s"}`, progess, "获取源码")
-						logger.Debug(message, map[string]string{"step": "progress"})
-					}
-				}
-			}
-		}
-	}()
-	return buffer
 }
