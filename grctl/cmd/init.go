@@ -23,8 +23,11 @@ import (
 	"io/ioutil"
 	"os/exec"
 
+	"github.com/goodrain/rainbond/event"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
+
 	//"github.com/goodrain/rainbond/grctl/clients"
 
 	"os"
@@ -64,6 +67,11 @@ func NewCmdInit() cli.Command {
 				Value: "v3.7",
 			},
 			cli.StringFlag{
+				Name:  "rainbond-install-repostoiry",
+				Usage: "Set install rainbond code git repostory address",
+				Value: "https://github.com/goodrain/rainbond-install.git",
+			},
+			cli.StringFlag{
 				Name:  "install-type",
 				Usage: "defalut online.",
 				Value: "online",
@@ -87,6 +95,8 @@ func NewCmdInit() cli.Command {
 	}
 	return c
 }
+
+//NewCmdInstallStatus install status
 func NewCmdInstallStatus() cli.Command {
 	c := cli.Command{
 		Name: "install_status",
@@ -136,12 +146,12 @@ func initCluster(c *cli.Context) {
 	if c.String("install-type") == "online" {
 		fmt.Println("Download rainbond install package.")
 		csi := sources.CodeSourceInfo{
-			RepositoryURL: "https://github.com/goodrain/rainbond-install.git",
+			RepositoryURL: c.String("rainbond-install-repostoiry"),
 			Branch:        c.String("rainbond-version"),
 		}
 		os.RemoveAll(c.String("work_dir"))
 		os.MkdirAll(c.String("work_dir"), 0755)
-		_, err := sources.GitClone(csi, c.String("work_dir"), nil, 5)
+		_, err := sources.GitClone(csi, c.String("work_dir"), event.GetTestLogger(), 5)
 		if err != nil {
 			println(err.Error())
 			return
