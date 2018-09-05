@@ -34,6 +34,8 @@ import (
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
 
+	"encoding/json"
+
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/api/model"
 	"github.com/goodrain/rainbond/node/core/config"
@@ -41,7 +43,6 @@ import (
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util"
-	"encoding/json"
 )
 
 const (
@@ -147,6 +148,10 @@ func (n *Cluster) checkNodeStatus() {
 				resp, err := store.DefalutClient.Get("/rainbond/nodes/target/" + node.ID)
 				if err != nil {
 					logrus.Error(err)
+					continue
+				}
+				if len(resp.Kvs) == 0 {
+					logrus.Errorf("do not found node %s", node.ID)
 					continue
 				}
 				var targetNode client.HostNode
@@ -270,7 +275,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		v.Unschedulable = false
 		if k8sNode != nil {
 			v.UpdataK8sCondition(k8sNode.Status.Conditions)
-			if v.Unschedulable == true || k8sNode.Spec.Unschedulable == true{
+			if v.Unschedulable == true || k8sNode.Spec.Unschedulable == true {
 				v.Unschedulable = true
 			}
 			v.AvailableCPU = k8sNode.Status.Capacity.Cpu().Value()

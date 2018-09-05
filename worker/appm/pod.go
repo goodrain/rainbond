@@ -178,7 +178,7 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 			}
 			if ls != nil {
 				for _, l := range ls {
-					labels["scheduler-"+l.PodName] = l.NodeIP
+					labels["scheduler-host"] = l.NodeIP
 				}
 			}
 		}
