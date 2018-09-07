@@ -76,9 +76,9 @@ var defaultHTTPSVS = &object.VirtualServiceObject{
 	Note:            "system https vs",
 }
 
-func getHTTPSListenPort() int32 {
-	if os.Getenv("HTTPS_LISTEN_PORT") != "" {
-		if port, err := strconv.Atoi(os.Getenv("HTTPS_LISTEN_PORT")); err == nil {
+func GetHTTPSListenPort() int32 {
+	if os.Getenv("DEFAULT_HTTPS_PORT") != "" {
+		if port, err := strconv.Atoi(os.Getenv("DEFAULT_HTTPS_PORT")); err == nil {
 			return int32(port)
 		}
 	}
