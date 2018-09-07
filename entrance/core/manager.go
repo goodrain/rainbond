@@ -19,6 +19,9 @@
 package core
 
 import (
+	"os"
+	"strconv"
+
 	"github.com/goodrain/rainbond/cmd/entrance/option"
 	"github.com/goodrain/rainbond/entrance/cluster"
 	"github.com/goodrain/rainbond/entrance/core/event"
@@ -67,10 +70,19 @@ var defaultHTTPSVS = &object.VirtualServiceObject{
 	Name:            "HTTPS.VS",
 	Enabled:         true,
 	Protocol:        "http",
-	Port:            10443,
+	Port:            getHTTPSListenPort(),
 	DefaultPoolName: "discard",
 	Rules:           []string{"custom", "httpsproxy"},
 	Note:            "system https vs",
+}
+
+func getHTTPSListenPort() int32 {
+	if os.Getenv("HTTPS_LISTEN_PORT") != "" {
+		if port, err := strconv.Atoi(os.Getenv("HTTPS_LISTEN_PORT")); err == nil {
+			return int32(port)
+		}
+	}
+	return 10443
 }
 
 //NewManager create core manager
