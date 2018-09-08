@@ -214,7 +214,7 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 		return fmt.Errorf("attach builder container error:%s", err.Error())
 	}
 	defer close()
-	statuschan := containerService.WaitExitOrRemoved(containerID, false)
+	statuschan := containerService.WaitExitOrRemoved(containerID, true)
 	//start the container
 	if err := containerService.StartContainer(containerID); err != nil {
 		containerService.RemoveContainer(containerID)
