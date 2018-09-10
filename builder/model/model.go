@@ -85,7 +85,8 @@ type AppPublish struct {
 
 //ImageName ImageName
 type ImageName struct {
-	Host string `json:"host"`
-	Name string `json:"name"`
-	Tag  string `json:"tag"`
+	Host      string `json:"host"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Tag       string `json:"tag"`
 }

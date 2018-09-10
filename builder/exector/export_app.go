@@ -28,6 +28,8 @@ import (
 	"strconv"
 	"strings"
 
+	"regexp"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/engine-api/client"
 	"github.com/goodrain/rainbond/builder/sources"
@@ -37,7 +39,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 	"gopkg.in/yaml.v2"
-	"regexp"
 )
 
 var re = regexp.MustCompile(`\s`)
@@ -232,7 +233,7 @@ func (i *ExportApp) parseApps() ([]gjson.Result, error) {
 	arr := gjson.GetBytes(data, "apps").Array()
 	if len(arr) < 1 {
 		i.Logger.Error("解析应用列表信息失败", map[string]string{"step": "parse-apps", "status": "failure"})
-		err := errors.New("Not found app in the metadata.")
+		err := errors.New("Not found app in the metadata")
 		logrus.Error("Failed to get apps from json: ", err)
 		return nil, err
 	}
@@ -241,52 +242,78 @@ func (i *ExportApp) parseApps() ([]gjson.Result, error) {
 	return arr, nil
 }
 
-func (i *ExportApp) exportImage(app gjson.Result) error {
+func (i *ExportApp) exportImage(serviceDir string, app gjson.Result) error {
 	serviceName := app.Get("service_cname").String()
 	serviceName = unicode2zh(serviceName)
-
-	serviceDir := fmt.Sprintf("%s/%s", i.SourceDir, serviceName)
 	os.MkdirAll(serviceDir, 0755)
-
 	// 处理掉文件名中冒号等不合法字符
 	image := app.Get("share_image").String()
 	tarFileName := buildToLinuxFileName(image)
 	user := app.Get("service_image.hub_user").String()
 	pass := app.Get("service_image.hub_password").String()
-
 	// 如果是runner镜像则跳过
 	if checkIsRunner(image) {
 		logrus.Debug("Skip the runner image: ", image)
 		return nil
 	}
-
 	// docker pull image-name
 	_, err := sources.ImagePull(i.DockerClient, image, user, pass, i.Logger, 15)
 	if err != nil {
-		//// 处理掉文件名中冒号等不合法字符
-		//image = app.Get("image").String()
-		//tarFileName = buildToLinuxFileName(image)
-		//
-		//// docker pull image-name
-		//_, err := sources.ImagePull(i.DockerClient, image, "", "", i.Logger, 15)
-		//if err != nil {
-		//	i.Logger.Error(fmt.Sprintf("拉取镜像失败：%s", image),
-		//		map[string]string{"step": "pull-image", "status": "failure"})
-		//	logrus.Error("Failed to pull image: ", err)
-		//}
 		return err
 	}
-
+	//change save app image name
+	imageName := sources.ImageNameWithNamespaceHandle(image)
+	saveImageName := fmt.Sprintf("%s/%s:%s", "goodrain.me", imageName.Name, imageName.Tag)
+	if err := sources.ImageTag(i.DockerClient, image, saveImageName, i.Logger, 2); err != nil {
+		return err
+	}
 	// save image to tar file
-	err = sources.ImageSave(i.DockerClient, image, fmt.Sprintf("%s/%s.image.tar", serviceDir, tarFileName), i.Logger)
+	err = sources.ImageSave(i.DockerClient, saveImageName, fmt.Sprintf("%s/%s.image.tar", serviceDir, tarFileName), i.Logger)
 	if err != nil {
-		i.Logger.Error(fmt.Sprintf("保存镜像失败：%s", image),
+		i.Logger.Error(fmt.Sprintf("save image to local error：%s", image),
 			map[string]string{"step": "save-image", "status": "failure"})
 		logrus.Error("Failed to save image: ", err)
 		return err
 	}
 	logrus.Debug("Successful save image file: ", image)
+	return nil
+}
 
+func (i *ExportApp) exportSlug(serviceDir string, app gjson.Result) error {
+	shareSlugPath := app.Get("share_slug_path").String()
+	serviceName := app.Get("service_cname").String()
+	tarFileName := buildToLinuxFileName(shareSlugPath)
+	_, err := os.Stat(shareSlugPath)
+	if shareSlugPath != "" && err == nil {
+		logrus.Debug("The slug file was exist already, direct copy to service dir: ", shareSlugPath)
+		err = exec.Command("cp", shareSlugPath, fmt.Sprintf("%s/%s", serviceDir, tarFileName)).Run()
+		if err == nil {
+			return nil
+		}
+		// 如果copy失败则忽略，在下一步中下载该slug包
+		logrus.Debugf("Failed to copy the slug file to service dir %s: %v", shareSlugPath, err)
+	}
+	// 提取tfp服务器信息
+	ftpHost := app.Get("service_slug.ftp_host").String()
+	ftpPort := app.Get("service_slug.ftp_port").String()
+	ftpUsername := app.Get("service_slug.ftp_username").String()
+	ftpPassword := app.Get("service_slug.ftp_password").String()
+
+	ftpClient, err := sources.NewSFTPClient(ftpUsername, ftpPassword, ftpHost, ftpPort)
+	if err != nil {
+		logrus.Error("Failed to create ftp client: ", err)
+		return err
+	}
+	// 开始下载文件
+	i.Logger.Info(fmt.Sprintf("获取应用源码：%s", serviceName), map[string]string{"step": "get-slug", "status": "failure"})
+	err = ftpClient.DownloadFile(shareSlugPath, fmt.Sprintf("%s/%s", serviceDir, tarFileName), i.Logger)
+	ftpClient.Close()
+	if err != nil {
+		logrus.Errorf("Failed to download slug file for group %s: %v", i.SourceDir, err)
+		return err
+	}
+
+	logrus.Debug("Successful download slug file: ", shareSlugPath)
 	return nil
 }
 
@@ -313,58 +340,24 @@ func (i *ExportApp) saveApps() error {
 
 		// 如果该slug文件存在于本地，则直接复制，然后修改json中的share_slug_path字段
 		shareSlugPath := app.Get("share_slug_path").String()
-		tarFileName := buildToLinuxFileName(shareSlugPath)
-		_, err := os.Stat(shareSlugPath)
-		if shareSlugPath != "" && err == nil {
-			logrus.Debug("The slug file was exist already, direct copy to service dir: ", shareSlugPath)
-			err = exec.Command("cp", shareSlugPath, fmt.Sprintf("%s/%s", serviceDir, tarFileName)).Run()
-			if err == nil {
-				continue
-			}
-			// 如果copy失败则忽略，在下一步中下载该slug包
-			logrus.Debugf("Failed to copy the slug file to service dir %s: %v", shareSlugPath, err)
-		}
-
-		// 如果这个字段存在于该app中，则认为该app是源码部署方式，并从ftp下载相应slug文件
-		// 否则认为该app是镜像方式部署，然后下载相应镜像即可
-		if shareSlugPath == "" {
-			logrus.Infof("The service is image model deploy: %s", serviceName)
+		shareImage := app.Get("share_image").String()
+		if shareSlugPath != "" {
 			// 下载镜像到应用导出目录
-			if err := i.exportImage(app); err != nil {
+			if err := i.exportSlug(serviceDir, app); err != nil {
 				return err
 			}
-
 			continue
 		}
-
-		i.Logger.Info(fmt.Sprintf("解析应用源码信息：%s", serviceName),
-			map[string]string{"step": "parse-slug", "status": "failure"})
-		logrus.Debug("Ready download slug file: ", shareSlugPath)
-
-		// 提取tfp服务器信息
-		ftpHost := app.Get("service_slug.ftp_host").String()
-		ftpPort := app.Get("service_slug.ftp_port").String()
-		ftpUsername := app.Get("service_slug.ftp_username").String()
-		ftpPassword := app.Get("service_slug.ftp_password").String()
-
-		ftpClient, err := sources.NewSFTPClient(ftpUsername, ftpPassword, ftpHost, ftpPort)
-		if err != nil {
-			logrus.Error("Failed to create ftp client: ", err)
-			return err
+		// 如果这个字段存在于该app中，则认为该app是源码部署方式，并从ftp下载相应slug文件
+		// 否则认为该app是镜像方式部署，然后下载相应镜像即可
+		if shareImage != "" {
+			logrus.Infof("The service is image model deploy: %s", serviceName)
+			// 下载镜像到应用导出目录
+			if err := i.exportImage(serviceDir, app); err != nil {
+				return err
+			}
+			continue
 		}
-
-		// 开始下载文件
-		i.Logger.Info(fmt.Sprintf("获取应用源码：%s", serviceName),
-			map[string]string{"step": "get-slug", "status": "failure"})
-
-		err = ftpClient.DownloadFile(shareSlugPath, fmt.Sprintf("%s/%s", serviceDir, tarFileName), i.Logger)
-		ftpClient.Close()
-		if err != nil {
-			logrus.Errorf("Failed to download slug file for group %s: %v", i.SourceDir, err)
-			return err
-		}
-		logrus.Debug("Successful download slug file: ", shareSlugPath)
-
 	}
 	return nil
 }

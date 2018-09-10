@@ -34,6 +34,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"golang.org/x/net/context"
+
 	//"github.com/docker/docker/api/types"
 	"github.com/docker/engine-api/types"
 	//"github.com/docker/docker/client"
@@ -142,6 +143,38 @@ func ImageNameHandle(imageName string) *model.ImageName {
 		mm := strings.Split(imageName, "/")
 		i.Host = mm[0]
 		names := strings.Join(mm[1:], "/")
+		if strings.Contains(names, ":") {
+			nn := strings.Split(names, ":")
+			i.Name = nn[0]
+			i.Tag = nn[1]
+		} else {
+			i.Name = names
+			i.Tag = "latest"
+		}
+	} else {
+		if strings.Contains(imageName, ":") {
+			nn := strings.Split(imageName, ":")
+			i.Name = nn[0]
+			i.Tag = nn[1]
+		} else {
+			i.Name = imageName
+			i.Tag = "latest"
+		}
+	}
+	return &i
+}
+
+//ImageNameWithNamespaceHandle if have namespace,will parse namespace
+func ImageNameWithNamespaceHandle(imageName string) *model.ImageName {
+	var i model.ImageName
+	if strings.Contains(imageName, "/") {
+		mm := strings.Split(imageName, "/")
+		i.Host = mm[0]
+		names := strings.Join(mm[1:], "/")
+		if len(mm) >= 3 {
+			i.Namespace = mm[1]
+			names = strings.Join(mm[2:], "/")
+		}
 		if strings.Contains(names, ":") {
 			nn := strings.Split(names, ":")
 			i.Name = nn[0]
