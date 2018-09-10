@@ -397,7 +397,7 @@ func ImageSave(dockerCli *client.Client, image, destination string, logger event
 	return CopyToFile(destination, rc)
 }
 
-//ImageSave save image to tar file
+//ImageLoad load image from  tar file
 // destination destination file name eg. /tmp/xxx.tar
 func ImageLoad(dockerCli *client.Client, tarFile string, logger event.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -409,9 +409,31 @@ func ImageLoad(dockerCli *client.Client, tarFile string, logger event.Logger) er
 	}
 	defer reader.Close()
 
-	_, err = dockerCli.ImageLoad(ctx, reader, false)
+	rc, err := dockerCli.ImageLoad(ctx, reader, false)
 	if err != nil {
 		return err
+	}
+	if rc.Body != nil {
+		defer rc.Body.Close()
+		dec := json.NewDecoder(rc.Body)
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+			var jm JSONMessage
+			if err := dec.Decode(&jm); err != nil {
+				if err == io.EOF {
+					break
+				}
+				return err
+			}
+			if jm.Error != nil {
+				return jm.Error
+			}
+			logger.Info(jm.JSONString(), map[string]string{"step": "build-progress"})
+		}
 	}
 
 	return nil

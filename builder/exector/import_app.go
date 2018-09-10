@@ -29,6 +29,8 @@ import (
 	"strings"
 	"time"
 
+	"bytes"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/docker/engine-api/client"
@@ -38,7 +40,6 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	"github.com/tidwall/gjson"
-	"bytes"
 )
 
 func init() {
@@ -367,7 +368,7 @@ func (i *ImportApp) loadApps() error {
 				image = fmt.Sprintf("%s/%s/%s:%s", huAddress, namespace, oldImageName.Name, oldImageName.Tag)
 			}
 			if err := sources.ImageTag(i.DockerClient, fmt.Sprintf("goodrain.me/%s:%s", oldImageName.Name, oldImageName.Tag), image, i.Logger, 15); err != nil {
-				return fmt.Errorf("change image tag(%s => %s) error %s", fmt.Sprintf("goodrain.me/%s", oldImageName.Name), image, err.Error())
+				return fmt.Errorf("change image tag(%s => %s) error %s", fmt.Sprintf("goodrain.me/%s:%s", oldImageName.Name, oldImageName.Tag), image, err.Error())
 			}
 			// 开始上传
 			if err := sources.ImagePush(i.DockerClient, image, user, pass, i.Logger, 15); err != nil {
