@@ -29,8 +29,6 @@ import (
 	"strings"
 	"time"
 
-	"bytes"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/docker/engine-api/client"
@@ -40,6 +38,7 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	"github.com/tidwall/gjson"
+	"bytes"
 )
 
 func init() {
@@ -388,6 +387,9 @@ func (i *ImportApp) loadApps() error {
 			ftpClient, err := sources.NewSFTPClient(ftpUsername, ftpPassword, ftpHost, ftpPort)
 			if err != nil {
 				// 如果指定的ftp服务器不存在则铐到本地
+				if strings.HasPrefix(shareSlugPath, "/app_publish") {
+					shareSlugPath = strings.Replace(shareSlugPath, "/app_publish", "/grdata/build/tenant", 1)
+				}
 				os.MkdirAll(filepath.Base(shareSlugPath), 0755)
 				cmd := exec.Command("cp", fileName, shareSlugPath)
 				var out bytes.Buffer
@@ -406,7 +408,9 @@ func (i *ImportApp) loadApps() error {
 			// 开始上传文件
 			i.Logger.Info(fmt.Sprintf("获取应用源码：%s", serviceName),
 				map[string]string{"step": "get-slug", "status": "failure"})
-
+			if strings.HasPrefix(shareSlugPath, "/grdata/build/tenant") {
+				shareSlugPath = strings.Replace(shareSlugPath, "/grdata/build/tenant", "/app_publish", 1)
+			}
 			err = ftpClient.PushFile(fileName, shareSlugPath, i.Logger)
 			ftpClient.Close()
 			if err != nil {
