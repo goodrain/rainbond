@@ -353,7 +353,6 @@ func (i *ImportApp) loadApps() error {
 				logrus.Error("Failed to load image for service: ", serviceName)
 				return err
 			}
-
 			// 上传到仓库
 			oldImage := app.Get("share_image").String()
 			oldImageName := sources.ImageNameWithNamespaceHandle(oldImage)
@@ -364,16 +363,16 @@ func (i *ImportApp) loadApps() error {
 			namespace := app.Get("service_image.namespace").String()
 			var image string
 			if namespace == "" {
-				image = fmt.Sprintf("%s/%s", huAddress, oldImageName.Name)
+				image = fmt.Sprintf("%s/%s:%s", huAddress, oldImageName.Name, oldImageName.Tag)
 			} else {
-				image = fmt.Sprintf("%s/%s/%s", huAddress, namespace, oldImageName.Name)
+				image = fmt.Sprintf("%s/%s/%s:%s", huAddress, namespace, oldImageName.Name, oldImageName.Tag)
 			}
-			if err := sources.ImageTag(i.DockerClient, fmt.Sprintf("goodrain.me/%s", oldImageName.Name), image, i.Logger, 15); err != nil {
-				return err
+			if err := sources.ImageTag(i.DockerClient, fmt.Sprintf("goodrain.me/%s:%s", oldImageName.Name, oldImageName.Tag), image, i.Logger, 15); err != nil {
+				return fmt.Errorf("change image tag(%s => %s) error %s", fmt.Sprintf("goodrain.me/%s", oldImageName.Name), image, err.Error())
 			}
 			// 开始上传
 			if err := sources.ImagePush(i.DockerClient, image, user, pass, i.Logger, 15); err != nil {
-				return err
+				return fmt.Errorf("push  image %s error %s", image, err.Error())
 			}
 			logrus.Debug("Successful load and push the image ", image)
 		} else if strings.HasSuffix(fileName, ".tgz") {

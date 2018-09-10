@@ -70,7 +70,7 @@ func (s *ServiceShareHandle) Share(serviceID string, ss api_model.ServiceShare) 
 		shareSlugInfo := ss.Body.SlugInfo
 		slugPath = service.CreateShareSlug(ss.Body.ServiceKey, shareSlugInfo.Namespace, ss.Body.AppVersion)
 		if ss.Body.SlugInfo.FTPHost == "" {
-			slugPath = fmt.Sprintf("/grdata/build/tenant/app_publish/%s", slugPath)
+			slugPath = fmt.Sprintf("/grdata/build/tenant/%s", slugPath)
 		}
 		info := map[string]interface{}{
 			"service_alias": ss.ServiceAlias,
