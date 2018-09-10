@@ -251,6 +251,8 @@ func (i *ExportApp) exportImage(app gjson.Result) error {
 	// 处理掉文件名中冒号等不合法字符
 	image := app.Get("share_image").String()
 	tarFileName := buildToLinuxFileName(image)
+	user := app.Get("service_image.hub_user").String()
+	pass := app.Get("service_image.hub_password").String()
 
 	// 如果是runner镜像则跳过
 	if checkIsRunner(image) {
@@ -259,19 +261,20 @@ func (i *ExportApp) exportImage(app gjson.Result) error {
 	}
 
 	// docker pull image-name
-	_, err := sources.ImagePull(i.DockerClient, image, "", "", i.Logger, 15)
+	_, err := sources.ImagePull(i.DockerClient, image, user, pass, i.Logger, 15)
 	if err != nil {
-		// 处理掉文件名中冒号等不合法字符
-		image = app.Get("image").String()
-		tarFileName = buildToLinuxFileName(image)
-
-		// docker pull image-name
-		_, err := sources.ImagePull(i.DockerClient, image, "", "", i.Logger, 15)
-		if err != nil {
-			i.Logger.Error(fmt.Sprintf("拉取镜像失败：%s", image),
-				map[string]string{"step": "pull-image", "status": "failure"})
-			logrus.Error("Failed to pull image: ", err)
-		}
+		//// 处理掉文件名中冒号等不合法字符
+		//image = app.Get("image").String()
+		//tarFileName = buildToLinuxFileName(image)
+		//
+		//// docker pull image-name
+		//_, err := sources.ImagePull(i.DockerClient, image, "", "", i.Logger, 15)
+		//if err != nil {
+		//	i.Logger.Error(fmt.Sprintf("拉取镜像失败：%s", image),
+		//		map[string]string{"step": "pull-image", "status": "failure"})
+		//	logrus.Error("Failed to pull image: ", err)
+		//}
+		return err
 	}
 
 	// save image to tar file
