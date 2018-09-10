@@ -29,6 +29,8 @@ import (
 	"strings"
 	"time"
 
+	"bytes"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/docker/engine-api/client"
@@ -38,7 +40,6 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	"github.com/tidwall/gjson"
-	"bytes"
 )
 
 func init() {
@@ -355,26 +356,25 @@ func (i *ImportApp) loadApps() error {
 
 			// 上传到仓库
 			oldImage := app.Get("share_image").String()
+			oldImageName := sources.ImageNameWithNamespaceHandle(oldImage)
 			user := app.Get("service_image.hub_user").String()
 			pass := app.Get("service_image.hub_password").String()
 			// 上传之前先要根据新的仓库地址修改镜像名
-			hubUrl := app.Get("service_image.hub_url").String()
+			huAddress := app.Get("service_image.hub_url").String()
 			namespace := app.Get("service_image.namespace").String()
-			names := strings.Split(oldImage, "/")
 			var image string
 			if namespace == "" {
-				image = fmt.Sprintf("%s/%s", hubUrl, names[len(names)-1])
+				image = fmt.Sprintf("%s/%s", huAddress, oldImageName.Name)
 			} else {
-				image = fmt.Sprintf("%s/%s/%s", hubUrl, namespace, names[len(names)-1])
+				image = fmt.Sprintf("%s/%s/%s", huAddress, namespace, oldImageName.Name)
 			}
-			if err := sources.ImageTag(i.DockerClient, oldImage, image, i.Logger, 15); err != nil {
+			if err := sources.ImageTag(i.DockerClient, fmt.Sprintf("goodrain.me/%s", oldImageName.Name), image, i.Logger, 15); err != nil {
 				return err
 			}
 			// 开始上传
 			if err := sources.ImagePush(i.DockerClient, image, user, pass, i.Logger, 15); err != nil {
 				return err
 			}
-
 			logrus.Debug("Successful load and push the image ", image)
 		} else if strings.HasSuffix(fileName, ".tgz") {
 			// 将slug包上传到ftp服务器
