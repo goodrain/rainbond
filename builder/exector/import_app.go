@@ -38,6 +38,7 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	"github.com/tidwall/gjson"
+	"bytes"
 )
 
 func init() {
@@ -139,11 +140,15 @@ func (i *ImportApp) importApp() error {
 
 		os.MkdirAll(tmpDir, 0755)
 
-		err := exec.Command("sh", "-c", fmt.Sprintf("tar -xf %s -C %s/", appFile, tmpDir)).Run()
+		cmd := exec.Command("sh", "-c", fmt.Sprintf("tar -xf %s -C %s/", appFile, tmpDir))
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &out
+		err := cmd.Run()
 		if err != nil {
 			err := util.Unzip(appFile, tmpDir)
 			if err != nil {
-				logrus.Errorf("Failed to unzip tar %s: %v", appFile, err)
+				logrus.Errorf("Failed to unzip tar %s: %v", appFile, out.String())
 				i.updateStatusForApp(app, "failed")
 				continue
 			}
@@ -375,9 +380,13 @@ func (i *ImportApp) loadApps() error {
 			if err != nil {
 				// 如果指定的ftp服务器不存在则铐到本地
 				os.MkdirAll(filepath.Base(shareSlugPath), 0755)
-				err = exec.Command("cp", fileName, shareSlugPath).Run()
+				cmd := exec.Command("cp", fileName, shareSlugPath)
+				var out bytes.Buffer
+				cmd.Stdout = &out
+				cmd.Stderr = &out
+				err = cmd.Run()
 				if err != nil {
-					logrus.Error("Failed to copy slug file to local directory: ", err)
+					logrus.Error("Failed to copy slug file to local directory: ", out.String())
 					return err
 				}
 
