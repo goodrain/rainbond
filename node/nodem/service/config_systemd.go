@@ -112,7 +112,7 @@ func InjectConfig(content string, cluster client.ClusterClient) string {
 			continue
 		}
 		sep := ","
-		if len(group) >= 3 {
+		if len(group) >= 3 && group[2] != "" {
 			sep = group[2]
 		}
 		line := ""
