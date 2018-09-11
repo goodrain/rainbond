@@ -84,6 +84,7 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 		healthy:    healthyManager,
 		etcdCli:etcdCli,
 	}
+	nodem.HostNode.NodeStatus = &client.NodeStatus{Status: "online"}
 	return nodem, nil
 }
 
