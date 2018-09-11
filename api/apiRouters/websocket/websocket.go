@@ -47,5 +47,6 @@ func LogRoutes() chi.Router {
 func AppRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/download/{format}/{fileName}", controller.GetManager().Download)
+	r.Post("/upload", controller.GetManager().Upload)
 	return r
 }
