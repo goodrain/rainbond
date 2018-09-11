@@ -190,6 +190,11 @@ func (i *ExportApp) isLatest() bool {
 
 	err := exec.Command("md5sum", "-c", md5File).Run()
 	if err != nil {
+		tarFile := i.SourceDir + ".tar"
+		if _, err := os.Stat(tarFile); os.IsNotExist(err) {
+			logrus.Debug("The export app tar file is not found. ")
+			return false
+		}
 		logrus.Debug("The export app tar file is not latest.")
 		return false
 	}
