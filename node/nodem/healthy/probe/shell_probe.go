@@ -20,12 +20,13 @@ type ShellProbe struct {
 	Cancel       context.CancelFunc
 	TimeInterval int
 	HostNode     *client.HostNode
+	MaxErrorsTime int
 }
 
 func (h *ShellProbe) ShellCheck() {
 
 	util.Exec(h.Ctx, func() error {
-		HealthMap := GetShellHealth(h.Address)
+		HealthMap := GetShellHealth(h.Address, h.MaxErrorsTime)
 		result := &service.HealthStatus{
 			Name:   h.Name,
 			Status: HealthMap["status"],
@@ -56,17 +57,23 @@ func (h *ShellProbe) ShellCheck() {
 	}, time.Second*time.Duration(h.TimeInterval))
 }
 
-func GetShellHealth(address string) map[string]string {
-	cmd := exec.Command("/bin/bash", "-c", address)
+func GetShellHealth(address string, maxErrorsTime int) map[string]string {
+	var result map[string]string
+	for num:=0; num <= maxErrorsTime;num++{
+		cmd := exec.Command("/bin/bash", "-c", address)
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
 
-	err := cmd.Run()
-	if err != nil {
-		errStr := string(stderr.Bytes())
-		return map[string]string{"status": service.Stat_death, "info": strings.TrimSpace(errStr)}
+		err := cmd.Run()
+		if err != nil {
+			errStr := string(stderr.Bytes())
+			result =  map[string]string{"status": service.Stat_death, "info": strings.TrimSpace(errStr)}
+			time.Sleep(1*time.Second)
+			continue
+		}
+		return map[string]string{"status": service.Stat_healthy, "info": "service healthy"}
 	}
-	return map[string]string{"status": service.Stat_healthy, "info": "service healthy"}
+	return result
 }
