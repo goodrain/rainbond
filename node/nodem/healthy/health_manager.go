@@ -275,7 +275,7 @@ func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*service.He
 		if v.Name == serviceName {
 
 			if v.ServiceHealth.Model == "http" {
-				statusMap := probe.GetHttpHealth(v.ServiceHealth.Address)
+				statusMap := probe.GetHttpHealth(v.ServiceHealth.Address, v.ServiceHealth.MaxErrorsTime)
 				result := &service.HealthStatus{
 					Name:   v.Name,
 					Status: statusMap["status"],
@@ -284,7 +284,7 @@ func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*service.He
 				return result, nil
 			}
 			if v.ServiceHealth.Model == "tcp" {
-				statusMap := probe.GetTcpHealth(v.ServiceHealth.Address)
+				statusMap := probe.GetTcpHealth(v.ServiceHealth.Address, v.ServiceHealth.MaxErrorsTime)
 				result := &service.HealthStatus{
 					Name:   v.Name,
 					Status: statusMap["status"],
@@ -294,7 +294,7 @@ func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*service.He
 
 			}
 			if v.ServiceHealth.Model == "cmd" {
-				statusMap := probe.GetShellHealth(v.ServiceHealth.Address)
+				statusMap := probe.GetShellHealth(v.ServiceHealth.Address, v.ServiceHealth.MaxErrorsTime)
 				result := &service.HealthStatus{
 					Name:   v.Name,
 					Status: statusMap["status"],
