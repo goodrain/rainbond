@@ -3,12 +3,10 @@ package probe
 import (
 	"context"
 	"github.com/goodrain/rainbond/node/nodem/service"
-	"github.com/goodrain/rainbond/util"
 	"time"
 	"net"
 	"github.com/goodrain/rainbond/node/nodem/client"
 )
-
 
 type TcpProbe struct {
 	Name         string
@@ -18,53 +16,66 @@ type TcpProbe struct {
 	Cancel       context.CancelFunc
 	TimeInterval int
 	HostNode     *client.HostNode
-	MaxErrorsTime int
+	MaxErrorsNum int
 }
 
 func (h *TcpProbe) TcpCheck() {
-
-	util.Exec(h.Ctx, func() error {
-		HealthMap := GetTcpHealth(h.Address,h.MaxErrorsTime)
+	errNum := 1
+	timer := time.NewTimer(time.Second * time.Duration(h.TimeInterval))
+	defer timer.Stop()
+	for {
+		HealthMap := GetTcpHealth(h.Address)
 		result := &service.HealthStatus{
 			Name:   h.Name,
 			Status: HealthMap["status"],
 			Info:   HealthMap["info"],
 		}
-		if HealthMap["status"] != service.Stat_healthy {
-			v := client.NodeCondition{
-				Type:    client.NodeConditionType(h.Name),
-				Status:  client.ConditionFalse,
-				LastHeartbeatTime:time.Now(),
-				LastTransitionTime:time.Now(),
-				Message: result.Info,
-			}
-			h.HostNode.UpdataCondition(v)
-		}
-		if HealthMap["status"] == service.Stat_healthy{
-			v := client.NodeCondition{
-				Type:client.NodeConditionType(h.Name),
-				Status:client.ConditionTrue,
-				LastHeartbeatTime:time.Now(),
-				LastTransitionTime:time.Now(),
-			}
-			h.HostNode.UpdataCondition(v)
-		}
 		h.ResultsChan <- result
-		return nil
-	}, time.Second*time.Duration(h.TimeInterval))
+		if HealthMap["status"] != service.Stat_healthy {
+			if errNum > h.MaxErrorsNum {
+				v := client.NodeCondition{
+					Type:               client.NodeConditionType(h.Name),
+					Status:             client.ConditionFalse,
+					LastHeartbeatTime:  time.Now(),
+					LastTransitionTime: time.Now(),
+					Message:            result.Info,
+				}
+				h.HostNode.UpdataCondition(v)
+			} else {
+				v := client.NodeCondition{
+					Type:               client.NodeConditionType(h.Name),
+					Status:             client.ConditionTrue,
+					LastHeartbeatTime:  time.Now(),
+					LastTransitionTime: time.Now(),
+				}
+				h.HostNode.UpdataCondition(v)
+			}
+			errNum += 1
+		} else {
+			v := client.NodeCondition{
+				Type:               client.NodeConditionType(h.Name),
+				Status:             client.ConditionTrue,
+				LastHeartbeatTime:  time.Now(),
+				LastTransitionTime: time.Now(),
+			}
+			h.HostNode.UpdataCondition(v)
+			errNum = 1
+		}
+		timer.Reset(time.Second * time.Duration(h.TimeInterval))
+		select {
+		case <-h.Ctx.Done():
+			return
+		case <-timer.C:
+		}
+	}
 }
 
-func GetTcpHealth(address string, maxErrorsTime int) map[string]string {
-	var result map[string]string
-	for num:=0; num <= maxErrorsTime;num++{
-		conn, err := net.Dial("tcp", address)
-		if err != nil {
-			result = map[string]string{"status": service.Stat_death, "info": "Tcp connection error"}
-			time.Sleep(1*time.Second)
-			continue
-		}
-		defer conn.Close()
-		return map[string]string{"status": service.Stat_healthy, "info": "service health"}
+func GetTcpHealth(address string) map[string]string {
+
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		return map[string]string{"status": service.Stat_death, "info": "Tcp connection error"}
 	}
-	return result
+	defer conn.Close()
+	return map[string]string{"status": service.Stat_healthy, "info": "service health"}
 }

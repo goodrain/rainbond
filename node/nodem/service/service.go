@@ -67,7 +67,7 @@ type Health struct {
 	Model           string `yaml:"model"`
 	Address         string `yaml:"address"`
 	TimeInterval    int    `yaml:"time_interval"`
-	MaxErrorsTime int    `yaml:"max_errors_time"`
+	MaxErrorsNum int    `yaml:"max_errors_num"`
 }
 
 type HealthStatus struct {
