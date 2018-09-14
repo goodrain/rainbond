@@ -19,7 +19,6 @@
 package util
 
 import (
-	"archive/zip"
 	"crypto/md5"
 	"fmt"
 	"io"
@@ -37,7 +36,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ncw/directio"
+
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/util/zip"
 )
 
 //CheckAndCreateDir check and create dir
@@ -441,7 +443,7 @@ func Zip(source, target string) error {
 	if err := CheckAndCreateDir(filepath.Dir(target)); err != nil {
 		return err
 	}
-	zipfile, err := os.Create(target)
+	zipfile, err := directio.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return err
 	}
@@ -489,8 +491,7 @@ func Zip(source, target string) error {
 		if info.IsDir() {
 			return nil
 		}
-
-		file, err := os.Open(path)
+		file, err := directio.OpenFile(path, os.O_RDONLY, 0)
 		if err != nil {
 			return err
 		}
@@ -504,15 +505,13 @@ func Zip(source, target string) error {
 
 //Unzip archive file to target dir
 func Unzip(archive, target string) error {
-	reader, err := zip.OpenReader(archive)
+	reader, err := zip.OpenDirectReader(archive)
 	if err != nil {
 		return err
 	}
-
 	if err := os.MkdirAll(target, 0755); err != nil {
 		return err
 	}
-
 	for _, file := range reader.File {
 		run := func() error {
 			path := filepath.Join(target, file.Name)
@@ -536,8 +535,7 @@ func Unzip(archive, target string) error {
 				return err
 			}
 			defer fileReader.Close()
-
-			targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+			targetFile, err := directio.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
 			if err != nil {
 				return err
 			}
