@@ -252,16 +252,16 @@ func (i *ExportApp) parseApps() ([]gjson.Result, error) {
 	return arr, nil
 }
 
+//exportImage export image of app
 func (i *ExportApp) exportImage(serviceDir string, app gjson.Result) error {
 	serviceName := app.Get("service_cname").String()
 	serviceName = unicode2zh(serviceName)
 	os.MkdirAll(serviceDir, 0755)
-	// 处理掉文件名中冒号等不合法字符
 	image := app.Get("share_image").String()
 	tarFileName := buildToLinuxFileName(image)
 	user := app.Get("service_image.hub_user").String()
 	pass := app.Get("service_image.hub_password").String()
-	// 如果是runner镜像则跳过
+	// ignore runner image
 	if checkIsRunner(image) {
 		logrus.Debug("Skip the runner image: ", image)
 		return nil
@@ -296,14 +296,14 @@ func (i *ExportApp) exportSlug(serviceDir string, app gjson.Result) error {
 	_, err := os.Stat(shareSlugPath)
 	if shareSlugPath != "" && err == nil {
 		logrus.Debug("The slug file was exist already, direct copy to service dir: ", shareSlugPath)
-		err = exec.Command("cp", shareSlugPath, fmt.Sprintf("%s/%s", serviceDir, tarFileName)).Run()
+		err = util.CopyFile(shareSlugPath, fmt.Sprintf("%s/%s", serviceDir, tarFileName))
 		if err == nil {
 			return nil
 		}
-		// 如果copy失败则忽略，在下一步中下载该slug包
+		// if local copy failure, try download it
 		logrus.Debugf("Failed to copy the slug file to service dir %s: %v", shareSlugPath, err)
 	}
-	// 提取tfp服务器信息
+	// get slug save server (ftp) info
 	ftpHost := app.Get("service_slug.ftp_host").String()
 	ftpPort := app.Get("service_slug.ftp_port").String()
 	ftpUsername := app.Get("service_slug.ftp_username").String()
@@ -314,15 +314,14 @@ func (i *ExportApp) exportSlug(serviceDir string, app gjson.Result) error {
 		logrus.Error("Failed to create ftp client: ", err)
 		return err
 	}
-	// 开始下载文件
-	i.Logger.Info(fmt.Sprintf("获取应用源码：%s", serviceName), map[string]string{"step": "get-slug", "status": "failure"})
+	// download slug file
+	i.Logger.Info(fmt.Sprintf("Download service %s slug file", serviceName), map[string]string{"step": "get-slug", "status": "failure"})
 	err = ftpClient.DownloadFile(shareSlugPath, fmt.Sprintf("%s/%s", serviceDir, tarFileName), i.Logger)
 	ftpClient.Close()
 	if err != nil {
 		logrus.Errorf("Failed to download slug file for group %s: %v", i.SourceDir, err)
 		return err
 	}
-
 	logrus.Debug("Successful download slug file: ", shareSlugPath)
 	return nil
 }

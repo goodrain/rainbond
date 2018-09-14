@@ -99,3 +99,9 @@ func TestDiskUsage(t *testing.T) {
 func TestGetCurrentDir(t *testing.T) {
 	t.Log(GetCurrentDir())
 }
+
+func TestCopyFile(t *testing.T) {
+	if err := CopyFile("/tmp/test2.zip", "/tmp/test4.zip"); err != nil {
+		t.Fatal(err)
+	}
+}

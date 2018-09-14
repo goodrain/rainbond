@@ -166,7 +166,7 @@ func CmdRunWithTimeout(cmd *exec.Cmd, timeout time.Duration) (bool, error) {
 		go func() {
 			<-done // allow goroutine to exit
 		}()
-		logrus.Info("process:%s killed", cmd.Path)
+		logrus.Infof("process:%s killed", cmd.Path)
 		return true, err
 	case err = <-done:
 		return false, err
@@ -561,6 +561,37 @@ func Unzip(archive, target string) error {
 		}
 	}
 
+	return nil
+}
+
+// CopyFile copy source file to target
+// direct io read and write file
+// Keep the permissions user and group
+func CopyFile(source, target string) error {
+	sfi, err := os.Stat(source)
+	if err != nil {
+		return err
+	}
+	elem := reflect.ValueOf(sfi.Sys()).Elem()
+	uid := elem.FieldByName("Uid").Uint()
+	gid := elem.FieldByName("Gid").Uint()
+	sf, err := directio.OpenFile(source, os.O_RDONLY, 0)
+	if err != nil {
+		return err
+	}
+	defer sf.Close()
+	tf, err := directio.OpenFile(target, os.O_RDONLY|os.O_CREATE|os.O_WRONLY, sfi.Mode())
+	if err != nil {
+		return err
+	}
+	defer tf.Close()
+	_, err = io.Copy(tf, sf)
+	if err != nil {
+		return err
+	}
+	if err := os.Chown(target, int(uid), int(gid)); err != nil {
+		return err
+	}
 	return nil
 }
 

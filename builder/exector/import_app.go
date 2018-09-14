@@ -498,13 +498,9 @@ func (i *ImportApp) loadApps() error {
 				}
 			} else {
 				os.MkdirAll(filepath.Base(shareSlugPath), 0755)
-				cmd := exec.Command("cp", fileName, shareSlugPath)
-				var out bytes.Buffer
-				cmd.Stdout = &out
-				cmd.Stderr = &out
-				err = cmd.Run()
+				err := util.CopyFile(fileName, shareSlugPath)
 				if err != nil {
-					logrus.Error("Failed to copy slug file to local directory: ", out.String())
+					logrus.Error("Failed to copy slug file to local directory: ", shareSlugPath)
 					return err
 				}
 			}
