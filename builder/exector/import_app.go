@@ -349,8 +349,8 @@ func (i *ImportApp) importPlugins() error {
 
 	oldPlugins, err := meta.Get("plugins").Array()
 	if err != nil {
-		logrus.Errorf("Failed to get apps from meta for load app %s: %v", i.SourceDir, err)
-		return err
+		logrus.Errorf("Failed to get plugins from meta for load app %s: %v", i.SourceDir, err)
+		return nil
 	}
 
 	for index := range oldPlugins {
