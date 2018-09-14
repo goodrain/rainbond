@@ -31,10 +31,10 @@ func init() {
 		REGISTRYPASS = os.Getenv("BUILD_IMAGE_REPOSTORY_PASS")
 	}
 	if os.Getenv("RUNNER_IMAGE_NAME") != "" {
-		REGISTRYPASS = os.Getenv("RUNNER_IMAGE_NAME")
+		RUNNERIMAGENAME = os.Getenv("RUNNER_IMAGE_NAME")
 	}
 	if os.Getenv("BUILDER_IMAGE_NAME") != "" {
-		REGISTRYPASS = os.Getenv("BUILDER_IMAGE_NAME")
+		BUILDERIMAGENAME = os.Getenv("BUILDER_IMAGE_NAME")
 	}
 }
 
