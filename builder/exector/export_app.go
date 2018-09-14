@@ -105,6 +105,11 @@ func (i *ExportApp) exportRainbondAPP() error {
 		return err
 	}
 
+	// 保存插件镜像
+	if err := i.savePlugins(); err != nil {
+		return err
+	}
+
 	// 打包整个目录为tar包
 	if err := i.zip(); err != nil {
 		return err
@@ -319,6 +324,53 @@ func (i *ExportApp) exportSlug(serviceDir string, app gjson.Result) error {
 	}
 
 	logrus.Debug("Successful download slug file: ", shareSlugPath)
+	return nil
+}
+
+func (i *ExportApp) savePlugins() error {
+	i.Logger.Info("解析插件信息", map[string]string{"step": "export-plugins", "status": "success"})
+
+	data, err := ioutil.ReadFile(fmt.Sprintf("%s/metadata.json", i.SourceDir))
+	if err != nil {
+		i.Logger.Error("导出插件失败，没有找到应用信息", map[string]string{"step": "read-metadata", "status": "failure"})
+		logrus.Error("Failed to read metadata file: ", err)
+		return err
+	}
+
+	plugins := gjson.GetBytes(data, "plugins").Array()
+
+	for _, plugin := range plugins {
+		pluginName := plugin.Get("plugin_name").String()
+		pluginName = unicode2zh(pluginName)
+		pluginDir := fmt.Sprintf("%s/%s", i.SourceDir, pluginName)
+		os.MkdirAll(pluginDir, 0755)
+		// 处理掉文件名中冒号等不合法字符
+		image := plugin.Get("share_image").String()
+		tarFileName := buildToLinuxFileName(image)
+		user := plugin.Get("plugin_image.hub_user").String()
+		pass := plugin.Get("plugin_image.hub_password").String()
+		// docker pull image-name
+		_, err := sources.ImagePull(i.DockerClient, image, user, pass, i.Logger, 15)
+		if err != nil {
+			return err
+		}
+		//change save app image name
+		imageName := sources.ImageNameWithNamespaceHandle(image)
+		saveImageName := fmt.Sprintf("%s/%s:%s", "goodrain.me", imageName.Name, imageName.Tag)
+		if err := sources.ImageTag(i.DockerClient, image, saveImageName, i.Logger, 2); err != nil {
+			return err
+		}
+		// save image to tar file
+		err = sources.ImageSave(i.DockerClient, saveImageName, fmt.Sprintf("%s/%s.image.tar", pluginDir, tarFileName), i.Logger)
+		if err != nil {
+			i.Logger.Error(fmt.Sprintf("save plugin image to local error：%s", image),
+				map[string]string{"step": "save-plugin-image", "status": "failure"})
+			logrus.Error("Failed to save plugin image: ", err)
+			return err
+		}
+		logrus.Debug("Successful save plugin image file: ", image)
+	}
+
 	return nil
 }
 

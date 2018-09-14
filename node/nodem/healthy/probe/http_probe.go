@@ -19,12 +19,13 @@ type HttpProbe struct {
 	Cancel       context.CancelFunc
 	TimeInterval int
 	HostNode     *client.HostNode
+	MaxErrorsTime int
 }
 
 func (h *HttpProbe) HttpCheck() {
 
 	util.Exec(h.Ctx, func() error {
-		HealthMap := GetHttpHealth(h.Address)
+		HealthMap := GetHttpHealth(h.Address,h.MaxErrorsTime)
 		result := &service.HealthStatus{
 			Name:   h.Name,
 			Status: HealthMap["status"],
@@ -55,15 +56,22 @@ func (h *HttpProbe) HttpCheck() {
 	}, time.Second*time.Duration(h.TimeInterval))
 }
 
-func GetHttpHealth(address string) map[string]string {
-	resp, err := http.Get("http://" + address)
-	if err != nil {
-		return map[string]string{"status": service.Stat_death, "info": "Request service is unreachable"}
+func GetHttpHealth(address string, maxErrorsTime int) map[string]string {
+	var result map[string]string
+	for num:=0; num <= maxErrorsTime;num++{
+		resp, err := http.Get("http://" + address)
+		if err != nil {
+			result = map[string]string{"status": service.Stat_death, "info": "Request service is unreachable"}
+			time.Sleep(1*time.Second)
+			continue
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode >= 400 {
+			result = map[string]string{"status": service.Stat_unhealthy, "info": "Service unhealthy"}
+			time.Sleep(1*time.Second)
+			continue
+		}
+		return map[string]string{"status": service.Stat_healthy, "info": "service health"}
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return map[string]string{"status": service.Stat_unhealthy, "info": "Service unhealthy"}
-	}
-	return map[string]string{"status": service.Stat_healthy, "info": "service health"}
-
+	return result
 }

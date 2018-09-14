@@ -18,12 +18,13 @@ type TcpProbe struct {
 	Cancel       context.CancelFunc
 	TimeInterval int
 	HostNode     *client.HostNode
+	MaxErrorsTime int
 }
 
 func (h *TcpProbe) TcpCheck() {
 
 	util.Exec(h.Ctx, func() error {
-		HealthMap := GetTcpHealth(h.Address)
+		HealthMap := GetTcpHealth(h.Address,h.MaxErrorsTime)
 		result := &service.HealthStatus{
 			Name:   h.Name,
 			Status: HealthMap["status"],
@@ -53,12 +54,17 @@ func (h *TcpProbe) TcpCheck() {
 	}, time.Second*time.Duration(h.TimeInterval))
 }
 
-func GetTcpHealth(address string) map[string]string {
-	conn, err := net.Dial("tcp", address)
-	if err != nil {
-		return map[string]string{"status": service.Stat_death, "info": "Tcp connection error"}
+func GetTcpHealth(address string, maxErrorsTime int) map[string]string {
+	var result map[string]string
+	for num:=0; num <= maxErrorsTime;num++{
+		conn, err := net.Dial("tcp", address)
+		if err != nil {
+			result = map[string]string{"status": service.Stat_death, "info": "Tcp connection error"}
+			time.Sleep(1*time.Second)
+			continue
+		}
+		defer conn.Close()
+		return map[string]string{"status": service.Stat_healthy, "info": "service health"}
 	}
-	defer conn.Close()
-	return map[string]string{"status": service.Stat_healthy, "info": "service health"}
-
+	return result
 }

@@ -356,7 +356,7 @@ func (h *HostNode) Update() (*client.PutResponse, error) {
 
 //DeleteNode 删除节点
 func (h *HostNode) DeleteNode() (*client.DeleteResponse, error) {
-	return store.DefalutClient.Delete(conf.Config.NodePath + "/" + h.ID)
+	return store.DefalutClient.Delete(conf.Config.NodePath + "/target/" + h.ID)
 }
 
 //Del 删除
