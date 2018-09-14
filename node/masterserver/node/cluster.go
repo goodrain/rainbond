@@ -136,9 +136,13 @@ func (n *Cluster) checkNodeStatus() {
 					if node.Role.HasRule(client.ComputeNode) {
 						logrus.Infof("Node %s status is %v %d times and can not scheduling.",
 							node.ID, ready, unhealthyCounter[node.ID])
-						_, err := n.kubecli.CordonOrUnCordon(node.ID, true)
-						if err != nil {
-							logrus.Error("Failed to delete node in k8s: ", err)
+						if len(nodes) > 1{
+							_, err := n.kubecli.CordonOrUnCordon(node.ID, true)
+							if err != nil {
+								logrus.Error("Failed to delete node in k8s: ", err)
+							}
+						}else {
+							logrus.Info("There is only one node, the node is not set to unschedulable")
 						}
 					}
 				} else {
