@@ -113,7 +113,7 @@ func (p *probeManager) Start(hostNode *client.HostNode) (error) {
 				ResultsChan:  p.statusChan,
 				TimeInterval: v.ServiceHealth.TimeInterval,
 				HostNode:     hostNode,
-				MaxErrorsTime:v.ServiceHealth.MaxErrorsTime,
+				MaxErrorsNum:v.ServiceHealth.MaxErrorsNum,
 			}
 			go h.HttpCheck()
 		}
@@ -126,7 +126,7 @@ func (p *probeManager) Start(hostNode *client.HostNode) (error) {
 				ResultsChan:  p.statusChan,
 				TimeInterval: v.ServiceHealth.TimeInterval,
 				HostNode:     hostNode,
-				MaxErrorsTime:v.ServiceHealth.MaxErrorsTime,
+				MaxErrorsNum:v.ServiceHealth.MaxErrorsNum,
 			}
 			go t.TcpCheck()
 		}
@@ -139,7 +139,7 @@ func (p *probeManager) Start(hostNode *client.HostNode) (error) {
 				ResultsChan:  p.statusChan,
 				TimeInterval: v.ServiceHealth.TimeInterval,
 				HostNode:     hostNode,
-				MaxErrorsTime:v.ServiceHealth.MaxErrorsTime,
+				MaxErrorsNum:v.ServiceHealth.MaxErrorsNum,
 			}
 			go s.ShellCheck()
 		}
@@ -275,7 +275,7 @@ func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*service.He
 		if v.Name == serviceName {
 
 			if v.ServiceHealth.Model == "http" {
-				statusMap := probe.GetHttpHealth(v.ServiceHealth.Address, v.ServiceHealth.MaxErrorsTime)
+				statusMap := probe.GetHttpHealth(v.ServiceHealth.Address)
 				result := &service.HealthStatus{
 					Name:   v.Name,
 					Status: statusMap["status"],
@@ -284,7 +284,7 @@ func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*service.He
 				return result, nil
 			}
 			if v.ServiceHealth.Model == "tcp" {
-				statusMap := probe.GetTcpHealth(v.ServiceHealth.Address, v.ServiceHealth.MaxErrorsTime)
+				statusMap := probe.GetTcpHealth(v.ServiceHealth.Address)
 				result := &service.HealthStatus{
 					Name:   v.Name,
 					Status: statusMap["status"],
@@ -294,7 +294,7 @@ func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*service.He
 
 			}
 			if v.ServiceHealth.Model == "cmd" {
-				statusMap := probe.GetShellHealth(v.ServiceHealth.Address, v.ServiceHealth.MaxErrorsTime)
+				statusMap := probe.GetShellHealth(v.ServiceHealth.Address)
 				result := &service.HealthStatus{
 					Name:   v.Name,
 					Status: statusMap["status"],
