@@ -282,14 +282,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			return
 		}
 		v.Unschedulable = false
-		if k8sNode != nil {
-			v.UpdataK8sCondition(k8sNode.Status.Conditions)
-			if v.Unschedulable == true || k8sNode.Spec.Unschedulable == true {
-				v.Unschedulable = true
-			}
-			v.AvailableCPU = k8sNode.Status.Capacity.Cpu().Value()
-			v.AvailableMemory = k8sNode.Status.Capacity.Memory().Value()
-		}
+
 		if time.Now().Sub(v.UpTime) > time.Minute*2 {
 			status = Unknown
 			v.Status = status
@@ -348,6 +341,15 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		}
 		v.UpdataCondition(r)
 
+		// Update k8s node status to node status
+		if k8sNode != nil {
+			v.UpdataK8sCondition(k8sNode.Status.Conditions)
+			if v.Unschedulable == true || k8sNode.Spec.Unschedulable == true {
+				v.Unschedulable = true
+			}
+			v.AvailableCPU = k8sNode.Status.Capacity.Cpu().Value()
+			v.AvailableMemory = k8sNode.Status.Capacity.Memory().Value()
+		}
 	}
 	if v.Role.HasRule("manage") && !v.Role.HasRule("compute") { //manage install_success == runnint
 		if v.Status == Init || v.Status == InitSuccess || v.Status == InitFailed || v.Status == Installing {
