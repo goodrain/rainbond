@@ -197,6 +197,9 @@ func GetNodeFromKV(kv *mvccpb.KeyValue) *HostNode {
 //UpdataK8sCondition 更新k8s节点的状态到rainbond节点
 func (n *HostNode) UpdataK8sCondition(conditions []v1.NodeCondition) {
 	for _, con := range conditions {
+		if NodeConditionType(con.Type) == "Ready" {
+			continue
+		}
 		rbcon := NodeCondition{
 			Type:               NodeConditionType(con.Type),
 			Status:             ConditionStatus(con.Status),
@@ -244,6 +247,19 @@ func (n *HostNode) UpdataCondition(conditions ...NodeCondition) {
 			n.NodeStatus.Conditions = append(n.NodeStatus.Conditions, newcon)
 		}
 	}
+}
+
+func GetK8sReady(conditions []v1.NodeCondition) bool {
+	for _, con := range conditions {
+		if NodeConditionType(con.Type) == "Ready" {
+			if con.Status == "True" {
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	return false
 }
 
 //HostRule 节点角色

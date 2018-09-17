@@ -136,12 +136,12 @@ func (n *Cluster) checkNodeStatus() {
 					if node.Role.HasRule(client.ComputeNode) {
 						logrus.Infof("Node %s status is %v %d times and can not scheduling.",
 							node.ID, ready, unhealthyCounter[node.ID])
-						if len(nodes) > 1{
+						if len(nodes) > 1 {
 							_, err := n.kubecli.CordonOrUnCordon(node.ID, true)
 							if err != nil {
 								logrus.Error("Failed to delete node in k8s: ", err)
 							}
-						}else {
+						} else {
 							logrus.Info("There is only one node, the node is not set to unschedulable")
 						}
 					}
@@ -344,6 +344,25 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		// Update k8s node status to node status
 		if k8sNode != nil {
 			v.UpdataK8sCondition(k8sNode.Status.Conditions)
+			k8sIsReady := client.GetK8sReady(k8sNode.Status.Conditions)
+			NodeIsReady := isReady(v.NodeStatus.Conditions)
+			if k8sIsReady && NodeIsReady {
+				r := client.NodeCondition{
+					Type:               client.NodeReady,
+					Status:             client.ConditionTrue,
+					LastHeartbeatTime:  time.Now(),
+					LastTransitionTime: time.Now(),
+				}
+				v.UpdataCondition(r)
+			} else {
+				r := client.NodeCondition{
+					Type:               client.NodeReady,
+					Status:             client.ConditionFalse,
+					LastHeartbeatTime:  time.Now(),
+					LastTransitionTime: time.Now(),
+				}
+				v.UpdataCondition(r)
+			}
 			if v.Unschedulable == true || k8sNode.Spec.Unschedulable == true {
 				v.Unschedulable = true
 			}
