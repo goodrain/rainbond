@@ -18,6 +18,11 @@
 
 package model
 
+import (
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
+)
+
 //VersionInfo version info struct
 type VersionInfo struct {
 	Model
@@ -45,4 +50,22 @@ type VersionInfo struct {
 //TableName 表名
 func (t *VersionInfo) TableName() string {
 	return "version_info"
+}
+
+//CreateShareImage create share image name
+func (t *VersionInfo) CreateShareImage(hubURL, namespace, appVersion string) (string, error) {
+	_, err := reference.ParseAnyReference(t.DeliveredPath)
+	if err != nil {
+		logrus.Errorf("reference image error: %s", err.Error())
+		return "", err
+	}
+	image := ParseImage(t.DeliveredPath)
+	if hubURL != "" {
+		image.Host = hubURL
+	}
+	if namespace != "" {
+		image.Namespace = namespace
+	}
+	image.Name = image.Name + "_" + t.BuildVersion + "_" + appVersion
+	return image.String(), nil
 }

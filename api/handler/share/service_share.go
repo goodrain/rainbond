@@ -91,7 +91,7 @@ func (s *ServiceShareHandle) Share(serviceID string, ss api_model.ServiceShare) 
 		bs.User = ss.Body.ShareUser
 	} else {
 		shareImageInfo := ss.Body.ImageInfo
-		shareImageName, err = service.CreateShareImage(shareImageInfo.HubURL, shareImageInfo.Namespace, ss.Body.AppVersion)
+		shareImageName, err = version.CreateShareImage(shareImageInfo.HubURL, shareImageInfo.Namespace, ss.Body.AppVersion)
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
 		}

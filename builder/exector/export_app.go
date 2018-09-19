@@ -440,7 +440,7 @@ func unicode2zh(uText string) (context string) {
 }
 
 func checkIsRunner(image string) bool {
-	return strings.Contains(image, "/runner")
+	return strings.Contains(image, builder.RUNNERIMAGENAME)
 }
 
 func (i *ExportApp) exportRunnerImage() error {
