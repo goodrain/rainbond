@@ -113,6 +113,7 @@ func (p *probeManager) Start(hostNode *client.HostNode) (error) {
 				ResultsChan:  p.statusChan,
 				TimeInterval: v.ServiceHealth.TimeInterval,
 				HostNode:     hostNode,
+				MaxErrorsNum:v.ServiceHealth.MaxErrorsNum,
 			}
 			go h.HttpCheck()
 		}
@@ -125,6 +126,7 @@ func (p *probeManager) Start(hostNode *client.HostNode) (error) {
 				ResultsChan:  p.statusChan,
 				TimeInterval: v.ServiceHealth.TimeInterval,
 				HostNode:     hostNode,
+				MaxErrorsNum:v.ServiceHealth.MaxErrorsNum,
 			}
 			go t.TcpCheck()
 		}
@@ -137,6 +139,7 @@ func (p *probeManager) Start(hostNode *client.HostNode) (error) {
 				ResultsChan:  p.statusChan,
 				TimeInterval: v.ServiceHealth.TimeInterval,
 				HostNode:     hostNode,
+				MaxErrorsNum:v.ServiceHealth.MaxErrorsNum,
 			}
 			go s.ShellCheck()
 		}

@@ -131,7 +131,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 			ports:      ports,
 			volumes:    volumes,
 			envs:       envs,
-			memory:     int(sc.MemLimit),
+			memory:     int(sc.MemLimit / 1024 / 1024),
 			image:      parseImageName(sc.Image),
 			args:       sc.Args,
 			depends:    sc.Links,

@@ -90,25 +90,17 @@ func (m *ControllerSystemd) RestartService(serviceName string) error {
 
 func (m *ControllerSystemd) StartList(list []*service.Service) error {
 	logrus.Info("Starting all services.")
-
-	err := exec.Command(m.ServiceCli, "start", "multi-user.target").Run()
-	if err != nil {
-		logrus.Errorf("Start target multi-user: %v", err)
-		return err
+	for _, s := range list {
+		m.StartService(s.Name)
 	}
-
 	return nil
 }
 
 func (m *ControllerSystemd) StopList(list []*service.Service) error {
 	logrus.Info("Stop all services.")
 	for _, s := range list {
-		err := exec.Command(m.ServiceCli, "stop", s.Name).Run()
-		if err != nil {
-			logrus.Errorf("Enable service %s: %v", s.Name, err)
-		}
+		m.StopService(s.Name)
 	}
-
 	return nil
 }
 

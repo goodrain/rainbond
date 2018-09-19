@@ -27,6 +27,8 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/docker/engine-api/client"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/fsnotify/fsnotify"
 	"github.com/goodrain/rainbond/builder"
@@ -204,7 +206,17 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 	containerService := sources.CreateDockerService(ctx, re.DockerClient)
 	containerID, err := containerService.CreateContainer(containerConfig)
 	if err != nil {
-		return fmt.Errorf("create builder container error:%s", err.Error())
+		if client.IsErrImageNotFound(err) {
+			// we don't want to write to stdout anything apart from container.ID
+			if _, err = sources.ImagePull(re.DockerClient, containerConfig.Image.Image, builder.REGISTRYUSER, builder.REGISTRYPASS, re.Logger, 20); err != nil {
+				return fmt.Errorf("pull builder container image error:%s", err.Error())
+			}
+			// Retry
+			containerID, err = containerService.CreateContainer(containerConfig)
+		}
+		if err != nil {
+			return fmt.Errorf("create builder container error:%s", err.Error())
+		}
 	}
 	errchan := make(chan error, 1)
 	writer := re.Logger.GetWriter("builder", "info")
@@ -214,9 +226,10 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 		return fmt.Errorf("attach builder container error:%s", err.Error())
 	}
 	defer close()
-	statuschan := containerService.WaitExitOrRemoved(containerID, false)
+	statuschan := containerService.WaitExitOrRemoved(containerID, true)
 	//start the container
 	if err := containerService.StartContainer(containerID); err != nil {
+
 		containerService.RemoveContainer(containerID)
 		return fmt.Errorf("start builder container error:%s", err.Error())
 	}

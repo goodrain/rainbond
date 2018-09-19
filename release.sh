@@ -7,7 +7,7 @@ WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 releasedir=./.release
 distdir=${releasedir}/dist
-GO_VERSION=1.8.3
+GO_VERSION=1.11
 
 VERSION=$(git branch | grep '^*' | cut -d ' ' -f 2 | awk -F'V' '{print $2}')
 buildTime=$(date +%F-%H)

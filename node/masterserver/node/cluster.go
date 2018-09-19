@@ -34,6 +34,8 @@ import (
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
 
+	"encoding/json"
+
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/api/model"
 	"github.com/goodrain/rainbond/node/core/config"
@@ -41,7 +43,6 @@ import (
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util"
-	"encoding/json"
 )
 
 const (
@@ -135,9 +136,13 @@ func (n *Cluster) checkNodeStatus() {
 					if node.Role.HasRule(client.ComputeNode) {
 						logrus.Infof("Node %s status is %v %d times and can not scheduling.",
 							node.ID, ready, unhealthyCounter[node.ID])
-						_, err := n.kubecli.CordonOrUnCordon(node.ID, true)
-						if err != nil {
-							logrus.Error("Failed to delete node in k8s: ", err)
+						if len(nodes) > 1 {
+							_, err := n.kubecli.CordonOrUnCordon(node.ID, true)
+							if err != nil {
+								logrus.Error("Failed to delete node in k8s: ", err)
+							}
+						} else {
+							logrus.Info("There is only one node, the node is not set to unschedulable")
 						}
 					}
 				} else {
@@ -147,6 +152,10 @@ func (n *Cluster) checkNodeStatus() {
 				resp, err := store.DefalutClient.Get("/rainbond/nodes/target/" + node.ID)
 				if err != nil {
 					logrus.Error(err)
+					continue
+				}
+				if len(resp.Kvs) == 0 {
+					logrus.Errorf("do not found node %s", node.ID)
 					continue
 				}
 				var targetNode client.HostNode
@@ -248,6 +257,9 @@ func (n *Cluster) GetNode(id string) *client.HostNode {
 	return nil
 }
 func (n *Cluster) handleNodeStatus(v *client.HostNode) {
+	if v == nil {
+		return
+	}
 	if v.Role.HasRule("compute") {
 		k8sNode, err := n.kubecli.GetNode(v.ID)
 		status := Running
@@ -255,7 +267,9 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			logrus.Infof("get k8s node error:%s", err.Error())
 			status = Offline
 			v.Status = status
-			v.NodeStatus.Status = status
+			if v.NodeStatus != nil {
+				v.NodeStatus.Status = status
+			}
 			v.Unschedulable = true
 			r := client.NodeCondition{
 				Type:               client.NodeReady,
@@ -268,18 +282,13 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			return
 		}
 		v.Unschedulable = false
-		if k8sNode != nil {
-			v.UpdataK8sCondition(k8sNode.Status.Conditions)
-			if v.Unschedulable == true || k8sNode.Spec.Unschedulable == true{
-				v.Unschedulable = true
-			}
-			v.AvailableCPU = k8sNode.Status.Capacity.Cpu().Value()
-			v.AvailableMemory = k8sNode.Status.Capacity.Memory().Value()
-		}
+
 		if time.Now().Sub(v.UpTime) > time.Minute*2 {
 			status = Unknown
 			v.Status = status
-			v.NodeStatus.Status = status
+			if v.NodeStatus != nil {
+				v.NodeStatus.Status = status
+			}
 			v.Unschedulable = true
 			r := client.NodeCondition{
 				Type:               client.NodeReady,
@@ -332,6 +341,34 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		}
 		v.UpdataCondition(r)
 
+		// Update k8s node status to node status
+		if k8sNode != nil {
+			v.UpdataK8sCondition(k8sNode.Status.Conditions)
+			k8sIsReady := client.GetK8sReady(k8sNode.Status.Conditions)
+			NodeIsReady := isReady(v.NodeStatus.Conditions)
+			if k8sIsReady && NodeIsReady {
+				r := client.NodeCondition{
+					Type:               client.NodeReady,
+					Status:             client.ConditionTrue,
+					LastHeartbeatTime:  time.Now(),
+					LastTransitionTime: time.Now(),
+				}
+				v.UpdataCondition(r)
+			} else {
+				r := client.NodeCondition{
+					Type:               client.NodeReady,
+					Status:             client.ConditionFalse,
+					LastHeartbeatTime:  time.Now(),
+					LastTransitionTime: time.Now(),
+				}
+				v.UpdataCondition(r)
+			}
+			if v.Unschedulable == true || k8sNode.Spec.Unschedulable == true {
+				v.Unschedulable = true
+			}
+			v.AvailableCPU = k8sNode.Status.Capacity.Cpu().Value()
+			v.AvailableMemory = k8sNode.Status.Capacity.Memory().Value()
+		}
 	}
 	if v.Role.HasRule("manage") && !v.Role.HasRule("compute") { //manage install_success == runnint
 		if v.Status == Init || v.Status == InitSuccess || v.Status == InitFailed || v.Status == Installing {

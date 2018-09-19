@@ -29,7 +29,7 @@ import (
 )
 
 var (
-	ArgsReg = regexp.MustCompile(`\$\{(\w+)\}`)
+	ArgsReg = regexp.MustCompile(`\$\{(\w+)\|{0,1}(.{0,1})\}`)
 )
 
 func LoadServicesFromLocal(serviceListFile string) ([]*Service, error) {
@@ -111,12 +111,16 @@ func InjectConfig(content string, cluster client.ClusterClient) string {
 			logrus.Warnf("Failed to inject endpoints of key %s", group[1])
 			continue
 		}
+		sep := ","
+		if len(group) >= 3 && group[2] != "" {
+			sep = group[2]
+		}
 		line := ""
 		for _, end := range endpoints {
 			if line == "" {
 				line = end
 			}else{
-				line += ","
+				line += sep
 				line += end
 			}
 		}

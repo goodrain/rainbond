@@ -30,10 +30,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ncw/directio"
+
 	"github.com/Sirupsen/logrus"
 
 	"github.com/docker/distribution/reference"
 	"golang.org/x/net/context"
+
 	//"github.com/docker/docker/api/types"
 	"github.com/docker/engine-api/types"
 	//"github.com/docker/docker/client"
@@ -142,6 +145,38 @@ func ImageNameHandle(imageName string) *model.ImageName {
 		mm := strings.Split(imageName, "/")
 		i.Host = mm[0]
 		names := strings.Join(mm[1:], "/")
+		if strings.Contains(names, ":") {
+			nn := strings.Split(names, ":")
+			i.Name = nn[0]
+			i.Tag = nn[1]
+		} else {
+			i.Name = names
+			i.Tag = "latest"
+		}
+	} else {
+		if strings.Contains(imageName, ":") {
+			nn := strings.Split(imageName, ":")
+			i.Name = nn[0]
+			i.Tag = nn[1]
+		} else {
+			i.Name = imageName
+			i.Tag = "latest"
+		}
+	}
+	return &i
+}
+
+//ImageNameWithNamespaceHandle if have namespace,will parse namespace
+func ImageNameWithNamespaceHandle(imageName string) *model.ImageName {
+	var i model.ImageName
+	if strings.Contains(imageName, "/") {
+		mm := strings.Split(imageName, "/")
+		i.Host = mm[0]
+		names := strings.Join(mm[1:], "/")
+		if len(mm) >= 3 {
+			i.Namespace = mm[1]
+			names = strings.Join(mm[2:], "/")
+		}
 		if strings.Contains(names, ":") {
 			nn := strings.Split(names, ":")
 			i.Name = nn[0]
@@ -364,7 +399,7 @@ func ImageSave(dockerCli *client.Client, image, destination string, logger event
 	return CopyToFile(destination, rc)
 }
 
-//ImageSave save image to tar file
+//ImageLoad load image from  tar file
 // destination destination file name eg. /tmp/xxx.tar
 func ImageLoad(dockerCli *client.Client, tarFile string, logger event.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -376,9 +411,31 @@ func ImageLoad(dockerCli *client.Client, tarFile string, logger event.Logger) er
 	}
 	defer reader.Close()
 
-	_, err = dockerCli.ImageLoad(ctx, reader, false)
+	rc, err := dockerCli.ImageLoad(ctx, reader, false)
 	if err != nil {
 		return err
+	}
+	if rc.Body != nil {
+		defer rc.Body.Close()
+		dec := json.NewDecoder(rc.Body)
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+			var jm JSONMessage
+			if err := dec.Decode(&jm); err != nil {
+				if err == io.EOF {
+					break
+				}
+				return err
+			}
+			if jm.Error != nil {
+				return jm.Error
+			}
+			logger.Info(jm.JSONString(), map[string]string{"step": "build-progress"})
+		}
 	}
 
 	return nil
@@ -437,13 +494,13 @@ func ImageImport(dockerCli *client.Client, image, source string, logger event.Lo
 func CopyToFile(outfile string, r io.Reader) error {
 	// We use sequential file access here to avoid depleting the standby list
 	// on Windows. On Linux, this is a call directly to ioutil.TempFile
-	tmpFile, err := os.OpenFile(path.Join(filepath.Dir(outfile), ".docker_temp_"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	tmpFile, err := directio.OpenFile(path.Join(filepath.Dir(outfile), ".docker_temp_"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
+	defer tmpFile.Close()
 	tmpPath := tmpFile.Name()
 	_, err = io.Copy(tmpFile, r)
-	tmpFile.Close()
 	if err != nil {
 		os.Remove(tmpPath)
 		return err
