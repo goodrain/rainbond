@@ -38,7 +38,7 @@ Choose Rainbond for the same reasons disruptive companies do: it serve as a easy
 
 1.  [Install Rainbond](https://www.rainbond.com/docs/stable/getting-started/before-installation.html)
 2.  [Create First Application](https://www.rainbond.com/docs/stable/user-manual/create-an-app.html)
-3.  [Build Microservice Architecture](https://www.rainbond.com/docs/stable/microservice/service-mesh/overview.html)
+3.  [Build Microservice Architecture](https://www.rainbond.com/docs/stable/microservice/service-mesh/use-case.html)
 
 ## Architecture
 
@@ -48,7 +48,7 @@ Choose Rainbond for the same reasons disruptive companies do: it serve as a easy
 
 Read the [Roadmap](http://www.rainbond.com/docs/stable/architecture/roadmap.html).
 
-## Control UI
+## Console UI show
 
 <img src="./docs/buildfromsourcecode.gif" href="http://www.rainbond.com/docs/stable">
 
@@ -60,11 +60,13 @@ Read the [Roadmap](http://www.rainbond.com/docs/stable/architecture/roadmap.html
 
 ## Contributing
 
-Please read [CONTRIBUTING](https://github.com/goodrain/rainbond/blob/master/CONTRIBUTING.md) to learn how you can start working on the Framework yourself.
+You can participate in the contributions of platforms, applications, and plugins within the Rainbond community.
+[Rainbond Contributor community](https://t.goodrain.com/c/contribution)
 
 ## Community
 
-- WeChat: add WeChat ID "**zqg5258423**" to join Rainbond WeChat group
+[Rainbond Community](https://t.goodrain.com)
+[Rainbond Web](https://www.rainbond.com)
 
 ## License
 

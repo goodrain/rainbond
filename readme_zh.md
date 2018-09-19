@@ -35,7 +35,7 @@ Rainbond 深度整合基于 Kubernetes 的容器管理、Service Mesh 微服务�
 
 1.  [安装 Rainbond](https://www.rainbond.com/docs/stable/getting-started/before-installation.html)
 2.  [创建第一个应用](https://www.rainbond.com/docs/stable/user-manual/create-an-app.html)
-3.  [搭建 ServiceMesh 微服务架构](https://www.rainbond.com/docs/stable/microservice/service-mesh/overview.html)
+3.  [搭建 ServiceMesh 微服务架构](https://www.rainbond.com/docs/stable/microservice/service-mesh/use-case.html)
 
 ## 架构
 
@@ -57,12 +57,13 @@ Rainbond 深度整合基于 Kubernetes 的容器管理、Service Mesh 微服务�
 
 ## 参与贡献
 
-阅读[CONTRIBUTING](https://github.com/goodrain/rainbond/blob/master/CONTRIBUTING.md)了解如何参与贡献。
+你可以参与Rainbond社区关于平台、应用、插件等领域的贡献和分享。
+请移步： [Rainbond 贡献者社区](https://t.goodrain.com/c/contribution)
 
 ## 社区
 
-- 微信：添加微信号 "**zqg5258423**" 并接受邀请入群
-- Stack Overflow: https://stackoverflow.com/questions/tagged/rainbond
+[Rainbond 社区](https://t.goodrain.com)
+[Rainbond 官网](https://www.rainbond.com)
 
 ## License
 
