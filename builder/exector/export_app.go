@@ -638,7 +638,7 @@ func (i *ExportApp) ErrorCallBack(err error) {
 }
 
 func (i *ExportApp) zip() error {
-	err := util.Zip(i.SourceDir, i.SourceDir+".tar")
+	err := util.Zip(i.SourceDir, i.SourceDir+".zip")
 	if err != nil {
 		i.Logger.Error("Export application failure:Zip failure", map[string]string{"step": "export-app", "status": "failure"})
 		logrus.Errorf("Failed to create tar file for group %s: %v", i.SourceDir, err)
