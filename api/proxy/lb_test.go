@@ -18,9 +18,20 @@
 
 package proxy
 
-import "testing"
+import (
+	"net/url"
+	"testing"
+)
 
 func TestNewSelectBalance(t *testing.T) {
 	sb := NewSelectBalance()
 	t.Log(sb.hostIDMap)
+}
+
+func TestURLParse(t *testing.T) {
+	endURL, err := url.Parse("127.0.0.1:8080")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(endURL)
 }

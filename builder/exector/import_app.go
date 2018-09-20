@@ -24,12 +24,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"bytes"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
@@ -111,7 +108,7 @@ func (i *ImportApp) GetLogger() event.Logger {
 
 //ErrorCallBack if run error will callback
 func (i *ImportApp) ErrorCallBack(err error) {
-
+	i.updateStatus("failed", "")
 }
 
 //Run Run
@@ -119,18 +116,16 @@ func (i *ImportApp) Run(timeout time.Duration) error {
 	if i.Format == "rainbond-app" {
 		err := i.importApp()
 		if err != nil {
-			i.updateStatus("failed", "")
 			return err
 		}
 		return nil
-	} else {
-		return errors.New("Unsupported the format: " + i.Format)
 	}
+	return errors.New("Unsupported the format: " + i.Format)
 }
 
-// 组目录命名规则，将组名中unicode转为中文，并去掉空格，"JAVA-ETCD\\u5206\\u4eab\\u7ec4" -> "JAVA-ETCD分享组"
+// importApp import app
+// support batch import
 func (i *ImportApp) importApp() error {
-
 	oldSourceDir := i.SourceDir
 	var datas = "["
 	tmpDir := oldSourceDir + "/TmpUnzipDir"
@@ -138,23 +133,13 @@ func (i *ImportApp) importApp() error {
 		if err := i.updateStatusForApp(app, "importing"); err != nil {
 			logrus.Errorf("Failed to update status to importing for app %s: %v", app, err)
 		}
-
 		appFile := filepath.Join(oldSourceDir, app)
-
 		os.MkdirAll(tmpDir, 0755)
-
-		cmd := exec.Command("sh", "-c", fmt.Sprintf("tar -xf %s -C %s/", appFile, tmpDir))
-		var out bytes.Buffer
-		cmd.Stdout = &out
-		cmd.Stderr = &out
-		err := cmd.Run()
+		err := util.Unzip(appFile, tmpDir)
 		if err != nil {
-			err := util.Unzip(appFile, tmpDir)
-			if err != nil {
-				logrus.Errorf("Failed to unzip tar %s: %v", appFile, out.String())
-				i.updateStatusForApp(app, "failed")
-				continue
-			}
+			logrus.Errorf("Failed to unzip app file %s : %s", appFile, err.Error())
+			i.updateStatusForApp(app, "failed")
+			continue
 		}
 
 		files, _ := ioutil.ReadDir(tmpDir)
@@ -173,9 +158,7 @@ func (i *ImportApp) importApp() error {
 			logrus.Errorf("Failed to mv source dir to %s: %v", i.SourceDir, err)
 			continue
 		}
-
 		os.RemoveAll(tmpDir)
-
 		// push image and slug file
 
 		// 修改json元数据中的镜像和源码包仓库地址为指定地址
@@ -189,14 +172,12 @@ func (i *ImportApp) importApp() error {
 			i.updateStatusForApp(app, "failed")
 			continue
 		}
-
 		apps, err := meta.Get("apps").Array()
 		if err != nil {
 			logrus.Errorf("Failed to get apps from meta for load app %s: %v", appFile, err)
 			i.updateStatusForApp(app, "failed")
 			continue
 		}
-
 		for index := range apps {
 			app := meta.Get("apps").GetIndex(index)
 			if _, ok := app.CheckGet("service_image"); ok {
@@ -242,7 +223,6 @@ func (i *ImportApp) importApp() error {
 			}
 			apps[index] = app
 		}
-
 		meta.Set("apps", apps)
 		data, err = meta.MarshalJSON()
 		if err != nil {
@@ -250,44 +230,35 @@ func (i *ImportApp) importApp() error {
 			i.updateStatusForApp(app, "failed")
 			continue
 		}
-
-		// 修改完毕后写回文件中
 		err = ioutil.WriteFile(metaFile, data, 0644)
 		if err != nil {
 			logrus.Errorf("Failed to write metadata load app %s: %v", appFile, err)
 			i.updateStatusForApp(app, "failed")
 			continue
 		}
-
-		// 上传镜像和源码包到仓库中
+		// load all service version attachment in app
 		if err := i.loadApps(); err != nil {
 			logrus.Errorf("Failed to load app %s: %v", appFile, err)
 			i.updateStatusForApp(app, "failed")
 			continue
 		}
-
-		// 上传插件镜像到仓库中
+		// load all plugins
 		if err := i.importPlugins(); err != nil {
 			logrus.Errorf("Failed to load app plugin %s: %v", appFile, err)
 			i.updateStatusForApp(app, "failed")
 			continue
 		}
-
 		if datas == "[" {
 			datas += string(data)
 		} else {
 			datas += ", " + string(data)
 		}
-
 		if err := i.updateStatusForApp(app, "success"); err != nil {
 			logrus.Errorf("Failed to update status to success for app %s: %v", app, err)
 			continue
 		}
-
 		os.Rename(appFile, appFile+".success")
-
 		logrus.Debug("Successful import app: ", appFile)
-
 	}
 	datas += "]"
 	i.SourceDir = oldSourceDir
@@ -516,7 +487,7 @@ func (i *ImportApp) updateStatus(status, data string) error {
 	// 从数据库中获取该应用的状态信息
 	res, err := db.GetManager().AppDao().GetByEventId(i.EventID)
 	if err != nil {
-		err = fmt.Errorf("failed to get app %s from db: %v", i.EventID, err)
+		err = fmt.Errorf("failed to get app %s from db: %s", i.EventID, err.Error())
 		logrus.Error(err)
 		return err
 	}
@@ -525,7 +496,7 @@ func (i *ImportApp) updateStatus(status, data string) error {
 	res.Status = status
 
 	if err := db.GetManager().AppDao().UpdateModel(res); err != nil {
-		err = fmt.Errorf("failed to update app %s: %v", i.EventID, err)
+		err = fmt.Errorf("failed to update app %s: %s", i.EventID, err.Error())
 		logrus.Error(err)
 		return err
 	}
@@ -538,7 +509,7 @@ func (i *ImportApp) updateStatusForApp(app, status string) error {
 	// 从数据库中获取该应用的状态信息
 	res, err := db.GetManager().AppDao().GetByEventId(i.EventID)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("Failed to get app %s from db: %v", i.EventID, err))
+		err = fmt.Errorf("Failed to get app %s from db: %s", i.EventID, err.Error())
 		logrus.Error(err)
 		return err
 	}
@@ -549,7 +520,7 @@ func (i *ImportApp) updateStatusForApp(app, status string) error {
 	res.Apps = map2str(appsMap)
 
 	if err := db.GetManager().AppDao().UpdateModel(res); err != nil {
-		err = errors.New(fmt.Sprintf("Failed to update app %s: %v", i.EventID, err))
+		err = fmt.Errorf("Failed to update app %s: %s", i.EventID, err.Error())
 		logrus.Error(err)
 		return err
 	}
