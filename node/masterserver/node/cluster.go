@@ -360,6 +360,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					Status:             client.ConditionFalse,
 					LastHeartbeatTime:  time.Now(),
 					LastTransitionTime: time.Now(),
+					Message:            "K8s node status is NotReady",
 				}
 				v.UpdataCondition(r)
 			}
