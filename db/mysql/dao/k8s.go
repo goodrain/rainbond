@@ -435,7 +435,7 @@ type LocalSchedulerDaoImpl struct {
 //AddModel 添加本地调度信息
 func (t *LocalSchedulerDaoImpl) AddModel(mo model.Interface) error {
 	ls := mo.(*model.LocalScheduler)
-	var oldLs model.ServiceProbe
+	var oldLs model.LocalScheduler
 	if ok := t.DB.Where("service_id=? and pod_name=?", ls.ServiceID, ls.PodName).Find(&oldLs).RecordNotFound(); ok {
 		if err := t.DB.Create(ls).Error; err != nil {
 			return err

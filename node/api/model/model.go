@@ -42,16 +42,6 @@ type NodePodResource struct {
 	AllocatedResources `json:"allocatedresources"`
 	Resource           `json:"allocatable"`
 }
-type InitStatus struct {
-	Status   int    `json:"status"`
-	StatusCN string `json:"cn"`
-	HostID   string `json:"uuid"`
-}
-type InstallStatus struct {
-	Status   int           `json:"status"`
-	StatusCN string        `json:"cn"`
-	Tasks    []*ExecedTask `json:"tasks"`
-}
 type AllocatedResources struct {
 	CPURequests     int64
 	CPULimits       int64
@@ -62,6 +52,17 @@ type AllocatedResources struct {
 	CPURequestsR    string
 	CPULimitsR      string
 }
+type InitStatus struct {
+	Status   int    `json:"status"`
+	StatusCN string `json:"cn"`
+	HostID   string `json:"uuid"`
+}
+type InstallStatus struct {
+	Status   int           `json:"status"`
+	StatusCN string        `json:"cn"`
+	Tasks    []*ExecedTask `json:"tasks"`
+}
+
 type ExecedTask struct {
 	ID             string   `json:"id"`
 	Seq            int      `json:"seq"`
@@ -192,6 +193,14 @@ type ClusterResource struct {
 	ReqMem       int     `json:"req_mem"`
 	CapDisk      uint64  `json:"cap_disk"`
 	ReqDisk      uint64  `json:"req_disk"`
+}
+
+//node 资源
+type NodeResource struct {
+	CapCPU int     `json:"cap_cpu"`
+	CapMem int     `json:"cap_mem"`
+	ReqCPU float32 `json:"req_cpu"`
+	ReqMem int     `json:"req_mem"`
 }
 
 type FirstConfig struct {
@@ -450,9 +459,29 @@ type AlertingNameConfig struct {
 }
 
 type RulesConfig struct {
-	Alert  string            `yaml:"alert" json:"alert"`
-	Expr   string            `yaml:"expr" json:"expr"`
-	For    string            `yaml:"for" json:"for"`
-	Labels map[string]string `yaml:"labels" json:"labels"`
+	Alert       string            `yaml:"alert" json:"alert"`
+	Expr        string            `yaml:"expr" json:"expr"`
+	For         string            `yaml:"for" json:"for"`
+	Labels      map[string]string `yaml:"labels" json:"labels"`
 	Annotations map[string]string `yaml:"annotations" json:"annotations"`
+}
+
+//NotificationEvent NotificationEvent
+type NotificationEvent struct {
+	//Kind could be service, tenant, cluster, node
+	Kind string `json:"Kind"`
+	//KindID could be service_id,tenant_id,cluster_id,node_id
+	KindID string `json:"KindID"`
+	Hash   string `json:"Hash"`
+	//Type could be Normal UnNormal Notification
+	Type          string `json:"Type"`
+	Message       string `json:"Message"`
+	Reason        string `json:"Reason"`
+	Count         int    `json:"Count"`
+	LastTime      string `json:"LastTime"`
+	FirstTime     string `json:"FirstTime"`
+	IsHandle      bool   `json:"IsHandle"`
+	HandleMessage string `json:"HandleMessage"`
+	ServiceName   string `json:"ServiceName"`
+	TenantName    string `json:"TenantName"`
 }

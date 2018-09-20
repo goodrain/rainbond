@@ -41,10 +41,20 @@ type RepostoryBuildInfo struct {
 //GetCodeHome 获取代码目录
 func (r *RepostoryBuildInfo) GetCodeHome() string {
 	if r.RepostoryURLType == "svn" {
-		if ok, _ := util.FileExists(path.Join(r.CodeHome, "trunk")); ok && r.BuildBranch == "master" {
+		if ok, _ := util.FileExists(path.Join(r.CodeHome, "trunk")); ok && r.BuildBranch == "trunk" {
 			return path.Join(r.CodeHome, "trunk")
 		}
-		if r.BuildBranch != "" && r.BuildBranch != "master" {
+		if r.BuildBranch != "" && r.BuildBranch != "trunk" {
+			if strings.HasPrefix(r.BuildBranch, "tag:") {
+				codepath := path.Join(r.CodeHome, "tags", r.BuildBranch[4:])
+				if ok, _ := util.FileExists(codepath); ok {
+					return codepath
+				}
+				codepath = path.Join(r.CodeHome, "Tags", r.BuildBranch[4:])
+				if ok, _ := util.FileExists(codepath); ok {
+					return codepath
+				}
+			}
 			codepath := path.Join(r.CodeHome, "branches", r.BuildBranch)
 			if ok, _ := util.FileExists(codepath); ok {
 				return codepath

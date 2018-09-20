@@ -28,7 +28,7 @@ import (
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	conf "github.com/goodrain/rainbond/cmd/node/option"
-	store "github.com/goodrain/rainbond/node/core/store"
+	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/pquerna/ffjson/ffjson"
 )
 
@@ -39,7 +39,8 @@ type APIHostNode struct {
 	InternalIP string            `json:"internal_ip" validate:"internal_ip|ip"`
 	ExternalIP string            `json:"external_ip" validate:"external_ip|ip"`
 	RootPass   string            `json:"root_pass,omitempty"`
-	Role       []string          `json:"role" validate:"role|required"`
+	Privatekey string            `json:"private_key,omitempty"`
+	Role       string            `json:"role" validate:"role|required"`
 	Labels     map[string]string `json:"labels"`
 }
 
@@ -51,7 +52,7 @@ func (a APIHostNode) Clone() *HostNode {
 		InternalIP: a.InternalIP,
 		ExternalIP: a.ExternalIP,
 		RootPass:   a.RootPass,
-		Role:       a.Role,
+		Role:       []string{a.Role},
 		Labels:     a.Labels,
 		NodeStatus: &NodeStatus{},
 	}
@@ -76,6 +77,26 @@ type HostNode struct {
 	Unschedulable   bool              `json:"unschedulable"` //不可调度
 	NodeStatus      *NodeStatus       `json:"node_status,omitempty"`
 	ClusterNode
+}
+
+//Resource 资源
+type Resource struct {
+	CpuR int `json:"cpu"`
+	MemR int `json:"mem"`
+}
+type NodePodResource struct {
+	AllocatedResources `json:"allocatedresources"`
+	Resource           `json:"allocatable"`
+}
+type AllocatedResources struct {
+	CPURequests     int64
+	CPULimits       int64
+	MemoryRequests  int64
+	MemoryLimits    int64
+	MemoryRequestsR string
+	MemoryLimitsR   string
+	CPURequestsR    string
+	CPULimitsR      string
 }
 
 //NodeStatus node status
@@ -176,6 +197,9 @@ func GetNodeFromKV(kv *mvccpb.KeyValue) *HostNode {
 //UpdataK8sCondition 更新k8s节点的状态到rainbond节点
 func (n *HostNode) UpdataK8sCondition(conditions []v1.NodeCondition) {
 	for _, con := range conditions {
+		if NodeConditionType(con.Type) == "Ready" {
+			continue
+		}
 		rbcon := NodeCondition{
 			Type:               NodeConditionType(con.Type),
 			Status:             ConditionStatus(con.Status),
@@ -223,6 +247,19 @@ func (n *HostNode) UpdataCondition(conditions ...NodeCondition) {
 			n.NodeStatus.Conditions = append(n.NodeStatus.Conditions, newcon)
 		}
 	}
+}
+
+func GetK8sReady(conditions []v1.NodeCondition) bool {
+	for _, con := range conditions {
+		if NodeConditionType(con.Type) == "Ready" {
+			if con.Status == "True" {
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	return false
 }
 
 //HostRule 节点角色
@@ -335,7 +372,7 @@ func (h *HostNode) Update() (*client.PutResponse, error) {
 
 //DeleteNode 删除节点
 func (h *HostNode) DeleteNode() (*client.DeleteResponse, error) {
-	return store.DefalutClient.Delete(conf.Config.NodePath + "/" + h.ID)
+	return store.DefalutClient.Delete(conf.Config.NodePath + "/target/" + h.ID)
 }
 
 //Del 删除

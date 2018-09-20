@@ -18,6 +18,10 @@
 
 package model
 
+import (
+	eventdb "github.com/goodrain/rainbond/eventlog/db"
+)
+
 //LogData log data
 type LogData struct {
 	num int
@@ -34,7 +38,7 @@ type MessageData struct {
 //DataLog 获取指定操作的操作日志
 type DataLog struct {
 	Status string
-	Data   []MessageData
+	Data   eventdb.MessageDataList
 }
 
 //LogByLevelStruct GetLogByLevelStruct

@@ -29,6 +29,8 @@ import (
 	"strings"
 	"time"
 
+	"bytes"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/docker/engine-api/client"
@@ -54,6 +56,7 @@ type ImportApp struct {
 	ServiceSlug  model.ServiceSlug
 	Logger       event.Logger
 	DockerClient *client.Client
+	oldAPPPath   map[string]string
 }
 
 //NewImportApp create
@@ -87,6 +90,7 @@ func NewImportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 		Logger:       logger,
 		EventID:      eventID,
 		DockerClient: m.DockerClient,
+		oldAPPPath:   make(map[string]string),
 	}, nil
 }
 
@@ -139,11 +143,15 @@ func (i *ImportApp) importApp() error {
 
 		os.MkdirAll(tmpDir, 0755)
 
-		err := exec.Command("sh", "-c", fmt.Sprintf("tar -xf %s -C %s/", appFile, tmpDir)).Run()
+		cmd := exec.Command("sh", "-c", fmt.Sprintf("tar -xf %s -C %s/", appFile, tmpDir))
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &out
+		err := cmd.Run()
 		if err != nil {
 			err := util.Unzip(appFile, tmpDir)
 			if err != nil {
-				logrus.Errorf("Failed to unzip tar %s: %v", appFile, err)
+				logrus.Errorf("Failed to unzip tar %s: %v", appFile, out.String())
 				i.updateStatusForApp(app, "failed")
 				continue
 			}
@@ -194,9 +202,43 @@ func (i *ImportApp) importApp() error {
 			if _, ok := app.CheckGet("service_image"); ok {
 				app.Set("service_image", i.ServiceImage)
 			}
-
 			if _, ok := app.CheckGet("service_slug"); ok {
 				app.Set("service_slug", i.ServiceSlug)
+			}
+			getAppImage := func() string {
+				oldname, _ := app.Get("share_image").String()
+				oldImageName := sources.ImageNameWithNamespaceHandle(oldname)
+				var image string
+				if i.ServiceImage.NameSpace == "" {
+					image = fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubUrl, oldImageName.Name, oldImageName.Tag)
+				} else {
+					image = fmt.Sprintf("%s/%s/%s:%s", i.ServiceImage.HubUrl, i.ServiceImage.NameSpace, oldImageName.Name, oldImageName.Tag)
+				}
+				return image
+			}
+			getAppSlugPath := func() string {
+				shareSlugPath, _ := app.Get("share_slug_path").String()
+				if strings.HasPrefix(shareSlugPath, "/grdata/build/tenant/") {
+					shareSlugPath = strings.Replace(shareSlugPath, "/grdata/build/tenant/", "", 1)
+				}
+				if i.ServiceSlug.FtpHost == "" {
+					shareSlugPath = fmt.Sprintf("/grdata/build/tenant/%s", shareSlugPath)
+				} else {
+					info := strings.Split(shareSlugPath, "/")
+					shareSlugPath = fmt.Sprintf("%s/%s", i.ServiceSlug.NameSpace, strings.Join(info[1:], "/"))
+				}
+				return shareSlugPath
+			}
+
+			if oldimage, ok := app.CheckGet("share_image"); ok {
+				appKey, _ := app.Get("service_key").String()
+				i.oldAPPPath[appKey], _ = oldimage.String()
+				app.Set("share_image", getAppImage())
+			}
+			if oldslug, ok := app.CheckGet("share_slug_path"); ok {
+				appKey, _ := app.Get("service_key").String()
+				i.oldAPPPath[appKey], _ = oldslug.String()
+				app.Set("share_slug_path", getAppSlugPath())
 			}
 			apps[index] = app
 		}
@@ -220,6 +262,13 @@ func (i *ImportApp) importApp() error {
 		// 上传镜像和源码包到仓库中
 		if err := i.loadApps(); err != nil {
 			logrus.Errorf("Failed to load app %s: %v", appFile, err)
+			i.updateStatusForApp(app, "failed")
+			continue
+		}
+
+		// 上传插件镜像到仓库中
+		if err := i.importPlugins(); err != nil {
+			logrus.Errorf("Failed to load app plugin %s: %v", appFile, err)
 			i.updateStatusForApp(app, "failed")
 			continue
 		}
@@ -258,43 +307,6 @@ func (i *ImportApp) importApp() error {
 	return nil
 }
 
-// 替换元数据中的镜像和源码包的仓库地址
-func (i *ImportApp) replaceRepo() error {
-	metaFile := fmt.Sprintf("%s/metadata.json", i.SourceDir)
-	logrus.Debug("Change image and slug repo address in: ", metaFile)
-
-	data, err := ioutil.ReadFile(metaFile)
-	meta, err := simplejson.NewJson(data)
-	if err != nil {
-		return err
-	}
-
-	apps, err := meta.Get("apps").Array()
-	if err != nil {
-		return err
-	}
-
-	for index := range apps {
-		app := meta.Get("apps").GetIndex(index)
-		if _, ok := app.CheckGet("service_image"); ok {
-			app.Set("service_image", i.ServiceImage)
-		}
-
-		if _, ok := app.CheckGet("service_slug"); ok {
-			app.Set("service_slug", i.ServiceSlug)
-		}
-		apps[index] = app
-	}
-
-	meta.Set("apps", apps)
-	data, err = meta.MarshalJSON()
-	if err != nil {
-		return err
-	}
-
-	return ioutil.WriteFile(metaFile, data, 0644)
-}
-
 //parseApps get apps array from metadata.json
 func (i *ImportApp) parseApps() ([]gjson.Result, error) {
 	i.Logger.Info("解析应用信息", map[string]string{"step": "export-app", "status": "success"})
@@ -318,6 +330,110 @@ func (i *ImportApp) parseApps() ([]gjson.Result, error) {
 	return arr, nil
 }
 
+func (i *ImportApp) importPlugins() error {
+	i.Logger.Info("解析插件信息", map[string]string{"step": "import-plugins", "status": "success"})
+
+	data, err := ioutil.ReadFile(fmt.Sprintf("%s/metadata.json", i.SourceDir))
+	if err != nil {
+		i.Logger.Error("导出插件失败，没有找到应用信息", map[string]string{"step": "read-metadata", "status": "failure"})
+		logrus.Error("Failed to read metadata file: ", err)
+		return err
+	}
+
+	// 先修改json数据中的插件镜像服务器地址为新环境中的服务器地址
+	meta, err := simplejson.NewJson(data)
+	if err != nil {
+		logrus.Errorf("Failed to new json for load app %s: %v", i.SourceDir, err)
+		return err
+	}
+
+	oldPlugins, err := meta.Get("plugins").Array()
+	if err != nil {
+		logrus.Errorf("Failed to get plugins from meta for load app %s: %v", i.SourceDir, err)
+		return nil
+	}
+
+	for index := range oldPlugins {
+		plugin := meta.Get("plugins").GetIndex(index)
+		if _, ok := plugin.CheckGet("plugin_image"); ok {
+			plugin.Set("plugin_image", i.ServiceImage)
+		}
+		getAppImage := func() string {
+			oldname, _ := plugin.Get("share_image").String()
+			oldImageName := sources.ImageNameWithNamespaceHandle(oldname)
+			var image string
+			if i.ServiceImage.NameSpace == "" {
+				image = fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubUrl, oldImageName.Name, oldImageName.Tag)
+			} else {
+				image = fmt.Sprintf("%s/%s/%s:%s", i.ServiceImage.HubUrl, i.ServiceImage.NameSpace, oldImageName.Name, oldImageName.Tag)
+			}
+			return image
+		}
+		if oldimage, ok := plugin.CheckGet("share_image"); ok {
+			appKey, _ := plugin.Get("service_key").String()
+			i.oldAPPPath[appKey], _ = oldimage.String()
+			plugin.Set("share_image", getAppImage())
+		}
+		oldPlugins[index] = plugin
+	}
+
+	meta.Set("plugins", oldPlugins)
+	data, err = meta.MarshalJSON()
+	if err != nil {
+		logrus.Errorf("Failed to marshal json for app %s: %v", i.SourceDir, err)
+		return err
+	}
+
+	// 修改完毕后写回文件中
+	err = ioutil.WriteFile(fmt.Sprintf("%s/metadata.json", i.SourceDir), data, 0644)
+	if err != nil {
+		logrus.Errorf("Failed to write metadata load app %s: %v", i.SourceDir, err)
+		return err
+	}
+
+	plugins := gjson.GetBytes(data, "plugins").Array()
+
+	for _, plugin := range plugins {
+		pluginName := plugin.Get("plugin_name").String()
+		pluginName = unicode2zh(pluginName)
+		pluginDir := fmt.Sprintf("%s/%s", i.SourceDir, pluginName)
+
+		files, err := ioutil.ReadDir(pluginDir)
+		if err != nil || len(files) < 1 {
+			logrus.Error("Failed to list in service directory: ", pluginDir)
+			continue
+		}
+
+		fileName := filepath.Join(pluginDir, files[0].Name())
+		logrus.Debug("Parse the source file for service: ", fileName)
+
+		// 将镜像加载到本地，并上传到仓库
+		if strings.HasSuffix(fileName, ".image.tar") {
+			// 加载到本地
+			if err := sources.ImageLoad(i.DockerClient, fileName, i.Logger); err != nil {
+				logrus.Error("Failed to load image for service: ", pluginName)
+				return err
+			}
+			// 上传到仓库
+			user := plugin.Get("plugin_image.hub_user").String()
+			pass := plugin.Get("plugin_image.hub_password").String()
+			// 上传之前先要根据新的仓库地址修改镜像名
+			image := i.oldAPPPath[plugin.Get("service_key").String()]
+			saveImageName := plugin.Get("share_image").String()
+			if err := sources.ImageTag(i.DockerClient, image, saveImageName, i.Logger, 2); err != nil {
+				return fmt.Errorf("change plugin image tag(%s => %s) error %s", saveImageName, image, err.Error())
+			}
+			// 开始上传
+			if err := sources.ImagePush(i.DockerClient, saveImageName, user, pass, i.Logger, 15); err != nil {
+				return fmt.Errorf("push plugin image %s error %s", image, err.Error())
+			}
+			logrus.Debug("Successful load and push the plugin image ", image)
+		}
+	}
+
+	return nil
+}
+
 func (i *ImportApp) loadApps() error {
 	apps, err := i.parseApps()
 	if err != nil {
@@ -332,7 +448,7 @@ func (i *ImportApp) loadApps() error {
 		files, err := ioutil.ReadDir(serviceDir)
 		if err != nil || len(files) < 1 {
 			logrus.Error("Failed to list in service directory: ", serviceDir)
-			return err
+			continue
 		}
 
 		fileName := filepath.Join(serviceDir, files[0].Name())
@@ -347,60 +463,50 @@ func (i *ImportApp) loadApps() error {
 				logrus.Error("Failed to load image for service: ", serviceName)
 				return err
 			}
-
 			// 上传到仓库
-			image := app.Get("image").String()
+			oldImage := i.oldAPPPath[app.Get("service_key").String()]
+			oldImageName := sources.ImageNameWithNamespaceHandle(oldImage)
 			user := app.Get("service_image.hub_user").String()
 			pass := app.Get("service_image.hub_password").String()
-			if err := sources.ImagePush(i.DockerClient, image, user, pass, i.Logger, 15); err != nil {
-				image = app.Get("share_image").String()
-				if err := sources.ImagePush(i.DockerClient, image, user, pass, i.Logger, 15); err != nil {
-					logrus.Error("Failed to load image for service: ", serviceName)
-					return err
-				}
+			// 上传之前先要根据新的仓库地址修改镜像名
+			image := app.Get("share_image").String()
+			if err := sources.ImageTag(i.DockerClient, fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubUrl, oldImageName.Name, oldImageName.Tag), image, i.Logger, 15); err != nil {
+				return fmt.Errorf("change image tag(%s => %s) error %s", fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubUrl, oldImageName.Name, oldImageName.Tag), image, err.Error())
 			}
-
+			// 开始上传
+			if err := sources.ImagePush(i.DockerClient, image, user, pass, i.Logger, 15); err != nil {
+				return fmt.Errorf("push  image %s error %s", image, err.Error())
+			}
 			logrus.Debug("Successful load and push the image ", image)
 		} else if strings.HasSuffix(fileName, ".tgz") {
-			// 将slug包上传到ftp服务器
-
-			// 提取tfp服务器信息
 			shareSlugPath := app.Get("share_slug_path").String()
 			ftpHost := app.Get("service_slug.ftp_host").String()
 			ftpPort := app.Get("service_slug.ftp_port").String()
 			ftpUsername := app.Get("service_slug.ftp_username").String()
 			ftpPassword := app.Get("service_slug.ftp_password").String()
-
-			ftpClient, err := sources.NewSFTPClient(ftpUsername, ftpPassword, ftpHost, ftpPort)
-			if err != nil {
-				// 如果指定的ftp服务器不存在则铐到本地
-				os.MkdirAll(filepath.Base(shareSlugPath), 0755)
-				err = exec.Command("cp", fileName, shareSlugPath).Run()
+			// if sftp available
+			if ftpHost != "" && ftpPort != "" {
+				ftpClient, err := sources.NewSFTPClient(ftpUsername, ftpPassword, ftpHost, ftpPort)
 				if err != nil {
-					logrus.Error("Failed to copy slug file to local directory: ", err)
 					return err
 				}
-
-				logrus.Info("Successful copy slug file to local directory.")
-				continue
-			}
-
-			// 开始上传文件
-			i.Logger.Info(fmt.Sprintf("获取应用源码：%s", serviceName),
-				map[string]string{"step": "get-slug", "status": "failure"})
-
-			err = ftpClient.PushFile(fileName, shareSlugPath, i.Logger)
-			ftpClient.Close()
-			if err != nil {
-				logrus.Errorf("Failed to upload slug file for group %s: %v", i.SourceDir, err)
-				return err
+				err = ftpClient.PushFile(fileName, shareSlugPath, i.Logger)
+				ftpClient.Close()
+				if err != nil {
+					logrus.Errorf("Failed to upload slug file for group %s: %v", i.SourceDir, err)
+					return err
+				}
+			} else {
+				os.MkdirAll(filepath.Base(shareSlugPath), 0755)
+				err := util.CopyFile(fileName, shareSlugPath)
+				if err != nil {
+					logrus.Error("Failed to copy slug file to local directory: ", shareSlugPath)
+					return err
+				}
 			}
 			logrus.Debug("Successful upload slug file: ", fileName)
-
 		}
-
 	}
-
 	logrus.Debug("Successful load apps for group: ", i.SourceDir)
 	return nil
 }

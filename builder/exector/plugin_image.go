@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 
 	"github.com/goodrain/rainbond/db"
@@ -85,7 +86,7 @@ func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) 
 		return err
 	}
 	logger.Info("修改镜像Tag完成", map[string]string{"step": "build-exector", "status": "complete"})
-	if err := sources.ImagePush(e.DockerClient, newTag, "", "", logger, 10); err != nil {
+	if err := sources.ImagePush(e.DockerClient, newTag, builder.REGISTRYUSER, builder.REGISTRYPASS, logger, 10); err != nil {
 		logrus.Errorf("push image %s error, %v", newTag, err)
 		logger.Error("推送镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
@@ -118,7 +119,7 @@ func createPluginImageTag(image string, pluginid, version string) string {
 		iName = image
 	}
 	if strings.HasPrefix(iName, "plugin") {
-		return fmt.Sprintf("goodrain.me/%s:%s_%s", iName, pluginid, version)
+		return fmt.Sprintf("%s/%s:%s_%s", builder.REGISTRYDOMAIN, iName, pluginid, version)
 	}
-	return fmt.Sprintf("goodrain.me/plugin_%s_%s:%s_%s", iName, pluginid, tag, version)
+	return fmt.Sprintf("%s/plugin_%s_%s:%s_%s", builder.REGISTRYDOMAIN, iName, pluginid, tag, version)
 }

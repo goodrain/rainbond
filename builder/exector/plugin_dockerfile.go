@@ -23,6 +23,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/util"
 
@@ -122,7 +123,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger)
 		return err
 	}
 	logger.Info("镜像构建成功，开始推送镜像至仓库", map[string]string{"step": "builder-exector"})
-	err = sources.ImagePush(e.DockerClient, buildImageName, "", "", logger, 2)
+	err = sources.ImagePush(e.DockerClient, buildImageName, builder.REGISTRYUSER, builder.REGISTRYPASS, logger, 2)
 	if err != nil {
 		logger.Error("推送镜像失败", map[string]string{"step": "builder-exector"})
 		logrus.Errorf("push image error: %s", err.Error())

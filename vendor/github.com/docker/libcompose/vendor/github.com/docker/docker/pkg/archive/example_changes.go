@@ -14,7 +14,7 @@ import (
 	"path"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 var (

@@ -19,8 +19,6 @@
 package sources
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -37,6 +35,7 @@ import (
 
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/x509"
 	"encoding/pem"
 
@@ -46,7 +45,6 @@ import (
 	sshkey "golang.org/x/crypto/ssh"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/protocol/packp/sideband"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/client"
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
@@ -74,36 +72,23 @@ func (c *CodeSourceInfo) InitServerType() {
 	}
 }
 
-//GetCodeCacheDir 获取代码缓存目录
-func (c CodeSourceInfo) GetCodeCacheDir() string {
-	cacheDir := os.Getenv("CACHE_DIR")
-	if cacheDir == "" {
-		cacheDir = "/cache"
-	}
-	//h := sha1.New()
-	//h.Write([]byte(c.RepositoryURL))
-	//bs := h.Sum(nil)
-	//bsStr := fmt.Sprintf("%x", bs)
-	logrus.Debugf("git path is %s", path.Join(cacheDir, "build", c.TenantID, c.ServiceID))
-	return path.Join(cacheDir, "build", c.TenantID, c.ServiceID)
-}
-
-//GetCodeSourceDir 获取代码下载目录
+//GetCodeSourceDir get source storage directory
 func (c CodeSourceInfo) GetCodeSourceDir() string {
 	return GetCodeSourceDir(c.RepositoryURL, c.Branch, c.TenantID, c.ServiceID)
 }
 
-//GetCodeSourceDir 获取源码下载目录
+//GetCodeSourceDir get source storage directory
+// it changes as gitrepostory address, branch, and service id change
 func GetCodeSourceDir(RepositoryURL, branch, tenantID string, ServiceID string) string {
 	sourceDir := os.Getenv("SOURCE_DIR")
 	if sourceDir == "" {
 		sourceDir = "/grdata/source"
 	}
-	//h := sha1.New()
-	//h.Write([]byte(RepositoryURL + branch))
-	//bs := h.Sum(nil)
-	//bsStr := fmt.Sprintf("%x", bs)
-	return path.Join(sourceDir, "build", tenantID, ServiceID)
+	h := sha1.New()
+	h.Write([]byte(RepositoryURL + branch + ServiceID))
+	bs := h.Sum(nil)
+	bsStr := fmt.Sprintf("%x", bs)
+	return path.Join(sourceDir, "build", tenantID, bsStr)
 }
 
 //CheckFileExist CheckFileExist
@@ -132,34 +117,29 @@ func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout
 	flag := true
 Loop:
 	if logger != nil {
-		//进度信息
-		logger.Info(fmt.Sprintf("开始从Git源(%s)获取代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})
+		logger.Info(fmt.Sprintf("Start clone source code from %s", csi.RepositoryURL), map[string]string{"step": "clone_code"})
 	}
 	ep, err := transport.NewEndpoint(csi.RepositoryURL)
 	if err != nil {
 		return nil, err
 	}
-	//最少一分钟
 	if timeout < 1 {
 		timeout = 1
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
-	progress := createProgress(ctx, logger)
+	writer := logger.GetWriter("progress", "debug")
+	writer.SetFormat(`{"progress":"%s","id":"Clone:"}`)
 	opts := &git.CloneOptions{
 		URL:               csi.RepositoryURL,
-		Progress:          progress,
+		Progress:          writer,
 		SingleBranch:      true,
 		Tags:              git.NoTags,
 		RecurseSubmodules: git.NoRecurseSubmodules,
 		Depth:             1,
 	}
 	if csi.Branch != "" {
-		if strings.HasPrefix(csi.Branch, "tag:") {
-			opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/tags/%s", csi.Branch[4:]))
-		} else {
-			opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", csi.Branch))
-		}
+		opts.ReferenceName = getBranch(csi.Branch)
 	}
 	var rs *git.Repository
 	if ep.Protocol == "ssh" {
@@ -167,7 +147,7 @@ Loop:
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
 		if auerr != nil {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("创建PublicKeys错误"), map[string]string{"step": "clone-code", "status": "failure"})
+				logger.Error(fmt.Sprintf("Create PublicKeys failure"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return nil, auerr
 		}
@@ -277,23 +257,22 @@ func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout 
 	flag := true
 Loop:
 	if logger != nil {
-		//进度信息
-		logger.Info(fmt.Sprintf("开始从Git源(%s)更新代码", csi.RepositoryURL), map[string]string{"step": "clone_code"})
+		logger.Info(fmt.Sprintf("Start pull source code from %s", csi.RepositoryURL), map[string]string{"step": "clone_code"})
 	}
-	//最少一分钟
 	if timeout < 1 {
 		timeout = 1
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
-	progress := createProgress(ctx, logger)
+	writer := logger.GetWriter("progress", "debug")
+	writer.SetFormat(`{"progress":"%s","id":"Pull:"}`)
 	opts := &git.PullOptions{
-		Progress:     progress,
+		Progress:     writer,
 		SingleBranch: true,
 		Depth:        1,
 	}
 	if csi.Branch != "" {
-		opts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", csi.Branch))
+		opts.ReferenceName = getBranch(csi.Branch)
 	}
 	ep, err := transport.NewEndpoint(csi.RepositoryURL)
 	if err != nil {
@@ -414,6 +393,20 @@ func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, t
 	return GitClone(csi, sourceDir, logger, timeout)
 }
 
+//GitCheckout checkout the specified branch
+func GitCheckout(sourceDir, branch string) error {
+	// option := git.CheckoutOptions{
+	// 	Branch: getBranch(branch),
+	// }
+	return nil
+}
+func getBranch(branch string) plumbing.ReferenceName {
+	if strings.HasPrefix(branch, "tag:") {
+		return plumbing.ReferenceName(fmt.Sprintf("refs/tags/%s", branch[4:]))
+	}
+	return plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", branch))
+}
+
 //GetLastCommit get last commit info
 //get commit by head reference
 func GetLastCommit(re *git.Repository) (*object.Commit, error) {
@@ -425,29 +418,29 @@ func GetLastCommit(re *git.Repository) (*object.Commit, error) {
 }
 
 //GetPrivateFile 获取私钥文件地址
-func GetPrivateFile(tenantId string) string {
+func GetPrivateFile(tenantID string) string {
 	home, _ := Home()
 	if home == "" {
 		home = "/root"
 	}
-	if tenantId == "builder_rsa" {
+	if tenantID == "builder_rsa" {
 		if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa")); ok {
 			return path.Join(home, "/.ssh/builder_rsa")
 		}
 		return path.Join(home, "/.ssh/id_rsa")
 	}
-	return path.Join(home, "/.ssh/"+tenantId)
+	return path.Join(home, "/.ssh/"+tenantID)
 
 }
 
 //GetPublicKey 获取公钥
-func GetPublicKey(tenantId string) string {
+func GetPublicKey(tenantID string) string {
 	home, _ := Home()
 	if home == "" {
 		home = "/root"
 	}
-	PublicKey := tenantId + ".pub"
-	PrivateKey := tenantId
+	PublicKey := tenantID + ".pub"
+	PrivateKey := tenantID
 
 	if ok, _ := util.FileExists(path.Join(home, "/.ssh/"+PublicKey)); ok {
 		body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/"+PublicKey))
@@ -475,6 +468,7 @@ func GetPublicKey(tenantId string) string {
 
 }
 
+//GenerateKey GenerateKey
 func GenerateKey(bits int) (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	private, err := rsa.GenerateKey(rand.Reader, bits)
 	if err != nil {
@@ -484,6 +478,7 @@ func GenerateKey(bits int) (*rsa.PrivateKey, *rsa.PublicKey, error) {
 
 }
 
+//EncodePrivateKey EncodePrivateKey
 func EncodePrivateKey(private *rsa.PrivateKey) []byte {
 	return pem.EncodeToMemory(&pem.Block{
 		Bytes: x509.MarshalPKCS1PrivateKey(private),
@@ -491,7 +486,7 @@ func EncodePrivateKey(private *rsa.PrivateKey) []byte {
 	})
 }
 
-//EncodeSSHKey
+//EncodeSSHKey EncodeSSHKey
 func EncodeSSHKey(public *rsa.PublicKey) ([]byte, error) {
 	publicKey, err := sshkey.NewPublicKey(public)
 	if err != nil {
@@ -500,7 +495,7 @@ func EncodeSSHKey(public *rsa.PublicKey) ([]byte, error) {
 	return sshkey.MarshalAuthorizedKey(publicKey), nil
 }
 
-//生成公钥和私钥
+//MakeSSHKeyPair make ssh key
 func MakeSSHKeyPair() (string, string, error) {
 
 	pkey, pubkey, err := GenerateKey(2048)
@@ -514,39 +509,4 @@ func MakeSSHKeyPair() (string, string, error) {
 	}
 
 	return string(EncodePrivateKey(pkey)), string(pub), nil
-}
-
-//createProgress create git log progress
-func createProgress(ctx context.Context, logger event.Logger) sideband.Progress {
-	if logger == nil {
-		return os.Stdout
-	}
-	buffer := bytes.NewBuffer(make([]byte, 4096))
-	var reader = bufio.NewReader(buffer)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				line, _, err := reader.ReadLine()
-				if err != nil {
-					if err.Error() != "EOF" {
-						fmt.Println("read git log err", err.Error())
-					}
-					return
-				}
-				if len(line) > 0 {
-					progess := strings.Replace(string(line), "\r", "", -1)
-					progess = strings.Replace(progess, "\n", "", -1)
-					progess = strings.Replace(progess, "\u0000", "", -1)
-					if len(progess) > 0 {
-						message := fmt.Sprintf(`{"progress":"%s","id":"%s"}`, progess, "获取源码")
-						logger.Debug(message, map[string]string{"step": "progress"})
-					}
-				}
-			}
-		}
-	}()
-	return buffer
 }

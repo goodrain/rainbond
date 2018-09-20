@@ -31,6 +31,7 @@ import (
 	"strings"
 	"os/exec"
 	"github.com/gosuri/uitable"
+	"strconv"
 )
 
 func handleErr(err *util.APIHandleError) {
@@ -98,6 +99,7 @@ func fileExist(path string) bool {
 	}
 	return false
 }
+
 func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode) {
 	var status string
 	if ready == true {
@@ -139,10 +141,15 @@ func handleResult(serviceTable *termtables.Table, v *client.HostNode) {
 			if v.Type == client.OutOfDisk || v.Type == client.MemoryPressure || v.Type == client.DiskPressure || v.Type == client.InstallNotReady {
 				formatReady = "\033[0;32;32m false \033[0m"
 			} else {
-				formatReady = "\033[0;31;31m true \033[0m"
+				formatReady = "\033[0;31;31m false \033[0m"
 			}
 		} else {
-			formatReady = "\033[0;32;32m true \033[0m"
+			if v.Type == client.OutOfDisk || v.Type == client.MemoryPressure || v.Type == client.DiskPressure || v.Type == client.InstallNotReady {
+
+				formatReady = "\033[0;31;31m true \033[0m"
+			} else {
+				formatReady = "\033[0;32;32m true \033[0m"
+			}
 		}
 		serviceTable.AddRow(string(v.Type), formatReady, handleMessage(string(v.Status), v.Message))
 	}
@@ -237,7 +244,7 @@ func NewCmdNode() cli.Command {
 					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status")
 					var rest []*client.HostNode
 					for _, v := range list {
-						if v.Role.HasRule("manage") {
+						if v.Role.HasRule("manage") || !v.Role.HasRule("compute") {
 							handleStatus(serviceTable, isNodeReady(v), v)
 						} else {
 							rest = append(rest, v)
@@ -248,6 +255,28 @@ func NewCmdNode() cli.Command {
 					}
 					for _, v := range rest {
 						handleStatus(serviceTable, isNodeReady(v), v)
+					}
+					fmt.Println(serviceTable.Render())
+					return nil
+				},
+			},
+			{
+				Name:  "resource",
+				Usage: "resource",
+				Action: func(c *cli.Context) error {
+					Common(c)
+					list, err := clients.RegionClient.Nodes().List()
+					handleErr(err)
+					serviceTable := termtables.CreateTable()
+					serviceTable.AddHeaders("Uid", "HostName", "CapCpu(核)", "CapMemory(M)", "UsedCpu(核)", "UsedMemory(M)", "CpuLimits(核)", "MemoryLimits(M)", "CpuUsageRate(%)", "MemoryUsedRate(%)")
+					for _, v := range list {
+						if v.Role.HasRule("compute") && v.NodeStatus.Status != "offline" {
+							nodeResource, err := clients.RegionClient.Nodes().GetNodeResource(v.ID)
+							handleErr(err)
+							CPURequests := strconv.FormatFloat(float64(nodeResource.CPURequests)/float64(1000), 'f', 2, 64)
+							CPULimits := strconv.FormatFloat(float64(nodeResource.CPULimits)/float64(1000), 'f', 2, 64)
+							serviceTable.AddRow(v.ID, v.HostName, nodeResource.CpuR, nodeResource.MemR, CPURequests, nodeResource.MemoryRequests, CPULimits, nodeResource.MemoryLimits, nodeResource.CPURequestsR, nodeResource.MemoryRequestsR)
+						}
 					}
 					fmt.Println(serviceTable.Render())
 					return nil
@@ -353,7 +382,7 @@ func NewCmdNode() cli.Command {
 					hostnodes, err := clients.RegionClient.Nodes().GetNodeByRule(rule)
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status", "Alived", "Schedulable", "Ready")
+					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status")
 					for _, v := range hostnodes {
 						handleStatus(serviceTable, isNodeReady(v), v)
 					}

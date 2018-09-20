@@ -140,12 +140,12 @@ func (r *readEventBarrel) insertMessage(message *db.EventLogMessage) {
 func (r *readEventBarrel) pushCashMessage(ch chan *db.EventLogMessage, subID string) {
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
-	for _, m := range r.barrel {
-		select {
-		case ch <- m:
-		default:
-		}
-	}
+	// for _, m := range r.barrel {
+	// 	select {
+	// 	case ch <- m:
+	// 	default:
+	// 	}
+	// }
 	r.subSocketChan[subID] = ch
 }
 
@@ -221,12 +221,13 @@ func (r *dockerLogEventBarrel) insertMessage(message *db.EventLogMessage) {
 func (r *dockerLogEventBarrel) pushCashMessage(ch chan *db.EventLogMessage, subID string) {
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
-	for _, m := range r.barrel {
-		select {
-		case ch <- m:
-		default:
-		}
-	}
+	// send cache log will cause user illusion
+	// for _, m := range r.barrel {
+	// 	select {
+	// 	case ch <- m:
+	// 	default:
+	// 	}
+	// }
 	r.subSocketChan[subID] = ch
 }
 
@@ -309,12 +310,12 @@ func (r *monitorMessageBarrel) insertMessage(message *db.EventLogMessage) {
 func (r *monitorMessageBarrel) pushCashMessage(ch chan *db.EventLogMessage, subID string) {
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
-	for _, m := range r.barrel {
-		select {
-		case ch <- m:
-		default:
-		}
-	}
+	// for _, m := range r.barrel {
+	// 	select {
+	// 	case ch <- m:
+	// 	default:
+	// 	}
+	// }
 	r.subSocketChan[subID] = ch
 }
 

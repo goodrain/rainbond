@@ -95,3 +95,13 @@ func TestDiskUsage(t *testing.T) {
 	total, free := DiskUsage("/Users/qingguo")
 	t.Logf("%d GB,%d MB", total/1024/1024/1024, free/1024/1024)
 }
+
+func TestGetCurrentDir(t *testing.T) {
+	t.Log(GetCurrentDir())
+}
+
+func TestCopyFile(t *testing.T) {
+	if err := CopyFile("/tmp/test2.zip", "/tmp/test4.zip"); err != nil {
+		t.Fatal(err)
+	}
+}

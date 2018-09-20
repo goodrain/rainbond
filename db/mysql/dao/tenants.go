@@ -1,3 +1,4 @@
+
 // Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
 
@@ -183,6 +184,15 @@ func (t *TenantServicesDaoImpl) UpdateModel(mo model.Interface) error {
 func (t *TenantServicesDaoImpl) GetServiceByID(serviceID string) (*model.TenantServices, error) {
 	var service model.TenantServices
 	if err := t.DB.Where("service_id=?", serviceID).Find(&service).Error; err != nil {
+		return nil, err
+	}
+	return &service, nil
+}
+
+//GetServiceByID 获取服务通过服务别名
+func (t *TenantServicesDaoImpl) GetServiceByServiceAlias(serviceAlias string) (*model.TenantServices, error) {
+	var service model.TenantServices
+	if err := t.DB.Where("service_alias=?", serviceAlias).Find(&service).Error; err != nil {
 		return nil, err
 	}
 	return &service, nil

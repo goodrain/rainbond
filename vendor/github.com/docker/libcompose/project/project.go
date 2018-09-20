@@ -16,7 +16,7 @@ import (
 	"github.com/docker/libcompose/project/events"
 	"github.com/docker/libcompose/utils"
 	"github.com/docker/libcompose/yaml"
-	log "github.com/sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 )
 
 // ComposeVersion is name of docker-compose.yml file syntax supported version

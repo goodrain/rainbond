@@ -11,7 +11,7 @@ import (
 	"github.com/docker/distribution/reference"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 // ServiceOptions holds command line options.

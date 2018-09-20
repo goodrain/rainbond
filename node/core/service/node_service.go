@@ -33,6 +33,8 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/twinj/uuid"
+	"os/exec"
+	"os"
 )
 
 const (
@@ -73,20 +75,43 @@ func (n *NodeService) AddNode(node *client.APIHostNode) *utils.APIHandleError {
 	if node.InternalIP == "" {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("node internal ip can not be empty"))
 	}
+	if node.HostName == "" {
+		return utils.CreateAPIHandleError(400, fmt.Errorf("node hostname can not be empty"))
+	}
+
+	if node.RootPass != "" && node.Privatekey != "" {
+		return utils.CreateAPIHandleError(400, fmt.Errorf("Options private-key and root-pass are conflicting"))
+	}
 	existNode := n.nodecluster.GetAllNode()
 	for _, en := range existNode {
 		if node.InternalIP == en.InternalIP {
 			return utils.CreateAPIHandleError(400, fmt.Errorf("node internal ip %s is exist", node.InternalIP))
 		}
 	}
-	rbnode := node.Clone()
-	rbnode.CreateTime = time.Now()
-	rbnode.NodeStatus.Conditions = make([]client.NodeCondition, 0)
-	if _, err := rbnode.Update(); err != nil {
-		return utils.CreateAPIHandleErrorFromDBError("save node", err)
+	linkModel := "pass"
+	if node.Privatekey != "" {
+		linkModel = "key"
 	}
-	//Determine if the node needs to be installed.
-	n.nodecluster.CheckNodeInstall(rbnode)
+
+	// start add node script
+	logrus.Info("Begin add node, please don't exit")
+	line := fmt.Sprintf("cd /opt/rainbond/install/scripts; ./%s.sh %s %s %s %s %s", node.Role, node.HostName,
+		node.InternalIP, linkModel, node.RootPass, node.Privatekey)
+	go func() {
+		fileName := node.HostName + ".log"
+		cmd := exec.Command("bash", "-c", line)
+		f, _ := os.OpenFile("/grdata/downloads/log/"+fileName, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0755)
+		cmd.Stdout = f
+		cmd.Stderr = f
+		err := cmd.Run()
+
+		if err != nil {
+			logrus.Errorf("Error executing shell script,View log file：/grdata/downloads/log/" + fileName)
+			return
+		}
+		logrus.Info("Add node successful")
+		logrus.Info("check cluster status: grctl node list")
+	}()
 	return nil
 }
 
@@ -97,12 +122,11 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 	if node.Alived {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("node is online, can not delete"))
 	}
-	//TODO:compute node check node is offline
-	if node.Role.HasRule(client.ComputeNode) {
-		if node.NodeStatus != nil {
-			return utils.CreateAPIHandleError(400, fmt.Errorf("node is k8s compute node, can not delete"))
-		}
+	// TODO:compute node check node is offline
+	if node.NodeStatus.Status != "offline" {
+		return utils.CreateAPIHandleError(401, fmt.Errorf("node is not offline"))
 	}
+	n.nodecluster.RemoveNode(node.ID)
 	_, err := node.DeleteNode()
 	if err != nil {
 		return utils.CreateAPIHandleErrorFromDBError("delete node", err)
@@ -140,10 +164,10 @@ func (n *NodeService) GetServicesHealthy() (map[string][]map[string]string, *uti
 		for _, v := range n.NodeStatus.Conditions {
 			status, ok := StatusMap[string(v.Type)]
 			if !ok {
-				StatusMap[string(v.Type)] = []map[string]string{map[string]string{"type": string(v.Type), "status": string(v.Status), "message":string(v.Message), "hostname": n.HostName}}
+				StatusMap[string(v.Type)] = []map[string]string{map[string]string{"type": string(v.Type), "status": string(v.Status), "message": string(v.Message), "hostname": n.HostName}}
 			} else {
 				list := status
-				list = append(list, map[string]string{"type": string(v.Type), "status": string(v.Status), "message":string(v.Message), "hostname": n.HostName})
+				list = append(list, map[string]string{"type": string(v.Type), "status": string(v.Status), "message": string(v.Message), "hostname": n.HostName})
 				StatusMap[string(v.Type)] = list
 			}
 
@@ -170,9 +194,13 @@ func (n *NodeService) CordonNode(nodeID string, unschedulable bool) *utils.APIHa
 	hostNode.Unschedulable = unschedulable
 	//update node status
 	if unschedulable {
-		hostNode.Status = "unschedulable"
+		hostNode.Status = Running
+		hostNode.NodeStatus.Status = Running
+		hostNode.Unschedulable = true
 	} else {
 		hostNode.Status = Running
+		hostNode.NodeStatus.Status = Running
+		hostNode.Unschedulable = false
 	}
 	if k8snode != nil {
 		node, err := n.kubecli.CordonOrUnCordon(hostNode.ID, unschedulable)
@@ -281,6 +309,7 @@ func (n *NodeService) InstallNode(nodeID string) *utils.APIHandleError {
 func (n *NodeService) InitStatus(nodeIP string) (*model.InitStatus, *utils.APIHandleError) {
 	var hostnode client.HostNode
 	gotNode := false
+	var status model.InitStatus
 	i := 0
 	for !gotNode && i < 3 {
 		list, err := n.GetAllNode()
@@ -301,14 +330,15 @@ func (n *NodeService) InitStatus(nodeIP string) (*model.InitStatus, *utils.APIHa
 		i++
 	}
 	if i != 10 {
-		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("can't find node with given ip %s", nodeIP))
+		status.Status = 3
+		status.StatusCN = "节点加入集群中"
+		return &status, nil
 	}
 	nodeUID := hostnode.ID
 	node, err := n.GetNode(nodeUID)
 	if err != nil {
 		return nil, err
 	}
-	var status model.InitStatus
 	for _, val := range node.NodeStatus.Conditions {
 		if node.Alived || (val.Type == client.NodeInit && val.Status == client.ConditionTrue) {
 			status.Status = 0
@@ -349,15 +379,31 @@ func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *
 	var memLimit int64
 	var memRequest int64
 	for _, v := range ps {
-		lc := v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
-		cpuLimit += lc
-		lm := v.Spec.Containers[0].Resources.Limits.Memory().Value()
-		memLimit += lm
-		//logrus.Infof("pod %s limit cpu is %s",v.Name,v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue())
-		rc := v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
-		cpuRequest += rc
-		rm := v.Spec.Containers[0].Resources.Requests.Memory().Value()
-		memRequest += rm
+		for _, v := range v.Spec.Containers {
+			lc := v.Resources.Limits.Cpu().MilliValue()
+			cpuLimit += lc
+		}
+		for _, v := range v.Spec.Containers {
+			lm := v.Resources.Limits.Memory().Value()
+			memLimit += lm
+		}
+		for _, v := range v.Spec.Containers {
+			rc := v.Resources.Requests.Cpu().MilliValue()
+			cpuRequest += rc
+		}
+		for _, v := range v.Spec.Containers {
+			rm := v.Resources.Requests.Memory().Value()
+			memRequest += rm
+		}
+		//lc := v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
+		//cpuLimit += lc
+		//lm := v.Spec.Containers[0].Resources.Limits.Memory().Value()
+		//memLimit += lm
+		////logrus.Infof("pod %s limit cpu is %s",v.Name,v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue())
+		//rc := v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
+		//cpuRequest += rc
+		//rm := v.Spec.Containers[0].Resources.Requests.Memory().Value()
+		//memRequest += rm
 	}
 	var res model.NodePodResource
 	res.CPULimits = cpuLimit

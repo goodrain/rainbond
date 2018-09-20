@@ -26,6 +26,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
+	"github.com/goodrain/rainbond/builder"
 )
 
 //Model 默认字段
@@ -120,7 +121,7 @@ type TenantServices struct {
 
 //IsSlug 是否是slug应用
 func (t *TenantServices) IsSlug() bool {
-	return strings.HasPrefix(t.ImageName, "goodrain.me/runner")
+	return strings.HasPrefix(t.ImageName, builder.RUNNERIMAGENAME)
 }
 
 //CreateShareImage 生成镜像分享的地址

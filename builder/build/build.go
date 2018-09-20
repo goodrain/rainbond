@@ -23,6 +23,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/event"
 
@@ -34,10 +35,14 @@ func init() {
 	buildcreaters[code.Dockerfile] = dockerfileBuilder
 	buildcreaters[code.Docker] = dockerfileBuilder
 	buildcreaters[code.NetCore] = netcoreBuilder
+	buildcreaters[code.JavaJar] = slugBuilder
+	buildcreaters[code.JavaMaven] = slugBuilder
+	buildcreaters[code.JaveWar] = slugBuilder
+	buildcreaters[code.PHP] = slugBuilder
+	buildcreaters[code.Python] = slugBuilder
+	buildcreaters[code.Nodejs] = slugBuilder
+	buildcreaters[code.Golang] = slugBuilder
 }
-
-//REGISTRYDOMAIN REGISTRY_DOMAIN
-var REGISTRYDOMAIN = "goodrain.me"
 
 var buildcreaters map[code.Lang]CreaterBuild
 
@@ -66,11 +71,17 @@ type Response struct {
 
 //Request build input
 type Request struct {
+	TenantID      string
 	SourceDir     string
 	CacheDir      string
+	TGZDir        string
 	RepositoryURL string
+	Branch        string
 	ServiceAlias  string
+	ServiceID     string
 	DeployVersion string
+	Runtime       string
+	ServerType    string
 	Commit        Commit
 	Lang          code.Lang
 	BuildEnvs     map[string]string
@@ -87,7 +98,10 @@ type Commit struct {
 
 //GetBuild GetBuild
 func GetBuild(lang code.Lang) (Build, error) {
-	return buildcreaters[lang]()
+	if fun, ok := buildcreaters[lang]; ok {
+		return fun()
+	}
+	return slugBuilder()
 }
 
 //CreateImageName create image name
@@ -98,8 +112,8 @@ func CreateImageName(repoURL, serviceAlias, deployversion string) string {
 	if len(rc) == 3 {
 		name = fmt.Sprintf("%s_%s_%s", serviceAlias, string(rc[1]), string(rc[2]))
 	} else {
-		name = fmt.Sprintf("%s_%s", serviceAlias, "netcorebuild")
+		name = fmt.Sprintf("%s_%s", serviceAlias, "rainbondbuild")
 	}
-	buildImageName := strings.ToLower(fmt.Sprintf("%s/%s:%s", REGISTRYDOMAIN, name, deployversion))
+	buildImageName := strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, name, deployversion))
 	return buildImageName
 }

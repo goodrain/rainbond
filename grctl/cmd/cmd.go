@@ -19,6 +19,10 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	conf "github.com/goodrain/rainbond/cmd/grctl/option"
 	"github.com/goodrain/rainbond/grctl/clients"
@@ -37,6 +41,7 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdInit())
 	cmds = append(cmds, NewCmdShow())
 	cmds = append(cmds, NewCmdAlerting())
+	cmds = append(cmds, NewCmdNotificationEvent())
 
 	//task相关命令
 	//cmds = append(cmds, NewCmdTasks())
@@ -48,6 +53,8 @@ func GetCmds() []cli.Command {
 	//cmds = append(cmds, NewCmdInstallStatus())
 
 	cmds = append(cmds, NewCmdDomain())
+	// source build test
+	cmds = append(cmds, NewSourceBuildCmd())
 
 	//cmds = append(cmds, NewCmdBaseManageGroup())
 	//cmds = append(cmds, NewCmdManageGroup())
@@ -74,4 +81,17 @@ func Common(c *cli.Context) {
 	if err := clients.InitRegionClient(config.RegionAPI); err != nil {
 		logrus.Fatal("error config region")
 	}
+}
+
+// fatal prints the message (if provided) and then exits. If V(2) or greater,
+// glog.Fatal is invoked for extended information.
+func fatal(msg string, code int) {
+	if len(msg) > 0 {
+		// add newline if needed
+		if !strings.HasSuffix(msg, "\n") {
+			msg += "\n"
+		}
+		fmt.Fprint(os.Stderr, msg)
+	}
+	os.Exit(code)
 }

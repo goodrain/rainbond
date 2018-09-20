@@ -39,6 +39,7 @@ func Routes() chi.Router {
 func LogRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/{gid}/{filename}", controller.GetLogFile().Get)
+	r.Get("/install_log/{filename}", controller.GetLogFile().GetInstallLog)
 	return r
 }
 
@@ -46,5 +47,6 @@ func LogRoutes() chi.Router {
 func AppRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/download/{format}/{fileName}", controller.GetManager().Download)
+	r.Post("/upload", controller.GetManager().Upload)
 	return r
 }

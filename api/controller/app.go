@@ -219,6 +219,29 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 		}
 
 		httputil.ReturnSuccess(r, w, res)
+
+	case "DELETE":
+		eventId := strings.TrimSpace(chi.URLParam(r, "eventId"))
+		if eventId == "" {
+			httputil.ReturnError(r, w, 501, fmt.Sprintf("Arguments eventId is must defined."))
+			return
+		}
+		res, err := db.GetManager().AppDao().GetByEventId(eventId)
+		if err != nil {
+			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
+			return
+		}
+		if err := db.GetManager().AppDao().DeleteModelByEventId(res.EventID);err!=nil{
+			httputil.ReturnError(r, w, 503, fmt.Sprintf("Deleting database records by event ID failed %s: %v", eventId, err))
+			return
+		}
+		if _, err := os.Stat(res.SourceDir); err == nil {
+			if err := os.RemoveAll(res.SourceDir);err != nil{
+				httputil.ReturnError(r, w, 504, fmt.Sprintf("Deleting uploading application directory failed %s : %v", res.SourceDir, err))
+				return
+			}
+		}
+		httputil.ReturnSuccess(r, w, "successfully deleted")
 	}
 
 }

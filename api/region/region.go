@@ -56,6 +56,7 @@ type Region interface {
 	Configs() ConfigsInterface
 	Version() string
 	Monitor() MonitorInterface
+	Notification() NotificationInterface
 	DoRequest(path, method string, body io.Reader, decode *utilhttp.ResponseBody) (int, error)
 }
 
@@ -67,6 +68,23 @@ type APIConf struct {
 	Cacert    string   `yaml:"client-ca-file"`
 	Cert      string   `yaml:"tls-cert-file"`
 	CertKey   string   `yaml:"tls-private-key-file"`
+}
+
+type serviceInfo struct {
+	ServicesAlias string `json:"serviceAlias"`
+	TenantName    string `json:"tenantName"`
+	ServiceId     string `json:"serviceId"`
+	TenantId      string `json:"tenantId"`
+}
+
+type podInfo struct {
+	ServiceID string `json:"service_id"`
+	//部署资源的ID ,例如rc ,deploment, statefulset
+	ReplicationID   string                       `json:"rc_id"`
+	ReplicationType string                       `json:"rc_type"`
+	PodName         string                       `json:"pod_name"`
+	PodIP           string                       `json:"pod_ip"`
+	Container       map[string]map[string]string `json:"container"`
 }
 
 //NewRegion NewRegion
@@ -187,16 +205,16 @@ func (t *tenant) Services(serviceAlias string) ServiceInterface {
 
 //ServiceInterface ServiceInterface
 type ServiceInterface interface {
-	Get() (*dbmodel.TenantServices, *util.APIHandleError)
-	Pods() ([]*dbmodel.K8sPod, *util.APIHandleError)
+	Get() (*serviceInfo, *util.APIHandleError)
+	Pods() ([]*podInfo, *util.APIHandleError)
 	List() ([]*dbmodel.TenantServices, *util.APIHandleError)
 	Stop(eventID string) (string, *util.APIHandleError)
 	Start(eventID string) (string, *util.APIHandleError)
 	EventLog(eventID, level string) ([]*model.MessageData, *util.APIHandleError)
 }
 
-func (s *services) Pods() ([]*dbmodel.K8sPod, *util.APIHandleError) {
-	var gc []*dbmodel.K8sPod
+func (s *services) Pods() ([]*podInfo, *util.APIHandleError) {
+	var gc []*podInfo
 	var decode utilhttp.ResponseBody
 	decode.List = &gc
 	code, err := s.DoRequest(s.prefix+"/pods", "GET", nil, &decode)
@@ -208,8 +226,8 @@ func (s *services) Pods() ([]*dbmodel.K8sPod, *util.APIHandleError) {
 	}
 	return gc, nil
 }
-func (s *services) Get() (*dbmodel.TenantServices, *util.APIHandleError) {
-	var service dbmodel.TenantServices
+func (s *services) Get() (*serviceInfo, *util.APIHandleError) {
+	var service serviceInfo
 	var decode utilhttp.ResponseBody
 	decode.Bean = &service
 	code, err := s.DoRequest(s.prefix, "GET", nil, &decode)

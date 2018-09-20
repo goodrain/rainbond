@@ -171,6 +171,7 @@ func (e *exectorManager) buildFromImage(in []byte) {
 	i.Logger.Info("从镜像构建应用任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
+		start := time.Now()
 		defer e.wg.Done()
 		logrus.Debugf("start build from image worker")
 		defer event.GetManager().ReleaseLogger(i.Logger)
@@ -178,8 +179,11 @@ func (e *exectorManager) buildFromImage(in []byte) {
 			if r := recover(); r != nil {
 				fmt.Println(r)
 				debug.PrintStack()
-				i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+				i.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "callback", "status": "failure"})
 			}
+		}()
+		defer func() {
+			logrus.Debugf("complete build from source code, consuming time %s", time.Now().Sub(start).String())
 		}()
 		for n := 0; n < 2; n++ {
 			err := i.Run(time.Minute * 30)
@@ -207,9 +211,10 @@ func (e *exectorManager) buildFromImage(in []byte) {
 func (e *exectorManager) buildFromSourceCode(in []byte) {
 	i := NewSouceCodeBuildItem(in)
 	i.DockerClient = e.DockerClient
-	i.Logger.Info("从源码构建应用任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
+	i.Logger.Info("Build app version from source code start", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
+		start := time.Now()
 		defer e.wg.Done()
 		logrus.Debugf("start build from source code")
 		defer event.GetManager().ReleaseLogger(i.Logger)
@@ -217,23 +222,17 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 			if r := recover(); r != nil {
 				fmt.Println(r)
 				debug.PrintStack()
-				i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+				i.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "callback", "status": "failure"})
 			}
 		}()
-		for n := 0; n < 2; n++ {
-			err := i.Run(time.Minute * 30)
-			if err != nil {
-				logrus.Errorf("build from source code error: %s", err.Error())
-				if n < 1 {
-					i.Logger.Error("从源码构建应用任务执行失败，开始重试", map[string]string{"step": "build-exector", "status": "failure"})
-				} else {
-					ErrorNum++
-					i.Logger.Error("从源码构建应用任务执行失败", map[string]string{"step": "callback", "status": "failure"})
-					status = "failure"
-				}
-			} else {
-				break
-			}
+		defer func() {
+			logrus.Debugf("Complete build from source code, consuming time %s", time.Now().Sub(start).String())
+		}()
+		err := i.Run(time.Minute * 30)
+		if err != nil {
+			logrus.Errorf("build from source code error: %s", err.Error())
+			i.Logger.Error("Build app version from source code failure", map[string]string{"step": "callback", "status": "failure"})
+			status = "failure"
 		}
 		if status == "failure" {
 			vi := &dbmodel.VersionInfo{
@@ -262,14 +261,18 @@ func (e *exectorManager) buildFromMarketSlug(in []byte) {
 	}
 	i.Logger.Info("开始构建应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	go func() {
+		start := time.Now()
 		defer e.wg.Done()
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
 			if r := recover(); r != nil {
 				fmt.Println(r)
 				debug.PrintStack()
-				i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+				i.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "callback", "status": "failure"})
 			}
+		}()
+		defer func() {
+			logrus.Debugf("complete build from market slug consuming time %s", time.Now().Sub(start).String())
 		}()
 		for n := 0; n < 2; n++ {
 			err := i.Run()

@@ -18,13 +18,21 @@
 
 package model
 
+import (
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
+)
+
 //VersionInfo version info struct
 type VersionInfo struct {
 	Model
-	BuildVersion  string `gorm:"column:build_version;size:40"` //唯一
-	EventID       string `gorm:"column:event_id;size:40"`
-	ServiceID     string `gorm:"column:service_id;size:40"`
-	Kind          string `gorm:"column:kind;size:40"`            //kind
+	BuildVersion string `gorm:"column:build_version;size:40"` //唯一
+	EventID      string `gorm:"column:event_id;size:40"`
+	ServiceID    string `gorm:"column:service_id;size:40"`
+	Kind         string `gorm:"column:kind;size:40"` //kind
+	//DeliveredType app version delivered type
+	//image: this is a docker image
+	//slug: this is a source code tar file
 	DeliveredType string `gorm:"column:delivered_type;size:40"`  //kind
 	DeliveredPath string `gorm:"column:delivered_path;size:250"` //交付物path
 	ImageName     string `gorm:"column:image_name;size:250"`     //交付物path
@@ -32,7 +40,11 @@ type VersionInfo struct {
 	CodeVersion   string `gorm:"column:code_version;size:40"`
 	CommitMsg     string `gorm:"column:code_commit_msg;size:200"`
 	Author        string `gorm:"column:code_commit_author;size:40"`
-	FinalStatus   string `gorm:"column:final_status;size:40"`
+	//FinalStatus app version status
+	//success: version available
+	//failure: build failure
+	//lost: there is no delivered
+	FinalStatus string `gorm:"column:final_status;size:40"`
 }
 
 //TableName 表名
@@ -40,4 +52,20 @@ func (t *VersionInfo) TableName() string {
 	return "version_info"
 }
 
-
+//CreateShareImage create share image name
+func (t *VersionInfo) CreateShareImage(hubURL, namespace, appVersion string) (string, error) {
+	_, err := reference.ParseAnyReference(t.DeliveredPath)
+	if err != nil {
+		logrus.Errorf("reference image error: %s", err.Error())
+		return "", err
+	}
+	image := ParseImage(t.DeliveredPath)
+	if hubURL != "" {
+		image.Host = hubURL
+	}
+	if namespace != "" {
+		image.Namespace = namespace
+	}
+	image.Name = image.Name + "_" + t.BuildVersion + "_" + appVersion
+	return image.String(), nil
+}
