@@ -19,9 +19,9 @@
 package handler
 
 import (
-	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/proxy"
+	"github.com/goodrain/rainbond/cmd/api/option"
 )
 
 var nodeProxy proxy.Proxy
@@ -47,7 +47,6 @@ func InitProxy(conf option.Config) {
 		monitorProxy = proxy.CreateProxy("monitor", "http", []string{"127.0.0.1:3329"})
 		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("monitor", monitorProxy)
 	}
-
 }
 
 //GetNodeProxy GetNodeProxy
