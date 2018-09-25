@@ -131,9 +131,16 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 	case "DELETE":
 		err := os.RemoveAll(dirName)
 		if err != nil {
-			httputil.ReturnError(r, w, 502, "Failed to delete directory by id: "+eventId)
+			httputil.ReturnError(r, w, 501, "Failed to delete directory by id: "+eventId)
 			return
 		}
+		res, err := db.GetManager().AppDao().GetByEventId(eventId)
+		if err != nil {
+			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
+			return
+		}
+		res.Status = "cleaned"
+		db.GetManager().AppDao().UpdateModel(res)
 
 		httputil.ReturnSuccess(r, w, "successful")
 	}
@@ -229,6 +236,11 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 		res, err := db.GetManager().AppDao().GetByEventId(eventId)
 		if err != nil {
 			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
+			return
+		}
+		if res.Status == "cleaned" {
+			res.Metadata = ""
+			httputil.ReturnSuccess(r, w, res)
 			return
 		}
 
