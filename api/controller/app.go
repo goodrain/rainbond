@@ -99,6 +99,16 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 
 		httputil.ReturnSuccess(r, w, map[string]string{"path": dirName})
 	case "GET":
+		_, err := os.Stat(dirName)
+		if err != nil {
+			if !os.IsExist(err) {
+				err := os.MkdirAll(dirName, 0755)
+				if err != nil {
+					httputil.ReturnError(r, w, 502, "Failed to create directory by event id: "+err.Error())
+					return
+				}
+			}
+		}
 		apps, err := ioutil.ReadDir(dirName)
 		if err != nil {
 			httputil.ReturnSuccess(r, w, map[string][]string{"apps": []string{}})
@@ -142,7 +152,7 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 		logrus.Debug("Start receive upload file: ", eventId)
 		reader, header, err := r.FormFile("appTarFile")
 		if err != nil {
-			logrus.Errorf("Failed to parse upload file:", err)
+			logrus.Errorf("Failed to parse upload file:", err.Error())
 			httputil.ReturnError(r, w, 501, "Failed to parse upload file.")
 			return
 		}
@@ -154,14 +164,14 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 		fileName := fmt.Sprintf("%s/%s", dirName, header.Filename)
 		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil {
-			logrus.Errorf("Failed to open file: ", err)
+			logrus.Errorf("Failed to open file: ", err.Error())
 			httputil.ReturnError(r, w, 502, "Failed to open file: "+err.Error())
 		}
 		defer file.Close()
 
 		logrus.Debug("Start write file to: ", fileName)
 		if _, err := io.Copy(file, reader); err != nil {
-			logrus.Errorf("Failed to write file：",err)
+			logrus.Errorf("Failed to write file：", err.Error())
 			httputil.ReturnError(r, w, 503, "Failed to write file: "+err.Error())
 		}
 
