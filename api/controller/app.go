@@ -142,6 +142,7 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 		logrus.Debug("Start receive upload file: ", eventId)
 		reader, header, err := r.FormFile("appTarFile")
 		if err != nil {
+			logrus.Errorf("Failed to parse upload file:", err)
 			httputil.ReturnError(r, w, 501, "Failed to parse upload file.")
 			return
 		}
@@ -153,12 +154,14 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 		fileName := fmt.Sprintf("%s/%s", dirName, header.Filename)
 		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil {
+			logrus.Errorf("Failed to open file: ", err)
 			httputil.ReturnError(r, w, 502, "Failed to open file: "+err.Error())
 		}
 		defer file.Close()
 
 		logrus.Debug("Start write file to: ", fileName)
 		if _, err := io.Copy(file, reader); err != nil {
+			logrus.Errorf("Failed to write file：",err)
 			httputil.ReturnError(r, w, 503, "Failed to write file: "+err.Error())
 		}
 
@@ -170,7 +173,7 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Access-Control-Allow-Origin", origin)
 		w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
 		w.Header().Add("Access-Control-Allow-Credentials", "true")
-		w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,content-type,X-Custom-Header")
+		w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
 		httputil.ReturnSuccess(r, w, nil)
 	}
 
