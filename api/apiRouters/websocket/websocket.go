@@ -48,5 +48,6 @@ func AppRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/download/{format}/{fileName}", controller.GetManager().Download)
 	r.Post("/upload", controller.GetManager().Upload)
+	r.Options("/upload", controller.GetManager().Upload)
 	return r
 }
