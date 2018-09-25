@@ -101,7 +101,7 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		apps, err := ioutil.ReadDir(dirName)
 		if err != nil {
-			httputil.ReturnError(r, w, 502, "Failed to list import id in directory.")
+			httputil.ReturnSuccess(r, w, map[string][]string{"apps": []string{}})
 			return
 		}
 
