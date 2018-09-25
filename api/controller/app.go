@@ -131,9 +131,9 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
+	eventId := strings.TrimSpace(chi.URLParam(r, "event_id"))
 	switch  r.Method {
 	case "POST":
-		eventId := r.FormValue("eventId")
 		if eventId == "" {
 			httputil.ReturnError(r, w, 500, "Failed to parse eventId.")
 			return
