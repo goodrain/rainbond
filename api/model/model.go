@@ -1407,7 +1407,7 @@ type MQBody struct {
 func NewAppStatusFromExport(app *ExportAppStruct) *dbmodel.AppStatus {
 	fields := strings.Split(app.SourceDir, "/")
 	tarName := fields[len(fields)-1]
-	tarFileHref := fmt.Sprintf("/v2/app/download/%s/%s.tar", app.Body.Format, tarName)
+	tarFileHref := fmt.Sprintf("/v2/app/download/%s/%s.zip", app.Body.Format, tarName)
 	return &dbmodel.AppStatus{
 		Format:      app.Body.Format,
 		EventID:     app.Body.EventID,
