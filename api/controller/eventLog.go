@@ -197,7 +197,6 @@ func (e *EventLogStruct) LogByAction(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	logrus.Info(elog.Body.Level)
 	dl, err := handler.GetEventHandler().GetLevelLog(elog.Body.EventID, elog.Body.Level)
 	if err != nil {
 		logrus.Errorf("get event log error, %v", err)
