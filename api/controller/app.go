@@ -148,6 +148,39 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func (a *AppStruct) NewUpload(w http.ResponseWriter, r *http.Request) {
+	eventId := strings.TrimSpace(chi.URLParam(r, "event_id"))
+	switch  r.Method {
+	case "OPTIONS":
+		origin := r.Header.Get("Origin")
+		w.Header().Add("Access-Control-Allow-Origin", origin)
+		w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
+		w.Header().Add("Access-Control-Allow-Credentials", "true")
+		w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
+		httputil.ReturnSuccess(r, w, nil)
+
+	case "POST":
+		if eventId == "" {
+			httputil.ReturnError(r, w, 500, "Failed to parse eventId.")
+			return
+		}
+		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
+
+		he := coquelicot.NewStorage(dirName)
+		he.UploadHandler(w, r)
+	case "GET":
+		if eventId == "" {
+			httputil.ReturnError(r, w, 500, "Failed to parse eventId.")
+			return
+		}
+		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
+
+		he := coquelicot.NewStorage(dirName)
+		he.ResumeHandler(w, r)
+	}
+
+}
+
 func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 	eventId := strings.TrimSpace(chi.URLParam(r, "event_id"))
 	switch  r.Method {

@@ -235,10 +235,9 @@ func (v2 *V2) appRouter() chi.Router {
 	r.Get("/export/{eventId}", controller.GetManager().ExportApp)
 
 	r.Get("/download/{format}/{fileName}", controller.GetManager().Download)
-	r.Post("/upload/{event_id}", controller.GetManager().Upload)
-	r.Get("/upload/{event_id}", controller.GetManager().Upload)
-	r.Put("/upload/{event_id}", controller.GetManager().Upload)
-	r.Options("/upload/{event_id}", controller.GetManager().Upload)
+	r.Post("/upload/{event_id}", controller.GetManager().NewUpload)
+	r.Get("/upload/{event_id}", controller.GetManager().NewUpload)
+	r.Options("/upload/{event_id}", controller.GetManager().NewUpload)
 
 	r.Post("/import/ids/{eventId}", controller.GetManager().ImportID)
 	r.Get("/import/ids/{eventId}", controller.GetManager().ImportID)
