@@ -16,6 +16,7 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 	"io/ioutil"
 	"path/filepath"
+	"gopkg.in/gotsunami/coquelicot.v1"
 )
 
 type AppStruct struct{}
@@ -192,6 +193,25 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Access-Control-Allow-Credentials", "true")
 		w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
 		httputil.ReturnSuccess(r, w, nil)
+
+	case "PUT":
+		if eventId == "" {
+			httputil.ReturnError(r, w, 500, "Failed to parse eventId.")
+			return
+		}
+		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
+
+		he := coquelicot.NewStorage(dirName)
+		he.UploadHandler(w, r)
+	case "GET":
+		if eventId == "" {
+			httputil.ReturnError(r, w, 500, "Failed to parse eventId.")
+			return
+		}
+		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
+
+		he := coquelicot.NewStorage(dirName)
+		he.ResumeHandler(w, r)
 	}
 
 }
