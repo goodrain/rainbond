@@ -8,14 +8,15 @@ import (
 	"os"
 	"strings"
 
+	"io/ioutil"
+	"path/filepath"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
-	"io/ioutil"
-	"path/filepath"
 	"gopkg.in/gotsunami/coquelicot.v1"
 )
 
@@ -150,7 +151,7 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 
 func (a *AppStruct) NewUpload(w http.ResponseWriter, r *http.Request) {
 	eventId := strings.TrimSpace(chi.URLParam(r, "event_id"))
-	switch  r.Method {
+	switch r.Method {
 	case "OPTIONS":
 		origin := r.Header.Get("Origin")
 		w.Header().Add("Access-Control-Allow-Origin", origin)
@@ -183,7 +184,7 @@ func (a *AppStruct) NewUpload(w http.ResponseWriter, r *http.Request) {
 
 func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 	eventId := strings.TrimSpace(chi.URLParam(r, "event_id"))
-	switch  r.Method {
+	switch r.Method {
 	case "POST":
 		if eventId == "" {
 			httputil.ReturnError(r, w, 500, "Failed to parse eventId.")
@@ -212,12 +213,17 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 
 		logrus.Debug("Start write file to: ", fileName)
 		if _, err := io.Copy(file, reader); err != nil {
-			logrus.Errorf("Failed to write file：", err.Error())
+			logrus.Errorf("Failed to write file：%s", err.Error())
 			httputil.ReturnError(r, w, 503, "Failed to write file: "+err.Error())
 		}
 
 		logrus.Debug("successful write file to: ", fileName)
-		httputil.ReturnSuccess(r, w, "successful")
+		origin := r.Header.Get("Origin")
+		w.Header().Add("Access-Control-Allow-Origin", origin)
+		w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
+		w.Header().Add("Access-Control-Allow-Credentials", "true")
+		w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
+		httputil.ReturnSuccess(r, w, nil)
 
 	case "OPTIONS":
 		origin := r.Header.Get("Origin")
