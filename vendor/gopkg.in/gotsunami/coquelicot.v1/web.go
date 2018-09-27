@@ -135,6 +135,20 @@ func (s *Storage) UploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		data = append(data, attachment.ToJson())
 	}
+	url := data[0]["versions"]["original"]["url"]
+	sourceDir := s.output + url
+	mv := fmt.Sprintf("mv %s %s", sourceDir, s.output)
+
+	cmd := exec.Command("/bin/bash", "-c", mv)
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err != nil {
+		errStr := string(stderr.Bytes())
+		println(errStr)
+	}
 
 	toJSON(w, status, H{"status": http.StatusText(status), "files": data})
 }
