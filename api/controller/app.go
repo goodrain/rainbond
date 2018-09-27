@@ -17,7 +17,7 @@ import (
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
-	"gopkg.in/gotsunami/coquelicot.v1"
+	coquelicot "github.com/goodrain/rainbond/api/controller/coquelicot.v1"
 	"github.com/jinzhu/gorm"
 )
 
