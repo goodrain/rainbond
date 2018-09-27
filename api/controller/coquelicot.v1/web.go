@@ -13,6 +13,7 @@ import (
 
 	//	"github.com/gin-gonic/gin"
 	"github.com/pborman/uuid"
+	httputil "github.com/goodrain/rainbond/util/http"
 )
 
 type H map[string]interface{}
@@ -64,16 +65,6 @@ func (s *Storage) ResumeHandler(w http.ResponseWriter, r *http.Request) {
 // UploadHandler is the endpoint for uploading and storing files.
 //func (s *Storage) UploadHandler(c *gin.Context) {
 func (s *Storage) UploadHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
-		status := http.StatusOK
-		// FIXME: nil content
-		toJSON(w, status, H{"status": http.StatusText(status), "files": nil})
-		return
-	}
-	if r.Method != "POST" {
-		http.NotFound(w, r)
-		return
-	}
 
 	converts, err := getConvertParams(r)
 	if err != nil {
@@ -117,25 +108,21 @@ func (s *Storage) UploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := make([]map[string]interface{}, 0)
-	// Expected status if no error
-	status := http.StatusCreated
 
 	for _, ofile := range files {
 		println("1",ofile.Filename,"2",ofile.Filepath,"3",ofile.Size,"4",ofile.BaseMime)
 		// true to delete final chunk
-		attachment, err := create(s.StorageDir(), ofile, converts, true)
+		_, err := create(s.StorageDir(), ofile, converts, true)
 		if err != nil {
 			data = append(data, map[string]interface{}{
 				"name":  ofile.Filename,
 				"size":  ofile.Size,
 				"error": err.Error(),
 			})
-			status = http.StatusInternalServerError
-			continue
+		httputil.ReturnError(r,w,500,err.Error())
 		}
-		data = append(data, attachment.ToJson())
 	}
-	toJSON(w, status, H{"status": http.StatusText(status), "files": data})
+	httputil.ReturnSuccess(r, w, nil)
 }
 
 // Get parameters for convert from Request query string
