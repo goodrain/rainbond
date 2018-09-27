@@ -121,6 +121,7 @@ func (s *Storage) UploadHandler(w http.ResponseWriter, r *http.Request) {
 	status := http.StatusCreated
 
 	for _, ofile := range files {
+		println("1",ofile.Filename,"2",ofile.Filepath,"3",ofile.Size,"4",ofile.BaseMime)
 		// true to delete final chunk
 		attachment, err := create(s.StorageDir(), ofile, converts, true)
 		if err != nil {
