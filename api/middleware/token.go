@@ -20,7 +20,6 @@ package middleware
 
 import (
 	"encoding/base64"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -44,7 +43,6 @@ func Token(next http.Handler) http.Handler {
 			}
 			auths := strings.SplitN(auth, " ", 2)
 			if len(auths) != 2 {
-				fmt.Println("error")
 				return
 			}
 			authMethod := auths[0]
@@ -101,7 +99,6 @@ func FullToken(next http.Handler) http.Handler {
 			}
 			auths := strings.SplitN(auth, " ", 2)
 			if len(auths) != 2 {
-				fmt.Println("error")
 				return
 			}
 			authMethod := auths[0]
