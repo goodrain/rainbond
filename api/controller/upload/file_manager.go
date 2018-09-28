@@ -1,4 +1,4 @@
-package coquelicot
+package upload
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 )
 
 type fileManager interface {
-	convert(string, string) error
+	convert(string) error
 	SetFilename(*originalFile)
 	ToJson() map[string]interface{}
 }
@@ -21,22 +21,14 @@ type fileBaseManager struct {
 }
 
 // Return fileManager for given base mime and version.
-func newFileManager(dm *dirManager, mime_base, version string) fileManager {
+func newFileManager(dm *dirManager, version string) fileManager {
 	fbm := &fileBaseManager{Dir: dm, Version: version}
 	fdm := &fileDefaultManager{fileBaseManager: fbm}
-	switch mime_base {
-	case "image":
-		return &fileImageManager{fileDefaultManager: fdm, thumbnail: makeThumbnail}
-	}
 	return fdm
 }
 
 func (fbm *fileBaseManager) SetFilename(file *originalFile) {
-	ext := filepath.Ext(file.Filename)
-	fbm.Filename = file.Filename[:len(file.Filename)-len(ext)] + "-" + fbm.Version + file.Ext()
-	if fbm.Version == "original" {
 		fbm.Filename = file.Filename
-	}
 }
 
 func (fbm *fileBaseManager) Filepath() string {

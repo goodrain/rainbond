@@ -1,4 +1,4 @@
-package coquelicot
+package upload
 
 import (
 	"crypto/md5"
@@ -28,18 +28,14 @@ func (ofile *originalFile) Ext() string {
 	return strings.ToLower(filepath.Ext(ofile.Filename))
 }
 
-// Downloading files from the received request.
-// The root directory of storage, storage,  used to temporarily store chunks.
-// Returns an array of the original files and error.
-// If you load a portion of the file, chunk, it will be stored in err error incomplete,
-// and in an array of a single file. File size will fit the current size.
+
 func process(req *http.Request, storage string) ([]*originalFile, error) {
 	meta, err := parseMeta(req)
 	if err != nil {
 		return nil, err
 	}
 
-	body, err := newBody(req.Header.Get("X-File"), req.Body)
+	body, err := newBody(req.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -71,12 +67,6 @@ func (up *uploader) SaveFiles() ([]*originalFile, error) {
 		if err == io.EOF {
 			break
 		}
-
-		if err == incomplete {
-			files = append(files, ofile)
-			return files, err
-		}
-
 		if err != nil {
 			return nil, err
 		}
@@ -118,10 +108,6 @@ func (up *uploader) SaveFile() (*originalFile, error) {
 
 	ofile := &originalFile{Filename: filename, Filepath: temp_file.Name(), Size: fi.Size()}
 
-	if up.Meta.Range != nil && ofile.Size != up.Meta.Range.Size {
-		return ofile, incomplete
-	}
-
 	ofile.BaseMime, err = identifyMime(ofile.Filepath)
 	if err != nil {
 		return nil, err
@@ -160,10 +146,7 @@ func (up *uploader) Reader() (io.Reader, string, error) {
 
 // Returns a temporary file to download the file or resume chunk.
 func (up *uploader) tempFile() (*os.File, error) {
-	if up.Meta.Range == nil {
-		return tempFile()
-	}
-	return tempFileChunks(up.Meta.Range.Start, up.Root, up.Meta.UploadSid, up.Meta.Filename)
+	return tempFile()
 }
 
 // Returns the newly created temporary file.
@@ -203,12 +186,7 @@ func tempFileChunks(offset int64, storage, upload_sid, user_filename string) (*o
 // The function writes a temporary file value from reader.
 func (up *uploader) Write(temp_file *os.File, body io.Reader) error {
 	var err error
-	if up.Meta.Range == nil {
-		_, err = io.Copy(temp_file, body)
-	} else {
-		chunk_size := up.Meta.Range.End - up.Meta.Range.Start + 1
-		_, err = io.CopyN(temp_file, body, chunk_size)
-	}
+	_, err = io.Copy(temp_file, body)
 	return err
 }
 

@@ -1,4 +1,4 @@
-package coquelicot
+package upload
 
 import (
 	"os"
@@ -9,8 +9,8 @@ type fileDefaultManager struct {
 	Size int64
 }
 
-func (fdm *fileDefaultManager) convert(src string, convert string) error {
-	return fdm.rawCopy(src, convert)
+func (fdm *fileDefaultManager) convert(src string) error {
+	return fdm.rawCopy(src)
 }
 
 func (fdm *fileDefaultManager) ToJson() map[string]interface{} {
@@ -21,7 +21,7 @@ func (fdm *fileDefaultManager) ToJson() map[string]interface{} {
 	}
 }
 
-func (fdm *fileDefaultManager) rawCopy(src, convert string) error {
+func (fdm *fileDefaultManager) rawCopy(src string) error {
 	if err := fdm.copyFile(src, fdm.Filepath()); err != nil {
 		return err
 	}

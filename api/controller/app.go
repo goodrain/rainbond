@@ -17,8 +17,8 @@ import (
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
-	"github.com/goodrain/rainbond/api/controller/coquelicot.v1"
 	"github.com/jinzhu/gorm"
+	"github.com/goodrain/rainbond/api/controller/upload"
 )
 
 type AppStruct struct{}
@@ -168,17 +168,8 @@ func (a *AppStruct) NewUpload(w http.ResponseWriter, r *http.Request) {
 		}
 		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
 
-		he := coquelicot.NewStorage(dirName)
-		he.UploadHandler(w, r)
-	case "GET":
-		if eventId == "" {
-			httputil.ReturnError(r, w, 500, "Failed to parse eventId.")
-			return
-		}
-		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
-
-		he := coquelicot.NewStorage(dirName)
-		he.ResumeHandler(w, r)
+		st := upload.NewStorage(dirName)
+		st.UploadHandler(w, r)
 	}
 
 }
@@ -276,7 +267,7 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 
 		res, err := db.GetManager().AppDao().GetByEventId(eventId)
 		if err != nil {
-			if err == gorm.ErrRecordNotFound{
+			if err == gorm.ErrRecordNotFound {
 				res.Status = "uploading"
 				httputil.ReturnSuccess(r, w, res)
 				return

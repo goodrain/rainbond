@@ -1,4 +1,4 @@
-package coquelicot
+package upload
 
 import (
 	"os"
@@ -11,9 +11,7 @@ type attachment struct {
 	Versions     map[string]fileManager
 }
 
-// Function receive root directory, original file, convertion parameters.
-// Return attachment saved. The final chunk is deleted if delChunk is true.
-func create(storage string, ofile *originalFile, converts map[string]string, delChunk bool) (*attachment, error) {
+func create(storage string, ofile *originalFile, delChunk bool) (*attachment, error) {
 	dm, err := createDir(storage, ofile.BaseMime)
 	if err != nil {
 		return nil, err
@@ -25,12 +23,9 @@ func create(storage string, ofile *originalFile, converts map[string]string, del
 		Versions:     make(map[string]fileManager),
 	}
 
-	if ofile.BaseMime == "image" {
-		converts["thumbnail"] = "120x90"
-	}
 
 	makeVersion := func(a *attachment, version, convert string) error {
-		fm, err := at.createVersion(version, convert)
+		fm, err := at.createVersion(version)
 		if err != nil {
 			return err
 		}
@@ -42,12 +37,6 @@ func create(storage string, ofile *originalFile, converts map[string]string, del
 		return nil, err
 	}
 
-	if makeThumbnail {
-		if err := makeVersion(at, "thumbnail", converts["thumbnail"]); err != nil {
-			return nil, err
-		}
-	}
-
 	if delChunk {
 		return at, os.Remove(at.originalFile.Filepath)
 	}
@@ -55,11 +44,11 @@ func create(storage string, ofile *originalFile, converts map[string]string, del
 }
 
 // Directly save single version and return fileManager.
-func (attachment *attachment) createVersion(version string, convert string) (fileManager, error) {
-	fm := newFileManager(attachment.Dir, attachment.originalFile.BaseMime, version)
+func (attachment *attachment) createVersion(version string) (fileManager, error) {
+	fm := newFileManager(attachment.Dir, version)
 	fm.SetFilename(attachment.originalFile)
 
-	if err := fm.convert(attachment.originalFile.Filepath, convert); err != nil {
+	if err := fm.convert(attachment.originalFile.Filepath); err != nil {
 		return nil, err
 	}
 

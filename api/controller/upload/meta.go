@@ -1,8 +1,7 @@
-package coquelicot
+package upload
 
 import (
 	"errors"
-	"fmt"
 	"mime"
 	"net/http"
 )
@@ -11,15 +10,7 @@ import (
 type meta struct {
 	MediaType string
 	Boundary  string
-	Range     *dataRange
 	Filename  string
-	UploadSid string
-}
-
-type dataRange struct {
-	Start int64
-	End   int64
-	Size  int64
 }
 
 // Parse request headers and make Meta.
@@ -30,20 +21,8 @@ func parseMeta(req *http.Request) (*meta, error) {
 		return nil, err
 	}
 
-	if err := m.parseContentRange(req.Header.Get("Content-Range")); err != nil {
-		return nil, err
-	}
-
 	if err := m.parseContentDisposition(req.Header.Get("Content-Disposition")); err != nil {
 		return nil, err
-	}
-
-	cookie, err := req.Cookie("coquelicot")
-	if err != nil {
-		return nil, err
-	}
-	if cookie != nil {
-		m.UploadSid = cookie.Value
 	}
 
 	return m, nil
@@ -75,22 +54,6 @@ func (m *meta) parseContentType(ct string) error {
 	return nil
 }
 
-func (m *meta) parseContentRange(cr string) error {
-	if cr == "" {
-		return nil
-	}
-
-	var start, end, size int64
-
-	_, err := fmt.Sscanf(cr, "bytes %d-%d/%d", &start, &end, &size)
-	if err != nil {
-		return err
-	}
-
-	m.Range = &dataRange{Start: start, End: end, Size: size}
-
-	return nil
-}
 
 func (m *meta) parseContentDisposition(cd string) error {
 	if cd == "" {
