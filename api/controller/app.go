@@ -17,7 +17,7 @@ import (
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
-	coquelicot "github.com/goodrain/rainbond/api/controller/coquelicot.v1"
+	"github.com/goodrain/rainbond/api/controller/coquelicot.v1"
 	"github.com/jinzhu/gorm"
 )
 
@@ -277,8 +277,7 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 		res, err := db.GetManager().AppDao().GetByEventId(eventId)
 		if err != nil {
 			if err == gorm.ErrRecordNotFound{
-				res.Status = "importing"
-				httputil.ReturnSuccess(r, w, res)
+				httputil.ReturnError(r, w, 404, fmt.Sprintf("record not found %s", eventId))
 				return
 			}
 			httputil.ReturnError(r, w, 500, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
