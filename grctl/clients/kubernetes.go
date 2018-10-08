@@ -40,7 +40,7 @@ func InitClient(kubeconfig string) error {
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
-		panic(err.Error())
+		return err
 	}
 	config.QPS = 50
 	config.Burst = 100

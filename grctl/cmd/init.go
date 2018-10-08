@@ -42,9 +42,9 @@ func NewCmdInit() cli.Command {
 		Name: "init",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "type",
-				Usage: "node type: manage or compute",
-				Value: "manage",
+				Name:  "role",
+				Usage: "node role: master,worker",
+				Value: "master",
 			},
 			cli.StringFlag{
 				Name:  "work_dir",
@@ -160,7 +160,7 @@ func initCluster(c *cli.Context) {
 
 	// start setup script to install rainbond
 	fmt.Println("Begin init cluster first node,please don't exit,wait install")
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("cd %s ; ./setup.sh %s %s %s", c.String("work_dir"), c.String("install-type"), c.String("eip"), c.String("domain")))
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("cd %s ; ./setup.sh %s %s %s %s", c.String("work_dir"), c.String("role"), c.String("install-type"), c.String("eip"), c.String("domain")))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin

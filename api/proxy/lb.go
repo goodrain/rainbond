@@ -41,6 +41,7 @@ func (e Endpoint) String() string {
 	return string(e)
 }
 
+//GetName get endpoint name
 func (e Endpoint) GetName() string {
 	if kv := strings.Split(string(e), "=>"); len(kv) > 1 {
 		return kv[0]
@@ -48,11 +49,27 @@ func (e Endpoint) GetName() string {
 	return string(e)
 }
 
+//GetAddr get addr
 func (e Endpoint) GetAddr() string {
 	if kv := strings.Split(string(e), "=>"); len(kv) > 1 {
 		return kv[1]
 	}
 	return string(e)
+}
+
+//GetHTTPAddr get http url
+func (e Endpoint) GetHTTPAddr() string {
+	if kv := strings.Split(string(e), "=>"); len(kv) > 1 {
+		return withScheme(kv[1])
+	}
+	return withScheme(string(e))
+}
+
+func withScheme(s string) string {
+	if strings.HasPrefix(s, "http") {
+		return s
+	}
+	return "http://" + s
 }
 
 //EndpointList EndpointList

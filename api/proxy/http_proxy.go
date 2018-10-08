@@ -21,7 +21,10 @@ package proxy
 import (
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
 )
 
 //HTTPProxy HTTPProxy
@@ -34,12 +37,16 @@ type HTTPProxy struct {
 //Proxy 代理
 func (h *HTTPProxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	endpoint := h.lb.Select(r, h.endpoints)
-	director := func(req *http.Request) {
-		req = r
-		req.URL.Scheme = "http"
-		req.URL.Host = endpoint.String()
+	endURL, err := url.Parse(endpoint.GetHTTPAddr())
+	if err != nil {
+		logrus.Errorf("parse endpoint url error,%s", err.Error())
+		w.WriteHeader(502)
+		return
 	}
-	proxy := &httputil.ReverseProxy{Director: director}
+	if endURL.Scheme == "" {
+		endURL.Scheme = "http"
+	}
+	proxy := httputil.NewSingleHostReverseProxy(endURL)
 	proxy.ServeHTTP(w, r)
 }
 
@@ -64,6 +71,8 @@ func (h *HTTPProxy) Do(r *http.Request) (*http.Response, error) {
 	} else {
 		r.URL.Host = endpoint.String()
 	}
+	//default is http
+	r.URL.Scheme = "http"
 	return http.DefaultClient.Do(r)
 }
 

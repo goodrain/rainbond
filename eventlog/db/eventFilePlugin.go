@@ -104,7 +104,6 @@ func (m *EventFilePlugin) GetMessages(eventID, level string) (MessageDataList, e
 			flag := line[0]
 			if CheckLevel(string(flag), level) {
 				info := strings.SplitN(string(line), " ", 3)
-				fmt.Println(info)
 				if len(info) == 3 {
 					timeunix := info[1]
 					unix, _ := strconv.ParseInt(timeunix, 10, 64)

@@ -33,7 +33,7 @@ pkg:
 run:build
 ifeq ($(WHAT),api)
 	${BIN_PATH}/${BASE_NAME}-api --log-level=debug \
-	--mysql="root:admin@tcp(127.0.0.1:3306)/region" \
+	--mysql="root:@tcp(127.0.0.1:3306)/region" \
 	--kube-config="`PWD`/test/admin.kubeconfig" \
 	--api-ssl-enable=true \
 	--client-ca-file="`PWD`/test/ssl/ca.pem" \

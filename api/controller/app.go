@@ -8,14 +8,17 @@ import (
 	"os"
 	"strings"
 
+	"io/ioutil"
+	"path/filepath"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
-	"io/ioutil"
-	"path/filepath"
+	"github.com/jinzhu/gorm"
+	"github.com/goodrain/rainbond/api/controller/upload"
 )
 
 type AppStruct struct{}
@@ -52,13 +55,13 @@ func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		eventId := strings.TrimSpace(chi.URLParam(r, "eventId"))
 		if eventId == "" {
-			httputil.ReturnError(r, w, 501, fmt.Sprintf("Arguments eventId is must defined."))
+			httputil.ReturnError(r, w, 400, fmt.Sprintf("Arguments eventId is must defined."))
 			return
 		}
 
 		res, err := db.GetManager().AppDao().GetByEventId(eventId)
 		if err != nil {
-			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
+			httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
 			return
 		}
 
@@ -72,9 +75,9 @@ func (a *AppStruct) Download(w http.ResponseWriter, r *http.Request) {
 	fileName := strings.TrimSpace(chi.URLParam(r, "fileName"))
 	tarFile := fmt.Sprintf("%s/%s/%s", handler.GetAppHandler().GetStaticDir(), format, fileName)
 
-	// return status code 502 if the file not exists.
+	// return status code 404 if the file not exists.
 	if _, err := os.Stat(tarFile); os.IsNotExist(err) {
-		httputil.ReturnError(r, w, 502, fmt.Sprintf("Not found export app tar file: %s", tarFile))
+		httputil.ReturnError(r, w, 404, fmt.Sprintf("Not found export app tar file: %s", tarFile))
 		return
 	}
 
@@ -84,7 +87,7 @@ func (a *AppStruct) Download(w http.ResponseWriter, r *http.Request) {
 func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 	eventId := strings.TrimSpace(chi.URLParam(r, "eventId"))
 	if eventId == "" {
-		httputil.ReturnError(r, w, 501, "Failed to parse eventId.")
+		httputil.ReturnError(r, w, 400, "Failed to parse eventId.")
 		return
 	}
 	dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
@@ -93,15 +96,25 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		err := os.MkdirAll(dirName, 0755)
 		if err != nil {
-			httputil.ReturnError(r, w, 502, "Failed to create directory by event id: " + err.Error())
+			httputil.ReturnError(r, w, 502, "Failed to create directory by event id: "+err.Error())
 			return
 		}
 
 		httputil.ReturnSuccess(r, w, map[string]string{"path": dirName})
 	case "GET":
+		_, err := os.Stat(dirName)
+		if err != nil {
+			if !os.IsExist(err) {
+				err := os.MkdirAll(dirName, 0755)
+				if err != nil {
+					httputil.ReturnError(r, w, 502, "Failed to create directory by event id: "+err.Error())
+					return
+				}
+			}
+		}
 		apps, err := ioutil.ReadDir(dirName)
 		if err != nil {
-			httputil.ReturnError(r, w, 502, "Failed to list import id in directory.")
+			httputil.ReturnSuccess(r, w, map[string][]string{"apps": []string{}})
 			return
 		}
 
@@ -111,7 +124,7 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			ex := filepath.Ext(dir.Name())
-			if ex != ".tar" {
+			if ex != ".zip" {
 				continue
 			}
 			appArr = append(appArr, dir.Name())
@@ -121,47 +134,98 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 	case "DELETE":
 		err := os.RemoveAll(dirName)
 		if err != nil {
-			httputil.ReturnError(r, w, 502, "Failed to delete directory by id: " + eventId)
+			httputil.ReturnError(r, w, 501, "Failed to delete directory by id: "+eventId)
 			return
 		}
+		res, err := db.GetManager().AppDao().GetByEventId(eventId)
+		if err != nil {
+			httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
+			return
+		}
+		res.Status = "cleaned"
+		db.GetManager().AppDao().UpdateModel(res)
 
 		httputil.ReturnSuccess(r, w, "successful")
 	}
 
 }
 
+func (a *AppStruct) NewUpload(w http.ResponseWriter, r *http.Request) {
+	eventId := strings.TrimSpace(chi.URLParam(r, "event_id"))
+	switch r.Method {
+	case "OPTIONS":
+		origin := r.Header.Get("Origin")
+		w.Header().Add("Access-Control-Allow-Origin", origin)
+		w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
+		w.Header().Add("Access-Control-Allow-Credentials", "true")
+		w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
+		httputil.ReturnSuccess(r, w, nil)
+
+	case "POST":
+		if eventId == "" {
+			httputil.ReturnError(r, w, 500, "Failed to parse eventId.")
+			return
+		}
+		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
+
+		st := upload.NewStorage(dirName)
+		st.UploadHandler(w, r)
+	}
+
+}
+
 func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
-	eventId := r.FormValue("eventId")
-	if eventId == "" {
-		httputil.ReturnError(r, w, 500, "Failed to parse eventId.")
-		return
+	eventId := strings.TrimSpace(chi.URLParam(r, "event_id"))
+	switch r.Method {
+	case "POST":
+		if eventId == "" {
+			httputil.ReturnError(r, w, 400, "Failed to parse eventId.")
+			return
+		}
+
+		logrus.Debug("Start receive upload file: ", eventId)
+		reader, header, err := r.FormFile("appTarFile")
+		if err != nil {
+			logrus.Errorf("Failed to parse upload file:", err.Error())
+			httputil.ReturnError(r, w, 501, "Failed to parse upload file.")
+			return
+		}
+		defer reader.Close()
+
+		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
+		os.MkdirAll(dirName, 0755)
+
+		fileName := fmt.Sprintf("%s/%s", dirName, header.Filename)
+		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0644)
+		if err != nil {
+			logrus.Errorf("Failed to open file: ", err.Error())
+			httputil.ReturnError(r, w, 502, "Failed to open file: "+err.Error())
+		}
+		defer file.Close()
+
+		logrus.Debug("Start write file to: ", fileName)
+		if _, err := io.Copy(file, reader); err != nil {
+			logrus.Errorf("Failed to write file：%s", err.Error())
+			httputil.ReturnError(r, w, 503, "Failed to write file: "+err.Error())
+		}
+
+		logrus.Debug("successful write file to: ", fileName)
+		origin := r.Header.Get("Origin")
+		w.Header().Add("Access-Control-Allow-Origin", origin)
+		w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
+		w.Header().Add("Access-Control-Allow-Credentials", "true")
+		w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
+		httputil.ReturnSuccess(r, w, nil)
+
+	case "OPTIONS":
+		origin := r.Header.Get("Origin")
+		w.Header().Add("Access-Control-Allow-Origin", origin)
+		w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
+		w.Header().Add("Access-Control-Allow-Credentials", "true")
+		w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
+		httputil.ReturnSuccess(r, w, nil)
 	}
 
-	logrus.Debug("Start receive upload file: ", eventId)
-	reader, header, err := r.FormFile("appTarFile")
-	if err != nil {
-		httputil.ReturnError(r, w, 501, "Failed to parse upload file.")
-		return
-	}
-	defer reader.Close()
-
-	dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
-	os.MkdirAll(dirName, 0755)
-
-	fileName := fmt.Sprintf("%s/%s", dirName, header.Filename)
-	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		httputil.ReturnError(r, w, 502, "Failed to open file: "+err.Error())
-	}
-	defer file.Close()
-
-	logrus.Debug("Start write file to: ", fileName)
-	if _, err := io.Copy(file, reader); err != nil {
-		httputil.ReturnError(r, w, 503, "Failed to write file: "+err.Error())
-	}
-
-	logrus.Debug("successful write file to: ", fileName)
-	httputil.ReturnSuccess(r, w, "successful")
 }
 
 func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
@@ -197,13 +261,23 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		eventId := strings.TrimSpace(chi.URLParam(r, "eventId"))
 		if eventId == "" {
-			httputil.ReturnError(r, w, 501, fmt.Sprintf("Arguments eventId is must defined."))
+			httputil.ReturnError(r, w, 400, fmt.Sprintf("Arguments eventId is must defined."))
 			return
 		}
 
 		res, err := db.GetManager().AppDao().GetByEventId(eventId)
 		if err != nil {
-			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
+			if err == gorm.ErrRecordNotFound {
+				res.Status = "uploading"
+				httputil.ReturnSuccess(r, w, res)
+				return
+			}
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
+			return
+		}
+		if res.Status == "cleaned" {
+			res.Metadata = ""
+			httputil.ReturnSuccess(r, w, res)
 			return
 		}
 
@@ -223,20 +297,20 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 	case "DELETE":
 		eventId := strings.TrimSpace(chi.URLParam(r, "eventId"))
 		if eventId == "" {
-			httputil.ReturnError(r, w, 501, fmt.Sprintf("Arguments eventId is must defined."))
+			httputil.ReturnError(r, w, 400, fmt.Sprintf("Arguments eventId is must defined."))
 			return
 		}
 		res, err := db.GetManager().AppDao().GetByEventId(eventId)
 		if err != nil {
-			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
+			httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
 			return
 		}
-		if err := db.GetManager().AppDao().DeleteModelByEventId(res.EventID);err!=nil{
+		if err := db.GetManager().AppDao().DeleteModelByEventId(res.EventID); err != nil {
 			httputil.ReturnError(r, w, 503, fmt.Sprintf("Deleting database records by event ID failed %s: %v", eventId, err))
 			return
 		}
 		if _, err := os.Stat(res.SourceDir); err == nil {
-			if err := os.RemoveAll(res.SourceDir);err != nil{
+			if err := os.RemoveAll(res.SourceDir); err != nil {
 				httputil.ReturnError(r, w, 504, fmt.Sprintf("Deleting uploading application directory failed %s : %v", res.SourceDir, err))
 				return
 			}

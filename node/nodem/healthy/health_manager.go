@@ -256,7 +256,9 @@ func (p *probeManager) WatchServiceHealthy(serviceName string) Watcher {
 		serviceName: serviceName,
 	}
 	if s, ok := p.watches[serviceName]; ok {
+		p.lock.Lock()
 		s[w.id] = w
+		p.lock.Unlock()
 	} else {
 		p.lock.Lock()
 		p.watches[serviceName] = map[string]*watcher{

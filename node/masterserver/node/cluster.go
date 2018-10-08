@@ -303,7 +303,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 
 		//var haveready bool
 		for _, condiction := range v.NodeStatus.Conditions {
-			if condiction.Status == "True" && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
+			if (condiction.Status == "True" || condiction.Status == "Unknown") && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
 				v.Status = status
 				v.NodeStatus.Status = status
 
@@ -360,6 +360,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 					Status:             client.ConditionFalse,
 					LastHeartbeatTime:  time.Now(),
 					LastTransitionTime: time.Now(),
+					Message:            "K8s node status is NotReady",
 				}
 				v.UpdataCondition(r)
 			}
