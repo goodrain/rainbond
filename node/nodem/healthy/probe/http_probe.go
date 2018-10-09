@@ -80,7 +80,7 @@ func GetHttpHealth(address string) map[string]string {
 
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
+	if resp.StatusCode >= 500 {
 		return map[string]string{"status": service.Stat_unhealthy, "info": "Service unhealthy"}
 	}
 	return map[string]string{"status": service.Stat_healthy, "info": "service health"}

@@ -709,6 +709,7 @@ type BuildServiceStruct struct {
 		Operator     string `json:"operator" validate:"operator"`
 		TenantName   string `json:"tenant_name"`
 		ServiceAlias string `json:"service_alias"`
+		Cmd 		 string `json:"cmd"`
 		//用于云市代码包创建
 		SlugInfo struct {
 			SlugPath    string `json:"slug_path"`
