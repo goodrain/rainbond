@@ -81,6 +81,8 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 	logger := event.GetManager().GetLogger(eventID)
 	defer event.CloseManager()
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	service.ContainerCMD = r.Body.Cmd
+	db.GetManager().TenantServiceDao().UpdateModel(service)
 	if err != nil {
 		return err
 	}
