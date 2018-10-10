@@ -135,7 +135,7 @@ func (t *tenantServiceResource) DeleteResources() error {
 	for _, v := range versionInfoList {
 		if v.FinalStatus == "success" {
 			if v.DeliveredType == "slug" {
-				if err := os.Remove(v.DeliveredPath); err != nil {
+				if err := os.RemoveAll(v.DeliveredPath); err != nil {
 					if !strings.Contains(err.Error(), "no such file or directory") {
 						return err
 					}
