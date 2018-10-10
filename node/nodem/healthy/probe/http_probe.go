@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 	"github.com/goodrain/rainbond/node/nodem/client"
+	"strings"
 )
 
 type HttpProbe struct {
@@ -73,6 +74,9 @@ func (h *HttpProbe) HttpCheck() {
 func GetHttpHealth(address string) map[string]string {
 	c := &http.Client{
 		Timeout: 5 * time.Second,
+	}
+	if !strings.Contains(address, "://"){
+		address = "http://" + address
 	}
 	resp, err := c.Get(address)
 	if err != nil {
