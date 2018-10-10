@@ -57,6 +57,7 @@ func CreateCleanManager() (*Manager, error) {
 
 //Start start clean
 func (t *Manager) Start(errchan chan error) error {
+	logrus.Info("CleanManager is starting.")
 	run := func() {
 		err := util.Exec(t.ctx, func() error {
 			now := time.Now()

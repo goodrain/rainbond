@@ -35,10 +35,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/api"
-	"github.com/goodrain/rainbond/builder/clean"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	discoverv2 "github.com/goodrain/rainbond/discover.v2"
+	"github.com/goodrain/rainbond/builder/clean"
 )
 
 //Run start run
@@ -75,15 +75,16 @@ func Run(s *option.Builder) error {
 	}
 	defer dis.Stop()
 
-	cle, err := clean.CreateCleanManager()
-	if err != nil {
-		return err
+	if s.Config.CleanUp {
+		cle, err := clean.CreateCleanManager()
+		if err != nil {
+			return err
+		}
+		if err := cle.Start(errChan); err != nil {
+			return err
+		}
+		defer cle.Stop()
 	}
-	if err := cle.Start(errChan); err != nil {
-		return err
-	}
-	defer cle.Stop()
-
 	keepalive, err := discoverv2.CreateKeepAlive(s.Config.EtcdEndPoints, "builder",
 		"", s.Config.HostIP, s.Config.APIPort)
 	if err != nil {
