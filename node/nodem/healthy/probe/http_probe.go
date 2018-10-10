@@ -74,7 +74,7 @@ func GetHttpHealth(address string) map[string]string {
 	c := &http.Client{
 		Timeout: 5 * time.Second,
 	}
-	resp, err := c.Get("http://" + address)
+	resp, err := c.Get(address)
 	if err != nil {
 		return map[string]string{"status": service.Stat_death, "info": "Request service is unreachable"}
 
