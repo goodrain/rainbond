@@ -23,7 +23,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	api_model "github.com/goodrain/rainbond/api/model"
@@ -88,7 +87,6 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*envoyv1.SDSHost, 
 				return nil, util.CreateAPIHandleError(500, err)
 			}
 			if len(endpoints) == 0 {
-				logrus.Debugf("outer endpoints items length is 0, continue")
 				return nil, util.CreateAPIHandleError(400, fmt.Errorf("outer have no endpoints"))
 			}
 			services, err = d.kubecli.GetServices(namespace, selector)
@@ -301,7 +299,6 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 	for i := range dependsServices {
 		destService := dependsServices[i]
 		destServiceAlias := destService.DependServiceAlias
-		start := time.Now()
 		labelname := fmt.Sprintf("name=%sService", destServiceAlias)
 		selector, err := labels.Parse(labelname)
 		if err != nil {
@@ -311,7 +308,6 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
 		}
-		fmt.Printf("get %s service cost time %s \n", destService.DependServiceAlias, time.Now().Sub(start).String())
 		if len(services) == 0 {
 			logrus.Debugf("inner endpoints items length is 0, continue")
 			continue
