@@ -216,6 +216,9 @@ func (wc *watchChan) processEvent(wg *sync.WaitGroup) {
 
 // transform transforms an event into a result for user if not filtered.
 func (wc *watchChan) transform(e *event) (res *Event) {
+	if e == nil {
+		return nil
+	}
 	switch {
 	case e.isDeleted:
 		res = &Event{

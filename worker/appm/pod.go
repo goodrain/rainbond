@@ -162,8 +162,8 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 	for k, v := range pid {
 		labels[fmt.Sprintf("f%d", k)] = v
 	}
-	//设置为本地调度，调度器会识别此label
-	//只要statefulset应用支持本地调度
+	//open local scheduler，gr-kube-scheduler will read this label
+	//only statefulset app service support local scheduler
 	if p.localScheduler {
 		serviceType, err := p.dbmanager.TenantServiceLabelDao().GetTenantServiceTypeLabel(p.serviceID)
 		if err != nil {
@@ -178,7 +178,7 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 			}
 			if ls != nil {
 				for _, l := range ls {
-					labels["scheduler-host"] = l.NodeIP
+					labels["scheduler-host-"+l.PodName] = l.NodeIP
 				}
 			}
 		}

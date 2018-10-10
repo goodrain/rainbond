@@ -246,9 +246,12 @@ func (s *LogServer) Run() error {
 	if err != nil {
 		return err
 	}
-
-	id := hostID[len(hostID)-12:]
-
+	var id string
+	if len(hostID) < 12 {
+		id = hostID
+	} else {
+		id = hostID[len(hostID)-12:]
+	}
 	httpkeepalive, err := discover.CreateKeepAlive(s.Conf.Cluster.Discover.EtcdAddr, "event_log_event_http",
 		id, s.Conf.Cluster.Discover.InstanceIP, s.Conf.WebSocket.BindPort)
 	if err != nil {

@@ -19,9 +19,13 @@
 package router
 
 import (
+	"os"
 	"time"
 
+	"github.com/Sirupsen/logrus"
+
 	"github.com/goodrain/rainbond/node/api/controller"
+	"github.com/goodrain/rainbond/util/log"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -34,7 +38,11 @@ func Routers(mode string) *chi.Mux {
 	//Sets a http.Request's RemoteAddr to either X-Forwarded-For or X-Real-IP
 	r.Use(middleware.RealIP)
 	//Logs the start and end of each request with the elapsed processing time
-	r.Use(middleware.Logger)
+	logger := logrus.New()
+	if os.Getenv("DEBUG") == "true" {
+		logger.SetLevel(logrus.DebugLevel)
+	}
+	r.Use(log.NewStructuredLogger(logger))
 	//Gracefully absorb panics and prints the stack trace
 	r.Use(middleware.Recoverer)
 	//request time out

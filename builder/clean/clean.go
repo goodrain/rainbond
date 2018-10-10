@@ -57,6 +57,7 @@ func CreateCleanManager() (*Manager, error) {
 
 //Start start clean
 func (t *Manager) Start(errchan chan error) error {
+	logrus.Info("CleanManager is starting.")
 	run := func() {
 		err := util.Exec(t.ctx, func() error {
 			now := time.Now()
@@ -76,6 +77,14 @@ func (t *Manager) Start(errchan chan error) error {
 			}
 
 			for _, v := range versions {
+				versions, err := db.GetManager().VersionInfoDao().GetVersionByServiceID(v.ServiceID)
+				if err != nil {
+					logrus.Error("GetVersionByServiceID error: ", err.Error())
+					continue
+				}
+				if len(versions) <= 5 {
+					continue
+				}
 				if v.DeliveredType == "image" {
 					imagePath := v.DeliveredPath
 					err := sources.ImageRemove(t.dclient, imagePath) //remove image
