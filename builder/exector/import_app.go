@@ -247,14 +247,14 @@ func (i *ImportApp) importApp() error {
 			i.updateStatusForApp(app, "failed")
 			continue
 		}
+		if err := i.updateStatusForApp(app, "success"); err != nil {
+			logrus.Errorf("Failed to update status to success for app %s: %v", app, err)
+			continue
+		}
 		if datas == "[" {
 			datas += string(data)
 		} else {
 			datas += ", " + string(data)
-		}
-		if err := i.updateStatusForApp(app, "success"); err != nil {
-			logrus.Errorf("Failed to update status to success for app %s: %v", app, err)
-			continue
 		}
 		os.Rename(appFile, appFile+".success")
 		logrus.Debug("Successful import app: ", appFile)
@@ -265,15 +265,13 @@ func (i *ImportApp) importApp() error {
 	metadatasFile := fmt.Sprintf("%s/metadatas.json", i.SourceDir)
 	if err := ioutil.WriteFile(metadatasFile, []byte(datas), 0644); err != nil {
 		logrus.Errorf("Failed to load apps %s: %v", i.SourceDir, err)
-		return nil
+		return err
 	}
-
 	// 更新应用状态
 	if err := i.updateStatus("success", datas); err != nil {
 		logrus.Errorf("Failed to load apps %s: %v", i.SourceDir, err)
-		return nil
+		return err
 	}
-
 	return nil
 }
 
