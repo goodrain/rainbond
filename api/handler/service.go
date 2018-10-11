@@ -624,11 +624,13 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 					println("======10")
 					serviceType, err := db.GetManager().TenantServiceLabelDao().GetTenantServiceTypeLabel(volumn.ServiceID)
 					println("======11")
+					println(serviceType,err,"======11.1")
 					if err != nil {
 						println("======12")
 						tx.Rollback()
 						return util.CreateAPIHandleErrorFromDBError("service type", err)
 					}
+					println("======12.1")
 					if serviceType.LabelValue != core_util.StatefulServiceType {
 						println("======13")
 						tx.Rollback()
