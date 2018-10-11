@@ -540,8 +540,9 @@ func (s *ServiceAction) ServiceUpgrade(ru *model.RollingUpgradeTaskBody) error {
 
 //ServiceCreate create service
 func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
-
+	println("======1")
 	jsonSC, err := ffjson.Marshal(sc)
+	println("======2")
 	if err != nil {
 		logrus.Errorf("trans service struct to json failed. %v", err)
 		return err
@@ -551,6 +552,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		logrus.Errorf("trans json to tenant service error, %v", err)
 		return err
 	}
+	println("======3")
 	ts.UpdateTime = time.Now()
 	ports := sc.PortsInfo
 	envs := sc.EnvsInfo
@@ -558,14 +560,16 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	dependVolumes := sc.DepVolumesInfo
 	dependIds := sc.DependIDs
 	ts.DeployVersion = ""
-
+	println("======4")
 	tx := db.GetManager().Begin()
+	println("======5")
 	//create app
 	if err := db.GetManager().TenantServiceDaoTransactions(tx).AddModel(&ts); err != nil {
 		logrus.Errorf("add service error, %v", err)
 		tx.Rollback()
 		return err
 	}
+	println("======6")
 	//set app envs
 	if len(envs) > 0 {
 		for _, env := range envs {
@@ -578,6 +582,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			}
 		}
 	}
+	println("======7")
 	//set app port
 	if len(ports) > 0 {
 		for _, port := range ports {
@@ -590,11 +595,13 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			}
 		}
 	}
+	println("======8")
 	//set app volumns
 	if len(volumns) > 0 {
 		localPath := os.Getenv("LOCAL_DATA_PATH")
 		sharePath := os.Getenv("SHARE_DATA_PATH")
 		if localPath == "" {
+			println("======9")
 			localPath = "/grlocaldata"
 		}
 		if sharePath == "" {
@@ -609,66 +616,91 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			if volumn.HostPath == "" {
 				//step 1 设置主机目录
 				switch volumn.VolumeType {
-				//共享文件��储
+				//共享文件存储
 				case dbmodel.ShareFileVolumeType.String():
 					volumn.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, sc.TenantID, volumn.ServiceID, volumn.VolumePath)
-				//本地文件存�����
+				//本地文件存储
 				case dbmodel.LocalVolumeType.String():
+					println("======10")
 					serviceType, err := db.GetManager().TenantServiceLabelDao().GetTenantServiceTypeLabel(volumn.ServiceID)
+					println("======11")
 					if err != nil {
+						println("======12")
 						tx.Rollback()
 						return util.CreateAPIHandleErrorFromDBError("service type", err)
 					}
 					if serviceType.LabelValue != core_util.StatefulServiceType {
+						println("======13")
 						tx.Rollback()
 						return util.CreateAPIHandleError(400, fmt.Errorf("应用类型不为有状态应用.不支持本地存储"))
 					}
+					println("======14")
 					volumn.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, sc.TenantID, volumn.ServiceID, volumn.VolumePath)
 				}
 			}
 			if volumn.VolumeName == "" {
 				volumn.VolumeName = uuid.NewV4().String()
 			}
+			println("======15")
 			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).AddModel(&volumn); err != nil {
+				println("======16")
 				logrus.Errorf("add volumn %v error, %v", volumn.HostPath, err)
 				tx.Rollback()
+				println("======17")
 				return err
 			}
 		}
 	}
 	//set app dependVolumes
 	if len(dependVolumes) > 0 {
+		println("======18")
 		for _, depVolume := range dependVolumes {
 			depVolume.ServiceID = ts.ServiceID
 			depVolume.TenantID = ts.TenantID
+			println("======19")
 			volume, err := db.GetManager().TenantServiceVolumeDao().GetVolumeByServiceIDAndName(depVolume.DependServiceID, depVolume.VolumeName)
 			if err != nil {
+				println("======20")
 				tx.Rollback()
+				println("======21")
 				return fmt.Errorf("find volume %s error %s", depVolume.VolumeName, err.Error())
 			}
 			depVolume.HostPath = volume.HostPath
+			println("======22")
 			if err := db.GetManager().TenantServiceMountRelationDaoTransactions(tx).AddModel(&depVolume); err != nil {
 				tx.Rollback()
+				println("======23")
 				return fmt.Errorf("add dep volume %s error %s", depVolume.VolumeName, err.Error())
 			}
 		}
 	}
 	//set app depends
 	if len(dependIds) > 0 {
+		println("======24")
+
 		for _, id := range dependIds {
+			println("======25")
+
 			if err := db.GetManager().TenantServiceRelationDaoTransactions(tx).AddModel(&id); err != nil {
+				println("======26")
+
 				logrus.Errorf("add depend_id %v error, %v", id.DependServiceID, err)
 				tx.Rollback()
+				println("======27")
+
 				return err
 			}
 		}
 	}
+	println("======28")
 
 	//set app status
 	if err := s.statusCli.SetStatus(ts.ServiceID, "undeploy"); err != nil {
 		tx.Rollback()
 		return err
 	}
+	println("======29")
+
 	//set app label
 	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&dbmodel.TenantServiceLable{
 		ServiceID:  ts.ServiceID,
@@ -679,10 +711,13 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		tx.Rollback()
 		return err
 	}
+	println("======30")
+
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return err
 	}
+	println("======31")
 	logrus.Debugf("create a new app %s success", ts.ServiceAlias)
 	return nil
 }
