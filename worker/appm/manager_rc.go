@@ -19,11 +19,13 @@
 package appm
 
 import (
-	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/event"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
@@ -43,20 +45,20 @@ func (m *manager) StartReplicationController(serviceID string, logger event.Logg
 		return nil, err
 	}
 	//判断应用镜像名称是否合法，非法镜像名进制启动
-	deployVersion,err:=m.dbmanager.VersionInfoDao().GetVersionByDeployVersion(builder.service.DeployVersion,serviceID)
-	imageName:=builder.service.ImageName
+	deployVersion, err := m.dbmanager.VersionInfoDao().GetVersionByDeployVersion(builder.service.DeployVersion, serviceID)
+	imageName := builder.service.ImageName
 	if err != nil {
-		logrus.Warnf("error get version info by deployversion %s,details %s",builder.service.DeployVersion,err.Error())
-	}else{
+		logrus.Warnf("error get version info by deployversion %s,details %s", builder.service.DeployVersion, err.Error())
+	} else {
 		if CheckVersionInfo(deployVersion) {
-			imageName=deployVersion.ImageName
+			imageName = deployVersion.ImageName
 		}
 	}
 	if !strings.HasPrefix(imageName, "goodrain.me/") {
 		logger.Error("启动应用失败,镜像名(%s)非法，请重新构建应用", map[string]string{"step": "callback", "status": "error"})
 		return nil, fmt.Errorf("service image name invoid, it only can with prefix goodrain.me/")
 	}
-	rc, err := builder.Build()
+	rc, err := builder.Build(util.NewUUID())
 	if err != nil {
 		logrus.Error("build ReplicationController error.", err.Error())
 		logger.Error("创建ReplicationController失败", map[string]string{"step": "worker-appm", "status": "error"})
@@ -93,14 +95,15 @@ func (m *manager) StartReplicationController(serviceID string, logger event.Logg
 
 //CheckVersionInfo CheckVersionInfo
 func CheckVersionInfo(version *model.VersionInfo) bool {
-	if !strings.Contains(strings.ToLower(version.FinalStatus),"success") {
+	if !strings.Contains(strings.ToLower(version.FinalStatus), "success") {
 		return false
 	}
-	if len(version.ImageName)==0||!strings.Contains(version.ImageName,"goodrain.me/") {
+	if len(version.ImageName) == 0 || !strings.Contains(version.ImageName, "goodrain.me/") {
 		return false
 	}
 	return true
 }
+
 //StopReplicationController 停止
 func (m *manager) StopReplicationController(serviceID string, logger event.Logger) error {
 	logger.Info("停止删除ReplicationController资源开始", map[string]string{"step": "worker-appm", "status": "starting"})
@@ -250,7 +253,7 @@ func (m *manager) RollingUpgradeReplicationController(serviceID string, stopChan
 		logger.Error("创建ReplicationController Builder失败", map[string]string{"step": "worker-appm", "status": "error"})
 		return nil, err
 	}
-	rc, err := builder.Build()
+	rc, err := builder.Build(util.NewUUID())
 	if err != nil {
 		logrus.Error("build ReplicationController error.", err.Error())
 		logger.Error("创建ReplicationController失败", map[string]string{"step": "worker-appm", "status": "error"})
@@ -339,6 +342,7 @@ func (m *manager) RollingUpgradeReplicationController(serviceID string, stopChan
 //RollingUpgradeReplicationControllerCompatible 滚动升级RC
 //该方法的存在是为了兼容旧应用，如旧版MySQL被设为无状态类型，所以要先删除实例再创建新实例
 func (m *manager) RollingUpgradeReplicationControllerCompatible(serviceID string, stopChan chan struct{}, logger event.Logger) (*v1.ReplicationController, error) {
+	creatorID := util.NewUUID()
 	deploys, err := m.dbmanager.K8sDeployReplicationDao().GetK8sDeployReplicationByService(serviceID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -368,7 +372,7 @@ func (m *manager) RollingUpgradeReplicationControllerCompatible(serviceID string
 		logger.Error("创建ReplicationController Builder失败", map[string]string{"step": "worker-appm", "status": "error"})
 		return nil, err
 	}
-	rc, err := builder.Build()
+	rc, err := builder.Build(creatorID)
 	if err != nil {
 		logrus.Error("build ReplicationController error.", err.Error())
 		logger.Error("创建ReplicationController失败", map[string]string{"step": "worker-appm", "status": "error"})
@@ -426,7 +430,7 @@ func (m *manager) RollingUpgradeReplicationControllerCompatible(serviceID string
 	logger.Info("开始滚动替换实例", map[string]string{"step": "worker-appm", "status": "starting"})
 	var i int32
 	for i = 1; i <= *replicas; i++ {
-		if err := m.rollingUpgradeCompatible(builder.GetTenant(), serviceID, oldRCName, result.Name, (*replicas)-i, i, logger); err != nil {
+		if err := m.rollingUpgradeCompatible(builder.GetTenant(), serviceID, oldRCName, result.Name, (*replicas)-i, i, logger, creatorID); err != nil {
 			return nil, err
 		}
 		select {
@@ -466,7 +470,7 @@ func (m *manager) RollingUpgradeReplicationControllerCompatible(serviceID string
 }
 
 //该方法的存在是为了兼容旧应用，如旧版MySQL被设为无状态类型，所以要先删除实例再创建新实例
-func (m *manager) rollingUpgradeCompatible(namespace, serviceID, oldRC, newRC string, oldReplicase, newReplicas int32, logger event.Logger) error {
+func (m *manager) rollingUpgradeCompatible(namespace, serviceID, oldRC, newRC string, oldReplicase, newReplicas int32, logger event.Logger, creatorID string) error {
 	logger.Info(fmt.Sprintf("新版实例数:%d,旧版实例数:%d,替换开始", newReplicas, oldReplicase), map[string]string{"step": "worker-appm", "status": "starting"})
 	// first delete old pods
 	rc, err := m.kubeclient.Core().ReplicationControllers(namespace).Patch(oldRC, types.StrategicMergePatchType, Replicas(int(oldReplicase)))
@@ -598,7 +602,7 @@ func (m *manager) waitRCReplicasReady(n int32, serviceID string, logger event.Lo
 	logger.Info(fmt.Sprintf("实例开始启动，需要启动实例数 %d, 超时时间:%d秒 ", n, second), map[string]string{"step": "worker-appm"})
 	timeout := time.Tick(time.Duration(second) * time.Second)
 	watch, err := m.kubeclient.Core().ReplicationControllers(rc.Namespace).Watch(metav1.ListOptions{
-		LabelSelector:   fmt.Sprintf("name=%s,version=%s", rc.Labels["name"], rc.Labels["version"]),
+		LabelSelector:   fmt.Sprintf("name=%s,version=%s,creator_id=%s", rc.Labels["name"], rc.Labels["version"], rc.Labels["creator_id"]),
 		ResourceVersion: rc.ResourceVersion,
 	})
 	if err != nil {
@@ -606,7 +610,7 @@ func (m *manager) waitRCReplicasReady(n int32, serviceID string, logger event.Lo
 	}
 	defer watch.Stop()
 	podWatch, err := m.kubeclient.CoreV1().Pods(rc.Namespace).Watch(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("name=%s,version=%s", rc.Labels["name"], rc.Labels["version"]),
+		LabelSelector: fmt.Sprintf("name=%s,version=%s,creator_id=%s", rc.Labels["name"], rc.Labels["version"], rc.Labels["creator_id"]),
 	})
 	if err != nil {
 		return err

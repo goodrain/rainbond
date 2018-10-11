@@ -60,8 +60,8 @@ func DeploymentBuilder(serviceID string, logger event.Logger, nodeAPI string) (*
 }
 
 //Build 构建
-func (s *DeploymentBuild) Build() (*v1beta1.Deployment, error) {
-	pod, err := s.podBuild.Build()
+func (s *DeploymentBuild) Build(creatorID string) (*v1beta1.Deployment, error) {
+	pod, err := s.podBuild.Build(creatorID)
 	if err != nil {
 		logrus.Error("pod template build error:", err.Error())
 		return nil, fmt.Errorf("pod template build error: %s", err.Error())
@@ -84,8 +84,9 @@ func (s *DeploymentBuild) Build() (*v1beta1.Deployment, error) {
 	deployment.Labels = map[string]string{
 		"name": s.service.ServiceAlias,
 		//todo
-		"version": s.service.DeployVersion,
-		"creator": "RainBond",
+		"version":    s.service.DeployVersion,
+		"creator":    "RainBond",
+		"creator_id": creatorID,
 		"service_id": s.service.ServiceID,
 	}
 	deployment.Kind = "Deployment"

@@ -64,8 +64,8 @@ func int32Ptr(i int) *int32 {
 }
 
 //Build 构建
-func (s *StatefulSetBuild) Build() (*v1beta1.StatefulSet, error) {
-	pod, err := s.podBuild.Build()
+func (s *StatefulSetBuild) Build(creatorID string) (*v1beta1.StatefulSet, error) {
+	pod, err := s.podBuild.Build(creatorID)
 	if err != nil {
 		logrus.Error("pod template build error:", err.Error())
 		return nil, fmt.Errorf("pod template build error: %s", err.Error())
@@ -104,6 +104,7 @@ func (s *StatefulSetBuild) Build() (*v1beta1.StatefulSet, error) {
 		"name":       s.service.ServiceAlias,
 		"version":    s.service.DeployVersion,
 		"creator":    "RainBond",
+		"creator_id": creatorID,
 		"service_id": s.service.ServiceID,
 	}
 	stateful.Kind = "StatefulSet"

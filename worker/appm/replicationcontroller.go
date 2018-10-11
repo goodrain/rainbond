@@ -60,8 +60,8 @@ func ReplicationControllerBuilder(serviceID string, logger event.Logger, nodeAPI
 }
 
 //Build 构建
-func (s *ReplicationControllerBuild) Build() (*v1.ReplicationController, error) {
-	pod, err := s.podBuild.Build()
+func (s *ReplicationControllerBuild) Build(creatorID string) (*v1.ReplicationController, error) {
+	pod, err := s.podBuild.Build(creatorID)
 	if err != nil {
 		logrus.Error("pod template build error:", err.Error())
 		return nil, fmt.Errorf("pod template build error: %s", err.Error())
@@ -84,6 +84,7 @@ func (s *ReplicationControllerBuild) Build() (*v1.ReplicationController, error) 
 		"name":       s.service.ServiceAlias,
 		"version":    s.service.DeployVersion,
 		"creator":    "RainBond",
+		"creator_id": creatorID,
 		"service_id": s.service.ServiceID,
 	}
 	rc.Kind = "ReplicationController"
