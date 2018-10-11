@@ -540,7 +540,7 @@ func (s *ServiceAction) ServiceUpgrade(ru *model.RollingUpgradeTaskBody) error {
 
 //ServiceCreate create service
 func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
-
+	logrus.Debugf(sc.ExtendMethod,sc.ServiceLabel)
 	jsonSC, err := ffjson.Marshal(sc)
 	if err != nil {
 		logrus.Errorf("trans service struct to json failed. %v", err)
@@ -558,7 +558,6 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	dependVolumes := sc.DepVolumesInfo
 	dependIds := sc.DependIDs
 	ts.DeployVersion = ""
-
 	tx := db.GetManager().Begin()
 	//create app
 	if err := db.GetManager().TenantServiceDaoTransactions(tx).AddModel(&ts); err != nil {
@@ -609,17 +608,12 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			if volumn.HostPath == "" {
 				//step 1 设置主机目录
 				switch volumn.VolumeType {
-				//共享文件��储
+				//共享文件存储
 				case dbmodel.ShareFileVolumeType.String():
 					volumn.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, sc.TenantID, volumn.ServiceID, volumn.VolumePath)
-				//本地文件存�����
+				//本地文件存储
 				case dbmodel.LocalVolumeType.String():
-					serviceType, err := db.GetManager().TenantServiceLabelDao().GetTenantServiceTypeLabel(volumn.ServiceID)
-					if err != nil {
-						tx.Rollback()
-						return util.CreateAPIHandleErrorFromDBError("service type", err)
-					}
-					if serviceType.LabelValue != core_util.StatefulServiceType {
+					if sc.ExtendMethod != "state" {
 						tx.Rollback()
 						return util.CreateAPIHandleError(400, fmt.Errorf("应用类型不为有状态应用.不支持本地存储"))
 					}
@@ -663,7 +657,6 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			}
 		}
 	}
-
 	//set app status
 	if err := s.statusCli.SetStatus(ts.ServiceID, "undeploy"); err != nil {
 		tx.Rollback()
