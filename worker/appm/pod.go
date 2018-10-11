@@ -153,6 +153,8 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 		"version":     p.service.DeployVersion,
 		"tenant_name": p.tenant.Name,
 		"event_id":    p.eventID,
+		"creator":     "RainBond",
+		"service_id":  p.service.ServiceID,
 	}
 	//step7:插件启动排序
 	pid, err := p.sortPlugins()

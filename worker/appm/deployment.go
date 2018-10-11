@@ -85,6 +85,8 @@ func (s *DeploymentBuild) Build() (*v1beta1.Deployment, error) {
 		"name": s.service.ServiceAlias,
 		//todo
 		"version": s.service.DeployVersion,
+		"creator": "RainBond",
+		"service_id": s.service.ServiceID,
 	}
 	deployment.Kind = "Deployment"
 	//TODO: 根据k8s版本进行更改

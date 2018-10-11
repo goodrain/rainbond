@@ -101,8 +101,10 @@ func (s *StatefulSetBuild) Build() (*v1beta1.StatefulSet, error) {
 	stateful.Name = s.service.ServiceAlias
 	stateful.GenerateName = s.service.ServiceAlias
 	stateful.Labels = map[string]string{
-		"name":    s.service.ServiceAlias,
-		"version": s.service.DeployVersion,
+		"name":       s.service.ServiceAlias,
+		"version":    s.service.DeployVersion,
+		"creator":    "RainBond",
+		"service_id": s.service.ServiceID,
 	}
 	stateful.Kind = "StatefulSet"
 	//TODO: 根据k8s版本进行更改

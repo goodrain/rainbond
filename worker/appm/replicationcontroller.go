@@ -81,8 +81,10 @@ func (s *ReplicationControllerBuild) Build() (*v1.ReplicationController, error) 
 	rc.Name = util.NewUUID()
 	rc.GenerateName = strings.Replace(s.service.ServiceAlias, "_", "-", -1)
 	rc.Labels = map[string]string{
-		"name":    s.service.ServiceAlias,
-		"version": s.service.DeployVersion,
+		"name":       s.service.ServiceAlias,
+		"version":    s.service.DeployVersion,
+		"creator":    "RainBond",
+		"service_id": s.service.ServiceID,
 	}
 	rc.Kind = "ReplicationController"
 	//TODO: 根据k8s版本进行更改

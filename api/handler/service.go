@@ -540,7 +540,6 @@ func (s *ServiceAction) ServiceUpgrade(ru *model.RollingUpgradeTaskBody) error {
 
 //ServiceCreate create service
 func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
-	logrus.Debugf(sc.ExtendMethod,sc.ServiceLabel)
 	jsonSC, err := ffjson.Marshal(sc)
 	if err != nil {
 		logrus.Errorf("trans service struct to json failed. %v", err)
