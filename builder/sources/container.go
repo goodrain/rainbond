@@ -61,8 +61,11 @@ func CreateDockerService(ctx context.Context, client *client.Client) *DockerServ
 // symlink at LogPath, linking to the actual path of the log.
 // TODO: check if the default values returned by the runtime API are ok.
 func (ds *DockerService) CreateContainer(config *ContainerConfig) (string, error) {
-	if config == nil {
+	if config == nil || config.Metadata == nil {
 		return "", fmt.Errorf("container config is nil")
+	}
+	if config.NetworkConfig == nil {
+		return "", fmt.Errorf("container network config is nil")
 	}
 	createConfig := dockertypes.ContainerCreateConfig{
 		Name: config.Metadata.Name,
