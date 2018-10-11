@@ -19,6 +19,7 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
 	"github.com/goodrain/rainbond/api/controller/upload"
+	"github.com/ncw/directio"
 )
 
 type AppStruct struct{}
@@ -196,7 +197,7 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 		os.MkdirAll(dirName, 0755)
 
 		fileName := fmt.Sprintf("%s/%s", dirName, header.Filename)
-		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0644)
+		file, err := directio.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil {
 			logrus.Errorf("Failed to open file: ", err.Error())
 			httputil.ReturnError(r, w, 502, "Failed to open file: "+err.Error())
