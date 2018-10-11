@@ -19,7 +19,6 @@
 package handler
 
 import (
-
 	"context"
 	"fmt"
 	"os"
@@ -48,11 +47,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	"encoding/json"
+	"net/http"
+
 	"github.com/Sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
-	"net/http"
-	"encoding/json"
 )
 
 //ServiceAction service act
@@ -540,7 +540,6 @@ func (s *ServiceAction) ServiceUpgrade(ru *model.RollingUpgradeTaskBody) error {
 
 //ServiceCreate create service
 func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
-
 	jsonSC, err := ffjson.Marshal(sc)
 	if err != nil {
 		logrus.Errorf("trans service struct to json failed. %v", err)
@@ -558,7 +557,6 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	dependVolumes := sc.DepVolumesInfo
 	dependIds := sc.DependIDs
 	ts.DeployVersion = ""
-
 	tx := db.GetManager().Begin()
 	//create app
 	if err := db.GetManager().TenantServiceDaoTransactions(tx).AddModel(&ts); err != nil {
@@ -612,14 +610,9 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 				//共享文件存储
 				case dbmodel.ShareFileVolumeType.String():
 					volumn.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, sc.TenantID, volumn.ServiceID, volumn.VolumePath)
-					//本地文件存储
+				//本地文件存储
 				case dbmodel.LocalVolumeType.String():
-					serviceType, err := db.GetManager().TenantServiceLabelDao().GetTenantServiceTypeLabel(volumn.ServiceID)
-					if err != nil {
-						tx.Rollback()
-						return util.CreateAPIHandleErrorFromDBError("service type", err)
-					}
-					if serviceType.LabelValue != core_util.StatefulServiceType {
+					if sc.ExtendMethod != "state" {
 						tx.Rollback()
 						return util.CreateAPIHandleError(400, fmt.Errorf("应用类型不为有状态应用.不支持本地存储"))
 					}
@@ -663,7 +656,6 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			}
 		}
 	}
-
 	//set app status
 	if err := s.statusCli.SetStatus(ts.ServiceID, "undeploy"); err != nil {
 		tx.Rollback()
@@ -1800,7 +1792,7 @@ func (s *ServiceAction) GetPods(serviceID string) ([]K8sPodInfo, error) {
 		memoryUsageMap, _ := s.GetContainerMemory(memoryUsageQuery)
 		logrus.Info("memoryUsageMap", memoryUsageMap)
 		for k, val := range memoryUsageMap {
-			if _,ok := containerMemory[k];!ok{
+			if _, ok := containerMemory[k]; !ok {
 				containerMemory[k] = map[string]string{"memory_usage": val}
 			}
 		}

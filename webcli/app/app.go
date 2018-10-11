@@ -23,12 +23,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"log"
 	"net"
 	"net/http"
 	"os/exec"
 	"sync"
 	"text/template"
+
+	"github.com/Sirupsen/logrus"
 
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/gorilla/websocket"
@@ -139,9 +140,9 @@ func (app *App) Run() error {
 		return errors.New("Failed to build server: " + err.Error())
 	}
 	go func() {
-		log.Printf("webcli listen %s", endpoint)
-		log.Fatal(server.ListenAndServe())
-		log.Printf("Exiting...")
+		logrus.Printf("webcli listen %s", endpoint)
+		logrus.Fatal(server.ListenAndServe())
+		logrus.Printf("Exiting...")
 	}()
 	return nil
 }
@@ -160,7 +161,7 @@ func (app *App) healthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
-	log.Printf("New client connected: %s", r.RemoteAddr)
+	logrus.Printf("New client connected: %s", r.RemoteAddr)
 
 	if r.Method != "GET" {
 		http.Error(w, "Method not allowed", 405)
@@ -169,19 +170,19 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := app.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Print("Failed to upgrade connection: " + err.Error())
+		logrus.Print("Failed to upgrade connection: " + err.Error())
 		return
 	}
 
 	_, stream, err := conn.ReadMessage()
 	if err != nil {
-		log.Print("Failed to authenticate websocket connection " + err.Error())
+		logrus.Print("Failed to authenticate websocket connection " + err.Error())
 		conn.Close()
 		return
 	}
 
 	message := string(stream)
-	log.Print("message=", message)
+	logrus.Print("message=", message)
 
 	var init InitMessage
 
@@ -189,7 +190,7 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 
 	//todo auth
 	if init.PodName == "" {
-		log.Print("Parameter is error, pod name is empty")
+		logrus.Print("Parameter is error, pod name is empty")
 		conn.WriteMessage(websocket.TextMessage, []byte("pod name can not be empty"))
 		conn.Close()
 		return
@@ -197,7 +198,7 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 	key := init.TenantID + "_" + init.ServiceID + "_" + init.PodName
 	md5 := md5Func(key)
 	if md5 != init.Md5 {
-		log.Print("Auth is not allowed !")
+		logrus.Print("Auth is not allowed !")
 		conn.WriteMessage(websocket.TextMessage, []byte("Auth is not allowed!"))
 		conn.Close()
 		return
@@ -207,11 +208,11 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 	ExecuteCommandTotal++
 	ptyIo, err := pty.Start(cmd)
 	if err != nil {
-		log.Print("Failed to execute command")
+		logrus.Printf("Failed to execute command:%s", err.Error())
 		ExecuteCommandTotal++
 		return
 	}
-	log.Printf("Command is running for client %s with PID %d ", r.RemoteAddr, cmd.Process.Pid)
+	logrus.Printf("Command is running for client %s with PID %d ", r.RemoteAddr, cmd.Process.Pid)
 
 	context := &clientContext{
 		app:        app,
@@ -233,7 +234,7 @@ func wrapLogger(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rw := &responseWrapper{w, 200}
 		handler.ServeHTTP(rw, r)
-		log.Printf("%s %d %s %s", r.RemoteAddr, rw.status, r.Method, r.URL.Path)
+		logrus.Printf("%s %d %s %s", r.RemoteAddr, rw.status, r.Method, r.URL.Path)
 	})
 }
 

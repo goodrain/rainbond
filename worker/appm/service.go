@@ -191,6 +191,8 @@ func (k *K8sServiceBuild) createInnerService(port *model.TenantServicesPort) *v1
 		"service_type":  "inner",
 		"name":          k.service.ServiceAlias + "Service",
 		"port_protocol": port.Protocol,
+		"creator":       "RainBond",
+		"service_id":    k.service.ServiceID,
 	}
 	if k.service.Replicas <= 1 {
 		service.Labels["rainbond.com/tolerate-unready-endpoints"] = "true"
@@ -229,6 +231,8 @@ func (k *K8sServiceBuild) createOuterService(port *model.TenantServicesPort) *v1
 		"ca":               "",
 		"key":              "",
 		"event_id":         k.eventID,
+		"creator":          "RainBond",
+		"service_id":       k.service.ServiceID,
 	}
 	if k.service.Replicas <= 1 {
 		service.Labels["rainbond.com/tolerate-unready-endpoints"] = "true"
@@ -274,6 +278,8 @@ func (k *K8sServiceBuild) createStatefulService(ports []*model.TenantServicesPor
 	service.Labels = map[string]string{
 		"service_type": "stateful",
 		"name":         k.service.ServiceAlias + "ServiceStateful",
+		"creator":      "RainBond",
+		"service_id":   k.service.ServiceID,
 	}
 	var serviceports []v1.ServicePort
 	for _, p := range ports {

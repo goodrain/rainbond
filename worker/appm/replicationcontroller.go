@@ -60,8 +60,8 @@ func ReplicationControllerBuilder(serviceID string, logger event.Logger, nodeAPI
 }
 
 //Build 构建
-func (s *ReplicationControllerBuild) Build() (*v1.ReplicationController, error) {
-	pod, err := s.podBuild.Build()
+func (s *ReplicationControllerBuild) Build(creatorID string) (*v1.ReplicationController, error) {
+	pod, err := s.podBuild.Build(creatorID)
 	if err != nil {
 		logrus.Error("pod template build error:", err.Error())
 		return nil, fmt.Errorf("pod template build error: %s", err.Error())
@@ -81,8 +81,11 @@ func (s *ReplicationControllerBuild) Build() (*v1.ReplicationController, error) 
 	rc.Name = util.NewUUID()
 	rc.GenerateName = strings.Replace(s.service.ServiceAlias, "_", "-", -1)
 	rc.Labels = map[string]string{
-		"name":    s.service.ServiceAlias,
-		"version": s.service.DeployVersion,
+		"name":       s.service.ServiceAlias,
+		"version":    s.service.DeployVersion,
+		"creator":    "RainBond",
+		"creator_id": creatorID,
+		"service_id": s.service.ServiceID,
 	}
 	rc.Kind = "ReplicationController"
 	//TODO: 根据k8s版本进行更改

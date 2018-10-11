@@ -19,17 +19,20 @@
 package build
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
+
+	"github.com/docker/engine-api/client"
 
 	"github.com/Sirupsen/logrus"
 
 	"github.com/docker/engine-api/types"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/event"
 )
 
 var netcoreBuildDockerfile = "/src/build-app/netcore/Dockerfile.build"
@@ -61,9 +64,15 @@ type netcoreBuild struct {
 	buildImageName string
 	buildCacheDir  string
 	sourceDir      string
+	dockercli      *client.Client
+	logger         event.Logger
+	serviceID      string
 }
 
 func (d *netcoreBuild) Build(re *Request) (*Response, error) {
+	d.dockercli = re.DockerClient
+	d.logger = re.Logger
+	d.serviceID = re.ServiceID
 	defer d.clear()
 	//write default Dockerfile for build
 	if err := d.writeBuildDockerfile(re.SourceDir); err != nil {
@@ -150,13 +159,36 @@ func (d *netcoreBuild) writeRunDockerfile(sourceDir string) error {
 }
 
 func (d *netcoreBuild) copyBuildOut(outDir string, sourceImage string) error {
-	dockerbin, err := exec.LookPath("docker")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ds := sources.CreateDockerService(ctx, d.dockercli)
+	cid, err := ds.CreateContainer(&sources.ContainerConfig{
+		Metadata: &sources.ContainerMetadata{
+			Name: d.serviceID + "_builder",
+		},
+		NetworkConfig: &sources.NetworkConfig{
+			NetworkMode: "none",
+		},
+		Image: &sources.ImageSpec{
+			Image: sourceImage,
+		},
+		Mounts: []*sources.Mount{
+			&sources.Mount{
+				ContainerPath: "/tmp/out",
+				HostPath:      outDir,
+			},
+		},
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("create container copy file error %s", err.Error())
 	}
-	cmd := exec.Command(dockerbin, "run", "-t", "-v", outDir+":/tmp/out", "--rm", sourceImage)
-	if err := cmd.Run(); err != nil {
-		return err
+	statuschan := ds.WaitExitOrRemoved(cid, true)
+	if err := ds.StartContainer(cid); err != nil {
+		return fmt.Errorf("start container copy file error %s", err.Error())
+	}
+	status := <-statuschan
+	if status != 0 {
+		return &ErrorBuild{Code: status}
 	}
 	return nil
 }

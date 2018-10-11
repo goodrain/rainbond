@@ -15,6 +15,7 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
+	"github.com/jinzhu/gorm"
 )
 
 //Resource should be clean resource
@@ -45,18 +46,21 @@ type rcResource struct {
 	id         string
 	namespaces string
 	createTime time.Time
+	serviceId string
 }
 type statefulResource struct {
 	manager    *Manager
 	id         string
 	namespaces string
 	createTime time.Time
+	serviceId string
 }
 type deploymentResource struct {
 	manager    *Manager
 	id         string
 	namespaces string
 	createTime time.Time
+	serviceId string
 }
 
 type k8sServiceResource struct {
@@ -221,7 +225,7 @@ func (k *k8sServiceResource) IsTimeout() bool {
 }
 
 func (k *k8sServiceResource) DeleteResources() error {
-	if err := k.manager.kubeclient.Services(k.namespaces).Delete(k.id, &meta_v1.DeleteOptions{}); err != nil {
+	if err := k.manager.kubeclient.CoreV1().Services(k.namespaces).Delete(k.id, &meta_v1.DeleteOptions{}); err != nil {
 		return err
 	} else {
 		logrus.Info("delete k8sServiceResource success：", k.id)
@@ -273,7 +277,7 @@ func QueryK8sServiceResource(m *Manager) []Resource {
 	for _, v := range ServicesList.Items {
 		val, ok := ServivesMap[v.Namespace]
 		if ok {
-			if !InSlice(v.Name, val) {
+			if !InSlice(v.Name, val) || isRainBondResource(v.Labels) {
 				s := &k8sServiceResource{
 					manager:    m,
 					createTime: time.Now(),
@@ -298,12 +302,35 @@ func (d *deploymentResource) IsTimeout() bool {
 }
 
 func (d *deploymentResource) DeleteResources() error {
-	if err := d.manager.kubeclient.AppsV1beta1().Deployments(d.namespaces).Delete(d.id, &meta_v1.DeleteOptions{}); err != nil {
-		return err
-	} else {
-		logrus.Info("delete deployment success：", d.id)
-		return nil
+	pods, err := db.GetManager().K8sPodDao().GetPodByService(d.serviceId)
+	if err != nil {
+		logrus.Error("delete deploymentResource GetPodByService error.", err.Error())
 	}
+	if pods != nil && len(pods) > 0 {
+		for i := range pods {
+			pod := pods[i]
+			err = d.manager.kubeclient.CoreV1().Pods(d.namespaces).Delete(pod.PodName, &meta_v1.DeleteOptions{})
+			if err != nil {
+				if err = checkNotFoundError(err); err != nil {
+					logrus.Errorf("delete pod (%s) from k8s api error %s", pod.PodName, err.Error())
+				}
+			}
+
+		}
+		err = db.GetManager().K8sPodDao().DeleteK8sPod(d.serviceId)
+		if err != nil {
+			if err != gorm.ErrRecordNotFound {
+				logrus.Error("delete pods by service id error.", err.Error())
+			}
+		}
+	}
+	if err := d.manager.kubeclient.AppsV1beta1().Deployments(d.namespaces).Delete(d.id, &meta_v1.DeleteOptions{}); err != nil {
+		if err = checkNotFoundError(err); err != nil {
+			return err
+		}
+	}
+	logrus.Info("delete deployment success：", d.id)
+	return nil
 }
 
 func (d *deploymentResource) IsClean() bool {
@@ -349,12 +376,13 @@ func QueryDeploymentResource(m *Manager) []Resource {
 	for _, v := range DeploymentList.Items {
 		val, ok := DeploymentMap[v.Namespace]
 		if ok {
-			if InSlice(v.Name, val) {
+			if InSlice(v.Name, val) || isRainBondResource(v.Labels) {
 				s := &deploymentResource{
 					manager:    m,
 					createTime: time.Now(),
 					namespaces: v.Namespace,
 					id:         v.Name,
+					serviceId:getServiceId(v.Labels),
 				}
 				DeploymentDelList = append(DeploymentDelList, s)
 			}
@@ -374,13 +402,35 @@ func (s *statefulResource) IsTimeout() bool {
 }
 
 func (s *statefulResource) DeleteResources() error {
-
-	if err := s.manager.kubeclient.StatefulSets(s.namespaces).Delete(s.id, &meta_v1.DeleteOptions{}); err != nil {
-		return err
-	} else {
-		logrus.Info("delete statefulset success：", s.id)
-		return nil
+	pods, err := db.GetManager().K8sPodDao().GetPodByService(s.serviceId)
+	if err != nil {
+		logrus.Error("delete statefulResource GetPodByService error.", err.Error())
 	}
+	if pods != nil && len(pods) > 0 {
+		for i := range pods {
+			pod := pods[i]
+			err = s.manager.kubeclient.CoreV1().Pods(s.namespaces).Delete(pod.PodName, &meta_v1.DeleteOptions{})
+			if err != nil {
+				if err = checkNotFoundError(err); err != nil {
+					logrus.Errorf("delete pod (%s) from k8s api error %s", pod.PodName, err.Error())
+				}
+			}
+		}
+		err = db.GetManager().K8sPodDao().DeleteK8sPod(s.serviceId)
+		if err != nil {
+			if err != gorm.ErrRecordNotFound {
+				logrus.Error("delete pods by service id error.", err.Error())
+			}
+		}
+	}
+	if err := s.manager.kubeclient.AppsV1beta1().StatefulSets(s.namespaces).Delete(s.id, &meta_v1.DeleteOptions{}); err != nil {
+		if err = checkNotFoundError(err); err != nil {
+			return err
+		}
+	}
+	logrus.Info("delete statefulset success：", s.id)
+	return nil
+
 }
 
 func (s *statefulResource) IsClean() bool {
@@ -426,12 +476,13 @@ func QueryStatefulResource(m *Manager) []Resource {
 	for _, v := range StatefulSetsList.Items {
 		val, ok := StatefulSetsMap[v.Namespace]
 		if ok {
-			if InSlice(v.Name, val) {
+			if InSlice(v.Name, val) || isRainBondResource(v.Labels) {
 				s := &statefulResource{
 					manager:    m,
 					createTime: time.Now(),
 					namespaces: v.Namespace,
 					id:         v.Name,
+					serviceId:getServiceId(v.Labels),
 				}
 				StatefulSetList = append(StatefulSetList, s)
 			}
@@ -523,12 +574,36 @@ func (r *rcResource) IsTimeout() bool {
 }
 
 func (r *rcResource) DeleteResources() error {
-	if err := r.manager.kubeclient.ReplicationControllers(r.namespaces).Delete(r.id, &meta_v1.DeleteOptions{}); err != nil {
-		return err
-	} else {
-		logrus.Info("delete replicationcontroller success：", r.id)
-		return nil
+	pods, err := db.GetManager().K8sPodDao().GetPodByService(r.serviceId)
+	if err != nil {
+		logrus.Error("delete rcResource GetPodByService error.", err.Error())
 	}
+	if pods != nil && len(pods) > 0 {
+		for i := range pods {
+			pod := pods[i]
+			err = r.manager.kubeclient.CoreV1().Pods(r.namespaces).Delete(pod.PodName, &meta_v1.DeleteOptions{})
+			if err != nil {
+				if err = checkNotFoundError(err); err != nil {
+					logrus.Errorf("delete pod (%s) from k8s api error %s", pod.PodName, err.Error())
+				}
+			}
+
+		}
+		err = db.GetManager().K8sPodDao().DeleteK8sPod(r.serviceId)
+		if err != nil {
+			if err != gorm.ErrRecordNotFound {
+				logrus.Error("delete pods by service id error.", err.Error())
+			}
+		}
+	}
+	if err := r.manager.kubeclient.Core().ReplicationControllers(r.namespaces).Delete(r.id, &meta_v1.DeleteOptions{}); err != nil {
+		if err = checkNotFoundError(err); err != nil {
+			return err
+		}
+	}
+	logrus.Info("delete replicationcontroller success：", r.id)
+	return nil
+
 }
 
 func (r *rcResource) IsClean() bool {
@@ -573,12 +648,13 @@ func QueryRcResource(m *Manager) []Resource {
 		val, ok := ReplicationControllersMap[v.Namespace]
 		if ok {
 
-			if InSlice(v.Name, val) {
+			if InSlice(v.Name, val) || isRainBondResource(v.Labels) {
 				s := &rcResource{
 					manager:    m,
 					namespaces: v.Namespace,
 					id:         v.Name,
 					createTime: time.Now(),
+					serviceId:getServiceId(v.Labels),
 				}
 				RcList = append(RcList, s)
 			}
@@ -679,6 +755,32 @@ func (m *Manager) PerformTasks() {
 		}
 		return nil
 	}, time.Minute*3)
+}
+
+func isRainBondResource(labels map[string]string) bool {
+	val, ok := labels["creator"]
+	if ok {
+		if val == "RainBond" {
+			return true
+		}
+		return false
+	}
+	return false
+}
+
+func getServiceId(labels map[string]string) string {
+	val, ok := labels["service_id"]
+	if ok {
+		return val
+	}
+	return ""
+}
+
+func checkNotFoundError(err error) error {
+	if strings.HasSuffix(err.Error(), "not found") {
+		return nil
+	}
+	return err
 }
 
 func (m *Manager) Start() error {

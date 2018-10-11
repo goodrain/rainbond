@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"regexp"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/model"
@@ -16,7 +18,6 @@ import (
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
-	"regexp"
 )
 
 var re = regexp.MustCompile(`\s`)
@@ -30,13 +31,19 @@ func (a *AppAction) GetStaticDir() string {
 	return a.staticDir
 }
 
+//CreateAppManager create app manager
 func CreateAppManager(mqClient pb.TaskQueueClient) *AppAction {
+	staticDir := "/grdata/app"
+	if os.Getenv("LOCAL_APP_CACHE_DIR") != "" {
+		staticDir = os.Getenv("LOCAL_APP_CACHE_DIR")
+	}
 	return &AppAction{
 		MQClient:  mqClient,
-		staticDir: "/grdata/app",
+		staticDir: staticDir,
 	}
 }
 
+//Complete Complete
 func (a *AppAction) Complete(tr *model.ExportAppStruct) error {
 	appName := gjson.Get(tr.Body.GroupMetadata, "group_name").String()
 	if appName == "" {

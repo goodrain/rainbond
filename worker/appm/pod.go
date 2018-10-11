@@ -109,7 +109,7 @@ func (p *PodTemplateSpecBuild) GetService() *model.TenantServices {
 }
 
 //Build 通过service 构建pod template
-func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
+func (p *PodTemplateSpecBuild) Build(creatorID string) (*v1.PodTemplateSpec, error) {
 
 	//step1:构建环境变量定义
 	envs, err := p.createEnv()
@@ -153,6 +153,9 @@ func (p *PodTemplateSpecBuild) Build() (*v1.PodTemplateSpec, error) {
 		"version":     p.service.DeployVersion,
 		"tenant_name": p.tenant.Name,
 		"event_id":    p.eventID,
+		"creator":     "RainBond",
+		"creator_id":  creatorID,
+		"service_id":  p.service.ServiceID,
 	}
 	//step7:插件启动排序
 	pid, err := p.sortPlugins()
