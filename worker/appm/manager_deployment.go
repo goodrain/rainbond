@@ -195,6 +195,33 @@ func (m *manager) StopDeployment(serviceID string, logger event.Logger) error {
 			}
 		}
 	}
+
+	//清理集群内可能遗留的资源
+	deletePodsErr := DeletePods(m, service, logger);
+	if deletePodsErr != nil {
+		return deletePodsErr
+	}
+	rcList, err := m.kubeclient.AppsV1beta1().Deployments(service.ServiceID).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("name=%s,creator=%s,version=%s", service.ServiceAlias, "RainBond", service.DeployVersion)})
+	if err != nil {
+		if err = checkNotFoundError(err); err != nil {
+			logrus.Error("get service Deployments error.", err.Error())
+			logger.Error("从集群中查询该应用的Deployments失败", map[string]string{"step": "worker-appm", "status": "error"})
+			return err
+		}
+	}
+	for _, v := range rcList.Items {
+		err := m.kubeclient.AppsV1beta1().Deployments(service.ServiceID).Delete(v.Name, &metav1.DeleteOptions{});
+		if err != nil {
+			if err = checkNotFoundError(err); err != nil {
+				logrus.Error("delete service Deployments error.", err.Error())
+				logger.Error("从集群中删除应用的Deployments失败", map[string]string{"step": "worker-appm", "status": "error"})
+				return err
+			}
+		}
+	}
+
+	logger.Info("根据资源标签移除残留的Deployments资源完成", map[string]string{"step": "worker-appm", "status": "starting"})
+
 	return nil
 }
 

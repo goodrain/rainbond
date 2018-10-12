@@ -22,8 +22,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/goodrain/rainbond/cmd/worker/option"
 	status "github.com/goodrain/rainbond/appruntimesync/client"
+	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/worker/discover/model"
@@ -151,6 +151,7 @@ func (m *Manager) stopExec(task *model.Task) int {
 	}
 	if curStatus == status.CLOSED {
 		logger.Info("应用已关闭，请勿重复操作", map[string]string{"step": "last", "status": "success"})
+		db.GetManager().K8sDeployReplicationDao().DeleteK8sDeployReplicationByService(body.ServiceID)
 		event.GetManager().ReleaseLogger(logger)
 		return 0
 	}
