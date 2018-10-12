@@ -149,7 +149,6 @@ func (c *NotificationEventDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		logrus.Infoln("event result is exist")
 		return c.UpdateModel(mo)
 	}
 	return nil

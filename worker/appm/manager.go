@@ -102,8 +102,8 @@ func NewManager(conf option.Config, statusManager *client.AppRuntimeSyncClient) 
 	}
 	cacheManager := NewCacheManager()
 	return &manager{kubeclient: clientset, conf: conf,
-		dbmanager:     db.GetManager(),
-		statusCache:   cacheManager,
+		dbmanager: db.GetManager(),
+		statusCache: cacheManager,
 		statusManager: statusManager,
 	}, nil
 }
@@ -265,4 +265,27 @@ func (m *manager) SyncData() {
 	// }
 	//step2 :同步tenant_service_pod
 	//TODO:
+}
+
+func DeletePods(m *manager, service *model.TenantServices, logger event.Logger) error {
+	podList, err := m.kubeclient.Pods(service.ServiceID).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("name=%s,creator=%s,version=%s", service.ServiceAlias, "RainBond", service.DeployVersion)})
+	if err != nil {
+		if err = checkNotFoundError(err); err != nil {
+			logrus.Error("get service pods error.", err.Error())
+			logger.Error("从集群中查询该应用的pod失败", map[string]string{"step": "worker-appm", "status": "error"})
+			return err
+		}
+	}
+
+	for _, v := range podList.Items {
+		err := m.kubeclient.Pods(service.ServiceID).Delete(v.Name, &metav1.DeleteOptions{});
+		if err != nil {
+			if err = checkNotFoundError(err); err != nil {
+				logrus.Error("delete service pod error.", err.Error())
+				logger.Error("从集群中删除应用的pod失败", map[string]string{"step": "worker-appm", "status": "error"})
+			}
+		}
+	}
+	logger.Info("根据资源标签移除残留的pod资源完成", map[string]string{"step": "worker-appm", "status": "starting"})
+	return nil
 }
