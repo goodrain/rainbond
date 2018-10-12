@@ -20,7 +20,6 @@ package cmd
 
 import (
 	"crypto/sha256"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -35,6 +34,7 @@ import (
 	"github.com/apcera/termtables"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/cmd/grctl/option"
+	eventdb "github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/grctl/clients"
 	coreutil "github.com/goodrain/rainbond/util"
 	"github.com/gorilla/websocket"
@@ -138,7 +138,7 @@ func NewCmdService() cli.Command {
 	return c
 }
 
-func GetEventLogf(eventID, server string) {
+func GetEventLogf(eventID, server string) error {
 
 	//if c.String("event_log_server") != "" {
 	//	server = c.String("event_log_server")
@@ -148,7 +148,7 @@ func GetEventLogf(eventID, server string) {
 	con, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
 		logrus.Errorf("dial websocket endpoint %s error. %s", u.String(), err.Error())
-		//return err
+		return err
 	}
 	defer con.Close()
 
@@ -158,7 +158,7 @@ func GetEventLogf(eventID, server string) {
 		_, message, err := con.ReadMessage()
 		if err != nil {
 			logrus.Println("read proxy websocket message error: ", err)
-			return
+			return err
 		}
 		time := gjson.GetBytes(message, "time").String()
 		m := gjson.GetBytes(message, "message").String()
@@ -197,15 +197,15 @@ func getEventLog(c *cli.Context) error {
 			fmt.Printf("[%s](%s) %s \n", strings.ToUpper(level), time, m)
 		}
 	} else {
-		ts := c.Args().Get(1)
-		tas := strings.Split(ts, "/")
-		dl, err := clients.RegionClient.Tenants(tas[0]).Services(tas[1]).EventLog(eventID, "debug")
+		logdb := &eventdb.EventFilePlugin{
+			HomePath: "/grdata/logs/",
+		}
+		list, err := logdb.GetMessages(eventID, "debug")
 		if err != nil {
 			return err
 		}
-		for _, v := range dl {
-			aa, _ := json.Marshal(v)
-			fmt.Println(string(aa))
+		for _, l := range list {
+			fmt.Println(l.Time + ":" + l.Message)
 		}
 	}
 	return nil
@@ -231,7 +231,7 @@ func stopTenantService(c *cli.Context) error {
 				if c.String("event_log_server") != "" {
 					server = c.String("event_log_server")
 				}
-				GetEventLogf(eventID, server)
+				return GetEventLogf(eventID, server)
 			}
 			if err != nil {
 				logrus.Error("停止应用失败:" + err.Error())
@@ -265,7 +265,7 @@ func startService(c *cli.Context) error {
 		if c.String("event_log_server") != "" {
 			server = c.String("event_log_server")
 		}
-		GetEventLogf(eventID, server)
+		return GetEventLogf(eventID, server)
 	}
 	//err = region.StopService(service["service_id"].(string), service["deploy_version"].(string))
 	if err != nil {
