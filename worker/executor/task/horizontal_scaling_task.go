@@ -41,6 +41,7 @@ type horizontalScalingTask struct {
 func (s *horizontalScalingTask) RunSuccess() {
 	//设置应用状态为运行中
 	s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, "running")
+	s.taskManager.statusManager.CheckStatus(s.modelTask.ServiceID)
 	s.logger.Info("应用水平伸缩任务完成", map[string]string{"step": "last", "status": "success"})
 }
 

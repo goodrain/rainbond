@@ -42,6 +42,7 @@ type restartTask struct {
 func (s *restartTask) RunSuccess() {
 	//设置应用状态为运行中
 	s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, "running")
+	s.taskManager.statusManager.CheckStatus(s.modelTask.ServiceID)
 	s.logger.Info("应用重新启动任务完成", map[string]string{"step": "last", "status": "success"})
 }
 
@@ -52,6 +53,7 @@ func (s *restartTask) RunError(e error) {
 		//应用启动超时，怎么处理？
 		//是否关闭应用？
 		//暂时不自动关闭
+		s.taskManager.statusManager.CheckStatus(s.modelTask.ServiceID)
 		s.logger.Error("应用重启超时，请稍等并注意应用状态", map[string]string{"step": "callback", "status": "timeout"})
 		return
 	}
@@ -93,6 +95,7 @@ func (s *restartTask) RunError(e error) {
 	}
 	//设置应用状态为已关闭
 	s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, "closed")
+	s.taskManager.statusManager.CheckStatus(s.modelTask.ServiceID)
 	s.logger.Error("重启失败，请重试", map[string]string{"step": "callback", "status": "failure"})
 }
 

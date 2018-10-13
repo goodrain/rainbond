@@ -120,7 +120,6 @@ func (m *Manager) podSource(pods *v1.Pod, method core.EventMethod) {
 	if ppInfo == "" {
 		ppInfo = "1234_._ptth"
 	}
-	logrus.Debugf("pod port protocols %v", ppInfo)
 	mapPP := make(map[string]string)
 	infoList := strings.Split(ppInfo, "-.-")
 	if len(infoList) > 0 {
@@ -140,7 +139,6 @@ func (m *Manager) podSource(pods *v1.Pod, method core.EventMethod) {
 		Version:   pods.Labels["version"],
 		Namespace: pods.Namespace,
 	}
-	logrus.Debugf("In podSource Tenant name is %s", s.Tenant)
 	for _, statusInfo := range pods.Status.Conditions {
 		if statusInfo.Type == "Ready" && statusInfo.Status == "True" {
 			s.PodStatus = true
@@ -148,10 +146,8 @@ func (m *Manager) podSource(pods *v1.Pod, method core.EventMethod) {
 	}
 	if flagHost {
 		s.Host = pods.Status.HostIP
-		logrus.Debug("Net model is midonet.")
 	} else {
 		s.Host = pods.Status.PodIP
-		logrus.Debug("Net model is calico.")
 	}
 
 	for _, containersInfo := range pods.Spec.Containers {
@@ -163,7 +159,6 @@ func (m *Manager) podSource(pods *v1.Pod, method core.EventMethod) {
 			s.ContainerPort = portInfo.ContainerPort
 			s.Port = portInfo.ContainerPort
 			s.Note = mapPP[fmt.Sprintf("%d", s.Port)]
-			logrus.Debugf("note for poolname %s_%d is %s", s.Tenant, s.Port, s.Note)
 			switch method {
 			case core.ADDEventMethod:
 				m.addPodSource(s)
@@ -188,16 +183,15 @@ func (m *Manager) RcPool(s *config.SourceBranch) {
 		Name:           s.RePoolName(),
 		EventID:        s.EventID,
 	}
-	logrus.Debugf("Pool %s note is %s", poolobj.Name, poolobj.Note)
 	etPool := core.Event{
 		Method: s.Method,
 		Source: poolobj,
 	}
+	logrus.Debugf("%s a pool source %s", s.Method, poolobj.GetName())
 	m.CoreManager.EventChan() <- etPool
 }
 
 func (m *Manager) RcNode(s *config.SourceBranch) {
-	logrus.Debugf("%s readyCode is %v", s.ReNodeName(), s.PodStatus)
 	nodeobj := &object.NodeObject{
 		Namespace: s.Namespace,
 		Index:     s.Index,
@@ -210,11 +204,11 @@ func (m *Manager) RcNode(s *config.SourceBranch) {
 		Ready:     s.PodStatus,
 		EventID:   s.EventID,
 	}
-	logrus.Debugf("%s Node : %v ", s.Method, nodeobj)
 	etNode := core.Event{
 		Method: s.Method,
 		Source: nodeobj,
 	}
+	logrus.Debugf("%s a node source %s", s.Method, nodeobj.GetName())
 	m.CoreManager.EventChan() <- etNode
 }
 
@@ -233,13 +227,11 @@ func (m *Manager) RcVS(s *config.SourceBranch) {
 		DefaultPoolName: s.RePoolName(),
 		EventID:         s.EventID,
 	}
-	logrus.Debugf("in RcVS tenant name is %s", s.Tenant)
 	et := core.Event{
 		Method: s.Method,
 		Source: vsobj,
 	}
-	logrus.Debug("vsName is ", s.ReVSName())
-	logrus.Debug(s.Method, " vs source ", vsobj)
+	logrus.Debugf("%s a vs source %s", s.Method, vsobj.Name)
 	m.CoreManager.EventChan() <- et
 }
 
@@ -262,9 +254,7 @@ type ResponseType struct {
 
 func (m *Manager) getDomainInfo(s *config.SourceBranch) ([]model.Domain, error) {
 	domainURL := fmt.Sprintf(config.DomainAPIURI, m.LBAPIPort, s.Tenant, s.Service)
-	logrus.Debugf("In getDomainInfo tenant name is %s", s.Tenant)
 	var ldomain []model.Domain
-	logrus.Debug("get domain infos from lb url: ", domainURL)
 	client := &http.Client{}
 	request, err := http.NewRequest("GET", domainURL, nil)
 	if err != nil {
@@ -352,13 +342,11 @@ func (m *Manager) RcRule(s *config.SourceBranch) {
 			CertificateName: s.CertificateName,
 			EventID:         s.EventID,
 		}
-		logrus.Debugf("In RcRule tenant name is ", s.Tenant)
 		et := core.Event{
 			Method: s.Method,
 			Source: ruleobj,
 		}
-		logrus.Debug("ruleName is ", s.ReRuleName(domain))
-		logrus.Debug(s.Method, " rule source ", ruleobj)
+		logrus.Debugf("%s a rule source %s", s.Method, ruleobj.GetName())
 		m.CoreManager.EventChan() <- et
 	}
 }
@@ -392,14 +380,12 @@ func (m *Manager) RcDomain(s *config.SourceBranch) {
 			Method: s.Method,
 			Source: domainobj,
 		}
-		logrus.Debug("domainName is ", domain)
-		logrus.Debug(s.Method, " domain source ", domainobj)
 		m.CoreManager.EventChan() <- etDomain
 	}
 	//处理扩展域名
 	domainList, err := m.getDomainInfo(s)
 	if err != nil {
-		logrus.Debug("get domainlist err is ", err)
+		logrus.Debugf("get domainlist err is %s", err)
 	}
 	if domainList != nil && len(domainList) > 0 {
 		for _, domain := range domainList {
@@ -448,7 +434,6 @@ func (m *Manager) RcDomain(s *config.SourceBranch) {
 //TODO:
 // domain支持多个，即 domain字段可能传入多个域名
 func (m *Manager) serviceSource(services *v1.Service, method core.EventMethod) {
-	logrus.Debugf("In serviceSource service_type is %s", services.Labels["service_type"])
 	index, _ := strconv.ParseInt(services.ResourceVersion, 10, 64)
 	s := &config.SourceBranch{
 		Tenant:     services.Labels["tenant_name"],
@@ -461,11 +446,9 @@ func (m *Manager) serviceSource(services *v1.Service, method core.EventMethod) {
 		Method:     method,
 		OriginPort: services.Labels["origin_port"],
 	}
-	logrus.Debug("poolName is ", s.RePoolName())
 	// event domain
 	s.Domain = m.replaceDomain(s.Domain, s)
 	m.RcDomain(s)
-	logrus.Debugf("Fprotocol is %s", services.Labels["protocol"])
 	//TODO: "stream" to !http
 	if services.Labels["protocol"] != "http" && services.Labels["protocol"] != "https" {
 		// event vs
