@@ -36,6 +36,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	tsdbClient "github.com/bluebreezecf/opentsdb-goclient/client"
 	tsdbConfig "github.com/bluebreezecf/opentsdb-goclient/config"
+	"github.com/jinzhu/gorm"
+	dbModel "github.com/goodrain/rainbond/db/model"
 )
 
 //ConDB struct
@@ -66,6 +68,9 @@ func CreateDBManager(conf option.Config) error {
 		logrus.Errorf("get db manager failed,%s", err.Error())
 		return err
 	}
+	// api database initialization
+	dbInit()
+
 	logrus.Debugf("init db manager success")
 	return nil
 }
@@ -194,4 +199,81 @@ func BuildTaskBuild(t *BuildTaskStruct) (*pb.EnqueueRequest, error) {
 		User:       t.User,
 	}
 	return &er, nil
+}
+
+func GetBegin() *gorm.DB {
+	return db.GetManager().Begin()
+}
+
+func dbInit() {
+	logrus.Info("api database initialization starting...")
+	begin := GetBegin()
+	// Permissions set
+	var rac dbModel.RegionAPIClass
+	if err := begin.Where("class_level=? and prefix=?", "server_source", "/v2/show").Find(&rac).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			data := map[string]string{
+				"/v2/show":       "server_source",
+				"/v2/opentsdb":   "server_source",
+				"/v2/resources":  "server_source",
+				"/v2/builder":    "server_source",
+				"/v2/tenants":    "server_source",
+				"/v2/app":        "server_source",
+				"/api/v1":        "server_source",
+				"/v2/nodes":      "node_manager",
+				"/v2/job":        "node_manager",
+				"/v2/tasks":      "node_manager",
+				"/v2/taskgroups": "node_manager",
+				"/v2/tasktemps":  "node_manager",
+				"/v2/configs":    "node_manager",
+			}
+			tx := begin
+			var rollback bool
+			for k, v := range data {
+				if err := db.GetManager().RegionAPIClassDaoTransactions(tx).AddModel(&dbModel.RegionAPIClass{
+					ClassLevel: v,
+					Prefix:     k,
+				}); err != nil {
+					tx.Rollback()
+					rollback = true
+					break
+				}
+			}
+			if !rollback {
+				tx.Commit()
+			}
+		}
+	}
+
+	//Port Protocol support
+	var rps dbModel.RegionProcotols
+	if err := begin.Where("protocol_group=? and protocol_child=?", "http", "http").Find(&rps).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			data := map[string][]string{
+				"http":   []string{"http"},
+				"stream": []string{"mysql", "tcp", "udp"},
+			}
+			tx := begin
+			var rollback bool
+			for k, v := range data {
+				for _, v1 := range v {
+					if err := db.GetManager().RegionProcotolsDaoTransactions(tx).AddModel(&dbModel.RegionProcotols{
+						ProtocolGroup: k,
+						ProtocolChild: v1,
+						APIVersion:    "v2",
+						IsSupport:     true,
+					}); err != nil {
+						tx.Rollback()
+						rollback = true
+						break
+					}
+				}
+			}
+			if !rollback {
+				tx.Commit()
+			}
+		}
+	}
+
+	logrus.Info("api database initialization success!")
 }
