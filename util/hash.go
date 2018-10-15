@@ -88,3 +88,13 @@ func createSmallFileHash(sourceFile, hashfile *os.File) error {
 	}
 	return nil
 }
+
+//CreateHashString create hash string
+func CreateHashString(source string) (hashstr string, err error) {
+	md5h := md5.New()
+	_, err = md5h.Write([]byte(source))
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", md5h.Sum(nil)), nil
+}

@@ -18,11 +18,19 @@
 
 package object
 
+import (
+	"fmt"
+	"strings"
+
+	"github.com/goodrain/rainbond/util"
+)
+
 //Object source object
 type Object interface {
 	GetName() string
 	GetIndex() int64
 	GetEventID() string
+	GetHash() (string, error)
 }
 
 type PoolObject struct {
@@ -31,7 +39,6 @@ type PoolObject struct {
 	Index          int64
 	Name           string
 	Note           string //说明
-	NodeNumber     int
 	PluginName     string
 	PluginOpts     map[string]string
 	Namespace      string
@@ -46,6 +53,9 @@ func (p *PoolObject) GetIndex() int64 {
 }
 func (p *PoolObject) GetEventID() string {
 	return p.EventID
+}
+func (p *PoolObject) GetHash() (string, error) {
+	return util.CreateHashString(p.ServiceVersion + p.ServiceID + p.Name + p.Note + p.PluginName + p.Namespace)
 }
 
 type NodeObject struct {
@@ -73,6 +83,9 @@ func (p *NodeObject) GetIndex() int64 {
 func (p *NodeObject) GetEventID() string {
 	return p.EventID
 }
+func (p *NodeObject) GetHash() (string, error) {
+	return util.CreateHashString(p.Host + fmt.Sprintf("%d%t%d", p.Port, p.Ready, p.Weight) + p.Protocol + p.State + p.PoolName + p.NodeName + p.Namespace + p.PluginName)
+}
 
 type RuleObject struct {
 	Name            string //不重复的命名规则
@@ -94,9 +107,13 @@ func (p *RuleObject) GetName() string {
 func (p *RuleObject) GetIndex() int64 {
 	return p.Index
 }
+
+//GetEventID get eventid
 func (p *RuleObject) GetEventID() string {
 	return p.EventID
 }
+
+//Copy copy
 func (p *RuleObject) Copy() *RuleObject {
 	var r RuleObject
 	r.CertificateName = p.CertificateName
@@ -109,6 +126,11 @@ func (p *RuleObject) Copy() *RuleObject {
 	r.PluginOpts = p.PluginOpts
 	r.PoolName = p.PoolName
 	return &r
+}
+
+//GetHash get hash
+func (p *RuleObject) GetHash() (string, error) {
+	return util.CreateHashString(fmt.Sprintf("%t%t", p.HTTPS, p.TransferHTTP) + p.Name + p.DomainName + p.PoolName + p.CertificateName + p.Namespace + p.PluginName)
 }
 
 type Certificate struct {
@@ -133,6 +155,10 @@ func (p *Certificate) GetEventID() string {
 	return p.EventID
 }
 
+func (p *Certificate) GetHash() (string, error) {
+	return util.CreateHashString(p.Name + p.Certificate + p.PrivateKey + p.PluginName)
+}
+
 type DomainObject struct {
 	Name       string //不重复的命名 不同资源之间可以一样
 	Domain     string
@@ -151,6 +177,10 @@ func (p *DomainObject) GetIndex() int64 {
 }
 func (p *DomainObject) GetEventID() string {
 	return p.EventID
+}
+
+func (p *DomainObject) GetHash() (string, error) {
+	return util.CreateHashString(p.Name + p.Domain + p.Protocol + p.PluginName)
 }
 
 type VirtualServiceObject struct {
@@ -177,4 +207,7 @@ func (p *VirtualServiceObject) GetIndex() int64 {
 }
 func (p *VirtualServiceObject) GetEventID() string {
 	return p.EventID
+}
+func (p *VirtualServiceObject) GetHash() (string, error) {
+	return util.CreateHashString(p.Name + p.Protocol + p.PluginName + p.Note + p.DefaultPoolName + strings.Join(p.Rules, "") + fmt.Sprintf("%t%d", p.Enabled, p.Port) + strings.Join(p.Listening, "") + p.PluginName + p.Namespace)
 }

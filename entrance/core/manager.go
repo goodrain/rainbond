@@ -185,6 +185,27 @@ func (m *manager) add(source object.Object) {
 }
 
 func (m *manager) delete(source object.Object) {
+	switch source.(type) {
+	case *object.PoolObject:
+		pool := source.(*object.PoolObject)
+		plugin, err := m.getPlugin(pool.PluginName, pool.PluginOpts)
+		if err != nil {
+			logrus.Errorf("get default plugin error.%s pool don't add to lb", err.Error())
+			return
+		}
+		if plugin.GetName() == "zeus" {
+			//zeus do not handle pool delete
+			return
+		}
+		nodes, err := m.storeManager.GetNodeByPool(pool.GetName())
+		if err != nil {
+			logrus.Errorf("get node list by pool name(%s) error.%s,do not delete pool", pool.GetName(), err.Error())
+			return
+		}
+		if len(nodes) != 0 {
+			return
+		}
+	}
 	ok, err := m.storeManager.DeleteSource(source)
 	if err != nil {
 		logrus.Errorf("Update %s to store error.%s", source.GetName(), err.Error())

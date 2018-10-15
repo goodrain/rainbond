@@ -25,8 +25,6 @@ import (
 
 	"github.com/goodrain/rainbond/entrance/core"
 
-	"github.com/Sirupsen/logrus"
-
 	"k8s.io/client-go/pkg/api/v1"
 )
 
@@ -84,7 +82,6 @@ const (
 )
 
 func (s *SourceBranch) RePoolName() string {
-	logrus.Debugf("tenant name is %s, in RePoolName", s.Tenant)
 	return fmt.Sprintf("%s@%s_%d.Pool",
 		s.Tenant,
 		s.Service,
@@ -93,7 +90,6 @@ func (s *SourceBranch) RePoolName() string {
 }
 
 func (s *SourceBranch) ReVSName() string {
-	logrus.Debugf("tenant name is %s, in ReVSName", s.Tenant)
 	return fmt.Sprintf("%s_%s_%d.VS",
 		s.Tenant,
 		s.Service,
@@ -102,7 +98,6 @@ func (s *SourceBranch) ReVSName() string {
 }
 
 func (s *SourceBranch) ReNodeName() string {
-	logrus.Debugf("tenant name is %s, in ReNodeName", s.Tenant)
 	return fmt.Sprintf("%s_%d.Node",
 		s.PodName,
 		s.ContainerPort,
@@ -117,7 +112,6 @@ func sha8(s string) string {
 }
 
 func (s *SourceBranch) ReRuleName(domain string) string {
-	logrus.Debugf("tenant name is %s, in ReRuleName", s.Tenant)
 	return fmt.Sprintf("%s_%s_%d_%s.Rule",
 		s.Tenant,
 		s.Service,
@@ -127,7 +121,6 @@ func (s *SourceBranch) ReRuleName(domain string) string {
 }
 
 func (s *SourceBranch) ReServiceId() string {
-	logrus.Debugf("tenant name is %s, in ReServiceId", s.Tenant)
 	return fmt.Sprintf("%s.%s_%d",
 		s.Tenant,
 		s.Service,
