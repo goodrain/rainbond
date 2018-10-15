@@ -330,17 +330,14 @@ func (o *openresty) deleteUpstream(poolName string) error {
 		logrus.Error(fmt.Sprintf("Failed to get upstream name %s: %s", poolName, err))
 		return err
 	}
-
 	protocol := "tcp"
 	_, err = o.ctx.Store.GetVSByPoolName(poolName)
 	if err != nil {
 		protocol = "http"
 	}
-
 	if err := o.doEach(DELETE, o.urlPool(upstreamName), Options{protocol}); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -450,7 +447,6 @@ func (o *openresty) UpdateRule(rules ...*object.RuleObject) error {
 		// get cert key pair if https
 		if protocol == "https" {
 			port = o.defaultHttpsPort
-
 			pair, err := o.ctx.Store.GetCertificate(rule.CertificateName)
 			if err != nil {
 				logrus.Error("Failed to updata the rule: ", err.Error())
@@ -536,7 +532,10 @@ func (o *openresty) UpdateVirtualService(services ...*object.VirtualServiceObjec
 		if service.Protocol == "" {
 			service.Protocol = "tcp"
 		}
-
+		if service.Port == 0 {
+			logrus.Errorf("nginx server port can not be 0")
+			continue
+		}
 		openrestyRule := NginxServer{
 			Name:     service.Name,
 			Port:     service.Port,
@@ -562,20 +561,16 @@ func (o *openresty) UpdateVirtualService(services ...*object.VirtualServiceObjec
 func (o *openresty) DeleteVirtualService(services ...*object.VirtualServiceObject) error {
 	var errs []error
 	for _, service := range services {
-
 		if service.Protocol == "" {
 			service.Protocol = "tcp"
 		}
-
 		err := o.doEach(DELETE, o.urlServer(service.Name), Options{service.Protocol})
 		if err != nil {
 			errs = append(errs, err)
 			logrus.Error(err)
 			continue
 		}
-
 	}
-
 	return reduceErr(errs)
 }
 
