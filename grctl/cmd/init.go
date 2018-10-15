@@ -44,7 +44,7 @@ func NewCmdInit() cli.Command {
 			cli.StringFlag{
 				Name:  "role",
 				Usage: "node role: master,worker",
-				Value: "master",
+				Value: "master,worker",
 			},
 			cli.StringFlag{
 				Name:  "work_dir",
