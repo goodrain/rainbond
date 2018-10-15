@@ -431,28 +431,33 @@ func (m *Manager) update(key string, source object.Object, info *SourceInfo) (bo
 		return false, false, err
 	}
 	if info.Index < source.GetIndex() {
-		i.IsOnline = info.IsOnline
-		data, err := json.Marshal(i)
-		if err != nil {
-			return false, false, err
-		}
-		_, err = m.keysAPI.Update(m.ctx, key, string(data))
-		if err != nil {
-			return info.IsOnline, false, err
-		}
-		//判断是否是NODE资源，如果是当host:port没有变化且ready无变化时，操作权返回false
-		switch info.Data.(type) {
-		case *object.NodeObject:
-			node := info.Data.(*object.NodeObject)
-			newNode := source.(*object.NodeObject)
-			oldKey := fmt.Sprintf("%s:%d %v", node.Host, node.Port, node.Ready)
-			newKey := fmt.Sprintf("%s:%d %v", newNode.Host, newNode.Port, newNode.Ready)
-			logrus.Debugf("oldkey is %s, newkey is %s", oldKey, newKey)
-			if oldKey == newKey {
-				return info.IsOnline, false, nil
+		//add hash inspection,Remove duplicate update operations
+		infohash, errI := info.Data.GetHash()
+		sourcehash, errS := source.GetHash()
+		if infohash != sourcehash || errI != nil || errS != nil {
+			i.IsOnline = info.IsOnline
+			data, err := json.Marshal(i)
+			if err != nil {
+				return false, false, err
 			}
+			_, err = m.keysAPI.Update(m.ctx, key, string(data))
+			if err != nil {
+				return info.IsOnline, false, err
+			}
+			//判断是否是NODE资源，如果是当host:port没有变化且ready无变化时，操作权返回false
+			switch info.Data.(type) {
+			case *object.NodeObject:
+				node := info.Data.(*object.NodeObject)
+				newNode := source.(*object.NodeObject)
+				oldKey := fmt.Sprintf("%s:%d %v", node.Host, node.Port, node.Ready)
+				newKey := fmt.Sprintf("%s:%d %v", newNode.Host, newNode.Port, newNode.Ready)
+				logrus.Debugf("oldkey is %s, newkey is %s", oldKey, newKey)
+				if oldKey == newKey {
+					return info.IsOnline, false, nil
+				}
+			}
+			return info.IsOnline, true, nil
 		}
-		return info.IsOnline, true, nil
 	}
 	return info.IsOnline, false, nil
 }
