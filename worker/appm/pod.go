@@ -206,7 +206,7 @@ func (p *PodTemplateSpecBuild) Build(creatorID string) (*v1.PodTemplateSpec, err
 			outPorts, err = p.CreateUpstreamPluginMappingPort(outPorts, pluginPorts)
 		}
 		labels["service_type"] = "outer"
-		labels["protocols_number"] = string(len(outPorts))
+		labels["protocols_number"] = fmt.Sprintf("%d", len(outPorts))
 		for i, p := range outPorts {
 			key := fmt.Sprintf("%s_%d", "protocol", i)
 			labels[key] = fmt.Sprintf("%d_._%s", p.ContainerPort, p.Protocol)
