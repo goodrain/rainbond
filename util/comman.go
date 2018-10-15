@@ -570,34 +570,29 @@ func Unzip(archive, target string) error {
 func CopyFile(source, target string) error {
 	sfi, err := os.Stat(source)
 	if err != nil {
-		fmt.Println("===err1", err)
 		return err
 	}
 	elem := reflect.ValueOf(sfi.Sys()).Elem()
 	uid := elem.FieldByName("Uid").Uint()
 	gid := elem.FieldByName("Gid").Uint()
-	fmt.Println("file %s uid %d gid %s", source, uid, gid)
+	logrus.Debugf("file %s uid %d gid %s", source, uid, gid)
 
 	sf, err := directio.OpenFile(source, os.O_RDONLY, 0)
 	if err != nil {
-		fmt.Println("===err2", err)
 		return err
 	}
 	defer sf.Close()
 	tf, err := directio.OpenFile(target, os.O_RDONLY|os.O_CREATE|os.O_WRONLY, sfi.Mode())
 	if err != nil {
-		fmt.Println("===err3", err)
 		return err
 	}
 	defer tf.Close()
 	_, err = io.Copy(tf, sf)
 	if err != nil {
-		fmt.Println("===err4", err)
 		return err
 	}
 
 	if err := os.Chown(target, int(uid), int(gid)); err != nil {
-		fmt.Println("===err5", err)
 		return err
 	}
 
