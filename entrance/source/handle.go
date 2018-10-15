@@ -69,7 +69,7 @@ func (m *Manager) addPodSource(s *config.SourceBranch) {
 	} else {
 		s.NodePort = s.ContainerPort
 	}
-	// event pool
+	// event pool first
 	m.RcPool(s)
 	// event node
 	m.RcNode(s)
@@ -101,10 +101,17 @@ func (m *Manager) deletePodSource(s *config.SourceBranch) {
 	if !s.IsMidonet {
 		s.NodePort = s.ContainerPort
 	}
+	// event node first
 	m.RcNode(s)
+	// event pool
+	m.RcPool(s)
 }
 
 func (m *Manager) podSource(pods *v1.Pod, method core.EventMethod) {
+	//if pod do not have ip and method is update,ignore it
+	if pods.Status.PodIP == "" && method == core.UPDATEEventMethod {
+		return
+	}
 	index, _ := strconv.ParseInt(pods.ResourceVersion, 10, 64)
 	var flagHost bool
 	for _, envs := range pods.Spec.Containers[0].Env {

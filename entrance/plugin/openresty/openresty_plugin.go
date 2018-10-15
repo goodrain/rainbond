@@ -62,7 +62,7 @@ type openresty struct {
 var defaultNodeList = []NginxNode{
 	{
 		"Active",
-		"127.0.0.1:404",
+		"127.0.0.1:10004",
 		1,
 	}}
 
@@ -204,14 +204,12 @@ func (o *openresty) AddPool(originalPools ...*object.PoolObject) error {
 // nginx默认会试图将所有请求根据请求头中的host字段转发到名字与该host字段值相同的upstream
 func (o *openresty) UpdatePool(pools ...*object.PoolObject) error {
 	var errs []error
-
 	for _, originalPool := range pools {
 		upstreamName, err := getUpstreamNameByPool(originalPool.Name)
 		if err != nil {
 			logrus.Error(fmt.Sprintf("Failed to update pool %s: %s", originalPool.Name, err))
 			continue
 		}
-
 		// get nodes from store, for example etcd.
 		originalNodes, err := o.ctx.Store.GetNodeByPool(originalPool.Name)
 		if err != nil {
@@ -219,19 +217,11 @@ func (o *openresty) UpdatePool(pools ...*object.PoolObject) error {
 			errs = append(errs, err)
 			continue
 		}
-
-		if len(originalNodes) < 1 {
-			logrus.Info("Delete the pool, because no servers are inside the pool ", originalPool.Name)
-			o.deleteUpstream(originalPool.Name)
-			continue
-		}
-
 		protocol := "tcp"
 		_, err = o.ctx.Store.GetVSByPoolName(originalPool.Name)
 		if err != nil {
 			protocol = "http"
 		}
-
 		// build pool for openresty by original nodes
 		pool := NginxUpstream{upstreamName, []NginxNode{}, protocol}
 		for _, originalNode := range originalNodes {
@@ -239,13 +229,11 @@ func (o *openresty) UpdatePool(pools ...*object.PoolObject) error {
 			if state == "" {
 				state = "Active"
 			}
-
 			addr := fmt.Sprintf("%s:%d", originalNode.Host, originalNode.Port)
 			if len(originalNode.Host) < 7 || originalNode.Port < 1 {
 				logrus.Info(fmt.Sprintf("Ignore node in pool %s, illegal address [%s]", pool.Name, addr))
 				continue
 			}
-
 			weight := originalNode.Weight
 			if weight < 1 {
 				weight = 1
@@ -259,13 +247,11 @@ func (o *openresty) UpdatePool(pools ...*object.PoolObject) error {
 		}
 
 		if len(pool.Servers) < 1 {
-			logrus.Info("Ignore update the pool, because no servers are inside the pool ", pool.Name)
-			continue
+			logrus.Warningf("nginx upstream %s not have server,will use default server", pool.Name)
+			pool.Servers = defaultNodeList
 		}
-
 		// push data to all openresty instance by rest api
 		err = o.doEach(UPDATE, o.urlPool(pool.Name), pool)
-
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -278,16 +264,14 @@ func (o *openresty) UpdatePool(pools ...*object.PoolObject) error {
 
 func (o *openresty) DeletePool(pools ...*object.PoolObject) error {
 	var errs []error
-
 	for _, pool := range pools {
 		err := o.deleteUpstream(pool.Name)
 		if err != nil {
 			errs = append(errs, err)
-			logrus.Error(err)
+			logrus.Errorf("delete nginx upstream %s error %s", pool.Name, err.Error())
 			continue
 		}
 	}
-
 	return reduceErr(errs)
 }
 
@@ -302,17 +286,14 @@ func (o *openresty) AddNode(nodes ...*object.NodeObject) error {
 // 将node根据所属pool分类，根据每个pool名字取出该pool下所有node，然后全量更新
 func (o *openresty) UpdateNode(nodes ...*object.NodeObject) error {
 	poolNames := make(map[string]string, 0)
-
 	for _, node := range nodes {
 		poolNames[node.PoolName] = node.NodeName
 	}
-
 	pools, err := o.ctx.Store.GetPools(poolNames)
 	if err != nil {
 		logrus.Error(err)
 		return err
 	}
-
 	return o.UpdatePool(pools...)
 }
 
@@ -490,9 +471,7 @@ func (o *openresty) DeleteRule(rules ...*object.RuleObject) error {
 		if rule.HTTPS {
 			protocol = "https"
 		}
-
 		err := o.doEach(DELETE, o.urlServer(rule.Name), Options{protocol})
-
 		if err != nil {
 			errs = append(errs, err)
 			logrus.Error(err)
