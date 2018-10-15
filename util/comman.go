@@ -36,8 +36,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ncw/directio"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util/zip"
 )
@@ -443,7 +441,7 @@ func Zip(source, target string) error {
 	if err := CheckAndCreateDir(filepath.Dir(target)); err != nil {
 		return err
 	}
-	zipfile, err := directio.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+	zipfile, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return err
 	}
@@ -491,7 +489,7 @@ func Zip(source, target string) error {
 		if info.IsDir() {
 			return nil
 		}
-		file, err := directio.OpenFile(path, os.O_RDONLY, 0)
+		file, err := os.OpenFile(path, os.O_RDONLY, 0)
 		if err != nil {
 			return err
 		}
@@ -535,7 +533,7 @@ func Unzip(archive, target string) error {
 				return err
 			}
 			defer fileReader.Close()
-			targetFile, err := directio.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+			targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
 			if err != nil {
 				return err
 			}
@@ -575,12 +573,12 @@ func CopyFile(source, target string) error {
 	elem := reflect.ValueOf(sfi.Sys()).Elem()
 	uid := elem.FieldByName("Uid").Uint()
 	gid := elem.FieldByName("Gid").Uint()
-	sf, err := directio.OpenFile(source, os.O_RDONLY, 0)
+	sf, err := os.OpenFile(source, os.O_RDONLY, 0)
 	if err != nil {
 		return err
 	}
 	defer sf.Close()
-	tf, err := directio.OpenFile(target, os.O_RDONLY|os.O_CREATE|os.O_WRONLY, sfi.Mode())
+	tf, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, sfi.Mode())
 	if err != nil {
 		return err
 	}
