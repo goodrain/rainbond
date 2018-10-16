@@ -207,7 +207,7 @@ func (i *ImportApp) importApp() error {
 					info := strings.Split(shareSlugPath, "/")
 					shareSlugPath = fmt.Sprintf("%s/%s", i.ServiceSlug.NameSpace, strings.Join(info[1:], "/"))
 				}
-				return shareSlugPath
+				return strings.Replace(shareSlugPath, "//", "/", -1)
 			}
 
 			if oldimage, ok := app.CheckGet("share_image"); ok {
@@ -469,7 +469,10 @@ func (i *ImportApp) loadApps() error {
 					return err
 				}
 			} else {
-				os.MkdirAll(filepath.Base(shareSlugPath), 0755)
+				if err := util.CheckAndCreateDir(filepath.Dir(shareSlugPath)); err != nil {
+					logrus.Error("Failed create slug file directory %s error %s ", filepath.Dir(shareSlugPath), err.Error())
+					return err
+				}
 				err := util.CopyFile(fileName, shareSlugPath)
 				if err != nil {
 					logrus.Error("Failed to copy slug file to local directory: ", shareSlugPath)
