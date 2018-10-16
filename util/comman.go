@@ -573,13 +573,7 @@ func CopyFile(source, target string) error {
 	elem := reflect.ValueOf(sfi.Sys()).Elem()
 	uid := elem.FieldByName("Uid").Uint()
 	gid := elem.FieldByName("Gid").Uint()
-<<<<<<< HEAD
 	sf, err := os.OpenFile(source, os.O_RDONLY, 0)
-=======
-	logrus.Debugf("file %s uid %d gid %s", source, uid, gid)
-
-	sf, err := directio.OpenFile(source, os.O_RDONLY, 0)
->>>>>>> b396ca223cdbf59748e728a4699a3528510fda87
 	if err != nil {
 		return err
 	}
