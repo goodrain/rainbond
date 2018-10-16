@@ -123,18 +123,32 @@ func (m *Manager) podSource(pods *v1.Pod, method core.EventMethod) {
 			continue
 		}
 	}
-	ppInfo := pods.Labels["protocols"]
-	if ppInfo == "" {
-		ppInfo = "1234_._ptth"
-	}
 	mapPP := make(map[string]string)
-	infoList := strings.Split(ppInfo, "-.-")
-	if len(infoList) > 0 {
-		for _, pps := range infoList {
-			portInfo := strings.Split(pps, "_._")
+	ppInfo, ok := pods.Labels["protocols"]
+	if ok {
+		if ppInfo == "" {
+			ppInfo = "1234_._ptth"
+		}
+		infoList := strings.Split(ppInfo, "-.-")
+		if len(infoList) > 0 {
+			for _, pps := range infoList {
+				portInfo := strings.Split(pps, "_._")
+				mapPP[portInfo[0]] = portInfo[1]
+			}
+		}
+	} else {
+		protocolsNumber := pods.Labels["protocols_number"]
+		number, err := strconv.Atoi(protocolsNumber);
+		if err != nil {
+			logrus.Errorf("ports number converted to int failed：", err.Error())
+		}
+		for i := 0; i < number; i++ {
+			protocol := pods.Labels[fmt.Sprintf("%s_%d", "protocol", i)]
+			portInfo := strings.Split(protocol,"_._")
 			mapPP[portInfo[0]] = portInfo[1]
 		}
 	}
+
 	//protocols: 5000_._http-.-8080_._stream
 	s := &config.SourceBranch{
 		Tenant:    pods.Labels["tenant_name"],
