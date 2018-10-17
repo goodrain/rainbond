@@ -69,7 +69,7 @@ func readOS() map[string]string {
 }
 
 func getMemory() (total uint64, free uint64) {
-	sysInfo := syscall.Sysinfo_t{}
+	sysInfo := new(syscall.Sysinfo_t)
 	err := syscall.Sysinfo(sysInfo)
 	if err == nil {
 		return uint64(sysInfo.Totalram) * uint64(sysInfo.Unit), sysInfo.Freeram * uint64(syscall.Getpagesize())
