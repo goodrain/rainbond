@@ -45,6 +45,7 @@ func GetSystemInfo() (info client.NodeSystemInfo) {
 	}
 	info.OperatingSystem = runtime.GOOS
 	info.MemorySize, _ = getMemory()
+	info.NumCPU = int64(runtime.NumCPU())
 	return info
 }
 
