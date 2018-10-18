@@ -89,7 +89,6 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	if csi.Branch == "" {
 		csi.Branch = "master"
 	}
-	csi.InitServerType()
 	if csi.RepositoryURL == "" {
 		d.logger.Error("Git项目仓库地址不能为空", map[string]string{"step": "parse"})
 		d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", SolveAdvice("modify_url", "请确认并修改仓库地址")))

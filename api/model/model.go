@@ -701,7 +701,11 @@ type BuildServiceStruct struct {
 		// 操作人员
 		// in: body
 		// required: false
-		Lang         string `json:"lang" validate:"lang"`
+		Lang string `json:"lang" validate:"lang"`
+		// 代码服务器类型
+		// in: body
+		// required: false
+		ServerType   string `json:"server_type" validate:"server_type"`
 		Runtime      string `json:"runtime" validate:"runtime"`
 		ServiceType  string `json:"service_type" validate:"service_type"`
 		User         string `json:"user" validate:"user"`
@@ -709,7 +713,7 @@ type BuildServiceStruct struct {
 		Operator     string `json:"operator" validate:"operator"`
 		TenantName   string `json:"tenant_name"`
 		ServiceAlias string `json:"service_alias"`
-		Cmd 		 string `json:"cmd"`
+		Cmd          string `json:"cmd"`
 		//用于云市代码包创建
 		SlugInfo struct {
 			SlugPath    string `json:"slug_path"`
