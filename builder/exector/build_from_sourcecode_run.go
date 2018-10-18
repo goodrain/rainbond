@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/util"
@@ -82,7 +83,7 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	csi := sources.CodeSourceInfo{
-		ServerType:    gjson.GetBytes(in, "server_type").String(),
+		ServerType:    strings.Replace(gjson.GetBytes(in, "server_type").String(), " ", "", -1),
 		RepositoryURL: gjson.GetBytes(in, "repo_url").String(),
 		Branch:        gjson.GetBytes(in, "branch").String(),
 		User:          gjson.GetBytes(in, "user").String(),
@@ -113,7 +114,6 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 	scb.CacheDir = fmt.Sprintf("/cache/build/%s/cache/%s", scb.TenantID, scb.ServiceID)
 	//scb.SourceDir = scb.CodeSouceInfo.GetCodeSourceDir()
 	scb.TGZDir = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s", scb.TenantID, scb.ServiceID)
-	scb.CodeSouceInfo.InitServerType()
 	return scb
 }
 

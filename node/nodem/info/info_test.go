@@ -21,5 +21,5 @@ package info
 import "testing"
 
 func TestGetSysteminfo(t *testing.T) {
-	t.Log(getSystemInfo())
+	t.Log(GetSystemInfo())
 }
