@@ -391,10 +391,10 @@ func (e *exectorManager) Stop() error {
 		if len(e.tasks) == 0 {
 			break
 		}
-		timer.Reset(time.Second * 2)
 		select {
 		case <-timer.C:
 			i ++
+			timer.Reset(time.Second * 2)
 		}
 	}
 	logrus.Info("All threads is exited.")
