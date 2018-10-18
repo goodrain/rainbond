@@ -22,12 +22,11 @@ import (
 	"github.com/goodrain/rainbond/worker/executor/task"
 	"fmt"
 	"runtime/debug"
-	"sync"
 )
 
 //Worker 工作器
 type Worker interface {
-	Start(wg sync.WaitGroup)
+	Start()
 	Cancel() error
 	RollBack() error
 	Status() string
@@ -49,8 +48,10 @@ func newWorker(manager *manager, task task.Task) Worker {
 	return w
 }
 
-func (w *woker) Start(wg sync.WaitGroup) {
-	defer wg.Done()
+func (w *woker) Start() {
+	defer func() {
+		w.manager.removeWorker(w.task.TaskID(), w.task.Logger().Event())
+	}()
 	defer func() {
 		if err := recover(); err != nil {
 			w.task.RunError(fmt.Errorf("worker recover %v", err))

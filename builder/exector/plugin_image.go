@@ -33,11 +33,12 @@ import (
 	"github.com/goodrain/rainbond/builder/model"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 )
 
-func (e *exectorManager) pluginImageBuild(in []byte) {
+func (e *exectorManager) pluginImageBuild(task *pb.TaskMessage) {
 	var tb model.BuildPluginTaskBody
-	if err := ffjson.Unmarshal(in, &tb); err != nil {
+	if err := ffjson.Unmarshal(task.TaskBody, &tb); err != nil {
 		logrus.Errorf("unmarshal taskbody error, %v", err)
 		return
 	}
@@ -46,6 +47,7 @@ func (e *exectorManager) pluginImageBuild(in []byte) {
 	logger.Info("从镜像构建插件任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	go func() {
 		logrus.Info("start exec build plugin from image worker")
+		defer e.removeTask(task)
 		defer event.GetManager().ReleaseLogger(logger)
 		for retry := 0; retry < 2; retry++ {
 			err := e.run(&tb, logger)

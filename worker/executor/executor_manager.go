@@ -28,6 +28,7 @@ import (
 	"github.com/goodrain/rainbond/worker/executor/task"
 
 	"github.com/Sirupsen/logrus"
+	"time"
 )
 
 //Manager Manager
@@ -49,7 +50,6 @@ type manager struct {
 	workerLock    sync.RWMutex
 	taskManager   *task.TaskManager
 	statusManager *status.AppRuntimeSyncClient
-	wg            sync.WaitGroup
 }
 
 //NewManager newManager
@@ -68,11 +68,27 @@ func (m *manager) Start() {
 func (m *manager) Stop() {
 	m.workerLock.Lock()
 	defer m.workerLock.Unlock()
+	i := 0
 	for _, w := range m.workers {
 		w.Cancel()
 	}
+	timer := time.NewTimer(time.Second * 2)
+	defer timer.Stop()
+	for {
+		if i >= 15{
+			logrus.Errorf("There are %d tasks not completed", len(m.workers))
+			return
+		}
+		if len(m.workers) == 0{
+			break
+		}
+		select {
+		case <-timer.C:
+			i ++
+			timer.Reset(time.Second * 2)
+		}
+	}
 	logrus.Info("Waiting for all threads to complete.")
-	m.wg.Wait()
 	logrus.Info("All threads is exited.")
 }
 
@@ -96,8 +112,7 @@ func (m *manager) AddTask(t task.Task) error {
 		return fmt.Errorf("worker %s:%s is exist ", t.TaskID(), t.Logger().Event())
 	}
 	worker := newWorker(m, t)
-	m.wg.Add(1)
-	go worker.Start(m.wg)
+	go worker.Start()
 	m.workers[workerKey{t.TaskID(), t.Logger().Event()}] = worker
 	return nil
 }
