@@ -38,7 +38,6 @@ import (
 	tsdbConfig "github.com/bluebreezecf/opentsdb-goclient/config"
 	"github.com/jinzhu/gorm"
 	dbModel "github.com/goodrain/rainbond/db/model"
-	"fmt"
 )
 
 //ConDB struct
@@ -242,8 +241,8 @@ func dbInit() error {
 			if !rollback {
 				tx.Commit()
 			}
-		}else {
-			return fmt.Errorf("Initialization not completed ")
+		} else {
+			return err
 		}
 	}
 
@@ -274,28 +273,28 @@ func dbInit() error {
 			if !rollback {
 				tx.Commit()
 			}
-		}else {
-			return fmt.Errorf("Initialization not completed ")
+		} else {
+			return err
 		}
 	}
 
-	logrus.Info("api database initialization success!")
 	return nil
 }
 
-func dataInitialization()  {
-	timer:=time.NewTimer(time.Second * 2)
+func dataInitialization() {
+	timer := time.NewTimer(time.Second * 2)
 	defer timer.Stop()
 	for {
 		err := dbInit()
-		if err == nil {
-			logrus.Debugf("init db manager success")
+		if err != nil {
+			logrus.Error("Initializing database failed, ", err)
+		}else {
+			logrus.Info("api database initialization success!")
 			return
 		}
-		logrus.Errorf("Initializing database failed, retrying...")
 		select {
 		case <-timer.C:
-			timer.Reset(time.Second*2)
+			timer.Reset(time.Second * 2)
 		}
 	}
 }
