@@ -100,6 +100,9 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/groupapp/backups/{backup_id}/restore", controller.Restore)
 	r.Get("/groupapp/backups/{backup_id}/restore/{restore_id}", controller.RestoreResult)
 	r.Post("/deployversions", controller.GetManager().GetManyDeployVersion)
+	//团队资源限制
+	r.Post("/limit_memory", controller.GetManager().LimitTenantMemory)
+	r.Get("/limit_memory", controller.GetManager().TenantResourcesStatus)
 	return r
 }
 
