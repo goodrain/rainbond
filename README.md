@@ -8,45 +8,53 @@
 
 [Website](http://www.rainbond.com) • [Docs](https://www.rainbond.com/docs/stable/) • [Public Cloud](https://console.goodrain.com) • [中文 README](https://github.com/goodrain/rainbond/blob/master/readme_zh.md)
 
-**Rainbond** is an application-centric Platform as a Service, with innovative concept and complete ecological comes from continuous verification and optimization.
-
-By integrating best practices of Kubernetes based containers management, Service Mesh microservice architecture, CI/CD and multiple data center resource management, Rainbond provides full life-cycle management of cloud native applications, connects application and infrastructure, application and application, infrastructure and infrastructure.
-
-Choose Rainbond for the same reasons disruptive companies do: it serve as a easy-to-use cloud native application delivery platform that offers agile development, efficient operation and lean management experience.
+Rainbond is an application-centric open source PaaS. Integrates Kubernetes container management, Service Mesh microservices architecture best practices, multi-type CI/CD application building and delivering, multi-data-center resource management, Rainbond provides cloud native application  full-lifecycle solution, and build ecosystem of application and infrastructure, application and application, infrastructure and infrastructure, to meet the agile development, efficient operations and lean management needs of business.
 
 ## Features
 
-- Kubernetes scheduling system intergated
-- Application-centric product definition
-- As the basic system to build the cloud native datacenter
-- Supports multiple microservice architecture (Spring Cloud, Dubbo and api gateway)
-- Native microservice governance (service discovery, dynamic routing, limiting and fuse) based on extendable Service Mesh
-- Business-level application performance analysis supports multiple types protocols (HTTP, Mysql, PostgreSQL)
-- Build applications from source codeS (Java, PHP, Python, Golang, Ruby, etc.)
-- Continuous build and deployment from private and public git repositories
-- Quick application build with container image, docker-run command and docker-compose
-- Support application group full backup and recovery, migration of application groups across tenants or across data centers.
-- Pluggable data center supports various types of load balancing, SDN networks, various types of storage systems development
-- Application plug-in system support, flexible extension of application ancillary functions, such as log processing, firewall, traffic analysis, etc
-- Public and private application market with complete application sharing mechanism
-- Multiple data center and across data center application deployment
-- The management node (platform service) HA available.
-- Cluster automatic operation and maintenance, monitoring multidimensional indicators.
-- Provide complete business solution cloud delivery process.
+#### Application management
+
+- application level orchestration (for complete business system)
+- integrates Kubernetes's service component level orchestration and scheduling (service discovery, dynamic routing, limiting and fuse etc.)
+- provides cloud native microservices governance based on extendable service mesh grid system
+- supports multiple microservices architecture (SpringCLoud, Dubbo, API-Gateway)
+- supports multiple types of service-level application performance analysis
+- supports for building services based on source code (Java, PHP, Python, Golang, Ruby etc.)
+- supports for continuous building and deployment based on public/private Git, SVN code repositories, image repositories and third-party CI system.
+- supports for building application based on docker image, docker run command and dockercompose
+- supports application level full backup and recovery, migrating application between tenants and data centers.
+- Service plug-in system supports flexible extension of application functions and features, such as log, firewall and traffic anaylsis.
+- supports for public/private application market with complete application delivery system.
+
+#### Resource/cloud management
+
+- basic system of cloud-native data center
+- supports plug-in deployment of different service gateway (openresty, F5 etc.), SDN network (midonet, calico etc.) and distributed storage systems (GlusterFS, Ali-NAS, Ceph etc.)
+- supports multi-data-center or cluster management and application orchestration
+- supports for platform high-availability
+- cluster management, operation and maintenance automation
+- automatic monitoring of node's physical hardware and system, and system indicators
+- automatic monitoring of service instances container metrics
 
 ## Quick Start
 
-1.  [Install Rainbond](https://www.rainbond.com/docs/stable/getting-started/before-installation.html)
-2.  [Create First Application](https://www.rainbond.com/docs/stable/user-manual/create-an-app.html)
+1.  [Install Rainbond](https://www.rainbond.com/docs/stable/getting-started/installation-guide.html)
+2.  [Create First Application Service](https://www.rainbond.com/docs/stable/user-manual/create-an-app.html)
 3.  [Build Microservice Architecture](https://www.rainbond.com/docs/stable/microservice/service-mesh/use-case.html)
+
+## Community
+
+[Rainbond Community](https://t.goodrain.com)
+[Rainbond Web](https://www.rainbond.com)
+
+## Roadmap
+
+Read the [Roadmap](http://www.rainbond.com/docs/stable/architecture/roadmap.html).
 
 ## Architecture
 
 <img src="https://static.goodrain.com/images/docs/3.6/architecture/architecture.png" href="http://www.rainbond.com/docs/stable/architecture/architecture.html">
 
-## Roadmap
-
-Read the [Roadmap](http://www.rainbond.com/docs/stable/architecture/roadmap.html).
 
 ## Console UI show
 
@@ -62,11 +70,6 @@ Read the [Roadmap](http://www.rainbond.com/docs/stable/architecture/roadmap.html
 
 You can participate in the contributions of platforms, applications, and plugins within the Rainbond community.
 [Rainbond Contributor community](https://t.goodrain.com/c/contribution)
-
-## Community
-
-[Rainbond Community](https://t.goodrain.com)
-[Rainbond Web](https://www.rainbond.com)
 
 ## License
 
