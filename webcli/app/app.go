@@ -209,7 +209,7 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 	ptyIo, err := pty.Start(cmd)
 	if err != nil {
 		logrus.Printf("Failed to execute command:%s", err.Error())
-		ExecuteCommandTotal++
+		ExecuteCommandFailed++
 		return
 	}
 	logrus.Printf("Command is running for client %s with PID %d ", r.RemoteAddr, cmd.Process.Pid)

@@ -40,6 +40,8 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
 	"github.com/thedevsaddam/govalidator"
+	"io/ioutil"
+	"github.com/pquerna/ffjson/ffjson"
 )
 
 //TIMELAYOUT timelayout
@@ -862,4 +864,89 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 	logger.Info("应用回滚任务发送成功 ", map[string]string{"step": "rollback-service", "status": "starting"})
 	httputil.ReturnSuccess(r, w, sEvent)
 	return
+}
+
+
+type limitMemory struct {
+	LimitMemory int `json:"limit_memory"`
+}
+
+func (t *TenantStruct) LimitTenantMemory(w http.ResponseWriter, r *http.Request) {
+
+	var lm limitMemory
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	err = ffjson.Unmarshal(body, &lm)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, err.Error())
+		return
+	}
+	tenant.LimitMemory = lm.LimitMemory
+	if err := db.GetManager().TenantDao().UpdateModel(tenant); err != nil {
+		httputil.ReturnError(r, w, 500, err.Error())
+	}
+	httputil.ReturnSuccess(r, w, "success!")
+
+}
+
+type SourcesInfo struct {
+	TenantId        string `json:"tenant_id"`
+	AvailableMemory int    `json:"available_memory"`
+	Status          bool   `json:"status"`
+}
+
+func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Request) {
+
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, err.Error())
+		return
+	}
+	//11ms
+	services, err := handler.GetServiceManager().GetService(tenant.UUID)
+	if err != nil {
+		msg := httputil.ResponseBody{
+			Msg: fmt.Sprintf("get service error, %v", err),
+		}
+		httputil.Return(r, w, 500, msg)
+		return
+	}
+
+	statsInfo, _ := handler.GetTenantManager().StatsMemCPU(services)
+
+	if tenant.LimitMemory == 0 {
+		sourcesInfo := SourcesInfo{
+			TenantId:        tenantID,
+			AvailableMemory: 0,
+			Status:          true,
+		}
+		httputil.ReturnSuccess(r, w, sourcesInfo)
+		return
+	}
+	if statsInfo.MEM >= tenant.LimitMemory {
+		sourcesInfo := SourcesInfo{
+			TenantId:        tenantID,
+			AvailableMemory: tenant.LimitMemory - statsInfo.MEM,
+			Status:          false,
+		}
+		httputil.ReturnSuccess(r, w, sourcesInfo)
+	} else {
+		sourcesInfo := SourcesInfo{
+			TenantId:        tenantID,
+			AvailableMemory: tenant.LimitMemory - statsInfo.MEM,
+			Status:          true,
+		}
+		httputil.ReturnSuccess(r, w, sourcesInfo)
+	}
 }

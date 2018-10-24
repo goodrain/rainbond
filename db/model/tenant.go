@@ -51,6 +51,7 @@ type Tenants struct {
 	Name string `gorm:"column:name;size:40;unique_index"`
 	UUID string `gorm:"column:uuid;size:33;unique_index"`
 	EID  string `gorm:"column:eid"`
+	LimitMemory int    `gorm:"column:limit_memory"`
 }
 
 //TableName 返回租户表名称

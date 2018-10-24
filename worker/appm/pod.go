@@ -206,14 +206,11 @@ func (p *PodTemplateSpecBuild) Build(creatorID string) (*v1.PodTemplateSpec, err
 			outPorts, err = p.CreateUpstreamPluginMappingPort(outPorts, pluginPorts)
 		}
 		labels["service_type"] = "outer"
-		var pStr string
-		for _, p := range outPorts {
-			if pStr != "" {
-				pStr += "-.-"
-			}
-			pStr += fmt.Sprintf("%d_._%s", p.ContainerPort, p.Protocol)
+		labels["protocols_number"] = fmt.Sprintf("%d", len(outPorts))
+		for i, p := range outPorts {
+			key := fmt.Sprintf("%s_%d", "protocol", i)
+			labels[key] = fmt.Sprintf("%d_._%s", p.ContainerPort, p.Protocol)
 		}
-		labels["protocols"] = pStr
 	}
 	//step7: set hostname
 	if p.hostName != "" {

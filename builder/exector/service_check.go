@@ -28,6 +28,7 @@ import (
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/event"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 )
 
 //ServiceCheckInput 任务输入数据
@@ -76,17 +77,18 @@ func CreateResult(ErrorInfos parser.ParseErrorList, ServiceInfo []parser.Service
 }
 
 //serviceCheck 应用创建源检测
-func (e *exectorManager) serviceCheck(in []byte) {
+func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 	//step1 判断应用源类型
 	//step2 获取应用源介质，镜像Or源码
 	//step3 解析判断应用源规范
 	//完成
 	var input ServiceCheckInput
-	if err := ffjson.Unmarshal(in, &input); err != nil {
+	if err := ffjson.Unmarshal(task.TaskBody, &input); err != nil {
 		logrus.Error("Unmarshal service check input data error.", err.Error())
 		return
 	}
 	logger := event.GetManager().GetLogger(input.EventID)
+	defer e.removeTask(task)
 	defer event.GetManager().ReleaseLogger(logger)
 	defer func() {
 		if r := recover(); r != nil {

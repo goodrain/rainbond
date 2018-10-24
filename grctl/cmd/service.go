@@ -198,7 +198,7 @@ func getEventLog(c *cli.Context) error {
 		}
 	} else {
 		logdb := &eventdb.EventFilePlugin{
-			HomePath: "/grdata/logs/",
+			HomePath: "/grdata/downloads/log/",
 		}
 		list, err := logdb.GetMessages(eventID, "debug")
 		if err != nil {

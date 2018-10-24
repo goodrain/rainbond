@@ -41,6 +41,7 @@ type stopTask struct {
 func (s *stopTask) RunSuccess() {
 	//设置应用状态为已关闭
 	s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, status.CLOSED)
+	s.taskManager.statusManager.CheckStatus(s.modelTask.ServiceID)
 	s.logger.Info("应用关闭任务完成", map[string]string{"step": "last", "status": "success"})
 }
 
@@ -50,8 +51,8 @@ func (s *stopTask) RunError(e error) {
 		//TODO:
 		//应用关闭超时，怎么处理？
 		//超时说明部署信息已删除，设置应用状态为已关闭
-		s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, status.CLOSED)
-		return
+		// s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, status.CLOSED)
+		// return
 	}
 	// if e == appm.ErrNotDeploy {
 	// 	return

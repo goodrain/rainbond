@@ -28,8 +28,6 @@ import (
 	"io"
 	"os"
 	"time"
-
-	"github.com/ncw/directio"
 )
 
 var (
@@ -84,7 +82,7 @@ func OpenReader(name string) (*ReadCloser, error) {
 
 // OpenDirectReader will open the Zip file specified by name and return a ReadCloser.
 func OpenDirectReader(name string) (*ReadCloser, error) {
-	f, err := directio.OpenFile(name, os.O_RDONLY, 0)
+	f, err := os.OpenFile(name, os.O_RDONLY, 0)
 	if err != nil {
 		return nil, err
 	}

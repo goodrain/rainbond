@@ -45,6 +45,7 @@ type startTask struct {
 func (s *startTask) RunSuccess() {
 	//设置应用状态为运行中
 	s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, "running")
+	s.taskManager.statusManager.CheckStatus(s.modelTask.ServiceID)
 	s.logger.Info("应用启动任务完成", map[string]string{"step": "last", "status": "success"})
 }
 
@@ -101,6 +102,7 @@ func (s *startTask) RunError(e error) {
 	}
 	//设置应用状态为已关闭
 	s.taskManager.statusManager.SetStatus(s.modelTask.ServiceID, "closed")
+	s.taskManager.statusManager.CheckStatus(s.modelTask.ServiceID)
 	s.logger.Error("启动错误，请重试", map[string]string{"step": "callback", "status": "failure"})
 }
 

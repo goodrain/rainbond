@@ -153,6 +153,7 @@ type NodeSystemInfo struct {
 	Architecture string `json:"architecture"`
 
 	MemorySize uint64 `json:"memorySize"`
+	NumCPU     int64  `json:"cpu_num"`
 }
 
 //Decode decode node info

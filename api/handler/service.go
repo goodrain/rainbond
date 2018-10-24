@@ -226,7 +226,7 @@ func (s *ServiceAction) buildFromSourceCode(r *api_model.BuildServiceStruct, ser
 	body["envs"] = r.Body.ENVS
 	body["tenant_name"] = r.Body.TenantName
 	body["branch"] = r.Body.Branch
-	body["server_type"] = r.Body.ServiceType
+	body["server_type"] = r.Body.ServerType
 	body["service_alias"] = r.Body.ServiceAlias
 	if r.Body.User != "" && r.Body.Password != "" {
 		body["user"] = r.Body.User
@@ -238,7 +238,6 @@ func (s *ServiceAction) buildFromSourceCode(r *api_model.BuildServiceStruct, ser
 }
 
 func (s *ServiceAction) sourceBuild(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
-	logrus.Debugf("build from source")
 	if r.Body.RepoURL == "" || r.Body.DeployVersion == "" || r.Body.EventID == "" {
 		return fmt.Errorf("args error")
 	}
@@ -258,6 +257,7 @@ func (s *ServiceAction) sourceBuild(r *api_model.BuildServiceStruct, service *db
 	body["tenant_name"] = r.Body.TenantName
 	body["service_alias"] = r.Body.ServiceAlias
 	body["expire"] = 180
+	body["server_type"] = r.Body.ServerType
 	logrus.Debugf("app_build body is %v", body)
 	return s.sendTask(body, "app_build")
 }

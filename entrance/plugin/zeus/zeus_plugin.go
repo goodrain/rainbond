@@ -390,7 +390,6 @@ func (z *zeus) DeletePool(pools ...*object.PoolObject) error {
 		if err != nil {
 			errs = append(errs, err)
 		}
-
 	}
 	return handleErr(errs)
 }

@@ -24,8 +24,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	//"github.com/docker/docker/client"
-	"sync"
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/engine-api/client"
@@ -36,6 +34,7 @@ import (
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/util"
 	"github.com/tidwall/gjson"
+	"sync"
 )
 
 var TaskNum float64 = 0
@@ -73,13 +72,15 @@ func NewManager(conf config.Config) (Manager, error) {
 	return &exectorManager{
 		DockerClient: dockerClient,
 		EtcdCli:      etcdCli,
+		tasks:        make(map[*pb.TaskMessage][]byte),
 	}, nil
 }
 
 type exectorManager struct {
 	DockerClient *client.Client
 	EtcdCli      *clientv3.Client
-	wg           sync.WaitGroup
+	tasks        map[*pb.TaskMessage][]byte
+	taskLock     sync.RWMutex
 }
 
 //TaskWorker worker interface
@@ -109,44 +110,44 @@ func RegisterWorker(name string, fun func([]byte, *exectorManager) (TaskWorker, 
 //share-slug share app with slug
 //share-image share app with image
 func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
-	e.wg.Add(1)
+	e.tasks[task] = task.TaskBody
 	TaskNum++
 	switch task.TaskType {
 	case "build_from_image":
-		e.buildFromImage(task.TaskBody)
+		e.buildFromImage(task)
 	case "build_from_source_code":
-		e.buildFromSourceCode(task.TaskBody)
+		e.buildFromSourceCode(task)
 	case "build_from_market_slug":
-		e.buildFromMarketSlug(task.TaskBody)
+		e.buildFromMarketSlug(task)
 	case "service_check":
-		go e.serviceCheck(task.TaskBody)
+		go e.serviceCheck(task)
 	case "plugin_image_build":
-		e.pluginImageBuild(task.TaskBody)
+		e.pluginImageBuild(task)
 	case "plugin_dockerfile_build":
-		e.pluginDockerfileBuild(task.TaskBody)
+		e.pluginDockerfileBuild(task)
 	case "share-slug":
-		e.slugShare(task.TaskBody)
+		e.slugShare(task)
 	case "share-image":
-		e.imageShare(task.TaskBody)
+		e.imageShare(task)
 	default:
-		return e.exec(task.TaskType, task.TaskBody)
+		return e.exec(task)
 	}
 
 	return nil
 }
 
-func (e *exectorManager) exec(workerName string, in []byte) error {
-	creater, ok := workerCreaterList[workerName]
+func (e *exectorManager) exec(task *pb.TaskMessage) error {
+	creater, ok := workerCreaterList[task.TaskType]
 	if !ok {
-		return fmt.Errorf("`%s` tasktype can't support", workerName)
+		return fmt.Errorf("`%s` tasktype can't support", task.TaskType)
 	}
-	worker, err := creater(in, e)
+	worker, err := creater(task.TaskBody, e)
 	if err != nil {
 		logrus.Errorf("create worker for builder error.%s", err)
 		return err
 	}
 	go func() {
-		defer e.wg.Done()
+		defer e.removeTask(task)
 		defer event.GetManager().ReleaseLogger(worker.GetLogger())
 		defer func() {
 			if r := recover(); r != nil {
@@ -165,14 +166,14 @@ func (e *exectorManager) exec(workerName string, in []byte) error {
 }
 
 //buildFromImage build app from docker image
-func (e *exectorManager) buildFromImage(in []byte) {
-	i := NewImageBuildItem(in)
+func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
+	i := NewImageBuildItem(task.TaskBody)
 	i.DockerClient = e.DockerClient
 	i.Logger.Info("从镜像构建应用任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
 		start := time.Now()
-		defer e.wg.Done()
+		defer e.removeTask(task)
 		logrus.Debugf("start build from image worker")
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
@@ -208,14 +209,14 @@ func (e *exectorManager) buildFromImage(in []byte) {
 
 //buildFromSourceCode build app from source code
 //support git repository
-func (e *exectorManager) buildFromSourceCode(in []byte) {
-	i := NewSouceCodeBuildItem(in)
+func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
+	i := NewSouceCodeBuildItem(task.TaskBody)
 	i.DockerClient = e.DockerClient
 	i.Logger.Info("Build app version from source code start", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
 		start := time.Now()
-		defer e.wg.Done()
+		e.removeTask(task)
 		logrus.Debugf("start build from source code")
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
@@ -250,11 +251,11 @@ func (e *exectorManager) buildFromSourceCode(in []byte) {
 }
 
 //buildFromMarketSlug build app from market slug
-func (e *exectorManager) buildFromMarketSlug(in []byte) {
-	eventID := gjson.GetBytes(in, "event_id").String()
+func (e *exectorManager) buildFromMarketSlug(task *pb.TaskMessage) {
+	eventID := gjson.GetBytes(task.TaskBody, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("云市应用代码包构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
-	i, err := NewMarketSlugItem(in)
+	i, err := NewMarketSlugItem(task.TaskBody)
 	if err != nil {
 		logrus.Error("create build from market slug task error.", err.Error())
 		return
@@ -262,7 +263,7 @@ func (e *exectorManager) buildFromMarketSlug(in []byte) {
 	i.Logger.Info("开始构建应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	go func() {
 		start := time.Now()
-		defer e.wg.Done()
+		e.removeTask(task)
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
 			if r := recover(); r != nil {
@@ -293,8 +294,8 @@ func (e *exectorManager) buildFromMarketSlug(in []byte) {
 }
 
 //slugShare share app of slug
-func (e *exectorManager) slugShare(in []byte) {
-	i, err := NewSlugShareItem(in, e.EtcdCli)
+func (e *exectorManager) slugShare(task *pb.TaskMessage) {
+	i, err := NewSlugShareItem(task.TaskBody, e.EtcdCli)
 	if err != nil {
 		logrus.Error("create share image task error.", err.Error())
 		return
@@ -302,7 +303,7 @@ func (e *exectorManager) slugShare(in []byte) {
 	i.Logger.Info("开始分享应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
-		defer e.wg.Done()
+		defer e.removeTask(task)
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
 			if r := recover(); r != nil {
@@ -334,8 +335,8 @@ func (e *exectorManager) slugShare(in []byte) {
 }
 
 //imageShare share app of docker image
-func (e *exectorManager) imageShare(in []byte) {
-	i, err := NewImageShareItem(in, e.DockerClient, e.EtcdCli)
+func (e *exectorManager) imageShare(task *pb.TaskMessage) {
+	i, err := NewImageShareItem(task.TaskBody, e.DockerClient, e.EtcdCli)
 	if err != nil {
 		logrus.Error("create share image task error.", err.Error())
 		return
@@ -343,7 +344,7 @@ func (e *exectorManager) imageShare(in []byte) {
 	i.Logger.Info("开始分享应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
-		defer e.wg.Done()
+		e.removeTask(task)
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
 			if r := recover(); r != nil {
@@ -379,7 +380,29 @@ func (e *exectorManager) Start() error {
 }
 func (e *exectorManager) Stop() error {
 	logrus.Info("Waiting for all threads to exit.")
-	e.wg.Wait()
+	i := 0
+	timer := time.NewTimer(time.Second * 2)
+	defer timer.Stop()
+	for {
+		if i >= 15 {
+			logrus.Errorf("There are %d tasks not completed", len(e.tasks))
+			return fmt.Errorf("There are %d tasks not completed ", len(e.tasks))
+		}
+		if len(e.tasks) == 0 {
+			break
+		}
+		select {
+		case <-timer.C:
+			i ++
+			timer.Reset(time.Second * 2)
+		}
+	}
 	logrus.Info("All threads is exited.")
 	return nil
+}
+
+func (e *exectorManager) removeTask(task *pb.TaskMessage) {
+	e.taskLock.Lock()
+	defer e.taskLock.Unlock()
+	delete(e.tasks, task)
 }

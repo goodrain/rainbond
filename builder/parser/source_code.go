@@ -89,7 +89,6 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	if csi.Branch == "" {
 		csi.Branch = "master"
 	}
-	csi.InitServerType()
 	if csi.RepositoryURL == "" {
 		d.logger.Error("Git项目仓库地址不能为空", map[string]string{"step": "parse"})
 		d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", SolveAdvice("modify_url", "请确认并修改仓库地址")))
@@ -185,7 +184,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		d.branchs = rs.Branchs
 		return nil
 	}
-
+	logrus.Debugf("start get service code by %s server type", csi.ServerType)
 	//获取代码仓库
 	switch csi.ServerType {
 	case "git":
@@ -198,6 +197,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		}
 	default:
 		//default git
+		logrus.Warningf("do not get void server type,default use git")
 		if err := gitFunc(); err != nil && err.IsFatalError() {
 			return err
 		}
