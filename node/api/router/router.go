@@ -71,6 +71,7 @@ func Routers(mode string) *chi.Mux {
 				r.Get("/resources", controller.Resources)
 				r.Get("/capres", controller.CapRes)
 				r.Get("/", controller.GetNodes)
+				r.Get("/all_node_health", controller.GetAllNodeHealth)
 				r.Get("/rule/{rule}", controller.GetRuleNodes)
 				r.Post("/", controller.NewNode)                       //增加一个节点
 				r.Post("/multiple", controller.NewMultipleNode)       //增加多个节点

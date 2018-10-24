@@ -447,3 +447,29 @@ func outJSONWithCode(w http.ResponseWriter, httpCode int, data interface{}) {
 	}
 	fmt.Fprint(w, s)
 }
+
+
+func GetAllNodeHealth(w http.ResponseWriter, r *http.Request) {
+	nodes, err := nodeService.GetAllNode()
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+
+	StatusMap := make(map[string][]map[string]string, 30)
+
+	for _, n := range nodes {
+		for _, v := range n.NodeStatus.Conditions {
+			status, ok := StatusMap[string(v.Type)]
+			if !ok {
+				StatusMap[string(v.Type)] = []map[string]string{map[string]string{"type": string(v.Type), "status": string(v.Status), "message": string(v.Message), "hostname": n.HostName}}
+			} else {
+				list := status
+				list = append(list, map[string]string{"type": string(v.Type), "status": string(v.Status), "message": string(v.Message), "hostname": n.HostName})
+				StatusMap[string(v.Type)] = list
+			}
+
+		}
+	}
+	httputil.ReturnSuccess(r, w, StatusMap)
+}
