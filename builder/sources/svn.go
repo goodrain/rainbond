@@ -19,27 +19,25 @@
 package sources
 
 import (
-	"bufio"
 	"encoding/xml"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
-	"golang.org/x/net/context"
 )
 
 //SVNClient svn svnclient
 type SVNClient interface {
 	Checkout() (*Info, error)
+	Update(childpath string) (*Info, error)
+	UpdateOrCheckout(childpath string) (*Info, error)
 }
 
 type svnclient struct {
@@ -133,6 +131,44 @@ func (c *svnclient) Checkout() (*Info, error) {
 		return nil, err
 	}
 	return c.Info()
+}
+
+// Update
+func (c *svnclient) Update(childpath string) (*Info, error) {
+	cmd := []string{"update", path.Join(c.svnDir, childpath)}
+	_, err := c.runWithLogger(cmd...)
+	if err != nil {
+		return nil, err
+	}
+	return c.Info()
+}
+
+func (c *svnclient) UpdateOrCheckout(childpath string) (*Info, error) {
+	var rs *Info
+	var err error
+	if ok := util.DirIsEmpty(c.svnDir); !ok {
+		//update BuildPath
+		rs, err = c.Update(childpath)
+		if err != nil {
+			logrus.Errorf("update svn code error: %s", err.Error())
+			c.logger.Error(fmt.Sprintf("Update svn code failed, please make sure the code can be downloaded properly"), map[string]string{"step": "builder-exector", "status": "failure"})
+		} else {
+			return rs, nil
+		}
+	}
+	if !util.DirIsEmpty(c.svnDir) {
+		os.RemoveAll(c.svnDir)
+	}
+	if err := os.MkdirAll(c.svnDir, 0755); err != nil {
+		return nil, err
+	}
+	rs, err = c.Checkout()
+	if err != nil {
+		logrus.Errorf("checkout svn code error: %s", err.Error())
+		c.logger.Error(fmt.Sprintf("Checkout svn code failed, please make sure the code can be downloaded properly"), map[string]string{"step": "builder-exector", "status": "failure"})
+		return nil, err
+	}
+	return rs, nil
 }
 
 // svnclient Checkout from specific revision
@@ -309,90 +345,4 @@ type entry struct {
 	Name   string `xml:"name"`
 	Size   string `xml:"size"`
 	Commit Commit `xml:"commit"`
-}
-
-//SvnPull SvnPull
-func SvnPull(dir, user, password string) error {
-	cmd := exec.Command(
-		"svn",
-		"update",
-		"--ignore-externals",
-		"--username",
-		user,
-		"--password",
-		password)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		logrus.Errorf("Failed to SVN update %s, see output below\n%sContinuing...", dir, out)
-		return err
-	}
-	return nil
-}
-
-//SvnClone clone code by svn
-func SvnClone(dir, url, user, password string, logger event.Logger, timeout time.Duration) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	par, rep := filepath.Split(dir)
-	if err := util.CheckAndCreateDir(par); err != nil {
-		return "", err
-	}
-	cmd := exec.Command(
-		"svn",
-		"checkout",
-		"--non-interactive",
-		"--trust-server-cert-failures=unknown-ca",
-		"--username",
-		user,
-		"--password",
-		password,
-		url,
-		rep)
-	cmd.Dir = par
-	reader, err := cmd.StdoutPipe()
-	if err != nil {
-		return "", err
-	}
-	readererr, err := cmd.StderrPipe()
-	if err != nil {
-		return "", err
-	}
-	startReadProgress(ctx, reader, logger)
-	startReadProgress(ctx, readererr, logger)
-	if err := cmd.Run(); err != nil {
-		return "", err
-	}
-	return "", nil
-}
-
-//startReadProgress create svn log progress
-func startReadProgress(ctx context.Context, read io.ReadCloser, logger event.Logger) {
-	var reader = bufio.NewReader(read)
-	go func() {
-		defer read.Close()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				line, _, err := reader.ReadLine()
-				if err != nil {
-					if err.Error() != "EOF" {
-						fmt.Println("read svn log err", err.Error())
-					}
-					return
-				}
-				if len(line) > 0 {
-					progess := strings.Replace(string(line), "\r", "", -1)
-					progess = strings.Replace(progess, "\n", "", -1)
-					progess = strings.Replace(progess, "\u0000", "", -1)
-					if len(progess) > 0 {
-						message := fmt.Sprintf(`{"progress":"%s","id":"%s"}`, progess, "SVN:")
-						logger.Debug(message, map[string]string{"step": "progress"})
-					}
-				}
-			}
-		}
-	}()
 }
