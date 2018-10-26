@@ -1237,15 +1237,14 @@ func (s *ServiceAction) createOuterK8sService(tenantName string, mapPort *dbmode
 	var service v1.Service
 	service.Name = fmt.Sprintf("service-%d-%dout", port.ID, port.ContainerPort)
 	service.Labels = map[string]string{
-		"service_type":     "outer",
-		"name":             tenantservice.ServiceAlias + "ServiceOUT",
-		"tenant_name":      tenantName,
-		"services_version": tenantservice.ServiceVersion,
-		"domain":           tenantservice.Autodomain(tenantName, port.ContainerPort),
-		"protocol":         port.Protocol,
-		"ca":               "",
-		"key":              "",
-		"event_id":         tenantservice.EventID,
+		"service_type": "outer",
+		"name":         tenantservice.ServiceAlias + "ServiceOUT",
+		"tenant_name":  tenantName,
+		"domain":       tenantservice.Autodomain(tenantName, port.ContainerPort),
+		"protocol":     port.Protocol,
+		"ca":           "",
+		"key":          "",
+		"event_id":     tenantservice.EventID,
 	}
 	//TODO: "stream" to ! http
 	if port.Protocol != "http" && mapPort != nil { //stream 协议获取映射端口
