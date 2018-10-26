@@ -173,7 +173,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			}
 		}
 		csi.RepositoryURL = buildInfo.RepostoryURL
-		svnclient := sources.NewClient(csi.User, csi.Password, csi.RepositoryURL, buildInfo.GetCodeHome(), d.logger)
+		svnclient := sources.NewClient(csi, buildInfo.GetCodeHome(), d.logger)
 		rs, err := svnclient.UpdateOrCheckout(buildInfo.BuildPath)
 		if err != nil {
 			logrus.Errorf("svn checkout or update error,%s", err.Error())

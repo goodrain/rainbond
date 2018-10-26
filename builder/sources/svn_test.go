@@ -25,7 +25,22 @@ import (
 )
 
 func TestSvnCheckout(t *testing.T) {
-	client := NewClient("", "", "svn://ali-sh-s1.goodrain.net:21097/testrepo", "/tmp/svn/testrepo", event.GetTestLogger())
+	client := NewClient(CodeSourceInfo{
+		Branch:        "trunk",
+		RepositoryURL: "svn://ali-sh-s1.goodrain.net:21097/testrepo",
+	}, "/tmp/svn/testrepo", event.GetTestLogger())
+
+	info, err := client.Checkout()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(*info)
+}
+func TestSvnCheckoutBranch(t *testing.T) {
+	client := NewClient(CodeSourceInfo{
+		Branch:        "0.1/app",
+		RepositoryURL: "https://github.com/goodrain-apps/Cachet.git",
+	}, "/tmp/svn/Cachet/branches/0.1/app", event.GetTestLogger())
 
 	info, err := client.Checkout()
 	if err != nil {
@@ -34,10 +49,25 @@ func TestSvnCheckout(t *testing.T) {
 	t.Log(*info)
 }
 
-func TestSvnCheckoutBranch(t *testing.T) {
-	client := NewClient("", "", "https://github.com/goodrain/rainbond-install", "/tmp/svn/rainbond-install", event.GetTestLogger())
+func TestSvnCheckoutTag(t *testing.T) {
+	client := NewClient(CodeSourceInfo{
+		Branch:        "tag:v2.3.6",
+		RepositoryURL: "https://github.com/goodrain-apps/Cachet.git",
+	}, "/tmp/svn/Cachet/tags/v2.3.6", event.GetTestLogger())
 
 	info, err := client.Checkout()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(*info)
+}
+
+func TestUpdateOrCheckout(t *testing.T) {
+	client := NewClient(CodeSourceInfo{
+		Branch:        "trunk",
+		RepositoryURL: "svn://ali-sh-s1.goodrain.net:21097/testrepo",
+	}, "/tmp/svn/testrepo", event.GetTestLogger())
+	info, err := client.UpdateOrCheckout("")
 	if err != nil {
 		t.Fatal(err)
 	}

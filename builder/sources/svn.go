@@ -19,12 +19,14 @@
 package sources
 
 import (
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -47,12 +49,12 @@ type svnclient struct {
 	svnDir   string
 	Env      []string
 	logger   event.Logger
+	csi      CodeSourceInfo
 }
 
 // NewClient new svn svnclient
-func NewClient(username, password, url, sourceDir string, logger event.Logger) SVNClient {
-	util.CheckAndCreateDir(sourceDir)
-	return &svnclient{username: username, password: password, svnURL: url, svnDir: sourceDir, logger: logger}
+func NewClient(csi CodeSourceInfo, codeHome string, logger event.Logger) SVNClient {
+	return &svnclient{csi: csi, username: csi.User, password: csi.Password, svnURL: csi.RepositoryURL, svnDir: codeHome, logger: logger}
 }
 
 // NewClientWithEnv ...
@@ -119,16 +121,48 @@ func (c *svnclient) List() (*lists, error) {
 	return l, nil
 
 }
+func getBranchPath(branch, url string) string {
+	if branch == "trunk" {
+		return fmt.Sprintf("%s/trunk", url)
+	}
+	if strings.HasPrefix(branch, "tag:") {
+		return fmt.Sprintf("%s/tags/%s", url, branch[4:])
+	}
+	return fmt.Sprintf("%s/branches/%s", url, branch)
+}
 
 // Checkout
 func (c *svnclient) Checkout() (*Info, error) {
+	//handle branch or tags
+	if c.csi.Branch != "" {
+		c.svnURL = getBranchPath(c.csi.Branch, c.svnURL)
+	}
+	if !util.DirIsEmpty(c.svnDir) {
+		os.RemoveAll(c.svnDir)
+	}
+	if err := os.MkdirAll(c.svnDir, 0755); err != nil {
+		return nil, err
+	}
 	cmd := []string{"checkout", c.svnURL}
 	if c.svnDir != "" {
 		cmd = append(cmd, c.svnDir)
 	}
 	_, err := c.runWithLogger(cmd...)
 	if err != nil {
-		return nil, err
+		//if trunk will change url retry
+		if strings.Contains(err.Error(), "svn:E170000") && c.csi.Branch == "trunk" {
+			c.svnURL = c.svnURL[:len(c.svnURL)-6]
+			cmd := []string{"checkout", c.svnURL}
+			if c.svnDir != "" {
+				cmd = append(cmd, c.svnDir)
+			}
+			_, err = c.runWithLogger(cmd...)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 	return c.Info()
 }
@@ -155,12 +189,6 @@ func (c *svnclient) UpdateOrCheckout(childpath string) (*Info, error) {
 		} else {
 			return rs, nil
 		}
-	}
-	if !util.DirIsEmpty(c.svnDir) {
-		os.RemoveAll(c.svnDir)
-	}
-	if err := os.MkdirAll(c.svnDir, 0755); err != nil {
-		return nil, err
 	}
 	rs, err = c.Checkout()
 	if err != nil {
@@ -273,9 +301,13 @@ func (c *svnclient) runWithLogger(args ...string) ([]byte, error) {
 	writer := c.logger.GetWriter("progress", "debug")
 	writer.SetFormat(`{"progress":"%s","id":"SVN:"}`)
 	cmd.Stdout = writer
-	cmd.Stderr = writer
+	errorWriter := bytes.NewBuffer(nil)
+	cmd.Stderr = errorWriter
 	err := cmd.Run()
 	if err != nil {
+		if strings.Contains(errorWriter.String(), "doesn't exist") {
+			return nil, fmt.Errorf("svn:E170000")
+		}
 		return nil, err
 	}
 	return nil, nil

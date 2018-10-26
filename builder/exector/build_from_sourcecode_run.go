@@ -139,7 +139,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	switch i.CodeSouceInfo.ServerType {
 	case "svn":
 		csi := i.CodeSouceInfo
-		svnclient := sources.NewClient(csi.User, csi.Password, csi.RepositoryURL, rbi.GetCodeHome(), i.Logger)
+		svnclient := sources.NewClient(csi, rbi.GetCodeHome(), i.Logger)
 		rs, err := svnclient.UpdateOrCheckout(rbi.BuildPath)
 		if err != nil {
 			logrus.Errorf("checkout svn code error: %s", err.Error())
