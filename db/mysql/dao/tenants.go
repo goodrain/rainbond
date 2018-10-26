@@ -1,4 +1,3 @@
-
 // Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
 
@@ -427,8 +426,6 @@ func (t *TenantServicesDeleteImpl) AddModel(mo model.Interface) error {
 		if err := t.DB.Create(service).Error; err != nil {
 			return err
 		}
-	} else {
-		return fmt.Errorf("service name  %s and  is exist in tenant %s", service.ServiceAlias, service.TenantID)
 	}
 	return nil
 }
