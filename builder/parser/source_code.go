@@ -176,6 +176,11 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		svnclient := sources.NewClient(csi, buildInfo.GetCodeHome(), d.logger)
 		rs, err := svnclient.UpdateOrCheckout(buildInfo.BuildPath)
 		if err != nil {
+			if strings.Contains(err.Error(), "svn:E170000") {
+				solve := "请到代码仓库查看正确的分支情况"
+				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("Svn项目仓库指定分支 %s 不存在", csi.Branch), solve))
+				return d.errors
+			}
 			logrus.Errorf("svn checkout or update error,%s", err.Error())
 			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("获取代码失败"), "请确认仓库能否正常访问，或查看社区文档"))
 			return d.errors

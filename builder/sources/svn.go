@@ -122,8 +122,8 @@ func (c *svnclient) List() (*lists, error) {
 
 }
 func getBranchPath(branch, url string) string {
-	if branch == "trunk" {
-		return fmt.Sprintf("%s/trunk", url)
+	if strings.HasPrefix(branch, "trunk") {
+		return fmt.Sprintf("%s/%s", url, branch)
 	}
 	if strings.HasPrefix(branch, "tag:") {
 		return fmt.Sprintf("%s/tags/%s", url, branch[4:])
@@ -308,7 +308,7 @@ func (c *svnclient) runWithLogger(args ...string) ([]byte, error) {
 		if strings.Contains(errorWriter.String(), "doesn't exist") {
 			return nil, fmt.Errorf("svn:E170000")
 		}
-		return nil, err
+		return nil, fmt.Errorf("svn error:%s", errorWriter.String())
 	}
 	return nil, nil
 }
