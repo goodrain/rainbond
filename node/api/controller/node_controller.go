@@ -82,21 +82,23 @@ func NewMultipleNode(w http.ResponseWriter, r *http.Request) {
 func GetNodes(w http.ResponseWriter, r *http.Request) {
 	searchNodeList := make([]*client.HostNode, 0)
 	searchKey := chi.URLParam(r, "search_key")
+	logrus.Info("search_key:", searchKey)
 	nodes, err := nodeService.GetAllNode()
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	if searchKey == "" {
-		httputil.ReturnSuccess(r, w, nodes)
+	if searchKey != "" {
+
+		for _, node := range nodes {
+			if strings.Contains(node.HostName, searchKey) || strings.Contains(node.InternalIP, searchKey) || strings.Contains(node.ExternalIP, searchKey) {
+				searchNodeList = append(searchNodeList, node)
+			}
+		}
+		httputil.ReturnSuccess(r, w, searchNodeList)
 		return
 	}
-	for _, node := range nodes {
-		if strings.Contains(node.HostName, searchKey) || strings.Contains(node.InternalIP, searchKey) || strings.Contains(node.ExternalIP, searchKey) {
-			searchNodeList = append(searchNodeList, node)
-		}
-	}
-	httputil.ReturnSuccess(r, w, searchNodeList)
+	httputil.ReturnSuccess(r, w, nodes)
 }
 
 //GetNode 获取一个节点详情
