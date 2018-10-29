@@ -81,7 +81,7 @@ func NewMultipleNode(w http.ResponseWriter, r *http.Request) {
 //GetNodes 获取全部节点
 func GetNodes(w http.ResponseWriter, r *http.Request) {
 	searchNodeList := make([]*client.HostNode, 0)
-	searchKey := chi.URLParam(r, "search_key")
+	searchKey := r.FormValue("search_key")
 	logrus.Info("search_key:", searchKey)
 	nodes, err := nodeService.GetAllNode()
 	if err != nil {
