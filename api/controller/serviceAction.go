@@ -866,7 +866,6 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-
 type limitMemory struct {
 	LimitMemory int `json:"limit_memory"`
 }
@@ -903,6 +902,10 @@ type SourcesInfo struct {
 	TenantId        string `json:"tenant_id"`
 	AvailableMemory int    `json:"available_memory"`
 	Status          bool   `json:"status"`
+	MemTotal        int    `json:"mem_total"`
+	MemUsed         int    `json:"mem_used"`
+	CpuTotal        int    `json:"cpu_total"`
+	CpuUsed         int    `json:"cpu_used"`
 }
 
 func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Request) {
@@ -930,6 +933,10 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 			TenantId:        tenantID,
 			AvailableMemory: 0,
 			Status:          true,
+			MemTotal:        tenant.LimitMemory,
+			MemUsed:         statsInfo.MEM,
+			CpuTotal:        0,
+			CpuUsed:         statsInfo.CPU,
 		}
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 		return
@@ -939,6 +946,10 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 			TenantId:        tenantID,
 			AvailableMemory: tenant.LimitMemory - statsInfo.MEM,
 			Status:          false,
+			MemTotal:        tenant.LimitMemory,
+			MemUsed:         statsInfo.MEM,
+			CpuTotal:        tenant.LimitMemory / 4,
+			CpuUsed:         statsInfo.CPU,
 		}
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 	} else {
@@ -946,6 +957,10 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 			TenantId:        tenantID,
 			AvailableMemory: tenant.LimitMemory - statsInfo.MEM,
 			Status:          true,
+			MemTotal:        tenant.LimitMemory,
+			MemUsed:         statsInfo.MEM,
+			CpuTotal:        tenant.LimitMemory / 4,
+			CpuUsed:         statsInfo.CPU,
 		}
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 	}
