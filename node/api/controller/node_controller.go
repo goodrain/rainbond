@@ -80,12 +80,23 @@ func NewMultipleNode(w http.ResponseWriter, r *http.Request) {
 
 //GetNodes 获取全部节点
 func GetNodes(w http.ResponseWriter, r *http.Request) {
+	searchNodeList := make([]*client.HostNode, 0)
+	searchKey := chi.URLParam(r, "search_key")
 	nodes, err := nodeService.GetAllNode()
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	httputil.ReturnSuccess(r, w, nodes)
+	if searchKey == "" {
+		httputil.ReturnSuccess(r, w, nodes)
+		return
+	}
+	for _, node := range nodes {
+		if strings.Contains(node.HostName, searchKey) || strings.Contains(node.InternalIP, searchKey) || strings.Contains(node.ExternalIP, searchKey) {
+			searchNodeList = append(searchNodeList, node)
+		}
+	}
+	httputil.ReturnSuccess(r, w, searchNodeList)
 }
 
 //GetNode 获取一个节点详情
@@ -447,7 +458,6 @@ func outJSONWithCode(w http.ResponseWriter, httpCode int, data interface{}) {
 	}
 	fmt.Fprint(w, s)
 }
-
 
 func GetAllNodeHealth(w http.ResponseWriter, r *http.Request) {
 	nodes, err := nodeService.GetAllNode()
