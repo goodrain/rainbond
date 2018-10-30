@@ -75,7 +75,7 @@ type HostNode struct {
 	Status          string            `json:"status"`        //节点状态 create,init,running,stop,delete
 	Labels          map[string]string `json:"labels"`        //节点标签 内置标签+用户自定义标签
 	Unschedulable   bool              `json:"unschedulable"` //不可调度
-	NodeStatus      *NodeStatus       `json:"node_status,omitempty"`
+	NodeStatus      *NodeStatus       `json:"node_status"`
 	ClusterNode
 	NodeHealth      bool              `json:"node_health"`
 }
