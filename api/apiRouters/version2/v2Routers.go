@@ -42,6 +42,7 @@ func (v2 *V2) Routes() chi.Router {
 	r.Get("/event", controller.GetManager().Event)
 	r.Mount("/app", v2.appRouter())
 	r.Get("/health", controller.GetManager().Health)
+	r.Get("/version", controller.GetManager().Version)
 	return r
 }
 

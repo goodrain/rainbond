@@ -38,6 +38,7 @@ type V2Manager interface {
 	Apps(w http.ResponseWriter, r *http.Request)
 	Entrance(w http.ResponseWriter, r *http.Request)
 	Health(w http.ResponseWriter, r *http.Request)
+	Version(w http.ResponseWriter, r *http.Request)
 
 	apiFunc.TenantInterface
 	apiFunc.ServiceInterface
