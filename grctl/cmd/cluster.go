@@ -59,9 +59,11 @@ func getClusterInfo(c *cli.Context) error {
 	//show services health status
 	list, err := clients.RegionClient.Nodes().List()
 	handleErr(err)
+	allNodeHealth, err := clients.RegionClient.Nodes().GetAllNodeHealth()
+	handleErr(err)
 	serviceTable2 := termtables.CreateTable()
 	serviceTable2.AddHeaders("Service", "HealthyQuantity/Total", "Message")
-	serviceStatusInfo := getServicesHealthy(list)
+	serviceStatusInfo := allNodeHealth
 	status, message := clusterStatus(serviceStatusInfo["Role"], serviceStatusInfo["Ready"])
 	serviceTable2.AddRow("\033[0;33;33mClusterStatus\033[0m", status, message)
 	for name, v := range serviceStatusInfo {

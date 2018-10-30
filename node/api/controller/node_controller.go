@@ -80,12 +80,30 @@ func NewMultipleNode(w http.ResponseWriter, r *http.Request) {
 
 //GetNodes 获取全部节点
 func GetNodes(w http.ResponseWriter, r *http.Request) {
-	searchNodeList := make([]*client.HostNode, 0)
+	searchNodeList := make([]client.HostNode, 0)
+	nodeList := make([]client.HostNode, 0)
+	var node1 client.HostNode
 	searchKey := r.FormValue("search_key")
 	logrus.Info("search_key:", searchKey)
 	nodes, err := nodeService.GetAllNode()
-	for _,node := range nodes{
-		node.NodeStatus = nil
+	for _, node := range nodes {
+		node1.HostName = node.HostName
+		node1.Status = node.Status
+		node1.NodeHealth = node.NodeHealth
+		node1.ExternalIP = node.ExternalIP
+		node1.InternalIP = node.InternalIP
+		node1.Unschedulable = node.Unschedulable
+		node1.ID = node.ID
+		node1.Mode = node.Mode
+		node1.Role = node.Role
+		node1.Labels = node.Labels
+		node1.RootPass = node.RootPass
+		node1.KeyPath = node.KeyPath
+		node1.ClusterNode = node.ClusterNode
+		node1.AvailableMemory = node.AvailableMemory
+		node1.AvailableCPU = node.AvailableCPU
+		node1.CreateTime = node.CreateTime
+		nodeList = append(nodeList, node1)
 	}
 	if err != nil {
 		err.Handle(r, w)
@@ -93,7 +111,7 @@ func GetNodes(w http.ResponseWriter, r *http.Request) {
 	}
 	if searchKey != "" {
 
-		for _, node := range nodes {
+		for _, node := range nodeList {
 			if strings.Contains(node.HostName, searchKey) || strings.Contains(node.InternalIP, searchKey) || strings.Contains(node.ExternalIP, searchKey) {
 				searchNodeList = append(searchNodeList, node)
 			}
@@ -101,7 +119,7 @@ func GetNodes(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnSuccess(r, w, searchNodeList)
 		return
 	}
-	httputil.ReturnSuccess(r, w, nodes)
+	httputil.ReturnSuccess(r, w, nodeList)
 }
 
 //GetNode 获取一个节点详情
@@ -472,6 +490,7 @@ func GetAllNodeHealth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	StatusMap := make(map[string][]map[string]string, 30)
+	roleList := make([]map[string]string, 0, 10)
 
 	for _, n := range nodes {
 		for _, v := range n.NodeStatus.Conditions {
@@ -485,6 +504,9 @@ func GetAllNodeHealth(w http.ResponseWriter, r *http.Request) {
 			}
 
 		}
+		roleList = append(roleList, map[string]string{"role": n.Role.String(), "status": n.NodeStatus.Status})
+
 	}
+	StatusMap["Role"] = roleList
 	httputil.ReturnSuccess(r, w, StatusMap)
 }
