@@ -252,6 +252,7 @@ func (n *Cluster) GetNode(id string) *client.HostNode {
 	defer n.lock.Unlock()
 	if node, ok := n.nodes[id]; ok {
 		n.handleNodeStatus(node)
+		n.handleNodeHealth(node)
 		return node
 	}
 	return nil
@@ -622,6 +623,7 @@ func (n *Cluster) GetAllNode() (nodes []*client.HostNode) {
 	defer n.lock.Unlock()
 	for _, v := range n.nodes {
 		n.handleNodeStatus(v)
+		n.handleNodeHealth(v)
 		nodes = append(nodes, v)
 	}
 	return
@@ -687,4 +689,20 @@ func checkLables(node *client.HostNode, labels map[string]string) bool {
 		}
 	}
 	return true
+}
+
+func (n *Cluster) handleNodeHealth(v *client.HostNode) {
+
+	v.Status = v.NodeStatus.Status
+	for _, service := range v.NodeStatus.Conditions {
+		if service.Type == client.NodeReady {
+			if service.Status == client.ConditionTrue {
+				v.NodeHealth = true
+				return
+			} else {
+				v.NodeHealth = false
+				return
+			}
+		}
+	}
 }

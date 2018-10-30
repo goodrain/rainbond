@@ -78,7 +78,7 @@ func getClusterInfo(c *cli.Context) error {
 	var rest []*client.HostNode
 	for _, v := range list {
 		if v.Role.HasRule("manage") || !v.Role.HasRule("compute") {
-			handleStatus(serviceTable, isNodeReady(v), v)
+			handleStatus(serviceTable, v.NodeHealth, v)
 		} else {
 			rest = append(rest, v)
 		}
@@ -87,7 +87,7 @@ func getClusterInfo(c *cli.Context) error {
 		serviceTable.AddSeparator()
 	}
 	for _, v := range rest {
-		handleStatus(serviceTable, isNodeReady(v), v)
+		handleStatus(serviceTable, v.NodeHealth, v)
 	}
 	fmt.Println(serviceTable.Render())
 	return nil

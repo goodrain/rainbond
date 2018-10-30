@@ -84,6 +84,9 @@ func GetNodes(w http.ResponseWriter, r *http.Request) {
 	searchKey := r.FormValue("search_key")
 	logrus.Info("search_key:", searchKey)
 	nodes, err := nodeService.GetAllNode()
+	for _,node := range nodes{
+		node.NodeStatus = nil
+	}
 	if err != nil {
 		err.Handle(r, w)
 		return

@@ -245,7 +245,7 @@ func NewCmdNode() cli.Command {
 					var rest []*client.HostNode
 					for _, v := range list {
 						if v.Role.HasRule("manage") || !v.Role.HasRule("compute") {
-							handleStatus(serviceTable, isNodeReady(v), v)
+							handleStatus(serviceTable, v.NodeHealth, v)
 						} else {
 							rest = append(rest, v)
 						}
@@ -254,7 +254,7 @@ func NewCmdNode() cli.Command {
 						serviceTable.AddSeparator()
 					}
 					for _, v := range rest {
-						handleStatus(serviceTable, isNodeReady(v), v)
+						handleStatus(serviceTable, v.NodeHealth, v)
 					}
 					fmt.Println(serviceTable.Render())
 					return nil
@@ -384,7 +384,7 @@ func NewCmdNode() cli.Command {
 					serviceTable := termtables.CreateTable()
 					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status")
 					for _, v := range hostnodes {
-						handleStatus(serviceTable, isNodeReady(v), v)
+						handleStatus(serviceTable, v.NodeHealth, v)
 					}
 					return nil
 				},
