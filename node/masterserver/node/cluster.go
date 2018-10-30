@@ -272,14 +272,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 				v.NodeStatus.Status = status
 			}
 			v.Unschedulable = true
-			r := client.NodeCondition{
-				Type:               client.NodeReady,
-				Status:             client.ConditionFalse,
-				LastHeartbeatTime:  time.Now(),
-				LastTransitionTime: time.Now(),
-				Message:            "The node has been offline",
-			}
-			v.UpdataCondition(r)
 			return
 		}
 		v.Unschedulable = false
@@ -421,15 +413,9 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		} else {
 			v.Status = Offline
 			v.NodeStatus.Status = Offline
-			r := client.NodeCondition{
-				Type:               client.NodeReady,
-				Status:             client.ConditionFalse,
-				LastHeartbeatTime:  time.Now(),
-				LastTransitionTime: time.Now(),
-				Message:            "The node has been offline",
-			}
-			v.UpdataCondition(r)
 		}
+		v.AvailableCPU = v.NodeStatus.NodeInfo.NumCPU
+		v.AvailableMemory = int64(v.NodeStatus.NodeInfo.MemorySize)
 	}
 }
 func (n *Cluster) loadAndWatchNodeOnlines(errChan chan error) {
