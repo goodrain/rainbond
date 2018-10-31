@@ -120,6 +120,18 @@ func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode
 	if v.Status == "offline" {
 		status = "\033[0;31;31m offline \033[0m"
 	}
+	if v.Status == "not_installed" {
+		status = "\033[0;31;31m not_installed \033[0m"
+	}
+	if v.Status == "installing" {
+		status = "\033[0;33;33m installing \033[0m"
+	}
+	if v.Status == "install_failed" {
+		status = "\033[0;31;31m init_failed \033[0m"
+	}
+	if v.Status == "install_success" {
+		status = "\033[0;33;33m install_success \033[0m"
+	}
 	if v.Role.HasRule("compute") && !v.Role.HasRule("manage") {
 		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status)
 	} else if v.Role.HasRule("manage") && !v.Role.HasRule("compute") {

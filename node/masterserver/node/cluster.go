@@ -46,15 +46,15 @@ import (
 )
 
 const (
-	Running      = "running"
-	Offline      = "offline"
-	Unknown      = "unknown"
-	Error        = "error"
-	Init         = "init"
-	InitSuccess  = "init_success"
-	InitFailed   = "init_failed"
-	Installing   = "installing"
-	NotInstalled = "not_installed"
+	Running        = "running"
+	Offline        = "offline"
+	Unknown        = "unknown"
+	Error          = "error"
+	Init           = "init"
+	InstallSuccess = "install_success"
+	InstallFailed  = "install_failed"
+	Installing     = "installing"
+	NotInstalled   = "not_installed"
 )
 
 //Cluster  node  controller
@@ -262,7 +262,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 	if v == nil {
 		return
 	}
-	if v.Status == InitFailed || v.Status == Installing || v.Status == NotInstalled {
+	if v.Status == InstallFailed || v.Status == Installing || v.Status == NotInstalled || v.Status == InstallSuccess {
 		return
 	}
 	if v.Role.HasRule("compute") {
@@ -369,7 +369,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		}
 	}
 	if v.Role.HasRule("manage") && !v.Role.HasRule("compute") { //manage install_success == runnint
-		if v.Status == InitFailed || v.Status == Installing || v.Status == NotInstalled {
+		if v.Status == InstallFailed || v.Status == Installing || v.Status == NotInstalled || v.Status == InstallSuccess {
 			return
 		}
 		if v.Alived {

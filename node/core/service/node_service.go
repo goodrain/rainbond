@@ -43,9 +43,10 @@ const (
 	Unknown     = "unknown"
 	Error       = "error"
 	Init        = "init"
-	InitSuccess = "init_success"
-	InitFailed  = "init_failed"
+	InstallSuccess = "install_success"
+	InstallFailed  = "install_failed"
 	Installing  = "installing"
+	NotInstalled = "not_installed"
 )
 
 //NodeService node service
@@ -102,8 +103,8 @@ func (n *NodeService) AddNode(node *client.APIHostNode) (*client.HostNode, *util
 
 // install node
 func (n *NodeService) NewNode(node *client.HostNode) *utils.APIHandleError {
-	node.Status = "installing"
-	node.NodeStatus.Status = "installing"
+	node.Status = Installing
+	node.NodeStatus.Status = Installing
 	n.nodecluster.UnlockUpdateNode(node)
 	if _, err := node.Update(); err != nil {
 		return utils.CreateAPIHandleErrorFromDBError("save node", err)
@@ -132,8 +133,8 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 
 	if err != nil {
 		logrus.Errorf("Error executing shell script,View log file：/grdata/downloads/log/" + fileName)
-		node.Status = "init_failed"
-		node.NodeStatus.Status = "init_failed"
+		node.Status = InstallFailed
+		node.NodeStatus.Status = InstallFailed
 		n.nodecluster.UnlockUpdateNode(node)
 		if _, err := node.Update(); err != nil {
 			logrus.Errorf(err.Error())
@@ -142,8 +143,8 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 	}
 	logrus.Info("Add node successful")
 	logrus.Info("check cluster status: grctl node list")
-	node.Status = "init_success"
-	node.NodeStatus.Status = "init_success"
+	node.Status = InstallSuccess
+	node.NodeStatus.Status = InstallSuccess
 	n.nodecluster.UnlockUpdateNode(node)
 	if _, err := node.Update(); err != nil {
 		logrus.Errorf(err.Error())
@@ -158,7 +159,7 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("node is online, can not delete"))
 	}
 	// TODO:compute node check node is offline
-	if node.Status != "offline" && node.Status != "not_installed" && node.Status != "init_failed" {
+	if node.Status != Offline && node.Status != NotInstalled && node.Status != InstallFailed {
 		return utils.CreateAPIHandleError(401, fmt.Errorf("node is not offline"))
 	}
 	n.nodecluster.RemoveNode(node.ID)
