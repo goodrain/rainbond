@@ -47,14 +47,18 @@ type APIHostNode struct {
 //Clone Clone
 func (a APIHostNode) Clone() *HostNode {
 	hn := &HostNode{
-		ID:         a.ID,
-		HostName:   a.HostName,
-		InternalIP: a.InternalIP,
-		ExternalIP: a.ExternalIP,
-		RootPass:   a.RootPass,
-		Role:       []string{a.Role},
-		Labels:     a.Labels,
-		NodeStatus: &NodeStatus{},
+		ID:            a.ID,
+		HostName:      a.HostName,
+		InternalIP:    a.InternalIP,
+		ExternalIP:    a.ExternalIP,
+		RootPass:      a.RootPass,
+		KeyPath:       a.Privatekey,
+		Role:          []string{a.Role},
+		Labels:        a.Labels,
+		NodeStatus:    &NodeStatus{Status: "not_installed"},
+		Status:        "not_installed",
+		NodeHealth:    false,
+		Unschedulable: true,
 	}
 	return hn
 }
@@ -374,7 +378,7 @@ func (h *HostNode) Update() (*client.PutResponse, error) {
 
 //DeleteNode 删除节点
 func (h *HostNode) DeleteNode() (*client.DeleteResponse, error) {
-	return store.DefalutClient.Delete(conf.Config.NodePath + "/target/" + h.ID)
+	return store.DefalutClient.Delete(conf.Config.NodePath + "/" + h.ID)
 }
 
 //Del 删除

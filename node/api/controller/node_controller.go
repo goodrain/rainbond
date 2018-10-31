@@ -44,38 +44,42 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("node_exporter"))
 }
 
-//NewNode 创建一个节点
+//安装一个节点
 func NewNode(w http.ResponseWriter, r *http.Request) {
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	node, err := nodeService.GetNode(nodeUID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+
+	if err := nodeService.NewNode(node); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, node)
+}
+
+//添加一个节点
+func AddNode(w http.ResponseWriter, r *http.Request) {
+	isInstall := r.FormValue("is_install")
 	var node client.APIHostNode
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &node, nil); !ok {
 		return
 	}
-	if node.Role == "" {
-		err := utils.CreateAPIHandleError(400, fmt.Errorf("node role must not null"))
+	rnode, err := nodeService.AddNode(&node)
+	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	if err := nodeService.AddNode(&node); err != nil {
-		err.Handle(r, w)
-		return
-	}
-	httputil.ReturnSuccess(r, w, "Installing, please check the installation status")
-}
-
-//NewMultipleNode 多节点添加操作
-func NewMultipleNode(w http.ResponseWriter, r *http.Request) {
-	var nodes []client.APIHostNode
-	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &nodes, nil); !ok {
-		return
-	}
-	var successnodes []client.APIHostNode
-	for _, node := range nodes {
-		if err := nodeService.AddNode(&node); err != nil {
-			continue
+	if isInstall == "true" {
+		if err := nodeService.NewNode(rnode); err != nil {
+			err.Handle(r, w)
+			return
 		}
-		successnodes = append(successnodes, node)
 	}
-	httputil.ReturnSuccess(r, w, successnodes)
+
+	httputil.ReturnSuccess(r, w, rnode)
 }
 
 //GetNodes 获取全部节点
@@ -154,20 +158,20 @@ func GetRuleNodes(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, masternodes)
 }
 
-func Install(w http.ResponseWriter, r *http.Request) {
-	nodeID := strings.TrimSpace(chi.URLParam(r, "node_id"))
-	if len(nodeID) == 0 {
-		err := utils.APIHandleError{
-			Code: 404,
-			Err:  errors.New(fmt.Sprintf("can't find node by node_id %s", nodeID)),
-		}
-		err.Handle(r, w)
-		return
-	}
-	nodeService.InstallNode(nodeID)
-
-	httputil.ReturnSuccess(r, w, nil)
-}
+//func Install(w http.ResponseWriter, r *http.Request) {
+//	nodeID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+//	if len(nodeID) == 0 {
+//		err := utils.APIHandleError{
+//			Code: 404,
+//			Err:  errors.New(fmt.Sprintf("can't find node by node_id %s", nodeID)),
+//		}
+//		err.Handle(r, w)
+//		return
+//	}
+//	nodeService.InstallNode(nodeID)
+//
+//	httputil.ReturnSuccess(r, w, nil)
+//}
 
 func InitStatus(w http.ResponseWriter, r *http.Request) {
 	nodeIP := strings.TrimSpace(chi.URLParam(r, "node_ip"))

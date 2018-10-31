@@ -65,39 +65,56 @@ func CreateNodeService(c *option.Conf, nodecluster *node.Cluster, kubecli kubeca
 }
 
 //AddNode add node
-func (n *NodeService) AddNode(node *client.APIHostNode) *utils.APIHandleError {
+func (n *NodeService) AddNode(node *client.APIHostNode) (*client.HostNode, *utils.APIHandleError) {
 	if n.nodecluster == nil {
-		return utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
+		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
+	}
+	if node.Role == "" {
+		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node role must not null"))
 	}
 	if node.ID == "" {
 		node.ID = uuid.NewV4().String()
 	}
 	if node.InternalIP == "" {
-		return utils.CreateAPIHandleError(400, fmt.Errorf("node internal ip can not be empty"))
+		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node internal ip can not be empty"))
 	}
 	if node.HostName == "" {
-		return utils.CreateAPIHandleError(400, fmt.Errorf("node hostname can not be empty"))
+		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node hostname can not be empty"))
 	}
 
 	if node.RootPass != "" && node.Privatekey != "" {
-		return utils.CreateAPIHandleError(400, fmt.Errorf("Options private-key and root-pass are conflicting"))
+		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("options private-key and root-pass are conflicting"))
 	}
 	existNode := n.nodecluster.GetAllNode()
 	for _, en := range existNode {
 		if node.InternalIP == en.InternalIP {
-			return utils.CreateAPIHandleError(400, fmt.Errorf("node internal ip %s is exist", node.InternalIP))
+			return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node internal ip %s is exist", node.InternalIP))
 		}
 	}
+	rbnode := node.Clone()
+	rbnode.CreateTime = time.Now()
+	n.nodecluster.UnlockUpdateNode(rbnode)
+	if _, err := rbnode.Update(); err != nil {
+		return nil, utils.CreateAPIHandleErrorFromDBError("save node", err)
+	}
+	return rbnode, nil
+}
+
+// install node
+func (n *NodeService) NewNode(node *client.HostNode) *utils.APIHandleError {
 	linkModel := "pass"
-	if node.Privatekey != "" {
+	if node.KeyPath != "" {
 		linkModel = "key"
 	}
 
 	// start add node script
 	logrus.Info("Begin add node, please don't exit")
-	line := fmt.Sprintf("cd /opt/rainbond/install/scripts; ./%s.sh %s %s %s %s %s", node.Role, node.HostName,
-		node.InternalIP, linkModel, node.RootPass, node.Privatekey)
+	line := fmt.Sprintf("cd /opt/rainbond/install/scripts; ./%s.sh %s %s %s %s %s", node.Role[0], node.HostName,
+		node.InternalIP, linkModel, node.RootPass, node.KeyPath)
+	logrus.Debugf("install cmd :", line)
 	go func() {
+		node.Status = "installing"
+		n.nodecluster.UnlockUpdateNode(node)
 		fileName := node.HostName + ".log"
 		cmd := exec.Command("bash", "-c", line)
 		f, _ := os.OpenFile("/grdata/downloads/log/"+fileName, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0755)
@@ -107,10 +124,14 @@ func (n *NodeService) AddNode(node *client.APIHostNode) *utils.APIHandleError {
 
 		if err != nil {
 			logrus.Errorf("Error executing shell script,View log file：/grdata/downloads/log/" + fileName)
+			node.Status = "init_failed"
+			n.nodecluster.UnlockUpdateNode(node)
 			return
 		}
 		logrus.Info("Add node successful")
 		logrus.Info("check cluster status: grctl node list")
+		node.Status = "init_success"
+		n.nodecluster.UnlockUpdateNode(node)
 	}()
 	return nil
 }
@@ -123,7 +144,7 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("node is online, can not delete"))
 	}
 	// TODO:compute node check node is offline
-	if node.NodeStatus.Status != "offline" {
+	if node.Status != "offline" && node.Status != "not_installed" {
 		return utils.CreateAPIHandleError(401, fmt.Errorf("node is not offline"))
 	}
 	n.nodecluster.RemoveNode(node.ID)
@@ -275,35 +296,35 @@ func (n *NodeService) UpNode(nodeID string) (*client.HostNode, *utils.APIHandleE
 	return hostNode, nil
 }
 
-//InstallNode install a node
-func (n *NodeService) InstallNode(nodeID string) *utils.APIHandleError {
-	time.Sleep(3 * time.Second)
-	node, err := n.GetNode(nodeID)
-	if err != nil {
-		return err
-	}
-	nodes := []string{node.ID}
-	if node.Role.HasRule("manage") {
-		//err := taskService.ExecTask("check_manage_base_services", nodes)
-		//if err != nil {
-		//	return err
-		//}
-		err = taskService.ExecTask("check_manage_services", nodes)
-		if err != nil {
-			return err
-		}
-	}
-	if node.Role.HasRule("compute") {
-		err = taskService.ExecTask("check_compute_services", nodes)
-		if err != nil {
-			return err
-		}
-	}
-	node.Status = Installing
-	node.NodeStatus.Status = Installing
-	n.nodecluster.UpdateNode(node)
-	return nil
-}
+////InstallNode install a node
+//func (n *NodeService) InstallNode(nodeID string) *utils.APIHandleError {
+//	time.Sleep(3 * time.Second)
+//	node, err := n.GetNode(nodeID)
+//	if err != nil {
+//		return err
+//	}
+//	nodes := []string{node.ID}
+//	if node.Role.HasRule("manage") {
+//		//err := taskService.ExecTask("check_manage_base_services", nodes)
+//		//if err != nil {
+//		//	return err
+//		//}
+//		err = taskService.ExecTask("check_manage_services", nodes)
+//		if err != nil {
+//			return err
+//		}
+//	}
+//	if node.Role.HasRule("compute") {
+//		err = taskService.ExecTask("check_compute_services", nodes)
+//		if err != nil {
+//			return err
+//		}
+//	}
+//	node.Status = Installing
+//	node.NodeStatus.Status = Installing
+//	n.nodecluster.UpdateNode(node)
+//	return nil
+//}
 
 //InitStatus node init status
 func (n *NodeService) InitStatus(nodeIP string) (*model.InitStatus, *utils.APIHandleError) {
