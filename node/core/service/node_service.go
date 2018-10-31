@@ -105,6 +105,9 @@ func (n *NodeService) NewNode(node *client.HostNode) *utils.APIHandleError {
 	node.Status = "installing"
 	node.NodeStatus.Status = "installing"
 	n.nodecluster.UnlockUpdateNode(node)
+	if _, err := node.Update(); err != nil {
+		return utils.CreateAPIHandleErrorFromDBError("save node", err)
+	}
 	go n.AsynchronousInstall(node)
 	return nil
 }
@@ -132,6 +135,9 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 		node.Status = "init_failed"
 		node.NodeStatus.Status = "init_failed"
 		n.nodecluster.UnlockUpdateNode(node)
+		if _, err := node.Update(); err != nil {
+			logrus.Errorf(err.Error())
+		}
 		return
 	}
 	logrus.Info("Add node successful")
@@ -139,6 +145,9 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 	node.Status = "init_success"
 	node.NodeStatus.Status = "init_success"
 	n.nodecluster.UnlockUpdateNode(node)
+	if _, err := node.Update(); err != nil {
+		logrus.Errorf(err.Error())
+	}
 }
 
 //DeleteNode delete node
