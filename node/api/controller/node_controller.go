@@ -256,7 +256,7 @@ func DeleteRainbondNode(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-	httputil.ReturnSuccess(r, w, nil)
+	httputil.ReturnSuccess(r, w, "delete success")
 }
 
 //Cordon 不可调度

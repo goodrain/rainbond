@@ -55,7 +55,7 @@ func (a APIHostNode) Clone() *HostNode {
 		KeyPath:       a.Privatekey,
 		Role:          []string{a.Role},
 		Labels:        a.Labels,
-		NodeStatus:    &NodeStatus{Status: "not_installed"},
+		NodeStatus:    &NodeStatus{Status: "not_installed", Conditions: make([]NodeCondition, 0)},
 		Status:        "not_installed",
 		NodeHealth:    false,
 		Unschedulable: true,

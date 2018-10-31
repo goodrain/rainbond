@@ -46,14 +46,15 @@ import (
 )
 
 const (
-	Running     = "running"
-	Offline     = "offline"
-	Unknown     = "unknown"
-	Error       = "error"
-	Init        = "init"
-	InitSuccess = "init_success"
-	InitFailed  = "init_failed"
-	Installing  = "installing"
+	Running      = "running"
+	Offline      = "offline"
+	Unknown      = "unknown"
+	Error        = "error"
+	Init         = "init"
+	InitSuccess  = "init_success"
+	InitFailed   = "init_failed"
+	Installing   = "installing"
+	NotInstalled = "not_installed"
 )
 
 //Cluster  node  controller
@@ -261,6 +262,9 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 	if v == nil {
 		return
 	}
+	if v.Status == InitFailed || v.Status == Installing || v.Status == NotInstalled {
+		return
+	}
 	if v.Role.HasRule("compute") {
 		k8sNode, err := n.kubecli.GetNode(v.ID)
 		status := Running
@@ -365,7 +369,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		}
 	}
 	if v.Role.HasRule("manage") && !v.Role.HasRule("compute") { //manage install_success == runnint
-		if v.Status == Init || v.Status == InitSuccess || v.Status == InitFailed || v.Status == Installing {
+		if v.Status == InitFailed || v.Status == Installing || v.Status == NotInstalled {
 			return
 		}
 		if v.Alived {
