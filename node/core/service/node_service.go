@@ -102,38 +102,40 @@ func (n *NodeService) AddNode(node *client.APIHostNode) (*client.HostNode, *util
 
 // install node
 func (n *NodeService) NewNode(node *client.HostNode) *utils.APIHandleError {
+	node.Status = "installing"
+	n.nodecluster.UnlockUpdateNode(node)
+	go n.AsynchronousInstall(node)
+	return nil
+}
+
+func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 	linkModel := "pass"
 	if node.KeyPath != "" {
 		linkModel = "key"
 	}
-
 	// start add node script
 	logrus.Info("Begin add node, please don't exit")
 	line := fmt.Sprintf("cd /opt/rainbond/install/scripts; ./%s.sh %s %s %s %s %s", node.Role[0], node.HostName,
 		node.InternalIP, linkModel, node.RootPass, node.KeyPath)
 	logrus.Debugf("install cmd :", line)
-	go func() {
-		node.Status = "installing"
-		n.nodecluster.UnlockUpdateNode(node)
-		fileName := node.HostName + ".log"
-		cmd := exec.Command("bash", "-c", line)
-		f, _ := os.OpenFile("/grdata/downloads/log/"+fileName, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0755)
-		cmd.Stdout = f
-		cmd.Stderr = f
-		err := cmd.Run()
 
-		if err != nil {
-			logrus.Errorf("Error executing shell script,View log file：/grdata/downloads/log/" + fileName)
-			node.Status = "init_failed"
-			n.nodecluster.UnlockUpdateNode(node)
-			return
-		}
-		logrus.Info("Add node successful")
-		logrus.Info("check cluster status: grctl node list")
-		node.Status = "init_success"
+	fileName := node.HostName + ".log"
+	cmd := exec.Command("bash", "-c", line)
+	f, _ := os.OpenFile("/grdata/downloads/log/"+fileName, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0755)
+	cmd.Stdout = f
+	cmd.Stderr = f
+	err := cmd.Run()
+
+	if err != nil {
+		logrus.Errorf("Error executing shell script,View log file：/grdata/downloads/log/" + fileName)
+		node.Status = "init_failed"
 		n.nodecluster.UnlockUpdateNode(node)
-	}()
-	return nil
+		return
+	}
+	logrus.Info("Add node successful")
+	logrus.Info("check cluster status: grctl node list")
+	node.Status = "init_success"
+	n.nodecluster.UnlockUpdateNode(node)
 }
 
 //DeleteNode delete node
