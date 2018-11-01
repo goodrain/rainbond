@@ -24,13 +24,11 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -42,35 +40,14 @@ func NewSourceAPI(c cache.Getter, period time.Duration, servicesChan chan<- Serv
 		utilruntime.HandleError(err)
 		return
 	}
-	servicesLW := NewListWatchFromClient(c, "services", v1.NamespaceAll, fields.Everything(), selecter)
-	podsLW := NewListWatchFromClient(c, "pods", v1.NamespaceAll, fields.Everything(), selecter)
+	optionsModifier := func(options *metav1.ListOptions) {
+		options.FieldSelector = fields.Everything().String()
+		options.LabelSelector = selecter.String()
+	}
+	servicesLW := cache.NewFilteredListWatchFromClient(c, "services", v1.NamespaceAll, optionsModifier)
+	podsLW := cache.NewFilteredListWatchFromClient(c, "pods", v1.NamespaceAll, optionsModifier)
 	logrus.Debug("Start new source api for pod and service")
 	newSourceAPI(servicesLW, podsLW, period, servicesChan, podsChan, stopCh)
-}
-
-// NewListWatchFromClient creates a new ListWatch from the specified client, resource, namespace and field selector.
-func NewListWatchFromClient(c cache.Getter, resource string, namespace string, fieldSelector fields.Selector, labelSelector labels.Selector) *cache.ListWatch {
-	listFunc := func(options metav1.ListOptions) (runtime.Object, error) {
-		return c.Get().
-			Namespace(namespace).
-			Resource(resource).
-			VersionedParams(&options, metav1.ParameterCodec).
-			FieldsSelectorParam(fieldSelector).
-			LabelsSelectorParam(labelSelector).
-			Do().
-			Get()
-	}
-	watchFunc := func(options metav1.ListOptions) (watch.Interface, error) {
-		options.Watch = true
-		return c.Get().
-			Namespace(namespace).
-			Resource(resource).
-			VersionedParams(&options, metav1.ParameterCodec).
-			FieldsSelectorParam(fieldSelector).
-			LabelsSelectorParam(labelSelector).
-			Watch()
-	}
-	return &cache.ListWatch{ListFunc: listFunc, WatchFunc: watchFunc}
 }
 
 func newSourceAPI(

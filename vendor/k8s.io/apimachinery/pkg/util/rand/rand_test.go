@@ -24,6 +24,7 @@ import (
 
 const (
 	maxRangeTestCount = 500
+	testStringLength  = 32
 )
 
 func TestString(t *testing.T) {
@@ -35,7 +36,7 @@ func TestString(t *testing.T) {
 		}
 		for _, c := range s {
 			if !strings.ContainsRune(valid, c) {
-				t.Errorf("expected valid charaters, got %v", c)
+				t.Errorf("expected valid characters, got %v", c)
 			}
 		}
 	}
@@ -97,5 +98,17 @@ func TestInt63nRange(t *testing.T) {
 				t.Errorf("%v out of range (%v,%v)", inrange, min, max)
 			}
 		}
+	}
+}
+
+func BenchmarkRandomStringGeneration(b *testing.B) {
+	b.ResetTimer()
+	var s string
+	for i := 0; i < b.N; i++ {
+		s = String(testStringLength)
+	}
+	b.StopTimer()
+	if len(s) == 0 {
+		b.Fatal(s)
 	}
 }

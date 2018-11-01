@@ -19,12 +19,13 @@
 package controller
 
 import (
-	"github.com/goodrain/rainbond/entrance/core"
-	"github.com/goodrain/rainbond/entrance/store"
 	"net/http"
 
+	"github.com/goodrain/rainbond/entrance/core"
+	"github.com/goodrain/rainbond/entrance/store"
+
+	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/client"

@@ -29,10 +29,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
+	"k8s.io/api/apps/v1beta1"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/apis/apps/v1beta1"
 )
 
 //StartDeployment 部署StartDeployment
@@ -197,7 +197,7 @@ func (m *manager) StopDeployment(serviceID string, logger event.Logger) error {
 	}
 
 	//清理集群内可能遗留的资源
-	deletePodsErr := DeletePods(m, service, logger);
+	deletePodsErr := DeletePods(m, service, logger)
 	if deletePodsErr != nil {
 		return deletePodsErr
 	}
@@ -210,7 +210,7 @@ func (m *manager) StopDeployment(serviceID string, logger event.Logger) error {
 		}
 	}
 	for _, v := range rcList.Items {
-		err := m.kubeclient.AppsV1beta1().Deployments(service.ServiceID).Delete(v.Name, &metav1.DeleteOptions{});
+		err := m.kubeclient.AppsV1beta1().Deployments(service.ServiceID).Delete(v.Name, &metav1.DeleteOptions{})
 		if err != nil {
 			if err = checkNotFoundError(err); err != nil {
 				logrus.Error("delete service Deployments error.", err.Error())

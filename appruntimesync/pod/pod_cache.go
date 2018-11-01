@@ -30,17 +30,15 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
 
-	"github.com/pquerna/ffjson/ffjson"
-
 	"github.com/Sirupsen/logrus"
+
+	v1 "k8s.io/api/core/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -138,10 +136,9 @@ func (c *CacheManager) addCachePod() func(obj interface{}) {
 // savePod save pod info to db
 // From pod basic information.
 func (c *CacheManager) savePod(pod *v1.Pod) error {
-	creater, err := c.getPodCreator(pod)
-	if err != nil {
-		logrus.Error("add cache pod error:", err.Error())
-		return err
+	owner := c.getPodCreator(pod)
+	if owner == nil {
+		return nil
 	}
 	var serviceID string
 loop:
@@ -159,8 +156,8 @@ loop:
 	}
 	dbPod := &model.K8sPod{
 		ServiceID:       serviceID,
-		ReplicationID:   creater.Reference.Name,
-		ReplicationType: strings.ToLower(creater.Reference.Kind),
+		ReplicationID:   owner.Name,
+		ReplicationType: strings.ToLower(owner.Kind),
 		PodName:         pod.Name,
 		PodIP:           pod.Status.PodIP,
 	}
@@ -191,18 +188,16 @@ loop:
 	}
 	return nil
 }
-func (c *CacheManager) getPodCreator(pod *v1.Pod) (*api.SerializedReference, error) {
-	creatorRef, found := pod.ObjectMeta.Annotations[api.CreatedByAnnotation]
-	if !found {
-		return nil, fmt.Errorf("not found pod creator name")
+func (c *CacheManager) getPodCreator(pod *v1.Pod) *metav1.OwnerReference {
+	owner := pod.GetOwnerReferences()
+	for _, o := range owner {
+		if *o.Controller {
+			return &o
+		}
 	}
-	sr := &api.SerializedReference{}
-	err := ffjson.Unmarshal([]byte(creatorRef), sr)
-	if err != nil {
-		return nil, err
-	}
-	return sr, nil
+	return nil
 }
+
 func (c *CacheManager) updateCachePod() func(oldObj, newObj interface{}) {
 	return func(_, obj interface{}) {
 		pod, ok := obj.(*v1.Pod)
@@ -271,13 +266,13 @@ func (c *CacheManager) addAbnormalInfo(ai *AbnormalInfo) {
 			c.oomInfos[ai.Hash()] = ai
 		}
 		db.GetManager().NotificationEventDao().AddModel(&model.NotificationEvent{
-			Kind:        "service",
-			KindID:      c.oomInfos[ai.Hash()].ServiceID,
-			Hash:        ai.Hash(),
-			Type:        "UnNormal",
-			Message:     c.oomInfos[ai.Hash()].Message,
-			Reason:      "OOMKilled",
-			Count:       c.oomInfos[ai.Hash()].Count,
+			Kind:    "service",
+			KindID:  c.oomInfos[ai.Hash()].ServiceID,
+			Hash:    ai.Hash(),
+			Type:    "UnNormal",
+			Message: c.oomInfos[ai.Hash()].Message,
+			Reason:  "OOMKilled",
+			Count:   c.oomInfos[ai.Hash()].Count,
 		})
 	default:
 		if oldai, ok := c.errorInfos[ai.Hash()]; ok && oldai != nil {
@@ -287,13 +282,13 @@ func (c *CacheManager) addAbnormalInfo(ai *AbnormalInfo) {
 			c.errorInfos[ai.Hash()] = ai
 		}
 		db.GetManager().NotificationEventDao().AddModel(&model.NotificationEvent{
-			Kind:        "service",
-			KindID:      c.errorInfos[ai.Hash()].ServiceID,
-			Hash:        ai.Hash(),
-			Type:        "UnNormal",
-			Message:     c.errorInfos[ai.Hash()].Message,
-			Reason:      c.errorInfos[ai.Hash()].Reason,
-			Count:       c.errorInfos[ai.Hash()].Count,
+			Kind:    "service",
+			KindID:  c.errorInfos[ai.Hash()].ServiceID,
+			Hash:    ai.Hash(),
+			Type:    "UnNormal",
+			Message: c.errorInfos[ai.Hash()].Message,
+			Reason:  c.errorInfos[ai.Hash()].Reason,
+			Count:   c.errorInfos[ai.Hash()].Count,
 		})
 	}
 

@@ -35,7 +35,7 @@ import (
 	"github.com/goodrain/rainbond/entrance/source/config"
 
 	"github.com/Sirupsen/logrus"
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/api/core/v1"
 )
 
 func chargeMethod(op config.Operation) core.EventMethod {
@@ -138,13 +138,13 @@ func (m *Manager) podSource(pods *v1.Pod, method core.EventMethod) {
 		}
 	} else {
 		protocolsNumber := pods.Labels["protocols_number"]
-		number, err := strconv.Atoi(protocolsNumber);
+		number, err := strconv.Atoi(protocolsNumber)
 		if err != nil {
 			logrus.Errorf("ports number converted to int failed：", err.Error())
 		}
 		for i := 0; i < number; i++ {
 			protocol := pods.Labels[fmt.Sprintf("%s_%d", "protocol", i)]
-			portInfo := strings.Split(protocol,"_._")
+			portInfo := strings.Split(protocol, "_._")
 			mapPP[portInfo[0]] = portInfo[1]
 		}
 	}

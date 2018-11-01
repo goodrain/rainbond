@@ -31,7 +31,7 @@ import (
 	status "github.com/goodrain/rainbond/appruntimesync/client"
 
 	"github.com/Sirupsen/logrus"
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/api/core/v1"
 )
 
 type rollingUpgradeTask struct {

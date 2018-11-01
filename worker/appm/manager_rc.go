@@ -29,9 +29,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/pkg/api/v1"
 )
 
 //StartReplicationController 部署StartReplicationController
@@ -209,11 +209,11 @@ func (m *manager) StopReplicationController(serviceID string, logger event.Logge
 	logger.Info("移除残留的Pod实例完成", map[string]string{"step": "worker-appm", "status": "starting"})
 
 	//清理集群内可能遗留的资源
-	deletePodsErr := DeletePods(m, service, logger);
+	deletePodsErr := DeletePods(m, service, logger)
 	if deletePodsErr != nil {
 		return deletePodsErr
 	}
-	rcList, err := m.kubeclient.ReplicationControllers(service.ServiceID).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("name=%s,creator=%s,version=%s", service.ServiceAlias, "RainBond", service.DeployVersion)})
+	rcList, err := m.kubeclient.CoreV1().ReplicationControllers(service.ServiceID).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("name=%s,creator=%s,version=%s", service.ServiceAlias, "RainBond", service.DeployVersion)})
 	if err != nil {
 		if err = checkNotFoundError(err); err != nil {
 			logrus.Error("get service ReplicationController error.", err.Error())
@@ -222,7 +222,7 @@ func (m *manager) StopReplicationController(serviceID string, logger event.Logge
 		}
 	}
 	for _, v := range rcList.Items {
-		err := m.kubeclient.ReplicationControllers(service.ServiceID).Delete(v.Name, &metav1.DeleteOptions{});
+		err := m.kubeclient.CoreV1().ReplicationControllers(service.ServiceID).Delete(v.Name, &metav1.DeleteOptions{})
 		if err != nil {
 			if err = checkNotFoundError(err); err != nil {
 				logrus.Error("delete service ReplicationController error.", err.Error())

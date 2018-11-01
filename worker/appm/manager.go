@@ -31,12 +31,12 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
+	"k8s.io/api/apps/v1beta1"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/apis/apps/v1beta1"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -102,8 +102,8 @@ func NewManager(conf option.Config, statusManager *client.AppRuntimeSyncClient) 
 	}
 	cacheManager := NewCacheManager()
 	return &manager{kubeclient: clientset, conf: conf,
-		dbmanager: db.GetManager(),
-		statusCache: cacheManager,
+		dbmanager:     db.GetManager(),
+		statusCache:   cacheManager,
 		statusManager: statusManager,
 	}, nil
 }
@@ -268,7 +268,7 @@ func (m *manager) SyncData() {
 }
 
 func DeletePods(m *manager, service *model.TenantServices, logger event.Logger) error {
-	podList, err := m.kubeclient.Pods(service.ServiceID).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("name=%s,creator=%s,version=%s", service.ServiceAlias, "RainBond", service.DeployVersion)})
+	podList, err := m.kubeclient.CoreV1().Pods(service.ServiceID).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("name=%s,creator=%s,version=%s", service.ServiceAlias, "RainBond", service.DeployVersion)})
 	if err != nil {
 		if err = checkNotFoundError(err); err != nil {
 			logrus.Error("get service pods error.", err.Error())
@@ -278,7 +278,7 @@ func DeletePods(m *manager, service *model.TenantServices, logger event.Logger) 
 	}
 
 	for _, v := range podList.Items {
-		err := m.kubeclient.Pods(service.ServiceID).Delete(v.Name, &metav1.DeleteOptions{});
+		err := m.kubeclient.CoreV1().Pods(service.ServiceID).Delete(v.Name, &metav1.DeleteOptions{})
 		if err != nil {
 			if err = checkNotFoundError(err); err != nil {
 				logrus.Error("delete service pod error.", err.Error())

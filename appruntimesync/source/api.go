@@ -24,13 +24,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/api/apps/v1beta1"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/apis/apps/v1beta1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -68,34 +65,11 @@ type StatefulSetUpdate struct {
 
 // NewSourceAPI creates config source that watches for changes to the services and pods.
 func NewSourceAPI(v1get cache.Getter, batev1 cache.Getter, period time.Duration, rcsChan chan<- RCUpdate, deploymentsChan chan<- DeploymentUpdate, statefulChan chan<- StatefulSetUpdate, stopCh <-chan struct{}) {
-	rcsLW := NewListWatchFromClient(v1get, "replicationcontrollers", v1.NamespaceAll, fields.Everything())
-	statefulsLW := NewListWatchFromClient(batev1, "statefulsets", v1.NamespaceAll, fields.Everything())
-	deploymentsLW := NewListWatchFromClient(batev1, "deployments", v1.NamespaceAll, fields.Everything())
+	rcsLW := cache.NewListWatchFromClient(v1get, "replicationcontrollers", v1.NamespaceAll, fields.Everything())
+	statefulsLW := cache.NewListWatchFromClient(batev1, "statefulsets", v1.NamespaceAll, fields.Everything())
+	deploymentsLW := cache.NewListWatchFromClient(batev1, "deployments", v1.NamespaceAll, fields.Everything())
 	logrus.Debug("Start new source api for replicationcontrollers and statefulsets and deployments")
 	newSourceAPI(rcsLW, statefulsLW, deploymentsLW, period, rcsChan, deploymentsChan, statefulChan, stopCh)
-}
-
-// NewListWatchFromClient creates a new ListWatch from the specified client, resource, namespace and field selector.
-func NewListWatchFromClient(c cache.Getter, resource string, namespace string, fieldSelector fields.Selector) *cache.ListWatch {
-	listFunc := func(options metav1.ListOptions) (runtime.Object, error) {
-		return c.Get().
-			Namespace(namespace).
-			Resource(resource).
-			VersionedParams(&options, metav1.ParameterCodec).
-			FieldsSelectorParam(fieldSelector).
-			Do().
-			Get()
-	}
-	watchFunc := func(options metav1.ListOptions) (watch.Interface, error) {
-		options.Watch = true
-		return c.Get().
-			Namespace(namespace).
-			Resource(resource).
-			VersionedParams(&options, metav1.ParameterCodec).
-			FieldsSelectorParam(fieldSelector).
-			Watch()
-	}
-	return &cache.ListWatch{ListFunc: listFunc, WatchFunc: watchFunc}
 }
 
 func newSourceAPI(

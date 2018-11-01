@@ -26,7 +26,7 @@ import (
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/pquerna/ffjson/ffjson"
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/api/core/v1"
 
 	//"github.com/Sirupsen/logrus"
 	"fmt"
@@ -444,7 +444,6 @@ type NodeDetails struct {
 	Capacity           map[string]string   `json:"capacity"`
 	Allocatable        map[string]string   `json:"allocatable"`
 	SystemInfo         v1.NodeSystemInfo   `json:"systeminfo"`
-	ExternalID         string              `json:"externalid"`
 	NonterminatedPods  []*Pods             `json:"nonterminatedpods"`
 	AllocatedResources map[string]string   `json:"allocatedresources"`
 	Events             map[string][]string `json:"events"`

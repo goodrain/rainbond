@@ -27,9 +27,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
-	//"k8s.io/client-go/pkg/api/v1"
-
-	//"k8s.io/apimachinery/pkg/types"
 
 	"strconv"
 
@@ -66,7 +63,6 @@ func GetNodeDetails(w http.ResponseWriter, r *http.Request) {
 		addMap[string(v.Type)] = v.Address
 	}
 	d.Addresses = addMap
-	d.ExternalID = node.Spec.ExternalID
 	d.Conditions = node.Status.Conditions
 	ca := make(map[string]string)
 

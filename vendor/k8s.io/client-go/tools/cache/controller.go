@@ -116,7 +116,10 @@ func (c *controller) Run(stopCh <-chan struct{}) {
 	c.reflector = r
 	c.reflectorMutex.Unlock()
 
-	r.RunUntil(stopCh)
+	var wg wait.Group
+	defer wg.Wait()
+
+	wg.StartWithChannel(stopCh, r.Run)
 
 	wait.Until(c.processLoop, time.Second, stopCh)
 }
@@ -285,7 +288,7 @@ func NewInformer(
 	// This will hold incoming changes. Note how we pass clientState in as a
 	// KeyLister, that way resync operations will result in the correct set
 	// of update/delete deltas.
-	fifo := NewDeltaFIFO(MetaNamespaceKeyFunc, nil, clientState)
+	fifo := NewDeltaFIFO(MetaNamespaceKeyFunc, clientState)
 
 	cfg := &Config{
 		Queue:            fifo,
@@ -352,7 +355,7 @@ func NewIndexerInformer(
 	// This will hold incoming changes. Note how we pass clientState in as a
 	// KeyLister, that way resync operations will result in the correct set
 	// of update/delete deltas.
-	fifo := NewDeltaFIFO(MetaNamespaceKeyFunc, nil, clientState)
+	fifo := NewDeltaFIFO(MetaNamespaceKeyFunc, clientState)
 
 	cfg := &Config{
 		Queue:            fifo,

@@ -29,6 +29,8 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 
 	"github.com/Sirupsen/logrus"
+	"k8s.io/api/core/v1"
+	v1beta1 "k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,8 +40,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
-	policy "k8s.io/client-go/pkg/apis/policy/v1beta1"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -175,7 +175,7 @@ func (k *kubeClient) evictPod(pod v1.Pod, policyGroupVersion string) error {
 	//	deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
 	//}
 
-	eviction := &policy.Eviction{
+	eviction := &v1beta1.Eviction{
 		///Users/goodrain/go/src/k8s.io/kubernetes/pkg/apis/policy/types.go
 		///Users/goodrain/go/src/k8s.io/apimachinery/pkg/apis/meta/v1/types.go
 		TypeMeta: metav1.TypeMeta{
@@ -411,7 +411,7 @@ func (k *kubeClient) DownK8sNode(nodename string) error {
 
 func (k *kubeClient) deleteNodeWithoutPods(name string) error {
 	opt := &metav1.DeleteOptions{}
-	err := k.kubeclient.Nodes().Delete(name, opt)
+	err := k.kubeclient.CoreV1().Nodes().Delete(name, opt)
 	if err != nil {
 		return err
 	}
@@ -441,7 +441,7 @@ func (k *kubeClient) UpK8sNode(rainbondNode *client.HostNode) (*v1.Node, error) 
 			},
 		},
 	}
-	savedNode, err := k.kubeclient.Nodes().Create(node)
+	savedNode, err := k.kubeclient.CoreV1().Nodes().Create(node)
 	if err != nil {
 		return nil, err
 	}
@@ -462,7 +462,7 @@ func (k *kubeClient) GetNodes() ([]*v1.Node, error) {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		list, err := k.kubeclient.Nodes().List(metav1.ListOptions{})
+		list, err := k.kubeclient.CoreV1().Nodes().List(metav1.ListOptions{})
 		if err != nil {
 			return nil, err
 		}

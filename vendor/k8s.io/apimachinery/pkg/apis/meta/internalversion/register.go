@@ -18,7 +18,7 @@ package internalversion
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	metav1alpha1 "k8s.io/apimachinery/pkg/apis/meta/v1alpha1"
+	metav1beta1 "k8s.io/apimachinery/pkg/apis/meta/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -30,8 +30,13 @@ const GroupName = "meta.k8s.io"
 // Scheme is the registry for any type that adheres to the meta API spec.
 var scheme = runtime.NewScheme()
 
-// Copier exposes copying on this scheme.
-var Copier runtime.ObjectCopier = scheme
+var (
+	// TODO: move SchemeBuilder with zz_generated.deepcopy.go to k8s.io/api.
+	// localSchemeBuilder and AddToScheme will stay in k8s.io/kubernetes.
+	SchemeBuilder      runtime.SchemeBuilder
+	localSchemeBuilder = &SchemeBuilder
+	AddToScheme        = localSchemeBuilder.AddToScheme
+)
 
 // Codecs provides access to encoding and decoding for the scheme.
 var Codecs = serializer.NewCodecFactory(scheme)
@@ -74,16 +79,16 @@ func addToGroupVersion(scheme *runtime.Scheme, groupVersion schema.GroupVersion)
 		&metav1.DeleteOptions{},
 	)
 	scheme.AddKnownTypes(SchemeGroupVersion,
-		&metav1alpha1.Table{},
-		&metav1alpha1.TableOptions{},
-		&metav1alpha1.PartialObjectMetadata{},
-		&metav1alpha1.PartialObjectMetadataList{},
+		&metav1beta1.Table{},
+		&metav1beta1.TableOptions{},
+		&metav1beta1.PartialObjectMetadata{},
+		&metav1beta1.PartialObjectMetadataList{},
 	)
-	scheme.AddKnownTypes(metav1alpha1.SchemeGroupVersion,
-		&metav1alpha1.Table{},
-		&metav1alpha1.TableOptions{},
-		&metav1alpha1.PartialObjectMetadata{},
-		&metav1alpha1.PartialObjectMetadataList{},
+	scheme.AddKnownTypes(metav1beta1.SchemeGroupVersion,
+		&metav1beta1.Table{},
+		&metav1beta1.TableOptions{},
+		&metav1beta1.PartialObjectMetadata{},
+		&metav1beta1.PartialObjectMetadataList{},
 	)
 	// Allow delete options to be decoded across all version in this scheme (we may want to be more clever than this)
 	scheme.AddUnversionedTypes(SchemeGroupVersion, &metav1.DeleteOptions{})

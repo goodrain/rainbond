@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -34,10 +35,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/glog"
+
+	"k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -48,18 +51,17 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/pkg/api/v1"
 	restclientwatch "k8s.io/client-go/rest/watch"
 	"k8s.io/client-go/util/flowcontrol"
 	utiltesting "k8s.io/client-go/util/testing"
 )
 
 func TestNewRequestSetsAccept(t *testing.T) {
-	r := NewRequest(nil, "get", &url.URL{Path: "/path/"}, "", ContentConfig{}, Serializers{}, nil, nil)
+	r := NewRequest(nil, "get", &url.URL{Path: "/path/"}, "", ContentConfig{}, Serializers{}, nil, nil, 0)
 	if r.headers.Get("Accept") != "" {
 		t.Errorf("unexpected headers: %#v", r.headers)
 	}
-	r = NewRequest(nil, "get", &url.URL{Path: "/path/"}, "", ContentConfig{ContentType: "application/other"}, Serializers{}, nil, nil)
+	r = NewRequest(nil, "get", &url.URL{Path: "/path/"}, "", ContentConfig{ContentType: "application/other"}, Serializers{}, nil, nil, 0)
 	if r.headers.Get("Accept") != "application/other, */*" {
 		t.Errorf("unexpected headers: %#v", r.headers)
 	}
@@ -84,7 +86,7 @@ func TestRequestSetsHeaders(t *testing.T) {
 	config := defaultContentConfig()
 	config.ContentType = "application/other"
 	serializers := defaultSerializers(t)
-	r := NewRequest(server, "get", &url.URL{Path: "/path"}, "", config, serializers, nil, nil)
+	r := NewRequest(server, "get", &url.URL{Path: "/path"}, "", config, serializers, nil, nil, 0)
 
 	// Check if all "issue" methods are setting headers.
 	_ = r.Do()
@@ -100,8 +102,6 @@ func TestRequestWithErrorWontChange(t *testing.T) {
 	}
 	r := original
 	changed := r.Param("foo", "bar").
-		LabelsSelectorParam(labels.Set{"a": "b"}.AsSelector()).
-		UintParam("uint", 1).
 		AbsPath("/abs").
 		Prefix("test").
 		Suffix("testing").
@@ -257,7 +257,7 @@ func TestRequestVersionedParamsFromListOptions(t *testing.T) {
 		"resourceVersion": []string{"1", "2"},
 		"timeoutSeconds":  []string{"10"},
 	}) {
-		t.Errorf("should have set a param: %#v", r)
+		t.Errorf("should have set a param: %#v %v", r.params, r.err)
 	}
 }
 
@@ -341,7 +341,7 @@ func TestResultIntoWithNoBodyReturnsErr(t *testing.T) {
 
 func TestURLTemplate(t *testing.T) {
 	uri, _ := url.Parse("http://localhost")
-	r := NewRequest(nil, "POST", uri, "", ContentConfig{GroupVersion: &schema.GroupVersion{Group: "test"}}, Serializers{}, nil, nil)
+	r := NewRequest(nil, "POST", uri, "", ContentConfig{GroupVersion: &schema.GroupVersion{Group: "test"}}, Serializers{}, nil, nil, 0)
 	r.Prefix("pre1").Resource("r1").Namespace("ns").Name("nm").Param("p0", "v0")
 	full := r.URL()
 	if full.String() != "http://localhost/pre1/namespaces/ns/r1/nm?p0=v0" {
@@ -403,7 +403,7 @@ func TestTransformResponse(t *testing.T) {
 		{Response: &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader(invalid))}, Data: invalid},
 	}
 	for i, test := range testCases {
-		r := NewRequest(nil, "", uri, "", defaultContentConfig(), defaultSerializers(t), nil, nil)
+		r := NewRequest(nil, "", uri, "", defaultContentConfig(), defaultSerializers(t), nil, nil, 0)
 		if test.Response.Body == nil {
 			test.Response.Body = ioutil.NopCloser(bytes.NewReader([]byte{}))
 		}
@@ -554,7 +554,7 @@ func TestTransformResponseNegotiate(t *testing.T) {
 		serializers.RenegotiatedDecoder = negotiator.invoke
 		contentConfig := defaultContentConfig()
 		contentConfig.ContentType = test.ContentType
-		r := NewRequest(nil, "", uri, "", contentConfig, serializers, nil, nil)
+		r := NewRequest(nil, "", uri, "", contentConfig, serializers, nil, nil, 0)
 		if test.Response.Body == nil {
 			test.Response.Body = ioutil.NopCloser(bytes.NewReader([]byte{}))
 		}
@@ -1133,7 +1133,7 @@ func TestCheckRetryClosesBody(t *testing.T) {
 			return
 		}
 		w.Header().Set("Retry-After", "1")
-		http.Error(w, "Too many requests, please try again later.", apierrors.StatusTooManyRequests)
+		http.Error(w, "Too many requests, please try again later.", http.StatusTooManyRequests)
 	}))
 	defer testServer.Close()
 
@@ -1207,7 +1207,7 @@ func TestCheckRetryHandles429And5xx(t *testing.T) {
 			return
 		}
 		w.Header().Set("Retry-After", "0")
-		w.WriteHeader([]int{apierrors.StatusTooManyRequests, 500, 501, 504}[count])
+		w.WriteHeader([]int{http.StatusTooManyRequests, 500, 501, 504}[count])
 		count++
 	}))
 	defer testServer.Close()
@@ -1237,7 +1237,7 @@ func BenchmarkCheckRetryClosesBody(b *testing.B) {
 			return
 		}
 		w.Header().Set("Retry-After", "0")
-		w.WriteHeader(apierrors.StatusTooManyRequests)
+		w.WriteHeader(http.StatusTooManyRequests)
 	}))
 	defer testServer.Close()
 
@@ -1276,7 +1276,6 @@ func TestDoRequestNewWayReader(t *testing.T) {
 		Resource("bar").
 		Name("baz").
 		Prefix("foo").
-		LabelsSelectorParam(labels.Set{"name": "foo"}.AsSelector()).
 		Timeout(time.Second).
 		Body(bytes.NewBuffer(reqBodyExpected)).
 		Do().Get()
@@ -1291,7 +1290,7 @@ func TestDoRequestNewWayReader(t *testing.T) {
 	}
 	tmpStr := string(reqBodyExpected)
 	requestURL := defaultResourcePathWithPrefix("foo", "bar", "", "baz")
-	requestURL += "?" + metav1.LabelSelectorQueryParam(v1.SchemeGroupVersion.String()) + "=name%3Dfoo&timeout=1s"
+	requestURL += "?timeout=1s"
 	fakeHandler.ValidateRequest(t, requestURL, "POST", &tmpStr)
 }
 
@@ -1316,7 +1315,6 @@ func TestDoRequestNewWayObj(t *testing.T) {
 		Suffix("baz").
 		Name("bar").
 		Resource("foo").
-		LabelsSelectorParam(labels.Set{"name": "foo"}.AsSelector()).
 		Timeout(time.Second).
 		Body(reqObj).
 		Do().Get()
@@ -1331,7 +1329,7 @@ func TestDoRequestNewWayObj(t *testing.T) {
 	}
 	tmpStr := string(reqBodyExpected)
 	requestURL := defaultResourcePathWithPrefix("", "foo", "", "bar/baz")
-	requestURL += "?" + metav1.LabelSelectorQueryParam(v1.SchemeGroupVersion.String()) + "=name%3Dfoo&timeout=1s"
+	requestURL += "?timeout=1s"
 	fakeHandler.ValidateRequest(t, requestURL, "POST", &tmpStr)
 }
 
@@ -1482,29 +1480,9 @@ func TestAbsPath(t *testing.T) {
 		{"/p1/api/p2", "/api/r1", "/api/", "/p1/api/p2/api/"},
 	} {
 		u, _ := url.Parse("http://localhost:123" + tc.configPrefix)
-		r := NewRequest(nil, "POST", u, "", ContentConfig{GroupVersion: &schema.GroupVersion{Group: "test"}}, Serializers{}, nil, nil).Prefix(tc.resourcePrefix).AbsPath(tc.absPath)
+		r := NewRequest(nil, "POST", u, "", ContentConfig{GroupVersion: &schema.GroupVersion{Group: "test"}}, Serializers{}, nil, nil, 0).Prefix(tc.resourcePrefix).AbsPath(tc.absPath)
 		if r.pathPrefix != tc.wantsAbsPath {
 			t.Errorf("test case %d failed, unexpected path: %q, expected %q", i, r.pathPrefix, tc.wantsAbsPath)
-		}
-	}
-}
-
-func TestUintParam(t *testing.T) {
-	table := []struct {
-		name      string
-		testVal   uint64
-		expectStr string
-	}{
-		{"foo", 31415, "http://localhost?foo=31415"},
-		{"bar", 42, "http://localhost?bar=42"},
-		{"baz", 0, "http://localhost?baz=0"},
-	}
-
-	for _, item := range table {
-		u, _ := url.Parse("http://localhost")
-		r := NewRequest(nil, "GET", u, "", ContentConfig{GroupVersion: &schema.GroupVersion{Group: "test"}}, Serializers{}, nil, nil).AbsPath("").UintParam(item.name, item.testVal)
-		if e, a := item.expectStr, r.URL().String(); e != a {
-			t.Errorf("expected %v, got %v", e, a)
 		}
 	}
 }
@@ -1515,7 +1493,8 @@ func TestUnacceptableParamNames(t *testing.T) {
 		testVal       string
 		expectSuccess bool
 	}{
-		{"timeout", "42", false},
+		// timeout is no longer "protected"
+		{"timeout", "42", true},
 	}
 
 	for _, item := range table {
@@ -1718,6 +1697,74 @@ func TestDoContext(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected context cancellation error")
 	}
+}
+
+func buildString(length int) string {
+	s := make([]byte, length)
+	for i := range s {
+		s[i] = 'a'
+	}
+	return string(s)
+}
+
+func TestTruncateBody(t *testing.T) {
+	tests := []struct {
+		body  string
+		want  string
+		level string
+	}{
+		// Anything below 8 is completely truncated
+		{
+			body:  "Completely truncated below 8",
+			want:  " [truncated 28 chars]",
+			level: "0",
+		},
+		// Small strings are not truncated by high levels
+		{
+			body:  "Small body never gets truncated",
+			want:  "Small body never gets truncated",
+			level: "10",
+		},
+		{
+			body:  "Small body never gets truncated",
+			want:  "Small body never gets truncated",
+			level: "8",
+		},
+		// Strings are truncated to 1024 if level is less than 9.
+		{
+			body:  buildString(2000),
+			level: "8",
+			want:  fmt.Sprintf("%s [truncated 976 chars]", buildString(1024)),
+		},
+		// Strings are truncated to 10240 if level is 9.
+		{
+			body:  buildString(20000),
+			level: "9",
+			want:  fmt.Sprintf("%s [truncated 9760 chars]", buildString(10240)),
+		},
+		// Strings are not truncated if level is 10 or higher
+		{
+			body:  buildString(20000),
+			level: "10",
+			want:  buildString(20000),
+		},
+		// Strings are not truncated if level is 10 or higher
+		{
+			body:  buildString(20000),
+			level: "11",
+			want:  buildString(20000),
+		},
+	}
+
+	l := flag.Lookup("v").Value.(flag.Getter).Get().(glog.Level)
+	for _, test := range tests {
+		flag.Set("v", test.level)
+		got := truncateBody(test.body)
+		if got != test.want {
+			t.Errorf("truncateBody(%v) = %v, want %v", test.body, got, test.want)
+		}
+	}
+	flag.Set("v", l.String())
 }
 
 func defaultResourcePathWithPrefix(prefix, resource, namespace, name string) string {

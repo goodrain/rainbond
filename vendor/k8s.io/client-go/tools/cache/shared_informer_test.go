@@ -22,12 +22,12 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/pkg/api/v1"
 	fcache "k8s.io/client-go/tools/cache/testing"
 )
 
@@ -250,4 +250,16 @@ func TestResyncCheckPeriod(t *testing.T) {
 	if e, a := 5*time.Second, informer.processor.listeners[3].resyncPeriod; e != a {
 		t.Errorf("expected %d, got %d", e, a)
 	}
+}
+
+// verify that https://github.com/kubernetes/kubernetes/issues/59822 is fixed
+func TestSharedInformerInitializationRace(t *testing.T) {
+	source := fcache.NewFakeControllerSource()
+	informer := NewSharedInformer(source, &v1.Pod{}, 1*time.Second).(*sharedIndexInformer)
+	listener := newTestListener("raceListener", 0)
+
+	stop := make(chan struct{})
+	go informer.AddEventHandlerWithResyncPeriod(listener, listener.resyncPeriod)
+	go informer.Run(stop)
+	close(stop)
 }

@@ -19,11 +19,11 @@
 package appm
 
 import (
-	"github.com/goodrain/rainbond/event"
 	"fmt"
 	"sync"
 
-	"k8s.io/client-go/pkg/api/v1"
+	"github.com/goodrain/rainbond/event"
+	"k8s.io/api/core/v1"
 )
 
 //处理POD生命周期问题。并打日志处理

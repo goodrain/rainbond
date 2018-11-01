@@ -18,7 +18,7 @@
 
 package model
 
-import "k8s.io/client-go/pkg/api/v1"
+import "k8s.io/api/core/v1"
 
 //Domain 域名实体
 //TenantName+ServiceAlias+ServicePort ->PoolName

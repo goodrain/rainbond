@@ -12,10 +12,10 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
+	"github.com/jinzhu/gorm"
+	"k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
-	"github.com/jinzhu/gorm"
 )
 
 //Resource should be clean resource
@@ -46,21 +46,21 @@ type rcResource struct {
 	id         string
 	namespaces string
 	createTime time.Time
-	serviceId string
+	serviceId  string
 }
 type statefulResource struct {
 	manager    *Manager
 	id         string
 	namespaces string
 	createTime time.Time
-	serviceId string
+	serviceId  string
 }
 type deploymentResource struct {
 	manager    *Manager
 	id         string
 	namespaces string
 	createTime time.Time
-	serviceId string
+	serviceId  string
 }
 
 type k8sServiceResource struct {
@@ -101,10 +101,11 @@ func (p *servicePodResource) Type() string {
 	return "ServicePod"
 }
 
+//QueryPodsResource query pod resource
 func QueryPodsResource(m *Manager) []Resource {
 	podsNameList := make([]string, 0, 100)
 	k8sPodsList := make([]Resource, 0, 100)
-	podsList, err := m.kubeclient.Pods(v1.NamespaceAll).List(meta_v1.ListOptions{})
+	podsList, err := m.kubeclient.CoreV1().Pods(v1.NamespaceAll).List(meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Error(err.Error())
 	}
@@ -270,7 +271,7 @@ func QueryK8sServiceResource(m *Manager) []Resource {
 
 	}
 
-	ServicesList, err := m.kubeclient.Services(v1.NamespaceAll).List(meta_v1.ListOptions{})
+	ServicesList, err := m.kubeclient.CoreV1().Services(v1.NamespaceAll).List(meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Error(err)
 	}
@@ -324,7 +325,7 @@ func (d *deploymentResource) DeleteResources() error {
 			}
 		}
 	}
-	if err := d.manager.kubeclient.AppsV1beta1().Deployments(d.namespaces).Delete(d.id, &meta_v1.DeleteOptions{}); err != nil {
+	if err := d.manager.kubeclient.AppsV1().Deployments(d.namespaces).Delete(d.id, &meta_v1.DeleteOptions{}); err != nil {
 		if err = checkNotFoundError(err); err != nil {
 			return err
 		}
@@ -369,7 +370,7 @@ func QueryDeploymentResource(m *Manager) []Resource {
 
 	}
 
-	DeploymentList, err := m.kubeclient.AppsV1beta1().Deployments(v1.NamespaceAll).List(meta_v1.ListOptions{})
+	DeploymentList, err := m.kubeclient.AppsV1().Deployments(v1.NamespaceAll).List(meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Error(err)
 	}
@@ -382,7 +383,7 @@ func QueryDeploymentResource(m *Manager) []Resource {
 					createTime: time.Now(),
 					namespaces: v.Namespace,
 					id:         v.Name,
-					serviceId:getServiceId(v.Labels),
+					serviceId:  getServiceId(v.Labels),
 				}
 				DeploymentDelList = append(DeploymentDelList, s)
 			}
@@ -423,7 +424,7 @@ func (s *statefulResource) DeleteResources() error {
 			}
 		}
 	}
-	if err := s.manager.kubeclient.AppsV1beta1().StatefulSets(s.namespaces).Delete(s.id, &meta_v1.DeleteOptions{}); err != nil {
+	if err := s.manager.kubeclient.AppsV1().StatefulSets(s.namespaces).Delete(s.id, &meta_v1.DeleteOptions{}); err != nil {
 		if err = checkNotFoundError(err); err != nil {
 			return err
 		}
@@ -469,7 +470,7 @@ func QueryStatefulResource(m *Manager) []Resource {
 
 	}
 
-	StatefulSetsList, err := m.kubeclient.StatefulSets(v1.NamespaceAll).List(meta_v1.ListOptions{})
+	StatefulSetsList, err := m.kubeclient.AppsV1().StatefulSets(v1.NamespaceAll).List(meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Error(err)
 	}
@@ -482,7 +483,7 @@ func QueryStatefulResource(m *Manager) []Resource {
 					createTime: time.Now(),
 					namespaces: v.Namespace,
 					id:         v.Name,
-					serviceId:getServiceId(v.Labels),
+					serviceId:  getServiceId(v.Labels),
 				}
 				StatefulSetList = append(StatefulSetList, s)
 			}
@@ -501,7 +502,7 @@ func (n *nameSpacesResource) IsTimeout() bool {
 }
 
 func (n *nameSpacesResource) DeleteResources() error {
-	if err := n.manager.kubeclient.Namespaces().Delete(n.namespaces, &meta_v1.DeleteOptions{}); err != nil {
+	if err := n.manager.kubeclient.CoreV1().Namespaces().Delete(n.namespaces, &meta_v1.DeleteOptions{}); err != nil {
 		return err
 	} else {
 		logrus.Info("delete namespaces success：", n.namespaces)
@@ -640,7 +641,7 @@ func QueryRcResource(m *Manager) []Resource {
 		}
 	}
 
-	ReplicationControllersList, err := m.kubeclient.ReplicationControllers(v1.NamespaceAll).List(meta_v1.ListOptions{})
+	ReplicationControllersList, err := m.kubeclient.CoreV1().ReplicationControllers(v1.NamespaceAll).List(meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Error(err)
 	}
@@ -654,7 +655,7 @@ func QueryRcResource(m *Manager) []Resource {
 					namespaces: v.Namespace,
 					id:         v.Name,
 					createTime: time.Now(),
-					serviceId:getServiceId(v.Labels),
+					serviceId:  getServiceId(v.Labels),
 				}
 				RcList = append(RcList, s)
 			}
