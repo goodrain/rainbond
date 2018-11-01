@@ -159,7 +159,7 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("node is online, can not delete"))
 	}
 	// TODO:compute node check node is offline
-	if node.Status != Offline && node.Status != NotInstalled && node.Status != InstallFailed {
+	if node.Status != Offline && node.Status != NotInstalled && node.Status != InstallFailed && node.Status != InstallSuccess {
 		return utils.CreateAPIHandleError(401, fmt.Errorf("node is not offline"))
 	}
 	n.nodecluster.RemoveNode(node.ID)
