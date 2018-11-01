@@ -10,9 +10,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/internal/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -22,7 +19,9 @@ func TestVolumeInspectError(t *testing.T) {
 	}
 
 	_, err := client.VolumeInspect(context.Background(), "nothing")
-	testutil.ErrorContains(t, err, "Error response from daemon: Server error")
+	if err == nil || err.Error() != "Error response from daemon: Server error" {
+		t.Fatalf("expected a Server Error, got %v", err)
+	}
 }
 
 func TestVolumeInspectNotFound(t *testing.T) {
@@ -31,34 +30,13 @@ func TestVolumeInspectNotFound(t *testing.T) {
 	}
 
 	_, err := client.VolumeInspect(context.Background(), "unknown")
-	assert.True(t, IsErrNotFound(err))
-}
-
-func TestVolumeInspectWithEmptyID(t *testing.T) {
-	expectedURL := "/volumes/"
-
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			assert.Equal(t, req.URL.Path, expectedURL)
-			return &http.Response{
-				StatusCode: http.StatusNotFound,
-				Body:       ioutil.NopCloser(bytes.NewReader(nil)),
-			}, nil
-		}),
+	if err == nil || !IsErrVolumeNotFound(err) {
+		t.Fatalf("expected a volumeNotFound error, got %v", err)
 	}
-	_, err := client.VolumeInspect(context.Background(), "")
-	testutil.ErrorContains(t, err, "No such volume: ")
-
 }
 
 func TestVolumeInspect(t *testing.T) {
 	expectedURL := "/volumes/volume_id"
-	expected := types.Volume{
-		Name:       "name",
-		Driver:     "driver",
-		Mountpoint: "mountpoint",
-	}
-
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
@@ -67,7 +45,11 @@ func TestVolumeInspect(t *testing.T) {
 			if req.Method != "GET" {
 				return nil, fmt.Errorf("expected GET method, got %s", req.Method)
 			}
-			content, err := json.Marshal(expected)
+			content, err := json.Marshal(types.Volume{
+				Name:       "name",
+				Driver:     "driver",
+				Mountpoint: "mountpoint",
+			})
 			if err != nil {
 				return nil, err
 			}
@@ -78,7 +60,17 @@ func TestVolumeInspect(t *testing.T) {
 		}),
 	}
 
-	volume, err := client.VolumeInspect(context.Background(), "volume_id")
-	require.NoError(t, err)
-	assert.Equal(t, expected, volume)
+	v, err := client.VolumeInspect(context.Background(), "volume_id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.Name != "name" {
+		t.Fatalf("expected `name`, got %s", v.Name)
+	}
+	if v.Driver != "driver" {
+		t.Fatalf("expected `driver`, got %s", v.Driver)
+	}
+	if v.Mountpoint != "mountpoint" {
+		t.Fatalf("expected `mountpoint`, got %s", v.Mountpoint)
+	}
 }

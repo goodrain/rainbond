@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"golang.org/x/net/context"
 )
@@ -19,7 +18,7 @@ func TestServiceInspectError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, _, err := client.ServiceInspectWithRaw(context.Background(), "nothing", types.ServiceInspectOptions{})
+	_, _, err := client.ServiceInspectWithRaw(context.Background(), "nothing")
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
 	}
@@ -30,8 +29,8 @@ func TestServiceInspectServiceNotFound(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 
-	_, _, err := client.ServiceInspectWithRaw(context.Background(), "unknown", types.ServiceInspectOptions{})
-	if err == nil || !IsErrNotFound(err) {
+	_, _, err := client.ServiceInspectWithRaw(context.Background(), "unknown")
+	if err == nil || !IsErrServiceNotFound(err) {
 		t.Fatalf("expected a serviceNotFoundError error, got %v", err)
 	}
 }
@@ -56,7 +55,7 @@ func TestServiceInspect(t *testing.T) {
 		}),
 	}
 
-	serviceInspect, _, err := client.ServiceInspectWithRaw(context.Background(), "service_id", types.ServiceInspectOptions{})
+	serviceInspect, _, err := client.ServiceInspectWithRaw(context.Background(), "service_id")
 	if err != nil {
 		t.Fatal(err)
 	}

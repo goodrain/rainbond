@@ -11,7 +11,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/stretchr/testify/assert"
+	"github.com/docker/docker/pkg/testutil/assert"
 	"golang.org/x/net/context"
 )
 
@@ -24,7 +24,7 @@ func TestContainersPruneError(t *testing.T) {
 	filters := filters.NewArgs()
 
 	_, err := client.ContainersPrune(context.Background(), filters)
-	assert.EqualError(t, err, "Error response from daemon: Server error")
+	assert.Error(t, err, "Error response from daemon: Server error")
 }
 
 func TestContainersPrune(t *testing.T) {
@@ -39,11 +39,6 @@ func TestContainersPrune(t *testing.T) {
 	danglingUntilFilters := filters.NewArgs()
 	danglingUntilFilters.Add("dangling", "true")
 	danglingUntilFilters.Add("until", "2016-12-15T14:00")
-
-	labelFilters := filters.NewArgs()
-	labelFilters.Add("dangling", "true")
-	labelFilters.Add("label", "label1=foo")
-	labelFilters.Add("label", "label2!=bar")
 
 	listCases := []struct {
 		filters             filters.Args
@@ -81,14 +76,6 @@ func TestContainersPrune(t *testing.T) {
 				"filters": `{"dangling":{"false":true}}`,
 			},
 		},
-		{
-			filters: labelFilters,
-			expectedQueryParams: map[string]string{
-				"until":   "",
-				"filter":  "",
-				"filters": `{"dangling":{"true":true},"label":{"label1=foo":true,"label2!=bar":true}}`,
-			},
-		},
 	}
 	for _, listCase := range listCases {
 		client := &Client{
@@ -99,7 +86,7 @@ func TestContainersPrune(t *testing.T) {
 				query := req.URL.Query()
 				for key, expected := range listCase.expectedQueryParams {
 					actual := query.Get(key)
-					assert.Equal(t, expected, actual)
+					assert.Equal(t, actual, expected)
 				}
 				content, err := json.Marshal(types.ContainersPruneReport{
 					ContainersDeleted: []string{"container_id1", "container_id2"},
@@ -117,8 +104,8 @@ func TestContainersPrune(t *testing.T) {
 		}
 
 		report, err := client.ContainersPrune(context.Background(), listCase.filters)
-		assert.NoError(t, err)
-		assert.Len(t, report.ContainersDeleted, 2)
-		assert.Equal(t, uint64(9999), report.SpaceReclaimed)
+		assert.NilError(t, err)
+		assert.Equal(t, len(report.ContainersDeleted), 2)
+		assert.Equal(t, report.SpaceReclaimed, uint64(9999))
 	}
 }

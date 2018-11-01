@@ -58,7 +58,6 @@ type EndpointSettings struct {
 	GlobalIPv6Address   string
 	GlobalIPv6PrefixLen int
 	MacAddress          string
-	DriverOpts          map[string]string
 }
 
 // Task carries the information about one backend task
@@ -100,9 +99,4 @@ func (es *EndpointSettings) Copy() *EndpointSettings {
 // Carries the networking configs specified in the `docker run` and `docker network connect` commands
 type NetworkingConfig struct {
 	EndpointsConfig map[string]*EndpointSettings // Endpoint configs for each connecting network
-}
-
-// ConfigReference specifies the source which provides a network's configuration
-type ConfigReference struct {
-	Network string
 }

@@ -30,7 +30,7 @@ func TestNodeInspectNodeNotFound(t *testing.T) {
 	}
 
 	_, _, err := client.NodeInspectWithRaw(context.Background(), "unknown")
-	if err == nil || !IsErrNotFound(err) {
+	if err == nil || !IsErrNodeNotFound(err) {
 		t.Fatalf("expected a nodeNotFoundError error, got %v", err)
 	}
 }

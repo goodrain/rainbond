@@ -11,7 +11,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/stretchr/testify/assert"
+	"github.com/docker/docker/pkg/testutil/assert"
 	"golang.org/x/net/context"
 )
 
@@ -24,7 +24,7 @@ func TestImagesPruneError(t *testing.T) {
 	filters := filters.NewArgs()
 
 	_, err := client.ImagesPrune(context.Background(), filters)
-	assert.EqualError(t, err, "Error response from daemon: Server error")
+	assert.Error(t, err, "Error response from daemon: Server error")
 }
 
 func TestImagesPrune(t *testing.T) {
@@ -35,11 +35,6 @@ func TestImagesPrune(t *testing.T) {
 
 	noDanglingFilters := filters.NewArgs()
 	noDanglingFilters.Add("dangling", "false")
-
-	labelFilters := filters.NewArgs()
-	labelFilters.Add("dangling", "true")
-	labelFilters.Add("label", "label1=foo")
-	labelFilters.Add("label", "label2!=bar")
 
 	listCases := []struct {
 		filters             filters.Args
@@ -69,14 +64,6 @@ func TestImagesPrune(t *testing.T) {
 				"filters": `{"dangling":{"false":true}}`,
 			},
 		},
-		{
-			filters: labelFilters,
-			expectedQueryParams: map[string]string{
-				"until":   "",
-				"filter":  "",
-				"filters": `{"dangling":{"true":true},"label":{"label1=foo":true,"label2!=bar":true}}`,
-			},
-		},
 	}
 	for _, listCase := range listCases {
 		client := &Client{
@@ -87,7 +74,7 @@ func TestImagesPrune(t *testing.T) {
 				query := req.URL.Query()
 				for key, expected := range listCase.expectedQueryParams {
 					actual := query.Get(key)
-					assert.Equal(t, expected, actual)
+					assert.Equal(t, actual, expected)
 				}
 				content, err := json.Marshal(types.ImagesPruneReport{
 					ImagesDeleted: []types.ImageDeleteResponseItem{
@@ -112,8 +99,8 @@ func TestImagesPrune(t *testing.T) {
 		}
 
 		report, err := client.ImagesPrune(context.Background(), listCase.filters)
-		assert.NoError(t, err)
-		assert.Len(t, report.ImagesDeleted, 2)
-		assert.Equal(t, uint64(9999), report.SpaceReclaimed)
+		assert.NilError(t, err)
+		assert.Equal(t, len(report.ImagesDeleted), 2)
+		assert.Equal(t, report.SpaceReclaimed, uint64(9999))
 	}
 }

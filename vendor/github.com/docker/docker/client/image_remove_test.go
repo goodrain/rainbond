@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
@@ -20,17 +19,9 @@ func TestImageRemoveError(t *testing.T) {
 	}
 
 	_, err := client.ImageRemove(context.Background(), "image_id", types.ImageRemoveOptions{})
-	assert.EqualError(t, err, "Error response from daemon: Server error")
-}
-
-func TestImageRemoveImageNotFound(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "missing")),
+	if err == nil || err.Error() != "Error response from daemon: Server error" {
+		t.Fatalf("expected a Server Error, got %v", err)
 	}
-
-	_, err := client.ImageRemove(context.Background(), "unknown", types.ImageRemoveOptions{})
-	assert.EqualError(t, err, "Error: No such image: unknown")
-	assert.True(t, IsErrNotFound(err))
 }
 
 func TestImageRemove(t *testing.T) {

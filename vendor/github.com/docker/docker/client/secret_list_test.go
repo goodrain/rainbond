@@ -12,23 +12,12 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
-func TestSecretListUnsupported(t *testing.T) {
-	client := &Client{
-		version: "1.24",
-		client:  &http.Client{},
-	}
-	_, err := client.SecretList(context.Background(), types.SecretListOptions{})
-	assert.EqualError(t, err, `"secret list" requires API version 1.25, but the Docker daemon API version is 1.24`)
-}
-
 func TestSecretListError(t *testing.T) {
 	client := &Client{
-		version: "1.25",
-		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
 	_, err := client.SecretList(context.Background(), types.SecretListOptions{})
@@ -38,7 +27,7 @@ func TestSecretListError(t *testing.T) {
 }
 
 func TestSecretList(t *testing.T) {
-	expectedURL := "/v1.25/secrets"
+	expectedURL := "/secrets"
 
 	filters := filters.NewArgs()
 	filters.Add("label", "label1")
@@ -65,7 +54,6 @@ func TestSecretList(t *testing.T) {
 	}
 	for _, listCase := range listCases {
 		client := &Client{
-			version: "1.25",
 			client: newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)

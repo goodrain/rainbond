@@ -20,14 +20,12 @@ func TestContainerWaitError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	resultC, errC := client.ContainerWait(context.Background(), "nothing", "")
-	select {
-	case result := <-resultC:
-		t.Fatalf("expected to not get a wait result, got %d", result.StatusCode)
-	case err := <-errC:
-		if err.Error() != "Error response from daemon: Server error" {
-			t.Fatalf("expected a Server Error, got %v", err)
-		}
+	code, err := client.ContainerWait(context.Background(), "nothing")
+	if err == nil || err.Error() != "Error response from daemon: Server error" {
+		t.Fatalf("expected a Server Error, got %v", err)
+	}
+	if code != -1 {
+		t.Fatalf("expected a status code equal to '-1', got %d", code)
 	}
 }
 
@@ -51,14 +49,12 @@ func TestContainerWait(t *testing.T) {
 		}),
 	}
 
-	resultC, errC := client.ContainerWait(context.Background(), "container_id", "")
-	select {
-	case err := <-errC:
+	code, err := client.ContainerWait(context.Background(), "container_id")
+	if err != nil {
 		t.Fatal(err)
-	case result := <-resultC:
-		if result.StatusCode != 15 {
-			t.Fatalf("expected a status code equal to '15', got %d", result.StatusCode)
-		}
+	}
+	if code != 15 {
+		t.Fatalf("expected a status code equal to '15', got %d", code)
 	}
 }
 
@@ -67,8 +63,8 @@ func ExampleClient_ContainerWait_withTimeout() {
 	defer cancel()
 
 	client, _ := NewEnvClient()
-	_, errC := client.ContainerWait(ctx, "container_id", "")
-	if err := <-errC; err != nil {
+	_, err := client.ContainerWait(ctx, "container_id")
+	if err != nil {
 		log.Fatal(err)
 	}
 }
