@@ -297,30 +297,31 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			v.UpdataCondition(r)
 			return
 		}
-		//var haveready bool
+
 		for _, condiction := range v.NodeStatus.Conditions {
 
-			if condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure"{
-				if condiction.Status == "False"{
-					v.DeleteCondition(condiction.Type)
-					logrus.Debugf("delete condiction type:", condiction.Type)
+			if condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure" {
+				if condiction.Status == "False" {
 					continue
-				}else {
+				} else {
 					message := n.getKubeletMessage(v)
 					r := client.NodeCondition{
 						Type:               "kubelet",
 						Status:             client.ConditionFalse,
 						LastHeartbeatTime:  time.Now(),
 						LastTransitionTime: time.Now(),
-						Message:message + "/" + condiction.Message,
+						Message:            message + "/" + condiction.Message,
 					}
 					v.UpdataCondition(r)
-					v.DeleteCondition(condiction.Type)
-					logrus.Debugf("delete condiction type:", condiction.Type)
-					continue
 				}
 			}
+		}
 
+		v.DeleteCondition("OutOfDisk", "MemoryPressure", "DiskPressure")
+		logrus.Debugf("delete condiction type OutOfDisk and MemoryPressure and DiskPressure")
+
+		//var haveready bool
+		for _, condiction := range v.NodeStatus.Conditions {
 			if (condiction.Status == "True" || condiction.Status == "Unknown") && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
 				v.Status = status
 				v.NodeStatus.Status = status
@@ -718,10 +719,10 @@ func (n *Cluster) handleNodeHealth(v *client.HostNode) {
 	}
 }
 
-func (n *Cluster) getKubeletMessage(v *client.HostNode) string{
+func (n *Cluster) getKubeletMessage(v *client.HostNode) string {
 
 	for _, condiction := range v.NodeStatus.Conditions {
-		if condiction.Type == "kubelet"{
+		if condiction.Type == "kubelet" {
 			return condiction.Message
 		}
 	}
