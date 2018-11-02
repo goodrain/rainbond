@@ -20,10 +20,11 @@ package service
 
 import (
 	"fmt"
-	"time"
-
+	"os"
+	"os/exec"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
@@ -33,8 +34,6 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/twinj/uuid"
-	"os/exec"
-	"os"
 )
 
 const (
@@ -120,8 +119,8 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 	}
 	// start add node script
 	logrus.Info("Begin add node, please don't exit")
-	line := fmt.Sprintf("cd /opt/rainbond/install/scripts; ./%s.sh %s %s %s %s %s", node.Role[0], node.HostName,
-		node.InternalIP, linkModel, node.RootPass, node.KeyPath)
+	line := fmt.Sprintf("cd /opt/rainbond/install/scripts; ./%s.sh %s %s %s %s %s %s", node.Role[0], node.HostName,
+		node.InternalIP, linkModel, node.RootPass, node.KeyPath, node.ID)
 	logrus.Debugf("install cmd :", line)
 
 	fileName := node.HostName + ".log"
