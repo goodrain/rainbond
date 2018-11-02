@@ -303,6 +303,8 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			if condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure"{
 				if condiction.Status == "False"{
 					v.DeleteCondition(condiction.Type)
+					logrus.Debugf("delete condiction type:", condiction.Type)
+					continue
 				}else {
 					message := n.getKubeletMessage(v)
 					r := client.NodeCondition{
@@ -313,6 +315,9 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 						Message:message + "/" + condiction.Message,
 					}
 					v.UpdataCondition(r)
+					v.DeleteCondition(condiction.Type)
+					logrus.Debugf("delete condiction type:", condiction.Type)
+					continue
 				}
 			}
 
