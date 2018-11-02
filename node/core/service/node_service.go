@@ -38,15 +38,15 @@ import (
 )
 
 const (
-	Running     = "running"
-	Offline     = "offline"
-	Unknown     = "unknown"
-	Error       = "error"
-	Init        = "init"
+	Running        = "running"
+	Offline        = "offline"
+	Unknown        = "unknown"
+	Error          = "error"
+	Init           = "init"
 	InstallSuccess = "install_success"
 	InstallFailed  = "install_failed"
-	Installing  = "installing"
-	NotInstalled = "not_installed"
+	Installing     = "installing"
+	NotInstalled   = "not_installed"
 )
 
 //NodeService node service
@@ -159,7 +159,7 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("node is online, can not delete"))
 	}
 	// TODO:compute node check node is offline
-	if node.Status != Offline && node.Status != NotInstalled && node.Status != InstallFailed && node.Status != InstallSuccess {
+	if node.Status != Offline && node.Status != Unknown && node.Status != NotInstalled && node.Status != InstallFailed && node.Status != InstallSuccess && node.Status != Installing {
 		return utils.CreateAPIHandleError(401, fmt.Errorf("node is not offline"))
 	}
 	n.nodecluster.RemoveNode(node.ID)
