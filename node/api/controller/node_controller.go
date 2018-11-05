@@ -138,7 +138,7 @@ func GetNode(w http.ResponseWriter, r *http.Request) {
 	for _, condiction := range node.NodeStatus.Conditions {
 
 		if condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure" {
-			if condiction.Status == "False" {
+			if condiction.Status == "True" {
 				continue
 			} else {
 				message := getKubeletMessage(node)
