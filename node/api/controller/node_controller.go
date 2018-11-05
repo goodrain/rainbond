@@ -38,6 +38,7 @@ import (
 	"strconv"
 
 	httputil "github.com/goodrain/rainbond/util/http"
+	"time"
 )
 
 func init() {
@@ -134,7 +135,40 @@ func GetNode(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
+	for _, condiction := range node.NodeStatus.Conditions {
+
+		if condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure" {
+			if condiction.Status == "False" {
+				continue
+			} else {
+				message := getKubeletMessage(node)
+				r := client.NodeCondition{
+					Type:               "kubelet",
+					Status:             client.ConditionFalse,
+					LastHeartbeatTime:  time.Now(),
+					LastTransitionTime: time.Now(),
+					Message:            message + "/" + condiction.Message,
+				}
+				node.UpdataCondition(r)
+			}
+		}
+	}
+	logrus.Info("get start delete.......")
+	node.DeleteCondition("OutOfDisk")
+	node.DeleteCondition("MemoryPressure")
+	node.DeleteCondition("DiskPressure")
+	logrus.Info("get Conditions...", node.NodeStatus.Conditions)
 	httputil.ReturnSuccess(r, w, node)
+}
+
+func getKubeletMessage(v *client.HostNode) string {
+
+	for _, condiction := range v.NodeStatus.Conditions {
+		if condiction.Type == "kubelet" {
+			return condiction.Message
+		}
+	}
+	return ""
 }
 
 //GetRuleNodes 获取分角色节点
