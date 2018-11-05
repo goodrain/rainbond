@@ -522,6 +522,28 @@ func GetAllNodeHealth(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
+	for _, node := range nodes {
+		for _, condiction := range node.NodeStatus.Conditions {
+
+			if condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure" {
+				if condiction.Status == "False" {
+					continue
+				} else {
+					message := getKubeletMessage(node)
+					r := client.NodeCondition{
+						Type:               "kubelet",
+						Status:             client.ConditionFalse,
+						LastHeartbeatTime:  time.Now(),
+						LastTransitionTime: time.Now(),
+						Message:            message + "/" + condiction.Message,
+					}
+					node.UpdataCondition(r)
+				}
+			}
+		}
+		node.DeleteCondition("OutOfDisk", "MemoryPressure", "DiskPressure")
+
+	}
 
 	StatusMap := make(map[string][]map[string]string, 30)
 	roleList := make([]map[string]string, 0, 10)
