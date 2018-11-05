@@ -316,10 +316,13 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 				}
 			}
 		}
-
+		logrus.Info("start delete.......")
 		v.DeleteCondition("OutOfDisk")
+		logrus.Info("Conditions...", v.NodeStatus.Conditions)
 		v.DeleteCondition("MemoryPressure")
+		logrus.Info("Conditions...", v.NodeStatus.Conditions)
 		v.DeleteCondition("DiskPressure")
+		logrus.Info("Conditions...", v.NodeStatus.Conditions)
 		logrus.Debugf("delete condiction type OutOfDisk and MemoryPressure and DiskPressure")
 
 		//var haveready bool

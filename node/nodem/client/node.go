@@ -226,6 +226,7 @@ func (n *HostNode) DeleteCondition(types ...NodeConditionType) {
 	for _, t := range types {
 		for i, c := range n.NodeStatus.Conditions {
 			if c.Type.Compare(t) {
+				logrus.Debugf(string(c.Type))
 				n.NodeStatus.Conditions = append(n.NodeStatus.Conditions[:i], n.NodeStatus.Conditions[i+1:]...)
 				break
 			}
