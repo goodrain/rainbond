@@ -54,7 +54,7 @@ func (a APIHostNode) Clone() *HostNode {
 		RootPass:      a.RootPass,
 		KeyPath:       a.Privatekey,
 		Role:          []string{a.Role},
-		Labels:        a.Labels,
+		Labels:        map[string]string{"rainbond_node_hostname": a.HostName},
 		NodeStatus:    &NodeStatus{Status: "not_installed", Conditions: make([]NodeCondition, 0)},
 		Status:        "not_installed",
 		NodeHealth:    false,
