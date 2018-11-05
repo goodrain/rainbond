@@ -138,7 +138,7 @@ func GetNode(w http.ResponseWriter, r *http.Request) {
 	for _, condiction := range node.NodeStatus.Conditions {
 
 		if condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure" {
-			if condiction.Status == "True" {
+			if condiction.Status == "False" {
 				continue
 			} else {
 				message := getKubeletMessage(node)
@@ -153,11 +153,7 @@ func GetNode(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	logrus.Info("get start delete.......")
-	node.DeleteCondition("OutOfDisk")
-	node.DeleteCondition("MemoryPressure")
-	node.DeleteCondition("DiskPressure")
-	logrus.Info("get Conditions...", node.NodeStatus.Conditions)
+	node.DeleteCondition("OutOfDisk", "MemoryPressure", "DiskPressure")
 	httputil.ReturnSuccess(r, w, node)
 }
 

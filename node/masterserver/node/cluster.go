@@ -299,33 +299,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			return
 		}
 
-		for _, condiction := range v.NodeStatus.Conditions {
-
-			if condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure" {
-				if condiction.Status == "False" {
-					continue
-				} else {
-					message := n.getKubeletMessage(v)
-					r := client.NodeCondition{
-						Type:               "kubelet",
-						Status:             client.ConditionFalse,
-						LastHeartbeatTime:  time.Now(),
-						LastTransitionTime: time.Now(),
-						Message:            message + "/" + condiction.Message,
-					}
-					v.UpdataCondition(r)
-				}
-			}
-		}
-		logrus.Info("start delete.......")
-		v.DeleteCondition("OutOfDisk")
-		logrus.Info("Conditions...", v.NodeStatus.Conditions)
-		v.DeleteCondition("MemoryPressure")
-		logrus.Info("Conditions...", v.NodeStatus.Conditions)
-		v.DeleteCondition("DiskPressure")
-		logrus.Info("Conditions...", v.NodeStatus.Conditions)
-		logrus.Debugf("delete condiction type OutOfDisk and MemoryPressure and DiskPressure")
-
 		//var haveready bool
 		for _, condiction := range v.NodeStatus.Conditions {
 			if (condiction.Status == "True" || condiction.Status == "Unknown") && (condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure") {
@@ -725,12 +698,3 @@ func (n *Cluster) handleNodeHealth(v *client.HostNode) {
 	}
 }
 
-func (n *Cluster) getKubeletMessage(v *client.HostNode) string {
-
-	for _, condiction := range v.NodeStatus.Conditions {
-		if condiction.Type == "kubelet" {
-			return condiction.Message
-		}
-	}
-	return ""
-}
