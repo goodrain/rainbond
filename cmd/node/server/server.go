@@ -40,6 +40,9 @@ import (
 
 //Run start run
 func Run(c *option.Conf) error {
+	if err := c.Parse(); err != nil {
+		return fmt.Errorf("config parse error:%s", err.Error)
+	}
 	errChan := make(chan error, 3)
 	err := eventLog.NewManager(eventLog.EventConfig{
 		EventLogServers: c.EventLogServer,

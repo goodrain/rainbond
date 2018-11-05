@@ -24,6 +24,8 @@ import (
 	"path"
 	"time"
 
+	dockercli "github.com/docker/docker/client"
+
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/fsnotify/fsnotify"
@@ -111,6 +113,7 @@ type Conf struct {
 	ServiceListFile        string
 	ServiceEndpointRegPath string
 	ServiceManager         string
+	dockerCli              *dockercli.Client
 }
 
 //StatsdConfig StatsdConfig
@@ -183,6 +186,15 @@ func (a *Conf) SetLog() {
 		return
 	}
 	logrus.SetLevel(level)
+}
+
+//Parse handle config and create some api
+func (a *Conf) Parse() (err error) {
+	a.dockerCli, err = dockercli.NewEnvClient()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 type webConfig struct {

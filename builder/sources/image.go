@@ -112,7 +112,7 @@ func ImagePull(dockerCli *client.Client, image string, username, password string
 			fmt.Println(jm.JSONString())
 		}
 	}
-	ins, _, err := dockerCli.ImageInspectWithRaw(ctx, image, false)
+	ins, _, err := dockerCli.ImageInspectWithRaw(ctx, image)
 	if err != nil {
 		return nil, err
 	}
@@ -377,7 +377,7 @@ func ImageBuild(dockerCli *client.Client, contextDir string, options types.Image
 func ImageInspectWithRaw(dockerCli *client.Client, image string) (*types.ImageInspect, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	ins, _, err := dockerCli.ImageInspectWithRaw(ctx, image, false)
+	ins, _, err := dockerCli.ImageInspectWithRaw(ctx, image)
 	if err != nil {
 		return nil, err
 	}
