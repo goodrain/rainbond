@@ -154,6 +154,9 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 //only node status is offline and node can be deleted
 func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 	node := n.nodecluster.GetNode(nodeID)
+	if node == nil{
+		return utils.CreateAPIHandleError(404, fmt.Errorf("node is not found"))
+	}
 	if node.Alived {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("node is online, can not delete"))
 	}

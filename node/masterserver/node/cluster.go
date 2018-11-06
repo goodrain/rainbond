@@ -253,7 +253,6 @@ func (n *Cluster) GetNode(id string) *client.HostNode {
 	defer n.lock.Unlock()
 	if node, ok := n.nodes[id]; ok {
 		n.handleNodeStatus(node)
-		logrus.Info("get node.....",node.NodeStatus.Conditions)
 		n.handleNodeHealth(node)
 		return node
 	}
