@@ -1,0 +1,44 @@
+{{ range $upstream := . }}
+upstream {{$upstream.Name}} {
+    {{ if $upstream.UseIpHash }}ip_hash;{{ end }}
+
+    {{ if gt $upstream.Zone.Size.Num 0 }}zone {{$upstream.Zone.Name}} {{$upstream.Zone.Size.Num}}{{$upstream.Zone.Size.Unit}};{{ end }}
+    {{/* servers */}}
+
+    {{ if $upstream.State }}state {{$upstream.State}};{{ end }}
+
+    {{ if $upstream.Hash.Key }}hash key{{ if $upstream.Hash.UseConsistent }} consistent{{ end }};{{ end }}
+
+    {{ if $upstream.Keepalive }}keepalive {{$upstream.Keepalive}};{{ end }}
+
+    {{ if $upstream.KeepaliveRequests }}keepalive_requests {{$upstream.KeepaliveRequests}};{{ end }}
+
+    {{ if gt $upstream.KeepaliveTimeout.Num 0 }}keepalive_timeout {{$upstream.KeepaliveTimeout.Num}}{{$upstream.KeepaliveTimeout.Unit}};{{ end }}
+
+    {{ if $upstream.UseNtlm }}ntlm;{{ end }}
+
+    {{ if $upstream.UseLeastConn }}least_conn;{{ end }}
+
+    {{ if gt $upstream.Queue.Num 0 }}queue {{$upstream.Queue.Num}}{{ if gt $upstream.Queue.Timeout.Num 0}} timeout={{$upstream.Queue.Timeout.Num}}{{$upstream.Queue.Timeout.Unit}}{{ end }};{{ end }}
+
+    {{ if $upstream.Random.UseRandom }}random{{ if $upstream.Random.UseTwo }} two{{ end }}{{ if $upstream.Random.Method }} {{$upstream.Random.Method}}{{ end }};{{ end }}
+
+    # servers
+    {{ range $server := $upstream.Servers }}
+    {{ $params := $server.Params }}
+    server {{ $server.Address }}
+      weight={{$params.Weight}}
+      max_conns={{$params.MaxConns}}
+      max_fails={{$params.MaxFails}}
+      fail_timeout={{ $params.FailTimeout.Num}}{{$params.FailTimeout.Unit}}
+      {{ if $params.UseBackup }}backup{{ end }}
+      {{ if $params.UseDown }}down{{ end }}
+      {{ if $params.UseResolve }}resolve{{ end }}
+      {{ if $params.Route }}route={{$params.Route}}{{ end }}
+      {{ if $params.Service }}service={{$params.Service}}{{ end }}
+      {{ if gt $params.SlowStart.Num 0}}slow_start={{$params.SlowStart.Num}}{{$params.SlowStart.Unit}}{{end}}
+      {{ if $params.UseDrain }}drain{{ end }};
+
+    {{ end }}
+}
+{{ end }}

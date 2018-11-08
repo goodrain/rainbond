@@ -62,42 +62,6 @@ var SimpleHTTP Monitor = "simple http"
 //SimpleHTTPS http monitor
 var SimpleHTTPS Monitor = "simple https"
 
-//Meta Common meta
-type Meta struct {
-	Index      int64  `json:"index"`
-	Name       string `json:"name"`
-	Namespace  string `json:"namespace"`
-	PluginName string `json:"plugin_name"`
-}
-
-//Pool Application service endpoints pool
-type Pool struct {
-	Meta
-	//application service id
-	ServiceID string `json:"service_id"`
-	//application service version
-	ServiceVersion string `json:"service_version"`
-	//application service port
-	ServicePort int `json:"service_port"`
-	//pool instructions
-	Note              string            `json:"note"`
-	NodeNumber        int               `json:"node_number"`
-	LoadBalancingType LoadBalancingType `json:"load_balancing_type"`
-	Monitors          []Monitor         `json:"monitors"`
-}
-
-//Node Application service endpoint
-type Node struct {
-	Meta
-	Host     string `json:"host"`
-	Port     int32  `json:"port"`
-	Protocol string `json:"protocol"`
-	State    string `json:"state"`     //Active Draining Disabled
-	PoolName string `json:"pool_name"` //Belong to the pool
-	Ready    bool   `json:"ready"`     //Whether ready
-	Weight   int    `json:"weight"`
-}
-
 //HTTPRule Application service access rule for http
 type HTTPRule struct {
 	Meta
@@ -117,30 +81,6 @@ type RedirectConfig struct {
 	FromToWWW bool   `json:"fromToWWW"`
 }
 
-//VirtualService VirtualService
-type VirtualService struct {
-	Meta
-	Enabled  bool   `json:"enable"`
-	Protocol string `json:"protocol"` //default stream
-	// BackendProtocol indicates which protocol should be used to communicate with the service
-	BackendProtocol        string            `json:"backend-protocol"`
-	Port                   int32             `json:"port"`
-	Listening              []string          `json:"listening"` //if Listening is nil,will listen all
-	Note                   string            `json:"note"`
-	DefaultPoolName        string            `json:"default_pool_name"`
-	RuleNames              []string          `json:"rule_names"`
-	SSLdecrypt             bool              `json:"ssl_decrypt"`
-	DefaultCertificateName string            `json:"default_certificate_name"`
-	CertificateMapping     map[string]string `json:"certificate_mapping"`
-	RequestLogEnable       bool              `json:"request_log_enable"`
-	RequestLogFileName     string            `json:"request_log_file_name"`
-	RequestLogFormat       string            `json:"request_log_format"`
-	//ConnectTimeout The time, in seconds, to wait for data from a new connection. If no data is received within this time, the connection will be closed. A value of 0 (zero) will disable the timeout.
-	ConnectTimeout int `json:"connect_timeout"`
-	//Timeout A connection should be closed if no additional data has been received for this period of time. A value of 0 (zero) will disable this timeout. Note that the default value may vary depending on the protocol selected.
-	Timeout int `json:"timeout"`
-}
-
 // SSLCert describes a SSL certificate
 type SSLCert struct {
 	Meta
@@ -151,4 +91,56 @@ type SSLCert struct {
 	CN []string `json:"cn"`
 	// ExpiresTime contains the expiration of this SSL certificate in timestamp format
 	ExpireTime time.Time `json:"expires"`
+
+	Tlscrt string
+	Tlskey string
+}
+
+type Config struct {
+	Pools           []*Pool
+	VirtualServices []*VirtualService
+}
+
+func (cfg *Config) Equals(c *Config) bool {
+	if cfg == c {
+		return true
+	}
+
+	if cfg == nil ||  c == nil {
+		return false
+	}
+
+	if len(cfg.Pools) != len(c.Pools) {
+		return false
+	}
+	for _, cfgp := range cfg.Pools {
+		flag := false
+		for _, cp := range c.Pools {
+			if cfgp.Equals(cp) {
+				flag = true
+				break
+			}
+		}
+		if !flag {
+			return false
+		}
+	}
+
+	if len(cfg.VirtualServices) != len(c.VirtualServices) {
+		return false
+	}
+	for _, cfgv := range cfg.VirtualServices {
+		flag := false
+		for _, cv := range c.VirtualServices {
+			if cfgv.Equals(cv) {
+				flag = true
+				break
+			}
+		}
+		if !flag {
+			return false
+		}
+	}
+
+	return true
 }
