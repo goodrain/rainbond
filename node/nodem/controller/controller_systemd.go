@@ -20,14 +20,15 @@ package controller
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/node/nodem/client"
-	"github.com/goodrain/rainbond/node/nodem/service"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/node/nodem/client"
+	"github.com/goodrain/rainbond/node/nodem/service"
 )
 
 type ControllerSystemd struct {
@@ -40,11 +41,11 @@ type ControllerSystemd struct {
 	ServiceCli   string
 }
 
-// At the stage you want to load the configurations of all rainbond components
+//NewControllerSystemd At the stage you want to load the configurations of all rainbond components
 func NewControllerSystemd(conf *option.Conf, cluster client.ClusterClient) *ControllerSystemd {
 	cli, err := exec.LookPath("systemctl")
 	if err != nil {
-		panic(err)
+		logrus.Errorf("current machine do not have systemctl utils")
 	}
 	return &ControllerSystemd{
 		conf:         conf,

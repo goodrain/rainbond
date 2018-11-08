@@ -22,16 +22,12 @@ import (
 	"errors"
 	"sync"
 	"time"
-
-	"github.com/moby/moby/pkg/jsonlog"
 )
 
 // ErrReadLogsNotSupported is returned when the logger does not support reading logs.
 var ErrReadLogsNotSupported = errors.New("configured logging driver does not support reading")
 
 const (
-	// TimeFormat is the time format used for timestamps sent to log readers.
-	TimeFormat           = jsonlog.RFC3339NanoFixed
 	logWatcherBufferSize = 4096
 )
 

@@ -21,16 +21,17 @@ package controller
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os/exec"
+	"reflect"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/healthy"
 	"github.com/goodrain/rainbond/node/nodem/service"
-	"io/ioutil"
-	"os/exec"
-	"time"
-	"reflect"
 )
 
 type ManagerService struct {
@@ -50,21 +51,19 @@ func (m *ManagerService) GetAllService() ([]*service.Service, error) {
 	return m.services, nil
 }
 
-// start and monitor all service
+//Start  start and monitor all service
 func (m *ManagerService) Start() error {
 	logrus.Info("Starting node controller manager.")
-
 	services, err := service.LoadServicesFromLocal(m.conf.ServiceListFile)
 	if err != nil {
 		logrus.Error("Failed to load all services: ", err)
-		return err
 	}
 	m.services = services
 
 	return nil
 }
 
-// stop manager
+//Stop stop manager
 func (m *ManagerService) Stop() error {
 	m.cancel()
 	return nil
@@ -193,7 +192,7 @@ func (m *ManagerService) StopSyncService() {
 
 func (m *ManagerService) WaitStart(name string, duration time.Duration) bool {
 	max := time.Now().Add(duration)
-	t := time.Tick(time.Second*3)
+	t := time.Tick(time.Second * 3)
 
 	for {
 		if time.Now().After(max) {

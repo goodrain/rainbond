@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,33 +16,48 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package logger
 
 import (
+	"bufio"
 	"fmt"
-	"os"
+	"testing"
 
-	"github.com/goodrain/rainbond/node/nodem/controller"
-
-	"github.com/goodrain/rainbond/cmd"
+	"github.com/docker/engine-api/client"
 	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/cmd/node/server"
 )
 
-func main() {
-	if len(os.Args) > 1 && os.Args[1] == "version" {
-		cmd.ShowVersion("node")
+func TestWatchConatainer(t *testing.T) {
+	dc, err := client.NewEnvClient()
+	if err != nil {
+		t.Fatal(err)
 	}
-	option.Init()
+	cm := CreatContainerLogManage(&option.Conf{
+		DockerCli: dc,
+	})
+	cm.Start()
+	select {}
+}
 
-	if option.Config.ServiceManager == "systemd" {
-		if err := controller.StartRequiresSystemd(option.Config); err != nil {
-			// fmt.Fprintf(os.Stderr, "failed to start requires service: %v", err)
+func TestGetConatainerLogger(t *testing.T) {
+	dc, err := client.NewEnvClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cm := CreatContainerLogManage(&option.Conf{
+		DockerCli: dc,
+	})
+
+	stdout, _, err := cm.getContainerLogReader(cm.ctx, "9874f23cbfc8201571bc654955aad94124f256ccb37e10f914f80865d734a4c5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	buffer := bufio.NewReader(stdout)
+	for {
+		line, _, err := buffer.ReadLine()
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
-
-	if err := server.Run(option.Config); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		fmt.Println(string(line))
 	}
 }

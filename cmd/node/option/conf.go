@@ -24,7 +24,7 @@ import (
 	"path"
 	"time"
 
-	dockercli "github.com/docker/docker/client"
+	dockercli "github.com/docker/engine-api/client"
 
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
@@ -113,7 +113,7 @@ type Conf struct {
 	ServiceListFile        string
 	ServiceEndpointRegPath string
 	ServiceManager         string
-	dockerCli              *dockercli.Client
+	DockerCli              *dockercli.Client
 }
 
 //StatsdConfig StatsdConfig
@@ -190,7 +190,7 @@ func (a *Conf) SetLog() {
 
 //Parse handle config and create some api
 func (a *Conf) Parse() (err error) {
-	a.dockerCli, err = dockercli.NewEnvClient()
+	a.DockerCli, err = dockercli.NewEnvClient()
 	if err != nil {
 		return err
 	}

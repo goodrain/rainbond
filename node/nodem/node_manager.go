@@ -27,20 +27,22 @@ import (
 	"strings"
 	"time"
 
+	"github.com/goodrain/rainbond/node/nodem/logger"
+
 	"github.com/Sirupsen/logrus"
+	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/api"
+	nodeService "github.com/goodrain/rainbond/node/core/service"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/controller"
 	"github.com/goodrain/rainbond/node/nodem/healthy"
 	"github.com/goodrain/rainbond/node/nodem/info"
 	"github.com/goodrain/rainbond/node/nodem/monitor"
 	"github.com/goodrain/rainbond/node/nodem/service"
-	nodeService "github.com/goodrain/rainbond/node/core/service"
 	"github.com/goodrain/rainbond/node/nodem/taskrun"
 	"github.com/goodrain/rainbond/util"
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/util/watch"
 )
 
@@ -57,7 +59,8 @@ type NodeManager struct {
 	cfg        *option.Conf
 	apim       *api.Manager
 	etcdCli    *clientv3.Client
-	watchChan      watch.Interface
+	watchChan  watch.Interface
+	clm        *logger.ContainerLogManage
 }
 
 //NewNodeManager new a node manager
@@ -72,6 +75,7 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 	if err != nil {
 		return nil, err
 	}
+	clm := logger.CreatContainerLogManage(conf)
 	ctx, cancel := context.WithCancel(context.Background())
 	nodem := &NodeManager{
 		cfg:        conf,
@@ -82,7 +86,8 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 		cluster:    cluster,
 		monitor:    monitor,
 		healthy:    healthyManager,
-		etcdCli:etcdCli,
+		etcdCli:    etcdCli,
+		clm:        clm,
 	}
 	nodem.HostNode.NodeStatus = &client.NodeStatus{Status: "online"}
 	return nodem, nil
@@ -115,6 +120,9 @@ func (n *NodeManager) Start(errchan chan error) error {
 	if err := n.controller.Online(); err != nil {
 		return err
 	}
+	if err := n.clm.Start(); err != nil {
+		return err
+	}
 
 	go n.SyncNodeStatus()
 	go n.monitor.Start(errchan)
@@ -142,6 +150,9 @@ func (n *NodeManager) Stop() {
 	if n.watchChan != nil {
 		n.watchChan.Stop()
 	}
+	if n.clm != nil {
+		n.clm.Stop()
+	}
 }
 
 func (m *NodeManager) SyncNodeStatus() error {
@@ -166,7 +177,7 @@ func (m *NodeManager) SyncNodeStatus() error {
 				logrus.Error("Failed to decode node from sync node event: ", err)
 				continue
 			}
-			logrus.Debugf("watch node %s status: %s",  node.ID, node.NodeStatus.Status)
+			logrus.Debugf("watch node %s status: %s", node.ID, node.NodeStatus.Status)
 
 			if node.Role.HasRule(client.ComputeNode) {
 				logrus.Infof("node %s is not manage node, skip step stop services.", node.ID)
