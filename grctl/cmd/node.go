@@ -111,12 +111,15 @@ type nodeStatusShow struct {
 
 func (n nodeStatusShow) String() string {
 	color := color.New(n.color)
-	return color.Sprintf("%s(%s)", n.status, strings.Join(n.message, ","))
+	if len(n.message) > 0 {
+		return color.Sprintf("%s(%s)", n.status, strings.Join(n.message, ","))
+	}
+	return color.Sprintf("%s", n.status)
 }
 func getStatusShow(v *client.HostNode) (status string) {
 	nss := nodeStatusShow{
 		status: v.Status,
-		color:  color.FgBlue,
+		color:  color.FgGreen,
 	}
 	if v.Unschedulable && v.Role.HasRule("compute") {
 		nss.message = append(nss.message, "unschedulable")
