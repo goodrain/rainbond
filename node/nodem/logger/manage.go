@@ -101,6 +101,10 @@ func (c *ContainerLogManage) handleLogger(errchan chan error) {
 		case cevent := <-c.cchan:
 			switch cevent.Action {
 			case "create", "start":
+				loggerType := cevent.Container.HostConfig.LogConfig.Type
+				if loggerType != "json-file" && loggerType != "syslog" {
+					continue
+				}
 				if _, ok := c.containerLogs.Load(cevent.Container.ID); !ok {
 					clog := createContainerLog(c.ctx, cevent.Container)
 					stdout, stderr, err := c.getContainerLogReader(clog.ctx, cevent.Container.ID)
@@ -110,6 +114,10 @@ func (c *ContainerLogManage) handleLogger(errchan chan error) {
 					}
 					err = clog.startLogging(stdout, stderr)
 					if err != nil {
+						if err == ErrNeglectedContainer {
+							clog.Stop()
+							continue
+						}
 						logrus.Errorf("start container logger failure %s", err.Error())
 						continue
 					}
@@ -254,6 +262,10 @@ func (container *ContainerLog) startLogging(stdout, stderr io.ReadCloser) error 
 	container.stderr = stderr
 	l, err := container.StartLogger()
 	if err != nil {
+		if err == ErrNeglectedContainer {
+			logrus.Debugf("find a container %s that do not define rainbond logger.", container.Name)
+			return ErrNeglectedContainer
+		}
 		return fmt.Errorf("failed to initialize logging driver: %v", err)
 	}
 	copier := NewCopier(map[string]io.Reader{"stdout": stdout, "stderr": stderr}, l)
@@ -262,26 +274,37 @@ func (container *ContainerLog) startLogging(stdout, stderr io.ReadCloser) error 
 	container.LogDriver = l
 	return nil
 }
-func getLoggerConfig(labels map[string]string) map[string]string {
+func getLoggerConfig(envs []string) (string, map[string]string) {
 	config := make(map[string]string)
-	for k, v := range labels {
-		if strings.HasPrefix(k, "logger-driver-opt-") {
-			config[k[18:]] = v
+	var name string
+	for _, v := range envs {
+		if strings.HasPrefix(v, "LOGGER_DRIVER_NAME=") {
+			name = v[19:]
+		}
+		if strings.HasPrefix(v, "LOGGER_DRIVER_OPT_") {
+			envmap := strings.SplitN(v, "=", 2)
+			config[envmap[0][18:]] = envmap[1]
 		}
 	}
-	return config
+	return name, config
 }
+
+//ErrNeglectedContainer not define logger name
+var ErrNeglectedContainer = fmt.Errorf("Neglected container")
 
 // StartLogger starts a new logger driver for the container.
 func (container *ContainerLog) StartLogger() (Logger, error) {
-	cfg := container.Config.Labels["logger-driver"]
-	initDriver, err := GetLogDriver(cfg)
+	loggerName, config := getLoggerConfig(container.Config.Env)
+	if loggerName == "" {
+		return nil, ErrNeglectedContainer
+	}
+	initDriver, err := GetLogDriver(loggerName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get logging factory: %v", err)
 	}
 	createTime, _ := time.Parse(RFC3339NanoFixed, container.Created)
 	info := Info{
-		Config:              getLoggerConfig(container.Config.Labels),
+		Config:              config,
 		ContainerID:         container.ID,
 		ContainerName:       container.Name,
 		ContainerEntrypoint: container.Path,
@@ -304,8 +327,10 @@ func (container *ContainerLog) Stop() {
 	if container.LogCopier != nil {
 		container.LogCopier.Close()
 	}
-	if err := container.LogDriver.Close(); err != nil {
-		logrus.Errorf("close log driver failure %s", container.Name)
+	if container.LogDriver != nil {
+		if err := container.LogDriver.Close(); err != nil {
+			logrus.Errorf("close log driver failure %s", container.Name)
+		}
 	}
 	if container.stdout != nil {
 		container.stdout.Close()
