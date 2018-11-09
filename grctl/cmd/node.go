@@ -26,6 +26,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fatih/color"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/apcera/termtables"
 	"github.com/goodrain/rainbond/api/util"
@@ -101,49 +103,33 @@ func fileExist(path string) bool {
 	return false
 }
 
-func handleStatus(serviceTable *termtables.Table, health bool, v *client.HostNode) {
-	var status string
-	if health {
-		status = "\033[0;32;32m running(healthy) \033[0m"
+type nodeStatusShow struct {
+	status  string
+	message []string
+	color   color.Attribute
+}
+
+func (n nodeStatusShow) String() string {
+	color := color.New(n.color)
+	return color.Sprintf("%s(%s)", n.status, strings.Join(n.message, ","))
+}
+func getStatusShow(v *client.HostNode) (status string) {
+	nss := nodeStatusShow{
+		status: v.Status,
+		color:  color.FgBlue,
 	}
-	if v.Unschedulable == true {
-		status = "\033[0;33;33m running(unschedulable) \033[0m"
+	if v.Unschedulable && v.Role.HasRule("compute") {
+		nss.message = append(nss.message, "unschedulable")
+		nss.color = color.FgYellow
 	}
-	if !health == false {
-		status = "\033[0;33;33m running(unhealthy) \033[0m"
+	if !v.NodeHealth {
+		nss.message = append(nss.message, "unhealth")
+		nss.color = color.FgRed
 	}
-	if health == false && v.Unschedulable == true {
-		status = "\033[0;33;33m running(unhealthy,unschedulable) \033[0m"
-	}
-	if health == true && v.Unschedulable == true {
-		status = "\033[0;33;33m running(unschedulable) \033[0m"
-	}
-	if v.Status == "unknown" {
-		status = "\033[0;31;31m unknown \033[0m"
-	}
-	if v.Status == "offline" {
-		status = "\033[0;31;31m offline \033[0m"
-	}
-	if v.Status == "not_installed" {
-		status = "\033[0;31;31m not_installed \033[0m"
-	}
-	if v.Status == "installing" {
-		status = "\033[0;33;33m installing \033[0m"
-	}
-	if v.Status == "install_failed" {
-		status = "\033[0;31;31m init_failed \033[0m"
-	}
-	if v.Status == "install_success" {
-		status = "\033[0;33;33m install_success \033[0m"
-	}
-	if v.Role.HasRule("compute") && !v.Role.HasRule("manage") {
-		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status)
-	} else if v.Role.HasRule("manage") && !v.Role.HasRule("compute") {
-		//scheduable="n/a"
-		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status)
-	} else if v.Role.HasRule("compute") && v.Role.HasRule("manage") {
-		serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, status)
-	}
+	return nss.String()
+}
+func handleStatus(serviceTable *termtables.Table, v *client.HostNode) {
+	serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, getStatusShow(v))
 }
 
 func handleResult(serviceTable *termtables.Table, v *client.HostNode) {
@@ -252,8 +238,8 @@ func NewCmdNode() cli.Command {
 					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status")
 					var rest []*client.HostNode
 					for _, v := range list {
-						if v.Role.HasRule("manage") || !v.Role.HasRule("compute") {
-							handleStatus(serviceTable, v.NodeHealth, v)
+						if v.Role.HasRule("manage") {
+							handleStatus(serviceTable, v)
 						} else {
 							rest = append(rest, v)
 						}
@@ -262,7 +248,7 @@ func NewCmdNode() cli.Command {
 						serviceTable.AddSeparator()
 					}
 					for _, v := range rest {
-						handleStatus(serviceTable, v.NodeHealth, v)
+						handleStatus(serviceTable, v)
 					}
 					fmt.Println(serviceTable.Render())
 					return nil
@@ -392,7 +378,7 @@ func NewCmdNode() cli.Command {
 					serviceTable := termtables.CreateTable()
 					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status")
 					for _, v := range hostnodes {
-						handleStatus(serviceTable, v.NodeHealth, v)
+						handleStatus(serviceTable, v)
 					}
 					return nil
 				},
