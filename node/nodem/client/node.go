@@ -81,7 +81,7 @@ type HostNode struct {
 	Unschedulable   bool              `json:"unschedulable"` //不可调度
 	NodeStatus      *NodeStatus       `json:"node_status"`
 	ClusterNode
-	NodeHealth      bool              `json:"node_health"`
+	NodeHealth bool `json:"node_health"`
 }
 
 //Resource 资源

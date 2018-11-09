@@ -20,18 +20,19 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/apcera/termtables"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/node/nodem/client"
-	"github.com/urfave/cli"
-	"io/ioutil"
-	"os"
-	"strings"
-	"os/exec"
 	"github.com/gosuri/uitable"
-	"strconv"
+	"github.com/urfave/cli"
 )
 
 func handleErr(err *util.APIHandleError) {
@@ -100,19 +101,22 @@ func fileExist(path string) bool {
 	return false
 }
 
-func handleStatus(serviceTable *termtables.Table, ready bool, v *client.HostNode) {
+func handleStatus(serviceTable *termtables.Table, health bool, v *client.HostNode) {
 	var status string
-	if ready == true {
+	if health {
 		status = "\033[0;32;32m running(healthy) \033[0m"
 	}
 	if v.Unschedulable == true {
 		status = "\033[0;33;33m running(unschedulable) \033[0m"
 	}
-	if ready == false {
+	if !health == false {
 		status = "\033[0;33;33m running(unhealthy) \033[0m"
 	}
-	if ready == false && v.Unschedulable == true {
+	if health == false && v.Unschedulable == true {
 		status = "\033[0;33;33m running(unhealthy,unschedulable) \033[0m"
+	}
+	if health == true && v.Unschedulable == true {
+		status = "\033[0;33;33m running(unschedulable) \033[0m"
 	}
 	if v.Status == "unknown" {
 		status = "\033[0;31;31m unknown \033[0m"
@@ -204,20 +208,12 @@ func NewCmdNode() cli.Command {
 						logrus.Errorf("need args")
 						return nil
 					}
-					nodes, err := clients.RegionClient.Nodes().List()
-					handleErr(err)
-					for _, v := range nodes {
-						if v.InternalIP == id {
-							id = v.ID
-							break
-						}
-					}
-
 					v, err := clients.RegionClient.Nodes().Get(id)
 					handleErr(err)
 					table := uitable.New()
 					fmt.Printf("-------------------Node information-----------------------\n")
 					table.AddRow("status", v.NodeStatus.Status)
+					table.AddRow("health", v.NodeHealth)
 					table.AddRow("unschedulable", v.Unschedulable)
 					table.AddRow("alived", v.Alived)
 					table.AddRow("uuid", v.ID)
