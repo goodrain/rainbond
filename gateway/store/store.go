@@ -20,6 +20,8 @@ package store
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/gateway/v1"
@@ -31,7 +33,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	istroe "k8s.io/ingress-nginx/ingress/controller/store"
-	"time"
 )
 
 type EventType string
@@ -124,10 +125,10 @@ type Informer struct {
 
 // Lister contains object listers (stores).
 type Lister struct {
-	Ingress           istroe.IngressLister
-	Service           istroe.ServiceLister
-	Endpoint          istroe.EndpointLister
-	Secret            istroe.SecretLister
+	Ingress  istroe.IngressLister
+	Service  istroe.ServiceLister
+	Endpoint istroe.EndpointLister
+	Secret   istroe.SecretLister
 }
 
 // NotExistsError is returned when an object does not exist in a local store.

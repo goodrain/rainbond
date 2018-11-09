@@ -105,7 +105,7 @@ func RegisterLogOptValidator(name string, l LogOptValidator) error {
 // GetLogDriver provides the logging driver builder for a logging driver name.
 func GetLogDriver(name string) (Creator, error) {
 	if name == "" {
-		name = "test"
+		name = "streamlog"
 	}
 	return factory.get(name)
 }
