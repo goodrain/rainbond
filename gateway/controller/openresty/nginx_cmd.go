@@ -7,7 +7,7 @@ import (
 
 const (
 	defBinary = "/usr/local/opt/openresty/nginx/sbin/nginx"
-	cfgPath   = "/export/servers/nginx/conf/nginx.conf"
+	cfgPath   = "/export/Servers/nginx/conf/nginx.conf"
 )
 
 func nginxExecCommand(args ...string) *exec.Cmd {

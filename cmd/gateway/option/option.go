@@ -44,7 +44,7 @@ type Config struct {
 
 // AddFlags adds flags
 func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&g.LogLevel, "log-level", "info", "the gateway log level")
+	fs.StringVar(&g.LogLevel, "log-level", "debug", "the gateway log level")
 	// TODO change kube-conf
 	fs.StringVar(&g.K8SConfPath, "kube-conf", "/Users/abe/Documents/admin.kubeconfig", "absolute path to the kubeconfig file")
 	fs.StringVar(&g.Namespace, "namespace", "gateway", "namespace")

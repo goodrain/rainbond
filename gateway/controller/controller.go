@@ -18,8 +18,9 @@ type GWController struct {
 	syncQueue      *task.Queue
 	isShuttingDown bool
 
-	RunningConfig *v1.Config
 	optionConfig  option.Config
+	RunningConfig *v1.Config
+	RunningHttpPools  []*v1.Pool
 
 	stopCh   chan struct{}
 	updateCh *channels.RingChannel
@@ -31,11 +32,19 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 		return nil
 	}
 
-	currentConfig := &v1.Config{}
-	currentConfig.Pools = gwc.store.ListPool()
-	currentConfig.VirtualServices = gwc.store.ListVirtualService()
+	virtualServices := gwc.store.ListVirtualService()
+	httpPools, tcpPools := gwc.store.ListPool()
+	currentConfig := &v1.Config{
+		VirtualServices: virtualServices,
+		HttpPools:httpPools,
+		TCPPools:tcpPools,
+	}
 
 	if gwc.RunningConfig.Equals(currentConfig) {
+		if !gwc.poolsIsEqual(httpPools) {
+			openresty.UpdateUpstreams(httpPools)
+			gwc.RunningHttpPools = httpPools
+		}
 		logrus.Info("No need to update running configuration.")
 		return nil
 	}
@@ -43,6 +52,10 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 	gwc.RunningConfig = currentConfig // TODO
 
 	err := gwc.GWS.PersistConfig(gwc.RunningConfig)
+	// update http pools dynamically
+	// TODO: check if the nginx is ready.
+	openresty.UpdateUpstreams(httpPools)
+	gwc.RunningHttpPools = httpPools
 	if err != nil {
 		logrus.Errorf("Fail to persist Nginx config: %v\n", err)
 	}
@@ -89,6 +102,25 @@ func (gwc *GWController) Start() {
 	}
 }
 
+func (gwc *GWController) poolsIsEqual(currentPools []*v1.Pool) bool {
+	if len(gwc.RunningHttpPools) != len(currentPools) {
+		return false
+	}
+	for _, rp := range gwc.RunningHttpPools {
+		flag := false
+		for _, cp := range currentPools {
+			if rp.Equals(cp) {
+				flag = true
+				break
+			}
+		}
+		if !flag {
+			return false
+		}
+	}
+	return true
+}
+
 func NewGWController() *GWController {
 	logrus.Debug("NewGWController...")
 	gwc := &GWController{
@@ -108,8 +140,6 @@ func NewGWController() *GWController {
 		"gateway",
 		gwc.updateCh)
 
-	// 创建Ingress的syncQueue，每往syncQueue插入一个Ingress对象，就会调用syncIngress一次
-	// gwc.syncIngress方法会收集组装NGINX配置文件所需的所有东西，并在有必要重新加载时, 将结果数据结构传递给backend（OnUpdate）。
 	gwc.syncQueue = task.NewTaskQueue(gwc.syncGateway)
 
 	return gwc

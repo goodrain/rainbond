@@ -94,8 +94,8 @@ func NewServerTemplate(data []*model.Server, filename string) error {
 }
 
 // NewNginxTemplate creates a configuration file for the nginx upstream module
-func NewUpstreamTemplate(data []model.Upstream, filename string) error {
-	if e := Persist(tmplPath+"/upstreams.tmpl", data, ConfPath, filename); e != nil {
+func NewUpstreamTemplate(data []model.Upstream, tmpl, filename string) error {
+	if e := Persist(tmplPath+"/"+tmpl, data, ConfPath, filename); e != nil {
 		return e
 	}
 	return nil

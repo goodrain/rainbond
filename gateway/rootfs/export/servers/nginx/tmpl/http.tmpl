@@ -66,11 +66,12 @@ http {
 
                 upstreams = cjson.decode(data)
                 for _, upstream in pairs(upstreams) do
-                    name = upstream.name
+                    name = upstream.Name
                     ngx.say(name)
-                    endpoints = upstream.endpoints
-                    ngx.say(cjson.encode(endpoints))
-                    ngx.shared.upstreams_dict:set(name, cjson.encode(endpoints))
+                    local servers = cjson.encode(upstream.Servers)
+                    ngx.say(servers)
+                    ngx.shared.upstreams_dict:set(name, servers)
+                    ngx.say("ok")
                 end
             }
         }
@@ -80,10 +81,10 @@ http {
                 local balancer = require "ngx.balancer"
                 local cjson = require("cjson")
                 local keys = ngx.shared.upstreams_dict:get_keys()
-                for _, key in pairs(keys) do
-                    local endpoints = ngx.shared.upstreams_dict:get(key)
-                    ngx.print(key..": ")
-                    ngx.print(cjson.encode(endpoints))
+                for _, name in pairs(keys) do
+                    local servers = ngx.shared.upstreams_dict:get(name)
+                    ngx.print(name..": ")
+                    ngx.print(cjson.encode(servers))
                     ngx.print("\n")
                 end
             }

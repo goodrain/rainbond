@@ -6,7 +6,7 @@ import (
 )
 
 func TestNewNginxTemplate(t *testing.T) {
-	data := model.Nginx{
+	data := &model.Nginx{
 		WorkerProcesses: 2,
 		Includes:        []string{"/Users/abe/nginx/conf/vhosts/http/*.conf"},
 	}
@@ -18,7 +18,7 @@ func TestNewNginxTemplate(t *testing.T) {
 }
 
 func TestNewHttpTemplate(t *testing.T) {
-	data := model.Http{
+	data := &model.Http{
 		DefaultType: "text/html",
 		SendFile:    true,
 		KeepaliveTimeout: model.Time{
@@ -59,9 +59,9 @@ func TestNewHttpTemplate(t *testing.T) {
 		},
 	}
 
-	err := NewHttpTemplate(data)
+	err := NewHttpTemplate(data, "/tmp/rbd-gateway/template/http.conf")
 	if err != nil {
-		t.Errorf("fail to new nginx config file: %v", err)
+		t.Errorf("fail to new nginx http config file: %v", err)
 	}
 }
 
@@ -71,7 +71,7 @@ func TestNewServerTemplate(t *testing.T) {
 		ProxyPass: "http://endpoints",
 	}
 
-	data := model.Server{
+	data := &model.Server{
 		Listen:     "80",
 		ServerName: "dev-goodrain.com",
 		KeepaliveTimeout: model.Time{
@@ -85,7 +85,7 @@ func TestNewServerTemplate(t *testing.T) {
 		},
 	}
 
-	err := NewServerTemplate([]model.Server{data})
+	err := NewServerTemplate([]*model.Server{data}, "servers.conf")
 	if err != nil {
 		t.Errorf("fail to new nginx server config file: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestNewServerTemplate(t *testing.T) {
 
 func TestNewUpstreamTemplate(t *testing.T) {
 	upstream := model.Upstream{
-		Name: "endpoints",
+		Name: "dyn-upstream",
 		Servers: []model.UServer{
 			{
 				Address: "localhost:7777",
@@ -116,7 +116,7 @@ func TestNewUpstreamTemplate(t *testing.T) {
 		},
 	}
 
-	err := NewUpstreamTemplate([]model.Upstream{upstream})
+	err := NewUpstreamTemplate([]model.Upstream{upstream}, "dyn-upstreams.conf")
 	if err != nil {
 		t.Errorf("fail to new nginx config file: %v", err)
 	}

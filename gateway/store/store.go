@@ -55,13 +55,16 @@ const (
 	CertificatePath              = "/export/servers/nginx/certificate"
 )
 
+var httpPoolMap =  make(map[string]struct{})
+var tcpPoolMap = make(map[string]struct{})
+
 //Storer is the interface that wraps the required methods to gather information
 type Storer interface {
 	// get endpoints pool by name
 	//GetPool(name string) *v1.Pool
 
 	// list endpoints pool
-	ListPool() []*v1.Pool
+	ListPool() ([]*v1.Pool, []*v1.Pool)
 
 	// get endpoint by name
 	//GetNode(name string) *v1.Node
@@ -272,8 +275,9 @@ func New(client kubernetes.Interface,
 }
 
 // TODO test
-func (s *rbdStore) ListPool() []*v1.Pool {
-	var pools []*v1.Pool // TODO 需不需要用指针?
+func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
+	var httpPools []*v1.Pool
+	var tcpPools []*v1.Pool
 	for _, item := range s.listers.Endpoint.List() {
 		endpoint := item.(*corev1.Endpoints)
 
@@ -289,10 +293,14 @@ func (s *rbdStore) ListPool() []*v1.Pool {
 				})
 			}
 		}
-		pools = append(pools, pool)
+		if _, ok := httpPoolMap[pool.Name]; ok {
+			httpPools = append(httpPools, pool)
+		}
+		if _, ok := tcpPoolMap[pool.Name]; ok {
+			tcpPools = append(tcpPools, pool)
+		}
 	}
-
-	return pools
+	return httpPools, tcpPools
 }
 
 func (s *rbdStore) ListVirtualService() []*v1.VirtualService {
@@ -311,6 +319,7 @@ func (s *rbdStore) ListVirtualService() []*v1.VirtualService {
 			vs.Protocol = "stream" // TODO
 			vs.Listening = []string{fmt.Sprintf("%v", ing.Spec.Backend.ServicePort.IntVal)}
 			vs.PoolName = ing.Spec.Backend.ServiceName
+			tcpPoolMap[vs.PoolName] = struct{}{}
 		} else { // http
 			vs.Protocol = "http" // TODO
 
@@ -334,6 +343,7 @@ func (s *rbdStore) ListVirtualService() []*v1.VirtualService {
 						PoolName: path.Backend.ServiceName,
 					}
 					locations = append(locations, location)
+					httpPoolMap[location.PoolName] = struct{}{}
 				}
 				vs.Locations = locations
 			}

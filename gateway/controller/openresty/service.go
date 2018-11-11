@@ -20,47 +20,30 @@ func (osvc *OpenrestyService) Start() error {
 }
 
 func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
-	// TODO: 需要一个默认的Upstream
-	var upstreams []model.Upstream
-	for _, pool := range conf.Pools {
-		upstream := model.Upstream{}
-		upstream.Name = pool.Name
-		var servers []model.UServer
-		for _, node := range pool.Nodes {
-			server := model.UServer{
-				Address: node.Host + ":" + fmt.Sprintf("%v", node.Port),
-				Params: model.Params{
-					Weight: 1,
-				},
-			}
-			servers = append(servers, server)
-		}
-		upstream.Servers = servers
-		upstreams = append(upstreams, upstream)
+	upsHttp := "upstreams-http.conf"
+	if err := osvc.PersistUpstreams(conf.HttpPools, "upstreams-http.tmpl", upsHttp); err != nil {
+		logrus.Errorf("fail to persist %s", upsHttp)
 	}
 
-	upstreamsFilename := "upstreams.conf"
-	if len(upstreams) > 0 {
-		if err := template.NewUpstreamTemplate(upstreams, upstreamsFilename); err != nil {
-			logrus.Errorf("Fail to new nginx upstream config file: %v", err)
-			return err
-		}
+	upsTcp := "upstreams-tcp.conf"
+	if err := osvc.PersistUpstreams(conf.TCPPools, "upstreams-tcp.tmpl", upsTcp); err != nil {
+		logrus.Errorf("fail to persist %s", upsHttp)
 	}
 
 	httpServers, tcpServers := getNgxServer(conf)
 	var ngxIncludes []string
 	// http
 	if len(httpServers) > 0 { // TODO: 是否需要一个server一个文件
-		serverFilename := "servers-http.conf"
+		serverFilename := "Servers-http.conf"
 		if err := template.NewServerTemplate(httpServers, serverFilename); err != nil {
-			logrus.Errorf("Fail to new nginx server config file: %v", err)
+			logrus.Errorf("Fail to new nginx Server config file: %v", err)
 			return err
 		}
 
 		httpData := model.NewHttp()
 		httpData.Includes = []string{
 			serverFilename,
-			upstreamsFilename,
+			upsHttp,
 		}
 		httpFilename := "http.conf"
 		if err := template.NewHttpTemplate(httpData, httpFilename); err != nil {
@@ -72,15 +55,15 @@ func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
 
 	// stream
 	if len(tcpServers) > 0 {
-		serverFilename := "servers-tcp.conf"
+		serverFilename := "Servers-tcp.conf"
 		if err := template.NewServerTemplate(tcpServers, serverFilename); err != nil {
-			logrus.Errorf("Fail to new nginx server file: %v", err)
+			logrus.Errorf("Fail to new nginx Server file: %v", err)
 			return err
 		}
 		streamData := model.NewStream()
 		streamData.Includes = []string{
 			serverFilename,
-			upstreamsFilename,
+			upsTcp,
 		}
 		streamFilename := "stream.conf"
 		if err := template.NewStreamTemplate(streamData, streamFilename); err != nil {
@@ -108,6 +91,33 @@ func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
 	}
 	logrus.Debug("Nginx reloads successfully.")
 
+	return nil
+}
+
+func (osvc *OpenrestyService) PersistUpstreams(pools []*v1.Pool, tmpl string, filename string) error {
+	var upstreams []model.Upstream
+	for _, pool := range pools {
+		upstream := model.Upstream{}
+		upstream.Name = pool.Name
+		var servers []model.UServer
+		for _, node := range pool.Nodes {
+			server := model.UServer{
+				Address: node.Host + ":" + fmt.Sprintf("%v", node.Port),
+				Params: model.Params{
+					Weight: 1,
+				},
+			}
+			servers = append(servers, server)
+		}
+		upstream.Servers = servers
+		upstreams = append(upstreams, upstream)
+	}
+	if len(upstreams) > 0 {
+		if err := template.NewUpstreamTemplate(upstreams, tmpl, filename); err != nil {
+			logrus.Errorf("Fail to new nginx Upstream config file: %v", err)
+			return err
+		}
+	}
 	return nil
 }
 
