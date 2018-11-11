@@ -31,8 +31,6 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 		return nil
 	}
 
-	gwc.store.InitSecret()
-
 	currentConfig := &v1.Config{}
 	currentConfig.Pools = gwc.store.ListPool()
 	currentConfig.VirtualServices = gwc.store.ListVirtualService()

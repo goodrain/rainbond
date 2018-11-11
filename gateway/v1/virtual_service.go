@@ -43,6 +43,7 @@ type VirtualService struct {
 
 	ServerName string
 	PoolName   string
+	SSLCert *SSLCert
 	Locations  []*Location
 }
 

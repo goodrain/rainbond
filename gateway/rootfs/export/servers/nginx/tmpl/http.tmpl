@@ -1,4 +1,5 @@
 http {
+    include mime.types;
     default_type  {{.DefaultType}};
 
     {{ if .SendFile }}
@@ -46,4 +47,46 @@ http {
     {{ range $include := .Includes }}
     include {{$include}};
     {{ end }}
+
+    lua_shared_dict upstreams_dict 16m;
+
+    server {
+        listen       33333;
+
+        location /update-upstreams {
+            content_by_lua_block {
+                local cjson = require("cjson")
+                ngx.req.read_body()
+                local data = ngx.req.get_body_data()
+                if not data then
+                    local name = ngx.req.get_body_file()
+                    local f = io.open(name, "r")
+                    data = f:read("*a")
+                end
+
+                upstreams = cjson.decode(data)
+                for _, upstream in pairs(upstreams) do
+                    name = upstream.name
+                    ngx.say(name)
+                    endpoints = upstream.endpoints
+                    ngx.say(cjson.encode(endpoints))
+                    ngx.shared.upstreams_dict:set(name, cjson.encode(endpoints))
+                end
+            }
+        }
+
+        location /list-upstreams {
+            content_by_lua_block {
+                local balancer = require "ngx.balancer"
+                local cjson = require("cjson")
+                local keys = ngx.shared.upstreams_dict:get_keys()
+                for _, key in pairs(keys) do
+                    local endpoints = ngx.shared.upstreams_dict:get(key)
+                    ngx.print(key..": ")
+                    ngx.print(cjson.encode(endpoints))
+                    ngx.print("\n")
+                end
+            }
+        }
+    }
 }

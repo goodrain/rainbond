@@ -18,11 +18,6 @@
 
 package v1
 
-import (
-	"crypto/x509"
-	"time"
-)
-
 //LoadBalancingType Load Balancing type
 type LoadBalancingType string
 
@@ -81,21 +76,6 @@ type RedirectConfig struct {
 	FromToWWW bool   `json:"fromToWWW"`
 }
 
-// SSLCert describes a SSL certificate
-type SSLCert struct {
-	Meta
-	CertificateStr string            `json:"certificate_str"`
-	Certificate    *x509.Certificate `json:"certificate,omitempty"`
-	PrivateKey     string            `json:"private_key"`
-	// CN contains all the common names defined in the SSL certificate
-	CN []string `json:"cn"`
-	// ExpiresTime contains the expiration of this SSL certificate in timestamp format
-	ExpireTime time.Time `json:"expires"`
-
-	Tlscrt string
-	Tlskey string
-}
-
 type Config struct {
 	Pools           []*Pool
 	VirtualServices []*VirtualService
@@ -106,7 +86,7 @@ func (cfg *Config) Equals(c *Config) bool {
 		return true
 	}
 
-	if cfg == nil ||  c == nil {
+	if cfg == nil || c == nil {
 		return false
 	}
 

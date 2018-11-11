@@ -119,24 +119,13 @@ func getNgxServer(conf *v1.Config) (httpServers []*model.Server, tcpServers []*m
 			}
 			server.Listen = strings.Join(vs.Listening, ",")
 			tcpServers = append(tcpServers, server)
-		} else if vs.Protocol == "https" {
-			server := &model.Server{
-				ServerName: vs.ServerName,
-			}
-			server.SSLCertificate = "tls.crt" // TODO
-			server.SSLCertificateKey = "tls.key"
-			for _, loc := range vs.Locations {
-				location := model.Location{
-					Path: loc.Path,
-					// TODO: 现在是只支持用http去访问Pools
-					ProxyPass: fmt.Sprintf("%s%s", "http://", loc.PoolName),
-				}
-				server.Locations = append(server.Locations, location)
-			}
-			httpServers = append(httpServers, server)
 		} else {
 			server := &model.Server{
 				ServerName: vs.ServerName,
+			}
+			if vs.SSLCert != nil {
+				server.SSLCertificate = vs.SSLCert.CertificatePem
+				server.SSLCertificateKey = vs.SSLCert.CertificatePem
 			}
 			for _, loc := range vs.Locations {
 				location := model.Location{
