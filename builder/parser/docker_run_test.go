@@ -43,7 +43,7 @@ func TestParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := CreateDockerRunOrImageParse(dockerrun, dockerclient, nil)
+	p := CreateDockerRunOrImageParse("", "", dockerrun, dockerclient, nil)
 	if err := p.Parse(); err != nil {
 		logrus.Errorf(err.Error())
 	}

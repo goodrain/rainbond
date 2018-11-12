@@ -139,11 +139,11 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	switch i.CodeSouceInfo.ServerType {
 	case "svn":
 		csi := i.CodeSouceInfo
-		svnclient := sources.NewClient(csi.User, csi.Password, csi.RepositoryURL, rbi.GetCodeHome(), i.Logger)
-		rs, err := svnclient.Checkout()
+		svnclient := sources.NewClient(csi, rbi.GetCodeHome(), i.Logger)
+		rs, err := svnclient.UpdateOrCheckout(rbi.BuildPath)
 		if err != nil {
 			logrus.Errorf("checkout svn code error: %s", err.Error())
-			i.Logger.Error(fmt.Sprintf("拉取代码失败，请确保代码可以被正常下载"), map[string]string{"step": "builder-exector", "status": "failure"})
+			i.Logger.Error(fmt.Sprintf("Checkout svn code failed, please make sure the code can be downloaded properly"), map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
 		if len(rs.Logs.CommitEntrys) < 1 {

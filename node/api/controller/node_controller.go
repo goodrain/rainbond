@@ -38,54 +38,93 @@ import (
 	"strconv"
 
 	httputil "github.com/goodrain/rainbond/util/http"
+	"time"
 )
 
 func init() {
 	prometheus.MustRegister(version.NewCollector("node_exporter"))
 }
 
-//NewNode 创建一个节点
+//安装一个节点
 func NewNode(w http.ResponseWriter, r *http.Request) {
-	var node client.APIHostNode
-	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &node, nil); !ok {
-		return
-	}
-	if node.Role == "" {
-		err := utils.CreateAPIHandleError(400, fmt.Errorf("node role must not null"))
-		err.Handle(r, w)
-		return
-	}
-	if err := nodeService.AddNode(&node); err != nil {
-		err.Handle(r, w)
-		return
-	}
-	httputil.ReturnSuccess(r, w, "Installing, please check the installation status")
-}
-
-//NewMultipleNode 多节点添加操作
-func NewMultipleNode(w http.ResponseWriter, r *http.Request) {
-	var nodes []client.APIHostNode
-	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &nodes, nil); !ok {
-		return
-	}
-	var successnodes []client.APIHostNode
-	for _, node := range nodes {
-		if err := nodeService.AddNode(&node); err != nil {
-			continue
-		}
-		successnodes = append(successnodes, node)
-	}
-	httputil.ReturnSuccess(r, w, successnodes)
-}
-
-//GetNodes 获取全部节点
-func GetNodes(w http.ResponseWriter, r *http.Request) {
-	nodes, err := nodeService.GetAllNode()
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	node, err := nodeService.GetNode(nodeUID)
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	httputil.ReturnSuccess(r, w, nodes)
+
+	if err := nodeService.NewNode(node); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, node)
+}
+
+//添加一个节点
+func AddNode(w http.ResponseWriter, r *http.Request) {
+	isInstall := r.FormValue("is_install")
+	var node client.APIHostNode
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &node, nil); !ok {
+		return
+	}
+	rnode, err := nodeService.AddNode(&node)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	if isInstall == "true" {
+		if err := nodeService.NewNode(rnode); err != nil {
+			err.Handle(r, w)
+			return
+		}
+	}
+
+	httputil.ReturnSuccess(r, w, rnode)
+}
+
+//GetNodes 获取全部节点
+func GetNodes(w http.ResponseWriter, r *http.Request) {
+	searchNodeList := make([]client.HostNode, 0)
+	nodeList := make([]client.HostNode, 0)
+	var node1 client.HostNode
+	searchKey := r.FormValue("search_key")
+	logrus.Info("search_key:", searchKey)
+	nodes, err := nodeService.GetAllNode()
+	for _, node := range nodes {
+		node1.HostName = node.HostName
+		node1.Status = node.Status
+		node1.NodeHealth = node.NodeHealth
+		node1.ExternalIP = node.ExternalIP
+		node1.InternalIP = node.InternalIP
+		node1.Unschedulable = node.Unschedulable
+		node1.ID = node.ID
+		node1.Mode = node.Mode
+		node1.Role = node.Role
+		node1.Labels = node.Labels
+		node1.RootPass = node.RootPass
+		node1.KeyPath = node.KeyPath
+		node1.ClusterNode = node.ClusterNode
+		node1.AvailableMemory = node.AvailableMemory
+		node1.AvailableCPU = node.AvailableCPU
+		node1.CreateTime = node.CreateTime
+		nodeList = append(nodeList, node1)
+	}
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	if searchKey != "" {
+
+		for _, node := range nodeList {
+			if strings.Contains(node.HostName, searchKey) || strings.Contains(node.InternalIP, searchKey) || strings.Contains(node.ExternalIP, searchKey) {
+				searchNodeList = append(searchNodeList, node)
+			}
+		}
+		httputil.ReturnSuccess(r, w, searchNodeList)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nodeList)
 }
 
 //GetNode 获取一个节点详情
@@ -96,7 +135,36 @@ func GetNode(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
+	for _, condiction := range node.NodeStatus.Conditions {
+
+		if condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure" {
+			if condiction.Status == "False" {
+				continue
+			} else {
+				message := getKubeletMessage(node)
+				r := client.NodeCondition{
+					Type:               "kubelet",
+					Status:             client.ConditionFalse,
+					LastHeartbeatTime:  time.Now(),
+					LastTransitionTime: time.Now(),
+					Message:            message + "/" + condiction.Message,
+				}
+				node.UpdataCondition(r)
+			}
+		}
+	}
+	node.DeleteCondition("OutOfDisk", "MemoryPressure", "DiskPressure")
 	httputil.ReturnSuccess(r, w, node)
+}
+
+func getKubeletMessage(v *client.HostNode) string {
+
+	for _, condiction := range v.NodeStatus.Conditions {
+		if condiction.Type == "kubelet" {
+			return condiction.Message
+		}
+	}
+	return ""
 }
 
 //GetRuleNodes 获取分角色节点
@@ -120,20 +188,20 @@ func GetRuleNodes(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, masternodes)
 }
 
-func Install(w http.ResponseWriter, r *http.Request) {
-	nodeID := strings.TrimSpace(chi.URLParam(r, "node_id"))
-	if len(nodeID) == 0 {
-		err := utils.APIHandleError{
-			Code: 404,
-			Err:  errors.New(fmt.Sprintf("can't find node by node_id %s", nodeID)),
-		}
-		err.Handle(r, w)
-		return
-	}
-	nodeService.InstallNode(nodeID)
-
-	httputil.ReturnSuccess(r, w, nil)
-}
+//func Install(w http.ResponseWriter, r *http.Request) {
+//	nodeID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+//	if len(nodeID) == 0 {
+//		err := utils.APIHandleError{
+//			Code: 404,
+//			Err:  errors.New(fmt.Sprintf("can't find node by node_id %s", nodeID)),
+//		}
+//		err.Handle(r, w)
+//		return
+//	}
+//	nodeService.InstallNode(nodeID)
+//
+//	httputil.ReturnSuccess(r, w, nil)
+//}
 
 func InitStatus(w http.ResponseWriter, r *http.Request) {
 	nodeIP := strings.TrimSpace(chi.URLParam(r, "node_ip"))
@@ -218,7 +286,7 @@ func DeleteRainbondNode(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-	httputil.ReturnSuccess(r, w, nil)
+	httputil.ReturnSuccess(r, w, "delete success")
 }
 
 //Cordon 不可调度
@@ -448,15 +516,37 @@ func outJSONWithCode(w http.ResponseWriter, httpCode int, data interface{}) {
 	fmt.Fprint(w, s)
 }
 
-
 func GetAllNodeHealth(w http.ResponseWriter, r *http.Request) {
 	nodes, err := nodeService.GetAllNode()
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
+	for _, node := range nodes {
+		for _, condiction := range node.NodeStatus.Conditions {
+
+			if condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure" {
+				if condiction.Status == "False" {
+					continue
+				} else {
+					message := getKubeletMessage(node)
+					r := client.NodeCondition{
+						Type:               "kubelet",
+						Status:             client.ConditionFalse,
+						LastHeartbeatTime:  time.Now(),
+						LastTransitionTime: time.Now(),
+						Message:            message + "/" + condiction.Message,
+					}
+					node.UpdataCondition(r)
+				}
+			}
+		}
+		node.DeleteCondition("OutOfDisk", "MemoryPressure", "DiskPressure")
+
+	}
 
 	StatusMap := make(map[string][]map[string]string, 30)
+	roleList := make([]map[string]string, 0, 10)
 
 	for _, n := range nodes {
 		for _, v := range n.NodeStatus.Conditions {
@@ -470,6 +560,9 @@ func GetAllNodeHealth(w http.ResponseWriter, r *http.Request) {
 			}
 
 		}
+		roleList = append(roleList, map[string]string{"role": n.Role.String(), "status": n.NodeStatus.Status})
+
 	}
+	StatusMap["Role"] = roleList
 	httputil.ReturnSuccess(r, w, StatusMap)
 }

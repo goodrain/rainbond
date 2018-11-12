@@ -208,7 +208,7 @@ func readmemory(s string) int {
 }
 
 func parseImageName(s string) Image {
-	index := strings.Index(s, ":")
+	index := strings.LastIndex(s, ":")
 	if index > -1 {
 		return Image{
 			Name: s[0:index],

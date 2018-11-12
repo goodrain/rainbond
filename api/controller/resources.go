@@ -92,6 +92,10 @@ func (v2 *V2Routes) AlertManagerWebHook(w http.ResponseWriter, r *http.Request) 
 
 }
 
+func (v2 *V2Routes) Version(w http.ResponseWriter, r *http.Request) {
+	httputil.ReturnSuccess(r,w,map[string]string{"version":os.Getenv("RELEASE_DESC")})
+}
+
 //TenantStruct tenant struct
 type TenantStruct struct {
 	StatusCli *client.AppRuntimeSyncClient

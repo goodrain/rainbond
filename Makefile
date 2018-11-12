@@ -1,17 +1,17 @@
 GO_LDFLAGS=-ldflags " -w"
-VERSION=3.7
+VERSION=3.7.2
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 BASE_DOCKER=./hack/contrib/docker
 BIN_PATH=./_output/${VERSION}
 
 default: help
-all: build images ## build linux binaries, build images for docker
+all: image ## build linux binaries, build images for docker
 
 clean: 
 	@rm -rf ${BIN_PATH}/*
 
-build_items="api builder entrance grctl monitor mq node webcli worker eventlog"
+build_items="api chaos entrance monitor mq node webcli worker eventlog"
 
 ifeq ($(origin WHAT), undefined)
   WHAT = all
@@ -19,16 +19,10 @@ endif
 .PHONY: build
 build:
 	@echo "🐳build ${WHAT}" 
-	@./release.sh localbuild $(WHAT)
+	@./localbuild.sh $(WHAT)
 image:
 	@echo "🐳build image ${WHAT}" 	
 	@bash ./release.sh ${WHAT}
-deb:
-	@bash ./release.sh deb
-rpm: 
-	@bash ./release.sh rpm
-pkg:
-	@bash ./release.sh build
 
 run:build
 ifeq ($(WHAT),api)
@@ -79,7 +73,4 @@ cert-client:
 	@_output/3.7/rainbond-certutil create --ca-name=./test/ssl/ca.pem --ca-key-name=./test/ssl/ca.key.pem --crt-name=./test/ssl/client.pem --crt-key-name=./test/ssl/client.key.pem --domains region.goodrain.me
 help: ## this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-	@echo "\033[36m 🤔 single plugin,how to work?   \033[0m"
-	@echo "\033[01;34mmake build-<plugin>\033[0m Just like: make build-mq"
-	@echo "\033[01;34mmake build-image-<plugin>\033[0m Just like: make build-image-mq"
-	@echo "\033[01;34mmake run-<plugin>\033[0m Just like: make run-mq"
+

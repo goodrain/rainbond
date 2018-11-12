@@ -47,14 +47,18 @@ type APIHostNode struct {
 //Clone Clone
 func (a APIHostNode) Clone() *HostNode {
 	hn := &HostNode{
-		ID:         a.ID,
-		HostName:   a.HostName,
-		InternalIP: a.InternalIP,
-		ExternalIP: a.ExternalIP,
-		RootPass:   a.RootPass,
-		Role:       []string{a.Role},
-		Labels:     a.Labels,
-		NodeStatus: &NodeStatus{},
+		ID:            a.ID,
+		HostName:      a.HostName,
+		InternalIP:    a.InternalIP,
+		ExternalIP:    a.ExternalIP,
+		RootPass:      a.RootPass,
+		KeyPath:       a.Privatekey,
+		Role:          []string{a.Role},
+		Labels:        map[string]string{"rainbond_node_hostname": a.HostName},
+		NodeStatus:    &NodeStatus{Status: "not_installed", Conditions: make([]NodeCondition, 0)},
+		Status:        "not_installed",
+		NodeHealth:    false,
+		Unschedulable: true,
 	}
 	return hn
 }
@@ -75,8 +79,9 @@ type HostNode struct {
 	Status          string            `json:"status"`        //节点状态 create,init,running,stop,delete
 	Labels          map[string]string `json:"labels"`        //节点标签 内置标签+用户自定义标签
 	Unschedulable   bool              `json:"unschedulable"` //不可调度
-	NodeStatus      *NodeStatus       `json:"node_status,omitempty"`
+	NodeStatus      *NodeStatus       `json:"node_status"`
 	ClusterNode
+	NodeHealth bool `json:"node_health"`
 }
 
 //Resource 资源
@@ -373,7 +378,7 @@ func (h *HostNode) Update() (*client.PutResponse, error) {
 
 //DeleteNode 删除节点
 func (h *HostNode) DeleteNode() (*client.DeleteResponse, error) {
-	return store.DefalutClient.Delete(conf.Config.NodePath + "/target/" + h.ID)
+	return store.DefalutClient.Delete(conf.Config.NodePath + "/" + h.ID)
 }
 
 //Del 删除
