@@ -37,17 +37,9 @@ server {
 
     {{ range $location := $svr.Locations }}
     location {{$location.Path}} {
-        {{ range $rewrite := $location.Rewrites }}
-        rewrite {{$rewrite.Regex}} {{$rewrite.Replacement}} {{$rewrite.Flag}};
-        {{ end }}
-
-        {{ if ne $location.Return.Code 0 }}
-        return {{ $location.Return.Code }} {{ if $location.Return.Text}} "{{ $location.Return.Text }}" {{ else if $location.Return.URL }} {{$location.Return.URL}} {{ end }};
-        {{ end }}
-
-        {{ if $location.ProxyPass }}
-        proxy_pass {{$location.ProxyPass}};
-        {{ end }}
+        set $target 'default';
+        {{ buildLuaHeaderRouter $location }}
+        proxy_pass http://$target;
     }
     {{ end }}
 }

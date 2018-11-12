@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/golang/glog"
+	"github.com/goodrain/rainbond/gateway/annotations"
 	"io/ioutil"
 	"k8s.io/ingress-nginx/k8s"
 	"os"
@@ -53,9 +54,10 @@ const (
 	// ConfigurationEvent event associated when a controller configuration object is created or updated
 	ConfigurationEvent EventType = "CONFIGURATION"
 	CertificatePath              = "/export/servers/nginx/certificate"
+	DefServerName                = "_"
 )
 
-var httpPoolMap =  make(map[string]struct{})
+var httpPoolMap = make(map[string]struct{})
 var tcpPoolMap = make(map[string]struct{})
 
 //Storer is the interface that wraps the required methods to gather information
@@ -82,7 +84,7 @@ type Storer interface {
 	//GetVirtualService(name string) *v1.VirtualService
 
 	// list virtual service
-	ListVirtualService() []*v1.VirtualService
+	ListVirtualService() ([]*v1.VirtualService, []*v1.VirtualService)
 
 	// get SSL certificate by name
 	//GetSSLCert(name string) *v1.SSLCert
@@ -98,6 +100,8 @@ type Storer interface {
 
 	ListIngresses() []*extensions.Ingress
 
+	GetIngressAnnotations(key string) (*annotations.Ingress, error)
+
 	// Run initiates the synchronization of the controllers
 	Run(stopCh chan struct{})
 }
@@ -110,10 +114,11 @@ type Event struct {
 
 // Lister contains object listers (stores).
 type Lister struct {
-	Ingress  istroe.IngressLister
-	Service  istroe.ServiceLister
-	Endpoint istroe.EndpointLister
-	Secret   istroe.SecretLister
+	Ingress           istroe.IngressLister
+	Service           istroe.ServiceLister
+	Endpoint          istroe.EndpointLister
+	Secret            istroe.SecretLister
+	IngressAnnotation IngressAnnotationsLister
 }
 
 type rbdStore struct {
@@ -125,7 +130,8 @@ type rbdStore struct {
 	// sslStore local store of SSL certificates (certificates used in ingress)
 	// this is required because the certificates must be present in the
 	// container filesystem
-	sslStore *SSLCertTracker
+	sslStore    *SSLCertTracker
+	annotations annotations.Extractor
 }
 
 func New(client kubernetes.Interface,
@@ -139,6 +145,9 @@ func New(client kubernetes.Interface,
 		},
 		sslStore: NewSSLCertTracker(),
 	}
+
+	store.annotations = annotations.NewAnnotationExtractor(store)
+	store.listers.IngressAnnotation.Store = cache.NewStore(cache.DeletionHandlingMetaNamespaceKeyFunc)
 
 	// create informers factory, enable and assign required informers
 	infFactory := informers.NewFilteredSharedInformerFactory(client, time.Second, namespace,
@@ -160,6 +169,9 @@ func New(client kubernetes.Interface,
 	ingEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			ing := obj.(*extensions.Ingress)
+
+			// updating annotations information for ingress
+			store.extractAnnotations(ing)
 			// takes an Ingress and updates all Secret objects it references in secretIngressMap.
 			store.secretIngressMap.update(ing)
 			// synchronizes data from all Secrets referenced by the given Ingress with the local store and file system.
@@ -274,6 +286,20 @@ func New(client kubernetes.Interface,
 	return store
 }
 
+// extractAnnotations parses ingress annotations converting the value of the
+// annotation to a go struct and also information about the referenced secrets
+func (s *rbdStore) extractAnnotations(ing *extensions.Ingress) {
+	key := k8s.MetaNamespaceKey(ing)
+	logrus.Infof("updating annotations information for ingress %v", key)
+
+	anns := s.annotations.Extract(ing)
+
+	err := s.listers.IngressAnnotation.Update(anns)
+	if err != nil {
+		logrus.Error(err)
+	}
+}
+
 // TODO test
 func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 	var httpPools []*v1.Pool
@@ -303,54 +329,86 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 	return httpPools, tcpPools
 }
 
-func (s *rbdStore) ListVirtualService() []*v1.VirtualService {
-	var virtualServices []*v1.VirtualService
+func (s *rbdStore) ListVirtualService() ([]*v1.VirtualService, []*v1.VirtualService) {
+	var l7vs []*v1.VirtualService
+	var l4vs []*v1.VirtualService
+	l7vsMap := make(map[string]*v1.VirtualService)
+	//l4vsMap := make(map[string]*v1.VirtualService)
 	for _, item := range s.listers.Ingress.List() {
 		ing := item.(*extensions.Ingress)
 		if !s.ingressIsValid(ing) {
 			continue
 		}
 
-		vs := &v1.VirtualService{
-			CertificateMapping: make(map[string]string),
+		ingKey := k8s.MetaNamespaceKey(ing)
+		anns, err := s.GetIngressAnnotations(ingKey)
+		if err != nil {
+			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
 		}
 
 		if ing.Spec.Backend != nil { // stream
-			vs.Protocol = "stream" // TODO
-			vs.Listening = []string{fmt.Sprintf("%v", ing.Spec.Backend.ServicePort.IntVal)}
-			vs.PoolName = ing.Spec.Backend.ServiceName
-			tcpPoolMap[vs.PoolName] = struct{}{}
+		    // TODO
+			//l4vsMap[]
+			//l4vs := &v1.VirtualService{}
+			//l4vs.Protocol = v1.STREAM
+			//l4vs.Listening = []string{fmt.Sprintf("%v", ing.Spec.Backend.ServicePort.IntVal)}
+			//l4vs.PoolName = ing.Spec.Backend.ServiceName
+			//tcpPoolMap[l4vs.PoolName] = struct{}{}
+			//l4vs = append(l4vs, l4vs)
 		} else { // http
-			vs.Protocol = "http" // TODO
+			var vs *v1.VirtualService
 
-			if len(ing.Spec.TLS) > 0 {
-				tls := ing.Spec.TLS[0]
+			// parse TLS into a map
+			hostSSLMap := make(map[string]*v1.SSLCert)
+			for _, tls := range ing.Spec.TLS {
 				secrKey := fmt.Sprintf("%s/%s", ing.Namespace, tls.SecretName)
 				item, exists := s.sslStore.Get(secrKey)
 				if !exists {
 					logrus.Warnf("Secret named %s does not exist", secrKey)
 				}
 				sslCert := item.(*v1.SSLCert)
-				vs.SSLCert = sslCert
+				for _, host := range tls.Hosts {
+					hostSSLMap[host] = sslCert
+				}
+				// take first SSLCert as default
+				if _, exists := hostSSLMap[DefServerName]; !exists {
+					hostSSLMap[DefServerName] = sslCert
+				}
 			}
 
 			for _, rule := range ing.Spec.Rules {
-				vs.ServerName = rule.Host
-				var locations []*v1.Location
+				serverName := strings.Replace(rule.Host, " ", "", -1)
+				if serverName == "" {
+					serverName = DefServerName
+				}
+				vs = l7vsMap[serverName]
+				if vs == nil {
+					vs = &v1.VirtualService{
+						ServerName: serverName,
+						Protocol:   v1.HTTP,
+						Locations:  []*v1.Location{},
+						SSLCert: hostSSLMap[serverName],
+					}
+				}
+
 				for _, path := range rule.IngressRuleValue.HTTP.Paths {
 					location := &v1.Location{
 						Path:     path.Path,
 						PoolName: path.Backend.ServiceName,
 					}
-					locations = append(locations, location)
+					if anns.Header.Header != nil {
+						location.Header = anns.Header.Header
+					}
+
+					vs.Locations = append(vs.Locations, location)
 					httpPoolMap[location.PoolName] = struct{}{}
 				}
-				vs.Locations = locations
 			}
+
+			l7vs = append(l7vs, vs)
 		}
-		virtualServices = append(virtualServices, vs)
 	}
-	return virtualServices
+	return l7vs, l4vs
 }
 
 func (s *rbdStore) ingressIsValid(ing *extensions.Ingress) bool {
@@ -392,6 +450,16 @@ func (s *rbdStore) ListIngresses() []*extensions.Ingress {
 	}
 
 	return ingresses
+}
+
+// GetIngressAnnotations returns the parsed annotations of an Ingress matching key.
+func (s rbdStore) GetIngressAnnotations(key string) (*annotations.Ingress, error) {
+	ia, err := s.listers.IngressAnnotation.ByKey(key)
+	if err != nil {
+		return &annotations.Ingress{}, err
+	}
+
+	return ia, nil
 }
 
 // Run initiates the synchronization of the informers.

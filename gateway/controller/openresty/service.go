@@ -30,12 +30,12 @@ func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
 		logrus.Errorf("fail to persist %s", upsHttp)
 	}
 
-	httpServers, tcpServers := getNgxServer(conf)
+	l7vs, l4vs := getNgxServer(conf)
 	var ngxIncludes []string
 	// http
-	if len(httpServers) > 0 { // TODO: 是否需要一个server一个文件
-		serverFilename := "Servers-http.conf"
-		if err := template.NewServerTemplate(httpServers, serverFilename); err != nil {
+	if len(l7vs) > 0 { // TODO: 是否需要一个server一个文件
+		serverFilename := "servers-http.conf"
+		if err := template.NewServerTemplate(l7vs, serverFilename); err != nil {
 			logrus.Errorf("Fail to new nginx Server config file: %v", err)
 			return err
 		}
@@ -54,9 +54,9 @@ func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
 	}
 
 	// stream
-	if len(tcpServers) > 0 {
+	if len(l4vs) > 0 {
 		serverFilename := "Servers-tcp.conf"
-		if err := template.NewServerTemplate(tcpServers, serverFilename); err != nil {
+		if err := template.NewServerTemplate(l4vs, serverFilename); err != nil {
 			logrus.Errorf("Fail to new nginx Server file: %v", err)
 			return err
 		}
@@ -80,15 +80,15 @@ func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
 	}
 
 	// check nginx configuration
-	if out, err := nginxExecCommand("-t").CombinedOutput(); err != nil {
-		return fmt.Errorf("%v\n%v", err, string(out))
-	}
+	//if out, err := nginxExecCommand("-t").CombinedOutput(); err != nil {
+	//	return fmt.Errorf("%v\n%v", err, string(out))
+	//}
 	logrus.Debug("Nginx configuration is ok.")
 
 	// reload nginx
-	if out, err := nginxExecCommand("-s", "reload").CombinedOutput(); err != nil {
-		return fmt.Errorf("%v\n%v", err, string(out))
-	}
+	//if out, err := nginxExecCommand("-s", "reload").CombinedOutput(); err != nil {
+	//	return fmt.Errorf("%v\n%v", err, string(out))
+	//}
 	logrus.Debug("Nginx reloads successfully.")
 
 	return nil
@@ -121,32 +121,37 @@ func (osvc *OpenrestyService) PersistUpstreams(pools []*v1.Pool, tmpl string, fi
 	return nil
 }
 
-func getNgxServer(conf *v1.Config) (httpServers []*model.Server, tcpServers []*model.Server) {
-	for _, vs := range conf.VirtualServices {
+func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server) {
+	for _, vs := range conf.L7VS {
+		server := &model.Server{
+			ServerName: vs.ServerName,
+		}
+		if vs.SSLCert != nil {
+			server.SSLCertificate = vs.SSLCert.CertificatePem
+			server.SSLCertificateKey = vs.SSLCert.CertificatePem
+		}
+		for _, loc := range vs.Locations {
+			location := &model.Location{
+				Path:      loc.Path,
+				ProxyPass: fmt.Sprintf("%s%s", "http://", loc.PoolName), // TODO https
+				Header: loc.Header,
+			}
+			server.Locations = append(server.Locations, location)
+		}
+		l7srv = append(l7srv, server)
+	}
+
+	for _, vs := range conf.L4VS {
 		if vs.Protocol == "stream" {
 			server := &model.Server{
 				ProxyPass: vs.PoolName,
 			}
 			server.Listen = strings.Join(vs.Listening, ",")
-			tcpServers = append(tcpServers, server)
+			l4srv = append(l4srv, server)
 		} else {
-			server := &model.Server{
-				ServerName: vs.ServerName,
-			}
-			if vs.SSLCert != nil {
-				server.SSLCertificate = vs.SSLCert.CertificatePem
-				server.SSLCertificateKey = vs.SSLCert.CertificatePem
-			}
-			for _, loc := range vs.Locations {
-				location := model.Location{
-					Path:      loc.Path,
-					ProxyPass: fmt.Sprintf("%s%s", "http://", loc.PoolName), // TODO https
-				}
-				server.Locations = append(server.Locations, location)
-			}
-			httpServers = append(httpServers, server)
+
 		}
 	}
 
-	return httpServers, tcpServers
+	return l7srv, l4srv
 }

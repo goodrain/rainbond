@@ -32,16 +32,18 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 		return nil
 	}
 
-	virtualServices := gwc.store.ListVirtualService()
+	l7sv, l4sv := gwc.store.ListVirtualService()
 	httpPools, tcpPools := gwc.store.ListPool()
 	currentConfig := &v1.Config{
-		VirtualServices: virtualServices,
 		HttpPools:httpPools,
 		TCPPools:tcpPools,
+		L7VS: l7sv,
+		L4VS: l4sv,
 	}
 
 	if gwc.RunningConfig.Equals(currentConfig) {
 		if !gwc.poolsIsEqual(httpPools) {
+			// TODO: 还需要把不存在的upstream删除
 			openresty.UpdateUpstreams(httpPools)
 			gwc.RunningHttpPools = httpPools
 		}
@@ -66,12 +68,12 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 func (gwc *GWController) Start() {
 	gwc.store.Run(gwc.stopCh)
 
-	gws := &openresty.OpenrestyService{}
-	err := gws.Start()
-	if err != nil {
-		logrus.Fatalf("Can not start gateway plugin: %v", err)
-		return
-	}
+	//gws := &openresty.OpenrestyService{}
+	////err := gws.Start()
+	//if err != nil {
+	//	logrus.Fatalf("Can not start gateway plugin: %v", err)
+	//	return
+	//}
 
 	// 处理task.Queue中的task
 	// 每秒同步1次, 直到<-stopCh为真

@@ -77,9 +77,10 @@ type RedirectConfig struct {
 }
 
 type Config struct {
-	HttpPools           []*Pool
-	TCPPools           []*Pool
-	VirtualServices []*VirtualService
+	HttpPools []*Pool
+	TCPPools  []*Pool
+	L7VS      []*VirtualService
+	L4VS      []*VirtualService
 }
 
 func (cfg *Config) Equals(c *Config) bool {
@@ -107,12 +108,28 @@ func (cfg *Config) Equals(c *Config) bool {
 		}
 	}
 
-	if len(cfg.VirtualServices) != len(c.VirtualServices) {
+	if len(cfg.L7VS) != len(c.L7VS) {
 		return false
 	}
-	for _, cfgv := range cfg.VirtualServices {
+	for _, cfgv := range cfg.L7VS {
 		flag := false
-		for _, cv := range c.VirtualServices {
+		for _, cv := range c.L7VS {
+			if cfgv.Equals(cv) {
+				flag = true
+				break
+			}
+		}
+		if !flag {
+			return false
+		}
+	}
+
+	if len(cfg.L4VS) != len(c.L4VS) {
+		return false
+	}
+	for _, cfgv := range cfg.L4VS {
+		flag := false
+		for _, cv := range c.L4VS {
 			if cfgv.Equals(cv) {
 				flag = true
 				break

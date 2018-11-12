@@ -16,33 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package v1
+package resolver
 
-type Location struct {
-	Path     string
-	PoolName string
-	Header map[string]string
-}
+type Resolver interface {
 
-func (l *Location) Equals(c *Location) bool {
-	if l == c {
-		return true
-	}
-	if l == nil || c == nil {
-		return false
-	}
-	if l.Path != c.Path {
-		return false
-	}
-	if l.PoolName != c.PoolName {
-		return false
-	}
-	return true
-}
-
-func newFakeLocation() *Location {
-	return &Location{
-		Path: "foo-path",
-		PoolName: "foo-pool-name",
-	}
 }

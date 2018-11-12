@@ -1,6 +1,7 @@
 package template
 
 import (
+	"fmt"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
 	"testing"
 )
@@ -66,9 +67,13 @@ func TestNewHttpTemplate(t *testing.T) {
 }
 
 func TestNewServerTemplate(t *testing.T) {
-	location := model.Location{
+	location := &model.Location{
 		Path:      "hello",
-		ProxyPass: "http://endpoints",
+		ProxyPass: "endpoints",
+		Header: map[string]string{
+			"hkey1": "hval1",
+			"hkey2": "hval2",
+		},
 	}
 
 	data := &model.Server{
@@ -80,8 +85,12 @@ func TestNewServerTemplate(t *testing.T) {
 		},
 		DefaultType: "text/html",
 		Charset:     "utf8",
-		Locations: []model.Location{
+		Locations: []*model.Location{
 			location,
+			{
+				Path: "/world",
+				ProxyPass: "endpoint",
+			},
 		},
 	}
 
@@ -116,8 +125,21 @@ func TestNewUpstreamTemplate(t *testing.T) {
 		},
 	}
 
-	err := NewUpstreamTemplate([]model.Upstream{upstream}, "dyn-upstreams.conf")
+	err := NewUpstreamTemplate([]model.Upstream{upstream}, "upstreams-http.tmpl", "dyn-upstreams.conf")
 	if err != nil {
 		t.Errorf("fail to new nginx config file: %v", err)
 	}
+}
+
+func TestBuildLuaHeaderRouter(t *testing.T) {
+	data := &model.Location{
+		ProxyPass: "endpoint",
+		Header: map[string]string{
+			"hkey1": "hval1",
+			"hkey2": "hval2",
+			"hkey3": "hval3",
+		},
+	}
+	result := buildLuaHeaderRouter(data)
+	fmt.Print(result)
 }

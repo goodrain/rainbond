@@ -18,11 +18,18 @@
 
 package v1
 
+type ProtocolType string
+
+const (
+	STREAM ProtocolType = "stream"
+	HTTP   ProtocolType = "http"
+)
+
 //VirtualService VirtualService
 type VirtualService struct {
 	Meta
 	Enabled  bool   `json:"enable"`
-	Protocol string `json:"protocol"` //default stream
+	Protocol ProtocolType `json:"protocol"` //default stream
 	// BackendProtocol indicates which protocol should be used to communicate with the service
 	BackendProtocol        string            `json:"backend-protocol"`
 	Port                   int32             `json:"port"`
@@ -32,7 +39,6 @@ type VirtualService struct {
 	RuleNames              []string          `json:"rule_names"`
 	SSLdecrypt             bool              `json:"ssl_decrypt"`
 	DefaultCertificateName string            `json:"default_certificate_name"`
-	CertificateMapping     map[string]string `json:"certificate_mapping"`
 	RequestLogEnable       bool              `json:"request_log_enable"`
 	RequestLogFileName     string            `json:"request_log_file_name"`
 	RequestLogFormat       string            `json:"request_log_format"`
@@ -43,7 +49,7 @@ type VirtualService struct {
 
 	ServerName string
 	PoolName   string
-	SSLCert *SSLCert
+	SSLCert    *SSLCert
 	Locations  []*Location
 }
 
@@ -116,15 +122,6 @@ func (v *VirtualService) Equals(c *VirtualService) bool {
 	}
 	if v.DefaultCertificateName != c.DefaultCertificateName {
 		return false
-	}
-
-	if len(v.CertificateMapping) != len(c.CertificateMapping) {
-		return false
-	}
-	for key, val := range v.CertificateMapping {
-		if val != c.CertificateMapping[key] {
-			return false
-		}
 	}
 
 	if v.RequestLogEnable != c.RequestLogEnable {
