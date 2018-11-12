@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package header
+package cookie
 
 import (
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
@@ -26,26 +26,26 @@ import (
 )
 
 type Config struct {
-	Header map[string]string `json:"header"`
+	Cookie map[string]string `json:"cookie"`
 }
 
-type header struct {
+type cookie struct {
 	r resolver.Resolver
 }
 
 func NewParser(r resolver.Resolver) parser.IngressAnnotation {
-	return header{r}
+	return cookie{r}
 }
 
-func (h header) Parse(ing *extensions.Ingress) (interface{}, error) {
-	allowHeader, err := parser.GetStringAnnotation("header", ing)
+func (c cookie) Parse(ing *extensions.Ingress) (interface{}, error) {
+	co, err := parser.GetStringAnnotation("cookie", ing)
 	if err != nil {
 		return nil, err
 	}
-	hmap := transform(allowHeader)
+	hmap := transform(co)
 
 	return &Config{
-		Header: hmap,
+		Cookie: hmap,
 	}, nil
 }
 

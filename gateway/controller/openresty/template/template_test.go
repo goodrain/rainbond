@@ -88,8 +88,16 @@ func TestNewServerTemplate(t *testing.T) {
 		Locations: []*model.Location{
 			location,
 			{
-				Path: "/world",
+				Path:      "/world",
 				ProxyPass: "endpoint",
+			},
+			{
+				Path:      "/cookie-router",
+				ProxyPass: "endpoints",
+				Cookie: map[string]string{
+					"hkey1": "hval1",
+					"hkey2": "hval2",
+				},
 			},
 		},
 	}

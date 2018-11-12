@@ -135,6 +135,7 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 				Path:      loc.Path,
 				ProxyPass: fmt.Sprintf("%s%s", "http://", loc.PoolName), // TODO https
 				Header: loc.Header,
+				Cookie: loc.Cookie,
 			}
 			server.Locations = append(server.Locations, location)
 		}

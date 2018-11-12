@@ -36,14 +36,14 @@ limitations under the License.
 
 import (
 	"github.com/golang/glog"
+	"github.com/goodrain/rainbond/gateway/annotations/cookie"
 	"github.com/goodrain/rainbond/gateway/annotations/header"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
 	"github.com/imdario/mergo"
-	"k8s.io/ingress-nginx/ingress/errors"
-
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/ingress-nginx/ingress/errors"
 )
 
 // DeniedKeyName name of the key that contains the reason to deny a location
@@ -53,6 +53,7 @@ const DeniedKeyName = "Denied"
 type Ingress struct {
 	metav1.ObjectMeta
 	Header header.Config
+	Cookie cookie.Config
 }
 
 // Extractor defines the annotation parsers to be used in the extraction of annotations
@@ -65,6 +66,7 @@ func NewAnnotationExtractor(cfg resolver.Resolver) Extractor {
 	return Extractor{
 		map[string]parser.IngressAnnotation{
 			"Header": header.NewParser(cfg),
+			"Cookie": cookie.NewParser(cfg),
 		},
 	}
 }

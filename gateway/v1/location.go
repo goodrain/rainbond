@@ -21,7 +21,8 @@ package v1
 type Location struct {
 	Path     string
 	PoolName string
-	Header map[string]string
+	Header   map[string]string
+	Cookie   map[string]string
 }
 
 func (l *Location) Equals(c *Location) bool {
@@ -42,7 +43,7 @@ func (l *Location) Equals(c *Location) bool {
 
 func newFakeLocation() *Location {
 	return &Location{
-		Path: "foo-path",
+		Path:     "foo-path",
 		PoolName: "foo-pool-name",
 	}
 }

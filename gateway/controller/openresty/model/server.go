@@ -50,4 +50,5 @@ type Location struct {
 	// Sets the protocol and address of a proxied server and an optional URI to which a location should be mapped
 	ProxyPass string
 	Header    map[string]string
+	Cookie    map[string]string
 }

@@ -18,13 +18,11 @@ package template
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/golang/glog"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
-	"strings"
 	text_template "text/template"
 )
 
@@ -147,48 +145,4 @@ func (t *Template) Write(conf interface{}) ([]byte, error) {
 	}
 
 	return tmplBuf.Bytes(), nil
-}
-
-var (
-	funcMap = text_template.FuncMap{
-		"empty": func(input interface{}) bool {
-			check, ok := input.(string)
-			if ok {
-				return len(check) == 0
-			}
-			return true
-		},
-		"buildLuaHeaderRouter": buildLuaHeaderRouter,
-	}
-)
-
-func buildLuaHeaderRouter(input interface{}) string {
-	loc, ok := input.(*model.Location)
-	if !ok {
-		glog.Errorf("expected an '*model.Location' type but %T was returned", input)
-		return ""
-	}
-	if loc.Header == nil {
-		return fmt.Sprintf(`
-access_by_lua_block {
-	ngx.var.target = '%s';
-}
-`, loc.ProxyPass)
-	}
-
-	out := []string{
-		"access_by_lua_block {",
-	}
-	var condition []string
-	for key, val := range loc.Header {
-		str := fmt.Sprintf("\t\t\tlocal %s = ngx.var.http_%s", key, key)
-		out = append(out, str)
-		condition = append(condition, fmt.Sprintf("%s == \"%s\"", key, val))
-	}
-	cond := strings.Join(condition, " and ")
-	out = append(out, fmt.Sprintf("\t\t\tif %s then", cond))
-	out = append(out, fmt.Sprintf("\t\t\t\tngx.var.target = \"%s\"", loc.ProxyPass))
-	out = append(out, fmt.Sprintf("\t\t\tend\n\r\t\t}\n\r"))
-
-	return strings.Join(out, "\n\r")
 }

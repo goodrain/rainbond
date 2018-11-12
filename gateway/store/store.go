@@ -399,6 +399,9 @@ func (s *rbdStore) ListVirtualService() ([]*v1.VirtualService, []*v1.VirtualServ
 					if anns.Header.Header != nil {
 						location.Header = anns.Header.Header
 					}
+					if anns.Cookie.Cookie != nil {
+						location.Cookie = anns.Cookie.Cookie
+					}
 
 					vs.Locations = append(vs.Locations, location)
 					httpPoolMap[location.PoolName] = struct{}{}
