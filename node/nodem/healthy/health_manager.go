@@ -19,15 +19,16 @@
 package healthy
 
 import (
-	"github.com/goodrain/rainbond/node/nodem/service"
 	"context"
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/util"
-	"time"
-	"github.com/goodrain/rainbond/node/nodem/client"
-	"sync"
-	"github.com/goodrain/rainbond/node/nodem/healthy/probe"
 	"errors"
+	"sync"
+	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/node/nodem/client"
+	"github.com/goodrain/rainbond/node/nodem/healthy/probe"
+	"github.com/goodrain/rainbond/node/nodem/service"
+	"github.com/goodrain/rainbond/util"
 )
 
 //Manager Manager
@@ -43,6 +44,7 @@ type Manager interface {
 	EnableWatcher(serviceName, watcherID string)
 }
 
+//Watcher watcher
 type Watcher interface {
 	GetID() string
 	GetServiceName() string
@@ -71,6 +73,7 @@ type probeManager struct {
 	lock       sync.Mutex
 }
 
+//CreateManager create manager
 func CreateManager() Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	statusChan := make(chan *service.HealthStatus, 100)
@@ -98,11 +101,8 @@ func (p *probeManager) AddServices(inner []*service.Service) error {
 	return nil
 }
 
-func (p *probeManager) Start(hostNode *client.HostNode) (error) {
-
-	logrus.Info("health mode start")
+func (p *probeManager) Start(hostNode *client.HostNode) error {
 	go p.HandleStatus()
-	logrus.Info("services length===>", len(p.services))
 	for _, v := range p.services {
 		if v.ServiceHealth.Model == "http" {
 			h := &probe.HttpProbe{
@@ -113,7 +113,7 @@ func (p *probeManager) Start(hostNode *client.HostNode) (error) {
 				ResultsChan:  p.statusChan,
 				TimeInterval: v.ServiceHealth.TimeInterval,
 				HostNode:     hostNode,
-				MaxErrorsNum:v.ServiceHealth.MaxErrorsNum,
+				MaxErrorsNum: v.ServiceHealth.MaxErrorsNum,
 			}
 			go h.HttpCheck()
 		}
@@ -126,7 +126,7 @@ func (p *probeManager) Start(hostNode *client.HostNode) (error) {
 				ResultsChan:  p.statusChan,
 				TimeInterval: v.ServiceHealth.TimeInterval,
 				HostNode:     hostNode,
-				MaxErrorsNum:v.ServiceHealth.MaxErrorsNum,
+				MaxErrorsNum: v.ServiceHealth.MaxErrorsNum,
 			}
 			go t.TcpCheck()
 		}
@@ -139,7 +139,7 @@ func (p *probeManager) Start(hostNode *client.HostNode) (error) {
 				ResultsChan:  p.statusChan,
 				TimeInterval: v.ServiceHealth.TimeInterval,
 				HostNode:     hostNode,
-				MaxErrorsNum:v.ServiceHealth.MaxErrorsNum,
+				MaxErrorsNum: v.ServiceHealth.MaxErrorsNum,
 			}
 			go s.ShellCheck()
 		}
@@ -176,6 +176,7 @@ func (p *probeManager) HandleStatus() {
 		select {
 		case status := <-p.statusChan:
 			p.updateServiceStatus(status)
+			p.lock.Lock()
 			if watcherMap, ok := p.watches[status.Name]; ok {
 				for _, watcher := range watcherMap {
 					if watcher.enable {
@@ -183,6 +184,7 @@ func (p *probeManager) HandleStatus() {
 					}
 				}
 			}
+			p.lock.Unlock()
 		case <-p.ctx.Done():
 			return
 		}
@@ -194,6 +196,8 @@ func (p *probeManager) Stop() error {
 	return nil
 }
 func (p *probeManager) CloseWatch(serviceName string, id string) error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	channel := p.watches[serviceName][id].statusChan
 	close(channel)
 	delete(p.watches[serviceName], id)
@@ -202,7 +206,6 @@ func (p *probeManager) CloseWatch(serviceName string, id string) error {
 func (p *probeManager) GetServiceHealthy(serviceName string) (*service.HealthStatus, bool) {
 	v, ok := p.status[serviceName]
 	return v, ok
-
 }
 
 func (w *watcher) GetServiceName() string {
@@ -223,17 +226,21 @@ func (w *watcher) Close() error {
 
 func (p *probeManager) DisableWatcher(serviceName, watcherID string) {
 	logrus.Info("Disable check healthy status of service: ", serviceName)
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	if s, ok := p.watches[serviceName]; ok {
 		if w, ok := s[watcherID]; ok {
 			w.enable = false
 		}
-	}else{
+	} else {
 		logrus.Error("Can not disable the watcher: Not found service: ", serviceName)
 	}
 }
 
 func (p *probeManager) EnableWatcher(serviceName, watcherID string) {
 	logrus.Info("Enable check healthy status of service: ", serviceName)
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	if s, ok := p.watches[serviceName]; ok {
 		if w, ok := s[watcherID]; ok {
 			w.enable = true
@@ -242,7 +249,7 @@ func (p *probeManager) EnableWatcher(serviceName, watcherID string) {
 				h.ErrorTime = 0
 			}
 		}
-	}else{
+	} else {
 		logrus.Error("Can not enable the watcher: Not found service: ", serviceName)
 	}
 }
@@ -255,23 +262,21 @@ func (p *probeManager) WatchServiceHealthy(serviceName string) Watcher {
 		id:          util.NewUUID(),
 		serviceName: serviceName,
 	}
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	if s, ok := p.watches[serviceName]; ok {
-		p.lock.Lock()
 		s[w.id] = w
-		p.lock.Unlock()
 	} else {
-		p.lock.Lock()
 		p.watches[serviceName] = map[string]*watcher{
 			w.id: w,
 		}
-		p.lock.Unlock()
 	}
 	return w
 }
 
 func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*service.HealthStatus, error) {
-	if len(p.services) == 0{
-		return nil,errors.New("services list is empty")
+	if len(p.services) == 0 {
+		return nil, errors.New("services list is empty")
 	}
 	for _, v := range p.services {
 		if v.Name == serviceName {
