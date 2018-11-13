@@ -12,15 +12,19 @@ import (
 	"time"
 )
 
+const (
+	TRY_TIMES = 2
+)
+
 type GWController struct {
 	GWS            GWServicer
 	store          store.Storer // TODO 为什么不能是*store.Storer
 	syncQueue      *task.Queue
 	isShuttingDown bool
 
-	optionConfig  option.Config
-	RunningConfig *v1.Config
-	RunningHttpPools  []*v1.Pool
+	optionConfig     option.Config
+	RunningConfig    *v1.Config
+	RunningHttpPools []*v1.Pool
 
 	stopCh   chan struct{}
 	updateCh *channels.RingChannel
@@ -35,28 +39,25 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 	l7sv, l4sv := gwc.store.ListVirtualService()
 	httpPools, tcpPools := gwc.store.ListPool()
 	currentConfig := &v1.Config{
-		HttpPools:httpPools,
-		TCPPools:tcpPools,
-		L7VS: l7sv,
-		L4VS: l4sv,
+		HttpPools: httpPools,
+		TCPPools:  tcpPools,
+		L7VS:      l7sv,
+		L4VS:      l4sv,
 	}
 
 	if gwc.RunningConfig.Equals(currentConfig) {
-		if !gwc.poolsIsEqual(httpPools) {
-			// TODO: 还需要把不存在的upstream删除
-			openresty.UpdateUpstreams(httpPools)
-			gwc.RunningHttpPools = httpPools
-		}
 		logrus.Info("No need to update running configuration.")
+		// refresh http pools dynamically
+		gwc.refreshPools(httpPools)
 		return nil
 	}
 
-	gwc.RunningConfig = currentConfig // TODO
+	gwc.RunningConfig = currentConfig
 
 	err := gwc.GWS.PersistConfig(gwc.RunningConfig)
-	// update http pools dynamically
 	// TODO: check if the nginx is ready.
-	openresty.UpdateUpstreams(httpPools)
+	// refresh http pools dynamically
+	gwc.refreshPools(httpPools)
 	gwc.RunningHttpPools = httpPools
 	if err != nil {
 		logrus.Errorf("Fail to persist Nginx config: %v\n", err)
@@ -68,15 +69,13 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 func (gwc *GWController) Start() {
 	gwc.store.Run(gwc.stopCh)
 
-	//gws := &openresty.OpenrestyService{}
-	////err := gws.Start()
-	//if err != nil {
-	//	logrus.Fatalf("Can not start gateway plugin: %v", err)
-	//	return
-	//}
+	gws := &openresty.OpenrestyService{}
+	err := gws.Start()
+	if err != nil {
+		logrus.Fatalf("Can not start gateway plugin: %v", err)
+		return
+	}
 
-	// 处理task.Queue中的task
-	// 每秒同步1次, 直到<-stopCh为真
 	go gwc.syncQueue.Run(1*time.Second, gwc.stopCh)
 	// force initial sync
 	gwc.syncQueue.EnqueueTask(task.GetDummyObject("initial-sync"))
@@ -104,23 +103,43 @@ func (gwc *GWController) Start() {
 	}
 }
 
-func (gwc *GWController) poolsIsEqual(currentPools []*v1.Pool) bool {
-	if len(gwc.RunningHttpPools) != len(currentPools) {
-		return false
+// refreshPools refresh pools dynamically.
+func (gwc *GWController) refreshPools(pools []*v1.Pool) {
+	delPools, updPools := gwc.getDelUpdPools(pools)
+	for i := 0; i < TRY_TIMES; i++ {
+		err := gwc.GWS.UpdatePools(updPools)
+		if err == nil {
+			break
+		}
 	}
-	for _, rp := range gwc.RunningHttpPools {
+	for i := 0; i < TRY_TIMES; i++ {
+		err := gwc.GWS.DeletePools(delPools)
+		if err == nil {
+			break
+		}
+	}
+}
+
+// getDelUpdPools returns delPools which need to delete and updPools which needs to update.
+func (gwc *GWController) getDelUpdPools(updPools []*v1.Pool) ([]*v1.Pool, []*v1.Pool) {
+	// updPools need to delete
+	var delPools []*v1.Pool
+	for _, rPool := range gwc.RunningHttpPools {
 		flag := false
-		for _, cp := range currentPools {
-			if rp.Equals(cp) {
+		for i, pool := range updPools {
+			if rPool.Equals(pool) {
 				flag = true
+				// delete a pool that has no changed
+				updPools = append(updPools[:i], updPools[i+1:]...)
 				break
 			}
 		}
 		if !flag {
-			return false
+			delPools = append(delPools, rPool)
 		}
 	}
-	return true
+
+	return delPools, updPools
 }
 
 func NewGWController() *GWController {

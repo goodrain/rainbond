@@ -40,7 +40,4 @@ func TestUpdateUpstreams(t *testing.T) {
 			},
 		},
 	}
-
-
-	updateUpstreams(upstream)
 }
