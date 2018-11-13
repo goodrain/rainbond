@@ -150,7 +150,9 @@ func (c *NotificationEventDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return c.UpdateModel(mo)
+		result.FirstTime = oldResult.FirstTime
+		result.ID = oldResult.ID
+		return c.DB.Save(result).Error
 	}
 	return nil
 }
