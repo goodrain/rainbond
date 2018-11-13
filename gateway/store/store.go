@@ -384,11 +384,17 @@ func (s *rbdStore) ListVirtualService() ([]*v1.VirtualService, []*v1.VirtualServ
 				vs = l7vsMap[serverName]
 				if vs == nil {
 					vs = &v1.VirtualService{
+						Listening: []string{"80"},
 						ServerName: serverName,
 						Protocol:   v1.HTTP,
 						Locations:  []*v1.Location{},
-						SSLCert: hostSSLMap[serverName],
+						ForceSSLRedirect: anns.Rewrite.ForceSSLRedirect,
 					}
+					if hostSSLMap[serverName] != nil {
+						vs.Listening = []string{"443", "ssl"}
+					}
+
+					l7vsMap[serverName] = vs
 				}
 
 				for _, path := range rule.IngressRuleValue.HTTP.Paths {

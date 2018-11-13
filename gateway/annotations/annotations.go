@@ -40,6 +40,7 @@ import (
 	"github.com/goodrain/rainbond/gateway/annotations/header"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
+	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
 	"github.com/imdario/mergo"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,6 +55,7 @@ type Ingress struct {
 	metav1.ObjectMeta
 	Header header.Config
 	Cookie cookie.Config
+	Rewrite rewrite.Config
 }
 
 // Extractor defines the annotation parsers to be used in the extraction of annotations
@@ -67,6 +69,7 @@ func NewAnnotationExtractor(cfg resolver.Resolver) Extractor {
 		map[string]parser.IngressAnnotation{
 			"Header": header.NewParser(cfg),
 			"Cookie": cookie.NewParser(cfg),
+			"Rewrite": rewrite.NewParser(cfg),
 		},
 	}
 }

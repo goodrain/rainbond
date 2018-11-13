@@ -124,7 +124,9 @@ func (osvc *OpenrestyService) PersistUpstreams(pools []*v1.Pool, tmpl string, fi
 func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server) {
 	for _, vs := range conf.L7VS {
 		server := &model.Server{
+			Listen: strings.Join(vs.Listening, " "),
 			ServerName: vs.ServerName,
+			ForceSSLRedirect: vs.ForceSSLRedirect,
 		}
 		if vs.SSLCert != nil {
 			server.SSLCertificate = vs.SSLCert.CertificatePem
@@ -133,7 +135,7 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 		for _, loc := range vs.Locations {
 			location := &model.Location{
 				Path:      loc.Path,
-				ProxyPass: fmt.Sprintf("%s%s", "http://", loc.PoolName), // TODO https
+				ProxyPass: loc.PoolName,
 				Header: loc.Header,
 				Cookie: loc.Cookie,
 			}

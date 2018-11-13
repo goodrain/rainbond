@@ -16,6 +16,8 @@ type Server struct {
 	SSLCertificate    string // Specifies a file with the certificate in the PEM format.
 	SSLCertificateKey string // Specifies a file with the secret key in the PEM format.
 
+	ForceSSLRedirect bool
+
 	Return   Return
 	Rewrites []Rewrite
 

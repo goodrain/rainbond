@@ -66,7 +66,7 @@ func buildLuaHeaderRouter(input interface{}) string {
 		out = append(out, `
 			local common = require("common")
 
-			local cookie = ngx.var.http_set_cookie
+			local cookie = ngx.var.http_Cookie
 			local tbl = common.split(cookie, ";")
 			local map = {}
 			for _, v in pairs(tbl) do
