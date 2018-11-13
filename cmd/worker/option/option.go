@@ -18,28 +18,36 @@
 
 package option
 
-import "github.com/spf13/pflag"
-import "github.com/Sirupsen/logrus"
-import "fmt"
-import "os"
+import (
+	"flag"
+	"fmt"
+	"os"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/spf13/pflag"
+	"k8s.io/client-go/kubernetes"
+)
 
 //Config config server
 type Config struct {
-	EtcdEndPoints        []string
-	EtcdTimeout          int
-	EtcdPrefix           string
-	ClusterName          string
-	MysqlConnectionInfo  string
-	DBType               string
-	PrometheusMetricPath string
-	EventLogServers      []string
-	KubeConfig           string
-	MaxTasks             int
-	MQAPI                string
-	NodeName             string
-	NodeAPI              string
-	Listen               string
-	HostIP               string
+	EtcdEndPoints           []string
+	EtcdTimeout             int
+	EtcdPrefix              string
+	ClusterName             string
+	MysqlConnectionInfo     string
+	DBType                  string
+	PrometheusMetricPath    string
+	EventLogServers         []string
+	KubeConfig              string
+	MaxTasks                int
+	MQAPI                   string
+	NodeName                string
+	NodeAPI                 string
+	Listen                  string
+	HostIP                  string
+	KubeClient              *kubernetes.Clientset
+	LeaderElectionNamespace string
+	LeaderElectionIdentity  string
 }
 
 //Worker  worker server
@@ -72,6 +80,8 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.NodeName, "node-name", "", "the name of this worker,it must be global unique name")
 	fs.StringVar(&a.HostIP, "host-ip", "", "the ip of this worker,it must be global connected ip")
 	fs.StringVar(&a.NodeAPI, "node-api", "http://172.30.42.1:6100", "node discover api, node docker endpoints")
+	flag.StringVar(&a.LeaderElectionNamespace, "leader-election-namespace", "rainbond", "Namespace where this attacher runs.")
+	flag.StringVar(&a.LeaderElectionIdentity, "leader-election-identity", "", "Unique idenity of this attcher. Typically name of the pod where the attacher runs.")
 }
 
 //SetLog 设置log

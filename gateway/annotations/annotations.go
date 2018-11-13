@@ -38,6 +38,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/goodrain/rainbond/gateway/annotations/cookie"
 	"github.com/goodrain/rainbond/gateway/annotations/header"
+	"github.com/goodrain/rainbond/gateway/annotations/l4"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
 	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
@@ -53,9 +54,10 @@ const DeniedKeyName = "Denied"
 // Ingress defines the valid annotations present in one NGINX Ingress rule
 type Ingress struct {
 	metav1.ObjectMeta
-	Header header.Config
-	Cookie cookie.Config
+	Header  header.Config
+	Cookie  cookie.Config
 	Rewrite rewrite.Config
+	L4      l4.Config
 }
 
 // Extractor defines the annotation parsers to be used in the extraction of annotations
@@ -67,9 +69,10 @@ type Extractor struct {
 func NewAnnotationExtractor(cfg resolver.Resolver) Extractor {
 	return Extractor{
 		map[string]parser.IngressAnnotation{
-			"Header": header.NewParser(cfg),
-			"Cookie": cookie.NewParser(cfg),
+			"Header":  header.NewParser(cfg),
+			"Cookie":  cookie.NewParser(cfg),
 			"Rewrite": rewrite.NewParser(cfg),
+			"L4":      l4.NewParser(cfg),
 		},
 	}
 }

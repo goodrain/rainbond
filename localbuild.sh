@@ -8,7 +8,7 @@ releasedir=./.release
 distdir=${releasedir}/dist
 GO_VERSION=1.11
 
-VERSION=3.7.2
+VERSION=master
 buildTime=$(date +%F-%H)
 git_commit=$(git log -n 1 --pretty --format=%h)
 release_desc=${VERSION}-${git_commit}-${buildTime}
@@ -26,11 +26,11 @@ function localbuild() {
 	if [ "$1" = "all" ];then
 		for item in ${build_items[@]}
 		do
-    		echo "build ${item}"
+    		echo "build local ${item}"
     		go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o _output/${VERSION}/rainbond-$item ./cmd/$item
 		done	
 	else
-		echo "build $1"
+		echo "build local $1 ${VERSION}"
 		go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o _output/${VERSION}/rainbond-$1 ./cmd/$1
 	fi
 }

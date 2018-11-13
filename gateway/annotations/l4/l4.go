@@ -16,4 +16,35 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package openresty
+package l4
+
+import (
+	"github.com/goodrain/rainbond/gateway/annotations/parser"
+	"github.com/goodrain/rainbond/gateway/annotations/resolver"
+	extensions "k8s.io/api/extensions/v1beta1"
+)
+
+type Config struct {
+	L4Enable bool
+	L4Host string
+	L4Port int
+}
+
+type l4 struct {
+	r resolver.Resolver
+}
+
+func NewParser(r resolver.Resolver) parser.IngressAnnotation {
+	return l4{r}
+}
+
+func (l l4) Parse(ing *extensions.Ingress) (interface{}, error) {
+	l4Enable, _ := parser.GetBoolAnnotation("l4-enable", ing)
+	l4Host, _ := parser.GetStringAnnotation("l4-host", ing)
+	l4Port, _ := parser.GetIntAnnotation("l4-port", ing)
+	return &Config{
+		L4Enable: l4Enable,
+		L4Host: l4Host,
+		L4Port:l4Port,
+	}, nil
+}

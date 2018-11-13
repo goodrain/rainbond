@@ -34,9 +34,10 @@ import (
 	"github.com/goodrain/rainbond/worker/discover"
 	"github.com/goodrain/rainbond/worker/executor"
 	"github.com/goodrain/rainbond/worker/monitor"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"net/http"
-	_ "net/http/pprof"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -64,7 +65,19 @@ func Run(s *option.Worker) error {
 	}
 	defer event.CloseManager()
 
-	//step 2 : create and start app runtime module
+	//step 2 : create kube client
+	c, err := clientcmd.BuildConfigFromFlags("", s.Config.KubeConfig)
+	if err != nil {
+		logrus.Error("read kube config file error.", err)
+		return err
+	}
+	clientset, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		logrus.Error("create kube api client error", err)
+		return err
+	}
+	s.Config.KubeClient = clientset
+	//step 3 : create and start app runtime module
 	ars := appruntimesync.CreateAppRuntimeSync(s.Config)
 	go ars.Start(errChan)
 	defer ars.Stop()
@@ -86,28 +99,28 @@ func Run(s *option.Worker) error {
 	if s.RunMode == "sync" {
 		go appmm.SyncData()
 	}
-	//step 3 : create executor module
+	//step 4 : create executor module
 	executorManager, err := executor.NewManager(s.Config, statusClient, appmm)
 	if err != nil {
 		return err
 	}
 	executorManager.Start()
 	defer executorManager.Stop()
-	//step 4 : create discover module
+	//step 5 : create discover module
 	taskManager := discover.NewTaskManager(s.Config, executorManager, statusClient)
 	if err := taskManager.Start(); err != nil {
 		return err
 	}
 	defer taskManager.Stop()
 
-	//step 5 :create application use resource exporter.
+	//step 6 :create application use resource exporter.
 	exporterManager := monitor.NewManager(s.Config, statusClient)
 	if err := exporterManager.Start(); err != nil {
 		return err
 	}
 	defer exporterManager.Stop()
 
-	//step 6 :enable pprof api
+	//step 7 :enable pprof api
 	logrus.Info("pprof api listen port 3229")
 	go http.ListenAndServe(":3229", nil)
 

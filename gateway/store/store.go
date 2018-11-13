@@ -57,8 +57,8 @@ const (
 	DefServerName                = "_"
 )
 
-var httpPoolMap = make(map[string]struct{})
-var tcpPoolMap = make(map[string]struct{})
+var l7PoolMap = make(map[string]struct{})
+var l4PoolMap = make(map[string]struct{})
 
 //Storer is the interface that wraps the required methods to gather information
 type Storer interface {
@@ -319,21 +319,20 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 				})
 			}
 		}
-		if _, ok := httpPoolMap[pool.Name]; ok {
+		if _, ok := l7PoolMap[pool.Name]; ok {
 			httpPools = append(httpPools, pool)
 		}
-		if _, ok := tcpPoolMap[pool.Name]; ok {
+		if _, ok := l4PoolMap[pool.Name]; ok {
 			tcpPools = append(tcpPools, pool)
 		}
 	}
 	return httpPools, tcpPools
 }
 
-func (s *rbdStore) ListVirtualService() ([]*v1.VirtualService, []*v1.VirtualService) {
-	var l7vs []*v1.VirtualService
-	var l4vs []*v1.VirtualService
+// ListVirtualService list l7 virtual service and l4 virtual service
+func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.VirtualService) {
 	l7vsMap := make(map[string]*v1.VirtualService)
-	//l4vsMap := make(map[string]*v1.VirtualService)
+	l4vsMap := make(map[string]*v1.VirtualService)
 	for _, item := range s.listers.Ingress.List() {
 		ing := item.(*extensions.Ingress)
 		if !s.ingressIsValid(ing) {
@@ -346,18 +345,21 @@ func (s *rbdStore) ListVirtualService() ([]*v1.VirtualService, []*v1.VirtualServ
 			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
 		}
 
-		if ing.Spec.Backend != nil { // stream
-		    // TODO
-			//l4vsMap[]
-			//l4vs := &v1.VirtualService{}
-			//l4vs.Protocol = v1.STREAM
-			//l4vs.Listening = []string{fmt.Sprintf("%v", ing.Spec.Backend.ServicePort.IntVal)}
-			//l4vs.PoolName = ing.Spec.Backend.ServiceName
-			//tcpPoolMap[l4vs.PoolName] = struct{}{}
-			//l4vs = append(l4vs, l4vs)
-		} else { // http
-			var vs *v1.VirtualService
-
+		if anns.L4.L4Enable { // l4
+			listening := fmt.Sprintf("%s:%v", anns.L4.L4Host, anns.L4.L4Port)
+			vs := l4vsMap[listening]
+			if vs != nil {
+				logrus.Info("already have a ingress the same as %s, ignore %s", ingKey, ingKey)
+				return
+			}
+			vs = &v1.VirtualService{
+				Listening: []string{listening},
+				PoolName: ing.Spec.Backend.ServiceName,
+			}
+			l4PoolMap[vs.PoolName] = struct{}{}
+			l4vsMap[listening] = vs
+			l4vs = append(l4vs, vs)
+		} else { // l7
 			// parse TLS into a map
 			hostSSLMap := make(map[string]*v1.SSLCert)
 			for _, tls := range ing.Spec.TLS {
@@ -377,6 +379,7 @@ func (s *rbdStore) ListVirtualService() ([]*v1.VirtualService, []*v1.VirtualServ
 			}
 
 			for _, rule := range ing.Spec.Rules {
+				var vs *v1.VirtualService
 				serverName := strings.Replace(rule.Host, " ", "", -1)
 				if serverName == "" {
 					serverName = DefServerName
@@ -384,17 +387,19 @@ func (s *rbdStore) ListVirtualService() ([]*v1.VirtualService, []*v1.VirtualServ
 				vs = l7vsMap[serverName]
 				if vs == nil {
 					vs = &v1.VirtualService{
-						Listening: []string{"80"},
-						ServerName: serverName,
-						Protocol:   v1.HTTP,
-						Locations:  []*v1.Location{},
+						Listening:        []string{"80"},
+						ServerName:       serverName,
+						Protocol:         v1.HTTP,
+						Locations:        []*v1.Location{},
 						ForceSSLRedirect: anns.Rewrite.ForceSSLRedirect,
 					}
 					if hostSSLMap[serverName] != nil {
 						vs.Listening = []string{"443", "ssl"}
+						vs.SSLCert = hostSSLMap[serverName]
 					}
 
 					l7vsMap[serverName] = vs
+					l7vs = append(l7vs, vs)
 				}
 
 				for _, path := range rule.IngressRuleValue.HTTP.Paths {
@@ -410,11 +415,9 @@ func (s *rbdStore) ListVirtualService() ([]*v1.VirtualService, []*v1.VirtualServ
 					}
 
 					vs.Locations = append(vs.Locations, location)
-					httpPoolMap[location.PoolName] = struct{}{}
+					l7PoolMap[location.PoolName] = struct{}{}
 				}
 			}
-
-			l7vs = append(l7vs, vs)
 		}
 	}
 	return l7vs, l4vs

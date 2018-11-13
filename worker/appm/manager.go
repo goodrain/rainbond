@@ -37,7 +37,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 //Replicas0 petch replicas to 0
@@ -88,20 +87,10 @@ type manager struct {
 	stop            chan struct{}
 }
 
-//NewManager 创建manager
+//NewManager create app runtime manager
 func NewManager(conf option.Config, statusManager *client.AppRuntimeSyncClient) (Manager, error) {
-	c, err := clientcmd.BuildConfigFromFlags("", conf.KubeConfig)
-	if err != nil {
-		logrus.Error("read kube config file error.", err)
-		return nil, err
-	}
-	clientset, err := kubernetes.NewForConfig(c)
-	if err != nil {
-		logrus.Error("create kube api client error", err)
-		return nil, err
-	}
 	cacheManager := NewCacheManager()
-	return &manager{kubeclient: clientset, conf: conf,
+	return &manager{kubeclient: conf.KubeClient, conf: conf,
 		dbmanager:     db.GetManager(),
 		statusCache:   cacheManager,
 		statusManager: statusManager,

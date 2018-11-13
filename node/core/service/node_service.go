@@ -37,15 +37,24 @@ import (
 )
 
 const (
-	Running        = "running"
-	Offline        = "offline"
-	Unknown        = "unknown"
-	Error          = "error"
-	Init           = "init"
+	//Running node running status
+	Running = "running"
+	//Offline node offline status
+	Offline = "offline"
+	//Unknown node unknown status
+	Unknown = "unknown"
+	//Error node error status
+	Error = "error"
+	//Init node init status
+	Init = "init"
+	//InstallSuccess node install success status
 	InstallSuccess = "install_success"
-	InstallFailed  = "install_failed"
-	Installing     = "installing"
-	NotInstalled   = "not_installed"
+	//InstallFailed node install failure status
+	InstallFailed = "install_failed"
+	//Installing node installing status
+	Installing = "installing"
+	//NotInstalled node not install status
+	NotInstalled = "not_installed"
 )
 
 //NodeService node service
@@ -100,7 +109,7 @@ func (n *NodeService) AddNode(node *client.APIHostNode) (*client.HostNode, *util
 	return rbnode, nil
 }
 
-// install node
+//NewNode install node
 func (n *NodeService) NewNode(node *client.HostNode) *utils.APIHandleError {
 	node.Status = Installing
 	node.NodeStatus.Status = Installing
@@ -112,6 +121,7 @@ func (n *NodeService) NewNode(node *client.HostNode) *utils.APIHandleError {
 	return nil
 }
 
+//AsynchronousInstall AsynchronousInstall
 func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 	linkModel := "pass"
 	if node.KeyPath != "" {
@@ -121,7 +131,6 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 	logrus.Info("Begin add node, please don't exit")
 	line := fmt.Sprintf("cd /opt/rainbond/install/scripts; ./%s.sh %s %s %s %s %s %s", node.Role[0], node.HostName,
 		node.InternalIP, linkModel, node.RootPass, node.KeyPath, node.ID)
-	logrus.Debugf("install cmd :", line)
 
 	fileName := node.HostName + ".log"
 	cmd := exec.Command("bash", "-c", line)
@@ -192,6 +201,7 @@ func (n *NodeService) GetAllNode() ([]*client.HostNode, *utils.APIHandleError) {
 	return nodes, nil
 }
 
+//GetServicesHealthy get service health
 func (n *NodeService) GetServicesHealthy() (map[string][]map[string]string, *utils.APIHandleError) {
 	if n.nodecluster == nil {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))

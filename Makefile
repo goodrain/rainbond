@@ -1,5 +1,5 @@
 GO_LDFLAGS=-ldflags " -w"
-VERSION=cloud
+VERSION=master
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 BASE_DOCKER=./hack/contrib/docker
@@ -37,10 +37,7 @@ ifeq ($(WHAT),api)
 else ifeq ($(WHAT),mq)
 	${BIN_PATH}/${BASE_NAME}-mq --log-level=debug
 else ifeq ($(WHAT),worker)
-	CUR_NET=midonet EX_DOMAIN=test-ali.goodrain.net:10080 ${BIN_PATH}/${BASE_NAME}-worker \
-	--log-level=debug  \
-	--mysql="root:@tcp(127.0.0.1:3306)/region" \
-	--kube-config=./test/admin.kubeconfig
+	test/run/run_worker.sh ${BIN_PATH}/${BASE_NAME}-worker
 else ifeq ($(WHAT),builder)
     ${BIN_PATH}/${BASE_NAME}-chaos \
 	--log-level=debug  \

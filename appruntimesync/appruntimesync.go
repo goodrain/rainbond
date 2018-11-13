@@ -22,15 +22,18 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"sync"
+
+	"github.com/goodrain/rainbond/util/leader"
 
 	"github.com/goodrain/rainbond/util"
 
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
-	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/appruntimesync/pb"
 	"github.com/goodrain/rainbond/appruntimesync/server"
+	"github.com/goodrain/rainbond/cmd/worker/option"
 	discover "github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/util/etcd/etcdlock"
 	"google.golang.org/grpc"
@@ -40,17 +43,18 @@ import (
 //AppRuntimeSync app runtime sync modle
 // handle app status and event
 type AppRuntimeSync struct {
-	conf      option.Config
-	server    *grpc.Server
-	etcdCli   *client.Client
-	ctx       context.Context
-	cancel    context.CancelFunc
-	srss      *server.AppRuntimeSyncServer
-	keepalive *discover.KeepAlive
-	master    etcdlock.MasterInterface
-	hostIP    string
-	masterRun bool
-	once      sync.Once
+	conf        option.Config
+	server      *grpc.Server
+	etcdCli     *client.Client
+	ctx         context.Context
+	cancel      context.CancelFunc
+	srss        *server.AppRuntimeSyncServer
+	keepalive   *discover.KeepAlive
+	master      etcdlock.MasterInterface
+	hostIP      string
+	masterRun   bool
+	once        sync.Once
+	listenstart bool
 }
 
 //Start start if have master right
@@ -64,10 +68,41 @@ func (a *AppRuntimeSync) Start(errchan chan error) {
 		}
 		a.hostIP = ip.String()
 	}
-	util.Exec(a.ctx, func() error {
-		a.selectMaster(errchan)
-		return nil
-	}, 1)
+	start := func(stop <-chan struct{}) {
+		if err := a.srss.Start(); err != nil {
+			errchan <- err
+			return
+		}
+		defer a.srss.Stop()
+		go a.startAppRuntimeSync()
+		if err := a.registServer(); err != nil {
+			errchan <- err
+			return
+		}
+		defer func() {
+			if a.keepalive != nil {
+				a.keepalive.Stop()
+			}
+		}()
+		a.masterRun = true
+		<-stop
+	}
+	// Leader election was requested.
+	if a.conf.LeaderElectionNamespace == "" {
+		logrus.Error("-leader-election-namespace must not be empty")
+		os.Exit(1)
+	}
+	if a.conf.LeaderElectionIdentity == "" {
+		a.conf.LeaderElectionIdentity = a.conf.NodeName
+	}
+	if a.conf.LeaderElectionIdentity == "" {
+		logrus.Error("-leader-election-identity must not be empty")
+		os.Exit(1)
+	}
+	// Name of config map with leader election lock
+	lockName := "rainbond-appruntime-worker-leader"
+
+	leader.RunAsLeader(a.conf.KubeClient, a.conf.LeaderElectionNamespace, a.conf.LeaderElectionIdentity, lockName, start, func() {})
 }
 func (a *AppRuntimeSync) selectMaster(errchan chan error) {
 	master, err := etcdlock.CreateMasterLock(a.conf.EtcdEndPoints, "/rainbond/workermaster", fmt.Sprintf("%s:%d", a.hostIP, 6535), 10)
@@ -160,10 +195,14 @@ func CreateAppRuntimeSync(conf option.Config) *AppRuntimeSync {
 
 //StartAppRuntimeSync start grpc server and regist to etcd
 func (a *AppRuntimeSync) startAppRuntimeSync() error {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", 6535))
-	if err != nil {
-		logrus.Errorf("failed to listen: %v", err)
-		return err
+	if !a.listenstart {
+		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", 6535))
+		if err != nil {
+			logrus.Errorf("failed to listen: %v", err)
+			return err
+		}
+		a.listenstart = true
+		return a.server.Serve(lis)
 	}
-	return a.server.Serve(lis)
+	return nil
 }

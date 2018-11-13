@@ -79,12 +79,15 @@ func RunAsLeader(clientset *kubernetes.Clientset, namespace string, identity str
 	leaderelection.RunOrDie(leaderConfig)
 }
 
+//SanitizeDriverName a DNS-1123 subdomain must consist of lower case alphanumeric characters,
+// '-' or '.', and must start and end with an alphanumeric character
+//(e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')
 func SanitizeDriverName(driver string) string {
-	re := regexp.MustCompile("[^a-zA-Z0-9-]")
+	re := regexp.MustCompile("[^a-z0-9-]")
 	name := re.ReplaceAllString(driver, "-")
 	if name[len(name)-1] == '-' {
 		// name must not end with '-'
-		name = name + "X"
+		name = name + "x"
 	}
 	return name
 }

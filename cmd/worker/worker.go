@@ -26,6 +26,8 @@ import (
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/cmd/worker/server"
 
+	_ "net/http/pprof"
+
 	"github.com/spf13/pflag"
 )
 
