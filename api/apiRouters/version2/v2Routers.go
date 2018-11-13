@@ -52,7 +52,6 @@ func (v2 *V2) tenantRouter() chi.Router {
 	r.Mount("/{tenant_name}", v2.tenantNameRouter())
 	r.Get("/", controller.GetManager().Tenant)
 	r.Get("/services-count", controller.GetManager().ServicesCount)
-	r.Get("/resources_limit", controller.GetManager().TenantResourcesLimit)
 	r.Get("/services_status", controller.GetManager().TenantServicesStatus)
 	return r
 }
