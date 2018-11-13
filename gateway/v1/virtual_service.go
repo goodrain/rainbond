@@ -28,29 +28,30 @@ const (
 //VirtualService VirtualService
 type VirtualService struct {
 	Meta
-	Enabled  bool   `json:"enable"`
+	Enabled  bool         `json:"enable"`
 	Protocol ProtocolType `json:"protocol"` //default stream
 	// BackendProtocol indicates which protocol should be used to communicate with the service
-	BackendProtocol        string            `json:"backend-protocol"`
-	Port                   int32             `json:"port"`
-	Listening              []string          `json:"listening"` //if Listening is nil,will listen all
-	Note                   string            `json:"note"`
-	DefaultPoolName        string            `json:"default_pool_name"`
-	RuleNames              []string          `json:"rule_names"`
-	SSLdecrypt             bool              `json:"ssl_decrypt"`
-	DefaultCertificateName string            `json:"default_certificate_name"`
-	RequestLogEnable       bool              `json:"request_log_enable"`
-	RequestLogFileName     string            `json:"request_log_file_name"`
-	RequestLogFormat       string            `json:"request_log_format"`
+	BackendProtocol        string   `json:"backend-protocol"`
+	Port                   int32    `json:"port"`
+	Listening              []string `json:"listening"` //if Listening is nil,will listen all
+	Note                   string   `json:"note"`
+	DefaultPoolName        string   `json:"default_pool_name"`
+	RuleNames              []string `json:"rule_names"`
+	SSLdecrypt             bool     `json:"ssl_decrypt"`
+	DefaultCertificateName string   `json:"default_certificate_name"`
+	RequestLogEnable       bool     `json:"request_log_enable"`
+	RequestLogFileName     string   `json:"request_log_file_name"`
+	RequestLogFormat       string   `json:"request_log_format"`
 	//ConnectTimeout The time, in seconds, to wait for data from a new connection. If no data is received within this time, the connection will be closed. A value of 0 (zero) will disable the timeout.
 	ConnectTimeout int `json:"connect_timeout"`
 	//Timeout A connection should be closed if no additional data has been received for this period of time. A value of 0 (zero) will disable this timeout. Note that the default value may vary depending on the protocol selected.
 	Timeout int `json:"timeout"`
 
-	ServerName string
-	PoolName   string
-	SSLCert    *SSLCert
-	Locations  []*Location
+	ServerName       string      `json:"server_name"`
+	PoolName         string      `json:"pool_name"`
+	SSLCert          *SSLCert    `json:"ssl_cert"`
+	Locations        []*Location `json:"locations"`
+	ForceSSLRedirect bool        `json:"force_ssl_redirect"`
 }
 
 func (v *VirtualService) Equals(c *VirtualService) bool {
