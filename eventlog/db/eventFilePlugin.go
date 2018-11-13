@@ -56,6 +56,9 @@ func (m *EventFilePlugin) SaveMessage(events []*EventLogMessage) error {
 	defer writeFile.Close()
 	var lastTime int64
 	for _, e := range events {
+		if e == nil {
+			continue
+		}
 		writeFile.Write(GetLevelFlag(e.Level))
 		logtime := GetTimeUnix(e.Time)
 		if logtime != 0 {

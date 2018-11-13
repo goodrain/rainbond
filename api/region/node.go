@@ -106,6 +106,21 @@ func (n *node) List() ([]*client.HostNode, *util.APIHandleError) {
 	return gc, nil
 }
 
+func (n *node) GetAllNodeHealth() (map[string][]map[string]string, *util.APIHandleError) {
+	var res utilhttp.ResponseBody
+	var gc map[string][]map[string]string
+	res.Bean = &gc
+	code, err := n.DoRequest(n.prefix + "/all_node_health", "GET", nil, &res)
+	if err != nil {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
+	}
+	return gc, nil
+}
+
+
 func (n *node) Add(node *client.APIHostNode) *util.APIHandleError {
 	body, err := json.Marshal(node)
 	if err != nil {
@@ -221,6 +236,7 @@ type NodeInterface interface {
 	Get(node string) (*client.HostNode, *util.APIHandleError)
 	GetNodeResource(node string) (*client.NodePodResource, *util.APIHandleError)
 	List() ([]*client.HostNode, *util.APIHandleError)
+	GetAllNodeHealth() (map[string][]map[string]string, *util.APIHandleError)
 	Add(node *client.APIHostNode) *util.APIHandleError
 	Up(nid string) *util.APIHandleError
 	Down(nid string) *util.APIHandleError

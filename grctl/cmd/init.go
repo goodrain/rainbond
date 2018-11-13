@@ -21,19 +21,14 @@ package cmd
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"os/exec"
 
-	"github.com/goodrain/rainbond/event"
-
 	"github.com/Sirupsen/logrus"
-	"github.com/urfave/cli"
-
-	//"github.com/goodrain/rainbond/grctl/clients"
-
-	"os"
-
 	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/grctl/clients"
+	"github.com/urfave/cli" //"github.com/goodrain/rainbond/grctl/clients"
 )
 
 //NewCmdInit grctl init
@@ -80,6 +75,21 @@ func NewCmdInit() cli.Command {
 				Name:  "domain",
 				Usage: "defalut custom apps domain.",
 				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "storage-type,stype",
+				Usage: "defalut storage type (nfs/other)",
+				Value: "nfs",
+			},
+			cli.StringFlag{
+				Name:  "network-type,ntype",
+				Usage: "defalut network type (calico/midonet)",
+				Value: "calico",
+			},
+			cli.StringFlag{
+				Name:  "storage-args,sargs",
+				Usage: "storage mount args",
+				Value: "/grdata nfs rw 0 0",
 			},
 			cli.BoolFlag{
 				Name:   "test",
@@ -135,7 +145,7 @@ func NewCmdInstallStatus() cli.Command {
 
 func initCluster(c *cli.Context) {
 	// check if the rainbond is already installed
-	fmt.Println("Checking install enviremant.")
+	//fmt.Println("Checking install enviremant.")
 	_, err := os.Stat("/opt/rainbond/.rainbond.success")
 	if err == nil {
 		println("Rainbond is already installed, if you whant reinstall, then please delete the file: /opt/rainbond/.rainbond.success")
@@ -158,9 +168,13 @@ func initCluster(c *cli.Context) {
 		}
 	}
 
+	//storage file
+	//fmt.Println("Check storage type")
+	ioutil.WriteFile("/tmp/.storage.value", []byte(c.String("storage-args")), 0644)
+
 	// start setup script to install rainbond
 	fmt.Println("Begin init cluster first node,please don't exit,wait install")
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("cd %s ; ./setup.sh %s %s %s %s", c.String("work_dir"), c.String("role"), c.String("install-type"), c.String("eip"), c.String("domain")))
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("cd %s ; ./setup.sh %s %s %s %s %s %s", c.String("work_dir"), c.String("role"), c.String("install-type"), c.String("eip"), c.String("storage-type"), c.String("network-type"), c.String("domain")))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin

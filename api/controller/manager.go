@@ -21,11 +21,11 @@ package controller
 import (
 	"net/http"
 
-	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/api/apiFunc"
 	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/appruntimesync/client"
+	"github.com/goodrain/rainbond/cmd/api/option"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -39,6 +39,7 @@ type V2Manager interface {
 	Entrance(w http.ResponseWriter, r *http.Request)
 	Health(w http.ResponseWriter, r *http.Request)
 	AlertManagerWebHook(w http.ResponseWriter, r *http.Request)
+	Version(w http.ResponseWriter, r *http.Request)
 
 	apiFunc.TenantInterface
 	apiFunc.ServiceInterface

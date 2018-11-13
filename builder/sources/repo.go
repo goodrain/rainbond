@@ -23,6 +23,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
+
 	"github.com/goodrain/rainbond/util"
 
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
@@ -111,5 +113,6 @@ func CreateRepostoryBuildInfo(repoURL, repoType, branch, tenantID string, Servic
 		rbi.RepostoryURL = repoURL[:index]
 	}
 	rbi.CodeHome = GetCodeSourceDir(repoURL, branch, tenantID, ServiceID)
+	logrus.Infof("cache code dir is %s for service %s", rbi.CodeHome, ServiceID)
 	return rbi, nil
 }

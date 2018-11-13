@@ -158,7 +158,4 @@ func (m *Manager) patchTable() {
 	if err := m.db.Exec("alter table tenant_plugin_build_version modify column build_local_image varchar(200);").Error; err != nil {
 		logrus.Errorf("alter table tenant_plugin_build_version error %s", err.Error())
 	}
-	if err := m.db.Exec("alter table tenants add column limit_memory int default 0;").Error; err != nil {
-		logrus.Errorf("alter table tenants error %s", err.Error())
-	}
 }

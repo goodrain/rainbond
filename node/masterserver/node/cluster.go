@@ -46,14 +46,15 @@ import (
 )
 
 const (
-	Running     = "running"
-	Offline     = "offline"
-	Unknown     = "unknown"
-	Error       = "error"
-	Init        = "init"
-	InitSuccess = "init_success"
-	InitFailed  = "init_failed"
-	Installing  = "installing"
+	Running        = "running"
+	Offline        = "offline"
+	Unknown        = "unknown"
+	Error          = "error"
+	Init           = "init"
+	InstallSuccess = "install_success"
+	InstallFailed  = "install_failed"
+	Installing     = "installing"
+	NotInstalled   = "not_installed"
 )
 
 //Cluster  node  controller
@@ -252,12 +253,16 @@ func (n *Cluster) GetNode(id string) *client.HostNode {
 	defer n.lock.Unlock()
 	if node, ok := n.nodes[id]; ok {
 		n.handleNodeStatus(node)
+		n.handleNodeHealth(node)
 		return node
 	}
 	return nil
 }
 func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 	if v == nil {
+		return
+	}
+	if v.Status == InstallFailed || v.Status == Installing || v.Status == NotInstalled || v.Status == InstallSuccess {
 		return
 	}
 	if v.Role.HasRule("compute") {
@@ -271,14 +276,6 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 				v.NodeStatus.Status = status
 			}
 			v.Unschedulable = true
-			r := client.NodeCondition{
-				Type:               client.NodeReady,
-				Status:             client.ConditionFalse,
-				LastHeartbeatTime:  time.Now(),
-				LastTransitionTime: time.Now(),
-				Message:            "The node has been offline",
-			}
-			v.UpdataCondition(r)
 			return
 		}
 		v.Unschedulable = false
@@ -372,7 +369,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		}
 	}
 	if v.Role.HasRule("manage") && !v.Role.HasRule("compute") { //manage install_success == runnint
-		if v.Status == Init || v.Status == InitSuccess || v.Status == InitFailed || v.Status == Installing {
+		if v.Status == InstallFailed || v.Status == Installing || v.Status == NotInstalled || v.Status == InstallSuccess {
 			return
 		}
 		if v.Alived {
@@ -420,15 +417,9 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		} else {
 			v.Status = Offline
 			v.NodeStatus.Status = Offline
-			r := client.NodeCondition{
-				Type:               client.NodeReady,
-				Status:             client.ConditionFalse,
-				LastHeartbeatTime:  time.Now(),
-				LastTransitionTime: time.Now(),
-				Message:            "The node has been offline",
-			}
-			v.UpdataCondition(r)
 		}
+		v.AvailableCPU = v.NodeStatus.NodeInfo.NumCPU
+		v.AvailableMemory = int64(v.NodeStatus.NodeInfo.MemorySize)
 	}
 }
 func (n *Cluster) loadAndWatchNodeOnlines(errChan chan error) {
@@ -622,6 +613,7 @@ func (n *Cluster) GetAllNode() (nodes []*client.HostNode) {
 	defer n.lock.Unlock()
 	for _, v := range n.nodes {
 		n.handleNodeStatus(v)
+		n.handleNodeHealth(v)
 		nodes = append(nodes, v)
 	}
 	return
@@ -688,3 +680,20 @@ func checkLables(node *client.HostNode, labels map[string]string) bool {
 	}
 	return true
 }
+
+func (n *Cluster) handleNodeHealth(v *client.HostNode) {
+
+	v.Status = v.NodeStatus.Status
+	for _, service := range v.NodeStatus.Conditions {
+		if service.Type == client.NodeReady {
+			if service.Status == client.ConditionTrue {
+				v.NodeHealth = true
+				return
+			} else {
+				v.NodeHealth = false
+				return
+			}
+		}
+	}
+}
+

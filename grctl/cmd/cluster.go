@@ -21,12 +21,13 @@ package cmd
 import (
 	"fmt"
 
+	"strconv"
+
 	"github.com/apcera/termtables"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/gosuri/uitable"
 	"github.com/urfave/cli"
-	"strconv"
 )
 
 //NewCmdCluster cmd for cluster
@@ -59,9 +60,11 @@ func getClusterInfo(c *cli.Context) error {
 	//show services health status
 	list, err := clients.RegionClient.Nodes().List()
 	handleErr(err)
+	allNodeHealth, err := clients.RegionClient.Nodes().GetAllNodeHealth()
+	handleErr(err)
 	serviceTable2 := termtables.CreateTable()
 	serviceTable2.AddHeaders("Service", "HealthyQuantity/Total", "Message")
-	serviceStatusInfo := getServicesHealthy(list)
+	serviceStatusInfo := allNodeHealth
 	status, message := clusterStatus(serviceStatusInfo["Role"], serviceStatusInfo["Ready"])
 	serviceTable2.AddRow("\033[0;33;33mClusterStatus\033[0m", status, message)
 	for name, v := range serviceStatusInfo {
@@ -78,7 +81,7 @@ func getClusterInfo(c *cli.Context) error {
 	var rest []*client.HostNode
 	for _, v := range list {
 		if v.Role.HasRule("manage") || !v.Role.HasRule("compute") {
-			handleStatus(serviceTable, isNodeReady(v), v)
+			handleStatus(serviceTable, v)
 		} else {
 			rest = append(rest, v)
 		}
@@ -87,13 +90,13 @@ func getClusterInfo(c *cli.Context) error {
 		serviceTable.AddSeparator()
 	}
 	for _, v := range rest {
-		handleStatus(serviceTable, isNodeReady(v), v)
+		handleStatus(serviceTable, v)
 	}
 	fmt.Println(serviceTable.Render())
 	return nil
 }
 
-func getServicesHealthy(nodes []*client.HostNode) (map[string][]map[string]string) {
+func getServicesHealthy(nodes []*client.HostNode) map[string][]map[string]string {
 
 	StatusMap := make(map[string][]map[string]string, 30)
 	roleList := make([]map[string]string, 0, 10)

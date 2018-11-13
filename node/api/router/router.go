@@ -73,9 +73,7 @@ func Routers(mode string) *chi.Mux {
 				r.Get("/", controller.GetNodes)
 				r.Get("/all_node_health", controller.GetAllNodeHealth)
 				r.Get("/rule/{rule}", controller.GetRuleNodes)
-				r.Post("/", controller.NewNode)                       //增加一个节点
-				r.Post("/multiple", controller.NewMultipleNode)       //增加多个节点
-				r.Delete("/{node_id}", controller.DeleteRainbondNode) //删除一个节点
+
 				r.Get("/{node_id}", controller.GetNode)
 				r.Put("/{node_id}/unschedulable", controller.Cordon)
 				r.Put("/{node_id}/reschedulable", controller.UnCordon)
@@ -85,9 +83,12 @@ func Routers(mode string) *chi.Mux {
 				r.Get("/{node_id}/instance", controller.Instances) //节点实例列表
 				r.Get("/{node_id}/check", controller.CheckNode)
 				r.Get("/{node_id}/resource", controller.Resource)
-
-				r.Get("/{node_ip}/init", controller.InitStatus)
-				r.Post("/{node_id}/install", controller.Install)
+				// 节点安装相关
+				r.Post("/{node_id}", controller.NewNode)   //安装一个节点
+				r.Post("/add_node", controller.AddNode)   //添加一个节点
+				r.Delete("/{node_id}", controller.DeleteRainbondNode) //删除一个节点
+				//r.Get("/{node_ip}/init", controller.InitStatus)
+				//r.Post("/{node_id}/install", controller.Install)
 
 				r.Get("/{node_id}/prometheus/cpu", controller.GetCpu)
 				r.Get("/{node_id}/prometheus/mem", controller.GetMem)

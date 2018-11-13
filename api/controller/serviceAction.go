@@ -866,7 +866,6 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-
 type limitMemory struct {
 	LimitMemory int `json:"limit_memory"`
 }
@@ -903,6 +902,10 @@ type SourcesInfo struct {
 	TenantId        string `json:"tenant_id"`
 	AvailableMemory int    `json:"available_memory"`
 	Status          bool   `json:"status"`
+	MemTotal        int    `json:"mem_total"`
+	MemUsed         int    `json:"mem_used"`
+	CpuTotal        int    `json:"cpu_total"`
+	CpuUsed         int    `json:"cpu_used"`
 }
 
 func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Request) {
@@ -930,6 +933,10 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 			TenantId:        tenantID,
 			AvailableMemory: 0,
 			Status:          true,
+			MemTotal:        tenant.LimitMemory,
+			MemUsed:         statsInfo.MEM,
+			CpuTotal:        0,
+			CpuUsed:         statsInfo.CPU,
 		}
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 		return
@@ -939,6 +946,10 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 			TenantId:        tenantID,
 			AvailableMemory: tenant.LimitMemory - statsInfo.MEM,
 			Status:          false,
+			MemTotal:        tenant.LimitMemory,
+			MemUsed:         statsInfo.MEM,
+			CpuTotal:        tenant.LimitMemory / 4,
+			CpuUsed:         statsInfo.CPU,
 		}
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 	} else {
@@ -946,7 +957,73 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 			TenantId:        tenantID,
 			AvailableMemory: tenant.LimitMemory - statsInfo.MEM,
 			Status:          true,
+			MemTotal:        tenant.LimitMemory,
+			MemUsed:         statsInfo.MEM,
+			CpuTotal:        tenant.LimitMemory / 4,
+			CpuUsed:         statsInfo.CPU,
 		}
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 	}
+}
+
+func (t *TenantStruct) TenantResourcesLimit(w http.ResponseWriter, r *http.Request) {
+	var cpuLimit int
+	tenantsResources := make(map[string]map[string]int, 0)
+	tenants, err := db.GetManager().TenantDao().GetALLTenants()
+	if err != nil {
+		logrus.Errorf("get all tenants errors:", err)
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+
+	for _, tenant := range tenants {
+		services, err := handler.GetServiceManager().GetService(tenant.UUID)
+		if err != nil {
+			httputil.ReturnError(r, w, 501, fmt.Sprintf("get service error, %v", err))
+			return
+		}
+		if tenant.LimitMemory == 0 {
+			cpuLimit = 0
+		} else {
+			cpuLimit = tenant.LimitMemory / 4
+		}
+		statsInfo, _ := handler.GetTenantManager().StatsMemCPU(services)
+		tenantsResources[tenant.UUID] = map[string]int{
+			"mem_limit": tenant.LimitMemory,
+			"mem_used":  statsInfo.MEM,
+			"cpu_limit": cpuLimit,
+			"cpu_used":  statsInfo.CPU,
+		}
+
+	}
+	httputil.ReturnSuccess(r, w, tenantsResources)
+
+}
+
+func (t *TenantStruct) TenantServicesStatus(w http.ResponseWriter, r *http.Request) {
+	info := make(map[string]map[string]int, 0)
+	tenants, err := db.GetManager().TenantDao().GetALLTenants()
+	if err != nil {
+		logrus.Errorf("get all tenants errors:", err)
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+
+	for _, tenant := range tenants {
+		runningNum := 0
+
+		statusList := handler.GetServiceManager().GetServicesStatus(tenant.UUID, nil)
+
+		if statusList != nil {
+			for _, v := range statusList {
+				if v == "running" {
+					runningNum += 1
+				}
+			}
+		}
+		info[tenant.UUID] = map[string]int{
+			"service_running_num": runningNum,
+		}
+	}
+	httputil.ReturnSuccess(r, w, info)
 }

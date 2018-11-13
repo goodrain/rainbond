@@ -221,18 +221,17 @@ func (k *K8sServiceBuild) createOuterService(port *model.TenantServicesPort) *v1
 	var service v1.Service
 	service.Name = fmt.Sprintf("service-%d-%dout", port.ID, port.ContainerPort)
 	service.Labels = map[string]string{
-		"service_type":     "outer",
-		"name":             k.service.ServiceAlias + "ServiceOUT",
-		"tenant_name":      k.tenant.Name,
-		"services_version": k.service.ServiceVersion,
-		"domain":           k.service.Autodomain(k.tenant.Name, port.ContainerPort),
-		"protocol":         port.Protocol,
-		"port_protocol":    port.Protocol,
-		"ca":               "",
-		"key":              "",
-		"event_id":         k.eventID,
-		"creator":          "RainBond",
-		"service_id":       k.service.ServiceID,
+		"service_type":  "outer",
+		"name":          k.service.ServiceAlias + "ServiceOUT",
+		"tenant_name":   k.tenant.Name,
+		"domain":        k.service.Autodomain(k.tenant.Name, port.ContainerPort),
+		"protocol":      port.Protocol,
+		"port_protocol": port.Protocol,
+		"ca":            "",
+		"key":           "",
+		"event_id":      k.eventID,
+		"creator":       "RainBond",
+		"service_id":    k.service.ServiceID,
 	}
 	if k.service.Replicas <= 1 {
 		service.Labels["rainbond.com/tolerate-unready-endpoints"] = "true"
