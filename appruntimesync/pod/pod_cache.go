@@ -60,6 +60,7 @@ type CacheManager struct {
 //Record the container exception exit information in pod.
 type AbnormalInfo struct {
 	ServiceID     string    `json:"service_id"`
+	TenantID      string    `json:"tenant_id"`
 	ServiceAlias  string    `json:"service_alias"`
 	PodName       string    `json:"pod_name"`
 	ContainerName string    `json:"container_name"`
@@ -72,7 +73,7 @@ type AbnormalInfo struct {
 //Hash get AbnormalInfo hash
 func (a AbnormalInfo) Hash() string {
 	hash := sha256.New()
-	hash.Write([]byte(a.ServiceID + a.ServiceAlias + a.PodName + a.ContainerName))
+	hash.Write([]byte(a.ServiceID + a.ServiceAlias))
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 func (a AbnormalInfo) String() string {
@@ -244,6 +245,7 @@ func getServiceInfoFromPod(pod *v1.Pod) AbnormalInfo {
 		}
 	}
 	ai.PodName = pod.Name
+	ai.TenantID = pod.Namespace
 	return ai
 }
 func (c *CacheManager) analyzePodStatus(pod *v1.Pod) {
@@ -271,13 +273,15 @@ func (c *CacheManager) addAbnormalInfo(ai *AbnormalInfo) {
 			c.oomInfos[ai.Hash()] = ai
 		}
 		db.GetManager().NotificationEventDao().AddModel(&model.NotificationEvent{
-			Kind:    "service",
-			KindID:  c.oomInfos[ai.Hash()].ServiceID,
-			Hash:    ai.Hash(),
-			Type:    "UnNormal",
-			Message: c.oomInfos[ai.Hash()].Message,
-			Reason:  "OOMKilled",
-			Count:   c.oomInfos[ai.Hash()].Count,
+			Kind:        "service",
+			KindID:      c.oomInfos[ai.Hash()].ServiceID,
+			Hash:        ai.Hash(),
+			Type:        "UnNormal",
+			Message:     c.oomInfos[ai.Hash()].Message,
+			Reason:      "OOMKilled",
+			Count:       c.oomInfos[ai.Hash()].Count,
+			ServiceName: ai.ServiceAlias,
+			TenantName:  ai.TenantID,
 		})
 	default:
 		if oldai, ok := c.errorInfos[ai.Hash()]; ok && oldai != nil {
@@ -287,13 +291,15 @@ func (c *CacheManager) addAbnormalInfo(ai *AbnormalInfo) {
 			c.errorInfos[ai.Hash()] = ai
 		}
 		db.GetManager().NotificationEventDao().AddModel(&model.NotificationEvent{
-			Kind:    "service",
-			KindID:  c.errorInfos[ai.Hash()].ServiceID,
-			Hash:    ai.Hash(),
-			Type:    "UnNormal",
-			Message: c.errorInfos[ai.Hash()].Message,
-			Reason:  c.errorInfos[ai.Hash()].Reason,
-			Count:   c.errorInfos[ai.Hash()].Count,
+			Kind:        "service",
+			KindID:      c.errorInfos[ai.Hash()].ServiceID,
+			Hash:        ai.Hash(),
+			Type:        "UnNormal",
+			Message:     c.errorInfos[ai.Hash()].Message,
+			Reason:      c.errorInfos[ai.Hash()].Reason,
+			Count:       c.errorInfos[ai.Hash()].Count,
+			ServiceName: ai.ServiceAlias,
+			TenantName:  ai.TenantID,
 		})
 	}
 

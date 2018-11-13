@@ -121,7 +121,7 @@ func (c *EventDaoImpl) GetEventByServiceID(serviceID string) ([]*model.ServiceEv
 }
 
 //GetEventByServiceID delete event log
-func (c *EventDaoImpl) DelEventByServiceID(serviceID string) (error) {
+func (c *EventDaoImpl) DelEventByServiceID(serviceID string) error {
 	var result []*model.ServiceEvent
 	isNoteExist := c.DB.Where("service_id=?", serviceID).Find(&result).RecordNotFound()
 	if isNoteExist {
@@ -161,8 +161,9 @@ func (c *NotificationEventDaoImpl) UpdateModel(mo model.Interface) error {
 	if ok := c.DB.Where("hash = ?", result.Hash).Find(&oldResult).RecordNotFound(); !ok {
 		result.FirstTime = oldResult.FirstTime
 		result.ID = oldResult.ID
+		return c.DB.Save(result).Error
 	}
-	return c.DB.Save(result).Error
+	return gorm.ErrRecordNotFound
 }
 
 //GetNotificationEventByKind GetNotificationEventByKind
