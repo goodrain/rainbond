@@ -31,6 +31,8 @@ import (
 
 	"os"
 
+	"io/ioutil"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
@@ -39,9 +41,8 @@ import (
 	tutil "github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
-	"github.com/thedevsaddam/govalidator"
-	"io/ioutil"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/thedevsaddam/govalidator"
 )
 
 //TIMELAYOUT timelayout
@@ -899,7 +900,7 @@ func (t *TenantStruct) LimitTenantMemory(w http.ResponseWriter, r *http.Request)
 }
 
 type SourcesInfo struct {
-	TenantId        string `json:"tenant_id"`
+	TenantID        string `json:"tenant_id"`
 	AvailableMemory int    `json:"available_memory"`
 	Status          bool   `json:"status"`
 	MemTotal        int    `json:"mem_total"`
@@ -930,7 +931,7 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 
 	if tenant.LimitMemory == 0 {
 		sourcesInfo := SourcesInfo{
-			TenantId:        tenantID,
+			TenantID:        tenantID,
 			AvailableMemory: 0,
 			Status:          true,
 			MemTotal:        tenant.LimitMemory,
@@ -943,7 +944,7 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 	}
 	if statsInfo.MEM >= tenant.LimitMemory {
 		sourcesInfo := SourcesInfo{
-			TenantId:        tenantID,
+			TenantID:        tenantID,
 			AvailableMemory: tenant.LimitMemory - statsInfo.MEM,
 			Status:          false,
 			MemTotal:        tenant.LimitMemory,
@@ -954,7 +955,7 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 	} else {
 		sourcesInfo := SourcesInfo{
-			TenantId:        tenantID,
+			TenantID:        tenantID,
 			AvailableMemory: tenant.LimitMemory - statsInfo.MEM,
 			Status:          true,
 			MemTotal:        tenant.LimitMemory,
@@ -964,40 +965,6 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 		}
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 	}
-}
-
-func (t *TenantStruct) TenantResourcesLimit(w http.ResponseWriter, r *http.Request) {
-	var cpuLimit int
-	tenantsResources := make(map[string]map[string]int, 0)
-	tenants, err := db.GetManager().TenantDao().GetALLTenants()
-	if err != nil {
-		logrus.Errorf("get all tenants errors:", err)
-		httputil.ReturnError(r, w, 500, err.Error())
-		return
-	}
-
-	for _, tenant := range tenants {
-		services, err := handler.GetServiceManager().GetService(tenant.UUID)
-		if err != nil {
-			httputil.ReturnError(r, w, 501, fmt.Sprintf("get service error, %v", err))
-			return
-		}
-		if tenant.LimitMemory == 0 {
-			cpuLimit = 0
-		} else {
-			cpuLimit = tenant.LimitMemory / 4
-		}
-		statsInfo, _ := handler.GetTenantManager().StatsMemCPU(services)
-		tenantsResources[tenant.UUID] = map[string]int{
-			"mem_limit": tenant.LimitMemory,
-			"mem_used":  statsInfo.MEM,
-			"cpu_limit": cpuLimit,
-			"cpu_used":  statsInfo.CPU,
-		}
-
-	}
-	httputil.ReturnSuccess(r, w, tenantsResources)
-
 }
 
 func (t *TenantStruct) TenantServicesStatus(w http.ResponseWriter, r *http.Request) {

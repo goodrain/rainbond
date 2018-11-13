@@ -118,6 +118,23 @@ func (t *TenantDaoImpl) GetTenantIDsByNames(names []string) (re []string, err er
 	return
 }
 
+//GetTenantLimitsByNames get tenants memory limit
+func (t *TenantDaoImpl) GetTenantLimitsByNames(names []string) (limit map[string]int, err error) {
+	limit = make(map[string]int)
+	rows, err := t.DB.Raw("select uuid,limit_memory from tenants where name in (?)", names).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var limitmemory int
+		var uuid string
+		rows.Scan(&uuid, &limitmemory)
+		limit[uuid] = limitmemory
+	}
+	return
+}
+
 //GetALLTenants GetALLTenants
 func (t *TenantDaoImpl) GetPagedTenants(offset, len int) ([]*model.Tenants, error) {
 
