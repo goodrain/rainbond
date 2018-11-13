@@ -1,0 +1,90 @@
+// RAINBOND, Application Management Platform
+// Copyright (C) 2014-2017 Goodrain Co., Ltd.
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version. For any non-GPL usage of Rainbond,
+// one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
+// must be obtained first.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+package leader
+
+import (
+	"fmt"
+	"os"
+	"regexp"
+	"time"
+
+	"github.com/Sirupsen/logrus"
+	"k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/tools/leaderelection"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
+	"k8s.io/client-go/tools/record"
+)
+
+const (
+	leaseDuration = 15 * time.Second
+	renewDeadline = 10 * time.Second
+	retryPeriod   = 5 * time.Second
+)
+
+// RunAsLeader starts this particular external attacher after becoming a leader.
+func RunAsLeader(clientset *kubernetes.Clientset, namespace string, identity string, lockName string, startFunc func(stop <-chan struct{}), stopFunc func()) {
+	broadcaster := record.NewBroadcaster()
+	broadcaster.StartRecordingToSink(&corev1.EventSinkImpl{Interface: clientset.CoreV1().Events(namespace)})
+	eventRecorder := broadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: fmt.Sprintf("%s %s", lockName, string(identity))})
+
+	rlConfig := resourcelock.ResourceLockConfig{
+		Identity:      identity,
+		EventRecorder: eventRecorder,
+	}
+	lock, err := resourcelock.New(resourcelock.ConfigMapsResourceLock, namespace, SanitizeDriverName(lockName), clientset.CoreV1(), rlConfig)
+	if err != nil {
+		logrus.Error(err)
+		os.Exit(1)
+	}
+
+	leaderConfig := leaderelection.LeaderElectionConfig{
+		Lock:          lock,
+		LeaseDuration: leaseDuration,
+		RenewDeadline: renewDeadline,
+		RetryPeriod:   retryPeriod,
+		Callbacks: leaderelection.LeaderCallbacks{
+			OnStartedLeading: func(stop <-chan struct{}) {
+				logrus.Info("Became leader, starting")
+				startFunc(stop)
+			},
+			OnStoppedLeading: func() {
+				logrus.Fatal("Stopped leading")
+				stopFunc()
+			},
+			OnNewLeader: func(identity string) {
+				logrus.Debugf("Current leader: %s", identity)
+			},
+		},
+	}
+
+	leaderelection.RunOrDie(leaderConfig)
+}
+
+func SanitizeDriverName(driver string) string {
+	re := regexp.MustCompile("[^a-zA-Z0-9-]")
+	name := re.ReplaceAllString(driver, "-")
+	if name[len(name)-1] == '-' {
+		// name must not end with '-'
+		name = name + "X"
+	}
+	return name
+}
