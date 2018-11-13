@@ -50,8 +50,31 @@ http {
 
     lua_shared_dict upstreams_dict 16m;
 
+    upstream  def_upstream  {
+        server   localhost:7777 max_fails=2 fail_timeout=30s;
+        server   localhost:8888 max_fails=2 fail_timeout=30s;
+    }
+
     server {
         listen       33333;
+
+        location /healthy {
+            return 200 "ok";
+        }
+
+        location /list-upstreams {
+            content_by_lua_block {
+                local balancer = require "ngx.balancer"
+                local cjson = require("cjson")
+                local keys = ngx.shared.upstreams_dict:get_keys()
+                for _, name in pairs(keys) do
+                    local servers = ngx.shared.upstreams_dict:get(name)
+                    ngx.print(name..": ")
+                    ngx.print(cjson.encode(servers))
+                    ngx.print("\n")
+                end
+            }
+        }
 
         location /update-upstreams {
             content_by_lua_block {
@@ -76,16 +99,14 @@ http {
             }
         }
 
-        location /list-upstreams {
+        location /delete-upstreams {
             content_by_lua_block {
-                local balancer = require "ngx.balancer"
                 local cjson = require("cjson")
-                local keys = ngx.shared.upstreams_dict:get_keys()
-                for _, name in pairs(keys) do
-                    local servers = ngx.shared.upstreams_dict:get(name)
-                    ngx.print(name..": ")
-                    ngx.print(cjson.encode(servers))
-                    ngx.print("\n")
+                ngx.req.read_body()
+                local data = ngx.req.get_body_data()
+                local tbl = cjson.decode(data)
+                for _, name in pairs(tbl) do
+                    ngx.shared.upstreams_dict:delete(name)
                 end
             }
         }

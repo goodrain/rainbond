@@ -8,19 +8,22 @@ import (
 	"github.com/goodrain/rainbond/gateway/controller/openresty"
 	"github.com/goodrain/rainbond/gateway/store"
 	"github.com/goodrain/rainbond/gateway/v1"
+	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/ingress-nginx/task"
 	"time"
 )
 
 const (
-	TRY_TIMES = 2
+	TryTimes = 2
 )
 
 type GWController struct {
-	GWS            GWServicer
-	store          store.Storer // TODO 为什么不能是*store.Storer
-	syncQueue      *task.Queue
-	isShuttingDown bool
+	GWS   GWServicer
+	store store.Storer
+
+	syncQueue       *task.Queue
+	syncRateLimiter flowcontrol.RateLimiter
+	isShuttingDown  bool
 
 	optionConfig     option.Config
 	RunningConfig    *v1.Config
@@ -55,12 +58,12 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 	gwc.RunningConfig = currentConfig
 
 	err := gwc.GWS.PersistConfig(gwc.RunningConfig)
-	// TODO: check if the nginx is ready.
-	// refresh http pools dynamically
-	gwc.refreshPools(httpPools)
-	gwc.RunningHttpPools = httpPools
 	if err != nil {
 		logrus.Errorf("Fail to persist Nginx config: %v\n", err)
+	} else {
+		// refresh http pools dynamically
+		gwc.refreshPools(httpPools)
+		gwc.RunningHttpPools = httpPools
 	}
 
 	return nil
@@ -82,7 +85,7 @@ func (gwc *GWController) Start() {
 
 	for {
 		select {
-		case event := <-gwc.updateCh.Out(): // 将ringChannel的output通道接收到event放到task.Queue中
+		case event := <-gwc.updateCh.Out():
 			if gwc.isShuttingDown {
 				break
 			}
@@ -105,14 +108,16 @@ func (gwc *GWController) Start() {
 
 // refreshPools refresh pools dynamically.
 func (gwc *GWController) refreshPools(pools []*v1.Pool) {
+	gwc.GWS.WaitPluginReady()
+
 	delPools, updPools := gwc.getDelUpdPools(pools)
-	for i := 0; i < TRY_TIMES; i++ {
+	for i := 0; i < TryTimes; i++ {
 		err := gwc.GWS.UpdatePools(updPools)
 		if err == nil {
 			break
 		}
 	}
-	for i := 0; i < TRY_TIMES; i++ {
+	for i := 0; i < TryTimes; i++ {
 		err := gwc.GWS.DeletePools(delPools)
 		if err == nil {
 			break
@@ -154,7 +159,7 @@ func NewGWController() *GWController {
 
 	clientSet, err := NewClientSet("/Users/abe/Documents/admin.kubeconfig")
 	if err != nil {
-		// TODO
+		logrus.Error("can't create kubernetes's client.")
 	}
 
 	gwc.store = store.New(clientSet,

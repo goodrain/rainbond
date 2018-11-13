@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type OpenrestyService struct{}
@@ -26,10 +27,10 @@ type Server struct {
 }
 
 func (osvc *OpenrestyService) Start() error {
-	//o, err := nginxExecCommand().CombinedOutput()
-	//if err != nil {
-	//	return fmt.Errorf("%v\n%v", err, string(o))
-	//}
+	o, err := nginxExecCommand().CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%v\n%v", err, string(o))
+	}
 	return nil
 }
 
@@ -100,9 +101,9 @@ func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
 	logrus.Debug("Nginx configuration is ok.")
 
 	// reload nginx
-	//if out, err := nginxExecCommand("-s", "reload").CombinedOutput(); err != nil {
-	//	return fmt.Errorf("%v\n%v", err, string(out))
-	//}
+	if out, err := nginxExecCommand("-s", "reload").CombinedOutput(); err != nil {
+		return fmt.Errorf("%v\n%v", err, string(out))
+	}
 	logrus.Debug("Nginx reloads successfully.")
 
 	return nil
@@ -171,7 +172,9 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 
 // UpdatePools updates http upstreams dynamically.
 func (osvc *OpenrestyService) UpdatePools(pools []*v1.Pool) error {
-	logrus.Debug("update http upstreams dynamically.")
+	if len(pools) == 0 {
+		return nil
+	}
 	var upstreams []*Upstream
 	for _, pool := range pools {
 		upstream := &Upstream{}
@@ -213,6 +216,9 @@ func updateUpstreams(upstream []*Upstream) error {
 }
 
 func (osvc *OpenrestyService) DeletePools(pools []*v1.Pool) error {
+	if len(pools) == 0 {
+		return nil
+	}
 	var data []string
 	for _, pool := range pools {
 		data = append(data, pool.Name)
@@ -233,4 +239,17 @@ func deletePools(data []string) error {
 
 	logrus.Debugf("the status of dynamically deleting upstreams is %v.", resp.Status)
 	return nil
+}
+
+// WaitPluginReady waits for nginx to be ready.
+func (osvc *OpenrestyService) WaitPluginReady() {
+	url := "http://localhost:33333/healthy" // TODO
+	for {
+		resp, err := http.Get(url)
+		if err == nil && resp.StatusCode == 200 {
+			logrus.Info("Nginx is ready")
+			break
+		}
+		time.Sleep(200 * time.Microsecond)
+	}
 }
