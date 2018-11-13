@@ -188,7 +188,7 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 			continue
 		}
 		if _, ok := result[serviceMap[k].TenantID]; !ok {
-			result[serviceMap[k].TenantID] = map[string]interface{}{"tenant_id": k,"limit_memory": 0, "limit_cpu": 0 "cpu": 0, "memory": 0, "disk": 0}
+			result[serviceMap[k].TenantID] = map[string]interface{}{"tenant_id": k, "limit_memory": 0, "limit_cpu": 0, "cpu": 0, "memory": 0, "disk": 0}
 		}
 		if !t.statusCli.IsClosedStatus(v) {
 			result[serviceMap[k].TenantID]["cpu"] = result[serviceMap[k].TenantID]["cpu"].(int) + (serviceMap[k].ContainerCPU * serviceMap[k].Replicas)
