@@ -458,3 +458,10 @@ func (m *Manager) AppBackupDao() dao.AppBackupDao {
 		DB: m.db,
 	}
 }
+
+//ServiceSourceDao service source db impl
+func (m *Manager) ServiceSourceDao() dao.ServiceSourceDao {
+	return &mysqldao.ServiceSourceImpl{
+		DB: m.db,
+	}
+}

@@ -20,6 +20,7 @@ package db
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/dao"
@@ -102,6 +103,7 @@ type Manager interface {
 
 	NotificationEventDao() dao.NotificationEventDao
 	AppBackupDao() dao.AppBackupDao
+	ServiceSourceDao() dao.ServiceSourceDao
 }
 
 var defaultManager Manager
@@ -110,11 +112,12 @@ var defaultManager Manager
 func CreateManager(config config.Config) (err error) {
 	if config.DBType == "mysql" || config.DBType == "cockroachdb" {
 		defaultManager, err = mysql.CreateManager(config)
+		return err
 	} else {
 		//TODO:etcd 插件实现
 		//defaultManager, err = etcd.CreateManager(config)
 	}
-	return
+	return fmt.Errorf("Db drivers not supported")
 }
 
 //CloseManager 关闭

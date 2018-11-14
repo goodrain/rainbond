@@ -397,3 +397,9 @@ type AppBackupDao interface {
 	GetDeleteAppBackup(backupID string) (*model.AppBackup, error)
 	GetDeleteAppBackups() ([]*model.AppBackup, error)
 }
+
+//ServiceSourceDao service source dao
+type ServiceSourceDao interface {
+	Dao
+	GetServiceSource(serviceID string) ([]*model.ServiceSourceConfig, error)
+}

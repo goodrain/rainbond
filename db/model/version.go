@@ -35,7 +35,8 @@ type VersionInfo struct {
 	//slug: this is a source code tar file
 	DeliveredType string `gorm:"column:delivered_type;size:40"`  //kind
 	DeliveredPath string `gorm:"column:delivered_path;size:250"` //交付物path
-	ImageName     string `gorm:"column:image_name;size:250"`     //交付物path
+	ImageName     string `gorm:"column:image_name;size:250"`     //运行镜像名称
+	Cmd           string `gorm:"column:cmd;size:200"`            //启动命令
 	RepoURL       string `gorm:"column:repo_url;size:100"`
 	CodeVersion   string `gorm:"column:code_version;size:40"`
 	CommitMsg     string `gorm:"column:code_commit_msg;size:200"`

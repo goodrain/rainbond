@@ -48,9 +48,9 @@ type Interface interface {
 //Tenants 租户信息
 type Tenants struct {
 	Model
-	Name string `gorm:"column:name;size:40;unique_index"`
-	UUID string `gorm:"column:uuid;size:33;unique_index"`
-	EID  string `gorm:"column:eid"`
+	Name        string `gorm:"column:name;size:40;unique_index"`
+	UUID        string `gorm:"column:uuid;size:33;unique_index"`
+	EID         string `gorm:"column:eid"`
 	LimitMemory int    `gorm:"column:limit_memory"`
 }
 
@@ -59,7 +59,7 @@ func (t *Tenants) TableName() string {
 	return "tenants"
 }
 
-//TenantServices 租户应用
+//TenantServices app service base info
 type TenantServices struct {
 	Model
 	TenantID  string `gorm:"column:tenant_id;size:32" json:"tenant_id"`
@@ -68,25 +68,27 @@ type TenantServices struct {
 	ServiceKey string `gorm:"column:service_key;size:32" json:"service_key"`
 	// 服务别名
 	ServiceAlias string `gorm:"column:service_alias;size:30" json:"service_alias"`
+	// service regist endpoint name(host name), used of statefulset
+	ServiceName string `gorm:"column:service_name;size:100" json:"service_name"`
 	// 服务描述
 	Comment string `gorm:"column:comment" json:"comment"`
-	// 服务版本
+	// 服务版本(deprecated)
 	ServiceVersion string `gorm:"column:service_version;size:32" json:"service_version"`
-	// 镜像名称
+	// 镜像名称(deprecated)
 	ImageName string `gorm:"column:image_name;size:100" json:"image_name"`
 	// 容器CPU权重
 	ContainerCPU int `gorm:"column:container_cpu;default:500" json:"container_cpu"`
 	// 容器最大内存
 	ContainerMemory int `gorm:"column:container_memory;default:128" json:"container_memory"`
-	// 容器启动命令
+	// 容器启动命令(deprecated)
 	ContainerCMD string `gorm:"column:container_cmd;size:2048" json:"container_cmd"`
-	// 容器环境变量
+	// 容器环境变量(deprecated)
 	ContainerEnv string `gorm:"column:container_env;size:255" json:"container_env"`
-	// 卷名字
+	// 卷名字 (deprecated)
 	VolumePath string `gorm:"column:volume_path" json:"volume_path"`
-	// 容器挂载目录
+	// 容器挂载目录 (deprecated)
 	VolumeMountPath string `gorm:"column:volume_mount_path" json:"volume_mount_path"`
-	// 宿主机目录
+	// 宿主机目录 (deprecated)
 	HostPath string `gorm:"column:host_path" json:"host_path"`
 	// 扩容方式；0:无状态；1:有状态；2:分区
 	ExtendMethod string `gorm:"column:extend_method;default:'stateless';" json:"extend_method"`
@@ -96,27 +98,27 @@ type TenantServices struct {
 	DeployVersion string `gorm:"column:deploy_version" json:"deploy_version"`
 	// 服务分类：application,cache,store
 	Category string `gorm:"column:category" json:"category"`
-	// 服务当前状态：undeploy,running,closed,unusual,starting,checking,stoping
+	// 服务当前状态：undeploy,running,closed,unusual,starting,checking,stoping(deprecated)
 	CurStatus string `gorm:"column:cur_status;default:'undeploy'" json:"cur_status"`
-	// 计费状态 为1 计费，为0不计费
+	// 计费状态 为1 计费，为0不计费 (deprecated)
 	Status int `gorm:"column:status;default:0" json:"status"`
 	// 最新操作ID
 	EventID string `gorm:"column:event_id" json:"event_id"`
-	// 服务类型
+	// 服务类型 (deprecated)
 	ServiceType string `gorm:"column:service_type" json:"service_type"`
-	// 镜像来源
+	// 租户ID
 	Namespace string `gorm:"column:namespace" json:"namespace"`
-	// 共享类型shared、exclusive
+	// 共享类型shared、exclusive(deprecated)
 	VolumeType string `gorm:"column:volume_type;default:'shared'" json:"volume_type"`
-	// 端口类型，one_outer;dif_protocol;multi_outer
+	// 端口类型，one_outer;dif_protocol;multi_outer (deprecated)
 	PortType string `gorm:"column:port_type;default:'multi_outer'" json:"port_type"`
 	// 更新时间
 	UpdateTime time.Time `gorm:"column:update_time" json:"update_time"`
 	// 服务创建类型cloud云市服务,assistant云帮服务
 	ServiceOrigin string `gorm:"column:service_origin;default:'assistant'" json:"service_origin"`
-	// 代码来源:gitlab,github
+	// 代码来源:gitlab,github (deprecated)
 	CodeFrom string `gorm:"column:code_from" json:"code_from"`
-
+	//(deprecated)
 	Domain string `gorm:"column:domain" json:"domain"`
 }
 
@@ -204,6 +206,8 @@ type TenantServicesDelete struct {
 	ServiceKey string `gorm:"column:service_key;size:32" json:"service_key"`
 	// 服务别名
 	ServiceAlias string `gorm:"column:service_alias;size:30" json:"service_alias"`
+	// service regist endpoint name(host name), used of statefulset
+	ServiceName string `gorm:"column:service_name;size:100" json:"service_name"`
 	// 服务描述
 	Comment string `gorm:"column:comment" json:"comment"`
 	// 服务版本

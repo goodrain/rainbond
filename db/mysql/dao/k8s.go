@@ -469,3 +469,44 @@ func (t *LocalSchedulerDaoImpl) GetLocalScheduler(serviceID string) ([]*model.Lo
 	}
 	return ls, nil
 }
+
+//ServiceSourceImpl service source
+type ServiceSourceImpl struct {
+	DB *gorm.DB
+}
+
+//AddModel add service source
+func (t *ServiceSourceImpl) AddModel(mo model.Interface) error {
+	ls := mo.(*model.ServiceSourceConfig)
+	var oldLs model.ServiceSourceConfig
+	if ok := t.DB.Where("service_id=? and source_type=?", ls.ServiceID, ls.SourceType).Find(&oldLs).RecordNotFound(); ok {
+		if err := t.DB.Create(ls).Error; err != nil {
+			return err
+		}
+	} else {
+		oldLs.SourceBody = ls.SourceBody
+		t.DB.Save(oldLs)
+	}
+	return nil
+}
+
+//UpdateModel update service source
+func (t *ServiceSourceImpl) UpdateModel(mo model.Interface) error {
+	ls := mo.(*model.LocalScheduler)
+	if ls.ID == 0 {
+		return fmt.Errorf("ServiceSourceImpl id can not be empty when update ")
+	}
+	if err := t.DB.Save(ls).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+//GetServiceSource get services source
+func (t *ServiceSourceImpl) GetServiceSource(serviceID string) ([]*model.ServiceSourceConfig, error) {
+	var serviceSources []*model.ServiceSourceConfig
+	if err := t.DB.Where("service_id=?", serviceID).Find(&serviceSources).Error; err != nil {
+		return nil, err
+	}
+	return serviceSources, nil
+}
