@@ -56,9 +56,9 @@ http {
     }
 
     server {
-        listen       33333;
+        listen       10254;
 
-        location /healthy {
+        location /healthz {
             return 200 "ok";
         }
 

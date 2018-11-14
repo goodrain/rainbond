@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/golang/glog"
@@ -10,6 +11,7 @@ import (
 	"github.com/goodrain/rainbond/gateway/v1"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/ingress-nginx/task"
+	"sync"
 	"time"
 )
 
@@ -25,13 +27,18 @@ type GWController struct {
 	syncRateLimiter flowcontrol.RateLimiter
 	isShuttingDown  bool
 
+	// stopLock is used to enforce that only a single call to Stop send at
+	// a given time. We allow stopping through an HTTP endpoint and
+	// allowing concurrent stoppers leads to stack traces.
+	stopLock *sync.Mutex
+
 	optionConfig     option.Config
 	RunningConfig    *v1.Config
 	RunningHttpPools []*v1.Pool
 
 	stopCh   chan struct{}
 	updateCh *channels.RingChannel
-	errCh    chan error // errCh is used to detect errors with the NGINX processes
+	errCh    chan error // TODO: never used
 }
 
 func (gwc *GWController) syncGateway(key interface{}) error {
@@ -69,20 +76,24 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 	return nil
 }
 
-func (gwc *GWController) Start() {
+func (gwc *GWController) Start() error {
 	gwc.store.Run(gwc.stopCh)
 
-	gws := &openresty.OpenrestyService{}
-	err := gws.Start()
+	err := gwc.GWS.Start()
 	if err != nil {
-		logrus.Fatalf("Can not start gateway plugin: %v", err)
-		return
+		return fmt.Errorf("Can not start gateway plugin: %v", err)
 	}
 
 	go gwc.syncQueue.Run(1*time.Second, gwc.stopCh)
 	// force initial sync
 	gwc.syncQueue.EnqueueTask(task.GetDummyObject("initial-sync"))
 
+	go gwc.handleEvent()
+
+	return nil
+}
+
+func (gwc *GWController) handleEvent() {
 	for {
 		select {
 		case event := <-gwc.updateCh.Out():
@@ -91,11 +102,6 @@ func (gwc *GWController) Start() {
 			}
 			if evt, ok := event.(store.Event); ok {
 				logrus.Infof("Event %v received - object %v", evt.Type, evt.Obj)
-				if evt.Type == store.ConfigurationEvent {
-					// TODO: is this necessary? Consider removing this special case
-					gwc.syncQueue.EnqueueTask(task.GetDummyObject("configmap-change"))
-					continue
-				}
 				gwc.syncQueue.EnqueueSkippableTask(evt.Obj)
 			} else {
 				glog.Warningf("Unexpected event type received %T", event)
@@ -104,6 +110,23 @@ func (gwc *GWController) Start() {
 			break
 		}
 	}
+}
+
+func (gwc *GWController) Stop() error {
+	gwc.isShuttingDown = true
+
+	gwc.stopLock.Lock()
+	defer gwc.stopLock.Unlock()
+
+	if gwc.syncQueue.IsShuttingDown() {
+		return fmt.Errorf("shutdown already in progress")
+	}
+
+	logrus.Infof("Shutting down controller queues")
+	close(gwc.stopCh) // stop the loop in *GWController#Start()
+	go gwc.syncQueue.Shutdown()
+
+	return gwc.GWS.Stop()
 }
 
 // refreshPools refresh pools dynamically.
@@ -147,23 +170,29 @@ func (gwc *GWController) getDelUpdPools(updPools []*v1.Pool) ([]*v1.Pool, []*v1.
 	return delPools, updPools
 }
 
-func NewGWController() *GWController {
+func NewGWController(config *option.Config, errCh chan error) *GWController {
 	logrus.Debug("NewGWController...")
 	gwc := &GWController{
 		updateCh: channels.NewRingChannel(1024),
-		errCh:    make(chan error),
+		errCh:    errCh,
+		stopLock: &sync.Mutex{},
+		stopCh:   make(chan struct{}),
 	}
 
-	gws := &openresty.OpenrestyService{}
+	gws := &openresty.OpenrestyService{
+		AuxiliaryPort:  config.ListenPorts.AuxiliaryPort,
+		IsShuttingDown: &gwc.isShuttingDown,
+	}
 	gwc.GWS = gws
 
-	clientSet, err := NewClientSet("/Users/abe/Documents/admin.kubeconfig")
+	clientSet, err := NewClientSet(config.K8SConfPath)
 	if err != nil {
 		logrus.Error("can't create kubernetes's client.")
 	}
 
-	gwc.store = store.New(clientSet,
-		"gateway",
+	gwc.store = store.New(
+		clientSet,
+		config.Namespace,
 		gwc.updateCh)
 
 	gwc.syncQueue = task.NewTaskQueue(gwc.syncGateway)

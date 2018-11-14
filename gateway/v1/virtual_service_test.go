@@ -28,6 +28,7 @@ func TestVirtualService_Equals(t *testing.T) {
 	vlocB.PoolName = "pool-bbb"
 	v.Locations = append(v.Locations, vlocA)
 	v.Locations = append(v.Locations, vlocB)
+	v.SSLCert = newFakeSSLCert()
 
 	c := newFakeVirtualService()
 	clocA:= newFakeLocation()
@@ -36,6 +37,8 @@ func TestVirtualService_Equals(t *testing.T) {
 	clocB.PoolName = "pool-bbb"
 	c.Locations = append(c.Locations, clocA)
 	c.Locations = append(c.Locations, clocB)
+	c.SSLCert = newFakeSSLCert()
+
 
 	if !v.Equals(c) {
 		t.Errorf("v should equal c")
@@ -55,7 +58,6 @@ func newFakeVirtualService() *VirtualService {
 		RuleNames:              []string{"a", "b", "c"},
 		SSLdecrypt:             true,
 		DefaultCertificateName: "default-certificate-name",
-		CertificateMapping:     map[string]string{"a": "aaa", "b": "bbb", "c": "ccc"},
 		RequestLogEnable:       true,
 		RequestLogFileName: "/var/log/gateway/request.log",
 		RequestLogFormat: "request-log-format",
@@ -63,5 +65,6 @@ func newFakeVirtualService() *VirtualService {
 		Timeout: 70,
 		ServerName:"foo-server_name",
 		PoolName: "foo-pool-name",
+		ForceSSLRedirect: true,
 	}
 }

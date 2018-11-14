@@ -50,7 +50,7 @@ func NewTemplate(fileName string) (*Template, error) {
 	}
 
 	// TODO change the template name
-	tmpl, err := text_template.New("").Funcs(funcMap).Parse(string(tmplFile))
+	tmpl, err := text_template.New("gateway").Funcs(funcMap).Parse(string(tmplFile))
 	if err != nil {
 		return nil, err
 	}

@@ -26,9 +26,9 @@ func TestPool_Equals(t *testing.T) {
 	node2 := newFakeNode()
 	node2.Name = "node-b"
 	p := NewFakePoolWithoutNodes()
-	p.Nodes = []Node{
-		*node1,
-		*node2,
+	p.Nodes = []*Node{
+		node1,
+		node2,
 	}
 
 	node3 := newFakeNode()
@@ -36,9 +36,9 @@ func TestPool_Equals(t *testing.T) {
 	node4 := newFakeNode()
 	node4.Name = "node-b"
 	c := NewFakePoolWithoutNodes()
-	c.Nodes = []Node {
-		*node3,
-		*node4,
+	c.Nodes = []*Node {
+		node3,
+		node4,
 	}
 
 	if !p.Equals(c) {

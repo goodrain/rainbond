@@ -20,18 +20,38 @@ package server
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/controller"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 //Run start run
 func Run(s *option.GWServer) error {
-	gwc := controller.NewGWController()
+	errCh := make(chan error)
+
+	gwc := controller.NewGWController(
+		&s.Config,
+		errCh)
 	if gwc == nil {
 		return fmt.Errorf("fail to new GWController")
 	}
 
-	gwc.Start()
+	if err := gwc.Start(); err != nil {
+		return err
+	}
+	defer gwc.Stop()
 
+	term := make(chan os.Signal)
+	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
+	select {
+	case <-term:
+		logrus.Warn("Received SIGTERM, exiting gracefully...")
+	case err := <-errCh:
+		logrus.Errorf("Received a error %s, exiting gracefully...", err.Error())
+	}
+	logrus.Info("See you next time!")
 	return nil
 }

@@ -10,4 +10,5 @@ type GWServicer interface {
 	UpdatePools(pools []*v1.Pool) error
 	DeletePools(pools []*v1.Pool) error
 	WaitPluginReady()
+	Stop() error
 }

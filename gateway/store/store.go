@@ -300,7 +300,6 @@ func (s *rbdStore) extractAnnotations(ing *extensions.Ingress) {
 	}
 }
 
-// TODO test
 func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 	var httpPools []*v1.Pool
 	var tcpPools []*v1.Pool
@@ -308,12 +307,12 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 		endpoint := item.(*corev1.Endpoints)
 
 		pool := &v1.Pool{
-			Nodes: []v1.Node{},
+			Nodes: []*v1.Node{},
 		}
 		pool.Name = endpoint.ObjectMeta.Name
-		for _, ss := range endpoint.Subsets { // TODO 这个SubSets为什么是slice?
+		for _, ss := range endpoint.Subsets {
 			for _, address := range ss.Addresses {
-				pool.Nodes = append(pool.Nodes, v1.Node{ // TODO 需不需要用指针?
+				pool.Nodes = append(pool.Nodes, &v1.Node{
 					Host: address.IP,
 					Port: ss.Ports[0].Port,
 				})
