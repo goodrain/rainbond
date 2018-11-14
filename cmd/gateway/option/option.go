@@ -21,7 +21,6 @@ package option
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
 	"github.com/spf13/pflag"
 )
 
@@ -36,10 +35,17 @@ func NewGWServer() *GWServer {
 
 //Config contains all configuration
 type Config struct {
-	Nginx       model.Nginx
-	Http        model.Http
 	K8SConfPath string
-	Namespace string
+	Namespace   string
+	ListenPorts ListenPorts
+}
+
+// ListenPorts describe the ports required to run the gateway controller
+type ListenPorts struct {
+	HTTP   int
+	HTTPS  int
+	Status int
+	AuxiliaryPort int
 }
 
 // AddFlags adds flags
@@ -48,6 +54,7 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	// TODO change kube-conf
 	fs.StringVar(&g.K8SConfPath, "kube-conf", "/Users/abe/Documents/admin.kubeconfig", "absolute path to the kubeconfig file")
 	fs.StringVar(&g.Namespace, "namespace", "gateway", "namespace")
+	fs.IntVar(&g.ListenPorts.AuxiliaryPort, "auxiliary-port", 10253, "port of auxiliary server")
 }
 
 // SetLog sets log

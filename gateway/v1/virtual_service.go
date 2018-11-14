@@ -77,7 +77,7 @@ func (v *VirtualService) Equals(c *VirtualService) bool {
 		return false
 	}
 
-	// TODO
+	// TODO: this snippet needs improvement
 	if len(v.Listening) != len(c.Listening) {
 		return false
 	}
@@ -101,7 +101,7 @@ func (v *VirtualService) Equals(c *VirtualService) bool {
 		return false
 	}
 
-	// TODO
+	// TODO: this snippet needs improvement
 	if len(v.RuleNames) != len(c.RuleNames) {
 		return false
 	}
@@ -161,6 +161,10 @@ func (v *VirtualService) Equals(c *VirtualService) bool {
 		if !flag {
 			return false
 		}
+	}
+
+	if !v.SSLCert.Equals(c.SSLCert) {
+		return false
 	}
 
 	return true

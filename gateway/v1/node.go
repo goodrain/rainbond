@@ -23,14 +23,14 @@ type Node struct {
 	Meta
 	Host     string `json:"host"`
 	Port     int32  `json:"port"`
-	Protocol string `json:"protocol"`  //TODO: 应该新建几个类型???
+	Protocol string `json:"protocol"`
 	State    string `json:"state"`     //Active Draining Disabled
-	PoolName string `json:"pool_name"` //Belong to the pool TODO: PoolName中能有空格吗???
+	PoolName string `json:"pool_name"` //Belong to the pool
 	Ready    bool   `json:"ready"`     //Whether ready
 	Weight   int    `json:"weight"`
 }
 
-func (n *Node) Equals(c *Node) bool { // TODO 这个Equals方法可以抽象出去吗???
+func (n *Node) Equals(c *Node) bool { //
 	if n == c {
 		return true
 	}

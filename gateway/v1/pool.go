@@ -32,7 +32,7 @@ type Pool struct {
 	NodeNumber        int               `json:"node_number"`
 	LoadBalancingType LoadBalancingType `json:"load_balancing_type"`
 	Monitors          []Monitor         `json:"monitors"`
-	Nodes             []Node
+	Nodes             []*Node
 }
 
 func (p *Pool) Equals(c *Pool) bool {
@@ -86,7 +86,7 @@ func (p *Pool) Equals(c *Pool) bool {
 	for _, a := range p.Nodes {
 		flag := false
 		for _, b := range c.Nodes {
-			if a.Equals(&b) {
+			if a.Equals(b) {
 				flag = true
 			}
 		}

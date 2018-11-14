@@ -9,11 +9,23 @@ import (
 	"github.com/goodrain/rainbond/gateway/controller/openresty/template"
 	"github.com/goodrain/rainbond/gateway/v1"
 	"io/ioutil"
+	"k8s.io/ingress-nginx/ingress/controller/process"
 	"net/http"
+	"os"
 	"strings"
+	"sync"
+	"time"
 )
 
-type OpenrestyService struct{}
+type OpenrestyService struct{
+	AuxiliaryPort int
+	IsShuttingDown *bool
+
+	// stopLock is used to enforce that only a single call to Stop send at
+	// a given time. We allow stopping through an HTTP endpoint and
+	// allowing concurrent stoppers leads to stack traces.
+	stopLock *sync.Mutex
+}
 
 type Upstream struct {
 	Name    string
@@ -26,10 +38,35 @@ type Server struct {
 }
 
 func (osvc *OpenrestyService) Start() error {
-	//o, err := nginxExecCommand().CombinedOutput()
-	//if err != nil {
-	//	return fmt.Errorf("%v\n%v", err, string(o))
-	//}
+	o, err := nginxExecCommand().CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%v\n%v", err, string(o))
+	}
+	return nil
+}
+
+// Stop gracefully stops the NGINX master process.
+func (osvc *OpenrestyService) Stop() error {
+	// send stop signal to NGINX
+	logrus.Info("Stopping NGINX process")
+	cmd := nginxExecCommand("-s", "quit")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+
+	// wait for the NGINX process to terminate
+	timer := time.NewTicker(time.Second * 1)
+	for range timer.C {
+		if !process.IsNginxRunning() {
+			logrus.Info("NGINX process has stopped")
+			timer.Stop()
+			break
+		}
+	}
+
 	return nil
 }
 
@@ -100,9 +137,9 @@ func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
 	logrus.Debug("Nginx configuration is ok.")
 
 	// reload nginx
-	//if out, err := nginxExecCommand("-s", "reload").CombinedOutput(); err != nil {
-	//	return fmt.Errorf("%v\n%v", err, string(out))
-	//}
+	if out, err := nginxExecCommand("-s", "reload").CombinedOutput(); err != nil {
+		return fmt.Errorf("%v\n%v", err, string(out))
+	}
 	logrus.Debug("Nginx reloads successfully.")
 
 	return nil
@@ -171,7 +208,9 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 
 // UpdatePools updates http upstreams dynamically.
 func (osvc *OpenrestyService) UpdatePools(pools []*v1.Pool) error {
-	logrus.Debug("update http upstreams dynamically.")
+	if len(pools) == 0 {
+		return nil
+	}
 	var upstreams []*Upstream
 	for _, pool := range pools {
 		upstream := &Upstream{}
@@ -185,16 +224,16 @@ func (osvc *OpenrestyService) UpdatePools(pools []*v1.Pool) error {
 		}
 		upstreams = append(upstreams, upstream)
 	}
-	return updateUpstreams(upstreams)
+	return osvc.updateUpstreams(upstreams)
 }
 
 // updateUpstreams updates the upstreams in ngx.shared.dict by post
-func updateUpstreams(upstream []*Upstream) error {
-	url := "http://localhost:33333/update-upstreams" // TODO
-	json, _ := json.Marshal(upstream)
-	logrus.Debugf("request contest of update-upstreams is %v", string(json))
+func (osvc *OpenrestyService) updateUpstreams(upstream []*Upstream) error {
+	url := fmt.Sprintf("http://127.0.0.1:%v/update-upstreams", osvc.AuxiliaryPort)
+	data, _ := json.Marshal(upstream)
+	logrus.Debugf("request contest of update-upstreams is %v", string(data))
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(json))
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(data))
 	if err != nil {
 		logrus.Errorf("fail to update upstreams: %v", err)
 		return err
@@ -213,18 +252,21 @@ func updateUpstreams(upstream []*Upstream) error {
 }
 
 func (osvc *OpenrestyService) DeletePools(pools []*v1.Pool) error {
+	if len(pools) == 0 {
+		return nil
+	}
 	var data []string
 	for _, pool := range pools {
 		data = append(data, pool.Name)
 	}
-	return deletePools(data)
+	return osvc.deletePools(data)
 }
-func deletePools(data []string) error {
-	url := "http://localhost:33333/delete-upstreams" // TODO
-	json, _ := json.Marshal(data)
-	logrus.Errorf("request content of delete-upstreams is %v", string(json))
+func (osvc *OpenrestyService) deletePools(names []string) error {
+	url := fmt.Sprintf("http://127.0.0.1:%v/delete-upstreams", osvc.AuxiliaryPort)
+	data, _ := json.Marshal(names)
+	logrus.Errorf("request content of delete-upstreams is %v", string(data))
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(json))
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(data))
 	if err != nil {
 		logrus.Errorf("fail to delete upstreams: %v", err)
 		return err
@@ -233,4 +275,17 @@ func deletePools(data []string) error {
 
 	logrus.Debugf("the status of dynamically deleting upstreams is %v.", resp.Status)
 	return nil
+}
+
+// WaitPluginReady waits for nginx to be ready.
+func (osvc *OpenrestyService) WaitPluginReady() {
+	url := fmt.Sprintf("http://127.0.0.1:%v/healthz", osvc.AuxiliaryPort)
+	for {
+		resp, err := http.Get(url)
+		if err == nil && resp.StatusCode == 200 {
+			logrus.Info("Nginx is ready")
+			break
+		}
+		time.Sleep(200 * time.Microsecond)
+	}
 }
