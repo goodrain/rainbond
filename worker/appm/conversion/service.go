@@ -100,22 +100,10 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	as.CreaterID = util.NewUUID()
 	as.TenantName = tenant.Name
 	if serviceType.LabelValue == util.StatefulServiceType {
-		as.ServiceType = v1.TypeStatefulSet
-		statefulset := as.GetStatefulSet()
-		if statefulset == nil {
-			statefulset = &appsv1.StatefulSet{}
-		}
-		initBaseStatefulSet(tenantService, statefulset)
-		as.SetStatefulSet(statefulset)
+		initBaseStatefulSet(as, tenantService)
 	}
 	if serviceType.LabelValue == util.StatelessServiceType {
-		as.ServiceType = v1.TypeDeployment
-		deployment := as.GetDeployment()
-		if deployment == nil {
-			deployment = &appsv1.Deployment{}
-		}
-		initBaseDeployment(tenantService, deployment)
-		as.SetDeployment(deployment)
+		initBaseDeployment(as, tenantService)
 	}
 	return nil
 }
@@ -124,7 +112,12 @@ func initSelector(selector *metav1.LabelSelector, service *dbmodel.TenantService
 	selector.MatchLabels["name"] = service.ServiceAlias
 	selector.MatchLabels["version"] = service.DeployVersion
 }
-func initBaseStatefulSet(service *dbmodel.TenantServices, stateful *appsv1.StatefulSet) {
+func initBaseStatefulSet(as *v1.AppService, service *dbmodel.TenantServices) {
+	as.ServiceType = v1.TypeStatefulSet
+	stateful := as.GetStatefulSet()
+	if stateful == nil {
+		stateful = &appsv1.StatefulSet{}
+	}
 	stateful.Spec.Replicas = int32Ptr(service.Replicas)
 	if stateful.Spec.Selector == nil {
 		stateful.Spec.Selector = &metav1.LabelSelector{}
@@ -138,21 +131,30 @@ func initBaseStatefulSet(service *dbmodel.TenantServices, stateful *appsv1.State
 		"name":       service.ServiceAlias,
 		"version":    service.DeployVersion,
 		"service_id": service.ServiceID,
+		"creater_id": as.CreaterID,
 	})
+	as.SetStatefulSet(stateful)
 }
 
-func initBaseDeployment(service *dbmodel.TenantServices, deploymemnt *appsv1.Deployment) {
-	deploymemnt.Spec.Replicas = int32Ptr(service.Replicas)
-	if deploymemnt.Spec.Selector == nil {
-		deploymemnt.Spec.Selector = &metav1.LabelSelector{}
+func initBaseDeployment(as *v1.AppService, service *dbmodel.TenantServices) {
+	as.ServiceType = v1.TypeDeployment
+	deployment := as.GetDeployment()
+	if deployment == nil {
+		deployment = &appsv1.Deployment{}
 	}
-	initSelector(deploymemnt.Spec.Selector, service)
-	deploymemnt.Namespace = service.TenantID
-	deploymemnt.Name = util.NewUUID()
-	deploymemnt.GenerateName = strings.Replace(service.ServiceAlias, "_", "-", -1)
-	deploymemnt.Labels = getCommonLable(deploymemnt.Labels, map[string]string{
+	deployment.Spec.Replicas = int32Ptr(service.Replicas)
+	if deployment.Spec.Selector == nil {
+		deployment.Spec.Selector = &metav1.LabelSelector{}
+	}
+	initSelector(deployment.Spec.Selector, service)
+	deployment.Namespace = service.TenantID
+	deployment.Name = util.NewUUID()
+	deployment.GenerateName = strings.Replace(service.ServiceAlias, "_", "-", -1)
+	deployment.Labels = getCommonLable(deployment.Labels, map[string]string{
 		"name":       service.ServiceAlias,
 		"version":    service.DeployVersion,
 		"service_id": service.ServiceID,
+		"creater_id": as.CreaterID,
 	})
+	as.SetDeployment(deployment)
 }

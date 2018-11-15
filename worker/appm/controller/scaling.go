@@ -16,19 +16,23 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package store
+package controller
 
 import (
-	"k8s.io/client-go/tools/cache"
+	"github.com/goodrain/rainbond/event"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
-//Informer kube-api client cache
-type Informer struct {
-	Ingress     cache.SharedIndexInformer
-	Service     cache.SharedIndexInformer
-	Secret      cache.SharedIndexInformer
-	StatefulSet cache.SharedIndexInformer
-	Deployment  cache.SharedIndexInformer
-	Pod         cache.SharedIndexInformer
-	ConfigMap   cache.SharedIndexInformer
+type scalingController struct {
+	appService  []v1.AppService
+	eventLogger event.Logger
+}
+
+//Begin  start handle service scaling
+func (s *scalingController) Begin() error {
+	return nil
+}
+
+func (s *scalingController) Stop() error {
+	return nil
 }

@@ -28,7 +28,6 @@ import (
 type Lister struct {
 	Ingress     v1beta1.IngressLister
 	Service     corev1.ServiceLister
-	Endpoint    corev1.EndpointsLister
 	Secret      corev1.SecretLister
 	StatefulSet appsv1.StatefulSetLister
 	Deployment  appsv1.DeploymentLister

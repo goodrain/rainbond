@@ -53,6 +53,14 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		return fmt.Errorf("conv service envs failure %s", err.Error())
 	}
 	podtmpSpec := corev1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: getCommonLable(map[string]string{
+				"name":       as.ServiceAlias,
+				"version":    as.DeployVersion,
+				"service_id": as.ServiceID,
+				"creater_id": as.CreaterID,
+			}),
+		},
 		Spec: corev1.PodSpec{
 			Volumes:      dv.GetVolumes(),
 			Containers:   []corev1.Container{*container},
@@ -137,6 +145,8 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		for _, r := range relations {
 			relationIDs = append(relationIDs, r.DependServiceID)
 		}
+		//set service all dependces ids
+		as.Dependces = relationIDs
 		if len(relationIDs) > 0 {
 			es, err := dbmanager.TenantServiceEnvVarDao().GetDependServiceEnvs(relationIDs, []string{"outer", "both"})
 			if err != nil {
