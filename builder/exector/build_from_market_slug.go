@@ -23,9 +23,11 @@ import (
 	"os"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"github.com/pquerna/ffjson/ffjson"
+
 	//"github.com/docker/docker/api/types"
 
 	//"github.com/docker/docker/client"
@@ -145,6 +147,9 @@ func (i *MarketSlugItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
 	}
 	if vi.FinalStatus != "" {
 		version.FinalStatus = vi.FinalStatus
+	}
+	if vi.DeliveredType == "slug" {
+		version.ImageName = builder.RUNNERIMAGENAME
 	}
 	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
 		return err

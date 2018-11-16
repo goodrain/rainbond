@@ -109,6 +109,9 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 }
 
 func initSelector(selector *metav1.LabelSelector, service *dbmodel.TenantServices) {
+	if selector.MatchLabels == nil {
+		selector.MatchLabels = make(map[string]string)
+	}
 	selector.MatchLabels["name"] = service.ServiceAlias
 	selector.MatchLabels["version"] = service.DeployVersion
 }

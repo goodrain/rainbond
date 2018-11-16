@@ -33,10 +33,9 @@ type startController struct {
 	controllerID string
 	appService   []v1.AppService
 	manager      *Manager
-	callback     func(controllerID string, err error)
 }
 
-func (s *startController) Begin() error {
+func (s *startController) Begin() {
 	var sourceIDs = make(map[string]*v1.AppService, len(s.appService))
 	for _, a := range s.appService {
 		sourceIDs[a.ServiceID] = &a
@@ -57,11 +56,12 @@ func (s *startController) Begin() error {
 			}(*service)
 		}
 		wait.Wait()
+		s.manager.callback(s.controllerID, nil)
 	}
-	return nil
 }
 
 func (s *startController) startOne(wait *sync.WaitGroup, app v1.AppService) error {
+	fmt.Println(app)
 	//step 1: create configmap
 	if configs := app.GetConfigMaps(); configs != nil {
 		for _, config := range configs {

@@ -29,8 +29,7 @@ type scalingController struct {
 }
 
 //Begin  start handle service scaling
-func (s *scalingController) Begin() error {
-	return nil
+func (s *scalingController) Begin() {
 }
 
 func (s *scalingController) Stop() error {

@@ -22,6 +22,10 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+
+	"github.com/goodrain/rainbond/cmd/worker/option"
+
 	"github.com/Sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/db"
@@ -34,11 +38,12 @@ import (
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
 )
 
 //Storer app runtime store interface
 type Storer interface {
+	Start() error
+	Ready() bool
 	RegistAppService(*v1.AppService)
 	GetAppService(serviceID, version, createrID string) *v1.AppService
 	GetAppServiceWithoutCreaterID(serviceID, version string) *v1.AppService
@@ -51,16 +56,21 @@ type appRuntimeStore struct {
 	listers     *Lister
 	appServices sync.Map
 	dbmanager   db.Manager
+	stopch      chan struct{}
+	conf        option.Config
 }
 
 //NewStore new app runtime store
-func NewStore(client kubernetes.Interface, dbmanager db.Manager) Storer {
+func NewStore(dbmanager db.Manager, conf option.Config) Storer {
 	store := &appRuntimeStore{
 		informers:   &Informer{},
+		listers:     &Lister{},
 		appServices: sync.Map{},
+		conf:        conf,
+		dbmanager:   dbmanager,
 	}
 	// create informers factory, enable and assign required informers
-	infFactory := informers.NewFilteredSharedInformerFactory(client, time.Second, corev1.NamespaceAll,
+	infFactory := informers.NewFilteredSharedInformerFactory(conf.KubeClient, time.Second, corev1.NamespaceAll,
 		func(options *metav1.ListOptions) {
 			options.LabelSelector = "creater=Rainbond"
 		})
@@ -93,6 +103,41 @@ func NewStore(client kubernetes.Interface, dbmanager db.Manager) Storer {
 	store.informers.Ingress.AddEventHandler(store)
 	store.informers.ConfigMap.AddEventHandler(store)
 	return store
+}
+
+func (a *appRuntimeStore) init() error {
+	//init leader namespace
+	leaderNamespace := a.conf.LeaderElectionNamespace
+	if _, err := a.conf.KubeClient.CoreV1().Namespaces().Get(leaderNamespace, metav1.GetOptions{}); err != nil {
+		if apierr, ok := err.(*errors.StatusError); ok {
+			if apierr.ErrStatus.Code == 404 {
+				_, err = a.conf.KubeClient.CoreV1().Namespaces().Create(&corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: leaderNamespace,
+					},
+				})
+			}
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return a.initStorageclass()
+}
+
+func (a *appRuntimeStore) Start() error {
+	if err := a.init(); err != nil {
+		return err
+	}
+	stopch := make(chan struct{})
+	a.informers.Start(stopch)
+	a.stopch = stopch
+	return nil
+}
+
+//Ready if all kube informers is syncd, store is ready
+func (a *appRuntimeStore) Ready() bool {
+	return a.informers.Ready()
 }
 
 func (a *appRuntimeStore) OnAdd(obj interface{}) {
@@ -277,14 +322,20 @@ func (a *appRuntimeStore) RegistAppService(app *v1.AppService) {
 }
 func (a *appRuntimeStore) GetAppService(serviceID, version, createrID string) *v1.AppService {
 	key := v1.GetCacheKey(serviceID, version, createrID)
-	app, _ := a.appServices.Load(key)
-	appService := app.(*v1.AppService)
-	return appService
+	app, ok := a.appServices.Load(key)
+	if ok {
+		appService := app.(*v1.AppService)
+		return appService
+	}
+	return nil
 }
 
 func (a *appRuntimeStore) GetAppServiceWithoutCreaterID(serviceID, version string) *v1.AppService {
 	key := v1.GetNoCreaterCacheKey(serviceID, version)
-	app, _ := a.appServices.Load(key)
-	appService := app.(*v1.AppService)
-	return appService
+	app, ok := a.appServices.Load(key)
+	if ok {
+		appService := app.(*v1.AppService)
+		return appService
+	}
+	return nil
 }

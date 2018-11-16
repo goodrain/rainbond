@@ -22,6 +22,12 @@ import (
 	"context"
 	"time"
 
+	"github.com/goodrain/rainbond/worker/appm/controller"
+
+	"github.com/goodrain/rainbond/worker/appm/conversion"
+
+	"github.com/goodrain/rainbond/worker/appm/store"
+
 	status "github.com/goodrain/rainbond/appruntimesync/client"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
@@ -34,20 +40,31 @@ import (
 
 //Manager manager
 type Manager struct {
-	ctx           context.Context
-	c             option.Config
-	execManager   executor.Manager
-	statusManager *status.AppRuntimeSyncClient
+	ctx               context.Context
+	c                 option.Config
+	execManager       executor.Manager
+	statusManager     *status.AppRuntimeSyncClient
+	store             store.Storer
+	dbmanager         db.Manager
+	controllerManager *controller.Manager
 }
 
 //NewManager now handle
-func NewManager(ctx context.Context, config option.Config, execManager executor.Manager, statusManager *status.AppRuntimeSyncClient) *Manager {
+func NewManager(ctx context.Context,
+	config option.Config,
+	execManager executor.Manager,
+	statusManager *status.AppRuntimeSyncClient,
+	store store.Storer,
+	controllerManager *controller.Manager) *Manager {
 
 	return &Manager{
-		ctx:           ctx,
-		c:             config,
-		execManager:   execManager,
-		statusManager: statusManager,
+		ctx:               ctx,
+		c:                 config,
+		execManager:       execManager,
+		statusManager:     statusManager,
+		dbmanager:         db.GetManager(),
+		store:             store,
+		controllerManager: controllerManager,
 	}
 }
 
@@ -67,6 +84,9 @@ func (m *Manager) AnalystToExec(task *model.Task) int {
 	}
 	//max worker count check
 	if m.checkCount() {
+		return 9
+	}
+	if !m.store.Ready() {
 		return 9
 	}
 	switch task.Type {
@@ -99,7 +119,6 @@ return 值定义
 1	任务执行失败
 9	任务数量达到上限
 */
-
 func (m *Manager) startExec(task *model.Task) int {
 	body, ok := task.Body.(model.StartTaskBody)
 	if !ok {
@@ -107,26 +126,27 @@ func (m *Manager) startExec(task *model.Task) int {
 		return 1
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
-	curStatus := m.statusManager.GetStatus(body.ServiceID)
-	if curStatus == "unknow" {
-		logger.Error("应用实时状态获取失败", map[string]string{"step": "callback", "status": "failure"})
-		event.GetManager().ReleaseLogger(logger)
-		return 1
-	}
-	if curStatus != status.STOPPING && curStatus != status.CLOSED && curStatus != status.UNDEPLOY {
-		logger.Info("应用状态未关闭，无需进行启动操作", map[string]string{"step": "last", "status": "success"})
+	appService := m.store.GetAppServiceWithoutCreaterID(body.ServiceID, body.DeployVersion)
+	if appService != nil && appService.GetDeployStatus() {
+		logger.Info("Application is not closed, can not start", map[string]string{"step": "last", "status": "success"})
 		event.GetManager().ReleaseLogger(logger)
 		return 0
 	}
-	ttask := m.execManager.TaskManager().NewStartTask(task, logger)
-	err := m.execManager.AddTask(ttask)
+	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID)
 	if err != nil {
-		logrus.Errorf("start task <start> error. %v", err)
-		logger.Error("启动应用任务创建失败", map[string]string{"step": "callback", "status": "failure"})
+		logrus.Errorf("Application init create failure:%s", err.Error())
+		logger.Info("Application init create failure", map[string]string{"step": "callback", "status": "faliure"})
 		event.GetManager().ReleaseLogger(logger)
-		return 1
 	}
-	logger.Info("启动应用任务创建成功", map[string]string{"step": "worker-handle", "status": "success"})
+	newAppService.Logger = logger
+	//regist new app service
+	m.store.RegistAppService(newAppService)
+	err = m.controllerManager.StartController(controller.TypeStartController, *newAppService)
+	if err != nil {
+		logrus.Errorf("Application init controller failure:%s", err.Error())
+		logger.Info("Application init controller failure", map[string]string{"step": "callback", "status": "faliure"})
+		event.GetManager().ReleaseLogger(logger)
+	}
 	logrus.Infof("service(%s) start working is running.", body.ServiceID)
 	return 0
 }

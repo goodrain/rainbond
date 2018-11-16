@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/util"
 
 	"github.com/Sirupsen/logrus"
@@ -323,6 +324,7 @@ func (i *SourceCodeBuildItem) UpdateBuildVersionInfo(res *build.Response) error 
 		DeliveredType: string(res.MediumType),
 		DeliveredPath: res.MediumPath,
 		EventID:       i.EventID,
+		ImageName:     builder.RUNNERIMAGENAME,
 		FinalStatus:   "success",
 		CodeVersion:   i.commit.Hash,
 		CommitMsg:     i.commit.Message,

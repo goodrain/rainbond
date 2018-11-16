@@ -28,8 +28,7 @@ type stopController struct {
 	eventLogger event.Logger
 }
 
-func (s *stopController) Begin() error {
-	return nil
+func (s *stopController) Begin() {
 }
 func (s *stopController) Stop() error {
 	return nil

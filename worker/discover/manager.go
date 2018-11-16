@@ -23,8 +23,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/goodrain/rainbond/cmd/worker/option"
+	"github.com/goodrain/rainbond/worker/appm/store"
+
+	"github.com/goodrain/rainbond/worker/appm/controller"
+
 	status "github.com/goodrain/rainbond/appruntimesync/client"
+	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/mq/api/grpc/client"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/worker/discover/model"
@@ -33,16 +37,21 @@ import (
 
 	grpc1 "google.golang.org/grpc"
 
-	"github.com/Sirupsen/logrus"
 	"fmt"
+
+	"github.com/Sirupsen/logrus"
 )
 
 //WTOPIC is worker
 const WTOPIC string = "worker"
 
-var healthStatus = make(map[string]string,1)
-var TaskNum float64 = 0
-var TaskError float64 = 0
+var healthStatus = make(map[string]string, 1)
+
+//TaskNum exec task number
+var TaskNum float64
+
+//TaskError exec error task number
+var TaskError float64
 
 //TaskManager task
 type TaskManager struct {
@@ -54,9 +63,9 @@ type TaskManager struct {
 }
 
 //NewTaskManager return *TaskManager
-func NewTaskManager(c option.Config, executor executor.Manager, statusManager *status.AppRuntimeSyncClient) *TaskManager {
+func NewTaskManager(c option.Config, executor executor.Manager, store store.Storer, statusManager *status.AppRuntimeSyncClient, controllermanager *controller.Manager) *TaskManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	handleManager := handle.NewManager(ctx, c, executor, statusManager)
+	handleManager := handle.NewManager(ctx, c, executor, statusManager, store, controllermanager)
 	healthStatus["status"] = "health"
 	healthStatus["info"] = "worker service health"
 	return &TaskManager{
@@ -118,8 +127,8 @@ func (t *TaskManager) Do() {
 				continue
 			}
 			rc := t.handleManager.AnalystToExec(transData)
-			if rc == 1{
-				TaskError += 1
+			if rc == 1 {
+				TaskError++
 			}
 			if rc == 9 {
 				logrus.Debugf("rc is 9, enqueue task to mq")
@@ -134,8 +143,10 @@ func (t *TaskManager) Do() {
 					logrus.Errorf("enqueue task %v to mq topic %v Error", data, WTOPIC)
 					continue
 				}
-			}else {
-				TaskNum += 1
+				//if handle is waiting, sleep 3 second
+				time.Sleep(time.Second * 3)
+			} else {
+				TaskNum++
 			}
 			logrus.Debugf("handle task AnalystToExec %d", rc)
 		}

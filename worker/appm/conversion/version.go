@@ -25,6 +25,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/goodrain/rainbond/builder"
+
 	"github.com/Sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -60,6 +62,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				"service_id": as.ServiceID,
 				"creater_id": as.CreaterID,
 			}),
+			Annotations: createPodAnnotations(as),
 		},
 		Spec: corev1.PodSpec{
 			Volumes:      dv.GetVolumes(),
@@ -83,9 +86,17 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 	args := createArgs(version, *envs)
 	resources := createResources(as)
 	ports := createPorts(as, dbmanager)
+	imagename := version.ImageName
+	if imagename == "" {
+		if version.DeliveredType == "slug" {
+			imagename = builder.RUNNERIMAGENAME
+		} else {
+			imagename = version.DeliveredPath
+		}
+	}
 	return &corev1.Container{
 		Name:           as.ServiceID,
-		Image:          version.ImageName,
+		Image:          imagename,
 		Args:           args,
 		Ports:          ports,
 		Env:            *envs,
@@ -608,4 +619,12 @@ func setFeature(podt *corev1.PodTemplateSpec) {
 			podt.Spec.NodeName = env.Value
 		}
 	}
+}
+
+func createPodAnnotations(as *v1.AppService) map[string]string {
+	var annotations = make(map[string]string)
+	if as.Replicas <= 1 {
+		annotations["rainbond.com/tolerate-unready-endpoints"] = "true"
+	}
+	return annotations
 }

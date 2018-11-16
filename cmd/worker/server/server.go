@@ -31,6 +31,8 @@ import (
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/worker/appm"
+	"github.com/goodrain/rainbond/worker/appm/controller"
+	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/discover"
 	"github.com/goodrain/rainbond/worker/executor"
 	"github.com/goodrain/rainbond/worker/monitor"
@@ -77,6 +79,14 @@ func Run(s *option.Worker) error {
 		return err
 	}
 	s.Config.KubeClient = clientset
+
+	cachestore := store.NewStore(db.GetManager(), s.Config)
+	if err := cachestore.Start(); err != nil {
+		logrus.Error("start kube cache store error", err)
+		return err
+	}
+	controllerManager := controller.NewManager(cachestore, clientset)
+	defer controllerManager.Stop()
 	//step 3 : create and start app runtime module
 	ars := appruntimesync.CreateAppRuntimeSync(s.Config)
 	go ars.Start(errChan)
@@ -107,7 +117,7 @@ func Run(s *option.Worker) error {
 	executorManager.Start()
 	defer executorManager.Stop()
 	//step 5 : create discover module
-	taskManager := discover.NewTaskManager(s.Config, executorManager, statusClient)
+	taskManager := discover.NewTaskManager(s.Config, executorManager, cachestore, statusClient, controllerManager)
 	if err := taskManager.Start(); err != nil {
 		return err
 	}

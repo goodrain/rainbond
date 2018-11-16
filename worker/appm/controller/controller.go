@@ -29,13 +29,12 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/goodrain/rainbond/event"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 //Controller service operating controller interface
 type Controller interface {
-	Begin() error
+	Begin()
 	Stop() error
 }
 
@@ -58,14 +57,32 @@ var TypeScalingController TypeController = "scaling"
 type Manager struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
-	client      kubernetes.Clientset
+	client      *kubernetes.Clientset
 	controllers map[string]Controller
 	store       store.Storer
 	lock        sync.Mutex
 }
 
-//GetController get start service controller
-func (m *Manager) GetController(controllerType TypeController, eventLogger event.Logger, apps ...v1.AppService) (Controller, error) {
+//NewManager new manager
+func NewManager(store store.Storer, client *kubernetes.Clientset) *Manager {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &Manager{
+		ctx:         ctx,
+		cancel:      cancel,
+		client:      client,
+		controllers: make(map[string]Controller),
+		store:       store,
+	}
+}
+
+//Stop stop all controller
+func (m *Manager) Stop() error {
+	//TODO
+	return nil
+}
+
+//StartController create and start service controller
+func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppService) error {
 	var controller Controller
 	controllerID := util.NewUUID()
 	switch controllerType {
@@ -76,15 +93,18 @@ func (m *Manager) GetController(controllerType TypeController, eventLogger event
 			manager:      m,
 		}
 	default:
-		return nil, fmt.Errorf("No support controller")
+		return fmt.Errorf("No support controller")
 	}
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	m.controllers[controllerID] = controller
-	return controller, nil
+	go controller.Begin()
+	return nil
 }
-func (m *Manager) callbcak(controllerID string, err error) {
-
+func (m *Manager) callback(controllerID string, err error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	delete(m.controllers, controllerID)
 }
 
 func getLoggerOption(status string) map[string]string {

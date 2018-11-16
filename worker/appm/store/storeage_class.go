@@ -16,20 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package controller
+package store
 
-import (
-	"github.com/goodrain/rainbond/event"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
-)
+//TODO:
 
-type upgradeController struct {
-	appService  []v1.AppService
-	eventLogger event.Logger
-}
+// kind: StorageClass
+// apiVersion: storage.k8s.io/v1
+// metadata:
+//   name: local-storage
+// provisioner: kubernetes.io/no-provisioner
+// volumeBindingMode: WaitForFirstConsumer
 
-func (s *upgradeController) Begin() {
-}
-func (s *upgradeController) Stop() error {
+//InitStorageclass init storage class
+func (a *appRuntimeStore) initStorageclass() error {
 	return nil
 }

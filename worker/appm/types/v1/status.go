@@ -16,13 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package storageclass
+package v1
 
-//TODO:
-
-// kind: StorageClass
-// apiVersion: storage.k8s.io/v1
-// metadata:
-//   name: local-storage
-// provisioner: kubernetes.io/no-provisioner
-// volumeBindingMode: WaitForFirstConsumer
+//GetDeployStatus get deploy status.
+//if statefulset or deployment is not nil ,return true
+func (a *AppService) GetDeployStatus() bool {
+	if a.statefulset != nil || a.deployment != nil {
+		return true
+	}
+	return false
+}
