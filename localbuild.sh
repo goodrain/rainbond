@@ -38,6 +38,6 @@ function localbuild() {
 case $1 in
 	*)
 		prepare
-		localbuild $2
+		localbuild $1
 	;;
 esac

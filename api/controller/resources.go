@@ -93,7 +93,7 @@ func (v2 *V2Routes) AlertManagerWebHook(w http.ResponseWriter, r *http.Request) 
 }
 
 func (v2 *V2Routes) Version(w http.ResponseWriter, r *http.Request) {
-	httputil.ReturnSuccess(r,w,map[string]string{"version":os.Getenv("RELEASE_DESC")})
+	httputil.ReturnSuccess(r, w, map[string]string{"version": os.Getenv("RELEASE_DESC")})
 }
 
 //TenantStruct tenant struct
@@ -521,23 +521,21 @@ func (t *TenantStruct) UpdateTenant(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("update tenant"))
 }
 
-//Get all apps and status
+//ServicesCount Get all apps and status
 func (t *TenantStruct) ServicesCount(w http.ResponseWriter, r *http.Request) {
 	allStatus := t.StatusCli.GetAllStatus()
-	var closed int = 0
-	var running int = 0
-	var abnormal int = 0
+	var closed int
+	var running int
+	var abnormal int
 	for _, v := range allStatus {
 		switch v {
 		case "closed":
-			closed += 1
+			closed++
 		case "running":
-			running += 1
+			running++
 		case "abnormal":
-			abnormal += 1
-
+			abnormal++
 		}
-
 	}
 	serviceCount := map[string]int{"total": len(allStatus), "running": running, "closed": closed, "abnormal": abnormal}
 	httputil.ReturnSuccess(r, w, serviceCount)
@@ -1630,11 +1628,11 @@ func (t *TenantStruct) Pods(w http.ResponseWriter, r *http.Request) {
 	pods, err := handler.GetServiceManager().GetPods(serviceID)
 	if err != nil {
 		if err.Error() == gorm.ErrRecordNotFound.Error() {
-			logrus.Error("record notfound:",err)
+			logrus.Error("record notfound:", err)
 			httputil.ReturnError(r, w, 404, fmt.Sprintf("get pods error, %v", err))
 			return
 		}
-		logrus.Error("get pods error:",err)
+		logrus.Error("get pods error:", err)
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get pods error, %v", err))
 		return
 	}
