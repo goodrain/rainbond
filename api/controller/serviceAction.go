@@ -966,31 +966,3 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 	}
 }
-
-func (t *TenantStruct) TenantServicesStatus(w http.ResponseWriter, r *http.Request) {
-	info := make(map[string]map[string]int, 0)
-	tenants, err := db.GetManager().TenantDao().GetALLTenants()
-	if err != nil {
-		logrus.Errorf("get all tenants errors:", err)
-		httputil.ReturnError(r, w, 500, err.Error())
-		return
-	}
-
-	for _, tenant := range tenants {
-		runningNum := 0
-
-		statusList := handler.GetServiceManager().GetServicesStatus(tenant.UUID, nil)
-
-		if statusList != nil {
-			for _, v := range statusList {
-				if v == "running" {
-					runningNum += 1
-				}
-			}
-		}
-		info[tenant.UUID] = map[string]int{
-			"service_running_num": runningNum,
-		}
-	}
-	httputil.ReturnSuccess(r, w, info)
-}

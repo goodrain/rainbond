@@ -174,13 +174,23 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 	}
 	var serviceIDs []string
 	var serviceMap = make(map[string]dbmodel.TenantServices, len(services))
+	var serviceTenantRunning = make(map[string]int, len(ids))
+	var serviceTenantCount = make(map[string]int, len(ids))
+	serviceStatus := t.statusCli.GetAllStatus()
 	for _, s := range services {
 		serviceIDs = append(serviceIDs, s.ServiceID)
 		serviceMap[s.ServiceID] = *s
+		if !t.statusCli.IsClosedStatus(serviceStatus[s.ServiceID]) {
+			serviceTenantRunning[s.TenantID]++
+		}
+		serviceTenantCount[s.TenantID]++
 	}
 	var result = make(map[string]map[string]interface{}, len(ids))
 	for k, v := range limits {
-		result[k] = map[string]interface{}{"tenant_id": k, "limit_memory": v, "limit_cpu": 0, "cpu": 0, "memory": 0, "disk": 0}
+		result[k] = map[string]interface{}{"tenant_id": k, "limit_memory": v,
+			"service_running_num": serviceTenantRunning[k],
+			"service_total_num":   serviceTenantCount[k],
+			"limit_cpu":           0, "cpu": 0, "memory": 0, "disk": 0}
 	}
 	status := t.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
 	for k, v := range status {
