@@ -27,12 +27,10 @@ import (
 
 	"github.com/goodrain/rainbond/worker/appm/controller"
 
-	status "github.com/goodrain/rainbond/appruntimesync/client"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/mq/api/grpc/client"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/worker/discover/model"
-	"github.com/goodrain/rainbond/worker/executor"
 	"github.com/goodrain/rainbond/worker/handle"
 
 	grpc1 "google.golang.org/grpc"
@@ -63,9 +61,9 @@ type TaskManager struct {
 }
 
 //NewTaskManager return *TaskManager
-func NewTaskManager(c option.Config, executor executor.Manager, store store.Storer, statusManager *status.AppRuntimeSyncClient, controllermanager *controller.Manager) *TaskManager {
+func NewTaskManager(c option.Config, store store.Storer, controllermanager *controller.Manager) *TaskManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	handleManager := handle.NewManager(ctx, c, executor, statusManager, store, controllermanager)
+	handleManager := handle.NewManager(ctx, c, store, controllermanager)
 	healthStatus["status"] = "health"
 	healthStatus["info"] = "worker service health"
 	return &TaskManager{
@@ -127,11 +125,9 @@ func (t *TaskManager) Do() {
 				continue
 			}
 			rc := t.handleManager.AnalystToExec(transData)
-			if rc == 1 {
+			if rc != nil && rc != handle.ErrCallback {
 				TaskError++
-			}
-			if rc == 9 {
-				logrus.Debugf("rc is 9, enqueue task to mq")
+			} else if rc != nil && rc == handle.ErrCallback {
 				ctx, cancel := context.WithCancel(t.ctx)
 				reply, err := t.client.Enqueue(ctx, &pb.EnqueueRequest{
 					Topic:   WTOPIC,
@@ -148,7 +144,6 @@ func (t *TaskManager) Do() {
 			} else {
 				TaskNum++
 			}
-			logrus.Debugf("handle task AnalystToExec %d", rc)
 		}
 	}
 }
@@ -163,7 +158,7 @@ func (t *TaskManager) Stop() error {
 	return nil
 }
 
-// 组件的健康检查
+//HealthCheck health check
 func HealthCheck() map[string]string {
 	return healthStatus
 }

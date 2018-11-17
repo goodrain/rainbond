@@ -61,7 +61,6 @@ func (s *startController) Begin() {
 }
 
 func (s *startController) startOne(wait *sync.WaitGroup, app v1.AppService) error {
-	fmt.Println(app)
 	//step 1: create configmap
 	if configs := app.GetConfigMaps(); configs != nil {
 		for _, config := range configs {

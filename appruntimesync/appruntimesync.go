@@ -104,49 +104,6 @@ func (a *AppRuntimeSync) Start(errchan chan error) {
 
 	leader.RunAsLeader(a.conf.KubeClient, a.conf.LeaderElectionNamespace, a.conf.LeaderElectionIdentity, lockName, start, func() {})
 }
-func (a *AppRuntimeSync) selectMaster(errchan chan error) {
-	master, err := etcdlock.CreateMasterLock(a.conf.EtcdEndPoints, "/rainbond/workermaster", fmt.Sprintf("%s:%d", a.hostIP, 6535), 10)
-	if err != nil {
-		errchan <- err
-		return
-	}
-	a.master = master
-	master.Start()
-	defer master.Stop()
-	for {
-		select {
-		case event := <-master.EventsChan():
-			if event.Type == etcdlock.MasterAdded {
-				if err := a.srss.Start(); err != nil {
-					errchan <- err
-					return
-				}
-				go a.startAppRuntimeSync()
-				if err := a.registServer(); err != nil {
-					errchan <- err
-					return
-				}
-				a.masterRun = true
-			}
-			if event.Type == etcdlock.MasterDeleted {
-				if a.masterRun {
-					errchan <- fmt.Errorf("master node delete")
-				}
-				return
-			}
-			if event.Type == etcdlock.MasterError {
-				if event.Error.Error() == "elect: session expired" {
-					//TODO:if etcd error. worker restart
-				}
-				//if this is master node, exit
-				if a.masterRun {
-					errchan <- event.Error
-				}
-				return
-			}
-		}
-	}
-}
 
 //Stop stop app runtime sync server
 func (a *AppRuntimeSync) Stop() error {

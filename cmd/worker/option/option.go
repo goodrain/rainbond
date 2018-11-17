@@ -45,6 +45,7 @@ type Config struct {
 	NodeAPI                 string
 	Listen                  string
 	HostIP                  string
+	ServerPort              int
 	KubeClient              *kubernetes.Clientset
 	LeaderElectionNamespace string
 	LeaderElectionIdentity  string
@@ -79,6 +80,7 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.RunMode, "run", "sync", "sync data when worker start")
 	fs.StringVar(&a.NodeName, "node-name", "", "the name of this worker,it must be global unique name")
 	fs.StringVar(&a.HostIP, "host-ip", "", "the ip of this worker,it must be global connected ip")
+	fs.IntVar(&a.ServerPort, "server-port", 6535, "the listen port that app runtime server")
 	fs.StringVar(&a.NodeAPI, "node-api", "http://172.30.42.1:6100", "node discover api, node docker endpoints")
 	flag.StringVar(&a.LeaderElectionNamespace, "leader-election-namespace", "rainbond", "Namespace where this attacher runs.")
 	flag.StringVar(&a.LeaderElectionIdentity, "leader-election-identity", "", "Unique idenity of this attcher. Typically name of the pod where the attacher runs.")

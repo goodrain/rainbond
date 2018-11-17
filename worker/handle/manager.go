@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
+// Copyright (C) 2nilfmt.Errorf("a")4-2nilfmt.Errorf("a")8 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
 
 // This program is free software: you can redistribute it and/or modify
@@ -20,7 +20,7 @@ package handle
 
 import (
 	"context"
-	"time"
+	"fmt"
 
 	"github.com/goodrain/rainbond/worker/appm/controller"
 
@@ -28,12 +28,10 @@ import (
 
 	"github.com/goodrain/rainbond/worker/appm/store"
 
-	status "github.com/goodrain/rainbond/appruntimesync/client"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/worker/discover/model"
-	"github.com/goodrain/rainbond/worker/executor"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -42,8 +40,6 @@ import (
 type Manager struct {
 	ctx               context.Context
 	c                 option.Config
-	execManager       executor.Manager
-	statusManager     *status.AppRuntimeSyncClient
 	store             store.Storer
 	dbmanager         db.Manager
 	controllerManager *controller.Manager
@@ -52,42 +48,39 @@ type Manager struct {
 //NewManager now handle
 func NewManager(ctx context.Context,
 	config option.Config,
-	execManager executor.Manager,
-	statusManager *status.AppRuntimeSyncClient,
 	store store.Storer,
 	controllerManager *controller.Manager) *Manager {
 
 	return &Manager{
 		ctx:               ctx,
 		c:                 config,
-		execManager:       execManager,
-		statusManager:     statusManager,
 		dbmanager:         db.GetManager(),
 		store:             store,
 		controllerManager: controllerManager,
 	}
 }
 
+//ErrCallback do not handle this task
+var ErrCallback = fmt.Errorf("callback task to mq")
+
 func (m *Manager) checkCount() bool {
-	logrus.Debugf("message nums is %v in mq, max is %v", m.execManager.WorkerCount(), m.c.MaxTasks)
-	if m.execManager.WorkerCount() > m.c.MaxTasks {
+	if m.controllerManager.GetControllerSize() > m.c.MaxTasks {
 		return true
 	}
 	return false
 }
 
 //AnalystToExec analyst exec
-func (m *Manager) AnalystToExec(task *model.Task) int {
+func (m *Manager) AnalystToExec(task *model.Task) error {
 	if task == nil {
-		logrus.Error("AnalystToExec receive a nil task")
-		return 1
+		return nil
 	}
 	//max worker count check
 	if m.checkCount() {
-		return 9
+		return ErrCallback
 	}
 	if !m.store.Ready() {
-		return 9
+		return ErrCallback
 	}
 	switch task.Type {
 	case "start":
@@ -109,135 +102,101 @@ func (m *Manager) AnalystToExec(task *model.Task) int {
 		logrus.Info("start a 'rolling_upgrade' task worker")
 		return m.rollingUpgradeExec(task)
 	default:
-		return 0
+		return nil
 	}
 }
 
-/*
-return 值定义
-0	任务执行成功
-1	任务执行失败
-9	任务数量达到上限
-*/
-func (m *Manager) startExec(task *model.Task) int {
+//startExec exec start service task
+func (m *Manager) startExec(task *model.Task) error {
 	body, ok := task.Body.(model.StartTaskBody)
 	if !ok {
 		logrus.Errorf("start body convert to taskbody error")
-		return 1
+		return fmt.Errorf("start body convert to taskbody error")
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
 	appService := m.store.GetAppServiceWithoutCreaterID(body.ServiceID, body.DeployVersion)
 	if appService != nil && appService.GetDeployStatus() {
 		logger.Info("Application is not closed, can not start", map[string]string{"step": "last", "status": "success"})
 		event.GetManager().ReleaseLogger(logger)
-		return 0
+		return nil
 	}
 	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID)
 	if err != nil {
 		logrus.Errorf("Application init create failure:%s", err.Error())
 		logger.Info("Application init create failure", map[string]string{"step": "callback", "status": "faliure"})
 		event.GetManager().ReleaseLogger(logger)
+		return fmt.Errorf("Application init create failure")
 	}
 	newAppService.Logger = logger
 	//regist new app service
 	m.store.RegistAppService(newAppService)
 	err = m.controllerManager.StartController(controller.TypeStartController, *newAppService)
 	if err != nil {
-		logrus.Errorf("Application init controller failure:%s", err.Error())
-		logger.Info("Application init controller failure", map[string]string{"step": "callback", "status": "faliure"})
+		logrus.Errorf("Application run  start controller failure:%s", err.Error())
+		logger.Info("Application run start controller failure", map[string]string{"step": "callback", "status": "faliure"})
 		event.GetManager().ReleaseLogger(logger)
+		return fmt.Errorf("Application start failure")
 	}
 	logrus.Infof("service(%s) start working is running.", body.ServiceID)
-	return 0
+	return nil
 }
 
-func (m *Manager) stopExec(task *model.Task) int {
+func (m *Manager) stopExec(task *model.Task) error {
 	body, ok := task.Body.(model.StopTaskBody)
 	if !ok {
 		logrus.Errorf("stop body convert to taskbody error")
-		return 1
+		return fmt.Errorf("stop body convert to taskbody error")
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
-	curStatus := m.statusManager.GetStatus(body.ServiceID)
-	if curStatus == "unknow" {
-		logger.Error("应用实时状态获取失败", map[string]string{"step": "callback", "status": "failure"})
+	appService := m.store.GetAppServices(body.ServiceID)
+	if appService == nil {
+		logger.Info("Application is closed, can not stop", map[string]string{"step": "last", "status": "success"})
 		event.GetManager().ReleaseLogger(logger)
-		return 1
+		return nil
 	}
-	if curStatus == status.STOPPING {
-		logger.Info("应用正在关闭中，请勿重复操作", map[string]string{"step": "last", "status": "success"})
-		event.GetManager().ReleaseLogger(logger)
-		return 0
+	for _, app := range appService {
+		app.Logger = logger
+		err := m.controllerManager.StartController(controller.TypeStopController, *app)
+		if err != nil {
+			logrus.Errorf("Application run  stop controller failure:%s", err.Error())
+			logger.Info("Application run stop controller failure", map[string]string{"step": "callback", "status": "faliure"})
+			event.GetManager().ReleaseLogger(logger)
+			return fmt.Errorf("Application stop failure")
+		}
 	}
-	if curStatus == status.CLOSED {
-		logger.Info("应用已关闭，请勿重复操作", map[string]string{"step": "last", "status": "success"})
-		db.GetManager().K8sDeployReplicationDao().DeleteK8sDeployReplicationByService(body.ServiceID)
-		event.GetManager().ReleaseLogger(logger)
-		return 0
-	}
-	if curStatus == status.UNDEPLOY {
-		logger.Info("应用未部署，无需关闭", map[string]string{"step": "last", "status": "success"})
-		event.GetManager().ReleaseLogger(logger)
-		return 0
-	}
-
-	ttask := m.execManager.TaskManager().NewStopTask(task, event.GetManager().GetLogger(body.EventID))
-	err := m.execManager.AddTask(ttask)
-	if err != nil {
-		logrus.Errorf("start task <stop> error. %v", err)
-		logger.Error("关闭应用任务创建失败", map[string]string{"step": "callback", "status": "failure"})
-		event.GetManager().ReleaseLogger(logger)
-		return 1
-	}
-	logger.Info("关闭应用任务创建成功", map[string]string{"step": "worker-handle", "status": "success"})
-	return 0
+	logrus.Infof("service(%s) stop working is running.", body.ServiceID)
+	return nil
 }
 
-func (m *Manager) restartExec(task *model.Task) int {
+func (m *Manager) restartExec(task *model.Task) error {
 	body, ok := task.Body.(model.RestartTaskBody)
 	if !ok {
-		logrus.Errorf("restart body convert to taskbody error")
-		return 1
+		logrus.Errorf("stop body convert to taskbody error")
+		return fmt.Errorf("stop body convert to taskbody error")
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
-	curStatus := m.statusManager.GetStatus(body.ServiceID)
-	if curStatus == "unknow" {
-		logger.Error("应用实时状态获取失败，稍后操作", map[string]string{"step": "callback", "status": "failure"})
+	appService := m.store.GetAppServiceWithoutCreaterID(body.ServiceID, body.DeployVersion)
+	if appService == nil {
+		logger.Info("Application is closed, can not stop", map[string]string{"step": "last", "status": "success"})
 		event.GetManager().ReleaseLogger(logger)
-		return 1
+		return nil
 	}
-	if curStatus == status.STOPPING {
-		logger.Info("应用正在关闭中，请勿重复操作", map[string]string{"step": "last", "status": "success"})
-		event.GetManager().ReleaseLogger(logger)
-		return 0
-	}
-	if curStatus == status.CLOSED {
-		logger.Info("应用已关闭，请直接启动应用", map[string]string{"step": "last", "status": "success"})
-		event.GetManager().ReleaseLogger(logger)
-		return 0
-	}
-	if curStatus == status.UNDEPLOY {
-		logger.Info("应用未部署，无法进行重启", map[string]string{"step": "last", "status": "success"})
-		event.GetManager().ReleaseLogger(logger)
-		return 0
-	}
-	ttask := m.execManager.TaskManager().NewRestartTask(task, event.GetManager().GetLogger(body.EventID))
-	err := m.execManager.AddTask(ttask)
+	err := m.controllerManager.StartController(controller.TypeStopController, *appService)
 	if err != nil {
-		logrus.Errorf("start task <restart> error. %v", err)
-		logger.Error("重启应用任务创建失败", map[string]string{"step": "callback", "status": "failure"})
+		logrus.Errorf("Application run  stop controller failure:%s", err.Error())
+		logger.Info("Application run stop controller failure", map[string]string{"step": "callback", "status": "faliure"})
 		event.GetManager().ReleaseLogger(logger)
-		return 1
+		return fmt.Errorf("Application stop failure")
 	}
-	logger.Info("重启应用任务创建成功", map[string]string{"step": "worker-handle", "status": "success"})
-	return 0
+	logrus.Infof("service(%s) stop working is running.", body.ServiceID)
+	return nil
 }
 
-func (m *Manager) horizontalScalingExec(task *model.Task) int {
+func (m *Manager) horizontalScalingExec(task *model.Task) error {
 	body, ok := task.Body.(model.HorizontalScalingTaskBody)
 	if !ok {
 		logrus.Errorf("horizontal_scaling body convert to taskbody error")
-		return 1
+		return fmt.Errorf("a")
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(body.ServiceID)
@@ -245,7 +204,7 @@ func (m *Manager) horizontalScalingExec(task *model.Task) int {
 		logger.Error("获取应用信息失败", map[string]string{"step": "callback", "status": "failure"})
 		event.GetManager().ReleaseLogger(logger)
 		logrus.Errorf("horizontal_scaling get rc error. %v", err)
-		return 1
+		return fmt.Errorf("a")
 	}
 	oldReplicas := int32(service.Replicas)
 	//newReplicas 超过3w时存储问题
@@ -255,30 +214,18 @@ func (m *Manager) horizontalScalingExec(task *model.Task) int {
 		logrus.Errorf("horizontal_scaling set new replicas error. %v", err)
 		logger.Error("更新应用信息失败", map[string]string{"step": "callback", "status": "failure"})
 		event.GetManager().ReleaseLogger(logger)
-		return 1
+		return fmt.Errorf("a")
 	}
-	ttask := m.execManager.TaskManager().NewHorizontalScalingTask(
-		task,
-		oldReplicas,
-		event.GetManager().GetLogger(body.EventID),
-	)
-	logger.Info("水平伸缩元数据设置成功", map[string]string{"step": "worker-handle", "status": "success"})
-	err = m.execManager.AddTask(ttask)
-	if err != nil {
-		logrus.Errorf("start task <horizontal_scaling> error. %v", err)
-		logger.Error("水平伸缩任务创建失败", map[string]string{"step": "callback", "status": "failure"})
-		event.GetManager().ReleaseLogger(logger)
-		return 1
-	}
+	fmt.Println(oldReplicas)
 	logger.Info("水平伸缩任务创建成功", map[string]string{"step": "worker-handle", "status": "success"})
-	return 0
+	return nil
 }
 
-func (m *Manager) verticalScalingExec(task *model.Task) int {
+func (m *Manager) verticalScalingExec(task *model.Task) error {
 	body, ok := task.Body.(model.VerticalScalingTaskBody)
 	if !ok {
 		logrus.Errorf("vertical_scaling body convert to taskbody error")
-		return 1
+		return fmt.Errorf("a")
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(body.ServiceID)
@@ -286,7 +233,7 @@ func (m *Manager) verticalScalingExec(task *model.Task) int {
 		logrus.Errorf("vertical_scaling get rc error. %v", err)
 		logger.Error("获取应用信息失败", map[string]string{"step": "callback", "status": "failure"})
 		event.GetManager().ReleaseLogger(logger)
-		return 1
+		return fmt.Errorf("a")
 	}
 	service.ContainerCPU = int(body.ContainerCPU)
 	service.ContainerMemory = int(body.ContainerMemory)
@@ -295,77 +242,17 @@ func (m *Manager) verticalScalingExec(task *model.Task) int {
 		logrus.Errorf("vertical_scaling set new cpu&memory error. %v", err)
 		logger.Error("更新应用信息失败", map[string]string{"step": "callback", "status": "failure"})
 		event.GetManager().ReleaseLogger(logger)
-		return 1
-	}
-	curStatus := m.statusManager.GetStatus(body.ServiceID)
-	if m.statusManager.IsClosedStatus(curStatus) {
-		logger.Error("应用未部署，垂直升级成功", map[string]string{"step": "last", "status": "success"})
-		return 0
-	}
-	ttask := m.execManager.TaskManager().NewRestartTask(
-		&model.Task{
-			Type: "restart",
-			Body: model.RestartTaskBody{
-				TenantID:      body.TenantID,
-				ServiceID:     body.ServiceID,
-				DeployVersion: service.DeployVersion,
-				EventID:       body.EventID,
-			},
-			CreateTime: time.Now(),
-			User:       task.User,
-		},
-		event.GetManager().GetLogger(body.EventID),
-	)
-	err = m.execManager.AddTask(ttask)
-	if err != nil {
-		logrus.Errorf("start task <vertical_scaling> error. %v", err)
-		logger.Error("垂直伸缩重启任务创建失败", map[string]string{"step": "callback", "status": "failure"})
-		event.GetManager().ReleaseLogger(logger)
-		return 1
+		return fmt.Errorf("a")
 	}
 	logger.Info("垂直伸缩重启任务创建成功", map[string]string{"step": "worker-handle", "status": "success"})
-	return 0
+	return nil
 }
 
-func (m *Manager) rollingUpgradeExec(task *model.Task) int {
-	body, ok := task.Body.(model.RollingUpgradeTaskBody)
+func (m *Manager) rollingUpgradeExec(task *model.Task) error {
+	_, ok := task.Body.(model.RollingUpgradeTaskBody)
 	if !ok {
 		logrus.Error("rolling_upgrade body convert to taskbody error", task.Body)
-		return 1
+		return fmt.Errorf("a")
 	}
-	logger := event.GetManager().GetLogger(body.EventID)
-	service, err := db.GetManager().TenantServiceDao().GetServiceByID(body.ServiceID)
-	if err != nil {
-		logrus.Errorf("rolling_upgrade get rc error. %v", err)
-		logger.Error("获取应用信息失败", map[string]string{"step": "callback", "status": "failure"})
-		event.GetManager().ReleaseLogger(logger)
-		return 1
-	}
-	if service.DeployVersion == body.NewDeployVersion {
-		logger.Error("应用版本无变化，无需升级", map[string]string{"step": "last", "status": "success"})
-		event.GetManager().ReleaseLogger(logger)
-		return 0
-	}
-	service.DeployVersion = body.NewDeployVersion
-	err = db.GetManager().TenantServiceDao().UpdateModel(service)
-	if err != nil {
-		logrus.Errorf("rolling_upgrade set new deploy version error. %v", err)
-		logger.Error("更新应用信息失败", map[string]string{"step": "callback", "status": "failure"})
-		event.GetManager().ReleaseLogger(logger)
-		return 1
-	}
-
-	t := m.execManager.TaskManager().NewRollingUpgradeTask(
-		task,
-		event.GetManager().GetLogger(body.EventID),
-	)
-	err = m.execManager.AddTask(t)
-	if err != nil {
-		logrus.Errorf("start task <rolling_upgrade> error. %v", err)
-		logger.Error("滚动升级任务创建失败", map[string]string{"step": "callback", "status": "failure"})
-		event.GetManager().ReleaseLogger(logger)
-		return 1
-	}
-	logger.Info("应用滚动升级任务创建成功", map[string]string{"step": "worker-handle", "status": "success"})
-	return 0
+	return nil
 }

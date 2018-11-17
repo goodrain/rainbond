@@ -92,12 +92,16 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 		return fmt.Errorf("get service type info failure %s", err.Error())
 	}
 	as.TenantID = tenantService.TenantID
-	as.DeployVersion = tenantService.DeployVersion
+	if as.DeployVersion == "" {
+		as.DeployVersion = tenantService.DeployVersion
+	}
 	as.ContainerCPU = tenantService.ContainerCPU
 	as.ContainerMemory = tenantService.ContainerMemory
 	as.Replicas = tenantService.Replicas
 	as.ServiceAlias = tenantService.ServiceAlias
-	as.CreaterID = util.NewUUID()
+	if as.CreaterID == "" {
+		as.CreaterID = string(util.NewTimeVersion())
+	}
 	as.TenantName = tenant.Name
 	if serviceType.LabelValue == util.StatefulServiceType {
 		initBaseStatefulSet(as, tenantService)

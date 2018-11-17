@@ -19,6 +19,7 @@
 package store
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -46,7 +47,10 @@ type Storer interface {
 	Ready() bool
 	RegistAppService(*v1.AppService)
 	GetAppService(serviceID, version, createrID string) *v1.AppService
+	GetAppServices(serviceID string) []*v1.AppService
 	GetAppServiceWithoutCreaterID(serviceID, version string) *v1.AppService
+	GetAppServiceStatus(serviceID string) string
+	GetAppServicesStatus(serviceIDs []string) map[string]string
 }
 
 //appRuntimeStore app runtime store
@@ -95,13 +99,13 @@ func NewStore(dbmanager db.Manager, conf option.Config) Storer {
 	store.informers.Ingress = infFactory.Extensions().V1beta1().Ingresses().Informer()
 	store.listers.Ingress = infFactory.Extensions().V1beta1().Ingresses().Lister()
 
-	store.informers.Deployment.AddEventHandler(store)
-	store.informers.StatefulSet.AddEventHandler(store)
-	store.informers.Pod.AddEventHandler(store)
-	store.informers.Secret.AddEventHandler(store)
-	store.informers.Service.AddEventHandler(store)
-	store.informers.Ingress.AddEventHandler(store)
-	store.informers.ConfigMap.AddEventHandler(store)
+	store.informers.Deployment.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.StatefulSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.Pod.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.Secret.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.Service.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.Ingress.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.ConfigMap.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	return store
 }
 
@@ -109,14 +113,12 @@ func (a *appRuntimeStore) init() error {
 	//init leader namespace
 	leaderNamespace := a.conf.LeaderElectionNamespace
 	if _, err := a.conf.KubeClient.CoreV1().Namespaces().Get(leaderNamespace, metav1.GetOptions{}); err != nil {
-		if apierr, ok := err.(*errors.StatusError); ok {
-			if apierr.ErrStatus.Code == 404 {
-				_, err = a.conf.KubeClient.CoreV1().Namespaces().Create(&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: leaderNamespace,
-					},
-				})
-			}
+		if errors.IsNotFound(err) {
+			_, err = a.conf.KubeClient.CoreV1().Namespaces().Create(&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: leaderNamespace,
+				},
+			})
 		}
 		if err != nil {
 			return err
@@ -146,9 +148,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		version := deployment.Labels["version"]
 		createrID := deployment.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
-			appservice := a.getAppService(serviceID, version, createrID)
+			appservice := a.getAppService(serviceID, version, createrID, true)
 			if appservice != nil {
 				appservice.SetDeployment(deployment)
+				return
 			}
 		}
 	}
@@ -157,9 +160,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		version := statefulset.Labels["version"]
 		createrID := statefulset.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
-			appservice := a.getAppService(serviceID, version, createrID)
+			appservice := a.getAppService(serviceID, version, createrID, true)
 			if appservice != nil {
 				appservice.SetStatefulSet(statefulset)
+				return
 			}
 		}
 	}
@@ -168,9 +172,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		version := pod.Labels["version"]
 		createrID := pod.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
-			appservice := a.getAppService(serviceID, version, createrID)
+			appservice := a.getAppService(serviceID, version, createrID, true)
 			if appservice != nil {
 				appservice.SetPods(pod)
+				return
 			}
 		}
 	}
@@ -179,9 +184,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		version := secret.Labels["version"]
 		createrID := secret.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
-			appservice := a.getAppService(serviceID, version, createrID)
+			appservice := a.getAppService(serviceID, version, createrID, true)
 			if appservice != nil {
 				appservice.SetSecrets(secret)
+				return
 			}
 		}
 	}
@@ -190,9 +196,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		version := service.Labels["version"]
 		createrID := service.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
-			appservice := a.getAppService(serviceID, version, createrID)
+			appservice := a.getAppService(serviceID, version, createrID, true)
 			if appservice != nil {
 				appservice.SetService(service)
+				return
 			}
 		}
 	}
@@ -201,9 +208,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		version := ingress.Labels["version"]
 		createrID := ingress.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
-			appservice := a.getAppService(serviceID, version, createrID)
+			appservice := a.getAppService(serviceID, version, createrID, true)
 			if appservice != nil {
 				appservice.SetIngress(ingress)
+				return
 			}
 		}
 	}
@@ -212,19 +220,22 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		version, okv := configmap.Labels["version"]
 		createrID := configmap.Labels["creater_id"]
 		if oks && okv && serviceID != "" && version != "" && createrID != "" {
-			appservice := a.getAppService(serviceID, version, createrID)
+			appservice := a.getAppService(serviceID, version, createrID, true)
 			if appservice != nil {
 				appservice.SetConfigMap(configmap)
+				return
 			}
 		}
 	}
 }
-func (a *appRuntimeStore) getAppService(serviceID, version, createrID string) *v1.AppService {
+
+//getAppService if  creater is true, will create new app service where not found in store
+func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, creater bool) *v1.AppService {
 	var appservice *v1.AppService
 	appservice = a.GetAppService(serviceID, version, createrID)
-	if appservice == nil {
+	if appservice == nil && creater {
 		var err error
-		appservice, err = conversion.InitCacheAppService(a.dbmanager, serviceID)
+		appservice, err = conversion.InitCacheAppService(a.dbmanager, serviceID, version, createrID)
 		if err != nil {
 			logrus.Errorf("init cache app service failure:%s", err.Error())
 			return nil
@@ -242,9 +253,13 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		version := deployment.Labels["version"]
 		createrID := deployment.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
-			appservice := a.getAppService(serviceID, version, createrID)
+			appservice := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DeleteDeployment(deployment)
+				if appservice.IsClosed() {
+					a.deleteAppService(appservice)
+				}
+				return
 			}
 		}
 	}
@@ -253,9 +268,13 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		version := statefulset.Labels["version"]
 		createrID := statefulset.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
-			appservice := a.getAppService(serviceID, version, createrID)
+			appservice := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DeleteStatefulSet(statefulset)
+				if appservice.IsClosed() {
+					a.deleteAppService(appservice)
+				}
+				return
 			}
 		}
 	}
@@ -264,9 +283,13 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		version := pod.Labels["version"]
 		createrID := pod.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
-			appservice := a.getAppService(serviceID, version, createrID)
+			appservice := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DeletePods(pod)
+				if appservice.IsClosed() {
+					a.deleteAppService(appservice)
+				}
+				return
 			}
 		}
 	}
@@ -275,9 +298,13 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		version := secret.Labels["version"]
 		createrID := secret.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
-			appservice := a.getAppService(serviceID, version, createrID)
+			appservice := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DeleteSecrets(secret)
+				if appservice.IsClosed() {
+					a.deleteAppService(appservice)
+				}
+				return
 			}
 		}
 	}
@@ -286,9 +313,13 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		version := service.Labels["version"]
 		createrID := service.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
-			appservice := a.getAppService(serviceID, version, createrID)
+			appservice := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DeleteServices(service)
+				if appservice.IsClosed() {
+					a.deleteAppService(appservice)
+				}
+				return
 			}
 		}
 	}
@@ -297,9 +328,13 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		version := ingress.Labels["version"]
 		createrID := ingress.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
-			appservice := a.getAppService(serviceID, version, createrID)
+			appservice := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DeleteIngress(ingress)
+				if appservice.IsClosed() {
+					a.deleteAppService(appservice)
+				}
+				return
 			}
 		}
 	}
@@ -308,17 +343,36 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		version := configmap.Labels["version"]
 		createrID := configmap.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
-			appservice := a.getAppService(serviceID, version, createrID)
+			appservice := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DeleteConfigMaps(configmap)
+				if appservice.IsClosed() {
+					a.deleteAppService(appservice)
+				}
+				return
 			}
 		}
 	}
+}
+func (a *appRuntimeStore) deleteAppService(app *v1.AppService) {
+	a.appServices.Delete(v1.GetCacheKey(app.ServiceID, app.DeployVersion, app.CreaterID))
+	var size int
+	a.appServices.Range(func(k, v interface{}) bool {
+		size++
+		return false
+	})
+	fmt.Printf("current have %d app after delete \n", size)
 }
 
 //RegistAppService regist a app model to store.
 func (a *appRuntimeStore) RegistAppService(app *v1.AppService) {
 	a.appServices.Store(v1.GetCacheKey(app.ServiceID, app.DeployVersion, app.CreaterID), app)
+	var size int
+	a.appServices.Range(func(k, v interface{}) bool {
+		size++
+		return false
+	})
+	fmt.Printf("current have %d app after add \n", size)
 }
 func (a *appRuntimeStore) GetAppService(serviceID, version, createrID string) *v1.AppService {
 	key := v1.GetCacheKey(serviceID, version, createrID)
@@ -330,12 +384,49 @@ func (a *appRuntimeStore) GetAppService(serviceID, version, createrID string) *v
 	return nil
 }
 
-func (a *appRuntimeStore) GetAppServiceWithoutCreaterID(serviceID, version string) *v1.AppService {
+func (a *appRuntimeStore) GetAppServiceWithoutCreaterID(serviceID, version string) (appService *v1.AppService) {
 	key := v1.GetNoCreaterCacheKey(serviceID, version)
-	app, ok := a.appServices.Load(key)
-	if ok {
-		appService := app.(*v1.AppService)
-		return appService
+	a.appServices.Range(func(k, value interface{}) bool {
+		existkey, _ := k.(v1.CacheKey)
+		if existkey.ApproximatelyEqual(key) {
+			appService, _ = value.(*v1.AppService)
+			fmt.Printf("%+v \n", appService)
+			return false
+		}
+		return true
+	})
+	return
+}
+func (a *appRuntimeStore) GetAppServices(serviceID string) (apps []*v1.AppService) {
+	key := v1.CacheKey(serviceID)
+	a.appServices.Range(func(k, value interface{}) bool {
+		existkey, _ := k.(v1.CacheKey)
+		if existkey.SimpleEqual(key) {
+			appService, _ := value.(*v1.AppService)
+			if appService != nil {
+				apps = append(apps, appService)
+			}
+		}
+		return true
+	})
+	return
+}
+
+func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
+	apps := a.GetAppServices(serviceID)
+	if apps == nil || len(apps) == 0 {
+		return v1.CLOSED
 	}
-	return nil
+	if len(apps) > 1 {
+		return v1.UPGRADE
+	}
+	return apps[0].GetServiceStatus()
+}
+
+func (a *appRuntimeStore) GetAppServicesStatus(serviceIDs []string) map[string]string {
+	statusMap := make(map[string]string, len(serviceIDs))
+	for _, serviceID := range serviceIDs {
+		statusMap[serviceID] = a.GetAppServiceStatus(serviceID)
+	}
+	return statusMap
 }

@@ -65,10 +65,12 @@ func InitAppService(dbmanager db.Manager, serviceID string) (*v1.AppService, err
 
 //InitCacheAppService init cache app service.
 //if store manager receive a kube model belong with service and not find in store,will create
-func InitCacheAppService(dbmanager db.Manager, serviceID string) (*v1.AppService, error) {
+func InitCacheAppService(dbmanager db.Manager, serviceID, version, createrID string) (*v1.AppService, error) {
 	appService := &v1.AppService{
 		AppServiceBase: v1.AppServiceBase{
-			ServiceID: serviceID,
+			ServiceID:     serviceID,
+			DeployVersion: version,
+			CreaterID:     createrID,
 		},
 	}
 	if err := TenantServiceBase(appService, dbmanager); err != nil {

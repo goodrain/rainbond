@@ -74,9 +74,11 @@ type gRPCWatcher struct {
 // Calls to Next should be serialized; concurrent calls are not safe since
 // there is no way to reconcile the update ordering.
 func (gw *gRPCWatcher) Next() ([]*naming.Update, error) {
+
 	if gw.wch == nil {
 		// first Next() returns all addresses
-		return gw.firstNext()
+		all, err := gw.firstNext()
+		return all, err
 	}
 	if gw.err != nil {
 		return nil, gw.err
@@ -118,7 +120,6 @@ func (gw *gRPCWatcher) firstNext() ([]*naming.Update, error) {
 	if gw.err = err; err != nil {
 		return nil, err
 	}
-
 	updates := make([]*naming.Update, 0, len(resp.Kvs))
 	for _, kv := range resp.Kvs {
 		var jupdate naming.Update
@@ -127,7 +128,6 @@ func (gw *gRPCWatcher) firstNext() ([]*naming.Update, error) {
 		}
 		updates = append(updates, &jupdate)
 	}
-
 	opts := []etcd.OpOption{etcd.WithRev(resp.Header.Revision + 1), etcd.WithPrefix(), etcd.WithPrevKV()}
 	gw.wch = gw.c.Watch(gw.ctx, gw.target, opts...)
 	return updates, nil

@@ -19,17 +19,141 @@
 package controller
 
 import (
-	"github.com/goodrain/rainbond/event"
+	"fmt"
+	"sync"
+	"time"
+
+	"k8s.io/apimachinery/pkg/api/errors"
+
+	"github.com/Sirupsen/logrus"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type stopController struct {
-	appService  []v1.AppService
-	eventLogger event.Logger
+	stopChan     chan struct{}
+	controllerID string
+	appService   []v1.AppService
+	manager      *Manager
 }
 
 func (s *stopController) Begin() {
+	var wait sync.WaitGroup
+	for _, service := range s.appService {
+		go func(service v1.AppService) {
+			wait.Add(1)
+			defer wait.Done()
+			service.Logger.Info("App runtime begin stop app service "+service.ServiceAlias, getLoggerOption("starting"))
+			if err := s.stopOne(service); err != nil {
+				service.Logger.Error(fmt.Sprintf("stop service %s failure %s", service.ServiceAlias, err.Error()), getLoggerOption("failure"))
+				logrus.Errorf("stop service %s failure %s", service.ServiceAlias, err.Error())
+			}
+		}(service)
+	}
+	wait.Wait()
+	s.manager.callback(s.controllerID, nil)
+}
+func (s *stopController) stopOne(app v1.AppService) error {
+	//step 1: delete services
+	if services := app.GetServices(); services != nil {
+		for _, service := range services {
+			err := s.manager.client.CoreV1().Services(app.TenantID).Delete(service.Name, &metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("delete service failure:%s", err.Error())
+			}
+		}
+	}
+	//step 2: delete secrets
+	if secrets := app.GetSecrets(); secrets != nil {
+		for _, secret := range secrets {
+			err := s.manager.client.CoreV1().Secrets(app.TenantID).Delete(secret.Name, &metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("delete secret failure:%s", err.Error())
+			}
+		}
+	}
+	//step 3: delete ingress
+	if ingresses := app.GetIngress(); ingresses != nil {
+		for _, ingress := range ingresses {
+			err := s.manager.client.ExtensionsV1beta1().Ingresses(app.TenantID).Delete(ingress.Name, &metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("delete ingress failure:%s", err.Error())
+			}
+		}
+	}
+	//step 4: delete configmap
+	if configs := app.GetConfigMaps(); configs != nil {
+		for _, config := range configs {
+			err := s.manager.client.CoreV1().ConfigMaps(app.TenantID).Delete(config.Name, &metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("delete config map failure:%s", err.Error())
+			}
+		}
+	}
+	//step 5: delete statefulset or deployment
+	if statefulset := app.GetStatefulSet(); statefulset != nil {
+		err := s.manager.client.AppsV1().StatefulSets(app.TenantID).Delete(statefulset.Name, &metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("delete statefulset failure:%s", err.Error())
+		}
+	}
+	if deployment := app.GetDeployment(); deployment != nil {
+		err := s.manager.client.AppsV1().Deployments(app.TenantID).Delete(deployment.Name, &metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("delete deployment failure:%s", err.Error())
+		}
+	}
+	//step 6: delete all pod
+	if pods := app.GetPods(); pods != nil {
+		for _, pod := range pods {
+			err := s.manager.client.CoreV1().Pods(app.TenantID).Delete(pod.Name, &metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("delete pod failure:%s", err.Error())
+			}
+		}
+	}
+	//step 6: delete services
+	if services := app.GetServices(); services != nil {
+		for _, service := range services {
+			err := s.manager.client.CoreV1().Services(app.TenantID).Delete(service.Name, &metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("delete service failure:%s", err.Error())
+			}
+		}
+	}
+	//step 7: delete secrets
+	if secrets := app.GetSecrets(); secrets != nil {
+		for _, secret := range secrets {
+			err := s.manager.client.CoreV1().Secrets(app.TenantID).Delete(secret.Name, &metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("delete secret failure:%s", err.Error())
+			}
+		}
+	}
+	//step 8: delete ingress
+	if ingresses := app.GetIngress(); ingresses != nil {
+		for _, ingress := range ingresses {
+			err := s.manager.client.ExtensionsV1beta1().Ingresses(app.TenantID).Delete(ingress.Name, &metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("delete ingress failure:%s", err.Error())
+			}
+		}
+	}
+	//step 9: waiting endpoint ready
+	app.Logger.Info("Create all app model success, will waiting app ready", getLoggerOption("running"))
+	return s.WaitingReady(app)
 }
 func (s *stopController) Stop() error {
+	return nil
+}
+
+//WaitingReady wait app start or upgrade ready
+func (s *stopController) WaitingReady(app v1.AppService) error {
+	storeAppService := s.manager.store.GetAppService(app.ServiceID, app.DeployVersion, app.CreaterID)
+	//at least waiting time is 40 second
+	var initTime = 40
+	if err := storeAppService.WaitStop(time.Duration(initTime), app.Logger, s.stopChan); err != nil {
+		return err
+	}
 	return nil
 }

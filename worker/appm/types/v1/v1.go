@@ -23,6 +23,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Sirupsen/logrus"
+
 	"github.com/goodrain/rainbond/event"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -78,6 +80,16 @@ type AppService struct {
 //CacheKey app cache key
 type CacheKey string
 
+//SimpleEqual cache key service id Equal
+func (c CacheKey) SimpleEqual(end CacheKey) bool {
+	endinfo := strings.Split(string(end), "-")
+	sourceinfo := strings.Split(string(c), "-")
+	if len(endinfo) > 0 && len(sourceinfo) > 0 && endinfo[0] == sourceinfo[0] {
+		return true
+	}
+	return false
+}
+
 //ApproximatelyEqual cache key service id and version Equal
 func (c CacheKey) ApproximatelyEqual(end CacheKey) bool {
 	endinfo := strings.Split(string(end), "-")
@@ -128,6 +140,13 @@ func (a *AppService) GetDeployment() *v1.Deployment {
 
 //SetDeployment set kubernetes deployment model
 func (a *AppService) SetDeployment(d *v1.Deployment) {
+	logrus.Debugf("cache deployment %s to app service %s", d.Name, a.ServiceAlias)
+	if a.deployment != nil {
+		//There can only be one resource
+		if a.deployment.Name != d.Name {
+
+		}
+	}
 	a.deployment = d
 }
 
@@ -289,6 +308,7 @@ func (a *AppService) GetSecrets() []*corev1.Secret {
 
 //SetPods set pod
 func (a *AppService) SetPods(d *corev1.Pod) {
+	logrus.Debugf("cache pod %s to service %s", d.Name, a.ServiceAlias)
 	if len(a.pods) > 0 {
 		for i, pod := range a.pods {
 			if pod.GetName() == d.GetName() {
@@ -326,9 +346,9 @@ func (a *AppService) WaitReady(timeout time.Duration, logger event.Logger, cance
 	if a.Ready() {
 		return nil
 	}
+	ticker := time.NewTicker(timeout / 10)
 	timer := time.NewTimer(timeout)
-	ticker := time.NewTicker(time.Second * 2)
-	defer timer.Stop()
+	defer ticker.Stop()
 	select {
 	case <-cancel:
 		return ErrWaitCancel
@@ -345,12 +365,15 @@ func (a *AppService) WaitReady(timeout time.Duration, logger event.Logger, cance
 
 //WaitStop wait service stop complate
 func (a *AppService) WaitStop(timeout time.Duration, logger event.Logger, cancel chan struct{}) error {
+	if a == nil {
+		return nil
+	}
 	if len(a.pods) == 0 && a.statefulset == nil && a.deployment == nil {
 		return nil
 	}
+	ticker := time.NewTicker(timeout / 10)
 	timer := time.NewTimer(timeout)
-	ticker := time.NewTicker(time.Second * 2)
-	defer timer.Stop()
+	defer ticker.Stop()
 	select {
 	case <-cancel:
 		return ErrWaitCancel

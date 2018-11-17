@@ -81,6 +81,13 @@ func (m *Manager) Stop() error {
 	return nil
 }
 
+//GetControllerSize get running controller number
+func (m *Manager) GetControllerSize() int {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return len(m.controllers)
+}
+
 //StartController create and start service controller
 func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppService) error {
 	var controller Controller
@@ -88,6 +95,12 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 	switch controllerType {
 	case TypeStartController:
 		controller = &startController{
+			controllerID: controllerID,
+			appService:   apps,
+			manager:      m,
+		}
+	case TypeStopController:
+		controller = &stopController{
 			controllerID: controllerID,
 			appService:   apps,
 			manager:      m,

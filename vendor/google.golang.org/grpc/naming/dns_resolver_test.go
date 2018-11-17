@@ -1,3 +1,21 @@
+/*
+ *
+ * Copyright 2017 gRPC authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package naming
 
 import (
@@ -66,17 +84,22 @@ func TestCompileUpdate(t *testing.T) {
 			[]string{"1.0.0.2", "1.0.0.3", "1.0.0.6"},
 			[]*Update{{Op: Delete, Addr: "1.0.0.1"}, {Op: Add, Addr: "1.0.0.2"}, {Op: Delete, Addr: "1.0.0.5"}, {Op: Add, Addr: "1.0.0.6"}},
 		},
+		{
+			[]string{"1.0.0.1", "1.0.0.1", "1.0.0.2"},
+			[]string{"1.0.0.1"},
+			[]*Update{{Op: Delete, Addr: "1.0.0.2"}},
+		},
 	}
 
 	var w dnsWatcher
 	for _, c := range tests {
-		w.curAddrs = make([]*Update, len(c.oldAddrs))
-		newUpdates := make([]*Update, len(c.newAddrs))
-		for i, a := range c.oldAddrs {
-			w.curAddrs[i] = &Update{Addr: a}
+		w.curAddrs = make(map[string]*Update)
+		newUpdates := make(map[string]*Update)
+		for _, a := range c.oldAddrs {
+			w.curAddrs[a] = &Update{Addr: a}
 		}
-		for i, a := range c.newAddrs {
-			newUpdates[i] = &Update{Addr: a}
+		for _, a := range c.newAddrs {
+			newUpdates[a] = &Update{Addr: a}
 		}
 		r := w.compileUpdate(newUpdates)
 		if !reflect.DeepEqual(toMap(c.want), toMap(r)) {

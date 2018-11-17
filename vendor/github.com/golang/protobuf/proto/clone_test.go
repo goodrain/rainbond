@@ -37,7 +37,7 @@ import (
 	"github.com/golang/protobuf/proto"
 
 	proto3pb "github.com/golang/protobuf/proto/proto3_proto"
-	pb "github.com/golang/protobuf/proto/testdata"
+	pb "github.com/golang/protobuf/proto/test_proto"
 )
 
 var cloneTestMessage = &pb.MyMessage{
@@ -67,34 +67,50 @@ func init() {
 	if err := proto.SetExtension(cloneTestMessage, pb.E_Ext_More, ext); err != nil {
 		panic("SetExtension: " + err.Error())
 	}
+	if err := proto.SetExtension(cloneTestMessage, pb.E_Ext_Text, proto.String("hello")); err != nil {
+		panic("SetExtension: " + err.Error())
+	}
+	if err := proto.SetExtension(cloneTestMessage, pb.E_Greeting, []string{"one", "two"}); err != nil {
+		panic("SetExtension: " + err.Error())
+	}
 }
 
 func TestClone(t *testing.T) {
-	m := proto.Clone(cloneTestMessage).(*pb.MyMessage)
-	if !proto.Equal(m, cloneTestMessage) {
-		t.Errorf("Clone(%v) = %v", cloneTestMessage, m)
+	// Create a clone using a marshal/unmarshal roundtrip.
+	vanilla := new(pb.MyMessage)
+	b, err := proto.Marshal(cloneTestMessage)
+	if err != nil {
+		t.Errorf("unexpected Marshal error: %v", err)
+	}
+	if err := proto.Unmarshal(b, vanilla); err != nil {
+		t.Errorf("unexpected Unarshal error: %v", err)
 	}
 
-	// Verify it was a deep copy.
+	// Create a clone using Clone and verify that it is equal to the original.
+	m := proto.Clone(cloneTestMessage).(*pb.MyMessage)
+	if !proto.Equal(m, cloneTestMessage) {
+		t.Fatalf("Clone(%v) = %v", cloneTestMessage, m)
+	}
+
+	// Mutate the clone, which should not affect the original.
+	x1, err := proto.GetExtension(m, pb.E_Ext_More)
+	if err != nil {
+		t.Errorf("unexpected GetExtension(%v) error: %v", pb.E_Ext_More.Name, err)
+	}
+	x2, err := proto.GetExtension(m, pb.E_Ext_Text)
+	if err != nil {
+		t.Errorf("unexpected GetExtension(%v) error: %v", pb.E_Ext_Text.Name, err)
+	}
+	x3, err := proto.GetExtension(m, pb.E_Greeting)
+	if err != nil {
+		t.Errorf("unexpected GetExtension(%v) error: %v", pb.E_Greeting.Name, err)
+	}
 	*m.Inner.Port++
-	if proto.Equal(m, cloneTestMessage) {
-		t.Error("Mutating clone changed the original")
-	}
-	// Byte fields and repeated fields should be copied.
-	if &m.Pet[0] == &cloneTestMessage.Pet[0] {
-		t.Error("Pet: repeated field not copied")
-	}
-	if &m.Others[0] == &cloneTestMessage.Others[0] {
-		t.Error("Others: repeated field not copied")
-	}
-	if &m.Others[0].Value[0] == &cloneTestMessage.Others[0].Value[0] {
-		t.Error("Others[0].Value: bytes field not copied")
-	}
-	if &m.RepBytes[0] == &cloneTestMessage.RepBytes[0] {
-		t.Error("RepBytes: repeated field not copied")
-	}
-	if &m.RepBytes[0][0] == &cloneTestMessage.RepBytes[0][0] {
-		t.Error("RepBytes[0]: bytes field not copied")
+	*(x1.(*pb.Ext)).Data = "blah blah"
+	*(x2.(*string)) = "goodbye"
+	x3.([]string)[0] = "zero"
+	if !proto.Equal(cloneTestMessage, vanilla) {
+		t.Fatalf("mutation on original detected:\ngot  %v\nwant %v", cloneTestMessage, vanilla)
 	}
 }
 
@@ -244,27 +260,45 @@ var mergeTests = []struct {
 			Data:       []byte("texas!"),
 		},
 	},
-	// Oneof fields should merge by assignment.
-	{
-		src: &pb.Communique{
-			Union: &pb.Communique_Number{41},
-		},
-		dst: &pb.Communique{
-			Union: &pb.Communique_Name{"Bobby Tables"},
-		},
-		want: &pb.Communique{
-			Union: &pb.Communique_Number{41},
-		},
+	{ // Oneof fields should merge by assignment.
+		src:  &pb.Communique{Union: &pb.Communique_Number{41}},
+		dst:  &pb.Communique{Union: &pb.Communique_Name{"Bobby Tables"}},
+		want: &pb.Communique{Union: &pb.Communique_Number{41}},
 	},
-	// Oneof nil is the same as not set.
+	{ // Oneof nil is the same as not set.
+		src:  &pb.Communique{},
+		dst:  &pb.Communique{Union: &pb.Communique_Name{"Bobby Tables"}},
+		want: &pb.Communique{Union: &pb.Communique_Name{"Bobby Tables"}},
+	},
 	{
-		src: &pb.Communique{},
-		dst: &pb.Communique{
-			Union: &pb.Communique_Name{"Bobby Tables"},
-		},
-		want: &pb.Communique{
-			Union: &pb.Communique_Name{"Bobby Tables"},
-		},
+		src:  &pb.Communique{Union: &pb.Communique_Number{1337}},
+		dst:  &pb.Communique{},
+		want: &pb.Communique{Union: &pb.Communique_Number{1337}},
+	},
+	{
+		src:  &pb.Communique{Union: &pb.Communique_Col{pb.MyMessage_RED}},
+		dst:  &pb.Communique{},
+		want: &pb.Communique{Union: &pb.Communique_Col{pb.MyMessage_RED}},
+	},
+	{
+		src:  &pb.Communique{Union: &pb.Communique_Data{[]byte("hello")}},
+		dst:  &pb.Communique{},
+		want: &pb.Communique{Union: &pb.Communique_Data{[]byte("hello")}},
+	},
+	{
+		src:  &pb.Communique{Union: &pb.Communique_Msg{&pb.Strings{BytesField: []byte{1, 2, 3}}}},
+		dst:  &pb.Communique{},
+		want: &pb.Communique{Union: &pb.Communique_Msg{&pb.Strings{BytesField: []byte{1, 2, 3}}}},
+	},
+	{
+		src:  &pb.Communique{Union: &pb.Communique_Msg{}},
+		dst:  &pb.Communique{},
+		want: &pb.Communique{Union: &pb.Communique_Msg{}},
+	},
+	{
+		src:  &pb.Communique{Union: &pb.Communique_Msg{&pb.Strings{StringField: proto.String("123")}}},
+		dst:  &pb.Communique{Union: &pb.Communique_Msg{&pb.Strings{BytesField: []byte{1, 2, 3}}}},
+		want: &pb.Communique{Union: &pb.Communique_Msg{&pb.Strings{StringField: proto.String("123"), BytesField: []byte{1, 2, 3}}}},
 	},
 	{
 		src: &proto3pb.Message{
@@ -287,14 +321,86 @@ var mergeTests = []struct {
 			},
 		},
 	},
+	{
+		src: &pb.GoTest{
+			F_BoolRepeated:   []bool{},
+			F_Int32Repeated:  []int32{},
+			F_Int64Repeated:  []int64{},
+			F_Uint32Repeated: []uint32{},
+			F_Uint64Repeated: []uint64{},
+			F_FloatRepeated:  []float32{},
+			F_DoubleRepeated: []float64{},
+			F_StringRepeated: []string{},
+			F_BytesRepeated:  [][]byte{},
+		},
+		dst: &pb.GoTest{},
+		want: &pb.GoTest{
+			F_BoolRepeated:   []bool{},
+			F_Int32Repeated:  []int32{},
+			F_Int64Repeated:  []int64{},
+			F_Uint32Repeated: []uint32{},
+			F_Uint64Repeated: []uint64{},
+			F_FloatRepeated:  []float32{},
+			F_DoubleRepeated: []float64{},
+			F_StringRepeated: []string{},
+			F_BytesRepeated:  [][]byte{},
+		},
+	},
+	{
+		src: &pb.GoTest{},
+		dst: &pb.GoTest{
+			F_BoolRepeated:   []bool{},
+			F_Int32Repeated:  []int32{},
+			F_Int64Repeated:  []int64{},
+			F_Uint32Repeated: []uint32{},
+			F_Uint64Repeated: []uint64{},
+			F_FloatRepeated:  []float32{},
+			F_DoubleRepeated: []float64{},
+			F_StringRepeated: []string{},
+			F_BytesRepeated:  [][]byte{},
+		},
+		want: &pb.GoTest{
+			F_BoolRepeated:   []bool{},
+			F_Int32Repeated:  []int32{},
+			F_Int64Repeated:  []int64{},
+			F_Uint32Repeated: []uint32{},
+			F_Uint64Repeated: []uint64{},
+			F_FloatRepeated:  []float32{},
+			F_DoubleRepeated: []float64{},
+			F_StringRepeated: []string{},
+			F_BytesRepeated:  [][]byte{},
+		},
+	},
+	{
+		src: &pb.GoTest{
+			F_BytesRepeated: [][]byte{nil, []byte{}, []byte{0}},
+		},
+		dst: &pb.GoTest{},
+		want: &pb.GoTest{
+			F_BytesRepeated: [][]byte{nil, []byte{}, []byte{0}},
+		},
+	},
+	{
+		src: &pb.MyMessage{
+			Others: []*pb.OtherMessage{},
+		},
+		dst: &pb.MyMessage{},
+		want: &pb.MyMessage{
+			Others: []*pb.OtherMessage{},
+		},
+	},
 }
 
 func TestMerge(t *testing.T) {
 	for _, m := range mergeTests {
 		got := proto.Clone(m.dst)
+		if !proto.Equal(got, m.dst) {
+			t.Errorf("Clone()\ngot  %v\nwant %v", got, m.dst)
+			continue
+		}
 		proto.Merge(got, m.src)
 		if !proto.Equal(got, m.want) {
-			t.Errorf("Merge(%v, %v)\n got %v\nwant %v\n", m.dst, m.src, got, m.want)
+			t.Errorf("Merge(%v, %v)\ngot  %v\nwant %v", m.dst, m.src, got, m.want)
 		}
 	}
 }

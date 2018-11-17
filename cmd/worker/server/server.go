@@ -19,27 +19,22 @@
 package server
 
 import (
-	"context"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/goodrain/rainbond/appruntimesync"
-	"github.com/goodrain/rainbond/appruntimesync/client"
+	"github.com/goodrain/rainbond/worker/server"
+
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/worker/appm"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/discover"
-	"github.com/goodrain/rainbond/worker/executor"
 	"github.com/goodrain/rainbond/worker/monitor"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-
-	"net/http"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -79,7 +74,7 @@ func Run(s *option.Worker) error {
 		return err
 	}
 	s.Config.KubeClient = clientset
-
+	//step 3: create resource store
 	cachestore := store.NewStore(db.GetManager(), s.Config)
 	if err := cachestore.Start(); err != nil {
 		logrus.Error("start kube cache store error", err)
@@ -87,52 +82,22 @@ func Run(s *option.Worker) error {
 	}
 	controllerManager := controller.NewManager(cachestore, clientset)
 	defer controllerManager.Stop()
-	//step 3 : create and start app runtime module
-	ars := appruntimesync.CreateAppRuntimeSync(s.Config)
-	go ars.Start(errChan)
-	defer ars.Stop()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	statusClient, err := client.NewClient(ctx, client.AppRuntimeSyncClientConf{
-		EtcdEndpoints: s.Config.EtcdEndPoints,
-	})
-	if err != nil {
-		return err
-	}
-	appmm, err := appm.NewManager(s.Config, statusClient)
-	if err != nil {
-		return err
-	}
-	defer appmm.Stop()
-
-	if s.RunMode == "sync" {
-		go appmm.SyncData()
-	}
-	//step 4 : create executor module
-	executorManager, err := executor.NewManager(s.Config, statusClient, appmm)
-	if err != nil {
-		return err
-	}
-	executorManager.Start()
-	defer executorManager.Stop()
-	//step 5 : create discover module
-	taskManager := discover.NewTaskManager(s.Config, executorManager, cachestore, statusClient, controllerManager)
+	//step 4 : create discover module
+	taskManager := discover.NewTaskManager(s.Config, cachestore, controllerManager)
 	if err := taskManager.Start(); err != nil {
 		return err
 	}
 	defer taskManager.Stop()
-
-	//step 6 :create application use resource exporter.
-	exporterManager := monitor.NewManager(s.Config, statusClient)
+	//step 5: start app runtimer server
+	runtimeServer := server.CreaterRuntimeServer(s.Config, cachestore)
+	runtimeServer.Start(errChan)
+	//step 6: create application use resource exporter.
+	exporterManager := monitor.NewManager(s.Config, nil)
 	if err := exporterManager.Start(); err != nil {
 		return err
 	}
 	defer exporterManager.Stop()
-
-	//step 7 :enable pprof api
-	logrus.Info("pprof api listen port 3229")
-	go http.ListenAndServe(":3229", nil)
 
 	logrus.Info("worker begin running...")
 
