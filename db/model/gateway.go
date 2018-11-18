@@ -88,7 +88,7 @@ type StreamRule struct {
 	ServiceID        string           `gorm:"column:service_id"`
 	ContainerPort    int              `gorm:"column:container_port"`
 	IP               string           `gorm:"column:ip"`
-	Port             string           `gorm:"column:port"`
+	Port             int              `gorm:"column:port"` // TODO: 这个就是mappingPort吗???
 	LoadBalancerType LoadBalancerType `gorm:"column:load_balancer_type"`
 	RuleExtensionID  string           `gorm:"column:rule_extension_id"`
 }

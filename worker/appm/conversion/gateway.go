@@ -289,32 +289,48 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort, service *cor
 
 	// stream
 	if streamRule != nil {
-		ing := extensions.Ingress{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      genIngName("l4", service.Name, ""),
-				Namespace: a.tenant.UUID,
-			},
-			Spec: extensions.IngressSpec{
-				Backend: &extensions.IngressBackend{
-					ServiceName: service.Name,
-					ServicePort: intstr.FromInt(port.ContainerPort),
-				},
-			},
-		}
-		annos := make(map[string]string)
-		annos[parser.GetAnnotationWithPrefix("load-balancer-type")] = string(streamRule.LoadBalancerType)
-		annos[parser.GetAnnotationWithPrefix("l4-enable")] = "true"
-		annos[parser.GetAnnotationWithPrefix("l4-host")] = streamRule.IP
-		mappingPort, err := a.dbmanager.TenantServiceLBMappingPortDao().CreateTenantServiceLBMappingPort(a.serviceID, port.ContainerPort)
+		mappingPort, err := a.dbmanager.TenantServiceLBMappingPortDao().CreateTenantServiceLBMappingPort(
+			a.serviceID, port.ContainerPort)
+		ing, err := applyStreamRule(streamRule, port, service, string(mappingPort.Port), a.tenant.UUID)
 		if err != nil {
 			return nil, nil, err
 		}
-		annos[parser.GetAnnotationWithPrefix("l4-port")] = string(mappingPort.Port)
-		ing.SetAnnotations(annos)
-		ingresses = append(ingresses, &ing)
+		ingresses = append(ingresses, ing)
 	}
 
 	return ingresses, secret, nil
+}
+
+// applyStreamRule applies stream rule into ingress
+func applyStreamRule(
+	streamRule *model.StreamRule,
+	port *model.TenantServicesPort,
+	service *corev1.Service,
+	mappingPort string,
+	namespace string) (ing *extensions.Ingress, err error) {
+	ing = &extensions.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      genIngName("l4", service.Name, ""),
+			Namespace: namespace,
+		},
+		Spec: extensions.IngressSpec{
+			Backend: &extensions.IngressBackend{
+				ServiceName: service.Name,
+				ServicePort: intstr.FromInt(int(service.Spec.Ports[0].Port)),
+			},
+		},
+	}
+	annos := make(map[string]string)
+	annos[parser.GetAnnotationWithPrefix("load-balancer-type")] = string(streamRule.LoadBalancerType)
+	annos[parser.GetAnnotationWithPrefix("l4-enable")] = "true"
+	annos[parser.GetAnnotationWithPrefix("l4-host")] = streamRule.IP
+	if err != nil {
+		return  nil, err
+	}
+	annos[parser.GetAnnotationWithPrefix("l4-port")] = mappingPort
+	ing.SetAnnotations(annos)
+
+	return ing, nil
 }
 
 // genIngName generates a Ingress name
