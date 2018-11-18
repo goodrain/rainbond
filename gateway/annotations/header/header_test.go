@@ -81,6 +81,6 @@ func TestHeader_Parse(t *testing.T) {
 	cfg := i.(*Config)
 	header := cfg.Header
 	if !reflect.DeepEqual(hmap, header) {
-		t.Errorf("hmap should equal allowHeaders")
+		t.Errorf("hmap should equal header")
 	}
 }

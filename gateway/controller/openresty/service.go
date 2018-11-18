@@ -186,9 +186,7 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 		for _, loc := range vs.Locations {
 			location := &model.Location{
 				Path:      loc.Path,
-				ProxyPass: loc.PoolName,
-				Header:    loc.Header,
-				Cookie:    loc.Cookie,
+				NameCondition:loc.NameCondition,
 			}
 			server.Locations = append(server.Locations, location)
 		}
@@ -264,7 +262,7 @@ func (osvc *OpenrestyService) DeletePools(pools []*v1.Pool) error {
 func (osvc *OpenrestyService) deletePools(names []string) error {
 	url := fmt.Sprintf("http://127.0.0.1:%v/delete-upstreams", osvc.AuxiliaryPort)
 	data, _ := json.Marshal(names)
-	logrus.Errorf("request content of delete-upstreams is %v", string(data))
+	logrus.Debugf("request content of delete-upstreams is %v", string(data))
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(data))
 	if err != nil {
@@ -286,6 +284,7 @@ func (osvc *OpenrestyService) WaitPluginReady() {
 			logrus.Info("Nginx is ready")
 			break
 		}
-		time.Sleep(200 * time.Microsecond)
+		logrus.Info("Nginx is not ready yet.")
+		time.Sleep(1 * time.Second)
 	}
 }

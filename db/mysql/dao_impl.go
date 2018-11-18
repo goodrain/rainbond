@@ -465,3 +465,27 @@ func (m *Manager) ServiceSourceDao() dao.ServiceSourceDao {
 		DB: m.db,
 	}
 }
+
+func (m *Manager) CertificateDao() dao.CertificateDao {
+	return &mysqldao.CertificateDaoImpl{
+		DB: m.db,
+	}
+}
+
+func (m *Manager) RuleExtensionDao() dao.RuleExtensionDao {
+	return &mysqldao.RuleExtensionDaoImpl{
+		DB: m.db,
+	}
+}
+
+func (m *Manager) HttpRuleDao() dao.HttpRuleDao {
+	return &mysqldao.HttpRuleDaoImpl{
+		DB: m.db,
+	}
+}
+
+func (m *Manager) StreamRuleDao() dao.StreamRuleDao {
+	return &mysqldao.StreamRuleDaoTmpl{
+		DB: m.db,
+	}
+}

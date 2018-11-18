@@ -1,10 +1,12 @@
 package model
 
+import "github.com/goodrain/rainbond/gateway/v1"
+
 // Server sets configuration for a virtual server...
 type Server struct {
-	Listen           string // Default: listen *:80 | *:8000; Sets the address and port for IP, or the path for a UNIX-domain socket on which the server will accept requests
+	Listen           string // DefaultType: listen *:80 | *:8000; Sets the address and port for IP, or the path for a UNIX-domain socket on which the server will accept requests
 	ServerName       string // Sets names of a virtual server
-	KeepaliveTimeout Time   // Default 60s. Sets a timeout during which an idle keepalive connection to an upstream server will stay open.
+	KeepaliveTimeout Time   // DefaultType 60s. Sets a timeout during which an idle keepalive connection to an upstream server will stay open.
 	DefaultType      string // Defines the default MIME type of a response.
 	Charset          string // Adds the specified charset to the “Content-Type” response header field.
 	ServerTokens     bool   // Enables or disables emitting nginx version on error pages and in the “Server” response header field.
@@ -51,6 +53,5 @@ type Location struct {
 	Return   Return
 	// Sets the protocol and address of a proxied server and an optional URI to which a location should be mapped
 	ProxyPass string
-	Header    map[string]string
-	Cookie    map[string]string
+	NameCondition map[string]*v1.Condition
 }

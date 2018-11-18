@@ -403,3 +403,27 @@ type ServiceSourceDao interface {
 	Dao
 	GetServiceSource(serviceID string) ([]*model.ServiceSourceConfig, error)
 }
+
+// CertificateDao -
+type CertificateDao interface {
+	Dao
+	GetCertificateByID(certificateID string) (*model.Certificate, error)
+}
+
+// RuleExtensionDao -
+type RuleExtensionDao interface {
+	Dao
+	GetRuleExtensionByID(ruleExtensionID string) (*model.RuleExtension, error)
+}
+
+// HttpRuleDao -
+type HttpRuleDao interface {
+	Dao
+	GetHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HttpRule, error)
+}
+
+// StreamRuleDao -
+type StreamRuleDao interface {
+	Dao
+	GetStreamRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.StreamRule, error)
+}

@@ -24,8 +24,6 @@ func TestVirtualService_Equals(t *testing.T) {
 	v := newFakeVirtualService()
 	vlocA:= newFakeLocation()
 	vlocB:= newFakeLocation()
-	vlocA.PoolName = "pool-aaa"
-	vlocB.PoolName = "pool-bbb"
 	v.Locations = append(v.Locations, vlocA)
 	v.Locations = append(v.Locations, vlocB)
 	v.SSLCert = newFakeSSLCert()
@@ -33,8 +31,6 @@ func TestVirtualService_Equals(t *testing.T) {
 	c := newFakeVirtualService()
 	clocA:= newFakeLocation()
 	clocB:= newFakeLocation()
-	clocA.PoolName = "pool-aaa"
-	clocB.PoolName = "pool-bbb"
 	c.Locations = append(c.Locations, clocA)
 	c.Locations = append(c.Locations, clocB)
 	c.SSLCert = newFakeSSLCert()

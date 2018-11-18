@@ -22,7 +22,39 @@ import "testing"
 
 func TestLocation_Equals(t *testing.T) {
 	l := newFakeLocation()
+	l.NameCondition = map[string]*Condition{
+		"foo-a": {
+			HeaderType,
+			map[string]string{
+				"k1": "v1",
+				"k2": "v2",
+			},
+		},
+		"foo-b": {
+			CookieType,
+			map[string]string{
+				"k1": "v1",
+				"k2": "v2",
+			},
+		},
+	}
 	c := newFakeLocation()
+	c.NameCondition = map[string]*Condition{
+		"foo-a": {
+			HeaderType,
+			map[string]string{
+				"k1": "v1",
+				"k2": "v2",
+			},
+		},
+		"foo-b": {
+			CookieType,
+			map[string]string{
+				"k1": "v1",
+				"k2": "v2",
+			},
+		},
+	}
 	if !l.Equals(c) {
 		t.Errorf("l should equal c.")
 	}

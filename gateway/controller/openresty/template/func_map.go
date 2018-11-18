@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/golang/glog"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
+	"github.com/goodrain/rainbond/gateway/v1"
 	"strings"
 	text_template "text/template"
 )
@@ -45,49 +46,64 @@ func buildLuaHeaderRouter(input interface{}) string {
 		glog.Errorf("expected an '*model.Location' type but %T was returned", input)
 		return ""
 	}
+	_ = loc
 	out := []string{
 		"access_by_lua_block {",
 	}
-	if loc.Header != nil {
-		var condition []string
-		for key, val := range loc.Header {
-			str := fmt.Sprintf("\t\t\tlocal %s = ngx.var.http_%s", key, key)
-			out = append(out, str)
-			condition = append(condition, fmt.Sprintf("%s == \"%s\"", key, val))
-		}
-		cond := strings.Join(condition, " and ")
-		out = append(out, fmt.Sprintf("\t\t\tif %s then", cond))
-		out = append(out, fmt.Sprintf("\t\t\t\tngx.var.target = \"%s\"", loc.ProxyPass))
-		out = append(out, fmt.Sprintf("\t\t\tend\n\r\t\t}\n\r"))
 
-		return strings.Join(out, "\n\r")
-	} else if loc.Cookie != nil {
-		var condition []string
-		out = append(out, `
-			local common = require("common")
-
-			local cookie = ngx.var.http_Cookie
-			local tbl = common.split(cookie, ";")
-			local map = {}
-			for _, v in pairs(tbl) do
-                local list = common.split(v, "=")
-                map[list[1]] = list[2]
+	priority := make([]string, 3)
+	for name, c := range loc.NameCondition {
+		switch c.Type{
+		case v1.HeaderType:
+			snippet := []string{}
+			condition := []string{}
+			for key, val := range c.Value {
+				snippet = append(snippet, fmt.Sprintf("\t\t\tlocal %s = ngx.var.http_%s", key, key))
+				condition = append(condition, fmt.Sprintf("%s == \"%s\"", key, val))
+			}
+			snippet = append(snippet, fmt.Sprintf("\t\t\tif %s then", strings.Join(condition, " and ")))
+			snippet = append(snippet, fmt.Sprintf("\t\t\t\tngx.var.target = \"%s\"", name))
+			snippet = append(snippet, "\t\t\tend")
+			priority[2] = strings.Join(snippet, "\n\r")
+		case v1.CookieType:
+			snippet := []string{}
+			snippet = append(snippet, `
+			string.split = function(s, p)
+                local rt= {}
+                string.gsub(s, '[^'..p..']+', function(w) table.insert(rt, w) end )
+                return rt
             end
+			local cookie = ngx.var.http_Cookie
+			if cookie then
+				local tbl = string.split(cookie, ";")
+				local map = {}
+				for _, v in pairs(tbl) do
+					local list = string.split(v, "=")
+					map[list[1]] = list[2]
+				end
 			`)
-		for key, val := range loc.Cookie {
-			condition = append(condition, fmt.Sprintf("map[\"%s\"] == \"%s\"", key, val))
-		}
-		cond := strings.Join(condition, " and ")
-		out = append(out, fmt.Sprintf("\t\t\tif %s then", cond))
-		out = append(out, fmt.Sprintf("\t\t\tngx.var.target = \"%s\"", loc.ProxyPass))
-		out = append(out, fmt.Sprintf("\t\t\tend\n\r\t\t}"))
+			condition := []string{}
+			for key, val := range c.Value {
+				condition = append(condition, fmt.Sprintf("map[\"%s\"] == \"%s\"", key, val))
+			}
+			snippet = append(snippet, fmt.Sprintf("\t\t\t\tif %s then", strings.Join(condition, " and ")))
+			snippet = append(snippet, fmt.Sprintf("\t\t\t\t\tngx.var.target = \"%s\"", name))
+			snippet = append(snippet, "\t\t\t\tend", "\t\t\tend")
+			priority[1] = strings.Join(snippet, "\n\r")
+		default:
 
-		return strings.Join(out, "\n\r")
-	} else {
-		return fmt.Sprintf(`
-		access_by_lua_block {
-			ngx.var.target = '%s';
+			snippet := fmt.Sprintf("\t\t\tngx.var.target = \"%s\"", name)
+			priority[0] = snippet
 		}
-		`, loc.ProxyPass)
 	}
+
+	for i := 0; i < 3; i++ {
+		if priority[i] != "" {
+			out = append(out, priority[i])
+		}
+	}
+
+	out = append(out, "\t\t}")
+
+	return strings.Join(out, "\n\r")
 }

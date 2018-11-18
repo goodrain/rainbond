@@ -19,24 +19,19 @@
 package conversion
 
 import (
+	"fmt"
 	"testing"
-
-	"github.com/goodrain/rainbond/db/config"
-
-	"github.com/goodrain/rainbond/db"
+	"time"
 )
 
 func TestInitAppService(t *testing.T) {
-	err := db.CreateManager(config.Config{
-		MysqlConnectionInfo: "root:ASDASDASDASDASD@tcp(ali-sh-s1.goodrain.net:21194)/region",
-		DBType:              "mysql",
-	})
+
+}
+
+func TestTemp(t *testing.T) {
+	createTime, err := time.Parse(time.RFC3339, "2018-10-22T14:14:12Z")
 	if err != nil {
-		t.Fatal(err)
+		t.Errorf("error: %v", err)
 	}
-	as, err := InitAppService(db.GetManager(), "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(as)
+	fmt.Println(createTime)
 }

@@ -18,11 +18,20 @@
 
 package v1
 
+type ConditionType string
+
+var HeaderType ConditionType = "header"
+var CookieType ConditionType = "cookie"
+var DefaultType ConditionType = "default"
+
 type Location struct {
-	Path     string
-	PoolName string
-	Header   map[string]string
-	Cookie   map[string]string
+	Path          string
+	NameCondition map[string]*Condition
+}
+
+type Condition struct {
+	Type  ConditionType
+	Value map[string]string
 }
 
 func (l *Location) Equals(c *Location) bool {
@@ -35,15 +44,44 @@ func (l *Location) Equals(c *Location) bool {
 	if l.Path != c.Path {
 		return false
 	}
-	if l.PoolName != c.PoolName {
+
+	if len(l.NameCondition) != len(c.NameCondition) {
 		return false
 	}
+	for name, lc := range l.NameCondition {
+		if cc, exists := c.NameCondition[name]; !exists || !cc.Equals(lc) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (c *Condition) Equals(cc *Condition) bool {
+	if c == cc {
+		return true
+	}
+	if c == nil || cc == nil {
+		return false
+	}
+	if c.Type != cc.Type {
+		return false
+	}
+
+	if len(c.Value) != len(cc.Value) {
+		return false
+	}
+	for k, v := range c.Value {
+		if vv, ok := cc.Value[k]; !ok || v != vv{
+			return false
+		}
+	}
+
 	return true
 }
 
 func newFakeLocation() *Location {
 	return &Location{
-		Path:     "foo-path",
-		PoolName: "foo-pool-name",
+		Path: "foo-path",
 	}
 }

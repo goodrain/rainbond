@@ -92,7 +92,7 @@ func (t *TaskEngine) DependRun(node string, task, depTask *model.Task, Strategy 
 			if nodestatus, ok := depTask.Status[node]; ok && nodestatus.CompleStatus == "Success" {
 				return true, nil
 			} else if ok && nodestatus.CompleStatus != "" {
-				return false, fmt.Errorf("depend task %s(%s) Condition cannot be satisfied", depTask.ID, nodestatus.CompleStatus)
+				return false, fmt.Errorf("depend task %s(%s) NameCondition cannot be satisfied", depTask.ID, nodestatus.CompleStatus)
 			} else {
 				return false, nil
 			}

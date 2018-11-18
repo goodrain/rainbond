@@ -38,11 +38,11 @@ func NewParser(r resolver.Resolver) parser.IngressAnnotation {
 }
 
 func (h header) Parse(ing *extensions.Ingress) (interface{}, error) {
-	allowHeader, err := parser.GetStringAnnotation("header", ing)
+	hr, err := parser.GetStringAnnotation("header", ing)
 	if err != nil {
 		return nil, err
 	}
-	hmap := transform(allowHeader)
+	hmap := transform(hr)
 
 	return &Config{
 		Header: hmap,

@@ -266,7 +266,7 @@ func (t *TenantServicesDelete) TableName() string {
 }
 
 //TenantServicesPort 应用端口信息
-type TenantServicesPort struct {
+type  TenantServicesPort struct {
 	Model
 	TenantID       string `gorm:"column:tenant_id;size:32" validate:"tenant_id|between:30,33" json:"tenant_id"`
 	ServiceID      string `gorm:"column:service_id;size:32" validate:"service_id|between:30,33" json:"service_id"`

@@ -119,6 +119,11 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.AppStatus{})
 	m.models = append(m.models, &model.AppBackup{})
 	m.models = append(m.models, &model.ServiceSourceConfig{})
+	// gateway
+	m.models = append(m.models, &model.Certificate{})
+	m.models = append(m.models, &model.RuleExtension{})
+	m.models = append(m.models, &model.HttpRule{})
+	m.models = append(m.models, &model.StreamRule{})
 }
 
 //CheckTable check and create tables

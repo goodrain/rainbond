@@ -104,6 +104,12 @@ type Manager interface {
 	NotificationEventDao() dao.NotificationEventDao
 	AppBackupDao() dao.AppBackupDao
 	ServiceSourceDao() dao.ServiceSourceDao
+
+	// gateway
+	CertificateDao() dao.CertificateDao
+	RuleExtensionDao() dao.RuleExtensionDao
+	HttpRuleDao() dao.HttpRuleDao
+	StreamRuleDao() dao.StreamRuleDao
 }
 
 var defaultManager Manager

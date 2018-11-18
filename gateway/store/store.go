@@ -300,6 +300,7 @@ func (s *rbdStore) extractAnnotations(ing *extensions.Ingress) {
 	}
 }
 
+// ListPool returns the list of Pools
 func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 	var httpPools []*v1.Pool
 	var tcpPools []*v1.Pool
@@ -332,6 +333,8 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.VirtualService) {
 	l7vsMap := make(map[string]*v1.VirtualService)
 	l4vsMap := make(map[string]*v1.VirtualService)
+	// ServerName-LocationPath -> location
+	srvLocMap := make(map[string]*v1.Location)
 	for _, item := range s.listers.Ingress.List() {
 		ing := item.(*extensions.Ingress)
 		if !s.ingressIsValid(ing) {
@@ -353,7 +356,7 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			}
 			vs = &v1.VirtualService{
 				Listening: []string{listening},
-				PoolName: ing.Spec.Backend.ServiceName,
+				PoolName:  ing.Spec.Backend.ServiceName,
 			}
 			l4PoolMap[vs.PoolName] = struct{}{}
 			l4vsMap[listening] = vs
@@ -392,9 +395,13 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 						Locations:        []*v1.Location{},
 						ForceSSLRedirect: anns.Rewrite.ForceSSLRedirect,
 					}
-					if hostSSLMap[serverName] != nil {
+					if len(hostSSLMap) != 0 {
 						vs.Listening = []string{"443", "ssl"}
-						vs.SSLCert = hostSSLMap[serverName]
+						if hostSSLMap[serverName] != nil {
+							vs.SSLCert = hostSSLMap[serverName]
+						} else {
+							vs.SSLCert = hostSSLMap[DefServerName]
+						}
 					}
 
 					l7vsMap[serverName] = vs
@@ -402,19 +409,31 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 				}
 
 				for _, path := range rule.IngressRuleValue.HTTP.Paths {
-					location := &v1.Location{
-						Path:     path.Path,
-						PoolName: path.Backend.ServiceName,
-					}
-					if anns.Header.Header != nil {
-						location.Header = anns.Header.Header
-					}
-					if anns.Cookie.Cookie != nil {
-						location.Cookie = anns.Cookie.Cookie
+					key := fmt.Sprintf("%s%s", serverName, path.Path)
+					location := srvLocMap[key]
+					l7PoolMap[path.Backend.ServiceName] = struct{}{}
+					if srvLocMap[key] == nil {
+						location = &v1.Location{
+							Path:          path.Path,
+							NameCondition: map[string]*v1.Condition{},
+						}
+						srvLocMap[key] = location
+						vs.Locations = append(vs.Locations, location)
 					}
 
-					vs.Locations = append(vs.Locations, location)
-					l7PoolMap[location.PoolName] = struct{}{}
+					// If their ServiceName is the same, then the new one will overwrite the old one.
+					nameCondition := &v1.Condition{}
+					if anns.Header.Header != nil {
+						nameCondition.Type = v1.HeaderType
+						nameCondition.Value = anns.Header.Header
+					} else if anns.Cookie.Cookie != nil {
+						nameCondition.Type = v1.CookieType
+						nameCondition.Value = anns.Cookie.Cookie
+					} else {
+						nameCondition.Type = v1.DefaultType
+						nameCondition.Value = map[string]string{"1": "1"}
+					}
+					location.NameCondition[path.Backend.ServiceName] = nameCondition
 				}
 			}
 		}
@@ -422,6 +441,7 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 	return l7vs, l4vs
 }
 
+// ingressIsValid checks if the specified ingress is valid
 func (s *rbdStore) ingressIsValid(ing *extensions.Ingress) bool {
 	var endpointKey string
 	if ing.Spec.Backend != nil { // stream
