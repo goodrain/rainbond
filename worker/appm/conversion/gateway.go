@@ -194,104 +194,19 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort, service *cor
 	var secret *corev1.Secret
 	// http
 	if httpRule != nil {
-		domain := strings.Replace(httpRule.Domain, " ", "", -1)
-		if domain == "" {
-			domain = createDefaultDomain(a.tenant.Name, a.service.ServiceAlias, port.ContainerPort)
+		ing, sec, err := a.applyHttpRule(httpRule, port, service)
+		if err != nil {
+			return nil, nil, err
 		}
-		path := strings.Replace(httpRule.Path, " ", "", -1)
-		if path == "" {
-			path = "/"
-		}
-
-		ing := extensions.Ingress{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      genIngName("l7", service.Name, path),
-				Namespace: a.tenant.UUID,
-			},
-			Spec: extensions.IngressSpec{
-				Rules: []extensions.IngressRule{
-					{
-						Host: domain,
-						IngressRuleValue: extensions.IngressRuleValue{
-							HTTP: &extensions.HTTPIngressRuleValue{
-								Paths: []extensions.HTTPIngressPath{
-									{
-										Path: path,
-										Backend: extensions.IngressBackend{
-											ServiceName: service.Name,
-											ServicePort: intstr.FromInt(port.ContainerPort),
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		}
-		annos := make(map[string]string)
-		// load balancer type
-		annos[parser.GetAnnotationWithPrefix("load-balancer-type")] = string(httpRule.LoadBalancerType)
-		// header
-		if httpRule.Header != "" {
-			annos[parser.GetAnnotationWithPrefix("header")] = httpRule.Header
-		}
-		// cookie
-		if httpRule.Cookie != "" {
-			annos[parser.GetAnnotationWithPrefix("cookie")] = httpRule.Cookie
-		}
-		// certificate
-		if httpRule.CertificateID != "" {
-			cert, err := a.dbmanager.CertificateDao().GetCertificateByID(httpRule.CertificateID)
-			if err != nil {
-				return nil, nil, fmt.Errorf("Cant not get certificate by id(%s): %v", httpRule.CertificateID, err)
-			}
-			// create secret
-			secret = &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      cert.CertificateName,
-					Namespace: a.tenant.UUID,
-				},
-				Data: map[string][]byte{
-					"tls.crt": []byte(cert.Certificate),
-					"tls.key": []byte(cert.PrivateKey),
-				},
-				Type: corev1.SecretTypeOpaque,
-			}
-			ing.Spec.TLS = []extensions.IngressTLS{
-				{
-					Hosts:      []string{domain},
-					SecretName: secret.Name,
-				},
-			}
-		}
-		// rule extension
-		if httpRule.RuleExtensionID != "" {
-			re, err := a.dbmanager.RuleExtensionDao().GetRuleExtensionByID(httpRule.RuleExtensionID)
-			if err != nil {
-				logrus.Warnf("Error occurred while getting RuleExtension "+
-					"by RuleExtensionID(%s): %v", httpRule.RuleExtensionID, err)
-			} else {
-				switch re.Value {
-				case model.HttpToHttpsRVT:
-					annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
-				case model.HttpAndHttpsRVT:
-					annos[parser.GetAnnotationWithPrefix("http-and-https")] = "true"
-				default:
-					logrus.Warnf("Unexpected RuleExtension Value: %s", re.Value)
-				}
-			}
-		}
-		ing.SetAnnotations(annos)
-
-		ingresses = append(ingresses, &ing)
+		ingresses = append(ingresses, ing)
+		secret = sec
 	}
 
 	// stream
 	if streamRule != nil {
 		mappingPort, err := a.dbmanager.TenantServiceLBMappingPortDao().CreateTenantServiceLBMappingPort(
 			a.serviceID, port.ContainerPort)
-		ing, err := applyStreamRule(streamRule, port, service, string(mappingPort.Port), a.tenant.UUID)
+		ing, err := applyStreamRule(streamRule, service, string(mappingPort.Port), a.tenant.UUID)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -302,9 +217,108 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort, service *cor
 }
 
 // applyStreamRule applies stream rule into ingress
+func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.TenantServicesPort,
+	service *corev1.Service) (ing *extensions.Ingress, sec *corev1.Secret, err error) {
+	if err != nil {
+		return nil, nil, err
+	}
+
+	domain := strings.Replace(rule.Domain, " ", "", -1)
+	if domain == "" {
+		domain = createDefaultDomain(a.tenant.Name, a.service.ServiceAlias, port.ContainerPort)
+	}
+	path := strings.Replace(rule.Path, " ", "", -1)
+	if path == "" {
+		path = "/"
+	}
+
+	ing = &extensions.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      genIngName("l7", service.Name, path),
+			Namespace: a.tenant.UUID,
+		},
+		Spec: extensions.IngressSpec{
+			Rules: []extensions.IngressRule{
+				{
+					Host: domain,
+					IngressRuleValue: extensions.IngressRuleValue{
+						HTTP: &extensions.HTTPIngressRuleValue{
+							Paths: []extensions.HTTPIngressPath{
+								{
+									Path: path,
+									Backend: extensions.IngressBackend{
+										ServiceName: service.Name,
+										ServicePort: intstr.FromInt(port.ContainerPort),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	annos := make(map[string]string)
+	// load balancer type
+	annos[parser.GetAnnotationWithPrefix("load-balancer-type")] = string(rule.LoadBalancerType)
+	// header
+	if rule.Header != "" {
+		annos[parser.GetAnnotationWithPrefix("header")] = rule.Header
+	}
+	// cookie
+	if rule.Cookie != "" {
+		annos[parser.GetAnnotationWithPrefix("cookie")] = rule.Cookie
+	}
+	// certificate
+	if rule.CertificateID != "" {
+		cert, err := a.dbmanager.CertificateDao().GetCertificateByID(rule.CertificateID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Cant not get certificate by id(%s): %v", rule.CertificateID, err)
+		}
+		// create secret
+		sec = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      cert.CertificateName,
+				Namespace: a.tenant.UUID,
+			},
+			Data: map[string][]byte{
+				"tls.crt": []byte(cert.Certificate),
+				"tls.key": []byte(cert.PrivateKey),
+			},
+			Type: corev1.SecretTypeOpaque,
+		}
+		ing.Spec.TLS = []extensions.IngressTLS{
+			{
+				Hosts:      []string{domain},
+				SecretName: sec.Name,
+			},
+		}
+	}
+	// rule extension
+	if rule.RuleExtensionID != "" {
+		re, err := a.dbmanager.RuleExtensionDao().GetRuleExtensionByID(rule.RuleExtensionID)
+		if err != nil {
+			logrus.Warnf("Error occurred while getting RuleExtension "+
+				"by RuleExtensionID(%s): %v", rule.RuleExtensionID, err)
+		} else {
+			switch re.Value {
+			case model.HttpToHttpsRVT:
+				annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
+			case model.HttpAndHttpsRVT:
+				annos[parser.GetAnnotationWithPrefix("http-and-https")] = "true"
+			default:
+				logrus.Warnf("Unexpected RuleExtension Value: %s", re.Value)
+			}
+		}
+	}
+	ing.SetAnnotations(annos)
+
+	return ing, sec, nil
+}
+
+// applyStreamRule applies stream rule into ingress
 func applyStreamRule(
-	streamRule *model.StreamRule,
-	port *model.TenantServicesPort,
+	rule *model.StreamRule,
 	service *corev1.Service,
 	mappingPort string,
 	namespace string) (ing *extensions.Ingress, err error) {
@@ -321,11 +335,11 @@ func applyStreamRule(
 		},
 	}
 	annos := make(map[string]string)
-	annos[parser.GetAnnotationWithPrefix("load-balancer-type")] = string(streamRule.LoadBalancerType)
+	annos[parser.GetAnnotationWithPrefix("load-balancer-type")] = string(rule.LoadBalancerType)
 	annos[parser.GetAnnotationWithPrefix("l4-enable")] = "true"
-	annos[parser.GetAnnotationWithPrefix("l4-host")] = streamRule.IP
+	annos[parser.GetAnnotationWithPrefix("l4-host")] = rule.IP
 	if err != nil {
-		return  nil, err
+		return nil, err
 	}
 	annos[parser.GetAnnotationWithPrefix("l4-port")] = mappingPort
 	ing.SetAnnotations(annos)

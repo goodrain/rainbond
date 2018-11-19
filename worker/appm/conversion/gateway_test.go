@@ -20,69 +20,34 @@ package conversion
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/db/mysql"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/rafrombrc/gomock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"strconv"
 	"testing"
+	"time"
 )
 
-func TestAppServiceBuild_ApplyRules(t *testing.T) {
-	dbmanager := &mysql.MockManager{}
-
-	serviceID := "43eaae441859eda35b02075d37d83589"
-	replicationType := v1.TypeDeployment
-	build, err := AppServiceBuilder(serviceID, string(replicationType), dbmanager)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-
-	ports, _ := build.dbmanager.TenantServicesPortDao().GetOuterPorts(serviceID)
-
-	mockService := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "default-svc",
-			Namespace: build.tenant.UUID,
-		},
-		Spec: corev1.ServiceSpec{
-			Ports: []corev1.ServicePort{
-				{
-					Name:       "service-port",
-					Port:       30000,
-					TargetPort: intstr.FromInt(10000),
-				},
-			},
-			Selector: map[string]string{
-				"tier": "default",
-			},
-		},
-	}
-
-	ingresses, secret, err := build.ApplyRules(ports[0], mockService)
-	fmt.Println(ingresses)
-	fmt.Println(secret)
-}
-
-func TestAppServiceBuild_ApplyStreamRule(t *testing.T) {
+func TestApplyStreamRule(t *testing.T) {
 	testCase := map[string]string{
 		"namespace": "e8539a9c33fd418db11cce26d2bca431",
 		parser.GetAnnotationWithPrefix("l4-enable"): "true",
 		parser.GetAnnotationWithPrefix("l4-host"):   "127.0.0.1",
 		parser.GetAnnotationWithPrefix("l4-port"):   "32145",
 		"serviceName":   "default-svc",
-		"servicePort":   "5000",
 		"containerPort": "10000",
 	}
 
 	serviceID := "43eaae441859eda35b02075d37d83589"
-	servicePort, err := strconv.Atoi(testCase["servicePort"])
 	containerPort, err := strconv.Atoi(testCase["containerPort"])
 	if err != nil {
-		t.Errorf("Can not convert %s(string) to int: %v", testCase["servicePort"], err)
+		t.Errorf("Can not convert %s(string) to int: %v", testCase["containerPort"], err)
 	}
 	port := &model.TenantServicesPort{
 		TenantID:       testCase["namespace"],
@@ -103,7 +68,7 @@ func TestAppServiceBuild_ApplyStreamRule(t *testing.T) {
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "service-port",
-					Port:       int32(servicePort),
+					Port:       int32(containerPort),
 					TargetPort: intstr.Parse(testCase["containerPort"]),
 				},
 			},
@@ -126,7 +91,7 @@ func TestAppServiceBuild_ApplyStreamRule(t *testing.T) {
 		LoadBalancerType: model.RoundRobinLBType,
 	}
 
-	ing, err := applyStreamRule(streamRule, port, service,
+	ing, err := applyStreamRule(streamRule, service,
 		testCase[parser.GetAnnotationWithPrefix("l4-port")], testCase["namespace"])
 	if err != nil {
 		t.Errorf("Unexpected error occurred while applying stream rule: %v", err)
@@ -160,10 +125,140 @@ func TestAppServiceBuild_ApplyStreamRule(t *testing.T) {
 		t.Errorf("Expected %s for ServiceName but returned %s", testCase["serviceName"],
 			ing.Spec.Backend.ServiceName)
 	}
-	if fmt.Sprintf("%v", ing.Spec.Backend.ServicePort.IntVal) != testCase["servicePort"] {
-		t.Errorf("Expected %s for ServicePort but returned %v", testCase["servicePort"],
+	if ing.Spec.Backend.ServicePort.IntVal != int32(containerPort) {
+		t.Errorf("Expected %v for ServicePort but returned %v", containerPort,
 			ing.Spec.Backend.ServicePort)
 	}
 
 	fmt.Sprintln(ing)
+}
+
+func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
+	testCase := map[string]string{
+		"namespace": "e8539a9c33fd418db11cce26d2bca431",
+		"domain": "www.goodrain.com",
+		"path": "/dummy-path",
+		"serviceName": "dummy-service-name",
+		"servicePort": "10000",
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	dbmanager := db.NewMockManager(ctrl)
+
+	serviceID := "43eaae441859eda35b02075d37d83589"
+	containerPort, err := strconv.Atoi(testCase["servicePort"])
+	if err != nil {
+		t.Errorf("Can't convert %s(string) to int", testCase["servicePort"])
+	}
+
+	serviceDao := dao.NewMockTenantServiceDao(ctrl)
+	updateTime, _ := time.Parse(time.RFC3339, "2018-10-22T14:14:12Z")
+	services := &model.TenantServices{
+		TenantID:        testCase["namespace"],
+		ServiceID:       serviceID,
+		ServiceKey:      "application",
+		ServiceAlias:    "grd83589",
+		Comment:         "application info",
+		ServiceVersion:  "latest",
+		ImageName:       "goodrain.me/runner:latest",
+		ContainerCPU:    20,
+		ContainerMemory: 128,
+		ContainerCMD:    "start_web",
+		VolumePath:      "vol43eaae4418",
+		ExtendMethod:    "stateless",
+		Replicas:        1,
+		DeployVersion:   "20181022200709",
+		Category:        "application",
+		CurStatus:       "undeploy",
+		Status:          0,
+		ServiceType:     "application",
+		Namespace:       "goodrain",
+		VolumeType:      "shared",
+		PortType:        "multi_outer",
+		UpdateTime:      updateTime,
+		ServiceOrigin:   "assistant",
+		CodeFrom:        "gitlab_demo",
+		Domain:          "0enb7gyx",
+	}
+	serviceDao.EXPECT().GetServiceByID(serviceID).Return(services, nil)
+	dbmanager.EXPECT().TenantServiceDao().Return(serviceDao)
+
+	tenantDao := dao.NewMockTenantDao(ctrl)
+	tenant := &model.Tenants{
+		Name: "0enb7gyx",
+		UUID: testCase["namespace"],
+		EID:  "214ec4d212582eb36a84cc180aad2783",
+	}
+	tenantDao.EXPECT().GetTenantByUUID(services.TenantID).Return(tenant, nil)
+	dbmanager.EXPECT().TenantDao().Return(tenantDao)
+
+	replicationType := v1.TypeDeployment
+	build, err := AppServiceBuilder(serviceID, string(replicationType), dbmanager)
+	if err != nil {
+		t.Errorf("Unexpected occurred while creating AppServiceBuild: %v", err)
+	}
+
+	httpRule := &model.HttpRule{
+		ServiceID:        serviceID,
+		ContainerPort:    containerPort,
+		Domain:           testCase["domain"],
+		Path:             testCase["path"],
+		LoadBalancerType: model.RoundRobinLBType,
+	}
+
+	port := &model.TenantServicesPort{
+		TenantID:      tenant.UUID,
+		ServiceID:     serviceID,
+		ContainerPort: containerPort,
+		MappingPort:containerPort,
+		Protocol: "http",
+		IsInnerService: false,
+		IsOuterService: true,
+	}
+
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testCase["serviceName"],
+			Namespace: build.tenant.UUID,
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "service-port",
+					Port:       int32(containerPort),
+					TargetPort: intstr.FromInt(containerPort),
+				},
+			},
+			Selector: map[string]string{
+				"tier": "default",
+			},
+		},
+	}
+
+	ing, sec, err := build.applyHttpRule(httpRule, port, service)
+	if err != nil {
+		t.Errorf("Unexpected error occurred whiling applying http rule: %v", err)
+	}
+	if sec != nil {
+		t.Errorf("Expected nil for sec, but returned %v", sec)
+	}
+	if ing.ObjectMeta.Namespace != testCase["namespace"] {
+		t.Errorf("Expected %s for namespace, but returned %s", testCase["namespace"], ing.ObjectMeta.Namespace)
+	}
+	if ing.Spec.Rules[0].Host != testCase["domain"] {
+		t.Errorf("Expected %s for host, but returned %s", testCase["domain"], ing.Spec.Rules[0].Host)
+	}
+	if ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Path != testCase["path"] {
+		t.Errorf("Expected %s for path, but returned %s", testCase["path"], ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Path)
+	}
+	if ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServiceName != testCase["serviceName"] {
+		t.Errorf("Expected %s for serviceName, but returned %s", testCase["serviceName"],
+			ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServiceName)
+	}
+	if fmt.Sprintf("%v", ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal) != testCase["servicePort"] {
+		t.Errorf("Expected %s for servicePort, but returned %s", testCase["servicePort"],
+			fmt.Sprintf("%v", ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal))
+	}
 }
