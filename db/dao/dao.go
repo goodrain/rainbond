@@ -422,8 +422,8 @@ type HttpRuleDao interface {
 	GetHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HttpRule, error)
 }
 
-// StreamRuleDao -
-type StreamRuleDao interface {
+// TcpRuleDao -
+type TcpRuleDao interface {
 	Dao
-	GetStreamRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.TcpRule, error)
+	GetTcpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.TcpRule, error)
 }

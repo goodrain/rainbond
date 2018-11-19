@@ -109,7 +109,7 @@ type Manager interface {
 	CertificateDao() dao.CertificateDao
 	RuleExtensionDao() dao.RuleExtensionDao
 	HttpRuleDao() dao.HttpRuleDao
-	StreamRuleDao() dao.StreamRuleDao
+	TcpRuleDao() dao.TcpRuleDao
 }
 
 var defaultManager Manager

@@ -484,8 +484,8 @@ func (m *Manager) HttpRuleDao() dao.HttpRuleDao {
 	}
 }
 
-func (m *Manager) StreamRuleDao() dao.StreamRuleDao {
-	return &mysqldao.StreamRuleDaoTmpl{
+func (m *Manager) TcpRuleDao() dao.TcpRuleDao {
+	return &mysqldao.TcpRuleDaoTmpl{
 		DB: m.db,
 	}
 }

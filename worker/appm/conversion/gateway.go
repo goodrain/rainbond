@@ -180,12 +180,12 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort, service *cor
 	if err != nil {
 		logrus.Infof("Can't get HttpRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
 	}
-	streamRule, err := a.dbmanager.StreamRuleDao().GetStreamRuleByServiceIDAndContainerPort(port.ServiceID,
+	tcpRule, err := a.dbmanager.TcpRuleDao().GetTcpRuleByServiceIDAndContainerPort(port.ServiceID,
 		port.ContainerPort)
 	if err != nil {
 		logrus.Infof("Can't get TcpRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
 	}
-	if httpRule == nil && streamRule == nil {
+	if httpRule == nil && tcpRule == nil {
 		return nil, nil, fmt.Errorf("Can't find HttpRule or TcpRule for Outer Service(%s)", port.ServiceID)
 	}
 
@@ -202,11 +202,11 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort, service *cor
 		secret = sec
 	}
 
-	// stream
-	if streamRule != nil {
+	// tcp
+	if tcpRule != nil {
 		mappingPort, err := a.dbmanager.TenantServiceLBMappingPortDao().CreateTenantServiceLBMappingPort(
 			a.serviceID, port.ContainerPort)
-		ing, err := applyTcpRule(streamRule, service, string(mappingPort.Port), a.tenant.UUID)
+		ing, err := applyTcpRule(tcpRule, service, string(mappingPort.Port), a.tenant.UUID)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -464,8 +464,6 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 		"domain":        a.service.Autodomain(a.tenant.Name, port.ContainerPort),
 		"protocol":      port.Protocol,
 		"port_protocol": port.Protocol,
-		"ca":            "",
-		"key":           "",
 		"event_id":      a.eventID,
 		"creator":       "RainBond",
 		"service_id":    a.service.ServiceID,

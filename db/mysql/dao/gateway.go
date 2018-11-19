@@ -94,20 +94,20 @@ func (h *HttpRuleDaoImpl) GetHttpRuleByServiceIDAndContainerPort(serviceID strin
 	return httpRule, nil
 }
 
-type StreamRuleDaoTmpl struct {
+type TcpRuleDaoTmpl struct {
 	DB *gorm.DB
 }
 
-func (s *StreamRuleDaoTmpl) AddModel(model.Interface) error {
+func (s *TcpRuleDaoTmpl) AddModel(model.Interface) error {
 	return nil
 }
 
-func (s *StreamRuleDaoTmpl) UpdateModel(model.Interface) error {
+func (s *TcpRuleDaoTmpl) UpdateModel(model.Interface) error {
 	return nil
 }
 
-// GetStreamRuleByServiceIDAndContainerPort gets a TcpRule based on serviceID and containerPort
-func (s *StreamRuleDaoTmpl) GetStreamRuleByServiceIDAndContainerPort(serviceID string,
+// GetTcpRuleByServiceIDAndContainerPort gets a TcpRule based on serviceID and containerPort
+func (s *TcpRuleDaoTmpl) GetTcpRuleByServiceIDAndContainerPort(serviceID string,
 	containerPort int) (*model.TcpRule, error) {
 	var result *model.TcpRule
 	if err := s.DB.Where("service_id = ? and container_port", serviceID,

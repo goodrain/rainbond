@@ -3579,54 +3579,54 @@ func (_mr *_MockHttpRuleDaoRecorder) GetHttpRuleByServiceIDAndContainerPort(arg0
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetHttpRuleByServiceIDAndContainerPort", arg0, arg1)
 }
 
-// Mock of StreamRuleDao interface
-type MockStreamRuleDao struct {
+// Mock of TcpRuleDao interface
+type MockTcpRuleDao struct {
 	ctrl     *gomock.Controller
-	recorder *_MockStreamRuleDaoRecorder
+	recorder *_MockTcpRuleDaoRecorder
 }
 
-// Recorder for MockStreamRuleDao (not exported)
-type _MockStreamRuleDaoRecorder struct {
-	mock *MockStreamRuleDao
+// Recorder for MockTcpRuleDao (not exported)
+type _MockTcpRuleDaoRecorder struct {
+	mock *MockTcpRuleDao
 }
 
-func NewMockStreamRuleDao(ctrl *gomock.Controller) *MockStreamRuleDao {
-	mock := &MockStreamRuleDao{ctrl: ctrl}
-	mock.recorder = &_MockStreamRuleDaoRecorder{mock}
+func NewMockTcpRuleDao(ctrl *gomock.Controller) *MockTcpRuleDao {
+	mock := &MockTcpRuleDao{ctrl: ctrl}
+	mock.recorder = &_MockTcpRuleDaoRecorder{mock}
 	return mock
 }
 
-func (_m *MockStreamRuleDao) EXPECT() *_MockStreamRuleDaoRecorder {
+func (_m *MockTcpRuleDao) EXPECT() *_MockTcpRuleDaoRecorder {
 	return _m.recorder
 }
 
-func (_m *MockStreamRuleDao) AddModel(_param0 model.Interface) error {
+func (_m *MockTcpRuleDao) AddModel(_param0 model.Interface) error {
 	ret := _m.ctrl.Call(_m, "AddModel", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockStreamRuleDaoRecorder) AddModel(arg0 interface{}) *gomock.Call {
+func (_mr *_MockTcpRuleDaoRecorder) AddModel(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "AddModel", arg0)
 }
 
-func (_m *MockStreamRuleDao) UpdateModel(_param0 model.Interface) error {
+func (_m *MockTcpRuleDao) UpdateModel(_param0 model.Interface) error {
 	ret := _m.ctrl.Call(_m, "UpdateModel", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockStreamRuleDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+func (_mr *_MockTcpRuleDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
 }
 
-func (_m *MockStreamRuleDao) GetStreamRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.TcpRule, error) {
-	ret := _m.ctrl.Call(_m, "GetStreamRuleByServiceIDAndContainerPort", serviceID, containerPort)
+func (_m *MockTcpRuleDao) GetTcpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.TcpRule, error) {
+	ret := _m.ctrl.Call(_m, "GetTcpRuleByServiceIDAndContainerPort", serviceID, containerPort)
 	ret0, _ := ret[0].(*model.TcpRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockStreamRuleDaoRecorder) GetStreamRuleByServiceIDAndContainerPort(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetStreamRuleByServiceIDAndContainerPort", arg0, arg1)
+func (_mr *_MockTcpRuleDaoRecorder) GetTcpRuleByServiceIDAndContainerPort(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTcpRuleByServiceIDAndContainerPort", arg0, arg1)
 }

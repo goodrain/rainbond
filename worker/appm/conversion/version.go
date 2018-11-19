@@ -56,7 +56,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	}
 	podtmpSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: as.GetCommonLables(map[string]string{
+			Labels: as.GetCommonLabels(map[string]string{
 				"name":    as.ServiceAlias,
 				"version": as.DeployVersion,
 			}),

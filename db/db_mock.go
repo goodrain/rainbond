@@ -710,12 +710,12 @@ func (_mr *_MockManagerRecorder) HttpRuleDao() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "HttpRuleDao")
 }
 
-func (_m *MockManager) StreamRuleDao() dao.StreamRuleDao {
-	ret := _m.ctrl.Call(_m, "StreamRuleDao")
-	ret0, _ := ret[0].(dao.StreamRuleDao)
+func (_m *MockManager) TcpRuleDao() dao.TcpRuleDao {
+	ret := _m.ctrl.Call(_m, "TcpRuleDao")
+	ret0, _ := ret[0].(dao.TcpRuleDao)
 	return ret0
 }
 
-func (_mr *_MockManagerRecorder) StreamRuleDao() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "StreamRuleDao")
+func (_mr *_MockManagerRecorder) TcpRuleDao() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "TcpRuleDao")
 }

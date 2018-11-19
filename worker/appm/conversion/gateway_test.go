@@ -83,7 +83,7 @@ func TestApplyTcpRule(t *testing.T) {
 		t.Errorf("Can not convert %s(string) to int: %v",
 			testCase[parser.GetAnnotationWithPrefix("l4-port")], err)
 	}
-	streamRule := &model.TcpRule{
+	tcpRule := &model.TcpRule{
 		ServiceID:        serviceID,
 		ContainerPort:    port.ContainerPort,
 		IP:               testCase[parser.GetAnnotationWithPrefix("l4-host")],
@@ -91,7 +91,7 @@ func TestApplyTcpRule(t *testing.T) {
 		LoadBalancerType: model.RoundRobinLBType,
 	}
 
-	ing, err := applyTcpRule(streamRule, service,
+	ing, err := applyTcpRule(tcpRule, service,
 		testCase[parser.GetAnnotationWithPrefix("l4-port")], testCase["namespace"])
 	if err != nil {
 		t.Errorf("Unexpected error occurred while applying stream rule: %v", err)
