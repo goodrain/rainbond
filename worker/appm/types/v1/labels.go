@@ -18,8 +18,8 @@
 
 package v1
 
-//GetCommonLables get common lables
-func (a *AppService) GetCommonLables(labels ...map[string]string) map[string]string {
+//GetCommonLabels get common labels
+func (a *AppService) GetCommonLabels(labels ...map[string]string) map[string]string {
 	var resultLabel = make(map[string]string)
 	for _, l := range labels {
 		for k, v := range l {

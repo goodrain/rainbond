@@ -123,7 +123,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.Certificate{})
 	m.models = append(m.models, &model.RuleExtension{})
 	m.models = append(m.models, &model.HttpRule{})
-	m.models = append(m.models, &model.StreamRule{})
+	m.models = append(m.models, &model.TcpRule{})
 }
 
 //CheckTable check and create tables

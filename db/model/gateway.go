@@ -19,38 +19,30 @@
 package model
 
 func (Certificate) TableName() string {
-	return "certificate"
+	return "gateway_certificate"
 }
 
 // Certificate contains TLS information
 type Certificate struct {
 	Model
+	UUID            string `gorm:"column:uuid"`
 	CertificateName string `gorm:"column:certificate_name;size:128"`
 	Certificate     string `gorm:"column:certificate;size:128"`
 	PrivateKey      string `gorm:"column:private_key;size:128"`
 }
 
 func (RuleExtension) TableName() string {
-	return "rule_extension"
+	return "gateway_rule_extension"
 }
 
-type RuleType string
+type ExtensionValue string
 
-var HttpRuleType RuleType = "http"
-
-var StreamRuleType RuleType = "stream"
-
-type RuleValueType string
-
-var HttpsRVT RuleValueType = "Https"
-
-var HttpToHttpsRVT RuleValueType = "HttpToHttps"
-
-var HttpAndHttpsRVT RuleValueType = "HttpAndHttps"
+var HttpToHttpsEV ExtensionValue = "HttpToHttps"
 
 type RuleExtension struct {
 	Model
-	Value RuleValueType `gorm:"column:rule_value_type"`
+	ServiceID string         `gorm:"column:service_id"`
+	Value     ExtensionValue `gorm:"column:rule_value_type"`
 }
 
 type LoadBalancerType string
@@ -60,7 +52,7 @@ var RoundRobinLBType LoadBalancerType = "RoundRobin"
 var ConsistenceHashLBType LoadBalancerType = "ConsistentHash"
 
 func (HttpRule) TableName() string {
-	return "http_rule"
+	return "gateway_http_rule"
 }
 
 // HttpRule contains http rule
@@ -75,20 +67,18 @@ type HttpRule struct {
 	IP               string           `gorm:"column:ip"`
 	LoadBalancerType LoadBalancerType `gorm:"column:load_balancer_type"`
 	CertificateID    string           `gorm:"column:certificate_id"`
-	RuleExtensionID  string           `gorm:"column:rule_extension_id"`
 }
 
-func (StreamRule) TableName() string {
-	return "stream_rule"
+func (TcpRule) TableName() string {
+	return "gateway_tcp_rule"
 }
 
-// StreamRule contain stream rule
-type StreamRule struct {
+// TcpRule contain stream rule
+type TcpRule struct {
 	Model
 	ServiceID        string           `gorm:"column:service_id"`
 	ContainerPort    int              `gorm:"column:container_port"`
 	IP               string           `gorm:"column:ip"`
 	Port             int              `gorm:"column:port"` // TODO: 这个就是mappingPort吗???
 	LoadBalancerType LoadBalancerType `gorm:"column:load_balancer_type"`
-	RuleExtensionID  string           `gorm:"column:rule_extension_id"`
 }
