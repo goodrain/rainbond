@@ -134,11 +134,9 @@ func initBaseStatefulSet(as *v1.AppService, service *dbmodel.TenantServices) {
 	stateful.Namespace = service.TenantID
 	stateful.Name = service.ServiceAlias
 	stateful.GenerateName = service.ServiceAlias
-	stateful.Labels = getCommonLable(stateful.Labels, map[string]string{
-		"name":       service.ServiceAlias,
-		"version":    service.DeployVersion,
-		"service_id": service.ServiceID,
-		"creater_id": as.CreaterID,
+	stateful.Labels = as.GetCommonLables(stateful.Labels, map[string]string{
+		"name":    service.ServiceAlias,
+		"version": service.DeployVersion,
 	})
 	as.SetStatefulSet(stateful)
 }
@@ -157,11 +155,9 @@ func initBaseDeployment(as *v1.AppService, service *dbmodel.TenantServices) {
 	deployment.Namespace = service.TenantID
 	deployment.Name = util.NewUUID()
 	deployment.GenerateName = strings.Replace(service.ServiceAlias, "_", "-", -1)
-	deployment.Labels = getCommonLable(deployment.Labels, map[string]string{
-		"name":       service.ServiceAlias,
-		"version":    service.DeployVersion,
-		"service_id": service.ServiceID,
-		"creater_id": as.CreaterID,
+	deployment.Labels = as.GetCommonLables(deployment.Labels, map[string]string{
+		"name":    service.ServiceAlias,
+		"version": service.DeployVersion,
 	})
 	as.SetDeployment(deployment)
 }

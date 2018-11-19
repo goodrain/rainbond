@@ -16,9 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package conversion
+package v1
 
-func getCommonLable(labels ...map[string]string) map[string]string {
+//GetCommonLables get common lables
+func (a *AppService) GetCommonLables(labels ...map[string]string) map[string]string {
 	var resultLabel = make(map[string]string)
 	for _, l := range labels {
 		for k, v := range l {
@@ -26,5 +27,7 @@ func getCommonLable(labels ...map[string]string) map[string]string {
 		}
 	}
 	resultLabel["creater"] = "Rainbond"
+	resultLabel["creater_id"] = a.CreaterID
+	resultLabel["service_id"] = a.ServiceID
 	return resultLabel
 }
