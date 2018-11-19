@@ -57,9 +57,9 @@ func (c *RuleExtensionDaoImpl) UpdateModel(model.Interface) error {
 	return nil
 }
 
-func (c *RuleExtensionDaoImpl) GetRuleExtensionByID(ruleExtensionID string) (*model.RuleExtension, error) {
-	var ruleExtension *model.RuleExtension
-	if err := c.DB.Where("id = ?", ruleExtensionID).Find(&ruleExtension).Error; err != nil {
+func (c *RuleExtensionDaoImpl) GetRuleExtensionByServiceID(serviceID string) ([]*model.RuleExtension, error) {
+	var ruleExtension []*model.RuleExtension
+	if err := c.DB.Where("service_id = ?", serviceID).Find(&ruleExtension).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return ruleExtension, nil
 		}
@@ -106,10 +106,10 @@ func (s *StreamRuleDaoTmpl) UpdateModel(model.Interface) error {
 	return nil
 }
 
-// GetStreamRuleByServiceIDAndContainerPort gets a StreamRule based on serviceID and containerPort
+// GetStreamRuleByServiceIDAndContainerPort gets a TcpRule based on serviceID and containerPort
 func (s *StreamRuleDaoTmpl) GetStreamRuleByServiceIDAndContainerPort(serviceID string,
-	containerPort int) (*model.StreamRule, error) {
-	var result *model.StreamRule
+	containerPort int) (*model.TcpRule, error) {
+	var result *model.TcpRule
 	if err := s.DB.Where("service_id = ? and container_port", serviceID,
 		containerPort).Find(result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {

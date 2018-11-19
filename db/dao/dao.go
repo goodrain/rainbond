@@ -413,7 +413,7 @@ type CertificateDao interface {
 // RuleExtensionDao -
 type RuleExtensionDao interface {
 	Dao
-	GetRuleExtensionByID(ruleExtensionID string) (*model.RuleExtension, error)
+	GetRuleExtensionByServiceID(serviceID string) ([]*model.RuleExtension, error)
 }
 
 // HttpRuleDao -
@@ -425,5 +425,5 @@ type HttpRuleDao interface {
 // StreamRuleDao -
 type StreamRuleDao interface {
 	Dao
-	GetStreamRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.StreamRule, error)
+	GetStreamRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.TcpRule, error)
 }

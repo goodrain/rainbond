@@ -4,9 +4,9 @@
 package dao
 
 import (
-	"github.com/goodrain/rainbond/db/model"
-	"github.com/rafrombrc/gomock/gomock"
-	"time"
+	model "github.com/goodrain/rainbond/db/model"
+	time "time"
+	gomock "github.com/rafrombrc/gomock/gomock"
 )
 
 // Mock of Dao interface
@@ -3516,15 +3516,15 @@ func (_mr *_MockRuleExtensionDaoRecorder) UpdateModel(arg0 interface{}) *gomock.
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
 }
 
-func (_m *MockRuleExtensionDao) GetRuleExtensionByID(ruleExtensionID string) (*model.RuleExtension, error) {
-	ret := _m.ctrl.Call(_m, "GetRuleExtensionByID", ruleExtensionID)
-	ret0, _ := ret[0].(*model.RuleExtension)
+func (_m *MockRuleExtensionDao) GetRuleExtensionByServiceID(serviceID string) ([]*model.RuleExtension, error) {
+	ret := _m.ctrl.Call(_m, "GetRuleExtensionByServiceID", serviceID)
+	ret0, _ := ret[0].([]*model.RuleExtension)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockRuleExtensionDaoRecorder) GetRuleExtensionByID(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetRuleExtensionByID", arg0)
+func (_mr *_MockRuleExtensionDaoRecorder) GetRuleExtensionByServiceID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetRuleExtensionByServiceID", arg0)
 }
 
 // Mock of HttpRuleDao interface
@@ -3620,9 +3620,9 @@ func (_mr *_MockStreamRuleDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Cal
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
 }
 
-func (_m *MockStreamRuleDao) GetStreamRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.StreamRule, error) {
+func (_m *MockStreamRuleDao) GetStreamRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.TcpRule, error) {
 	ret := _m.ctrl.Call(_m, "GetStreamRuleByServiceIDAndContainerPort", serviceID, containerPort)
-	ret0, _ := ret[0].(*model.StreamRule)
+	ret0, _ := ret[0].(*model.TcpRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

@@ -34,7 +34,7 @@ import (
 	"time"
 )
 
-func TestApplyStreamRule(t *testing.T) {
+func TestApplyTcpRule(t *testing.T) {
 	testCase := map[string]string{
 		"namespace": "e8539a9c33fd418db11cce26d2bca431",
 		parser.GetAnnotationWithPrefix("l4-enable"): "true",
@@ -83,7 +83,7 @@ func TestApplyStreamRule(t *testing.T) {
 		t.Errorf("Can not convert %s(string) to int: %v",
 			testCase[parser.GetAnnotationWithPrefix("l4-port")], err)
 	}
-	streamRule := &model.StreamRule{
+	streamRule := &model.TcpRule{
 		ServiceID:        serviceID,
 		ContainerPort:    port.ContainerPort,
 		IP:               testCase[parser.GetAnnotationWithPrefix("l4-host")],
@@ -91,7 +91,7 @@ func TestApplyStreamRule(t *testing.T) {
 		LoadBalancerType: model.RoundRobinLBType,
 	}
 
-	ing, err := applyStreamRule(streamRule, service,
+	ing, err := applyTcpRule(streamRule, service,
 		testCase[parser.GetAnnotationWithPrefix("l4-port")], testCase["namespace"])
 	if err != nil {
 		t.Errorf("Unexpected error occurred while applying stream rule: %v", err)
@@ -193,6 +193,10 @@ func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 	}
 	tenantDao.EXPECT().GetTenantByUUID(services.TenantID).Return(tenant, nil)
 	dbmanager.EXPECT().TenantDao().Return(tenantDao)
+
+	extensionDao := dao.NewMockRuleExtensionDao(ctrl)
+	extensionDao.EXPECT().GetRuleExtensionByServiceID(serviceID).Return(nil, nil)
+	dbmanager.EXPECT().RuleExtensionDao().Return(extensionDao)
 
 	replicationType := v1.TypeDeployment
 	build, err := AppServiceBuilder(serviceID, string(replicationType), dbmanager)
