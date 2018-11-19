@@ -28,8 +28,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	api_db "github.com/goodrain/rainbond/api/db"
-	"github.com/goodrain/rainbond/appruntimesync/client"
 	"github.com/goodrain/rainbond/cmd/api/option"
+	"github.com/goodrain/rainbond/worker/client"
 )
 
 //InitHandle 初始化handle

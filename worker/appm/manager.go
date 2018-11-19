@@ -23,11 +23,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/goodrain/rainbond/appruntimesync/client"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/worker/client"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"

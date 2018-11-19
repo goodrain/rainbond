@@ -45,8 +45,10 @@ func (s *stopController) Begin() {
 			defer wait.Done()
 			service.Logger.Info("App runtime begin stop app service "+service.ServiceAlias, getLoggerOption("starting"))
 			if err := s.stopOne(service); err != nil {
-				service.Logger.Error(fmt.Sprintf("stop service %s failure %s", service.ServiceAlias, err.Error()), getLoggerOption("failure"))
+				service.Logger.Error(fmt.Sprintf("stop service %s failure %s", service.ServiceAlias, err.Error()), getCallbackLoggerOption())
 				logrus.Errorf("stop service %s failure %s", service.ServiceAlias, err.Error())
+			} else {
+				service.Logger.Error(fmt.Sprintf("stop service %s success", service.ServiceAlias, err.Error()), getLastLoggerOption())
 			}
 		}(service)
 	}
@@ -144,6 +146,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	return s.WaitingReady(app)
 }
 func (s *stopController) Stop() error {
+	close(s.stopChan)
 	return nil
 }
 
@@ -152,7 +155,7 @@ func (s *stopController) WaitingReady(app v1.AppService) error {
 	storeAppService := s.manager.store.GetAppService(app.ServiceID, app.DeployVersion, app.CreaterID)
 	//at least waiting time is 40 second
 	var initTime = 40
-	if err := storeAppService.WaitStop(time.Duration(initTime), app.Logger, s.stopChan); err != nil {
+	if err := storeAppService.WaitStop(time.Duration(initTime*app.Replicas), app.Logger, s.stopChan); err != nil {
 		return err
 	}
 	return nil

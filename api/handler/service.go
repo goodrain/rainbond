@@ -39,9 +39,9 @@ import (
 	api_db "github.com/goodrain/rainbond/api/db"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
-	"github.com/goodrain/rainbond/appruntimesync/client"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	core_util "github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/discover/model"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -466,6 +466,21 @@ func (s *ServiceAction) StartStopService(sss *api_model.StartStopStruct) error {
 
 //ServiceVertical vertical service
 func (s *ServiceAction) ServiceVertical(vs *model.VerticalScalingTaskBody) error {
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(vs.ServiceID)
+	if err != nil {
+		logrus.Errorf("get service by id %s error, %s", service.ServiceID, err)
+		return err
+	}
+	if service.ContainerMemory == vs.ContainerMemory && service.ContainerCPU == vs.ContainerCPU {
+		return nil
+	}
+	service.ContainerMemory = vs.ContainerMemory
+	service.ContainerCPU = vs.ContainerCPU
+	err = db.GetManager().TenantServiceDao().UpdateModel(service)
+	if err != nil {
+		logrus.Errorf("update service memory and cpu failure. %v", err)
+		return fmt.Errorf("Vertical service faliure:%s", err.Error())
+	}
 	ts := &api_db.TaskStruct{
 		TaskType: "vertical_scaling",
 		TaskBody: vs,
@@ -477,7 +492,7 @@ func (s *ServiceAction) ServiceVertical(vs *model.VerticalScalingTaskBody) error
 		return errEq
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	_, err := s.MQClient.Enqueue(ctx, eq)
+	_, err = s.MQClient.Enqueue(ctx, eq)
 	cancel()
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
@@ -489,6 +504,20 @@ func (s *ServiceAction) ServiceVertical(vs *model.VerticalScalingTaskBody) error
 
 //ServiceHorizontal Service Horizontal
 func (s *ServiceAction) ServiceHorizontal(hs *model.HorizontalScalingTaskBody) error {
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(hs.ServiceID)
+	if err != nil {
+		logrus.Errorf("get service by id %s error, %s", service.ServiceID, err)
+		return err
+	}
+	if int32(service.Replicas) == hs.Replicas {
+		return nil
+	}
+	service.Replicas = int(hs.Replicas)
+	err = db.GetManager().TenantServiceDao().UpdateModel(service)
+	if err != nil {
+		logrus.Errorf("updtae service replicas failure. %v", err)
+		return fmt.Errorf("horizontal service faliure:%s", err.Error())
+	}
 	ts := &api_db.TaskStruct{
 		TaskType: "horizontal_scaling",
 		TaskBody: hs,
@@ -500,7 +529,7 @@ func (s *ServiceAction) ServiceHorizontal(hs *model.HorizontalScalingTaskBody) e
 		return errEq
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	_, err := s.MQClient.Enqueue(ctx, eq)
+	_, err = s.MQClient.Enqueue(ctx, eq)
 	cancel()
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
@@ -517,7 +546,16 @@ func (s *ServiceAction) ServiceUpgrade(ru *model.RollingUpgradeTaskBody) error {
 		logrus.Errorf("get service by id error, %v, %v", services, err)
 		return err
 	}
+	if ru.NewDeployVersion == services.DeployVersion {
+		return nil
+	}
 	ru.CurrentDeployVersion = services.DeployVersion
+	services.DeployVersion = ru.NewDeployVersion
+	err = db.GetManager().TenantServiceDao().UpdateModel(services)
+	if err != nil {
+		logrus.Errorf("update service deploy version error. %v", err)
+		return fmt.Errorf("horizontal service faliure:%s", err.Error())
+	}
 	ts := &api_db.TaskStruct{
 		TaskType: "rolling_upgrade",
 		TaskBody: ru,
@@ -655,11 +693,6 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 				return err
 			}
 		}
-	}
-	//set app status
-	if err := s.statusCli.SetStatus(ts.ServiceID, "undeploy"); err != nil {
-		tx.Rollback()
-		return err
 	}
 	//set app label
 	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&dbmodel.TenantServiceLable{

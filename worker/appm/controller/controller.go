@@ -98,12 +98,28 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			controllerID: controllerID,
 			appService:   apps,
 			manager:      m,
+			stopChan:     make(chan struct{}),
 		}
 	case TypeStopController:
 		controller = &stopController{
 			controllerID: controllerID,
 			appService:   apps,
 			manager:      m,
+			stopChan:     make(chan struct{}),
+		}
+	case TypeScalingController:
+		controller = &scalingController{
+			controllerID: controllerID,
+			appService:   apps,
+			manager:      m,
+			stopChan:     make(chan struct{}),
+		}
+	case TypeUpgradeController:
+		controller = &upgradeController{
+			controllerID: controllerID,
+			appService:   apps,
+			manager:      m,
+			stopChan:     make(chan struct{}),
 		}
 	default:
 		return fmt.Errorf("No support controller")
@@ -122,6 +138,12 @@ func (m *Manager) callback(controllerID string, err error) {
 
 func getLoggerOption(status string) map[string]string {
 	return map[string]string{"step": "appruntime", "status": status}
+}
+func getCallbackLoggerOption() map[string]string {
+	return map[string]string{"step": "callback", "status": "failure"}
+}
+func getLastLoggerOption() map[string]string {
+	return map[string]string{"step": "last", "status": "failure"}
 }
 
 type sequencelist []sequence

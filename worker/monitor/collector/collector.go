@@ -26,8 +26,8 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 
 	"github.com/Sirupsen/logrus"
-	status "github.com/goodrain/rainbond/appruntimesync/client"
 	"github.com/goodrain/rainbond/db"
+	status "github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/discover"
 	"github.com/prometheus/client_golang/prometheus"
 )

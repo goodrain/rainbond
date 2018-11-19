@@ -37,8 +37,8 @@ import (
 	validator "github.com/thedevsaddam/govalidator"
 
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/appruntimesync/client"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/goodrain/rainbond/worker/client"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/renstorm/fuzzysearch/fuzzy"
@@ -93,7 +93,7 @@ func (v2 *V2Routes) AlertManagerWebHook(w http.ResponseWriter, r *http.Request) 
 }
 
 func (v2 *V2Routes) Version(w http.ResponseWriter, r *http.Request) {
-	httputil.ReturnSuccess(r,w,map[string]string{"version":os.Getenv("RELEASE_DESC")})
+	httputil.ReturnSuccess(r, w, map[string]string{"version": os.Getenv("RELEASE_DESC")})
 }
 
 //TenantStruct tenant struct
@@ -1630,11 +1630,11 @@ func (t *TenantStruct) Pods(w http.ResponseWriter, r *http.Request) {
 	pods, err := handler.GetServiceManager().GetPods(serviceID)
 	if err != nil {
 		if err.Error() == gorm.ErrRecordNotFound.Error() {
-			logrus.Error("record notfound:",err)
+			logrus.Error("record notfound:", err)
 			httputil.ReturnError(r, w, 404, fmt.Sprintf("get pods error, %v", err))
 			return
 		}
-		logrus.Error("get pods error:",err)
+		logrus.Error("get pods error:", err)
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get pods error, %v", err))
 		return
 	}

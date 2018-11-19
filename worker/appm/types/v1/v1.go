@@ -21,7 +21,6 @@ package v1
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 
@@ -46,6 +45,15 @@ var TypeDeployment AppServiceType = "deployment"
 //TypeReplicationController rc
 var TypeReplicationController AppServiceType = "replicationcontroller"
 
+//TypeUpgradeMethod upgrade service method type
+type TypeUpgradeMethod string
+
+//Rolling Start the new version before stoping the old version the rolling upgrade
+var Rolling TypeUpgradeMethod = "Rolling"
+
+//OnDelete Stop the old version before starting the new version the upgrade
+var OnDelete TypeUpgradeMethod = "OnDelete"
+
 //AppServiceBase app service base info
 type AppServiceBase struct {
 	TenantID        string
@@ -56,6 +64,7 @@ type AppServiceBase struct {
 	DeployVersion   string
 	ContainerCPU    int
 	ContainerMemory int
+	UpgradeMethod   TypeUpgradeMethod
 	Replicas        int
 	NeedProxy       bool
 	CreaterID       string
@@ -333,82 +342,4 @@ func (a *AppService) DeletePods(d *corev1.Pod) {
 //GetPods get pods
 func (a *AppService) GetPods() []*corev1.Pod {
 	return a.pods
-}
-
-//ErrWaitTimeOut wait time out
-var ErrWaitTimeOut = fmt.Errorf("Wait time out")
-
-//ErrWaitCancel wait cancel
-var ErrWaitCancel = fmt.Errorf("Wait cancel")
-
-//WaitReady wait ready
-func (a *AppService) WaitReady(timeout time.Duration, logger event.Logger, cancel chan struct{}) error {
-	if a.Ready() {
-		return nil
-	}
-	ticker := time.NewTicker(timeout / 10)
-	timer := time.NewTimer(timeout)
-	defer ticker.Stop()
-	select {
-	case <-cancel:
-		return ErrWaitCancel
-	case <-timer.C:
-		return ErrWaitTimeOut
-	case <-ticker.C:
-		if a.Ready() {
-			return nil
-		}
-		a.printLogger(logger)
-	}
-	return nil
-}
-
-//WaitStop wait service stop complate
-func (a *AppService) WaitStop(timeout time.Duration, logger event.Logger, cancel chan struct{}) error {
-	if a == nil {
-		return nil
-	}
-	if len(a.pods) == 0 && a.statefulset == nil && a.deployment == nil {
-		return nil
-	}
-	ticker := time.NewTicker(timeout / 10)
-	timer := time.NewTimer(timeout)
-	defer ticker.Stop()
-	select {
-	case <-cancel:
-		return ErrWaitCancel
-	case <-timer.C:
-		return ErrWaitTimeOut
-	case <-ticker.C:
-		if len(a.pods) == 0 && a.statefulset == nil && a.deployment == nil {
-			return nil
-		}
-		a.printLogger(logger)
-	}
-	return nil
-}
-func (a *AppService) printLogger(logger event.Logger) {
-	var ready int32
-	if a.statefulset != nil {
-		ready = a.statefulset.Status.ReadyReplicas
-	}
-	if a.deployment != nil {
-		ready = a.deployment.Status.ReadyReplicas
-	}
-	logger.Info(fmt.Sprintf("current instance(count:%d ready:%d notready:%d)", len(a.pods), ready, int32(len(a.pods))-ready), map[string]string{"step": "appruntime", "status": "running"})
-}
-
-//Ready Whether ready
-func (a *AppService) Ready() bool {
-	if a.statefulset != nil {
-		if a.statefulset.Status.ReadyReplicas >= int32(a.Replicas) {
-			return true
-		}
-	}
-	if a.deployment != nil {
-		if a.deployment.Status.ReadyReplicas >= int32(a.Replicas) {
-			return true
-		}
-	}
-	return false
 }

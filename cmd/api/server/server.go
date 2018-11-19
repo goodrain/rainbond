@@ -29,9 +29,9 @@ import (
 	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/server"
-	"github.com/goodrain/rainbond/appruntimesync/client"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/worker/client"
 
 	"github.com/Sirupsen/logrus"
 )

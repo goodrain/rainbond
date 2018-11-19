@@ -24,8 +24,8 @@ import (
 	"github.com/goodrain/rainbond/api/apiFunc"
 	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/proxy"
-	"github.com/goodrain/rainbond/appruntimesync/client"
 	"github.com/goodrain/rainbond/cmd/api/option"
+	"github.com/goodrain/rainbond/worker/client"
 
 	"github.com/Sirupsen/logrus"
 )

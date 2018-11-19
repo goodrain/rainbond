@@ -20,7 +20,9 @@ package v1
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/goodrain/rainbond/event"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -128,4 +130,137 @@ func isHaveTerminatedContainer(pods []*corev1.Pod) bool {
 		}
 	}
 	return false
+}
+
+//ErrWaitTimeOut wait time out
+var ErrWaitTimeOut = fmt.Errorf("Wait time out")
+
+//ErrWaitCancel wait cancel
+var ErrWaitCancel = fmt.Errorf("Wait cancel")
+
+//WaitReady wait ready
+func (a *AppService) WaitReady(timeout time.Duration, logger event.Logger, cancel chan struct{}) error {
+	if a.Ready() {
+		return nil
+	}
+	ticker := time.NewTicker(timeout / 10)
+	timer := time.NewTimer(timeout)
+	defer ticker.Stop()
+	select {
+	case <-cancel:
+		return ErrWaitCancel
+	case <-timer.C:
+		return ErrWaitTimeOut
+	case <-ticker.C:
+		if a.Ready() {
+			return nil
+		}
+		a.printLogger(logger)
+	}
+	return nil
+}
+
+//WaitStop wait service stop complate
+func (a *AppService) WaitStop(timeout time.Duration, logger event.Logger, cancel chan struct{}) error {
+	if a == nil {
+		return nil
+	}
+	if len(a.pods) == 0 && a.statefulset == nil && a.deployment == nil {
+		return nil
+	}
+	ticker := time.NewTicker(timeout / 10)
+	timer := time.NewTimer(timeout)
+	defer ticker.Stop()
+	select {
+	case <-cancel:
+		return ErrWaitCancel
+	case <-timer.C:
+		return ErrWaitTimeOut
+	case <-ticker.C:
+		if len(a.pods) == 0 && a.statefulset == nil && a.deployment == nil {
+			return nil
+		}
+		a.printLogger(logger)
+	}
+	return nil
+}
+func (a *AppService) printLogger(logger event.Logger) {
+	var ready int32
+	if a.statefulset != nil {
+		ready = a.statefulset.Status.ReadyReplicas
+	}
+	if a.deployment != nil {
+		ready = a.deployment.Status.ReadyReplicas
+	}
+	logger.Info(fmt.Sprintf("current instance(count:%d ready:%d notready:%d)", len(a.pods), ready, int32(len(a.pods))-ready), map[string]string{"step": "appruntime", "status": "running"})
+}
+
+//Ready Whether ready
+func (a *AppService) Ready() bool {
+	if a.statefulset != nil {
+		if a.statefulset.Status.ReadyReplicas >= int32(a.Replicas) {
+			return true
+		}
+	}
+	if a.deployment != nil {
+		if a.deployment.Status.ReadyReplicas >= int32(a.Replicas) {
+			return true
+		}
+	}
+	return false
+}
+
+//GetReadyReplicas get already ready pod number
+func (a *AppService) GetReadyReplicas() int32 {
+	if a.statefulset != nil {
+		return a.statefulset.Status.ReadyReplicas
+	}
+	if a.deployment != nil {
+		return a.deployment.Status.ReadyReplicas
+	}
+	return 0
+}
+
+//GetRunningVersion get running version
+func (a *AppService) GetRunningVersion() string {
+	if a.statefulset != nil {
+		return a.statefulset.Labels["version"]
+	}
+	if a.deployment != nil {
+		return a.deployment.Labels["version"]
+	}
+	return ""
+}
+func (a *AppService) upgradeComlete() bool {
+	for _, pod := range a.pods {
+		if pod.Labels["version"] != a.DeployVersion {
+			return false
+		}
+	}
+	return a.Ready()
+}
+
+//WaitUpgradeReady wait upgrade success
+func (a *AppService) WaitUpgradeReady(timeout time.Duration, logger event.Logger, cancel chan struct{}) error {
+	if a == nil {
+		return nil
+	}
+	if a.upgradeComlete() {
+		return nil
+	}
+	ticker := time.NewTicker(timeout / 10)
+	timer := time.NewTimer(timeout)
+	defer ticker.Stop()
+	select {
+	case <-cancel:
+		return ErrWaitCancel
+	case <-timer.C:
+		return ErrWaitTimeOut
+	case <-ticker.C:
+		if a.upgradeComlete() {
+			return nil
+		}
+		a.printLogger(logger)
+	}
+	return nil
 }

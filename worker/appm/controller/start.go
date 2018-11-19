@@ -50,8 +50,10 @@ func (s *startController) Begin() {
 				defer wait.Done()
 				service.Logger.Info("App runtime begin start app service "+service.ServiceAlias, getLoggerOption("starting"))
 				if err := s.startOne(&wait, service); err != nil {
-					service.Logger.Error(fmt.Sprintf("start service %s failure %s", service.ServiceAlias, err.Error()), getLoggerOption("failure"))
+					service.Logger.Error(fmt.Sprintf("start service %s failure %s", service.ServiceAlias, err.Error()), getCallbackLoggerOption())
 					logrus.Errorf("start service %s failure %s", service.ServiceAlias, err.Error())
+				} else {
+					service.Logger.Error(fmt.Sprintf("start service %s success", service.ServiceAlias, err.Error()), getLastLoggerOption())
 				}
 			}(*service)
 		}
@@ -126,7 +128,7 @@ func (s *startController) WaitingReady(app v1.AppService) error {
 	}
 	//at least waiting time is 40 second
 	initTime += 40
-	if err := storeAppService.WaitReady(time.Duration(initTime), app.Logger, s.stopChan); err != nil {
+	if err := storeAppService.WaitReady(time.Duration(initTime*int32(app.Replicas)), app.Logger, s.stopChan); err != nil {
 		return err
 	}
 	return nil

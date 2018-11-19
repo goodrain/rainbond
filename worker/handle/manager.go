@@ -137,7 +137,7 @@ func (m *Manager) startExec(task *model.Task) error {
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("Application start failure")
 	}
-	logrus.Infof("service(%s) start working is running.", body.ServiceID)
+	logrus.Infof("service(%s) %s working is running.", body.ServiceID, "start")
 	return nil
 }
 
@@ -164,7 +164,7 @@ func (m *Manager) stopExec(task *model.Task) error {
 			return fmt.Errorf("Application stop failure")
 		}
 	}
-	logrus.Infof("service(%s) stop working is running.", body.ServiceID)
+	logrus.Infof("service(%s) %s working is running.", body.ServiceID, "stop")
 	return nil
 }
 
@@ -188,7 +188,7 @@ func (m *Manager) restartExec(task *model.Task) error {
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("Application stop failure")
 	}
-	logrus.Infof("service(%s) stop working is running.", body.ServiceID)
+	logrus.Infof("service(%s) %s working is running.", body.ServiceID, "restart")
 	return nil
 }
 
@@ -206,18 +206,19 @@ func (m *Manager) horizontalScalingExec(task *model.Task) error {
 		logrus.Errorf("horizontal_scaling get rc error. %v", err)
 		return fmt.Errorf("a")
 	}
-	oldReplicas := int32(service.Replicas)
-	//newReplicas 超过3w时存储问题
-	service.Replicas = int(body.Replicas)
-	err = db.GetManager().TenantServiceDao().UpdateModel(service)
-	if err != nil {
-		logrus.Errorf("horizontal_scaling set new replicas error. %v", err)
-		logger.Error("更新应用信息失败", map[string]string{"step": "callback", "status": "failure"})
-		event.GetManager().ReleaseLogger(logger)
-		return fmt.Errorf("a")
+	appService := m.store.GetAppServiceWithoutCreaterID(service.ServiceID, service.DeployVersion)
+	if appService == nil || appService.IsClosed() {
+		return nil
 	}
-	fmt.Println(oldReplicas)
-	logger.Info("水平伸缩任务创建成功", map[string]string{"step": "worker-handle", "status": "success"})
+	appService.Logger = logger
+	err = m.controllerManager.StartController(controller.TypeScalingController, *appService)
+	if err != nil {
+		logrus.Errorf("Application run  scaling controller failure:%s", err.Error())
+		logger.Info("Application run scaling controller failure", map[string]string{"step": "callback", "status": "faliure"})
+		event.GetManager().ReleaseLogger(logger)
+		return fmt.Errorf("Application scaling failure")
+	}
+	logrus.Infof("service(%s) %s working is running.", body.ServiceID, "scaling")
 	return nil
 }
 
@@ -235,24 +236,62 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("a")
 	}
-	service.ContainerCPU = int(body.ContainerCPU)
-	service.ContainerMemory = int(body.ContainerMemory)
-	err = db.GetManager().TenantServiceDao().UpdateModel(service)
-	if err != nil {
-		logrus.Errorf("vertical_scaling set new cpu&memory error. %v", err)
-		logger.Error("更新应用信息失败", map[string]string{"step": "callback", "status": "failure"})
-		event.GetManager().ReleaseLogger(logger)
-		return fmt.Errorf("a")
+	appService := m.store.GetAppServiceWithoutCreaterID(service.ServiceID, service.DeployVersion)
+	if appService == nil || appService.IsClosed() {
+		return nil
 	}
-	logger.Info("垂直伸缩重启任务创建成功", map[string]string{"step": "worker-handle", "status": "success"})
+	appService.ContainerCPU = service.ContainerCPU
+	appService.ContainerMemory = service.ContainerMemory
+	appService.Logger = logger
+	err = m.controllerManager.StartController(controller.TypeUpgradeController, *appService)
+	if err != nil {
+		logrus.Errorf("Application run  vertical scaling(upgrade) controller failure:%s", err.Error())
+		logger.Info("Application run vertical scaling(upgrade) controller failure", map[string]string{"step": "callback", "status": "faliure"})
+		event.GetManager().ReleaseLogger(logger)
+		return fmt.Errorf("Application vertical scaling(upgrade) failure")
+	}
+	logrus.Infof("service(%s) %s working is running.", body.ServiceID, "vertical scaling")
 	return nil
 }
 
 func (m *Manager) rollingUpgradeExec(task *model.Task) error {
-	_, ok := task.Body.(model.RollingUpgradeTaskBody)
+	body, ok := task.Body.(model.RollingUpgradeTaskBody)
 	if !ok {
 		logrus.Error("rolling_upgrade body convert to taskbody error", task.Body)
 		return fmt.Errorf("a")
 	}
+	logger := event.GetManager().GetLogger(body.EventID)
+	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID)
+	if err != nil {
+		logrus.Errorf("Application init create failure:%s", err.Error())
+		logger.Info("Application init create failure", map[string]string{"step": "callback", "status": "faliure"})
+		event.GetManager().ReleaseLogger(logger)
+		return fmt.Errorf("Application init create failure")
+	}
+	newAppService.Logger = logger
+	//regist new app service
+	m.store.RegistAppService(newAppService)
+	oldAppService := m.store.GetAppServiceWithoutCreaterID(body.ServiceID, body.CurrentDeployVersion)
+	// if service not deploy,start it
+	if oldAppService == nil || oldAppService.IsClosed() {
+		err = m.controllerManager.StartController(controller.TypeStartController, *newAppService)
+		if err != nil {
+			logrus.Errorf("Application run  start controller failure:%s", err.Error())
+			logger.Info("Application run start controller failure", map[string]string{"step": "callback", "status": "faliure"})
+			event.GetManager().ReleaseLogger(logger)
+			return fmt.Errorf("Application start failure")
+		}
+		logrus.Infof("service(%s) %s working is running.", body.ServiceID, "start")
+		return nil
+	}
+	//if service already deploy,upgrade it:
+	err = m.controllerManager.StartController(controller.TypeUpgradeController, *newAppService)
+	if err != nil {
+		logrus.Errorf("Application run  upgrade controller failure:%s", err.Error())
+		logger.Info("Application run upgrade controller failure", map[string]string{"step": "callback", "status": "faliure"})
+		event.GetManager().ReleaseLogger(logger)
+		return fmt.Errorf("Application upgrade failure")
+	}
+	logrus.Infof("service(%s) %s working is running.", body.ServiceID, "upgrade")
 	return nil
 }

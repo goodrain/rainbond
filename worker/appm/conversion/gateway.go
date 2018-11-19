@@ -20,6 +20,9 @@ package conversion
 
 import (
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
@@ -29,8 +32,6 @@ import (
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"os"
-	"strings"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -513,7 +514,7 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 
 func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPort) *corev1.Service {
 	var service corev1.Service
-	service.Name = a.service.ServiceAlias
+	service.Name = a.service.ServiceName
 	service.Labels = map[string]string{
 		"service_type": "stateful",
 		"name":         a.service.ServiceAlias + "ServiceStateful",

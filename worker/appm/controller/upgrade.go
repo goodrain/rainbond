@@ -19,17 +19,74 @@
 package controller
 
 import (
-	"github.com/goodrain/rainbond/event"
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/Sirupsen/logrus"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 type upgradeController struct {
-	appService  []v1.AppService
-	eventLogger event.Logger
+	stopChan     chan struct{}
+	controllerID string
+	appService   []v1.AppService
+	manager      *Manager
 }
 
 func (s *upgradeController) Begin() {
+	var wait sync.WaitGroup
+	for _, service := range s.appService {
+		go func(service v1.AppService) {
+			wait.Add(1)
+			defer wait.Done()
+			service.Logger.Info("App runtime begin upgrade app service "+service.ServiceAlias, getLoggerOption("starting"))
+			if err := s.upgradeOne(service); err != nil {
+				service.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", service.ServiceAlias, err.Error()), getCallbackLoggerOption())
+				logrus.Errorf("upgrade service %s failure %s", service.ServiceAlias, err.Error())
+			} else {
+				service.Logger.Error(fmt.Sprintf("upgrade service %s success", service.ServiceAlias, err.Error()), getLastLoggerOption())
+			}
+		}(service)
+	}
+	wait.Wait()
+	s.manager.callback(s.controllerID, nil)
 }
 func (s *upgradeController) Stop() error {
+	return nil
+}
+
+func (s *upgradeController) upgradeOne(app v1.AppService) error {
+	if deployment := app.GetDeployment(); deployment != nil {
+		_, err := s.manager.client.AppsV1().Deployments(deployment.Namespace).Update(deployment)
+		if err != nil {
+			app.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
+			logrus.Errorf("upgrade service %s failure %s", app.ServiceAlias, err.Error())
+		}
+	}
+	if statefulset := app.GetStatefulSet(); statefulset != nil {
+		_, err := s.manager.client.AppsV1().StatefulSets(statefulset.Namespace).Update(statefulset)
+		if err != nil {
+			app.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
+			logrus.Errorf("upgrade service %s failure %s", app.ServiceAlias, err.Error())
+		}
+	}
+	return s.WaitingReady(app)
+}
+
+//WaitingReady wait app start or upgrade ready
+func (s *upgradeController) WaitingReady(app v1.AppService) error {
+	storeAppService := s.manager.store.GetAppService(app.ServiceID, app.DeployVersion, app.CreaterID)
+	var initTime int32
+	if podt := app.GetPodTemplate(); podt != nil {
+		if probe := podt.Spec.Containers[0].ReadinessProbe; probe != nil {
+			initTime = probe.InitialDelaySeconds
+		}
+	}
+	//at least waiting time is 40 second
+	initTime += 40
+	if err := storeAppService.WaitUpgradeReady(time.Duration(initTime*int32(app.Replicas)*2), app.Logger, s.stopChan); err != nil {
+		return err
+	}
 	return nil
 }

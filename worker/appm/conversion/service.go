@@ -99,6 +99,7 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	as.ContainerMemory = tenantService.ContainerMemory
 	as.Replicas = tenantService.Replicas
 	as.ServiceAlias = tenantService.ServiceAlias
+	as.UpgradeMethod = v1.TypeUpgradeMethod(tenantService.UpgradeMethod)
 	if as.CreaterID == "" {
 		as.CreaterID = string(util.NewTimeVersion())
 	}
@@ -132,12 +133,16 @@ func initBaseStatefulSet(as *v1.AppService, service *dbmodel.TenantServices) {
 	initSelector(stateful.Spec.Selector, service)
 	stateful.Spec.ServiceName = service.ServiceName
 	stateful.Namespace = service.TenantID
-	stateful.Name = service.ServiceAlias
+	stateful.Name = service.ServiceID + "-statefulset"
 	stateful.GenerateName = service.ServiceAlias
 	stateful.Labels = as.GetCommonLables(stateful.Labels, map[string]string{
 		"name":    service.ServiceAlias,
 		"version": service.DeployVersion,
 	})
+	stateful.Spec.UpdateStrategy.Type = appsv1.RollingUpdateStatefulSetStrategyType
+	if as.UpgradeMethod == v1.OnDelete {
+		stateful.Spec.UpdateStrategy.Type = appsv1.OnDeleteStatefulSetStrategyType
+	}
 	as.SetStatefulSet(stateful)
 }
 
@@ -153,11 +158,15 @@ func initBaseDeployment(as *v1.AppService, service *dbmodel.TenantServices) {
 	}
 	initSelector(deployment.Spec.Selector, service)
 	deployment.Namespace = service.TenantID
-	deployment.Name = util.NewUUID()
+	deployment.Name = service.ServiceID + "-deployment"
 	deployment.GenerateName = strings.Replace(service.ServiceAlias, "_", "-", -1)
 	deployment.Labels = as.GetCommonLables(deployment.Labels, map[string]string{
 		"name":    service.ServiceAlias,
 		"version": service.DeployVersion,
 	})
+	deployment.Spec.Strategy.Type = appsv1.RollingUpdateDeploymentStrategyType
+	if as.UpgradeMethod == v1.OnDelete {
+		deployment.Spec.Strategy.Type = appsv1.RecreateDeploymentStrategyType
+	}
 	as.SetDeployment(deployment)
 }

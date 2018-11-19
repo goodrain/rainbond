@@ -24,13 +24,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
-	status "github.com/goodrain/rainbond/appruntimesync/client"
+	httputil "github.com/goodrain/rainbond/util/http"
+	status "github.com/goodrain/rainbond/worker/client"
+	"github.com/goodrain/rainbond/worker/discover"
 	"github.com/goodrain/rainbond/worker/monitor/collector"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
-	"github.com/goodrain/rainbond/worker/discover"
-	httputil "github.com/goodrain/rainbond/util/http"
 )
 
 //ExporterManager app resource exporter
@@ -81,10 +81,10 @@ func (t *ExporterManager) Start() error {
 	})
 	http.HandleFunc("/worker/health", func(w http.ResponseWriter, r *http.Request) {
 		healthStatus := discover.HealthCheck()
-		if healthStatus["status"] != "health"{
-			httputil.ReturnError(r,w,400,"worker service unusual")
+		if healthStatus["status"] != "health" {
+			httputil.ReturnError(r, w, 400, "worker service unusual")
 		}
-		httputil.ReturnSuccess(r,w,healthStatus)
+		httputil.ReturnSuccess(r, w, healthStatus)
 	})
 	log.Infoln("Listening on", t.config.Listen)
 	go func() {

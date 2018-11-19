@@ -15,43 +15,39 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
-package appruntimesync
+
+package master
 
 import (
-	"context"
-	"testing"
-	"time"
-
-	"github.com/goodrain/rainbond/worker/client"
+	"fmt"
 
 	"github.com/goodrain/rainbond/cmd/worker/option"
+	"github.com/goodrain/rainbond/util/leader"
 )
 
-func TestCreateAppRuntimeSync(t *testing.T) {
-	ars := CreateAppRuntimeSync(option.Config{
-		KubeConfig: "../../test/admin.kubeconfig",
-	})
-	if err := ars.Start(); err != nil {
-		t.Fatal(err)
-	}
-	defer ars.Stop()
-	time.Sleep(time.Minute * 3)
+//Server app runtime master server
+type Server struct {
+	conf option.Config
 }
 
-func TestNewClient(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	cli, err := client.NewClient(ctx, client.AppRuntimeSyncClientConf{EtcdEndpoints: []string{"127.0.0.1:2379"}})
-	if err != nil {
-		t.Fatal(err)
+//Start start
+func (m *Server) Start() error {
+	start := func(stop <-chan struct{}) {
+		<-stop
 	}
-	time.Sleep(time.Second * 3)
-	err = cli.SetStatus("abc", "running")
-	if err != nil {
-		t.Fatal(err)
+	// Leader election was requested.
+	if m.conf.LeaderElectionNamespace == "" {
+		return fmt.Errorf("-leader-election-namespace must not be empty")
 	}
-	t.Log(cli.GetAllStatus())
-	cli.CheckStatus("abc")
-	cli.SetStatus("abc", "closed")
-	t.Log(cli.GetStatus("abc"))
+	if m.conf.LeaderElectionIdentity == "" {
+		m.conf.LeaderElectionIdentity = m.conf.NodeName
+	}
+	if m.conf.LeaderElectionIdentity == "" {
+		return fmt.Errorf("-leader-election-identity must not be empty")
+	}
+	// Name of config map with leader election lock
+	lockName := "rainbond-appruntime-worker-leader"
+
+	leader.RunAsLeader(m.conf.KubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {})
+	return nil
 }

@@ -26,6 +26,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
+
 	"github.com/coreos/etcd/clientv3"
 
 	"github.com/goodrain/rainbond/event"
@@ -33,7 +35,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	apidb "github.com/goodrain/rainbond/api/db"
 
-	"github.com/goodrain/rainbond/appruntimesync/client"
+	"github.com/goodrain/rainbond/worker/client"
 
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 
@@ -229,7 +231,7 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string) error {
 		if err != nil {
 			return fmt.Errorf("Get service deploy type error,%s", err.Error())
 		}
-		if status != client.CLOSED && serviceType != nil && serviceType.LabelValue == core_util.StatefulServiceType {
+		if status != v1.CLOSED && serviceType != nil && serviceType.LabelValue == core_util.StatefulServiceType {
 			return fmt.Errorf("Statefulset app must be closed before backup,%s", err.Error())
 		}
 		data.ServiceStatus = status
@@ -436,14 +438,6 @@ func (h *BackupHandle) RestoreBackupResult(restoreID string) (*RestoreResult, *u
 			return nil, util.CreateAPIHandleError(500, fmt.Errorf("read metadata file error,%s", err))
 		}
 		rr.Metadata = string(body)
-		//set app status
-		for _, v := range rr.ServiceChange {
-			if v.Status == client.UNDEPLOY {
-				h.statusCli.SetStatus(v.ServiceID, client.UNDEPLOY)
-			} else {
-				h.statusCli.SetStatus(v.ServiceID, client.CLOSED)
-			}
-		}
 	}
 	return &rr, nil
 }

@@ -31,6 +31,8 @@ import (
 
 	"os"
 
+	"io/ioutil"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
@@ -39,9 +41,8 @@ import (
 	tutil "github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
-	"github.com/thedevsaddam/govalidator"
-	"io/ioutil"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/thedevsaddam/govalidator"
 )
 
 //TIMELAYOUT timelayout
@@ -457,6 +458,7 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 		EventID:   eventID,
 		Replicas:  replicas,
 	}
+
 	if err := handler.GetServiceManager().ServiceHorizontal(horizontalTask); err != nil {
 		logger.Error("应用水平升级任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("service horizontal error. %v", err))

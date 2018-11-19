@@ -80,6 +80,9 @@ type TenantServices struct {
 	ContainerCPU int `gorm:"column:container_cpu;default:500" json:"container_cpu"`
 	// 容器最大内存
 	ContainerMemory int `gorm:"column:container_memory;default:128" json:"container_memory"`
+	//UpgradeMethod service upgrade controller type
+	//such as : `Rolling` `OnDelete`
+	UpgradeMethod string `gorm:"column:upgrade_method;default:'Rolling'" json:"upgrade_method"`
 	// 容器启动命令(deprecated)
 	ContainerCMD string `gorm:"column:container_cmd;size:2048" json:"container_cmd"`
 	// 容器环境变量(deprecated)
@@ -218,6 +221,9 @@ type TenantServicesDelete struct {
 	ContainerCPU int `gorm:"column:container_cpu;default:500" json:"container_cpu"`
 	// 容器最大内存
 	ContainerMemory int `gorm:"column:container_memory;default:128" json:"container_memory"`
+	//UpgradeMethod service upgrade controller type
+	//such as : `Rolling` `OnDelete`
+	UpgradeMethod string `gorm:"column:upgrade_method;default:'Rolling'" json:"upgrade_method"`
 	// 容器启动命令
 	ContainerCMD string `gorm:"column:container_cmd;size:2048" json:"container_cmd"`
 	// 容器环境变量
@@ -266,7 +272,7 @@ func (t *TenantServicesDelete) TableName() string {
 }
 
 //TenantServicesPort 应用端口信息
-type  TenantServicesPort struct {
+type TenantServicesPort struct {
 	Model
 	TenantID       string `gorm:"column:tenant_id;size:32" validate:"tenant_id|between:30,33" json:"tenant_id"`
 	ServiceID      string `gorm:"column:service_id;size:32" validate:"service_id|between:30,33" json:"service_id"`
