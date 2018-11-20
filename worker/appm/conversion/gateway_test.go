@@ -88,7 +88,7 @@ func TestApplyTcpRule(t *testing.T) {
 		ContainerPort:    port.ContainerPort,
 		IP:               testCase[parser.GetAnnotationWithPrefix("l4-host")],
 		Port:             mappingPort,
-		LoadBalancerType: model.RoundRobinLBType,
+		LoadBalancerType: string(model.RoundRobinLBType),
 	}
 
 	ing, err := applyTcpRule(tcpRule, service,
@@ -199,7 +199,7 @@ func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 	dbmanager.EXPECT().RuleExtensionDao().Return(extensionDao)
 
 	replicationType := v1.TypeDeployment
-	build, err := AppServiceBuilder(serviceID, string(replicationType), dbmanager)
+	build, err := AppServiceBuilder(serviceID, string(replicationType), dbmanager, nil)
 	if err != nil {
 		t.Errorf("Unexpected occurred while creating AppServiceBuild: %v", err)
 	}
@@ -209,7 +209,7 @@ func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 		ContainerPort:    containerPort,
 		Domain:           testCase["domain"],
 		Path:             testCase["path"],
-		LoadBalancerType: model.RoundRobinLBType,
+		LoadBalancerType: string(model.RoundRobinLBType),
 	}
 
 	port := &model.TenantServicesPort{

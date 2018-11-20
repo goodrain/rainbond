@@ -55,7 +55,7 @@ func createDefaultDomain(tenantName, serviceAlias string, servicePort int) strin
 
 //TenantServiceRegist conv inner and outer service regist
 func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
-	builder, err := AppServiceBuilder(as.ServiceID, string(as.ServiceType), dbmanager)
+	builder, err := AppServiceBuilder(as.ServiceID, string(as.ServiceType), dbmanager, as)
 	if err != nil {
 		logrus.Error("create k8s service builder error.", err.Error())
 		return err
@@ -87,10 +87,11 @@ type AppServiceBuild struct {
 	dbmanager          db.Manager
 	logger             event.Logger
 	replicationType    string
+	appService         *v1.AppService
 }
 
 //AppServiceBuilder returns a AppServiceBuild
-func AppServiceBuilder(serviceID, replicationType string, dbmanager db.Manager) (*AppServiceBuild, error) {
+func AppServiceBuilder(serviceID, replicationType string, dbmanager db.Manager, as *v1.AppService) (*AppServiceBuild, error) {
 	service, err := dbmanager.TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("find service error. %v", err.Error())
@@ -113,6 +114,7 @@ func AppServiceBuilder(serviceID, replicationType string, dbmanager db.Manager) 
 		service:         service,
 		tenant:          tenant,
 		replicationType: replicationType,
+		appService:      as,
 	}, nil
 }
 
@@ -425,13 +427,14 @@ func (a *AppServiceBuild) createServiceAnnotations() map[string]string {
 func (a *AppServiceBuild) createInnerService(port *model.TenantServicesPort) *corev1.Service {
 	var service corev1.Service
 	service.Name = fmt.Sprintf("service-%d-%d", port.ID, port.ContainerPort)
-	service.Labels = map[string]string{
+	service.Labels = a.appService.GetCommonLabels(map[string]string{
 		"service_type":  "inner",
 		"name":          a.service.ServiceAlias + "Service",
 		"port_protocol": port.Protocol,
 		"creator":       "RainBond",
 		"service_id":    a.service.ServiceID,
-	}
+		"version":       a.service.DeployVersion,
+	})
 	if a.service.Replicas <= 1 {
 		service.Labels["rainbond.com/tolerate-unready-endpoints"] = "true"
 	}
@@ -458,7 +461,7 @@ func (a *AppServiceBuild) createInnerService(port *model.TenantServicesPort) *co
 func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *corev1.Service {
 	var service corev1.Service
 	service.Name = fmt.Sprintf("service-%d-%dout", port.ID, port.ContainerPort)
-	service.Labels = map[string]string{
+	service.Labels = a.appService.GetCommonLabels(map[string]string{
 		"service_type":  "outer",
 		"name":          a.service.ServiceAlias + "ServiceOUT",
 		"tenant_name":   a.tenant.Name,
@@ -466,9 +469,9 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 		"protocol":      port.Protocol,
 		"port_protocol": port.Protocol,
 		"event_id":      a.eventID,
-		"creator":       "RainBond",
 		"service_id":    a.service.ServiceID,
-	}
+		"version":       a.service.DeployVersion,
+	})
 	if a.service.Replicas <= 1 {
 		service.Labels["rainbond.com/tolerate-unready-endpoints"] = "true"
 	}

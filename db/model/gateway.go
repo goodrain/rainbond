@@ -65,7 +65,7 @@ type HttpRule struct {
 	Header           string           `gorm:"column:header"`
 	Cookie           string           `gorm:"column:cookie"`
 	IP               string           `gorm:"column:ip"`
-	LoadBalancerType LoadBalancerType `gorm:"column:load_balancer_type"`
+	LoadBalancerType string `gorm:"column:load_balancer_type"`
 	CertificateID    string           `gorm:"column:certificate_id"`
 }
 
@@ -80,5 +80,5 @@ type TcpRule struct {
 	ContainerPort    int              `gorm:"column:container_port"`
 	IP               string           `gorm:"column:ip"`
 	Port             int              `gorm:"column:port"` // TODO: 这个就是mappingPort吗???
-	LoadBalancerType LoadBalancerType `gorm:"column:load_balancer_type"`
+	LoadBalancerType string `gorm:"column:load_balancer_type"`
 }

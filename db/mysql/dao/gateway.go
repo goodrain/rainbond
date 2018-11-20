@@ -19,6 +19,7 @@
 package dao
 
 import (
+	"fmt"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 )
@@ -72,7 +73,18 @@ type HttpRuleDaoImpl struct {
 	DB *gorm.DB
 }
 
-func (h *HttpRuleDaoImpl) AddModel(model.Interface) error {
+func (h *HttpRuleDaoImpl) AddModel(mo model.Interface) error {
+	httpRule := mo.(*model.HttpRule)
+	var oldHttpRule model.HttpRule
+	if ok := h.DB.Where("service_id = ? and container_port=?", httpRule.ServiceID,
+		httpRule.ContainerPort).Find(&oldHttpRule).RecordNotFound(); ok {
+		if err := h.DB.Create(httpRule).Error; err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("HttpRule already exists based on ServiceID(%s) and ContainerPort(%s)",
+			httpRule.ServiceID, httpRule.ContainerPort)
+	}
 	return nil
 }
 
@@ -83,9 +95,9 @@ func (h *HttpRuleDaoImpl) UpdateModel(model.Interface) error {
 // GetHttpRuleByServiceIDAndContainerPort gets a HttpRule based on serviceID and containerPort
 func (h *HttpRuleDaoImpl) GetHttpRuleByServiceIDAndContainerPort(serviceID string,
 	containerPort int) (*model.HttpRule, error) {
-	var httpRule *model.HttpRule
-	if err := h.DB.Where("service_id = ? and container_port", serviceID,
-		containerPort).Find(&httpRule).Error; err != nil {
+	httpRule := &model.HttpRule{}
+	if err := h.DB.Where("service_id = ? and container_port = ?", serviceID,
+		containerPort).Find(httpRule).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return httpRule, nil
 		}
@@ -98,7 +110,18 @@ type TcpRuleDaoTmpl struct {
 	DB *gorm.DB
 }
 
-func (s *TcpRuleDaoTmpl) AddModel(model.Interface) error {
+func (t *TcpRuleDaoTmpl) AddModel(mo model.Interface) error {
+	tcpRule := mo.(*model.TcpRule)
+	var oldTcpRule model.TcpRule
+	if ok := t.DB.Where("service_id = ? and container_port=?", tcpRule.ServiceID,
+		tcpRule.ContainerPort).Find(&oldTcpRule).RecordNotFound(); ok {
+		if err := t.DB.Create(tcpRule).Error; err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("TcpRule already exists based on ServiceID(%s) and ContainerPort(%s)",
+			tcpRule.ServiceID, tcpRule.ContainerPort)
+	}
 	return nil
 }
 
@@ -109,8 +132,8 @@ func (s *TcpRuleDaoTmpl) UpdateModel(model.Interface) error {
 // GetTcpRuleByServiceIDAndContainerPort gets a TcpRule based on serviceID and containerPort
 func (s *TcpRuleDaoTmpl) GetTcpRuleByServiceIDAndContainerPort(serviceID string,
 	containerPort int) (*model.TcpRule, error) {
-	var result *model.TcpRule
-	if err := s.DB.Where("service_id = ? and container_port", serviceID,
+	result := &model.TcpRule{}
+	if err := s.DB.Where("service_id = ? and container_port = ?", serviceID,
 		containerPort).Find(result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, nil
