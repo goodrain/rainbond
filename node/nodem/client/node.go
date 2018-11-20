@@ -213,13 +213,15 @@ func (n *HostNode) UpdataK8sCondition(conditions []v1.NodeCondition) {
 				Message:            con.Message,
 			}
 		} else {
-			rbcon = NodeCondition{
-				Type:               NodeConditionType(con.Type),
-				Status:             ConditionStatus(con.Status),
-				LastHeartbeatTime:  con.LastHeartbeatTime.Time,
-				LastTransitionTime: con.LastTransitionTime.Time,
-				Reason:             con.Reason,
-				Message:            con.Message,
+			if con.Status != v1.ConditionFalse {
+				rbcon = NodeCondition{
+					Type:               KubeNodeReady,
+					Status:             ConditionFalse,
+					LastHeartbeatTime:  con.LastHeartbeatTime.Time,
+					LastTransitionTime: con.LastTransitionTime.Time,
+					Reason:             con.Reason,
+					Message:            con.Message,
+				}
 			}
 		}
 		n.UpdataCondition(rbcon)
@@ -262,8 +264,8 @@ func (n *HostNode) UpdateReadyStatus() {
 			if con.Status != status {
 				n.NodeStatus.Conditions[i].LastTransitionTime = time.Now()
 				n.NodeStatus.Conditions[i].Status = status
-				return
 			}
+			return
 		}
 	}
 	ready := NodeCondition{
