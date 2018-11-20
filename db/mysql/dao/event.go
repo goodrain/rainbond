@@ -162,8 +162,9 @@ func (c *NotificationEventDaoImpl) UpdateModel(mo model.Interface) error {
 	if ok := c.DB.Where("hash = ?", result.Hash).Find(&oldResult).RecordNotFound(); !ok {
 		result.FirstTime = oldResult.FirstTime
 		result.ID = oldResult.ID
+		return c.DB.Save(result).Error
 	}
-	return c.DB.Save(result).Error
+	return gorm.ErrRecordNotFound
 }
 
 //GetNotificationEventByKind GetNotificationEventByKind

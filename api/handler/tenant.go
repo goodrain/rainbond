@@ -164,24 +164,41 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 	if err != nil {
 		return nil, err
 	}
+	limits, err := db.GetManager().TenantDao().GetTenantLimitsByNames(tr.Body.TenantNames)
+	if err != nil {
+		return nil, err
+	}
 	services, err := db.GetManager().TenantServiceDao().GetServicesByTenantIDs(ids)
 	if err != nil {
 		return nil, err
 	}
 	var serviceIDs []string
 	var serviceMap = make(map[string]dbmodel.TenantServices, len(services))
+	var serviceTenantRunning = make(map[string]int, len(ids))
+	var serviceTenantCount = make(map[string]int, len(ids))
+	serviceStatus := t.statusCli.GetAllStatus()
 	for _, s := range services {
 		serviceIDs = append(serviceIDs, s.ServiceID)
 		serviceMap[s.ServiceID] = *s
+		if !t.statusCli.IsClosedStatus(serviceStatus[s.ServiceID]) {
+			serviceTenantRunning[s.TenantID]++
+		}
+		serviceTenantCount[s.TenantID]++
 	}
 	var result = make(map[string]map[string]interface{}, len(ids))
+	for k, v := range limits {
+		result[k] = map[string]interface{}{"tenant_id": k, "limit_memory": v,
+			"service_running_num": serviceTenantRunning[k],
+			"service_total_num":   serviceTenantCount[k],
+			"limit_cpu":           0, "cpu": 0, "memory": 0, "disk": 0}
+	}
 	status := t.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
 	for k, v := range status {
 		if _, ok := serviceMap[k]; !ok {
 			continue
 		}
 		if _, ok := result[serviceMap[k].TenantID]; !ok {
-			result[serviceMap[k].TenantID] = map[string]interface{}{"tenant_id": k, "cpu": 0, "memory": 0, "disk": 0}
+			result[serviceMap[k].TenantID] = map[string]interface{}{"tenant_id": k, "limit_memory": 0, "limit_cpu": 0, "cpu": 0, "memory": 0, "disk": 0}
 		}
 		if !t.statusCli.IsClosedStatus(v) {
 			result[serviceMap[k].TenantID]["cpu"] = result[serviceMap[k].TenantID]["cpu"].(int) + (serviceMap[k].ContainerCPU * serviceMap[k].Replicas)

@@ -521,23 +521,21 @@ func (t *TenantStruct) UpdateTenant(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("update tenant"))
 }
 
-//Get all apps and status
+//ServicesCount Get all apps and status
 func (t *TenantStruct) ServicesCount(w http.ResponseWriter, r *http.Request) {
 	allStatus := t.StatusCli.GetAllStatus()
-	var closed int = 0
-	var running int = 0
-	var abnormal int = 0
+	var closed int
+	var running int
+	var abnormal int
 	for _, v := range allStatus {
 		switch v {
 		case "closed":
-			closed += 1
+			closed++
 		case "running":
-			running += 1
+			running++
 		case "abnormal":
-			abnormal += 1
-
+			abnormal++
 		}
-
 	}
 	serviceCount := map[string]int{"total": len(allStatus), "running": running, "closed": closed, "abnormal": abnormal}
 	httputil.ReturnSuccess(r, w, serviceCount)

@@ -44,6 +44,7 @@ type TenantDao interface {
 	GetTenantByEid(eid string) ([]*model.Tenants, error)
 	GetPagedTenants(offset, len int) ([]*model.Tenants, error)
 	GetTenantIDsByNames(names []string) ([]string, error)
+	GetTenantLimitsByNames(names []string) (map[string]int, error)
 	GetTenantByUUIDIsExist(uuid string) bool
 }
 
