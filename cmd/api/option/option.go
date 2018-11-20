@@ -84,7 +84,7 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&a.NodeAPI, "node-api", []string{"127.0.0.1:6100"}, "the node server api")
 	fs.StringSliceVar(&a.BuilderAPI, "builder-api", []string{"127.0.0.1:3228"}, "the builder api")
 	fs.StringSliceVar(&a.EntranceAPI, "entrance-api", []string{"127.0.0.1:6200"}, "the entrance api")
-	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"127.0.0.1:6367"}, "event log server address. simple lb")
+	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"127.0.0.1:6366"}, "event log server address. simple lb")
 	fs.StringVar(&a.MQAPI, "mq-api", "127.0.0.1:6300", "acp_mq api")
 	fs.BoolVar(&a.StartRegionAPI, "start", false, "Whether to start region old api")
 	fs.StringVar(&a.KubeConfig, "kube-config", "/etc/goodrain/kubernetes/admin.kubeconfig", "kubernetes api server config file")

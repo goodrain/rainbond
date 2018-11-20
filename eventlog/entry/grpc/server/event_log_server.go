@@ -20,11 +20,12 @@ package server
 
 import (
 	"context"
-	"github.com/goodrain/rainbond/eventlog/conf"
-	"github.com/goodrain/rainbond/eventlog/store"
 	"fmt"
 	"io"
 	"net"
+
+	"github.com/goodrain/rainbond/eventlog/conf"
+	"github.com/goodrain/rainbond/eventlog/store"
 
 	"github.com/goodrain/rainbond/eventlog/entry/grpc/pb"
 
@@ -60,7 +61,7 @@ func NewServer(conf conf.EventLogServerConf, log *logrus.Entry, storeManager sto
 
 //Start start grpc server
 func (s *EventLogRPCServer) Start() error {
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.conf.BindIP, s.conf.BindPort+1))
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.conf.BindIP, s.conf.BindPort))
 	if err != nil {
 		logrus.Errorf("failed to listen: %v", err)
 		return err
@@ -76,7 +77,7 @@ func (s *EventLogRPCServer) Start() error {
 			s.listenErr <- err
 		}
 	}()
-	s.log.Infof("event message grpc server listen %s:%d", s.conf.BindIP, s.conf.BindPort+1)
+	s.log.Infof("event message grpc server listen %s:%d", s.conf.BindIP, s.conf.BindPort)
 	return nil
 }
 

@@ -37,8 +37,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/eventlog/db"
-	"github.com/spf13/pflag"
 	"github.com/goodrain/rainbond/util"
+	"github.com/spf13/pflag"
 )
 
 type LogServer struct {
@@ -223,7 +223,7 @@ func (s *LogServer) Run() error {
 
 	//服务注册
 	grpckeepalive, err := discover.CreateKeepAlive(s.Conf.Cluster.Discover.EtcdAddr, "event_log_event_grpc",
-		s.Conf.Cluster.Discover.InstanceIP, s.Conf.Cluster.Discover.InstanceIP, 6367)
+		s.Conf.Cluster.Discover.InstanceIP, s.Conf.Cluster.Discover.InstanceIP, s.Conf.Entry.EventLogServer.BindPort)
 	if err != nil {
 		return err
 	}

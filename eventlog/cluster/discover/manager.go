@@ -347,14 +347,6 @@ func (d *EtcdDiscoverManager) CancellationInstance(instance *Instance) {
 	} else {
 		d.log.Info("Cancellation Instance from etcd")
 	}
-	_, err = d.etcdclientv3.Delete(ctx, fmt.Sprintf("/traefik/backends/event_log_event_grpc/servers/%s/url", instance.HostID))
-	if err != nil {
-		d.log.Error("Cancellation Instance from etcdv3 error.", err.Error())
-	}
-	_, err = d.etcdclientv3.Delete(ctx, fmt.Sprintf("/traefik/backends/event_log_event_http/servers/%s/url", instance.HostID))
-	if err != nil {
-		d.log.Error("Cancellation Instance from etcdv3 error.", err.Error())
-	}
 }
 
 //UpdateInstance 更新实例

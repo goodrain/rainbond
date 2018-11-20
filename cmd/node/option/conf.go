@@ -141,7 +141,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.Proc, "procPath", "/rainbond/task/proc/", "the path of proc in etcd")
 	fs.StringVar(&a.HostIP, "hostIP", "", "the host ip you can define. default get ip from eth0")
 	fs.StringVar(&a.ExecutionRecordPath, "execRecordPath", "/rainbond/exec_record", "the path of job exec record")
-	fs.StringSliceVar(&a.EventLogServer, "event-log-server", []string{"127.0.0.1:6367"}, "host:port slice of event log server")
+	fs.StringSliceVar(&a.EventLogServer, "event-log-server", []string{"127.0.0.1:6366"}, "host:port slice of event log server")
 	fs.StringVar(&a.K8SNode, "k8sNode", "/store/nodes/", "the path of k8s node")
 	fs.StringVar(&a.InstalledMarker, "installed-marker", "/etc/acp_node/check/install/success", "the path of a file for check node is installed")
 	fs.StringVar(&a.ConfigStoragePath, "config-path", "/rainbond/acp_configs", "the path of config to store(new)")

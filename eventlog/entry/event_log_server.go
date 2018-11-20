@@ -20,19 +20,16 @@ package entry
 
 import (
 	"errors"
+
 	"github.com/goodrain/rainbond/eventlog/conf"
 	grpcserver "github.com/goodrain/rainbond/eventlog/entry/grpc/server"
 	"github.com/goodrain/rainbond/eventlog/store"
-	"time"
 
 	"golang.org/x/net/context"
-
-	"fmt"
 
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	zmq4 "github.com/pebbe/zmq4"
 )
 
 //EventLogServer 日志接受服务
@@ -41,7 +38,6 @@ type EventLogServer struct {
 	log                *logrus.Entry
 	cancel             func()
 	context            context.Context
-	server             *zmq4.Socket
 	storemanager       store.Manager
 	messageChan        chan []byte
 	listenErr          chan error
@@ -61,21 +57,13 @@ func NewEventLogServer(conf conf.EventLogServerConf, log *logrus.Entry, storeMan
 		storemanager: storeManager,
 		listenErr:    make(chan error),
 	}
-	server, err := zmq4.NewSocket(zmq4.REP)
-	if err != nil {
-		s.log.Error("create rep zmq socket error.", err.Error())
-		return nil, err
-	}
-	address := fmt.Sprintf("tcp://%s:%d", s.conf.BindIP, s.conf.BindPort)
-	server.Bind(address)
-	s.log.Infof("Message server listen %s", address)
-	s.server = server
+
+	//grpc服务
+	eventRPCServer := grpcserver.NewServer(conf, log, storeManager, s.listenErr)
 	s.messageChan = s.storemanager.ReceiveMessageChan()
 	if s.messageChan == nil {
 		return nil, errors.New("receive log message server can not get store message chan ")
 	}
-	//grpc服务
-	eventRPCServer := grpcserver.NewServer(conf, log, storeManager, s.listenErr)
 	s.eventRPCServer = eventRPCServer
 	return s, nil
 }
@@ -83,7 +71,6 @@ func NewEventLogServer(conf conf.EventLogServerConf, log *logrus.Entry, storeMan
 //Serve 执行
 func (s *EventLogServer) Serve() {
 	s.eventRPCServer.Start()
-	s.handleMessage()
 }
 
 //Stop 停止
@@ -91,56 +78,6 @@ func (s *EventLogServer) Stop() {
 	s.cancel()
 	s.eventRPCServer.Stop()
 	s.log.Info("receive event message server stop")
-}
-
-func (s *EventLogServer) handleMessage() {
-	chQuit := make(chan interface{})
-	chErr := make(chan error, 2)
-	channel := make(chan []byte, s.conf.CacheMessageSize)
-	newServerListen := func(sock *zmq4.Socket, channel chan []byte) {
-		socketHandler := func(state zmq4.State) error {
-			msgs, err := sock.RecvMessageBytes(0)
-			if err != nil {
-				s.log.Error("docker log server receive message error.", err.Error())
-				return err
-			}
-			_, err = sock.SendMessage("OK") //回复ok
-			if err != nil {
-				s.log.Error("server reback message error.", err.Error())
-				return err
-			}
-			for _, msg := range msgs {
-				channel <- msg
-			}
-			return nil
-		}
-		quitHandler := func(interface{}) error {
-			close(channel)
-			s.log.Infof("Docker container message receive Server quit.")
-			return nil
-		}
-		reactor := zmq4.NewReactor()
-		reactor.AddSocket(sock, zmq4.POLLIN, socketHandler)
-		reactor.AddChannel(chQuit, 1, quitHandler)
-		err := reactor.Run(100 * time.Millisecond)
-		chErr <- err
-	}
-	go newServerListen(s.server, channel)
-
-	func() {
-		for !s.stopReceiveMessage {
-			select {
-			case msg := <-channel:
-				s.messageChan <- msg
-			case <-s.context.Done():
-				s.log.Debug("handle message core begin close.")
-				close(chQuit)
-				s.stopReceiveMessage = true
-				// close(s.messageChan)
-			}
-		}
-	}()
-	s.log.Info("Handle message core stop.")
 }
 
 //ListenError listen error chan
