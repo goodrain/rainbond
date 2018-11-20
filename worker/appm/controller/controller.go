@@ -143,7 +143,7 @@ func getCallbackLoggerOption() map[string]string {
 	return map[string]string{"step": "callback", "status": "failure"}
 }
 func getLastLoggerOption() map[string]string {
-	return map[string]string{"step": "last", "status": "failure"}
+	return map[string]string{"step": "last", "status": "success"}
 }
 
 type sequencelist []sequence
