@@ -284,6 +284,9 @@ func (a *AppService) GetPodTemplate() *corev1.PodTemplateSpec {
 
 //SetSecrets set srcrets
 func (a *AppService) SetSecrets(d *corev1.Secret) {
+	if d == nil {
+		return
+	}
 	if len(a.secrets) > 0 {
 		for i, secret := range a.secrets {
 			if secret.GetName() == d.GetName() {

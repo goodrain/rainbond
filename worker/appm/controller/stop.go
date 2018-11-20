@@ -48,7 +48,7 @@ func (s *stopController) Begin() {
 				service.Logger.Error(fmt.Sprintf("stop service %s failure %s", service.ServiceAlias, err.Error()), getCallbackLoggerOption())
 				logrus.Errorf("stop service %s failure %s", service.ServiceAlias, err.Error())
 			} else {
-				service.Logger.Error(fmt.Sprintf("stop service %s success", service.ServiceAlias, err.Error()), getLastLoggerOption())
+				service.Logger.Error(fmt.Sprintf("stop service %s success", service.ServiceAlias), getLastLoggerOption())
 			}
 		}(service)
 	}
@@ -68,9 +68,11 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	//step 2: delete secrets
 	if secrets := app.GetSecrets(); secrets != nil {
 		for _, secret := range secrets {
-			err := s.manager.client.CoreV1().Secrets(app.TenantID).Delete(secret.Name, &metav1.DeleteOptions{})
-			if err != nil && !errors.IsNotFound(err) {
-				return fmt.Errorf("delete secret failure:%s", err.Error())
+			if secret != nil {
+				err := s.manager.client.CoreV1().Secrets(app.TenantID).Delete(secret.Name, &metav1.DeleteOptions{})
+				if err != nil && !errors.IsNotFound(err) {
+					return fmt.Errorf("delete secret failure:%s", err.Error())
+				}
 			}
 		}
 	}

@@ -21,17 +21,28 @@ package master
 import (
 	"fmt"
 
+	"github.com/goodrain/rainbond/worker/appm/store"
+
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/util/leader"
 )
 
-//Server app runtime master server
-type Server struct {
-	conf option.Config
+//Controller app runtime master controller
+type Controller struct {
+	conf  option.Config
+	store store.Storer
+}
+
+//NewMasterController new master controller
+func NewMasterController(conf option.Config, store store.Storer) *Controller {
+	return &Controller{
+		conf:  conf,
+		store: store,
+	}
 }
 
 //Start start
-func (m *Server) Start() error {
+func (m *Controller) Start() error {
 	start := func(stop <-chan struct{}) {
 		<-stop
 	}
