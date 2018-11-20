@@ -71,13 +71,11 @@ func (s *EventLogRPCServer) Start() error {
 	pb.RegisterEventLogServer(server, s)
 	// Register reflection service on gRPC server.
 	reflection.Register(server)
-	go func() {
-		if err := server.Serve(lis); err != nil {
-			s.log.Error("event log api grpc listen error.", err.Error())
-			s.listenErr <- err
-		}
-	}()
 	s.log.Infof("event message grpc server listen %s:%d", s.conf.BindIP, s.conf.BindPort)
+	if err := server.Serve(lis); err != nil {
+		s.log.Error("event log api grpc listen error.", err.Error())
+		s.listenErr <- err
+	}
 	return nil
 }
 
