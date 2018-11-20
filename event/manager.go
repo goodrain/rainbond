@@ -138,7 +138,9 @@ func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	if endpoints == nil || len(endpoints) < 1 {
 		return
 	}
-	logrus.Infof("Update event server endpoint,%+v", endpoints)
+	for _, e := range endpoints {
+		logrus.Infof("Update event server endpoint,%s", e.URL)
+	}
 	//清空不可用节点信息，以服务发现为主
 	m.abnormalServer = make(map[string]string)
 	//增加新节点
