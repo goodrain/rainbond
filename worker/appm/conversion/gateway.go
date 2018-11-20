@@ -155,10 +155,12 @@ func (a *AppServiceBuild) Build() ([]*corev1.Service, []*extensions.Ingress, []*
 				service := a.createOuterService(port)
 
 				ings, secret, err := a.ApplyRules(port, service)
-				ingresses = append(ingresses, ings...)
-				secrets = append(secrets, secret)
 				if err != nil {
 					return nil, nil, nil, err
+				}
+				ingresses = append(ingresses, ings...)
+				if secret != nil {
+					secrets = append(secrets, secret)
 				}
 
 				services = append(services, service)
