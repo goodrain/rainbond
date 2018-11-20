@@ -20,6 +20,7 @@ package conversion
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/util"
 	"os"
 	"strings"
 
@@ -239,7 +240,7 @@ func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.Tenant
 
 	ing = &extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      genIngName("l7", service.Name, path),
+			Name:      util.NewUUID(),
 			Namespace: a.tenant.UUID,
 		},
 		Spec: extensions.IngressSpec{
@@ -326,7 +327,7 @@ func applyTcpRule(
 	namespace string) (ing *extensions.Ingress, err error) {
 	ing = &extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      genIngName("l4", service.Name, ""),
+			Name:      util.NewUUID(),
 			Namespace: namespace,
 		},
 		Spec: extensions.IngressSpec{
