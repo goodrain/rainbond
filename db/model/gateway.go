@@ -41,8 +41,9 @@ var HttpToHttpsEV ExtensionValue = "HttpToHttps"
 
 type RuleExtension struct {
 	Model
-	ServiceID string         `gorm:"column:service_id"`
-	Value     ExtensionValue `gorm:"column:rule_value_type"`
+	UUID   string         `gorm:"column:uuid"`
+	RuleID string         `gorm:"column:rule_id"`
+	Value  ExtensionValue `gorm:"column:rule_value_type"`
 }
 
 type LoadBalancerType string
@@ -58,15 +59,16 @@ func (HttpRule) TableName() string {
 // HttpRule contains http rule
 type HttpRule struct {
 	Model
-	ServiceID        string           `gorm:"column:service_id"`
-	ContainerPort    int              `gorm:"column:container_port"`
-	Domain           string           `gorm:"column:domain"`
-	Path             string           `gorm:"column:path"`
-	Header           string           `gorm:"column:header"`
-	Cookie           string           `gorm:"column:cookie"`
-	IP               string           `gorm:"column:ip"`
+	UUID             string `gorm:"column:uuid"`
+	ServiceID        string `gorm:"column:service_id"`
+	ContainerPort    int    `gorm:"column:container_port"`
+	Domain           string `gorm:"column:domain"`
+	Path             string `gorm:"column:path"`
+	Header           string `gorm:"column:header"`
+	Cookie           string `gorm:"column:cookie"`
+	IP               string `gorm:"column:ip"`
 	LoadBalancerType string `gorm:"column:load_balancer_type"`
-	CertificateID    string           `gorm:"column:certificate_id"`
+	CertificateID    string `gorm:"column:certificate_id"`
 }
 
 func (TcpRule) TableName() string {
@@ -76,9 +78,10 @@ func (TcpRule) TableName() string {
 // TcpRule contain stream rule
 type TcpRule struct {
 	Model
-	ServiceID        string           `gorm:"column:service_id"`
-	ContainerPort    int              `gorm:"column:container_port"`
-	IP               string           `gorm:"column:ip"`
-	Port             int              `gorm:"column:port"` // TODO: 这个就是mappingPort吗???
+	UUID             string `gorm:"column:uuid"`
+	ServiceID        string `gorm:"column:service_id"`
+	ContainerPort    int    `gorm:"column:container_port"`
+	IP               string `gorm:"column:ip"`
+	Port             int    `gorm:"column:port"` // TODO: 这个就是mappingPort吗???
 	LoadBalancerType string `gorm:"column:load_balancer_type"`
 }
