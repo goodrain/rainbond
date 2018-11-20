@@ -37,8 +37,9 @@ import (
 	"io/ioutil"
 	"strconv"
 
-	httputil "github.com/goodrain/rainbond/util/http"
 	"time"
+
+	httputil "github.com/goodrain/rainbond/util/http"
 )
 
 func init() {
@@ -115,7 +116,6 @@ func GetNodes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if searchKey != "" {
-
 		for _, node := range nodeList {
 			if strings.Contains(node.HostName, searchKey) || strings.Contains(node.InternalIP, searchKey) || strings.Contains(node.ExternalIP, searchKey) {
 				searchNodeList = append(searchNodeList, node)

@@ -126,7 +126,6 @@ func (n *HostNode) UpdateK8sNodeStatus(k8sNode v1.Node) {
 		Architecture:            status.NodeInfo.Architecture,
 	}
 	n.Unschedulable = k8sNode.Spec.Unschedulable
-
 	if n.Unschedulable {
 		n.Status = "unschedulable"
 	} else {
@@ -203,16 +202,25 @@ func GetNodeFromKV(kv *mvccpb.KeyValue) *HostNode {
 //UpdataK8sCondition 更新k8s节点的状态到rainbond节点
 func (n *HostNode) UpdataK8sCondition(conditions []v1.NodeCondition) {
 	for _, con := range conditions {
+		var rbcon NodeCondition
 		if NodeConditionType(con.Type) == "Ready" {
-			continue
-		}
-		rbcon := NodeCondition{
-			Type:               NodeConditionType(con.Type),
-			Status:             ConditionStatus(con.Status),
-			LastHeartbeatTime:  con.LastHeartbeatTime.Time,
-			LastTransitionTime: con.LastTransitionTime.Time,
-			Reason:             con.Reason,
-			Message:            con.Message,
+			rbcon = NodeCondition{
+				Type:               KubeNodeReady,
+				Status:             ConditionStatus(con.Status),
+				LastHeartbeatTime:  con.LastHeartbeatTime.Time,
+				LastTransitionTime: con.LastTransitionTime.Time,
+				Reason:             con.Reason,
+				Message:            con.Message,
+			}
+		} else {
+			rbcon = NodeCondition{
+				Type:               NodeConditionType(con.Type),
+				Status:             ConditionStatus(con.Status),
+				LastHeartbeatTime:  con.LastHeartbeatTime.Time,
+				LastTransitionTime: con.LastTransitionTime.Time,
+				Reason:             con.Reason,
+				Message:            con.Message,
+			}
 		}
 		n.UpdataCondition(rbcon)
 	}
@@ -231,6 +239,42 @@ func (n *HostNode) DeleteCondition(types ...NodeConditionType) {
 			}
 		}
 	}
+}
+
+// UpdateReadyStatus UpdateReadyStatus
+func (n *HostNode) UpdateReadyStatus() {
+	var status = ConditionTrue
+	var Reason, Message string
+	for _, con := range n.NodeStatus.Conditions {
+		if !IsRealTrueCondition(con) {
+			status = ConditionFalse
+			Reason = con.Reason
+			Message = con.Message
+			break
+		}
+	}
+	//set true
+	for i, con := range n.NodeStatus.Conditions {
+		if con.Type.Compare(NodeReady) {
+			n.NodeStatus.Conditions[i].Reason = Reason
+			n.NodeStatus.Conditions[i].Message = Message
+			n.NodeStatus.Conditions[i].LastHeartbeatTime = time.Now()
+			if con.Status != status {
+				n.NodeStatus.Conditions[i].LastTransitionTime = time.Now()
+				n.NodeStatus.Conditions[i].Status = status
+				return
+			}
+		}
+	}
+	ready := NodeCondition{
+		Type:               NodeReady,
+		Status:             status,
+		LastHeartbeatTime:  time.Now(),
+		LastTransitionTime: time.Now(),
+		Reason:             Reason,
+		Message:            Message,
+	}
+	n.NodeStatus.Conditions = append(n.NodeStatus.Conditions, ready)
 }
 
 //UpdataCondition 更新状态
@@ -252,9 +296,26 @@ func (n *HostNode) UpdataCondition(conditions ...NodeCondition) {
 		if !update {
 			n.NodeStatus.Conditions = append(n.NodeStatus.Conditions, newcon)
 		}
+		n.UpdateReadyStatus()
 	}
 }
 
+//IsRealTrueCondition is real true condition
+func IsRealTrueCondition(newcon NodeCondition) bool {
+	if newcon.Type != OutOfDisk &&
+		newcon.Type != MemoryPressure &&
+		newcon.Type != DiskPressure &&
+		newcon.Type != PIDPressure {
+		if newcon.Status == ConditionFalse {
+			return true
+		}
+	} else {
+		return newcon.Status == ConditionTrue
+	}
+	return false
+}
+
+//GetK8sReady get kubernetes node is ready
 func GetK8sReady(conditions []v1.NodeCondition) bool {
 	for _, con := range conditions {
 		if NodeConditionType(con.Type) == "Ready" {
@@ -302,7 +363,9 @@ type NodeConditionType string
 // These are valid conditions of node.
 const (
 	// NodeReady means this node is working
-	NodeReady NodeConditionType = "Ready"
+	NodeReady     NodeConditionType = "Ready"
+	KubeNodeReady NodeConditionType = "KubeNodeReady"
+	NodeUp        NodeConditionType = "NodeUp"
 	// InstallNotReady means  the installation task was not completed in this node.
 	InstallNotReady NodeConditionType = "InstallNotReady"
 	// NodeInit means node already install rainbond node and regist
@@ -310,6 +373,7 @@ const (
 	OutOfDisk      NodeConditionType = "OutOfDisk"
 	MemoryPressure NodeConditionType = "MemoryPressure"
 	DiskPressure   NodeConditionType = "DiskPressure"
+	PIDPressure    NodeConditionType = "PIDPressure"
 )
 
 //Compare 比较
