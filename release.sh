@@ -6,7 +6,7 @@ WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 GO_VERSION=1.11
 
-VERSION=3.7.2
+VERSION=5.0
 buildTime=$(date +%F-%H)
 git_commit=$(git log -n 1 --pretty --format=%h)
 

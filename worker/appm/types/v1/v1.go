@@ -150,12 +150,6 @@ func (a *AppService) GetDeployment() *v1.Deployment {
 //SetDeployment set kubernetes deployment model
 func (a *AppService) SetDeployment(d *v1.Deployment) {
 	logrus.Debugf("cache deployment %s to app service %s", d.Name, a.ServiceAlias)
-	if a.deployment != nil {
-		//There can only be one resource
-		if a.deployment.Name != d.Name {
-
-		}
-	}
 	a.deployment = d
 }
 
@@ -171,6 +165,7 @@ func (a *AppService) GetStatefulSet() *v1.StatefulSet {
 
 //SetStatefulSet set kubernetes statefulset model
 func (a *AppService) SetStatefulSet(d *v1.StatefulSet) {
+	logrus.Debugf("cache statefulset %s to app service %s", d.Name, a.ServiceAlias)
 	a.statefulset = d
 }
 
