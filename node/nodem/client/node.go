@@ -248,14 +248,14 @@ func (n *HostNode) UpdateReadyStatus() {
 	var status = ConditionTrue
 	var Reason, Message string
 	for _, con := range n.NodeStatus.Conditions {
-		if !IsRealTrueCondition(con) {
+		if con.Status != ConditionTrue && con.Type != "" && con.Type != NodeReady {
+			logrus.Debugf("because %s id false, will set node health is false", con.Type)
 			status = ConditionFalse
 			Reason = con.Reason
 			Message = con.Message
 			break
 		}
 	}
-	//set true
 	for i, con := range n.NodeStatus.Conditions {
 		if con.Type.Compare(NodeReady) {
 			n.NodeStatus.Conditions[i].Reason = Reason
@@ -285,6 +285,9 @@ func (n *HostNode) UpdataCondition(conditions ...NodeCondition) {
 		n.NodeStatus = &NodeStatus{}
 	}
 	for _, newcon := range conditions {
+		if newcon.Type == "" {
+			continue
+		}
 		var update bool
 		if n.NodeStatus.Conditions != nil {
 			for i, con := range n.NodeStatus.Conditions {
@@ -300,21 +303,6 @@ func (n *HostNode) UpdataCondition(conditions ...NodeCondition) {
 		}
 		n.UpdateReadyStatus()
 	}
-}
-
-//IsRealTrueCondition is real true condition
-func IsRealTrueCondition(newcon NodeCondition) bool {
-	if newcon.Type != OutOfDisk &&
-		newcon.Type != MemoryPressure &&
-		newcon.Type != DiskPressure &&
-		newcon.Type != PIDPressure {
-		if newcon.Status == ConditionFalse {
-			return true
-		}
-	} else {
-		return newcon.Status == ConditionTrue
-	}
-	return false
 }
 
 //GetK8sReady get kubernetes node is ready
