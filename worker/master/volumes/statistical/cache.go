@@ -42,13 +42,16 @@ type DiskCache struct {
 	dbmanager db.Manager
 	ctx       context.Context
 	lock      sync.Mutex
+	cancel    context.CancelFunc
 }
 
 //CreatDiskCache 创建
 func CreatDiskCache(ctx context.Context) *DiskCache {
+	cctx, cancel := context.WithCancel(ctx)
 	return &DiskCache{
 		dbmanager: db.GetManager(),
-		ctx:       ctx,
+		ctx:       cctx,
+		cancel:    cancel,
 	}
 }
 
@@ -68,6 +71,10 @@ func (d *DiskCache) Start() {
 	}
 }
 
+//Stop stop
+func (d *DiskCache) Stop() {
+	d.cancel()
+}
 func (d *DiskCache) setcache() {
 	logrus.Info("start get all service disk size")
 	start := time.Now()
