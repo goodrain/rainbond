@@ -99,7 +99,7 @@ func (m *Controller) Start() error {
 	}
 	// Name of config map with leader election lock
 	lockName := "rainbond-appruntime-worker-leader"
-	leader.RunAsLeader(m.conf.KubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {})
+	go leader.RunAsLeader(m.conf.KubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {})
 	return nil
 }
 
