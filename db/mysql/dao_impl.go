@@ -472,9 +472,21 @@ func (m *Manager) CertificateDao() dao.CertificateDao {
 	}
 }
 
+func (m *Manager) CertificateDaoTransactions(db *gorm.DB) dao.CertificateDao {
+	return &mysqldao.CertificateDaoImpl{
+		DB: db,
+	}
+}
+
 func (m *Manager) RuleExtensionDao() dao.RuleExtensionDao {
 	return &mysqldao.RuleExtensionDaoImpl{
 		DB: m.db,
+	}
+}
+
+func (m *Manager) RuleExtensionDaoTransactions(db *gorm.DB) dao.RuleExtensionDao {
+	return &mysqldao.RuleExtensionDaoImpl{
+		DB: db,
 	}
 }
 
@@ -484,8 +496,20 @@ func (m *Manager) HttpRuleDao() dao.HttpRuleDao {
 	}
 }
 
+func (m *Manager) HttpRuleDaoTransactions(db *gorm.DB) dao.HttpRuleDao {
+	return &mysqldao.HttpRuleDaoImpl{
+		DB: db,
+	}
+}
+
 func (m *Manager) TcpRuleDao() dao.TcpRuleDao {
 	return &mysqldao.TcpRuleDaoTmpl{
 		DB: m.db,
+	}
+}
+
+func (m *Manager) TcpRuleDaoTransactions(db *gorm.DB) dao.TcpRuleDao {
+	return &mysqldao.TcpRuleDaoTmpl{
+		DB: db,
 	}
 }

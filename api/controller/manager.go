@@ -48,6 +48,7 @@ type V2Manager interface {
 	apiFunc.RulesInterface
 	apiFunc.SourcesInterface
 	apiFunc.AppInterface
+	apiFunc.Gatewayer
 }
 
 var defaultV2Manager V2Manager

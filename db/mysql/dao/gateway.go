@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	"reflect"
 )
 
 //TenantServicesDaoImpl -
@@ -29,7 +30,20 @@ type CertificateDaoImpl struct {
 	DB *gorm.DB
 }
 
-func (c *CertificateDaoImpl) AddModel(model.Interface) error {
+func (c *CertificateDaoImpl) AddModel(mo model.Interface) error {
+	certificate, ok := mo.(*model.Certificate)
+	if !ok {
+		return fmt.Errorf("Can't convert %s to %s", reflect.TypeOf(mo).String(), "*model.Certificate")
+	}
+	var old model.Certificate
+	if ok := c.DB.Where("uuid = ?", certificate.UUID).Find(&old).RecordNotFound(); ok {
+		if err := c.DB.Create(certificate).Error; err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("Certificate already exists based on certificateID(%s)",
+			certificate.UUID)
+	}
 	return nil
 }
 
@@ -41,6 +55,9 @@ func (c *CertificateDaoImpl) UpdateModel(model.Interface) error {
 func (c *CertificateDaoImpl) GetCertificateByID(certificateID string) (*model.Certificate, error) {
 	var certificate *model.Certificate
 	if err := c.DB.Where("id = ?", certificateID).Find(&certificate).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return certificate, nil
+		}
 		return nil, err
 	}
 	return certificate, nil
@@ -50,7 +67,18 @@ type RuleExtensionDaoImpl struct {
 	DB *gorm.DB
 }
 
-func (c *RuleExtensionDaoImpl) AddModel(model.Interface) error {
+func (c *RuleExtensionDaoImpl) AddModel(mo model.Interface) error {
+	re, ok := mo.(*model.RuleExtension)
+	if !ok {
+		return fmt.Errorf("Can't convert %s to %s", reflect.TypeOf(mo).String(), "*model.RuleExtension")
+	}
+	var old model.RuleExtension
+	if ok := c.DB.Where("rule_id = ? and value = ?", re.RuleID, re.Value).Find(&old).RecordNotFound(); ok {
+	 	return c.DB.Create(re).Error
+	} else {
+		return fmt.Errorf("RuleExtension already exists based on RuleID(%s) and Value(%s)",
+			re.RuleID, re.Value)
+	}
 	return nil
 }
 
@@ -82,7 +110,7 @@ func (h *HttpRuleDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("HttpRule already exists based on ServiceID(%s) and ContainerPort(%s)",
+		return fmt.Errorf("HttpRule already exists based on ServiceID(%s) and ContainerPort(%v)",
 			httpRule.ServiceID, httpRule.ContainerPort)
 	}
 	return nil
@@ -119,7 +147,7 @@ func (t *TcpRuleDaoTmpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("TcpRule already exists based on ServiceID(%s) and ContainerPort(%s)",
+		return fmt.Errorf("TcpRule already exists based on ServiceID(%s) and ContainerPort(%v)",
 			tcpRule.ServiceID, tcpRule.ContainerPort)
 	}
 	return nil

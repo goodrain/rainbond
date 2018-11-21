@@ -208,6 +208,12 @@ func (v2 *V2) serviceRouter() chi.Router {
 
 	//rule
 	r.Mount("/net-rule", v2.rulesRouter())
+
+	// Gateway
+	r.Post("/http-rule", controller.GetManager().HttpRule)
+	r.Delete("/http-rule", controller.GetManager().HttpRule)
+	r.Put("/http-rule", controller.GetManager().HttpRule)
+
 	return r
 }
 

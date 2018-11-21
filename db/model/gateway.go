@@ -41,9 +41,9 @@ var HttpToHttpsEV ExtensionValue = "HttpToHttps"
 
 type RuleExtension struct {
 	Model
-	UUID   string         `gorm:"column:uuid"`
-	RuleID string         `gorm:"column:rule_id"`
-	Value  ExtensionValue `gorm:"column:rule_value_type"`
+	UUID   string `gorm:"column:uuid"`
+	RuleID string `gorm:"column:rule_id"`
+	Value  string `gorm:"column:value"`
 }
 
 type LoadBalancerType string
