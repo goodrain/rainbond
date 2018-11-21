@@ -70,13 +70,45 @@ func (g *GatewayAction) UpdateHttpRule(req *apimodel.HttpRuleStruct, serviceID s
 	return rule, g.dbmanager.HttpRuleDaoTransactions(tx).UpdateModel(rule)
 }
 
+// DeleteHttpRule deletes http rule, including certificate and rule extensions
+func (g *GatewayAction) DeleteHttpRule(req *apimodel.HttpRuleStruct, serviceID string) error {
+	// begin transaction
+	tx := db.GetManager().Begin()
+	// delete http rule
+	httpRule, err := g.dbmanager.HttpRuleDaoTransactions(tx).DeleteHttpRuleByServiceIDAndContainerPort(serviceID,
+		req.ContainerPort)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// delete certificate
+	if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(httpRule.CertificateID); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// delete rule extension
+	if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(httpRule.UUID); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// end transaction
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // AddCertificate adds certificate to db if it doesn't exists
 func (g *GatewayAction) AddCertificate(req *apimodel.HttpRuleStruct, tx *gorm.DB) error {
 	cert := &model.Certificate{
-		UUID: req.CertificateID,
+		UUID:            req.CertificateID,
 		CertificateName: req.CertificateName,
-		Certificate: req.Certificate,
-		PrivateKey: req.PrivateKey,
+		Certificate:     req.Certificate,
+		PrivateKey:      req.PrivateKey,
 	}
 
 	return g.dbmanager.CertificateDaoTransactions(tx).AddModel(cert)

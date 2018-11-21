@@ -43,7 +43,7 @@ func (g *GatewayStruct) HttpRule(w http.ResponseWriter, r *http.Request) {
 		g.addHttpRule(w, r)
 	case "PUT":
 		g.updateHttpRule(w, r)
-	case "Delete":
+	case "DELETE":
 		g.deleteHttpRule(w, r)
 	}
 }
@@ -124,14 +124,14 @@ func (g *GatewayStruct) updateHttpRule(w http.ResponseWriter, r *http.Request) {
 	httpRule, err := h.UpdateHttpRule(&req, serviceID, tx)
 	if err != nil {
 		tx.Rollback()
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while " +
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating http rule: %v", err))
 		return
 	}
 
 	if err := h.AddCertificate(&req, tx); err != nil {
 		tx.Rollback()
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while " +
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating certificate: %v", err))
 		return
 	}
@@ -145,7 +145,7 @@ func (g *GatewayStruct) updateHttpRule(w http.ResponseWriter, r *http.Request) {
 	// end transaction
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while commit transaction: %v", err))
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while committing transaction: %v", err))
 		return
 	}
 
@@ -153,5 +153,23 @@ func (g *GatewayStruct) updateHttpRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *GatewayStruct) deleteHttpRule(w http.ResponseWriter, r *http.Request) {
+	logrus.Debugf("delete http rule.")
+	var req api_model.HttpRuleStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	reqJson, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJson))
 
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+
+	h := handler.GetGatewayHandler()
+	err := h.DeleteHttpRule(&req, serviceID)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while delete http rule: %v", err))
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, "success")
 }

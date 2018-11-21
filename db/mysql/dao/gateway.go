@@ -88,7 +88,7 @@ func (c *RuleExtensionDaoImpl) AddModel(mo model.Interface) error {
 	}
 	var old model.RuleExtension
 	if ok := c.DB.Where("rule_id = ? and value = ?", re.RuleID, re.Value).Find(&old).RecordNotFound(); ok {
-	 	return c.DB.Create(re).Error
+		return c.DB.Create(re).Error
 	} else {
 		return fmt.Errorf("RuleExtension already exists based on RuleID(%s) and Value(%s)",
 			re.RuleID, re.Value)
@@ -160,6 +160,20 @@ func (h *HttpRuleDaoImpl) GetHttpRuleByServiceIDAndContainerPort(serviceID strin
 		}
 		return nil, err
 	}
+	return httpRule, nil
+}
+
+func (h *HttpRuleDaoImpl) DeleteHttpRuleByServiceIDAndContainerPort(serviceID string,
+	containerPort int) (*model.HttpRule, error) {
+	httpRule, err := h.GetHttpRuleByServiceIDAndContainerPort(serviceID, containerPort)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.DB.Where("service_id = ? and container_port = ?", serviceID,
+		containerPort).Delete(httpRule).Error; err != nil {
+		return nil, err
+	}
+
 	return httpRule, nil
 }
 

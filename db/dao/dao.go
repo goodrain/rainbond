@@ -423,6 +423,7 @@ type RuleExtensionDao interface {
 type HttpRuleDao interface {
 	Dao
 	GetHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HttpRule, error)
+	DeleteHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HttpRule, error)
 }
 
 // TcpRuleDao -
