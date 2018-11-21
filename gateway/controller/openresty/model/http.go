@@ -1,9 +1,12 @@
 package model
 
+import "github.com/goodrain/rainbond/cmd/gateway/option"
+
 type Http struct {
 	DefaultType          string
 	SendFile             bool
 	KeepaliveTimeout     Time
+	keepaliveRequests    int
 	ClientMaxBodySize    Size
 	ClientBodyBufferSize Size
 	ProxyConnectTimeout  Time
@@ -27,14 +30,15 @@ type AccessLog struct {
 }
 
 // NewHttp creates a new model.Http
-func NewHttp() *Http {
+func NewHttp(conf option.Config) *Http {
 	return &Http{
 		DefaultType: "text/html",
 		SendFile:    true,
 		KeepaliveTimeout: Time{
-			Num:  70,
+			Num:  conf.KeepaliveTimeout,
 			Unit: "s",
 		},
+		keepaliveRequests: conf.KeepaliveRequests,
 		ClientMaxBodySize: Size{
 			Num:  10,
 			Unit: "m",
@@ -63,8 +67,6 @@ func NewHttp() *Http {
 			Num:  32,
 			Unit: "k",
 		},
-		Includes: []string{
-			"/export/servers/nginx/conf/servers-http.conf",
-		},
+		Includes: []string{},
 	}
 }

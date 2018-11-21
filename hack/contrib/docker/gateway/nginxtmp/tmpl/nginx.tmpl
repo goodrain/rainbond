@@ -1,0 +1,15 @@
+
+{{ if .User }} user {{.User}};{{ end }}
+worker_processes  {{.WorkerProcesses}};
+error_log  {{.ErrorLog}};
+worker_rlimit_nofile {{.WorkerRlimitNofile}};
+
+events {
+    {{ if .Events.EnableEpoll }}use epoll;{{ end }}
+    {{ if .Events.EnableMultiAccept }}multi_accept on;{{ end }}
+    worker_connections  {{.Events.WorkerConnections}};
+}
+
+{{ range $include := .Includes }}
+include {{$include}};
+{{ end }}

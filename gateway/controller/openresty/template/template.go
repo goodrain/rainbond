@@ -18,22 +18,28 @@ package template
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"os"
+	"path"
+	text_template "text/template"
+
 	"github.com/golang/glog"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
 	"github.com/pkg/errors"
-	"io/ioutil"
-	"os"
-	text_template "text/template"
 )
 
-const (
+var (
 	defBufferSize = 65535
-	ConfPath      = "/export/servers/nginx/conf"
-	tmplPath      = "/export/servers/nginx/tmpl"
+	//CustomConfigPath custom config file path
+	CustomConfigPath = "/run/nginx/conf"
+	//tmplPath Tmpl config file path
+	tmplPath = "/run/nginxtmp"
 )
 
 func init() {
-
+	if os.Getenv("NGINX_CONFIG_TMPL") != "" {
+		tmplPath = os.Getenv("NGINX_CONFIG_TMPL")
+	}
 }
 
 // Template ...
@@ -62,40 +68,40 @@ func NewTemplate(fileName string) (*Template, error) {
 }
 
 // NewNginxTemplate creates a nginx configuration file(nginx.conf)
-func NewNginxTemplate(data *model.Nginx) error {
-	if e := Persist(tmplPath+"/nginx.tmpl", data, ConfPath, "nginx.conf"); e != nil {
+func NewNginxTemplate(data *model.Nginx, defaultNginxConf string) error {
+	if e := Persist(tmplPath+"/nginx.tmpl", data, path.Dir(defaultNginxConf), path.Base(defaultNginxConf)); e != nil {
 		return e
 	}
 	return nil
 }
 
-// NewNginxTemplate creates a configuration file for the nginx http module
+// NewHttpTemplate creates a configuration file for the nginx http module
 func NewHttpTemplate(data *model.Http, filename string) error {
-	if e := Persist(tmplPath+"/http.tmpl", data, ConfPath, filename); e != nil {
+	if e := Persist(tmplPath+"/http.tmpl", data, CustomConfigPath, filename); e != nil {
 		return e
 	}
 	return nil
 }
 
-// NewNginxTemplate creates a configuration file for the nginx stream module
+// NewStreamTemplate creates a configuration file for the nginx stream module
 func NewStreamTemplate(data *model.Stream, filename string) error {
-	if e := Persist(tmplPath+"/stream.tmpl", data, ConfPath, filename); e != nil {
+	if e := Persist(tmplPath+"/stream.tmpl", data, CustomConfigPath, filename); e != nil {
 		return e
 	}
 	return nil
 }
 
-// NewNginxTemplate creates a configuration file for the nginx server module
+// NewServerTemplate creates a configuration file for the nginx server module
 func NewServerTemplate(data []*model.Server, filename string) error {
-	if e := Persist(tmplPath+"/servers.tmpl", data, ConfPath, filename); e != nil {
+	if e := Persist(tmplPath+"/servers.tmpl", data, CustomConfigPath, filename); e != nil {
 		return e
 	}
 	return nil
 }
 
-// NewNginxTemplate creates a configuration file for the nginx upstream module
+// NewUpstreamTemplate creates a configuration file for the nginx upstream module
 func NewUpstreamTemplate(data []model.Upstream, tmpl, filename string) error {
-	if e := Persist(tmplPath+"/"+tmpl, data, ConfPath, filename); e != nil {
+	if e := Persist(tmplPath+"/"+tmpl, data, CustomConfigPath, filename); e != nil {
 		return e
 	}
 	return nil
@@ -112,7 +118,6 @@ func Persist(tmplFilename string, data interface{}, path string, filename string
 	if err != nil {
 		return err
 	}
-
 	if e := os.MkdirAll(path, 0777); e != nil {
 		return e
 	}

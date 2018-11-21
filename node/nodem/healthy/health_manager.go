@@ -104,6 +104,9 @@ func (p *probeManager) AddServices(inner []*service.Service) error {
 func (p *probeManager) Start(hostNode *client.HostNode) error {
 	go p.HandleStatus()
 	for _, v := range p.services {
+		if v.ServiceHealth == nil {
+			continue
+		}
 		if v.ServiceHealth.Model == "http" {
 			h := &probe.HttpProbe{
 				Name:         v.ServiceHealth.Name,

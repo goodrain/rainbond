@@ -1,0 +1,114 @@
+http {
+    include mime.types;
+    default_type  {{.DefaultType}};
+
+    {{ if .SendFile }}
+    sendfile        on;
+    {{ end }}
+
+    keepalive_timeout  {{.KeepaliveTimeout.Num}}{{.KeepaliveTimeout.Unit}};
+
+    # http_proxy 设置
+    {{ if gt .ClientMaxBodySize.Num 0 }}
+    client_max_body_size {{.ClientMaxBodySize.Num}}{{.ClientMaxBodySize.Unit}};
+    {{ end }}
+    {{ if gt .ClientBodyBufferSize.Num 0 }}
+    client_body_buffer_size   {{.ClientBodyBufferSize.Num}}{{.ClientBodyBufferSize.Unit}};
+    {{ end }}
+    # 与upstream server的连接超时时间, 这个值不能超过75s
+    {{ if gt .ProxyConnectTimeout.Num 0 }}
+    proxy_connect_timeout   {{.ProxyConnectTimeout.Num}}{{.ProxyConnectTimeout.Unit}};
+    {{ end }}
+    {{ if gt .ProxySendTimeout.Num 0 }}
+    proxy_send_timeout      {{.ProxySendTimeout.Num}}{{.ProxySendTimeout.Unit}};
+    {{ end }}
+    {{ if gt .ProxySendTimeout.Num 0 }}
+    proxy_read_timeout      {{.ProxyReadTimeout.Num}}{{.ProxyReadTimeout.Unit}};
+    {{ end }}
+    {{ if gt .ProxyBufferSize.Num 0}}
+    proxy_buffer_size       {{.ProxyBufferSize.Num}}{{.ProxyBufferSize.Unit}};
+    {{ end }}
+    {{ if gt .ProxyBuffers.Num 0}}
+    proxy_buffers           4 {{.ProxyBuffers.Num}}{{.ProxyBuffers.Unit}};
+    {{ end }}
+    {{ if gt .ProxyBusyBuffersSize.Num 0 }}
+    proxy_busy_buffers_size   {{.ProxyBusyBuffersSize.Num}}{{.ProxyBusyBuffersSize.Unit}};
+    {{ end }}
+
+    # gzip压缩功能设置
+    gzip              on;
+    gzip_min_length   1k;
+    gzip_buffers      4 16k;
+    gzip_http_version 1.0;
+    gzip_comp_level   6;
+    gzip_types        text/plain text/css text/javascript application/json application/javascript application/x-javascript application/xml;
+    gzip_vary         on;
+
+    {{ range $include := .Includes }}
+    include {{$include}};
+    {{ end }}
+
+    lua_shared_dict upstreams_dict 16m;
+
+    upstream  def_upstream  {
+        server   localhost:7777 max_fails=2 fail_timeout=30s;
+        server   localhost:8888 max_fails=2 fail_timeout=30s;
+    }
+
+    server {
+        listen       10254;
+
+        location /healthz {
+            return 200 "ok";
+        }
+
+        location /list-upstreams {
+            content_by_lua_block {
+                local balancer = require "ngx.balancer"
+                local cjson = require("cjson")
+                local keys = ngx.shared.upstreams_dict:get_keys()
+                for _, name in pairs(keys) do
+                    local servers = ngx.shared.upstreams_dict:get(name)
+                    ngx.print(name..": ")
+                    ngx.print(cjson.encode(servers))
+                    ngx.print("\n")
+                end
+            }
+        }
+
+        location /update-upstreams {
+            content_by_lua_block {
+                local cjson = require("cjson")
+                ngx.req.read_body()
+                local data = ngx.req.get_body_data()
+                if not data then
+                    local name = ngx.req.get_body_file()
+                    local f = io.open(name, "r")
+                    data = f:read("*a")
+                end
+
+                upstreams = cjson.decode(data)
+                for _, upstream in pairs(upstreams) do
+                    name = upstream.Name
+                    ngx.say(name)
+                    local servers = cjson.encode(upstream.Servers)
+                    ngx.say(servers)
+                    ngx.shared.upstreams_dict:set(name, servers)
+                    ngx.say("ok")
+                end
+            }
+        }
+
+        location /delete-upstreams {
+            content_by_lua_block {
+                local cjson = require("cjson")
+                ngx.req.read_body()
+                local data = ngx.req.get_body_data()
+                local tbl = cjson.decode(data)
+                for _, name in pairs(tbl) do
+                    ngx.shared.upstreams_dict:delete(name)
+                end
+            }
+        }
+    }
+}

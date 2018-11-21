@@ -70,7 +70,9 @@ build::image() {
 		echo "---> build image:$1"
 		sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
 		docker build -t ${BASE_NAME}/rbd-$1:${VERSION} -f Dockerfile.release .
-		docker push ${BASE_NAME}/rbd-$1:${VERSION}
+		if [ "$2" = "true" ];then
+			docker push ${BASE_NAME}/rbd-$1:${VERSION}
+		fi	
 		rm -f ./Dockerfile.release
 		rm -f ./${BASE_NAME}-$1
 	popd
@@ -80,7 +82,7 @@ build::all(){
 	local build_items=(api chaos entrance monitor mq webcli worker eventlog)
 	for item in ${build_items[@]}
 	do
-		build::image $item
+		build::image $item $1
 	done
 	build::node
 }
@@ -91,9 +93,9 @@ case $1 in
 	;;
 	*)
 		if [ "$1" = "all" ];then
-			build::all
+			build::all $2
 		else
-			build::image $1
+			build::image $1 $2
 		fi
 	;;
 esac

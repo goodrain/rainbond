@@ -1,10 +1,22 @@
 package model
 
+import (
+	"os/user"
+	"path"
+	"runtime"
+
+	"github.com/goodrain/rainbond/cmd/gateway/option"
+)
+
+//Nginx nginx config model
 type Nginx struct {
-	WorkerProcesses int
-	EventLog        EventLog
-	Events          Events
-	Includes        []string
+	WorkerProcesses    int
+	WorkerRlimitNofile int
+	ErrorLog           string
+	User               string
+	EventLog           EventLog
+	Events             Events
+	Includes           []string
 }
 
 type EventLog struct {
@@ -12,15 +24,36 @@ type EventLog struct {
 	Level string
 }
 
+//Events nginx events config model
 type Events struct {
 	WorkerConnections int
+	EnableEpoll       bool
+	EnableMultiAccept bool
 }
 
-func NewNginx() *Nginx {
+//NewNginx new nginx config
+func NewNginx(conf option.Config, customPath string) *Nginx {
+	if conf.NginxUser != "" {
+		if u, err := user.Current(); err == nil {
+			if conf.NginxUser == u.Username {
+				//if set user name like run user,do not set
+				conf.NginxUser = ""
+			}
+		}
+	}
+	if conf.WorkerProcesses == 0 {
+		conf.WorkerProcesses = runtime.NumCPU()
+	}
 	return &Nginx{
-		WorkerProcesses: 2, // TODO
-		Includes: []string{
-			"/export/servers/nginx/conf/http.conf",
+		WorkerProcesses:    conf.WorkerProcesses,
+		WorkerRlimitNofile: conf.WorkerRlimitNofile,
+		Includes:           []string{path.Join(customPath, "/*.conf")},
+		User:               conf.NginxUser,
+		ErrorLog:           conf.ErrorLog,
+		Events: Events{
+			WorkerConnections: conf.WorkerConnections,
+			EnableEpoll:       conf.EnableEpool,
+			EnableMultiAccept: conf.EnableMultiAccept,
 		},
 	}
 }

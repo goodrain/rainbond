@@ -4,27 +4,41 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
-	"github.com/goodrain/rainbond/gateway/controller/openresty/template"
-	"github.com/goodrain/rainbond/gateway/v1"
 	"io/ioutil"
-	"k8s.io/ingress-nginx/ingress/controller/process"
 	"net/http"
 	"os"
+	"path"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/cmd/gateway/option"
+	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
+	"github.com/goodrain/rainbond/gateway/controller/openresty/template"
+	"github.com/goodrain/rainbond/gateway/v1"
+	"k8s.io/ingress-nginx/ingress/controller/process"
 )
 
-type OpenrestyService struct{
-	AuxiliaryPort int
+type OpenrestyService struct {
+	AuxiliaryPort  int
 	IsShuttingDown *bool
 
 	// stopLock is used to enforce that only a single call to Stop send at
 	// a given time. We allow stopping through an HTTP endpoint and
 	// allowing concurrent stoppers leads to stack traces.
 	stopLock *sync.Mutex
+	config   *option.Config
+}
+
+//CreateOpenrestyService create openresty service
+func CreateOpenrestyService(config *option.Config, isShuttingDown *bool) *OpenrestyService {
+	gws := &OpenrestyService{
+		AuxiliaryPort:  config.ListenPorts.AuxiliaryPort,
+		IsShuttingDown: isShuttingDown,
+		config:         config,
+	}
+	return gws
 }
 
 type Upstream struct {
@@ -37,7 +51,12 @@ type Server struct {
 	Port int32
 }
 
+//Start start
 func (osvc *OpenrestyService) Start() error {
+	nginx := model.NewNginx(*osvc.config, template.CustomConfigPath)
+	if err := template.NewNginxTemplate(nginx, defaultNginxConf); err != nil {
+		return err
+	}
 	o, err := nginxExecCommand().CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%v\n%v", err, string(o))
@@ -82,7 +101,6 @@ func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
 	}
 
 	l7srv, l4srv := getNgxServer(conf)
-	var ngxIncludes []string
 	// http
 	if len(l7srv) > 0 {
 		serverFilename := "servers-http.conf"
@@ -91,17 +109,16 @@ func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
 			return err
 		}
 
-		httpData := model.NewHttp()
+		httpData := model.NewHttp(*osvc.config)
 		httpData.Includes = []string{
-			serverFilename,
-			upsHttp,
+			path.Join(template.CustomConfigPath, serverFilename),
+			path.Join(template.CustomConfigPath, upsHttp),
 		}
 		httpFilename := "http.conf"
 		if err := template.NewHttpTemplate(httpData, httpFilename); err != nil {
 			logrus.Fatalf("Fail to new nginx http template: %v", err)
 			return nil
 		}
-		ngxIncludes = append(ngxIncludes, httpFilename)
 	}
 
 	// stream
@@ -113,21 +130,14 @@ func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
 		}
 		streamData := model.NewStream()
 		streamData.Includes = []string{
-			serverFilename,
-			upsTcp,
+			path.Join(template.CustomConfigPath, serverFilename),
+			path.Join(template.CustomConfigPath, upsTcp),
 		}
 		streamFilename := "stream.conf"
 		if err := template.NewStreamTemplate(streamData, streamFilename); err != nil {
 			logrus.Fatalf("Fail to new nginx stream template: %v", err)
 			return nil
 		}
-		ngxIncludes = append(ngxIncludes, streamFilename)
-	}
-
-	nginx := model.NewNginx()
-	nginx.Includes = ngxIncludes
-	if err := template.NewNginxTemplate(nginx); err != nil {
-		return err
 	}
 
 	// check nginx configuration
@@ -185,8 +195,8 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 		}
 		for _, loc := range vs.Locations {
 			location := &model.Location{
-				Path:      loc.Path,
-				NameCondition:loc.NameCondition,
+				Path:          loc.Path,
+				NameCondition: loc.NameCondition,
 			}
 			server.Locations = append(server.Locations, location)
 		}

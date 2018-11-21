@@ -41,6 +41,17 @@ type Config struct {
 	K8SConfPath string
 	Namespace   string
 	ListenPorts ListenPorts
+	//This number should be, at maximum, the number of CPU cores on your system.
+	WorkerProcesses    int
+	WorkerRlimitNofile int
+	ErrorLog           string
+	WorkerConnections  int
+	//essential for linux, optmized to serve many clients with each thread
+	EnableEpool       bool
+	EnableMultiAccept bool
+	KeepaliveTimeout  int
+	KeepaliveRequests int
+	NginxUser         string
 }
 
 // ListenPorts describe the ports required to run the gateway controller
@@ -58,6 +69,15 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.K8SConfPath, "kube-conf", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig", "absolute path to the kubeconfig file")
 	fs.StringVar(&g.Namespace, "namespace", "gateway", "namespace")
 	fs.IntVar(&g.ListenPorts.AuxiliaryPort, "auxiliary-port", 10253, "port of auxiliary server")
+	fs.IntVar(&g.WorkerProcesses, "worker-processes", 0, "Default get current compute cpu core number.This number should be, at maximum, the number of CPU cores on your system.")
+	fs.IntVar(&g.WorkerConnections, "worker-connections", 4000, "Determines how many clients will be served by each worker process.")
+	fs.IntVar(&g.WorkerRlimitNofile, "worker-rlimit-nofile", 200000, "Number of file descriptors used for Nginx. This is set in the OS with 'ulimit -n 200000'")
+	fs.BoolVar(&g.EnableEpool, "enable-epool", true, "essential for linux, optmized to serve many clients with each thread")
+	fs.BoolVar(&g.EnableMultiAccept, "enable-multi-accept", true, "Accept as many connections as possible, after nginx gets notification about a new connection.")
+	fs.StringVar(&g.ErrorLog, "error-log", "/dev/stderr crit", "only log critical errors")
+	fs.StringVar(&g.NginxUser, "nginx-user", "root", "nginx user name")
+	fs.IntVar(&g.KeepaliveRequests, "keepalive-requests", 100000, "Number of requests a client can make over the keep-alive connection. This is set high for testing.")
+	fs.IntVar(&g.KeepaliveTimeout, "keepalive-timeout", 30, "Timeout for keep-alive connections. Server will close connections after this time.")
 }
 
 // SetLog sets log

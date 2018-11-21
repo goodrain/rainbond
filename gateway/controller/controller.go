@@ -2,6 +2,9 @@ package controller
 
 import (
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/golang/glog"
@@ -11,8 +14,6 @@ import (
 	"github.com/goodrain/rainbond/gateway/v1"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/ingress-nginx/task"
-	"sync"
-	"time"
 )
 
 const (
@@ -170,6 +171,7 @@ func (gwc *GWController) getDelUpdPools(updPools []*v1.Pool) ([]*v1.Pool, []*v1.
 	return delPools, updPools
 }
 
+//NewGWController new Gateway controller
 func NewGWController(config *option.Config, errCh chan error) *GWController {
 	logrus.Debug("NewGWController...")
 	gwc := &GWController{
@@ -179,10 +181,7 @@ func NewGWController(config *option.Config, errCh chan error) *GWController {
 		stopCh:   make(chan struct{}),
 	}
 
-	gws := &openresty.OpenrestyService{
-		AuxiliaryPort:  config.ListenPorts.AuxiliaryPort,
-		IsShuttingDown: &gwc.isShuttingDown,
-	}
+	gws := openresty.CreateOpenrestyService(config, &gwc.isShuttingDown)
 	gwc.GWS = gws
 
 	clientSet, err := NewClientSet(config.K8SConfPath)
