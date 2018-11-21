@@ -114,6 +114,7 @@ type Conf struct {
 	ServiceEndpointRegPath string
 	ServiceManager         string
 	DockerCli              *dockercli.Client
+	EtcdCli                *client.Client
 }
 
 //StatsdConfig StatsdConfig
@@ -191,6 +192,10 @@ func (a *Conf) SetLog() {
 //Parse handle config and create some api
 func (a *Conf) Parse() (err error) {
 	a.DockerCli, err = dockercli.NewEnvClient()
+	if err != nil {
+		return err
+	}
+	a.EtcdCli, err = client.New(a.Etcd)
 	if err != nil {
 		return err
 	}

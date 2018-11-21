@@ -22,12 +22,13 @@ import (
 	"context"
 	"time"
 
+	"encoding/json"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/core/config"
 	"github.com/goodrain/rainbond/node/core/job"
-	"encoding/json"
-	"github.com/Sirupsen/logrus"
 )
 
 //ClusterClient ClusterClient
@@ -47,12 +48,11 @@ type ClusterClient interface {
 }
 
 //NewClusterClient new cluster client
-func NewClusterClient(conf *option.Conf, etcdClient *clientv3.Client) ClusterClient {
+func NewClusterClient(conf *option.Conf) ClusterClient {
 	return &etcdClusterClient{
-		etcdClient: etcdClient,
+		etcdClient: conf.EtcdCli,
 		conf:       conf,
 	}
-
 }
 
 type etcdClusterClient struct {

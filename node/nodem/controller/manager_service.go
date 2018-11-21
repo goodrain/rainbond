@@ -304,6 +304,7 @@ func toEndpoint(reg *service.Endpoint, ip string) string {
 	return fmt.Sprintf("%s://%s:%s", reg.Protocol, ip, reg.Port)
 }
 
+//StartRequiresSystemd  StartRequiresSystemd
 func StartRequiresSystemd(conf *option.Conf) error {
 	services, err := service.LoadServicesFromLocal(conf.ServiceListFile)
 	if err != nil {
@@ -345,15 +346,10 @@ func StartRequiresSystemd(conf *option.Conf) error {
 	return nil
 }
 
-func NewManagerService(conf *option.Conf, healthyManager healthy.Manager) (*ManagerService, *clientv3.Client, client.ClusterClient) {
+//NewManagerService new controller manager
+func NewManagerService(conf *option.Conf, healthyManager healthy.Manager) (*ManagerService, client.ClusterClient) {
 	ctx, cancel := context.WithCancel(context.Background())
-
-	etcdcli, err := clientv3.New(conf.Etcd)
-	if err != nil {
-		return nil, nil, nil
-	}
-	cluster := client.NewClusterClient(conf, etcdcli)
-
+	cluster := client.NewClusterClient(conf)
 	manager := &ManagerService{
 		ctx:            ctx,
 		cancel:         cancel,
@@ -361,8 +357,7 @@ func NewManagerService(conf *option.Conf, healthyManager healthy.Manager) (*Mana
 		cluster:        cluster,
 		ctr:            NewControllerSystemd(conf, cluster),
 		healthyManager: healthyManager,
-		etcdcli:        etcdcli,
+		etcdcli:        conf.EtcdCli,
 	}
-
-	return manager, etcdcli, cluster
+	return manager, cluster
 }
