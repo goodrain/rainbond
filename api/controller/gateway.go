@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
@@ -43,7 +42,7 @@ func (g *GatewayStruct) HttpRule(w http.ResponseWriter, r *http.Request) {
 		g.addHttpRule(w, r)
 	case "PUT":
 		g.updateHttpRule(w, r)
-	case "Delete":
+	case "DELETE":
 		g.deleteHttpRule(w, r)
 	}
 }
@@ -58,12 +57,10 @@ func (g *GatewayStruct) addHttpRule(w http.ResponseWriter, r *http.Request) {
 	reqJson, _ := json.Marshal(req)
 	logrus.Debugf("Request is : %s", string(reqJson))
 
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-
 	// TODO: shouldn't write the business logic here
 	httpRule := &model.HttpRule{
 		UUID:             util.NewUUID(),
-		ServiceID:        serviceID,
+		ServiceID:        req.ServiceID,
 		ContainerPort:    req.ContainerPort,
 		Domain:           req.Domain,
 		Path:             req.Path,
@@ -115,23 +112,21 @@ func (g *GatewayStruct) updateHttpRule(w http.ResponseWriter, r *http.Request) {
 	reqJson, _ := json.Marshal(req)
 	logrus.Debugf("Request is : %s", string(reqJson))
 
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-
 	// TODO: shouldn't write the business logic here
 	// begin transaction
 	tx := db.GetManager().Begin()
 	h := handler.GetGatewayHandler()
-	httpRule, err := h.UpdateHttpRule(&req, serviceID, tx)
+	httpRule, err := h.UpdateHttpRule(&req, tx)
 	if err != nil {
 		tx.Rollback()
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while " +
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating http rule: %v", err))
 		return
 	}
 
 	if err := h.AddCertificate(&req, tx); err != nil {
 		tx.Rollback()
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while " +
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating certificate: %v", err))
 		return
 	}
@@ -145,7 +140,7 @@ func (g *GatewayStruct) updateHttpRule(w http.ResponseWriter, r *http.Request) {
 	// end transaction
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while commit transaction: %v", err))
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while committing transaction: %v", err))
 		return
 	}
 
@@ -153,5 +148,21 @@ func (g *GatewayStruct) updateHttpRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *GatewayStruct) deleteHttpRule(w http.ResponseWriter, r *http.Request) {
+	logrus.Debugf("delete http rule.")
+	var req api_model.HttpRuleStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	reqJson, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJson))
 
+	h := handler.GetGatewayHandler()
+	err := h.DeleteHttpRule(&req)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while delete http rule: %v", err))
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, "success")
 }

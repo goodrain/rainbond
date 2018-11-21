@@ -26,7 +26,8 @@ import (
 
 type GatewayHandler interface {
 	AddHttpRule(httpRule *dbmodel.HttpRule, tx *gorm.DB) error
-	UpdateHttpRule(req *apimodel.HttpRuleStruct, serviceID string, tx *gorm.DB) (*dbmodel.HttpRule, error)
+	UpdateHttpRule(req *apimodel.HttpRuleStruct, tx *gorm.DB) (*dbmodel.HttpRule, error)
+	DeleteHttpRule(req *apimodel.HttpRuleStruct) error
 	AddCertificate(req *apimodel.HttpRuleStruct, tx *gorm.DB) error
 	UpdateCertificate(req apimodel.HttpRuleStruct, httpRule *dbmodel.HttpRule, tx *gorm.DB) error
 	AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct, tx *gorm.DB) error
