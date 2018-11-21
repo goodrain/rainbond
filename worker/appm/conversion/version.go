@@ -144,6 +144,13 @@ func createArgs(version *dbmodel.VersionInfo, envs []corev1.EnvVar) (args []stri
 func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error) {
 	var envs []corev1.EnvVar
 	var envsAll []*dbmodel.TenantServiceEnvVar
+	//set logger env
+	//todo: user define and set logger config
+	envs = append(envs, corev1.EnvVar{
+		Name:  "LOGGER_DRIVER_NAME",
+		Value: "streamlog",
+	})
+
 	//set relation app outer env
 	relations, err := dbmanager.TenantServiceRelationDao().GetTenantServiceRelations(as.ServiceID)
 	if err != nil {

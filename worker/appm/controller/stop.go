@@ -144,7 +144,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 	}
 	//step 9: waiting endpoint ready
-	app.Logger.Info("Create all app model success, will waiting app ready", getLoggerOption("running"))
+	app.Logger.Info("Delete all app model success, will waiting app closed", getLoggerOption("running"))
 	return s.WaitingReady(app)
 }
 func (s *stopController) Stop() error {

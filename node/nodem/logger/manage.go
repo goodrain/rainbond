@@ -339,5 +339,5 @@ func (container *ContainerLog) Stop() {
 		container.stderr.Close()
 	}
 	container.cancel()
-	logrus.Debugf("congtainer logger stop for container %s", container.Name)
+	logrus.Debugf("rainbond logger stop for container %s", container.Name)
 }
