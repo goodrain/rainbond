@@ -51,6 +51,7 @@ type V2Routes struct {
 	EntranceStruct
 	EventLogStruct
 	AppStruct
+	GatewayStruct
 }
 
 //Show test

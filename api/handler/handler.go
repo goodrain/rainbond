@@ -19,6 +19,7 @@
 package handler
 
 import (
+	"github.com/goodrain/rainbond/db"
 	"time"
 
 	"github.com/goodrain/rainbond/api/handler/group"
@@ -59,6 +60,8 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 		logrus.Errorf("create etcd client v3 error, %v", err)
 		return err
 	}
+	dbmanager:= db.GetManager()
+
 	defaultServieHandler = CreateManager(mqClient, kubeClient, etcdCli, statusCli)
 	defaultPluginHandler = CreatePluginManager(mqClient)
 	defaultAppHandler = CreateAppManager(mqClient)
@@ -75,6 +78,8 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 		logrus.Errorf("create token identification mannager error, %v", err)
 		return err
 	}
+	// gateway
+	defaultGatewayHandler = CreateGatewayManager(dbmanager)
 	return nil
 }
 
@@ -151,4 +156,11 @@ var defaultAPPBackupHandler *group.BackupHandle
 //GetAPPBackupHandler GetAPPBackupHandler
 func GetAPPBackupHandler() *group.BackupHandle {
 	return defaultAPPBackupHandler
+}
+
+var defaultGatewayHandler GatewayHandler
+
+// GetGatewayHandler returns a default GatewayHandler
+func GetGatewayHandler() GatewayHandler {
+	return defaultGatewayHandler
 }

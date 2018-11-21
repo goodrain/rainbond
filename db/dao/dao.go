@@ -409,12 +409,14 @@ type ServiceSourceDao interface {
 type CertificateDao interface {
 	Dao
 	GetCertificateByID(certificateID string) (*model.Certificate, error)
+	DeleteCertificateByID(certificateID string) error
 }
 
 // RuleExtensionDao -
 type RuleExtensionDao interface {
 	Dao
-	GetRuleExtensionByServiceID(serviceID string) ([]*model.RuleExtension, error)
+	GetRuleExtensionByRuleID(ruleID string) ([]*model.RuleExtension, error)
+	DeleteRuleExtensionByRuleID(ruleID string) error
 }
 
 // HttpRuleDao -

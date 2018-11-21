@@ -149,3 +149,7 @@ type AppInterface interface {
 	ImportID(w http.ResponseWriter, r *http.Request)
 	ImportApp(w http.ResponseWriter, r *http.Request)
 }
+
+type Gatewayer interface {
+	HttpRule(w http.ResponseWriter, r *http.Request)
+}
