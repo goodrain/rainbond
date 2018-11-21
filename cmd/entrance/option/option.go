@@ -70,7 +70,7 @@ func (a *ACPLBServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.APIAddr, "api-addr", ":6200", "the api server listen address")
 	fs.StringVar(&a.Token, "token", "", "zeus api token")
 	// fs.StringVar(&a.RegionAPIAddr, "region-api-addr", "http://region.goodrain.me:8888", "the region api server address.")
-	fs.StringVar(&a.K8SConfPath, "kube-conf", "./kubeconfig", "absolute path to the kubeconfig file")
+	fs.StringVar(&a.K8SConfPath, "kube-conf", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig", "absolute path to the kubeconfig file")
 	fs.StringSliceVar(&a.NginxHTTPAPI, "nginx-http", []string{}, "Nginx lb http api.")
 	fs.StringSliceVar(&a.NginxStreamAPI, "nginx-stream", []string{}, "Nginx stream api.")
 	fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")

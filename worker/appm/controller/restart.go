@@ -22,6 +22,9 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/worker/appm/conversion"
+
 	"github.com/Sirupsen/logrus"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
@@ -61,7 +64,16 @@ func (s *restartController) restartOne(app v1.AppService) error {
 	startController := startController{
 		manager: s.manager,
 	}
-	if err := startController.startOne(app); err != nil {
+	newAppService, err := conversion.InitAppService(db.GetManager(), app.ServiceID)
+	if err != nil {
+		logrus.Errorf("Application init create failure:%s", err.Error())
+		app.Logger.Error("Application init create failure", getCallbackLoggerOption())
+		return fmt.Errorf("Application init create failure")
+	}
+	newAppService.Logger = app.Logger
+	//regist new app service
+	s.manager.store.RegistAppService(newAppService)
+	if err := startController.startOne(*newAppService); err != nil {
 		app.Logger.Error("(Restart)Start app failure %s,you could waiting it start success.or manual stop it", getCallbackLoggerOption())
 		return err
 	}

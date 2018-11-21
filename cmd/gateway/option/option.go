@@ -20,6 +20,9 @@ package option
 
 import (
 	"fmt"
+
+	"github.com/goodrain/rainbond/util"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
@@ -42,9 +45,9 @@ type Config struct {
 
 // ListenPorts describe the ports required to run the gateway controller
 type ListenPorts struct {
-	HTTP   int
-	HTTPS  int
-	Status int
+	HTTP          int
+	HTTPS         int
+	Status        int
 	AuxiliaryPort int
 }
 
@@ -52,7 +55,7 @@ type ListenPorts struct {
 func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.LogLevel, "log-level", "debug", "the gateway log level")
 	// TODO change kube-conf
-	fs.StringVar(&g.K8SConfPath, "kube-conf", "/Users/abe/Documents/admin.kubeconfig", "absolute path to the kubeconfig file")
+	fs.StringVar(&g.K8SConfPath, "kube-conf", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig", "absolute path to the kubeconfig file")
 	fs.StringVar(&g.Namespace, "namespace", "gateway", "namespace")
 	fs.IntVar(&g.ListenPorts.AuxiliaryPort, "auxiliary-port", 10253, "port of auxiliary server")
 }
@@ -65,4 +68,15 @@ func (g *GWServer) SetLog() {
 		return
 	}
 	logrus.SetLevel(level)
+}
+
+//CheckConfig check config
+func (g *GWServer) CheckConfig() error {
+	if g.K8SConfPath == "" {
+		return fmt.Errorf("kube config file path can not be empty")
+	}
+	if exist, _ := util.FileExists(g.K8SConfPath); !exist {
+		return fmt.Errorf("kube config file %s not exist", g.K8SConfPath)
+	}
+	return nil
 }

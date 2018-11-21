@@ -160,7 +160,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.Int64Var(&a.LockTTL, "lockttl", 600, "lock ttl")
 	fs.StringVar(&a.APIAddr, "api-addr", ":6100", "the api server listen address")
 	fs.StringVar(&a.StaticTaskPath, "static-task-path", "/etc/goodrain/rainbond-node", "the file path of static task")
-	fs.StringVar(&a.K8SConfPath, "kube-conf", "", "absolute path to the kubeconfig file  ./kubeconfig")
+	fs.StringVar(&a.K8SConfPath, "kube-conf", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig", "absolute path to the kubeconfig file  ./kubeconfig")
 	//fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")
 	fs.StringVar(&a.RunMode, "run-mode", "worker", "the acp_node run mode,could be 'worker' or 'master'")
 	fs.StringVar(&a.NodeRule, "noderule", "compute", "current node rule,maybe is `compute` `manage` `storage` ")
