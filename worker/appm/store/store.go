@@ -48,9 +48,11 @@ type Storer interface {
 	RegistAppService(*v1.AppService)
 	GetAppService(serviceID, version, createrID string) *v1.AppService
 	GetAppServices(serviceID string) []*v1.AppService
+	GetAllAppServices() []*v1.AppService
 	GetAppServiceWithoutCreaterID(serviceID, version string) *v1.AppService
 	GetAppServiceStatus(serviceID string) string
 	GetAppServicesStatus(serviceIDs []string) map[string]string
+	GetNeedBillingStatus(serviceIDs []string) map[string]string
 }
 
 //appRuntimeStore app runtime store
@@ -59,6 +61,7 @@ type appRuntimeStore struct {
 	informers   *Informer
 	listers     *Lister
 	appServices sync.Map
+	appCount    int32
 	dbmanager   db.Manager
 	stopch      chan struct{}
 	conf        option.Config
@@ -356,12 +359,8 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 }
 func (a *appRuntimeStore) deleteAppService(app *v1.AppService) {
 	a.appServices.Delete(v1.GetCacheKey(app.ServiceID, app.DeployVersion, app.CreaterID))
-	var size int
-	a.appServices.Range(func(k, v interface{}) bool {
-		size++
-		return false
-	})
-	fmt.Printf("current have %d app after delete \n", size)
+	a.appCount--
+	logrus.Debugf("current have %d app after delete \n", a.appCount)
 }
 
 //RegistAppService regist a app model to store.
@@ -372,7 +371,8 @@ func (a *appRuntimeStore) RegistAppService(app *v1.AppService) {
 		size++
 		return false
 	})
-	fmt.Printf("current have %d app after add \n", size)
+	a.appCount++
+	logrus.Debugf("current have %d app after add \n", a.appCount)
 }
 func (a *appRuntimeStore) GetAppService(serviceID, version, createrID string) *v1.AppService {
 	key := v1.GetCacheKey(serviceID, version, createrID)
@@ -411,6 +411,16 @@ func (a *appRuntimeStore) GetAppServices(serviceID string) (apps []*v1.AppServic
 	})
 	return
 }
+func (a *appRuntimeStore) GetAllAppServices() (apps []*v1.AppService) {
+	a.appServices.Range(func(k, value interface{}) bool {
+		appService, _ := value.(*v1.AppService)
+		if appService != nil {
+			apps = append(apps, appService)
+		}
+		return true
+	})
+	return
+}
 
 func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
 	apps := a.GetAppServices(serviceID)
@@ -436,4 +446,29 @@ func (a *appRuntimeStore) GetAppServicesStatus(serviceIDs []string) map[string]s
 		statusMap[serviceID] = a.GetAppServiceStatus(serviceID)
 	}
 	return statusMap
+}
+
+func (a *appRuntimeStore) GetNeedBillingStatus(serviceIDs []string) map[string]string {
+	statusMap := make(map[string]string, len(serviceIDs))
+	if serviceIDs == nil || len(serviceIDs) == 0 {
+		a.appServices.Range(func(k, v interface{}) bool {
+			appService, _ := v.(*v1.AppService)
+			status := a.GetAppServiceStatus(appService.ServiceID)
+			if isClosedStatus(status) {
+				statusMap[appService.ServiceID] = status
+			}
+			return true
+		})
+	} else {
+		for _, serviceID := range serviceIDs {
+			status := a.GetAppServiceStatus(serviceID)
+			if isClosedStatus(status) {
+				statusMap[serviceID] = status
+			}
+		}
+	}
+	return statusMap
+}
+func isClosedStatus(curStatus string) bool {
+	return curStatus == v1.BUILDEFAILURE || curStatus == v1.CLOSED || curStatus == v1.UNDEPLOY || curStatus == v1.BUILDING || curStatus == v1.UNKNOW
 }

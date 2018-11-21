@@ -217,7 +217,7 @@ func (n *manager) Stop() error {
 }
 
 //Newmanager new server
-func Newmanager(cfg *option.Conf, etcdCli *clientv3.Client) (Manager, error) {
+func Newmanager(cfg *option.Conf) (Manager, error) {
 	if cfg.TTL == 0 {
 		cfg.TTL = 10
 	}
@@ -231,7 +231,7 @@ func Newmanager(cfg *option.Conf, etcdCli *clientv3.Client) (Manager, error) {
 		cmds:     make(map[string]*job.Cmd),
 		delIDs:   make(map[string]bool, 8),
 		ttl:      cfg.TTL,
-		etcdcli:  etcdCli,
+		etcdcli:  cfg.EtcdCli,
 		Conf:     cfg,
 	}
 	return n, nil

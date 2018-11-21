@@ -20,11 +20,12 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/cmd/gateway/server"
 	"github.com/spf13/pflag"
-	"os"
 )
 
 func main() {
@@ -36,7 +37,10 @@ func main() {
 	s.AddFlags(pflag.CommandLine)
 	pflag.Parse()
 	s.SetLog()
-
+	if err := s.CheckConfig(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 	if err := server.Run(s); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)

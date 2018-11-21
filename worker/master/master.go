@@ -19,7 +19,15 @@
 package master
 
 import (
+	"context"
 	"fmt"
+	"strings"
+	"time"
+
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/worker/master/volumes/statistical"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/goodrain/rainbond/worker/appm/store"
 
@@ -29,21 +37,54 @@ import (
 
 //Controller app runtime master controller
 type Controller struct {
-	conf  option.Config
-	store store.Storer
+	ctx       context.Context
+	cancel    context.CancelFunc
+	conf      option.Config
+	store     store.Storer
+	dbmanager db.Manager
+	memoryUse *prometheus.GaugeVec
+	fsUse     *prometheus.GaugeVec
+	diskCache *statistical.DiskCache
+	isLeader  bool
 }
 
 //NewMasterController new master controller
 func NewMasterController(conf option.Config, store store.Storer) *Controller {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Controller{
-		conf:  conf,
-		store: store,
+		conf:      conf,
+		store:     store,
+		cancel:    cancel,
+		ctx:       ctx,
+		dbmanager: db.GetManager(),
+		memoryUse: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "app_resource",
+			Name:      "appmemory",
+			Help:      "tenant service memory used.",
+		}, []string{"tenant_id", "service_id", "service_status"}),
+		fsUse: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "app_resource",
+			Name:      "appfs",
+			Help:      "tenant service fs used.",
+		}, []string{"tenant_id", "service_id", "volume_type"}),
+		diskCache: statistical.CreatDiskCache(ctx),
 	}
+}
+
+//IsLeader is leader
+func (m *Controller) IsLeader() bool {
+	return m.isLeader
 }
 
 //Start start
 func (m *Controller) Start() error {
 	start := func(stop <-chan struct{}) {
+		m.isLeader = true
+		defer func() {
+			m.isLeader = false
+		}()
+		m.diskCache.Start()
+		defer m.diskCache.Stop()
 		<-stop
 	}
 	// Leader election was requested.
@@ -58,7 +99,39 @@ func (m *Controller) Start() error {
 	}
 	// Name of config map with leader election lock
 	lockName := "rainbond-appruntime-worker-leader"
-
-	leader.RunAsLeader(m.conf.KubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {})
+	go leader.RunAsLeader(m.conf.KubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {})
 	return nil
+}
+
+//Stop stop
+func (m *Controller) Stop() {
+
+}
+
+//Scrape scrape app runtime
+func (m *Controller) Scrape(ch chan<- prometheus.Metric, scrapeDurationDesc *prometheus.Desc) {
+	if !m.isLeader {
+		return
+	}
+	scrapeTime := time.Now()
+	services := m.store.GetAllAppServices()
+	status := m.store.GetNeedBillingStatus(nil)
+	//获取内存使用情况
+	for _, service := range services {
+		if _, ok := status[service.ServiceID]; ok {
+			m.memoryUse.WithLabelValues(service.TenantID, service.ServiceID, "running").Set(float64(service.ContainerMemory * service.Replicas))
+		}
+	}
+	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.memory")
+	scrapeTime = time.Now()
+	diskcache := m.diskCache.Get()
+	for k, v := range diskcache {
+		key := strings.Split(k, "_")
+		if len(key) == 2 {
+			m.fsUse.WithLabelValues(key[1], key[0], string(model.ShareFileVolumeType)).Set(v)
+		}
+	}
+	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.fs")
+	m.fsUse.Collect(ch)
+	m.memoryUse.Collect(ch)
 }

@@ -181,12 +181,14 @@ func (m *Manager) restartExec(task *model.Task) error {
 		event.GetManager().ReleaseLogger(logger)
 		return nil
 	}
-	err := m.controllerManager.StartController(controller.TypeStopController, *appService)
+	appService.Logger = logger
+	//first stop app
+	err := m.controllerManager.StartController(controller.TypeRestartController, *appService)
 	if err != nil {
-		logrus.Errorf("Application run  stop controller failure:%s", err.Error())
-		logger.Info("Application run stop controller failure", map[string]string{"step": "callback", "status": "faliure"})
+		logrus.Errorf("Application run restart controller failure:%s", err.Error())
+		logger.Info("Application run restart controller failure", map[string]string{"step": "callback", "status": "faliure"})
 		event.GetManager().ReleaseLogger(logger)
-		return fmt.Errorf("Application stop failure")
+		return fmt.Errorf("Application restart failure")
 	}
 	logrus.Infof("service(%s) %s working is running.", body.ServiceID, "restart")
 	return nil

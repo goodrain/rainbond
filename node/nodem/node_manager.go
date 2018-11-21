@@ -66,8 +66,8 @@ type NodeManager struct {
 //NewNodeManager new a node manager
 func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 	healthyManager := healthy.CreateManager()
-	controller, etcdCli, cluster := controller.NewManagerService(conf, healthyManager)
-	taskrun, err := taskrun.Newmanager(conf, etcdCli)
+	controller, cluster := controller.NewManagerService(conf, healthyManager)
+	taskrun, err := taskrun.Newmanager(conf)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 		cluster:    cluster,
 		monitor:    monitor,
 		healthy:    healthyManager,
-		etcdCli:    etcdCli,
+		etcdCli:    conf.EtcdCli,
 		clm:        clm,
 	}
 	nodem.HostNode.NodeStatus = &client.NodeStatus{Status: "online"}

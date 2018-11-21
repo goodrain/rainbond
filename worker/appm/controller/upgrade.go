@@ -45,7 +45,7 @@ func (s *upgradeController) Begin() {
 				service.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", service.ServiceAlias, err.Error()), getCallbackLoggerOption())
 				logrus.Errorf("upgrade service %s failure %s", service.ServiceAlias, err.Error())
 			} else {
-				service.Logger.Error(fmt.Sprintf("upgrade service %s success", service.ServiceAlias, err.Error()), getLastLoggerOption())
+				service.Logger.Info(fmt.Sprintf("upgrade service %s success", service.ServiceAlias), getLastLoggerOption())
 			}
 		}(service)
 	}
@@ -60,15 +60,51 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 	if deployment := app.GetDeployment(); deployment != nil {
 		_, err := s.manager.client.AppsV1().Deployments(deployment.Namespace).Update(deployment)
 		if err != nil {
-			app.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
-			logrus.Errorf("upgrade service %s failure %s", app.ServiceAlias, err.Error())
+			app.Logger.Error(fmt.Sprintf("upgrade deployment %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
+			logrus.Errorf("upgrade deployment %s failure %s", app.ServiceAlias, err.Error())
 		}
 	}
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
 		_, err := s.manager.client.AppsV1().StatefulSets(statefulset.Namespace).Update(statefulset)
 		if err != nil {
-			app.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
-			logrus.Errorf("upgrade service %s failure %s", app.ServiceAlias, err.Error())
+			app.Logger.Error(fmt.Sprintf("upgrade statefulset %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
+			logrus.Errorf("upgrade statefulset %s failure %s", app.ServiceAlias, err.Error())
+		}
+	}
+	if ingresses := app.GetIngress(); ingresses != nil {
+		for _, ingress := range ingresses {
+			_, err := s.manager.client.Extensions().Ingresses(ingress.Namespace).Update(ingress)
+			if err != nil {
+				app.Logger.Error(fmt.Sprintf("upgrade ingress %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
+				logrus.Errorf("upgrade ingress %s failure %s", app.ServiceAlias, err.Error())
+			}
+		}
+	}
+	if services := app.GetServices(); services != nil {
+		for _, service := range services {
+			_, err := s.manager.client.CoreV1().Services(service.Namespace).Update(service)
+			if err != nil {
+				app.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
+				logrus.Errorf("upgrade service %s failure %s", app.ServiceAlias, err.Error())
+			}
+		}
+	}
+	if configs := app.GetConfigMaps(); configs != nil {
+		for _, config := range configs {
+			_, err := s.manager.client.CoreV1().ConfigMaps(config.Namespace).Update(config)
+			if err != nil {
+				app.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
+				logrus.Errorf("upgrade service %s failure %s", app.ServiceAlias, err.Error())
+			}
+		}
+	}
+	if secrets := app.GetSecrets(); secrets != nil {
+		for _, secret := range secrets {
+			_, err := s.manager.client.CoreV1().Secrets(secret.Namespace).Update(secret)
+			if err != nil {
+				app.Logger.Error(fmt.Sprintf("upgrade secret %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
+				logrus.Errorf("upgrade secret %s failure %s", app.ServiceAlias, err.Error())
+			}
 		}
 	}
 	return s.WaitingReady(app)

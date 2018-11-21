@@ -22,10 +22,11 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/goodrain/rainbond/worker/master"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	httputil "github.com/goodrain/rainbond/util/http"
-	status "github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/discover"
 	"github.com/goodrain/rainbond/worker/monitor/collector"
 	"github.com/prometheus/client_golang/prometheus"
@@ -35,27 +36,27 @@ import (
 
 //ExporterManager app resource exporter
 type ExporterManager struct {
-	ctx           context.Context
-	cancel        context.CancelFunc
-	config        option.Config
-	stopChan      chan struct{}
-	statusManager *status.AppRuntimeSyncClient
+	ctx              context.Context
+	cancel           context.CancelFunc
+	config           option.Config
+	stopChan         chan struct{}
+	masterController *master.Controller
 }
 
 //NewManager return *NewManager
-func NewManager(c option.Config, statusManager *status.AppRuntimeSyncClient) *ExporterManager {
+func NewManager(c option.Config, masterController *master.Controller) *ExporterManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ExporterManager{
-		ctx:           ctx,
-		cancel:        cancel,
-		config:        c,
-		stopChan:      make(chan struct{}),
-		statusManager: statusManager,
+		ctx:              ctx,
+		cancel:           cancel,
+		config:           c,
+		stopChan:         make(chan struct{}),
+		masterController: masterController,
 	}
 }
 func (t *ExporterManager) handler(w http.ResponseWriter, r *http.Request) {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(collector.New(t.statusManager))
+	registry.MustRegister(collector.New(t.masterController))
 
 	gatherers := prometheus.Gatherers{
 		prometheus.DefaultGatherer,

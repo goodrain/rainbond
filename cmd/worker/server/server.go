@@ -23,6 +23,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/goodrain/rainbond/worker/master"
+
 	"github.com/goodrain/rainbond/worker/server"
 
 	"github.com/goodrain/rainbond/cmd/worker/option"
@@ -80,20 +82,27 @@ func Run(s *option.Worker) error {
 		logrus.Error("start kube cache store error", err)
 		return err
 	}
+	//step 4: create controller manager
 	controllerManager := controller.NewManager(cachestore, clientset)
 	defer controllerManager.Stop()
 
-	//step 4 : create discover module
+	//step 5 : start runtime master
+	masterCon := master.NewMasterController(s.Config, cachestore)
+	if err := masterCon.Start(); err != nil {
+		return err
+	}
+	defer masterCon.Stop()
+	//step 6 : create discover module
 	taskManager := discover.NewTaskManager(s.Config, cachestore, controllerManager)
 	if err := taskManager.Start(); err != nil {
 		return err
 	}
 	defer taskManager.Stop()
-	//step 5: start app runtimer server
+	//step 7: start app runtimer server
 	runtimeServer := server.CreaterRuntimeServer(s.Config, cachestore)
 	runtimeServer.Start(errChan)
-	//step 6: create application use resource exporter.
-	exporterManager := monitor.NewManager(s.Config, nil)
+	//step 8: create application use resource exporter.
+	exporterManager := monitor.NewManager(s.Config, masterCon)
 	if err := exporterManager.Start(); err != nil {
 		return err
 	}

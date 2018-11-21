@@ -87,7 +87,7 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"127.0.0.1:6366"}, "event log server address. simple lb")
 	fs.StringVar(&a.MQAPI, "mq-api", "127.0.0.1:6300", "acp_mq api")
 	fs.BoolVar(&a.StartRegionAPI, "start", false, "Whether to start region old api")
-	fs.StringVar(&a.KubeConfig, "kube-config", "/etc/goodrain/kubernetes/admin.kubeconfig", "kubernetes api server config file")
+	fs.StringVar(&a.KubeConfig, "kube-config", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig", "kubernetes api server config file")
 	fs.StringSliceVar(&a.EtcdEndpoint, "etcd", []string{"http://127.0.0.1:2379"}, "etcd server or proxy address")
 	fs.StringVar(&a.Opentsdb, "opentsdb", "127.0.0.1:4242", "opentsdb server config")
 	fs.StringVar(&a.RegionTag, "region-tag", "test-ali", "region tag setting")
