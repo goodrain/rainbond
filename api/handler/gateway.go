@@ -19,6 +19,7 @@
 package handler
 
 import (
+	"fmt"
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
@@ -37,15 +38,67 @@ func CreateGatewayManager(dbmanager db.Manager) *GatewayAction {
 	}
 }
 
+// AddHttpRule adds http rule to db if it doesn't exists.
 func (g *GatewayAction) AddHttpRule(httpRule *model.HttpRule, tx *gorm.DB) error {
 	return g.dbmanager.HttpRuleDaoTransactions(tx).AddModel(httpRule)
 }
 
-// AddCertificate adds certificate to db if is doesn't exists
-func (g *GatewayAction) AddCertificate(certificate *model.Certificate, tx *gorm.DB) error {
-	return g.dbmanager.CertificateDaoTransactions(tx).AddModel(certificate)
+func (g *GatewayAction) UpdateHttpRule(req *apimodel.HttpRuleStruct, serviceID string, tx *gorm.DB) (httpRule *model.HttpRule, err error) {
+	rule, err := g.dbmanager.HttpRuleDaoTransactions(tx).GetHttpRuleByServiceIDAndContainerPort(serviceID, req.ContainerPort)
+	if err != nil {
+		return nil, err
+	}
+	if rule == nil {
+		return nil, fmt.Errorf("HttpRule dosen't exist based on ServiceID(%s) and ContainerPort(%v)", serviceID, req.ContainerPort)
+	}
+	// delete old Certificate
+	if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(rule.CertificateID); err != nil {
+		return nil, err
+	}
+	// delete old RuleExtensions
+	if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(rule.UUID); err != nil {
+		return nil, err
+	}
+
+	rule.Path = req.Path
+	rule.Domain = req.Domain
+	rule.Header = req.Header
+	rule.Cookie = req.Cookie
+	rule.LoadBalancerType = req.LoadBalancerType
+	rule.CertificateID = req.CertificateID
+
+	return rule, g.dbmanager.HttpRuleDaoTransactions(tx).UpdateModel(rule)
 }
 
+// AddCertificate adds certificate to db if it doesn't exists
+func (g *GatewayAction) AddCertificate(req *apimodel.HttpRuleStruct, tx *gorm.DB) error {
+	cert := &model.Certificate{
+		UUID: req.CertificateID,
+		CertificateName: req.CertificateName,
+		Certificate: req.Certificate,
+		PrivateKey: req.PrivateKey,
+	}
+
+	return g.dbmanager.CertificateDaoTransactions(tx).AddModel(cert)
+}
+
+func (g *GatewayAction) UpdateCertificate(req apimodel.HttpRuleStruct, httpRule *model.HttpRule, tx *gorm.DB) error {
+	// delete old certificate
+	cert, err := g.dbmanager.CertificateDaoTransactions(tx).GetCertificateByID(req.CertificateID)
+	if err != nil {
+		return err
+	}
+	if cert == nil {
+		return fmt.Errorf("Certificate doesn't exist based on certificateID(%s)", req.CertificateID)
+	}
+
+	cert.CertificateName = req.CertificateName
+	cert.Certificate = req.Certificate
+	cert.PrivateKey = req.PrivateKey
+	return g.dbmanager.CertificateDaoTransactions(tx).UpdateModel(cert)
+}
+
+// AddRuleExtensions adds rule extensions to db if any of they doesn't exists
 func (g *GatewayAction) AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct, tx *gorm.DB) error {
 	for _, ruleExtension := range ruleExtensions {
 		re := &model.RuleExtension{

@@ -18,8 +18,8 @@
 
 package model
 
-//AppRuleStruct -
-type AppRuleStruct struct {
+//HttpRuleStruct -
+type HttpRuleStruct struct {
 	ContainerPort    int                    `json:"container_port" validate:"container_port|required"`
 	Domain           string                 `json:"domain"`
 	Path             string                 `json:"path"`

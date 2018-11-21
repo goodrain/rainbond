@@ -47,8 +47,15 @@ func (c *CertificateDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-func (c *CertificateDaoImpl) UpdateModel(model.Interface) error {
-	return nil
+func (c *CertificateDaoImpl) UpdateModel(mo model.Interface) error {
+	cert, ok := mo.(*model.Certificate)
+	if !ok {
+		return fmt.Errorf("Failed to convert %s to *model.Certificate", reflect.TypeOf(mo).String())
+	}
+
+	return c.DB.Table(cert.TableName()).
+		Where("uuid = ?", cert.UUID).
+		Update(cert).Error
 }
 
 // GetCertificateByID gets a certificate by matching id
@@ -61,6 +68,13 @@ func (c *CertificateDaoImpl) GetCertificateByID(certificateID string) (*model.Ce
 		return nil, err
 	}
 	return certificate, nil
+}
+
+func (c *CertificateDaoImpl) DeleteCertificateByID(certificateID string) error {
+	cert := &model.Certificate{
+		UUID: certificateID,
+	}
+	return c.DB.Where("uuid=?", certificateID).Delete(cert).Error
 }
 
 type RuleExtensionDaoImpl struct {
@@ -86,15 +100,23 @@ func (c *RuleExtensionDaoImpl) UpdateModel(model.Interface) error {
 	return nil
 }
 
-func (c *RuleExtensionDaoImpl) GetRuleExtensionByServiceID(serviceID string) ([]*model.RuleExtension, error) {
+func (c *RuleExtensionDaoImpl) GetRuleExtensionByRuleID(ruleID string) ([]*model.RuleExtension, error) {
 	var ruleExtension []*model.RuleExtension
-	if err := c.DB.Where("service_id = ?", serviceID).Find(&ruleExtension).Error; err != nil {
+	if err := c.DB.Where("rule_id = ?", ruleID).Find(&ruleExtension).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return ruleExtension, nil
 		}
 		return nil, err
 	}
 	return ruleExtension, nil
+}
+
+// DeleteRuleExtensionByRuleID delete rule extensions by ruleID
+func (c *RuleExtensionDaoImpl) DeleteRuleExtensionByRuleID(ruleID string) error {
+	re := &model.RuleExtension{
+		RuleID: ruleID,
+	}
+	return c.DB.Where("rule_id=?", ruleID).Delete(re).Error
 }
 
 type HttpRuleDaoImpl struct {
@@ -116,8 +138,15 @@ func (h *HttpRuleDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-func (h *HttpRuleDaoImpl) UpdateModel(model.Interface) error {
-	return nil
+func (h *HttpRuleDaoImpl) UpdateModel(mo model.Interface) error {
+	hr, ok := mo.(*model.HttpRule)
+	if !ok {
+		return fmt.Errorf("Failed to convert %s to *model.HttpRule", reflect.TypeOf(mo).String())
+	}
+
+	return h.DB.Table(hr.TableName()).
+		Where("uuid = ?", hr.UUID).
+		Update(hr).Error
 }
 
 // GetHttpRuleByServiceIDAndContainerPort gets a HttpRule based on serviceID and containerPort

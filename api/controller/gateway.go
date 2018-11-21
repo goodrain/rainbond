@@ -43,16 +43,14 @@ func (g *GatewayStruct) HttpRule(w http.ResponseWriter, r *http.Request) {
 		g.addHttpRule(w, r)
 	case "PUT":
 		g.updateHttpRule(w, r)
-		logrus.Debug("Update application rule.")
 	case "Delete":
 		g.deleteHttpRule(w, r)
-		logrus.Debugf("Delete application rule.")
 	}
 }
 
 func (g *GatewayStruct) addHttpRule(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("add application rule.")
-	var req api_model.AppRuleStruct
+	logrus.Debugf("add http rule.")
+	var req api_model.HttpRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -62,6 +60,7 @@ func (g *GatewayStruct) addHttpRule(w http.ResponseWriter, r *http.Request) {
 
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 
+	// TODO: shouldn't write the business logic here
 	httpRule := &model.HttpRule{
 		UUID:             util.NewUUID(),
 		ServiceID:        serviceID,
@@ -84,13 +83,7 @@ func (g *GatewayStruct) addHttpRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.CertificateID != "" {
-		cert := &model.Certificate{
-			UUID:            req.CertificateID,
-			CertificateName: req.CertificateName,
-			Certificate:     req.Certificate,
-			PrivateKey:      req.PrivateKey,
-		}
-		if err := h.AddCertificate(cert, tx); err != nil {
+		if err := h.AddCertificate(&req, tx); err != nil {
 			httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while adding certificate: %v", err))
 			return
 		}
@@ -113,7 +106,50 @@ func (g *GatewayStruct) addHttpRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *GatewayStruct) updateHttpRule(w http.ResponseWriter, r *http.Request) {
+	logrus.Debugf("update http rule.")
+	var req api_model.HttpRuleStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	reqJson, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJson))
 
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+
+	// TODO: shouldn't write the business logic here
+	// begin transaction
+	tx := db.GetManager().Begin()
+	h := handler.GetGatewayHandler()
+	httpRule, err := h.UpdateHttpRule(&req, serviceID, tx)
+	if err != nil {
+		tx.Rollback()
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while " +
+			"updating http rule: %v", err))
+		return
+	}
+
+	if err := h.AddCertificate(&req, tx); err != nil {
+		tx.Rollback()
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while " +
+			"updating certificate: %v", err))
+		return
+	}
+
+	if err := h.AddRuleExtensions(httpRule.UUID, req.RuleExtensions, tx); err != nil {
+		tx.Rollback()
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while adding rule extensions: %v", err))
+		return
+	}
+
+	// end transaction
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while commit transaction: %v", err))
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, "success")
 }
 
 func (g *GatewayStruct) deleteHttpRule(w http.ResponseWriter, r *http.Request) {
