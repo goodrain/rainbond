@@ -309,7 +309,7 @@ func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.Tenant
 	}
 	// rule extension
 
-	ruleExtensions, err := a.dbmanager.RuleExtensionDao().GetRuleExtensionByServiceID(a.serviceID)
+	ruleExtensions, err := a.dbmanager.RuleExtensionDao().GetRuleExtensionByRuleID(rule.UUID)
 	if err != nil {
 		return nil, nil, err
 	}

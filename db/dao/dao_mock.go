@@ -4,9 +4,9 @@
 package dao
 
 import (
+	gomock "github.com/rafrombrc/gomock/gomock"
 	model "github.com/goodrain/rainbond/db/model"
 	time "time"
-	gomock "github.com/rafrombrc/gomock/gomock"
 )
 
 // Mock of Dao interface
@@ -191,6 +191,17 @@ func (_m *MockTenantDao) GetTenantIDsByNames(names []string) ([]string, error) {
 
 func (_mr *_MockTenantDaoRecorder) GetTenantIDsByNames(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTenantIDsByNames", arg0)
+}
+
+func (_m *MockTenantDao) GetTenantLimitsByNames(names []string) (map[string]int, error) {
+	ret := _m.ctrl.Call(_m, "GetTenantLimitsByNames", names)
+	ret0, _ := ret[0].(map[string]int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTenantDaoRecorder) GetTenantLimitsByNames(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTenantLimitsByNames", arg0)
 }
 
 func (_m *MockTenantDao) GetTenantByUUIDIsExist(uuid string) bool {
@@ -3475,6 +3486,16 @@ func (_mr *_MockCertificateDaoRecorder) GetCertificateByID(arg0 interface{}) *go
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetCertificateByID", arg0)
 }
 
+func (_m *MockCertificateDao) DeleteCertificateByID(certificateID string) error {
+	ret := _m.ctrl.Call(_m, "DeleteCertificateByID", certificateID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockCertificateDaoRecorder) DeleteCertificateByID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteCertificateByID", arg0)
+}
+
 // Mock of RuleExtensionDao interface
 type MockRuleExtensionDao struct {
 	ctrl     *gomock.Controller
@@ -3516,15 +3537,25 @@ func (_mr *_MockRuleExtensionDaoRecorder) UpdateModel(arg0 interface{}) *gomock.
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
 }
 
-func (_m *MockRuleExtensionDao) GetRuleExtensionByServiceID(serviceID string) ([]*model.RuleExtension, error) {
-	ret := _m.ctrl.Call(_m, "GetRuleExtensionByServiceID", serviceID)
+func (_m *MockRuleExtensionDao) GetRuleExtensionByRuleID(ruleID string) ([]*model.RuleExtension, error) {
+	ret := _m.ctrl.Call(_m, "GetRuleExtensionByRuleID", ruleID)
 	ret0, _ := ret[0].([]*model.RuleExtension)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockRuleExtensionDaoRecorder) GetRuleExtensionByServiceID(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetRuleExtensionByServiceID", arg0)
+func (_mr *_MockRuleExtensionDaoRecorder) GetRuleExtensionByRuleID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetRuleExtensionByRuleID", arg0)
+}
+
+func (_m *MockRuleExtensionDao) DeleteRuleExtensionByRuleID(ruleID string) error {
+	ret := _m.ctrl.Call(_m, "DeleteRuleExtensionByRuleID", ruleID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockRuleExtensionDaoRecorder) DeleteRuleExtensionByRuleID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteRuleExtensionByRuleID", arg0)
 }
 
 // Mock of HttpRuleDao interface
@@ -3577,6 +3608,17 @@ func (_m *MockHttpRuleDao) GetHttpRuleByServiceIDAndContainerPort(serviceID stri
 
 func (_mr *_MockHttpRuleDaoRecorder) GetHttpRuleByServiceIDAndContainerPort(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetHttpRuleByServiceIDAndContainerPort", arg0, arg1)
+}
+
+func (_m *MockHttpRuleDao) DeleteHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HttpRule, error) {
+	ret := _m.ctrl.Call(_m, "DeleteHttpRuleByServiceIDAndContainerPort", serviceID, containerPort)
+	ret0, _ := ret[0].(*model.HttpRule)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockHttpRuleDaoRecorder) DeleteHttpRuleByServiceIDAndContainerPort(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteHttpRuleByServiceIDAndContainerPort", arg0, arg1)
 }
 
 // Mock of TcpRuleDao interface

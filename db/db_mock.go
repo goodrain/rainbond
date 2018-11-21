@@ -4,9 +4,9 @@
 package db
 
 import (
+	gomock "github.com/rafrombrc/gomock/gomock"
 	gorm "github.com/jinzhu/gorm"
 	dao "github.com/goodrain/rainbond/db/dao"
-	gomock "github.com/rafrombrc/gomock/gomock"
 )
 
 // Mock of Manager interface
@@ -690,6 +690,16 @@ func (_mr *_MockManagerRecorder) CertificateDao() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "CertificateDao")
 }
 
+func (_m *MockManager) CertificateDaoTransactions(db *gorm.DB) dao.CertificateDao {
+	ret := _m.ctrl.Call(_m, "CertificateDaoTransactions", db)
+	ret0, _ := ret[0].(dao.CertificateDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) CertificateDaoTransactions(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "CertificateDaoTransactions", arg0)
+}
+
 func (_m *MockManager) RuleExtensionDao() dao.RuleExtensionDao {
 	ret := _m.ctrl.Call(_m, "RuleExtensionDao")
 	ret0, _ := ret[0].(dao.RuleExtensionDao)
@@ -698,6 +708,16 @@ func (_m *MockManager) RuleExtensionDao() dao.RuleExtensionDao {
 
 func (_mr *_MockManagerRecorder) RuleExtensionDao() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "RuleExtensionDao")
+}
+
+func (_m *MockManager) RuleExtensionDaoTransactions(db *gorm.DB) dao.RuleExtensionDao {
+	ret := _m.ctrl.Call(_m, "RuleExtensionDaoTransactions", db)
+	ret0, _ := ret[0].(dao.RuleExtensionDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) RuleExtensionDaoTransactions(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "RuleExtensionDaoTransactions", arg0)
 }
 
 func (_m *MockManager) HttpRuleDao() dao.HttpRuleDao {
@@ -710,6 +730,16 @@ func (_mr *_MockManagerRecorder) HttpRuleDao() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "HttpRuleDao")
 }
 
+func (_m *MockManager) HttpRuleDaoTransactions(db *gorm.DB) dao.HttpRuleDao {
+	ret := _m.ctrl.Call(_m, "HttpRuleDaoTransactions", db)
+	ret0, _ := ret[0].(dao.HttpRuleDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) HttpRuleDaoTransactions(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "HttpRuleDaoTransactions", arg0)
+}
+
 func (_m *MockManager) TcpRuleDao() dao.TcpRuleDao {
 	ret := _m.ctrl.Call(_m, "TcpRuleDao")
 	ret0, _ := ret[0].(dao.TcpRuleDao)
@@ -718,4 +748,14 @@ func (_m *MockManager) TcpRuleDao() dao.TcpRuleDao {
 
 func (_mr *_MockManagerRecorder) TcpRuleDao() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "TcpRuleDao")
+}
+
+func (_m *MockManager) TcpRuleDaoTransactions(db *gorm.DB) dao.TcpRuleDao {
+	ret := _m.ctrl.Call(_m, "TcpRuleDaoTransactions", db)
+	ret0, _ := ret[0].(dao.TcpRuleDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) TcpRuleDaoTransactions(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "TcpRuleDaoTransactions", arg0)
 }
