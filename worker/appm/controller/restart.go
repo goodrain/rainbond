@@ -46,7 +46,7 @@ func (s *restartController) Begin() {
 			if err := s.restartOne(service); err != nil {
 				logrus.Errorf("restart service %s failure %s", service.ServiceAlias, err.Error())
 			} else {
-				service.Logger.Info(fmt.Sprintf("restart service %s success", service.ServiceAlias), getLastLoggerOption())
+				service.Logger.Info(fmt.Sprintf("restart service %s success", service.ServiceAlias), GetLastLoggerOption())
 			}
 		}(service)
 	}
@@ -58,7 +58,7 @@ func (s *restartController) restartOne(app v1.AppService) error {
 		manager: s.manager,
 	}
 	if err := stopController.stopOne(app); err != nil {
-		app.Logger.Error("(Restart)Stop app failure %s,you could waiting stoped and manual start it", getCallbackLoggerOption())
+		app.Logger.Error("(Restart)Stop app failure %s,you could waiting stoped and manual start it", GetCallbackLoggerOption())
 		return err
 	}
 	startController := startController{
@@ -67,14 +67,14 @@ func (s *restartController) restartOne(app v1.AppService) error {
 	newAppService, err := conversion.InitAppService(db.GetManager(), app.ServiceID)
 	if err != nil {
 		logrus.Errorf("Application init create failure:%s", err.Error())
-		app.Logger.Error("Application init create failure", getCallbackLoggerOption())
+		app.Logger.Error("Application init create failure", GetCallbackLoggerOption())
 		return fmt.Errorf("Application init create failure")
 	}
 	newAppService.Logger = app.Logger
 	//regist new app service
 	s.manager.store.RegistAppService(newAppService)
 	if err := startController.startOne(*newAppService); err != nil {
-		app.Logger.Error("(Restart)Start app failure %s,you could waiting it start success.or manual stop it", getCallbackLoggerOption())
+		app.Logger.Error("(Restart)Start app failure %s,you could waiting it start success.or manual stop it", GetCallbackLoggerOption())
 		return err
 	}
 	return nil

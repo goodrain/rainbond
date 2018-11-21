@@ -116,14 +116,14 @@ func (m *Manager) startExec(task *model.Task) error {
 	logger := event.GetManager().GetLogger(body.EventID)
 	appService := m.store.GetAppServiceWithoutCreaterID(body.ServiceID, body.DeployVersion)
 	if appService != nil && appService.GetDeployStatus() {
-		logger.Info("Application is not closed, can not start", map[string]string{"step": "last", "status": "success"})
+		logger.Info("Application is not closed, can not start", controller.GetLastLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return nil
 	}
 	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID)
 	if err != nil {
 		logrus.Errorf("Application init create failure:%s", err.Error())
-		logger.Info("Application init create failure", map[string]string{"step": "callback", "status": "faliure"})
+		logger.Error("Application init create failure", controller.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("Application init create failure")
 	}
@@ -133,7 +133,7 @@ func (m *Manager) startExec(task *model.Task) error {
 	err = m.controllerManager.StartController(controller.TypeStartController, *newAppService)
 	if err != nil {
 		logrus.Errorf("Application run  start controller failure:%s", err.Error())
-		logger.Info("Application run start controller failure", map[string]string{"step": "callback", "status": "faliure"})
+		logger.Error("Application run start controller failure", controller.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("Application start failure")
 	}
@@ -150,7 +150,7 @@ func (m *Manager) stopExec(task *model.Task) error {
 	logger := event.GetManager().GetLogger(body.EventID)
 	appService := m.store.GetAppServices(body.ServiceID)
 	if appService == nil {
-		logger.Info("Application is closed, can not stop", map[string]string{"step": "last", "status": "success"})
+		logger.Info("Application is closed, can not stop", controller.GetLastLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return nil
 	}
@@ -159,7 +159,7 @@ func (m *Manager) stopExec(task *model.Task) error {
 		err := m.controllerManager.StartController(controller.TypeStopController, *app)
 		if err != nil {
 			logrus.Errorf("Application run  stop controller failure:%s", err.Error())
-			logger.Info("Application run stop controller failure", map[string]string{"step": "callback", "status": "faliure"})
+			logger.Info("Application run stop controller failure", controller.GetCallbackLoggerOption())
 			event.GetManager().ReleaseLogger(logger)
 			return fmt.Errorf("Application stop failure")
 		}
@@ -177,7 +177,7 @@ func (m *Manager) restartExec(task *model.Task) error {
 	logger := event.GetManager().GetLogger(body.EventID)
 	appService := m.store.GetAppServiceWithoutCreaterID(body.ServiceID, body.DeployVersion)
 	if appService == nil {
-		logger.Info("Application is closed, can not stop", map[string]string{"step": "last", "status": "success"})
+		logger.Info("Application is closed, can not stop", controller.GetLastLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return nil
 	}
@@ -186,7 +186,7 @@ func (m *Manager) restartExec(task *model.Task) error {
 	err := m.controllerManager.StartController(controller.TypeRestartController, *appService)
 	if err != nil {
 		logrus.Errorf("Application run restart controller failure:%s", err.Error())
-		logger.Info("Application run restart controller failure", map[string]string{"step": "callback", "status": "faliure"})
+		logger.Info("Application run restart controller failure", controller.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("Application restart failure")
 	}
@@ -203,7 +203,7 @@ func (m *Manager) horizontalScalingExec(task *model.Task) error {
 	logger := event.GetManager().GetLogger(body.EventID)
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(body.ServiceID)
 	if err != nil {
-		logger.Error("获取应用信息失败", map[string]string{"step": "callback", "status": "failure"})
+		logger.Error("Get app base info failure", controller.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		logrus.Errorf("horizontal_scaling get rc error. %v", err)
 		return fmt.Errorf("a")
@@ -216,7 +216,7 @@ func (m *Manager) horizontalScalingExec(task *model.Task) error {
 	err = m.controllerManager.StartController(controller.TypeScalingController, *appService)
 	if err != nil {
 		logrus.Errorf("Application run  scaling controller failure:%s", err.Error())
-		logger.Info("Application run scaling controller failure", map[string]string{"step": "callback", "status": "faliure"})
+		logger.Info("Application run scaling controller failure", controller.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("Application scaling failure")
 	}
@@ -234,7 +234,7 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(body.ServiceID)
 	if err != nil {
 		logrus.Errorf("vertical_scaling get rc error. %v", err)
-		logger.Error("获取应用信息失败", map[string]string{"step": "callback", "status": "failure"})
+		logger.Error("Get app base info failure", controller.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("a")
 	}
@@ -248,7 +248,7 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 	err = m.controllerManager.StartController(controller.TypeUpgradeController, *appService)
 	if err != nil {
 		logrus.Errorf("Application run  vertical scaling(upgrade) controller failure:%s", err.Error())
-		logger.Info("Application run vertical scaling(upgrade) controller failure", map[string]string{"step": "callback", "status": "faliure"})
+		logger.Info("Application run vertical scaling(upgrade) controller failure", controller.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("Application vertical scaling(upgrade) failure")
 	}
@@ -266,7 +266,7 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID)
 	if err != nil {
 		logrus.Errorf("Application init create failure:%s", err.Error())
-		logger.Info("Application init create failure", map[string]string{"step": "callback", "status": "faliure"})
+		logger.Error("Application init create failure", controller.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("Application init create failure")
 	}
@@ -279,7 +279,7 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 		err = m.controllerManager.StartController(controller.TypeStartController, *newAppService)
 		if err != nil {
 			logrus.Errorf("Application run  start controller failure:%s", err.Error())
-			logger.Info("Application run start controller failure", map[string]string{"step": "callback", "status": "faliure"})
+			logger.Info("Application run start controller failure", controller.GetCallbackLoggerOption())
 			event.GetManager().ReleaseLogger(logger)
 			return fmt.Errorf("Application start failure")
 		}
@@ -290,7 +290,7 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 	err = m.controllerManager.StartController(controller.TypeUpgradeController, *newAppService)
 	if err != nil {
 		logrus.Errorf("Application run  upgrade controller failure:%s", err.Error())
-		logger.Info("Application run upgrade controller failure", map[string]string{"step": "callback", "status": "faliure"})
+		logger.Info("Application run upgrade controller failure", controller.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("Application upgrade failure")
 	}

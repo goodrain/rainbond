@@ -149,10 +149,14 @@ func (m *Manager) callback(controllerID string, err error) {
 func getLoggerOption(status string) map[string]string {
 	return map[string]string{"step": "appruntime", "status": status}
 }
-func getCallbackLoggerOption() map[string]string {
+
+//GetCallbackLoggerOption get callback logger
+func GetCallbackLoggerOption() map[string]string {
 	return map[string]string{"step": "callback", "status": "failure"}
 }
-func getLastLoggerOption() map[string]string {
+
+//GetLastLoggerOption get last logger
+func GetLastLoggerOption() map[string]string {
 	return map[string]string{"step": "last", "status": "success"}
 }
 
