@@ -28,7 +28,6 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
-	"github.com/twinj/uuid"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -355,15 +354,6 @@ func applyTcpRule(
 	ing.SetAnnotations(annos)
 
 	return ing, nil
-}
-
-// genIngName generates a Ingress name
-func genIngName(t string, serviceName string, path string) string {
-	if path == "" {
-		return fmt.Sprintf("%s-%s--%s", t, serviceName, uuid.NewV4().String()[0:8])
-	} else {
-		return fmt.Sprintf("%s-%s-%s-%s", t, serviceName, path, uuid.NewV4().String()[0:8])
-	}
 }
 
 func (a *AppServiceBuild) checkUpstreamPluginRelation() (bool, error) {

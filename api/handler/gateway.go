@@ -117,7 +117,8 @@ func (g *GatewayAction) AddCertificate(req *apimodel.HttpRuleStruct, tx *gorm.DB
 	return g.dbmanager.CertificateDaoTransactions(tx).AddModel(cert)
 }
 
-func (g *GatewayAction) UpdateCertificate(req apimodel.HttpRuleStruct, httpRule *model.HttpRule, tx *gorm.DB) error {
+func (g *GatewayAction) UpdateCertificate(req apimodel.HttpRuleStruct, httpRule *model.HttpRule,
+	tx *gorm.DB) error {
 	// delete old certificate
 	cert, err := g.dbmanager.CertificateDaoTransactions(tx).GetCertificateByID(req.CertificateID)
 	if err != nil {
@@ -133,8 +134,47 @@ func (g *GatewayAction) UpdateCertificate(req apimodel.HttpRuleStruct, httpRule 
 	return g.dbmanager.CertificateDaoTransactions(tx).UpdateModel(cert)
 }
 
+// AddTcpRule adds tcp rule.
+func (g *GatewayAction) AddTcpRule(req *apimodel.TcpRuleStruct) error {
+	tcpRule := &model.TcpRule{
+		UUID: util.NewUUID(),
+		ServiceID: req.ServiceID,
+		ContainerPort: req.ContainerPort,
+		IP: req.IP,
+		Port: req.Port,
+		LoadBalancerType: req.LoadBalancerType,
+	}
+
+	// begin transaction
+	tx := db.GetManager().Begin()
+	// add tcp rule
+	if err := g.dbmanager.TcpRuleDaoTransactions(tx).AddModel(tcpRule); err != nil {
+		return err
+	}
+
+	// add rule extensions
+	for _, ruleExtension := range req.RuleExtensions {
+		re := &model.RuleExtension{
+			UUID: util.NewUUID(),
+			RuleID: tcpRule.UUID,
+			Value: ruleExtension.Value,
+		}
+		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
+			return err
+		}
+	}
+
+	// end transaction
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // AddRuleExtensions adds rule extensions to db if any of they doesn't exists
-func (g *GatewayAction) AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct, tx *gorm.DB) error {
+func (g *GatewayAction) AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct,
+	tx *gorm.DB) error {
 	for _, ruleExtension := range ruleExtensions {
 		re := &model.RuleExtension{
 			UUID:   util.NewUUID(),

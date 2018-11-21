@@ -35,6 +35,15 @@ type HttpRuleStruct struct {
 	RuleExtensions   []*RuleExtensionStruct `json:"rule_extensions"`
 }
 
+type TcpRuleStruct struct {
+	ServiceID        string                 `json:"service_id" validate:"service_id|required"`
+	ContainerPort    int                    `json:"container_port" validate:"container_port|required"`
+	IP               string                 `json:"ip"`
+	Port             int                    `json:"port"`
+	LoadBalancerType string                 `json:"load_balancer_type"`
+	RuleExtensions   []*RuleExtensionStruct `json:"rule_extensions"`
+}
+
 type RuleExtensionStruct struct {
 	Value string `json:"value"`
 }

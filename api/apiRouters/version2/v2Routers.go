@@ -110,6 +110,9 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/http-rule", controller.GetManager().HttpRule)
 	r.Delete("/http-rule", controller.GetManager().HttpRule)
 	r.Put("/http-rule", controller.GetManager().HttpRule)
+	r.Post("/tcp-rule", controller.GetManager().TcpRule)
+	r.Delete("/tcp-rule", controller.GetManager().TcpRule)
+	r.Put("/tcp-rule", controller.GetManager().TcpRule)
 
 	return r
 }

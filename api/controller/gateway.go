@@ -166,3 +166,44 @@ func (g *GatewayStruct) deleteHttpRule(w http.ResponseWriter, r *http.Request) {
 
 	httputil.ReturnSuccess(r, w, "success")
 }
+
+// TcpRule is used to add, update or delete tcp rule which enables
+// external traffic to access applications through the gateway
+func (g *GatewayStruct) TcpRule(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		g.addTcpRule(w, r)
+	case "PUT":
+		g.updateTcpRule(w, r)
+	case "DELETE":
+		g.deleteTcpRule(w, r)
+	}
+}
+
+func (g *GatewayStruct) addTcpRule(w http.ResponseWriter, r *http.Request) {
+	logrus.Debugf("add tcp rule.")
+	var req api_model.TcpRuleStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	reqJson, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJson))
+
+	h := handler.GetGatewayHandler()
+	if err := h.AddTcpRule(&req); err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while " +
+			"adding tcp rule: %v", err))
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, "success")
+}
+
+func (g *GatewayStruct) updateTcpRule(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (g *GatewayStruct) deleteTcpRule(w http.ResponseWriter, r *http.Request) {
+
+}
