@@ -47,6 +47,9 @@ var TypeStartController TypeController = "start"
 //TypeStopController start service type
 var TypeStopController TypeController = "stop"
 
+//TypeRestartController restart service type
+var TypeRestartController TypeController = "restart"
+
 //TypeUpgradeController start service type
 var TypeUpgradeController TypeController = "upgrade"
 
@@ -116,6 +119,13 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 		}
 	case TypeUpgradeController:
 		controller = &upgradeController{
+			controllerID: controllerID,
+			appService:   apps,
+			manager:      m,
+			stopChan:     make(chan struct{}),
+		}
+	case TypeRestartController:
+		controller = &restartController{
 			controllerID: controllerID,
 			appService:   apps,
 			manager:      m,

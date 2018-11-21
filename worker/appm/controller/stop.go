@@ -48,7 +48,7 @@ func (s *stopController) Begin() {
 				service.Logger.Error(fmt.Sprintf("stop service %s failure %s", service.ServiceAlias, err.Error()), getCallbackLoggerOption())
 				logrus.Errorf("stop service %s failure %s", service.ServiceAlias, err.Error())
 			} else {
-				service.Logger.Error(fmt.Sprintf("stop service %s success", service.ServiceAlias), getLastLoggerOption())
+				service.Logger.Info(fmt.Sprintf("stop service %s success", service.ServiceAlias), getLastLoggerOption())
 			}
 		}(service)
 	}

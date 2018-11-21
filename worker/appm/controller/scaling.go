@@ -47,7 +47,7 @@ func (s *scalingController) Begin() {
 				service.Logger.Error(fmt.Sprintf("horizontal scaling service %s failure %s", service.ServiceAlias, err.Error()), getCallbackLoggerOption())
 				logrus.Errorf("horizontal scaling service %s failure %s", service.ServiceAlias, err.Error())
 			} else {
-				service.Logger.Error(fmt.Sprintf("horizontal scaling service %s success", service.ServiceAlias, err.Error()), getLastLoggerOption())
+				service.Logger.Info(fmt.Sprintf("horizontal scaling service %s success", service.ServiceAlias), getLastLoggerOption())
 			}
 		}(service)
 	}
