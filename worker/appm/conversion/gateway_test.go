@@ -28,8 +28,11 @@ import (
 	"github.com/rafrombrc/gomock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/kubernetes/fake"
+	// "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"strconv"
 	"testing"
 	"time"
@@ -391,7 +394,7 @@ func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 	certificateDao := dao.NewMockCertificateDao(ctrl)
 	certificate := &model.Certificate{
 		UUID:            testCase["certificateID"],
-		CertificateName: "dummy certificate name",
+		CertificateName: "dummy-certificate-name",
 		Certificate:     tlsCrt,
 		PrivateKey:      tlsKey,
 	}
@@ -447,11 +450,21 @@ func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 		t.Errorf("Unexpected error occurred whiling applying http rule: %v", err)
 	}
 
-	clientSet := fake.NewSimpleClientset()
+	// clientSet := fake.NewSimpleClientset()
+	c, err := clientcmd.BuildConfigFromFlags("", "/Users/abe/go/src/github.com/goodrain/rainbond/test/admin.kubeconfig")
 	if err != nil {
-		t.Errorf("can't create Kubernetes's client: %v", err)
+		t.Fatalf("read kube config file error: %v", err)
 	}
-	//ensureSecret(sec, clientSet, t)
+	clientSet, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		t.Fatalf("create kube api client error: %v", err)
+	}
+	// ensureSecret(sec, clientSet, t)
+	ensureNamespace(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "foobar",
+		},
+	}, clientSet, t)
 	if _, err := clientSet.CoreV1().Secrets(sec.Namespace).Create(sec); err != nil {
 		t.Errorf("Can't create Serect(%s): %v", sec.Name, err)
 	}
@@ -480,4 +493,29 @@ func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 	if sec.Namespace != testCase["namespace"] {
 		t.Errorf("Expected %s for namespace, but returned %s", testCase["namespace"], sec.Namespace)
 	}
+}
+
+func ensureNamespace(ns *corev1.Namespace, clientSet kubernetes.Interface, t *testing.T) *corev1.Namespace {
+	t.Helper()
+	n, err := clientSet.CoreV1().Namespaces().Update(ns)
+
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			t.Logf("Namespace %v not found, creating", ns)
+
+			n, err = clientSet.CoreV1().Namespaces().Create(ns)
+			if err != nil {
+				t.Fatalf("error creating namespace %+v: %v", ns, err)
+			}
+
+			t.Logf("Namespace %+v created", ns)
+			return n
+		}
+
+		t.Fatalf("error updating namespace %+v: %v", ns, err)
+	}
+
+	t.Logf("Namespace %+v updated", ns)
+
+	return n
 }
