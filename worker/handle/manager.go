@@ -181,6 +181,7 @@ func (m *Manager) restartExec(task *model.Task) error {
 		event.GetManager().ReleaseLogger(logger)
 		return nil
 	}
+	appService.Logger = logger
 	//first stop app
 	err := m.controllerManager.StartController(controller.TypeRestartController, *appService)
 	if err != nil {

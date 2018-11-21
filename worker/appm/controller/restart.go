@@ -51,12 +51,16 @@ func (s *restartController) Begin() {
 	s.manager.callback(s.controllerID, nil)
 }
 func (s *restartController) restartOne(app v1.AppService) error {
-	stopController := stopController{}
+	stopController := stopController{
+		manager: s.manager,
+	}
 	if err := stopController.stopOne(app); err != nil {
 		app.Logger.Error("(Restart)Stop app failure %s,you could waiting stoped and manual start it", getCallbackLoggerOption())
 		return err
 	}
-	startController := startController{}
+	startController := startController{
+		manager: s.manager,
+	}
 	if err := startController.startOne(app); err != nil {
 		app.Logger.Error("(Restart)Start app failure %s,you could waiting it start success.or manual stop it", getCallbackLoggerOption())
 		return err
