@@ -221,5 +221,21 @@ func (g *GatewayStruct) updateTcpRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *GatewayStruct) deleteTcpRule(w http.ResponseWriter, r *http.Request) {
+	logrus.Debugf("delete tcp rule.")
+	var req api_model.TcpRuleStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	reqJson, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJson))
 
+	h := handler.GetGatewayHandler()
+	if err := h.DeleteTcpRule(&req); err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while " +
+			"deleting tcp rule: %v", err))
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, "success")
 }

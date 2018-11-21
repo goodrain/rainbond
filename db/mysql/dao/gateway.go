@@ -220,3 +220,7 @@ func (s *TcpRuleDaoTmpl) GetTcpRuleByServiceIDAndContainerPort(serviceID string,
 	}
 	return result, nil
 }
+
+func (s *TcpRuleDaoTmpl) DeleteTcpRule(tcpRule *model.TcpRule) error {
+	return s.DB.Where("uuid = ?", tcpRule.UUID).Delete(tcpRule).Error
+}

@@ -430,4 +430,5 @@ type HttpRuleDao interface {
 type TcpRuleDao interface {
 	Dao
 	GetTcpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.TcpRule, error)
+	DeleteTcpRule(tcpRule *model.TcpRule) error
 }

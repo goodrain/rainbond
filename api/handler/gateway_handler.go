@@ -34,6 +34,7 @@ type GatewayHandler interface {
 
 	AddTcpRule(req *apimodel.TcpRuleStruct) error
 	UpdateTcpRule(req *apimodel.TcpRuleStruct) error
+	DeleteTcpRule(req *apimodel.TcpRuleStruct) error
 
 	AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct, tx *gorm.DB) error
 }

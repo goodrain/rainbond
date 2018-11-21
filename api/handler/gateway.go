@@ -219,6 +219,33 @@ func (g *GatewayAction) UpdateTcpRule(req *apimodel.TcpRuleStruct) error {
 	return nil
 }
 
+func (g *GatewayAction) DeleteTcpRule(req *apimodel.TcpRuleStruct) error {
+	// begin transaction
+	tx := db.GetManager().Begin()
+	tcpRule, err := db.GetManager().TcpRuleDaoTransactions(tx).GetTcpRuleByServiceIDAndContainerPort(req.ServiceID,
+		req.ContainerPort)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	// delete rule extensions
+	if err := db.GetManager().RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(tcpRule.UUID); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// delete tcp rule
+	if err := db.GetManager().TcpRuleDaoTransactions(tx).DeleteTcpRule(tcpRule); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// end transaction
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	return nil
+}
+
 // AddRuleExtensions adds rule extensions to db if any of they doesn't exists
 func (g *GatewayAction) AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct,
 	tx *gorm.DB) error {
