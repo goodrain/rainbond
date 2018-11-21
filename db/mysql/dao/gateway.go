@@ -196,8 +196,15 @@ func (t *TcpRuleDaoTmpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-func (s *TcpRuleDaoTmpl) UpdateModel(model.Interface) error {
-	return nil
+func (t *TcpRuleDaoTmpl) UpdateModel(mo model.Interface) error {
+	tr, ok := mo.(*model.TcpRule)
+	if !ok {
+		return fmt.Errorf("Failed to convert %s to *model.TcpRule", reflect.TypeOf(mo).String())
+	}
+
+	return t.DB.Table(tr.TableName()).
+		Where("uuid = ?", tr.UUID).
+		Update(tr).Error
 }
 
 // GetTcpRuleByServiceIDAndContainerPort gets a TcpRule based on serviceID and containerPort

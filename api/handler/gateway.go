@@ -51,7 +51,7 @@ func (g *GatewayAction) UpdateHttpRule(req *apimodel.HttpRuleStruct,
 		return nil, err
 	}
 	if rule == nil {
-		return nil, fmt.Errorf("HttpRule dosen't exist based on ServiceID(%s) " +
+		return nil, fmt.Errorf("HttpRule dosen't exist based on ServiceID(%s) "+
 			"and ContainerPort(%v)", req.ServiceID, req.ContainerPort)
 	}
 	// delete old Certificate
@@ -137,11 +137,11 @@ func (g *GatewayAction) UpdateCertificate(req apimodel.HttpRuleStruct, httpRule 
 // AddTcpRule adds tcp rule.
 func (g *GatewayAction) AddTcpRule(req *apimodel.TcpRuleStruct) error {
 	tcpRule := &model.TcpRule{
-		UUID: util.NewUUID(),
-		ServiceID: req.ServiceID,
-		ContainerPort: req.ContainerPort,
-		IP: req.IP,
-		Port: req.Port,
+		UUID:             util.NewUUID(),
+		ServiceID:        req.ServiceID,
+		ContainerPort:    req.ContainerPort,
+		IP:               req.IP,
+		Port:             req.Port,
 		LoadBalancerType: req.LoadBalancerType,
 	}
 
@@ -149,23 +149,70 @@ func (g *GatewayAction) AddTcpRule(req *apimodel.TcpRuleStruct) error {
 	tx := db.GetManager().Begin()
 	// add tcp rule
 	if err := g.dbmanager.TcpRuleDaoTransactions(tx).AddModel(tcpRule); err != nil {
+		tx.Rollback()
 		return err
 	}
 
 	// add rule extensions
 	for _, ruleExtension := range req.RuleExtensions {
 		re := &model.RuleExtension{
-			UUID: util.NewUUID(),
+			UUID:   util.NewUUID(),
 			RuleID: tcpRule.UUID,
-			Value: ruleExtension.Value,
+			Value:  ruleExtension.Value,
 		}
 		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
+			tx.Rollback()
 			return err
 		}
 	}
 
 	// end transaction
 	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (g *GatewayAction) UpdateTcpRule(req *apimodel.TcpRuleStruct) error {
+	// begin transaction
+	tx := db.GetManager().Begin()
+	// get old tcp rule
+	tcpRule, err := g.dbmanager.TcpRuleDaoTransactions(tx).GetTcpRuleByServiceIDAndContainerPort(req.ServiceID,
+		req.ContainerPort)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	// delete old rule extensions
+	if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(tcpRule.UUID); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// update tcp rule
+	tcpRule.IP = req.IP
+	tcpRule.Port = req.Port
+	tcpRule.LoadBalancerType = req.LoadBalancerType
+	if err := g.dbmanager.TcpRuleDaoTransactions(tx).UpdateModel(tcpRule); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// add new rule extensions
+	for _, ruleExtension := range req.RuleExtensions {
+		re := &model.RuleExtension{
+			UUID:   util.NewUUID(),
+			RuleID: tcpRule.UUID,
+			Value:  ruleExtension.Value,
+		}
+		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	// end transaction
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
 		return err
 	}
 
