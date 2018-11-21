@@ -105,6 +105,12 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	//团队资源限制
 	r.Post("/limit_memory", controller.GetManager().LimitTenantMemory)
 	r.Get("/limit_memory", controller.GetManager().TenantResourcesStatus)
+
+	// Gateway
+	r.Post("/http-rule", controller.GetManager().HttpRule)
+	r.Delete("/http-rule", controller.GetManager().HttpRule)
+	r.Put("/http-rule", controller.GetManager().HttpRule)
+
 	return r
 }
 
@@ -196,23 +202,11 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Post("/node-label", controller.GetManager().NodeLabel)
 	r.Delete("/node-label", controller.GetManager().NodeLabel)
 
-	//获取租户所有域名
-	r.Get("/get-domains", controller.GetManager().Entrance)
-
-	//租户域名 增加 删除(sources)
-	r.Post("/domains", controller.GetManager().Entrance)
-	r.Delete("/domains/{domain_name}", controller.GetManager().Entrance)
-
 	//插件
 	r.Mount("/plugin", v2.serviceRelatePluginRouter())
 
 	//rule
 	r.Mount("/net-rule", v2.rulesRouter())
-
-	// Gateway
-	r.Post("/http-rule", controller.GetManager().HttpRule)
-	r.Delete("/http-rule", controller.GetManager().HttpRule)
-	r.Put("/http-rule", controller.GetManager().HttpRule)
 
 	return r
 }

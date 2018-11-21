@@ -20,6 +20,7 @@ package model
 
 //HttpRuleStruct -
 type HttpRuleStruct struct {
+	ServiceID        string                 `json:"service_id" validate:"service_id|required"`
 	ContainerPort    int                    `json:"container_port" validate:"container_port|required"`
 	Domain           string                 `json:"domain"`
 	Path             string                 `json:"path"`

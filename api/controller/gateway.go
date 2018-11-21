@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
@@ -58,12 +57,10 @@ func (g *GatewayStruct) addHttpRule(w http.ResponseWriter, r *http.Request) {
 	reqJson, _ := json.Marshal(req)
 	logrus.Debugf("Request is : %s", string(reqJson))
 
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-
 	// TODO: shouldn't write the business logic here
 	httpRule := &model.HttpRule{
 		UUID:             util.NewUUID(),
-		ServiceID:        serviceID,
+		ServiceID:        req.ServiceID,
 		ContainerPort:    req.ContainerPort,
 		Domain:           req.Domain,
 		Path:             req.Path,
@@ -115,13 +112,11 @@ func (g *GatewayStruct) updateHttpRule(w http.ResponseWriter, r *http.Request) {
 	reqJson, _ := json.Marshal(req)
 	logrus.Debugf("Request is : %s", string(reqJson))
 
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-
 	// TODO: shouldn't write the business logic here
 	// begin transaction
 	tx := db.GetManager().Begin()
 	h := handler.GetGatewayHandler()
-	httpRule, err := h.UpdateHttpRule(&req, serviceID, tx)
+	httpRule, err := h.UpdateHttpRule(&req, tx)
 	if err != nil {
 		tx.Rollback()
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
@@ -162,10 +157,8 @@ func (g *GatewayStruct) deleteHttpRule(w http.ResponseWriter, r *http.Request) {
 	reqJson, _ := json.Marshal(req)
 	logrus.Debugf("Request is : %s", string(reqJson))
 
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-
 	h := handler.GetGatewayHandler()
-	err := h.DeleteHttpRule(&req, serviceID)
+	err := h.DeleteHttpRule(&req)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while delete http rule: %v", err))
 		return
