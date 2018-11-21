@@ -229,15 +229,30 @@ func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.Tenant
 		return nil, nil, err
 	}
 
-	domain := strings.Replace(rule.Domain, " ", "", -1)
-	if domain == "" {
-		domain = createDefaultDomain(a.tenant.Name, a.service.ServiceAlias, port.ContainerPort)
-	}
+	// default domain
+	defDomain := createDefaultDomain(a.tenant.Name, a.service.ServiceAlias, port.ContainerPort)
 	path := strings.Replace(rule.Path, " ", "", -1)
 	if path == "" {
 		path = "/"
 	}
 
+	ingRule := extensions.IngressRule{
+		IngressRuleValue: extensions.IngressRuleValue{
+			HTTP: &extensions.HTTPIngressRuleValue{
+				Paths: []extensions.HTTPIngressPath{
+					{
+						Path: path,
+						Backend: extensions.IngressBackend{
+							ServiceName: service.Name,
+							ServicePort: intstr.FromInt(port.ContainerPort),
+						},
+					},
+				},
+			},
+		},
+	}
+	defIngRule := ingRule
+	defIngRule.Host = defDomain
 	ing = &extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      util.NewUUID(),
@@ -245,25 +260,17 @@ func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.Tenant
 		},
 		Spec: extensions.IngressSpec{
 			Rules: []extensions.IngressRule{
-				{
-					Host: domain,
-					IngressRuleValue: extensions.IngressRuleValue{
-						HTTP: &extensions.HTTPIngressRuleValue{
-							Paths: []extensions.HTTPIngressPath{
-								{
-									Path: path,
-									Backend: extensions.IngressBackend{
-										ServiceName: service.Name,
-										ServicePort: intstr.FromInt(port.ContainerPort),
-									},
-								},
-							},
-						},
-					},
-				},
+				defIngRule,
 			},
 		},
 	}
+	// custom domain
+	if rule.Domain != "" {
+		cusIngRule := defIngRule
+		cusIngRule.Host = rule.Domain
+		ing.Spec.Rules = append(ing.Spec.Rules, cusIngRule)
+	}
+
 	annos := make(map[string]string)
 	// load balancer type
 	annos[parser.GetAnnotationWithPrefix("load-balancer-type")] = string(rule.LoadBalancerType)
@@ -276,7 +283,7 @@ func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.Tenant
 		annos[parser.GetAnnotationWithPrefix("cookie")] = rule.Cookie
 	}
 	// certificate
-	if rule.CertificateID != "" {
+	if rule.CertificateID != "" && rule.Domain != "" {
 		cert, err := a.dbmanager.CertificateDao().GetCertificateByID(rule.CertificateID)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Cant not get certificate by id(%s): %v", rule.CertificateID, err)
@@ -295,7 +302,7 @@ func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.Tenant
 		}
 		ing.Spec.TLS = []extensions.IngressTLS{
 			{
-				Hosts:      []string{domain},
+				Hosts:      []string{rule.Domain},
 				SecretName: sec.Name,
 			},
 		}
@@ -308,7 +315,7 @@ func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.Tenant
 	}
 	for _, extension := range ruleExtensions {
 		switch extension.Value {
-		case model.HttpToHttpsEV:
+		case string(model.HttpToHttpsEV):
 			annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
 		default:
 			logrus.Warnf("Unexpected RuleExtension Value: %s", extension.Value)
