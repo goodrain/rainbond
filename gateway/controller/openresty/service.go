@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/golang/glog"
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path"
 	"strings"
 	"sync"
 	"time"
@@ -64,6 +64,28 @@ func (osvc *OpenrestyService) Start() error {
 	return nil
 }
 
+// Starts starts nginx
+func (osvc *OpenrestyService) Starts(errCh chan error) {
+	nginx := model.NewNginx(*osvc.config, template.CustomConfigPath)
+	nginx.HTTP = model.NewHTTP(osvc.config)
+	if err := template.NewNginxTemplate(nginx, defaultNginxConf); err != nil {
+		logrus.Fatalf("Can't not new nginx config: %v", err)
+	}
+
+	cmd := nginxExecCommand()
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		glog.Fatalf("NGINX error: %v", err)
+		errCh <- err
+		return
+	}
+
+	go func() {
+		errCh <- cmd.Wait()
+	}()
+}
+
 // Stop gracefully stops the NGINX master process.
 func (osvc *OpenrestyService) Stop() error {
 	// send stop signal to NGINX
@@ -89,54 +111,32 @@ func (osvc *OpenrestyService) Stop() error {
 	return nil
 }
 
+// PersistConfig persists config
 func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
-	upsHttp := "upstreams-http.conf"
-	if err := osvc.PersistUpstreams(conf.HttpPools, "upstreams-http.tmpl", upsHttp); err != nil {
-		logrus.Errorf("fail to persist %s", upsHttp)
+	if err := osvc.PersistUpstreams(conf.HttpPools, "upstreams-http.tmpl", "http/upstreams.conf"); err != nil {
+		logrus.Errorf("fail to persist http upstreams.conf ")
 	}
 
-	upsTcp := "upstreams-tcp.conf"
-	if err := osvc.PersistUpstreams(conf.TCPPools, "upstreams-tcp.tmpl", upsTcp); err != nil {
-		logrus.Errorf("fail to persist %s", upsHttp)
+	if err := osvc.PersistUpstreams(conf.TCPPools, "upstreams-tcp.tmpl", "stream/upstreams.conf"); err != nil {
+		logrus.Errorf("fail to persist tcp upstreams.conf")
 	}
 
 	l7srv, l4srv := getNgxServer(conf)
 	// http
 	if len(l7srv) > 0 {
-		serverFilename := "servers-http.conf"
-		if err := template.NewServerTemplate(l7srv, serverFilename); err != nil {
+		filename := "http/servers.conf"
+		if err := template.NewServerTemplate(l7srv, filename); err != nil {
 			logrus.Errorf("Fail to new nginx Server config file: %v", err)
 			return err
-		}
-
-		httpData := model.NewHttp(*osvc.config)
-		httpData.Includes = []string{
-			path.Join(template.CustomConfigPath, serverFilename),
-			path.Join(template.CustomConfigPath, upsHttp),
-		}
-		httpFilename := "http.conf"
-		if err := template.NewHttpTemplate(httpData, httpFilename); err != nil {
-			logrus.Fatalf("Fail to new nginx http template: %v", err)
-			return nil
 		}
 	}
 
 	// stream
 	if len(l4srv) > 0 {
-		serverFilename := "servers-tcp.conf"
-		if err := template.NewServerTemplate(l4srv, serverFilename); err != nil {
+		filename := "stream/servers.conf"
+		if err := template.NewServerTemplate(l4srv, filename); err != nil {
 			logrus.Errorf("Fail to new nginx Server file: %v", err)
 			return err
-		}
-		streamData := model.NewStream()
-		streamData.Includes = []string{
-			path.Join(template.CustomConfigPath, serverFilename),
-			path.Join(template.CustomConfigPath, upsTcp),
-		}
-		streamFilename := "stream.conf"
-		if err := template.NewStreamTemplate(streamData, streamFilename); err != nil {
-			logrus.Fatalf("Fail to new nginx stream template: %v", err)
-			return nil
 		}
 	}
 
@@ -155,6 +155,7 @@ func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
 	return nil
 }
 
+// PersistUpstreams persists upstreams
 func (osvc *OpenrestyService) PersistUpstreams(pools []*v1.Pool, tmpl string, filename string) error {
 	var upstreams []model.Upstream
 	for _, pool := range pools {
@@ -294,7 +295,7 @@ func (osvc *OpenrestyService) WaitPluginReady() {
 			logrus.Info("Nginx is ready")
 			break
 		}
-		logrus.Info("Nginx is not ready yet.")
+		logrus.Info("Nginx is not ready yet: %v", err)
 		time.Sleep(1 * time.Second)
 	}
 }

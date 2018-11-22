@@ -134,8 +134,8 @@ type rbdStore struct {
 	annotations annotations.Extractor
 }
 
+// New creates a new Storer
 func New(client kubernetes.Interface,
-	namespace string,
 	updateCh *channels.RingChannel) Storer {
 	store := &rbdStore{
 		informers: &Informer{},
@@ -150,7 +150,7 @@ func New(client kubernetes.Interface,
 	store.listers.IngressAnnotation.Store = cache.NewStore(cache.DeletionHandlingMetaNamespaceKeyFunc)
 
 	// create informers factory, enable and assign required informers
-	infFactory := informers.NewFilteredSharedInformerFactory(client, time.Second, namespace,
+	infFactory := informers.NewFilteredSharedInformerFactory(client, time.Second, "",
 		func(*metav1.ListOptions) {})
 
 	store.informers.Ingress = infFactory.Extensions().V1beta1().Ingresses().Informer()
@@ -168,6 +168,7 @@ func New(client kubernetes.Interface,
 	// 定义Ingress Event Handler: Add, Delete, Update
 	ingEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
+			logrus.Debug("Ingress AddFunc is called.\n")
 			ing := obj.(*extensions.Ingress)
 
 			// updating annotations information for ingress
@@ -445,12 +446,12 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 func (s *rbdStore) ingressIsValid(ing *extensions.Ingress) bool {
 	var endpointKey string
 	if ing.Spec.Backend != nil { // stream
-		endpointKey = fmt.Sprintf("%s/%s", "gateway", ing.Spec.Backend.ServiceName)
+		endpointKey = fmt.Sprintf("%s/%s", ing.Namespace, ing.Spec.Backend.ServiceName)
 	} else { // http
 	Loop:
 		for _, rule := range ing.Spec.Rules {
 			for _, path := range rule.IngressRuleValue.HTTP.Paths {
-				endpointKey = fmt.Sprintf("%s/%s", "gateway", path.Backend.ServiceName)
+				endpointKey = fmt.Sprintf("%s/%s", ing.Namespace, path.Backend.ServiceName)
 				if endpointKey != "" {
 					break Loop
 				}

@@ -50,11 +50,6 @@ http {
 
     lua_shared_dict upstreams_dict 16m;
 
-    upstream  def_upstream  {
-        server   localhost:7777 max_fails=2 fail_timeout=30s;
-        server   localhost:8888 max_fails=2 fail_timeout=30s;
-    }
-
     server {
         listen       10254;
 

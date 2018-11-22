@@ -15,8 +15,7 @@ type Http struct {
 	ProxyBufferSize      Size
 	ProxyBuffers         Size
 	ProxyBusyBuffersSize Size
-
-	Includes []string
+	AuxiliaryPort        int
 }
 
 type LogFormat struct {
@@ -29,16 +28,16 @@ type AccessLog struct {
 	Path string
 }
 
-// NewHttp creates a new model.Http
-func NewHttp(conf option.Config) *Http {
+// NewHTTP creates a new model.Http
+func NewHTTP(conf *option.Config) *Http {
 	return &Http{
 		DefaultType: "text/html",
 		SendFile:    true,
+		AuxiliaryPort: conf.ListenPorts.AuxiliaryPort,
 		KeepaliveTimeout: Time{
-			Num:  conf.KeepaliveTimeout,
+			Num:  30,
 			Unit: "s",
 		},
-		keepaliveRequests: conf.KeepaliveRequests,
 		ClientMaxBodySize: Size{
 			Num:  10,
 			Unit: "m",
@@ -67,6 +66,5 @@ func NewHttp(conf option.Config) *Http {
 			Num:  32,
 			Unit: "k",
 		},
-		Includes: []string{},
 	}
 }

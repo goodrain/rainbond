@@ -1,0 +1,9 @@
+{{ range $upstream := . }}
+upstream {{$upstream.Name}} {
+    # servers
+    {{ range $server := $upstream.Servers }}
+    {{ $params := $server.Params }}
+    server {{ $server.Address }};
+    {{ end }}
+}
+{{ end }}

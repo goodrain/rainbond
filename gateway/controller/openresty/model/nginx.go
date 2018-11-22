@@ -2,7 +2,6 @@ package model
 
 import (
 	"os/user"
-	"path"
 	"runtime"
 
 	"github.com/goodrain/rainbond/cmd/gateway/option"
@@ -16,7 +15,7 @@ type Nginx struct {
 	User               string
 	EventLog           EventLog
 	Events             Events
-	Includes           []string
+	HTTP               *Http
 }
 
 type EventLog struct {
@@ -47,7 +46,6 @@ func NewNginx(conf option.Config, customPath string) *Nginx {
 	return &Nginx{
 		WorkerProcesses:    conf.WorkerProcesses,
 		WorkerRlimitNofile: conf.WorkerRlimitNofile,
-		Includes:           []string{path.Join(customPath, "/*.conf")},
 		User:               conf.NginxUser,
 		ErrorLog:           conf.ErrorLog,
 		Events: Events{
