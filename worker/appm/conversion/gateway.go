@@ -20,9 +20,10 @@ package conversion
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/util"
 	"os"
 	"strings"
+
+	"github.com/goodrain/rainbond/util"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/model"

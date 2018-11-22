@@ -23,6 +23,9 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
+
+	"github.com/goodrain/rainbond/util"
 
 	discover "github.com/goodrain/rainbond/discover.v2"
 
@@ -95,6 +98,15 @@ func (r *RuntimeServer) GetAppDisk(ctx context.Context, re *pb.StatusRequest) (*
 //registServer
 //regist sync server to etcd
 func (r *RuntimeServer) registServer() error {
+	if !r.store.Ready() {
+		util.Exec(r.ctx, func() error {
+			if r.store.Ready() {
+				return fmt.Errorf("Ready")
+			}
+			logrus.Debugf("store module is not ready,runtime server is  waiting")
+			return nil
+		}, time.Second*3)
+	}
 	if r.keepalive == nil {
 		keepalive, err := discover.CreateKeepAlive(r.conf.EtcdEndPoints, "app_sync_runtime_server", "", r.conf.HostIP, r.conf.ServerPort)
 		if err != nil {

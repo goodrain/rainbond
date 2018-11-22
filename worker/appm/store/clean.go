@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,13 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package appm
+package store
 
-import "strings"
+import (
+	"time"
 
-func checkNotFoundError(err error) error {
-	if strings.HasSuffix(err.Error(), "not found") {
+	"github.com/goodrain/rainbond/util"
+)
+
+//clean clean Possible duplicate resources
+func (a *appRuntimeStore) clean() {
+	util.Exec(a.ctx, func() error {
+		a.appServices.Range(func(k, v interface{}) bool {
+			//TODO:
+			return true
+		})
 		return nil
-	}
-	return err
+	}, time.Second*10)
 }

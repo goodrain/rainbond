@@ -19,6 +19,7 @@
 package v1
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"time"
 
@@ -263,4 +264,29 @@ func (a *AppService) WaitUpgradeReady(timeout time.Duration, logger event.Logger
 		a.printLogger(logger)
 	}
 	return nil
+}
+
+//AbnormalInfo pod Abnormal info
+//Record the container exception exit information in pod.
+type AbnormalInfo struct {
+	ServiceID     string    `json:"service_id"`
+	TenantID      string    `json:"tenant_id"`
+	ServiceAlias  string    `json:"service_alias"`
+	PodName       string    `json:"pod_name"`
+	ContainerName string    `json:"container_name"`
+	Reason        string    `json:"reson"`
+	Message       string    `json:"message"`
+	CreateTime    time.Time `json:"create_time"`
+	Count         int       `json:"count"`
+}
+
+//Hash get AbnormalInfo hash
+func (a AbnormalInfo) Hash() string {
+	hash := sha256.New()
+	hash.Write([]byte(a.ServiceID + a.ServiceAlias))
+	return fmt.Sprintf("%x", hash.Sum(nil))
+}
+func (a AbnormalInfo) String() string {
+	return fmt.Sprintf("ServiceID: %s;ServiceAlias: %s;PodName: %s ; ContainerName: %s; Reason: %s; Message: %s",
+		a.ServiceID, a.ServiceAlias, a.PodName, a.ContainerName, a.Reason, a.Message)
 }

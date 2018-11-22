@@ -19,9 +19,12 @@
 package store
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/goodrain/rainbond/db/model"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 
@@ -58,6 +61,8 @@ type Storer interface {
 //appRuntimeStore app runtime store
 //cache all kubernetes object and appservice
 type appRuntimeStore struct {
+	ctx         context.Context
+	cancel      context.CancelFunc
 	informers   *Informer
 	listers     *Lister
 	appServices sync.Map
@@ -69,7 +74,10 @@ type appRuntimeStore struct {
 
 //NewStore new app runtime store
 func NewStore(dbmanager db.Manager, conf option.Config) Storer {
+	ctx, cancel := context.WithCancel(context.Background())
 	store := &appRuntimeStore{
+		ctx:         ctx,
+		cancel:      cancel,
 		informers:   &Informer{},
 		listers:     &Lister{},
 		appServices: sync.Map{},
@@ -137,6 +145,7 @@ func (a *appRuntimeStore) Start() error {
 	stopch := make(chan struct{})
 	a.informers.Start(stopch)
 	a.stopch = stopch
+	go a.clean()
 	return nil
 }
 
@@ -178,6 +187,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			appservice := a.getAppService(serviceID, version, createrID, true)
 			if appservice != nil {
 				appservice.SetPods(pod)
+				a.analyzePodStatus(pod)
 				return
 			}
 		}
@@ -219,10 +229,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		}
 	}
 	if configmap, ok := obj.(*corev1.ConfigMap); ok {
-		serviceID, oks := configmap.Labels["service_id"]
-		version, okv := configmap.Labels["version"]
+		serviceID := configmap.Labels["service_id"]
+		version := configmap.Labels["version"]
 		createrID := configmap.Labels["creater_id"]
-		if oks && okv && serviceID != "" && version != "" && createrID != "" {
+		if serviceID != "" && version != "" && createrID != "" {
 			appservice := a.getAppService(serviceID, version, createrID, true)
 			if appservice != nil {
 				appservice.SetConfigMap(configmap)
@@ -471,4 +481,71 @@ func (a *appRuntimeStore) GetNeedBillingStatus(serviceIDs []string) map[string]s
 }
 func isClosedStatus(curStatus string) bool {
 	return curStatus == v1.BUILDEFAILURE || curStatus == v1.CLOSED || curStatus == v1.UNDEPLOY || curStatus == v1.BUILDING || curStatus == v1.UNKNOW
+}
+
+func getServiceInfoFromPod(pod *corev1.Pod) v1.AbnormalInfo {
+	var ai v1.AbnormalInfo
+	if len(pod.Spec.Containers) > 0 {
+		var i = 0
+		container := pod.Spec.Containers[0]
+		for _, env := range container.Env {
+			if env.Name == "SERVICE_ID" {
+				ai.ServiceID = env.Value
+				i++
+			}
+			if env.Name == "SERVICE_NAME" {
+				ai.ServiceAlias = env.Value
+				i++
+			}
+			if i == 2 {
+				break
+			}
+		}
+	}
+	ai.PodName = pod.Name
+	ai.TenantID = pod.Namespace
+	return ai
+}
+
+func (a *appRuntimeStore) analyzePodStatus(pod *corev1.Pod) {
+	for _, containerStatus := range pod.Status.ContainerStatuses {
+		if containerStatus.LastTerminationState.Terminated != nil {
+			ai := getServiceInfoFromPod(pod)
+			ai.ContainerName = containerStatus.Name
+			ai.Reason = containerStatus.LastTerminationState.Terminated.Reason
+			ai.Message = containerStatus.LastTerminationState.Terminated.Message
+			ai.CreateTime = time.Now()
+			a.addAbnormalInfo(&ai)
+		}
+	}
+}
+
+func (a *appRuntimeStore) addAbnormalInfo(ai *v1.AbnormalInfo) {
+	switch ai.Reason {
+	case "OOMKilled":
+		a.dbmanager.NotificationEventDao().AddModel(&model.NotificationEvent{
+			Kind:        "service",
+			KindID:      ai.ServiceID,
+			Hash:        ai.Hash(),
+			Type:        "UnNormal",
+			Message:     fmt.Sprintf("Container %s OOMKilled %s", ai.ContainerName, ai.Message),
+			Reason:      "OOMKilled",
+			Count:       ai.Count,
+			ServiceName: ai.ServiceAlias,
+			TenantName:  ai.TenantID,
+		})
+	default:
+		db.GetManager().NotificationEventDao().AddModel(&model.NotificationEvent{
+			Kind:        "service",
+			KindID:      ai.ServiceID,
+			Hash:        ai.Hash(),
+			Type:        "UnNormal",
+			Message:     fmt.Sprintf("Container %s restart %s", ai.ContainerName, ai.Message),
+			Reason:      ai.Reason,
+			Count:       ai.Count,
+			ServiceName: ai.ServiceAlias,
+			TenantName:  ai.TenantID,
+		})
+	}
+
 }
