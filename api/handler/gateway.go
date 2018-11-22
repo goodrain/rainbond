@@ -41,15 +41,15 @@ func CreateGatewayManager(dbmanager db.Manager) *GatewayAction {
 // AddHttpRule adds http rule to db if it doesn't exists.
 func (g *GatewayAction) AddHttpRule(req *apimodel.HttpRuleStruct) error {
 	httpRule := &model.HttpRule{
-		UUID:             req.HttpRuleID,
-		ServiceID:        req.ServiceID,
-		ContainerPort:    req.ContainerPort,
-		Domain:           req.Domain,
-		Path:             req.Path,
-		Header:           req.Header,
-		Cookie:           req.Cookie,
-		IP:               req.IP,
-		CertificateID:    req.CertificateID,
+		UUID:          req.HttpRuleID,
+		ServiceID:     req.ServiceID,
+		ContainerPort: req.ContainerPort,
+		Domain:        req.Domain,
+		Path:          req.Path,
+		Header:        req.Header,
+		Cookie:        req.Cookie,
+		IP:            req.IP,
+		CertificateID: req.CertificateID,
 	}
 
 	// begin transaction
@@ -72,10 +72,10 @@ func (g *GatewayAction) AddHttpRule(req *apimodel.HttpRuleStruct) error {
 
 	for _, ruleExtension := range req.RuleExtensions {
 		re := &model.RuleExtension{
-			UUID: util.NewUUID(),
+			UUID:   util.NewUUID(),
 			RuleID: httpRule.UUID,
-			Key: ruleExtension.Key,
-			Value: ruleExtension.Value,
+			Key:    ruleExtension.Key,
+			Value:  ruleExtension.Value,
 		}
 		if err := db.GetManager().RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
 			tx.Rollback()
@@ -93,7 +93,7 @@ func (g *GatewayAction) AddHttpRule(req *apimodel.HttpRuleStruct) error {
 
 // UpdateHttpRule updates http rule
 func (g *GatewayAction) UpdateHttpRule(req *apimodel.HttpRuleStruct) error {
-		tx := db.GetManager().Begin()
+	tx := db.GetManager().Begin()
 	rule, err := g.dbmanager.HttpRuleDaoTransactions(tx).GetHttpRuleByID(req.HttpRuleID)
 
 	if err != nil {
@@ -116,10 +116,10 @@ func (g *GatewayAction) UpdateHttpRule(req *apimodel.HttpRuleStruct) error {
 	}
 	// add new certificate
 	cert := &model.Certificate{
-		UUID: req.CertificateID,
+		UUID:            req.CertificateID,
 		CertificateName: req.CertificateName,
-		Certificate: req.Certificate,
-		PrivateKey: req.PrivateKey,
+		Certificate:     req.Certificate,
+		PrivateKey:      req.PrivateKey,
 	}
 	if err := g.dbmanager.CertificateDaoTransactions(tx).AddModel(cert); err != nil {
 		tx.Rollback()
@@ -128,10 +128,10 @@ func (g *GatewayAction) UpdateHttpRule(req *apimodel.HttpRuleStruct) error {
 	// add new rule extensions
 	for _, ruleExtension := range req.RuleExtensions {
 		re := &model.RuleExtension{
-			UUID: util.NewUUID(),
+			UUID:   util.NewUUID(),
 			RuleID: rule.UUID,
-			Key: ruleExtension.Key,
-			Value: ruleExtension.Value,
+			Key:    ruleExtension.Key,
+			Value:  ruleExtension.Value,
 		}
 		if err := db.GetManager().RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
 			tx.Rollback()
@@ -222,11 +222,11 @@ func (g *GatewayAction) UpdateCertificate(req apimodel.HttpRuleStruct, httpRule 
 // AddTcpRule adds tcp rule.
 func (g *GatewayAction) AddTcpRule(req *apimodel.TcpRuleStruct) error {
 	tcpRule := &model.TcpRule{
-		UUID:             util.NewUUID(),
-		ServiceID:        req.ServiceID,
-		ContainerPort:    req.ContainerPort,
-		IP:               req.IP,
-		Port:             req.Port,
+		UUID:          req.TcpRuleId,
+		ServiceID:     req.ServiceID,
+		ContainerPort: req.ContainerPort,
+		IP:            req.IP,
+		Port:          req.Port,
 	}
 
 	// begin transaction
@@ -262,8 +262,7 @@ func (g *GatewayAction) UpdateTcpRule(req *apimodel.TcpRuleStruct) error {
 	// begin transaction
 	tx := db.GetManager().Begin()
 	// get old tcp rule
-	tcpRule, err := g.dbmanager.TcpRuleDaoTransactions(tx).GetTcpRuleByServiceIDAndContainerPort(req.ServiceID,
-		req.ContainerPort)
+	tcpRule, err := g.dbmanager.TcpRuleDaoTransactions(tx).GetTcpRuleByID(req.TcpRuleId)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -274,6 +273,8 @@ func (g *GatewayAction) UpdateTcpRule(req *apimodel.TcpRuleStruct) error {
 		return err
 	}
 	// update tcp rule
+	tcpRule.ServiceID = req.ServiceID
+	tcpRule.ContainerPort = req.ContainerPort
 	tcpRule.IP = req.IP
 	tcpRule.Port = req.Port
 	if err := g.dbmanager.TcpRuleDaoTransactions(tx).UpdateModel(tcpRule); err != nil {
@@ -305,8 +306,7 @@ func (g *GatewayAction) UpdateTcpRule(req *apimodel.TcpRuleStruct) error {
 func (g *GatewayAction) DeleteTcpRule(req *apimodel.TcpRuleStruct) error {
 	// begin transaction
 	tx := db.GetManager().Begin()
-	tcpRule, err := db.GetManager().TcpRuleDaoTransactions(tx).GetTcpRuleByServiceIDAndContainerPort(req.ServiceID,
-		req.ContainerPort)
+	tcpRule, err := db.GetManager().TcpRuleDaoTransactions(tx).GetTcpRuleByID(req.TcpRuleId)
 	if err != nil {
 		tx.Rollback()
 		return err

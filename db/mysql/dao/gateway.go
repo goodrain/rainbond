@@ -245,6 +245,18 @@ func (s *TcpRuleDaoTmpl) GetTcpRuleByServiceIDAndContainerPort(serviceID string,
 	return result, nil
 }
 
+// GetTcpRuleByID gets a TcpRule based on tcpRuleID
+func (s *TcpRuleDaoTmpl) GetTcpRuleByID(id string) (*model.TcpRule, error) {
+	result := &model.TcpRule{}
+	if err := s.DB.Where("uuid = ?", id).Find(result).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return result, nil
+		}
+		return nil, err
+	}
+	return result, nil
+}
+
 func (s *TcpRuleDaoTmpl) DeleteTcpRule(tcpRule *model.TcpRule) error {
 	return s.DB.Where("uuid = ?", tcpRule.UUID).Delete(tcpRule).Error
 }
