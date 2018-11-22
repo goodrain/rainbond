@@ -44,34 +44,26 @@ import (
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/discover/model"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-
 	"encoding/json"
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
-	"k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 //ServiceAction service act
 type ServiceAction struct {
-	MQClient   pb.TaskQueueClient
-	KubeClient *kubernetes.Clientset
-	EtcdCli    *clientv3.Client
-	statusCli  *client.AppRuntimeSyncClient
+	MQClient  pb.TaskQueueClient
+	EtcdCli   *clientv3.Client
+	statusCli *client.AppRuntimeSyncClient
 }
 
 //CreateManager create Manger
 func CreateManager(mqClient pb.TaskQueueClient,
-	kubeClient *kubernetes.Clientset,
 	etcdCli *clientv3.Client, statusCli *client.AppRuntimeSyncClient) *ServiceAction {
 	return &ServiceAction{
-		MQClient:   mqClient,
-		KubeClient: kubeClient,
-		EtcdCli:    etcdCli,
-		statusCli:  statusCli,
+		MQClient:  mqClient,
+		EtcdCli:   etcdCli,
+		statusCli: statusCli,
 	}
 }
 
@@ -81,7 +73,6 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 	logger := event.GetManager().GetLogger(eventID)
 	defer event.CloseManager()
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
-	service.ContainerCMD = r.Body.Cmd
 	db.GetManager().TenantServiceDao().UpdateModel(service)
 	if err != nil {
 		return err
@@ -90,42 +81,6 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 		r.Body.Kind = "source"
 	}
 	switch r.Body.Kind {
-	//deprecated
-	case "source":
-		//源码构建
-		if err := s.sourceBuild(r, service); err != nil {
-			logger.Error("源码构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
-			return err
-		}
-		logger.Info("源码构建应用任务发送成功 ", map[string]string{"step": "source-service", "status": "starting"})
-		return nil
-		//deprecated
-	case "slug":
-		//源码构建的分享至云市安装回平台
-		if err := s.slugBuild(r, service); err != nil {
-			logger.Error("slug构建应用任务发送失败"+err.Error(), map[string]string{"step": "callback", "status": "failure"})
-			return err
-		}
-		logger.Info("slug构建应用任务发送成功 ", map[string]string{"step": "source-service", "status": "starting"})
-		return nil
-		//deprecated
-	case "image":
-		//镜像构建
-		if err := s.imageBuild(r, service); err != nil {
-			logger.Error("镜像构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
-			return err
-		}
-		logger.Info("镜像构建应用任务发送成功 ", map[string]string{"step": "image-service", "status": "starting"})
-		return nil
-		//deprecated
-	case "market":
-		//镜像构建分享至云市安装回平台
-		if err := s.marketBuild(r, service); err != nil {
-			logger.Error("云市构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
-			return err
-		}
-		logger.Info("云市构建应用任务发送成功 ", map[string]string{"step": "market-service", "status": "starting"})
-		return nil
 	case "build_from_image":
 		if err := s.buildFromImage(r, service); err != nil {
 			logger.Error("镜像构建应用任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
@@ -188,7 +143,6 @@ func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service 
 	body["image"] = r.Body.ImageURL
 	body["service_id"] = service.ID
 	body["deploy_version"] = r.Body.DeployVersion
-	body["app_version"] = service.ServiceVersion
 	body["namespace"] = service.Namespace
 	body["operator"] = r.Body.Operator
 	body["event_id"] = r.Body.EventID
@@ -235,125 +189,6 @@ func (s *ServiceAction) buildFromSourceCode(r *api_model.BuildServiceStruct, ser
 	body["expire"] = 180
 	logrus.Debugf("app_build body is %v", body)
 	return s.sendTask(body, "build_from_source_code")
-}
-
-func (s *ServiceAction) sourceBuild(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
-	if r.Body.RepoURL == "" || r.Body.DeployVersion == "" || r.Body.EventID == "" {
-		return fmt.Errorf("args error")
-	}
-	body := make(map[string]interface{})
-	if r.Body.Operator == "" {
-		body["operator"] = "system"
-	} else {
-		body["operator"] = r.Body.Operator
-	}
-	body["tenant_id"] = service.TenantID
-	body["service_id"] = service.ServiceID
-	body["repo_url"] = r.Body.RepoURL
-	body["action"] = r.Body.Action
-	body["deploy_version"] = r.Body.DeployVersion
-	body["event_id"] = r.Body.EventID
-	body["envs"] = r.Body.ENVS
-	body["tenant_name"] = r.Body.TenantName
-	body["service_alias"] = r.Body.ServiceAlias
-	body["expire"] = 180
-	body["server_type"] = r.Body.ServerType
-	logrus.Debugf("app_build body is %v", body)
-	return s.sendTask(body, "app_build")
-}
-
-func (s *ServiceAction) imageBuild(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
-	logrus.Debugf("build from image")
-	if r.Body.EventID == "" {
-		return fmt.Errorf("args error")
-	}
-	dependIds, err := db.GetManager().TenantServiceRelationDao().GetTenantServiceRelations(service.ServiceID)
-	if err != nil {
-		return err
-	}
-	body := make(map[string]interface{})
-	if r.Body.Operator == "" {
-		body["operator"] = "system"
-	} else {
-		body["operator"] = r.Body.Operator
-	}
-	body["image"] = service.ImageName
-	body["service_id"] = service.ID
-	body["deploy_version"] = r.Body.DeployVersion
-	body["app_version"] = service.ServiceVersion
-	body["namespace"] = service.Namespace
-	body["operator"] = r.Body.Operator
-	body["event_id"] = r.Body.EventID
-	body["tenant_name"] = r.Body.TenantName
-	body["service_alias"] = r.Body.ServiceAlias
-	body["action"] = "download_and_deploy"
-	body["dep_sids"] = dependIds
-	body["code_from"] = "image_manual"
-	logrus.Debugf("image_manual body is %v", body)
-	return s.sendTask(body, "image_manual")
-}
-
-func (s *ServiceAction) slugBuild(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
-	logrus.Debugf("build from slug")
-	if r.Body.EventID == "" {
-		return fmt.Errorf("args error")
-	}
-	dependIds, err := db.GetManager().TenantServiceRelationDao().GetTenantServiceRelations(service.ServiceID)
-	if err != nil {
-		return err
-	}
-	body := make(map[string]interface{})
-	if r.Body.Operator == "" {
-		body["operator"] = "system"
-	} else {
-		body["operator"] = r.Body.Operator
-	}
-	body["image"] = service.ImageName
-	body["service_id"] = service.ID
-	body["deploy_version"] = r.Body.DeployVersion
-	body["service_alias"] = service.ServiceAlias
-	body["app_version"] = service.ServiceVersion
-	body["app_key"] = service.ServiceKey
-	body["namespace"] = service.Namespace
-	body["operator"] = r.Body.Operator
-	body["event_id"] = r.Body.EventID
-	body["tenant_name"] = r.Body.TenantName
-	body["service_alias"] = r.Body.ServiceAlias
-	body["action"] = "download_and_deploy"
-	body["dep_sids"] = dependIds
-	logrus.Debugf("image_manual body is %v", body)
-	return s.sendTask(body, "app_slug")
-}
-
-func (s *ServiceAction) marketBuild(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
-	logrus.Debugf("build from cloud market")
-	if r.Body.EventID == "" {
-		return fmt.Errorf("args error")
-	}
-	dependIds, err := db.GetManager().TenantServiceRelationDao().GetTenantServiceRelations(service.ServiceID)
-	if err != nil {
-		return err
-	}
-	body := make(map[string]interface{})
-	if r.Body.Operator == "" {
-		body["operator"] = "system"
-	} else {
-		body["operator"] = r.Body.Operator
-	}
-	body["image"] = service.ImageName
-	body["service_id"] = service.ID
-	body["service_alias"] = service.ServiceAlias
-	body["deploy_version"] = r.Body.DeployVersion
-	body["app_version"] = service.ServiceVersion
-	body["namespace"] = service.Namespace
-	body["operator"] = r.Body.Operator
-	body["event_id"] = r.Body.EventID
-	body["tenant_name"] = r.Body.TenantName
-	body["service_alias"] = r.Body.ServiceAlias
-	body["action"] = "download_and_deploy"
-	body["dep_sids"] = dependIds
-	logrus.Debugf("app_image body is %v", body)
-	return s.sendTask(body, "app_image")
 }
 
 func (s *ServiceAction) sendTask(body map[string]interface{}, taskType string) error {
@@ -718,19 +553,21 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
-	//TODO: 更新单个项方法不给力
-	if sc["image_name"] != nil {
-		ts.ImageName = sc["image_name"].(string)
-	}
+	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(ts.DeployVersion, ts.ServiceID)
 	if sc["container_memory"] != nil {
 		ts.ContainerMemory = sc["container_memory"].(int)
 	}
 	if sc["container_cmd"] != nil {
-		ts.ContainerCMD = sc["container_cmd"].(string)
+		version.Cmd = sc["container_cmd"].(string)
 	}
-	//服务信息表
+	//update service
 	if err := db.GetManager().TenantServiceDao().UpdateModel(ts); err != nil {
 		logrus.Errorf("update service error, %v", err)
+		return err
+	}
+	//update service version
+	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
+		logrus.Errorf("update version error, %v", err)
 		return err
 	}
 	return nil
@@ -874,52 +711,6 @@ func (s *ServiceAction) CodeCheck(c *api_model.CheckCodeStruct) error {
 	return nil
 }
 
-//ShareCloud share cloud
-func (s *ServiceAction) ShareCloud(c *api_model.CloudShareStruct) error {
-	var bs api_db.BuildTaskStruct
-	switch c.Body.Kind {
-	case "app_slug":
-		bodyJ, err := ffjson.Marshal(&c.Body.Slug)
-		if err != nil {
-			return err
-		}
-		bs.User = "define"
-		bs.TaskBody = bodyJ
-		//bs.TaskType = "app_slug"
-		bs.TaskType = "slug_share"
-	case "app_image":
-		if c.Body.Image.ServiceID != "" {
-			service, err := db.GetManager().TenantServiceDao().GetServiceByID(c.Body.Image.ServiceID)
-			if err != nil {
-				return err
-			}
-			c.Body.Image.Image = service.ImageName
-		}
-		bodyJ, err := ffjson.Marshal(&c.Body.Image)
-		if err != nil {
-			return err
-		}
-		bs.User = "define"
-		bs.TaskBody = bodyJ
-		bs.TaskType = "image_share"
-	default:
-		return fmt.Errorf("need share kind")
-	}
-	eq, errEq := api_db.BuildTaskBuild(&bs)
-	if errEq != nil {
-		logrus.Errorf("build equeue share cloud error, %v", errEq)
-		return errEq
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	_, err := s.MQClient.Enqueue(ctx, eq)
-	cancel()
-	if err != nil {
-		logrus.Errorf("equque mq error, %v", err)
-		return err
-	}
-	return nil
-}
-
 //ServiceDepend service depend
 func (s *ServiceAction) ServiceDepend(action string, ds *api_model.DependService) error {
 	switch action {
@@ -1002,38 +793,6 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 				tx.Rollback()
 				return err
 			}
-			//TODO:删除k8s Service
-			service, err := db.GetManager().K8sServiceDao().GetK8sService(serviceID, vp.ContainerPort, true)
-			if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
-				logrus.Error("get deploy k8s service info error.")
-				tx.Rollback()
-				return err
-			}
-			if service != nil {
-				err := s.KubeClient.Core().Services(tenantID).Delete(service.K8sServiceID, &metav1.DeleteOptions{})
-				if err != nil {
-					logrus.Error("delete deploy k8s service info from kube-api error.")
-					tx.Rollback()
-					return err
-				}
-				err = db.GetManager().K8sServiceDaoTransactions(tx).DeleteK8sServiceByName(service.K8sServiceID)
-				if err != nil {
-					logrus.Error("delete deploy k8s service info from db error.")
-					tx.Rollback()
-					return err
-				}
-				if crt {
-					if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeletePluginMappingPortByContainerPort(
-						serviceID,
-						dbmodel.UpNetPlugin,
-						vp.ContainerPort,
-					); err != nil {
-						logrus.Errorf("delete plugin stream mapping port error: (%s)", err)
-						tx.Rollback()
-						return err
-					}
-				}
-			}
 		}
 		if err := tx.Commit().Error; err != nil {
 			tx.Rollback()
@@ -1106,7 +865,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 	if err != nil {
 		return nil, "", fmt.Errorf("find service port error:%s", err.Error())
 	}
-	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	_, err = db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
 		return nil, "", fmt.Errorf("find service error:%s", err.Error())
 	}
@@ -1117,7 +876,6 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 	if err != nil {
 		return nil, "", fmt.Errorf("get plugin relations error: %s", err.Error())
 	}
-	var k8sService *v1.Service
 	//if stream 创建vs端口
 	vsPort := &dbmodel.TenantServiceLBMappingPort{}
 	switch operation {
@@ -1129,22 +887,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 				tx.Rollback()
 				return nil, "", err
 			}
-			service, err := db.GetManager().K8sServiceDao().GetK8sService(serviceID, port, true)
-			if err != nil && err != gorm.ErrRecordNotFound {
-				logrus.Error("get deploy k8s service info error.")
-			}
-			if service != nil {
-				err := s.KubeClient.Core().Services(p.TenantID).Delete(service.K8sServiceID, &metav1.DeleteOptions{})
-				if err != nil {
-					tx.Rollback()
-					return nil, "", fmt.Errorf("delete deploy k8s service info from kube-api error.%s", err.Error())
-				}
-				err = db.GetManager().K8sServiceDaoTransactions(tx).DeleteK8sServiceByName(service.K8sServiceID)
-				if err != nil {
-					tx.Rollback()
-					return nil, "", fmt.Errorf("delete deploy k8s service info from db error")
-				}
-			}
+
 			if hasUpStream {
 				pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
 					serviceID,
@@ -1177,10 +920,6 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 			}
 			if err := tx.Commit().Error; err != nil {
 				tx.Rollback()
-				//删除已创建的SERVICE
-				if k8sService != nil {
-					s.KubeClient.Core().Services(k8sService.Namespace).Delete(k8sService.Name, &metav1.DeleteOptions{})
-				}
 				return nil, "", err
 			}
 		} else {
@@ -1208,14 +947,6 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 			if vsPort == nil {
 				tx.Rollback()
 				return nil, "", fmt.Errorf("create or get vs map port for service error,%s", err.Error())
-			}
-		}
-		deploy, _ := db.GetManager().K8sDeployReplicationDao().GetK8sCurrentDeployReplicationByService(serviceID)
-		if deploy != nil {
-			k8sService, err = s.createOuterK8sService(tenantName, vsPort, service, p, deploy)
-			if err != nil && !strings.HasSuffix(err.Error(), "is exist") {
-				tx.Rollback()
-				return nil, "", fmt.Errorf("create k8s service error,%s", err.Error())
 			}
 		}
 		if hasUpStream {
@@ -1250,10 +981,6 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 		}
 		if err := tx.Commit().Error; err != nil {
 			tx.Rollback()
-			//删除已创建的SERVICE
-			if k8sService != nil {
-				s.KubeClient.Core().Services(k8sService.Namespace).Delete(k8sService.Name, &metav1.DeleteOptions{})
-			}
 			return nil, "", err
 		}
 	}
@@ -1266,115 +993,15 @@ func (s *ServiceAction) createVSPort(serviceID string, containerPort int) (*dbmo
 	}
 	return vsPort, nil
 }
-func (s *ServiceAction) createOuterK8sService(tenantName string, mapPort *dbmodel.TenantServiceLBMappingPort, tenantservice *dbmodel.TenantServices, port *dbmodel.TenantServicesPort, deploy *dbmodel.K8sDeployReplication) (*v1.Service, error) {
-	var service v1.Service
-	service.Name = fmt.Sprintf("service-%d-%dout", port.ID, port.ContainerPort)
-	service.Labels = map[string]string{
-		"service_type": "outer",
-		"name":         tenantservice.ServiceAlias + "ServiceOUT",
-		"tenant_name":  tenantName,
-		"domain":       tenantservice.Autodomain(tenantName, port.ContainerPort),
-		"protocol":     port.Protocol,
-		"ca":           "",
-		"key":          "",
-		"event_id":     tenantservice.EventID,
-	}
-	//TODO: "stream" to ! http
-	if port.Protocol != "http" && mapPort != nil { //stream 协议获取映射端口
-		service.Labels["lbmap_port"] = fmt.Sprintf("%d", mapPort.Port)
-	}
-	var servicePort v1.ServicePort
-	if port.Protocol == "udp" {
-		servicePort.Protocol = "UDP"
-	} else {
-		servicePort.Protocol = "TCP"
-	}
-	servicePort.TargetPort = intstr.FromInt(port.ContainerPort)
-	servicePort.Port = int32(port.ContainerPort)
-	var portType v1.ServiceType
-	if os.Getenv("CUR_NET") == "midonet" {
-		portType = v1.ServiceTypeNodePort
-	} else {
-		portType = v1.ServiceTypeClusterIP
-	}
-	spec := v1.ServiceSpec{
-		Ports:    []v1.ServicePort{servicePort},
-		Selector: map[string]string{"name": tenantservice.ServiceAlias},
-		Type:     portType,
-	}
-	service.Spec = spec
-	k8sService, err := s.KubeClient.Core().Services(tenantservice.TenantID).Create(&service)
-	if err != nil && !strings.HasSuffix(err.Error(), "already exists") {
-		return nil, err
-	}
-	if err := db.GetManager().K8sServiceDao().AddModel(&dbmodel.K8sService{
-		TenantID:        tenantservice.TenantID,
-		ServiceID:       tenantservice.ServiceID,
-		K8sServiceID:    service.Name,
-		ContainerPort:   port.ContainerPort,
-		ReplicationID:   deploy.ReplicationID,
-		ReplicationType: deploy.ReplicationType,
-		IsOut:           true,
-	}); err != nil {
-		if !strings.HasSuffix(err.Error(), "is exist") {
-			s.KubeClient.Core().Services(tenantservice.TenantID).Delete(k8sService.Name, &metav1.DeleteOptions{})
-			return nil, err
-		}
-	}
-	return k8sService, nil
-}
-
-func (s *ServiceAction) createInnerService(tenantservice *dbmodel.TenantServices, port *dbmodel.TenantServicesPort, deploy *dbmodel.K8sDeployReplication) (*v1.Service, error) {
-	var service v1.Service
-	service.Name = fmt.Sprintf("service-%d-%d", port.ID, port.ContainerPort)
-	service.Labels = map[string]string{
-		"service_type": "inner",
-		"name":         tenantservice.ServiceAlias + "Service",
-	}
-	var servicePort v1.ServicePort
-	if port.Protocol == "udp" {
-		servicePort.Protocol = "UDP"
-	} else {
-		servicePort.Protocol = "TCP"
-	}
-	servicePort.TargetPort = intstr.FromInt(port.ContainerPort)
-	servicePort.Port = int32(port.MappingPort)
-	if servicePort.Port == 0 {
-		servicePort.Port = int32(port.ContainerPort)
-	}
-	spec := v1.ServiceSpec{
-		Ports:    []v1.ServicePort{servicePort},
-		Selector: map[string]string{"name": tenantservice.ServiceAlias},
-	}
-	service.Spec = spec
-	k8sService, err := s.KubeClient.Core().Services(tenantservice.TenantID).Create(&service)
-	if err != nil && !strings.HasSuffix(err.Error(), "already exists") {
-		return nil, err
-	}
-	if err := db.GetManager().K8sServiceDao().AddModel(&dbmodel.K8sService{
-		TenantID:        tenantservice.TenantID,
-		ServiceID:       tenantservice.ServiceID,
-		K8sServiceID:    service.Name,
-		ContainerPort:   port.ContainerPort,
-		ReplicationID:   deploy.ReplicationID,
-		ReplicationType: deploy.ReplicationType,
-		IsOut:           false,
-	}); err != nil {
-		if !strings.HasSuffix(err.Error(), "is exist") {
-			s.KubeClient.Core().Services(tenantservice.TenantID).Delete(k8sService.Name, &metav1.DeleteOptions{})
-			return nil, err
-		}
-	}
-	return k8sService, nil
-}
 
 //PortInner 端口对内服务操作
+//TODO: send task to worker
 func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port int) error {
 	p, err := db.GetManager().TenantServicesPortDao().GetPort(serviceID, port)
 	if err != nil {
 		return err
 	}
-	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	_, err = db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
 		return fmt.Errorf("get service error:%s", err.Error())
 	}
@@ -1385,7 +1012,6 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 	if err != nil {
 		return fmt.Errorf("get plugin relations error: %s", err.Error())
 	}
-	var k8sService *v1.Service
 	tx := db.GetManager().Begin()
 	switch operation {
 	case "close":
@@ -1394,22 +1020,6 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 			if err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(p); err != nil {
 				tx.Rollback()
 				return fmt.Errorf("update service port error: %s", err.Error())
-			}
-			service, err := db.GetManager().K8sServiceDao().GetK8sService(serviceID, port, false)
-			if err != nil && err != gorm.ErrRecordNotFound {
-				logrus.Error("get deploy k8s service info error.", err.Error())
-			}
-			if service != nil {
-				err := s.KubeClient.Core().Services(p.TenantID).Delete(service.K8sServiceID, &metav1.DeleteOptions{})
-				if err != nil && !strings.HasSuffix(err.Error(), "not found") {
-					tx.Rollback()
-					return fmt.Errorf("delete deploy k8s service info from kube-api error")
-				}
-				err = db.GetManager().K8sServiceDao().DeleteK8sServiceByName(service.K8sServiceID)
-				if err != nil {
-					tx.Rollback()
-					return fmt.Errorf("delete deploy k8s service info from db error")
-				}
 			}
 			if hasUpStream {
 				pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
@@ -1454,15 +1064,6 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 			tx.Rollback()
 			return err
 		}
-		deploy, _ := db.GetManager().K8sDeployReplicationDao().GetK8sCurrentDeployReplicationByService(serviceID)
-		if deploy != nil {
-			k8sService, err = s.createInnerService(service, p, deploy)
-			if err != nil {
-				tx.Rollback()
-				return fmt.Errorf("create k8s service error,%s", err.Error())
-			}
-
-		}
 		if hasUpStream {
 			pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
 				serviceID,
@@ -1496,10 +1097,6 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
-		//删除已创建的SERVICE
-		if k8sService != nil {
-			s.KubeClient.Core().Services(k8sService.Namespace).Delete(k8sService.Name, &metav1.DeleteOptions{})
-		}
 		return err
 	}
 	return nil
@@ -1595,22 +1192,9 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, ac
 //GetVolumes 获取应用全部存储
 func (s *ServiceAction) GetVolumes(serviceID string) ([]*dbmodel.TenantServiceVolume, *util.APIHandleError) {
 	dbManager := db.GetManager()
-	service, err := dbManager.TenantServiceDao().GetServiceByID(serviceID)
-	if err != nil {
-		return nil, util.CreateAPIHandleErrorFromDBError("get service", err)
-	}
 	vs, err := dbManager.TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(serviceID)
 	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 		return nil, util.CreateAPIHandleErrorFromDBError("get volumes", err)
-	}
-	if service.VolumePath != "" && service.VolumeMountPath != "" {
-		vs = append(vs, &dbmodel.TenantServiceVolume{
-			ServiceID:  serviceID,
-			VolumeType: service.VolumeType,
-			//VolumeName: service.VolumePath,
-			VolumePath: service.VolumeMountPath,
-			HostPath:   service.HostPath,
-		})
 	}
 	return vs, nil
 }
@@ -1661,7 +1245,7 @@ func (s *ServiceAction) GetDepVolumes(serviceID string) ([]*dbmodel.TenantServic
 }
 
 //ServiceProbe ServiceProbe
-func (s *ServiceAction) ServiceProbe(tsp *dbmodel.ServiceProbe, action string) error {
+func (s *ServiceAction) ServiceProbe(tsp *dbmodel.TenantServiceProbe, action string) error {
 	switch action {
 	case "add":
 		if err := db.GetManager().ServiceProbeDao().AddModel(tsp); err != nil {
@@ -1765,18 +1349,6 @@ func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants) error {
 			return err
 		}
 	}
-	ns := &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:         t.UUID,
-			GenerateName: t.Name,
-		},
-	}
-	if _, err := s.KubeClient.Core().Namespaces().Create(ns); err != nil {
-		if !strings.HasSuffix(err.Error(), "already exists") {
-			tx.Rollback()
-			return err
-		}
-	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return err
@@ -1793,60 +1365,61 @@ func (s *ServiceAction) CreateTenandIDAndName(eid string) (string, string, error
 	return uid, name, nil
 }
 
+//K8sPodInfo for api
 type K8sPodInfo struct {
-	ServiceID string `json:"service_id"`
-	//部署资源的ID ,例如rc ,deploment, statefulset
-	ReplicationID   string                       `json:"rc_id"`
-	ReplicationType string                       `json:"rc_type"`
-	PodName         string                       `json:"pod_name"`
-	PodIP           string                       `json:"pod_ip"`
-	Container       map[string]map[string]string `json:"container"`
+	ServiceID  string                       `json:"service_id"`
+	DeployID   string                       `json:"deploy_id"`
+	DeployType string                       `json:"deploy_type"`
+	PodName    string                       `json:"pod_name"`
+	PodIP      string                       `json:"pod_ip"`
+	PodStatus  string                       `json:"pod_status"`
+	Container  map[string]map[string]string `json:"container"`
 }
 
 //GetPods get pods
-func (s *ServiceAction) GetPods(serviceID string) ([]K8sPodInfo, error) {
-	var podsInfoList []K8sPodInfo
-	pods, err := db.GetManager().K8sPodDao().GetPodByService(serviceID)
+func (s *ServiceAction) GetPods(serviceID string) ([]*K8sPodInfo, error) {
+	var podsInfoList []*K8sPodInfo
+	pods, err := s.statusCli.GetServicePods(serviceID)
 	if err != nil {
 		logrus.Error("GetPodByService Error:", err)
 		return nil, err
 	}
-	logrus.Info("pods：", pods)
-	for _, v := range pods {
+	var podNames []string
+	for _, v := range pods.Pods {
 		var podInfo K8sPodInfo
-		containerMemory := make(map[string]map[string]string, 10)
-		podInfo.ServiceID = v.ServiceID
-		podInfo.ReplicationID = v.ReplicationID
-		podInfo.ReplicationType = v.ReplicationType
+		containerInfos := make(map[string]map[string]string, 10)
+		podInfo.ServiceID = v.ServiceId
+		podInfo.DeployID = v.DeployId
+		podInfo.DeployType = v.DeployType
 		podInfo.PodName = v.PodName
-		podInfo.PodIP = v.PodIP
-		memoryUsageQuery := fmt.Sprintf(`container_memory_usage_bytes{pod_name="%s"}`, v.PodName)
-		memoryUsageMap, _ := s.GetContainerMemory(memoryUsageQuery)
-		logrus.Info("memoryUsageMap", memoryUsageMap)
-		for k, val := range memoryUsageMap {
-			if _, ok := containerMemory[k]; !ok {
-				containerMemory[k] = map[string]string{"memory_usage": val}
+		podInfo.PodIP = v.PodIp
+		podInfo.PodStatus = v.PodStatus
+		for _, container := range v.Containers {
+			containerInfos[container.ContainerName] = map[string]string{
+				"memory_limit": fmt.Sprintf("%d", container.MemoryLimit),
+				"memory_usage": "0",
 			}
 		}
-		memorylimitQuery := fmt.Sprintf(`container_spec_memory_limit_bytes{pod_name="%s"}`, v.PodName)
-		memoryLimitMap, _ := s.GetContainerMemory(memorylimitQuery)
-		logrus.Info("memoryLimitMap", memoryLimitMap)
-		for k2, v2 := range memoryLimitMap {
-			if val, ok := containerMemory[k2]; ok {
-				val["memory_limit"] = v2
+		podInfo.Container = containerInfos
+		podsInfoList = append(podsInfoList, &podInfo)
+	}
+	containerMemInfo, _ := s.GetPodContainerMemory(podNames)
+	for _, c := range podsInfoList {
+		for k := range c.Container {
+			if info, exist := containerMemInfo[c.PodName][k]; exist {
+				c.Container[k]["memory_usage"] = info
 			}
 		}
-		podInfo.Container = containerMemory
-		podsInfoList = append(podsInfoList, podInfo)
-
 	}
 	return podsInfoList, nil
 }
 
-// Use Prometheus to query memory resources
-func (s *ServiceAction) GetContainerMemory(query string) (map[string]string, error) {
-	memoryUsageMap := make(map[string]string, 10)
+//GetPodContainerMemory Use Prometheus to query memory resources
+func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map[string]string, error) {
+	memoryUsageMap := make(map[string]map[string]string, 10)
 	proxy := GetPrometheusProxy()
+	queryName := strings.Join(podNames, "|")
+	query := fmt.Sprintf(`container_memory_usage_bytes{pod_name=~"%s"}`, queryName)
 	proQuery := strings.Replace(query, " ", "%20", -1)
 	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", proQuery), nil)
 	if err != nil {
@@ -1868,10 +1441,11 @@ func (s *ServiceAction) GetContainerMemory(query string) (map[string]string, err
 		err = json.NewDecoder(presult.Body).Decode(&qres)
 		if err == nil {
 			for _, re := range qres.Data.Result {
-				var containerName string
+				var containerName, podName string
 				var valuesBytes string
 				if cname, ok := re["metric"].(map[string]interface{}); ok {
 					containerName = cname["container_name"].(string)
+					podName = cname["pod_name"].(string)
 				} else {
 					logrus.Info("metric decode error")
 				}
@@ -1880,11 +1454,15 @@ func (s *ServiceAction) GetContainerMemory(query string) (map[string]string, err
 				} else {
 					logrus.Info("value decode error")
 				}
-				memoryUsageMap[containerName] = valuesBytes
+				if _, ok := memoryUsageMap[podName]; ok {
+					memoryUsageMap[podName][containerName] = valuesBytes
+				} else {
+					memoryUsageMap[podName] = map[string]string{
+						"container_name": valuesBytes,
+					}
+				}
+				return memoryUsageMap, nil
 			}
-			return memoryUsageMap, nil
-		} else {
-			logrus.Error("Deserialization failed")
 		}
 	} else {
 		logrus.Error("Body Is empty")
@@ -1903,7 +1481,6 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 		return fmt.Errorf("unclosed")
 	}
 	tx := db.GetManager().Begin()
-	//此处的原因，必须使用golang 1.8 以上版本编译
 	delService := service.ChangeDelete()
 	delService.ID = 0
 	if err := db.GetManager().TenantServiceDeleteDaoTransactions(tx).AddModel(delService); err != nil {
@@ -1914,7 +1491,6 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 		tx.Rollback()
 		return err
 	}
-
 	//删除domain
 	//删除pause
 	//删除tenant_system_pause
@@ -1939,7 +1515,6 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 			return err
 		}
 	}
-	//删除clear net bridge
 	//删除tenant_service_mnt_relation
 	if err := db.GetManager().TenantServiceRelationDaoTransactions(tx).DELRelationsByServiceID(serviceID); err != nil {
 		if err.Error() != gorm.ErrRecordNotFound.Error() {
@@ -1956,13 +1531,6 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	}
 	//删除tenant_service_volume
 	if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteTenantServiceVolumesByServiceID(serviceID); err != nil {
-		if err.Error() != gorm.ErrRecordNotFound.Error() {
-			tx.Rollback()
-			return err
-		}
-	}
-	//删除tenant_service_pod
-	if err := db.GetManager().K8sPodDaoTransactions(tx).DeleteK8sPod(serviceID); err != nil {
 		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			tx.Rollback()
 			return err
@@ -1995,13 +1563,6 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 		}
 	}
 	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteLabelByServiceID(serviceID); err != nil {
-		if err.Error() != gorm.ErrRecordNotFound.Error() {
-			tx.Rollback()
-			return err
-		}
-	}
-	//删除应用状态
-	if db.GetManager().TenantServiceStatusDaoTransactions(tx).DeleteByServiceID(serviceID); err != nil {
 		if err.Error() != gorm.ErrRecordNotFound.Error() {
 			tx.Rollback()
 			return err
@@ -2064,16 +1625,6 @@ func CheckLabel(serviceID string) bool {
 		return true
 	}
 	return false
-}
-
-//GetPodList Get pod list
-func GetPodList(namespace, serviceAlias string, cli *kubernetes.Clientset) (*v1.PodList, error) {
-	labelname := fmt.Sprintf("name=%v", serviceAlias)
-	pods, err := cli.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelname})
-	if err != nil {
-		return nil, err
-	}
-	return pods, err
 }
 
 //CheckMapKey CheckMapKey

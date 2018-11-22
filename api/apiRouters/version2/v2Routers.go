@@ -72,7 +72,6 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/code-check", controller.GetManager().CheckCode)
 	r.Post("/servicecheck", controller.Check)
 	r.Get("/servicecheck/{uuid}", controller.GetServiceCheckInfo)
-	r.Post("/cloud-share", controller.GetManager().ShareCloud)
 	r.Get("/resources", controller.GetManager().SingleTenantResources)
 	r.Get("/certificates", controller.GetManager().Entrance)
 	r.Post("/certificates", controller.GetManager().Entrance)

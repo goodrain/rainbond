@@ -19,8 +19,9 @@
 package handler
 
 import (
-	"github.com/goodrain/rainbond/db"
 	"time"
+
+	"github.com/goodrain/rainbond/db"
 
 	"github.com/goodrain/rainbond/api/handler/group"
 
@@ -44,14 +45,6 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 		logrus.Errorf("new MQ manager failed, %v", errMQ)
 		return errMQ
 	}
-	k8s := api_db.K8SManager{
-		K8SConfig: conf.KubeConfig,
-	}
-	kubeClient, errK := k8s.NewKubeConnection()
-	if errK != nil {
-		logrus.Errorf("create kubeclient failed, %v", errK)
-		return errK
-	}
 	etcdCli, err := clientv3.New(clientv3.Config{
 		Endpoints:   conf.EtcdEndpoint,
 		DialTimeout: 5 * time.Second,
@@ -60,12 +53,12 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 		logrus.Errorf("create etcd client v3 error, %v", err)
 		return err
 	}
-	dbmanager:= db.GetManager()
+	dbmanager := db.GetManager()
 
-	defaultServieHandler = CreateManager(mqClient, kubeClient, etcdCli, statusCli)
+	defaultServieHandler = CreateManager(mqClient, etcdCli, statusCli)
 	defaultPluginHandler = CreatePluginManager(mqClient)
 	defaultAppHandler = CreateAppManager(mqClient)
-	defaultTenantHandler = CreateTenManager(mqClient, kubeClient, statusCli)
+	defaultTenantHandler = CreateTenManager(mqClient, statusCli)
 	defaultNetRulesHandler = CreateNetRulesManager(etcdCli)
 	defaultSourcesHandler = CreateSourcesManager(etcdCli)
 	defaultCloudHandler = CreateCloudManager(conf)

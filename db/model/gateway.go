@@ -60,15 +60,15 @@ func (HttpRule) TableName() string {
 // HttpRule contains http rule
 type HttpRule struct {
 	Model
-	UUID             string `gorm:"column:uuid"`
-	ServiceID        string `gorm:"column:service_id"`
-	ContainerPort    int    `gorm:"column:container_port"`
-	Domain           string `gorm:"column:domain"`
-	Path             string `gorm:"column:path"`
-	Header           string `gorm:"column:header"`
-	Cookie           string `gorm:"column:cookie"`
-	IP               string `gorm:"column:ip"`
-	CertificateID    string `gorm:"column:certificate_id"`
+	UUID          string `gorm:"column:uuid"`
+	ServiceID     string `gorm:"column:service_id"`
+	ContainerPort int    `gorm:"column:container_port"`
+	Domain        string `gorm:"column:domain"`
+	Path          string `gorm:"column:path"`
+	Header        string `gorm:"column:header"`
+	Cookie        string `gorm:"column:cookie"`
+	IP            string `gorm:"column:ip"`
+	CertificateID string `gorm:"column:certificate_id"`
 }
 
 func (TcpRule) TableName() string {
@@ -78,9 +78,9 @@ func (TcpRule) TableName() string {
 // TcpRule contain stream rule
 type TcpRule struct {
 	Model
-	UUID             string `gorm:"column:uuid"`
-	ServiceID        string `gorm:"column:service_id"`
-	ContainerPort    int    `gorm:"column:container_port"`
-	IP               string `gorm:"column:ip"`
-	Port             int    `gorm:"column:port"` // TODO: 这个就是mappingPort吗???
+	UUID          string `gorm:"column:uuid"`
+	ServiceID     string `gorm:"column:service_id"`
+	ContainerPort int    `gorm:"column:container_port"`
+	IP            string `gorm:"column:ip"`
+	Port          int    `gorm:"column:port"` // TODO: 这个就是mappingPort吗???
 }

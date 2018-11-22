@@ -50,7 +50,7 @@ type VersionInfo struct {
 
 //TableName 表名
 func (t *VersionInfo) TableName() string {
-	return "version_info"
+	return "tenant_service_version"
 }
 
 //CreateShareImage create share image name

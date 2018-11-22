@@ -30,14 +30,11 @@ import (
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/worker/discover/model"
 
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-
 	"github.com/Sirupsen/logrus"
 	tsdbClient "github.com/bluebreezecf/opentsdb-goclient/client"
 	tsdbConfig "github.com/bluebreezecf/opentsdb-goclient/config"
-	"github.com/jinzhu/gorm"
 	dbModel "github.com/goodrain/rainbond/db/model"
+	"github.com/jinzhu/gorm"
 )
 
 //ConDB struct
@@ -114,28 +111,6 @@ func (m *MQManager) NewMQManager() (*client.MQClient, error) {
 		return client, err
 	}
 	return client, nil
-}
-
-//K8SManager struct
-type K8SManager struct {
-	K8SConfig string
-}
-
-//NewKubeConnection new k8s config path
-func (k *K8SManager) NewKubeConnection() (*kubernetes.Clientset, error) {
-	kubeconfig := k.K8SConfig
-	conf, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-	conf.QPS = 50
-	conf.Burst = 100
-	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(conf)
-	if err != nil {
-		return clientset, err
-	}
-	return clientset, nil
 }
 
 //TaskStruct task struct
@@ -288,7 +263,7 @@ func dataInitialization() {
 		err := dbInit()
 		if err != nil {
 			logrus.Error("Initializing database failed, ", err)
-		}else {
+		} else {
 			logrus.Info("api database initialization success!")
 			return
 		}

@@ -2,11 +2,15 @@ syntax = "proto3";
 package pb;
 
 service AppRuntimeSync {
-  rpc GetAppStatus (StatusRequest) returns (StatusMessage) {}
-  rpc GetAppDisk (StatusRequest) returns (DiskMessage) {}
+  rpc GetAppStatus (ServicesRequest) returns (StatusMessage) {}
+  rpc GetAppDisk (ServicesRequest) returns (DiskMessage) {}
+  rpc GetAppPods (ServiceRequest) returns (ServiceAppPodList) {}
 }
 
-message StatusRequest {
+message ServiceRequest { 
+  string service_id = 1;
+}
+message ServicesRequest {
   string service_ids = 1;
 }
 
@@ -16,4 +20,22 @@ message StatusMessage {
 
 message DiskMessage {
   map<string, double> disks = 1;
+}
+
+message ServiceAppPodList {
+  repeated ServiceAppPod pods = 1;
+}
+message ServiceAppPod {
+  string service_id = 1;
+  string deploy_id = 2;
+  string deploy_type = 3;
+  string pod_name = 4;
+  string pod_ip = 5;
+  string pod_status = 6;
+  map<string, Container> containers = 7;
+}
+
+message Container {
+  string container_name = 1;
+  int32 memory_limit = 2;
 }

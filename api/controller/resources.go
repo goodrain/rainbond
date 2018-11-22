@@ -596,7 +596,6 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-
 	logrus.Debugf("trans create service service")
 	var ss api_model.ServiceStruct
 	body, err := ioutil.ReadAll(r.Body)
@@ -609,11 +608,9 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
-	logrus.Debugf("data is %v", ss)
-
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	ss.TenantID = tenantID
-	logrus.Debugf("begin to create service")
+	logrus.Debugf("begin to create service %s", ss.ServiceAlias)
 	if err := handler.GetServiceManager().ServiceCreate(&ss); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("create service error, %v", err))
 		return
@@ -1679,7 +1676,7 @@ func (t *TenantStruct) AddProbe(w http.ResponseWriter, r *http.Request) {
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsp, nil); !ok {
 		return
 	}
-	var tspD dbmodel.ServiceProbe
+	var tspD dbmodel.TenantServiceProbe
 	tspD.ServiceID = serviceID
 	tspD.Cmd = tsp.Cmd
 	tspD.FailureThreshold = tsp.FailureThreshold
@@ -1728,7 +1725,7 @@ func (t *TenantStruct) UpdateProbe(w http.ResponseWriter, r *http.Request) {
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsp, nil); !ok {
 		return
 	}
-	var tspD dbmodel.ServiceProbe
+	var tspD dbmodel.TenantServiceProbe
 	tspD.ServiceID = serviceID
 	tspD.Cmd = tsp.Cmd
 	tspD.FailureThreshold = tsp.FailureThreshold
@@ -1781,7 +1778,7 @@ func (t *TenantStruct) DeleteProbe(w http.ResponseWriter, r *http.Request) {
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsp, nil); !ok {
 		return
 	}
-	var tspD dbmodel.ServiceProbe
+	var tspD dbmodel.TenantServiceProbe
 	tspD.ServiceID = serviceID
 	tspD.ProbeID = tsp.ProbeID
 	//注意端口问题

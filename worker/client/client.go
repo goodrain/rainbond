@@ -76,7 +76,7 @@ func (a *AppRuntimeSyncClient) Error(err error) {
 func (a *AppRuntimeSyncClient) GetStatus(serviceID string) string {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	status, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.StatusRequest{
+	status, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.ServicesRequest{
 		ServiceIds: serviceID,
 	})
 	if err != nil {
@@ -89,7 +89,7 @@ func (a *AppRuntimeSyncClient) GetStatus(serviceID string) string {
 func (a *AppRuntimeSyncClient) GetAllAppDisk() map[string]float64 {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	status, err := a.AppRuntimeSyncClient.GetAppDisk(ctx, &pb.StatusRequest{
+	status, err := a.AppRuntimeSyncClient.GetAppDisk(ctx, &pb.ServicesRequest{
 		ServiceIds: "",
 	})
 	if err != nil {
@@ -102,7 +102,7 @@ func (a *AppRuntimeSyncClient) GetAllAppDisk() map[string]float64 {
 func (a *AppRuntimeSyncClient) GetAppsDisk(serviceIDs string) map[string]float64 {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	status, err := a.AppRuntimeSyncClient.GetAppDisk(ctx, &pb.StatusRequest{
+	status, err := a.AppRuntimeSyncClient.GetAppDisk(ctx, &pb.ServicesRequest{
 		ServiceIds: serviceIDs,
 	})
 	if err != nil {
@@ -115,7 +115,7 @@ func (a *AppRuntimeSyncClient) GetAppsDisk(serviceIDs string) map[string]float64
 func (a *AppRuntimeSyncClient) GetStatuss(serviceIDs string) map[string]string {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	status, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.StatusRequest{
+	status, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.ServicesRequest{
 		ServiceIds: serviceIDs,
 	})
 	if err != nil {
@@ -128,7 +128,7 @@ func (a *AppRuntimeSyncClient) GetStatuss(serviceIDs string) map[string]string {
 func (a *AppRuntimeSyncClient) GetAllStatus() map[string]string {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	status, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.StatusRequest{
+	status, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.ServicesRequest{
 		ServiceIds: "",
 	})
 	if err != nil {
@@ -141,7 +141,7 @@ func (a *AppRuntimeSyncClient) GetAllStatus() map[string]string {
 func (a *AppRuntimeSyncClient) GetNeedBillingStatus() (map[string]string, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	re, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.StatusRequest{})
+	re, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.ServicesRequest{})
 	if err != nil {
 		return nil, err
 	}

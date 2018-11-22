@@ -71,18 +71,6 @@ type CodeCheckResult struct {
 	//DFR          *DockerFileResult `json:"dockerfile,omitempty"`
 }
 
-//AppPublish AppPublish
-type AppPublish struct {
-	ServiceKey string `json:"service_key"`
-	AppVersion string `json:"app_version"`
-	Image      string `json:"image,omitempty"`
-	Slug       string `json:"slug,omitempty"`
-	DestYS     bool   `json:"dest_ys,omitempty"`
-	DestYB     bool   `json:"dest_yb,omitempty"`
-	ShareID    string `json:"share_id,omitempty"`
-	Status     string `json:"status,omitempty"`
-}
-
 //ImageName ImageName
 type ImageName struct {
 	Host      string `json:"host"`

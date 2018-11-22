@@ -83,7 +83,7 @@ func (r *RuntimeServer) Start(errchan chan error) {
 }
 
 //GetAppStatus get app service status
-func (r *RuntimeServer) GetAppStatus(ctx context.Context, re *pb.StatusRequest) (*pb.StatusMessage, error) {
+func (r *RuntimeServer) GetAppStatus(ctx context.Context, re *pb.ServicesRequest) (*pb.StatusMessage, error) {
 	status := r.store.GetAppServicesStatus(strings.Split(re.ServiceIds, ","))
 	return &pb.StatusMessage{
 		Status: status,
@@ -91,8 +91,47 @@ func (r *RuntimeServer) GetAppStatus(ctx context.Context, re *pb.StatusRequest) 
 }
 
 //GetAppDisk get app service volume disk size
-func (r *RuntimeServer) GetAppDisk(ctx context.Context, re *pb.StatusRequest) (*pb.DiskMessage, error) {
+func (r *RuntimeServer) GetAppDisk(ctx context.Context, re *pb.ServicesRequest) (*pb.DiskMessage, error) {
 	return nil, nil
+}
+
+//GetAppPods get app pod list
+func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (*pb.ServiceAppPodList, error) {
+	var Pods []*pb.ServiceAppPod
+	apps := r.store.GetAppServices(re.ServiceId)
+	for _, app := range apps {
+		var deployType, deployID string
+		if deployment := app.GetDeployment(); deployment != nil {
+			deployType = "deployment"
+			deployID = deployment.Name
+		}
+		if statefulset := app.GetStatefulSet(); statefulset != nil {
+			deployType = "statefulset"
+			deployID = statefulset.Name
+		}
+		pods := app.GetPods()
+		for _, pod := range pods {
+			var containers map[string]*pb.Container
+			for _, container := range pod.Spec.Containers {
+				containers[container.Name] = &pb.Container{
+					ContainerName: container.Name,
+					MemoryLimit:   int32(container.Resources.Limits.Memory().Value()),
+				}
+			}
+			Pods = append(Pods, &pb.ServiceAppPod{
+				ServiceId:  app.ServiceID,
+				DeployId:   deployID,
+				DeployType: deployType,
+				PodIp:      pod.Status.PodIP,
+				PodName:    pod.Name,
+				PodStatus:  string(pod.Status.Phase),
+				Containers: containers,
+			})
+		}
+	}
+	return &pb.ServiceAppPodList{
+		Pods: Pods,
+	}, nil
 }
 
 //registServer

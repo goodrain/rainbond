@@ -172,41 +172,6 @@ func (m *Manager) TenantServiceLabelDaoTransactions(db *gorm.DB) dao.TenantServi
 	}
 }
 
-//K8sServiceDao K8sServiceDao
-func (m *Manager) K8sServiceDao() dao.K8sServiceDao {
-	return &mysqldao.K8sServiceDaoImpl{
-		DB: m.db,
-	}
-}
-
-//K8sServiceDaoTransactions K8sServiceDaoTransactions
-func (m *Manager) K8sServiceDaoTransactions(db *gorm.DB) dao.K8sServiceDao {
-	return &mysqldao.K8sServiceDaoImpl{
-		DB: db,
-	}
-}
-
-//K8sDeployReplicationDao K8sDeployReplicationDao
-func (m *Manager) K8sDeployReplicationDao() dao.K8sDeployReplicationDao {
-	return &mysqldao.K8sDeployReplicationDaoImpl{
-		DB: m.db,
-	}
-}
-
-//K8sPodDao K8sPodDao
-func (m *Manager) K8sPodDao() dao.K8sPodDao {
-	return &mysqldao.K8sPodDaoImpl{
-		DB: m.db,
-	}
-}
-
-//K8sPodDaoTransactions K8sPodDaoTransactions
-func (m *Manager) K8sPodDaoTransactions(db *gorm.DB) dao.K8sPodDao {
-	return &mysqldao.K8sPodDaoImpl{
-		DB: db,
-	}
-}
-
 //ServiceProbeDao ServiceProbeDao
 func (m *Manager) ServiceProbeDao() dao.ServiceProbeDao {
 	return &mysqldao.ServiceProbeDaoImpl{
@@ -231,20 +196,6 @@ func (m *Manager) TenantServiceLBMappingPortDao() dao.TenantServiceLBMappingPort
 //TenantServiceLBMappingPortDaoTransactions TenantServiceLBMappingPortDaoTransactions
 func (m *Manager) TenantServiceLBMappingPortDaoTransactions(db *gorm.DB) dao.TenantServiceLBMappingPortDao {
 	return &mysqldao.TenantServiceLBMappingPortDaoImpl{
-		DB: db,
-	}
-}
-
-//TenantServiceStatusDao TenantServiceStatusDao
-func (m *Manager) TenantServiceStatusDao() dao.ServiceStatusDao {
-	return &mysqldao.ServiceStatusDaoImpl{
-		DB: m.db,
-	}
-}
-
-//TenantServiceStatusDaoTransactions TenantServiceStatusDaoTransactions
-func (m *Manager) TenantServiceStatusDaoTransactions(db *gorm.DB) dao.ServiceStatusDao {
-	return &mysqldao.ServiceStatusDaoImpl{
 		DB: db,
 	}
 }
@@ -343,20 +294,6 @@ func (m *Manager) CodeCheckResultDao() dao.CodeCheckResultDao {
 //CodeCheckResultDaoTransactions CodeCheckResultDaoTransactions
 func (m *Manager) CodeCheckResultDaoTransactions(db *gorm.DB) dao.CodeCheckResultDao {
 	return &mysqldao.CodeCheckResultDaoImpl{
-		DB: db,
-	}
-}
-
-//AppPublishDao AppPublishDao
-func (m *Manager) AppPublishDao() dao.AppPublishDao {
-	return &mysqldao.AppPublishDaoImpl{
-		DB: m.db,
-	}
-}
-
-//AppPublishDaoTransactions AppPublishDaoTransactions
-func (m *Manager) AppPublishDaoTransactions(db *gorm.DB) dao.AppPublishDao {
-	return &mysqldao.AppPublishDaoImpl{
 		DB: db,
 	}
 }

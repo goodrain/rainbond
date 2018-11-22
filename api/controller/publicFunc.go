@@ -29,12 +29,8 @@ import (
 
 	"github.com/goodrain/rainbond/db"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"
-	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 //public function part
@@ -133,44 +129,6 @@ func qMsg(others []string) string {
 		}
 	}
 	return msg
-}
-
-//ListPodIP get running pod ip
-func ListPodIP(namespace, serviceAlias string, cli *kubernetes.Clientset) (map[string]string, error) {
-	ipMap := make(map[string]string)
-	pods, err := GetPodList(namespace, serviceAlias, cli)
-	if err != nil {
-		logrus.Errorf("list pods for tenant %v, service %v error. %v", namespace, serviceAlias, err)
-		return ipMap, err
-	}
-	for _, pod := range pods.Items {
-		logrus.Debugf("rc id is %v", pod.GenerateName)
-		if pod.Status.Phase == "Running" {
-			logrus.Debugf("service %v pod status is %v", serviceAlias, pod.Status.Phase)
-			for _, containerStatus := range pod.Status.ContainerStatuses {
-				if strings.Contains(containerStatus.Image, "adapter") {
-					continue
-				}
-				if strings.Contains(containerStatus.Image, "mid_rain") {
-					continue
-				}
-				cntID := strings.Replace(containerStatus.ContainerID, "docker://", "", -1)
-				ipMap[cntID] = pod.Status.HostIP
-			}
-		}
-	}
-	logrus.Debugf("ip map is %v", ipMap)
-	return ipMap, nil
-}
-
-//GetPodList Get pod list
-func GetPodList(namespace, serviceAlias string, cli *kubernetes.Clientset) (*v1.PodList, error) {
-	labelname := fmt.Sprintf("name=%v", serviceAlias)
-	pods, err := cli.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelname})
-	if err != nil {
-		return nil, err
-	}
-	return pods, err
 }
 
 //CheckLabel check label

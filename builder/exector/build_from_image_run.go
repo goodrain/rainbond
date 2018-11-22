@@ -93,11 +93,6 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 		i.Logger.Error("推送镜像至镜像仓库失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	if err := i.StorageLocalImageURL(localImageURL); err != nil {
-		logrus.Errorf("storage image url error: %s", err.Error())
-		i.Logger.Error("存储镜像信息失败", map[string]string{"step": "builder-exector", "status": "failure"})
-		return err
-	}
 	if err := i.StorageVersionInfo(localImageURL); err != nil {
 		logrus.Errorf("storage version info error, ignor it: %s", err.Error())
 		i.Logger.Error("更新应用版本信息失败", map[string]string{"step": "builder-exector", "status": "failure"})
@@ -118,25 +113,6 @@ func (i *ImageBuildItem) ImageNameHandler(source string) string {
 	imageModel := sources.ImageNameHandle(source)
 	localImageURL := fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, imageModel.Name, i.DeployVersion)
 	return localImageURL
-}
-
-//StorageLocalImageURL 修改的镜像名称存库
-func (i *ImageBuildItem) StorageLocalImageURL(imageURL string) error {
-	tenant, err := db.GetManager().TenantDao().GetTenantIDByName(i.TenantName)
-	if err != nil {
-		return err
-	}
-	service, err := db.GetManager().TenantServiceDao().GetServiceByTenantIDAndServiceAlias(tenant.UUID, i.ServiceAlias)
-	if err != nil {
-		return err
-	}
-	service.ImageName = imageURL
-	if err := db.GetManager().TenantServiceDao().UpdateModel(service); err != nil {
-		return err
-	}
-	i.TenantID = tenant.UUID
-	i.ServiceID = service.ServiceID
-	return nil
 }
 
 //StorageVersionInfo 存储version信息

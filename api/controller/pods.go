@@ -20,7 +20,9 @@ package controller
 
 import (
 	"net/http"
+	"strings"
 
+	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
@@ -49,22 +51,18 @@ import (
 //       "$ref": "#/responses/commandResponse"
 //     description: get some service pods
 func Pods(w http.ResponseWriter, r *http.Request) {
-	serviceIDs := r.FormValue("service_ids")
-	if serviceIDs == "" {
+	serviceIDs := strings.Split(r.FormValue("service_ids"), ",")
+	if serviceIDs == nil || len(serviceIDs) == 0 {
 		tenant := r.Context().Value(middleware.ContextKey("tenant")).(*model.Tenants)
 		services, _ := db.GetManager().TenantServiceDao().GetServicesByTenantID(tenant.UUID)
 		for _, s := range services {
-			if serviceIDs == "" {
-				serviceIDs += s.ServiceID
-			} else {
-				serviceIDs += "," + s.ServiceID
-			}
+			serviceIDs = append(serviceIDs, s.ServiceID)
 		}
 	}
-	pods, err := db.GetManager().K8sPodDao().GetPodByService(serviceIDs)
-	if err != nil {
-		httputil.ReturnError(r, w, 500, err.Error())
-		return
+	var allpods []*handler.K8sPodInfo
+	for _, serviceID := range serviceIDs {
+		pods, _ := handler.GetServiceManager().GetPods(serviceID)
+		allpods = append(allpods, pods...)
 	}
-	httputil.ReturnSuccess(r, w, pods)
+	httputil.ReturnSuccess(r, w, allpods)
 }

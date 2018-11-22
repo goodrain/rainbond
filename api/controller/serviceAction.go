@@ -518,6 +518,7 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 		RepoURL:      build.Body.RepoURL,
 		Kind:         build.Body.Kind,
 		BuildVersion: build.Body.DeployVersion,
+		Cmd:          build.Body.Cmd,
 	}
 	err = db.GetManager().VersionInfoDao().AddModel(&version)
 	if err != nil {
@@ -766,45 +767,6 @@ func (t *TenantStruct) CheckCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
-}
-
-//ShareCloud 云市分享
-func (t *TenantStruct) ShareCloud(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/cloud-share v2 sharecloud
-	//
-	// 云市分享 （v3.5弃用）
-	//
-	// share cloud
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-	logrus.Debugf("trans cloud share service")
-	var css api_model.CloudShareStruct
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &css.Body, nil)
-	if !ok {
-		return
-	}
-	if err := handler.GetServiceManager().ShareCloud(&css); err != nil {
-		if err.Error() == "need share kind" {
-			httputil.ReturnError(r, w, 400, err.Error())
-		}
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("task code check error, %v", err))
-		return
-	}
-	httputil.ReturnSuccess(r, w, nil)
-	return
 }
 
 //RollBack RollBack

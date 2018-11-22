@@ -4,9 +4,9 @@
 package db
 
 import (
+	gomock "github.com/rafrombrc/gomock/gomock"
 	gorm "github.com/jinzhu/gorm"
 	dao "github.com/goodrain/rainbond/db/dao"
-	gomock "github.com/rafrombrc/gomock/gomock"
 )
 
 // Mock of Manager interface
@@ -250,56 +250,6 @@ func (_mr *_MockManagerRecorder) TenantServiceVolumeDaoTransactions(arg0 interfa
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "TenantServiceVolumeDaoTransactions", arg0)
 }
 
-func (_m *MockManager) K8sServiceDao() dao.K8sServiceDao {
-	ret := _m.ctrl.Call(_m, "K8sServiceDao")
-	ret0, _ := ret[0].(dao.K8sServiceDao)
-	return ret0
-}
-
-func (_mr *_MockManagerRecorder) K8sServiceDao() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "K8sServiceDao")
-}
-
-func (_m *MockManager) K8sServiceDaoTransactions(_param0 *gorm.DB) dao.K8sServiceDao {
-	ret := _m.ctrl.Call(_m, "K8sServiceDaoTransactions", _param0)
-	ret0, _ := ret[0].(dao.K8sServiceDao)
-	return ret0
-}
-
-func (_mr *_MockManagerRecorder) K8sServiceDaoTransactions(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "K8sServiceDaoTransactions", arg0)
-}
-
-func (_m *MockManager) K8sDeployReplicationDao() dao.K8sDeployReplicationDao {
-	ret := _m.ctrl.Call(_m, "K8sDeployReplicationDao")
-	ret0, _ := ret[0].(dao.K8sDeployReplicationDao)
-	return ret0
-}
-
-func (_mr *_MockManagerRecorder) K8sDeployReplicationDao() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "K8sDeployReplicationDao")
-}
-
-func (_m *MockManager) K8sPodDao() dao.K8sPodDao {
-	ret := _m.ctrl.Call(_m, "K8sPodDao")
-	ret0, _ := ret[0].(dao.K8sPodDao)
-	return ret0
-}
-
-func (_mr *_MockManagerRecorder) K8sPodDao() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "K8sPodDao")
-}
-
-func (_m *MockManager) K8sPodDaoTransactions(_param0 *gorm.DB) dao.K8sPodDao {
-	ret := _m.ctrl.Call(_m, "K8sPodDaoTransactions", _param0)
-	ret0, _ := ret[0].(dao.K8sPodDao)
-	return ret0
-}
-
-func (_mr *_MockManagerRecorder) K8sPodDaoTransactions(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "K8sPodDaoTransactions", arg0)
-}
-
 func (_m *MockManager) ServiceProbeDao() dao.ServiceProbeDao {
 	ret := _m.ctrl.Call(_m, "ServiceProbeDao")
 	ret0, _ := ret[0].(dao.ServiceProbeDao)
@@ -358,26 +308,6 @@ func (_m *MockManager) TenantServiceLabelDaoTransactions(db *gorm.DB) dao.Tenant
 
 func (_mr *_MockManagerRecorder) TenantServiceLabelDaoTransactions(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "TenantServiceLabelDaoTransactions", arg0)
-}
-
-func (_m *MockManager) TenantServiceStatusDao() dao.ServiceStatusDao {
-	ret := _m.ctrl.Call(_m, "TenantServiceStatusDao")
-	ret0, _ := ret[0].(dao.ServiceStatusDao)
-	return ret0
-}
-
-func (_mr *_MockManagerRecorder) TenantServiceStatusDao() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "TenantServiceStatusDao")
-}
-
-func (_m *MockManager) TenantServiceStatusDaoTransactions(db *gorm.DB) dao.ServiceStatusDao {
-	ret := _m.ctrl.Call(_m, "TenantServiceStatusDaoTransactions", db)
-	ret0, _ := ret[0].(dao.ServiceStatusDao)
-	return ret0
-}
-
-func (_mr *_MockManagerRecorder) TenantServiceStatusDaoTransactions(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "TenantServiceStatusDaoTransactions", arg0)
 }
 
 func (_m *MockManager) LocalSchedulerDao() dao.LocalSchedulerDao {
@@ -528,26 +458,6 @@ func (_m *MockManager) CodeCheckResultDaoTransactions(db *gorm.DB) dao.CodeCheck
 
 func (_mr *_MockManagerRecorder) CodeCheckResultDaoTransactions(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "CodeCheckResultDaoTransactions", arg0)
-}
-
-func (_m *MockManager) AppPublishDao() dao.AppPublishDao {
-	ret := _m.ctrl.Call(_m, "AppPublishDao")
-	ret0, _ := ret[0].(dao.AppPublishDao)
-	return ret0
-}
-
-func (_mr *_MockManagerRecorder) AppPublishDao() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "AppPublishDao")
-}
-
-func (_m *MockManager) AppPublishDaoTransactions(db *gorm.DB) dao.AppPublishDao {
-	ret := _m.ctrl.Call(_m, "AppPublishDaoTransactions", db)
-	ret0, _ := ret[0].(dao.AppPublishDao)
-	return ret0
-}
-
-func (_mr *_MockManagerRecorder) AppPublishDaoTransactions(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "AppPublishDaoTransactions", arg0)
 }
 
 func (_m *MockManager) ServiceEventDao() dao.EventDao {

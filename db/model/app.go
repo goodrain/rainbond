@@ -12,7 +12,7 @@ type AppStatus struct {
 
 //TableName 表名
 func (t *AppStatus) TableName() string {
-	return "app_status"
+	return "region_app_status"
 }
 
 //AppBackup app backup info
@@ -33,5 +33,5 @@ type AppBackup struct {
 
 //TableName 表名
 func (t *AppBackup) TableName() string {
-	return "app_backup"
+	return "region_app_backup"
 }

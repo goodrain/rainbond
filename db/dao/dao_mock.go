@@ -4,9 +4,9 @@
 package dao
 
 import (
+	time "time"
 	gomock "github.com/rafrombrc/gomock/gomock"
 	model "github.com/goodrain/rainbond/db/model"
-	time "time"
 )
 
 // Mock of Dao interface
@@ -2016,392 +2016,6 @@ func (_mr *_MockTenantServiceLabelDaoRecorder) DELTenantServiceLabelsByLabelvalu
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "DELTenantServiceLabelsByLabelvaluesAndServiceID", arg0, arg1)
 }
 
-// Mock of K8sServiceDao interface
-type MockK8sServiceDao struct {
-	ctrl     *gomock.Controller
-	recorder *_MockK8sServiceDaoRecorder
-}
-
-// Recorder for MockK8sServiceDao (not exported)
-type _MockK8sServiceDaoRecorder struct {
-	mock *MockK8sServiceDao
-}
-
-func NewMockK8sServiceDao(ctrl *gomock.Controller) *MockK8sServiceDao {
-	mock := &MockK8sServiceDao{ctrl: ctrl}
-	mock.recorder = &_MockK8sServiceDaoRecorder{mock}
-	return mock
-}
-
-func (_m *MockK8sServiceDao) EXPECT() *_MockK8sServiceDaoRecorder {
-	return _m.recorder
-}
-
-func (_m *MockK8sServiceDao) AddModel(_param0 model.Interface) error {
-	ret := _m.ctrl.Call(_m, "AddModel", _param0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockK8sServiceDaoRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "AddModel", arg0)
-}
-
-func (_m *MockK8sServiceDao) UpdateModel(_param0 model.Interface) error {
-	ret := _m.ctrl.Call(_m, "UpdateModel", _param0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockK8sServiceDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
-}
-
-func (_m *MockK8sServiceDao) GetK8sService(serviceID string, containerPort int, isOut bool) (*model.K8sService, error) {
-	ret := _m.ctrl.Call(_m, "GetK8sService", serviceID, containerPort, isOut)
-	ret0, _ := ret[0].(*model.K8sService)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockK8sServiceDaoRecorder) GetK8sService(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetK8sService", arg0, arg1, arg2)
-}
-
-func (_m *MockK8sServiceDao) GetK8sServiceByReplicationID(replicationID string) (*model.K8sService, error) {
-	ret := _m.ctrl.Call(_m, "GetK8sServiceByReplicationID", replicationID)
-	ret0, _ := ret[0].(*model.K8sService)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockK8sServiceDaoRecorder) GetK8sServiceByReplicationID(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetK8sServiceByReplicationID", arg0)
-}
-
-func (_m *MockK8sServiceDao) GetK8sServiceByTenantServiceID(tenantServiceID string) ([]*model.K8sService, error) {
-	ret := _m.ctrl.Call(_m, "GetK8sServiceByTenantServiceID", tenantServiceID)
-	ret0, _ := ret[0].([]*model.K8sService)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockK8sServiceDaoRecorder) GetK8sServiceByTenantServiceID(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetK8sServiceByTenantServiceID", arg0)
-}
-
-func (_m *MockK8sServiceDao) DeleteK8sServiceByReplicationID(replicationID string) error {
-	ret := _m.ctrl.Call(_m, "DeleteK8sServiceByReplicationID", replicationID)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockK8sServiceDaoRecorder) DeleteK8sServiceByReplicationID(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteK8sServiceByReplicationID", arg0)
-}
-
-func (_m *MockK8sServiceDao) GetK8sServiceByReplicationIDAndPort(replicationID string, port int, isOut bool) (*model.K8sService, error) {
-	ret := _m.ctrl.Call(_m, "GetK8sServiceByReplicationIDAndPort", replicationID, port, isOut)
-	ret0, _ := ret[0].(*model.K8sService)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockK8sServiceDaoRecorder) GetK8sServiceByReplicationIDAndPort(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetK8sServiceByReplicationIDAndPort", arg0, arg1, arg2)
-}
-
-func (_m *MockK8sServiceDao) DeleteK8sServiceByReplicationIDAndPort(replicationID string, port int, isOut bool) error {
-	ret := _m.ctrl.Call(_m, "DeleteK8sServiceByReplicationIDAndPort", replicationID, port, isOut)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockK8sServiceDaoRecorder) DeleteK8sServiceByReplicationIDAndPort(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteK8sServiceByReplicationIDAndPort", arg0, arg1, arg2)
-}
-
-func (_m *MockK8sServiceDao) DeleteK8sServiceByName(k8sServiceName string) error {
-	ret := _m.ctrl.Call(_m, "DeleteK8sServiceByName", k8sServiceName)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockK8sServiceDaoRecorder) DeleteK8sServiceByName(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteK8sServiceByName", arg0)
-}
-
-func (_m *MockK8sServiceDao) GetAllK8sService() ([]*model.K8sService, error) {
-	ret := _m.ctrl.Call(_m, "GetAllK8sService")
-	ret0, _ := ret[0].([]*model.K8sService)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockK8sServiceDaoRecorder) GetAllK8sService() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetAllK8sService")
-}
-
-func (_m *MockK8sServiceDao) K8sServiceIsExist(tenantId string, K8sServiceID string) bool {
-	ret := _m.ctrl.Call(_m, "K8sServiceIsExist", tenantId, K8sServiceID)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-func (_mr *_MockK8sServiceDaoRecorder) K8sServiceIsExist(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "K8sServiceIsExist", arg0, arg1)
-}
-
-// Mock of K8sDeployReplicationDao interface
-type MockK8sDeployReplicationDao struct {
-	ctrl     *gomock.Controller
-	recorder *_MockK8sDeployReplicationDaoRecorder
-}
-
-// Recorder for MockK8sDeployReplicationDao (not exported)
-type _MockK8sDeployReplicationDaoRecorder struct {
-	mock *MockK8sDeployReplicationDao
-}
-
-func NewMockK8sDeployReplicationDao(ctrl *gomock.Controller) *MockK8sDeployReplicationDao {
-	mock := &MockK8sDeployReplicationDao{ctrl: ctrl}
-	mock.recorder = &_MockK8sDeployReplicationDaoRecorder{mock}
-	return mock
-}
-
-func (_m *MockK8sDeployReplicationDao) EXPECT() *_MockK8sDeployReplicationDaoRecorder {
-	return _m.recorder
-}
-
-func (_m *MockK8sDeployReplicationDao) AddModel(_param0 model.Interface) error {
-	ret := _m.ctrl.Call(_m, "AddModel", _param0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockK8sDeployReplicationDaoRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "AddModel", arg0)
-}
-
-func (_m *MockK8sDeployReplicationDao) UpdateModel(_param0 model.Interface) error {
-	ret := _m.ctrl.Call(_m, "UpdateModel", _param0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockK8sDeployReplicationDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
-}
-
-func (_m *MockK8sDeployReplicationDao) GetK8sDeployReplication(replicationID string) (*model.K8sDeployReplication, error) {
-	ret := _m.ctrl.Call(_m, "GetK8sDeployReplication", replicationID)
-	ret0, _ := ret[0].(*model.K8sDeployReplication)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockK8sDeployReplicationDaoRecorder) GetK8sDeployReplication(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetK8sDeployReplication", arg0)
-}
-
-func (_m *MockK8sDeployReplicationDao) DeleteK8sDeployReplication(replicationID string) error {
-	ret := _m.ctrl.Call(_m, "DeleteK8sDeployReplication", replicationID)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockK8sDeployReplicationDaoRecorder) DeleteK8sDeployReplication(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteK8sDeployReplication", arg0)
-}
-
-func (_m *MockK8sDeployReplicationDao) GetK8sDeployReplicationByService(serviceID string) ([]*model.K8sDeployReplication, error) {
-	ret := _m.ctrl.Call(_m, "GetK8sDeployReplicationByService", serviceID)
-	ret0, _ := ret[0].([]*model.K8sDeployReplication)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockK8sDeployReplicationDaoRecorder) GetK8sDeployReplicationByService(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetK8sDeployReplicationByService", arg0)
-}
-
-func (_m *MockK8sDeployReplicationDao) GetK8sCurrentDeployReplicationByService(serviceID string) (*model.K8sDeployReplication, error) {
-	ret := _m.ctrl.Call(_m, "GetK8sCurrentDeployReplicationByService", serviceID)
-	ret0, _ := ret[0].(*model.K8sDeployReplication)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockK8sDeployReplicationDaoRecorder) GetK8sCurrentDeployReplicationByService(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetK8sCurrentDeployReplicationByService", arg0)
-}
-
-func (_m *MockK8sDeployReplicationDao) DeleteK8sDeployReplicationByServiceAndVersion(serviceID string, version string) error {
-	ret := _m.ctrl.Call(_m, "DeleteK8sDeployReplicationByServiceAndVersion", serviceID, version)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockK8sDeployReplicationDaoRecorder) DeleteK8sDeployReplicationByServiceAndVersion(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteK8sDeployReplicationByServiceAndVersion", arg0, arg1)
-}
-
-func (_m *MockK8sDeployReplicationDao) DeleteK8sDeployReplicationByServiceAndMarked(serviceID string) error {
-	ret := _m.ctrl.Call(_m, "DeleteK8sDeployReplicationByServiceAndMarked", serviceID)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockK8sDeployReplicationDaoRecorder) DeleteK8sDeployReplicationByServiceAndMarked(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteK8sDeployReplicationByServiceAndMarked", arg0)
-}
-
-func (_m *MockK8sDeployReplicationDao) DeleteK8sDeployReplicationByService(serviceID string) error {
-	ret := _m.ctrl.Call(_m, "DeleteK8sDeployReplicationByService", serviceID)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockK8sDeployReplicationDaoRecorder) DeleteK8sDeployReplicationByService(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteK8sDeployReplicationByService", arg0)
-}
-
-func (_m *MockK8sDeployReplicationDao) GetReplications() ([]*model.K8sDeployReplication, error) {
-	ret := _m.ctrl.Call(_m, "GetReplications")
-	ret0, _ := ret[0].([]*model.K8sDeployReplication)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockK8sDeployReplicationDaoRecorder) GetReplications() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetReplications")
-}
-
-func (_m *MockK8sDeployReplicationDao) BeachDelete(_param0 []uint) error {
-	ret := _m.ctrl.Call(_m, "BeachDelete", _param0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockK8sDeployReplicationDaoRecorder) BeachDelete(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "BeachDelete", arg0)
-}
-
-func (_m *MockK8sDeployReplicationDao) GetK8sDeployReplicationByIsDelete(rcType string, isDelete bool) ([]*model.K8sDeployReplication, error) {
-	ret := _m.ctrl.Call(_m, "GetK8sDeployReplicationByIsDelete", rcType, isDelete)
-	ret0, _ := ret[0].([]*model.K8sDeployReplication)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockK8sDeployReplicationDaoRecorder) GetK8sDeployReplicationByIsDelete(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetK8sDeployReplicationByIsDelete", arg0, arg1)
-}
-
-func (_m *MockK8sDeployReplicationDao) GetK8sDeployReplicationIsExist(tenantId string, RcType string, RcId string, isDelete bool) bool {
-	ret := _m.ctrl.Call(_m, "GetK8sDeployReplicationIsExist", tenantId, RcType, RcId, isDelete)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-func (_mr *_MockK8sDeployReplicationDaoRecorder) GetK8sDeployReplicationIsExist(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetK8sDeployReplicationIsExist", arg0, arg1, arg2, arg3)
-}
-
-// Mock of K8sPodDao interface
-type MockK8sPodDao struct {
-	ctrl     *gomock.Controller
-	recorder *_MockK8sPodDaoRecorder
-}
-
-// Recorder for MockK8sPodDao (not exported)
-type _MockK8sPodDaoRecorder struct {
-	mock *MockK8sPodDao
-}
-
-func NewMockK8sPodDao(ctrl *gomock.Controller) *MockK8sPodDao {
-	mock := &MockK8sPodDao{ctrl: ctrl}
-	mock.recorder = &_MockK8sPodDaoRecorder{mock}
-	return mock
-}
-
-func (_m *MockK8sPodDao) EXPECT() *_MockK8sPodDaoRecorder {
-	return _m.recorder
-}
-
-func (_m *MockK8sPodDao) AddModel(_param0 model.Interface) error {
-	ret := _m.ctrl.Call(_m, "AddModel", _param0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockK8sPodDaoRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "AddModel", arg0)
-}
-
-func (_m *MockK8sPodDao) UpdateModel(_param0 model.Interface) error {
-	ret := _m.ctrl.Call(_m, "UpdateModel", _param0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockK8sPodDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
-}
-
-func (_m *MockK8sPodDao) DeleteK8sPod(serviceID string) error {
-	ret := _m.ctrl.Call(_m, "DeleteK8sPod", serviceID)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockK8sPodDaoRecorder) DeleteK8sPod(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteK8sPod", arg0)
-}
-
-func (_m *MockK8sPodDao) DeleteK8sPodByName(podName string) error {
-	ret := _m.ctrl.Call(_m, "DeleteK8sPodByName", podName)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockK8sPodDaoRecorder) DeleteK8sPodByName(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteK8sPodByName", arg0)
-}
-
-func (_m *MockK8sPodDao) GetPodByService(serviceID string) ([]*model.K8sPod, error) {
-	ret := _m.ctrl.Call(_m, "GetPodByService", serviceID)
-	ret0, _ := ret[0].([]*model.K8sPod)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockK8sPodDaoRecorder) GetPodByService(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetPodByService", arg0)
-}
-
-func (_m *MockK8sPodDao) GetPodByReplicationID(replicationID string) ([]*model.K8sPod, error) {
-	ret := _m.ctrl.Call(_m, "GetPodByReplicationID", replicationID)
-	ret0, _ := ret[0].([]*model.K8sPod)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockK8sPodDaoRecorder) GetPodByReplicationID(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetPodByReplicationID", arg0)
-}
-
-func (_m *MockK8sPodDao) GetK8sPodByNotInPodNameList(podNameList []string) ([]*model.K8sPod, error) {
-	ret := _m.ctrl.Call(_m, "GetK8sPodByNotInPodNameList", podNameList)
-	ret0, _ := ret[0].([]*model.K8sPod)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockK8sPodDaoRecorder) GetK8sPodByNotInPodNameList(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetK8sPodByNotInPodNameList", arg0)
-}
-
 // Mock of LocalSchedulerDao interface
 type MockLocalSchedulerDao struct {
 	ctrl     *gomock.Controller
@@ -2510,9 +2124,9 @@ func (_mr *_MockServiceProbeDaoRecorder) DeleteModel(arg0 interface{}, arg1 ...i
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteModel", _s...)
 }
 
-func (_m *MockServiceProbeDao) GetServiceProbes(serviceID string) ([]*model.ServiceProbe, error) {
+func (_m *MockServiceProbeDao) GetServiceProbes(serviceID string) ([]*model.TenantServiceProbe, error) {
 	ret := _m.ctrl.Call(_m, "GetServiceProbes", serviceID)
-	ret0, _ := ret[0].([]*model.ServiceProbe)
+	ret0, _ := ret[0].([]*model.TenantServiceProbe)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -2521,9 +2135,9 @@ func (_mr *_MockServiceProbeDaoRecorder) GetServiceProbes(arg0 interface{}) *gom
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetServiceProbes", arg0)
 }
 
-func (_m *MockServiceProbeDao) GetServiceUsedProbe(serviceID string, mode string) (*model.ServiceProbe, error) {
+func (_m *MockServiceProbeDao) GetServiceUsedProbe(serviceID string, mode string) (*model.TenantServiceProbe, error) {
 	ret := _m.ctrl.Call(_m, "GetServiceUsedProbe", serviceID, mode)
-	ret0, _ := ret[0].(*model.ServiceProbe)
+	ret0, _ := ret[0].(*model.TenantServiceProbe)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -2540,133 +2154,6 @@ func (_m *MockServiceProbeDao) DELServiceProbesByServiceID(serviceID string) err
 
 func (_mr *_MockServiceProbeDaoRecorder) DELServiceProbesByServiceID(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "DELServiceProbesByServiceID", arg0)
-}
-
-// Mock of ServiceStatusDao interface
-type MockServiceStatusDao struct {
-	ctrl     *gomock.Controller
-	recorder *_MockServiceStatusDaoRecorder
-}
-
-// Recorder for MockServiceStatusDao (not exported)
-type _MockServiceStatusDaoRecorder struct {
-	mock *MockServiceStatusDao
-}
-
-func NewMockServiceStatusDao(ctrl *gomock.Controller) *MockServiceStatusDao {
-	mock := &MockServiceStatusDao{ctrl: ctrl}
-	mock.recorder = &_MockServiceStatusDaoRecorder{mock}
-	return mock
-}
-
-func (_m *MockServiceStatusDao) EXPECT() *_MockServiceStatusDaoRecorder {
-	return _m.recorder
-}
-
-func (_m *MockServiceStatusDao) AddModel(_param0 model.Interface) error {
-	ret := _m.ctrl.Call(_m, "AddModel", _param0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockServiceStatusDaoRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "AddModel", arg0)
-}
-
-func (_m *MockServiceStatusDao) UpdateModel(_param0 model.Interface) error {
-	ret := _m.ctrl.Call(_m, "UpdateModel", _param0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockServiceStatusDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
-}
-
-func (_m *MockServiceStatusDao) GetTenantServiceStatus(serviceID string) (*model.TenantServiceStatus, error) {
-	ret := _m.ctrl.Call(_m, "GetTenantServiceStatus", serviceID)
-	ret0, _ := ret[0].(*model.TenantServiceStatus)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockServiceStatusDaoRecorder) GetTenantServiceStatus(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTenantServiceStatus", arg0)
-}
-
-func (_m *MockServiceStatusDao) SetTenantServiceStatus(serviceID string, status string) error {
-	ret := _m.ctrl.Call(_m, "SetTenantServiceStatus", serviceID, status)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockServiceStatusDaoRecorder) SetTenantServiceStatus(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetTenantServiceStatus", arg0, arg1)
-}
-
-func (_m *MockServiceStatusDao) GetRunningService() ([]*model.TenantServiceStatus, error) {
-	ret := _m.ctrl.Call(_m, "GetRunningService")
-	ret0, _ := ret[0].([]*model.TenantServiceStatus)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockServiceStatusDaoRecorder) GetRunningService() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetRunningService")
-}
-
-func (_m *MockServiceStatusDao) GetAll() ([]*model.TenantServiceStatus, error) {
-	ret := _m.ctrl.Call(_m, "GetAll")
-	ret0, _ := ret[0].([]*model.TenantServiceStatus)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockServiceStatusDaoRecorder) GetAll() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetAll")
-}
-
-func (_m *MockServiceStatusDao) GetNeedBillingService() ([]*model.TenantServiceStatus, error) {
-	ret := _m.ctrl.Call(_m, "GetNeedBillingService")
-	ret0, _ := ret[0].([]*model.TenantServiceStatus)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockServiceStatusDaoRecorder) GetNeedBillingService() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetNeedBillingService")
-}
-
-func (_m *MockServiceStatusDao) GetTenantStatus(tenantID string) ([]*model.TenantServiceStatus, error) {
-	ret := _m.ctrl.Call(_m, "GetTenantStatus", tenantID)
-	ret0, _ := ret[0].([]*model.TenantServiceStatus)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockServiceStatusDaoRecorder) GetTenantStatus(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTenantStatus", arg0)
-}
-
-func (_m *MockServiceStatusDao) GetTenantServicesStatus(serviceIDs []string) ([]*model.TenantServiceStatus, error) {
-	ret := _m.ctrl.Call(_m, "GetTenantServicesStatus", serviceIDs)
-	ret0, _ := ret[0].([]*model.TenantServiceStatus)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockServiceStatusDaoRecorder) GetTenantServicesStatus(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTenantServicesStatus", arg0)
-}
-
-func (_m *MockServiceStatusDao) DeleteByServiceID(serviceID string) error {
-	ret := _m.ctrl.Call(_m, "DeleteByServiceID", serviceID)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockServiceStatusDaoRecorder) DeleteByServiceID(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteByServiceID", arg0)
 }
 
 // Mock of CodeCheckResultDao interface
@@ -2719,58 +2206,6 @@ func (_m *MockCodeCheckResultDao) GetCodeCheckResult(serviceID string) (*model.C
 
 func (_mr *_MockCodeCheckResultDaoRecorder) GetCodeCheckResult(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetCodeCheckResult", arg0)
-}
-
-// Mock of AppPublishDao interface
-type MockAppPublishDao struct {
-	ctrl     *gomock.Controller
-	recorder *_MockAppPublishDaoRecorder
-}
-
-// Recorder for MockAppPublishDao (not exported)
-type _MockAppPublishDaoRecorder struct {
-	mock *MockAppPublishDao
-}
-
-func NewMockAppPublishDao(ctrl *gomock.Controller) *MockAppPublishDao {
-	mock := &MockAppPublishDao{ctrl: ctrl}
-	mock.recorder = &_MockAppPublishDaoRecorder{mock}
-	return mock
-}
-
-func (_m *MockAppPublishDao) EXPECT() *_MockAppPublishDaoRecorder {
-	return _m.recorder
-}
-
-func (_m *MockAppPublishDao) AddModel(_param0 model.Interface) error {
-	ret := _m.ctrl.Call(_m, "AddModel", _param0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockAppPublishDaoRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "AddModel", arg0)
-}
-
-func (_m *MockAppPublishDao) UpdateModel(_param0 model.Interface) error {
-	ret := _m.ctrl.Call(_m, "UpdateModel", _param0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockAppPublishDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
-}
-
-func (_m *MockAppPublishDao) GetAppPublish(serviceKey string, appVersion string) (*model.AppPublish, error) {
-	ret := _m.ctrl.Call(_m, "GetAppPublish", serviceKey, appVersion)
-	ret0, _ := ret[0].(*model.AppPublish)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockAppPublishDaoRecorder) GetAppPublish(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetAppPublish", arg0, arg1)
 }
 
 // Mock of EventDao interface
@@ -3692,6 +3127,17 @@ func (_m *MockTcpRuleDao) GetTcpRuleByServiceIDAndContainerPort(serviceID string
 
 func (_mr *_MockTcpRuleDaoRecorder) GetTcpRuleByServiceIDAndContainerPort(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTcpRuleByServiceIDAndContainerPort", arg0, arg1)
+}
+
+func (_m *MockTcpRuleDao) GetTcpRuleByID(id string) (*model.TcpRule, error) {
+	ret := _m.ctrl.Call(_m, "GetTcpRuleByID", id)
+	ret0, _ := ret[0].(*model.TcpRule)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTcpRuleDaoRecorder) GetTcpRuleByID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTcpRuleByID", arg0)
 }
 
 func (_m *MockTcpRuleDao) DeleteTcpRule(tcpRule *model.TcpRule) error {

@@ -41,7 +41,7 @@ type ServiceEvent struct {
 
 //TableName 表名
 func (t *ServiceEvent) TableName() string {
-	return "service_event"
+	return "tenant_services_event"
 }
 
 //NotificationEvent NotificationEvent
@@ -67,5 +67,5 @@ type NotificationEvent struct {
 
 //TableName table name
 func (n *NotificationEvent) TableName() string {
-	return "notification_event"
+	return "region_notification_event"
 }

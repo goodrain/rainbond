@@ -25,10 +25,11 @@ import (
 
 	"github.com/goodrain/rainbond/util"
 
+	"strings"
+
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/builder/api/controller"
 	httputil "github.com/goodrain/rainbond/util/http"
-	"strings"
 )
 
 func APIServer() *chi.Mux {
@@ -48,11 +49,6 @@ func APIServer() *chi.Mux {
 			r.Post("/", controller.AddCodeCheck)
 			r.Put("/service/{serviceID}", controller.Update)
 			r.Get("/service/{serviceID}", controller.GetCodeCheck)
-		})
-		r.Route("/publish", func(r chi.Router) {
-			r.Get("/service/{serviceKey}/version/{appVersion}", controller.GetAppPublish)
-			r.Post("/", controller.AddAppPublish)
-
 		})
 		r.Route("/version", func(r chi.Router) {
 			r.Post("/", controller.UpdateDeliveredPath)

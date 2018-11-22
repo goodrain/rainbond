@@ -252,48 +252,6 @@ type TenantServiceLabelDao interface {
 	DELTenantServiceLabelsByLabelvaluesAndServiceID(serviceID string, labelValues []string) error
 }
 
-//K8sServiceDao k8s service信息
-type K8sServiceDao interface {
-	Dao
-	GetK8sService(serviceID string, containerPort int, isOut bool) (*model.K8sService, error)
-	GetK8sServiceByReplicationID(replicationID string) (*model.K8sService, error)
-	GetK8sServiceByTenantServiceID(tenantServiceID string) ([]*model.K8sService, error)
-	DeleteK8sServiceByReplicationID(replicationID string) error
-	GetK8sServiceByReplicationIDAndPort(replicationID string, port int, isOut bool) (*model.K8sService, error)
-	DeleteK8sServiceByReplicationIDAndPort(replicationID string, port int, isOut bool) error
-	DeleteK8sServiceByName(k8sServiceName string) error
-	GetAllK8sService() ([]*model.K8sService, error)
-	K8sServiceIsExist(tenantId string, K8sServiceID string) bool
-}
-
-//K8sDeployReplicationDao 部署信息
-type K8sDeployReplicationDao interface {
-	Dao
-	GetK8sDeployReplication(replicationID string) (*model.K8sDeployReplication, error)
-	//不真正删除，设置IS_DELETE 为true
-	DeleteK8sDeployReplication(replicationID string) error
-	GetK8sDeployReplicationByService(serviceID string) ([]*model.K8sDeployReplication, error)
-	GetK8sCurrentDeployReplicationByService(serviceID string) (*model.K8sDeployReplication, error)
-	DeleteK8sDeployReplicationByServiceAndVersion(serviceID, version string) error
-	DeleteK8sDeployReplicationByServiceAndMarked(serviceID string) error
-	//不真正删除，设置IS_DELETE 为true
-	DeleteK8sDeployReplicationByService(serviceID string) error
-	GetReplications() ([]*model.K8sDeployReplication, error)
-	BeachDelete([]uint) error
-	GetK8sDeployReplicationByIsDelete(rcType string, isDelete bool) ([]*model.K8sDeployReplication, error)
-	GetK8sDeployReplicationIsExist(tenantId string, RcType string, RcId string, isDelete bool) (IsExist bool)
-}
-
-//K8sPodDao pod info dao
-type K8sPodDao interface {
-	Dao
-	DeleteK8sPod(serviceID string) error
-	DeleteK8sPodByName(podName string) error
-	GetPodByService(serviceID string) ([]*model.K8sPod, error)
-	GetPodByReplicationID(replicationID string) ([]*model.K8sPod, error)
-	GetK8sPodByNotInPodNameList(podNameList []string) ([]*model.K8sPod, error)
-}
-
 //LocalSchedulerDao 本地调度信息
 type LocalSchedulerDao interface {
 	Dao
@@ -304,34 +262,15 @@ type LocalSchedulerDao interface {
 type ServiceProbeDao interface {
 	Dao
 	DelDao
-	GetServiceProbes(serviceID string) ([]*model.ServiceProbe, error)
-	GetServiceUsedProbe(serviceID, mode string) (*model.ServiceProbe, error)
+	GetServiceProbes(serviceID string) ([]*model.TenantServiceProbe, error)
+	GetServiceUsedProbe(serviceID, mode string) (*model.TenantServiceProbe, error)
 	DELServiceProbesByServiceID(serviceID string) error
-}
-
-//ServiceStatusDao service status
-type ServiceStatusDao interface {
-	Dao
-	GetTenantServiceStatus(serviceID string) (*model.TenantServiceStatus, error)
-	SetTenantServiceStatus(serviceID, status string) error
-	GetRunningService() ([]*model.TenantServiceStatus, error)
-	GetAll() ([]*model.TenantServiceStatus, error)
-	GetNeedBillingService() ([]*model.TenantServiceStatus, error)
-	GetTenantStatus(tenantID string) ([]*model.TenantServiceStatus, error)
-	GetTenantServicesStatus(serviceIDs []string) ([]*model.TenantServiceStatus, error)
-	DeleteByServiceID(serviceID string) error
 }
 
 //CodeCheckResultDao CodeCheckResultDao
 type CodeCheckResultDao interface {
 	Dao
 	GetCodeCheckResult(serviceID string) (*model.CodeCheckResult, error)
-}
-
-//AppPublishDao AppPublishDao
-type AppPublishDao interface {
-	Dao
-	GetAppPublish(serviceKey, appVersion string) (*model.AppPublish, error)
 }
 
 //EventDao EventDao

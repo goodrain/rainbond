@@ -20,7 +20,7 @@ package model
 
 //TableName 表名
 func (t *CodeCheckResult) TableName() string {
-	return "code_check_result"
+	return "tenant_services_codecheck"
 }
 
 //CodeCheckResult codecheck result struct

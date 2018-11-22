@@ -43,7 +43,6 @@ type ServiceHandler interface {
 	GetPagedTenantRes(offset, len int) ([]*api_model.TenantResource, int, error)
 	GetTenantRes(uuid string) (*api_model.TenantResource, error)
 	CodeCheck(c *api_model.CheckCodeStruct) error
-	ShareCloud(c *api_model.CloudShareStruct) error
 	ServiceDepend(action string, ds *api_model.DependService) error
 	EnvAttr(action string, at *dbmodel.TenantServiceEnvVar) error
 	PortVar(action string, tenantID, serviceID string, vp *api_model.ServicePorts, oldPort int) error
@@ -54,13 +53,13 @@ type ServiceHandler interface {
 	VolumeDependency(tsr *dbmodel.TenantServiceMountRelation, action string) *util.APIHandleError
 	GetDepVolumes(serviceID string) ([]*dbmodel.TenantServiceMountRelation, *util.APIHandleError)
 	GetVolumes(serviceID string) ([]*dbmodel.TenantServiceVolume, *util.APIHandleError)
-	ServiceProbe(tsp *dbmodel.ServiceProbe, action string) error
+	ServiceProbe(tsp *dbmodel.TenantServiceProbe, action string) error
 	RollBack(rs *api_model.RollbackStruct) error
 	GetStatus(serviceID string) (*api_model.StatusList, error)
 	GetServicesStatus(tenantID string, services []string) map[string]string
 	CreateTenant(*dbmodel.Tenants) error
 	CreateTenandIDAndName(eid string) (string, string, error)
-	GetPods(serviceID string) ([]K8sPodInfo, error)
+	GetPods(serviceID string) ([]*K8sPodInfo, error)
 	TransServieToDelete(serviceID string) error
 	TenantServiceDeletePluginRelation(serviceID, pluginID string) *util.APIHandleError
 	GetTenantServicePluginRelation(serviceID string) ([]*dbmodel.TenantServicePluginRelation, *util.APIHandleError)

@@ -35,22 +35,19 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"k8s.io/client-go/kubernetes"
 )
 
 //TenantAction tenant act
 type TenantAction struct {
-	MQClient   pb.TaskQueueClient
-	KubeClient *kubernetes.Clientset
-	statusCli  *client.AppRuntimeSyncClient
+	MQClient  pb.TaskQueueClient
+	statusCli *client.AppRuntimeSyncClient
 }
 
 //CreateTenManager create Manger
-func CreateTenManager(MQClient pb.TaskQueueClient, KubeClient *kubernetes.Clientset, statusCli *client.AppRuntimeSyncClient) *TenantAction {
+func CreateTenManager(MQClient pb.TaskQueueClient, statusCli *client.AppRuntimeSyncClient) *TenantAction {
 	return &TenantAction{
-		MQClient:   MQClient,
-		KubeClient: KubeClient,
-		statusCli:  statusCli,
+		MQClient:  MQClient,
+		statusCli: statusCli,
 	}
 }
 

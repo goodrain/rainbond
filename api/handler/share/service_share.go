@@ -96,13 +96,12 @@ func (s *ServiceShareHandle) Share(serviceID string, ss api_model.ServiceShare) 
 			return nil, util.CreateAPIHandleError(500, err)
 		}
 		info := map[string]interface{}{
-			"share_info":       ss.Body,
-			"service_alias":    ss.ServiceAlias,
-			"service_id":       serviceID,
-			"tenant_name":      ss.TenantName,
-			"image_name":       shareImageName,
-			"share_id":         shareID,
-			"local_image_name": service.ImageName,
+			"share_info":    ss.Body,
+			"service_alias": ss.ServiceAlias,
+			"service_id":    serviceID,
+			"tenant_name":   ss.TenantName,
+			"image_name":    shareImageName,
+			"share_id":      shareID,
 		}
 		if version != nil && version.DeliveredPath != "" {
 			info["local_image_name"] = version.DeliveredPath

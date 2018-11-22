@@ -1,0 +1,1 @@
+mockgen -source=dao.go -destination dao_mock.go -package dao

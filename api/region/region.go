@@ -338,13 +338,6 @@ func LoadConfig(regionAPI, token string) (map[string]map[string]interface{}, err
 		if err := json.Unmarshal([]byte(data), &config); err != nil {
 			return nil, err
 		}
-		//{"k8s":{"url":"http://10.0.55.72:8181/api/v1","apitype":"kubernetes api"},
-		//  "db":{"ENGINE":"django.db.backends.mysql",
-		//               "AUTOCOMMIT":true,"ATOMIC_REQUESTS":false,"NAME":"region","CONN_MAX_AGE":0,
-		//"TIME_ZONE":"Asia/Shanghai","OPTIONS":{},
-		// "HOST":"10.0.55.72","USER":"writer1",
-		// "TEST":{"COLLATION":null,"CHARSET":null,"NAME":null,"MIRROR":null},
-		// "PASSWORD":"CeRYK8UzWD","PORT":"3306"}}
 		return config, nil
 	}
 	return nil, errors.New("wrong region api ")

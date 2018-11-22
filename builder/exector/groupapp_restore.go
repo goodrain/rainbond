@@ -239,33 +239,6 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 				}
 			}
 		}
-		if app.Service.HostPath != "" {
-			dstDir := fmt.Sprintf("%s/data_%s/%s_common.zip", b.cacheDir, b.getOldServiceID(app.ServiceID), b.getOldServiceID(app.ServiceID))
-			tmpDir := fmt.Sprintf("/grdata/tmp/%s_%s", app.ServiceID, app.ServiceID)
-			if err := util.Unzip(dstDir, tmpDir); err != nil {
-				if !strings.Contains(err.Error(), "no such file") {
-					logrus.Errorf("restore service(%s) default volume data error.%s", app.ServiceID, err.Error())
-					return err
-				}
-				//backup data is not exist because dir is empty.
-				//so create host path and continue
-				os.MkdirAll(app.Service.HostPath, 0777)
-			} else {
-				err := util.Rename(tmpDir, util.GetParentDirectory(app.Service.HostPath))
-				if err != nil {
-					if strings.Contains(err.Error(), "file exists") {
-						if err := util.MergeDir(tmpDir, util.GetParentDirectory(app.Service.HostPath)); err != nil {
-							return err
-						}
-					} else {
-						return err
-					}
-				}
-				if err := os.Chmod(app.Service.HostPath, 0777); err != nil {
-					return err
-				}
-			}
-		}
 		b.Logger.Info(fmt.Sprintf("完成恢复应用(%s)持久化数据", app.Service.ServiceAlias), map[string]string{"step": "restore_builder", "status": "success"})
 		//TODO:relation relation volume data?
 	}
@@ -306,7 +279,7 @@ func (b *BackupAPPRestore) downloadSlug(backup *dbmodel.AppBackup, app *RegionSe
 
 func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
 	if backup.BackupMode == "full-online" && b.ImageInfo.HubURL != "" {
-		backupImage, err := app.Service.CreateShareImage(b.ImageInfo.HubURL, b.ImageInfo.Namespace, fmt.Sprintf("%s_backup", backup.Version))
+		backupImage, err := version.CreateShareImage(b.ImageInfo.HubURL, b.ImageInfo.Namespace, fmt.Sprintf("%s_backup", backup.Version))
 		if err != nil {
 			return fmt.Errorf("create backup image error %s", err)
 		}

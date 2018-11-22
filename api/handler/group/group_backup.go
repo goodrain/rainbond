@@ -206,7 +206,7 @@ func (h *BackupHandle) GetBackupByGroupID(groupID string) ([]*dbmodel.AppBackup,
 type RegionServiceSnapshot struct {
 	ServiceID          string
 	Service            *dbmodel.TenantServices
-	ServiceProbe       []*dbmodel.ServiceProbe
+	ServiceProbe       []*dbmodel.TenantServiceProbe
 	LBMappingPort      []*dbmodel.TenantServiceLBMappingPort
 	ServiceEnv         []*dbmodel.TenantServiceEnvVar
 	ServiceLabel       []*dbmodel.TenantServiceLable

@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,22 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package model
+package client
 
-//AppPublish AppPublish
-type AppPublish struct {
-	Model
-	ServiceKey string `gorm:"column:service_key;size:70"`
-	AppVersion string `gorm:"column:app_version;size:70"`
-	Status     string `gorm:"column:status;size:10"`
-	Image      string `gorm:"column:image;size:200"`
-	Slug       string `gorm:"column:slug;size:200"`
-	DestYS     bool   `gorm:"column:dest_ys"`
-	DestYB     bool   `gorm:"column:dest_yb"`
-	ShareID    string `gorm:"column:share_id;size:70"`
-}
+import (
+	"context"
+	"time"
 
-//TableName 表名
-func (t *AppPublish) TableName() string {
-	return "app_publish"
+	"github.com/goodrain/rainbond/worker/server/pb"
+)
+
+//GetServicePods get service pods list
+func (a *AppRuntimeSyncClient) GetServicePods(serviceID string) (*pb.ServiceAppPodList, error) {
+	ctx, cancel := context.WithTimeout(a.ctx, time.Second*5)
+	defer cancel()
+	return a.AppRuntimeSyncClient.GetAppPods(ctx, &pb.ServiceRequest{ServiceId: serviceID})
 }

@@ -6,10 +6,9 @@ package pb
 import (
 	context "context"
 	fmt "fmt"
-	math "math"
-
 	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -23,39 +22,78 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
-type StatusRequest struct {
+type ServiceRequest struct {
+	ServiceId            string   `protobuf:"bytes,1,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ServiceRequest) Reset()         { *m = ServiceRequest{} }
+func (m *ServiceRequest) String() string { return proto.CompactTextString(m) }
+func (*ServiceRequest) ProtoMessage()    {}
+func (*ServiceRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f94cf1a886c479d6, []int{0}
+}
+
+func (m *ServiceRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ServiceRequest.Unmarshal(m, b)
+}
+func (m *ServiceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ServiceRequest.Marshal(b, m, deterministic)
+}
+func (m *ServiceRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ServiceRequest.Merge(m, src)
+}
+func (m *ServiceRequest) XXX_Size() int {
+	return xxx_messageInfo_ServiceRequest.Size(m)
+}
+func (m *ServiceRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ServiceRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ServiceRequest proto.InternalMessageInfo
+
+func (m *ServiceRequest) GetServiceId() string {
+	if m != nil {
+		return m.ServiceId
+	}
+	return ""
+}
+
+type ServicesRequest struct {
 	ServiceIds           string   `protobuf:"bytes,1,opt,name=service_ids,json=serviceIds,proto3" json:"service_ids,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *StatusRequest) Reset()         { *m = StatusRequest{} }
-func (m *StatusRequest) String() string { return proto.CompactTextString(m) }
-func (*StatusRequest) ProtoMessage()    {}
-func (*StatusRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f94cf1a886c479d6, []int{0}
+func (m *ServicesRequest) Reset()         { *m = ServicesRequest{} }
+func (m *ServicesRequest) String() string { return proto.CompactTextString(m) }
+func (*ServicesRequest) ProtoMessage()    {}
+func (*ServicesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f94cf1a886c479d6, []int{1}
 }
 
-func (m *StatusRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_StatusRequest.Unmarshal(m, b)
+func (m *ServicesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ServicesRequest.Unmarshal(m, b)
 }
-func (m *StatusRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_StatusRequest.Marshal(b, m, deterministic)
+func (m *ServicesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ServicesRequest.Marshal(b, m, deterministic)
 }
-func (m *StatusRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StatusRequest.Merge(m, src)
+func (m *ServicesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ServicesRequest.Merge(m, src)
 }
-func (m *StatusRequest) XXX_Size() int {
-	return xxx_messageInfo_StatusRequest.Size(m)
+func (m *ServicesRequest) XXX_Size() int {
+	return xxx_messageInfo_ServicesRequest.Size(m)
 }
-func (m *StatusRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_StatusRequest.DiscardUnknown(m)
+func (m *ServicesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ServicesRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_StatusRequest proto.InternalMessageInfo
+var xxx_messageInfo_ServicesRequest proto.InternalMessageInfo
 
-func (m *StatusRequest) GetServiceIds() string {
+func (m *ServicesRequest) GetServiceIds() string {
 	if m != nil {
 		return m.ServiceIds
 	}
@@ -73,7 +111,7 @@ func (m *StatusMessage) Reset()         { *m = StatusMessage{} }
 func (m *StatusMessage) String() string { return proto.CompactTextString(m) }
 func (*StatusMessage) ProtoMessage()    {}
 func (*StatusMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f94cf1a886c479d6, []int{1}
+	return fileDescriptor_f94cf1a886c479d6, []int{2}
 }
 
 func (m *StatusMessage) XXX_Unmarshal(b []byte) error {
@@ -112,7 +150,7 @@ func (m *DiskMessage) Reset()         { *m = DiskMessage{} }
 func (m *DiskMessage) String() string { return proto.CompactTextString(m) }
 func (*DiskMessage) ProtoMessage()    {}
 func (*DiskMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f94cf1a886c479d6, []int{2}
+	return fileDescriptor_f94cf1a886c479d6, []int{3}
 }
 
 func (m *DiskMessage) XXX_Unmarshal(b []byte) error {
@@ -140,36 +178,228 @@ func (m *DiskMessage) GetDisks() map[string]float64 {
 	return nil
 }
 
+type ServiceAppPodList struct {
+	Pods                 []*ServiceAppPod `protobuf:"bytes,1,rep,name=pods,proto3" json:"pods,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
+	XXX_unrecognized     []byte           `json:"-"`
+	XXX_sizecache        int32            `json:"-"`
+}
+
+func (m *ServiceAppPodList) Reset()         { *m = ServiceAppPodList{} }
+func (m *ServiceAppPodList) String() string { return proto.CompactTextString(m) }
+func (*ServiceAppPodList) ProtoMessage()    {}
+func (*ServiceAppPodList) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f94cf1a886c479d6, []int{4}
+}
+
+func (m *ServiceAppPodList) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ServiceAppPodList.Unmarshal(m, b)
+}
+func (m *ServiceAppPodList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ServiceAppPodList.Marshal(b, m, deterministic)
+}
+func (m *ServiceAppPodList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ServiceAppPodList.Merge(m, src)
+}
+func (m *ServiceAppPodList) XXX_Size() int {
+	return xxx_messageInfo_ServiceAppPodList.Size(m)
+}
+func (m *ServiceAppPodList) XXX_DiscardUnknown() {
+	xxx_messageInfo_ServiceAppPodList.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ServiceAppPodList proto.InternalMessageInfo
+
+func (m *ServiceAppPodList) GetPods() []*ServiceAppPod {
+	if m != nil {
+		return m.Pods
+	}
+	return nil
+}
+
+type ServiceAppPod struct {
+	ServiceId            string                `protobuf:"bytes,1,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
+	DeployId             string                `protobuf:"bytes,2,opt,name=deploy_id,json=deployId,proto3" json:"deploy_id,omitempty"`
+	DeployType           string                `protobuf:"bytes,3,opt,name=deploy_type,json=deployType,proto3" json:"deploy_type,omitempty"`
+	PodName              string                `protobuf:"bytes,4,opt,name=pod_name,json=podName,proto3" json:"pod_name,omitempty"`
+	PodIp                string                `protobuf:"bytes,5,opt,name=pod_ip,json=podIp,proto3" json:"pod_ip,omitempty"`
+	PodStatus            string                `protobuf:"bytes,6,opt,name=pod_status,json=podStatus,proto3" json:"pod_status,omitempty"`
+	Containers           map[string]*Container `protobuf:"bytes,7,rep,name=containers,proto3" json:"containers,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
+}
+
+func (m *ServiceAppPod) Reset()         { *m = ServiceAppPod{} }
+func (m *ServiceAppPod) String() string { return proto.CompactTextString(m) }
+func (*ServiceAppPod) ProtoMessage()    {}
+func (*ServiceAppPod) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f94cf1a886c479d6, []int{5}
+}
+
+func (m *ServiceAppPod) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ServiceAppPod.Unmarshal(m, b)
+}
+func (m *ServiceAppPod) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ServiceAppPod.Marshal(b, m, deterministic)
+}
+func (m *ServiceAppPod) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ServiceAppPod.Merge(m, src)
+}
+func (m *ServiceAppPod) XXX_Size() int {
+	return xxx_messageInfo_ServiceAppPod.Size(m)
+}
+func (m *ServiceAppPod) XXX_DiscardUnknown() {
+	xxx_messageInfo_ServiceAppPod.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ServiceAppPod proto.InternalMessageInfo
+
+func (m *ServiceAppPod) GetServiceId() string {
+	if m != nil {
+		return m.ServiceId
+	}
+	return ""
+}
+
+func (m *ServiceAppPod) GetDeployId() string {
+	if m != nil {
+		return m.DeployId
+	}
+	return ""
+}
+
+func (m *ServiceAppPod) GetDeployType() string {
+	if m != nil {
+		return m.DeployType
+	}
+	return ""
+}
+
+func (m *ServiceAppPod) GetPodName() string {
+	if m != nil {
+		return m.PodName
+	}
+	return ""
+}
+
+func (m *ServiceAppPod) GetPodIp() string {
+	if m != nil {
+		return m.PodIp
+	}
+	return ""
+}
+
+func (m *ServiceAppPod) GetPodStatus() string {
+	if m != nil {
+		return m.PodStatus
+	}
+	return ""
+}
+
+func (m *ServiceAppPod) GetContainers() map[string]*Container {
+	if m != nil {
+		return m.Containers
+	}
+	return nil
+}
+
+type Container struct {
+	ContainerName        string   `protobuf:"bytes,1,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
+	MemoryLimit          int32    `protobuf:"varint,2,opt,name=memory_limit,json=memoryLimit,proto3" json:"memory_limit,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Container) Reset()         { *m = Container{} }
+func (m *Container) String() string { return proto.CompactTextString(m) }
+func (*Container) ProtoMessage()    {}
+func (*Container) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f94cf1a886c479d6, []int{6}
+}
+
+func (m *Container) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Container.Unmarshal(m, b)
+}
+func (m *Container) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Container.Marshal(b, m, deterministic)
+}
+func (m *Container) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Container.Merge(m, src)
+}
+func (m *Container) XXX_Size() int {
+	return xxx_messageInfo_Container.Size(m)
+}
+func (m *Container) XXX_DiscardUnknown() {
+	xxx_messageInfo_Container.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Container proto.InternalMessageInfo
+
+func (m *Container) GetContainerName() string {
+	if m != nil {
+		return m.ContainerName
+	}
+	return ""
+}
+
+func (m *Container) GetMemoryLimit() int32 {
+	if m != nil {
+		return m.MemoryLimit
+	}
+	return 0
+}
+
 func init() {
-	proto.RegisterType((*StatusRequest)(nil), "pb.StatusRequest")
+	proto.RegisterType((*ServiceRequest)(nil), "pb.ServiceRequest")
+	proto.RegisterType((*ServicesRequest)(nil), "pb.ServicesRequest")
 	proto.RegisterType((*StatusMessage)(nil), "pb.StatusMessage")
 	proto.RegisterMapType((map[string]string)(nil), "pb.StatusMessage.StatusEntry")
 	proto.RegisterType((*DiskMessage)(nil), "pb.DiskMessage")
 	proto.RegisterMapType((map[string]float64)(nil), "pb.DiskMessage.DisksEntry")
+	proto.RegisterType((*ServiceAppPodList)(nil), "pb.ServiceAppPodList")
+	proto.RegisterType((*ServiceAppPod)(nil), "pb.ServiceAppPod")
+	proto.RegisterMapType((map[string]*Container)(nil), "pb.ServiceAppPod.ContainersEntry")
+	proto.RegisterType((*Container)(nil), "pb.Container")
 }
 
 func init() { proto.RegisterFile("app_runtime_server.proto", fileDescriptor_f94cf1a886c479d6) }
 
 var fileDescriptor_f94cf1a886c479d6 = []byte{
-	// 276 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x91, 0x4d, 0x4b, 0xfb, 0x40,
-	0x10, 0xc6, 0xbb, 0x29, 0x2d, 0xfc, 0x27, 0x7f, 0x5f, 0xba, 0x78, 0x08, 0x01, 0xb1, 0xec, 0xa9,
-	0xa7, 0x50, 0x22, 0x4a, 0xf5, 0x56, 0x50, 0xc4, 0x83, 0x97, 0xf4, 0x03, 0x84, 0xa4, 0x19, 0x64,
-	0x89, 0xa6, 0xeb, 0xce, 0xa6, 0x10, 0xf0, 0xe2, 0x37, 0x97, 0x64, 0x37, 0x34, 0xbe, 0x80, 0xb7,
-	0x99, 0x67, 0x9f, 0xe1, 0x37, 0xf3, 0x2c, 0x04, 0x99, 0x52, 0xa9, 0xae, 0x2b, 0x23, 0x5f, 0x31,
-	0x25, 0xd4, 0x7b, 0xd4, 0x91, 0xd2, 0x3b, 0xb3, 0xe3, 0x9e, 0xca, 0xc5, 0x12, 0x8e, 0x36, 0x26,
-	0x33, 0x35, 0x25, 0xf8, 0x56, 0x23, 0x19, 0x7e, 0x01, 0x7e, 0x6b, 0x92, 0x5b, 0x4c, 0x65, 0x41,
-	0x01, 0x9b, 0xb3, 0xc5, 0xbf, 0x04, 0x9c, 0xf4, 0x58, 0x90, 0xf8, 0x60, 0xfd, 0xc8, 0x13, 0x12,
-	0x65, 0xcf, 0xc8, 0xaf, 0x60, 0x4a, 0x9d, 0x10, 0xb0, 0xf9, 0x78, 0xe1, 0xc7, 0xe7, 0x91, 0xca,
-	0xa3, 0x2f, 0x16, 0xd7, 0xdd, 0x57, 0x46, 0x37, 0x89, 0x33, 0x87, 0x37, 0xe0, 0x0f, 0x64, 0x7e,
-	0x0a, 0xe3, 0x12, 0x1b, 0x07, 0x6c, 0x4b, 0x7e, 0x06, 0x93, 0x7d, 0xf6, 0x52, 0x63, 0xe0, 0x75,
-	0x9a, 0x6d, 0x6e, 0xbd, 0x15, 0x13, 0x0d, 0xf8, 0x77, 0x92, 0xca, 0x7e, 0x81, 0x25, 0x4c, 0x0a,
-	0x49, 0x65, 0xcf, 0x0f, 0x5b, 0xfe, 0xe0, 0xbd, 0xab, 0x1d, 0xdc, 0x1a, 0xc3, 0x15, 0xc0, 0x41,
-	0xfc, 0x0b, 0xcd, 0x06, 0xe8, 0xf8, 0x1d, 0x8e, 0xd7, 0x4a, 0x25, 0x36, 0xcf, 0x4d, 0x53, 0x6d,
-	0xf9, 0x35, 0xfc, 0x7f, 0x40, 0xb3, 0x56, 0xca, 0x5e, 0xc3, 0x67, 0x87, 0xf3, 0x5d, 0xa8, 0xe1,
-	0xec, 0x47, 0x22, 0x62, 0xc4, 0x63, 0x00, 0x3b, 0xd7, 0x6e, 0xf2, 0xdb, 0xd4, 0xc9, 0xb7, 0x3b,
-	0xc4, 0x28, 0x9f, 0x76, 0x3f, 0x77, 0xf9, 0x19, 0x00, 0x00, 0xff, 0xff, 0x0f, 0xeb, 0x58, 0x41,
-	0xd5, 0x01, 0x00, 0x00,
+	// 511 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x54, 0x5d, 0x6f, 0x12, 0x41,
+	0x14, 0xed, 0x42, 0xa1, 0xe5, 0x6e, 0x01, 0x19, 0x6d, 0xb2, 0x62, 0x1a, 0xdb, 0x35, 0x4d, 0xfa,
+	0x84, 0x06, 0x35, 0xa1, 0x7d, 0x23, 0x6a, 0x0c, 0x09, 0x9a, 0x66, 0xd1, 0xe7, 0xcd, 0xc2, 0x4c,
+	0xcc, 0x04, 0x76, 0xe7, 0xba, 0x33, 0x90, 0xec, 0xa3, 0xbf, 0xcb, 0xff, 0xe0, 0x6f, 0x32, 0xf3,
+	0xb1, 0xdb, 0x6d, 0x69, 0xd2, 0xb7, 0x9d, 0x73, 0xee, 0xe1, 0xcc, 0x3d, 0xf7, 0x0e, 0x10, 0x24,
+	0x88, 0x71, 0xbe, 0xcd, 0x14, 0x4f, 0x59, 0x2c, 0x59, 0xbe, 0x63, 0xf9, 0x08, 0x73, 0xa1, 0x04,
+	0x69, 0xe0, 0x32, 0x7c, 0x0b, 0xbd, 0x05, 0xcb, 0x77, 0x7c, 0xc5, 0x22, 0xf6, 0x7b, 0xcb, 0xa4,
+	0x22, 0x67, 0x00, 0xd2, 0x22, 0x31, 0xa7, 0x81, 0x77, 0xee, 0x5d, 0x75, 0xa2, 0x8e, 0x43, 0x66,
+	0x34, 0x1c, 0x43, 0xdf, 0x09, 0x64, 0xa9, 0x78, 0x0d, 0xfe, 0x9d, 0x42, 0x3a, 0x09, 0x54, 0x12,
+	0x19, 0xfe, 0xf1, 0xa0, 0xbb, 0x50, 0x89, 0xda, 0xca, 0x6f, 0x4c, 0xca, 0xe4, 0x17, 0x23, 0x1f,
+	0xa1, 0x2d, 0x0d, 0x10, 0x78, 0xe7, 0xcd, 0x2b, 0x7f, 0x7c, 0x36, 0xc2, 0xe5, 0xe8, 0x5e, 0x89,
+	0x3b, 0x7d, 0xc9, 0x54, 0x5e, 0x44, 0xae, 0x78, 0x78, 0x0d, 0x7e, 0x0d, 0x26, 0xcf, 0xa0, 0xb9,
+	0x66, 0x85, 0x33, 0xd4, 0x9f, 0xe4, 0x05, 0xb4, 0x76, 0xc9, 0x66, 0xcb, 0x82, 0x86, 0xc1, 0xec,
+	0xe1, 0xa6, 0x31, 0xf1, 0xc2, 0x02, 0xfc, 0xcf, 0x5c, 0xae, 0xcb, 0x0b, 0xbc, 0x83, 0x16, 0xe5,
+	0x72, 0x5d, 0xfa, 0x0f, 0xb5, 0x7f, 0x8d, 0x37, 0xdf, 0xce, 0xdc, 0x16, 0x0e, 0x27, 0x00, 0x77,
+	0xe0, 0x53, 0xd6, 0x5e, 0xdd, 0xfa, 0x06, 0x06, 0x2e, 0xb2, 0x29, 0xe2, 0xad, 0xa0, 0x73, 0x2e,
+	0x15, 0xb9, 0x84, 0x43, 0x14, 0xb4, 0xf4, 0x1f, 0x98, 0xfe, 0xeb, 0x45, 0x91, 0xa1, 0xc3, 0x7f,
+	0x0d, 0xe8, 0xde, 0xc3, 0x9f, 0x98, 0x0f, 0x79, 0x05, 0x1d, 0xca, 0x70, 0x23, 0x0a, 0xcd, 0xda,
+	0x14, 0x8e, 0x2d, 0x30, 0xa3, 0x7a, 0x52, 0x8e, 0x54, 0x05, 0xb2, 0xa0, 0x69, 0x27, 0x65, 0xa1,
+	0x1f, 0x05, 0x32, 0xf2, 0x12, 0x8e, 0x51, 0xd0, 0x38, 0x4b, 0x52, 0x16, 0x1c, 0x1a, 0xf6, 0x08,
+	0x05, 0xfd, 0x9e, 0xa4, 0x8c, 0x9c, 0x42, 0x5b, 0x53, 0x1c, 0x83, 0x96, 0xcd, 0x16, 0x05, 0x9d,
+	0xa1, 0xbe, 0x8e, 0x86, 0xdd, 0x34, 0xdb, 0xf6, 0x3a, 0x28, 0xa8, 0x9d, 0x13, 0x99, 0x02, 0xac,
+	0x44, 0xa6, 0x12, 0x9e, 0xb1, 0x5c, 0x06, 0x47, 0xa6, 0xd9, 0x8b, 0xbd, 0x66, 0x47, 0x9f, 0xaa,
+	0x1a, 0x9b, 0x79, 0x4d, 0x34, 0x9c, 0x43, 0xff, 0x01, 0xfd, 0x48, 0xfa, 0x6f, 0xea, 0xe9, 0xfb,
+	0xe3, 0xae, 0xb6, 0xa8, 0x54, 0xf5, 0x61, 0xfc, 0x84, 0x4e, 0x85, 0x93, 0x4b, 0xe8, 0x55, 0x46,
+	0xb6, 0x69, 0xfb, 0x93, 0xdd, 0x0a, 0x35, 0xad, 0x5f, 0xc0, 0x49, 0xca, 0x52, 0x91, 0x17, 0xf1,
+	0x86, 0xa7, 0x5c, 0x19, 0x8f, 0x56, 0xe4, 0x5b, 0x6c, 0xae, 0xa1, 0xf1, 0x5f, 0x0f, 0x7a, 0x53,
+	0xc4, 0xc8, 0xbe, 0xb3, 0x45, 0x91, 0xad, 0xc8, 0x04, 0x4e, 0xbe, 0x32, 0x35, 0x45, 0x74, 0x51,
+	0x3c, 0xaf, 0xb5, 0x5d, 0xbe, 0x9d, 0xe1, 0x60, 0x6f, 0xf1, 0xc3, 0x03, 0xf2, 0x01, 0xc0, 0x2a,
+	0xf5, 0xc2, 0x3d, 0xae, 0xeb, 0x3f, 0x58, 0xd8, 0xf0, 0x80, 0x5c, 0x97, 0xaa, 0x5b, 0x41, 0x25,
+	0x21, 0x35, 0x55, 0x29, 0x3a, 0xdd, 0x0b, 0x5e, 0xaf, 0x62, 0x78, 0xb0, 0x6c, 0x9b, 0x3f, 0x84,
+	0xf7, 0xff, 0x03, 0x00, 0x00, 0xff, 0xff, 0x17, 0xea, 0xad, 0xa7, 0x2c, 0x04, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -184,8 +414,9 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type AppRuntimeSyncClient interface {
-	GetAppStatus(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusMessage, error)
-	GetAppDisk(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*DiskMessage, error)
+	GetAppStatus(ctx context.Context, in *ServicesRequest, opts ...grpc.CallOption) (*StatusMessage, error)
+	GetAppDisk(ctx context.Context, in *ServicesRequest, opts ...grpc.CallOption) (*DiskMessage, error)
+	GetAppPods(ctx context.Context, in *ServiceRequest, opts ...grpc.CallOption) (*ServiceAppPodList, error)
 }
 
 type appRuntimeSyncClient struct {
@@ -196,7 +427,7 @@ func NewAppRuntimeSyncClient(cc *grpc.ClientConn) AppRuntimeSyncClient {
 	return &appRuntimeSyncClient{cc}
 }
 
-func (c *appRuntimeSyncClient) GetAppStatus(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusMessage, error) {
+func (c *appRuntimeSyncClient) GetAppStatus(ctx context.Context, in *ServicesRequest, opts ...grpc.CallOption) (*StatusMessage, error) {
 	out := new(StatusMessage)
 	err := c.cc.Invoke(ctx, "/pb.AppRuntimeSync/GetAppStatus", in, out, opts...)
 	if err != nil {
@@ -205,7 +436,7 @@ func (c *appRuntimeSyncClient) GetAppStatus(ctx context.Context, in *StatusReque
 	return out, nil
 }
 
-func (c *appRuntimeSyncClient) GetAppDisk(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*DiskMessage, error) {
+func (c *appRuntimeSyncClient) GetAppDisk(ctx context.Context, in *ServicesRequest, opts ...grpc.CallOption) (*DiskMessage, error) {
 	out := new(DiskMessage)
 	err := c.cc.Invoke(ctx, "/pb.AppRuntimeSync/GetAppDisk", in, out, opts...)
 	if err != nil {
@@ -214,10 +445,20 @@ func (c *appRuntimeSyncClient) GetAppDisk(ctx context.Context, in *StatusRequest
 	return out, nil
 }
 
+func (c *appRuntimeSyncClient) GetAppPods(ctx context.Context, in *ServiceRequest, opts ...grpc.CallOption) (*ServiceAppPodList, error) {
+	out := new(ServiceAppPodList)
+	err := c.cc.Invoke(ctx, "/pb.AppRuntimeSync/GetAppPods", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AppRuntimeSyncServer is the server API for AppRuntimeSync service.
 type AppRuntimeSyncServer interface {
-	GetAppStatus(context.Context, *StatusRequest) (*StatusMessage, error)
-	GetAppDisk(context.Context, *StatusRequest) (*DiskMessage, error)
+	GetAppStatus(context.Context, *ServicesRequest) (*StatusMessage, error)
+	GetAppDisk(context.Context, *ServicesRequest) (*DiskMessage, error)
+	GetAppPods(context.Context, *ServiceRequest) (*ServiceAppPodList, error)
 }
 
 func RegisterAppRuntimeSyncServer(s *grpc.Server, srv AppRuntimeSyncServer) {
@@ -225,7 +466,7 @@ func RegisterAppRuntimeSyncServer(s *grpc.Server, srv AppRuntimeSyncServer) {
 }
 
 func _AppRuntimeSync_GetAppStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StatusRequest)
+	in := new(ServicesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -237,13 +478,13 @@ func _AppRuntimeSync_GetAppStatus_Handler(srv interface{}, ctx context.Context, 
 		FullMethod: "/pb.AppRuntimeSync/GetAppStatus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AppRuntimeSyncServer).GetAppStatus(ctx, req.(*StatusRequest))
+		return srv.(AppRuntimeSyncServer).GetAppStatus(ctx, req.(*ServicesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _AppRuntimeSync_GetAppDisk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StatusRequest)
+	in := new(ServicesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -255,7 +496,25 @@ func _AppRuntimeSync_GetAppDisk_Handler(srv interface{}, ctx context.Context, de
 		FullMethod: "/pb.AppRuntimeSync/GetAppDisk",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AppRuntimeSyncServer).GetAppDisk(ctx, req.(*StatusRequest))
+		return srv.(AppRuntimeSyncServer).GetAppDisk(ctx, req.(*ServicesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AppRuntimeSync_GetAppPods_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ServiceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AppRuntimeSyncServer).GetAppPods(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.AppRuntimeSync/GetAppPods",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AppRuntimeSyncServer).GetAppPods(ctx, req.(*ServiceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -271,6 +530,10 @@ var _AppRuntimeSync_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAppDisk",
 			Handler:    _AppRuntimeSync_GetAppDisk_Handler,
+		},
+		{
+			MethodName: "GetAppPods",
+			Handler:    _AppRuntimeSync_GetAppPods_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -93,7 +93,7 @@ func BackupAPPNewCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 type RegionServiceSnapshot struct {
 	ServiceID          string
 	Service            *dbmodel.TenantServices
-	ServiceProbe       []*dbmodel.ServiceProbe
+	ServiceProbe       []*dbmodel.TenantServiceProbe
 	LBMappingPort      []*dbmodel.TenantServiceLBMappingPort
 	ServiceEnv         []*dbmodel.TenantServiceEnvVar
 	ServiceLabel       []*dbmodel.TenantServiceLable
@@ -159,13 +159,6 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 					logrus.Errorf("backup service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
 					return err
 				}
-			}
-		}
-		if app.Service.HostPath != "" && !util.DirIsEmpty(app.Service.HostPath) {
-			dstDir := fmt.Sprintf("%s/data_%s/%s_common.zip", b.SourceDir, app.ServiceID, app.ServiceID)
-			if err := util.Zip(app.Service.HostPath, dstDir); err != nil {
-				logrus.Errorf("backup service(%s) common data error.%s", app.ServiceID, err.Error())
-				return err
 			}
 		}
 		b.Logger.Info(fmt.Sprintf("Complete backup application(%s) persistent data", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
@@ -265,7 +258,7 @@ func (b *BackupAPPNew) uploadSlug(app *RegionServiceSnapshot, version *dbmodel.V
 
 func (b *BackupAPPNew) uploadImage(app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
 	if b.Mode == "full-online" && b.ImageInfo.HubURL != "" {
-		backupImage, err := app.Service.CreateShareImage(b.ImageInfo.HubURL, b.ImageInfo.Namespace, fmt.Sprintf("%s_backup", b.Version))
+		backupImage, err := version.CreateShareImage(b.ImageInfo.HubURL, b.ImageInfo.Namespace, fmt.Sprintf("%s_backup", b.Version))
 		if err != nil {
 			return fmt.Errorf("create backup image error %s", err)
 		}

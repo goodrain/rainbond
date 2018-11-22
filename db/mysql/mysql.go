@@ -93,11 +93,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.TenantServiceMountRelation{})
 	m.models = append(m.models, &model.TenantServiceVolume{})
 	m.models = append(m.models, &model.TenantServiceLable{})
-	m.models = append(m.models, &model.K8sService{})
-	m.models = append(m.models, &model.K8sDeployReplication{})
-	m.models = append(m.models, &model.K8sPod{})
-	m.models = append(m.models, &model.ServiceProbe{})
-	m.models = append(m.models, &model.TenantServiceStatus{})
+	m.models = append(m.models, &model.TenantServiceProbe{})
 	m.models = append(m.models, &model.LicenseInfo{})
 	m.models = append(m.models, &model.TenantServicesDelete{})
 	//vs map port
@@ -107,7 +103,6 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.TenantServicePluginRelation{})
 	m.models = append(m.models, &model.TenantPluginVersionEnv{})
 	m.models = append(m.models, &model.CodeCheckResult{})
-	m.models = append(m.models, &model.AppPublish{})
 	m.models = append(m.models, &model.ServiceEvent{})
 	m.models = append(m.models, &model.VersionInfo{})
 	m.models = append(m.models, &model.RegionUserInfo{})
@@ -157,11 +152,5 @@ func (m *Manager) CheckTable() {
 }
 
 func (m *Manager) patchTable() {
-	//set plugin version image name length
-	if err := m.db.Exec("alter table tenant_plugin_build_version modify column base_image varchar(200);").Error; err != nil {
-		logrus.Errorf("alter table tenant_plugin_build_version error %s", err.Error())
-	}
-	if err := m.db.Exec("alter table tenant_plugin_build_version modify column build_local_image varchar(200);").Error; err != nil {
-		logrus.Errorf("alter table tenant_plugin_build_version error %s", err.Error())
-	}
+
 }

@@ -287,18 +287,6 @@ type ServiceStruct struct {
 	// in: body
 	// required: false
 	ContainerEnv string `json:"container_env" validate:"container_env"`
-	// 卷名字
-	// in: body
-	// required: false
-	VolumePath string `json:"volume_path" validate:"volume_path"`
-	// 容器挂载目录
-	// in: body
-	// required: false
-	VolumeMountPath string `json:"volume_mount_path" validate:"volume_mount_path"`
-	// 宿主机目录
-	// in: body
-	// required: false
-	HostPath string `json:"host_path" validate:"host_path"`
 	// 扩容方式；0:无状态；1:有状态；2:分区
 	// in: body
 	// required: false
@@ -323,22 +311,10 @@ type ServiceStruct struct {
 	// in: body
 	// required: false
 	EventID string `json:"event_id" validate:"event_id"`
-	// 服务类型
-	// in: body
-	// required: false
-	ServiceType string `json:"service_type" validate:"service_type"`
 	// 镜像来源
 	// in: body
 	// required: false
 	Namespace string `json:"namespace" validate:"namespace"`
-	// 共享类型shared、exclusive
-	// in: body
-	// required: false
-	VolumeType string `json:"volume_type" validate:"volume_type"`
-	// 端口类型，one_outer;dif_protocol;multi_outer
-	// in: body
-	// required: false
-	PortType string `json:"port_type" validate:"port_type"`
 	// 更新时间
 	// in: body
 	// required: false
@@ -347,12 +323,6 @@ type ServiceStruct struct {
 	// in: body
 	// required: false
 	ServiceOrigin string `json:"service_origin" validate:"service_origin"`
-	// 代码来源:gitlab,github
-	// in: body
-	// required: false
-	CodeFrom string `json:"code_from" validate:"code_from"`
-
-	Domain string `json:"domain" validate:"domain"`
 
 	ServiceLabel   string                               `json:"service_label"  validate:"service_label"`
 	NodeLabel      string                               `json:"node_label"  validate:"node_label"`
@@ -927,23 +897,6 @@ type GetServiceCheckInfoStruct struct {
 	// in: path
 	// required: true
 	UUID string `json:"uuid"`
-}
-
-//CloudShareStruct CloudShareStruct
-//swagger:parameters sharecloud
-type CloudShareStruct struct {
-	// in: path
-	// required: true
-	TenantName string `json:"tenant_name"`
-	// in: body
-	Body struct {
-		// 分享类型，app_slug／app_image
-		// in: body
-		// required: true
-		Kind  string `json:"kind" validate:"kind|required|in:app_slug,app_image"`
-		Slug  SlugShare
-		Image ImageShare
-	}
 }
 
 //PublicShare share共用结构

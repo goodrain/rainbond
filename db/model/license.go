@@ -29,5 +29,5 @@ type LicenseInfo struct {
 
 //TableName 返回license表名称
 func (l *LicenseInfo) TableName() string {
-	return "license"
+	return "rainbond_license"
 }

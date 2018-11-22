@@ -53,19 +53,12 @@ type Manager interface {
 	TenantServiceMountRelationDaoTransactions(db *gorm.DB) dao.TenantServiceMountRelationDao
 	TenantServiceVolumeDao() dao.TenantServiceVolumeDao
 	TenantServiceVolumeDaoTransactions(*gorm.DB) dao.TenantServiceVolumeDao
-	K8sServiceDao() dao.K8sServiceDao
-	K8sServiceDaoTransactions(*gorm.DB) dao.K8sServiceDao
-	K8sDeployReplicationDao() dao.K8sDeployReplicationDao
-	K8sPodDao() dao.K8sPodDao
-	K8sPodDaoTransactions(*gorm.DB) dao.K8sPodDao
 	ServiceProbeDao() dao.ServiceProbeDao
 	ServiceProbeDaoTransactions(*gorm.DB) dao.ServiceProbeDao
 	TenantServiceLBMappingPortDao() dao.TenantServiceLBMappingPortDao
 	TenantServiceLBMappingPortDaoTransactions(*gorm.DB) dao.TenantServiceLBMappingPortDao
 	TenantServiceLabelDao() dao.TenantServiceLabelDao
 	TenantServiceLabelDaoTransactions(db *gorm.DB) dao.TenantServiceLabelDao
-	TenantServiceStatusDao() dao.ServiceStatusDao
-	TenantServiceStatusDaoTransactions(db *gorm.DB) dao.ServiceStatusDao
 	LocalSchedulerDao() dao.LocalSchedulerDao
 	TenantPluginDaoTransactions(db *gorm.DB) dao.TenantPluginDao
 	TenantPluginDao() dao.TenantPluginDao
@@ -82,9 +75,6 @@ type Manager interface {
 
 	CodeCheckResultDao() dao.CodeCheckResultDao
 	CodeCheckResultDaoTransactions(db *gorm.DB) dao.CodeCheckResultDao
-
-	AppPublishDao() dao.AppPublishDao
-	AppPublishDaoTransactions(db *gorm.DB) dao.AppPublishDao
 
 	ServiceEventDao() dao.EventDao
 	ServiceEventDaoTransactions(db *gorm.DB) dao.EventDao
