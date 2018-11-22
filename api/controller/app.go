@@ -186,7 +186,7 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 		logrus.Debug("Start receive upload file: ", eventId)
 		reader, header, err := r.FormFile("appTarFile")
 		if err != nil {
-			logrus.Errorf("Failed to parse upload file:", err.Error())
+			logrus.Errorf("Failed to parse upload file: %s", err.Error())
 			httputil.ReturnError(r, w, 501, "Failed to parse upload file.")
 			return
 		}
@@ -198,7 +198,7 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 		fileName := fmt.Sprintf("%s/%s", dirName, header.Filename)
 		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil {
-			logrus.Errorf("Failed to open file: ", err.Error())
+			logrus.Errorf("Failed to open file: %s", err.Error())
 			httputil.ReturnError(r, w, 502, "Failed to open file: "+err.Error())
 		}
 		defer file.Close()

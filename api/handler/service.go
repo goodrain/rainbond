@@ -1401,9 +1401,11 @@ func (s *ServiceAction) GetPods(serviceID string) ([]*K8sPodInfo, error) {
 			}
 		}
 		podInfo.Container = containerInfos
+		podNames = append(podNames, v.PodName)
 		podsInfoList = append(podsInfoList, &podInfo)
 	}
 	containerMemInfo, _ := s.GetPodContainerMemory(podNames)
+	fmt.Println(containerMemInfo)
 	for _, c := range podsInfoList {
 		for k := range c.Container {
 			if info, exist := containerMemInfo[c.PodName][k]; exist {
@@ -1444,8 +1446,12 @@ func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map
 				var containerName, podName string
 				var valuesBytes string
 				if cname, ok := re["metric"].(map[string]interface{}); ok {
-					containerName = cname["container_name"].(string)
-					podName = cname["pod_name"].(string)
+					if containerName, ok = cname["container_name"].(string); !ok {
+						continue
+					}
+					if podName, ok = cname["pod_name"].(string); !ok {
+						continue
+					}
 				} else {
 					logrus.Info("metric decode error")
 				}
@@ -1458,11 +1464,11 @@ func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map
 					memoryUsageMap[podName][containerName] = valuesBytes
 				} else {
 					memoryUsageMap[podName] = map[string]string{
-						"container_name": valuesBytes,
+						containerName: valuesBytes,
 					}
 				}
-				return memoryUsageMap, nil
 			}
+			return memoryUsageMap, nil
 		}
 	} else {
 		logrus.Error("Body Is empty")

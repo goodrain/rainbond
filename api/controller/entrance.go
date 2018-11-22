@@ -19,8 +19,9 @@
 package controller
 
 import (
-	"github.com/goodrain/rainbond/api/proxy"
 	"net/http"
+
+	"github.com/goodrain/rainbond/api/proxy"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -32,6 +33,6 @@ type EntranceStruct struct {
 
 //Entrance entrance
 func (e *EntranceStruct) Entrance(w http.ResponseWriter, r *http.Request) {
-	logrus.Debug("proxy entrance api %s", r.RequestURI)
+	logrus.Debugf("proxy entrance api %s", r.RequestURI)
 	e.HTTPProxy.Proxy(w, r)
 }

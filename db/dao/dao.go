@@ -62,16 +62,6 @@ type LicenseDao interface {
 	ListLicenses() ([]*model.LicenseInfo, error)
 }
 
-//EventLogDao EventLogDao
-type EventLogDao interface {
-	Dao
-	GetEventLogMessages(eventID string) ([]*model.EventLogMessage, error)
-	DeleteServiceLog(serviceID string) error
-	DeleteServiceEventLog(obj *model.EventLogMessage) error
-	GetAllServiceEventLog() ([]*model.EventLogMessage, error)
-	DeleteServiceEventLogByEventId(eventId string) error
-}
-
 //TenantServiceDao TenantServiceDao
 type TenantServiceDao interface {
 	Dao

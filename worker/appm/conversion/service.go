@@ -104,11 +104,12 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 		as.CreaterID = string(util.NewTimeVersion())
 	}
 	as.TenantName = tenant.Name
+	if serviceType == nil || serviceType.LabelValue == util.StatelessServiceType {
+		initBaseDeployment(as, tenantService)
+		return nil
+	}
 	if serviceType.LabelValue == util.StatefulServiceType {
 		initBaseStatefulSet(as, tenantService)
-	}
-	if serviceType.LabelValue == util.StatelessServiceType {
-		initBaseDeployment(as, tenantService)
 	}
 	return nil
 }

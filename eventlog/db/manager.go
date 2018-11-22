@@ -18,8 +18,12 @@
 
 package db
 
-import "github.com/goodrain/rainbond/eventlog/conf"
-import "github.com/Sirupsen/logrus"
+import (
+	"fmt"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/eventlog/conf"
+)
 
 type Manager interface {
 	SaveMessage([]*EventLogMessage) error
@@ -33,29 +37,11 @@ func NewManager(conf conf.DBConf, log *logrus.Entry) (Manager, error) {
 		return &filePlugin{
 			homePath: conf.HomePath,
 		}, nil
-	case "cockroachdb":
-		cdb := &cockroachPlugin{
-			conf: conf,
-			url:  conf.URL,
-			log:  log,
-		}
-		if err := cdb.open(); err != nil {
-			return nil, err
-		}
-		return cdb, nil
 	case "eventfile":
 		return &EventFilePlugin{
 			HomePath: conf.HomePath,
 		}, nil
 	default:
-		my := &mysqlPlugin{
-			conf: conf,
-			url:  conf.URL,
-			log:  log,
-		}
-		if err := my.open(); err != nil {
-			return nil, err
-		}
-		return my, nil
+		return nil, fmt.Errorf("do not support plugin")
 	}
 }

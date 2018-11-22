@@ -37,8 +37,6 @@ type Manager interface {
 	AppDao() dao.AppDao
 	TenantDao() dao.TenantDao
 	TenantDaoTransactions(db *gorm.DB) dao.TenantDao
-	EventLogDao() dao.EventLogDao
-	EventLogDaoTransactions(*gorm.DB) dao.EventLogDao
 	TenantServiceDao() dao.TenantServiceDao
 	TenantServiceDeleteDao() dao.TenantServiceDeleteDao
 	TenantServiceDaoTransactions(db *gorm.DB) dao.TenantServiceDao

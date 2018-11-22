@@ -19,8 +19,9 @@
 package controller
 
 import (
-	"github.com/goodrain/rainbond/api/proxy"
 	"net/http"
+
+	"github.com/goodrain/rainbond/api/proxy"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -45,9 +46,6 @@ func (a *AcpNodeStruct) Nodes(w http.ResponseWriter, r *http.Request) {
 	// Responses:
 	//   '200':
 	//     description: '{"bean":{"hostport":"10.0.55.73:22","type":true,"result":"success"}}'
-
-
-
 
 	// swagger:operation PUT /v2/nodes/{ip}/init v2 init
 	//
@@ -112,7 +110,6 @@ func (a *AcpNodeStruct) Nodes(w http.ResponseWriter, r *http.Request) {
 	//   '200':
 	//     description: '{"bean":{"List":[{"JobSEQ":"asdfsa-sdfasdf-asdf","JobId":"online_init","JobName":"init","JobResult":3}],"Result":false}}'
 
-
 	// swagger:operation PUT /v2/nodes/{ip}/install v2 StartBuildInJobs
 	//
 	// 开始安装
@@ -133,8 +130,6 @@ func (a *AcpNodeStruct) Nodes(w http.ResponseWriter, r *http.Request) {
 	// Responses:
 	//   '200':
 	//     description: '{"bean":{"List":[{"JobSEQ":"asdfsa-sdfasdf-asdf","JobId":"online_init","JobName":"init","JobResult":3}],"Result":false}}'
-
-
 
 	// swagger:operation PUT /v2/nodes/{node}/unschedulable v2 Cordon
 	//
@@ -354,11 +349,12 @@ func (a *AcpNodeStruct) Nodes(w http.ResponseWriter, r *http.Request) {
 	// Responses:
 	//   '200':
 	//    description: '{"code":200,"msg":"success","msgcn":"成功","body":nil}'
-	logrus.Debug("proxy acp_node api %s", r.RequestURI)
+	logrus.Debugf("proxy acp_node api %s", r.RequestURI)
 	a.HTTPProxy.Proxy(w, r)
 }
+
 //Apps trans to app
-func (a *AcpNodeStruct) Apps(w http.ResponseWriter, r *http.Request)  {
+func (a *AcpNodeStruct) Apps(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/apps/{app_name}/discover v2 GetServiceEndPoints
 	//
 	// 获取指定服务endpoints
@@ -373,6 +369,7 @@ func (a *AcpNodeStruct) Apps(w http.ResponseWriter, r *http.Request)  {
 	//   '200':
 	//    description: '{"list":[{"name":"d275f5b34faf","url":"10.0.55.72:6363","weight":0}]}'
 }
+
 //Jobs trans to job
 func (a *AcpNodeStruct) Jobs(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/job/group v2 GetAllGroup
@@ -582,6 +579,6 @@ func (a *AcpNodeStruct) Jobs(w http.ResponseWriter, r *http.Request) {
 	// Responses:
 	//   '200':
 	//    description: '{"ok":true}'
-	logrus.Debug("proxy acp_node api %s", r.RequestURI)
+	logrus.Debugf("proxy acp_node api %s", r.RequestURI)
 	a.HTTPProxy.Proxy(w, r)
 }

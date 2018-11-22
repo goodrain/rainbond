@@ -32,20 +32,6 @@ func (m *Manager) LicenseDao() dao.LicenseDao {
 	}
 }
 
-//EventLogDao EventLogDao
-func (m *Manager) EventLogDao() dao.EventLogDao {
-	return &mysqldao.EventLogMessageDaoImpl{
-		DB: m.db,
-	}
-}
-
-//EventLogDaoTransactions EventLogDao
-func (m *Manager) EventLogDaoTransactions(db *gorm.DB) dao.EventLogDao {
-	return &mysqldao.EventLogMessageDaoImpl{
-		DB: db,
-	}
-}
-
 //TenantDao 租户数据
 func (m *Manager) TenantDao() dao.TenantDao {
 	return &mysqldao.TenantDaoImpl{

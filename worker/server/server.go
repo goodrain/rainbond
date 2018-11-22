@@ -111,7 +111,7 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 		}
 		pods := app.GetPods()
 		for _, pod := range pods {
-			var containers map[string]*pb.Container
+			var containers = make(map[string]*pb.Container, len(pod.Spec.Containers))
 			for _, container := range pod.Spec.Containers {
 				containers[container.Name] = &pb.Container{
 					ContainerName: container.Name,

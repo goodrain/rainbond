@@ -4,9 +4,9 @@
 package db
 
 import (
+	dao "github.com/goodrain/rainbond/db/dao"
 	gomock "github.com/rafrombrc/gomock/gomock"
 	gorm "github.com/jinzhu/gorm"
-	dao "github.com/goodrain/rainbond/db/dao"
 )
 
 // Mock of Manager interface
@@ -88,26 +88,6 @@ func (_m *MockManager) TenantDaoTransactions(db *gorm.DB) dao.TenantDao {
 
 func (_mr *_MockManagerRecorder) TenantDaoTransactions(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "TenantDaoTransactions", arg0)
-}
-
-func (_m *MockManager) EventLogDao() dao.EventLogDao {
-	ret := _m.ctrl.Call(_m, "EventLogDao")
-	ret0, _ := ret[0].(dao.EventLogDao)
-	return ret0
-}
-
-func (_mr *_MockManagerRecorder) EventLogDao() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "EventLogDao")
-}
-
-func (_m *MockManager) EventLogDaoTransactions(_param0 *gorm.DB) dao.EventLogDao {
-	ret := _m.ctrl.Call(_m, "EventLogDaoTransactions", _param0)
-	ret0, _ := ret[0].(dao.EventLogDao)
-	return ret0
-}
-
-func (_mr *_MockManagerRecorder) EventLogDaoTransactions(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "EventLogDaoTransactions", arg0)
 }
 
 func (_m *MockManager) TenantServiceDao() dao.TenantServiceDao {

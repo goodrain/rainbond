@@ -84,7 +84,7 @@ func createEvent(eventID, serviceID, optType, tenantID, deployVersion string) (*
 
 	status, err := checkCanAddEvent(serviceID, event.EventID)
 	if err != nil {
-		logrus.Errorf("error check event", err.Error())
+		logrus.Errorf("error check event %s", err.Error())
 		return nil, status, nil
 	}
 	if status == 0 {
@@ -113,12 +113,12 @@ func checkCanAddEvent(s, eventID string) (int, error) {
 		if err != nil {
 			return 3, err
 		}
+		logrus.Debugf("event %s timeOut %v", latestEvent.EventID, timeOut)
 		if timeOut {
 			//未完成，超时
 			return 0, nil
 		}
 		//未完成，未超时
-
 		return 2, nil
 	}
 	//已完成
@@ -132,19 +132,17 @@ func getOrNilEventID(data map[string]interface{}) string {
 }
 func checkEventTimeOut(event *dbmodel.ServiceEvent) (bool, error) {
 	startTime := event.StartTime
-	start, err := time.Parse(TIMELAYOUT, startTime)
+	start, err := time.ParseInLocation(TIMELAYOUT, startTime, time.Local)
 	if err != nil {
 		return true, err
 	}
-	if event.OptType == "deploy" || event.OptType == "create" {
-
+	if event.OptType == "deploy" || event.OptType == "create" || event.OptType == "build" {
 		end := start.Add(3 * time.Minute)
 		if time.Now().After(end) {
 			event.FinalStatus = "timeout"
 			err = db.GetManager().ServiceEventDao().UpdateModel(event)
 			return true, err
 		}
-
 	} else {
 		end := start.Add(30 * time.Second)
 		if time.Now().After(end) {
@@ -153,7 +151,6 @@ func checkEventTimeOut(event *dbmodel.ServiceEvent) (bool, error) {
 			return true, err
 		}
 	}
-
 	return false, nil
 }
 
@@ -215,9 +212,7 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 	if status != 0 {
 		return
 	}
-
 	eventID := sEvent.EventID
-
 	logger := event.GetManager().GetLogger(eventID)
 	defer event.CloseManager()
 	startStopStruct := &api_model.StartStopStruct{
