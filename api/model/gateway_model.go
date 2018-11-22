@@ -20,7 +20,7 @@ package model
 
 //HttpRuleStruct -
 type HttpRuleStruct struct {
-	HttpRuleID      string                 `json:"http_rule_id" validate:"http_rule_id:required"`
+	HttpRuleID      string                 `json:"http_rule_id" validate:"http_rule_id|required"`
 	ServiceID       string                 `json:"service_id"`
 	ContainerPort   int                    `json:"container_port"`
 	Domain          string                 `json:"domain"`
@@ -36,12 +36,12 @@ type HttpRuleStruct struct {
 }
 
 type TcpRuleStruct struct {
-	//TcpRuleId        string                 `json:"tcp_rule_id" validate:"tcp_rule_id:required"`
-	ServiceID        string                 `json:"service_id" validate:"service_id|required"`
-	ContainerPort    int                    `json:"container_port" validate:"container_port|required"`
-	IP               string                 `json:"ip"`
-	Port             int                    `json:"port"`
-	RuleExtensions   []*RuleExtensionStruct `json:"rule_extensions"`
+	TcpRuleId      string                 `json:"tcp_rule_id" validate:"tcp_rule_id|required"`
+	ServiceID      string                 `json:"service_id"`
+	ContainerPort  int                    `json:"container_port"`
+	IP             string                 `json:"ip"`
+	Port           int                    `json:"port"`
+	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
 }
 
 type RuleExtensionStruct struct {
