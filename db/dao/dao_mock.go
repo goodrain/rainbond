@@ -3599,6 +3599,17 @@ func (_mr *_MockHttpRuleDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call 
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
 }
 
+func (_m *MockHttpRuleDao) GetHttpRuleByID(id string) (*model.HttpRule, error) {
+	ret := _m.ctrl.Call(_m, "GetHttpRuleByID", id)
+	ret0, _ := ret[0].(*model.HttpRule)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockHttpRuleDaoRecorder) GetHttpRuleByID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetHttpRuleByID", arg0)
+}
+
 func (_m *MockHttpRuleDao) GetHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HttpRule, error) {
 	ret := _m.ctrl.Call(_m, "GetHttpRuleByServiceIDAndContainerPort", serviceID, containerPort)
 	ret0, _ := ret[0].(*model.HttpRule)
@@ -3619,6 +3630,16 @@ func (_m *MockHttpRuleDao) DeleteHttpRuleByServiceIDAndContainerPort(serviceID s
 
 func (_mr *_MockHttpRuleDaoRecorder) DeleteHttpRuleByServiceIDAndContainerPort(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteHttpRuleByServiceIDAndContainerPort", arg0, arg1)
+}
+
+func (_m *MockHttpRuleDao) DeleteHttpRuleByID(id string) error {
+	ret := _m.ctrl.Call(_m, "DeleteHttpRuleByID", id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockHttpRuleDaoRecorder) DeleteHttpRuleByID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteHttpRuleByID", arg0)
 }
 
 // Mock of TcpRuleDao interface
@@ -3671,4 +3692,14 @@ func (_m *MockTcpRuleDao) GetTcpRuleByServiceIDAndContainerPort(serviceID string
 
 func (_mr *_MockTcpRuleDaoRecorder) GetTcpRuleByServiceIDAndContainerPort(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTcpRuleByServiceIDAndContainerPort", arg0, arg1)
+}
+
+func (_m *MockTcpRuleDao) DeleteTcpRule(tcpRule *model.TcpRule) error {
+	ret := _m.ctrl.Call(_m, "DeleteTcpRule", tcpRule)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockTcpRuleDaoRecorder) DeleteTcpRule(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteTcpRule", arg0)
 }

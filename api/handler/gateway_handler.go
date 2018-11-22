@@ -25,8 +25,8 @@ import (
 )
 
 type GatewayHandler interface {
-	AddHttpRule(httpRule *dbmodel.HttpRule, tx *gorm.DB) error
-	UpdateHttpRule(req *apimodel.HttpRuleStruct, tx *gorm.DB) (*dbmodel.HttpRule, error)
+	AddHttpRule(req *apimodel.HttpRuleStruct) error
+	UpdateHttpRule(req *apimodel.HttpRuleStruct) error
 	DeleteHttpRule(req *apimodel.HttpRuleStruct) error
 
 	AddCertificate(req *apimodel.HttpRuleStruct, tx *gorm.DB) error

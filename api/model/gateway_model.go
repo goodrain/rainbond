@@ -20,30 +20,31 @@ package model
 
 //HttpRuleStruct -
 type HttpRuleStruct struct {
-	ServiceID        string                 `json:"service_id" validate:"service_id|required"`
-	ContainerPort    int                    `json:"container_port" validate:"container_port|required"`
-	Domain           string                 `json:"domain"`
-	Path             string                 `json:"path"`
-	Header           string                 `json:"header"`
-	Cookie           string                 `json:"cookie"`
-	IP               string                 `json:"ip"`
-	LoadBalancerType string                 `json:"load_balancer_type"`
-	CertificateID    string                 `json:"certificate_id"`
-	CertificateName  string                 `json:"certificate_name"`
-	Certificate      string                 `json:"certificate"`
-	PrivateKey       string                 `json:"private_key"`
-	RuleExtensions   []*RuleExtensionStruct `json:"rule_extensions"`
+	HttpRuleID      string                 `json:"http_rule_id" validate:"http_rule_id:required"`
+	ServiceID       string                 `json:"service_id"`
+	ContainerPort   int                    `json:"container_port"`
+	Domain          string                 `json:"domain"`
+	Path            string                 `json:"path"`
+	Header          string                 `json:"header"`
+	Cookie          string                 `json:"cookie"`
+	IP              string                 `json:"ip"`
+	CertificateID   string                 `json:"certificate_id"`
+	CertificateName string                 `json:"certificate_name"`
+	Certificate     string                 `json:"certificate"`
+	PrivateKey      string                 `json:"private_key"`
+	RuleExtensions  []*RuleExtensionStruct `json:"rule_extensions"`
 }
 
 type TcpRuleStruct struct {
+	//TcpRuleId        string                 `json:"tcp_rule_id" validate:"tcp_rule_id:required"`
 	ServiceID        string                 `json:"service_id" validate:"service_id|required"`
 	ContainerPort    int                    `json:"container_port" validate:"container_port|required"`
 	IP               string                 `json:"ip"`
 	Port             int                    `json:"port"`
-	LoadBalancerType string                 `json:"load_balancer_type"`
 	RuleExtensions   []*RuleExtensionStruct `json:"rule_extensions"`
 }
 
 type RuleExtensionStruct struct {
+	Key   string `json:"key"`
 	Value string `json:"value"`
 }

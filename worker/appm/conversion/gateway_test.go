@@ -24,15 +24,17 @@ import (
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
+	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/rafrombrc/gomock/gomock"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"os"
+
 	// "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"strconv"
 	"testing"
 	"time"
@@ -142,11 +144,10 @@ func TestApplyTcpRule(t *testing.T) {
 			testCase[parser.GetAnnotationWithPrefix("l4-port")], err)
 	}
 	tcpRule := &model.TcpRule{
-		ServiceID:        serviceID,
-		ContainerPort:    port.ContainerPort,
-		IP:               testCase[parser.GetAnnotationWithPrefix("l4-host")],
-		Port:             mappingPort,
-		LoadBalancerType: string(model.RoundRobinLBType),
+		ServiceID:     serviceID,
+		ContainerPort: port.ContainerPort,
+		IP:            testCase[parser.GetAnnotationWithPrefix("l4-host")],
+		Port:          mappingPort,
 	}
 
 	ing, err := applyTcpRule(tcpRule, service,
@@ -206,6 +207,7 @@ func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 	dbmanager := db.NewMockManager(ctrl)
 
 	serviceID := "43eaae441859eda35b02075d37d83589"
+	httpRuleID := "1232aae441859eda35b02075d37d8f8d"
 	containerPort, err := strconv.Atoi(testCase["servicePort"])
 	if err != nil {
 		t.Errorf("Can't convert %s(string) to int", testCase["servicePort"])
@@ -253,7 +255,7 @@ func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 	dbmanager.EXPECT().TenantDao().Return(tenantDao)
 
 	extensionDao := dao.NewMockRuleExtensionDao(ctrl)
-	extensionDao.EXPECT().GetRuleExtensionByServiceID(serviceID).Return(nil, nil)
+	extensionDao.EXPECT().GetRuleExtensionByRuleID(httpRuleID).Return(nil, nil)
 	dbmanager.EXPECT().RuleExtensionDao().Return(extensionDao)
 
 	replicationType := v1.TypeDeployment
@@ -263,11 +265,11 @@ func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 	}
 
 	httpRule := &model.HttpRule{
-		ServiceID:        serviceID,
-		ContainerPort:    containerPort,
-		Domain:           testCase["domain"],
-		Path:             testCase["path"],
-		LoadBalancerType: string(model.RoundRobinLBType),
+		UUID:          httpRuleID,
+		ServiceID:     serviceID,
+		ContainerPort: containerPort,
+		Domain:        testCase["domain"],
+		Path:          testCase["path"],
 	}
 
 	port := &model.TenantServicesPort{
@@ -328,6 +330,7 @@ func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 	testCase := map[string]string{
 		"namespace":     "foobar",
+		"ruleID":        "abbe1e0038af47048f34809337531d76",
 		"domain":        "www.goodrain.com",
 		"path":          "/dummy-path",
 		"serviceName":   "dummy-service-name",
@@ -340,6 +343,7 @@ func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 
 	dbmanager := db.NewMockManager(ctrl)
 
+	ruleID := "abbe1e0038af47048f34809337531d76"
 	serviceID := "43eaae441859eda35b02075d37d83589"
 	containerPort, err := strconv.Atoi(testCase["servicePort"])
 	if err != nil {
@@ -388,7 +392,7 @@ func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 	dbmanager.EXPECT().TenantDao().Return(tenantDao)
 
 	extensionDao := dao.NewMockRuleExtensionDao(ctrl)
-	extensionDao.EXPECT().GetRuleExtensionByServiceID(serviceID).Return(nil, nil)
+	extensionDao.EXPECT().GetRuleExtensionByRuleID(ruleID).Return(nil, nil)
 	dbmanager.EXPECT().RuleExtensionDao().Return(extensionDao)
 
 	certificateDao := dao.NewMockCertificateDao(ctrl)
@@ -408,12 +412,12 @@ func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 	}
 
 	httpRule := &model.HttpRule{
-		ServiceID:        serviceID,
-		ContainerPort:    containerPort,
-		Domain:           testCase["domain"],
-		Path:             testCase["path"],
-		LoadBalancerType: string(model.RoundRobinLBType),
-		CertificateID:    testCase["certificateID"],
+		UUID:          ruleID,
+		ServiceID:     serviceID,
+		ContainerPort: containerPort,
+		Domain:        testCase["domain"],
+		Path:          testCase["path"],
+		CertificateID: testCase["certificateID"],
 	}
 
 	port := &model.TenantServicesPort{
@@ -445,32 +449,33 @@ func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 		},
 	}
 
+	os.Setenv("EX_DOMAIN", "ali-sh.goodrain.net")
 	ing, sec, err := build.applyHttpRule(httpRule, port, service)
 	if err != nil {
 		t.Errorf("Unexpected error occurred whiling applying http rule: %v", err)
 	}
 
-	// clientSet := fake.NewSimpleClientset()
-	c, err := clientcmd.BuildConfigFromFlags("", "/Users/abe/go/src/github.com/goodrain/rainbond/test/admin.kubeconfig")
-	if err != nil {
-		t.Fatalf("read kube config file error: %v", err)
-	}
-	clientSet, err := kubernetes.NewForConfig(c)
-	if err != nil {
-		t.Fatalf("create kube api client error: %v", err)
-	}
-	// ensureSecret(sec, clientSet, t)
-	ensureNamespace(&corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "foobar",
-		},
-	}, clientSet, t)
-	if _, err := clientSet.CoreV1().Secrets(sec.Namespace).Create(sec); err != nil {
-		t.Errorf("Can't create Serect(%s): %v", sec.Name, err)
-	}
-	if _, err := clientSet.ExtensionsV1beta1().Ingresses(ing.Namespace).Create(ing); err != nil {
-		t.Errorf("Can't create Ingress(%s): %v", ing.Name, err)
-	}
+	//// clientSet := fake.NewSimpleClientset()
+	//c, err := clientcmd.BuildConfigFromFlags("", "/Users/abe/go/src/github.com/goodrain/rainbond/test/admin.kubeconfig")
+	//if err != nil {
+	//	t.Fatalf("read kube config file error: %v", err)
+	//}
+	//clientSet, err := kubernetes.NewForConfig(c)
+	//if err != nil {
+	//	t.Fatalf("create kube api client error: %v", err)
+	//}
+	//// ensureSecret(sec, clientSet, t)
+	//ensureNamespace(&corev1.Namespace{
+	//	ObjectMeta: metav1.ObjectMeta{
+	//		Name: "foobar",
+	//	},
+	//}, clientSet, t)
+	//if _, err := clientSet.CoreV1().Secrets(sec.Namespace).Create(sec); err != nil {
+	//	t.Errorf("Can't create Serect(%s): %v", sec.Name, err)
+	//}
+	//if _, err := clientSet.ExtensionsV1beta1().Ingresses(ing.Namespace).Create(ing); err != nil {
+	//	t.Errorf("Can't create Ingress(%s): %v", ing.Name, err)
+	//}
 
 	if ing.ObjectMeta.Namespace != testCase["namespace"] {
 		t.Errorf("Expected %s for namespace, but returned %s", testCase["namespace"], ing.ObjectMeta.Namespace)
@@ -518,4 +523,8 @@ func ensureNamespace(ns *corev1.Namespace, clientSet kubernetes.Interface, t *te
 	t.Logf("Namespace %+v updated", ns)
 
 	return n
+}
+
+func TestTemp2(t *testing.T) {
+	fmt.Print(util.NewUUID())
 }

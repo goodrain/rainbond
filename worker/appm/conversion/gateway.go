@@ -272,7 +272,7 @@ func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.Tenant
 
 	annos := make(map[string]string)
 	// load balancer type
-	annos[parser.GetAnnotationWithPrefix("load-balancer-type")] = string(rule.LoadBalancerType)
+	//annos[parser.GetAnnotationWithPrefix("load-balancer-type")] = string(rule.LoadBalancerType)
 	// header
 	if rule.Header != "" {
 		annos[parser.GetAnnotationWithPrefix("header")] = rule.Header
@@ -307,7 +307,6 @@ func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.Tenant
 		}
 	}
 	// rule extension
-
 	ruleExtensions, err := a.dbmanager.RuleExtensionDao().GetRuleExtensionByRuleID(rule.UUID)
 	if err != nil {
 		return nil, nil, err
@@ -344,7 +343,7 @@ func applyTcpRule(
 		},
 	}
 	annos := make(map[string]string)
-	annos[parser.GetAnnotationWithPrefix("load-balancer-type")] = string(rule.LoadBalancerType)
+	//annos[parser.GetAnnotationWithPrefix("load-balancer-type")] = string(rule.LoadBalancerType)  // TODO
 	annos[parser.GetAnnotationWithPrefix("l4-enable")] = "true"
 	annos[parser.GetAnnotationWithPrefix("l4-host")] = rule.IP
 	if err != nil {

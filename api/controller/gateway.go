@@ -24,9 +24,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/handler"
 	api_model "github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"net/http"
 )
@@ -57,45 +54,10 @@ func (g *GatewayStruct) addHttpRule(w http.ResponseWriter, r *http.Request) {
 	reqJson, _ := json.Marshal(req)
 	logrus.Debugf("Request is : %s", string(reqJson))
 
-	// TODO: shouldn't write the business logic here
-	httpRule := &model.HttpRule{
-		UUID:             util.NewUUID(),
-		ServiceID:        req.ServiceID,
-		ContainerPort:    req.ContainerPort,
-		Domain:           req.Domain,
-		Path:             req.Path,
-		Header:           req.Header,
-		Cookie:           req.Cookie,
-		IP:               req.IP,
-		LoadBalancerType: req.LoadBalancerType,
-		CertificateID:    req.CertificateID,
-	}
-
 	h := handler.GetGatewayHandler()
-	tx := db.GetManager().Begin()
-	if err := h.AddHttpRule(httpRule, tx); err != nil {
-		tx.Rollback()
+
+	if err := h.AddHttpRule(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while adding http rule: %v", err))
-		return
-	}
-
-	if req.CertificateID != "" {
-		if err := h.AddCertificate(&req, tx); err != nil {
-			httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while adding certificate: %v", err))
-			return
-		}
-	}
-
-	err := h.AddRuleExtensions(httpRule.UUID, req.RuleExtensions, tx)
-	if err != nil {
-		tx.Rollback()
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while adding rule extensions: %v", err))
-		return
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while commit transaction: %v", err))
 		return
 	}
 
@@ -112,35 +74,10 @@ func (g *GatewayStruct) updateHttpRule(w http.ResponseWriter, r *http.Request) {
 	reqJson, _ := json.Marshal(req)
 	logrus.Debugf("Request is : %s", string(reqJson))
 
-	// TODO: shouldn't write the business logic here
-	// begin transaction
-	tx := db.GetManager().Begin()
 	h := handler.GetGatewayHandler()
-	httpRule, err := h.UpdateHttpRule(&req, tx)
-	if err != nil {
-		tx.Rollback()
+	if err := h.UpdateHttpRule(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating http rule: %v", err))
-		return
-	}
-
-	if err := h.AddCertificate(&req, tx); err != nil {
-		tx.Rollback()
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
-			"updating certificate: %v", err))
-		return
-	}
-
-	if err := h.AddRuleExtensions(httpRule.UUID, req.RuleExtensions, tx); err != nil {
-		tx.Rollback()
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while adding rule extensions: %v", err))
-		return
-	}
-
-	// end transaction
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while committing transaction: %v", err))
 		return
 	}
 
@@ -192,7 +129,7 @@ func (g *GatewayStruct) addTcpRule(w http.ResponseWriter, r *http.Request) {
 
 	h := handler.GetGatewayHandler()
 	if err := h.AddTcpRule(&req); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while " +
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"adding tcp rule: %v", err))
 		return
 	}
@@ -212,7 +149,7 @@ func (g *GatewayStruct) updateTcpRule(w http.ResponseWriter, r *http.Request) {
 
 	h := handler.GetGatewayHandler()
 	if err := h.UpdateTcpRule(&req); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while " +
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating tcp rule: %v", err))
 		return
 	}
@@ -232,7 +169,7 @@ func (g *GatewayStruct) deleteTcpRule(w http.ResponseWriter, r *http.Request) {
 
 	h := handler.GetGatewayHandler()
 	if err := h.DeleteTcpRule(&req); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while " +
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"deleting tcp rule: %v", err))
 		return
 	}
