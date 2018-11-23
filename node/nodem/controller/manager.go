@@ -24,7 +24,7 @@ import "github.com/goodrain/rainbond/node/nodem/service"
 type Manager interface {
 	Start() error
 	Stop() error
-	GetAllService() ([]*service.Service, error)
+	GetAllService() (*[]*service.Service, error)
 	Online() error
 	Offline() error
 	ReLoadServices() error

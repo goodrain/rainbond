@@ -38,7 +38,7 @@ type Manager interface {
 	WatchServiceHealthy(serviceName string) Watcher
 	CloseWatch(serviceName string, id string) error
 	Start(hostNode *client.HostNode) error
-	AddServices([]*service.Service) error
+	AddServices(*[]*service.Service) error
 	Stop() error
 	DisableWatcher(serviceName, watcherID string)
 	EnableWatcher(serviceName, watcherID string)
@@ -61,7 +61,7 @@ type watcher struct {
 }
 
 type probeManager struct {
-	services   []*service.Service
+	services   *[]*service.Service
 	status     map[string]*service.HealthStatus
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -92,18 +92,17 @@ func CreateManager() Manager {
 		errorTime:  errorTime,
 		errorFlag:  errorFlag,
 	}
-
 	return m
 }
 
-func (p *probeManager) AddServices(inner []*service.Service) error {
+func (p *probeManager) AddServices(inner *[]*service.Service) error {
 	p.services = inner
 	return nil
 }
 
 func (p *probeManager) Start(hostNode *client.HostNode) error {
 	go p.HandleStatus()
-	for _, v := range p.services {
+	for _, v := range *p.services {
 		if v.ServiceHealth == nil {
 			continue
 		}
@@ -278,10 +277,10 @@ func (p *probeManager) WatchServiceHealthy(serviceName string) Watcher {
 }
 
 func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*service.HealthStatus, error) {
-	if len(p.services) == 0 {
+	if len(*p.services) == 0 {
 		return nil, errors.New("services list is empty")
 	}
-	for _, v := range p.services {
+	for _, v := range *p.services {
 		if v.Name == serviceName {
 
 			if v.ServiceHealth.Model == "http" {

@@ -41,8 +41,8 @@ type ControllerSystemd struct {
 	ServiceCli   string
 }
 
-//NewControllerSystemd At the stage you want to load the configurations of all rainbond components
-func NewControllerSystemd(conf *option.Conf, cluster client.ClusterClient) *ControllerSystemd {
+//NewController At the stage you want to load the configurations of all rainbond components
+func NewController(conf *option.Conf, cluster client.ClusterClient) Controller {
 	cli, err := exec.LookPath("systemctl")
 	if err != nil {
 		logrus.Errorf("current machine do not have systemctl utils")
@@ -55,14 +55,19 @@ func NewControllerSystemd(conf *option.Conf, cluster client.ClusterClient) *Cont
 	}
 }
 
+//CheckBeforeStart check before start
 func (m *ControllerSystemd) CheckBeforeStart() bool {
 	logrus.Info("Checking environments.")
-
+	if m.ServiceCli == "" {
+		logrus.Errorf("current machine do not have systemctl utils")
+		return false
+	}
 	return true
 }
 
+//StartService start service
 func (m *ControllerSystemd) StartService(serviceName string) error {
-	err := exec.Command(m.ServiceCli, "start", serviceName).Run()
+	err := m.run("start", serviceName)
 	if err != nil {
 		logrus.Errorf("Start service %s: %v", serviceName, err)
 		return err
@@ -70,8 +75,9 @@ func (m *ControllerSystemd) StartService(serviceName string) error {
 	return nil
 }
 
+//StopService stop service
 func (m *ControllerSystemd) StopService(serviceName string) error {
-	err := exec.Command(m.ServiceCli, "stop", serviceName).Run()
+	err := m.run("stop", serviceName)
 	if err != nil {
 		logrus.Errorf("Stop service %s: %v", serviceName, err)
 		return err
@@ -79,8 +85,9 @@ func (m *ControllerSystemd) StopService(serviceName string) error {
 	return nil
 }
 
+//RestartService restart service
 func (m *ControllerSystemd) RestartService(serviceName string) error {
-	err := exec.Command(m.ServiceCli, "restart", serviceName).Run()
+	err := m.run("restart", serviceName)
 	if err != nil {
 		logrus.Errorf("Restart service %s: %v", serviceName, err)
 		return err
@@ -89,14 +96,16 @@ func (m *ControllerSystemd) RestartService(serviceName string) error {
 	return nil
 }
 
+//StartList start some service
 func (m *ControllerSystemd) StartList(list []*service.Service) error {
-	logrus.Info("Starting all services.")
+	logrus.Infof("Starting %d all services.", len(list))
 	for _, s := range list {
 		m.StartService(s.Name)
 	}
 	return nil
 }
 
+//StopList stop some service
 func (m *ControllerSystemd) StopList(list []*service.Service) error {
 	logrus.Info("Stop all services.")
 	for _, s := range list {
@@ -105,26 +114,29 @@ func (m *ControllerSystemd) StopList(list []*service.Service) error {
 	return nil
 }
 
-func (m *ControllerSystemd) EnableService(name string) error {
+//EnableService enable service
+func (m *ControllerSystemd) EnableService(serviceName string) error {
 	logrus.Info("Enable service config by systemd.")
-	err := exec.Command(m.ServiceCli, "enable", name).Run()
+	err := m.run("enable", serviceName)
 	if err != nil {
-		logrus.Errorf("Enable service %s: %v", name, err)
+		logrus.Errorf("Enable service %s: %v", serviceName, err)
 	}
 
 	return nil
 }
 
-func (m *ControllerSystemd) DisableService(name string) error {
+//DisableService disable service
+func (m *ControllerSystemd) DisableService(serviceName string) error {
 	logrus.Info("Disable service config by systemd.")
-	err := exec.Command(m.ServiceCli, "disable", name).Run()
+	err := m.run("disable", serviceName)
 	if err != nil {
-		logrus.Errorf("Disable service %s: %v", name, err)
+		logrus.Errorf("Disable service %s: %v", serviceName, err)
 	}
 
 	return nil
 }
 
+//WriteConfig write config
 func (m *ControllerSystemd) WriteConfig(s *service.Service) error {
 	fileName := fmt.Sprintf("%s/%s.service", m.SysConfigDir, s.Name)
 	content := service.ToConfig(s)
@@ -134,14 +146,12 @@ func (m *ControllerSystemd) WriteConfig(s *service.Service) error {
 		logrus.Error(err)
 		return err
 	}
-
 	if err := ioutil.WriteFile(fileName, []byte(content), 0644); err != nil {
 		logrus.Errorf("Generate config file %s: %v", fileName, err)
 		return err
 	}
-
 	logrus.Info("Reload config for systemd by daemon-reload.")
-	err := exec.Command(m.ServiceCli, "daemon-reload").Run()
+	err := m.run("daemon-reload")
 	if err != nil {
 		logrus.Errorf("Reload config by systemd daemon-reload for %s: %v ", s.Name, err)
 		return err
@@ -150,6 +160,7 @@ func (m *ControllerSystemd) WriteConfig(s *service.Service) error {
 	return nil
 }
 
+//RemoveConfig remove config
 func (m *ControllerSystemd) RemoveConfig(name string) error {
 	logrus.Info("Remote service config by systemd.")
 	fileName := fmt.Sprintf("%s/%s.service", m.SysConfigDir, name)
@@ -159,11 +170,47 @@ func (m *ControllerSystemd) RemoveConfig(name string) error {
 	}
 
 	logrus.Info("Reload config for systemd by daemon-reload.")
-	err = exec.Command(m.ServiceCli, "daemon-reload").Run()
+	err = m.run("daemon-reload")
 	if err != nil {
 		logrus.Errorf("Reload config by systemd daemon-reload for %s: %v ", name, err)
 		return err
 	}
 
+	return nil
+}
+
+func (m *ControllerSystemd) run(args ...string) error {
+	err := exec.Command(m.ServiceCli, args...).Run()
+	if err != nil {
+		logrus.Errorf("systemd run error: %v", err)
+		return err
+	}
+	return nil
+}
+
+//InitStart init start. will start some required service
+func (m *ControllerSystemd) InitStart(services []*service.Service) error {
+	if err := m.run("start", "docker"); err != nil {
+		return fmt.Errorf("systemctl start docker error:%s", err.Error())
+	}
+	for _, s := range services {
+		if s.Name == "etcd" {
+			fileName := fmt.Sprintf("/etc/systemd/system/%s.service", s.Name)
+			content := service.ToConfig(s)
+			if content == "" {
+				err := fmt.Errorf("can not generate config for service %s", s.Name)
+				fmt.Println(err)
+				return err
+			}
+
+			if err := ioutil.WriteFile(fileName, []byte(content), 0644); err != nil {
+				fmt.Printf("Generate config file %s: %v", fileName, err)
+				return err
+			}
+			if err := m.run("start", s.Name); err != nil {
+				return fmt.Errorf("systemctl start %s error:%s", s.Name, err.Error())
+			}
+		}
+	}
 	return nil
 }

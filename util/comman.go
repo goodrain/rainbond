@@ -732,3 +732,12 @@ func GetCurrentDir() string {
 	}
 	return strings.Replace(dir, "\\", "/", -1)
 }
+
+//IsDir path is dir
+func IsDir(path string) (bool, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false, err
+	}
+	return info.IsDir(), nil
+}

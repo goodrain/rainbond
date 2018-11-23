@@ -41,7 +41,7 @@ type Service struct {
 	RestartSec    string      `yaml:"restart_sec,omitempty"`
 }
 
-// default config of all services
+//Services default config of all services
 type Services struct {
 	Version  string     `yaml:"version"`
 	Services []*Service `yaml:"services"`
@@ -49,7 +49,7 @@ type Services struct {
 
 // service list of the node
 type ServiceList struct {
-	Version string `yaml:"version"`
+	Version  string `yaml:"version"`
 	Services []struct {
 		Name string `yaml:"name"`
 	} `yaml:"services"`
@@ -63,10 +63,10 @@ type Endpoint struct {
 
 //Health ServiceHealth
 type Health struct {
-	Name            string `yaml:"name"`
-	Model           string `yaml:"model"`
-	Address         string `yaml:"address"`
-	TimeInterval    int    `yaml:"time_interval"`
+	Name         string `yaml:"name"`
+	Model        string `yaml:"model"`
+	Address      string `yaml:"address"`
+	TimeInterval int    `yaml:"time_interval"`
 	MaxErrorsNum int    `yaml:"max_errors_num"`
 }
 

@@ -42,7 +42,6 @@ import (
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
-	mysql "github.com/goodrain/rainbond/db"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tidwall/gjson"
@@ -280,7 +279,6 @@ func (s *storeManager) Run() error {
 	}
 	go s.handleNewMonitorMessage()
 	go s.cleanLog()
-	go s.delServiceEventlog()
 	return nil
 }
 
@@ -334,30 +332,6 @@ func (s *storeManager) deleteFile(filename string) error {
 		logrus.Debug("clean service log %s", filename)
 	}
 	return nil
-}
-
-func (s *storeManager) delServiceEventlog() {
-	m := mysql.GetManager()
-	coreutil.Exec(s.context, func() error {
-		now := time.Now()
-		messageRaw, err := m.EventLogDao().GetAllServiceEventLog()
-		if err != nil {
-			logrus.Error("not search query")
-		} else {
-			for _, v := range messageRaw {
-				startTime := v.StartTime
-				tm2, _ := time.Parse("2006-01-02T15:04:05+08:00", startTime)
-				if now.After(tm2.Add(30 * time.Hour * 24)) {
-					if err := m.EventLogDao().DeleteServiceEventLog(v); err != nil {
-						logrus.Error("Failed to delete the log")
-					}
-				}
-			}
-		}
-		return nil
-
-	}, time.Hour*24)
-
 }
 
 func (s *storeManager) checkHealth() {

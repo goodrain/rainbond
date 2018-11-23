@@ -113,6 +113,7 @@ type Conf struct {
 	ServiceListFile        string
 	ServiceEndpointRegPath string
 	ServiceManager         string
+	EnableInitStart        bool
 	DockerCli              *dockercli.Client
 	EtcdCli                *client.Client
 }
@@ -165,7 +166,6 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	//fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")
 	fs.StringVar(&a.RunMode, "run-mode", "worker", "the acp_node run mode,could be 'worker' or 'master'")
 	fs.StringVar(&a.NodeRule, "noderule", "compute", "current node rule,maybe is `compute` `manage` `storage` ")
-	//fs.StringSliceVar(&a.EventServerAddress, "event-servers", []string{"http://127.0.0.1:6363"}, "event message server address.")
 	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
 	fs.StringVar(&a.DBConnectionInfo, "mysql", "admin:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
 	fs.StringVar(&a.StatsdConfig.StatsdListenAddress, "statsd.listen-address", "", "The UDP address on which to receive statsd metric lines. DEPRECATED, use statsd.listen-udp instead.")
@@ -174,8 +174,9 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.StatsdConfig.MappingConfig, "statsd.mapping-config", "", "Metric mapping configuration file name.")
 	fs.IntVar(&a.StatsdConfig.ReadBuffer, "statsd.read-buffer", 0, "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.")
 	fs.DurationVar(&a.MinResyncPeriod, "min-resync-period", time.Hour*12, "The resync period in reflectors will be random between MinResyncPeriod and 2*MinResyncPeriod")
-	fs.StringVar(&a.ServiceListFile, "service-list-file", "/opt/rainbond/conf/manager-services.yaml", "A list of the node include components")
+	fs.StringVar(&a.ServiceListFile, "service-list-file", "/opt/rainbond/conf/", "Specifies the configuration file, which can be a directory, that configures the service running on the current node")
 	fs.StringVar(&a.ServiceEndpointRegPath, "service-endpoint-reg-path", "/rainbond/nodes/target", "For registry service entpoint info into etcd then path.")
+	fs.BoolVar(&a.EnableInitStart, "enable-init-start", false, "Whether the node daemon launches docker and etcd service")
 	fs.StringVar(&a.ServiceManager, "service-manager", "systemd", "For service management tool on the system.")
 }
 

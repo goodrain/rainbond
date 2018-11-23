@@ -22,7 +22,9 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/service"
 )
 
+//Controller service daemon controller
 type Controller interface {
+	InitStart(services []*service.Service) error
 	StartService(name string) error
 	StopService(name string) error
 	StartList(list []*service.Service) error

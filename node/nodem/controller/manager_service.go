@@ -21,8 +21,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"os/exec"
 	"reflect"
 	"time"
 
@@ -34,6 +32,7 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/service"
 )
 
+//ManagerService manager service
 type ManagerService struct {
 	ctx            context.Context
 	cancel         context.CancelFunc
@@ -43,23 +42,22 @@ type ManagerService struct {
 	ctr            Controller
 	cluster        client.ClusterClient
 	healthyManager healthy.Manager
-	services       []*service.Service
+	services       *[]*service.Service
 	etcdcli        *clientv3.Client
 }
 
-func (m *ManagerService) GetAllService() ([]*service.Service, error) {
+//GetAllService get all service
+func (m *ManagerService) GetAllService() (*[]*service.Service, error) {
 	return m.services, nil
 }
 
 //Start  start and monitor all service
 func (m *ManagerService) Start() error {
 	logrus.Info("Starting node controller manager.")
-	services, err := service.LoadServicesFromLocal(m.conf.ServiceListFile)
-	if err != nil {
-		logrus.Error("Failed to load all services: ", err)
+	*m.services = service.LoadServicesFromLocal(m.conf.ServiceListFile)
+	if m.conf.EnableInitStart {
+		return m.ctr.InitStart(*m.services)
 	}
-	m.services = services
-
 	return nil
 }
 
@@ -69,16 +67,16 @@ func (m *ManagerService) Stop() error {
 	return nil
 }
 
-// start all service of on the node
+//Online start all service of on the node
 func (m *ManagerService) Online() error {
 	logrus.Info("Doing node online by node controller manager")
 	// registry local services endpoint into cluster manager
-	hostIp := m.cluster.GetOptions().HostIP
-	for _, s := range m.services {
+	hostIP := m.cluster.GetOptions().HostIP
+	for _, s := range *m.services {
 		logrus.Debug("Parse endpoints for service: ", s.Name)
 		for _, end := range s.Endpoints {
 			logrus.Debug("Discovery endpoints: ", end.Name)
-			endpoint := toEndpoint(end, hostIp)
+			endpoint := toEndpoint(end, hostIP)
 			oldEndpoints := m.cluster.GetEndpoints(end.Name)
 			if exist := isExistEndpoint(oldEndpoints, endpoint); !exist {
 				oldEndpoints = append(oldEndpoints, endpoint)
@@ -86,33 +84,32 @@ func (m *ManagerService) Online() error {
 			}
 		}
 	}
+	if ok := m.ctr.CheckBeforeStart(); !ok {
+		return nil
+	}
 
 	err := m.WriteServices()
 	if err != nil {
 		return err
 	}
 
-	if ok := m.ctr.CheckBeforeStart(); !ok {
-		return fmt.Errorf("check environments is not passed")
-	}
-
 	// start all by systemctl start multi-user.target
-	m.ctr.StartList(m.services)
+	m.ctr.StartList(*m.services)
 	m.StartSyncService()
 
 	return nil
 }
 
-// stop all service of on the node
+//Offline stop all service of on the node
 func (m *ManagerService) Offline() error {
 	logrus.Info("Doing node offline by node controller manager")
 	// Anti-registry local services endpoint from cluster manager
-	hostIp := m.cluster.GetOptions().HostIP
+	HostIP := m.cluster.GetOptions().HostIP
 	services, _ := m.GetAllService()
-	for _, s := range services {
+	for _, s := range *services {
 		for _, end := range s.Endpoints {
 			logrus.Debug("Anti-registry endpoint: ", end.Name)
-			endpoint := toEndpoint(end, hostIp)
+			endpoint := toEndpoint(end, HostIP)
 			oldEndpoints := m.cluster.GetEndpoints(end.Name)
 			if exist := isExistEndpoint(oldEndpoints, endpoint); exist {
 				m.cluster.SetEndpoints(end.Name, rmEndpointFrom(oldEndpoints, endpoint))
@@ -122,7 +119,7 @@ func (m *ManagerService) Offline() error {
 
 	m.StopSyncService()
 
-	if err := m.ctr.StopList(m.services); err != nil {
+	if err := m.ctr.StopList(*m.services); err != nil {
 		return err
 	}
 
@@ -133,7 +130,7 @@ func (m *ManagerService) Offline() error {
 func (m *ManagerService) StartSyncService() {
 	m.syncCtx, m.syncCancel = context.WithCancel(context.Background())
 
-	for _, s := range m.services {
+	for _, s := range *m.services {
 		name := s.Name
 		logrus.Info("Start watch status for service: ", name)
 		w := m.healthyManager.WatchServiceHealthy(name)
@@ -218,15 +215,10 @@ func (m *ManagerService) WaitStart(name string, duration time.Duration) bool {
 3. start all newly added services
 */
 func (m *ManagerService) ReLoadServices() error {
-	services, err := service.LoadServicesFromLocal(m.conf.ServiceListFile)
-	if err != nil {
-		logrus.Error("Failed to reload all services: ", err)
-		return err
-	}
-
+	services := service.LoadServicesFromLocal(m.conf.ServiceListFile)
 	for _, ne := range services {
 		exists := false
-		for _, old := range m.services {
+		for _, old := range *m.services {
 			if ne.Name == old.Name {
 				if !reflect.DeepEqual(ne, old) {
 					logrus.Infof("Recreate service [%s]", ne.Name)
@@ -247,13 +239,13 @@ func (m *ManagerService) ReLoadServices() error {
 			}
 		}
 	}
-
-	m.services = services
+	*m.services = services
 	return nil
 }
 
+//WriteServices write services
 func (m *ManagerService) WriteServices() error {
-	for _, s := range m.services {
+	for _, s := range *m.services {
 		if s.Name == "docker" {
 			continue
 		}
@@ -266,8 +258,9 @@ func (m *ManagerService) WriteServices() error {
 	return nil
 }
 
+//RemoveServices remove services
 func (m *ManagerService) RemoveServices() error {
-	for _, s := range m.services {
+	for _, s := range *m.services {
 		if s.Name == "docker" {
 			continue
 		}
@@ -304,48 +297,6 @@ func toEndpoint(reg *service.Endpoint, ip string) string {
 	return fmt.Sprintf("%s://%s:%s", reg.Protocol, ip, reg.Port)
 }
 
-//StartRequiresSystemd  StartRequiresSystemd
-func StartRequiresSystemd(conf *option.Conf) error {
-	services, err := service.LoadServicesFromLocal(conf.ServiceListFile)
-	if err != nil {
-		logrus.Error("Failed to load all services: ", err)
-		return err
-	}
-	cli, err := exec.LookPath("systemctl")
-	if err != nil {
-		panic(err)
-	}
-	err = exec.Command(cli, "start", "docker").Run()
-	if err != nil {
-		fmt.Printf("Start docker daemon: %v", err)
-		return err
-	}
-
-	for _, s := range services {
-		if s.Name == "etcd" {
-			fileName := fmt.Sprintf("/etc/systemd/system/%s.service", s.Name)
-			content := service.ToConfig(s)
-			if content == "" {
-				err := fmt.Errorf("can not generate config for service %s", s.Name)
-				fmt.Println(err)
-				return err
-			}
-
-			if err := ioutil.WriteFile(fileName, []byte(content), 0644); err != nil {
-				fmt.Printf("Generate config file %s: %v", fileName, err)
-				return err
-			}
-			err = exec.Command(cli, "start", s.Name).Run()
-			if err != nil {
-				fmt.Printf("Start service %s: %v", s.Name, err)
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
 //NewManagerService new controller manager
 func NewManagerService(conf *option.Conf, healthyManager healthy.Manager) (*ManagerService, client.ClusterClient) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -355,9 +306,10 @@ func NewManagerService(conf *option.Conf, healthyManager healthy.Manager) (*Mana
 		cancel:         cancel,
 		conf:           conf,
 		cluster:        cluster,
-		ctr:            NewControllerSystemd(conf, cluster),
+		ctr:            NewController(conf, cluster),
 		healthyManager: healthyManager,
 		etcdcli:        conf.EtcdCli,
+		services:       new([]*service.Service),
 	}
 	return manager, cluster
 }

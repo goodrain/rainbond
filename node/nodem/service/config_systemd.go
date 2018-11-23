@@ -19,12 +19,17 @@
 package service
 
 import (
-	"regexp"
 	"fmt"
-	"github.com/goodrain/rainbond/node/nodem/client"
-	"strings"
-	"github.com/Sirupsen/logrus"
 	"io/ioutil"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+
+	"github.com/goodrain/rainbond/util"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/node/nodem/client"
 	"gopkg.in/yaml.v2"
 )
 
@@ -32,21 +37,66 @@ var (
 	ArgsReg = regexp.MustCompile(`\$\{(\w+)\|{0,1}(.{0,1})\}`)
 )
 
-func LoadServicesFromLocal(serviceListFile string) ([]*Service, error) {
+//LoadServicesFromLocal load all service config from config file
+func LoadServicesFromLocal(serviceListFile string) []*Service {
+	var serviceList []*Service
+	ok, err := util.IsDir(serviceListFile)
+	if err != nil {
+		logrus.Errorf("read service config file error,%s", err.Error())
+		return nil
+	}
+	if !ok {
+		services, err := loadServicesFromFile(serviceListFile)
+		if err != nil {
+			logrus.Errorf("read service config file %s error,%s", serviceListFile, err.Error())
+			return nil
+		}
+		return services
+	}
+	filepath.Walk(serviceListFile, func(path string, info os.FileInfo, err error) error {
+		if strings.HasSuffix(path, "yaml") && !info.IsDir() {
+			services, err := loadServicesFromFile(path)
+			if err != nil {
+				logrus.Errorf("read service config file %s error,%s", path, err.Error())
+				return nil
+			}
+			serviceList = append(serviceList, services...)
+		}
+		return nil
+	})
+	result := removeRepByLoop(serviceList)
+	logrus.Infof("load service config file success. load %d service", len(result))
+	return result
+}
+
+func removeRepByLoop(source []*Service) (target []*Service) {
+	for i, s := range source {
+		flag := true
+		for _, t := range target {
+			if s.Name == t.Name {
+				flag = false
+				break
+			}
+		}
+		if flag {
+			target = append(target, source[i])
+		}
+	}
+	return
+}
+func loadServicesFromFile(serviceListFile string) ([]*Service, error) {
 	// load default-configs.yaml
 	content, err := ioutil.ReadFile(serviceListFile)
 	if err != nil {
 		err = fmt.Errorf("Failed to read service list file: %s", err.Error())
 		return nil, err
 	}
-
 	var defaultConfigs Services
 	err = yaml.Unmarshal(content, &defaultConfigs)
 	if err != nil {
 		logrus.Error("Failed to parse default configs yaml file: ", err)
 		return nil, err
 	}
-
 	return defaultConfigs.Services, nil
 }
 
@@ -119,7 +169,7 @@ func InjectConfig(content string, cluster client.ClusterClient) string {
 		for _, end := range endpoints {
 			if line == "" {
 				line = end
-			}else{
+			} else {
 				line += sep
 				line += end
 			}

@@ -120,10 +120,11 @@ func (n *NodeManager) Start(errchan chan error) error {
 	if err := n.controller.Online(); err != nil {
 		return err
 	}
-	if err := n.clm.Start(); err != nil {
-		return err
+	if n.Role.HasRule("compute") {
+		if err := n.clm.Start(); err != nil {
+			return err
+		}
 	}
-
 	go n.SyncNodeStatus()
 	go n.monitor.Start(errchan)
 	go n.taskrun.Start(errchan)
@@ -212,7 +213,7 @@ func (n *NodeManager) CheckNodeHealthy() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("get all services error,%s", err.Error())
 	}
-	for _, v := range services {
+	for _, v := range *services {
 		result, ok := n.healthy.GetServiceHealthy(v.Name)
 		if ok {
 			if result.Status != service.Stat_healthy {
