@@ -39,7 +39,6 @@ func NewGWServer() *GWServer {
 //Config contains all configuration
 type Config struct {
 	K8SConfPath string
-	Namespace   string
 	ListenPorts ListenPorts
 	//This number should be, at maximum, the number of CPU cores on your system.
 	WorkerProcesses    int
@@ -65,9 +64,7 @@ type ListenPorts struct {
 // AddFlags adds flags
 func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.LogLevel, "log-level", "debug", "the gateway log level")
-	// TODO change kube-conf
 	fs.StringVar(&g.K8SConfPath, "kube-conf", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig", "absolute path to the kubeconfig file")
-	fs.StringVar(&g.Namespace, "namespace", "gateway", "namespace")
 	fs.IntVar(&g.ListenPorts.AuxiliaryPort, "auxiliary-port", 10253, "port of auxiliary server")
 	fs.IntVar(&g.WorkerProcesses, "worker-processes", 0, "Default get current compute cpu core number.This number should be, at maximum, the number of CPU cores on your system.")
 	fs.IntVar(&g.WorkerConnections, "worker-connections", 4000, "Determines how many clients will be served by each worker process.")

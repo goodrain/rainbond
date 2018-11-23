@@ -29,9 +29,7 @@ func TestStore(t *testing.T) {
 
 		var add uint64
 
-		storer := New(clientSet,
-			ns,
-			updateCh)
+		storer := New(clientSet, updateCh)
 
 		storer.Run(stopCh)
 

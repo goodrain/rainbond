@@ -134,8 +134,8 @@ type rbdStore struct {
 	annotations annotations.Extractor
 }
 
+// New creates a new Storer
 func New(client kubernetes.Interface,
-	namespace string,
 	updateCh *channels.RingChannel) Storer {
 	store := &rbdStore{
 		informers: &Informer{},
@@ -150,7 +150,7 @@ func New(client kubernetes.Interface,
 	store.listers.IngressAnnotation.Store = cache.NewStore(cache.DeletionHandlingMetaNamespaceKeyFunc)
 
 	// create informers factory, enable and assign required informers
-	infFactory := informers.NewFilteredSharedInformerFactory(client, time.Second, namespace,
+	infFactory := informers.NewFilteredSharedInformerFactory(client, time.Second, "",
 		func(*metav1.ListOptions) {})
 
 	store.informers.Ingress = infFactory.Extensions().V1beta1().Ingresses().Informer()
@@ -165,9 +165,9 @@ func New(client kubernetes.Interface,
 	store.informers.Secret = infFactory.Core().V1().Secrets().Informer()
 	store.listers.Secret.Store = store.informers.Secret.GetStore()
 
-	// 定义Ingress Event Handler: Add, Delete, Update
 	ingEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
+			logrus.Debug("Ingress AddFunc is called.\n")
 			ing := obj.(*extensions.Ingress)
 
 			// updating annotations information for ingress
@@ -177,7 +177,6 @@ func New(client kubernetes.Interface,
 			// synchronizes data from all Secrets referenced by the given Ingress with the local store and file system.
 			store.syncSecrets(ing)
 
-			// 将obj加到Event中, 并把这个Event发送给*channels.RingChannel的input
 			updateCh.In() <- Event{
 				Type: CreateEvent,
 				Obj:  obj,
@@ -190,17 +189,23 @@ func New(client kubernetes.Interface,
 				Obj:  obj,
 			}
 		},
-		//UpdateFunc: func(old, cur interface{}) {
-		//	curIng := cur.(*extensions.Ingress)
-		//
-		//	store.secretIngressMap.update(curIng)
-		//	store.syncSecrets(curIng)
-		//
-		//	updateCh.In() <- Event{
-		//		Type: UpdateEvent,
-		//		Obj:  cur,
-		//	}
-		//},
+		UpdateFunc: func(old, cur interface{}) {
+			oldIng := old.(*extensions.Ingress)
+			curIng := cur.(*extensions.Ingress)
+			if oldIng.ResourceVersion == curIng.ResourceVersion {
+				logrus.Debugf("oldIng is the same as curIng, ignore: %v", oldIng)
+				return
+			}
+
+			store.extractAnnotations(curIng)
+			store.secretIngressMap.update(curIng)
+			store.syncSecrets(curIng)
+
+			updateCh.In() <- Event{
+				Type: UpdateEvent,
+				Obj:  cur,
+			}
+		},
 	}
 
 	secEventHandler := cache.ResourceEventHandlerFuncs{
@@ -280,8 +285,8 @@ func New(client kubernetes.Interface,
 		},
 	}
 
-	store.informers.Ingress.AddEventHandler(ingEventHandler)
-	store.informers.Secret.AddEventHandler(secEventHandler)
+	store.informers.Ingress.AddEventHandlerWithResyncPeriod(ingEventHandler, 10 * time.Second)
+	store.informers.Secret.AddEventHandlerWithResyncPeriod(secEventHandler, 10 * time.Second)
 
 	return store
 }
@@ -347,7 +352,7 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
 		}
 
-		if anns.L4.L4Enable { // l4
+		if anns.L4.L4Enable && anns.L4.L4Host != "" && anns.L4.L4Port != 0 { // l4
 			listening := fmt.Sprintf("%s:%v", anns.L4.L4Host, anns.L4.L4Port)
 			vs := l4vsMap[listening]
 			if vs != nil {
@@ -445,12 +450,12 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 func (s *rbdStore) ingressIsValid(ing *extensions.Ingress) bool {
 	var endpointKey string
 	if ing.Spec.Backend != nil { // stream
-		endpointKey = fmt.Sprintf("%s/%s", "gateway", ing.Spec.Backend.ServiceName)
+		endpointKey = fmt.Sprintf("%s/%s", ing.Namespace, ing.Spec.Backend.ServiceName)
 	} else { // http
 	Loop:
 		for _, rule := range ing.Spec.Rules {
 			for _, path := range rule.IngressRuleValue.HTTP.Paths {
-				endpointKey = fmt.Sprintf("%s/%s", "gateway", path.Backend.ServiceName)
+				endpointKey = fmt.Sprintf("%s/%s", ing.Namespace, path.Backend.ServiceName)
 				if endpointKey != "" {
 					break Loop
 				}

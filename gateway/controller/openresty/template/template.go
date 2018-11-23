@@ -18,6 +18,8 @@ package template
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/Sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"path"
@@ -33,7 +35,7 @@ var (
 	//CustomConfigPath custom config file path
 	CustomConfigPath = "/run/nginx/conf"
 	//tmplPath Tmpl config file path
-	tmplPath = "/run/nginxtmp"
+	tmplPath = "/run/nginxtmp/tmpl"
 )
 
 func init() {
@@ -75,22 +77,6 @@ func NewNginxTemplate(data *model.Nginx, defaultNginxConf string) error {
 	return nil
 }
 
-// NewHttpTemplate creates a configuration file for the nginx http module
-func NewHttpTemplate(data *model.Http, filename string) error {
-	if e := Persist(tmplPath+"/http.tmpl", data, CustomConfigPath, filename); e != nil {
-		return e
-	}
-	return nil
-}
-
-// NewStreamTemplate creates a configuration file for the nginx stream module
-func NewStreamTemplate(data *model.Stream, filename string) error {
-	if e := Persist(tmplPath+"/stream.tmpl", data, CustomConfigPath, filename); e != nil {
-		return e
-	}
-	return nil
-}
-
 // NewServerTemplate creates a configuration file for the nginx server module
 func NewServerTemplate(data []*model.Server, filename string) error {
 	if e := Persist(tmplPath+"/servers.tmpl", data, CustomConfigPath, filename); e != nil {
@@ -108,7 +94,7 @@ func NewUpstreamTemplate(data []model.Upstream, tmpl, filename string) error {
 }
 
 // Persist persists the nginx configuration file to disk
-func Persist(tmplFilename string, data interface{}, path string, filename string) error {
+func Persist(tmplFilename string, data interface{}, p string, f string) error {
 	tpl, err := NewTemplate(tmplFilename)
 	if err != nil {
 		return err
@@ -118,11 +104,18 @@ func Persist(tmplFilename string, data interface{}, path string, filename string
 	if err != nil {
 		return err
 	}
-	if e := os.MkdirAll(path, 0777); e != nil {
-		return e
+
+	f = fmt.Sprintf("%s/%s", p, f)
+	p = path.Dir(f)
+	f = path.Base(f)
+	if !isExists(p) {
+		logrus.Debugf("mkdir %s", p)
+		if e := os.MkdirAll(p, 0777); e != nil {
+			return e
+		}
 	}
 
-	if e := ioutil.WriteFile(path+"/"+filename, rt, 0666); e != nil {
+	if e := ioutil.WriteFile(p+"/"+f, rt, 0666); e != nil {
 		return e
 	}
 
@@ -150,4 +143,15 @@ func (t *Template) Write(conf interface{}) ([]byte, error) {
 	}
 
 	return tmplBuf.Bytes(), nil
+}
+
+func isExists(f string) bool {
+	_, err := os.Stat(f)
+	if err != nil {
+		if os.IsExist(err) {
+			return true
+		}
+		return false
+	}
+	return true
 }

@@ -17,9 +17,11 @@ import (
 )
 
 const (
+	// TryTimes -
 	TryTimes = 2
 )
 
+// GWController -
 type GWController struct {
 	GWS   GWServicer
 	store store.Storer
@@ -39,7 +41,7 @@ type GWController struct {
 
 	stopCh   chan struct{}
 	updateCh *channels.RingChannel
-	errCh    chan error // TODO: never used
+	errCh    chan error
 }
 
 func (gwc *GWController) syncGateway(key interface{}) error {
@@ -77,32 +79,36 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 	return nil
 }
 
+// Start starts Gateway
 func (gwc *GWController) Start() error {
 	gwc.store.Run(gwc.stopCh)
 
-	err := gwc.GWS.Start()
-	if err != nil {
-		return fmt.Errorf("Can not start gateway plugin: %v", err)
-	}
+	errCh := make(chan error)
+	gwc.GWS.Starts(errCh)
 
 	go gwc.syncQueue.Run(1*time.Second, gwc.stopCh)
 	// force initial sync
 	gwc.syncQueue.EnqueueTask(task.GetDummyObject("initial-sync"))
 
-	go gwc.handleEvent()
+	go gwc.handleEvent(errCh)
 
 	return nil
 }
 
-func (gwc *GWController) handleEvent() {
+func (gwc *GWController) handleEvent(errCh chan error) {
 	for {
 		select {
+		case err := <-errCh:
+			if err != nil {
+				logrus.Debugf("Unexpected error: %v", err)
+			}
+			// TODO: 20181122 huangrh
 		case event := <-gwc.updateCh.Out():
 			if gwc.isShuttingDown {
 				break
 			}
 			if evt, ok := event.(store.Event); ok {
-				logrus.Infof("Event %v received - object %v", evt.Type, evt.Obj)
+				logrus.Debugf("Event %v received - object %v", evt.Type, evt.Obj)
 				gwc.syncQueue.EnqueueSkippableTask(evt.Obj)
 			} else {
 				glog.Warningf("Unexpected event type received %T", event)
@@ -113,6 +119,7 @@ func (gwc *GWController) handleEvent() {
 	}
 }
 
+// Stop stops Gateway
 func (gwc *GWController) Stop() error {
 	gwc.isShuttingDown = true
 
@@ -191,7 +198,6 @@ func NewGWController(config *option.Config, errCh chan error) *GWController {
 
 	gwc.store = store.New(
 		clientSet,
-		config.Namespace,
 		gwc.updateCh)
 
 	gwc.syncQueue = task.NewTaskQueue(gwc.syncGateway)

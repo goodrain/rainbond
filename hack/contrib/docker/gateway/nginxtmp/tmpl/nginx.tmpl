@@ -1,4 +1,3 @@
-
 {{ if .User }} user {{.User}};{{ end }}
 worker_processes  {{.WorkerProcesses}};
 error_log  {{.ErrorLog}};
@@ -10,6 +9,121 @@ events {
     worker_connections  {{.Events.WorkerConnections}};
 }
 
-{{ range $include := .Includes }}
-include {{$include}};
-{{ end }}
+{{ $h := .HTTP }}
+http {
+    include mime.types;
+    default_type  {{$h.DefaultType}};
+
+    {{ if $h.SendFile }}
+    sendfile        on;
+    {{ end }}
+
+    keepalive_timeout  {{$h.KeepaliveTimeout.Num}}{{$h.KeepaliveTimeout.Unit}};
+
+    # http_proxy 设置
+    {{ if gt $h.ClientMaxBodySize.Num 0 }}
+    client_max_body_size {{$h.ClientMaxBodySize.Num}}{{$h.ClientMaxBodySize.Unit}};
+    {{ end }}
+    {{ if gt $h.ClientBodyBufferSize.Num 0 }}
+    client_body_buffer_size   {{$h.ClientBodyBufferSize.Num}}{{$h.ClientBodyBufferSize.Unit}};
+    {{ end }}
+    # 与upstream server的连接超时时间, 这个值不能超过75s
+    {{ if gt $h.ProxyConnectTimeout.Num 0 }}
+    proxy_connect_timeout   {{$h.ProxyConnectTimeout.Num}}{{$h.ProxyConnectTimeout.Unit}};
+    {{ end }}
+    {{ if gt $h.ProxySendTimeout.Num 0 }}
+    proxy_send_timeout      {{$h.ProxySendTimeout.Num}}{{$h.ProxySendTimeout.Unit}};
+    {{ end }}
+    {{ if gt $h.ProxySendTimeout.Num 0 }}
+    proxy_read_timeout      {{$h.ProxyReadTimeout.Num}}{{$h.ProxyReadTimeout.Unit}};
+    {{ end }}
+    {{ if gt $h.ProxyBufferSize.Num 0}}
+    proxy_buffer_size       {{$h.ProxyBufferSize.Num}}{{$h.ProxyBufferSize.Unit}};
+    {{ end }}
+    {{ if gt $h.ProxyBuffers.Num 0}}
+    proxy_buffers           4 {{$h.ProxyBuffers.Num}}{{$h.ProxyBuffers.Unit}};
+    {{ end }}
+    {{ if gt $h.ProxyBusyBuffersSize.Num 0 }}
+    proxy_busy_buffers_size   {{$h.ProxyBusyBuffersSize.Num}}{{$h.ProxyBusyBuffersSize.Unit}};
+    {{ end }}
+
+    # gzip压缩功能设置
+    gzip              on;
+    gzip_min_length   1k;
+    gzip_buffers      4 16k;
+    gzip_http_version 1.0;
+    gzip_comp_level   6;
+    gzip_types        text/plain text/css text/javascript application/json application/javascript application/x-javascript application/xml;
+    gzip_vary         on;
+
+    include conf/http/*.conf;
+
+    lua_shared_dict upstreams_dict {{$h.UpstreamsDict.Num}}{{$h.UpstreamsDict.Unit}};
+
+    server {
+        listen 80 default_server;
+        server_name _;
+        return 404;
+    }
+
+    server {
+        listen       {{$h.AuxiliaryPort}};
+
+        location /healthz {
+            return 200 "ok";
+        }
+
+        location /list-upstreams {
+            content_by_lua_block {
+                local balancer = require "ngx.balancer"
+                local cjson = require("cjson")
+                local keys = ngx.shared.upstreams_dict:get_keys()
+                for _, name in pairs(keys) do
+                    local servers = ngx.shared.upstreams_dict:get(name)
+                    ngx.print(name..": ")
+                    ngx.print(cjson.encode(servers))
+                    ngx.print("\n")
+                end
+            }
+        }
+
+        location /update-upstreams {
+            content_by_lua_block {
+                local cjson = require("cjson")
+                ngx.req.read_body()
+                local data = ngx.req.get_body_data()
+                if not data then
+                    local name = ngx.req.get_body_file()
+                    local f = io.open(name, "r")
+                    data = f:read("*a")
+                end
+
+                upstreams = cjson.decode(data)
+                for _, upstream in pairs(upstreams) do
+                    name = upstream.Name
+                    ngx.say(name)
+                    local servers = cjson.encode(upstream.Servers)
+                    ngx.say(servers)
+                    ngx.shared.upstreams_dict:set(name, servers)
+                    ngx.say("ok")
+                end
+            }
+        }
+
+        location /delete-upstreams {
+            content_by_lua_block {
+                local cjson = require("cjson")
+                ngx.req.read_body()
+                local data = ngx.req.get_body_data()
+                local tbl = cjson.decode(data)
+                for _, name in pairs(tbl) do
+                    ngx.shared.upstreams_dict:delete(name)
+                end
+            }
+        }
+    }
+}
+
+stream {
+    include conf/stream/*.conf;
+}
