@@ -348,7 +348,7 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
 		}
 
-		if anns.L4.L4Enable { // l4
+		if anns.L4.L4Enable && anns.L4.L4Host != "" && anns.L4.L4Port != 0 { // l4
 			listening := fmt.Sprintf("%s:%v", anns.L4.L4Host, anns.L4.L4Port)
 			vs := l4vsMap[listening]
 			if vs != nil {
