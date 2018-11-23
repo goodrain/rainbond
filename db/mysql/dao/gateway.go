@@ -93,7 +93,6 @@ func (c *RuleExtensionDaoImpl) AddModel(mo model.Interface) error {
 		return fmt.Errorf("RuleExtension already exists based on RuleID(%s) and Value(%s)",
 			re.RuleID, re.Value)
 	}
-	return nil
 }
 
 func (c *RuleExtensionDaoImpl) UpdateModel(model.Interface) error {

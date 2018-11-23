@@ -82,5 +82,7 @@ func TestManager_AnalystToExec(t *testing.T) {
 
 	ctx, _ := context.WithCancel(context.Background())
 	handleManager := NewManager(ctx, s.Config, cachestore, controllerManager)
-	handleManager.AnalystToExec(task)
+	if err := handleManager.AnalystToExec(task); err != nil {
+		t.Errorf("analyst exec failed: %v", err)
+	}
 }

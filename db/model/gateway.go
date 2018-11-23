@@ -35,10 +35,16 @@ func (RuleExtension) TableName() string {
 	return "gateway_rule_extension"
 }
 
-type ExtensionValue string
+// RuleExtensionKey rule extension key
+type RuleExtensionKey string
 
-var HttpToHttpsEV ExtensionValue = "HttpToHttps"
+// HttpToHttps forces http rewrite to https
+var HttpToHttps RuleExtensionKey = "HttpToHttps"
 
+// LBType load balancer type
+var LBType RuleExtensionKey = "LBType"
+
+// RuleExtension contains rule extensions for http rule or tcp rule
 type RuleExtension struct {
 	Model
 	UUID   string `gorm:"column:uuid"`
@@ -81,6 +87,8 @@ type TcpRule struct {
 	UUID          string `gorm:"column:uuid"`
 	ServiceID     string `gorm:"column:service_id"`
 	ContainerPort int    `gorm:"column:container_port"`
-	IP            string `gorm:"column:ip"`
-	Port          int    `gorm:"column:port"` // TODO: 这个就是mappingPort吗???
+	// external access ip
+	IP string `gorm:"column:ip"`
+	// external access port
+	Port int `gorm:"column:port"`
 }

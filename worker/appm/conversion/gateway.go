@@ -23,19 +23,17 @@ import (
 	"os"
 	"strings"
 
-	"github.com/goodrain/rainbond/util"
-
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
+	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-
-	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 //createDefaultDomain create default domain
@@ -180,19 +178,20 @@ func (a *AppServiceBuild) Build() ([]*corev1.Service, []*extensions.Ingress, []*
 	return services, ingresses, secrets, nil
 }
 
+// ApplyRules applies http rules and tcp rules
 func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort, service *corev1.Service) ([]*extensions.Ingress, *corev1.Secret, error) {
 	httpRule, err := a.dbmanager.HttpRuleDao().GetHttpRuleByServiceIDAndContainerPort(port.ServiceID,
 		port.ContainerPort)
 	if err != nil {
-		logrus.Infof("Can't get HttpRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
+		logrus.Infof("Can't get HTTPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
 	}
 	tcpRule, err := a.dbmanager.TcpRuleDao().GetTcpRuleByServiceIDAndContainerPort(port.ServiceID,
 		port.ContainerPort)
 	if err != nil {
-		logrus.Infof("Can't get TcpRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
+		logrus.Infof("Can't get TCPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
 	}
 	if httpRule == nil && tcpRule == nil {
-		return nil, nil, fmt.Errorf("Can't find HttpRule or TcpRule for Outer Service(%s)", port.ServiceID)
+		return nil, nil, fmt.Errorf("Can't find HTTPRule or TCPRule for Outer Service(%s)", port.ServiceID)
 	}
 
 	// create ingresses
@@ -225,55 +224,46 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort, service *cor
 // applyTcpRule applies stream rule into ingress
 func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.TenantServicesPort,
 	service *corev1.Service) (ing *extensions.Ingress, sec *corev1.Secret, err error) {
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// default domain
-	defDomain := createDefaultDomain(a.tenant.Name, a.service.ServiceAlias, port.ContainerPort)
+	// deal with empty path
 	path := strings.Replace(rule.Path, " ", "", -1)
 	if path == "" {
 		path = "/"
 	}
 
-	ingRule := extensions.IngressRule{
-		IngressRuleValue: extensions.IngressRuleValue{
-			HTTP: &extensions.HTTPIngressRuleValue{
-				Paths: []extensions.HTTPIngressPath{
-					{
-						Path: path,
-						Backend: extensions.IngressBackend{
-							ServiceName: service.Name,
-							ServicePort: intstr.FromInt(port.ContainerPort),
+	// create ingress
+	domain := strings.Replace(rule.Domain, " ", "", -1)
+	if domain == "" {
+		domain = createDefaultDomain(a.tenant.Name, a.service.ServiceAlias, port.ContainerPort)
+	}
+	ing = &extensions.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("ing-%s-%s", domain, util.NewUUID()[0:8]),
+			Namespace: a.tenant.UUID,
+		},
+		Spec: extensions.IngressSpec{
+			Rules: []extensions.IngressRule{
+				{
+					Host: rule.Domain,
+					IngressRuleValue: extensions.IngressRuleValue{
+						HTTP: &extensions.HTTPIngressRuleValue{
+							Paths: []extensions.HTTPIngressPath{
+								{
+									Path: path,
+									Backend: extensions.IngressBackend{
+										ServiceName: service.Name,
+										ServicePort: intstr.FromInt(port.ContainerPort),
+									},
+								},
+							},
 						},
 					},
 				},
 			},
 		},
 	}
-	defIngRule := ingRule
-	defIngRule.Host = defDomain
-	ing = &extensions.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.NewUUID(),
-			Namespace: a.tenant.UUID,
-		},
-		Spec: extensions.IngressSpec{
-			Rules: []extensions.IngressRule{
-				defIngRule,
-			},
-		},
-	}
-	// custom domain
-	if rule.Domain != "" {
-		cusIngRule := defIngRule
-		cusIngRule.Host = rule.Domain
-		ing.Spec.Rules = append(ing.Spec.Rules, cusIngRule)
-	}
 
+	// parse annotations
 	annos := make(map[string]string)
-	// load balancer type
-	//annos[parser.GetAnnotationWithPrefix("load-balancer-type")] = string(rule.LoadBalancerType)
 	// header
 	if rule.Header != "" {
 		annos[parser.GetAnnotationWithPrefix("header")] = rule.Header
@@ -283,7 +273,7 @@ func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.Tenant
 		annos[parser.GetAnnotationWithPrefix("cookie")] = rule.Cookie
 	}
 	// certificate
-	if rule.CertificateID != "" && rule.Domain != "" {
+	if rule.CertificateID != "" {
 		cert, err := a.dbmanager.CertificateDao().GetCertificateByID(rule.CertificateID)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Cant not get certificate by id(%s): %v", rule.CertificateID, err)
@@ -291,7 +281,7 @@ func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.Tenant
 		// create secret
 		sec = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      cert.CertificateName,
+				Name:      fmt.Sprintf("certificate-%s", domain),
 				Namespace: a.tenant.UUID,
 			},
 			Data: map[string][]byte{
@@ -302,7 +292,7 @@ func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.Tenant
 		}
 		ing.Spec.TLS = []extensions.IngressTLS{
 			{
-				Hosts:      []string{rule.Domain},
+				Hosts:      []string{domain},
 				SecretName: sec.Name,
 			},
 		}
@@ -313,9 +303,11 @@ func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.Tenant
 		return nil, nil, err
 	}
 	for _, extension := range ruleExtensions {
-		switch extension.Value {
-		case string(model.HttpToHttpsEV):
+		switch extension.Key {
+		case string(model.HttpToHttps):
 			annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
+		case string(model.LBType):
+			annos[parser.GetAnnotationWithPrefix("lb-type")] = extension.Value
 		default:
 			logrus.Warnf("Unexpected RuleExtension Value: %s", extension.Value)
 		}
@@ -326,14 +318,13 @@ func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.Tenant
 }
 
 // applyTcpRule applies stream rule into ingress
-func applyTcpRule(
-	rule *model.TcpRule,
-	service *corev1.Service,
+func applyTcpRule(rule *model.TcpRule, service *corev1.Service,
 	mappingPort string,
 	namespace string) (ing *extensions.Ingress, err error) {
+	// create ingress
 	ing = &extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.NewUUID(),
+			Name:      fmt.Sprintf("ing-%s-%s", rule.IP, util.NewUUID()[0:8]),
 			Namespace: namespace,
 		},
 		Spec: extensions.IngressSpec{
@@ -344,13 +335,9 @@ func applyTcpRule(
 		},
 	}
 	annos := make(map[string]string)
-	//annos[parser.GetAnnotationWithPrefix("load-balancer-type")] = string(rule.LoadBalancerType)  // TODO
 	annos[parser.GetAnnotationWithPrefix("l4-enable")] = "true"
 	annos[parser.GetAnnotationWithPrefix("l4-host")] = rule.IP
-	if err != nil {
-		return nil, err
-	}
-	annos[parser.GetAnnotationWithPrefix("l4-port")] = mappingPort
+	annos[parser.GetAnnotationWithPrefix("l4-port")] = fmt.Sprintf("%v", rule.Port)
 	ing.SetAnnotations(annos)
 
 	return ing, nil
