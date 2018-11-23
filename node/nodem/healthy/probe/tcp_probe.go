@@ -2,10 +2,11 @@ package probe
 
 import (
 	"context"
-	"github.com/goodrain/rainbond/node/nodem/service"
-	"time"
 	"net"
+	"time"
+
 	"github.com/goodrain/rainbond/node/nodem/client"
+	"github.com/goodrain/rainbond/node/nodem/service"
 )
 
 type TcpProbe struct {
@@ -19,6 +20,12 @@ type TcpProbe struct {
 	MaxErrorsNum int
 }
 
+func (h *TcpProbe) Check() {
+	go h.TcpCheck()
+}
+func (h *TcpProbe) Stop() {
+	h.Cancel()
+}
 func (h *TcpProbe) TcpCheck() {
 	errNum := 1
 	timer := time.NewTimer(time.Second * time.Duration(h.TimeInterval))

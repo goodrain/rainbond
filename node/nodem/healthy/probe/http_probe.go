@@ -2,24 +2,31 @@ package probe
 
 import (
 	"context"
-	"github.com/goodrain/rainbond/node/nodem/service"
 	"net/http"
-	"time"
-	"github.com/goodrain/rainbond/node/nodem/client"
 	"strings"
+	"time"
+
+	"github.com/goodrain/rainbond/node/nodem/client"
+	"github.com/goodrain/rainbond/node/nodem/service"
 )
 
 type HttpProbe struct {
-	Name          string
-	Address       string
-	ResultsChan   chan *service.HealthStatus
-	Ctx           context.Context
-	Cancel        context.CancelFunc
-	TimeInterval  int
-	HostNode      *client.HostNode
+	Name         string
+	Address      string
+	ResultsChan  chan *service.HealthStatus
+	Ctx          context.Context
+	Cancel       context.CancelFunc
+	TimeInterval int
+	HostNode     *client.HostNode
 	MaxErrorsNum int
 }
 
+func (h *HttpProbe) Check() {
+	go h.HttpCheck()
+}
+func (h *HttpProbe) Stop() {
+	h.Cancel()
+}
 func (h *HttpProbe) HttpCheck() {
 	errNum := 1
 	timer := time.NewTimer(time.Second * time.Duration(h.TimeInterval))
@@ -75,7 +82,7 @@ func GetHttpHealth(address string) map[string]string {
 	c := &http.Client{
 		Timeout: 5 * time.Second,
 	}
-	if !strings.Contains(address, "://"){
+	if !strings.Contains(address, "://") {
 		address = "http://" + address
 	}
 	resp, err := c.Get(address)

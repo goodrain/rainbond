@@ -1,13 +1,14 @@
 package probe
 
 import (
-	"context"
-	"github.com/goodrain/rainbond/node/nodem/service"
-	"time"
-	"os/exec"
 	"bytes"
+	"context"
+	"os/exec"
 	"strings"
+	"time"
+
 	"github.com/goodrain/rainbond/node/nodem/client"
+	"github.com/goodrain/rainbond/node/nodem/service"
 )
 
 type ShellProbe struct {
@@ -21,6 +22,12 @@ type ShellProbe struct {
 	MaxErrorsNum int
 }
 
+func (h *ShellProbe) Check() {
+	go h.ShellCheck()
+}
+func (h *ShellProbe) Stop() {
+	h.Cancel()
+}
 func (h *ShellProbe) ShellCheck() {
 	errNum := 1
 	timer := time.NewTimer(time.Second * time.Duration(h.TimeInterval))

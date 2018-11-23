@@ -96,6 +96,7 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 //AddAPIManager AddApiManager
 func (n *NodeManager) AddAPIManager(apim *api.Manager) error {
 	n.apim = apim
+	n.controller.SetAPIRoute(apim)
 	return n.monitor.SetAPIRoute(apim)
 }
 
@@ -325,4 +326,24 @@ func CreateNode(nodeID, ip string) client.HostNode {
 		NodeStatus: &client.NodeStatus{},
 	}
 	return HostNode
+}
+
+//StartService start a define service
+func (n *NodeManager) StartService(serviceName string) error {
+	return n.controller.StartService(serviceName)
+}
+
+//StopService stop a define service
+func (n *NodeManager) StopService(serviceName string) error {
+	return n.controller.StopService(serviceName)
+}
+
+//UpdateConfig update service config
+func (n *NodeManager) UpdateConfig() error {
+	return n.controller.ReLoadServices()
+}
+
+//GetMonitorManager get monitor manager
+func (n *NodeManager) GetMonitorManager() monitor.Manager {
+	return n.monitor
 }

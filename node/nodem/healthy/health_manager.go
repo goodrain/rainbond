@@ -39,6 +39,7 @@ type Manager interface {
 	CloseWatch(serviceName string, id string) error
 	Start(hostNode *client.HostNode) error
 	AddServices(*[]*service.Service) error
+	AddServicesAndUpdate(*[]*service.Service) error
 	Stop() error
 	DisableWatcher(serviceName, watcherID string)
 	EnableWatcher(serviceName, watcherID string)
@@ -61,16 +62,18 @@ type watcher struct {
 }
 
 type probeManager struct {
-	services   *[]*service.Service
-	status     map[string]*service.HealthStatus
-	ctx        context.Context
-	cancel     context.CancelFunc
-	watches    map[string]map[string]*watcher
-	statusChan chan *service.HealthStatus
-	errorNum   map[string]int
-	errorTime  map[string]time.Time
-	errorFlag  map[string]bool
-	lock       sync.Mutex
+	services     *[]*service.Service
+	serviceProbe map[string]probe.Probe
+	status       map[string]*service.HealthStatus
+	ctx          context.Context
+	cancel       context.CancelFunc
+	watches      map[string]map[string]*watcher
+	statusChan   chan *service.HealthStatus
+	errorNum     map[string]int
+	errorTime    map[string]time.Time
+	errorFlag    map[string]bool
+	lock         sync.Mutex
+	hostNode     *client.HostNode
 }
 
 //CreateManager create manager
@@ -83,14 +86,15 @@ func CreateManager() Manager {
 	errorTime := make(map[string]time.Time)
 	errorFlag := make(map[string]bool)
 	m := &probeManager{
-		ctx:        ctx,
-		cancel:     cancel,
-		statusChan: statusChan,
-		status:     status,
-		watches:    watches,
-		errorNum:   errorNum,
-		errorTime:  errorTime,
-		errorFlag:  errorFlag,
+		ctx:          ctx,
+		cancel:       cancel,
+		statusChan:   statusChan,
+		status:       status,
+		watches:      watches,
+		errorNum:     errorNum,
+		errorTime:    errorTime,
+		errorFlag:    errorFlag,
+		serviceProbe: make(map[string]probe.Probe),
 	}
 	return m
 }
@@ -99,55 +103,35 @@ func (p *probeManager) AddServices(inner *[]*service.Service) error {
 	p.services = inner
 	return nil
 }
+func (p *probeManager) AddServicesAndUpdate(inner *[]*service.Service) error {
+	p.services = inner
+	p.updateServiceProbe()
+	return nil
+}
 
 func (p *probeManager) Start(hostNode *client.HostNode) error {
+	p.hostNode = hostNode
 	go p.HandleStatus()
+	p.updateServiceProbe()
+	return nil
+}
+
+func (p *probeManager) updateServiceProbe() {
+	for _, pro := range p.serviceProbe {
+		pro.Stop()
+	}
+	p.serviceProbe = make(map[string]probe.Probe, len(*p.services))
 	for _, v := range *p.services {
 		if v.ServiceHealth == nil {
 			continue
 		}
-		if v.ServiceHealth.Model == "http" {
-			h := &probe.HttpProbe{
-				Name:         v.ServiceHealth.Name,
-				Address:      v.ServiceHealth.Address,
-				Ctx:          p.ctx,
-				Cancel:       p.cancel,
-				ResultsChan:  p.statusChan,
-				TimeInterval: v.ServiceHealth.TimeInterval,
-				HostNode:     hostNode,
-				MaxErrorsNum: v.ServiceHealth.MaxErrorsNum,
-			}
-			go h.HttpCheck()
+		if v.Disable {
+			continue
 		}
-		if v.ServiceHealth.Model == "tcp" {
-			t := &probe.TcpProbe{
-				Name:         v.ServiceHealth.Name,
-				Address:      v.ServiceHealth.Address,
-				Ctx:          p.ctx,
-				Cancel:       p.cancel,
-				ResultsChan:  p.statusChan,
-				TimeInterval: v.ServiceHealth.TimeInterval,
-				HostNode:     hostNode,
-				MaxErrorsNum: v.ServiceHealth.MaxErrorsNum,
-			}
-			go t.TcpCheck()
-		}
-		if v.ServiceHealth.Model == "cmd" {
-			s := &probe.ShellProbe{
-				Name:         v.ServiceHealth.Name,
-				Address:      v.ServiceHealth.Address,
-				Ctx:          p.ctx,
-				Cancel:       p.cancel,
-				ResultsChan:  p.statusChan,
-				TimeInterval: v.ServiceHealth.TimeInterval,
-				HostNode:     hostNode,
-				MaxErrorsNum: v.ServiceHealth.MaxErrorsNum,
-			}
-			go s.ShellCheck()
-		}
-
+		serviceProbe := probe.CreateProbe(p.ctx, p.hostNode, p.statusChan, v)
+		p.serviceProbe[v.Name] = serviceProbe
+		serviceProbe.Check()
 	}
-	return nil
 }
 
 func (p *probeManager) updateServiceStatus(status *service.HealthStatus) {

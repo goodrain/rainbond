@@ -18,7 +18,10 @@
 
 package controller
 
-import "github.com/goodrain/rainbond/node/nodem/service"
+import (
+	"github.com/goodrain/rainbond/node/api"
+	"github.com/goodrain/rainbond/node/nodem/service"
+)
 
 //Manager Manager
 type Manager interface {
@@ -28,4 +31,7 @@ type Manager interface {
 	Online() error
 	Offline() error
 	ReLoadServices() error
+	StartService(serviceName string) error
+	StopService(serviceName string) error
+	SetAPIRoute(apim *api.Manager) error
 }

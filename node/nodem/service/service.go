@@ -28,17 +28,19 @@ const (
 
 //Service Service
 type Service struct {
-	Name          string      `yaml:"name"`
-	Endpoints     []*Endpoint `yaml:"endpoints,omitempty"`
-	ServiceHealth *Health     `yaml:"health"`
-	After         []string    `yaml:"after"`
-	Requires      []string    `yaml:"requires"`
-	Type          string      `yaml:"type,omitempty"`
-	PreStart      string      `yaml:"pre_start,omitempty"`
-	Start         string      `yaml:"start"`
-	Stop          string      `yaml:"stop,omitempty"`
-	RestartPolicy string      `yaml:"restart_policy,omitempty"`
-	RestartSec    string      `yaml:"restart_sec,omitempty"`
+	Name            string      `yaml:"name"`
+	Endpoints       []*Endpoint `yaml:"endpoints,omitempty"`
+	ServiceHealth   *Health     `yaml:"health"`
+	OnlyHealthCheck bool        `yaml:"only_health_check"`
+	Disable         bool        `yaml:"disable"`
+	After           []string    `yaml:"after"`
+	Requires        []string    `yaml:"requires"`
+	Type            string      `yaml:"type,omitempty"`
+	PreStart        string      `yaml:"pre_start,omitempty"`
+	Start           string      `yaml:"start"`
+	Stop            string      `yaml:"stop,omitempty"`
+	RestartPolicy   string      `yaml:"restart_policy,omitempty"`
+	RestartSec      string      `yaml:"restart_sec,omitempty"`
 }
 
 //Services default config of all services
