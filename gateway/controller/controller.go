@@ -142,14 +142,15 @@ func (gwc *GWController) refreshPools(pools []*v1.Pool) {
 	gwc.GWS.WaitPluginReady()
 
 	delPools, updPools := gwc.getDelUpdPools(pools)
+	// delete delPools first, then update updPools
 	for i := 0; i < TryTimes; i++ {
-		err := gwc.GWS.UpdatePools(updPools)
+		err := gwc.GWS.DeletePools(delPools)
 		if err == nil {
 			break
 		}
 	}
 	for i := 0; i < TryTimes; i++ {
-		err := gwc.GWS.DeletePools(delPools)
+		err := gwc.GWS.UpdatePools(updPools)
 		if err == nil {
 			break
 		}
