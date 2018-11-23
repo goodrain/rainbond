@@ -165,7 +165,6 @@ func New(client kubernetes.Interface,
 	store.informers.Secret = infFactory.Core().V1().Secrets().Informer()
 	store.listers.Secret.Store = store.informers.Secret.GetStore()
 
-	// 定义Ingress Event Handler: Add, Delete, Update
 	ingEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			logrus.Debug("Ingress AddFunc is called.\n")
@@ -178,7 +177,6 @@ func New(client kubernetes.Interface,
 			// synchronizes data from all Secrets referenced by the given Ingress with the local store and file system.
 			store.syncSecrets(ing)
 
-			// 将obj加到Event中, 并把这个Event发送给*channels.RingChannel的input
 			updateCh.In() <- Event{
 				Type: CreateEvent,
 				Obj:  obj,
@@ -191,17 +189,23 @@ func New(client kubernetes.Interface,
 				Obj:  obj,
 			}
 		},
-		//UpdateFunc: func(old, cur interface{}) {
-		//	curIng := cur.(*extensions.Ingress)
-		//
-		//	store.secretIngressMap.update(curIng)
-		//	store.syncSecrets(curIng)
-		//
-		//	updateCh.In() <- Event{
-		//		Type: UpdateEvent,
-		//		Obj:  cur,
-		//	}
-		//},
+		UpdateFunc: func(old, cur interface{}) {
+			oldIng := old.(*extensions.Ingress)
+			curIng := cur.(*extensions.Ingress)
+			if oldIng.ResourceVersion == curIng.ResourceVersion {
+				logrus.Debugf("oldIng is the same as curIng, ignore: %v", oldIng)
+				return
+			}
+
+			store.extractAnnotations(curIng)
+			store.secretIngressMap.update(curIng)
+			store.syncSecrets(curIng)
+
+			updateCh.In() <- Event{
+				Type: UpdateEvent,
+				Obj:  cur,
+			}
+		},
 	}
 
 	secEventHandler := cache.ResourceEventHandlerFuncs{
@@ -281,8 +285,8 @@ func New(client kubernetes.Interface,
 		},
 	}
 
-	store.informers.Ingress.AddEventHandler(ingEventHandler)
-	store.informers.Secret.AddEventHandler(secEventHandler)
+	store.informers.Ingress.AddEventHandlerWithResyncPeriod(ingEventHandler, 10 * time.Second)
+	store.informers.Secret.AddEventHandlerWithResyncPeriod(secEventHandler, 10 * time.Second)
 
 	return store
 }

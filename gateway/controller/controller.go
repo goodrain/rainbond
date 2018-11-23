@@ -72,7 +72,6 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 		logrus.Errorf("Fail to persist Nginx config: %v\n", err)
 	} else {
 		// refresh http pools dynamically
-		logrus.Debug("no error")
 		gwc.refreshPools(httpPools)
 		gwc.RunningHttpPools = httpPools
 	}
@@ -109,7 +108,7 @@ func (gwc *GWController) handleEvent(errCh chan error) {
 				break
 			}
 			if evt, ok := event.(store.Event); ok {
-				logrus.Infof("Event %v received - object %v", evt.Type, evt.Obj)
+				logrus.Debugf("Event %v received - object %v", evt.Type, evt.Obj)
 				gwc.syncQueue.EnqueueSkippableTask(evt.Obj)
 			} else {
 				glog.Warningf("Unexpected event type received %T", event)
@@ -140,7 +139,6 @@ func (gwc *GWController) Stop() error {
 
 // refreshPools refresh pools dynamically.
 func (gwc *GWController) refreshPools(pools []*v1.Pool) {
-	logrus.Debug("refresh pools.")
 	gwc.GWS.WaitPluginReady()
 
 	delPools, updPools := gwc.getDelUpdPools(pools)

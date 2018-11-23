@@ -15,9 +15,10 @@ type Nginx struct {
 	User               string
 	EventLog           EventLog
 	Events             Events
-	HTTP               *Http
+	HTTP               *HTTP
 }
 
+// EventLog -
 type EventLog struct {
 	Path  string
 	Level string

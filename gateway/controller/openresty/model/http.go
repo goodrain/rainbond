@@ -2,7 +2,8 @@ package model
 
 import "github.com/goodrain/rainbond/cmd/gateway/option"
 
-type Http struct {
+// HTTP contains data for nginx http configuration
+type HTTP struct {
 	DefaultType          string
 	SendFile             bool
 	KeepaliveTimeout     Time
@@ -16,6 +17,7 @@ type Http struct {
 	ProxyBuffers         Size
 	ProxyBusyBuffersSize Size
 	AuxiliaryPort        int
+	UpstreamsDict        Size
 }
 
 type LogFormat struct {
@@ -28,11 +30,11 @@ type AccessLog struct {
 	Path string
 }
 
-// NewHTTP creates a new model.Http
-func NewHTTP(conf *option.Config) *Http {
-	return &Http{
-		DefaultType: "text/html",
-		SendFile:    true,
+// NewHTTP creates a new model.HTTP
+func NewHTTP(conf *option.Config) *HTTP {
+	return &HTTP{
+		DefaultType:   "text/html",
+		SendFile:      true,
 		AuxiliaryPort: conf.ListenPorts.AuxiliaryPort,
 		KeepaliveTimeout: Time{
 			Num:  30,
@@ -64,6 +66,10 @@ func NewHTTP(conf *option.Config) *Http {
 		},
 		ProxyBuffers: Size{
 			Num:  32,
+			Unit: "k",
+		},
+		UpstreamsDict: Size{
+			Num:  128,
 			Unit: "k",
 		},
 	}
