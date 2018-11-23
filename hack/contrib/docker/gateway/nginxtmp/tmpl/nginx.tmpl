@@ -1,8 +1,7 @@
-
-# {{ if .User }} user {{.User}};{{ end }}
+{{ if .User }} user {{.User}};{{ end }}
 worker_processes  {{.WorkerProcesses}};
 error_log  {{.ErrorLog}};
-# worker_rlimit_nofile {{.WorkerRlimitNofile}};
+worker_rlimit_nofile {{.WorkerRlimitNofile}};
 
 events {
     {{ if .Events.EnableEpoll }}use epoll;{{ end }}
@@ -59,7 +58,13 @@ http {
 
     include conf/http/*.conf;
 
-    lua_shared_dict upstreams_dict 16m;
+    lua_shared_dict upstreams_dict {{$h.UpstreamsDict.Num}}{{$h.UpstreamsDict.Unit}};
+
+    server {
+        listen 80 default_server;
+        server_name _;
+        return 404;
+    }
 
     server {
         listen       {{$h.AuxiliaryPort}};
@@ -119,6 +124,6 @@ http {
     }
 }
 
-#stream {
-#    include conf/stream/*.conf;
-#}
+stream {
+    include conf/stream/*.conf;
+}
