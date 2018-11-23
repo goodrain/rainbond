@@ -140,15 +140,14 @@ func TestApplyTcpRule(t *testing.T) {
 		t.Errorf("Can not convert %s(string) to int: %v",
 			testCase[parser.GetAnnotationWithPrefix("l4-port")], err)
 	}
-	tcpRule := &model.TcpRule{
+	tcpRule := &model.TCPRule{
 		ServiceID:     serviceID,
 		ContainerPort: port.ContainerPort,
 		IP:            testCase[parser.GetAnnotationWithPrefix("l4-host")],
 		Port:          externalPort,
 	}
 
-	ing, err := applyTcpRule(tcpRule, service,
-		testCase[parser.GetAnnotationWithPrefix("l4-port")], testCase["namespace"])
+	ing, err := applyTCPRule(tcpRule, service, testCase["namespace"])
 	if err != nil {
 		t.Errorf("Unexpected error occurred while applying stream rule: %v", err)
 	}
@@ -196,7 +195,7 @@ func TestApplyTcpRule(t *testing.T) {
 		t.Fatalf("create kube api client error: %v", err)
 	}
 	if _, err := clientSet.CoreV1().Namespaces().Create(&corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta {
+		ObjectMeta: metav1.ObjectMeta{
 			Name: testCase["namespace"],
 		},
 	}); err != nil {
@@ -273,7 +272,7 @@ func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 		t.Errorf("Unexpected occurred while creating AppServiceBuild: %v", err)
 	}
 
-	httpRule := &model.HttpRule{
+	httpRule := &model.HTTPRule{
 		UUID:          httpRuleID,
 		ServiceID:     serviceID,
 		ContainerPort: containerPort,
@@ -310,7 +309,7 @@ func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 		},
 	}
 
-	ing, sec, err := build.applyHttpRule(httpRule, port, service)
+	ing, sec, err := build.applyHTTPRule(httpRule, port, service)
 	if err != nil {
 		t.Errorf("Unexpected error occurred whiling applying http rule: %v", err)
 	}
@@ -345,7 +344,7 @@ func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 		t.Fatalf("create kube api client error: %v", err)
 	}
 	if _, err := clientSet.CoreV1().Namespaces().Create(&corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta {
+		ObjectMeta: metav1.ObjectMeta{
 			Name: testCase["namespace"],
 		},
 	}); err != nil {
@@ -434,7 +433,7 @@ func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 		t.Errorf("Unexpected occurred while creating AppServiceBuild: %v", err)
 	}
 
-	httpRule := &model.HttpRule{
+	httpRule := &model.HTTPRule{
 		UUID:          ruleID,
 		ServiceID:     serviceID,
 		ContainerPort: containerPort,
@@ -472,7 +471,7 @@ func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 		},
 	}
 
-	ing, sec, err := build.applyHttpRule(httpRule, port, service)
+	ing, sec, err := build.applyHTTPRule(httpRule, port, service)
 	if err != nil {
 		t.Errorf("Unexpected error occurred whiling applying http rule: %v", err)
 	}
@@ -487,7 +486,7 @@ func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 		t.Fatalf("create kube api client error: %v", err)
 	}
 	if _, err := clientSet.CoreV1().Namespaces().Create(&corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta {
+		ObjectMeta: metav1.ObjectMeta{
 			Name: testCase["namespace"],
 		},
 	}); err != nil {

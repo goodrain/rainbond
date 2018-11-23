@@ -40,7 +40,7 @@ func CreateGatewayManager(dbmanager db.Manager) *GatewayAction {
 
 // AddHttpRule adds http rule to db if it doesn't exists.
 func (g *GatewayAction) AddHttpRule(req *apimodel.HttpRuleStruct) error {
-	httpRule := &model.HttpRule{
+	httpRule := &model.HTTPRule{
 		UUID:          req.HttpRuleID,
 		ServiceID:     req.ServiceID,
 		ContainerPort: req.ContainerPort,
@@ -102,7 +102,7 @@ func (g *GatewayAction) UpdateHttpRule(req *apimodel.HttpRuleStruct) error {
 	}
 	if rule == nil {
 		tx.Rollback()
-		return fmt.Errorf("HttpRule dosen't exist based on uuid(%s)", req.HttpRuleID)
+		return fmt.Errorf("HTTPRule dosen't exist based on uuid(%s)", req.HttpRuleID)
 	}
 	// delete old Certificate
 	if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(rule.CertificateID); err != nil {
@@ -202,7 +202,7 @@ func (g *GatewayAction) AddCertificate(req *apimodel.HttpRuleStruct, tx *gorm.DB
 	return g.dbmanager.CertificateDaoTransactions(tx).AddModel(cert)
 }
 
-func (g *GatewayAction) UpdateCertificate(req apimodel.HttpRuleStruct, httpRule *model.HttpRule,
+func (g *GatewayAction) UpdateCertificate(req apimodel.HttpRuleStruct, httpRule *model.HTTPRule,
 	tx *gorm.DB) error {
 	// delete old certificate
 	cert, err := g.dbmanager.CertificateDaoTransactions(tx).GetCertificateByID(req.CertificateID)
@@ -221,7 +221,7 @@ func (g *GatewayAction) UpdateCertificate(req apimodel.HttpRuleStruct, httpRule 
 
 // AddTcpRule adds tcp rule.
 func (g *GatewayAction) AddTcpRule(req *apimodel.TcpRuleStruct) error {
-	tcpRule := &model.TcpRule{
+	tcpRule := &model.TCPRule{
 		UUID:          req.TcpRuleId,
 		ServiceID:     req.ServiceID,
 		ContainerPort: req.ContainerPort,

@@ -123,25 +123,25 @@ type HttpRuleDaoImpl struct {
 }
 
 func (h *HttpRuleDaoImpl) AddModel(mo model.Interface) error {
-	httpRule, ok := mo.(*model.HttpRule)
+	httpRule, ok := mo.(*model.HTTPRule)
 	if !ok {
-		return fmt.Errorf("Can't not convert %s to *model.HttpRule", reflect.TypeOf(mo).String())
+		return fmt.Errorf("Can't not convert %s to *model.HTTPRule", reflect.TypeOf(mo).String())
 	}
-	var oldHttpRule model.HttpRule
+	var oldHttpRule model.HTTPRule
 	if ok := h.DB.Where("uuid=?", httpRule.UUID).Find(&oldHttpRule).RecordNotFound(); ok {
 		if err := h.DB.Create(httpRule).Error; err != nil {
 			return err
 		}
 	} else {
-		return fmt.Errorf("HttpRule already exists based on uuid(%s)", httpRule.UUID)
+		return fmt.Errorf("HTTPRule already exists based on uuid(%s)", httpRule.UUID)
 	}
 	return nil
 }
 
 func (h *HttpRuleDaoImpl) UpdateModel(mo model.Interface) error {
-	hr, ok := mo.(*model.HttpRule)
+	hr, ok := mo.(*model.HTTPRule)
 	if !ok {
-		return fmt.Errorf("Failed to convert %s to *model.HttpRule", reflect.TypeOf(mo).String())
+		return fmt.Errorf("Failed to convert %s to *model.HTTPRule", reflect.TypeOf(mo).String())
 	}
 
 	return h.DB.Table(hr.TableName()).
@@ -149,9 +149,9 @@ func (h *HttpRuleDaoImpl) UpdateModel(mo model.Interface) error {
 		Update(hr).Error
 }
 
-// GetHttpRuleByServiceIDAndContainerPort gets a HttpRule based on uuid
-func (h *HttpRuleDaoImpl) GetHttpRuleByID(id string) (*model.HttpRule, error) {
-	httpRule := &model.HttpRule{}
+// GetHttpRuleByServiceIDAndContainerPort gets a HTTPRule based on uuid
+func (h *HttpRuleDaoImpl) GetHttpRuleByID(id string) (*model.HTTPRule, error) {
+	httpRule := &model.HTTPRule{}
 	if err := h.DB.Where("uuid = ?", id).Find(httpRule).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return httpRule, nil
@@ -161,10 +161,10 @@ func (h *HttpRuleDaoImpl) GetHttpRuleByID(id string) (*model.HttpRule, error) {
 	return httpRule, nil
 }
 
-// GetHttpRuleByServiceIDAndContainerPort gets a HttpRule based on serviceID and containerPort
+// GetHttpRuleByServiceIDAndContainerPort gets a HTTPRule based on serviceID and containerPort
 func (h *HttpRuleDaoImpl) GetHttpRuleByServiceIDAndContainerPort(serviceID string,
-	containerPort int) (*model.HttpRule, error) {
-	httpRule := &model.HttpRule{}
+	containerPort int) (*model.HTTPRule, error) {
+	httpRule := &model.HTTPRule{}
 	if err := h.DB.Where("service_id = ? and container_port = ?", serviceID,
 		containerPort).Find(httpRule).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -176,7 +176,7 @@ func (h *HttpRuleDaoImpl) GetHttpRuleByServiceIDAndContainerPort(serviceID strin
 }
 
 func (h *HttpRuleDaoImpl) DeleteHttpRuleByServiceIDAndContainerPort(serviceID string,
-	containerPort int) (*model.HttpRule, error) {
+	containerPort int) (*model.HTTPRule, error) {
 	httpRule, err := h.GetHttpRuleByServiceIDAndContainerPort(serviceID, containerPort)
 	if err != nil {
 		return nil, err
@@ -190,7 +190,7 @@ func (h *HttpRuleDaoImpl) DeleteHttpRuleByServiceIDAndContainerPort(serviceID st
 }
 
 func (h *HttpRuleDaoImpl) DeleteHttpRuleByID(id string) error {
-	httpRule := &model.HttpRule{
+	httpRule := &model.HTTPRule{
 		UUID: id,
 	}
 	if err := h.DB.Where("uuid = ? ", id).Delete(httpRule).Error; err != nil {
@@ -205,24 +205,24 @@ type TcpRuleDaoTmpl struct {
 }
 
 func (t *TcpRuleDaoTmpl) AddModel(mo model.Interface) error {
-	tcpRule := mo.(*model.TcpRule)
-	var oldTcpRule model.TcpRule
+	tcpRule := mo.(*model.TCPRule)
+	var oldTcpRule model.TCPRule
 	if ok := t.DB.Where("service_id = ? and container_port=?", tcpRule.ServiceID,
 		tcpRule.ContainerPort).Find(&oldTcpRule).RecordNotFound(); ok {
 		if err := t.DB.Create(tcpRule).Error; err != nil {
 			return err
 		}
 	} else {
-		return fmt.Errorf("TcpRule already exists based on ServiceID(%s) and ContainerPort(%v)",
+		return fmt.Errorf("TCPRule already exists based on ServiceID(%s) and ContainerPort(%v)",
 			tcpRule.ServiceID, tcpRule.ContainerPort)
 	}
 	return nil
 }
 
 func (t *TcpRuleDaoTmpl) UpdateModel(mo model.Interface) error {
-	tr, ok := mo.(*model.TcpRule)
+	tr, ok := mo.(*model.TCPRule)
 	if !ok {
-		return fmt.Errorf("Failed to convert %s to *model.TcpRule", reflect.TypeOf(mo).String())
+		return fmt.Errorf("Failed to convert %s to *model.TCPRule", reflect.TypeOf(mo).String())
 	}
 
 	return t.DB.Table(tr.TableName()).
@@ -230,10 +230,10 @@ func (t *TcpRuleDaoTmpl) UpdateModel(mo model.Interface) error {
 		Update(tr).Error
 }
 
-// GetTcpRuleByServiceIDAndContainerPort gets a TcpRule based on serviceID and containerPort
+// GetTcpRuleByServiceIDAndContainerPort gets a TCPRule based on serviceID and containerPort
 func (s *TcpRuleDaoTmpl) GetTcpRuleByServiceIDAndContainerPort(serviceID string,
-	containerPort int) (*model.TcpRule, error) {
-	result := &model.TcpRule{}
+	containerPort int) (*model.TCPRule, error) {
+	result := &model.TCPRule{}
 	if err := s.DB.Where("service_id = ? and container_port = ?", serviceID,
 		containerPort).Find(result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -244,9 +244,9 @@ func (s *TcpRuleDaoTmpl) GetTcpRuleByServiceIDAndContainerPort(serviceID string,
 	return result, nil
 }
 
-// GetTcpRuleByID gets a TcpRule based on tcpRuleID
-func (s *TcpRuleDaoTmpl) GetTcpRuleByID(id string) (*model.TcpRule, error) {
-	result := &model.TcpRule{}
+// GetTcpRuleByID gets a TCPRule based on tcpRuleID
+func (s *TcpRuleDaoTmpl) GetTcpRuleByID(id string) (*model.TCPRule, error) {
+	result := &model.TCPRule{}
 	if err := s.DB.Where("uuid = ?", id).Find(result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, nil
@@ -256,6 +256,6 @@ func (s *TcpRuleDaoTmpl) GetTcpRuleByID(id string) (*model.TcpRule, error) {
 	return result, nil
 }
 
-func (s *TcpRuleDaoTmpl) DeleteTcpRule(tcpRule *model.TcpRule) error {
+func (s *TcpRuleDaoTmpl) DeleteTcpRule(tcpRule *model.TCPRule) error {
 	return s.DB.Where("uuid = ?", tcpRule.UUID).Delete(tcpRule).Error
 }

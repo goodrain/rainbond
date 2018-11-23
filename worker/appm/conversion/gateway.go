@@ -199,7 +199,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort, service *cor
 	var secret *corev1.Secret
 	// http
 	if httpRule != nil {
-		ing, sec, err := a.applyHttpRule(httpRule, port, service)
+		ing, sec, err := a.applyHTTPRule(httpRule, port, service)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -209,9 +209,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort, service *cor
 
 	// tcp
 	if tcpRule != nil {
-		mappingPort, err := a.dbmanager.TenantServiceLBMappingPortDao().CreateTenantServiceLBMappingPort(
-			a.serviceID, port.ContainerPort)
-		ing, err := applyTcpRule(tcpRule, service, string(mappingPort.Port), a.tenant.UUID)
+		ing, err := applyTCPRule(tcpRule, service, a.tenant.UUID)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -221,8 +219,8 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort, service *cor
 	return ingresses, secret, nil
 }
 
-// applyTcpRule applies stream rule into ingress
-func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.TenantServicesPort,
+// applyTCPRule applies stream rule into ingress
+func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.TenantServicesPort,
 	service *corev1.Service) (ing *extensions.Ingress, sec *corev1.Secret, err error) {
 	// deal with empty path
 	path := strings.Replace(rule.Path, " ", "", -1)
@@ -304,7 +302,7 @@ func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.Tenant
 	}
 	for _, extension := range ruleExtensions {
 		switch extension.Key {
-		case string(model.HttpToHttps):
+		case string(model.HTTPToHTTPS):
 			annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
 		case string(model.LBType):
 			annos[parser.GetAnnotationWithPrefix("lb-type")] = extension.Value
@@ -317,10 +315,8 @@ func (a *AppServiceBuild) applyHttpRule(rule *model.HttpRule, port *model.Tenant
 	return ing, sec, nil
 }
 
-// applyTcpRule applies stream rule into ingress
-func applyTcpRule(rule *model.TcpRule, service *corev1.Service,
-	mappingPort string,
-	namespace string) (ing *extensions.Ingress, err error) {
+// applyTCPRule applies stream rule into ingress
+func applyTCPRule(rule *model.TCPRule, service *corev1.Service, namespace string) (ing *extensions.Ingress, err error) {
 	// create ingress
 	ing = &extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{

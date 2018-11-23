@@ -31,7 +31,7 @@ import (
 type GatewayStruct struct {
 }
 
-// HttpRule is used to add, update or delete http rule which enables
+// HTTPRule is used to add, update or delete http rule which enables
 // external traffic to access applications through the gateway
 func (g *GatewayStruct) HttpRule(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -104,7 +104,7 @@ func (g *GatewayStruct) deleteHttpRule(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, "success")
 }
 
-// TcpRule is used to add, update or delete tcp rule which enables
+// TCPRule is used to add, update or delete tcp rule which enables
 // external traffic to access applications through the gateway
 func (g *GatewayStruct) TcpRule(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {

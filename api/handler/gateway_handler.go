@@ -30,7 +30,7 @@ type GatewayHandler interface {
 	DeleteHttpRule(req *apimodel.HttpRuleStruct) error
 
 	AddCertificate(req *apimodel.HttpRuleStruct, tx *gorm.DB) error
-	UpdateCertificate(req apimodel.HttpRuleStruct, httpRule *dbmodel.HttpRule, tx *gorm.DB) error
+	UpdateCertificate(req apimodel.HttpRuleStruct, httpRule *dbmodel.HTTPRule, tx *gorm.DB) error
 
 	AddTcpRule(req *apimodel.TcpRuleStruct) error
 	UpdateTcpRule(req *apimodel.TcpRuleStruct) error
