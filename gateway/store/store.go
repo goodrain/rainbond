@@ -21,7 +21,6 @@ package store
 import (
 	"bytes"
 	"fmt"
-	"github.com/golang/glog"
 	"github.com/goodrain/rainbond/gateway/annotations"
 	"io/ioutil"
 	"k8s.io/ingress-nginx/k8s"
@@ -192,8 +191,8 @@ func New(client kubernetes.Interface,
 		UpdateFunc: func(old, cur interface{}) {
 			oldIng := old.(*extensions.Ingress)
 			curIng := cur.(*extensions.Ingress)
-			if oldIng.ResourceVersion == curIng.ResourceVersion {
-				logrus.Debugf("oldIng is the same as curIng, ignore: %v", oldIng)
+			// ignore the same secret as the old one
+			if oldIng.ResourceVersion == curIng.ResourceVersion || reflect.DeepEqual(oldIng, curIng) {
 				return
 			}
 
@@ -216,11 +215,11 @@ func New(client kubernetes.Interface,
 
 			// find references in ingresses and update local ssl certs
 			if ings := store.secretIngressMap.getSecretKeys(key); len(ings) > 0 {
-				glog.Infof("secret %v was added and it is used in ingress annotations. Parsing...", key)
+				logrus.Infof("secret %v was added and it is used in ingress annotations. Parsing...", key)
 				for _, ingKey := range ings {
 					ing, err := store.GetIngress(ingKey)
 					if err != nil {
-						glog.Errorf("could not find Ingress %v in local store", ingKey)
+						logrus.Errorf("could not find Ingress %v in local store", ingKey)
 						continue
 					}
 					store.syncSecrets(ing)
@@ -233,16 +232,21 @@ func New(client kubernetes.Interface,
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			if !reflect.DeepEqual(old, cur) {
-				sec := cur.(*corev1.Secret)
-				key := k8s.MetaNamespaceKey(sec)
+				curSec := cur.(*corev1.Secret)
+				oldSec := old.(*corev1.Secret)
+				// ignore the same secret as the old one
+				if oldSec.ResourceVersion == curSec.ResourceVersion || reflect.DeepEqual(curSec, oldSec) {
+					return
+				}
+				key := k8s.MetaNamespaceKey(curSec)
 
 				// find references in ingresses and update local ssl certs
 				if ings := store.secretIngressMap.getSecretKeys(key); len(ings) > 0 {
-					glog.Infof("secret %v was updated and it is used in ingress annotations. Parsing...", key)
+					logrus.Infof("secret %v was updated and it is used in ingress annotations. Parsing...", key)
 					for _, ingKey := range ings {
 						ing, err := store.GetIngress(ingKey)
 						if err != nil {
-							glog.Errorf("could not find Ingress %v in local store", ingKey)
+							logrus.Errorf("could not find Ingress %v in local store", ingKey)
 							continue
 						}
 						store.syncSecrets(ing)
@@ -260,12 +264,12 @@ func New(client kubernetes.Interface,
 				// If we reached here it means the secret was deleted but its final state is unrecorded.
 				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 				if !ok {
-					glog.Errorf("couldn't get object from tombstone %#v", obj)
+					logrus.Errorf("couldn't get object from tombstone %#v", obj)
 					return
 				}
 				sec, ok = tombstone.Obj.(*corev1.Secret)
 				if !ok {
-					glog.Errorf("Tombstone contained object that is not a Secret: %#v", obj)
+					logrus.Errorf("Tombstone contained object that is not a Secret: %#v", obj)
 					return
 				}
 			}
@@ -276,7 +280,7 @@ func New(client kubernetes.Interface,
 
 			// find references in ingresses
 			if ings := store.secretIngressMap.getSecretKeys(key); len(ings) > 0 {
-				glog.Infof("secret %v was deleted and it is used in ingress annotations. Parsing...", key)
+				logrus.Infof("secret %v was deleted and it is used in ingress annotations. Parsing...", key)
 				updateCh.In() <- Event{
 					Type: DeleteEvent,
 					Obj:  obj,
@@ -285,8 +289,35 @@ func New(client kubernetes.Interface,
 		},
 	}
 
+	// Endpoint Event Handler
+	epEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			updateCh.In() <- Event{
+				Type: CreateEvent,
+				Obj:  obj,
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			updateCh.In() <- Event{
+				Type: DeleteEvent,
+				Obj:  obj,
+			}
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			oep := old.(*corev1.Endpoints)
+			cep := cur.(*corev1.Endpoints)
+			if cep.ResourceVersion != oep.ResourceVersion && !reflect.DeepEqual(cep.Subsets, oep.Subsets) {
+				updateCh.In() <- Event{
+					Type: UpdateEvent,
+					Obj:  cur,
+				}
+			}
+		},
+	}
+
 	store.informers.Ingress.AddEventHandlerWithResyncPeriod(ingEventHandler, 10 * time.Second)
 	store.informers.Secret.AddEventHandlerWithResyncPeriod(secEventHandler, 10 * time.Second)
+	store.informers.Endpoint.AddEventHandlerWithResyncPeriod(epEventHandler, 10 * time.Second)
 
 	return store
 }
