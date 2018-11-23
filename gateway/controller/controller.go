@@ -52,7 +52,7 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 	l7sv, l4sv := gwc.store.ListVirtualService()
 	httpPools, tcpPools := gwc.store.ListPool()
 	currentConfig := &v1.Config{
-		HttpPools: httpPools,
+		HTTPPools: httpPools,
 		TCPPools:  tcpPools,
 		L7VS:      l7sv,
 		L4VS:      l4sv,

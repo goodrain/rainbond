@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/golang/glog"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/golang/glog"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/template"
@@ -20,6 +20,7 @@ import (
 	"k8s.io/ingress-nginx/ingress/controller/process"
 )
 
+// OpenrestyService handles the business logic of OpenrestyService
 type OpenrestyService struct {
 	AuxiliaryPort  int
 	IsShuttingDown *bool
@@ -41,11 +42,13 @@ func CreateOpenrestyService(config *option.Config, isShuttingDown *bool) *Openre
 	return gws
 }
 
+// Upstream defines a group of servers. Servers can listen on different ports
 type Upstream struct {
 	Name    string
 	Servers []*Server
 }
 
+// Server belongs to Upstream
 type Server struct {
 	Host string
 	Port int32
@@ -113,11 +116,16 @@ func (osvc *OpenrestyService) Stop() error {
 
 // PersistConfig persists config
 func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
-	if err := osvc.PersistUpstreams(conf.HttpPools, "upstreams-http.tmpl", "http/upstreams.conf"); err != nil {
+	// delete the old configuration
+	if err := os.RemoveAll(template.CustomConfigPath); err != nil {
+		logrus.Errorf("Cant not remove directory(%s): %v", template.CustomConfigPath, err)
+	}
+
+	if err := osvc.persistUpstreams(conf.HTTPPools, "upstreams-http.tmpl", "http/upstreams.conf"); err != nil {
 		logrus.Errorf("fail to persist http upstreams.conf ")
 	}
 
-	if err := osvc.PersistUpstreams(conf.TCPPools, "upstreams-tcp.tmpl", "stream/upstreams.conf"); err != nil {
+	if err := osvc.persistUpstreams(conf.TCPPools, "upstreams-tcp.tmpl", "stream/upstreams.conf"); err != nil {
 		logrus.Errorf("fail to persist tcp upstreams.conf")
 	}
 
@@ -155,8 +163,8 @@ func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
 	return nil
 }
 
-// PersistUpstreams persists upstreams
-func (osvc *OpenrestyService) PersistUpstreams(pools []*v1.Pool, tmpl string, filename string) error {
+// persistUpstreams persists upstreams
+func (osvc *OpenrestyService) persistUpstreams(pools []*v1.Pool, tmpl string, filename string) error {
 	var upstreams []model.Upstream
 	for _, pool := range pools {
 		upstream := model.Upstream{}
@@ -260,6 +268,7 @@ func (osvc *OpenrestyService) updateUpstreams(upstream []*Upstream) error {
 	return nil
 }
 
+// DeletePools deletes pools
 func (osvc *OpenrestyService) DeletePools(pools []*v1.Pool) error {
 	if len(pools) == 0 {
 		return nil
@@ -270,6 +279,7 @@ func (osvc *OpenrestyService) DeletePools(pools []*v1.Pool) error {
 	}
 	return osvc.deletePools(data)
 }
+
 func (osvc *OpenrestyService) deletePools(names []string) error {
 	url := fmt.Sprintf("http://127.0.0.1:%v/delete-upstreams", osvc.AuxiliaryPort)
 	data, _ := json.Marshal(names)
@@ -295,7 +305,7 @@ func (osvc *OpenrestyService) WaitPluginReady() {
 			logrus.Info("Nginx is ready")
 			break
 		}
-		logrus.Info("Nginx is not ready yet: %v", err)
+		logrus.Infof("Nginx is not ready yet: %v", err)
 		time.Sleep(1 * time.Second)
 	}
 }

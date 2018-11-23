@@ -19,6 +19,7 @@
 package store
 
 import (
+	apiv1 "k8s.io/api/core/v1"
 	"bytes"
 	"fmt"
 	"github.com/goodrain/rainbond/gateway/annotations"
@@ -315,9 +316,9 @@ func New(client kubernetes.Interface,
 		},
 	}
 
-	store.informers.Ingress.AddEventHandlerWithResyncPeriod(ingEventHandler, 10 * time.Second)
-	store.informers.Secret.AddEventHandlerWithResyncPeriod(secEventHandler, 10 * time.Second)
-	store.informers.Endpoint.AddEventHandlerWithResyncPeriod(epEventHandler, 10 * time.Second)
+	store.informers.Ingress.AddEventHandlerWithResyncPeriod(ingEventHandler, 10*time.Second)
+	store.informers.Secret.AddEventHandlerWithResyncPeriod(secEventHandler, 10*time.Second)
+	store.informers.Endpoint.AddEventHandlerWithResyncPeriod(epEventHandler, 10*time.Second)
 
 	return store
 }
@@ -343,23 +344,25 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 	for _, item := range s.listers.Endpoint.List() {
 		endpoint := item.(*corev1.Endpoints)
 
-		pool := &v1.Pool{
-			Nodes: []*v1.Node{},
-		}
-		pool.Name = endpoint.ObjectMeta.Name
-		for _, ss := range endpoint.Subsets {
-			for _, address := range ss.Addresses {
-				pool.Nodes = append(pool.Nodes, &v1.Node{
-					Host: address.IP,
-					Port: ss.Ports[0].Port,
-				})
+		if endpoint.Subsets != nil || len(endpoint.Subsets) != 0 {
+			pool := &v1.Pool{
+				Nodes: []*v1.Node{},
 			}
-		}
-		if _, ok := l7PoolMap[pool.Name]; ok {
-			httpPools = append(httpPools, pool)
-		}
-		if _, ok := l4PoolMap[pool.Name]; ok {
-			tcpPools = append(tcpPools, pool)
+			pool.Name = endpoint.ObjectMeta.Name
+			for _, ss := range endpoint.Subsets {
+				for _, address := range ss.Addresses {
+					pool.Nodes = append(pool.Nodes, &v1.Node{
+						Host: address.IP,
+						Port: ss.Ports[0].Port,
+					})
+				}
+			}
+			if _, ok := l7PoolMap[pool.Name]; ok {
+				httpPools = append(httpPools, pool)
+			}
+			if _, ok := l4PoolMap[pool.Name]; ok {
+				tcpPools = append(tcpPools, pool)
+			}
 		}
 	}
 	return httpPools, tcpPools
@@ -493,11 +496,25 @@ func (s *rbdStore) ingressIsValid(ing *extensions.Ingress) bool {
 			}
 		}
 	}
-	_, exists, _ := s.listers.Endpoint.GetByKey(endpointKey)
+	item, exists, err := s.listers.Endpoint.GetByKey(endpointKey)
+	if err != nil {
+		logrus.Errorf("Can not get endpoint by key(%s): %v", endpointKey, err)
+		return false
+	}
 	if !exists {
 		logrus.Infof("Endpoint \"%s\" does not exist.", endpointKey)
 		return false
 	}
+	endpoint, ok := item.(*apiv1.Endpoints)
+	if !ok {
+		logrus.Errorf("Cant not convert %v to %v", reflect.TypeOf(item), reflect.TypeOf(endpoint))
+		return false
+	}
+	if endpoint.Subsets == nil || len(endpoint.Subsets) == 0 {
+		logrus.Warningf("Endpoints(%s) is empty, ignore it", endpointKey)
+		return false
+	}
+
 	return true
 }
 

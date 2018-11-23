@@ -76,13 +76,15 @@ type RedirectConfig struct {
 	FromToWWW bool   `json:"fromToWWW"`
 }
 
+// Config contains all the configuration of the gateway
 type Config struct {
-	HttpPools []*Pool
+	HTTPPools []*Pool
 	TCPPools  []*Pool
 	L7VS      []*VirtualService
 	L4VS      []*VirtualService
 }
 
+// Equals determines if cfg is equal to c
 func (cfg *Config) Equals(c *Config) bool {
 	if cfg == c {
 		return true
