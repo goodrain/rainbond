@@ -26,6 +26,7 @@ import (
 	api_model "github.com/goodrain/rainbond/api/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"net/http"
+	"net/url"
 )
 
 type GatewayStruct struct {
@@ -46,7 +47,7 @@ func (g *GatewayStruct) HttpRule(w http.ResponseWriter, r *http.Request) {
 
 func (g *GatewayStruct) addHttpRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add http rule.")
-	var req api_model.HttpRuleStruct
+	var req api_model.HTTPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -54,8 +55,31 @@ func (g *GatewayStruct) addHttpRule(w http.ResponseWriter, r *http.Request) {
 	reqJson, _ := json.Marshal(req)
 	logrus.Debugf("Request is : %s", string(reqJson))
 
-	h := handler.GetGatewayHandler()
+	// verify request
+	values := url.Values{}
+	if req.ServiceID == "" {
+		values["service_id"] = []string{"The service_id field is required"}
+	}
+	if req.ContainerPort == 0 {
+		values["container_port"] = []string{"The container_port field is required"}
+	}
+	if req.Domain == "" {
+		values["domain"] = []string{"The domain field is required"}
+	}
+	if req.CertificateID != "" {
+		if req.Certificate == "" {
+			values["certificate"] = []string{"The certificate field is required"}
+		}
+		if req.PrivateKey == "" {
+			values["private_key"] = []string{"The private_key field is required"}
+		}
+	}
+	if len(values) != 0 {
+		httputil.ReturnValidationError(r, w, values)
+		return
+	}
 
+	h := handler.GetGatewayHandler()
 	if err := h.AddHttpRule(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while adding http rule: %v", err))
 		return
@@ -66,7 +90,7 @@ func (g *GatewayStruct) addHttpRule(w http.ResponseWriter, r *http.Request) {
 
 func (g *GatewayStruct) updateHttpRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("update http rule.")
-	var req api_model.HttpRuleStruct
+	var req api_model.HTTPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -86,7 +110,7 @@ func (g *GatewayStruct) updateHttpRule(w http.ResponseWriter, r *http.Request) {
 
 func (g *GatewayStruct) deleteHttpRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("delete http rule.")
-	var req api_model.HttpRuleStruct
+	var req api_model.HTTPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -119,7 +143,7 @@ func (g *GatewayStruct) TcpRule(w http.ResponseWriter, r *http.Request) {
 
 func (g *GatewayStruct) addTcpRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add tcp rule.")
-	var req api_model.TcpRuleStruct
+	var req api_model.TCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -139,7 +163,7 @@ func (g *GatewayStruct) addTcpRule(w http.ResponseWriter, r *http.Request) {
 
 func (g *GatewayStruct) updateTcpRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add tcp rule.")
-	var req api_model.TcpRuleStruct
+	var req api_model.TCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -159,7 +183,7 @@ func (g *GatewayStruct) updateTcpRule(w http.ResponseWriter, r *http.Request) {
 
 func (g *GatewayStruct) deleteTcpRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("delete tcp rule.")
-	var req api_model.TcpRuleStruct
+	var req api_model.TCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
