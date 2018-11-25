@@ -173,6 +173,19 @@ func (g *GatewayStruct) addTCPRule(w http.ResponseWriter, r *http.Request) {
 	reqJSON, _ := json.Marshal(req)
 	logrus.Debugf("Request is : %s", string(reqJSON))
 
+	// verify request
+	values := url.Values{}
+	if req.ContainerPort == 0 {
+		values["container_port"] = []string{"The container_port field is required"}
+	}
+	if req.Port == 0 {
+		values["port"] = []string{"The port field is required"}
+	}
+	if len(values) != 0 {
+		httputil.ReturnValidationError(r, w, values)
+		return
+	}
+
 	h := handler.GetGatewayHandler()
 	if err := h.AddTcpRule(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
