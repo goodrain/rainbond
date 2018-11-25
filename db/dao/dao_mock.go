@@ -1761,6 +1761,17 @@ func (_mr *_MockTenantServiceLBMappingPortDaoRecorder) GetTenantServiceLBMapping
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTenantServiceLBMappingPortByService", arg0)
 }
 
+func (_m *MockTenantServiceLBMappingPortDao) GetLBPortsASC() ([]*model.TenantServiceLBMappingPort, error) {
+	ret := _m.ctrl.Call(_m, "GetLBPortsASC")
+	ret0, _ := ret[0].([]*model.TenantServiceLBMappingPort)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTenantServiceLBMappingPortDaoRecorder) GetLBPortsASC() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLBPortsASC")
+}
+
 func (_m *MockTenantServiceLBMappingPortDao) CreateTenantServiceLBMappingPort(serviceID string, containerPort int) (*model.TenantServiceLBMappingPort, error) {
 	ret := _m.ctrl.Call(_m, "CreateTenantServiceLBMappingPort", serviceID, containerPort)
 	ret0, _ := ret[0].(*model.TenantServiceLBMappingPort)

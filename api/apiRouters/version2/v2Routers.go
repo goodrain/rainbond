@@ -44,6 +44,7 @@ func (v2 *V2) Routes() chi.Router {
 	r.Get("/health", controller.GetManager().Health)
 	r.Post("/alertmanager-webhook", controller.GetManager().AlertManagerWebHook)
 	r.Get("/version", controller.GetManager().Version)
+	r.Mount("/port", v2.portRouter())
 	return r
 }
 
@@ -260,5 +261,11 @@ func (v2 *V2) notificationEventRouter() chi.Router {
 	r.Get("/", controller.GetNotificationEvents)
 	r.Put("/{serviceAlias}", controller.HandleNotificationEvent)
 	r.Get("/{hash}", controller.GetNotificationEvent)
+	return r
+}
+
+func (v2 *V2) portRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/avail-port", controller.GetManager().GetAvailablePort)
 	return r
 }

@@ -980,6 +980,14 @@ func (t *TenantServiceLBMappingPortDaoImpl) GetTenantServiceLBMappingPort(servic
 	return &mapPort, nil
 }
 
+func (t *TenantServiceLBMappingPortDaoImpl) GetLBPortsASC() ([]*model.TenantServiceLBMappingPort, error) {
+	var ports []*model.TenantServiceLBMappingPort
+	if err := t.DB.Order("port asc").Find(&ports).Error; err != nil {
+		return nil, fmt.Errorf("select all exist port error,%s", err.Error())
+	}
+	return ports, nil
+}
+
 //CreateTenantServiceLBMappingPort 创建负载均衡VS端口,如果端口分配已存在，直接返回
 func (t *TenantServiceLBMappingPortDaoImpl) CreateTenantServiceLBMappingPort(serviceID string, containerPort int) (*model.TenantServiceLBMappingPort, error) {
 	var mapPorts []*model.TenantServiceLBMappingPort

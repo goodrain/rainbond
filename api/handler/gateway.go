@@ -25,21 +25,24 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
 	"github.com/jinzhu/gorm"
+	"os"
+	"strconv"
 )
 
+// GatewayAction -
 type GatewayAction struct {
 	dbmanager db.Manager
 }
 
-//CreateManager creates gateway manager.
+//CreateGatewayManager creates gateway manager.
 func CreateGatewayManager(dbmanager db.Manager) *GatewayAction {
 	return &GatewayAction{
 		dbmanager: dbmanager,
 	}
 }
 
-// AddHttpRule adds http rule to db if it doesn't exists.
-func (g *GatewayAction) AddHttpRule(req *apimodel.AddHTTPRuleStruct) error {
+// AddHTTPRule adds http rule to db if it doesn't exists.
+func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
 	httpRule := &model.HTTPRule{
 		UUID:          req.HTTPRuleID,
 		ServiceID:     req.ServiceID,
@@ -91,8 +94,8 @@ func (g *GatewayAction) AddHttpRule(req *apimodel.AddHTTPRuleStruct) error {
 	return nil
 }
 
-// UpdateHttpRule updates http rule
-func (g *GatewayAction) UpdateHttpRule(req *apimodel.UpdateHTTPRuleStruct) error {
+// UpdateHTTPRule updates http rule
+func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error {
 	tx := db.GetManager().Begin()
 	rule, err := g.dbmanager.HttpRuleDaoTransactions(tx).GetHttpRuleByID(req.HTTPRuleID)
 	if err != nil {
@@ -176,8 +179,8 @@ func (g *GatewayAction) UpdateHttpRule(req *apimodel.UpdateHTTPRuleStruct) error
 	return nil
 }
 
-// DeleteHttpRule deletes http rule, including certificate and rule extensions
-func (g *GatewayAction) DeleteHttpRule(req *apimodel.DeleteHTTPRuleStruct) error {
+// DeleteHTTPRule deletes http rule, including certificate and rule extensions
+func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error {
 	// begin transaction
 	tx := db.GetManager().Begin()
 	// delete http rule
@@ -220,6 +223,7 @@ func (g *GatewayAction) AddCertificate(req *apimodel.AddHTTPRuleStruct, tx *gorm
 	return g.dbmanager.CertificateDaoTransactions(tx).AddModel(cert)
 }
 
+// UpdateCertificate updates certificate for http rule
 func (g *GatewayAction) UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRule *model.HTTPRule,
 	tx *gorm.DB) error {
 	// delete old certificate
@@ -237,8 +241,8 @@ func (g *GatewayAction) UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRu
 	return g.dbmanager.CertificateDaoTransactions(tx).UpdateModel(cert)
 }
 
-// AddTcpRule adds tcp rule.
-func (g *GatewayAction) AddTcpRule(req *apimodel.TCPRuleStruct) error {
+// AddTCPRule adds tcp rule.
+func (g *GatewayAction) AddTCPRule(req *apimodel.TCPRuleStruct) error {
 	tcpRule := &model.TCPRule{
 		UUID:          req.TCPRuleID,
 		ServiceID:     req.ServiceID,
@@ -276,7 +280,8 @@ func (g *GatewayAction) AddTcpRule(req *apimodel.TCPRuleStruct) error {
 	return nil
 }
 
-func (g *GatewayAction) UpdateTcpRule(req *apimodel.TCPRuleStruct) error {
+// UpdateTCPRule updates a tcp rule
+func (g *GatewayAction) UpdateTCPRule(req *apimodel.TCPRuleStruct) error {
 	// begin transaction
 	tx := db.GetManager().Begin()
 	// get old tcp rule
@@ -321,7 +326,8 @@ func (g *GatewayAction) UpdateTcpRule(req *apimodel.TCPRuleStruct) error {
 	return nil
 }
 
-func (g *GatewayAction) DeleteTcpRule(req *apimodel.TCPRuleStruct) error {
+// DeleteTCPRule deletes a tcp rule
+func (g *GatewayAction) DeleteTCPRule(req *apimodel.TCPRuleStruct) error {
 	// begin transaction
 	tx := db.GetManager().Begin()
 	tcpRule, err := db.GetManager().TcpRuleDaoTransactions(tx).GetTcpRuleByID(req.TCPRuleID)
@@ -362,4 +368,51 @@ func (g *GatewayAction) AddRuleExtensions(ruleID string, ruleExtensions []*apimo
 		}
 	}
 	return nil
+}
+
+// GetAvailablePort returns a available port
+func (g *GatewayAction) GetAvailablePort() (int, error) {
+	mapPorts, err := g.dbmanager.TenantServiceLBMappingPortDao().GetLBPortsASC()
+	if err != nil {
+		return 0, err
+	}
+	var ports []int
+	for _, p := range mapPorts {
+		ports = append(ports, p.Port)
+	}
+	maxPort, _ := strconv.Atoi(os.Getenv("MIN_LB_PORT"))
+	minPort, _ := strconv.Atoi(os.Getenv("MAX_LB_PORT"))
+	if minPort == 0 {
+		minPort = 20001
+	}
+	if maxPort == 0 {
+		maxPort = 35000
+	}
+	var maxUsePort int
+	if len(ports) > 0 {
+		maxUsePort = ports[len(ports)-1]
+	} else {
+		maxUsePort = 20001
+	}
+	//顺序分配端口
+	selectPort := maxUsePort + 1
+	if selectPort <= maxPort {
+		return selectPort, nil
+	}
+	//捡漏以前端口
+	selectPort = minPort
+	for _, p := range ports {
+		if p == selectPort {
+			selectPort = selectPort + 1
+			continue
+		}
+		if p > selectPort {
+			return selectPort, nil
+		}
+		selectPort = selectPort + 1
+	}
+	if selectPort <= maxPort {
+		return selectPort, nil
+	}
+	return 0, fmt.Errorf("no more lb port can be use,max port is %d", maxPort)
 }

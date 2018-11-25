@@ -75,7 +75,7 @@ func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h := handler.GetGatewayHandler()
-	if err := h.AddHttpRule(&req); err != nil {
+	if err := h.AddHTTPRule(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while adding http rule: %v", err))
 		return
 	}
@@ -121,7 +121,7 @@ func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h := handler.GetGatewayHandler()
-	if err := h.UpdateHttpRule(&req); err != nil {
+	if err := h.UpdateHTTPRule(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating http rule: %v", err))
 		return
@@ -141,7 +141,7 @@ func (g *GatewayStruct) deleteHTTPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
-	err := h.DeleteHttpRule(&req)
+	err := h.DeleteHTTPRule(&req)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while delete http rule: %v", err))
 		return
@@ -155,7 +155,7 @@ func (g *GatewayStruct) deleteHTTPRule(w http.ResponseWriter, r *http.Request) {
 func (g *GatewayStruct) TCPRule(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		g.addTCPRule(w, r)
+		g.AddTCPRule(w, r)
 	case "PUT":
 		g.updateTCPRule(w, r)
 	case "DELETE":
@@ -163,7 +163,8 @@ func (g *GatewayStruct) TCPRule(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (g *GatewayStruct) addTCPRule(w http.ResponseWriter, r *http.Request) {
+// AddTCPRule adds a tcp rule
+func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add tcp rule.")
 	var req api_model.TCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
@@ -187,7 +188,7 @@ func (g *GatewayStruct) addTCPRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h := handler.GetGatewayHandler()
-	if err := h.AddTcpRule(&req); err != nil {
+	if err := h.AddTCPRule(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"adding tcp rule: %v", err))
 		return
@@ -207,7 +208,7 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
-	if err := h.UpdateTcpRule(&req); err != nil {
+	if err := h.UpdateTCPRule(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating tcp rule: %v", err))
 		return
@@ -217,7 +218,7 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("delete tcp rule.")
+	logrus.Debugf("delete TCP rule.")
 	var req api_model.TCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
@@ -227,11 +228,26 @@ func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
-	if err := h.DeleteTcpRule(&req); err != nil {
+	if err := h.DeleteTCPRule(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"deleting tcp rule: %v", err))
 		return
 	}
 
 	httputil.ReturnSuccess(r, w, "success")
+}
+
+// GetAvailablePort returns a available port
+func (g *GatewayStruct) GetAvailablePort(w http.ResponseWriter, r *http.Request) {
+	logrus.Debugf("get available port.")
+	h := handler.GetGatewayHandler()
+
+	res, err := h.GetAvailablePort()
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
+			"getting available port: %v", err))
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, res)
 }

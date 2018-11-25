@@ -25,16 +25,18 @@ import (
 )
 
 type GatewayHandler interface {
-	AddHttpRule(req *apimodel.AddHTTPRuleStruct) error
-	UpdateHttpRule(req *apimodel.UpdateHTTPRuleStruct) error
-	DeleteHttpRule(req *apimodel.DeleteHTTPRuleStruct) error
+	AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error
+	UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
+	DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error
 
 	AddCertificate(req *apimodel.AddHTTPRuleStruct, tx *gorm.DB) error
 	UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRule *dbmodel.HTTPRule, tx *gorm.DB) error
 
-	AddTcpRule(req *apimodel.TCPRuleStruct) error
-	UpdateTcpRule(req *apimodel.TCPRuleStruct) error
-	DeleteTcpRule(req *apimodel.TCPRuleStruct) error
+	AddTCPRule(req *apimodel.TCPRuleStruct) error
+	UpdateTCPRule(req *apimodel.TCPRuleStruct) error
+	DeleteTCPRule(req *apimodel.TCPRuleStruct) error
 
 	AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct, tx *gorm.DB) error
+
+	GetAvailablePort() (int, error)
 }
