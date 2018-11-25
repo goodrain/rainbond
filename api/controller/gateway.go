@@ -48,7 +48,7 @@ func (g *GatewayStruct) HTTPRule(w http.ResponseWriter, r *http.Request) {
 
 func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add http rule.")
-	var req api_model.HTTPRuleStruct
+	var req api_model.AddHTTPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -58,14 +58,8 @@ func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 
 	// verify request
 	values := url.Values{}
-	if req.ServiceID == "" {
-		values["service_id"] = []string{"The service_id field is required"}
-	}
 	if req.ContainerPort == 0 {
 		values["container_port"] = []string{"The container_port field is required"}
-	}
-	if req.Domain == "" {
-		values["domain"] = []string{"The domain field is required"}
 	}
 	if req.CertificateID != "" {
 		if req.Certificate == "" {
@@ -91,13 +85,40 @@ func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 
 func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("update http rule.")
-	var req api_model.HTTPRuleStruct
+	var req api_model.UpdateHTTPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
 	reqJSON, _ := json.Marshal(req)
 	logrus.Debugf("Request is : %s", string(reqJSON))
+
+	// verify request
+	values := url.Values{}
+	if req.CertificateID != "" {
+		if req.Certificate == "" {
+			values["certificate"] = []string{"The certificate field is required"}
+		}
+		if req.PrivateKey == "" {
+			values["private_key"] = []string{"The private_key field is required"}
+		}
+	}
+	if len(req.RuleExtensions) > 0 {
+		for _, re := range req.RuleExtensions {
+			if re.Key == "" {
+				values["key"] = []string{"The key field is required"}
+				break
+			}
+			if re.Value == "" {
+				values["value"] = []string{"The value field is required"}
+				break
+			}
+		}
+	}
+	if len(values) != 0 {
+		httputil.ReturnValidationError(r, w, values)
+		return
+	}
 
 	h := handler.GetGatewayHandler()
 	if err := h.UpdateHttpRule(&req); err != nil {
@@ -111,7 +132,7 @@ func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 
 func (g *GatewayStruct) deleteHTTPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("delete http rule.")
-	var req api_model.HTTPRuleStruct
+	var req api_model.AddHTTPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return

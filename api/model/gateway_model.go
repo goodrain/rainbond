@@ -18,8 +18,24 @@
 
 package model
 
-//HTTPRuleStruct contains http rule, certificate and rule extensions
-type HTTPRuleStruct struct {
+//AddHTTPRuleStruct is used to add http rule, certificate and rule extensions
+type AddHTTPRuleStruct struct {
+	HTTPRuleID     string                 `json:"http_rule_id" validate:"http_rule_id|required"`
+	ServiceID      string                 `json:"service_id" validate:"service_id|required"`
+	ContainerPort  int                    `json:"container_port" validate:"container_port|required"`
+	Domain         string                 `json:"domain" validate:"domain|required"`
+	Path           string                 `json:"path"`
+	Header         string                 `json:"header"`
+	Cookie         string                 `json:"cookie"`
+	IP             string                 `json:"ip"`
+	CertificateID  string                 `json:"certificate_id"`
+	Certificate    string                 `json:"certificate"`
+	PrivateKey     string                 `json:"private_key"`
+	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
+}
+
+//UpdateHTTPRuleStruct is used to update http rule, certificate and rule extensions
+type UpdateHTTPRuleStruct struct {
 	HTTPRuleID     string                 `json:"http_rule_id" validate:"http_rule_id|required"`
 	ServiceID      string                 `json:"service_id"`
 	ContainerPort  int                    `json:"container_port"`

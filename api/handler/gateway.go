@@ -39,7 +39,7 @@ func CreateGatewayManager(dbmanager db.Manager) *GatewayAction {
 }
 
 // AddHttpRule adds http rule to db if it doesn't exists.
-func (g *GatewayAction) AddHttpRule(req *apimodel.HTTPRuleStruct) error {
+func (g *GatewayAction) AddHttpRule(req *apimodel.AddHTTPRuleStruct) error {
 	httpRule := &model.HTTPRule{
 		UUID:          req.HTTPRuleID,
 		ServiceID:     req.ServiceID,
@@ -92,10 +92,9 @@ func (g *GatewayAction) AddHttpRule(req *apimodel.HTTPRuleStruct) error {
 }
 
 // UpdateHttpRule updates http rule
-func (g *GatewayAction) UpdateHttpRule(req *apimodel.HTTPRuleStruct) error {
+func (g *GatewayAction) UpdateHttpRule(req *apimodel.UpdateHTTPRuleStruct) error {
 	tx := db.GetManager().Begin()
 	rule, err := g.dbmanager.HttpRuleDaoTransactions(tx).GetHttpRuleByID(req.HTTPRuleID)
-
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -104,48 +103,67 @@ func (g *GatewayAction) UpdateHttpRule(req *apimodel.HTTPRuleStruct) error {
 		tx.Rollback()
 		return fmt.Errorf("HTTPRule dosen't exist based on uuid(%s)", req.HTTPRuleID)
 	}
-	// delete old Certificate
-	if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(rule.CertificateID); err != nil {
-		tx.Rollback()
-		return err
-	}
-	// delete old RuleExtensions
-	if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(rule.UUID); err != nil {
-		tx.Rollback()
-		return err
-	}
-	// add new certificate
-	cert := &model.Certificate{
-		UUID:            req.CertificateID,
-		CertificateName: fmt.Sprintf("cert-%s", util.NewUUID()[0:8]),
-		Certificate:     req.Certificate,
-		PrivateKey:      req.PrivateKey,
-	}
-	if err := g.dbmanager.CertificateDaoTransactions(tx).AddModel(cert); err != nil {
-		tx.Rollback()
-		return err
-	}
-	// add new rule extensions
-	for _, ruleExtension := range req.RuleExtensions {
-		re := &model.RuleExtension{
-			UUID:   util.NewUUID(),
-			RuleID: rule.UUID,
-			Key:    ruleExtension.Key,
-			Value:  ruleExtension.Value,
-		}
-		if err := db.GetManager().RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
+	if rule.CertificateID != "" {
+		// delete old Certificate
+		if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(rule.CertificateID); err != nil {
 			tx.Rollback()
 			return err
 		}
+		// add new certificate
+		cert := &model.Certificate{
+			UUID:            req.CertificateID,
+			CertificateName: fmt.Sprintf("cert-%s", util.NewUUID()[0:8]),
+			Certificate:     req.Certificate,
+			PrivateKey:      req.PrivateKey,
+		}
+		if err := g.dbmanager.CertificateDaoTransactions(tx).AddModel(cert); err != nil {
+			tx.Rollback()
+			return err
+		}
+		rule.CertificateID = req.CertificateID
+	}
+	if len(req.RuleExtensions) > 0 {
+		// delete old RuleExtensions
+		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(rule.UUID); err != nil {
+			tx.Rollback()
+			return err
+		}
+		// add new rule extensions
+		for _, ruleExtension := range req.RuleExtensions {
+			re := &model.RuleExtension{
+				UUID:   util.NewUUID(),
+				RuleID: rule.UUID,
+				Key:    ruleExtension.Key,
+				Value:  ruleExtension.Value,
+			}
+			if err := db.GetManager().RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
 	}
 	// update http rule
-	rule.ServiceID = req.ServiceID
-	rule.ContainerPort = req.ContainerPort
-	rule.Domain = req.Domain
-	rule.Path = req.Path
-	rule.Header = req.Header
-	rule.Cookie = req.Cookie
-	rule.CertificateID = req.CertificateID
+	if req.ServiceID != "" {
+		rule.ServiceID = req.ServiceID
+	}
+	if req.ContainerPort != 0 {
+		rule.ContainerPort = req.ContainerPort
+	}
+	if req.Domain != "" {
+		rule.Domain = req.Domain
+	}
+	if req.Path != "" {
+		rule.Path = req.Path
+	}
+	if req.Header != "" {
+		rule.Header = req.Header
+	}
+	if req.Cookie != "" {
+		rule.Cookie = req.Cookie
+	}
+	if req.IP != "" {
+		rule.IP = req.IP
+	}
 	if err := db.GetManager().HttpRuleDaoTransactions(tx).UpdateModel(rule); err != nil {
 		tx.Rollback()
 		return err
@@ -159,7 +177,7 @@ func (g *GatewayAction) UpdateHttpRule(req *apimodel.HTTPRuleStruct) error {
 }
 
 // DeleteHttpRule deletes http rule, including certificate and rule extensions
-func (g *GatewayAction) DeleteHttpRule(req *apimodel.HTTPRuleStruct) error {
+func (g *GatewayAction) DeleteHttpRule(req *apimodel.AddHTTPRuleStruct) error {
 	// begin transaction
 	tx := db.GetManager().Begin()
 	// delete http rule
@@ -191,7 +209,7 @@ func (g *GatewayAction) DeleteHttpRule(req *apimodel.HTTPRuleStruct) error {
 }
 
 // AddCertificate adds certificate to db if it doesn't exists
-func (g *GatewayAction) AddCertificate(req *apimodel.HTTPRuleStruct, tx *gorm.DB) error {
+func (g *GatewayAction) AddCertificate(req *apimodel.AddHTTPRuleStruct, tx *gorm.DB) error {
 	cert := &model.Certificate{
 		UUID:            req.CertificateID,
 		CertificateName: fmt.Sprintf("cert-%s", util.NewUUID()[0:8]),
@@ -202,7 +220,7 @@ func (g *GatewayAction) AddCertificate(req *apimodel.HTTPRuleStruct, tx *gorm.DB
 	return g.dbmanager.CertificateDaoTransactions(tx).AddModel(cert)
 }
 
-func (g *GatewayAction) UpdateCertificate(req apimodel.HTTPRuleStruct, httpRule *model.HTTPRule,
+func (g *GatewayAction) UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRule *model.HTTPRule,
 	tx *gorm.DB) error {
 	// delete old certificate
 	cert, err := g.dbmanager.CertificateDaoTransactions(tx).GetCertificateByID(req.CertificateID)
