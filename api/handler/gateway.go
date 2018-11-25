@@ -243,6 +243,20 @@ func (g *GatewayAction) UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRu
 
 // AddTCPRule adds tcp rule.
 func (g *GatewayAction) AddTCPRule(req *apimodel.TCPRuleStruct) error {
+	// begin transaction
+	tx := db.GetManager().Begin()
+	// add port
+	port := &model.TenantServiceLBMappingPort{
+		ServiceID: req.ServiceID,
+		Port: req.Port,
+		ContainerPort: req.ContainerPort,
+	}
+	err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).AddModel(port)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	// add tcp rule
 	tcpRule := &model.TCPRule{
 		UUID:          req.TCPRuleID,
 		ServiceID:     req.ServiceID,
@@ -250,15 +264,10 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.TCPRuleStruct) error {
 		IP:            req.IP,
 		Port:          req.Port,
 	}
-
-	// begin transaction
-	tx := db.GetManager().Begin()
-	// add tcp rule
 	if err := g.dbmanager.TcpRuleDaoTransactions(tx).AddModel(tcpRule); err != nil {
 		tx.Rollback()
 		return err
 	}
-
 	// add rule extensions
 	for _, ruleExtension := range req.RuleExtensions {
 		re := &model.RuleExtension{

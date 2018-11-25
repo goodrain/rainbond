@@ -448,7 +448,6 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 		"service_type":  "outer",
 		"name":          a.service.ServiceAlias + "ServiceOUT",
 		"tenant_name":   a.tenant.Name,
-		"domain":        a.service.Autodomain(a.tenant.Name, port.ContainerPort),
 		"protocol":      port.Protocol,
 		"port_protocol": port.Protocol,
 		"event_id":      a.eventID,
@@ -457,17 +456,6 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 	})
 	if a.service.Replicas <= 1 {
 		service.Labels["rainbond.com/tolerate-unready-endpoints"] = "true"
-	}
-	service.Annotations = a.createServiceAnnotations()
-	//if port.Protocol == "stream" { //stream 协议获取映射端口
-	if port.Protocol != "http" { //stream 协议获取映射端口
-		mapPort, err := a.dbmanager.TenantServiceLBMappingPortDao().GetTenantServiceLBMappingPort(a.serviceID, port.ContainerPort)
-		if err != nil {
-			logrus.Error("get tenant service lb map port error", err.Error())
-			service.Labels["lbmap_port"] = "0"
-		} else {
-			service.Labels["lbmap_port"] = fmt.Sprintf("%d", mapPort.Port)
-		}
 	}
 	var servicePort corev1.ServicePort
 	//TODO: udp, tcp
