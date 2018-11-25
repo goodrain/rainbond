@@ -150,6 +150,6 @@ type AppInterface interface {
 }
 
 type Gatewayer interface {
-	HttpRule(w http.ResponseWriter, r *http.Request)
-	TcpRule(w http.ResponseWriter, r *http.Request)
+	HTTPRule(w http.ResponseWriter, r *http.Request)
+	TCPRule(w http.ResponseWriter, r *http.Request)
 }

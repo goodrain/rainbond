@@ -106,12 +106,12 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Get("/limit_memory", controller.GetManager().TenantResourcesStatus)
 
 	// Gateway
-	r.Post("/http-rule", controller.GetManager().HttpRule)
-	r.Delete("/http-rule", controller.GetManager().HttpRule)
-	r.Put("/http-rule", controller.GetManager().HttpRule)
-	r.Post("/tcp-rule", controller.GetManager().TcpRule)
-	r.Delete("/tcp-rule", controller.GetManager().TcpRule)
-	r.Put("/tcp-rule", controller.GetManager().TcpRule)
+	r.Post("/http-rule", controller.GetManager().HTTPRule)
+	r.Delete("/http-rule", controller.GetManager().HTTPRule)
+	r.Put("/http-rule", controller.GetManager().HTTPRule)
+	r.Post("/tcp-rule", controller.GetManager().TCPRule)
+	r.Delete("/tcp-rule", controller.GetManager().TCPRule)
+	r.Put("/tcp-rule", controller.GetManager().TCPRule)
 
 	return r
 }

@@ -29,31 +29,32 @@ import (
 	"net/url"
 )
 
+// GatewayStruct -
 type GatewayStruct struct {
 }
 
 // HTTPRule is used to add, update or delete http rule which enables
 // external traffic to access applications through the gateway
-func (g *GatewayStruct) HttpRule(w http.ResponseWriter, r *http.Request) {
+func (g *GatewayStruct) HTTPRule(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		g.addHttpRule(w, r)
+		g.addHTTPRule(w, r)
 	case "PUT":
-		g.updateHttpRule(w, r)
+		g.updateHTTPRule(w, r)
 	case "DELETE":
-		g.deleteHttpRule(w, r)
+		g.deleteHTTPRule(w, r)
 	}
 }
 
-func (g *GatewayStruct) addHttpRule(w http.ResponseWriter, r *http.Request) {
+func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add http rule.")
 	var req api_model.HTTPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
-	reqJson, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJson))
+	reqJSON, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	// verify request
 	values := url.Values{}
@@ -88,15 +89,15 @@ func (g *GatewayStruct) addHttpRule(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, "success")
 }
 
-func (g *GatewayStruct) updateHttpRule(w http.ResponseWriter, r *http.Request) {
+func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("update http rule.")
 	var req api_model.HTTPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
-	reqJson, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJson))
+	reqJSON, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
 	if err := h.UpdateHttpRule(&req); err != nil {
@@ -108,15 +109,15 @@ func (g *GatewayStruct) updateHttpRule(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, "success")
 }
 
-func (g *GatewayStruct) deleteHttpRule(w http.ResponseWriter, r *http.Request) {
+func (g *GatewayStruct) deleteHTTPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("delete http rule.")
 	var req api_model.HTTPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
-	reqJson, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJson))
+	reqJSON, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
 	err := h.DeleteHttpRule(&req)
@@ -130,26 +131,26 @@ func (g *GatewayStruct) deleteHttpRule(w http.ResponseWriter, r *http.Request) {
 
 // TCPRule is used to add, update or delete tcp rule which enables
 // external traffic to access applications through the gateway
-func (g *GatewayStruct) TcpRule(w http.ResponseWriter, r *http.Request) {
+func (g *GatewayStruct) TCPRule(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		g.addTcpRule(w, r)
+		g.addTCPRule(w, r)
 	case "PUT":
-		g.updateTcpRule(w, r)
+		g.updateTCPRule(w, r)
 	case "DELETE":
-		g.deleteTcpRule(w, r)
+		g.deleteTCPRule(w, r)
 	}
 }
 
-func (g *GatewayStruct) addTcpRule(w http.ResponseWriter, r *http.Request) {
+func (g *GatewayStruct) addTCPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add tcp rule.")
 	var req api_model.TCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
-	reqJson, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJson))
+	reqJSON, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
 	if err := h.AddTcpRule(&req); err != nil {
@@ -161,15 +162,15 @@ func (g *GatewayStruct) addTcpRule(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, "success")
 }
 
-func (g *GatewayStruct) updateTcpRule(w http.ResponseWriter, r *http.Request) {
+func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add tcp rule.")
 	var req api_model.TCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
-	reqJson, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJson))
+	reqJSON, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
 	if err := h.UpdateTcpRule(&req); err != nil {
@@ -181,15 +182,15 @@ func (g *GatewayStruct) updateTcpRule(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, "success")
 }
 
-func (g *GatewayStruct) deleteTcpRule(w http.ResponseWriter, r *http.Request) {
+func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("delete tcp rule.")
 	var req api_model.TCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
-	reqJson, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJson))
+	reqJSON, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
 	if err := h.DeleteTcpRule(&req); err != nil {
