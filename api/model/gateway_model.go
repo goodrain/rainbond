@@ -50,6 +50,11 @@ type UpdateHTTPRuleStruct struct {
 	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
 }
 
+//DeleteHTTPRuleStruct contains the id of http rule that will be deleted
+type DeleteHTTPRuleStruct struct {
+	HTTPRuleID     string                 `json:"http_rule_id" validate:"http_rule_id|required"`
+}
+
 // TCPRuleStruct contains tcp rule and rule extensions
 type TCPRuleStruct struct {
 	TCPRuleID      string                 `json:"tcp_rule_id" validate:"tcp_rule_id|required"`

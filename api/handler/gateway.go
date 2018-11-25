@@ -177,7 +177,7 @@ func (g *GatewayAction) UpdateHttpRule(req *apimodel.UpdateHTTPRuleStruct) error
 }
 
 // DeleteHttpRule deletes http rule, including certificate and rule extensions
-func (g *GatewayAction) DeleteHttpRule(req *apimodel.AddHTTPRuleStruct) error {
+func (g *GatewayAction) DeleteHttpRule(req *apimodel.DeleteHTTPRuleStruct) error {
 	// begin transaction
 	tx := db.GetManager().Begin()
 	// delete http rule
