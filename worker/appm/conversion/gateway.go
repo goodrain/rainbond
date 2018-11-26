@@ -157,7 +157,9 @@ func (a *AppServiceBuild) Build() ([]*corev1.Service, []*extensions.Ingress, []*
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				ingresses = append(ingresses, ings...)
+				if ings != nil && len(ings) > 0 {
+					ingresses = append(ingresses, ings...)
+				}
 				if secret != nil {
 					secrets = append(secrets, secret)
 				}
@@ -181,40 +183,45 @@ func (a *AppServiceBuild) Build() ([]*corev1.Service, []*extensions.Ingress, []*
 // ApplyRules applies http rules and tcp rules
 func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 	service *corev1.Service) ([]*extensions.Ingress, *corev1.Secret, error) {
-	httpRule, err := a.dbmanager.HttpRuleDao().GetHttpRuleByServiceIDAndContainerPort(port.ServiceID,
-		port.ContainerPort) // TODO: http rule should be more than one
+	httpRules, err := a.dbmanager.HttpRuleDao().GetHttpRuleByServiceIDAndContainerPort(port.ServiceID,
+		port.ContainerPort)
 	if err != nil {
 		logrus.Infof("Can't get HTTPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
 	}
-	tcpRule, err := a.dbmanager.TcpRuleDao().GetTcpRuleByServiceIDAndContainerPort(port.ServiceID,
-		port.ContainerPort) // TODO: tcp rule should be more than one
+	tcpRules, err := a.dbmanager.TcpRuleDao().GetTcpRuleByServiceIDAndContainerPort(port.ServiceID,
+		port.ContainerPort)
 	if err != nil {
 		logrus.Infof("Can't get TCPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
-	}
-	if httpRule == nil && tcpRule == nil {
-		return nil, nil, fmt.Errorf("Can't find HTTPRule or TCPRule for Outer Service(%s)", port.ServiceID)
 	}
 
 	// create ingresses
 	var ingresses []*extensions.Ingress
 	var secret *corev1.Secret
 	// http
-	if httpRule != nil {
-		ing, sec, err := a.applyHTTPRule(httpRule, port, service)
-		if err != nil {
-			return nil, nil, err
+	if httpRules != nil && len(httpRules) > 0 {
+		for _, httpRule := range httpRules {
+			ing, sec, err := a.applyHTTPRule(httpRule, port, service)
+			if err != nil {
+				logrus.Errorf("Unexpected error occurred while applying http rule: %v", err)
+				// skip the failed rule
+				continue
+			}
+			ingresses = append(ingresses, ing)
+			secret = sec
 		}
-		ingresses = append(ingresses, ing)
-		secret = sec
 	}
 
 	// tcp
-	if tcpRule != nil {
-		ing, err := applyTCPRule(tcpRule, service, a.tenant.UUID)
-		if err != nil {
-			return nil, nil, err
+	if tcpRules != nil && len(tcpRules) > 0 {
+		for _, tcpRule := range tcpRules {
+			ing, err := applyTCPRule(tcpRule, service, a.tenant.UUID)
+			if err != nil {
+				logrus.Errorf("Unexpected error occurred while applying tcp rule: %v", err)
+				// skip the failed rule
+				continue
+			}
+			ingresses = append(ingresses, ing)
 		}
-		ingresses = append(ingresses, ing)
 	}
 
 	return ingresses, secret, nil

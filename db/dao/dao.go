@@ -355,15 +355,14 @@ type RuleExtensionDao interface {
 type HttpRuleDao interface {
 	Dao
 	GetHttpRuleByID(id string) (*model.HTTPRule, error)
-	GetHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HTTPRule, error)
-	DeleteHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HTTPRule, error)
+	GetHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.HTTPRule, error)
 	DeleteHttpRuleByID(id string) error
 }
 
 // TcpRuleDao -
 type TcpRuleDao interface {
 	Dao
-	GetTcpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.TCPRule, error)
+	GetTcpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.TCPRule, error)
 	GetTcpRuleByID(id string) (*model.TCPRule, error)
 	DeleteTcpRule(tcpRule *model.TCPRule) error
 }
