@@ -52,7 +52,7 @@ type UpdateHTTPRuleStruct struct {
 
 //DeleteHTTPRuleStruct contains the id of http rule that will be deleted
 type DeleteHTTPRuleStruct struct {
-	HTTPRuleID     string                 `json:"http_rule_id" validate:"http_rule_id|required"`
+	HTTPRuleID string `json:"http_rule_id" validate:"http_rule_id|required"`
 }
 
 // AddTCPRuleStruct is used to add tcp rule and rule extensions
@@ -73,6 +73,11 @@ type UpdateTCPRuleStruct struct {
 	IP             string                 `json:"ip"`
 	Port           int                    `json:"port"`
 	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
+}
+
+// DeleteTCPRuleStruct is used to delete tcp rule and rule extensions
+type DeleteTCPRuleStruct struct {
+	TCPRuleID string `json:"tcp_rule_id" validate:"tcp_rule_id|required"`
 }
 
 // RuleExtensionStruct represents rule extensions for http rule or tcp rule

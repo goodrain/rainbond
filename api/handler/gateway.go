@@ -358,7 +358,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct) error {
 }
 
 // DeleteTCPRule deletes a tcp rule
-func (g *GatewayAction) DeleteTCPRule(req *apimodel.AddTCPRuleStruct) error {
+func (g *GatewayAction) DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) error {
 	// begin transaction
 	tx := db.GetManager().Begin()
 	tcpRule, err := db.GetManager().TcpRuleDaoTransactions(tx).GetTcpRuleByID(req.TCPRuleID)

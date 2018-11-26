@@ -264,7 +264,7 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 
 func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("delete TCP rule.")
-	var req api_model.AddTCPRuleStruct
+	var req api_model.DeleteTCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return

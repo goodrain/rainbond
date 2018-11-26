@@ -34,7 +34,7 @@ type GatewayHandler interface {
 
 	AddTCPRule(req *apimodel.AddTCPRuleStruct) error
 	UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct) error
-	DeleteTCPRule(req *apimodel.AddTCPRuleStruct) error
+	DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) error
 
 	AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct, tx *gorm.DB) error
 
