@@ -21,6 +21,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -33,17 +34,19 @@ import (
 
 //ManagerService manager service
 type ManagerService struct {
-	ctx            context.Context
-	cancel         context.CancelFunc
-	syncCtx        context.Context
-	syncCancel     context.CancelFunc
-	conf           *option.Conf
-	ctr            Controller
-	cluster        client.ClusterClient
-	healthyManager healthy.Manager
-	services       *[]*service.Service
-	allservice     *[]*service.Service
-	etcdcli        *clientv3.Client
+	ctx                  context.Context
+	cancel               context.CancelFunc
+	syncCtx              context.Context
+	syncCancel           context.CancelFunc
+	conf                 *option.Conf
+	ctr                  Controller
+	cluster              client.ClusterClient
+	healthyManager       healthy.Manager
+	services             *[]*service.Service
+	allservice           *[]*service.Service
+	etcdcli              *clientv3.Client
+	autoStatusController map[string]statusController
+	lock                 sync.Mutex
 }
 
 //GetAllService get all service
@@ -109,7 +112,7 @@ func (m *ManagerService) Online() error {
 
 	// start all by systemctl start multi-user.target
 	m.ctr.StartList(*m.services)
-	m.StartSyncService()
+	m.SyncServiceStatusController()
 
 	return nil
 }
@@ -140,59 +143,76 @@ func (m *ManagerService) Offline() error {
 	return nil
 }
 
-// synchronize all service status to as we expect
-func (m *ManagerService) StartSyncService() {
-	m.syncCtx, m.syncCancel = context.WithCancel(context.Background())
-
+//SyncServiceStatusController synchronize all service status to as we expect
+func (m *ManagerService) SyncServiceStatusController() {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	if m.autoStatusController != nil && len(m.autoStatusController) > 0 {
+		for _, v := range m.autoStatusController {
+			v.Stop()
+		}
+	}
+	m.autoStatusController = make(map[string]statusController, len(*m.services))
 	for _, s := range *m.services {
-		name := s.Name
-		logrus.Info("Start watch status for service: ", name)
-		w := m.healthyManager.WatchServiceHealthy(name)
-		if w == nil {
-			logrus.Error("Not found watcher of the service ", name)
+		ctx, cancel := context.WithCancel(context.Background())
+		serviceStatusController := statusController{
+			ctx:            ctx,
+			cancel:         cancel,
+			serviceName:    s.Name,
+			healthyManager: m.healthyManager,
+			watcher:        m.healthyManager.WatchServiceHealthy(s.Name),
+			unhealthHandle: func(event *service.HealthStatus, w healthy.Watcher) {
+				// disable check healthy status of the service
+				m.healthyManager.DisableWatcher(event.Name, w.GetID())
+				m.ctr.RestartService(event.Name)
+				if !m.WaitStart(event.Name, time.Minute) {
+					logrus.Errorf("Timeout restart service: %s", event.Name)
+				}
+				// start check healthy status of the service
+				m.healthyManager.EnableWatcher(event.Name, w.GetID())
+			},
+		}
+		m.autoStatusController[s.Name] = serviceStatusController
+		go serviceStatusController.Run()
+	}
+}
+
+type statusController struct {
+	watcher        healthy.Watcher
+	ctx            context.Context
+	cancel         context.CancelFunc
+	serviceName    string
+	unhealthHandle func(event *service.HealthStatus, w healthy.Watcher)
+	healthyManager healthy.Manager
+}
+
+func (s *statusController) Run() {
+	s.healthyManager.EnableWatcher(s.serviceName, s.watcher.GetID())
+	defer s.watcher.Close()
+	defer s.healthyManager.DisableWatcher(s.serviceName, s.watcher.GetID())
+	for {
+		select {
+		case event := <-s.watcher.Watch():
+			switch event.Status {
+			case service.Stat_healthy:
+				logrus.Debugf("is [%s] of service %s.", event.Status, event.Name)
+			case service.Stat_unhealthy:
+				logrus.Debugf("is [%s] of service %s %d times.", event.Status, event.Name, event.ErrorNumber)
+				if event.ErrorNumber > 3 {
+					logrus.Infof("is [%s] of service %s %d times and restart it.", event.Status, event.Name, event.ErrorNumber)
+					s.unhealthHandle(event, s.watcher)
+				}
+			case service.Stat_death:
+				logrus.Infof("is [%s] of service %s %d times and start it.", event.Status, event.Name, event.ErrorNumber)
+				s.unhealthHandle(event, s.watcher)
+			}
+		case <-s.ctx.Done():
 			return
 		}
-
-		go func() {
-			m.healthyManager.EnableWatcher(w.GetServiceName(), w.GetID())
-			defer w.Close()
-
-			for {
-				select {
-				case event := <-w.Watch():
-					switch event.Status {
-					case service.Stat_healthy:
-						logrus.Debugf("is [%s] of service %s.", event.Status, event.Name)
-					case service.Stat_unhealthy:
-						logrus.Debugf("is [%s] of service %s %d times.", event.Status, event.Name, event.ErrorNumber)
-						if event.ErrorNumber > 3 {
-							logrus.Infof("is [%s] of service %s %d times and restart it.", event.Status, event.Name, event.ErrorNumber)
-							// disable check healthy status of the service
-							m.healthyManager.DisableWatcher(w.GetServiceName(), w.GetID())
-							m.ctr.RestartService(event.Name)
-							if !m.WaitStart(event.Name, time.Minute) {
-								logrus.Errorf("Timeout restart service: ", event.Name)
-							}
-							// start check healthy status of the service
-							m.healthyManager.EnableWatcher(w.GetServiceName(), w.GetID())
-						}
-					case service.Stat_death:
-						logrus.Infof("is [%s] of service %s %d times and start it.", event.Status, event.Name, event.ErrorNumber)
-						// disable check healthy status of the service
-						m.healthyManager.DisableWatcher(w.GetServiceName(), w.GetID())
-						m.ctr.StartService(event.Name)
-						if !m.WaitStart(event.Name, time.Minute) {
-							logrus.Error("Timeout start service: ", event.Name)
-						}
-						// start check healthy status of the service
-						m.healthyManager.EnableWatcher(w.GetServiceName(), w.GetID())
-					}
-				case <-m.syncCtx.Done():
-					return
-				}
-			}
-		}()
 	}
+}
+func (s *statusController) Stop() {
+	s.cancel()
 }
 
 func (m *ManagerService) StopSyncService() {
@@ -233,7 +253,7 @@ func (m *ManagerService) ReLoadServices() error {
 	var controllerServices []*service.Service
 	var restartCount int
 	for _, ne := range services {
-		if !ne.OnlyHealthCheck {
+		if ne.OnlyHealthCheck {
 			continue
 		}
 		if !ne.Disable {
@@ -254,6 +274,8 @@ func (m *ManagerService) ReLoadServices() error {
 						m.ctr.RestartService(ne.Name)
 						restartCount++
 					}
+				} else {
+					logrus.Infof("Service %s config no change", ne.Name)
 				}
 				exists = true
 				break
@@ -271,6 +293,7 @@ func (m *ManagerService) ReLoadServices() error {
 	*m.allservice = services
 	*m.services = controllerServices
 	m.healthyManager.AddServicesAndUpdate(m.services)
+	m.SyncServiceStatusController()
 	logrus.Infof("load service config success, start or stop %d service and total %d service", restartCount, len(services))
 	return nil
 }
@@ -290,10 +313,16 @@ func (m *ManagerService) StartService(serviceName string) error {
 
 //StopService start a service
 func (m *ManagerService) StopService(serviceName string) error {
-	for _, service := range *m.services {
+	for i, service := range *m.services {
 		if service.Name == serviceName {
 			if service.Disable {
 				return fmt.Errorf("service %s is stoped", serviceName)
+			}
+			(*m.services)[i].Disable = true
+			m.lock.Lock()
+			defer m.lock.Unlock()
+			if controller, ok := m.autoStatusController[serviceName]; ok {
+				controller.Stop()
 			}
 			return m.ctr.StopService(serviceName)
 		}

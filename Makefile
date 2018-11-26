@@ -58,8 +58,9 @@ else ifeq ($(WHAT),node)
 	 --run-mode=master --kube-conf=`pwd`/test/admin.kubeconfig \
 	 --nodeid-file=`pwd`/test/host_id.conf \
 	 --static-task-path=`pwd`/test/tasks \
+	 --service-list-file=`pwd`/test/master.yaml \
 	 --statsd.mapping-config=`pwd`/test/mapper.yml \
-	 --log-level=debug	 
+	 --log-level=info	 
 endif	
 
 doc:  

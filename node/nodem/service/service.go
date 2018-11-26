@@ -71,14 +71,7 @@ type Services struct {
 	Services []*Service `yaml:"services"`
 }
 
-// service list of the node
-type ServiceList struct {
-	Version  string `yaml:"version"`
-	Services []struct {
-		Name string `yaml:"name"`
-	} `yaml:"services"`
-}
-
+//Endpoint endpoint
 type Endpoint struct {
 	Name     string `yaml:"name"`
 	Protocol string `yaml:"protocol"`
@@ -94,6 +87,7 @@ type Health struct {
 	MaxErrorsNum int    `yaml:"max_errors_num"`
 }
 
+//HealthStatus health status
 type HealthStatus struct {
 	Name        string
 	Status      string
