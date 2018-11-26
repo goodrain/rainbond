@@ -610,19 +610,19 @@ func (_mr *_MockManagerRecorder) RuleExtensionDaoTransactions(arg0 interface{}) 
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "RuleExtensionDaoTransactions", arg0)
 }
 
-func (_m *MockManager) HttpRuleDao() dao.HttpRuleDao {
-	ret := _m.ctrl.Call(_m, "HttpRuleDao")
-	ret0, _ := ret[0].(dao.HttpRuleDao)
+func (_m *MockManager) HttpRuleDao() dao.HTTPRuleDao {
+	ret := _m.ctrl.Call(_m, "HTTPRuleDao")
+	ret0, _ := ret[0].(dao.HTTPRuleDao)
 	return ret0
 }
 
 func (_mr *_MockManagerRecorder) HttpRuleDao() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "HttpRuleDao")
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "HTTPRuleDao")
 }
 
-func (_m *MockManager) HttpRuleDaoTransactions(db *gorm.DB) dao.HttpRuleDao {
+func (_m *MockManager) HttpRuleDaoTransactions(db *gorm.DB) dao.HTTPRuleDao {
 	ret := _m.ctrl.Call(_m, "HttpRuleDaoTransactions", db)
-	ret0, _ := ret[0].(dao.HttpRuleDao)
+	ret0, _ := ret[0].(dao.HTTPRuleDao)
 	return ret0
 }
 
@@ -630,19 +630,19 @@ func (_mr *_MockManagerRecorder) HttpRuleDaoTransactions(arg0 interface{}) *gomo
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "HttpRuleDaoTransactions", arg0)
 }
 
-func (_m *MockManager) TcpRuleDao() dao.TcpRuleDao {
-	ret := _m.ctrl.Call(_m, "TcpRuleDao")
-	ret0, _ := ret[0].(dao.TcpRuleDao)
+func (_m *MockManager) TcpRuleDao() dao.TCPRuleDao {
+	ret := _m.ctrl.Call(_m, "TCPRuleDao")
+	ret0, _ := ret[0].(dao.TCPRuleDao)
 	return ret0
 }
 
 func (_mr *_MockManagerRecorder) TcpRuleDao() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "TcpRuleDao")
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "TCPRuleDao")
 }
 
-func (_m *MockManager) TcpRuleDaoTransactions(db *gorm.DB) dao.TcpRuleDao {
+func (_m *MockManager) TcpRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao {
 	ret := _m.ctrl.Call(_m, "TcpRuleDaoTransactions", db)
-	ret0, _ := ret[0].(dao.TcpRuleDao)
+	ret0, _ := ret[0].(dao.TCPRuleDao)
 	return ret0
 }
 

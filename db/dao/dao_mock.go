@@ -2911,7 +2911,7 @@ func (_mr *_MockRuleExtensionDaoRecorder) DeleteRuleExtensionByRuleID(arg0 inter
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteRuleExtensionByRuleID", arg0)
 }
 
-// Mock of HttpRuleDao interface
+// Mock of HTTPRuleDao interface
 type MockHttpRuleDao struct {
 	ctrl     *gomock.Controller
 	recorder *_MockHttpRuleDaoRecorder
@@ -2995,7 +2995,7 @@ func (_mr *_MockHttpRuleDaoRecorder) DeleteHttpRuleByID(arg0 interface{}) *gomoc
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteHttpRuleByID", arg0)
 }
 
-// Mock of TcpRuleDao interface
+// Mock of TCPRuleDao interface
 type MockTcpRuleDao struct {
 	ctrl     *gomock.Controller
 	recorder *_MockTcpRuleDaoRecorder

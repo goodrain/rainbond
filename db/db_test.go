@@ -196,32 +196,62 @@ func TestCockroachDBDeleteService(t *testing.T) {
 	}
 }
 
-func TestCockroachDBSaveDeployInfo(t *testing.T) {
+//func TestCockroachDBSaveDeployInfo(t *testing.T) {
+//	if err := CreateManager(dbconfig.Config{
+//		MysqlConnectionInfo: "postgresql://root@localhost:5432/region?sslmode=disable",
+//		DBType:              "cockroachdb",
+//	}); err != nil {
+//		t.Fatal(err)
+//	}
+//	err := GetManager().K8sDeployReplicationDao().AddModel(&model.K8sDeployReplication{
+//		TenantID:        "asdasd",
+//		ServiceID:       "asdasdasdasd",
+//		ReplicationID:   "asdasdadsasdasdasd",
+//		ReplicationType: model.TypeReplicationController,
+//	})
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//}
+
+//func TestCockroachDBDeleteDeployInfo(t *testing.T) {
+//	if err := CreateManager(dbconfig.Config{
+//		MysqlConnectionInfo: "postgresql://root@localhost:5432/region?sslmode=disable",
+//		DBType:              "cockroachdb",
+//	}); err != nil {
+//		t.Fatal(err)
+//	}
+	//err := GetManager().K8sDeployReplicationDao().DeleteK8sDeployReplication("asdasdadsasdasdasd")
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+//}
+
+func TestGetHttpRuleByServiceIDAndContainerPort(t *testing.T) {
 	if err := CreateManager(dbconfig.Config{
-		MysqlConnectionInfo: "postgresql://root@localhost:5432/region?sslmode=disable",
-		DBType:              "cockroachdb",
+		MysqlConnectionInfo: "admin:admin@tcp(127.0.0.1:3306)/region",
+		DBType:              "mysql",
 	}); err != nil {
 		t.Fatal(err)
 	}
-	err := GetManager().K8sDeployReplicationDao().AddModel(&model.K8sDeployReplication{
-		TenantID:        "asdasd",
-		ServiceID:       "asdasdasdasd",
-		ReplicationID:   "asdasdadsasdasdasd",
-		ReplicationType: model.TypeReplicationController,
-	})
+
+	_, err := GetManager().HttpRuleDao().GetHttpRuleByServiceIDAndContainerPort(
+		"43eaae441859eda35b02075d37d83581", 10001)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestCockroachDBDeleteDeployInfo(t *testing.T) {
+func TestGetTcpRuleByServiceIDAndContainerPort(t *testing.T) {
 	if err := CreateManager(dbconfig.Config{
-		MysqlConnectionInfo: "postgresql://root@localhost:5432/region?sslmode=disable",
-		DBType:              "cockroachdb",
+		MysqlConnectionInfo: "admin:admin@tcp(127.0.0.1:3306)/region",
+		DBType:              "mysql",
 	}); err != nil {
 		t.Fatal(err)
 	}
-	err := GetManager().K8sDeployReplicationDao().DeleteK8sDeployReplication("asdasdadsasdasdasd")
+
+	_, err := GetManager().TcpRuleDao().GetTcpRuleByServiceIDAndContainerPort(
+		"43eaae441859eda35b02075d37d83581", 10001)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -98,10 +98,10 @@ type Manager interface {
 	CertificateDaoTransactions(db *gorm.DB) dao.CertificateDao
 	RuleExtensionDao() dao.RuleExtensionDao
 	RuleExtensionDaoTransactions(db *gorm.DB) dao.RuleExtensionDao
-	HttpRuleDao() dao.HttpRuleDao
-	HttpRuleDaoTransactions(db *gorm.DB) dao.HttpRuleDao
-	TcpRuleDao() dao.TcpRuleDao
-	TcpRuleDaoTransactions(db *gorm.DB) dao.TcpRuleDao
+	HttpRuleDao() dao.HTTPRuleDao
+	HttpRuleDaoTransactions(db *gorm.DB) dao.HTTPRuleDao
+	TcpRuleDao() dao.TCPRuleDao
+	TcpRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao
 }
 
 var defaultManager Manager

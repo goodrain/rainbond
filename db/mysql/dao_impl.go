@@ -413,25 +413,25 @@ func (m *Manager) RuleExtensionDaoTransactions(db *gorm.DB) dao.RuleExtensionDao
 	}
 }
 
-func (m *Manager) HttpRuleDao() dao.HttpRuleDao {
+func (m *Manager) HttpRuleDao() dao.HTTPRuleDao {
 	return &mysqldao.HttpRuleDaoImpl{
 		DB: m.db,
 	}
 }
 
-func (m *Manager) HttpRuleDaoTransactions(db *gorm.DB) dao.HttpRuleDao {
+func (m *Manager) HttpRuleDaoTransactions(db *gorm.DB) dao.HTTPRuleDao {
 	return &mysqldao.HttpRuleDaoImpl{
 		DB: db,
 	}
 }
 
-func (m *Manager) TcpRuleDao() dao.TcpRuleDao {
+func (m *Manager) TcpRuleDao() dao.TCPRuleDao {
 	return &mysqldao.TcpRuleDaoTmpl{
 		DB: m.db,
 	}
 }
 
-func (m *Manager) TcpRuleDaoTransactions(db *gorm.DB) dao.TcpRuleDao {
+func (m *Manager) TcpRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao {
 	return &mysqldao.TcpRuleDaoTmpl{
 		DB: db,
 	}

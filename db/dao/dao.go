@@ -48,7 +48,7 @@ type TenantDao interface {
 	GetTenantByUUIDIsExist(uuid string) bool
 }
 
-//TenantDao tenant dao
+//AppDao tenant dao
 type AppDao interface {
 	Dao
 	GetByEventId(eventID string) (*model.AppStatus, error)
@@ -351,16 +351,16 @@ type RuleExtensionDao interface {
 	DeleteRuleExtensionByRuleID(ruleID string) error
 }
 
-// HttpRuleDao -
-type HttpRuleDao interface {
+// HTTPRuleDao -
+type HTTPRuleDao interface {
 	Dao
 	GetHttpRuleByID(id string) (*model.HTTPRule, error)
 	GetHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.HTTPRule, error)
 	DeleteHttpRuleByID(id string) error
 }
 
-// TcpRuleDao -
-type TcpRuleDao interface {
+// TCPRuleDao -
+type TCPRuleDao interface {
 	Dao
 	GetTcpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.TCPRule, error)
 	GetTcpRuleByID(id string) (*model.TCPRule, error)

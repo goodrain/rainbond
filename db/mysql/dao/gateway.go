@@ -166,7 +166,7 @@ func (h *HttpRuleDaoImpl) GetHttpRuleByServiceIDAndContainerPort(serviceID strin
 	containerPort int) ([]*model.HTTPRule, error) {
 	var httpRule []*model.HTTPRule
 	if err := h.DB.Where("service_id = ? and container_port = ?", serviceID,
-		containerPort).Find(httpRule).Error; err != nil {
+		containerPort).Find(&httpRule).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return httpRule, nil
 		}
@@ -221,7 +221,7 @@ func (s *TcpRuleDaoTmpl) GetTcpRuleByServiceIDAndContainerPort(serviceID string,
 	containerPort int) ([]*model.TCPRule, error) {
 	var result []*model.TCPRule
 	if err := s.DB.Where("service_id = ? and container_port = ?", serviceID,
-		containerPort).Find(result).Error; err != nil {
+		containerPort).Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, nil
 		}
