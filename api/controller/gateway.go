@@ -166,7 +166,7 @@ func (g *GatewayStruct) TCPRule(w http.ResponseWriter, r *http.Request) {
 // AddTCPRule adds a tcp rule
 func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add tcp rule.")
-	var req api_model.TCPRuleStruct
+	var req api_model.AddTCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -181,6 +181,20 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Port == 0 {
 		values["port"] = []string{"The port field is required"}
+	} else if req.Port <= 20000 {
+		values["port"] = []string{"The port field should be greater than 20000"}
+	}
+	if len(req.RuleExtensions) > 0 {
+		for _, re := range req.RuleExtensions {
+			if re.Key == "" {
+				values["key"] = []string{"The key field is required"}
+				break
+			}
+			if re.Value == "" {
+				values["value"] = []string{"The value field is required"}
+				break
+			}
+		}
 	}
 	if len(values) != 0 {
 		httputil.ReturnValidationError(r, w, values)
@@ -198,7 +212,7 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 
 func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add tcp rule.")
-	var req api_model.TCPRuleStruct
+	var req api_model.AddTCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -218,7 +232,7 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 
 func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("delete TCP rule.")
-	var req api_model.TCPRuleStruct
+	var req api_model.AddTCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return

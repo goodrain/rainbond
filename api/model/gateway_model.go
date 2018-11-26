@@ -55,13 +55,13 @@ type DeleteHTTPRuleStruct struct {
 	HTTPRuleID     string                 `json:"http_rule_id" validate:"http_rule_id|required"`
 }
 
-// TCPRuleStruct contains tcp rule and rule extensions
-type TCPRuleStruct struct {
+// AddTCPRuleStruct contains tcp rule and rule extensions
+type AddTCPRuleStruct struct {
 	TCPRuleID      string                 `json:"tcp_rule_id" validate:"tcp_rule_id|required"`
 	ServiceID      string                 `json:"service_id" validate:"service_id|required"`
 	ContainerPort  int                    `json:"container_port"`
 	IP             string                 `json:"ip"`
-	Port           int                    `json:"port"`
+	Port           int                    `json:"port" validate:"service_id|required"`
 	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
 }
 

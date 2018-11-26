@@ -242,7 +242,7 @@ func (g *GatewayAction) UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRu
 }
 
 // AddTCPRule adds tcp rule.
-func (g *GatewayAction) AddTCPRule(req *apimodel.TCPRuleStruct) error {
+func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
 	// begin transaction
 	tx := db.GetManager().Begin()
 	// add port
@@ -290,7 +290,7 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.TCPRuleStruct) error {
 }
 
 // UpdateTCPRule updates a tcp rule
-func (g *GatewayAction) UpdateTCPRule(req *apimodel.TCPRuleStruct) error {
+func (g *GatewayAction) UpdateTCPRule(req *apimodel.AddTCPRuleStruct) error {
 	// begin transaction
 	tx := db.GetManager().Begin()
 	// get old tcp rule
@@ -336,7 +336,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.TCPRuleStruct) error {
 }
 
 // DeleteTCPRule deletes a tcp rule
-func (g *GatewayAction) DeleteTCPRule(req *apimodel.TCPRuleStruct) error {
+func (g *GatewayAction) DeleteTCPRule(req *apimodel.AddTCPRuleStruct) error {
 	// begin transaction
 	tx := db.GetManager().Begin()
 	tcpRule, err := db.GetManager().TcpRuleDaoTransactions(tx).GetTcpRuleByID(req.TCPRuleID)
