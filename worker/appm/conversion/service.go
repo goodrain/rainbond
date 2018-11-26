@@ -104,6 +104,9 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 		as.CreaterID = string(util.NewTimeVersion())
 	}
 	as.TenantName = tenant.Name
+	if err := initTenant(as, tenant); err != nil {
+		return fmt.Errorf("conversion tenant info failure %s", err.Error())
+	}
 	if serviceType == nil || serviceType.LabelValue == util.StatelessServiceType {
 		initBaseDeployment(as, tenantService)
 		return nil
@@ -113,7 +116,21 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	}
 	return nil
 }
-
+func initTenant(as *v1.AppService, tenant *dbmodel.Tenants) error {
+	if tenant == nil || tenant.UUID == "" {
+		return fmt.Errorf("tenant is invalid")
+	}
+	namespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: tenant.UUID,
+		},
+		Spec: corev1.NamespaceSpec{
+			Finalizers: []corev1.FinalizerName{corev1.FinalizerName(tenant.Name)},
+		},
+	}
+	as.SetTenant(namespace)
+	return nil
+}
 func initSelector(selector *metav1.LabelSelector, service *dbmodel.TenantServices) {
 	if selector.MatchLabels == nil {
 		selector.MatchLabels = make(map[string]string)

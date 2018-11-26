@@ -75,15 +75,17 @@ type AppServiceBase struct {
 //AppService a service of rainbond app state in kubernetes
 type AppService struct {
 	AppServiceBase
-	statefulset *v1.StatefulSet
-	deployment  *v1.Deployment
-	services    []*corev1.Service
-	configMaps  []*corev1.ConfigMap
-	ingresses   []*extensions.Ingress
-	secrets     []*corev1.Secret
-	pods        []*corev1.Pod
-	status      AppServiceStatus
-	Logger      event.Logger
+	tenant       *corev1.Namespace
+	statefulset  *v1.StatefulSet
+	deployment   *v1.Deployment
+	services     []*corev1.Service
+	configMaps   []*corev1.ConfigMap
+	ingresses    []*extensions.Ingress
+	secrets      []*corev1.Secret
+	pods         []*corev1.Pod
+	status       AppServiceStatus
+	Logger       event.Logger
+	UpgradePatch map[string][]byte
 }
 
 //CacheKey app cache key
@@ -340,4 +342,14 @@ func (a *AppService) DeletePods(d *corev1.Pod) {
 //GetPods get pods
 func (a *AppService) GetPods() []*corev1.Pod {
 	return a.pods
+}
+
+//SetTenant set tenant
+func (a *AppService) SetTenant(d *corev1.Namespace) {
+	a.tenant = d
+}
+
+//GetTenant get tenant namespace
+func (a *AppService) GetTenant() *corev1.Namespace {
+	return a.tenant
 }

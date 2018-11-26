@@ -54,6 +54,7 @@ func InitAppService(dbmanager db.Manager, serviceID string) (*v1.AppService, err
 		AppServiceBase: v1.AppServiceBase{
 			ServiceID: serviceID,
 		},
+		UpgradePatch: make(map[string][]byte, 2),
 	}
 	for _, c := range conversionList {
 		if err := c(appService, dbmanager); err != nil {
@@ -72,6 +73,7 @@ func InitCacheAppService(dbmanager db.Manager, serviceID, version, createrID str
 			DeployVersion: version,
 			CreaterID:     createrID,
 		},
+		UpgradePatch: make(map[string][]byte, 2),
 	}
 	if err := TenantServiceBase(appService, dbmanager); err != nil {
 		return nil, err

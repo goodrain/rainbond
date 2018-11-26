@@ -25,6 +25,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	types "k8s.io/apimachinery/pkg/types"
 )
 
 type upgradeController struct {
@@ -57,20 +60,32 @@ func (s *upgradeController) Stop() error {
 }
 
 func (s *upgradeController) upgradeOne(app v1.AppService) error {
+	//first: check and create namespace
+	_, err := s.manager.client.CoreV1().Namespaces().Get(app.TenantID, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			_, err = s.manager.client.CoreV1().Namespaces().Create(app.GetTenant())
+		}
+		if err != nil {
+			return fmt.Errorf("create or check namespace failure %s", err.Error())
+		}
+	}
+
 	if deployment := app.GetDeployment(); deployment != nil {
-		_, err := s.manager.client.AppsV1().Deployments(deployment.Namespace).Update(deployment)
+		_, err := s.manager.client.AppsV1().Deployments(deployment.Namespace).Patch(deployment.Name, types.JSONPatchType, app.UpgradePatch["deployment"])
 		if err != nil {
 			app.Logger.Error(fmt.Sprintf("upgrade deployment %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
 			logrus.Errorf("upgrade deployment %s failure %s", app.ServiceAlias, err.Error())
 		}
 	}
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
-		_, err := s.manager.client.AppsV1().StatefulSets(statefulset.Namespace).Update(statefulset)
+		_, err := s.manager.client.AppsV1().StatefulSets(statefulset.Namespace).Patch(statefulset.Name, types.JSONPatchType, app.UpgradePatch["statefulset"])
 		if err != nil {
 			app.Logger.Error(fmt.Sprintf("upgrade statefulset %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
 			logrus.Errorf("upgrade statefulset %s failure %s", app.ServiceAlias, err.Error())
 		}
 	}
+
 	if ingresses := app.GetIngress(); ingresses != nil {
 		for _, ingress := range ingresses {
 			_, err := s.manager.client.Extensions().Ingresses(ingress.Namespace).Update(ingress)

@@ -23,9 +23,12 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/Sirupsen/logrus"
 
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type startController struct {
@@ -68,6 +71,16 @@ func (s *startController) errorCallback(app v1.AppService) error {
 	return s.manager.StartController(TypeStopController, app)
 }
 func (s *startController) startOne(app v1.AppService) error {
+	//first: check and create namespace
+	_, err := s.manager.client.CoreV1().Namespaces().Get(app.TenantID, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			_, err = s.manager.client.CoreV1().Namespaces().Create(app.GetTenant())
+		}
+		if err != nil {
+			return fmt.Errorf("create or check namespace failure %s", err.Error())
+		}
+	}
 	//step 1: create configmap
 	if configs := app.GetConfigMaps(); configs != nil {
 		for _, config := range configs {

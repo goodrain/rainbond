@@ -228,7 +228,7 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 	body, ok := task.Body.(model.VerticalScalingTaskBody)
 	if !ok {
 		logrus.Errorf("vertical_scaling body convert to taskbody error")
-		return fmt.Errorf("a")
+		return fmt.Errorf("vertical_scaling body convert to taskbody error")
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(body.ServiceID)
@@ -236,7 +236,7 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 		logrus.Errorf("vertical_scaling get rc error. %v", err)
 		logger.Error("Get app base info failure", controller.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
-		return fmt.Errorf("a")
+		return fmt.Errorf("vertical_scaling get rc error. %v", err)
 	}
 	appService := m.store.GetAppServiceWithoutCreaterID(service.ServiceID, service.DeployVersion)
 	if appService == nil || appService.IsClosed() {
@@ -271,11 +271,11 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 		return fmt.Errorf("Application init create failure")
 	}
 	newAppService.Logger = logger
-	//regist new app service
-	m.store.RegistAppService(newAppService)
 	oldAppService := m.store.GetAppServiceWithoutCreaterID(body.ServiceID, body.CurrentDeployVersion)
 	// if service not deploy,start it
 	if oldAppService == nil || oldAppService.IsClosed() {
+		//regist new app service
+		m.store.RegistAppService(newAppService)
 		err = m.controllerManager.StartController(controller.TypeStartController, *newAppService)
 		if err != nil {
 			logrus.Errorf("Application run  start controller failure:%s", err.Error())
@@ -286,8 +286,9 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 		logrus.Infof("service(%s) %s working is running.", body.ServiceID, "start")
 		return nil
 	}
+	oldAppService.SetUpgradePatch(newAppService)
 	//if service already deploy,upgrade it:
-	err = m.controllerManager.StartController(controller.TypeUpgradeController, *newAppService)
+	err = m.controllerManager.StartController(controller.TypeUpgradeController, *oldAppService)
 	if err != nil {
 		logrus.Errorf("Application run  upgrade controller failure:%s", err.Error())
 		logger.Info("Application run upgrade controller failure", controller.GetCallbackLoggerOption())

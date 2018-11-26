@@ -244,7 +244,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		envsAll = append(envsAll, es...)
 	}
 	for _, e := range envsAll {
-		envs = append(envs, corev1.EnvVar{Name: e.AttrName, Value: e.AttrValue})
+		envs = append(envs, corev1.EnvVar{Name: strings.TrimSpace(e.AttrName), Value: e.AttrValue})
 	}
 	//set default env
 	envs = append(envs, corev1.EnvVar{Name: "TENANT_ID", Value: as.TenantID})
