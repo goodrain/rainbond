@@ -174,6 +174,7 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 	reqJSON, _ := json.Marshal(req)
 	logrus.Debugf("Request is : %s", string(reqJSON))
 
+	h := handler.GetGatewayHandler()
 	// verify request
 	values := url.Values{}
 	if req.ContainerPort == 0 {
@@ -183,6 +184,11 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 		values["port"] = []string{"The port field is required"}
 	} else if req.Port <= 20000 {
 		values["port"] = []string{"The port field should be greater than 20000"}
+	} else {
+		// check if the port exists
+		if h.PortExists(req.Port) {
+			values["port"] = []string{fmt.Sprintf("The port(%v) already exists", req.Port)}
+		}
 	}
 	if len(req.RuleExtensions) > 0 {
 		for _, re := range req.RuleExtensions {
@@ -200,7 +206,6 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnValidationError(r, w, values)
 		return
 	}
-	h := handler.GetGatewayHandler()
 	if err := h.AddTCPRule(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"adding tcp rule: %v", err))
@@ -212,7 +217,7 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 
 func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add tcp rule.")
-	var req api_model.AddTCPRuleStruct
+	var req api_model.UpdateTCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -221,6 +226,33 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
+	// verify reqeust
+	values := url.Values{}
+	if req.Port != 0 && req.Port <= 20000 {
+		values["port"] = []string{"The port field should be greater than 20000"}
+	} else {
+		// check if the port exists
+		if h.PortExists(req.Port) {
+			values["port"] = []string{fmt.Sprintf("The port(%v) already exists", req.Port)}
+		}
+	}
+	if len(req.RuleExtensions) > 0 {
+		for _, re := range req.RuleExtensions {
+			if re.Key == "" {
+				values["key"] = []string{"The key field is required"}
+				break
+			}
+			if re.Value == "" {
+				values["value"] = []string{"The value field is required"}
+				break
+			}
+		}
+	}
+	if len(values) != 0 {
+		httputil.ReturnValidationError(r, w, values)
+		return
+	}
+
 	if err := h.UpdateTCPRule(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating tcp rule: %v", err))

@@ -33,10 +33,11 @@ type GatewayHandler interface {
 	UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRule *dbmodel.HTTPRule, tx *gorm.DB) error
 
 	AddTCPRule(req *apimodel.AddTCPRuleStruct) error
-	UpdateTCPRule(req *apimodel.AddTCPRuleStruct) error
+	UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct) error
 	DeleteTCPRule(req *apimodel.AddTCPRuleStruct) error
 
 	AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct, tx *gorm.DB) error
 
 	GetAvailablePort() (int, error)
+	PortExists(port int) bool
 }

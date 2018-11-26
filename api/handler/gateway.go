@@ -247,8 +247,8 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
 	tx := db.GetManager().Begin()
 	// add port
 	port := &model.TenantServiceLBMappingPort{
-		ServiceID: req.ServiceID,
-		Port: req.Port,
+		ServiceID:     req.ServiceID,
+		Port:          req.Port,
 		ContainerPort: req.ContainerPort,
 	}
 	err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).AddModel(port)
@@ -290,7 +290,7 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
 }
 
 // UpdateTCPRule updates a tcp rule
-func (g *GatewayAction) UpdateTCPRule(req *apimodel.AddTCPRuleStruct) error {
+func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct) error {
 	// begin transaction
 	tx := db.GetManager().Begin()
 	// get old tcp rule
@@ -299,39 +299,61 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.AddTCPRuleStruct) error {
 		tx.Rollback()
 		return err
 	}
-	// delete old rule extensions
-	if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(tcpRule.UUID); err != nil {
-		tx.Rollback()
-		return err
+	if len(req.RuleExtensions) > 0 {
+		// delete old rule extensions
+		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(tcpRule.UUID); err != nil {
+			tx.Rollback()
+			return err
+		}
+		// add new rule extensions
+		for _, ruleExtension := range req.RuleExtensions {
+			re := &model.RuleExtension{
+				UUID:   util.NewUUID(),
+				RuleID: tcpRule.UUID,
+				Value:  ruleExtension.Value,
+			}
+			if err := g.dbmanager.RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
 	}
 	// update tcp rule
-	tcpRule.ServiceID = req.ServiceID
-	tcpRule.ContainerPort = req.ContainerPort
-	tcpRule.IP = req.IP
-	tcpRule.Port = req.Port
+	if req.ServiceID != "" {
+		tcpRule.ServiceID = req.ServiceID
+	}
+	if req.ContainerPort != 0 {
+		tcpRule.ContainerPort = req.ContainerPort
+	}
+	if req.IP != "" {
+		tcpRule.IP = req.IP
+	}
+	if req.Port > 20000 {
+		// get old port
+		port, err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).GetLBMappingPortByServiceIDAndPort(
+			tcpRule.ServiceID, tcpRule.Port)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		// check
+		// update port
+		port.Port = req.Port
+		if err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).UpdateModel(port); err != nil {
+			tx.Rollback()
+			return err
+		}
+		tcpRule.Port = req.Port
+	}
 	if err := g.dbmanager.TcpRuleDaoTransactions(tx).UpdateModel(tcpRule); err != nil {
 		tx.Rollback()
 		return err
 	}
-	// add new rule extensions
-	for _, ruleExtension := range req.RuleExtensions {
-		re := &model.RuleExtension{
-			UUID:   util.NewUUID(),
-			RuleID: tcpRule.UUID,
-			Value:  ruleExtension.Value,
-		}
-		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-
 	// end transaction
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return err
 	}
-
 	return nil
 }
 
@@ -424,4 +446,9 @@ func (g *GatewayAction) GetAvailablePort() (int, error) {
 		return selectPort, nil
 	}
 	return 0, fmt.Errorf("no more lb port can be use,max port is %d", maxPort)
+}
+
+// PortExists returns if the port exists
+func (g *GatewayAction) PortExists(port int) bool {
+	return g.dbmanager.TenantServiceLBMappingPortDao().PortExists(port)
 }

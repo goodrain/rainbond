@@ -954,7 +954,7 @@ func (t *TenantServiceLBMappingPortDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("service %s mapport %d is exist ", mapPort.ServiceID, mapPort.ContainerPort)
+		return fmt.Errorf("service %s containerPort %d is exist ", mapPort.ServiceID, mapPort.ContainerPort)
 	}
 	return nil
 }
@@ -980,6 +980,16 @@ func (t *TenantServiceLBMappingPortDaoImpl) GetTenantServiceLBMappingPort(servic
 	return &mapPort, nil
 }
 
+// GetLBMappingPortByServiceIDAndPort returns a LBMappingPort by serviceID and port
+func (t *TenantServiceLBMappingPortDaoImpl) GetLBMappingPortByServiceIDAndPort(serviceID string, port int) (*model.TenantServiceLBMappingPort, error) {
+	var mapPort model.TenantServiceLBMappingPort
+	if err := t.DB.Where("service_id=? and port=?", serviceID, port).Find(&mapPort).Error; err != nil {
+		return nil, err
+	}
+	return &mapPort, nil
+}
+
+// GetLBPortsASC gets all LBMappingPorts ascending
 func (t *TenantServiceLBMappingPortDaoImpl) GetLBPortsASC() ([]*model.TenantServiceLBMappingPort, error) {
 	var ports []*model.TenantServiceLBMappingPort
 	if err := t.DB.Order("port asc").Find(&ports).Error; err != nil {
@@ -1109,6 +1119,12 @@ func (t *TenantServiceLBMappingPortDaoImpl) GetLBPortByTenantAndPort(tenantID st
 		return nil, err
 	}
 	return &mapPort, nil
+}
+
+// PortExists checks if the port exists
+func (t *TenantServiceLBMappingPortDaoImpl) PortExists(port int) bool {
+	var mapPorts model.TenantServiceLBMappingPort
+	return !t.DB.Where("port=?", port).Find(&mapPorts).RecordNotFound()
 }
 
 //ServiceLabelDaoImpl ServiceLabelDaoImpl
