@@ -56,6 +56,7 @@ type Storer interface {
 	GetAppServiceStatus(serviceID string) string
 	GetAppServicesStatus(serviceIDs []string) map[string]string
 	GetNeedBillingStatus(serviceIDs []string) map[string]string
+	OnDelete(obj interface{})
 }
 
 //appRuntimeStore app runtime store

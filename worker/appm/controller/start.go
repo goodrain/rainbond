@@ -68,7 +68,15 @@ func (s *startController) Begin() {
 	}
 }
 func (s *startController) errorCallback(app v1.AppService) error {
-	return s.manager.StartController(TypeStopController, app)
+	app.Logger.Info("Begin clean resources that have been created", getLoggerOption("starting"))
+	stopController := stopController{
+		manager: s.manager,
+	}
+	if err := stopController.stopOne(app); err != nil {
+		app.Logger.Error("Stop app failure %s", getLoggerOption("failure"))
+		return err
+	}
+	return nil
 }
 func (s *startController) startOne(app v1.AppService) error {
 	//first: check and create namespace
