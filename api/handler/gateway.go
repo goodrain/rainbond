@@ -381,6 +381,13 @@ func (g *GatewayAction) DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) error {
 		tx.Rollback()
 		return err
 	}
+	// delete LBMappingPort
+	err = db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).DELServiceLBMappingPortByServiceIDAndPort(
+		tcpRule.ServiceID, tcpRule.Port)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
 	// end transaction
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
