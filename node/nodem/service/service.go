@@ -23,7 +23,7 @@ import (
 
 	"github.com/goodrain/rainbond/util"
 
-	"github.com/go-yaml/yaml"
+	yaml "gopkg.in/yaml.v2"
 )
 
 const (
