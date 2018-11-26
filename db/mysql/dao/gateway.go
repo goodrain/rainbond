@@ -163,8 +163,8 @@ func (h *HttpRuleDaoImpl) GetHttpRuleByID(id string) (*model.HTTPRule, error) {
 
 // GetHttpRuleByServiceIDAndContainerPort gets a HTTPRule based on serviceID and containerPort
 func (h *HttpRuleDaoImpl) GetHttpRuleByServiceIDAndContainerPort(serviceID string,
-	containerPort int) (*model.HTTPRule, error) {
-	httpRule := &model.HTTPRule{}
+	containerPort int) ([]*model.HTTPRule, error) {
+	var httpRule []*model.HTTPRule
 	if err := h.DB.Where("service_id = ? and container_port = ?", serviceID,
 		containerPort).Find(httpRule).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -172,20 +172,6 @@ func (h *HttpRuleDaoImpl) GetHttpRuleByServiceIDAndContainerPort(serviceID strin
 		}
 		return nil, err
 	}
-	return httpRule, nil
-}
-
-func (h *HttpRuleDaoImpl) DeleteHttpRuleByServiceIDAndContainerPort(serviceID string,
-	containerPort int) (*model.HTTPRule, error) {
-	httpRule, err := h.GetHttpRuleByServiceIDAndContainerPort(serviceID, containerPort)
-	if err != nil {
-		return nil, err
-	}
-	if err := h.DB.Where("service_id = ? and container_port = ?", serviceID,
-		containerPort).Delete(httpRule).Error; err != nil {
-		return nil, err
-	}
-
 	return httpRule, nil
 }
 
@@ -232,8 +218,8 @@ func (t *TcpRuleDaoTmpl) UpdateModel(mo model.Interface) error {
 
 // GetTcpRuleByServiceIDAndContainerPort gets a TCPRule based on serviceID and containerPort
 func (s *TcpRuleDaoTmpl) GetTcpRuleByServiceIDAndContainerPort(serviceID string,
-	containerPort int) (*model.TCPRule, error) {
-	result := &model.TCPRule{}
+	containerPort int) ([]*model.TCPRule, error) {
+	var result []*model.TCPRule
 	if err := s.DB.Where("service_id = ? and container_port = ?", serviceID,
 		containerPort).Find(result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
