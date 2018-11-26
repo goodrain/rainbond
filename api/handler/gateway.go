@@ -19,12 +19,17 @@
 package handler
 
 import (
+	"context"
 	"fmt"
+	"github.com/Sirupsen/logrus"
+	api_db "github.com/goodrain/rainbond/api/db"
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/mq/api/grpc/client"
 	"github.com/goodrain/rainbond/util"
 	"github.com/jinzhu/gorm"
+	"github.com/pquerna/ffjson/ffjson"
 	"os"
 	"strconv"
 )
@@ -451,4 +456,58 @@ func (g *GatewayAction) GetAvailablePort() (int, error) {
 // PortExists returns if the port exists
 func (g *GatewayAction) PortExists(port int) bool {
 	return g.dbmanager.TenantServiceLBMappingPortDao().PortExists(port)
+}
+
+func (g *GatewayAction) SendTask(ruleID string, ruleType string, mqClient *client.MQClient) {
+	logrus.Info("sending apply_rule task...")
+	// get serviceID
+	var serviceID string
+	switch ruleType {
+	case "http":
+		rule, _ := g.dbmanager.HttpRuleDao().GetHttpRuleByID(ruleID)
+		serviceID = rule.ServiceID
+	case "tcp":
+		rule, _ := g.dbmanager.TcpRuleDao().GetTcpRuleByID(ruleID)
+		serviceID = rule.ServiceID
+	default:
+		logrus.Errorf("Unsupported rule type: %s", ruleType)
+		return
+	}
+	// get service
+	service, err := g.dbmanager.TenantServiceDao().GetServiceByID(serviceID)
+	if err != nil {
+		logrus.Errorf("Unexpected error occurred while getting Service by ServiceID(%s): %v", serviceID, err)
+	}
+	body := make(map[string]interface{})
+	body["service_id"] = serviceID
+	body["deploy_version"] = service.DeployVersion
+	err = g.sendTask(body, "apply_rule", mqClient)
+	if err != nil {
+		logrus.Errorf("Unexpected error occurred while sending task: %v", err)
+	}
+}
+
+func (g *GatewayAction) sendTask(body map[string]interface{}, taskType string, mqClient *client.MQClient) error {
+	bodyJ, err := ffjson.Marshal(body)
+	if err != nil {
+		return err
+	}
+	bs := &api_db.BuildTaskStruct{
+		TaskType: taskType,
+		TaskBody: bodyJ,
+		User:     "define",
+	}
+	eq, errEq := api_db.BuildTaskBuild(bs)
+	if errEq != nil {
+		logrus.Errorf("build equeue stop request error, %v", errEq)
+		return errEq
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err = mqClient.Enqueue(ctx, eq)
+	cancel()
+	if err != nil {
+		logrus.Errorf("equque mq error, %v", err)
+		return err
+	}
+	return nil
 }

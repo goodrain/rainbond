@@ -19,7 +19,6 @@
 package controller
 
 import (
-	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
@@ -43,11 +42,8 @@ func (a *applyRuleController) Begin() {
 		go func(service v1.AppService) {
 			wait.Add(1)
 			defer wait.Done()
-			service.Logger.Info("App runtime begin apply rules for service "+service.ServiceAlias, getLoggerOption("applying rules"))
 			if err := a.applyRules(&service); err != nil {
 				logrus.Errorf("apply rules for service %s failure: %s", service.ServiceAlias, err.Error())
-			} else {
-				service.Logger.Info(fmt.Sprintf("apply rules for service %s successfully", service.ServiceAlias), GetLastLoggerOption())
 			}
 		}(service)
 	}

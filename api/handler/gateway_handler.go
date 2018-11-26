@@ -21,6 +21,7 @@ package handler
 import (
 	apimodel "github.com/goodrain/rainbond/api/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/mq/api/grpc/client"
 	"github.com/jinzhu/gorm"
 )
 
@@ -40,4 +41,5 @@ type GatewayHandler interface {
 
 	GetAvailablePort() (int, error)
 	PortExists(port int) bool
+	SendTask(ruleID string, ruleType string, mqClient *client.MQClient)
 }

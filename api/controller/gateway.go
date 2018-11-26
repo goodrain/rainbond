@@ -24,6 +24,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/handler"
 	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/mq/api/grpc/client"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"net/http"
 	"net/url"
@@ -31,6 +32,7 @@ import (
 
 // GatewayStruct -
 type GatewayStruct struct {
+	MQClient *client.MQClient
 }
 
 // HTTPRule is used to add, update or delete http rule which enables
@@ -80,6 +82,8 @@ func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.SendTask(req.HTTPRuleID, "http", g.MQClient)
+
 	httputil.ReturnSuccess(r, w, "success")
 }
 
@@ -127,6 +131,8 @@ func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.SendTask(req.HTTPRuleID, "http", g.MQClient)
+
 	httputil.ReturnSuccess(r, w, "success")
 }
 
@@ -146,6 +152,8 @@ func (g *GatewayStruct) deleteHTTPRule(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while delete http rule: %v", err))
 		return
 	}
+
+	h.SendTask(req.HTTPRuleID, "http", g.MQClient)
 
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -212,6 +220,8 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.SendTask(req.TCPRuleID, "tcp", g.MQClient)
+
 	httputil.ReturnSuccess(r, w, "success")
 }
 
@@ -259,6 +269,8 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.SendTask(req.TCPRuleID, "tcp", g.MQClient)
+
 	httputil.ReturnSuccess(r, w, "success")
 }
 
@@ -278,6 +290,8 @@ func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
 			"deleting tcp rule: %v", err))
 		return
 	}
+
+	h.SendTask(req.TCPRuleID, "tcp", g.MQClient)
 
 	httputil.ReturnSuccess(r, w, "success")
 }

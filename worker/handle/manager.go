@@ -309,19 +309,13 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		logrus.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
 		return fmt.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
 	}
-	logger := event.GetManager().GetLogger(body.EventID)  // TODO: how to get EventID???
 	appService := m.store.GetAppServiceWithoutCreaterID(body.ServiceID, body.DeployVersion)
 	if appService == nil {
-		logger.Info("Application is closed, can not stop", controller.GetLastLoggerOption())
-		event.GetManager().ReleaseLogger(logger)
-		return nil
+		return fmt.Errorf("Application has been closed, can not apply rules")
 	}
-	appService.Logger = logger
 	err := m.controllerManager.StartController(controller.TypeApplyRuleController, *appService)
 	if err != nil {
 		logrus.Errorf("Application run apply rule controller failure:%s", err.Error())
-		logger.Info("Application run apply rule controller failure", controller.GetCallbackLoggerOption())
-		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("Application apply rule failure")
 	}
 	logrus.Infof("Successfully applied the rules of service(%s)", body.ServiceID)
