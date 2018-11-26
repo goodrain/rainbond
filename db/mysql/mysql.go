@@ -117,8 +117,8 @@ func (m *Manager) RegisterTableModel() {
 	// gateway
 	m.models = append(m.models, &model.Certificate{})
 	m.models = append(m.models, &model.RuleExtension{})
-	m.models = append(m.models, &model.HttpRule{})
-	m.models = append(m.models, &model.TcpRule{})
+	m.models = append(m.models, &model.HTTPRule{})
+	m.models = append(m.models, &model.TCPRule{})
 }
 
 //CheckTable check and create tables

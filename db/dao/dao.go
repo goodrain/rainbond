@@ -223,11 +223,14 @@ type TenantServiceVolumeDao interface {
 type TenantServiceLBMappingPortDao interface {
 	Dao
 	GetTenantServiceLBMappingPort(serviceID string, containerPort int) (*model.TenantServiceLBMappingPort, error)
+	GetLBMappingPortByServiceIDAndPort(serviceID string, port int) (*model.TenantServiceLBMappingPort, error)
 	GetTenantServiceLBMappingPortByService(serviceID string) ([]*model.TenantServiceLBMappingPort, error)
+	GetLBPortsASC() ([]*model.TenantServiceLBMappingPort, error)
 	CreateTenantServiceLBMappingPort(serviceID string, containerPort int) (*model.TenantServiceLBMappingPort, error)
 	DELServiceLBMappingPortByServiceID(serviceID string) error
 	DELServiceLBMappingPortByServiceIDAndPort(serviceID string, lbPort int) error
 	GetLBPortByTenantAndPort(tenantID string, lbport int) (*model.TenantServiceLBMappingPort, error)
+	PortExists(port int) bool
 }
 
 //TenantServiceLabelDao TenantServiceLabelDao
@@ -351,16 +354,16 @@ type RuleExtensionDao interface {
 // HttpRuleDao -
 type HttpRuleDao interface {
 	Dao
-	GetHttpRuleByID(id string) (*model.HttpRule, error)
-	GetHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HttpRule, error)
-	DeleteHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HttpRule, error)
+	GetHttpRuleByID(id string) (*model.HTTPRule, error)
+	GetHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HTTPRule, error)
+	DeleteHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HTTPRule, error)
 	DeleteHttpRuleByID(id string) error
 }
 
 // TcpRuleDao -
 type TcpRuleDao interface {
 	Dao
-	GetTcpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.TcpRule, error)
-	GetTcpRuleByID(id string) (*model.TcpRule, error)
-	DeleteTcpRule(tcpRule *model.TcpRule) error
+	GetTcpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.TCPRule, error)
+	GetTcpRuleByID(id string) (*model.TCPRule, error)
+	DeleteTcpRule(tcpRule *model.TCPRule) error
 }

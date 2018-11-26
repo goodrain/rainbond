@@ -253,6 +253,11 @@ func (a *AppService) SetIngress(d *extensions.Ingress) {
 	a.ingresses = append(a.ingresses, d)
 }
 
+//SetIngress set kubernetes ingresses model
+func (a *AppService) SetIngresses(ings []*extensions.Ingress) {
+	a.ingresses = ings
+}
+
 //DeleteIngress delete kubernetes ingress model
 func (a *AppService) DeleteIngress(d *extensions.Ingress) {
 	for i, c := range a.ingresses {
@@ -298,6 +303,11 @@ func (a *AppService) SetSecrets(d *corev1.Secret) {
 		}
 	}
 	a.secrets = append(a.secrets, d)
+}
+
+//SetAllSecrets sets secrets
+func (a *AppService) SetAllSecrets(secrets []*corev1.Secret) {
+	a.secrets = secrets
 }
 
 //DeleteSecrets set srcrets

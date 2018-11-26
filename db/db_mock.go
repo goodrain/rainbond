@@ -4,9 +4,9 @@
 package db
 
 import (
+	gorm "github.com/jinzhu/gorm"
 	dao "github.com/goodrain/rainbond/db/dao"
 	gomock "github.com/rafrombrc/gomock/gomock"
-	gorm "github.com/jinzhu/gorm"
 )
 
 // Mock of Manager interface

@@ -18,6 +18,7 @@
 
 package model
 
+// TableName returns table name of Certificate
 func (Certificate) TableName() string {
 	return "gateway_certificate"
 }
@@ -31,14 +32,21 @@ type Certificate struct {
 	PrivateKey      string `gorm:"column:private_key;size:128"`
 }
 
+// TableName returns table name of RuleExtension
 func (RuleExtension) TableName() string {
 	return "gateway_rule_extension"
 }
 
-type ExtensionValue string
+// RuleExtensionKey rule extension key
+type RuleExtensionKey string
 
-var HttpToHttpsEV ExtensionValue = "HttpToHttps"
+// HTTPToHTTPS forces http rewrite to https
+var HTTPToHTTPS RuleExtensionKey = "HTTPToHTTPS"
 
+// LBType load balancer type
+var LBType RuleExtensionKey = "LBType"
+
+// RuleExtension contains rule extensions for http rule or tcp rule
 type RuleExtension struct {
 	Model
 	UUID   string `gorm:"column:uuid"`
@@ -47,18 +55,22 @@ type RuleExtension struct {
 	Value  string `gorm:"column:value"`
 }
 
+// LoadBalancerType load balancer type
 type LoadBalancerType string
 
-var RoundRobinLBType LoadBalancerType = "RoundRobin"
+// RoundRobin round-robin load balancer type
+var RoundRobin LoadBalancerType = "RoundRobin"
 
-var ConsistenceHashLBType LoadBalancerType = "ConsistentHash"
+// ConsistenceHash consistence hash load balancer type
+var ConsistenceHash LoadBalancerType = "ConsistentHash"
 
-func (HttpRule) TableName() string {
+// TableName returns table name of HTTPRule
+func (HTTPRule) TableName() string {
 	return "gateway_http_rule"
 }
 
-// HttpRule contains http rule
-type HttpRule struct {
+// HTTPRule contains http rule
+type HTTPRule struct {
 	Model
 	UUID          string `gorm:"column:uuid"`
 	ServiceID     string `gorm:"column:service_id"`
@@ -71,16 +83,19 @@ type HttpRule struct {
 	CertificateID string `gorm:"column:certificate_id"`
 }
 
-func (TcpRule) TableName() string {
+// TableName returns table name of TCPRule
+func (TCPRule) TableName() string {
 	return "gateway_tcp_rule"
 }
 
-// TcpRule contain stream rule
-type TcpRule struct {
+// TCPRule contain stream rule
+type TCPRule struct {
 	Model
 	UUID          string `gorm:"column:uuid"`
 	ServiceID     string `gorm:"column:service_id"`
 	ContainerPort int    `gorm:"column:container_port"`
-	IP            string `gorm:"column:ip"`
-	Port          int    `gorm:"column:port"` // TODO: 这个就是mappingPort吗???
+	// external access ip
+	IP string `gorm:"column:ip"`
+	// external access port
+	Port int `gorm:"column:port"`
 }

@@ -24,16 +24,13 @@ import (
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
-	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/rafrombrc/gomock/gomock"
 	corev1 "k8s.io/api/core/v1"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"os"
+	"k8s.io/client-go/tools/clientcmd"
 
-	// "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes"
 	"strconv"
 	"testing"
@@ -96,7 +93,7 @@ QZ+yDlTdRpvoEP2mzW2cZA==
 
 func TestApplyTcpRule(t *testing.T) {
 	testCase := map[string]string{
-		"namespace": "e8539a9c33fd418db11cce26d2bca431",
+		"namespace": "e8539a9c33fd123456789e26d2bca431",
 		parser.GetAnnotationWithPrefix("l4-enable"): "true",
 		parser.GetAnnotationWithPrefix("l4-host"):   "127.0.0.1",
 		parser.GetAnnotationWithPrefix("l4-port"):   "32145",
@@ -138,20 +135,19 @@ func TestApplyTcpRule(t *testing.T) {
 		},
 	}
 
-	mappingPort, err := strconv.Atoi(testCase[parser.GetAnnotationWithPrefix("l4-port")])
+	externalPort, err := strconv.Atoi(testCase[parser.GetAnnotationWithPrefix("l4-port")])
 	if err != nil {
 		t.Errorf("Can not convert %s(string) to int: %v",
 			testCase[parser.GetAnnotationWithPrefix("l4-port")], err)
 	}
-	tcpRule := &model.TcpRule{
+	tcpRule := &model.TCPRule{
 		ServiceID:     serviceID,
 		ContainerPort: port.ContainerPort,
 		IP:            testCase[parser.GetAnnotationWithPrefix("l4-host")],
-		Port:          mappingPort,
+		Port:          externalPort,
 	}
 
-	ing, err := applyTcpRule(tcpRule, service,
-		testCase[parser.GetAnnotationWithPrefix("l4-port")], testCase["namespace"])
+	ing, err := applyTCPRule(tcpRule, service, testCase["namespace"])
 	if err != nil {
 		t.Errorf("Unexpected error occurred while applying stream rule: %v", err)
 	}
@@ -189,12 +185,33 @@ func TestApplyTcpRule(t *testing.T) {
 			ing.Spec.Backend.ServicePort)
 	}
 
-	fmt.Sprintln(ing)
+	// create k8s resources
+	c, err := clientcmd.BuildConfigFromFlags("", "/Users/abe/go/src/github.com/goodrain/rainbond/test/admin.kubeconfig")
+	if err != nil {
+		t.Fatalf("read kube config file error: %v", err)
+	}
+	clientSet, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		t.Fatalf("create kube api client error: %v", err)
+	}
+	if _, err := clientSet.CoreV1().Namespaces().Create(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: testCase["namespace"],
+		},
+	}); err != nil {
+		t.Errorf("Can't create Namespace(%s): %v", testCase["namespace"], err)
+	}
+	if _, err := clientSet.ExtensionsV1beta1().Ingresses(ing.Namespace).Create(ing); err != nil {
+		t.Errorf("Can't create Ingress(%s): %v", ing.Name, err)
+	}
+	if err := clientSet.CoreV1().Namespaces().Delete(testCase["namespace"], &metav1.DeleteOptions{}); err != nil {
+		t.Errorf("Can't delete namespace(%s)", testCase["namespace"])
+	}
 }
 
 func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 	testCase := map[string]string{
-		"namespace":   "e8539a9c33fd418db11cce26d2bca431",
+		"namespace":   "e8539a9c33f12345611cce26d2bca431",
 		"domain":      "www.goodrain.com",
 		"path":        "/dummy-path",
 		"serviceName": "dummy-service-name",
@@ -221,26 +238,17 @@ func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 		ServiceKey:      "application",
 		ServiceAlias:    "grd83589",
 		Comment:         "application info",
-		ServiceVersion:  "latest",
-		ImageName:       "goodrain.me/runner:latest",
 		ContainerCPU:    20,
 		ContainerMemory: 128,
-		ContainerCMD:    "start_web",
-		VolumePath:      "vol43eaae4418",
 		ExtendMethod:    "stateless",
 		Replicas:        1,
 		DeployVersion:   "20181022200709",
 		Category:        "application",
 		CurStatus:       "undeploy",
 		Status:          0,
-		ServiceType:     "application",
 		Namespace:       "goodrain",
-		VolumeType:      "shared",
-		PortType:        "multi_outer",
 		UpdateTime:      updateTime,
 		ServiceOrigin:   "assistant",
-		CodeFrom:        "gitlab_demo",
-		Domain:          "0enb7gyx",
 	}
 	serviceDao.EXPECT().GetServiceByID(serviceID).Return(services, nil)
 	dbmanager.EXPECT().TenantServiceDao().Return(serviceDao)
@@ -264,7 +272,7 @@ func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 		t.Errorf("Unexpected occurred while creating AppServiceBuild: %v", err)
 	}
 
-	httpRule := &model.HttpRule{
+	httpRule := &model.HTTPRule{
 		UUID:          httpRuleID,
 		ServiceID:     serviceID,
 		ContainerPort: containerPort,
@@ -301,7 +309,7 @@ func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 		},
 	}
 
-	ing, sec, err := build.applyHttpRule(httpRule, port, service)
+	ing, sec, err := build.applyHTTPRule(httpRule, port, service)
 	if err != nil {
 		t.Errorf("Unexpected error occurred whiling applying http rule: %v", err)
 	}
@@ -324,6 +332,29 @@ func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 	if fmt.Sprintf("%v", ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal) != testCase["servicePort"] {
 		t.Errorf("Expected %s for servicePort, but returned %s", testCase["servicePort"],
 			fmt.Sprintf("%v", ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal))
+	}
+
+	// create k8s resources
+	c, err := clientcmd.BuildConfigFromFlags("", "/Users/abe/go/src/github.com/goodrain/rainbond/test/admin.kubeconfig")
+	if err != nil {
+		t.Fatalf("read kube config file error: %v", err)
+	}
+	clientSet, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		t.Fatalf("create kube api client error: %v", err)
+	}
+	if _, err := clientSet.CoreV1().Namespaces().Create(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: testCase["namespace"],
+		},
+	}); err != nil {
+		t.Errorf("Can't create Namespace(%s): %v", testCase["namespace"], err)
+	}
+	if _, err := clientSet.ExtensionsV1beta1().Ingresses(ing.Namespace).Create(ing); err != nil {
+		t.Errorf("Can't create Ingress(%s): %v", ing.Name, err)
+	}
+	if err := clientSet.CoreV1().Namespaces().Delete(testCase["namespace"], &metav1.DeleteOptions{}); err != nil {
+		t.Errorf("Can't delete namespace(%s)", testCase["namespace"])
 	}
 }
 
@@ -358,26 +389,17 @@ func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 		ServiceKey:      "application",
 		ServiceAlias:    "grd83589",
 		Comment:         "application info",
-		ServiceVersion:  "latest",
-		ImageName:       "goodrain.me/runner:latest",
 		ContainerCPU:    20,
 		ContainerMemory: 128,
-		ContainerCMD:    "start_web",
-		VolumePath:      "vol43eaae4418",
 		ExtendMethod:    "stateless",
 		Replicas:        1,
 		DeployVersion:   "20181022200709",
 		Category:        "application",
 		CurStatus:       "undeploy",
 		Status:          0,
-		ServiceType:     "application",
 		Namespace:       "goodrain",
-		VolumeType:      "shared",
-		PortType:        "multi_outer",
 		UpdateTime:      updateTime,
 		ServiceOrigin:   "assistant",
-		CodeFrom:        "gitlab_demo",
-		Domain:          "0enb7gyx",
 	}
 	serviceDao.EXPECT().GetServiceByID(serviceID).Return(services, nil)
 	dbmanager.EXPECT().TenantServiceDao().Return(serviceDao)
@@ -411,7 +433,7 @@ func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 		t.Errorf("Unexpected occurred while creating AppServiceBuild: %v", err)
 	}
 
-	httpRule := &model.HttpRule{
+	httpRule := &model.HTTPRule{
 		UUID:          ruleID,
 		ServiceID:     serviceID,
 		ContainerPort: containerPort,
@@ -449,33 +471,36 @@ func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 		},
 	}
 
-	os.Setenv("EX_DOMAIN", "ali-sh.goodrain.net")
-	ing, sec, err := build.applyHttpRule(httpRule, port, service)
+	ing, sec, err := build.applyHTTPRule(httpRule, port, service)
 	if err != nil {
 		t.Errorf("Unexpected error occurred whiling applying http rule: %v", err)
 	}
 
-	//// clientSet := fake.NewSimpleClientset()
-	//c, err := clientcmd.BuildConfigFromFlags("", "/Users/abe/go/src/github.com/goodrain/rainbond/test/admin.kubeconfig")
-	//if err != nil {
-	//	t.Fatalf("read kube config file error: %v", err)
-	//}
-	//clientSet, err := kubernetes.NewForConfig(c)
-	//if err != nil {
-	//	t.Fatalf("create kube api client error: %v", err)
-	//}
-	//// ensureSecret(sec, clientSet, t)
-	//ensureNamespace(&corev1.Namespace{
-	//	ObjectMeta: metav1.ObjectMeta{
-	//		Name: "foobar",
-	//	},
-	//}, clientSet, t)
-	//if _, err := clientSet.CoreV1().Secrets(sec.Namespace).Create(sec); err != nil {
-	//	t.Errorf("Can't create Serect(%s): %v", sec.Name, err)
-	//}
-	//if _, err := clientSet.ExtensionsV1beta1().Ingresses(ing.Namespace).Create(ing); err != nil {
-	//	t.Errorf("Can't create Ingress(%s): %v", ing.Name, err)
-	//}
+	// create k8s resources
+	c, err := clientcmd.BuildConfigFromFlags("", "/Users/abe/go/src/github.com/goodrain/rainbond/test/admin.kubeconfig")
+	if err != nil {
+		t.Fatalf("read kube config file error: %v", err)
+	}
+	clientSet, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		t.Fatalf("create kube api client error: %v", err)
+	}
+	if _, err := clientSet.CoreV1().Namespaces().Create(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: testCase["namespace"],
+		},
+	}); err != nil {
+		t.Errorf("Can't create Serect(%s): %v", sec.Name, err)
+	}
+	if _, err := clientSet.CoreV1().Secrets(sec.Namespace).Create(sec); err != nil {
+		t.Errorf("Can't create Serect(%s): %v", sec.Name, err)
+	}
+	if _, err := clientSet.ExtensionsV1beta1().Ingresses(ing.Namespace).Create(ing); err != nil {
+		t.Errorf("Can't create Ingress(%s): %v", ing.Name, err)
+	}
+	if err := clientSet.CoreV1().Namespaces().Delete(testCase["namespace"], &metav1.DeleteOptions{}); err != nil {
+		t.Errorf("Can't delete namespace(%s)", testCase["namespace"])
+	}
 
 	if ing.ObjectMeta.Namespace != testCase["namespace"] {
 		t.Errorf("Expected %s for namespace, but returned %s", testCase["namespace"], ing.ObjectMeta.Namespace)
@@ -494,37 +519,7 @@ func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 		t.Errorf("Expected %s for servicePort, but returned %s", testCase["servicePort"],
 			fmt.Sprintf("%v", ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal))
 	}
-
 	if sec.Namespace != testCase["namespace"] {
 		t.Errorf("Expected %s for namespace, but returned %s", testCase["namespace"], sec.Namespace)
 	}
-}
-
-func ensureNamespace(ns *corev1.Namespace, clientSet kubernetes.Interface, t *testing.T) *corev1.Namespace {
-	t.Helper()
-	n, err := clientSet.CoreV1().Namespaces().Update(ns)
-
-	if err != nil {
-		if k8sErrors.IsNotFound(err) {
-			t.Logf("Namespace %v not found, creating", ns)
-
-			n, err = clientSet.CoreV1().Namespaces().Create(ns)
-			if err != nil {
-				t.Fatalf("error creating namespace %+v: %v", ns, err)
-			}
-
-			t.Logf("Namespace %+v created", ns)
-			return n
-		}
-
-		t.Fatalf("error updating namespace %+v: %v", ns, err)
-	}
-
-	t.Logf("Namespace %+v updated", ns)
-
-	return n
-}
-
-func TestTemp2(t *testing.T) {
-	fmt.Print(util.NewUUID())
 }

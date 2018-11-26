@@ -4,9 +4,9 @@
 package dao
 
 import (
+	model "github.com/goodrain/rainbond/db/model"
 	time "time"
 	gomock "github.com/rafrombrc/gomock/gomock"
-	model "github.com/goodrain/rainbond/db/model"
 )
 
 // Mock of Dao interface
@@ -326,99 +326,6 @@ func (_m *MockLicenseDao) ListLicenses() ([]*model.LicenseInfo, error) {
 
 func (_mr *_MockLicenseDaoRecorder) ListLicenses() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "ListLicenses")
-}
-
-// Mock of EventLogDao interface
-type MockEventLogDao struct {
-	ctrl     *gomock.Controller
-	recorder *_MockEventLogDaoRecorder
-}
-
-// Recorder for MockEventLogDao (not exported)
-type _MockEventLogDaoRecorder struct {
-	mock *MockEventLogDao
-}
-
-func NewMockEventLogDao(ctrl *gomock.Controller) *MockEventLogDao {
-	mock := &MockEventLogDao{ctrl: ctrl}
-	mock.recorder = &_MockEventLogDaoRecorder{mock}
-	return mock
-}
-
-func (_m *MockEventLogDao) EXPECT() *_MockEventLogDaoRecorder {
-	return _m.recorder
-}
-
-func (_m *MockEventLogDao) AddModel(_param0 model.Interface) error {
-	ret := _m.ctrl.Call(_m, "AddModel", _param0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockEventLogDaoRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "AddModel", arg0)
-}
-
-func (_m *MockEventLogDao) UpdateModel(_param0 model.Interface) error {
-	ret := _m.ctrl.Call(_m, "UpdateModel", _param0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockEventLogDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
-}
-
-func (_m *MockEventLogDao) GetEventLogMessages(eventID string) ([]*model.EventLogMessage, error) {
-	ret := _m.ctrl.Call(_m, "GetEventLogMessages", eventID)
-	ret0, _ := ret[0].([]*model.EventLogMessage)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockEventLogDaoRecorder) GetEventLogMessages(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetEventLogMessages", arg0)
-}
-
-func (_m *MockEventLogDao) DeleteServiceLog(serviceID string) error {
-	ret := _m.ctrl.Call(_m, "DeleteServiceLog", serviceID)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockEventLogDaoRecorder) DeleteServiceLog(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteServiceLog", arg0)
-}
-
-func (_m *MockEventLogDao) DeleteServiceEventLog(obj *model.EventLogMessage) error {
-	ret := _m.ctrl.Call(_m, "DeleteServiceEventLog", obj)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockEventLogDaoRecorder) DeleteServiceEventLog(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteServiceEventLog", arg0)
-}
-
-func (_m *MockEventLogDao) GetAllServiceEventLog() ([]*model.EventLogMessage, error) {
-	ret := _m.ctrl.Call(_m, "GetAllServiceEventLog")
-	ret0, _ := ret[0].([]*model.EventLogMessage)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockEventLogDaoRecorder) GetAllServiceEventLog() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetAllServiceEventLog")
-}
-
-func (_m *MockEventLogDao) DeleteServiceEventLogByEventId(eventId string) error {
-	ret := _m.ctrl.Call(_m, "DeleteServiceEventLogByEventId", eventId)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockEventLogDaoRecorder) DeleteServiceEventLogByEventId(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteServiceEventLogByEventId", arg0)
 }
 
 // Mock of TenantServiceDao interface
@@ -1854,6 +1761,17 @@ func (_mr *_MockTenantServiceLBMappingPortDaoRecorder) GetTenantServiceLBMapping
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTenantServiceLBMappingPortByService", arg0)
 }
 
+func (_m *MockTenantServiceLBMappingPortDao) GetLBPortsASC() ([]*model.TenantServiceLBMappingPort, error) {
+	ret := _m.ctrl.Call(_m, "GetLBPortsASC")
+	ret0, _ := ret[0].([]*model.TenantServiceLBMappingPort)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTenantServiceLBMappingPortDaoRecorder) GetLBPortsASC() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLBPortsASC")
+}
+
 func (_m *MockTenantServiceLBMappingPortDao) CreateTenantServiceLBMappingPort(serviceID string, containerPort int) (*model.TenantServiceLBMappingPort, error) {
 	ret := _m.ctrl.Call(_m, "CreateTenantServiceLBMappingPort", serviceID, containerPort)
 	ret0, _ := ret[0].(*model.TenantServiceLBMappingPort)
@@ -3034,9 +2952,9 @@ func (_mr *_MockHttpRuleDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call 
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
 }
 
-func (_m *MockHttpRuleDao) GetHttpRuleByID(id string) (*model.HttpRule, error) {
+func (_m *MockHttpRuleDao) GetHttpRuleByID(id string) (*model.HTTPRule, error) {
 	ret := _m.ctrl.Call(_m, "GetHttpRuleByID", id)
-	ret0, _ := ret[0].(*model.HttpRule)
+	ret0, _ := ret[0].(*model.HTTPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -3045,9 +2963,9 @@ func (_mr *_MockHttpRuleDaoRecorder) GetHttpRuleByID(arg0 interface{}) *gomock.C
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetHttpRuleByID", arg0)
 }
 
-func (_m *MockHttpRuleDao) GetHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HttpRule, error) {
+func (_m *MockHttpRuleDao) GetHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HTTPRule, error) {
 	ret := _m.ctrl.Call(_m, "GetHttpRuleByServiceIDAndContainerPort", serviceID, containerPort)
-	ret0, _ := ret[0].(*model.HttpRule)
+	ret0, _ := ret[0].(*model.HTTPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -3056,9 +2974,9 @@ func (_mr *_MockHttpRuleDaoRecorder) GetHttpRuleByServiceIDAndContainerPort(arg0
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetHttpRuleByServiceIDAndContainerPort", arg0, arg1)
 }
 
-func (_m *MockHttpRuleDao) DeleteHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HttpRule, error) {
+func (_m *MockHttpRuleDao) DeleteHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HTTPRule, error) {
 	ret := _m.ctrl.Call(_m, "DeleteHttpRuleByServiceIDAndContainerPort", serviceID, containerPort)
-	ret0, _ := ret[0].(*model.HttpRule)
+	ret0, _ := ret[0].(*model.HTTPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -3118,9 +3036,9 @@ func (_mr *_MockTcpRuleDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
 }
 
-func (_m *MockTcpRuleDao) GetTcpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.TcpRule, error) {
+func (_m *MockTcpRuleDao) GetTcpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.TCPRule, error) {
 	ret := _m.ctrl.Call(_m, "GetTcpRuleByServiceIDAndContainerPort", serviceID, containerPort)
-	ret0, _ := ret[0].(*model.TcpRule)
+	ret0, _ := ret[0].(*model.TCPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -3129,9 +3047,9 @@ func (_mr *_MockTcpRuleDaoRecorder) GetTcpRuleByServiceIDAndContainerPort(arg0, 
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTcpRuleByServiceIDAndContainerPort", arg0, arg1)
 }
 
-func (_m *MockTcpRuleDao) GetTcpRuleByID(id string) (*model.TcpRule, error) {
+func (_m *MockTcpRuleDao) GetTcpRuleByID(id string) (*model.TCPRule, error) {
 	ret := _m.ctrl.Call(_m, "GetTcpRuleByID", id)
-	ret0, _ := ret[0].(*model.TcpRule)
+	ret0, _ := ret[0].(*model.TCPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -3140,7 +3058,7 @@ func (_mr *_MockTcpRuleDaoRecorder) GetTcpRuleByID(arg0 interface{}) *gomock.Cal
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTcpRuleByID", arg0)
 }
 
-func (_m *MockTcpRuleDao) DeleteTcpRule(tcpRule *model.TcpRule) error {
+func (_m *MockTcpRuleDao) DeleteTcpRule(tcpRule *model.TCPRule) error {
 	ret := _m.ctrl.Call(_m, "DeleteTcpRule", tcpRule)
 	ret0, _ := ret[0].(error)
 	return ret0

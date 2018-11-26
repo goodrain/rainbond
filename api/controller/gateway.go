@@ -26,37 +26,56 @@ import (
 	api_model "github.com/goodrain/rainbond/api/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"net/http"
+	"net/url"
 )
 
+// GatewayStruct -
 type GatewayStruct struct {
 }
 
-// HttpRule is used to add, update or delete http rule which enables
+// HTTPRule is used to add, update or delete http rule which enables
 // external traffic to access applications through the gateway
-func (g *GatewayStruct) HttpRule(w http.ResponseWriter, r *http.Request) {
+func (g *GatewayStruct) HTTPRule(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		g.addHttpRule(w, r)
+		g.addHTTPRule(w, r)
 	case "PUT":
-		g.updateHttpRule(w, r)
+		g.updateHTTPRule(w, r)
 	case "DELETE":
-		g.deleteHttpRule(w, r)
+		g.deleteHTTPRule(w, r)
 	}
 }
 
-func (g *GatewayStruct) addHttpRule(w http.ResponseWriter, r *http.Request) {
+func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add http rule.")
-	var req api_model.HttpRuleStruct
+	var req api_model.AddHTTPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
-	reqJson, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJson))
+	reqJSON, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJSON))
+
+	// verify request
+	values := url.Values{}
+	if req.ContainerPort == 0 {
+		values["container_port"] = []string{"The container_port field is required"}
+	}
+	if req.CertificateID != "" {
+		if req.Certificate == "" {
+			values["certificate"] = []string{"The certificate field is required"}
+		}
+		if req.PrivateKey == "" {
+			values["private_key"] = []string{"The private_key field is required"}
+		}
+	}
+	if len(values) != 0 {
+		httputil.ReturnValidationError(r, w, values)
+		return
+	}
 
 	h := handler.GetGatewayHandler()
-
-	if err := h.AddHttpRule(&req); err != nil {
+	if err := h.AddHTTPRule(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while adding http rule: %v", err))
 		return
 	}
@@ -64,18 +83,45 @@ func (g *GatewayStruct) addHttpRule(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, "success")
 }
 
-func (g *GatewayStruct) updateHttpRule(w http.ResponseWriter, r *http.Request) {
+func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("update http rule.")
-	var req api_model.HttpRuleStruct
+	var req api_model.UpdateHTTPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
-	reqJson, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJson))
+	reqJSON, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJSON))
+
+	// verify request
+	values := url.Values{}
+	if req.CertificateID != "" {
+		if req.Certificate == "" {
+			values["certificate"] = []string{"The certificate field is required"}
+		}
+		if req.PrivateKey == "" {
+			values["private_key"] = []string{"The private_key field is required"}
+		}
+	}
+	if len(req.RuleExtensions) > 0 {
+		for _, re := range req.RuleExtensions {
+			if re.Key == "" {
+				values["key"] = []string{"The key field is required"}
+				break
+			}
+			if re.Value == "" {
+				values["value"] = []string{"The value field is required"}
+				break
+			}
+		}
+	}
+	if len(values) != 0 {
+		httputil.ReturnValidationError(r, w, values)
+		return
+	}
 
 	h := handler.GetGatewayHandler()
-	if err := h.UpdateHttpRule(&req); err != nil {
+	if err := h.UpdateHTTPRule(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating http rule: %v", err))
 		return
@@ -84,18 +130,18 @@ func (g *GatewayStruct) updateHttpRule(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, "success")
 }
 
-func (g *GatewayStruct) deleteHttpRule(w http.ResponseWriter, r *http.Request) {
+func (g *GatewayStruct) deleteHTTPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("delete http rule.")
-	var req api_model.HttpRuleStruct
+	var req api_model.DeleteHTTPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
-	reqJson, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJson))
+	reqJSON, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
-	err := h.DeleteHttpRule(&req)
+	err := h.DeleteHTTPRule(&req)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while delete http rule: %v", err))
 		return
@@ -104,31 +150,63 @@ func (g *GatewayStruct) deleteHttpRule(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, "success")
 }
 
-// TcpRule is used to add, update or delete tcp rule which enables
+// TCPRule is used to add, update or delete tcp rule which enables
 // external traffic to access applications through the gateway
-func (g *GatewayStruct) TcpRule(w http.ResponseWriter, r *http.Request) {
+func (g *GatewayStruct) TCPRule(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		g.addTcpRule(w, r)
+		g.AddTCPRule(w, r)
 	case "PUT":
-		g.updateTcpRule(w, r)
+		g.updateTCPRule(w, r)
 	case "DELETE":
-		g.deleteTcpRule(w, r)
+		g.deleteTCPRule(w, r)
 	}
 }
 
-func (g *GatewayStruct) addTcpRule(w http.ResponseWriter, r *http.Request) {
+// AddTCPRule adds a tcp rule
+func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add tcp rule.")
-	var req api_model.TcpRuleStruct
+	var req api_model.AddTCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
-	reqJson, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJson))
+	reqJSON, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
-	if err := h.AddTcpRule(&req); err != nil {
+	// verify request
+	values := url.Values{}
+	if req.ContainerPort == 0 {
+		values["container_port"] = []string{"The container_port field is required"}
+	}
+	if req.Port == 0 {
+		values["port"] = []string{"The port field is required"}
+	} else if req.Port <= 20000 {
+		values["port"] = []string{"The port field should be greater than 20000"}
+	} else {
+		// check if the port exists
+		if h.PortExists(req.Port) {
+			values["port"] = []string{fmt.Sprintf("The port(%v) already exists", req.Port)}
+		}
+	}
+	if len(req.RuleExtensions) > 0 {
+		for _, re := range req.RuleExtensions {
+			if re.Key == "" {
+				values["key"] = []string{"The key field is required"}
+				break
+			}
+			if re.Value == "" {
+				values["value"] = []string{"The value field is required"}
+				break
+			}
+		}
+	}
+	if len(values) != 0 {
+		httputil.ReturnValidationError(r, w, values)
+		return
+	}
+	if err := h.AddTCPRule(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"adding tcp rule: %v", err))
 		return
@@ -137,18 +215,45 @@ func (g *GatewayStruct) addTcpRule(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, "success")
 }
 
-func (g *GatewayStruct) updateTcpRule(w http.ResponseWriter, r *http.Request) {
+func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add tcp rule.")
-	var req api_model.TcpRuleStruct
+	var req api_model.UpdateTCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
-	reqJson, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJson))
+	reqJSON, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
-	if err := h.UpdateTcpRule(&req); err != nil {
+	// verify reqeust
+	values := url.Values{}
+	if req.Port != 0 && req.Port <= 20000 {
+		values["port"] = []string{"The port field should be greater than 20000"}
+	} else {
+		// check if the port exists
+		if h.PortExists(req.Port) {
+			values["port"] = []string{fmt.Sprintf("The port(%v) already exists", req.Port)}
+		}
+	}
+	if len(req.RuleExtensions) > 0 {
+		for _, re := range req.RuleExtensions {
+			if re.Key == "" {
+				values["key"] = []string{"The key field is required"}
+				break
+			}
+			if re.Value == "" {
+				values["value"] = []string{"The value field is required"}
+				break
+			}
+		}
+	}
+	if len(values) != 0 {
+		httputil.ReturnValidationError(r, w, values)
+		return
+	}
+
+	if err := h.UpdateTCPRule(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating tcp rule: %v", err))
 		return
@@ -157,22 +262,37 @@ func (g *GatewayStruct) updateTcpRule(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, "success")
 }
 
-func (g *GatewayStruct) deleteTcpRule(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("delete tcp rule.")
-	var req api_model.TcpRuleStruct
+func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
+	logrus.Debugf("delete TCP rule.")
+	var req api_model.DeleteTCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
-	reqJson, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJson))
+	reqJSON, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
-	if err := h.DeleteTcpRule(&req); err != nil {
+	if err := h.DeleteTCPRule(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"deleting tcp rule: %v", err))
 		return
 	}
 
 	httputil.ReturnSuccess(r, w, "success")
+}
+
+// GetAvailablePort returns a available port
+func (g *GatewayStruct) GetAvailablePort(w http.ResponseWriter, r *http.Request) {
+	logrus.Debugf("get available port.")
+	h := handler.GetGatewayHandler()
+
+	res, err := h.GetAvailablePort()
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
+			"getting available port: %v", err))
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, res)
 }
