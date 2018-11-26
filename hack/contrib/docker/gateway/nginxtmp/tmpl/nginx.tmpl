@@ -57,6 +57,7 @@ http {
     gzip_vary         on;
 
     include conf/http/*.conf;
+    include default/*.http.conf;
 
     lua_shared_dict upstreams_dict {{$h.UpstreamsDict.Num}}{{$h.UpstreamsDict.Unit}};
 
