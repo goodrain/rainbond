@@ -29,7 +29,7 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 //Controller service operating controller interface
@@ -55,6 +55,9 @@ var TypeUpgradeController TypeController = "upgrade"
 
 //TypeScalingController start service type
 var TypeScalingController TypeController = "scaling"
+
+// TypeApplyRuleController -
+var TypeApplyRuleController TypeController = "apply_rule"
 
 //Manager controller manager
 type Manager struct {
@@ -131,6 +134,14 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			manager:      m,
 			stopChan:     make(chan struct{}),
 		}
+	case TypeApplyRuleController:
+		controller = &applyRuleController{
+			controllerID: controllerID,
+			appService:   apps,
+			manager:      m,
+			stopChan:     make(chan struct{}),
+		}
+
 	default:
 		return fmt.Errorf("No support controller")
 	}
@@ -140,6 +151,7 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 	go controller.Begin()
 	return nil
 }
+
 func (m *Manager) callback(controllerID string, err error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()

@@ -21,6 +21,7 @@ package handle
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/goodrain/rainbond/worker/appm/controller"
 
@@ -101,6 +102,9 @@ func (m *Manager) AnalystToExec(task *model.Task) error {
 	case "rolling_upgrade":
 		logrus.Info("start a 'rolling_upgrade' task worker")
 		return m.rollingUpgradeExec(task)
+	case "apply_rule":
+		logrus.Info("start a 'apply_rule' task worker")
+		return m.applyRuleExec(task)
 	default:
 		return nil
 	}
@@ -295,5 +299,30 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 		return fmt.Errorf("Application upgrade failure")
 	}
 	logrus.Infof("service(%s) %s working is running.", body.ServiceID, "upgrade")
+	return nil
+}
+
+func (m *Manager) applyRuleExec(task *model.Task) error {
+	body, ok := task.Body.(*model.ApplyRuleTaskBody)
+	if !ok {
+		logrus.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
+		return fmt.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
+	}
+	logger := event.GetManager().GetLogger(body.EventID)  // TODO: how to get EventID???
+	appService := m.store.GetAppServiceWithoutCreaterID(body.ServiceID, body.DeployVersion)
+	if appService == nil {
+		logger.Info("Application is closed, can not stop", controller.GetLastLoggerOption())
+		event.GetManager().ReleaseLogger(logger)
+		return nil
+	}
+	appService.Logger = logger
+	err := m.controllerManager.StartController(controller.TypeApplyRuleController, *appService)
+	if err != nil {
+		logrus.Errorf("Application run apply rule controller failure:%s", err.Error())
+		logger.Info("Application run apply rule controller failure", controller.GetCallbackLoggerOption())
+		event.GetManager().ReleaseLogger(logger)
+		return fmt.Errorf("Application apply rule failure")
+	}
+	logrus.Infof("Successfully applied the rules of service(%s)", body.ServiceID)
 	return nil
 }

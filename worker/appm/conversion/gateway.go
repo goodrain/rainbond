@@ -179,14 +179,15 @@ func (a *AppServiceBuild) Build() ([]*corev1.Service, []*extensions.Ingress, []*
 }
 
 // ApplyRules applies http rules and tcp rules
-func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort, service *corev1.Service) ([]*extensions.Ingress, *corev1.Secret, error) {
+func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
+	service *corev1.Service) ([]*extensions.Ingress, *corev1.Secret, error) {
 	httpRule, err := a.dbmanager.HttpRuleDao().GetHttpRuleByServiceIDAndContainerPort(port.ServiceID,
-		port.ContainerPort)
+		port.ContainerPort) // TODO: http rule should be more than one
 	if err != nil {
 		logrus.Infof("Can't get HTTPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
 	}
 	tcpRule, err := a.dbmanager.TcpRuleDao().GetTcpRuleByServiceIDAndContainerPort(port.ServiceID,
-		port.ContainerPort)
+		port.ContainerPort) // TODO: tcp rule should be more than one
 	if err != nil {
 		logrus.Infof("Can't get TCPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
 	}

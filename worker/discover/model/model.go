@@ -259,6 +259,13 @@ type GroupStartTaskBody struct {
 	Strategy []string `json:"strategy"`
 }
 
+// ApplyRuleTaskBody contains information for ApplyRuleTask
+type ApplyRuleTaskBody struct {
+	ServiceID     string `json:"service_id"`
+	DeployVersion string `json:"deploy_version"`
+	EventID string `json:"event_id"`
+}
+
 //Dependence 依赖关系
 type Dependence struct {
 	CurrentServiceID string `json:"current_service_id"`
