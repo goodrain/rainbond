@@ -23,6 +23,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/goodrain/rainbond/util"
+
 	v1 "k8s.io/api/apps/v1"
 )
 
@@ -101,27 +103,12 @@ func (e *EncodeNode) MarshalJSON() ([]byte, error) {
 
 //Contrast Compare value
 func (e *EncodeNode) Contrast(endpoint *EncodeNode) bool {
-	return bytesSliceEqual(e.value, endpoint.value)
-}
-
-func bytesSliceEqual(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	if (a == nil) != (b == nil) {
-		return false
-	}
-	for i, v := range a {
-		if v != b[i] {
-			return false
-		}
-	}
-	return true
+	return util.BytesSliceEqual(e.value, endpoint.value)
 }
 
 //GetChange get change fields
 func (e *EncodeNode) GetChange(endpoint *EncodeNode) *EncodeNode {
-	if bytesSliceEqual(e.body, endpoint.body) {
+	if util.BytesSliceEqual(e.body, endpoint.body) {
 		return nil
 	}
 	return getChange(*e, *endpoint)
@@ -129,11 +116,11 @@ func (e *EncodeNode) GetChange(endpoint *EncodeNode) *EncodeNode {
 
 func getChange(old, new EncodeNode) *EncodeNode {
 	var result EncodeNode
-	if bytesSliceEqual(old.body, new.body) {
+	if util.BytesSliceEqual(old.body, new.body) {
 		return nil
 	}
 	if old.Field == nil && new.Field == nil {
-		if !bytesSliceEqual(old.value, new.value) {
+		if !util.BytesSliceEqual(old.value, new.value) {
 			result.value = new.value
 			return &result
 		}

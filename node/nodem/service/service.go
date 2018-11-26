@@ -18,7 +18,13 @@
 
 package service
 
-import "time"
+import (
+	"time"
+
+	"github.com/goodrain/rainbond/util"
+
+	"github.com/go-yaml/yaml"
+)
 
 const (
 	Stat_healthy   string = "healthy"   //健康
@@ -41,6 +47,22 @@ type Service struct {
 	Stop            string      `yaml:"stop,omitempty"`
 	RestartPolicy   string      `yaml:"restart_policy,omitempty"`
 	RestartSec      string      `yaml:"restart_sec,omitempty"`
+}
+
+//Equal equal
+func (s *Service) Equal(e *Service) bool {
+	sb, err := yaml.Marshal(s)
+	if err != nil {
+		return false
+	}
+	eb, err := yaml.Marshal(e)
+	if err != nil {
+		return false
+	}
+	if util.BytesSliceEqual(sb, eb) {
+		return true
+	}
+	return false
 }
 
 //Services default config of all services

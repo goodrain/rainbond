@@ -21,7 +21,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -248,7 +247,7 @@ func (m *ManagerService) ReLoadServices() error {
 					m.ctr.DisableService(ne.Name)
 					restartCount++
 				}
-				if !reflect.DeepEqual(ne, old) {
+				if !ne.Equal(old) {
 					logrus.Infof("Recreate service [%s]", ne.Name)
 					if err := m.ctr.WriteConfig(ne); err == nil {
 						m.ctr.EnableService(ne.Name)
