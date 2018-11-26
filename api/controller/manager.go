@@ -26,7 +26,7 @@ import (
 	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/worker/client"
-
+	mqclient "github.com/goodrain/rainbond/mq/api/grpc/client"
 	"github.com/Sirupsen/logrus"
 )
 
@@ -54,9 +54,9 @@ type V2Manager interface {
 var defaultV2Manager V2Manager
 
 //CreateV2RouterManager 创建manager
-func CreateV2RouterManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) error {
-	defaultV2Manager = NewManager(conf, statusCli)
-	return nil
+func CreateV2RouterManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (err error) {
+	defaultV2Manager, err = NewManager(conf, statusCli)
+	return err
 }
 
 //GetManager 获取管理器
@@ -65,7 +65,7 @@ func GetManager() V2Manager {
 }
 
 //NewManager new manager
-func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) *V2Routes {
+func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2Routes, error) {
 	var v2r V2Routes
 	v2r.TenantStruct.StatusCli = statusCli
 	nodeProxy := proxy.CreateProxy("acp_node", "http", conf.NodeAPI)
@@ -77,5 +77,11 @@ func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) *V2R
 	discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("acp_entrance", entranceProxy)
 	v2r.EntranceStruct.HTTPProxy = entranceProxy
 	logrus.Debugf("create  entrance api proxy success")
-	return &v2r
+
+	mqClient, err := mqclient.NewMqClient(conf.EtcdEndpoint, conf.MQAPI)
+	if err != nil {
+		return nil, err
+	}
+	v2r.GatewayStruct.MQClient = mqClient
+	return &v2r, nil
 }
