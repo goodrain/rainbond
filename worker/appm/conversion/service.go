@@ -124,9 +124,6 @@ func initTenant(as *v1.AppService, tenant *dbmodel.Tenants) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: tenant.UUID,
 		},
-		Spec: corev1.NamespaceSpec{
-			Finalizers: []corev1.FinalizerName{corev1.FinalizerName(tenant.Name)},
-		},
 	}
 	as.SetTenant(namespace)
 	return nil
