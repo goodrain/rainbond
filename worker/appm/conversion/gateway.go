@@ -71,7 +71,7 @@ func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 		as.SetIngress(ing)
 	}
 	for _, sec := range secs {
-		as.SetSecrets(sec)
+		as.SetSecret(sec)
 	}
 
 	return nil

@@ -21,20 +21,20 @@ package handle
 import (
 	"context"
 	"fmt"
-	"reflect"
-
-	"github.com/goodrain/rainbond/worker/appm/controller"
-
-	"github.com/goodrain/rainbond/worker/appm/conversion"
-
-	"github.com/goodrain/rainbond/worker/appm/store"
-
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/worker/appm/controller"
+	"github.com/goodrain/rainbond/worker/appm/conversion"
+	"github.com/goodrain/rainbond/worker/appm/store"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/discover/model"
-
-	"github.com/Sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/kubernetes"
+	"reflect"
 )
 
 //Manager manager
@@ -322,10 +322,9 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		logrus.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
 		return fmt.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
 	}
-	appService := m.store.GetAppServiceWithoutCreaterID(body.ServiceID, body.DeployVersion)
-
 	logger := event.GetManager().GetLogger(body.EventID)
-	if appService == nil || !appService.GetDeployStatus() {
+	oldAppService := m.store.GetAppServiceWithoutCreaterID(body.ServiceID, body.DeployVersion)
+	if oldAppService == nil || !oldAppService.GetDeployStatus() {
 		logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return nil
@@ -338,11 +337,70 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		return fmt.Errorf("Application init create failure")
 	}
 	newAppService.Logger = logger
+	//register the new app service
+	m.store.RegistAppService(newAppService)
+	// delete unwanted k8s resources
+	delApps := findOutDelResources(oldAppService, newAppService)
+	delApps.Logger = logger
+	if err := m.controllerManager.StartController(controller.TypeStopController, *delApps); err != nil {
+		logrus.Errorf("Application run  stop controller failure:%s", err.Error())
+		logger.Info("Application run stop controller failure", controller.GetCallbackLoggerOption())
+		event.GetManager().ReleaseLogger(logger)
+		return fmt.Errorf("Application stop failure")
+	}
+	// update k8s resources
 	err = m.controllerManager.StartController(controller.TypeApplyRuleController, *newAppService)
 	if err != nil {
-		logrus.Errorf("Application run apply rule controller failure:%s", err.Error())
-		return fmt.Errorf("Application apply rule failure")
+		logrus.Errorf("Application apply rule controller failure:%s", err.Error())
+		return fmt.Errorf("Application apply rule controller failure:%s", err.Error())
 	}
 	logrus.Infof("Successfully applied the rules of service(%s)", body.ServiceID)
 	return nil
+}
+
+//findOutDelResources finds out the k8s resources thad need to be deleted
+func findOutDelResources(old *v1.AppService, new *v1.AppService) *v1.AppService {
+	for _, n := range new.GetServices() {
+		old.DeleteServices(n)
+	}
+	for _, n := range new.GetIngress() {
+		old.DeleteIngress(n)
+	}
+	for _, n := range new.GetSecrets() {
+		old.DeleteSecrets(n)
+	}
+	apps := &v1.AppService{
+		AppServiceBase: old.AppServiceBase,
+	}
+	apps.SetServices(old.GetServices())
+	apps.SetIngresses(old.GetIngress())
+	apps.SetSecrets(old.GetSecrets())
+	return apps
+}
+
+func ensureService(service *corev1.Service, clientSet kubernetes.Interface) {
+	_, err := clientSet.CoreV1().Services(service.Namespace).Update(service)
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			_, err := clientSet.CoreV1().Services(service.Namespace).Create(service)
+			logrus.Warningf("error creating service %+v: %v", service, err)
+		}
+
+		logrus.Warningf("error updating service %+v: %v", service, err)
+	}
+}
+
+func ensureIngress(ingress *extensions.Ingress, clientSet kubernetes.Interface) {
+	_, err := clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Update(ingress)
+
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			_, err := clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(ingress)
+			if err != nil {
+				logrus.Warningf("error creating ingress %+v: %v", ingress, err)
+			}
+		}
+
+		logrus.Warningf("error updating ingress %+v: %v", ingress, err)
+	}
 }

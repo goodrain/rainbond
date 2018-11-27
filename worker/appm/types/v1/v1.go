@@ -220,6 +220,11 @@ func (a *AppService) SetService(d *corev1.Service) {
 	a.services = append(a.services, d)
 }
 
+// SetServices set set k8s service model list
+func (a *AppService) SetServices(svcs []*corev1.Service) {
+	a.services = svcs
+}
+
 //GetServices get services
 func (a *AppService) GetServices() []*corev1.Service {
 	return a.services
@@ -253,9 +258,9 @@ func (a *AppService) SetIngress(d *extensions.Ingress) {
 	a.ingresses = append(a.ingresses, d)
 }
 
-//SetIngress set kubernetes ingresses model
-func (a *AppService) SetIngresses(ings []*extensions.Ingress) {
-	a.ingresses = ings
+// SetIngresses sets k8s ingress list
+func (a *AppService) SetIngresses(i []*extensions.Ingress) {
+	a.ingresses = i
 }
 
 //DeleteIngress delete kubernetes ingress model
@@ -289,8 +294,8 @@ func (a *AppService) GetPodTemplate() *corev1.PodTemplateSpec {
 	return nil
 }
 
-//SetSecrets set srcrets
-func (a *AppService) SetSecrets(d *corev1.Secret) {
+//SetSecret set srcrets
+func (a *AppService) SetSecret(d *corev1.Secret) {
 	if d == nil {
 		return
 	}
@@ -303,6 +308,11 @@ func (a *AppService) SetSecrets(d *corev1.Secret) {
 		}
 	}
 	a.secrets = append(a.secrets, d)
+}
+
+// SetSecrets sets k8s secret list
+func (a *AppService) SetSecrets(s []*corev1.Secret) {
+	a.secrets = s
 }
 
 //SetAllSecrets sets secrets

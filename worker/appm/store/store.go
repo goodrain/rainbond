@@ -202,7 +202,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice := a.getAppService(serviceID, version, createrID, true)
 			if appservice != nil {
-				appservice.SetSecrets(secret)
+				appservice.SetSecret(secret)
 				return
 			}
 		}

@@ -20,11 +20,11 @@ package controller
 
 import (
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/kubernetes"
 	"sync"
 )
 
@@ -51,71 +51,65 @@ func (a *applyRuleController) Begin() {
 	a.manager.callback(a.controllerID, nil)
 }
 
-func (a *applyRuleController) applyRules(app *v1.AppService) error {
-	// delete old ingresses and secrets
-	if err := a.deleteIngSec(app); err != nil {
-		return err
-	}
-	// create new ingresses and secretes
-	err := conversion.TenantServiceRegist(app, db.GetManager())
-	if err != nil {
-		return err
-	}
-	if err := a.createIngSec(app); err != nil {
-		return err
-	}
-	//regist new app service
-	a.manager.store.RegistAppService(app)
-	return nil
-}
-
-// deleteIngSec deletes ingresses and secrets
-func (a *applyRuleController) deleteIngSec(app *v1.AppService) error {
-	// delete ingresses
-	if ings := app.GetIngress(); ings != nil {
-		for _, ing := range ings {
-			err := a.manager.client.ExtensionsV1beta1().Ingresses(ing.Namespace).Delete(ing.Name, &metav1.DeleteOptions{})
-			if err != nil && !errors.IsNotFound(err) {
-				return err
-			}
-		}
-	}
-	// delete secrets
-	if secrets := app.GetSecrets(); secrets != nil {
-		for _, secret := range secrets {
-			if secret != nil {
-				err := a.manager.client.CoreV1().Secrets(app.TenantID).Delete(secret.Name, &metav1.DeleteOptions{})
-				if err != nil && !errors.IsNotFound(err) {
-					return err
-				}
-			}
-		}
-	}
-	return nil
-}
-
-// createIngSec creates create ingresses and secrets
-func (a *applyRuleController) createIngSec(app *v1.AppService) error {
-	if ings := app.GetIngress(); ings != nil {
-		for _, ing := range ings {
-			_, err := a.manager.client.ExtensionsV1beta1().Ingresses(app.TenantID).Create(ing)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	if secrets := app.GetSecrets(); secrets != nil {
-		for _, secr := range secrets {
-			_, err := a.manager.client.CoreV1().Secrets(app.TenantID).Create(secr)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func (a *applyRuleController) Stop() error {
 	close(a.stopChan)
 	return nil
+}
+
+func (a *applyRuleController) applyRules(app *v1.AppService) error {
+	// update service
+	for _, service := range app.GetServices() {
+		ensureService(service, a.manager.client)
+	}
+	// update ingress
+	for _, ing := range app.GetIngress() {
+		ensureIngress(ing, a.manager.client)
+	}
+	// update secret
+	for _, secret := range app.GetSecrets() {
+		ensureSecret(secret, a.manager.client)
+	}
+	return nil
+}
+
+func ensureService(service *corev1.Service, clientSet kubernetes.Interface) {
+	_, err := clientSet.CoreV1().Services(service.Namespace).Update(service)
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			_, err := clientSet.CoreV1().Services(service.Namespace).Create(service)
+			logrus.Warningf("error creating service %+v: %v", service, err)
+		}
+
+		logrus.Warningf("error updating service %+v: %v", service, err)
+	}
+}
+
+func ensureIngress(ingress *extensions.Ingress, clientSet kubernetes.Interface) {
+	_, err := clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Update(ingress)
+
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			_, err := clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(ingress)
+			if err != nil {
+				logrus.Warningf("error creating ingress %+v: %v", ingress, err)
+			}
+		}
+
+		logrus.Warningf("error updating ingress %+v: %v", ingress, err)
+	}
+}
+
+func ensureSecret(secret *corev1.Secret, clientSet kubernetes.Interface) {
+	_, err := clientSet.CoreV1().Secrets(secret.Namespace).Update(secret)
+
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			_, err := clientSet.CoreV1().Secrets(secret.Namespace).Create(secret)
+			if err != nil {
+				logrus.Warningf("error creating secret %+v: %v", secret, err)
+			}
+		}
+
+		logrus.Warningf("error updating secret %+v: %v", secret, err)
+	}
 }
