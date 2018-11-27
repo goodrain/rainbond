@@ -251,10 +251,10 @@ type ServiceStruct struct {
 	// in: path
 	// required: true
 	ServiceID string `json:"service_id" validate:"service_id"`
-	// 服务key
+	// 服务名称，用于有状态服务DNS
 	// in: body
 	// required: false
-	ServiceKey string `json:"service_key" validate:"service_key"`
+	ServiceName string `json:"service_name" validate:"service_name"`
 	// 服务别名
 	// in: body
 	// required: true

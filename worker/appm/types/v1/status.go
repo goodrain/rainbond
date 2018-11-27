@@ -33,13 +33,12 @@ func (a *AppService) GetDeployStatus() bool {
 	if a.statefulset != nil || a.deployment != nil {
 		return true
 	}
-	fmt.Println(a.statefulset, a.deployment)
 	return false
 }
 
 //IsClosed is closed
 func (a *AppService) IsClosed() bool {
-	if a.statefulset == nil && a.deployment == nil && len(a.pods) == 0 {
+	if a.isdelete && len(a.pods) == 0 {
 		return true
 	}
 	return false
@@ -95,23 +94,35 @@ func (a *AppService) GetServiceStatus() string {
 		if isHaveTerminatedContainer(a.pods) {
 			return SOMEABNORMAL
 		}
+		if isHaveNormalTerminatedContainer(a.pods) {
+			return STOPPING
+		}
 		return STARTING
 	}
 	if a.deployment != nil && a.deployment.Status.ReadyReplicas == 0 {
 		if isHaveTerminatedContainer(a.pods) {
 			return ABNORMAL
 		}
+		if isHaveNormalTerminatedContainer(a.pods) {
+			return STOPPING
+		}
 		return STARTING
 	}
-	if a.statefulset != nil && (a.statefulset.Status.ReadyReplicas < int32(a.Replicas) && a.deployment.Status.ReadyReplicas != 0) {
+	if a.statefulset != nil && (a.statefulset.Status.ReadyReplicas < int32(a.Replicas) && a.statefulset.Status.ReadyReplicas != 0) {
 		if isHaveTerminatedContainer(a.pods) {
 			return SOMEABNORMAL
+		}
+		if isHaveNormalTerminatedContainer(a.pods) {
+			return STOPPING
 		}
 		return STARTING
 	}
 	if a.statefulset != nil && a.statefulset.Status.ReadyReplicas == 0 {
 		if isHaveTerminatedContainer(a.pods) {
 			return ABNORMAL
+		}
+		if isHaveNormalTerminatedContainer(a.pods) {
+			return STOPPING
 		}
 		return STARTING
 	}
@@ -122,10 +133,21 @@ func isHaveTerminatedContainer(pods []*corev1.Pod) bool {
 	for _, pod := range pods {
 		for _, con := range pod.Status.ContainerStatuses {
 			//have Terminated container
-			if con.State.Terminated != nil {
+			if con.State.Terminated != nil && con.State.Terminated.ExitCode != 0 {
 				return true
 			}
 			if con.LastTerminationState.Terminated != nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+func isHaveNormalTerminatedContainer(pods []*corev1.Pod) bool {
+	for _, pod := range pods {
+		for _, con := range pod.Status.ContainerStatuses {
+			//have Terminated container
+			if con.State.Terminated != nil && con.State.Terminated.ExitCode == 0 {
 				return true
 			}
 		}

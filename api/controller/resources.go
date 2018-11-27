@@ -647,9 +647,8 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 		"container_cmd":    []string{},
 		"image_name":       []string{},
 		"container_memory": []string{},
+		"service_name":     []string{},
 	}
-	//对应前方三个元素
-	//mm := []string{"image_name", "container_cmd", "container_memory"}
 	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
 	if !ok {
 		return
