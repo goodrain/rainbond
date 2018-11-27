@@ -141,7 +141,7 @@ func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service 
 		body["operator"] = r.Body.Operator
 	}
 	body["image"] = r.Body.ImageURL
-	body["service_id"] = service.ID
+	body["service_id"] = service.ServiceID
 	body["deploy_version"] = r.Body.DeployVersion
 	body["namespace"] = service.Namespace
 	body["operator"] = r.Body.Operator
