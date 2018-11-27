@@ -199,7 +199,8 @@ func NewGWController(config *option.Config, errCh chan error) *GWController {
 
 	gwc.store = store.New(
 		clientSet,
-		gwc.updateCh)
+		gwc.updateCh,
+		config)
 
 	gwc.syncQueue = task.NewTaskQueue(gwc.syncGateway)
 

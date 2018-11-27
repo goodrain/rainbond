@@ -19,11 +19,12 @@
 package store
 
 import (
-	apiv1 "k8s.io/api/core/v1"
 	"bytes"
 	"fmt"
+	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/annotations"
 	"io/ioutil"
+	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/ingress-nginx/k8s"
 	"os"
 	"reflect"
@@ -122,6 +123,7 @@ type Lister struct {
 }
 
 type rbdStore struct {
+	conf *option.Config
 	// informer contains the cache Informers
 	informers *Informer
 	// Lister contains object listers (stores).
@@ -136,7 +138,8 @@ type rbdStore struct {
 
 // New creates a new Storer
 func New(client kubernetes.Interface,
-	updateCh *channels.RingChannel) Storer {
+	updateCh *channels.RingChannel,
+	conf *option.Config) Storer {
 	store := &rbdStore{
 		informers: &Informer{},
 		listers:   &Lister{},
@@ -144,6 +147,7 @@ func New(client kubernetes.Interface,
 			make(map[string][]string),
 		},
 		sslStore: NewSSLCertTracker(),
+		conf: conf,
 	}
 
 	store.annotations = annotations.NewAnnotationExtractor(store)
@@ -386,8 +390,12 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
 		}
 
-		if anns.L4.L4Enable && anns.L4.L4Host != "" && anns.L4.L4Port != 0 { // l4
-			listening := fmt.Sprintf("%s:%v", anns.L4.L4Host, anns.L4.L4Port)
+		if anns.L4.L4Enable && anns.L4.L4Port != 0 { // l4
+			host := strings.Replace(anns.L4.L4Host, " ", "", -1)
+			if host == "" {
+				host = s.conf.IP
+			}
+			listening := fmt.Sprintf("%s:%v", host, anns.L4.L4Port)
 			vs := l4vsMap[listening]
 			if vs != nil {
 				logrus.Info("already have a ingress the same as %s, ignore %s", ingKey, ingKey)
