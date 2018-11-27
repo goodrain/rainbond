@@ -116,7 +116,12 @@ func (s *startController) startOne(app v1.AppService) error {
 		for _, service := range services {
 			_, err := s.manager.client.CoreV1().Services(app.TenantID).Create(service)
 			if err != nil {
-				return fmt.Errorf("create service failure:%s", err.Error())
+				if errors.IsAlreadyExists(err) {
+					_, err = s.manager.client.CoreV1().Services(app.TenantID).Update(service)
+				}
+				if err != nil {
+					return fmt.Errorf("create service failure:%s", err.Error())
+				}
 			}
 		}
 	}
@@ -125,7 +130,12 @@ func (s *startController) startOne(app v1.AppService) error {
 		for _, secret := range secrets {
 			_, err := s.manager.client.CoreV1().Secrets(app.TenantID).Create(secret)
 			if err != nil {
-				return fmt.Errorf("create secret failure:%s", err.Error())
+				if errors.IsAlreadyExists(err) {
+					_, err = s.manager.client.CoreV1().Secrets(app.TenantID).Update(secret)
+				}
+				if err != nil {
+					return fmt.Errorf("create secret failure:%s", err.Error())
+				}
 			}
 		}
 	}
@@ -134,7 +144,12 @@ func (s *startController) startOne(app v1.AppService) error {
 		for _, ingress := range ingresses {
 			_, err := s.manager.client.ExtensionsV1beta1().Ingresses(app.TenantID).Create(ingress)
 			if err != nil {
-				return fmt.Errorf("create ingress failure:%s", err.Error())
+				if errors.IsAlreadyExists(err) {
+					_, err = s.manager.client.ExtensionsV1beta1().Ingresses(app.TenantID).Update(ingress)
+				}
+				if err != nil {
+					return fmt.Errorf("create ingress failure:%s", err.Error())
+				}
 			}
 		}
 	}

@@ -529,14 +529,12 @@ func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPor
 		}
 		serviceports = append(serviceports, servicePort)
 	}
-
 	spec := corev1.ServiceSpec{
-		Ports:     serviceports,
-		Selector:  map[string]string{"name": a.service.ServiceAlias},
-		ClusterIP: "None",
+		Ports:                    serviceports,
+		Selector:                 map[string]string{"name": a.service.ServiceAlias},
+		ClusterIP:                "None",
+		PublishNotReadyAddresses: true,
 	}
 	service.Spec = spec
-	//before k8s 1.8 version, set Annotations for Service.PublishNotReadyAddresses
-	service.Annotations = map[string]string{"service.alpha.kubernetes.io/tolerate-unready-endpoints": "true"}
 	return &service
 }
