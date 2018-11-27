@@ -73,7 +73,8 @@ func (s *startController) errorCallback(app v1.AppService) error {
 		manager: s.manager,
 	}
 	if err := stopController.stopOne(app); err != nil {
-		app.Logger.Error("Stop app failure %s", getLoggerOption("failure"))
+		logrus.Errorf("stop app failure after start failure. %s", err.Error())
+		app.Logger.Error(fmt.Sprintf("Stop app failure %s", app.ServiceAlias), getLoggerOption("failure"))
 		return err
 	}
 	return nil

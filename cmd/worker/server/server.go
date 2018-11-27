@@ -64,7 +64,7 @@ func Run(s *option.Worker) error {
 	}
 	defer event.CloseManager()
 
-	//step 2 : create kube client
+	//step 2 : create kube client and etcd client
 	c, err := clientcmd.BuildConfigFromFlags("", s.Config.KubeConfig)
 	if err != nil {
 		logrus.Error("read kube config file error.", err)
@@ -76,6 +76,8 @@ func Run(s *option.Worker) error {
 		return err
 	}
 	s.Config.KubeClient = clientset
+	//etcdCli, err := client.New(client.Config{})
+
 	//step 3: create resource store
 	cachestore := store.NewStore(db.GetManager(), s.Config)
 	if err := cachestore.Start(); err != nil {

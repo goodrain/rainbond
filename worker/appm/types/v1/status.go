@@ -27,15 +27,21 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+//IsEmpty is empty
+func (a *AppService) IsEmpty() bool {
+	empty := len(a.pods) == 0 && len(a.services) == 0 && len(a.secrets) == 0 && len(a.configMaps) == 0
+	return empty
+}
+
 //IsClosed is closed
 func (a *AppService) IsClosed() bool {
-	if (a.isdelete || (a.statefulset == nil && a.deployment == nil)) && len(a.pods) == 0 {
+	if a.IsEmpty() && a.statefulset == nil && a.deployment == nil {
 		return true
 	}
-	if a.statefulset != nil && a.statefulset.ResourceVersion == "" {
+	if a.IsEmpty() && a.statefulset != nil && a.statefulset.ResourceVersion == "" {
 		return true
 	}
-	if a.deployment != nil && a.deployment.ResourceVersion == "" {
+	if a.IsEmpty() && a.deployment != nil && a.deployment.ResourceVersion == "" {
 		return true
 	}
 	return false
@@ -71,13 +77,7 @@ func (a *AppService) GetServiceStatus() string {
 	if a == nil {
 		return CLOSED
 	}
-	if a.statefulset == nil && a.deployment == nil && len(a.pods) == 0 {
-		return CLOSED
-	}
-	if a.statefulset != nil && a.statefulset.ResourceVersion == "" {
-		return CLOSED
-	}
-	if a.deployment != nil && a.deployment.ResourceVersion == "" {
+	if a.IsClosed() {
 		return CLOSED
 	}
 	if a.statefulset == nil && a.deployment == nil && len(a.pods) > 0 {

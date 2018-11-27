@@ -218,7 +218,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 		// create ingresses
 		if tcpRules != nil && len(tcpRules) > 0 {
 			for _, tcpRule := range tcpRules {
-				ing, err := applyTCPRule(tcpRule, service, a.tenant.UUID)
+				ing, err := a.applyTCPRule(tcpRule, service, a.tenant.UUID)
 				if err != nil {
 					logrus.Errorf("Unexpected error occurred while applying tcp rule: %v", err)
 					// skip the failed rule
@@ -235,7 +235,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 				UUID: "default",
 				Port: mappingPort.Port,
 			}
-			ing, err := applyTCPRule(tcpRule, service, a.tenant.UUID)
+			ing, err := a.applyTCPRule(tcpRule, service, a.tenant.UUID)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -264,6 +264,7 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("ing-%s-%s", domain, rule.UUID),
 			Namespace: a.tenant.UUID,
+			Labels:    a.appService.GetCommonLabels(),
 		},
 		Spec: extensions.IngressSpec{
 			Rules: []extensions.IngressRule{
@@ -308,6 +309,7 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      fmt.Sprintf("certificate-%s", domain),
 				Namespace: a.tenant.UUID,
+				Labels:    a.appService.GetCommonLabels(),
 			},
 			Data: map[string][]byte{
 				"tls.crt": []byte(cert.Certificate),
@@ -345,12 +347,13 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 }
 
 // applyTCPRule applies stream rule into ingress
-func applyTCPRule(rule *model.TCPRule, service *corev1.Service, namespace string) (ing *extensions.Ingress, err error) {
+func (a *AppServiceBuild) applyTCPRule(rule *model.TCPRule, service *corev1.Service, namespace string) (ing *extensions.Ingress, err error) {
 	// create ingress
 	ing = &extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("ing-%s-%s", strings.Replace(rule.IP, ".", "-", -1), rule.UUID),
 			Namespace: namespace,
+			Labels:    a.appService.GetCommonLabels(),
 		},
 		Spec: extensions.IngressSpec{
 			Backend: &extensions.IngressBackend{
