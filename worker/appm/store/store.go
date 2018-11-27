@@ -177,6 +177,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice := a.getAppService(serviceID, version, createrID, true)
 			if appservice != nil {
+				fmt.Printf("set statefulset %s \n", statefulset.Name)
 				appservice.SetStatefulSet(statefulset)
 				return
 			}
@@ -286,6 +287,7 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
+				fmt.Printf("delete statefulset %s \n", statefulset.Name)
 				appservice.DeleteStatefulSet(statefulset)
 				if appservice.IsClosed() {
 					a.deleteAppService(appservice)
