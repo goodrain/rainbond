@@ -51,6 +51,7 @@ type Config struct {
 	KeepaliveTimeout  int
 	KeepaliveRequests int
 	NginxUser         string
+	IP                string
 }
 
 // ListenPorts describe the ports required to run the gateway controller
@@ -75,6 +76,7 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.NginxUser, "nginx-user", "root", "nginx user name")
 	fs.IntVar(&g.KeepaliveRequests, "keepalive-requests", 100000, "Number of requests a client can make over the keep-alive connection. This is set high for testing.")
 	fs.IntVar(&g.KeepaliveTimeout, "keepalive-timeout", 30, "Timeout for keep-alive connections. Server will close connections after this time.")
+	fs.StringVar(&g.IP, "ip", "0.0.0.0", "Node ip.") // TODO: more detail
 }
 
 // SetLog sets log

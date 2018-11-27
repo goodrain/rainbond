@@ -28,7 +28,6 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
-	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -210,7 +209,6 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 			ing, _, _ := a.applyHTTPRule(httpRule, port, service)
 			ingresses = append(ingresses, ing)
 		}
-		return ingresses, secret, nil
 	case "tcp":
 		tcpRules, err := a.dbmanager.TcpRuleDao().GetTcpRuleByServiceIDAndContainerPort(port.ServiceID,
 			port.ContainerPort)
@@ -229,9 +227,20 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 				ingresses = append(ingresses, ing)
 			}
 		} else { // // if there is no tcp rule, then create a default ingress
-
+			mappingPort, err := a.dbmanager.TenantServiceLBMappingPortDao().GetTenantServiceLBMappingPort(port.ServiceID, port.ContainerPort)
+			if err != nil {
+				return nil, nil, err
+			}
+			tcpRule := &model.TCPRule{
+				UUID: "default",
+				Port: mappingPort.Port,
+			}
+			ing, err := applyTCPRule(tcpRule, service, a.tenant.UUID)
+			if err != nil {
+				return nil, nil, err
+			}
+			ingresses = append(ingresses, ing)
 		}
-		return ingresses, nil, nil
 	default:
 		logrus.Warningf("Unsupported protocol(%s) for outer service", port.Protocol)
 	}
@@ -342,7 +351,7 @@ func applyTCPRule(rule *model.TCPRule, service *corev1.Service, namespace string
 	// create ingress
 	ing = &extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("ing-%s-%s", rule.IP, util.NewUUID()[0:8]),
+			Name:      fmt.Sprintf("ing-%s-%s", strings.Replace(rule.IP, ".", "-", -1), rule.UUID),
 			Namespace: namespace,
 		},
 		Spec: extensions.IngressSpec{
