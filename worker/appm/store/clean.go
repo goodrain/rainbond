@@ -19,6 +19,7 @@
 package store
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -37,13 +38,14 @@ func (a *appRuntimeStore) clean() {
 			if !ok || appservice == nil {
 				deleteKey = append(deleteKey, k.(v1.CacheKey))
 			}
+			fmt.Print(appservice.String())
 			if appservice.IsClosed() {
 				deleteKey = append(deleteKey, k.(v1.CacheKey))
 			}
 			return true
 		})
 		for _, key := range deleteKey {
-			a.appServices.Delete(key)
+			a.DeleteAppServiceByKey(key)
 		}
 		logrus.Debugf("app store is cleaned")
 		return nil

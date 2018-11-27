@@ -74,7 +74,7 @@ func (s *restartController) restartOne(app v1.AppService) error {
 	//regist new app service
 	s.manager.store.RegistAppService(newAppService)
 	if err := startController.startOne(*newAppService); err != nil {
-		app.Logger.Error("(Restart)Start app failure %s,you could waiting it start success.or manual stop it", GetCallbackLoggerOption())
+		app.Logger.Error(fmt.Sprintf("(Restart)Start app failure %s,you could waiting it start success.or manual stop it", newAppService.ServiceAlias), GetCallbackLoggerOption())
 		return err
 	}
 	return nil

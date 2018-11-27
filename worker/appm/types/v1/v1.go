@@ -120,6 +120,11 @@ func (c CacheKey) Equal(end CacheKey) bool {
 	return false
 }
 
+//GetCacheKeyOnlyServiceID get cache key only service id
+func GetCacheKeyOnlyServiceID(serviceID string) CacheKey {
+	return CacheKey(serviceID)
+}
+
 //GetCacheKey get cache key
 func GetCacheKey(serviceID, version, createrID string) CacheKey {
 	if strings.Contains(serviceID, "-") {
@@ -369,4 +374,36 @@ func (a *AppService) SetTenant(d *corev1.Namespace) {
 //GetTenant get tenant namespace
 func (a *AppService) GetTenant() *corev1.Namespace {
 	return a.tenant
+}
+
+func (a *AppService) String() string {
+	return fmt.Sprintf(`
+	-----------------------------------------------------
+	App:%s
+	Statefulset %+v
+	Deployment %+v
+	Pod %d
+	ingresses %s
+	service %s
+	-----------------------------------------------------
+	`,
+		a.ServiceAlias,
+		a.statefulset,
+		a.deployment,
+		len(a.pods),
+		func(ing []*extensions.Ingress) string {
+			result := ""
+			for _, i := range ing {
+				result += i.Name + ","
+			}
+			return result
+		}(a.ingresses),
+		func(ing []*corev1.Service) string {
+			result := ""
+			for _, i := range ing {
+				result += i.Name + ","
+			}
+			return result
+		}(a.services),
+	)
 }

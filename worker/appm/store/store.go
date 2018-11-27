@@ -249,8 +249,8 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 //getAppService if  creater is true, will create new app service where not found in store
 func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, creater bool) *v1.AppService {
 	var appservice *v1.AppService
-	appservice = a.GetAppService(serviceID, version, createrID)
-	if appservice == nil && creater {
+	appservices := a.GetAppServices(serviceID)
+	if appservices == nil && creater {
 		var err error
 		appservice, err = conversion.InitCacheAppService(a.dbmanager, serviceID, version, createrID)
 		if err != nil {
@@ -258,6 +258,8 @@ func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, cr
 			return nil
 		}
 		a.RegistAppService(appservice)
+	} else {
+		appservice = appservices[0]
 	}
 	return appservice
 }
@@ -274,7 +276,7 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 			if appservice != nil {
 				appservice.DeleteDeployment(deployment)
 				if appservice.IsClosed() {
-					a.deleteAppService(appservice)
+					a.DeleteAppService(appservice)
 				}
 				return
 			}
@@ -290,7 +292,7 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 				fmt.Printf("delete statefulset %s \n", statefulset.Name)
 				appservice.DeleteStatefulSet(statefulset)
 				if appservice.IsClosed() {
-					a.deleteAppService(appservice)
+					a.DeleteAppService(appservice)
 				}
 				return
 			}
@@ -305,7 +307,7 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 			if appservice != nil {
 				appservice.DeletePods(pod)
 				if appservice.IsClosed() {
-					a.deleteAppService(appservice)
+					a.DeleteAppService(appservice)
 				}
 				return
 			}
@@ -320,7 +322,7 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 			if appservice != nil {
 				appservice.DeleteSecrets(secret)
 				if appservice.IsClosed() {
-					a.deleteAppService(appservice)
+					a.DeleteAppService(appservice)
 				}
 				return
 			}
@@ -335,7 +337,7 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 			if appservice != nil {
 				appservice.DeleteServices(service)
 				if appservice.IsClosed() {
-					a.deleteAppService(appservice)
+					a.DeleteAppService(appservice)
 				}
 				return
 			}
@@ -350,7 +352,7 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 			if appservice != nil {
 				appservice.DeleteIngress(ingress)
 				if appservice.IsClosed() {
-					a.deleteAppService(appservice)
+					a.DeleteAppService(appservice)
 				}
 				return
 			}
@@ -365,30 +367,35 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 			if appservice != nil {
 				appservice.DeleteConfigMaps(configmap)
 				if appservice.IsClosed() {
-					a.deleteAppService(appservice)
+					a.DeleteAppService(appservice)
 				}
 				return
 			}
 		}
 	}
 }
-func (a *appRuntimeStore) deleteAppService(app *v1.AppService) {
-	a.appServices.Delete(v1.GetCacheKey(app.ServiceID, app.DeployVersion, app.CreaterID))
+
+//RegistAppService regist a app model to store.
+func (a *appRuntimeStore) RegistAppService(app *v1.AppService) {
+	a.appServices.Store(v1.GetCacheKeyOnlyServiceID(app.ServiceID), app)
+	a.appCount++
+	logrus.Debugf("current have %d app after add \n", a.appCount)
+}
+
+//DeleteAppService delete cache app service
+func (a *appRuntimeStore) DeleteAppService(app *v1.AppService) {
+	a.appServices.Delete(v1.GetCacheKeyOnlyServiceID(app.ServiceID))
 	a.appCount--
 	logrus.Debugf("current have %d app after delete \n", a.appCount)
 }
 
-//RegistAppService regist a app model to store.
-func (a *appRuntimeStore) RegistAppService(app *v1.AppService) {
-	a.appServices.Store(v1.GetCacheKey(app.ServiceID, app.DeployVersion, app.CreaterID), app)
-	var size int
-	a.appServices.Range(func(k, v interface{}) bool {
-		size++
-		return false
-	})
-	a.appCount++
-	logrus.Debugf("current have %d app after add \n", a.appCount)
+//DeleteAppServiceByKey delete cache app service
+func (a *appRuntimeStore) DeleteAppServiceByKey(key v1.CacheKey) {
+	a.appServices.Delete(key)
+	a.appCount--
+	logrus.Debugf("current have %d app after delete \n", a.appCount)
 }
+
 func (a *appRuntimeStore) GetAppService(serviceID, version, createrID string) *v1.AppService {
 	key := v1.GetCacheKey(serviceID, version, createrID)
 	app, ok := a.appServices.Load(key)
@@ -405,7 +412,6 @@ func (a *appRuntimeStore) GetAppServiceWithoutCreaterID(serviceID, version strin
 		existkey, _ := k.(v1.CacheKey)
 		if existkey.ApproximatelyEqual(key) {
 			appService, _ = value.(*v1.AppService)
-			fmt.Printf("%+v \n", appService)
 			return false
 		}
 		return true

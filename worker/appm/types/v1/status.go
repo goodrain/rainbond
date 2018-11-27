@@ -38,7 +38,7 @@ func (a *AppService) GetDeployStatus() bool {
 
 //IsClosed is closed
 func (a *AppService) IsClosed() bool {
-	if a.isdelete && len(a.pods) == 0 {
+	if (a.isdelete || (a.statefulset == nil && a.deployment == nil)) && len(a.pods) == 0 {
 		return true
 	}
 	return false
@@ -188,7 +188,7 @@ func (a *AppService) WaitStop(timeout time.Duration, logger event.Logger, cancel
 	if a == nil {
 		return nil
 	}
-	if len(a.pods) == 0 && a.statefulset == nil && a.deployment == nil {
+	if a.IsClosed() {
 		return nil
 	}
 	ticker := time.NewTicker(timeout / 10)
@@ -200,7 +200,7 @@ func (a *AppService) WaitStop(timeout time.Duration, logger event.Logger, cancel
 	case <-timer.C:
 		return ErrWaitTimeOut
 	case <-ticker.C:
-		if len(a.pods) == 0 && a.statefulset == nil && a.deployment == nil {
+		if a.IsClosed() {
 			return nil
 		}
 		a.printLogger(logger)
