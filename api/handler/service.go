@@ -423,6 +423,9 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		logrus.Errorf("trans json to tenant service error, %v", err)
 		return err
 	}
+	if ts.ServiceName == "" {
+		ts.ServiceName = ts.ServiceAlias
+	}
 	ts.UpdateTime = time.Now()
 	ports := sc.PortsInfo
 	envs := sc.EnvsInfo
@@ -559,6 +562,9 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 	}
 	if sc["container_cmd"] != nil {
 		version.Cmd = sc["container_cmd"].(string)
+	}
+	if sc["service_name"] != nil {
+		ts.ServiceName = sc["service_name"].(string)
 	}
 	//update service
 	if err := db.GetManager().TenantServiceDao().UpdateModel(ts); err != nil {

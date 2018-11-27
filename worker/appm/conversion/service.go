@@ -147,6 +147,9 @@ func initBaseStatefulSet(as *v1.AppService, service *dbmodel.TenantServices) {
 	}
 	initSelector(stateful.Spec.Selector, service)
 	stateful.Spec.ServiceName = service.ServiceName
+	if stateful.Spec.ServiceName == "" {
+		stateful.Spec.ServiceName = service.ServiceAlias
+	}
 	stateful.Namespace = service.TenantID
 	stateful.Name = service.ServiceID + "-statefulset"
 	stateful.GenerateName = service.ServiceAlias

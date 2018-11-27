@@ -436,8 +436,6 @@ func (a *AppServiceBuild) createInnerService(port *model.TenantServicesPort) *co
 		"service_type":  "inner",
 		"name":          a.service.ServiceAlias + "Service",
 		"port_protocol": port.Protocol,
-		"creator":       "RainBond",
-		"service_id":    a.service.ServiceID,
 		"version":       a.service.DeployVersion,
 	})
 	if a.service.Replicas <= 1 {
@@ -473,7 +471,6 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 		"protocol":      port.Protocol,
 		"port_protocol": port.Protocol,
 		"event_id":      a.eventID,
-		"service_id":    a.service.ServiceID,
 		"version":       a.service.DeployVersion,
 	})
 	if a.service.Replicas <= 1 {
@@ -506,12 +503,13 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPort) *corev1.Service {
 	var service corev1.Service
 	service.Name = a.service.ServiceName
-	service.Labels = map[string]string{
+	if service.Name == "" {
+		service.Name = a.service.ServiceAlias
+	}
+	service.Labels = a.appService.GetCommonLabels(map[string]string{
 		"service_type": "stateful",
 		"name":         a.service.ServiceAlias + "ServiceStateful",
-		"creator":      "RainBond",
-		"service_id":   a.service.ServiceID,
-	}
+	})
 	var serviceports []corev1.ServicePort
 	for _, p := range ports {
 		var servicePort corev1.ServicePort
