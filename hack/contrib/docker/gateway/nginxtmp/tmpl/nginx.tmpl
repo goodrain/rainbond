@@ -68,7 +68,7 @@ http {
     }
 
     server {
-        listen       {{$h.AuxiliaryPort}};
+        listen       127.0.0.1:{{$h.AuxiliaryPort}};
 
         location /healthz {
             return 200 "ok";
