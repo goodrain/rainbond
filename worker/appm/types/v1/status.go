@@ -172,18 +172,19 @@ func (a *AppService) WaitReady(timeout time.Duration, logger event.Logger, cance
 	ticker := time.NewTicker(timeout / 10)
 	timer := time.NewTimer(timeout)
 	defer ticker.Stop()
-	select {
-	case <-cancel:
-		return ErrWaitCancel
-	case <-timer.C:
-		return ErrWaitTimeOut
-	case <-ticker.C:
-		if a.Ready() {
-			return nil
+	for {
+		select {
+		case <-cancel:
+			return ErrWaitCancel
+		case <-timer.C:
+			return ErrWaitTimeOut
+		case <-ticker.C:
+			if a.Ready() {
+				return nil
+			}
+			a.printLogger(logger)
 		}
-		a.printLogger(logger)
 	}
-	return nil
 }
 
 //WaitStop wait service stop complate
@@ -197,18 +198,19 @@ func (a *AppService) WaitStop(timeout time.Duration, logger event.Logger, cancel
 	ticker := time.NewTicker(timeout / 10)
 	timer := time.NewTimer(timeout)
 	defer ticker.Stop()
-	select {
-	case <-cancel:
-		return ErrWaitCancel
-	case <-timer.C:
-		return ErrWaitTimeOut
-	case <-ticker.C:
-		if a.IsClosed() {
-			return nil
+	for {
+		select {
+		case <-cancel:
+			return ErrWaitCancel
+		case <-timer.C:
+			return ErrWaitTimeOut
+		case <-ticker.C:
+			if a.IsClosed() {
+				return nil
+			}
+			a.printLogger(logger)
 		}
-		a.printLogger(logger)
 	}
-	return nil
 }
 func (a *AppService) printLogger(logger event.Logger) {
 	var ready int32
