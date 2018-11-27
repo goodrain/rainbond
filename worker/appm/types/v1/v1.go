@@ -20,7 +20,6 @@ package v1
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 
@@ -92,25 +91,25 @@ type AppService struct {
 //CacheKey app cache key
 type CacheKey string
 
-//SimpleEqual cache key service id Equal
-func (c CacheKey) SimpleEqual(end CacheKey) bool {
-	endinfo := strings.Split(string(end), "-")
-	sourceinfo := strings.Split(string(c), "-")
-	if len(endinfo) > 0 && len(sourceinfo) > 0 && endinfo[0] == sourceinfo[0] {
-		return true
-	}
-	return false
-}
+// //SimpleEqual cache key service id Equal
+// func (c CacheKey) SimpleEqual(end CacheKey) bool {
+// 	endinfo := strings.Split(string(end), "-")
+// 	sourceinfo := strings.Split(string(c), "-")
+// 	if len(endinfo) > 0 && len(sourceinfo) > 0 && endinfo[0] == sourceinfo[0] {
+// 		return true
+// 	}
+// 	return false
+// }
 
-//ApproximatelyEqual cache key service id and version Equal
-func (c CacheKey) ApproximatelyEqual(end CacheKey) bool {
-	endinfo := strings.Split(string(end), "-")
-	sourceinfo := strings.Split(string(c), "-")
-	if len(endinfo) > 1 && len(sourceinfo) > 1 && endinfo[0] == sourceinfo[0] && endinfo[1] == sourceinfo[1] {
-		return true
-	}
-	return false
-}
+// //ApproximatelyEqual cache key service id and version Equal
+// func (c CacheKey) ApproximatelyEqual(end CacheKey) bool {
+// 	endinfo := strings.Split(string(end), "-")
+// 	sourceinfo := strings.Split(string(c), "-")
+// 	if len(endinfo) > 1 && len(sourceinfo) > 1 && endinfo[0] == sourceinfo[0] && endinfo[1] == sourceinfo[1] {
+// 		return true
+// 	}
+// 	return false
+// }
 
 //Equal cache key serviceid and version and createID Equal
 func (c CacheKey) Equal(end CacheKey) bool {
@@ -125,30 +124,30 @@ func GetCacheKeyOnlyServiceID(serviceID string) CacheKey {
 	return CacheKey(serviceID)
 }
 
-//GetCacheKey get cache key
-func GetCacheKey(serviceID, version, createrID string) CacheKey {
-	if strings.Contains(serviceID, "-") {
-		serviceID = strings.Replace(serviceID, "-", "", -1)
-	}
-	if strings.Contains(createrID, "-") {
-		createrID = strings.Replace(createrID, "-", "", -1)
-	}
-	if strings.Contains(version, "-") {
-		version = strings.Replace(version, "-", "", -1)
-	}
-	return CacheKey(fmt.Sprintf("%s-%s-%s", serviceID, version, createrID))
-}
+// //GetCacheKey get cache key
+// func GetCacheKey(serviceID, version, createrID string) CacheKey {
+// 	if strings.Contains(serviceID, "-") {
+// 		serviceID = strings.Replace(serviceID, "-", "", -1)
+// 	}
+// 	if strings.Contains(createrID, "-") {
+// 		createrID = strings.Replace(createrID, "-", "", -1)
+// 	}
+// 	if strings.Contains(version, "-") {
+// 		version = strings.Replace(version, "-", "", -1)
+// 	}
+// 	return CacheKey(fmt.Sprintf("%s-%s-%s", serviceID, version, createrID))
+// }
 
-//GetNoCreaterCacheKey get cache key without createrID
-func GetNoCreaterCacheKey(serviceID, version string) CacheKey {
-	if strings.Contains(serviceID, "-") {
-		serviceID = strings.Replace(serviceID, "-", "", -1)
-	}
-	if strings.Contains(version, "-") {
-		version = strings.Replace(version, "-", "", -1)
-	}
-	return CacheKey(fmt.Sprintf("%s-%s", serviceID, version))
-}
+// //GetNoCreaterCacheKey get cache key without createrID
+// func GetNoCreaterCacheKey(serviceID, version string) CacheKey {
+// 	if strings.Contains(serviceID, "-") {
+// 		serviceID = strings.Replace(serviceID, "-", "", -1)
+// 	}
+// 	if strings.Contains(version, "-") {
+// 		version = strings.Replace(version, "-", "", -1)
+// 	}
+// 	return CacheKey(fmt.Sprintf("%s-%s", serviceID, version))
+// }
 
 //GetDeployment get kubernetes deployment model
 func (a *AppService) GetDeployment() *v1.Deployment {

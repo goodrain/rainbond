@@ -21,6 +21,8 @@ package handle
 import (
 	"context"
 	"fmt"
+	"reflect"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
@@ -34,7 +36,6 @@ import (
 	extensions "k8s.io/api/extensions/v1beta1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
-	"reflect"
 )
 
 //Manager manager
@@ -118,8 +119,8 @@ func (m *Manager) startExec(task *model.Task) error {
 		return fmt.Errorf("start body convert to taskbody error")
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
-	appService := m.store.GetAppServiceWithoutCreaterID(body.ServiceID, body.DeployVersion)
-	if appService != nil && appService.GetDeployStatus() {
+	appService := m.store.GetAppService(body.ServiceID)
+	if appService != nil && !appService.IsClosed() {
 		logger.Info("Application is not closed, can not start", controller.GetLastLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return nil
@@ -152,21 +153,19 @@ func (m *Manager) stopExec(task *model.Task) error {
 		return fmt.Errorf("stop body convert to taskbody error")
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
-	appService := m.store.GetAppServices(body.ServiceID)
+	appService := m.store.GetAppService(body.ServiceID)
 	if appService == nil {
 		logger.Info("Application is closed, can not stop", controller.GetLastLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return nil
 	}
-	for _, app := range appService {
-		app.Logger = logger
-		err := m.controllerManager.StartController(controller.TypeStopController, *app)
-		if err != nil {
-			logrus.Errorf("Application run  stop controller failure:%s", err.Error())
-			logger.Info("Application run stop controller failure", controller.GetCallbackLoggerOption())
-			event.GetManager().ReleaseLogger(logger)
-			return fmt.Errorf("Application stop failure")
-		}
+	appService.Logger = logger
+	err := m.controllerManager.StartController(controller.TypeStopController, *appService)
+	if err != nil {
+		logrus.Errorf("Application run  stop controller failure:%s", err.Error())
+		logger.Info("Application run stop controller failure", controller.GetCallbackLoggerOption())
+		event.GetManager().ReleaseLogger(logger)
+		return fmt.Errorf("Application stop failure")
 	}
 	logrus.Infof("service(%s) %s working is running.", body.ServiceID, "stop")
 	return nil
@@ -179,7 +178,7 @@ func (m *Manager) restartExec(task *model.Task) error {
 		return fmt.Errorf("stop body convert to taskbody error")
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
-	appService := m.store.GetAppServiceWithoutCreaterID(body.ServiceID, body.DeployVersion)
+	appService := m.store.GetAppService(body.ServiceID)
 	if appService == nil {
 		logger.Info("Application is closed, can not stop", controller.GetLastLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
@@ -212,12 +211,13 @@ func (m *Manager) horizontalScalingExec(task *model.Task) error {
 		logrus.Errorf("horizontal_scaling get rc error. %v", err)
 		return fmt.Errorf("a")
 	}
-	appService := m.store.GetAppServiceWithoutCreaterID(service.ServiceID, service.DeployVersion)
+	appService := m.store.GetAppService(body.ServiceID)
 	if appService == nil || appService.IsClosed() {
 		logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
 		return nil
 	}
 	appService.Logger = logger
+	appService.Replicas = service.Replicas
 	err = m.controllerManager.StartController(controller.TypeScalingController, *appService)
 	if err != nil {
 		logrus.Errorf("Application run  scaling controller failure:%s", err.Error())
@@ -243,7 +243,7 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("vertical_scaling get rc error. %v", err)
 	}
-	appService := m.store.GetAppServiceWithoutCreaterID(service.ServiceID, service.DeployVersion)
+	appService := m.store.GetAppService(body.ServiceID)
 	if appService == nil || appService.IsClosed() {
 		logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
@@ -287,7 +287,7 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 		return fmt.Errorf("Application init create failure")
 	}
 	newAppService.Logger = logger
-	oldAppService := m.store.GetAppServiceWithoutCreaterID(body.ServiceID, body.CurrentDeployVersion)
+	oldAppService := m.store.GetAppService(body.ServiceID)
 	// if service not deploy,start it
 	if oldAppService == nil || oldAppService.IsClosed() {
 		//regist new app service
@@ -323,8 +323,8 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		return fmt.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
-	oldAppService := m.store.GetAppServiceWithoutCreaterID(body.ServiceID, body.DeployVersion)
-	if oldAppService == nil || !oldAppService.GetDeployStatus() {
+	oldAppService := m.store.GetAppService(body.ServiceID)
+	if oldAppService == nil || oldAppService.IsClosed() {
 		logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return nil

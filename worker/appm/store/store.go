@@ -51,10 +51,8 @@ type Storer interface {
 	Start() error
 	Ready() bool
 	RegistAppService(*v1.AppService)
-	GetAppService(serviceID, version, createrID string) *v1.AppService
-	GetAppServices(serviceID string) []*v1.AppService
+	GetAppService(serviceID string) *v1.AppService
 	GetAllAppServices() []*v1.AppService
-	GetAppServiceWithoutCreaterID(serviceID, version string) *v1.AppService
 	GetAppServiceStatus(serviceID string) string
 	GetAppServicesStatus(serviceIDs []string) map[string]string
 	GetNeedBillingStatus(serviceIDs []string) map[string]string
@@ -249,8 +247,8 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 //getAppService if  creater is true, will create new app service where not found in store
 func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, creater bool) *v1.AppService {
 	var appservice *v1.AppService
-	appservices := a.GetAppServices(serviceID)
-	if appservices == nil && creater {
+	appservice = a.GetAppService(serviceID)
+	if appservice == nil && creater {
 		var err error
 		appservice, err = conversion.InitCacheAppService(a.dbmanager, serviceID, version, createrID)
 		if err != nil {
@@ -258,8 +256,6 @@ func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, cr
 			return nil
 		}
 		a.RegistAppService(appservice)
-	} else {
-		appservice = appservices[0]
 	}
 	return appservice
 }
@@ -396,8 +392,8 @@ func (a *appRuntimeStore) DeleteAppServiceByKey(key v1.CacheKey) {
 	logrus.Debugf("current have %d app after delete \n", a.appCount)
 }
 
-func (a *appRuntimeStore) GetAppService(serviceID, version, createrID string) *v1.AppService {
-	key := v1.GetCacheKey(serviceID, version, createrID)
+func (a *appRuntimeStore) GetAppService(serviceID string) *v1.AppService {
+	key := v1.GetCacheKeyOnlyServiceID(serviceID)
 	app, ok := a.appServices.Load(key)
 	if ok {
 		appService := app.(*v1.AppService)
@@ -406,32 +402,6 @@ func (a *appRuntimeStore) GetAppService(serviceID, version, createrID string) *v
 	return nil
 }
 
-func (a *appRuntimeStore) GetAppServiceWithoutCreaterID(serviceID, version string) (appService *v1.AppService) {
-	key := v1.GetNoCreaterCacheKey(serviceID, version)
-	a.appServices.Range(func(k, value interface{}) bool {
-		existkey, _ := k.(v1.CacheKey)
-		if existkey.ApproximatelyEqual(key) {
-			appService, _ = value.(*v1.AppService)
-			return false
-		}
-		return true
-	})
-	return
-}
-func (a *appRuntimeStore) GetAppServices(serviceID string) (apps []*v1.AppService) {
-	key := v1.CacheKey(serviceID)
-	a.appServices.Range(func(k, value interface{}) bool {
-		existkey, _ := k.(v1.CacheKey)
-		if existkey.SimpleEqual(key) {
-			appService, _ := value.(*v1.AppService)
-			if appService != nil {
-				apps = append(apps, appService)
-			}
-		}
-		return true
-	})
-	return
-}
 func (a *appRuntimeStore) GetAllAppServices() (apps []*v1.AppService) {
 	a.appServices.Range(func(k, value interface{}) bool {
 		appService, _ := value.(*v1.AppService)
@@ -444,18 +414,15 @@ func (a *appRuntimeStore) GetAllAppServices() (apps []*v1.AppService) {
 }
 
 func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
-	apps := a.GetAppServices(serviceID)
-	if apps == nil || len(apps) == 0 {
+	app := a.GetAppService(serviceID)
+	if app == nil {
 		versions, err := a.dbmanager.VersionInfoDao().GetVersionByServiceID(serviceID)
 		if (err != nil && err == gorm.ErrRecordNotFound) || len(versions) == 0 {
 			return v1.UNDEPLOY
 		}
 		return v1.CLOSED
 	}
-	if len(apps) > 1 {
-		return v1.UPGRADE
-	}
-	return apps[0].GetServiceStatus()
+	return app.GetServiceStatus()
 }
 
 func (a *appRuntimeStore) GetAppServicesStatus(serviceIDs []string) map[string]string {

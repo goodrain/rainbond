@@ -27,18 +27,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-//GetDeployStatus get deploy status.
-//if statefulset or deployment is not nil ,return true
-func (a *AppService) GetDeployStatus() bool {
-	if a.statefulset != nil || a.deployment != nil {
-		return true
-	}
-	return false
-}
-
 //IsClosed is closed
 func (a *AppService) IsClosed() bool {
 	if (a.isdelete || (a.statefulset == nil && a.deployment == nil)) && len(a.pods) == 0 {
+		return true
+	}
+	if a.statefulset != nil && a.statefulset.ResourceVersion == "" {
+		return true
+	}
+	if a.deployment != nil && a.deployment.ResourceVersion == "" {
 		return true
 	}
 	return false
@@ -75,6 +72,12 @@ func (a *AppService) GetServiceStatus() string {
 		return CLOSED
 	}
 	if a.statefulset == nil && a.deployment == nil && len(a.pods) == 0 {
+		return CLOSED
+	}
+	if a.statefulset != nil && a.statefulset.ResourceVersion == "" {
+		return CLOSED
+	}
+	if a.deployment != nil && a.deployment.ResourceVersion == "" {
 		return CLOSED
 	}
 	if a.statefulset == nil && a.deployment == nil && len(a.pods) > 0 {

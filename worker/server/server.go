@@ -98,37 +98,36 @@ func (r *RuntimeServer) GetAppDisk(ctx context.Context, re *pb.ServicesRequest) 
 //GetAppPods get app pod list
 func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (*pb.ServiceAppPodList, error) {
 	var Pods []*pb.ServiceAppPod
-	apps := r.store.GetAppServices(re.ServiceId)
-	for _, app := range apps {
-		var deployType, deployID string
-		if deployment := app.GetDeployment(); deployment != nil {
-			deployType = "deployment"
-			deployID = deployment.Name
-		}
-		if statefulset := app.GetStatefulSet(); statefulset != nil {
-			deployType = "statefulset"
-			deployID = statefulset.Name
-		}
-		pods := app.GetPods()
-		for _, pod := range pods {
-			var containers = make(map[string]*pb.Container, len(pod.Spec.Containers))
-			for _, container := range pod.Spec.Containers {
-				containers[container.Name] = &pb.Container{
-					ContainerName: container.Name,
-					MemoryLimit:   int32(container.Resources.Limits.Memory().Value()),
-				}
-			}
-			Pods = append(Pods, &pb.ServiceAppPod{
-				ServiceId:  app.ServiceID,
-				DeployId:   deployID,
-				DeployType: deployType,
-				PodIp:      pod.Status.PodIP,
-				PodName:    pod.Name,
-				PodStatus:  string(pod.Status.Phase),
-				Containers: containers,
-			})
-		}
+	app := r.store.GetAppService(re.ServiceId)
+	var deployType, deployID string
+	if deployment := app.GetDeployment(); deployment != nil {
+		deployType = "deployment"
+		deployID = deployment.Name
 	}
+	if statefulset := app.GetStatefulSet(); statefulset != nil {
+		deployType = "statefulset"
+		deployID = statefulset.Name
+	}
+	pods := app.GetPods()
+	for _, pod := range pods {
+		var containers = make(map[string]*pb.Container, len(pod.Spec.Containers))
+		for _, container := range pod.Spec.Containers {
+			containers[container.Name] = &pb.Container{
+				ContainerName: container.Name,
+				MemoryLimit:   int32(container.Resources.Limits.Memory().Value()),
+			}
+		}
+		Pods = append(Pods, &pb.ServiceAppPod{
+			ServiceId:  app.ServiceID,
+			DeployId:   deployID,
+			DeployType: deployType,
+			PodIp:      pod.Status.PodIP,
+			PodName:    pod.Name,
+			PodStatus:  string(pod.Status.Phase),
+			Containers: containers,
+		})
+	}
+
 	return &pb.ServiceAppPodList{
 		Pods: Pods,
 	}, nil

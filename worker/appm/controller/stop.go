@@ -133,7 +133,7 @@ func (s *stopController) Stop() error {
 
 //WaitingReady wait app start or upgrade ready
 func (s *stopController) WaitingReady(app v1.AppService) error {
-	storeAppService := s.manager.store.GetAppService(app.ServiceID, app.DeployVersion, app.CreaterID)
+	storeAppService := s.manager.store.GetAppService(app.ServiceID)
 	//at least waiting time is 40 second
 	var initTime = 40
 	if err := storeAppService.WaitStop(time.Duration(initTime*app.Replicas), app.Logger, s.stopChan); err != nil {

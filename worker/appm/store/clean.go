@@ -19,12 +19,9 @@
 package store
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
 
 	"github.com/goodrain/rainbond/util"
 )
@@ -32,21 +29,10 @@ import (
 //clean clean Possible duplicate resources
 func (a *appRuntimeStore) clean() {
 	util.Exec(a.ctx, func() error {
-		var deleteKey []v1.CacheKey
 		a.appServices.Range(func(k, v interface{}) bool {
-			appservice, ok := v.(*v1.AppService)
-			if !ok || appservice == nil {
-				deleteKey = append(deleteKey, k.(v1.CacheKey))
-			}
-			fmt.Print(appservice.String())
-			if appservice.IsClosed() {
-				deleteKey = append(deleteKey, k.(v1.CacheKey))
-			}
+			//TODO
 			return true
 		})
-		for _, key := range deleteKey {
-			a.DeleteAppServiceByKey(key)
-		}
 		logrus.Debugf("app store is cleaned")
 		return nil
 	}, time.Second*10)

@@ -145,7 +145,7 @@ func (s *startController) startOne(app v1.AppService) error {
 
 //WaitingReady wait app start or upgrade ready
 func (s *startController) WaitingReady(app v1.AppService) error {
-	storeAppService := s.manager.store.GetAppService(app.ServiceID, app.DeployVersion, app.CreaterID)
+	storeAppService := s.manager.store.GetAppService(app.ServiceID)
 	var initTime int32
 	if podt := app.GetPodTemplate(); podt != nil {
 		if probe := podt.Spec.Containers[0].ReadinessProbe; probe != nil {
