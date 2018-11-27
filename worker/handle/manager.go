@@ -214,6 +214,7 @@ func (m *Manager) horizontalScalingExec(task *model.Task) error {
 	}
 	appService := m.store.GetAppServiceWithoutCreaterID(service.ServiceID, service.DeployVersion)
 	if appService == nil || appService.IsClosed() {
+		logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
 		return nil
 	}
 	appService.Logger = logger
@@ -244,11 +245,22 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 	}
 	appService := m.store.GetAppServiceWithoutCreaterID(service.ServiceID, service.DeployVersion)
 	if appService == nil || appService.IsClosed() {
+		logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
+		event.GetManager().ReleaseLogger(logger)
 		return nil
 	}
 	appService.ContainerCPU = service.ContainerCPU
 	appService.ContainerMemory = service.ContainerMemory
 	appService.Logger = logger
+	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID)
+	if err != nil {
+		logrus.Errorf("Application init create failure:%s", err.Error())
+		logger.Error("Application init create failure", controller.GetCallbackLoggerOption())
+		event.GetManager().ReleaseLogger(logger)
+		return fmt.Errorf("Application init create failure")
+	}
+	newAppService.Logger = logger
+	appService.SetUpgradePatch(newAppService)
 	err = m.controllerManager.StartController(controller.TypeUpgradeController, *appService)
 	if err != nil {
 		logrus.Errorf("Application run  vertical scaling(upgrade) controller failure:%s", err.Error())
@@ -264,7 +276,7 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 	body, ok := task.Body.(model.RollingUpgradeTaskBody)
 	if !ok {
 		logrus.Error("rolling_upgrade body convert to taskbody error", task.Body)
-		return fmt.Errorf("a")
+		return fmt.Errorf("rolling_upgrade body convert to taskbody error")
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
 	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID)
@@ -310,10 +322,22 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		return fmt.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
 	}
 	appService := m.store.GetAppServiceWithoutCreaterID(body.ServiceID, body.DeployVersion)
-	if appService == nil {
-		return fmt.Errorf("Application has been closed, can not apply rules")
+
+	logger := event.GetManager().GetLogger(body.EventID)
+	if appService == nil || !appService.GetDeployStatus() {
+		logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
+		event.GetManager().ReleaseLogger(logger)
+		return nil
 	}
-	err := m.controllerManager.StartController(controller.TypeApplyRuleController, *appService)
+	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID)
+	if err != nil {
+		logrus.Errorf("Application init create failure:%s", err.Error())
+		logger.Error("Application init create failure", controller.GetCallbackLoggerOption())
+		event.GetManager().ReleaseLogger(logger)
+		return fmt.Errorf("Application init create failure")
+	}
+	newAppService.Logger = logger
+	err = m.controllerManager.StartController(controller.TypeApplyRuleController, *newAppService)
 	if err != nil {
 		logrus.Errorf("Application run apply rule controller failure:%s", err.Error())
 		return fmt.Errorf("Application apply rule failure")
