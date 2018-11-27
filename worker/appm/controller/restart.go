@@ -21,6 +21,7 @@ package controller
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
@@ -61,6 +62,9 @@ func (s *restartController) restartOne(app v1.AppService) error {
 		app.Logger.Error("(Restart)Stop app failure %s,you could waiting stoped and manual start it", GetCallbackLoggerOption())
 		return err
 	}
+	//sleep 3 secode
+	time.Sleep(time.Second * 3)
+
 	startController := startController{
 		manager: s.manager,
 	}
