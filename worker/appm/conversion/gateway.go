@@ -157,9 +157,7 @@ func (a *AppServiceBuild) Build() ([]*corev1.Service, []*extensions.Ingress, []*
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				if ings != nil && len(ings) > 0 {
-					ingresses = append(ingresses, ings...)
-				}
+				ingresses = append(ingresses, ings...)
 				if secret != nil {
 					secrets = append(secrets, secret)
 				}
@@ -183,45 +181,59 @@ func (a *AppServiceBuild) Build() ([]*corev1.Service, []*extensions.Ingress, []*
 // ApplyRules applies http rules and tcp rules
 func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 	service *corev1.Service) ([]*extensions.Ingress, *corev1.Secret, error) {
-	httpRules, err := a.dbmanager.HttpRuleDao().GetHttpRuleByServiceIDAndContainerPort(port.ServiceID,
-		port.ContainerPort)
-	if err != nil {
-		logrus.Infof("Can't get HTTPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
-	}
-	tcpRules, err := a.dbmanager.TcpRuleDao().GetTcpRuleByServiceIDAndContainerPort(port.ServiceID,
-		port.ContainerPort)
-	if err != nil {
-		logrus.Infof("Can't get TCPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
-	}
-
-	// create ingresses
 	var ingresses []*extensions.Ingress
 	var secret *corev1.Secret
-	// http
-	if httpRules != nil && len(httpRules) > 0 {
-		for _, httpRule := range httpRules {
-			ing, sec, err := a.applyHTTPRule(httpRule, port, service)
-			if err != nil {
-				logrus.Errorf("Unexpected error occurred while applying http rule: %v", err)
-				// skip the failed rule
-				continue
-			}
-			ingresses = append(ingresses, ing)
-			secret = sec
+	switch port.Protocol {
+	case "http":
+		httpRules, err := a.dbmanager.HttpRuleDao().GetHttpRuleByServiceIDAndContainerPort(port.ServiceID,
+			port.ContainerPort)
+		if err != nil {
+			logrus.Infof("Can't get HTTPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
 		}
-	}
+		// create ingresses
+		if httpRules != nil && len(httpRules) > 0 {
+			for _, httpRule := range httpRules {
+				ing, sec, err := a.applyHTTPRule(httpRule, port, service)
+				if err != nil {
+					logrus.Errorf("Unexpected error occurred while applying http rule: %v", err)
+					// skip the failed rule
+					continue
+				}
+				ingresses = append(ingresses, ing)
+				secret = sec
+			}
+		} else { // if there is no http rule, then create a default ingress
+			httpRule := &model.HTTPRule{
+				UUID: "default",
+			}
+			// the default ingress will not have error
+			ing, _, _ := a.applyHTTPRule(httpRule, port, service)
+			ingresses = append(ingresses, ing)
+		}
+		return ingresses, secret, nil
+	case "tcp":
+		tcpRules, err := a.dbmanager.TcpRuleDao().GetTcpRuleByServiceIDAndContainerPort(port.ServiceID,
+			port.ContainerPort)
+		if err != nil {
+			logrus.Infof("Can't get TCPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
+		}
+		// create ingresses
+		if tcpRules != nil && len(tcpRules) > 0 {
+			for _, tcpRule := range tcpRules {
+				ing, err := applyTCPRule(tcpRule, service, a.tenant.UUID)
+				if err != nil {
+					logrus.Errorf("Unexpected error occurred while applying tcp rule: %v", err)
+					// skip the failed rule
+					continue
+				}
+				ingresses = append(ingresses, ing)
+			}
+		} else { // // if there is no tcp rule, then create a default ingress
 
-	// tcp
-	if tcpRules != nil && len(tcpRules) > 0 {
-		for _, tcpRule := range tcpRules {
-			ing, err := applyTCPRule(tcpRule, service, a.tenant.UUID)
-			if err != nil {
-				logrus.Errorf("Unexpected error occurred while applying tcp rule: %v", err)
-				// skip the failed rule
-				continue
-			}
-			ingresses = append(ingresses, ing)
 		}
+		return ingresses, nil, nil
+	default:
+		logrus.Warningf("Unsupported protocol(%s) for outer service", port.Protocol)
 	}
 
 	return ingresses, secret, nil
@@ -230,26 +242,26 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 // applyTCPRule applies stream rule into ingress
 func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.TenantServicesPort,
 	service *corev1.Service) (ing *extensions.Ingress, sec *corev1.Secret, err error) {
-	// deal with empty path
+	// deal with empty path and domain
 	path := strings.Replace(rule.Path, " ", "", -1)
 	if path == "" {
 		path = "/"
 	}
-
-	// create ingress
 	domain := strings.Replace(rule.Domain, " ", "", -1)
 	if domain == "" {
 		domain = createDefaultDomain(a.tenant.Name, a.service.ServiceAlias, port.ContainerPort)
 	}
+
+	// create ingress
 	ing = &extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("ing-%s-%s", domain, util.NewUUID()[0:8]),
+			Name:      fmt.Sprintf("ing-%s-%s", domain, rule.UUID),
 			Namespace: a.tenant.UUID,
 		},
 		Spec: extensions.IngressSpec{
 			Rules: []extensions.IngressRule{
 				{
-					Host: rule.Domain,
+					Host: domain,
 					IngressRuleValue: extensions.IngressRuleValue{
 						HTTP: &extensions.HTTPIngressRuleValue{
 							Paths: []extensions.HTTPIngressPath{
@@ -304,21 +316,23 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 		}
 	}
 	// rule extension
-	ruleExtensions, err := a.dbmanager.RuleExtensionDao().GetRuleExtensionByRuleID(rule.UUID)
-	if err != nil {
-		return nil, nil, err
-	}
-	for _, extension := range ruleExtensions {
-		switch extension.Key {
-		case string(model.HTTPToHTTPS):
-			annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
-		case string(model.LBType):
-			annos[parser.GetAnnotationWithPrefix("lb-type")] = extension.Value
-		default:
-			logrus.Warnf("Unexpected RuleExtension Value: %s", extension.Value)
+	if rule.UUID != "default" { // the default http rule has no rule extensions
+		ruleExtensions, err := a.dbmanager.RuleExtensionDao().GetRuleExtensionByRuleID(rule.UUID)
+		if err != nil {
+			return nil, nil, err
 		}
+		for _, extension := range ruleExtensions {
+			switch extension.Key {
+			case string(model.HTTPToHTTPS):
+				annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
+			case string(model.LBType):
+				annos[parser.GetAnnotationWithPrefix("lb-type")] = extension.Value
+			default:
+				logrus.Warnf("Unexpected RuleExtension Value: %s", extension.Value)
+			}
+		}
+		ing.SetAnnotations(annos)
 	}
-	ing.SetAnnotations(annos)
 
 	return ing, sec, nil
 }
