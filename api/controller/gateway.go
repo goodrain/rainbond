@@ -82,7 +82,7 @@ func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.SendTask(req.HTTPRuleID, "http", g.MQClient)
+	h.SendTaskGW(req.HTTPRuleID, "http", g.MQClient)
 
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -131,7 +131,7 @@ func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.SendTask(req.HTTPRuleID, "http", g.MQClient)
+	h.SendTaskGW(req.HTTPRuleID, "http", g.MQClient)
 
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -153,7 +153,7 @@ func (g *GatewayStruct) deleteHTTPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.SendTask(req.HTTPRuleID, "http", g.MQClient)
+	h.SendTaskGW(req.HTTPRuleID, "http", g.MQClient)
 
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -220,7 +220,7 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.SendTask(req.TCPRuleID, "tcp", g.MQClient)
+	h.SendTaskGW(req.TCPRuleID, "tcp", g.MQClient)
 
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -269,7 +269,7 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.SendTask(req.TCPRuleID, "tcp", g.MQClient)
+	h.SendTaskGW(req.TCPRuleID, "tcp", g.MQClient)
 
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -291,7 +291,7 @@ func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.SendTask(req.TCPRuleID, "tcp", g.MQClient)
+	h.SendTaskGW(req.TCPRuleID, "tcp", g.MQClient)
 
 	httputil.ReturnSuccess(r, w, "success")
 }

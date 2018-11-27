@@ -66,8 +66,14 @@ func GetManager() V2Manager {
 
 //NewManager new manager
 func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2Routes, error) {
+	mqClient, err := mqclient.NewMqClient(conf.EtcdEndpoint, conf.MQAPI)
+	if err != nil {
+		return nil, err
+	}
+
 	var v2r V2Routes
 	v2r.TenantStruct.StatusCli = statusCli
+	v2r.TenantStruct.MQClient = mqClient
 	nodeProxy := proxy.CreateProxy("acp_node", "http", conf.NodeAPI)
 	discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("acp_node", nodeProxy)
 	v2r.AcpNodeStruct.HTTPProxy = nodeProxy
@@ -78,10 +84,6 @@ func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2
 	v2r.EntranceStruct.HTTPProxy = entranceProxy
 	logrus.Debugf("create  entrance api proxy success")
 
-	mqClient, err := mqclient.NewMqClient(conf.EtcdEndpoint, conf.MQAPI)
-	if err != nil {
-		return nil, err
-	}
 	v2r.GatewayStruct.MQClient = mqClient
 	return &v2r, nil
 }
