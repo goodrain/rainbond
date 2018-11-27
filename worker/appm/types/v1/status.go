@@ -103,7 +103,7 @@ func (a *AppService) GetServiceStatus() string {
 		}
 		return STARTING
 	}
-	if a.statefulset != nil && (a.statefulset.Status.ReadyReplicas < int32(a.Replicas) && a.deployment.Status.ReadyReplicas != 0) {
+	if a.statefulset != nil && (a.statefulset.Status.ReadyReplicas < int32(a.Replicas) && a.statefulset.Status.ReadyReplicas != 0) {
 		if isHaveTerminatedContainer(a.pods) {
 			return SOMEABNORMAL
 		}
