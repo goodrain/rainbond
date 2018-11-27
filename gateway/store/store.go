@@ -21,11 +21,7 @@ package store
 import (
 	"bytes"
 	"fmt"
-	"github.com/goodrain/rainbond/cmd/gateway/option"
-	"github.com/goodrain/rainbond/gateway/annotations"
 	"io/ioutil"
-	apiv1 "k8s.io/api/core/v1"
-	"k8s.io/ingress-nginx/k8s"
 	"os"
 	"reflect"
 	"strings"
@@ -33,7 +29,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
+	"github.com/goodrain/rainbond/cmd/gateway/option"
+	"github.com/goodrain/rainbond/gateway/annotations"
 	"github.com/goodrain/rainbond/gateway/v1"
+	apiv1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,6 +40,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	istroe "k8s.io/ingress-nginx/ingress/controller/store"
+	"k8s.io/ingress-nginx/k8s"
 )
 
 type EventType string
@@ -147,15 +147,17 @@ func New(client kubernetes.Interface,
 			make(map[string][]string),
 		},
 		sslStore: NewSSLCertTracker(),
-		conf: conf,
+		conf:     conf,
 	}
 
 	store.annotations = annotations.NewAnnotationExtractor(store)
 	store.listers.IngressAnnotation.Store = cache.NewStore(cache.DeletionHandlingMetaNamespaceKeyFunc)
 
 	// create informers factory, enable and assign required informers
-	infFactory := informers.NewFilteredSharedInformerFactory(client, time.Second, "",
-		func(*metav1.ListOptions) {})
+	infFactory := informers.NewFilteredSharedInformerFactory(client, time.Second, corev1.NamespaceAll,
+		func(options *metav1.ListOptions) {
+			options.LabelSelector = "creater=Rainbond"
+		})
 
 	store.informers.Ingress = infFactory.Extensions().V1beta1().Ingresses().Informer()
 	store.listers.Ingress.Store = store.informers.Ingress.GetStore()
@@ -323,6 +325,7 @@ func New(client kubernetes.Interface,
 	store.informers.Ingress.AddEventHandlerWithResyncPeriod(ingEventHandler, 10*time.Second)
 	store.informers.Secret.AddEventHandlerWithResyncPeriod(secEventHandler, 10*time.Second)
 	store.informers.Endpoint.AddEventHandlerWithResyncPeriod(epEventHandler, 10*time.Second)
+	store.informers.Service.AddEventHandler(cache.ResourceEventHandlerFuncs{})
 
 	return store
 }
