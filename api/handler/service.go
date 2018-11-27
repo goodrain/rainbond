@@ -1285,7 +1285,7 @@ func (s *ServiceAction) RollBack(rs *api_model.RollbackStruct) error {
 		TenantID:  rs.TenantID,
 		ServiceID: rs.ServiceID,
 		EventID:   rs.EventID,
-		TaskType:  "restart",
+		TaskType:  "upgrade",
 	}
 	if err := GetServiceManager().StartStopService(startStopStruct); err != nil {
 		tx.Rollback()

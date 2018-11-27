@@ -24,6 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jinzhu/gorm"
+
 	"github.com/goodrain/rainbond/db/model"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -436,6 +438,10 @@ func (a *appRuntimeStore) GetAllAppServices() (apps []*v1.AppService) {
 func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
 	apps := a.GetAppServices(serviceID)
 	if apps == nil || len(apps) == 0 {
+		_, err := a.dbmanager.VersionInfoDao().GetVersionByServiceID(serviceID)
+		if err != nil && err == gorm.ErrRecordNotFound {
+			return v1.UNDEPLOY
+		}
 		return v1.CLOSED
 	}
 	if len(apps) > 1 {

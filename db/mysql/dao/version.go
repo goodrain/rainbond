@@ -23,8 +23,9 @@ import (
 
 	"fmt"
 
-	"github.com/jinzhu/gorm"
 	"time"
+
+	"github.com/jinzhu/gorm"
 )
 
 //DeleteVersionByEventID DeleteVersionByEventID
@@ -99,49 +100,47 @@ func (c *VersionInfoDaoImpl) GetVersionByDeployVersion(version, serviceID string
 }
 
 //GetVersionByServiceID get versions by service id
+//only return success version info
 func (c *VersionInfoDaoImpl) GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
 	if err := c.DB.Where("service_id=? AND final_status=?", serviceID, "success").Find(&result).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			//return messageRaw, nil
-		}
 		return nil, err
 	}
 	return result, nil
 }
 
-func (c *VersionInfoDaoImpl) GetVersionInfo(timePoint time.Time, serviceIdList []string) ([]*model.VersionInfo, error) {
+//GetVersionInfo get version info by service ids
+func (c *VersionInfoDaoImpl) GetVersionInfo(timePoint time.Time, serviceIDs []string) ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
 
-	if err := c.DB.Where("service_id in (?) AND create_time  < ?", serviceIdList, timePoint).Find(&result).Order("create_time asc").Error; err != nil {
+	if err := c.DB.Where("service_id in (?) AND create_time  < ?", serviceIDs, timePoint).Find(&result).Order("create_time asc").Error; err != nil {
 		return nil, err
 	}
 	return result, nil
 
 }
 
+//DeleteVersionInfo delete version
 func (c *VersionInfoDaoImpl) DeleteVersionInfo(obj *model.VersionInfo) error {
 	if err := c.DB.Delete(obj).Error; err != nil {
-		return nil
-	} else {
-		return err
-	}
-}
-
-func (c *VersionInfoDaoImpl) DeleteFailureVersionInfo(timePoint time.Time, status string, serviceIdList []string) error {
-	if err := c.DB.Where("service_id in (?) AND create_time  < ? AND final_status = ?", serviceIdList, timePoint, status).Delete(&model.VersionInfo{}).Error; err != nil {
 		return err
 	}
 	return nil
 }
 
+//DeleteFailureVersionInfo delete failure version
+func (c *VersionInfoDaoImpl) DeleteFailureVersionInfo(timePoint time.Time, status string, serviceIDs []string) error {
+	if err := c.DB.Where("service_id in (?) AND create_time  < ? AND final_status = ?", serviceIDs, timePoint, status).Delete(&model.VersionInfo{}).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+//SearchVersionInfo query version count >5
 func (c *VersionInfoDaoImpl) SearchVersionInfo() ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
 	if err := c.DB.Table("version_info").Select("service_id").Group("service_id").Having("count(ID) > ?", 5).Scan(&result).Error; err != nil {
 		return nil, err
-	} else {
-		return result, nil
-
 	}
-
+	return result, nil
 }
