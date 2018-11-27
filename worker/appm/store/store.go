@@ -438,8 +438,8 @@ func (a *appRuntimeStore) GetAllAppServices() (apps []*v1.AppService) {
 func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
 	apps := a.GetAppServices(serviceID)
 	if apps == nil || len(apps) == 0 {
-		_, err := a.dbmanager.VersionInfoDao().GetVersionByServiceID(serviceID)
-		if err != nil && err == gorm.ErrRecordNotFound {
+		versions, err := a.dbmanager.VersionInfoDao().GetVersionByServiceID(serviceID)
+		if (err != nil && err == gorm.ErrRecordNotFound) || len(versions) == 0 {
 			return v1.UNDEPLOY
 		}
 		return v1.CLOSED

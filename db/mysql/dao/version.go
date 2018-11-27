@@ -103,7 +103,7 @@ func (c *VersionInfoDaoImpl) GetVersionByDeployVersion(version, serviceID string
 //only return success version info
 func (c *VersionInfoDaoImpl) GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
-	if err := c.DB.Where("service_id=? AND final_status=?", serviceID, "success").Find(&result).Error; err != nil {
+	if err := c.DB.Where("service_id=? and final_status=?", serviceID, "success").Find(&result).Error; err != nil {
 		return nil, err
 	}
 	return result, nil
@@ -113,7 +113,7 @@ func (c *VersionInfoDaoImpl) GetVersionByServiceID(serviceID string) ([]*model.V
 func (c *VersionInfoDaoImpl) GetVersionInfo(timePoint time.Time, serviceIDs []string) ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
 
-	if err := c.DB.Where("service_id in (?) AND create_time  < ?", serviceIDs, timePoint).Find(&result).Order("create_time asc").Error; err != nil {
+	if err := c.DB.Where("service_id in (?) and create_time  < ?", serviceIDs, timePoint).Find(&result).Order("create_time asc").Error; err != nil {
 		return nil, err
 	}
 	return result, nil
@@ -130,7 +130,7 @@ func (c *VersionInfoDaoImpl) DeleteVersionInfo(obj *model.VersionInfo) error {
 
 //DeleteFailureVersionInfo delete failure version
 func (c *VersionInfoDaoImpl) DeleteFailureVersionInfo(timePoint time.Time, status string, serviceIDs []string) error {
-	if err := c.DB.Where("service_id in (?) AND create_time  < ? AND final_status = ?", serviceIDs, timePoint, status).Delete(&model.VersionInfo{}).Error; err != nil {
+	if err := c.DB.Where("service_id in (?) and create_time  < ? and final_status = ?", serviceIDs, timePoint, status).Delete(&model.VersionInfo{}).Error; err != nil {
 		return err
 	}
 	return nil
