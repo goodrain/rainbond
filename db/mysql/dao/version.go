@@ -91,9 +91,6 @@ func (c *VersionInfoDaoImpl) GetVersionByEventID(eventID string) (*model.Version
 func (c *VersionInfoDaoImpl) GetVersionByDeployVersion(version, serviceID string) (*model.VersionInfo, error) {
 	var result model.VersionInfo
 	if err := c.DB.Where("build_version =? and service_id = ?", version, serviceID).Find(&result).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, err
-		}
 		return nil, err
 	}
 	return &result, nil

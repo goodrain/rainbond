@@ -64,6 +64,7 @@ func NewImageBuildItem(in []byte) *ImageBuildItem {
 		Namespace:     gjson.GetBytes(in, "namespace").String(),
 		TenantName:    gjson.GetBytes(in, "tenant_name").String(),
 		ServiceAlias:  gjson.GetBytes(in, "service_alias").String(),
+		ServiceID:     gjson.GetBytes(in, "service_id").String(),
 		Image:         gjson.GetBytes(in, "image").String(),
 		DeployVersion: gjson.GetBytes(in, "deploy_version").String(),
 		HubUser:       gjson.GetBytes(in, "user").String(),
