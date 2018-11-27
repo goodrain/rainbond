@@ -61,6 +61,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				"version": as.DeployVersion,
 			}),
 			Annotations: createPodAnnotations(as),
+			Name:        as.ServiceID + "-pod-spec",
 		},
 		Spec: corev1.PodSpec{
 			Volumes:      dv.GetVolumes(),
