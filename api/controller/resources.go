@@ -29,6 +29,7 @@ import (
 	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	mqclient "github.com/goodrain/rainbond/mq/api/grpc/client"
 
 	"github.com/pquerna/ffjson/ffjson"
 
@@ -100,6 +101,7 @@ func (v2 *V2Routes) Version(w http.ResponseWriter, r *http.Request) {
 //TenantStruct tenant struct
 type TenantStruct struct {
 	StatusCli *client.AppRuntimeSyncClient
+	MQClient *mqclient.MQClient
 }
 
 //AllTenantResources GetResources
@@ -1524,6 +1526,9 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 		rc["domain"] = mm[0]
 		rc["port"] = fmt.Sprintf("%v", vsPort.Port)
 	}
+
+	handler.GetServiceManager().SendTaskSA(serviceID, t.MQClient)
+
 	httputil.ReturnSuccess(r, w, rc)
 }
 
@@ -1573,6 +1578,9 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 			return
 		}
 	}
+
+	handler.GetServiceManager().SendTaskSA(serviceID, t.MQClient)
+
 	httputil.ReturnSuccess(r, w, nil)
 }
 

@@ -209,7 +209,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 			ing, _, _ := a.applyHTTPRule(httpRule, port, service)
 			ingresses = append(ingresses, ing)
 		}
-	case "tcp":
+	default: // default tcp
 		tcpRules, err := a.dbmanager.TcpRuleDao().GetTcpRuleByServiceIDAndContainerPort(port.ServiceID,
 			port.ContainerPort)
 		if err != nil {
@@ -241,8 +241,6 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 			}
 			ingresses = append(ingresses, ing)
 		}
-	default:
-		logrus.Warningf("Unsupported protocol(%s) for outer service", port.Protocol)
 	}
 
 	return ingresses, secret, nil

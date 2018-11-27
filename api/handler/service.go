@@ -36,6 +36,7 @@ import (
 
 	"github.com/pquerna/ffjson/ffjson"
 
+	gclient "github.com/goodrain/rainbond/mq/api/grpc/client"
 	api_db "github.com/goodrain/rainbond/api/db"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
@@ -1656,4 +1657,19 @@ func chekeServiceLabel(v string) string {
 		return core_util.StatelessServiceType
 	}
 	return v
+}
+
+// SendTaskSA sends apply rules task
+func (s *ServiceAction) SendTaskSA(serviceID string, mqClient *gclient.MQClient) {
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	if err != nil {
+		logrus.Errorf("Unexpected error occurred while getting Service by ServiceID(%s): %v", serviceID, err)
+	}
+	body := make(map[string]interface{})
+	body["service_id"] = serviceID
+	body["deploy_version"] = service.DeployVersion
+	err = sendTask(body, "apply_rule", mqClient)
+	if err != nil {
+		logrus.Errorf("Unexpected error occurred while sending task: %v", err)
+	}
 }

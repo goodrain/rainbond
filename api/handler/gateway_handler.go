@@ -41,5 +41,5 @@ type GatewayHandler interface {
 
 	GetAvailablePort() (int, error)
 	PortExists(port int) bool
-	SendTask(ruleID string, ruleType string, mqClient *client.MQClient)
+	SendTaskGW(ruleID string, ruleType string, mqClient *client.MQClient)
 }
