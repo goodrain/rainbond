@@ -30,7 +30,8 @@ import (
 func (a *appRuntimeStore) clean() {
 	util.Exec(a.ctx, func() error {
 		a.appServices.Range(func(k, v interface{}) bool {
-			//TODO
+			//appservice := v.(*v1.AppService)
+			//fmt.Println(appservice.String())
 			return true
 		})
 		logrus.Debugf("app store is cleaned")

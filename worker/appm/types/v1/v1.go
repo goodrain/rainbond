@@ -382,6 +382,7 @@ func (a *AppService) String() string {
 	return fmt.Sprintf(`
 	-----------------------------------------------------
 	App:%s
+	DeployVersion:%s
 	Statefulset %+v
 	Deployment %+v
 	Pod %d
@@ -390,6 +391,7 @@ func (a *AppService) String() string {
 	-----------------------------------------------------
 	`,
 		a.ServiceAlias,
+		a.DeployVersion,
 		a.statefulset,
 		a.deployment,
 		len(a.pods),

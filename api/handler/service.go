@@ -36,11 +36,11 @@ import (
 
 	"github.com/pquerna/ffjson/ffjson"
 
-	gclient "github.com/goodrain/rainbond/mq/api/grpc/client"
 	api_db "github.com/goodrain/rainbond/api/db"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	gclient "github.com/goodrain/rainbond/mq/api/grpc/client"
 	core_util "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/discover/model"
@@ -1292,7 +1292,7 @@ func (s *ServiceAction) RollBack(rs *api_model.RollbackStruct) error {
 		TenantID:  rs.TenantID,
 		ServiceID: rs.ServiceID,
 		EventID:   rs.EventID,
-		TaskType:  "upgrade",
+		TaskType:  "rolling_upgrade",
 	}
 	if err := GetServiceManager().StartStopService(startStopStruct); err != nil {
 		tx.Rollback()

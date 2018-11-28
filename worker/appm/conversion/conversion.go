@@ -69,9 +69,8 @@ func InitAppService(dbmanager db.Manager, serviceID string) (*v1.AppService, err
 func InitCacheAppService(dbmanager db.Manager, serviceID, version, createrID string) (*v1.AppService, error) {
 	appService := &v1.AppService{
 		AppServiceBase: v1.AppServiceBase{
-			ServiceID:     serviceID,
-			DeployVersion: version,
-			CreaterID:     createrID,
+			ServiceID: serviceID,
+			CreaterID: createrID,
 		},
 		UpgradePatch: make(map[string][]byte, 2),
 	}
