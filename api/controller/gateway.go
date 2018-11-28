@@ -79,12 +79,13 @@ func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h := handler.GetGatewayHandler()
-	if err := h.AddHTTPRule(&req); err != nil {
+	sid, err := h.AddHTTPRule(&req)
+	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while adding http rule: %v", err))
 		return
 	}
 
-	h.SendTaskGW(req.HTTPRuleID, "http", g.MQClient)
+	h.SendTaskGW(sid, g.MQClient)
 
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -127,13 +128,14 @@ func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h := handler.GetGatewayHandler()
-	if err := h.UpdateHTTPRule(&req); err != nil {
+	sid, err := h.UpdateHTTPRule(&req)
+	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating http rule: %v", err))
 		return
 	}
 
-	h.SendTaskGW(req.HTTPRuleID, "http", g.MQClient)
+	h.SendTaskGW(sid, g.MQClient)
 
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -149,13 +151,13 @@ func (g *GatewayStruct) deleteHTTPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
-	err := h.DeleteHTTPRule(&req)
+	serviceID, err := h.DeleteHTTPRule(&req)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while delete http rule: %v", err))
 		return
 	}
 
-	h.SendTaskGW(req.HTTPRuleID, "http", g.MQClient)
+	h.SendTaskGW(serviceID, g.MQClient)
 
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -216,13 +218,14 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnValidationError(r, w, values)
 		return
 	}
-	if err := h.AddTCPRule(&req); err != nil {
+	sid, err := h.AddTCPRule(&req)
+	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"adding tcp rule: %v", err))
 		return
 	}
 
-	h.SendTaskGW(req.TCPRuleID, "tcp", g.MQClient)
+	h.SendTaskGW(sid, g.MQClient)
 
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -265,13 +268,14 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.UpdateTCPRule(&req); err != nil {
+	sid, err := h.UpdateTCPRule(&req, g.cfg.MinExtPort)
+	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating tcp rule: %v", err))
 		return
 	}
 
-	h.SendTaskGW(req.TCPRuleID, "tcp", g.MQClient)
+	h.SendTaskGW(sid, g.MQClient)
 
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -287,13 +291,14 @@ func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
-	if err := h.DeleteTCPRule(&req); err != nil {
+	sid, err := h.DeleteTCPRule(&req)
+	if  err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"deleting tcp rule: %v", err))
 		return
 	}
 
-	h.SendTaskGW(req.TCPRuleID, "tcp", g.MQClient)
+	h.SendTaskGW(sid, g.MQClient)
 
 	httputil.ReturnSuccess(r, w, "success")
 }

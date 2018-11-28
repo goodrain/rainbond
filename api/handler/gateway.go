@@ -44,7 +44,7 @@ func CreateGatewayManager(dbmanager db.Manager) *GatewayAction {
 }
 
 // AddHTTPRule adds http rule to db if it doesn't exists.
-func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
+func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) (string, error) {
 	httpRule := &model.HTTPRule{
 		UUID:          req.HTTPRuleID,
 		ServiceID:     req.ServiceID,
@@ -61,7 +61,7 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
 	tx := db.GetManager().Begin()
 	if err := db.GetManager().HttpRuleDaoTransactions(tx).AddModel(httpRule); err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 
 	cert := &model.Certificate{
@@ -72,7 +72,7 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
 	}
 	if err := db.GetManager().CertificateDaoTransactions(tx).AddModel(cert); err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 
 	for _, ruleExtension := range req.RuleExtensions {
@@ -84,35 +84,35 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
 		}
 		if err := db.GetManager().RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
 			tx.Rollback()
-			return err
+			return "", err
 		}
 	}
 
 	// end transaction
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
-	return nil
+	return httpRule.ServiceID, nil
 }
 
 // UpdateHTTPRule updates http rule
-func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error {
+func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (string, error) {
 	tx := db.GetManager().Begin()
 	rule, err := g.dbmanager.HttpRuleDaoTransactions(tx).GetHttpRuleByID(req.HTTPRuleID)
 	if err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 	if rule == nil {
 		tx.Rollback()
-		return fmt.Errorf("HTTPRule dosen't exist based on uuid(%s)", req.HTTPRuleID)
+		return "", fmt.Errorf("HTTPRule dosen't exist based on uuid(%s)", req.HTTPRuleID)
 	}
 	if rule.CertificateID != "" {
 		// delete old Certificate
 		if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(rule.CertificateID); err != nil {
 			tx.Rollback()
-			return err
+			return "", err
 		}
 		// add new certificate
 		cert := &model.Certificate{
@@ -123,7 +123,7 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
 		}
 		if err := g.dbmanager.CertificateDaoTransactions(tx).AddModel(cert); err != nil {
 			tx.Rollback()
-			return err
+			return "", err
 		}
 		rule.CertificateID = req.CertificateID
 	}
@@ -131,7 +131,7 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
 		// delete old RuleExtensions
 		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(rule.UUID); err != nil {
 			tx.Rollback()
-			return err
+			return "", err
 		}
 		// add new rule extensions
 		for _, ruleExtension := range req.RuleExtensions {
@@ -143,7 +143,7 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
 			}
 			if err := db.GetManager().RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
 				tx.Rollback()
-				return err
+				return "", err
 			}
 		}
 	}
@@ -171,46 +171,46 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
 	}
 	if err := db.GetManager().HttpRuleDaoTransactions(tx).UpdateModel(rule); err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 	// end transaction
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
-	return nil
+	return rule.ServiceID, nil
 }
 
 // DeleteHTTPRule deletes http rule, including certificate and rule extensions
-func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error {
+func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) (string, error) {
 	// begin transaction
 	tx := db.GetManager().Begin()
 	// delete http rule
 	httpRule, err := g.dbmanager.HttpRuleDaoTransactions(tx).GetHttpRuleByID(req.HTTPRuleID)
 	if err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 	if err := g.dbmanager.HttpRuleDaoTransactions(tx).DeleteHttpRuleByID(httpRule.UUID); err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 	// delete certificate
 	if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(httpRule.CertificateID); err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 	// delete rule extension
 	if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(httpRule.UUID); err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 	// end transaction
 	if err := tx.Commit().Error; err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return httpRule.ServiceID, nil
 }
 
 // AddCertificate adds certificate to db if it doesn't exists
@@ -244,7 +244,7 @@ func (g *GatewayAction) UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRu
 }
 
 // AddTCPRule adds tcp rule.
-func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
+func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) (string, error) {
 	// begin transaction
 	tx := db.GetManager().Begin()
 	// add port
@@ -256,7 +256,7 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
 	err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).AddModel(port)
 	if err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 	// add tcp rule
 	tcpRule := &model.TCPRule{
@@ -268,7 +268,7 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
 	}
 	if err := g.dbmanager.TcpRuleDaoTransactions(tx).AddModel(tcpRule); err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 	// add rule extensions
 	for _, ruleExtension := range req.RuleExtensions {
@@ -279,33 +279,33 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
 		}
 		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
 			tx.Rollback()
-			return err
+			return "", err
 		}
 	}
 
 	// end transaction
 	if err := tx.Commit().Error; err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return tcpRule.ServiceID, nil
 }
 
 // UpdateTCPRule updates a tcp rule
-func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct) error {
+func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort int) (string, error) {
 	// begin transaction
 	tx := db.GetManager().Begin()
 	// get old tcp rule
 	tcpRule, err := g.dbmanager.TcpRuleDaoTransactions(tx).GetTcpRuleByID(req.TCPRuleID)
 	if err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 	if len(req.RuleExtensions) > 0 {
 		// delete old rule extensions
 		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(tcpRule.UUID); err != nil {
 			tx.Rollback()
-			return err
+			return "", err
 		}
 		// add new rule extensions
 		for _, ruleExtension := range req.RuleExtensions {
@@ -316,7 +316,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct) error {
 			}
 			if err := g.dbmanager.RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
 				tx.Rollback()
-				return err
+				return "", err
 			}
 		}
 	}
@@ -330,67 +330,69 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct) error {
 	if req.IP != "" {
 		tcpRule.IP = req.IP
 	}
-	if req.Port > 20000 {
+	if req.Port > minPort {
 		// get old port
 		port, err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).GetLBMappingPortByServiceIDAndPort(
 			tcpRule.ServiceID, tcpRule.Port)
 		if err != nil {
 			tx.Rollback()
-			return err
+			return "", err
 		}
 		// check
 		// update port
 		port.Port = req.Port
 		if err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).UpdateModel(port); err != nil {
 			tx.Rollback()
-			return err
+			return "", err
 		}
 		tcpRule.Port = req.Port
+	} else {
+		logrus.Warningf("Expected external port > %d, but got %d", minPort, req.Port)
 	}
 	if err := g.dbmanager.TcpRuleDaoTransactions(tx).UpdateModel(tcpRule); err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 	// end transaction
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
-	return nil
+	return tcpRule.ServiceID, nil
 }
 
 // DeleteTCPRule deletes a tcp rule
-func (g *GatewayAction) DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) error {
+func (g *GatewayAction) DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) (string, error) {
 	// begin transaction
 	tx := db.GetManager().Begin()
 	tcpRule, err := db.GetManager().TcpRuleDaoTransactions(tx).GetTcpRuleByID(req.TCPRuleID)
 	if err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 	// delete rule extensions
 	if err := db.GetManager().RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(tcpRule.UUID); err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 	// delete tcp rule
 	if err := db.GetManager().TcpRuleDaoTransactions(tx).DeleteTcpRule(tcpRule); err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 	// delete LBMappingPort
 	err = db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).DELServiceLBMappingPortByServiceIDAndPort(
 		tcpRule.ServiceID, tcpRule.Port)
 	if err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
 	// end transaction
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
-		return err
+		return "", err
 	}
-	return nil
+	return tcpRule.ServiceID, nil
 }
 
 // AddRuleExtensions adds rule extensions to db if any of they doesn't exists
@@ -463,21 +465,8 @@ func (g *GatewayAction) PortExists(port int) bool {
 }
 
 // SendTaskGW sends apply rules task
-func (g *GatewayAction) SendTaskGW(ruleID string, ruleType string, mqClient *client.MQClient) {
+func (g *GatewayAction) SendTaskGW(serviceID string, mqClient *client.MQClient) {
 	logrus.Info("sending apply_rule task...")
-	// get serviceID
-	var serviceID string
-	switch ruleType {
-	case "http":
-		rule, _ := g.dbmanager.HttpRuleDao().GetHttpRuleByID(ruleID)
-		serviceID = rule.ServiceID
-	case "tcp":
-		rule, _ := g.dbmanager.TcpRuleDao().GetTcpRuleByID(ruleID)
-		serviceID = rule.ServiceID
-	default:
-		logrus.Errorf("Unsupported rule type: %s", ruleType)
-		return
-	}
 	// get service
 	service, err := g.dbmanager.TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
