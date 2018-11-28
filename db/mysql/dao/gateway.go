@@ -198,8 +198,7 @@ func (t *TcpRuleDaoTmpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("TCPRule already exists based on ServiceID(%s) and ContainerPort(%v)",
-			tcpRule.ServiceID, tcpRule.ContainerPort)
+		return fmt.Errorf("TCPRule already exists based on uuid(%s)", tcpRule.UUID)
 	}
 	return nil
 }
