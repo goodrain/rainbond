@@ -135,8 +135,11 @@ func (s *stopController) Stop() error {
 func (s *stopController) WaitingReady(app v1.AppService) error {
 	storeAppService := s.manager.store.GetAppService(app.ServiceID)
 	//at least waiting time is 40 second
-	var initTime = 40
-	if err := storeAppService.WaitStop(time.Duration(initTime*app.Replicas), app.Logger, s.stopChan); err != nil {
+	var timeout = time.Second * 40
+	if storeAppService != nil && storeAppService.Replicas > 0 {
+		timeout = time.Duration(storeAppService.Replicas) * timeout
+	}
+	if err := storeAppService.WaitStop(timeout, app.Logger, s.stopChan); err != nil {
 		return err
 	}
 	return nil

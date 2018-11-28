@@ -94,7 +94,7 @@ func (s *startController) startOne(app v1.AppService) error {
 	if configs := app.GetConfigMaps(); configs != nil {
 		for _, config := range configs {
 			_, err := s.manager.client.CoreV1().ConfigMaps(app.TenantID).Create(config)
-			if err != nil {
+			if err != nil && !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("create config map failure:%s", err.Error())
 			}
 		}
@@ -125,7 +125,7 @@ func (s *startController) startOne(app v1.AppService) error {
 	if secrets := app.GetSecrets(); secrets != nil {
 		for _, secret := range secrets {
 			_, err := s.manager.client.CoreV1().Secrets(app.TenantID).Create(secret)
-			if err != nil {
+			if err != nil && !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("create secret failure:%s", err.Error())
 			}
 		}
@@ -134,7 +134,7 @@ func (s *startController) startOne(app v1.AppService) error {
 	if ingresses := app.GetIngress(); ingresses != nil {
 		for _, ingress := range ingresses {
 			_, err := s.manager.client.ExtensionsV1beta1().Ingresses(app.TenantID).Create(ingress)
-			if err != nil {
+			if err != nil && !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("create ingress failure:%s", err.Error())
 			}
 		}
