@@ -949,12 +949,12 @@ type TenantServiceLBMappingPortDaoImpl struct {
 func (t *TenantServiceLBMappingPortDaoImpl) AddModel(mo model.Interface) error {
 	mapPort := mo.(*model.TenantServiceLBMappingPort)
 	var oldMapPort model.TenantServiceLBMappingPort
-	if ok := t.DB.Where("(service_id=? and container_port=?) or port=? ", mapPort.ServiceID, mapPort.ContainerPort, mapPort.Port).Find(&oldMapPort).RecordNotFound(); ok {
+	if ok := t.DB.Where("port=? ", mapPort.Port).Find(&oldMapPort).RecordNotFound(); ok {
 		if err := t.DB.Create(mapPort).Error; err != nil {
 			return err
 		}
 	} else {
-		return fmt.Errorf("service %s containerPort %d is exist ", mapPort.ServiceID, mapPort.ContainerPort)
+		return fmt.Errorf("external port(%d) is exist ", mapPort.Port)
 	}
 	return nil
 }
