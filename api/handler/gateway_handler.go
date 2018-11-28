@@ -26,20 +26,20 @@ import (
 )
 
 type GatewayHandler interface {
-	AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error
-	UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
-	DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error
+	AddHTTPRule(req *apimodel.AddHTTPRuleStruct) (string, error)
+	UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (string, error)
+	DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) (string, error)
 
 	AddCertificate(req *apimodel.AddHTTPRuleStruct, tx *gorm.DB) error
 	UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRule *dbmodel.HTTPRule, tx *gorm.DB) error
 
-	AddTCPRule(req *apimodel.AddTCPRuleStruct) error
-	UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct) error
-	DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) error
+	AddTCPRule(req *apimodel.AddTCPRuleStruct) (string, error)
+	UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort int) (string, error)
+	DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) (string, error)
 
 	AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct, tx *gorm.DB) error
 
 	GetAvailablePort() (int, error)
 	PortExists(port int) bool
-	SendTaskGW(ruleID string, ruleType string, mqClient *client.MQClient)
+	SendTaskGW(serviceID string, mqClient *client.MQClient)
 }

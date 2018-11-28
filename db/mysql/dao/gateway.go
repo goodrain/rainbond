@@ -193,14 +193,12 @@ type TcpRuleDaoTmpl struct {
 func (t *TcpRuleDaoTmpl) AddModel(mo model.Interface) error {
 	tcpRule := mo.(*model.TCPRule)
 	var oldTcpRule model.TCPRule
-	if ok := t.DB.Where("service_id = ? and container_port=?", tcpRule.ServiceID,
-		tcpRule.ContainerPort).Find(&oldTcpRule).RecordNotFound(); ok {
+	if ok := t.DB.Where("uuid = ?", tcpRule.UUID).Find(&oldTcpRule).RecordNotFound(); ok {
 		if err := t.DB.Create(tcpRule).Error; err != nil {
 			return err
 		}
 	} else {
-		return fmt.Errorf("TCPRule already exists based on ServiceID(%s) and ContainerPort(%v)",
-			tcpRule.ServiceID, tcpRule.ContainerPort)
+		return fmt.Errorf("TCPRule already exists based on uuid(%s)", tcpRule.UUID)
 	}
 	return nil
 }
