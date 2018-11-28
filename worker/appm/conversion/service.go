@@ -141,6 +141,7 @@ func initBaseStatefulSet(as *v1.AppService, service *dbmodel.TenantServices) {
 	if stateful == nil {
 		stateful = &appsv1.StatefulSet{}
 	}
+	stateful.Namespace = as.TenantID
 	stateful.Spec.Replicas = int32Ptr(service.Replicas)
 	if stateful.Spec.Selector == nil {
 		stateful.Spec.Selector = &metav1.LabelSelector{}
@@ -170,6 +171,7 @@ func initBaseDeployment(as *v1.AppService, service *dbmodel.TenantServices) {
 	if deployment == nil {
 		deployment = &appsv1.Deployment{}
 	}
+	deployment.Namespace = as.TenantID
 	deployment.Spec.Replicas = int32Ptr(service.Replicas)
 	if deployment.Spec.Selector == nil {
 		deployment.Spec.Selector = &metav1.LabelSelector{}

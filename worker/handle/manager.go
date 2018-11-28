@@ -304,6 +304,7 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 	}
 	oldAppService.SetUpgradePatch(newAppService)
 	oldAppService.Logger = logger
+	oldAppService.DeployVersion = newAppService.DeployVersion
 	//if service already deploy,upgrade it:
 	err = m.controllerManager.StartController(controller.TypeUpgradeController, *oldAppService)
 	if err != nil {
