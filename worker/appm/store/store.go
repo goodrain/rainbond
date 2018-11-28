@@ -52,6 +52,7 @@ type Storer interface {
 	Ready() bool
 	RegistAppService(*v1.AppService)
 	GetAppService(serviceID string) *v1.AppService
+	UpdateGetAppService(serviceID string) *v1.AppService
 	GetAllAppServices() []*v1.AppService
 	GetAppServiceStatus(serviceID string) string
 	GetAppServicesStatus(serviceIDs []string) map[string]string
@@ -402,6 +403,79 @@ func (a *appRuntimeStore) GetAppService(serviceID string) *v1.AppService {
 	return nil
 }
 
+func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
+	key := v1.GetCacheKeyOnlyServiceID(serviceID)
+	app, ok := a.appServices.Load(key)
+	if ok {
+		appService := app.(*v1.AppService)
+		if statefulset := appService.GetStatefulSet(); statefulset != nil {
+			stateful, err := a.listers.StatefulSet.StatefulSets(statefulset.Namespace).Get(statefulset.Name)
+			if err != nil && errors.IsNotFound(err) {
+				appService.DeleteStatefulSet(statefulset)
+			}
+			if stateful != nil {
+				appService.SetStatefulSet(stateful)
+			}
+		}
+		if deployment := appService.GetDeployment(); deployment != nil {
+			deploy, err := a.listers.Deployment.Deployments(deployment.Namespace).Get(deployment.Name)
+			if err != nil && errors.IsNotFound(err) {
+				appService.DeleteDeployment(deploy)
+			}
+			if deploy != nil {
+				appService.SetDeployment(deploy)
+			}
+		}
+		if services := appService.GetServices(); services != nil {
+			for _, service := range services {
+				se, err := a.listers.Service.Services(service.Namespace).Get(service.Name)
+				if err != nil && errors.IsNotFound(err) {
+					appService.DeleteServices(se)
+				}
+				if se != nil {
+					appService.SetService(se)
+				}
+			}
+		}
+		if ingresses := appService.GetIngress(); ingresses != nil {
+			for _, ingress := range ingresses {
+				in, err := a.listers.Ingress.Ingresses(ingress.Namespace).Get(ingress.Name)
+				if err != nil && errors.IsNotFound(err) {
+					appService.DeleteIngress(in)
+				}
+				if in != nil {
+					appService.SetIngress(in)
+				}
+			}
+		}
+		if secrets := appService.GetSecrets(); secrets != nil {
+			for _, secret := range secrets {
+				se, err := a.listers.Secret.Secrets(secret.Namespace).Get(secret.Name)
+				if err != nil && errors.IsNotFound(err) {
+					appService.DeleteSecrets(se)
+				}
+				if se != nil {
+					appService.SetSecret(se)
+				}
+			}
+		}
+		if pods := appService.GetPods(); pods != nil {
+			for _, pod := range pods {
+				se, err := a.listers.Pod.Pods(pod.Namespace).Get(pod.Name)
+				if err != nil && errors.IsNotFound(err) {
+					appService.DeletePods(se)
+				}
+				if se != nil {
+					appService.SetPods(se)
+				}
+			}
+		}
+
+		return appService
+	}
+	return nil
+}
+
 func (a *appRuntimeStore) GetAllAppServices() (apps []*v1.AppService) {
 	a.appServices.Range(func(k, value interface{}) bool {
 		appService, _ := value.(*v1.AppService)
@@ -422,7 +496,19 @@ func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
 		}
 		return v1.CLOSED
 	}
-	return app.GetServiceStatus()
+	status := app.GetServiceStatus()
+	if status == v1.UNKNOW {
+		app := a.UpdateGetAppService(serviceID)
+		if app == nil {
+			versions, err := a.dbmanager.VersionInfoDao().GetVersionByServiceID(serviceID)
+			if (err != nil && err == gorm.ErrRecordNotFound) || len(versions) == 0 {
+				return v1.UNDEPLOY
+			}
+			return v1.CLOSED
+		}
+		return app.GetServiceStatus()
+	}
+	return status
 }
 
 func (a *appRuntimeStore) GetAppServicesStatus(serviceIDs []string) map[string]string {

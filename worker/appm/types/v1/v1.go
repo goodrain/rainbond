@@ -77,7 +77,6 @@ type AppService struct {
 	tenant       *corev1.Namespace
 	statefulset  *v1.StatefulSet
 	deployment   *v1.Deployment
-	isdelete     bool
 	services     []*corev1.Service
 	configMaps   []*corev1.ConfigMap
 	ingresses    []*extensions.Ingress
@@ -157,14 +156,11 @@ func (a AppService) GetDeployment() *v1.Deployment {
 //SetDeployment set kubernetes deployment model
 func (a *AppService) SetDeployment(d *v1.Deployment) {
 	logrus.Debugf("cache deployment %s to app service %s", d.Name, a.ServiceAlias)
-	if !a.isdelete {
-		a.deployment = d
-	}
+	a.deployment = d
 }
 
 //DeleteDeployment delete kubernetes deployment model
 func (a *AppService) DeleteDeployment(d *v1.Deployment) {
-	a.isdelete = true
 	a.deployment = nil
 }
 
@@ -176,14 +172,11 @@ func (a AppService) GetStatefulSet() *v1.StatefulSet {
 //SetStatefulSet set kubernetes statefulset model
 func (a *AppService) SetStatefulSet(d *v1.StatefulSet) {
 	logrus.Debugf("cache statefulset %s to app service %s", d.Name, a.ServiceAlias)
-	if !a.isdelete {
-		a.statefulset = d
-	}
+	a.statefulset = d
 }
 
 //DeleteStatefulSet set kubernetes statefulset model
 func (a *AppService) DeleteStatefulSet(d *v1.StatefulSet) {
-	a.isdelete = true
 	a.statefulset = nil
 }
 

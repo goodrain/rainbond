@@ -23,9 +23,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Sirupsen/logrus"
-
-	"github.com/goodrain/rainbond/event"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -89,10 +86,16 @@ func (a *AppService) GetServiceStatus() string {
 		return STARTING
 	}
 	if a.statefulset != nil && a.statefulset.Status.ReadyReplicas >= int32(a.Replicas) {
-		return RUNNING
+		if a.UpgradeComlete() {
+			return RUNNING
+		}
+		return UPGRADE
 	}
 	if a.deployment != nil && a.deployment.Status.ReadyReplicas >= int32(a.Replicas) {
-		return RUNNING
+		if a.UpgradeComlete() {
+			return RUNNING
+		}
+		return UPGRADE
 	}
 
 	if a.deployment != nil && (a.deployment.Status.ReadyReplicas < int32(a.Replicas) && a.deployment.Status.ReadyReplicas != 0) {
@@ -160,75 +163,6 @@ func isHaveNormalTerminatedContainer(pods []*corev1.Pod) bool {
 	return false
 }
 
-//ErrWaitTimeOut wait time out
-var ErrWaitTimeOut = fmt.Errorf("Wait time out")
-
-//ErrWaitCancel wait cancel
-var ErrWaitCancel = fmt.Errorf("Wait cancel")
-
-//WaitReady wait ready
-func (a *AppService) WaitReady(timeout time.Duration, logger event.Logger, cancel chan struct{}) error {
-	logger.Info(fmt.Sprintf("waiting app ready timeout %fs", timeout.Seconds()), map[string]string{"step": "appruntime", "status": "running"})
-	logrus.Debugf("waiting app ready timeout %fs", timeout.Seconds())
-	if timeout < 40 {
-		timeout = time.Second * 40
-	}
-	ticker := time.NewTicker(timeout / 10)
-	timer := time.NewTimer(timeout)
-	defer ticker.Stop()
-	for {
-		if a.Ready() {
-			return nil
-		}
-		a.printLogger(logger)
-		select {
-		case <-cancel:
-			return ErrWaitCancel
-		case <-timer.C:
-			return ErrWaitTimeOut
-		case <-ticker.C:
-		}
-	}
-}
-
-//WaitStop wait service stop complate
-func (a *AppService) WaitStop(timeout time.Duration, logger event.Logger, cancel chan struct{}) error {
-	if a == nil {
-		return nil
-	}
-	logger.Info(fmt.Sprintf("waiting app closed timeout %f.0s", timeout.Seconds()), map[string]string{"step": "appruntime", "status": "running"})
-	logrus.Debugf("waiting app ready timeout %f.0s", timeout.Seconds())
-	if timeout < 40 {
-		timeout = time.Second * 40
-	}
-	ticker := time.NewTicker(timeout / 10)
-	timer := time.NewTimer(timeout)
-	defer ticker.Stop()
-	for {
-		if a.IsClosed() {
-			return nil
-		}
-		a.printLogger(logger)
-		select {
-		case <-cancel:
-			return ErrWaitCancel
-		case <-timer.C:
-			return ErrWaitTimeOut
-		case <-ticker.C:
-		}
-	}
-}
-func (a *AppService) printLogger(logger event.Logger) {
-	var ready int32
-	if a.statefulset != nil {
-		ready = a.statefulset.Status.ReadyReplicas
-	}
-	if a.deployment != nil {
-		ready = a.deployment.Status.ReadyReplicas
-	}
-	logger.Info(fmt.Sprintf("current instance(count:%d ready:%d notready:%d)", len(a.pods), ready, int32(len(a.pods))-ready), map[string]string{"step": "appruntime", "status": "running"})
-}
-
 //Ready Whether ready
 func (a *AppService) Ready() bool {
 	if a.statefulset != nil {
@@ -265,38 +199,15 @@ func (a *AppService) GetRunningVersion() string {
 	}
 	return ""
 }
-func (a *AppService) upgradeComlete() bool {
+
+//UpgradeComlete upgrade comlete
+func (a *AppService) UpgradeComlete() bool {
 	for _, pod := range a.pods {
 		if pod.Labels["version"] != a.DeployVersion {
 			return false
 		}
 	}
 	return a.Ready()
-}
-
-//WaitUpgradeReady wait upgrade success
-func (a *AppService) WaitUpgradeReady(timeout time.Duration, logger event.Logger, cancel chan struct{}) error {
-	if a == nil {
-		return nil
-	}
-	if a.upgradeComlete() {
-		return nil
-	}
-	ticker := time.NewTicker(timeout / 10)
-	timer := time.NewTimer(timeout)
-	defer ticker.Stop()
-	select {
-	case <-cancel:
-		return ErrWaitCancel
-	case <-timer.C:
-		return ErrWaitTimeOut
-	case <-ticker.C:
-		if a.upgradeComlete() {
-			return nil
-		}
-		a.printLogger(logger)
-	}
-	return nil
 }
 
 //AbnormalInfo pod Abnormal info
