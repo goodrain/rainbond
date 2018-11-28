@@ -380,9 +380,9 @@ func (a *appRuntimeStore) RegistAppService(app *v1.AppService) {
 
 //DeleteAppService delete cache app service
 func (a *appRuntimeStore) DeleteAppService(app *v1.AppService) {
-	a.appServices.Delete(v1.GetCacheKeyOnlyServiceID(app.ServiceID))
-	a.appCount--
-	logrus.Debugf("current have %d app after delete \n", a.appCount)
+	//a.appServices.Delete(v1.GetCacheKeyOnlyServiceID(app.ServiceID))
+	//a.appCount--
+	//logrus.Debugf("current have %d app after delete \n", a.appCount)
 }
 
 //DeleteAppServiceByKey delete cache app service
