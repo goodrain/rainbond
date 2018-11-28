@@ -150,7 +150,7 @@ func GetCacheKeyOnlyServiceID(serviceID string) CacheKey {
 // }
 
 //GetDeployment get kubernetes deployment model
-func (a *AppService) GetDeployment() *v1.Deployment {
+func (a AppService) GetDeployment() *v1.Deployment {
 	return a.deployment
 }
 
@@ -169,7 +169,7 @@ func (a *AppService) DeleteDeployment(d *v1.Deployment) {
 }
 
 //GetStatefulSet get kubernetes statefulset model
-func (a *AppService) GetStatefulSet() *v1.StatefulSet {
+func (a AppService) GetStatefulSet() *v1.StatefulSet {
 	return a.statefulset
 }
 

@@ -99,6 +99,11 @@ func (r *RuntimeServer) GetAppDisk(ctx context.Context, re *pb.ServicesRequest) 
 func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (*pb.ServiceAppPodList, error) {
 	var Pods []*pb.ServiceAppPod
 	app := r.store.GetAppService(re.ServiceId)
+	if app == nil {
+		return &pb.ServiceAppPodList{
+			Pods: Pods,
+		}, nil
+	}
 	var deployType, deployID string
 	if deployment := app.GetDeployment(); deployment != nil {
 		deployType = "deployment"

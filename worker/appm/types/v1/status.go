@@ -166,23 +166,20 @@ var ErrWaitCancel = fmt.Errorf("Wait cancel")
 
 //WaitReady wait ready
 func (a *AppService) WaitReady(timeout time.Duration, logger event.Logger, cancel chan struct{}) error {
-	if a.Ready() {
-		return nil
-	}
 	ticker := time.NewTicker(timeout / 10)
 	timer := time.NewTimer(timeout)
 	defer ticker.Stop()
 	for {
+		if a.Ready() {
+			return nil
+		}
+		a.printLogger(logger)
 		select {
 		case <-cancel:
 			return ErrWaitCancel
 		case <-timer.C:
 			return ErrWaitTimeOut
 		case <-ticker.C:
-			if a.Ready() {
-				return nil
-			}
-			a.printLogger(logger)
 		}
 	}
 }
@@ -192,23 +189,20 @@ func (a *AppService) WaitStop(timeout time.Duration, logger event.Logger, cancel
 	if a == nil {
 		return nil
 	}
-	if a.IsClosed() {
-		return nil
-	}
 	ticker := time.NewTicker(timeout / 10)
 	timer := time.NewTimer(timeout)
 	defer ticker.Stop()
 	for {
+		if a.IsClosed() {
+			return nil
+		}
+		a.printLogger(logger)
 		select {
 		case <-cancel:
 			return ErrWaitCancel
 		case <-timer.C:
 			return ErrWaitTimeOut
 		case <-ticker.C:
-			if a.IsClosed() {
-				return nil
-			}
-			a.printLogger(logger)
 		}
 	}
 }

@@ -116,7 +116,7 @@ func (s *startController) startOne(app v1.AppService) error {
 	if services := app.GetServices(); services != nil {
 		for _, service := range services {
 			_, err := s.manager.client.CoreV1().Services(app.TenantID).Create(service)
-			if err != nil {
+			if err != nil && !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("create service failure:%s", err.Error())
 			}
 		}
@@ -155,7 +155,11 @@ func (s *startController) WaitingReady(app v1.AppService) error {
 	}
 	//at least waiting time is 40 second
 	initTime += 40
-	if err := storeAppService.WaitReady(time.Duration(initTime*int32(app.Replicas)), app.Logger, s.stopChan); err != nil {
+	timeout := time.Duration(initTime * int32(app.Replicas))
+	if timeout < 40 {
+		timeout = time.Second * 40
+	}
+	if err := storeAppService.WaitReady(timeout, app.Logger, s.stopChan); err != nil {
 		return err
 	}
 	return nil

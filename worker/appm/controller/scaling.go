@@ -90,7 +90,11 @@ func (s *scalingController) WaitingReady(app v1.AppService) error {
 	//at least waiting time is 40 second
 	initTime += 40
 	waitingReplicas := int32(storeAppService.Replicas) - storeAppService.GetReadyReplicas()
-	if err := storeAppService.WaitReady(time.Duration(initTime*int32(waitingReplicas)), app.Logger, s.stopChan); err != nil {
+	timeout := time.Duration(initTime * int32(waitingReplicas))
+	if timeout < 40 {
+		timeout = time.Duration(time.Second * 40)
+	}
+	if err := storeAppService.WaitReady(timeout, app.Logger, s.stopChan); err != nil {
 		return err
 	}
 	return nil
