@@ -24,6 +24,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/handler"
 	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/mq/api/grpc/client"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"net/http"
@@ -33,6 +34,7 @@ import (
 // GatewayStruct -
 type GatewayStruct struct {
 	MQClient *client.MQClient
+	cfg *option.Config
 }
 
 // HTTPRule is used to add, update or delete http rule which enables
@@ -190,8 +192,8 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Port == 0 {
 		values["port"] = []string{"The port field is required"}
-	} else if req.Port <= 20000 {
-		values["port"] = []string{"The port field should be greater than 20000"}
+	} else if req.Port <= g.cfg.MinExtPort {
+		values["port"] = []string{fmt.Sprintf("The port field should be greater than %d", g.cfg.MinExtPort)}
 	} else {
 		// check if the port exists
 		if h.PortExists(req.Port) {
@@ -238,8 +240,8 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 	h := handler.GetGatewayHandler()
 	// verify reqeust
 	values := url.Values{}
-	if req.Port != 0 && req.Port <= 20000 {
-		values["port"] = []string{"The port field should be greater than 20000"}
+	if req.Port != 0 && req.Port <= g.cfg.MinExtPort {
+		values["port"] = []string{fmt.Sprintf("The port field should be greater than %d", g.cfg.MinExtPort)}
 	} else {
 		// check if the port exists
 		if h.PortExists(req.Port) {

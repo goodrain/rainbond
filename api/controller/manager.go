@@ -85,5 +85,6 @@ func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2
 	logrus.Debugf("create  entrance api proxy success")
 
 	v2r.GatewayStruct.MQClient = mqClient
+	v2r.GatewayStruct.cfg = &conf
 	return &v2r, nil
 }
