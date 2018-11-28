@@ -166,6 +166,7 @@ var ErrWaitCancel = fmt.Errorf("Wait cancel")
 
 //WaitReady wait ready
 func (a *AppService) WaitReady(timeout time.Duration, logger event.Logger, cancel chan struct{}) error {
+	logger.Info(fmt.Sprintf("waiting app ready timeout %ds", timeout), map[string]string{"step": "appruntime", "status": "running"})
 	ticker := time.NewTicker(timeout / 10)
 	timer := time.NewTimer(timeout)
 	defer ticker.Stop()
@@ -189,6 +190,7 @@ func (a *AppService) WaitStop(timeout time.Duration, logger event.Logger, cancel
 	if a == nil {
 		return nil
 	}
+	logger.Info(fmt.Sprintf("waiting app closed timeout %fs", timeout.Seconds()), map[string]string{"step": "appruntime", "status": "running"})
 	ticker := time.NewTicker(timeout / 10)
 	timer := time.NewTimer(timeout)
 	defer ticker.Stop()

@@ -72,7 +72,7 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 	}
 
 	if deployment := app.GetDeployment(); deployment != nil {
-		_, err := s.manager.client.ExtensionsV1beta1().RESTClient().Patch(types.MergePatchType).Namespace(deployment.Namespace).Resource("deployments").Name(deployment.Name).Body(app.UpgradePatch["deployment"]).Do().Get()
+		_, err := s.manager.client.AppsV1().Deployments(deployment.Namespace).Patch(deployment.Name, types.MergePatchType, app.UpgradePatch["deployment"])
 		if err != nil {
 			app.Logger.Error(fmt.Sprintf("upgrade deployment %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
 			return fmt.Errorf("upgrade deployment %s failure %s", app.ServiceAlias, err.Error())

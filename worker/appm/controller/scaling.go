@@ -20,6 +20,7 @@ package controller
 
 import (
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -89,7 +90,7 @@ func (s *scalingController) WaitingReady(app v1.AppService) error {
 	}
 	//at least waiting time is 40 second
 	initTime += 40
-	waitingReplicas := int32(storeAppService.Replicas) - storeAppService.GetReadyReplicas()
+	waitingReplicas := math.Abs(float64(storeAppService.Replicas) - float64(storeAppService.GetReadyReplicas()))
 	timeout := time.Duration(initTime * int32(waitingReplicas))
 	if timeout < 40 {
 		timeout = time.Duration(time.Second * 40)
