@@ -77,6 +77,7 @@ type AppService struct {
 	tenant       *corev1.Namespace
 	statefulset  *v1.StatefulSet
 	deployment   *v1.Deployment
+	replicasets  []*v1.ReplicaSet
 	services     []*corev1.Service
 	configMaps   []*corev1.ConfigMap
 	ingresses    []*extensions.Ingress
@@ -173,6 +174,42 @@ func (a AppService) GetStatefulSet() *v1.StatefulSet {
 func (a *AppService) SetStatefulSet(d *v1.StatefulSet) {
 	logrus.Debugf("cache statefulset %s to app service %s", d.Name, a.ServiceAlias)
 	a.statefulset = d
+}
+
+//SetReplicaSets set kubernetes replicaset
+func (a *AppService) SetReplicaSets(d *v1.ReplicaSet) {
+	if len(a.replicasets) > 0 {
+		for i, replicaset := range a.replicasets {
+			if replicaset.GetName() == d.GetName() {
+				a.replicasets[i] = d
+				return
+			}
+		}
+	}
+	a.replicasets = append(a.replicasets, d)
+}
+
+//DeleteReplicaSet delete replicaset
+func (a *AppService) DeleteReplicaSet(d *v1.ReplicaSet) {
+	for i, c := range a.replicasets {
+		if c.GetName() == d.GetName() {
+			a.replicasets = append(a.replicasets[0:i], a.replicasets[i+1:]...)
+			return
+		}
+	}
+}
+
+//GetCurrentReplicaSet get current replicaset
+func (a *AppService) GetCurrentReplicaSet() *v1.ReplicaSet {
+	if a.deployment != nil {
+		revision := a.deployment.Annotations["deployment.kubernetes.io/revision"]
+		for _, rs := range a.replicasets {
+			if rs.Annotations["deployment.kubernetes.io/revision"] == revision {
+				return rs
+			}
+		}
+	}
+	return nil
 }
 
 //DeleteStatefulSet set kubernetes statefulset model

@@ -112,6 +112,8 @@ func NewStore(dbmanager db.Manager, conf option.Config) Storer {
 	store.informers.Ingress = infFactory.Extensions().V1beta1().Ingresses().Informer()
 	store.listers.Ingress = infFactory.Extensions().V1beta1().Ingresses().Lister()
 
+	store.informers.ReplicaSet = infFactory.Apps().V1().ReplicaSets().Informer()
+
 	store.informers.Deployment.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.StatefulSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Pod.AddEventHandlerWithResyncPeriod(store, time.Second*10)
@@ -156,6 +158,18 @@ func (a *appRuntimeStore) Ready() bool {
 	return a.informers.Ready()
 }
 
+//checkReplicasetWhetherDelete if rs is old version,if it is old version and it always delete all pod.
+// will delete it
+func (a *appRuntimeStore) checkReplicasetWhetherDelete(app *v1.AppService, rs *appsv1.ReplicaSet) {
+	current := app.GetCurrentReplicaSet()
+	if current != nil && current.Name != rs.Name {
+		if rs.Status.Replicas == 0 && rs.Status.ReadyReplicas == 0 && rs.Status.AvailableReplicas == 0 {
+			if err := a.conf.KubeClient.Apps().ReplicaSets(rs.Namespace).Delete(rs.Name, &metav1.DeleteOptions{}); err != nil && errors.IsNotFound(err) {
+				logrus.Errorf("delete old version replicaset failure %s", err.Error())
+			}
+		}
+	}
+}
 func (a *appRuntimeStore) OnAdd(obj interface{}) {
 	if deployment, ok := obj.(*appsv1.Deployment); ok {
 		serviceID := deployment.Labels["service_id"]
@@ -178,6 +192,19 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			if appservice != nil {
 				fmt.Printf("set statefulset %s \n", statefulset.Name)
 				appservice.SetStatefulSet(statefulset)
+				return
+			}
+		}
+	}
+	if replicaset, ok := obj.(*appsv1.ReplicaSet); ok {
+		serviceID := replicaset.Labels["service_id"]
+		version := replicaset.Labels["version"]
+		createrID := replicaset.Labels["creater_id"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice := a.getAppService(serviceID, version, createrID, true)
+			if appservice != nil {
+				a.checkReplicasetWhetherDelete(appservice, replicaset)
+				appservice.SetReplicaSets(replicaset)
 				return
 			}
 		}
@@ -286,8 +313,22 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
-				fmt.Printf("delete statefulset %s \n", statefulset.Name)
 				appservice.DeleteStatefulSet(statefulset)
+				if appservice.IsClosed() {
+					a.DeleteAppService(appservice)
+				}
+				return
+			}
+		}
+	}
+	if replicaset, ok := obj.(*appsv1.ReplicaSet); ok {
+		serviceID := replicaset.Labels["service_id"]
+		version := replicaset.Labels["version"]
+		createrID := replicaset.Labels["creater_id"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice := a.getAppService(serviceID, version, createrID, false)
+			if appservice != nil {
+				appservice.DeleteReplicaSet(replicaset)
 				if appservice.IsClosed() {
 					a.DeleteAppService(appservice)
 				}

@@ -379,11 +379,16 @@ func (s *ServiceAction) ServiceHorizontal(hs *model.HorizontalScalingTaskBody) e
 func (s *ServiceAction) ServiceUpgrade(ru *model.RollingUpgradeTaskBody) error {
 	services, err := db.GetManager().TenantServiceDao().GetServiceByID(ru.ServiceID)
 	if err != nil {
-		logrus.Errorf("get service by id error, %v, %v", services, err)
+		logrus.Errorf("get service by id %s error %s", ru.ServiceID, err.Error())
 		return err
 	}
-	if ru.NewDeployVersion == services.DeployVersion {
-		return nil
+	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(ru.NewDeployVersion, ru.ServiceID)
+	if err != nil {
+		logrus.Errorf("get service version by id %s version %s error, %s", ru.ServiceID, ru.NewDeployVersion, err.Error())
+		return err
+	}
+	if version.FinalStatus != "success" {
+		return fmt.Errorf("deploy version is not build success,do not upgrade")
 	}
 	ru.CurrentDeployVersion = services.DeployVersion
 	services.DeployVersion = ru.NewDeployVersion

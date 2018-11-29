@@ -35,7 +35,9 @@ func (a *AppService) SetUpgradePatch(new *AppService) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(statefulsetPatch))
+		if len(statefulsetPatch) == 0 {
+			return fmt.Errorf("no upgrade")
+		}
 		a.UpgradePatch["statefulset"] = statefulsetPatch
 	}
 	if a.deployment != nil && new.deployment != nil {
@@ -43,7 +45,9 @@ func (a *AppService) SetUpgradePatch(new *AppService) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(deploymentPatch))
+		if len(deploymentPatch) == 0 {
+			return fmt.Errorf("no upgrade")
+		}
 		a.UpgradePatch["deployment"] = deploymentPatch
 	}
 	return nil

@@ -302,7 +302,15 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 		logrus.Infof("service(%s) %s working is running.", body.ServiceID, "start")
 		return nil
 	}
-	oldAppService.SetUpgradePatch(newAppService)
+	if err := oldAppService.SetUpgradePatch(newAppService); err != nil {
+		if err.Error() == "no upgrade" {
+			logger.Info("Application no change no need upgrade.", controller.GetLastLoggerOption())
+			return nil
+		}
+		logrus.Errorf("Application get upgrade info error:%s", err.Error())
+		logger.Error(fmt.Sprintf("Application get upgrade info error:%s", err.Error()), controller.GetCallbackLoggerOption())
+		return nil
+	}
 	oldAppService.Logger = logger
 	oldAppService.DeployVersion = newAppService.DeployVersion
 	//if service already deploy,upgrade it:
