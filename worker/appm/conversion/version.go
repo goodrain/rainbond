@@ -305,7 +305,11 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				}
 				os.Chmod(v.HostPath, 0777)
 			}
-			vd.SetVolume(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, v.HostPath, v.IsReadOnly)
+			if as.GetStatefulSet() != nil {
+				vd.SetPV(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, v.HostPath, v.IsReadOnly)
+			} else {
+				vd.SetVolume(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, v.HostPath, v.IsReadOnly)
+			}
 		}
 	}
 	//handle Shared storage
@@ -347,6 +351,39 @@ func (v *volumeDefine) GetVolumes() []corev1.Volume {
 func (v *volumeDefine) GetVolumeMounts() []corev1.VolumeMount {
 	return v.volumeMounts
 }
+func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath, hostPath string, readOnly bool) {
+	switch VolumeType {
+	case dbmodel.ShareFileVolumeType:
+		if statefulset := v.as.GetStatefulSet(); statefulset != nil {
+			resourceStorage, _ := resource.ParseQuantity("40g")
+			statefulset.Spec.VolumeClaimTemplates = append(
+				statefulset.Spec.VolumeClaimTemplates,
+				corev1.PersistentVolumeClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: name,
+						Labels: v.as.GetCommonLabels(map[string]string{
+							"tenant_id": v.as.TenantID,
+						}),
+					},
+					Spec: corev1.PersistentVolumeClaimSpec{
+						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+						StorageClassName: &v1.RainbondStatefuleShareStorageClass,
+						Resources: corev1.ResourceRequirements{
+							Requests: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceStorage: resourceStorage,
+							},
+						},
+					},
+				},
+			)
+			v.volumeMounts = append(v.volumeMounts, corev1.VolumeMount{
+				Name:      name,
+				MountPath: mountPath,
+				ReadOnly:  readOnly,
+			})
+		}
+	}
+}
 func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath, hostPath string, readOnly bool) {
 	for _, m := range v.volumeMounts {
 		if m.MountPath == mountPath {
@@ -371,46 +408,21 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 		}
 	case dbmodel.ShareFileVolumeType:
 		if hostPath != "" {
-			if v.as.ServiceType == v1.TypeStatefulSet {
-				if statefulset := v.as.GetStatefulSet(); statefulset != nil {
-					statefulset.Spec.VolumeClaimTemplates = append(
-						statefulset.Spec.VolumeClaimTemplates,
-						corev1.PersistentVolumeClaim{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: name,
-								Labels: v.as.GetCommonLabels(map[string]string{
-									"tenant_id": v.as.TenantID,
-								}),
-							},
-							Spec: corev1.PersistentVolumeClaimSpec{
-								AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
-								StorageClassName: &v1.RainbondStatefuleShareStorageClass,
-							},
-						},
-					)
-					v.volumeMounts = append(v.volumeMounts, corev1.VolumeMount{
-						Name:      name,
-						MountPath: mountPath,
-						ReadOnly:  readOnly,
-					})
+			vo := corev1.Volume{
+				Name: name,
+			}
+			vo.HostPath = &corev1.HostPathVolumeSource{
+				Path: hostPath,
+			}
+			v.volumes = append(v.volumes, vo)
+			if mountPath != "" {
+				vm := corev1.VolumeMount{
+					MountPath: mountPath,
+					Name:      name,
+					ReadOnly:  readOnly,
+					SubPath:   "",
 				}
-			} else {
-				vo := corev1.Volume{
-					Name: name,
-				}
-				vo.HostPath = &corev1.HostPathVolumeSource{
-					Path: hostPath,
-				}
-				v.volumes = append(v.volumes, vo)
-				if mountPath != "" {
-					vm := corev1.VolumeMount{
-						MountPath: mountPath,
-						Name:      name,
-						ReadOnly:  readOnly,
-						SubPath:   "",
-					}
-					v.volumeMounts = append(v.volumeMounts, vm)
-				}
+				v.volumeMounts = append(v.volumeMounts, vm)
 			}
 		}
 	case dbmodel.LocalVolumeType:

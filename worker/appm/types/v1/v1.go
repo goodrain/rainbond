@@ -22,8 +22,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
-
 	"github.com/goodrain/rainbond/event"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -157,7 +155,6 @@ func (a AppService) GetDeployment() *v1.Deployment {
 
 //SetDeployment set kubernetes deployment model
 func (a *AppService) SetDeployment(d *v1.Deployment) {
-	logrus.Debugf("cache deployment %s to app service %s", d.Name, a.ServiceAlias)
 	a.deployment = d
 }
 
@@ -173,7 +170,6 @@ func (a AppService) GetStatefulSet() *v1.StatefulSet {
 
 //SetStatefulSet set kubernetes statefulset model
 func (a *AppService) SetStatefulSet(d *v1.StatefulSet) {
-	logrus.Debugf("cache statefulset %s to app service %s", d.Name, a.ServiceAlias)
 	a.statefulset = d
 }
 
@@ -390,7 +386,6 @@ func (a *AppService) GetSecrets() []*corev1.Secret {
 
 //SetPods set pod
 func (a *AppService) SetPods(d *corev1.Pod) {
-	logrus.Debugf("cache pod %s to service %s", d.Name, a.ServiceAlias)
 	if len(a.pods) > 0 {
 		for i, pod := range a.pods {
 			if pod.GetName() == d.GetName() {
