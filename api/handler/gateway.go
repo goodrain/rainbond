@@ -29,6 +29,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // GatewayAction -
@@ -64,7 +65,7 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) (string, er
 		return "", err
 	}
 
-	if req.CertificateID != "" {
+	if strings.Replace(req.CertificateID, " ", "", -1) != "" {
 		cert := &model.Certificate{
 			UUID:            req.CertificateID,
 			CertificateName: fmt.Sprintf("cert-%s", util.NewUUID()[0:8]),
@@ -110,7 +111,7 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (stri
 		tx.Rollback()
 		return "", fmt.Errorf("HTTPRule dosen't exist based on uuid(%s)", req.HTTPRuleID)
 	}
-	if rule.CertificateID != "" {
+	if strings.Replace(req.CertificateID, " ", "", -1) != "" {
 		// delete old Certificate
 		if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(rule.CertificateID); err != nil {
 			tx.Rollback()
