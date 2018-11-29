@@ -20,6 +20,7 @@ package v1
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/Sirupsen/logrus"
 
@@ -199,13 +200,24 @@ func (a *AppService) DeleteReplicaSet(d *v1.ReplicaSet) {
 	}
 }
 
+//GetReplicaSetVersion get rs version
+func GetReplicaSetVersion(rs *v1.ReplicaSet) int {
+	if version, ok := rs.Annotations["deployment.kubernetes.io/revision"]; ok {
+		v, _ := strconv.Atoi(version)
+		return v
+	}
+	return 0
+}
+
 //GetCurrentReplicaSet get current replicaset
 func (a *AppService) GetCurrentReplicaSet() *v1.ReplicaSet {
 	if a.deployment != nil {
-		revision := a.deployment.Annotations["deployment.kubernetes.io/revision"]
-		for _, rs := range a.replicasets {
-			if rs.Annotations["deployment.kubernetes.io/revision"] == revision {
-				return rs
+		revision, ok := a.deployment.Annotations["deployment.kubernetes.io/revision"]
+		if ok {
+			for _, rs := range a.replicasets {
+				if rs.Annotations["deployment.kubernetes.io/revision"] == revision {
+					return rs
+				}
 			}
 		}
 	}

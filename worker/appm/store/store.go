@@ -121,6 +121,7 @@ func NewStore(dbmanager db.Manager, conf option.Config) Storer {
 	store.informers.Service.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Ingress.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.ConfigMap.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.ReplicaSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	return store
 }
 
@@ -162,10 +163,19 @@ func (a *appRuntimeStore) Ready() bool {
 // will delete it
 func (a *appRuntimeStore) checkReplicasetWhetherDelete(app *v1.AppService, rs *appsv1.ReplicaSet) {
 	current := app.GetCurrentReplicaSet()
+	if current != nil {
+		logrus.Debugf("current:%s handle %s replicas %d ready %d available %d", current.Name, rs.Name, rs.Status.Replicas, rs.Status.ReadyReplicas, rs.Status.AvailableReplicas)
+	} else {
+		logrus.Debugf("current:nil handle %s replicas %d ready %d available %d", rs.Name, rs.Status.Replicas, rs.Status.ReadyReplicas, rs.Status.AvailableReplicas)
+	}
+
 	if current != nil && current.Name != rs.Name {
-		if rs.Status.Replicas == 0 && rs.Status.ReadyReplicas == 0 && rs.Status.AvailableReplicas == 0 {
-			if err := a.conf.KubeClient.Apps().ReplicaSets(rs.Namespace).Delete(rs.Name, &metav1.DeleteOptions{}); err != nil && errors.IsNotFound(err) {
-				logrus.Errorf("delete old version replicaset failure %s", err.Error())
+		//delete old version
+		if v1.GetReplicaSetVersion(current) > v1.GetReplicaSetVersion(rs) {
+			if rs.Status.Replicas == 0 && rs.Status.ReadyReplicas == 0 && rs.Status.AvailableReplicas == 0 {
+				if err := a.conf.KubeClient.Apps().ReplicaSets(rs.Namespace).Delete(rs.Name, &metav1.DeleteOptions{}); err != nil && errors.IsNotFound(err) {
+					logrus.Errorf("delete old version replicaset failure %s", err.Error())
+				}
 			}
 		}
 	}
@@ -203,8 +213,8 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice := a.getAppService(serviceID, version, createrID, true)
 			if appservice != nil {
-				a.checkReplicasetWhetherDelete(appservice, replicaset)
 				appservice.SetReplicaSets(replicaset)
+				a.checkReplicasetWhetherDelete(appservice, replicaset)
 				return
 			}
 		}
