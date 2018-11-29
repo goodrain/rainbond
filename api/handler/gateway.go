@@ -65,6 +65,7 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) (string, er
 		return "", err
 	}
 
+	logrus.Debugf("strings.Replace(req.CertificateID, \" \", \"\", -1) != \"\": %v", strings.Replace(req.CertificateID, " ", "", -1) != "")
 	if strings.Replace(req.CertificateID, " ", "", -1) != "" {
 		cert := &model.Certificate{
 			UUID:            req.CertificateID,
