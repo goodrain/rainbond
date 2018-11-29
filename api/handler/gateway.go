@@ -65,7 +65,6 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) (string, er
 		return "", err
 	}
 
-	logrus.Debugf("strings.Replace(req.CertificateID, \" \", \"\", -1) != \"\": %v", strings.Replace(req.CertificateID, " ", "", -1) != "")
 	if strings.Replace(req.CertificateID, " ", "", -1) != "" {
 		cert := &model.Certificate{
 			UUID:            req.CertificateID,
@@ -73,7 +72,7 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) (string, er
 			Certificate:     req.Certificate,
 			PrivateKey:      req.PrivateKey,
 		}
-		if err := db.GetManager().CertificateDaoTransactions(tx).AddModel(cert); err != nil {
+		if err := db.GetManager().CertificateDaoTransactions(tx).AddOrUpdate(cert); err != nil {
 			tx.Rollback()
 			return "", err
 		}
@@ -125,7 +124,7 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (stri
 			Certificate:     req.Certificate,
 			PrivateKey:      req.PrivateKey,
 		}
-		if err := g.dbmanager.CertificateDaoTransactions(tx).AddModel(cert); err != nil {
+		if err := g.dbmanager.CertificateDaoTransactions(tx).AddOrUpdate(cert); err != nil {
 			tx.Rollback()
 			return "", err
 		}
@@ -191,6 +190,7 @@ func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) (stri
 	tx := db.GetManager().Begin()
 	// delete http rule
 	httpRule, err := g.dbmanager.HttpRuleDaoTransactions(tx).GetHttpRuleByID(req.HTTPRuleID)
+	svcID := httpRule.ServiceID
 	if err != nil {
 		tx.Rollback()
 		return "", err
@@ -214,7 +214,7 @@ func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) (stri
 		return "", err
 	}
 
-	return httpRule.ServiceID, nil
+	return svcID, nil
 }
 
 // AddCertificate adds certificate to db if it doesn't exists

@@ -58,6 +58,19 @@ func (c *CertificateDaoImpl) UpdateModel(mo model.Interface) error {
 		Update(cert).Error
 }
 
+func (c *CertificateDaoImpl) AddOrUpdate(mo model.Interface) error {
+	cert, ok := mo.(*model.Certificate)
+	if !ok {
+		return fmt.Errorf("Failed to convert %s to *model.Certificate", reflect.TypeOf(mo).String())
+	}
+	var result model.Certificate
+	if err := c.DB.Where("uuid = ?", cert.UUID).Assign(cert).FirstOrCreate(&result).Error; err != nil {
+		return fmt.Errorf("Unexpected error occurred while adding or updating certficate: %v", err)
+	}
+
+	return nil
+}
+
 // GetCertificateByID gets a certificate by matching id
 func (c *CertificateDaoImpl) GetCertificateByID(certificateID string) (*model.Certificate, error) {
 	var certificate *model.Certificate

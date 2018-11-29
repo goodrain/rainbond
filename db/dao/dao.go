@@ -340,6 +340,7 @@ type ServiceSourceDao interface {
 // CertificateDao -
 type CertificateDao interface {
 	Dao
+	AddOrUpdate(mo model.Interface) error
 	GetCertificateByID(certificateID string) (*model.Certificate, error)
 	DeleteCertificateByID(certificateID string) error
 }
