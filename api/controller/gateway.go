@@ -29,6 +29,7 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // GatewayStruct -
@@ -65,7 +66,7 @@ func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 	if req.ContainerPort == 0 {
 		values["container_port"] = []string{"The container_port field is required"}
 	}
-	if req.CertificateID != "" {
+	if strings.Replace(req.CertificateID, " ", "", -1) != "" {
 		if req.Certificate == "" {
 			values["certificate"] = []string{"The certificate field is required"}
 		}
@@ -102,7 +103,7 @@ func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 
 	// verify request
 	values := url.Values{}
-	if req.CertificateID != "" {
+	if strings.Replace(req.CertificateID, " ", "", -1) != "" {
 		if req.Certificate == "" {
 			values["certificate"] = []string{"The certificate field is required"}
 		}
