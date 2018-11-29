@@ -18,16 +18,23 @@
 
 package store
 
-//TODO:
-
-// kind: StorageClass
-// apiVersion: storage.k8s.io/v1
-// metadata:
-//   name: local-storage
-// provisioner: kubernetes.io/no-provisioner
-// volumeBindingMode: WaitForFirstConsumer
+import (
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
 //InitStorageclass init storage class
 func (a *appRuntimeStore) initStorageclass() error {
+	for _, storageclass := range v1.GetInitStorageClass() {
+		if _, err := a.conf.KubeClient.StorageV1().StorageClasses().Get(storageclass.Name, metav1.GetOptions{}); err != nil {
+			if errors.IsNotFound(err) {
+				_, err = a.conf.KubeClient.StorageV1().StorageClasses().Create(storageclass)
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }

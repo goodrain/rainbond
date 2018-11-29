@@ -60,6 +60,26 @@ func CheckAndCreateDir(path string) error {
 	return nil
 }
 
+//CheckAndCreateDirByMode check and create dir
+func CheckAndCreateDirByMode(path string, mode os.FileMode) error {
+	if subPathExists, err := FileExists(path); err != nil {
+		return fmt.Errorf("Could not determine if subPath %s exists; will not attempt to change its permissions", path)
+	} else if !subPathExists {
+		// Create the sub path now because if it's auto-created later when referenced, it may have an
+		// incorrect ownership and mode. For example, the sub path directory must have at least g+rwx
+		// when the pod specifies an fsGroup, and if the directory is not created here, Docker will
+		// later auto-create it with the incorrect mode 0750
+		if err := os.MkdirAll(path, mode); err != nil {
+			return fmt.Errorf("failed to mkdir:%s", path)
+		}
+
+		if err := os.Chmod(path, mode); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 //DirIsEmpty 验证目录是否为空
 func DirIsEmpty(dir string) bool {
 	infos, err := ioutil.ReadDir(dir)

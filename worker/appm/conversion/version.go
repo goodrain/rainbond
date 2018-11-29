@@ -288,7 +288,9 @@ var memoryLabels = map[int]string{
 }
 
 func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db.Manager) (*volumeDefine, error) {
-	var vd = &volumeDefine{}
+	var vd = &volumeDefine{
+		as: as,
+	}
 	vs, err := dbmanager.TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(version.ServiceID)
 	if err != nil {
 		return nil, err
@@ -334,9 +336,9 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 }
 
 type volumeDefine struct {
-	volumeMounts      []corev1.VolumeMount
-	volumes           []corev1.Volume
-	persistentVolumes []corev1.PersistentVolume
+	as           *v1.AppService
+	volumeMounts []corev1.VolumeMount
+	volumes      []corev1.Volume
 }
 
 func (v *volumeDefine) GetVolumes() []corev1.Volume {
@@ -351,65 +353,101 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 			return
 		}
 	}
-	if hostPath != "" {
-		switch VolumeType {
-		case dbmodel.MemoryFSVolumeType:
-			vo := corev1.Volume{Name: name}
-			vo.EmptyDir = &corev1.EmptyDirVolumeSource{
-				Medium: corev1.StorageMediumMemory,
-			}
-			v.volumes = append(v.volumes, vo)
-			if mountPath != "" {
-				vm := corev1.VolumeMount{
-					MountPath: mountPath,
-					Name:      name,
-					ReadOnly:  readOnly,
-					SubPath:   "",
-				}
-				v.volumeMounts = append(v.volumeMounts, vm)
-			}
-		case dbmodel.ShareFileVolumeType:
-			vo := corev1.Volume{
-				Name: name,
-			}
-			vo.HostPath = &corev1.HostPathVolumeSource{
-				Path: hostPath,
-			}
-			v.volumes = append(v.volumes, vo)
-			if mountPath != "" {
-				vm := corev1.VolumeMount{
-					MountPath: mountPath,
-					Name:      name,
-					ReadOnly:  readOnly,
-					SubPath:   "",
-				}
-				v.volumeMounts = append(v.volumeMounts, vm)
-			}
-		case dbmodel.LocalVolumeType:
-			fulesystem := corev1.PersistentVolumeFilesystem
-			localPV := corev1.PersistentVolume{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: name + "pv",
-				},
-				Spec: corev1.PersistentVolumeSpec{
-					VolumeMode: &fulesystem,
-					AccessModes: []corev1.PersistentVolumeAccessMode{
-						corev1.ReadWriteOnce,
-					},
-					//do not auto reclaim
-					PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
-					StorageClassName:              "local-storage",
-					PersistentVolumeSource: corev1.PersistentVolumeSource{
-						Local: &corev1.LocalVolumeSource{
-							Path: hostPath,
-						},
-					},
-				},
-			}
-			v.persistentVolumes = append(v.persistentVolumes, localPV)
+	switch VolumeType {
+	case dbmodel.MemoryFSVolumeType:
+		vo := corev1.Volume{Name: name}
+		vo.EmptyDir = &corev1.EmptyDirVolumeSource{
+			Medium: corev1.StorageMediumMemory,
 		}
+		v.volumes = append(v.volumes, vo)
+		if mountPath != "" {
+			vm := corev1.VolumeMount{
+				MountPath: mountPath,
+				Name:      name,
+				ReadOnly:  readOnly,
+				SubPath:   "",
+			}
+			v.volumeMounts = append(v.volumeMounts, vm)
+		}
+	case dbmodel.ShareFileVolumeType:
+		if hostPath != "" {
+			if v.as.ServiceType == v1.TypeStatefulSet {
+				if statefulset := v.as.GetStatefulSet(); statefulset != nil {
+					statefulset.Spec.VolumeClaimTemplates = append(
+						statefulset.Spec.VolumeClaimTemplates,
+						corev1.PersistentVolumeClaim{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: name,
+								Labels: v.as.GetCommonLabels(map[string]string{
+									"tenant_id": v.as.TenantID,
+								}),
+							},
+							Spec: corev1.PersistentVolumeClaimSpec{
+								AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+								StorageClassName: &v1.RainbondStatefuleShareStorageClass,
+							},
+						},
+					)
+					v.volumeMounts = append(v.volumeMounts, corev1.VolumeMount{
+						Name:      name,
+						MountPath: mountPath,
+						ReadOnly:  readOnly,
+					})
+				}
+			} else {
+				vo := corev1.Volume{
+					Name: name,
+				}
+				vo.HostPath = &corev1.HostPathVolumeSource{
+					Path: hostPath,
+				}
+				v.volumes = append(v.volumes, vo)
+				if mountPath != "" {
+					vm := corev1.VolumeMount{
+						MountPath: mountPath,
+						Name:      name,
+						ReadOnly:  readOnly,
+						SubPath:   "",
+					}
+					v.volumeMounts = append(v.volumeMounts, vm)
+				}
+			}
+		}
+	case dbmodel.LocalVolumeType:
+		// fulesystem := corev1.PersistentVolumeFilesystem
+		// localPV := corev1.PersistentVolume{
+		// 	ObjectMeta: metav1.ObjectMeta{
+		// 		Name: name + "pv",
+		// 	},
+		// 	Spec: corev1.PersistentVolumeSpec{
+		// 		VolumeMode: &fulesystem,
+		// 		AccessModes: []corev1.PersistentVolumeAccessMode{
+		// 			corev1.ReadWriteOnce,
+		// 		},
+		// 		//do not auto reclaim
+		// 		PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
+		// 		StorageClassName:              "local-storage",
+		// 		PersistentVolumeSource: corev1.PersistentVolumeSource{
+		// 			Local: &corev1.LocalVolumeSource{
+		// 				Path: hostPath,
+		// 			},
+		// 		},
+		// 	},
+		// }
+		// v.persistentVolumes = append(v.persistentVolumes, localPV)
+		// v.volumes = append(v.volumes, corev1.Volume{
+		// 	Name: name,
+		// 	VolumeSource: corev1.VolumeSource{
+		// 		PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{},
+		// 	},
+		// })
+		// v.volumeMounts = append(v.volumeMounts, corev1.VolumeMount{
+		// 	MountPath: mountPath,
+		// 	Name:      name,
+		// 	ReadOnly:  readOnly,
+		// 	SubPath:   "",
+		// })
 	}
-
 }
 
 func createResources(as *v1.AppService) corev1.ResourceRequirements {

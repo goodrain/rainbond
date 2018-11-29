@@ -89,7 +89,10 @@ func Run(s *option.Worker) error {
 	defer controllerManager.Stop()
 
 	//step 5 : start runtime master
-	masterCon := master.NewMasterController(s.Config, cachestore)
+	masterCon, err := master.NewMasterController(s.Config, cachestore)
+	if err != nil {
+		return err
+	}
 	if err := masterCon.Start(); err != nil {
 		return err
 	}

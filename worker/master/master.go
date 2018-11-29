@@ -24,6 +24,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/worker/master/volumes/provider"
+
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/master/volumes/statistical"
@@ -33,6 +36,7 @@ import (
 
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/util/leader"
+	"github.com/kubernetes-incubator/external-storage/lib/controller"
 )
 
 //Controller app runtime master controller
@@ -45,14 +49,32 @@ type Controller struct {
 	memoryUse *prometheus.GaugeVec
 	fsUse     *prometheus.GaugeVec
 	diskCache *statistical.DiskCache
+	pc        *controller.ProvisionController
 	isLeader  bool
 }
 
 //NewMasterController new master controller
-func NewMasterController(conf option.Config, store store.Storer) *Controller {
+func NewMasterController(conf option.Config, store store.Storer) (*Controller, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+	// The controller needs to know what the server version is because out-of-tree
+	// provisioners aren't officially supported until 1.5
+	serverVersion, err := conf.KubeClient.Discovery().ServerVersion()
+	if err != nil {
+		logrus.Errorf("Error getting server version: %v", err)
+		cancel()
+		return nil, err
+	}
+
+	// Create the provisioner: it implements the Provisioner interface expected by
+	// the controller
+	rainbondsscProvisioner := provider.NewRainbondssscProvisioner()
+
+	// Start the provision controller which will dynamically provision hostPath
+	// PVs
+	pc := controller.NewProvisionController(conf.KubeClient, "rainbond.io/provisioner", rainbondsscProvisioner, serverVersion.GitVersion)
 	return &Controller{
 		conf:      conf,
+		pc:        pc,
 		store:     store,
 		cancel:    cancel,
 		ctx:       ctx,
@@ -68,7 +90,7 @@ func NewMasterController(conf option.Config, store store.Storer) *Controller {
 			Help:      "tenant service fs used.",
 		}, []string{"tenant_id", "service_id", "volume_type"}),
 		diskCache: statistical.CreatDiskCache(ctx),
-	}
+	}, nil
 }
 
 //IsLeader is leader
@@ -85,6 +107,7 @@ func (m *Controller) Start() error {
 		}()
 		m.diskCache.Start()
 		defer m.diskCache.Stop()
+		m.pc.Run(stop)
 		<-stop
 	}
 	// Leader election was requested.

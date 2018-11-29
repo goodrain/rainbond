@@ -163,12 +163,6 @@ func (a *appRuntimeStore) Ready() bool {
 // will delete it
 func (a *appRuntimeStore) checkReplicasetWhetherDelete(app *v1.AppService, rs *appsv1.ReplicaSet) {
 	current := app.GetCurrentReplicaSet()
-	if current != nil {
-		logrus.Debugf("current:%s handle %s replicas %d ready %d available %d", current.Name, rs.Name, rs.Status.Replicas, rs.Status.ReadyReplicas, rs.Status.AvailableReplicas)
-	} else {
-		logrus.Debugf("current:nil handle %s replicas %d ready %d available %d", rs.Name, rs.Status.Replicas, rs.Status.ReadyReplicas, rs.Status.AvailableReplicas)
-	}
-
 	if current != nil && current.Name != rs.Name {
 		//delete old version
 		if v1.GetReplicaSetVersion(current) > v1.GetReplicaSetVersion(rs) {
@@ -471,7 +465,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 		if deployment := appService.GetDeployment(); deployment != nil {
 			deploy, err := a.listers.Deployment.Deployments(deployment.Namespace).Get(deployment.Name)
 			if err != nil && errors.IsNotFound(err) {
-				appService.DeleteDeployment(deploy)
+				appService.DeleteDeployment(deployment)
 			}
 			if deploy != nil {
 				appService.SetDeployment(deploy)
@@ -481,7 +475,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 			for _, service := range services {
 				se, err := a.listers.Service.Services(service.Namespace).Get(service.Name)
 				if err != nil && errors.IsNotFound(err) {
-					appService.DeleteServices(se)
+					appService.DeleteServices(service)
 				}
 				if se != nil {
 					appService.SetService(se)
@@ -492,7 +486,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 			for _, ingress := range ingresses {
 				in, err := a.listers.Ingress.Ingresses(ingress.Namespace).Get(ingress.Name)
 				if err != nil && errors.IsNotFound(err) {
-					appService.DeleteIngress(in)
+					appService.DeleteIngress(ingress)
 				}
 				if in != nil {
 					appService.SetIngress(in)
@@ -503,7 +497,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 			for _, secret := range secrets {
 				se, err := a.listers.Secret.Secrets(secret.Namespace).Get(secret.Name)
 				if err != nil && errors.IsNotFound(err) {
-					appService.DeleteSecrets(se)
+					appService.DeleteSecrets(secret)
 				}
 				if se != nil {
 					appService.SetSecret(se)
@@ -514,7 +508,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 			for _, pod := range pods {
 				se, err := a.listers.Pod.Pods(pod.Namespace).Get(pod.Name)
 				if err != nil && errors.IsNotFound(err) {
-					appService.DeletePods(se)
+					appService.DeletePods(pod)
 				}
 				if se != nil {
 					appService.SetPods(se)
