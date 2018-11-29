@@ -355,7 +355,7 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath, hos
 	switch VolumeType {
 	case dbmodel.ShareFileVolumeType:
 		if statefulset := v.as.GetStatefulSet(); statefulset != nil {
-			resourceStorage, _ := resource.ParseQuantity("40g")
+			resourceStorage, _ := resource.ParseQuantity("40Gi")
 			statefulset.Spec.VolumeClaimTemplates = append(
 				statefulset.Spec.VolumeClaimTemplates,
 				corev1.PersistentVolumeClaim{

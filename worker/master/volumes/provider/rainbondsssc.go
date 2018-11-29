@@ -22,6 +22,8 @@ import (
 	"os"
 	"path"
 
+	"github.com/Sirupsen/logrus"
+
 	"github.com/goodrain/rainbond/util"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"k8s.io/api/core/v1"
@@ -71,7 +73,7 @@ func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*
 			},
 		},
 	}
-
+	logrus.Infof("create rainbondssc pv %s for pvc %s", pv.Name, options.PVC.Name)
 	return pv, nil
 }
 
