@@ -64,15 +64,17 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) (string, er
 		return "", err
 	}
 
-	cert := &model.Certificate{
-		UUID:            req.CertificateID,
-		CertificateName: fmt.Sprintf("cert-%s", util.NewUUID()[0:8]),
-		Certificate:     req.Certificate,
-		PrivateKey:      req.PrivateKey,
-	}
-	if err := db.GetManager().CertificateDaoTransactions(tx).AddModel(cert); err != nil {
-		tx.Rollback()
-		return "", err
+	if req.CertificateID == "" {
+		cert := &model.Certificate{
+			UUID:            req.CertificateID,
+			CertificateName: fmt.Sprintf("cert-%s", util.NewUUID()[0:8]),
+			Certificate:     req.Certificate,
+			PrivateKey:      req.PrivateKey,
+		}
+		if err := db.GetManager().CertificateDaoTransactions(tx).AddModel(cert); err != nil {
+			tx.Rollback()
+			return "", err
+		}
 	}
 
 	for _, ruleExtension := range req.RuleExtensions {
