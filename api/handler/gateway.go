@@ -64,7 +64,7 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) (string, er
 		return "", err
 	}
 
-	if req.CertificateID == "" {
+	if req.CertificateID != "" {
 		cert := &model.Certificate{
 			UUID:            req.CertificateID,
 			CertificateName: fmt.Sprintf("cert-%s", util.NewUUID()[0:8]),
