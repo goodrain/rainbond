@@ -21,8 +21,6 @@ package store
 import (
 	"time"
 
-	"github.com/Sirupsen/logrus"
-
 	"github.com/goodrain/rainbond/util"
 )
 
@@ -34,7 +32,7 @@ func (a *appRuntimeStore) clean() {
 			//fmt.Println(appservice.String())
 			return true
 		})
-		logrus.Debugf("app store is cleaned")
+		//logrus.Debugf("app store is cleaned")
 		return nil
 	}, time.Second*10)
 }

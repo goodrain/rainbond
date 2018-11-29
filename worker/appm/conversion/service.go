@@ -133,6 +133,8 @@ func initSelector(selector *metav1.LabelSelector, service *dbmodel.TenantService
 		selector.MatchLabels = make(map[string]string)
 	}
 	selector.MatchLabels["name"] = service.ServiceAlias
+	selector.MatchLabels["tenant_id"] = service.TenantID
+	selector.MatchLabels["service_id"] = service.ServiceID
 	//selector.MatchLabels["version"] = service.DeployVersion
 }
 func initBaseStatefulSet(as *v1.AppService, service *dbmodel.TenantServices) {

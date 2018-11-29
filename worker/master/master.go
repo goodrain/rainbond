@@ -105,9 +105,9 @@ func (m *Controller) Start() error {
 		defer func() {
 			m.isLeader = false
 		}()
-		m.diskCache.Start()
+		go m.diskCache.Start()
 		defer m.diskCache.Stop()
-		m.pc.Run(stop)
+		go m.pc.Run(stop)
 		<-stop
 	}
 	// Leader election was requested.

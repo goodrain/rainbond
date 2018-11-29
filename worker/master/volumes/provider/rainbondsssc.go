@@ -52,7 +52,7 @@ var _ controller.Provisioner = &rainbondssscProvisioner{}
 func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
 	tenantID := options.PVC.Labels["tenant_id"]
 	serviceID := options.PVC.Labels["service_id"]
-	path := path.Join(p.pvDir, "tenants", tenantID, "services", serviceID, options.PVName)
+	path := path.Join(p.pvDir, "tenant", tenantID, "service", serviceID, options.PVC.Name)
 	if err := util.CheckAndCreateDirByMode(path, 0777); err != nil {
 		return nil, err
 	}
