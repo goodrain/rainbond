@@ -359,6 +359,12 @@ var LabelKeyServiceAffinity = "service-affinity"
 //LabelKeyServiceAntyAffinity 应用反亲和标签
 var LabelKeyServiceAntyAffinity = "service-anti-affinity"
 
+// LabelKeyOSWin means the operating system of the node,  where the application is located, is Windows.
+var LabelKeyOSWin = "win"
+
+// LabelKeyOSLinux means the operating system of the node,  where the application is located, is Linux.
+var LabelKeyOSLinux = "linux"
+
 //TenantServiceProbe 应用探针信息
 type TenantServiceProbe struct {
 	Model

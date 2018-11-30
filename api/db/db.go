@@ -175,6 +175,19 @@ func BuildTaskBuild(t *BuildTaskStruct) (*pb.EnqueueRequest, error) {
 	return &er, nil
 }
 
+//BuildTaskBuildWithTopic builds task with topic
+func BuildTaskBuildWithTopic(t *BuildTaskStruct, topic string) (*pb.EnqueueRequest, error) {
+	var er pb.EnqueueRequest
+	er.Topic = topic
+	er.Message = &pb.TaskMessage{
+		TaskType:   t.TaskType,
+		CreateTime: time.Now().Format(time.RFC3339),
+		TaskBody:   t.TaskBody,
+		User:       t.User,
+	}
+	return &er, nil
+}
+
 func GetBegin() *gorm.DB {
 	return db.GetManager().Begin()
 }

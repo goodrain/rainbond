@@ -132,6 +132,7 @@ func (s *ServiceAction) buildFromMarketSlug(r *api_model.BuildServiceStruct, ser
 }
 func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
 	dependIds, err := db.GetManager().TenantServiceRelationDao().GetTenantServiceRelations(service.ServiceID)
+	label, err := db.GetManager().TenantServiceLabelDao().GetTenantServiceOSLabel(service.ServiceID)
 	if err != nil {
 		return err
 	}
@@ -156,7 +157,13 @@ func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service 
 		body["user"] = r.Body.User
 		body["password"] = r.Body.Password
 	}
-	return s.sendTask(body, "build_from_image")
+
+	// use "linux" as the default topic
+	topic := "linux"
+	if label == nil || strings.Replace(label.LabelValue, " ", "", -1) == "" {
+		topic = strings.Replace(label.LabelValue, " ", "", -1)
+	}
+	return s.sendTaskWithTopic(body, "build_from_image", topic)
 }
 
 func (s *ServiceAction) buildFromSourceCode(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
@@ -203,6 +210,31 @@ func (s *ServiceAction) sendTask(body map[string]interface{}, taskType string) e
 		User:     "define",
 	}
 	eq, errEq := api_db.BuildTaskBuild(bs)
+	if errEq != nil {
+		logrus.Errorf("build equeue stop request error, %v", errEq)
+		return errEq
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err = s.MQClient.Enqueue(ctx, eq)
+	cancel()
+	if err != nil {
+		logrus.Errorf("equque mq error, %v", err)
+		return err
+	}
+	return nil
+}
+
+func (s *ServiceAction) sendTaskWithTopic(body map[string]interface{}, taskType string, topic string) error {
+	bodyJ, err := ffjson.Marshal(body)
+	if err != nil {
+		return err
+	}
+	bs := &api_db.BuildTaskStruct{
+		TaskType: taskType,
+		TaskBody: bodyJ,
+		User:     "define",
+	}
+	eq, errEq := api_db.BuildTaskBuildWithTopic(bs, topic)
 	if errEq != nil {
 		logrus.Errorf("build equeue stop request error, %v", errEq)
 		return errEq

@@ -84,7 +84,7 @@ func (t *TaskManager) Do() {
 			return
 		default:
 			ctx, cancel := context.WithCancel(t.ctx)
-			data, err := t.client.Dequeue(ctx, &pb.DequeueRequest{Topic: WTOPIC, ClientHost: hostName + "-builder"})
+			data, err := t.client.Dequeue(ctx, &pb.DequeueRequest{Topic: t.config.NodeOS, ClientHost: hostName + "-builder"})
 			cancel()
 			if err != nil {
 				if grpc1.ErrorDesc(err) == context.DeadlineExceeded.Error() {
@@ -126,7 +126,7 @@ func (t *TaskManager) Stop() error {
 	return nil
 }
 
-// 组件的健康检查
+// HealthCheck 组件的健康检查
 func HealthCheck() map[string]string {
 	return healthStatus
 }

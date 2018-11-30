@@ -1230,6 +1230,19 @@ func (t *ServiceLabelDaoImpl) GetTenantServiceAffinityLabel(serviceID string) ([
 	return labels, nil
 }
 
+//GetTenantServiceOSLabel -
+func (t *ServiceLabelDaoImpl) GetTenantServiceOSLabel(serviceID string) (*model.TenantServiceLable, error) {
+	var label *model.TenantServiceLable
+	if err := t.DB.Find(&label, "service_id=? and label_key in (?)", serviceID,
+		[]string{model.LabelKeyOSLinux, model.LabelKeyOSWin}).Find(&label).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return label, nil
+		}
+		return nil, err
+	}
+	return label, nil
+}
+
 //GetTenantServiceTypeLabel GetTenantServiceTypeLabel
 func (t *ServiceLabelDaoImpl) GetTenantServiceTypeLabel(serviceID string) (*model.TenantServiceLable, error) {
 	var label model.TenantServiceLable

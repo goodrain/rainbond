@@ -39,6 +39,7 @@ type Config struct {
 	DockerEndpoint       string
 	HostIP               string
 	CleanUp              bool
+	NodeOS               string // node operation system type. optional value: linux, win; default linux.
 }
 
 //Builder  builder server
@@ -52,6 +53,9 @@ type Builder struct {
 func NewBuilder() *Builder {
 	return &Builder{}
 }
+
+//
+type NodeOSType string
 
 //AddFlags config
 func (a *Builder) AddFlags(fs *pflag.FlagSet) {
@@ -71,6 +75,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.DockerEndpoint, "dockerd", "127.0.0.1:2376", "dockerd endpoint")
 	fs.StringVar(&a.HostIP, "hostIP", "", "Current node Intranet IP")
 	fs.BoolVar(&a.CleanUp, "clean-up", false, "Turn on build version cleanup")
+	fs.StringVar(&a.NodeOS, "node-os", "linux", "Node operation system type, linux or win.")
 }
 
 //SetLog 设置log
