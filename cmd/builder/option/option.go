@@ -75,7 +75,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.DockerEndpoint, "dockerd", "127.0.0.1:2376", "dockerd endpoint")
 	fs.StringVar(&a.HostIP, "hostIP", "", "Current node Intranet IP")
 	fs.BoolVar(&a.CleanUp, "clean-up", false, "Turn on build version cleanup")
-	fs.StringVar(&a.NodeOS, "node-os", "linux", "Node operation system type, linux or win.")
+	fs.StringVar(&a.NodeOS, "topic", "builder", "Topic in mq")
 }
 
 //SetLog 设置log

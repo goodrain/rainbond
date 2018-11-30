@@ -159,7 +159,7 @@ func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service 
 	}
 
 	// use "linux" as the default topic
-	topic := "linux"
+	topic := "builder"
 	if label == nil || strings.Replace(label.LabelValue, " ", "", -1) == "" {
 		topic = strings.Replace(label.LabelValue, " ", "", -1)
 	}
