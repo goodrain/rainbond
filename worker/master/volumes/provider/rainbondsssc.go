@@ -25,7 +25,7 @@ import (
 	"github.com/Sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/util"
-	"github.com/kubernetes-incubator/external-storage/lib/controller"
+	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -33,6 +33,7 @@ import (
 type rainbondssscProvisioner struct {
 	// The directory to create PV-backing directories in
 	pvDir string
+	name  string
 }
 
 // NewRainbondssscProvisioner creates a new Rainbond statefulset share volume provisioner
@@ -43,6 +44,7 @@ func NewRainbondssscProvisioner() controller.Provisioner {
 	}
 	return &rainbondssscProvisioner{
 		pvDir: sharePath,
+		name:  "rainbond.io/provisioner/sssc",
 	}
 }
 
@@ -82,4 +84,8 @@ func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*
 func (p *rainbondssscProvisioner) Delete(volume *v1.PersistentVolume) error {
 
 	return nil
+}
+
+func (p *rainbondssscProvisioner) Name() string {
+	return p.name
 }

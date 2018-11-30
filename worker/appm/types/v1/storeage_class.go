@@ -35,6 +35,9 @@ var initStorageClass []*storagev1.StorageClass
 //RainbondStatefuleShareStorageClass rainbond support statefulset app share volume
 var RainbondStatefuleShareStorageClass = "rainbondsssc"
 
+//RainbondStatefuleLocalStorageClass rainbond support statefulset app local volume
+var RainbondStatefuleLocalStorageClass = "rainbondslsc"
+
 func init() {
 	var volumeBindingImmediate = storagev1.VolumeBindingImmediate
 	var columeWaitForFirstConsumer = storagev1.VolumeBindingWaitForFirstConsumer
@@ -42,14 +45,14 @@ func init() {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: RainbondStatefuleShareStorageClass,
 		},
-		Provisioner:       "rainbond.io/provisioner",
+		Provisioner:       "rainbond.io/provisioner-sssc",
 		VolumeBindingMode: &volumeBindingImmediate,
 	})
 	initStorageClass = append(initStorageClass, &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "local-storage",
 		},
-		Provisioner:       "kubernetes.io/no-provisioner",
+		Provisioner:       "rainbond.io/provisioner-slsc",
 		VolumeBindingMode: &columeWaitForFirstConsumer,
 	})
 }

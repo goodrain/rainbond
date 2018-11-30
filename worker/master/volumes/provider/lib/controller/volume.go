@@ -36,6 +36,7 @@ type Provisioner interface {
 	// May return IgnoredError to indicate that the call has been ignored and no
 	// action taken.
 	Delete(*v1.PersistentVolume) error
+	Name() string
 }
 
 // Qualifier is an optional interface implemented by provisioners to determine

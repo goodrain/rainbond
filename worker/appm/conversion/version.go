@@ -355,7 +355,8 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath, hos
 	switch VolumeType {
 	case dbmodel.ShareFileVolumeType:
 		if statefulset := v.as.GetStatefulSet(); statefulset != nil {
-			resourceStorage, _ := resource.ParseQuantity("40Gi")
+			//do not limit
+			resourceStorage, _ := resource.ParseQuantity("500Gi")
 			statefulset.Spec.VolumeClaimTemplates = append(
 				statefulset.Spec.VolumeClaimTemplates,
 				corev1.PersistentVolumeClaim{
@@ -368,6 +369,36 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath, hos
 					Spec: corev1.PersistentVolumeClaimSpec{
 						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
 						StorageClassName: &v1.RainbondStatefuleShareStorageClass,
+						Resources: corev1.ResourceRequirements{
+							Requests: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceStorage: resourceStorage,
+							},
+						},
+					},
+				},
+			)
+			v.volumeMounts = append(v.volumeMounts, corev1.VolumeMount{
+				Name:      name,
+				MountPath: mountPath,
+				ReadOnly:  readOnly,
+			})
+		}
+	case dbmodel.LocalVolumeType:
+		if statefulset := v.as.GetStatefulSet(); statefulset != nil {
+			//do not limit
+			resourceStorage, _ := resource.ParseQuantity("500Gi")
+			statefulset.Spec.VolumeClaimTemplates = append(
+				statefulset.Spec.VolumeClaimTemplates,
+				corev1.PersistentVolumeClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: name,
+						Labels: v.as.GetCommonLabels(map[string]string{
+							"tenant_id": v.as.TenantID,
+						}),
+					},
+					Spec: corev1.PersistentVolumeClaimSpec{
+						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+						StorageClassName: &v1.RainbondStatefuleLocalStorageClass,
 						Resources: corev1.ResourceRequirements{
 							Requests: map[corev1.ResourceName]resource.Quantity{
 								corev1.ResourceStorage: resourceStorage,

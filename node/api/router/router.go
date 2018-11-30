@@ -55,6 +55,9 @@ func Routers(mode string) *chi.Mux {
 			r.Get("/{app_name}/discover", controller.APPDiscover)
 			r.Get("/", controller.APPList)
 		})
+		r.Route("/localvolumes", func(r chi.Router) {
+			r.Post("/create", controller.CreateLocalVolume)
+		})
 		//以下只有管理节点具有的API
 		if mode == "master" {
 			r.Route("/configs", func(r chi.Router) {

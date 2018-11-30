@@ -36,7 +36,7 @@ import (
 
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/util/leader"
-	"github.com/kubernetes-incubator/external-storage/lib/controller"
+	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
 )
 
 //Controller app runtime master controller
@@ -67,11 +67,16 @@ func NewMasterController(conf option.Config, store store.Storer) (*Controller, e
 
 	// Create the provisioner: it implements the Provisioner interface expected by
 	// the controller
-	rainbondsscProvisioner := provider.NewRainbondssscProvisioner()
-
+	//statefulset share controller
+	rainbondssscProvisioner := provider.NewRainbondssscProvisioner()
+	//statefulset local controller
+	rainbondsslcProvisioner := provider.NewRainbondsslcProvisioner()
 	// Start the provision controller which will dynamically provision hostPath
 	// PVs
-	pc := controller.NewProvisionController(conf.KubeClient, "rainbond.io/provisioner", rainbondsscProvisioner, serverVersion.GitVersion)
+	pc := controller.NewProvisionController(conf.KubeClient, map[string]controller.Provisioner{
+		rainbondssscProvisioner.Name(): rainbondssscProvisioner,
+		rainbondsslcProvisioner.Name(): rainbondsslcProvisioner,
+	}, serverVersion.GitVersion)
 	return &Controller{
 		conf:      conf,
 		pc:        pc,

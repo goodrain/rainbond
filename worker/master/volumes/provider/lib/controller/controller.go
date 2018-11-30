@@ -26,8 +26,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
-	"github.com/kubernetes-incubator/external-storage/lib/controller/metrics"
-	"github.com/kubernetes-incubator/external-storage/lib/util"
+	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller/metrics"
+	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/util"
 	"golang.org/x/time/rate"
 	"k8s.io/api/core/v1"
 	storage "k8s.io/api/storage/v1"
@@ -75,16 +75,11 @@ const annSelectedNode = "volume.kubernetes.io/selected-node"
 type ProvisionController struct {
 	client kubernetes.Interface
 
-	// The name of the provisioner for which this controller dynamically
-	// provisions volumes. The value of annDynamicallyProvisioned and
-	// annStorageProvisioner to set & watch for, respectively
-	provisionerName string
-
 	// The provisioner the controller will use to provision and delete volumes.
 	// Presumably this implementer of Provisioner carries its own
 	// volume-specific options and such that it needs in order to provision
 	// volumes.
-	provisioner Provisioner
+	provisioners map[string]Provisioner
 
 	// Kubernetes cluster server version:
 	// * 1.4: storage classes introduced as beta. Technically out-of-tree dynamic
@@ -409,8 +404,7 @@ func (ctrl *ProvisionController) HasRun() bool {
 // the given configuration parameters and with private (non-shared) informers.
 func NewProvisionController(
 	client kubernetes.Interface,
-	provisionerName string,
-	provisioner Provisioner,
+	provisioners map[string]Provisioner,
 	kubeVersion string,
 	options ...func(*ProvisionController) error,
 ) *ProvisionController {
@@ -420,7 +414,7 @@ func NewProvisionController(
 	}
 	// add a uniquifier so that two processes on the same host don't accidentally both become active
 	id = id + "_" + string(uuid.NewUUID())
-	component := provisionerName + "_" + id
+	component := "rainbond.io/provisioner" + "_" + id
 
 	v1.AddToScheme(scheme.Scheme)
 	broadcaster := record.NewBroadcaster()
@@ -430,8 +424,7 @@ func NewProvisionController(
 
 	controller := &ProvisionController{
 		client:                        client,
-		provisionerName:               provisionerName,
-		provisioner:                   provisioner,
+		provisioners:                  provisioners,
 		kubeVersion:                   utilversion.MustParseSemantic(kubeVersion),
 		id:                            id,
 		component:                     component,
@@ -753,16 +746,15 @@ func (ctrl *ProvisionController) shouldProvision(claim *v1.PersistentVolumeClaim
 		return false
 	}
 
-	if qualifier, ok := ctrl.provisioner.(Qualifier); ok {
-		if !qualifier.ShouldProvision(claim) {
-			return false
-		}
-	}
-
 	// Kubernetes 1.5 provisioning with annStorageProvisioner
 	if ctrl.kubeVersion.AtLeast(utilversion.MustParseSemantic("v1.5.0")) {
 		if provisioner, found := claim.Annotations[annStorageProvisioner]; found {
-			if provisioner == ctrl.provisionerName {
+			if pr, ok := ctrl.provisioners[provisioner]; ok {
+				if qualifier, ok := pr.(Qualifier); ok {
+					if !qualifier.ShouldProvision(claim) {
+						return false
+					}
+				}
 				return true
 			}
 			return false
@@ -805,18 +797,34 @@ func (ctrl *ProvisionController) shouldDelete(volume *v1.PersistentVolume) bool 
 		return false
 	}
 
-	if ann := volume.Annotations[annDynamicallyProvisioned]; ann != ctrl.provisionerName {
+	if ctrl.getProvisioner(volume) == nil {
 		return false
 	}
 
 	return true
 }
+func (ctrl *ProvisionController) getProvisioner(volume *v1.PersistentVolume) Provisioner {
+	if ann := volume.Annotations[annDynamicallyProvisioned]; ann != "" {
+		if pr, ok := ctrl.provisioners[ann]; ok {
+			return pr
+		}
+	}
+	return nil
+}
+func (ctrl *ProvisionController) getProvisionerByPvc(pvc *v1.PersistentVolumeClaim) Provisioner {
+	if ann := pvc.Annotations[annDynamicallyProvisioned]; ann != "" {
+		if pr, ok := ctrl.provisioners[ann]; ok {
+			return pr
+		}
+	}
+	return nil
+}
 
 // canProvision returns error if provisioner can't provision claim.
-func (ctrl *ProvisionController) canProvision(claim *v1.PersistentVolumeClaim) error {
+func (ctrl *ProvisionController) canProvision(claim *v1.PersistentVolumeClaim, pr Provisioner) error {
 	// Check if this provisioner supports Block volume
-	if util.CheckPersistentVolumeClaimModeBlock(claim) && !ctrl.supportsBlock() {
-		return fmt.Errorf("%s does not support block volume provisioning", ctrl.provisionerName)
+	if util.CheckPersistentVolumeClaimModeBlock(claim) && !ctrl.supportsBlock(pr) {
+		return fmt.Errorf("%s does not support block volume provisioning", pr.Name())
 	}
 
 	return nil
@@ -893,7 +901,7 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 		logrus.Error(logOperation(operation, "error getting claim's StorageClass's fields: %v", err))
 		return nil
 	}
-	if provisioner != ctrl.provisionerName {
+	if _, ok := ctrl.provisioners[provisioner]; !ok {
 		// class.Provisioner has either changed since shouldProvision() or
 		// annDynamicallyProvisioned contains different provisioner than
 		// class.Provisioner.
@@ -902,7 +910,7 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 	}
 
 	// Check if this provisioner can provision this claim.
-	if err = ctrl.canProvision(claim); err != nil {
+	if err = ctrl.canProvision(claim, ctrl.provisioners[provisioner]); err != nil {
 		ctrl.eventRecorder.Event(claim, v1.EventTypeWarning, "ProvisioningFailed", err.Error())
 		logrus.Error(logOperation(operation, "failed to provision volume: %v", err))
 		return nil
@@ -955,7 +963,7 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 
 	ctrl.eventRecorder.Event(claim, v1.EventTypeNormal, "Provisioning", fmt.Sprintf("External provisioner is provisioning volume for claim %q", claimToClaimKey(claim)))
 
-	volume, err = ctrl.provisioner.Provision(options)
+	volume, err = ctrl.provisioners[provisioner].Provision(options)
 	if err != nil {
 		if ierr, ok := err.(*IgnoredError); ok {
 			// Provision ignored, do nothing and hope another provisioner will provision it.
@@ -972,7 +980,7 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 	// Set ClaimRef and the PV controller will bind and set annBoundByController for us
 	volume.Spec.ClaimRef = claimRef
 
-	metav1.SetMetaDataAnnotation(&volume.ObjectMeta, annDynamicallyProvisioned, ctrl.provisionerName)
+	metav1.SetMetaDataAnnotation(&volume.ObjectMeta, annDynamicallyProvisioned, ctrl.provisioners[provisioner].Name())
 	if ctrl.kubeVersion.AtLeast(utilversion.MustParseSemantic("v1.6.0")) {
 		volume.Spec.StorageClassName = claimClass
 	} else {
@@ -1007,7 +1015,7 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 		ctrl.eventRecorder.Event(claim, v1.EventTypeWarning, "ProvisioningFailed", strerr)
 
 		for i := 0; i < ctrl.createProvisionedPVRetryCount; i++ {
-			if err = ctrl.provisioner.Delete(volume); err == nil {
+			if err = ctrl.provisioners[provisioner].Delete(volume); err == nil {
 				// Delete succeeded
 				logrus.Info(logOperation(operation, "cleaning volume %q succeeded", volume.Name))
 				break
@@ -1053,7 +1061,7 @@ func (ctrl *ProvisionController) deleteVolumeOperation(volume *v1.PersistentVolu
 		return nil
 	}
 
-	err = ctrl.provisioner.Delete(volume)
+	err = ctrl.getProvisioner(volume).Delete(volume)
 	if err != nil {
 		if ierr, ok := err.(*IgnoredError); ok {
 			// Delete ignored, do nothing and hope another provisioner will delete it.
@@ -1193,8 +1201,8 @@ func (ctrl *ProvisionController) fetchAllowedTopologies(storageClassName string)
 // supportsBlock returns whether a provisioner supports block volume.
 // Provisioners that implement BlockProvisioner interface and return true to SupportsBlock
 // will be regarded as supported for block volume.
-func (ctrl *ProvisionController) supportsBlock() bool {
-	if blockProvisioner, ok := ctrl.provisioner.(BlockProvisioner); ok {
+func (ctrl *ProvisionController) supportsBlock(pr Provisioner) bool {
+	if blockProvisioner, ok := pr.(BlockProvisioner); ok {
 		return blockProvisioner.SupportsBlock()
 	}
 	return false
