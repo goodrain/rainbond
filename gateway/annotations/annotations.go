@@ -42,6 +42,7 @@ import (
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
 	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
+	"github.com/goodrain/rainbond/gateway/annotations/wight"
 	"github.com/imdario/mergo"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,6 +57,7 @@ type Ingress struct {
 	metav1.ObjectMeta
 	Header  header.Config
 	Cookie  cookie.Config
+	Weight  weight.Config
 	Rewrite rewrite.Config
 	L4      l4.Config
 }
@@ -71,6 +73,7 @@ func NewAnnotationExtractor(cfg resolver.Resolver) Extractor {
 		map[string]parser.IngressAnnotation{
 			"Header":  header.NewParser(cfg),
 			"Cookie":  cookie.NewParser(cfg),
+			"Weight":  weight.NewParser(cfg),
 			"Rewrite": rewrite.NewParser(cfg),
 			"L4":      l4.NewParser(cfg),
 		},
