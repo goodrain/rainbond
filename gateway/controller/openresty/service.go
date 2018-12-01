@@ -238,21 +238,22 @@ func (osvc *OrService) UpdatePools(pools []*v1.Pool) error {
 			}
 			upstream.Servers = append(upstream.Servers, server)
 		}
-		if len(upstream.Servers) == 0 {
-			continue
-		}
+		//if len(upstream.Servers) == 0 {
+		//	continue
+		//}
 		upstreams = append(upstreams, upstream)
 	}
-	if len(upstreams) == 0 {
-		// TODO
-		return nil
-	}
+	//if len(upstreams) == 0 {
+	//	logrus.Warningf("empty upstreams: %v", pools)
+	//	return nil
+	//}
 	return osvc.updateUpstreams(upstreams)
 }
 
 // updateUpstreams updates the upstreams in ngx.shared.dict by post
 func (osvc *OrService) updateUpstreams(upstream []*Upstream) error {
 	url := fmt.Sprintf("http://127.0.0.1:%v/update-upstreams", osvc.AuxiliaryPort)
+	osvc.WaitPluginReadyWithURL(url)
 	data, _ := json.Marshal(upstream)
 	logrus.Debugf("request contest of update-upstreams is %v", string(data))
 
@@ -305,6 +306,19 @@ func (osvc *OrService) deletePools(names []string) error {
 // WaitPluginReady waits for nginx to be ready.
 func (osvc *OrService) WaitPluginReady() {
 	url := fmt.Sprintf("http://127.0.0.1:%v/healthz", osvc.AuxiliaryPort)
+	for {
+		resp, err := http.Get(url)
+		if err == nil && resp.StatusCode == 200 {
+			logrus.Info("Nginx is ready")
+			break
+		}
+		logrus.Infof("Nginx is not ready yet: %v", err)
+		time.Sleep(1 * time.Second)
+	}
+}
+
+// WaitPluginReady waits for the specified url to be ready
+func (osvc *OrService) WaitPluginReadyWithURL(url string) {
 	for {
 		resp, err := http.Get(url)
 		if err == nil && resp.StatusCode == 200 {
