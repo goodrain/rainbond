@@ -116,11 +116,14 @@ func (osvc *OrService) PersistConfig(conf *v1.Config) error {
 		logrus.Errorf("Cant not remove directory(%s): %v", template.CustomConfigPath, err)
 	}
 
-	if err := osvc.persistUpstreams(conf.HTTPPools, "upstreams-http.tmpl", "http/upstreams.conf"); err != nil {
+	if err := osvc.persistUpstreams(conf.HTTPPools, "upstreams-http.tmpl", template.CustomConfigPath, "http/upstreams.conf"); err != nil {
 		logrus.Errorf("fail to persist http upstreams.conf ")
 	}
-
-	if err := osvc.persistUpstreams(conf.TCPPools, "upstreams-tcp.tmpl", "stream/upstreams.conf"); err != nil {
+	if err := osvc.persistUpstreams(conf.TCPPools, "upstreams-tcp.tmpl", template.CustomConfigPath, "stream/upstreams.conf"); err != nil {
+		logrus.Errorf("fail to persist tcp upstreams.conf")
+	}
+	pools := append(conf.HTTPPools, conf.TCPPools...)
+	if err := osvc.persistUpstreams(pools, "update-ups.tmpl", "/run/nginx/","update-ups.conf"); err != nil {
 		logrus.Errorf("fail to persist tcp upstreams.conf")
 	}
 
@@ -159,10 +162,10 @@ func (osvc *OrService) PersistConfig(conf *v1.Config) error {
 }
 
 // persistUpstreams persists upstreams
-func (osvc *OrService) persistUpstreams(pools []*v1.Pool, tmpl string, filename string) error {
-	var upstreams []model.Upstream
+func (osvc *OrService) persistUpstreams(pools []*v1.Pool, tmpl string, path string, filename string) error {
+	var upstreams []*model.Upstream
 	for _, pool := range pools {
-		upstream := model.Upstream{}
+		upstream := &model.Upstream{}
 		upstream.Name = pool.Name
 		var servers []model.UServer
 		for _, node := range pool.Nodes {
@@ -178,13 +181,8 @@ func (osvc *OrService) persistUpstreams(pools []*v1.Pool, tmpl string, filename 
 		upstreams = append(upstreams, upstream)
 	}
 	if len(upstreams) > 0 {
-		if err := template.NewUpstreamTemplate(upstreams, tmpl, filename); err != nil {
+		if err := template.NewUpstreamTemplateWithCfgPath(upstreams, tmpl, path, filename); err != nil {
 			logrus.Errorf("Fail to new nginx Upstream config file: %v", err)
-			return err
-		}
-		if err := template.NewUpdateUpsTemplate(upstreams,
-			"update-ups.tmpl", "/run/nginx/", "update-ups.conf"); err != nil {
-			logrus.Errorf("Fail to new update-ups.conf: %v", err)
 			return err
 		}
 	}

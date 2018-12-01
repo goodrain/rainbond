@@ -87,7 +87,7 @@ http {
             }
         }
 
-        include update-ups.conf;
+        include update-ups*.conf;
 
         location /delete-upstreams {
             content_by_lua_block {
