@@ -30,7 +30,7 @@ func langGoodrainMe() (*model.Server, *model.Upstream) {
 					{Field: "X-Forwarded-For", Value: "$proxy_add_x_forwarded_for"},
 				},
 				NameCondition: map[string]*v1.Condition{
-					"lang": {
+					"lang0": {
 						Type:  v1.DefaultType,
 						Value: map[string]string{"1": "1"},
 					},
@@ -68,7 +68,7 @@ func mavenGoodrainMe() (*model.Server, *model.Upstream) {
 					{Field: "X-Forwarded-For", Value: "$proxy_add_x_forwarded_for"},
 				},
 				NameCondition: map[string]*v1.Condition{
-					"maven": {
+					"maven0": {
 						Type:  v1.DefaultType,
 						Value: map[string]string{"1": "1"},
 					},
@@ -109,7 +109,7 @@ func goodrainMe() (*model.Server, *model.Upstream) {
 					Unit: "s",
 				},
 				NameCondition: map[string]*v1.Condition{
-					"registry": {
+					"registry0": {
 						Type:  v1.DefaultType,
 						Value: map[string]string{"1": "1"},
 					},
