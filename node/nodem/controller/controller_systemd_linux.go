@@ -24,10 +24,10 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/service"
 )
 
@@ -36,20 +36,20 @@ type ControllerSystemd struct {
 	NodeType     string
 	StartType    string
 	conf         *option.Conf
-	cluster      client.ClusterClient
+	manager      *ManagerService
 	regBlock     *regexp.Regexp
 	ServiceCli   string
 }
 
 //NewController At the stage you want to load the configurations of all rainbond components
-func NewController(conf *option.Conf, cluster client.ClusterClient) Controller {
+func NewController(conf *option.Conf, manager *ManagerService) Controller {
 	cli, err := exec.LookPath("systemctl")
 	if err != nil {
 		logrus.Errorf("current machine do not have systemctl utils")
 	}
 	return &ControllerSystemd{
 		conf:         conf,
-		cluster:      cluster,
+		manager:      manager,
 		ServiceCli:   cli,
 		SysConfigDir: "/etc/systemd/system",
 	}
@@ -140,7 +140,7 @@ func (m *ControllerSystemd) DisableService(serviceName string) error {
 func (m *ControllerSystemd) WriteConfig(s *service.Service) error {
 	fileName := fmt.Sprintf("%s/%s.service", m.SysConfigDir, s.Name)
 	content := service.ToConfig(s)
-	content = service.InjectConfig(content, m.cluster)
+	content = service.InjectConfig(content, m.manager)
 	if content == "" {
 		err := fmt.Errorf("can not generate config for service %s", s.Name)
 		logrus.Error(err)
@@ -202,7 +202,7 @@ func (m *ControllerSystemd) InitStart(services []*service.Service) error {
 				fmt.Println(err)
 				return err
 			}
-
+			content = m.manager.InjectConfig(content)
 			if err := ioutil.WriteFile(fileName, []byte(content), 0644); err != nil {
 				fmt.Printf("Generate config file %s: %v", fileName, err)
 				return err
@@ -213,4 +213,47 @@ func (m *ControllerSystemd) InitStart(services []*service.Service) error {
 		}
 	}
 	return nil
+}
+
+func ToConfig(svc *Service) string {
+	if svc.Start == "" {
+		logrus.Error("service start command is empty.")
+		return ""
+	}
+
+	s := service.Lines{"[Unit]"}
+	s.Add("Description", svc.Name)
+	for _, d := range svc.After {
+		dpd := d
+		if !strings.Contains(dpd, ".") {
+			dpd += ".service"
+		}
+		s.Add("After", dpd)
+	}
+
+	for _, d := range svc.Requires {
+		dpd := d
+		if !strings.Contains(dpd, ".") {
+			dpd += ".service"
+		}
+		s.Add("Requires", dpd)
+	}
+
+	s.AddTitle("[Service]")
+	if svc.Type == "oneshot" {
+		s.Add("Type", svc.Type)
+		s.Add("RemainAfterExit", "yes")
+	}
+	s.Add("ExecStartPre", fmt.Sprintf(`-/bin/bash -c '%s'`, svc.PreStart))
+	s.Add("ExecStart", fmt.Sprintf(`/bin/bash -c '%s'`, svc.Start))
+	s.Add("ExecStop", fmt.Sprintf(`/bin/bash -c '%s'`, svc.Stop))
+	s.Add("Restart", svc.RestartPolicy)
+	s.Add("RestartSec", svc.RestartSec)
+
+	s.AddTitle("[Install]")
+	s.Add("WantedBy", "multi-user.target")
+
+	logrus.Debugf("check is need inject args into service %s", svc.Name)
+
+	return s.Get()
 }

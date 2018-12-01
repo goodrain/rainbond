@@ -66,7 +66,7 @@ type NodeManager struct {
 //NewNodeManager new a node manager
 func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 	healthyManager := healthy.CreateManager()
-	controller, cluster := controller.NewManagerService(conf, healthyManager)
+	cluster := client.NewClusterClient(conf)
 	taskrun, err := taskrun.Newmanager(conf)
 	if err != nil {
 		return nil, err
@@ -76,16 +76,17 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 		return nil, err
 	}
 	clm := logger.CreatContainerLogManage(conf)
+	controller := controller.NewManagerService(conf, healthyManager, cluster)
 	ctx, cancel := context.WithCancel(context.Background())
 	nodem := &NodeManager{
 		cfg:        conf,
 		ctx:        ctx,
 		cancel:     cancel,
-		controller: controller,
 		taskrun:    taskrun,
 		cluster:    cluster,
 		monitor:    monitor,
 		healthy:    healthyManager,
+		controller: controller,
 		etcdCli:    conf.EtcdCli,
 		clm:        clm,
 	}
@@ -105,7 +106,7 @@ func (n *NodeManager) Start(errchan chan error) error {
 	if err := n.init(); err != nil {
 		return err
 	}
-	if err := n.controller.Start(); err != nil {
+	if err := n.controller.Start(n.HostNode); err != nil {
 		return fmt.Errorf("start node controller error,%s", err.Error())
 	}
 	services, err := n.controller.GetAllService()

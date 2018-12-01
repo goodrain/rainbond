@@ -21,6 +21,8 @@ package controller
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,8 +34,13 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/service"
 )
 
+var (
+	ArgsReg = regexp.MustCompile(`\$\{(\w+)\|{0,1}(.{0,1})\}`)
+)
+
 //ManagerService manager service
 type ManagerService struct {
+	node                 client.HostNode
 	ctx                  context.Context
 	cancel               context.CancelFunc
 	syncCtx              context.Context
@@ -55,9 +62,10 @@ func (m *ManagerService) GetAllService() (*[]*service.Service, error) {
 }
 
 //Start  start and monitor all service
-func (m *ManagerService) Start() error {
+func (m *ManagerService) Start(node client.HostNode) error {
 	logrus.Info("Starting node controller manager.")
 	m.loadServiceConfig()
+	m.node = node
 	if m.conf.EnableInitStart {
 		return m.ctr.InitStart(*m.services)
 	}
@@ -339,6 +347,7 @@ func (m *ManagerService) WriteServices() error {
 		if s.Name == "docker" {
 			continue
 		}
+
 		err := m.ctr.WriteConfig(s)
 		if err != nil {
 			return err
@@ -387,10 +396,46 @@ func toEndpoint(reg *service.Endpoint, ip string) string {
 	return fmt.Sprintf("%s://%s:%s", reg.Protocol, ip, reg.Port)
 }
 
+//InjectConfig inject config
+func (m *ManagerService) InjectConfig(content string) string {
+	for _, parantheses := range ArgsReg.FindAllString(content, -1) {
+		logrus.Debugf("discover inject args template %s", parantheses)
+		group := ArgsReg.FindStringSubmatch(parantheses)
+		if group == nil || len(group) < 2 {
+			logrus.Warnf("Not found group for %s", parantheses)
+			continue
+		}
+		line := ""
+		if group[1] == "NODE_UUID" {
+			line = m.node.ID
+		} else {
+			endpoints := m.cluster.GetEndpoints(group[1])
+			if len(endpoints) < 1 {
+				logrus.Warnf("Failed to inject endpoints of key %s", group[1])
+				continue
+			}
+			sep := ","
+			if len(group) >= 3 && group[2] != "" {
+				sep = group[2]
+			}
+			for _, end := range endpoints {
+				if line == "" {
+					line = end
+				} else {
+					line += sep
+					line += end
+				}
+			}
+		}
+		content = strings.Replace(content, group[0], line, 1)
+		logrus.Debugf("inject args into service %s => %v", group[1], line)
+	}
+	return content
+}
+
 //NewManagerService new controller manager
-func NewManagerService(conf *option.Conf, healthyManager healthy.Manager) (*ManagerService, client.ClusterClient) {
+func NewManagerService(conf *option.Conf, healthyManager healthy.Manager, cluster client.ClusterClient) *ManagerService {
 	ctx, cancel := context.WithCancel(context.Background())
-	cluster := client.NewClusterClient(conf)
 	manager := &ManagerService{
 		ctx:            ctx,
 		cancel:         cancel,
@@ -402,5 +447,5 @@ func NewManagerService(conf *option.Conf, healthyManager healthy.Manager) (*Mana
 		services:       new([]*service.Service),
 		allservice:     new([]*service.Service),
 	}
-	return manager, cluster
+	return manager
 }

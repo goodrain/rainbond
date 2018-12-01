@@ -20,12 +20,13 @@ package controller
 
 import (
 	"github.com/goodrain/rainbond/node/api"
+	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/service"
 )
 
 //Manager Manager
 type Manager interface {
-	Start() error
+	Start(client.HostNode) error
 	Stop() error
 	GetAllService() (*[]*service.Service, error)
 	Online() error

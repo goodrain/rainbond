@@ -23,18 +23,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/goodrain/rainbond/util"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/node/nodem/client"
 	"gopkg.in/yaml.v2"
-)
-
-var (
-	ArgsReg = regexp.MustCompile(`\$\{(\w+)\|{0,1}(.{0,1})\}`)
 )
 
 //LoadServicesFromLocal load all service config from config file
@@ -98,87 +92,6 @@ func loadServicesFromFile(serviceListFile string) ([]*Service, error) {
 		return nil, err
 	}
 	return defaultConfigs.Services, nil
-}
-
-func ToConfig(svc *Service) string {
-	if svc.Start == "" {
-		logrus.Error("service start command is empty.")
-		return ""
-	}
-
-	s := Lines{"[Unit]"}
-	s.Add("Description", svc.Name)
-	for _, d := range svc.After {
-		dpd := d
-		if !strings.Contains(dpd, ".") {
-			dpd += ".service"
-		}
-		s.Add("After", dpd)
-	}
-
-	for _, d := range svc.Requires {
-		dpd := d
-		if !strings.Contains(dpd, ".") {
-			dpd += ".service"
-		}
-		s.Add("Requires", dpd)
-	}
-
-	s.AddTitle("[Service]")
-	if svc.Type == "oneshot" {
-		s.Add("Type", svc.Type)
-		s.Add("RemainAfterExit", "yes")
-	}
-	s.Add("ExecStartPre", fmt.Sprintf(`-/bin/bash -c '%s'`, svc.PreStart))
-	s.Add("ExecStart", fmt.Sprintf(`/bin/bash -c '%s'`, svc.Start))
-	s.Add("ExecStop", fmt.Sprintf(`/bin/bash -c '%s'`, svc.Stop))
-	s.Add("Restart", svc.RestartPolicy)
-	s.Add("RestartSec", svc.RestartSec)
-
-	s.AddTitle("[Install]")
-	s.Add("WantedBy", "multi-user.target")
-
-	logrus.Debugf("check is need inject args into service %s", svc.Name)
-
-	return s.Get()
-}
-
-func InjectConfig(content string, cluster client.ClusterClient) string {
-	if cluster == nil {
-		logrus.Error("cluster client can not is nil, at to config.")
-		return ""
-	}
-
-	for _, parantheses := range ArgsReg.FindAllString(content, -1) {
-		logrus.Debugf("discover inject args template %s", parantheses)
-		group := ArgsReg.FindStringSubmatch(parantheses)
-		if group == nil || len(group) < 2 {
-			logrus.Warnf("Not found group for ", parantheses)
-			continue
-		}
-		endpoints := cluster.GetEndpoints(group[1])
-		if len(endpoints) < 1 {
-			logrus.Warnf("Failed to inject endpoints of key %s", group[1])
-			continue
-		}
-		sep := ","
-		if len(group) >= 3 && group[2] != "" {
-			sep = group[2]
-		}
-		line := ""
-		for _, end := range endpoints {
-			if line == "" {
-				line = end
-			} else {
-				line += sep
-				line += end
-			}
-		}
-		content = strings.Replace(content, group[0], line, 1)
-		logrus.Debugf("inject args into service %s => %v", group[1], endpoints)
-	}
-
-	return content
 }
 
 type Lines struct {
