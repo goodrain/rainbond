@@ -1,0 +1,34 @@
+location /update-upstreams {
+    content_by_lua_block {
+        local resty_roundrobin = require "resty.roundrobin"
+        local cjson = require("cjson")
+        ngx.req.read_body()
+        local data = ngx.req.get_body_data()
+        if not data then
+            local name = ngx.req.get_body_file()
+            local f = io.open(name, "r")
+            data = f:read("*a")
+        end
+
+        upstreams = cjson.decode(data)
+        for _, upstream in pairs(upstreams) do
+            name = upstream.Name
+            ngx.say(name)
+            local servers = cjson.encode(upstream.Servers)
+            ngx.say(servers)
+            ngx.shared.upstreams_dict:set(name, servers)
+            ngx.say("ok")
+
+            local server_list = {}
+            for _, ep in pairs(upstream.Servers) do
+                key = ep.Host..":"..ep.Port
+                server_list[key] = ep.Weight
+            end
+            {{ range $upstream := . }}
+            if name == "{{$upstream.Name}}" then
+                package.loaded.{{$upstream.Name}} = resty_roundrobin:new(server_list)
+            end
+            {{ end }}
+        end
+    }
+}

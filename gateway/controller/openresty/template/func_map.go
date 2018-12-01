@@ -53,7 +53,8 @@ func buildLuaHeaderRouter(input interface{}) string {
 
 	priority := make([]string, 3)
 	for name, c := range loc.NameCondition {
-		switch c.Type{
+		name = name[:len(name)-1]
+		switch c.Type {
 		case v1.HeaderType:
 			snippet := []string{}
 			condition := []string{}
@@ -91,7 +92,6 @@ func buildLuaHeaderRouter(input interface{}) string {
 			snippet = append(snippet, "\t\t\t\tend", "\t\t\tend")
 			priority[1] = strings.Join(snippet, "\n\r")
 		default:
-
 			snippet := fmt.Sprintf("\t\t\tngx.var.target = \"%s\"", name)
 			priority[0] = snippet
 		}

@@ -18,22 +18,31 @@
 
 package v1
 
+// ConditionType condition type
 type ConditionType string
 
+// HeaderType -
 var HeaderType ConditionType = "header"
+
+// CookieType -
 var CookieType ConditionType = "cookie"
+
+// DefaultType -
 var DefaultType ConditionType = "default"
 
+// Location -
 type Location struct {
 	Path          string
-	NameCondition map[string]*Condition
+	NameCondition map[string]*Condition  // papping between backend name and condition
 }
 
+// Condition is the condition that the traffic can reach the specified backend
 type Condition struct {
 	Type  ConditionType
 	Value map[string]string
 }
 
+// Equals determines if two locations are equal
 func (l *Location) Equals(c *Location) bool {
 	if l == c {
 		return true
@@ -57,6 +66,7 @@ func (l *Location) Equals(c *Location) bool {
 	return true
 }
 
+// Equals determines if two conditions are equal
 func (c *Condition) Equals(cc *Condition) bool {
 	if c == cc {
 		return true

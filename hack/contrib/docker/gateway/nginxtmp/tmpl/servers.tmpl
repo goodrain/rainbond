@@ -17,6 +17,13 @@ server {
     {{ end }}
     {{ if $svr.SSLCertificateKey }}ssl_certificate_key {{$svr.SSLCertificateKey}};{{ end }}
 
+    {{ if $svr.ClientMaxBodySize.Unit }}
+    client_max_body_size {{$svr.ClientMaxBodySize.Num}}{{$svr.ClientMaxBodySize.Unit}};
+    {{ end }}
+    {{ if $svr.ChunkedTransferEncoding }}
+    chunked_transfer_encoding on;
+    {{ end }}
+
     {{ range $rewrite := $svr.Rewrites }}
     rewrite {{$rewrite.Regex}} {{$rewrite.Replacement}}{{if $rewrite.Flag }} {{$rewrite.Flag}}{{ end }};
     {{ end }}
@@ -35,11 +42,37 @@ server {
     proxy_pass {{$svr.ProxyPass}};
     {{ end }}
 
-    {{ range $location := $svr.Locations }}
-    location {{$location.Path}} {
+    {{ range $loc := $svr.Locations }}
+    location {{$loc.Path}} {
+        {{ range $rewrite := $loc.Rewrites }}
+        rewrite {{$rewrite.Regex}} {{$rewrite.Replacement}}{{if $rewrite.Flag }} {{$rewrite.Flag}}{{ end }};
+        {{ end }}
+        {{ range $psh := $loc.ProxySetHeaders }}
+        proxy_set_header {{$psh.Field}} {{$psh.Value}};
+        {{ end }}
+        {{ if $loc.ProxyReadTimeout.Unit }}
+        proxy_read_timeout {{$loc.ProxyReadTimeout.Num}}{{$loc.ProxyReadTimeout.Unit}};
+        {{ end }}
+        {{ if $loc.ProxyRedirect }}
+        proxy_redirect {{$loc.ProxyRedirect}};
+        {{ end }}
+        {{ if gt $loc.ProxyConnectTimeout.Num 0 }}
+        proxy_connect_timeout {{$loc.ProxyConnectTimeout.Num}}{{$loc.ProxyConnectTimeout.Unit}};
+        {{ end }}
+        {{ if gt $loc.ProxyReadTimeout.Num 0 }}
+        proxy_read_timeout {{$loc.ProxyReadTimeout.Num}}{{$loc.ProxyReadTimeout.Unit}};
+        {{ end }}
+        {{ if gt $loc.ProxySendTimeout.Num 0 }}
+        proxy_read_timeout {{$loc.ProxySendTimeout.Num}}{{$loc.ProxySendTimeout.Unit}};
+        {{ end }}
+        {{ if not $loc.DisableProxyPass }}
         set $target 'default';
-        {{ buildLuaHeaderRouter $location }}
+        {{ buildLuaHeaderRouter $loc }}
         proxy_pass http://$target;
+        {{ end }}
+        {{ if $loc.Return.Code }}
+        return {{$loc.Return.Code}} {{$loc.Return.Text}} {{$loc.Return.URL}};
+        {{ end }}
     }
     {{ end }}
 }

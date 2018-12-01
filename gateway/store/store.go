@@ -21,9 +21,11 @@ package store
 import (
 	"bytes"
 	"fmt"
+	"github.com/goodrain/rainbond/gateway/util"
 	"io/ioutil"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -43,6 +45,7 @@ import (
 	"k8s.io/ingress-nginx/k8s"
 )
 
+// EventType -
 type EventType string
 
 const (
@@ -52,52 +55,29 @@ const (
 	UpdateEvent EventType = "UPDATE"
 	// DeleteEvent event associated when an object is removed from an informer
 	DeleteEvent EventType = "DELETE"
-	// ConfigurationEvent event associated when a controller configuration object is created or updated
-	ConfigurationEvent EventType = "CONFIGURATION"
-	CertificatePath              = "/export/servers/nginx/certificate"
-	DefServerName                = "_"
+	// CertificatePath is the default path of certificate file
+	CertificatePath = "/run/nginx/conf/certificate"
+	// DefVirSrvName is the default virtual service name
+	DefVirSrvName = "_"
 )
 
 var l7PoolMap = make(map[string]struct{})
+
+// l7PoolBackendMap is the mapping between backend and pool
+var l7PoolBackendMap map[string][]string
+
 var l4PoolMap = make(map[string]struct{})
+
+// l4PoolBackendMap is the mapping between backend and pool
+var l4PoolBackendMap map[string][]string
 
 //Storer is the interface that wraps the required methods to gather information
 type Storer interface {
-	// get endpoints pool by name
-	//GetPool(name string) *v1.Pool
-
 	// list endpoints pool
 	ListPool() ([]*v1.Pool, []*v1.Pool)
 
-	// get endpoint by name
-	//GetNode(name string) *v1.Node
-
-	// list endpoint
-	//ListNode() []*v1.Node
-
-	// get service access rule for http by name
-	//GetHTTPRule(name string) *v1.HTTPRule
-
-	// list service access rule for http
-	//ListHTTPRule() []*v1.HTTPRule
-
-	// get virtual service by name
-	//GetVirtualService(name string) *v1.VirtualService
-
 	// list virtual service
 	ListVirtualService() ([]*v1.VirtualService, []*v1.VirtualService)
-
-	// get SSL certificate by name
-	//GetSSLCert(name string) *v1.SSLCert
-
-	// list SSL certificates
-	//ListSSLCert() []*v1.SSLCert
-
-	//PoolUpdateMethod(func(*v1.Pool, EventMethod))
-	//NodeUpdateMethod(func(*v1.Node, EventMethod))
-	//HTTPRuleUpdateMethod(func(*v1.HTTPRule, EventMethod))
-	//VirtualServiceUpdateMethod(func(*v1.VirtualService, EventMethod))
-	//SSLCertUpdateMethod(func(*v1.SSLCert, EventMethod))
 
 	ListIngresses() []*extensions.Ingress
 
@@ -156,7 +136,7 @@ func New(client kubernetes.Interface,
 	// create informers factory, enable and assign required informers
 	infFactory := informers.NewFilteredSharedInformerFactory(client, time.Second, corev1.NamespaceAll,
 		func(options *metav1.ListOptions) {
-			options.LabelSelector = "creater=Rainbond"
+			//options.LabelSelector = "creater=Rainbond"
 		})
 
 	store.informers.Ingress = infFactory.Extensions().V1beta1().Ingresses().Informer()
@@ -348,35 +328,85 @@ func (s *rbdStore) extractAnnotations(ing *extensions.Ingress) {
 func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 	var httpPools []*v1.Pool
 	var tcpPools []*v1.Pool
+	l7Pools := make(map[string]*v1.Pool)
+	l4Pools := make(map[string]*v1.Pool)
 	for _, item := range s.listers.Endpoint.List() {
-		endpoint := item.(*corev1.Endpoints)
+		ep := item.(*corev1.Endpoints)
 
-		if endpoint.Subsets != nil || len(endpoint.Subsets) != 0 {
-			pool := &v1.Pool{
-				Nodes: []*v1.Node{},
-			}
-			pool.Name = endpoint.ObjectMeta.Name
-			for _, ss := range endpoint.Subsets {
-				for _, address := range ss.Addresses {
-					pool.Nodes = append(pool.Nodes, &v1.Node{
-						Host: address.IP,
-						Port: ss.Ports[0].Port,
-					})
+		if ep.Subsets != nil || len(ep.Subsets) != 0 {
+			epn := ep.ObjectMeta.Name
+			// l7
+			backends := l7PoolBackendMap[ep.ObjectMeta.Name]
+			for _, backend := range backends {
+				weight, err := strconv.Atoi(backend[len(backend)-1:])
+				if err != nil {
+					weight = 0
+				}
+				backend = backend[:len(backend)-1]
+				pool := l7Pools[backend]
+				if pool == nil {
+					pool = &v1.Pool{
+						Nodes: []*v1.Node{},
+					}
+					pool.Name = backend
+					l7Pools[backend] = pool
+				}
+				for _, ss := range ep.Subsets {
+					for _, address := range ss.Addresses {
+						if _, ok := l7PoolMap[epn]; ok { // l7
+							pool.Nodes = append(pool.Nodes, &v1.Node{
+								Host:   address.IP,
+								Port:   ss.Ports[0].Port,
+								Weight: weight,
+							})
+						}
+					}
 				}
 			}
-			if _, ok := l7PoolMap[pool.Name]; ok {
-				httpPools = append(httpPools, pool)
-			}
-			if _, ok := l4PoolMap[pool.Name]; ok {
-				tcpPools = append(tcpPools, pool)
+			// l4
+			backends = l4PoolBackendMap[ep.ObjectMeta.Name]
+			for _, backend := range backends {
+				weight, err := strconv.Atoi(backend[len(backend)-1:])
+				if err != nil {
+					weight = 0
+				}
+				backend = backend[:len(backend)-1]
+				pool := l4Pools[backend]
+				if pool == nil {
+					pool = &v1.Pool{
+						Nodes: []*v1.Node{},
+					}
+					pool.Name = backend
+					l4Pools[backend] = pool
+				}
+				for _, ss := range ep.Subsets {
+					for _, address := range ss.Addresses {
+						if _, ok := l4PoolMap[epn]; ok { // l7
+							pool.Nodes = append(pool.Nodes, &v1.Node{
+								Host:   address.IP,
+								Port:   ss.Ports[0].Port,
+								Weight: weight,
+							})
+						}
+					}
+				}
 			}
 		}
+	}
+	// change map to slice TODO: use map directly
+	for _, pool := range l7Pools {
+		httpPools = append(httpPools, pool)
+	}
+	for _, pool := range l4Pools {
+		tcpPools = append(tcpPools, pool)
 	}
 	return httpPools, tcpPools
 }
 
 // ListVirtualService list l7 virtual service and l4 virtual service
 func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.VirtualService) {
+	l7PoolBackendMap = make(map[string][]string)
+	l4PoolBackendMap = make(map[string][]string)
 	l7vsMap := make(map[string]*v1.VirtualService)
 	l4vsMap := make(map[string]*v1.VirtualService)
 	// ServerName-LocationPath -> location
@@ -392,26 +422,31 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 		if err != nil {
 			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
 		}
-
-		if anns.L4.L4Enable && anns.L4.L4Port != 0 { // l4
+		if anns.L4.L4Enable && anns.L4.L4Port != 0 {
+			// region l4
 			host := strings.Replace(anns.L4.L4Host, " ", "", -1)
 			if host == "" {
 				host = s.conf.IP
 			}
 			listening := fmt.Sprintf("%s:%v", host, anns.L4.L4Port)
+
+			backendName := util.BackendName(listening, ing.Namespace, anns.Weight.Weight)
 			vs := l4vsMap[listening]
-			if vs != nil {
-				logrus.Info("already have a ingress the same as %s, ignore %s", ingKey, ingKey)
-				return
+			if vs == nil {
+				vs = &v1.VirtualService{
+					Listening: []string{listening},
+					PoolName:  backendName[:len(backendName)-1],
+				}
 			}
-			vs = &v1.VirtualService{
-				Listening: []string{listening},
-				PoolName:  ing.Spec.Backend.ServiceName,
-			}
-			l4PoolMap[vs.PoolName] = struct{}{}
+
+			l4PoolMap[ing.Spec.Backend.ServiceName] = struct{}{}
 			l4vsMap[listening] = vs
 			l4vs = append(l4vs, vs)
-		} else { // l7
+
+			l4PoolBackendMap[ing.Spec.Backend.ServiceName] = append(l4PoolBackendMap[ing.Spec.Backend.ServiceName], backendName)
+			// endregion
+		} else {
+			// region l7
 			// parse TLS into a map
 			hostSSLMap := make(map[string]*v1.SSLCert)
 			for _, tls := range ing.Spec.TLS {
@@ -419,73 +454,86 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 				item, exists := s.sslStore.Get(secrKey)
 				if !exists {
 					logrus.Warnf("Secret named %s does not exist", secrKey)
+					continue
 				}
 				sslCert := item.(*v1.SSLCert)
 				for _, host := range tls.Hosts {
 					hostSSLMap[host] = sslCert
 				}
-				// take first SSLCert as default
-				if _, exists := hostSSLMap[DefServerName]; !exists {
-					hostSSLMap[DefServerName] = sslCert
+				// make the first SSLCert as default
+				if _, exists := hostSSLMap[DefVirSrvName]; !exists {
+					hostSSLMap[DefVirSrvName] = sslCert
 				}
 			}
 
 			for _, rule := range ing.Spec.Rules {
 				var vs *v1.VirtualService
-				serverName := strings.Replace(rule.Host, " ", "", -1)
-				if serverName == "" {
-					serverName = DefServerName
+				// virtual service name
+				virSrvName := strings.Replace(rule.Host, " ", "", -1)
+				if virSrvName == "" {
+					virSrvName = DefVirSrvName
 				}
-				vs = l7vsMap[serverName]
+				vs = l7vsMap[virSrvName]
 				if vs == nil {
 					vs = &v1.VirtualService{
 						Listening:        []string{"80"},
-						ServerName:       serverName,
+						ServerName:       virSrvName,
 						Protocol:         v1.HTTP,
 						Locations:        []*v1.Location{},
 						ForceSSLRedirect: anns.Rewrite.ForceSSLRedirect,
 					}
 					if len(hostSSLMap) != 0 {
 						vs.Listening = []string{"443", "ssl"}
-						if hostSSLMap[serverName] != nil {
-							vs.SSLCert = hostSSLMap[serverName]
-						} else {
-							vs.SSLCert = hostSSLMap[DefServerName]
+						if hostSSLMap[virSrvName] != nil {
+							vs.SSLCert = hostSSLMap[virSrvName]
+						} else { // TODO: if there is necessary to provide a default virtual service name
+							vs.SSLCert = hostSSLMap[DefVirSrvName]
 						}
 					}
 
-					l7vsMap[serverName] = vs
+					l7vsMap[virSrvName] = vs
 					l7vs = append(l7vs, vs)
 				}
 
 				for _, path := range rule.IngressRuleValue.HTTP.Paths {
-					key := fmt.Sprintf("%s%s", serverName, path.Path)
-					location := srvLocMap[key]
+					p := path.Path
+					if p == "/" {
+						p = "root"
+					}
+					locKey := fmt.Sprintf("%s_%s", virSrvName, p)
+					location := srvLocMap[locKey]
 					l7PoolMap[path.Backend.ServiceName] = struct{}{}
-					if srvLocMap[key] == nil {
+					// if location do not exists, then creates a new one
+					if location == nil {
 						location = &v1.Location{
 							Path:          path.Path,
 							NameCondition: map[string]*v1.Condition{},
 						}
-						srvLocMap[key] = location
+						srvLocMap[locKey] = location
 						vs.Locations = append(vs.Locations, location)
 					}
-
 					// If their ServiceName is the same, then the new one will overwrite the old one.
 					nameCondition := &v1.Condition{}
+					var backendName string
 					if anns.Header.Header != nil {
 						nameCondition.Type = v1.HeaderType
 						nameCondition.Value = anns.Header.Header
+						backendName = fmt.Sprintf("%s_%s", locKey, v1.HeaderType)
 					} else if anns.Cookie.Cookie != nil {
 						nameCondition.Type = v1.CookieType
 						nameCondition.Value = anns.Cookie.Cookie
+						backendName = fmt.Sprintf("%s_%s", locKey, v1.CookieType)
 					} else {
 						nameCondition.Type = v1.DefaultType
 						nameCondition.Value = map[string]string{"1": "1"}
+						backendName = fmt.Sprintf("%s_%s", locKey, v1.DefaultType)
 					}
-					location.NameCondition[path.Backend.ServiceName] = nameCondition
+					backendName = util.BackendName(backendName, ing.Namespace, anns.Weight.Weight)
+					location.NameCondition[backendName] = nameCondition
+					l7PoolBackendMap[path.Backend.ServiceName] = append(l7PoolBackendMap[path.Backend.ServiceName], backendName)
 				}
 			}
+			// endregion
 		}
 	}
 	return l7vs, l4vs
