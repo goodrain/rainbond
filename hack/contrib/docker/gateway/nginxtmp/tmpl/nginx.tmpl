@@ -1,7 +1,7 @@
 {{ if .User }} user {{.User}};{{ end }}
 worker_processes  {{.WorkerProcesses}};
 error_log  {{.ErrorLog}};
-worker_rlimit_nofile {{.WorkerRlimitNofile}};
+# worker_rlimit_nofile {{.WorkerRlimitNofile}};
 
 events {
     {{ if .Events.EnableEpoll }}use epoll;{{ end }}
@@ -11,8 +11,8 @@ events {
 
 {{ $h := .HTTP }}
 http {
-    lua_package_path "/run/nginxtmp/lua/lua-resty-balancer/lib/?.lua;;";
-    lua_package_cpath "/run/nginxtmp/lua/lua-resty-balancer/?.so;;";
+    lua_package_path "/Users/abe/Dev/nginx/openresty/lua-resty-balancer/lib/?.lua;;";
+    lua_package_cpath "/Users/abe/Dev/nginx/openresty/lua-resty-balancer/?.so;;";
 
     include mime.types;
     default_type  {{$h.DefaultType}};
@@ -87,7 +87,7 @@ http {
             }
         }
 
-        include update-ups*.conf;
+        include update-ups.conf;
 
         location /delete-upstreams {
             content_by_lua_block {
@@ -103,6 +103,7 @@ http {
     }
 
     include conf/http/*.conf;
+    include rainbond/*.conf;
 }
 
 stream {

@@ -243,6 +243,10 @@ func (osvc *OrService) UpdatePools(pools []*v1.Pool) error {
 		}
 		upstreams = append(upstreams, upstream)
 	}
+	if len(upstreams) == 0 {
+		// TODO
+		return nil
+	}
 	return osvc.updateUpstreams(upstreams)
 }
 
