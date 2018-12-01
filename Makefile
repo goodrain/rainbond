@@ -35,6 +35,9 @@ build:
 image:
 	@echo "🐳build image ${WHAT}" 	
 	@bash ./release.sh ${WHAT} ${PUSH}
+binary:
+	@echo "🐳build binary ${WHAT} os ${GOOS}"
+	@ GOOS=${GOOS} bash ./release.sh binary ${WHAT}
 
 run:build
 ifeq ($(WHAT),api)

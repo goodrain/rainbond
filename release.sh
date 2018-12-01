@@ -40,17 +40,20 @@ EOF
 
 build::binary() {
 	echo "---> build binary:$1"
-	local DOCKER_PATH=./hack/contrib/docker/$1
+	local OUTPATH=./_output/$GOOS/${BASE_NAME}-$1
 	HOME=`pwd`
 	if [ "$1" = "eventlog" ];then
 		docker build -t goodraim.me/event-build:v1 ${DOCKER_PATH}/build
-		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} goodraim.me/event-build:v1 go build  -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/eventlog
+		docker run --rm -e GOOS=${GOOS} -v `pwd`:${WORK_DIR} -w ${WORK_DIR} goodraim.me/event-build:v1 go build  -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${OUTPATH} ./cmd/eventlog
 	elif [ "$1" = "chaos" ];then
-		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/builder
+		docker run --rm -e GOOS=${GOOS} -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${OUTPATH} ./cmd/builder
 	elif [ "$1" = "monitor" ];then
-		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -extldflags '-static' -X github.com/goodrain/rainbond/cmd.version=${release_desc}" -tags 'netgo static_build' -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
+		docker run --rm -e GOOS=${GOOS} -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -extldflags '-static' -X github.com/goodrain/rainbond/cmd.version=${release_desc}" -tags 'netgo static_build' -o ${OUTPATH} ./cmd/$1
 	else
-		docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
+		docker run --rm -e GOOS=${GOOS} -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${OUTPATH} ./cmd/$1
+	fi
+	if [ "$GOOS" = "windows" ];then
+	    mv $OUTPATH  ${OUTPATH}.exe
 	fi
 }
 
@@ -92,6 +95,17 @@ build::all(){
 case $1 in
 	node)
 		build::node $2
+	;;
+	binary)
+	    if [ "$2" = "all" ];then
+			build_items=(chaos grctl node gateway monitor mq worker eventlog api)
+			for item in ${build_items[@]}
+			do
+				build::binary $item $1
+			done
+		else
+		    build::binary $2	
+		fi	
 	;;
 	*)
 		if [ "$1" = "all" ];then
