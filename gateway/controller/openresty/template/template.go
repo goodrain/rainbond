@@ -22,10 +22,10 @@ import (
 	"github.com/Sirupsen/logrus"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	text_template "text/template"
 
-	"github.com/golang/glog"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
 	"github.com/pkg/errors"
 )
@@ -51,13 +51,14 @@ type Template struct {
 	bp *BufferPool
 }
 
+//NewTemplate returns a new Template instance or an
+//error if the specified template file contains errors
 func NewTemplate(fileName string) (*Template, error) {
 	tmplFile, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unexpected error reading template %v", tmplFile)
 	}
 
-	// TODO change the template name
 	tmpl, err := text_template.New("gateway").Funcs(funcMap).Parse(string(tmplFile))
 	if err != nil {
 		return nil, err
@@ -85,9 +86,33 @@ func NewServerTemplate(data []*model.Server, filename string) error {
 	return nil
 }
 
+// NewServerTemplateWithCfgPath creates a configuration file for the nginx server module
+func NewServerTemplateWithCfgPath(data []*model.Server, cfgPath string, filename string) error {
+	if e := Persist(tmplPath+"/servers.tmpl", data, cfgPath, filename); e != nil {
+		return e
+	}
+	return nil
+}
+
 // NewUpstreamTemplate creates a configuration file for the nginx upstream module
 func NewUpstreamTemplate(data []model.Upstream, tmpl, filename string) error {
 	if e := Persist(tmplPath+"/"+tmpl, data, CustomConfigPath, filename); e != nil {
+		return e
+	}
+	return nil
+}
+
+// NewUpstreamTemplateWithCfgPath creates a configuration file for the nginx upstream module
+func NewUpstreamTemplateWithCfgPath(data []*model.Upstream, tmpl, cfgPath string, filename string) error {
+	if e := Persist(tmplPath+"/"+tmpl, data, cfgPath, filename); e != nil {
+		return e
+	}
+	return nil
+}
+
+// NewUpdateUpsTemplate creates a configuration file for the nginx upstream module
+func NewUpdateUpsTemplate(data []model.Upstream, tmpl, path string, filename string) error {
+	if e := Persist(tmplPath+"/"+tmpl, data, path, filename); e != nil {
 		return e
 	}
 	return nil
@@ -123,26 +148,32 @@ func Persist(tmplFilename string, data interface{}, p string, f string) error {
 }
 
 func (t *Template) Write(conf interface{}) ([]byte, error) {
-	tmplBuf := t.bp.Get() // TODO 为什么用buffer, 是怎样实现的
+	tmplBuf := t.bp.Get()
 	defer t.bp.Put(tmplBuf)
 
 	outCmdBuf := t.bp.Get()
 	defer t.bp.Put(outCmdBuf)
 
-	if glog.V(3) { // TODO
-		b, err := json.Marshal(conf)
-		if err != nil {
-			glog.Errorf("unexpected error: %v", err)
-		}
-		glog.Infof("NGINX configuration: %v", string(b))
-	}
-
-	err := t.tmpl.Execute(tmplBuf, conf)
+	b, err := json.Marshal(conf)
 	if err != nil {
+		logrus.Errorf("unexpected error: %v", err)
+	}
+	logrus.Debugf("NGINX configuration: %v", string(b))
+
+	if err := t.tmpl.Execute(tmplBuf, conf); err != nil {
 		return nil, err
 	}
 
-	return tmplBuf.Bytes(), nil
+	// squeezes multiple adjacent empty lines to be single
+	// spaced this is to avoid the use of regular expressions
+	cmd := exec.Command("/ingress-controller/clean-nginx-conf.sh")
+	cmd.Stdin = tmplBuf
+	cmd.Stdout = outCmdBuf
+	if err := cmd.Run(); err != nil {
+		logrus.Warningf("unexpected error cleaning template: %v", err)
+		return tmplBuf.Bytes(), nil
+	}
+	return outCmdBuf.Bytes(), nil
 }
 
 func isExists(f string) bool {
