@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -139,8 +140,8 @@ func (m *ControllerSystemd) DisableService(serviceName string) error {
 //WriteConfig write config
 func (m *ControllerSystemd) WriteConfig(s *service.Service) error {
 	fileName := fmt.Sprintf("%s/%s.service", m.SysConfigDir, s.Name)
-	content := service.ToConfig(s)
-	content = service.InjectConfig(content, m.manager)
+	content := ToConfig(s)
+	content = m.manager.InjectConfig(content)
 	if content == "" {
 		err := fmt.Errorf("can not generate config for service %s", s.Name)
 		logrus.Error(err)
@@ -196,7 +197,7 @@ func (m *ControllerSystemd) InitStart(services []*service.Service) error {
 	for _, s := range services {
 		if s.Name == "etcd" {
 			fileName := fmt.Sprintf("/etc/systemd/system/%s.service", s.Name)
-			content := service.ToConfig(s)
+			content := ToConfig(s)
 			if content == "" {
 				err := fmt.Errorf("can not generate config for service %s", s.Name)
 				fmt.Println(err)
@@ -215,13 +216,14 @@ func (m *ControllerSystemd) InitStart(services []*service.Service) error {
 	return nil
 }
 
-func ToConfig(svc *Service) string {
+func ToConfig(svc *service.Service) string {
 	if svc.Start == "" {
 		logrus.Error("service start command is empty.")
 		return ""
 	}
 
-	s := service.Lines{"[Unit]"}
+	s := ConfigWriter{writer: bytes.NewBuffer(nil)}
+	s.AddTitle("[Unit]")
 	s.Add("Description", svc.Name)
 	for _, d := range svc.After {
 		dpd := d
@@ -256,4 +258,27 @@ func ToConfig(svc *Service) string {
 	logrus.Debugf("check is need inject args into service %s", svc.Name)
 
 	return s.Get()
+}
+
+type ConfigWriter struct {
+	writer *bytes.Buffer
+}
+
+func (l *ConfigWriter) AddTitle(line string) {
+	l.writer.WriteString("\n")
+	l.writer.WriteString(line)
+}
+
+func (l *ConfigWriter) Add(k, v string) {
+	if v == "" {
+		return
+	}
+	l.writer.WriteString("\n")
+	l.writer.WriteString(k)
+	l.writer.WriteString("=")
+	l.writer.WriteString(v)
+}
+
+func (l *ConfigWriter) Get() string {
+	return l.writer.String()
 }

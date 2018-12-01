@@ -93,22 +93,3 @@ func loadServicesFromFile(serviceListFile string) ([]*Service, error) {
 	}
 	return defaultConfigs.Services, nil
 }
-
-type Lines struct {
-	str string
-}
-
-func (l *Lines) AddTitle(line string) {
-	l.str = fmt.Sprintf("%s\n\n%s", l.str, line)
-}
-
-func (l *Lines) Add(k, v string) {
-	if v == "" {
-		return
-	}
-	l.str = fmt.Sprintf("%s\n%s=%s", l.str, k, v)
-}
-
-func (l *Lines) Get() string {
-	return l.str
-}

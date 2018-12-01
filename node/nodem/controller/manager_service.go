@@ -441,11 +441,11 @@ func NewManagerService(conf *option.Conf, healthyManager healthy.Manager, cluste
 		cancel:         cancel,
 		conf:           conf,
 		cluster:        cluster,
-		ctr:            NewController(conf, cluster),
 		healthyManager: healthyManager,
 		etcdcli:        conf.EtcdCli,
 		services:       new([]*service.Service),
 		allservice:     new([]*service.Service),
 	}
+	manager.ctr = NewController(conf, manager)
 	return manager
 }

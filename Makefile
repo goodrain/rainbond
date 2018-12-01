@@ -16,9 +16,6 @@ build_items="api chaos entrance monitor mq node webcli worker eventlog"
 ifeq ($(origin WHAT), undefined)
   WHAT = all
 endif
-ifeq ($(origin GOOS), undefined)
-  GOOS = darwin
-endif
 ifeq ($(origin STATIC), undefined)
   STATIC = false
 else

@@ -20,21 +20,20 @@ package controller
 
 import (
 	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/service"
 )
 
 //NewController At the stage you want to load the configurations of all rainbond components
-func NewController(conf *option.Conf, cluster client.ClusterClient) Controller {
+func NewController(conf *option.Conf, manager *ManagerService) Controller {
 	return &windowsServiceController{
 		conf:    conf,
-		cluster: cluster,
+		manager: manager,
 	}
 }
 
 type windowsServiceController struct {
 	conf    *option.Conf
-	cluster client.ClusterClient
+	manager *ManagerService
 }
 
 func (w *windowsServiceController) InitStart(services []*service.Service) error {
