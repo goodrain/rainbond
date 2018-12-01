@@ -41,9 +41,10 @@ type rainbondsslcProvisioner struct {
 }
 
 // NewRainbondsslcProvisioner creates a new Rainbond statefulset share volume provisioner
-func NewRainbondsslcProvisioner() controller.Provisioner {
+func NewRainbondsslcProvisioner(kubecli *kubernetes.Clientset) controller.Provisioner {
 	return &rainbondsslcProvisioner{
-		name: "rainbond.io/provisioner-sslc",
+		name:    "rainbond.io/provisioner-sslc",
+		kubecli: kubecli,
 	}
 }
 

@@ -70,7 +70,7 @@ func NewMasterController(conf option.Config, store store.Storer) (*Controller, e
 	//statefulset share controller
 	rainbondssscProvisioner := provider.NewRainbondssscProvisioner()
 	//statefulset local controller
-	rainbondsslcProvisioner := provider.NewRainbondsslcProvisioner()
+	rainbondsslcProvisioner := provider.NewRainbondsslcProvisioner(conf.KubeClient)
 	// Start the provision controller which will dynamically provision hostPath
 	// PVs
 	pc := controller.NewProvisionController(conf.KubeClient, map[string]controller.Provisioner{
