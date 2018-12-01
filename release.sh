@@ -32,7 +32,9 @@ FROM alpine:3.6
 COPY pkg.tgz /
 EOF
 	docker build -t ${BASE_NAME}/cni:rbd_v$VERSION .
-	docker push ${BASE_NAME}/cni:rbd_v$VERSION 
+	if [ "$1" = "push" ];then
+		docker push ${BASE_NAME}/cni:rbd_v$VERSION 
+	fi
 	popd
 }
 
@@ -70,7 +72,7 @@ build::image() {
 		echo "---> build image:$1"
 		sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
 		docker build -t ${BASE_NAME}/rbd-$1:${VERSION} -f Dockerfile.release .
-		if [ "$2" = "true" ];then
+		if [ "$2" = "push" ];then
 			docker push ${BASE_NAME}/rbd-$1:${VERSION}
 		fi	
 		rm -f ./Dockerfile.release
@@ -84,12 +86,12 @@ build::all(){
 	do
 		build::image $item $1
 	done
-	build::node
+	build::node $1
 }
 
 case $1 in
 	node)
-		build::node
+		build::node $2
 	;;
 	*)
 		if [ "$1" = "all" ];then
