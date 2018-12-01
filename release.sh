@@ -31,9 +31,9 @@ build::node() {
 FROM alpine:3.6
 COPY pkg.tgz /
 EOF
-	docker build -t ${BASE_NAME}/cni:rbd_v$VERSION .
+	docker build -t ${BASE_NAME}/cni:rbd_$VERSION .
 	if [ "$1" = "push" ];then
-		docker push ${BASE_NAME}/cni:rbd_v$VERSION 
+		docker push ${BASE_NAME}/cni:rbd_$VERSION 
 	fi
 	popd
 }
@@ -81,7 +81,7 @@ build::image() {
 }
 
 build::all(){
-	local build_items=(api chaos entrance monitor mq webcli worker eventlog)
+	local build_items=(api chaos gateway monitor mq webcli worker eventlog)
 	for item in ${build_items[@]}
 	do
 		build::image $item $1
