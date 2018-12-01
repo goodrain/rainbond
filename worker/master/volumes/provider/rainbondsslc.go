@@ -25,6 +25,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/goodrain/rainbond/worker/appm/store"
+
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/Sirupsen/logrus"
@@ -38,13 +40,15 @@ type rainbondsslcProvisioner struct {
 	// The directory to create PV-backing directories in
 	name    string
 	kubecli *kubernetes.Clientset
+	store   store.Storer
 }
 
 // NewRainbondsslcProvisioner creates a new Rainbond statefulset share volume provisioner
-func NewRainbondsslcProvisioner(kubecli *kubernetes.Clientset) controller.Provisioner {
+func NewRainbondsslcProvisioner(kubecli *kubernetes.Clientset, store store.Storer) controller.Provisioner {
 	return &rainbondsslcProvisioner{
 		name:    "rainbond.io/provisioner-sslc",
 		kubecli: kubecli,
+		store:   store,
 	}
 }
 
@@ -72,9 +76,9 @@ func (p *rainbondsslcProvisioner) selectNode() (*v1.Node, error) {
 					if ip == "" {
 						break
 					}
-					pods, err := p.kubecli.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{
-						FieldSelector: "status.nodeIP=" + ip,
-					})
+					//only contains rainbond pod
+					//pods, err := p.store.GetPodLister().Pods(v1.NamespaceAll).List(labels.NewSelector())
+					pods, err := p.kubecli.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{})
 					if err != nil {
 						logrus.Errorf("list pods list from node ip error %s", err.Error())
 						break

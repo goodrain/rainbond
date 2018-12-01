@@ -44,6 +44,7 @@ import (
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
+	listcorev1 "k8s.io/client-go/listers/core/v1"
 )
 
 //Storer app runtime store interface
@@ -58,6 +59,7 @@ type Storer interface {
 	GetAppServicesStatus(serviceIDs []string) map[string]string
 	GetNeedBillingStatus(serviceIDs []string) map[string]string
 	OnDelete(obj interface{})
+	GetPodLister() listcorev1.PodLister
 }
 
 //appRuntimeStore app runtime store
@@ -660,4 +662,7 @@ func (a *appRuntimeStore) addAbnormalInfo(ai *v1.AbnormalInfo) {
 		})
 	}
 
+}
+func (a *appRuntimeStore) GetPodLister() listcorev1.PodLister {
+	return a.listers.Pod
 }
