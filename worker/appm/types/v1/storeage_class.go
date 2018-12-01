@@ -19,6 +19,7 @@
 package v1
 
 import (
+	"k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -40,20 +41,23 @@ var RainbondStatefuleLocalStorageClass = "rainbondslsc"
 
 func init() {
 	var volumeBindingImmediate = storagev1.VolumeBindingImmediate
-	var columeWaitForFirstConsumer = storagev1.VolumeBindingWaitForFirstConsumer
+	//var columeWaitForFirstConsumer = storagev1.VolumeBindingWaitForFirstConsumer
+	var Retain = v1.PersistentVolumeReclaimRetain
 	initStorageClass = append(initStorageClass, &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: RainbondStatefuleShareStorageClass,
 		},
 		Provisioner:       "rainbond.io/provisioner-sssc",
 		VolumeBindingMode: &volumeBindingImmediate,
+		ReclaimPolicy:     &Retain,
 	})
 	initStorageClass = append(initStorageClass, &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "local-storage",
+			Name: RainbondStatefuleLocalStorageClass,
 		},
 		Provisioner:       "rainbond.io/provisioner-slsc",
-		VolumeBindingMode: &columeWaitForFirstConsumer,
+		VolumeBindingMode: &volumeBindingImmediate,
+		ReclaimPolicy:     &Retain,
 	})
 }
 

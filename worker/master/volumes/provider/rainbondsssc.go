@@ -44,7 +44,7 @@ func NewRainbondssscProvisioner() controller.Provisioner {
 	}
 	return &rainbondssscProvisioner{
 		pvDir: sharePath,
-		name:  "rainbond.io/provisioner/sssc",
+		name:  "rainbond.io/provisioner-sssc",
 	}
 }
 
