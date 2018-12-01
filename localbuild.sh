@@ -31,13 +31,28 @@ function localbuild() {
 		done	
 	else
 		echo "build local $1 ${VERSION}"
-		go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o _output/${GOOS}/${VERSION}/rainbond-$1 ./cmd/$1
+
+		outputname="_output/${GOOS}/${VERSION}/rainbond-$1"
+		if [ "$GOOS" = "windows" ];then
+			outputname="_output/${GOOS}/${VERSION}/rainbond-$1.exe"
+		fi
+		ldflags="-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"
+		if [ "$STATIC" = "true" ];then
+		    ldflags="${ldflags} -extldflags '-static'"
+		fi
+		go build -ldflags "${ldflags}"  -o ${outputname} ./cmd/$1
 	fi
 }
 
 case $1 in
 	*)
 		prepare
+		if [ "$1" = "all" ];then
+			for item in ${build_items[@]}
+			do
+			  localbuild $item
+			done	
+	    fi
 		localbuild $1
 	;;
 esac

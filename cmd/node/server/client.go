@@ -81,7 +81,6 @@ func ParseClientCommnad(args []string) {
 
 		}
 	}
-	fmt.Println("client complete")
 }
 
 type controllerServiceClient struct {

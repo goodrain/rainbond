@@ -3,7 +3,7 @@ VERSION=master
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 BASE_DOCKER=./hack/contrib/docker
-BIN_PATH=./_output/${VERSION}
+BIN_PATH=./_output/${GOOS}/${VERSION}
 
 default: help
 all: image ## build linux binaries, build images for docker
@@ -19,6 +19,12 @@ endif
 ifeq ($(origin GOOS), undefined)
   GOOS = darwin
 endif
+ifeq ($(origin STATIC), undefined)
+  STATIC = false
+else
+  STATIC = true  
+endif
+
 ifeq ($(origin PUSH), undefined)
   PUSH = false
 endif
