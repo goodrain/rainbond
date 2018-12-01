@@ -19,8 +19,10 @@
 package controller
 
 import (
+	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/gateway/v1"
 	"testing"
+	"time"
 )
 
 func TestController_GetDelUpdPools(t *testing.T) {
@@ -47,7 +49,7 @@ func TestController_GetDelUpdPools(t *testing.T) {
 	currentHttpPools = append(currentHttpPools, fooPools...)
 
 	gwc := &GWController{
-		RunningHttpPools: runningHttpPools,
+		rhp: runningHttpPools,
 	}
 	del, upd := gwc.getDelUpdPools(currentHttpPools)
 	if !poolsIsEqual(delPools, del) {
@@ -57,7 +59,7 @@ func TestController_GetDelUpdPools(t *testing.T) {
 		t.Errorf("upd should equal udpPools.")
 	}
 
-	gwc.RunningHttpPools = fooPools
+	gwc.rhp = fooPools
 	currentHttpPools = fooPools
 	del, upd = gwc.getDelUpdPools(currentHttpPools)
 	if len(del) != 0 {
@@ -66,6 +68,22 @@ func TestController_GetDelUpdPools(t *testing.T) {
 	if len(upd) != 0 {
 		t.Errorf("Expected del length to be 0, but returned %v", len(upd))
 	}
+}
+
+func TestGWController_WatchRbdEndpoints(t *testing.T) {
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{"localhost:2379"},
+		DialTimeout: 3 * time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cli.Close()
+
+	gwc := GWController{
+		EtcdCli: cli,
+	}
+	go gwc.watchRbdEndpoints()
 }
 
 func poolsIsEqual(old []*v1.Pool, new []*v1.Pool) bool {

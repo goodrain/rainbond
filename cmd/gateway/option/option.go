@@ -38,7 +38,12 @@ func NewGWServer() *GWServer {
 
 //Config contains all configuration
 type Config struct {
-	K8SConfPath string
+	K8SConfPath        string
+	EnableRbdEndpoints bool
+	RbdEndpointsKey    string // key of Rainbond endpoints in ETCD
+	EtcdEndPoints      []string
+	EtcdTimeout        int
+
 	ListenPorts ListenPorts
 	//This number should be, at maximum, the number of CPU cores on your system.
 	WorkerProcesses    int
@@ -66,6 +71,8 @@ type ListenPorts struct {
 func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.LogLevel, "log-level", "debug", "the gateway log level")
 	fs.StringVar(&g.K8SConfPath, "kube-conf", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig", "absolute path to the kubeconfig file")
+	fs.BoolVar(&g.EnableRbdEndpoints, "enable-rbd-endpoints", true, "switch of Rainbond endpoints")
+	fs.StringVar(&g.RbdEndpointsKey, "rbd-endpoints", "/rainbond/endpoint/", "key of Rainbond endpoints in ETCD")
 	fs.IntVar(&g.ListenPorts.AuxiliaryPort, "auxiliary-port", 10253, "port of auxiliary server")
 	fs.IntVar(&g.WorkerProcesses, "worker-processes", 0, "Default get current compute cpu core number.This number should be, at maximum, the number of CPU cores on your system.")
 	fs.IntVar(&g.WorkerConnections, "worker-connections", 4000, "Determines how many clients will be served by each worker process.")
@@ -77,6 +84,9 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&g.KeepaliveRequests, "keepalive-requests", 100000, "Number of requests a client can make over the keep-alive connection. This is set high for testing.")
 	fs.IntVar(&g.KeepaliveTimeout, "keepalive-timeout", 30, "Timeout for keep-alive connections. Server will close connections after this time.")
 	fs.StringVar(&g.IP, "ip", "0.0.0.0", "Node ip.") // TODO: more detail
+	// etcd
+	fs.StringSliceVar(&g.EtcdEndPoints, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd cluster endpoints.")
+	fs.IntVar(&g.EtcdTimeout, "etcd-timeout", 5, "etcd http timeout seconds")
 }
 
 // SetLog sets log

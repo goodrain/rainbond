@@ -19,6 +19,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
@@ -32,12 +33,13 @@ import (
 func Run(s *option.GWServer) error {
 	errCh := make(chan error)
 
-	gwc := controller.NewGWController(
-		&s.Config,
-		errCh)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	gwc := controller.NewGWController(ctx, &s.Config, errCh)
 	if gwc == nil {
 		return fmt.Errorf("fail to new GWController")
 	}
+	defer gwc.EtcdCli.Close()
 
 	if err := gwc.Start(); err != nil {
 		return err

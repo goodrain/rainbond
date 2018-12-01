@@ -20,8 +20,8 @@ import (
 	"k8s.io/ingress-nginx/ingress/controller/process"
 )
 
-// OpenrestyService handles the business logic of OpenrestyService
-type OpenrestyService struct {
+// OrService handles the business logic of OpenrestyService
+type OrService struct {
 	AuxiliaryPort  int
 	IsShuttingDown *bool
 
@@ -33,8 +33,8 @@ type OpenrestyService struct {
 }
 
 //CreateOpenrestyService create openresty service
-func CreateOpenrestyService(config *option.Config, isShuttingDown *bool) *OpenrestyService {
-	gws := &OpenrestyService{
+func CreateOpenrestyService(config *option.Config, isShuttingDown *bool) *OrService {
+	gws := &OrService{
 		AuxiliaryPort:  config.ListenPorts.AuxiliaryPort,
 		IsShuttingDown: isShuttingDown,
 		config:         config,
@@ -50,29 +50,24 @@ type Upstream struct {
 
 // Server belongs to Upstream
 type Server struct {
-	Host string
-	Port int32
+	Host   string
+	Port   int32
+	Weight int
 }
 
-//Start start
-func (osvc *OpenrestyService) Start() error {
-	nginx := model.NewNginx(*osvc.config, template.CustomConfigPath)
-	if err := template.NewNginxTemplate(nginx, defaultNginxConf); err != nil {
-		return err
-	}
-	o, err := nginxExecCommand().CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%v\n%v", err, string(o))
-	}
-	return nil
-}
-
-// Starts starts nginx
-func (osvc *OpenrestyService) Starts(errCh chan error) {
+// Start starts nginx
+func (osvc *OrService) Start(errCh chan error) {
+	// generate default nginx.conf
 	nginx := model.NewNginx(*osvc.config, template.CustomConfigPath)
 	nginx.HTTP = model.NewHTTP(osvc.config)
 	if err := template.NewNginxTemplate(nginx, defaultNginxConf); err != nil {
-		logrus.Fatalf("Can't not new nginx config: %v", err)
+		logrus.Fatalf("Can't not new nginx config: %v", err) // TODO: send err to errCh???
+	}
+
+	if osvc.config.EnableRbdEndpoints {
+		if err := osvc.newRbdServers(); err != nil {
+			errCh <- err // TODO: consider if it is right
+		}
 	}
 
 	cmd := nginxExecCommand()
@@ -90,7 +85,7 @@ func (osvc *OpenrestyService) Starts(errCh chan error) {
 }
 
 // Stop gracefully stops the NGINX master process.
-func (osvc *OpenrestyService) Stop() error {
+func (osvc *OrService) Stop() error {
 	// send stop signal to NGINX
 	logrus.Info("Stopping NGINX process")
 	cmd := nginxExecCommand("-s", "quit")
@@ -115,7 +110,7 @@ func (osvc *OpenrestyService) Stop() error {
 }
 
 // PersistConfig persists config
-func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
+func (osvc *OrService) PersistConfig(conf *v1.Config) error {
 	// delete the old configuration
 	if err := os.RemoveAll(template.CustomConfigPath); err != nil {
 		logrus.Errorf("Cant not remove directory(%s): %v", template.CustomConfigPath, err)
@@ -164,7 +159,7 @@ func (osvc *OpenrestyService) PersistConfig(conf *v1.Config) error {
 }
 
 // persistUpstreams persists upstreams
-func (osvc *OpenrestyService) persistUpstreams(pools []*v1.Pool, tmpl string, filename string) error {
+func (osvc *OrService) persistUpstreams(pools []*v1.Pool, tmpl string, filename string) error {
 	var upstreams []model.Upstream
 	for _, pool := range pools {
 		upstream := model.Upstream{}
@@ -185,6 +180,11 @@ func (osvc *OpenrestyService) persistUpstreams(pools []*v1.Pool, tmpl string, fi
 	if len(upstreams) > 0 {
 		if err := template.NewUpstreamTemplate(upstreams, tmpl, filename); err != nil {
 			logrus.Errorf("Fail to new nginx Upstream config file: %v", err)
+			return err
+		}
+		if err := template.NewUpdateUpsTemplate(upstreams,
+			"update-ups.tmpl", "/run/nginx/", "update-ups.conf"); err != nil {
+			logrus.Errorf("Fail to new update-ups.conf: %v", err)
 			return err
 		}
 	}
@@ -224,7 +224,7 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 }
 
 // UpdatePools updates http upstreams dynamically.
-func (osvc *OpenrestyService) UpdatePools(pools []*v1.Pool) error {
+func (osvc *OrService) UpdatePools(pools []*v1.Pool) error {
 	if len(pools) == 0 {
 		return nil
 	}
@@ -234,8 +234,9 @@ func (osvc *OpenrestyService) UpdatePools(pools []*v1.Pool) error {
 		upstream.Name = pool.Name
 		for _, node := range pool.Nodes {
 			server := &Server{
-				Host: node.Host,
-				Port: node.Port,
+				Host:   node.Host,
+				Port:   node.Port,
+				Weight: node.Weight,
 			}
 			upstream.Servers = append(upstream.Servers, server)
 		}
@@ -245,7 +246,7 @@ func (osvc *OpenrestyService) UpdatePools(pools []*v1.Pool) error {
 }
 
 // updateUpstreams updates the upstreams in ngx.shared.dict by post
-func (osvc *OpenrestyService) updateUpstreams(upstream []*Upstream) error {
+func (osvc *OrService) updateUpstreams(upstream []*Upstream) error {
 	url := fmt.Sprintf("http://127.0.0.1:%v/update-upstreams", osvc.AuxiliaryPort)
 	data, _ := json.Marshal(upstream)
 	logrus.Debugf("request contest of update-upstreams is %v", string(data))
@@ -269,7 +270,7 @@ func (osvc *OpenrestyService) updateUpstreams(upstream []*Upstream) error {
 }
 
 // DeletePools deletes pools
-func (osvc *OpenrestyService) DeletePools(pools []*v1.Pool) error {
+func (osvc *OrService) DeletePools(pools []*v1.Pool) error {
 	if len(pools) == 0 {
 		return nil
 	}
@@ -280,7 +281,7 @@ func (osvc *OpenrestyService) DeletePools(pools []*v1.Pool) error {
 	return osvc.deletePools(data)
 }
 
-func (osvc *OpenrestyService) deletePools(names []string) error {
+func (osvc *OrService) deletePools(names []string) error {
 	url := fmt.Sprintf("http://127.0.0.1:%v/delete-upstreams", osvc.AuxiliaryPort)
 	data, _ := json.Marshal(names)
 	logrus.Debugf("request content of delete-upstreams is %v", string(data))
@@ -297,7 +298,7 @@ func (osvc *OpenrestyService) deletePools(names []string) error {
 }
 
 // WaitPluginReady waits for nginx to be ready.
-func (osvc *OpenrestyService) WaitPluginReady() {
+func (osvc *OrService) WaitPluginReady() {
 	url := fmt.Sprintf("http://127.0.0.1:%v/healthz", osvc.AuxiliaryPort)
 	for {
 		resp, err := http.Get(url)
@@ -308,4 +309,35 @@ func (osvc *OpenrestyService) WaitPluginReady() {
 		logrus.Infof("Nginx is not ready yet: %v", err)
 		time.Sleep(1 * time.Second)
 	}
+}
+
+// newRbdServers creates new configuration file for Rainbond servers
+func (osvc *OrService) newRbdServers() error {
+	cfgPath := "/run/nginx/rainbond"
+	// delete the old configuration
+	if err := os.RemoveAll(cfgPath); err != nil {
+		logrus.Errorf("Cant not remove directory(%s): %v", cfgPath, err)
+		return err
+	}
+
+	lesrv, leus := langGoodrainMe()
+	mesrv, meus := mavenGoodrainMe()
+	gesrv, geus := goodrainMe()
+	if err := template.NewServerTemplateWithCfgPath([]*model.Server{
+		lesrv,
+		mesrv,
+		gesrv,
+	}, cfgPath, "servers.default.http.conf"); err != nil {
+		return err
+	}
+
+	// upstreams
+	if err := template.NewUpstreamTemplateWithCfgPath([]*model.Upstream{
+		leus,
+		meus,
+		geus,
+	}, "upstreams-http.tmpl", cfgPath, "upstreams.default.http.conf"); err != nil {
+		return err
+	}
+	return nil
 }
