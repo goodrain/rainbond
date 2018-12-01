@@ -239,7 +239,7 @@ func (osvc *OrService) UpdatePools(pools []*v1.Pool) error {
 			upstream.Servers = append(upstream.Servers, server)
 		}
 		if len(upstream.Servers) == 0 {
-			break
+			continue
 		}
 		upstreams = append(upstreams, upstream)
 	}
