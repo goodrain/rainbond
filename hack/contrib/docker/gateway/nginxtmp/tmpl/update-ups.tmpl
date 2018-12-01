@@ -27,6 +27,7 @@ location /update-upstreams {
             {{ range $upstream := . }}
             if name == "{{$upstream.Name}}" then
                 package.loaded.{{$upstream.Name}} = resty_roundrobin:new(server_list)
+                package.loaded["{{$upstream.Name}}"] = nil
             end
             {{ end }}
         end
