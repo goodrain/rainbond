@@ -428,7 +428,12 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			if host == "" {
 				host = s.conf.IP
 			}
+			svcKey := fmt.Sprintf("%v/%v", ing.Namespace, ing.Spec.Backend.ServiceName)
+			protocol := s.GetServiceProtocol(svcKey, ing.Spec.Backend.ServicePort.IntVal)
 			listening := fmt.Sprintf("%s:%v", host, anns.L4.L4Port)
+			if string(protocol) == string(v1.ProtocolUDP) {
+				listening = fmt.Sprintf("%s %s", listening, "udp")
+			}
 
 			backendName := util.BackendName(listening, ing.Namespace, anns.Weight.Weight)
 			vs := l4vsMap[listening]
@@ -478,7 +483,6 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 					vs = &v1.VirtualService{
 						Listening:        []string{"80"},
 						ServerName:       virSrvName,
-						Protocol:         v1.HTTP,
 						Locations:        []*v1.Location{},
 						ForceSSLRedirect: anns.Rewrite.ForceSSLRedirect,
 					}
@@ -496,11 +500,7 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 				}
 
 				for _, path := range rule.IngressRuleValue.HTTP.Paths {
-					p := path.Path
-					if p == "/" {
-						p = "root"
-					}
-					locKey := fmt.Sprintf("%s_%s", virSrvName, p)
+					locKey := fmt.Sprintf("%s_%s", virSrvName, path.Path)
 					location := srvLocMap[locKey]
 					l7PoolMap[path.Backend.ServiceName] = struct{}{}
 					// if location do not exists, then creates a new one
@@ -528,6 +528,7 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 						nameCondition.Value = map[string]string{"1": "1"}
 						backendName = fmt.Sprintf("%s_%s", locKey, v1.DefaultType)
 					}
+					// TODO: put backendName, weight in struct
 					backendName = util.BackendName(backendName, ing.Namespace, anns.Weight.Weight)
 					location.NameCondition[backendName] = nameCondition
 					l7PoolBackendMap[path.Backend.ServiceName] = append(l7PoolBackendMap[path.Backend.ServiceName], backendName)
@@ -593,6 +594,21 @@ func (s *rbdStore) ListIngresses() []*extensions.Ingress {
 	}
 
 	return ingresses
+}
+
+// GetServiceProtocol returns the Service matching key and port.
+func (s *rbdStore) GetServiceProtocol(key string, port int32) corev1.Protocol {
+	svcs, err := s.listers.Service.ByKey(key)
+	if err != nil {
+		return corev1.ProtocolTCP
+	}
+	for _, p := range svcs.Spec.Ports {
+		if p.Port == port {
+			return p.Protocol
+		}
+	}
+
+	return corev1.ProtocolTCP
 }
 
 // GetIngressAnnotations returns the parsed annotations of an Ingress matching key.

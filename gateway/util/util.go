@@ -29,6 +29,7 @@ func BackendName(name string, ns string, weight int) string {
 	name = strings.Replace(name, ".", "_", -1)
 	name = strings.Replace(name, "-", "_", -1)
 	name = strings.Replace(name, ":", "_", -1)
+	name = strings.Replace(name, "/", "slash", -1)
 	name = fmt.Sprintf("%s%s%d", "N", name, weight)
 	return name
 }

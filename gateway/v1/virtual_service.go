@@ -18,18 +18,25 @@
 
 package v1
 
-type ProtocolType string
+import corev1 "k8s.io/api/core/v1"
+
+// Protocol defines network protocols supported for things like container ports.
+type Protocol string
 
 const (
-	STREAM ProtocolType = "stream"
-	HTTP   ProtocolType = "http"
+	// ProtocolTCP is the TCP protocol.
+	ProtocolTCP Protocol = "TCP"
+	// ProtocolUDP is the UDP protocol.
+	ProtocolUDP Protocol = "UDP"
+	// ProtocolSCTP is the SCTP protocol.
+	ProtocolSCTP Protocol = "SCTP"
 )
 
 //VirtualService VirtualService
 type VirtualService struct {
 	Meta
-	Enabled  bool         `json:"enable"`
-	Protocol ProtocolType `json:"protocol"` //default stream
+	Enabled  bool   `json:"enable"`
+	Protocol corev1.Protocol `json:"protocol"`
 	// BackendProtocol indicates which protocol should be used to communicate with the service
 	BackendProtocol        string   `json:"backend-protocol"`
 	Port                   int32    `json:"port"`
