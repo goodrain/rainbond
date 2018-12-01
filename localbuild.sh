@@ -27,11 +27,11 @@ function localbuild() {
 		for item in ${build_items[@]}
 		do
     		echo "build local ${item}"
-    		go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o _output/${VERSION}/rainbond-$item ./cmd/$item
+    		go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o _output/${GOOS}/${VERSION}/rainbond-$item ./cmd/$item
 		done	
 	else
 		echo "build local $1 ${VERSION}"
-		go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o _output/${VERSION}/rainbond-$1 ./cmd/$1
+		go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o _output/${GOOS}/${VERSION}/rainbond-$1 ./cmd/$1
 	fi
 }
 

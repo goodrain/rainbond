@@ -21,51 +21,52 @@ package controller
 import (
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/nodem/client"
+	"github.com/goodrain/rainbond/node/nodem/service"
 )
 
 //NewController At the stage you want to load the configurations of all rainbond components
 func NewController(conf *option.Conf, cluster client.ClusterClient) Controller {
-return &windowsServiceController{
-	conf:conf,
-	cluster:cluster,
-}
+	return &windowsServiceController{
+		conf:    conf,
+		cluster: cluster,
+	}
 }
 
 type windowsServiceController struct {
-	conf *option.Conf, 
+	conf    *option.Conf
 	cluster client.ClusterClient
 }
 
-func (w *windowsServiceController) InitStart(services []*service.Service) error{
+func (w *windowsServiceController) InitStart(services []*service.Service) error {
 	return nil
 }
-func (w *windowsServiceController)	StartService(name string) error {
+func (w *windowsServiceController) StartService(name string) error {
 	return nil
 }
-func (w *windowsServiceController)	StopService(name string) error {
+func (w *windowsServiceController) StopService(name string) error {
 	return nil
 }
-func (w *windowsServiceController)	StartList(list []*service.Service) error {
+func (w *windowsServiceController) StartList(list []*service.Service) error {
 	return nil
 }
-func (w *windowsServiceController)	StopList(list []*service.Service) error {
+func (w *windowsServiceController) StopList(list []*service.Service) error {
 	return nil
 }
-func (w *windowsServiceController)	RestartService(serviceName string) error {
+func (w *windowsServiceController) RestartService(serviceName string) error {
 	return nil
 }
-func (w *windowsServiceController)	WriteConfig(s *service.Service) error {
+func (w *windowsServiceController) WriteConfig(s *service.Service) error {
 	return nil
 }
-func (w *windowsServiceController)	RemoveConfig(name string) error {
+func (w *windowsServiceController) RemoveConfig(name string) error {
 	return nil
 }
-func (w *windowsServiceController)	EnableService(name string) error {
+func (w *windowsServiceController) EnableService(name string) error {
 	return nil
 }
-func (w *windowsServiceController)	DisableService(name string) error {
+func (w *windowsServiceController) DisableService(name string) error {
 	return nil
 }
-func (w *windowsServiceController)	CheckBeforeStart() bool {
+func (w *windowsServiceController) CheckBeforeStart() bool {
 	return false
 }

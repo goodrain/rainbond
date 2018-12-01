@@ -21,7 +21,10 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"runtime"
 	"strings"
+
+	"github.com/goodrain/rainbond/util/disk"
 
 	api "github.com/goodrain/rainbond/util/http"
 
@@ -29,8 +32,6 @@ import (
 	"github.com/go-chi/chi"
 
 	"strconv"
-
-	"syscall"
 
 	"github.com/goodrain/rainbond/node/api/model"
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -311,25 +312,6 @@ func CapRes(w http.ResponseWriter, r *http.Request) {
 	api.ReturnSuccess(r, w, result)
 }
 
-type DiskStatus struct {
-	All  uint64 `json:"all"`
-	Used uint64 `json:"used"`
-	Free uint64 `json:"free"`
-}
-
-// disk usage of path/disk
-func DiskUsage(path string) (disk DiskStatus) {
-	fs := syscall.Statfs_t{}
-	err := syscall.Statfs(path, &fs)
-	if err != nil {
-		return
-	}
-	disk.All = fs.Blocks * uint64(fs.Bsize)
-	disk.Free = fs.Bfree * uint64(fs.Bsize)
-	disk.Used = disk.All - disk.Free
-	return
-}
-
 //ClusterInfo ClusterInfo
 func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 	usedNodeList := make([]string, 0, 10)
@@ -360,7 +342,12 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	disk := DiskUsage("/grdata")
+	var diskstauts disk.Status
+	if runtime.GOOS != "windows" {
+		diskstauts = disk.DiskUsage("/grdata")
+	} else {
+		diskstauts = disk.DiskUsage(`c:\\grdata`)
+	}
 	podMemRequestMB := memR / 1024 / 1024
 	result := &model.ClusterResource{
 		CapCPU:      int(capCPU),
@@ -368,8 +355,8 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 		ReqCPU:      float32(cpuR) / 1000,
 		ReqMem:      int(podMemRequestMB),
 		ComputeNode: len(nodes),
-		CapDisk:     disk.All,
-		ReqDisk:     disk.Used,
+		CapDisk:     diskstauts.All,
+		ReqDisk:     diskstauts.Used,
 	}
 	allnodes, _ := nodeService.GetAllNode()
 	result.AllNode = len(allnodes)

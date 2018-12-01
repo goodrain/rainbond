@@ -16,13 +16,16 @@ build_items="api chaos entrance monitor mq node webcli worker eventlog"
 ifeq ($(origin WHAT), undefined)
   WHAT = all
 endif
+ifeq ($(origin GOOS), undefined)
+  GOOS = darwin
+endif
 ifeq ($(origin PUSH), undefined)
   PUSH = false
 endif
 .PHONY: build
 build:
-	@echo "🐳build ${WHAT}" 
-	@./localbuild.sh $(WHAT)
+	@echo "🐳build ${WHAT} ${GOOS}" 
+	@GOOS=$(GOOS) ./localbuild.sh $(WHAT)
 image:
 	@echo "🐳build image ${WHAT}" 	
 	@bash ./release.sh ${WHAT} ${PUSH}
