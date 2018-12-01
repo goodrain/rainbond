@@ -91,8 +91,8 @@ func goodrainMe() (*model.Server, *model.Upstream) {
 	svr := &model.Server{
 		Listen:     fmt.Sprintf("%s:%d %s", "0.0.0.0", 443, "ssl"),
 		ServerName: "goodrain.me",
-		SSLCertificate: "server.crt",
-		SSLCertificateKey: "server.key",
+		SSLCertificate: "cert/server.crt",
+		SSLCertificateKey: "cert/server.key",
 		ClientMaxBodySize: model.Size{Num:0, Unit:"k"},
 		ChunkedTransferEncoding: true,
 		Locations: []*model.Location{
