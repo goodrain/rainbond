@@ -178,7 +178,7 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 			},
 		},
 	}
-	logrus.Infof("create rainbondssc pv %s for pvc %s", pv.Name, options.PVC.Name)
+	logrus.Infof("create rainbondsslc pv %s for pvc %s", pv.Name, options.PVC.Name)
 	return pv, nil
 }
 

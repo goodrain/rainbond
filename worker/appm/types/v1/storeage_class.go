@@ -55,7 +55,7 @@ func init() {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: RainbondStatefuleLocalStorageClass,
 		},
-		Provisioner:       "rainbond.io/provisioner-slsc",
+		Provisioner:       "rainbond.io/provisioner-sslc",
 		VolumeBindingMode: &volumeBindingImmediate,
 		ReclaimPolicy:     &Retain,
 	})
