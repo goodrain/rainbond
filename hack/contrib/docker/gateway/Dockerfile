@@ -4,7 +4,7 @@ ADD rainbond-gateway /run/rainbond-gateway
 ADD entrypoint.sh /run/entrypoint.sh
 ADD openresty-1.13.6.1.tar.gz /
 ADD nginxtmp/tmpl /run/nginxtmp
-ADD nginxtmp/conf/mime.types /run/nginx/mime.types
+ADD nginxtmp/mime.types /run/nginx/mime.types
 ADD ingress-controller /ingress-controller
 
 ENV NGINX_CONFIG_TMPL=/run/nginxtmp
