@@ -334,7 +334,7 @@ func (osvc *OrService) newRbdServers() error {
 		leus,
 		meus,
 		geus,
-	}, "upstreams-http.tmpl", cfgPath, "upstreams.default.http.conf"); err != nil {
+	}, "upstreams-http-rbd.tmpl", cfgPath, "upstreams.default.http.conf"); err != nil {
 		return err
 	}
 	return nil
