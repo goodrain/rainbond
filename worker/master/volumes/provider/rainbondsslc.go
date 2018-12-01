@@ -43,7 +43,7 @@ type rainbondsslcProvisioner struct {
 // NewRainbondsslcProvisioner creates a new Rainbond statefulset share volume provisioner
 func NewRainbondsslcProvisioner() controller.Provisioner {
 	return &rainbondsslcProvisioner{
-		name: "rainbond.io/provisioner/sslc",
+		name: "rainbond.io/provisioner-sslc",
 	}
 }
 
