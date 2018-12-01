@@ -87,7 +87,28 @@ http {
             }
         }
 
-        include update-ups*.conf;
+        location /update-upstreams {
+            content_by_lua_block {
+                local cjson = require("cjson")
+                ngx.req.read_body()
+                local data = ngx.req.get_body_data()
+                if not data then
+                    local name = ngx.req.get_body_file()
+                    local f = io.open(name, "r")
+                    data = f:read("*a")
+                end
+
+                upstreams = cjson.decode(data)
+                for _, upstream in pairs(upstreams) do
+                    name = upstream.Name
+                    ngx.say(name)
+                    local servers = cjson.encode(upstream.Servers)
+                    ngx.say(servers)
+                    ngx.shared.upstreams_dict:set(name, servers)
+                    ngx.say("ok")
+                end
+            }
+        }
 
         location /delete-upstreams {
             content_by_lua_block {
