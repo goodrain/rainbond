@@ -1,14 +1,11 @@
-language: go
+sudo: required
 
-go_import_path: github.com/goodrain/rainbond
+services:
+  - docker
 
-go:
-  - "1.8.3"
+git:
+  depth: 1
 
-# Run coverage tests.
-matrix:
-  fast_finish: true
-  allow_failures:
-    - go: "1.8.3"
 script:
-  - make build
+- docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+- ./release.sh all push
