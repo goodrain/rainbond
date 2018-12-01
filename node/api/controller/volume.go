@@ -34,7 +34,7 @@ import (
 //CreateLocalVolume crete local volume dir
 func CreateLocalVolume(w http.ResponseWriter, r *http.Request) {
 	var requestopt = make(map[string]string)
-	if err := json.NewDecoder(r.Body).Decode(requestopt); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&requestopt); err != nil {
 		w.WriteHeader(400)
 		return
 	}

@@ -31,6 +31,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -114,25 +115,31 @@ func (p *rainbondsslcProvisioner) createPath(options controller.VolumeOptions) (
 	if ip == "" {
 		return "", fmt.Errorf("do not find node ip")
 	}
-	body := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(body).Encode(reqoptions); err != nil {
-		return "", fmt.Errorf("create volume body failure %s", err.Error())
-	}
 	retry := 3
 	var path string
 	for retry > 0 {
 		retry--
+		body := bytes.NewBuffer(nil)
+		if err := json.NewEncoder(body).Encode(reqoptions); err != nil {
+			return "", fmt.Errorf("create volume body failure %s", err.Error())
+		}
 		res, err := http.Post(fmt.Sprintf("http://%s:6100/v2/localvolumes/create", ip), "application/json", body)
 		if err != nil {
 			logrus.Errorf("do request node api failure %s", err.Error())
 		}
-		var result = make(map[string]string)
 		if res != nil && res.StatusCode == 200 && res.Body != nil {
-			if err := json.NewDecoder(res.Body).Decode(result); err == nil {
-				path = result["path"]
-				break
+			if res, err := httputil.ParseResponseBody(res.Body, "application/json"); err == nil {
+				if info, ok := res.Bean.(map[string]interface{}); ok {
+					path = info["path"].(string)
+					break
+				} else {
+					logrus.Errorf("request create local volume failure: parse body info failure  ")
+				}
+			} else {
+				logrus.Errorf("request create local volume failure: parse body failure %s ", err.Error())
 			}
 		}
+		logrus.Errorf("request create local volume failure code:%d", res.StatusCode)
 		time.Sleep(time.Second * 2)
 	}
 	return path, nil
@@ -147,10 +154,16 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 		if err != nil || options.SelectedNode == nil {
 			return nil, fmt.Errorf("do not select an appropriate node for local volume")
 		}
+		if _, ok := options.SelectedNode.Labels["rainbond_node_ip"]; !ok {
+			return nil, fmt.Errorf("select node(%s) do not have label rainbond_node_ip ", options.SelectedNode.Name)
+		}
 	}
 	path, err := p.createPath(options)
 	if err != nil {
 		return nil, fmt.Errorf("create local volume from node %s failure %s", options.SelectedNode.Name, err.Error())
+	}
+	if path == "" {
+		return nil, fmt.Errorf("create local volume failure,local path is not create")
 	}
 	pv := &v1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
@@ -170,13 +183,14 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 			NodeAffinity: &v1.VolumeNodeAffinity{
 				Required: &v1.NodeSelector{
 					NodeSelectorTerms: []v1.NodeSelectorTerm{
-						v1.NodeSelectorTerm{MatchFields: []v1.NodeSelectorRequirement{
-							v1.NodeSelectorRequirement{
-								Key:      "name",
-								Operator: v1.NodeSelectorOpIn,
-								Values:   []string{options.SelectedNode.GetName()},
+						v1.NodeSelectorTerm{
+							MatchExpressions: []v1.NodeSelectorRequirement{
+								v1.NodeSelectorRequirement{
+									Key:      "rainbond_node_ip",
+									Operator: v1.NodeSelectorOpIn,
+									Values:   []string{options.SelectedNode.Labels["rainbond_node_ip"]},
+								},
 							},
-						},
 						},
 					},
 				},
