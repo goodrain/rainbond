@@ -22,14 +22,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/apcera/termtables"
-	"github.com/goodrain/rainbond/grctl/clients"
-	"github.com/goodrain/rainbond/node/api/model"
-	"github.com/urfave/cli"
-	"github.com/goodrain/rainbond/node/nodem/service"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/apcera/termtables"
+	"github.com/goodrain/rainbond/grctl/clients"
+	"github.com/goodrain/rainbond/node/api/model"
+	"github.com/goodrain/rainbond/node/nodem/service"
+	"github.com/urfave/cli"
 )
 
 //NewCmdConfigs 全局配置相关命令
@@ -43,11 +44,7 @@ func NewCmdConfigs() cli.Command {
 				Usage: "generate systemd configs by service list yaml file.",
 				Action: func(c *cli.Context) error {
 					yamlFile := c.Args().First()
-					services, err := service.LoadServicesFromLocal(yamlFile)
-					if err != nil {
-						println("Can not parse the yaml file: ", err.Error())
-						return err
-					}
+					services := service.LoadServicesFromLocal(yamlFile)
 
 					dirName := filepath.Dir(yamlFile)
 					ext := filepath.Ext(yamlFile)
