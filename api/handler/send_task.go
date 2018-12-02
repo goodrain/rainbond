@@ -42,11 +42,12 @@ func sendTask(body map[string]interface{}, taskType string, mqClient *client.MQC
 		return errEq
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	_, err = mqClient.Enqueue(ctx, eq)
+	reply, err := mqClient.Enqueue(ctx, eq)
 	cancel()
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		return err
 	}
+	logrus.Debugf("Enqueue replay: %s, topics: %v, message: %s", reply.Status, reply.Topics, reply.Message)
 	return nil
 }
