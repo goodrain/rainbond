@@ -54,7 +54,7 @@ func transform(target string) map[string]string {
 	target = strings.Replace(target, " ", "", -1)
 	result := make(map[string]string)
 	for _, item := range strings.Split(target, ";") {
-		split := strings.Split(item, ":")
+		split := strings.Split(item, "=")
 		if len(split) < 2 {
 			continue
 		}
