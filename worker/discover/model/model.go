@@ -127,6 +127,13 @@ func NewTaskBody(taskType string, body []byte) TaskBody {
 			return nil
 		}
 		return b
+	case "apply_rule":
+		b := ApplyRuleTaskBody{}
+		err := ffjson.Unmarshal(body, &b)
+		if err != nil {
+			return nil
+		}
+		return b
 	default:
 		return DefaultTaskBody{}
 	}
