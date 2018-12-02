@@ -23,6 +23,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	api_db "github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/mq/api/grpc/client"
+	"github.com/goodrain/rainbond/worker/discover"
 	"github.com/pquerna/ffjson/ffjson"
 )
 
@@ -36,7 +37,7 @@ func sendTask(body map[string]interface{}, taskType string, mqClient *client.MQC
 		TaskBody: bodyJ,
 		User:     "define",
 	}
-	eq, errEq := api_db.BuildTaskBuild(bs)
+	eq, errEq := api_db.BuildTaskBuildWithTopic(bs, discover.WTOPIC)
 	if errEq != nil {
 		logrus.Errorf("build equeue stop request error, %v", errEq)
 		return errEq
