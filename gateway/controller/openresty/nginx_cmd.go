@@ -10,7 +10,7 @@ import (
 
 var (
 	nginxBinary      = "nginx"
-	defaultNginxConf = "/run/nginx/nginx.conf"
+	defaultNginxConf = "/run/nginx/conf/nginx.conf"
 )
 
 func init() {

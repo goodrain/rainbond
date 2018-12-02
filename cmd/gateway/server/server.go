@@ -21,31 +21,32 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/cmd/gateway/option"
-	"github.com/goodrain/rainbond/gateway/controller"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/cmd/gateway/option"
+	"github.com/goodrain/rainbond/gateway/controller"
 )
 
 //Run start run
 func Run(s *option.GWServer) error {
 	errCh := make(chan error)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gwc := controller.NewGWController(ctx, &s.Config, errCh)
+	gwc, err := controller.NewGWController(ctx, &s.Config)
+	if err != nil {
+		return err
+	}
 	if gwc == nil {
 		return fmt.Errorf("fail to new GWController")
 	}
-	defer gwc.EtcdCli.Close()
-
-	if err := gwc.Start(); err != nil {
+	if err := gwc.Start(errCh); err != nil {
 		return err
 	}
-	defer gwc.Stop()
-
+	defer gwc.Close()
+	logrus.Info("RBD app gateway start success!")
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
 	select {

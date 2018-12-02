@@ -32,7 +32,7 @@ type Events struct {
 }
 
 //NewNginx new nginx config
-func NewNginx(conf option.Config, customPath string) *Nginx {
+func NewNginx(conf option.Config) *Nginx {
 	if conf.NginxUser != "" {
 		if u, err := user.Current(); err == nil {
 			if conf.NginxUser == u.Username {

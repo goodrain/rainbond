@@ -2,6 +2,7 @@
 worker_processes  {{.WorkerProcesses}};
 error_log  {{.ErrorLog}};
 worker_rlimit_nofile {{.WorkerRlimitNofile}};
+daemon off;
 
 events {
     {{ if .Events.EnableEpoll }}use epoll;{{ end }}
@@ -11,9 +12,34 @@ events {
 
 {{ $h := .HTTP }}
 http {
-    lua_package_path "/run/nginxtmp/lua/lua-resty-balancer/lib/?.lua;;";
-    lua_package_cpath "/run/nginxtmp/lua/lua-resty-balancer/?.so;;";
+    lua_package_cpath "/run/nginx/lua/vendor/so/?.so;;";
+    lua_package_path "/run/nginx/lua/?.lua;;";
+    lua_shared_dict configuration_data {{$h.UpstreamsDict.Num}}{{$h.UpstreamsDict.Unit}};
+    
+    init_by_lua_block {
+        require("resty.core")
+        collectgarbage("collect")
 
+        -- init modules
+        local ok, res
+
+        ok, res = pcall(require, "config")
+        if not ok then
+          error("require failed: " .. tostring(res))
+        else
+          config = res
+        end
+
+        ok, res = pcall(require, "balancer")
+        if not ok then
+          error("require failed: " .. tostring(res))
+        else
+          balancer = res
+        end
+    }
+    init_worker_by_lua_block {
+        balancer.init_worker()
+    }
     include mime.types;
     default_type  {{$h.DefaultType}};
 
@@ -58,67 +84,36 @@ http {
 
     server_names_hash_bucket_size 512;
 
-    lua_shared_dict upstreams_dict {{$h.UpstreamsDict.Num}}{{$h.UpstreamsDict.Unit}};
-
     server {
         listen 80 default_server;
         server_name _;
         return 404;
     }
+    upstream upstream_balancer {
+        server 0.0.0.1; # placeholder
+
+        balancer_by_lua_block {
+          balancer.balance()
+        }
+    }
 
     server {
         listen       {{$h.AuxiliaryPort}};
-
         location /healthz {
             return 200 "ok";
         }
+        location /config {
+            access_log off;
 
-        location /list-upstreams {
+            allow 127.0.0.1;
+            deny all;
+
+            # this should be equals to configuration_data dict
+            client_max_body_size                    10m;
+            proxy_buffering                         off;
+
             content_by_lua_block {
-                local balancer = require "ngx.balancer"
-                local cjson = require("cjson")
-                local keys = ngx.shared.upstreams_dict:get_keys()
-                for _, name in pairs(keys) do
-                    local servers = ngx.shared.upstreams_dict:get(name)
-                    ngx.print(name..": ")
-                    ngx.print(cjson.encode(servers))
-                    ngx.print("\n")
-                end
-            }
-        }
-
-        location /update-upstreams {
-            content_by_lua_block {
-                local cjson = require("cjson")
-                ngx.req.read_body()
-                local data = ngx.req.get_body_data()
-                if not data then
-                    local name = ngx.req.get_body_file()
-                    local f = io.open(name, "r")
-                    data = f:read("*a")
-                end
-
-                upstreams = cjson.decode(data)
-                for _, upstream in pairs(upstreams) do
-                    name = upstream.Name
-                    ngx.say(name)
-                    local servers = cjson.encode(upstream.Servers)
-                    ngx.say(servers)
-                    ngx.shared.upstreams_dict:set(name, servers)
-                    ngx.say("ok")
-                end
-            }
-        }
-
-        location /delete-upstreams {
-            content_by_lua_block {
-                local cjson = require("cjson")
-                ngx.req.read_body()
-                local data = ngx.req.get_body_data()
-                local tbl = cjson.decode(data)
-                for _, name in pairs(tbl) do
-                    ngx.shared.upstreams_dict:delete(name)
-                end
+              config.call()
             }
         }
     }

@@ -65,7 +65,7 @@ server {
         {{ if not $loc.DisableProxyPass }}
         set $target 'default';
         {{ buildLuaHeaderRouter $loc }}
-        proxy_pass http://$target;
+        proxy_pass http://upstream_balancer;
         {{ end }}
         {{ if $loc.Return.Code }}
         return {{$loc.Return.Code}} {{$loc.Return.Text}} {{$loc.Return.URL}};

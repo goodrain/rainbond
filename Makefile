@@ -36,7 +36,7 @@ binary:
 	@echo "🐳build binary ${WHAT} os ${GOOS}"
 	@ GOOS=${GOOS} bash ./release.sh binary ${WHAT}
 
-run:build
+run:build image
 ifeq ($(WHAT),api)
 	${BIN_PATH}/${BASE_NAME}-api --log-level=debug \
 	--mysql="root:@tcp(127.0.0.1:3306)/region" \
@@ -69,7 +69,9 @@ else ifeq ($(WHAT),node)
 	 --static-task-path=`pwd`/test/tasks \
 	 --service-list-file=`pwd`/test/master.yaml \
 	 --statsd.mapping-config=`pwd`/test/mapper.yml \
-	 --log-level=info	 
+	 --log-level=info
+else
+	test/run/run_${WHAT}.sh
 endif	
 
 doc:  

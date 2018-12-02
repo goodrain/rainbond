@@ -17,14 +17,14 @@ limitations under the License.
 package template
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	text_template "text/template"
+
+	"github.com/Sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
 	"github.com/pkg/errors"
@@ -153,12 +153,6 @@ func (t *Template) Write(conf interface{}) ([]byte, error) {
 
 	outCmdBuf := t.bp.Get()
 	defer t.bp.Put(outCmdBuf)
-
-	b, err := json.Marshal(conf)
-	if err != nil {
-		logrus.Errorf("unexpected error: %v", err)
-	}
-	logrus.Debugf("NGINX configuration: %v", string(b))
 
 	if err := t.tmpl.Execute(tmplBuf, conf); err != nil {
 		return nil, err

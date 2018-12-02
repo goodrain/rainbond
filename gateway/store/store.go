@@ -21,13 +21,14 @@ package store
 import (
 	"bytes"
 	"fmt"
-	"github.com/goodrain/rainbond/gateway/util"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/gateway/util"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
@@ -136,7 +137,7 @@ func New(client kubernetes.Interface,
 	// create informers factory, enable and assign required informers
 	infFactory := informers.NewFilteredSharedInformerFactory(client, time.Second, corev1.NamespaceAll,
 		func(options *metav1.ListOptions) {
-			//options.LabelSelector = "creater=Rainbond"
+			options.LabelSelector = "creater=Rainbond"
 		})
 
 	store.informers.Ingress = infFactory.Extensions().V1beta1().Ingresses().Informer()
@@ -153,7 +154,6 @@ func New(client kubernetes.Interface,
 
 	ingEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			logrus.Debug("Ingress AddFunc is called.\n")
 			ing := obj.(*extensions.Ingress)
 
 			// updating annotations information for ingress
@@ -196,7 +196,6 @@ func New(client kubernetes.Interface,
 
 	secEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			logrus.Debug("Secret AddFunc is called.\n")
 			sec := obj.(*corev1.Secret)
 			key := k8s.MetaNamespaceKey(sec)
 
@@ -562,7 +561,7 @@ func (s *rbdStore) ingressIsValid(ing *extensions.Ingress) bool {
 		return false
 	}
 	if !exists {
-		logrus.Infof("Endpoint \"%s\" does not exist.", endpointKey)
+		logrus.Warningf("Endpoint \"%s\" does not exist.", endpointKey)
 		return false
 	}
 	endpoint, ok := item.(*apiv1.Endpoints)
