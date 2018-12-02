@@ -57,7 +57,6 @@ type GWController struct {
 
 // Start starts Gateway
 func (gwc *GWController) Start(errCh chan error) error {
-
 	// start plugin(eg: nginx, zeus and etc)
 	gwc.GWS.Start(errCh)
 	// start informer

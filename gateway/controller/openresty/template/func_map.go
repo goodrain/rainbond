@@ -67,7 +67,7 @@ func buildLuaHeaderRouter(input interface{}) string {
 			snippet = append(snippet, "\t\t\tend")
 			priority[2] = strings.Join(snippet, "\n\r")
 		case v1.CookieType:
-			snippet := []string{}
+			var snippet []string
 			snippet = append(snippet, `
 			string.split = function(s, p)
                 local rt= {}
