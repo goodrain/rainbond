@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"sync"
 )
@@ -72,15 +73,22 @@ func (a *applyRuleController) applyRules(app *v1.AppService) error {
 	return nil
 }
 
-func ensureService(service *corev1.Service, clientSet kubernetes.Interface) {
-	_, err := clientSet.CoreV1().Services(service.Namespace).Update(service)
+func ensureService(new *corev1.Service, clientSet kubernetes.Interface) {
+	old, err := clientSet.CoreV1().Services(new.Namespace).Get(new.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			_, err := clientSet.CoreV1().Services(service.Namespace).Create(service)
-			logrus.Warningf("error creating service %+v: %v", service, err)
+			_, err := clientSet.CoreV1().Services(new.Namespace).Create(new)
+			logrus.Warningf("error creating service %+v: %v", new, err)
+		} else {
+			new.ResourceVersion = old.ResourceVersion
+			new.Spec.ClusterIP = old.Spec.ClusterIP
+			_, err := clientSet.CoreV1().Services(new.Namespace).Update(new)
+			if err != nil {
+				logrus.Warningf("error updating service %+v: %v", new, err)
+			}
 		}
-
-		logrus.Warningf("error updating service %+v: %v", service, err)
+	} else {
+		logrus.Warningf("error getting service %+v: %v", new, err)
 	}
 }
 
