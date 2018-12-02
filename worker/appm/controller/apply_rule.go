@@ -75,6 +75,7 @@ func (a *applyRuleController) applyRules(app *v1.AppService) error {
 
 func ensureService(new *corev1.Service, clientSet kubernetes.Interface) {
 	old, err := clientSet.CoreV1().Services(new.Namespace).Get(new.Name, metav1.GetOptions{})
+	logrus.Debugf("old service: %v", old)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			_, err := clientSet.CoreV1().Services(new.Namespace).Create(new)
@@ -87,8 +88,6 @@ func ensureService(new *corev1.Service, clientSet kubernetes.Interface) {
 				logrus.Warningf("error updating service %+v: %v", new, err)
 			}
 		}
-	} else {
-		logrus.Warningf("error getting service %+v: %v", new, err)
 	}
 }
 
