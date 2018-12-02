@@ -128,7 +128,7 @@ func NewTaskBody(taskType string, body []byte) TaskBody {
 		}
 		return b
 	case "apply_rule":
-		b := ApplyRuleTaskBody{}
+		b := &ApplyRuleTaskBody{}
 		err := ffjson.Unmarshal(body, &b)
 		if err != nil {
 			return nil
