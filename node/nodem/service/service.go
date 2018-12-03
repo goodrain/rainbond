@@ -38,6 +38,7 @@ type Service struct {
 	Endpoints       []*Endpoint `yaml:"endpoints,omitempty"`
 	ServiceHealth   *Health     `yaml:"health"`
 	OnlyHealthCheck bool        `yaml:"only_health_check"`
+	IsInitStart     bool        `yaml:"is_init_start"`
 	Disable         bool        `yaml:"disable"`
 	After           []string    `yaml:"after"`
 	Requires        []string    `yaml:"requires"`

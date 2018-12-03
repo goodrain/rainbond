@@ -35,8 +35,9 @@ image:
 binary:
 	@echo "🐳build binary ${WHAT} os ${GOOS}"
 	@ GOOS=${GOOS} bash ./release.sh binary ${WHAT}
-
-run:build image
+run-c:image
+	test/run/run_${WHAT}.sh
+run:build
 ifeq ($(WHAT),api)
 	${BIN_PATH}/${BASE_NAME}-api --log-level=debug \
 	--mysql="root:@tcp(127.0.0.1:3306)/region" \

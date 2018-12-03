@@ -33,7 +33,6 @@ import (
 // node reg : Register the daemon configuration for node
 // node run: daemon start node server
 func ParseClientCommnad(args []string) {
-	fmt.Println(args)
 	if len(args) > 1 {
 		switch args[1] {
 		case "version":

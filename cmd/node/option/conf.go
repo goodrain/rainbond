@@ -19,6 +19,7 @@
 package option
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"path"
@@ -49,7 +50,6 @@ func Init() error {
 	if initialized {
 		return nil
 	}
-	Config.AddFlags(pflag.CommandLine)
 	pflag.Parse()
 	Config.SetLog()
 	if err := Config.parse(); err != nil {
@@ -154,7 +154,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&a.FailTime, "failTime", 3, "the fail time of healthy check")
 	fs.IntVar(&a.CheckIntervalSec, "checkInterval-second", 5, "the interval time of healthy check")
 	fs.StringSliceVar(&a.Etcd.Endpoints, "etcd", []string{"http://127.0.0.1:2379"}, "the path of node in etcd")
-	fs.DurationVar(&a.Etcd.DialTimeout, "etcd-dialTimeOut", 2*time.Second, "etcd cluster dialTimeOut.")
+	fs.DurationVar(&a.Etcd.DialTimeout, "etcd-dialTimeOut", 3, "etcd cluster dialTimeOut In seconds")
 	fs.IntVar(&a.ReqTimeout, "reqTimeOut", 2, "req TimeOut.")
 	fs.Int64Var(&a.TTL, "ttl", 10, "node timeout second")
 	fs.Int64Var(&a.ProcTTL, "procttl", 600, "proc ttl")
@@ -190,16 +190,24 @@ func (a *Conf) SetLog() {
 	logrus.SetLevel(level)
 }
 
-//Parse handle config and create some api
-func (a *Conf) Parse() (err error) {
+//ParseClient handle config and create some api
+func (a *Conf) ParseClient() (err error) {
 	a.DockerCli, err = dockercli.NewEnvClient()
 	if err != nil {
 		return err
 	}
-	a.EtcdCli, err = client.New(a.Etcd)
-	if err != nil {
-		return err
+	logrus.Infof("begin create etcd client: %s", a.Etcd.Endpoints)
+	for {
+		a.EtcdCli, err = client.New(a.Etcd)
+		if err != nil {
+			logrus.Errorf("create etcd client failure %s, will retry after 3 second", err.Error())
+		}
+		if err == nil && a.EtcdCli != nil {
+			break
+		}
+		time.Sleep(time.Second * 3)
 	}
+	logrus.Infof("create etcd client success")
 	return nil
 }
 
@@ -231,15 +239,19 @@ func cleanKeyPrefix(p string) string {
 }
 
 //parse parse
-func (c *Conf) parse() error {
-	if c.Etcd.DialTimeout > 0 {
-		c.Etcd.DialTimeout *= time.Second
+func (a *Conf) parse() error {
+	if a.Etcd.DialTimeout < 3 {
+		a.Etcd.DialTimeout = time.Second * 3
+	} else {
+		a.Etcd.DialTimeout = a.Etcd.DialTimeout * time.Second
 	}
-	if c.TTL <= 0 {
-		c.TTL = 10
+
+	a.Etcd.Context = context.Background()
+	if a.TTL <= 0 {
+		a.TTL = 10
 	}
-	if c.LockTTL < 2 {
-		c.LockTTL = 300
+	if a.LockTTL < 2 {
+		a.LockTTL = 300
 	}
 	return nil
 }

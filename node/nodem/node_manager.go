@@ -101,14 +101,20 @@ func (n *NodeManager) AddAPIManager(apim *api.Manager) error {
 	return n.monitor.SetAPIRoute(apim)
 }
 
-//Start start
-func (n *NodeManager) Start(errchan chan error) error {
+//InitStart init start is first start module.
+//it would not depend etcd
+func (n *NodeManager) InitStart() error {
 	if err := n.init(); err != nil {
 		return err
 	}
 	if err := n.controller.Start(n.HostNode); err != nil {
 		return fmt.Errorf("start node controller error,%s", err.Error())
 	}
+	return nil
+}
+
+//Start start
+func (n *NodeManager) Start(errchan chan error) error {
 	services, err := n.controller.GetAllService()
 	if err != nil {
 		return fmt.Errorf("get all services error,%s", err.Error())

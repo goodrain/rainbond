@@ -40,11 +40,25 @@ import (
 
 //Run start run
 func Run(c *option.Conf) error {
-	if err := c.Parse(); err != nil {
+	stop, err := initService(c)
+	if err != nil {
+		return err
+	}
+	if stop {
+		return nil
+	}
+	nodemanager, err := nodem.NewNodeManager(c)
+	if err != nil {
+		return fmt.Errorf("create node manager failed: %s", err)
+	}
+	if err := nodemanager.InitStart(); err != nil {
+		return err
+	}
+	if err := c.ParseClient(); err != nil {
 		return fmt.Errorf("config parse error:%s", err.Error())
 	}
 	errChan := make(chan error, 3)
-	err := eventLog.NewManager(eventLog.EventConfig{
+	err = eventLog.NewManager(eventLog.EventConfig{
 		EventLogServers: c.EventLogServer,
 		DiscoverAddress: c.Etcd.Endpoints,
 	})
@@ -53,24 +67,24 @@ func Run(c *option.Conf) error {
 		return nil
 	}
 	defer eventLog.CloseManager()
-
+	logrus.Debug("create and start event log client success")
 	kubecli, err := kubecache.NewKubeClient(c)
 	if err != nil {
 		return err
 	}
 	defer kubecli.Stop()
+
+	logrus.Debug("create and start kube cache moudle success")
 	// init etcd client
 	if err = store.NewClient(c); err != nil {
 		return fmt.Errorf("Connect to ETCD %s failed: %s", c.Etcd.Endpoints, err)
-	}
-	nodemanager, err := nodem.NewNodeManager(c)
-	if err != nil {
-		return fmt.Errorf("create node manager failed: %s", err)
 	}
 	if err := nodemanager.Start(errChan); err != nil {
 		return fmt.Errorf("start node manager failed: %s", err)
 	}
 	defer nodemanager.Stop()
+	logrus.Debug("create and start node manager moudle success")
+
 	//master服务在node服务之后启动
 	var ms *masterserver.MasterServer
 	if c.RunMode == "master" {
@@ -85,6 +99,7 @@ func Run(c *option.Conf) error {
 			return err
 		}
 		defer ms.Stop(nil)
+		logrus.Debug("create and start master server moudle success")
 	}
 	//create api manager
 	apiManager := api.NewManager(*c, nodemanager.GetCurrentNode(), ms, kubecli)
@@ -95,6 +110,7 @@ func Run(c *option.Conf) error {
 		return err
 	}
 	defer apiManager.Stop()
+	logrus.Debug("create and start api server moudle success")
 
 	defer controller.Exist(nil)
 	//step finally: listen Signal

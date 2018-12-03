@@ -191,11 +191,8 @@ func (m *ControllerSystemd) run(args ...string) error {
 
 //InitStart init start. will start some required service
 func (m *ControllerSystemd) InitStart(services []*service.Service) error {
-	if err := m.run("start", "docker"); err != nil {
-		return fmt.Errorf("systemctl start docker error:%s", err.Error())
-	}
 	for _, s := range services {
-		if s.Name == "etcd" {
+		if s.IsInitStart {
 			fileName := fmt.Sprintf("/etc/systemd/system/%s.service", s.Name)
 			content := ToConfig(s)
 			if content == "" {

@@ -19,8 +19,12 @@
 package controller
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/nodem/service"
+	"github.com/goodrain/rainbond/util/windows"
 )
 
 //NewController At the stage you want to load the configurations of all rainbond components
@@ -37,28 +41,46 @@ type windowsServiceController struct {
 }
 
 func (w *windowsServiceController) InitStart(services []*service.Service) error {
+	for _, s := range services {
+		if s.IsInitStart {
+			if err := w.WriteConfig(s); err != nil {
+				return err
+			}
+			if err := w.StartService(s.Name); err != nil {
+				return fmt.Errorf("start windows service %s failure %s", s.Name, err.Error())
+			}
+		}
+	}
 	return nil
 }
+
 func (w *windowsServiceController) StartService(name string) error {
-	return nil
+	return windows.StartService(name)
 }
 func (w *windowsServiceController) StopService(name string) error {
-	return nil
+	return windows.StopService(name)
 }
 func (w *windowsServiceController) StartList(list []*service.Service) error {
+	for _, s := range list {
+		w.StartService(s.Name)
+	}
 	return nil
 }
 func (w *windowsServiceController) StopList(list []*service.Service) error {
+	for _, s := range list {
+		w.StopService(s.Name)
+	}
 	return nil
 }
 func (w *windowsServiceController) RestartService(serviceName string) error {
-	return nil
+	return windows.RestartService(serviceName)
 }
 func (w *windowsServiceController) WriteConfig(s *service.Service) error {
-	return nil
+	cmds := strings.Split(s.Start, " ")
+	return windows.RegisterService(s.Name, cmds[0], "Rainbond "+s.Name, s.Requires, cmds)
 }
 func (w *windowsServiceController) RemoveConfig(name string) error {
-	return nil
+	return windows.UnRegisterService(name)
 }
 func (w *windowsServiceController) EnableService(name string) error {
 	return nil
