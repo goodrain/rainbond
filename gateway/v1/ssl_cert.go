@@ -40,7 +40,7 @@ func (s *SSLCert) Equals(c *SSLCert) bool {
 	if s == c {
 		return true
 	}
-	if s == nil || c == nil  {
+	if s == nil || c == nil {
 		return false
 	}
 	if !s.Meta.Equals(c.Meta) {
@@ -49,7 +49,12 @@ func (s *SSLCert) Equals(c *SSLCert) bool {
 	if s.CertificatePem != c.CertificatePem {
 		return false
 	}
-	if !s.Certificate.Equal(c.Certificate)  {
+	if s.Certificate != nil && c.Certificate != nil {
+		if !s.Certificate.Equal(c.Certificate) {
+			return false
+		}
+	}
+	if !(s.Certificate == nil && c.Certificate == nil) {
 		return false
 	}
 	if s.CertificateStr != c.CertificateStr {
