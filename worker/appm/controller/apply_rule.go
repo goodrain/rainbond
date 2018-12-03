@@ -78,15 +78,21 @@ func ensureService(new *corev1.Service, clientSet kubernetes.Interface) {
 	logrus.Debugf("old service: %v", old)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			_, err := clientSet.CoreV1().Services(new.Namespace).Create(new)
-			logrus.Warningf("error creating service %+v: %v", new, err)
+			s, err := clientSet.CoreV1().Services(new.Namespace).Create(new)
+			if err != nil {
+				logrus.Warningf("error creating service %+v: %v", new, err)
+				return
+			}
+			logrus.Debugf("Successfully created service: %v", s)
 		} else {
 			new.ResourceVersion = old.ResourceVersion
 			new.Spec.ClusterIP = old.Spec.ClusterIP
-			_, err := clientSet.CoreV1().Services(new.Namespace).Update(new)
+			s, err := clientSet.CoreV1().Services(new.Namespace).Update(new)
 			if err != nil {
 				logrus.Warningf("error updating service %+v: %v", new, err)
+				return
 			}
+			logrus.Debugf("Successfully updated service: %v", s)
 		}
 	}
 }
@@ -96,10 +102,11 @@ func ensureIngress(ingress *extensions.Ingress, clientSet kubernetes.Interface) 
 
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			_, err := clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(ingress)
+			i, err := clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(ingress)
 			if err != nil {
 				logrus.Warningf("error creating ingress %+v: %v", ingress, err)
 			}
+			logrus.Debugf("Successfully created ingress: %v", i)
 			return
 		}
 
@@ -112,10 +119,11 @@ func ensureSecret(secret *corev1.Secret, clientSet kubernetes.Interface) {
 
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			_, err := clientSet.CoreV1().Secrets(secret.Namespace).Create(secret)
+			s, err := clientSet.CoreV1().Secrets(secret.Namespace).Create(secret)
 			if err != nil {
 				logrus.Warningf("error creating secret %+v: %v", secret, err)
 			}
+			logrus.Debugf("Successfully created secret: %v", s)
 			return
 		}
 
