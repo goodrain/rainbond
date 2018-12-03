@@ -19,6 +19,7 @@
 package db
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -255,4 +256,19 @@ func TestGetTcpRuleByServiceIDAndContainerPort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestGetCertificateByID(t *testing.T) {
+	if err := CreateManager(dbconfig.Config{
+		MysqlConnectionInfo: "admin:admin@tcp(localhost:3306)/region",
+		DBType:              "mysql",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	cert, err := GetManager().CertificateDao().GetCertificateByID("cacc59d4db594dd3869da5158800a2b7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println(cert)
 }

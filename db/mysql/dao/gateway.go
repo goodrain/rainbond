@@ -20,6 +20,7 @@ package dao
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 	"reflect"
@@ -73,14 +74,15 @@ func (c *CertificateDaoImpl) AddOrUpdate(mo model.Interface) error {
 
 // GetCertificateByID gets a certificate by matching id
 func (c *CertificateDaoImpl) GetCertificateByID(certificateID string) (*model.Certificate, error) {
-	var certificate *model.Certificate
-	if err := c.DB.Where("id = ?", certificateID).Find(&certificate).Error; err != nil {
+	var certificate model.Certificate
+	if err := c.DB.Where("uuid = ?", certificateID).Find(&certificate).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return certificate, nil
+			return &certificate, nil
 		}
+		logrus.Error("error getting certificate by id: %v", err)
 		return nil, err
 	}
-	return certificate, nil
+	return &certificate, nil
 }
 
 func (c *CertificateDaoImpl) DeleteCertificateByID(certificateID string) error {
