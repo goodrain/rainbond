@@ -257,6 +257,7 @@ func (gwc *GWController) listEndpoints() int64 {
 		}
 	}
 	//merge app pool
+	logrus.Debugf("rainbond endpoings: %v", pools)
 	pools = append(pools, gwc.rhp...)
 	if err := gwc.GWS.UpdatePools(pools); err != nil {
 		logrus.Errorf("update pools failure %s", err.Error())
