@@ -47,6 +47,7 @@ type GWController struct {
 	ocfg *option.Config
 	rcfg *v1.Config // running configuration
 	rhp  []*v1.Pool // running http pools
+	rrbdp []*v1.Pool // running rainbond pools
 
 	stopCh   chan struct{}
 	updateCh *channels.RingChannel
@@ -131,6 +132,7 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 	if gwc.rcfg.Equals(currentConfig) {
 		logrus.Info("No need to update running configuration.")
 		// refresh http pools dynamically
+		httpPools = append(httpPools, gwc.rrbdp...)
 		gwc.refreshPools(httpPools)
 		return nil
 	}
@@ -143,6 +145,7 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 		logrus.Errorf("Fail to persist Nginx config: %v\n", err)
 	} else {
 		// refresh http pools dynamically
+		httpPools = append(httpPools, gwc.rrbdp...)
 		gwc.refreshPools(httpPools)
 		gwc.rhp = httpPools
 	}
@@ -256,9 +259,9 @@ func (gwc *GWController) listEndpoints() int64 {
 			pools = append(pools, lpools...)
 		}
 	}
+
+	gwc.rrbdp = pools
 	//merge app pool
-	bytes, _ := json.Marshal(pools)
-	logrus.Debugf("rainbond endpoints: %v", string(bytes))
 	pools = append(pools, gwc.rhp...)
 	if err := gwc.GWS.UpdatePools(pools); err != nil {
 		logrus.Errorf("update pools failure %s", err.Error())
