@@ -333,6 +333,7 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		return fmt.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
+	logrus.Debugf("Getting old AppService")
 	oldAppService := m.store.GetAppService(body.ServiceID)
 	if oldAppService == nil || oldAppService.IsClosed() {
 		logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
@@ -340,6 +341,7 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		return nil
 	}
 	logrus.Debugf("old AppService: %v", oldAppService)
+	logrus.Debugf("Getting old AppService")
 	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID)
 	if err != nil {
 		logrus.Errorf("Application init create failure:%s", err.Error())
