@@ -47,9 +47,7 @@ func buildLuaHeaderRouter(input interface{}) string {
 		return ""
 	}
 	_ = loc
-	out := []string{
-		"access_by_lua_block {",
-	}
+	out := []string{"access_by_lua_block {"}
 
 	priority := make([]string, 3)
 	for name, c := range loc.NameCondition {
@@ -83,7 +81,7 @@ func buildLuaHeaderRouter(input interface{}) string {
 					map[list[1]] = list[2]
 				end
 			`)
-			condition := []string{}
+			var condition []string
 			for key, val := range c.Value {
 				condition = append(condition, fmt.Sprintf("map[\"%s\"] == \"%s\"", key, val))
 			}
