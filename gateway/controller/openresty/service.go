@@ -2,8 +2,11 @@ package openresty
 
 import (
 	"bytes"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/util/cert"
 	"net/http"
 	"os"
 	"path"
@@ -76,11 +79,11 @@ func (osvc *OrService) Start(errCh chan error) {
 		errCh <- fmt.Errorf("Can't not new nginx config: %s", err.Error())
 		return
 	}
-	// if osvc.config.EnableRbdEndpoints {
-	// 	if err := osvc.newRbdServers(); err != nil {
-	// 		errCh <- err // TODO: consider if it is right
-	// 	}
-	// }
+	if osvc.config.EnableRbdEndpoints {
+		if err := osvc.newRbdServers(); err != nil {
+			errCh <- err // TODO: consider if it is right
+		}
+	}
 	cmd := nginxExecCommand()
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -94,7 +97,7 @@ func (osvc *OrService) Start(errCh chan error) {
 		if err := cmd.Wait(); err != nil {
 			errCh <- err
 		}
-		errCh <- fmt.Errorf("nginx process is exit")
+		//errCh <- fmt.Errorf("nginx process is exit")
 	}()
 }
 
@@ -280,9 +283,15 @@ func (osvc *OrService) newRbdServers() error {
 		return err
 	}
 
-	lesrv, leus := langGoodrainMe()
-	mesrv, meus := mavenGoodrainMe()
-	gesrv, geus := goodrainMe()
+	// create cert
+	err := createCert(cfgPath, "goodrain.me")
+	if err != nil {
+		return err
+	}
+
+	lesrv, _ := langGoodrainMe()
+	mesrv, _ := mavenGoodrainMe()
+	gesrv, _ := goodrainMe(cfgPath)
 	if err := template.NewServerTemplateWithCfgPath([]*model.Server{
 		lesrv,
 		mesrv,
@@ -292,12 +301,50 @@ func (osvc *OrService) newRbdServers() error {
 	}
 
 	// upstreams
-	if err := template.NewUpstreamTemplateWithCfgPath([]*model.Upstream{
-		leus,
-		meus,
-		geus,
-	}, "upstreams-http-rbd.tmpl", cfgPath, "upstreams.default.http.conf"); err != nil {
+	//if err := template.NewUpstreamTemplateWithCfgPath([]*model.Upstream{
+	//	leus,
+	//	meus,
+	//	geus,
+	//}, "upstreams-http-rbd.tmpl", cfgPath, "upstreams.default.http.conf"); err != nil {
+	//	return err
+	//}
+	return nil
+}
+
+func createCert(cfgPath string, cn string) error {
+	if e := os.MkdirAll(fmt.Sprintf("%s/%s", cfgPath, "ssl"), 0777); e != nil {
+		return e
+	}
+	baseinfo := cert.CertInformation{Country: []string{"CN"}, Organization: []string{"Goodrain"}, IsCA: true,
+		OrganizationalUnit: []string{"Rainbond"}, EmailAddress: []string{"zengqg@goodrain.com"},
+		Locality: []string{"BeiJing"}, Province: []string{"BeiJing"}, CommonName: cn,
+		Domains: []string{"goodrain.me"},
+		CrtName: fmt.Sprintf("%s/%s", cfgPath, "ssl/ca.pem"),
+		KeyName: fmt.Sprintf("%s/%s", cfgPath, "ssl/ca.key")}
+
+	err := cert.CreateCRT(nil, nil, baseinfo)
+	if err != nil {
+		logrus.Errorf("Create crt error: ", err)
 		return err
 	}
+	crtInfo := baseinfo
+	crtInfo.IsCA = false
+	crtInfo.CrtName = fmt.Sprintf("%s/%s", cfgPath, "ssl/server.crt")
+	crtInfo.KeyName = fmt.Sprintf("%s/%s", cfgPath, "ssl/server.key")
+	crtInfo.Names = []pkix.AttributeTypeAndValue{{asn1.ObjectIdentifier{2, 1, 3}, "MAC_ADDR"}}
+
+	crt, pri, err := cert.Parse(baseinfo.CrtName, baseinfo.KeyName)
+	if err != nil {
+		logrus.Errorf("Parse crt error,Error info:", err)
+		return err
+	}
+	err = cert.CreateCRT(crt, pri, crtInfo)
+	if err != nil {
+		logrus.Errorf("Create crt error,Error info:", err)
+		return err
+	}
+
+	logrus.Info("Create certificate for goodrain.me successfully")
+
 	return nil
 }
