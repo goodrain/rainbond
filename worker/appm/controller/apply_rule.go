@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -85,17 +86,19 @@ func ensureService(new *corev1.Service, clientSet kubernetes.Interface) {
 				return
 			}
 			logrus.Debugf("Successfully created service: %v", s)
-		} else {
-			new.ResourceVersion = old.ResourceVersion
-			new.Spec.ClusterIP = old.Spec.ClusterIP
-			s, err := clientSet.CoreV1().Services(new.Namespace).Update(new)
-			if err != nil {
-				logrus.Warningf("error updating service %+v: %v", new, err)
-				return
-			}
-			logrus.Debugf("Successfully updated service: %v", s)
+			return
 		}
+		logrus.Errorf("error getting service(%s): %v", fmt.Sprintf("%s/%s", new.Namespace, new.Name), err)
+		return
 	}
+	new.ResourceVersion = old.ResourceVersion
+	new.Spec.ClusterIP = old.Spec.ClusterIP
+	s, err := clientSet.CoreV1().Services(new.Namespace).Update(new)
+	if err != nil {
+		logrus.Warningf("error updating service %+v: %v", new, err)
+		return
+	}
+	logrus.Debugf("Successfully updated service: %v", s)
 }
 
 func ensureIngress(ingress *extensions.Ingress, clientSet kubernetes.Interface) {
