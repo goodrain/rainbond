@@ -326,6 +326,7 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 }
 
 func (m *Manager) applyRuleExec(task *model.Task) error {
+	logrus.Debugf("execute applyRuleExec")
 	body, ok := task.Body.(*model.ApplyRuleTaskBody)
 	if !ok {
 		logrus.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
@@ -357,6 +358,7 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("Application stop failure")
 	}
+	logrus.Debugf("Apply rule: delete unwanted k8s resources")
 	// update k8s resources
 	err = m.controllerManager.StartController(controller.TypeApplyRuleController, *newAppService)
 	if err != nil {
