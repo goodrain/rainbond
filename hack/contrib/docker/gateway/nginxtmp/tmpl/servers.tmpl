@@ -1,4 +1,4 @@
-{{ range $svr := . }}
+{{ range $srv := . }}
 {{ if $srv.ForceSSLRedirect }}
 server {
     listen    80;
@@ -8,49 +8,49 @@ server {
 }
 {{ end }}
 server {
-    {{ if $svr.Listen }}listen    {{$svr.Listen}};{{ end }}
-    {{ if $svr.ServerName }}server_name    {{$svr.ServerName}};{{end}}
-	{{ if $svr.DefaultType }}default_type    {{$svr.DefaultType}};{{end}}
-    {{ if $svr.Charset }}charset   {{$svr.Charset}};{{end}}
+    {{ if $srv.Listen }}listen    {{$srv.Listen}};{{ end }}
+    {{ if $srv.ServerName }}server_name    {{$srv.ServerName}};{{end}}
+	{{ if $srv.DefaultType }}default_type    {{$srv.DefaultType}};{{end}}
+    {{ if $srv.Charset }}charset   {{$srv.Charset}};{{end}}
 
-    {{ if gt $svr.KeepaliveTimeout.Num 0 }}
-    keepalive_timeout {{$svr.KeepaliveTimeout.Num}}{{$svr.KeepaliveTimeout.Unit}};
+    {{ if gt $srv.KeepaliveTimeout.Num 0 }}
+    keepalive_timeout {{$srv.KeepaliveTimeout.Num}}{{$srv.KeepaliveTimeout.Unit}};
     {{ end }}
 
-    {{ if $svr.ServerTokens }}server_tokens on;{{ end }}
+    {{ if $srv.ServerTokens }}server_tokens on;{{ end }}
 
-    {{ if $svr.SSLCertificate }}
+    {{ if $srv.SSLCertificate }}
     # ssl
-    ssl_certificate {{$svr.SSLCertificate}};
+    ssl_certificate {{$srv.SSLCertificate}};
     {{ end }}
-    {{ if $svr.SSLCertificateKey }}ssl_certificate_key {{$svr.SSLCertificateKey}};{{ end }}
+    {{ if $srv.SSLCertificateKey }}ssl_certificate_key {{$srv.SSLCertificateKey}};{{ end }}
 
-    {{ if $svr.ClientMaxBodySize.Unit }}
-    client_max_body_size {{$svr.ClientMaxBodySize.Num}}{{$svr.ClientMaxBodySize.Unit}};
+    {{ if $srv.ClientMaxBodySize.Unit }}
+    client_max_body_size {{$srv.ClientMaxBodySize.Num}}{{$srv.ClientMaxBodySize.Unit}};
     {{ end }}
-    {{ if $svr.ChunkedTransferEncoding }}
+    {{ if $srv.ChunkedTransferEncoding }}
     chunked_transfer_encoding on;
     {{ end }}
 
-    {{ range $rewrite := $svr.Rewrites }}
+    {{ range $rewrite := $srv.Rewrites }}
     rewrite {{$rewrite.Regex}} {{$rewrite.Replacement}}{{if $rewrite.Flag }} {{$rewrite.Flag}}{{ end }};
     {{ end }}
 
-    {{ if ne $svr.Return.Code 0 }}
-    return {{ $svr.Return.Code }} {{ if $svr.Return.Text}} "{{ $svr.Return.Text }}" {{ else if $svr.Return.URL }} {{$svr.Return.URL}} {{ end }};
+    {{ if ne $srv.Return.Code 0 }}
+    return {{ $srv.Return.Code }} {{ if $srv.Return.Text}} "{{ $srv.Return.Text }}" {{ else if $srv.Return.URL }} {{$srv.Return.URL}} {{ end }};
     {{ end }}
 
-    {{ if gt $svr.ProxyConnectTimeout.Num 0 }}
-    proxy_connect_timeout   {{$svr.ProxyConnectTimeout.Num}}{{$svr.ProxyConnectTimeout.Unit}};
+    {{ if gt $srv.ProxyConnectTimeout.Num 0 }}
+    proxy_connect_timeout   {{$srv.ProxyConnectTimeout.Num}}{{$srv.ProxyConnectTimeout.Unit}};
     {{ end }}
-    {{ if gt $svr.ProxyTimeout.Num 0 }}
-    proxy_timeout   {{$svr.ProxyTimeout.Num}}{{$svr.ProxyTimeout.Unit}};
+    {{ if gt $srv.ProxyTimeout.Num 0 }}
+    proxy_timeout   {{$srv.ProxyTimeout.Num}}{{$srv.ProxyTimeout.Unit}};
     {{ end }}
-    {{ if $svr.ProxyPass }}
-    proxy_pass {{$svr.ProxyPass}};
+    {{ if $srv.ProxyPass }}
+    proxy_pass {{$srv.ProxyPass}};
     {{ end }}
 
-    {{ range $loc := $svr.Locations }}
+    {{ range $loc := $srv.Locations }}
     location {{$loc.Path}} {
         {{ range $rewrite := $loc.Rewrites }}
         rewrite {{$rewrite.Regex}} {{$rewrite.Replacement}}{{if $rewrite.Flag }} {{$rewrite.Flag}}{{ end }};
