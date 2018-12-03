@@ -54,11 +54,14 @@ func transform(target string) map[string]string {
 	target = strings.Replace(target, " ", "", -1)
 	result := make(map[string]string)
 	for _, item := range strings.Split(target, ";") {
-		split := strings.Split(item, ":")
-		if len(split) < 2 {
+		split := strings.Split(item, "=")
+		if len(split) < 2 || split[0] == "" || split[1] == "" {
 			continue
 		}
 		result[split[0]] = split[1]
+	}
+	if len(result) == 0 {
+		return nil
 	}
 
 	return result
