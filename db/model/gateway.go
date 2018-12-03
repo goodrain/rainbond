@@ -28,8 +28,8 @@ type Certificate struct {
 	Model
 	UUID            string `gorm:"column:uuid"`
 	CertificateName string `gorm:"column:certificate_name;size:128"`
-	Certificate     string `gorm:"column:certificate;size:128"`
-	PrivateKey      string `gorm:"column:private_key;size:128"`
+	Certificate     string `gorm:"column:certificate;size:2048"`
+	PrivateKey      string `gorm:"column:private_key;size:2048"`
 }
 
 // TableName returns table name of RuleExtension
@@ -41,10 +41,10 @@ func (RuleExtension) TableName() string {
 type RuleExtensionKey string
 
 // HTTPToHTTPS forces http rewrite to https
-var HTTPToHTTPS RuleExtensionKey = "HTTPToHTTPS"
+var HTTPToHTTPS RuleExtensionKey = "httptohttps"
 
 // LBType load balancer type
-var LBType RuleExtensionKey = "LBType"
+var LBType RuleExtensionKey = "lb-type"
 
 // RuleExtension contains rule extensions for http rule or tcp rule
 type RuleExtension struct {
