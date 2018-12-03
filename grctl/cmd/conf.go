@@ -22,14 +22,9 @@ import (
 	"fmt"
 	"strings"
 
-	"io/ioutil"
-	"os"
-	"path/filepath"
-
 	"github.com/apcera/termtables"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/node/api/model"
-	"github.com/goodrain/rainbond/node/nodem/service"
 	"github.com/urfave/cli"
 )
 
@@ -39,34 +34,6 @@ func NewCmdConfigs() cli.Command {
 		Name:  "conf",
 		Usage: "集群和服务配置相关工具",
 		Subcommands: []cli.Command{
-			cli.Command{
-				Name:  "gen",
-				Usage: "generate systemd configs by service list yaml file.",
-				Action: func(c *cli.Context) error {
-					yamlFile := c.Args().First()
-					services := service.LoadServicesFromLocal(yamlFile)
-
-					dirName := filepath.Dir(yamlFile)
-					ext := filepath.Ext(yamlFile)
-					baseName := filepath.Base(yamlFile)
-					baseName = baseName[:len(baseName)-len(ext)]
-					dirName = fmt.Sprintf("%s/%s", dirName, baseName)
-					os.Mkdir(dirName, 0755)
-
-					for _, s := range services {
-						content := service.ToConfig(s)
-						configFile := fmt.Sprintf("%s/%s.service", dirName, s.Name)
-						err := ioutil.WriteFile(configFile, []byte(content), 0644)
-						if err != nil {
-							println("Can not write service to file: ", err.Error())
-						}
-					}
-
-					println("Successful to generate service in: ", dirName)
-
-					return nil
-				},
-			},
 			cli.Command{
 				Name:  "get",
 				Usage: "get all datacenter configs",
