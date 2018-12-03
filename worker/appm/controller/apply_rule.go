@@ -39,7 +39,6 @@ type applyRuleController struct {
 
 // Begin begins applying rule
 func (a *applyRuleController) Begin() {
-	logrus.Debugf("begin apply rule: %v", a.appService)
 	var wait sync.WaitGroup
 	for _, service := range a.appService {
 		go func(service v1.AppService) {
@@ -65,10 +64,12 @@ func (a *applyRuleController) applyRules(app *v1.AppService) error {
 		ensureService(service, a.manager.client)
 	}
 	// update ingress
+	logrus.Debugf("Ingresses: %v", app.GetIngress())
 	for _, ing := range app.GetIngress() {
 		ensureIngress(ing, a.manager.client)
 	}
 	// update secret
+	logrus.Debugf("Secrets: %v", app.GetSecrets())
 	for _, secret := range app.GetSecrets() {
 		ensureSecret(secret, a.manager.client)
 	}

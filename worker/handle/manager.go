@@ -326,22 +326,18 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 }
 
 func (m *Manager) applyRuleExec(task *model.Task) error {
-	logrus.Debugf("execute applyRuleExec")
 	body, ok := task.Body.(*model.ApplyRuleTaskBody)
 	if !ok {
 		logrus.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
 		return fmt.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
-	logrus.Debugf("Getting old AppService")
 	oldAppService := m.store.GetAppService(body.ServiceID)
 	if oldAppService == nil || oldAppService.IsClosed() {
 		logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return nil
 	}
-	logrus.Debugf("old AppService: %v", oldAppService)
-	logrus.Debugf("Getting new AppService")
 	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID)
 	if err != nil {
 		logrus.Errorf("Application init create failure:%s", err.Error())
@@ -349,7 +345,6 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("Application init create failure")
 	}
-	logrus.Debugf("new AppService: %v", oldAppService)
 	newAppService.Logger = logger
 	//register the new app service
 	m.store.RegistAppService(newAppService)
@@ -362,14 +357,12 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("Application stop failure")
 	}
-	logrus.Debugf("Apply rule: delete unwanted k8s resources")
 	// update k8s resources
 	err = m.controllerManager.StartController(controller.TypeApplyRuleController, *newAppService)
 	if err != nil {
 		logrus.Errorf("Application apply rule controller failure:%s", err.Error())
 		return fmt.Errorf("Application apply rule controller failure:%s", err.Error())
 	}
-	logrus.Infof("Successfully applied the rules of service(%s)", body.ServiceID)
 	return nil
 }
 
