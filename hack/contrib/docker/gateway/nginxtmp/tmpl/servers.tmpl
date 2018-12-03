@@ -1,4 +1,12 @@
 {{ range $svr := . }}
+{{ if $srv.ForceSSLRedirect }}
+server {
+    listen    80;
+    {{ if $srv.ServerName }}server_name    {{$srv.ServerName}};{{end}}
+
+    rewrite ^ https://$http_host$request_uri? permanent;
+}
+{{ end }}
 server {
     {{ if $svr.Listen }}listen    {{$svr.Listen}};{{ end }}
     {{ if $svr.ServerName }}server_name    {{$svr.ServerName}};{{end}}
