@@ -100,6 +100,7 @@ func ensureIngress(ingress *extensions.Ingress, clientSet kubernetes.Interface) 
 			if err != nil {
 				logrus.Warningf("error creating ingress %+v: %v", ingress, err)
 			}
+			return
 		}
 
 		logrus.Warningf("error updating ingress %+v: %v", ingress, err)
@@ -115,6 +116,7 @@ func ensureSecret(secret *corev1.Secret, clientSet kubernetes.Interface) {
 			if err != nil {
 				logrus.Warningf("error creating secret %+v: %v", secret, err)
 			}
+			return
 		}
 
 		logrus.Warningf("error updating secret %+v: %v", secret, err)
