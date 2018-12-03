@@ -341,7 +341,7 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		return nil
 	}
 	logrus.Debugf("old AppService: %v", oldAppService)
-	logrus.Debugf("Getting old AppService")
+	logrus.Debugf("Getting new AppService")
 	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID)
 	if err != nil {
 		logrus.Errorf("Application init create failure:%s", err.Error())

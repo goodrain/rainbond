@@ -441,7 +441,9 @@ func (a *appRuntimeStore) DeleteAppServiceByKey(key v1.CacheKey) {
 
 func (a *appRuntimeStore) GetAppService(serviceID string) *v1.AppService {
 	key := v1.GetCacheKeyOnlyServiceID(serviceID)
+	logrus.Debugf("start loading app service")
 	app, ok := a.appServices.Load(key)
+	logrus.Debugf("finish loading app service")
 	if ok {
 		appService := app.(*v1.AppService)
 		return appService
