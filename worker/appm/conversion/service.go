@@ -81,7 +81,7 @@ func int32Ptr(i int) *int32 {
 func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	tenantService, err := dbmanager.TenantServiceDao().GetServiceByID(as.ServiceID)
 	if err != nil {
-		return fmt.Errorf("error getting service base info by serviceID(%S) %s", as.ServiceID, err.Error())
+		return fmt.Errorf("error getting service base info by serviceID(%s) %s", as.ServiceID, err.Error())
 	}
 	tenant, err := dbmanager.TenantDao().GetTenantByUUID(tenantService.TenantID)
 	if err != nil {
