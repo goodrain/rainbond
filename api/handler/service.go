@@ -122,6 +122,7 @@ func (s *ServiceAction) buildFromMarketSlug(r *api_model.BuildServiceStruct, ser
 	}
 	body["deploy_version"] = r.Body.DeployVersion
 	body["event_id"] = r.Body.EventID
+	body["action"] = r.Body.Action
 	body["tenant_name"] = r.Body.TenantName
 	body["tenant_id"] = service.TenantID
 	body["service_id"] = service.ServiceID
@@ -153,7 +154,7 @@ func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service 
 	body["event_id"] = r.Body.EventID
 	body["tenant_name"] = r.Body.TenantName
 	body["service_alias"] = r.Body.ServiceAlias
-	body["action"] = "download_and_deploy"
+	body["action"] = r.Body.Action
 	body["dep_sids"] = dependIds
 	body["code_from"] = "image_manual"
 	if r.Body.User != "" && r.Body.Password != "" {
