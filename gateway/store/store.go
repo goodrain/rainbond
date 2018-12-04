@@ -24,7 +24,6 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
@@ -65,12 +64,12 @@ const (
 var l7PoolMap = make(map[string]struct{})
 
 // l7PoolBackendMap is the mapping between backend and pool
-var l7PoolBackendMap map[string][]string
+var l7PoolBackendMap map[string][]backend
 
 var l4PoolMap = make(map[string]struct{})
 
 // l4PoolBackendMap is the mapping between backend and pool
-var l4PoolBackendMap map[string][]string
+var l4PoolBackendMap map[string][]backend
 
 //Storer is the interface that wraps the required methods to gather information
 type Storer interface {
@@ -86,6 +85,11 @@ type Storer interface {
 
 	// Run initiates the synchronization of the controllers
 	Run(stopCh chan struct{})
+}
+
+type backend struct {
+	name   string
+	weight int
 }
 
 // Event holds the context of an event.
@@ -155,6 +159,7 @@ func New(client kubernetes.Interface,
 	ingEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			ing := obj.(*extensions.Ingress)
+			logrus.Debugf("Received ingress: %v", ing)
 
 			// updating annotations information for ingress
 			store.extractAnnotations(ing)
@@ -169,7 +174,6 @@ func New(client kubernetes.Interface,
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			logrus.Debug("Ingress DeleteFunc is called.\n")
 			updateCh.In() <- Event{
 				Type: DeleteEvent,
 				Obj:  obj,
@@ -182,6 +186,7 @@ func New(client kubernetes.Interface,
 			if oldIng.ResourceVersion == curIng.ResourceVersion || reflect.DeepEqual(oldIng, curIng) {
 				return
 			}
+			logrus.Debugf("Received ingress: %v", curIng)
 
 			store.extractAnnotations(curIng)
 			store.secretIngressMap.update(curIng)
@@ -313,7 +318,7 @@ func New(client kubernetes.Interface,
 // annotation to a go struct and also information about the referenced secrets
 func (s *rbdStore) extractAnnotations(ing *extensions.Ingress) {
 	key := k8s.MetaNamespaceKey(ing)
-	logrus.Infof("updating annotations information for ingress %v", key)
+	logrus.Debugf("updating annotations information for ingress %v", key)
 
 	anns := s.annotations.Extract(ing)
 
@@ -337,18 +342,13 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 			// l7
 			backends := l7PoolBackendMap[ep.ObjectMeta.Name]
 			for _, backend := range backends {
-				weight, err := strconv.Atoi(backend[len(backend)-1:])
-				if err != nil {
-					weight = 1
-				}
-				backend = backend[:len(backend)-1]
-				pool := l7Pools[backend]
+				pool := l7Pools[backend.name]
 				if pool == nil {
 					pool = &v1.Pool{
 						Nodes: []*v1.Node{},
 					}
-					pool.Name = backend
-					l7Pools[backend] = pool
+					pool.Name = backend.name
+					l7Pools[backend.name] = pool
 				}
 				for _, ss := range ep.Subsets {
 					for _, address := range ss.Addresses {
@@ -356,7 +356,7 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 							pool.Nodes = append(pool.Nodes, &v1.Node{
 								Host:   address.IP,
 								Port:   ss.Ports[0].Port,
-								Weight: weight,
+								Weight: backend.weight,
 							})
 						}
 					}
@@ -365,18 +365,13 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 			// l4
 			backends = l4PoolBackendMap[ep.ObjectMeta.Name]
 			for _, backend := range backends {
-				weight, err := strconv.Atoi(backend[len(backend)-1:])
-				if err != nil {
-					weight = 0
-				}
-				backend = backend[:len(backend)-1]
-				pool := l4Pools[backend]
+				pool := l4Pools[backend.name]
 				if pool == nil {
 					pool = &v1.Pool{
 						Nodes: []*v1.Node{},
 					}
-					pool.Name = backend
-					l4Pools[backend] = pool
+					pool.Name = backend.name
+					l4Pools[backend.name] = pool
 				}
 				for _, ss := range ep.Subsets {
 					for _, address := range ss.Addresses {
@@ -384,7 +379,7 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 							pool.Nodes = append(pool.Nodes, &v1.Node{
 								Host:   address.IP,
 								Port:   ss.Ports[0].Port,
-								Weight: weight,
+								Weight: backend.weight,
 							})
 						}
 					}
@@ -404,8 +399,8 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 
 // ListVirtualService list l7 virtual service and l4 virtual service
 func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.VirtualService) {
-	l7PoolBackendMap = make(map[string][]string)
-	l4PoolBackendMap = make(map[string][]string)
+	l7PoolBackendMap = make(map[string][]backend)
+	l4PoolBackendMap = make(map[string][]backend)
 	l7vsMap := make(map[string]*v1.VirtualService)
 	l4vsMap := make(map[string]*v1.VirtualService)
 	// ServerName-LocationPath -> location
@@ -434,20 +429,20 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 				listening = fmt.Sprintf("%s %s", listening, "udp")
 			}
 
-			backendName := util.BackendName(listening, ing.Namespace, anns.Weight.Weight)
+			backendName := util.BackendName(listening, ing.Namespace)
 			vs := l4vsMap[listening]
 			if vs == nil {
 				vs = &v1.VirtualService{
 					Listening: []string{listening},
-					PoolName:  backendName[:len(backendName)-1],
+					PoolName:  backendName,
 				}
 			}
 
 			l4PoolMap[ing.Spec.Backend.ServiceName] = struct{}{}
 			l4vsMap[listening] = vs
 			l4vs = append(l4vs, vs)
-
-			l4PoolBackendMap[ing.Spec.Backend.ServiceName] = append(l4PoolBackendMap[ing.Spec.Backend.ServiceName], backendName)
+			backend := backend{backendName, anns.Weight.Weight}
+			l4PoolBackendMap[ing.Spec.Backend.ServiceName] = append(l4PoolBackendMap[ing.Spec.Backend.ServiceName], backend)
 			// endregion
 		} else {
 			// region l7
@@ -527,10 +522,10 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 						nameCondition.Value = map[string]string{"1": "1"}
 						backendName = fmt.Sprintf("%s_%s", locKey, v1.DefaultType)
 					}
-					// TODO: put backendName, weight in struct
-					backendName = util.BackendName(backendName, ing.Namespace, anns.Weight.Weight)
+					backendName = util.BackendName(backendName, ing.Namespace)
 					location.NameCondition[backendName] = nameCondition
-					l7PoolBackendMap[path.Backend.ServiceName] = append(l7PoolBackendMap[path.Backend.ServiceName], backendName)
+					backend := backend{backendName, anns.Weight.Weight}
+					l7PoolBackendMap[path.Backend.ServiceName] = append(l7PoolBackendMap[path.Backend.ServiceName], backend)
 				}
 			}
 			// endregion

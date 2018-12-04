@@ -19,7 +19,7 @@
 package annotations
 
 import (
-	"github.com/golang/glog"
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/gateway/annotations/cookie"
 	"github.com/goodrain/rainbond/gateway/annotations/header"
 	"github.com/goodrain/rainbond/gateway/annotations/l4"
@@ -73,7 +73,7 @@ func (e Extractor) Extract(ing *extensions.Ingress) *Ingress {
 	data := make(map[string]interface{})
 	for name, annotationParser := range e.annotations {
 		val, err := annotationParser.Parse(ing)
-		glog.V(5).Infof("annotation %v in Ingress %v/%v: %v", name, ing.GetNamespace(), ing.GetName(), val)
+		logrus.Infof("annotation %v in Ingress %v/%v: %v", name, ing.GetNamespace(), ing.GetName(), val)
 		if err != nil {
 			if errors.IsMissingAnnotations(err) {
 				continue
@@ -86,11 +86,11 @@ func (e Extractor) Extract(ing *extensions.Ingress) *Ingress {
 			_, alreadyDenied := data[DeniedKeyName]
 			if !alreadyDenied {
 				data[DeniedKeyName] = err
-				glog.Errorf("error reading %v annotation in Ingress %v/%v: %v", name, ing.GetNamespace(), ing.GetName(), err)
+				logrus.Errorf("error reading %v annotation in Ingress %v/%v: %v", name, ing.GetNamespace(), ing.GetName(), err)
 				continue
 			}
 
-			glog.V(5).Infof("error reading %v annotation in Ingress %v/%v: %v", name, ing.GetNamespace(), ing.GetName(), err)
+			logrus.Infof("error reading %v annotation in Ingress %v/%v: %v", name, ing.GetNamespace(), ing.GetName(), err)
 		}
 
 		if val != nil {
@@ -100,7 +100,7 @@ func (e Extractor) Extract(ing *extensions.Ingress) *Ingress {
 
 	err := mergo.MapWithOverwrite(pia, data)
 	if err != nil {
-		glog.Errorf("unexpected error merging extracted annotations: %v", err)
+		logrus.Errorf("unexpected error merging extracted annotations: %v", err)
 	}
 
 	return pia
