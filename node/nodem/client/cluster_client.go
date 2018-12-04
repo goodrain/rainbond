@@ -50,15 +50,13 @@ type ClusterClient interface {
 //NewClusterClient new cluster client
 func NewClusterClient(conf *option.Conf) ClusterClient {
 	return &etcdClusterClient{
-		etcdClient: conf.EtcdCli,
-		conf:       conf,
+		conf: conf,
 	}
 }
 
 type etcdClusterClient struct {
-	etcdClient *clientv3.Client
-	conf       *option.Conf
-	onlineLes  clientv3.LeaseID
+	conf      *option.Conf
+	onlineLes clientv3.LeaseID
 }
 
 func (e *etcdClusterClient) UpdateStatus(n *HostNode) error {
@@ -90,7 +88,7 @@ func (e *etcdClusterClient) GetEndpoints(key string) (result []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	resp, err := e.etcdClient.Get(ctx, key)
+	resp, err := e.conf.EtcdCli.Get(ctx, key)
 	if err != nil || len(resp.Kvs) < 1 {
 		logrus.Errorf("Can not get endpoints of the key %s", key)
 		return
@@ -119,7 +117,7 @@ func (e *etcdClusterClient) SetEndpoints(key string, value []string) {
 		return
 	}
 
-	_, err = e.etcdClient.Put(ctx, key, string(jsonStr))
+	_, err = e.conf.EtcdCli.Put(ctx, key, string(jsonStr))
 	if err != nil {
 		logrus.Errorf("Failed to put endpoint for %s: %v", key, err)
 	}
@@ -138,17 +136,17 @@ func (e *etcdClusterClient) nodeOnlinePut(h *HostNode) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	if e.onlineLes != 0 {
-		if _, err := e.etcdClient.KeepAlive(ctx, e.onlineLes); err == nil {
+		if _, err := e.conf.EtcdCli.KeepAlive(ctx, e.onlineLes); err == nil {
 			return nil
 		}
 		e.onlineLes = 0
 	}
-	les, err := e.etcdClient.Grant(ctx, 30)
+	les, err := e.conf.EtcdCli.Grant(ctx, 30)
 	if err != nil {
 		return err
 	}
 	e.onlineLes = les.ID
-	_, err = e.etcdClient.Put(ctx, e.conf.OnlineNodePath+"/"+h.ID, h.PID, clientv3.WithLease(les.ID))
+	_, err = e.conf.EtcdCli.Put(ctx, e.conf.OnlineNodePath+"/"+h.ID, h.PID, clientv3.WithLease(les.ID))
 	if err != nil {
 		return err
 	}
@@ -159,7 +157,7 @@ func (e *etcdClusterClient) nodeOnlinePut(h *HostNode) error {
 func (e *etcdClusterClient) Update(h *HostNode) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	_, err := e.etcdClient.Put(ctx, e.conf.NodePath+"/"+h.ID, h.String())
+	_, err := e.conf.EtcdCli.Put(ctx, e.conf.NodePath+"/"+h.ID, h.String())
 	return err
 }
 
@@ -169,6 +167,6 @@ func (e *etcdClusterClient) DownNode(h *HostNode) error {
 	e.Update(h)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	_, err := e.etcdClient.Delete(ctx, e.conf.OnlineNodePath+"/"+h.ID)
+	_, err := e.conf.EtcdCli.Delete(ctx, e.conf.OnlineNodePath+"/"+h.ID)
 	return err
 }
