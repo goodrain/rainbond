@@ -641,6 +641,10 @@ func createNodeSelector(as *v1.AppService, dbmanager db.Manager) map[string]stri
 	labels, err := dbmanager.TenantServiceLabelDao().GetTenantServiceNodeSelectorLabel(as.ServiceID)
 	if err == nil && labels != nil && len(labels) > 0 {
 		for _, l := range labels {
+			if l.LabelValue == "windows" || l.LabelValue == "linux" {
+				selector[client.LabelOS] = l.LabelValue
+				continue
+			}
 			if strings.Contains(l.LabelValue, "=") {
 				kv := strings.SplitN(l.LabelValue, "=", 1)
 				selector[kv[0]] = kv[1]
