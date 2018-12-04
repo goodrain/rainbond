@@ -243,13 +243,10 @@ type TenantServiceLabelDao interface {
 	GetTenantNodeAffinityLabel(serviceID string) (*model.TenantServiceLable, error)
 	GetTenantServiceAffinityLabel(serviceID string) ([]*model.TenantServiceLable, error)
 	GetTenantServiceTypeLabel(serviceID string) (*model.TenantServiceLable, error)
-	DELTenantServiceLabelsByLabelvaluesAndServiceID(serviceID string, labelValues []string) error
-	DelTenantServiceLabelByLabelValueAndServiceID(serviceID string, labelValue string) error
 	DelTenantServiceLabelsByLabelValuesAndServiceID(serviceID string) error
-	DelTenantServiceLabels(serviceID string, labelKey string, labelValues []string) error
-	DelTenantServiceLabelsByKey(serviceID string, labelKey string) error
-	DelTenantServiceLabelsByKeyValueServiceID(serviceID string, labelKey string, labelValue string) error
-	GetLabelByNodeSelectorKey(serviceID string, label_key string) (*model.TenantServiceLable, error)
+	DelTenantServiceLabelsByServiceIDKey(serviceID string, labelKey string) error
+	DelTenantServiceLabelsByServiceIDKeyValue(serviceID string, labelKey string, labelValue string) error
+	GetLabelByNodeSelectorKey(serviceID string, labelValue string) (*model.TenantServiceLable, error)
 }
 
 //LocalSchedulerDao 本地调度信息
