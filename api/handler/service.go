@@ -217,11 +217,11 @@ func (s *ServiceAction) AddLabel(l *api_model.LabelsStruct, serviceID string) er
 	for _, label := range l.Labels {
 		var labelModel dbmodel.TenantServiceLable
 		switch label.LabelKey {
-		case "service":
+		case core_model.LabelKeyServiceType:
 			labelModel.ServiceID = serviceID
 			labelModel.LabelKey = core_model.LabelKeyServiceType
 			labelModel.LabelValue = chekeServiceLabel(label.LabelValue)
-		case "node":
+		case core_model.LabelKeyNodeSelector:
 			labelModel.ServiceID = serviceID
 			labelModel.LabelKey = label.LabelValue
 			labelModel.LabelValue = core_model.LabelKeyNodeSelector
@@ -249,7 +249,7 @@ func (s *ServiceAction) UpdateLabel(l *api_model.LabelsStruct, serviceID string)
 		// delete old labels
 		var err error
 		switch label.LabelKey {
-		case "node":
+		case core_model.LabelKeyNodeSelector:
 			err = db.GetManager().TenantServiceLabelDaoTransactions(tx).
 				DelTenantServiceLabelsByLabelValuesAndServiceID(serviceID)
 		default:
@@ -264,11 +264,11 @@ func (s *ServiceAction) UpdateLabel(l *api_model.LabelsStruct, serviceID string)
 		// add new labels
 		var labelModel dbmodel.TenantServiceLable
 		switch label.LabelKey {
-		case "service":
+		case core_model.LabelKeyServiceType:
 			labelModel.ServiceID = serviceID
 			labelModel.LabelKey = core_model.LabelKeyServiceType
 			labelModel.LabelValue = chekeServiceLabel(label.LabelValue)
-		case "node":
+		case core_model.LabelKeyNodeSelector:
 			labelModel.ServiceID = serviceID
 			labelModel.LabelKey = label.LabelValue
 			labelModel.LabelValue = core_model.LabelKeyNodeSelector
@@ -297,7 +297,7 @@ func (s *ServiceAction) DeleteLabel(l *api_model.LabelsStruct, serviceID string)
 	var err error
 	for _, label := range l.Labels {
 		switch label.LabelKey {
-		case "node":
+		case core_model.LabelKeyNodeSelector:
 			err = db.GetManager().TenantServiceLabelDaoTransactions(tx).
 				DelTenantServiceLabelByLabelValueAndServiceID(serviceID, label.LabelValue)
 		default:
