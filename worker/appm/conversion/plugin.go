@@ -38,9 +38,12 @@ func TenantServicePlugin(as *typesv1.AppService, dbmanager db.Manager) error {
 		return err
 	}
 	podtemplate := as.GetPodTemplate()
-	podtemplate.Spec.Containers = append(podtemplate.Spec.Containers, pluginContainers...)
-	podtemplate.Spec.InitContainers = initContainers
-	return nil
+	if podtemplate != nil {
+		podtemplate.Spec.Containers = append(podtemplate.Spec.Containers, pluginContainers...)
+		podtemplate.Spec.InitContainers = initContainers
+		return nil
+	}
+	return fmt.Errorf("pod templete is nil before define plugin")
 }
 
 func createPluginsContainer(as *typesv1.AppService, dbmanager db.Manager) ([]v1.Container, []v1.Container, error) {

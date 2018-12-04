@@ -657,12 +657,12 @@ func createNodeSelector(as *v1.AppService, dbmanager db.Manager) map[string]stri
 }
 func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 	var affinity corev1.Affinity
+	nsr := make([]corev1.NodeSelectorRequirement, 0)
+	podAffinity := make([]corev1.PodAffinityTerm, 0)
+	podAntAffinity := make([]corev1.PodAffinityTerm, 0)
+	osWindowsSelect := false
 	labels, err := dbmanager.TenantServiceLabelDao().GetTenantServiceAffinityLabel(as.ServiceID)
 	if err == nil && labels != nil && len(labels) > 0 {
-		nsr := make([]corev1.NodeSelectorRequirement, 0)
-		podAffinity := make([]corev1.PodAffinityTerm, 0)
-		podAntAffinity := make([]corev1.PodAffinityTerm, 0)
-		osWindowsSelect := false
 		for _, l := range labels {
 			if l.LabelKey == dbmodel.LabelKeyNodeAffinity {
 				if l.LabelValue == "windows" {
@@ -707,26 +707,26 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 					})
 			}
 		}
-		if !osWindowsSelect {
-			nsr = append(nsr, corev1.NodeSelectorRequirement{
-				Key:      client.LabelOS,
-				Operator: corev1.NodeSelectorOpNotIn,
-				Values:   []string{"windows"},
-			})
-		}
-		affinity.NodeAffinity = &corev1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-				NodeSelectorTerms: []corev1.NodeSelectorTerm{
-					corev1.NodeSelectorTerm{MatchExpressions: nsr},
-				},
+	}
+	if !osWindowsSelect {
+		nsr = append(nsr, corev1.NodeSelectorRequirement{
+			Key:      client.LabelOS,
+			Operator: corev1.NodeSelectorOpNotIn,
+			Values:   []string{"windows"},
+		})
+	}
+	affinity.NodeAffinity = &corev1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+			NodeSelectorTerms: []corev1.NodeSelectorTerm{
+				corev1.NodeSelectorTerm{MatchExpressions: nsr},
 			},
-		}
-		affinity.PodAffinity = &corev1.PodAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: podAffinity,
-		}
-		affinity.PodAntiAffinity = &corev1.PodAntiAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: podAntAffinity,
-		}
+		},
+	}
+	affinity.PodAffinity = &corev1.PodAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: podAffinity,
+	}
+	affinity.PodAntiAffinity = &corev1.PodAntiAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: podAntAffinity,
 	}
 	return &affinity
 }
