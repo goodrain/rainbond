@@ -44,7 +44,6 @@ import (
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/worker/discover/model"
 )
 
 //SourceCodeBuildItem SouceCodeBuildItem
@@ -267,18 +266,6 @@ func (i *SourceCodeBuildItem) prepare() error {
 	os.Chown(i.CacheDir, 200, 200)
 	os.Chown(i.TGZDir, 200, 200)
 	return nil
-}
-
-//CreateUpgradeTaskBody Constructing  upgrade message bodies
-func (i *SourceCodeBuildItem) CreateUpgradeTaskBody() *model.RollingUpgradeTaskBody {
-	return &model.RollingUpgradeTaskBody{
-		TenantID:  i.TenantID,
-		ServiceID: i.ServiceID,
-		//TODO: 区分curr version 与 new version
-		CurrentDeployVersion: i.DeployVersion,
-		NewDeployVersion:     i.DeployVersion,
-		EventID:              i.EventID,
-	}
 }
 
 //UpdateVersionInfo Update build application service version info

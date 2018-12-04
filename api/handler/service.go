@@ -442,21 +442,13 @@ func (s *ServiceAction) ServiceUpgrade(ru *model.RollingUpgradeTaskBody) error {
 		logrus.Errorf("update service deploy version error. %v", err)
 		return fmt.Errorf("horizontal service faliure:%s", err.Error())
 	}
-	ts := &api_db.TaskStruct{
-		TaskType: "rolling_upgrade",
+	err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		TaskBody: ru,
-		User:     "define",
-	}
-	eq, errEq := api_db.BuildTask(ts)
-	if errEq != nil {
-		logrus.Errorf("build equeue upgrade request error, %v", errEq)
-		return errEq
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	_, err = s.MQClient.Enqueue(ctx, eq)
-	cancel()
+		TaskType: "rolling_upgrade",
+		Topic:    "worker",
+	})
 	if err != nil {
-		logrus.Errorf("equque mq error, %v", err)
+		logrus.Errorf("equque upgrade message error, %v", err)
 		return err
 	}
 	return nil

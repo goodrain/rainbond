@@ -23,6 +23,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/goodrain/rainbond/mq/client"
+
 	"github.com/goodrain/rainbond/builder/discover"
 	"github.com/goodrain/rainbond/builder/exector"
 	"github.com/goodrain/rainbond/builder/monitor"
@@ -35,10 +37,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/api"
+	"github.com/goodrain/rainbond/builder/clean"
+	discoverv2 "github.com/goodrain/rainbond/discover.v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	discoverv2 "github.com/goodrain/rainbond/discover.v2"
-	"github.com/goodrain/rainbond/builder/clean"
 )
 
 //Run start run
@@ -61,7 +63,12 @@ func Run(s *option.Builder) error {
 		return err
 	}
 	defer event.CloseManager()
-	exec, err := exector.NewManager(dbconfig)
+	client, err := client.NewMqClient(s.Config.EtcdEndPoints, s.Config.MQAPI)
+	if err != nil {
+		logrus.Errorf("new Mq client error, %v", err)
+		return err
+	}
+	exec, err := exector.NewManager(s.Config, client)
 	if err != nil {
 		return err
 	}
@@ -69,7 +76,7 @@ func Run(s *option.Builder) error {
 		return err
 	}
 	defer exec.Stop()
-	dis := discover.NewTaskManager(s.Config, exec)
+	dis := discover.NewTaskManager(s.Config, client, exec)
 	if err := dis.Start(); err != nil {
 		return err
 	}

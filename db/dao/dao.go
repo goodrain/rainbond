@@ -80,6 +80,7 @@ type TenantServiceDao interface {
 	GetPagedTenantService(offset, len int, serviceIDs []string) ([]map[string]interface{}, int, error)
 	GetAllServices() ([]*model.TenantServices, error)
 	GetAllServicesID() ([]*model.TenantServices, error)
+	UpdateDeployVersion(serviceID, deployversion string) error
 }
 
 //TenantServiceDeleteDao TenantServiceDeleteDao

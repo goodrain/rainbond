@@ -35,7 +35,6 @@ import (
 	"github.com/docker/engine-api/client"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/worker/discover/model"
 )
 
 //ImageBuildItem ImageBuildItem
@@ -103,11 +102,6 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 	return nil
 }
 
-//SendActionMessage Initiate a task based on the action type
-func (i *ImageBuildItem) SendActionMessage() error {
-	return nil
-}
-
 //ImageNameHandler 根据平台配置处理镜像名称
 func (i *ImageBuildItem) ImageNameHandler(source string) string {
 	imageModel := sources.ImageNameHandle(source)
@@ -124,20 +118,12 @@ func (i *ImageBuildItem) StorageVersionInfo(imageURL string) error {
 	version.DeliveredType = "image"
 	version.DeliveredPath = imageURL
 	version.ImageName = imageURL
+	version.RepoURL = i.Image
+	version.FinalStatus = "success"
 	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
 		return err
 	}
 	return nil
-}
-
-//CreateUpgradeTaskBody 构造消息体
-func (i *ImageBuildItem) CreateUpgradeTaskBody() *model.RollingUpgradeTaskBody {
-	return &model.RollingUpgradeTaskBody{
-		TenantID:         i.TenantID,
-		ServiceID:        i.ServiceID,
-		NewDeployVersion: i.DeployVersion,
-		EventID:          i.EventID,
-	}
 }
 
 //UpdateVersionInfo 更新任务执行结果
@@ -147,6 +133,7 @@ func (i *ImageBuildItem) UpdateVersionInfo(status string) error {
 		return err
 	}
 	version.FinalStatus = status
+	version.RepoURL = i.Image
 	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
 		return err
 	}

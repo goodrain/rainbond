@@ -29,11 +29,12 @@ import (
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/engine-api/client"
+	"github.com/goodrain/rainbond/cmd/builder/option"
 	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/config"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	mqclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/util"
 	"github.com/tidwall/gjson"
 )
@@ -49,7 +50,7 @@ type Manager interface {
 }
 
 //NewManager new manager
-func NewManager(conf config.Config) (Manager, error) {
+func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	dockerClient, err := client.NewEnvClient()
 	if err != nil {
 		return nil, err
@@ -61,18 +62,10 @@ func NewManager(conf config.Config) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = db.CreateManager(conf)
-	if err != nil {
-		return nil, err
-	}
-	//defer db.CloseManager()
-	if err != nil {
-		logrus.Errorf("create etcd client v3 in service check error, %v", err)
-		return nil, err
-	}
 	return &exectorManager{
 		DockerClient: dockerClient,
 		EtcdCli:      etcdCli,
+		mqClient:     mqc,
 		tasks:        make(map[*pb.TaskMessage][]byte),
 	}, nil
 }
@@ -82,6 +75,7 @@ type exectorManager struct {
 	EtcdCli      *clientv3.Client
 	tasks        map[*pb.TaskMessage][]byte
 	taskLock     sync.RWMutex
+	mqClient     mqclient.MQClient
 }
 
 //TaskWorker worker interface
@@ -170,8 +164,7 @@ func (e *exectorManager) exec(task *pb.TaskMessage) error {
 func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 	i := NewImageBuildItem(task.TaskBody)
 	i.DockerClient = e.DockerClient
-	i.Logger.Info("从镜像构建应用任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
-	status := "success"
+	i.Logger.Info("Start with the image build application task", map[string]string{"step": "builder-exector", "status": "starting"})
 	go func() {
 		start := time.Now()
 		defer e.removeTask(task)
@@ -192,21 +185,21 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 			if err != nil {
 				logrus.Errorf("build from image error: %s", err.Error())
 				if n < 1 {
-					i.Logger.Error("从镜像构建应用任务执行失败，开始重试", map[string]string{"step": "build-exector", "status": "failure"})
+					i.Logger.Error("The application task to build from the mirror failed to execute，will try", map[string]string{"step": "build-exector", "status": "failure"})
 				} else {
 					ErrorNum++
-					i.Logger.Error("从镜像构建应用任务执行失败", map[string]string{"step": "callback", "status": "failure"})
-					status = "failure"
+					i.Logger.Error("The application task to build from the image failed to execute", map[string]string{"step": "callback", "status": "failure"})
+					if err := i.UpdateVersionInfo("failure"); err != nil {
+						logrus.Debugf("update version Info error: %s", err.Error())
+					}
 				}
 			} else {
-				if err := i.SendActionMessage(); err != nil {
-
+				err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, i.Logger)
+				if err != nil {
+					i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
 				}
 				break
 			}
-		}
-		if err := i.UpdateVersionInfo(status); err != nil {
-			logrus.Debugf("update version Info error: %s", err.Error())
 		}
 	}()
 }
@@ -217,7 +210,6 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	i := NewSouceCodeBuildItem(task.TaskBody)
 	i.DockerClient = e.DockerClient
 	i.Logger.Info("Build app version from source code start", map[string]string{"step": "builder-exector", "status": "starting"})
-	status := "success"
 	go func() {
 		start := time.Now()
 		e.removeTask(task)
@@ -237,11 +229,8 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 		if err != nil {
 			logrus.Errorf("build from source code error: %s", err.Error())
 			i.Logger.Error("Build app version from source code failure", map[string]string{"step": "callback", "status": "failure"})
-			status = "failure"
-		}
-		if status == "failure" {
 			vi := &dbmodel.VersionInfo{
-				FinalStatus: status,
+				FinalStatus: "failure",
 				EventID:     i.EventID,
 				CodeVersion: i.commit.Hash,
 				CommitMsg:   i.commit.Message,
@@ -249,6 +238,11 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 			}
 			if err := i.UpdateVersionInfo(vi); err != nil {
 				logrus.Debugf("update version Info error: %s", err.Error())
+			}
+		} else {
+			err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, i.Logger)
+			if err != nil {
+				i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
 			}
 		}
 	}()
@@ -258,13 +252,12 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 func (e *exectorManager) buildFromMarketSlug(task *pb.TaskMessage) {
 	eventID := gjson.GetBytes(task.TaskBody, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
-	logger.Info("云市应用代码包构建任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
+	logger.Info("Build app version from market slug start", map[string]string{"step": "builder-exector", "status": "starting"})
 	i, err := NewMarketSlugItem(task.TaskBody)
 	if err != nil {
 		logrus.Error("create build from market slug task error.", err.Error())
 		return
 	}
-	i.Logger.Info("开始构建应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	go func() {
 		start := time.Now()
 		e.removeTask(task)
@@ -284,17 +277,55 @@ func (e *exectorManager) buildFromMarketSlug(task *pb.TaskMessage) {
 			if err != nil {
 				logrus.Errorf("image share error: %s", err.Error())
 				if n < 1 {
-					i.Logger.Error("应用构建失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
+					i.Logger.Error("Build app version from market slug failure, will try", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					ErrorNum++
-					i.Logger.Error("构建应用任务执行失败", map[string]string{"step": "callback", "status": "failure"})
+					i.Logger.Error("Build app version from market slug failure", map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
+				err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, i.Logger)
+				if err != nil {
+					i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
+				}
 				break
 			}
 		}
 	}()
 
+}
+
+//rollingUpgradeTaskBody upgrade message body type
+type rollingUpgradeTaskBody struct {
+	TenantID  string   `json:"tenant_id"`
+	ServiceID string   `json:"service_id"`
+	EventID   string   `json:"event_id"`
+	Strategy  []string `json:"strategy"`
+}
+
+func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, actionType string, logger event.Logger) error {
+	switch actionType {
+	case "upgrade":
+		if err := db.GetManager().TenantServiceDao().UpdateDeployVersion(serviceID, newVersion); err != nil {
+			return fmt.Errorf("Update app service deploy version failure.Please try the upgrade again")
+		}
+		body := rollingUpgradeTaskBody{
+			TenantID:  tenantID,
+			ServiceID: serviceID,
+			EventID:   eventID,
+			Strategy:  []string{},
+		}
+		if err := e.mqClient.SendBuilderTopic(mqclient.TaskStruct{
+			Topic:    "worker",
+			TaskType: "rolling_upgrade",
+			TaskBody: body,
+		}); err != nil {
+			return err
+		}
+		logger.Info("Build success,start upgrade app service", map[string]string{"step": "builder", "status": "running"})
+	default:
+		logger.Info("Build success,do not other action", map[string]string{"step": "last", "status": "success"})
+	}
+	return nil
 }
 
 //slugShare share app of slug

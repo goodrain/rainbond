@@ -173,6 +173,14 @@ func (t *TenantServicesDaoImpl) GetAllServicesID() ([]*model.TenantServices, err
 	return services, nil
 }
 
+//UpdateDeployVersion update service current deploy version
+func (t *TenantServicesDaoImpl) UpdateDeployVersion(serviceID, deployversion string) error {
+	if err := t.DB.Raw("update tenant_services set deploy_version=? where service_id=?", deployversion, serviceID).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
 //AddModel 添加租户应用
 func (t *TenantServicesDaoImpl) AddModel(mo model.Interface) error {
 	service := mo.(*model.TenantServices)

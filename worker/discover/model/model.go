@@ -227,18 +227,10 @@ func StrategyIsValid(strategy []string, serviceDeployType string) bool {
 
 //RollingUpgradeTaskBody 升级操作任务主体
 type RollingUpgradeTaskBody struct {
-	TenantID  string `json:"tenant_id"`
-	ServiceID string `json:"service_id"`
-	//当前前版本
-	CurrentDeployVersion string `json:"current_deploy_version"`
-	//升级目标版本
-	NewDeployVersion string `json:"new_deploy_version"`
-	EventID          string `json:"event_id"`
-	//重启策略，此策略不保证生效
-	//例如应用如果为有状态服务，此策略如配置为先启动后关闭，此策略不生效
-	//无状态服务默认使用先启动后关闭，保证服务不受影响
-	//如需使用滚动升级等策略，使用多策略方式
-	Strategy []string `json:"strategy"`
+	TenantID  string   `json:"tenant_id"`
+	ServiceID string   `json:"service_id"`
+	EventID   string   `json:"event_id"`
+	Strategy  []string `json:"strategy"`
 }
 
 //RollBackTaskBody 回滚操作任务主体
@@ -270,7 +262,7 @@ type GroupStartTaskBody struct {
 type ApplyRuleTaskBody struct {
 	ServiceID     string `json:"service_id"`
 	DeployVersion string `json:"deploy_version"`
-	EventID string `json:"event_id"`
+	EventID       string `json:"event_id"`
 }
 
 //Dependence 依赖关系

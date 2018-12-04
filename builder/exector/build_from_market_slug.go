@@ -34,7 +34,6 @@ import (
 
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/worker/discover/model"
 )
 
 //MarketSlugItem MarketSlugItem
@@ -109,18 +108,6 @@ func (i *MarketSlugItem) Run() error {
 		return err
 	}
 	return nil
-}
-
-//CreateUpgradeTaskBody 构造消息体
-func (i *MarketSlugItem) CreateUpgradeTaskBody() *model.RollingUpgradeTaskBody {
-	return &model.RollingUpgradeTaskBody{
-		TenantID:  i.TenantID,
-		ServiceID: i.ServiceID,
-		//TODO: 区分curr version 与 new version
-		CurrentDeployVersion: i.DeployVersion,
-		NewDeployVersion:     i.DeployVersion,
-		EventID:              i.EventID,
-	}
 }
 
 //UpdateVersionInfo 更新任务执行结果
