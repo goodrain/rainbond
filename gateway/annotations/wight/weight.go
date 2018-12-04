@@ -43,13 +43,14 @@ func NewParser(r resolver.Resolver) parser.IngressAnnotation {
 func (c weight) Parse(ing *extensions.Ingress) (interface{}, error) {
 	wstr, err := parser.GetStringAnnotation("weight", ing)
 	var w int
-	if err != nil {
+	if err != nil || wstr == "" {
 		w = 1
-	}
-	w, err = strconv.Atoi(wstr)
-	if err != nil {
-		logrus.Warnf("Unexpected error occurred when convert string(%s) to int: %v", wstr, err)
-		w = 1
+	} else {
+		w, err = strconv.Atoi(wstr)
+		if err != nil {
+			logrus.Warnf("Unexpected error occurred when convert string(%s) to int: %v", wstr, err)
+			w = 1
+		}
 	}
 	return &Config{
 		Weight: w,
