@@ -313,7 +313,7 @@ func New(client kubernetes.Interface,
 // annotation to a go struct and also information about the referenced secrets
 func (s *rbdStore) extractAnnotations(ing *extensions.Ingress) {
 	key := k8s.MetaNamespaceKey(ing)
-	logrus.Infof("updating annotations information for ingress %v", key)
+	logrus.Debugf("updating annotations information for ingress %v", key)
 
 	anns := s.annotations.Extract(ing)
 
