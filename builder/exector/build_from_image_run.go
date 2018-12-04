@@ -33,7 +33,6 @@ import (
 	//"github.com/docker/docker/client"
 
 	"github.com/docker/engine-api/client"
-	"github.com/goodrain/rainbond/builder/apiHandler"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/worker/discover/model"
@@ -54,6 +53,7 @@ type ImageBuildItem struct {
 	DeployVersion string
 	HubUser       string
 	HubPassword   string
+	Action        string
 }
 
 //NewImageBuildItem 创建实体
@@ -67,6 +67,7 @@ func NewImageBuildItem(in []byte) *ImageBuildItem {
 		ServiceID:     gjson.GetBytes(in, "service_id").String(),
 		Image:         gjson.GetBytes(in, "image").String(),
 		DeployVersion: gjson.GetBytes(in, "deploy_version").String(),
+		Action:        gjson.GetBytes(in, "action").String(),
 		HubUser:       gjson.GetBytes(in, "user").String(),
 		HubPassword:   gjson.GetBytes(in, "password").String(),
 		Logger:        logger,
@@ -99,13 +100,11 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 		i.Logger.Error("更新应用版本信息失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	i.Logger.Info("应用同步完成，开始启动应用", map[string]string{"step": "build-exector"})
-	if err := apiHandler.UpgradeService(i.TenantName, i.ServiceAlias, i.CreateUpgradeTaskBody()); err != nil {
-		i.Logger.Error("启动应用失败，请手动启动", map[string]string{"step": "builder-exector", "status": "failure"})
-		logrus.Errorf("rolling update service error, %s", err.Error())
-		return err
-	}
-	i.Logger.Info("应用启动成功", map[string]string{"step": "build-exector"})
+	return nil
+}
+
+//SendActionMessage Initiate a task based on the action type
+func (i *ImageBuildItem) SendActionMessage() error {
 	return nil
 }
 

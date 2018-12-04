@@ -21,21 +21,22 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/handler"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/cmd/api/option"
-	"github.com/goodrain/rainbond/mq/api/grpc/client"
+	"github.com/goodrain/rainbond/mq/client"
 	httputil "github.com/goodrain/rainbond/util/http"
-	"net/http"
-	"net/url"
-	"strings"
 )
 
 // GatewayStruct -
 type GatewayStruct struct {
-	MQClient *client.MQClient
-	cfg *option.Config
+	MQClient client.MQClient
+	cfg      *option.Config
 }
 
 // HTTPRule is used to add, update or delete http rule which enables
@@ -86,7 +87,9 @@ func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.SendTaskGW(sid, g.MQClient)
+	if err := handler.GetGatewayHandler().SendTaskGW(sid); err != nil {
+		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
+	}
 
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -136,7 +139,9 @@ func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.SendTaskGW(sid, g.MQClient)
+	if err := handler.GetGatewayHandler().SendTaskGW(sid); err != nil {
+		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
+	}
 
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -158,7 +163,9 @@ func (g *GatewayStruct) deleteHTTPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.SendTaskGW(serviceID, g.MQClient)
+	if err := handler.GetGatewayHandler().SendTaskGW(serviceID); err != nil {
+		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
+	}
 
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -226,7 +233,9 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.SendTaskGW(sid, g.MQClient)
+	if err := handler.GetGatewayHandler().SendTaskGW(sid); err != nil {
+		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
+	}
 
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -276,7 +285,9 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.SendTaskGW(sid, g.MQClient)
+	if err := handler.GetGatewayHandler().SendTaskGW(sid); err != nil {
+		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
+	}
 
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -293,13 +304,15 @@ func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
 
 	h := handler.GetGatewayHandler()
 	sid, err := h.DeleteTCPRule(&req)
-	if  err != nil {
+	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"deleting tcp rule: %v", err))
 		return
 	}
 
-	h.SendTaskGW(sid, g.MQClient)
+	if err := handler.GetGatewayHandler().SendTaskGW(sid); err != nil {
+		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
+	}
 
 	httputil.ReturnSuccess(r, w, "success")
 }

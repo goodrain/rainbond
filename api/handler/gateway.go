@@ -20,27 +20,30 @@ package handler
 
 import (
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/mq/api/grpc/client"
+	"github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/util"
 	"github.com/jinzhu/gorm"
-	"os"
-	"strconv"
-	"strings"
 )
 
 // GatewayAction -
 type GatewayAction struct {
 	dbmanager db.Manager
+	mqclient  client.MQClient
 }
 
 //CreateGatewayManager creates gateway manager.
-func CreateGatewayManager(dbmanager db.Manager) *GatewayAction {
+func CreateGatewayManager(dbmanager db.Manager, mqclient client.MQClient) *GatewayAction {
 	return &GatewayAction{
 		dbmanager: dbmanager,
+		mqclient:  mqclient,
 	}
 }
 
@@ -469,18 +472,21 @@ func (g *GatewayAction) PortExists(port int) bool {
 }
 
 // SendTaskGW sends apply rules task
-func (g *GatewayAction) SendTaskGW(serviceID string, mqClient *client.MQClient) {
-	logrus.Info("sending apply_rule task...")
-	// get service
-	service, err := g.dbmanager.TenantServiceDao().GetServiceByID(serviceID)
+func (g *GatewayAction) SendTaskGW(serviceID string) error {
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
-		logrus.Errorf("Unexpected error occurred while getting Service by ServiceID(%s): %v", serviceID, err)
+		return fmt.Errorf("Unexpected error occurred while getting Service by ServiceID(%s): %v", serviceID, err)
 	}
 	body := make(map[string]interface{})
 	body["service_id"] = serviceID
 	body["deploy_version"] = service.DeployVersion
-	err = sendTask(body, "apply_rule", mqClient)
+	err = g.mqclient.SendBuilderTopic(client.TaskStruct{
+		Topic:    "worker",
+		TaskType: "apply_rule",
+		TaskBody: body,
+	})
 	if err != nil {
-		logrus.Errorf("Unexpected error occurred while sending task: %v", err)
+		return fmt.Errorf("Unexpected error occurred while sending task: %v", err)
 	}
+	return nil
 }

@@ -23,28 +23,28 @@ import (
 	"os"
 	"time"
 
-	"github.com/goodrain/rainbond/cmd/builder/option"
-	"github.com/goodrain/rainbond/builder/exector"
-	"github.com/goodrain/rainbond/mq/api/grpc/client"
-	"github.com/goodrain/rainbond/mq/api/grpc/pb"
-	"github.com/Sirupsen/logrus"
-	grpc1 "google.golang.org/grpc"
 	"fmt"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/builder/exector"
+	"github.com/goodrain/rainbond/cmd/builder/option"
+	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	"github.com/goodrain/rainbond/mq/client"
+	grpc1 "google.golang.org/grpc"
 )
 
 //WTOPIC is builder
 const WTOPIC string = "builder"
 
-var healthStatus = make(map[string]string,1)
-
+var healthStatus = make(map[string]string, 1)
 
 //TaskManager task
 type TaskManager struct {
-	ctx          context.Context
-	cancel       context.CancelFunc
-	config       option.Config
-	client       *client.MQClient
-	exec         exector.Manager
+	ctx    context.Context
+	cancel context.CancelFunc
+	config option.Config
+	client client.MQClient
+	exec   exector.Manager
 }
 
 //NewTaskManager return *TaskManager
@@ -53,10 +53,10 @@ func NewTaskManager(c option.Config, exec exector.Manager) *TaskManager {
 	healthStatus["status"] = "health"
 	healthStatus["info"] = "builder service health"
 	return &TaskManager{
-		ctx:          ctx,
-		cancel:       cancel,
-		config:       c,
-		exec:         exec,
+		ctx:    ctx,
+		cancel: cancel,
+		config: c,
+		exec:   exec,
 	}
 }
 

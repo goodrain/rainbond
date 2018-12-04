@@ -26,8 +26,8 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/mq/api/grpc/client"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	"github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/worker/discover/model"
 
 	"github.com/Sirupsen/logrus"
@@ -104,7 +104,7 @@ type MQManager struct {
 }
 
 //NewMQManager new mq manager
-func (m *MQManager) NewMQManager() (*client.MQClient, error) {
+func (m *MQManager) NewMQManager() (client.MQClient, error) {
 	client, err := client.NewMqClient(m.EtcdEndpoint, m.DefaultServer)
 	if err != nil {
 		logrus.Errorf("new mq manager error, %v", err)

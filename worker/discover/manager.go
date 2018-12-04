@@ -28,8 +28,8 @@ import (
 	"github.com/goodrain/rainbond/worker/appm/controller"
 
 	"github.com/goodrain/rainbond/cmd/worker/option"
-	"github.com/goodrain/rainbond/mq/api/grpc/client"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	"github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/goodrain/rainbond/worker/handle"
 
@@ -57,7 +57,7 @@ type TaskManager struct {
 	cancel        context.CancelFunc
 	config        option.Config
 	handleManager *handle.Manager
-	client        *client.MQClient
+	client        client.MQClient
 }
 
 //NewTaskManager return *TaskManager

@@ -21,13 +21,13 @@ package controller
 import (
 	"net/http"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/apiFunc"
 	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/cmd/api/option"
+	mqclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/worker/client"
-	mqclient "github.com/goodrain/rainbond/mq/api/grpc/client"
-	"github.com/Sirupsen/logrus"
 )
 
 //V2Manager v2 manager

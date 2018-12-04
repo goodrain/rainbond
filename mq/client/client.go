@@ -19,6 +19,11 @@
 package client
 
 import (
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 
 	clientv3 "github.com/coreos/etcd/clientv3"
@@ -27,15 +32,21 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
-//MQClient mq grpc client
-type MQClient struct {
+//MQClient mq  client
+type MQClient interface {
+	pb.TaskQueueClient
+	Close()
+	SendBuilderTopic(t TaskStruct) error
+}
+
+type mqClient struct {
 	pb.TaskQueueClient
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 //NewMqClient new a mq client
-func NewMqClient(etcdendpoints []string, defaultserver string) (*MQClient, error) {
+func NewMqClient(etcdendpoints []string, defaultserver string) (MQClient, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var conn *grpc.ClientConn
 	if etcdendpoints != nil && len(defaultserver) > 1 {
@@ -57,7 +68,7 @@ func NewMqClient(etcdendpoints []string, defaultserver string) (*MQClient, error
 		}
 	}
 	cli := pb.NewTaskQueueClient(conn)
-	client := &MQClient{
+	client := &mqClient{
 		ctx:    ctx,
 		cancel: cancel,
 	}
@@ -66,6 +77,45 @@ func NewMqClient(etcdendpoints []string, defaultserver string) (*MQClient, error
 }
 
 //Close mq grpc client must be closed after uesd
-func (m *MQClient) Close() {
+func (m *mqClient) Close() {
 	m.cancel()
+}
+
+//TaskStruct task struct
+type TaskStruct struct {
+	Topic    string
+	TaskType string
+	TaskBody interface{}
+}
+
+//buildTask build task
+func buildTask(t TaskStruct) (*pb.EnqueueRequest, error) {
+	var er pb.EnqueueRequest
+	taskJSON, err := json.Marshal(t.TaskBody)
+	if err != nil {
+		logrus.Errorf("tran task json error")
+		return &er, err
+	}
+	er.Topic = t.Topic
+	er.Message = &pb.TaskMessage{
+		TaskType:   t.TaskType,
+		CreateTime: time.Now().Format(time.RFC3339),
+		TaskBody:   taskJSON,
+		User:       "rainbond",
+	}
+	return &er, nil
+}
+
+func (m *mqClient) SendBuilderTopic(t TaskStruct) error {
+	request, err := buildTask(t)
+	if err != nil {
+		return fmt.Errorf("create task body error %s", err.Error())
+	}
+	ctx, cancel := context.WithTimeout(m.ctx, time.Second*5)
+	defer cancel()
+	_, err = m.TaskQueueClient.Enqueue(ctx, request)
+	if err != nil {
+		return fmt.Errorf("send enqueue request error %s", err.Error())
+	}
+	return nil
 }

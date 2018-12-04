@@ -54,7 +54,6 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 		return err
 	}
 	dbmanager := db.GetManager()
-
 	defaultServieHandler = CreateManager(mqClient, etcdCli, statusCli)
 	defaultPluginHandler = CreatePluginManager(mqClient)
 	defaultAppHandler = CreateAppManager(mqClient)
@@ -72,7 +71,7 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 		return err
 	}
 	// gateway
-	defaultGatewayHandler = CreateGatewayManager(dbmanager)
+	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient)
 	return nil
 }
 

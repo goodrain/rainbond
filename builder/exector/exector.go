@@ -25,6 +25,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"sync"
+
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/engine-api/client"
 	"github.com/goodrain/rainbond/db"
@@ -34,7 +36,6 @@ import (
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/util"
 	"github.com/tidwall/gjson"
-	"sync"
 )
 
 var TaskNum float64 = 0
@@ -198,6 +199,9 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 					status = "failure"
 				}
 			} else {
+				if err := i.SendActionMessage(); err != nil {
+
+				}
 				break
 			}
 		}
@@ -393,7 +397,7 @@ func (e *exectorManager) Stop() error {
 		}
 		select {
 		case <-timer.C:
-			i ++
+			i++
 			timer.Reset(time.Second * 2)
 		}
 	}

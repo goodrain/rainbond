@@ -40,7 +40,6 @@ import (
 	//"github.com/docker/docker/client"
 
 	"github.com/docker/engine-api/client"
-	"github.com/goodrain/rainbond/builder/apiHandler"
 	"github.com/goodrain/rainbond/builder/build"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
@@ -202,17 +201,9 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	if err := i.UpdateBuildVersionInfo(res); err != nil {
 		return err
 	}
-	//TODO:move to pipeline controller
-	i.Logger.Info("Build app version complete, will upgrade app.", map[string]string{"step": "build-exector"})
-	if err := apiHandler.UpgradeService(i.TenantName, i.ServiceAlias, i.CreateUpgradeTaskBody()); err != nil {
-		i.Logger.Error("Failed to send start service tasks. Please start manually", map[string]string{"step": "builder-exector", "status": "failure"})
-		logrus.Errorf("rolling update service error, %s", err.Error())
-		return err
-	}
-	i.Logger.Info("Start app task send success", map[string]string{"step": "build-exector"})
-	event.GetManager().ReleaseLogger(i.Logger)
 	return nil
 }
+
 func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 	codeBuild, err := build.GetBuild(code.Lang(i.Lang))
 	if err != nil {

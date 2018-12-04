@@ -29,7 +29,6 @@ import (
 	"github.com/goodrain/rainbond/db"
 	core_model "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/twinj/uuid"
 
 	"github.com/jinzhu/gorm"
@@ -40,7 +39,7 @@ import (
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	gclient "github.com/goodrain/rainbond/mq/api/grpc/client"
+	gclient "github.com/goodrain/rainbond/mq/client"
 	core_util "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/discover/model"
@@ -53,13 +52,13 @@ import (
 
 //ServiceAction service act
 type ServiceAction struct {
-	MQClient  pb.TaskQueueClient
+	MQClient  gclient.MQClient
 	EtcdCli   *clientv3.Client
 	statusCli *client.AppRuntimeSyncClient
 }
 
 //CreateManager create Manger
-func CreateManager(mqClient pb.TaskQueueClient,
+func CreateManager(mqClient gclient.MQClient,
 	etcdCli *clientv3.Client, statusCli *client.AppRuntimeSyncClient) *ServiceAction {
 	return &ServiceAction{
 		MQClient:  mqClient,
@@ -128,7 +127,11 @@ func (s *ServiceAction) buildFromMarketSlug(r *api_model.BuildServiceStruct, ser
 	body["service_id"] = service.ServiceID
 	body["service_alias"] = r.Body.ServiceAlias
 	body["slug_info"] = r.Body.SlugInfo
-	return s.sendTask(body, "build_from_market_slug")
+	return s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+		Topic:    "builder",
+		TaskType: "build_from_market_slug",
+		TaskBody: body,
+	})
 }
 func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
 	dependIds, err := db.GetManager().TenantServiceRelationDao().GetTenantServiceRelations(service.ServiceID)
@@ -163,7 +166,11 @@ func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service 
 	if label != nil && label.LabelValue == "linux" {
 		topic = "linux"
 	}
-	return s.sendTaskWithTopic(body, "build_from_image", topic)
+	return s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+		Topic:    topic,
+		TaskType: "build_from_image",
+		TaskBody: body,
+	})
 }
 
 func (s *ServiceAction) buildFromSourceCode(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
@@ -195,58 +202,12 @@ func (s *ServiceAction) buildFromSourceCode(r *api_model.BuildServiceStruct, ser
 		body["password"] = r.Body.Password
 	}
 	body["expire"] = 180
-	logrus.Debugf("app_build body is %v", body)
-	return s.sendTask(body, "build_from_source_code")
-}
 
-func (s *ServiceAction) sendTask(body map[string]interface{}, taskType string) error {
-	bodyJ, err := ffjson.Marshal(body)
-	if err != nil {
-		return err
-	}
-	bs := &api_db.BuildTaskStruct{
-		TaskType: taskType,
-		TaskBody: bodyJ,
-		User:     "define",
-	}
-	eq, errEq := api_db.BuildTaskBuild(bs)
-	if errEq != nil {
-		logrus.Errorf("build equeue stop request error, %v", errEq)
-		return errEq
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	_, err = s.MQClient.Enqueue(ctx, eq)
-	cancel()
-	if err != nil {
-		logrus.Errorf("equque mq error, %v", err)
-		return err
-	}
-	return nil
-}
-
-func (s *ServiceAction) sendTaskWithTopic(body map[string]interface{}, taskType string, topic string) error {
-	bodyJ, err := ffjson.Marshal(body)
-	if err != nil {
-		return err
-	}
-	bs := &api_db.BuildTaskStruct{
-		TaskType: taskType,
-		TaskBody: bodyJ,
-		User:     "define",
-	}
-	eq, errEq := api_db.BuildTaskBuildWithTopic(bs, topic)
-	if errEq != nil {
-		logrus.Errorf("build equeue stop request error, %v", errEq)
-		return errEq
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	_, err = s.MQClient.Enqueue(ctx, eq)
-	cancel()
-	if err != nil {
-		logrus.Errorf("equque mq error, %v", err)
-		return err
-	}
-	return nil
+	return s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+		Topic:    "builder",
+		TaskType: "build_from_source_code",
+		TaskBody: body,
+	})
 }
 
 //AddLabel add labels
@@ -1699,19 +1660,4 @@ func chekeServiceLabel(v string) string {
 		return core_util.StatelessServiceType
 	}
 	return v
-}
-
-// SendTaskSA sends apply rules task
-func (s *ServiceAction) SendTaskSA(serviceID string, mqClient *gclient.MQClient) {
-	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
-	if err != nil {
-		logrus.Errorf("Unexpected error occurred while getting Service by ServiceID(%s): %v", serviceID, err)
-	}
-	body := make(map[string]interface{})
-	body["service_id"] = serviceID
-	body["deploy_version"] = service.DeployVersion
-	err = sendTask(body, "apply_rule", mqClient)
-	if err != nil {
-		logrus.Errorf("Unexpected error occurred while sending task: %v", err)
-	}
 }
