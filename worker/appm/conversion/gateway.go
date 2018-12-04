@@ -262,7 +262,7 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 	// create ingress
 	ing = &extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      strings.Replace(fmt.Sprintf("ing-%s-%s", domain, rule.UUID[0:8]), "*", "star", -1),
+			Name:      rule.UUID,
 			Namespace: a.tenant.UUID,
 			Labels:    a.appService.GetCommonLabels(),
 		},
@@ -355,7 +355,7 @@ func (a *AppServiceBuild) applyTCPRule(rule *model.TCPRule, service *corev1.Serv
 	// create ingress
 	ing = &extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("ing-%s-%s", strings.Replace(rule.IP, ".", "-", -1), rule.UUID[0:8]),
+			Name:      rule.UUID,
 			Namespace: namespace,
 			Labels:    a.appService.GetCommonLabels(),
 		},
