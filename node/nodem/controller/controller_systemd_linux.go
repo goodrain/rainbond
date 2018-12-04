@@ -44,6 +44,7 @@ type ControllerSystemd struct {
 
 //NewController At the stage you want to load the configurations of all rainbond components
 func NewController(conf *option.Conf, manager *ManagerService) Controller {
+	logrus.Infof("Create linux systemd controller")
 	cli, err := exec.LookPath("systemctl")
 	if err != nil {
 		logrus.Errorf("current machine do not have systemctl utils")

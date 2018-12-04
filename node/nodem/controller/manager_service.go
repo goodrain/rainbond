@@ -113,16 +113,26 @@ func (m *ManagerService) Online() error {
 		return nil
 	}
 
-	err := m.WriteServices()
-	if err != nil {
-		return err
-	}
-
-	// start all by systemctl start multi-user.target
-	m.ctr.StartList(*m.services)
+	go m.StartServices()
 	m.SyncServiceStatusController()
 
 	return nil
+}
+
+//StartServices start services
+func (m *ManagerService) StartServices() {
+	for _, service := range *m.services {
+		if !service.Disable {
+			if err := m.ctr.WriteConfig(service); err != nil {
+				logrus.Errorf("write service config failure %s", err.Error())
+				continue
+			}
+			if err := m.ctr.StartService(service.Name); err != nil {
+				logrus.Errorf("start service failure %s", err.Error())
+				continue
+			}
+		}
+	}
 }
 
 //Offline stop all service of on the node
@@ -162,6 +172,9 @@ func (m *ManagerService) SyncServiceStatusController() {
 	}
 	m.autoStatusController = make(map[string]statusController, len(*m.services))
 	for _, s := range *m.services {
+		if s.ServiceHealth == nil {
+			continue
+		}
 		ctx, cancel := context.WithCancel(context.Background())
 		serviceStatusController := statusController{
 			ctx:            ctx,
@@ -347,7 +360,6 @@ func (m *ManagerService) WriteServices() error {
 		if s.Name == "docker" {
 			continue
 		}
-
 		err := m.ctr.WriteConfig(s)
 		if err != nil {
 			return err

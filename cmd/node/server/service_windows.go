@@ -72,7 +72,10 @@ func initService(conf *option.Conf) (bool, error) {
 }
 
 func unregisterService() error {
-	return nil
+	if err := utilwindows.StopService(*flServiceName); err != nil {
+		return err
+	}
+	return utilwindows.UnRegisterService(*flServiceName)
 }
 
 func registerService() error {
