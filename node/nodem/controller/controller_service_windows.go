@@ -96,6 +96,7 @@ func (w *windowsServiceController) RestartService(serviceName string) error {
 }
 func (w *windowsServiceController) WriteConfig(s *service.Service) error {
 	cmds := strings.Split(s.Start, " ")
+	logrus.Debugf("write service %s config args %s", s.Name, cmds)
 	if err := windows.RegisterService(s.Name, cmds[0], "Rainbond "+s.Name, s.Requires, cmds); err != nil {
 		if strings.Contains(err.Error(), "already exists") {
 			w.RemoveConfig(s.Name)
