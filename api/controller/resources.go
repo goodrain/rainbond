@@ -784,54 +784,6 @@ func (t *TenantStruct) StatusServiceList(w http.ResponseWriter, r *http.Request)
 	httputil.ReturnSuccess(r, w, info)
 }
 
-//NodeLabel label
-func (t *TenantStruct) NodeLabel(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "DELETE":
-		t.DeleteNodeLabel(w, r)
-	case "POST":
-		t.AddNodeLabel(w, r)
-	}
-}
-
-//AddNodeLabel AddNodeLabel
-func (t *TenantStruct) AddNodeLabel(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST  /v2/tenants/{tenant_name}/services/{service_alias}/node-label v2 addNodeLabel
-	//
-	// 添加节点标签
-	//
-	// add node label
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	var labels api_model.AddNodeLabelStruct
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &labels.Body, nil)
-	if !ok {
-		return
-	}
-	//logrus.Info(labels.Body.LabelValue)
-	//valueList := labels.Body.LabelValue
-	//serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	//if err := handler.GetServiceManager().AddLabel("node", serviceID, valueList); err != nil {
-	//	httputil.ReturnError(r, w, 500, fmt.Sprintf("add node label failure, %v", err))
-	//	return
-	//}
-	httputil.ReturnSuccess(r, w, nil)
-}
-
 func (t *TenantStruct) Label(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "DELETE":
@@ -897,43 +849,6 @@ func (t *TenantStruct) UpdateLabel(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//DeleteNodeLabel DeleteLabel
-func (t *TenantStruct) DeleteNodeLabel(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation DELETE  /v2/tenants/{tenant_name}/services/{service_alias}/node-label v2 deleteNodeLabel
-	//
-	// 删除节点标签
-	//
-	// delete node label
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	//var labels api_model.AddNodeLabelStruct
-	//ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &labels.Body, nil)
-	//if !ok {
-	//	return
-	//}
-	////logrus.Info(labels.Body.LabelValue)
-	//valueList := labels.Body.LabelValue
-	//serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	//if err := handler.GetServiceManager().DeleteLabel("node", serviceID, valueList); err != nil {
-	//	httputil.ReturnError(r, w, 500, fmt.Sprintf("delete node label failure, %v", err))
-	//	return
-	//}
-	//httputil.ReturnSuccess(r, w, nil)
-}
 
 //StatusContainerID StatusContainerID
 func (t *TenantStruct) StatusContainerID(w http.ResponseWriter, r *http.Request) {
