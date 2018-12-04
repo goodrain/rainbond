@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -785,18 +786,6 @@ func (t *TenantStruct) StatusServiceList(w http.ResponseWriter, r *http.Request)
 }
 
 func (t *TenantStruct) Label(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "DELETE":
-		t.DeleteLabel(w, r)
-	case "POST":
-		t.AddLabel(w, r)
-	case "PUT":
-		t.UpdateLabel(w, r)
-	}
-}
-
-func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("add label")
 	var req api_model.LabelsStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
@@ -805,50 +794,63 @@ func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request) {
 	reqJSON, _ := json.Marshal(req)
 	logrus.Debugf("Request is : %s", string(reqJSON))
 
+	// verify request
+	values := url.Values{}
+	for _, label := range req.Labels {
+		if label.LabelKey == "" {
+			values["label_key"] = []string{"The label_key field is required"}
+		}
+		if label.LabelValue == "" {
+			values["label_value"] = []string{"The label_value field is required"}
+		}
+		if len(values) != 0 {
+			httputil.ReturnValidationError(r, w, values)
+			return
+		}
+	}
+
+	switch r.Method {
+	case "DELETE":
+		t.DeleteLabel(w, r, &req)
+	case "POST":
+		t.AddLabel(w, r, &req)
+	case "PUT":
+		t.UpdateLabel(w, r, &req)
+	}
+}
+
+// AddLabel adds label
+func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request, labels *api_model.LabelsStruct) {
+	logrus.Debugf("add label")
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().AddLabel(&req, serviceID); err != nil {
+	if err := handler.GetServiceManager().AddLabel(labels, serviceID); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("add label error, %v", err))
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-func (t *TenantStruct) DeleteLabel(w http.ResponseWriter, r *http.Request) {
+// DeleteLabel deletes labels
+func (t *TenantStruct) DeleteLabel(w http.ResponseWriter, r *http.Request, labels *api_model.LabelsStruct) {
 	logrus.Debugf("delete label")
-	var req api_model.LabelsStruct
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
-	if !ok {
-		return
-	}
-	reqJSON, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJSON))
-
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().DeleteLabel(&req, serviceID); err != nil {
+	if err := handler.GetServiceManager().DeleteLabel(labels, serviceID); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("delete node label failure, %v", err))
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-func (t *TenantStruct) UpdateLabel(w http.ResponseWriter, r *http.Request) {
+// Update updates labels
+func (t *TenantStruct) UpdateLabel(w http.ResponseWriter, r *http.Request, labels *api_model.LabelsStruct) {
 	logrus.Debugf("update label")
-	var req api_model.LabelsStruct
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
-	if !ok {
-		return
-	}
-	reqJSON, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJSON))
-
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().UpdateLabel(&req, serviceID); err != nil {
+	if err := handler.GetServiceManager().UpdateLabel(labels, serviceID); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("error updating label: %v", err))
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
-
 
 //StatusContainerID StatusContainerID
 func (t *TenantStruct) StatusContainerID(w http.ResponseWriter, r *http.Request) {
