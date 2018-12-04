@@ -311,7 +311,7 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 		// create secret
 		sec = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("certificate-%s", domain),
+				Name:      fmt.Sprintf("ssl-%s", domain),
 				Namespace: a.tenant.UUID,
 				Labels:    a.appService.GetCommonLabels(),
 			},
@@ -337,7 +337,9 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 		for _, extension := range ruleExtensions {
 			switch extension.Key {
 			case string(model.HTTPToHTTPS):
-				annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
+				if rule.CertificateID != "" {
+					annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
+				}
 			case string(model.LBType):
 				annos[parser.GetAnnotationWithPrefix("lb-type")] = extension.Value
 			default:
