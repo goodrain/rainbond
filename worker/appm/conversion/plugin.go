@@ -20,6 +20,7 @@ package conversion
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/goodrain/rainbond/db"
@@ -139,12 +140,22 @@ func createPluginEnvs(pluginID, tenantID, serviceAlias string, mainEnvs []v1.Env
 	for _, e := range versionEnvs {
 		envs = append(envs, v1.EnvVar{Name: e.EnvName, Value: e.EnvValue})
 	}
+	dockerBridgeIP := "172.30.42.1"
+	if os.Getenv("DOCKER_BRIDGE_IP") != "" {
+		dockerBridgeIP = os.Getenv("DOCKER_BRIDGE_IP")
+	}
 	discoverURL := fmt.Sprintf(
-		"/v1/resources/%s/%s/%s",
+		"%s/v1/resources/%s/%s/%s",
+		dockerBridgeIP,
 		tenantID,
 		serviceAlias,
 		pluginID)
 	envs = append(envs, v1.EnvVar{Name: "DISCOVER_URL", Value: discoverURL})
+	envs = append(envs, v1.EnvVar{Name: "DISCOVER_URL_NOHOST", Value: fmt.Sprintf(
+		"/v1/resources/%s/%s/%s",
+		tenantID,
+		serviceAlias,
+		pluginID)})
 	envs = append(envs, v1.EnvVar{Name: "PLUGIN_ID", Value: pluginID})
 	return &envs, nil
 }

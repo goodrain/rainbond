@@ -52,7 +52,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	}
 	container, err := getMainContainer(as, version, dv, dbmanager)
 	if err != nil {
-		return fmt.Errorf("conv service envs failure %s", err.Error())
+		return fmt.Errorf("conv service main container failure %s", err.Error())
 	}
 	podtmpSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
