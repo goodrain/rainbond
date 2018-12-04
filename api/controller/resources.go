@@ -36,7 +36,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/jinzhu/gorm"
-	validator "github.com/thedevsaddam/govalidator"
+	"github.com/thedevsaddam/govalidator"
 
 	"github.com/goodrain/rainbond/api/handler"
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -784,141 +784,6 @@ func (t *TenantStruct) StatusServiceList(w http.ResponseWriter, r *http.Request)
 	httputil.ReturnSuccess(r, w, info)
 }
 
-//ServiceLabel label
-func (t *TenantStruct) ServiceLabel(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "PUT":
-		t.UpdateServiceLabel(w, r)
-	case "POST":
-		t.AddServiceLabel(w, r)
-	}
-}
-
-//AddServiceLabel AddServiceLabel
-func (t *TenantStruct) AddServiceLabel(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST  /v2/tenants/{tenant_name}/services/{service_alias}/service-label v2 addServiceLabel
-	//
-	// 添加应用标签
-	//
-	// add service label
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-	rules := validator.MapData{
-		"label_values": []string{"required"},
-	}
-	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
-	if !ok {
-		return
-	}
-	var valueList []string
-	valueList = append(valueList, data["label_values"].(string))
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().AddLabel("service", serviceID, valueList); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("add service label error, %v", err))
-		return
-	}
-	httputil.ReturnSuccess(r, w, nil)
-}
-
-//UpdateServiceLabel UpdateServiceLabel
-func (t *TenantStruct) UpdateServiceLabel(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/service-label v2 updateServiceLabel
-	//
-	// 更新应用标签
-	//
-	// delete service label
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-	rules := validator.MapData{
-		"label_values": []string{"required"},
-	}
-	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
-	if !ok {
-		return
-	}
-	value := data["label_values"].(string)
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().UpdateServiceLabel(serviceID, value); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("update service label error, %v", err))
-		return
-	}
-	httputil.ReturnSuccess(r, w, nil)
-}
-
-//NodeLabel label
-func (t *TenantStruct) NodeLabel(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "DELETE":
-		t.DeleteNodeLabel(w, r)
-	case "POST":
-		t.AddNodeLabel(w, r)
-	}
-}
-
-//AddNodeLabel AddNodeLabel
-func (t *TenantStruct) AddNodeLabel(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST  /v2/tenants/{tenant_name}/services/{service_alias}/node-label v2 addNodeLabel
-	//
-	// 添加节点标签
-	//
-	// add node label
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	var labels api_model.AddNodeLabelStruct
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &labels.Body, nil)
-	if !ok {
-		return
-	}
-	//logrus.Info(labels.Body.LabelValues)
-	valueList := labels.Body.LabelValues
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().AddLabel("node", serviceID, valueList); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("add node label failure, %v", err))
-		return
-	}
-	httputil.ReturnSuccess(r, w, nil)
-}
-
 func (t *TenantStruct) Label(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "DELETE":
@@ -932,7 +797,7 @@ func (t *TenantStruct) Label(w http.ResponseWriter, r *http.Request) {
 
 func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add label")
-	var req api_model.LabelStruct
+	var req api_model.LabelsStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -941,7 +806,7 @@ func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().AddLabel(req.LabelKey, serviceID, req.LabelValues); err != nil {
+	if err := handler.GetServiceManager().AddLabel(&req, serviceID); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("add label error, %v", err))
 		return
 	}
@@ -950,7 +815,7 @@ func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request) {
 
 func (t *TenantStruct) DeleteLabel(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("delete label")
-	var req api_model.LabelStruct
+	var req api_model.LabelsStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -959,7 +824,7 @@ func (t *TenantStruct) DeleteLabel(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().DeleteLabel(req.LabelKey, serviceID, req.LabelValues); err != nil {
+	if err := handler.GetServiceManager().DeleteLabel(&req, serviceID); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("delete node label failure, %v", err))
 		return
 	}
@@ -968,7 +833,7 @@ func (t *TenantStruct) DeleteLabel(w http.ResponseWriter, r *http.Request) {
 
 func (t *TenantStruct) UpdateLabel(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("update label")
-	var req api_model.LabelStruct
+	var req api_model.LabelsStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -977,50 +842,13 @@ func (t *TenantStruct) UpdateLabel(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().UpdateLabel(req.LabelKey, serviceID, req.LabelValues); err != nil {
+	if err := handler.GetServiceManager().UpdateLabel(&req, serviceID); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("error updating label: %v", err))
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//DeleteNodeLabel DeleteLabel
-func (t *TenantStruct) DeleteNodeLabel(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation DELETE  /v2/tenants/{tenant_name}/services/{service_alias}/node-label v2 deleteNodeLabel
-	//
-	// 删除节点标签
-	//
-	// delete node label
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
-
-	var labels api_model.AddNodeLabelStruct
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &labels.Body, nil)
-	if !ok {
-		return
-	}
-	//logrus.Info(labels.Body.LabelValues)
-	valueList := labels.Body.LabelValues
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().DeleteLabel("node", serviceID, valueList); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("delete node label failure, %v", err))
-		return
-	}
-	httputil.ReturnSuccess(r, w, nil)
-}
 
 //StatusContainerID StatusContainerID
 func (t *TenantStruct) StatusContainerID(w http.ResponseWriter, r *http.Request) {

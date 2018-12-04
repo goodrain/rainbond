@@ -212,67 +212,25 @@ func (s *ServiceAction) buildFromSourceCode(r *api_model.BuildServiceStruct, ser
 }
 
 //AddLabel add labels
-func (s *ServiceAction) AddLabel(kind, serviceID string, amp []string) error {
-	for _, v := range amp {
-		var labelModel dbmodel.TenantServiceLable
-		switch kind {
-		case "service":
-			labelModel.ServiceID = serviceID
-			labelModel.LabelKey = core_model.LabelKeyServiceType
-			v = chekeServiceLabel(v)
-			labelModel.LabelValue = v
-		case "node":
-			labelModel.ServiceID = serviceID
-			labelModel.LabelKey = v
-			labelModel.LabelValue = core_model.LabelKeyNodeSelector
-		default:
-			labelModel.ServiceID = serviceID
-			labelModel.LabelKey = kind
-			labelModel.LabelValue = v
-		}
-		if err := db.GetManager().TenantServiceLabelDao().AddModel(&labelModel); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-//UpdateLabel updates labels
-func (s *ServiceAction) UpdateLabel(serviceID, kind string, amp []string) error {
+func (s *ServiceAction) AddLabel(l *api_model.LabelsStruct, serviceID string) error {
 	tx := db.GetManager().Begin()
-	// delete old labels
-	var err error
-	switch kind {
-	case "node":
-		err = db.GetManager().TenantServiceLabelDaoTransactions(tx).DELTenantServiceLabelsByLabelvaluesAndServiceID(serviceID, amp)
-	default:
-		err = db.GetManager().TenantServiceLabelDaoTransactions(tx).DelTenantServiceLabels(serviceID, kind, amp)
-	}
-	if err != nil {
-		logrus.Errorf("error deleting old labels: %v", err)
-		tx.Rollback()
-		return err
-	}
-	// add new labels
-	for _, v := range amp {
+	for _, label := range l.Labels {
 		var labelModel dbmodel.TenantServiceLable
-		switch kind {
-		case "service":
+		switch label.LabelKey {
+		case core_model.LabelKeyServiceType:
 			labelModel.ServiceID = serviceID
 			labelModel.LabelKey = core_model.LabelKeyServiceType
-			v = chekeServiceLabel(v)
-			labelModel.LabelValue = v
-		case "node":
+			labelModel.LabelValue = chekeServiceLabel(label.LabelValue)
+		case core_model.LabelKeyNodeSelector:
 			labelModel.ServiceID = serviceID
-			labelModel.LabelKey = v
+			labelModel.LabelKey = label.LabelValue
 			labelModel.LabelValue = core_model.LabelKeyNodeSelector
 		default:
 			labelModel.ServiceID = serviceID
-			labelModel.LabelKey = kind
-			labelModel.LabelValue = v
+			labelModel.LabelKey = label.LabelKey
+			labelModel.LabelValue = label.LabelValue
 		}
 		if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&labelModel); err != nil {
-			logrus.Errorf("error adding new labels: %v", err)
 			tx.Rollback()
 			return err
 		}
@@ -284,14 +242,79 @@ func (s *ServiceAction) UpdateLabel(serviceID, kind string, amp []string) error 
 	return nil
 }
 
-//DeleteLabel deletes label
-func (s *ServiceAction) DeleteLabel(kind, serviceID string, amp []string) error {
-	switch kind {
-	case "node":
-		return db.GetManager().TenantServiceLabelDao().DELTenantServiceLabelsByLabelvaluesAndServiceID(serviceID, amp)
-	default:
-		return db.GetManager().TenantServiceLabelDao().DelTenantServiceLabels(serviceID, kind, amp)
+//UpdateLabel updates labels
+func (s *ServiceAction) UpdateLabel(l *api_model.LabelsStruct, serviceID string) error {
+	tx := db.GetManager().Begin()
+	for _, label := range l.Labels {
+		// delete old labels
+		var err error
+		switch label.LabelKey {
+		case core_model.LabelKeyNodeSelector:
+			err = db.GetManager().TenantServiceLabelDaoTransactions(tx).
+				DelTenantServiceLabelsByLabelValuesAndServiceID(serviceID)
+		default:
+			err = db.GetManager().TenantServiceLabelDaoTransactions(tx).
+				DelTenantServiceLabelsByKey(serviceID, label.LabelKey)
+		}
+		if err != nil {
+			logrus.Errorf("error deleting old labels: %v", err)
+			tx.Rollback()
+			return err
+		}
+		// add new labels
+		var labelModel dbmodel.TenantServiceLable
+		switch label.LabelKey {
+		case core_model.LabelKeyServiceType:
+			labelModel.ServiceID = serviceID
+			labelModel.LabelKey = core_model.LabelKeyServiceType
+			labelModel.LabelValue = chekeServiceLabel(label.LabelValue)
+		case core_model.LabelKeyNodeSelector:
+			labelModel.ServiceID = serviceID
+			labelModel.LabelKey = label.LabelValue
+			labelModel.LabelValue = core_model.LabelKeyNodeSelector
+		default:
+			labelModel.ServiceID = serviceID
+			labelModel.LabelKey = label.LabelKey
+			labelModel.LabelValue = label.LabelValue
+		}
+		if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&labelModel); err != nil {
+			logrus.Errorf("error adding new labels: %v", err)
+			tx.Rollback()
+			return err
+
+		}
 	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	return nil
+}
+
+//DeleteLabel deletes label
+func (s *ServiceAction) DeleteLabel(l *api_model.LabelsStruct, serviceID string) error {
+	tx := db.GetManager().Begin()
+	var err error
+	for _, label := range l.Labels {
+		switch label.LabelKey {
+		case core_model.LabelKeyNodeSelector:
+			err = db.GetManager().TenantServiceLabelDaoTransactions(tx).
+				DelTenantServiceLabelByLabelValueAndServiceID(serviceID, label.LabelValue)
+		default:
+			err = db.GetManager().TenantServiceLabelDaoTransactions(tx).
+				DelTenantServiceLabelsByKeyValueServiceID(serviceID, label.LabelKey, label.LabelValue)
+		}
+		if err != nil {
+			logrus.Errorf("error deleting label: %v", err)
+			tx.Rollback()
+			return err
+		}
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	return nil
 }
 
 //UpdateServiceLabel UpdateLabel
