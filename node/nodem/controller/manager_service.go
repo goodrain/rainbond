@@ -123,6 +123,7 @@ func (m *ManagerService) Online() error {
 func (m *ManagerService) StartServices() {
 	for _, service := range *m.services {
 		if !service.Disable {
+			logrus.Infof("Begin start service %s", service.Name)
 			if err := m.ctr.WriteConfig(service); err != nil {
 				logrus.Errorf("write service config failure %s", err.Error())
 				continue

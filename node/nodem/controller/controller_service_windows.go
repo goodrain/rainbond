@@ -119,5 +119,5 @@ func (w *windowsServiceController) DisableService(name string) error {
 	return nil
 }
 func (w *windowsServiceController) CheckBeforeStart() bool {
-	return false
+	return true
 }
