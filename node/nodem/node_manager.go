@@ -112,6 +112,9 @@ func (n *NodeManager) InitStart() error {
 
 //Start start
 func (n *NodeManager) Start(errchan chan error) error {
+	if n.cfg.EtcdCli == nil {
+		return fmt.Errorf("etcd client is nil")
+	}
 	services, err := n.controller.GetAllService()
 	if err != nil {
 		return fmt.Errorf("get all services error,%s", err.Error())

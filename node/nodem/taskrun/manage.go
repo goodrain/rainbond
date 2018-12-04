@@ -66,7 +66,7 @@ func (n *manager) Start(errchan chan error) {
 }
 
 func (n *manager) watchJobs(errChan chan error) error {
-	watcher := watch.New(n.etcdcli, "")
+	watcher := watch.New(n.Conf.EtcdCli, "")
 	watchChan, err := watcher.WatchList(n.ctx, n.Conf.JobPath, "")
 	if err != nil {
 		errChan <- err
