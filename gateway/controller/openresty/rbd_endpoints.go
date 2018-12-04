@@ -8,7 +8,7 @@ import (
 
 func langGoodrainMe(ip string) (*model.Server, *model.Upstream) {
 	svr := &model.Server{
-		Listen:     fmt.Sprintf("%s:%d", ip, 80),  // TODO: change ip address
+		Listen:     fmt.Sprintf("%s:%d", ip, 80), // TODO: change ip address
 		ServerName: "lang.goodrain.me",
 		Rewrites: []model.Rewrite{
 			{
@@ -19,18 +19,18 @@ func langGoodrainMe(ip string) (*model.Server, *model.Upstream) {
 		},
 		Locations: []*model.Location{
 			{
-				Path: "/",
-				ProxyRedirect: "off",
+				Path:                "/",
+				ProxyRedirect:       "off",
 				ProxyConnectTimeout: model.Time{Num: 60, Unit: "s"},
-				ProxyReadTimeout: model.Time{Num: 600, Unit: "s"},
-				ProxySendTimeout: model.Time{Num: 600, Unit: "s"},
+				ProxyReadTimeout:    model.Time{Num: 600, Unit: "s"},
+				ProxySendTimeout:    model.Time{Num: 600, Unit: "s"},
 				ProxySetHeaders: []*model.ProxySetHeader{
 					{Field: "Host", Value: "$http_host"},
 					{Field: "X-Real-IP", Value: "$remote_addr"},
 					{Field: "X-Forwarded-For", Value: "$proxy_add_x_forwarded_for"},
 				},
 				NameCondition: map[string]*v1.Condition{
-					"lang0": {
+					"lang": {
 						Type:  v1.DefaultType,
 						Value: map[string]string{"1": "1"},
 					},
@@ -58,25 +58,25 @@ func mavenGoodrainMe(ip string) (*model.Server, *model.Upstream) {
 						Flag:        "break",
 					},
 				},
-				ProxyRedirect: "off",
+				ProxyRedirect:       "off",
 				ProxyConnectTimeout: model.Time{Num: 60, Unit: "s"},
-				ProxyReadTimeout: model.Time{Num: 600, Unit: "s"},
-				ProxySendTimeout: model.Time{Num: 600, Unit: "s"},
+				ProxyReadTimeout:    model.Time{Num: 600, Unit: "s"},
+				ProxySendTimeout:    model.Time{Num: 600, Unit: "s"},
 				ProxySetHeaders: []*model.ProxySetHeader{
 					{Field: "Host", Value: "$http_host"},
 					{Field: "X-Real-IP", Value: "$remote_addr"},
 					{Field: "X-Forwarded-For", Value: "$proxy_add_x_forwarded_for"},
 				},
 				NameCondition: map[string]*v1.Condition{
-					"maven0": {
+					"maven": {
 						Type:  v1.DefaultType,
 						Value: map[string]string{"1": "1"},
 					},
 				},
 			},
 			{
-				Path: "/monitor",
-				Return: model.Return{Code: 204},
+				Path:             "/monitor",
+				Return:           model.Return{Code: 204},
 				DisableProxyPass: true,
 			},
 		},
@@ -89,11 +89,11 @@ func mavenGoodrainMe(ip string) (*model.Server, *model.Upstream) {
 
 func goodrainMe(cfgPath string, ip string) (*model.Server, *model.Upstream) {
 	svr := &model.Server{
-		Listen:     fmt.Sprintf("%s:%d %s", ip, 443, "ssl"),
-		ServerName: "goodrain.me",
-		SSLCertificate: fmt.Sprintf("%s/%s", cfgPath, "ssl/server.crt"),
-		SSLCertificateKey: fmt.Sprintf("%s/%s", cfgPath, "ssl/server.key"),
-		ClientMaxBodySize: model.Size{Num:0, Unit:"k"},
+		Listen:                  fmt.Sprintf("%s:%d %s", ip, 443, "ssl"),
+		ServerName:              "goodrain.me",
+		SSLCertificate:          fmt.Sprintf("%s/%s", cfgPath, "ssl/server.crt"),
+		SSLCertificateKey:       fmt.Sprintf("%s/%s", cfgPath, "ssl/server.key"),
+		ClientMaxBodySize:       model.Size{Num: 0, Unit: "k"},
 		ChunkedTransferEncoding: true,
 		Locations: []*model.Location{
 			{
@@ -105,11 +105,11 @@ func goodrainMe(cfgPath string, ip string) (*model.Server, *model.Upstream) {
 					{Field: "X-Forwarded-Proto", Value: "$scheme"},
 				},
 				ProxyReadTimeout: model.Time{
-					Num: 900,
+					Num:  900,
 					Unit: "s",
 				},
 				NameCondition: map[string]*v1.Condition{
-					"registry0": {
+					"registry": {
 						Type:  v1.DefaultType,
 						Value: map[string]string{"1": "1"},
 					},
