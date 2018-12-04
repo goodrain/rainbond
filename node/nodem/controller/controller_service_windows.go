@@ -59,16 +59,24 @@ func (w *windowsServiceController) InitStart(services []*service.Service) error 
 }
 
 func (w *windowsServiceController) StartService(name string) error {
-	return windows.StartService(name)
+	if err := windows.StartService(name); err != nil {
+		logrus.Errorf("windows service controller start service %s failure %s", name, err.Error())
+		return err
+	}
+	logrus.Infof("windows service controller start service %s", name)
+	return nil
 }
 func (w *windowsServiceController) StopService(name string) error {
-	return windows.StopService(name)
+	if err := windows.StopService(name); err != nil && !strings.Contains(err.Error(), "service has not been started") {
+		logrus.Errorf("windows service controller stop service %s failure %s", name, err.Error())
+		return err
+	}
+	logrus.Infof("windows service controller stop service %s", name)
+	return nil
 }
 func (w *windowsServiceController) StartList(list []*service.Service) error {
 	for _, s := range list {
-		if err := w.StartService(s.Name); err != nil {
-			logrus.Errorf("start service %s failure %s", s.Name, err.Error())
-		}
+		w.StartService(s.Name)
 	}
 	return nil
 }
@@ -79,11 +87,27 @@ func (w *windowsServiceController) StopList(list []*service.Service) error {
 	return nil
 }
 func (w *windowsServiceController) RestartService(serviceName string) error {
-	return windows.RestartService(serviceName)
+	if err := windows.RestartService(serviceName); err != nil {
+		logrus.Errorf("windows service controller restart service %s failure %s", serviceName, err.Error())
+		return err
+	}
+	logrus.Infof("windows service controller restart service %s", serviceName)
+	return nil
 }
 func (w *windowsServiceController) WriteConfig(s *service.Service) error {
 	cmds := strings.Split(s.Start, " ")
-	return windows.RegisterService(s.Name, cmds[0], "Rainbond "+s.Name, s.Requires, cmds)
+	if err := windows.RegisterService(s.Name, cmds[0], "Rainbond "+s.Name, s.Requires, cmds); err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			w.RemoveConfig(s.Name)
+			err = windows.RegisterService(s.Name, cmds[0], "Rainbond "+s.Name, s.Requires, cmds)
+		}
+		if err != nil {
+			logrus.Errorf("windows service controller register service %s failure %s", s.Name, err.Error())
+			return err
+		}
+	}
+	logrus.Infof("windows service controller register service %s success", s.Name)
+	return nil
 }
 func (w *windowsServiceController) RemoveConfig(name string) error {
 	return windows.UnRegisterService(name)

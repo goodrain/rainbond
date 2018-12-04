@@ -20,6 +20,7 @@ package windows
 
 import (
 	"fmt"
+	"strings"
 	"time"
 	"unsafe"
 
@@ -131,7 +132,8 @@ func StopService(serviceName string) error {
 
 //RestartService restart a windows service
 func RestartService(serviceName string) error {
-	if err := controlService(serviceName, svc.Stop, svc.Stopped); err != nil {
+	if err := controlService(serviceName, svc.Stop, svc.Stopped); err != nil &&
+		!strings.Contains(err.Error(), "service has not been started") {
 		return err
 	}
 	return StartService(serviceName)

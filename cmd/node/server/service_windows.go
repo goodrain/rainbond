@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
 	utilwindows "github.com/goodrain/rainbond/util/windows"
@@ -72,7 +73,7 @@ func initService(conf *option.Conf) (bool, error) {
 }
 
 func unregisterService() error {
-	if err := utilwindows.StopService(*flServiceName); err != nil {
+	if err := utilwindows.StopService(*flServiceName); err != nil && !strings.Contains(err.Error(), "service has not been started") {
 		return err
 	}
 	return utilwindows.UnRegisterService(*flServiceName)
