@@ -1263,3 +1263,13 @@ func (t *ServiceLabelDaoImpl) DELTenantServiceLabelsByLabelvaluesAndServiceID(se
 	}
 	return nil
 }
+
+//DelTenantServiceLabels deletes labels
+func (t *ServiceLabelDaoImpl) DelTenantServiceLabels(serviceID string, labelKey string, labelValues []string) error {
+	var label model.TenantServiceLable
+	if err := t.DB.Where("service_id=? and label_key=? and label_value in (?)",
+		serviceID, labelKey, labelValues).Delete(&label).Error; err != nil {
+		return err
+	}
+	return nil
+}

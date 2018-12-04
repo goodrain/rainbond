@@ -280,8 +280,9 @@ func (s *ServiceAction) DeleteLabel(kind, serviceID string, amp []string) error 
 	switch kind {
 	case "node":
 		return db.GetManager().TenantServiceLabelDao().DELTenantServiceLabelsByLabelvaluesAndServiceID(serviceID, amp)
+	default:
+		return db.GetManager().TenantServiceLabelDao().DelTenantServiceLabels(serviceID, kind, amp)
 	}
-	return nil
 }
 
 //UpdateServiceLabel UpdateLabel

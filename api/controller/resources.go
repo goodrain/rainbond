@@ -929,7 +929,7 @@ func (t *TenantStruct) Label(w http.ResponseWriter, r *http.Request) {
 }
 
 func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("add http rule.")
+	logrus.Debugf("add label")
 	var req api_model.LabelStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
@@ -947,7 +947,21 @@ func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request) {
 }
 
 func (t *TenantStruct) DeleteLabel(w http.ResponseWriter, r *http.Request) {
-	
+	logrus.Debugf("delete label")
+	var req api_model.LabelStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	reqJSON, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJSON))
+
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	if err := handler.GetServiceManager().DeleteLabel(req.LabelKey, serviceID, req.LabelValues); err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("delete node label failure, %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
 }
 
 //DeleteNodeLabel DeleteLabel
