@@ -337,7 +337,7 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 			case string(model.LBType):
 				annos[parser.GetAnnotationWithPrefix("lb-type")] = extension.Value
 			default:
-				logrus.Warnf("Unexpected RuleExtension Value: %s", extension.Value)
+				logrus.Warnf("Unexpected RuleExtension Key: %s", extension.Key)
 			}
 		}
 		ing.SetAnnotations(annos)
