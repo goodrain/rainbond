@@ -2,9 +2,9 @@
 local ngx_balancer = require("ngx.balancer")
 local round_robin = require("balancer.round_robin")
 local chash = require("balancer.chash")
-local json = require("cjson")
 -- local sticky = require("balancer.sticky")
 -- local ewma = require("balancer.ewma")
+local json = require("cjson")
 local config = require("config")
 
 local DEFAULT_LB_ALG = "round_robin"
@@ -16,7 +16,7 @@ local IMPLEMENTATIONS = {
 }
 
 local _M = {}
--- svae all backend balancer data
+-- save all backend balancer data
 local balancers = {}
 
 -- measured in seconds
@@ -26,7 +26,7 @@ local BACKENDS_SYNC_INTERVAL = 1
 
 -- get_implementation get backend balance type 
 -- if set sessionAffinityConfig.name is cookie, type is sticky
--- idf set upstream-hash-by, type is chash
+-- if set upstream-hash-by, type is chash
 local function get_implementation(backend)
   local name = backend["load-balance"] or DEFAULT_LB_ALG
 
