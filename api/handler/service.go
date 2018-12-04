@@ -128,15 +128,20 @@ func (s *ServiceAction) buildFromMarketSlug(r *api_model.BuildServiceStruct, ser
 	body["service_id"] = service.ServiceID
 	body["service_alias"] = r.Body.ServiceAlias
 	body["slug_info"] = r.Body.SlugInfo
+
+	topic := "builder"
+	if s.isWindowsService(service.ServiceID) {
+		topic = "windows"
+	}
 	return s.MQClient.SendBuilderTopic(gclient.TaskStruct{
-		Topic:    "builder",
+		Topic:    topic,
 		TaskType: "build_from_market_slug",
 		TaskBody: body,
 	})
 }
+
 func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
 	dependIds, err := db.GetManager().TenantServiceRelationDao().GetTenantServiceRelations(service.ServiceID)
-	label, err := db.GetManager().TenantServiceLabelDao().GetTenantNodeAffinityLabel(service.ServiceID)
 	if err != nil {
 		return err
 	}
@@ -163,9 +168,10 @@ func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service 
 	}
 
 	// use "linux" as the default topic
+
 	topic := "builder"
-	if label != nil && label.LabelValue == "linux" {
-		topic = "linux"
+	if s.isWindowsService(service.ServiceID) {
+		topic = "windows"
 	}
 	return s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		Topic:    topic,
@@ -204,11 +210,24 @@ func (s *ServiceAction) buildFromSourceCode(r *api_model.BuildServiceStruct, ser
 	}
 	body["expire"] = 180
 
+	topic := "builder"
+	if s.isWindowsService(service.ServiceID) {
+		topic = "windows"
+	}
+
 	return s.MQClient.SendBuilderTopic(gclient.TaskStruct{
-		Topic:    "builder",
+		Topic:    topic,
 		TaskType: "build_from_source_code",
 		TaskBody: body,
 	})
+}
+
+func (s *ServiceAction) isWindowsService(serviceID string) bool {
+	label, err := db.GetManager().TenantServiceLabelDao().GetLabelByNodeSelectorKey(serviceID, "windows")
+	if label == nil || err != nil {
+		return false
+	}
+	return true
 }
 
 //AddLabel add labels

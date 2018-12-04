@@ -1226,6 +1226,16 @@ func (t *ServiceLabelDaoImpl) GetTenantServiceNodeSelectorLabel(serviceID string
 	return labels, nil
 }
 
+// GetLabelByNodeSelectorKey returns a label by node-selector and label_key
+func (t *ServiceLabelDaoImpl) GetLabelByNodeSelectorKey(serviceID string, label_key string) (*model.TenantServiceLable, error) {
+	var label model.TenantServiceLable
+	if err := t.DB.Where("service_id=? and label_key = ? and label_value=?", serviceID, label_key,
+		model.LabelKeyNodeSelector).Find(&label).Error; err != nil {
+		return nil, err
+	}
+	return &label, nil
+}
+
 //GetTenantNodeAffinityLabel returns TenantServiceLable matching serviceID and LabelKeyNodeAffinity
 func (t *ServiceLabelDaoImpl) GetTenantNodeAffinityLabel(serviceID string) (*model.TenantServiceLable, error) {
 	var label model.TenantServiceLable
