@@ -340,6 +340,7 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 			case string(model.HTTPToHTTPS):
 				if rule.CertificateID == "" {
 					logrus.Warningf("enable force-ssl-redirect, but with no certificate. rule id is: %s", rule.UUID)
+					break
 				}
 				annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
 			case string(model.LBType):
