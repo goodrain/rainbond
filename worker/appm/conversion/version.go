@@ -25,6 +25,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/goodrain/rainbond/node/nodem/client"
+
 	"github.com/goodrain/rainbond/builder"
 
 	"github.com/Sirupsen/logrus"
@@ -642,7 +644,11 @@ func createNodeSelector(as *v1.AppService, dbmanager db.Manager) map[string]stri
 	labels, err := dbmanager.TenantServiceLabelDao().GetTenantServiceNodeSelectorLabel(as.ServiceID)
 	if err == nil && labels != nil && len(labels) > 0 {
 		for _, l := range labels {
-			selector[l.LabelValue] = dbmodel.LabelKeyNodeSelector
+			if strings.Contains(l.LabelValue, "=") {
+				selector[kv[0]] = kv[1]
+			} else {
+				selector["rainbond_node_lable_"+l.LabelValue] = "true"
+			}
 		}
 	}
 	return selector
@@ -656,17 +662,35 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 		podAntAffinity := make([]corev1.PodAffinityTerm, 0)
 		for _, l := range labels {
 			if l.LabelKey == dbmodel.LabelKeyNodeAffinity {
-				nsr = append(nsr, corev1.NodeSelectorRequirement{
-					Key:      l.LabelKey,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{l.LabelValue},
-				})
+				if l.LabelValue == "windows" || l.LabelValue == "linux" {
+					nsr = append(nsr, corev1.NodeSelectorRequirement{
+						Key:      client.LabelOS,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{l.LabelValue},
+					})
+					continue
+				}
+				if strings.Contains(l.LabelValue, "=") {
+					kv := strings.SplitN(l.LabelValue, "=", 1)
+					nsr = append(nsr, corev1.NodeSelectorRequirement{
+						Key:      kv[0],
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{kv[1]},
+					})
+				} else {
+					nsr = append(nsr, corev1.NodeSelectorRequirement{
+						Key:      "rainbond_node_lable_" + l.LabelValue,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"true"},
+					})
+				}
 			}
 			if l.LabelKey == dbmodel.LabelKeyServiceAffinity {
 				podAffinity = append(podAffinity, corev1.PodAffinityTerm{
 					LabelSelector: metav1.SetAsLabelSelector(map[string]string{
 						"name": l.LabelValue,
 					}),
+					Namespaces: []string{as.TenantID},
 				})
 			}
 			if l.LabelKey == dbmodel.LabelKeyServiceAntyAffinity {
@@ -675,6 +699,7 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 						LabelSelector: metav1.SetAsLabelSelector(map[string]string{
 							"name": l.LabelValue,
 						}),
+						Namespaces: []string{as.TenantID},
 					})
 			}
 		}

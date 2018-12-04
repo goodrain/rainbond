@@ -347,9 +347,6 @@ var LabelKeyNodeSelector = "node-selector"
 //LabelKeyNodeAffinity 节点亲和标签
 var LabelKeyNodeAffinity = "node-affinity"
 
-//LabelKeyNodeAntyAffinity 节点反亲和标签
-var LabelKeyNodeAntyAffinity = "node-anti-affinity"
-
 //LabelKeyServiceType 应用部署类型标签
 var LabelKeyServiceType = "service-type"
 
