@@ -1214,11 +1214,11 @@ func (t *ServiceLabelDaoImpl) GetTenantServiceNodeSelectorLabel(serviceID string
 	return labels, nil
 }
 
-// GetLabelByNodeSelectorKey returns a label by node-selector and label_key
-func (t *ServiceLabelDaoImpl) GetLabelByNodeSelectorKey(serviceID string, label_key string) (*model.TenantServiceLable, error) {
+// GetLabelByNodeSelectorKey returns a label by node-selector and label_value
+func (t *ServiceLabelDaoImpl) GetLabelByNodeSelectorKey(serviceID string, labelValue string) (*model.TenantServiceLable, error) {
 	var label model.TenantServiceLable
-	if err := t.DB.Where("service_id=? and label_key = ? and label_value=?", serviceID, label_key,
-		model.LabelKeyNodeSelector).Find(&label).Error; err != nil {
+	if err := t.DB.Where("service_id=? and label_key = ? and label_value=?", serviceID, model.LabelKeyNodeSelector,
+		labelValue).Find(&label).Error; err != nil {
 		return nil, err
 	}
 	return &label, nil
@@ -1263,25 +1263,6 @@ func (t *ServiceLabelDaoImpl) GetTenantServiceTypeLabel(serviceID string) (*mode
 }
 
 //DELTenantServiceLabelsByLabelvaluesAndServiceID DELTenantServiceLabelsByLabelvaluesAndServiceID
-func (t *ServiceLabelDaoImpl) DELTenantServiceLabelsByLabelvaluesAndServiceID(serviceID string, labelValues []string) error {
-	var label model.TenantServiceLable
-	if err := t.DB.Where("service_id=? and label_value=? and label_key in (?)", serviceID, model.LabelKeyNodeSelector, labelValues).Delete(&label).Error; err != nil {
-		return err
-	}
-	return nil
-}
-
-// DelTenantServiceLabelByLabelValueAndServiceID -
-func (t *ServiceLabelDaoImpl) DelTenantServiceLabelByLabelValueAndServiceID(serviceID string, labelValue string) error {
-	var label model.TenantServiceLable
-	if err := t.DB.Where("service_id=? and label_value=? and label_key=?", serviceID,
-		model.LabelKeyNodeSelector, labelValue).Delete(&label).Error; err != nil {
-		return err
-	}
-	return nil
-}
-
-//DELTenantServiceLabelsByLabelvaluesAndServiceID DELTenantServiceLabelsByLabelvaluesAndServiceID
 func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByLabelValuesAndServiceID(serviceID string) error {
 	var label model.TenantServiceLable
 	if err := t.DB.Where("service_id=? and label_value=?", serviceID, model.LabelKeyNodeSelector).Delete(&label).Error; err != nil {
@@ -1291,17 +1272,8 @@ func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByLabelValuesAndServiceID(se
 }
 
 //DelTenantServiceLabels deletes labels
-func (t *ServiceLabelDaoImpl) DelTenantServiceLabels(serviceID string, labelKey string, labelValues []string) error {
-	var label model.TenantServiceLable
-	if err := t.DB.Where("service_id=? and label_key=? and label_value in (?)",
-		serviceID, labelKey, labelValues).Delete(&label).Error; err != nil {
-		return err
-	}
-	return nil
-}
-
-//DelTenantServiceLabels deletes labels
-func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByKeyValueServiceID(serviceID string, labelKey string, labelValue string) error {
+func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByServiceIDKeyValue(serviceID string, labelKey string,
+	labelValue string) error {
 	var label model.TenantServiceLable
 	if err := t.DB.Where("service_id=? and label_key=? and label_value=?", serviceID, labelKey,
 		labelValue).Delete(&label).Error; err != nil {
@@ -1310,8 +1282,8 @@ func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByKeyValueServiceID(serviceI
 	return nil
 }
 
-//DelTenantServiceLabelsByKey deletes labels by label key
-func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByKey(serviceID string, labelKey string) error {
+//DelTenantServiceLabelsByServiceIDKey deletes labels by serviceID and labelKey
+func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByServiceIDKey(serviceID string, labelKey string) error {
 	var label model.TenantServiceLable
 	if err := t.DB.Where("service_id=? and label_key=?", serviceID, labelKey).Delete(&label).Error; err != nil {
 		return err
