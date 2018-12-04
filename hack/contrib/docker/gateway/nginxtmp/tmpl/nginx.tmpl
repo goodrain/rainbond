@@ -89,6 +89,14 @@ http {
         server_name _;
         return 404;
     }
+    server {
+        listen 443 ssl default_server;
+        server_name _;
+        ssl_certificate default-server.crt;
+        ssl_certificate_key default-server.key;
+        return 404;
+    }
+
     upstream upstream_balancer {
         server 0.0.0.1; # placeholder
 
