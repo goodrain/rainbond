@@ -322,6 +322,7 @@ func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, ac
 			return err
 		}
 		logger.Info("Build success,start upgrade app service", map[string]string{"step": "builder", "status": "running"})
+		return nil
 	default:
 		logger.Info("Build success,do not other action", map[string]string{"step": "last", "status": "success"})
 	}
