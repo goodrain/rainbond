@@ -20,6 +20,7 @@ package conversion
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/util"
 	"os"
 	"strings"
 
@@ -203,7 +204,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 			}
 		} else { // if there is no http rule, then create a default ingress
 			httpRule := &model.HTTPRule{
-				UUID: "default",
+				UUID: fmt.Sprintf("%s%s", util.NewUUID()[0:7], "default"),
 			}
 			// the default ingress will not have error
 			ing, _, _ := a.applyHTTPRule(httpRule, port, service)
@@ -232,7 +233,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 				return nil, nil, err
 			}
 			tcpRule := &model.TCPRule{
-				UUID: "default",
+				UUID: fmt.Sprintf("%s%s", util.NewUUID()[0:7], "default"),
 				Port: mappingPort.Port,
 			}
 			ing, err := a.applyTCPRule(tcpRule, service, a.tenant.UUID)
