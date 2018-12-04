@@ -337,9 +337,10 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 		for _, extension := range ruleExtensions {
 			switch extension.Key {
 			case string(model.HTTPToHTTPS):
-				if rule.CertificateID != "" {
-					annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
+				if rule.CertificateID == "" {
+					logrus.Warningf("enable force-ssl-redirect, but with no certificate. rule id is: %s", rule.UUID)
 				}
+				annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
 			case string(model.LBType):
 				annos[parser.GetAnnotationWithPrefix("lb-type")] = extension.Value
 			default:
