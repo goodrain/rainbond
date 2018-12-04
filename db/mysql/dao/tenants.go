@@ -162,6 +162,7 @@ func (t *TenantServicesDaoImpl) GetAllServices() ([]*model.TenantServices, error
 	return services, nil
 }
 
+//GetAllServicesID get all service sample info
 func (t *TenantServicesDaoImpl) GetAllServicesID() ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
 	if err := t.DB.Select("service_id,service_alias,tenant_id").Find(&services).Error; err != nil {
@@ -175,7 +176,7 @@ func (t *TenantServicesDaoImpl) GetAllServicesID() ([]*model.TenantServices, err
 
 //UpdateDeployVersion update service current deploy version
 func (t *TenantServicesDaoImpl) UpdateDeployVersion(serviceID, deployversion string) error {
-	if err := t.DB.Raw("update tenant_services set deploy_version=? where service_id=?", deployversion, serviceID).Error; err != nil {
+	if err := t.DB.Exec("update tenant_services set deploy_version=? where service_id=?", deployversion, serviceID).Error; err != nil {
 		return err
 	}
 	return nil
