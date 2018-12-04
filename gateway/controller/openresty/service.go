@@ -289,9 +289,9 @@ func (osvc *OrService) newRbdServers() error {
 		return err
 	}
 
-	lesrv, _ := langGoodrainMe()
-	mesrv, _ := mavenGoodrainMe()
-	gesrv, _ := goodrainMe(cfgPath)
+	lesrv, _ := langGoodrainMe(osvc.config.RBDServerInIP)
+	mesrv, _ := mavenGoodrainMe(osvc.config.RBDServerInIP)
+	gesrv, _ := goodrainMe(cfgPath, osvc.config.RBDServerInIP)
 	if err := template.NewServerTemplateWithCfgPath([]*model.Server{
 		lesrv,
 		mesrv,

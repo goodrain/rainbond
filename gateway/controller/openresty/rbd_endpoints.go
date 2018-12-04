@@ -6,9 +6,9 @@ import (
 	"github.com/goodrain/rainbond/gateway/v1"
 )
 
-func langGoodrainMe() (*model.Server, *model.Upstream) {
+func langGoodrainMe(ip string) (*model.Server, *model.Upstream) {
 	svr := &model.Server{
-		Listen:     fmt.Sprintf("%s:%d", "0.0.0.0", 80),  // TODO: change ip address
+		Listen:     fmt.Sprintf("%s:%d", ip, 80),  // TODO: change ip address
 		ServerName: "lang.goodrain.me",
 		Rewrites: []model.Rewrite{
 			{
@@ -44,9 +44,9 @@ func langGoodrainMe() (*model.Server, *model.Upstream) {
 	return svr, us
 }
 
-func mavenGoodrainMe() (*model.Server, *model.Upstream) {
+func mavenGoodrainMe(ip string) (*model.Server, *model.Upstream) {
 	svr := &model.Server{
-		Listen:     fmt.Sprintf("%s:%d", "0.0.0.0", 80),
+		Listen:     fmt.Sprintf("%s:%d", ip, 80),
 		ServerName: "maven.goodrain.me",
 		Locations: []*model.Location{
 			{
@@ -87,9 +87,9 @@ func mavenGoodrainMe() (*model.Server, *model.Upstream) {
 	return svr, us
 }
 
-func goodrainMe(cfgPath string) (*model.Server, *model.Upstream) {
+func goodrainMe(cfgPath string, ip string) (*model.Server, *model.Upstream) {
 	svr := &model.Server{
-		Listen:     fmt.Sprintf("%s:%d %s", "0.0.0.0", 443, "ssl"),
+		Listen:     fmt.Sprintf("%s:%d %s", ip, 443, "ssl"),
 		ServerName: "goodrain.me",
 		SSLCertificate: fmt.Sprintf("%s/%s", cfgPath, "ssl/server.crt"),
 		SSLCertificateKey: fmt.Sprintf("%s/%s", cfgPath, "ssl/server.key"),
