@@ -1241,7 +1241,7 @@ func (t *ServiceLabelDaoImpl) GetTenantNodeAffinityLabel(serviceID string) (*mod
 //GetTenantServiceAffinityLabel GetTenantServiceAffinityLabel
 func (t *ServiceLabelDaoImpl) GetTenantServiceAffinityLabel(serviceID string) ([]*model.TenantServiceLable, error) {
 	var labels []*model.TenantServiceLable
-	if err := t.DB.Where("service_id=? and label_key in (?)", serviceID, []string{model.LabelKeyNodeAffinity, model.LabelKeyNodeAntyAffinity,
+	if err := t.DB.Where("service_id=? and label_key in (?)", serviceID, []string{model.LabelKeyNodeAffinity,
 		model.LabelKeyServiceAffinity, model.LabelKeyServiceAntyAffinity}).Find(&labels).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return labels, nil
