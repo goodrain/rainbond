@@ -268,6 +268,7 @@ func (n *NodeManager) init() error {
 	for _, rule := range node.Role {
 		node.Labels["rainbond_node_rule_"+rule] = "true"
 	}
+	node.Labels[client.LabelOS] = runtime.GOOS
 	if node.HostName == "" {
 		hostname, _ := os.Hostname()
 		node.HostName = hostname
