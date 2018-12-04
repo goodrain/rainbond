@@ -803,6 +803,12 @@ type AddNodeLabelStruct struct {
 	}
 }
 
+// LabelStruct holds info for adding, updating or deleting label
+type LabelStruct struct {
+	LabelKey    string `json:"label_key" validate:"label_key|required"`
+	LabelValues []string `json:"label_values" validate:"label_key|required"`
+}
+
 //GetSingleServiceInfoStruct GetSingleServiceInfoStruct
 //swagger:parameters getService deleteService
 type GetSingleServiceInfoStruct struct {

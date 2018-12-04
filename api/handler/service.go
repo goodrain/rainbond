@@ -263,6 +263,10 @@ func (s *ServiceAction) AddLabel(kind, serviceID string, amp []string) error {
 			labelModel.ServiceID = serviceID
 			labelModel.LabelKey = v
 			labelModel.LabelValue = core_model.LabelKeyNodeSelector
+		default:
+			labelModel.ServiceID = serviceID
+			labelModel.LabelKey = kind
+			labelModel.LabelValue = v
 		}
 		if err := db.GetManager().TenantServiceLabelDao().AddModel(&labelModel); err != nil {
 			return err

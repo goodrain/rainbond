@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -916,6 +917,37 @@ func (t *TenantStruct) AddNodeLabel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
+}
+
+func (t *TenantStruct) Label(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "DELETE":
+		t.DeleteLabel(w, r)
+	case "POST":
+		t.AddLabel(w, r)
+	}
+}
+
+func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request) {
+	logrus.Debugf("add http rule.")
+	var req api_model.LabelStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	reqJSON, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJSON))
+
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	if err := handler.GetServiceManager().AddLabel(req.LabelKey, serviceID, req.LabelValues); err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("add label error, %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+func (t *TenantStruct) DeleteLabel(w http.ResponseWriter, r *http.Request) {
+	
 }
 
 //DeleteNodeLabel DeleteLabel

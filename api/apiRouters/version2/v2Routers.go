@@ -204,6 +204,8 @@ func (v2 *V2) serviceRouter() chi.Router {
 	//节点标签 增 删
 	r.Post("/node-label", controller.GetManager().NodeLabel)
 	r.Delete("/node-label", controller.GetManager().NodeLabel)
+	// label
+	r.Post("/label", controller.GetManager().Label)
 
 	//插件
 	r.Mount("/plugin", v2.serviceRelatePluginRouter())
