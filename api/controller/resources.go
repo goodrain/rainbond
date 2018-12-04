@@ -796,6 +796,9 @@ func (t *TenantStruct) Label(w http.ResponseWriter, r *http.Request) {
 
 	// verify request
 	values := url.Values{}
+	if req.Labels == nil || len(req.Labels) == 0 {
+		values["labels"] = []string{"The labels field should have someting"}
+	}
 	for _, label := range req.Labels {
 		if label.LabelKey == "" {
 			values["label_key"] = []string{"The label_key field is required"}
