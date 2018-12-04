@@ -27,6 +27,7 @@ type AddHTTPRuleStruct struct {
 	Path           string                 `json:"path"`
 	Header         string                 `json:"header"`
 	Cookie         string                 `json:"cookie"`
+	Weight         int                    `json:"weight"`
 	IP             string                 `json:"ip"`
 	CertificateID  string                 `json:"certificate_id"`
 	Certificate    string                 `json:"certificate"`
@@ -43,6 +44,7 @@ type UpdateHTTPRuleStruct struct {
 	Path           string                 `json:"path"`
 	Header         string                 `json:"header"`
 	Cookie         string                 `json:"cookie"`
+	Weight         int                    `json:"weight"`
 	IP             string                 `json:"ip"`
 	CertificateID  string                 `json:"certificate_id"`
 	Certificate    string                 `json:"certificate"`

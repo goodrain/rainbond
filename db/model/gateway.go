@@ -79,6 +79,7 @@ type HTTPRule struct {
 	Path          string `gorm:"column:path"`
 	Header        string `gorm:"column:header"`
 	Cookie        string `gorm:"column:cookie"`
+	Weight        int    `gorm:"column:weight"`
 	IP            string `gorm:"column:ip"`
 	CertificateID string `gorm:"column:certificate_id"`
 }
