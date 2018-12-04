@@ -30,7 +30,6 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/logger"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/api"
@@ -58,7 +57,6 @@ type NodeManager struct {
 	taskrun    taskrun.Manager
 	cfg        *option.Conf
 	apim       *api.Manager
-	etcdCli    *clientv3.Client
 	watchChan  watch.Interface
 	clm        *logger.ContainerLogManage
 }
@@ -87,7 +85,6 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 		monitor:    monitor,
 		healthy:    healthyManager,
 		controller: controller,
-		etcdCli:    conf.EtcdCli,
 		clm:        clm,
 	}
 	nodem.HostNode.NodeStatus = &client.NodeStatus{Status: "online"}
@@ -164,19 +161,20 @@ func (n *NodeManager) Stop() {
 	}
 }
 
-func (m *NodeManager) SyncNodeStatus() error {
-	key := fmt.Sprintf("%s/%s", m.cfg.ServiceEndpointRegPath, m.ID)
+//SyncNodeStatus sync node status
+func (n *NodeManager) SyncNodeStatus() error {
+	key := fmt.Sprintf("%s/%s", n.cfg.ServiceEndpointRegPath, n.ID)
 	logrus.Info("Starting node status sync manager: ", key)
-	watcher := watch.New(m.etcdCli, "")
-	watchChan, err := watcher.Watch(m.ctx, key, "")
+	watcher := watch.New(n.cfg.EtcdCli, "")
+	watchChan, err := watcher.Watch(n.ctx, key, "")
 	if err != nil {
-		m.watchChan.Stop()
+		n.watchChan.Stop()
 		logrus.Error("Failed to Watch list for key ", key)
 		return err
 	}
-	m.watchChan = watchChan
+	n.watchChan = watchChan
 
-	for event := range m.watchChan.ResultChan() {
+	for event := range n.watchChan.ResultChan() {
 		logrus.Debug("watch event type: ", event.Type)
 		switch event.Type {
 		case watch.Added:
@@ -193,15 +191,15 @@ func (m *NodeManager) SyncNodeStatus() error {
 				continue
 			}
 
-			logrus.Infof("Sync node status %s => %s", m.NodeStatus.Status, node.NodeStatus.Status)
+			logrus.Infof("Sync node status %s => %s", n.NodeStatus.Status, node.NodeStatus.Status)
 			if node.NodeStatus.Status == nodeService.Offline &&
-				m.NodeStatus.Status != nodeService.Offline {
-				m.NodeStatus.Status = nodeService.Offline
-				m.controller.Offline()
+				n.NodeStatus.Status != nodeService.Offline {
+				n.NodeStatus.Status = nodeService.Offline
+				n.controller.Offline()
 			} else if node.NodeStatus.Status == nodeService.Running &&
-				m.NodeStatus.Status != nodeService.Running {
-				m.NodeStatus.Status = nodeService.Running
-				m.controller.Online()
+				n.NodeStatus.Status != nodeService.Running {
+				n.NodeStatus.Status = nodeService.Running
+				n.controller.Online()
 			}
 		case watch.Deleted:
 		default:
