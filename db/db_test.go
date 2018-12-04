@@ -260,13 +260,13 @@ func TestGetTcpRuleByServiceIDAndContainerPort(t *testing.T) {
 
 func TestGetCertificateByID(t *testing.T) {
 	if err := CreateManager(dbconfig.Config{
-		MysqlConnectionInfo: "admin:admin@tcp(localhost:3306)/region",
+		MysqlConnectionInfo: "admin:admin@tcp(127.0.0.1:3306)/region",
 		DBType:              "mysql",
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	cert, err := GetManager().CertificateDao().GetCertificateByID("cacc59d4db594dd3869da5158800a2b7")
+	cert, err := GetManager().TenantServiceLabelDao().GetTenantNodeAffinityLabel("105bb7d4b94774f922edb3051bdf8ce1")
 	if err != nil {
 		t.Fatal(err)
 	}

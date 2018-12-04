@@ -132,7 +132,7 @@ func (s *ServiceAction) buildFromMarketSlug(r *api_model.BuildServiceStruct, ser
 }
 func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service *dbmodel.TenantServices) error {
 	dependIds, err := db.GetManager().TenantServiceRelationDao().GetTenantServiceRelations(service.ServiceID)
-	label, err := db.GetManager().TenantServiceLabelDao().GetTenantServiceOSLabel(service.ServiceID)
+	label, err := db.GetManager().TenantServiceLabelDao().GetTenantNodeAffinityLabel(service.ServiceID)
 	if err != nil {
 		return err
 	}
@@ -160,8 +160,8 @@ func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service 
 
 	// use "linux" as the default topic
 	topic := "builder"
-	if label != nil && strings.Replace(label.LabelValue, " ", "", -1) != "" {
-		topic = strings.Replace(label.LabelValue, " ", "", -1)
+	if label != nil && label.LabelValue == "linux" {
+		topic = "linux"
 	}
 	return s.sendTaskWithTopic(body, "build_from_image", topic)
 }

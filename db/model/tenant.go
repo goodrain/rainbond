@@ -359,9 +359,6 @@ var LabelKeyServiceAffinity = "service-affinity"
 //LabelKeyServiceAntyAffinity 应用反亲和标签
 var LabelKeyServiceAntyAffinity = "service-anti-affinity"
 
-// LabelKeyOS means the operating system of the node where the application is located.
-var LabelKeyOS = "operation-system"
-
 //TenantServiceProbe 应用探针信息
 type TenantServiceProbe struct {
 	Model
