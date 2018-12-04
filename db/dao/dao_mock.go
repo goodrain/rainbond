@@ -4,8 +4,9 @@
 package dao
 
 import (
-	model "github.com/goodrain/rainbond/db/model"
 	time "time"
+
+	model "github.com/goodrain/rainbond/db/model"
 	gomock "github.com/rafrombrc/gomock/gomock"
 )
 
@@ -509,17 +510,6 @@ func (_m *MockTenantServiceDao) GetPagedTenantService(offset int, len int, servi
 
 func (_mr *_MockTenantServiceDaoRecorder) GetPagedTenantService(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetPagedTenantService", arg0, arg1, arg2)
-}
-
-func (_m *MockTenantServiceDao) GetAllServices() ([]*model.TenantServices, error) {
-	ret := _m.ctrl.Call(_m, "GetAllServices")
-	ret0, _ := ret[0].([]*model.TenantServices)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockTenantServiceDaoRecorder) GetAllServices() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetAllServices")
 }
 
 func (_m *MockTenantServiceDao) GetAllServicesID() ([]*model.TenantServices, error) {

@@ -82,7 +82,7 @@ func (d *DiskCache) setcache() {
 		Key   string
 		Value float64
 	}
-	services, err := d.dbmanager.TenantServiceDao().GetAllServices()
+	services, err := d.dbmanager.TenantServiceDao().GetAllServicesID()
 	if err != nil {
 		logrus.Errorln("Error get tenant service when select db :", err)
 		return
@@ -92,11 +92,7 @@ func (d *DiskCache) setcache() {
 		logrus.Errorln("Error get tenant service volume when select db :", err)
 		return
 	}
-	localPath := os.Getenv("LOCAL_DATA_PATH")
 	sharePath := os.Getenv("SHARE_DATA_PATH")
-	if localPath == "" {
-		localPath = "/grlocaldata"
-	}
 	if sharePath == "" {
 		sharePath = "/grdata"
 	}

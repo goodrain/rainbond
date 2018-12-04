@@ -78,7 +78,6 @@ type TenantServiceDao interface {
 	GetServiceMemoryByTenantIDs(tenantIDs, serviceIDs []string) (map[string]map[string]interface{}, error)
 	GetServiceMemoryByServiceIDs(serviceIDs []string) (map[string]map[string]interface{}, error)
 	GetPagedTenantService(offset, len int, serviceIDs []string) ([]map[string]interface{}, int, error)
-	GetAllServices() ([]*model.TenantServices, error)
 	GetAllServicesID() ([]*model.TenantServices, error)
 	UpdateDeployVersion(serviceID, deployversion string) error
 }

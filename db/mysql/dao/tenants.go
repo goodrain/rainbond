@@ -150,18 +150,6 @@ type TenantServicesDaoImpl struct {
 	DB *gorm.DB
 }
 
-//GetAllServices 获取全部应用信息的资源相关信息
-func (t *TenantServicesDaoImpl) GetAllServices() ([]*model.TenantServices, error) {
-	var services []*model.TenantServices
-	if err := t.DB.Select("tenant_id,service_id,service_alias,host_path,replicas,container_memory").Find(&services).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return services, nil
-		}
-		return nil, err
-	}
-	return services, nil
-}
-
 //GetAllServicesID get all service sample info
 func (t *TenantServicesDaoImpl) GetAllServicesID() ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
