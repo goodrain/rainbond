@@ -40,9 +40,6 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-//WTOPIC is worker
-const WTOPIC string = "worker"
-
 var healthStatus = make(map[string]string, 1)
 
 //TaskNum exec task number
@@ -99,7 +96,7 @@ func (t *TaskManager) Do() {
 			return
 		default:
 			ctx, cancel := context.WithCancel(t.ctx)
-			data, err := t.client.Dequeue(ctx, &pb.DequeueRequest{Topic: WTOPIC, ClientHost: hostname + "-worker"})
+			data, err := t.client.Dequeue(ctx, &pb.DequeueRequest{Topic: client.WorkerTopic, ClientHost: hostname + "-worker"})
 			cancel()
 			if err != nil {
 				if grpc1.ErrorDesc(err) == context.DeadlineExceeded.Error() {
@@ -130,13 +127,13 @@ func (t *TaskManager) Do() {
 			} else if rc != nil && rc == handle.ErrCallback {
 				ctx, cancel := context.WithCancel(t.ctx)
 				reply, err := t.client.Enqueue(ctx, &pb.EnqueueRequest{
-					Topic:   WTOPIC,
+					Topic:   client.WorkerTopic,
 					Message: data,
 				})
 				cancel()
 				logrus.Debugf("retry send task to mq ,reply is %v", reply)
 				if err != nil {
-					logrus.Errorf("enqueue task %v to mq topic %v Error", data, WTOPIC)
+					logrus.Errorf("enqueue task %v to mq topic %v Error", data, client.WorkerTopic)
 					continue
 				}
 				//if handle is waiting, sleep 3 second

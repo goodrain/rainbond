@@ -75,7 +75,7 @@ func (t *TaskManager) Do() {
 			return
 		default:
 			ctx, cancel := context.WithCancel(t.ctx)
-			data, err := t.client.Dequeue(ctx, &pb.DequeueRequest{Topic: t.config.NodeOS, ClientHost: hostName + "-builder"})
+			data, err := t.client.Dequeue(ctx, &pb.DequeueRequest{Topic: t.config.Topic, ClientHost: hostName + "-builder"})
 			cancel()
 			if err != nil {
 				if grpc1.ErrorDesc(err) == context.DeadlineExceeded.Error() {

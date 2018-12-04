@@ -18,9 +18,13 @@
 
 package option
 
-import "github.com/spf13/pflag"
-import "github.com/Sirupsen/logrus"
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/mq/client"
+	"github.com/spf13/pflag"
+)
 
 //Config config server
 type Config struct {
@@ -39,7 +43,7 @@ type Config struct {
 	DockerEndpoint       string
 	HostIP               string
 	CleanUp              bool
-	NodeOS               string // node operation system type. optional value: linux, win; default linux.
+	Topic                string
 }
 
 //Builder  builder server
@@ -75,7 +79,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.DockerEndpoint, "dockerd", "127.0.0.1:2376", "dockerd endpoint")
 	fs.StringVar(&a.HostIP, "hostIP", "", "Current node Intranet IP")
 	fs.BoolVar(&a.CleanUp, "clean-up", false, "Turn on build version cleanup")
-	fs.StringVar(&a.NodeOS, "topic", "builder", "Topic in mq")
+	fs.StringVar(&a.Topic, "topic", "builder", "Topic in mq,you coule choose `builder` or `windows_builder`")
 }
 
 //SetLog 设置log
@@ -88,8 +92,10 @@ func (a *Builder) SetLog() {
 	logrus.SetLevel(level)
 }
 
-//CheckEnv 检测环境变量
-func (a *Builder) CheckEnv() error {
-
+//CheckConfig check config
+func (a *Builder) CheckConfig() error {
+	if a.Topic != client.BuilderTopic && a.Topic != client.WindowsBuilderTopic {
+		return fmt.Errorf("Topic is only suppory `%s` and `%s`", client.BuilderTopic, client.WindowsBuilderTopic)
+	}
 	return nil
 }

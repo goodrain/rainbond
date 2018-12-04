@@ -1,29 +1,28 @@
 package handler
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/goodrain/rainbond/mq/client"
+
 	"regexp"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
-	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 )
 
 var re = regexp.MustCompile(`\s`)
 
+//AppAction app action
 type AppAction struct {
-	MQClient  pb.TaskQueueClient
+	MQClient  client.MQClient
 	staticDir string
 }
 
@@ -32,7 +31,7 @@ func (a *AppAction) GetStaticDir() string {
 }
 
 //CreateAppManager create app manager
-func CreateAppManager(mqClient pb.TaskQueueClient) *AppAction {
+func CreateAppManager(mqClient client.MQClient) *AppAction {
 	staticDir := "/grdata/app"
 	if os.Getenv("LOCAL_APP_CACHE_DIR") != "" {
 		staticDir = os.Getenv("LOCAL_APP_CACHE_DIR")
@@ -72,29 +71,11 @@ func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
 	if err := saveMetadata(tr); err != nil {
 		return util.CreateAPIHandleErrorFromDBError("Failed to export app", err)
 	}
-
-	// 构建MQ事件对象
-	mqBody, err := json.Marshal(model.BuildMQBodyFrom(tr))
-	if err != nil {
-		logrus.Error("Failed to encode json from ExportAppStruct:", err)
-		return err
-	}
-
-	ts := &db.BuildTaskStruct{
+	err := a.MQClient.SendBuilderTopic(client.TaskStruct{
+		TaskBody: model.BuildMQBodyFrom(tr),
 		TaskType: "export_app",
-		TaskBody: mqBody,
-	}
-
-	eq, err := db.BuildTaskBuild(ts)
-	if err != nil {
-		logrus.Error("Failed to BuildTaskBuild for ExportApp:", err)
-		return err
-	}
-
-	// 写入事件到MQ中
-	ctx, cancel := context.WithCancel(context.Background())
-	_, err = a.MQClient.Enqueue(ctx, eq)
-	cancel()
+		Topic:    client.BuilderTopic,
+	})
 	if err != nil {
 		logrus.Error("Failed to Enqueue MQ for ExportApp:", err)
 		return err
@@ -103,24 +84,14 @@ func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
 	return nil
 }
 
+//ImportApp import app
 func (a *AppAction) ImportApp(importApp *model.ImportAppStruct) error {
-	mqBody, err := json.Marshal(importApp)
 
-	ts := &db.BuildTaskStruct{
+	err := a.MQClient.SendBuilderTopic(client.TaskStruct{
+		TaskBody: importApp,
 		TaskType: "import_app",
-		TaskBody: mqBody,
-	}
-
-	eq, err := db.BuildTaskBuild(ts)
-	if err != nil {
-		logrus.Error("Failed to BuildTaskBuild for ImportApp:", err)
-		return err
-	}
-
-	// 写入事件到MQ中
-	ctx, cancel := context.WithCancel(context.Background())
-	_, err = a.MQClient.Enqueue(ctx, eq)
-	cancel()
+		Topic:    client.BuilderTopic,
+	})
 	if err != nil {
 		logrus.Error("Failed to MQ Enqueue for ImportApp:", err)
 		return err

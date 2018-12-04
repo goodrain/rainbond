@@ -35,7 +35,6 @@ import (
 
 	"github.com/pquerna/ffjson/ffjson"
 
-	api_db "github.com/goodrain/rainbond/api/db"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -129,9 +128,9 @@ func (s *ServiceAction) buildFromMarketSlug(r *api_model.BuildServiceStruct, ser
 	body["service_alias"] = r.Body.ServiceAlias
 	body["slug_info"] = r.Body.SlugInfo
 
-	topic := "builder"
+	topic := gclient.BuilderTopic
 	if s.isWindowsService(service.ServiceID) {
-		topic = "windows"
+		topic = gclient.WindowsBuilderTopic
 	}
 	return s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		Topic:    topic,
@@ -166,12 +165,9 @@ func (s *ServiceAction) buildFromImage(r *api_model.BuildServiceStruct, service 
 		body["user"] = r.Body.User
 		body["password"] = r.Body.Password
 	}
-
-	// use "linux" as the default topic
-
-	topic := "builder"
+	topic := gclient.BuilderTopic
 	if s.isWindowsService(service.ServiceID) {
-		topic = "windows"
+		topic = gclient.WindowsBuilderTopic
 	}
 	return s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		Topic:    topic,
@@ -209,12 +205,10 @@ func (s *ServiceAction) buildFromSourceCode(r *api_model.BuildServiceStruct, ser
 		body["password"] = r.Body.Password
 	}
 	body["expire"] = 180
-
-	topic := "builder"
+	topic := gclient.BuilderTopic
 	if s.isWindowsService(service.ServiceID) {
-		topic = "windows"
+		topic = gclient.WindowsBuilderTopic
 	}
-
 	return s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		Topic:    topic,
 		TaskType: "build_from_source_code",
@@ -345,19 +339,11 @@ func (s *ServiceAction) StartStopService(sss *api_model.StartStopStruct) error {
 		DeployVersion: services.DeployVersion,
 		EventID:       sss.EventID,
 	}
-	ts := &api_db.TaskStruct{
+	err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		TaskType: sss.TaskType,
 		TaskBody: TaskBody,
-		User:     "define",
-	}
-	eq, errEq := api_db.BuildTask(ts)
-	if errEq != nil {
-		logrus.Errorf("build equeue startstop request error, %v", errEq)
-		return errEq
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	_, err = s.MQClient.Enqueue(ctx, eq)
-	cancel()
+		Topic:    gclient.WorkerTopic,
+	})
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		return err
@@ -383,19 +369,11 @@ func (s *ServiceAction) ServiceVertical(vs *model.VerticalScalingTaskBody) error
 		logrus.Errorf("update service memory and cpu failure. %v", err)
 		return fmt.Errorf("Vertical service faliure:%s", err.Error())
 	}
-	ts := &api_db.TaskStruct{
+	err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		TaskType: "vertical_scaling",
 		TaskBody: vs,
-		User:     "define",
-	}
-	eq, errEq := api_db.BuildTask(ts)
-	if errEq != nil {
-		logrus.Errorf("build equeue vertical request error, %v", errEq)
-		return errEq
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	_, err = s.MQClient.Enqueue(ctx, eq)
-	cancel()
+		Topic:    gclient.WorkerTopic,
+	})
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		return err
@@ -420,19 +398,11 @@ func (s *ServiceAction) ServiceHorizontal(hs *model.HorizontalScalingTaskBody) e
 		logrus.Errorf("updtae service replicas failure. %v", err)
 		return fmt.Errorf("horizontal service faliure:%s", err.Error())
 	}
-	ts := &api_db.TaskStruct{
+	err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		TaskType: "horizontal_scaling",
 		TaskBody: hs,
-		User:     "define",
-	}
-	eq, errEq := api_db.BuildTask(ts)
-	if errEq != nil {
-		logrus.Errorf("build equeue horizontal request error, %v", errEq)
-		return errEq
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	_, err = s.MQClient.Enqueue(ctx, eq)
-	cancel()
+		Topic:    gclient.WorkerTopic,
+	})
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		return err
@@ -465,7 +435,7 @@ func (s *ServiceAction) ServiceUpgrade(ru *model.RollingUpgradeTaskBody) error {
 	err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		TaskBody: ru,
 		TaskType: "rolling_upgrade",
-		Topic:    "worker",
+		Topic:    gclient.WorkerTopic,
 	})
 	if err != nil {
 		logrus.Errorf("equque upgrade message error, %v", err)
@@ -756,23 +726,11 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 
 //CodeCheck code check
 func (s *ServiceAction) CodeCheck(c *api_model.CheckCodeStruct) error {
-	bodyJ, err := ffjson.Marshal(&c.Body)
-	if err != nil {
-		return err
-	}
-	bs := &api_db.BuildTaskStruct{
+	err := s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		TaskType: "code_check",
-		TaskBody: bodyJ,
-		User:     "define",
-	}
-	eq, errEq := api_db.BuildTaskBuild(bs)
-	if errEq != nil {
-		logrus.Errorf("build equeue code check error, %v", errEq)
-		return errEq
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	_, err = s.MQClient.Enqueue(ctx, eq)
-	cancel()
+		TaskBody: c.Body,
+		Topic:    gclient.WorkerTopic,
+	})
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		return err

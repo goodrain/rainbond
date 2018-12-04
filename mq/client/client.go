@@ -32,6 +32,15 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
+//BuilderTopic builder for linux
+var BuilderTopic = "builder"
+
+//WindowsBuilderTopic builder for windows
+var WindowsBuilderTopic = "windows_builder"
+
+//WorkerTopic worker topic
+var WorkerTopic = "worker"
+
 //MQClient mq  client
 type MQClient interface {
 	pb.TaskQueueClient

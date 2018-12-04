@@ -33,11 +33,10 @@ import (
 	"github.com/goodrain/rainbond/event"
 
 	"github.com/Sirupsen/logrus"
-	apidb "github.com/goodrain/rainbond/api/db"
 
 	"github.com/goodrain/rainbond/worker/client"
 
-	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	mqclient "github.com/goodrain/rainbond/mq/client"
 
 	"github.com/jinzhu/gorm"
 
@@ -83,14 +82,14 @@ type Backup struct {
 
 //BackupHandle group app backup handle
 type BackupHandle struct {
-	MQClient  pb.TaskQueueClient
+	mqcli     mqclient.MQClient
 	statusCli *client.AppRuntimeSyncClient
 	etcdCli   *clientv3.Client
 }
 
 //CreateBackupHandle CreateBackupHandle
-func CreateBackupHandle(MQClient pb.TaskQueueClient, statusCli *client.AppRuntimeSyncClient, etcdCli *clientv3.Client) *BackupHandle {
-	return &BackupHandle{MQClient: MQClient, statusCli: statusCli, etcdCli: etcdCli}
+func CreateBackupHandle(MQClient mqclient.MQClient, statusCli *client.AppRuntimeSyncClient, etcdCli *clientv3.Client) *BackupHandle {
+	return &BackupHandle{mqcli: MQClient, statusCli: statusCli, etcdCli: etcdCli}
 }
 
 //NewBackup new backup task
@@ -140,24 +139,11 @@ func (h *BackupHandle) NewBackup(b Backup) (*dbmodel.AppBackup, *util.APIHandleE
 	//clear metadata
 	b.Body.Metadata = ""
 	b.Body.BackupID = appBackup.BackupID
-	data, err := ffjson.Marshal(b.Body)
-	if err != nil {
-		return nil, util.CreateAPIHandleError(500, fmt.Errorf("build task body data error,%s", err))
-	}
-	//Initiate a data backup task.
-	task := &apidb.BuildTaskStruct{
+	err := h.mqcli.SendBuilderTopic(mqclient.TaskStruct{
+		TaskBody: b.Body,
 		TaskType: "backup_apps_new",
-		TaskBody: data,
-	}
-	eq, err := apidb.BuildTaskBuild(task)
-	if err != nil {
-		logrus.Error("Failed to BuildTaskBuild for BackupApp:", err)
-		return nil, util.CreateAPIHandleError(500, fmt.Errorf("build task error,%s", err))
-	}
-	// 写入事件到MQ中
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	_, err = h.MQClient.Enqueue(ctx, eq)
+		Topic:    mqclient.BuilderTopic,
+	})
 	if err != nil {
 		logrus.Error("Failed to Enqueue MQ for BackupApp:", err)
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf("build enqueue task error,%s", err))
@@ -377,24 +363,11 @@ func (h *BackupHandle) RestoreBackup(br BackupRestore) (*RestoreResult, *util.AP
 		"restore_id":   restoreID,
 		"restore_mode": br.Body.RestoreMode,
 	}
-	data, err := ffjson.Marshal(dataMap)
-	if err != nil {
-		return nil, util.CreateAPIHandleErrorf(500, "build task body data error,%s", err)
-	}
-	//Initiate a data backup task.
-	task := &apidb.BuildTaskStruct{
+	err := h.mqcli.SendBuilderTopic(mqclient.TaskStruct{
+		TaskBody: dataMap,
 		TaskType: "backup_apps_restore",
-		TaskBody: data,
-	}
-	eq, err := apidb.BuildTaskBuild(task)
-	if err != nil {
-		logrus.Error("Failed to BuildTaskBuild for BackupApp:", err)
-		return nil, util.CreateAPIHandleError(500, fmt.Errorf("build task error,%s", err))
-	}
-	// 写入事件到MQ中
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	_, err = h.MQClient.Enqueue(ctx, eq)
+		Topic:    mqclient.BuilderTopic,
+	})
 	if err != nil {
 		logrus.Error("Failed to Enqueue MQ for BackupApp:", err)
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf("build enqueue task error,%s", err))
@@ -408,6 +381,8 @@ func (h *BackupHandle) RestoreBackup(br BackupRestore) (*RestoreResult, *util.AP
 		RestoreID:   restoreID,
 	}
 	body, _ := ffjson.Marshal(rr)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 	_, err = h.etcdCli.Put(ctx, "/rainbond/backup_restore/"+restoreID, string(body))
 	if err != nil {
 		logrus.Errorf("save backup restore history error.")
