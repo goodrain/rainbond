@@ -81,12 +81,10 @@ func ensureService(new *corev1.Service, clientSet kubernetes.Interface) {
 	logrus.Debugf("old service: %v", old)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			s, err := clientSet.CoreV1().Services(new.Namespace).Create(new)
+			_, err := clientSet.CoreV1().Services(new.Namespace).Create(new)
 			if err != nil {
 				logrus.Warningf("error creating service %+v: %v", new, err)
-				return
 			}
-			logrus.Debugf("Successfully created service: %v", s)
 			return
 		}
 		logrus.Errorf("error getting service(%s): %v", fmt.Sprintf("%s/%s", new.Namespace, new.Name), err)
