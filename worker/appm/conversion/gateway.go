@@ -262,7 +262,7 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 	// create ingress
 	ing = &extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      strings.Replace(fmt.Sprintf("ing-%s-%s", domain, rule.UUID[0:8]), "*", "star", -1),
+			Name:      rule.UUID,
 			Namespace: a.tenant.UUID,
 			Labels:    a.appService.GetCommonLabels(),
 		},
@@ -311,7 +311,7 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 		// create secret
 		sec = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("certificate-%s", domain),
+				Name:      fmt.Sprintf("ssl-%s", domain),
 				Namespace: a.tenant.UUID,
 				Labels:    a.appService.GetCommonLabels(),
 			},
@@ -337,6 +337,9 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 		for _, extension := range ruleExtensions {
 			switch extension.Key {
 			case string(model.HTTPToHTTPS):
+				if rule.CertificateID == "" {
+					logrus.Warningf("enable force-ssl-redirect, but with no certificate. rule id is: %s", rule.UUID)
+				}
 				annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
 			case string(model.LBType):
 				annos[parser.GetAnnotationWithPrefix("lb-type")] = extension.Value
@@ -355,7 +358,7 @@ func (a *AppServiceBuild) applyTCPRule(rule *model.TCPRule, service *corev1.Serv
 	// create ingress
 	ing = &extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("ing-%s-%s", strings.Replace(rule.IP, ".", "-", -1), rule.UUID[0:8]),
+			Name:      rule.UUID,
 			Namespace: namespace,
 			Labels:    a.appService.GetCommonLabels(),
 		},
