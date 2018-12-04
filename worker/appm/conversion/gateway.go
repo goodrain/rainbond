@@ -489,12 +489,7 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 		service.Labels["rainbond.com/tolerate-unready-endpoints"] = "true"
 	}
 	var servicePort corev1.ServicePort
-	//TODO: udp, tcp
-	if port.Protocol == "udp" {
-		servicePort.Protocol = "UDP"
-	} else {
-		servicePort.Protocol = "TCP"
-	}
+	servicePort.Protocol = conversionPortProtocol(port.Protocol)
 	servicePort.TargetPort = intstr.FromInt(port.ContainerPort)
 	servicePort.Port = int32(port.ContainerPort)
 	var portType corev1.ServiceType

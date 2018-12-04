@@ -569,13 +569,10 @@ func createPorts(as *v1.AppService, dbmanager db.Manager) (ports []corev1.Contai
 		}
 		for i := range ps {
 			p := ps[i]
-			var hostPort int32
-			if p.IsOuterService && os.Getenv("CUR_NET") == "midonet" {
-				hostPort = 1
-			}
 			ports = append(ports, corev1.ContainerPort{
-				HostPort:      hostPort,
 				ContainerPort: int32(p.ContainerPort),
+				// Must be UDP, TCP, or SCTP.
+				Protocol: conversionPortProtocol(p.Protocol),
 			})
 		}
 	}
