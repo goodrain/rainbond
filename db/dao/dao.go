@@ -245,7 +245,9 @@ type TenantServiceLabelDao interface {
 	GetTenantServiceAffinityLabel(serviceID string) ([]*model.TenantServiceLable, error)
 	GetTenantServiceTypeLabel(serviceID string) (*model.TenantServiceLable, error)
 	DELTenantServiceLabelsByLabelvaluesAndServiceID(serviceID string, labelValues []string) error
+	DelTenantServiceLabelsByLabelValuesAndServiceID(serviceID string) error
 	DelTenantServiceLabels(serviceID string, labelKey string, labelValues []string) error
+	DelTenantServiceLabelsByKey(serviceID string, labelKey string) error
 }
 
 //LocalSchedulerDao 本地调度信息

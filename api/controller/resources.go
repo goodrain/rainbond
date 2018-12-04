@@ -36,7 +36,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/jinzhu/gorm"
-	validator "github.com/thedevsaddam/govalidator"
+	"github.com/thedevsaddam/govalidator"
 
 	"github.com/goodrain/rainbond/api/handler"
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -816,20 +816,20 @@ func (t *TenantStruct) AddServiceLabel(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	rules := validator.MapData{
-		"label_values": []string{"required"},
-	}
-	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
-	if !ok {
-		return
-	}
-	var valueList []string
-	valueList = append(valueList, data["label_values"].(string))
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().AddLabel("service", serviceID, valueList); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("add service label error, %v", err))
-		return
-	}
+	//rules := validator.MapData{
+	//	"label_values": []string{"required"},
+	//}
+	//data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
+	//if !ok {
+	//	return
+	//}
+	//var valueList []string
+	//valueList = append(valueList, data["label_values"].(string))
+	//serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	//if err := handler.GetServiceManager().AddLabel("service", serviceID, valueList); err != nil {
+	//	httputil.ReturnError(r, w, 500, fmt.Sprintf("add service label error, %v", err))
+	//	return
+	//}
 	httputil.ReturnSuccess(r, w, nil)
 }
 
@@ -910,12 +910,12 @@ func (t *TenantStruct) AddNodeLabel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//logrus.Info(labels.Body.LabelValues)
-	valueList := labels.Body.LabelValues
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().AddLabel("node", serviceID, valueList); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("add node label failure, %v", err))
-		return
-	}
+	//valueList := labels.Body.LabelValues
+	//serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	//if err := handler.GetServiceManager().AddLabel("node", serviceID, valueList); err != nil {
+	//	httputil.ReturnError(r, w, 500, fmt.Sprintf("add node label failure, %v", err))
+	//	return
+	//}
 	httputil.ReturnSuccess(r, w, nil)
 }
 
@@ -932,7 +932,7 @@ func (t *TenantStruct) Label(w http.ResponseWriter, r *http.Request) {
 
 func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add label")
-	var req api_model.LabelStruct
+	var req api_model.LabelsStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -941,7 +941,7 @@ func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().AddLabel(req.LabelKey, serviceID, req.LabelValues); err != nil {
+	if err := handler.GetServiceManager().AddLabel(&req, serviceID); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("add label error, %v", err))
 		return
 	}
@@ -950,7 +950,7 @@ func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request) {
 
 func (t *TenantStruct) DeleteLabel(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("delete label")
-	var req api_model.LabelStruct
+	var req api_model.LabelsStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -959,7 +959,7 @@ func (t *TenantStruct) DeleteLabel(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().DeleteLabel(req.LabelKey, serviceID, req.LabelValues); err != nil {
+	if err := handler.GetServiceManager().DeleteLabel(&req, serviceID); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("delete node label failure, %v", err))
 		return
 	}
@@ -968,7 +968,7 @@ func (t *TenantStruct) DeleteLabel(w http.ResponseWriter, r *http.Request) {
 
 func (t *TenantStruct) UpdateLabel(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("update label")
-	var req api_model.LabelStruct
+	var req api_model.LabelsStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -977,7 +977,7 @@ func (t *TenantStruct) UpdateLabel(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("Request is : %s", string(reqJSON))
 
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().UpdateLabel(req.LabelKey, serviceID, req.LabelValues); err != nil {
+	if err := handler.GetServiceManager().UpdateLabel(&req, serviceID); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("error updating label: %v", err))
 		return
 	}
@@ -1007,19 +1007,19 @@ func (t *TenantStruct) DeleteNodeLabel(w http.ResponseWriter, r *http.Request) {
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 
-	var labels api_model.AddNodeLabelStruct
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &labels.Body, nil)
-	if !ok {
-		return
-	}
-	//logrus.Info(labels.Body.LabelValues)
-	valueList := labels.Body.LabelValues
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().DeleteLabel("node", serviceID, valueList); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("delete node label failure, %v", err))
-		return
-	}
-	httputil.ReturnSuccess(r, w, nil)
+	//var labels api_model.AddNodeLabelStruct
+	//ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &labels.Body, nil)
+	//if !ok {
+	//	return
+	//}
+	////logrus.Info(labels.Body.LabelValues)
+	//valueList := labels.Body.LabelValues
+	//serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	//if err := handler.GetServiceManager().DeleteLabel("node", serviceID, valueList); err != nil {
+	//	httputil.ReturnError(r, w, 500, fmt.Sprintf("delete node label failure, %v", err))
+	//	return
+	//}
+	//httputil.ReturnSuccess(r, w, nil)
 }
 
 //StatusContainerID StatusContainerID

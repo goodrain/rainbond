@@ -803,6 +803,10 @@ type AddNodeLabelStruct struct {
 	}
 }
 
+type LabelsStruct struct {
+	Labels []LabelStruct `json:"labels"`
+}
+
 // LabelStruct holds info for adding, updating or deleting label
 type LabelStruct struct {
 	LabelKey    string `json:"label_key" validate:"label_key|required"`
