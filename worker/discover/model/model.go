@@ -227,10 +227,11 @@ func StrategyIsValid(strategy []string, serviceDeployType string) bool {
 
 //RollingUpgradeTaskBody 升级操作任务主体
 type RollingUpgradeTaskBody struct {
-	TenantID  string   `json:"tenant_id"`
-	ServiceID string   `json:"service_id"`
-	EventID   string   `json:"event_id"`
-	Strategy  []string `json:"strategy"`
+	TenantID         string   `json:"tenant_id"`
+	ServiceID        string   `json:"service_id"`
+	NewDeployVersion string   `json:"deploy_version"`
+	EventID          string   `json:"event_id"`
+	Strategy         []string `json:"strategy"`
 }
 
 //RollBackTaskBody 回滚操作任务主体

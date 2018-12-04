@@ -435,7 +435,6 @@ func (s *ServiceAction) ServiceUpgrade(ru *model.RollingUpgradeTaskBody) error {
 	if version.FinalStatus != "success" {
 		return fmt.Errorf("deploy version is not build success,do not upgrade")
 	}
-	ru.CurrentDeployVersion = services.DeployVersion
 	services.DeployVersion = ru.NewDeployVersion
 	err = db.GetManager().TenantServiceDao().UpdateModel(services)
 	if err != nil {
