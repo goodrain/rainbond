@@ -290,6 +290,10 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 
 	// parse annotations
 	annos := make(map[string]string)
+	// weight
+	if rule.Weight > 1 {
+		annos[parser.GetAnnotationWithPrefix("weight")] = fmt.Sprintf("%d", rule.Weight)
+	}
 	// header
 	if rule.Header != "" {
 		annos[parser.GetAnnotationWithPrefix("header")] = rule.Header

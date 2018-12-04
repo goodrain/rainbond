@@ -22,7 +22,6 @@ import (
 	"strconv"
 
 	extensions "k8s.io/api/extensions/v1beta1"
-
 )
 
 var (

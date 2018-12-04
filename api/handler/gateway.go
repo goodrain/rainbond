@@ -57,6 +57,7 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) (string, er
 		Path:          req.Path,
 		Header:        req.Header,
 		Cookie:        req.Cookie,
+		Weight:        req.Weight,
 		IP:            req.IP,
 		CertificateID: req.CertificateID,
 	}
@@ -171,6 +172,9 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (stri
 	}
 	if req.Cookie != "" {
 		rule.Cookie = req.Cookie
+	}
+	if req.Weight > 0 {
+		rule.Weight = req.Weight
 	}
 	if req.IP != "" {
 		rule.IP = req.IP

@@ -73,6 +73,8 @@ type Endpoint struct {
 	Address string `json:"address"`
 	// Port number of the TCP port
 	Port string `json:"port"`
+	// Weight weight of the endpoint
+	Weight int `json:"weight"`
 	// Target returns a reference to the object providing the endpoint
 	Target *apiv1.ObjectReference `json:"target,omitempty"`
 }
@@ -92,6 +94,7 @@ func CreateBackendByPool(pool *v1.Pool) *Backend {
 		endpoints = append(endpoints, Endpoint{
 			Address: node.Host,
 			Port:    strconv.Itoa(int(node.Port)),
+			Weight:  node.Weight,
 		})
 	}
 	backend.Endpoints = endpoints

@@ -17,7 +17,7 @@ func NewClientSet(kubeconfig string) (*kubernetes.Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
-	logrus.Info("Kube client api create success.")
+	logrus.Debug("Kube client api create success.")
 
 	return clientSet, nil
 }

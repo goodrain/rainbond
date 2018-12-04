@@ -44,9 +44,9 @@ type GWController struct {
 	// allowing concurrent stoppers leads to stack traces.
 	stopLock *sync.Mutex
 
-	ocfg *option.Config
-	rcfg *v1.Config // running configuration
-	rhp  []*v1.Pool // running http pools
+	ocfg  *option.Config
+	rcfg  *v1.Config // running configuration
+	rhp   []*v1.Pool // running http pools
 	rrbdp []*v1.Pool // running rainbond pools
 
 	stopCh   chan struct{}
@@ -99,7 +99,6 @@ func (gwc *GWController) Close() error {
 func (gwc *GWController) handleEvent() {
 	for {
 		select {
-		// TODO: 20181122 huangrh
 		case event := <-gwc.updateCh.Out(): // received k8s events
 			if gwc.isShuttingDown {
 				break
@@ -301,8 +300,9 @@ func getPool(data []string, names ...string) []*v1.Pool {
 				continue
 			}
 			n := &v1.Node{
-				Host: s[0],
-				Port: int32(p),
+				Host:   s[0],
+				Port:   int32(p),
+				Weight: 1,
 			}
 			nodes = append(nodes, n)
 		}
