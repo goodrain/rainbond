@@ -16,11 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+//+build windows
 package controller
 
 import (
 	"fmt"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/nodem/service"
@@ -29,6 +32,7 @@ import (
 
 //NewController At the stage you want to load the configurations of all rainbond components
 func NewController(conf *option.Conf, manager *ManagerService) Controller {
+	logrus.Infof("Create windows service controller")
 	return &windowsServiceController{
 		conf:    conf,
 		manager: manager,
@@ -62,7 +66,9 @@ func (w *windowsServiceController) StopService(name string) error {
 }
 func (w *windowsServiceController) StartList(list []*service.Service) error {
 	for _, s := range list {
-		w.StartService(s.Name)
+		if err := w.StartService(s.Name); err != nil {
+			logrus.Errorf("start service %s failure %s", s.Name, err.Error())
+		}
 	}
 	return nil
 }
