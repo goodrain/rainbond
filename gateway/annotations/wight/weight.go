@@ -19,6 +19,7 @@
 package weight
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -43,11 +44,12 @@ func (c weight) Parse(ing *extensions.Ingress) (interface{}, error) {
 	wstr, err := parser.GetStringAnnotation("weight", ing)
 	var w int
 	if err != nil {
-		w = 0
+		w = 1
 	}
 	w, err = strconv.Atoi(wstr)
 	if err != nil {
-		w = 0
+		logrus.Warnf("Unexpected error occurred when convert string(%s) to int: %v", wstr, err)
+		w = 1
 	}
 	return &Config{
 		Weight: w,

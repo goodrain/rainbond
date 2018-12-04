@@ -339,7 +339,7 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 			for _, backend := range backends {
 				weight, err := strconv.Atoi(backend[len(backend)-1:])
 				if err != nil {
-					weight = 0
+					weight = 1
 				}
 				backend = backend[:len(backend)-1]
 				pool := l7Pools[backend]

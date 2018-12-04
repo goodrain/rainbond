@@ -8,11 +8,10 @@ local _M = {}
 
 function _M.get_nodes(endpoints)
   local nodes = {}
-  local weight = 1
 
   for _, endpoint in pairs(endpoints) do
     local endpoint_string = endpoint.address .. ":" .. endpoint.port
-    nodes[endpoint_string] = weight
+    nodes[endpoint_string] = endpoint.weight
   end
 
   return nodes
