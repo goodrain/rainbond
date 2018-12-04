@@ -206,6 +206,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Delete("/node-label", controller.GetManager().NodeLabel)
 	// label
 	r.Post("/label", controller.GetManager().Label)
+	r.Put("/label", controller.GetManager().Label)
 	r.Delete("/label", controller.GetManager().Label)
 
 	//插件

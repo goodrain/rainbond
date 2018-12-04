@@ -31,6 +31,7 @@ type ServiceHandler interface {
 	ServiceBuild(tenantID, serviceID string, r *api_model.BuildServiceStruct) error
 	AddLabel(kind, serviceID string, valueList []string) error
 	DeleteLabel(kind, serviceID string, amp []string) error
+	UpdateLabel(serviceID, kind string, amp []string) error
 	UpdateServiceLabel(serviceID, value string) error
 	StartStopService(s *api_model.StartStopStruct) error
 	ServiceVertical(v *model.VerticalScalingTaskBody) error
