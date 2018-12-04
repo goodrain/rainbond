@@ -645,6 +645,7 @@ func createNodeSelector(as *v1.AppService, dbmanager db.Manager) map[string]stri
 	if err == nil && labels != nil && len(labels) > 0 {
 		for _, l := range labels {
 			if strings.Contains(l.LabelValue, "=") {
+				kv := strings.SplitN(l.LabelValue, "=", 1)
 				selector[kv[0]] = kv[1]
 			} else {
 				selector["rainbond_node_lable_"+l.LabelValue] = "true"
