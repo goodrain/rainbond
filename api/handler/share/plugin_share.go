@@ -22,20 +22,20 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/goodrain/rainbond/mq/client"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
-	api_db "github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/exector"
 	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/twinj/uuid"
 )
 
 //PluginShareHandle plugin share
 type PluginShareHandle struct {
-	MQClient pb.TaskQueueClient
+	MQClient client.MQClient
 	EtcdCli  *clientv3.Client
 }
 
@@ -87,7 +87,6 @@ func (s *PluginShareHandle) Share(ss PluginShare) (*PluginResult, *util.APIHandl
 		return nil, util.CreateAPIHandleErrorFromDBError("query plugin version error", err)
 	}
 	shareID := uuid.NewV4().String()
-	var bs api_db.BuildTaskStruct
 	shareImageName, err := version.CreateShareImage(ss.Body.ImageInfo.HubURL, ss.Body.ImageInfo.Namespace)
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorf(500, "create share image name error", err)
@@ -100,14 +99,11 @@ func (s *PluginShareHandle) Share(ss PluginShare) (*PluginResult, *util.APIHandl
 		"share_id":         shareID,
 		"local_image_name": version.BuildLocalImage,
 	}
-	body, _ := ffjson.Marshal(info)
-	bs.TaskType = "share-plugin"
-	bs.TaskBody = body
-	bs.User = ss.Body.ShareUser
-	eq, _ := api_db.BuildTaskBuild(&bs)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	_, err = s.MQClient.Enqueue(ctx, eq)
+	err = s.MQClient.SendBuilderTopic(client.TaskStruct{
+		TaskType: "share-plugin",
+		TaskBody: info,
+		Topic:    client.BuilderTopic,
+	})
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		return nil, util.CreateAPIHandleError(502, err)

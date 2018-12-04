@@ -20,17 +20,17 @@ package handler
 
 import (
 	"context"
-	"time"
 	"fmt"
+	"time"
 
 	"github.com/pquerna/ffjson/ffjson"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/builder/exector"
-	api_db "github.com/goodrain/rainbond/api/db"
 	api_model "github.com/goodrain/rainbond/api/model"
-	tutil "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/builder/exector"
+	client "github.com/goodrain/rainbond/mq/client"
+	tutil "github.com/goodrain/rainbond/util"
 	"github.com/twinj/uuid"
 )
 
@@ -41,24 +41,11 @@ func (s *ServiceAction) ServiceCheck(scs *api_model.ServiceCheckStruct) (string,
 	if scs.Body.EventID == "" {
 		scs.Body.EventID = tutil.NewUUID()
 	}
-	body, err := ffjson.Marshal(scs.Body)
-	if err != nil {
-		logrus.Errorf("marshal service check request body error.%s", err.Error())
-		return "", "", util.CreateAPIHandleError(500, err)
-	}
-	bs := &api_db.BuildTaskStruct{
+	err := s.MQClient.SendBuilderTopic(client.TaskStruct{
 		TaskType: "service_check",
-		TaskBody: body,
-		User:     "define",
-	}
-	eq, errEq := api_db.BuildTaskBuild(bs)
-	if errEq != nil {
-		logrus.Errorf("build equeue code check error, %v", errEq)
-		return "", "", util.CreateAPIHandleError(500, err)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	_, err = s.MQClient.Enqueue(ctx, eq)
+		TaskBody: scs.Body,
+		Topic:    client.WorkerTopic,
+	})
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
 		return "", "", util.CreateAPIHandleError(500, err)
@@ -67,10 +54,10 @@ func (s *ServiceAction) ServiceCheck(scs *api_model.ServiceCheckStruct) (string,
 }
 
 //GetServiceCheckInfo 获取应用源检测信息
-func (s *ServiceAction) GetServiceCheckInfo(uuid string)(*exector.ServiceCheckResult, *util.APIHandleError) {
+func (s *ServiceAction) GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError) {
 	k := fmt.Sprintf("/servicecheck/%s", uuid)
 	var si exector.ServiceCheckResult
-	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	resp, err := s.EtcdCli.Get(ctx, k)
 	cancel()
 	if err != nil {
@@ -89,5 +76,5 @@ func (s *ServiceAction) GetServiceCheckInfo(uuid string)(*exector.ServiceCheckRe
 		si.CheckStatus = "Checking"
 		logrus.Debugf("checking is %v", si)
 	}
-	return &si, nil	
+	return &si, nil
 }

@@ -19,21 +19,17 @@
 package handler
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
 
-	api_db "github.com/goodrain/rainbond/api/db"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	"github.com/goodrain/rainbond/mq/client"
 	core_util "github.com/goodrain/rainbond/util"
-
-	"github.com/pquerna/ffjson/ffjson"
 
 	builder_model "github.com/goodrain/rainbond/builder/model"
 
@@ -42,11 +38,11 @@ import (
 
 //PluginAction  plugin action struct
 type PluginAction struct {
-	MQClient pb.TaskQueueClient
+	MQClient client.MQClient
 }
 
 //CreatePluginManager get plugin manager
-func CreatePluginManager(mqClient pb.TaskQueueClient) *PluginAction {
+func CreatePluginManager(mqClient client.MQClient) *PluginAction {
 	return &PluginAction{
 		MQClient: mqClient,
 	}
@@ -303,30 +299,15 @@ func (p *PluginAction) buildPlugin(b *api_model.BuildPluginStruct, plugin *dbmod
 		Repo:          b.Body.RepoURL,
 		GitURL:        plugin.GitURL,
 	}
-	jtask, errJ := ffjson.Marshal(taskBody)
-	if errJ != nil {
-		logrus.Debugf("unmarshall jtask error, %v", errJ)
-		updateVersion()
-		return nil, errJ
-	}
 	taskType := "plugin_image_build"
 	if plugin.BuildModel == "dockerfile" {
 		taskType = "plugin_dockerfile_build"
 	}
-	ts := &api_db.BuildTaskStruct{
+	err := p.MQClient.SendBuilderTopic(client.TaskStruct{
 		TaskType: taskType,
-		TaskBody: jtask,
-		User:     b.Body.Operator,
-	}
-	eq, err := api_db.BuildTaskBuild(ts)
-	if err != nil {
-		logrus.Errorf("build equeue build plugin from image error, %v", err)
-		updateVersion()
-		return nil, err
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	_, err = p.MQClient.Enqueue(ctx, eq)
+		TaskBody: taskBody,
+		Topic:    client.BuilderTopic,
+	})
 	if err != nil {
 		updateVersion()
 		logrus.Errorf("equque mq error, %v", err)

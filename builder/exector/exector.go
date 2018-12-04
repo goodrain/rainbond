@@ -315,7 +315,7 @@ func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, ac
 			Strategy:  []string{},
 		}
 		if err := e.mqClient.SendBuilderTopic(mqclient.TaskStruct{
-			Topic:    "worker",
+			Topic:    mqclient.WorkerTopic,
 			TaskType: "rolling_upgrade",
 			TaskBody: body,
 		}); err != nil {

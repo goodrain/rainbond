@@ -485,7 +485,7 @@ func (g *GatewayAction) SendTaskGW(serviceID string) error {
 	body["service_id"] = serviceID
 	body["deploy_version"] = service.DeployVersion
 	err = g.mqclient.SendBuilderTopic(client.TaskStruct{
-		Topic:    "worker",
+		Topic:    client.WorkerTopic,
 		TaskType: "apply_rule",
 		TaskBody: body,
 	})
