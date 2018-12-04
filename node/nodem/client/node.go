@@ -32,6 +32,9 @@ import (
 	"github.com/pquerna/ffjson/ffjson"
 )
 
+//LabelOS node label about os
+var LabelOS = "beta.kubernetes.io/os"
+
 //APIHostNode api host node
 type APIHostNode struct {
 	ID         string            `json:"uuid" validate:"uuid"`
