@@ -24,12 +24,11 @@ import (
 )
 
 // BackendName formats the name with weight
-func BackendName(name string, ns string, weight int) string {
+func BackendName(name string, ns string) string {
 	name = fmt.Sprintf("%s_%s", ns , name)
 	name = strings.Replace(name, ".", "_", -1)
 	name = strings.Replace(name, "-", "_", -1)
 	name = strings.Replace(name, ":", "_", -1)
 	name = strings.Replace(name, "/", "slash", -1)
-	name = fmt.Sprintf("%s%s%d", "N", name, weight)
 	return name
 }

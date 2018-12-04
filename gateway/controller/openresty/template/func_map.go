@@ -51,7 +51,6 @@ func buildLuaHeaderRouter(input interface{}) string {
 
 	priority := make([]string, 3)
 	for name, c := range loc.NameCondition {
-		name = name[:len(name)-1]
 		switch c.Type {
 		case v1.HeaderType:
 			snippet := []string{}
