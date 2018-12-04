@@ -215,26 +215,24 @@ func (s *ServiceAction) buildFromSourceCode(r *api_model.BuildServiceStruct, ser
 func (s *ServiceAction) AddLabel(l *api_model.LabelsStruct, serviceID string) error {
 	tx := db.GetManager().Begin()
 	for _, label := range l.Labels {
-		for _, v := range label.LabelValues {
-			var labelModel dbmodel.TenantServiceLable
-			switch label.LabelKey {
-			case "service":
-				labelModel.ServiceID = serviceID
-				labelModel.LabelKey = core_model.LabelKeyServiceType
-				v = chekeServiceLabel(v)
-				labelModel.LabelValue = v
-			case "node":
-				labelModel.ServiceID = serviceID
-				labelModel.LabelKey = v
-				labelModel.LabelValue = core_model.LabelKeyNodeSelector
-			default:
-				labelModel.ServiceID = serviceID
-				labelModel.LabelKey = label.LabelKey
-				labelModel.LabelValue = v
-			}
-			if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&labelModel); err != nil {
-				return err
-			}
+		var labelModel dbmodel.TenantServiceLable
+		switch label.LabelKey {
+		case "service":
+			labelModel.ServiceID = serviceID
+			labelModel.LabelKey = core_model.LabelKeyServiceType
+			labelModel.LabelValue = chekeServiceLabel(label.LabelValue)
+		case "node":
+			labelModel.ServiceID = serviceID
+			labelModel.LabelKey = label.LabelValue
+			labelModel.LabelValue = core_model.LabelKeyNodeSelector
+		default:
+			labelModel.ServiceID = serviceID
+			labelModel.LabelKey = label.LabelKey
+			labelModel.LabelValue = label.LabelValue
+		}
+		if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&labelModel); err != nil {
+			tx.Rollback()
+			return err
 		}
 	}
 	if err := tx.Commit().Error; err != nil {
@@ -264,28 +262,26 @@ func (s *ServiceAction) UpdateLabel(l *api_model.LabelsStruct, serviceID string)
 			return err
 		}
 		// add new labels
-		for _, v := range label.LabelValues {
-			var labelModel dbmodel.TenantServiceLable
-			switch label.LabelKey {
-			case "service":
-				labelModel.ServiceID = serviceID
-				labelModel.LabelKey = core_model.LabelKeyServiceType
-				v = chekeServiceLabel(v)
-				labelModel.LabelValue = v
-			case "node":
-				labelModel.ServiceID = serviceID
-				labelModel.LabelKey = v
-				labelModel.LabelValue = core_model.LabelKeyNodeSelector
-			default:
-				labelModel.ServiceID = serviceID
-				labelModel.LabelKey = label.LabelKey
-				labelModel.LabelValue = v
-			}
-			if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&labelModel); err != nil {
-				logrus.Errorf("error adding new labels: %v", err)
-				tx.Rollback()
-				return err
-			}
+		var labelModel dbmodel.TenantServiceLable
+		switch label.LabelKey {
+		case "service":
+			labelModel.ServiceID = serviceID
+			labelModel.LabelKey = core_model.LabelKeyServiceType
+			labelModel.LabelValue = chekeServiceLabel(label.LabelValue)
+		case "node":
+			labelModel.ServiceID = serviceID
+			labelModel.LabelKey = label.LabelValue
+			labelModel.LabelValue = core_model.LabelKeyNodeSelector
+		default:
+			labelModel.ServiceID = serviceID
+			labelModel.LabelKey = label.LabelKey
+			labelModel.LabelValue = label.LabelValue
+		}
+		if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&labelModel); err != nil {
+			logrus.Errorf("error adding new labels: %v", err)
+			tx.Rollback()
+			return err
+
 		}
 	}
 	if err := tx.Commit().Error; err != nil {
@@ -303,10 +299,10 @@ func (s *ServiceAction) DeleteLabel(l *api_model.LabelsStruct, serviceID string)
 		switch label.LabelKey {
 		case "node":
 			err = db.GetManager().TenantServiceLabelDaoTransactions(tx).
-				DELTenantServiceLabelsByLabelvaluesAndServiceID(serviceID, label.LabelValues)
+				DelTenantServiceLabelByLabelValueAndServiceID(serviceID, label.LabelValue)
 		default:
 			err = db.GetManager().TenantServiceLabelDaoTransactions(tx).
-				DelTenantServiceLabels(serviceID, label.LabelKey, label.LabelValues)
+				DelTenantServiceLabelsByKeyValueServiceID(serviceID, label.LabelKey, label.LabelValue)
 		}
 		if err != nil {
 			logrus.Errorf("error deleting label: %v", err)

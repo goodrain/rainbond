@@ -65,7 +65,6 @@ type ServiceInterface interface {
 	Pods(w http.ResponseWriter, r *http.Request)
 	VolumeDependency(w http.ResponseWriter, r *http.Request)
 	Probe(w http.ResponseWriter, r *http.Request)
-	ServiceLabel(w http.ResponseWriter, r *http.Request)
 	NodeLabel(w http.ResponseWriter, r *http.Request)
 	Label(w http.ResponseWriter, r *http.Request)
 	Share(w http.ResponseWriter, r *http.Request)

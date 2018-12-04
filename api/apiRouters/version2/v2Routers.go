@@ -198,10 +198,6 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Put("/probe", controller.GetManager().Probe)
 	r.Delete("/probe", controller.GetManager().Probe)
 
-	//应用标签 增 删 (source)
-	r.Post("/service-label", controller.GetManager().ServiceLabel)
-	r.Put("/service-label", controller.GetManager().ServiceLabel)
-	//节点标签 增 删
 	r.Post("/node-label", controller.GetManager().NodeLabel)
 	r.Delete("/node-label", controller.GetManager().NodeLabel)
 	// label

@@ -809,8 +809,8 @@ type LabelsStruct struct {
 
 // LabelStruct holds info for adding, updating or deleting label
 type LabelStruct struct {
-	LabelKey    string `json:"label_key" validate:"label_key|required"`
-	LabelValues []string `json:"label_values" validate:"label_key|required"`
+	LabelKey   string `json:"label_key" validate:"label_key|required"`
+	LabelValue string `json:"label_value" validate:"label_value|required"`
 }
 
 //GetSingleServiceInfoStruct GetSingleServiceInfoStruct
