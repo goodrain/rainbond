@@ -90,7 +90,7 @@ func GetHTTPHealth(address string) map[string]string {
 	resp, err := c.Get(addr.String())
 	if err != nil {
 		if isClientTimeout(err) {
-			return map[string]string{"status": service.Stat_death, "info": "Request service is unreachable"}
+			return map[string]string{"status": service.Stat_death, "info": "Request service timeout"}
 		}
 		logrus.Errorf("http probe request error %s", err.Error())
 		return map[string]string{"status": service.Stat_unhealthy, "info": err.Error()}
@@ -99,6 +99,7 @@ func GetHTTPHealth(address string) map[string]string {
 		defer resp.Body.Close()
 	}
 	if resp.StatusCode >= 500 {
+		logrus.Debugf("http probe check address %s return code %d", address, resp.StatusCode)
 		return map[string]string{"status": service.Stat_unhealthy, "info": "Service unhealthy"}
 	}
 	return map[string]string{"status": service.Stat_healthy, "info": "service health"}

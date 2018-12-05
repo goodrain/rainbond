@@ -186,23 +186,36 @@ func (n *NodeManager) heartbeat() {
 		allHealth := true
 		n.currentNode.NodeStatus.AdviceAction = nil
 		for k, v := range allServiceHealth {
-			if service := n.controller.GetService(k); service != nil {
-				if service.ServiceHealth != nil {
-					maxNum := service.ServiceHealth.MaxErrorsNum
+			if ser := n.controller.GetService(k); ser != nil {
+				if ser.ServiceHealth != nil {
+					maxNum := ser.ServiceHealth.MaxErrorsNum
 					if maxNum < 2 {
 						maxNum = 2
 					}
-					if v.ErrorNumber > maxNum {
+					if v.Status != service.Stat_healthy && v.ErrorNumber > maxNum {
 						allHealth = false
 						n.currentNode.UpdataCondition(
 							client.NodeCondition{
-								Type:               client.NodeConditionType(service.Name),
+								Type:               client.NodeConditionType(ser.Name),
 								Status:             client.ConditionFalse,
 								LastHeartbeatTime:  time.Now(),
 								LastTransitionTime: time.Now(),
 								Message:            v.Info,
 								Reason:             "NotHealth",
 							})
+					}
+					if v.Status == service.Stat_healthy {
+						old := n.currentNode.GetCondition(client.NodeConditionType(ser.Name))
+						if old == nil || old.Status == client.ConditionFalse {
+							n.currentNode.UpdataCondition(
+								client.NodeCondition{
+									Type:               client.NodeConditionType(ser.Name),
+									Status:             client.ConditionTrue,
+									LastHeartbeatTime:  time.Now(),
+									LastTransitionTime: time.Now(),
+									Reason:             "Health",
+								})
+						}
 					}
 					if n.cfg.AutoUnschedulerUnHealthDuration == 0 {
 						continue
@@ -211,11 +224,11 @@ func (n *NodeManager) heartbeat() {
 						n.currentNode.NodeStatus.AdviceAction = []string{"unscheduler"}
 					}
 				} else {
-					old := n.currentNode.GetCondition(client.NodeConditionType(service.Name))
+					old := n.currentNode.GetCondition(client.NodeConditionType(ser.Name))
 					if old == nil {
 						n.currentNode.UpdataCondition(
 							client.NodeCondition{
-								Type:               client.NodeConditionType(service.Name),
+								Type:               client.NodeConditionType(ser.Name),
 								Status:             client.ConditionTrue,
 								LastHeartbeatTime:  time.Now(),
 								LastTransitionTime: time.Now(),

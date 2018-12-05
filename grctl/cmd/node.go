@@ -19,6 +19,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -152,7 +153,6 @@ func handleResult(serviceTable *termtables.Table, v *client.HostNode) {
 			}
 		} else {
 			if v.Type == client.OutOfDisk || v.Type == client.MemoryPressure || v.Type == client.DiskPressure || v.Type == client.InstallNotReady {
-
 				formatReady = "\033[0;31;31m true \033[0m"
 			} else {
 				formatReady = "\033[0;32;32m true \033[0m"
@@ -192,6 +192,11 @@ func NewCmdNode() cli.Command {
 			{
 				Name:  "get",
 				Usage: "get hostID/internal ip",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name: "output,o",
+					},
+				},
 				Action: func(c *cli.Context) error {
 					Common(c)
 					id := c.Args().First()
@@ -201,6 +206,11 @@ func NewCmdNode() cli.Command {
 					}
 					v, err := clients.RegionClient.Nodes().Get(id)
 					handleErr(err)
+					if c.String("output") == "json" {
+						jsIndent, _ := json.MarshalIndent(v, "", "\t")
+						fmt.Print(string(jsIndent))
+						os.Exit(0)
+					}
 					table := uitable.New()
 					fmt.Printf("-------------------Node Information-----------------------\n")
 					table.AddRow("uuid", v.ID)
@@ -210,8 +220,8 @@ func NewCmdNode() cli.Command {
 					table.AddRow("external_ip", v.ExternalIP)
 					table.AddRow("role", v.Role)
 					table.AddRow("mode", v.Mode)
-					table.AddRow("available_memory", v.AvailableMemory)
-					table.AddRow("available_cpu", v.AvailableCPU)
+					table.AddRow("available_memory", fmt.Sprintf("%d GB", v.AvailableMemory/1024/1024/1024))
+					table.AddRow("available_cpu", fmt.Sprintf("%d Core", v.AvailableCPU))
 					table.AddRow("status", v.Status)
 					table.AddRow("health", v.NodeStatus.NodeHealth)
 					table.AddRow("schedulable(set)", !v.Unschedulable)
