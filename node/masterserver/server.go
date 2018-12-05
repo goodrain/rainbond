@@ -68,10 +68,6 @@ func (m *MasterServer) Start(errchan chan error) error {
 		logrus.Error("node cluster start error,", err.Error())
 		return err
 	}
-	if err := m.TaskEngine.Start(errchan); err != nil {
-		logrus.Error("task engin start error,", err.Error())
-		return err
-	}
 	return nil
 }
 

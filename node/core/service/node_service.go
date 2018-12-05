@@ -102,7 +102,7 @@ func (n *NodeService) AddNode(node *client.APIHostNode) (*client.HostNode, *util
 	}
 	rbnode := node.Clone()
 	rbnode.CreateTime = time.Now()
-	n.nodecluster.UnlockUpdateNode(rbnode)
+	n.nodecluster.UpdateNode(rbnode)
 	if _, err := rbnode.Update(); err != nil {
 		return nil, utils.CreateAPIHandleErrorFromDBError("save node", err)
 	}
@@ -113,7 +113,7 @@ func (n *NodeService) AddNode(node *client.APIHostNode) (*client.HostNode, *util
 func (n *NodeService) NewNode(node *client.HostNode) *utils.APIHandleError {
 	node.Status = Installing
 	node.NodeStatus.Status = Installing
-	n.nodecluster.UnlockUpdateNode(node)
+	n.nodecluster.UpdateNode(node)
 	if _, err := node.Update(); err != nil {
 		return utils.CreateAPIHandleErrorFromDBError("save node", err)
 	}
@@ -143,7 +143,7 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 		logrus.Errorf("Error executing shell script,View log file：/grdata/downloads/log/" + fileName)
 		node.Status = InstallFailed
 		node.NodeStatus.Status = InstallFailed
-		n.nodecluster.UnlockUpdateNode(node)
+		n.nodecluster.UpdateNode(node)
 		if _, err := node.Update(); err != nil {
 			logrus.Errorf(err.Error())
 		}
@@ -153,7 +153,7 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 	logrus.Info("check cluster status: grctl node list")
 	node.Status = InstallSuccess
 	node.NodeStatus.Status = InstallSuccess
-	n.nodecluster.UnlockUpdateNode(node)
+	n.nodecluster.UpdateNode(node)
 	if _, err := node.Update(); err != nil {
 		logrus.Errorf(err.Error())
 	}
@@ -166,7 +166,7 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 	if node == nil {
 		return utils.CreateAPIHandleError(404, fmt.Errorf("node is not found"))
 	}
-	if node.Alived {
+	if node.Status != "stop" {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("node is online, can not delete"))
 	}
 	// TODO:compute node check node is offline
@@ -195,7 +195,6 @@ func (n *NodeService) GetAllNode() ([]*client.HostNode, *utils.APIHandleError) {
 	if n.nodecluster == nil {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
 	}
-
 	nodes := n.nodecluster.GetAllNode()
 	sort.Sort(client.NodeList(nodes))
 	return nodes, nil
@@ -238,18 +237,8 @@ func (n *NodeService) CordonNode(nodeID string, unschedulable bool) *utils.APIHa
 		logrus.Errorf("get k8s node(%s) error %s", hostNode.ID, err.Error())
 		return utils.CreateAPIHandleError(500, fmt.Errorf("get k8s node(%s) error %s", hostNode.ID, err.Error()))
 	}
-	//update k8s node unshcedulable status
 	hostNode.Unschedulable = unschedulable
-	//update node status
-	if unschedulable {
-		hostNode.Status = Running
-		hostNode.NodeStatus.Status = Running
-		hostNode.Unschedulable = true
-	} else {
-		hostNode.Status = Running
-		hostNode.NodeStatus.Status = Running
-		hostNode.Unschedulable = false
-	}
+	//update k8s node unshcedulable status
 	if k8snode != nil {
 		node, err := n.kubecli.CordonOrUnCordon(hostNode.ID, unschedulable)
 		if err != nil {
@@ -267,7 +256,7 @@ func (n *NodeService) PutNodeLabel(nodeID string, labels map[string]string) *uti
 	if apierr != nil {
 		return apierr
 	}
-	if hostNode.Role.HasRule(client.ComputeNode) && hostNode.NodeStatus != nil {
+	if hostNode.Role.HasRule(client.ComputeNode) {
 		node, err := n.kubecli.UpdateLabels(nodeID, labels)
 		if err != nil {
 			return utils.CreateAPIHandleError(500, fmt.Errorf("update k8s node labels error,%s", err.Error()))
@@ -286,7 +275,7 @@ func (n *NodeService) DownNode(nodeID string) (*client.HostNode, *utils.APIHandl
 		return nil, apierr
 	}
 	// add the node from k8s if type is compute
-	if hostNode.Role.HasRule(client.ComputeNode) || hostNode.NodeStatus == nil {
+	if hostNode.Role.HasRule(client.ComputeNode) {
 		err := n.kubecli.DownK8sNode(hostNode.ID)
 		if err != nil {
 			logrus.Error("Failed to down node: ", err)
@@ -388,7 +377,7 @@ func (n *NodeService) InitStatus(nodeIP string) (*model.InitStatus, *utils.APIHa
 		return nil, err
 	}
 	for _, val := range node.NodeStatus.Conditions {
-		if node.Alived || (val.Type == client.NodeInit && val.Status == client.ConditionTrue) {
+		if node.NodeStatus.Status == "running" || (val.Type == client.NodeInit && val.Status == client.ConditionTrue) {
 			status.Status = 0
 			status.StatusCN = "初始化成功"
 			status.HostID = node.ID

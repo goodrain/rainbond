@@ -154,7 +154,7 @@ func (t *TaskEngine) handleJobRecord(er *job.ExecutionRecord) {
 			}
 			for _, status := range output.Status {
 				if status.ConditionType != "" && status.ConditionStatus != "" {
-					t.nodeCluster.UpdateNodeCondition(er.Node, status.ConditionType, status.ConditionStatus)
+					//t.nodeCluster.UpdateNodeCondition(er.Node, status.ConditionType, status.ConditionStatus)
 				}
 				if status.NextTask != nil && len(status.NextTask) > 0 {
 					for _, taskID := range status.NextTask {

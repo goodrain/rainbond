@@ -39,6 +39,7 @@ type Manager interface {
 	CloseWatch(serviceName string, id string) error
 	Start(hostNode *client.HostNode) error
 	AddServices(*[]*service.Service) error
+	GetServiceHealth() map[string]*service.HealthStatus
 	AddServicesAndUpdate(*[]*service.Service) error
 	Stop() error
 	DisableWatcher(serviceName, watcherID string)
@@ -69,9 +70,6 @@ type probeManager struct {
 	cancel       context.CancelFunc
 	watches      map[string]map[string]*watcher
 	statusChan   chan *service.HealthStatus
-	errorNum     map[string]int
-	errorTime    map[string]time.Time
-	errorFlag    map[string]bool
 	lock         sync.Mutex
 	hostNode     *client.HostNode
 }
@@ -82,18 +80,12 @@ func CreateManager() Manager {
 	statusChan := make(chan *service.HealthStatus, 100)
 	status := make(map[string]*service.HealthStatus)
 	watches := make(map[string]map[string]*watcher)
-	errorNum := make(map[string]int)
-	errorTime := make(map[string]time.Time)
-	errorFlag := make(map[string]bool)
 	m := &probeManager{
 		ctx:          ctx,
 		cancel:       cancel,
 		statusChan:   statusChan,
 		status:       status,
 		watches:      watches,
-		errorNum:     errorNum,
-		errorTime:    errorTime,
-		errorFlag:    errorFlag,
 		serviceProbe: make(map[string]probe.Probe),
 	}
 	return m
@@ -137,25 +129,28 @@ func (p *probeManager) updateServiceProbe() {
 func (p *probeManager) updateServiceStatus(status *service.HealthStatus) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if status.Status != service.Stat_healthy {
-		number := p.errorNum[status.Name] + 1
-		p.errorNum[status.Name] = number
-		status.ErrorNumber = number
-		if !p.errorFlag[status.Name] {
-			p.errorTime[status.Name] = time.Now()
-			p.errorFlag[status.Name] = true
-		}
-		status.ErrorTime = time.Now().Sub(p.errorTime[status.Name])
+	exist, ok := p.status[status.Name]
+	if !ok {
 		p.status[status.Name] = status
-
+		return
+	}
+	if status.Status != service.Stat_healthy {
+		number := exist.ErrorNumber + 1
+		status.ErrorNumber = number
+		if exist.StartErrorTime.IsZero() {
+			status.StartErrorTime = time.Now()
+		} else {
+			status.StartErrorTime = exist.StartErrorTime
+		}
+		status.ErrorDuration = time.Now().Sub(exist.StartErrorTime)
+		p.status[status.Name] = status
 	} else {
-		p.errorNum[status.Name] = 0
 		status.ErrorNumber = 0
-		p.errorFlag[status.Name] = false
-		status.ErrorTime = 0
+		status.ErrorDuration = 0
+		var zero time.Time
+		status.StartErrorTime = zero
 		p.status[status.Name] = status
 	}
-
 }
 func (p *probeManager) HandleStatus() {
 	for {
@@ -230,10 +225,11 @@ func (p *probeManager) EnableWatcher(serviceName, watcherID string) {
 	if s, ok := p.watches[serviceName]; ok {
 		if w, ok := s[watcherID]; ok {
 			w.enable = true
-			if h, ok := p.status[serviceName]; ok {
-				h.ErrorNumber = 0
-				h.ErrorTime = 0
-			}
+			// only health can set errornum is 0
+			// if h, ok := p.status[serviceName]; ok {
+			// 	h.ErrorNumber = 0
+			// 	h.ErrorTime = 0
+			// }
 		}
 	} else {
 		logrus.Error("Can not enable the watcher: Not found service: ", serviceName)
@@ -266,9 +262,8 @@ func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*service.He
 	}
 	for _, v := range *p.services {
 		if v.Name == serviceName {
-
 			if v.ServiceHealth.Model == "http" {
-				statusMap := probe.GetHttpHealth(v.ServiceHealth.Address)
+				statusMap := probe.GetHTTPHealth(v.ServiceHealth.Address)
 				result := &service.HealthStatus{
 					Name:   v.Name,
 					Status: statusMap["status"],
@@ -298,4 +293,7 @@ func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*service.He
 		}
 	}
 	return nil, errors.New("the service does not exist")
+}
+func (p *probeManager) GetServiceHealth() map[string]*service.HealthStatus {
+	return p.status
 }

@@ -26,7 +26,7 @@ import (
 
 //Manager Manager
 type Manager interface {
-	Start(client.HostNode) error
+	Start(*client.HostNode) error
 	Stop() error
 	GetAllService() (*[]*service.Service, error)
 	Online() error
@@ -35,4 +35,5 @@ type Manager interface {
 	StartService(serviceName string) error
 	StopService(serviceName string) error
 	SetAPIRoute(apim *api.Manager) error
+	GetService(serviceName string) *service.Service
 }

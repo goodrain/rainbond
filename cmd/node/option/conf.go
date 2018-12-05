@@ -61,39 +61,49 @@ func Init() error {
 
 //Conf Conf
 type Conf struct {
-	APIAddr             string //api server listen port
-	PrometheusAPI       string //Prometheus server listen port
-	K8SConfPath         string //absolute path to the kubeconfig file
-	LogLevel            string
-	HostIDFile          string
-	HostIP              string
-	RunMode             string //ACP_NODE 运行模式:master,node
-	NodeRule            string //节点属性 compute manage storage
-	Service             string //服务注册与发现
-	InitStatus          string
-	NodePath            string //永久节点信息存储路径
-	OnlineNodePath      string //上线节点信息存储路径
+	APIAddr                         string //api server listen port
+	PrometheusAPI                   string //Prometheus server listen port
+	K8SConfPath                     string //absolute path to the kubeconfig file
+	LogLevel                        string
+	HostIDFile                      string
+	HostIP                          string
+	RunMode                         string //ACP_NODE 运行模式:master,node
+	NodeRule                        string //节点属性 compute manage storage
+	Service                         string //服务注册与发现
+	InitStatus                      string
+	NodePath                        string   //Rainbond node model basic information storage path in etcd
+	EventLogServer                  []string //event server address list
+	ConfigStoragePath               string   //config storage path in etcd
+	TTL                             int64    // node heartbeat to master TTL
+	Etcd                            client.Config
+	StatsdConfig                    StatsdConfig
+	UDPMonitorConfig                UDPMonitorConfig
+	MinResyncPeriod                 time.Duration
+	AutoUnschedulerUnHealthDuration time.Duration
+
+	// for node controller
+	ServiceListFile string
+	ServiceManager  string
+	EnableInitStart bool
+	AutoRegistNode  bool
+	DockerCli       *dockercli.Client
+	EtcdCli         *client.Client
+
+	//The following parameters are to be removed
 	Proc                string // 当前节点正在执行任务存储路径
 	StaticTaskPath      string // 配置静态task文件宿主机路径
 	JobPath             string // 节点执行任务保存路径
 	Lock                string // job lock 路径
 	Group               string // 节点分组
 	Noticer             string // 通知
-	EventLogServer      []string
 	ExecutionRecordPath string
-	ConfigStoragePath   string
-	K8SNode             string
 	BuildIn             string
 	BuildInExec         string
 	CompJobStatus       string
 	FailTime            int
 	CheckIntervalSec    int
 	InstalledMarker     string
-	DBType              string
-	DBConnectionInfo    string
-
-	TTL        int64 // node heartbeat to master TTL
-	ReqTimeout int   // 请求超时时间，单位秒
+	ReqTimeout          int // 请求超时时间，单位秒
 	// 执行任务信息过期时间，单位秒
 	// 0 为不过期
 	ProcTTL int64
@@ -103,19 +113,6 @@ type Conf struct {
 	// 单机任务锁过期时间，单位秒
 	// 默认 300
 	LockTTL int64
-
-	Etcd             client.Config
-	StatsdConfig     StatsdConfig
-	UDPMonitorConfig UDPMonitorConfig
-	MinResyncPeriod  time.Duration
-
-	// for node controller
-	ServiceListFile        string
-	ServiceEndpointRegPath string
-	ServiceManager         string
-	EnableInitStart        bool
-	DockerCli              *dockercli.Client
-	EtcdCli                *client.Client
 }
 
 //StatsdConfig StatsdConfig
@@ -136,48 +133,45 @@ type UDPMonitorConfig struct {
 //AddFlags AddFlags
 func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the log level")
-	fs.StringVar(&a.PrometheusAPI, "prometheus", "http://localhost:9999", "the prometheus api")
+	fs.StringVar(&a.PrometheusAPI, "prometheus", "http://localhost:9999", "the prometheus server address")
 	fs.StringVar(&a.NodePath, "nodePath", "/rainbond/nodes", "the path of node in etcd")
 	fs.StringVar(&a.HostIDFile, "nodeid-file", "/opt/rainbond/etc/node/node_host_uuid.conf", "the unique ID for this node. Just specify, don't modify")
-	fs.StringVar(&a.OnlineNodePath, "onlineNodePath", "/rainbond/onlinenodes", "the path of master node in etcd")
-	fs.StringVar(&a.Proc, "procPath", "/rainbond/task/proc/", "the path of proc in etcd")
+	//fs.StringVar(&a.Proc, "procPath", "/rainbond/task/proc/", "the path of proc in etcd")
 	fs.StringVar(&a.HostIP, "hostIP", "", "the host ip you can define. default get ip from eth0")
-	fs.StringVar(&a.ExecutionRecordPath, "execRecordPath", "/rainbond/exec_record", "the path of job exec record")
+	//fs.StringVar(&a.ExecutionRecordPath, "execRecordPath", "/rainbond/exec_record", "the path of job exec record")
 	fs.StringSliceVar(&a.EventLogServer, "event-log-server", []string{"127.0.0.1:6366"}, "host:port slice of event log server")
-	fs.StringVar(&a.K8SNode, "k8sNode", "/store/nodes/", "the path of k8s node")
-	fs.StringVar(&a.InstalledMarker, "installed-marker", "/etc/acp_node/check/install/success", "the path of a file for check node is installed")
+	//fs.StringVar(&a.InstalledMarker, "installed-marker", "/etc/acp_node/check/install/success", "the path of a file for check node is installed")
 	fs.StringVar(&a.ConfigStoragePath, "config-path", "/rainbond/acp_configs", "the path of config to store(new)")
-	fs.StringVar(&a.InitStatus, "init-status", "/rainbond/init_status", "the path of init status to store")
+	//fs.StringVar(&a.InitStatus, "init-status", "/rainbond/init_status", "the path of init status to store")
 	fs.StringVar(&a.Service, "servicePath", "/traefik/backends", "the path of service info to store")
-	fs.StringVar(&a.JobPath, "jobPath", "/rainbond/jobs", "the path of job in etcd")
-	fs.StringVar(&a.Lock, "lockPath", "/rainbond/lock", "the path of lock in etcd")
-	fs.IntVar(&a.FailTime, "failTime", 3, "the fail time of healthy check")
-	fs.IntVar(&a.CheckIntervalSec, "checkInterval-second", 5, "the interval time of healthy check")
+	//fs.StringVar(&a.JobPath, "jobPath", "/rainbond/jobs", "the path of job in etcd")
+	//fs.StringVar(&a.Lock, "lockPath", "/rainbond/lock", "the path of lock in etcd")
+	//fs.IntVar(&a.FailTime, "failTime", 3, "the fail time of healthy check")
+	//fs.IntVar(&a.CheckIntervalSec, "checkInterval-second", 5, "the interval time of healthy check")
 	fs.StringSliceVar(&a.Etcd.Endpoints, "etcd", []string{"http://127.0.0.1:2379"}, "the path of node in etcd")
 	fs.DurationVar(&a.Etcd.DialTimeout, "etcd-dialTimeOut", 3, "etcd cluster dialTimeOut In seconds")
 	fs.IntVar(&a.ReqTimeout, "reqTimeOut", 2, "req TimeOut.")
-	fs.Int64Var(&a.TTL, "ttl", 10, "node timeout second")
-	fs.Int64Var(&a.ProcTTL, "procttl", 600, "proc ttl")
-	fs.Int64Var(&a.ProcReq, "procreq", 5, "proc req")
-	fs.Int64Var(&a.LockTTL, "lockttl", 600, "lock ttl")
-	fs.StringVar(&a.APIAddr, "api-addr", ":6100", "the api server listen address")
-	fs.StringVar(&a.StaticTaskPath, "static-task-path", "/etc/goodrain/rainbond-node", "the file path of static task")
+	fs.Int64Var(&a.TTL, "ttl", 10, "Frequency of node status reporting to master")
+	//fs.Int64Var(&a.ProcTTL, "procttl", 600, "proc ttl")
+	//fs.Int64Var(&a.ProcReq, "procreq", 5, "proc req")
+	//fs.Int64Var(&a.LockTTL, "lockttl", 600, "lock ttl")
+	fs.StringVar(&a.APIAddr, "api-addr", ":6100", "The node api server listen address")
+	//fs.StringVar(&a.StaticTaskPath, "static-task-path", "/etc/goodrain/rainbond-node", "the file path of static task")
 	fs.StringVar(&a.K8SConfPath, "kube-conf", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig", "absolute path to the kubeconfig file  ./kubeconfig")
 	//fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")
 	fs.StringVar(&a.RunMode, "run-mode", "worker", "the acp_node run mode,could be 'worker' or 'master'")
 	fs.StringVar(&a.NodeRule, "noderule", "compute", "current node rule,maybe is `compute` `manage` `storage` ")
-	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
-	fs.StringVar(&a.DBConnectionInfo, "mysql", "admin:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
 	fs.StringVar(&a.StatsdConfig.StatsdListenAddress, "statsd.listen-address", "", "The UDP address on which to receive statsd metric lines. DEPRECATED, use statsd.listen-udp instead.")
 	fs.StringVar(&a.StatsdConfig.StatsdListenUDP, "statsd.listen-udp", ":9125", "The UDP address on which to receive statsd metric lines. \"\" disables it.")
 	fs.StringVar(&a.StatsdConfig.StatsdListenTCP, "statsd.listen-tcp", ":9125", "The TCP address on which to receive statsd metric lines. \"\" disables it.")
 	fs.StringVar(&a.StatsdConfig.MappingConfig, "statsd.mapping-config", "", "Metric mapping configuration file name.")
 	fs.IntVar(&a.StatsdConfig.ReadBuffer, "statsd.read-buffer", 0, "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.")
-	fs.DurationVar(&a.MinResyncPeriod, "min-resync-period", time.Hour*12, "The resync period in reflectors will be random between MinResyncPeriod and 2*MinResyncPeriod")
+	fs.DurationVar(&a.MinResyncPeriod, "min-resync-period", time.Second*60, "The resync period in reflectors will be random between MinResyncPeriod and 2*MinResyncPeriod")
 	fs.StringVar(&a.ServiceListFile, "service-list-file", "/opt/rainbond/conf/", "Specifies the configuration file, which can be a directory, that configures the service running on the current node")
-	fs.StringVar(&a.ServiceEndpointRegPath, "service-endpoint-reg-path", "/rainbond/nodes/target", "For registry service entpoint info into etcd then path.")
 	fs.BoolVar(&a.EnableInitStart, "enable-init-start", false, "Whether the node daemon launches docker and etcd service")
-	fs.StringVar(&a.ServiceManager, "service-manager", "systemd", "For service management tool on the system.")
+	fs.BoolVar(&a.AutoRegistNode, "auto-registnode", true, "Whether auto regist node info to cluster where node is not found")
+	fs.DurationVar(&a.AutoUnschedulerUnHealthDuration, "autounscheduler-unhealty-dura", 5*time.Minute, "Node unhealthy duration, after the automatic offline,if set 0,disable auto handle unscheduler.default is 5 Minute")
+	//fs.StringVar(&a.ServiceManager, "service-manager", "systemd", "For service management tool on the system.")
 }
 
 //SetLog 设置log

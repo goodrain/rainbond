@@ -90,9 +90,10 @@ type Health struct {
 
 //HealthStatus health status
 type HealthStatus struct {
-	Name        string
-	Status      string
-	ErrorNumber int
-	ErrorTime   time.Duration
-	Info        string
+	Name           string
+	Status         string
+	ErrorNumber    int
+	ErrorDuration  time.Duration
+	StartErrorTime time.Time
+	Info           string
 }

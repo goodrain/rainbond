@@ -23,17 +23,14 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/node/nodem/logger"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/api"
-	nodeService "github.com/goodrain/rainbond/node/core/service"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/controller"
 	"github.com/goodrain/rainbond/node/nodem/healthy"
@@ -42,23 +39,21 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/service"
 	"github.com/goodrain/rainbond/node/nodem/taskrun"
 	"github.com/goodrain/rainbond/util"
-	"github.com/goodrain/rainbond/util/watch"
 )
 
 //NodeManager node manager
 type NodeManager struct {
-	client.HostNode
-	ctx        context.Context
-	cancel     context.CancelFunc
-	cluster    client.ClusterClient
-	monitor    monitor.Manager
-	healthy    healthy.Manager
-	controller controller.Manager
-	taskrun    taskrun.Manager
-	cfg        *option.Conf
-	apim       *api.Manager
-	watchChan  watch.Interface
-	clm        *logger.ContainerLogManage
+	currentNode *client.HostNode
+	ctx         context.Context
+	cancel      context.CancelFunc
+	cluster     client.ClusterClient
+	monitor     monitor.Manager
+	healthy     healthy.Manager
+	controller  controller.Manager
+	taskrun     taskrun.Manager
+	cfg         *option.Conf
+	apim        *api.Manager
+	clm         *logger.ContainerLogManage
 }
 
 //NewNodeManager new a node manager
@@ -75,19 +70,23 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 	}
 	clm := logger.CreatContainerLogManage(conf)
 	controller := controller.NewManagerService(conf, healthyManager, cluster)
+	uid, err := util.ReadHostID(conf.HostIDFile)
+	if err != nil {
+		return nil, fmt.Errorf("Get host id error:%s", err.Error())
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	nodem := &NodeManager{
-		cfg:        conf,
-		ctx:        ctx,
-		cancel:     cancel,
-		taskrun:    taskrun,
-		cluster:    cluster,
-		monitor:    monitor,
-		healthy:    healthyManager,
-		controller: controller,
-		clm:        clm,
+		cfg:         conf,
+		ctx:         ctx,
+		cancel:      cancel,
+		taskrun:     taskrun,
+		cluster:     cluster,
+		monitor:     monitor,
+		healthy:     healthyManager,
+		controller:  controller,
+		clm:         clm,
+		currentNode: &client.HostNode{ID: uid},
 	}
-	nodem.HostNode.NodeStatus = &client.NodeStatus{Status: "online"}
 	return nodem, nil
 }
 
@@ -101,10 +100,7 @@ func (n *NodeManager) AddAPIManager(apim *api.Manager) error {
 //InitStart init start is first start module.
 //it would not depend etcd
 func (n *NodeManager) InitStart() error {
-	if err := n.init(); err != nil {
-		return err
-	}
-	if err := n.controller.Start(n.HostNode); err != nil {
+	if err := n.controller.Start(n.currentNode); err != nil {
 		return fmt.Errorf("start node controller error,%s", err.Error())
 	}
 	return nil
@@ -115,6 +111,9 @@ func (n *NodeManager) Start(errchan chan error) error {
 	if n.cfg.EtcdCli == nil {
 		return fmt.Errorf("etcd client is nil")
 	}
+	if err := n.init(); err != nil {
+		return err
+	}
 	services, err := n.controller.GetAllService()
 	if err != nil {
 		return fmt.Errorf("get all services error,%s", err.Error())
@@ -122,20 +121,19 @@ func (n *NodeManager) Start(errchan chan error) error {
 	if err := n.healthy.AddServices(services); err != nil {
 		return fmt.Errorf("get all services error,%s", err.Error())
 	}
-	if err := n.healthy.Start(&n.HostNode); err != nil {
+	if err := n.healthy.Start(n.currentNode); err != nil {
 		return fmt.Errorf("node healty start error,%s", err.Error())
 	}
 	if err := n.controller.Online(); err != nil {
 		return err
 	}
-	if n.Role.HasRule("compute") {
+	if n.currentNode.Role.HasRule("compute") {
 		if err := n.clm.Start(); err != nil {
 			return err
 		}
 	}
-	go n.SyncNodeStatus()
 	go n.monitor.Start(errchan)
-	go n.taskrun.Start(errchan)
+	//go n.taskrun.Start(errchan)
 	go n.heartbeat()
 	return nil
 }
@@ -143,7 +141,7 @@ func (n *NodeManager) Start(errchan chan error) error {
 //Stop Stop
 func (n *NodeManager) Stop() {
 	n.cancel()
-	n.cluster.DownNode(&n.HostNode)
+	n.cluster.DownNode(n.currentNode)
 	if n.taskrun != nil {
 		n.taskrun.Stop()
 	}
@@ -156,66 +154,12 @@ func (n *NodeManager) Stop() {
 	if n.healthy != nil {
 		n.healthy.Stop()
 	}
-	if n.watchChan != nil {
-		n.watchChan.Stop()
-	}
 	if n.clm != nil {
 		n.clm.Stop()
 	}
 }
 
-//SyncNodeStatus sync node status
-func (n *NodeManager) SyncNodeStatus() error {
-	key := fmt.Sprintf("%s/%s", n.cfg.ServiceEndpointRegPath, n.ID)
-	logrus.Info("Starting node status sync manager: ", key)
-	watcher := watch.New(n.cfg.EtcdCli, "")
-	watchChan, err := watcher.Watch(n.ctx, key, "")
-	if err != nil {
-		n.watchChan.Stop()
-		logrus.Error("Failed to Watch list for key ", key)
-		return err
-	}
-	n.watchChan = watchChan
-
-	for event := range n.watchChan.ResultChan() {
-		logrus.Debug("watch event type: ", event.Type)
-		switch event.Type {
-		case watch.Added:
-		case watch.Modified:
-			var node client.HostNode
-			if err := node.Decode(event.GetValue()); err != nil {
-				logrus.Error("Failed to decode node from sync node event: ", err)
-				continue
-			}
-			logrus.Debugf("watch node %s status: %s", node.ID, node.NodeStatus.Status)
-
-			if node.Role.HasRule(client.ComputeNode) {
-				logrus.Infof("node %s is not manage node, skip step stop services.", node.ID)
-				continue
-			}
-
-			logrus.Infof("Sync node status %s => %s", n.NodeStatus.Status, node.NodeStatus.Status)
-			if node.NodeStatus.Status == nodeService.Offline &&
-				n.NodeStatus.Status != nodeService.Offline {
-				n.NodeStatus.Status = nodeService.Offline
-				n.controller.Offline()
-			} else if node.NodeStatus.Status == nodeService.Running &&
-				n.NodeStatus.Status != nodeService.Running {
-				n.NodeStatus.Status = nodeService.Running
-				n.controller.Online()
-			}
-		case watch.Deleted:
-		default:
-			logrus.Error("watch node event error: ", event.Error)
-		}
-	}
-
-	logrus.Info("Stop sync node status from node cluster client.")
-
-	return nil
-}
-
-//checkNodeHealthy check current node healthy.
+//CheckNodeHealthy check current node healthy.
 //only healthy can controller other service start
 func (n *NodeManager) CheckNodeHealthy() (bool, error) {
 	services, err := n.controller.GetAllService()
@@ -237,30 +181,93 @@ func (n *NodeManager) CheckNodeHealthy() (bool, error) {
 
 func (n *NodeManager) heartbeat() {
 	util.Exec(n.ctx, func() error {
-		if err := n.cluster.UpdateStatus(&n.HostNode); err != nil {
+		//TODO:Judge state
+		allServiceHealth := n.healthy.GetServiceHealth()
+		allHealth := true
+		n.currentNode.NodeStatus.AdviceAction = nil
+		for k, v := range allServiceHealth {
+			if service := n.controller.GetService(k); service != nil {
+				if service.ServiceHealth != nil {
+					maxNum := service.ServiceHealth.MaxErrorsNum
+					if maxNum < 2 {
+						maxNum = 2
+					}
+					if v.ErrorNumber > maxNum {
+						allHealth = false
+						n.currentNode.UpdataCondition(
+							client.NodeCondition{
+								Type:               client.NodeConditionType(service.Name),
+								Status:             client.ConditionFalse,
+								LastHeartbeatTime:  time.Now(),
+								LastTransitionTime: time.Now(),
+								Message:            v.Info,
+								Reason:             "NotHealth",
+							})
+					}
+					if n.cfg.AutoUnschedulerUnHealthDuration == 0 {
+						continue
+					}
+					if v.ErrorDuration > n.cfg.AutoUnschedulerUnHealthDuration {
+						n.currentNode.NodeStatus.AdviceAction = []string{"unscheduler"}
+					}
+				} else {
+					old := n.currentNode.GetCondition(client.NodeConditionType(service.Name))
+					if old == nil {
+						n.currentNode.UpdataCondition(
+							client.NodeCondition{
+								Type:               client.NodeConditionType(service.Name),
+								Status:             client.ConditionTrue,
+								LastHeartbeatTime:  time.Now(),
+								LastTransitionTime: time.Now(),
+							})
+					}
+				}
+			}
+		}
+		if allHealth {
+			n.currentNode.NodeStatus.AdviceAction = []string{"scheduler"}
+		}
+		n.currentNode.NodeStatus.Status = "running"
+		if err := n.cluster.UpdateStatus(n.currentNode); err != nil {
 			logrus.Errorf("update node status error %s", err.Error())
 		}
-		logrus.Info("Send node heartbeat to master: ", n.HostNode.NodeStatus.Status)
+		logrus.Infof("Send node %s heartbeat to master:%s ", n.currentNode.ID, n.currentNode.NodeStatus.Status)
 		return nil
 	}, time.Second*time.Duration(n.cfg.TTL))
 }
 
 //init node init
 func (n *NodeManager) init() error {
-	uid, err := util.ReadHostID(n.cfg.HostIDFile)
+	node, err := n.cluster.GetNode(n.currentNode.ID)
 	if err != nil {
-		return fmt.Errorf("Get host id error:%s", err.Error())
-	}
-	node, err := n.cluster.GetNode(uid)
-	if err != nil {
-		return err
-	}
-	if node == nil {
-		node, err = n.getCurrentNode(uid)
-		if err != nil {
-			return err
+		if err == client.ErrorNotFound {
+			logrus.Warningf("do not found node %s from cluster", n.currentNode.ID)
+			if n.cfg.AutoRegistNode {
+				node, err = n.getCurrentNode(n.currentNode.ID)
+				if err != nil {
+					return err
+				}
+			} else {
+				return fmt.Errorf("do not found node %s and AutoRegistNode parameter is false")
+			}
+		} else {
+			return fmt.Errorf("find node %s from cluster failure %s", n.currentNode.ID, err.Error())
 		}
 	}
+	*n.currentNode = *node
+	return nil
+}
+
+//getCurrentNode get current node info
+func (n *NodeManager) getCurrentNode(uid string) (*client.HostNode, error) {
+	if n.cfg.HostIP == "" {
+		ip, err := util.LocalIP()
+		if err != nil {
+			return nil, err
+		}
+		n.cfg.HostIP = ip.String()
+	}
+	node := CreateNode(uid, n.cfg.HostIP)
 	node.NodeStatus.NodeInfo = info.GetSystemInfo()
 	node.Role = strings.Split(n.cfg.NodeRule, ",")
 	if node.Labels == nil || len(node.Labels) < 1 {
@@ -274,9 +281,6 @@ func (n *NodeManager) init() error {
 		hostname, _ := os.Hostname()
 		node.HostName = hostname
 	}
-	if node.ClusterNode.PID == "" {
-		node.ClusterNode.PID = strconv.Itoa(os.Getpid())
-	}
 	node.Labels["rainbond_node_hostname"] = node.HostName
 	node.Labels["rainbond_node_ip"] = node.InternalIP
 	node.UpdataCondition(client.NodeCondition{
@@ -286,55 +290,30 @@ func (n *NodeManager) init() error {
 		LastTransitionTime: time.Now(),
 	})
 	node.Mode = n.cfg.RunMode
-	node.Status = "running"
 	node.NodeStatus.Status = "running"
-	n.HostNode = *node
 	if node.AvailableMemory == 0 {
 		node.AvailableMemory = int64(node.NodeStatus.NodeInfo.MemorySize)
 	}
 	if node.AvailableCPU == 0 {
 		node.AvailableCPU = int64(runtime.NumCPU())
 	}
-	node.Version = cmd.GetVersion()
-	return nil
-}
-
-//UpdateNodeStatus UpdateNodeStatus
-func (n *NodeManager) UpdateNodeStatus() error {
-	return n.cluster.UpdateStatus(&n.HostNode)
-}
-
-//getCurrentNode get current node info
-func (n *NodeManager) getCurrentNode(uid string) (*client.HostNode, error) {
-	if n.cfg.HostIP == "" {
-		ip, err := util.LocalIP()
-		if err != nil {
-			return nil, err
-		}
-		n.cfg.HostIP = ip.String()
-	}
-	node := CreateNode(uid, n.cfg.HostIP)
 	return &node, nil
 }
 
 //GetCurrentNode get current node
 func (n *NodeManager) GetCurrentNode() *client.HostNode {
-	return &n.HostNode
+	return n.currentNode
 }
 
 //CreateNode new node
 func CreateNode(nodeID, ip string) client.HostNode {
-	HostNode := client.HostNode{
-		ID: nodeID,
-		ClusterNode: client.ClusterNode{
-			PID: strconv.Itoa(os.Getpid()),
-		},
+	return client.HostNode{
+		ID:         nodeID,
 		InternalIP: ip,
 		ExternalIP: ip,
 		CreateTime: time.Now(),
-		NodeStatus: &client.NodeStatus{},
+		NodeStatus: client.NodeStatus{},
 	}
-	return HostNode
 }
 
 //StartService start a define service

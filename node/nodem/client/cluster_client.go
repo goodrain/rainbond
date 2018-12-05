@@ -20,7 +20,12 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"time"
+
+	"github.com/goodrain/rainbond/cmd"
+
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	"encoding/json"
 
@@ -37,6 +42,7 @@ type ClusterClient interface {
 	DownNode(*HostNode) error
 	GetMasters() ([]*HostNode, error)
 	GetNode(nodeID string) (*HostNode, error)
+	RegistNode(node *HostNode) error
 	GetDataCenterConfig() (*config.DataCenterConfig, error)
 	GetOptions() *option.Conf
 	GetEndpoints(key string) []string
@@ -60,15 +66,17 @@ type etcdClusterClient struct {
 }
 
 func (e *etcdClusterClient) UpdateStatus(n *HostNode) error {
-	n.UpTime = time.Now()
-	n.Alived = true
-	if err := e.Update(n); err != nil {
-		return err
+	existNode, err := e.GetNode(n.ID)
+	if err != nil {
+		return fmt.Errorf("get node %s failure where update node", n.ID)
 	}
-	if err := e.nodeOnlinePut(n); err != nil {
-		return err
-	}
-	return nil
+	existNode.NodeStatus.NodeHealth = n.NodeStatus.NodeHealth
+	existNode.NodeStatus.NodeUpdateTime = time.Now()
+	existNode.NodeStatus.Version = cmd.GetVersion()
+	existNode.NodeStatus.AdviceAction = n.NodeStatus.AdviceAction
+	existNode.NodeStatus.Status = n.NodeStatus.Status
+	existNode.UpdataCondition(n.NodeStatus.Conditions...)
+	return e.Update(existNode)
 }
 
 func (e *etcdClusterClient) GetMasters() ([]*HostNode, error) {
@@ -127,26 +135,29 @@ func (e *etcdClusterClient) WatchJobs() <-chan *job.Event {
 	return nil
 }
 
+//ErrorNotFound node not found.
+var ErrorNotFound = fmt.Errorf("node not found")
+
 func (e *etcdClusterClient) GetNode(nodeID string) (*HostNode, error) {
-	return nil, nil
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*8)
+	defer cancel()
+	res, err := e.conf.EtcdCli.Get(ctx, fmt.Sprintf("%s/%s", e.conf.NodePath, nodeID))
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil, ErrorNotFound
+		}
+		return nil, err
+	}
+	if res.Count < 1 {
+		return nil, ErrorNotFound
+	}
+	return GetNodeFromKV(res.Kvs[0]), nil
 }
 
-//nodeOnlinePut onde noline status update
-func (e *etcdClusterClient) nodeOnlinePut(h *HostNode) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+func (e *etcdClusterClient) RegistNode(node *HostNode) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*8)
 	defer cancel()
-	if e.onlineLes != 0 {
-		if _, err := e.conf.EtcdCli.KeepAlive(ctx, e.onlineLes); err == nil {
-			return nil
-		}
-		e.onlineLes = 0
-	}
-	les, err := e.conf.EtcdCli.Grant(ctx, 30)
-	if err != nil {
-		return err
-	}
-	e.onlineLes = les.ID
-	_, err = e.conf.EtcdCli.Put(ctx, e.conf.OnlineNodePath+"/"+h.ID, h.PID, clientv3.WithLease(les.ID))
+	_, err := e.conf.EtcdCli.Put(ctx, fmt.Sprintf("%s/%s", e.conf.NodePath, node.ID), node.String())
 	if err != nil {
 		return err
 	}
@@ -161,12 +172,12 @@ func (e *etcdClusterClient) Update(h *HostNode) error {
 	return err
 }
 
-//Down node
+//Down node set node status is offline
 func (e *etcdClusterClient) DownNode(h *HostNode) error {
-	h.Alived, h.DownTime = false, time.Now()
-	e.Update(h)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-	_, err := e.conf.EtcdCli.Delete(ctx, e.conf.OnlineNodePath+"/"+h.ID)
-	return err
+	existNode, err := e.GetNode(h.ID)
+	if err != nil {
+		return fmt.Errorf("get node %s failure where update node", h.ID)
+	}
+	existNode.NodeStatus.Status = "offline"
+	return e.Update(existNode)
 }

@@ -21,54 +21,28 @@ type HttpProbe struct {
 	MaxErrorsNum int
 }
 
+//Check check
 func (h *HttpProbe) Check() {
-	go h.HttpCheck()
+	go h.HTTPCheck()
 }
+
+//Stop stop
 func (h *HttpProbe) Stop() {
 	h.Cancel()
 }
-func (h *HttpProbe) HttpCheck() {
-	errNum := 1
+
+//HTTPCheck http check
+func (h *HttpProbe) HTTPCheck() {
 	timer := time.NewTimer(time.Second * time.Duration(h.TimeInterval))
 	defer timer.Stop()
 	for {
-		HealthMap := GetHttpHealth(h.Address)
+		HealthMap := GetHTTPHealth(h.Address)
 		result := &service.HealthStatus{
 			Name:   h.Name,
 			Status: HealthMap["status"],
 			Info:   HealthMap["info"],
 		}
 		h.ResultsChan <- result
-		if HealthMap["status"] != service.Stat_healthy {
-			if errNum > h.MaxErrorsNum {
-				v := client.NodeCondition{
-					Type:               client.NodeConditionType(h.Name),
-					Status:             client.ConditionFalse,
-					LastHeartbeatTime:  time.Now(),
-					LastTransitionTime: time.Now(),
-					Message:            result.Info,
-				}
-				h.HostNode.UpdataCondition(v)
-			} else {
-				v := client.NodeCondition{
-					Type:               client.NodeConditionType(h.Name),
-					Status:             client.ConditionTrue,
-					LastHeartbeatTime:  time.Now(),
-					LastTransitionTime: time.Now(),
-				}
-				h.HostNode.UpdataCondition(v)
-			}
-			errNum += 1
-		} else {
-			v := client.NodeCondition{
-				Type:               client.NodeConditionType(h.Name),
-				Status:             client.ConditionTrue,
-				LastHeartbeatTime:  time.Now(),
-				LastTransitionTime: time.Now(),
-			}
-			h.HostNode.UpdataCondition(v)
-			errNum = 1
-		}
 		timer.Reset(time.Second * time.Duration(h.TimeInterval))
 		select {
 		case <-h.Ctx.Done():
@@ -78,7 +52,8 @@ func (h *HttpProbe) HttpCheck() {
 	}
 }
 
-func GetHttpHealth(address string) map[string]string {
+//GetHTTPHealth get http health
+func GetHTTPHealth(address string) map[string]string {
 	c := &http.Client{
 		Timeout: 5 * time.Second,
 	}
@@ -88,7 +63,6 @@ func GetHttpHealth(address string) map[string]string {
 	resp, err := c.Get(address)
 	if err != nil {
 		return map[string]string{"status": service.Stat_death, "info": "Request service is unreachable"}
-
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 500 {

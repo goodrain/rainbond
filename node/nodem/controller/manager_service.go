@@ -40,7 +40,7 @@ var (
 
 //ManagerService manager service
 type ManagerService struct {
-	node                 client.HostNode
+	node                 *client.HostNode
 	ctx                  context.Context
 	cancel               context.CancelFunc
 	syncCtx              context.Context
@@ -61,8 +61,18 @@ func (m *ManagerService) GetAllService() (*[]*service.Service, error) {
 	return m.allservice, nil
 }
 
+//GetService get service
+func (m *ManagerService) GetService(serviceName string) *service.Service {
+	for _, s := range *m.allservice {
+		if s.Name == serviceName {
+			return s
+		}
+	}
+	return nil
+}
+
 //Start  start and monitor all service
-func (m *ManagerService) Start(node client.HostNode) error {
+func (m *ManagerService) Start(node *client.HostNode) error {
 	logrus.Info("Starting node controller manager.")
 	m.loadServiceConfig()
 	m.node = node
@@ -180,15 +190,16 @@ func (m *ManagerService) SyncServiceStatusController() {
 		serviceStatusController := statusController{
 			ctx:            ctx,
 			cancel:         cancel,
-			serviceName:    s.Name,
+			service:        s,
 			healthyManager: m.healthyManager,
 			watcher:        m.healthyManager.WatchServiceHealthy(s.Name),
 			unhealthHandle: func(event *service.HealthStatus, w healthy.Watcher) {
 				// disable check healthy status of the service
+				logrus.Infof("service %s not healthy, will restart it", event.Name)
 				m.healthyManager.DisableWatcher(event.Name, w.GetID())
 				m.ctr.RestartService(event.Name)
 				if !m.WaitStart(event.Name, time.Minute) {
-					logrus.Errorf("Timeout restart service: %s", event.Name)
+					logrus.Errorf("Timeout restart service: %s, will recheck health", event.Name)
 				}
 				// start check healthy status of the service
 				m.healthyManager.EnableWatcher(event.Name, w.GetID())
@@ -203,15 +214,15 @@ type statusController struct {
 	watcher        healthy.Watcher
 	ctx            context.Context
 	cancel         context.CancelFunc
-	serviceName    string
+	service        *service.Service
 	unhealthHandle func(event *service.HealthStatus, w healthy.Watcher)
 	healthyManager healthy.Manager
 }
 
 func (s *statusController) Run() {
-	s.healthyManager.EnableWatcher(s.serviceName, s.watcher.GetID())
+	s.healthyManager.EnableWatcher(s.service.Name, s.watcher.GetID())
 	defer s.watcher.Close()
-	defer s.healthyManager.DisableWatcher(s.serviceName, s.watcher.GetID())
+	defer s.healthyManager.DisableWatcher(s.service.Name, s.watcher.GetID())
 	for {
 		select {
 		case event := <-s.watcher.Watch():
@@ -219,10 +230,11 @@ func (s *statusController) Run() {
 			case service.Stat_healthy:
 				logrus.Debugf("is [%s] of service %s.", event.Status, event.Name)
 			case service.Stat_unhealthy:
-				logrus.Debugf("is [%s] of service %s %d times.", event.Status, event.Name, event.ErrorNumber)
-				if event.ErrorNumber > 3 {
-					logrus.Infof("is [%s] of service %s %d times and restart it.", event.Status, event.Name, event.ErrorNumber)
-					s.unhealthHandle(event, s.watcher)
+				if s.service.ServiceHealth != nil {
+					if event.ErrorNumber > s.service.ServiceHealth.MaxErrorsNum {
+						logrus.Infof("is [%s] of service %s %d times and restart it.", event.Status, event.Name, event.ErrorNumber)
+						s.unhealthHandle(event, s.watcher)
+					}
 				}
 			case service.Stat_death:
 				logrus.Infof("is [%s] of service %s %d times and start it.", event.Status, event.Name, event.ErrorNumber)
@@ -243,6 +255,7 @@ func (m *ManagerService) StopSyncService() {
 	}
 }
 
+//WaitStart waiting service healty
 func (m *ManagerService) WaitStart(name string, duration time.Duration) bool {
 	max := time.Now().Add(duration)
 	t := time.Tick(time.Second * 3)
@@ -365,19 +378,6 @@ func (m *ManagerService) WriteServices() error {
 		if err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-//RemoveServices remove services
-func (m *ManagerService) RemoveServices() error {
-	for _, s := range *m.services {
-		if s.Name == "docker" {
-			continue
-		}
-		m.ctr.DisableService(s.Name)
-		m.ctr.RemoveConfig(s.Name)
 	}
 
 	return nil

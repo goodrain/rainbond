@@ -58,9 +58,8 @@ func (a APIHostNode) Clone() *HostNode {
 		KeyPath:       a.Privatekey,
 		Role:          []string{a.Role},
 		Labels:        map[string]string{"rainbond_node_hostname": a.HostName},
-		NodeStatus:    &NodeStatus{Status: "not_installed", Conditions: make([]NodeCondition, 0)},
+		NodeStatus:    NodeStatus{Status: "not_installed", Conditions: make([]NodeCondition, 0)},
 		Status:        "not_installed",
-		NodeHealth:    false,
 		Unschedulable: true,
 	}
 	return hn
@@ -78,13 +77,11 @@ type HostNode struct {
 	AvailableMemory int64             `json:"available_memory"`
 	AvailableCPU    int64             `json:"available_cpu"`
 	Mode            string            `json:"mode"`
-	Role            HostRule          `json:"role"`          //节点属性 compute manage storage
+	Role            HostRule          `json:"role"`          //compute, manage, storage,loadbalance
 	Status          string            `json:"status"`        //节点状态 create,init,running,stop,delete
 	Labels          map[string]string `json:"labels"`        //节点标签 内置标签+用户自定义标签
-	Unschedulable   bool              `json:"unschedulable"` //不可调度
-	NodeStatus      *NodeStatus       `json:"node_status"`
-	ClusterNode
-	NodeHealth bool `json:"node_health"`
+	Unschedulable   bool              `json:"unschedulable"` //设置值
+	NodeStatus      NodeStatus        `json:"node_status"`
 }
 
 //Resource 资源
@@ -109,9 +106,25 @@ type AllocatedResources struct {
 
 //NodeStatus node status
 type NodeStatus struct {
-	Status     string          `json:"status"` //installed running offline unknown
+	//worker maintenance
+	Version string `json:"version"`
+	//worker maintenance example: unscheduler, offline
+	//Initiate a recommendation operation to the master based on the node state
+	AdviceAction []string `json:"advice_actions"`
+	//worker maintenance
+	Status string `json:"status"` //installed running offline unknown
+	//master maintenance
+	NodeHealth bool `json:"node_health"`
+	//worker maintenance
+	NodeUpdateTime time.Time `json:"node_update_time"`
+	//master maintenance
+	KubeUpdateTime time.Time `json:"kube_update_time"`
+	//worker and master maintenance
 	Conditions []NodeCondition `json:"conditions,omitempty"`
-	NodeInfo   NodeSystemInfo  `json:"nodeInfo,omitempty" protobuf:"bytes,7,opt,name=nodeInfo"`
+	//master maintenance
+	KubeNode *v1.Node
+	//worker and master maintenance
+	NodeInfo NodeSystemInfo `json:"nodeInfo,omitempty" protobuf:"bytes,7,opt,name=nodeInfo"`
 }
 
 //UpdateK8sNodeStatus update rainbond node status by k8s node
@@ -127,12 +140,6 @@ func (n *HostNode) UpdateK8sNodeStatus(k8sNode v1.Node) {
 		OperatingSystem:         status.NodeInfo.OperatingSystem,
 		ContainerRuntimeVersion: status.NodeInfo.ContainerRuntimeVersion,
 		Architecture:            status.NodeInfo.Architecture,
-	}
-	n.Unschedulable = k8sNode.Spec.Unschedulable
-	if n.Unschedulable {
-		n.Status = "unschedulable"
-	} else {
-		n.Status = "running"
 	}
 }
 
@@ -172,6 +179,7 @@ func (n *HostNode) Decode(data []byte) error {
 	return nil
 }
 
+//NodeList node list
 type NodeList []*HostNode
 
 func (list NodeList) Len() int {
@@ -179,11 +187,7 @@ func (list NodeList) Len() int {
 }
 
 func (list NodeList) Less(i, j int) bool {
-	if list[i].InternalIP < list[j].InternalIP {
-		return true
-	} else {
-		return false
-	}
+	return list[i].InternalIP < list[j].InternalIP
 }
 
 func (list NodeList) Swap(i, j int) {
@@ -233,9 +237,6 @@ func (n *HostNode) UpdataK8sCondition(conditions []v1.NodeCondition) {
 
 //DeleteCondition DeleteCondition
 func (n *HostNode) DeleteCondition(types ...NodeConditionType) {
-	if n.NodeStatus == nil {
-		return
-	}
 	for _, t := range types {
 		for i, c := range n.NodeStatus.Conditions {
 			if c.Type.Compare(t) {
@@ -282,11 +283,18 @@ func (n *HostNode) UpdateReadyStatus() {
 	n.NodeStatus.Conditions = append(n.NodeStatus.Conditions, ready)
 }
 
+//GetCondition get condition
+func (n *HostNode) GetCondition(ctype NodeConditionType) *NodeCondition {
+	for _, con := range n.NodeStatus.Conditions {
+		if con.Type.Compare(ctype) {
+			return &con
+		}
+	}
+	return nil
+}
+
 //UpdataCondition 更新状态
 func (n *HostNode) UpdataCondition(conditions ...NodeCondition) {
-	if n.NodeStatus == nil {
-		n.NodeStatus = &NodeStatus{}
-	}
 	for _, newcon := range conditions {
 		if newcon.Type == "" {
 			continue
@@ -308,20 +316,6 @@ func (n *HostNode) UpdataCondition(conditions ...NodeCondition) {
 	}
 }
 
-//GetK8sReady get kubernetes node is ready
-func GetK8sReady(conditions []v1.NodeCondition) bool {
-	for _, con := range conditions {
-		if NodeConditionType(con.Type) == "Ready" {
-			if con.Status == "True" {
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	return false
-}
-
 //HostRule 节点角色
 type HostRule []string
 
@@ -335,7 +329,7 @@ var ManageNode = "manage"
 var StorageNode = "storage"
 
 //LBNode 边缘负载均衡节点
-var LBNode = "lb"
+var LBNode = "loadbalance"
 
 //HasRule 是否具有什么角色
 func (h HostRule) HasRule(rule string) bool {
@@ -407,49 +401,23 @@ type NodeCondition struct {
 	Message string `json:"message,omitempty"`
 }
 
-// ClusterNode 集群节点实体
-type ClusterNode struct {
-	PID       string    `json:"pid"` // 进程 pid
-	Version   string    `json:"version"`
-	UpTime    time.Time `json:"up"`        // 启动时间
-	DownTime  time.Time `json:"down"`      // 上次关闭时间
-	Alived    bool      `json:"alived"`    // 是否可用
-	Connected bool      `json:"connected"` // 当 Alived 为 true 时有效，表示心跳是否正常
-}
-
 //String string
-func (h *HostNode) String() string {
-	res, _ := ffjson.Marshal(h)
+func (n *HostNode) String() string {
+	res, _ := ffjson.Marshal(n)
 	return string(res)
 }
 
-//Put 节点上线更新
-func (h *HostNode) Put(opts ...client.OpOption) (*client.PutResponse, error) {
-	return store.DefalutClient.Put(conf.Config.OnlineNodePath+"/"+h.ID, h.PID, opts...)
+//Update update node info
+func (n *HostNode) Update() (*client.PutResponse, error) {
+	return store.DefalutClient.Put(conf.Config.NodePath+"/"+n.ID, n.String())
 }
 
-//Update 更新节点信息，由节点启动时调用
-func (h *HostNode) Update() (*client.PutResponse, error) {
-	return store.DefalutClient.Put(conf.Config.NodePath+"/"+h.ID, h.String())
+//DeleteNode delete node
+func (n *HostNode) DeleteNode() (*client.DeleteResponse, error) {
+	return store.DefalutClient.Delete(conf.Config.NodePath + "/" + n.ID)
 }
 
-//DeleteNode 删除节点
-func (h *HostNode) DeleteNode() (*client.DeleteResponse, error) {
-	return store.DefalutClient.Delete(conf.Config.NodePath + "/" + h.ID)
-}
-
-//Del 删除
-func (h *HostNode) Del() (*client.DeleteResponse, error) {
-	return store.DefalutClient.Delete(conf.Config.OnlineNodePath + h.ID)
-}
-
-//GetNodes 获取节点
-func GetNodes() (nodes []*HostNode, err error) {
-	return nil, nil
-}
-
-// Down 节点下线
-func (h *HostNode) Down() {
-	h.Alived, h.DownTime = false, time.Now()
-	h.Update()
+// Down node down
+func (n *HostNode) Down() error {
+	return nil
 }

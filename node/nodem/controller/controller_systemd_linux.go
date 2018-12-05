@@ -193,18 +193,23 @@ func (m *ControllerSystemd) run(args ...string) error {
 //InitStart init start. will start some required service
 func (m *ControllerSystemd) InitStart(services []*service.Service) error {
 	for _, s := range services {
-		if s.IsInitStart {
+		if s.IsInitStart && !s.Disable {
 			fileName := fmt.Sprintf("/etc/systemd/system/%s.service", s.Name)
-			content := ToConfig(s)
-			if content == "" {
-				err := fmt.Errorf("can not generate config for service %s", s.Name)
-				fmt.Println(err)
-				return err
-			}
-			content = m.manager.InjectConfig(content)
-			if err := ioutil.WriteFile(fileName, []byte(content), 0644); err != nil {
-				fmt.Printf("Generate config file %s: %v", fileName, err)
-				return err
+			//init start can not read cluster endpoint.
+			//so do not change the configuration file as much as possible
+			if !os.IsExist(fileName) {
+				content := ToConfig(s)
+				if content == "" {
+					err := fmt.Errorf("can not generate config for service %s", s.Name)
+					fmt.Println(err)
+					return err
+				}
+				//init service start before etcd ready. so it can not set
+				//content = m.manager.InjectConfig(content)
+				if err := ioutil.WriteFile(fileName, []byte(content), 0644); err != nil {
+					fmt.Printf("Generate config file %s: %v", fileName, err)
+					return err
+				}
 			}
 			if err := m.run("start", s.Name); err != nil {
 				return fmt.Errorf("systemctl start %s error:%s", s.Name, err.Error())

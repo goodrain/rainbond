@@ -3,7 +3,6 @@ VERSION=master
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 BASE_DOCKER=./hack/contrib/docker
-BIN_PATH=./_output/${GOOS}/${VERSION}
 
 default: help
 all: image ## build linux binaries, build images for docker
@@ -21,6 +20,12 @@ ifeq ($(origin STATIC), undefined)
 else
   STATIC = true  
 endif
+
+ifeq ($(origin GOOS), undefined)
+  GOOS = $(shell go env GOOS)
+endif
+
+BIN_PATH=./_output/${GOOS}/${VERSION}
 
 ifeq ($(origin PUSH), undefined)
   PUSH = false
@@ -63,16 +68,8 @@ else ifeq ($(WHAT),eventlog)
 	 --message.dockerlog.handle.core.number=2 \
 	 --message.garbage.file="/tmp/garbage.log" \
 	 --docker.log.homepath="/Users/qingguo/tmp"
-else ifeq ($(WHAT),node)
-	${BIN_PATH}/${BASE_NAME}-node \
-	 --run-mode=master --kube-conf=`pwd`/test/admin.kubeconfig \
-	 --nodeid-file=`pwd`/test/host_id.conf \
-	 --static-task-path=`pwd`/test/tasks \
-	 --service-list-file=`pwd`/test/master.yaml \
-	 --statsd.mapping-config=`pwd`/test/mapper.yml \
-	 --log-level=info
 else
-	test/run/run_${WHAT}.sh
+	test/run/run_${WHAT}.sh ${BIN_PATH}/${BASE_NAME}-$(WHAT)
 endif	
 
 doc:  

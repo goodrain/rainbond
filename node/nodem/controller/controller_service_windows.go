@@ -46,8 +46,8 @@ type windowsServiceController struct {
 
 func (w *windowsServiceController) InitStart(services []*service.Service) error {
 	for _, s := range services {
-		if s.IsInitStart {
-			if err := w.WriteConfig(s); err != nil {
+		if s.IsInitStart && !s.Disable {
+			if err := w.writeConfig(s, false); err != nil {
 				return err
 			}
 			if err := w.StartService(s.Name); err != nil {
@@ -95,12 +95,24 @@ func (w *windowsServiceController) RestartService(serviceName string) error {
 	return nil
 }
 func (w *windowsServiceController) WriteConfig(s *service.Service) error {
-	cmds := strings.Split(s.Start, " ")
+	return w.writeConfig(s, true)
+}
+func (w *windowsServiceController) writeConfig(s *service.Service, parseAndCoverOld bool) error {
+	cmdstr := s.Start
+	if parseAndCoverOld {
+		cmdstr = w.manager.InjectConfig(s.Start)
+	}
+	cmds := strings.Split(cmdstr, " ")
 	logrus.Debugf("write service %s config args %s", s.Name, cmds)
 	if err := windows.RegisterService(s.Name, cmds[0], "Rainbond "+s.Name, s.Requires, cmds); err != nil {
 		if strings.Contains(err.Error(), "already exists") {
-			w.RemoveConfig(s.Name)
-			err = windows.RegisterService(s.Name, cmds[0], "Rainbond "+s.Name, s.Requires, cmds)
+			if parseAndCoverOld {
+				w.RemoveConfig(s.Name)
+				err = windows.RegisterService(s.Name, cmds[0], "Rainbond "+s.Name, s.Requires, cmds)
+			} else {
+				logrus.Infof("windows service controller register service %s success(exist)", s.Name)
+				return nil
+			}
 		}
 		if err != nil {
 			logrus.Errorf("windows service controller register service %s failure %s", s.Name, err.Error())

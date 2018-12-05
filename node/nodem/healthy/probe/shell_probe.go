@@ -29,7 +29,6 @@ func (h *ShellProbe) Stop() {
 	h.Cancel()
 }
 func (h *ShellProbe) ShellCheck() {
-	errNum := 1
 	timer := time.NewTimer(time.Second * time.Duration(h.TimeInterval))
 	defer timer.Stop()
 	for {
@@ -40,36 +39,6 @@ func (h *ShellProbe) ShellCheck() {
 			Info:   HealthMap["info"],
 		}
 		h.ResultsChan <- result
-		if HealthMap["status"] != service.Stat_healthy {
-			if errNum > h.MaxErrorsNum {
-				v := client.NodeCondition{
-					Type:               client.NodeConditionType(h.Name),
-					Status:             client.ConditionFalse,
-					LastHeartbeatTime:  time.Now(),
-					LastTransitionTime: time.Now(),
-					Message:            result.Info,
-				}
-				h.HostNode.UpdataCondition(v)
-			} else {
-				v := client.NodeCondition{
-					Type:               client.NodeConditionType(h.Name),
-					Status:             client.ConditionTrue,
-					LastHeartbeatTime:  time.Now(),
-					LastTransitionTime: time.Now(),
-				}
-				h.HostNode.UpdataCondition(v)
-			}
-			errNum += 1
-		} else {
-			v := client.NodeCondition{
-				Type:               client.NodeConditionType(h.Name),
-				Status:             client.ConditionTrue,
-				LastHeartbeatTime:  time.Now(),
-				LastTransitionTime: time.Now(),
-			}
-			h.HostNode.UpdataCondition(v)
-			errNum = 1
-		}
 		timer.Reset(time.Second * time.Duration(h.TimeInterval))
 		select {
 		case <-h.Ctx.Done():

@@ -87,44 +87,23 @@ func AddNode(w http.ResponseWriter, r *http.Request) {
 //GetNodes 获取全部节点
 func GetNodes(w http.ResponseWriter, r *http.Request) {
 	searchNodeList := make([]client.HostNode, 0)
-	nodeList := make([]client.HostNode, 0)
-	var node1 client.HostNode
 	searchKey := r.FormValue("search_key")
-	logrus.Info("search_key:", searchKey)
 	nodes, err := nodeService.GetAllNode()
-	for _, node := range nodes {
-		node1.HostName = node.HostName
-		node1.Status = node.Status
-		node1.NodeHealth = node.NodeHealth
-		node1.ExternalIP = node.ExternalIP
-		node1.InternalIP = node.InternalIP
-		node1.Unschedulable = node.Unschedulable
-		node1.ID = node.ID
-		node1.Mode = node.Mode
-		node1.Role = node.Role
-		node1.Labels = node.Labels
-		node1.RootPass = node.RootPass
-		node1.KeyPath = node.KeyPath
-		node1.ClusterNode = node.ClusterNode
-		node1.AvailableMemory = node.AvailableMemory
-		node1.AvailableCPU = node.AvailableCPU
-		node1.CreateTime = node.CreateTime
-		nodeList = append(nodeList, node1)
-	}
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	if searchKey != "" {
-		for _, node := range nodeList {
+	for _, node := range nodes {
+		node.NodeStatus.Conditions = nil
+		if searchKey != "" {
 			if strings.Contains(node.HostName, searchKey) || strings.Contains(node.InternalIP, searchKey) || strings.Contains(node.ExternalIP, searchKey) {
-				searchNodeList = append(searchNodeList, node)
+				searchNodeList = append(searchNodeList, *node)
 			}
+		} else {
+			searchNodeList = append(searchNodeList, *node)
 		}
-		httputil.ReturnSuccess(r, w, searchNodeList)
-		return
 	}
-	httputil.ReturnSuccess(r, w, nodeList)
+	httputil.ReturnSuccess(r, w, searchNodeList)
 }
 
 //GetNode 获取一个节点详情
