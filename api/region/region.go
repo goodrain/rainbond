@@ -308,6 +308,9 @@ func (r *regionImpl) DoRequest(path, method string, body io.Reader, decode *util
 		if err := json.NewDecoder(res.Body).Decode(decode); err != nil {
 			return res.StatusCode, err
 		}
+		if res.StatusCode >= 300 {
+			return res.StatusCode, errors.New(decode.Msg)
+		}
 	}
 	return res.StatusCode, err
 }

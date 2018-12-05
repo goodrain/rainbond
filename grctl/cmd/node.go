@@ -39,10 +39,12 @@ import (
 
 func handleErr(err *util.APIHandleError) {
 	if err != nil && err.Err != nil {
-		fmt.Printf("%v\n", err.String())
+		fmt.Printf("Code %d, Msg:%v\n", err.Code, err.String())
 		os.Exit(1)
 	}
 }
+
+//NewCmdShow show
 func NewCmdShow() cli.Command {
 	c := cli.Command{
 		Name:  "show",
@@ -210,11 +212,6 @@ func NewCmdNode() cli.Command {
 					table.AddRow("mode", v.Mode)
 					table.AddRow("available_memory", v.AvailableMemory)
 					table.AddRow("available_cpu", v.AvailableCPU)
-					labeltable := uitable.New()
-					for k, v := range v.Labels {
-						labeltable.AddRow(k, v)
-					}
-					table.AddRow("labels", labeltable)
 					table.AddRow("status", v.Status)
 					table.AddRow("health", v.NodeStatus.NodeHealth)
 					table.AddRow("schedulable(set)", !v.Unschedulable)
@@ -225,7 +222,11 @@ func NewCmdNode() cli.Command {
 					table.AddRow("up", v.NodeStatus.NodeUpdateTime)
 					table.AddRow("last_down_time", v.NodeStatus.LastDownTime)
 					fmt.Println(table)
-
+					fmt.Printf("-------------------Node Labels-----------------------\n")
+					labeltable := uitable.New()
+					for k, v := range v.Labels {
+						labeltable.AddRow(k, v)
+					}
 					fmt.Printf("-------------------Service health-----------------------\n")
 					serviceTable := termtables.CreateTable()
 					serviceTable.AddHeaders("Condition", "Result", "Message")

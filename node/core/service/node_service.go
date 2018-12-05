@@ -166,12 +166,9 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 	if node == nil {
 		return utils.CreateAPIHandleError(404, fmt.Errorf("node is not found"))
 	}
-	if node.Status != "stop" {
-		return utils.CreateAPIHandleError(400, fmt.Errorf("node is online, can not delete"))
-	}
 	// TODO:compute node check node is offline
 	if node.Status != Offline && node.Status != Unknown && node.Status != NotInstalled && node.Status != InstallFailed && node.Status != InstallSuccess && node.Status != Installing {
-		return utils.CreateAPIHandleError(401, fmt.Errorf("node is not offline"))
+		return utils.CreateAPIHandleError(401, fmt.Errorf("node is not offline, you must closed node service in node %s", nodeID))
 	}
 	n.nodecluster.RemoveNode(node.ID)
 	_, err := node.DeleteNode()

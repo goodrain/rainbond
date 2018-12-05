@@ -78,7 +78,7 @@ type HostNode struct {
 	AvailableCPU    int64             `json:"available_cpu"`
 	Mode            string            `json:"mode"`
 	Role            HostRule          `json:"role"`          //compute, manage, storage,loadbalance
-	Status          string            `json:"status"`        //节点状态 create,init,running,stop,delete
+	Status          string            `json:"status"`        //node status is: running, unknow
 	Labels          map[string]string `json:"labels"`        //节点标签 内置标签+用户自定义标签
 	Unschedulable   bool              `json:"unschedulable"` //设置值
 	NodeStatus      NodeStatus        `json:"node_status"`
