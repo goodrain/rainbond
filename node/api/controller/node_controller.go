@@ -37,8 +37,6 @@ import (
 	"io/ioutil"
 	"strconv"
 
-	"time"
-
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -488,52 +486,40 @@ func outJSONWithCode(w http.ResponseWriter, httpCode int, data interface{}) {
 	fmt.Fprint(w, s)
 }
 
+//GetAllNodeHealth get all node health
 func GetAllNodeHealth(w http.ResponseWriter, r *http.Request) {
 	nodes, err := nodeService.GetAllNode()
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	for _, node := range nodes {
-		for _, condiction := range node.NodeStatus.Conditions {
-
-			if condiction.Type == "OutOfDisk" || condiction.Type == "MemoryPressure" || condiction.Type == "DiskPressure" {
-				if condiction.Status == "False" {
-					continue
-				} else {
-					message := getKubeletMessage(node)
-					r := client.NodeCondition{
-						Type:               "kubelet",
-						Status:             client.ConditionFalse,
-						LastHeartbeatTime:  time.Now(),
-						LastTransitionTime: time.Now(),
-						Message:            message + "/" + condiction.Message,
-					}
-					node.UpdataCondition(r)
-				}
-			}
-		}
-		node.DeleteCondition("OutOfDisk", "MemoryPressure", "DiskPressure")
-
-	}
-
 	StatusMap := make(map[string][]map[string]string, 30)
 	roleList := make([]map[string]string, 0, 10)
-
 	for _, n := range nodes {
 		for _, v := range n.NodeStatus.Conditions {
 			status, ok := StatusMap[string(v.Type)]
 			if !ok {
-				StatusMap[string(v.Type)] = []map[string]string{map[string]string{"type": string(v.Type), "status": string(v.Status), "message": string(v.Message), "hostname": n.HostName}}
+				StatusMap[string(v.Type)] = []map[string]string{
+					map[string]string{
+						"type":     string(v.Type),
+						"status":   string(v.Status),
+						"message":  string(v.Message),
+						"hostname": n.HostName,
+					},
+				}
 			} else {
 				list := status
-				list = append(list, map[string]string{"type": string(v.Type), "status": string(v.Status), "message": string(v.Message), "hostname": n.HostName})
+				list = append(list, map[string]string{
+					"type":     string(v.Type),
+					"status":   string(v.Status),
+					"message":  string(v.Message),
+					"hostname": n.HostName,
+				},
+				)
 				StatusMap[string(v.Type)] = list
 			}
-
 		}
 		roleList = append(roleList, map[string]string{"role": n.Role.String(), "status": n.NodeStatus.Status})
-
 	}
 	StatusMap["Role"] = roleList
 	httputil.ReturnSuccess(r, w, StatusMap)

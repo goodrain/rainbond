@@ -58,8 +58,6 @@ func getClusterInfo(c *cli.Context) error {
 	fmt.Println(table)
 
 	//show services health status
-	list, err := clients.RegionClient.Nodes().List()
-	handleErr(err)
 	allNodeHealth, err := clients.RegionClient.Nodes().GetAllNodeHealth()
 	handleErr(err)
 	serviceTable2 := termtables.CreateTable()
@@ -78,6 +76,8 @@ func getClusterInfo(c *cli.Context) error {
 	//show node detail
 	serviceTable := termtables.CreateTable()
 	serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status")
+	list, err := clients.RegionClient.Nodes().List()
+	handleErr(err)
 	var rest []*client.HostNode
 	for _, v := range list {
 		if v.Role.HasRule("manage") || !v.Role.HasRule("compute") {
@@ -126,14 +126,14 @@ func summaryResult(list []map[string]string) (status string, errMessage string) 
 	for _, v := range list {
 		if v["type"] == "OutOfDisk" || v["type"] == "DiskPressure" || v["type"] == "MemoryPressure" || v["type"] == "InstallNotReady" {
 			if v["status"] == "False" {
-				upNum += 1
+				upNum++
 			} else {
 				err = ""
 				err = err + v["hostname"] + ":" + v["message"] + "/"
 			}
 		} else {
 			if v["status"] == "True" {
-				upNum += 1
+				upNum++
 			} else {
 				err = ""
 				err = err + v["hostname"] + ":" + v["message"] + "/"
@@ -145,7 +145,6 @@ func summaryResult(list []map[string]string) (status string, errMessage string) 
 	} else {
 		status = "\033[0;31;31m " + strconv.Itoa(upNum) + "/" + strconv.Itoa(len(list)) + " \033[0m"
 	}
-
 	errMessage = err
 	return
 }

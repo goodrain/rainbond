@@ -39,6 +39,11 @@ func Run() error {
 			Value: "",
 			Usage: "default <USER_HOME>/.rbd/grctl.yaml",
 		},
+		cli.StringFlag{
+			Name:  "kubeconfig, kube",
+			Value: "",
+			Usage: "default <USER_HOME>/.kube/config",
+		},
 	}
 	sort.Sort(cli.FlagsByName(App.Flags))
 	sort.Sort(cli.CommandsByName(App.Commands))
