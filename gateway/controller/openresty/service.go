@@ -27,23 +27,21 @@ import (
 
 // OrService handles the business logic of OpenrestyService
 type OrService struct {
-	AuxiliaryPort  int
 	IsShuttingDown *bool
 
 	// stopLock is used to enforce that only a single call to Stop send at
 	// a given time. We allow stopping through an HTTP endpoint and
 	// allowing concurrent stoppers leads to stack traces.
 	stopLock      *sync.Mutex
-	config        *option.Config
+	ocfg          *option.Config
 	nginxProgress *os.Process
 }
 
 //CreateOpenrestyService create openresty service
 func CreateOpenrestyService(config *option.Config, isShuttingDown *bool) *OrService {
 	gws := &OrService{
-		AuxiliaryPort:  config.ListenPorts.AuxiliaryPort,
 		IsShuttingDown: isShuttingDown,
-		config:         config,
+		ocfg:           config,
 	}
 	return gws
 }
@@ -73,13 +71,13 @@ func (osvc *OrService) Start(errCh chan error) {
 		os.RemoveAll(defaultNginxConf)
 	}
 	// generate default nginx.conf
-	nginx := model.NewNginx(*osvc.config)
-	nginx.HTTP = model.NewHTTP(osvc.config)
+	nginx := model.NewNginx(*osvc.ocfg)
+	nginx.HTTP = model.NewHTTP(osvc.ocfg)
 	if err := template.NewNginxTemplate(nginx, defaultNginxConf); err != nil {
-		errCh <- fmt.Errorf("Can't not new nginx config: %s", err.Error())
+		errCh <- fmt.Errorf("Can't not new nginx ocfg: %s", err.Error())
 		return
 	}
-	if osvc.config.EnableRbdEndpoints {
+	if osvc.ocfg.EnableRbdEndpoints {
 		if err := osvc.newRbdServers(); err != nil {
 			errCh <- err // TODO: consider if it is right
 		}
@@ -113,7 +111,7 @@ func (osvc *OrService) Stop() error {
 	return nil
 }
 
-// PersistConfig persists config
+// PersistConfig persists ocfg
 func (osvc *OrService) PersistConfig(conf *v1.Config) error {
 
 	if err := osvc.persistUpstreams(conf.TCPPools, "upstreams-tcp.tmpl", template.CustomConfigPath, "stream/upstreams.conf"); err != nil {
@@ -125,7 +123,7 @@ func (osvc *OrService) PersistConfig(conf *v1.Config) error {
 	if len(l7srv) > 0 {
 		filename := "http/servers.conf"
 		if err := template.NewServerTemplate(l7srv, filename); err != nil {
-			logrus.Errorf("Fail to new nginx Server config file: %v", err)
+			logrus.Errorf("Fail to new nginx Server ocfg file: %v", err)
 			return err
 		}
 	}
@@ -175,7 +173,7 @@ func (osvc *OrService) persistUpstreams(pools []*v1.Pool, tmpl string, path stri
 	}
 	if len(upstreams) > 0 {
 		if err := template.NewUpstreamTemplateWithCfgPath(upstreams, tmpl, path, filename); err != nil {
-			logrus.Errorf("Fail to new nginx Upstream config file: %v", err)
+			logrus.Errorf("Fail to new nginx Upstream ocfg file: %v", err)
 			return err
 		}
 	}
@@ -227,8 +225,8 @@ func (osvc *OrService) UpdatePools(pools []*v1.Pool) error {
 }
 
 // updateUpstreams updates the upstreams in ngx.shared.dict by post
-func (osvc *OrService) updateBackends(backends []*model.Backend) error {
-	url := fmt.Sprintf("http://127.0.0.1:%v/config/backends", osvc.AuxiliaryPort)
+func (o *OrService) updateBackends(backends []*model.Backend) error {
+	url := fmt.Sprintf("http://127.0.0.1:%v/config/backends", o.ocfg.ListenPorts.Status)
 	if err := post(url, backends); err != nil {
 		return err
 	}
@@ -261,8 +259,8 @@ func post(url string, data interface{}) error {
 }
 
 // WaitPluginReady waits for nginx to be ready.
-func (osvc *OrService) WaitPluginReady() {
-	url := fmt.Sprintf("http://127.0.0.1:%v/healthz", osvc.AuxiliaryPort)
+func (o *OrService) WaitPluginReady() {
+	url := fmt.Sprintf("http://127.0.0.1:%v/%s", o.ocfg.ListenPorts.Status, o.ocfg.HealthPath)
 	for {
 		resp, err := http.Get(url)
 		if err == nil && resp.StatusCode == 200 {
@@ -289,9 +287,9 @@ func (osvc *OrService) newRbdServers() error {
 		return err
 	}
 
-	lesrv, _ := langGoodrainMe(osvc.config.RBDServerInIP)
-	mesrv, _ := mavenGoodrainMe(osvc.config.RBDServerInIP)
-	gesrv, _ := goodrainMe(cfgPath, osvc.config.RBDServerInIP)
+	lesrv, _ := langGoodrainMe(osvc.ocfg.RBDServerInIP)
+	mesrv, _ := mavenGoodrainMe(osvc.ocfg.RBDServerInIP)
+	gesrv, _ := goodrainMe(cfgPath, osvc.ocfg.RBDServerInIP)
 	if err := template.NewServerTemplateWithCfgPath([]*model.Server{
 		lesrv,
 		mesrv,

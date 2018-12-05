@@ -16,35 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package openresty
+package controller
 
 import (
-	"os"
-	"os/exec"
-	"path"
-
-	"github.com/goodrain/rainbond/gateway/controller/openresty/template"
+	"net/http"
 )
 
-var (
-	nginxBinary      = "nginx"
-	defaultNginxConf = "/run/nginx/conf/nginx.conf"
-)
-
-func init() {
-	nginxBinary = path.Join(os.Getenv("OPENRESTY_HOME"), "/nginx/sbin/nginx")
-	ngx := os.Getenv("NGINX_BINARY")
-	if ngx != "" {
-		nginxBinary = ngx
-	}
-	customConfig := os.Getenv("NGINX_CUSTOM_CONFIG")
-	if customConfig != "" {
-		template.CustomConfigPath = customConfig
-	}
+// Name returns the healthcheck name
+func (g GWController) Name() string {
+	return "gateway-controller"
 }
-func nginxExecCommand(args ...string) *exec.Cmd {
-	var cmdArgs []string
-	cmdArgs = append(cmdArgs, "-c", defaultNginxConf)
-	cmdArgs = append(cmdArgs, args...)
-	return exec.Command(nginxBinary, cmdArgs...)
+
+// Check returns if the nginx healthz endpoint is returning ok (status code 200)
+func (g *GWController) Check(_ *http.Request) error {
+	return g.GWS.Check()
 }
