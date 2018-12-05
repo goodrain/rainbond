@@ -237,6 +237,7 @@ func NewCmdNode() cli.Command {
 					for k, v := range v.Labels {
 						labeltable.AddRow(k, v)
 					}
+					fmt.Println(labeltable)
 					fmt.Printf("-------------------Service health-----------------------\n")
 					serviceTable := termtables.CreateTable()
 					serviceTable.AddHeaders("Condition", "Result", "Message")

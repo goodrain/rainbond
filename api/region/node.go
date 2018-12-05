@@ -174,7 +174,7 @@ func (nl *nodeLabelImpl) Add(k, v string) *util.APIHandleError {
 	var decode map[string]string
 	var res utilhttp.ResponseBody
 	res.Bean = &decode
-	code, err := nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/label", "GET", nil, &res)
+	code, err := nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/labels", "GET", nil, &res)
 	if err != nil || code != 200 {
 		return util.CreateAPIHandleError(code, err)
 	}
@@ -183,7 +183,7 @@ func (nl *nodeLabelImpl) Add(k, v string) *util.APIHandleError {
 	if err != nil {
 		return util.CreateAPIHandleError(400, err)
 	}
-	code, err = nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/label", "PUT", bytes.NewBuffer(body), &res)
+	code, err = nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/labels", "PUT", bytes.NewBuffer(body), &res)
 	if err != nil || code != 200 {
 		return util.CreateAPIHandleError(code, err)
 	}
