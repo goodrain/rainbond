@@ -292,6 +292,17 @@ func PutLabel(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+//GetLabel get node label
+func GetLabel(w http.ResponseWriter, r *http.Request) {
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	node, err := nodeService.GetNode(nodeUID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, node.Labels)
+}
+
 //DownNode 节点下线，计算节点操作
 func DownNode(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))

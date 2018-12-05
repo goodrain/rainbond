@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/node/api/model"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/pquerna/ffjson/ffjson"
+
 	//"github.com/goodrain/rainbond/grctl/cmd"
 
 	"github.com/goodrain/rainbond/api/util"
@@ -110,7 +111,7 @@ func (n *node) GetAllNodeHealth() (map[string][]map[string]string, *util.APIHand
 	var res utilhttp.ResponseBody
 	var gc map[string][]map[string]string
 	res.Bean = &gc
-	code, err := n.DoRequest(n.prefix + "/all_node_health", "GET", nil, &res)
+	code, err := n.DoRequest(n.prefix+"/all_node_health", "GET", nil, &res)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
 	}
@@ -119,7 +120,6 @@ func (n *node) GetAllNodeHealth() (map[string][]map[string]string, *util.APIHand
 	}
 	return gc, nil
 }
-
 
 func (n *node) Add(node *client.APIHostNode) *util.APIHandleError {
 	body, err := json.Marshal(node)
@@ -132,13 +132,59 @@ func (n *node) Add(node *client.APIHostNode) *util.APIHandleError {
 	}
 	return nil
 }
-func (n *node) Label(nid string, label map[string]string) *util.APIHandleError {
-	body, err := json.Marshal(label)
+func (n *node) Label(nid string) NodeLabelInterface {
+	return &nodeLabelImpl{nodeImpl: n, NodeID: nid}
+}
+
+type nodeLabelImpl struct {
+	nodeImpl *node
+	NodeID   string
+}
+
+func (nl *nodeLabelImpl) List() (map[string]string, *util.APIHandleError) {
+	var decode map[string]string
+	var res utilhttp.ResponseBody
+	res.Bean = &decode
+	code, err := nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/labels", "GET", nil, &res)
+	if err != nil || code != 200 {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	return decode, nil
+}
+func (nl *nodeLabelImpl) Delete(k string) *util.APIHandleError {
+	var decode map[string]string
+	var res utilhttp.ResponseBody
+	res.Bean = &decode
+	code, err := nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/labels", "GET", nil, &res)
+	if err != nil || code != 200 {
+		return util.CreateAPIHandleError(code, err)
+	}
+	delete(decode, k)
+	body, err := json.Marshal(decode)
 	if err != nil {
 		return util.CreateAPIHandleError(400, err)
 	}
-	code, err := n.DoRequest(n.prefix+"/"+nid+"/labels", "PUT", bytes.NewBuffer(body), nil)
+	code, err = nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/labels", "PUT", bytes.NewBuffer(body), &res)
+	if err != nil || code != 200 {
+		return util.CreateAPIHandleError(code, err)
+	}
+	return nil
+}
+func (nl *nodeLabelImpl) Add(k, v string) *util.APIHandleError {
+	var decode map[string]string
+	var res utilhttp.ResponseBody
+	res.Bean = &decode
+	code, err := nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/label", "GET", nil, &res)
+	if err != nil || code != 200 {
+		return util.CreateAPIHandleError(code, err)
+	}
+	decode[k] = v
+	body, err := json.Marshal(decode)
 	if err != nil {
+		return util.CreateAPIHandleError(400, err)
+	}
+	code, err = nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/label", "PUT", bytes.NewBuffer(body), &res)
+	if err != nil || code != 200 {
 		return util.CreateAPIHandleError(code, err)
 	}
 	return nil
@@ -243,7 +289,14 @@ type NodeInterface interface {
 	UnSchedulable(nid string) *util.APIHandleError
 	ReSchedulable(nid string) *util.APIHandleError
 	Delete(nid string) *util.APIHandleError
-	Label(nid string, label map[string]string) *util.APIHandleError
+	Label(nid string) NodeLabelInterface
+}
+
+//NodeLabelInterface node label interface
+type NodeLabelInterface interface {
+	Add(k, v string) *util.APIHandleError
+	Delete(k string) *util.APIHandleError
+	List() (map[string]string, *util.APIHandleError)
 }
 
 //ConfigsInterface 数据中心配置API

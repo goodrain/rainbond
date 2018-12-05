@@ -81,6 +81,7 @@ func Routers(mode string) *chi.Mux {
 				r.Put("/{node_id}/unschedulable", controller.Cordon)
 				r.Put("/{node_id}/reschedulable", controller.UnCordon)
 				r.Put("/{node_id}/labels", controller.PutLabel)
+				r.Get("/{node_id}/labels", controller.GetLabel)
 				r.Post("/{node_id}/down", controller.DownNode)     //节点下线
 				r.Post("/{node_id}/up", controller.UpNode)         //节点上线
 				r.Get("/{node_id}/instance", controller.Instances) //节点实例列表

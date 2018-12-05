@@ -121,11 +121,11 @@ func getStatusShow(v *client.HostNode) (status string) {
 		status: v.Status,
 		color:  color.FgGreen,
 	}
-	if v.Unschedulable && v.Role.HasRule("compute") {
+	if v.Role.HasRule("compute") && v.NodeStatus.KubeNode != nil && v.NodeStatus.KubeNode.Spec.Unschedulable {
 		nss.message = append(nss.message, "unschedulable")
 		nss.color = color.FgYellow
 	}
-	if !v.NodeHealth {
+	if !v.NodeStatus.NodeHealth {
 		nss.message = append(nss.message, "unhealth")
 		nss.color = color.FgRed
 	}
@@ -200,11 +200,7 @@ func NewCmdNode() cli.Command {
 					v, err := clients.RegionClient.Nodes().Get(id)
 					handleErr(err)
 					table := uitable.New()
-					fmt.Printf("-------------------Node information-----------------------\n")
-					table.AddRow("status", v.NodeStatus.Status)
-					table.AddRow("health", v.NodeHealth)
-					table.AddRow("unschedulable", v.Unschedulable)
-					table.AddRow("alived", v.Alived)
+					fmt.Printf("-------------------Node Information-----------------------\n")
 					table.AddRow("uuid", v.ID)
 					table.AddRow("host_name", v.HostName)
 					table.AddRow("create_time", v.CreateTime)
@@ -214,18 +210,27 @@ func NewCmdNode() cli.Command {
 					table.AddRow("mode", v.Mode)
 					table.AddRow("available_memory", v.AvailableMemory)
 					table.AddRow("available_cpu", v.AvailableCPU)
-					table.AddRow("pid", v.PID)
-					table.AddRow("version", v.Version)
-					table.AddRow("up", v.UpTime)
-					table.AddRow("down", v.DownTime)
-					table.AddRow("connected", v.Connected)
+					labeltable := uitable.New()
+					for k, v := range v.Labels {
+						labeltable.AddRow(k, v)
+					}
+					table.AddRow("labels", labeltable)
+					table.AddRow("status", v.Status)
+					table.AddRow("health", v.NodeStatus.NodeHealth)
+					table.AddRow("schedulable(set)", !v.Unschedulable)
+					if v.NodeStatus.KubeNode != nil {
+						table.AddRow("schedulable(current)", !v.NodeStatus.KubeNode.Spec.Unschedulable)
+					}
+					table.AddRow("version", v.NodeStatus.Version)
+					table.AddRow("up", v.NodeStatus.NodeUpdateTime)
+					table.AddRow("last_down_time", v.NodeStatus.LastDownTime)
 					fmt.Println(table)
+
 					fmt.Printf("-------------------Service health-----------------------\n")
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("Title", "Result", "Message")
+					serviceTable.AddHeaders("Condition", "Result", "Message")
 					extractReady(serviceTable, v, "Ready")
 					handleResult(serviceTable, v)
-
 					fmt.Println(serviceTable.Render())
 					return nil
 				},
@@ -388,33 +393,82 @@ func NewCmdNode() cli.Command {
 			},
 			{
 				Name:  "label",
-				Usage: "label hostID",
-				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "key",
-						Value: "",
-						Usage: "key",
+				Usage: "handle node labels",
+				Subcommands: []cli.Command{
+					cli.Command{
+						Name:  "add",
+						Usage: "add label for the specified node",
+						Flags: []cli.Flag{
+							cli.StringFlag{
+								Name:  "key",
+								Value: "",
+								Usage: "the label key",
+							},
+							cli.StringFlag{
+								Name:  "val",
+								Value: "",
+								Usage: "the label val",
+							},
+						},
+						Action: func(c *cli.Context) error {
+							Common(c)
+							hostID := c.Args().First()
+							if hostID == "" {
+								logrus.Errorf("need hostID")
+								return nil
+							}
+							k := c.String("key")
+							v := c.String("val")
+							err := clients.RegionClient.Nodes().Label(hostID).Add(k, v)
+							handleErr(err)
+							return nil
+						},
 					},
-					cli.StringFlag{
-						Name:  "val",
-						Value: "",
-						Usage: "val",
+					cli.Command{
+						Name:  "delete",
+						Usage: "delete the label of the specified node",
+						Flags: []cli.Flag{
+							cli.StringFlag{
+								Name:  "key",
+								Value: "",
+								Usage: "the label key",
+							},
+						},
+						Action: func(c *cli.Context) error {
+							Common(c)
+							hostID := c.Args().First()
+							if hostID == "" {
+								logrus.Errorf("need hostID")
+								return nil
+							}
+							k := c.String("key")
+							err := clients.RegionClient.Nodes().Label(hostID).Delete(k)
+							handleErr(err)
+							return nil
+						},
 					},
-				},
-				Action: func(c *cli.Context) error {
-					Common(c)
-					hostID := c.Args().First()
-					if hostID == "" {
-						logrus.Errorf("need hostID")
-						return nil
-					}
-					k := c.String("key")
-					v := c.String("val")
-					label := make(map[string]string)
-					label[k] = v
-					err := clients.RegionClient.Nodes().Label(hostID, label)
-					handleErr(err)
-					return nil
+					cli.Command{
+						Name:  "list",
+						Usage: "list the label of the specified node",
+						Flags: []cli.Flag{},
+						Action: func(c *cli.Context) error {
+							Common(c)
+							hostID := c.Args().First()
+							if hostID == "" {
+								logrus.Errorf("need hostID")
+								return nil
+							}
+							labels, err := clients.RegionClient.Nodes().Label(hostID).List()
+							handleErr(err)
+							labelTable := termtables.CreateTable()
+							labelTable.AddHeaders("LableKey", "LableValue")
+							for k, v := range labels {
+								labelTable.AddRow(k, v)
+							}
+							fmt.Print(labelTable.Render())
+							return nil
+						},
+					},
 				},
 			},
 			{
@@ -501,9 +555,6 @@ func NewCmdNode() cli.Command {
 }
 
 func isNodeReady(node *client.HostNode) bool {
-	if node.NodeStatus == nil {
-		return false
-	}
 	for _, v := range node.NodeStatus.Conditions {
 		if strings.ToLower(string(v.Type)) == "ready" {
 			if strings.ToLower(string(v.Status)) == "true" {
@@ -511,6 +562,5 @@ func isNodeReady(node *client.HostNode) bool {
 			}
 		}
 	}
-
 	return false
 }

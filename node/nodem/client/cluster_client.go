@@ -179,5 +179,6 @@ func (e *etcdClusterClient) DownNode(h *HostNode) error {
 		return fmt.Errorf("get node %s failure where update node", h.ID)
 	}
 	existNode.NodeStatus.Status = "offline"
+	existNode.NodeStatus.LastDownTime = time.Now()
 	return e.Update(existNode)
 }

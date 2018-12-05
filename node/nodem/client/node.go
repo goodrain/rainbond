@@ -119,6 +119,8 @@ type NodeStatus struct {
 	NodeUpdateTime time.Time `json:"node_update_time"`
 	//master maintenance
 	KubeUpdateTime time.Time `json:"kube_update_time"`
+	//worker maintenance node progress down time
+	LastDownTime time.Time `json:"down_time"`
 	//worker and master maintenance
 	Conditions []NodeCondition `json:"conditions,omitempty"`
 	//master maintenance
@@ -415,9 +417,4 @@ func (n *HostNode) Update() (*client.PutResponse, error) {
 //DeleteNode delete node
 func (n *HostNode) DeleteNode() (*client.DeleteResponse, error) {
 	return store.DefalutClient.Delete(conf.Config.NodePath + "/" + n.ID)
-}
-
-// Down node down
-func (n *HostNode) Down() error {
-	return nil
 }
