@@ -197,7 +197,8 @@ func (m *ControllerSystemd) InitStart(services []*service.Service) error {
 			fileName := fmt.Sprintf("/etc/systemd/system/%s.service", s.Name)
 			//init start can not read cluster endpoint.
 			//so do not change the configuration file as much as possible
-			if !os.IsExist(fileName) {
+			_, err := os.Open(fileName)
+			if err != nil && os.IsNotExist(err) {
 				content := ToConfig(s)
 				if content == "" {
 					err := fmt.Errorf("can not generate config for service %s", s.Name)
