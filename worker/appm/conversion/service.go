@@ -20,15 +20,15 @@ package conversion
 
 import (
 	"fmt"
-	"github.com/prometheus/common/log"
+	"github.com/Sirupsen/logrus"
 	"strings"
 
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/jinzhu/gorm"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,7 +43,7 @@ func ServiceSource(as *v1.AppService, dbmanager db.Manager) error {
 		}
 		return fmt.Errorf("conv service source failure %s", err.Error())
 	}
-	log.Debugf("ServiceSource is %v", sscs)
+	logrus.Debugf("ServiceSource is %v", sscs)
 	for _, ssc := range sscs {
 		switch ssc.SourceType {
 		case "deployment":
