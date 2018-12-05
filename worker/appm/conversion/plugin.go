@@ -67,9 +67,12 @@ func createPluginsContainer(as *typesv1.AppService, dbmanager db.Manager) ([]v1.
 		if err != nil {
 			return nil, nil, err
 		}
-		logrus.Debugf("plugin: %v\n", pluginR)
-		logrus.Debugf("as: %v\n", as)
-		envs, err := createPluginEnvs(pluginR.PluginID, as.TenantID, as.ServiceAlias, as.GetPodTemplate().Spec.Containers[0].Env, pluginR.VersionID, as.ServiceID, dbmanager)
+		podTmpl := as.GetPodTemplate()
+		if podTmpl == nil {
+			logrus.Warnf("Can't not get pod for plugin(plugin_id=%s)", pluginR.PluginID)
+			continue
+		}
+		envs, err := createPluginEnvs(pluginR.PluginID, as.TenantID, as.ServiceAlias, podTmpl.Spec.Containers[0].Env, pluginR.VersionID, as.ServiceID, dbmanager)
 		if err != nil {
 			return nil, nil, err
 		}
