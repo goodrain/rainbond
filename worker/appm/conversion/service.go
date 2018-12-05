@@ -20,6 +20,7 @@ package conversion
 
 import (
 	"fmt"
+	"github.com/prometheus/common/log"
 	"strings"
 
 	"github.com/goodrain/rainbond/db"
@@ -42,6 +43,7 @@ func ServiceSource(as *v1.AppService, dbmanager db.Manager) error {
 		}
 		return fmt.Errorf("conv service source failure %s", err.Error())
 	}
+	log.Debugf("ServiceSource is %v", sscs)
 	for _, ssc := range sscs {
 		switch ssc.SourceType {
 		case "deployment":
