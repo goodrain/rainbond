@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -75,9 +76,12 @@ func GetHTTPHealth(address string) map[string]string {
 	c := &http.Client{
 		Timeout: 10 * time.Second,
 	}
+	if !strings.HasPrefix(address, "http") {
+		address = "http://" + address
+	}
 	addr, err := url.Parse(address)
 	if err != nil {
-		logrus.Errorf("%s is invalid", address)
+		logrus.Errorf("%s is invalid %s", address, err.Error())
 		return map[string]string{"status": service.Stat_healthy, "info": "check url is invalid"}
 	}
 	if addr.Scheme == "" {

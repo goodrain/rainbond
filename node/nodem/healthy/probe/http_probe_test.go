@@ -31,7 +31,7 @@ func TestHttpProbe_Check(t *testing.T) {
 	resultChannel := make(chan *service.HealthStatus, 10)
 	httpProbe := HttpProbe{
 		Name:         "builder",
-		Address:      "https://baidu.com/sadasd",
+		Address:      "127.0.0.1:9090/health",
 		Ctx:          ctx,
 		Cancel:       cancel,
 		ResultsChan:  resultChannel,
