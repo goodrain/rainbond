@@ -16,7 +16,7 @@ type HTTP struct {
 	ProxyBufferSize      Size
 	ProxyBuffers         Size
 	ProxyBusyBuffersSize Size
-	AuxiliaryPort        int
+	StatusPort           int
 	UpstreamsDict        Size
 }
 
@@ -33,9 +33,9 @@ type AccessLog struct {
 // NewHTTP creates a new model.HTTP
 func NewHTTP(conf *option.Config) *HTTP {
 	return &HTTP{
-		DefaultType:   "text/html",
-		SendFile:      true,
-		AuxiliaryPort: conf.ListenPorts.AuxiliaryPort,
+		DefaultType: "text/html",
+		SendFile:    true,
+		StatusPort:  conf.ListenPorts.Status,
 		KeepaliveTimeout: Time{
 			Num:  30,
 			Unit: "s",

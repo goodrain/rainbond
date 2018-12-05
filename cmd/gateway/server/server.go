@@ -21,13 +21,16 @@ package server
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/controller"
+	"k8s.io/apiserver/pkg/server/healthz"
 )
 
 //Run start run
@@ -46,6 +49,12 @@ func Run(s *option.GWServer) error {
 		return err
 	}
 	defer gwc.Close()
+
+	mux := http.NewServeMux()
+	registerHealthz(gwc, mux)
+
+	go startHTTPServer(s.ListenPorts.Health, mux)
+
 	logrus.Info("RBD app gateway start success!")
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
@@ -57,4 +66,24 @@ func Run(s *option.GWServer) error {
 	}
 	logrus.Info("See you next time!")
 	return nil
+}
+
+func registerHealthz(gc *controller.GWController, mux *http.ServeMux) {
+	// expose health check endpoint (/healthz)
+	healthz.InstallHandler(mux,
+		healthz.PingHealthz,
+		gc,
+	)
+}
+
+func startHTTPServer(port int, mux *http.ServeMux) {
+	server := &http.Server{
+		Addr:              fmt.Sprintf(":%v", port),
+		Handler:           mux,
+		ReadTimeout:       10 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+		WriteTimeout:      300 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	logrus.Fatal(server.ListenAndServe())
 }

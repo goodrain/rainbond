@@ -20,6 +20,7 @@ package option
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/goodrain/rainbond/util"
 
@@ -59,14 +60,17 @@ type Config struct {
 	RBDServerInIP     string // internal ip for raidbond server
 	RBDServerExIP     string // external ip for raidbond server
 	IP                string
+	// health check
+	HealthPath         string
+	HealthCheckTimeout time.Duration
 }
 
 // ListenPorts describe the ports required to run the gateway controller
 type ListenPorts struct {
-	HTTP          int
-	HTTPS         int
-	Status        int
-	AuxiliaryPort int
+	HTTP   int
+	HTTPS  int
+	Status int
+	Health int
 }
 
 // AddFlags adds flags
@@ -75,7 +79,7 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.K8SConfPath, "kube-conf", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig", "absolute path to the kubeconfig file")
 	fs.BoolVar(&g.EnableRbdEndpoints, "enable-rbd-endpoints", true, "switch of Rainbond endpoints")
 	fs.StringVar(&g.RbdEndpointsKey, "rbd-endpoints", "/rainbond/endpoint/", "key of Rainbond endpoints in ETCD")
-	fs.IntVar(&g.ListenPorts.AuxiliaryPort, "auxiliary-port", 10253, "port of auxiliary server")
+	fs.IntVar(&g.ListenPorts.Status, "status-port", 18080, `Port to use for exposing NGINX status pages.`)
 	fs.IntVar(&g.WorkerProcesses, "worker-processes", 0, "Default get current compute cpu core number.This number should be, at maximum, the number of CPU cores on your system.")
 	fs.IntVar(&g.WorkerConnections, "worker-connections", 4000, "Determines how many clients will be served by each worker process.")
 	fs.IntVar(&g.WorkerRlimitNofile, "worker-rlimit-nofile", 200000, "Number of file descriptors used for Nginx. This is set in the OS with 'ulimit -n 200000'")
@@ -91,6 +95,10 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	// etcd
 	fs.StringSliceVar(&g.EtcdEndPoints, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd cluster endpoints.")
 	fs.IntVar(&g.EtcdTimeout, "etcd-timeout", 5, "etcd http timeout seconds")
+	// health check
+	fs.StringVar(&g.HealthPath, "health-path", "/healthz", "absolute path to the kubeconfig file")
+	fs.DurationVar(&g.HealthCheckTimeout, "health-check-timeout", 10, `Time limit, in seconds, for a probe to health-check-path to succeed.`)
+	fs.IntVar(&g.ListenPorts.Health, "healthz-port", 10254, `Port to use for the healthz endpoint.`)
 }
 
 // SetLog sets log
