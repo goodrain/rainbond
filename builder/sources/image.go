@@ -78,6 +78,7 @@ func ImagePull(dockerCli *client.Client, image string, username, password string
 	defer cancel()
 	//TODO: 使用1.12版本api的bug “repository name must be canonical”，使用rf.String()完整的镜像地址
 	readcloser, err := dockerCli.ImagePull(ctx, rf.String(), pullipo)
+	logger.Info(fmt.Sprintf("成功获取镜像：%s", image), map[string]string{"step": "pullimage"})
 	if err != nil {
 		logrus.Debugf("image name: %s readcloser error: %v", image, err.Error())
 		if strings.HasSuffix(err.Error(), "does not exist or no pull access") {
@@ -107,13 +108,15 @@ func ImagePull(dockerCli *client.Client, image string, username, password string
 			return nil, jm.Error
 		}
 		if logger != nil {
-			logger.Debug(jm.JSONString(), map[string]string{"step": "progress"})
+			logger.Debug(fmt.Sprintf("JSONMessage: %s", jm.JSONString()), map[string]string{"step": "progress"})
 		} else {
 			fmt.Println(jm.JSONString())
 		}
 	}
+	logger.Debug("Get the image information and its raw representation", map[string]string{"step": "progress"})
 	ins, _, err := dockerCli.ImageInspectWithRaw(ctx, image)
 	if err != nil {
+		logger.Debug("Fail to get the image information and its raw representation", map[string]string{"step": "progress"})
 		return nil, err
 	}
 	return &ins, nil
