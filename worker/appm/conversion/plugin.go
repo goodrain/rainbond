@@ -20,6 +20,7 @@ package conversion
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"os"
 	"strings"
 
@@ -66,6 +67,8 @@ func createPluginsContainer(as *typesv1.AppService, dbmanager db.Manager) ([]v1.
 		if err != nil {
 			return nil, nil, err
 		}
+		logrus.Debugf("plugin: %v\n", pluginR)
+		logrus.Debugf("as: %v\n", as)
 		envs, err := createPluginEnvs(pluginR.PluginID, as.TenantID, as.ServiceAlias, as.GetPodTemplate().Spec.Containers[0].Env, pluginR.VersionID, as.ServiceID, dbmanager)
 		if err != nil {
 			return nil, nil, err
