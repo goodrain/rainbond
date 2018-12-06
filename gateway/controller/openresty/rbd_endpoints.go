@@ -115,6 +115,11 @@ func goodrainMe(cfgPath string, ip string) (*model.Server, *model.Upstream) {
 					},
 				},
 			},
+			{
+				Path:             "/monitor",
+				Return:           model.Return{Code: 200, Text: "ok"},
+				DisableProxyPass: true,
+			},
 		},
 	}
 	us := &model.Upstream{
