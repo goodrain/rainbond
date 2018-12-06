@@ -1,5 +1,5 @@
 GO_LDFLAGS=-ldflags " -w"
-VERSION=master
+VERSION=5.0
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 BASE_DOCKER=./hack/contrib/docker
