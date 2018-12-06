@@ -201,7 +201,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 			ingresses = append(ingresses, ing)
 			secret = sec
 		}
-	} else { // if there is no http rule, then create a default ingress
+	} else if port.Protocol == "http" { // if there is no http rule, then create a default ingress
 		httpRule := &model.HTTPRule{
 			UUID: fmt.Sprintf("%s%s", util.NewUUID()[0:7], "default"),
 		}
@@ -226,10 +226,12 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 			}
 			ingresses = append(ingresses, ing)
 		}
-	} else { // // if there is no tcp rule, then create a default ingress
+	} else if port.Protocol != "http" { // if there is no tcp rule, then create a default ingress
 		mappingPort, err := a.dbmanager.TenantServiceLBMappingPortDao().GetTenantServiceLBMappingPort(port.ServiceID, port.ContainerPort)
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
+				logrus.Warningf("TenantServiceLBMappingPort(ServiceID=%s, ContainerPort=%s) not found, ignore it",
+					port.ServiceID, port.ContainerPort)
 				return ingresses, secret, nil
 			}
 			return nil, nil, err
