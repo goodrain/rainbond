@@ -168,7 +168,9 @@ func (e *etcdClusterClient) RegistNode(node *HostNode) error {
 func (e *etcdClusterClient) Update(h *HostNode) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	_, err := e.conf.EtcdCli.Put(ctx, e.conf.NodePath+"/"+h.ID, h.String())
+	saveNode := *h
+	saveNode.NodeStatus.KubeNode = nil
+	_, err := e.conf.EtcdCli.Put(ctx, e.conf.NodePath+"/"+saveNode.ID, h.String())
 	return err
 }
 
