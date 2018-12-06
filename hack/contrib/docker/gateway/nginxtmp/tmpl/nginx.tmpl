@@ -107,7 +107,7 @@ http {
     }
 
     server {
-        listen 127.0.0.1:{{$h.StatusPort}};
+        listen       127.0.0.1:{{$h.StatusPort}};
 
         location /healthz {
             access_log off;
@@ -118,7 +118,7 @@ http {
             access_log off;
 
             content_by_lua_block {
-                local configuration = require("configuration")
+                local configuration = require("config")
                 local backend_data = configuration.get_backends_data()
                 if not backend_data then
                     ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
