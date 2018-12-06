@@ -18,7 +18,7 @@
 
 package disk
 
-// disk usage of path/disk
+//DiskUsage disk usage of path/disk
 func DiskUsage(path string) (disk Status) {
 	return
 }

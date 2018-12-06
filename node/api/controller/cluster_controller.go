@@ -343,7 +343,7 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 	if runtime.GOOS != "windows" {
 		diskstauts = disk.DiskUsage("/grdata")
 	} else {
-		diskstauts = disk.DiskUsage(`c:\\grdata`)
+		diskstauts = disk.DiskUsage(`z:\\`)
 	}
 	podMemRequestMB := memR / 1024 / 1024
 	result := &model.ClusterResource{
