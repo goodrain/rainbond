@@ -53,9 +53,9 @@ func (c *Config) Check() bool {
 		logrus.Errorf("run shell can not be empty")
 		return false
 	}
-	logfile, err := os.Open("c:\\windwosutil.log")
+	logfile, err := os.OpenFile(c.LogFile, os.O_CREATE|os.O_RDWR|os.O_APPEND|os.O_EXCL, 0755)
 	if err != nil {
-		logrus.Fatalf("open log file %s failure %s", "c:\\windwosutil.log", err.Error())
+		logrus.Fatalf("open log file %s failure %s", c.LogFile, err.Error())
 	}
 	logrus.SetOutput(logfile)
 	return true
