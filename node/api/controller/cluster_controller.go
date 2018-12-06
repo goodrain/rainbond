@@ -138,7 +138,6 @@ func GetNodeDetails(w http.ResponseWriter, r *http.Request) {
 	rs["CPURequestsR"] = strconv.Itoa(cpuRR)
 	rs["CPULimits"] = strconv.Itoa(cpuL)
 	rs["CPULimitsR"] = strconv.Itoa(cpuLR)
-	logrus.Infof("memoryRequest %s,memoryLimits %s", memR, memL)
 	rs["MemoryRequests"] = strconv.Itoa(memR)
 	rs["MemoryRequestsR"] = strconv.Itoa(memRR)
 	rs["MemoryLimits"] = strconv.Itoa(memL)
@@ -148,9 +147,7 @@ func GetNodeDetails(w http.ResponseWriter, r *http.Request) {
 
 }
 func convertByteToMB(a string) int {
-
 	i, _ := strconv.Atoi(a)
-	logrus.Infof("converting byte %s to mb %s", a, i/1024/1024)
 	return i / 1024 / 1024
 }
 func convertMemoryToMBInt(mem string, pod bool) (v int) {

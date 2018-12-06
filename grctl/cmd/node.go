@@ -225,7 +225,7 @@ func NewCmdNode() cli.Command {
 					table.AddRow("status", v.Status)
 					table.AddRow("health", v.NodeStatus.NodeHealth)
 					table.AddRow("schedulable(set)", !v.Unschedulable)
-					table.AddRow("schedulable(current)", !v.NodeStatus.CurrentScheduleStatus)
+					table.AddRow("schedulable(current)", v.NodeStatus.CurrentScheduleStatus)
 					table.AddRow("version", v.NodeStatus.Version)
 					table.AddRow("up", v.NodeStatus.NodeUpdateTime)
 					table.AddRow("last_down_time", v.NodeStatus.LastDownTime)
