@@ -41,10 +41,10 @@ func main() {
 	}
 	conf := option.Config{}
 	conf.AddFlags(pflag.CommandLine)
+	pflag.Parse()
 	if !conf.Check() {
 		return
 	}
-	pflag.Parse()
 	ctx, cancel := context.WithCancel(context.Background())
 	shell := strings.Split(conf.RunShell, " ")
 	cmd := exec.CommandContext(ctx, shell[0], shell[1:]...)
