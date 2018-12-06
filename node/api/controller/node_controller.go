@@ -93,7 +93,9 @@ func GetNodes(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, node := range nodes {
 		var nodevalue = *node
+		//list value need simplify
 		nodevalue.NodeStatus.Conditions = nil
+		nodevalue.NodeStatus.KubeNode = nil
 		if searchKey != "" {
 			if strings.Contains(node.HostName, searchKey) || strings.Contains(node.InternalIP, searchKey) || strings.Contains(node.ExternalIP, searchKey) {
 				searchNodeList = append(searchNodeList, nodevalue)

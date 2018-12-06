@@ -114,6 +114,8 @@ type NodeStatus struct {
 	//worker maintenance
 	Status string `json:"status"` //installed running offline unknown
 	//master maintenance
+	CurrentScheduleStatus bool `json:"current_scheduler"`
+	//master maintenance
 	NodeHealth bool `json:"node_health"`
 	//worker maintenance
 	NodeUpdateTime time.Time `json:"node_update_time"`

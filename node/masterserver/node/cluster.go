@@ -179,6 +179,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		v.UpdataCondition(r)
 		return
 	}
+	v.NodeStatus.CurrentScheduleStatus = !v.Unschedulable
 	if v.Role.HasRule("compute") {
 		k8sNode, err := n.kubecli.GetNode(v.ID)
 		if err != nil && !errors.IsNotFound(err) {
@@ -195,6 +196,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			}
 			v.NodeStatus.KubeNode = k8sNode
 			v.NodeStatus.KubeUpdateTime = time.Now()
+			v.NodeStatus.CurrentScheduleStatus = !k8sNode.Spec.Unschedulable
 		}
 	}
 	if v.Role.HasRule("manage") && !v.Role.HasRule("compute") { //manage install_success == runnint

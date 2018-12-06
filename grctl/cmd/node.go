@@ -124,7 +124,7 @@ func getStatusShow(v *client.HostNode) (status string) {
 		status: v.Status,
 		color:  color.FgGreen,
 	}
-	if v.Role.HasRule("compute") && v.NodeStatus.KubeNode != nil && v.NodeStatus.KubeNode.Spec.Unschedulable {
+	if v.Role.HasRule("compute") && !v.NodeStatus.CurrentScheduleStatus {
 		nss.message = append(nss.message, "unschedulable")
 		nss.color = color.FgYellow
 	}
@@ -225,9 +225,7 @@ func NewCmdNode() cli.Command {
 					table.AddRow("status", v.Status)
 					table.AddRow("health", v.NodeStatus.NodeHealth)
 					table.AddRow("schedulable(set)", !v.Unschedulable)
-					if v.NodeStatus.KubeNode != nil {
-						table.AddRow("schedulable(current)", !v.NodeStatus.KubeNode.Spec.Unschedulable)
-					}
+					table.AddRow("schedulable(current)", !v.NodeStatus.CurrentScheduleStatus)
 					table.AddRow("version", v.NodeStatus.Version)
 					table.AddRow("up", v.NodeStatus.NodeUpdateTime)
 					table.AddRow("last_down_time", v.NodeStatus.LastDownTime)
