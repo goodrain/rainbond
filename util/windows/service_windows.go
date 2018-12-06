@@ -207,6 +207,10 @@ func (p *winService) Execute(args []string, r <-chan svc.ChangeRequest, changes 
 	changes <- svc.Status{State: svc.StartPending}
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 	go func() {
+		defer func() {
+			changes <- svc.Status{State: svc.StopPending}
+			p.Stop()
+		}()
 		for {
 			select {
 			case c := <-r:
@@ -227,8 +231,6 @@ func (p *winService) Execute(args []string, r <-chan svc.ChangeRequest, changes 
 				}
 			}
 		}
-		changes <- svc.Status{State: svc.StopPending}
-		p.Stop()
 	}()
 	p.Start()
 	elog.Info(1, "winsvc.Execute:"+"end")

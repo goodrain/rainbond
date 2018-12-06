@@ -19,9 +19,11 @@
 package option
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/util/windows"
 	"github.com/spf13/pflag"
 )
 
@@ -34,6 +36,8 @@ type Config struct {
 	LogFile      string
 }
 
+var removeService bool
+
 //AddFlags config
 func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.RunShell, "run", "", "Specify startup command")
@@ -41,6 +45,7 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.LogFile, "log-file", "c:\\windwosutil.log", "service log outputfile")
 	fs.BoolVar(&c.RunAsService, "run-as-service", true, "run as windows service")
 	fs.BoolVar(&c.Debug, "debug", false, "debug mode run ")
+	fs.BoolVar(&removeService, "remove-service", false, "remove windows service")
 }
 
 //Check check config
@@ -58,5 +63,12 @@ func (c *Config) Check() bool {
 		logrus.Fatalf("open log file %s failure %s", c.LogFile, err.Error())
 	}
 	logrus.SetOutput(logfile)
+	if removeService {
+		if err := windows.UnRegisterService(c.ServiceName); err != nil {
+			fmt.Printf("remove service %s failure %s", c.ServiceName, err.Error())
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 	return true
 }
