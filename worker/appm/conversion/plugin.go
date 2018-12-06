@@ -67,7 +67,7 @@ func createPluginsContainer(as *typesv1.AppService, dbmanager db.Manager) ([]v1.
 		}
 		versionInfo, err := dbmanager.TenantPluginBuildVersionDao().GetLastBuildVersionByVersionID(pluginR.PluginID, pluginR.VersionID)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("do not found available plugin versions")
 		}
 		podTmpl := as.GetPodTemplate()
 		if podTmpl == nil {
@@ -93,7 +93,7 @@ func createPluginsContainer(as *typesv1.AppService, dbmanager db.Manager) ([]v1.
 		}
 		pluginModel, err := getPluginModel(pluginR.PluginID, as.TenantID, dbmanager)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("get plugin model info failure %s", err.Error())
 		}
 		if pluginModel == model.InitPlugin {
 			initContainers = append(initContainers, pc)
@@ -144,7 +144,7 @@ func createPluginArgs(cmd string, envs []v1.EnvVar) ([]string, error) {
 //container envs
 func createPluginEnvs(pluginID, tenantID, serviceAlias string, mainEnvs []v1.EnvVar, versionID, serviceID string, dbmanager db.Manager) (*[]v1.EnvVar, error) {
 	versionEnvs, err := dbmanager.TenantPluginVersionENVDao().GetVersionEnvByServiceID(serviceID, pluginID)
-	if err != nil {
+	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 		return nil, err
 	}
 	var envs []v1.EnvVar
