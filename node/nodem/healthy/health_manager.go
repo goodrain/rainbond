@@ -121,8 +121,10 @@ func (p *probeManager) updateServiceProbe() {
 			continue
 		}
 		serviceProbe := probe.CreateProbe(p.ctx, p.hostNode, p.statusChan, v)
-		p.serviceProbe[v.Name] = serviceProbe
-		serviceProbe.Check()
+		if serviceProbe != nil {
+			p.serviceProbe[v.Name] = serviceProbe
+			serviceProbe.Check()
+		}
 	}
 }
 

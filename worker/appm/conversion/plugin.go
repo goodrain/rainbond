@@ -20,12 +20,14 @@ package conversion
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"os"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
+
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/util"
 	typesv1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/jinzhu/gorm"
 	"k8s.io/api/core/v1"
@@ -76,7 +78,7 @@ func createPluginsContainer(as *typesv1.AppService, dbmanager db.Manager) ([]v1.
 		if err != nil {
 			return nil, nil, err
 		}
-		args, err := createPluginArgs(versionInfo.ContainerCMD)
+		args, err := createPluginArgs(versionInfo.ContainerCMD, *envs)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -128,11 +130,15 @@ func getPluginModel(pluginID, tenantID string, dbmanager db.Manager) (string, er
 	return plugin.PluginModel, nil
 }
 
-func createPluginArgs(cmd string) ([]string, error) {
+func createPluginArgs(cmd string, envs []v1.EnvVar) ([]string, error) {
 	if cmd == "" {
 		return nil, nil
 	}
-	return strings.Split(cmd, " "), nil
+	configs := make(map[string]string, len(envs))
+	for _, env := range envs {
+		configs[env.Name] = env.Value
+	}
+	return strings.Split(util.ParseVariable(cmd, configs), " "), nil
 }
 
 //container envs
@@ -166,6 +172,13 @@ func createPluginEnvs(pluginID, tenantID, serviceAlias string, mainEnvs []v1.Env
 		serviceAlias,
 		pluginID)})
 	envs = append(envs, v1.EnvVar{Name: "PLUGIN_ID", Value: pluginID})
+	var config = make(map[string]string, len(envs))
+	for _, env := range envs {
+		config[env.Name] = env.Value
+	}
+	for i, env := range envs {
+		envs[i].Value = util.ParseVariable(env.Value, config)
+	}
 	return &envs, nil
 }
 

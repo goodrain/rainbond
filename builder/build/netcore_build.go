@@ -25,6 +25,8 @@ import (
 	"os"
 	"path"
 
+	"github.com/goodrain/rainbond/util"
+
 	"github.com/docker/engine-api/client"
 
 	"github.com/Sirupsen/logrus"
@@ -75,7 +77,7 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 	d.serviceID = re.ServiceID
 	defer d.clear()
 	//write default Dockerfile for build
-	if err := d.writeBuildDockerfile(re.SourceDir); err != nil {
+	if err := d.writeBuildDockerfile(re.SourceDir, re.BuildEnvs); err != nil {
 		return nil, fmt.Errorf("write default build dockerfile error:%s", err.Error())
 	}
 	d.sourceDir = re.SourceDir
@@ -114,7 +116,7 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 		return nil, err
 	}
 	//write default runtime dockerfile
-	if err := d.writeRunDockerfile(d.buildCacheDir); err != nil {
+	if err := d.writeRunDockerfile(d.buildCacheDir, re.BuildEnvs); err != nil {
 		return nil, fmt.Errorf("write default runtime dockerfile error:%s", err.Error())
 	}
 	//build runtime image
@@ -150,12 +152,14 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 	re.Logger.Info("镜像推送镜像至仓库成功", map[string]string{"step": "builder-exector"})
 	return d.createResponse(), nil
 }
-func (d *netcoreBuild) writeBuildDockerfile(sourceDir string) error {
-	return ioutil.WriteFile(path.Join(sourceDir, "Dockerfile"), buildDockerfile, 0755)
+func (d *netcoreBuild) writeBuildDockerfile(sourceDir string, envs map[string]string) error {
+	result := util.ParseVariable(string(buildDockerfile), envs)
+	return ioutil.WriteFile(path.Join(sourceDir, "Dockerfile"), []byte(result), 0755)
 }
 
-func (d *netcoreBuild) writeRunDockerfile(sourceDir string) error {
-	return ioutil.WriteFile(path.Join(sourceDir, "Dockerfile"), runDockerfile, 0755)
+func (d *netcoreBuild) writeRunDockerfile(sourceDir string, envs map[string]string) error {
+	result := util.ParseVariable(string(runDockerfile), envs)
+	return ioutil.WriteFile(path.Join(sourceDir, "Dockerfile"), []byte(result), 0755)
 }
 
 func (d *netcoreBuild) copyBuildOut(outDir string, sourceImage string) error {
