@@ -260,8 +260,12 @@ func (n *NodeManager) init() error {
 				if err != nil {
 					return err
 				}
+				if err := n.cluster.RegistNode(node); err != nil {
+					return fmt.Errorf("node regist failure %s", err.Error())
+				}
+				logrus.Infof("Regist node %s hostnmae %s to cluster success", node.ID, node.HostName)
 			} else {
-				return fmt.Errorf("do not found node %s and AutoRegistNode parameter is false")
+				return fmt.Errorf("do not found node %s and AutoRegistNode parameter is false", n.currentNode.ID)
 			}
 		} else {
 			return fmt.Errorf("find node %s from cluster failure %s", n.currentNode.ID, err.Error())

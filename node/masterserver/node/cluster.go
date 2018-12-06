@@ -133,7 +133,9 @@ func (n *Cluster) worker() {
 //UpdateNode update node info
 func (n *Cluster) UpdateNode(node *client.HostNode) {
 	n.nodes[node.ID] = node
-	n.client.Put(option.Config.NodePath+"/"+node.ID, node.String())
+	saveNode := *node
+	saveNode.NodeStatus.KubeNode = nil
+	n.client.Put(option.Config.NodePath+"/"+node.ID, saveNode.String())
 }
 
 func (n *Cluster) getNodeFromKV(kv *mvccpb.KeyValue) *client.HostNode {

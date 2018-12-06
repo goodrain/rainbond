@@ -413,7 +413,9 @@ func (n *HostNode) String() string {
 
 //Update update node info
 func (n *HostNode) Update() (*client.PutResponse, error) {
-	return store.DefalutClient.Put(conf.Config.NodePath+"/"+n.ID, n.String())
+	savenode := *n
+	savenode.NodeStatus.KubeNode = nil
+	return store.DefalutClient.Put(conf.Config.NodePath+"/"+n.ID, savenode.String())
 }
 
 //DeleteNode delete node
