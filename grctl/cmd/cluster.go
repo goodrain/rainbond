@@ -50,11 +50,26 @@ func getClusterInfo(c *cli.Context) error {
 	table := uitable.New()
 	table.AddRow("", "Used/Total", "Use of")
 	table.AddRow("CPU", fmt.Sprintf("%2.f/%d", clusterInfo.ReqCPU, clusterInfo.CapCPU),
-		fmt.Sprintf("%d", int(clusterInfo.ReqCPU*100/float32(clusterInfo.CapCPU)))+"%")
+		fmt.Sprintf("%d", func() int {
+			if clusterInfo.CapCPU == 0 {
+				return 0
+			}
+			return int(clusterInfo.ReqCPU * 100 / float32(clusterInfo.CapCPU))
+		}())+"%")
 	table.AddRow("Memory", fmt.Sprintf("%d/%d", clusterInfo.ReqMem, clusterInfo.CapMem),
-		fmt.Sprintf("%d", int(float32(clusterInfo.ReqMem*100)/float32(clusterInfo.CapMem)))+"%")
+		fmt.Sprintf("%d", func() int {
+			if clusterInfo.CapMem == 0 {
+				return 0
+			}
+			return int(float32(clusterInfo.ReqMem*100) / float32(clusterInfo.CapMem))
+		}())+"%")
 	table.AddRow("DistributedDisk", fmt.Sprintf("%dGb/%dGb", clusterInfo.ReqDisk/1024/1024/1024, clusterInfo.CapDisk/1024/1024/1024),
-		fmt.Sprintf("%.2f", float32(clusterInfo.ReqDisk*100)/float32(clusterInfo.CapDisk))+"%")
+		fmt.Sprintf("%.2f", func() float32 {
+			if clusterInfo.CapDisk == 0 {
+				return 0
+			}
+			return float32(clusterInfo.ReqDisk*100) / float32(clusterInfo.CapDisk)
+		}())+"%")
 	fmt.Println(table)
 
 	//show services health status

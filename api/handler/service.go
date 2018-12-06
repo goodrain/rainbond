@@ -729,7 +729,7 @@ func (s *ServiceAction) CodeCheck(c *api_model.CheckCodeStruct) error {
 	err := s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		TaskType: "code_check",
 		TaskBody: c.Body,
-		Topic:    gclient.WorkerTopic,
+		Topic:    gclient.BuilderTopic,
 	})
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
