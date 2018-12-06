@@ -92,13 +92,14 @@ func GetNodes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, node := range nodes {
-		node.NodeStatus.Conditions = nil
+		var nodevalue = *node
+		nodevalue.NodeStatus.Conditions = nil
 		if searchKey != "" {
 			if strings.Contains(node.HostName, searchKey) || strings.Contains(node.InternalIP, searchKey) || strings.Contains(node.ExternalIP, searchKey) {
-				searchNodeList = append(searchNodeList, *node)
+				searchNodeList = append(searchNodeList, nodevalue)
 			}
 		} else {
-			searchNodeList = append(searchNodeList, *node)
+			searchNodeList = append(searchNodeList, nodevalue)
 		}
 	}
 	httputil.ReturnSuccess(r, w, searchNodeList)
