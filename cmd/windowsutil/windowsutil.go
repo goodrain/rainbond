@@ -57,6 +57,7 @@ func main() {
 		case si := <-term:
 			logrus.Warn("Received SIGTERM, exiting gracefully...")
 			return cmd.Process.Signal(si)
+		case ctx.Done():
 		}
 		logrus.Info("See you next time!")
 		return nil
