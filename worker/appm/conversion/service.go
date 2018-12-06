@@ -20,8 +20,9 @@ package conversion
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -118,8 +119,9 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	}
 	if serviceType.LabelValue == util.StatefulServiceType {
 		initBaseStatefulSet(as, tenantService)
+		return nil
 	}
-	return nil
+	return fmt.Errorf("do not decision build type for service %s", as.ServiceAlias)
 }
 func initTenant(as *v1.AppService, tenant *dbmodel.Tenants) error {
 	if tenant == nil || tenant.UUID == "" {

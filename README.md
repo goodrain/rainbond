@@ -1,83 +1,90 @@
-<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_logo.png" width="100%">
+<img src="./docs/rainbond_logo.png" width="100%">
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/goodrain/rainbond)](https://goreportcard.com/report/github.com/goodrain/rainbond)
 [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
-![Rainbond version](https://img.shields.io/badge/version-v5.0-brightgreen.svg)
+![Rainbond version](https://img.shields.io/badge/version-v3.7-brightgreen.svg)
 [![Build Status](https://travis-ci.org/goodrain/rainbond.svg?branch=master)](https://travis-ci.org/goodrain/rainbond)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
-[Website](http://www.rainbond.com) • [Docs](https://www.rainbond.com/docs/stable/) • [Public Cloud](https://console.goodrain.com) • [中文 README](https://github.com/goodrain/rainbond/blob/master/readme_zh.md)
+[项目官网](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/stable/) • [在线体验](https://console.goodrain.com) • [README in English](https://github.com/goodrain/rainbond/blob/master/README_EN.md)
 
-Rainbond is an application-centric open source PaaS. Integrates Kubernetes container management, Service Mesh microservices architecture best practices, multi-type CI/CD application building and delivering, multi-data-center resource management, Rainbond provides cloud native application  full-lifecycle solution, and build ecosystem of application and infrastructure, application and application, infrastructure and infrastructure, to meet the agile development, efficient operations and lean management needs of business.
+**Rainbond** 企业应用云操作系统
 
-## Features
+Rainbond（云帮）是企业应用的操作系统。 Rainbond支撑企业应用的开发、架构、交付和运维的全流程，通过“无侵入”架构，无缝衔接各类企业应用，底层资源可以对接和管理IaaS、虚拟机和物理服务器。
+```
+企业应用包括：
+各类信息系统、OA、CRM、ERP、数据库、大数据、物联网、互联网平台、微服务架构等运行在企业内部的各种系统
+```
+## 应用场景
 
-#### Application management
+* 企业应用开发
 
-- application level orchestration (for complete business system)
-- integrates Kubernetes's service component level orchestration and scheduling (service discovery, dynamic routing, limiting and fuse etc.)
-- provides cloud native microservices governance based on extendable service mesh grid system
-- supports multiple microservices architecture (SpringCLoud, Dubbo, API-Gateway)
-- supports multiple types of service-level application performance analysis
-- supports for building services based on source code (Java, PHP, Python, Golang, Ruby etc.)
-- supports for continuous building and deployment based on public/private Git, SVN code repositories, image repositories and third-party CI system.
-- supports for building application based on docker image, docker run command and dockercompose
-- supports application level full backup and recovery, migrating application between tenants and data centers.
-- Service plug-in system supports flexible extension of application functions and features, such as log, firewall and traffic anaylsis.
-- supports for public/private application market with complete application delivery system.
+开发环境、微服务架构、服务治理及各类技术工具“开箱即用”，不改变开发习惯，让企业专注核心业务，提升10倍效率。
 
-#### Resource/cloud management
+* 企业应用交付
 
-- basic system of cloud-native data center
-- supports plug-in deployment of different service gateway (openresty, F5 etc.), SDN network (midonet, calico etc.) and distributed storage systems (GlusterFS, Ali-NAS, Ceph etc.)
-- supports multi-data-center or cluster management and application orchestration
-- supports for platform high-availability
-- cluster management, operation and maintenance automation
-- automatic monitoring of node's physical hardware and system, and system indicators
-- automatic monitoring of service instances container metrics
+支持持续交付、企业应用市场交付、SaaS化、企业应用销售、二次开发等交付流程，客户统一管理，兼顾标准化交付和个性化交付
 
-## Quick Start
+* 企业应用运维
 
-1.  [Install Rainbond](https://www.rainbond.com/docs/stable/getting-started/installation-guide.html)
-2.  [Create First Application Service](https://www.rainbond.com/docs/stable/user-manual/create-an-app.html)
-3.  [Build Microservice Architecture](https://www.rainbond.com/docs/stable/microservice/service-mesh/use-case.html)
+透明对接管理多种计算资源，天然实现多云和混合云，企业应用自动化运维，提高2倍资源利用率。
 
-## Community
+## 主要功能特性
 
-[Rainbond Community](https://t.goodrain.com)
-[Rainbond Web](https://www.rainbond.com)
+| 特性                       | 描述                                                         |
+| -------------------------- | ------------------------------------------------------------ |
+| 超越Kubernetes             | 平台底层基于Kubernetes，但用户无需学习和编辑复杂的yaml文件，通过应用级图形界面操作使用，实现业务流程开箱即用。 |
+| 原生Service Mesh微服务架构 | 跨语言、跨协议、代码无侵入的Service Mesh微服务架构原生支持，传统应用直接变成微服务架构。同时支持常见微服务架构Spring Cloud、Dubbo等，通过插件扩展架构能力及治理功能。 |
+| 一体化DevOps               | 衔接需求、开发、测试、构建、上线、运维的一体化DevOps。支持对接第三方软件（Jira、Sonar、Jenkins、Gitlab等） |
+| 企业级应用市场             | 非镜像市场和服务目录，支持各类企业级应用，像手机应用一样即点即用，全流程管理（应用开发、应用发布、应用展示、应用离线导入/导出、应用安装/升级、应用运维） |
+| 自动化运维                 | 应用自动化运维。节点自动安装、扩容、监控、容错。平台支持高可用、多数据中心管理、多租户管理。 |
+| Serverless PaaS            | 以应用为核心，使用过程不需要了解服务器相关概念，简单灵活。通过对接行业应用，快速构建行业专有PaaS。 |
+| 应用网关                   | 基于HTTP、HTTPs、TCP、UDP等协议应用访问控制策略，轻松操作应用灰度发布、A/B测试。 |
 
-## Roadmap
+更多功能特性详见： [Rainbond功能特性说明](https://www.rainbond.com/docs/stable/architecture/edition.html)
+## 快速开始
 
-Read the [Roadmap](http://www.rainbond.com/docs/stable/architecture/roadmap.html).
+1.  [安装 Rainbond 集群](https://www.rainbond.com/docs/stable/getting-started/installation-guide.html)
+2.  [创建第一个应用（服务）](https://www.rainbond.com/docs/stable/user-manual/create-an-app.html)
+3.  [搭建 ServiceMesh 微服务架构](https://www.rainbond.com/docs/stable/microservice/service-mesh/use-case.html)
+4.  [迁移已有企业应用上云]()
 
-## Architecture
+## 社区
+
+[Rainbond 开源社区](https://t.goodrain.com)        
+
+[Rainbond 项目官网](https://www.rainbond.com)
+
+## 开发路线计划
+
+点击查看 Rainbond 版本开发计划 [Roadmap](http://www.rainbond.com/docs/stable/architecture/roadmap.html)
+
+## 架构
 
 <img src="https://static.goodrain.com/images/docs/3.6/architecture/architecture.png" href="http://www.rainbond.com/docs/stable/architecture/architecture.html">
 
-
-## Console UI show
+## 产品图示
 
 <img src="./docs/buildfromsourcecode.gif" href="http://www.rainbond.com/docs/stable">
 
-- Source code creation application process
+- 源码构建示意图
 
 <img src="./docs/topology.gif" href="http://www.rainbond.com/docs/stable">
 
-- Business application group topology diagram,The network topology, applied relational topology and real-time monitoring are shown here.
+- 应用流量拓扑示意图
 
-## Contributing
+## 参与贡献
 
-You can participate in the contributions of platforms, applications, and plugins within the Rainbond community.
-[Rainbond Contributor community](https://t.goodrain.com/c/contribution)
+你可以参与Rainbond社区关于平台、应用、插件等领域的贡献和分享。
+请移步： [Rainbond 贡献者社区](https://t.goodrain.com/c/contribution)
 
 ## License
 
-Rainbond is under the LGPL-3.0 license, see [LICENSE](https://github.com/goodrain/rainbond/blob/master/LICENSE) and [Licensing](https://github.com/goodrain/rainbond/blob/master/Licensing.md) for details.
+Rainbond 遵循 LGPL-3.0 license 协议发布，详情查看[LICENSE](https://github.com/goodrain/rainbond/blob/master/LICENSE)及[Licensing](https://github.com/goodrain/rainbond/blob/master/Licensing.md)。
 
-## Acknowledgment
+## 鸣谢
 
-Thanks for the following open source project
+感谢以下开源项目
 
 - [Kubernetes](https://github.com/kubernetes/kubernetes)
 - [Docker/Moby](https://github.com/moby/moby)
@@ -94,6 +101,6 @@ Thanks for the following open source project
 - [Weave Scope](https://github.com/weaveworks/scope)
 - [Ant Design](https://github.com/ant-design/ant-design)
 
-## Join us
+## 加入我们
 
-[Welcome you who love technology to join us](https://www.rainbond.com/docs/recruitment/join.html)
+[非常欢迎热爱技术的你加入我们](https://www.rainbond.com/docs/recruitment/join.html)
