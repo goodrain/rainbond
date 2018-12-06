@@ -22,8 +22,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"path"
 	"time"
+
+	"github.com/goodrain/rainbond/util"
 
 	dockercli "github.com/docker/engine-api/client"
 
@@ -65,6 +68,7 @@ type Conf struct {
 	PrometheusAPI                   string //Prometheus server listen port
 	K8SConfPath                     string //absolute path to the kubeconfig file
 	LogLevel                        string
+	LogFile                         string
 	HostIDFile                      string
 	HostIP                          string
 	RunMode                         string //ACP_NODE 运行模式:master,node
@@ -133,6 +137,7 @@ type UDPMonitorConfig struct {
 //AddFlags AddFlags
 func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the log level")
+	fs.StringVar(&a.LogFile, "log-file", "", "the log file path that log output")
 	fs.StringVar(&a.PrometheusAPI, "prometheus", "http://localhost:9999", "the prometheus server address")
 	fs.StringVar(&a.NodePath, "nodePath", "/rainbond/nodes", "the path of node in etcd")
 	fs.StringVar(&a.HostIDFile, "nodeid-file", "/opt/rainbond/etc/node/node_host_uuid.conf", "the unique ID for this node. Just specify, don't modify")
@@ -182,6 +187,18 @@ func (a *Conf) SetLog() {
 		return
 	}
 	logrus.SetLevel(level)
+	if a.LogFile != "" {
+		if err := util.CheckAndCreateDir(path.Dir(a.LogFile)); err != nil {
+			logrus.Errorf("create node log file dir failure %s", err.Error())
+			os.Exit(1)
+		}
+		logfile, err := os.OpenFile(a.LogFile, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0755)
+		if err != nil {
+			logrus.Errorf("create and open node log file failure %s", err.Error())
+			os.Exit(1)
+		}
+		logrus.SetOutput(logfile)
+	}
 }
 
 //ParseClient handle config and create some api

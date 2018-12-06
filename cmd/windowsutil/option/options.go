@@ -21,6 +21,9 @@ package option
 import (
 	"fmt"
 	"os"
+	"path"
+
+	"github.com/goodrain/rainbond/util"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util/windows"
@@ -54,9 +57,13 @@ func (c *Config) Check() bool {
 		logrus.Errorf("service name can not be empty")
 		return false
 	}
-	if c.RunShell == "" {
+	if c.RunShell == "" && !removeService {
 		logrus.Errorf("run shell can not be empty")
 		return false
+	}
+	if err := util.CheckAndCreateDir(path.Dir(c.LogFile)); err != nil {
+		logrus.Errorf("create node log file dir failure %s", err.Error())
+		os.Exit(1)
 	}
 	logfile, err := os.OpenFile(c.LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {

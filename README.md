@@ -8,6 +8,9 @@
 
 [项目官网](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/stable/) • [在线体验](https://console.goodrain.com) • [README in English](https://github.com/goodrain/rainbond/blob/master/README_EN.md)
 
+### 版本状态
+V5.0版本正在开发测试过程中，预计2018-12-12日发布bate版本
+
 **Rainbond** 企业应用云操作系统
 
 Rainbond（云帮）是企业应用的操作系统。 Rainbond支撑企业应用的开发、架构、交付和运维的全流程，通过“无侵入”架构，无缝衔接各类企业应用，底层资源可以对接和管理IaaS、虚拟机和物理服务器。

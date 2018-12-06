@@ -129,7 +129,7 @@ func (w *windowsServiceController) EnableService(name string) error {
 	return nil
 }
 func (w *windowsServiceController) DisableService(name string) error {
-	return nil
+	return windows.UnRegisterService(name)
 }
 func (w *windowsServiceController) CheckBeforeStart() bool {
 	return true
