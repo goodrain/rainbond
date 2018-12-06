@@ -21,7 +21,6 @@ package v1
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -166,7 +165,6 @@ func isHaveNormalTerminatedContainer(pods []*corev1.Pod) bool {
 
 //Ready Whether ready
 func (a *AppService) Ready() bool {
-	logrus.Debugf("AppService statefulset: %v\nAppService deployment: %v", a.statefulset, a.deployment)
 	if a.statefulset != nil {
 		if a.statefulset.Status.ReadyReplicas >= int32(a.Replicas) {
 			return true
