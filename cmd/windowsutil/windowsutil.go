@@ -23,22 +23,18 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"runtime"
 	"strings"
 	"syscall"
+
+	"github.com/goodrain/rainbond/util/windows"
 
 	"github.com/Sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/cmd/windowsutil/option"
-	"github.com/goodrain/rainbond/util/windows"
 	"github.com/spf13/pflag"
 )
 
 func main() {
-	if runtime.GOOS != "windows" {
-		logrus.Infof("only support windows system")
-		return
-	}
 	conf := option.Config{}
 	conf.AddFlags(pflag.CommandLine)
 	pflag.Parse()
@@ -49,6 +45,9 @@ func main() {
 	shell := strings.Split(conf.RunShell, " ")
 	cmd := exec.CommandContext(ctx, shell[0], shell[1:]...)
 	startFunc := func() error {
+		cmd.Stdout = os.Stdout
+		cmd.Stdin = os.Stdin
+		cmd.Stderr = os.Stderr
 		go cmd.Start()
 		//step finally: listen Signal
 		term := make(chan os.Signal)
@@ -66,7 +65,11 @@ func main() {
 		cancel()
 		return nil
 	}
-	if err := windows.RunAsService(conf.ServiceName, startFunc, stopFunc, conf.Debug); err != nil {
-		logrus.Fatalf("run command failure %s", err.Error())
+	if conf.RunAsService {
+		if err := windows.RunAsService(conf.ServiceName, startFunc, stopFunc, conf.Debug); err != nil {
+			logrus.Fatalf("run command failure %s", err.Error())
+		}
+	} else {
+		startFunc()
 	}
 }

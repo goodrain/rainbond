@@ -25,15 +25,17 @@ import (
 
 //Config config
 type Config struct {
-	Debug       bool
-	RunShell    string
-	ServiceName string
+	Debug        bool
+	RunShell     string
+	ServiceName  string
+	RunAsService bool
 }
 
 //AddFlags config
 func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.RunShell, "run", "", "Specify startup command")
 	fs.StringVar(&c.ServiceName, "service-name", "", "Specify windows service name")
+	fs.BoolVar(&c.RunAsService, "run-as-service", true, "run as windows service")
 	fs.BoolVar(&c.Debug, "debug", false, "debug mode run ")
 }
 
