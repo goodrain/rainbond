@@ -183,65 +183,61 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 	service *corev1.Service) ([]*extensions.Ingress, *corev1.Secret, error) {
 	var ingresses []*extensions.Ingress
 	var secret *corev1.Secret
-	switch port.Protocol {
-	case "http":
-		httpRules, err := a.dbmanager.HttpRuleDao().GetHttpRuleByServiceIDAndContainerPort(port.ServiceID,
-			port.ContainerPort)
-		if err != nil {
-			logrus.Infof("Can't get HTTPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
-		}
-		// create ingresses
-		if httpRules != nil && len(httpRules) > 0 {
-			for _, httpRule := range httpRules {
-				ing, sec, err := a.applyHTTPRule(httpRule, port, service)
-				if err != nil {
-					logrus.Errorf("Unexpected error occurred while applying http rule: %v", err)
-					// skip the failed rule
-					continue
-				}
-				ingresses = append(ingresses, ing)
-				secret = sec
-			}
-		} else { // if there is no http rule, then create a default ingress
-			httpRule := &model.HTTPRule{
-				UUID: fmt.Sprintf("%s%s", util.NewUUID()[0:7], "default"),
-			}
-			// the default ingress will not have error
-			ing, _, _ := a.applyHTTPRule(httpRule, port, service)
-			ingresses = append(ingresses, ing)
-		}
-	default: // default tcp
-		tcpRules, err := a.dbmanager.TcpRuleDao().GetTcpRuleByServiceIDAndContainerPort(port.ServiceID,
-			port.ContainerPort)
-		if err != nil {
-			logrus.Infof("Can't get TCPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
-		}
-		// create ingresses
-		if tcpRules != nil && len(tcpRules) > 0 {
-			for _, tcpRule := range tcpRules {
-				ing, err := a.applyTCPRule(tcpRule, service, a.tenant.UUID)
-				if err != nil {
-					logrus.Errorf("Unexpected error occurred while applying tcp rule: %v", err)
-					// skip the failed rule
-					continue
-				}
-				ingresses = append(ingresses, ing)
-			}
-		} else { // // if there is no tcp rule, then create a default ingress
-			mappingPort, err := a.dbmanager.TenantServiceLBMappingPortDao().GetTenantServiceLBMappingPort(port.ServiceID, port.ContainerPort)
+	httpRules, err := a.dbmanager.HttpRuleDao().GetHttpRuleByServiceIDAndContainerPort(port.ServiceID,
+		port.ContainerPort)
+	if err != nil {
+		logrus.Infof("Can't get HTTPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
+	}
+	// create http ingresses
+	if httpRules != nil && len(httpRules) > 0 {
+		for _, httpRule := range httpRules {
+			ing, sec, err := a.applyHTTPRule(httpRule, port, service)
 			if err != nil {
-				return nil, nil, err
+				logrus.Errorf("Unexpected error occurred while applying http rule: %v", err)
+				// skip the failed rule
+				continue
 			}
-			tcpRule := &model.TCPRule{
-				UUID: fmt.Sprintf("%s%s", util.NewUUID()[0:7], "default"),
-				Port: mappingPort.Port,
-			}
+			ingresses = append(ingresses, ing)
+			secret = sec
+		}
+	} else { // if there is no http rule, then create a default ingress
+		httpRule := &model.HTTPRule{
+			UUID: fmt.Sprintf("%s%s", util.NewUUID()[0:7], "default"),
+		}
+		// the default ingress will not have error
+		ing, _, _ := a.applyHTTPRule(httpRule, port, service)
+		ingresses = append(ingresses, ing)
+	}
+	tcpRules, err := a.dbmanager.TcpRuleDao().GetTcpRuleByServiceIDAndContainerPort(port.ServiceID,
+		port.ContainerPort)
+	if err != nil {
+		logrus.Infof("Can't get TCPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
+	}
+	// create tcp ingresses
+	if tcpRules != nil && len(tcpRules) > 0 {
+		for _, tcpRule := range tcpRules {
 			ing, err := a.applyTCPRule(tcpRule, service, a.tenant.UUID)
 			if err != nil {
-				return nil, nil, err
+				logrus.Errorf("Unexpected error occurred while applying tcp rule: %v", err)
+				// skip the failed rule
+				continue
 			}
 			ingresses = append(ingresses, ing)
 		}
+	} else { // // if there is no tcp rule, then create a default ingress
+		mappingPort, err := a.dbmanager.TenantServiceLBMappingPortDao().GetTenantServiceLBMappingPort(port.ServiceID, port.ContainerPort)
+		if err != nil {
+			return nil, nil, err
+		}
+		tcpRule := &model.TCPRule{
+			UUID: fmt.Sprintf("%s%s", util.NewUUID()[0:7], "default"),
+			Port: mappingPort.Port,
+		}
+		ing, err := a.applyTCPRule(tcpRule, service, a.tenant.UUID)
+		if err != nil {
+			return nil, nil, err
+		}
+		ingresses = append(ingresses, ing)
 	}
 
 	return ingresses, secret, nil
