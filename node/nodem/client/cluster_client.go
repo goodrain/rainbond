@@ -68,7 +68,7 @@ type etcdClusterClient struct {
 func (e *etcdClusterClient) UpdateStatus(n *HostNode) error {
 	existNode, err := e.GetNode(n.ID)
 	if err != nil {
-		return fmt.Errorf("get node %s failure where update node", n.ID)
+		return fmt.Errorf("get node %s failure where update node %s", n.ID, err.Error())
 	}
 	existNode.NodeStatus.NodeHealth = n.NodeStatus.NodeHealth
 	existNode.NodeStatus.NodeUpdateTime = time.Now()
