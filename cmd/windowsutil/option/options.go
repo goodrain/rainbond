@@ -19,6 +19,8 @@
 package option
 
 import (
+	"os"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
@@ -29,12 +31,14 @@ type Config struct {
 	RunShell     string
 	ServiceName  string
 	RunAsService bool
+	LogFile      string
 }
 
 //AddFlags config
 func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.RunShell, "run", "", "Specify startup command")
 	fs.StringVar(&c.ServiceName, "service-name", "", "Specify windows service name")
+	fs.StringVar(&c.LogFile, "log-file", "c:\\windwosutil.log", "service log outputfile")
 	fs.BoolVar(&c.RunAsService, "run-as-service", true, "run as windows service")
 	fs.BoolVar(&c.Debug, "debug", false, "debug mode run ")
 }
@@ -49,5 +53,10 @@ func (c *Config) Check() bool {
 		logrus.Errorf("run shell can not be empty")
 		return false
 	}
+	logfile, err := os.Open("c:\\windwosutil.log")
+	if err != nil {
+		logrus.Fatalf("open log file %s failure %s", "c:\\windwosutil.log", err.Error())
+	}
+	logrus.SetOutput(logfile)
 	return true
 }

@@ -48,7 +48,14 @@ func main() {
 		cmd.Stdout = os.Stdout
 		cmd.Stdin = os.Stdin
 		cmd.Stderr = os.Stderr
-		go cmd.Start()
+		go func() {
+			logrus.Info("start run progress")
+			err := cmd.Start()
+			if err != nil {
+				logrus.Errorf("start cmd failure %s", err.Error())
+				cancel()
+			}
+		}()
 		//step finally: listen Signal
 		term := make(chan os.Signal)
 		signal.Notify(term, os.Interrupt, syscall.SIGTERM)
