@@ -30,6 +30,8 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -194,11 +196,15 @@ func CmdRunWithTimeout(cmd *exec.Cmd, timeout time.Duration) (bool, error) {
 //ID是节点的唯一标识，acp_node将把ID与机器信息的绑定关系维护于etcd中
 func ReadHostID(filePath string) (string, error) {
 	if filePath == "" {
-		filePath = "/opt/rainbond/etc/node/node_host_uuid.conf"
+		if runtime.GOOS == "windows" {
+			filePath = "c:\\rainbond\\node_host_uuid.conf"
+		} else {
+			filePath = "/opt/rainbond/etc/node/node_host_uuid.conf"
+		}
 	}
 	_, err := os.Stat(filePath)
 	if err != nil {
-		if strings.HasSuffix(err.Error(), "no such file or directory") {
+		if os.IsNotExist(err) {
 			uid, err := CreateHostID()
 			if err != nil {
 				return "", err
@@ -749,4 +755,37 @@ func IsDir(path string) (bool, error) {
 		return false, err
 	}
 	return info.IsDir(), nil
+}
+
+var reg = regexp.MustCompile(`(?U)\$\{.*\}`)
+
+//ParseVariable parse and replace variable in source str
+func ParseVariable(source string, configs map[string]string) string {
+	resultKey := reg.FindAllString(source, -1)
+	for _, sourcekey := range resultKey {
+		key, defaultValue := getVariableKey(sourcekey)
+		if value, ok := configs[key]; ok {
+			source = strings.Replace(source, sourcekey, value, -1)
+		} else {
+			source = strings.Replace(source, sourcekey, defaultValue, -1)
+		}
+	}
+	return source
+}
+
+func getVariableKey(source string) (key, value string) {
+	if len(source) < 4 {
+		return "", ""
+	}
+	left := strings.Index(source, "{")
+	right := strings.Index(source, "}")
+	k := source[left+1 : right]
+	if strings.Contains(k, ":") {
+		re := strings.Split(k, ":")
+		if len(re) > 1 {
+			return re[0], re[1]
+		}
+		return re[0], ""
+	}
+	return k, ""
 }

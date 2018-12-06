@@ -100,3 +100,10 @@ func TestCopyFile(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestParseVariable(t *testing.T) {
+	t.Log(ParseVariable("sada${XXX:aaa}dasd${XXX:aaa} ${YYY:aaa} ASDASD ${ZZZ:aaa}", map[string]string{
+		"XXX": "123DDD",
+		"ZZZ": ",.,.,.,.",
+	}))
+}

@@ -109,30 +109,30 @@ func Routers(mode string) *chi.Mux {
 			//TODO:
 			//任务执行框架相关API
 			//任务
-			r.Route("/tasks", func(r chi.Router) {
-				r.Post("/", controller.CreateTask)
-				r.Get("/", controller.GetTasks)
-				r.Get("/{task_id}", controller.GetTask)
-				r.Delete("/{task_id}", controller.DeleteTask)
-				r.Post("/{task_id}/exec", controller.ExecTask)
-				r.Get("/{task_id}/status", controller.GetTaskStatus)
-			})
-			//任务模版
-			r.Route("/tasktemps", func(r chi.Router) {
-				r.Post("/", controller.CreateTaskTemp)
-				r.Put("/{temp_id}", controller.UpdateTaskTemp)
-				r.Delete("/{temp_id}", controller.DeleteTaskTemp)
-			})
-			//任务组
-			r.Route("/taskgroups", func(r chi.Router) {
-				r.Post("/", controller.CreateTaskGroup)
-				r.Get("/", controller.GetTaskGroups)
-				r.Get("/{group_id}", controller.GetTaskGroup)
-				r.Delete("/{group_id}", controller.DeleteTaskGroup)
-				r.Post("/{group_id}/exec", controller.ExecTaskGroup)
-				r.Get("/{group_id}/status", controller.GetTaskGroupStatus)
-			})
-			r.Put("/tasks/taskreload", controller.ReloadStaticTasks)
+			// r.Route("/tasks", func(r chi.Router) {
+			// 	r.Post("/", controller.CreateTask)
+			// 	r.Get("/", controller.GetTasks)
+			// 	r.Get("/{task_id}", controller.GetTask)
+			// 	r.Delete("/{task_id}", controller.DeleteTask)
+			// 	r.Post("/{task_id}/exec", controller.ExecTask)
+			// 	r.Get("/{task_id}/status", controller.GetTaskStatus)
+			// })
+			// //任务模版
+			// r.Route("/tasktemps", func(r chi.Router) {
+			// 	r.Post("/", controller.CreateTaskTemp)
+			// 	r.Put("/{temp_id}", controller.UpdateTaskTemp)
+			// 	r.Delete("/{temp_id}", controller.DeleteTaskTemp)
+			// })
+			// //任务组
+			// r.Route("/taskgroups", func(r chi.Router) {
+			// 	r.Post("/", controller.CreateTaskGroup)
+			// 	r.Get("/", controller.GetTaskGroups)
+			// 	r.Get("/{group_id}", controller.GetTaskGroup)
+			// 	r.Delete("/{group_id}", controller.DeleteTaskGroup)
+			// 	r.Post("/{group_id}/exec", controller.ExecTaskGroup)
+			// 	r.Get("/{group_id}/status", controller.GetTaskGroupStatus)
+			// })
+			// r.Put("/tasks/taskreload", controller.ReloadStaticTasks)
 		}
 	})
 	return r
