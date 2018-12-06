@@ -108,7 +108,7 @@ func ImagePull(dockerCli *client.Client, image string, username, password string
 			return nil, jm.Error
 		}
 		if logger != nil {
-			logger.Debug(fmt.Sprintf("JSONMessage: %s", jm.JSONString()), map[string]string{"step": "progress"})
+			logger.Debug(fmt.Sprintf(jm.JSONString()), map[string]string{"step": "progress"})
 		} else {
 			fmt.Println(jm.JSONString())
 		}
@@ -246,6 +246,7 @@ func ImagePush(dockerCli *client.Client, image, user, pass string, logger event.
 		}
 		return err
 	}
+	logger.Info(fmt.Sprintf("成功推送镜像：%s", image), map[string]string{"step": "pushimage"})
 	if readcloser != nil {
 		defer readcloser.Close()
 		dec := json.NewDecoder(readcloser)
