@@ -28,6 +28,6 @@ import (
 //InstallServiceFlags install service flag set
 func InstallServiceFlags(flags *pflag.FlagSet) {
 }
-func initService(*option.Conf) (bool, error) {
-	return false, nil
+func initService(c *option.Conf, startfunc, stopfunc func() error) error {
+	return startfunc()
 }

@@ -26,6 +26,7 @@ import (
 
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
+	"golang.org/x/sys/windows/svc/debug"
 	"golang.org/x/sys/windows/svc/eventlog"
 	"golang.org/x/sys/windows/svc/mgr"
 )
@@ -166,4 +167,70 @@ func controlService(name string, c svc.Cmd, to svc.State) error {
 		}
 	}
 	return nil
+}
+
+var elog debug.Log
+
+//RunAsService run as windows service
+func RunAsService(name string, start, stop func() error, isDebug bool) (err error) {
+	if isDebug {
+		elog = debug.New(name)
+	} else {
+		elog, err = eventlog.Open(name)
+		if err != nil {
+			return err
+		}
+	}
+	defer elog.Close()
+	run := svc.Run
+	if isDebug {
+		run = debug.Run
+	}
+
+	elog.Info(1, fmt.Sprintf("winsvc.RunAsService: starting %s service", name))
+	if err = run(name, &winService{Start: start, Stop: stop}); err != nil {
+		elog.Error(1, fmt.Sprintf("%s service failed: %v", name, err))
+		return err
+	}
+	elog.Info(1, fmt.Sprintf("winsvc.RunAsService: %s service stopped", name))
+	return nil
+}
+
+type winService struct {
+	Start func() error
+	Stop  func() error
+}
+
+func (p *winService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
+	elog.Info(1, "winsvc.Execute:"+"begin")
+	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPauseAndContinue
+	changes <- svc.Status{State: svc.StartPending}
+	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+	go func() {
+		for {
+			select {
+			case c := <-r:
+				switch c.Cmd {
+				case svc.Interrogate:
+					changes <- c.CurrentStatus
+					// testing deadlock from https://code.google.com/p/winsvc/issues/detail?id=4
+					time.Sleep(100 * time.Millisecond)
+					changes <- c.CurrentStatus
+				case svc.Stop, svc.Shutdown:
+					return
+				case svc.Pause:
+					changes <- svc.Status{State: svc.Paused, Accepts: cmdsAccepted}
+				case svc.Continue:
+					changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+				default:
+					elog.Error(1, fmt.Sprintf("winsvc.Execute:: unexpected control request #%d", c))
+				}
+			}
+		}
+		changes <- svc.Status{State: svc.StopPending}
+		p.Stop()
+	}()
+	p.Start()
+	elog.Info(1, "winsvc.Execute:"+"end")
+	return
 }

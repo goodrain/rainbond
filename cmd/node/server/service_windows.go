@@ -35,6 +35,7 @@ var (
 	flRegisterService   *bool
 	flUnregisterService *bool
 	flServiceName       *string
+	flRunService        *bool
 
 	setStdHandle = windows.NewLazySystemDLL("kernel32.dll").NewProc("SetStdHandle")
 	oldStderr    windows.Handle
@@ -46,6 +47,8 @@ func InstallServiceFlags(flags *pflag.FlagSet) {
 	flServiceName = flags.String("service-name", "rainbond-node", "Set the Windows service name")
 	flRegisterService = flags.Bool("register-service", false, "Register the service and exit")
 	flUnregisterService = flags.Bool("unregister-service", false, "Unregister the service and exit")
+	flRunService = flags.Bool("run-service", false, "")
+	flags.MarkHidden("run-service")
 }
 func getServicePath() (string, error) {
 	p, err := exec.LookPath(os.Args[0])
@@ -58,18 +61,21 @@ func getServicePath() (string, error) {
 // initService is the entry point for running the daemon as a Windows
 // service. It returns an indication to stop (if registering/un-registering);
 // an indication of whether it is running as a service; and an error.
-func initService(conf *option.Conf) (bool, error) {
+func initService(conf *option.Conf, startfunc, stopfunc func() error) error {
 	if *flUnregisterService {
 		if *flRegisterService {
-			return true, errors.New("--register-service and --unregister-service cannot be used together")
+			return errors.New("--register-service and --unregister-service cannot be used together")
 		}
-		return true, unregisterService()
+		return unregisterService()
 	}
 
 	if *flRegisterService {
-		return true, registerService()
+		return registerService()
 	}
-	return false, nil
+	if !*flRunService {
+		return startfunc()
+	}
+	return utilwindows.RunAsService(*flServiceName, startfunc, stopfunc, conf.LogLevel == "debug")
 }
 
 func unregisterService() error {
@@ -85,7 +91,7 @@ func registerService() error {
 		return err
 	}
 	// Configure the service to launch with the arguments that were just passed.
-	args := []string{""}
+	args := []string{"--run-service"}
 	for _, a := range os.Args[1:] {
 		if a != "--register-service" && a != "--unregister-service" {
 			args = append(args, a)

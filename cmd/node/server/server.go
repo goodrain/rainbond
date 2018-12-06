@@ -40,88 +40,95 @@ import (
 
 //Run start run
 func Run(c *option.Conf) error {
-	stop, err := initService(c)
-	if err != nil {
-		return err
-	}
-	if stop {
+	var stoped = make(chan struct{})
+	stopfunc := func() error {
+		close(stoped)
 		return nil
 	}
-	nodemanager, err := nodem.NewNodeManager(c)
-	if err != nil {
-		return fmt.Errorf("create node manager failed: %s", err)
-	}
-	if err := nodemanager.InitStart(); err != nil {
-		return err
-	}
-	if err := c.ParseClient(); err != nil {
-		return fmt.Errorf("config parse error:%s", err.Error())
-	}
-	errChan := make(chan error, 3)
-	err = eventLog.NewManager(eventLog.EventConfig{
-		EventLogServers: c.EventLogServer,
-		DiscoverAddress: c.Etcd.Endpoints,
-	})
-	if err != nil {
-		logrus.Errorf("error creating eventlog manager")
-		return nil
-	}
-	defer eventLog.CloseManager()
-	logrus.Debug("create and start event log client success")
-	kubecli, err := kubecache.NewKubeClient(c)
-	if err != nil {
-		return err
-	}
-	defer kubecli.Stop()
-
-	logrus.Debug("create and start kube cache moudle success")
-	// init etcd client
-	if err = store.NewClient(c); err != nil {
-		return fmt.Errorf("Connect to ETCD %s failed: %s", c.Etcd.Endpoints, err)
-	}
-	if err := nodemanager.Start(errChan); err != nil {
-		return fmt.Errorf("start node manager failed: %s", err)
-	}
-	defer nodemanager.Stop()
-	logrus.Debug("create and start node manager moudle success")
-
-	//master服务在node服务之后启动
-	var ms *masterserver.MasterServer
-	if c.RunMode == "master" {
-		ms, err = masterserver.NewMasterServer(nodemanager.GetCurrentNode(), kubecli)
+	startfunc := func() error {
+		nodemanager, err := nodem.NewNodeManager(c)
 		if err != nil {
-			logrus.Errorf(err.Error())
+			return fmt.Errorf("create node manager failed: %s", err)
+		}
+		if err := nodemanager.InitStart(); err != nil {
 			return err
 		}
-		ms.Cluster.UpdateNode(nodemanager.GetCurrentNode())
-		if err := ms.Start(errChan); err != nil {
-			logrus.Errorf(err.Error())
+		if err := c.ParseClient(); err != nil {
+			return fmt.Errorf("config parse error:%s", err.Error())
+		}
+		errChan := make(chan error, 3)
+		err = eventLog.NewManager(eventLog.EventConfig{
+			EventLogServers: c.EventLogServer,
+			DiscoverAddress: c.Etcd.Endpoints,
+		})
+		if err != nil {
+			logrus.Errorf("error creating eventlog manager")
+			return nil
+		}
+		defer eventLog.CloseManager()
+		logrus.Debug("create and start event log client success")
+		kubecli, err := kubecache.NewKubeClient(c)
+		if err != nil {
 			return err
 		}
-		defer ms.Stop(nil)
-		logrus.Debug("create and start master server moudle success")
-	}
-	//create api manager
-	apiManager := api.NewManager(*c, nodemanager.GetCurrentNode(), ms, kubecli)
-	if err := apiManager.Start(errChan); err != nil {
-		return err
-	}
-	if err := nodemanager.AddAPIManager(apiManager); err != nil {
-		return err
-	}
-	defer apiManager.Stop()
-	logrus.Debug("create and start api server moudle success")
+		defer kubecli.Stop()
 
-	defer controller.Exist(nil)
-	//step finally: listen Signal
-	term := make(chan os.Signal)
-	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
-	select {
-	case <-term:
-		logrus.Warn("Received SIGTERM, exiting gracefully...")
-	case err := <-errChan:
-		logrus.Errorf("Received a error %s, exiting gracefully...", err.Error())
+		logrus.Debug("create and start kube cache moudle success")
+		// init etcd client
+		if err = store.NewClient(c); err != nil {
+			return fmt.Errorf("Connect to ETCD %s failed: %s", c.Etcd.Endpoints, err)
+		}
+		if err := nodemanager.Start(errChan); err != nil {
+			return fmt.Errorf("start node manager failed: %s", err)
+		}
+		defer nodemanager.Stop()
+		logrus.Debug("create and start node manager moudle success")
+
+		//master服务在node服务之后启动
+		var ms *masterserver.MasterServer
+		if c.RunMode == "master" {
+			ms, err = masterserver.NewMasterServer(nodemanager.GetCurrentNode(), kubecli)
+			if err != nil {
+				logrus.Errorf(err.Error())
+				return err
+			}
+			ms.Cluster.UpdateNode(nodemanager.GetCurrentNode())
+			if err := ms.Start(errChan); err != nil {
+				logrus.Errorf(err.Error())
+				return err
+			}
+			defer ms.Stop(nil)
+			logrus.Debug("create and start master server moudle success")
+		}
+		//create api manager
+		apiManager := api.NewManager(*c, nodemanager.GetCurrentNode(), ms, kubecli)
+		if err := apiManager.Start(errChan); err != nil {
+			return err
+		}
+		if err := nodemanager.AddAPIManager(apiManager); err != nil {
+			return err
+		}
+		defer apiManager.Stop()
+		logrus.Debug("create and start api server moudle success")
+
+		defer controller.Exist(nil)
+		//step finally: listen Signal
+		term := make(chan os.Signal)
+		signal.Notify(term, os.Interrupt, syscall.SIGTERM)
+		select {
+		case <-stoped:
+			logrus.Infof("windows service stoped..")
+		case <-term:
+			logrus.Warn("Received SIGTERM, exiting gracefully...")
+		case err := <-errChan:
+			logrus.Errorf("Received a error %s, exiting gracefully...", err.Error())
+		}
+		logrus.Info("See you next time!")
+		return nil
 	}
-	logrus.Info("See you next time!")
+	err := initService(c, startfunc, stopfunc)
+	if err != nil {
+		return err
+	}
 	return nil
 }
