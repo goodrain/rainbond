@@ -21,6 +21,7 @@ package conversion
 import (
 	"fmt"
 	"github.com/goodrain/rainbond/util"
+	"github.com/jinzhu/gorm"
 	"os"
 	"strings"
 
@@ -62,7 +63,7 @@ func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 
 	svcs, ings, secs, err := builder.Build()
 	if err != nil {
-		logrus.Error("build k8s services error.", err.Error())
+		logrus.Error("build k8s services error:", err.Error())
 		return err
 	}
 	for _, service := range svcs {
@@ -208,12 +209,13 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 		ing, _, _ := a.applyHTTPRule(httpRule, port, service)
 		ingresses = append(ingresses, ing)
 	}
+
+	// create tcp ingresses
 	tcpRules, err := a.dbmanager.TcpRuleDao().GetTcpRuleByServiceIDAndContainerPort(port.ServiceID,
 		port.ContainerPort)
 	if err != nil {
 		logrus.Infof("Can't get TCPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
 	}
-	// create tcp ingresses
 	if tcpRules != nil && len(tcpRules) > 0 {
 		for _, tcpRule := range tcpRules {
 			ing, err := a.applyTCPRule(tcpRule, service, a.tenant.UUID)
@@ -227,6 +229,9 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 	} else { // // if there is no tcp rule, then create a default ingress
 		mappingPort, err := a.dbmanager.TenantServiceLBMappingPortDao().GetTenantServiceLBMappingPort(port.ServiceID, port.ContainerPort)
 		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return ingresses, secret, nil
+			}
 			return nil, nil, err
 		}
 		tcpRule := &model.TCPRule{
