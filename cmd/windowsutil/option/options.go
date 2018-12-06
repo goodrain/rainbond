@@ -53,7 +53,7 @@ func (c *Config) Check() bool {
 		logrus.Errorf("run shell can not be empty")
 		return false
 	}
-	logfile, err := os.OpenFile(c.LogFile, os.O_CREATE|os.O_RDWR|os.O_APPEND|os.O_EXCL, 0755)
+	logfile, err := os.OpenFile(c.LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {
 		logrus.Fatalf("open log file %s failure %s", c.LogFile, err.Error())
 	}
