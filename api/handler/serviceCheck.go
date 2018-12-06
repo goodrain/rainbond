@@ -44,7 +44,7 @@ func (s *ServiceAction) ServiceCheck(scs *api_model.ServiceCheckStruct) (string,
 	err := s.MQClient.SendBuilderTopic(client.TaskStruct{
 		TaskType: "service_check",
 		TaskBody: scs.Body,
-		Topic:    client.WorkerTopic,
+		Topic:    client.BuilderTopic,
 	})
 	if err != nil {
 		logrus.Errorf("equque mq error, %v", err)
