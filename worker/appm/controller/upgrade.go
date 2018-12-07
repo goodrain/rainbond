@@ -79,7 +79,6 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 		}
 	}
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
-		logrus.Debugf("StatefulSet patch data: %s", string(app.UpgradePatch["statefulset"]))
 		_, err := s.manager.client.AppsV1().StatefulSets(statefulset.Namespace).Patch(statefulset.Name, types.MergePatchType, app.UpgradePatch["statefulset"])
 		if err != nil {
 			app.Logger.Error(fmt.Sprintf("upgrade statefulset %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
