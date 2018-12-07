@@ -1386,10 +1386,16 @@ func (t *TenantStruct) deletePortController(w http.ResponseWriter, r *http.Reque
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Request) {
+	logrus.Debugf("Exec PortOuterController...")
 	var data api_model.ServicePortInnerOrOuter
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &(data.Body), nil) {
 		return
 	}
+	var bytes []byte
+	_ = json.Unmarshal(bytes, data)
+	logrus.Debugf("request uri is: %v", r.RequestURI)
+	logrus.Debugf("request body is: %v", string(bytes))
+	
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
 	portStr := chi.URLParam(r, "port")
@@ -1398,7 +1404,7 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 		httputil.ReturnError(r, w, 400, "port must be a number")
 		return
 	}
-	vsPort, protocol, errV := handler.GetServiceManager().PortOuter(tenantName, serviceID, data.Body.Operation, containerPort)
+	vsPort, protocol, errV := handler.GetServiceManager().PortOuter(tenantName, serviceID, containerPort, &data)
 	if errV != nil {
 		if strings.HasSuffix(errV.Error(), gorm.ErrRecordNotFound.Error()) {
 			httputil.ReturnError(r, w, 404, errV.Error())
