@@ -42,7 +42,7 @@ func main() {
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	shell := strings.Split(conf.RunShell, " ")
+	shell := strings.Split(conf.RunShell, "&nbsp;")
 	cmd := exec.CommandContext(ctx, shell[0], shell[1:]...)
 	startFunc := func() error {
 		cmd.Stdout = os.Stdout

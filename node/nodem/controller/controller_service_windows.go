@@ -63,7 +63,7 @@ func (w *windowsServiceController) StartService(name string) error {
 		logrus.Errorf("windows service controller start service %s failure %s", name, err.Error())
 		return err
 	}
-	logrus.Infof("windows service controller start service %s", name)
+	logrus.Infof("windows service controller start service %s success", name)
 	return nil
 }
 func (w *windowsServiceController) StopService(name string) error {
@@ -71,7 +71,7 @@ func (w *windowsServiceController) StopService(name string) error {
 		logrus.Errorf("windows service controller stop service %s failure %s", name, err.Error())
 		return err
 	}
-	logrus.Infof("windows service controller stop service %s", name)
+	logrus.Infof("windows service controller stop service %s success", name)
 	return nil
 }
 func (w *windowsServiceController) StartList(list []*service.Service) error {
@@ -91,7 +91,7 @@ func (w *windowsServiceController) RestartService(serviceName string) error {
 		logrus.Errorf("windows service controller restart service %s failure %s", serviceName, err.Error())
 		return err
 	}
-	logrus.Infof("windows service controller restart service %s", serviceName)
+	logrus.Infof("windows service controller restart service %s success", serviceName)
 	return nil
 }
 func (w *windowsServiceController) WriteConfig(s *service.Service) error {
