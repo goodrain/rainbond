@@ -147,6 +147,7 @@ func getStatefulsetModifiedConfiguration(old, new *v1.StatefulSet) ([]byte, erro
 	return getchange(oldNeed, newNeed)
 }
 
+// updates to statefulset spec for fields other than 'replicas', 'template', and 'updateStrategy' are forbidden.
 func getAllowFields(s *v1.StatefulSet) *v1.StatefulSet {
 	return &v1.StatefulSet{
 		Spec: v1.StatefulSetSpec{
