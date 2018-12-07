@@ -102,9 +102,11 @@ func ImagePull(dockerCli *client.Client, image string, username, password string
 			if err == io.EOF {
 				break
 			}
+			logrus.Debugf("error decoding jm(JSONMessage): %v", err)
 			return nil, err
 		}
 		if jm.Error != nil {
+			logrus.Debugf("error pulling image: %v", jm.Error)
 			return nil, jm.Error
 		}
 		if logger != nil {

@@ -351,7 +351,13 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 					l7Pools[backend.name] = pool
 				}
 				for _, ss := range ep.Subsets {
-					for _, address := range ss.Addresses {
+					var addresses []corev1.EndpointAddress
+					if ss.Addresses != nil && len(ss.Addresses) > 0 {
+						addresses = append(addresses, ss.Addresses...)
+					} else {
+						addresses = append(addresses, ss.NotReadyAddresses...)
+					}
+					for _, address := range addresses {
 						if _, ok := l7PoolMap[epn]; ok { // l7
 							pool.Nodes = append(pool.Nodes, &v1.Node{
 								Host:   address.IP,
@@ -374,7 +380,13 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 					l4Pools[backend.name] = pool
 				}
 				for _, ss := range ep.Subsets {
-					for _, address := range ss.Addresses {
+					var addresses []corev1.EndpointAddress
+					if ss.Addresses != nil && len(ss.Addresses) > 0 {
+						addresses = append(addresses, ss.Addresses...)
+					} else {
+						addresses = append(addresses, ss.NotReadyAddresses...)
+					}
+					for _, address := range addresses {
 						if _, ok := l4PoolMap[epn]; ok { // l7
 							pool.Nodes = append(pool.Nodes, &v1.Node{
 								Host:   address.IP,
@@ -568,6 +580,12 @@ func (s *rbdStore) ingressIsValid(ing *extensions.Ingress) bool {
 	if endpoint.Subsets == nil || len(endpoint.Subsets) == 0 {
 		logrus.Warningf("Endpoints(%s) is empty, ignore it", endpointKey)
 		return false
+	}
+	for _, ep := range endpoint.Subsets {
+		if (ep.Addresses == nil || len(ep.Addresses) == 0 ) && (ep.NotReadyAddresses == nil || len(ep.NotReadyAddresses) == 0) {
+			logrus.Warningf("Endpoints(%s) is empty, ignore it", endpointKey)
+			return false
+		}
 	}
 
 	return true
