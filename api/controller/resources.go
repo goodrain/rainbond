@@ -1391,11 +1391,10 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &(data.Body), nil) {
 		return
 	}
-	var bytes []byte
-	_ = json.Unmarshal(bytes, data)
+	req, _ := json.Marshal(data)
 	logrus.Debugf("request uri is: %v", r.RequestURI)
-	logrus.Debugf("request body is: %v", string(bytes))
-	
+	logrus.Debugf("request body is: %v", string(req))
+
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
 	portStr := chi.URLParam(r, "port")
