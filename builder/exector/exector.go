@@ -28,7 +28,7 @@ import (
 	"sync"
 
 	"github.com/coreos/etcd/clientv3"
-	"github.com/docker/engine-api/client"
+	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/cmd/builder/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"

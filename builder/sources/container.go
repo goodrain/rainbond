@@ -19,7 +19,6 @@
 package sources
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http/httputil"
@@ -27,13 +26,13 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/engine-api/client"
-	dockertypes "github.com/docker/engine-api/types"
-	dockercontainer "github.com/docker/engine-api/types/container"
-	"github.com/docker/engine-api/types/events"
-	"github.com/docker/engine-api/types/filters"
-	dockerstrslice "github.com/docker/engine-api/types/strslice"
-	"github.com/docker/engine-api/types/versions"
+	dockertypes "github.com/docker/docker/api/types"
+	dockercontainer "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
+	dockerstrslice "github.com/docker/docker/api/types/strslice"
+	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/util"
 	"golang.org/x/net/context"
 )
@@ -200,12 +199,6 @@ func (ds *DockerService) WaitExitOrRemoved(containerID string, waitRemove bool) 
 	}
 	eventCtx, cancel := context.WithCancel(ds.ctx)
 	eventreader, errq := ds.client.Events(eventCtx, options)
-	if errq != nil {
-		logrus.Errorf("open watch dockerd event error:%s", errq.Error())
-		statusChan <- 1
-		return statusChan
-	}
-
 	eventProcessor := func(e events.Message) bool {
 		stopProcessing := false
 		switch e.Status {
@@ -243,8 +236,6 @@ func (ds *DockerService) WaitExitOrRemoved(containerID string, waitRemove bool) 
 		}
 		return stopProcessing
 	}
-	eventq := make(chan events.Message)
-	errs := make(chan error, 1)
 	go func() {
 		defer func() {
 			statusChan <- exitCode // must always send an exit code or the caller will block
@@ -256,36 +247,13 @@ func (ds *DockerService) WaitExitOrRemoved(containerID string, waitRemove bool) 
 				if removeErr != nil {
 					return
 				}
-			case evt := <-eventq:
+			case evt := <-eventreader:
 				if eventProcessor(evt) {
 					return
 				}
-			case err := <-errs:
+			case err := <-errq:
 				logrus.Errorf("error getting events from daemon: %v", err)
 				return
-			}
-		}
-	}()
-	go func() {
-		defer eventreader.Close()
-		decoder := json.NewDecoder(eventreader)
-		for {
-			select {
-			case <-ds.ctx.Done():
-				errs <- ds.ctx.Err()
-				return
-			default:
-				var event events.Message
-				if err := decoder.Decode(&event); err != nil {
-					errs <- err
-					return
-				}
-				select {
-				case eventq <- event:
-				case <-ds.ctx.Done():
-					errs <- ds.ctx.Err()
-					return
-				}
 			}
 		}
 	}()

@@ -28,7 +28,7 @@ import (
 
 	"github.com/goodrain/rainbond/util"
 
-	dockercli "github.com/docker/engine-api/client"
+	dockercli "github.com/docker/docker/client"
 
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"

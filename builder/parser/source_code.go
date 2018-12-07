@@ -37,7 +37,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 
 	//"github.com/docker/docker/client"
-	"github.com/docker/engine-api/client"
+	"github.com/docker/docker/client"
 )
 
 //SourceCodeParse docker run 命令解析或直接镜像名解析

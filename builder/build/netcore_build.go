@@ -27,11 +27,11 @@ import (
 
 	"github.com/goodrain/rainbond/util"
 
-	"github.com/docker/engine-api/client"
+	"github.com/docker/docker/client"
 
 	"github.com/Sirupsen/logrus"
 
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
