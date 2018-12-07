@@ -70,4 +70,5 @@ type ServiceHandler interface {
 	DeleteComplexEnvs(tenantID, serviceAlias, pluginID string) *util.APIHandleError
 	ServiceCheck(*api_model.ServiceCheckStruct) (string, string, *util.APIHandleError)
 	GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError)
+	GetServiceDeployInfo(tenantID, serviceID string) (interface{}, *util.APIHandleError)
 }

@@ -1618,6 +1618,12 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	return nil
 }
 
+//GetServiceDeployInfo get service deploy info
+func (s *ServiceAction) GetServiceDeployInfo(tenantID, serviceID string) (interface{}, *util.APIHandleError) {
+	s.statusCli.GetAppDeployInfo()
+	return nil, nil
+}
+
 //TransStatus trans service status
 func TransStatus(eStatus string) string {
 	switch eStatus {
