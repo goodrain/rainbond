@@ -715,18 +715,24 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 			Values:   []string{"windows"},
 		})
 	}
-	affinity.NodeAffinity = &corev1.NodeAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-			NodeSelectorTerms: []corev1.NodeSelectorTerm{
-				corev1.NodeSelectorTerm{MatchExpressions: nsr},
+	if len(nsr) > 0 {
+		affinity.NodeAffinity = &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					corev1.NodeSelectorTerm{MatchExpressions: nsr},
+				},
 			},
-		},
+		}
 	}
-	affinity.PodAffinity = &corev1.PodAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: podAffinity,
+	if len(podAffinity) > 0 {
+		affinity.PodAffinity = &corev1.PodAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: podAffinity,
+		}
 	}
-	affinity.PodAntiAffinity = &corev1.PodAntiAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: podAntAffinity,
+	if len(podAntAffinity) > 0 {
+		affinity.PodAntiAffinity = &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: podAntAffinity,
+		}
 	}
 	return &affinity
 }
