@@ -806,10 +806,10 @@ func (t *TenantStruct) Label(w http.ResponseWriter, r *http.Request) {
 		if label.LabelValue == "" {
 			values["label_value"] = []string{"The label_value field is required"}
 		}
-		if len(values) != 0 {
-			httputil.ReturnValidationError(r, w, values)
-			return
-		}
+	}
+	if len(values) != 0 {
+		httputil.ReturnValidationError(r, w, values)
+		return
 	}
 
 	switch r.Method {
