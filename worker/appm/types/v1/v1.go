@@ -196,6 +196,11 @@ func (a *AppService) DeleteReplicaSet(d *v1.ReplicaSet) {
 	}
 }
 
+//GetReplicaSets get replicaset
+func (a *AppService) GetReplicaSets() []*v1.ReplicaSet {
+	return a.replicasets
+}
+
 //GetReplicaSetVersion get rs version
 func GetReplicaSetVersion(rs *v1.ReplicaSet) int {
 	if version, ok := rs.Annotations["deployment.kubernetes.io/revision"]; ok {

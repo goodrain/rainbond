@@ -24,6 +24,7 @@ import (
 	"github.com/goodrain/rainbond/builder/exector"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/discover/model"
+	"github.com/goodrain/rainbond/worker/server/pb"
 )
 
 //ServiceHandler service handler
@@ -70,5 +71,5 @@ type ServiceHandler interface {
 	DeleteComplexEnvs(tenantID, serviceAlias, pluginID string) *util.APIHandleError
 	ServiceCheck(*api_model.ServiceCheckStruct) (string, string, *util.APIHandleError)
 	GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError)
-	GetServiceDeployInfo(tenantID, serviceID string) (interface{}, *util.APIHandleError)
+	GetServiceDeployInfo(tenantID, serviceID string) (*pb.DeployInfo, *util.APIHandleError)
 }

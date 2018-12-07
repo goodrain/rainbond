@@ -207,7 +207,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 
 	//rule
 	r.Mount("/net-rule", v2.rulesRouter())
-	r.Get("/deploy-info", controller.GetServiceDeployInfo())
+	r.Get("/deploy-info", controller.GetServiceDeployInfo)
 
 	return r
 }
