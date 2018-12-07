@@ -1426,7 +1426,7 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 		} else {
 			rc["port"] = "10080"
 		}
-	} else if vsPort != nil && vsPort.Port != 0 {
+	} else if vsPort != nil {
 		rc["domain"] = mm[0]
 		rc["port"] = fmt.Sprintf("%v", vsPort.Port)
 	}
