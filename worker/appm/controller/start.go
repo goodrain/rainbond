@@ -54,12 +54,13 @@ func (s *startController) Begin() {
 				service.Logger.Info("App runtime begin start app service "+service.ServiceAlias, getLoggerOption("starting"))
 				if err := s.startOne(service); err != nil {
 					if err != ErrWaitTimeOut {
-						service.Logger.Error(fmt.Sprintf("start service %s failure %s", service.ServiceAlias, err.Error()), GetCallbackLoggerOption())
+						service.Logger.Error(fmt.Sprintf("Start service %s failure %s", service.ServiceAlias, err.Error()), GetCallbackLoggerOption())
 						logrus.Errorf("start service %s failure %s", service.ServiceAlias, err.Error())
 						s.errorCallback(service)
 					}
+					service.Logger.Error(fmt.Sprintf("Start service %s timeout,please wait or read service log.", service.ServiceAlias), GetCallbackLoggerOption())
 				} else {
-					service.Logger.Info(fmt.Sprintf("start service %s success", service.ServiceAlias), GetLastLoggerOption())
+					service.Logger.Info(fmt.Sprintf("Start service %s success", service.ServiceAlias), GetLastLoggerOption())
 				}
 			}(*service)
 		}
