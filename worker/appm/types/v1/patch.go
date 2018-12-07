@@ -142,8 +142,21 @@ func getChange(old, new EncodeNode) *EncodeNode {
 
 func getStatefulsetModifiedConfiguration(old, new *v1.StatefulSet) ([]byte, error) {
 	old.Status = new.Status
-	return getchange(old, new)
+	oldNeed := getAllowFields(old)
+	newNeed := getAllowFields(new)
+	return getchange(oldNeed, newNeed)
 }
+
+func getAllowFields(s *v1.StatefulSet) *v1.StatefulSet {
+	return &v1.StatefulSet{
+		Spec: v1.StatefulSetSpec{
+			Replicas:       s.Spec.Replicas,
+			Template:       s.Spec.Template,
+			UpdateStrategy: s.Spec.UpdateStrategy,
+		},
+	}
+}
+
 func getDeploymentModifiedConfiguration(old, new *v1.Deployment) ([]byte, error) {
 	old.Status = new.Status
 	return getchange(old, new)
