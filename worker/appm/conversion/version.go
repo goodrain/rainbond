@@ -658,6 +658,12 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 	labels, err := dbmanager.TenantServiceLabelDao().GetTenantServiceAffinityLabel(as.ServiceID)
 	if err == nil && labels != nil && len(labels) > 0 {
 		for _, l := range labels {
+			if l.LabelKey == dbmodel.LabelKeyNodeSelector {
+				if l.LabelValue == "windows" {
+					osWindowsSelect = true
+					continue
+				}
+			}
 			if l.LabelKey == dbmodel.LabelKeyNodeAffinity {
 				if l.LabelValue == "windows" {
 					nsr = append(nsr, corev1.NodeSelectorRequirement{
