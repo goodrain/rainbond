@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/goodrain/rainbond/worker/server/pb"
+
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/db"
 	core_model "github.com/goodrain/rainbond/db/model"
@@ -1616,6 +1618,15 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 		return err
 	}
 	return nil
+}
+
+//GetServiceDeployInfo get service deploy info
+func (s *ServiceAction) GetServiceDeployInfo(tenantID, serviceID string) (*pb.DeployInfo, *util.APIHandleError) {
+	info, err := s.statusCli.GetServiceDeployInfo(serviceID)
+	if err != nil {
+		return nil, util.CreateAPIHandleError(500, err)
+	}
+	return info, nil
 }
 
 //TransStatus trans service status

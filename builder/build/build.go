@@ -27,7 +27,7 @@ import (
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/event"
 
-	"github.com/docker/engine-api/client"
+	"github.com/docker/docker/client"
 )
 
 func init() {

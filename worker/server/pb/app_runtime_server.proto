@@ -5,6 +5,7 @@ service AppRuntimeSync {
   rpc GetAppStatus (ServicesRequest) returns (StatusMessage) {}
   rpc GetAppDisk (ServicesRequest) returns (DiskMessage) {}
   rpc GetAppPods (ServiceRequest) returns (ServiceAppPodList) {}
+  rpc GetDeployInfo (ServiceRequest) returns (DeployInfo) {}
 }
 
 message ServiceRequest { 
@@ -38,4 +39,15 @@ message ServiceAppPod {
 message Container {
   string container_name = 1;
   int32 memory_limit = 2;
+}
+
+message DeployInfo {
+  string namespace = 1;
+  string statefuleset = 2;
+  string deployment = 3;
+  map<string, string> pods = 4;
+  map<string, string> services = 5;
+  map<string, string> secrets = 6;
+  map<string, string> ingresses = 7;
+  map<string, string> replicatset = 8;
 }

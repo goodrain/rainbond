@@ -29,7 +29,7 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 
-	"github.com/docker/engine-api/client"
+	"github.com/docker/docker/client"
 )
 
 //DockerComposeParse docker compose 文件解析

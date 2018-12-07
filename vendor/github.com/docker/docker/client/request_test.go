@@ -1,15 +1,18 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"golang.org/x/net/context"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 // TestSetHostHeader should set fake host for local communications, set real host
@@ -44,10 +47,8 @@ func TestSetHostHeader(t *testing.T) {
 	}
 
 	for c, test := range testCases {
-		proto, addr, basePath, err := ParseHost(test.host)
-		if err != nil {
-			t.Fatal(err)
-		}
+		hostURL, err := ParseHostURL(test.host)
+		assert.NilError(t, err)
 
 		client := &Client{
 			client: newMockClient(func(req *http.Request) (*http.Response, error) {
@@ -62,19 +63,17 @@ func TestSetHostHeader(t *testing.T) {
 				}
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Body:       ioutil.NopCloser(bytes.NewReader(([]byte("")))),
+					Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
 				}, nil
 			}),
 
-			proto:    proto,
-			addr:     addr,
-			basePath: basePath,
+			proto:    hostURL.Scheme,
+			addr:     hostURL.Host,
+			basePath: hostURL.Path,
 		}
 
 		_, err = client.sendRequest(context.Background(), "GET", testURL, nil, nil, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NilError(t, err)
 	}
 }
 
@@ -89,4 +88,19 @@ func TestPlainTextError(t *testing.T) {
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
 	}
+}
+
+func TestInfiniteError(t *testing.T) {
+	infinitR := rand.New(rand.NewSource(42))
+	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			resp := &http.Response{StatusCode: http.StatusInternalServerError}
+			resp.Header = http.Header{}
+			resp.Body = ioutil.NopCloser(infinitR)
+			return resp, nil
+		}),
+	}
+
+	_, err := client.Ping(context.Background())
+	assert.Check(t, is.ErrorContains(err, "request returned Internal Server Error"))
 }

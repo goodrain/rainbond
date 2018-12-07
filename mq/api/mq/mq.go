@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/cmd/mq/option"
+	"github.com/goodrain/rainbond/mq/client"
 
 	"golang.org/x/net/context"
 
@@ -83,9 +84,9 @@ func (e *etcdQueue) Start() error {
 			e.registerTopic(t)
 		}
 	}
-	e.registerTopic("worker")
-	e.registerTopic("builder")
-	e.registerTopic("windows")
+	e.registerTopic(client.BuilderTopic)
+	e.registerTopic(client.WindowsBuilderTopic)
+	e.registerTopic(client.WorkerTopic)
 	logrus.Info("etcd message queue client started success")
 	return nil
 }

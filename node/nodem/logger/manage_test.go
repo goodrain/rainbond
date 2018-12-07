@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/docker/engine-api/client"
+	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/cmd/node/option"
 )
 

@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 )
@@ -46,10 +46,10 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 		return nil, err
 	}
 	buildImageName := CreateImageName(re.RepositoryURL, re.ServiceAlias, re.DeployVersion)
-	args := make(map[string]string, 5)
+	args := make(map[string]*string, 5)
 	for k, v := range re.BuildEnvs {
 		if ks := strings.Split(k, "ARG_"); len(ks) > 1 {
-			args[ks[1]] = v
+			args[ks[1]] = &v
 		}
 	}
 	buildOptions := types.ImageBuildOptions{

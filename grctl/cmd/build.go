@@ -27,7 +27,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/engine-api/client"
+	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/sources"

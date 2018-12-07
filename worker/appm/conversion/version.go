@@ -658,6 +658,12 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 	labels, err := dbmanager.TenantServiceLabelDao().GetTenantServiceAffinityLabel(as.ServiceID)
 	if err == nil && labels != nil && len(labels) > 0 {
 		for _, l := range labels {
+			if l.LabelKey == dbmodel.LabelKeyNodeSelector {
+				if l.LabelValue == "windows" {
+					osWindowsSelect = true
+					continue
+				}
+			}
 			if l.LabelKey == dbmodel.LabelKeyNodeAffinity {
 				if l.LabelValue == "windows" {
 					nsr = append(nsr, corev1.NodeSelectorRequirement{
@@ -709,18 +715,24 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 			Values:   []string{"windows"},
 		})
 	}
-	affinity.NodeAffinity = &corev1.NodeAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-			NodeSelectorTerms: []corev1.NodeSelectorTerm{
-				corev1.NodeSelectorTerm{MatchExpressions: nsr},
+	if len(nsr) > 0 {
+		affinity.NodeAffinity = &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					corev1.NodeSelectorTerm{MatchExpressions: nsr},
+				},
 			},
-		},
+		}
 	}
-	affinity.PodAffinity = &corev1.PodAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: podAffinity,
+	if len(podAffinity) > 0 {
+		affinity.PodAffinity = &corev1.PodAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: podAffinity,
+		}
 	}
-	affinity.PodAntiAffinity = &corev1.PodAntiAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: podAntAffinity,
+	if len(podAntAffinity) > 0 {
+		affinity.PodAntiAffinity = &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: podAntAffinity,
+		}
 	}
 	return &affinity
 }

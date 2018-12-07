@@ -30,7 +30,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
-	"github.com/docker/engine-api/client"
+	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"

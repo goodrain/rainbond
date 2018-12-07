@@ -138,6 +138,57 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 	}, nil
 }
 
+//GetDeployInfo get deploy info
+func (r *RuntimeServer) GetDeployInfo(ctx context.Context, re *pb.ServiceRequest) (*pb.DeployInfo, error) {
+	var deployinfo pb.DeployInfo
+	appService := r.store.GetAppService(re.ServiceId)
+	if appService != nil {
+		deployinfo.Namespace = appService.TenantID
+		if appService.GetStatefulSet() != nil {
+			deployinfo.Statefuleset = appService.GetStatefulSet().Name
+		}
+		if appService.GetDeployment() != nil {
+			deployinfo.Deployment = appService.GetDeployment().Name
+		}
+		if services := appService.GetServices(); services != nil {
+			service := make(map[string]string, len(services))
+			for _, s := range services {
+				service[s.Name] = s.Name
+			}
+			deployinfo.Services = service
+		}
+		if secrets := appService.GetSecrets(); secrets != nil {
+			secretsinfo := make(map[string]string, len(secrets))
+			for _, s := range secrets {
+				secretsinfo[s.Name] = s.Name
+			}
+			deployinfo.Secrets = secretsinfo
+		}
+		if ingresses := appService.GetIngress(); ingresses != nil {
+			ingress := make(map[string]string, len(ingresses))
+			for _, s := range ingresses {
+				ingress[s.Name] = s.Name
+			}
+			deployinfo.Ingresses = ingress
+		}
+		if pods := appService.GetPods(); pods != nil {
+			podNames := make(map[string]string, len(pods))
+			for _, s := range pods {
+				podNames[s.Name] = s.Name
+			}
+			deployinfo.Pods = podNames
+		}
+		if rss := appService.GetReplicaSets(); rss != nil {
+			rsnames := make(map[string]string, len(rss))
+			for _, s := range rss {
+				rsnames[s.Name] = s.Name
+			}
+			deployinfo.Replicatset = rsnames
+		}
+	}
+	return &deployinfo, nil
+}
+
 //registServer
 //regist sync server to etcd
 func (r *RuntimeServer) registServer() error {

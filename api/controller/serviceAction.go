@@ -867,6 +867,7 @@ type SourcesInfo struct {
 	CpuUsed         int    `json:"cpu_used"`
 }
 
+//TenantResourcesStatus tenant resources status
 func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Request) {
 
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
@@ -923,4 +924,16 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 		}
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 	}
+}
+
+//GetServiceDeployInfo get service deploy info
+func GetServiceDeployInfo(w http.ResponseWriter, r *http.Request) {
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	info, err := handler.GetServiceManager().GetServiceDeployInfo(tenantID, serviceID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, info)
 }

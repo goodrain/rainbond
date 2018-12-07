@@ -24,7 +24,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	//"github.com/docker/docker/client"
-	"github.com/docker/engine-api/client"
+	"github.com/docker/docker/client"
 )
 
 var dockerrun = `docker run -d -P -v /usr/share/ca-certificates/:/etc/ssl/certs -p 4001:4001 -p 2380:2380 -p 2379:2379 \

@@ -26,7 +26,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/event"
 
-	"github.com/docker/engine-api/client"
+	"github.com/docker/docker/client"
 	"golang.org/x/net/context"
 )
 
