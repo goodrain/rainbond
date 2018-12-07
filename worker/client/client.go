@@ -153,6 +153,21 @@ func (a *AppRuntimeSyncClient) GetNeedBillingStatus() (map[string]string, error)
 	}
 	return res, nil
 }
+func (a *AppRuntimeSyncClient) GetServiceDeployInfo(serviceID string) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	re, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.ServicesRequest{})
+	if err != nil {
+		return nil, err
+	}
+	var res = make(map[string]string)
+	for k, v := range re.Status {
+		if !a.IsClosedStatus(v) {
+			res[k] = v
+		}
+	}
+	return res, nil
+}
 
 //IsClosedStatus  check status
 func (a *AppRuntimeSyncClient) IsClosedStatus(curStatus string) bool {
