@@ -19,7 +19,10 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"context"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -45,9 +48,13 @@ func main() {
 	shell := strings.Split(conf.RunShell, "&nbsp;")
 	cmd := exec.CommandContext(ctx, shell[0], shell[1:]...)
 	startFunc := func() error {
-		cmd.Stdout = os.Stdout
+		buffer := bytes.NewBuffer(nil)
+		errbuffer := bytes.NewBuffer(nil)
+		go readBuffer(buffer, logrus.Info)
+		go readBuffer(errbuffer, logrus.Error)
+		cmd.Stdout = buffer
 		cmd.Stdin = os.Stdin
-		cmd.Stderr = os.Stderr
+		cmd.Stderr = errbuffer
 		go func() {
 			logrus.Info("start run progress")
 			err := cmd.Start()
@@ -78,5 +85,20 @@ func main() {
 		}
 	} else {
 		startFunc()
+	}
+}
+
+func readBuffer(reader io.Reader, print func(args ...interface{})) {
+	bufreader := bufio.NewReader(reader)
+	for {
+		line, _, err := bufreader.ReadLine()
+		if err != nil {
+			if err == io.EOF {
+				return
+			}
+			logrus.Errorf("read log buffer failure %s", err.Error())
+			return
+		}
+		print(string(line))
 	}
 }
