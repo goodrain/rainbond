@@ -243,7 +243,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		serviceID := secret.Labels["service_id"]
 		version := secret.Labels["version"]
 		createrID := secret.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
+		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrorNotFoundService {
 				a.conf.KubeClient.CoreV1().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
@@ -258,7 +258,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		serviceID := service.Labels["service_id"]
 		version := service.Labels["version"]
 		createrID := service.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
+		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrorNotFoundService {
 				a.conf.KubeClient.CoreV1().Services(service.Namespace).Delete(service.Name, &metav1.DeleteOptions{})
@@ -273,7 +273,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		serviceID := ingress.Labels["service_id"]
 		version := ingress.Labels["version"]
 		createrID := ingress.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
+		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrorNotFoundService {
 				a.conf.KubeClient.Extensions().Ingresses(ingress.Namespace).Delete(ingress.Name, &metav1.DeleteOptions{})
@@ -288,7 +288,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		serviceID := configmap.Labels["service_id"]
 		version := configmap.Labels["version"]
 		createrID := configmap.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
+		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrorNotFoundService {
 				a.conf.KubeClient.CoreV1().ConfigMaps(configmap.Namespace).Delete(configmap.Name, &metav1.DeleteOptions{})
@@ -384,7 +384,7 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		serviceID := secret.Labels["service_id"]
 		version := secret.Labels["version"]
 		createrID := secret.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
+		if serviceID != "" && createrID != "" {
 			appservice, _ := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DeleteSecrets(secret)
@@ -399,7 +399,7 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		serviceID := service.Labels["service_id"]
 		version := service.Labels["version"]
 		createrID := service.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
+		if serviceID != "" && createrID != "" {
 			appservice, _ := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DeleteServices(service)
@@ -414,7 +414,7 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		serviceID := ingress.Labels["service_id"]
 		version := ingress.Labels["version"]
 		createrID := ingress.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
+		if serviceID != "" && createrID != "" {
 			appservice, _ := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DeleteIngress(ingress)
@@ -429,7 +429,7 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		serviceID := configmap.Labels["service_id"]
 		version := configmap.Labels["version"]
 		createrID := configmap.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
+		if serviceID != "" && createrID != "" {
 			appservice, _ := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DeleteConfigMaps(configmap)
