@@ -105,16 +105,24 @@ func (s *services) Stop(eventID string) (string, *util.APIHandleError) {
 		eventID = coreutil.NewUUID()
 	}
 	data := []byte(`{"event_id":"` + eventID + `"}`)
+	var res utilhttp.ResponseBody
 	code, err := s.DoRequest(s.prefix+"/stop", "POST", bytes.NewBuffer(data), nil)
-	return eventID, handleErrAndCode(err, code)
+	if err != nil {
+		return "", handleErrAndCode(err, code)
+	}
+	return eventID, handleAPIResult(code, res)
 }
 func (s *services) Start(eventID string) (string, *util.APIHandleError) {
 	if eventID == "" {
 		eventID = coreutil.NewUUID()
 	}
+	var res utilhttp.ResponseBody
 	data := []byte(`{"event_id":"` + eventID + `"}`)
 	code, err := s.DoRequest(s.prefix+"/start", "POST", bytes.NewBuffer(data), nil)
-	return eventID, handleErrAndCode(err, code)
+	if err != nil {
+		return "", handleErrAndCode(err, code)
+	}
+	return eventID, handleAPIResult(code, res)
 }
 
 //GetDeployInfo get service deploy info

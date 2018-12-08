@@ -126,11 +126,12 @@ func (n *node) Add(node *client.APIHostNode) *util.APIHandleError {
 	if err != nil {
 		return util.CreateAPIHandleError(400, err)
 	}
-	code, err := n.DoRequest(n.prefix, "POST", bytes.NewBuffer(body), nil)
+	var res utilhttp.ResponseBody
+	code, err := n.DoRequest(n.prefix, "POST", bytes.NewBuffer(body), &res)
 	if err != nil {
 		return util.CreateAPIHandleError(code, err)
 	}
-	return nil
+	return handleAPIResult(code, res)
 }
 func (n *node) Label(nid string) NodeLabelInterface {
 	return &nodeLabelImpl{nodeImpl: n, NodeID: nid}

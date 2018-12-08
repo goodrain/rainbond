@@ -218,7 +218,7 @@ func handleErrAndCode(err error, code int) *util.APIHandleError {
 	if err != nil {
 		return util.CreateAPIHandleError(code, err)
 	}
-	if code != 200 {
+	if code >= 300 {
 		return util.CreateAPIHandleError(code, fmt.Errorf("error with code %d", code))
 	}
 	return nil
@@ -256,4 +256,11 @@ func (r *resourcesTenant) Get() (*model.TenantResource, *util.APIHandleError) {
 		return nil, handleErrAndCode(err, code)
 	}
 	return &rt, nil
+}
+
+func handleAPIResult(code int, res utilhttp.ResponseBody) *util.APIHandleError {
+	if code >= 300 {
+		return util.CreateAPIHandleErrorf(code, res.Msg)
+	}
+	return nil
 }
