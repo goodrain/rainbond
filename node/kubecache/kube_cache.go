@@ -21,6 +21,7 @@ package kubecache
 import (
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/pquerna/ffjson/ffjson"
@@ -425,7 +426,7 @@ func (k *kubeClient) UpK8sNode(rainbondNode *client.HostNode) (*v1.Node, error) 
 	capacity[v1.ResourceMemory] = *resource.NewQuantity(rainbondNode.AvailableMemory, resource.BinarySI)
 	node := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   rainbondNode.ID,
+			Name:   strings.ToLower(rainbondNode.ID),
 			Labels: rainbondNode.Labels,
 		},
 		Spec: v1.NodeSpec{
