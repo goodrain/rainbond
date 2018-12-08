@@ -228,7 +228,8 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 				}
 			}
 			if action == "scheduler" && !v.Unschedulable {
-				if v.NodeStatus.KubeNode != nil && !v.NodeStatus.KubeNode.Spec.Unschedulable {
+				//if node status is not scheduler
+				if v.NodeStatus.KubeNode != nil && v.NodeStatus.KubeNode.Spec.Unschedulable {
 					logrus.Infof("node %s is advice set scheduler,will do this action", v.ID)
 					_, err := n.kubecli.CordonOrUnCordon(v.ID, false)
 					if err != nil {
