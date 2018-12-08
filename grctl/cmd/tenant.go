@@ -136,9 +136,9 @@ func getAllTenant(c *cli.Context) error {
 	tenants, err := clients.RegionClient.Tenants("").List()
 	handleErr(err)
 	tenantsTable := termtables.CreateTable()
-	tenantsTable.AddRow("TenantAlias", "TenantID", "TenantLimit")
+	tenantsTable.AddHeaders("TenantAlias", "TenantID", "TenantLimit")
 	for _, t := range tenants {
-		tenantsTable.AddRow(t.Name, t.ID, fmt.Sprintf("%d GB", t.LimitMemory))
+		tenantsTable.AddRow(t.Name, t.UUID, fmt.Sprintf("%d GB", t.LimitMemory))
 	}
 	fmt.Print(tenantsTable.Render())
 	return nil

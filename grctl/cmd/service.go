@@ -45,6 +45,21 @@ func NewCmdService() cli.Command {
 		Usage: "about  application service operation，grctl service -h",
 		Subcommands: []cli.Command{
 			cli.Command{
+				Name: "list",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "tenantAlias,t",
+						Value: "",
+						Usage: "Specify the tenant alias",
+					},
+				},
+				Usage: "list show application services runtime detail info。For example <grctl service list -t goodrain>",
+				Action: func(c *cli.Context) error {
+					Common(c)
+					return showTenantServices(c)
+				},
+			},
+			cli.Command{
 				Name: "get",
 				Flags: []cli.Flag{
 					cli.StringFlag{
@@ -53,7 +68,7 @@ func NewCmdService() cli.Command {
 						Usage: "Specify the tenant alias",
 					},
 				},
-				Usage: "Get application service runtime detail ifno。For example <grctl service get <service_alias> -t goodrain>",
+				Usage: "Get application service runtime detail info。For example <grctl service get <service_alias> -t goodrain>",
 				Action: func(c *cli.Context) error {
 					Common(c)
 					return showServiceDeployInfo(c)
@@ -348,7 +363,7 @@ func showServiceDeployInfo(c *cli.Context) error {
 		table.AddRow("ReplicationID:", deployInfo.Statefuleset)
 	}
 	table.AddRow("Status:", deployInfo.Status)
-
+	fmt.Println(table)
 	//show services
 	serviceTable := termtables.CreateTable()
 	serviceTable.AddHeaders("Name", "IP", "Port")
@@ -368,8 +383,7 @@ func showServiceDeployInfo(c *cli.Context) error {
 			serviceTable.AddRow(serviceID, "-", "-")
 		}
 	}
-	table.AddRow("Services:", "")
-	fmt.Println(table)
+	fmt.Println("------------Service------------")
 	fmt.Println(serviceTable.Render())
 	//show ingress
 	ingressTable := termtables.CreateTable()
@@ -386,12 +400,10 @@ func showServiceDeployInfo(c *cli.Context) error {
 			ingressTable.AddRow(ingressID, "-")
 		}
 	}
-	table.AddRow("Ingress:", "")
-	fmt.Println(table)
+	fmt.Println("------------Ingress------------")
 	fmt.Println(ingressTable.Render())
 	//show pods
 	var i = 0
-	table.AddRow("Pods:", "")
 	for podID := range deployInfo.Pods {
 		i++
 		if clients.K8SClient != nil {
@@ -454,7 +466,35 @@ func showServiceDeployInfo(c *cli.Context) error {
 			fmt.Printf("-------------------Pod_%d-----------------------\n", i)
 			tablepod := uitable.New()
 			tablepod.AddRow("PodName:", podID)
+			fmt.Println(tablepod)
 		}
+	}
+	return nil
+}
+
+func showTenantServices(ctx *cli.Context) error {
+	tenantAlias := ctx.String("tenantAlias")
+	if tenantAlias == "" {
+		showError("tenant alias can not be empty")
+	}
+	services, err := clients.RegionClient.Tenants(tenantAlias).Services("").List()
+	handleErr(err)
+	if services != nil {
+		runtable := termtables.CreateTable()
+		closedtable := termtables.CreateTable()
+		runtable.AddHeaders("服务别名", "应用状态", "Deploy版本", "实例数量", "内存占用")
+		closedtable.AddHeaders("服务ID", "服务别名", "应用状态", "Deploy版本")
+		for _, service := range services {
+			if service.CurStatus != "closed" && service.CurStatus != "closing" && service.CurStatus != "undeploy" && service.CurStatus != "deploying" {
+				runtable.AddRow(service.ServiceAlias, service.CurStatus, service.DeployVersion, service.Replicas, fmt.Sprintf("%d Mb", service.ContainerMemory*service.Replicas))
+			} else {
+				closedtable.AddRow(service.ServiceID, service.ServiceAlias, service.CurStatus, service.DeployVersion)
+			}
+		}
+		fmt.Println("运行中的应用：")
+		fmt.Println(runtable.Render())
+		fmt.Println("不在运行的应用：")
+		fmt.Println(closedtable.Render())
 	}
 	return nil
 }
