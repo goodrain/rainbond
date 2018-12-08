@@ -185,6 +185,7 @@ func (n *NodeManager) heartbeat() {
 		allServiceHealth := n.healthy.GetServiceHealth()
 		allHealth := true
 		n.currentNode.NodeStatus.AdviceAction = nil
+		n.currentNode.NodeStatus.Conditions = nil
 		for k, v := range allServiceHealth {
 			if ser := n.controller.GetService(k); ser != nil {
 				if ser.ServiceHealth != nil {
