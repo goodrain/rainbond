@@ -75,7 +75,7 @@ func initService(conf *option.Conf, startfunc, stopfunc func() error) error {
 	if !*flRunService {
 		return startfunc()
 	}
-	return utilwindows.RunAsService(*flServiceName, startfunc, stopfunc, conf.LogLevel == "debug")
+	return utilwindows.RunAsService(*flServiceName, startfunc, stopfunc, false)
 }
 
 func unregisterService() error {
