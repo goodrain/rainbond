@@ -344,14 +344,12 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	newAppService.Logger = logger
 	//register the new app service
 	m.store.RegistAppService(newAppService)
-	// delete unwanted k8s resources
-	delApps := findOutDelResources(oldAppService, newAppService)
-	delApps.Logger = logger
-	if err := m.controllerManager.StartController(controller.TypeStopController, *delApps); err != nil {
-		logrus.Errorf("Application run  stop controller failure:%s", err.Error())
-		logger.Info("Application run stop controller failure", controller.GetCallbackLoggerOption())
-		event.GetManager().ReleaseLogger(logger)
-		return fmt.Errorf("Application stop failure")
+	// delete unwanted k8s Ingresses and Secrets
+	delIngsAndSecs := findOutDelIngAndSecr(oldAppService, newAppService)
+	delIngsAndSecs.Logger = logger
+	if err := m.controllerManager.StartController(controller.TypeDeleteController, *delIngsAndSecs); err != nil {
+		logrus.Warningf("error deleting ingresses and secrets: %s", err.Error())
+		logger.Info("error deleting ingresses and secrets", controller.GetCallbackLoggerOption())
 	}
 	// update k8s resources
 	err = m.controllerManager.StartController(controller.TypeApplyRuleController, *newAppService)
@@ -362,11 +360,8 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	return nil
 }
 
-//findOutDelResources finds out the k8s resources thad need to be deleted
-func findOutDelResources(old *v1.AppService, new *v1.AppService) *v1.AppService {
-	for _, n := range new.GetServices() {
-		old.DeleteServices(n)
-	}
+//findOutDelResources finds out ingresses and secrets that need to be deleted
+func findOutDelIngAndSecr(old *v1.AppService, new *v1.AppService) *v1.AppService {
 	for _, n := range new.GetIngress() {
 		old.DeleteIngress(n)
 	}
@@ -376,7 +371,6 @@ func findOutDelResources(old *v1.AppService, new *v1.AppService) *v1.AppService 
 	apps := &v1.AppService{
 		AppServiceBase: old.AppServiceBase,
 	}
-	apps.SetServices(old.GetServices())
 	apps.SetIngresses(old.GetIngress())
 	apps.SetSecrets(old.GetSecrets())
 	return apps
