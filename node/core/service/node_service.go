@@ -90,7 +90,6 @@ func (n *NodeService) AddNode(node *client.APIHostNode) (*client.HostNode, *util
 	if node.HostName == "" {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node hostname can not be empty"))
 	}
-
 	if node.RootPass != "" && node.Privatekey != "" {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("options private-key and root-pass are conflicting"))
 	}

@@ -19,7 +19,6 @@
 package router
 
 import (
-	"os"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -39,9 +38,7 @@ func Routers(mode string) *chi.Mux {
 	r.Use(middleware.RealIP)
 	//Logs the start and end of each request with the elapsed processing time
 	logger := logrus.New()
-	if os.Getenv("DEBUG") == "true" {
-		logger.SetLevel(logrus.DebugLevel)
-	}
+	logger.SetLevel(logrus.GetLevel())
 	r.Use(log.NewStructuredLogger(logger))
 	//Gracefully absorb panics and prints the stack trace
 	r.Use(middleware.Recoverer)
@@ -82,18 +79,15 @@ func Routers(mode string) *chi.Mux {
 				r.Put("/{node_id}/reschedulable", controller.UnCordon)
 				r.Put("/{node_id}/labels", controller.PutLabel)
 				r.Get("/{node_id}/labels", controller.GetLabel)
-				r.Post("/{node_id}/down", controller.DownNode)     //节点下线
-				r.Post("/{node_id}/up", controller.UpNode)         //节点上线
-				r.Get("/{node_id}/instance", controller.Instances) //节点实例列表
+				r.Post("/{node_id}/down", controller.DownNode)
+				r.Post("/{node_id}/up", controller.UpNode)
+				r.Get("/{node_id}/instance", controller.Instances)
 				r.Get("/{node_id}/check", controller.CheckNode)
 				r.Get("/{node_id}/resource", controller.Resource)
-				// 节点安装相关
-				r.Post("/{node_id}", controller.InstallNode)          //安装一个节点
-				r.Post("/add_node", controller.AddNode)               //添加一个节点
-				r.Delete("/{node_id}", controller.DeleteRainbondNode) //删除一个节点
-				//r.Get("/{node_ip}/init", controller.InitStatus)
-				//r.Post("/{node_id}/install", controller.Install)
-
+				// about node install
+				r.Post("/{node_id}/install", controller.InstallNode)  //install node
+				r.Post("/", controller.AddNode)                       //add node
+				r.Delete("/{node_id}", controller.DeleteRainbondNode) //delete node
 				r.Get("/{node_id}/prometheus/cpu", controller.GetCpu)
 				r.Get("/{node_id}/prometheus/mem", controller.GetMem)
 				r.Get("/{node_id}/prometheus/disk", controller.GetDisk)

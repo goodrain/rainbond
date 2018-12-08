@@ -230,6 +230,13 @@ func (n *node) ReSchedulable(nid string) *util.APIHandleError {
 	}
 	return nil
 }
+func (n *node) Install(nid string) *util.APIHandleError {
+	code, err := n.DoRequest(n.prefix+"/"+nid+"/install", "POST", nil, nil)
+	if err != nil {
+		return util.CreateAPIHandleError(code, err)
+	}
+	return nil
+}
 
 type configs struct {
 	regionImpl
@@ -291,6 +298,7 @@ type NodeInterface interface {
 	ReSchedulable(nid string) *util.APIHandleError
 	Delete(nid string) *util.APIHandleError
 	Label(nid string) NodeLabelInterface
+	Install(nid string) *util.APIHandleError
 }
 
 //NodeLabelInterface node label interface

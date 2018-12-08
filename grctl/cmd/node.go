@@ -528,13 +528,10 @@ func NewCmdNode() cli.Command {
 				Action: func(c *cli.Context) error {
 					Common(c)
 					if !c.IsSet("role") {
-						println("role must not null")
-						return nil
+						showError("role must not null")
 					}
-
 					if c.String("root-pass") != "" && c.String("private-key") != "" {
-						println("Options private-key and root-pass are conflicting")
-						return nil
+						showError("Options private-key and root-pass are conflicting")
 					}
 					var node client.APIHostNode
 					node.Role = c.String("role")
@@ -549,6 +546,23 @@ func NewCmdNode() cli.Command {
 					err := clients.RegionClient.Nodes().Add(&node)
 					handleErr(err)
 					fmt.Println("success add node")
+					return nil
+				},
+			},
+			{
+
+				Name:  "install",
+				Usage: "Install a exist node into the cluster",
+				Flags: []cli.Flag{},
+				Action: func(c *cli.Context) error {
+					Common(c)
+					nodeID := c.Args().First()
+					if nodeID == "" {
+						showError("node id can not be empty")
+					}
+					err := clients.RegionClient.Nodes().Install(nodeID)
+					handleErr(err)
+					fmt.Println("start install node")
 					return nil
 				},
 			},
