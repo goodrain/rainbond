@@ -75,6 +75,9 @@ func (e *etcdClusterClient) UpdateStatus(n *HostNode) error {
 	existNode.NodeStatus.Version = cmd.GetVersion()
 	existNode.NodeStatus.AdviceAction = n.NodeStatus.AdviceAction
 	existNode.NodeStatus.Status = n.NodeStatus.Status
+	if existNode.NodeStatus.NodeInfo.OperatingSystem == "" {
+		existNode.NodeStatus.NodeInfo = n.NodeStatus.NodeInfo
+	}
 	existNode.UpdataCondition(n.NodeStatus.Conditions...)
 	return e.Update(existNode)
 }

@@ -272,8 +272,29 @@ func (n *NodeManager) init() error {
 			return fmt.Errorf("find node %s from cluster failure %s", n.currentNode.ID, err.Error())
 		}
 	}
+	n.setNodeLabels(node)
+	if node.NodeStatus.NodeInfo.OperatingSystem == "" {
+		node.NodeStatus.NodeInfo = info.GetSystemInfo()
+	}
 	*n.currentNode = *node
 	return nil
+}
+
+func (n *NodeManager) setNodeLabels(node *client.HostNode) {
+	node.Role = strings.Split(n.cfg.NodeRule, ",")
+	if node.Labels == nil || len(node.Labels) < 1 {
+		node.Labels = map[string]string{}
+	}
+	for _, rule := range node.Role {
+		node.Labels["rainbond_node_rule_"+rule] = "true"
+	}
+	node.Labels[client.LabelOS] = runtime.GOOS
+	hostname, _ := os.Hostname()
+	if node.HostName != hostname && hostname != "" {
+		node.HostName = hostname
+	}
+	node.Labels["rainbond_node_hostname"] = node.HostName
+	node.Labels["rainbond_node_ip"] = node.InternalIP
 }
 
 //getCurrentNode get current node info
@@ -286,21 +307,8 @@ func (n *NodeManager) getCurrentNode(uid string) (*client.HostNode, error) {
 		n.cfg.HostIP = ip.String()
 	}
 	node := CreateNode(uid, n.cfg.HostIP)
+	n.setNodeLabels(&node)
 	node.NodeStatus.NodeInfo = info.GetSystemInfo()
-	node.Role = strings.Split(n.cfg.NodeRule, ",")
-	if node.Labels == nil || len(node.Labels) < 1 {
-		node.Labels = map[string]string{}
-	}
-	for _, rule := range node.Role {
-		node.Labels["rainbond_node_rule_"+rule] = "true"
-	}
-	node.Labels[client.LabelOS] = runtime.GOOS
-	if node.HostName == "" {
-		hostname, _ := os.Hostname()
-		node.HostName = hostname
-	}
-	node.Labels["rainbond_node_hostname"] = node.HostName
-	node.Labels["rainbond_node_ip"] = node.InternalIP
 	node.UpdataCondition(client.NodeCondition{
 		Type:               client.NodeInit,
 		Status:             client.ConditionTrue,
