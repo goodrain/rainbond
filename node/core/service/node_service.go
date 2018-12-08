@@ -109,8 +109,8 @@ func (n *NodeService) AddNode(node *client.APIHostNode) (*client.HostNode, *util
 	return rbnode, nil
 }
 
-//NewNode install node
-func (n *NodeService) NewNode(node *client.HostNode) *utils.APIHandleError {
+//InstallNode install node
+func (n *NodeService) InstallNode(node *client.HostNode) *utils.APIHandleError {
 	node.Status = Installing
 	node.NodeStatus.Status = Installing
 	n.nodecluster.UpdateNode(node)
@@ -166,9 +166,8 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 	if node == nil {
 		return utils.CreateAPIHandleError(404, fmt.Errorf("node is not found"))
 	}
-	// TODO:compute node check node is offline
-	if node.Status != Offline && node.Status != Unknown && node.Status != NotInstalled && node.Status != InstallFailed && node.Status != InstallSuccess && node.Status != Installing {
-		return utils.CreateAPIHandleError(401, fmt.Errorf("node is not offline, you must closed node service in node %s", nodeID))
+	if node.Status == "running" {
+		return utils.CreateAPIHandleError(401, fmt.Errorf("node is running, you must closed node process in node %s", nodeID))
 	}
 	n.nodecluster.RemoveNode(node.ID)
 	_, err := node.DeleteNode()
@@ -308,36 +307,6 @@ func (n *NodeService) UpNode(nodeID string) (*client.HostNode, *utils.APIHandleE
 	n.nodecluster.UpdateNode(hostNode)
 	return hostNode, nil
 }
-
-////InstallNode install a node
-//func (n *NodeService) InstallNode(nodeID string) *utils.APIHandleError {
-//	time.Sleep(3 * time.Second)
-//	node, err := n.GetNode(nodeID)
-//	if err != nil {
-//		return err
-//	}
-//	nodes := []string{node.ID}
-//	if node.Role.HasRule("manage") {
-//		//err := taskService.ExecTask("check_manage_base_services", nodes)
-//		//if err != nil {
-//		//	return err
-//		//}
-//		err = taskService.ExecTask("check_manage_services", nodes)
-//		if err != nil {
-//			return err
-//		}
-//	}
-//	if node.Role.HasRule("compute") {
-//		err = taskService.ExecTask("check_compute_services", nodes)
-//		if err != nil {
-//			return err
-//		}
-//	}
-//	node.Status = Installing
-//	node.NodeStatus.Status = Installing
-//	n.nodecluster.UpdateNode(node)
-//	return nil
-//}
 
 //InitStatus node init status
 func (n *NodeService) InitStatus(nodeIP string) (*model.InitStatus, *utils.APIHandleError) {

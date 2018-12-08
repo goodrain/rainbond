@@ -10,8 +10,6 @@ all: image ## build linux binaries, build images for docker
 clean: 
 	@rm -rf ${BIN_PATH}/*
 
-build_items="api chaos entrance monitor mq node webcli worker eventlog"
-
 ifeq ($(origin WHAT), undefined)
   WHAT = all
 endif

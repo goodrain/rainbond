@@ -430,6 +430,7 @@ func (k *kubeClient) UpK8sNode(rainbondNode *client.HostNode) (*v1.Node, error) 
 		},
 		Spec: v1.NodeSpec{
 			Unschedulable: rainbondNode.Unschedulable,
+			PodCIDR:       rainbondNode.PodCIDR,
 		},
 		Status: v1.NodeStatus{
 			Capacity:    capacity,

@@ -34,26 +34,30 @@ import (
 	"github.com/twinj/uuid"
 )
 
-//ServiceCheck 应用构建源检测
+//ServiceCheck check service build source
 func (s *ServiceAction) ServiceCheck(scs *api_model.ServiceCheckStruct) (string, string, *util.APIHandleError) {
 	checkUUID := uuid.NewV4().String()
 	scs.Body.CheckUUID = checkUUID
 	if scs.Body.EventID == "" {
 		scs.Body.EventID = tutil.NewUUID()
 	}
+	topic := client.BuilderTopic
+	if scs.Body.CheckOS == "windows" {
+		topic = client.WindowsBuilderTopic
+	}
 	err := s.MQClient.SendBuilderTopic(client.TaskStruct{
 		TaskType: "service_check",
 		TaskBody: scs.Body,
-		Topic:    client.BuilderTopic,
+		Topic:    topic,
 	})
 	if err != nil {
-		logrus.Errorf("equque mq error, %v", err)
+		logrus.Errorf("equque service check message to mq error, %v", err)
 		return "", "", util.CreateAPIHandleError(500, err)
 	}
 	return checkUUID, scs.Body.EventID, nil
 }
 
-//GetServiceCheckInfo 获取应用源检测信息
+//GetServiceCheckInfo get application source detection information
 func (s *ServiceAction) GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError) {
 	k := fmt.Sprintf("/servicecheck/%s", uuid)
 	var si exector.ServiceCheckResult

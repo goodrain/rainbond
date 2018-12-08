@@ -884,8 +884,9 @@ type ServiceCheckStruct struct {
 		// required: true
 		SourceType string `json:"source_type" validate:"source_type|required|in:docker-run,docker-compose,sourcecode"`
 
+		CheckOS string `json:"check_os"`
 		// 检测来源定义，
-		// 代码： https://github.com/shurcooL/githubql.git master
+		// 代码： https://github.com/goodrain/rainbond.git master
 		// docker-run: docker run --name xxx nginx:latest nginx
 		// docker-compose: compose全文
 		// in: body

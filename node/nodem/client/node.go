@@ -37,29 +37,33 @@ var LabelOS = "beta.kubernetes.io/os"
 
 //APIHostNode api host node
 type APIHostNode struct {
-	ID         string            `json:"uuid" validate:"uuid"`
-	HostName   string            `json:"host_name" validate:"host_name"`
-	InternalIP string            `json:"internal_ip" validate:"internal_ip|ip"`
-	ExternalIP string            `json:"external_ip" validate:"external_ip|ip"`
-	RootPass   string            `json:"root_pass,omitempty"`
-	Privatekey string            `json:"private_key,omitempty"`
-	Role       string            `json:"role" validate:"role|required"`
-	Labels     map[string]string `json:"labels"`
+	ID          string            `json:"uuid" validate:"uuid"`
+	HostName    string            `json:"host_name" validate:"host_name"`
+	InternalIP  string            `json:"internal_ip" validate:"internal_ip|ip"`
+	ExternalIP  string            `json:"external_ip" validate:"external_ip|ip"`
+	RootPass    string            `json:"root_pass,omitempty"`
+	Privatekey  string            `json:"private_key,omitempty"`
+	Role        string            `json:"role" validate:"role|required"`
+	PodCIDR     string            `json:"podCIDR"`
+	AutoInstall bool              `json:"auto_install"`
+	Labels      map[string]string `json:"labels"`
 }
 
 //Clone Clone
 func (a APIHostNode) Clone() *HostNode {
 	hn := &HostNode{
-		ID:            a.ID,
-		HostName:      a.HostName,
-		InternalIP:    a.InternalIP,
-		ExternalIP:    a.ExternalIP,
-		RootPass:      a.RootPass,
-		KeyPath:       a.Privatekey,
-		Role:          []string{a.Role},
-		Labels:        map[string]string{"rainbond_node_hostname": a.HostName},
-		NodeStatus:    NodeStatus{Status: "not_installed", Conditions: make([]NodeCondition, 0)},
-		Status:        "not_installed",
+		ID:         a.ID,
+		HostName:   a.HostName,
+		InternalIP: a.InternalIP,
+		ExternalIP: a.ExternalIP,
+		RootPass:   a.RootPass,
+		KeyPath:    a.Privatekey,
+		Role:       []string{a.Role},
+		Labels:     map[string]string{"rainbond_node_hostname": a.HostName},
+		NodeStatus: NodeStatus{Status: "not_installed", Conditions: make([]NodeCondition, 0)},
+		Status:     "not_installed",
+		PodCIDR:    a.PodCIDR,
+		//node default unscheduler
 		Unschedulable: true,
 	}
 	return hn
@@ -81,6 +85,7 @@ type HostNode struct {
 	Status          string            `json:"status"`        //node status is: running, unknow
 	Labels          map[string]string `json:"labels"`        //节点标签 内置标签+用户自定义标签
 	Unschedulable   bool              `json:"unschedulable"` //设置值
+	PodCIDR         string            `json:"podCIDR"`
 	NodeStatus      NodeStatus        `json:"node_status"`
 }
 

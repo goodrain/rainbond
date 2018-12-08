@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 
@@ -509,6 +508,14 @@ func NewCmdNode() cli.Command {
 						Name:  "role,r",
 						Usage: "The option is required, the allowed values are: [master|worker]",
 					},
+					cli.StringFlag{
+						Name:  "podCIDR,cidr",
+						Usage: "Defines the IP assignment range for the specified node, which is automatically specified if not specified",
+					},
+					cli.BoolFlag{
+						Name:  "install",
+						Usage: "Automatic installation after addition",
+					},
 				},
 				Action: func(c *cli.Context) error {
 					Common(c)
@@ -521,41 +528,18 @@ func NewCmdNode() cli.Command {
 						println("Options private-key and root-pass are conflicting")
 						return nil
 					}
-
-					model := "pass"
-					if c.String("private-key") != "" {
-						model = "key"
-					}
-
-					// start add node script
-					fmt.Println("Begin add node, please don't exit")
-					line := fmt.Sprintf("cd /opt/rainbond/install/scripts; ./join.sh %s %s %s %s %s %s", c.String("role"), c.String("hostname"),
-						c.String("internal-ip"), model, c.String("root-pass"), c.String("private-key"))
-					cmd := exec.Command("bash", "-c", line)
-					cmd.Stdout = os.Stdout
-					cmd.Stderr = os.Stderr
-
-					err := cmd.Run()
-					if err != nil {
-						println(err.Error())
-						return nil
-					}
-
-					fmt.Println("Add node successful, next you can:")
-					fmt.Println("	check cluster status: grctl node list")
-					//fmt.Println("	online node: grctl node up --help")
-
-					//var node client.APIHostNode
-					//node.Role = append(node.Role, c.String("role"))
-					//node.HostName = c.String("hostname")
-					//node.RootPass = c.String("root-pass")
-					//node.InternalIP = c.String("internal-ip")
-					//node.ExternalIP = c.String("external-ip")
-
-					//err := clients.RegionClient.Nodes().Add(&node)
-					//handleErr(err)
-					//fmt.Println("success add node")
-
+					var node client.APIHostNode
+					node.Role = c.String("role")
+					node.HostName = c.String("hostname")
+					node.RootPass = c.String("root-pass")
+					node.InternalIP = c.String("internal-ip")
+					node.ExternalIP = c.String("external-ip")
+					node.PodCIDR = c.String("podCIDR")
+					node.Privatekey = c.String("private-key")
+					node.AutoInstall = c.Bool("install")
+					err := clients.RegionClient.Nodes().Add(&node)
+					handleErr(err)
+					fmt.Println("success add node")
 					return nil
 				},
 			},

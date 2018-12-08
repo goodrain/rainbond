@@ -20,7 +20,6 @@ package logger
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -62,7 +61,7 @@ func CreatContainerLogManage(conf *option.Conf) *ContainerLogManage {
 func (c *ContainerLogManage) Start() error {
 	errchan := make(chan error)
 	go c.handleLogger(errchan)
-	go c.watchContainer(errchan)
+	go c.listAndWatchContainer(errchan)
 	return nil
 }
 
@@ -149,7 +148,7 @@ func (c *ContainerLogManage) cacheContainer(cs ...ContainerEvent) {
 		c.cchan <- container
 	}
 }
-func (c *ContainerLogManage) watchContainer(errchan chan error) {
+func (c *ContainerLogManage) listAndWatchContainer(errchan chan error) {
 	lictctx, cancel := context.WithTimeout(c.ctx, time.Second*20)
 	containers, err := c.conf.DockerCli.ContainerList(lictctx, types.ContainerListOptions{})
 	if err != nil {
@@ -167,51 +166,29 @@ func (c *ContainerLogManage) watchContainer(errchan chan error) {
 		}
 		c.cacheContainer(ContainerEvent{Action: "start", Container: container})
 	}
-	containerFileter := filters.NewArgs()
-	containerFileter.Add("type", "container")
-	eventreader, err := c.conf.DockerCli.Events(c.ctx, types.EventsOptions{
-		Filters: containerFileter,
-	})
-	if err != nil {
-		errchan <- err
-	}
-	defer eventreader.Close()
-	decoder := json.NewDecoder(eventreader)
-	messages := make(chan events.Message, 10)
-	go c.readmessages(messages)
-	defer close(messages)
 	for {
-		select {
-		case <-c.ctx.Done():
-			return
-		default:
-			var event events.Message
-			if err := decoder.Decode(&event); err != nil {
-				errchan <- err
-				return
-			}
-			select {
-			case messages <- event:
-			case <-c.ctx.Done():
-				return
-			}
+		if err := c.watchContainer(); err != nil {
+			logrus.Errorf("watch container error %s, will retry", err.Error())
 		}
+		time.Sleep(time.Second * 1)
 	}
-}
-func (c *ContainerLogManage) getContainer(containerID string) (types.ContainerJSON, error) {
-	ctx, cancel := context.WithTimeout(c.ctx, time.Second*5)
-	defer cancel()
-	return c.conf.DockerCli.ContainerInspect(ctx, containerID)
 }
 
-func (c *ContainerLogManage) readmessages(eventchan chan events.Message) {
+func (c *ContainerLogManage) watchContainer() error {
+	containerFileter := filters.NewArgs()
+	containerFileter.Add("type", "container")
+	eventchan, eventerrchan := c.conf.DockerCli.Events(c.ctx, types.EventsOptions{
+		Filters: containerFileter,
+	})
 	for {
 		select {
 		case <-c.ctx.Done():
-			return
+			return nil
+		case err := <-eventerrchan:
+			return err
 		case event, ok := <-eventchan:
 			if !ok {
-				return
+				return fmt.Errorf("event chan is closed")
 			}
 			if event.Type == events.ContainerEventType && checkEventAction(event.Action) {
 				container, err := c.getContainer(event.ID)
@@ -225,6 +202,11 @@ func (c *ContainerLogManage) readmessages(eventchan chan events.Message) {
 			}
 		}
 	}
+}
+func (c *ContainerLogManage) getContainer(containerID string) (types.ContainerJSON, error) {
+	ctx, cancel := context.WithTimeout(c.ctx, time.Second*5)
+	defer cancel()
+	return c.conf.DockerCli.ContainerInspect(ctx, containerID)
 }
 
 var handleAction = []string{"create", "start", "stop", "die"}

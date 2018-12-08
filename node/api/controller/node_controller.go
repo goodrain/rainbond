@@ -44,8 +44,8 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("node_exporter"))
 }
 
-//安装一个节点
-func NewNode(w http.ResponseWriter, r *http.Request) {
+//InstallNode install a node
+func InstallNode(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
 	node, err := nodeService.GetNode(nodeUID)
 	if err != nil {
@@ -53,14 +53,14 @@ func NewNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := nodeService.NewNode(node); err != nil {
+	if err := nodeService.InstallNode(node); err != nil {
 		err.Handle(r, w)
 		return
 	}
 	httputil.ReturnSuccess(r, w, node)
 }
 
-//添加一个节点
+//AddNode add a node
 func AddNode(w http.ResponseWriter, r *http.Request) {
 	isInstall := r.FormValue("is_install")
 	var node client.APIHostNode
@@ -72,8 +72,8 @@ func AddNode(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-	if isInstall == "true" {
-		if err := nodeService.NewNode(rnode); err != nil {
+	if isInstall == "true" || node.AutoInstall {
+		if err := nodeService.InstallNode(rnode); err != nil {
 			err.Handle(r, w)
 			return
 		}
@@ -149,21 +149,6 @@ func GetRuleNodes(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, masternodes)
 }
-
-//func Install(w http.ResponseWriter, r *http.Request) {
-//	nodeID := strings.TrimSpace(chi.URLParam(r, "node_id"))
-//	if len(nodeID) == 0 {
-//		err := utils.APIHandleError{
-//			Code: 404,
-//			Err:  errors.New(fmt.Sprintf("can't find node by node_id %s", nodeID)),
-//		}
-//		err.Handle(r, w)
-//		return
-//	}
-//	nodeService.InstallNode(nodeID)
-//
-//	httputil.ReturnSuccess(r, w, nil)
-//}
 
 func InitStatus(w http.ResponseWriter, r *http.Request) {
 	nodeIP := strings.TrimSpace(chi.URLParam(r, "node_ip"))
