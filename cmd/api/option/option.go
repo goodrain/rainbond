@@ -49,8 +49,9 @@ type Config struct {
 	Opentsdb          string
 	RegionTag         string
 	LoggerFile        string
+	EnableFeature     []string
 	Debug             bool
-	MinExtPort           int // minimum external port
+	MinExtPort        int // minimum external port
 }
 
 //APIServer  apiserver server
@@ -93,6 +94,7 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LoggerFile, "logger-file", "/logs/request.log", "request log file path")
 	fs.BoolVar(&a.Debug, "debug", false, "open debug will enable pprof")
 	fs.IntVar(&a.MinExtPort, "min-ext-port", 0, "minimum external port")
+	fs.StringArrayVar(&a.EnableFeature, "enable-feature", []string{}, "List of special features supported, such as `windows`")
 }
 
 //SetLog 设置log

@@ -50,4 +50,5 @@ message DeployInfo {
   map<string, string> secrets = 6;
   map<string, string> ingresses = 7;
   map<string, string> replicatset = 8;
+  string status = 9;
 }

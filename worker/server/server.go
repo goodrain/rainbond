@@ -185,6 +185,7 @@ func (r *RuntimeServer) GetDeployInfo(ctx context.Context, re *pb.ServiceRequest
 			}
 			deployinfo.Replicatset = rsnames
 		}
+		deployinfo.Status = appService.GetServiceStatus()
 	}
 	return &deployinfo, nil
 }

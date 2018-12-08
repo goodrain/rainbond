@@ -43,6 +43,10 @@ func handleErr(err *util.APIHandleError) {
 		os.Exit(1)
 	}
 }
+func showError(m string) {
+	fmt.Printf("Error: %s\n", m)
+	os.Exit(1)
+}
 
 //NewCmdShow show
 func NewCmdShow() cli.Command {

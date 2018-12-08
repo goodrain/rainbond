@@ -19,21 +19,15 @@
 package cmd
 
 import (
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"net/url"
 	"os"
-	"os/exec"
-	"path"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/apcera/termtables"
-	"github.com/goodrain/rainbond/api/util"
-	"github.com/goodrain/rainbond/cmd/grctl/option"
 	eventdb "github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/grctl/clients"
 	coreutil "github.com/goodrain/rainbond/util"
@@ -54,15 +48,15 @@ func NewCmdService() cli.Command {
 				Name: "get",
 				Flags: []cli.Flag{
 					cli.StringFlag{
-						Name:  "url",
+						Name:  "tenantAlias,t",
 						Value: "",
-						Usage: "URL of the app. eg. https://user.goodrain.com/apps/goodrain/dev-debug/detail/ or goodrain/dev-debug",
+						Usage: "Specify the tenant alias",
 					},
 				},
-				Usage: "Get application service runtime detail ifno。For example <grctl service get PATH>",
+				Usage: "Get application service runtime detail ifno。For example <grctl service get <service_alias> -t goodrain>",
 				Action: func(c *cli.Context) error {
 					Common(c)
-					return getAppInfoV2(c)
+					return showServiceDeployInfo(c)
 				},
 			},
 			cli.Command{
@@ -72,6 +66,11 @@ func NewCmdService() cli.Command {
 					cli.BoolFlag{
 						Name:  "f",
 						Usage: "Blocks the output operation log",
+					},
+					cli.StringFlag{
+						Name:  "tenantAlias,t",
+						Value: "",
+						Usage: "Specify the tenant alias",
 					},
 					cli.StringFlag{
 						Name:  "event_log_server",
@@ -92,6 +91,11 @@ func NewCmdService() cli.Command {
 						Usage: "Blocks the output operation log",
 					},
 					cli.StringFlag{
+						Name:  "tenantAlias,t",
+						Value: "",
+						Usage: "Specify the tenant alias",
+					},
+					cli.StringFlag{
 						Name:  "event_log_server",
 						Usage: "event log server address",
 					},
@@ -109,6 +113,11 @@ func NewCmdService() cli.Command {
 						Usage: "Blocks the output operation log",
 					},
 					cli.StringFlag{
+						Name:  "tenantAlias,t",
+						Value: "",
+						Usage: "Specify the tenant short id",
+					},
+					cli.StringFlag{
 						Name:  "event_log_server",
 						Usage: "event log server address",
 					},
@@ -119,27 +128,13 @@ func NewCmdService() cli.Command {
 					return getEventLog(c)
 				},
 			},
-			cli.Command{
-				Name: "log",
-				Flags: []cli.Flag{
-					cli.BoolFlag{
-						Name:  "f",
-						Usage: "Blocks the output service log",
-					},
-				},
-				Usage: "Get application service run log。For example <grctl service log SERVICE_ID>",
-				Action: func(c *cli.Context) error {
-					Common(c)
-					return getLogInfo(c)
-				},
-			},
 		},
 	}
 	return c
 }
 
+//GetEventLogf get event log from websocket
 func GetEventLogf(eventID, server string) error {
-
 	//if c.String("event_log_server") != "" {
 	//	server = c.String("event_log_server")
 	//}
@@ -249,16 +244,25 @@ func startService(c *cli.Context) error {
 
 	// goodrain/gra564a1
 	serviceAlias := c.Args().First()
+	tenantName := c.String("tenantAlias")
 	info := strings.Split(serviceAlias, "/")
-
+	if len(info) >= 2 {
+		tenantName = info[0]
+		serviceAlias = info[1]
+	}
+	if serviceAlias == "" {
+		showError("tenant alias can not be empty")
+	}
+	if serviceAlias == "" {
+		showError("service alias can not be empty")
+	}
 	eventID := coreutil.NewUUID()
-
-	service, err := clients.RegionClient.Tenants(info[0]).Services(info[1]).Get()
+	service, err := clients.RegionClient.Tenants(tenantName).Services(serviceAlias).Get()
 	handleErr(err)
 	if service == nil {
-		return errors.New("应用不存在:" + info[1])
+		return errors.New("Service not exist:" + serviceAlias)
 	}
-	_, err = clients.RegionClient.Tenants(info[0]).Services(info[1]).Start(eventID)
+	_, err = clients.RegionClient.Tenants(tenantName).Services(serviceAlias).Start(eventID)
 	handleErr(err)
 	if c.Bool("f") {
 		server := "127.0.0.1:6363"
@@ -277,17 +281,26 @@ func startService(c *cli.Context) error {
 }
 
 func stopService(c *cli.Context) error {
-
 	serviceAlias := c.Args().First()
+	tenantName := c.String("tenantAlias")
 	info := strings.Split(serviceAlias, "/")
-
+	if len(info) >= 2 {
+		tenantName = info[0]
+		serviceAlias = info[1]
+	}
+	if serviceAlias == "" {
+		showError("tenant alias can not be empty")
+	}
+	if serviceAlias == "" {
+		showError("service alias can not be empty")
+	}
 	eventID := coreutil.NewUUID()
-	service, err := clients.RegionClient.Tenants(info[0]).Services(info[1]).Get()
+	service, err := clients.RegionClient.Tenants(tenantName).Services(serviceAlias).Get()
 	handleErr(err)
 	if service == nil {
-		return errors.New("应用不存在:" + info[1])
+		return errors.New("Service not exist:" + serviceAlias)
 	}
-	_, err = clients.RegionClient.Tenants(info[0]).Services(info[1]).Stop(eventID)
+	_, err = clients.RegionClient.Tenants(tenantName).Services(serviceAlias).Stop(eventID)
 	handleErr(err)
 	if c.Bool("f") {
 		server := "127.0.0.1:6363"
@@ -299,121 +312,93 @@ func stopService(c *cli.Context) error {
 	fmt.Println("EventID:", eventID)
 	return nil
 }
-
-func getAppInfoV2(c *cli.Context) error {
-	value := c.Args().First()
-	// https://user.goodrain.com/apps/goodrain/dev-debug/detail/
-	// http://dev.goodrain.org/#/team/x749pdls/region/private-center/app/gr7c6929/overview
-	var tenantName, serviceAlias string
-	if strings.HasPrefix(value, "http") {
-		fmt.Println(value)
-		info := strings.Split(value, "#")
-		if len(info) < 2 {
-			return errors.New("参数错误")
-		}
-		paths := strings.Split(info[1], "/")
-		if len(paths) < 7 {
-			logrus.Error("参数错误")
-			return errors.New("参数错误")
-		}
-		tenantName = paths[2]
-		serviceAlias = paths[6]
-	} else if strings.Contains(value, "/") {
-		paths := strings.Split(value, "/")
-		if len(paths) < 2 {
-			logrus.Error("参数错误")
-			return errors.New("参数错误")
-		}
-		tenantName = paths[0]
-		serviceAlias = paths[1]
-	} else {
-		serviceAlias = value
+func showServiceDeployInfo(c *cli.Context) error {
+	serviceAlias := c.Args().First()
+	tenantName := c.String("tenantAlias")
+	info := strings.Split(serviceAlias, "/")
+	if len(info) >= 2 {
+		tenantName = info[0]
+		serviceAlias = info[1]
+	}
+	if tenantName == "" {
+		showError("tenant alias can not be empty")
+	}
+	if serviceAlias == "" {
+		showError("service alias can not be empty")
 	}
 	service, err := clients.RegionClient.Tenants(tenantName).Services(serviceAlias).Get()
 	handleErr(err)
 	if service == nil {
-		fmt.Println("not found")
-		return nil
+		return errors.New("Service not exist:" + serviceAlias)
 	}
+	deployInfo, err := clients.RegionClient.Tenants(tenantName).Services(serviceAlias).GetDeployInfo()
+	handleErr(err)
 
 	table := uitable.New()
 	table.Wrap = true // wrap columns
 	tenantID := service.TenantId
 	serviceID := service.ServiceId
-	//volumes:=service[""]
-
 	table.AddRow("Namespace:", tenantID)
 	table.AddRow("ServiceID:", serviceID)
-	//table.AddRow("Volume:", volumes)
-
-	option := metav1.ListOptions{LabelSelector: "name=" + serviceAlias}
-	ps, err := clients.RegionClient.Tenants(tenantName).Services(serviceAlias).Pods()
-	handleErr(err)
-
-	var rcMap = make(map[string]string)
-	for _, v := range ps {
-		rcMap["Type"] = v.ReplicationType
-		rcMap["ID"] = v.ReplicationID
-		break
+	if deployInfo.Deployment != "" {
+		table.AddRow("ReplicationType:", "deployment")
+		table.AddRow("ReplicationID:", deployInfo.Deployment)
+	} else if deployInfo.Statefuleset != "" {
+		table.AddRow("ReplicationType:", "statefulset")
+		table.AddRow("ReplicationID:", deployInfo.Statefuleset)
 	}
-	table.AddRow("ReplicationType:", rcMap["Type"])
-	table.AddRow("ReplicationID:", rcMap["ID"])
-	serviceOption := metav1.ListOptions{}
-	//grf1cdd7Service
-	//serviceOption := metav1.ListOptions{LabelSelector: "spec.selector.name="+"gr2a2e1b" }
+	table.AddRow("Status:", deployInfo.Status)
 
-	services, error := clients.K8SClient.Core().Services(tenantID).List(serviceOption)
-	handleErr(util.CreateAPIHandleError(500, error))
-
+	//show services
 	serviceTable := termtables.CreateTable()
 	serviceTable.AddHeaders("Name", "IP", "Port")
-
-	var serviceMap = make(map[string]string)
-	for _, service := range services.Items {
-		if service.Spec.Selector["name"] == serviceAlias {
-			serviceMap["Name"] = service.Name
-			var ports string
-			if service.Spec.Ports != nil && len(service.Spec.Ports) > 0 {
-				for _, p := range service.Spec.Ports {
-					ports += fmt.Sprintf("(%s:%s)", p.Protocol, p.TargetPort.String())
+	for serviceID := range deployInfo.Services {
+		if clients.K8SClient != nil {
+			service, _ := clients.K8SClient.Core().Services(tenantID).Get(serviceID, metav1.GetOptions{})
+			if service != nil {
+				var ports string
+				if service.Spec.Ports != nil && len(service.Spec.Ports) > 0 {
+					for _, p := range service.Spec.Ports {
+						ports += fmt.Sprintf("(%s:%s)", p.Protocol, p.TargetPort.String())
+					}
 				}
+				serviceTable.AddRow(service.Name, service.Spec.ClusterIP, ports)
 			}
-			serviceMap["Ports"] = ports
-			serviceMap["ClusterIP"] = service.Spec.ClusterIP
-			serviceTable.AddRow(service.Name, service.Spec.ClusterIP, ports)
+		} else {
+			serviceTable.AddRow(serviceID, "-", "-")
 		}
 	}
 	table.AddRow("Services:", "")
 	fmt.Println(table)
 	fmt.Println(serviceTable.Render())
-
-	//"ServiceID": "92fdfe7e22639be491953c1fd92a2e1b",
-	//	"ReplicationID": "695cdb83147041bd9b2777659e981a9a",
-	//	"ReplicationType": "replicationcontroller",
-	//	"PodName": "695cdb83147041bd9b2777659e981a9a-gh4pn"
-
-	if clients.K8SClient == nil {
-
-		for i, v := range ps {
-
-			table := uitable.New()
-			table.Wrap = true // wrap columns
-			fmt.Printf("-------------------Pod_%d-----------------------\n", i)
-			table.AddRow("PodName:", v.PodName)
-			table.AddRow("ServiceID:", v.ServiceID)
-			table.AddRow("ReplicationType:", v.ReplicationType)
-			table.AddRow("ReplicationID:", v.ReplicationID)
-
-			fmt.Println(table)
+	//show ingress
+	ingressTable := termtables.CreateTable()
+	ingressTable.AddHeaders("Name", "Host")
+	for ingressID := range deployInfo.Ingresses {
+		if clients.K8SClient != nil {
+			ingress, _ := clients.K8SClient.Extensions().Ingresses(tenantID).Get(ingressID, metav1.GetOptions{})
+			if ingress != nil {
+				for _, rule := range ingress.Spec.Rules {
+					ingressTable.AddRow(ingress.Name, rule.Host)
+				}
+			}
+		} else {
+			ingressTable.AddRow(ingressID, "-")
 		}
-	} else {
-
-		pods, err := clients.K8SClient.Core().Pods(tenantID).List(option)
-		if err != nil {
-			return err
-		}
-		for i, pod := range pods.Items {
-
+	}
+	table.AddRow("Ingress:", "")
+	fmt.Println(table)
+	fmt.Println(ingressTable.Render())
+	//show pods
+	var i = 0
+	table.AddRow("Pods:", "")
+	for podID := range deployInfo.Pods {
+		i++
+		if clients.K8SClient != nil {
+			pod, err := clients.K8SClient.Core().Pods(tenantID).Get(podID, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
 			table := uitable.New()
 			table.Wrap = true // wrap columns
 			fmt.Printf("-------------------Pod_%d-----------------------\n", i)
@@ -465,67 +450,11 @@ func getAppInfoV2(c *cli.Context) error {
 				containerTable.AddRow(conID, con.Name, con.Image, t)
 			}
 			fmt.Println(containerTable.Render())
+		} else {
+			fmt.Printf("-------------------Pod_%d-----------------------\n", i)
+			tablepod := uitable.New()
+			tablepod.AddRow("PodName:", podID)
 		}
-	}
-	return nil
-}
-func GetServiceAliasID(ServiceID string) string {
-	if len(ServiceID) > 11 {
-		newWord := strconv.Itoa(int(ServiceID[10])) + ServiceID + strconv.Itoa(int(ServiceID[3])) + "log" + strconv.Itoa(int(ServiceID[2])/7)
-		ha := sha256.New224()
-		ha.Write([]byte(newWord))
-		return fmt.Sprintf("%x", ha.Sum(nil))[0:16]
-	}
-	return ServiceID
-}
-
-// grctrl log SERVICE_ID
-func getLogInfo(c *cli.Context) error {
-	value := c.Args().Get(0)
-	// tenantID, err := db.FindNamespaceByServiceID(value)
-	// if err != nil {
-	// 	logrus.Error(err.Error())
-	// 	return err
-	// }
-	alias := GetServiceAliasID(value)
-	config := option.GetConfig()
-	logFilePath := path.Join(config.DockerLogPath, alias, "stdout.log")
-
-	//logrus.Info(logFilePath)
-	var cmd exec.Cmd
-
-	if c.Bool("f") {
-		tail, err := exec.LookPath("tail")
-		if err != nil {
-			logrus.Error("Don't find the tail.", err.Error())
-			return err
-		}
-		cmd = exec.Cmd{
-			Env:    os.Environ(),
-			Path:   tail,
-			Args:   []string{tail, "-f", logFilePath},
-			Stdin:  os.Stdin,
-			Stdout: os.Stdout,
-			Stderr: os.Stderr,
-		}
-	} else {
-		cat, err := exec.LookPath("cat")
-		if err != nil {
-			logrus.Error("Don't find the cat.", err.Error())
-			return err
-		}
-		cmd = exec.Cmd{
-			Env:    os.Environ(),
-			Path:   cat,
-			Args:   []string{cat, logFilePath},
-			Stdin:  os.Stdin,
-			Stdout: os.Stdout,
-			Stderr: os.Stderr,
-		}
-	}
-	if err := cmd.Run(); err != nil {
-		logrus.Error("Log error.", err.Error())
-		return err
 	}
 	return nil
 }

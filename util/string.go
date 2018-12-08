@@ -35,3 +35,13 @@ func ToByte(v string) []byte {
 	sh := (*reflect.StringHeader)(unsafe.Pointer(&v))
 	return *(*[]byte)(unsafe.Pointer(sh))
 }
+
+//StringArrayContains string array contains
+func StringArrayContains(list []string, source string) bool {
+	for _, l := range list {
+		if l == source {
+			return true
+		}
+	}
+	return false
+}

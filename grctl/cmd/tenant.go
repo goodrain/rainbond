@@ -35,6 +35,14 @@ func NewCmdTenant() cli.Command {
 		Usage: "grctl tenant -h",
 		Subcommands: []cli.Command{
 			cli.Command{
+				Name:  "list",
+				Usage: "list all tenant info",
+				Action: func(c *cli.Context) error {
+					Common(c)
+					return getAllTenant(c)
+				},
+			},
+			cli.Command{
 				Name:  "get",
 				Usage: "get all app details by specified tenant name",
 				Action: func(c *cli.Context) error {
@@ -121,5 +129,17 @@ func findTenantResourceUsage(c *cli.Context) error {
 	table.AddRow("总分配CPU资源：", fmt.Sprintf("%.2f Core", float64(resources.AllocatedCPU)/1000))
 	table.AddRow("总分配内存资源：", fmt.Sprintf("%d %s", resources.AllocatedMEM, "Mb"))
 	fmt.Println(table)
+	return nil
+}
+
+func getAllTenant(c *cli.Context) error {
+	tenants, err := clients.RegionClient.Tenants("").List()
+	handleErr(err)
+	tenantsTable := termtables.CreateTable()
+	tenantsTable.AddRow("TenantAlias", "TenantID", "TenantLimit")
+	for _, t := range tenants {
+		tenantsTable.AddRow(t.Name, t.ID, fmt.Sprintf("%d GB", t.LimitMemory))
+	}
+	fmt.Print(tenantsTable.Render())
 	return nil
 }

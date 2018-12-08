@@ -21,6 +21,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pquerna/ffjson/ffjson"
@@ -42,8 +43,15 @@ func (s *ServiceAction) ServiceCheck(scs *api_model.ServiceCheckStruct) (string,
 		scs.Body.EventID = tutil.NewUUID()
 	}
 	topic := client.BuilderTopic
-	if scs.Body.CheckOS == "windows" {
-		topic = client.WindowsBuilderTopic
+	if tutil.StringArrayContains(s.conf.EnableFeature, "windows") {
+		if scs.Body.CheckOS == "windows" {
+			topic = client.WindowsBuilderTopic
+		}
+		if scs.Body.SourceType == "docker-run" || scs.Body.SourceType == "docker-compose" {
+			if strings.Contains(scs.Body.SourceBody, "windows") {
+				topic = client.WindowsBuilderTopic
+			}
+		}
 	}
 	err := s.MQClient.SendBuilderTopic(client.TaskStruct{
 		TaskType: "service_check",

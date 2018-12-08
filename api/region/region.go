@@ -19,7 +19,6 @@
 package region
 
 import (
-	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -34,8 +33,6 @@ import (
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/cmd"
-	dbmodel "github.com/goodrain/rainbond/db/model"
-	coreutil "github.com/goodrain/rainbond/util"
 	utilhttp "github.com/goodrain/rainbond/util/http"
 )
 
@@ -147,141 +144,6 @@ func (r *regionImpl) Version() string {
 //Resources about resources
 func (r *regionImpl) Resources() ResourcesInterface {
 	return &resources{prefix: "/v2/resources", regionImpl: *r}
-}
-
-type tenant struct {
-	regionImpl
-	tenantName string
-	prefix     string
-}
-type services struct {
-	tenant
-	prefix string
-	model  model.ServiceStruct
-}
-
-//TenantInterface TenantInterface
-type TenantInterface interface {
-	Get() (*dbmodel.Tenants, *util.APIHandleError)
-	List() ([]*dbmodel.Tenants, *util.APIHandleError)
-	Delete() *util.APIHandleError
-	Services(serviceAlias string) ServiceInterface
-	// DefineSources(ss *api_model.SourceSpec) DefineSourcesInterface
-	// DefineCloudAuth(gt *api_model.GetUserToken) DefineCloudAuthInterface
-}
-
-func (t *tenant) Get() (*dbmodel.Tenants, *util.APIHandleError) {
-	var decode utilhttp.ResponseBody
-	var tenant dbmodel.Tenants
-	decode.Bean = &tenant
-	code, err := t.DoRequest(t.prefix, "GET", nil, &decode)
-	if err != nil {
-		return nil, util.CreateAPIHandleError(code, err)
-	}
-	return &tenant, nil
-}
-func (t *tenant) List() ([]*dbmodel.Tenants, *util.APIHandleError) {
-	if t.tenantName != "" {
-		return nil, util.CreateAPIHandleErrorf(400, "tenant name must be empty in this api")
-	}
-	var decode utilhttp.ResponseBody
-	var tenants []*dbmodel.Tenants
-	decode.List = &tenants
-	code, err := t.DoRequest(t.prefix, "GET", nil, &decode)
-	if err != nil {
-		return nil, util.CreateAPIHandleError(code, err)
-	}
-	return tenants, nil
-}
-func (t *tenant) Delete() *util.APIHandleError {
-	return nil
-}
-func (t *tenant) Services(serviceAlias string) ServiceInterface {
-	return &services{
-		prefix: path.Join(t.prefix, "services", serviceAlias),
-		tenant: *t,
-	}
-}
-
-//ServiceInterface ServiceInterface
-type ServiceInterface interface {
-	Get() (*serviceInfo, *util.APIHandleError)
-	Pods() ([]*podInfo, *util.APIHandleError)
-	List() ([]*dbmodel.TenantServices, *util.APIHandleError)
-	Stop(eventID string) (string, *util.APIHandleError)
-	Start(eventID string) (string, *util.APIHandleError)
-	EventLog(eventID, level string) ([]*model.MessageData, *util.APIHandleError)
-}
-
-func (s *services) Pods() ([]*podInfo, *util.APIHandleError) {
-	var gc []*podInfo
-	var decode utilhttp.ResponseBody
-	decode.List = &gc
-	code, err := s.DoRequest(s.prefix+"/pods", "GET", nil, &decode)
-	if err != nil {
-		return nil, util.CreateAPIHandleError(code, err)
-	}
-	if code != 200 {
-		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
-	}
-	return gc, nil
-}
-func (s *services) Get() (*serviceInfo, *util.APIHandleError) {
-	var service serviceInfo
-	var decode utilhttp.ResponseBody
-	decode.Bean = &service
-	code, err := s.DoRequest(s.prefix, "GET", nil, &decode)
-	if err != nil {
-		return nil, util.CreateAPIHandleError(code, err)
-	}
-	if code != 200 {
-		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get err with code %d", code))
-	}
-	return &service, nil
-}
-func (s *services) EventLog(eventID, level string) ([]*model.MessageData, *util.APIHandleError) {
-	data := []byte(`{"event_id":"` + eventID + `","level":"` + level + `"}`)
-	var message []*model.MessageData
-	var decode utilhttp.ResponseBody
-	decode.List = &message
-	code, err := s.DoRequest(s.prefix+"/event-log", "POST", bytes.NewBuffer(data), &decode)
-	if err != nil {
-		return nil, util.CreateAPIHandleError(code, err)
-	}
-	if code != 200 {
-		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
-	}
-	return message, nil
-}
-
-func (s *services) List() ([]*dbmodel.TenantServices, *util.APIHandleError) {
-	var gc []*dbmodel.TenantServices
-	var decode utilhttp.ResponseBody
-	decode.List = &gc
-	code, err := s.DoRequest(s.prefix, "GET", nil, &decode)
-	if err != nil {
-		return nil, util.CreateAPIHandleError(code, err)
-	}
-	if code != 200 {
-		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get with code %d", code))
-	}
-	return gc, nil
-}
-func (s *services) Stop(eventID string) (string, *util.APIHandleError) {
-	if eventID == "" {
-		eventID = coreutil.NewUUID()
-	}
-	data := []byte(`{"event_id":"` + eventID + `"}`)
-	code, err := s.DoRequest(s.prefix+"/stop", "POST", bytes.NewBuffer(data), nil)
-	return eventID, handleErrAndCode(err, code)
-}
-func (s *services) Start(eventID string) (string, *util.APIHandleError) {
-	if eventID == "" {
-		eventID = coreutil.NewUUID()
-	}
-	data := []byte(`{"event_id":"` + eventID + `"}`)
-	code, err := s.DoRequest(s.prefix+"/start", "POST", bytes.NewBuffer(data), nil)
-	return eventID, handleErrAndCode(err, code)
 }
 func (r *regionImpl) GetEndpoint() string {
 	return r.Endpoints[0]
