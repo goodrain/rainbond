@@ -59,9 +59,6 @@ var TypeScalingController TypeController = "scaling"
 // TypeApplyRuleController -
 var TypeApplyRuleController TypeController = "apply_rule"
 
-// TypeDeleteController -
-var TypeDeleteController TypeController = "delete"
-
 //Manager controller manager
 type Manager struct {
 	ctx         context.Context
@@ -143,12 +140,6 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			appService:   apps,
 			manager:      m,
 			stopChan:     make(chan struct{}),
-		}
-	case TypeDeleteController:
-		controller = &deleteController{
-			controllerID: controllerID,
-			appService:   apps,
-			manager:      m,
 		}
 
 	default:

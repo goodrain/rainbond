@@ -44,7 +44,7 @@ func (a *applyRuleController) Begin() {
 		go func(service v1.AppService) {
 			wait.Add(1)
 			defer wait.Done()
-			if err := a.applyRules(&service); err != nil {
+			if err := a.applyOne(&service); err != nil {
 				logrus.Errorf("apply rules for service %s failure: %s", service.ServiceAlias, err.Error())
 			}
 		}(service)
@@ -58,20 +58,34 @@ func (a *applyRuleController) Stop() error {
 	return nil
 }
 
-func (a *applyRuleController) applyRules(app *v1.AppService) error {
+func (a *applyRuleController) applyOne(app *v1.AppService) error {
 	// update service
 	for _, service := range app.GetServices() {
 		ensureService(service, a.manager.client)
 	}
 	// update ingress
-	logrus.Debugf("Ingresses: %v", app.GetIngress())
 	for _, ing := range app.GetIngress() {
 		ensureIngress(ing, a.manager.client)
 	}
 	// update secret
-	logrus.Debugf("Secrets: %v", app.GetSecrets())
 	for _, secret := range app.GetSecrets() {
 		ensureSecret(secret, a.manager.client)
+	}
+	// delete delIngress
+	for _, ing := range app.GetDelIngs() {
+		err := a.manager.client.ExtensionsV1beta1().Ingresses(ing.Namespace).Delete(ing.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			// don't return error, hope it is ok next time
+			logrus.Warningf("error deleting ingress(%v): %v", ing, err)
+		}
+	}
+	// delete delSecrets
+	for _, secret := range app.GetSecrets() {
+		err := a.manager.client.CoreV1().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			// don't return error, hope it is ok next time
+			logrus.Warningf("error deleting secret(%v): %v", secret, err)
+		}
 	}
 	return nil
 }

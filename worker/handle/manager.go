@@ -30,7 +30,6 @@ import (
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"github.com/goodrain/rainbond/worker/appm/store"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/discover/model"
 )
 
@@ -344,13 +343,7 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	newAppService.Logger = logger
 	//register the new app service
 	m.store.RegistAppService(newAppService)
-	// delete unwanted k8s Ingresses and Secrets
-	delIngsAndSecs := findOutDelIngAndSecr(oldAppService, newAppService)
-	delIngsAndSecs.Logger = logger
-	if err := m.controllerManager.StartController(controller.TypeDeleteController, *delIngsAndSecs); err != nil {
-		logrus.Warningf("error deleting ingresses and secrets: %s", err.Error())
-		logger.Info("error deleting ingresses and secrets", controller.GetCallbackLoggerOption())
-	}
+	newAppService.SetDelIngsSecrets(oldAppService)
 	// update k8s resources
 	err = m.controllerManager.StartController(controller.TypeApplyRuleController, *newAppService)
 	if err != nil {
@@ -358,20 +351,4 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		return fmt.Errorf("Application apply rule controller failure:%s", err.Error())
 	}
 	return nil
-}
-
-//findOutDelResources finds out ingresses and secrets that need to be deleted
-func findOutDelIngAndSecr(old *v1.AppService, new *v1.AppService) *v1.AppService {
-	for _, n := range new.GetIngress() {
-		old.DeleteIngress(n)
-	}
-	for _, n := range new.GetSecrets() {
-		old.DeleteSecrets(n)
-	}
-	apps := &v1.AppService{
-		AppServiceBase: old.AppServiceBase,
-	}
-	apps.SetIngresses(old.GetIngress())
-	apps.SetSecrets(old.GetSecrets())
-	return apps
 }
