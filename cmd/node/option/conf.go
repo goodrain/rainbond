@@ -79,6 +79,7 @@ type Conf struct {
 	EventLogServer                  []string //event server address list
 	ConfigStoragePath               string   //config storage path in etcd
 	TTL                             int64    // node heartbeat to master TTL
+	PodCIDR                         string   //pod cidr, when master not set cidr,this parameter can take effect
 	Etcd                            client.Config
 	StatsdConfig                    StatsdConfig
 	UDPMonitorConfig                UDPMonitorConfig
@@ -176,7 +177,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&a.EnableInitStart, "enable-init-start", false, "Whether the node daemon launches docker and etcd service")
 	fs.BoolVar(&a.AutoRegistNode, "auto-registnode", true, "Whether auto regist node info to cluster where node is not found")
 	fs.DurationVar(&a.AutoUnschedulerUnHealthDuration, "autounscheduler-unhealty-dura", 5*time.Minute, "Node unhealthy duration, after the automatic offline,if set 0,disable auto handle unscheduler.default is 5 Minute")
-	//fs.StringVar(&a.ServiceManager, "service-manager", "systemd", "For service management tool on the system.")
+	//fs.StringVar(&a.PodCIDR, "pod-cidr", "", "pod cidr, when master not set cidr,this parameter can take effect")
 }
 
 //SetLog 设置log

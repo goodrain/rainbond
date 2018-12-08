@@ -516,6 +516,10 @@ func NewCmdNode() cli.Command {
 						Name:  "podCIDR,cidr",
 						Usage: "Defines the IP assignment range for the specified node, which is automatically specified if not specified",
 					},
+					cli.StringFlag{
+						Name:  "id",
+						Usage: "Specify node ID",
+					},
 					cli.BoolFlag{
 						Name:  "install",
 						Usage: "Automatic installation after addition",
@@ -541,6 +545,7 @@ func NewCmdNode() cli.Command {
 					node.PodCIDR = c.String("podCIDR")
 					node.Privatekey = c.String("private-key")
 					node.AutoInstall = c.Bool("install")
+					node.ID = c.String("id")
 					err := clients.RegionClient.Nodes().Add(&node)
 					handleErr(err)
 					fmt.Println("success add node")
