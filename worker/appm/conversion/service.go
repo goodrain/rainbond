@@ -22,8 +22,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
-
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
@@ -44,7 +42,6 @@ func ServiceSource(as *v1.AppService, dbmanager db.Manager) error {
 		}
 		return fmt.Errorf("conv service source failure %s", err.Error())
 	}
-	logrus.Debugf("ServiceSource is %v", sscs)
 	for _, ssc := range sscs {
 		switch ssc.SourceType {
 		case "deployment":

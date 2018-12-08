@@ -889,8 +889,9 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 }
 
 //PortOuter 端口对外服务操作
-func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port int) (*dbmodel.TenantServiceLBMappingPort, string, error) {
-	p, err := db.GetManager().TenantServicesPortDao().GetPort(serviceID, port)
+func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort int,
+	servicePort *api_model.ServicePortInnerOrOuter) (*dbmodel.TenantServiceLBMappingPort, string, error) {
+	p, err := db.GetManager().TenantServicesPortDao().GetPort(serviceID, containerPort)
 	if err != nil {
 		return nil, "", fmt.Errorf("find service port error:%s", err.Error())
 	}
@@ -907,7 +908,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 	}
 	//if stream 创建vs端口
 	vsPort := &dbmodel.TenantServiceLBMappingPort{}
-	switch operation {
+	switch servicePort.Body.Operation {
 	case "close":
 		if p.IsOuterService { //如果端口已经开了对外
 			p.IsOuterService = false
@@ -921,11 +922,11 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 				pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
 					serviceID,
 					dbmodel.UpNetPlugin,
-					port,
+					containerPort,
 				)
 				if err != nil {
 					if err.Error() == gorm.ErrRecordNotFound.Error() {
-						logrus.Debugf("outer, plugin port (%d) is not exist, do not need delete", port)
+						logrus.Debugf("outer, plugin port (%d) is not exist, do not need delete", containerPort)
 						goto OUTERCLOSEPASS
 					}
 					tx.Rollback()
@@ -933,18 +934,18 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 				}
 				if p.IsInnerService {
 					//发现内网未关闭则不删除该映射
-					logrus.Debugf("outer, close outer, but plugin inner port (%d) is exist, do not need delete", port)
+					logrus.Debugf("outer, close outer, but plugin inner port (%d) is exist, do not need delete", containerPort)
 					goto OUTERCLOSEPASS
 				}
 				if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeletePluginMappingPortByContainerPort(
 					serviceID,
 					dbmodel.UpNetPlugin,
-					port,
+					containerPort,
 				); err != nil {
 					tx.Rollback()
-					return nil, "", fmt.Errorf("outer, delete plugin mapping port %d error:(%s)", port, err)
+					return nil, "", fmt.Errorf("outer, delete plugin mapping port %d error:(%s)", containerPort, err)
 				}
-				logrus.Debugf(fmt.Sprintf("outer, delete plugin port %d->%d", port, pluginPort.PluginPort))
+				logrus.Debugf(fmt.Sprintf("outer, delete plugin port %d->%d", containerPort, pluginPort.PluginPort))
 			OUTERCLOSEPASS:
 			}
 			if err := tx.Commit().Error; err != nil {
@@ -957,7 +958,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 
 	case "open":
 		if p.IsOuterService {
-			if p.Protocol != "http" && p.Protocol != "https" {
+			if p.Protocol != "http" && p.Protocol != "https" && servicePort.Body.IfCreateExPort {
 				vsPort, err = s.createVSPort(serviceID, p.ContainerPort)
 				if vsPort == nil {
 					return nil, "", fmt.Errorf("port already open but can not get lb mapping port,%s", err.Error())
@@ -971,7 +972,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 			tx.Rollback()
 			return nil, "", err
 		}
-		if p.Protocol != "http" && p.Protocol != "https" {
+		if p.Protocol != "http" && p.Protocol != "https" && servicePort.Body.IfCreateExPort {
 			vsPort, err = s.createVSPort(serviceID, p.ContainerPort)
 			if vsPort == nil {
 				tx.Rollback()
@@ -982,7 +983,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 			pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
 				serviceID,
 				dbmodel.UpNetPlugin,
-				port,
+				containerPort,
 			)
 			var pPort int
 			if err != nil {
@@ -991,7 +992,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 						p.TenantID,
 						serviceID,
 						dbmodel.UpNetPlugin,
-						port,
+						containerPort,
 					)
 					if err != nil {
 						tx.Rollback()
@@ -1006,7 +1007,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID, operation string, port 
 			}
 			logrus.Debugf("outer, plugin mapping port is already exist, %d->%d", pluginPort.ContainerPort, pluginPort.PluginPort)
 		OUTEROPENPASS:
-			logrus.Debugf("outer, set plugin mapping port %d->%d", port, pPort)
+			logrus.Debugf("outer, set plugin mapping port %d->%d", containerPort, pPort)
 		}
 		if err := tx.Commit().Error; err != nil {
 			tx.Rollback()

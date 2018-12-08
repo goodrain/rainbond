@@ -428,6 +428,7 @@ type ServicePortInnerOrOuter struct {
 		// in: body
 		// required: true
 		Operation string `json:"operation"  validate:"operation|required|in:open,close"`
+		IfCreateExPort bool `json:"if_create_ex_port"`
 	}
 }
 

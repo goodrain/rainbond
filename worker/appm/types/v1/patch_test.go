@@ -31,7 +31,7 @@ import (
 func TestGetStatefulsetModifiedConfiguration(t *testing.T) {
 	var replicas int32 = 1
 	var replicasnew int32 = 2
-	getStatefulsetModifiedConfiguration(&v1.StatefulSet{
+	bytes, err := getStatefulsetModifiedConfiguration(&v1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "teststatefulset",
 			Labels: map[string]string{
@@ -104,4 +104,8 @@ func TestGetStatefulsetModifiedConfiguration(t *testing.T) {
 			},
 		},
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(string(bytes))
 }
