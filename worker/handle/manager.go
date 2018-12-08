@@ -32,10 +32,6 @@ import (
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/discover/model"
-	corev1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/kubernetes"
 )
 
 //Manager manager
@@ -384,31 +380,4 @@ func findOutDelResources(old *v1.AppService, new *v1.AppService) *v1.AppService 
 	apps.SetIngresses(old.GetIngress())
 	apps.SetSecrets(old.GetSecrets())
 	return apps
-}
-
-func ensureService(service *corev1.Service, clientSet kubernetes.Interface) {
-	_, err := clientSet.CoreV1().Services(service.Namespace).Update(service)
-	if err != nil {
-		if k8sErrors.IsNotFound(err) {
-			_, err := clientSet.CoreV1().Services(service.Namespace).Create(service)
-			logrus.Warningf("error creating service %+v: %v", service, err)
-		}
-
-		logrus.Warningf("error updating service %+v: %v", service, err)
-	}
-}
-
-func ensureIngress(ingress *extensions.Ingress, clientSet kubernetes.Interface) {
-	_, err := clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Update(ingress)
-
-	if err != nil {
-		if k8sErrors.IsNotFound(err) {
-			_, err := clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(ingress)
-			if err != nil {
-				logrus.Warningf("error creating ingress %+v: %v", ingress, err)
-			}
-		}
-
-		logrus.Warningf("error updating ingress %+v: %v", ingress, err)
-	}
 }
