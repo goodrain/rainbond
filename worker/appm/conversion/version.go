@@ -302,9 +302,13 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				os.Chmod(v.HostPath, 0777)
 			}
 			if as.GetStatefulSet() != nil {
-				vd.SetPV(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, v.HostPath, v.IsReadOnly)
+				vd.SetPV(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, v.IsReadOnly)
 			} else {
-				vd.SetVolume(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, v.HostPath, v.IsReadOnly)
+				hostPath := v.HostPath
+				if as.IsWindowsService {
+					hostPath = RewriteHostPathInWindows(hostPath)
+				}
+				vd.SetVolume(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, hostPath, v.IsReadOnly)
 			}
 		}
 	}
@@ -320,11 +324,16 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 			if err != nil {
 				return nil, fmt.Errorf("create host path %s error,%s", t.HostPath, err.Error())
 			}
-			vd.SetVolume(dbmodel.ShareFileVolumeType, fmt.Sprintf("mnt%d", t.ID), t.VolumePath, t.HostPath, false)
+			hostPath := t.HostPath
+			if as.IsWindowsService {
+				hostPath = RewriteHostPathInWindows(hostPath)
+			}
+			vd.SetVolume(dbmodel.ShareFileVolumeType, fmt.Sprintf("mnt%d", t.ID), t.VolumePath, hostPath, false)
 		}
 	}
 	//handle slug file volume
 	if version.DeliveredType == "slug" {
+		//slug host path already is windows style
 		slugPath := version.DeliveredPath
 		vd.SetVolume(dbmodel.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", slugPath, true)
 	}
@@ -333,6 +342,21 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 		vd.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes", "/grdata/kubernetes", true)
 	}
 	return vd, nil
+}
+
+//RewriteHostPathInWindows rewrite host path
+func RewriteHostPathInWindows(hostPath string) string {
+	localPath := os.Getenv("LOCAL_DATA_PATH")
+	sharePath := os.Getenv("SHARE_DATA_PATH")
+	if localPath == "" {
+		localPath = "/grlocaldata"
+	}
+	if sharePath == "" {
+		sharePath = "/grdata"
+	}
+	hostPath = strings.Replace(hostPath, "/grdata", "z:\\", 1)
+	hostPath = strings.Replace(hostPath, "/", "\\", -1)
+	return hostPath
 }
 
 type volumeDefine struct {
@@ -347,7 +371,7 @@ func (v *volumeDefine) GetVolumes() []corev1.Volume {
 func (v *volumeDefine) GetVolumeMounts() []corev1.VolumeMount {
 	return v.volumeMounts
 }
-func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath, hostPath string, readOnly bool) {
+func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath string, readOnly bool) {
 	switch VolumeType {
 	case dbmodel.ShareFileVolumeType:
 		if statefulset := v.as.GetStatefulSet(); statefulset != nil {

@@ -94,6 +94,10 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	if err != nil {
 		return fmt.Errorf("get service type info failure %s", err.Error())
 	}
+	label, err := dbmanager.TenantServiceLabelDao().GetLabelByNodeSelectorKey(as.ServiceID, "windows")
+	if label != nil {
+		as.IsWindowsService = true
+	}
 	as.TenantID = tenantService.TenantID
 	if as.DeployVersion == "" {
 		as.DeployVersion = tenantService.DeployVersion
