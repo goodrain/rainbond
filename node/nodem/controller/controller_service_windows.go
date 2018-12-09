@@ -87,16 +87,16 @@ func (w *windowsServiceController) StopList(list []*service.Service) error {
 	return nil
 }
 func (w *windowsServiceController) RestartService(s *service.Service) error {
-	if err := windows.RestartService(serviceName); err != nil {
+	if err := windows.RestartService(s.Name); err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
 			if err := w.WriteConfig(s); err != nil {
 				return fmt.Errorf("ReWrite service config failure %s", err.Error())
 			}
 		}
-		logrus.Errorf("windows service controller restart service %s failure %s", serviceName, err.Error())
+		logrus.Errorf("windows service controller restart service %s failure %s", s.Name, err.Error())
 		return err
 	}
-	logrus.Infof("windows service controller restart service %s success", serviceName)
+	logrus.Infof("windows service controller restart service %s success", s.Name)
 	return nil
 }
 func (w *windowsServiceController) WriteConfig(s *service.Service) error {
@@ -135,6 +135,7 @@ func (w *windowsServiceController) EnableService(name string) error {
 }
 func (w *windowsServiceController) DisableService(name string) error {
 	//return windows.UnRegisterService(name)
+	return nil
 }
 func (w *windowsServiceController) CheckBeforeStart() bool {
 	return true
