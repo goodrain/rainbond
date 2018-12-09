@@ -242,7 +242,7 @@ func (n *NodeManager) heartbeat() {
 			n.currentNode.NodeStatus.AdviceAction = []string{"scheduler"}
 		}
 		n.currentNode.NodeStatus.Status = "running"
-		if err := n.cluster.UpdateStatus(n.currentNode); err != nil {
+		if err := n.cluster.UpdateStatus(n.currentNode, n.getInitLable(n.currentNode)); err != nil {
 			logrus.Errorf("update node status error %s", err.Error())
 		}
 		logrus.Infof("Send node %s heartbeat to master:%s ", n.currentNode.ID, n.currentNode.NodeStatus.Status)
@@ -281,20 +281,28 @@ func (n *NodeManager) init() error {
 }
 
 func (n *NodeManager) setNodeLabels(node *client.HostNode) {
+	if node.Labels == nil {
+		node.Labels = n.getInitLable(node)
+		return
+	}
+	for k, v := range n.getInitLable(node) {
+		node.Labels[k] = v
+	}
+}
+func (n *NodeManager) getInitLable(node *client.HostNode) map[string]string {
 	node.Role = strings.Split(n.cfg.NodeRule, ",")
-	if node.Labels == nil || len(node.Labels) < 1 {
-		node.Labels = map[string]string{}
-	}
+	lables := map[string]string{}
 	for _, rule := range node.Role {
-		node.Labels["rainbond_node_rule_"+rule] = "true"
+		lables["rainbond_node_rule_"+rule] = "true"
 	}
-	node.Labels[client.LabelOS] = runtime.GOOS
+	lables[client.LabelOS] = runtime.GOOS
 	hostname, _ := os.Hostname()
 	if node.HostName != hostname && hostname != "" {
 		node.HostName = hostname
 	}
-	node.Labels["rainbond_node_hostname"] = node.HostName
-	node.Labels["rainbond_node_ip"] = node.InternalIP
+	lables["rainbond_node_hostname"] = node.HostName
+	lables["rainbond_node_ip"] = node.InternalIP
+	return lables
 }
 
 //getCurrentNode get current node info
