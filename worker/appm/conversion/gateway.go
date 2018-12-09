@@ -230,7 +230,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 		mappingPort, err := a.dbmanager.TenantServiceLBMappingPortDao().GetTenantServiceLBMappingPort(port.ServiceID, port.ContainerPort)
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
-				logrus.Warningf("TenantServiceLBMappingPort(ServiceID=%s, ContainerPort=%s) not found, ignore it",
+				logrus.Warningf("TenantServiceLBMappingPort(ServiceID=%s, ContainerPort=%d) not found, ignore it",
 					port.ServiceID, port.ContainerPort)
 				return ingresses, secret, nil
 			}

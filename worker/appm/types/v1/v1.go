@@ -23,7 +23,7 @@ import (
 	"strconv"
 
 	"github.com/goodrain/rainbond/event"
-	v1 "k8s.io/api/apps/v1"
+	"k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 )
@@ -81,7 +81,9 @@ type AppService struct {
 	services     []*corev1.Service
 	configMaps   []*corev1.ConfigMap
 	ingresses    []*extensions.Ingress
+	delIngs      []*extensions.Ingress // ingresses which need to be deleted
 	secrets      []*corev1.Secret
+	delSecrets   []*corev1.Secret // secrets which need to be deleted
 	pods         []*corev1.Pod
 	status       AppServiceStatus
 	Logger       event.Logger
@@ -300,6 +302,11 @@ func (a *AppService) GetIngress() []*extensions.Ingress {
 	return a.ingresses
 }
 
+//GetDelIngs gets delIngs which need to be deleted
+func (a *AppService) GetDelIngs() []*extensions.Ingress {
+	return a.delIngs
+}
+
 //SetIngress set kubernetes ingress model
 func (a *AppService) SetIngress(d *extensions.Ingress) {
 	if len(a.ingresses) > 0 {
@@ -390,6 +397,11 @@ func (a *AppService) GetSecrets() []*corev1.Secret {
 	return a.secrets
 }
 
+//GetDelSecrets get delSecrets which need to be deleted
+func (a *AppService) GetDelSecrets() []*corev1.Secret {
+	return a.delSecrets
+}
+
 //SetPods set pod
 func (a *AppService) SetPods(d *corev1.Pod) {
 	if len(a.pods) > 0 {
@@ -426,6 +438,18 @@ func (a *AppService) SetTenant(d *corev1.Namespace) {
 //GetTenant get tenant namespace
 func (a *AppService) GetTenant() *corev1.Namespace {
 	return a.tenant
+}
+
+// SetDelIngsSecrets sets delIngs and delSecrets
+func (a *AppService) SetDelIngsSecrets(old *AppService) {
+	for _, n := range a.ingresses {
+		old.DeleteIngress(n)
+	}
+	for _, n := range a.secrets {
+		old.DeleteSecrets(n)
+	}
+	a.delIngs = old.GetIngress()
+	a.delSecrets = old.GetSecrets()
 }
 
 func (a *AppService) String() string {

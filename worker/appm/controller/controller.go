@@ -21,7 +21,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"sync"
 
 	"github.com/goodrain/rainbond/worker/appm/store"
@@ -136,7 +135,6 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			stopChan:     make(chan struct{}),
 		}
 	case TypeApplyRuleController:
-		logrus.Debugf("create apply rule controller")
 		controller = &applyRuleController{
 			controllerID: controllerID,
 			appService:   apps,
