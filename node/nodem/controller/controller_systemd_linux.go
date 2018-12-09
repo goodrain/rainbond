@@ -88,10 +88,10 @@ func (m *ControllerSystemd) StopService(serviceName string) error {
 }
 
 //RestartService restart service
-func (m *ControllerSystemd) RestartService(serviceName string) error {
-	err := m.run("restart", serviceName)
+func (m *ControllerSystemd) RestartService(s *service.Service) error {
+	err := m.run("restart", s.Name)
 	if err != nil {
-		logrus.Errorf("Restart service %s: %v", serviceName, err)
+		logrus.Errorf("Restart service %s: %v", s.Name, err)
 		return err
 	}
 
