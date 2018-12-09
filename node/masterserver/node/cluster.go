@@ -181,6 +181,14 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		v.UpdataCondition(r)
 		return
 	}
+	r := client.NodeCondition{
+		Type:               client.NodeUp,
+		Status:             client.ConditionTrue,
+		LastHeartbeatTime:  time.Now(),
+		LastTransitionTime: time.Now(),
+		Message:            "Node lost connection, state unknown",
+	}
+	v.UpdataCondition(r)
 	v.NodeStatus.CurrentScheduleStatus = !v.Unschedulable
 	if v.Role.HasRule("compute") {
 		k8sNode, err := n.kubecli.GetNode(v.ID)
