@@ -48,7 +48,7 @@ func (s *ServiceAction) ServiceCheck(scs *api_model.ServiceCheckStruct) (string,
 			topic = client.WindowsBuilderTopic
 		}
 		if scs.Body.SourceType == "docker-run" || scs.Body.SourceType == "docker-compose" {
-			if strings.Contains(scs.Body.SourceBody, "windows") {
+			if maybeIsWindowsContainerImage(scs.Body.SourceBody) {
 				topic = client.WindowsBuilderTopic
 			}
 		}
@@ -63,6 +63,18 @@ func (s *ServiceAction) ServiceCheck(scs *api_model.ServiceCheckStruct) (string,
 		return "", "", util.CreateAPIHandleError(500, err)
 	}
 	return checkUUID, scs.Body.EventID, nil
+}
+
+var windowsKeywords = []string{"windows", "asp", "microsoft", "nanoserver"}
+
+func maybeIsWindowsContainerImage(source string) bool {
+	for _, k := range windowsKeywords {
+		if strings.Contains(source, k) {
+			return true
+		}
+	}
+	return false
+
 }
 
 //GetServiceCheckInfo get application source detection information
