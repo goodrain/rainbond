@@ -194,6 +194,19 @@ func (m *ManagerService) SyncServiceStatusController() {
 			healthyManager: m.healthyManager,
 			watcher:        m.healthyManager.WatchServiceHealthy(s.Name),
 			unhealthHandle: func(event *service.HealthStatus, w healthy.Watcher) {
+				service := m.GetService(event.Name)
+				if service == nil {
+					logrus.Errorf("not found service %s", event.Name)
+					return
+				}
+				if service.OnlyHealthCheck {
+					logrus.Warningf("service %s is only check health.so do not auto restart it", event.Name)
+					return
+				}
+				if event.Name == "docker" {
+					logrus.Errorf("service docker can not auto restart. must artificial processing")
+					return
+				}
 				// disable check healthy status of the service
 				logrus.Infof("service %s not healthy, will restart it", event.Name)
 				m.healthyManager.DisableWatcher(event.Name, w.GetID())

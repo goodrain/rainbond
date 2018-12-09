@@ -193,7 +193,7 @@ func (m *ControllerSystemd) run(args ...string) error {
 //InitStart init start. will start some required service
 func (m *ControllerSystemd) InitStart(services []*service.Service) error {
 	for _, s := range services {
-		if s.IsInitStart && !s.Disable {
+		if s.IsInitStart && !s.Disable && !s.OnlyHealthCheck {
 			fileName := fmt.Sprintf("/etc/systemd/system/%s.service", s.Name)
 			//init start can not read cluster endpoint.
 			//so do not change the configuration file as much as possible

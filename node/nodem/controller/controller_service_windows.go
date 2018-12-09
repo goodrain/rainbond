@@ -46,7 +46,7 @@ type windowsServiceController struct {
 
 func (w *windowsServiceController) InitStart(services []*service.Service) error {
 	for _, s := range services {
-		if s.IsInitStart && !s.Disable {
+		if s.IsInitStart && !s.Disable && !s.OnlyHealthCheck {
 			if err := w.writeConfig(s, false); err != nil {
 				return err
 			}
