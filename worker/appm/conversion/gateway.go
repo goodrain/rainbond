@@ -66,12 +66,15 @@ func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 		logrus.Error("build k8s services error:", err.Error())
 		return err
 	}
+	logrus.Debugf("svcs: %v", svcs)
 	for _, service := range svcs {
 		as.SetService(service)
 	}
+	logrus.Debugf("svcs: %v", ings)
 	for _, ing := range ings {
 		as.SetIngress(ing)
 	}
+	logrus.Debugf("svcs: %v", secs)
 	for _, sec := range secs {
 		as.SetSecret(sec)
 	}
@@ -145,6 +148,7 @@ func (a *AppServiceBuild) Build() ([]*corev1.Service, []*extensions.Ingress, []*
 	var services []*corev1.Service
 	var ingresses []*extensions.Ingress
 	var secrets []*corev1.Secret
+	logrus.Debugf("ports: %v", ports)
 	if ports != nil && len(ports) > 0 {
 		for i := range ports {
 			port := ports[i]
@@ -152,6 +156,7 @@ func (a *AppServiceBuild) Build() ([]*corev1.Service, []*extensions.Ingress, []*
 				services = append(services, a.createInnerService(port))
 			}
 			if port.IsOuterService {
+				logrus.Debugf("outer port: %v", port)
 				service := a.createOuterService(port)
 
 				ings, secret, err := a.ApplyRules(port, service)
