@@ -70,11 +70,11 @@ func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 	for _, service := range svcs {
 		as.SetService(service)
 	}
-	logrus.Debugf("svcs: %v", ings)
+	logrus.Debugf("ings: %v", ings)
 	for _, ing := range ings {
 		as.SetIngress(ing)
 	}
-	logrus.Debugf("svcs: %v", secs)
+	logrus.Debugf("secs: %v", secs)
 	for _, sec := range secs {
 		as.SetSecret(sec)
 	}
