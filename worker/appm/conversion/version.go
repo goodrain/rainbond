@@ -410,8 +410,17 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 			statefulset.Spec.VolumeClaimTemplates = append(
 				statefulset.Spec.VolumeClaimTemplates,
 				corev1.PersistentVolumeClaim{
+
 					ObjectMeta: metav1.ObjectMeta{
 						Name: name,
+						Annotations: map[string]string{
+							client.LabelOS: func() string {
+								if v.as.IsWindowsService {
+									return "windows"
+								}
+								return "linux"
+							}(),
+						},
 						Labels: v.as.GetCommonLabels(map[string]string{
 							"tenant_id": v.as.TenantID,
 						}),

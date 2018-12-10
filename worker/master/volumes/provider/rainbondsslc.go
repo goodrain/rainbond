@@ -31,6 +31,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"github.com/goodrain/rainbond/node/nodem/client"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
 	"k8s.io/api/core/v1"
@@ -56,7 +57,7 @@ func NewRainbondsslcProvisioner(kubecli *kubernetes.Clientset, store store.Store
 var _ controller.Provisioner = &rainbondsslcProvisioner{}
 
 //selectNode select an appropriate node with the largest resource surplus
-func (p *rainbondsslcProvisioner) selectNode() (*v1.Node, error) {
+func (p *rainbondsslcProvisioner) selectNode(nodeOS string) (*v1.Node, error) {
 	allnode, err := p.kubecli.CoreV1().Nodes().List(metav1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -64,6 +65,9 @@ func (p *rainbondsslcProvisioner) selectNode() (*v1.Node, error) {
 	var maxavailable int64
 	var selectnode *v1.Node
 	for _, node := range allnode.Items {
+		if node.Labels[client.LabelOS] != nodeOS {
+			continue
+		}
 		for _, condition := range node.Status.Conditions {
 			if condition.Type == v1.NodeReady {
 				if condition.Status == v1.ConditionTrue {
@@ -150,7 +154,7 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 	//runtime select an appropriate node with the largest resource surplus
 	if options.SelectedNode == nil {
 		var err error
-		options.SelectedNode, err = p.selectNode()
+		options.SelectedNode, err = p.selectNode(options.PVC.Annotations[client.LabelOS])
 		if err != nil || options.SelectedNode == nil {
 			return nil, fmt.Errorf("do not select an appropriate node for local volume")
 		}

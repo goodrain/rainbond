@@ -45,7 +45,7 @@ func CreateLocalVolume(w http.ResponseWriter, r *http.Request) {
 	localPath := os.Getenv("LOCAL_DATA_PATH")
 	if runtime.GOOS == "windows" {
 		if localPath == "" {
-			localPath = `d:\\`
+			localPath = `c:\`
 		}
 	} else {
 		if localPath == "" {
