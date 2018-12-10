@@ -354,8 +354,8 @@ func RewriteHostPathInWindows(hostPath string) string {
 	if sharePath == "" {
 		sharePath = "/grdata"
 	}
-	hostPath = strings.Replace(hostPath, "/grdata", "z:\\", 1)
-	hostPath = strings.Replace(hostPath, "/", "\\", -1)
+	hostPath = strings.Replace(hostPath, "/grdata", `z:\`, 1)
+	hostPath = strings.Replace(hostPath, "/", `\`, -1)
 	return hostPath
 }
 
