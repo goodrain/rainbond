@@ -43,6 +43,7 @@ import (
 
 //TenantServiceVersion service deploy version conv. define pod spec
 func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
+	logrus.Debugf("exec TenantServiceVersion...")
 	version, err := dbmanager.VersionInfoDao().GetVersionByDeployVersion(as.DeployVersion, as.ServiceID)
 	if err != nil {
 		return fmt.Errorf("get service deploy version failure %s", err.Error())

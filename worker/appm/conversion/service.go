@@ -20,6 +20,7 @@ package conversion
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"strings"
 
 	"github.com/goodrain/rainbond/db"
@@ -35,6 +36,7 @@ import (
 
 //ServiceSource conv ServiceSource
 func ServiceSource(as *v1.AppService, dbmanager db.Manager) error {
+	logrus.Debugf("exec ServiceSource...")
 	sscs, err := dbmanager.ServiceSourceDao().GetServiceSource(as.ServiceID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -79,6 +81,7 @@ func int32Ptr(i int) *int32 {
 
 //TenantServiceBase conv tenant service base info
 func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
+	logrus.Debugf("exec TenantServiceBase...")
 	tenantService, err := dbmanager.TenantServiceDao().GetServiceByID(as.ServiceID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
