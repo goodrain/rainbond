@@ -55,7 +55,6 @@ func createDefaultDomain(tenantName, serviceAlias string, servicePort int) strin
 
 //TenantServiceRegist conv inner and outer service regist
 func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
-	logrus.Debugf("Exec TenantServiceRegist...")
 	builder, err := AppServiceBuilder(as.ServiceID, string(as.ServiceType), dbmanager, as)
 	if err != nil {
 		logrus.Error("create k8s service builder error.", err.Error())
@@ -67,15 +66,12 @@ func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 		logrus.Error("build k8s services error:", err.Error())
 		return err
 	}
-	logrus.Debugf("svcs: %v", svcs)
 	for _, service := range svcs {
 		as.SetService(service)
 	}
-	logrus.Debugf("ings: %v", ings)
 	for _, ing := range ings {
 		as.SetIngress(ing)
 	}
-	logrus.Debugf("secs: %v", secs)
 	for _, sec := range secs {
 		as.SetSecret(sec)
 	}
