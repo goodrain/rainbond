@@ -92,7 +92,6 @@ func (a *applyRuleController) applyOne(app *v1.AppService) error {
 
 func ensureService(new *corev1.Service, clientSet kubernetes.Interface) {
 	old, err := clientSet.CoreV1().Services(new.Namespace).Get(new.Name, metav1.GetOptions{})
-	logrus.Debugf("old service: %v", old)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			_, err := clientSet.CoreV1().Services(new.Namespace).Create(new)
