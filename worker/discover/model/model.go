@@ -264,6 +264,7 @@ type ApplyRuleTaskBody struct {
 	ServiceID     string `json:"service_id"`
 	DeployVersion string `json:"deploy_version"`
 	EventID       string `json:"event_id"`
+	Action        string `json:"action"`
 }
 
 //Dependence 依赖关系
