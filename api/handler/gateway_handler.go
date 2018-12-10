@@ -41,5 +41,5 @@ type GatewayHandler interface {
 
 	GetAvailablePort() (int, error)
 	PortExists(port int) bool
-	SendTaskGW(serviceID string) error
+	SendTask(serviceID string, action string) error
 }

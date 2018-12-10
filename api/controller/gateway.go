@@ -87,7 +87,7 @@ func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := handler.GetGatewayHandler().SendTaskGW(sid); err != nil {
+	if err := handler.GetGatewayHandler().SendTask(sid, "add-http-rule"); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 
@@ -139,7 +139,7 @@ func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := handler.GetGatewayHandler().SendTaskGW(sid); err != nil {
+	if err := handler.GetGatewayHandler().SendTask(sid, "update-http-rule"); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 
@@ -163,7 +163,7 @@ func (g *GatewayStruct) deleteHTTPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := handler.GetGatewayHandler().SendTaskGW(serviceID); err != nil {
+	if err := handler.GetGatewayHandler().SendTask(serviceID, "delete-http-rule"); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 
@@ -233,7 +233,7 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := handler.GetGatewayHandler().SendTaskGW(sid); err != nil {
+	if err := handler.GetGatewayHandler().SendTask(sid, "add-tcp-rule"); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 
@@ -285,7 +285,7 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := handler.GetGatewayHandler().SendTaskGW(sid); err != nil {
+	if err := handler.GetGatewayHandler().SendTask(sid, "update-tcp-rule"); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 
@@ -310,7 +310,7 @@ func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := handler.GetGatewayHandler().SendTaskGW(sid); err != nil {
+	if err := handler.GetGatewayHandler().SendTask(sid, "delete-tcp-rule"); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 

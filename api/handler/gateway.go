@@ -475,8 +475,8 @@ func (g *GatewayAction) PortExists(port int) bool {
 	return g.dbmanager.TenantServiceLBMappingPortDao().PortExists(port)
 }
 
-// SendTaskGW sends apply rules task
-func (g *GatewayAction) SendTaskGW(serviceID string) error {
+// SendTask sends apply rules task
+func (g *GatewayAction) SendTask(serviceID string, action string) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
 		return fmt.Errorf("Unexpected error occurred while getting Service by ServiceID(%s): %v", serviceID, err)
@@ -484,6 +484,7 @@ func (g *GatewayAction) SendTaskGW(serviceID string) error {
 	body := make(map[string]interface{})
 	body["service_id"] = serviceID
 	body["deploy_version"] = service.DeployVersion
+	body["action"] = action
 	err = g.mqclient.SendBuilderTopic(client.TaskStruct{
 		Topic:    client.WorkerTopic,
 		TaskType: "apply_rule",
