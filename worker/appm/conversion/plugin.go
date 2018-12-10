@@ -36,7 +36,6 @@ import (
 
 //TenantServicePlugin conv service all plugin
 func TenantServicePlugin(as *typesv1.AppService, dbmanager db.Manager) error {
-	logrus.Debugf("exec TenantServicePlugin...")
 	initContainers, pluginContainers, err := createPluginsContainer(as, dbmanager)
 	if err != nil {
 		return err
