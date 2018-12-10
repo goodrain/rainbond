@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
@@ -328,7 +329,8 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
 	oldAppService := m.store.GetAppService(body.ServiceID)
-	if oldAppService == nil || oldAppService.IsClosed() {
+	if (oldAppService == nil || oldAppService.IsClosed()) && !strings.Contains(body.Action, "port") {
+		logrus.Debugf("service is closed,no need handle")
 		logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return nil

@@ -145,6 +145,7 @@ func (a *AppServiceBuild) Build() ([]*corev1.Service, []*extensions.Ingress, []*
 	var services []*corev1.Service
 	var ingresses []*extensions.Ingress
 	var secrets []*corev1.Secret
+	logrus.Debugf("ports: %v", ports)
 	if ports != nil && len(ports) > 0 {
 		for i := range ports {
 			port := ports[i]
@@ -152,6 +153,7 @@ func (a *AppServiceBuild) Build() ([]*corev1.Service, []*extensions.Ingress, []*
 				services = append(services, a.createInnerService(port))
 			}
 			if port.IsOuterService {
+				logrus.Debugf("outer port: %v", port)
 				service := a.createOuterService(port)
 
 				ings, secret, err := a.ApplyRules(port, service)

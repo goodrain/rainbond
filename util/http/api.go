@@ -20,6 +20,7 @@ package http
 
 import (
 	"errors"
+	"github.com/Sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/url"
@@ -121,6 +122,7 @@ func ParseResponseBody(red io.ReadCloser, dataType string) (re ResponseBody, err
 
 //ReturnValidationError 参数错误返回
 func ReturnValidationError(r *http.Request, w http.ResponseWriter, err url.Values) {
+	logrus.Debugf("validation error, uri: %s; msg: %s", r.RequestURI, ResponseBody{ValidationError: err})
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, http.StatusBadRequest))
 	render.DefaultResponder(w, r, ResponseBody{ValidationError: err})
 }
@@ -149,6 +151,7 @@ func ReturnList(r *http.Request, w http.ResponseWriter, listAllNumber, page int,
 
 //ReturnError 返回错误信息
 func ReturnError(r *http.Request, w http.ResponseWriter, code int, msg string) {
+	logrus.Debugf("error code: %d; error uri: %s; error msg: %s", code, r.RequestURI, msg)
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, code))
 	render.DefaultResponder(w, r, ResponseBody{Msg: msg})
 }

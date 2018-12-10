@@ -1431,7 +1431,7 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 		rc["port"] = fmt.Sprintf("%v", vsPort.Port)
 	}
 
-	if err := handler.GetGatewayHandler().SendTaskGW(serviceID); err != nil {
+	if err := handler.GetGatewayHandler().SendTask(serviceID, "port-outer"); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 
@@ -1485,7 +1485,7 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	if err := handler.GetGatewayHandler().SendTaskGW(serviceID); err != nil {
+	if err := handler.GetGatewayHandler().SendTask(serviceID, "port-inner"); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 
