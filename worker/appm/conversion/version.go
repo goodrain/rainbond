@@ -75,6 +75,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	setFeature(&podtmpSpec)
 	//set to deployment or statefulset
 	as.SetPodTemplate(podtmpSpec)
+	logrus.Debugf("Deployment: %v", as.GetDeployment())
 	return nil
 }
 
