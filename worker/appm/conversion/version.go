@@ -355,9 +355,21 @@ func RewriteHostPathInWindows(hostPath string) string {
 	if sharePath == "" {
 		sharePath = "/grdata"
 	}
-	hostPath = strings.Replace(hostPath, "/grdata", `z:\`, 1)
+	hostPath = strings.Replace(hostPath, "/grdata", `z:`, 1)
 	hostPath = strings.Replace(hostPath, "/", `\`, -1)
 	return hostPath
+}
+
+//RewriteContainerPathInWindows mount path in windows
+func RewriteContainerPathInWindows(mountPath string) string {
+	if mountPath == "" {
+		return ""
+	}
+	if mountPath[0] == '/' {
+		mountPath = `c:\` + mountPath[1:]
+	}
+	mountPath = strings.Replace(mountPath, "/", `\`, -1)
+	return mountPath
 }
 
 type volumeDefine struct {
