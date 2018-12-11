@@ -63,13 +63,13 @@ func (a *applyRuleController) applyOne(app *v1.AppService) error {
 	for _, service := range app.GetServices() {
 		ensureService(service, a.manager.client)
 	}
-	// update ingress
-	for _, ing := range app.GetIngress() {
-		ensureIngress(ing, a.manager.client)
-	}
 	// update secret
 	for _, secret := range app.GetSecrets() {
 		ensureSecret(secret, a.manager.client)
+	}
+	// update ingress
+	for _, ing := range app.GetIngress() {
+		ensureIngress(ing, a.manager.client)
 	}
 	// delete delIngress
 	logrus.Debugf("app.GetDelIngs(): %v", app.GetDelIngs())
