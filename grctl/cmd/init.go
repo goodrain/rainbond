@@ -19,10 +19,14 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strings"
+
+	"github.com/goodrain/rainbond/util"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/sources"
@@ -91,6 +95,11 @@ func NewCmdInit() cli.Command {
 				Usage: "storage mount args",
 				Value: "/grdata nfs rw 0 0",
 			},
+			cli.StringFlag{
+				Name:  "config-file,f",
+				Usage: "write config file path",
+				Value: "",
+			},
 			cli.BoolFlag{
 				Name:   "test",
 				Usage:  "use test shell",
@@ -142,7 +151,64 @@ func NewCmdInstallStatus() cli.Command {
 	}
 	return c
 }
-
+func updateConfigFile(path string, config map[string]string) error {
+	initConfig := make(map[string]string)
+	var file *os.File
+	var err error
+	if ok, _ := util.FileExists(path); ok {
+		file, err = os.OpenFile(path, os.O_RDWR, 0755)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		reader := bufio.NewReader(file)
+		for {
+			line, _, err := reader.ReadLine()
+			if err != nil {
+				break
+			}
+			if strings.Contains(string(line), "=") {
+				keyvalue := strings.SplitN(string(line), "=", 1)
+				initConfig[keyvalue[0]] = keyvalue[1]
+			}
+		}
+	} else {
+		file, err = util.OpenOrCreateFile(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+	}
+	for k, v := range config {
+		initConfig[k] = v
+	}
+	for k, v := range initConfig {
+		if k == "" {
+			continue
+		}
+		if v == "" {
+			file.WriteString(fmt.Sprintf("%s=\"\"\n", k))
+		} else {
+			file.WriteString(fmt.Sprintf("%s=\"%s\"\n", k, v))
+		}
+	}
+	return nil
+}
+func getConfig(c *cli.Context) map[string]string {
+	configs := make(map[string]string)
+	configs["role"] = c.String("role")
+	configs["work_dir"] = c.String("work_dir")
+	configs["iip"] = c.String("iip")
+	configs["eip"] = c.String("eip")
+	configs["rainbond-version"] = c.String("rainbond-version")
+	configs["rainbond-install-repostoiry"] = c.String("rainbond-install-repostoiry")
+	configs["install-type"] = c.String("install-type")
+	configs["domain"] = c.String("domain")
+	configs["storage-type"] = c.String("storage-type")
+	configs["network-type"] = c.String("network-type")
+	configs["storage-args"] = c.String("storage-args")
+	return configs
+}
 func initCluster(c *cli.Context) {
 	// check if the rainbond is already installed
 	//fmt.Println("Checking install enviremant.")
@@ -151,7 +217,9 @@ func initCluster(c *cli.Context) {
 		println("Rainbond is already installed, if you whant reinstall, then please delete the file: /opt/rainbond/.rainbond.success")
 		return
 	}
-
+	if err := updateConfigFile(c.String("config-file"), getConfig(c)); err != nil {
+		showError("update config file failure " + err.Error())
+	}
 	// download source code from github if in online model
 	if c.String("install-type") == "online" {
 		fmt.Println("Download rainbond install package.")

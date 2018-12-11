@@ -168,7 +168,7 @@ func (n *Cluster) GetNode(id string) *client.HostNode {
 
 //handleNodeStatus Master integrates node status and kube node status
 func (n *Cluster) handleNodeStatus(v *client.HostNode) {
-	if time.Now().Sub(v.NodeStatus.NodeUpdateTime) > time.Minute*2 {
+	if time.Now().Sub(v.NodeStatus.NodeUpdateTime) > time.Minute*1 {
 		v.Status = Unknown
 		v.NodeStatus.Status = Unknown
 		r := client.NodeCondition{
