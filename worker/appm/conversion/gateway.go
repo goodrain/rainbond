@@ -315,7 +315,7 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 		// create secret
 		sec = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("ssl-%s", domain),
+				Name:      rule.UUID,
 				Namespace: a.tenant.UUID,
 				Labels:    a.appService.GetCommonLabels(),
 			},
