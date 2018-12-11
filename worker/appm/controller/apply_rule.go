@@ -72,6 +72,7 @@ func (a *applyRuleController) applyOne(app *v1.AppService) error {
 		ensureSecret(secret, a.manager.client)
 	}
 	// delete delIngress
+	logrus.Debugf("app.GetDelIngs(): %v", app.GetDelIngs())
 	for _, ing := range app.GetDelIngs() {
 		err := a.manager.client.ExtensionsV1beta1().Ingresses(ing.Namespace).Delete(ing.Name, &metav1.DeleteOptions{})
 		if err != nil {
@@ -80,7 +81,8 @@ func (a *applyRuleController) applyOne(app *v1.AppService) error {
 		}
 	}
 	// delete delSecrets
-	for _, secret := range app.GetSecrets() {
+	logrus.Debugf("app.GetDelSecrets(): %v", app.GetDelSecrets())
+	for _, secret := range app.GetDelSecrets() {
 		err := a.manager.client.CoreV1().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
 		if err != nil {
 			// don't return error, hope it is ok next time
