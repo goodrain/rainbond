@@ -42,63 +42,83 @@ func NewCmdInit() cli.Command {
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "role",
-				Usage: "node role: master,worker",
+				Usage: "Node identity property",
 				Value: "master,worker",
 			},
 			cli.StringFlag{
 				Name:  "work_dir",
-				Usage: "clone source code to the work directory",
-				Value: "/opt/rainbond/install",
+				Usage: "Installation configuration directory",
+				Value: "/opt/rainbond/rainbond-ansible",
 			},
 			cli.StringFlag{
 				Name:  "iip",
-				Usage: "manage01 local ip",
+				Usage: "Internal IP",
 				Value: "",
 			},
 			cli.StringFlag{
 				Name:  "eip",
-				Usage: "manage01 public ip",
-				Value: "0.0.0.0",
-			},
-			cli.StringFlag{
-				Name:  "rainbond-version",
-				Usage: "Choose a specific Rainbond version for the control plane. (default v3.7)",
-				Value: "v3.7",
-			},
-			cli.StringFlag{
-				Name:  "rainbond-install-repostoiry",
-				Usage: "Set install rainbond code git repostory address",
-				Value: "https://github.com/goodrain/rainbond-install.git",
-			},
-			cli.StringFlag{
-				Name:  "install-type",
-				Usage: "defalut online.",
-				Value: "online",
-			},
-			cli.StringFlag{
-				Name:  "domain",
-				Usage: "defalut custom apps domain.",
+				Usage: "External IP",
 				Value: "",
 			},
 			cli.StringFlag{
-				Name:  "storage-type,stype",
-				Usage: "defalut storage type (nfs/other)",
+				Name:  "vip",
+				Usage: "Virtual IP",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "rainbond-version",
+				Usage: "Rainbond Install Version. default 5.0",
+				Value: "5.0",
+			},
+			cli.StringFlag{
+				Name:  "rainbond-repo",
+				Usage: "Rainbond install repo",
+				Value: "https://github.com/goodrain/rainbond-ansible.git",
+			},
+			cli.StringFlag{
+				Name:  "install-type",
+				Usage: "Install Type: online/offline",
+				Value: "online",
+			},
+			cli.StringFlag{
+				Name:  "deploy-type",
+				Usage: "Deploy Type: onenode/multinode/thirdparty,默认onenode",
+				Value: "onenode",
+			},
+			cli.StringFlag{
+				Name:  "domain",
+				Usage: "Application domain",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "pod-cidr",
+				Usage: "Configuration pod-cidr",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "enable-feature",
+				Usage: "New feature，disabled by default. default: windows",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "storage",
+				Usage: "Storage type, default:NFS",
 				Value: "nfs",
 			},
 			cli.StringFlag{
-				Name:  "network-type,ntype",
-				Usage: "defalut network type (calico/midonet)",
+				Name:  "network",
+				Usage: "Network type, support calico/flannel/midonet,default: calico",
 				Value: "calico",
 			},
 			cli.StringFlag{
-				Name:  "storage-args,sargs",
-				Usage: "storage mount args",
+				Name:  "storage-args",
+				Usage: "Stores mount parameters",
 				Value: "/grdata nfs rw 0 0",
 			},
 			cli.StringFlag{
 				Name:  "config-file,f",
-				Usage: "write config file path",
-				Value: "",
+				Usage: "Global Config Path, default",
+				Value: "/opt/rainbond/rainbond-ansible/scripts/installer/global.sh",
 			},
 			cli.BoolFlag{
 				Name:   "test",
@@ -106,7 +126,7 @@ func NewCmdInit() cli.Command {
 				Hidden: true,
 			},
 		},
-		Usage: "初始化集群。grctl init cluster",
+		Usage: "grctl init cluster",
 		Action: func(c *cli.Context) error {
 			initCluster(c)
 			return nil
@@ -169,6 +189,9 @@ func updateConfigFile(path string, config map[string]string) error {
 			}
 			if strings.Contains(string(line), "=") {
 				keyvalue := strings.SplitN(string(line), "=", 1)
+				if len(keyvalue) < 2 {
+					break
+				}
 				initConfig[keyvalue[0]] = keyvalue[1]
 			}
 		}
@@ -197,16 +220,19 @@ func updateConfigFile(path string, config map[string]string) error {
 func getConfig(c *cli.Context) map[string]string {
 	configs := make(map[string]string)
 	configs["role"] = c.String("role")
-	configs["work_dir"] = c.String("work_dir")
-	configs["iip"] = c.String("iip")
-	configs["eip"] = c.String("eip")
-	configs["rainbond-version"] = c.String("rainbond-version")
-	configs["rainbond-install-repostoiry"] = c.String("rainbond-install-repostoiry")
-	configs["install-type"] = c.String("install-type")
-	configs["domain"] = c.String("domain")
-	configs["storage-type"] = c.String("storage-type")
-	configs["network-type"] = c.String("network-type")
-	configs["storage-args"] = c.String("storage-args")
+	//configs["work_dir"] = c.String("work_dir")
+	configs["IIP"] = c.String("iip")
+	configs["EIP"] = c.String("eip")
+	configs["VIP"] = c.String("eip")
+	// configs["rainbond-version"] = c.String("rainbond-version")
+	// configs["rainbond-repo"] = c.String("rainbond-repo")
+	configs["INSTALL_TYPE"] = c.String("install-type")
+	configs["DEPLOY_TYPE"] = c.String("deploy-type")
+	configs["DOMAIN"] = c.String("domain")
+	configs["storage"] = c.String("storage")
+	configs["NETWORK_TYPE"] = c.String("network")
+	configs["POD_NETWORK_CIDR"] = c.String("pod-cidr")
+	configs["storage_args"] = c.String("storage-args")
 	return configs
 }
 func initCluster(c *cli.Context) {
@@ -217,14 +243,11 @@ func initCluster(c *cli.Context) {
 		println("Rainbond is already installed, if you whant reinstall, then please delete the file: /opt/rainbond/.rainbond.success")
 		return
 	}
-	if err := updateConfigFile(c.String("config-file"), getConfig(c)); err != nil {
-		showError("update config file failure " + err.Error())
-	}
 	// download source code from github if in online model
 	if c.String("install-type") == "online" {
-		fmt.Println("Download rainbond install package.")
+		fmt.Println("Download the installation configuration file remotely...")
 		csi := sources.CodeSourceInfo{
-			RepositoryURL: c.String("rainbond-install-repostoiry"),
+			RepositoryURL: c.String("rainbond-repo"),
 			Branch:        c.String("rainbond-version"),
 		}
 		os.RemoveAll(c.String("work_dir"))
@@ -236,13 +259,17 @@ func initCluster(c *cli.Context) {
 		}
 	}
 
+	if err := updateConfigFile(c.String("config-file"), getConfig(c)); err != nil {
+		showError("update config file failure " + err.Error())
+	}
+
 	//storage file
 	//fmt.Println("Check storage type")
-	ioutil.WriteFile("/tmp/.storage.value", []byte(c.String("storage-args")), 0644)
+	//ioutil.WriteFile("/tmp/.storage.value", []byte(c.String("storage-args")), 0644)
 
 	// start setup script to install rainbond
-	fmt.Println("Begin init cluster first node,please don't exit,wait install")
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("cd %s ; ./setup.sh %s %s %s %s %s %s", c.String("work_dir"), c.String("role"), c.String("install-type"), c.String("eip"), c.String("storage-type"), c.String("network-type"), c.String("domain")))
+	fmt.Println("Initializes the installation of the first node...")
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("cd %s ; ./setup.sh", c.String("work_dir")))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
