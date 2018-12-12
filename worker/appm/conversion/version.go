@@ -19,8 +19,8 @@
 package conversion
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/ghodss/yaml"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"os"
 	"strconv"
@@ -72,14 +72,14 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		},
 	}
 	// TODO: DELETE
-	p, _ := yaml.Marshal(podtmpSpec)
+	p, _ := json.Marshal(podtmpSpec)
 	logrus.Debugf("podtmpSpec: %s", string(p))
 	//set annotations feature by env
 	setFeature(&podtmpSpec)
 	//set to deployment or statefulset
 	as.SetPodTemplate(podtmpSpec)
 	// TODO: DELETE
-	d, _ := yaml.Marshal(as.GetDeployment())
+	d, _ := json.Marshal(as.GetDeployment())
 	logrus.Debugf("Deployment: %s", string(d))
 	return nil
 }
