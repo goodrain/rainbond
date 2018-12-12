@@ -55,6 +55,11 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	if err != nil {
 		return fmt.Errorf("conv service main container failure %s", err.Error())
 	}
+	//need service mesh sidecar, volume kubeconfig
+	if as.NeedProxy {
+		logrus.Debugf("need service mesh sidecar, volume kubeconfig")
+		dv.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes", "/grdata/kubernetes", true)
+	}
 	podtmpSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: as.GetCommonLabels(map[string]string{
@@ -345,6 +350,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 	}
 	//need service mesh sidecar, volume kubeconfig
 	if as.NeedProxy {
+		logrus.Debugf("need service mesh sidecar, volume kubeconfig")
 		vd.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes", "/grdata/kubernetes", true)
 	}
 	return vd, nil
