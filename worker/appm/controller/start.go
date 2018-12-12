@@ -46,6 +46,7 @@ func (s *startController) Begin() {
 	}
 	var sl sequencelist
 	logrus.Debugf("before foundsequence")
+	logrus.Debugf("sourceIDs: %v", sourceIDs)
 	foundsequence(sourceIDs, &sl)
 	logrus.Debugf("after foundsequence")
 	for _, slist := range sl {
