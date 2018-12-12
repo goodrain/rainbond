@@ -20,11 +20,10 @@ package conversion
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/node/nodem/client"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/goodrain/rainbond/node/nodem/client"
 
 	"github.com/goodrain/rainbond/builder"
 
@@ -36,7 +35,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -484,8 +483,10 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 			vo := corev1.Volume{
 				Name: name,
 			}
+			t := corev1.HostPathDirectoryOrCreate
 			vo.HostPath = &corev1.HostPathVolumeSource{
 				Path: hostPath,
+				Type: &t,
 			}
 			v.volumes = append(v.volumes, vo)
 			if mountPath != "" {
