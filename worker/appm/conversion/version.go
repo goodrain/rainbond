@@ -21,7 +21,6 @@ package conversion
 import (
 	"fmt"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 
@@ -335,8 +334,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 	//handle slug file volume
 	if version.DeliveredType == "slug" {
 		//slug host path already is windows style
-		slugPath := path.Dir(version.DeliveredPath)
-		vd.SetVolume(dbmodel.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", slugPath, corev1.HostPathFile, true)
+		vd.SetVolume(dbmodel.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", version.DeliveredPath, corev1.HostPathFile, true)
 	}
 	return vd, nil
 }
