@@ -70,6 +70,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			Affinity:     createAffinity(as, dbmanager),
 		},
 	}
+	logrus.Debugf("podtmpSpec: %v", podtmpSpec) // TODO: DELETE
 	//set annotations feature by env
 	setFeature(&podtmpSpec)
 	//set to deployment or statefulset
