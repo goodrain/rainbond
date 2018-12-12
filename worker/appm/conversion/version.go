@@ -73,14 +73,14 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	}
 	// TODO: DELETE
 	p, _ := yaml.Marshal(podtmpSpec)
-	logrus.Debugf("podtmpSpec: %v", string(p))
+	logrus.Debugf("podtmpSpec: %s", string(p))
 	//set annotations feature by env
 	setFeature(&podtmpSpec)
 	//set to deployment or statefulset
 	as.SetPodTemplate(podtmpSpec)
 	// TODO: DELETE
 	d, _ := yaml.Marshal(as.GetDeployment())
-	logrus.Debugf("Deployment: %v", string(d))
+	logrus.Debugf("Deployment: %s", string(d))
 	return nil
 }
 
