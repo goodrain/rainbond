@@ -54,7 +54,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	}
 	//need service mesh sidecar, volume kubeconfig
 	if as.NeedProxy {
-		dv.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes", "/grdata/kubernetes", true)
+		dv.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes", "/grdata/kubernetes", corev1.HostPathDirectoryOrCreate, true)
 	}
 	podtmpSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -309,7 +309,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				if as.IsWindowsService {
 					hostPath = RewriteHostPathInWindows(hostPath)
 				}
-				vd.SetVolume(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, hostPath, v.IsReadOnly)
+				vd.SetVolume(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, hostPath, corev1.HostPathDirectoryOrCreate, v.IsReadOnly)
 			}
 		}
 	}
@@ -329,14 +329,14 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 			if as.IsWindowsService {
 				hostPath = RewriteHostPathInWindows(hostPath)
 			}
-			vd.SetVolume(dbmodel.ShareFileVolumeType, fmt.Sprintf("mnt%d", t.ID), t.VolumePath, hostPath, false)
+			vd.SetVolume(dbmodel.ShareFileVolumeType, fmt.Sprintf("mnt%d", t.ID), t.VolumePath, hostPath, corev1.HostPathDirectoryOrCreate, false)
 		}
 	}
 	//handle slug file volume
 	if version.DeliveredType == "slug" {
 		//slug host path already is windows style
 		slugPath := path.Dir(version.DeliveredPath)
-		vd.SetVolume(dbmodel.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", slugPath, true)
+		vd.SetVolume(dbmodel.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", slugPath, corev1.HostPathFile, true)
 	}
 	return vd, nil
 }
@@ -453,13 +453,12 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 		}
 	}
 }
-func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath, hostPath string, readOnly bool) {
+func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath, hostPath string, hostPathType corev1.HostPathType, readOnly bool) {
 	for _, m := range v.volumeMounts {
 		if m.MountPath == mountPath {
 			return
 		}
 	}
-	var dirOrCreate = corev1.HostPathDirectoryOrCreate
 	switch VolumeType {
 	case dbmodel.MemoryFSVolumeType:
 		vo := corev1.Volume{Name: name}
@@ -483,7 +482,7 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 			}
 			vo.HostPath = &corev1.HostPathVolumeSource{
 				Path: hostPath,
-				Type: &dirOrCreate,
+				Type: &hostPathType,
 			}
 			v.volumes = append(v.volumes, vo)
 			if mountPath != "" {
