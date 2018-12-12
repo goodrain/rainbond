@@ -463,6 +463,7 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 			return
 		}
 	}
+	var dirOrCreate = corev1.HostPathDirectoryOrCreate
 	switch VolumeType {
 	case dbmodel.MemoryFSVolumeType:
 		vo := corev1.Volume{Name: name}
@@ -484,10 +485,9 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 			vo := corev1.Volume{
 				Name: name,
 			}
-			t := corev1.HostPathDirectoryOrCreate
 			vo.HostPath = &corev1.HostPathVolumeSource{
 				Path: hostPath,
-				Type: &t,
+				Type: &dirOrCreate,
 			}
 			v.volumes = append(v.volumes, vo)
 			if mountPath != "" {
@@ -501,39 +501,8 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 			}
 		}
 	case dbmodel.LocalVolumeType:
-		// fulesystem := corev1.PersistentVolumeFilesystem
-		// localPV := corev1.PersistentVolume{
-		// 	ObjectMeta: metav1.ObjectMeta{
-		// 		Name: name + "pv",
-		// 	},
-		// 	Spec: corev1.PersistentVolumeSpec{
-		// 		VolumeMode: &fulesystem,
-		// 		AccessModes: []corev1.PersistentVolumeAccessMode{
-		// 			corev1.ReadWriteOnce,
-		// 		},
-		// 		//do not auto reclaim
-		// 		PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
-		// 		StorageClassName:              "local-storage",
-		// 		PersistentVolumeSource: corev1.PersistentVolumeSource{
-		// 			Local: &corev1.LocalVolumeSource{
-		// 				Path: hostPath,
-		// 			},
-		// 		},
-		// 	},
-		// }
-		// v.persistentVolumes = append(v.persistentVolumes, localPV)
-		// v.volumes = append(v.volumes, corev1.Volume{
-		// 	Name: name,
-		// 	VolumeSource: corev1.VolumeSource{
-		// 		PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{},
-		// 	},
-		// })
-		// v.volumeMounts = append(v.volumeMounts, corev1.VolumeMount{
-		// 	MountPath: mountPath,
-		// 	Name:      name,
-		// 	ReadOnly:  readOnly,
-		// 	SubPath:   "",
-		// })
+		//no support
+		return
 	}
 }
 
