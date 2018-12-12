@@ -39,16 +39,15 @@ type startController struct {
 }
 
 func (s *startController) Begin() {
-	logrus.Debugf("func (s *startController) Begin()")
 	var sourceIDs = make(map[string]*v1.AppService, len(s.appService))
+	var list []*v1.AppService // should be delete when using foundsequence
 	for _, a := range s.appService {
 		sourceIDs[a.ServiceID] = &a
+		list = append(list, &a) // // should be delete when using foundsequence
 	}
 	var sl sequencelist
-	logrus.Debugf("before foundsequence")
-	logrus.Debugf("sourceIDs: %v", sourceIDs)
-	foundsequence(sourceIDs, &sl)
-	logrus.Debugf("after foundsequence")
+	sl = append(sl, list) // should be delete when using foundsequence
+	//foundsequence(sourceIDs, &sl)
 	for _, slist := range sl {
 		var wait sync.WaitGroup
 		for _, service := range slist {
