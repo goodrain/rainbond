@@ -1,4 +1,4 @@
-<img src="https://github.com/goodrain/rainbond/blob/master/docs/rainbond_logo.png" width="100%">
+<img src="./docs/rainbond_logo.png" width="100%">
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/goodrain/rainbond)](https://goreportcard.com/report/github.com/goodrain/rainbond)
 [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
@@ -6,78 +6,89 @@
 [![Build Status](https://travis-ci.org/goodrain/rainbond.svg?branch=master)](https://travis-ci.org/goodrain/rainbond)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
-[Website](http://www.rainbond.com) • [Docs](https://www.rainbond.com/docs/stable/) • [Public Cloud](https://console.goodrain.com) • [中文 README](https://github.com/goodrain/rainbond/blob/master/readme_zh.md)
+[项目官网](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/stable/) • [在线体验](https://console.goodrain.com) • [README in English](https://github.com/goodrain/rainbond/blob/master/README_EN.md)
 
-Rainbond is an application-centric open source PaaS. Integrates Kubernetes container management, Service Mesh microservices architecture best practices, multi-type CI/CD application building and delivering, multi-data-center resource management, Rainbond provides cloud native application  full-lifecycle solution, and build ecosystem of application and infrastructure, application and application, infrastructure and infrastructure, to meet the agile development, efficient operations and lean management needs of business.
+## **Rainbond** ENTERPRISE APPLICATION CLOUD OS
+
+Rainbond（云帮）是企业应用的操作系统。 Rainbond支撑企业应用的开发、架构、交付和运维的全流程，通过“无侵入”架构，无缝衔接各类企业应用，底层资源可以对接和管理IaaS、虚拟机和物理服务器。
+
+Rainbond is a cloud OS for enterprise applications. It provides complete set of supports for enterprise applications' development, architecture, delivery and operation, can seamlessly docking almost all kinds of enterprise applications through "non-invasive" platform architecture, interface and manage underlying computing resources such as IaaS, virtual machine and physical servers.
+
+```
+Enterprise Applications include：
+information system, OA, CRM, ERP, database, big data, IOT, internet platform and microservice architecture etc.
+```
+## Be applied to
+
+* Enterprise Application Developement
+
+The development environment, micro-service architecture, service governance and various technical tools are “out of the box”, without changing development habits, allowing companies to focus on their business and improving efficiency by 10 times.
+
+* Enterprise Application Delivery
+
+Support continuous delivery, enterprise application market delivery, SaaS, enterprise application sales, secondary development and other delivery processes, unified customer management, and balanced delivery and personalized delivery.
+
+* Enterprise Application Operation
+
+Transparently interfaces and manages a variety of computing resources, naturally achieves cloudy and hybrid clouds, enterprise application automation and operation, and doubles resource utilization.
 
 ## Features
 
-#### Application management
+| Features                       | Description                                                         |
+| -------------------------- | ------------------------------------------------------------ |
+|  beyond Kubernetes             | based on kubernetes, but users do not need to learn and edit complex yaml files, achieved "out-of-the-box" business process by application-level graphical interface |
+| native Service Mesh microservice architecture | Thanks to the cross-language, cross-protocol, code-free service Mesh microservices architecture native support, traditional applications can become microservice architecture directly. Support Spring Cloud, Dubbo, etc.,  and can easily expand the architectural capabilities and governance functions by adding plug-ins. |
+| Integrated DevOps               | Integrate DevOps for demand, development, testing, construction, online, and operation and maintenance. Support for docking third party software (Jira, Sonar, Jenkins, Gitlab, etc.) |
+| Enterpeise-level application market             | Not a simple mirror market and service catalog, but supports all kinds of enterprise-level applications, just like install and manage mobile apps, click-to-use, full process management (application development, application publishing, application display, application offline import/export, application installation/upgrade, application operation and maintenance)  |
+| Automated operation and maintenance                 | Automated application operation and maintenance. Nodes are automatically installed, expanded, monitored, and fault tolerant. The platform supports high availability, multiple data center management, and multi-tenant management. |
+| Serverless PaaS            | With the application-centric design philosophy, users do not need to understand the server-related concepts, and is simple and flexible. Quickly build industry-specific PaaS through docking industry applications. |
+| Application Gateway                   | Applying access control policies based on protocols such as HTTP, HTTPs, TCP, and UDP, it is easy to operate grayscale publishing and A/B testing. |
 
-- application level orchestration (for complete business system)
-- integrates Kubernetes's service component level orchestration and scheduling (service discovery, dynamic routing, limiting and fuse etc.)
-- provides cloud native microservices governance based on extendable service mesh grid system
-- supports multiple microservices architecture (SpringCLoud, Dubbo, API-Gateway)
-- supports multiple types of service-level application performance analysis
-- supports for building services based on source code (Java, PHP, Python, Golang, Ruby etc.)
-- supports for continuous building and deployment based on public/private Git, SVN code repositories, image repositories and third-party CI system.
-- supports for building application based on docker image, docker run command and dockercompose
-- supports application level full backup and recovery, migrating application between tenants and data centers.
-- Service plug-in system supports flexible extension of application functions and features, such as log, firewall and traffic anaylsis.
-- supports for public/private application market with complete application delivery system.
-
-#### Resource/cloud management
-
-- basic system of cloud-native data center
-- supports plug-in deployment of different service gateway (openresty, F5 etc.), SDN network (midonet, calico etc.) and distributed storage systems (GlusterFS, Ali-NAS, Ceph etc.)
-- supports multi-data-center or cluster management and application orchestration
-- supports for platform high-availability
-- cluster management, operation and maintenance automation
-- automatic monitoring of node's physical hardware and system, and system indicators
-- automatic monitoring of service instances container metrics
+More features： [Rainbond features description](https://www.rainbond.com/docs/stable/architecture/edition.html)
 
 ## Quick Start
 
-1.  [Install Rainbond](https://www.rainbond.com/docs/stable/getting-started/installation-guide.html)
-2.  [Create First Application Service](https://www.rainbond.com/docs/stable/user-manual/create-an-app.html)
-3.  [Build Microservice Architecture](https://www.rainbond.com/docs/stable/microservice/service-mesh/use-case.html)
+1.  [install Rainbond cluster](https://www.rainbond.com/docs/stable/getting-started/installation-guide.html)
+2.  [create the first application / service](https://www.rainbond.com/docs/stable/user-manual/create-an-app.html)
+3.  [build ServiceMesh microservice architecture](https://www.rainbond.com/docs/stable/microservice/service-mesh/use-case.html)
+4.  [Migrate existing enterprise applications]()
 
 ## Community
 
-[Rainbond Community](https://t.goodrain.com)
-[Rainbond Web](https://www.rainbond.com)
+[Rainbond forum](https://t.goodrain.com)        
+
+[Rainbond website](https://www.rainbond.com)
 
 ## Roadmap
 
-Read the [Roadmap](http://www.rainbond.com/docs/stable/architecture/roadmap.html).
+See [Rainbond Roadmap](http://www.rainbond.com/docs/stable/architecture/roadmap.html)
 
 ## Architecture
 
 <img src="https://static.goodrain.com/images/docs/3.6/architecture/architecture.png" href="http://www.rainbond.com/docs/stable/architecture/architecture.html">
 
-
-## Console UI show
+## Snapshot
 
 <img src="./docs/buildfromsourcecode.gif" href="http://www.rainbond.com/docs/stable">
 
-- Source code creation application process
+- build from source code
 
 <img src="./docs/topology.gif" href="http://www.rainbond.com/docs/stable">
 
-- Business application group topology diagram,The network topology, applied relational topology and real-time monitoring are shown here.
+- Application traffic topology
 
-## Contributing
+## Contribution
 
-You can participate in the contributions of platforms, applications, and plugins within the Rainbond community.
-[Rainbond Contributor community](https://t.goodrain.com/c/contribution)
+You can participate in the Rainbond community's contributions and sharing on platforms, applications, plugins, and more.
+See [Rainbond Contribution](https://t.goodrain.com/c/contribution)
 
 ## License
 
-Rainbond is under the LGPL-3.0 license, see [LICENSE](https://github.com/goodrain/rainbond/blob/master/LICENSE) and [Licensing](https://github.com/goodrain/rainbond/blob/master/Licensing.md) for details.
+Rainbond is released under LGPL-3.0 license, see [LICENSE](https://github.com/goodrain/rainbond/blob/master/LICENSE) and [Licensing](https://github.com/goodrain/rainbond/blob/master/Licensing.md)。
 
-## Acknowledgment
+## Special THANKS
 
-Thanks for the following open source project
+Thanks to the following open source projects
 
 - [Kubernetes](https://github.com/kubernetes/kubernetes)
 - [Docker/Moby](https://github.com/moby/moby)
@@ -96,4 +107,6 @@ Thanks for the following open source project
 
 ## Join us
 
-[Welcome you who love technology to join us](https://www.rainbond.com/docs/recruitment/join.html)
+[Welcome you to join us with your passion for technology](https://www.rainbond.com/docs/recruitment/join.html)
+
+
