@@ -80,7 +80,6 @@ func int32Ptr(i int) *int32 {
 
 //TenantServiceBase conv tenant service base info
 func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
-	logrus.Debugf("service_id: %d", as.ServiceID)
 	tenantService, err := dbmanager.TenantServiceDao().GetServiceByID(as.ServiceID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -116,14 +115,11 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	if err := initTenant(as, tenant); err != nil {
 		return fmt.Errorf("conversion tenant info failure %s", err.Error())
 	}
-	logrus.Debugf("serviceType.LabelValue: %s", serviceType.LabelValue)
 	if serviceType == nil || serviceType.LabelValue == util.StatelessServiceType {
-		logrus.Debugf("Deployment")
 		initBaseDeployment(as, tenantService)
 		return nil
 	}
 	if serviceType.LabelValue == util.StatefulServiceType {
-		logrus.Debugf("StatefulSet")
 		initBaseStatefulSet(as, tenantService)
 		return nil
 	}
