@@ -27,7 +27,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -45,12 +45,14 @@ func (s *startController) Begin() {
 	}
 	var sl sequencelist
 	foundsequence(sourceIDs, &sl)
+	logrus.Debugf("sl: %v", sl)
 	for _, slist := range sl {
 		var wait sync.WaitGroup
 		for _, service := range slist {
 			go func(service v1.AppService) {
 				wait.Add(1)
 				defer wait.Done()
+				logrus.Debugf("App runtime begin start app service(%s)", service.ServiceAlias)
 				service.Logger.Info("App runtime begin start app service "+service.ServiceAlias, getLoggerOption("starting"))
 				if err := s.startOne(service); err != nil {
 					if err != ErrWaitTimeOut {
@@ -58,8 +60,10 @@ func (s *startController) Begin() {
 						logrus.Errorf("start service %s failure %s", service.ServiceAlias, err.Error())
 						s.errorCallback(service)
 					}
+					logrus.Debugf("Start service %s timeout, please wait or read service log.", service.ServiceAlias)
 					service.Logger.Error(fmt.Sprintf("Start service %s timeout,please wait or read service log.", service.ServiceAlias), GetCallbackLoggerOption())
 				} else {
+					logrus.Debugf("Start service %s success", service.ServiceAlias)
 					service.Logger.Info(fmt.Sprintf("Start service %s success", service.ServiceAlias), GetLastLoggerOption())
 				}
 			}(*service)
