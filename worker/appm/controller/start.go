@@ -19,7 +19,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -109,19 +108,16 @@ func (s *startController) startOne(app v1.AppService) error {
 	}
 	//step 2: create statefulset or deployment
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
-		s, err := s.manager.client.AppsV1().StatefulSets(app.TenantID).Create(statefulset)
+		_, err := s.manager.client.AppsV1().StatefulSets(app.TenantID).Create(statefulset)
 		if err != nil {
 			return fmt.Errorf("create statefulset failure:%s", err.Error())
 		}
-		logrus.Debugf("Successfully created a statefulset: %v", s)
 	}
 	if deployment := app.GetDeployment(); deployment != nil {
-		d, err := s.manager.client.AppsV1().Deployments(app.TenantID).Create(deployment)
+		_, err := s.manager.client.AppsV1().Deployments(app.TenantID).Create(deployment)
 		if err != nil {
-			d, _ := json.Marshal(deployment)
-			return fmt.Errorf("create deployment failure:%s; deployment: %v", err.Error(), string(d))
+			return fmt.Errorf("create deployment failure:%s;", err.Error())
 		}
-		logrus.Debugf("Successfully created a deployment: %v", d)
 	}
 	//step 3: create services
 	if services := app.GetServices(); services != nil {
