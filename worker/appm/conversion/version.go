@@ -336,7 +336,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 	if version.DeliveredType == "slug" {
 		//slug host path already is windows style
 		slugPath := path.Dir(version.DeliveredPath)
-		vd.SetVolume(dbmodel.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", slugPath, true)
+		vd.SetVolume(dbmodel.ShareFileVolumeType, "slug", "/tmp/slug/", slugPath, true)
 	}
 	return vd, nil
 }
