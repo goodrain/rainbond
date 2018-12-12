@@ -20,6 +20,7 @@ package conversion
 
 import (
 	"fmt"
+	"github.com/ghodss/yaml"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"os"
 	"strconv"
@@ -70,12 +71,16 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			Affinity:     createAffinity(as, dbmanager),
 		},
 	}
-	logrus.Debugf("podtmpSpec: %v", podtmpSpec) // TODO: DELETE
+	// TODO: DELETE
+	p, _ := yaml.Marshal(podtmpSpec)
+	logrus.Debugf("podtmpSpec: %v", string(p))
 	//set annotations feature by env
 	setFeature(&podtmpSpec)
 	//set to deployment or statefulset
 	as.SetPodTemplate(podtmpSpec)
-	logrus.Debugf("Deployment: %v", as.GetDeployment())
+	// TODO: DELETE
+	d, _ := yaml.Marshal(as.GetDeployment())
+	logrus.Debugf("Deployment: %v", string(d))
 	return nil
 }
 
