@@ -27,6 +27,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/goodrain/rainbond/util/windows"
 
@@ -66,13 +67,20 @@ func main() {
 				cancel()
 			}
 		}()
+		defer func() {
+			if cmd.Process != nil {
+				if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+					logrus.Errorf("send SIGTERM signal to progress failure %s", err.Error())
+				}
+				time.Sleep(time.Second * 2)
+			}
+		}()
 		//step finally: listen Signal
 		term := make(chan os.Signal)
 		signal.Notify(term, os.Interrupt, syscall.SIGTERM)
 		select {
 		case si := <-term:
 			logrus.Warn("Received SIGTERM, exiting gracefully...")
-			return cmd.Process.Signal(si)
 		case <-ctx.Done():
 		}
 		logrus.Info("See you next time!")
