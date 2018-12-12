@@ -19,26 +19,22 @@
 package conversion
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/node/nodem/client"
 	"os"
 	"strconv"
 	"strings"
 
-	"github.com/goodrain/rainbond/builder"
-
 	"github.com/Sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/util/intstr"
-
-	"k8s.io/apimachinery/pkg/api/resource"
-
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 //TenantServiceVersion service deploy version conv. define pod spec
@@ -57,7 +53,6 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	}
 	//need service mesh sidecar, volume kubeconfig
 	if as.NeedProxy {
-		logrus.Debugf("need service mesh sidecar, volume kubeconfig")
 		dv.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes", "/grdata/kubernetes", true)
 	}
 	podtmpSpec := corev1.PodTemplateSpec{
@@ -76,16 +71,10 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			Affinity:     createAffinity(as, dbmanager),
 		},
 	}
-	// TODO: DELETE
-	p, _ := json.Marshal(podtmpSpec)
-	logrus.Debugf("podtmpSpec: %s", string(p))
 	//set annotations feature by env
 	setFeature(&podtmpSpec)
 	//set to deployment or statefulset
 	as.SetPodTemplate(podtmpSpec)
-	// TODO: DELETE
-	d, _ := json.Marshal(as.GetDeployment())
-	logrus.Debugf("Deployment: %s", string(d))
 	return nil
 }
 
@@ -347,11 +336,6 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 		//slug host path already is windows style
 		slugPath := version.DeliveredPath
 		vd.SetVolume(dbmodel.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", slugPath, true)
-	}
-	//need service mesh sidecar, volume kubeconfig
-	if as.NeedProxy {
-		logrus.Debugf("need service mesh sidecar, volume kubeconfig")
-		vd.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes", "/grdata/kubernetes", true)
 	}
 	return vd, nil
 }
