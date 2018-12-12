@@ -20,7 +20,6 @@ package conversion
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"strings"
 
 	"github.com/goodrain/rainbond/db"
