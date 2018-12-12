@@ -131,7 +131,9 @@ func (m *Manager) startExec(task *model.Task) error {
 	newAppService.Logger = logger
 	//regist new app service
 	m.store.RegistAppService(newAppService)
+	logrus.Debugf("before StartController")
 	err = m.controllerManager.StartController(controller.TypeStartController, *newAppService)
+	logrus.Debugf("after StartController")
 	if err != nil {
 		logrus.Errorf("Application run  start controller failure:%s", err.Error())
 		logger.Error("Application run start controller failure", controller.GetCallbackLoggerOption())
