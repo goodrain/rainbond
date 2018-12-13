@@ -24,21 +24,17 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/goodrain/rainbond/node/nodem/client"
-
-	"github.com/goodrain/rainbond/builder"
-
 	"github.com/Sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/util/intstr"
-
-	"k8s.io/apimachinery/pkg/api/resource"
-
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 //TenantServiceVersion service deploy version conv. define pod spec
@@ -54,6 +50,11 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	container, err := getMainContainer(as, version, dv, dbmanager)
 	if err != nil {
 		return fmt.Errorf("conv service main container failure %s", err.Error())
+	}
+	//need service mesh sidecar, volume kubeconfig
+	if as.NeedProxy {
+		dv.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes",
+			"/opt/rainbond/etc/kubernetes/kubecfg", corev1.HostPathDirectoryOrCreate, true)
 	}
 	podtmpSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -75,7 +76,6 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	setFeature(&podtmpSpec)
 	//set to deployment or statefulset
 	as.SetPodTemplate(podtmpSpec)
-	logrus.Debugf("Deployment: %v", as.GetDeployment())
 	return nil
 }
 
@@ -219,7 +219,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			}
 			portStr += fmt.Sprintf("%d", port.ContainerPort)
 			if port.IsOuterService && (port.Protocol == "http" || port.Protocol == "https") {
-				envs = append(envs, corev1.EnvVar{Name: fmt.Sprintf("DEFAULT_DOMAIN_%d", port.ContainerPort), Value: createDefaultDomain(as.TenantName, as.ServiceAlias, port.ContainerPort)})
+				envs = append(envs, corev1.EnvVar{Name: "DEFAULT_DOMAIN", Value: createDefaultDomain(as.TenantName, as.ServiceAlias, port.ContainerPort)})
 			}
 		}
 		envs = append(envs, corev1.EnvVar{Name: "MONITOR_PORT", Value: portStr})
@@ -237,11 +237,16 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	for _, e := range envsAll {
 		envs = append(envs, corev1.EnvVar{Name: strings.TrimSpace(e.AttrName), Value: e.AttrValue})
 	}
+	svc, err := dbmanager.TenantServiceDao().GetServiceByID(as.ServiceID)
+	if err != nil {
+		return nil, err
+	}
 	//set default env
 	envs = append(envs, corev1.EnvVar{Name: "TENANT_ID", Value: as.TenantID})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_ID", Value: as.ServiceID})
 	envs = append(envs, corev1.EnvVar{Name: "MEMORY_SIZE", Value: getMemoryType(as.ContainerMemory)})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_NAME", Value: as.ServiceAlias})
+	envs = append(envs, corev1.EnvVar{Name: "SERVICE_EXTEND_METHOD", Value: svc.ExtendMethod})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_POD_NUM", Value: strconv.Itoa(as.Replicas)})
 	envs = append(envs, corev1.EnvVar{Name: "HOST_IP", ValueFrom: &corev1.EnvVarSource{
 		FieldRef: &corev1.ObjectFieldSelector{
@@ -309,7 +314,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				if as.IsWindowsService {
 					hostPath = RewriteHostPathInWindows(hostPath)
 				}
-				vd.SetVolume(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, hostPath, v.IsReadOnly)
+				vd.SetVolume(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, hostPath, corev1.HostPathDirectoryOrCreate, v.IsReadOnly)
 			}
 		}
 	}
@@ -329,18 +334,13 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 			if as.IsWindowsService {
 				hostPath = RewriteHostPathInWindows(hostPath)
 			}
-			vd.SetVolume(dbmodel.ShareFileVolumeType, fmt.Sprintf("mnt%d", t.ID), t.VolumePath, hostPath, false)
+			vd.SetVolume(dbmodel.ShareFileVolumeType, fmt.Sprintf("mnt%d", t.ID), t.VolumePath, hostPath, corev1.HostPathDirectoryOrCreate, false)
 		}
 	}
 	//handle slug file volume
 	if version.DeliveredType == "slug" {
 		//slug host path already is windows style
-		slugPath := version.DeliveredPath
-		vd.SetVolume(dbmodel.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", slugPath, true)
-	}
-	//need service mesh sidecar, volume kubeconfig
-	if as.NeedProxy {
-		vd.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes", "/grdata/kubernetes", true)
+		vd.SetVolume(dbmodel.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", version.DeliveredPath, corev1.HostPathFile, true)
 	}
 	return vd, nil
 }
@@ -457,7 +457,7 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 		}
 	}
 }
-func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath, hostPath string, readOnly bool) {
+func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath, hostPath string, hostPathType corev1.HostPathType, readOnly bool) {
 	for _, m := range v.volumeMounts {
 		if m.MountPath == mountPath {
 			return
@@ -486,6 +486,7 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 			}
 			vo.HostPath = &corev1.HostPathVolumeSource{
 				Path: hostPath,
+				Type: &hostPathType,
 			}
 			v.volumes = append(v.volumes, vo)
 			if mountPath != "" {
@@ -499,39 +500,8 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 			}
 		}
 	case dbmodel.LocalVolumeType:
-		// fulesystem := corev1.PersistentVolumeFilesystem
-		// localPV := corev1.PersistentVolume{
-		// 	ObjectMeta: metav1.ObjectMeta{
-		// 		Name: name + "pv",
-		// 	},
-		// 	Spec: corev1.PersistentVolumeSpec{
-		// 		VolumeMode: &fulesystem,
-		// 		AccessModes: []corev1.PersistentVolumeAccessMode{
-		// 			corev1.ReadWriteOnce,
-		// 		},
-		// 		//do not auto reclaim
-		// 		PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
-		// 		StorageClassName:              "local-storage",
-		// 		PersistentVolumeSource: corev1.PersistentVolumeSource{
-		// 			Local: &corev1.LocalVolumeSource{
-		// 				Path: hostPath,
-		// 			},
-		// 		},
-		// 	},
-		// }
-		// v.persistentVolumes = append(v.persistentVolumes, localPV)
-		// v.volumes = append(v.volumes, corev1.Volume{
-		// 	Name: name,
-		// 	VolumeSource: corev1.VolumeSource{
-		// 		PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{},
-		// 	},
-		// })
-		// v.volumeMounts = append(v.volumeMounts, corev1.VolumeMount{
-		// 	MountPath: mountPath,
-		// 	Name:      name,
-		// 	ReadOnly:  readOnly,
-		// 	SubPath:   "",
-		// })
+		//no support
+		return
 	}
 }
 

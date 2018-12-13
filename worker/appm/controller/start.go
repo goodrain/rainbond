@@ -27,7 +27,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -40,17 +40,21 @@ type startController struct {
 
 func (s *startController) Begin() {
 	var sourceIDs = make(map[string]*v1.AppService, len(s.appService))
+	var list []*v1.AppService // should be delete when using foundsequence
 	for _, a := range s.appService {
 		sourceIDs[a.ServiceID] = &a
+		list = append(list, &a) // // should be delete when using foundsequence
 	}
 	var sl sequencelist
-	foundsequence(sourceIDs, &sl)
+	sl = append(sl, list) // should be delete when using foundsequence
+	//foundsequence(sourceIDs, &sl)
 	for _, slist := range sl {
 		var wait sync.WaitGroup
 		for _, service := range slist {
 			go func(service v1.AppService) {
 				wait.Add(1)
 				defer wait.Done()
+				logrus.Debugf("App runtime begin start app service(%s)", service.ServiceAlias)
 				service.Logger.Info("App runtime begin start app service "+service.ServiceAlias, getLoggerOption("starting"))
 				if err := s.startOne(service); err != nil {
 					if err != ErrWaitTimeOut {
@@ -58,8 +62,10 @@ func (s *startController) Begin() {
 						logrus.Errorf("start service %s failure %s", service.ServiceAlias, err.Error())
 						s.errorCallback(service)
 					}
+					logrus.Debugf("Start service %s timeout, please wait or read service log.", service.ServiceAlias)
 					service.Logger.Error(fmt.Sprintf("Start service %s timeout,please wait or read service log.", service.ServiceAlias), GetCallbackLoggerOption())
 				} else {
+					logrus.Debugf("Start service %s success", service.ServiceAlias)
 					service.Logger.Info(fmt.Sprintf("Start service %s success", service.ServiceAlias), GetLastLoggerOption())
 				}
 			}(*service)
@@ -110,7 +116,7 @@ func (s *startController) startOne(app v1.AppService) error {
 	if deployment := app.GetDeployment(); deployment != nil {
 		_, err := s.manager.client.AppsV1().Deployments(app.TenantID).Create(deployment)
 		if err != nil {
-			return fmt.Errorf("create deployment failure:%s", err.Error())
+			return fmt.Errorf("create deployment failure:%s;", err.Error())
 		}
 	}
 	//step 3: create services

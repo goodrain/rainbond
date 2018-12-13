@@ -20,6 +20,7 @@ package openresty
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"net/http"
 	"time"
 )
@@ -30,6 +31,7 @@ func (o *OrService) Check() error {
 	timeout := o.ocfg.HealthCheckTimeout
 	statusCode, err := simpleGet(url, timeout)
 	if err != nil {
+		logrus.Errorf("error checking healthz: %v", url, err)
 		return err
 	}
 	if statusCode != 200 {
@@ -39,6 +41,7 @@ func (o *OrService) Check() error {
 	url = fmt.Sprintf("http://127.0.0.1:%v/is-dynamic-lb-initialized", o.ocfg.ListenPorts.Status)
 	statusCode, err = simpleGet(url, timeout)
 	if err != nil {
+		logrus.Errorf("error checking is-dynamic-lb-initialized: %v", err)
 		return err
 	}
 	if statusCode != 200 {
