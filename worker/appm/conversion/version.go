@@ -218,7 +218,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			}
 			portStr += fmt.Sprintf("%d", port.ContainerPort)
 			if port.IsOuterService && (port.Protocol == "http" || port.Protocol == "https") {
-				envs = append(envs, corev1.EnvVar{Name: fmt.Sprintf("DEFAULT_DOMAIN_%d", port.ContainerPort), Value: createDefaultDomain(as.TenantName, as.ServiceAlias, port.ContainerPort)})
+				envs = append(envs, corev1.EnvVar{Name: "DEFAULT_DOMAIN", Value: createDefaultDomain(as.TenantName, as.ServiceAlias, port.ContainerPort)})
 			}
 		}
 		envs = append(envs, corev1.EnvVar{Name: "MONITOR_PORT", Value: portStr})
