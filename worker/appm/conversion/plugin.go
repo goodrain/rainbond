@@ -105,8 +105,8 @@ func createPluginsContainer(as *typesv1.AppService, dbmanager db.Manager) ([]v1.
 		containers = append(containers, pc)
 	}
 	//if need proxy but not install net plugin
-	envs, err := createEnv(as, dbmanager)
-	if err != nil {
+	podTmpl := as.GetPodTemplate()
+	if podTmpl == nil {
 		logrus.Errorf("error creating environments: %v", err)
 		return nil, nil, err
 	}
@@ -118,10 +118,10 @@ func createPluginsContainer(as *typesv1.AppService, dbmanager db.Manager) ([]v1.
 				Name:      "kube-config",
 				ReadOnly:  true,
 			}},
+			Env:                    podTmpl.Spec.Containers[0].Env,
 			TerminationMessagePath: "",
 			Image:                  "goodrain.me/adapter",
 			Resources:              createAdapterResources(50, 20),
-			Env: *envs,
 		}
 		containers = append(containers, c2)
 	}
