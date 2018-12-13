@@ -105,6 +105,11 @@ func createPluginsContainer(as *typesv1.AppService, dbmanager db.Manager) ([]v1.
 		containers = append(containers, pc)
 	}
 	//if need proxy but not install net plugin
+	envs, err := createEnv(as, dbmanager)
+	if err != nil {
+		logrus.Errorf("error creating environments: %v", err)
+		return nil, nil, err
+	}
 	if as.NeedProxy && !netPlugin {
 		c2 := v1.Container{
 			Name: "adapter-" + as.ServiceID[len(as.ServiceID)-20:],
@@ -116,6 +121,7 @@ func createPluginsContainer(as *typesv1.AppService, dbmanager db.Manager) ([]v1.
 			TerminationMessagePath: "",
 			Image:                  "goodrain.me/adapter",
 			Resources:              createAdapterResources(50, 20),
+			Env: *envs,
 		}
 		containers = append(containers, c2)
 	}
