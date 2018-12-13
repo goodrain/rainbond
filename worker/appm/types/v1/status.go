@@ -28,7 +28,7 @@ import (
 
 //IsEmpty is empty
 func (a *AppService) IsEmpty() bool {
-	empty := len(a.pods) == 0 && len(a.services) == 0 && len(a.secrets) == 0 && len(a.configMaps) == 0
+	empty := len(a.pods) == 0
 	return empty
 }
 
