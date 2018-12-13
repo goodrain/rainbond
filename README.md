@@ -61,7 +61,7 @@ Rainbond（云帮）是企业应用的操作系统。 Rainbond支撑企业应用
 
 ## 架构
 
-<img src="https://static.goodrain.com/images/docs/3.6/architecture/architecture.png" href="http://www.rainbond.com/docs/stable/architecture/architecture.html">
+<img src="https://static.goodrain.com/images/docs/5.0/architecture/architecture.svg" href="http://www.rainbond.com/docs/stable/architecture/architecture.html">
 
 ## 产品图示
 

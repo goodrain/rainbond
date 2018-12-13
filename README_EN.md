@@ -65,7 +65,7 @@ See [Rainbond Roadmap](http://www.rainbond.com/docs/stable/architecture/roadmap.
 
 ## Architecture
 
-<img src="https://static.goodrain.com/images/docs/3.6/architecture/architecture.png" href="http://www.rainbond.com/docs/stable/architecture/architecture.html">
+<img src="https://static.goodrain.com/images/docs/5.0/architecture/architecture.svg" href="http://www.rainbond.com/docs/stable/architecture/architecture.html">
 
 ## Snapshot
 
