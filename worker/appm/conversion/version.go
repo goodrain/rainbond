@@ -53,7 +53,8 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	}
 	//need service mesh sidecar, volume kubeconfig
 	if as.NeedProxy {
-		dv.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes", "/grdata/kubernetes", corev1.HostPathDirectoryOrCreate, true)
+		dv.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes",
+			"/opt/rainbond/etc/kubernetes/kubecfg", corev1.HostPathDirectoryOrCreate, true)
 	}
 	podtmpSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
