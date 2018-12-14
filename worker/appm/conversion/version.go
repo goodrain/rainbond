@@ -70,6 +70,12 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			Containers:   []corev1.Container{*container},
 			NodeSelector: createNodeSelector(as, dbmanager),
 			Affinity:     createAffinity(as, dbmanager),
+			Hostname: func() string {
+				if nodeID, ok := as.ExtensionSet["selectnode"]; ok {
+					return nodeID
+				}
+				return ""
+			}(),
 			HostNetwork: func() bool {
 				if _, ok := as.ExtensionSet["hostnetwork"]; ok {
 					return true
