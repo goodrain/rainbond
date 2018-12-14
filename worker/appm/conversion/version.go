@@ -70,6 +70,12 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			Containers:   []corev1.Container{*container},
 			NodeSelector: createNodeSelector(as, dbmanager),
 			Affinity:     createAffinity(as, dbmanager),
+			HostNetwork: func() bool {
+				if _, ok := as.ExtensionSet["hostnetwork"]; ok {
+					return true
+				}
+				return false
+			}(),
 		},
 	}
 	//set annotations feature by env
@@ -236,6 +242,9 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	}
 	for _, e := range envsAll {
 		envs = append(envs, corev1.EnvVar{Name: strings.TrimSpace(e.AttrName), Value: e.AttrValue})
+		if strings.HasSuffix(e.AttrName, "ES_") {
+			as.ExtensionSet[strings.ToLower(e.AttrName[3:])] = e.AttrValue
+		}
 	}
 	svc, err := dbmanager.TenantServiceDao().GetServiceByID(as.ServiceID)
 	if err != nil {
