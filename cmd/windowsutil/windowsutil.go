@@ -79,7 +79,7 @@ func main() {
 		term := make(chan os.Signal)
 		signal.Notify(term, os.Interrupt, syscall.SIGTERM)
 		select {
-		case si := <-term:
+		case <-term:
 			logrus.Warn("Received SIGTERM, exiting gracefully...")
 		case <-ctx.Done():
 		}
