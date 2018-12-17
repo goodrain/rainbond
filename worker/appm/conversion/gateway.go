@@ -348,6 +348,8 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 				annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
 			case string(model.LBType):
 				annos[parser.GetAnnotationWithPrefix("lb-type")] = extension.Value
+			case string(model.CHash):
+				annos[parser.GetAnnotationWithPrefix("upstream-hash-by")] = extension.Value
 			default:
 				logrus.Warnf("Unexpected RuleExtension Key: %s", extension.Key)
 			}
