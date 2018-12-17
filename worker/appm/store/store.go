@@ -21,6 +21,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/util"
 	"sync"
 	"time"
 
@@ -468,6 +469,15 @@ func (a *appRuntimeStore) GetAppService(serviceID string) *v1.AppService {
 	app, ok := a.appServices.Load(key)
 	if ok {
 		appService := app.(*v1.AppService)
+		serviceType, err := a.dbmanager.TenantServiceLabelDao().GetTenantServiceTypeLabel(serviceID)
+		if err != nil {
+			logrus.Warningf("error getting TenantServiceTypeLabel(serviceID=%s): %v", serviceID, serviceType)
+		}
+		if serviceType == nil || serviceType.LabelValue == util.StatelessServiceType {
+			appService.SetStatefulSet(nil)
+		} else if serviceType.LabelValue == util.StatefulServiceType {
+			appService.SetDeployment(nil)
+		}
 		return appService
 	}
 	return nil
