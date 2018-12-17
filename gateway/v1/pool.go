@@ -31,6 +31,7 @@ type Pool struct {
 	Note              string            `json:"note"`
 	NodeNumber        int               `json:"node_number"`
 	LoadBalancingType LoadBalancingType `json:"load_balancing_type"`
+	UpstreamHashBy    string            `json:"upstream_hash_by"`
 	Monitors          []Monitor         `json:"monitors"`
 	Nodes             []*Node
 }

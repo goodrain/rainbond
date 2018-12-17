@@ -172,7 +172,9 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 
 // refreshPools refresh pools dynamically.
 func (gwc *GWController) refreshPools(pools []*v1.Pool) {
-	gwc.GWS.UpdatePools(pools)
+	if err := gwc.GWS.UpdatePools(pools); err != nil {
+		logrus.Warningf("error updating pools: %v", err)
+	}
 }
 
 // getDelUpdPools returns delPools which need to delete and updPools which needs to update.

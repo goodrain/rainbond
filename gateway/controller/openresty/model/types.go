@@ -87,8 +87,8 @@ func CreateBackendByPool(pool *v1.Pool) *Backend {
 	switch pool.LoadBalancingType {
 	case v1.RoundRobin:
 		backend.LoadBalancing = "round_robin"
-		//TODO
 	}
+	backend.UpstreamHashBy = pool.UpstreamHashBy
 	var endpoints []Endpoint
 	for _, node := range pool.Nodes {
 		endpoints = append(endpoints, Endpoint{

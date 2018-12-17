@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
 	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
+	"github.com/goodrain/rainbond/gateway/annotations/upstreamhashby"
 	"github.com/goodrain/rainbond/gateway/annotations/wight"
 	"github.com/imdario/mergo"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -39,11 +40,12 @@ const DeniedKeyName = "Denied"
 // Ingress defines the valid annotations present in one NGINX Ingress rule
 type Ingress struct {
 	metav1.ObjectMeta
-	Header  header.Config
-	Cookie  cookie.Config
-	Weight  weight.Config
-	Rewrite rewrite.Config
-	L4      l4.Config
+	Header         header.Config
+	Cookie         cookie.Config
+	Weight         weight.Config
+	Rewrite        rewrite.Config
+	L4             l4.Config
+	UpstreamHashBy string
 }
 
 // Extractor defines the annotation parsers to be used in the extraction of annotations
@@ -55,11 +57,12 @@ type Extractor struct {
 func NewAnnotationExtractor(cfg resolver.Resolver) Extractor {
 	return Extractor{
 		map[string]parser.IngressAnnotation{
-			"Header":  header.NewParser(cfg),
-			"Cookie":  cookie.NewParser(cfg),
-			"Weight":  weight.NewParser(cfg),
-			"Rewrite": rewrite.NewParser(cfg),
-			"L4":      l4.NewParser(cfg),
+			"Header":         header.NewParser(cfg),
+			"Cookie":         cookie.NewParser(cfg),
+			"Weight":         weight.NewParser(cfg),
+			"Rewrite":        rewrite.NewParser(cfg),
+			"L4":             l4.NewParser(cfg),
+			"UpstreamHashBy": upstreamhashby.NewParser(cfg),
 		},
 	}
 }

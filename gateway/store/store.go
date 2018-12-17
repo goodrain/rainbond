@@ -90,6 +90,7 @@ type Storer interface {
 type backend struct {
 	name   string
 	weight int
+	hashBy string
 }
 
 // Event holds the context of an event.
@@ -141,7 +142,7 @@ func New(client kubernetes.Interface,
 	// create informers factory, enable and assign required informers
 	infFactory := informers.NewFilteredSharedInformerFactory(client, time.Second, corev1.NamespaceAll,
 		func(options *metav1.ListOptions) {
-			options.LabelSelector = "creater=Rainbond"
+			//options.LabelSelector = "creater=Rainbond"
 		})
 
 	store.informers.Ingress = infFactory.Extensions().V1beta1().Ingresses().Informer()
@@ -348,6 +349,7 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 						Nodes: []*v1.Node{},
 					}
 					pool.Name = backend.name
+					pool.UpstreamHashBy = backend.hashBy
 					l7Pools[backend.name] = pool
 				}
 				for _, ss := range ep.Subsets {
@@ -454,7 +456,7 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			l4PoolMap[ing.Spec.Backend.ServiceName] = struct{}{}
 			l4vsMap[listening] = vs
 			l4vs = append(l4vs, vs)
-			backend := backend{backendName, anns.Weight.Weight}
+			backend := backend{name: backendName, weight: anns.Weight.Weight}
 			l4PoolBackendMap[ing.Spec.Backend.ServiceName] = append(l4PoolBackendMap[ing.Spec.Backend.ServiceName], backend)
 			// endregion
 		} else {
@@ -537,7 +539,10 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 					}
 					backendName = util.BackendName(backendName, ing.Namespace)
 					location.NameCondition[backendName] = nameCondition
-					backend := backend{backendName, anns.Weight.Weight}
+					backend := backend{name: backendName, weight: anns.Weight.Weight}
+					if anns.UpstreamHashBy != "" {
+						backend.hashBy = anns.UpstreamHashBy
+					}
 					l7PoolBackendMap[path.Backend.ServiceName] = append(l7PoolBackendMap[path.Backend.ServiceName], backend)
 				}
 			}
