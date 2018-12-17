@@ -46,9 +46,6 @@ var HTTPToHTTPS RuleExtensionKey = "httptohttps"
 // LBType load balancer type
 var LBType RuleExtensionKey = "lb-type"
 
-// CHash consistent hashing
-var CHash RuleExtensionKey = "chash"
-
 // RuleExtension contains rule extensions for http rule or tcp rule
 type RuleExtension struct {
 	Model
