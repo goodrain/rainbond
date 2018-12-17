@@ -21,7 +21,6 @@ package store
 import (
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/util"
 	"sync"
 	"time"
 
@@ -38,7 +37,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -469,15 +468,6 @@ func (a *appRuntimeStore) GetAppService(serviceID string) *v1.AppService {
 	app, ok := a.appServices.Load(key)
 	if ok {
 		appService := app.(*v1.AppService)
-		serviceType, err := a.dbmanager.TenantServiceLabelDao().GetTenantServiceTypeLabel(serviceID)
-		if err != nil {
-			logrus.Warningf("error getting TenantServiceTypeLabel(serviceID=%s): %v", serviceID, serviceType)
-		}
-		if serviceType == nil || serviceType.LabelValue == util.StatelessServiceType {
-			appService.SetStatefulSet(nil)
-		} else if serviceType.LabelValue == util.StatefulServiceType {
-			appService.SetDeployment(nil)
-		}
 		return appService
 	}
 	return nil
