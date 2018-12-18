@@ -317,6 +317,7 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) (string, erro
 func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort int) (string, error) {
 	// begin transaction
 	tx := db.GetManager().Begin()
+	logrus.Debugf("begin transaction")
 	// get old tcp rule
 	tcpRule, err := g.dbmanager.TcpRuleDaoTransactions(tx).GetTcpRuleByID(req.TCPRuleID)
 	if err != nil {
@@ -327,6 +328,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 		tx.Rollback()
 		return "", fmt.Errorf("no TCPRule that matche ruleID(%s)", req.TCPRuleID)
 	}
+	logrus.Debugf("rule extension.")
 	if len(req.RuleExtensions) > 0 {
 		// delete old rule extensions
 		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(tcpRule.UUID); err != nil {
@@ -334,6 +336,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 			return "", err
 		}
 		// add new rule extensions
+		logrus.Debugf("add new extensions.")
 		for _, ruleExtension := range req.RuleExtensions {
 			re := &model.RuleExtension{
 				UUID:   util.NewUUID(),
@@ -347,6 +350,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 		}
 	}
 	// update tcp rule
+	logrus.Debugf("update tcp rule")
 	if req.ServiceID != "" {
 		tcpRule.ServiceID = req.ServiceID
 	}
@@ -355,6 +359,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 	}
 	// TODO: no longer use LBMappingPort
 	// get old port
+	logrus.Debugf("get old port")
 	port, err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).GetLBMappingPortByServiceIDAndPort(
 		tcpRule.ServiceID, tcpRule.Port)
 	if err != nil {
@@ -362,6 +367,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 		return "", err
 	}
 	// update port
+	logrus.Debugf("update port")
 	port.Port = req.Port
 	if err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).UpdateModel(port); err != nil {
 		tx.Rollback()
@@ -369,6 +375,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 	}
 	// IPPort
 	// get old IPPort
+	logrus.Debugf("get old IPPort")
 	ipport, err := g.dbmanager.IPPortDaoTransactions(tx).GetIPPortByIPAndPort(tcpRule.IP, tcpRule.Port)
 	if err != nil {
 		tx.Rollback()
@@ -377,6 +384,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 	// update
 	ipport.IP = req.IP
 	ipport.Port = req.Port
+	logrus.Debugf("update IPPort")
 	err = g.dbmanager.IPPortDaoTransactions(tx).UpdateModel(ipport)
 	if err != nil {
 		tx.Rollback()
@@ -385,6 +393,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 	// TCPRule
 	tcpRule.Port = req.Port
 	tcpRule.IP = req.IP
+	logrus.Debugf("update tcp rule")
 	if err := g.dbmanager.TcpRuleDaoTransactions(tx).UpdateModel(tcpRule); err != nil {
 		tx.Rollback()
 		return "", err

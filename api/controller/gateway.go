@@ -279,6 +279,7 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnValidationError(r, w, values)
 		return
 	}
+	logrus.Debugf("request data is ok")
 
 	if req.IP == "" {
 		req.IP = "0.0.0.0"
@@ -288,9 +289,11 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 			req.IP, req.Port))
 		return
 	}
+	logrus.Debugf("tcp available.")
 
 	sid, err := h.UpdateTCPRule(&req, g.cfg.MinExtPort)
 	if err != nil {
+		logrus.Errorf("Unexpected error occorred while updating tcp rule: %v", err)
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating tcp rule: %v", err))
 		return
