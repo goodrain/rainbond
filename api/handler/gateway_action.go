@@ -353,8 +353,6 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 	if req.ContainerPort != 0 {
 		tcpRule.ContainerPort = req.ContainerPort
 	}
-	tcpRule.Port = req.Port
-	tcpRule.IP = req.IP
 	// TODO: no longer use LBMappingPort
 	// get old port
 	port, err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).GetLBMappingPortByServiceIDAndPort(
@@ -377,14 +375,16 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 		return "", err
 	}
 	// update
-	ipport.IP = tcpRule.IP
-	ipport.Port = tcpRule.Port
+	ipport.IP = req.IP
+	ipport.Port = req.Port
 	err = g.dbmanager.IPPortDaoTransactions(tx).UpdateModel(ipport)
 	if err != nil {
 		tx.Rollback()
 		return "", err
 	}
 	// TCPRule
+	tcpRule.Port = req.Port
+	tcpRule.IP = req.IP
 	if err := g.dbmanager.TcpRuleDaoTransactions(tx).UpdateModel(tcpRule); err != nil {
 		tx.Rollback()
 		return "", err
