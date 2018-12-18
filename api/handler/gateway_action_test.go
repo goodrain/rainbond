@@ -16,39 +16,33 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package db
+package handler
 
 import (
-	dbconfig "github.com/goodrain/rainbond/db/config"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/util"
+	"github.com/rafrombrc/gomock/gomock"
 	"testing"
 )
 
-func TestIPPortImpl_GetIPByPort(t *testing.T) {
-	if err := CreateManager(dbconfig.Config{
-		DBType: "sqlite3",
-	}); err != nil {
-		t.Fatal(err)
-	}
-	tx := GetManager().Begin()
-	tx.Delete(model.IPPort{})
-	tx.Commit()
+func TestGatewayAction_TCPAvailable(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	dbmanager := db.NewMockManager(ctrl)
 
+	ipPortDao := dao.NewMockIPPortDao(ctrl)
 	ipport := &model.IPPort{
-		UUID: util.NewUUID(),
-		IP: "127.0.0.1",
+		IP: "172.16.0.106",
 		Port: 8888,
 	}
-	if err := GetManager().IPPortDao().AddModel(ipport); err != nil {
-		t.Fatal(err)
-	}
+	ipPortDao.EXPECT().GetIPPortByIPAndPort("172.16.0.106", 8888).Return(ipport, nil)
+	dbmanager.EXPECT().IPPortDao().Return(ipPortDao)
 
-	ports, err := GetManager().IPPortDao().GetIPByPort(8888)
-	if err != nil {
-		t.Fatal(err)
+	g := GatewayAction{
+		dbmanager: dbmanager,
 	}
-	if len(ports) != 1 {
-		t.Fatalf("Expected 1 for length of ports, but returned %d)", len(ports))
+	if g.TCPAvailable("172.16.0.106", 8888) {
+		t.Errorf("expected false for tcp available, but returned true")
 	}
 }

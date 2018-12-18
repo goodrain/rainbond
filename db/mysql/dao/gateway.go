@@ -291,3 +291,15 @@ func (i *IPPortImpl) GetIPByPort(port int) ([]*model.IPPort, error) {
 	}
 	return result, nil
 }
+
+// GetIPByPort returns an array of ip by port
+func (i *IPPortImpl) GetIPPortByIPAndPort(ip string, port int) (*model.IPPort, error) {
+	var result model.IPPort
+	if err := i.DB.Where("ip = ? and port = ?", ip, port).Find(&result).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &result, nil
+}

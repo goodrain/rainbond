@@ -4,9 +4,9 @@
 package db
 
 import (
+	gomock "github.com/rafrombrc/gomock/gomock"
 	gorm "github.com/jinzhu/gorm"
 	dao "github.com/goodrain/rainbond/db/dao"
-	gomock "github.com/rafrombrc/gomock/gomock"
 )
 
 // Mock of Manager interface
@@ -611,13 +611,13 @@ func (_mr *_MockManagerRecorder) RuleExtensionDaoTransactions(arg0 interface{}) 
 }
 
 func (_m *MockManager) HttpRuleDao() dao.HTTPRuleDao {
-	ret := _m.ctrl.Call(_m, "HTTPRuleDao")
+	ret := _m.ctrl.Call(_m, "HttpRuleDao")
 	ret0, _ := ret[0].(dao.HTTPRuleDao)
 	return ret0
 }
 
 func (_mr *_MockManagerRecorder) HttpRuleDao() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "HTTPRuleDao")
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "HttpRuleDao")
 }
 
 func (_m *MockManager) HttpRuleDaoTransactions(db *gorm.DB) dao.HTTPRuleDao {
@@ -631,13 +631,13 @@ func (_mr *_MockManagerRecorder) HttpRuleDaoTransactions(arg0 interface{}) *gomo
 }
 
 func (_m *MockManager) TcpRuleDao() dao.TCPRuleDao {
-	ret := _m.ctrl.Call(_m, "TCPRuleDao")
+	ret := _m.ctrl.Call(_m, "TcpRuleDao")
 	ret0, _ := ret[0].(dao.TCPRuleDao)
 	return ret0
 }
 
 func (_mr *_MockManagerRecorder) TcpRuleDao() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "TCPRuleDao")
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "TcpRuleDao")
 }
 
 func (_m *MockManager) TcpRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao {
@@ -648,4 +648,24 @@ func (_m *MockManager) TcpRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao {
 
 func (_mr *_MockManagerRecorder) TcpRuleDaoTransactions(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "TcpRuleDaoTransactions", arg0)
+}
+
+func (_m *MockManager) IPPortDao() dao.IPPortDao {
+	ret := _m.ctrl.Call(_m, "IPPortDao")
+	ret0, _ := ret[0].(dao.IPPortDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) IPPortDao() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "IPPortDao")
+}
+
+func (_m *MockManager) IPPortDaoTransactions(db *gorm.DB) dao.IPPortDao {
+	ret := _m.ctrl.Call(_m, "IPPortDaoTransactions", db)
+	ret0, _ := ret[0].(dao.IPPortDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) IPPortDaoTransactions(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "IPPortDaoTransactions", arg0)
 }

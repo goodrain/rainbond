@@ -495,3 +495,24 @@ func (g *GatewayAction) SendTask(serviceID string, action string) error {
 	}
 	return nil
 }
+
+// TCPValid checks if the ip and port for TCP is available.
+func (g *GatewayAction) TCPAvailable(ip string, port int) bool {
+	ipport, err := g.dbmanager.IPPortDao().GetIPPortByIPAndPort(ip, port)
+	if err != nil {
+		logrus.Warningf("error getting IPPort(ip=%s, port=%d)", ip, port)
+		return false
+	}
+	if ipport != nil {
+		return false
+	}
+	ipport, err = g.dbmanager.IPPortDao().GetIPPortByIPAndPort("0.0.0.0", port)
+	if err != nil {
+		logrus.Warningf("error getting IPPort(ip=%s, port=%d)", "0.0.0.0", port)
+		return false
+	}
+	if ipport != nil {
+		return false
+	}
+	return true
+}
