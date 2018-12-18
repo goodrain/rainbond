@@ -142,7 +142,7 @@ func New(client kubernetes.Interface,
 	// create informers factory, enable and assign required informers
 	infFactory := informers.NewFilteredSharedInformerFactory(client, time.Second, corev1.NamespaceAll,
 		func(options *metav1.ListOptions) {
-			//options.LabelSelector = "creater=Rainbond"
+			options.LabelSelector = "creater=Rainbond"
 		})
 
 	store.informers.Ingress = infFactory.Extensions().V1beta1().Ingresses().Informer()
@@ -587,7 +587,7 @@ func (s *rbdStore) ingressIsValid(ing *extensions.Ingress) bool {
 		return false
 	}
 	for _, ep := range endpoint.Subsets {
-		if (ep.Addresses == nil || len(ep.Addresses) == 0 ) && (ep.NotReadyAddresses == nil || len(ep.NotReadyAddresses) == 0) {
+		if (ep.Addresses == nil || len(ep.Addresses) == 0) && (ep.NotReadyAddresses == nil || len(ep.NotReadyAddresses) == 0) {
 			logrus.Warningf("Endpoints(%s) is empty, ignore it", endpointKey)
 			return false
 		}
