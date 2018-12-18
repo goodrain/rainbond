@@ -280,7 +280,14 @@ func (i *IPPortImpl) AddModel(mo model.Interface) error {
 
 // UpdateModel updates model.IPPort
 func (i *IPPortImpl) UpdateModel(mo model.Interface) error {
-	return nil
+	ipport, ok := mo.(*model.IPPort)
+	if !ok {
+		return fmt.Errorf("Failed to convert %s to *model.IPPort", reflect.TypeOf(mo).String())
+	}
+
+	return i.DB.Table(ipport.TableName()).
+		Where("uuid = ?", ipport.UUID).
+		Update(ipport).Error
 }
 
 // GetIPByPort returns an array of ip by port

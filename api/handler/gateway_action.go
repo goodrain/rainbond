@@ -269,6 +269,16 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) (string, erro
 		tx.Rollback()
 		return "", err
 	}
+	ipport := &model.IPPort{
+		UUID: util.NewUUID(),
+		IP:   req.IP,
+		Port: req.Port,
+	}
+	err = g.dbmanager.IPPortDaoTransactions(tx).AddModel(ipport)
+	if err != nil {
+		tx.Rollback()
+		return "", err
+	}
 	// add tcp rule
 	tcpRule := &model.TCPRule{
 		UUID:          req.TCPRuleID,
@@ -338,8 +348,8 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 	if req.ContainerPort != 0 {
 		tcpRule.ContainerPort = req.ContainerPort
 	}
-	if req.IP != "" {
-		tcpRule.IP = req.IP
+	if req.IP == "" {
+		req.IP = "0.0.0.0"
 	}
 	if req.Port > minPort {
 		// get old port
@@ -349,10 +359,23 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 			tx.Rollback()
 			return "", err
 		}
-		// check
 		// update port
 		port.Port = req.Port
 		if err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).UpdateModel(port); err != nil {
+			tx.Rollback()
+			return "", err
+		}
+		// get old IPPort
+		ipport, err := g.dbmanager.IPPortDaoTransactions(tx).GetIPPortByIPAndPort(tcpRule.IP, tcpRule.Port)
+		if err != nil {
+			tx.Rollback()
+			return "", err
+		}
+		// update
+		ipport.IP = req.IP
+		ipport.Port = req.Port
+		err = g.dbmanager.IPPortDaoTransactions(tx).UpdateModel(ipport)
+		if err != nil {
 			tx.Rollback()
 			return "", err
 		}
@@ -360,6 +383,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 	} else {
 		logrus.Warningf("Expected external port > %d, but got %d", minPort, req.Port)
 	}
+	tcpRule.IP = req.IP
 	if err := g.dbmanager.TcpRuleDaoTransactions(tx).UpdateModel(tcpRule); err != nil {
 		tx.Rollback()
 		return "", err

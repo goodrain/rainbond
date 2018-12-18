@@ -25,6 +25,31 @@ import (
 	"testing"
 )
 
+func TestIPPortImpl_UpdateModel(t *testing.T) {
+	if err := CreateManager(dbconfig.Config{
+		DBType: "sqlite3",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tx := GetManager().Begin()
+	tx.Delete(model.IPPort{})
+	tx.Commit()
+
+	ipport := &model.IPPort{
+		UUID: util.NewUUID(),
+		IP: "127.0.0.1",
+		Port: 8888,
+	}
+	if err := GetManager().IPPortDao().AddModel(ipport); err != nil {
+		t.Fatal(err)
+	}
+	ipport.Port = 9999
+	err := GetManager().IPPortDao().UpdateModel(ipport)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestIPPortImpl_GetIPByPort(t *testing.T) {
 	if err := CreateManager(dbconfig.Config{
 		DBType: "sqlite3",
