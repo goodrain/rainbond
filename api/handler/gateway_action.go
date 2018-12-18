@@ -258,7 +258,7 @@ func (g *GatewayAction) UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRu
 func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) (string, error) {
 	// begin transaction
 	tx := db.GetManager().Begin()
-	// add port
+	// TODO: do not use LBMappingPort again
 	port := &model.TenantServiceLBMappingPort{
 		ServiceID:     req.ServiceID,
 		Port:          req.Port,
@@ -268,6 +268,14 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) (string, erro
 	if err != nil {
 		tx.Rollback()
 		return "", err
+	}
+	// IPPort
+	if req.IP == "" {
+		req.IP = "0.0.0.0"
+	}
+	if !g.TCPAvailable(req.IP, req.Port, true) {
+		tx.Rollback()
+		return "", fmt.Errorf("%s:%d is not available, please change one", req.IP, req.Port)
 	}
 	ipport := &model.IPPort{
 		UUID: util.NewUUID(),
@@ -348,9 +356,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 	if req.ContainerPort != 0 {
 		tcpRule.ContainerPort = req.ContainerPort
 	}
-	if req.IP == "" {
-		req.IP = "0.0.0.0"
-	}
+	// TODO, do not use LBMappingPort again
 	if req.Port > minPort {
 		// get old port
 		port, err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).GetLBMappingPortByServiceIDAndPort(
@@ -365,6 +371,25 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 			tx.Rollback()
 			return "", err
 		}
+		tcpRule.Port = req.Port
+	} else {
+		logrus.Warningf("Expected external port > %d, but got %d", minPort, req.Port)
+	}
+	if req.IP != "" || req.Port > minPort {
+		checkAllZero := true
+		if tcpRule.IP == "0.0.0.0" {
+			checkAllZero = false
+		}
+		if req.IP != "" {
+			tcpRule.IP = req.IP
+		}
+		if req.Port > minPort {
+			tcpRule.Port = req.Port
+		}
+		if !g.TCPAvailable(tcpRule.IP, tcpRule.Port, checkAllZero) {
+			tx.Rollback()
+			return "", fmt.Errorf("%s:%d is not available, please change one", tcpRule.IP, tcpRule.Port)
+		}
 		// get old IPPort
 		ipport, err := g.dbmanager.IPPortDaoTransactions(tx).GetIPPortByIPAndPort(tcpRule.IP, tcpRule.Port)
 		if err != nil {
@@ -372,18 +397,14 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 			return "", err
 		}
 		// update
-		ipport.IP = req.IP
-		ipport.Port = req.Port
+		ipport.IP = tcpRule.IP
+		ipport.Port = tcpRule.Port
 		err = g.dbmanager.IPPortDaoTransactions(tx).UpdateModel(ipport)
 		if err != nil {
 			tx.Rollback()
 			return "", err
 		}
-		tcpRule.Port = req.Port
-	} else {
-		logrus.Warningf("Expected external port > %d, but got %d", minPort, req.Port)
 	}
-	tcpRule.IP = req.IP
 	if err := g.dbmanager.TcpRuleDaoTransactions(tx).UpdateModel(tcpRule); err != nil {
 		tx.Rollback()
 		return "", err
@@ -529,7 +550,8 @@ func (g *GatewayAction) SendTask(serviceID string, action string) error {
 }
 
 // TCPValid checks if the ip and port for TCP is available.
-func (g *GatewayAction) TCPAvailable(ip string, port int) bool {
+// checkAllZero: whether to check the IP of 0.0.0.0
+func (g *GatewayAction) TCPAvailable(ip string, port int, checkAllZero bool) bool {
 	ipport, err := g.dbmanager.IPPortDao().GetIPPortByIPAndPort(ip, port)
 	if err != nil {
 		logrus.Warningf("error getting IPPort(ip=%s, port=%d)", ip, port)
@@ -538,13 +560,15 @@ func (g *GatewayAction) TCPAvailable(ip string, port int) bool {
 	if ipport != nil {
 		return false
 	}
-	ipport, err = g.dbmanager.IPPortDao().GetIPPortByIPAndPort("0.0.0.0", port)
-	if err != nil {
-		logrus.Warningf("error getting IPPort(ip=%s, port=%d)", "0.0.0.0", port)
-		return false
-	}
-	if ipport != nil {
-		return false
+	if checkAllZero {
+		ipport, err = g.dbmanager.IPPortDao().GetIPPortByIPAndPort("0.0.0.0", port)
+		if err != nil {
+			logrus.Warningf("error getting IPPort(ip=%s, port=%d)", "0.0.0.0", port)
+			return false
+		}
+		if ipport != nil {
+			return false
+		}
 	}
 	return true
 }
