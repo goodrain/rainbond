@@ -422,6 +422,14 @@ func (g *GatewayAction) DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) (string
 		tx.Rollback()
 		return "", err
 	}
+	// delete IPPort
+	if tcpRule.IP == "" {
+		tcpRule.IP = "0.0.0.0"
+	}
+	if err := db.GetManager().IPPortDao().DeleteByIPAndPort(tcpRule.IP, tcpRule.Port); err != nil {
+		tx.Rollback()
+		return "", err
+	}
 	// end transaction
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()

@@ -50,6 +50,38 @@ func TestIPPortImpl_UpdateModel(t *testing.T) {
 	}
 }
 
+func TestIPPortImpl_DeleteIPPortByIPAndPort(t *testing.T) {
+	if err := CreateManager(dbconfig.Config{
+		DBType: "sqlite3",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tx := GetManager().Begin()
+	tx.Delete(model.IPPort{})
+	tx.Commit()
+
+	ipport := &model.IPPort{
+		UUID: util.NewUUID(),
+		IP: "127.0.0.1",
+		Port: 8888,
+	}
+	if err := GetManager().IPPortDao().AddModel(ipport); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := GetManager().IPPortDao().DeleteByIPAndPort(ipport.IP, ipport.Port); err != nil {
+		t.Fatal(err)
+	}
+
+	ipPort, err := GetManager().IPPortDao().GetIPPortByIPAndPort(ipport.IP, ipport.Port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ipPort != nil {
+		t.Errorf("Expected nil for ipPort, but return %v", ipPort)
+	}
+}
+
 func TestIPPortImpl_GetIPByPort(t *testing.T) {
 	if err := CreateManager(dbconfig.Config{
 		DBType: "sqlite3",

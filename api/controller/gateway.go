@@ -222,7 +222,9 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.IP == "" { req.IP = "0.0.0.0" }
+	if req.IP == "" {
+		req.IP = "0.0.0.0"
+	}
 	if !handler.GetGatewayHandler().TCPAvailable(req.IP, req.Port) {
 		httputil.ReturnError(r, w, 1218, fmt.Sprintf("%s:%d is not available, please change one",
 			req.IP, req.Port))
@@ -244,7 +246,7 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("add tcp rule.")
+	logrus.Debugf("update tcp rule.")
 	var req api_model.UpdateTCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
@@ -276,9 +278,11 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.IP == "" { req.IP = "0.0.0.0" }
+	if req.IP == "" {
+		req.IP = "0.0.0.0"
+	}
 	if !handler.GetGatewayHandler().TCPAvailable(req.IP, req.Port) {
-		httputil.ReturnError(r, w, 1218, fmt.Sprintf("%s:%d is not available, please change one",
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("%s:%d is not available, please change one",
 			req.IP, req.Port))
 		return
 	}

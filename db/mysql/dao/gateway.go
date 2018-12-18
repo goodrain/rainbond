@@ -290,6 +290,11 @@ func (i *IPPortImpl) UpdateModel(mo model.Interface) error {
 		Update(ipport).Error
 }
 
+// DeleteByIPAndPort deletes an IPPort that matches ip and port
+func (i *IPPortImpl) DeleteByIPAndPort(ip string, port int) error {
+	return i.DB.Where("ip = ? and port = ?", ip, port).Delete(model.IPPort{}).Error
+}
+
 // GetIPByPort returns an array of ip by port
 func (i *IPPortImpl) GetIPByPort(port int) ([]*model.IPPort, error) {
 	var result []*model.IPPort
@@ -299,7 +304,7 @@ func (i *IPPortImpl) GetIPByPort(port int) ([]*model.IPPort, error) {
 	return result, nil
 }
 
-// GetIPByPort returns an array of ip by port
+// GetIPByPort returns an IPPort that matches ip and port
 func (i *IPPortImpl) GetIPPortByIPAndPort(ip string, port int) (*model.IPPort, error) {
 	var result model.IPPort
 	if err := i.DB.Where("ip = ? and port = ?", ip, port).Find(&result).Error; err != nil {

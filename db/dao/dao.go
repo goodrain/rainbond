@@ -374,6 +374,7 @@ type TCPRuleDao interface {
 
 type IPPortDao interface {
 	Dao
+	DeleteByIPAndPort(ip string, port int) error
 	GetIPByPort(port int) ([]*model.IPPort, error)
 	GetIPPortByIPAndPort(ip string, port int) (*model.IPPort, error)
 }
