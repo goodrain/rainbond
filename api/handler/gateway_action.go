@@ -270,10 +270,6 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) (string, erro
 		return "", err
 	}
 	// IPPort
-	if !g.TCPAvailable(req.IP, req.Port, true) {
-		tx.Rollback()
-		return "", fmt.Errorf("%s:%d is not available, please change one", req.IP, req.Port)
-	}
 	ipport := &model.IPPort{
 		UUID: util.NewUUID(),
 		IP:   req.IP,
