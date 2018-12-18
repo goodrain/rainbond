@@ -102,13 +102,15 @@ type Manager interface {
 	HttpRuleDaoTransactions(db *gorm.DB) dao.HTTPRuleDao
 	TcpRuleDao() dao.TCPRuleDao
 	TcpRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao
+	IPPortDao() dao.IPPortDao
+	IPPortDaoTransactions(db *gorm.DB) dao.IPPortDao
 }
 
 var defaultManager Manager
 
 //CreateManager 创建manager
 func CreateManager(config config.Config) (err error) {
-	if config.DBType == "mysql" || config.DBType == "cockroachdb" {
+	if config.DBType == "mysql" || config.DBType == "cockroachdb" || config.DBType == "sqlite3" {
 		defaultManager, err = mysql.CreateManager(config)
 		return err
 	} else {

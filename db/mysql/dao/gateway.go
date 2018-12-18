@@ -201,10 +201,12 @@ func (h *HttpRuleDaoImpl) DeleteHttpRuleByID(id string) error {
 	return nil
 }
 
+// TcpRuleDaoTmpl is a implementation of TcpRuleDao
 type TcpRuleDaoTmpl struct {
 	DB *gorm.DB
 }
 
+// AddModel adds model.TCPRule
 func (t *TcpRuleDaoTmpl) AddModel(mo model.Interface) error {
 	tcpRule := mo.(*model.TCPRule)
 	var oldTcpRule model.TCPRule
@@ -218,6 +220,7 @@ func (t *TcpRuleDaoTmpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
+// UpdateModel updates model.TCPRule
 func (t *TcpRuleDaoTmpl) UpdateModel(mo model.Interface) error {
 	tr, ok := mo.(*model.TCPRule)
 	if !ok {
@@ -252,6 +255,39 @@ func (s *TcpRuleDaoTmpl) GetTcpRuleByID(id string) (*model.TCPRule, error) {
 	return result, nil
 }
 
+// DeleteTcpRule deletes model.TCPRule
 func (s *TcpRuleDaoTmpl) DeleteTcpRule(tcpRule *model.TCPRule) error {
 	return s.DB.Where("uuid = ?", tcpRule.UUID).Delete(tcpRule).Error
+}
+
+type IPPortImpl struct {
+	DB *gorm.DB
+}
+
+// AddModel adds model.IPPort
+func (i *IPPortImpl) AddModel(mo model.Interface) error {
+	ipport := mo.(*model.IPPort)
+	var old model.TCPRule
+	if ok := i.DB.Where("ip = ? and port = ?", ipport.IP, ipport.Port).Find(&old).RecordNotFound(); ok {
+		if err := i.DB.Create(ipport).Error; err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("IPPort already exists(ip=%s, port=%d)", ipport.IP, ipport.Port)
+	}
+	return nil
+}
+
+// UpdateModel updates model.IPPort
+func (i *IPPortImpl) UpdateModel(mo model.Interface) error {
+	return nil
+}
+
+// GetIPByPort returns an array of ip by port
+func (i *IPPortImpl) GetIPByPort(port int) ([]*model.IPPort, error) {
+	var result []*model.IPPort
+	if err := i.DB.Where("port = ?", port).Find(&result).Error; err != nil {
+		return nil, err
+	}
+	return result, nil
 }

@@ -100,3 +100,16 @@ type TCPRule struct {
 	// external access port
 	Port int `gorm:"column:port"`
 }
+
+// IPPort records ip addresses and ports that has been used.
+type IPPort struct {
+	Model
+	UUID string `gorm:"column:uuid"`
+	IP   string    `gorm:"column:ip"`
+	Port int    `gorm:"column:port"`
+}
+
+// TableName returns table name of IPPort
+func (IPPort) TableName() string {
+	return "gateway_ip_port"
+}

@@ -28,6 +28,7 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
 
 //Manager db manager
@@ -52,6 +53,13 @@ func CreateManager(config config.Config) (*Manager, error) {
 		var err error
 		addr := config.MysqlConnectionInfo
 		db, err = gorm.Open("postgres", addr)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if config.DBType == "sqlite3" {
+		var err error
+		db, err = gorm.Open("sqlite3", "test.db")
 		if err != nil {
 			return nil, err
 		}
@@ -119,6 +127,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.RuleExtension{})
 	m.models = append(m.models, &model.HTTPRule{})
 	m.models = append(m.models, &model.TCPRule{})
+	m.models = append(m.models, &model.IPPort{})
 }
 
 //CheckTable check and create tables

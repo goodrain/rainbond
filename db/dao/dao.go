@@ -371,3 +371,8 @@ type TCPRuleDao interface {
 	GetTcpRuleByID(id string) (*model.TCPRule, error)
 	DeleteTcpRule(tcpRule *model.TCPRule) error
 }
+
+type IPPortDao interface {
+	Dao
+	GetIPByPort(port int) ([]*model.IPPort, error)
+}
