@@ -204,11 +204,6 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 		values["port"] = []string{"The port field is required"}
 	} else if req.Port <= g.cfg.MinExtPort {
 		values["port"] = []string{fmt.Sprintf("The port field should be greater than %d", g.cfg.MinExtPort)}
-	} else {
-		// check if the port exists
-		if h.PortExists(req.Port) {
-			values["port"] = []string{fmt.Sprintf("The port(%v) already exists", req.Port)}
-		}
 	}
 	if len(req.RuleExtensions) > 0 {
 		for _, re := range req.RuleExtensions {
@@ -263,11 +258,6 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 	values := url.Values{}
 	if req.Port != 0 && req.Port <= g.cfg.MinExtPort {
 		values["port"] = []string{fmt.Sprintf("The port field should be greater than %d", g.cfg.MinExtPort)}
-	} else {
-		// check if the port exists
-		if h.PortExists(req.Port) {
-			values["port"] = []string{fmt.Sprintf("The port(%v) already exists", req.Port)}
-		}
 	}
 	if len(req.RuleExtensions) > 0 {
 		for _, re := range req.RuleExtensions {
