@@ -222,6 +222,15 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.IP == "" {
+		req.IP = "0.0.0.0"
+	}
+	if !h.TCPAvailable(req.IP, req.Port, req.TCPRuleID) {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("%s:%d is not available, please change one",
+			req.IP, req.Port))
+		return
+	}
+
 	sid, err := h.AddTCPRule(&req)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
@@ -249,7 +258,9 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 	h := handler.GetGatewayHandler()
 	// verify reqeust
 	values := url.Values{}
-	if req.Port != 0 && req.Port <= g.cfg.MinExtPort {
+	if req.Port == 0 {
+		values["port"] = []string{"The port field is required"}
+	} else if req.Port <= g.cfg.MinExtPort {
 		values["port"] = []string{fmt.Sprintf("The port field should be greater than %d", g.cfg.MinExtPort)}
 	}
 	if len(req.RuleExtensions) > 0 {
@@ -266,6 +277,15 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(values) != 0 {
 		httputil.ReturnValidationError(r, w, values)
+		return
+	}
+
+	if req.IP == "" {
+		req.IP = "0.0.0.0"
+	}
+	if !h.TCPAvailable(req.IP, req.Port, req.TCPRuleID) {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("%s:%d is not available, please change one",
+			req.IP, req.Port))
 		return
 	}
 
