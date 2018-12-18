@@ -433,8 +433,8 @@ func (g *GatewayAction) GetAvailablePort() (int, error) {
 	for _, p := range mapPorts {
 		ports = append(ports, p.Port)
 	}
-	maxPort, _ := strconv.Atoi(os.Getenv("MIN_LB_PORT"))
-	minPort, _ := strconv.Atoi(os.Getenv("MAX_LB_PORT"))
+	maxPort, _ := strconv.Atoi(os.Getenv("MAX_LB_PORT"))
+	minPort, _ := strconv.Atoi(os.Getenv("MIN_LB_PORT"))
 	if minPort == 0 {
 		minPort = 20001
 	}
@@ -442,7 +442,7 @@ func (g *GatewayAction) GetAvailablePort() (int, error) {
 		maxPort = 35000
 	}
 	var maxUsePort int
-	if len(ports) > 0 {
+	if len(ports) > 0 && ports[len(ports)-1] > minPort {
 		maxUsePort = ports[len(ports)-1]
 	} else {
 		maxUsePort = 20001
