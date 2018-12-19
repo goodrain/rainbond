@@ -104,6 +104,7 @@ type Manager interface {
 	TcpRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao
 	IPPortDao() dao.IPPortDao
 	IPPortDaoTransactions(db *gorm.DB) dao.IPPortDao
+	IPPoolDao() dao.IPPoolDao
 }
 
 var defaultManager Manager

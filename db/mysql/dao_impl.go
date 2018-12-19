@@ -448,3 +448,9 @@ func (m *Manager) IPPortDaoTransactions(db *gorm.DB) dao.IPPortDao {
 		DB: db,
 	}
 }
+
+func (m *Manager) IPPoolDao() dao.IPPoolDao {
+	return &mysqldao.IPPoolImpl{
+		DB: m.db,
+	}
+}

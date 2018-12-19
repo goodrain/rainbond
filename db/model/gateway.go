@@ -113,3 +113,15 @@ type IPPort struct {
 func (IPPort) TableName() string {
 	return "gateway_ip_port"
 }
+
+// IPPool is used to save information about the IP pool.
+type IPPool struct {
+	Model
+	EID string `gorm:"column:eid"`
+	CIDR string `gorm:"column:cidr"`
+}
+
+// TableName returns table name of IPPool
+func (IPPool) TableName() string {
+	return "gateway_ip_pool"
+}

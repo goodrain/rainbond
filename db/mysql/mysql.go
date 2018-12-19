@@ -128,6 +128,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.HTTPRule{})
 	m.models = append(m.models, &model.TCPRule{})
 	m.models = append(m.models, &model.IPPort{})
+	m.models = append(m.models, &model.IPPool{})
 }
 
 //CheckTable check and create tables

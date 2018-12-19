@@ -372,9 +372,15 @@ type TCPRuleDao interface {
 	DeleteTcpRule(tcpRule *model.TCPRule) error
 }
 
+// IPPortDao -
 type IPPortDao interface {
 	Dao
 	DeleteByIPAndPort(ip string, port int) error
 	GetIPByPort(port int) ([]*model.IPPort, error)
 	GetIPPortByIPAndPort(ip string, port int) (*model.IPPort, error)
+}
+
+type IPPoolDao interface {
+	Dao
+	GetIPPoolByEID(eid string) (*model.IPPool, error)
 }

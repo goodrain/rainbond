@@ -140,3 +140,33 @@ func TestIPPortImpl_GetIPPortByIPAndPort(t *testing.T) {
 		t.Errorf("Expected %d for port, but retruned %d", ipport.Port, ipPort.Port)
 	}
 }
+
+func TestIPPoolImpl_AddModel(t *testing.T) {
+	if err := CreateManager(dbconfig.Config{
+		DBType: "sqlite3",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tx := GetManager().Begin()
+	tx.Delete(model.IPPool{})
+	tx.Commit()
+
+	ippool := &model.IPPool{
+		EID: util.NewUUID(),
+		CIDR: "192.168.11.11/24",
+	}
+
+	if err := GetManager().IPPoolDao().AddModel(ippool); err != nil {
+		t.Fatal(err)
+	}
+	pool, err := GetManager().IPPoolDao().GetIPPoolByEID(ippool.EID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pool == nil {
+		t.Errorf("Expected %v for pool, but returned nil", pool)
+	}
+	if pool.CIDR != ippool.CIDR {
+		t.Errorf("Expected %v for CIDR, but returned %s", ippool.CIDR, pool.CIDR)
+	}
+}

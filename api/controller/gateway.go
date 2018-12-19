@@ -345,3 +345,27 @@ func (g *GatewayStruct) GetAvailablePort(w http.ResponseWriter, r *http.Request)
 
 	httputil.ReturnSuccess(r, w, res)
 }
+
+func (g *GatewayStruct) IPPool(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		g.AddIPPool(w, r)
+	case "PUT":
+		g.updateTCPRule(w, r)
+	case "DELETE":
+		g.deleteTCPRule(w, r)
+	}
+}
+
+func (g *GatewayStruct) AddIPPool(w http.ResponseWriter, r *http.Request) {
+	logrus.Debugf("add ip pool.")
+	var req api_model.DeleteTCPRuleStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	reqJSON, _ := json.Marshal(req)
+	logrus.Debugf("Request is : %s", string(reqJSON))
+
+	// TODO: validate data
+}
