@@ -204,6 +204,11 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 		values["port"] = []string{"The port field is required"}
 	} else if req.Port <= g.cfg.MinExtPort {
 		values["port"] = []string{fmt.Sprintf("The port field should be greater than %d", g.cfg.MinExtPort)}
+	} else {
+		// check if the port exists
+		if h.PortExists(req.Port) {
+			values["port"] = []string{fmt.Sprintf("The port(%v) already exists", req.Port)}
+		}
 	}
 	if len(req.RuleExtensions) > 0 {
 		for _, re := range req.RuleExtensions {
@@ -221,16 +226,6 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnValidationError(r, w, values)
 		return
 	}
-
-	if req.IP == "" {
-		req.IP = "0.0.0.0"
-	}
-	if !h.TCPAvailable(req.IP, req.Port, req.TCPRuleID) {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("%s:%d is not available, please change one",
-			req.IP, req.Port))
-		return
-	}
-
 	sid, err := h.AddTCPRule(&req)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
@@ -258,10 +253,13 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 	h := handler.GetGatewayHandler()
 	// verify reqeust
 	values := url.Values{}
-	if req.Port == 0 {
-		values["port"] = []string{"The port field is required"}
-	} else if req.Port <= g.cfg.MinExtPort {
+	if req.Port != 0 && req.Port <= g.cfg.MinExtPort {
 		values["port"] = []string{fmt.Sprintf("The port field should be greater than %d", g.cfg.MinExtPort)}
+	} else {
+		// check if the port exists
+		if h.PortExists(req.Port) {
+			values["port"] = []string{fmt.Sprintf("The port(%v) already exists", req.Port)}
+		}
 	}
 	if len(req.RuleExtensions) > 0 {
 		for _, re := range req.RuleExtensions {
@@ -279,21 +277,9 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnValidationError(r, w, values)
 		return
 	}
-	logrus.Debugf("request data is ok")
-
-	if req.IP == "" {
-		req.IP = "0.0.0.0"
-	}
-	if !h.TCPAvailable(req.IP, req.Port, req.TCPRuleID) {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("%s:%d is not available, please change one",
-			req.IP, req.Port))
-		return
-	}
-	logrus.Debugf("tcp available.")
 
 	sid, err := h.UpdateTCPRule(&req, g.cfg.MinExtPort)
 	if err != nil {
-		logrus.Errorf("Unexpected error occorred while updating tcp rule: %v", err)
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating tcp rule: %v", err))
 		return
@@ -344,33 +330,4 @@ func (g *GatewayStruct) GetAvailablePort(w http.ResponseWriter, r *http.Request)
 	}
 
 	httputil.ReturnSuccess(r, w, res)
-}
-
-func (g *GatewayStruct) IPPool(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "POST":
-		g.AddIPPool(w, r)
-	case "PUT":
-		g.updateTCPRule(w, r)
-	case "DELETE":
-		g.deleteTCPRule(w, r)
-	}
-}
-
-func (g *GatewayStruct) AddIPPool(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("add ip pool.")
-	var req api_model.IPPoolStruct
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
-	if !ok {
-		return
-	}
-	reqJSON, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJSON))
-
-	if err := handler.GetGatewayHandler().AddIPPool(&req); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
-			"adding IPPool: %v", err))
-		return
-	}
-	httputil.ReturnSuccess(r, w, "success")
 }

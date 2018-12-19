@@ -258,24 +258,13 @@ func (g *GatewayAction) UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRu
 func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) (string, error) {
 	// begin transaction
 	tx := db.GetManager().Begin()
-	// TODO: do not use LBMappingPort again
+	// add port
 	port := &model.TenantServiceLBMappingPort{
 		ServiceID:     req.ServiceID,
 		Port:          req.Port,
 		ContainerPort: req.ContainerPort,
 	}
 	err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).AddModel(port)
-	if err != nil {
-		tx.Rollback()
-		return "", err
-	}
-	// IPPort
-	ipport := &model.IPPort{
-		UUID: util.NewUUID(),
-		IP:   req.IP,
-		Port: req.Port,
-	}
-	err = g.dbmanager.IPPortDaoTransactions(tx).AddModel(ipport)
 	if err != nil {
 		tx.Rollback()
 		return "", err
@@ -317,18 +306,12 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) (string, erro
 func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort int) (string, error) {
 	// begin transaction
 	tx := db.GetManager().Begin()
-	logrus.Debugf("begin transaction")
 	// get old tcp rule
 	tcpRule, err := g.dbmanager.TcpRuleDaoTransactions(tx).GetTcpRuleByID(req.TCPRuleID)
 	if err != nil {
 		tx.Rollback()
 		return "", err
 	}
-	if tcpRule == nil {
-		tx.Rollback()
-		return "", fmt.Errorf("no TCPRule that matche ruleID(%s)", req.TCPRuleID)
-	}
-	logrus.Debugf("rule extension.")
 	if len(req.RuleExtensions) > 0 {
 		// delete old rule extensions
 		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(tcpRule.UUID); err != nil {
@@ -336,7 +319,6 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 			return "", err
 		}
 		// add new rule extensions
-		logrus.Debugf("add new extensions.")
 		for _, ruleExtension := range req.RuleExtensions {
 			re := &model.RuleExtension{
 				UUID:   util.NewUUID(),
@@ -350,50 +332,34 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 		}
 	}
 	// update tcp rule
-	logrus.Debugf("update tcp rule")
 	if req.ServiceID != "" {
 		tcpRule.ServiceID = req.ServiceID
 	}
 	if req.ContainerPort != 0 {
 		tcpRule.ContainerPort = req.ContainerPort
 	}
-	// TODO: no longer use LBMappingPort
-	// get old port
-	logrus.Debugf("get old port")
-	port, err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).GetLBMappingPortByServiceIDAndPort(
-		tcpRule.ServiceID, tcpRule.Port)
-	if err != nil {
-		tx.Rollback()
-		return "", err
+	if req.IP != "" {
+		tcpRule.IP = req.IP
 	}
-	// update port
-	logrus.Debugf("update port")
-	port.Port = req.Port
-	if err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).UpdateModel(port); err != nil {
-		tx.Rollback()
-		return "", err
+	if req.Port > minPort {
+		// get old port
+		port, err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).GetLBMappingPortByServiceIDAndPort(
+			tcpRule.ServiceID, tcpRule.Port)
+		if err != nil {
+			tx.Rollback()
+			return "", err
+		}
+		// check
+		// update port
+		port.Port = req.Port
+		if err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).UpdateModel(port); err != nil {
+			tx.Rollback()
+			return "", err
+		}
+		tcpRule.Port = req.Port
+	} else {
+		logrus.Warningf("Expected external port > %d, but got %d", minPort, req.Port)
 	}
-	// IPPort
-	// get old IPPort
-	logrus.Debugf("get old IPPort")
-	ipport, err := g.dbmanager.IPPortDaoTransactions(tx).GetIPPortByIPAndPort(tcpRule.IP, tcpRule.Port)
-	if err != nil {
-		tx.Rollback()
-		return "", err
-	}
-	// update
-	ipport.IP = req.IP
-	ipport.Port = req.Port
-	logrus.Debugf("update IPPort")
-	err = g.dbmanager.IPPortDaoTransactions(tx).UpdateModel(ipport)
-	if err != nil {
-		tx.Rollback()
-		return "", err
-	}
-	// TCPRule
-	tcpRule.Port = req.Port
-	tcpRule.IP = req.IP
-	logrus.Debugf("update tcp rule")
 	if err := g.dbmanager.TcpRuleDaoTransactions(tx).UpdateModel(tcpRule); err != nil {
 		tx.Rollback()
 		return "", err
@@ -415,10 +381,6 @@ func (g *GatewayAction) DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) (string
 		tx.Rollback()
 		return "", err
 	}
-	if tcpRule == nil {
-		tx.Rollback()
-		return "", fmt.Errorf("no TCPRule that matche ruleID(%s)", req.TCPRuleID)
-	}
 	// delete rule extensions
 	if err := db.GetManager().RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(tcpRule.UUID); err != nil {
 		tx.Rollback()
@@ -433,14 +395,6 @@ func (g *GatewayAction) DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) (string
 	err = db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).DELServiceLBMappingPortByServiceIDAndPort(
 		tcpRule.ServiceID, tcpRule.Port)
 	if err != nil {
-		tx.Rollback()
-		return "", err
-	}
-	// delete IPPort
-	if tcpRule.IP == "" {
-		tcpRule.IP = "0.0.0.0"
-	}
-	if err := db.GetManager().IPPortDao().DeleteByIPAndPort(tcpRule.IP, tcpRule.Port); err != nil {
 		tx.Rollback()
 		return "", err
 	}
