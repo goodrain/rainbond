@@ -341,9 +341,15 @@ func (i *IPPoolImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//
+// UpdateModel updates model.IPPool
 func (i *IPPoolImpl) UpdateModel(mo model.Interface) error {
-	return nil
+	ippool, ok := mo.(*model.IPPool)
+	if !ok {
+		return fmt.Errorf("Can't not convert %s to *model.IPPool", reflect.TypeOf(mo).String())
+	}
+	return i.DB.Table(ippool.TableName()).
+		Where("eid = ?", ippool.EID).
+		Update(ippool).Error
 }
 
 // GetIPPoolByEID returns model.IPPool that matches eid.

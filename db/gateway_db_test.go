@@ -170,3 +170,30 @@ func TestIPPoolImpl_AddModel(t *testing.T) {
 		t.Errorf("Expected %v for CIDR, but returned %s", ippool.CIDR, pool.CIDR)
 	}
 }
+
+func TestIPPoolImpl_UpdateModel(t *testing.T) {
+	if err := CreateManager(dbconfig.Config{
+		DBType: "sqlite3",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tx := GetManager().Begin()
+	tx.Delete(model.IPPool{})
+	tx.Commit()
+
+	ippool := &model.IPPool{
+		EID: util.NewUUID(),
+		CIDR: "192.168.11.11/24",
+	}
+
+	if err := GetManager().IPPoolDao().AddModel(ippool); err != nil {
+		t.Fatal(err)
+	}
+	ippool.CIDR = "192.168.22.22/24"
+	if err := GetManager().IPPoolDao().UpdateModel(ippool); err != nil {
+		t.Fatal(err)
+	}
+	if ippool.CIDR != "192.168.22.22/24" {
+		t.Errorf("Expected %s for CIDR, but returned %s", "192.168.22.22/24", ippool.CIDR)
+	}
+}
