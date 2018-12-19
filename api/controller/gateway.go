@@ -359,7 +359,7 @@ func (g *GatewayStruct) IPPool(w http.ResponseWriter, r *http.Request) {
 
 func (g *GatewayStruct) AddIPPool(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("add ip pool.")
-	var req api_model.DeleteTCPRuleStruct
+	var req api_model.IPPoolStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -367,5 +367,10 @@ func (g *GatewayStruct) AddIPPool(w http.ResponseWriter, r *http.Request) {
 	reqJSON, _ := json.Marshal(req)
 	logrus.Debugf("Request is : %s", string(reqJSON))
 
-	// TODO: validate data
+	if err := handler.GetGatewayHandler().AddIPPool(&req); err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
+			"adding IPPool: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, "success")
 }
