@@ -66,7 +66,10 @@ func (osvc *OrService) Start(errCh chan error) {
 	if !util.DirIsEmpty(template.CustomConfigPath) {
 		dirs, _ := util.GetDirNameList(template.CustomConfigPath, 1)
 		for _, dir := range dirs {
-			os.RemoveAll(dir)
+			err := os.RemoveAll(fmt.Sprintf("%s/%s", template.CustomConfigPath, dir))
+			if err != nil {
+				logrus.Warningf("error removing %s: %v", dir, err)
+			}
 		}
 		os.RemoveAll(defaultNginxConf)
 	}
@@ -274,9 +277,10 @@ func (o *OrService) WaitPluginReady() {
 
 // newRbdServers creates new configuration file for Rainbond servers
 func (osvc *OrService) newRbdServers() error {
-	cfgPath := "/run/nginx/conf/rainbond"
+	cfgPath := "/run/nginx/rainbond"
+	httpCfgPath := fmt.Sprintf("%s/%s", cfgPath, "/http")
 	// delete the old configuration
-	if err := os.RemoveAll(cfgPath); err != nil {
+	if err := os.RemoveAll(cfgPath + "httpCfgPath"); err != nil {
 		logrus.Errorf("Cant not remove directory(%s): %v", cfgPath, err)
 		return err
 	}
@@ -294,25 +298,29 @@ func (osvc *OrService) newRbdServers() error {
 		lesrv,
 		mesrv,
 		gesrv,
-	}, cfgPath, "servers.default.http.conf"); err != nil {
+	}, httpCfgPath, "servers.default.http.conf"); err != nil {
 		return err
 	}
 
-	// upstreams
-	//if err := template.NewUpstreamTemplateWithCfgPath([]*model.Upstream{
-	//	leus,
-	//	meus,
-	//	geus,
-	//}, "upstreams-http-rbd.tmpl", cfgPath, "upstreams.default.http.conf"); err != nil {
-	//	return err
-	//}
 	return nil
 }
 
 func createCert(cfgPath string, cn string) error {
-	if e := os.MkdirAll(fmt.Sprintf("%s/%s", cfgPath, "ssl"), 0777); e != nil {
-		return e
+	p := fmt.Sprintf("%s/%s", cfgPath, "ssl")
+	crtexists, crterr := util.FileExists(fmt.Sprintf("%s/%s", p, "server.crt"))
+	keyexists, keyerr := util.FileExists(fmt.Sprintf("%s/%s", p, "server.key"))
+	if (crtexists && crterr == nil) && (keyexists && keyerr == nil) {
+		logrus.Info("certificate for goodrain.me exists.")
+		return nil
 	}
+
+	exists, err := util.FileExists(p)
+	if !exists || err != nil {
+		if e := os.MkdirAll(p, 0777); e != nil {
+			return e
+		}
+	}
+
 	baseinfo := cert.CertInformation{Country: []string{"CN"}, Organization: []string{"Goodrain"}, IsCA: true,
 		OrganizationalUnit: []string{"Rainbond"}, EmailAddress: []string{"zengqg@goodrain.com"},
 		Locality: []string{"BeiJing"}, Province: []string{"BeiJing"}, CommonName: cn,
@@ -320,8 +328,7 @@ func createCert(cfgPath string, cn string) error {
 		CrtName: fmt.Sprintf("%s/%s", cfgPath, "ssl/ca.pem"),
 		KeyName: fmt.Sprintf("%s/%s", cfgPath, "ssl/ca.key")}
 
-	err := cert.CreateCRT(nil, nil, baseinfo)
-	if err != nil {
+	if err := cert.CreateCRT(nil, nil, baseinfo); err != nil {
 		logrus.Errorf("Create crt error: ", err)
 		return err
 	}

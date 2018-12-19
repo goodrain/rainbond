@@ -147,7 +147,7 @@ http {
     }
 
     include http/*.conf;
-    include rainbond/*.conf;
+    include /run/nginx/rainbond/http/*.conf;
 }
 
 stream {
