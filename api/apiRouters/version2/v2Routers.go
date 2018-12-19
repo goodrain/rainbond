@@ -112,9 +112,9 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/tcp-rule", controller.GetManager().TCPRule)
 	r.Delete("/tcp-rule", controller.GetManager().TCPRule)
 	r.Put("/tcp-rule", controller.GetManager().TCPRule)
-	r.Post("/ip-pool", controller.GetManager().IPPool)
-	r.Put("/ip-pool", controller.GetManager().IPPool)
-	r.Delete("/ip-pool", controller.GetManager().IPPool)
+	//r.Post("/ip-pool", controller.GetManager().IPPool)
+	//r.Put("/ip-pool", controller.GetManager().IPPool)
+	//r.Delete("/ip-pool", controller.GetManager().IPPool)
 
 	return r
 }

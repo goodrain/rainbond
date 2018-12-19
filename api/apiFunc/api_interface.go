@@ -152,5 +152,5 @@ type Gatewayer interface {
 	HTTPRule(w http.ResponseWriter, r *http.Request)
 	TCPRule(w http.ResponseWriter, r *http.Request)
 	GetAvailablePort(w http.ResponseWriter, r *http.Request)
-	IPPool(w http.ResponseWriter, r *http.Request)
+	//IPPool(w http.ResponseWriter, r *http.Request)
 }

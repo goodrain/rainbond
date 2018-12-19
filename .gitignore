@@ -51,3 +51,4 @@ hack/contrib/docker/node/release.sh
 admin.kubeconfig
 test/*
 test.db
+*.bak
