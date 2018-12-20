@@ -329,6 +329,7 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
 	oldAppService := m.store.GetAppService(body.ServiceID)
+	logrus.Debugf("oldAppService: %v", oldAppService)
 	if (oldAppService == nil || oldAppService.IsClosed()) && !strings.Contains(body.Action, "port") {
 		logrus.Debugf("service is closed,no need handle")
 		logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())

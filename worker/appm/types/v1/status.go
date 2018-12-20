@@ -21,6 +21,7 @@ package v1
 import (
 	"crypto/sha256"
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -35,12 +36,15 @@ func (a *AppService) IsEmpty() bool {
 //IsClosed is closed
 func (a *AppService) IsClosed() bool {
 	if a.IsEmpty() && a.statefulset == nil && a.deployment == nil {
+		logrus.Debugf("a.IsEmpty() && a.statefulset == nil && a.deployment == nil")
 		return true
 	}
 	if a.IsEmpty() && a.statefulset != nil && a.statefulset.ResourceVersion == "" {
+		logrus.Debugf("a.IsEmpty() && a.statefulset != nil && a.statefulset.ResourceVersion == \"\"")
 		return true
 	}
 	if a.IsEmpty() && a.deployment != nil && a.deployment.ResourceVersion == "" {
+		logrus.Debugf("a.IsEmpty() && a.deployment != nil && a.deployment.ResourceVersion == \"\"")
 		return true
 	}
 	return false
