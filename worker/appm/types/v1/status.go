@@ -21,7 +21,6 @@ package v1
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
