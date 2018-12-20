@@ -344,8 +344,6 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		return fmt.Errorf("Application init create failure")
 	}
 	newAppService.Logger = logger
-	//register the new app service
-	m.store.RegistAppService(newAppService)
 	newAppService.SetDelIngsSecrets(oldAppService)
 	// update k8s resources
 	err = m.controllerManager.StartController(controller.TypeApplyRuleController, *newAppService)

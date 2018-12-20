@@ -21,7 +21,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"sync"
 
 	"github.com/goodrain/rainbond/worker/appm/store"
@@ -101,7 +100,6 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 	controllerID := util.NewUUID()
 	switch controllerType {
 	case TypeStartController:
-		logrus.Debugf("controller = &startController{")
 		controller = &startController{
 			controllerID: controllerID,
 			appService:   apps,
