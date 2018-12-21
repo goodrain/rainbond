@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/gateway/metric"
 	"strconv"
 	"strings"
 	"sync"
@@ -72,6 +73,8 @@ type GWController struct {
 
 	EtcdCli *client.Client
 	ctx     context.Context
+
+	metricCollector metric.Collector
 }
 
 // Start starts Gateway
@@ -160,12 +163,15 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 	if err != nil {
 		// TODO: if nginx is not ready, then stop gateway
 		logrus.Errorf("Fail to persist Nginx config: %v\n", err)
+		return nil
 	} else {
 		// refresh http pools dynamically
 		httpPools = append(httpPools, gwc.rrbdp...)
 		gwc.refreshPools(httpPools)
 		gwc.rhp = httpPools
 	}
+
+	gwc.metricCollector.SetServerNum(len(httpPools), len(tcpPools))
 
 	return nil
 }
@@ -200,13 +206,14 @@ func (gwc *GWController) getDelUpdPools(updPools []*v1.Pool) ([]*v1.Pool, []*v1.
 }
 
 //NewGWController new Gateway controller
-func NewGWController(ctx context.Context, cfg *option.Config) (*GWController, error) {
+func NewGWController(ctx context.Context, cfg *option.Config, mc metric.Collector) (*GWController, error) {
 	gwc := &GWController{
 		updateCh: channels.NewRingChannel(1024),
 		stopLock: &sync.Mutex{},
 		stopCh:   make(chan struct{}),
 		ocfg:     cfg,
 		ctx:      ctx,
+		metricCollector: mc,
 	}
 
 	if cfg.EnableRbdEndpoints {
@@ -231,6 +238,7 @@ func NewGWController(ctx context.Context, cfg *option.Config) (*GWController, er
 		gwc.updateCh,
 		cfg)
 	gwc.syncQueue = task.NewTaskQueue(gwc.syncGateway)
+
 	return gwc, nil
 }
 

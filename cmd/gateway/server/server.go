@@ -21,6 +21,9 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/gateway/metric"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"os"
 	"os/signal"
@@ -38,12 +41,30 @@ func Run(s *option.GWServer) error {
 	errCh := make(chan error)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gwc, err := controller.NewGWController(ctx, &s.Config)
+
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(prometheus.NewGoCollector())
+	//reg.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{
+	//	PidFn:        func() (int, error) { return os.Getpid(), nil },
+	//	ReportErrors: true,
+	//}))
+
+	mc := metric.NewDummyCollector()
+	var err error
+	if s.Config.EnableMetrics {
+		mc, err = metric.NewCollector(reg)
+		if err != nil {
+			logrus.Fatalf("Error creating prometheus collector:  %v", err)
+		}
+	}
+	mc.Start()
+
+	gwc, err := controller.NewGWController(ctx, &s.Config, mc)
 	if err != nil {
 		return err
 	}
 	if gwc == nil {
-		return fmt.Errorf("fail to new GWController")
+		return fmt.Errorf("Fail to new GWController")
 	}
 	if err := gwc.Start(errCh); err != nil {
 		return err
@@ -52,10 +73,11 @@ func Run(s *option.GWServer) error {
 
 	mux := http.NewServeMux()
 	registerHealthz(gwc, mux)
-
+	registerMetrics(reg, mux)
 	go startHTTPServer(s.ListenPorts.Health, mux)
 
 	logrus.Info("RBD app gateway start success!")
+
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
 	select {
@@ -65,6 +87,7 @@ func Run(s *option.GWServer) error {
 		logrus.Errorf("Received a error %s, exiting gracefully...", err.Error())
 	}
 	logrus.Info("See you next time!")
+
 	return nil
 }
 
@@ -74,6 +97,14 @@ func registerHealthz(gc *controller.GWController, mux *http.ServeMux) {
 		healthz.PingHealthz,
 		gc,
 	)
+}
+
+func registerMetrics(reg *prometheus.Registry, mux *http.ServeMux) {
+	mux.Handle(
+		"/metrics",
+		promhttp.HandlerFor(reg, promhttp.HandlerOpts{}),
+	)
+
 }
 
 func startHTTPServer(port int, mux *http.ServeMux) {

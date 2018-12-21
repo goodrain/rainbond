@@ -63,6 +63,8 @@ type Config struct {
 	// health check
 	HealthPath         string
 	HealthCheckTimeout time.Duration
+
+	EnableMetrics bool
 }
 
 // ListenPorts describe the ports required to run the gateway controller
@@ -99,6 +101,7 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.HealthPath, "health-path", "/healthz", "absolute path to the kubeconfig file")
 	fs.DurationVar(&g.HealthCheckTimeout, "health-check-timeout", 10, `Time limit, in seconds, for a probe to health-check-path to succeed.`)
 	fs.IntVar(&g.ListenPorts.Health, "healthz-port", 10254, `Port to use for the healthz endpoint.`)
+	fs.BoolVar(&g.EnableMetrics, "enable-metrics", true, "Enables the collection of rbd-gateway metrics")
 }
 
 // SetLog sets log
