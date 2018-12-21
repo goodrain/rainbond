@@ -92,3 +92,14 @@ func LoadConfig(ctx *cli.Context) (Config, error) {
 func GetConfig() Config {
 	return config
 }
+
+// Get TenantNamePath
+func GetTenantNamePath() (tenantnamepath string,err error){
+	home, err := sources.Home()
+	if err != nil {
+		logrus.Warn("Get Home Dir error.", err.Error())
+		return tenantnamepath,err
+	}
+	tenantnamepath = path.Join(home, ".rbd", "tenant.txt")
+	return tenantnamepath, err
+}

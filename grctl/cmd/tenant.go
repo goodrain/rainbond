@@ -26,6 +26,10 @@ import (
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/gosuri/uitable"
 	"github.com/urfave/cli"
+	"github.com/Sirupsen/logrus"
+	//"github.com/goodrain/rainbond/eventlog/conf"
+	config "github.com/goodrain/rainbond/cmd/grctl/option"
+	"errors"
 )
 
 //NewCmdTenant tenant cmd
@@ -74,6 +78,17 @@ func NewCmdTenant() cli.Command {
 				Action: func(c *cli.Context) error {
 					Common(c)
 					return stopTenantService(c)
+				},
+			},
+			cli.Command{
+				Name:  "setdefname",
+				Usage: "set default tenant name",
+				Action: func(c *cli.Context) error {
+					err := CreateTenantFile(c.Args().First())
+					if err != nil {
+						logrus.Error("set default tenantname fail", err.Error())
+					}
+					return nil
 				},
 			},
 		},
@@ -142,4 +157,25 @@ func getAllTenant(c *cli.Context) error {
 	}
 	fmt.Print(tenantsTable.Render())
 	return nil
+}
+
+// Create Tenant File
+func CreateTenantFile(tname string) error {
+	filename,err := config.GetTenantNamePath()
+	if err != nil {
+		logrus.Warn("Load config file error.")
+		return errors.New("Load config file error.")
+	}
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
+	if err != nil {
+		logrus.Warn("load teantnamefile file", err.Error())
+		f.Close()
+		return err
+	}
+	_, err = f.WriteString(tname)
+	if err != nil {
+		logrus.Warn("write teantnamefile file", err.Error())
+	}
+	f.Close()
+	return err
 }
