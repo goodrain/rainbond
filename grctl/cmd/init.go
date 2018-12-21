@@ -101,6 +101,11 @@ func NewCmdInit() cli.Command {
 				Value: "",
 			},
 			cli.StringFlag{
+				Name:  "enable-online-images",
+				Usage: "Get image online. default: offline",
+				Value: "",
+			},
+			cli.StringFlag{
 				Name:  "storage",
 				Usage: "Storage type, default:NFS",
 				Value: "nfs",
@@ -219,20 +224,21 @@ func updateConfigFile(path string, config map[string]string) error {
 }
 func getConfig(c *cli.Context) map[string]string {
 	configs := make(map[string]string)
-	configs["role"] = c.String("role")
+	configs["ROLE"] = c.String("role")
 	//configs["work_dir"] = c.String("work_dir")
 	configs["IIP"] = c.String("iip")
 	configs["EIP"] = c.String("eip")
-	configs["VIP"] = c.String("eip")
-	// configs["rainbond-version"] = c.String("rainbond-version")
+	configs["VIP"] = c.String("vip")
+	configs["VERSION"] = c.String("rainbond-version")
 	// configs["rainbond-repo"] = c.String("rainbond-repo")
 	configs["INSTALL_TYPE"] = c.String("install-type")
 	configs["DEPLOY_TYPE"] = c.String("deploy-type")
 	configs["DOMAIN"] = c.String("domain")
-	configs["storage"] = c.String("storage")
+	configs["STORAGE"] = c.String("storage")
 	configs["NETWORK_TYPE"] = c.String("network")
 	configs["POD_NETWORK_CIDR"] = c.String("pod-cidr")
-	configs["storage_args"] = c.String("storage-args")
+	configs["STORAGE_ARGS"] = c.String("storage-args")
+	configs["PULL_ONLINE_IMAGES"] = c.String("enable-online-images")
 	return configs
 }
 func initCluster(c *cli.Context) {
