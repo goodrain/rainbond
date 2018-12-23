@@ -279,7 +279,6 @@ func (n *NodeService) DownNode(nodeID string) (*client.HostNode, *utils.APIHandl
 			logrus.Error("Failed to down node: ", err)
 			return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node down error,%s", err.Error()))
 		}
-
 	}
 	hostNode.Status = Offline
 	hostNode.NodeStatus.Status = Offline

@@ -71,6 +71,12 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			NodeSelector: createNodeSelector(as, dbmanager),
 			Affinity:     createAffinity(as, dbmanager),
 			Hostname: func() string {
+				if nodeID, ok := as.ExtensionSet["hostname"]; ok {
+					return nodeID
+				}
+				return ""
+			}(),
+			NodeName: func() string {
 				if nodeID, ok := as.ExtensionSet["selectnode"]; ok {
 					return nodeID
 				}
@@ -82,10 +88,14 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				}
 				return false
 			}(),
+			SchedulerName: func() string {
+				if name, ok := as.ExtensionSet["shcedulername"]; ok {
+					return name
+				}
+				return ""
+			}(),
 		},
 	}
-	//set annotations feature by env
-	setFeature(&podtmpSpec)
 	//set to deployment or statefulset
 	as.SetPodTemplate(podtmpSpec)
 	return nil
@@ -766,19 +776,6 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 		}
 	}
 	return &affinity
-}
-
-func setFeature(podt *corev1.PodTemplateSpec) {
-	for _, env := range podt.Spec.Containers[0].Env {
-		switch strings.ToLower(env.Name) {
-		case "annotations_hostname":
-			podt.Spec.Hostname = env.Value
-		case "annotations_shcedulername":
-			podt.Spec.SchedulerName = env.Value
-		case "annotations_nodename":
-			podt.Spec.NodeName = env.Value
-		}
-	}
 }
 
 func createPodAnnotations(as *v1.AppService) map[string]string {
