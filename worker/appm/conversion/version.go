@@ -587,7 +587,7 @@ func createPorts(as *v1.AppService, dbmanager db.Manager) (ports []corev1.Contai
 	if err == nil && ps != nil && len(ps) > 0 {
 		crt, err := checkUpstreamPluginRelation(as.ServiceID, dbmanager)
 		if err != nil {
-			//return nil, fmt.Errorf("get service upstream plugin relation error, %s", err.Error())
+			logrus.Warningf("error getting service upstream plugin relation, %s", err.Error())
 			return
 		}
 		if crt {
@@ -596,7 +596,7 @@ func createPorts(as *v1.AppService, dbmanager db.Manager) (ports []corev1.Contai
 				dbmodel.UpNetPlugin,
 			)
 			if err != nil {
-				//return nil, fmt.Errorf("find upstream plugin mapping port error, %s", err.Error())
+				logrus.Warningf("find upstream plugin mapping port error, %s", err.Error())
 				return
 			}
 			ps, err = createUpstreamPluginMappingPort(ps, pluginPorts)
