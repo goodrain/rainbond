@@ -131,7 +131,7 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 	}
 	// start add node script
 	logrus.Info("Begin add node, please don't exit")
-	line := fmt.Sprintf("cd /opt/rainbond/rainbond-ansible/scripts; ./%s.sh %s %s %s %s %s %s", node.Role[0], node.HostName,
+	line := fmt.Sprintf("cd /opt/rainbond/rainbond-ansible/scripts; ./node.sh %s %s %s %s %s %s %s", node.Role[0], node.HostName,
 		node.InternalIP, linkModel, node.RootPass, node.KeyPath, node.ID)
 
 	fileName := node.HostName + ".log"
