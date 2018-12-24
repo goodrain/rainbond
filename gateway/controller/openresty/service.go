@@ -116,7 +116,6 @@ func (osvc *OrService) Stop() error {
 
 // PersistConfig persists ocfg
 func (osvc *OrService) PersistConfig(conf *v1.Config) error {
-
 	if err := osvc.persistUpstreams(conf.TCPPools, "upstreams-tcp.tmpl", template.CustomConfigPath, "stream/upstreams.conf"); err != nil {
 		logrus.Errorf("fail to persist tcp upstreams.conf")
 	}
@@ -198,6 +197,11 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 			location := &model.Location{
 				Path:          loc.Path,
 				NameCondition: loc.NameCondition,
+				ProxySetHeaders: []*model.ProxySetHeader{
+					{"Host", "$host"},
+					{"X-Real-IP", "$remote_addr"},
+					{"X-Forwarded-For", "$proxy_add_x_forwarded_for"},
+				},
 			}
 			server.Locations = append(server.Locations, location)
 		}
