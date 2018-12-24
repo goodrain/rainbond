@@ -8,9 +8,6 @@
 
 [项目官网](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/stable/) • [在线体验](https://console.goodrain.com) • [README in English](https://github.com/goodrain/rainbond/blob/master/README_EN.md)
 
-### 版本状态
-V5.0版本正在开发测试过程中，预计2018-12-12日发布bate版本
-
 **Rainbond** 企业应用云操作系统
 
 Rainbond（云帮）是企业应用的操作系统。 Rainbond支撑企业应用的开发、架构、交付和运维的全流程，通过“无侵入”架构，无缝衔接各类企业应用，底层资源可以对接和管理IaaS、虚拟机和物理服务器。
@@ -44,13 +41,13 @@ Rainbond（云帮）是企业应用的操作系统。 Rainbond支撑企业应用
 | Serverless PaaS            | 以应用为核心，使用过程不需要了解服务器相关概念，简单灵活。通过对接行业应用，快速构建行业专有PaaS。 |
 | 应用网关                   | 基于HTTP、HTTPs、TCP、UDP等协议应用访问控制策略，轻松操作应用灰度发布、A/B测试。 |
 
-更多功能特性详见： [Rainbond功能特性说明](https://www.rainbond.com/docs/stable/architecture/edition.html)
+更多功能特性详见： [Rainbond功能特性说明](https://www.rainbond.com/docs/5.0/architecture/edition.html)
 ## 快速开始
 
 1.  [安装 Rainbond 集群](https://www.rainbond.com/docs/stable/getting-started/installation-guide.html)
 2.  [创建第一个应用（服务）](https://www.rainbond.com/docs/stable/user-manual/create-an-app.html)
-3.  [搭建 ServiceMesh 微服务架构](https://www.rainbond.com/docs/stable/microservice/service-mesh/use-case.html)
-4.  [迁移已有企业应用上云]()
+3.  [迁移已有企业应用上云](https://www.rainbond.com/docs/v5.0/advanced-scenarios/migration-of-business.html)
+4.  [搭建 ServiceMesh 微服务架构](https://www.rainbond.com/docs/stable/microservice/service-mesh/use-case.html)
 
 ## 社区
 
@@ -64,7 +61,7 @@ Rainbond（云帮）是企业应用的操作系统。 Rainbond支撑企业应用
 
 ## 架构
 
-<img src="https://static.goodrain.com/images/docs/3.6/architecture/architecture.png" href="http://www.rainbond.com/docs/stable/architecture/architecture.html">
+<img src="https://static.goodrain.com/images/docs/5.0/architecture/architecture.svg" href="http://www.rainbond.com/docs/stable/architecture/architecture.html">
 
 ## 产品图示
 

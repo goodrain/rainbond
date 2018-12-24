@@ -36,6 +36,7 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	//conf "github.com/goodrain/rainbond/cmd/grctl/option"
 )
 
 //NewCmdService application service command
@@ -51,10 +52,12 @@ func NewCmdService() cli.Command {
 						Name:  "tenantAlias,t",
 						Value: "",
 						Usage: "Specify the tenant alias",
+						FilePath: GetTenantNamePath(),
 					},
 				},
 				Usage: "list show application services runtime detail info。For example <grctl service list -t goodrain>",
 				Action: func(c *cli.Context) error {
+					//logrus.Warn(conf.TenantNamePath)
 					Common(c)
 					return showTenantServices(c)
 				},
@@ -66,6 +69,7 @@ func NewCmdService() cli.Command {
 						Name:  "tenantAlias,t",
 						Value: "",
 						Usage: "Specify the tenant alias",
+						FilePath: GetTenantNamePath(),
 					},
 				},
 				Usage: "Get application service runtime detail info。For example <grctl service get <service_alias> -t goodrain>",
@@ -86,6 +90,7 @@ func NewCmdService() cli.Command {
 						Name:  "tenantAlias,t",
 						Value: "",
 						Usage: "Specify the tenant alias",
+						FilePath: GetTenantNamePath(),
 					},
 					cli.StringFlag{
 						Name:  "event_log_server",
@@ -109,6 +114,7 @@ func NewCmdService() cli.Command {
 						Name:  "tenantAlias,t",
 						Value: "",
 						Usage: "Specify the tenant alias",
+						FilePath: GetTenantNamePath(),
 					},
 					cli.StringFlag{
 						Name:  "event_log_server",
@@ -131,6 +137,7 @@ func NewCmdService() cli.Command {
 						Name:  "tenantAlias,t",
 						Value: "",
 						Usage: "Specify the tenant short id",
+						FilePath: GetTenantNamePath(),
 					},
 					cli.StringFlag{
 						Name:  "event_log_server",
