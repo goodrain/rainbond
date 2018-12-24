@@ -148,6 +148,9 @@ func python(homepath string) Lang {
 	if ok, _ := util.FileExists(path.Join(homepath, "setup.py")); ok {
 		return Python
 	}
+	if ok, _ := util.FileExists(path.Join(homepath, "Pipfile")); ok {
+		return Python
+	}
 	return NO
 }
 func ruby(homepath string) Lang {
@@ -167,6 +170,27 @@ func php(homepath string) Lang {
 }
 func javaMaven(homepath string) Lang {
 	if ok, _ := util.FileExists(path.Join(homepath, "pom.xml")); ok {
+		return JavaMaven
+	}
+	if ok, _ := util.FileExists(path.Join(homepath, "pom.atom")); ok {
+		return JavaMaven
+	}
+	if ok, _ := util.FileExists(path.Join(homepath, "pom.clj")); ok {
+		return JavaMaven
+	}
+	if ok, _ := util.FileExists(path.Join(homepath, "pom.groovy")); ok {
+		return JavaMaven
+	}
+	if ok, _ := util.FileExists(path.Join(homepath, "pom.rb")); ok {
+		return JavaMaven
+	}
+	if ok, _ := util.FileExists(path.Join(homepath, "pom.scala")); ok {
+		return JavaMaven
+	}
+	if ok, _ := util.FileExists(path.Join(homepath, "pom.yaml")); ok {
+		return JavaMaven
+	}
+	if ok, _ := util.FileExists(path.Join(homepath, "pom.yml")); ok {
 		return JavaMaven
 	}
 	return NO
@@ -198,6 +222,9 @@ func static(homepath string) Lang {
 	if ok, _ := util.FileExists(path.Join(homepath, "index.htm")); ok {
 		return Static
 	}
+	if ok, _ := util.FileExists(path.Join(homepath, "static.json")); ok {
+		return Static
+	}
 	return NO
 }
 func clojure(homepath string) Lang {
@@ -207,10 +234,19 @@ func clojure(homepath string) Lang {
 	return NO
 }
 func golang(homepath string) Lang {
+	if ok, _ := util.FileExists(path.Join(homepath, "go.mod")); ok {
+		return Golang
+	}
+	if ok, _ := util.FileExists(path.Join(homepath, "Gopkg.lock")); ok {
+		return Golang
+	}
 	if ok, _ := util.FileExists(path.Join(homepath, "Godeps", "Godeps.json")); ok {
 		return Golang
 	}
-	if ok, _ := util.FileExists(path.Join(homepath, "vendor", "Govendor.json")); ok {
+	if ok, _ := util.FileExists(path.Join(homepath, "vendor", "vendor.json")); ok {
+		return Golang
+	}
+	if ok, _ := util.FileExists(path.Join(homepath, "glide.yaml")); ok {
 		return Golang
 	}
 	if ok := util.FileExistsWithSuffix(path.Join(homepath, "src"), ".go"); ok {
@@ -220,6 +256,12 @@ func golang(homepath string) Lang {
 }
 func gradle(homepath string) Lang {
 	if ok, _ := util.FileExists(path.Join(homepath, "build.gradle")); ok {
+		return Gradle
+	}
+	if ok, _ := util.FileExists(path.Join(homepath, "gradlew")); ok {
+		return Gradle
+	}
+	if ok, _ := util.FileExists(path.Join(homepath, "settings.gradle")); ok {
 		return Gradle
 	}
 	return NO

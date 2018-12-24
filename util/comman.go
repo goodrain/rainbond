@@ -766,7 +766,7 @@ func ParseVariable(source string, configs map[string]string) string {
 		key, defaultValue := getVariableKey(sourcekey)
 		if value, ok := configs[key]; ok {
 			source = strings.Replace(source, sourcekey, value, -1)
-		} else {
+		} else if defaultValue != "" {
 			source = strings.Replace(source, sourcekey, defaultValue, -1)
 		}
 	}

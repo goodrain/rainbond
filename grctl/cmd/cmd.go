@@ -82,6 +82,7 @@ func Common(c *cli.Context) {
 	if err := clients.InitRegionClient(config.RegionAPI); err != nil {
 		logrus.Fatal("error config region")
 	}
+
 }
 
 // fatal prints the message (if provided) and then exits. If V(2) or greater,
@@ -95,4 +96,14 @@ func fatal(msg string, code int) {
 		fmt.Fprint(os.Stderr, msg)
 	}
 	os.Exit(code)
+}
+
+// Get Tenantname Path
+func GetTenantNamePath() string {
+	tenantnamepath,err := conf.GetTenantNamePath()
+	if err != nil {
+		logrus.Warn("Ger Home error", err.Error())
+		return tenantnamepath
+	}
+	return tenantnamepath
 }
