@@ -61,7 +61,7 @@ func (n *node) Get(node string) (*client.HostNode, *util.APIHandleError) {
 		return nil, util.CreateAPIHandleError(code, err)
 	}
 	if code != 200 {
-		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get node detail code %d", code))
 	}
 	return &gc, nil
 }
@@ -75,7 +75,7 @@ func (n *node) GetNodeResource(node string) (*client.NodePodResource, *util.APIH
 		return nil, util.CreateAPIHandleError(code, err)
 	}
 	if code != 200 {
-		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get node resource code %d", code))
 	}
 	return &gc, nil
 }
@@ -89,7 +89,7 @@ func (n *node) GetNodeByRule(rule string) ([]*client.HostNode, *util.APIHandleEr
 		return nil, util.CreateAPIHandleError(code, err)
 	}
 	if code != 200 {
-		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get node rule code %d", code))
 	}
 	return gc, nil
 }
@@ -102,7 +102,7 @@ func (n *node) List() ([]*client.HostNode, *util.APIHandleError) {
 		return nil, util.CreateAPIHandleError(code, err)
 	}
 	if code != 200 {
-		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get node list code %d", code))
 	}
 	return gc, nil
 }
@@ -116,7 +116,7 @@ func (n *node) GetAllNodeHealth() (map[string][]map[string]string, *util.APIHand
 		return nil, util.CreateAPIHandleError(code, err)
 	}
 	if code != 200 {
-		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get node health code %d", code))
 	}
 	return gc, nil
 }
