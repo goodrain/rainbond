@@ -90,7 +90,11 @@ func buildLuaHeaderRouter(input interface{}) string {
 			snippet = append(snippet, fmt.Sprintf("\t\t\t\t\tngx.var.target = \"%s\"", name))
 			snippet = append(snippet, "\t\t\t\telse")
 			snippet = append(snippet, "\t\t\t\t\tngx.exit(404)")
-			snippet = append(snippet, "\t\t\t\tend", "\t\t\tend")
+			snippet = append(snippet, "\t\t\t\tend")
+			snippet = append(snippet, "\t\t\t\telse")
+			snippet = append(snippet, "\t\t\t\t\tngx.exit(404)")
+			snippet = append(snippet, "\t\t\tend")
+
 			priority[1] = strings.Join(snippet, "\n\r")
 		default:
 			snippet := fmt.Sprintf("\t\t\tngx.var.target = \"%s\"", name)
