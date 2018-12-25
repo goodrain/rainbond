@@ -6,9 +6,9 @@ import (
 	"github.com/goodrain/rainbond/gateway/v1"
 )
 
-func langGoodrainMe(ip string) (*model.Server, *model.Upstream) {
+func langGoodrainMe(ip string) *model.Server {
 	svr := &model.Server{
-		Listen:     fmt.Sprintf("%s:%d", ip, 80), // TODO: change ip address
+		Listen:     fmt.Sprintf("%s:%d", ip, 80),
 		ServerName: "lang.goodrain.me",
 		Rewrites: []model.Rewrite{
 			{
@@ -38,13 +38,10 @@ func langGoodrainMe(ip string) (*model.Server, *model.Upstream) {
 			},
 		},
 	}
-	us := &model.Upstream{
-		Name: "lang",
-	}
-	return svr, us
+	return svr
 }
 
-func mavenGoodrainMe(ip string) (*model.Server, *model.Upstream) {
+func mavenGoodrainMe(ip string) *model.Server {
 	svr := &model.Server{
 		Listen:     fmt.Sprintf("%s:%d", ip, 80),
 		ServerName: "maven.goodrain.me",
@@ -81,13 +78,10 @@ func mavenGoodrainMe(ip string) (*model.Server, *model.Upstream) {
 			},
 		},
 	}
-	us := &model.Upstream{
-		Name: "maven",
-	}
-	return svr, us
+	return svr
 }
 
-func goodrainMe(cfgPath string, ip string) (*model.Server, *model.Upstream) {
+func goodrainMe(cfgPath string, ip string) *model.Server {
 	svr := &model.Server{
 		Listen:                  fmt.Sprintf("%s:%d %s", ip, 443, "ssl"),
 		ServerName:              "goodrain.me",
@@ -122,8 +116,23 @@ func goodrainMe(cfgPath string, ip string) (*model.Server, *model.Upstream) {
 			},
 		},
 	}
-	us := &model.Upstream{
-		Name: "registry",
+	return svr
+}
+
+
+func kubeApiserver() (*model.Server) {
+	svr := &model.Server{
+		Listen:     fmt.Sprintf("%s:%d", "127.0.0.1", 6443),
+		ProxyPass: "kube_apiserver",
+		ProxyTimeout: model.Time{
+			Num: 10,
+			Unit: "m",
+		},
+		ProxyConnectTimeout: model.Time{
+			Num: 10,
+			Unit: "m",
+		},
 	}
-	return svr, us
+
+	return svr
 }

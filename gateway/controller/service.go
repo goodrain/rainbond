@@ -27,6 +27,6 @@ type GWServicer interface {
 	Stop() error
 	Check() error
 	PersistConfig(conf *v1.Config) error
-	UpdatePools(pools []*v1.Pool) error
+	UpdatePools(hpools []*v1.Pool, tpools []*v1.Pool) error
 	WaitPluginReady()
 }

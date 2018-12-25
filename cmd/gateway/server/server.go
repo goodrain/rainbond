@@ -44,6 +44,7 @@ func Run(s *option.GWServer) error {
 
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(prometheus.NewGoCollector())
+	// TODO
 	//reg.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{
 	//	PidFn:        func() (int, error) { return os.Getpid(), nil },
 	//	ReportErrors: true,

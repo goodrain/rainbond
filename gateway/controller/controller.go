@@ -44,7 +44,6 @@ var rbdemap = make(map[string]struct{})
 
 func init() {
 	rbdemap["APISERVER_ENDPOINTS"] = struct{}{}
-	rbdemap["APP_UI_ENDPOINTS"] = struct{}{}
 	rbdemap["HUB_ENDPOINTS"] = struct{}{}
 	rbdemap["REPO_ENDPOINTS"] = struct{}{}
 }
@@ -178,7 +177,7 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 
 // refreshPools refresh pools dynamically.
 func (gwc *GWController) refreshPools(pools []*v1.Pool) {
-	if err := gwc.GWS.UpdatePools(pools); err != nil {
+	if err := gwc.GWS.UpdatePools(pools, nil); err != nil {
 		logrus.Warningf("error updating pools: %v", err)
 	}
 }
@@ -208,11 +207,11 @@ func (gwc *GWController) getDelUpdPools(updPools []*v1.Pool) ([]*v1.Pool, []*v1.
 //NewGWController new Gateway controller
 func NewGWController(ctx context.Context, cfg *option.Config, mc metric.Collector) (*GWController, error) {
 	gwc := &GWController{
-		updateCh: channels.NewRingChannel(1024),
-		stopLock: &sync.Mutex{},
-		stopCh:   make(chan struct{}),
-		ocfg:     cfg,
-		ctx:      ctx,
+		updateCh:        channels.NewRingChannel(1024),
+		stopLock:        &sync.Mutex{},
+		stopCh:          make(chan struct{}),
+		ocfg:            cfg,
+		ctx:             ctx,
 		metricCollector: mc,
 	}
 
@@ -248,6 +247,7 @@ func (gwc *GWController) initRbdEndpoints(errCh chan<- error) {
 	// get endpoints for etcd
 	gwc.watchRbdEndpoints(gwc.listEndpoints())
 }
+
 func (gwc *GWController) listEndpoints() int64 {
 	// get endpoints for etcd
 	resp, err := gwc.EtcdCli.Get(gwc.ctx, gwc.ocfg.RbdEndpointsKey, client.WithPrefix())
@@ -255,9 +255,9 @@ func (gwc *GWController) listEndpoints() int64 {
 		logrus.Errorf("get rainbond service endpoint from etcd error %s", err.Error())
 		return 0
 	}
-	var pools []*v1.Pool
+	var hpools []*v1.Pool // http pools
+	var tpools []*v1.Pool // tcp pools
 	for _, kv := range resp.Kvs {
-		//logrus.Debugf("key: %s; value: %s\n", string(kv.Key), string(kv.Value))
 		key := strings.Replace(string(kv.Key), gwc.ocfg.RbdEndpointsKey, "", -1)
 		// skip unexpected key
 		if _, ok := rbdemap[key]; !ok {
@@ -274,24 +274,28 @@ func (gwc *GWController) listEndpoints() int64 {
 			lpools := getPool(data, "lang", "maven")
 			if lpools[0].Nodes == nil || len(lpools[0].Nodes) == 0 {
 				logrus.Debug("there is no endpoints for REPO_ENDPOINTS")
-				continue
 			}
-			pools = append(pools, lpools...)
+			hpools = append(hpools, lpools...)
 		case "HUB_ENDPOINTS":
 			lpools := getPool(data, "registry")
 			if lpools[0].Nodes == nil || len(lpools[0].Nodes) == 0 {
 				logrus.Debug("there is no endpoints for REPO_ENDPOINTS")
-				continue
 			}
-			pools = append(pools, lpools...)
+			hpools = append(hpools, lpools...)
+		case "APISERVER_ENDPOINTS":
+			apools := getPool(data, "kube_apiserver")
+			if apools[0].Nodes == nil || len(apools[0].Nodes) == 0 {
+				logrus.Debug("there is no endpoints for REPO_ENDPOINTS")
+			}
+			tpools = append(tpools, apools...)
 		}
 	}
 
-	gwc.rrbdp = pools
+	gwc.rrbdp = hpools
 	//merge app pool
-	pools = append(pools, gwc.rhp...)
-	if err := gwc.GWS.UpdatePools(pools); err != nil {
-		logrus.Errorf("update pools failure %s", err.Error())
+	hpools = append(hpools, gwc.rhp...)
+	if err := gwc.GWS.UpdatePools(hpools, tpools); err != nil {
+		logrus.Errorf("update hpools failure %s", err.Error())
 	}
 	if resp.Header != nil {
 		return resp.Header.Revision
@@ -305,8 +309,11 @@ func (gwc *GWController) watchRbdEndpoints(version int64) {
 	rch := gwc.EtcdCli.Watch(gwc.ctx, gwc.ocfg.RbdEndpointsKey, client.WithPrefix(), client.WithRev(version+1))
 	for wresp := range rch {
 		for _, ev := range wresp.Events {
-			// APISERVER_ENDPOINTS(external), APP_UI_ENDPOINTS, HUB_ENDPOINTS, REPO_ENDPOINTS
 			key := strings.Replace(string(ev.Kv.Key), gwc.ocfg.RbdEndpointsKey, "", -1)
+			if key == "APISERVER_ENDPOINTS" {
+				logrus.Debugf("%s %q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
+
+			}
 			if key == "REPO_ENDPOINTS" || key == "HUB_ENDPOINTS" {
 				logrus.Debugf("%s %q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
 				//only need update one

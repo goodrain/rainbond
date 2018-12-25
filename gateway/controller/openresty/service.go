@@ -78,7 +78,7 @@ type Server struct {
 }
 
 // Start starts nginx
-func (osvc *OrService) Start(errCh chan error) {
+func (o *OrService) Start(errCh chan error) {
 	defaultNginxConf = path.Join(template.CustomConfigPath, "nginx.conf")
 	// delete the old configuration
 	if !util.DirIsEmpty(template.CustomConfigPath) {
@@ -92,14 +92,14 @@ func (osvc *OrService) Start(errCh chan error) {
 		os.RemoveAll(defaultNginxConf)
 	}
 	// generate default nginx.conf
-	nginx := model.NewNginx(*osvc.ocfg)
-	nginx.HTTP = model.NewHTTP(osvc.ocfg)
+	nginx := model.NewNginx(*o.ocfg)
+	nginx.HTTP = model.NewHTTP(o.ocfg)
 	if err := template.NewNginxTemplate(nginx, defaultNginxConf); err != nil {
 		errCh <- fmt.Errorf("Can't not new nginx ocfg: %s", err.Error())
 		return
 	}
-	if osvc.ocfg.EnableRbdEndpoints {
-		if err := osvc.newRbdServers(); err != nil {
+	if o.ocfg.EnableRbdEndpoints {
+		if err := o.newRbdServers(); err != nil {
 			errCh <- err // TODO: consider if it is right
 		}
 	}
@@ -111,7 +111,7 @@ func (osvc *OrService) Start(errCh chan error) {
 		errCh <- err
 		return
 	}
-	osvc.nginxProgress = cmd.Process
+	o.nginxProgress = cmd.Process
 	go func() {
 		if err := cmd.Wait(); err != nil {
 			errCh <- err
@@ -121,11 +121,11 @@ func (osvc *OrService) Start(errCh chan error) {
 }
 
 // Stop gracefully stops the NGINX master process.
-func (osvc *OrService) Stop() error {
+func (o *OrService) Stop() error {
 	// send stop signal to NGINX
 	logrus.Info("Stopping NGINX process")
-	if osvc.nginxProgress != nil {
-		if err := osvc.nginxProgress.Signal(syscall.SIGTERM); err != nil {
+	if o.nginxProgress != nil {
+		if err := o.nginxProgress.Signal(syscall.SIGTERM); err != nil {
 			return err
 		}
 	}
@@ -133,8 +133,8 @@ func (osvc *OrService) Stop() error {
 }
 
 // PersistConfig persists ocfg
-func (osvc *OrService) PersistConfig(conf *v1.Config) error {
-	if err := osvc.persistUpstreams(conf.TCPPools, "upstreams-tcp.tmpl", template.CustomConfigPath, "stream/upstreams.conf"); err != nil {
+func (o *OrService) PersistConfig(conf *v1.Config) error {
+	if err := o.persistUpstreams(conf.TCPPools, "upstreams-tcp.tmpl", template.CustomConfigPath, "stream/upstreams.conf"); err != nil {
 		logrus.Errorf("fail to persist tcp upstreams.conf")
 	}
 
@@ -173,7 +173,7 @@ func (osvc *OrService) PersistConfig(conf *v1.Config) error {
 }
 
 // persistUpstreams persists upstreams
-func (osvc *OrService) persistUpstreams(pools []*v1.Pool, tmpl string, path string, filename string) error {
+func (o *OrService) persistUpstreams(pools []*v1.Pool, tmpl string, path string, filename string) error {
 	var upstreams []*model.Upstream
 	for _, pool := range pools {
 		upstream := &model.Upstream{}
@@ -238,15 +238,23 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 }
 
 // UpdatePools updates http upstreams dynamically.
-func (osvc *OrService) UpdatePools(pools []*v1.Pool) error {
-	if len(pools) == 0 {
+func (o *OrService) UpdatePools(hpools []*v1.Pool, tpools []*v1.Pool) error {
+	if len(tpools) > 0 {
+		err := o.persistUpstreams(tpools, "upstreams-tcp.tmpl", "/run/nginx/rainbond/stream",
+			"upstream.default.tcp.conf")
+		if err != nil {
+			logrus.Warningf("error updating upstream.default.tcp.conf")
+		}
+	}
+
+	if hpools == nil || len(hpools) == 0 {
 		return nil
 	}
 	var backends []*model.Backend
-	for _, pool := range pools {
+	for _, pool := range hpools {
 		backends = append(backends, model.CreateBackendByPool(pool))
 	}
-	return osvc.updateBackends(backends)
+	return o.updateBackends(backends)
 }
 
 // updateUpstreams updates the upstreams in ngx.shared.dict by post
@@ -298,12 +306,17 @@ func (o *OrService) WaitPluginReady() {
 }
 
 // newRbdServers creates new configuration file for Rainbond servers
-func (osvc *OrService) newRbdServers() error {
+func (o *OrService) newRbdServers() error {
 	cfgPath := "/run/nginx/rainbond"
-	httpCfgPath := fmt.Sprintf("%s/%s", cfgPath, "/http")
+	httpCfgPath := fmt.Sprintf("%s/%s", cfgPath, "http")
+	tcpCfgPath := fmt.Sprintf("%s/%s", cfgPath, "stream")
 	// delete the old configuration
-	if err := os.RemoveAll(cfgPath + "httpCfgPath"); err != nil {
-		logrus.Errorf("Cant not remove directory(%s): %v", cfgPath, err)
+	if err := os.RemoveAll(httpCfgPath); err != nil {
+		logrus.Errorf("Cant not remove directory(%s): %v", httpCfgPath, err)
+		return err
+	}
+	if err := os.RemoveAll(tcpCfgPath); err != nil {
+		logrus.Errorf("Cant not remove directory(%s): %v", tcpCfgPath, err)
 		return err
 	}
 
@@ -313,14 +326,41 @@ func (osvc *OrService) newRbdServers() error {
 		return err
 	}
 
-	lesrv, _ := langGoodrainMe(osvc.ocfg.RBDServerInIP)
-	mesrv, _ := mavenGoodrainMe(osvc.ocfg.RBDServerInIP)
-	gesrv, _ := goodrainMe(cfgPath, osvc.ocfg.RBDServerInIP)
-	if err := template.NewServerTemplateWithCfgPath([]*model.Server{
-		lesrv,
-		mesrv,
-		gesrv,
-	}, httpCfgPath, "servers.default.http.conf"); err != nil {
+	lesrv := langGoodrainMe(o.ocfg.RBDServerInIP)
+	mesrv := mavenGoodrainMe(o.ocfg.RBDServerInIP)
+	gesrv := goodrainMe(cfgPath, o.ocfg.RBDServerInIP)
+	if err := template.NewServerTemplateWithCfgPath(
+		[]*model.Server{
+			lesrv,
+			mesrv,
+			gesrv,
+		}, httpCfgPath, "servers.default.http.conf"); err != nil {
+		return err
+	}
+
+	ksrv := kubeApiserver()
+	if err := template.NewServerTemplateWithCfgPath(
+		[]*model.Server{
+			ksrv,
+		}, tcpCfgPath, "server.default.tcp.conf"); err != nil {
+		return err
+	}
+	dummyUpstream := &model.Upstream{
+		Name: "kube_apiserver",
+		Servers: []model.UServer{
+			{
+				Address: "0.0.0.1:65535", // placeholder
+				Params: model.Params{
+					Weight: 1,
+				},
+			},
+		},
+	}
+	if err := template.NewUpstreamTemplateWithCfgPath(
+		[]*model.Upstream{dummyUpstream},
+		"upstreams-tcp.tmpl",
+		tcpCfgPath,
+		"upstream.default.tcp.conf"); err != nil {
 		return err
 	}
 
