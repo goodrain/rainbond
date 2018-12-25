@@ -164,9 +164,9 @@ func New(client kubernetes.Interface,
 			ing := obj.(*extensions.Ingress)
 			logrus.Debugf("Received ingress: %v", ing)
 
-			if !store.checkIngress(ing) {
-				return
-			}
+			//if !store.checkIngress(ing) {
+			//	return
+			//}
 
 			// updating annotations information for ingress
 			store.extractAnnotations(ing)
@@ -195,9 +195,9 @@ func New(client kubernetes.Interface,
 			}
 			logrus.Debugf("Received ingress: %v", curIng)
 
-			if !store.checkIngress(curIng) {
-				return
-			}
+			//if !store.checkIngress(curIng) {
+			//	return
+			//}
 
 			store.extractAnnotations(curIng)
 			store.secretIngressMap.update(curIng)
@@ -586,7 +586,6 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 
 // ingressIsValid checks if the specified ingress is valid
 func (s *rbdStore) ingressIsValid(ing *extensions.Ingress) bool {
-
 
 	var endpointKey string
 	if ing.Spec.Backend != nil { // stream
