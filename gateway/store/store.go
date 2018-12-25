@@ -21,7 +21,9 @@ package store
 import (
 	"bytes"
 	"fmt"
+	"github.com/goodrain/rainbond/gateway/annotations/l4"
 	"io/ioutil"
+	"net"
 	"os"
 	"reflect"
 	"strings"
@@ -162,6 +164,10 @@ func New(client kubernetes.Interface,
 			ing := obj.(*extensions.Ingress)
 			logrus.Debugf("Received ingress: %v", ing)
 
+			if !store.checkIngress(ing) {
+				return
+			}
+
 			// updating annotations information for ingress
 			store.extractAnnotations(ing)
 			// takes an Ingress and updates all Secret objects it references in secretIngressMap.
@@ -188,6 +194,10 @@ func New(client kubernetes.Interface,
 				return
 			}
 			logrus.Debugf("Received ingress: %v", curIng)
+
+			if !store.checkIngress(curIng) {
+				return
+			}
 
 			store.extractAnnotations(curIng)
 			store.secretIngressMap.update(curIng)
@@ -313,6 +323,28 @@ func New(client kubernetes.Interface,
 	store.informers.Service.AddEventHandler(cache.ResourceEventHandlerFuncs{})
 
 	return store
+}
+
+// checkIngress checks whether the given ing is valid.
+func (s *rbdStore) checkIngress(ing *extensions.Ingress) bool {
+	i, err := l4.NewParser(s).Parse(ing)
+	if err != nil {
+		logrus.Warningf("Uxpected error with ingress: %v", err)
+		return false
+	}
+
+	cfg := i.(*l4.Config)
+	if cfg.L4Enable {
+		_, err := net.Dial("tcp", fmt.Sprintf("%s:%d", cfg.L4Host, cfg.L4Port))
+		if err == nil {
+			logrus.Warningf("%s, in Ingress(%v), is already in use.",
+				fmt.Sprintf("%s:%d", cfg.L4Host, cfg.L4Port), ing)
+			return false
+		}
+		return true
+	}
+
+	return true
 }
 
 // extractAnnotations parses ingress annotations converting the value of the
@@ -554,6 +586,8 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 
 // ingressIsValid checks if the specified ingress is valid
 func (s *rbdStore) ingressIsValid(ing *extensions.Ingress) bool {
+
+
 	var endpointKey string
 	if ing.Spec.Backend != nil { // stream
 		endpointKey = fmt.Sprintf("%s/%s", ing.Namespace, ing.Spec.Backend.ServiceName)

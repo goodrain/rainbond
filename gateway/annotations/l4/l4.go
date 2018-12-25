@@ -19,6 +19,7 @@
 package l4
 
 import (
+	"fmt"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -41,7 +42,14 @@ func NewParser(r resolver.Resolver) parser.IngressAnnotation {
 func (l l4) Parse(ing *extensions.Ingress) (interface{}, error) {
 	l4Enable, _ := parser.GetBoolAnnotation("l4-enable", ing)
 	l4Host, _ := parser.GetStringAnnotation("l4-host", ing)
+	if l4Host == "" {
+		l4Host = "0.0.0.0"
+	}
+
 	l4Port, _ := parser.GetIntAnnotation("l4-port", ing)
+	if l4Enable && (l4Port <=0 || l4Port > 65535) {
+		return nil, fmt.Errorf("error l4Port: %d", l4Port)
+	}
 	return &Config{
 		L4Enable: l4Enable,
 		L4Host: l4Host,
