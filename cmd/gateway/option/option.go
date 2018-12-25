@@ -58,7 +58,6 @@ type Config struct {
 	KeepaliveRequests int
 	NginxUser         string
 	RBDServerInIP     string // internal ip for raidbond server
-	RBDServerExIP     string // external ip for raidbond server
 	IP                string
 	// health check
 	HealthPath         string
@@ -89,11 +88,10 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&g.EnableMultiAccept, "enable-multi-accept", true, "Accept as many connections as possible, after nginx gets notification about a new connection.")
 	fs.StringVar(&g.ErrorLog, "error-log", "/dev/stderr crit", "only log critical errors")
 	fs.StringVar(&g.NginxUser, "nginx-user", "root", "nginx user name")
-	fs.IntVar(&g.KeepaliveRequests, "keepalive-requests", 100000, "Number of requests a client can make over the keep-alive connection. This is set high for testing.")
+	fs.IntVar(&g.KeepaliveRequests, "keepalive-requests", 10000, "Number of requests a client can make over the keep-alive connection. ")
 	fs.IntVar(&g.KeepaliveTimeout, "keepalive-timeout", 30, "Timeout for keep-alive connections. Server will close connections after this time.")
 	fs.StringVar(&g.RBDServerInIP, "rbdsrv-internal-ip", "0.0.0.0", "Internal ip for raidbond server")
-	fs.StringVar(&g.RBDServerExIP, "rbdsrv-external-ip", "0.0.0.0", "External ip for raidbond server") // TODO: more detail
-	fs.StringVar(&g.IP, "ip", "0.0.0.0", "Node ip.")                                                   // TODO: more detail
+	fs.StringVar(&g.IP, "ip", "0.0.0.0", "Node ip.") // TODO: more detail
 	// etcd
 	fs.StringSliceVar(&g.EtcdEndPoints, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd cluster endpoints.")
 	fs.IntVar(&g.EtcdTimeout, "etcd-timeout", 5, "etcd http timeout seconds")
