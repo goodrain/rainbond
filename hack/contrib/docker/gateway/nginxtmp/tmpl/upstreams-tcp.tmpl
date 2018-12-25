@@ -1,5 +1,6 @@
 {{ range $upstream := . }}
 upstream {{$upstream.Name}} {
+    {{ if $upstream.UseLeastConn }} least_conn; {{ end }}
     {{ range $server := $upstream.Servers }}
     {{ $params := $server.Params }}
     server {{$server.Address}} weight={{$params.Weight}};

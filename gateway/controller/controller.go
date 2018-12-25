@@ -286,6 +286,10 @@ func (gwc *GWController) listEndpoints() int64 {
 			apools := getPool(data, "kube_apiserver")
 			if apools[0].Nodes == nil || len(apools[0].Nodes) == 0 {
 				logrus.Debug("there is no endpoints for REPO_ENDPOINTS")
+				continue
+			}
+			for _, pool := range apools {
+				pool.LeastConn = true
 			}
 			tpools = append(tpools, apools...)
 		}
@@ -310,11 +314,7 @@ func (gwc *GWController) watchRbdEndpoints(version int64) {
 	for wresp := range rch {
 		for _, ev := range wresp.Events {
 			key := strings.Replace(string(ev.Kv.Key), gwc.ocfg.RbdEndpointsKey, "", -1)
-			if key == "APISERVER_ENDPOINTS" {
-				logrus.Debugf("%s %q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
-
-			}
-			if key == "REPO_ENDPOINTS" || key == "HUB_ENDPOINTS" {
+			if key == "REPO_ENDPOINTS" || key == "HUB_ENDPOINTS" || key == "APISERVER_ENDPOINTS" {
 				logrus.Debugf("%s %q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
 				//only need update one
 				gwc.listEndpoints()

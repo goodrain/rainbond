@@ -178,6 +178,7 @@ func (o *OrService) persistUpstreams(pools []*v1.Pool, tmpl string, path string,
 	for _, pool := range pools {
 		upstream := &model.Upstream{}
 		upstream.Name = pool.Name
+		upstream.UseLeastConn = pool.LeastConn
 		var servers []model.UServer
 		for _, node := range pool.Nodes {
 			server := model.UServer{
@@ -245,6 +246,17 @@ func (o *OrService) UpdatePools(hpools []*v1.Pool, tpools []*v1.Pool) error {
 		if err != nil {
 			logrus.Warningf("error updating upstream.default.tcp.conf")
 		}
+		// check nginx configuration
+		if out, err := nginxExecCommand("-t").CombinedOutput(); err != nil {
+			return fmt.Errorf("%v\n%v", err, string(out))
+		}
+		logrus.Debug("Nginx configuration is ok.")
+
+		// reload nginx
+		if out, err := nginxExecCommand("-s", "reload").CombinedOutput(); err != nil {
+			return fmt.Errorf("%v\n%v", err, string(out))
+		}
+		logrus.Debug("Nginx reloads successfully.")
 	}
 
 	if hpools == nil || len(hpools) == 0 {
