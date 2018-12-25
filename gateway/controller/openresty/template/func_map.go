@@ -61,6 +61,8 @@ func buildLuaHeaderRouter(input interface{}) string {
 			}
 			snippet = append(snippet, fmt.Sprintf("\t\t\tif %s then", strings.Join(condition, " and ")))
 			snippet = append(snippet, fmt.Sprintf("\t\t\t\tngx.var.target = \"%s\"", name))
+			snippet = append(snippet, "\t\t\t\telse")
+			snippet = append(snippet, "\t\t\t\t\tngx.exit(404)")
 			snippet = append(snippet, "\t\t\tend")
 			priority[2] = strings.Join(snippet, "\n\r")
 		case v1.CookieType:
@@ -86,6 +88,8 @@ func buildLuaHeaderRouter(input interface{}) string {
 			}
 			snippet = append(snippet, fmt.Sprintf("\t\t\t\tif %s then", strings.Join(condition, " and ")))
 			snippet = append(snippet, fmt.Sprintf("\t\t\t\t\tngx.var.target = \"%s\"", name))
+			snippet = append(snippet, "\t\t\t\telse")
+			snippet = append(snippet, "\t\t\t\t\tngx.exit(404)")
 			snippet = append(snippet, "\t\t\t\tend", "\t\t\tend")
 			priority[1] = strings.Join(snippet, "\n\r")
 		default:
