@@ -548,7 +548,11 @@ func NewCmdNode() cli.Command {
 					node.ID = c.String("id")
 					err := clients.RegionClient.Nodes().Add(&node)
 					handleErr(err)
-					fmt.Println("success add node")
+					if node.AutoInstall {
+						fmt.Printf("success add node, and it is installing,install log file /grdata/downloads/log/%s.log\n", node.HostName)
+					} else {
+						fmt.Println("success add node, you install it by running: grctl node install <nodeID>")
+					}
 					return nil
 				},
 			},
@@ -563,9 +567,11 @@ func NewCmdNode() cli.Command {
 					if nodeID == "" {
 						showError("node id can not be empty")
 					}
-					err := clients.RegionClient.Nodes().Install(nodeID)
+					node, err := clients.RegionClient.Nodes().Get(nodeID)
 					handleErr(err)
-					fmt.Println("start install node")
+					err = clients.RegionClient.Nodes().Install(nodeID)
+					handleErr(err)
+					fmt.Printf("start install nodeinstall log file /grdata/downloads/log/%s.log\n", node.HostName)
 					return nil
 				},
 			},
