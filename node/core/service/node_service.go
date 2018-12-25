@@ -36,27 +36,6 @@ import (
 	"github.com/twinj/uuid"
 )
 
-const (
-	//Running node running status
-	Running = "running"
-	//Offline node offline status
-	Offline = "offline"
-	//Unknown node unknown status
-	Unknown = "unknown"
-	//Error node error status
-	Error = "error"
-	//Init node init status
-	Init = "init"
-	//InstallSuccess node install success status
-	InstallSuccess = "install_success"
-	//InstallFailed node install failure status
-	InstallFailed = "install_failed"
-	//Installing node installing status
-	Installing = "installing"
-	//NotInstalled node not install status
-	NotInstalled = "not_installed"
-)
-
 //NodeService node service
 type NodeService struct {
 	c           *option.Conf
@@ -105,20 +84,14 @@ func (n *NodeService) AddNode(node *client.APIHostNode) (*client.HostNode, *util
 	rbnode := node.Clone()
 	rbnode.CreateTime = time.Now()
 	n.nodecluster.UpdateNode(rbnode)
-	if _, err := rbnode.Update(); err != nil {
-		return nil, utils.CreateAPIHandleErrorFromDBError("save node", err)
-	}
 	return rbnode, nil
 }
 
 //InstallNode install node
 func (n *NodeService) InstallNode(node *client.HostNode) *utils.APIHandleError {
-	node.Status = Installing
-	node.NodeStatus.Status = Installing
+	node.Status = client.Installing
+	node.NodeStatus.Status = client.Installing
 	n.nodecluster.UpdateNode(node)
-	if _, err := node.Update(); err != nil {
-		return utils.CreateAPIHandleErrorFromDBError("save node", err)
-	}
 	go n.AsynchronousInstall(node)
 	return nil
 }
@@ -130,35 +103,28 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 		linkModel = "key"
 	}
 	// start add node script
-	logrus.Info("Begin add node, please don't exit")
-	line := fmt.Sprintf("cd /opt/rainbond/rainbond-ansible/scripts; ./%s.sh %s %s %s %s %s %s", node.Role[0], node.HostName,
+	logrus.Infof("Begin install node %s", node.ID)
+	line := fmt.Sprintf("./node.sh %s %s %s %s %s %s %s", node.Role[0], node.HostName,
 		node.InternalIP, linkModel, node.RootPass, node.KeyPath, node.ID)
-
 	fileName := node.HostName + ".log"
 	cmd := exec.Command("bash", "-c", line)
 	f, _ := os.OpenFile("/grdata/downloads/log/"+fileName, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0755)
 	cmd.Stdout = f
+	cmd.Dir = "/opt/rainbond/rainbond-ansible/scripts"
 	cmd.Stderr = f
 	err := cmd.Run()
-
 	if err != nil {
 		logrus.Errorf("Error executing shell script,View log file：/grdata/downloads/log/" + fileName)
-		node.Status = InstallFailed
-		node.NodeStatus.Status = InstallFailed
+		node.Status = client.InstallFailed
+		node.NodeStatus.Status = client.InstallFailed
 		n.nodecluster.UpdateNode(node)
-		if _, err := node.Update(); err != nil {
-			logrus.Errorf(err.Error())
-		}
 		return
 	}
 	logrus.Info("Add node successful")
 	logrus.Info("check cluster status: grctl node list")
-	node.Status = InstallSuccess
-	node.NodeStatus.Status = InstallSuccess
+	node.Status = client.InstallSuccess
+	node.NodeStatus.Status = client.InstallSuccess
 	n.nodecluster.UpdateNode(node)
-	if _, err := node.Update(); err != nil {
-		logrus.Errorf(err.Error())
-	}
 }
 
 //DeleteNode delete node
@@ -280,8 +246,8 @@ func (n *NodeService) DownNode(nodeID string) (*client.HostNode, *utils.APIHandl
 			return nil, utils.CreateAPIHandleError(500, fmt.Errorf("k8s node down error,%s", err.Error()))
 		}
 	}
-	hostNode.Status = Offline
-	hostNode.NodeStatus.Status = Offline
+	hostNode.Status = client.Offline
+	hostNode.NodeStatus.Status = client.Offline
 	n.nodecluster.UpdateNode(hostNode)
 	return hostNode, nil
 }
@@ -303,8 +269,8 @@ func (n *NodeService) UpNode(nodeID string) (*client.HostNode, *utils.APIHandleE
 			hostNode.UpdateK8sNodeStatus(*node)
 		}
 	}
-	hostNode.Status = Running
-	hostNode.NodeStatus.Status = Running
+	hostNode.Status = client.Running
+	hostNode.NodeStatus.Status = client.Running
 	n.nodecluster.UpdateNode(hostNode)
 	return hostNode, nil
 }

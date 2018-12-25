@@ -179,6 +179,27 @@ type NodeSystemInfo struct {
 	NumCPU     int64  `json:"cpu_num"`
 }
 
+const (
+	//Running node running status
+	Running = "running"
+	//Offline node offline status
+	Offline = "offline"
+	//Unknown node unknown status
+	Unknown = "unknown"
+	//Error node error status
+	Error = "error"
+	//Init node init status
+	Init = "init"
+	//InstallSuccess node install success status
+	InstallSuccess = "install_success"
+	//InstallFailed node install failure status
+	InstallFailed = "install_failed"
+	//Installing node installing status
+	Installing = "installing"
+	//NotInstalled node not install status
+	NotInstalled = "not_installed"
+)
+
 //Decode decode node info
 func (n *HostNode) Decode(data []byte) error {
 	if err := ffjson.Unmarshal(data, n); err != nil {

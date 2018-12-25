@@ -45,18 +45,6 @@ import (
 	"github.com/goodrain/rainbond/util"
 )
 
-const (
-	Running        = "running"
-	Offline        = "offline"
-	Unknown        = "unknown"
-	Error          = "error"
-	Init           = "init"
-	InstallSuccess = "install_success"
-	InstallFailed  = "install_failed"
-	Installing     = "installing"
-	NotInstalled   = "not_installed"
-)
-
 //Cluster  node  controller
 type Cluster struct {
 	ctx              context.Context
@@ -168,9 +156,12 @@ func (n *Cluster) GetNode(id string) *client.HostNode {
 
 //handleNodeStatus Master integrates node status and kube node status
 func (n *Cluster) handleNodeStatus(v *client.HostNode) {
+	if v.Status == client.NotInstalled || v.Status == client.Installing || v.Status == client.InstallFailed {
+		return
+	}
 	if time.Now().Sub(v.NodeStatus.NodeUpdateTime) > time.Minute*1 {
-		v.Status = Unknown
-		v.NodeStatus.Status = Unknown
+		v.Status = client.Unknown
+		v.NodeStatus.Status = client.Unknown
 		r := client.NodeCondition{
 			Type:               client.NodeUp,
 			Status:             client.ConditionFalse,

@@ -78,7 +78,6 @@ func AddNode(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
 	httputil.ReturnSuccess(r, w, rnode)
 }
 
