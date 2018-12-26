@@ -111,7 +111,7 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	// rainbond endpoints
 	fs.BoolVar(&g.EnableRbdEndpoints, "enable-rbd-endpoints", true, "switch of Rainbond endpoints")
 	fs.StringVar(&g.RbdEndpointsKey, "rbd-endpoints", "/rainbond/endpoint/", "key of Rainbond endpoints in ETCD")
-	fs.BoolVar(&g.EnableKApiServer, "enable-kubeapi", true, "enable load balancing of kube-apiserver")
+	fs.BoolVar(&g.EnableKApiServer, "enable-kubeapi", false, "enable load balancing of kube-apiserver")
 	fs.StringVar(&g.KApiServerIP, "kubeapi-ip", "0.0.0.0", "ip address bound by kube-apiserver")
 	fs.BoolVar(&g.EnableLangGrMe, "enable-lang-grme", true, "enable load balancing of lang.goodrain.me")
 	fs.StringVar(&g.LangGrMeIP, "lang-grme-ip", "0.0.0.0", "ip address bound by lang.goodrain.me")
