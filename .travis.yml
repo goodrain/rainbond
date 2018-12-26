@@ -7,6 +7,6 @@ git:
   depth: 1
 
 script:
-- docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+- 'if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD;fi'
 - 'if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then bash ./release.sh all push; fi'
 - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then bash ./release.sh all; fi'
