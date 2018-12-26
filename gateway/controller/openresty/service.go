@@ -341,16 +341,18 @@ func (o *OrService) newRbdServers() error {
 	lesrv := langGoodrainMe(o.ocfg.RBDServerInIP)
 	mesrv := mavenGoodrainMe(o.ocfg.RBDServerInIP)
 	gesrv := goodrainMe(cfgPath, o.ocfg.RBDServerInIP)
+	resrv := repoGoodrainMe(o.ocfg.RBDServerInIP)
 	if err := template.NewServerTemplateWithCfgPath(
 		[]*model.Server{
 			lesrv,
 			mesrv,
 			gesrv,
+			resrv,
 		}, httpCfgPath, "servers.default.http.conf"); err != nil {
 		return err
 	}
 
-	ksrv := kubeApiserver()
+	ksrv := kubeApiserver(o.ocfg.RBDServerInIP)
 	if err := template.NewServerTemplateWithCfgPath(
 		[]*model.Server{
 			ksrv,

@@ -90,7 +90,7 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.NginxUser, "nginx-user", "root", "nginx user name")
 	fs.IntVar(&g.KeepaliveRequests, "keepalive-requests", 10000, "Number of requests a client can make over the keep-alive connection. ")
 	fs.IntVar(&g.KeepaliveTimeout, "keepalive-timeout", 30, "Timeout for keep-alive connections. Server will close connections after this time.")
-	fs.StringVar(&g.RBDServerInIP, "rbdsrv-internal-ip", "0.0.0.0", "Internal ip for raidbond server")
+	fs.StringVar(&g.RBDServerInIP, "rbdsrv-internal-ip", "127.0.0.1", "Internal ip for raidbond server")
 	fs.StringVar(&g.IP, "ip", "0.0.0.0", "Node ip.") // TODO: more detail
 	// etcd
 	fs.StringSliceVar(&g.EtcdEndPoints, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd cluster endpoints.")
