@@ -320,8 +320,8 @@ func (o *OrService) WaitPluginReady() {
 // newRbdServers creates new configuration file for Rainbond servers
 func (o *OrService) newRbdServers() error {
 	cfgPath := "/run/nginx/rainbond"
-	httpCfgPath := fmt.Sprintf("%s/%s", cfgPath, "http")
-	tcpCfgPath := fmt.Sprintf("%s/%s", cfgPath, "stream")
+	httpCfgPath := fmt.Sprintf("%s/%s", cfgPath, "http") // http config path
+	tcpCfgPath := fmt.Sprintf("%s/%s", cfgPath, "stream") // tcp config path
 	// delete the old configuration
 	if err := os.RemoveAll(httpCfgPath); err != nil {
 		logrus.Errorf("Cant not remove directory(%s): %v", httpCfgPath, err)
@@ -338,43 +338,54 @@ func (o *OrService) newRbdServers() error {
 		return err
 	}
 
-	lesrv := langGoodrainMe(o.ocfg.RBDServerInIP)
-	mesrv := mavenGoodrainMe(o.ocfg.RBDServerInIP)
-	gesrv := goodrainMe(cfgPath, o.ocfg.RBDServerInIP)
-	resrv := repoGoodrainMe(o.ocfg.RBDServerInIP)
-	if err := template.NewServerTemplateWithCfgPath(
-		[]*model.Server{
-			lesrv,
-			mesrv,
-			gesrv,
-			resrv,
-		}, httpCfgPath, "servers.default.http.conf"); err != nil {
-		return err
-	}
-
-	ksrv := kubeApiserver(o.ocfg.RBDServerInIP)
-	if err := template.NewServerTemplateWithCfgPath(
-		[]*model.Server{
-			ksrv,
-		}, tcpCfgPath, "server.default.tcp.conf"); err != nil {
-		return err
-	}
-	dummyUpstream := &model.Upstream{
-		Name: "kube_apiserver",
-		Servers: []model.UServer{
-			{
-				Address: "0.0.0.1:65535", // placeholder
-				Params: model.Params{
-					Weight: 1,
+	if o.ocfg.EnableKApiServer {
+		ksrv := kubeApiserver(o.ocfg.KApiServerIP)
+		if err := template.NewServerTemplateWithCfgPath(
+			[]*model.Server{
+				ksrv,
+			}, tcpCfgPath, "server.default.tcp.conf"); err != nil {
+			return err
+		}
+		dummyUpstream := &model.Upstream{
+			Name: "kube_apiserver",
+			Servers: []model.UServer{
+				{
+					Address: "0.0.0.1:65535", // placeholder
+					Params: model.Params{
+						Weight: 1,
+					},
 				},
 			},
-		},
+		}
+		if err := template.NewUpstreamTemplateWithCfgPath(
+			[]*model.Upstream{dummyUpstream},
+			"upstreams-tcp.tmpl",
+			tcpCfgPath,
+			"upstream.default.tcp.conf"); err != nil {
+			return err
+		}
 	}
-	if err := template.NewUpstreamTemplateWithCfgPath(
-		[]*model.Upstream{dummyUpstream},
-		"upstreams-tcp.tmpl",
-		tcpCfgPath,
-		"upstream.default.tcp.conf"); err != nil {
+
+	var srv []*model.Server
+	if o.ocfg.EnableLangGrMe {
+		lesrv := langGoodrainMe(o.ocfg.LangGrMeIP)
+		srv = append(srv, lesrv)
+	}
+	if o.ocfg.EnableMVNGrMe {
+		mesrv := mavenGoodrainMe(o.ocfg.MVNGrMeIP)
+		srv = append(srv, mesrv)
+	}
+	if o.ocfg.EnableGrMe {
+		gesrv := goodrainMe(cfgPath, o.ocfg.GrMeIP)
+		srv = append(srv, gesrv)
+	}
+	if o.ocfg.EnableRepoGrMe {
+		resrv := repoGoodrainMe(o.ocfg.RepoGrMeIP)
+		srv = append(srv, resrv)
+	}
+
+	if err := template.NewServerTemplateWithCfgPath(srv, httpCfgPath,
+		"servers.default.http.conf"); err != nil {
 		return err
 	}
 
