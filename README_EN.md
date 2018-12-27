@@ -69,19 +69,27 @@ See [Rainbond Roadmap](http://www.rainbond.com/docs/stable/architecture/roadmap.
 
 ## Snapshot
 
-<img src="./docs/buildfromsourcecode.gif" href="http://www.rainbond.com/docs/stable">
+<img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/docs/5.0/readme/connect.gif" href="http://www.rainbond.com/docs/stable">
 
-- build from source code
+- Application assembly deployment diagram
 
-<img src="./docs/topology.gif" href="http://www.rainbond.com/docs/stable">
+<img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/docs/5.0/readme/gateway.gif" href="http://www.rainbond.com/docs/stable">
 
-- Application traffic topology
+- Application gateway management schematic diagram
 
 ## Contribution
 
 You can participate in the Rainbond community's contributions and sharing on platforms, applications, plugins, and more.
-See [Rainbond Contribution](https://t.goodrain.com/c/contribution)
+[Participate in Rainbond Project](https://www.rainbond.com/docs/stable/contribute-to-rainbond.html)
+[Rainbond Contribution](https://t.goodrain.com/c/contribution)
 
+## Related Projects
+   * [Rainbond-Console](https://github.com/goodrain/rainbond-console) 
+   * [Rainbond-Console-UI](https://github.com/goodrain/rainbond-ui) 
+   * [Rainbond-Install](https://github.com/goodrain/rainbond-ansible) 
+   * [Rainbond-Builder](https://github.com/goodrain/builder) 
+   * [Rainbond-Docs](https://github.com/goodrain/rainbond-docs) 
+   
 ## License
 
 Rainbond is released under LGPL-3.0 license, see [LICENSE](https://github.com/goodrain/rainbond/blob/master/LICENSE) and [Licensing](https://github.com/goodrain/rainbond/blob/master/Licensing.md)。

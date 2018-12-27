@@ -276,6 +276,8 @@ func (n *NodeManager) init() error {
 	if node.NodeStatus.NodeInfo.OperatingSystem == "" {
 		node.NodeStatus.NodeInfo = info.GetSystemInfo()
 	}
+	//update node mode
+	node.Mode = n.cfg.RunMode
 	*n.currentNode = *node
 	return nil
 }
