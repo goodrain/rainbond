@@ -19,15 +19,16 @@
 package callback
 
 import (
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/prometheus"
+	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/goodrain/rainbond/util/watch"
 	"github.com/prometheus/common/model"
 	"github.com/tidwall/gjson"
-	"time"
-	"github.com/goodrain/rainbond/monitor/utils"
 )
 
 // Cadvisor 指容器监控数据，来源于所有子节点上的kubelet
@@ -92,7 +93,7 @@ func (c *Cadvisor) AddEndpoint(end *config.Endpoint) {
 }
 
 func (c *Cadvisor) Add(event *watch.Event) {
-	url := gjson.Get(event.GetValueString(), "external_ip").String() + ":4194"
+	url := gjson.Get(event.GetValueString(), "internal_ip").String() + ":4194"
 	end := &config.Endpoint{
 		URL: url,
 	}
@@ -103,7 +104,7 @@ func (c *Cadvisor) Add(event *watch.Event) {
 func (c *Cadvisor) Modify(event *watch.Event) {
 	for i, end := range c.endpoints {
 		if end.URL == event.GetValueString() {
-			url := gjson.Get(event.GetValueString(), "external_ip").String() + ":4194"
+			url := gjson.Get(event.GetValueString(), "internal_ip").String() + ":4194"
 			c.endpoints[i].URL = url
 			c.UpdateEndpoints(c.endpoints...)
 			break
@@ -113,7 +114,7 @@ func (c *Cadvisor) Modify(event *watch.Event) {
 
 func (c *Cadvisor) Delete(event *watch.Event) {
 	for i, end := range c.endpoints {
-		url := gjson.Get(event.GetValueString(), "external_ip").String() + ":4194"
+		url := gjson.Get(event.GetValueString(), "internal_ip").String() + ":4194"
 		if end.URL == url {
 			c.endpoints = append(c.endpoints[:i], c.endpoints[i+1:]...)
 			c.UpdateEndpoints(c.endpoints...)
