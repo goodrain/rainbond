@@ -9,6 +9,7 @@ server {
 {{ end }}
 server {
     {{ if $srv.Listen }}listen    {{$srv.Listen}};{{ end }}
+    {{ if $srv.Root }}root    {{$srv.Root}};{{ end }}
     {{ if $srv.ServerName }}server_name    {{$srv.ServerName}};{{end}}
 	{{ if $srv.DefaultType }}default_type    {{$srv.DefaultType}};{{end}}
     {{ if $srv.Charset }}charset   {{$srv.Charset}};{{end}}
