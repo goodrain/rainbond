@@ -29,7 +29,3 @@ Check Pull Request is another way to contribute.
 ## Documents
 
 When you find any typo or you have awesome contents to supplement, you can also use **Pull Request**.
-
-## Join this project
-
-Contact us via [Mail](mailto:info@goodrain.com)
