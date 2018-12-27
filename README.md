@@ -47,7 +47,6 @@ Rainbond（云帮）是企业应用的操作系统。 Rainbond支撑企业应用
 1.  [安装 Rainbond 集群](https://www.rainbond.com/docs/stable/getting-started/installation-guide.html)
 2.  [创建第一个应用（服务）](https://www.rainbond.com/docs/stable/user-manual/create-an-app.html)
 3.  [搭建 ServiceMesh 微服务架构](https://www.rainbond.com/docs/stable/microservice/service-mesh/use-case.html)
-4.  [迁移已有企业应用上云]()
 
 ## 社区
 
