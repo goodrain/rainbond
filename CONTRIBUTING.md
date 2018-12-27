@@ -5,8 +5,10 @@
 make build
 # if you have docker environment
 make image
+# or
+make binary
 # if you what build one component
-make build WHAT=api
+make binary WHAT=api
 make image WHAT=api
 ```
 
