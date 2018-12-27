@@ -26,6 +26,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/goodrain/rainbond/util"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/api/model"
@@ -108,20 +110,29 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 		node.InternalIP, linkModel, node.RootPass, node.KeyPath, node.ID)
 	fileName := node.HostName + ".log"
 	cmd := exec.Command("bash", "-c", line)
-	f, _ := os.OpenFile("/grdata/downloads/log/"+fileName, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0755)
+	util.CheckAndCreateDir("/grdata/downloads/log/")
+	f, err := os.OpenFile("/grdata/downloads/log/"+fileName, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0755)
+	if err != nil {
+		logrus.Errorf("open log file %s failure %s", "/grdata/downloads/log/"+fileName, err.Error())
+		node.Status = client.InstallFailed
+		node.NodeStatus.Status = client.InstallFailed
+		n.nodecluster.UpdateNode(node)
+		return
+	}
+	defer f.Close()
 	cmd.Stdout = f
 	cmd.Dir = "/opt/rainbond/rainbond-ansible/scripts"
 	cmd.Stderr = f
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
+		f.Write([]byte(err.Error()))
 		logrus.Errorf("Error executing shell script,View log file：/grdata/downloads/log/" + fileName)
 		node.Status = client.InstallFailed
 		node.NodeStatus.Status = client.InstallFailed
 		n.nodecluster.UpdateNode(node)
 		return
 	}
-	logrus.Info("Add node successful")
-	logrus.Info("check cluster status: grctl node list")
+	logrus.Infof("Install node %s successful", node.ID)
 	node.Status = client.InstallSuccess
 	node.NodeStatus.Status = client.InstallSuccess
 	n.nodecluster.UpdateNode(node)
