@@ -119,10 +119,17 @@ func goodrainMe(cfgPath string, ip string) *model.Server {
 	return svr
 }
 
+func repoGoodrainMe(ip string) *model.Server {
+	return &model.Server{
+		Listen:     fmt.Sprintf("%s:%d", ip, 80),
+		Root: "/grdata/services/offline/pkgs/",
+		ServerName: "repo.goodrain.me",
+	}
+}
 
-func kubeApiserver() (*model.Server) {
+func kubeApiserver(ip string) *model.Server {
 	svr := &model.Server{
-		Listen:     fmt.Sprintf("%s:%d", "127.0.0.1", 6443),
+		Listen:     fmt.Sprintf("%s:%d", ip, 6443),
 		ProxyPass: "kube_apiserver",
 		ProxyTimeout: model.Time{
 			Num: 10,
