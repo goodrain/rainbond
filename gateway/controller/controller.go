@@ -78,14 +78,14 @@ type GWController struct {
 
 // Start starts Gateway
 func (gwc *GWController) Start(errCh chan error) error {
+	if gwc.ocfg.EnableRbdEndpoints {
+		go gwc.initRbdEndpoints(errCh)
+	}
+
 	// start plugin(eg: nginx, zeus and etc)
 	gwc.GWS.Start(errCh)
 	// start informer
 	gwc.store.Run(gwc.stopCh)
-
-	if gwc.ocfg.EnableRbdEndpoints {
-		go gwc.initRbdEndpoints(errCh)
-	}
 
 	// start task queue
 	go gwc.syncQueue.Run(1*time.Second, gwc.stopCh)
