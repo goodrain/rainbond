@@ -19,14 +19,15 @@
 package callback
 
 import (
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/prometheus"
-	"github.com/goodrain/rainbond/util/watch"
 	"github.com/goodrain/rainbond/monitor/utils"
+	"github.com/goodrain/rainbond/util/watch"
 	"github.com/prometheus/common/model"
-	"time"
 	"github.com/tidwall/gjson"
 )
 
@@ -90,7 +91,7 @@ func (e *Node) AddEndpoint(end *config.Endpoint) {
 }
 
 func (e *Node) Add(event *watch.Event) {
-	url := gjson.Get(event.GetValueString(), "external_ip").String() + ":6100"
+	url := gjson.Get(event.GetValueString(), "internal_ip").String() + ":6100"
 	end := &config.Endpoint{
 		URL: url,
 	}
@@ -101,7 +102,7 @@ func (e *Node) Add(event *watch.Event) {
 func (e *Node) Modify(event *watch.Event) {
 	for i, end := range e.endpoints {
 		if end.URL == event.GetValueString() {
-			url := gjson.Get(event.GetValueString(), "external_ip").String() + ":6100"
+			url := gjson.Get(event.GetValueString(), "internal_ip").String() + ":6100"
 			e.endpoints[i].URL = url
 			e.UpdateEndpoints(e.endpoints...)
 			break
@@ -111,7 +112,7 @@ func (e *Node) Modify(event *watch.Event) {
 
 func (e *Node) Delete(event *watch.Event) {
 	for i, end := range e.endpoints {
-		url := gjson.Get(event.GetValueString(), "external_ip").String() + ":6100"
+		url := gjson.Get(event.GetValueString(), "internal_ip").String() + ":6100"
 		if end.URL == url {
 			e.endpoints = append(e.endpoints[:i], e.endpoints[i+1:]...)
 			e.UpdateEndpoints(e.endpoints...)
