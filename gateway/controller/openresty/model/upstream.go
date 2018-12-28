@@ -7,12 +7,12 @@ type Upstream struct {
 	Zone              Zone
 	State             string // Specifies a file that keeps the state of the dynamically configurable group.
 	Hash              Hash
-	Keepalive         int    // Sets the maximum number of idle keepalive connections to upstream servers that are preserved in the cache of each worker process
-	KeepaliveRequests int    // Default 100. Sets the maximum number of requests that can be served through one keepalive connection.
-	KeepaliveTimeout  Time   // Default 60s. Sets a timeout during which an idle keepalive connection to an upstream server will stay open.
-	UseNtlm           bool   // Allows proxying requests with NTLM Authentication.
-	UseLeastConn      bool   // Pass the request to the sever with the least numbers of connections.
-	Queue             Queue  // TODO [emerg] unknown directive "queue"
+	Keepalive         int   // Sets the maximum number of idle keepalive connections to upstream servers that are preserved in the cache of each worker process
+	KeepaliveRequests int   // Default 100. Sets the maximum number of requests that can be served through one keepalive connection.
+	KeepaliveTimeout  Time  // Default 60s. Sets a timeout during which an idle keepalive connection to an upstream server will stay open.
+	UseNtlm           bool  // Allows proxying requests with NTLM Authentication.
+	UseLeastConn      bool  // Pass the request to the sever with the least numbers of connections.
+	Queue             Queue // TODO [emerg] unknown directive "queue"
 	Random            Random
 	Servers           []UServer
 	// TODO least_time        LeastTime
@@ -43,8 +43,8 @@ type Queue struct {
 
 type Random struct {
 	UseRandom bool
-	UseTwo bool   // The optional two parameter instructs nginx to randomly select two servers and then choose a server using the specified method.
-	Method string // The default method is least_conn.
+	UseTwo    bool   // The optional two parameter instructs nginx to randomly select two servers and then choose a server using the specified method.
+	Method    string // The default method is least_conn.
 }
 
 // Defines the address and other parameters of a server in upstream
@@ -58,7 +58,7 @@ type Params struct {
 	Weight      int    // Default 1. Sets the weight of the server.
 	MaxConns    int    // Default value is zero, meaning there is no limit. Limits the maximum number of simultaneous active connections to the proxied server.
 	MaxFails    int    // Sets the number of unsuccessful attempts to communicate with the server.
-	FailTimeout Time   // default 10s. The period of time the server will be considered unavailable.
+	FailTimeout string // default 10s. The period of time the server will be considered unavailable.
 	UseBackup   bool   // Marks the server as a backup server.
 	UseDown     bool   // Marks the server as permanently unavailable.
 	UseResolve  bool   // Monitors changes of the IP addresses that correspond to a domain name of the server, and automatically modifies the upstream configuration without the need of restarting nginx.
