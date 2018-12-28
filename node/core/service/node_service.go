@@ -19,6 +19,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -95,6 +96,21 @@ func (n *NodeService) InstallNode(node *client.HostNode) *utils.APIHandleError {
 	node.NodeStatus.Status = client.Installing
 	n.nodecluster.UpdateNode(node)
 	go n.AsynchronousInstall(node)
+	return nil
+}
+
+//UpdateNodeStatus update node status
+func (n *NodeService) UpdateNodeStatus(nodeID, status string) *utils.APIHandleError {
+	node := n.nodecluster.GetNode(nodeID)
+	if node != nil {
+		return utils.CreateAPIHandleError(400, errors.New("node can not be found"))
+	}
+	if status != client.Installing && status != client.InstallFailed && status != client.InstallSuccess {
+		return utils.CreateAPIHandleError(400, fmt.Errorf("node can not set status is %s", status))
+	}
+	node.Status = status
+	node.NodeStatus.Status = status
+	n.nodecluster.UpdateNode(node)
 	return nil
 }
 

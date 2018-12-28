@@ -511,3 +511,24 @@ func GetAllNodeHealth(w http.ResponseWriter, r *http.Request) {
 	StatusMap["Role"] = roleList
 	httputil.ReturnSuccess(r, w, StatusMap)
 }
+
+//UpdateNodeStatus update node status
+//`{"status":"installing"}`
+func UpdateNodeStatus(w http.ResponseWriter, r *http.Request) {
+	var req = make(map[string]string)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.ReturnError(r, w, 400, err.Error())
+		return
+	}
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	if err := nodeService.UpdateNodeStatus(nodeUID, req["status"]); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	node, err := nodeService.GetNode(nodeUID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, node)
+}
