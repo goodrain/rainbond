@@ -512,7 +512,7 @@ func NewCmdNode() cli.Command {
 					},
 					cli.StringFlag{
 						Name:  "role,r",
-						Usage: "The option is required, the allowed values are: [master|compute]",
+						Usage: "The option is required, the allowed values are: [manage|compute]",
 					},
 					cli.StringFlag{
 						Name:  "podCIDR,cidr",
