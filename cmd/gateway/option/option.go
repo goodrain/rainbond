@@ -75,6 +75,8 @@ type Config struct {
 	GrMeIP             string
 	EnableRepoGrMe     bool
 	RepoGrMeIP         string
+	EnableRegionGrMe   bool
+	RegionGrMeIP         string
 }
 
 // ListenPorts describe the ports required to run the gateway controller
@@ -121,6 +123,8 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.GrMeIP, "grme-ip", "0.0.0.0", "ip address bound by goodrain.me")
 	fs.BoolVar(&g.EnableRepoGrMe, "enable-repo-grme", true, "enable load balancing of repo.goodrain.me")
 	fs.StringVar(&g.RepoGrMeIP, "repo-grme-ip", "0.0.0.0", "ip address bound by repo.goodrain.me")
+	fs.BoolVar(&g.EnableRegionGrMe, "enable-region-grme", false, "enable load balancing of region.goodrain.me")
+	fs.StringVar(&g.RegionGrMeIP, "region-grme-ip", "0.0.0.0", "ip address bound by region.goodrain.me")
 }
 
 // SetLog sets log

@@ -46,6 +46,7 @@ func init() {
 	rbdemap["APISERVER_ENDPOINTS"] = struct{}{}
 	rbdemap["HUB_ENDPOINTS"] = struct{}{}
 	rbdemap["REPO_ENDPOINTS"] = struct{}{}
+	rbdemap["API_ENDPOINTS"] = struct{}{}
 }
 
 // GWController -
@@ -306,6 +307,14 @@ func (gwc *GWController) getRbdPools(edps map[string][]string) ([]*v1.Pool, []*v
 			logrus.Debugf("there is no endpoints for %s", "maven.goodrain.me")
 		}
 	}
+	if gwc.ocfg.EnableRegionGrMe {
+		pools := convIntoRbdPools(edps["API_ENDPOINTS"], "region")
+		if pools != nil && len(pools) > 0 {
+			hpools = append(hpools, pools...)
+		} else {
+			logrus.Debugf("there is no endpoints for %s", "maven.goodrain.me")
+		}
+	}
 
 	gwc.rrbdp = hpools
 
@@ -355,7 +364,10 @@ func (gwc *GWController) watchRbdEndpoints(version int64) {
 	for wresp := range rch {
 		for _, ev := range wresp.Events {
 			key := strings.Replace(string(ev.Kv.Key), gwc.ocfg.RbdEndpointsKey, "", -1)
-			if key == "REPO_ENDPOINTS" || key == "HUB_ENDPOINTS" || key == "APISERVER_ENDPOINTS" {
+			if strings.HasPrefix(key, "REPO_ENDPOINTS") ||
+				strings.HasPrefix(key, "HUB_ENDPOINTS") ||
+				strings.HasPrefix(key, "APISERVER_ENDPOINTS") ||
+				strings.HasPrefix(key, "API_ENDPOINTS") {
 				logrus.Debugf("%s %q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
 				//only need update one
 				edps, _ := gwc.listRbdEndpoints()

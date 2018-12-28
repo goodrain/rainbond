@@ -143,3 +143,39 @@ func kubeApiserver(ip string) *model.Server {
 
 	return svr
 }
+
+func regionGoodrainMe(ip string) *model.Server {
+	svr := &model.Server{
+		Listen:                  fmt.Sprintf("%s:%d %s", ip, 8443, "ssl"),
+		ServerName:              "region.goodrain.me",
+		SSLCertificate:          "/opt/rainbond/etc/rbd-api/region.goodrain.me/ssl/server.pem",
+		SSLCertificateKey:       "/opt/rainbond/etc/rbd-api/region.goodrain.me/ssl/server.key.pem",
+		Locations: []*model.Location{
+			{
+				Path: "/",
+				ProxySetHeaders: []*model.ProxySetHeader{
+					{Field: "Host", Value: "$http_host"},
+					{Field: "X-Real-IP", Value: "$remote_addr"},
+					{Field: "X-Forwarded-For", Value: "$proxy_add_x_forwarded_for"},
+					{Field: "X-Forwarded-Proto", Value: "$scheme"},
+				},
+				ProxyReadTimeout: model.Time{
+					Num:  900,
+					Unit: "s",
+				},
+				NameCondition: map[string]*v1.Condition{
+					"region": {
+						Type:  v1.DefaultType,
+						Value: map[string]string{"1": "1"},
+					},
+				},
+			},
+			{
+				Path:             "/monitor",
+				Return:           model.Return{Code: 200, Text: "ok"},
+				DisableProxyPass: true,
+			},
+		},
+	}
+	return svr
+}

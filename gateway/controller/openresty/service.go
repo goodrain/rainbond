@@ -368,25 +368,29 @@ func (o *OrService) newRbdServers() error {
 		}
 	}
 
-	var srv []*model.Server
+	var srvs []*model.Server
 	if o.ocfg.EnableLangGrMe {
-		lesrv := langGoodrainMe(o.ocfg.LangGrMeIP)
-		srv = append(srv, lesrv)
+		srv := langGoodrainMe(o.ocfg.LangGrMeIP)
+		srvs = append(srvs, srv)
 	}
 	if o.ocfg.EnableMVNGrMe {
-		mesrv := mavenGoodrainMe(o.ocfg.MVNGrMeIP)
-		srv = append(srv, mesrv)
+		srv := mavenGoodrainMe(o.ocfg.MVNGrMeIP)
+		srvs = append(srvs, srv)
 	}
 	if o.ocfg.EnableGrMe {
-		gesrv := goodrainMe(cfgPath, o.ocfg.GrMeIP)
-		srv = append(srv, gesrv)
+		srv := goodrainMe(cfgPath, o.ocfg.GrMeIP)
+		srvs = append(srvs, srv)
 	}
 	if o.ocfg.EnableRepoGrMe {
-		resrv := repoGoodrainMe(o.ocfg.RepoGrMeIP)
-		srv = append(srv, resrv)
+		srv := repoGoodrainMe(o.ocfg.RepoGrMeIP)
+		srvs = append(srvs, srv)
+	}
+	if o.ocfg.EnableRegionGrMe {
+		srv := regionGoodrainMe(o.ocfg.RegionGrMeIP)
+		srvs = append(srvs, srv)
 	}
 
-	if err := template.NewServerTemplateWithCfgPath(srv, httpCfgPath,
+	if err := template.NewServerTemplateWithCfgPath(srvs, httpCfgPath,
 		"servers.default.http.conf"); err != nil {
 		return err
 	}
