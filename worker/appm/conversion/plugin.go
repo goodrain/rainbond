@@ -166,7 +166,7 @@ func createPluginEnvs(pluginID, tenantID, serviceAlias string, mainEnvs []v1.Env
 		dockerBridgeIP = os.Getenv("DOCKER_BRIDGE_IP")
 	}
 	discoverURL := fmt.Sprintf(
-		"%s/v1/resources/%s/%s/%s",
+		"%s:6100/v1/resources/%s/%s/%s",
 		dockerBridgeIP,
 		tenantID,
 		serviceAlias,
