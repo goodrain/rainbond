@@ -1607,6 +1607,29 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 			return err
 		}
 	}
+	// delete gateway related resources
+	httpRules, err := db.GetManager().HttpRuleDaoTransactions(tx).ListByServiceID(serviceID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	for _, r := range httpRules {
+		if err := db.GetManager().HttpRuleDaoTransactions(tx).DeleteHttpRuleByID(r.UUID); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	tcpRules, err := db.GetManager().TcpRuleDaoTransactions(tx).ListByServiceID(serviceID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	for _, r := range tcpRules {
+		if err := db.GetManager().TcpRuleDaoTransactions(tx).DeleteTcpRule(r); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
 	//删除plugin etcd资源
 	prefixK := fmt.Sprintf("/resources/define/%s/%s", service.TenantID, service.ServiceAlias)
 	ctx, cancel := context.WithCancel(context.Background())

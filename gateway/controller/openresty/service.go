@@ -185,6 +185,8 @@ func (o *OrService) persistUpstreams(pools []*v1.Pool, tmpl string, path string,
 				Address: node.Host + ":" + fmt.Sprintf("%v", node.Port),
 				Params: model.Params{
 					Weight: 1,
+					MaxFails: node.MaxFails,
+					FailTimeout: node.FailTimeout,
 				},
 			}
 			servers = append(servers, server)

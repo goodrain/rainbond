@@ -104,21 +104,8 @@ func (m *ManagerService) Online() error {
 	logrus.Info("Doing node online by node controller manager")
 	// registry local services endpoint into cluster manager
 	hostIP := m.cluster.GetOptions().HostIP
-	for _, s := range *m.services {
-		if s.OnlyHealthCheck || s.Disable {
-			continue
-		}
-		logrus.Debug("Parse endpoints for service: ", s.Name)
-		for _, end := range s.Endpoints {
-			logrus.Debug("Discovery endpoints: ", end.Name)
-			endpoint := toEndpoint(end, hostIP)
-			oldEndpoints := m.cluster.GetEndpoints(end.Name)
-			if exist := isExistEndpoint(oldEndpoints, endpoint); !exist {
-				oldEndpoints = append(oldEndpoints, endpoint)
-				m.cluster.SetEndpoints(end.Name, oldEndpoints)
-			}
-		}
-	}
+	m.SetEndpoints(hostIP)
+
 	if ok := m.ctr.CheckBeforeStart(); !ok {
 		return nil
 	}
@@ -127,6 +114,22 @@ func (m *ManagerService) Online() error {
 	m.SyncServiceStatusController()
 
 	return nil
+}
+
+// SetEndpoints regists endpoints in etcd
+func (m *ManagerService) SetEndpoints(hostIP string) {
+	for _, s := range *m.services {
+		if s.OnlyHealthCheck || s.Disable {
+			continue
+		}
+		logrus.Debug("Parse endpoints for service: ", s.Name)
+		for _, end := range s.Endpoints {
+			key := end.Name + "/" + hostIP
+			logrus.Debug("Discovery endpoints: ", key)
+			endpoint := toEndpoint(end, hostIP)
+			m.cluster.SetEndpoints(key, []string{endpoint})
+		}
+	}
 }
 
 //StartServices start services

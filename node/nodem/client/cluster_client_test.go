@@ -16,20 +16,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package controller
+package client
 
 import (
 	"context"
+	"encoding/json"
+	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/node/nodem/client"
-	"github.com/goodrain/rainbond/node/nodem/service"
-	"strings"
+	"github.com/goodrain/rainbond/util"
 	"testing"
 	"time"
 )
 
-func TestManagerService_SetEndpoints(t *testing.T) {
+func TestEtcdClusterClient_GetEndpoints(t *testing.T) {
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"127.0.0.1:2379"},
 		DialTimeout: time.Duration(5) * time.Second,
@@ -43,46 +43,64 @@ func TestManagerService_SetEndpoints(t *testing.T) {
 	key := "/rainbond/endpoint/foobar"
 	defer cli.Delete(ctx, key, clientv3.WithPrefix())
 
-	m := &ManagerService{}
-	srvs := &[]*service.Service{
+	type data struct {
+		hostID string
+		values []string
+	}
+
+	testCase := []string{
+		"192.168.8.229:8081",
+		"192.168.8.230:8081",
+		"192.168.8.231:6443",
+	}
+	datas := []data{
 		{
-			Endpoints: []*service.Endpoint{
-				{
-					Name:     "foobar",
-					Protocol: "http",
-					Port:     "6442",
-				},
+			hostID: util.NewUUID(),
+			values: []string{
+				testCase[0],
+			},
+		},
+		{
+			hostID: util.NewUUID(),
+			values: []string{
+				testCase[1],
+			},
+		},
+		{
+			hostID: util.NewUUID(),
+			values: []string{
+				testCase[2],
 			},
 		},
 	}
-	m.services = srvs
-	c := client.NewClusterClient(
-		&option.Conf{
-			EtcdCli: cli,
-		},
-	)
-	m.cluster = c
-
-	data := []string{
-		"192.168.8.229",
-		"192.168.8.230",
-		"192.168.8.231",
+	for _, d := range datas {
+		s, err := json.Marshal(d.values)
+		if err != nil {
+			logrus.Errorf("Can not marshal %s endpoints to json.", "foobar")
+			return
+		}
+		_, err = cli.Put(ctx, key + "/" + d.hostID, string(s))
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	m.SetEndpoints(data[0])
-	m.SetEndpoints(data[1])
-	m.SetEndpoints(data[2])
+	c := etcdClusterClient{
+		conf: &option.Conf{
+			EtcdCli: cli,
+		},
+	}
 
 	edps := c.GetEndpoints("foobar")
-	for _, d := range data {
+	for _, tc := range testCase {
 		flag := false
 		for _, edp := range edps {
-			if d + ":6442" == strings.Replace(edp, "http://", "", -1) {
+			if tc == edp {
 				flag = true
 			}
 		}
 		if !flag {
-			t.Fatalf("Can not find \"%s\" in %v", d, edps)
+			t.Fatalf("Can not find \"%s\" in %v", tc, edps)
 		}
 	}
 }

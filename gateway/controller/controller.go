@@ -78,14 +78,14 @@ type GWController struct {
 
 // Start starts Gateway
 func (gwc *GWController) Start(errCh chan error) error {
+	if gwc.ocfg.EnableRbdEndpoints {
+		go gwc.initRbdEndpoints(errCh)
+	}
+
 	// start plugin(eg: nginx, zeus and etc)
 	gwc.GWS.Start(errCh)
 	// start informer
 	gwc.store.Run(gwc.stopCh)
-
-	if gwc.ocfg.EnableRbdEndpoints {
-		go gwc.initRbdEndpoints(errCh)
-	}
 
 	// start task queue
 	go gwc.syncQueue.Run(1*time.Second, gwc.stopCh)
@@ -218,7 +218,7 @@ func NewGWController(ctx context.Context, cfg *option.Config, mc metric.Collecto
 	if cfg.EnableRbdEndpoints {
 		// create etcd client
 		cli, err := client.New(client.Config{
-			Endpoints:   cfg.EtcdEndPoints,
+			Endpoints:   cfg.EtcdEndpoint,
 			DialTimeout: time.Duration(cfg.EtcdTimeout) * time.Second,
 		})
 		if err != nil {
@@ -272,6 +272,10 @@ func (gwc *GWController) getRbdPools(edps map[string][]string) ([]*v1.Pool, []*v
 		if pools != nil && len(pools) > 0 {
 			for _, pool := range pools {
 				pool.LeastConn = true
+				for _, node := range pool.Nodes {
+					node.MaxFails = 2
+					node.FailTimeout = "30s"
+				}
 			}
 			tpools = append(tpools, pools...)
 		} else {
@@ -320,6 +324,11 @@ func (gwc *GWController) listRbdEndpoints() (map[string][]string, int64) {
 	rbdEdps := make(map[string][]string)
 	for _, kv := range resp.Kvs {
 		key := strings.Replace(string(kv.Key), gwc.ocfg.RbdEndpointsKey, "", -1)
+		s := strings.Split(key, "/")
+		if len(s) < 1 {
+			continue
+		}
+		key = s[0]
 		// skip unexpected key
 		if _, ok := rbdemap[key]; !ok {
 			continue
@@ -330,7 +339,7 @@ func (gwc *GWController) listRbdEndpoints() (map[string][]string, int64) {
 			logrus.Errorf("get rainbond service endpoint from etcd error %s", err.Error())
 			continue
 		}
-		rbdEdps[key] = data
+		rbdEdps[key] = append(rbdEdps[key], data...)
 	}
 
 	if resp.Header != nil {
