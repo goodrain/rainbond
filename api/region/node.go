@@ -103,7 +103,7 @@ func (n *node) UpdateNodeStatus(nid, status string) (*client.HostNode, *util.API
 		return nil, util.CreateAPIHandleError(code, err)
 	}
 	if code != 200 {
-		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get node rule code %d", code))
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Update node status failure code %d", code))
 	}
 	return &gc, nil
 }

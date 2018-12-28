@@ -102,7 +102,7 @@ func (n *NodeService) InstallNode(node *client.HostNode) *utils.APIHandleError {
 //UpdateNodeStatus update node status
 func (n *NodeService) UpdateNodeStatus(nodeID, status string) *utils.APIHandleError {
 	node := n.nodecluster.GetNode(nodeID)
-	if node != nil {
+	if node == nil {
 		return utils.CreateAPIHandleError(400, errors.New("node can not be found"))
 	}
 	if status != client.Installing && status != client.InstallFailed && status != client.InstallSuccess {
