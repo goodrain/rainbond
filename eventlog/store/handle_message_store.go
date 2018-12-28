@@ -286,25 +286,20 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					eventID := event[1]
 					status := event[2]
 					message := event[3]
-					// webhook.GetManager().RunWebhookWithParameter(webhook.UpDateEventStatus, nil,
-					// 	map[string]interface{}{"event_id": eventID, "status": status, "message": message})
-
 					event := model.ServiceEvent{}
 					event.EventID = eventID
 					event.Status = status
 					event.Message = message
 					logrus.Infof("updating event %s's status: %s", eventID, status)
-					cdb.GetManager().ServiceEventDao().UpdateModel(&event)
-
-					//todo  get version_info by event_id ,update final_status,optional delete
+					if err := cdb.GetManager().ServiceEventDao().UpdateModel(&event); err != nil {
+						logrus.Errorf("update event status failure %s", err.Error())
+					}
 				}
 			}
 			if event[0] == "code-version" { //代码版本
 				if len(event) == 3 {
 					eventID := event[1]
 					codeVersion := strings.TrimSpace(event[2])
-					// webhook.GetManager().RunWebhookWithParameter(webhook.UpdateEventCodeVersion, nil,
-					// 	map[string]interface{}{"event_id": eventID, "code_version": codeVersion})
 					event := model.ServiceEvent{}
 					event.EventID = eventID
 					event.CodeVersion = codeVersion

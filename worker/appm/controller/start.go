@@ -61,9 +61,10 @@ func (s *startController) Begin() {
 						service.Logger.Error(fmt.Sprintf("Start service %s failure %s", service.ServiceAlias, err.Error()), GetCallbackLoggerOption())
 						logrus.Errorf("start service %s failure %s", service.ServiceAlias, err.Error())
 						s.errorCallback(service)
+					} else {
+						logrus.Debugf("Start service %s timeout, please wait or read service log.", service.ServiceAlias)
+						service.Logger.Error(fmt.Sprintf("Start service %s timeout,please wait or read service log.", service.ServiceAlias), GetTimeoutLoggerOption())
 					}
-					logrus.Debugf("Start service %s timeout, please wait or read service log.", service.ServiceAlias)
-					service.Logger.Error(fmt.Sprintf("Start service %s timeout,please wait or read service log.", service.ServiceAlias), GetCallbackLoggerOption())
 				} else {
 					logrus.Debugf("Start service %s success", service.ServiceAlias)
 					service.Logger.Info(fmt.Sprintf("Start service %s success", service.ServiceAlias), GetLastLoggerOption())

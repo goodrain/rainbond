@@ -98,7 +98,7 @@ func (n *node) UpdateNodeStatus(nid, status string) (*client.HostNode, *util.API
 	var gc client.HostNode
 	res.Bean = &gc
 	req := fmt.Sprintf(`{"status":"%s"}`, status)
-	code, err := n.DoRequest(n.prefix+"/"+nid+"/status", "POST", bytes.NewBuffer([]byte(req)), &res)
+	code, err := n.DoRequest(n.prefix+"/"+nid+"/status", "PUT", bytes.NewBuffer([]byte(req)), &res)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
 	}

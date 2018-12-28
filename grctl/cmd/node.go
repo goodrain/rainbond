@@ -610,13 +610,19 @@ func installNode(node *client.HostNode) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-	clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.Installing)
+	if _, err := clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.Installing); err != nil {
+		logrus.Errorf("update node %s status failure %s", node.ID, err.Error())
+	}
 	err := cmd.Run()
 	if err != nil {
 		logrus.Errorf("Error executing shell script %s", err.Error())
-		clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.InstallFailed)
+		if _, err := clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.InstallFailed); err != nil {
+			logrus.Errorf("update node %s status failure %s", node.ID, err.Error())
+		}
 		return
 	}
+	if _, err := clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.InstallSuccess); err != nil {
+		logrus.Errorf("update node %s status failure %s", node.ID, err.Error())
+	}
 	logrus.Infof("Install node %s successful", node.ID)
-	clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.InstallSuccess)
 }
