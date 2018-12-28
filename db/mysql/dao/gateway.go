@@ -201,6 +201,15 @@ func (h *HttpRuleDaoImpl) DeleteHttpRuleByID(id string) error {
 	return nil
 }
 
+// ListByServiceID lists all HTTPRules matching serviceID
+func (h *HttpRuleDaoImpl) ListByServiceID(serviceID string) ([]*model.HTTPRule, error) {
+	var rules []*model.HTTPRule
+	if err := h.DB.Where("service_id = ?", serviceID).Find(&rules).Error; err != nil {
+		return nil, err
+	}
+	return rules, nil
+}
+
 // TcpRuleDaoTmpl is a implementation of TcpRuleDao
 type TcpRuleDaoTmpl struct {
 	DB *gorm.DB
@@ -261,6 +270,15 @@ func (s *TcpRuleDaoTmpl) GetTcpRuleByID(id string) (*model.TCPRule, error) {
 // DeleteTcpRule deletes model.TCPRule
 func (s *TcpRuleDaoTmpl) DeleteTcpRule(tcpRule *model.TCPRule) error {
 	return s.DB.Where("uuid = ?", tcpRule.UUID).Delete(tcpRule).Error
+}
+
+// ListByServiceID lists all TCPRules matching serviceID
+func (h *TcpRuleDaoTmpl) ListByServiceID(serviceID string) ([]*model.TCPRule, error) {
+	var rules []*model.TCPRule
+	if err := h.DB.Where("service_id = ?", serviceID).Find(&rules).Error; err != nil {
+		return nil, err
+	}
+	return rules, nil
 }
 
 // IPPortImpl is an implementation of dao.IPPortDao

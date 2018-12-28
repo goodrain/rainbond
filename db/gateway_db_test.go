@@ -37,7 +37,7 @@ func TestIPPortImpl_UpdateModel(t *testing.T) {
 
 	ipport := &model.IPPort{
 		UUID: util.NewUUID(),
-		IP: "127.0.0.1",
+		IP:   "127.0.0.1",
 		Port: 8888,
 	}
 	if err := GetManager().IPPortDao().AddModel(ipport); err != nil {
@@ -62,7 +62,7 @@ func TestIPPortImpl_DeleteIPPortByIPAndPort(t *testing.T) {
 
 	ipport := &model.IPPort{
 		UUID: util.NewUUID(),
-		IP: "127.0.0.1",
+		IP:   "127.0.0.1",
 		Port: 8888,
 	}
 	if err := GetManager().IPPortDao().AddModel(ipport); err != nil {
@@ -94,7 +94,7 @@ func TestIPPortImpl_GetIPByPort(t *testing.T) {
 
 	ipport := &model.IPPort{
 		UUID: util.NewUUID(),
-		IP: "127.0.0.1",
+		IP:   "127.0.0.1",
 		Port: 8888,
 	}
 	if err := GetManager().IPPortDao().AddModel(ipport); err != nil {
@@ -122,7 +122,7 @@ func TestIPPortImpl_GetIPPortByIPAndPort(t *testing.T) {
 
 	ipport := &model.IPPort{
 		UUID: util.NewUUID(),
-		IP: "127.0.0.1",
+		IP:   "127.0.0.1",
 		Port: 8888,
 	}
 	if err := GetManager().IPPortDao().AddModel(ipport); err != nil {
@@ -152,7 +152,7 @@ func TestIPPoolImpl_AddModel(t *testing.T) {
 	tx.Commit()
 
 	ippool := &model.IPPool{
-		EID: util.NewUUID(),
+		EID:  util.NewUUID(),
 		CIDR: "192.168.11.11/24",
 	}
 
@@ -182,7 +182,7 @@ func TestIPPoolImpl_UpdateModel(t *testing.T) {
 	tx.Commit()
 
 	ippool := &model.IPPool{
-		EID: util.NewUUID(),
+		EID:  util.NewUUID(),
 		CIDR: "192.168.11.11/24",
 	}
 
@@ -195,5 +195,101 @@ func TestIPPoolImpl_UpdateModel(t *testing.T) {
 	}
 	if ippool.CIDR != "192.168.22.22/24" {
 		t.Errorf("Expected %s for CIDR, but returned %s", "192.168.22.22/24", ippool.CIDR)
+	}
+}
+
+func TestHTTPRuleImpl_ListByServiceID(t *testing.T) {
+	if err := CreateManager(dbconfig.Config{
+		DBType: "sqlite3",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tx := GetManager().Begin()
+	tx.Delete(model.HTTPRule{})
+	tx.Commit()
+
+	rules, err := GetManager().HttpRuleDao().ListByServiceID("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rules) != 0 {
+		t.Errorf("Expected 0 for len(rules), but returned %v", len(rules))
+	}
+
+	serviceID := util.NewUUID()
+	rules = []*model.HTTPRule{
+		{
+			UUID:      util.NewUUID(),
+			ServiceID: serviceID,
+		},
+		{
+			UUID:      util.NewUUID(),
+			ServiceID: serviceID,
+		},
+		{
+			UUID:      util.NewUUID(),
+			ServiceID: serviceID,
+		},
+	}
+	for _, rule := range rules {
+		err := GetManager().HttpRuleDao().AddModel(rule)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	rules, err = GetManager().HttpRuleDao().ListByServiceID(serviceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rules) != 3 {
+		t.Errorf("Expected 3 for len(rules), but returned %v", len(rules))
+	}
+}
+
+func TestTCPRuleImpl_ListByServiceID(t *testing.T) {
+	if err := CreateManager(dbconfig.Config{
+		DBType: "sqlite3",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tx := GetManager().Begin()
+	tx.Delete(model.TCPRule{})
+	tx.Commit()
+
+	rules, err := GetManager().TcpRuleDao().ListByServiceID("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rules) != 0 {
+		t.Errorf("Expected 0 for len(rules), but returned %v", len(rules))
+	}
+
+	serviceID := util.NewUUID()
+	rules = []*model.TCPRule{
+		{
+			UUID:      util.NewUUID(),
+			ServiceID: serviceID,
+		},
+		{
+			UUID:      util.NewUUID(),
+			ServiceID: serviceID,
+		},
+		{
+			UUID:      util.NewUUID(),
+			ServiceID: serviceID,
+		},
+	}
+	for _, rule := range rules {
+		err := GetManager().TcpRuleDao().AddModel(rule)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	rules, err = GetManager().TcpRuleDao().ListByServiceID(serviceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rules) != 3 {
+		t.Errorf("Expected 3 for len(rules), but returned %v", len(rules))
 	}
 }
