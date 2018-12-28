@@ -41,10 +41,10 @@ func NewGWServer() *GWServer {
 
 //Config contains all configuration
 type Config struct {
-	K8SConfPath   string
-	EtcdEndPoints []string
-	EtcdTimeout   int
-	ListenPorts   ListenPorts
+	K8SConfPath  string
+	EtcdEndpoint []string
+	EtcdTimeout  int
+	ListenPorts  ListenPorts
 	//This number should be, at maximum, the number of CPU cores on your system.
 	WorkerProcesses    int
 	WorkerRlimitNofile int
@@ -101,7 +101,7 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&g.KeepaliveTimeout, "keepalive-timeout", 30, "Timeout for keep-alive connections. Server will close connections after this time.")
 	fs.StringVar(&g.IP, "ip", "0.0.0.0", "Node ip.") // TODO: more detail
 	// etcd
-	fs.StringSliceVar(&g.EtcdEndPoints, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd cluster endpoints.")
+	fs.StringSliceVar(&g.EtcdEndpoint, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd cluster endpoints.")
 	fs.IntVar(&g.EtcdTimeout, "etcd-timeout", 5, "etcd http timeout seconds")
 	// health check
 	fs.StringVar(&g.HealthPath, "health-path", "/healthz", "absolute path to the kubeconfig file")

@@ -218,7 +218,7 @@ func NewGWController(ctx context.Context, cfg *option.Config, mc metric.Collecto
 	if cfg.EnableRbdEndpoints {
 		// create etcd client
 		cli, err := client.New(client.Config{
-			Endpoints:   cfg.EtcdEndPoints,
+			Endpoints:   cfg.EtcdEndpoint,
 			DialTimeout: time.Duration(cfg.EtcdTimeout) * time.Second,
 		})
 		if err != nil {
