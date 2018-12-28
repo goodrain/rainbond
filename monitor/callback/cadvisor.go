@@ -92,30 +92,40 @@ func (c *Cadvisor) AddEndpoint(end *config.Endpoint) {
 	c.UpdateEndpoints(c.endpoints...)
 }
 
+//Add add
 func (c *Cadvisor) Add(event *watch.Event) {
 	url := gjson.Get(event.GetValueString(), "internal_ip").String() + ":4194"
 	end := &config.Endpoint{
-		URL: url,
+		Name: event.GetKey(),
+		URL:  url,
 	}
-
 	c.AddEndpoint(end)
 }
 
+//Modify update
 func (c *Cadvisor) Modify(event *watch.Event) {
+	var update bool
+	url := gjson.Get(event.GetValueString(), "internal_ip").String() + ":4194"
 	for i, end := range c.endpoints {
-		if end.URL == event.GetValueString() {
-			url := gjson.Get(event.GetValueString(), "internal_ip").String() + ":4194"
+		if end.Name == event.GetKey() {
 			c.endpoints[i].URL = url
 			c.UpdateEndpoints(c.endpoints...)
+			update = true
 			break
 		}
 	}
+	if !update {
+		c.endpoints = append(c.endpoints, &config.Endpoint{
+			Name: event.GetKey(),
+			URL:  url,
+		})
+	}
 }
 
+//Delete delete
 func (c *Cadvisor) Delete(event *watch.Event) {
 	for i, end := range c.endpoints {
-		url := gjson.Get(event.GetValueString(), "internal_ip").String() + ":4194"
-		if end.URL == url {
+		if end.Name == event.GetKey() {
 			c.endpoints = append(c.endpoints[:i], c.endpoints[i+1:]...)
 			c.UpdateEndpoints(c.endpoints...)
 			break
