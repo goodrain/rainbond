@@ -355,7 +355,9 @@ func (gwc *GWController) watchRbdEndpoints(version int64) {
 	for wresp := range rch {
 		for _, ev := range wresp.Events {
 			key := strings.Replace(string(ev.Kv.Key), gwc.ocfg.RbdEndpointsKey, "", -1)
-			if key == "REPO_ENDPOINTS" || key == "HUB_ENDPOINTS" || key == "APISERVER_ENDPOINTS" {
+			if strings.HasPrefix(key, "REPO_ENDPOINTS") ||
+				strings.HasPrefix(key, "HUB_ENDPOINTS") ||
+				strings.HasPrefix(key, "APISERVER_ENDPOINTS") {
 				logrus.Debugf("%s %q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
 				//only need update one
 				edps, _ := gwc.listRbdEndpoints()
