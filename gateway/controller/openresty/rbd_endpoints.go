@@ -96,7 +96,7 @@ func goodrainMe(cfgPath string, ip string) *model.Server {
 					{Field: "Host", Value: "$http_host"},
 					{Field: "X-Real-IP", Value: "$remote_addr"},
 					{Field: "X-Forwarded-For", Value: "$proxy_add_x_forwarded_for"},
-					{Field: "X-Forwarded-Proto", Value: "$scheme"},
+					{Field: "X-Forwarded-Proto", Value: "https"},
 				},
 				ProxyReadTimeout: model.Time{
 					Num:  900,
@@ -122,21 +122,21 @@ func goodrainMe(cfgPath string, ip string) *model.Server {
 func repoGoodrainMe(ip string) *model.Server {
 	return &model.Server{
 		Listen:     fmt.Sprintf("%s:%d", ip, 80),
-		Root: "/grdata/services/offline/pkgs/",
+		Root:       "/grdata/services/offline/pkgs/",
 		ServerName: "repo.goodrain.me",
 	}
 }
 
 func kubeApiserver(ip string) *model.Server {
 	svr := &model.Server{
-		Listen:     fmt.Sprintf("%s:%d", ip, 6443),
+		Listen:    fmt.Sprintf("%s:%d", ip, 6443),
 		ProxyPass: "kube_apiserver",
 		ProxyTimeout: model.Time{
-			Num: 10,
+			Num:  10,
 			Unit: "m",
 		},
 		ProxyConnectTimeout: model.Time{
-			Num: 10,
+			Num:  10,
 			Unit: "m",
 		},
 	}
