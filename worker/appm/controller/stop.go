@@ -45,8 +45,12 @@ func (s *stopController) Begin() {
 			defer wait.Done()
 			service.Logger.Info("App runtime begin stop app service "+service.ServiceAlias, getLoggerOption("starting"))
 			if err := s.stopOne(service); err != nil {
-				service.Logger.Error(fmt.Sprintf("stop service %s failure %s", service.ServiceAlias, err.Error()), GetCallbackLoggerOption())
-				logrus.Errorf("stop service %s failure %s", service.ServiceAlias, err.Error())
+				if err != ErrWaitTimeOut {
+					service.Logger.Error(fmt.Sprintf("stop service %s failure %s", service.ServiceAlias, err.Error()), GetCallbackLoggerOption())
+					logrus.Errorf("stop service %s failure %s", service.ServiceAlias, err.Error())
+				} else {
+					service.Logger.Error(fmt.Sprintf("stop service timeout,please waiting it closed"), GetTimeoutLoggerOption())
+				}
 			} else {
 				service.Logger.Info(fmt.Sprintf("stop service %s success", service.ServiceAlias), GetLastLoggerOption())
 			}

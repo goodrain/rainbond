@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 //ErrWaitTimeOut wait time out
@@ -123,7 +124,6 @@ func WaitUpgradeReady(store store.Storer, a *v1.AppService, timeout time.Duratio
 		case <-ticker.C:
 		}
 	}
-	return nil
 }
 func printLogger(a *v1.AppService, logger event.Logger) {
 	var ready int32
@@ -134,4 +134,12 @@ func printLogger(a *v1.AppService, logger event.Logger) {
 		ready = a.GetDeployment().Status.ReadyReplicas
 	}
 	logger.Info(fmt.Sprintf("current instance(count:%d ready:%d notready:%d)", len(a.GetPods()), ready, int32(len(a.GetPods()))-ready), map[string]string{"step": "appruntime", "status": "running"})
+	pods := a.GetPods()
+	for _, pod := range pods {
+		for _, con := range pod.Status.Conditions {
+			if con.Status == corev1.ConditionFalse {
+				logger.Debug(fmt.Sprintf("instance %s %s status is %s: %s", pod.Name, con.Type, con.Status, con.Message), map[string]string{"step": "appruntime", "status": "running"})
+			}
+		}
+	}
 }

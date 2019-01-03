@@ -75,7 +75,6 @@ func finalUpdateEvent(target *model.ServiceEvent, old *model.ServiceEvent) {
 	if target.FinalStatus != "" {
 		old.FinalStatus = target.FinalStatus
 	}
-
 	old.EndTime = time.Now().String()
 	if old.Status == "failure" && old.OptType == "callback" {
 		old.DeployVersion = old.OldDeployVersion

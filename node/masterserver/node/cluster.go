@@ -161,7 +161,9 @@ func (n *Cluster) getKubeNodeCount() int {
 //handleNodeStatus Master integrates node status and kube node status
 func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 	if v.Status == client.NotInstalled || v.Status == client.Installing || v.Status == client.InstallFailed {
-		return
+		if v.NodeStatus.Status != "running" {
+			return
+		}
 	}
 	if time.Now().Sub(v.NodeStatus.NodeUpdateTime) > time.Minute*1 {
 		v.Status = client.Unknown

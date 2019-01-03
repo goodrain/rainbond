@@ -45,8 +45,12 @@ func (s *scalingController) Begin() {
 			defer wait.Done()
 			service.Logger.Info("App runtime begin horizontal scaling app service "+service.ServiceAlias, getLoggerOption("starting"))
 			if err := s.scalingOne(service); err != nil {
-				service.Logger.Error(fmt.Sprintf("horizontal scaling service %s failure %s", service.ServiceAlias, err.Error()), GetCallbackLoggerOption())
-				logrus.Errorf("horizontal scaling service %s failure %s", service.ServiceAlias, err.Error())
+				if err != ErrWaitTimeOut {
+					service.Logger.Error(fmt.Sprintf("horizontal scaling service %s failure %s", service.ServiceAlias, err.Error()), GetCallbackLoggerOption())
+					logrus.Errorf("horizontal scaling service %s failure %s", service.ServiceAlias, err.Error())
+				} else {
+					service.Logger.Error(fmt.Sprintf("horizontal scaling service timeout,please waiting it complete"), GetTimeoutLoggerOption())
+				}
 			} else {
 				service.Logger.Info(fmt.Sprintf("horizontal scaling service %s success", service.ServiceAlias), GetLastLoggerOption())
 			}

@@ -221,7 +221,7 @@ func (n *NodeManager) heartbeat() {
 					if n.cfg.AutoUnschedulerUnHealthDuration == 0 {
 						continue
 					}
-					if v.ErrorDuration > n.cfg.AutoUnschedulerUnHealthDuration {
+					if v.ErrorDuration > n.cfg.AutoUnschedulerUnHealthDuration && n.cfg.AutoScheduler {
 						n.currentNode.NodeStatus.AdviceAction = []string{"unscheduler"}
 					}
 				} else {
@@ -238,7 +238,7 @@ func (n *NodeManager) heartbeat() {
 				}
 			}
 		}
-		if allHealth {
+		if allHealth && n.cfg.AutoScheduler {
 			n.currentNode.NodeStatus.AdviceAction = []string{"scheduler"}
 		}
 		n.currentNode.NodeStatus.Status = "running"
@@ -276,6 +276,14 @@ func (n *NodeManager) init() error {
 	if node.NodeStatus.NodeInfo.OperatingSystem == "" {
 		node.NodeStatus.NodeInfo = info.GetSystemInfo()
 	}
+	if node.AvailableMemory == 0 {
+		node.AvailableMemory = int64(node.NodeStatus.NodeInfo.MemorySize)
+	}
+	if node.AvailableCPU == 0 {
+		node.AvailableCPU = int64(runtime.NumCPU())
+	}
+	//update node mode
+	node.Mode = n.cfg.RunMode
 	*n.currentNode = *node
 	return nil
 }
@@ -325,12 +333,6 @@ func (n *NodeManager) getCurrentNode(uid string) (*client.HostNode, error) {
 	})
 	node.Mode = n.cfg.RunMode
 	node.NodeStatus.Status = "running"
-	if node.AvailableMemory == 0 {
-		node.AvailableMemory = int64(node.NodeStatus.NodeInfo.MemorySize)
-	}
-	if node.AvailableCPU == 0 {
-		node.AvailableCPU = int64(runtime.NumCPU())
-	}
 	return &node, nil
 }
 

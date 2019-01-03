@@ -93,6 +93,20 @@ func (n *node) GetNodeByRule(rule string) ([]*client.HostNode, *util.APIHandleEr
 	}
 	return gc, nil
 }
+func (n *node) UpdateNodeStatus(nid, status string) (*client.HostNode, *util.APIHandleError) {
+	var res utilhttp.ResponseBody
+	var gc client.HostNode
+	res.Bean = &gc
+	req := fmt.Sprintf(`{"status":"%s"}`, status)
+	code, err := n.DoRequest(n.prefix+"/"+nid+"/status", "PUT", bytes.NewBuffer([]byte(req)), &res)
+	if err != nil {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	if code != 200 {
+		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Update node status failure code %d", code))
+	}
+	return &gc, nil
+}
 func (n *node) List() ([]*client.HostNode, *util.APIHandleError) {
 	var res utilhttp.ResponseBody
 	var gc []*client.HostNode
@@ -299,6 +313,7 @@ type NodeInterface interface {
 	Delete(nid string) *util.APIHandleError
 	Label(nid string) NodeLabelInterface
 	Install(nid string) *util.APIHandleError
+	UpdateNodeStatus(nid, status string) (*client.HostNode, *util.APIHandleError)
 }
 
 //NodeLabelInterface node label interface

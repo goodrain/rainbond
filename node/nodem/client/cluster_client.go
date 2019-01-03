@@ -70,6 +70,9 @@ func (e *etcdClusterClient) UpdateStatus(n *HostNode, initLable map[string]strin
 	if err != nil {
 		return fmt.Errorf("get node %s failure where update node %s", n.ID, err.Error())
 	}
+	//update node mode
+	existNode.Mode = n.Mode
+	existNode.HostName = n.HostName
 	existNode.NodeStatus.NodeHealth = n.NodeStatus.NodeHealth
 	existNode.NodeStatus.NodeUpdateTime = time.Now()
 	existNode.NodeStatus.Version = cmd.GetVersion()

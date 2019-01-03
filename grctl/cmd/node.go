@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -33,6 +34,7 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/node/nodem/client"
+	coreutil "github.com/goodrain/rainbond/util"
 	"github.com/gosuri/uitable"
 	"github.com/urfave/cli"
 )
@@ -510,7 +512,7 @@ func NewCmdNode() cli.Command {
 					},
 					cli.StringFlag{
 						Name:  "role,r",
-						Usage: "The option is required, the allowed values are: [master|compute]",
+						Usage: "The option is required, the allowed values are: [manage|compute]",
 					},
 					cli.StringFlag{
 						Name:  "podCIDR,cidr",
@@ -544,12 +546,14 @@ func NewCmdNode() cli.Command {
 					node.ExternalIP = c.String("external-ip")
 					node.PodCIDR = c.String("podCIDR")
 					node.Privatekey = c.String("private-key")
-					node.AutoInstall = c.Bool("install")
+					node.AutoInstall = false
 					node.ID = c.String("id")
 					err := clients.RegionClient.Nodes().Add(&node)
 					handleErr(err)
-					if node.AutoInstall {
-						fmt.Printf("success add node, and it is installing,install log file /grdata/downloads/log/%s.log\n", node.HostName)
+					if c.Bool("install") {
+						node, err := clients.RegionClient.Nodes().Get(node.ID)
+						handleErr(err)
+						installNode(node)
 					} else {
 						fmt.Println("success add node, you install it by running: grctl node install <nodeID>")
 					}
@@ -569,9 +573,7 @@ func NewCmdNode() cli.Command {
 					}
 					node, err := clients.RegionClient.Nodes().Get(nodeID)
 					handleErr(err)
-					err = clients.RegionClient.Nodes().Install(nodeID)
-					handleErr(err)
-					fmt.Printf("start install nodeinstall log file /grdata/downloads/log/%s.log\n", node.HostName)
+					installNode(node)
 					return nil
 				},
 			},
@@ -589,4 +591,38 @@ func isNodeReady(node *client.HostNode) bool {
 		}
 	}
 	return false
+}
+
+func installNode(node *client.HostNode) {
+	linkModel := "pass"
+	if node.KeyPath != "" {
+		linkModel = "key"
+	}
+	// start add node script
+	logrus.Infof("Begin install node %s", node.ID)
+	if ok, _ := coreutil.FileExists("/opt/rainbond/rainbond-ansible/scripts/node.sh"); !ok {
+		logrus.Errorf("install node scripts is not found")
+		return
+	}
+	line := fmt.Sprintf("/opt/rainbond/rainbond-ansible/scripts/node.sh %s %s %s %s %s %s %s", node.Role[0], node.HostName,
+		node.InternalIP, linkModel, node.RootPass, node.KeyPath, node.ID)
+	cmd := exec.Command("bash", "-c", line)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	if _, err := clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.Installing); err != nil {
+		logrus.Errorf("update node %s status failure %s", node.ID, err.Error())
+	}
+	err := cmd.Run()
+	if err != nil {
+		logrus.Errorf("Error executing shell script %s", err.Error())
+		if _, err := clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.InstallFailed); err != nil {
+			logrus.Errorf("update node %s status failure %s", node.ID, err.Error())
+		}
+		return
+	}
+	if _, err := clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.InstallSuccess); err != nil {
+		logrus.Errorf("update node %s status failure %s", node.ID, err.Error())
+	}
+	logrus.Infof("Install node %s successful", node.ID)
 }

@@ -81,8 +81,8 @@ type HostNode struct {
 	AvailableMemory int64             `json:"available_memory"`
 	AvailableCPU    int64             `json:"available_cpu"`
 	Mode            string            `json:"mode"`
-	Role            HostRule          `json:"role"`          //compute, manage, storage,loadbalance
-	Status          string            `json:"status"`        //node status is: running, unknow
+	Role            HostRule          `json:"role"` //compute, manage, storage,loadbalance
+	Status          string            `json:"status"`
 	Labels          map[string]string `json:"labels"`        //节点标签 内置标签+用户自定义标签
 	Unschedulable   bool              `json:"unschedulable"` //设置值
 	PodCIDR         string            `json:"podCIDR"`
