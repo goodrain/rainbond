@@ -57,6 +57,7 @@ type Config struct {
 	KeepaliveRequests int
 	NginxUser         string
 	IP                string
+	ResyncPeriod      time.Duration
 	// health check
 	HealthPath         string
 	HealthCheckTimeout time.Duration
@@ -99,7 +100,8 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.NginxUser, "nginx-user", "root", "nginx user name")
 	fs.IntVar(&g.KeepaliveRequests, "keepalive-requests", 10000, "Number of requests a client can make over the keep-alive connection. ")
 	fs.IntVar(&g.KeepaliveTimeout, "keepalive-timeout", 30, "Timeout for keep-alive connections. Server will close connections after this time.")
-	fs.StringVar(&g.IP, "ip", "0.0.0.0", "Node ip.") // TODO: more detail
+	fs.StringVar(&g.IP, "ip", "0.0.0.0", "Node ip.")           // TODO: more detail
+	fs.DurationVar(&g.ResyncPeriod, "resync-period", 10, "the default resync period for any handlers added via AddEventHandler and how frequently the listener wants a full resync from the shared informer")
 	// etcd
 	fs.StringSliceVar(&g.EtcdEndpoint, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd cluster endpoints.")
 	fs.IntVar(&g.EtcdTimeout, "etcd-timeout", 5, "etcd http timeout seconds")

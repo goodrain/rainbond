@@ -22,14 +22,12 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/goodrain/rainbond/gateway/annotations/l4"
+	"github.com/goodrain/rainbond/gateway/util"
 	"io/ioutil"
 	"net"
 	"os"
 	"reflect"
 	"strings"
-	"time"
-
-	"github.com/goodrain/rainbond/gateway/util"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
@@ -142,7 +140,7 @@ func New(client kubernetes.Interface,
 	store.listers.IngressAnnotation.Store = cache.NewStore(cache.DeletionHandlingMetaNamespaceKeyFunc)
 
 	// create informers factory, enable and assign required informers
-	infFactory := informers.NewFilteredSharedInformerFactory(client, time.Second, corev1.NamespaceAll,
+	infFactory := informers.NewFilteredSharedInformerFactory(client, conf.ResyncPeriod, corev1.NamespaceAll,
 		func(options *metav1.ListOptions) {
 			options.LabelSelector = "creater=Rainbond"
 		})
@@ -317,9 +315,9 @@ func New(client kubernetes.Interface,
 		},
 	}
 
-	store.informers.Ingress.AddEventHandlerWithResyncPeriod(ingEventHandler, 10*time.Second)
-	store.informers.Secret.AddEventHandlerWithResyncPeriod(secEventHandler, 10*time.Second)
-	store.informers.Endpoint.AddEventHandlerWithResyncPeriod(epEventHandler, 10*time.Second)
+	store.informers.Ingress.AddEventHandler(ingEventHandler)
+	store.informers.Secret.AddEventHandler(secEventHandler)
+	store.informers.Endpoint.AddEventHandler(epEventHandler)
 	store.informers.Service.AddEventHandler(cache.ResourceEventHandlerFuncs{})
 
 	return store
