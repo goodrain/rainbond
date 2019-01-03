@@ -722,6 +722,7 @@ func (s *rbdStore) getCertificatePem(secrKey string) (*v1.SSLCert, error) {
 
 	var buffer bytes.Buffer
 	buffer.Write(crt)
+	buffer.Write([]byte("\n"))
 	buffer.Write(key)
 
 	secrKey = strings.Replace(secrKey, "/", "-", 1)
