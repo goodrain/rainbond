@@ -331,6 +331,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				}
 				os.Chmod(v.HostPath, 0777)
 			}
+			// create a configMap which will be mounted as a volume
 			if v.VolumeType == dbmodel.ConfigFileVolumeType.String() {
 				configMap := &corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
@@ -494,28 +495,17 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 		}
 	case dbmodel.ConfigFileVolumeType:
 		if statefulset := v.as.GetStatefulSet(); statefulset != nil {
-			//do not limit
-			resourceStorage, _ := resource.ParseQuantity("500Gi")
-			statefulset.Spec.VolumeClaimTemplates = append(
-				statefulset.Spec.VolumeClaimTemplates,
-				corev1.PersistentVolumeClaim{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: name,
-						Labels: v.as.GetCommonLabels(map[string]string{
-							"tenant_id": v.as.TenantID,
-						}),
-					},
-					Spec: corev1.PersistentVolumeClaimSpec{
-						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
-						StorageClassName: &v1.RainbondStatefuleShareStorageClass,
-						Resources: corev1.ResourceRequirements{
-							Requests: map[corev1.ResourceName]resource.Quantity{
-								corev1.ResourceStorage: resourceStorage,
-							},
+			cv := corev1.Volume{
+				Name: name,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: name,
 						},
 					},
 				},
-			)
+			}
+			v.volumes = append(v.volumes, cv)
 			v.volumeMounts = append(v.volumeMounts, corev1.VolumeMount{
 				Name:      name,
 				MountPath: mountPath,
