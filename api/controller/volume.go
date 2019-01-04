@@ -335,7 +335,7 @@ func AddVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	bytes, _ := json.Marshal(avs)
-	logrus.Debugf("request uri: %s; request body: %v", r.RequestURI, bytes)
+	logrus.Debugf("request uri: %s; request body: %v", r.RequestURI, string(bytes))
 
 	tsv := &dbmodel.TenantServiceVolume{
 		ServiceID:   serviceID,
