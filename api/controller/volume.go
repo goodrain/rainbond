@@ -334,11 +334,12 @@ func AddVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tsv := &dbmodel.TenantServiceVolume{
-		ServiceID:  serviceID,
-		VolumeName: avs.Body.VolumeName,
-		VolumePath: avs.Body.VolumePath,
-		VolumeType: avs.Body.VolumeType,
-		Category:   avs.Body.Category,
+		ServiceID:   serviceID,
+		VolumeName:  avs.Body.VolumeName,
+		VolumePath:  avs.Body.VolumePath,
+		VolumeType:  avs.Body.VolumeType,
+		Category:    avs.Body.Category,
+		FileContent: avs.Body.FileContent,
 	}
 	if !strings.HasPrefix(tsv.VolumePath, "/") {
 		httputil.ReturnError(r, w, 400, "volume path is invalid,must begin with /")

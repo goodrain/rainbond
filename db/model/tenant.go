@@ -301,6 +301,9 @@ var LocalVolumeType VolumeType = "local"
 //MemoryFSVolumeType 内存文件存储
 var MemoryFSVolumeType VolumeType = "memoryfs"
 
+//ConfigFileVolumeType configuration file volume type
+var ConfigFileVolumeType VolumeType = "config-file"
+
 func (vt VolumeType) String() string {
 	return string(vt)
 }
@@ -321,6 +324,8 @@ type TenantServiceVolume struct {
 	VolumePath string `gorm:"column:volume_path" json:"volume_path"`
 	//是否只读
 	IsReadOnly bool `gorm:"column:is_read_only;default:false" json:"is_read_only"`
+	// FileContent will be persisted in the container
+	FileContent string `gorm:"column:config" json:"file_content"`
 }
 
 //TableName 表名

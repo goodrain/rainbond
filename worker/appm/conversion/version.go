@@ -331,6 +331,19 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				}
 				os.Chmod(v.HostPath, 0777)
 			}
+			if v.VolumeType == dbmodel.ConfigFileVolumeType.String() {
+				configMap := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      fmt.Sprintf("manual%d", v.ID),
+						Namespace: as.TenantID,
+						Labels:    as.GetCommonLabels(),
+					},
+					Data: map[string]string{
+						v.VolumeName: v.FileContent,
+					},
+				}
+				as.SetConfigMap(configMap)
+			}
 			if as.GetStatefulSet() != nil {
 				vd.SetPV(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, v.IsReadOnly)
 			} else {
@@ -479,6 +492,36 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 				ReadOnly:  readOnly,
 			})
 		}
+	case dbmodel.ConfigFileVolumeType:
+		if statefulset := v.as.GetStatefulSet(); statefulset != nil {
+			//do not limit
+			resourceStorage, _ := resource.ParseQuantity("500Gi")
+			statefulset.Spec.VolumeClaimTemplates = append(
+				statefulset.Spec.VolumeClaimTemplates,
+				corev1.PersistentVolumeClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: name,
+						Labels: v.as.GetCommonLabels(map[string]string{
+							"tenant_id": v.as.TenantID,
+						}),
+					},
+					Spec: corev1.PersistentVolumeClaimSpec{
+						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+						StorageClassName: &v1.RainbondStatefuleShareStorageClass,
+						Resources: corev1.ResourceRequirements{
+							Requests: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceStorage: resourceStorage,
+							},
+						},
+					},
+				},
+			)
+			v.volumeMounts = append(v.volumeMounts, corev1.VolumeMount{
+				Name:      name,
+				MountPath: mountPath,
+				ReadOnly:  readOnly,
+			})
+		}
 	}
 }
 func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath, hostPath string, hostPathType corev1.HostPathType, readOnly bool) {
@@ -526,6 +569,23 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 	case dbmodel.LocalVolumeType:
 		//no support
 		return
+	case dbmodel.ConfigFileVolumeType:
+		vo := corev1.Volume{
+			Name: name,
+		}
+		vo.ConfigMap = &corev1.ConfigMapVolumeSource{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: name,
+			},
+		}
+		v.volumes = append(v.volumes, vo)
+		vm := corev1.VolumeMount{
+			MountPath: mountPath,
+			Name:      name,
+			ReadOnly:  readOnly,
+			SubPath:   "",
+		}
+		v.volumeMounts = append(v.volumeMounts, vm)
 	}
 }
 

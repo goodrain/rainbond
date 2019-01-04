@@ -45,6 +45,8 @@ type AddVolumeStruct struct {
 		// in: body
 		// required: true
 		VolumeName string `json:"volume_name" validate:"volume_name|required|max:50"`
+		// FileContent will be persisted in the container
+		FileContent string `json:"file_content"`
 	}
 }
 
