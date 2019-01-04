@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -333,6 +334,9 @@ func AddVolume(w http.ResponseWriter, r *http.Request) {
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &avs.Body, nil); !ok {
 		return
 	}
+	bytes, _ := json.Marshal(avs)
+	logrus.Debugf("request uri: %s; request body: %v", r.RequestURI, bytes)
+
 	tsv := &dbmodel.TenantServiceVolume{
 		ServiceID:   serviceID,
 		VolumeName:  avs.Body.VolumeName,
