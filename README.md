@@ -109,6 +109,6 @@ Rainbond 遵循 LGPL-3.0 license 协议发布，详情查看[LICENSE](https://gi
 - [Weave Scope](https://github.com/weaveworks/scope)
 - [Ant Design](https://github.com/ant-design/ant-design)
 
-## 加入我们
+## 加入我们 
 
 [非常欢迎热爱技术的你加入我们](https://www.rainbond.com/docs/recruitment/join.html)
