@@ -39,13 +39,12 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/Sirupsen/logrus"
+	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
 	"github.com/twinj/uuid"
-	httputil "github.com/goodrain/rainbond/util/http"
-
 )
 
 //SocketServer socket 服务
@@ -80,7 +79,7 @@ func NewSocket(conf conf.WebSocketConf, log *logrus.Entry, storeManager store.Ma
 		errorStop:    make(chan error),
 		timeout:      d,
 		cluster:      c,
-		healthInfo:healthInfo,
+		healthInfo:   healthInfo,
 	}
 }
 
@@ -226,8 +225,11 @@ func (s *SocketServer) pushDockerLog(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if message != nil {
-				//s.log.Debugf("websocket push a message,%s", message.Message)
-				conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				s.log.Debugf("websocket push a message: %v", message)
+				err := conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				if err != nil {
+					s.log.Warningf("error setting write deadline: %v", err)
+				}
 				err = conn.WriteMessage(websocket.TextMessage, message.Content)
 				if err != nil {
 					s.log.Warn("Push message to client error.", err.Error())
@@ -466,10 +468,10 @@ func (s *SocketServer) listen() {
 	})
 	http.HandleFunc("/event_push", s.receiveEventMessage)
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		if s.healthInfo["status"] != "health"{
-			httputil.ReturnError(r,w,400,"eventlog service unusual")
+		if s.healthInfo["status"] != "health" {
+			httputil.ReturnError(r, w, 400, "eventlog service unusual")
 		}
-		httputil.ReturnSuccess(r,w,s.healthInfo)
+		httputil.ReturnSuccess(r, w, s.healthInfo)
 	})
 	//monitor setting
 	s.prometheus()

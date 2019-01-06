@@ -26,6 +26,7 @@ import (
 	extensions "k8s.io/api/extensions/v1beta1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	api_meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
@@ -353,6 +354,127 @@ func TestHttpHeader(t *testing.T) {
 									Path: "/http-router",
 									Backend: extensions.IngressBackend{
 										ServiceName: "router-header-svc",
+										ServicePort: intstr.FromInt(80),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	_ = ensureIngress(ingress, clientSet, t)
+}
+
+func Test_ListIngress(t *testing.T) {
+	clientSet, err := controller.NewClientSet("/Users/abe/go/src/github.com/goodrain/rainbond/test/admin.kubeconfig")
+	if err != nil {
+		t.Errorf("can't create Kubernetes's client: %v", err)
+	}
+
+	ings, err := clientSet.ExtensionsV1beta1().Ingresses("gateway").List(api_meta_v1.ListOptions{})
+	if err != nil {
+		t.Fatalf("error listing ingresses: %v", err)
+	}
+	for _, ing := range ings.Items {
+		t.Log(ing)
+	}
+}
+
+func TestHttpUpstreamHashBy(t *testing.T) {
+	clientSet, err := controller.NewClientSet("/Users/abe/go/src/github.com/goodrain/rainbond/test/admin.kubeconfig")
+	if err != nil {
+		t.Errorf("can't create Kubernetes's client: %v", err)
+	}
+
+	ns := ensureNamespace(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "gateway",
+		},
+	}, clientSet, t)
+
+	// create deployment
+	var replicas int32 = 3
+	deploy := &v1beta1.Deployment{
+		ObjectMeta: api_meta_v1.ObjectMeta{
+			Name:      "upstreamhashby-deploy",
+			Namespace: ns.Name,
+		},
+		Spec: v1beta1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"tier": "upstreamhashby",
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"tier": "upstreamhashby",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:            "upstreamhashby-pod",
+							Image:           "tomcat",
+							ImagePullPolicy: "IfNotPresent",
+							Ports: []corev1.ContainerPort{
+								{
+									ContainerPort: 10011,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	_ = ensureDeploy(deploy, clientSet, t)
+
+	// create service
+	var port int32 = 30011
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "upstreamhashby-svc",
+			Namespace: ns.Name,
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{
+					Name: "service-port",
+					Port: port,
+				},
+			},
+			Selector: map[string]string{
+				"tier": "upstreamhashby",
+			},
+		},
+	}
+	_ = ensureService(service, clientSet, t)
+
+	time.Sleep(3 * time.Second)
+
+	ingress := &extensions.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "upstreamhashby-ing",
+			Namespace: ns.Name,
+			Annotations: map[string]string{
+				parser.GetAnnotationWithPrefix("upstream-hash-by"): "$request_uri",
+			},
+		},
+		Spec: extensions.IngressSpec{
+			Rules: []extensions.IngressRule{
+				{
+					Host: "www.http-upstreamhashby.com",
+					IngressRuleValue: extensions.IngressRuleValue{
+						HTTP: &extensions.HTTPIngressRuleValue{
+							Paths: []extensions.HTTPIngressPath{
+								{
+									Path: "/",
+									Backend: extensions.IngressBackend{
+										ServiceName: "upstreamhashby-svc",
 										ServicePort: intstr.FromInt(80),
 									},
 								},

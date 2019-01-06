@@ -607,6 +607,8 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
+	logrus.Debugf("request uri: %s; body: %s", r.RequestURI, string(body))
+
 	err = ffjson.Unmarshal(body, &ss)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())

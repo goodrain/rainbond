@@ -48,8 +48,8 @@ end
 
 function _M.call()
   if ngx.var.request_method ~= "POST" and ngx.var.request_method ~= "GET" then
+    ngx.log(ngx.ERR, "Only POST and GET requests are allowed!")
     ngx.status = ngx.HTTP_BAD_REQUEST
-    ngx.print("Only POST and GET requests are allowed!")
     return
   end
 
@@ -79,6 +79,7 @@ function _M.call()
     return
   end
 
+  ngx.log(ngx.INFO, "successfully read or update backend data ")
   ngx.status = ngx.HTTP_CREATED
 end
 

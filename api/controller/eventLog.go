@@ -234,7 +234,7 @@ func (e *EventLogStruct) TenantLogByAction(w http.ResponseWriter, r *http.Reques
 	dl, err := handler.GetEventHandler().GetLevelLog(elog.Body.EventID, elog.Body.Level)
 	if err != nil {
 		logrus.Errorf("get tenant event log error, %v", err)
-		httputil.ReturnError(r, w, 500, err.Error())
+		httputil.ReturnError(r, w, 200, "success")
 		return
 	}
 	httputil.ReturnSuccess(r, w, dl.Data)

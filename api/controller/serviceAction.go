@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -485,12 +486,13 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
-
 	var build api_model.BuildServiceStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build.Body, nil)
 	if !ok {
 		return
 	}
+	b, _ := json.Marshal(build)
+	logrus.Debugf("request uri: %s; body: %s", r.RequestURI, string(b))
 	if len(build.Body.DeployVersion) == 0 {
 		httputil.ReturnError(r, w, 400, "deploy version can not be empty.")
 		return

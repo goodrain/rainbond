@@ -19,10 +19,9 @@
 package version2
 
 import (
+	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/controller"
 	"github.com/goodrain/rainbond/api/middleware"
-
-	"github.com/go-chi/chi"
 )
 
 //V2 v2
@@ -113,6 +112,9 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/tcp-rule", controller.GetManager().TCPRule)
 	r.Delete("/tcp-rule", controller.GetManager().TCPRule)
 	r.Put("/tcp-rule", controller.GetManager().TCPRule)
+	//r.Post("/ip-pool", controller.GetManager().IPPool)
+	//r.Put("/ip-pool", controller.GetManager().IPPool)
+	//r.Delete("/ip-pool", controller.GetManager().IPPool)
 
 	return r
 }

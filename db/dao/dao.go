@@ -362,6 +362,7 @@ type HTTPRuleDao interface {
 	GetHttpRuleByID(id string) (*model.HTTPRule, error)
 	GetHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.HTTPRule, error)
 	DeleteHttpRuleByID(id string) error
+	ListByServiceID(serviceID string) ([]*model.HTTPRule, error)
 }
 
 // TCPRuleDao -
@@ -370,4 +371,18 @@ type TCPRuleDao interface {
 	GetTcpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.TCPRule, error)
 	GetTcpRuleByID(id string) (*model.TCPRule, error)
 	DeleteTcpRule(tcpRule *model.TCPRule) error
+	ListByServiceID(serviceID string) ([]*model.TCPRule, error)
+}
+
+// IPPortDao -
+type IPPortDao interface {
+	Dao
+	DeleteByIPAndPort(ip string, port int) error
+	GetIPByPort(port int) ([]*model.IPPort, error)
+	GetIPPortByIPAndPort(ip string, port int) (*model.IPPort, error)
+}
+
+type IPPoolDao interface {
+	Dao
+	GetIPPoolByEID(eid string) (*model.IPPool, error)
 }

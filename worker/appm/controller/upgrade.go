@@ -45,8 +45,12 @@ func (s *upgradeController) Begin() {
 			defer wait.Done()
 			service.Logger.Info("App runtime begin upgrade app service "+service.ServiceAlias, getLoggerOption("starting"))
 			if err := s.upgradeOne(service); err != nil {
-				service.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", service.ServiceAlias, err.Error()), GetCallbackLoggerOption())
-				logrus.Errorf("upgrade service %s failure %s", service.ServiceAlias, err.Error())
+				if err != ErrWaitTimeOut {
+					service.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", service.ServiceAlias, err.Error()), GetCallbackLoggerOption())
+					logrus.Errorf("upgrade service %s failure %s", service.ServiceAlias, err.Error())
+				} else {
+					service.Logger.Error(fmt.Sprintf("upgrade service timeout,please waiting it complete"), GetTimeoutLoggerOption())
+				}
 			} else {
 				service.Logger.Info(fmt.Sprintf("upgrade service %s success", service.ServiceAlias), GetLastLoggerOption())
 			}

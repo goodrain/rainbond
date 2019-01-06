@@ -436,3 +436,21 @@ func (m *Manager) TcpRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao {
 		DB: db,
 	}
 }
+
+func (m *Manager) IPPortDao() dao.IPPortDao {
+	return &mysqldao.IPPortImpl{
+		DB: m.db,
+	}
+}
+
+func (m *Manager) IPPortDaoTransactions(db *gorm.DB) dao.IPPortDao {
+	return &mysqldao.IPPortImpl{
+		DB: db,
+	}
+}
+
+func (m *Manager) IPPoolDao() dao.IPPoolDao {
+	return &mysqldao.IPPoolImpl{
+		DB: m.db,
+	}
+}

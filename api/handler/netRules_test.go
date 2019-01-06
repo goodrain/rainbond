@@ -42,9 +42,9 @@ func TestStoreETCD(t *testing.T) {
 	}
 	rules := &api_model.NetDownStreamRules{
 		Limit:  1024,
-		Header: "E1:V1,E2:V2",
-		Domain: "test.redis.com",
-		Prefix: "/redis",
+		//Header: "E1:V1,E2:V2",
+		//Domain: "test.redis.com",
+		//Prefix: "/redis",
 	}
 
 	srs := &api_model.SetNetDownStreamRuleStruct{

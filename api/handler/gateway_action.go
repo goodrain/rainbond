@@ -433,8 +433,8 @@ func (g *GatewayAction) GetAvailablePort() (int, error) {
 	for _, p := range mapPorts {
 		ports = append(ports, p.Port)
 	}
-	maxPort, _ := strconv.Atoi(os.Getenv("MIN_LB_PORT"))
-	minPort, _ := strconv.Atoi(os.Getenv("MAX_LB_PORT"))
+	maxPort, _ := strconv.Atoi(os.Getenv("MAX_LB_PORT"))
+	minPort, _ := strconv.Atoi(os.Getenv("MIN_LB_PORT"))
 	if minPort == 0 {
 		minPort = 20001
 	}
@@ -442,7 +442,7 @@ func (g *GatewayAction) GetAvailablePort() (int, error) {
 		maxPort = 35000
 	}
 	var maxUsePort int
-	if len(ports) > 0 {
+	if len(ports) > 0 && ports[len(ports)-1] > minPort {
 		maxUsePort = ports[len(ports)-1]
 	} else {
 		maxUsePort = 20001
@@ -492,6 +492,50 @@ func (g *GatewayAction) SendTask(serviceID string, action string) error {
 	})
 	if err != nil {
 		return fmt.Errorf("Unexpected error occurred while sending task: %v", err)
+	}
+	return nil
+}
+
+// TCPValid checks if the ip and port for TCP is available.
+func (g *GatewayAction) TCPAvailable(ip string, port int, ruleID string) bool {
+	rule, err := g.dbmanager.TcpRuleDao().GetTcpRuleByID(ruleID)
+	if err != nil {
+		logrus.Warningf("error getting TCPRule by UUID(%s)", ruleID)
+		return false
+	}
+
+	if rule == nil || (rule.IP != ip && rule.Port != port) {
+		ipport, err := g.dbmanager.IPPortDao().GetIPPortByIPAndPort(ip, port)
+		if err != nil {
+			logrus.Warningf("error getting IPPort(ip=%s, port=%d)", ip, port)
+			return false
+		}
+		if ipport != nil {
+			return false
+		}
+	}
+
+	if rule == nil || rule.IP != "0.0.0.0" {
+		ipport, err := g.dbmanager.IPPortDao().GetIPPortByIPAndPort("0.0.0.0", port)
+		if err != nil {
+			logrus.Warningf("error getting IPPort(ip=%s, port=%d)", "0.0.0.0", port)
+			return false
+		}
+		if ipport != nil {
+			return false
+		}
+	}
+	return true
+}
+
+// AddIPPool adds AddIPPool
+func (g *GatewayAction) AddIPPool(req *apimodel.IPPoolStruct) error {
+	ippool := &model.IPPool{
+		EID: req.EID,
+		CIDR: req.CIDR,
+	}
+	if err := g.dbmanager.IPPoolDao().AddModel(ippool); err != nil {
+		return err
 	}
 	return nil
 }

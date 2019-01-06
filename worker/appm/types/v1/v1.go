@@ -398,14 +398,30 @@ func (a *AppService) GetTenant() *corev1.Namespace {
 
 // SetDelIngsSecrets sets delIngs and delSecrets
 func (a *AppService) SetDelIngsSecrets(old *AppService) {
-	for _, n := range a.ingresses {
-		old.DeleteIngress(n)
+	for _, o := range old.GetIngress() {
+		del := true
+		for _ , n := range a.GetIngress() {
+			if o.Name == n.Name {
+				del = false
+				break
+			}
+		}
+		if del {
+			a.delIngs = append(a.delIngs, o)
+		}
 	}
-	for _, n := range a.secrets {
-		old.DeleteSecrets(n)
+	for _, o := range old.GetSecrets() {
+		del := true
+		for _ , n := range a.GetSecrets() {
+			if o.Name == n.Name {
+				del = false
+				break
+			}
+		}
+		if del {
+			a.secrets = append(a.secrets, o)
+		}
 	}
-	a.delIngs = old.GetIngress()
-	a.delSecrets = old.GetSecrets()
 }
 
 func (a *AppService) String() string {

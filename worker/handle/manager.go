@@ -22,7 +22,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
@@ -329,7 +328,7 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
 	oldAppService := m.store.GetAppService(body.ServiceID)
-	if (oldAppService == nil || oldAppService.IsClosed()) && !strings.Contains(body.Action, "port") {
+	if oldAppService == nil || oldAppService.IsClosed() {
 		logrus.Debugf("service is closed,no need handle")
 		logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
@@ -343,8 +342,6 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		return fmt.Errorf("Application init create failure")
 	}
 	newAppService.Logger = logger
-	//register the new app service
-	m.store.RegistAppService(newAppService)
 	newAppService.SetDelIngsSecrets(oldAppService)
 	// update k8s resources
 	err = m.controllerManager.StartController(controller.TypeApplyRuleController, *newAppService)

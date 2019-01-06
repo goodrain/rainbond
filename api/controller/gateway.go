@@ -241,7 +241,7 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("add tcp rule.")
+	logrus.Debugf("update tcp rule.")
 	var req api_model.UpdateTCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {

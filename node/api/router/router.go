@@ -75,6 +75,7 @@ func Routers(mode string) *chi.Mux {
 				r.Get("/rule/{rule}", controller.GetRuleNodes)
 
 				r.Get("/{node_id}", controller.GetNode)
+				r.Put("/{node_id}/status", controller.UpdateNodeStatus)
 				r.Put("/{node_id}/unschedulable", controller.Cordon)
 				r.Put("/{node_id}/reschedulable", controller.UnCordon)
 				r.Put("/{node_id}/labels", controller.PutLabel)

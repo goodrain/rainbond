@@ -78,25 +78,28 @@ type Server struct {
 }
 
 // Start starts nginx
-func (osvc *OrService) Start(errCh chan error) {
+func (o *OrService) Start(errCh chan error) {
 	defaultNginxConf = path.Join(template.CustomConfigPath, "nginx.conf")
 	// delete the old configuration
 	if !util.DirIsEmpty(template.CustomConfigPath) {
 		dirs, _ := util.GetDirNameList(template.CustomConfigPath, 1)
 		for _, dir := range dirs {
-			os.RemoveAll(dir)
+			err := os.RemoveAll(fmt.Sprintf("%s/%s", template.CustomConfigPath, dir))
+			if err != nil {
+				logrus.Warningf("error removing %s: %v", dir, err)
+			}
 		}
 		os.RemoveAll(defaultNginxConf)
 	}
 	// generate default nginx.conf
-	nginx := model.NewNginx(*osvc.ocfg)
-	nginx.HTTP = model.NewHTTP(osvc.ocfg)
+	nginx := model.NewNginx(*o.ocfg)
+	nginx.HTTP = model.NewHTTP(o.ocfg)
 	if err := template.NewNginxTemplate(nginx, defaultNginxConf); err != nil {
 		errCh <- fmt.Errorf("Can't not new nginx ocfg: %s", err.Error())
 		return
 	}
-	if osvc.ocfg.EnableRbdEndpoints {
-		if err := osvc.newRbdServers(); err != nil {
+	if o.ocfg.EnableRbdEndpoints {
+		if err := o.newRbdServers(); err != nil {
 			errCh <- err // TODO: consider if it is right
 		}
 	}
@@ -108,7 +111,7 @@ func (osvc *OrService) Start(errCh chan error) {
 		errCh <- err
 		return
 	}
-	osvc.nginxProgress = cmd.Process
+	o.nginxProgress = cmd.Process
 	go func() {
 		if err := cmd.Wait(); err != nil {
 			errCh <- err
@@ -118,11 +121,11 @@ func (osvc *OrService) Start(errCh chan error) {
 }
 
 // Stop gracefully stops the NGINX master process.
-func (osvc *OrService) Stop() error {
+func (o *OrService) Stop() error {
 	// send stop signal to NGINX
 	logrus.Info("Stopping NGINX process")
-	if osvc.nginxProgress != nil {
-		if err := osvc.nginxProgress.Signal(syscall.SIGTERM); err != nil {
+	if o.nginxProgress != nil {
+		if err := o.nginxProgress.Signal(syscall.SIGTERM); err != nil {
 			return err
 		}
 	}
@@ -130,9 +133,8 @@ func (osvc *OrService) Stop() error {
 }
 
 // PersistConfig persists ocfg
-func (osvc *OrService) PersistConfig(conf *v1.Config) error {
-
-	if err := osvc.persistUpstreams(conf.TCPPools, "upstreams-tcp.tmpl", template.CustomConfigPath, "stream/upstreams.conf"); err != nil {
+func (o *OrService) PersistConfig(conf *v1.Config) error {
+	if err := o.persistUpstreams(conf.TCPPools, "upstreams-tcp.tmpl", template.CustomConfigPath, "stream/upstreams.conf"); err != nil {
 		logrus.Errorf("fail to persist tcp upstreams.conf")
 	}
 
@@ -171,17 +173,20 @@ func (osvc *OrService) PersistConfig(conf *v1.Config) error {
 }
 
 // persistUpstreams persists upstreams
-func (osvc *OrService) persistUpstreams(pools []*v1.Pool, tmpl string, path string, filename string) error {
+func (o *OrService) persistUpstreams(pools []*v1.Pool, tmpl string, path string, filename string) error {
 	var upstreams []*model.Upstream
 	for _, pool := range pools {
 		upstream := &model.Upstream{}
 		upstream.Name = pool.Name
+		upstream.UseLeastConn = pool.LeastConn
 		var servers []model.UServer
 		for _, node := range pool.Nodes {
 			server := model.UServer{
 				Address: node.Host + ":" + fmt.Sprintf("%v", node.Port),
 				Params: model.Params{
 					Weight: 1,
+					MaxFails: node.MaxFails,
+					FailTimeout: node.FailTimeout,
 				},
 			}
 			servers = append(servers, server)
@@ -213,6 +218,11 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 			location := &model.Location{
 				Path:          loc.Path,
 				NameCondition: loc.NameCondition,
+				ProxySetHeaders: []*model.ProxySetHeader{
+					{"Host", "$host"},
+					{"X-Real-IP", "$remote_addr"},
+					{"X-Forwarded-For", "$proxy_add_x_forwarded_for"},
+				},
 			}
 			server.Locations = append(server.Locations, location)
 		}
@@ -231,15 +241,34 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 }
 
 // UpdatePools updates http upstreams dynamically.
-func (osvc *OrService) UpdatePools(pools []*v1.Pool) error {
-	if len(pools) == 0 {
+func (o *OrService) UpdatePools(hpools []*v1.Pool, tpools []*v1.Pool) error {
+	if len(tpools) > 0 {
+		err := o.persistUpstreams(tpools, "upstreams-tcp.tmpl", "/run/nginx/rainbond/stream",
+			"upstream.default.tcp.conf")
+		if err != nil {
+			logrus.Warningf("error updating upstream.default.tcp.conf")
+		}
+		// check nginx configuration
+		if out, err := nginxExecCommand("-t").CombinedOutput(); err != nil {
+			return fmt.Errorf("%v\n%v", err, string(out))
+		}
+		logrus.Debug("Nginx configuration is ok.")
+
+		// reload nginx
+		if out, err := nginxExecCommand("-s", "reload").CombinedOutput(); err != nil {
+			return fmt.Errorf("%v\n%v", err, string(out))
+		}
+		logrus.Debug("Nginx reloads successfully.")
+	}
+
+	if hpools == nil || len(hpools) == 0 {
 		return nil
 	}
 	var backends []*model.Backend
-	for _, pool := range pools {
+	for _, pool := range hpools {
 		backends = append(backends, model.CreateBackendByPool(pool))
 	}
-	return osvc.updateBackends(backends)
+	return o.updateBackends(backends)
 }
 
 // updateUpstreams updates the upstreams in ngx.shared.dict by post
@@ -291,11 +320,17 @@ func (o *OrService) WaitPluginReady() {
 }
 
 // newRbdServers creates new configuration file for Rainbond servers
-func (osvc *OrService) newRbdServers() error {
-	cfgPath := "/run/nginx/conf/rainbond"
+func (o *OrService) newRbdServers() error {
+	cfgPath := "/run/nginx/rainbond"
+	httpCfgPath := fmt.Sprintf("%s/%s", cfgPath, "http") // http config path
+	tcpCfgPath := fmt.Sprintf("%s/%s", cfgPath, "stream") // tcp config path
 	// delete the old configuration
-	if err := os.RemoveAll(cfgPath); err != nil {
-		logrus.Errorf("Cant not remove directory(%s): %v", cfgPath, err)
+	if err := os.RemoveAll(httpCfgPath); err != nil {
+		logrus.Errorf("Cant not remove directory(%s): %v", httpCfgPath, err)
+		return err
+	}
+	if err := os.RemoveAll(tcpCfgPath); err != nil {
+		logrus.Errorf("Cant not remove directory(%s): %v", tcpCfgPath, err)
 		return err
 	}
 
@@ -305,32 +340,76 @@ func (osvc *OrService) newRbdServers() error {
 		return err
 	}
 
-	lesrv, _ := langGoodrainMe(osvc.ocfg.RBDServerInIP)
-	mesrv, _ := mavenGoodrainMe(osvc.ocfg.RBDServerInIP)
-	gesrv, _ := goodrainMe(cfgPath, osvc.ocfg.RBDServerInIP)
-	if err := template.NewServerTemplateWithCfgPath([]*model.Server{
-		lesrv,
-		mesrv,
-		gesrv,
-	}, cfgPath, "servers.default.http.conf"); err != nil {
+	if o.ocfg.EnableKApiServer {
+		ksrv := kubeApiserver(o.ocfg.KApiServerIP)
+		if err := template.NewServerTemplateWithCfgPath(
+			[]*model.Server{
+				ksrv,
+			}, tcpCfgPath, "server.default.tcp.conf"); err != nil {
+			return err
+		}
+		dummyUpstream := &model.Upstream{
+			Name: "kube_apiserver",
+			Servers: []model.UServer{
+				{
+					Address: "0.0.0.1:65535", // placeholder
+					Params: model.Params{
+						Weight: 1,
+					},
+				},
+			},
+		}
+		if err := template.NewUpstreamTemplateWithCfgPath(
+			[]*model.Upstream{dummyUpstream},
+			"upstreams-tcp.tmpl",
+			tcpCfgPath,
+			"upstream.default.tcp.conf"); err != nil {
+			return err
+		}
+	}
+
+	var srv []*model.Server
+	if o.ocfg.EnableLangGrMe {
+		lesrv := langGoodrainMe(o.ocfg.LangGrMeIP)
+		srv = append(srv, lesrv)
+	}
+	if o.ocfg.EnableMVNGrMe {
+		mesrv := mavenGoodrainMe(o.ocfg.MVNGrMeIP)
+		srv = append(srv, mesrv)
+	}
+	if o.ocfg.EnableGrMe {
+		gesrv := goodrainMe(cfgPath, o.ocfg.GrMeIP)
+		srv = append(srv, gesrv)
+	}
+	if o.ocfg.EnableRepoGrMe {
+		resrv := repoGoodrainMe(o.ocfg.RepoGrMeIP)
+		srv = append(srv, resrv)
+	}
+
+	if err := template.NewServerTemplateWithCfgPath(srv, httpCfgPath,
+		"servers.default.http.conf"); err != nil {
 		return err
 	}
 
-	// upstreams
-	//if err := template.NewUpstreamTemplateWithCfgPath([]*model.Upstream{
-	//	leus,
-	//	meus,
-	//	geus,
-	//}, "upstreams-http-rbd.tmpl", cfgPath, "upstreams.default.http.conf"); err != nil {
-	//	return err
-	//}
 	return nil
 }
 
 func createCert(cfgPath string, cn string) error {
-	if e := os.MkdirAll(fmt.Sprintf("%s/%s", cfgPath, "ssl"), 0777); e != nil {
-		return e
+	p := fmt.Sprintf("%s/%s", cfgPath, "ssl")
+	crtexists, crterr := util.FileExists(fmt.Sprintf("%s/%s", p, "server.crt"))
+	keyexists, keyerr := util.FileExists(fmt.Sprintf("%s/%s", p, "server.key"))
+	if (crtexists && crterr == nil) && (keyexists && keyerr == nil) {
+		logrus.Info("certificate for goodrain.me exists.")
+		return nil
 	}
+
+	exists, err := util.FileExists(p)
+	if !exists || err != nil {
+		if e := os.MkdirAll(p, 0777); e != nil {
+			return e
+		}
+	}
+
 	baseinfo := cert.CertInformation{Country: []string{"CN"}, Organization: []string{"Goodrain"}, IsCA: true,
 		OrganizationalUnit: []string{"Rainbond"}, EmailAddress: []string{"zengqg@goodrain.com"},
 		Locality: []string{"BeiJing"}, Province: []string{"BeiJing"}, CommonName: cn,
@@ -338,8 +417,7 @@ func createCert(cfgPath string, cn string) error {
 		CrtName: fmt.Sprintf("%s/%s", cfgPath, "ssl/ca.pem"),
 		KeyName: fmt.Sprintf("%s/%s", cfgPath, "ssl/ca.key")}
 
-	err := cert.CreateCRT(nil, nil, baseinfo)
-	if err != nil {
+	if err := cert.CreateCRT(nil, nil, baseinfo); err != nil {
 		logrus.Errorf("Create crt error: ", err)
 		return err
 	}

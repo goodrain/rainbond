@@ -21,13 +21,13 @@ package store
 import (
 	"bytes"
 	"fmt"
+	"github.com/goodrain/rainbond/gateway/annotations/l4"
+	"github.com/goodrain/rainbond/gateway/util"
 	"io/ioutil"
+	"net"
 	"os"
 	"reflect"
 	"strings"
-	"time"
-
-	"github.com/goodrain/rainbond/gateway/util"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
@@ -90,6 +90,7 @@ type Storer interface {
 type backend struct {
 	name   string
 	weight int
+	hashBy string
 }
 
 // Event holds the context of an event.
@@ -139,7 +140,7 @@ func New(client kubernetes.Interface,
 	store.listers.IngressAnnotation.Store = cache.NewStore(cache.DeletionHandlingMetaNamespaceKeyFunc)
 
 	// create informers factory, enable and assign required informers
-	infFactory := informers.NewFilteredSharedInformerFactory(client, time.Second, corev1.NamespaceAll,
+	infFactory := informers.NewFilteredSharedInformerFactory(client, conf.ResyncPeriod, corev1.NamespaceAll,
 		func(options *metav1.ListOptions) {
 			options.LabelSelector = "creater=Rainbond"
 		})
@@ -160,6 +161,10 @@ func New(client kubernetes.Interface,
 		AddFunc: func(obj interface{}) {
 			ing := obj.(*extensions.Ingress)
 			logrus.Debugf("Received ingress: %v", ing)
+
+			//if !store.checkIngress(ing) {
+			//	return
+			//}
 
 			// updating annotations information for ingress
 			store.extractAnnotations(ing)
@@ -187,6 +192,10 @@ func New(client kubernetes.Interface,
 				return
 			}
 			logrus.Debugf("Received ingress: %v", curIng)
+
+			//if !store.checkIngress(curIng) {
+			//	return
+			//}
 
 			store.extractAnnotations(curIng)
 			store.secretIngressMap.update(curIng)
@@ -306,12 +315,34 @@ func New(client kubernetes.Interface,
 		},
 	}
 
-	store.informers.Ingress.AddEventHandlerWithResyncPeriod(ingEventHandler, 10*time.Second)
-	store.informers.Secret.AddEventHandlerWithResyncPeriod(secEventHandler, 10*time.Second)
-	store.informers.Endpoint.AddEventHandlerWithResyncPeriod(epEventHandler, 10*time.Second)
+	store.informers.Ingress.AddEventHandler(ingEventHandler)
+	store.informers.Secret.AddEventHandler(secEventHandler)
+	store.informers.Endpoint.AddEventHandler(epEventHandler)
 	store.informers.Service.AddEventHandler(cache.ResourceEventHandlerFuncs{})
 
 	return store
+}
+
+// checkIngress checks whether the given ing is valid.
+func (s *rbdStore) checkIngress(ing *extensions.Ingress) bool {
+	i, err := l4.NewParser(s).Parse(ing)
+	if err != nil {
+		logrus.Warningf("Uxpected error with ingress: %v", err)
+		return false
+	}
+
+	cfg := i.(*l4.Config)
+	if cfg.L4Enable {
+		_, err := net.Dial("tcp", fmt.Sprintf("%s:%d", cfg.L4Host, cfg.L4Port))
+		if err == nil {
+			logrus.Warningf("%s, in Ingress(%v), is already in use.",
+				fmt.Sprintf("%s:%d", cfg.L4Host, cfg.L4Port), ing)
+			return false
+		}
+		return true
+	}
+
+	return true
 }
 
 // extractAnnotations parses ingress annotations converting the value of the
@@ -348,6 +379,7 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 						Nodes: []*v1.Node{},
 					}
 					pool.Name = backend.name
+					pool.UpstreamHashBy = backend.hashBy
 					l7Pools[backend.name] = pool
 				}
 				for _, ss := range ep.Subsets {
@@ -454,7 +486,7 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			l4PoolMap[ing.Spec.Backend.ServiceName] = struct{}{}
 			l4vsMap[listening] = vs
 			l4vs = append(l4vs, vs)
-			backend := backend{backendName, anns.Weight.Weight}
+			backend := backend{name: backendName, weight: anns.Weight.Weight}
 			l4PoolBackendMap[ing.Spec.Backend.ServiceName] = append(l4PoolBackendMap[ing.Spec.Backend.ServiceName], backend)
 			// endregion
 		} else {
@@ -537,7 +569,10 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 					}
 					backendName = util.BackendName(backendName, ing.Namespace)
 					location.NameCondition[backendName] = nameCondition
-					backend := backend{backendName, anns.Weight.Weight}
+					backend := backend{name: backendName, weight: anns.Weight.Weight}
+					if anns.UpstreamHashBy != "" {
+						backend.hashBy = anns.UpstreamHashBy
+					}
 					l7PoolBackendMap[path.Backend.ServiceName] = append(l7PoolBackendMap[path.Backend.ServiceName], backend)
 				}
 			}
@@ -549,6 +584,7 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 
 // ingressIsValid checks if the specified ingress is valid
 func (s *rbdStore) ingressIsValid(ing *extensions.Ingress) bool {
+
 	var endpointKey string
 	if ing.Spec.Backend != nil { // stream
 		endpointKey = fmt.Sprintf("%s/%s", ing.Namespace, ing.Spec.Backend.ServiceName)
@@ -582,7 +618,7 @@ func (s *rbdStore) ingressIsValid(ing *extensions.Ingress) bool {
 		return false
 	}
 	for _, ep := range endpoint.Subsets {
-		if (ep.Addresses == nil || len(ep.Addresses) == 0 ) && (ep.NotReadyAddresses == nil || len(ep.NotReadyAddresses) == 0) {
+		if (ep.Addresses == nil || len(ep.Addresses) == 0) && (ep.NotReadyAddresses == nil || len(ep.NotReadyAddresses) == 0) {
 			logrus.Warningf("Endpoints(%s) is empty, ignore it", endpointKey)
 			return false
 		}
@@ -684,6 +720,7 @@ func (s *rbdStore) getCertificatePem(secrKey string) (*v1.SSLCert, error) {
 
 	var buffer bytes.Buffer
 	buffer.Write(crt)
+	buffer.Write([]byte("\n"))
 	buffer.Write(key)
 
 	secrKey = strings.Replace(secrKey, "/", "-", 1)

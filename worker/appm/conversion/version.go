@@ -53,8 +53,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	}
 	//need service mesh sidecar, volume kubeconfig
 	if as.NeedProxy {
-		dv.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes",
-			"/opt/rainbond/etc/kubernetes/kubecfg", corev1.HostPathDirectoryOrCreate, true)
+		dv.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes", "/grdata/kubernetes", corev1.HostPathDirectoryOrCreate, true)
 	}
 	podtmpSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -332,6 +331,20 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				}
 				os.Chmod(v.HostPath, 0777)
 			}
+			// create a configMap which will be mounted as a volume
+			if v.VolumeType == dbmodel.ConfigFileVolumeType.String() {
+				configMap := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      fmt.Sprintf("manual%d", v.ID),
+						Namespace: as.TenantID,
+						Labels:    as.GetCommonLabels(),
+					},
+					Data: map[string]string{
+						v.VolumeName: v.FileContent,
+					},
+				}
+				as.SetConfigMap(configMap)
+			}
 			if as.GetStatefulSet() != nil {
 				vd.SetPV(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, v.IsReadOnly)
 			} else {
@@ -480,6 +493,25 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 				ReadOnly:  readOnly,
 			})
 		}
+	case dbmodel.ConfigFileVolumeType:
+		if statefulset := v.as.GetStatefulSet(); statefulset != nil {
+			cv := corev1.Volume{
+				Name: name,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: name,
+						},
+					},
+				},
+			}
+			v.volumes = append(v.volumes, cv)
+			v.volumeMounts = append(v.volumeMounts, corev1.VolumeMount{
+				Name:      name,
+				MountPath: mountPath,
+				ReadOnly:  readOnly,
+			})
+		}
 	}
 }
 func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath, hostPath string, hostPathType corev1.HostPathType, readOnly bool) {
@@ -527,6 +559,23 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 	case dbmodel.LocalVolumeType:
 		//no support
 		return
+	case dbmodel.ConfigFileVolumeType:
+		vo := corev1.Volume{
+			Name: name,
+		}
+		vo.ConfigMap = &corev1.ConfigMapVolumeSource{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: name,
+			},
+		}
+		v.volumes = append(v.volumes, vo)
+		vm := corev1.VolumeMount{
+			MountPath: mountPath,
+			Name:      name,
+			ReadOnly:  readOnly,
+			SubPath:   "",
+		}
+		v.volumeMounts = append(v.volumeMounts, vm)
 	}
 }
 
@@ -588,7 +637,7 @@ func createPorts(as *v1.AppService, dbmanager db.Manager) (ports []corev1.Contai
 	if err == nil && ps != nil && len(ps) > 0 {
 		crt, err := checkUpstreamPluginRelation(as.ServiceID, dbmanager)
 		if err != nil {
-			//return nil, fmt.Errorf("get service upstream plugin relation error, %s", err.Error())
+			logrus.Warningf("error getting service upstream plugin relation, %s", err.Error())
 			return
 		}
 		if crt {
@@ -597,7 +646,7 @@ func createPorts(as *v1.AppService, dbmanager db.Manager) (ports []corev1.Contai
 				dbmodel.UpNetPlugin,
 			)
 			if err != nil {
-				//return nil, fmt.Errorf("find upstream plugin mapping port error, %s", err.Error())
+				logrus.Warningf("find upstream plugin mapping port error, %s", err.Error())
 				return
 			}
 			ps, err = createUpstreamPluginMappingPort(ps, pluginPorts)
