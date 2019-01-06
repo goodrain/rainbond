@@ -144,6 +144,20 @@ func (m *Manager) TenantServiceVolumeDaoTransactions(db *gorm.DB) dao.TenantServ
 	}
 }
 
+//TenantServiceVolumeDao TenantServiceVolumeDao
+func (m *Manager) TenantServiceConfigFileDao() dao.TenantServiceConfigFileDao {
+	return &mysqldao.TenantServiceConfigFileDaoImpl{
+		DB: m.db,
+	}
+}
+
+//TenantServiceConfigFileDaoTransactions -
+func (m *Manager) TenantServiceConfigFileDaoTransactions(db *gorm.DB) dao.TenantServiceConfigFileDao {
+	return &mysqldao.TenantServiceConfigFileDaoImpl{
+		DB: m.db,
+	}
+}
+
 //TenantServiceLabelDao TenantServiceLabelDao
 func (m *Manager) TenantServiceLabelDao() dao.TenantServiceLabelDao {
 	return &mysqldao.ServiceLabelDaoImpl{

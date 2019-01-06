@@ -44,10 +44,14 @@ type AddVolumeStruct struct {
 		// 存储名称(同一个应用唯一)
 		// in: body
 		// required: true
-		VolumeName string `json:"volume_name" validate:"volume_name|required|max:50"`
-		// FileContent will be persisted in the container
-		FileContent string `json:"file_content"`
+		VolumeName  string `json:"volume_name" validate:"volume_name|required|max:50"`
+		ConfigFiles []*ConfigFiles `json:"config_files"`
 	}
+}
+
+type ConfigFiles struct {
+	Filename    string `json:"filename"`
+	FileContent string `json:"file_content"`
 }
 
 //DeleteVolumeStruct DeleteVolumeStruct

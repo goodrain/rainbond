@@ -51,6 +51,8 @@ type Manager interface {
 	TenantServiceMountRelationDaoTransactions(db *gorm.DB) dao.TenantServiceMountRelationDao
 	TenantServiceVolumeDao() dao.TenantServiceVolumeDao
 	TenantServiceVolumeDaoTransactions(*gorm.DB) dao.TenantServiceVolumeDao
+	TenantServiceConfigFileDao() dao.TenantServiceConfigFileDao
+	TenantServiceConfigFileDaoTransactions(*gorm.DB) dao.TenantServiceConfigFileDao
 	ServiceProbeDao() dao.ServiceProbeDao
 	ServiceProbeDaoTransactions(*gorm.DB) dao.ServiceProbeDao
 	TenantServiceLBMappingPortDao() dao.TenantServiceLBMappingPortDao
