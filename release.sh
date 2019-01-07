@@ -6,7 +6,7 @@ WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 GO_VERSION=1.11
 
-VERSION=5.0
+VERSION=master
 buildTime=$(date +%F-%H)
 git_commit=$(git log -n 1 --pretty --format=%h)
 
@@ -76,6 +76,7 @@ build::image() {
 		sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
 		docker build -t ${BASE_NAME}/rbd-$1:${VERSION} -f Dockerfile.release .
 		if [ "$2" = "push" ];then
+		    docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
 			docker push ${BASE_NAME}/rbd-$1:${VERSION}
 		fi	
 		rm -f ./Dockerfile.release
