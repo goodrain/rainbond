@@ -333,7 +333,6 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				}
 				os.Chmod(v.HostPath, 0777)
 			}
-			mountPath := v.VolumePath
 			// create a configMap which will be mounted as a volume
 			if v.VolumeType == dbmodel.ConfigFileVolumeType.String() {
 				cfs, err := dbmanager.TenantServiceConfigFileDao().ListByVolumeID(v.UUID)
@@ -356,16 +355,15 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 					configMap.Data[filepath.Base(v.VolumePath)] = cf.FileContent
 				}
 				as.SetConfigMap(configMap)
-				mountPath = path.Dir(v.VolumePath)
 			}
 			if as.GetStatefulSet() != nil {
-				vd.SetPV(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), mountPath, v.IsReadOnly)
+				vd.SetPV(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, v.IsReadOnly)
 			} else {
 				hostPath := v.HostPath
 				if as.IsWindowsService {
 					hostPath = RewriteHostPathInWindows(hostPath)
 				}
-				vd.SetVolume(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), mountPath, hostPath, corev1.HostPathDirectoryOrCreate, v.IsReadOnly)
+				vd.SetVolume(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, hostPath, corev1.HostPathDirectoryOrCreate, v.IsReadOnly)
 			}
 		}
 	}
@@ -586,7 +584,7 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 		}
 		v.volumes = append(v.volumes, vo)
 		vm := corev1.VolumeMount{
-			MountPath: mountPath,
+			MountPath: path.Dir(mountPath),
 			Name:      name,
 			ReadOnly:  readOnly,
 			SubPath:   "",
