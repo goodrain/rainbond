@@ -21,6 +21,7 @@ package conversion
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -350,7 +351,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 					},
 				}
 				for _, cf := range cfs {
-					configMap.Data[v.VolumeName] = cf.FileContent
+					configMap.Data[filepath.Base(v.VolumePath)] = cf.FileContent
 				}
 				as.SetConfigMap(configMap)
 			}
