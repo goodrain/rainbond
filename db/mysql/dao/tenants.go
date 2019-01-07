@@ -25,10 +25,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/goodrain/rainbond/db/model"
-
 	"github.com/Sirupsen/logrus"
-
+	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 )
 
@@ -959,6 +957,7 @@ func (t *TenantServiceConfigFileDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
+// UpdateModel updates config file
 func (t *TenantServiceConfigFileDaoImpl) UpdateModel(mo model.Interface) error {
 	configFile, ok := mo.(*model.TenantServiceConfigFile)
 	if !ok {
@@ -971,9 +970,9 @@ func (t *TenantServiceConfigFileDaoImpl) UpdateModel(mo model.Interface) error {
 }
 
 // ListByVolumeID lists configFiles by volumeID
-func (t *TenantServiceConfigFileDaoImpl) ListByVolumeID(volumeID string) ([]*model.TenantServiceConfigFile, error) {
+func (t *TenantServiceConfigFileDaoImpl) ListByVolumeID(volumeName string) ([]*model.TenantServiceConfigFile, error) {
 	var res []*model.TenantServiceConfigFile
-	if err := t.DB.Where("volume_id = ?", volumeID).Find(&res).Error; err != nil {
+	if err := t.DB.Where("volume_name = ?", volumeName).Find(&res).Error; err != nil {
 		return nil, err
 	}
 
@@ -981,9 +980,9 @@ func (t *TenantServiceConfigFileDaoImpl) ListByVolumeID(volumeID string) ([]*mod
 }
 
 // DelByVolumeID deletes config files according to volume id
-func (t *TenantServiceConfigFileDaoImpl) DelByVolumeID(volumeID string) error {
-	var cfs  []model.TenantServiceConfigFile
-	return t.DB.Where("volume_id = ?", volumeID).Delete(&cfs).Error
+func (t *TenantServiceConfigFileDaoImpl) DelByVolumeID(volumeName string) error {
+	var cfs []model.TenantServiceConfigFile
+	return t.DB.Where("volume_name = ?", volumeName).Delete(&cfs).Error
 }
 
 //TenantServiceLBMappingPortDaoImpl stream服务映射

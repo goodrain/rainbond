@@ -1214,7 +1214,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 		if fileContent != "" {
 			cf := &dbmodel.TenantServiceConfigFile{
 				UUID:        uuid.NewV4().String(),
-				VolumeID:    tsv.UUID,
+				VolumeName:  tsv.VolumeName,
 				FileContent: fileContent,
 			}
 			if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).AddModel(cf); err != nil {
@@ -1230,11 +1230,6 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 	case "delete":
 		// begin transaction
 		tx := db.GetManager().Begin()
-		v, err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).GetVolumeByServiceIDAndName(tsv.ServiceID, tsv.VolumeName)
-		if err != nil {
-			tx.Rollback()
-			return util.CreateAPIHandleErrorFromDBError("error getting volume", err)
-		}
 		if tsv.VolumeName != "" {
 			err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteModel(tsv.ServiceID, tsv.VolumeName)
 			if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
@@ -1248,7 +1243,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
 		}
-		if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).DelByVolumeID(v.UUID); err != nil {
+		if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).DelByVolumeID(tsv.VolumeName); err != nil {
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("error deleting config files", err)
 		}

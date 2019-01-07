@@ -335,14 +335,14 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 			}
 			// create a configMap which will be mounted as a volume
 			if v.VolumeType == dbmodel.ConfigFileVolumeType.String() {
-				cfs, err := dbmanager.TenantServiceConfigFileDao().ListByVolumeID(v.UUID)
+				cfs, err := dbmanager.TenantServiceConfigFileDao().ListByVolumeID(v.VolumeName)
 				if err != nil {
-					logrus.Errorf("error listing config files by volume uuid(%s): %v", v.UUID, err)
-					return nil, fmt.Errorf("error listing config files by volume uuid(%s): %v", v.UUID, err)
+					logrus.Errorf("error listing config files by volume name(%s): %v", v.VolumeName, err)
+					return nil, fmt.Errorf("error listing config files by volume name(%s): %v", v.VolumeName, err)
 				}
 				if cfs == nil || len(cfs) == 0 {
-					logrus.Errorf("there is no config files according to volume id(%s)", v.UUID)
-					return nil, fmt.Errorf("there is no config files according to volume id(%s)", v.UUID)
+					logrus.Errorf("there is no config files according to volume name(%s)", v.VolumeName)
+					return nil, fmt.Errorf("there is no config files according to volume name(%s)", v.VolumeName)
 				}
 				configMap := &corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{

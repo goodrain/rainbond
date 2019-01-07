@@ -37,9 +37,9 @@ func TestManager_TenantServiceConfigFileDaoImpl_UpdateModel(t *testing.T) {
 
 	vid := util.NewUUID()
 	cf := &model.TenantServiceConfigFile{
-		UUID: util.NewUUID(),
-		VolumeID: vid,
-		Filename: "dummy_filename",
+		UUID:        util.NewUUID(),
+		VolumeName:  vid,
+		Filename:    "dummy_filename",
 		FileContent: "dummy file content",
 	}
 	if err := GetManager().TenantServiceConfigFileDao().AddModel(cf); err != nil {

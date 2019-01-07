@@ -221,8 +221,8 @@ type TenantServiceVolumeDao interface {
 
 type TenantServiceConfigFileDao interface {
 	Dao
-	ListByVolumeID(volumeID string) ([]*model.TenantServiceConfigFile, error)
-	DelByVolumeID(volumeID string) error
+	ListByVolumeID(volumeName string) ([]*model.TenantServiceConfigFile, error)
+	DelByVolumeID(volumeName string) error
 }
 
 //TenantServiceLBMappingPortDao vs lb mapping port dao

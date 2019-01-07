@@ -311,7 +311,6 @@ func (vt VolumeType) String() string {
 //TenantServiceVolume 应用持久化纪录
 type TenantServiceVolume struct {
 	Model
-	UUID      string `gorm:"column:uuid;size:32" json:"uuid"`
 	ServiceID string `gorm:"column:service_id;size:32" json:"service_id"`
 	//服务类型
 	Category string `gorm:"column:category;size:50" json:"category"`
@@ -336,8 +335,7 @@ func (t *TenantServiceVolume) TableName() string {
 type TenantServiceConfigFile struct {
 	Model
 	UUID        string `gorm:"column:uuid;size:32" json:"uuid"`
-	VolumeID    string `gorm:"column:volume_id;size:32" json:"volume_id"`
-	Filename    string `gorm:"column:filename" json:"filename"`
+	VolumeName  string `gorm:"column:volume_name;size:32" json:"volume_name"`
 	FileContent string `gorm:"column:file_content;size:65535" json:"filename"`
 }
 
