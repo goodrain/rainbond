@@ -1172,7 +1172,7 @@ func (s *ServiceAction) ChangeLBPort(tenantID, serviceID string, containerPort, 
 }
 
 //VolumnVar var volumn
-func (s *ServiceAction) VolumnVar(avs *api_model.AddVolumeStruct, tenantID, serviceID, action string) *util.APIHandleError {
+func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fileContent, action string) *util.APIHandleError {
 	localPath := os.Getenv("LOCAL_DATA_PATH")
 	sharePath := os.Getenv("SHARE_DATA_PATH")
 	if localPath == "" {
@@ -1180,14 +1180,6 @@ func (s *ServiceAction) VolumnVar(avs *api_model.AddVolumeStruct, tenantID, serv
 	}
 	if sharePath == "" {
 		sharePath = "/grdata"
-	}
-
-	tsv := &dbmodel.TenantServiceVolume{
-		ServiceID:  serviceID,
-		VolumeName: avs.Body.VolumeName,
-		VolumePath: avs.Body.VolumePath,
-		VolumeType: avs.Body.VolumeType,
-		Category:   avs.Body.Category,
 	}
 
 	switch action {
@@ -1219,14 +1211,16 @@ func (s *ServiceAction) VolumnVar(avs *api_model.AddVolumeStruct, tenantID, serv
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("add volume", err)
 		}
-		cf := &dbmodel.TenantServiceConfigFile{
-			UUID:        uuid.NewV4().String(),
-			VolumeID:    tsv.UUID,
-			FileContent: avs.Body.FileContent,
-		}
-		if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).AddModel(cf); err != nil {
-			tx.Rollback()
-			return util.CreateAPIHandleErrorFromDBError("error creating config file", err)
+		if fileContent != "" {
+			cf := &dbmodel.TenantServiceConfigFile{
+				UUID:        uuid.NewV4().String(),
+				VolumeID:    tsv.UUID,
+				FileContent: fileContent,
+			}
+			if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).AddModel(cf); err != nil {
+				tx.Rollback()
+				return util.CreateAPIHandleErrorFromDBError("error creating config file", err)
+			}
 		}
 		// end transaction
 		if err := tx.Commit().Error; err != nil {

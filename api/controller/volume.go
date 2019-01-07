@@ -169,7 +169,7 @@ func (t *TenantStruct) AddVolume(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 400, "volume path is invalid,must begin with /")
 		return
 	}
-	if err := handler.GetServiceManager().VolumnVar(tsv, tenantID, "add"); err != nil {
+	if err := handler.GetServiceManager().VolumnVar(tsv, tenantID, "", "add"); err != nil {
 		err.Handle(r, w)
 		return
 	}
@@ -210,7 +210,7 @@ func (t *TenantStruct) DeleteVolume(w http.ResponseWriter, r *http.Request) {
 		VolumePath: avs.Body.VolumePath,
 		Category:   avs.Body.Category,
 	}
-	if err := handler.GetServiceManager().VolumnVar(tsv, tenantID, "delete"); err != nil {
+	if err := handler.GetServiceManager().VolumnVar(tsv, tenantID, "","delete"); err != nil {
 		err.Handle(r, w)
 		return
 	}
@@ -337,12 +337,19 @@ func AddVolume(w http.ResponseWriter, r *http.Request) {
 	bytes, _ := json.Marshal(avs)
 	logrus.Debugf("request uri: %s; request body: %v", r.RequestURI, string(bytes))
 
+	tsv := &dbmodel.TenantServiceVolume{
+		ServiceID:  serviceID,
+		VolumeName: avs.Body.VolumeName,
+		VolumePath: avs.Body.VolumePath,
+		VolumeType: avs.Body.VolumeType,
+		Category:   avs.Body.Category,
+	}
 
 	if !strings.HasPrefix(avs.Body.VolumePath, "/") {
 		httputil.ReturnError(r, w, 400, "volume path is invalid,must begin with /")
 		return
 	}
-	if err := handler.GetServiceManager().VolumnVar(avs, tenantID, serviceID, "add"); err != nil {
+	if err := handler.GetServiceManager().VolumnVar(tsv, tenantID, avs.Body.FileContent, "add"); err != nil {
 		err.Handle(r, w)
 		return
 	}
@@ -377,7 +384,7 @@ func DeleteVolume(w http.ResponseWriter, r *http.Request) {
 	tsv := &dbmodel.TenantServiceVolume{}
 	tsv.ServiceID = serviceID
 	tsv.VolumeName = chi.URLParam(r, "volume_name")
-	if err := handler.GetServiceManager().VolumnVar(tsv, tenantID, "delete"); err != nil {
+	if err := handler.GetServiceManager().VolumnVar(tsv, tenantID, "","delete"); err != nil {
 		err.Handle(r, w)
 		return
 	}
