@@ -316,6 +316,7 @@ var memoryLabels = map[int]string{
 }
 
 func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db.Manager) (*volumeDefine, error) {
+	logrus.Infof("begin creating volumes.")
 	var vd = &volumeDefine{
 		as: as,
 	}
@@ -344,6 +345,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 					logrus.Errorf("there is no config files according to volume name(%s)", v.VolumeName)
 					return nil, fmt.Errorf("there is no config files according to volume name(%s)", v.VolumeName)
 				}
+				logrus.Debugf("config files is %v", cfs)
 				configMap := &corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      fmt.Sprintf("manual%d", v.ID),
@@ -368,6 +370,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 		}
 	}
 	//handle Shared storage
+	logrus.Infof("begin handling Shared storage")
 	tsmr, err := dbmanager.TenantServiceMountRelationDao().GetTenantServiceMountRelationsByService(version.ServiceID)
 	if err != nil {
 		return nil, err
@@ -434,6 +437,7 @@ func (v *volumeDefine) GetVolumeMounts() []corev1.VolumeMount {
 	return v.volumeMounts
 }
 func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath string, readOnly bool) {
+	logrus.Info("Set persistence volume for statefuleset.")
 	switch VolumeType {
 	case dbmodel.ShareFileVolumeType:
 		logrus.Infof("VolumeType is share-file")
@@ -529,6 +533,7 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 	}
 }
 func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath, hostPath string, hostPathType corev1.HostPathType, readOnly bool) {
+	logrus.Info("Set volume for deployment.")
 	for _, m := range v.volumeMounts {
 		if m.MountPath == mountPath {
 			return
