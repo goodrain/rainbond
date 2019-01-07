@@ -1183,11 +1183,11 @@ func (s *ServiceAction) VolumnVar(avs *api_model.AddVolumeStruct, tenantID, serv
 	}
 
 	tsv := &dbmodel.TenantServiceVolume{
-		ServiceID:   serviceID,
-		VolumeName:  avs.Body.VolumeName,
-		VolumePath:  avs.Body.VolumePath,
-		VolumeType:  avs.Body.VolumeType,
-		Category:    avs.Body.Category,
+		ServiceID:  serviceID,
+		VolumeName: avs.Body.VolumeName,
+		VolumePath: avs.Body.VolumePath,
+		VolumeType: avs.Body.VolumeType,
+		Category:   avs.Body.Category,
 	}
 
 	switch action {
@@ -1219,17 +1219,14 @@ func (s *ServiceAction) VolumnVar(avs *api_model.AddVolumeStruct, tenantID, serv
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("add volume", err)
 		}
-		for _, item := range avs.Body.ConfigFiles {
-			cf := &dbmodel.TenantServiceConfigFile{
-				UUID: uuid.NewV4().String(),
-				VolumeID: tsv.UUID,
-				Filename: item.Filename,
-				FileContent: item.FileContent,
-			}
-			if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).AddModel(cf); err != nil {
-				tx.Rollback()
-				return util.CreateAPIHandleErrorFromDBError("error creating config file", err)
-			}
+		cf := &dbmodel.TenantServiceConfigFile{
+			UUID:        uuid.NewV4().String(),
+			VolumeID:    tsv.UUID,
+			FileContent: avs.Body.FileContent,
+		}
+		if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).AddModel(cf); err != nil {
+			tx.Rollback()
+			return util.CreateAPIHandleErrorFromDBError("error creating config file", err)
 		}
 		// end transaction
 		if err := tx.Commit().Error; err != nil {
@@ -1252,7 +1249,7 @@ func (s *ServiceAction) VolumnVar(avs *api_model.AddVolumeStruct, tenantID, serv
 			}
 		} else {
 			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath);
-			err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+				err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}

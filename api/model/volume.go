@@ -45,13 +45,8 @@ type AddVolumeStruct struct {
 		// in: body
 		// required: true
 		VolumeName  string `json:"volume_name" validate:"volume_name|required|max:50"`
-		ConfigFiles []*ConfigFiles `json:"config_files"`
+		FileContent string `json:"file_content"`
 	}
-}
-
-type ConfigFiles struct {
-	Filename    string `json:"filename"`
-	FileContent string `json:"file_content"`
 }
 
 //DeleteVolumeStruct DeleteVolumeStruct

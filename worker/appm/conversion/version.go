@@ -350,7 +350,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 					},
 				}
 				for _, cf := range cfs {
-					configMap.Data[cf.Filename] = cf.FileContent
+					configMap.Data[v.VolumeName] = cf.FileContent
 				}
 				as.SetConfigMap(configMap)
 			}
