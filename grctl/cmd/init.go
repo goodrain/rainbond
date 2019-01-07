@@ -116,6 +116,11 @@ func NewCmdInit() cli.Command {
 				Value: "calico",
 			},
 			cli.StringFlag{
+				Name:  "enable-check",
+				Usage: "enable check cpu/mem. default: enable/disable",
+				Value: "enable",
+			},
+			cli.StringFlag{
 				Name:  "storage-args",
 				Usage: "Stores mount parameters",
 				Value: "/grdata nfs rw 0 0",
@@ -238,6 +243,7 @@ func getConfig(c *cli.Context) map[string]string {
 	configs["NETWORK_TYPE"] = c.String("network")
 	configs["POD_NETWORK_CIDR"] = c.String("pod-cidr")
 	configs["STORAGE_ARGS"] = c.String("storage-args")
+	configs["ENABLE_CHECK"] = c.String("enable-check")
 	configs["PULL_ONLINE_IMAGES"] = c.String("enable-online-images")
 	return configs
 }
