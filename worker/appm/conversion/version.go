@@ -352,6 +352,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 						Namespace: as.TenantID,
 						Labels:    as.GetCommonLabels(),
 					},
+					Data: make(map[string]string),
 				}
 				for _, cf := range cfs {
 					configMap.Data[filepath.Base(v.VolumePath)] = cf.FileContent
