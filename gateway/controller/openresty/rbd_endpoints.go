@@ -6,9 +6,9 @@ import (
 	"github.com/goodrain/rainbond/gateway/v1"
 )
 
-func langGoodrainMe(ip string) (*model.Server, *model.Upstream) {
+func langGoodrainMe(ip string) *model.Server {
 	svr := &model.Server{
-		Listen:     fmt.Sprintf("%s:%d", ip, 80), // TODO: change ip address
+		Listen:     fmt.Sprintf("%s:%d", ip, 80),
 		ServerName: "lang.goodrain.me",
 		Rewrites: []model.Rewrite{
 			{
@@ -38,13 +38,10 @@ func langGoodrainMe(ip string) (*model.Server, *model.Upstream) {
 			},
 		},
 	}
-	us := &model.Upstream{
-		Name: "lang",
-	}
-	return svr, us
+	return svr
 }
 
-func mavenGoodrainMe(ip string) (*model.Server, *model.Upstream) {
+func mavenGoodrainMe(ip string) *model.Server {
 	svr := &model.Server{
 		Listen:     fmt.Sprintf("%s:%d", ip, 80),
 		ServerName: "maven.goodrain.me",
@@ -81,13 +78,10 @@ func mavenGoodrainMe(ip string) (*model.Server, *model.Upstream) {
 			},
 		},
 	}
-	us := &model.Upstream{
-		Name: "maven",
-	}
-	return svr, us
+	return svr
 }
 
-func goodrainMe(cfgPath string, ip string) (*model.Server, *model.Upstream) {
+func goodrainMe(cfgPath string, ip string) *model.Server {
 	svr := &model.Server{
 		Listen:                  fmt.Sprintf("%s:%d %s", ip, 443, "ssl"),
 		ServerName:              "goodrain.me",
@@ -102,7 +96,7 @@ func goodrainMe(cfgPath string, ip string) (*model.Server, *model.Upstream) {
 					{Field: "Host", Value: "$http_host"},
 					{Field: "X-Real-IP", Value: "$remote_addr"},
 					{Field: "X-Forwarded-For", Value: "$proxy_add_x_forwarded_for"},
-					{Field: "X-Forwarded-Proto", Value: "$scheme"},
+					{Field: "X-Forwarded-Proto", Value: "https"},
 				},
 				ProxyReadTimeout: model.Time{
 					Num:  900,
@@ -122,8 +116,30 @@ func goodrainMe(cfgPath string, ip string) (*model.Server, *model.Upstream) {
 			},
 		},
 	}
-	us := &model.Upstream{
-		Name: "registry",
+	return svr
+}
+
+func repoGoodrainMe(ip string) *model.Server {
+	return &model.Server{
+		Listen:     fmt.Sprintf("%s:%d", ip, 80),
+		Root:       "/grdata/services/offline/pkgs/",
+		ServerName: "repo.goodrain.me",
 	}
-	return svr, us
+}
+
+func kubeApiserver(ip string) *model.Server {
+	svr := &model.Server{
+		Listen:    fmt.Sprintf("%s:%d", ip, 6443),
+		ProxyPass: "kube_apiserver",
+		ProxyTimeout: model.Time{
+			Num:  10,
+			Unit: "m",
+		},
+		ProxyConnectTimeout: model.Time{
+			Num:  10,
+			Unit: "m",
+		},
+	}
+
+	return svr
 }

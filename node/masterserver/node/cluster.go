@@ -45,18 +45,6 @@ import (
 	"github.com/goodrain/rainbond/util"
 )
 
-const (
-	Running        = "running"
-	Offline        = "offline"
-	Unknown        = "unknown"
-	Error          = "error"
-	Init           = "init"
-	InstallSuccess = "install_success"
-	InstallFailed  = "install_failed"
-	Installing     = "installing"
-	NotInstalled   = "not_installed"
-)
-
 //Cluster  node  controller
 type Cluster struct {
 	ctx              context.Context
@@ -165,12 +153,21 @@ func (n *Cluster) GetNode(id string) *client.HostNode {
 	}
 	return nil
 }
+func (n *Cluster) getKubeNodeCount() int {
+	kubeNodes, _ := n.kubecli.GetNodes()
+	return len(kubeNodes)
+}
 
 //handleNodeStatus Master integrates node status and kube node status
 func (n *Cluster) handleNodeStatus(v *client.HostNode) {
+	if v.Status == client.NotInstalled || v.Status == client.Installing || v.Status == client.InstallFailed {
+		if v.NodeStatus.Status != "running" {
+			return
+		}
+	}
 	if time.Now().Sub(v.NodeStatus.NodeUpdateTime) > time.Minute*1 {
-		v.Status = Unknown
-		v.NodeStatus.Status = Unknown
+		v.Status = client.Unknown
+		v.NodeStatus.Status = client.Unknown
 		r := client.NodeCondition{
 			Type:               client.NodeUp,
 			Status:             client.ConditionFalse,
@@ -228,10 +225,14 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		for _, action := range v.NodeStatus.AdviceAction {
 			if action == "unscheduler" {
 				if v.NodeStatus.KubeNode != nil && !v.NodeStatus.KubeNode.Spec.Unschedulable {
-					logrus.Infof("node %s is advice set unscheduler,will do this action", v.ID)
-					_, err := n.kubecli.CordonOrUnCordon(v.ID, true)
-					if err != nil {
-						logrus.Errorf("auto set node is unscheduler failure.")
+					if n.getKubeNodeCount() > 1 {
+						logrus.Infof("node %s is advice set unscheduler,will do this action", v.ID)
+						_, err := n.kubecli.CordonOrUnCordon(v.ID, true)
+						if err != nil {
+							logrus.Errorf("auto set node is unscheduler failure.")
+						}
+					} else {
+						logrus.Warning("node %s is advice set unscheduler,but only have one node,can not do it", v.ID)
 					}
 				}
 			}

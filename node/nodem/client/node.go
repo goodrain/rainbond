@@ -81,8 +81,8 @@ type HostNode struct {
 	AvailableMemory int64             `json:"available_memory"`
 	AvailableCPU    int64             `json:"available_cpu"`
 	Mode            string            `json:"mode"`
-	Role            HostRule          `json:"role"`          //compute, manage, storage,loadbalance
-	Status          string            `json:"status"`        //node status is: running, unknow
+	Role            HostRule          `json:"role"` //compute, manage, storage,loadbalance
+	Status          string            `json:"status"`
 	Labels          map[string]string `json:"labels"`        //节点标签 内置标签+用户自定义标签
 	Unschedulable   bool              `json:"unschedulable"` //设置值
 	PodCIDR         string            `json:"podCIDR"`
@@ -178,6 +178,27 @@ type NodeSystemInfo struct {
 	MemorySize uint64 `json:"memorySize"`
 	NumCPU     int64  `json:"cpu_num"`
 }
+
+const (
+	//Running node running status
+	Running = "running"
+	//Offline node offline status
+	Offline = "offline"
+	//Unknown node unknown status
+	Unknown = "unknown"
+	//Error node error status
+	Error = "error"
+	//Init node init status
+	Init = "init"
+	//InstallSuccess node install success status
+	InstallSuccess = "install_success"
+	//InstallFailed node install failure status
+	InstallFailed = "install_failed"
+	//Installing node installing status
+	Installing = "installing"
+	//NotInstalled node not install status
+	NotInstalled = "not_installed"
+)
 
 //Decode decode node info
 func (n *HostNode) Decode(data []byte) error {

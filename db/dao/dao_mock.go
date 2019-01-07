@@ -4,9 +4,8 @@
 package dao
 
 import (
-	time "time"
-
 	model "github.com/goodrain/rainbond/db/model"
+	time "time"
 	gomock "github.com/rafrombrc/gomock/gomock"
 )
 
@@ -521,6 +520,16 @@ func (_m *MockTenantServiceDao) GetAllServicesID() ([]*model.TenantServices, err
 
 func (_mr *_MockTenantServiceDaoRecorder) GetAllServicesID() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetAllServicesID")
+}
+
+func (_m *MockTenantServiceDao) UpdateDeployVersion(serviceID string, deployversion string) error {
+	ret := _m.ctrl.Call(_m, "UpdateDeployVersion", serviceID, deployversion)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockTenantServiceDaoRecorder) UpdateDeployVersion(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateDeployVersion", arg0, arg1)
 }
 
 // Mock of TenantServiceDeleteDao interface
@@ -1740,6 +1749,17 @@ func (_mr *_MockTenantServiceLBMappingPortDaoRecorder) GetTenantServiceLBMapping
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTenantServiceLBMappingPort", arg0, arg1)
 }
 
+func (_m *MockTenantServiceLBMappingPortDao) GetLBMappingPortByServiceIDAndPort(serviceID string, port int) (*model.TenantServiceLBMappingPort, error) {
+	ret := _m.ctrl.Call(_m, "GetLBMappingPortByServiceIDAndPort", serviceID, port)
+	ret0, _ := ret[0].(*model.TenantServiceLBMappingPort)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTenantServiceLBMappingPortDaoRecorder) GetLBMappingPortByServiceIDAndPort(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLBMappingPortByServiceIDAndPort", arg0, arg1)
+}
+
 func (_m *MockTenantServiceLBMappingPortDao) GetTenantServiceLBMappingPortByService(serviceID string) ([]*model.TenantServiceLBMappingPort, error) {
 	ret := _m.ctrl.Call(_m, "GetTenantServiceLBMappingPortByService", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceLBMappingPort)
@@ -1802,6 +1822,16 @@ func (_m *MockTenantServiceLBMappingPortDao) GetLBPortByTenantAndPort(tenantID s
 
 func (_mr *_MockTenantServiceLBMappingPortDaoRecorder) GetLBPortByTenantAndPort(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLBPortByTenantAndPort", arg0, arg1)
+}
+
+func (_m *MockTenantServiceLBMappingPortDao) PortExists(port int) bool {
+	ret := _m.ctrl.Call(_m, "PortExists", port)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+func (_mr *_MockTenantServiceLBMappingPortDaoRecorder) PortExists(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "PortExists", arg0)
 }
 
 // Mock of TenantServiceLabelDao interface
@@ -1892,6 +1922,17 @@ func (_mr *_MockTenantServiceLabelDaoRecorder) GetTenantServiceNodeSelectorLabel
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTenantServiceNodeSelectorLabel", arg0)
 }
 
+func (_m *MockTenantServiceLabelDao) GetTenantNodeAffinityLabel(serviceID string) (*model.TenantServiceLable, error) {
+	ret := _m.ctrl.Call(_m, "GetTenantNodeAffinityLabel", serviceID)
+	ret0, _ := ret[0].(*model.TenantServiceLable)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTenantServiceLabelDaoRecorder) GetTenantNodeAffinityLabel(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTenantNodeAffinityLabel", arg0)
+}
+
 func (_m *MockTenantServiceLabelDao) GetTenantServiceAffinityLabel(serviceID string) ([]*model.TenantServiceLable, error) {
 	ret := _m.ctrl.Call(_m, "GetTenantServiceAffinityLabel", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceLable)
@@ -1914,14 +1955,45 @@ func (_mr *_MockTenantServiceLabelDaoRecorder) GetTenantServiceTypeLabel(arg0 in
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTenantServiceTypeLabel", arg0)
 }
 
-func (_m *MockTenantServiceLabelDao) DELTenantServiceLabelsByLabelvaluesAndServiceID(serviceID string, labelValues []string) error {
-	ret := _m.ctrl.Call(_m, "DELTenantServiceLabelsByLabelvaluesAndServiceID", serviceID, labelValues)
+func (_m *MockTenantServiceLabelDao) DelTenantServiceLabelsByLabelValuesAndServiceID(serviceID string) error {
+	ret := _m.ctrl.Call(_m, "DelTenantServiceLabelsByLabelValuesAndServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockTenantServiceLabelDaoRecorder) DELTenantServiceLabelsByLabelvaluesAndServiceID(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DELTenantServiceLabelsByLabelvaluesAndServiceID", arg0, arg1)
+func (_mr *_MockTenantServiceLabelDaoRecorder) DelTenantServiceLabelsByLabelValuesAndServiceID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DelTenantServiceLabelsByLabelValuesAndServiceID", arg0)
+}
+
+func (_m *MockTenantServiceLabelDao) DelTenantServiceLabelsByServiceIDKey(serviceID string, labelKey string) error {
+	ret := _m.ctrl.Call(_m, "DelTenantServiceLabelsByServiceIDKey", serviceID, labelKey)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockTenantServiceLabelDaoRecorder) DelTenantServiceLabelsByServiceIDKey(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DelTenantServiceLabelsByServiceIDKey", arg0, arg1)
+}
+
+func (_m *MockTenantServiceLabelDao) DelTenantServiceLabelsByServiceIDKeyValue(serviceID string, labelKey string, labelValue string) error {
+	ret := _m.ctrl.Call(_m, "DelTenantServiceLabelsByServiceIDKeyValue", serviceID, labelKey, labelValue)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockTenantServiceLabelDaoRecorder) DelTenantServiceLabelsByServiceIDKeyValue(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DelTenantServiceLabelsByServiceIDKeyValue", arg0, arg1, arg2)
+}
+
+func (_m *MockTenantServiceLabelDao) GetLabelByNodeSelectorKey(serviceID string, labelValue string) (*model.TenantServiceLable, error) {
+	ret := _m.ctrl.Call(_m, "GetLabelByNodeSelectorKey", serviceID, labelValue)
+	ret0, _ := ret[0].(*model.TenantServiceLable)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTenantServiceLabelDaoRecorder) GetLabelByNodeSelectorKey(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLabelByNodeSelectorKey", arg0, arg1)
 }
 
 // Mock of LocalSchedulerDao interface
@@ -2818,6 +2890,16 @@ func (_mr *_MockCertificateDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Ca
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
 }
 
+func (_m *MockCertificateDao) AddOrUpdate(mo model.Interface) error {
+	ret := _m.ctrl.Call(_m, "AddOrUpdate", mo)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockCertificateDaoRecorder) AddOrUpdate(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "AddOrUpdate", arg0)
+}
+
 func (_m *MockCertificateDao) GetCertificateByID(certificateID string) (*model.Certificate, error) {
 	ret := _m.ctrl.Call(_m, "GetCertificateByID", certificateID)
 	ret0, _ := ret[0].(*model.Certificate)
@@ -2902,158 +2984,210 @@ func (_mr *_MockRuleExtensionDaoRecorder) DeleteRuleExtensionByRuleID(arg0 inter
 }
 
 // Mock of HTTPRuleDao interface
-type MockHttpRuleDao struct {
+type MockHTTPRuleDao struct {
 	ctrl     *gomock.Controller
-	recorder *_MockHttpRuleDaoRecorder
+	recorder *_MockHTTPRuleDaoRecorder
 }
 
-// Recorder for MockHttpRuleDao (not exported)
-type _MockHttpRuleDaoRecorder struct {
-	mock *MockHttpRuleDao
+// Recorder for MockHTTPRuleDao (not exported)
+type _MockHTTPRuleDaoRecorder struct {
+	mock *MockHTTPRuleDao
 }
 
-func NewMockHttpRuleDao(ctrl *gomock.Controller) *MockHttpRuleDao {
-	mock := &MockHttpRuleDao{ctrl: ctrl}
-	mock.recorder = &_MockHttpRuleDaoRecorder{mock}
+func NewMockHTTPRuleDao(ctrl *gomock.Controller) *MockHTTPRuleDao {
+	mock := &MockHTTPRuleDao{ctrl: ctrl}
+	mock.recorder = &_MockHTTPRuleDaoRecorder{mock}
 	return mock
 }
 
-func (_m *MockHttpRuleDao) EXPECT() *_MockHttpRuleDaoRecorder {
+func (_m *MockHTTPRuleDao) EXPECT() *_MockHTTPRuleDaoRecorder {
 	return _m.recorder
 }
 
-func (_m *MockHttpRuleDao) AddModel(_param0 model.Interface) error {
+func (_m *MockHTTPRuleDao) AddModel(_param0 model.Interface) error {
 	ret := _m.ctrl.Call(_m, "AddModel", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockHttpRuleDaoRecorder) AddModel(arg0 interface{}) *gomock.Call {
+func (_mr *_MockHTTPRuleDaoRecorder) AddModel(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "AddModel", arg0)
 }
 
-func (_m *MockHttpRuleDao) UpdateModel(_param0 model.Interface) error {
+func (_m *MockHTTPRuleDao) UpdateModel(_param0 model.Interface) error {
 	ret := _m.ctrl.Call(_m, "UpdateModel", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockHttpRuleDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+func (_mr *_MockHTTPRuleDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
 }
 
-func (_m *MockHttpRuleDao) GetHttpRuleByID(id string) (*model.HTTPRule, error) {
+func (_m *MockHTTPRuleDao) GetHttpRuleByID(id string) (*model.HTTPRule, error) {
 	ret := _m.ctrl.Call(_m, "GetHttpRuleByID", id)
 	ret0, _ := ret[0].(*model.HTTPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockHttpRuleDaoRecorder) GetHttpRuleByID(arg0 interface{}) *gomock.Call {
+func (_mr *_MockHTTPRuleDaoRecorder) GetHttpRuleByID(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetHttpRuleByID", arg0)
 }
 
-func (_m *MockHttpRuleDao) GetHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HTTPRule, error) {
+func (_m *MockHTTPRuleDao) GetHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.HTTPRule, error) {
 	ret := _m.ctrl.Call(_m, "GetHttpRuleByServiceIDAndContainerPort", serviceID, containerPort)
-	ret0, _ := ret[0].(*model.HTTPRule)
+	ret0, _ := ret[0].([]*model.HTTPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockHttpRuleDaoRecorder) GetHttpRuleByServiceIDAndContainerPort(arg0, arg1 interface{}) *gomock.Call {
+func (_mr *_MockHTTPRuleDaoRecorder) GetHttpRuleByServiceIDAndContainerPort(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetHttpRuleByServiceIDAndContainerPort", arg0, arg1)
 }
 
-func (_m *MockHttpRuleDao) DeleteHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.HTTPRule, error) {
-	ret := _m.ctrl.Call(_m, "DeleteHttpRuleByServiceIDAndContainerPort", serviceID, containerPort)
-	ret0, _ := ret[0].(*model.HTTPRule)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockHttpRuleDaoRecorder) DeleteHttpRuleByServiceIDAndContainerPort(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteHttpRuleByServiceIDAndContainerPort", arg0, arg1)
-}
-
-func (_m *MockHttpRuleDao) DeleteHttpRuleByID(id string) error {
+func (_m *MockHTTPRuleDao) DeleteHttpRuleByID(id string) error {
 	ret := _m.ctrl.Call(_m, "DeleteHttpRuleByID", id)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockHttpRuleDaoRecorder) DeleteHttpRuleByID(arg0 interface{}) *gomock.Call {
+func (_mr *_MockHTTPRuleDaoRecorder) DeleteHttpRuleByID(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteHttpRuleByID", arg0)
 }
 
 // Mock of TCPRuleDao interface
-type MockTcpRuleDao struct {
+type MockTCPRuleDao struct {
 	ctrl     *gomock.Controller
-	recorder *_MockTcpRuleDaoRecorder
+	recorder *_MockTCPRuleDaoRecorder
 }
 
-// Recorder for MockTcpRuleDao (not exported)
-type _MockTcpRuleDaoRecorder struct {
-	mock *MockTcpRuleDao
+// Recorder for MockTCPRuleDao (not exported)
+type _MockTCPRuleDaoRecorder struct {
+	mock *MockTCPRuleDao
 }
 
-func NewMockTcpRuleDao(ctrl *gomock.Controller) *MockTcpRuleDao {
-	mock := &MockTcpRuleDao{ctrl: ctrl}
-	mock.recorder = &_MockTcpRuleDaoRecorder{mock}
+func NewMockTCPRuleDao(ctrl *gomock.Controller) *MockTCPRuleDao {
+	mock := &MockTCPRuleDao{ctrl: ctrl}
+	mock.recorder = &_MockTCPRuleDaoRecorder{mock}
 	return mock
 }
 
-func (_m *MockTcpRuleDao) EXPECT() *_MockTcpRuleDaoRecorder {
+func (_m *MockTCPRuleDao) EXPECT() *_MockTCPRuleDaoRecorder {
 	return _m.recorder
 }
 
-func (_m *MockTcpRuleDao) AddModel(_param0 model.Interface) error {
+func (_m *MockTCPRuleDao) AddModel(_param0 model.Interface) error {
 	ret := _m.ctrl.Call(_m, "AddModel", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockTcpRuleDaoRecorder) AddModel(arg0 interface{}) *gomock.Call {
+func (_mr *_MockTCPRuleDaoRecorder) AddModel(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "AddModel", arg0)
 }
 
-func (_m *MockTcpRuleDao) UpdateModel(_param0 model.Interface) error {
+func (_m *MockTCPRuleDao) UpdateModel(_param0 model.Interface) error {
 	ret := _m.ctrl.Call(_m, "UpdateModel", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockTcpRuleDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+func (_mr *_MockTCPRuleDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
 }
 
-func (_m *MockTcpRuleDao) GetTcpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) (*model.TCPRule, error) {
+func (_m *MockTCPRuleDao) GetTcpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.TCPRule, error) {
 	ret := _m.ctrl.Call(_m, "GetTcpRuleByServiceIDAndContainerPort", serviceID, containerPort)
-	ret0, _ := ret[0].(*model.TCPRule)
+	ret0, _ := ret[0].([]*model.TCPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockTcpRuleDaoRecorder) GetTcpRuleByServiceIDAndContainerPort(arg0, arg1 interface{}) *gomock.Call {
+func (_mr *_MockTCPRuleDaoRecorder) GetTcpRuleByServiceIDAndContainerPort(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTcpRuleByServiceIDAndContainerPort", arg0, arg1)
 }
 
-func (_m *MockTcpRuleDao) GetTcpRuleByID(id string) (*model.TCPRule, error) {
+func (_m *MockTCPRuleDao) GetTcpRuleByID(id string) (*model.TCPRule, error) {
 	ret := _m.ctrl.Call(_m, "GetTcpRuleByID", id)
 	ret0, _ := ret[0].(*model.TCPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockTcpRuleDaoRecorder) GetTcpRuleByID(arg0 interface{}) *gomock.Call {
+func (_mr *_MockTCPRuleDaoRecorder) GetTcpRuleByID(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTcpRuleByID", arg0)
 }
 
-func (_m *MockTcpRuleDao) DeleteTcpRule(tcpRule *model.TCPRule) error {
+func (_m *MockTCPRuleDao) DeleteTcpRule(tcpRule *model.TCPRule) error {
 	ret := _m.ctrl.Call(_m, "DeleteTcpRule", tcpRule)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockTcpRuleDaoRecorder) DeleteTcpRule(arg0 interface{}) *gomock.Call {
+func (_mr *_MockTCPRuleDaoRecorder) DeleteTcpRule(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteTcpRule", arg0)
+}
+
+// Mock of IPPortDao interface
+type MockIPPortDao struct {
+	ctrl     *gomock.Controller
+	recorder *_MockIPPortDaoRecorder
+}
+
+// Recorder for MockIPPortDao (not exported)
+type _MockIPPortDaoRecorder struct {
+	mock *MockIPPortDao
+}
+
+func NewMockIPPortDao(ctrl *gomock.Controller) *MockIPPortDao {
+	mock := &MockIPPortDao{ctrl: ctrl}
+	mock.recorder = &_MockIPPortDaoRecorder{mock}
+	return mock
+}
+
+func (_m *MockIPPortDao) EXPECT() *_MockIPPortDaoRecorder {
+	return _m.recorder
+}
+
+func (_m *MockIPPortDao) AddModel(_param0 model.Interface) error {
+	ret := _m.ctrl.Call(_m, "AddModel", _param0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockIPPortDaoRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "AddModel", arg0)
+}
+
+func (_m *MockIPPortDao) UpdateModel(_param0 model.Interface) error {
+	ret := _m.ctrl.Call(_m, "UpdateModel", _param0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockIPPortDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
+}
+
+func (_m *MockIPPortDao) GetIPByPort(port int) ([]*model.IPPort, error) {
+	ret := _m.ctrl.Call(_m, "GetIPByPort", port)
+	ret0, _ := ret[0].([]*model.IPPort)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockIPPortDaoRecorder) GetIPByPort(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetIPByPort", arg0)
+}
+
+func (_m *MockIPPortDao) GetIPPortByIPAndPort(ip string, port int) (*model.IPPort, error) {
+	ret := _m.ctrl.Call(_m, "GetIPPortByIPAndPort", ip, port)
+	ret0, _ := ret[0].(*model.IPPort)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockIPPortDaoRecorder) GetIPPortByIPAndPort(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetIPPortByIPAndPort", arg0, arg1)
 }

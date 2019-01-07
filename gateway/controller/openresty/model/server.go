@@ -5,6 +5,7 @@ import "github.com/goodrain/rainbond/gateway/v1"
 // Server sets configuration for a virtual server...
 type Server struct {
 	Listen                  string // DefaultType: listen *:80 | *:8000; Sets the address and port for IP, or the path for a UNIX-domain socket on which the server will accept requests
+	Root                    string // Sets the root directory for requests.
 	ServerName              string // Sets names of a virtual server
 	KeepaliveTimeout        Time   // DefaultType 60s. Sets a timeout during which an idle keepalive connection to an upstream server will stay open.
 	DefaultType             string // Defines the default MIME type of a response.

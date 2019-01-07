@@ -20,6 +20,7 @@ package handler
 
 import (
 	"fmt"
+	"github.com/twinj/uuid"
 	"strings"
 	"testing"
 
@@ -27,7 +28,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/pquerna/ffjson/ffjson"
-	uuid "github.com/satori/go.uuid"
 )
 
 func TestABCService(t *testing.T) {

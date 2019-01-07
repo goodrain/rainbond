@@ -21,7 +21,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"sync"
 
 	"github.com/goodrain/rainbond/worker/appm/store"
@@ -101,7 +100,6 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 	controllerID := util.NewUUID()
 	switch controllerType {
 	case TypeStartController:
-		logrus.Debugf("controller = &startController{")
 		controller = &startController{
 			controllerID: controllerID,
 			appService:   apps,
@@ -167,6 +165,11 @@ func getLoggerOption(status string) map[string]string {
 //GetCallbackLoggerOption get callback logger
 func GetCallbackLoggerOption() map[string]string {
 	return map[string]string{"step": "callback", "status": "failure"}
+}
+
+//GetTimeoutLoggerOption get callback logger
+func GetTimeoutLoggerOption() map[string]string {
+	return map[string]string{"step": "callback", "status": "timeout"}
 }
 
 //GetLastLoggerOption get last logger

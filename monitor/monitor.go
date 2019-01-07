@@ -34,6 +34,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
+//Monitor monitor
 type Monitor struct {
 	config     *option.Config
 	ctx        context.Context
@@ -45,13 +46,13 @@ type Monitor struct {
 	discoverv2 discoverv2.Discover
 }
 
+//Start start
 func (d *Monitor) Start() {
 	d.discoverv1.AddProject("prometheus", &callback.Prometheus{Prometheus: d.manager})
 	d.discoverv1.AddProject("event_log_event_http", &callback.EventLog{Prometheus: d.manager})
 	d.discoverv1.AddProject("acp_entrance", &callback.Entrance{Prometheus: d.manager})
-	d.discoverv2.AddProject("app_sync_runtime_server", &callback.AppStatus{Prometheus: d.manager})
+	d.discoverv1.AddProject("acp_webcli", &callback.Webcli{Prometheus: d.manager})
 	d.discoverv2.AddProject("builder", &callback.Builder{Prometheus: d.manager})
-	d.discoverv2.AddProject("acp_webcli", &callback.Webcli{Prometheus: d.manager})
 	d.discoverv2.AddProject("mq", &callback.Mq{Prometheus: d.manager})
 
 	// node and app runtime metrics needs to be monitored separately
@@ -181,11 +182,13 @@ func (d *Monitor) discoverEtcd(e *callback.Etcd, done <-chan struct{}) {
 
 			endpoints := make([]*config.Endpoint, 0, 5)
 			for _, member := range resp.Members {
-				url := member.GetName() + ":2379"
-				end := &config.Endpoint{
-					URL: url,
+				if len(member.ClientURLs) > 1 {
+					url := member.ClientURLs[0]
+					end := &config.Endpoint{
+						URL: url,
+					}
+					endpoints = append(endpoints, end)
 				}
-				endpoints = append(endpoints, end)
 			}
 
 			e.UpdateEndpoints(endpoints...)

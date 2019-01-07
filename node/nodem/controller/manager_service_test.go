@@ -17,3 +17,72 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package controller
+
+import (
+	"context"
+	"github.com/coreos/etcd/clientv3"
+	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/node/nodem/client"
+	"github.com/goodrain/rainbond/node/nodem/service"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestManagerService_SetEndpoints(t *testing.T) {
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{"127.0.0.1:2379"},
+		DialTimeout: time.Duration(5) * time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	key := "/rainbond/endpoint/foobar"
+	defer cli.Delete(ctx, key, clientv3.WithPrefix())
+
+	m := &ManagerService{}
+	srvs := &[]*service.Service{
+		{
+			Endpoints: []*service.Endpoint{
+				{
+					Name:     "foobar",
+					Protocol: "http",
+					Port:     "6442",
+				},
+			},
+		},
+	}
+	m.services = srvs
+	c := client.NewClusterClient(
+		&option.Conf{
+			EtcdCli: cli,
+		},
+	)
+	m.cluster = c
+
+	data := []string{
+		"192.168.8.229",
+		"192.168.8.230",
+		"192.168.8.231",
+	}
+
+	m.SetEndpoints(data[0])
+	m.SetEndpoints(data[1])
+	m.SetEndpoints(data[2])
+
+	edps := c.GetEndpoints("foobar")
+	for _, d := range data {
+		flag := false
+		for _, edp := range edps {
+			if d + ":6442" == strings.Replace(edp, "http://", "", -1) {
+				flag = true
+			}
+		}
+		if !flag {
+			t.Fatalf("Can not find \"%s\" in %v", d, edps)
+		}
+	}
+}

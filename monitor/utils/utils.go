@@ -19,27 +19,28 @@
 package utils
 
 import (
-	"strings"
-	"sort"
-	"github.com/goodrain/rainbond/discover/config"
 	"os"
-	"syscall"
-	"github.com/Sirupsen/logrus"
 	"os/signal"
+	"sort"
+	"strings"
+	"syscall"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/discover/config"
 )
 
+//TrimAndSort TrimAndSort
 func TrimAndSort(endpoints []*config.Endpoint) []string {
 	arr := make([]string, 0, len(endpoints))
 	for _, end := range endpoints {
-		url := strings.TrimLeft(end.URL, "shttp://")
+		url := strings.TrimLeft(end.URL, "http://")
 		arr = append(arr, url)
 	}
-
 	sort.Strings(arr)
-
 	return arr
 }
 
+//ArrCompare ArrCompare
 func ArrCompare(arr1, arr2 []string) bool {
 	if len(arr1) != len(arr2) {
 		return false
@@ -54,11 +55,12 @@ func ArrCompare(arr1, arr2 []string) bool {
 	return true
 }
 
+//ListenStop ListenStop
 func ListenStop() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM)
 
-	sig := <- sigs
+	sig := <-sigs
 	signal.Ignore(syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM)
 
 	logrus.Warn("monitor manager received signal: ", sig.String())

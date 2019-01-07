@@ -70,6 +70,9 @@ func (e *etcdClusterClient) UpdateStatus(n *HostNode, initLable map[string]strin
 	if err != nil {
 		return fmt.Errorf("get node %s failure where update node %s", n.ID, err.Error())
 	}
+	//update node mode
+	existNode.Mode = n.Mode
+	existNode.HostName = n.HostName
 	existNode.NodeStatus.NodeHealth = n.NodeStatus.NodeHealth
 	existNode.NodeStatus.NodeUpdateTime = time.Now()
 	existNode.NodeStatus.Version = cmd.GetVersion()
@@ -102,16 +105,20 @@ func (e *etcdClusterClient) GetEndpoints(key string) (result []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	resp, err := e.conf.EtcdCli.Get(ctx, key)
+	resp, err := e.conf.EtcdCli.Get(ctx, key, clientv3.WithPrefix())
 	if err != nil || len(resp.Kvs) < 1 {
 		logrus.Errorf("Can not get endpoints of the key %s", key)
 		return
 	}
 
-	err = json.Unmarshal(resp.Kvs[0].Value, &result)
-	if err != nil {
-		logrus.Errorf("Can unmarshal endpoints to array of the key %s", key)
-		return
+	for _, kv := range resp.Kvs {
+		var res []string
+		err = json.Unmarshal(kv.Value, &res)
+		if err != nil {
+			logrus.Errorf("Can unmarshal endpoints to array of the key %s", key)
+			return
+		}
+		result = append(result, res...)
 	}
 
 	logrus.Infof("Get endpoints %s => %v", key, result)

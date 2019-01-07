@@ -21,13 +21,15 @@ package v1
 //Node Application service endpoint
 type Node struct {
 	Meta
-	Host     string `json:"host"`
-	Port     int32  `json:"port"`
-	Protocol string `json:"protocol"`
-	State    string `json:"state"`     //Active Draining Disabled
-	PoolName string `json:"pool_name"` //Belong to the pool
-	Ready    bool   `json:"ready"`     //Whether ready
-	Weight   int    `json:"weight"`
+	Host        string `json:"host"`
+	Port        int32  `json:"port"`
+	Protocol    string `json:"protocol"`
+	State       string `json:"state"`     //Active Draining Disabled
+	PoolName    string `json:"pool_name"` //Belong to the pool
+	Ready       bool   `json:"ready"`     //Whether ready
+	Weight      int    `json:"weight"`
+	MaxFails    int    `json:"max_fails"`
+	FailTimeout string `json:"fail_timeout"`
 }
 
 func (n *Node) Equals(c *Node) bool { //

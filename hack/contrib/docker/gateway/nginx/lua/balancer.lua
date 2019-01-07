@@ -133,6 +133,7 @@ function _M.balance()
   if not ok then
     ngx.log(ngx.ERR, string.format("error while setting current upstream peer %s: %s", peer, err))
   end
+  ngx.log(ngx.INFO, string.format("successfully set current upstream peer %s: %s", peer, err))
 end
 
 return _M

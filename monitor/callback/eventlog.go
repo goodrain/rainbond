@@ -19,13 +19,14 @@
 package callback
 
 import (
-	"github.com/goodrain/rainbond/discover/config"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
+	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/prometheus/common/model"
-	"time"
 )
 
 type EventLog struct {
@@ -74,7 +75,7 @@ func (e *EventLog) toScrape() *prometheus.ScrapeConfig {
 					Targets: ts,
 					Labels: map[model.LabelName]model.LabelValue{
 						"service_name": model.LabelValue(e.Name()),
-						"component": model.LabelValue(e.Name()),
+						"component":    model.LabelValue(e.Name()),
 					},
 				},
 			},
