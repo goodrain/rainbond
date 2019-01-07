@@ -129,6 +129,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.TCPRule{})
 	m.models = append(m.models, &model.IPPort{})
 	m.models = append(m.models, &model.IPPool{})
+	m.models = append(m.models, &model.TenantServiceConfigFile{})
 }
 
 //CheckTable check and create tables

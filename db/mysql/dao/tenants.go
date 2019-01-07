@@ -21,6 +21,7 @@ package dao
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -935,6 +936,54 @@ func (t *TenantServiceVolumeDaoImpl) DeleteTenantServiceVolumesByServiceID(servi
 		return err
 	}
 	return nil
+}
+
+//TenantServiceConfigFileDaoImpl is a implementation of TenantServiceConfigFileDao
+type TenantServiceConfigFileDaoImpl struct {
+	DB *gorm.DB
+}
+
+func (t *TenantServiceConfigFileDaoImpl) AddModel(mo model.Interface) error {
+	configFile, ok := mo.(*model.TenantServiceConfigFile)
+	if !ok {
+		return fmt.Errorf("can't convert %s to *model.TenantServiceConfigFile", reflect.TypeOf(mo))
+	}
+	var old model.TenantServiceConfigFile
+	if ok := t.DB.Where("uuid = ?", configFile.UUID).Find(&old).RecordNotFound(); ok {
+		if err := t.DB.Create(configFile).Error; err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("ConfigFile already exists according to uuid(%s)", configFile.UUID)
+	}
+	return nil
+}
+
+func (t *TenantServiceConfigFileDaoImpl) UpdateModel(mo model.Interface) error {
+	configFile, ok := mo.(*model.TenantServiceConfigFile)
+	if !ok {
+		return fmt.Errorf("can't convert %s to *model.TenantServiceConfigFile", reflect.TypeOf(mo))
+	}
+
+	return t.DB.Table(configFile.TableName()).
+		Where("uuid = ?", configFile.UUID).
+		Update(configFile).Error
+}
+
+// ListByVolumeID lists configFiles by volumeID
+func (t *TenantServiceConfigFileDaoImpl) ListByVolumeID(volumeID string) ([]*model.TenantServiceConfigFile, error) {
+	var res []*model.TenantServiceConfigFile
+	if err := t.DB.Where("volume_id = ?", volumeID).Find(&res).Error; err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+// DelByVolumeID deletes config files according to volume id
+func (t *TenantServiceConfigFileDaoImpl) DelByVolumeID(volumeID string) error {
+	var cfs  []model.TenantServiceConfigFile
+	return t.DB.Where("volume_id = ?", volumeID).Delete(&cfs).Error
 }
 
 //TenantServiceLBMappingPortDaoImpl stream服务映射

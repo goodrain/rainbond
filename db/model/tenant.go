@@ -301,6 +301,9 @@ var LocalVolumeType VolumeType = "local"
 //MemoryFSVolumeType 内存文件存储
 var MemoryFSVolumeType VolumeType = "memoryfs"
 
+//ConfigFileVolumeType configuration file volume type
+var ConfigFileVolumeType VolumeType = "config-file"
+
 func (vt VolumeType) String() string {
 	return string(vt)
 }
@@ -308,6 +311,7 @@ func (vt VolumeType) String() string {
 //TenantServiceVolume 应用持久化纪录
 type TenantServiceVolume struct {
 	Model
+	UUID      string `gorm:"column:uuid;size:32" json:"uuid"`
 	ServiceID string `gorm:"column:service_id;size:32" json:"service_id"`
 	//服务类型
 	Category string `gorm:"column:category;size:50" json:"category"`
@@ -326,6 +330,19 @@ type TenantServiceVolume struct {
 //TableName 表名
 func (t *TenantServiceVolume) TableName() string {
 	return "tenant_services_volume"
+}
+
+// TenantServiceConfigFile represents a data in configMap which is one of the types of volumes
+type TenantServiceConfigFile struct {
+	Model
+	UUID        string `gorm:"column:uuid;size:32" json:"uuid"`
+	VolumeID    string `gorm:"column:volume_id;size:32" json:"volume_id"`
+	Filename    string `gorm:"column:filename" json:"filename"`
+	FileContent string `gorm:"column:file_content;size:65535" json:"filename"`
+}
+
+func (t *TenantServiceConfigFile) TableName() string {
+	return "tenant_service_config_file"
 }
 
 //TenantServiceLable 应用高级标签

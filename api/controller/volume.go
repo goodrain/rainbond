@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -333,18 +334,15 @@ func AddVolume(w http.ResponseWriter, r *http.Request) {
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &avs.Body, nil); !ok {
 		return
 	}
-	tsv := &dbmodel.TenantServiceVolume{
-		ServiceID:  serviceID,
-		VolumeName: avs.Body.VolumeName,
-		VolumePath: avs.Body.VolumePath,
-		VolumeType: avs.Body.VolumeType,
-		Category:   avs.Body.Category,
-	}
-	if !strings.HasPrefix(tsv.VolumePath, "/") {
+	bytes, _ := json.Marshal(avs)
+	logrus.Debugf("request uri: %s; request body: %v", r.RequestURI, string(bytes))
+
+
+	if !strings.HasPrefix(avs.Body.VolumePath, "/") {
 		httputil.ReturnError(r, w, 400, "volume path is invalid,must begin with /")
 		return
 	}
-	if err := handler.GetServiceManager().VolumnVar(tsv, tenantID, "add"); err != nil {
+	if err := handler.GetServiceManager().VolumnVar(avs, tenantID, serviceID, "add"); err != nil {
 		err.Handle(r, w)
 		return
 	}
