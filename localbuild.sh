@@ -8,7 +8,7 @@ releasedir=./.release
 distdir=${releasedir}/dist
 GO_VERSION=1.11
 
-VERSION=5.0
+VERSION=master
 buildTime=$(date +%F-%H)
 git_commit=$(git log -n 1 --pretty --format=%h)
 release_desc=${VERSION}-${git_commit}-${buildTime}
