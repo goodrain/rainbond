@@ -436,6 +436,7 @@ func (v *volumeDefine) GetVolumeMounts() []corev1.VolumeMount {
 func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath string, readOnly bool) {
 	switch VolumeType {
 	case dbmodel.ShareFileVolumeType:
+		logrus.Infof("VolumeType is share-file")
 		if statefulset := v.as.GetStatefulSet(); statefulset != nil {
 			//do not limit
 			resourceStorage, _ := resource.ParseQuantity("500Gi")
@@ -466,6 +467,7 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 			})
 		}
 	case dbmodel.LocalVolumeType:
+		logrus.Infof("VolumeType is local")
 		if statefulset := v.as.GetStatefulSet(); statefulset != nil {
 			//do not limit
 			resourceStorage, _ := resource.ParseQuantity("500Gi")
@@ -505,6 +507,7 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 			})
 		}
 	case dbmodel.ConfigFileVolumeType:
+		logrus.Infof("VolumeType is config-file")
 		if statefulset := v.as.GetStatefulSet(); statefulset != nil {
 			cv := corev1.Volume{
 				Name: name,
@@ -519,7 +522,7 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 			v.volumes = append(v.volumes, cv)
 			v.volumeMounts = append(v.volumeMounts, corev1.VolumeMount{
 				Name:      name,
-				MountPath: mountPath,
+				MountPath: path.Dir(mountPath),
 				ReadOnly:  readOnly,
 			})
 		}
@@ -533,7 +536,7 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 	}
 	switch VolumeType {
 	case dbmodel.MemoryFSVolumeType:
-		logrus.Debugf("VolumeType is memoryfs")
+		logrus.Infof("VolumeType is memoryfs")
 		vo := corev1.Volume{Name: name}
 		vo.EmptyDir = &corev1.EmptyDirVolumeSource{
 			Medium: corev1.StorageMediumMemory,
@@ -549,7 +552,7 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 			v.volumeMounts = append(v.volumeMounts, vm)
 		}
 	case dbmodel.ShareFileVolumeType:
-		logrus.Debugf("VolumeType is share-file")
+		logrus.Infof("VolumeType is share-file")
 		if hostPath != "" {
 			vo := corev1.Volume{
 				Name: name,
@@ -573,7 +576,7 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 		//no support
 		return
 	case dbmodel.ConfigFileVolumeType:
-		logrus.Debugf("VolumeType is config-file")
+		logrus.Infof("VolumeType is config-file")
 		vo := corev1.Volume{
 			Name: name,
 		}
