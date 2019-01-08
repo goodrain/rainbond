@@ -324,6 +324,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 	if err != nil {
 		return nil, err
 	}
+	cmmap := make(map[string]*corev1.ConfigMap)
 	if vs != nil && len(vs) > 0 {
 		for i := range vs {
 			v := vs[i]
@@ -335,6 +336,8 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				os.Chmod(v.HostPath, 0777)
 			}
 			// create a configMap which will be mounted as a volume
+			name := fmt.Sprintf("manual%d", v.ID)
+			mountPath := v.VolumePath
 			if v.VolumeType == dbmodel.ConfigFileVolumeType.String() {
 				cfs, err := dbmanager.TenantServiceConfigFileDao().ListByVolumeID(v.VolumeName)
 				if err != nil {
@@ -345,34 +348,46 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 					logrus.Errorf("there is no config files according to volume name(%s)", v.VolumeName)
 					return nil, fmt.Errorf("there is no config files according to volume name(%s)", v.VolumeName)
 				}
+				configs := make(map[string]string)
 				envs, err := createEnv(as, dbmanager)
-				configs := make(map[string]string, len(*envs))
-				for _, env := range *envs {
-					configs[env.Name] = env.Value
-				}
-				configMap := &corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      fmt.Sprintf("manual%d", v.ID),
-						Namespace: as.TenantID,
-						Labels:    as.GetCommonLabels(),
-					},
-					Data: make(map[string]string),
+				if err != nil {
+					logrus.Warningf("error creating environment variables: %v", err)
+				} else {
+					for _, env := range *envs {
+						configs[env.Name] = env.Value
+					}
 				}
 				for _, cf := range cfs {
-					configMap.Data[filepath.Base(v.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
+					mountPath = path.Dir(v.VolumePath)
+					name = fmt.Sprintf("manual%s%s", as.ServiceAlias, mountPath)
+					cmap, ok := cmmap[name]
+					if !ok {
+						cmap = &corev1.ConfigMap{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      name,
+								Namespace: as.TenantID,
+								Labels:    as.GetCommonLabels(),
+							},
+							Data: make(map[string]string),
+						}
+						cmmap[name] = cmap
+					}
+					cmap.Data[filepath.Base(v.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
 				}
-				as.SetConfigMap(configMap)
 			}
 			if as.GetStatefulSet() != nil {
-				vd.SetPV(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, v.IsReadOnly)
+				vd.SetPV(dbmodel.VolumeType(v.VolumeType), name, mountPath, v.IsReadOnly)
 			} else {
 				hostPath := v.HostPath
 				if as.IsWindowsService {
 					hostPath = RewriteHostPathInWindows(hostPath)
 				}
-				vd.SetVolume(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, hostPath, corev1.HostPathDirectoryOrCreate, v.IsReadOnly)
+				vd.SetVolume(dbmodel.VolumeType(v.VolumeType), name, mountPath, hostPath, corev1.HostPathDirectoryOrCreate, v.IsReadOnly)
 			}
 		}
+	}
+	for _, cmap := range cmmap {
+		as.SetConfigMap(cmap)
 	}
 	//handle Shared storage
 	logrus.Infof("begin handling Shared storage")
