@@ -546,7 +546,7 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 			v.volumes = append(v.volumes, cv)
 			v.volumeMounts = append(v.volumeMounts, corev1.VolumeMount{
 				Name:      name,
-				MountPath: path.Dir(mountPath),
+				MountPath: mountPath,
 				ReadOnly:  readOnly,
 			})
 		}
@@ -612,7 +612,7 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 		}
 		v.volumes = append(v.volumes, vo)
 		vm := corev1.VolumeMount{
-			MountPath: path.Dir(mountPath),
+			MountPath: mountPath,
 			Name:      name,
 			ReadOnly:  readOnly,
 			SubPath:   "",
