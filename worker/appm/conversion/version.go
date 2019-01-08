@@ -345,7 +345,11 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 					logrus.Errorf("there is no config files according to volume name(%s)", v.VolumeName)
 					return nil, fmt.Errorf("there is no config files according to volume name(%s)", v.VolumeName)
 				}
-				logrus.Debugf("config files is %v", cfs)
+				envs, err := createEnv(as, dbmanager)
+				configs := make(map[string]string, len(*envs))
+				for _, env := range *envs {
+					configs[env.Name] = env.Value
+				}
 				configMap := &corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      fmt.Sprintf("manual%d", v.ID),
@@ -355,7 +359,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 					Data: make(map[string]string),
 				}
 				for _, cf := range cfs {
-					configMap.Data[filepath.Base(v.VolumePath)] = cf.FileContent
+					configMap.Data[filepath.Base(v.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
 				}
 				as.SetConfigMap(configMap)
 			}
