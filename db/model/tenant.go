@@ -282,6 +282,7 @@ type TenantServiceMountRelation struct {
 	HostPath string `gorm:"column:mnt_dir" json:"host_path" validate:"host_path"`
 	//存储名称(依赖应用的共享存储对应的名称)
 	VolumeName string `gorm:"column:volume_name;size:40" json:"volume_name" validate:"volume_name|required"`
+	VolumeType string `gorm:"column:volume_type" json:"volume_type" validate:"volume_type|required"`
 }
 
 //TableName 表名

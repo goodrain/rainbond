@@ -87,6 +87,8 @@ type AddVolumeDependencyStruct struct {
 		// in: body
 		// required: true
 		VolumeName string `json:"volume_name" validate:"volume_name|required|max:50"`
+
+		VolumeType string //`json:"volume_type" validate:"volume_type|required|in:share-file,config-file"`
 	}
 }
 
