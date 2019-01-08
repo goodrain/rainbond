@@ -118,9 +118,6 @@ func (t *TokenIdenAction) CheckToken(token, uri string) bool {
 		}
 		SetTokenCache(regionInfo)
 	}
-	if regionInfo.ValidityPeriod < int(time.Now().Unix()) {
-		return false
-	}
 	switch regionInfo.APIRange {
 	case dbmodel.ALLPOWER:
 		return true
