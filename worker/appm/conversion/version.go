@@ -411,12 +411,17 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				}
 				vd.SetVolume(dbmodel.ShareFileVolumeType, fmt.Sprintf("mnt%d", t.ID), t.VolumePath, hostPath, corev1.HostPathDirectoryOrCreate, false)
 			case dbmodel.ConfigFileVolumeType.String():
-				name := fmt.Sprintf("manual%s%s", t.DependServiceID, t.VolumePath)
+				tsv, err := dbmanager.TenantServiceVolumeDao().GetVolumeByServiceIDAndName(t.DependServiceID, t.VolumeName)
+				if err != nil {
+					return nil, fmt.Errorf("error getting TenantServiceVolume according to serviceID(%s) and volumeName(%s): %v", 
+					t.DependServiceID, t.VolumeName, err)
+				}
+				name := fmt.Sprintf("manual%s%s", t.DependServiceID, tsv.VolumePath)
 				name = strings.Replace(name, "/", "slash", -1)
 				if as.GetStatefulSet() != nil {
-					vd.SetPV(dbmodel.ConfigFileVolumeType, name, t.VolumePath, false) // TODO
+					vd.SetPV(dbmodel.ConfigFileVolumeType, name, t.VolumePath, tsv.IsReadOnly)
 				} else {
-					vd.SetVolume(dbmodel.ConfigFileVolumeType, name, t.VolumePath, "", corev1.HostPathDirectoryOrCreate, false)
+					vd.SetVolume(dbmodel.ConfigFileVolumeType, name, t.VolumePath, "", corev1.HostPathDirectoryOrCreate, tsv.IsReadOnly) 
 				}
 			}
 		}
