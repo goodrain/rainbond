@@ -360,6 +360,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				for _, cf := range cfs {
 					mountPath = path.Dir(v.VolumePath)
 					name = fmt.Sprintf("manual%s%s", as.ServiceAlias, mountPath)
+					name = strings.Replace(name, "/", "slash", -1)
 					cmap, ok := cmmap[name]
 					if !ok {
 						cmap = &corev1.ConfigMap{
