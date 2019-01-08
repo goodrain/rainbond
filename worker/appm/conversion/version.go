@@ -359,7 +359,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				}
 				for _, cf := range cfs {
 					mountPath = path.Dir(v.VolumePath)
-					name = fmt.Sprintf("manual%s%s", as.ServiceAlias, mountPath)
+					name = fmt.Sprintf("manual%s%s", as.ServiceID, mountPath)
 					name = strings.Replace(name, "/", "slash", -1)
 					cmap, ok := cmmap[name]
 					if !ok {
@@ -399,15 +399,26 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 	if vs != nil && len(tsmr) > 0 {
 		for i := range tsmr {
 			t := tsmr[i]
-			err := util.CheckAndCreateDir(t.HostPath)
-			if err != nil {
-				return nil, fmt.Errorf("create host path %s error,%s", t.HostPath, err.Error())
+			switch t.VolumeType {
+			case dbmodel.ShareFileVolumeType.String():
+				err := util.CheckAndCreateDir(t.HostPath)
+				if err != nil {
+					return nil, fmt.Errorf("create host path %s error,%s", t.HostPath, err.Error())
+				}
+				hostPath := t.HostPath
+				if as.IsWindowsService {
+					hostPath = RewriteHostPathInWindows(hostPath)
+				}
+				vd.SetVolume(dbmodel.ShareFileVolumeType, fmt.Sprintf("mnt%d", t.ID), t.VolumePath, hostPath, corev1.HostPathDirectoryOrCreate, false)
+			case dbmodel.ConfigFileVolumeType.String():
+				name := fmt.Sprintf("manual%s%s", t.DependServiceID, t.VolumePath)
+				name = strings.Replace(name, "/", "slash", -1)
+				if as.GetStatefulSet() != nil {
+					vd.SetPV(dbmodel.ConfigFileVolumeType, name, t.VolumePath, false) // TODO
+				} else {
+					vd.SetVolume(dbmodel.ConfigFileVolumeType, name, t.VolumePath, "", corev1.HostPathDirectoryOrCreate, false)
+				}
 			}
-			hostPath := t.HostPath
-			if as.IsWindowsService {
-				hostPath = RewriteHostPathInWindows(hostPath)
-			}
-			vd.SetVolume(dbmodel.ShareFileVolumeType, fmt.Sprintf("mnt%d", t.ID), t.VolumePath, hostPath, corev1.HostPathDirectoryOrCreate, false)
 		}
 	}
 	//handle slug file volume
