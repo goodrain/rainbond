@@ -416,7 +416,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 					return nil, fmt.Errorf("error getting TenantServiceVolume according to serviceID(%s) and volumeName(%s): %v", 
 					t.DependServiceID, t.VolumeName, err)
 				}
-				name := fmt.Sprintf("manual%s%s", t.DependServiceID, tsv.VolumePath)
+				name := fmt.Sprintf("manual%s%s", t.DependServiceID, path.Dir(tsv.VolumePath))
 				name = strings.Replace(name, "/", "slash", -1)
 				if as.GetStatefulSet() != nil {
 					vd.SetPV(dbmodel.ConfigFileVolumeType, name, t.VolumePath, tsv.IsReadOnly)
