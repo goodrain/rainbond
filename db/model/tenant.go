@@ -282,6 +282,7 @@ type TenantServiceMountRelation struct {
 	HostPath string `gorm:"column:mnt_dir" json:"host_path" validate:"host_path"`
 	//存储名称(依赖应用的共享存储对应的名称)
 	VolumeName string `gorm:"column:volume_name;size:40" json:"volume_name" validate:"volume_name|required"`
+	VolumeType string `gorm:"column:volume_type" json:"volume_type" validate:"volume_type|required"`
 }
 
 //TableName 表名
@@ -300,6 +301,9 @@ var LocalVolumeType VolumeType = "local"
 
 //MemoryFSVolumeType 内存文件存储
 var MemoryFSVolumeType VolumeType = "memoryfs"
+
+//ConfigFileVolumeType configuration file volume type
+var ConfigFileVolumeType VolumeType = "config-file"
 
 func (vt VolumeType) String() string {
 	return string(vt)
@@ -326,6 +330,18 @@ type TenantServiceVolume struct {
 //TableName 表名
 func (t *TenantServiceVolume) TableName() string {
 	return "tenant_services_volume"
+}
+
+// TenantServiceConfigFile represents a data in configMap which is one of the types of volumes
+type TenantServiceConfigFile struct {
+	Model
+	UUID        string `gorm:"column:uuid;size:32" json:"uuid"`
+	VolumeName  string `gorm:"column:volume_name;size:32" json:"volume_name"`
+	FileContent string `gorm:"column:file_content;size:65535" json:"filename"`
+}
+
+func (t *TenantServiceConfigFile) TableName() string {
+	return "tenant_service_config_file"
 }
 
 //TenantServiceLable 应用高级标签
