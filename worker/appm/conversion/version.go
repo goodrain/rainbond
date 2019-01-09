@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -324,7 +323,18 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 	if err != nil {
 		return nil, err
 	}
-	cmmap := make(map[string]*corev1.ConfigMap)
+
+	// environment variables
+	configs := make(map[string]string)
+	envs, err := createEnv(as, dbmanager)
+	if err != nil {
+		logrus.Warningf("error creating environment variables: %v", err)
+	} else {
+		for _, env := range *envs {
+			configs[env.Name] = env.Value
+		}
+	}
+
 	if vs != nil && len(vs) > 0 {
 		for i := range vs {
 			v := vs[i]
@@ -336,59 +346,38 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				os.Chmod(v.HostPath, 0777)
 			}
 			// create a configMap which will be mounted as a volume
-			name := fmt.Sprintf("manual%d", v.ID)
-			mountPath := v.VolumePath
+			var cmap *corev1.ConfigMap
 			if v.VolumeType == dbmodel.ConfigFileVolumeType.String() {
-				cfs, err := dbmanager.TenantServiceConfigFileDao().ListByVolumeID(v.VolumeName)
+				cf, err := dbmanager.TenantServiceConfigFileDao().GetByVolumeName(v.VolumeName)
 				if err != nil {
-					logrus.Errorf("error listing config files by volume name(%s): %v", v.VolumeName, err)
-					return nil, fmt.Errorf("error listing config files by volume name(%s): %v", v.VolumeName, err)
+					logrus.Errorf("error getting config file by volume name(%s): %v", v.VolumeName, err)
+					return nil, fmt.Errorf("error getting config file by volume name(%s): %v", v.VolumeName, err)
 				}
-				if cfs == nil || len(cfs) == 0 {
-					logrus.Errorf("there is no config files according to volume name(%s)", v.VolumeName)
-					return nil, fmt.Errorf("there is no config files according to volume name(%s)", v.VolumeName)
+				name := fmt.Sprintf("manual%s%s", as.ServiceID, v.VolumePath)
+				name = strings.Replace(name, "/", "slash", -1)
+				cmap = &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: as.TenantID,
+						Labels:    as.GetCommonLabels(),
+					},
+					Data: make(map[string]string),
 				}
-				configs := make(map[string]string)
-				envs, err := createEnv(as, dbmanager)
-				if err != nil {
-					logrus.Warningf("error creating environment variables: %v", err)
-				} else {
-					for _, env := range *envs {
-						configs[env.Name] = env.Value
-					}
-				}
-				for _, cf := range cfs {
-					mountPath = path.Dir(v.VolumePath)
-					name = fmt.Sprintf("manual%s%s", as.ServiceID, mountPath)
-					name = strings.Replace(name, "/", "slash", -1)
-					cmap, ok := cmmap[name]
-					if !ok {
-						cmap = &corev1.ConfigMap{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      name,
-								Namespace: as.TenantID,
-								Labels:    as.GetCommonLabels(),
-							},
-							Data: make(map[string]string),
-						}
-						cmmap[name] = cmap
-					}
-					cmap.Data[filepath.Base(v.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
-				}
+				cmap.Data[path.Base(v.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
+				as.SetConfigMap(cmap)
+				vd.SetVolumeCMap(cmap, path.Base(v.VolumePath), v.VolumePath)
+				break; // pass codes below
 			}
 			if as.GetStatefulSet() != nil {
-				vd.SetPV(dbmodel.VolumeType(v.VolumeType), name, mountPath, v.IsReadOnly)
+				vd.SetPV(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%sd", v.ID), v.VolumePath, v.IsReadOnly)
 			} else {
 				hostPath := v.HostPath
 				if as.IsWindowsService {
 					hostPath = RewriteHostPathInWindows(hostPath)
 				}
-				vd.SetVolume(dbmodel.VolumeType(v.VolumeType), name, mountPath, hostPath, corev1.HostPathDirectoryOrCreate, v.IsReadOnly)
+				vd.SetVolume(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%sd", v.ID), v.VolumePath, hostPath, corev1.HostPathDirectoryOrCreate, v.IsReadOnly)
 			}
 		}
-	}
-	for _, cmap := range cmmap {
-		as.SetConfigMap(cmap)
 	}
 	//handle Shared storage
 	logrus.Infof("begin handling Shared storage")
@@ -411,18 +400,30 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				}
 				vd.SetVolume(dbmodel.ShareFileVolumeType, fmt.Sprintf("mnt%d", t.ID), t.VolumePath, hostPath, corev1.HostPathDirectoryOrCreate, false)
 			case dbmodel.ConfigFileVolumeType.String():
-				tsv, err := dbmanager.TenantServiceVolumeDao().GetVolumeByServiceIDAndName(t.DependServiceID, t.VolumeName)
+				// tsv, err := dbmanager.TenantServiceVolumeDao().GetVolumeByServiceIDAndName(t.DependServiceID, t.VolumeName)
+				// if err != nil {
+				// 	return nil, fmt.Errorf("error getting TenantServiceVolume according to serviceID(%s) and volumeName(%s): %v",
+				// 		t.DependServiceID, t.VolumeName, err)
+				// }
+				cf, err := dbmanager.TenantServiceConfigFileDao().GetByVolumeName(t.VolumeName)
 				if err != nil {
-					return nil, fmt.Errorf("error getting TenantServiceVolume according to serviceID(%s) and volumeName(%s): %v", 
-					t.DependServiceID, t.VolumeName, err)
+					return nil, fmt.Errorf("error getting TenantServiceConfigFileDao according to volumeName(%s): %v", t.VolumeName, err)
 				}
-				name := fmt.Sprintf("manual%s%s", t.DependServiceID, path.Dir(tsv.VolumePath))
+
+				name := fmt.Sprintf("manual%s%s", as.ServiceID, t.VolumePath)
 				name = strings.Replace(name, "/", "slash", -1)
-				if as.GetStatefulSet() != nil {
-					vd.SetPV(dbmodel.ConfigFileVolumeType, name, t.VolumePath, tsv.IsReadOnly)
-				} else {
-					vd.SetVolume(dbmodel.ConfigFileVolumeType, name, t.VolumePath, "", corev1.HostPathDirectoryOrCreate, tsv.IsReadOnly) 
+				cmap := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: as.TenantID,
+						Labels:    as.GetCommonLabels(),
+					},
+					Data: make(map[string]string),
 				}
+				cmap.Data[path.Base(t.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
+				as.SetConfigMap(cmap)
+
+				vd.SetVolumeCMap(cmap, path.Base(t.VolumePath), t.VolumePath)
 			}
 		}
 	}
@@ -470,9 +471,11 @@ type volumeDefine struct {
 func (v *volumeDefine) GetVolumes() []corev1.Volume {
 	return v.volumes
 }
+
 func (v *volumeDefine) GetVolumeMounts() []corev1.VolumeMount {
 	return v.volumeMounts
 }
+
 func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath string, readOnly bool) {
 	logrus.Info("Set persistence volume for statefuleset.")
 	switch VolumeType {
@@ -547,28 +550,9 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 				ReadOnly:  readOnly,
 			})
 		}
-	case dbmodel.ConfigFileVolumeType:
-		logrus.Infof("VolumeType is config-file")
-		if statefulset := v.as.GetStatefulSet(); statefulset != nil {
-			cv := corev1.Volume{
-				Name: name,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: name,
-						},
-					},
-				},
-			}
-			v.volumes = append(v.volumes, cv)
-			v.volumeMounts = append(v.volumeMounts, corev1.VolumeMount{
-				Name:      name,
-				MountPath: mountPath,
-				ReadOnly:  readOnly,
-			})
-		}
 	}
 }
+
 func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath, hostPath string, hostPathType corev1.HostPathType, readOnly bool) {
 	logrus.Info("Set volume for deployment.")
 	for _, m := range v.volumeMounts {
@@ -617,25 +601,36 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 	case dbmodel.LocalVolumeType:
 		//no support
 		return
-	case dbmodel.ConfigFileVolumeType:
-		logrus.Infof("VolumeType is config-file")
-		vo := corev1.Volume{
-			Name: name,
-		}
-		vo.ConfigMap = &corev1.ConfigMapVolumeSource{
-			LocalObjectReference: corev1.LocalObjectReference{
-				Name: name,
-			},
-		}
-		v.volumes = append(v.volumes, vo)
-		vm := corev1.VolumeMount{
-			MountPath: mountPath,
-			Name:      name,
-			ReadOnly:  readOnly,
-			SubPath:   "",
-		}
-		v.volumeMounts = append(v.volumeMounts, vm)
 	}
+}
+
+// SetVolumeCMap sets volumes and volumeMounts. The type of volumes is configMap.
+func (v *volumeDefine) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string) {
+	vm := corev1.VolumeMount{
+		MountPath: p,
+		Name:      cmap.Name,
+		ReadOnly:  false, // TODO
+		SubPath:   path.Base(p),
+	}
+	v.volumeMounts = append(v.volumeMounts, vm)
+
+	vo := corev1.Volume{
+		Name: cmap.Name,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: cmap.Name,
+				},
+				Items: []corev1.KeyToPath{
+					{
+						Key:  k,
+						Path: path.Base(p), // subpath
+					},
+				},
+			},
+		},
+	}
+	v.volumes = append(v.volumes, vo)
 }
 
 func createResources(as *v1.AppService) corev1.ResourceRequirements {

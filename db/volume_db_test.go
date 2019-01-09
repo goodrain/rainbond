@@ -19,6 +19,7 @@
 package db
 
 import (
+	"github.com/jinzhu/gorm"
 	dbconfig "github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
@@ -35,32 +36,31 @@ func TestManager_TenantServiceConfigFileDaoImpl_UpdateModel(t *testing.T) {
 	tx.Delete(model.TenantServiceConfigFile{})
 	tx.Commit()
 
-	vid := util.NewUUID()
+	vname := util.NewUUID()
 	cf := &model.TenantServiceConfigFile{
 		UUID:        util.NewUUID(),
-		VolumeName:  vid,
-		Filename:    "dummy_filename",
+		VolumeName:  vname,
 		FileContent: "dummy file content",
 	}
 	if err := GetManager().TenantServiceConfigFileDao().AddModel(cf); err != nil {
 		t.Fatal(err)
 	}
-	cfs, err := GetManager().TenantServiceConfigFileDao().ListByVolumeID(vid)
+	cf, err := GetManager().TenantServiceConfigFileDao().GetByVolumeName(vname)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfs == nil || len(cfs) != 1 {
-		t.Errorf("Expected one config file, but returned %v", cfs)
+	if cf == nil {
+		t.Errorf("Expected one config file, but returned %v", cf)
 	}
 
-	if err := GetManager().TenantServiceConfigFileDao().DelByVolumeID(vid); err != nil {
+	if err := GetManager().TenantServiceConfigFileDao().DelByVolumeID(vname); err != nil {
 		t.Fatal(err)
 	}
-	cfs, err = GetManager().TenantServiceConfigFileDao().ListByVolumeID(vid)
-	if err != nil {
+	cf, err = GetManager().TenantServiceConfigFileDao().GetByVolumeName(vname)
+	if err != nil && err != gorm.ErrRecordNotFound {
 		t.Fatal(err)
 	}
-	if len(cfs) != 0 {
-		t.Errorf("Expected nothing for cfs, but returned %v", cfs)
+	if cf != nil {
+		t.Errorf("Expected nothing for cfs, but returned %v", cf)
 	}
 }
