@@ -367,7 +367,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				cmap.Data[path.Base(v.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
 				as.SetConfigMap(cmap)
 				vd.SetVolumeCMap(cmap, path.Base(v.VolumePath), v.VolumePath)
-				break; // pass codes below
+				continue // pass codes below
 			}
 			if as.GetStatefulSet() != nil {
 				vd.SetPV(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, v.IsReadOnly)
