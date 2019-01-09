@@ -119,7 +119,6 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 				ContainerName: container.Name,
 				MemoryLimit:   container.Resources.Limits.Memory().Value(),
 			}
-				containers[container.Name].MemoryLimit)
 		}
 		Pods = append(Pods, &pb.ServiceAppPod{
 			ServiceId:  app.ServiceID,
