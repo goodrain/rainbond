@@ -306,7 +306,7 @@ func (m *ServiceAppPod) GetContainers() map[string]*Container {
 
 type Container struct {
 	ContainerName        string   `protobuf:"bytes,1,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
-	MemoryLimit          int32    `protobuf:"varint,2,opt,name=memory_limit,json=memoryLimit,proto3" json:"memory_limit,omitempty"`
+	MemoryLimit          int64    `protobuf:"varint,2,opt,name=memory_limit,json=memoryLimit,proto3" json:"memory_limit,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -344,7 +344,7 @@ func (m *Container) GetContainerName() string {
 	return ""
 }
 
-func (m *Container) GetMemoryLimit() int32 {
+func (m *Container) GetMemoryLimit() int64 {
 	if m != nil {
 		return m.MemoryLimit
 	}

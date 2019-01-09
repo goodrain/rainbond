@@ -25,12 +25,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/util"
-
-	discover "github.com/goodrain/rainbond/discover.v2"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
+	discover "github.com/goodrain/rainbond/discover.v2"
+	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	grpc "google.golang.org/grpc"
@@ -119,7 +117,7 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 		for _, container := range pod.Spec.Containers {
 			containers[container.Name] = &pb.Container{
 				ContainerName: container.Name,
-				MemoryLimit:   int32(container.Resources.Limits.Memory().Value()),
+				MemoryLimit:   container.Resources.Limits.Memory().Value(),
 			}
 		}
 		Pods = append(Pods, &pb.ServiceAppPod{
