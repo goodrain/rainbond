@@ -116,15 +116,10 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 	for _, pod := range pods {
 		var containers = make(map[string]*pb.Container, len(pod.Spec.Containers))
 		for _, container := range pod.Spec.Containers {
-			bytes, _ := json.Marshal(container)
-			logrus.Debugf("container info: %s", string(bytes))
-			logrus.Debugf("container.Resources.Limits.Memory().Value(): %d", container.Resources.Limits.Memory().Value())
 			containers[container.Name] = &pb.Container{
 				ContainerName: container.Name,
-				MemoryLimit:   int32(container.Resources.Limits.Memory().Value()),
+				MemoryLimit:   container.Resources.Limits.Memory().Value(),
 			}
-			logrus.Debugf("raw data;container name: %s; memory limit: %d", container.Name,
-				containers[container.Name].MemoryLimit)
 		}
 		Pods = append(Pods, &pb.ServiceAppPod{
 			ServiceId:  app.ServiceID,
