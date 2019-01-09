@@ -121,6 +121,8 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 				ContainerName: container.Name,
 				MemoryLimit:   int32(container.Resources.Limits.Memory().Value()),
 			}
+			logrus.Debugf("raw data;container name: %s; memory limit: %d", container.Name, 
+			containers[container.Name].MemoryLimit)
 		}
 		Pods = append(Pods, &pb.ServiceAppPod{
 			ServiceId:  app.ServiceID,

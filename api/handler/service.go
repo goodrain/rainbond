@@ -1428,6 +1428,7 @@ func (s *ServiceAction) GetPods(serviceID string) ([]*K8sPodInfo, error) {
 		podInfo.PodIP = v.PodIp
 		podInfo.PodStatus = v.PodStatus
 		for _, container := range v.Containers {
+			logrus.Debugf("container name: %s; memory limit: %d", container.ContainerName, container.MemoryLimit)
 			containerInfos[container.ContainerName] = map[string]string{
 				"memory_limit": fmt.Sprintf("%d", container.MemoryLimit),
 				"memory_usage": "0",
@@ -1438,7 +1439,7 @@ func (s *ServiceAction) GetPods(serviceID string) ([]*K8sPodInfo, error) {
 		podsInfoList = append(podsInfoList, &podInfo)
 	}
 	containerMemInfo, _ := s.GetPodContainerMemory(podNames)
-	fmt.Println(containerMemInfo)
+	logrus.Debugf("container memory info: %v", containerMemInfo)
 	for _, c := range podsInfoList {
 		for k := range c.Container {
 			if info, exist := containerMemInfo[c.PodName][k]; exist {
