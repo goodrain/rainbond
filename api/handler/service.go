@@ -20,36 +20,30 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/cmd/api/option"
-	"github.com/goodrain/rainbond/worker/server/pb"
-
+	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
-	"github.com/goodrain/rainbond/db"
-	core_model "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/event"
-	"github.com/twinj/uuid"
-
-	"github.com/jinzhu/gorm"
-
-	"github.com/pquerna/ffjson/ffjson"
-
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/cmd/api/option"
+	"github.com/goodrain/rainbond/db"
+	core_model "github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/event"
 	gclient "github.com/goodrain/rainbond/mq/client"
 	core_util "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/discover/model"
-
-	"encoding/json"
-	"net/http"
-
-	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/worker/server/pb"
+	"github.com/jinzhu/gorm"
+	"github.com/pquerna/ffjson/ffjson"
+	"github.com/twinj/uuid"
 )
 
 //ServiceAction service act
@@ -1428,7 +1422,6 @@ func (s *ServiceAction) GetPods(serviceID string) ([]*K8sPodInfo, error) {
 		podInfo.PodIP = v.PodIp
 		podInfo.PodStatus = v.PodStatus
 		for _, container := range v.Containers {
-			logrus.Debugf("container name: %s; memory limit: %d", container.ContainerName, container.MemoryLimit)
 			containerInfos[container.ContainerName] = map[string]string{
 				"memory_limit": fmt.Sprintf("%d", container.MemoryLimit),
 				"memory_usage": "0",
