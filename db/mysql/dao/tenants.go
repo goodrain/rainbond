@@ -969,14 +969,14 @@ func (t *TenantServiceConfigFileDaoImpl) UpdateModel(mo model.Interface) error {
 		Update(configFile).Error
 }
 
-// ListByVolumeID lists configFiles by volumeID
-func (t *TenantServiceConfigFileDaoImpl) ListByVolumeID(volumeName string) ([]*model.TenantServiceConfigFile, error) {
-	var res []*model.TenantServiceConfigFile
+// GetByVolumeName get config file by volume name
+func (t *TenantServiceConfigFileDaoImpl) GetByVolumeName(volumeName string) (*model.TenantServiceConfigFile, error) {
+	var res model.TenantServiceConfigFile
 	if err := t.DB.Where("volume_name = ?", volumeName).Find(&res).Error; err != nil {
 		return nil, err
 	}
 
-	return res, nil
+	return &res, nil
 }
 
 // DelByVolumeID deletes config files according to volume id
