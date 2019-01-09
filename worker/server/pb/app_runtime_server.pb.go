@@ -344,7 +344,7 @@ func (m *Container) GetContainerName() string {
 	return ""
 }
 
-func (m *Container) GetMemoryLimit() int32 {
+func (m *Container) GetMemoryLimit() int64 {
 	if m != nil {
 		return m.MemoryLimit
 	}
