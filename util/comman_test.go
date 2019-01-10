@@ -102,6 +102,10 @@ func TestCopyFile(t *testing.T) {
 }
 
 func TestParseVariable(t *testing.T) {
+	configs := make(map[string]string, 0)
+	result := ParseVariable("sada${XXX:aaa}dasd${XXX:aaa} ${YYY:aaa} ASDASD ${ZZZ:aaa}", configs)
+	t.Log(result)
+
 	t.Log(ParseVariable("sada${XXX:aaa}dasd${XXX:aaa} ${YYY:aaa} ASDASD ${ZZZ:aaa}", map[string]string{
 		"XXX": "123DDD",
 		"ZZZ": ",.,.,.,.",

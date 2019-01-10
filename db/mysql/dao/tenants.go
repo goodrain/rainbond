@@ -21,13 +21,12 @@ package dao
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"time"
 
-	"github.com/goodrain/rainbond/db/model"
-
 	"github.com/Sirupsen/logrus"
-
+	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 )
 
@@ -935,6 +934,55 @@ func (t *TenantServiceVolumeDaoImpl) DeleteTenantServiceVolumesByServiceID(servi
 		return err
 	}
 	return nil
+}
+
+//TenantServiceConfigFileDaoImpl is a implementation of TenantServiceConfigFileDao
+type TenantServiceConfigFileDaoImpl struct {
+	DB *gorm.DB
+}
+
+func (t *TenantServiceConfigFileDaoImpl) AddModel(mo model.Interface) error {
+	configFile, ok := mo.(*model.TenantServiceConfigFile)
+	if !ok {
+		return fmt.Errorf("can't convert %s to *model.TenantServiceConfigFile", reflect.TypeOf(mo))
+	}
+	var old model.TenantServiceConfigFile
+	if ok := t.DB.Where("uuid = ?", configFile.UUID).Find(&old).RecordNotFound(); ok {
+		if err := t.DB.Create(configFile).Error; err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("ConfigFile already exists according to uuid(%s)", configFile.UUID)
+	}
+	return nil
+}
+
+// UpdateModel updates config file
+func (t *TenantServiceConfigFileDaoImpl) UpdateModel(mo model.Interface) error {
+	configFile, ok := mo.(*model.TenantServiceConfigFile)
+	if !ok {
+		return fmt.Errorf("can't convert %s to *model.TenantServiceConfigFile", reflect.TypeOf(mo))
+	}
+
+	return t.DB.Table(configFile.TableName()).
+		Where("uuid = ?", configFile.UUID).
+		Update(configFile).Error
+}
+
+// GetByVolumeName get config file by volume name
+func (t *TenantServiceConfigFileDaoImpl) GetByVolumeName(volumeName string) (*model.TenantServiceConfigFile, error) {
+	var res model.TenantServiceConfigFile
+	if err := t.DB.Where("volume_name = ?", volumeName).Find(&res).Error; err != nil {
+		return nil, err
+	}
+
+	return &res, nil
+}
+
+// DelByVolumeID deletes config files according to volume id
+func (t *TenantServiceConfigFileDaoImpl) DelByVolumeID(volumeName string) error {
+	var cfs []model.TenantServiceConfigFile
+	return t.DB.Where("volume_name = ?", volumeName).Delete(&cfs).Error
 }
 
 //TenantServiceLBMappingPortDaoImpl stream服务映射

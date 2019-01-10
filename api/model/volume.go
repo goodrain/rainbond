@@ -40,11 +40,12 @@ type AddVolumeStruct struct {
 		//存储类型（share,local,tmpfs）
 		// in: body
 		// required: true
-		VolumeType string `json:"volume_type" validate:"volume_type|required|in:share-file,local,memoryfs"`
+		VolumeType string `json:"volume_type" validate:"volume_type|required|in:share-file,local,memoryfs,config-file"`
 		// 存储名称(同一个应用唯一)
 		// in: body
 		// required: true
-		VolumeName string `json:"volume_name" validate:"volume_name|required|max:50"`
+		VolumeName  string `json:"volume_name" validate:"volume_name|required|max:50"`
+		FileContent string `json:"file_content"`
 	}
 }
 
@@ -86,6 +87,8 @@ type AddVolumeDependencyStruct struct {
 		// in: body
 		// required: true
 		VolumeName string `json:"volume_name" validate:"volume_name|required|max:50"`
+
+		VolumeType string `json:"volume_type" validate:"volume_type|required|in:share-file,config-file"`
 	}
 }
 

@@ -219,6 +219,12 @@ type TenantServiceVolumeDao interface {
 	GetAllVolumes() ([]*model.TenantServiceVolume, error)
 }
 
+type TenantServiceConfigFileDao interface {
+	Dao
+	GetByVolumeName(volumeName string) (*model.TenantServiceConfigFile, error)
+	DelByVolumeID(volumeName string) error
+}
+
 //TenantServiceLBMappingPortDao vs lb mapping port dao
 type TenantServiceLBMappingPortDao interface {
 	Dao

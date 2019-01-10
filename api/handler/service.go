@@ -1166,7 +1166,7 @@ func (s *ServiceAction) ChangeLBPort(tenantID, serviceID string, containerPort, 
 }
 
 //VolumnVar var volumn
-func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, action string) *util.APIHandleError {
+func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fileContent, action string) *util.APIHandleError {
 	localPath := os.Getenv("LOCAL_DATA_PATH")
 	sharePath := os.Getenv("SHARE_DATA_PATH")
 	if localPath == "" {
@@ -1175,6 +1175,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, ac
 	if sharePath == "" {
 		sharePath = "/grdata"
 	}
+
 	switch action {
 	case "add":
 		if tsv.HostPath == "" {
@@ -1198,19 +1199,52 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, ac
 		if tsv.VolumeName == "" {
 			tsv.VolumeName = uuid.NewV4().String()
 		}
-		if err := db.GetManager().TenantServiceVolumeDao().AddModel(tsv); err != nil {
+		// begin transaction
+		tx := db.GetManager().Begin()
+		if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).AddModel(tsv); err != nil {
+			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("add volume", err)
 		}
+		if fileContent != "" {
+			cf := &dbmodel.TenantServiceConfigFile{
+				UUID:        uuid.NewV4().String(),
+				VolumeName:  tsv.VolumeName,
+				FileContent: fileContent,
+			}
+			if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).AddModel(cf); err != nil {
+				tx.Rollback()
+				return util.CreateAPIHandleErrorFromDBError("error creating config file", err)
+			}
+		}
+		// end transaction
+		if err := tx.Commit().Error; err != nil {
+			tx.Rollback()
+			return util.CreateAPIHandleErrorFromDBError("error ending transaction", err)
+		}
 	case "delete":
+		// begin transaction
+		tx := db.GetManager().Begin()
 		if tsv.VolumeName != "" {
-			err := db.GetManager().TenantServiceVolumeDao().DeleteModel(tsv.ServiceID, tsv.VolumeName)
+			err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteModel(tsv.ServiceID, tsv.VolumeName)
 			if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
 		} else {
-			if err := db.GetManager().TenantServiceVolumeDao().DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath);
+				err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
+		}
+		if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).DelByVolumeID(tsv.VolumeName); err != nil {
+			tx.Rollback()
+			return util.CreateAPIHandleErrorFromDBError("error deleting config files", err)
+		}
+		// end transaction
+		if err := tx.Commit().Error; err != nil {
+			tx.Rollback()
+			return util.CreateAPIHandleErrorFromDBError("error ending transaction", err)
 		}
 	}
 	return nil
