@@ -577,7 +577,6 @@ func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
 func (a *appRuntimeStore) GetAppServicesStatus(serviceIDs []string) map[string]string {
 	statusMap := make(map[string]string, len(serviceIDs))
 	if serviceIDs == nil || len(serviceIDs) == 0 {
-		logrus.Debugf("get all services status, number of all services is %d", a.appCount)
 		a.appServices.Range(func(k, v interface{}) bool {
 			appService, _ := v.(*v1.AppService)
 			statusMap[appService.ServiceID] = a.GetAppServiceStatus(appService.ServiceID)

@@ -353,12 +353,9 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 					logrus.Errorf("error getting config file by volume name(%s): %v", v.VolumeName, err)
 					return nil, fmt.Errorf("error getting config file by volume name(%s): %v", v.VolumeName, err)
 				}
-				name := fmt.Sprintf("manual%s%s", as.ServiceID, v.VolumePath)
-				name = strings.Replace(name, "/", "slash", -1)
-				name = strings.Replace(name, ".", "dot", -1)
 				cmap = &corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
+						Name:      util.NewUUID(),
 						Namespace: as.TenantID,
 						Labels:    as.GetCommonLabels(),
 					},
@@ -411,12 +408,9 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 					return nil, fmt.Errorf("error getting TenantServiceConfigFileDao according to volumeName(%s): %v", t.VolumeName, err)
 				}
 
-				name := fmt.Sprintf("manual%s%s", as.ServiceID, t.VolumePath)
-				name = strings.Replace(name, "/", "slash", -1)
-				name = strings.Replace(name, ".", "dot", -1)
 				cmap := &corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
+						Name:      util.NewUUID(),
 						Namespace: as.TenantID,
 						Labels:    as.GetCommonLabels(),
 					},
