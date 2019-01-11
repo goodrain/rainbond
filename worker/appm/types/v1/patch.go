@@ -50,6 +50,9 @@ func (a *AppService) SetUpgradePatch(new *AppService) error {
 		}
 		a.UpgradePatch["deployment"] = deploymentPatch
 	}
+	if new.configMaps != nil && len(new.configMaps) > 0 {
+		a.configMaps = new.configMaps
+	}
 	return nil
 }
 
