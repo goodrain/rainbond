@@ -169,5 +169,5 @@ func (a *AppRuntimeSyncClient) GetServiceDeployInfo(serviceID string) (*pb.Deplo
 
 //IsClosedStatus  check status
 func (a *AppRuntimeSyncClient) IsClosedStatus(curStatus string) bool {
-	return curStatus == v1.BUILDEFAILURE || curStatus == v1.CLOSED || curStatus == v1.UNDEPLOY || curStatus == v1.BUILDING || curStatus == v1.UNKNOW
+	return curStatus == "" || curStatus == v1.BUILDEFAILURE || curStatus == v1.CLOSED || curStatus == v1.UNDEPLOY || curStatus == v1.BUILDING || curStatus == v1.UNKNOW
 }

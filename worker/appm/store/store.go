@@ -24,24 +24,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jinzhu/gorm"
-
-	"github.com/goodrain/rainbond/db/model"
-
-	"k8s.io/apimachinery/pkg/api/errors"
-
-	"github.com/goodrain/rainbond/cmd/worker/option"
-
 	"github.com/Sirupsen/logrus"
-
+	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
-
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
-
+	"github.com/jinzhu/gorm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
@@ -584,11 +577,13 @@ func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
 func (a *appRuntimeStore) GetAppServicesStatus(serviceIDs []string) map[string]string {
 	statusMap := make(map[string]string, len(serviceIDs))
 	if serviceIDs == nil || len(serviceIDs) == 0 {
+		logrus.Debugf("get all services status, number of all services is %d", a.appCount)
 		a.appServices.Range(func(k, v interface{}) bool {
 			appService, _ := v.(*v1.AppService)
 			statusMap[appService.ServiceID] = a.GetAppServiceStatus(appService.ServiceID)
 			return true
 		})
+		return statusMap
 	}
 	for _, serviceID := range serviceIDs {
 		statusMap[serviceID] = a.GetAppServiceStatus(serviceID)

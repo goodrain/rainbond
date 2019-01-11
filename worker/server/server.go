@@ -82,7 +82,11 @@ func (r *RuntimeServer) Start(errchan chan error) {
 
 //GetAppStatus get app service status
 func (r *RuntimeServer) GetAppStatus(ctx context.Context, re *pb.ServicesRequest) (*pb.StatusMessage, error) {
-	status := r.store.GetAppServicesStatus(strings.Split(re.ServiceIds, ","))
+	var servicdIDs []string
+	if re.ServiceIds != "" {
+		servicdIDs = strings.Split(re.ServiceIds, ",")
+	}
+	status := r.store.GetAppServicesStatus(servicdIDs)
 	return &pb.StatusMessage{
 		Status: status,
 	}, nil
