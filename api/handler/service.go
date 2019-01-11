@@ -1466,7 +1466,6 @@ func (s *ServiceAction) GetPods(serviceID string) ([]*K8sPodInfo, error) {
 		podsInfoList = append(podsInfoList, &podInfo)
 	}
 	containerMemInfo, _ := s.GetPodContainerMemory(podNames)
-	logrus.Debugf("container memory info: %v", containerMemInfo)
 	for _, c := range podsInfoList {
 		for k := range c.Container {
 			if info, exist := containerMemInfo[c.PodName][k]; exist {
