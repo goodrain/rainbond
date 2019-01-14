@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	text_template "text/template"
 
@@ -159,15 +160,14 @@ func (t *Template) Write(conf interface{}) ([]byte, error) {
 
 	// squeezes multiple adjacent empty lines to be single
 	// spaced this is to avoid the use of regular expressions
-	//	cmd := exec.Command("/ingress-controller/clean-nginx-conf.sh")
-	//	cmd.Stdin = tmplBuf
-	//	cmd.Stdout = outCmdBuf
-	//	if err := cmd.Run(); err != nil {
-	//		logrus.Warningf("unexpected error cleaning template: %v", err)
-	//		return tmplBuf.Bytes(), nil
-	//	}
-	//	return outCmdBuf.Bytes(), nil
-	return tmplBuf.Bytes(), nil
+	cmd := exec.Command("/ingress-controller/clean-nginx-conf.sh")
+	cmd.Stdin = tmplBuf
+	cmd.Stdout = outCmdBuf
+	if err := cmd.Run(); err != nil {
+		logrus.Warningf("unexpected error cleaning template: %v", err)
+		return tmplBuf.Bytes(), nil
+	}
+	return outCmdBuf.Bytes(), nil
 }
 
 func isExists(f string) bool {
