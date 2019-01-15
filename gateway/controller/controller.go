@@ -336,10 +336,25 @@ func (gwc *GWController) listRbdEndpoints() (map[string][]string, int64) {
 		var data []string
 		val := strings.Replace(string(kv.Value), "http://", "", -1)
 		if err := json.Unmarshal([]byte(val), &data); err != nil {
-			logrus.Errorf("get rainbond service endpoint from etcd error %s", err.Error())
+			logrus.Warningf("get rainbond service endpoint from etcd error %s", err.Error())
 			continue
 		}
-		rbdEdps[key] = append(rbdEdps[key], data...)
+
+		var d []string
+		for _, dat := range data {
+			logrus.Debugf("dat: %s", dat)
+			s := strings.Split(dat, ":")
+			if len(s) != 2 || strings.Replace(s[0], " ", "", -1) == "" {
+				logrus.Warningf("wrong endpoint: %s", dat)
+				continue
+			}
+			if _, err := strconv.Atoi(s[1]); err != nil {
+				logrus.Warningf("wrong endpoint: %s: %v", dat, err)
+				continue
+			}
+			d = append(d, dat)
+		}
+		rbdEdps[key] = append(rbdEdps[key], d...)
 	}
 
 	if resp.Header != nil {
