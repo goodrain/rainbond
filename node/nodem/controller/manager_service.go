@@ -118,12 +118,21 @@ func (m *ManagerService) Online() error {
 
 // SetEndpoints regists endpoints in etcd
 func (m *ManagerService) SetEndpoints(hostIP string) {
+	if hostIP == "" {
+		logrus.Warningf("ignore wrong hostIP: %s", hostIP)
+		return
+	}
+
 	for _, s := range *m.services {
 		if s.OnlyHealthCheck || s.Disable {
 			continue
 		}
 		logrus.Debug("Parse endpoints for service: ", s.Name)
 		for _, end := range s.Endpoints {
+			if strings.Replace(end.Port, " ", "", -1) == "" {
+				logrus.Warningf("ignore wrong endpoint: %v", end)
+				continue
+			}
 			key := end.Name + "/" + hostIP
 			logrus.Debug("Discovery endpoints: ", key)
 			endpoint := toEndpoint(end, hostIP)
