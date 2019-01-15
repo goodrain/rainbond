@@ -21,17 +21,17 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/api/middleware"
+	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/cmd"
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	mqclient "github.com/goodrain/rainbond/mq/client"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/goodrain/rainbond/api/middleware"
-	api_model "github.com/goodrain/rainbond/api/model"
-	dbmodel "github.com/goodrain/rainbond/db/model"
-	mqclient "github.com/goodrain/rainbond/mq/client"
 
 	"github.com/pquerna/ffjson/ffjson"
 
@@ -74,7 +74,7 @@ func (v2 *V2Routes) Show(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	w.Write([]byte("v2 urls"))
+	w.Write([]byte(cmd.GetVersion()))
 }
 
 // show health status
