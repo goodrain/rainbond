@@ -63,7 +63,7 @@ func (c *Dis) discoverEventServer() {
 				}
 			}
 		}
-		time.Sleep(time.Minute)
+		time.Sleep(time.Second * 10)
 	}
 }
 
@@ -281,7 +281,7 @@ func (s *StreamLog) ping() {
 
 //Log log
 func (s *StreamLog) Log(msg *logger.Message) error {
-	defer func() { //必须要先声明defer，否则不能捕获到panic异常
+	defer func() {
 		if err := recover(); err != nil {
 			logrus.Error("Stream log pinic.", err)
 		}
@@ -289,7 +289,9 @@ func (s *StreamLog) Log(msg *logger.Message) error {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString(s.containerID[0:12] + ",")
 	buf.WriteString(s.serviceID)
-	buf.WriteString(string(msg.Line))
+	if len(msg.Line) > 8 {
+		buf.Write(msg.Line[8:])
+	}
 	s.cache(buf.String())
 	return nil
 }
