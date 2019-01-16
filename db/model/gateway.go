@@ -28,8 +28,8 @@ type Certificate struct {
 	Model
 	UUID            string `gorm:"column:uuid"`
 	CertificateName string `gorm:"column:certificate_name;size:128"`
-	Certificate     string `gorm:"column:certificate;size:2048"`
-	PrivateKey      string `gorm:"column:private_key;size:2048"`
+	Certificate     string `gorm:"column:certificate;size:65535"`
+	PrivateKey      string `gorm:"column:private_key;size:65535"`
 }
 
 // TableName returns table name of RuleExtension
@@ -105,7 +105,7 @@ type TCPRule struct {
 type IPPort struct {
 	Model
 	UUID string `gorm:"column:uuid"`
-	IP   string    `gorm:"column:ip"`
+	IP   string `gorm:"column:ip"`
 	Port int    `gorm:"column:port"`
 }
 
@@ -117,7 +117,7 @@ func (IPPort) TableName() string {
 // IPPool is used to save information about the IP pool.
 type IPPool struct {
 	Model
-	EID string `gorm:"column:eid"`
+	EID  string `gorm:"column:eid"`
 	CIDR string `gorm:"column:cidr"`
 }
 
