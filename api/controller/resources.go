@@ -21,6 +21,7 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/cmd"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -74,7 +75,7 @@ func (v2 *V2Routes) Show(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	w.Write([]byte("v2 urls"))
+	w.Write([]byte(cmd.GetVersion()))
 }
 
 // show health status
