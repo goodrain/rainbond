@@ -508,32 +508,52 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		}
 
 		for _, volumn := range volumns {
-			volumn.ServiceID = ts.ServiceID
+			v := dbmodel.TenantServiceVolume{
+				ServiceID: ts.ServiceID,
+				Category: volumn.Category,
+				VolumeType: volumn.VolumeType,
+				VolumeName: volumn.VolumeName,
+				HostPath: volumn.HostPath,
+				VolumePath: volumn.VolumePath,
+				IsReadOnly: volumn.IsReadOnly,
+			}
+			v.ServiceID = ts.ServiceID
 			if volumn.VolumeType == "" {
-				volumn.VolumeType = dbmodel.ShareFileVolumeType.String()
+				v.VolumeType = dbmodel.ShareFileVolumeType.String()
 			}
 			if volumn.HostPath == "" {
 				//step 1 设置主机目录
 				switch volumn.VolumeType {
 				//共享文件存储
 				case dbmodel.ShareFileVolumeType.String():
-					volumn.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, sc.TenantID, volumn.ServiceID, volumn.VolumePath)
+					v.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, sc.TenantID, ts.ServiceID, volumn.VolumePath)
 				//本地文件存储
 				case dbmodel.LocalVolumeType.String():
 					if sc.ExtendMethod != "state" {
 						tx.Rollback()
 						return util.CreateAPIHandleError(400, fmt.Errorf("应用类型不为有状态应用.不支持本地存储"))
 					}
-					volumn.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, sc.TenantID, volumn.ServiceID, volumn.VolumePath)
+					v.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, sc.TenantID, ts.ServiceID, volumn.VolumePath)
 				}
 			}
 			if volumn.VolumeName == "" {
-				volumn.VolumeName = uuid.NewV4().String()
+				v.VolumeName = uuid.NewV4().String()
 			}
-			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).AddModel(&volumn); err != nil {
+			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).AddModel(&v); err != nil {
 				logrus.Errorf("add volumn %v error, %v", volumn.HostPath, err)
 				tx.Rollback()
 				return err
+			}
+			if volumn.FileContent != "" {
+				cf := &dbmodel.TenantServiceConfigFile{
+					UUID:        uuid.NewV4().String(),
+					VolumeName:  volumn.VolumeName,
+					FileContent: volumn.FileContent,
+				}
+				if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).AddModel(cf); err != nil {
+					tx.Rollback()
+					return util.CreateAPIHandleErrorFromDBError("error creating config file", err)
+				}
 			}
 		}
 	}
