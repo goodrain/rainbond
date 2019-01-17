@@ -21,11 +21,13 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/cmd"
+
 	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/cmd"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
+
 	"io/ioutil"
 	"net/http"
 	"net/url"

@@ -329,10 +329,30 @@ type ServiceStruct struct {
 	Operator       string                               `json:"operator"  validate:"operator"`
 	RepoURL        string                               `json:"repo_url" validate:"repo_url"`
 	DependIDs      []dbmodel.TenantServiceRelation      `json:"depend_ids"`
-	VolumesInfo    []dbmodel.TenantServiceVolume        `json:"volumes_info"`
+	VolumesInfo    []TenantServiceVolumeStruct        `json:"volumes_info"`
 	DepVolumesInfo []dbmodel.TenantServiceMountRelation `json:"dep_volumes_info"`
 	EnvsInfo       []dbmodel.TenantServiceEnvVar        `json:"envs_info"`
 	PortsInfo      []dbmodel.TenantServicesPort         `json:"ports_info"`
+}
+
+//TenantServiceVolumeStruct -
+type TenantServiceVolumeStruct struct {
+	Model
+	ServiceID string ` json:"service_id"`
+	//服务类型
+	Category string `json:"category"`
+	//存储类型（share,local,tmpfs）
+	VolumeType string `json:"volume_type"`
+	//存储名称
+	VolumeName string `json:"volume_name"`
+	//主机地址
+	HostPath string `json:"host_path"`
+	//挂载地址
+	VolumePath string `json:"volume_path"`
+	//是否只读
+	IsReadOnly bool `json:"is_read_only"`
+
+	FileContent string `json:"file_content"`
 }
 
 //DependService struct for depend service
@@ -427,8 +447,8 @@ type ServicePortInnerOrOuter struct {
 		// 操作值 `close` or `open`
 		// in: body
 		// required: true
-		Operation string `json:"operation"  validate:"operation|required|in:open,close"`
-		IfCreateExPort bool `json:"if_create_ex_port"`
+		Operation      string `json:"operation"  validate:"operation|required|in:open,close"`
+		IfCreateExPort bool   `json:"if_create_ex_port"`
 	}
 }
 
