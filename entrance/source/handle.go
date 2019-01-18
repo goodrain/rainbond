@@ -180,6 +180,7 @@ func (m *Manager) podSource(pods *v1.Pod, method core.EventMethod) {
 			s.ContainerPort = portInfo.ContainerPort
 			s.Port = portInfo.ContainerPort
 			s.Note = mapPP[fmt.Sprintf("%d", s.Port)]
+			s.Protocol = mapPP[fmt.Sprintf("%d", s.Port)]
 			switch method {
 			case core.ADDEventMethod:
 				m.addPodSource(s)
@@ -203,6 +204,7 @@ func (m *Manager) RcPool(s *config.SourceBranch) {
 		Note:           s.Note,
 		Name:           s.RePoolName(),
 		EventID:        s.EventID,
+		Protocol:       s.Protocol,
 	}
 	etPool := core.Event{
 		Method: s.Method,

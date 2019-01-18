@@ -298,6 +298,9 @@ func (z *zeus) AddPool(pools ...*object.PoolObject) error {
 			NodesTable: []*ZeusNode{},
 			Monitors:   []string{"Connect"},
 		}
+		if strings.ToLower(pool.Protocol) == "udp" {
+			poolBasic.Monitors = []string{""}
+		}
 		zeusSource := Source{
 			Properties: PoolProperties{
 				Basic: poolBasic,
@@ -361,6 +364,9 @@ func (z *zeus) UpdatePool(pools ...*object.PoolObject) error {
 			Note:       pool.Note,
 			NodesTable: nodesTable,
 			Monitors:   []string{"Connect"},
+		}
+		if strings.ToLower(pool.Protocol) == "udp" {
+			poolBasic.Monitors = []string{""}
 		}
 		zeusSource := Source{
 			Properties: PoolProperties{

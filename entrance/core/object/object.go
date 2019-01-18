@@ -38,6 +38,7 @@ type PoolObject struct {
 	ServiceVersion string //version labels
 	Index          int64
 	Name           string
+	Protocol       string
 	Note           string //说明
 	PluginName     string
 	PluginOpts     map[string]string
