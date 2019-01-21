@@ -301,6 +301,9 @@ func (gwc *GWController) getRbdPools(edps map[string][]string) ([]*v1.Pool, []*v
 	if gwc.ocfg.EnableGrMe {
 		pools := convIntoRbdPools(edps["HUB_ENDPOINTS"], "registry")
 		if pools != nil && len(pools) > 0 {
+			for _, p := range pools {
+				p.UpstreamHashBy = "$remote_addr"
+			}
 			hpools = append(hpools, pools...)
 		} else {
 			logrus.Debugf("there is no endpoints for %s", "maven.goodrain.me")
