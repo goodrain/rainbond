@@ -156,6 +156,9 @@ func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	reqb, _ := json.Marshal(tr)
+	logrus.Debugf("request uri: %s; request body: %s", r.RequestURI, string(reqb))
+
 	rep, err := handler.GetTenantManager().GetTenantsResources(&tr)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get resources error, %v", err))

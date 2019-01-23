@@ -21,6 +21,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/cmd/api/option"
 	"net/http"
 	"strconv"
 	"strings"
@@ -31,6 +32,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	cli "github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/worker/client"
 )
 
@@ -38,13 +40,16 @@ import (
 type TenantAction struct {
 	MQClient  pb.TaskQueueClient
 	statusCli *client.AppRuntimeSyncClient
+	OptCfg    *option.Config
 }
 
 //CreateTenManager create Manger
-func CreateTenManager(MQClient pb.TaskQueueClient, statusCli *client.AppRuntimeSyncClient) *TenantAction {
+func CreateTenManager(MQClient pb.TaskQueueClient, statusCli *client.AppRuntimeSyncClient,
+	optCfg *option.Config) *TenantAction {
 	return &TenantAction{
 		MQClient:  MQClient,
 		statusCli: statusCli,
+		OptCfg:    optCfg,
 	}
 }
 
@@ -166,6 +171,12 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 	if err != nil {
 		return nil, err
 	}
+	// get cluster resources
+	allCPU, allMem, err := t.GetAllocatableResources()
+	if err != nil {
+		return nil, fmt.Errorf("error getting allocatalbe cpu and memory: %v", err)
+	}
+
 	var serviceIDs []string
 	var serviceMap = make(map[string]dbmodel.TenantServices, len(services))
 	var serviceTenantRunning = make(map[string]int, len(ids))
@@ -181,26 +192,53 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 	}
 	var result = make(map[string]map[string]interface{}, len(ids))
 	for k, v := range limits {
-		result[k] = map[string]interface{}{"tenant_id": k, "limit_memory": v,
+		result[k] = map[string]interface{}{
+			"tenant_id":           k,
+			"limit_memory":        v,
 			"service_running_num": serviceTenantRunning[k],
 			"service_total_num":   serviceTenantCount[k],
-			"limit_cpu":           0, "cpu": 0, "memory": 0, "disk": 0}
+			"limit_cpu":           v / 4,
+			"cpu":                 0,
+			"memory":              0,
+			"disk":                0,
+		}
+		if v == 0 {
+			result[k]["limit_memory"] = allMem
+			if allMem/4 > allCPU {
+				result[k]["limit_cpu"] = allCPU
+			} else {
+				result[k]["limit_cpu"] = allMem / 4
+			}
+		}
 	}
+
 	status := t.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
 	for k, v := range status {
 		if _, ok := serviceMap[k]; !ok {
 			continue
 		}
 		if _, ok := result[serviceMap[k].TenantID]; !ok {
-			result[serviceMap[k].TenantID] = map[string]interface{}{"tenant_id": k, "limit_memory": 0, "limit_cpu": 0, "cpu": 0, "memory": 0, "disk": 0}
+			result[serviceMap[k].TenantID] = map[string]interface{}{
+				"tenant_id":    k,
+				"limit_memory": allMem,
+				"limit_cpu":    allMem / 4,
+				"cpu":          0,
+				"memory":       0,
+				"disk":         0,
+			}
+			if allMem/4 > allCPU {
+				result[serviceMap[k].TenantID]["limit_cpu"] = allCPU
+			}
 		}
 		if !t.statusCli.IsClosedStatus(v) {
-			result[serviceMap[k].TenantID]["cpu"] = result[serviceMap[k].TenantID]["cpu"].(int) + (serviceMap[k].ContainerCPU * serviceMap[k].Replicas)
-			result[serviceMap[k].TenantID]["memory"] = result[serviceMap[k].TenantID]["memory"].(int) + (serviceMap[k].ContainerMemory * serviceMap[k].Replicas)
+			result[serviceMap[k].TenantID]["cpu"] = result[serviceMap[k].TenantID]["cpu"].(int) +
+				(serviceMap[k].ContainerCPU * serviceMap[k].Replicas)
+			result[serviceMap[k].TenantID]["memory"] = result[serviceMap[k].TenantID]["memory"].(int) +
+				(serviceMap[k].ContainerMemory * serviceMap[k].Replicas)
 		}
 	}
 	//query disk used in prometheus
-	proxy := GetPrometheusProxy()
+	pproxy := GetPrometheusProxy()
 	query := fmt.Sprintf(`sum(app_resource_appfs{tenant_id=~"%s"}) by(tenant_id)`, strings.Join(ids, "|"))
 	query = strings.Replace(query, " ", "%20", -1)
 	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", query), nil)
@@ -208,9 +246,9 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 		logrus.Error("create request prometheus api error ", err.Error())
 		return result, nil
 	}
-	presult, err := proxy.Do(req)
+	presult, err := pproxy.Do(req)
 	if err != nil {
-		logrus.Error("do proxy request prometheus api error ", err.Error())
+		logrus.Error("do pproxy request prometheus api error ", err.Error())
 		return result, nil
 	}
 	if presult.Body != nil {
@@ -237,6 +275,55 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 		}
 	}
 	return result, nil
+}
+
+// GetAllocatableResources returns allocatable cpu and memory
+func (t *TenantAction) GetAllocatableResources() (int64, int64, error) {
+	var allCPU int64 // allocatable CPU
+	var allMem int64 // allocatable memory
+	nproxy := GetNodeProxy()
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s/v2/nodes/rule/compute",
+		t.OptCfg.NodeAPI), nil)
+	if err != nil {
+		return 0, 0, fmt.Errorf("error creating http request: %v", err)
+	}
+	resp, err := nproxy.Do(req)
+	if err != nil {
+		return 0, 0, fmt.Errorf("error getting cluster resources: %v", err)
+	}
+	if resp.Body != nil {
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			return 0, 0, fmt.Errorf("error getting cluster resources: status code: %d; "+
+				"response: %v", resp.StatusCode, resp)
+		}
+		type foo struct {
+			List []*cli.HostNode `json:"list"`
+		}
+		var f foo
+		err = json.NewDecoder(resp.Body).Decode(&f)
+		if err != nil {
+			return 0, 0, fmt.Errorf("error decoding response body: %v", err)
+		}
+
+		for _, n := range f.List {
+			if n.Status != "running" {
+				logrus.Warningf("node %s isn't running, ignore it", n.ID)
+				continue
+			}
+			if k := n.NodeStatus.KubeNode; k != nil {
+				s := strings.Replace(k.Status.Allocatable.Cpu().String(), "m", "", -1)
+				i, err := strconv.ParseInt(s, 10, 64)
+				if err != nil {
+					return 0, 0, fmt.Errorf("error converting string to int64: %v", err)
+				}
+				allCPU = allCPU + i
+				allMem = allMem + k.Status.Allocatable.Memory().Value()/(1024*1024)
+			}
+		}
+	}
+
+	return allCPU, allMem, nil
 }
 
 //GetServicesResources Gets the resource usage of the specified service.
