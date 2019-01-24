@@ -59,7 +59,6 @@ func PubChargeSverify(tenant *model.Tenants, quantity int, reason string) *util.
 	if res.Body != nil {
 		defer res.Body.Close()
 		rebody, _ := ioutil.ReadAll(res.Body)
-		logrus.Debugf("read memory-apply response (%s)", string(rebody))
 		var re = make(map[string]interface{})
 		if err := ffjson.Unmarshal(rebody, &re); err == nil {
 			if msg, ok := re["msg"]; ok {
@@ -87,10 +86,8 @@ func PriChargeSverify(tenant *model.Tenants, quantity int) *util.APIHandleError 
 	var usedMem int
 	if len(svcids) > 0 {
 		ss := handler.GetTenantManager().GetServicesStatus(strings.Join(svcids, ","))
-		logrus.Debugf("service status: %v", ss)
 		for k, v := range ss {
 			if !handler.GetTenantManager().IsClosedStatus(v) {
-				logrus.Debugf("not closed service: %s; status: %s", k, v)
 				if svc, ok := svcMap[k]; ok {
 					usedMem += svc.ContainerMemory
 				}
@@ -103,12 +100,9 @@ func PriChargeSverify(tenant *model.Tenants, quantity int) *util.APIHandleError 
 		logrus.Errorf("error getting tenant: %v", err)
 		return util.CreateAPIHandleError(500, fmt.Errorf("error getting tenant: %v", err))
 	}
-	logrus.Debugf("t.LimitMemory: %d", t.LimitMemory)
 	availMem := int64(t.LimitMemory)
-	logrus.Debugf("availMem: %d", availMem)
 
 	if availMem == 0 {
-		logrus.Debugf("available memory is zero.")
 		_, allMem, err := handler.GetTenantManager().GetAllocatableResources()
 		if err != nil {
 			logrus.Errorf("error getting allocatable resources: %v", err)
@@ -125,7 +119,6 @@ func PriChargeSverify(tenant *model.Tenants, quantity int) *util.APIHandleError 
 			availMem = availMem - int64(item.LimitMemory)
 		}
 	} else {
-		logrus.Debugf("available memory isn't zero.")
 		availMem = availMem - int64(usedMem)
 	}
 

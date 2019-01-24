@@ -54,6 +54,7 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 		return err
 	}
 	dbmanager := db.GetManager()
+	defaultClusterHandler = CreateClusterManager(&conf)
 	defaultServieHandler = CreateManager(conf, mqClient, etcdCli, statusCli)
 	defaultPluginHandler = CreatePluginManager(mqClient)
 	defaultAppHandler = CreateAppManager(mqClient)
@@ -155,4 +156,11 @@ var defaultGatewayHandler GatewayHandler
 // GetGatewayHandler returns a default GatewayHandler
 func GetGatewayHandler() GatewayHandler {
 	return defaultGatewayHandler
+}
+
+var defaultClusterHandler ClusterHandler
+
+// GetClusterHandler returns ClusterHandler
+func GetClusterHandler() ClusterHandler {
+	return defaultClusterHandler
 }

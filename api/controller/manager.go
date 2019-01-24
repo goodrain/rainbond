@@ -49,6 +49,7 @@ type V2Manager interface {
 	apiFunc.SourcesInterface
 	apiFunc.AppInterface
 	apiFunc.Gatewayer
+	apiFunc.Cluster
 }
 
 var defaultV2Manager V2Manager

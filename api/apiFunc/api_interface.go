@@ -154,3 +154,7 @@ type Gatewayer interface {
 	GetAvailablePort(w http.ResponseWriter, r *http.Request)
 	//IPPool(w http.ResponseWriter, r *http.Request)
 }
+
+type Cluster interface {
+	GetClusterResources(w http.ResponseWriter, r *http.Request)
+}
