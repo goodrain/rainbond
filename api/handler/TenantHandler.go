@@ -40,4 +40,6 @@ type TenantHandler interface {
 	TenantsSum() (int, error)
 	GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHandleError)
 	TransPlugins(tenantID, tenantName, fromTenant string, pluginList []string) *util.APIHandleError
+	GetServicesStatus(ids string) map[string]string
+	IsClosedStatus(status string) bool
 }
