@@ -23,7 +23,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/goodrain/rainbond/api/handler/publiccloud"
+	"github.com/goodrain/rainbond/api/handler/cloud"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
@@ -54,11 +54,6 @@ import (
 //       "$ref": "#/responses/commandResponse"
 //     description: 状态码非200，表示验证过程发生错误。状态码200，msg代表实际状态：success, illegal_quantity, missing_tenant, owned_fee, region_unauthorized, lack_of_memory
 func ChargesVerifyController(w http.ResponseWriter, r *http.Request) {
-
-	if publicCloud := os.Getenv("PUBLIC_CLOUD"); publicCloud != "true" {
-		httputil.ReturnSuccess(r, w, nil)
-		return
-	}
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*model.Tenants)
 	if tenant.EID == "" {
 		eid := r.FormValue("eid")
@@ -79,10 +74,20 @@ func ChargesVerifyController(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 400, "quantity type must be int")
 		return
 	}
-	reason := r.FormValue("reason")
-	if err := publiccloud.ChargeSverify(tenant, quantityInt, reason); err != nil {
-		err.Handle(r, w)
-		return
+
+	if publicCloud := os.Getenv("PUBLIC_CLOUD"); publicCloud != "true" {
+		err := cloud.PriChargeSverify(tenant, quantityInt)
+		if err != nil {
+			err.Handle(r, w)
+			return
+		}
+		httputil.ReturnSuccess(r, w, nil)
+	} else {
+		reason := r.FormValue("reason")
+		if err := cloud.PubChargeSverify(tenant, quantityInt, reason); err != nil {
+			err.Handle(r, w)
+			return
+		}
+		httputil.ReturnSuccess(r, w, nil)
 	}
-	httputil.ReturnSuccess(r, w, nil)
 }

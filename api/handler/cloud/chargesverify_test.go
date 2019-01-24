@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package publiccloud
+package cloud
 
 import (
 	"os"
@@ -29,7 +29,7 @@ func TestChargeSverify(t *testing.T) {
 	tenant := &model.Tenants{EID: "daa5ed8b1e9747518f1c531bf3c12aca", UUID: "ddddd_DDD"}
 	os.Setenv("REGION_NAME", "ali-hz")
 	os.Setenv("CLOUD_API", "http://apitest.goodrain.com")
-	err := ChargeSverify(tenant, 522, "sss")
+	err := PubChargeSverify(tenant, 522, "sss")
 	if err != nil {
 		t.Fatal(err.Code, err.String())
 	}
