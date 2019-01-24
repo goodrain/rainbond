@@ -16,10 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package publiccloud
+package cloud
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/db"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -32,8 +34,8 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 )
 
-//ChargeSverify service Charge Sverify
-func ChargeSverify(tenant *model.Tenants, quantity int, reason string) *util.APIHandleError {
+//PubChargeSverify service Charge Sverify
+func PubChargeSverify(tenant *model.Tenants, quantity int, reason string) *util.APIHandleError {
 	cloudAPI := os.Getenv("CLOUD_API")
 	if cloudAPI == "" {
 		cloudAPI = "http://api.goodrain.com"
@@ -66,4 +68,30 @@ func ChargeSverify(tenant *model.Tenants, quantity int, reason string) *util.API
 		}
 	}
 	return util.CreateAPIHandleError(res.StatusCode, fmt.Errorf("none"))
+}
+
+// PriChargeSverify verifies that the resources requested in the private cloud are legal
+func PriChargeSverify(tenant *model.Tenants, quantity int) *util.APIHandleError {
+	tenants, err := db.GetManager().TenantDao().GetALLTenants()
+	if err != nil {
+		return util.CreateAPIHandleError(500, fmt.Errorf("error getting all tenants"))
+	}
+	var lm int
+	for _, t := range tenants {
+		if t.UUID == tenant.UUID {
+			continue
+		}
+		lm = t.LimitMemory + lm
+	}
+
+	_, allMem, err := handler.GetTenantManager().GetAllocatableResources()
+	if err != nil {
+		return util.CreateAPIHandleError(500, fmt.Errorf("error getting allocatable resources"))
+	}
+
+	if int64(lm + quantity) < allMem {
+		return util.CreateAPIHandleError(200, fmt.Errorf("success"))
+	} else {
+		return util.CreateAPIHandleError(200, fmt.Errorf("lack_of_memory"))
+	}
 }

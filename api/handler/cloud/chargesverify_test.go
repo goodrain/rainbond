@@ -16,33 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package handler
+package cloud
 
 import (
-	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/dao"
-	"github.com/goodrain/rainbond/db/model"
-	"github.com/rafrombrc/gomock/gomock"
+	"os"
 	"testing"
+
+	"github.com/goodrain/rainbond/db/model"
 )
 
-func TestGatewayAction_TCPAvailable(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	dbmanager := db.NewMockManager(ctrl)
-
-	ipPortDao := dao.NewMockIPPortDao(ctrl)
-	ipport := &model.IPPort{
-		IP: "172.16.0.106",
-		Port: 8888,
-	}
-	ipPortDao.EXPECT().GetIPPortByIPAndPort("172.16.0.106", 8888).Return(ipport, nil)
-	dbmanager.EXPECT().IPPortDao().Return(ipPortDao)
-
-	g := GatewayAction{
-		dbmanager: dbmanager,
-	}
-	if g.TCPAvailable("172.16.0.106", 8888) {
-		t.Errorf("expected false for tcp available, but returned true")
+func TestChargeSverify(t *testing.T) {
+	tenant := &model.Tenants{EID: "daa5ed8b1e9747518f1c531bf3c12aca", UUID: "ddddd_DDD"}
+	os.Setenv("REGION_NAME", "ali-hz")
+	os.Setenv("CLOUD_API", "http://apitest.goodrain.com")
+	err := PubChargeSverify(tenant, 522, "sss")
+	if err != nil {
+		t.Fatal(err.Code, err.String())
 	}
 }
