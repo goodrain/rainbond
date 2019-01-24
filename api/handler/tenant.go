@@ -190,6 +190,11 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 		}
 		serviceTenantCount[s.TenantID]++
 	}
+	var allocatedMemory int64
+	for _, v := range limits {
+		allocatedMemory = allocatedMemory + int64(v)
+	}
+	allMem = allMem - allocatedMemory
 	var result = make(map[string]map[string]interface{}, len(ids))
 	for k, v := range limits {
 		result[k] = map[string]interface{}{
