@@ -639,6 +639,18 @@ func createResources(as *v1.AppService) corev1.ResourceRequirements {
 	} else {
 		cpuRequest, cpuLimit = int64(memory)/128*30, ((int64(memory)-1024)/1024*500 + 1280)
 	}
+	if limit, ok := as.ExtensionSet["cpulimit"]; ok {
+		limitint, _ := strconv.Atoi(limit)
+		if limitint > 0 {
+			cpuLimit = int64(limitint)
+		}
+	}
+	if request, ok := as.ExtensionSet["cpurequest"]; ok {
+		requestint, _ := strconv.Atoi(request)
+		if requestint > 0 {
+			cpuRequest = int64(requestint)
+		}
+	}
 	limits := corev1.ResourceList{}
 	limits[corev1.ResourceCPU] = *resource.NewMilliQuantity(
 		cpuLimit,
