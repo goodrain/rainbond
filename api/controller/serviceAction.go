@@ -535,7 +535,7 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 //BuildList BuildList
 func (t *TenantStruct) BuildList(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	versionInfoList, err := db.GetManager().VersionInfoDao().GetVersionByServiceID(serviceID)
+	versionInfoList, err := db.GetManager().VersionInfoDao().GetAllVersionByServiceID(serviceID)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		logrus.Error("get version info error", err.Error())
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get version info erro, %v", err))

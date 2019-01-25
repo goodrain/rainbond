@@ -106,6 +106,15 @@ func (c *VersionInfoDaoImpl) GetVersionByServiceID(serviceID string) ([]*model.V
 	return result, nil
 }
 
+//GetAllVersionByServiceID get all versions by service id, not only successful
+func (c *VersionInfoDaoImpl) GetAllVersionByServiceID(serviceID string) ([]*model.VersionInfo, error) {
+	var result []*model.VersionInfo
+	if err := c.DB.Where("service_id=?", serviceID).Find(&result).Error; err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 //GetVersionInfo get version info by service ids
 func (c *VersionInfoDaoImpl) GetVersionInfo(timePoint time.Time, serviceIDs []string) ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
