@@ -20,6 +20,7 @@ package handler
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/twinj/uuid"
 	"strings"
 	"testing"
@@ -116,4 +117,10 @@ func TestUUID(t *testing.T) {
 	logrus.Debugf("uuid is %v", uid)
 	name := strings.Split(id, "-")[0]
 	fmt.Printf("id is %s, uid is %s, name is %v", id, uid, name)
+}
+
+func TestGetServicesDisk(t *testing.T) {
+	p := proxy.CreateProxy("prometheus", "http", []string{"39.96.189.166:9999"})
+	disk := GetServicesDisk([]string{"ef75e1d5e3df412a8af06129dae42869"}, p)
+	t.Log(disk)
 }
