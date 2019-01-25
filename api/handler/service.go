@@ -22,8 +22,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/api/proxy"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -726,7 +728,7 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 			UsedMEM += serMap[k].ContainerMemory
 		}
 	}
-	disks := s.statusCli.GetAppsDisk(serviceIDs)
+	disks := GetServicesDisk(strings.Split(serviceIDs, ","), GetPrometheusProxy())
 	var value float64
 	for _, v := range disks {
 		value += v
@@ -741,6 +743,50 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 	res.UsedMEM = UsedMEM
 	res.UsedDisk = value
 	return &res, nil
+}
+
+func GetServicesDisk(ids []string, p proxy.Proxy) map[string]float64 {
+	result := make(map[string]float64)
+	//query disk used in prometheus
+	query := fmt.Sprintf(`max(app_resource_appfs{service_id=~"%s"}) by(service_id)`, strings.Join(ids, "|"))
+	query = strings.Replace(query, " ", "%20", -1)
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://39.96.189.166:9999/api/v1/query?query=%s", query), nil)
+	if err != nil {
+		logrus.Error("create request prometheus api error ", err.Error())
+		return result
+	}
+	presult, err := p.Do(req)
+	if err != nil {
+		logrus.Error("do pproxy request prometheus api error ", err.Error())
+		return result
+	}
+
+	if presult.Body != nil {
+		defer presult.Body.Close()
+		if presult.StatusCode != 200 {
+			return result
+		}
+		var qres QueryResult
+		err = json.NewDecoder(presult.Body).Decode(&qres)
+		if err == nil {
+			for _, re := range qres.Data.Result {
+				var serviceID string
+				if tid, ok := re["metric"].(map[string]interface{}); ok {
+					serviceID = tid["service_id"].(string)
+				}
+				if re, ok := (re["value"]).([]interface{}); ok && len(re) == 2 {
+					i, err := strconv.ParseFloat(re[1].(string), 10)
+					if err != nil {
+						logrus.Warningf("error convert interface(%v) to float64", re[1].(string))
+						continue
+					}
+					result[serviceID] = i
+				}
+			}
+		}
+	}
+
+	return result
 }
 
 //CodeCheck code check
