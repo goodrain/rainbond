@@ -60,8 +60,14 @@ func CreatContainerLogManage(conf *option.Conf) *ContainerLogManage {
 //Start start
 func (c *ContainerLogManage) Start() error {
 	errchan := make(chan error)
-	go c.handleLogger(errchan)
+	go func() {
+		if err := <-errchan; err != nil {
+			logrus.Errorf(err.Error())
+		}
+	}()
+	go c.handleLogger()
 	go c.listAndWatchContainer(errchan)
+	logrus.Infof("start container log manage success")
 	return nil
 }
 
@@ -92,7 +98,7 @@ func (c *ContainerLogManage) getContainerLogReader(ctx context.Context, containe
 	}
 	return stdout, stderr, nil
 }
-func (c *ContainerLogManage) handleLogger(errchan chan error) {
+func (c *ContainerLogManage) handleLogger() {
 	for {
 		select {
 		case <-c.ctx.Done():
@@ -152,8 +158,8 @@ func (c *ContainerLogManage) listAndWatchContainer(errchan chan error) {
 	lictctx, cancel := context.WithTimeout(c.ctx, time.Second*20)
 	containers, err := c.conf.DockerCli.ContainerList(lictctx, types.ContainerListOptions{})
 	if err != nil {
-		cancel()
-		errchan <- fmt.Errorf("list containers failure.%s", err.Error())
+		logrus.Errorf("list containers failure.%s", err.Error())
+		containers, _ = c.conf.DockerCli.ContainerList(lictctx, types.ContainerListOptions{})
 	}
 	cancel()
 	for _, con := range containers {
@@ -166,6 +172,7 @@ func (c *ContainerLogManage) listAndWatchContainer(errchan chan error) {
 		}
 		c.cacheContainer(ContainerEvent{Action: "start", Container: container})
 	}
+	logrus.Info("list containers complete, start watch container")
 	for {
 		if err := c.watchContainer(); err != nil {
 			logrus.Errorf("watch container error %s, will retry", err.Error())
