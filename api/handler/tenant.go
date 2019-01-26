@@ -350,8 +350,8 @@ func (t *TenantAction) GetServicesResources(tr *api_model.ServicesResources) (re
 		resmp[c] = map[string]interface{}{"memory": 0, "cpu": 0}
 	}
 	re = resmp
-	appdisks := t.statusCli.GetAppsDisk(strings.Join(tr.Body.ServiceIDs, ","))
-	for serviceID, disk := range appdisks {
+	disks := GetServicesDisk(tr.Body.ServiceIDs, GetPrometheusProxy())
+	for serviceID, disk := range disks {
 		if _, ok := resmp[serviceID]; ok {
 			resmp[serviceID]["disk"] = disk / 1024
 		} else {

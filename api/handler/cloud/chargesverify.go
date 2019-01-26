@@ -90,7 +90,7 @@ func PriChargeSverify(tenant *model.Tenants, quantity int) *util.APIHandleError 
 		for k, v := range ss {
 			if !handler.GetTenantManager().IsClosedStatus(v) {
 				if svc, ok := svcMap[k]; ok {
-					usedMem += svc.ContainerMemory
+					usedMem += svc.ContainerMemory * svc.Replicas
 				}
 			}
 		}
@@ -119,13 +119,17 @@ func PriChargeSverify(tenant *model.Tenants, quantity int) *util.APIHandleError 
 		for _, item := range tenants {
 			availMem = availMem - int64(item.LimitMemory)
 		}
+		if availMem >= int64(quantity) {
+			return util.CreateAPIHandleError(200, fmt.Errorf("success"))
+		} else {
+			return util.CreateAPIHandleError(200, fmt.Errorf("cluster_lack_of_memory"))
+		}
 	} else {
 		availMem = availMem - int64(usedMem)
-	}
-
-	if availMem >= int64(quantity) {
-		return util.CreateAPIHandleError(200, fmt.Errorf("success"))
-	} else {
-		return util.CreateAPIHandleError(200, fmt.Errorf("lack_of_memory"))
+		if availMem >= int64(quantity) {
+			return util.CreateAPIHandleError(200, fmt.Errorf("success"))
+		} else {
+			return util.CreateAPIHandleError(200, fmt.Errorf("lack_of_memory"))
+		}
 	}
 }
