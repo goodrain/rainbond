@@ -47,7 +47,6 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 	}
 	buildImageName := CreateImageName(re.RepositoryURL, re.ServiceAlias, re.DeployVersion)
 
-
 	buildOptions := types.ImageBuildOptions{
 		Tags:      []string{buildImageName},
 		Remove:    true,
@@ -90,6 +89,9 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 func GetARGs(buildEnvs map[string]string) map[string]*string {
 	args := make(map[string]*string, 5)
 	for k, v := range buildEnvs {
+		if strings.Replace(v, " ", "", -1) == "" {
+			continue
+		}
 		if ks := strings.Split(k, "ARG_"); len(ks) > 1 {
 			value := v
 			args[ks[1]] = &value
