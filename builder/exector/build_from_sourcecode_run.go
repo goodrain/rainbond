@@ -91,10 +91,12 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 		ServiceID:     gjson.GetBytes(in, "service_id").String(),
 	}
 	envs := gjson.GetBytes(in, "envs").String()
+	logrus.Debugf("envs: %s", string(envs))
 	be := make(map[string]string)
 	if err := ffjson.Unmarshal([]byte(envs), &be); err != nil {
 		logrus.Errorf("unmarshal build envs error: %s", err.Error())
 	}
+	logrus.Debugf("build environment: %v", be)
 	scb := &SourceCodeBuildItem{
 		Namespace:     gjson.GetBytes(in, "tenant_id").String(),
 		TenantName:    gjson.GetBytes(in, "tenant_name").String(),
