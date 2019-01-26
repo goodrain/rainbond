@@ -408,20 +408,24 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 	for _, cm := range commands {
 		switch cm.Cmd {
 		case "arg":
-			length := len(cm.Value)
-			for i := 0; i < length; i++ {
-				if kv := strings.Split(cm.Value[i], "="); len(kv) > 1 {
+			if len(cm.Value) == 1 {
+				kv := strings.Split(cm.Value[0], "=");
+				if  len(kv) == 2 {
 					key := "BUILD_ARG_" + kv[0]
 					d.envs[key] = &Env{Name: key, Value: kv[1]}
+				} else if len(kv) == 1 {
+					key := "BUILD_ARG_" + kv[0]
+					d.envs[key] = &Env{Name: key, Value: ""}
 				} else {
-					if i+1 >= length {
-						logrus.Error("Parse ARG format error at ", cm.Value[1])
-						continue
-					}
-					key := "BUILD_ARG_" + cm.Value[i]
-					d.envs[key] = &Env{Name: key, Value: cm.Value[i+1]}
-					i++
+					logrus.Errorf("expected one '=' at most, but returned %d", len(kv) - 1)
+					return false
 				}
+			} else if len(cm.Value) == 0 {
+				logrus.Error("At least one argument of ARG")
+				return false
+			} else {
+				logrus.Error("Parse ARG format error at ", cm.Value[0])
+				return false
 			}
 		case "env":
 			length := len(cm.Value)

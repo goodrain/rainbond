@@ -2,6 +2,9 @@ FROM goodrainapps/alpine:3.4
 
 MAINTAINER zengqg@goodrain.com
 
+ARG TEST1
+ARG TEST2=test2
+
 RUN apk --no-cache add gcc musl-dev openssl python python-dev py-crypto \
     git openssh-client coreutils perl sudo
 
