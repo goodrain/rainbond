@@ -415,7 +415,7 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 					d.envs[key] = &Env{Name: key, Value: kv[1]}
 				} else {
 					if i+1 >= length {
-						logrus.Error("Parse ARG format error at ", cm.Value[1])
+						logrus.Error("Parse ARG format error at ", cm.Value[i])
 						continue
 					}
 					key := "BUILD_ARG_" + cm.Value[i]
