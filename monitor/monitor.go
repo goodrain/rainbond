@@ -54,6 +54,7 @@ func (d *Monitor) Start() {
 	d.discoverv1.AddProject("acp_webcli", &callback.Webcli{Prometheus: d.manager})
 	d.discoverv2.AddProject("builder", &callback.Builder{Prometheus: d.manager})
 	d.discoverv2.AddProject("mq", &callback.Mq{Prometheus: d.manager})
+	d.discoverv2.AddProject("app_sync_runtime_server", &callback.Worker{Prometheus: d.manager})
 
 	// node and app runtime metrics needs to be monitored separately
 	go d.discoverNodes(&callback.Node{Prometheus: d.manager}, &callback.App{Prometheus: d.manager}, d.ctx.Done())

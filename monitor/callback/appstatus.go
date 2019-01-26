@@ -19,26 +19,28 @@
 package callback
 
 import (
+	"strings"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/prometheus/common/model"
-	"time"
-	"strings"
 	"github.com/tidwall/gjson"
 )
 
-// AppStatus 指app性能数据，被选举为leader的worker，也就是app_sync_runtime_server所在的节点
+// Worker worker monitor
 // 127.0.0.1:6369/metrics
-type AppStatus struct {
+type Worker struct {
 	discover.Callback
 	Prometheus      *prometheus.Manager
 	sortedEndpoints []string
 }
 
-func (e *AppStatus) UpdateEndpoints(endpoints ...*config.Endpoint) {
+//UpdateEndpoints update endpoint
+func (e *Worker) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	// 用v3 API注册，返回json格试，所以要提前处理一下
 	newEndpoints := make([]*config.Endpoint, 0, len(endpoints))
 	for _, end := range endpoints {
@@ -68,15 +70,16 @@ func (e *AppStatus) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	e.Prometheus.UpdateScrape(scrape)
 }
 
-func (e *AppStatus) Error(err error) {
+func (e *Worker) Error(err error) {
 	logrus.Error(err)
 }
 
-func (e *AppStatus) Name() string {
-	return "app_status"
+//Name return name
+func (e *Worker) Name() string {
+	return "worker"
 }
 
-func (e *AppStatus) toScrape() *prometheus.ScrapeConfig {
+func (e *Worker) toScrape() *prometheus.ScrapeConfig {
 	ts := make([]string, 0, len(e.sortedEndpoints))
 	for _, end := range e.sortedEndpoints {
 		ts = append(ts, end)
@@ -92,7 +95,7 @@ func (e *AppStatus) toScrape() *prometheus.ScrapeConfig {
 				{
 					Targets: ts,
 					Labels: map[model.LabelName]model.LabelValue{
-						"component": model.LabelValue(e.Name()),
+						"component":    model.LabelValue(e.Name()),
 						"service_name": model.LabelValue(e.Name()),
 					},
 				},
