@@ -47,11 +47,14 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 	}
 	buildImageName := CreateImageName(re.RepositoryURL, re.ServiceAlias, re.DeployVersion)
 	args := make(map[string]*string, 5)
+	logrus.Debugf("BuildEnvs: %v", re.BuildEnvs)
 	for k, v := range re.BuildEnvs {
 		if ks := strings.Split(k, "ARG_"); len(ks) > 1 {
 			args[ks[1]] = &v
 		}
 	}
+	logrus.Debugf("ARGs: %v", args)
+
 	buildOptions := types.ImageBuildOptions{
 		Tags:      []string{buildImageName},
 		Remove:    true,
