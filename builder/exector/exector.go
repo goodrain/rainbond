@@ -207,7 +207,6 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 //buildFromSourceCode build app from source code
 //support git repository
 func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
-	logrus.Debugf("task.TaskBody: %s", string(task.TaskBody))
 	i := NewSouceCodeBuildItem(task.TaskBody)
 	i.DockerClient = e.DockerClient
 	i.Logger.Info("Build app version from source code start", map[string]string{"step": "builder-exector", "status": "starting"})

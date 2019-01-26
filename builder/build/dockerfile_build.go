@@ -46,19 +46,12 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 		return nil, err
 	}
 	buildImageName := CreateImageName(re.RepositoryURL, re.ServiceAlias, re.DeployVersion)
-	args := make(map[string]*string, 5)
-	logrus.Debugf("BuildEnvs: %v", re.BuildEnvs)
-	for k, v := range re.BuildEnvs {
-		if ks := strings.Split(k, "ARG_"); len(ks) > 1 {
-			args[ks[1]] = &v
-		}
-	}
-	logrus.Debugf("ARGs: %v", args)
+
 
 	buildOptions := types.ImageBuildOptions{
 		Tags:      []string{buildImageName},
 		Remove:    true,
-		BuildArgs: args,
+		BuildArgs: GetARGs(re.BuildEnvs),
 	}
 	if _, ok := re.BuildEnvs["NO_CACHE"]; ok {
 		buildOptions.NoCache = true
@@ -92,4 +85,15 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 		MediumPath: buildImageName,
 		MediumType: ImageMediumType,
 	}, nil
+}
+
+func GetARGs(buildEnvs map[string]string) map[string]*string {
+	args := make(map[string]*string, 5)
+	for k, v := range buildEnvs {
+		if ks := strings.Split(k, "ARG_"); len(ks) > 1 {
+			value := v
+			args[ks[1]] = &value
+		}
+	}
+	return args
 }
