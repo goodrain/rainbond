@@ -511,11 +511,11 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 
 		for _, volumn := range volumns {
 			v := dbmodel.TenantServiceVolume{
-				ServiceID: ts.ServiceID,
-				Category: volumn.Category,
+				ServiceID:  ts.ServiceID,
+				Category:   volumn.Category,
 				VolumeType: volumn.VolumeType,
 				VolumeName: volumn.VolumeName,
-				HostPath: volumn.HostPath,
+				HostPath:   volumn.HostPath,
 				VolumePath: volumn.VolumePath,
 				IsReadOnly: volumn.IsReadOnly,
 			}
@@ -750,7 +750,7 @@ func GetServicesDisk(ids []string, p proxy.Proxy) map[string]float64 {
 	//query disk used in prometheus
 	query := fmt.Sprintf(`max(app_resource_appfs{service_id=~"%s"}) by(service_id)`, strings.Join(ids, "|"))
 	query = strings.Replace(query, " ", "%20", -1)
-	req, err := http.NewRequest("GET", fmt.Sprintf("http://39.96.189.166:9999/api/v1/query?query=%s", query), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", query), nil)
 	if err != nil {
 		logrus.Error("create request prometheus api error ", err.Error())
 		return result
@@ -1297,8 +1297,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
 		} else {
-			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath);
-				err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
