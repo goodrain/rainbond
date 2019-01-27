@@ -708,7 +708,6 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 		return nil, err
 	}
 	var serviceIDs string
-	var AllocatedCPU, AllocatedMEM int
 	var serMap = make(map[string]*dbmodel.TenantServices, len(services))
 	for _, ser := range services {
 		if serviceIDs == "" {
@@ -716,18 +715,28 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 		} else {
 			serviceIDs += "," + ser.ServiceID
 		}
-		AllocatedCPU += ser.ContainerCPU
-		AllocatedMEM += ser.ContainerMemory
 		serMap[ser.ServiceID] = ser
 	}
 	status := s.statusCli.GetStatuss(serviceIDs)
 	var UsedCPU, UsedMEM int
 	for k, v := range status {
-		if !s.statusCli.IsClosedStatus(v) {
-			UsedCPU += serMap[k].ContainerCPU
-			UsedMEM += serMap[k].ContainerMemory
+		if svr := serMap[k]; !s.statusCli.IsClosedStatus(v) && svr != nil {
+			UsedCPU += svr.ContainerCPU * svr.Replicas
+			UsedMEM += svr.ContainerMemory * svr.Replicas
 		}
 	}
+
+	allCPU, allMem, err := GetTenantManager().GetAllocatableResources()
+	if allMem/4 < allCPU {
+		allCPU = allMem / 4
+	}
+	if UsedCPU > int(allCPU) {
+		UsedCPU = int(allCPU)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error getting allocatalbe cpu and memory: %v", err)
+	}
+
 	disks := GetServicesDisk(strings.Split(serviceIDs, ","), GetPrometheusProxy())
 	var value float64
 	for _, v := range disks {
@@ -737,8 +746,8 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 	res.UUID = uuid
 	res.Name = ""
 	res.EID = ""
-	res.AllocatedCPU = AllocatedCPU
-	res.AllocatedMEM = AllocatedMEM
+	res.AllocatedCPU = int(allCPU)
+	res.AllocatedMEM = int(allMem)
 	res.UsedCPU = UsedCPU
 	res.UsedMEM = UsedMEM
 	res.UsedDisk = value
