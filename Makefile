@@ -58,14 +58,6 @@ else ifeq ($(WHAT),builder)
     ${BIN_PATH}/${BASE_NAME}-chaos \
 	--log-level=debug  \
     --mysql="root:@tcp(127.0.0.1:3306)/region"
-else ifeq ($(WHAT),eventlog)
-	${BIN_PATH}/${BASE_NAME}-eventlog \
-	 --log.level=debug --discover.etcd.addr=http://127.0.0.1:2379 \
-	 --db.url="root:@tcp(127.0.0.1:3306)/event" \
-	 --dockerlog.mode=stream \
-	 --message.dockerlog.handle.core.number=2 \
-	 --message.garbage.file="/tmp/garbage.log" \
-	 --docker.log.homepath="/Users/qingguo/tmp"
 else
 	test/run/run_${WHAT}.sh ${BIN_PATH}/${BASE_NAME}-$(WHAT)
 endif	

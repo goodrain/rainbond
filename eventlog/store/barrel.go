@@ -273,6 +273,11 @@ func (r *dockerLogEventBarrel) gcPersistence() {
 	r.persistenceBarrel = append(r.persistenceBarrel, r.barrel...) //数据转到持久化等候队列
 	r.barrel = nil
 }
+func (r *dockerLogEventBarrel) GetSubChanLength() int {
+	r.subLock.Lock()
+	defer r.subLock.Unlock()
+	return len(r.subSocketChan)
+}
 
 type monitorMessageBarrel struct {
 	barrel        []*db.EventLogMessage

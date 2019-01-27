@@ -72,6 +72,8 @@ func (e *etcdClusterClient) UpdateStatus(n *HostNode, initLable map[string]strin
 	}
 	//update node mode
 	existNode.Mode = n.Mode
+	//The startup parameters shall prevail
+	existNode.Role = n.Role
 	existNode.HostName = n.HostName
 	existNode.NodeStatus.NodeHealth = n.NodeStatus.NodeHealth
 	existNode.NodeStatus.NodeUpdateTime = time.Now()

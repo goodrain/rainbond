@@ -152,8 +152,11 @@ func (h *dockerLogStore) handle() []string {
 	var gcEvent []string
 	for k, v := range h.barrels {
 		if v.updateTime.Add(time.Minute * 1).Before(time.Now()) { // barrel 超时未收到消息
-			h.saveBeforeGc(k, v)
-			gcEvent = append(gcEvent, k)
+			//gc without client link
+			if v.GetSubChanLength() == 0 {
+				h.saveBeforeGc(k, v)
+				gcEvent = append(gcEvent, k)
+			}
 		}
 		if v.persistenceTime.Add(time.Minute * 2).Before(time.Now()) { //超过2分钟未持久化 间隔需要大于1分钟。以分钟为单位
 			if len(v.barrel) > 0 {
@@ -178,6 +181,7 @@ func (h *dockerLogStore) gcRun() {
 			h.pool.Put(barrel) //放回对象池
 			delete(h.barrels, id)
 			h.barrelSize--
+			h.log.Debugf("docker log barrel(%s) gc complete", id)
 		}
 	}
 	useTime := time.Now().UnixNano() - t.UnixNano()
@@ -205,7 +209,6 @@ func (h *dockerLogStore) saveBeforeGc(eventID string, v *dockerLogEventBarrel) {
 	}
 	v.persistenceBarrel = nil
 	v.persistencelock.Unlock()
-	h.log.Debugf("Docker message store complete gc barrel(%s)", v.name)
 }
 func (h *dockerLogStore) InsertGarbageMessage(message ...*db.EventLogMessage) {}
 

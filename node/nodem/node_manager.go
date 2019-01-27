@@ -127,10 +127,12 @@ func (n *NodeManager) Start(errchan chan error) error {
 	if err := n.controller.Online(); err != nil {
 		return err
 	}
-	if n.currentNode.Role.HasRule("compute") {
+	if n.currentNode.Role.HasRule(client.ComputeNode) {
 		if err := n.clm.Start(); err != nil {
 			return err
 		}
+	} else {
+		logrus.Debug("this node is not compute node ,do not start container log manage")
 	}
 	go n.monitor.Start(errchan)
 	//go n.taskrun.Start(errchan)
@@ -284,7 +286,7 @@ func (n *NodeManager) init() error {
 	}
 	//update node mode
 	node.Mode = n.cfg.RunMode
-	*n.currentNode = *node
+	*(n.currentNode) = *node
 	return nil
 }
 

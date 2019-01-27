@@ -52,7 +52,8 @@ func RegistConversion(fun Conversion) {
 func InitAppService(dbmanager db.Manager, serviceID string) (*v1.AppService, error) {
 	appService := &v1.AppService{
 		AppServiceBase: v1.AppServiceBase{
-			ServiceID: serviceID,
+			ServiceID:    serviceID,
+			ExtensionSet: make(map[string]string),
 		},
 		UpgradePatch: make(map[string][]byte, 2),
 	}

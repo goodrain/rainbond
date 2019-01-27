@@ -115,6 +115,9 @@ func (a AppService) GetDeployment() *v1.Deployment {
 //SetDeployment set kubernetes deployment model
 func (a *AppService) SetDeployment(d *v1.Deployment) {
 	a.deployment = d
+	if v, ok := d.Spec.Template.Labels["version"]; ok && v != "" {
+		a.DeployVersion = v
+	}
 }
 
 //DeleteDeployment delete kubernetes deployment model
@@ -130,6 +133,9 @@ func (a AppService) GetStatefulSet() *v1.StatefulSet {
 //SetStatefulSet set kubernetes statefulset model
 func (a *AppService) SetStatefulSet(d *v1.StatefulSet) {
 	a.statefulset = d
+	if v, ok := d.Spec.Template.Labels["version"]; ok && v != "" {
+		a.DeployVersion = v
+	}
 }
 
 //SetReplicaSets set kubernetes replicaset
@@ -400,7 +406,7 @@ func (a *AppService) GetTenant() *corev1.Namespace {
 func (a *AppService) SetDelIngsSecrets(old *AppService) {
 	for _, o := range old.GetIngress() {
 		del := true
-		for _ , n := range a.GetIngress() {
+		for _, n := range a.GetIngress() {
 			if o.Name == n.Name {
 				del = false
 				break
@@ -412,7 +418,7 @@ func (a *AppService) SetDelIngsSecrets(old *AppService) {
 	}
 	for _, o := range old.GetSecrets() {
 		del := true
-		for _ , n := range a.GetSecrets() {
+		for _, n := range a.GetSecrets() {
 			if o.Name == n.Name {
 				del = false
 				break
