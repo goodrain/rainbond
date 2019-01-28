@@ -548,12 +548,11 @@ func NewCmdNode() cli.Command {
 					node.Privatekey = c.String("private-key")
 					node.AutoInstall = false
 					node.ID = c.String("id")
-					err := clients.RegionClient.Nodes().Add(&node)
+					renode, err := clients.RegionClient.Nodes().Add(&node)
 					handleErr(err)
 					if c.Bool("install") {
-						node, err := clients.RegionClient.Nodes().Get(node.ID)
 						handleErr(err)
-						installNode(node)
+						installNode(renode)
 					} else {
 						fmt.Println("success add node, you install it by running: grctl node install <nodeID>")
 					}

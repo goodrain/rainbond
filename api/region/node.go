@@ -135,17 +135,19 @@ func (n *node) GetAllNodeHealth() (map[string][]map[string]string, *util.APIHand
 	return gc, nil
 }
 
-func (n *node) Add(node *client.APIHostNode) *util.APIHandleError {
+func (n *node) Add(node *client.APIHostNode) (*client.HostNode, *util.APIHandleError) {
 	body, err := json.Marshal(node)
 	if err != nil {
-		return util.CreateAPIHandleError(400, err)
+		return nil, util.CreateAPIHandleError(400, err)
 	}
 	var res utilhttp.ResponseBody
+	var renode client.HostNode
+	res.Bean = &renode
 	code, err := n.DoRequest(n.prefix, "POST", bytes.NewBuffer(body), &res)
 	if err != nil {
-		return util.CreateAPIHandleError(code, err)
+		return nil, util.CreateAPIHandleError(code, err)
 	}
-	return handleAPIResult(code, res)
+	return &renode, handleAPIResult(code, res)
 }
 func (n *node) Label(nid string) NodeLabelInterface {
 	return &nodeLabelImpl{nodeImpl: n, NodeID: nid}
@@ -305,7 +307,7 @@ type NodeInterface interface {
 	GetNodeResource(node string) (*client.NodePodResource, *util.APIHandleError)
 	List() ([]*client.HostNode, *util.APIHandleError)
 	GetAllNodeHealth() (map[string][]map[string]string, *util.APIHandleError)
-	Add(node *client.APIHostNode) *util.APIHandleError
+	Add(node *client.APIHostNode) (*client.HostNode, *util.APIHandleError)
 	Up(nid string) *util.APIHandleError
 	Down(nid string) *util.APIHandleError
 	UnSchedulable(nid string) *util.APIHandleError
