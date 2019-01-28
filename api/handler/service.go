@@ -721,8 +721,8 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 		} else {
 			serviceIDs += "," + ser.ServiceID
 		}
-		AllocatedCPU += ser.ContainerCPU
-		AllocatedMEM += ser.ContainerMemory
+		AllocatedCPU += ser.ContainerCPU * ser.Replicas
+		AllocatedMEM += ser.ContainerMemory * ser.Replicas
 	}
 	tenantResUesd, _ := s.statusCli.GetTenantResource(uuid)
 	disks := GetServicesDisk(strings.Split(serviceIDs, ","), GetPrometheusProxy())
