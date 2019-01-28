@@ -197,7 +197,7 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 			"service_running_num": tr.RunningAppNum,
 			"service_total_num":   serviceTenantCount[tenantID],
 			"cpu":                 tr.CpuRequest,
-			"memory":              tr.MemoryRequest / 1024 / 1024,
+			"memory":              tr.MemoryRequest,
 			"disk":                0,
 		}
 	}

@@ -704,23 +704,23 @@ func (a *appRuntimeStore) GetTenantResource(tenantID string) *v1.TenantResource 
 			cpurequest := container.Resources.Requests.Cpu()
 			memoryrequest := container.Resources.Requests.Memory()
 			if cpulimit != nil {
-				if cpulimit, ok := cpulimit.AsInt64(); ok {
-					resource.CPULimit += cpulimit
-				}
+				resource.CPULimit += cpulimit.MilliValue()
 			}
 			if memorylimit != nil {
-				if memorylimit, ok := memorylimit.AsInt64(); ok {
-					resource.MemoryLimit += memorylimit
+				if ml, ok := memorylimit.AsInt64(); ok {
+					resource.MemoryLimit += ml
+				} else {
+					resource.MemoryLimit += memorylimit.Value()
 				}
 			}
 			if cpurequest != nil {
-				if cpurequest, ok := cpurequest.AsInt64(); ok {
-					resource.CPURequest += cpurequest
-				}
+				resource.CPURequest += cpurequest.MilliValue()
 			}
 			if memoryrequest != nil {
-				if memoryrequest, ok := memoryrequest.AsInt64(); ok {
-					resource.MemoryRequest += memoryrequest
+				if mr, ok := memoryrequest.AsInt64(); ok {
+					resource.MemoryRequest += mr
+				} else {
+					resource.MemoryRequest += memoryrequest.Value()
 				}
 			}
 		}
