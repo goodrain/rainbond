@@ -101,8 +101,8 @@ func (r *RuntimeServer) GetTenantResource(ctx context.Context, re *pb.TenantRequ
 		return &tr, nil
 	}
 	tr.RunningAppNum = int64(len(r.store.GetTenantRunningApp(re.TenantId)))
-	tr.CpuLimit = res.CPULimit * 1000
-	tr.CpuRequest = res.CPURequest * 1000
+	tr.CpuLimit = res.CPULimit
+	tr.CpuRequest = res.CPURequest
 	tr.MemoryLimit = res.MemoryLimit / 1024 / 1024
 	tr.MemoryRequest = res.MemoryRequest / 1024 / 1024
 	return &tr, nil
