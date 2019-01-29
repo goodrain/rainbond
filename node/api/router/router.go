@@ -73,7 +73,6 @@ func Routers(mode string) *chi.Mux {
 				r.Get("/", controller.GetNodes)
 				r.Get("/all_node_health", controller.GetAllNodeHealth)
 				r.Get("/rule/{rule}", controller.GetRuleNodes)
-
 				r.Get("/{node_id}", controller.GetNode)
 				r.Put("/{node_id}/status", controller.UpdateNodeStatus)
 				r.Put("/{node_id}/unschedulable", controller.Cordon)
@@ -85,6 +84,8 @@ func Routers(mode string) *chi.Mux {
 				r.Get("/{node_id}/instance", controller.Instances)
 				r.Get("/{node_id}/check", controller.CheckNode)
 				r.Get("/{node_id}/resource", controller.Resource)
+				r.Get("/{node_id}/conditions", controller.ListNodeCondition)
+				r.Delete("/{node_id}/conditions/{condition}", controller.DeleteNodeCondition)
 				// about node install
 				r.Post("/{node_id}/install", controller.InstallNode)  //install node
 				r.Post("/", controller.AddNode)                       //add node

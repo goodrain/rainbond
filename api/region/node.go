@@ -152,6 +152,9 @@ func (n *node) Add(node *client.APIHostNode) (*client.HostNode, *util.APIHandleE
 func (n *node) Label(nid string) NodeLabelInterface {
 	return &nodeLabelImpl{nodeImpl: n, NodeID: nid}
 }
+func (n *node) Condition(nid string) NodeConditionInterface {
+	return &nodeConditionImpl{nodeImpl: n, NodeID: nid}
+}
 
 type nodeLabelImpl struct {
 	nodeImpl *node
@@ -205,6 +208,32 @@ func (nl *nodeLabelImpl) Add(k, v string) *util.APIHandleError {
 		return util.CreateAPIHandleError(code, err)
 	}
 	return nil
+}
+
+type nodeConditionImpl struct {
+	nodeImpl *node
+	NodeID   string
+}
+
+func (nl *nodeConditionImpl) List() ([]client.NodeCondition, *util.APIHandleError) {
+	var decode []client.NodeCondition
+	var res utilhttp.ResponseBody
+	res.List = &decode
+	code, err := nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/conditions", "GET", nil, &res)
+	if err != nil || code != 200 {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	return decode, nil
+}
+func (nl *nodeConditionImpl) Delete(k client.NodeConditionType) ([]client.NodeCondition, *util.APIHandleError) {
+	var decode []client.NodeCondition
+	var res utilhttp.ResponseBody
+	res.List = &decode
+	code, err := nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/conditions/"+string(k), "DELETE", nil, &res)
+	if err != nil || code != 200 {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	return decode, nil
 }
 
 func (n *node) Delete(nid string) *util.APIHandleError {
@@ -314,6 +343,7 @@ type NodeInterface interface {
 	ReSchedulable(nid string) *util.APIHandleError
 	Delete(nid string) *util.APIHandleError
 	Label(nid string) NodeLabelInterface
+	Condition(nid string) NodeConditionInterface
 	Install(nid string) *util.APIHandleError
 	UpdateNodeStatus(nid, status string) (*client.HostNode, *util.APIHandleError)
 }
@@ -323,6 +353,12 @@ type NodeLabelInterface interface {
 	Add(k, v string) *util.APIHandleError
 	Delete(k string) *util.APIHandleError
 	List() (map[string]string, *util.APIHandleError)
+}
+
+//NodeConditionInterface node condition manage api
+type NodeConditionInterface interface {
+	List() ([]client.NodeCondition, *util.APIHandleError)
+	Delete(conditionType client.NodeConditionType) ([]client.NodeCondition, *util.APIHandleError)
 }
 
 //ConfigsInterface 数据中心配置API
