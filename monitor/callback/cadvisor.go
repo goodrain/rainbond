@@ -19,6 +19,7 @@
 package callback
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -37,10 +38,12 @@ type Cadvisor struct {
 	discover.Callback
 	Prometheus      *prometheus.Manager
 	sortedEndpoints []string
+	ListenPort      int
 
 	endpoints []*config.Endpoint
 }
 
+//UpdateEndpoints update endpoint
 func (c *Cadvisor) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	newArr := utils.TrimAndSort(endpoints)
 
@@ -59,6 +62,7 @@ func (c *Cadvisor) Error(err error) {
 	logrus.Error(err)
 }
 
+//Name name
 func (c *Cadvisor) Name() string {
 	return "cadvisor"
 }
@@ -87,6 +91,7 @@ func (c *Cadvisor) toScrape() *prometheus.ScrapeConfig {
 	}
 }
 
+//AddEndpoint add endpoint
 func (c *Cadvisor) AddEndpoint(end *config.Endpoint) {
 	c.endpoints = append(c.endpoints, end)
 	c.UpdateEndpoints(c.endpoints...)
@@ -94,7 +99,7 @@ func (c *Cadvisor) AddEndpoint(end *config.Endpoint) {
 
 //Add add
 func (c *Cadvisor) Add(event *watch.Event) {
-	url := gjson.Get(event.GetValueString(), "internal_ip").String() + ":4194"
+	url := fmt.Sprintf("%s:%d", gjson.Get(event.GetValueString(), "internal_ip").String(), c.ListenPort)
 	end := &config.Endpoint{
 		Name: event.GetKey(),
 		URL:  url,
@@ -105,7 +110,7 @@ func (c *Cadvisor) Add(event *watch.Event) {
 //Modify update
 func (c *Cadvisor) Modify(event *watch.Event) {
 	var update bool
-	url := gjson.Get(event.GetValueString(), "internal_ip").String() + ":4194"
+	url := fmt.Sprintf("%s:%d", gjson.Get(event.GetValueString(), "internal_ip").String(), c.ListenPort)
 	for i, end := range c.endpoints {
 		if end.Name == event.GetKey() {
 			c.endpoints[i].URL = url

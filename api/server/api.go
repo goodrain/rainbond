@@ -157,10 +157,10 @@ func (m *Manager) Run() {
 		websocketRouter.Mount("/logs", websocket.LogRoutes())
 		websocketRouter.Mount("/app", websocket.AppRoutes())
 		if m.conf.WebsocketSSL {
-			logrus.Infof("websocket listen on (HTTPs) 0.0.0.0%v", m.conf.WebsocketAddr)
+			logrus.Infof("websocket listen on (HTTPs) %s", m.conf.WebsocketAddr)
 			logrus.Fatal(http.ListenAndServeTLS(m.conf.WebsocketAddr, m.conf.WebsocketCertFile, m.conf.WebsocketKeyFile, websocketRouter))
 		} else {
-			logrus.Infof("websocket listen on (HTTP) 0.0.0.0%v", m.conf.WebsocketAddr)
+			logrus.Infof("websocket listen on (HTTP) %s", m.conf.WebsocketAddr)
 			logrus.Fatal(http.ListenAndServe(m.conf.WebsocketAddr, websocketRouter))
 		}
 	}()
@@ -181,11 +181,11 @@ func (m *Manager) Run() {
 					ClientAuth: tls.RequireAndVerifyClientCert,
 				},
 			}
-			logrus.Infof("api listen on (HTTPs) 0.0.0.0%v", m.conf.APIAddrSSL)
+			logrus.Infof("api listen on (HTTPs) %s", m.conf.APIAddrSSL)
 			logrus.Fatal(s.ListenAndServeTLS(m.conf.APICertFile, m.conf.APIKeyFile))
 		}()
 	}
-	logrus.Infof("api listen on (HTTP) 0.0.0.0%v", m.conf.APIAddr)
+	logrus.Infof("api listen on (HTTP) %s", m.conf.APIAddr)
 	logrus.Fatal(http.ListenAndServe(m.conf.APIAddr, m.r))
 }
 

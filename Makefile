@@ -1,5 +1,5 @@
 GO_LDFLAGS=-ldflags " -w"
-VERSION=master
+VERSION=5.0
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 BASE_DOCKER=./hack/contrib/docker
@@ -41,16 +41,7 @@ binary:
 run-c:image
 	test/run/run_${WHAT}.sh
 run:build
-ifeq ($(WHAT),api)
-	${BIN_PATH}/${BASE_NAME}-api --log-level=debug \
-	--mysql="root:@tcp(127.0.0.1:3306)/region" \
-	--kube-config="`PWD`/test/admin.kubeconfig" \
-	--api-ssl-enable=true \
-	--client-ca-file="`PWD`/test/ssl/ca.pem" \
-	--api-ssl-certfile="`PWD`/test/ssl/server.pem" \
-	--api-ssl-keyfile="`PWD`/test/ssl/server.key.pem"
-	--etcd=http://127.0.0.1:4001,http://127.0.0.1:2379
-else ifeq ($(WHAT),mq)
+ifeq ($(WHAT),mq)
 	${BIN_PATH}/${BASE_NAME}-mq --log-level=debug
 else ifeq ($(WHAT),worker)
 	test/run/run_worker.sh ${BIN_PATH}/${BASE_NAME}-worker
@@ -58,14 +49,6 @@ else ifeq ($(WHAT),builder)
     ${BIN_PATH}/${BASE_NAME}-chaos \
 	--log-level=debug  \
     --mysql="root:@tcp(127.0.0.1:3306)/region"
-else ifeq ($(WHAT),eventlog)
-	${BIN_PATH}/${BASE_NAME}-eventlog \
-	 --log.level=debug --discover.etcd.addr=http://127.0.0.1:2379 \
-	 --db.url="root:@tcp(127.0.0.1:3306)/event" \
-	 --dockerlog.mode=stream \
-	 --message.dockerlog.handle.core.number=2 \
-	 --message.garbage.file="/tmp/garbage.log" \
-	 --docker.log.homepath="/Users/qingguo/tmp"
 else
 	test/run/run_${WHAT}.sh ${BIN_PATH}/${BASE_NAME}-$(WHAT)
 endif	

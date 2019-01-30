@@ -57,7 +57,7 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 	defaultServieHandler = CreateManager(conf, mqClient, etcdCli, statusCli)
 	defaultPluginHandler = CreatePluginManager(mqClient)
 	defaultAppHandler = CreateAppManager(mqClient)
-	defaultTenantHandler = CreateTenManager(mqClient, statusCli)
+	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf)
 	defaultNetRulesHandler = CreateNetRulesManager(etcdCli)
 	defaultSourcesHandler = CreateSourcesManager(etcdCli)
 	defaultCloudHandler = CreateCloudManager(conf)

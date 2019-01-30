@@ -54,6 +54,7 @@ func (d *Monitor) Start() {
 	d.discoverv1.AddProject("acp_webcli", &callback.Webcli{Prometheus: d.manager})
 	d.discoverv2.AddProject("builder", &callback.Builder{Prometheus: d.manager})
 	d.discoverv2.AddProject("mq", &callback.Mq{Prometheus: d.manager})
+	d.discoverv2.AddProject("app_sync_runtime_server", &callback.Worker{Prometheus: d.manager})
 
 	// node and app runtime metrics needs to be monitored separately
 	go d.discoverNodes(&callback.Node{Prometheus: d.manager}, &callback.App{Prometheus: d.manager}, d.ctx.Done())
@@ -62,7 +63,7 @@ func (d *Monitor) Start() {
 	go d.discoverEtcd(&callback.Etcd{Prometheus: d.manager}, d.ctx.Done())
 
 	// monitor Cadvisor
-	go d.discoverCadvisor(&callback.Cadvisor{Prometheus: d.manager}, d.ctx.Done())
+	go d.discoverCadvisor(&callback.Cadvisor{Prometheus: d.manager, ListenPort: d.config.CadvisorListenPort}, d.ctx.Done())
 }
 
 func (d *Monitor) discoverNodes(node *callback.Node, app *callback.App, done <-chan struct{}) {

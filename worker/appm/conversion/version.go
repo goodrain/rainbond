@@ -258,7 +258,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	}
 	for _, e := range envsAll {
 		envs = append(envs, corev1.EnvVar{Name: strings.TrimSpace(e.AttrName), Value: e.AttrValue})
-		if strings.HasSuffix(e.AttrName, "ES_") {
+		if strings.HasPrefix(e.AttrName, "ES_") {
 			as.ExtensionSet[strings.ToLower(e.AttrName[3:])] = e.AttrValue
 		}
 	}
@@ -315,7 +315,6 @@ var memoryLabels = map[int]string{
 }
 
 func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db.Manager) (*volumeDefine, error) {
-	logrus.Infof("begin creating volumes.")
 	var vd = &volumeDefine{
 		as: as,
 	}
@@ -353,12 +352,9 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 					logrus.Errorf("error getting config file by volume name(%s): %v", v.VolumeName, err)
 					return nil, fmt.Errorf("error getting config file by volume name(%s): %v", v.VolumeName, err)
 				}
-				name := fmt.Sprintf("manual%s%s", as.ServiceID, v.VolumePath)
-				name = strings.Replace(name, "/", "slash", -1)
-				name = strings.Replace(name, ".", "dot", -1)
 				cmap = &corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
+						Name:      util.NewUUID(),
 						Namespace: as.TenantID,
 						Labels:    as.GetCommonLabels(),
 					},
@@ -381,7 +377,6 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 		}
 	}
 	//handle Shared storage
-	logrus.Infof("begin handling Shared storage")
 	tsmr, err := dbmanager.TenantServiceMountRelationDao().GetTenantServiceMountRelationsByService(version.ServiceID)
 	if err != nil {
 		return nil, err
@@ -411,12 +406,9 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 					return nil, fmt.Errorf("error getting TenantServiceConfigFileDao according to volumeName(%s): %v", t.VolumeName, err)
 				}
 
-				name := fmt.Sprintf("manual%s%s", as.ServiceID, t.VolumePath)
-				name = strings.Replace(name, "/", "slash", -1)
-				name = strings.Replace(name, ".", "dot", -1)
 				cmap := &corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
+						Name:      util.NewUUID(),
 						Namespace: as.TenantID,
 						Labels:    as.GetCommonLabels(),
 					},
@@ -479,10 +471,8 @@ func (v *volumeDefine) GetVolumeMounts() []corev1.VolumeMount {
 }
 
 func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath string, readOnly bool) {
-	logrus.Info("Set persistence volume for statefuleset.")
 	switch VolumeType {
 	case dbmodel.ShareFileVolumeType:
-		logrus.Infof("VolumeType is share-file")
 		if statefulset := v.as.GetStatefulSet(); statefulset != nil {
 			//do not limit
 			resourceStorage, _ := resource.ParseQuantity("500Gi")
@@ -513,7 +503,6 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 			})
 		}
 	case dbmodel.LocalVolumeType:
-		logrus.Infof("VolumeType is local")
 		if statefulset := v.as.GetStatefulSet(); statefulset != nil {
 			//do not limit
 			resourceStorage, _ := resource.ParseQuantity("500Gi")
@@ -556,7 +545,6 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 }
 
 func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath, hostPath string, hostPathType corev1.HostPathType, readOnly bool) {
-	logrus.Info("Set volume for deployment.")
 	for _, m := range v.volumeMounts {
 		if m.MountPath == mountPath {
 			return
@@ -564,7 +552,6 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 	}
 	switch VolumeType {
 	case dbmodel.MemoryFSVolumeType:
-		logrus.Infof("VolumeType is memoryfs")
 		vo := corev1.Volume{Name: name}
 		vo.EmptyDir = &corev1.EmptyDirVolumeSource{
 			Medium: corev1.StorageMediumMemory,
@@ -580,7 +567,6 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 			v.volumeMounts = append(v.volumeMounts, vm)
 		}
 	case dbmodel.ShareFileVolumeType:
-		logrus.Infof("VolumeType is share-file")
 		if hostPath != "" {
 			vo := corev1.Volume{
 				Name: name,
@@ -644,6 +630,18 @@ func createResources(as *v1.AppService) corev1.ResourceRequirements {
 		cpuRequest, cpuLimit = int64(memory)/128*30, int64(memory)/128*160
 	} else {
 		cpuRequest, cpuLimit = int64(memory)/128*30, ((int64(memory)-1024)/1024*500 + 1280)
+	}
+	if limit, ok := as.ExtensionSet["cpulimit"]; ok {
+		limitint, _ := strconv.Atoi(limit)
+		if limitint > 0 {
+			cpuLimit = int64(limitint)
+		}
+	}
+	if request, ok := as.ExtensionSet["cpurequest"]; ok {
+		requestint, _ := strconv.Atoi(request)
+		if requestint > 0 {
+			cpuRequest = int64(requestint)
+		}
 	}
 	limits := corev1.ResourceList{}
 	limits[corev1.ResourceCPU] = *resource.NewMilliQuantity(

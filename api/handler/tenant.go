@@ -23,31 +23,34 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-
-	"github.com/goodrain/rainbond/api/util"
-	"github.com/goodrain/rainbond/mq/api/grpc/pb"
-	"github.com/goodrain/rainbond/worker/client"
-
-	api_model "github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/db"
-	dbmodel "github.com/goodrain/rainbond/db/model"
-
 	"strings"
 
+	"github.com/goodrain/rainbond/cmd/api/option"
+
 	"github.com/Sirupsen/logrus"
+	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/db"
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	cli "github.com/goodrain/rainbond/node/nodem/client"
+	"github.com/goodrain/rainbond/worker/client"
 )
 
 //TenantAction tenant act
 type TenantAction struct {
 	MQClient  pb.TaskQueueClient
 	statusCli *client.AppRuntimeSyncClient
+	OptCfg    *option.Config
 }
 
 //CreateTenManager create Manger
-func CreateTenManager(MQClient pb.TaskQueueClient, statusCli *client.AppRuntimeSyncClient) *TenantAction {
+func CreateTenManager(MQClient pb.TaskQueueClient, statusCli *client.AppRuntimeSyncClient,
+	optCfg *option.Config) *TenantAction {
 	return &TenantAction{
 		MQClient:  MQClient,
 		statusCli: statusCli,
+		OptCfg:    optCfg,
 	}
 }
 
@@ -169,41 +172,37 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 	if err != nil {
 		return nil, err
 	}
-	var serviceIDs []string
-	var serviceMap = make(map[string]dbmodel.TenantServices, len(services))
-	var serviceTenantRunning = make(map[string]int, len(ids))
 	var serviceTenantCount = make(map[string]int, len(ids))
-	serviceStatus := t.statusCli.GetAllStatus()
 	for _, s := range services {
-		serviceIDs = append(serviceIDs, s.ServiceID)
-		serviceMap[s.ServiceID] = *s
-		if !t.statusCli.IsClosedStatus(serviceStatus[s.ServiceID]) {
-			serviceTenantRunning[s.TenantID]++
-		}
 		serviceTenantCount[s.TenantID]++
 	}
-	var result = make(map[string]map[string]interface{}, len(ids))
-	for k, v := range limits {
-		result[k] = map[string]interface{}{"tenant_id": k, "limit_memory": v,
-			"service_running_num": serviceTenantRunning[k],
-			"service_total_num":   serviceTenantCount[k],
-			"limit_cpu":           0, "cpu": 0, "memory": 0, "disk": 0}
+	// get cluster resources
+	clusterStats, err := t.GetAllocatableResources()
+	if err != nil {
+		return nil, fmt.Errorf("error getting allocatalbe cpu and memory: %v", err)
 	}
-	status := t.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
-	for k, v := range status {
-		if _, ok := serviceMap[k]; !ok {
-			continue
+	var result = make(map[string]map[string]interface{}, len(ids))
+	for _, tenantID := range ids {
+		tr, _ := t.statusCli.GetTenantResource(tenantID)
+		var limitMemory int64
+		if l, ok := limits[tenantID]; ok && l != 0 {
+			limitMemory = int64(l)
+		} else {
+			limitMemory = clusterStats.AllMemory
 		}
-		if _, ok := result[serviceMap[k].TenantID]; !ok {
-			result[serviceMap[k].TenantID] = map[string]interface{}{"tenant_id": k, "limit_memory": 0, "limit_cpu": 0, "cpu": 0, "memory": 0, "disk": 0}
-		}
-		if !t.statusCli.IsClosedStatus(v) {
-			result[serviceMap[k].TenantID]["cpu"] = result[serviceMap[k].TenantID]["cpu"].(int) + (serviceMap[k].ContainerCPU * serviceMap[k].Replicas)
-			result[serviceMap[k].TenantID]["memory"] = result[serviceMap[k].TenantID]["memory"].(int) + (serviceMap[k].ContainerMemory * serviceMap[k].Replicas)
+		result[tenantID] = map[string]interface{}{
+			"tenant_id":           tenantID,
+			"limit_memory":        limitMemory,
+			"limit_cpu":           clusterStats.AllCPU,
+			"service_running_num": tr.RunningAppNum,
+			"service_total_num":   serviceTenantCount[tenantID],
+			"cpu":                 tr.CpuRequest,
+			"memory":              tr.MemoryRequest,
+			"disk":                0,
 		}
 	}
 	//query disk used in prometheus
-	proxy := GetPrometheusProxy()
+	pproxy := GetPrometheusProxy()
 	query := fmt.Sprintf(`sum(app_resource_appfs{tenant_id=~"%s"}) by(tenant_id)`, strings.Join(ids, "|"))
 	query = strings.Replace(query, " ", "%20", -1)
 	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", query), nil)
@@ -211,9 +210,9 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 		logrus.Error("create request prometheus api error ", err.Error())
 		return result, nil
 	}
-	presult, err := proxy.Do(req)
+	presult, err := pproxy.Do(req)
 	if err != nil {
-		logrus.Error("do proxy request prometheus api error ", err.Error())
+		logrus.Error("do pproxy request prometheus api error ", err.Error())
 		return result, nil
 	}
 	if presult.Body != nil {
@@ -242,6 +241,85 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 	return result, nil
 }
 
+//TenantResourceStats tenant resource stats
+type TenantResourceStats struct {
+	TenantID      string `json:"tenant_id,omitempty"`
+	CPURequest    int64  `json:"cpu_request,omitempty"`
+	CPULimit      int64  `json:"cpu_limit,omitempty"`
+	MemoryRequest int64  `json:"memory_request,omitempty"`
+	MemoryLimit   int64  `json:"memory_limit,omitempty"`
+	RunningAppNum int64  `json:"running_app_num"`
+}
+
+//GetTenantResource get tenant resource
+func (t *TenantAction) GetTenantResource(tenantID string) (ts TenantResourceStats, err error) {
+	tr, err := t.statusCli.GetTenantResource(tenantID)
+	if err != nil {
+		return ts, err
+	}
+	ts.TenantID = tenantID
+	ts.CPULimit = tr.CpuLimit
+	ts.CPURequest = tr.CpuRequest
+	ts.MemoryLimit = tr.MemoryLimit
+	ts.MemoryRequest = tr.MemoryRequest
+	ts.RunningAppNum = tr.RunningAppNum
+	return
+}
+
+//ClusterResourceStats cluster resource stats
+type ClusterResourceStats struct {
+	AllCPU        int64
+	AllMemory     int64
+	RequestCPU    int64
+	RequestMemory int64
+}
+
+// GetAllocatableResources returns allocatable cpu and memory (MB)
+func (t *TenantAction) GetAllocatableResources() (*ClusterResourceStats, error) {
+	var crs ClusterResourceStats
+	nproxy := GetNodeProxy()
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s/v2/nodes/rule/compute",
+		t.OptCfg.NodeAPI), nil)
+	if err != nil {
+		return &crs, fmt.Errorf("error creating http request: %v", err)
+	}
+	resp, err := nproxy.Do(req)
+	if err != nil {
+		return &crs, fmt.Errorf("error getting cluster resources: %v", err)
+	}
+	if resp.Body != nil {
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			return &crs, fmt.Errorf("error getting cluster resources: status code: %d; "+
+				"response: %v", resp.StatusCode, resp)
+		}
+		type foo struct {
+			List []*cli.HostNode `json:"list"`
+		}
+		var f foo
+		err = json.NewDecoder(resp.Body).Decode(&f)
+		if err != nil {
+			return &crs, fmt.Errorf("error decoding response body: %v", err)
+		}
+
+		for _, n := range f.List {
+			if k := n.NodeStatus.KubeNode; k != nil && !k.Spec.Unschedulable {
+				s := strings.Replace(k.Status.Allocatable.Cpu().String(), "m", "", -1)
+				i, err := strconv.ParseInt(s, 10, 64)
+				if err != nil {
+					return &crs, fmt.Errorf("error converting string to int64: %v", err)
+				}
+				crs.AllCPU += i
+				crs.AllMemory += k.Status.Allocatable.Memory().Value() / (1024 * 1024)
+			}
+		}
+	}
+	ts, _ := t.statusCli.GetTenantResource("")
+	crs.RequestCPU = ts.CpuRequest
+	crs.RequestMemory = ts.MemoryRequest
+	return &crs, nil
+}
+
 //GetServicesResources Gets the resource usage of the specified service.
 func (t *TenantAction) GetServicesResources(tr *api_model.ServicesResources) (re map[string]map[string]interface{}, err error) {
 	status := t.statusCli.GetStatuss(strings.Join(tr.Body.ServiceIDs, ","))
@@ -261,8 +339,8 @@ func (t *TenantAction) GetServicesResources(tr *api_model.ServicesResources) (re
 		resmp[c] = map[string]interface{}{"memory": 0, "cpu": 0}
 	}
 	re = resmp
-	appdisks := t.statusCli.GetAppsDisk(strings.Join(tr.Body.ServiceIDs, ","))
-	for serviceID, disk := range appdisks {
+	disks := GetServicesDisk(tr.Body.ServiceIDs, GetPrometheusProxy())
+	for serviceID, disk := range disks {
 		if _, ok := resmp[serviceID]; ok {
 			resmp[serviceID]["disk"] = disk / 1024
 		} else {
@@ -320,4 +398,12 @@ func (t *TenantAction) TransPlugins(tenantID, tenantName, fromTenant string, plu
 		return util.CreateAPIHandleErrorFromDBError("trans plugins infos", err)
 	}
 	return nil
+}
+
+func (t *TenantAction) GetServicesStatus(ids string) map[string]string {
+	return t.statusCli.GetStatuss(ids)
+}
+
+func (t *TenantAction) IsClosedStatus(status string) bool {
+	return t.statusCli.IsClosedStatus(status)
 }

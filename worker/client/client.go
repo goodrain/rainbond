@@ -21,7 +21,7 @@ package client
 import (
 	"context"
 
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 
 	"github.com/coreos/etcd/clientv3"
 
@@ -85,32 +85,6 @@ func (a *AppRuntimeSyncClient) GetStatus(serviceID string) string {
 	return status.Status[serviceID]
 }
 
-//GetAllAppDisk get all service disk
-func (a *AppRuntimeSyncClient) GetAllAppDisk() map[string]float64 {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	status, err := a.AppRuntimeSyncClient.GetAppDisk(ctx, &pb.ServicesRequest{
-		ServiceIds: "",
-	})
-	if err != nil {
-		return nil
-	}
-	return status.Disks
-}
-
-//GetAppsDisk get define service disk
-func (a *AppRuntimeSyncClient) GetAppsDisk(serviceIDs string) map[string]float64 {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	status, err := a.AppRuntimeSyncClient.GetAppDisk(ctx, &pb.ServicesRequest{
-		ServiceIds: serviceIDs,
-	})
-	if err != nil {
-		return nil
-	}
-	return status.Disks
-}
-
 //GetStatuss get multiple app status
 func (a *AppRuntimeSyncClient) GetStatuss(serviceIDs string) map[string]string {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -169,5 +143,12 @@ func (a *AppRuntimeSyncClient) GetServiceDeployInfo(serviceID string) (*pb.Deplo
 
 //IsClosedStatus  check status
 func (a *AppRuntimeSyncClient) IsClosedStatus(curStatus string) bool {
-	return curStatus == v1.BUILDEFAILURE || curStatus == v1.CLOSED || curStatus == v1.UNDEPLOY || curStatus == v1.BUILDING || curStatus == v1.UNKNOW
+	return curStatus == "" || curStatus == v1.BUILDEFAILURE || curStatus == v1.CLOSED || curStatus == v1.UNDEPLOY || curStatus == v1.BUILDING || curStatus == v1.UNKNOW
+}
+
+//GetTenantResource get tenant resource
+func (a *AppRuntimeSyncClient) GetTenantResource(tenantID string) (*pb.TenantResource, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return a.AppRuntimeSyncClient.GetTenantResource(ctx, &pb.TenantRequest{TenantId: tenantID})
 }

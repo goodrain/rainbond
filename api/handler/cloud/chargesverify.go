@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package publiccloud
+package cloud
 
 import (
 	"fmt"
@@ -25,6 +25,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/db"
+
 	"github.com/pquerna/ffjson/ffjson"
 
 	"github.com/Sirupsen/logrus"
@@ -32,8 +35,8 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 )
 
-//ChargeSverify service Charge Sverify
-func ChargeSverify(tenant *model.Tenants, quantity int, reason string) *util.APIHandleError {
+//PubChargeSverify service Charge Sverify
+func PubChargeSverify(tenant *model.Tenants, quantity int, reason string) *util.APIHandleError {
 	cloudAPI := os.Getenv("CLOUD_API")
 	if cloudAPI == "" {
 		cloudAPI = "http://api.goodrain.com"
@@ -66,4 +69,31 @@ func ChargeSverify(tenant *model.Tenants, quantity int, reason string) *util.API
 		}
 	}
 	return util.CreateAPIHandleError(res.StatusCode, fmt.Errorf("none"))
+}
+
+// PriChargeSverify verifies that the resources requested in the private cloud are legal
+func PriChargeSverify(tenant *model.Tenants, quantity int) *util.APIHandleError {
+	t, err := db.GetManager().TenantDao().GetTenantByUUID(tenant.UUID)
+	if err != nil {
+		logrus.Errorf("error getting tenant: %v", err)
+		return util.CreateAPIHandleError(500, fmt.Errorf("error getting tenant: %v", err))
+	}
+	if t.LimitMemory == 0 {
+		clusterStats, err := handler.GetTenantManager().GetAllocatableResources()
+		if err != nil {
+			logrus.Errorf("error getting allocatable resources: %v", err)
+			return util.CreateAPIHandleError(500, fmt.Errorf("error getting allocatable resources: %v", err))
+		}
+		availMem := clusterStats.AllMemory - clusterStats.RequestMemory
+		if availMem >= int64(quantity) {
+			return util.CreateAPIHandleError(200, fmt.Errorf("success"))
+		}
+		return util.CreateAPIHandleError(200, fmt.Errorf("cluster_lack_of_memory"))
+	}
+	tenantStas, err := handler.GetTenantManager().GetTenantResource(tenant.UUID)
+	availMem := int64(t.LimitMemory) - tenantStas.MemoryRequest
+	if availMem >= int64(quantity) {
+		return util.CreateAPIHandleError(200, fmt.Errorf("success"))
+	}
+	return util.CreateAPIHandleError(200, fmt.Errorf("lack_of_memory"))
 }

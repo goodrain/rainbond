@@ -288,6 +288,40 @@ func GetLabel(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, node.Labels)
 }
 
+//ListNodeCondition list node condition
+func ListNodeCondition(w http.ResponseWriter, r *http.Request) {
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	node, err := nodeService.GetNode(nodeUID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, node.NodeStatus.Conditions)
+}
+
+//DeleteNodeCondition delete node condition
+func DeleteNodeCondition(w http.ResponseWriter, r *http.Request) {
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	conditionType := strings.TrimSpace(chi.URLParam(r, "condition"))
+	node, err := nodeService.GetNode(nodeUID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	for _, condition := range node.NodeStatus.Conditions {
+		if string(condition.Type) == conditionType {
+			node, err := nodeService.DeleteNodeCondition(nodeUID, condition.Type)
+			if err != nil {
+				err.Handle(r, w)
+				return
+			}
+			httputil.ReturnSuccess(r, w, node.NodeStatus.Conditions)
+			return
+		}
+	}
+	httputil.ReturnError(r, w, 404, "condition not exist")
+}
+
 //DownNode 节点下线，计算节点操作
 func DownNode(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))

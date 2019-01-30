@@ -262,6 +262,7 @@ func (b *BackupAPPNew) uploadImage(app *RegionServiceSnapshot, version *dbmodel.
 		if err != nil {
 			return fmt.Errorf("create backup image error %s", err)
 		}
+		
 		info, err := sources.ImagePull(b.DockerClient, version.DeliveredPath, "", "", b.Logger, 10)
 		if err != nil {
 			return fmt.Errorf("pull image when backup error %s", err)

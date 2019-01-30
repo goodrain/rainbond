@@ -20,17 +20,15 @@ package http
 
 import (
 	"errors"
-	"github.com/Sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/url"
 	"reflect"
 
-	"golang.org/x/net/context"
-
+	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/render"
-
 	govalidator "github.com/thedevsaddam/govalidator"
+	"golang.org/x/net/context"
 )
 
 //ValidatorStructRequest 验证请求数据

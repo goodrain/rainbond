@@ -291,6 +291,7 @@ type VersionInfoDao interface {
 	GetVersionByEventID(eventID string) (*model.VersionInfo, error)
 	GetVersionByDeployVersion(version, serviceID string) (*model.VersionInfo, error)
 	GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error)
+	GetAllVersionByServiceID(serviceID string) ([]*model.VersionInfo, error)
 	DeleteVersionByEventID(eventID string) error
 	DeleteVersionByServiceID(serviceID string) error
 	GetVersionInfo(timePoint time.Time, serviceIdList []string) ([]*model.VersionInfo, error)

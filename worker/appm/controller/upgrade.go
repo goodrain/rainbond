@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 type upgradeController struct {
@@ -74,7 +75,27 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 			return fmt.Errorf("create or check namespace failure %s", err.Error())
 		}
 	}
-
+	if configs := app.GetConfigMaps(); configs != nil {
+		for _, config := range configs {
+			_, err := s.manager.client.CoreV1().ConfigMaps(config.Namespace).Update(config)
+			if err != nil {
+				app.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
+				logrus.Errorf("upgrade service %s failure %s", app.ServiceAlias, err.Error())
+			}
+			if err != nil {
+				if k8sErrors.IsNotFound(err) {
+					_, err := s.manager.client.CoreV1().ConfigMaps(config.Namespace).Create(config)
+					if err != nil {
+						app.Logger.Error(fmt.Sprintf("error creating configmap %+v: %v", config, err), getLoggerOption("failure"))
+						logrus.Warningf("error creating configmap %+v: %v", config, err)
+					}
+				} else {
+					logrus.Warningf("error updating configmap %+v: %v", config, err)
+					app.Logger.Error(fmt.Sprintf("error updating configmap %+v: %v", config, err), getLoggerOption("failure"))
+				}		
+			}
+		}
+	}
 	if deployment := app.GetDeployment(); deployment != nil {
 		_, err := s.manager.client.AppsV1().Deployments(deployment.Namespace).Patch(deployment.Name, types.MergePatchType, app.UpgradePatch["deployment"])
 		if err != nil {
@@ -102,15 +123,6 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 	if services := app.GetServices(); services != nil {
 		for _, service := range services {
 			_, err := s.manager.client.CoreV1().Services(service.Namespace).Update(service)
-			if err != nil {
-				app.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
-				logrus.Errorf("upgrade service %s failure %s", app.ServiceAlias, err.Error())
-			}
-		}
-	}
-	if configs := app.GetConfigMaps(); configs != nil {
-		for _, config := range configs {
-			_, err := s.manager.client.CoreV1().ConfigMaps(config.Namespace).Update(config)
 			if err != nil {
 				app.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
 				logrus.Errorf("upgrade service %s failure %s", app.ServiceAlias, err.Error())

@@ -16,33 +16,23 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package handler
+package build
 
 import (
-	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/dao"
-	"github.com/goodrain/rainbond/db/model"
-	"github.com/rafrombrc/gomock/gomock"
 	"testing"
 )
 
-func TestGatewayAction_TCPAvailable(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	dbmanager := db.NewMockManager(ctrl)
+func TestGetARGs(t *testing.T) {
+	buildEnvs := make(map[string]string)
+	buildEnvs["ARG_TEST"] = "abcdefg"
+	buildEnvs["PROC_ENV"] = "{\"procfile\": \"\", \"dependencies\": {}, \"language\": \"dockerfile\", \"runtimes\": \"\"}"
 
-	ipPortDao := dao.NewMockIPPortDao(ctrl)
-	ipport := &model.IPPort{
-		IP: "172.16.0.106",
-		Port: 8888,
+	args := GetARGs(buildEnvs)
+	if v := buildEnvs["ARG_TEST"]; *args["TEST"] != v {
+		t.Errorf("Expected %s for arg[\"%s\"], but returned %s", buildEnvs["ARG_TEST"], "ARG_TEST", *args["TEST"])
 	}
-	ipPortDao.EXPECT().GetIPPortByIPAndPort("172.16.0.106", 8888).Return(ipport, nil)
-	dbmanager.EXPECT().IPPortDao().Return(ipPortDao)
-
-	g := GatewayAction{
-		dbmanager: dbmanager,
-	}
-	if g.TCPAvailable("172.16.0.106", 8888) {
-		t.Errorf("expected false for tcp available, but returned true")
+	if PROC_ENV := args["PROC_ENV"]; PROC_ENV != nil {
+		t.Errorf("Expected nil for  args[\"PROC_ENV\"], but returned %v", PROC_ENV)
 	}
 }
+

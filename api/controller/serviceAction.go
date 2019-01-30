@@ -200,7 +200,7 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 	// if os.Getenv("PUBLIC_CLOUD") == "true" {
 	// 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
 	// 	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
-	// 	if err := publiccloud.ChargeSverify(tenant, service.ContainerMemory*service.Replicas, "start"); err != nil {
+	// 	if err := cloud.ChargeSverify(tenant, service.ContainerMemory*service.Replicas, "start"); err != nil {
 	// 		err.Handle(r, w)
 	// 		return
 	// 	}
@@ -535,7 +535,7 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 //BuildList BuildList
 func (t *TenantStruct) BuildList(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	versionInfoList, err := db.GetManager().VersionInfoDao().GetVersionByServiceID(serviceID)
+	versionInfoList, err := db.GetManager().VersionInfoDao().GetAllVersionByServiceID(serviceID)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		logrus.Error("get version info error", err.Error())
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get version info erro, %v", err))

@@ -135,20 +135,25 @@ func (n *node) GetAllNodeHealth() (map[string][]map[string]string, *util.APIHand
 	return gc, nil
 }
 
-func (n *node) Add(node *client.APIHostNode) *util.APIHandleError {
+func (n *node) Add(node *client.APIHostNode) (*client.HostNode, *util.APIHandleError) {
 	body, err := json.Marshal(node)
 	if err != nil {
-		return util.CreateAPIHandleError(400, err)
+		return nil, util.CreateAPIHandleError(400, err)
 	}
 	var res utilhttp.ResponseBody
+	var renode client.HostNode
+	res.Bean = &renode
 	code, err := n.DoRequest(n.prefix, "POST", bytes.NewBuffer(body), &res)
 	if err != nil {
-		return util.CreateAPIHandleError(code, err)
+		return nil, util.CreateAPIHandleError(code, err)
 	}
-	return handleAPIResult(code, res)
+	return &renode, handleAPIResult(code, res)
 }
 func (n *node) Label(nid string) NodeLabelInterface {
 	return &nodeLabelImpl{nodeImpl: n, NodeID: nid}
+}
+func (n *node) Condition(nid string) NodeConditionInterface {
+	return &nodeConditionImpl{nodeImpl: n, NodeID: nid}
 }
 
 type nodeLabelImpl struct {
@@ -203,6 +208,32 @@ func (nl *nodeLabelImpl) Add(k, v string) *util.APIHandleError {
 		return util.CreateAPIHandleError(code, err)
 	}
 	return nil
+}
+
+type nodeConditionImpl struct {
+	nodeImpl *node
+	NodeID   string
+}
+
+func (nl *nodeConditionImpl) List() ([]client.NodeCondition, *util.APIHandleError) {
+	var decode []client.NodeCondition
+	var res utilhttp.ResponseBody
+	res.List = &decode
+	code, err := nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/conditions", "GET", nil, &res)
+	if err != nil || code != 200 {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	return decode, nil
+}
+func (nl *nodeConditionImpl) Delete(k client.NodeConditionType) ([]client.NodeCondition, *util.APIHandleError) {
+	var decode []client.NodeCondition
+	var res utilhttp.ResponseBody
+	res.List = &decode
+	code, err := nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/conditions/"+string(k), "DELETE", nil, &res)
+	if err != nil || code != 200 {
+		return nil, util.CreateAPIHandleError(code, err)
+	}
+	return decode, nil
 }
 
 func (n *node) Delete(nid string) *util.APIHandleError {
@@ -305,13 +336,14 @@ type NodeInterface interface {
 	GetNodeResource(node string) (*client.NodePodResource, *util.APIHandleError)
 	List() ([]*client.HostNode, *util.APIHandleError)
 	GetAllNodeHealth() (map[string][]map[string]string, *util.APIHandleError)
-	Add(node *client.APIHostNode) *util.APIHandleError
+	Add(node *client.APIHostNode) (*client.HostNode, *util.APIHandleError)
 	Up(nid string) *util.APIHandleError
 	Down(nid string) *util.APIHandleError
 	UnSchedulable(nid string) *util.APIHandleError
 	ReSchedulable(nid string) *util.APIHandleError
 	Delete(nid string) *util.APIHandleError
 	Label(nid string) NodeLabelInterface
+	Condition(nid string) NodeConditionInterface
 	Install(nid string) *util.APIHandleError
 	UpdateNodeStatus(nid, status string) (*client.HostNode, *util.APIHandleError)
 }
@@ -321,6 +353,12 @@ type NodeLabelInterface interface {
 	Add(k, v string) *util.APIHandleError
 	Delete(k string) *util.APIHandleError
 	List() (map[string]string, *util.APIHandleError)
+}
+
+//NodeConditionInterface node condition manage api
+type NodeConditionInterface interface {
+	List() ([]client.NodeCondition, *util.APIHandleError)
+	Delete(conditionType client.NodeConditionType) ([]client.NodeCondition, *util.APIHandleError)
 }
 
 //ConfigsInterface 数据中心配置API

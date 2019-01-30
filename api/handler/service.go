@@ -20,36 +20,33 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/cmd/api/option"
-	"github.com/goodrain/rainbond/worker/server/pb"
+	"github.com/goodrain/rainbond/api/proxy"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
-	"github.com/goodrain/rainbond/db"
-	core_model "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/event"
-	"github.com/twinj/uuid"
-
-	"github.com/jinzhu/gorm"
-
-	"github.com/pquerna/ffjson/ffjson"
-
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/cmd/api/option"
+	"github.com/goodrain/rainbond/db"
+	core_model "github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/event"
 	gclient "github.com/goodrain/rainbond/mq/client"
 	core_util "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/discover/model"
-
-	"encoding/json"
-	"net/http"
-
-	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/worker/server/pb"
+	"github.com/jinzhu/gorm"
+	"github.com/pquerna/ffjson/ffjson"
+	"github.com/twinj/uuid"
 )
 
 //ServiceAction service act
@@ -514,32 +511,52 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		}
 
 		for _, volumn := range volumns {
-			volumn.ServiceID = ts.ServiceID
+			v := dbmodel.TenantServiceVolume{
+				ServiceID:  ts.ServiceID,
+				Category:   volumn.Category,
+				VolumeType: volumn.VolumeType,
+				VolumeName: volumn.VolumeName,
+				HostPath:   volumn.HostPath,
+				VolumePath: volumn.VolumePath,
+				IsReadOnly: volumn.IsReadOnly,
+			}
+			v.ServiceID = ts.ServiceID
 			if volumn.VolumeType == "" {
-				volumn.VolumeType = dbmodel.ShareFileVolumeType.String()
+				v.VolumeType = dbmodel.ShareFileVolumeType.String()
 			}
 			if volumn.HostPath == "" {
 				//step 1 设置主机目录
 				switch volumn.VolumeType {
 				//共享文件存储
 				case dbmodel.ShareFileVolumeType.String():
-					volumn.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, sc.TenantID, volumn.ServiceID, volumn.VolumePath)
+					v.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, sc.TenantID, ts.ServiceID, volumn.VolumePath)
 				//本地文件存储
 				case dbmodel.LocalVolumeType.String():
 					if sc.ExtendMethod != "state" {
 						tx.Rollback()
 						return util.CreateAPIHandleError(400, fmt.Errorf("应用类型不为有状态应用.不支持本地存储"))
 					}
-					volumn.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, sc.TenantID, volumn.ServiceID, volumn.VolumePath)
+					v.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, sc.TenantID, ts.ServiceID, volumn.VolumePath)
 				}
 			}
 			if volumn.VolumeName == "" {
-				volumn.VolumeName = uuid.NewV4().String()
+				v.VolumeName = uuid.NewV4().String()
 			}
-			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).AddModel(&volumn); err != nil {
+			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).AddModel(&v); err != nil {
 				logrus.Errorf("add volumn %v error, %v", volumn.HostPath, err)
 				tx.Rollback()
 				return err
+			}
+			if volumn.FileContent != "" {
+				cf := &dbmodel.TenantServiceConfigFile{
+					UUID:        uuid.NewV4().String(),
+					VolumeName:  volumn.VolumeName,
+					FileContent: volumn.FileContent,
+				}
+				if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).AddModel(cf); err != nil {
+					tx.Rollback()
+					return util.CreateAPIHandleErrorFromDBError("error creating config file", err)
+				}
 			}
 		}
 	}
@@ -686,47 +703,87 @@ func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantR
 
 //GetTenantRes get pagedTenantServiceRes(s)
 func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, error) {
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(uuid)
+	if err != nil {
+		logrus.Errorf("get tenant %s info failure %v", uuid, err.Error())
+		return nil, err
+	}
 	services, err := db.GetManager().TenantServiceDao().GetServicesByTenantID(uuid)
 	if err != nil {
-		logrus.Errorf("get service by id error, %v, %v", services, err)
+		logrus.Errorf("get service by id error, %v, %v", services, err.Error())
 		return nil, err
 	}
 	var serviceIDs string
 	var AllocatedCPU, AllocatedMEM int
-	var serMap = make(map[string]*dbmodel.TenantServices, len(services))
 	for _, ser := range services {
 		if serviceIDs == "" {
 			serviceIDs += ser.ServiceID
 		} else {
 			serviceIDs += "," + ser.ServiceID
 		}
-		AllocatedCPU += ser.ContainerCPU
-		AllocatedMEM += ser.ContainerMemory
-		serMap[ser.ServiceID] = ser
+		AllocatedCPU += ser.ContainerCPU * ser.Replicas
+		AllocatedMEM += ser.ContainerMemory * ser.Replicas
 	}
-	status := s.statusCli.GetStatuss(serviceIDs)
-	var UsedCPU, UsedMEM int
-	for k, v := range status {
-		if !s.statusCli.IsClosedStatus(v) {
-			UsedCPU += serMap[k].ContainerCPU
-			UsedMEM += serMap[k].ContainerMemory
-		}
-	}
-	disks := s.statusCli.GetAppsDisk(serviceIDs)
+	tenantResUesd, _ := s.statusCli.GetTenantResource(uuid)
+	disks := GetServicesDisk(strings.Split(serviceIDs, ","), GetPrometheusProxy())
 	var value float64
 	for _, v := range disks {
 		value += v
 	}
 	var res api_model.TenantResource
 	res.UUID = uuid
-	res.Name = ""
-	res.EID = ""
+	res.Name = tenant.Name
+	res.EID = tenant.EID
 	res.AllocatedCPU = AllocatedCPU
 	res.AllocatedMEM = AllocatedMEM
-	res.UsedCPU = UsedCPU
-	res.UsedMEM = UsedMEM
+	res.UsedCPU = int(tenantResUesd.CpuRequest)
+	res.UsedMEM = int(tenantResUesd.MemoryRequest)
 	res.UsedDisk = value
 	return &res, nil
+}
+
+func GetServicesDisk(ids []string, p proxy.Proxy) map[string]float64 {
+	result := make(map[string]float64)
+	//query disk used in prometheus
+	query := fmt.Sprintf(`max(app_resource_appfs{service_id=~"%s"}) by(service_id)`, strings.Join(ids, "|"))
+	query = strings.Replace(query, " ", "%20", -1)
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", query), nil)
+	if err != nil {
+		logrus.Error("create request prometheus api error ", err.Error())
+		return result
+	}
+	presult, err := p.Do(req)
+	if err != nil {
+		logrus.Error("do pproxy request prometheus api error ", err.Error())
+		return result
+	}
+
+	if presult.Body != nil {
+		defer presult.Body.Close()
+		if presult.StatusCode != 200 {
+			return result
+		}
+		var qres QueryResult
+		err = json.NewDecoder(presult.Body).Decode(&qres)
+		if err == nil {
+			for _, re := range qres.Data.Result {
+				var serviceID string
+				if tid, ok := re["metric"].(map[string]interface{}); ok {
+					serviceID = tid["service_id"].(string)
+				}
+				if re, ok := (re["value"]).([]interface{}); ok && len(re) == 2 {
+					i, err := strconv.ParseFloat(re[1].(string), 10)
+					if err != nil {
+						logrus.Warningf("error convert interface(%v) to float64", re[1].(string))
+						continue
+					}
+					result[serviceID] = i
+				}
+			}
+		}
+	}
+
+	return result
 }
 
 //CodeCheck code check
@@ -1237,8 +1294,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
 		} else {
-			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath);
-				err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
@@ -1472,7 +1528,6 @@ func (s *ServiceAction) GetPods(serviceID string) ([]*K8sPodInfo, error) {
 		podsInfoList = append(podsInfoList, &podInfo)
 	}
 	containerMemInfo, _ := s.GetPodContainerMemory(podNames)
-	fmt.Println(containerMemInfo)
 	for _, c := range podsInfoList {
 		for k := range c.Container {
 			if info, exist := containerMemInfo[c.PodName][k]; exist {

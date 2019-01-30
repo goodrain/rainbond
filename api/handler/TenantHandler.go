@@ -35,8 +35,12 @@ type TenantHandler interface {
 	StatsMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error)
 	TotalMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error)
 	GetTenantsResources(tr *api_model.TenantResources) (map[string]map[string]interface{}, error)
+	GetTenantResource(tenantID string) (TenantResourceStats, error)
+	GetAllocatableResources() (*ClusterResourceStats, error)
 	GetServicesResources(tr *api_model.ServicesResources) (map[string]map[string]interface{}, error)
 	TenantsSum() (int, error)
 	GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHandleError)
 	TransPlugins(tenantID, tenantName, fromTenant string, pluginList []string) *util.APIHandleError
+	GetServicesStatus(ids string) map[string]string
+	IsClosedStatus(status string) bool
 }

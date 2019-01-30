@@ -20,12 +20,13 @@ package option
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/spf13/pflag"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/spf13/pflag"
 )
 
 type Config struct {
@@ -50,6 +51,7 @@ type Config struct {
 	QueryLookbackDelta   string
 	QueryTimeout         string
 	QueryMaxConcurrency  string
+	CadvisorListenPort   int
 }
 
 // Options for the web Handler.
@@ -119,17 +121,21 @@ func NewConfig() *Config {
 			MinBlockDuration: "2h",
 			Retention:        "7d",
 		},
+		CadvisorListenPort: 4194,
 	}
 
 	return config
 }
 
+//AddFlag monitor flag
 func (c *Config) AddFlag(cmd *pflag.FlagSet) {
 	cmd.StringVar(&c.EtcdEndpointsLine, "etcd-endpoints", c.EtcdEndpointsLine, "etcd endpoints list.")
 	cmd.StringVar(&c.AdvertiseAddr, "advertise-addr", c.AdvertiseAddr, "advertise address, and registry into etcd.")
+	cmd.IntVar(&c.CadvisorListenPort, "cadvisor-listen-port", c.CadvisorListenPort, "kubelet cadvisor listen port in all node")
 	cmd.StringSliceVar(&c.AlertManagerUrl, "alertmanager-address", c.AlertManagerUrl, "AlertManager url.")
 }
 
+//AddPrometheusFlag prometheus flag
 func (c *Config) AddPrometheusFlag(cmd *pflag.FlagSet) {
 	cmd.StringVar(&c.ConfigFile, "config.file", c.ConfigFile, "Prometheus configuration file path.")
 
