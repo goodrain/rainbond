@@ -463,3 +463,12 @@ func (a *AppService) String() string {
 		}(a.services),
 	)
 }
+
+//TenantResource tenant resource statistical models
+type TenantResource struct {
+	TenantID      string `json:"tenant_id,omitempty"`
+	CPURequest    int64  `json:"cpu_request,omitempty"`
+	CPULimit      int64  `json:"cpu_limit,omitempty"`
+	MemoryRequest int64  `json:"memory_request,omitempty"`
+	MemoryLimit   int64  `json:"memory_limit,omitempty"`
+}

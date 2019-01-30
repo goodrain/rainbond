@@ -3,9 +3,9 @@ package pb;
 
 service AppRuntimeSync {
   rpc GetAppStatus (ServicesRequest) returns (StatusMessage) {}
-  rpc GetAppDisk (ServicesRequest) returns (DiskMessage) {}
   rpc GetAppPods (ServiceRequest) returns (ServiceAppPodList) {}
   rpc GetDeployInfo (ServiceRequest) returns (DeployInfo) {}
+  rpc GetTenantResource (TenantRequest) returns (TenantResource) {}
 }
 
 message ServiceRequest { 
@@ -13,6 +13,9 @@ message ServiceRequest {
 }
 message ServicesRequest {
   string service_ids = 1;
+}
+message TenantRequest {
+  string tenant_id = 1;
 }
 
 message StatusMessage {
@@ -38,7 +41,7 @@ message ServiceAppPod {
 
 message Container {
   string container_name = 1;
-  int32 memory_limit = 2;
+  int64 memory_limit = 2;
 }
 
 message DeployInfo {
@@ -51,4 +54,12 @@ message DeployInfo {
   map<string, string> ingresses = 7;
   map<string, string> replicatset = 8;
   string status = 9;
+}
+
+message TenantResource {
+  int64 cpu_request = 1;
+  int64 cpu_limit = 2;
+  int64 memory_request = 3;
+  int64 memory_limit = 4;
+  int64 running_app_num = 5;
 }

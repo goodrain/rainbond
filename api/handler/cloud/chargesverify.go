@@ -20,12 +20,13 @@ package cloud
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/db"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/db"
 
 	"github.com/pquerna/ffjson/ffjson"
 
@@ -72,64 +73,27 @@ func PubChargeSverify(tenant *model.Tenants, quantity int, reason string) *util.
 
 // PriChargeSverify verifies that the resources requested in the private cloud are legal
 func PriChargeSverify(tenant *model.Tenants, quantity int) *util.APIHandleError {
-	svcs, err := db.GetManager().TenantServiceDao().GetServicesByTenantID(tenant.UUID)
-	if err != nil {
-		logrus.Errorf("error getting tenant: %v", err)
-		return util.CreateAPIHandleError(500, fmt.Errorf("error getting tenant: %v", err))
-	}
-	var svcids []string
-	svcMap := make(map[string]*model.TenantServices)
-	for _, svc := range svcs {
-		svcids = append(svcids, svc.ServiceID)
-		svcMap[svc.ServiceID] = svc
-	}
-	// get services status
-	var usedMem int
-	if len(svcids) > 0 {
-		ss := handler.GetTenantManager().GetServicesStatus(strings.Join(svcids, ","))
-		for k, v := range ss {
-			if !handler.GetTenantManager().IsClosedStatus(v) {
-				if svc, ok := svcMap[k]; ok {
-					usedMem += svc.ContainerMemory * svc.Replicas
-				}
-			}
-		}
-	}
-
 	t, err := db.GetManager().TenantDao().GetTenantByUUID(tenant.UUID)
 	if err != nil {
 		logrus.Errorf("error getting tenant: %v", err)
 		return util.CreateAPIHandleError(500, fmt.Errorf("error getting tenant: %v", err))
 	}
-	availMem := int64(t.LimitMemory)
-
-	if availMem == 0 {
-		_, allMem, err := handler.GetTenantManager().GetAllocatableResources()
+	if t.LimitMemory == 0 {
+		clusterStats, err := handler.GetTenantManager().GetAllocatableResources()
 		if err != nil {
 			logrus.Errorf("error getting allocatable resources: %v", err)
 			return util.CreateAPIHandleError(500, fmt.Errorf("error getting allocatable resources: %v", err))
 		}
-		availMem = allMem - int64(usedMem)
-
-		tenants, err := db.GetManager().TenantDao().GetALLTenants()
-		if err != nil {
-			logrus.Errorf("error getting all tenants: %v", err)
-			return util.CreateAPIHandleError(500, fmt.Errorf("error getting all tenants: %v", err))
-		}
-		for _, item := range tenants {
-			availMem = availMem - int64(item.LimitMemory)
-		}
+		availMem := clusterStats.AllMemory - clusterStats.RequestMemory
 		if availMem >= int64(quantity) {
 			return util.CreateAPIHandleError(200, fmt.Errorf("success"))
-		} else {
-			return util.CreateAPIHandleError(200, fmt.Errorf("cluster_lack_of_memory"))
 		}
-	} else {
-		availMem = availMem - int64(usedMem)
-		if availMem >= int64(quantity) {
-			return util.CreateAPIHandleError(200, fmt.Errorf("success"))
-		} else {
-			return util.CreateAPIHandleError(200, fmt.Errorf("lack_of_memory"))
-		}
+		return util.CreateAPIHandleError(200, fmt.Errorf("cluster_lack_of_memory"))
 	}
+	tenantStas, err := handler.GetTenantManager().GetTenantResource(tenant.UUID)
+	availMem := int64(t.LimitMemory) - tenantStas.MemoryRequest
+	if availMem >= int64(quantity) {
+		return util.CreateAPIHandleError(200, fmt.Errorf("success"))
+	}
+	return util.CreateAPIHandleError(200, fmt.Errorf("lack_of_memory"))
 }

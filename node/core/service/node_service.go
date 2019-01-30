@@ -392,15 +392,6 @@ func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *
 			rm := v.Resources.Requests.Memory().Value()
 			memRequest += rm
 		}
-		//lc := v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
-		//cpuLimit += lc
-		//lm := v.Spec.Containers[0].Resources.Limits.Memory().Value()
-		//memLimit += lm
-		////logrus.Infof("pod %s limit cpu is %s",v.Name,v.Spec.Containers[0].Resources.Limits.Cpu().MilliValue())
-		//rc := v.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
-		//cpuRequest += rc
-		//rm := v.Spec.Containers[0].Resources.Requests.Memory().Value()
-		//memRequest += rm
 	}
 	var res model.NodePodResource
 	res.CPULimits = cpuLimit
@@ -421,6 +412,17 @@ func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *
 func (n *NodeService) CheckNode(nodeUID string) (*model.InstallStatus, *utils.APIHandleError) {
 
 	return nil, nil
+}
+
+//DeleteNodeCondition delete node condition
+func (n *NodeService) DeleteNodeCondition(nodeUID string, condition client.NodeConditionType) (*client.HostNode, *utils.APIHandleError) {
+	node, err := n.GetNode(nodeUID)
+	if err != nil {
+		return nil, err
+	}
+	node.DeleteCondition(condition)
+	n.nodecluster.UpdateNode(node)
+	return node, nil
 }
 
 func dealNext(task *model.ExecedTask, tasks []*model.Task) {

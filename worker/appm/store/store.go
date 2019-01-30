@@ -24,12 +24,14 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/apimachinery/pkg/labels"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/jinzhu/gorm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -50,6 +52,8 @@ type Storer interface {
 	GetAllAppServices() []*v1.AppService
 	GetAppServiceStatus(serviceID string) string
 	GetAppServicesStatus(serviceIDs []string) map[string]string
+	GetTenantResource(tenantID string) *v1.TenantResource
+	GetTenantRunningApp(tenantID string) []*v1.AppService
 	GetNeedBillingStatus(serviceIDs []string) map[string]string
 	OnDelete(obj interface{})
 	GetPodLister() listcorev1.PodLister
@@ -683,4 +687,55 @@ func (a *appRuntimeStore) addAbnormalInfo(ai *v1.AbnormalInfo) {
 }
 func (a *appRuntimeStore) GetPodLister() listcorev1.PodLister {
 	return a.listers.Pod
+}
+
+//GetTenantResource get tenant resource
+func (a *appRuntimeStore) GetTenantResource(tenantID string) *v1.TenantResource {
+	pods, err := a.listers.Pod.Pods(tenantID).List(labels.Everything())
+	if err != nil {
+		logrus.Errorf("list namespace %s pod failure %s", tenantID, err.Error())
+		return nil
+	}
+	var resource v1.TenantResource
+	for _, pod := range pods {
+		for _, container := range pod.Spec.Containers {
+			cpulimit := container.Resources.Limits.Cpu()
+			memorylimit := container.Resources.Limits.Memory()
+			cpurequest := container.Resources.Requests.Cpu()
+			memoryrequest := container.Resources.Requests.Memory()
+			if cpulimit != nil {
+				resource.CPULimit += cpulimit.MilliValue()
+			}
+			if memorylimit != nil {
+				if ml, ok := memorylimit.AsInt64(); ok {
+					resource.MemoryLimit += ml
+				} else {
+					resource.MemoryLimit += memorylimit.Value()
+				}
+			}
+			if cpurequest != nil {
+				resource.CPURequest += cpurequest.MilliValue()
+			}
+			if memoryrequest != nil {
+				if mr, ok := memoryrequest.AsInt64(); ok {
+					resource.MemoryRequest += mr
+				} else {
+					resource.MemoryRequest += memoryrequest.Value()
+				}
+			}
+		}
+	}
+	return &resource
+}
+
+//GetTenantRunningApp get running app by tenant
+func (a *appRuntimeStore) GetTenantRunningApp(tenantID string) (list []*v1.AppService) {
+	a.appServices.Range(func(k, v interface{}) bool {
+		appService, _ := v.(*v1.AppService)
+		if appService != nil && (appService.TenantID == tenantID || tenantID == corev1.NamespaceAll) && !appService.IsClosed() {
+			list = append(list, appService)
+		}
+		return true
+	})
+	return
 }

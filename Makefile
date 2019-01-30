@@ -41,16 +41,7 @@ binary:
 run-c:image
 	test/run/run_${WHAT}.sh
 run:build
-ifeq ($(WHAT),api)
-	${BIN_PATH}/${BASE_NAME}-api --log-level=debug \
-	--mysql="root:@tcp(127.0.0.1:3306)/region" \
-	--kube-config="`PWD`/test/admin.kubeconfig" \
-	--api-ssl-enable=true \
-	--client-ca-file="`PWD`/test/ssl/ca.pem" \
-	--api-ssl-certfile="`PWD`/test/ssl/server.pem" \
-	--api-ssl-keyfile="`PWD`/test/ssl/server.key.pem"
-	--etcd=http://127.0.0.1:4001,http://127.0.0.1:2379
-else ifeq ($(WHAT),mq)
+ifeq ($(WHAT),mq)
 	${BIN_PATH}/${BASE_NAME}-mq --log-level=debug
 else ifeq ($(WHAT),worker)
 	test/run/run_worker.sh ${BIN_PATH}/${BASE_NAME}-worker

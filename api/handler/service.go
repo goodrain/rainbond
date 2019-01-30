@@ -22,12 +22,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/api/proxy"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/api/proxy"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
@@ -702,32 +703,28 @@ func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantR
 
 //GetTenantRes get pagedTenantServiceRes(s)
 func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, error) {
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(uuid)
+	if err != nil {
+		logrus.Errorf("get tenant %s info failure %v", uuid, err.Error())
+		return nil, err
+	}
 	services, err := db.GetManager().TenantServiceDao().GetServicesByTenantID(uuid)
 	if err != nil {
-		logrus.Errorf("get service by id error, %v, %v", services, err)
+		logrus.Errorf("get service by id error, %v, %v", services, err.Error())
 		return nil, err
 	}
 	var serviceIDs string
 	var AllocatedCPU, AllocatedMEM int
-	var serMap = make(map[string]*dbmodel.TenantServices, len(services))
 	for _, ser := range services {
 		if serviceIDs == "" {
 			serviceIDs += ser.ServiceID
 		} else {
 			serviceIDs += "," + ser.ServiceID
 		}
-		AllocatedCPU += ser.ContainerCPU
-		AllocatedMEM += ser.ContainerMemory
-		serMap[ser.ServiceID] = ser
+		AllocatedCPU += ser.ContainerCPU * ser.Replicas
+		AllocatedMEM += ser.ContainerMemory * ser.Replicas
 	}
-	status := s.statusCli.GetStatuss(serviceIDs)
-	var UsedCPU, UsedMEM int
-	for k, v := range status {
-		if !s.statusCli.IsClosedStatus(v) {
-			UsedCPU += serMap[k].ContainerCPU
-			UsedMEM += serMap[k].ContainerMemory
-		}
-	}
+	tenantResUesd, _ := s.statusCli.GetTenantResource(uuid)
 	disks := GetServicesDisk(strings.Split(serviceIDs, ","), GetPrometheusProxy())
 	var value float64
 	for _, v := range disks {
@@ -735,12 +732,12 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 	}
 	var res api_model.TenantResource
 	res.UUID = uuid
-	res.Name = ""
-	res.EID = ""
+	res.Name = tenant.Name
+	res.EID = tenant.EID
 	res.AllocatedCPU = AllocatedCPU
 	res.AllocatedMEM = AllocatedMEM
-	res.UsedCPU = UsedCPU
-	res.UsedMEM = UsedMEM
+	res.UsedCPU = int(tenantResUesd.CpuRequest)
+	res.UsedMEM = int(tenantResUesd.MemoryRequest)
 	res.UsedDisk = value
 	return &res, nil
 }

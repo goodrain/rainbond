@@ -92,9 +92,20 @@ func (r *RuntimeServer) GetAppStatus(ctx context.Context, re *pb.ServicesRequest
 	}, nil
 }
 
-//GetAppDisk get app service volume disk size
-func (r *RuntimeServer) GetAppDisk(ctx context.Context, re *pb.ServicesRequest) (*pb.DiskMessage, error) {
-	return nil, nil
+//GetTenantResource get tenant resource
+//if TenantId is "" will return the sum of the all tenant
+func (r *RuntimeServer) GetTenantResource(ctx context.Context, re *pb.TenantRequest) (*pb.TenantResource, error) {
+	var tr pb.TenantResource
+	res := r.store.GetTenantResource(re.TenantId)
+	if res == nil {
+		return &tr, nil
+	}
+	tr.RunningAppNum = int64(len(r.store.GetTenantRunningApp(re.TenantId)))
+	tr.CpuLimit = res.CPULimit
+	tr.CpuRequest = res.CPURequest
+	tr.MemoryLimit = res.MemoryLimit / 1024 / 1024
+	tr.MemoryRequest = res.MemoryRequest / 1024 / 1024
+	return &tr, nil
 }
 
 //GetAppPods get app pod list
