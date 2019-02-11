@@ -175,14 +175,14 @@ func (c *Compose) LoadBytes(bodys [][]byte) (ComposeObject, error) {
 	switch version {
 	// Use libcompose for 1 or 2
 	// If blank, it's assumed it's 1 or 2
-	case "", "1", "1.0", "2", "2.0":
+	case "", "1", "1.0", "2", "2.0", "2.1", "2.2", "2.3", "2.4":
 		co, err := parseV1V2(bodys)
 		if err != nil {
 			return ComposeObject{}, err
 		}
 		return co, nil
 	// Use docker/cli for 3
-	case "3", "3.0":
+	case "3", "3.0", "3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "3.7":
 		co, err := parseV3(bodys)
 		if err != nil {
 			return ComposeObject{}, err

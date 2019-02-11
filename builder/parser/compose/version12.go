@@ -34,7 +34,9 @@ import (
 func parseV1V2(bodys [][]byte) (ComposeObject, error) {
 
 	// Gather the appropriate context for parsing
-	context := &project.Context{}
+	context := &project.Context{
+		ProjectName: "rainbond-dockercompose-project",
+	}
 	context.ComposeBytes = bodys
 
 	// Load the context and let's start parsing
