@@ -408,15 +408,10 @@ func (d *EtcdDiscoverManager) GetInstance(id string) *Instance {
 //Scrape prometheus monitor metrics
 func (d *EtcdDiscoverManager) Scrape(ch chan<- prometheus.Metric, namespace, exporter string) error {
 	instanceDesc := prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, exporter, "instanse_up"),
+		prometheus.BuildFQName(namespace, exporter, "instance_up"),
 		"the instance in cluster status.",
 		[]string{"from", "instance", "status"}, nil,
 	)
-	// if d.selfInstance.Status == "abnormal" || d.selfInstance.Status == "delete" {
-	// 	ch <- prometheus.MustNewConstMetric(instanceDesc, prometheus.GaugeValue, 0, d.selfInstance.HostIP.String(), d.selfInstance.HostIP.String(), d.selfInstance.Status)
-	// } else {
-	// 	ch <- prometheus.MustNewConstMetric(instanceDesc, prometheus.GaugeValue, 1, d.selfInstance.HostIP.String(), d.selfInstance.HostIP.String(), d.selfInstance.Status)
-	// }
 	for _, i := range d.othersInstance {
 		if i.Status == "delete" || i.Status == "abnormal" {
 			ch <- prometheus.MustNewConstMetric(instanceDesc, prometheus.GaugeValue, 0, d.selfInstance.HostIP.String(), i.HostIP.String(), i.Status)

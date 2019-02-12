@@ -40,7 +40,12 @@ func Test_crt(t *testing.T) {
 	crtinfo.IsCA = false
 	crtinfo.CrtName = "../../test/ssl/api_server.pem"
 	crtinfo.KeyName = "../../test/ssl/api_server.key"
-	crtinfo.Names = []pkix.AttributeTypeAndValue{{asn1.ObjectIdentifier{2, 1, 3}, "MAC_ADDR"}}
+	crtinfo.Names = []pkix.AttributeTypeAndValue{
+		pkix.AttributeTypeAndValue{
+			Type:  asn1.ObjectIdentifier{2, 1, 3},
+			Value: "MAC_ADDR",
+		},
+	}
 
 	crt, pri, err := Parse(baseinfo.CrtName, baseinfo.KeyName)
 	if err != nil {

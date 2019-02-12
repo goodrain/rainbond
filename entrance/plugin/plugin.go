@@ -49,7 +49,7 @@ type Context struct {
 	Ctx    context.Context
 }
 
-//Creater lb plugin creater
+//Creater lb plugin creature
 type Creater func(Context) (Plugin, error)
 
 //Checker the opts
@@ -83,7 +83,7 @@ func (p *LBPluginFactory) get(name string) (Creater, error) {
 	if c, ok := p.registry[name]; ok {
 		return c, nil
 	}
-	return nil, errors.New("no plugin creater regist")
+	return nil, errors.New("no plugin Creature regist")
 }
 
 func (p *LBPluginFactory) getChecker(name string) (Checker, error) {
@@ -92,7 +92,7 @@ func (p *LBPluginFactory) getChecker(name string) (Checker, error) {
 	if c, ok := p.optionChecker[name]; ok {
 		return c, nil
 	}
-	return nil, errors.New("no plugin creater regist")
+	return nil, errors.New("no plugin Creature regist")
 }
 
 //getAll get all lb plugin
@@ -106,7 +106,7 @@ func (p *LBPluginFactory) getAll() ([]Creater, error) {
 	if len(cc) > 0 {
 		return cc, nil
 	}
-	return nil, errors.New("no plugin creater regist")
+	return nil, errors.New("no plugin creature regist")
 }
 
 var factory = LBPluginFactory{registry: make(map[string]Creater), optionChecker: make(map[string]Checker)}

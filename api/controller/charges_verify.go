@@ -58,7 +58,7 @@ func ChargesVerifyController(w http.ResponseWriter, r *http.Request) {
 	if tenant.EID == "" {
 		eid := r.FormValue("eid")
 		if eid == "" {
-			httputil.ReturnError(r, w, 400, "enterprice id can not found")
+			httputil.ReturnError(r, w, 400, "enterprise id can not found")
 			return
 		}
 		tenant.EID = eid

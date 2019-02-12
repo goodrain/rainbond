@@ -244,7 +244,7 @@ func getFinalRate(cpu bool, value string, capCpu, capMemMB string) (result strin
 
 			u, err := strconv.Atoi(value)
 			if err != nil {
-				logrus.Infof("err occured details:%s", err.Error())
+				logrus.Infof("err occurred details:%s", err.Error())
 			}
 
 			result = strconv.Itoa(u * 100 / (capMemMBInt))

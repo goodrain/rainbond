@@ -51,7 +51,7 @@ func (a *AcpNodeStruct) Nodes(w http.ResponseWriter, r *http.Request) {
 	//
 	// 完成基础初始化
 	//
-	// try to basicly init
+	// try to basically init
 	//
 	// ---
 	// produces:

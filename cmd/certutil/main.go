@@ -110,7 +110,12 @@ func create(ctx *cli.Context) error {
 			logrus.Fatal("Create crt error,Error info:", err)
 		}
 	} else {
-		info.Names = []pkix.AttributeTypeAndValue{{asn1.ObjectIdentifier{2, 1, 3}, "MAC_ADDR"}}
+		info.Names = []pkix.AttributeTypeAndValue{
+			pkix.AttributeTypeAndValue{
+				Type:  asn1.ObjectIdentifier{2, 1, 3},
+				Value: "MAC_ADDR",
+			},
+		}
 		crt, pri, err := Parse(c.CAName, c.CAKeyName)
 		if err != nil {
 			logrus.Fatal("Parse crt error,Error info:", err)
@@ -143,10 +148,10 @@ func (c *Config) CreateCertInformation() CertInformation {
 		baseinfo.CrtName = c.CAName
 		baseinfo.KeyName = c.CAKeyName
 	}
-	var addres []net.IP
+	var address []net.IP
 	for _, a := range c.Address {
-		addres = append(addres, net.ParseIP(a))
+		address = append(address, net.ParseIP(a))
 	}
-	baseinfo.IPAddresses = addres
+	baseinfo.IPAddresses = address
 	return baseinfo
 }

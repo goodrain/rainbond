@@ -44,7 +44,7 @@ type ConDB struct {
 }
 
 //CreateDBManager get db manager
-//TODO: need to try when happend error, try 4 times
+//TODO: need to try when happened error, try 4 times
 func CreateDBManager(conf option.Config) error {
 	var tryTime time.Duration
 	tryTime = 0

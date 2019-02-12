@@ -63,7 +63,7 @@ func NewManager(c option.Config, coreManager core.Manager, readStore store.ReadS
 	if err != nil {
 		logrus.Error("create api store manager error.", err.Error())
 	}
-	//register modle type
+	//register model type
 	apiStore.Register("domain", &model.Domain{})
 	apiStore.Register("host_node", &model.HostNode{})
 	//create k8s api client

@@ -252,7 +252,7 @@ func initCluster(c *cli.Context) {
 	//fmt.Println("Checking install enviremant.")
 	_, err := os.Stat("/opt/rainbond/.rainbond.success")
 	if err == nil {
-		println("Rainbond is already installed, if you whant reinstall, then please delete the file: /opt/rainbond/.rainbond.success")
+		println("Rainbond is already installed, if you want reinstall, then please delete the file: /opt/rainbond/.rainbond.success")
 		return
 	}
 	// download source code from github if in online model

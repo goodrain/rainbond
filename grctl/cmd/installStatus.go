@@ -29,6 +29,7 @@ import (
 	"github.com/urfave/cli"
 )
 
+//GetCommand get command
 func GetCommand(status bool) []cli.Command {
 	c := []cli.Command{
 		{
@@ -157,6 +158,7 @@ func GetCommand(status bool) []cli.Command {
 	return c
 }
 
+//NewCmdInstall install cmd
 func NewCmdInstall() cli.Command {
 	c := cli.Command{
 		Name:  "install",
@@ -172,21 +174,7 @@ func NewCmdInstall() cli.Command {
 	return c
 }
 
-//func NewCmdStatus() cli.Command {
-//	c:=cli.Command{
-//		Name:  "status",
-//		Usage: "状态命令相关子命令。grctl status  -h",
-//		Flags: []cli.Flag{
-//			cli.StringSliceFlag{
-//				Name:  "nodes",
-//				Usage: "hostID1 hostID2 ...,空表示全部",
-//			},
-//		},
-//		Subcommands:GetCommand(true),
-//	}
-//	return c
-//}
-
+//Status status
 func Status(task string, nodes []string) {
 	checkFail := 0
 	lastState := ""
@@ -202,25 +190,24 @@ func Status(task string, nodes []string) {
 		if err != nil {
 
 			logrus.Warnf("error get task %s ,details %s,retry", task, err.String())
-			checkFail += 1
+			checkFail++
 			continue
 		}
 		//status,error:=clients.NodeClient.Tasks().Status(task)
 		status, err := clients.RegionClient.Tasks().GetTaskStatus(task)
 		if err != nil || status == nil {
 			logrus.Warnf("error get task %s status,details %s,retry", task, err.String())
-			checkFail += 1
+			checkFail++
 			continue
 		}
 		for k, v := range status {
-			//不是当前任务需要检测的status
 			if !set[k] {
 				fmt.Print("..")
 				continue
 			}
 			if strings.Contains(v.Status, "error") || strings.Contains(v.CompleStatus, "Failure") || strings.Contains(v.CompleStatus, "Unknow") {
-				checkFail += 1
-				fmt.Errorf("error executing task %s", task)
+				checkFail++
+				fmt.Printf("error executing task %s \n", task)
 				for _, v := range taskE.OutPut {
 					if set[v.NodeID] {
 						fmt.Printf("on %s :\n %s", v.NodeID, v.Body)
@@ -267,6 +254,7 @@ func Status(task string, nodes []string) {
 	}
 }
 
+//Task task
 func Task(c *cli.Context, task string, status bool) error {
 	nodes := c.StringSlice("nodes")
 	if len(nodes) == 0 {

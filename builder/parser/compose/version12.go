@@ -224,7 +224,7 @@ func libComposeToKomposeMapping(composeObject *project.Project) (ComposeObject, 
 			}
 		}
 		if serviceConfig.ExposeService == "" && serviceConfig.ExposeServiceTLS != "" {
-			return ComposeObject{}, fmt.Errorf("kompose.service.expose.tls-secret was specifed without kompose.service.expose")
+			return ComposeObject{}, fmt.Errorf("kompose.service.expose.tls-secret was specified without kompose.service.expose")
 		}
 		err = checkLabelsPorts(len(serviceConfig.Port), composeServiceConfig.Labels["kompose.service.type"], name)
 		if err != nil {

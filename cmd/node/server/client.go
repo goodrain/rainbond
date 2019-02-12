@@ -94,8 +94,6 @@ func (c *controllerServiceClient) request(url string) error {
 		return nil
 	}
 	bb, _ := ioutil.ReadAll(res.Body)
-	fmt.Println(string(bb))
-	return nil
 	resbody, err := httputil.ParseResponseBody(res.Body, "application/json")
 	if err != nil {
 		return err
