@@ -73,10 +73,6 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/servicecheck", controller.Check)
 	r.Get("/servicecheck/{uuid}", controller.GetServiceCheckInfo)
 	r.Get("/resources", controller.GetManager().SingleTenantResources)
-	r.Get("/certificates", controller.GetManager().Entrance)
-	r.Post("/certificates", controller.GetManager().Entrance)
-	r.Delete("/certificates/{certificatesName}", controller.GetManager().Entrance)
-	r.Get("/certificates/{certificatesName}", controller.GetManager().Entrance)
 	r.Get("/services", controller.GetManager().ServicesInfo)
 	//创建应用
 	r.Post("/services", controller.GetManager().CreateService)

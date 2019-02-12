@@ -72,14 +72,6 @@ type ServiceInterface interface {
 	GetDeployVersion(w http.ResponseWriter, r *http.Request)
 }
 
-//EntranceInterface EntranceInterface
-type EntranceInterface interface {
-	DomainList(w http.ResponseWriter, r *http.Request)
-	Domain(w http.ResponseWriter, r *http.Request)
-	AllCerts(w http.ResponseWriter, r *http.Request)
-	Cert(w http.ResponseWriter, r *http.Request)
-}
-
 //TenantInterfaceWithV1 funcs for both v2 and v1
 type TenantInterfaceWithV1 interface {
 	StartService(w http.ResponseWriter, r *http.Request)
