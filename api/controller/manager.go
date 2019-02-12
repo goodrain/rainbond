@@ -22,7 +22,7 @@ import (
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/api/apiFunc"
+	"github.com/goodrain/rainbond/api/api"
 	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/cmd/api/option"
@@ -40,14 +40,14 @@ type V2Manager interface {
 	AlertManagerWebHook(w http.ResponseWriter, r *http.Request)
 	Version(w http.ResponseWriter, r *http.Request)
 
-	apiFunc.TenantInterface
-	apiFunc.ServiceInterface
-	apiFunc.LogInterface
-	apiFunc.PluginInterface
-	apiFunc.RulesInterface
-	apiFunc.SourcesInterface
-	apiFunc.AppInterface
-	apiFunc.Gatewayer
+	api.TenantInterface
+	api.ServiceInterface
+	api.LogInterface
+	api.PluginInterface
+	api.RulesInterface
+	api.SourcesInterface
+	api.AppInterface
+	api.Gatewayer
 }
 
 var defaultV2Manager V2Manager

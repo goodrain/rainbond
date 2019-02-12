@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package apiFunc
+package api
 
 import (
 	"net/http"
@@ -131,6 +131,7 @@ type SourcesInterface interface {
 	UpdateDefineSource(w http.ResponseWriter, r *http.Request)
 }
 
+//AppInterface app handle interface
 type AppInterface interface {
 	ExportApp(w http.ResponseWriter, r *http.Request)
 	Download(w http.ResponseWriter, r *http.Request)
@@ -140,6 +141,7 @@ type AppInterface interface {
 	ImportApp(w http.ResponseWriter, r *http.Request)
 }
 
+//Gatewayer gateway api interface
 type Gatewayer interface {
 	HTTPRule(w http.ResponseWriter, r *http.Request)
 	TCPRule(w http.ResponseWriter, r *http.Request)

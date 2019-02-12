@@ -35,13 +35,13 @@ import (
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/api/option"
 
-	"github.com/goodrain/rainbond/api/apiRouters/doc"
-	"github.com/goodrain/rainbond/api/apiRouters/license"
+	"github.com/goodrain/rainbond/api/api_routers/doc"
+	"github.com/goodrain/rainbond/api/api_routers/license"
 	"github.com/goodrain/rainbond/api/proxy"
 
-	"github.com/goodrain/rainbond/api/apiRouters/cloud"
-	"github.com/goodrain/rainbond/api/apiRouters/version2"
-	"github.com/goodrain/rainbond/api/apiRouters/websocket"
+	"github.com/goodrain/rainbond/api/api_routers/cloud"
+	"github.com/goodrain/rainbond/api/api_routers/version2"
+	"github.com/goodrain/rainbond/api/api_routers/websocket"
 
 	apimiddleware "github.com/goodrain/rainbond/api/middleware"
 

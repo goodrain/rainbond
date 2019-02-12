@@ -4,8 +4,8 @@ for n in `find . -name "*.go"`; do
      go tool vet $n
      gofmt -w $n
     #  gometalinter $n
-     golint $n
-     gocyclo -over 15 $n
+    #  golint $n
+    #  gocyclo -over 15 $n
      misspell $n
    fi
 done
