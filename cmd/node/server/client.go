@@ -20,7 +20,6 @@ package server
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 
@@ -93,7 +92,6 @@ func (c *controllerServiceClient) request(url string) error {
 	if res.StatusCode == 200 {
 		return nil
 	}
-	bb, _ := ioutil.ReadAll(res.Body)
 	resbody, err := httputil.ParseResponseBody(res.Body, "application/json")
 	if err != nil {
 		return err
