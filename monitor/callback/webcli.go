@@ -19,22 +19,25 @@
 package callback
 
 import (
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/prometheus/common/model"
-	"time"
 	"github.com/tidwall/gjson"
 )
 
+//Webcli webcli
 type Webcli struct {
 	discover.Callback
 	Prometheus      *prometheus.Manager
 	sortedEndpoints []string
 }
 
+//UpdateEndpoints update endpoints
 func (w *Webcli) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	// 用v3 API注册，返回json格试，所以要提前处理一下
 	newEndpoints := make([]*config.Endpoint, 0, len(endpoints))
@@ -60,10 +63,12 @@ func (w *Webcli) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	w.Prometheus.UpdateScrape(scrape)
 }
 
+//Error handle error
 func (w *Webcli) Error(err error) {
 	logrus.Error(err)
 }
 
+//Name name
 func (w *Webcli) Name() string {
 	return "webcli"
 }
@@ -86,7 +91,7 @@ func (w *Webcli) toScrape() *prometheus.ScrapeConfig {
 					Targets: ts,
 					Labels: map[model.LabelName]model.LabelValue{
 						"service_name": model.LabelValue(w.Name()),
-						"component": model.LabelValue(w.Name()),
+						"component":    model.LabelValue(w.Name()),
 					},
 				},
 			},

@@ -90,6 +90,6 @@ type RuleExtensionStruct struct {
 
 // IPPoolStruct contains request data for AddIPPool or UpdateIPPool
 type IPPoolStruct struct {
-	EID string `json:"eid" validate:"eid|required"`
+	EID  string `json:"eid" validate:"eid|required"`
 	CIDR string `json:"cidr" validate:"cidr|required"`
 }

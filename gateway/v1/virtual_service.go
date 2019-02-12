@@ -35,7 +35,7 @@ const (
 //VirtualService VirtualService
 type VirtualService struct {
 	Meta
-	Enabled  bool   `json:"enable"`
+	Enabled  bool            `json:"enable"`
 	Protocol corev1.Protocol `json:"protocol"`
 	// BackendProtocol indicates which protocol should be used to communicate with the service
 	BackendProtocol        string   `json:"backend-protocol"`

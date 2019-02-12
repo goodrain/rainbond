@@ -28,7 +28,7 @@ func (v2 *V2) nodesRouter() chi.Router {
 	r := chi.NewRouter()
 	//node uri
 	r.Get("/", controller.GetManager().Nodes)
-	r.Get("/resources",controller.GetManager().Nodes)
+	r.Get("/resources", controller.GetManager().Nodes)
 	r.Get("/{node}/details", controller.GetManager().Nodes)
 	r.Get("/{node}/basic", controller.GetManager().Nodes)
 	r.Delete("/{node}", controller.GetManager().Nodes)
@@ -39,10 +39,9 @@ func (v2 *V2) nodesRouter() chi.Router {
 	r.Post("/{node}", controller.GetManager().Nodes)
 	r.Post("/{node}/down", controller.GetManager().Nodes)
 
-
 	r.Put("/login", controller.GetManager().Nodes)
-	r.Put("/{ip}/init",controller.GetManager().Nodes)
-	r.Get("/{ip}/init/status",controller.GetManager().Nodes)
+	r.Put("/{ip}/init", controller.GetManager().Nodes)
+	r.Get("/{ip}/init/status", controller.GetManager().Nodes)
 	r.Get("/{ip}/install/status", controller.GetManager().Nodes)
 	r.Put("/{ip}/install", controller.GetManager().Nodes)
 	return r
@@ -51,7 +50,6 @@ func (v2 *V2) nodesRouter() chi.Router {
 func (v2 *V2) appsRouter() chi.Router {
 	r := chi.NewRouter()
 	//job uri
-
 
 	//r.Get("/{app_name}/register", controller.GetManager().Apps)
 	r.Get("/{app_name}/discover", controller.GetManager().Apps)

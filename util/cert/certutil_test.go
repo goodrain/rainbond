@@ -28,7 +28,7 @@ func Test_crt(t *testing.T) {
 	baseinfo := CertInformation{Country: []string{"CN"}, Organization: []string{"Goodrain"}, IsCA: true,
 		OrganizationalUnit: []string{"work-stacks"}, EmailAddress: []string{"zengqg@goodrain.com"},
 		Locality: []string{"BeiJing"}, Province: []string{"BeiJing"}, CommonName: "Work-Stacks",
-		Domains: []string{"goodrain.me"},CrtName: "../../test/ssl/ca.pem", KeyName: "../../test/ssl/ca.key"}
+		Domains: []string{"goodrain.me"}, CrtName: "../../test/ssl/ca.pem", KeyName: "../../test/ssl/ca.key"}
 
 	err := CreateCRT(nil, nil, baseinfo)
 	if err != nil {

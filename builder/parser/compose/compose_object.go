@@ -59,7 +59,7 @@ type ConvertOptions struct {
 
 // ServiceConfig holds the basic struct of a container
 type ServiceConfig struct {
-	ContainerName    string				 
+	ContainerName    string
 	Image            string              `compose:"image"`
 	Environment      []EnvVar            `compose:"environment"`
 	EnvFile          []string            `compose:"env_file"`

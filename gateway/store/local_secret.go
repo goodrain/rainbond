@@ -60,4 +60,3 @@ func (s SSLCertTracker) ByKey(key string) (*v1.SSLCert, error) {
 	}
 	return cert.(*v1.SSLCert), nil
 }
-

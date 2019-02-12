@@ -19,17 +19,17 @@
 package region
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/node/api/model"
 	utilhttp "github.com/goodrain/rainbond/util/http"
-	"fmt"
-	"encoding/json"
-	"bytes"
-	"os"
-	"errors"
-	"io/ioutil"
-	"github.com/Sirupsen/logrus"
 	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"os"
 )
 
 //ClusterInterface cluster api

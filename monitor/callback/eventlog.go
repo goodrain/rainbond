@@ -29,12 +29,14 @@ import (
 	"github.com/prometheus/common/model"
 )
 
+//EventLog event log
 type EventLog struct {
 	discover.Callback
 	Prometheus      *prometheus.Manager
 	sortedEndpoints []string
 }
 
+//UpdateEndpoints update endpoint
 func (e *EventLog) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	newArr := utils.TrimAndSort(endpoints)
 
@@ -53,6 +55,7 @@ func (e *EventLog) Error(err error) {
 	logrus.Error(err)
 }
 
+//Name name
 func (e *EventLog) Name() string {
 	return "eventlog"
 }

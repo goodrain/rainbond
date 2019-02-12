@@ -57,26 +57,25 @@ func Check(w http.ResponseWriter, r *http.Request) {
 	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	gt.Body.TenantID = tenantID
-	result,eventID, err := handler.GetServiceManager().ServiceCheck(&gt)
+	result, eventID, err := handler.GetServiceManager().ServiceCheck(&gt)
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
 	re := struct {
 		CheckUUID string `json:"check_uuid"`
-		EventID string `json:"event_id"`
+		EventID   string `json:"event_id"`
 	}{
 		CheckUUID: result,
-		EventID: eventID,
+		EventID:   eventID,
 	}
 	httputil.ReturnSuccess(r, w, re)
 }
 
-
 //GetServiceCheckInfo get service check info
 // swagger:operation GET /v2/tenants/{tenant_name}/servicecheck/{uuid} v2 getServiceCheckInfo
 //
-//	获取构建检测信息 
+//	获取构建检测信息
 //
 // get service check info
 //

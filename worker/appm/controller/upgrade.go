@@ -26,9 +26,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 type upgradeController struct {
@@ -92,7 +92,7 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 				} else {
 					logrus.Warningf("error updating configmap %+v: %v", config, err)
 					app.Logger.Error(fmt.Sprintf("error updating configmap %+v: %v", config, err), getLoggerOption("failure"))
-				}		
+				}
 			}
 		}
 	}

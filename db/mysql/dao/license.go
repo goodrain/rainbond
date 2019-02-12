@@ -19,8 +19,8 @@
 package dao
 
 import (
-	"github.com/goodrain/rainbond/db/model"
 	"fmt"
+	"github.com/goodrain/rainbond/db/model"
 
 	"github.com/jinzhu/gorm"
 )

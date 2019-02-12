@@ -23,33 +23,33 @@ import "testing"
 func TestNode_Equals(t *testing.T) {
 	n := &Node{
 		Meta: Meta{
-			Index: 888,
-			Name: "foo-node",
-			Namespace: "ns",
+			Index:      888,
+			Name:       "foo-node",
+			Namespace:  "ns",
 			PluginName: "Nginx",
 		},
-		Host: "www.goodrain.com",
-		Port: 80,
+		Host:     "www.goodrain.com",
+		Port:     80,
 		Protocol: "Http",
-		State: "ok",
+		State:    "ok",
 		PoolName: "foo-poolName",
-		Ready: true,
-		Weight: 5,
+		Ready:    true,
+		Weight:   5,
 	}
 	c := &Node{
 		Meta: Meta{
-			Index: 888,
-			Name: "foo-node",
-			Namespace: "ns",
+			Index:      888,
+			Name:       "foo-node",
+			Namespace:  "ns",
 			PluginName: "Nginx",
 		},
-		Host: "www.goodrain.com",
-		Port: 80,
+		Host:     "www.goodrain.com",
+		Port:     80,
 		Protocol: "Http",
-		State: "ok",
+		State:    "ok",
 		PoolName: "foo-poolName",
-		Ready: true,
-		Weight: 5,
+		Ready:    true,
+		Weight:   5,
 	}
 	if !n.Equals(c) {
 		t.Errorf("n should equal c")
@@ -59,17 +59,17 @@ func TestNode_Equals(t *testing.T) {
 func newFakeNode() *Node {
 	return &Node{
 		Meta: Meta{
-			Index: 888,
-			Name: "foo-node",
-			Namespace: "ns",
+			Index:      888,
+			Name:       "foo-node",
+			Namespace:  "ns",
 			PluginName: "Nginx",
 		},
-		Host: "www.goodrain.com",
-		Port: 80,
+		Host:     "www.goodrain.com",
+		Port:     80,
 		Protocol: "Http",
-		State: "ok",
+		State:    "ok",
 		PoolName: "foo-poolName",
-		Ready: true,
-		Weight: 5,
+		Ready:    true,
+		Weight:   5,
 	}
 }

@@ -22,14 +22,14 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/apcera/termtables"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/gosuri/uitable"
 	"github.com/urfave/cli"
-	"github.com/Sirupsen/logrus"
 	//"github.com/goodrain/rainbond/eventlog/conf"
-	config "github.com/goodrain/rainbond/cmd/grctl/option"
 	"errors"
+	config "github.com/goodrain/rainbond/cmd/grctl/option"
 )
 
 //NewCmdTenant tenant cmd
@@ -161,7 +161,7 @@ func getAllTenant(c *cli.Context) error {
 
 // Create Tenant File
 func CreateTenantFile(tname string) error {
-	filename,err := config.GetTenantNamePath()
+	filename, err := config.GetTenantNamePath()
 	if err != nil {
 		logrus.Warn("Load config file error.")
 		return errors.New("Load config file error.")

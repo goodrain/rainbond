@@ -138,7 +138,6 @@ func GetNotificationEvents(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, res)
 }
 
-
 //Handle Handle
 // swagger:parameters handlenotify
 type Handle struct {
@@ -177,7 +176,7 @@ func HandleNotificationEvent(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	service,err := db.GetManager().TenantServiceDao().GetServiceByServiceAlias(serviceAlias)
+	service, err := db.GetManager().TenantServiceDao().GetServiceByServiceAlias(serviceAlias)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			httputil.ReturnError(r, w, 404, "not found")
@@ -186,12 +185,12 @@ func HandleNotificationEvent(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
-	eventList, err := db.GetManager().NotificationEventDao().GetNotificationEventByKind("service",service.ServiceID)
+	eventList, err := db.GetManager().NotificationEventDao().GetNotificationEventByKind("service", service.ServiceID)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
-	for _,event := range eventList{
+	for _, event := range eventList {
 		event.IsHandle = true
 		event.HandleMessage = handle.Body.HandleMessage
 		err = db.GetManager().NotificationEventDao().UpdateModel(event)

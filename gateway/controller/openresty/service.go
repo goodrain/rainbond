@@ -184,8 +184,8 @@ func (o *OrService) persistUpstreams(pools []*v1.Pool, tmpl string, path string,
 			server := model.UServer{
 				Address: node.Host + ":" + fmt.Sprintf("%v", node.Port),
 				Params: model.Params{
-					Weight: 1,
-					MaxFails: node.MaxFails,
+					Weight:      1,
+					MaxFails:    node.MaxFails,
 					FailTimeout: node.FailTimeout,
 				},
 			}
@@ -322,7 +322,7 @@ func (o *OrService) WaitPluginReady() {
 // newRbdServers creates new configuration file for Rainbond servers
 func (o *OrService) newRbdServers() error {
 	cfgPath := "/run/nginx/rainbond"
-	httpCfgPath := fmt.Sprintf("%s/%s", cfgPath, "http") // http config path
+	httpCfgPath := fmt.Sprintf("%s/%s", cfgPath, "http")  // http config path
 	tcpCfgPath := fmt.Sprintf("%s/%s", cfgPath, "stream") // tcp config path
 	// delete the old configuration
 	if err := os.RemoveAll(httpCfgPath); err != nil {

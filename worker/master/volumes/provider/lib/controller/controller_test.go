@@ -904,8 +904,8 @@ func constructProvisionedVolumeWithoutStorageClassInfo(claim *v1.PersistentVolum
 	// pv.Spec MUST be set to match requirements in claim.Spec, especially access mode and PV size. The provisioned volume size MUST NOT be smaller than size requested in the claim, however it MAY be larger.
 	options := VolumeOptions{
 		PersistentVolumeReclaimPolicy: reclaimPolicy,
-		PVName: "pvc-" + string(claim.ObjectMeta.UID),
-		PVC:    claim,
+		PVName:                        "pvc-" + string(claim.ObjectMeta.UID),
+		PVC:                           claim,
 	}
 	volume, _ := newTestProvisioner().Provision(options)
 

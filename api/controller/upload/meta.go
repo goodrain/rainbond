@@ -54,7 +54,6 @@ func (m *meta) parseContentType(ct string) error {
 	return nil
 }
 
-
 func (m *meta) parseContentDisposition(cd string) error {
 	if cd == "" {
 		return nil

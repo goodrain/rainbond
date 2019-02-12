@@ -231,7 +231,6 @@ type TaskQueueServer interface {
 	Enqueue(context.Context, *EnqueueRequest) (*TaskReply, error)
 	Topics(context.Context, *TopicRequest) (*TaskReply, error)
 	Dequeue(context.Context, *DequeueRequest) (*TaskMessage, error)
-
 }
 
 func RegisterTaskQueueServer(s *grpc.Server, srv TaskQueueServer) {

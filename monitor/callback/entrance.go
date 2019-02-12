@@ -19,21 +19,24 @@
 package callback
 
 import (
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/prometheus/common/model"
-	"time"
 )
 
+//Entrance entrance
 type Entrance struct {
 	discover.Callback
 	Prometheus      *prometheus.Manager
 	sortedEndpoints []string
 }
 
+//UpdateEndpoints update endpoint
 func (e *Entrance) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	newArr := utils.TrimAndSort(endpoints)
 
@@ -52,6 +55,7 @@ func (e *Entrance) Error(err error) {
 	logrus.Error(err)
 }
 
+//Name name
 func (e *Entrance) Name() string {
 	return "entrance"
 }
@@ -74,7 +78,7 @@ func (e *Entrance) toScrape() *prometheus.ScrapeConfig {
 					Targets: ts,
 					Labels: map[model.LabelName]model.LabelValue{
 						"service_name": model.LabelValue(e.Name()),
-						"component": model.LabelValue(e.Name()),
+						"component":    model.LabelValue(e.Name()),
 					},
 				},
 			},

@@ -19,9 +19,9 @@
 package zeus
 
 import (
+	"fmt"
 	"github.com/goodrain/rainbond/entrance/core/object"
 	"github.com/goodrain/rainbond/entrance/plugin"
-	"fmt"
 	"testing"
 
 	"golang.org/x/net/context"

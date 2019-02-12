@@ -22,12 +22,12 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
-	"time"
 	"github.com/goodrain/rainbond/eventlog/conf"
+	"time"
 )
 
 func CreateDBManager(conf conf.DBConf) error {
-	logrus.Infof("creating dbmanager ,details %s",conf)
+	logrus.Infof("creating dbmanager ,details %s", conf)
 	var tryTime time.Duration
 	tryTime = 0
 	var err error

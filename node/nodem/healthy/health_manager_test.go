@@ -1,9 +1,9 @@
 package healthy
 
 import (
-	"testing"
-	"github.com/goodrain/rainbond/node/nodem/service"
 	"fmt"
+	"github.com/goodrain/rainbond/node/nodem/service"
+	"testing"
 )
 
 func TestProbeManager_Start(t *testing.T) {
@@ -36,7 +36,6 @@ func TestProbeManager_Start(t *testing.T) {
 			Model:        "http",
 			Address:      "127.0.0.1:7171/health",
 			TimeInterval: 3,
-
 		},
 	}
 	serviceList = append(serviceList, h)
@@ -49,24 +48,22 @@ func TestProbeManager_Start(t *testing.T) {
 
 	m.Start()
 
+	for {
+		v := <-watcher1.Watch()
+		if v != nil {
 
-for {
-	v := <-watcher1.Watch()
-	if v!=nil{
+			fmt.Println("----", v.Name, v.Status, v.Info, v.ErrorNumber, v.ErrorTime.Seconds())
+		} else {
+			t.Log("nil nil nil")
+		}
 
-		fmt.Println("----",v.Name, v.Status, v.Info,v.ErrorNumber,v.ErrorTime.Seconds())
-	}else{
-		t.Log("nil nil nil")
+		v2 := <-watcher2.Watch()
+		fmt.Println("===", v2.Name, v2.Status, v2.Info, v2.ErrorNumber, v2.ErrorTime.Seconds())
+		v3 := <-watcher3.Watch()
+		fmt.Println("vvvv", v3.Name, v3.Status, v3.Info, v3.ErrorNumber, v3.ErrorTime.Seconds())
 	}
 
-	v2 := <-watcher2.Watch()
-	fmt.Println("===",v2.Name, v2.Status, v2.Info,v2.ErrorNumber,v2.ErrorTime.Seconds())
-	v3 := <-watcher3.Watch()
-	fmt.Println("vvvv",v3.Name, v3.Status, v3.Info,v3.ErrorNumber,v3.ErrorTime.Seconds())
 }
-
-}
-
 
 //func TestGetHttpHealth(t *testing.T) {
 //	m := CreateManager()

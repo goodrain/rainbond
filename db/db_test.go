@@ -222,10 +222,10 @@ func TestCockroachDBDeleteService(t *testing.T) {
 //	}); err != nil {
 //		t.Fatal(err)
 //	}
-	//err := GetManager().K8sDeployReplicationDao().DeleteK8sDeployReplication("asdasdadsasdasdasd")
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
+//err := GetManager().K8sDeployReplicationDao().DeleteK8sDeployReplication("asdasdadsasdasdasd")
+//if err != nil {
+//	t.Fatal(err)
+//}
 //}
 
 func TestGetHttpRuleByServiceIDAndContainerPort(t *testing.T) {

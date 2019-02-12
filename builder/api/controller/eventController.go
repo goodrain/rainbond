@@ -19,38 +19,38 @@
 package controller
 
 import (
-	"net/http"
+	"github.com/Sirupsen/logrus"
+	"github.com/bitly/go-simplejson"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
-	"github.com/Sirupsen/logrus"
-	"github.com/bitly/go-simplejson"
 	"io/ioutil"
+	"net/http"
 )
 
 func GetEventsByIds(w http.ResponseWriter, r *http.Request) {
-	b,_:=ioutil.ReadAll(r.Body)
+	b, _ := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
-	j,err:=simplejson.NewJson(b)
+	j, err := simplejson.NewJson(b)
 	if err != nil {
-		logrus.Errorf("error decode json,details %s",err.Error())
-		httputil.ReturnError(r,w,400,"bad request")
+		logrus.Errorf("error decode json,details %s", err.Error())
+		httputil.ReturnError(r, w, 400, "bad request")
 		return
 	}
-	eventIDS,err:=j.Get("event_ids").StringArray()
+	eventIDS, err := j.Get("event_ids").StringArray()
 	if err != nil {
-		logrus.Errorf("error get event_id in json,details %s",err.Error())
-		httputil.ReturnError(r,w,400,"bad request")
+		logrus.Errorf("error get event_id in json,details %s", err.Error())
+		httputil.ReturnError(r, w, 400, "bad request")
 		return
 	}
-	result:=[]*dbmodel.ServiceEvent{}
-	for _,v:=range eventIDS{
-		serviceEvent,err:=db.GetManager().ServiceEventDao().GetEventByEventID(v)
+	result := []*dbmodel.ServiceEvent{}
+	for _, v := range eventIDS {
+		serviceEvent, err := db.GetManager().ServiceEventDao().GetEventByEventID(v)
 		if err != nil {
-			logrus.Warnf("can't find event by given id %s ,details %s",v,err.Error())
+			logrus.Warnf("can't find event by given id %s ,details %s", v, err.Error())
 			continue
 		}
-		result=append(result,serviceEvent)
+		result = append(result, serviceEvent)
 	}
 	httputil.ReturnSuccess(r, w, result)
 }

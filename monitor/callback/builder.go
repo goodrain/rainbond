@@ -19,22 +19,25 @@
 package callback
 
 import (
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/prometheus/common/model"
-	"time"
 	"github.com/tidwall/gjson"
 )
 
+//Builder builder
 type Builder struct {
 	discover.Callback
 	Prometheus      *prometheus.Manager
 	sortedEndpoints []string
 }
 
+//UpdateEndpoints update endpoints
 func (b *Builder) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	// 用v3 API注册，返回json格试，所以要提前处理一下
 	newEndpoints := make([]*config.Endpoint, 0, len(endpoints))
@@ -60,22 +63,24 @@ func (b *Builder) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	b.Prometheus.UpdateScrape(scrape)
 }
 
-func (e *Builder) Error(err error) {
+//Error handle error
+func (b *Builder) Error(err error) {
 	logrus.Error(err)
 }
 
-func (e *Builder) Name() string {
+//Name name
+func (b *Builder) Name() string {
 	return "builder"
 }
 
-func (e *Builder) toScrape() *prometheus.ScrapeConfig {
-	ts := make([]string, 0, len(e.sortedEndpoints))
-	for _, end := range e.sortedEndpoints {
+func (b *Builder) toScrape() *prometheus.ScrapeConfig {
+	ts := make([]string, 0, len(b.sortedEndpoints))
+	for _, end := range b.sortedEndpoints {
 		ts = append(ts, end)
 	}
 
 	return &prometheus.ScrapeConfig{
-		JobName:        e.Name(),
+		JobName:        b.Name(),
 		ScrapeInterval: model.Duration(time.Minute),
 		ScrapeTimeout:  model.Duration(30 * time.Second),
 		MetricsPath:    "/metrics",
@@ -85,8 +90,8 @@ func (e *Builder) toScrape() *prometheus.ScrapeConfig {
 				{
 					Targets: ts,
 					Labels: map[model.LabelName]model.LabelValue{
-						"service_name": model.LabelValue(e.Name()),
-						"component": model.LabelValue(e.Name()),
+						"service_name": model.LabelValue(b.Name()),
+						"component":    model.LabelValue(b.Name()),
 					},
 				},
 			},

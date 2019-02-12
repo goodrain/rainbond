@@ -19,24 +19,26 @@
 package callback
 
 import (
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/prometheus/common/model"
-	"time"
 	"github.com/tidwall/gjson"
 )
 
+//Mq discover
 type Mq struct {
 	discover.Callback
 	Prometheus      *prometheus.Manager
 	sortedEndpoints []string
 }
 
+//UpdateEndpoints update endpoint
 func (m *Mq) UpdateEndpoints(endpoints ...*config.Endpoint) {
-	// 用v3 API注册，返回json格试，所以要提前处理一下
 	newEndpoints := make([]*config.Endpoint, 0, len(endpoints))
 	for _, end := range endpoints {
 		newEnd := *end
@@ -64,6 +66,7 @@ func (m *Mq) Error(err error) {
 	logrus.Error(err)
 }
 
+//Name name
 func (m *Mq) Name() string {
 	return "mq"
 }
@@ -86,7 +89,7 @@ func (m *Mq) toScrape() *prometheus.ScrapeConfig {
 					Targets: ts,
 					Labels: map[model.LabelName]model.LabelValue{
 						"service_name": model.LabelValue(m.Name()),
-						"component": model.LabelValue(m.Name()),
+						"component":    model.LabelValue(m.Name()),
 					},
 				},
 			},

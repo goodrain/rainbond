@@ -21,62 +21,63 @@ package core
 import (
 	"github.com/goodrain/rainbond/cmd/node/option"
 
-	"net/http"
-	"time"
-	"os/exec"
-	"strings"
 	"bytes"
 	"github.com/Sirupsen/logrus"
+	"net/http"
+	"os/exec"
+	"strings"
+	"time"
 )
+
 //t==0 url:http     t==1 cmd:service_status
-func StartGoruntine(todo string,t int, stopCheck chan int) {
+func StartGoruntine(todo string, t int, stopCheck chan int) {
 	failedCount := 0
-	interval:=option.Config.CheckIntervalSec
+	interval := option.Config.CheckIntervalSec
 	for {
 		select {
 
 		case <-stopCheck:
-			return 
+			return
 
 		default:
-			time.Sleep(time.Duration(interval)*time.Second)
-			if check(todo,t) {
+			time.Sleep(time.Duration(interval) * time.Second)
+			if check(todo, t) {
 				continue
-			}else {
-				if failedCount<option.Config.FailTime {
-					failedCount=failedCount+1
-				}else{
+			} else {
+				if failedCount < option.Config.FailTime {
+					failedCount = failedCount + 1
+				} else {
 					//检测失败逻辑，notify
-					checkFailed(todo,t)
+					checkFailed(todo, t)
 				}
 			}
 
 		}
 	}
 }
-func checkFailed(url string,ty int){
+func checkFailed(url string, ty int) {
 
 }
 func check(todo string, ty int) bool {
 	if ty == 0 {
 		return checkHttp(todo)
-	}else if ty==1 {
+	} else if ty == 1 {
 		return checkCommand(todo)
 	}
-	return false;
+	return false
 }
 func checkCommand(cmd string) bool {
-	toRun:=strings.Split(cmd," ")
-	c:=exec.Command(toRun[0],toRun[1:]...)
+	toRun := strings.Split(cmd, " ")
+	c := exec.Command(toRun[0], toRun[1:]...)
 	var b bytes.Buffer
-	c.Stdout=&b
+	c.Stdout = &b
 
-	err:=c.Run()
+	err := c.Run()
 	if err != nil {
-		logrus.Warnf("check %s 's status failed,details %s",cmd,err.Error())
+		logrus.Warnf("check %s 's status failed,details %s", cmd, err.Error())
 		return false
 	}
-	logrus.Infof("check %s 's result is %s",cmd,b.String())
+	logrus.Infof("check %s 's result is %s", cmd, b.String())
 	return true
 }
 func checkHttp(url string) bool {
@@ -86,7 +87,7 @@ func checkHttp(url string) bool {
 	}
 
 	defer resp.Body.Close()
-	if resp.StatusCode/100!=2{
+	if resp.StatusCode/100 != 2 {
 		return false
 	}
 	return true

@@ -35,10 +35,10 @@ func TestSSLCert_Equals(t *testing.T) {
 func newFakeSSLCert() *SSLCert {
 	meta := newFakeMeta()
 	return &SSLCert{
-		Meta: &meta,
+		Meta:           &meta,
 		CertificateStr: "dummy certificate str",
-		Certificate: &x509.Certificate{},
-		PrivateKey: "dummy private key",
+		Certificate:    &x509.Certificate{},
+		PrivateKey:     "dummy private key",
 		CertificatePem: "/expert/servers/nginx/certificate/dummy-secret.pem",
 		CN: []string{
 			"CN-1",

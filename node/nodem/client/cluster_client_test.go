@@ -79,7 +79,7 @@ func TestEtcdClusterClient_GetEndpoints(t *testing.T) {
 			logrus.Errorf("Can not marshal %s endpoints to json.", "foobar")
 			return
 		}
-		_, err = cli.Put(ctx, key + "/" + d.hostID, string(s))
+		_, err = cli.Put(ctx, key+"/"+d.hostID, string(s))
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -27,8 +27,8 @@ import (
 
 type Config struct {
 	L4Enable bool
-	L4Host string
-	L4Port int
+	L4Host   string
+	L4Port   int
 }
 
 type l4 struct {
@@ -47,12 +47,12 @@ func (l l4) Parse(ing *extensions.Ingress) (interface{}, error) {
 	}
 
 	l4Port, _ := parser.GetIntAnnotation("l4-port", ing)
-	if l4Enable && (l4Port <=0 || l4Port > 65535) {
+	if l4Enable && (l4Port <= 0 || l4Port > 65535) {
 		return nil, fmt.Errorf("error l4Port: %d", l4Port)
 	}
 	return &Config{
 		L4Enable: l4Enable,
-		L4Host: l4Host,
-		L4Port:l4Port,
+		L4Host:   l4Host,
+		L4Port:   l4Port,
 	}, nil
 }

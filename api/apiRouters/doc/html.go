@@ -20,9 +20,9 @@ package doc
 
 import (
 	"net/http"
-	"strings"
-	"path/filepath"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/go-chi/chi"
 

@@ -19,8 +19,8 @@
 package prometheus
 
 import (
-	"net/url"
 	"github.com/prometheus/common/model"
+	"net/url"
 	"regexp"
 	"time"
 )

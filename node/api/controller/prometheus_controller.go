@@ -19,10 +19,10 @@
 package controller
 
 import (
-	"net/http"
-	httputil "github.com/goodrain/rainbond/util/http"
-	"github.com/go-chi/chi"
 	"github.com/Sirupsen/logrus"
+	"github.com/go-chi/chi"
+	httputil "github.com/goodrain/rainbond/util/http"
+	"net/http"
 
 	"github.com/goodrain/rainbond/node/api/model"
 	"strings"
@@ -31,41 +31,41 @@ import (
 	"fmt"
 )
 
+const toReplace = "#to_replace#"
 
-const toReplace ="#to_replace#"
 //GetNode 获取一个节点详情
 func GetMem(w http.ResponseWriter, r *http.Request) {
 	nodeID := chi.URLParam(r, "node_id")
-	hostnode,err:=nodeService.GetNode(nodeID)
+	hostnode, err := nodeService.GetNode(nodeID)
 	if err != nil {
-		err.Handle(r,w)
+		err.Handle(r, w)
 		return
 	}
-	instance:=fmt.Sprintf("%s:%v",hostnode.InternalIP,6100)
-	replaceTo:="instance='"+instance+"'"
-	basic:="100 - ((node_memory_MemFree{job='rbd_node',#to_replace#} %2B node_memory_Cached{job='rbd_node',#to_replace#} %2B node_memory_Buffers{job='rbd_node',#to_replace#})/node_memory_MemTotal) * 100"
-	expr:=replaceSelector(basic,replaceTo)
-	resp,err:=prometheusService.Exec(expr)
+	instance := fmt.Sprintf("%s:%v", hostnode.InternalIP, 6100)
+	replaceTo := "instance='" + instance + "'"
+	basic := "100 - ((node_memory_MemFree{job='rbd_node',#to_replace#} %2B node_memory_Cached{job='rbd_node',#to_replace#} %2B node_memory_Buffers{job='rbd_node',#to_replace#})/node_memory_MemTotal) * 100"
+	expr := replaceSelector(basic, replaceTo)
+	resp, err := prometheusService.Exec(expr)
 	if err != nil {
-		err.Handle(r,w)
+		err.Handle(r, w)
 		return
 	}
 	httputil.ReturnSuccess(r, w, resp)
 }
-func replaceSelector(s,new string) string {
-	return strings.Replace(s,toReplace,new,-1)
+func replaceSelector(s, new string) string {
+	return strings.Replace(s, toReplace, new, -1)
 }
 func GetCpu(w http.ResponseWriter, r *http.Request) {
 	nodeID := chi.URLParam(r, "node_id")
-	hostnode,err:=nodeService.GetNode(nodeID)
+	hostnode, err := nodeService.GetNode(nodeID)
 	if err != nil {
-		err.Handle(r,w)
+		err.Handle(r, w)
 		return
 	}
-	instance:=fmt.Sprintf("%s:%v",hostnode.InternalIP,6100)
-	replaceTo:="instance='"+instance+"'"
-	basic:="100 - (avg by (instance) (irate(node_cpu{job='rbd_node', mode='idle',#to_replace#}[5m])) * 100)"
-	expr:=replaceSelector(basic,replaceTo)
+	instance := fmt.Sprintf("%s:%v", hostnode.InternalIP, 6100)
+	replaceTo := "instance='" + instance + "'"
+	basic := "100 - (avg by (instance) (irate(node_cpu{job='rbd_node', mode='idle',#to_replace#}[5m])) * 100)"
+	expr := replaceSelector(basic, replaceTo)
 
 	resp, err := prometheusService.Exec(expr)
 	if err != nil {
@@ -76,16 +76,16 @@ func GetCpu(w http.ResponseWriter, r *http.Request) {
 }
 func GetDisk(w http.ResponseWriter, r *http.Request) {
 	//basic:="100 - node_filesystem_free{job='rbd_node',#to_replace#,fstype!~'rootfs|selinuxfs|autofs|rpc_pipefs|tmpfs|udev|none|devpts|sysfs|debugfs|fuse.*'} / node_filesystem_size{job='rbd_node',#to_replace#,fstype!~'rootfs|selinuxfs|autofs|rpc_pipefs|tmpfs|udev|none|devpts|sysfs|debugfs|fuse.*'} * 100"
-	basic:="100 - (avg by (instance) (node_filesystem_free{job='rbd_node',#to_replace#,fstype!~'rootfs|nsfs|selinuxfs|autofs|rpc_pipefs|tmpfs|udev|none|devpts|sysfs|debugfs|fuse.*'} / node_filesystem_size{job='rbd_node',#to_replace#,fstype!~'rootfs|nsfs|selinuxfs|autofs|rpc_pipefs|tmpfs|udev|none|devpts|sysfs|debugfs|fuse.*'}) * 100)"
+	basic := "100 - (avg by (instance) (node_filesystem_free{job='rbd_node',#to_replace#,fstype!~'rootfs|nsfs|selinuxfs|autofs|rpc_pipefs|tmpfs|udev|none|devpts|sysfs|debugfs|fuse.*'} / node_filesystem_size{job='rbd_node',#to_replace#,fstype!~'rootfs|nsfs|selinuxfs|autofs|rpc_pipefs|tmpfs|udev|none|devpts|sysfs|debugfs|fuse.*'}) * 100)"
 	nodeID := chi.URLParam(r, "node_id")
-	hostnode,err:=nodeService.GetNode(nodeID)
+	hostnode, err := nodeService.GetNode(nodeID)
 	if err != nil {
-		err.Handle(r,w)
+		err.Handle(r, w)
 		return
 	}
-	instance:=fmt.Sprintf("%s:%v",hostnode.InternalIP,6100)
-	replaceTo:="instance='"+instance+"'"
-	expr:=replaceSelector(basic,replaceTo)
+	instance := fmt.Sprintf("%s:%v", hostnode.InternalIP, 6100)
+	replaceTo := "instance='" + instance + "'"
+	expr := replaceSelector(basic, replaceTo)
 	resp, err := prometheusService.Exec(expr)
 	if err != nil {
 		err.Handle(r, w)
@@ -98,23 +98,23 @@ func GetCpuRange(w http.ResponseWriter, r *http.Request) {
 	start := chi.URLParam(r, "start")
 	end := chi.URLParam(r, "end")
 	step := chi.URLParam(r, "step")
-	hostnode,err:=nodeService.GetNode(nodeID)
-	if err != nil {
-		err.Handle(r,w)
-		return
-	}
-	instance:=fmt.Sprintf("%s:%v",hostnode.InternalIP,6100)
-	replaceTo:="instance='"+instance+"'"
-	basic:="100 - (avg by (instance) (irate(node_cpu{job='rbd_node', mode='idle',#to_replace#}[5m])) * 100)"
-	expr:=replaceSelector(basic,replaceTo)
-	resp, err := prometheusService.ExecRange(expr,start,end,step)
+	hostnode, err := nodeService.GetNode(nodeID)
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	for _,v:=range resp.Data.Result{
-		v.Value=v.Values
-		v.Values=nil
+	instance := fmt.Sprintf("%s:%v", hostnode.InternalIP, 6100)
+	replaceTo := "instance='" + instance + "'"
+	basic := "100 - (avg by (instance) (irate(node_cpu{job='rbd_node', mode='idle',#to_replace#}[5m])) * 100)"
+	expr := replaceSelector(basic, replaceTo)
+	resp, err := prometheusService.ExecRange(expr, start, end, step)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	for _, v := range resp.Data.Result {
+		v.Value = v.Values
+		v.Values = nil
 	}
 	httputil.ReturnSuccess(r, w, resp)
 }
@@ -123,49 +123,49 @@ func GetMemRange(w http.ResponseWriter, r *http.Request) {
 	start := chi.URLParam(r, "start")
 	end := chi.URLParam(r, "end")
 	step := chi.URLParam(r, "step")
-	hostnode,err:=nodeService.GetNode(nodeID)
-	if err != nil {
-		err.Handle(r,w)
-		return
-	}
-	instance:=fmt.Sprintf("%s:%v",hostnode.InternalIP,6100)
-	replaceTo:="instance='"+instance+"'"
-
-	basic:="100 - ((node_memory_MemFree{job='rbd_node',#to_replace#} %2B node_memory_Cached{job='rbd_node',#to_replace#} %2B node_memory_Buffers{job='rbd_node',#to_replace#})/node_memory_MemTotal) * 100"
-	expr:=replaceSelector(basic,replaceTo)
-	resp, err := prometheusService.ExecRange(expr,start,end,step)
+	hostnode, err := nodeService.GetNode(nodeID)
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	for _,v:=range resp.Data.Result{
-		v.Value=v.Values
-		v.Values=nil
+	instance := fmt.Sprintf("%s:%v", hostnode.InternalIP, 6100)
+	replaceTo := "instance='" + instance + "'"
+
+	basic := "100 - ((node_memory_MemFree{job='rbd_node',#to_replace#} %2B node_memory_Cached{job='rbd_node',#to_replace#} %2B node_memory_Buffers{job='rbd_node',#to_replace#})/node_memory_MemTotal) * 100"
+	expr := replaceSelector(basic, replaceTo)
+	resp, err := prometheusService.ExecRange(expr, start, end, step)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	for _, v := range resp.Data.Result {
+		v.Value = v.Values
+		v.Values = nil
 	}
 	httputil.ReturnSuccess(r, w, resp)
 }
 func GetDiskRange(w http.ResponseWriter, r *http.Request) {
-	basic:="100 - (avg by (instance) (node_filesystem_free{job='rbd_node',#to_replace#,fstype!~'rootfs|selinuxfs|nsfs|autofs|rpc_pipefs|tmpfs|udev|none|devpts|sysfs|debugfs|fuse.*'} / node_filesystem_size{job='rbd_node',#to_replace#,fstype!~'rootfs|selinuxfs|nsfs|autofs|rpc_pipefs|tmpfs|udev|none|devpts|sysfs|debugfs|fuse.*'}) * 100)"
+	basic := "100 - (avg by (instance) (node_filesystem_free{job='rbd_node',#to_replace#,fstype!~'rootfs|selinuxfs|nsfs|autofs|rpc_pipefs|tmpfs|udev|none|devpts|sysfs|debugfs|fuse.*'} / node_filesystem_size{job='rbd_node',#to_replace#,fstype!~'rootfs|selinuxfs|nsfs|autofs|rpc_pipefs|tmpfs|udev|none|devpts|sysfs|debugfs|fuse.*'}) * 100)"
 	nodeID := chi.URLParam(r, "node_id")
 	start := chi.URLParam(r, "start")
 	end := chi.URLParam(r, "end")
 	step := chi.URLParam(r, "step")
-	hostnode,err:=nodeService.GetNode(nodeID)
-	if err != nil {
-		err.Handle(r,w)
-		return
-	}
-	instance:=fmt.Sprintf("%s:%v",hostnode.InternalIP,6100)
-	replaceTo:="instance='"+instance+"'"
-	expr:=replaceSelector(basic,replaceTo)
-	resp, err := prometheusService.ExecRange(expr,start,end,step)
+	hostnode, err := nodeService.GetNode(nodeID)
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	for _,v:=range resp.Data.Result{
-		v.Value=v.Values
-		v.Values=nil
+	instance := fmt.Sprintf("%s:%v", hostnode.InternalIP, 6100)
+	replaceTo := "instance='" + instance + "'"
+	expr := replaceSelector(basic, replaceTo)
+	resp, err := prometheusService.ExecRange(expr, start, end, step)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	for _, v := range resp.Data.Result {
+		v.Value = v.Values
+		v.Values = nil
 	}
 	httputil.ReturnSuccess(r, w, resp)
 }
@@ -174,23 +174,23 @@ func GetLoad1Range(w http.ResponseWriter, r *http.Request) {
 	start := chi.URLParam(r, "start")
 	end := chi.URLParam(r, "end")
 	step := chi.URLParam(r, "step")
-	hostnode,err:=nodeService.GetNode(nodeID)
-	if err != nil {
-		err.Handle(r,w)
-		return
-	}
-	instance:=fmt.Sprintf("%s:%v",hostnode.InternalIP,6100)
-	replaceTo:="instance='"+instance+"'"
-	basic:="node_load1{job='rbd_node',#to_replace#}"
-	expr:=replaceSelector(basic,replaceTo)
-	resp, err := prometheusService.ExecRange(expr,start,end,step)
+	hostnode, err := nodeService.GetNode(nodeID)
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	for _,v:=range resp.Data.Result{
-		v.Value=v.Values
-		v.Values=nil
+	instance := fmt.Sprintf("%s:%v", hostnode.InternalIP, 6100)
+	replaceTo := "instance='" + instance + "'"
+	basic := "node_load1{job='rbd_node',#to_replace#}"
+	expr := replaceSelector(basic, replaceTo)
+	resp, err := prometheusService.ExecRange(expr, start, end, step)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	for _, v := range resp.Data.Result {
+		v.Value = v.Values
+		v.Values = nil
 	}
 	httputil.ReturnSuccess(r, w, resp)
 }
@@ -210,15 +210,15 @@ func GetExpr(w http.ResponseWriter, r *http.Request) {
 }
 func GetLoad1(w http.ResponseWriter, r *http.Request) {
 	nodeID := chi.URLParam(r, "node_id")
-	hostnode,err:=nodeService.GetNode(nodeID)
+	hostnode, err := nodeService.GetNode(nodeID)
 	if err != nil {
-		err.Handle(r,w)
+		err.Handle(r, w)
 		return
 	}
-	instance:=fmt.Sprintf("%s:%v",hostnode.InternalIP,6100)
-	replaceTo:="instance='"+instance+"'"
-	basic:="node_load1{job='rbd_node',#to_replace#}"
-	expr:=replaceSelector(basic,replaceTo)
+	instance := fmt.Sprintf("%s:%v", hostnode.InternalIP, 6100)
+	replaceTo := "instance='" + instance + "'"
+	basic := "node_load1{job='rbd_node',#to_replace#}"
+	expr := replaceSelector(basic, replaceTo)
 	resp, err := prometheusService.Exec(expr)
 	if err != nil {
 		err.Handle(r, w)
@@ -226,6 +226,3 @@ func GetLoad1(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, resp)
 }
-
-
-

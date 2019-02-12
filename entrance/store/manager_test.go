@@ -19,8 +19,8 @@
 package store
 
 import (
-	"github.com/goodrain/rainbond/entrance/cluster"
 	"github.com/goodrain/rainbond/cmd/entrance/option"
+	"github.com/goodrain/rainbond/entrance/cluster"
 	"github.com/goodrain/rainbond/entrance/core/object"
 	"sync"
 	"testing"

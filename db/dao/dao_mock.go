@@ -5,8 +5,8 @@ package dao
 
 import (
 	model "github.com/goodrain/rainbond/db/model"
-	time "time"
 	gomock "github.com/rafrombrc/gomock/gomock"
+	time "time"
 )
 
 // Mock of Dao interface

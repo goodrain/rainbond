@@ -19,8 +19,8 @@
 package store
 
 import (
-	"github.com/goodrain/rainbond/entrance/api/model"
 	"github.com/goodrain/rainbond/cmd/entrance/option"
+	"github.com/goodrain/rainbond/entrance/api/model"
 	"testing"
 	"time"
 

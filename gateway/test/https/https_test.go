@@ -162,7 +162,7 @@ func TestHttps(t *testing.T) {
 
 	secr := ensureSecret(&corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "tls-secret",
+			Name:      "tls-secret",
 			Namespace: "gateway",
 		},
 		Data: map[string][]byte{
@@ -183,7 +183,7 @@ func TestHttps(t *testing.T) {
 		Spec: extensions.IngressSpec{
 			TLS: []v1beta1.IngressTLS{
 				{
-					Hosts: []string{"www.https.com"},
+					Hosts:      []string{"www.https.com"},
 					SecretName: secr.Name,
 				},
 			},

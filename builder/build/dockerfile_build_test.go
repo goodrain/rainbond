@@ -35,4 +35,3 @@ func TestGetARGs(t *testing.T) {
 		t.Errorf("Expected nil for  args[\"PROC_ENV\"], but returned %v", PROC_ENV)
 	}
 }
-

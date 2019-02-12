@@ -77,7 +77,7 @@ func TestManagerService_SetEndpoints(t *testing.T) {
 	for _, d := range data {
 		flag := false
 		for _, edp := range edps {
-			if d + ":6442" == strings.Replace(edp, "http://", "", -1) {
+			if d+":6442" == strings.Replace(edp, "http://", "", -1) {
 				flag = true
 			}
 		}

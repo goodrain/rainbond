@@ -2,10 +2,10 @@ package prometheus
 
 import (
 	"github.com/Sirupsen/logrus"
-	"io/ioutil"
-	"gopkg.in/yaml.v2"
-	"os"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"os"
 )
 
 type AlertingRulesConfig struct {

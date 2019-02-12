@@ -28,7 +28,6 @@ import (
 	//"github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
 	"os"
-
 	//"github.com/goodrain/rainbond/builder/sources"
 	//"github.com/goodrain/rainbond/grctl/clients"
 	//"flag"
@@ -37,7 +36,7 @@ import (
 //NewCmdInit grctl reset
 func NewCmdReset() cli.Command {
 	c := cli.Command{
-		Name: "reset",
+		Name:  "reset",
 		Usage: "重置当前节点grctl reset",
 		Action: func(c *cli.Context) error {
 			resetCurrentNode(c)
@@ -46,7 +45,6 @@ func NewCmdReset() cli.Command {
 	}
 	return c
 }
-
 
 func resetCurrentNode(c *cli.Context) {
 

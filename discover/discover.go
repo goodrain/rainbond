@@ -235,7 +235,7 @@ func (e *etcdDiscover) discover(name string, callback CallbackUpdate) {
 	}
 	defer watchChan.Stop()
 	for event := range watchChan.ResultChan() {
-		if event.Source == nil{
+		if event.Source == nil {
 			continue
 		}
 		var end *config.Endpoint

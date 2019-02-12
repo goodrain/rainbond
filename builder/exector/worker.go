@@ -35,10 +35,10 @@ limitations under the License.
 */
 
 import (
-	"github.com/goodrain/rainbond/util"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/util"
 	"os"
 	"os/exec"
 	"time"
