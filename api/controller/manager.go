@@ -36,7 +36,6 @@ type V2Manager interface {
 	Nodes(w http.ResponseWriter, r *http.Request)
 	Jobs(w http.ResponseWriter, r *http.Request)
 	Apps(w http.ResponseWriter, r *http.Request)
-	Entrance(w http.ResponseWriter, r *http.Request)
 	Health(w http.ResponseWriter, r *http.Request)
 	AlertManagerWebHook(w http.ResponseWriter, r *http.Request)
 	Version(w http.ResponseWriter, r *http.Request)
@@ -70,7 +69,6 @@ func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2
 	if err != nil {
 		return nil, err
 	}
-
 	var v2r V2Routes
 	v2r.TenantStruct.StatusCli = statusCli
 	v2r.TenantStruct.MQClient = mqClient
