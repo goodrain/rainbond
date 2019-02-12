@@ -21,7 +21,9 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/goodrain/rainbond/cmd"
+	validator "github.com/thedevsaddam/govalidator"
 
 	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
@@ -39,7 +41,6 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/jinzhu/gorm"
-	"github.com/thedevsaddam/govalidator"
 
 	"github.com/goodrain/rainbond/api/handler"
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -53,7 +54,6 @@ import (
 type V2Routes struct {
 	TenantStruct
 	AcpNodeStruct
-	EntranceStruct
 	EventLogStruct
 	AppStruct
 	GatewayStruct

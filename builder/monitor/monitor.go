@@ -14,7 +14,7 @@ const (
 	exporter = "exporter"
 )
 
-//Exporter collects entrance metrics. It implements prometheus.Collector.
+//Exporter collects builder metrics. It implements prometheus.Collector.
 type Exporter struct {
 	taskNum   prometheus.Counter
 	taskError prometheus.Counter

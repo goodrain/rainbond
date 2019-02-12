@@ -20,7 +20,7 @@ function prepare() {
     [ ! -d "$distdir/usr/local/" ] && mkdir -p $distdir/usr/local/bin
 }
 
-build_items=(api builder entrance grctl monitor mq node webcli worker eventlog)
+build_items=(api builder grctl monitor mq node webcli worker eventlog)
 
 function localbuild() {
 	if [ "$1" = "all" ];then

@@ -49,7 +49,7 @@ func NewWebCliServer() *WebCliServer {
 
 //AddFlags config
 func (a *WebCliServer) AddFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&a.LogLevel, "log-level", "info", "the entrance log level")
+	fs.StringVar(&a.LogLevel, "log-level", "info", "the webcli log level")
 	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd v3 cluster endpoints.")
 	fs.StringVar(&a.Address, "address", "0.0.0.0", "server listen address")
 	fs.StringVar(&a.HostIP, "hostIP", "", "Current node Intranet IP")

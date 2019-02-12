@@ -79,11 +79,6 @@ func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2
 	v2r.AcpNodeStruct.HTTPProxy = nodeProxy
 	logrus.Debugf("create  node api proxy success")
 
-	entranceProxy := proxy.CreateProxy("acp_entrance", "http", conf.EntranceAPI)
-	discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("acp_entrance", entranceProxy)
-	v2r.EntranceStruct.HTTPProxy = entranceProxy
-	logrus.Debugf("create  entrance api proxy success")
-
 	v2r.GatewayStruct.MQClient = mqClient
 	v2r.GatewayStruct.cfg = &conf
 	return &v2r, nil

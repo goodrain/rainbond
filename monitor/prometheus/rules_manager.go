@@ -82,19 +82,6 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 				},
 				&AlertingNameConfig{
 
-					Name: "EntranceHealth",
-					Rules: []*RulesConfig{
-						&RulesConfig{
-							Alert:       "EntranceUnHealthy",
-							Expr:        "acp_entrance_exporter_health_status == 0",
-							For:         "3m",
-							Labels:      map[string]string{},
-							Annotations: map[string]string{"summary": "entrance unhealthy"},
-						},
-					},
-				},
-				&AlertingNameConfig{
-
 					Name: "MqHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{

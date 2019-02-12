@@ -34,7 +34,6 @@ type Config struct {
 	EventLogServers   []string
 	NodeAPI           []string
 	BuilderAPI        []string
-	EntranceAPI       []string
 	V1API             string
 	MQAPI             string
 	EtcdEndpoint      []string
@@ -68,7 +67,7 @@ func NewAPIServer() *APIServer {
 
 //AddFlags config
 func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&a.LogLevel, "log-level", "info", "the entrance log level")
+	fs.StringVar(&a.LogLevel, "log-level", "info", "the api log level")
 	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
 	fs.StringVar(&a.DBConnectionInfo, "mysql", "admin:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
 	fs.StringVar(&a.APIAddr, "api-addr", "127.0.0.1:8888", "the api server listen address")
@@ -84,7 +83,6 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.V1API, "v1-api", "127.0.0.1:8887", "the region v1 api")
 	fs.StringSliceVar(&a.NodeAPI, "node-api", []string{"127.0.0.1:6100"}, "the node server api")
 	fs.StringSliceVar(&a.BuilderAPI, "builder-api", []string{"127.0.0.1:3228"}, "the builder api")
-	fs.StringSliceVar(&a.EntranceAPI, "entrance-api", []string{"127.0.0.1:6200"}, "the entrance api")
 	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"127.0.0.1:6366"}, "event log server address. simple lb")
 	fs.StringVar(&a.MQAPI, "mq-api", "127.0.0.1:6300", "acp_mq api")
 	fs.BoolVar(&a.StartRegionAPI, "start", false, "Whether to start region old api")

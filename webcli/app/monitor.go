@@ -12,7 +12,7 @@ const (
 	exporter = "exporter"
 )
 
-//Exporter collects entrance metrics. It implements prometheus.Collector.
+//Exporter collects webcli metrics. It implements prometheus.Collector.
 type Exporter struct {
 	ExecuteCommandTotal  prometheus.Counter
 	ExecuteCommandFailed prometheus.Counter
