@@ -19,10 +19,10 @@
 package db
 
 import (
-	"github.com/jinzhu/gorm"
 	dbconfig "github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
+	"github.com/jinzhu/gorm"
 	"testing"
 )
 

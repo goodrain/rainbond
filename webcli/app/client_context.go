@@ -179,7 +179,7 @@ func (context *clientContext) processReceive() {
 			return
 		}
 		if len(data) == 0 {
-			log.Print("An error has occured")
+			log.Print("An error has occurred")
 			return
 		}
 

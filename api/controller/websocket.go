@@ -165,7 +165,6 @@ func isExist(filename string) bool {
 	return err == nil || os.IsExist(err)
 }
 
-
 //Get get
 func (d LogFile) GetInstallLog(w http.ResponseWriter, r *http.Request) {
 	filename := chi.URLParam(r, "filename")

@@ -1,12 +1,12 @@
 package cmd
 
 import (
-	"github.com/urfave/cli"
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/grctl/clients"
-	"fmt"
-	"github.com/ghodss/yaml"
 	"errors"
+	"fmt"
+	"github.com/Sirupsen/logrus"
+	"github.com/ghodss/yaml"
+	"github.com/goodrain/rainbond/grctl/clients"
+	"github.com/urfave/cli"
 )
 
 //NewCmdNode NewCmdNode

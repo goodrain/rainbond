@@ -34,9 +34,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
 
-	"github.com/goodrain/rainbond/cmd/api/option"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
@@ -161,12 +161,12 @@ func (c *CloudAction) CertDispatcher(gt *api_model.GetUserToken) ([]byte, []byte
 			CommonName: fmt.Sprintf("%s@%d", gt.Body.EID, time.Now().Unix()),
 			Locality:   []string{fmt.Sprintf("%s", c.RegionTag)},
 		},
-		NotBefore:             time.Now(),                                                 //证书有效期开始时间
-		NotAfter:              time.Now().Add(time.Second * time.Duration(validHourTime)), //证书有效期结束时间
-		BasicConstraintsValid: true,                                                       //基本的有效性约束
-		IsCA:        false,                                                                      //是否是根证书
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}, //证书用途(客户端认证，数据加密)
-		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageDataEncipherment,
+		NotBefore:             time.Now(),                                                                 //证书有效期开始时间
+		NotAfter:              time.Now().Add(time.Second * time.Duration(validHourTime)),                 //证书有效期结束时间
+		BasicConstraintsValid: true,                                                                       //基本的有效性约束
+		IsCA:                  false,                                                                      //是否是根证书
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}, //证书用途(客户端认证，数据加密)
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageDataEncipherment,
 		//EmailAddresses: []string{"region@test.com"},
 		//IPAddresses:    []net.IP{net.ParseIP("192.168.1.59")},
 	}

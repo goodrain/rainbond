@@ -16,7 +16,7 @@ type body struct {
 
 // Check exists body in xfile and return body.
 func newBody(req_body io.Reader) (*body, error) {
-		return &body{body: req_body, Available: true}, nil
+	return &body{body: req_body, Available: true}, nil
 }
 
 // Close filehandler of body if XFile exists.

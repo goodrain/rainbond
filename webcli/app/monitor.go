@@ -2,7 +2,6 @@ package app
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-
 )
 
 // Metric name parts.
@@ -13,11 +12,12 @@ const (
 	exporter = "exporter"
 )
 
-//Exporter collects entrance metrics. It implements prometheus.Collector.
+//Exporter collects webcli metrics. It implements prometheus.Collector.
 type Exporter struct {
-	ExecuteCommandTotal prometheus.Counter
+	ExecuteCommandTotal  prometheus.Counter
 	ExecuteCommandFailed prometheus.Counter
 }
+
 var healthDesc = prometheus.NewDesc(
 	prometheus.BuildFQName(namespace, exporter, "health_status"),
 	"health status.",
@@ -27,13 +27,13 @@ var healthDesc = prometheus.NewDesc(
 //NewExporter new a exporter
 func NewExporter() *Exporter {
 	return &Exporter{
-		ExecuteCommandTotal:prometheus.NewCounter(prometheus.CounterOpts{
+		ExecuteCommandTotal: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: exporter,
 			Name:      "execute_command_total",
 			Help:      "Total number of execution commands",
 		}),
-		ExecuteCommandFailed:prometheus.NewCounter(prometheus.CounterOpts{
+		ExecuteCommandFailed: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: exporter,
 			Name:      "execute_command_failed",

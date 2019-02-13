@@ -45,8 +45,8 @@ EOF
 	docker push rainbond/cni:rbd_v$VERSION 
 	
 }
-build_items=(api builder entrance grctl monitor mq node webcli worker eventlog)
-image_build_items=(api chaos entrance monitor mq webcli worker eventlog)
+build_items=(api builder  grctl monitor mq node webcli worker eventlog)
+image_build_items=(api chaos  monitor mq webcli worker eventlog)
 function localbuild() {
 	if [ "$1" = "all" ];then
 		for item in ${build_items[@]}

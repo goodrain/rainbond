@@ -19,21 +19,24 @@
 package callback
 
 import (
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/prometheus/common/model"
-	"time"
 )
 
+//Etcd etcd discover
 type Etcd struct {
 	discover.Callback
 	Prometheus      *prometheus.Manager
 	sortedEndpoints []string
 }
 
+//UpdateEndpoints update endpoints
 func (e *Etcd) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	newArr := utils.TrimAndSort(endpoints)
 
@@ -52,6 +55,7 @@ func (e *Etcd) Error(err error) {
 	logrus.Error(err)
 }
 
+//Name name
 func (e *Etcd) Name() string {
 	return "etcd"
 }

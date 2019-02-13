@@ -37,7 +37,7 @@ import (
 //RFC3339NanoFixed time format
 var RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
 
-//ContainerLogManage conatiner log manage
+//ContainerLogManage container log manage
 type ContainerLogManage struct {
 	ctx           context.Context
 	cancel        context.CancelFunc

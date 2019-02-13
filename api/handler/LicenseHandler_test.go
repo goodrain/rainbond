@@ -19,9 +19,9 @@
 package handler
 
 import (
-	"github.com/goodrain/rainbond/cmd/api/option"
-	"github.com/goodrain/rainbond/api/db"
 	"fmt"
+	"github.com/goodrain/rainbond/api/db"
+	"github.com/goodrain/rainbond/cmd/api/option"
 	"testing"
 )
 

@@ -1,9 +1,9 @@
 package monitor
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/goodrain/rainbond/builder/discover"
 	"github.com/goodrain/rainbond/builder/exector"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // Metric name parts.
@@ -14,9 +14,9 @@ const (
 	exporter = "exporter"
 )
 
-//Exporter collects entrance metrics. It implements prometheus.Collector.
+//Exporter collects builder metrics. It implements prometheus.Collector.
 type Exporter struct {
-	taskNum prometheus.Counter
+	taskNum   prometheus.Counter
 	taskError prometheus.Counter
 }
 
@@ -29,13 +29,13 @@ var healthDesc = prometheus.NewDesc(
 //NewExporter new a exporter
 func NewExporter() *Exporter {
 	return &Exporter{
-		taskNum:prometheus.NewCounter(prometheus.CounterOpts{
+		taskNum: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: exporter,
 			Name:      "builder_task_number",
 			Help:      "builder number of tasks",
 		}),
-		taskError:prometheus.NewCounter(prometheus.CounterOpts{
+		taskError: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: exporter,
 			Name:      "builder_task_error",

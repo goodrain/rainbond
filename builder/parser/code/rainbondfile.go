@@ -26,7 +26,7 @@ import (
 	"github.com/Sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/util"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 //RainbondFileConfig 云帮源码配置文件
@@ -41,7 +41,7 @@ type RainbondFileConfig struct {
 //Port Port
 type Port struct {
 	Port     int    `yaml:"port"`
-	Protocol string `yaml:"procotol"`
+	Protocol string `yaml:"protocol"`
 }
 
 //ReadRainbondFile 读取云帮代码配置

@@ -41,7 +41,7 @@ func TestStoreETCD(t *testing.T) {
 		etcdCli: cli,
 	}
 	rules := &api_model.NetDownStreamRules{
-		Limit:  1024,
+		Limit: 1024,
 		//Header: "E1:V1,E2:V2",
 		//Domain: "test.redis.com",
 		//Prefix: "/redis",

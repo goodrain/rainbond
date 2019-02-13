@@ -31,6 +31,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
+//Node node discover
 type Node struct {
 	discover.Callback
 	Prometheus      *prometheus.Manager
@@ -39,6 +40,7 @@ type Node struct {
 	endpoints []*config.Endpoint
 }
 
+//UpdateEndpoints update endpoints
 func (e *Node) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	newArr := utils.TrimAndSort(endpoints)
 
@@ -57,6 +59,7 @@ func (e *Node) Error(err error) {
 	logrus.Error(err)
 }
 
+//Name name
 func (e *Node) Name() string {
 	return "rbd_node"
 }
@@ -85,11 +88,13 @@ func (e *Node) toScrape() *prometheus.ScrapeConfig {
 	}
 }
 
+//AddEndpoint add endpoint
 func (e *Node) AddEndpoint(end *config.Endpoint) {
 	e.endpoints = append(e.endpoints, end)
 	e.UpdateEndpoints(e.endpoints...)
 }
 
+//Add add
 func (e *Node) Add(event *watch.Event) {
 	url := gjson.Get(event.GetValueString(), "internal_ip").String() + ":6100"
 	end := &config.Endpoint{
@@ -99,6 +104,7 @@ func (e *Node) Add(event *watch.Event) {
 	e.AddEndpoint(end)
 }
 
+//Modify modify
 func (e *Node) Modify(event *watch.Event) {
 	for i, end := range e.endpoints {
 		if end.URL == event.GetValueString() {
@@ -110,6 +116,7 @@ func (e *Node) Modify(event *watch.Event) {
 	}
 }
 
+//Delete delete
 func (e *Node) Delete(event *watch.Event) {
 	for i, end := range e.endpoints {
 		url := gjson.Get(event.GetValueString(), "internal_ip").String() + ":6100"

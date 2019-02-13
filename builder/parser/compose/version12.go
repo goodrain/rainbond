@@ -34,7 +34,9 @@ import (
 func parseV1V2(bodys [][]byte) (ComposeObject, error) {
 
 	// Gather the appropriate context for parsing
-	context := &project.Context{}
+	context := &project.Context{
+		ProjectName: "rainbond-dockercompose-project",
+	}
 	context.ComposeBytes = bodys
 
 	// Load the context and let's start parsing
@@ -222,7 +224,7 @@ func libComposeToKomposeMapping(composeObject *project.Project) (ComposeObject, 
 			}
 		}
 		if serviceConfig.ExposeService == "" && serviceConfig.ExposeServiceTLS != "" {
-			return ComposeObject{}, fmt.Errorf("kompose.service.expose.tls-secret was specifed without kompose.service.expose")
+			return ComposeObject{}, fmt.Errorf("kompose.service.expose.tls-secret was specified without kompose.service.expose")
 		}
 		err = checkLabelsPorts(len(serviceConfig.Port), composeServiceConfig.Labels["kompose.service.type"], name)
 		if err != nil {

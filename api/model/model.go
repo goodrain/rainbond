@@ -329,7 +329,7 @@ type ServiceStruct struct {
 	Operator       string                               `json:"operator"  validate:"operator"`
 	RepoURL        string                               `json:"repo_url" validate:"repo_url"`
 	DependIDs      []dbmodel.TenantServiceRelation      `json:"depend_ids"`
-	VolumesInfo    []TenantServiceVolumeStruct        `json:"volumes_info"`
+	VolumesInfo    []TenantServiceVolumeStruct          `json:"volumes_info"`
 	DepVolumesInfo []dbmodel.TenantServiceMountRelation `json:"dep_volumes_info"`
 	EnvsInfo       []dbmodel.TenantServiceEnvVar        `json:"envs_info"`
 	PortsInfo      []dbmodel.TenantServicesPort         `json:"ports_info"`

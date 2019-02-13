@@ -24,7 +24,6 @@ import (
 	"encoding/asn1"
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/util/cert"
 	"net/http"
 	"os"
 	"path"
@@ -33,6 +32,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/goodrain/rainbond/util/cert"
+
 	"github.com/goodrain/rainbond/util"
 
 	"github.com/Sirupsen/logrus"
@@ -40,7 +41,7 @@ import (
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/template"
-	"github.com/goodrain/rainbond/gateway/v1"
+	v1 "github.com/goodrain/rainbond/gateway/v1"
 )
 
 // OrService handles the business logic of OpenrestyService
@@ -184,8 +185,8 @@ func (o *OrService) persistUpstreams(pools []*v1.Pool, tmpl string, path string,
 			server := model.UServer{
 				Address: node.Host + ":" + fmt.Sprintf("%v", node.Port),
 				Params: model.Params{
-					Weight: 1,
-					MaxFails: node.MaxFails,
+					Weight:      1,
+					MaxFails:    node.MaxFails,
 					FailTimeout: node.FailTimeout,
 				},
 			}
@@ -219,9 +220,9 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 				Path:          loc.Path,
 				NameCondition: loc.NameCondition,
 				ProxySetHeaders: []*model.ProxySetHeader{
-					{"Host", "$host"},
-					{"X-Real-IP", "$remote_addr"},
-					{"X-Forwarded-For", "$proxy_add_x_forwarded_for"},
+					&model.ProxySetHeader{Field: "Host", Value: "$host"},
+					&model.ProxySetHeader{Field: "X-Real-IP", Value: "$remote_addr"},
+					&model.ProxySetHeader{Field: "X-Forwarded-For", Value: "$proxy_add_x_forwarded_for"},
 				},
 			}
 			server.Locations = append(server.Locations, location)
@@ -322,7 +323,7 @@ func (o *OrService) WaitPluginReady() {
 // newRbdServers creates new configuration file for Rainbond servers
 func (o *OrService) newRbdServers() error {
 	cfgPath := "/run/nginx/rainbond"
-	httpCfgPath := fmt.Sprintf("%s/%s", cfgPath, "http") // http config path
+	httpCfgPath := fmt.Sprintf("%s/%s", cfgPath, "http")  // http config path
 	tcpCfgPath := fmt.Sprintf("%s/%s", cfgPath, "stream") // tcp config path
 	// delete the old configuration
 	if err := os.RemoveAll(httpCfgPath); err != nil {
@@ -418,27 +419,30 @@ func createCert(cfgPath string, cn string) error {
 		KeyName: fmt.Sprintf("%s/%s", cfgPath, "ssl/ca.key")}
 
 	if err := cert.CreateCRT(nil, nil, baseinfo); err != nil {
-		logrus.Errorf("Create crt error: ", err)
+		logrus.Errorf("Create crt error: %s ", err.Error())
 		return err
 	}
 	crtInfo := baseinfo
 	crtInfo.IsCA = false
 	crtInfo.CrtName = fmt.Sprintf("%s/%s", cfgPath, "ssl/server.crt")
 	crtInfo.KeyName = fmt.Sprintf("%s/%s", cfgPath, "ssl/server.key")
-	crtInfo.Names = []pkix.AttributeTypeAndValue{{asn1.ObjectIdentifier{2, 1, 3}, "MAC_ADDR"}}
+	crtInfo.Names = []pkix.AttributeTypeAndValue{
+		pkix.AttributeTypeAndValue{
+			Type:  asn1.ObjectIdentifier{2, 1, 3},
+			Value: "MAC_ADDR",
+		},
+	}
 
 	crt, pri, err := cert.Parse(baseinfo.CrtName, baseinfo.KeyName)
 	if err != nil {
-		logrus.Errorf("Parse crt error,Error info:", err)
+		logrus.Errorf("Parse crt error,Error info: %s", err.Error())
 		return err
 	}
 	err = cert.CreateCRT(crt, pri, crtInfo)
 	if err != nil {
-		logrus.Errorf("Create crt error,Error info:", err)
+		logrus.Errorf("Create crt error,Error info: %s", err.Error())
 		return err
 	}
-
 	logrus.Info("Create certificate for goodrain.me successfully")
-
 	return nil
 }

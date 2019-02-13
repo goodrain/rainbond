@@ -20,6 +20,7 @@ package prometheus
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
@@ -33,7 +34,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-	"errors"
 )
 
 const (
@@ -75,8 +75,8 @@ func NewManager(config *option.Config, a *AlertingRulesManager) *Manager {
 				EvaluationInterval: model.Duration(time.Second * 30),
 			},
 			RuleFiles: []string{config.AlertingRulesFile},
-			AlertingConfig:AlertingConfig{
-				AlertmanagerConfigs:[]*AlertmanagerConfig{},
+			AlertingConfig: AlertingConfig{
+				AlertmanagerConfigs: []*AlertmanagerConfig{},
 			},
 		},
 		Registry:   reg,
@@ -87,10 +87,10 @@ func NewManager(config *option.Config, a *AlertingRulesManager) *Manager {
 
 	m.LoadConfig()
 	al := &AlertmanagerConfig{
-		ServiceDiscoveryConfig:ServiceDiscoveryConfig{
-			StaticConfigs:[]*Group{
+		ServiceDiscoveryConfig: ServiceDiscoveryConfig{
+			StaticConfigs: []*Group{
 				{
-					Targets:config.AlertManagerUrl,
+					Targets: config.AlertManagerUrl,
 				},
 			},
 		},

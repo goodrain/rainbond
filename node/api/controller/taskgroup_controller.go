@@ -19,8 +19,8 @@
 package controller
 
 import (
-	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/node/api/model"
+	httputil "github.com/goodrain/rainbond/util/http"
 	"net/http"
 
 	"github.com/go-chi/chi"

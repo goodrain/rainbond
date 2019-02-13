@@ -19,8 +19,8 @@
 package monitor
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/goodrain/rainbond/mq/api/mq"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // Metric name parts.

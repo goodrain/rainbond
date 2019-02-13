@@ -49,9 +49,9 @@ func NewCmdService() cli.Command {
 				Name: "list",
 				Flags: []cli.Flag{
 					cli.StringFlag{
-						Name:  "tenantAlias,t",
-						Value: "",
-						Usage: "Specify the tenant alias",
+						Name:     "tenantAlias,t",
+						Value:    "",
+						Usage:    "Specify the tenant alias",
 						FilePath: GetTenantNamePath(),
 					},
 				},
@@ -66,9 +66,9 @@ func NewCmdService() cli.Command {
 				Name: "get",
 				Flags: []cli.Flag{
 					cli.StringFlag{
-						Name:  "tenantAlias,t",
-						Value: "",
-						Usage: "Specify the tenant alias",
+						Name:     "tenantAlias,t",
+						Value:    "",
+						Usage:    "Specify the tenant alias",
 						FilePath: GetTenantNamePath(),
 					},
 				},
@@ -87,9 +87,9 @@ func NewCmdService() cli.Command {
 						Usage: "Blocks the output operation log",
 					},
 					cli.StringFlag{
-						Name:  "tenantAlias,t",
-						Value: "",
-						Usage: "Specify the tenant alias",
+						Name:     "tenantAlias,t",
+						Value:    "",
+						Usage:    "Specify the tenant alias",
 						FilePath: GetTenantNamePath(),
 					},
 					cli.StringFlag{
@@ -111,9 +111,9 @@ func NewCmdService() cli.Command {
 						Usage: "Blocks the output operation log",
 					},
 					cli.StringFlag{
-						Name:  "tenantAlias,t",
-						Value: "",
-						Usage: "Specify the tenant alias",
+						Name:     "tenantAlias,t",
+						Value:    "",
+						Usage:    "Specify the tenant alias",
 						FilePath: GetTenantNamePath(),
 					},
 					cli.StringFlag{
@@ -134,9 +134,9 @@ func NewCmdService() cli.Command {
 						Usage: "Blocks the output operation log",
 					},
 					cli.StringFlag{
-						Name:  "tenantAlias,t",
-						Value: "",
-						Usage: "Specify the tenant short id",
+						Name:     "tenantAlias,t",
+						Value:    "",
+						Usage:    "Specify the tenant short id",
 						FilePath: GetTenantNamePath(),
 					},
 					cli.StringFlag{

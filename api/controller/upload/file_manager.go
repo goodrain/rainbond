@@ -28,7 +28,7 @@ func newFileManager(dm *dirManager, version string) fileManager {
 }
 
 func (fbm *fileBaseManager) SetFilename(file *originalFile) {
-		fbm.Filename = file.Filename
+	fbm.Filename = file.Filename
 }
 
 func (fbm *fileBaseManager) Filepath() string {

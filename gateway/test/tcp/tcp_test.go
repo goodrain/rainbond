@@ -112,15 +112,15 @@ func TestTcp(t *testing.T) {
 			Namespace: ns.Name,
 			Annotations: map[string]string{
 				parser.GetAnnotationWithPrefix("l4-enable"): "true",
-				parser.GetAnnotationWithPrefix("l4-host"): "127.0.0.1",
-				parser.GetAnnotationWithPrefix("l4-port"): "32145",
+				parser.GetAnnotationWithPrefix("l4-host"):   "127.0.0.1",
+				parser.GetAnnotationWithPrefix("l4-port"):   "32145",
 			},
 		},
 		Spec: v1beta1.IngressSpec{
-			Backend: &v1beta1.IngressBackend {
+			Backend: &v1beta1.IngressBackend{
 				ServiceName: "default-svc",
 				ServicePort: intstr.IntOrString{
-					IntVal:30000,
+					IntVal: 30000,
 				},
 			},
 		},

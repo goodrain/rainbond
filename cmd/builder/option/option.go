@@ -63,7 +63,7 @@ type NodeOSType string
 
 //AddFlags config
 func (a *Builder) AddFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&a.LogLevel, "log-level", "info", "the entrance log level")
+	fs.StringVar(&a.LogLevel, "log-level", "info", "the builder log level")
 	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd v3 cluster endpoints.")
 	fs.IntVar(&a.EtcdTimeout, "etcd-timeout", 5, "etcd http timeout seconds")
 	fs.StringVar(&a.EtcdPrefix, "etcd-prefix", "/store", "the etcd data save key prefix ")

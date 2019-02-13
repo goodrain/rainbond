@@ -31,9 +31,9 @@ func TestMeta_Equals(t *testing.T) {
 
 func newFakeMeta() Meta {
 	return Meta{
-		Index: 888,
-		Name: "foo-meta",
-		Namespace: "ns",
+		Index:      888,
+		Name:       "foo-meta",
+		Namespace:  "ns",
 		PluginName: "Nginx",
 	}
 }

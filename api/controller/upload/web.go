@@ -1,8 +1,8 @@
 package upload
 
 import (
-	"net/http"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"net/http"
 )
 
 type Storage struct {
@@ -17,7 +17,6 @@ func (s *Storage) StorageDir() string {
 func NewStorage(rootDir string) *Storage {
 	return &Storage{output: rootDir}
 }
-
 
 // UploadHandler is the endpoint for uploading and storing files.
 func (s *Storage) UploadHandler(w http.ResponseWriter, r *http.Request) {

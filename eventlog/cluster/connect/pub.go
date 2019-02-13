@@ -20,10 +20,10 @@ package connect
 
 import (
 	"errors"
+	"fmt"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/eventlog/store"
-	"fmt"
 
 	"golang.org/x/net/context"
 

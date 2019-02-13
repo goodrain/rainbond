@@ -22,7 +22,7 @@ import (
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/api/apiFunc"
+	"github.com/goodrain/rainbond/api/api"
 	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/cmd/api/option"
@@ -36,19 +36,18 @@ type V2Manager interface {
 	Nodes(w http.ResponseWriter, r *http.Request)
 	Jobs(w http.ResponseWriter, r *http.Request)
 	Apps(w http.ResponseWriter, r *http.Request)
-	Entrance(w http.ResponseWriter, r *http.Request)
 	Health(w http.ResponseWriter, r *http.Request)
 	AlertManagerWebHook(w http.ResponseWriter, r *http.Request)
 	Version(w http.ResponseWriter, r *http.Request)
 
-	apiFunc.TenantInterface
-	apiFunc.ServiceInterface
-	apiFunc.LogInterface
-	apiFunc.PluginInterface
-	apiFunc.RulesInterface
-	apiFunc.SourcesInterface
-	apiFunc.AppInterface
-	apiFunc.Gatewayer
+	api.TenantInterface
+	api.ServiceInterface
+	api.LogInterface
+	api.PluginInterface
+	api.RulesInterface
+	api.SourcesInterface
+	api.AppInterface
+	api.Gatewayer
 }
 
 var defaultV2Manager V2Manager
@@ -70,7 +69,6 @@ func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2
 	if err != nil {
 		return nil, err
 	}
-
 	var v2r V2Routes
 	v2r.TenantStruct.StatusCli = statusCli
 	v2r.TenantStruct.MQClient = mqClient
@@ -78,11 +76,6 @@ func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2
 	discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("acp_node", nodeProxy)
 	v2r.AcpNodeStruct.HTTPProxy = nodeProxy
 	logrus.Debugf("create  node api proxy success")
-
-	entranceProxy := proxy.CreateProxy("acp_entrance", "http", conf.EntranceAPI)
-	discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("acp_entrance", entranceProxy)
-	v2r.EntranceStruct.HTTPProxy = entranceProxy
-	logrus.Debugf("create  entrance api proxy success")
 
 	v2r.GatewayStruct.MQClient = mqClient
 	v2r.GatewayStruct.cfg = &conf

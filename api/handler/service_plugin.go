@@ -120,7 +120,7 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 						err,
 					)
 				}
-				logrus.Debugf("set plugin upsteam port %d->%d", p.Port, pluginPort)
+				logrus.Debugf("set plugin upstream port %d->%d", p.Port, pluginPort)
 				p.ListenPort = pluginPort
 			}
 		}
@@ -235,7 +235,7 @@ func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.API
 						err,
 					)
 				}
-				logrus.Debugf("set plugin upsteam port %d->%d", p.Port, pluginPort)
+				logrus.Debugf("set plugin upstream port %d->%d", p.Port, pluginPort)
 				p.ListenPort = pluginPort
 			}
 		}

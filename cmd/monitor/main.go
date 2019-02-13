@@ -22,14 +22,14 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
 	"github.com/goodrain/rainbond/monitor"
+	"github.com/goodrain/rainbond/monitor/api"
+	"github.com/goodrain/rainbond/monitor/api/controller"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/spf13/pflag"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"github.com/goodrain/rainbond/monitor/api"
-	"github.com/goodrain/rainbond/monitor/api/controller"
-	"net/http"
 )
 
 func main() {
@@ -43,7 +43,7 @@ func main() {
 	// start prometheus daemon and watching tis status in all time, exit monitor process if start failed
 	a := prometheus.NewRulesManager(c)
 	p := prometheus.NewManager(c, a)
-	controllerManager := controller.NewControllerManager(a,p)
+	controllerManager := controller.NewControllerManager(a, p)
 
 	errChan := make(chan error, 1)
 	defer close(errChan)

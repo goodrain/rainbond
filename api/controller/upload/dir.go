@@ -26,7 +26,6 @@ func createDir(root, mime string) (*dirManager, error) {
 	return dm, nil
 }
 
-
 // newDirManager returns a new dirManager given a root.
 func newDirManager(root string) *dirManager {
 	return &dirManager{Root: root}

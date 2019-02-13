@@ -94,11 +94,11 @@ func GetConfig() Config {
 }
 
 // Get TenantNamePath
-func GetTenantNamePath() (tenantnamepath string,err error){
+func GetTenantNamePath() (tenantnamepath string, err error) {
 	home, err := sources.Home()
 	if err != nil {
 		logrus.Warn("Get Home Dir error.", err.Error())
-		return tenantnamepath,err
+		return tenantnamepath, err
 	}
 	tenantnamepath = path.Join(home, ".rbd", "tenant.txt")
 	return tenantnamepath, err

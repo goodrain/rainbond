@@ -20,6 +20,9 @@ package handle
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
@@ -29,8 +32,6 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"testing"
-	"time"
 )
 
 func TestManager_AnalystToExec(t *testing.T) {
@@ -79,8 +80,8 @@ func TestManager_AnalystToExec(t *testing.T) {
 			EventID:       "dummy-event-id",
 		},
 	}
-
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	handleManager := NewManager(ctx, s.Config, cachestore, controllerManager)
 	if err := handleManager.AnalystToExec(task); err != nil {
 		t.Errorf("analyst exec failed: %v", err)

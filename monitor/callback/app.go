@@ -41,6 +41,7 @@ type App struct {
 	endpoints []*config.Endpoint
 }
 
+//UpdateEndpoints update endpoint
 func (e *App) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	newArr := utils.TrimAndSort(endpoints)
 
@@ -59,6 +60,7 @@ func (e *App) Error(err error) {
 	logrus.Error(err)
 }
 
+//Name name
 func (e *App) Name() string {
 	return "app"
 }

@@ -23,7 +23,6 @@ func create(storage string, ofile *originalFile, delChunk bool) (*attachment, er
 		Versions:     make(map[string]fileManager),
 	}
 
-
 	makeVersion := func(a *attachment, version, convert string) error {
 		fm, err := at.createVersion(version)
 		if err != nil {

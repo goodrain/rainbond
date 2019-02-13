@@ -25,7 +25,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/worker/appm/store"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -65,7 +65,7 @@ func WaitReady(store store.Storer, a *v1.AppService, timeout time.Duration, logg
 	}
 }
 
-//WaitStop wait service stop complate
+//WaitStop wait service stop complete
 func WaitStop(store store.Storer, a *v1.AppService, timeout time.Duration, logger event.Logger, cancel chan struct{}) error {
 	if a == nil {
 		return nil

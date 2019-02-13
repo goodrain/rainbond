@@ -28,7 +28,6 @@ func (ofile *originalFile) Ext() string {
 	return strings.ToLower(filepath.Ext(ofile.Filename))
 }
 
-
 func process(req *http.Request, storage string) ([]*originalFile, error) {
 	meta, err := parseMeta(req)
 	if err != nil {

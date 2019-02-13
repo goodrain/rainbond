@@ -71,7 +71,6 @@ func TestL4_Parse(t *testing.T) {
 	data[parser.GetAnnotationWithPrefix("l4-port")] = "12345"
 	ing.SetAnnotations(data)
 
-
 	i, err := NewParser(l4{}).Parse(ing)
 	if err != nil {
 		t.Errorf("Uxpected error with ingress: %v", err)

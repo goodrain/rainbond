@@ -21,9 +21,9 @@ package handler
 import (
 	"os"
 
-	"github.com/goodrain/rainbond/cmd/api/option"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )

@@ -1,22 +1,26 @@
 package prometheus
 
 import (
-	"github.com/Sirupsen/logrus"
 	"io/ioutil"
-	"gopkg.in/yaml.v2"
 	"os"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
+	yaml "gopkg.in/yaml.v2"
 )
 
+//AlertingRulesConfig alerting rule config
 type AlertingRulesConfig struct {
 	Groups []*AlertingNameConfig `yaml:"groups" json:"groups"`
 }
 
+//AlertingNameConfig alerting config
 type AlertingNameConfig struct {
 	Name  string         `yaml:"name" json:"name"`
 	Rules []*RulesConfig `yaml:"rules" json:"rules"`
 }
 
+//RulesConfig rule config
 type RulesConfig struct {
 	Alert       string            `yaml:"alert" json:"alert"`
 	Expr        string            `yaml:"expr" json:"expr"`
@@ -25,11 +29,13 @@ type RulesConfig struct {
 	Annotations map[string]string `yaml:"annotations" json:"annotations"`
 }
 
+//AlertingRulesManager alerting rule manage
 type AlertingRulesManager struct {
 	RulesConfig *AlertingRulesConfig
 	config      *option.Config
 }
 
+//NewRulesManager new rule manager
 func NewRulesManager(config *option.Config) *AlertingRulesManager {
 	a := &AlertingRulesManager{
 		RulesConfig: &AlertingRulesConfig{
@@ -76,19 +82,6 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 				},
 				&AlertingNameConfig{
 
-					Name: "EntranceHealth",
-					Rules: []*RulesConfig{
-						&RulesConfig{
-							Alert:       "EntranceUnHealthy",
-							Expr:        "acp_entrance_exporter_health_status == 0",
-							For:         "3m",
-							Labels:      map[string]string{},
-							Annotations: map[string]string{"summary": "entrance unhealthy"},
-						},
-					},
-				},
-				&AlertingNameConfig{
-
 					Name: "MqHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
@@ -120,7 +113,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						},
 						&RulesConfig{
 							Alert:       "EventLogDown",
-							Expr:        "event_log_exporter_instanse_up == 0",
+							Expr:        "event_log_exporter_instance_up == 0",
 							For:         "3m",
 							Labels:      map[string]string{},
 							Annotations: map[string]string{"summary": "eventlog service down"},
@@ -195,6 +188,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 	return a
 }
 
+//LoadAlertingRulesConfig load alerting rule config
 func (a *AlertingRulesManager) LoadAlertingRulesConfig() error {
 	logrus.Info("Load AlertingRules config file.")
 	content, err := ioutil.ReadFile(a.config.AlertingRulesFile)
@@ -212,6 +206,7 @@ func (a *AlertingRulesManager) LoadAlertingRulesConfig() error {
 	return nil
 }
 
+//SaveAlertingRulesConfig save alerting rule config
 func (a *AlertingRulesManager) SaveAlertingRulesConfig() error {
 	logrus.Debug("Save alerting rules config file.")
 
@@ -230,12 +225,14 @@ func (a *AlertingRulesManager) SaveAlertingRulesConfig() error {
 	return nil
 }
 
+//AddRules add rule
 func (a *AlertingRulesManager) AddRules(val AlertingNameConfig) error {
 	group := a.RulesConfig.Groups
 	group = append(group, &val)
 	return nil
 }
 
+//InitRulesConfig init rule config
 func (a *AlertingRulesManager) InitRulesConfig() {
 	_, err := os.Stat(a.config.AlertingRulesFile) //os.Stat获取文件信息
 	if err != nil {

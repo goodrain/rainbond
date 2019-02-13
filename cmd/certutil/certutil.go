@@ -141,14 +141,14 @@ func newCertificate(info CertInformation) *x509.Certificate {
 			Locality:           info.Locality,
 			ExtraNames:         info.Names,
 		},
-		NotBefore:             time.Now(),                   //start time
-		NotAfter:              time.Now().AddDate(20, 0, 0), //end time
-		BasicConstraintsValid: true,                         //basic
-		IsCA:           info.IsCA,                                                                  //是否是根证书
-		ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}, //证书用途
-		KeyUsage:       x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		EmailAddresses: info.EmailAddress,
-		IPAddresses:    info.IPAddresses,
-		DNSNames:       info.Domains,
+		NotBefore:             time.Now(),                                                                 //start time
+		NotAfter:              time.Now().AddDate(20, 0, 0),                                               //end time
+		BasicConstraintsValid: true,                                                                       //basic
+		IsCA:                  info.IsCA,                                                                  //是否是根证书
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}, //证书用途
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		EmailAddresses:        info.EmailAddress,
+		IPAddresses:           info.IPAddresses,
+		DNSNames:              info.Domains,
 	}
 }

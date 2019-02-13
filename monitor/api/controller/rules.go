@@ -1,14 +1,14 @@
 package controller
 
 import (
-	"net/http"
-	"io/ioutil"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"io/ioutil"
+	"net/http"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/monitor/prometheus"
-	"github.com/go-chi/chi"
 	"encoding/json"
+	"github.com/Sirupsen/logrus"
+	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/monitor/prometheus"
 )
 
 type ControllerManager struct {

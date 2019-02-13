@@ -27,8 +27,8 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/event"
-	"github.com/pquerna/ffjson/ffjson"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	"github.com/pquerna/ffjson/ffjson"
 )
 
 //ServiceCheckInput 任务输入数据

@@ -37,13 +37,13 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/emicklei/go-restful"
-	"github.com/emicklei/go-restful-swagger12"
+	restful "github.com/emicklei/go-restful"
+	swagger "github.com/emicklei/go-restful-swagger12"
 	grpcserver "github.com/goodrain/rainbond/mq/api/grpc/server"
+	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
-	httputil "github.com/goodrain/rainbond/util/http"
 )
 
 type Manager struct {
@@ -65,7 +65,7 @@ type httpServer struct {
 
 func (h *httpServer) Server() error {
 	if err := h.server.ListenAndServe(); err != nil {
-		logrus.Error("entrance api http listen error.", err.Error())
+		logrus.Error("mq api http listen error.", err.Error())
 		return err
 	}
 	return nil
@@ -85,7 +85,7 @@ type grpcServer struct {
 
 func (h *grpcServer) Server() error {
 	if err := h.server.Serve(h.lis); err != nil {
-		logrus.Error("entrance api grpc listen error.", err.Error())
+		logrus.Error("mq api grpc listen error.", err.Error())
 		return err
 	}
 	return nil
@@ -181,8 +181,9 @@ func (m *Manager) Stop() error {
 	return m.actionMQ.Stop()
 }
 
+//Prometheus prometheus init
 func Prometheus() {
-	prometheus.MustRegister(version.NewCollector("acp_entrance"))
+	prometheus.MustRegister(version.NewCollector("acp_mq"))
 	exporter := monitor.NewExporter()
 	prometheus.MustRegister(exporter)
 	http.Handle("/metrics", promhttp.Handler())

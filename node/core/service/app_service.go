@@ -19,10 +19,10 @@
 package service
 
 import (
-	"github.com/goodrain/rainbond/discover/config"
-	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/node/core/store"
 	"fmt"
+	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/discover/config"
+	"github.com/goodrain/rainbond/node/core/store"
 	"strconv"
 	"strings"
 

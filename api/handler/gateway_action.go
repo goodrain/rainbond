@@ -531,7 +531,7 @@ func (g *GatewayAction) TCPAvailable(ip string, port int, ruleID string) bool {
 // AddIPPool adds AddIPPool
 func (g *GatewayAction) AddIPPool(req *apimodel.IPPoolStruct) error {
 	ippool := &model.IPPool{
-		EID: req.EID,
+		EID:  req.EID,
 		CIDR: req.CIDR,
 	}
 	if err := g.dbmanager.IPPoolDao().AddModel(ippool); err != nil {
