@@ -4,9 +4,10 @@
 package dao
 
 import (
+	time "time"
+
 	model "github.com/goodrain/rainbond/db/model"
 	gomock "github.com/rafrombrc/gomock/gomock"
-	time "time"
 )
 
 // Mock of Dao interface

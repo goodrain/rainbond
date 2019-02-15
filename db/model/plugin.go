@@ -138,7 +138,7 @@ func (t *TenantPluginVersionEnv) TableName() string {
 type TenantPluginVersionDiscoverConfig struct {
 	Model
 	PluginID  string `gorm:"column:plugin_id;size:32" json:"plugin_id"`
-	ServiceID string `gorm:"column:service_id" json:"service_id"`
+	ServiceID string `gorm:"column:service_id;size:32" json:"service_id"`
 	ConfigStr string `gorm:"column:config_str;" sql:"type:text;" json:"config_str"`
 }
 

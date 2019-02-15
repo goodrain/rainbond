@@ -101,7 +101,11 @@ func (m *Manager) AnalystToExec(task *model.Task) error {
 	case "apply_rule":
 		logrus.Info("start a 'apply_rule' task worker")
 		return m.applyRuleExec(task)
+	case "apply_plugin_config":
+		logrus.Info("start a 'apply_plugin_config' task worker")
+		return m.applyPluginConfig(task)
 	default:
+		logrus.Warning("task can not execute because no type is identified")
 		return nil
 	}
 }
@@ -368,6 +372,7 @@ func (m *Manager) applyPluginConfig(task *model.Task) error {
 	newApp, err := conversion.InitAppService(m.dbmanager, body.ServiceID, "ServiceSource", "TenantServiceBase", "TenantServicePlugin")
 	if err != nil {
 		logrus.Errorf("Application apply plugin config controller failure:%s", err.Error())
+		return err
 	}
 	err = m.controllerManager.StartController(controller.TypeApplyConfigController, *newApp)
 	if err != nil {

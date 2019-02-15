@@ -41,13 +41,21 @@ func (a *applyConfigController) Begin() {
 		nowConfigMapUpdate[now.Name] = false
 	}
 	for _, new := range newConfigMaps {
-		newc, err := a.manager.client.CoreV1().ConfigMaps(nowApp.TenantID).Update(new)
-		if err != nil {
-			logrus.Errorf("update config map failure %s", err.Error())
-		}
-		nowApp.SetConfigMap(newc)
 		if _, ok := nowConfigMapUpdate[new.Name]; ok {
+			newc, err := a.manager.client.CoreV1().ConfigMaps(nowApp.TenantID).Update(new)
+			if err != nil {
+				logrus.Errorf("update config map failure %s", err.Error())
+			}
+			nowApp.SetConfigMap(newc)
 			nowConfigMapUpdate[new.Name] = true
+			logrus.Debugf("update configmap %s for service %s", new.Name, a.appService.ServiceID)
+		} else {
+			newc, err := a.manager.client.CoreV1().ConfigMaps(nowApp.TenantID).Create(new)
+			if err != nil {
+				logrus.Errorf("update config map failure %s", err.Error())
+			}
+			nowApp.SetConfigMap(newc)
+			logrus.Debugf("create configmap %s for service %s", new.Name, a.appService.ServiceID)
 		}
 	}
 	for name, handle := range nowConfigMapUpdate {
@@ -55,6 +63,7 @@ func (a *applyConfigController) Begin() {
 			if err := a.manager.client.CoreV1().ConfigMaps(nowApp.TenantID).Delete(name, &metav1.DeleteOptions{}); err != nil {
 				logrus.Errorf("delete config map failure %s", err.Error())
 			}
+			logrus.Debugf("delete configmap %s for service %s", name, a.appService.ServiceID)
 		}
 	}
 	a.manager.callback(a.controllerID, nil)

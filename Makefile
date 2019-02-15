@@ -27,6 +27,8 @@ BIN_PATH=./_output/${GOOS}/${VERSION}
 
 ifeq ($(origin PUSH), undefined)
   PUSH = false
+else
+  PUSH = push
 endif
 .PHONY: build
 build:

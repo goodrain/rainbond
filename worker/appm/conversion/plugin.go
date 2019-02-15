@@ -143,12 +143,12 @@ func ApplyPluginConfig(as *typesv1.AppService, servicePluginRelation *model.Tena
 				Name: fmt.Sprintf("config-%s-%s", config.ServiceID, config.PluginID),
 				Labels: as.GetCommonLabels(map[string]string{
 					"plugin_id":     servicePluginRelation.PluginID,
-					"plugin_model":  servicePluginRelation.PluginModel,
 					"service_alias": as.ServiceAlias,
 				}),
 			},
 			Data: map[string]string{
 				"plugin-config": config.ConfigStr,
+				"plugin-model":  servicePluginRelation.PluginModel,
 			},
 		}
 		as.SetConfigMap(cm)

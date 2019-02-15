@@ -62,6 +62,8 @@ func TransTask(task *pb.TaskMessage) (*Task, error) {
 		User:       task.User,
 	}, nil
 }
+
+//NewTaskBody new task body
 func NewTaskBody(taskType string, body []byte) TaskBody {
 	switch taskType {
 	case "start":
@@ -134,6 +136,13 @@ func NewTaskBody(taskType string, body []byte) TaskBody {
 			return nil
 		}
 		return b
+	case "apply_plugin_config":
+		b := &ApplyPluginConfigTaskBody{}
+		err := ffjson.Unmarshal(body, &b)
+		if err != nil {
+			return nil
+		}
+		return b
 	default:
 		return DefaultTaskBody{}
 	}
@@ -160,6 +169,8 @@ func CreateTaskBody(taskType string) TaskBody {
 		return HorizontalScalingTaskBody{}
 	case "vertical_scaling":
 		return VerticalScalingTaskBody{}
+	case "apply_plugin_config":
+		return ApplyPluginConfigTaskBody{}
 	default:
 		return DefaultTaskBody{}
 	}
