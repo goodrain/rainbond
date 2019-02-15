@@ -19,6 +19,11 @@
 package main
 
 import (
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
 	"github.com/goodrain/rainbond/monitor"
@@ -26,10 +31,6 @@ import (
 	"github.com/goodrain/rainbond/monitor/api/controller"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/spf13/pflag"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 func main() {
@@ -59,7 +60,7 @@ func main() {
 	m.Start()
 	defer m.Stop()
 
-	r := api.APIServer(controllerManager)
+	r := api.Server(controllerManager)
 	logrus.Info("monitor api listen port 3329")
 	go http.ListenAndServe(":3329", r)
 

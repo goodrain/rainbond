@@ -155,6 +155,7 @@ func BuildTask(t *TaskStruct) (*pb.EnqueueRequest, error) {
 	return &er, nil
 }
 
+//GetBegin get db transaction
 func GetBegin() *gorm.DB {
 	return db.GetManager().Begin()
 }
