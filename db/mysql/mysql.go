@@ -88,7 +88,7 @@ func (m *Manager) Begin() *gorm.DB {
 
 //Print Print
 func (m *Manager) Print(v ...interface{}) {
-	logrus.Info(v)
+	logrus.Info(v...)
 }
 
 //RegisterTableModel register table model
@@ -104,12 +104,12 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.TenantServiceProbe{})
 	m.models = append(m.models, &model.LicenseInfo{})
 	m.models = append(m.models, &model.TenantServicesDelete{})
-	//vs map port
 	m.models = append(m.models, &model.TenantServiceLBMappingPort{})
 	m.models = append(m.models, &model.TenantPlugin{})
 	m.models = append(m.models, &model.TenantPluginBuildVersion{})
 	m.models = append(m.models, &model.TenantServicePluginRelation{})
 	m.models = append(m.models, &model.TenantPluginVersionEnv{})
+	m.models = append(m.models, &model.TenantPluginVersionDiscoverConfig{})
 	m.models = append(m.models, &model.CodeCheckResult{})
 	m.models = append(m.models, &model.ServiceEvent{})
 	m.models = append(m.models, &model.VersionInfo{})
