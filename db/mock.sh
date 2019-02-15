@@ -1,1 +1,1 @@
-mockgen -source=db.go -destination db_mock.go -package db
+mockgen -source=db.go -destination db_mock_test.go -package db

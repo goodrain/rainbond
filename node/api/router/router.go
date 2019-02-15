@@ -90,45 +90,7 @@ func Routers(mode string) *chi.Mux {
 				r.Post("/{node_id}/install", controller.InstallNode)  //install node
 				r.Post("/", controller.AddNode)                       //add node
 				r.Delete("/{node_id}", controller.DeleteRainbondNode) //delete node
-				r.Get("/{node_id}/prometheus/cpu", controller.GetCpu)
-				r.Get("/{node_id}/prometheus/mem", controller.GetMem)
-				r.Get("/{node_id}/prometheus/disk", controller.GetDisk)
-				r.Get("/{node_id}/prometheus/load1", controller.GetLoad1)
-				r.Get("/{node_id}/prometheus/start/{start}/end/{end}/step/{step}/cpu", controller.GetCpuRange)
-				r.Get("/{node_id}/prometheus/start/{start}/end/{end}/step/{step}/mem", controller.GetMemRange)
-				r.Get("/{node_id}/prometheus/start/{start}/end/{end}/step/{step}/disk", controller.GetDiskRange)
-				r.Get("/{node_id}/prometheus/start/{start}/end/{end}/step/{step}/load1", controller.GetLoad1Range)
-				r.Put("/prometheus/expr", controller.GetExpr)
-				r.Put("/prometheus/start/{start}/end/{end}/step/{step}/expr", controller.GetExpr)
-
 			})
-			//TODO:
-			//任务执行框架相关API
-			//任务
-			// r.Route("/tasks", func(r chi.Router) {
-			// 	r.Post("/", controller.CreateTask)
-			// 	r.Get("/", controller.GetTasks)
-			// 	r.Get("/{task_id}", controller.GetTask)
-			// 	r.Delete("/{task_id}", controller.DeleteTask)
-			// 	r.Post("/{task_id}/exec", controller.ExecTask)
-			// 	r.Get("/{task_id}/status", controller.GetTaskStatus)
-			// })
-			// //任务模版
-			// r.Route("/tasktemps", func(r chi.Router) {
-			// 	r.Post("/", controller.CreateTaskTemp)
-			// 	r.Put("/{temp_id}", controller.UpdateTaskTemp)
-			// 	r.Delete("/{temp_id}", controller.DeleteTaskTemp)
-			// })
-			// //任务组
-			// r.Route("/taskgroups", func(r chi.Router) {
-			// 	r.Post("/", controller.CreateTaskGroup)
-			// 	r.Get("/", controller.GetTaskGroups)
-			// 	r.Get("/{group_id}", controller.GetTaskGroup)
-			// 	r.Delete("/{group_id}", controller.DeleteTaskGroup)
-			// 	r.Post("/{group_id}/exec", controller.ExecTaskGroup)
-			// 	r.Get("/{group_id}/status", controller.GetTaskGroupStatus)
-			// })
-			// r.Put("/tasks/taskreload", controller.ReloadStaticTasks)
 		}
 	})
 	return r

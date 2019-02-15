@@ -142,6 +142,14 @@ type TenantPluginVersionEnvDao interface {
 	GetVersionEnvByEnvName(serviceID, pluginID, envName string) (*model.TenantPluginVersionEnv, error)
 }
 
+//TenantPluginVersionConfigDao service plugin config that can be dynamic discovery dao interface
+type TenantPluginVersionConfigDao interface {
+	Dao
+	GetPluginConfig(serviceID, pluginID string) (*model.TenantPluginVersionDiscoverConfig, error)
+	DeletePluginConfig(serviceID, pluginID string) error
+	DeletePluginConfigByServiceID(serviceID string) error
+}
+
 //TenantServicePluginRelationDao TenantServicePluginRelationDao
 type TenantServicePluginRelationDao interface {
 	Dao
@@ -219,6 +227,7 @@ type TenantServiceVolumeDao interface {
 	GetAllVolumes() ([]*model.TenantServiceVolume, error)
 }
 
+//TenantServiceConfigFileDao tenant service config file dao interface
 type TenantServiceConfigFileDao interface {
 	Dao
 	GetByVolumeName(volumeName string) (*model.TenantServiceConfigFile, error)
@@ -294,9 +303,9 @@ type VersionInfoDao interface {
 	GetAllVersionByServiceID(serviceID string) ([]*model.VersionInfo, error)
 	DeleteVersionByEventID(eventID string) error
 	DeleteVersionByServiceID(serviceID string) error
-	GetVersionInfo(timePoint time.Time, serviceIdList []string) ([]*model.VersionInfo, error)
+	GetVersionInfo(timePoint time.Time, serviceIDList []string) ([]*model.VersionInfo, error)
 	DeleteVersionInfo(obj *model.VersionInfo) error
-	DeleteFailureVersionInfo(timePoint time.Time, status string, serviceIdList []string) error
+	DeleteFailureVersionInfo(timePoint time.Time, status string, serviceIDList []string) error
 	SearchVersionInfo() ([]*model.VersionInfo, error)
 }
 
@@ -366,18 +375,20 @@ type RuleExtensionDao interface {
 // HTTPRuleDao -
 type HTTPRuleDao interface {
 	Dao
-	GetHttpRuleByID(id string) (*model.HTTPRule, error)
-	GetHttpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.HTTPRule, error)
-	DeleteHttpRuleByID(id string) error
+	GetHTTPRuleByID(id string) (*model.HTTPRule, error)
+	GetHTTPRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.HTTPRule, error)
+	DeleteHTTPRuleByID(id string) error
+	DeleteHTTPRuleByServiceID(serviceID string) error
 	ListByServiceID(serviceID string) ([]*model.HTTPRule, error)
 }
 
 // TCPRuleDao -
 type TCPRuleDao interface {
 	Dao
-	GetTcpRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.TCPRule, error)
-	GetTcpRuleByID(id string) (*model.TCPRule, error)
-	DeleteTcpRule(tcpRule *model.TCPRule) error
+	GetTCPRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.TCPRule, error)
+	GetTCPRuleByID(id string) (*model.TCPRule, error)
+	DeleteTCPRule(tcpRule *model.TCPRule) error
+	DeleteTCPRuleByServiceID(serviceID string) error
 	ListByServiceID(serviceID string) ([]*model.TCPRule, error)
 }
 
@@ -389,6 +400,7 @@ type IPPortDao interface {
 	GetIPPortByIPAndPort(ip string, port int) (*model.IPPort, error)
 }
 
+//IPPoolDao ip pool dao interface
 type IPPoolDao interface {
 	Dao
 	GetIPPoolByEID(eid string) (*model.IPPool, error)

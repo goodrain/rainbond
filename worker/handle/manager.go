@@ -352,3 +352,27 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	}
 	return nil
 }
+
+//applyPluginConfig apply service plugin config
+func (m *Manager) applyPluginConfig(task *model.Task) error {
+	body, ok := task.Body.(*model.ApplyPluginConfigTaskBody)
+	if !ok {
+		logrus.Errorf("Can't convert %s to *model.ApplyPluginConfigTaskBody", reflect.TypeOf(task.Body))
+		return fmt.Errorf("Can't convert %s to *model.ApplyPluginConfigTaskBody", reflect.TypeOf(task.Body))
+	}
+	oldAppService := m.store.GetAppService(body.ServiceID)
+	if oldAppService == nil || oldAppService.IsClosed() {
+		logrus.Debugf("service is closed,no need handle")
+		return nil
+	}
+	newApp, err := conversion.InitAppService(m.dbmanager, body.ServiceID, "ServiceSource", "TenantServiceBase", "TenantServicePlugin")
+	if err != nil {
+		logrus.Errorf("Application apply plugin config controller failure:%s", err.Error())
+	}
+	err = m.controllerManager.StartController(controller.TypeApplyConfigController, *newApp)
+	if err != nil {
+		logrus.Errorf("Application apply plugin config controller failure:%s", err.Error())
+		return fmt.Errorf("Application apply plugin config controller failure:%s", err.Error())
+	}
+	return nil
+}

@@ -267,6 +267,15 @@ type ApplyRuleTaskBody struct {
 	Action        string `json:"action"`
 }
 
+// ApplyPluginConfigTaskBody apply plugin dynamic discover config
+type ApplyPluginConfigTaskBody struct {
+	ServiceID string `json:"service_id"`
+	PluginID  string `json:"plugin_id"`
+	EventID   string `json:"event_id"`
+	//Action put delete
+	Action string `json:"action"`
+}
+
 //Dependence 依赖关系
 type Dependence struct {
 	CurrentServiceID string `json:"current_service_id"`

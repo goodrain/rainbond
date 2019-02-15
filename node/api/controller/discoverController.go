@@ -90,20 +90,6 @@ func RoutesDiscover(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 }
 
-//ResourcesEnv ResourcesEnv
-func ResourcesEnv(w http.ResponseWriter, r *http.Request) {
-	namespace := chi.URLParam(r, "tenant_id")
-	sourceAlias := chi.URLParam(r, "source_alias")
-	envName := chi.URLParam(r, "env_name")
-	ss, err := discoverService.ToolsGetSourcesEnv(namespace, sourceAlias, envName)
-	if err != nil {
-		err.Handle(r, w)
-		return
-	}
-	w.WriteHeader(200)
-	w.Write(ss)
-}
-
 //UserDefineResources UserDefineResources
 func UserDefineResources(w http.ResponseWriter, r *http.Request) {
 	return

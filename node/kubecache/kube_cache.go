@@ -30,7 +30,7 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 
 	"github.com/Sirupsen/logrus"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	v1beta1 "k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -66,6 +66,7 @@ type KubeClient interface {
 	GetPodsByNodes(nodeName string) (pods []v1.Pod, err error)
 	GetEndpoints(namespace string, selector labels.Selector) ([]*v1.Endpoints, error)
 	GetServices(namespace string, selector labels.Selector) ([]*v1.Service, error)
+	GetConfig(namespace string, selector labels.Selector) ([]*v1.ConfigMap, error)
 	Stop()
 }
 
@@ -87,6 +88,7 @@ func NewKubeClient(cfg *conf.Conf) (KubeClient, error) {
 	sharedInformers.Core().V1().Endpoints().Informer()
 	sharedInformers.Core().V1().Nodes().Informer()
 	sharedInformers.Core().V1().Pods().Informer()
+	sharedInformers.Core().V1().ConfigMaps().Informer()
 	sharedInformers.Start(stop)
 	return &kubeClient{
 		kubeclient:      cli,
@@ -477,4 +479,7 @@ func (k *kubeClient) GetNodes() ([]*v1.Node, error) {
 
 func (k *kubeClient) GetNode(nodeName string) (*v1.Node, error) {
 	return k.sharedInformers.Core().V1().Nodes().Lister().Get(nodeName)
+}
+func (k *kubeClient) GetConfig(namespace string, selector labels.Selector) ([]*v1.ConfigMap, error) {
+	return k.sharedInformers.Core().V1().ConfigMaps().Lister().ConfigMaps(namespace).List(selector)
 }

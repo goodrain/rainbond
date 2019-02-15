@@ -24,12 +24,11 @@ import (
 	"sync"
 
 	"github.com/goodrain/rainbond/worker/appm/store"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 
 	"github.com/goodrain/rainbond/util"
 
 	"k8s.io/client-go/kubernetes"
-
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 //Controller service operating controller interface
@@ -58,6 +57,9 @@ var TypeScalingController TypeController = "scaling"
 
 // TypeApplyRuleController -
 var TypeApplyRuleController TypeController = "apply_rule"
+
+// TypeApplyConfigController -
+var TypeApplyConfigController TypeController = "apply_config"
 
 //Manager controller manager
 type Manager struct {
@@ -141,7 +143,13 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			manager:      m,
 			stopChan:     make(chan struct{}),
 		}
-
+	case TypeApplyConfigController:
+		controller = &applyConfigController{
+			controllerID: controllerID,
+			appService:   apps[0],
+			manager:      m,
+			stopChan:     make(chan struct{}),
+		}
 	default:
 		return fmt.Errorf("No support controller")
 	}

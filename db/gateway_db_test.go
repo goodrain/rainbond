@@ -19,10 +19,11 @@
 package db
 
 import (
+	"testing"
+
 	dbconfig "github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
-	"testing"
 )
 
 func TestIPPortImpl_UpdateModel(t *testing.T) {
@@ -208,7 +209,7 @@ func TestHTTPRuleImpl_ListByServiceID(t *testing.T) {
 	tx.Delete(model.HTTPRule{})
 	tx.Commit()
 
-	rules, err := GetManager().HttpRuleDao().ListByServiceID("")
+	rules, err := GetManager().HTTPRuleDao().ListByServiceID("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,12 +233,12 @@ func TestHTTPRuleImpl_ListByServiceID(t *testing.T) {
 		},
 	}
 	for _, rule := range rules {
-		err := GetManager().HttpRuleDao().AddModel(rule)
+		err := GetManager().HTTPRuleDao().AddModel(rule)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
-	rules, err = GetManager().HttpRuleDao().ListByServiceID(serviceID)
+	rules, err = GetManager().HTTPRuleDao().ListByServiceID(serviceID)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -64,7 +64,7 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) (string, er
 
 	// begin transaction
 	tx := db.GetManager().Begin()
-	if err := db.GetManager().HttpRuleDaoTransactions(tx).AddModel(httpRule); err != nil {
+	if err := db.GetManager().HTTPRuleDaoTransactions(tx).AddModel(httpRule); err != nil {
 		tx.Rollback()
 		return "", err
 	}
@@ -106,7 +106,7 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) (string, er
 // UpdateHTTPRule updates http rule
 func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (string, error) {
 	tx := db.GetManager().Begin()
-	rule, err := g.dbmanager.HttpRuleDaoTransactions(tx).GetHttpRuleByID(req.HTTPRuleID)
+	rule, err := g.dbmanager.HTTPRuleDaoTransactions(tx).GetHTTPRuleByID(req.HTTPRuleID)
 	if err != nil {
 		tx.Rollback()
 		return "", err
@@ -179,7 +179,7 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (stri
 	if req.IP != "" {
 		rule.IP = req.IP
 	}
-	if err := db.GetManager().HttpRuleDaoTransactions(tx).UpdateModel(rule); err != nil {
+	if err := db.GetManager().HTTPRuleDaoTransactions(tx).UpdateModel(rule); err != nil {
 		tx.Rollback()
 		return "", err
 	}
@@ -196,13 +196,13 @@ func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) (stri
 	// begin transaction
 	tx := db.GetManager().Begin()
 	// delete http rule
-	httpRule, err := g.dbmanager.HttpRuleDaoTransactions(tx).GetHttpRuleByID(req.HTTPRuleID)
+	httpRule, err := g.dbmanager.HTTPRuleDaoTransactions(tx).GetHTTPRuleByID(req.HTTPRuleID)
 	svcID := httpRule.ServiceID
 	if err != nil {
 		tx.Rollback()
 		return "", err
 	}
-	if err := g.dbmanager.HttpRuleDaoTransactions(tx).DeleteHttpRuleByID(httpRule.UUID); err != nil {
+	if err := g.dbmanager.HTTPRuleDaoTransactions(tx).DeleteHTTPRuleByID(httpRule.UUID); err != nil {
 		tx.Rollback()
 		return "", err
 	}
@@ -277,7 +277,7 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) (string, erro
 		IP:            req.IP,
 		Port:          req.Port,
 	}
-	if err := g.dbmanager.TcpRuleDaoTransactions(tx).AddModel(tcpRule); err != nil {
+	if err := g.dbmanager.TCPRuleDaoTransactions(tx).AddModel(tcpRule); err != nil {
 		tx.Rollback()
 		return "", err
 	}
@@ -307,7 +307,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 	// begin transaction
 	tx := db.GetManager().Begin()
 	// get old tcp rule
-	tcpRule, err := g.dbmanager.TcpRuleDaoTransactions(tx).GetTcpRuleByID(req.TCPRuleID)
+	tcpRule, err := g.dbmanager.TCPRuleDaoTransactions(tx).GetTCPRuleByID(req.TCPRuleID)
 	if err != nil {
 		tx.Rollback()
 		return "", err
@@ -360,7 +360,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 	} else {
 		logrus.Warningf("Expected external port > %d, but got %d", minPort, req.Port)
 	}
-	if err := g.dbmanager.TcpRuleDaoTransactions(tx).UpdateModel(tcpRule); err != nil {
+	if err := g.dbmanager.TCPRuleDaoTransactions(tx).UpdateModel(tcpRule); err != nil {
 		tx.Rollback()
 		return "", err
 	}
@@ -376,7 +376,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 func (g *GatewayAction) DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) (string, error) {
 	// begin transaction
 	tx := db.GetManager().Begin()
-	tcpRule, err := db.GetManager().TcpRuleDaoTransactions(tx).GetTcpRuleByID(req.TCPRuleID)
+	tcpRule, err := db.GetManager().TCPRuleDaoTransactions(tx).GetTCPRuleByID(req.TCPRuleID)
 	if err != nil {
 		tx.Rollback()
 		return "", err
@@ -387,7 +387,7 @@ func (g *GatewayAction) DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) (string
 		return "", err
 	}
 	// delete tcp rule
-	if err := db.GetManager().TcpRuleDaoTransactions(tx).DeleteTcpRule(tcpRule); err != nil {
+	if err := db.GetManager().TCPRuleDaoTransactions(tx).DeleteTCPRule(tcpRule); err != nil {
 		tx.Rollback()
 		return "", err
 	}
@@ -496,9 +496,9 @@ func (g *GatewayAction) SendTask(serviceID string, action string) error {
 	return nil
 }
 
-// TCPValid checks if the ip and port for TCP is available.
+// TCPAvailable checks if the ip and port for TCP is available.
 func (g *GatewayAction) TCPAvailable(ip string, port int, ruleID string) bool {
-	rule, err := g.dbmanager.TcpRuleDao().GetTcpRuleByID(ruleID)
+	rule, err := g.dbmanager.TCPRuleDao().GetTCPRuleByID(ruleID)
 	if err != nil {
 		logrus.Warningf("error getting TCPRule by UUID(%s)", ruleID)
 		return false

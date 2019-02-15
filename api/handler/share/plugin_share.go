@@ -74,7 +74,7 @@ type PluginShare struct {
 	}
 }
 
-//Share 分享应用
+//Share share app
 func (s *PluginShareHandle) Share(ss PluginShare) (*PluginResult, *util.APIHandleError) {
 	_, err := db.GetManager().TenantPluginDao().GetPluginByID(ss.PluginID, ss.TenantID)
 	if err != nil {
@@ -89,7 +89,7 @@ func (s *PluginShareHandle) Share(ss PluginShare) (*PluginResult, *util.APIHandl
 	shareID := uuid.NewV4().String()
 	shareImageName, err := version.CreateShareImage(ss.Body.ImageInfo.HubURL, ss.Body.ImageInfo.Namespace)
 	if err != nil {
-		return nil, util.CreateAPIHandleErrorf(500, "create share image name error", err)
+		return nil, util.CreateAPIHandleErrorf(500, "create share image name error:%s", err.Error())
 	}
 	info := map[string]interface{}{
 		"image_info":       ss.Body.ImageInfo,

@@ -230,6 +230,26 @@ func (_mr *_MockManagerRecorder) TenantServiceVolumeDaoTransactions(arg0 interfa
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "TenantServiceVolumeDaoTransactions", arg0)
 }
 
+func (_m *MockManager) TenantServiceConfigFileDao() dao.TenantServiceConfigFileDao {
+	ret := _m.ctrl.Call(_m, "TenantServiceConfigFileDao")
+	ret0, _ := ret[0].(dao.TenantServiceConfigFileDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) TenantServiceConfigFileDao() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "TenantServiceConfigFileDao")
+}
+
+func (_m *MockManager) TenantServiceConfigFileDaoTransactions(_param0 *gorm.DB) dao.TenantServiceConfigFileDao {
+	ret := _m.ctrl.Call(_m, "TenantServiceConfigFileDaoTransactions", _param0)
+	ret0, _ := ret[0].(dao.TenantServiceConfigFileDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) TenantServiceConfigFileDaoTransactions(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "TenantServiceConfigFileDaoTransactions", arg0)
+}
+
 func (_m *MockManager) ServiceProbeDao() dao.ServiceProbeDao {
 	ret := _m.ctrl.Call(_m, "ServiceProbeDao")
 	ret0, _ := ret[0].(dao.ServiceProbeDao)
@@ -378,6 +398,26 @@ func (_m *MockManager) TenantPluginVersionENVDaoTransactions(db *gorm.DB) dao.Te
 
 func (_mr *_MockManagerRecorder) TenantPluginVersionENVDaoTransactions(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "TenantPluginVersionENVDaoTransactions", arg0)
+}
+
+func (_m *MockManager) TenantPluginVersionConfigDao() dao.TenantPluginVersionConfigDao {
+	ret := _m.ctrl.Call(_m, "TenantPluginVersionConfigDao")
+	ret0, _ := ret[0].(dao.TenantPluginVersionConfigDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) TenantPluginVersionConfigDao() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "TenantPluginVersionConfigDao")
+}
+
+func (_m *MockManager) TenantPluginVersionConfigDaoTransactions(db *gorm.DB) dao.TenantPluginVersionConfigDao {
+	ret := _m.ctrl.Call(_m, "TenantPluginVersionConfigDaoTransactions", db)
+	ret0, _ := ret[0].(dao.TenantPluginVersionConfigDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) TenantPluginVersionConfigDaoTransactions(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "TenantPluginVersionConfigDaoTransactions", arg0)
 }
 
 func (_m *MockManager) TenantServicePluginRelationDao() dao.TenantServicePluginRelationDao {
@@ -610,44 +650,44 @@ func (_mr *_MockManagerRecorder) RuleExtensionDaoTransactions(arg0 interface{}) 
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "RuleExtensionDaoTransactions", arg0)
 }
 
-func (_m *MockManager) HttpRuleDao() dao.HTTPRuleDao {
-	ret := _m.ctrl.Call(_m, "HttpRuleDao")
+func (_m *MockManager) HTTPRuleDao() dao.HTTPRuleDao {
+	ret := _m.ctrl.Call(_m, "HTTPRuleDao")
 	ret0, _ := ret[0].(dao.HTTPRuleDao)
 	return ret0
 }
 
-func (_mr *_MockManagerRecorder) HttpRuleDao() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "HttpRuleDao")
+func (_mr *_MockManagerRecorder) HTTPRuleDao() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "HTTPRuleDao")
 }
 
-func (_m *MockManager) HttpRuleDaoTransactions(db *gorm.DB) dao.HTTPRuleDao {
-	ret := _m.ctrl.Call(_m, "HttpRuleDaoTransactions", db)
+func (_m *MockManager) HTTPRuleDaoTransactions(db *gorm.DB) dao.HTTPRuleDao {
+	ret := _m.ctrl.Call(_m, "HTTPRuleDaoTransactions", db)
 	ret0, _ := ret[0].(dao.HTTPRuleDao)
 	return ret0
 }
 
-func (_mr *_MockManagerRecorder) HttpRuleDaoTransactions(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "HttpRuleDaoTransactions", arg0)
+func (_mr *_MockManagerRecorder) HTTPRuleDaoTransactions(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "HTTPRuleDaoTransactions", arg0)
 }
 
-func (_m *MockManager) TcpRuleDao() dao.TCPRuleDao {
-	ret := _m.ctrl.Call(_m, "TcpRuleDao")
+func (_m *MockManager) TCPRuleDao() dao.TCPRuleDao {
+	ret := _m.ctrl.Call(_m, "TCPRuleDao")
 	ret0, _ := ret[0].(dao.TCPRuleDao)
 	return ret0
 }
 
-func (_mr *_MockManagerRecorder) TcpRuleDao() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "TcpRuleDao")
+func (_mr *_MockManagerRecorder) TCPRuleDao() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "TCPRuleDao")
 }
 
-func (_m *MockManager) TcpRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao {
-	ret := _m.ctrl.Call(_m, "TcpRuleDaoTransactions", db)
+func (_m *MockManager) TCPRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao {
+	ret := _m.ctrl.Call(_m, "TCPRuleDaoTransactions", db)
 	ret0, _ := ret[0].(dao.TCPRuleDao)
 	return ret0
 }
 
-func (_mr *_MockManagerRecorder) TcpRuleDaoTransactions(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "TcpRuleDaoTransactions", arg0)
+func (_mr *_MockManagerRecorder) TCPRuleDaoTransactions(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "TCPRuleDaoTransactions", arg0)
 }
 
 func (_m *MockManager) IPPortDao() dao.IPPortDao {
@@ -668,4 +708,14 @@ func (_m *MockManager) IPPortDaoTransactions(db *gorm.DB) dao.IPPortDao {
 
 func (_mr *_MockManagerRecorder) IPPortDaoTransactions(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "IPPortDaoTransactions", arg0)
+}
+
+func (_m *MockManager) IPPoolDao() dao.IPPoolDao {
+	ret := _m.ctrl.Call(_m, "IPPoolDao")
+	ret0, _ := ret[0].(dao.IPPoolDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) IPPoolDao() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "IPPoolDao")
 }

@@ -149,12 +149,13 @@ func GetRuleNodes(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, masternodes)
 }
 
+//InitStatus init status
 func InitStatus(w http.ResponseWriter, r *http.Request) {
 	nodeIP := strings.TrimSpace(chi.URLParam(r, "node_ip"))
 	if len(nodeIP) == 0 {
 		err := utils.APIHandleError{
 			Code: 404,
-			Err:  errors.New(fmt.Sprintf("can't find node by node_ip %s", nodeIP)),
+			Err:  fmt.Errorf("can't find node by node_ip %s", nodeIP),
 		}
 		err.Handle(r, w)
 		return
@@ -166,12 +167,14 @@ func InitStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, status)
 }
+
+//Resource -
 func Resource(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
 	if len(nodeUID) == 0 {
 		err := utils.APIHandleError{
 			Code: 404,
-			Err:  errors.New(fmt.Sprintf("can't find node by node_id %s", nodeUID)),
+			Err:  fmt.Errorf("can't find node by node_id %s", nodeUID),
 		}
 		err.Handle(r, w)
 		return
@@ -184,13 +187,13 @@ func Resource(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, res)
 }
 
-//UpNode 节点上线，计算节点操作
+//CheckNode -
 func CheckNode(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
 	if len(nodeUID) == 0 {
 		err := utils.APIHandleError{
 			Code: 404,
-			Err:  errors.New(fmt.Sprintf("can't find node by node_id %s", nodeUID)),
+			Err:  fmt.Errorf("can't find node by node_id %s", nodeUID),
 		}
 		err.Handle(r, w)
 		return
@@ -374,7 +377,7 @@ func UpNode(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, node)
 }
 
-//UpNode 节点实例，计算节点操作
+//Instances get node service instances
 func Instances(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
 	node, err := nodeService.GetNode(nodeUID)
