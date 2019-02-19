@@ -61,3 +61,18 @@ func (s *PolyfillSuite) TestChroot(c *C) {
 func (s *PolyfillSuite) TestRoot(c *C) {
 	c.Assert(s.Helper.Root(), Equals, string(filepath.Separator))
 }
+
+func (s *PolyfillSuite) TestCapabilities(c *C) {
+	testCapabilities(c, new(test.BasicMock))
+	testCapabilities(c, new(test.OnlyReadCapFs))
+	testCapabilities(c, new(test.NoLockCapFs))
+}
+
+func testCapabilities(c *C, basic billy.Basic) {
+	baseCapabilities := billy.Capabilities(basic)
+
+	fs := New(basic)
+	capabilities := billy.Capabilities(fs)
+
+	c.Assert(capabilities, Equals, baseCapabilities)
+}

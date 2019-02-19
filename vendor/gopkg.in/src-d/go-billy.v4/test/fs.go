@@ -188,6 +188,9 @@ func (s *FilesystemSuite) TestRemoveAllRelative(c *C) {
 }
 
 func (s *FilesystemSuite) TestReadDir(c *C) {
+	err := s.FS.MkdirAll("qux", 0755)
+	c.Assert(err, IsNil)
+
 	files := []string{"foo", "bar", "qux/baz", "qux/qux"}
 	for _, name := range files {
 		err := util.WriteFile(s.FS, name, nil, 0644)

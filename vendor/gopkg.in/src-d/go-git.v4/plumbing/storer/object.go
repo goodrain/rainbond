@@ -40,6 +40,8 @@ type EncodedObjectStorer interface {
 	// HasEncodedObject returns ErrObjNotFound if the object doesn't
 	// exist.  If the object does exist, it returns nil.
 	HasEncodedObject(plumbing.Hash) error
+	// EncodedObjectSize returns the plaintext size of the encoded object.
+	EncodedObjectSize(plumbing.Hash) (int64, error)
 }
 
 // DeltaObjectStorer is an EncodedObjectStorer that can return delta
@@ -174,7 +176,6 @@ func (iter *EncodedObjectLookupIter) Close() {
 // no longer needed.
 type EncodedObjectSliceIter struct {
 	series []plumbing.EncodedObject
-	pos    int
 }
 
 // NewEncodedObjectSliceIter returns an object iterator for the given slice of
@@ -218,11 +219,10 @@ func (iter *EncodedObjectSliceIter) Close() {
 // longer needed.
 type MultiEncodedObjectIter struct {
 	iters []EncodedObjectIter
-	pos   int
 }
 
 // NewMultiEncodedObjectIter returns an object iterator for the given slice of
-// objects.
+// EncodedObjectIters.
 func NewMultiEncodedObjectIter(iters []EncodedObjectIter) EncodedObjectIter {
 	return &MultiEncodedObjectIter{iters: iters}
 }

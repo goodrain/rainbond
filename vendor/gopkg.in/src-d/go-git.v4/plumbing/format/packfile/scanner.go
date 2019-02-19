@@ -63,10 +63,7 @@ func NewScanner(r io.Reader) *Scanner {
 
 	crc := crc32.NewIEEE()
 	return &Scanner{
-		r: &teeReader{
-			reader: newByteReadSeeker(seeker),
-			w:      crc,
-		},
+		r:          newTeeReader(newByteReadSeeker(seeker), crc),
 		crc:        crc,
 		IsSeekable: ok,
 	}
@@ -141,11 +138,51 @@ func (s *Scanner) readCount() (uint32, error) {
 	return binary.ReadUint32(s.r)
 }
 
+// SeekObjectHeader seeks to specified offset and returns the ObjectHeader
+// for the next object in the reader
+func (s *Scanner) SeekObjectHeader(offset int64) (*ObjectHeader, error) {
+	// if seeking we assume that you are not interested in the header
+	if s.version == 0 {
+		s.version = VersionSupported
+	}
+
+	if _, err := s.r.Seek(offset, io.SeekStart); err != nil {
+		return nil, err
+	}
+
+	h, err := s.nextObjectHeader()
+	if err != nil {
+		return nil, err
+	}
+
+	h.Offset = offset
+	return h, nil
+}
+
 // NextObjectHeader returns the ObjectHeader for the next object in the reader
 func (s *Scanner) NextObjectHeader() (*ObjectHeader, error) {
 	if err := s.doPending(); err != nil {
 		return nil, err
 	}
+
+	offset, err := s.r.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return nil, err
+	}
+
+	h, err := s.nextObjectHeader()
+	if err != nil {
+		return nil, err
+	}
+
+	h.Offset = offset
+	return h, nil
+}
+
+// nextObjectHeader returns the ObjectHeader for the next object in the reader
+// without the Offset field
+func (s *Scanner) nextObjectHeader() (*ObjectHeader, error) {
+	defer s.Flush()
 
 	s.crc.Reset()
 
@@ -271,6 +308,7 @@ func (s *Scanner) NextObject(w io.Writer) (written int64, crc32 uint32, err erro
 
 	s.pendingObject = nil
 	written, err = s.copyObject(w)
+	s.Flush()
 	crc32 = s.crc.Sum32()
 	return
 }
@@ -279,14 +317,15 @@ func (s *Scanner) NextObject(w io.Writer) (written int64, crc32 uint32, err erro
 // from it zlib stream in an object entry in the packfile.
 func (s *Scanner) copyObject(w io.Writer) (n int64, err error) {
 	if s.zr == nil {
-		zr, err := zlib.NewReader(s.r)
+		var zr io.ReadCloser
+		zr, err = zlib.NewReader(s.r)
 		if err != nil {
 			return 0, fmt.Errorf("zlib initialization error: %s", err)
 		}
 
 		s.zr = zr.(readerResetter)
 	} else {
-		if err := s.zr.Reset(s.r, nil); err != nil {
+		if err = s.zr.Reset(s.r, nil); err != nil {
 			return 0, fmt.Errorf("zlib reset error: %s", err)
 		}
 	}
@@ -307,7 +346,7 @@ var byteSlicePool = sync.Pool{
 // SeekFromStart sets a new offset from start, returns the old position before
 // the change.
 func (s *Scanner) SeekFromStart(offset int64) (previous int64, err error) {
-	// if seeking we assume that you are not interested on the header
+	// if seeking we assume that you are not interested in the header
 	if s.version == 0 {
 		s.version = VersionSupported
 	}
@@ -337,6 +376,16 @@ func (s *Scanner) Close() error {
 	_, err := io.CopyBuffer(stdioutil.Discard, s.r, buf)
 	byteSlicePool.Put(buf)
 	return err
+}
+
+// Flush finishes writing the buffer to crc hasher in case we are using
+// a teeReader. Otherwise it is a no-op.
+func (s *Scanner) Flush() error {
+	tee, ok := s.r.(*teeReader)
+	if ok {
+		return tee.Flush()
+	}
+	return nil
 }
 
 type trackableReader struct {
@@ -374,7 +423,7 @@ type bufferedSeeker struct {
 }
 
 func (r *bufferedSeeker) Seek(offset int64, whence int) (int64, error) {
-	if whence == io.SeekCurrent {
+	if whence == io.SeekCurrent && offset == 0 {
 		current, err := r.r.Seek(offset, whence)
 		if err != nil {
 			return current, err
@@ -400,11 +449,21 @@ type reader interface {
 
 type teeReader struct {
 	reader
-	w   hash.Hash32
-	buf [1]byte
+	w         hash.Hash32
+	bufWriter *bufio.Writer
+}
+
+func newTeeReader(r reader, h hash.Hash32) *teeReader {
+	return &teeReader{
+		reader:    r,
+		w:         h,
+		bufWriter: bufio.NewWriter(h),
+	}
 }
 
 func (r *teeReader) Read(p []byte) (n int, err error) {
+	r.Flush()
+
 	n, err = r.reader.Read(p)
 	if n > 0 {
 		if n, err := r.w.Write(p[:n]); err != nil {
@@ -417,12 +476,12 @@ func (r *teeReader) Read(p []byte) (n int, err error) {
 func (r *teeReader) ReadByte() (b byte, err error) {
 	b, err = r.reader.ReadByte()
 	if err == nil {
-		r.buf[0] = b
-		_, err := r.w.Write(r.buf[:])
-		if err != nil {
-			return 0, err
-		}
+		return b, r.bufWriter.WriteByte(b)
 	}
 
 	return
+}
+
+func (r *teeReader) Flush() (err error) {
+	return r.bufWriter.Flush()
 }

@@ -3,15 +3,19 @@ package git
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"testing"
+	"time"
 
 	"gopkg.in/src-d/go-git.v4/config"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/filemode"
+	"gopkg.in/src-d/go-git.v4/plumbing/format/gitignore"
 	"gopkg.in/src-d/go-git.v4/plumbing/format/index"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
@@ -115,7 +119,7 @@ func (s *WorktreeSuite) TestPullNonFastForward(c *C) {
 	c.Assert(err, IsNil)
 
 	err = w.Pull(&PullOptions{})
-	c.Assert(err, ErrorMatches, "non-fast-forward update")
+	c.Assert(err, Equals, ErrNonFastForwardUpdate)
 }
 
 func (s *WorktreeSuite) TestPullUpdateReferencesIfNeeded(c *C) {
@@ -196,6 +200,10 @@ func (s *WorktreeSuite) TestPullProgress(c *C) {
 }
 
 func (s *WorktreeSuite) TestPullProgressWithRecursion(c *C) {
+	if testing.Short() {
+		c.Skip("skipping test in short mode.")
+	}
+
 	path := fixtures.ByTag("submodule").One().Worktree().Root()
 
 	dir, err := ioutil.TempDir("", "plain-clone-submodule")
@@ -357,8 +365,14 @@ func (s *WorktreeSuite) TestFilenameNormalization(c *C) {
 
 	w, err := server.Worktree()
 	c.Assert(err, IsNil)
-	util.WriteFile(w.Filesystem, filename, []byte("foo"), 0755)
-	_, err = w.Add(filename)
+
+	writeFile := func(path string) {
+		err := util.WriteFile(w.Filesystem, path, []byte("foo"), 0755)
+		c.Assert(err, IsNil)
+	}
+
+	writeFile(filename)
+	origHash, err := w.Add(filename)
 	c.Assert(err, IsNil)
 	_, err = w.Commit("foo", &CommitOptions{Author: defaultSignature()})
 	c.Assert(err, IsNil)
@@ -379,11 +393,32 @@ func (s *WorktreeSuite) TestFilenameNormalization(c *C) {
 	c.Assert(err, IsNil)
 
 	modFilename := norm.Form(norm.NFKD).String(filename)
-	util.WriteFile(w.Filesystem, modFilename, []byte("foo"), 0755)
+	writeFile(modFilename)
 
 	_, err = w.Add(filename)
 	c.Assert(err, IsNil)
-	_, err = w.Add(modFilename)
+	modHash, err := w.Add(modFilename)
+	c.Assert(err, IsNil)
+	// At this point we've got two files with the same content.
+	// Hence their hashes must be the same.
+	c.Assert(origHash == modHash, Equals, true)
+
+	status, err = w.Status()
+	c.Assert(err, IsNil)
+	// However, their names are different and the work tree is still dirty.
+	c.Assert(status.IsClean(), Equals, false)
+
+	// Revert back the deletion of the first file.
+	writeFile(filename)
+	_, err = w.Add(filename)
+	c.Assert(err, IsNil)
+
+	status, err = w.Status()
+	c.Assert(err, IsNil)
+	// Still dirty - the second file is added.
+	c.Assert(status.IsClean(), Equals, false)
+
+	_, err = w.Remove(modFilename)
 	c.Assert(err, IsNil)
 
 	status, err = w.Status()
@@ -613,6 +648,10 @@ func (s *WorktreeSuite) TestCheckoutTag(c *C) {
 }
 
 func (s *WorktreeSuite) TestCheckoutBisect(c *C) {
+	if testing.Short() {
+		c.Skip("skipping test in short mode.")
+	}
+
 	s.testCheckoutBisect(c, "https://github.com/src-d/go-git.git")
 }
 
@@ -1061,6 +1100,35 @@ func (s *WorktreeSuite) TestAddUntracked(c *C) {
 	c.Assert(obj.Size(), Equals, int64(3))
 }
 
+func (s *WorktreeSuite) TestIgnored(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	w.Excludes = make([]gitignore.Pattern, 0)
+	w.Excludes = append(w.Excludes, gitignore.ParsePattern("foo", nil))
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	idx, err := w.r.Storer.Index()
+	c.Assert(err, IsNil)
+	c.Assert(idx.Entries, HasLen, 9)
+
+	err = util.WriteFile(w.Filesystem, "foo", []byte("FOO"), 0755)
+	c.Assert(err, IsNil)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 0)
+
+	file := status.File("foo")
+	c.Assert(file.Staging, Equals, Untracked)
+	c.Assert(file.Worktree, Equals, Untracked)
+}
+
 func (s *WorktreeSuite) TestAddModified(c *C) {
 	fs := memfs.New()
 	w := &Worktree{
@@ -1115,6 +1183,40 @@ func (s *WorktreeSuite) TestAddUnmodified(c *C) {
 	c.Assert(err, IsNil)
 }
 
+func (s *WorktreeSuite) TestAddRemoved(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	idx, err := w.r.Storer.Index()
+	c.Assert(err, IsNil)
+	c.Assert(idx.Entries, HasLen, 9)
+
+	err = w.Filesystem.Remove("LICENSE")
+	c.Assert(err, IsNil)
+
+	hash, err := w.Add("LICENSE")
+	c.Assert(err, IsNil)
+	c.Assert(hash.String(), Equals, "c192bd6a24ea1ab01d78686e417c8bdc7c3d197f")
+
+	e, err := idx.Entry("LICENSE")
+	c.Assert(err, IsNil)
+	c.Assert(e.Hash, Equals, hash)
+	c.Assert(e.Mode, Equals, filemode.Regular)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 1)
+
+	file := status.File("LICENSE")
+	c.Assert(file.Staging, Equals, Deleted)
+}
+
 func (s *WorktreeSuite) TestAddSymlink(c *C) {
 	dir, err := ioutil.TempDir("", "checkout")
 	c.Assert(err, IsNil)
@@ -1141,7 +1243,124 @@ func (s *WorktreeSuite) TestAddSymlink(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(obj, NotNil)
 	c.Assert(obj.Size(), Equals, int64(3))
+}
 
+func (s *WorktreeSuite) TestAddDirectory(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	idx, err := w.r.Storer.Index()
+	c.Assert(err, IsNil)
+	c.Assert(idx.Entries, HasLen, 9)
+
+	err = util.WriteFile(w.Filesystem, "qux/foo", []byte("FOO"), 0755)
+	c.Assert(err, IsNil)
+	err = util.WriteFile(w.Filesystem, "qux/baz/bar", []byte("BAR"), 0755)
+	c.Assert(err, IsNil)
+
+	h, err := w.Add("qux")
+	c.Assert(err, IsNil)
+	c.Assert(h.IsZero(), Equals, true)
+
+	idx, err = w.r.Storer.Index()
+	c.Assert(err, IsNil)
+	c.Assert(idx.Entries, HasLen, 11)
+
+	e, err := idx.Entry("qux/foo")
+	c.Assert(err, IsNil)
+	c.Assert(e.Mode, Equals, filemode.Executable)
+
+	e, err = idx.Entry("qux/baz/bar")
+	c.Assert(err, IsNil)
+	c.Assert(e.Mode, Equals, filemode.Executable)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 2)
+
+	file := status.File("qux/foo")
+	c.Assert(file.Staging, Equals, Added)
+	c.Assert(file.Worktree, Equals, Unmodified)
+
+	file = status.File("qux/baz/bar")
+	c.Assert(file.Staging, Equals, Added)
+	c.Assert(file.Worktree, Equals, Unmodified)
+}
+
+func (s *WorktreeSuite) TestAddDirectoryErrorNotFound(c *C) {
+	r, _ := Init(memory.NewStorage(), memfs.New())
+	w, _ := r.Worktree()
+
+	h, err := w.Add("foo")
+	c.Assert(err, NotNil)
+	c.Assert(h.IsZero(), Equals, true)
+}
+
+func (s *WorktreeSuite) TestAddGlob(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	idx, err := w.r.Storer.Index()
+	c.Assert(err, IsNil)
+	c.Assert(idx.Entries, HasLen, 9)
+
+	err = util.WriteFile(w.Filesystem, "qux/qux", []byte("QUX"), 0755)
+	c.Assert(err, IsNil)
+	err = util.WriteFile(w.Filesystem, "qux/baz", []byte("BAZ"), 0755)
+	c.Assert(err, IsNil)
+	err = util.WriteFile(w.Filesystem, "qux/bar/baz", []byte("BAZ"), 0755)
+	c.Assert(err, IsNil)
+
+	err = w.AddGlob(w.Filesystem.Join("qux", "b*"))
+	c.Assert(err, IsNil)
+
+	idx, err = w.r.Storer.Index()
+	c.Assert(err, IsNil)
+	c.Assert(idx.Entries, HasLen, 11)
+
+	e, err := idx.Entry("qux/baz")
+	c.Assert(err, IsNil)
+	c.Assert(e.Mode, Equals, filemode.Executable)
+
+	e, err = idx.Entry("qux/bar/baz")
+	c.Assert(err, IsNil)
+	c.Assert(e.Mode, Equals, filemode.Executable)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 3)
+
+	file := status.File("qux/qux")
+	c.Assert(file.Staging, Equals, Untracked)
+	c.Assert(file.Worktree, Equals, Untracked)
+
+	file = status.File("qux/baz")
+	c.Assert(file.Staging, Equals, Added)
+	c.Assert(file.Worktree, Equals, Unmodified)
+
+	file = status.File("qux/bar/baz")
+	c.Assert(file.Staging, Equals, Added)
+	c.Assert(file.Worktree, Equals, Unmodified)
+}
+
+func (s *WorktreeSuite) TestAddGlobErrorNoMatches(c *C) {
+	r, _ := Init(memory.NewStorage(), memfs.New())
+	w, _ := r.Worktree()
+
+	err := w.AddGlob("foo")
+	c.Assert(err, Equals, ErrGlobNoMatches)
 }
 
 func (s *WorktreeSuite) TestRemove(c *C) {
@@ -1179,6 +1398,58 @@ func (s *WorktreeSuite) TestRemoveNotExistentEntry(c *C) {
 	c.Assert(err, NotNil)
 }
 
+func (s *WorktreeSuite) TestRemoveDirectory(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	hash, err := w.Remove("json")
+	c.Assert(hash.IsZero(), Equals, true)
+	c.Assert(err, IsNil)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 2)
+	c.Assert(status.File("json/long.json").Staging, Equals, Deleted)
+	c.Assert(status.File("json/short.json").Staging, Equals, Deleted)
+
+	_, err = w.Filesystem.Stat("json")
+	c.Assert(os.IsNotExist(err), Equals, true)
+}
+
+func (s *WorktreeSuite) TestRemoveDirectoryUntracked(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	err = util.WriteFile(w.Filesystem, "json/foo", []byte("FOO"), 0755)
+	c.Assert(err, IsNil)
+
+	hash, err := w.Remove("json")
+	c.Assert(hash.IsZero(), Equals, true)
+	c.Assert(err, IsNil)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 3)
+	c.Assert(status.File("json/long.json").Staging, Equals, Deleted)
+	c.Assert(status.File("json/short.json").Staging, Equals, Deleted)
+	c.Assert(status.File("json/foo").Staging, Equals, Untracked)
+
+	_, err = w.Filesystem.Stat("json")
+	c.Assert(err, IsNil)
+}
+
 func (s *WorktreeSuite) TestRemoveDeletedFromWorktree(c *C) {
 	fs := memfs.New()
 	w := &Worktree{
@@ -1200,6 +1471,74 @@ func (s *WorktreeSuite) TestRemoveDeletedFromWorktree(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(status, HasLen, 1)
 	c.Assert(status.File("LICENSE").Staging, Equals, Deleted)
+}
+
+func (s *WorktreeSuite) TestRemoveGlob(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	err = w.RemoveGlob(w.Filesystem.Join("json", "l*"))
+	c.Assert(err, IsNil)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 1)
+	c.Assert(status.File("json/long.json").Staging, Equals, Deleted)
+}
+
+func (s *WorktreeSuite) TestRemoveGlobDirectory(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	err = w.RemoveGlob("js*")
+	c.Assert(err, IsNil)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 2)
+	c.Assert(status.File("json/short.json").Staging, Equals, Deleted)
+	c.Assert(status.File("json/long.json").Staging, Equals, Deleted)
+
+	_, err = w.Filesystem.Stat("json")
+	c.Assert(os.IsNotExist(err), Equals, true)
+}
+
+func (s *WorktreeSuite) TestRemoveGlobDirectoryDeleted(c *C) {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	c.Assert(err, IsNil)
+
+	err = fs.Remove("json/short.json")
+	c.Assert(err, IsNil)
+
+	err = util.WriteFile(w.Filesystem, "json/foo", []byte("FOO"), 0755)
+	c.Assert(err, IsNil)
+
+	err = w.RemoveGlob("js*")
+	c.Assert(err, IsNil)
+
+	status, err := w.Status()
+	c.Assert(err, IsNil)
+	c.Assert(status, HasLen, 3)
+	c.Assert(status.File("json/short.json").Staging, Equals, Deleted)
+	c.Assert(status.File("json/long.json").Staging, Equals, Deleted)
 }
 
 func (s *WorktreeSuite) TestMove(c *C) {
@@ -1279,6 +1618,10 @@ func (s *WorktreeSuite) TestClean(c *C) {
 
 	c.Assert(len(status), Equals, 1)
 
+	fi, err := fs.Lstat("pkgA")
+	c.Assert(err, IsNil)
+	c.Assert(fi.IsDir(), Equals, true)
+
 	// Clean with Dir: true.
 	err = wt.Clean(&CleanOptions{Dir: true})
 	c.Assert(err, IsNil)
@@ -1287,6 +1630,11 @@ func (s *WorktreeSuite) TestClean(c *C) {
 	c.Assert(err, IsNil)
 
 	c.Assert(len(status), Equals, 0)
+
+	// An empty dir should be deleted, as well.
+	_, err = fs.Lstat("pkgA")
+	c.Assert(err, ErrorMatches, ".*(no such file or directory.*|.*file does not exist)*.")
+
 }
 
 func (s *WorktreeSuite) TestAlternatesRepo(c *C) {
@@ -1552,4 +1900,40 @@ func (s *WorktreeSuite) TestGrep(c *C) {
 			}
 		}
 	}
+}
+
+func (s *WorktreeSuite) TestAddAndCommit(c *C) {
+	dir, err := ioutil.TempDir("", "plain-repo")
+	c.Assert(err, IsNil)
+	defer os.RemoveAll(dir)
+
+	repo, err := PlainInit(dir, false)
+	c.Assert(err, IsNil)
+
+	w, err := repo.Worktree()
+	c.Assert(err, IsNil)
+
+	_, err = w.Add(".")
+	c.Assert(err, IsNil)
+
+	w.Commit("Test Add And Commit", &CommitOptions{Author: &object.Signature{
+		Name:  "foo",
+		Email: "foo@foo.foo",
+		When:  time.Now(),
+	}})
+
+	iter, err := w.r.Log(&LogOptions{})
+	c.Assert(err, IsNil)
+	err = iter.ForEach(func(c *object.Commit) error {
+		files, err := c.Files()
+		if err != nil {
+			return err
+		}
+
+		err = files.ForEach(func(f *object.File) error {
+			return errors.New("Expected no files, got at least 1")
+		})
+		return err
+	})
+	c.Assert(err, IsNil)
 }

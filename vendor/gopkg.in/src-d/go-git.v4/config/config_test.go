@@ -1,6 +1,9 @@
 package config
 
-import . "gopkg.in/check.v1"
+import (
+	. "gopkg.in/check.v1"
+	"gopkg.in/src-d/go-git.v4/plumbing"
+)
 
 type ConfigSuite struct{}
 
@@ -10,6 +13,7 @@ func (s *ConfigSuite) TestUnmarshall(c *C) {
 	input := []byte(`[core]
         bare = true
 		worktree = foo
+		commentchar = bar
 [pack]
 		window = 20
 [remote "origin"]
@@ -20,6 +24,8 @@ func (s *ConfigSuite) TestUnmarshall(c *C) {
 		url = git@github.com:src-d/go-git.git
 		fetch = +refs/heads/*:refs/remotes/origin/*
 		fetch = +refs/pull/*:refs/remotes/origin/pull/*
+[remote "win-local"]
+		url = X:\\Git\\
 [submodule "qux"]
         path = qux
         url = https://github.com/foo/qux.git
@@ -35,19 +41,23 @@ func (s *ConfigSuite) TestUnmarshall(c *C) {
 
 	c.Assert(cfg.Core.IsBare, Equals, true)
 	c.Assert(cfg.Core.Worktree, Equals, "foo")
+	c.Assert(cfg.Core.CommentChar, Equals, "bar")
 	c.Assert(cfg.Pack.Window, Equals, uint(20))
-	c.Assert(cfg.Remotes, HasLen, 2)
+	c.Assert(cfg.Remotes, HasLen, 3)
 	c.Assert(cfg.Remotes["origin"].Name, Equals, "origin")
 	c.Assert(cfg.Remotes["origin"].URLs, DeepEquals, []string{"git@github.com:mcuadros/go-git.git"})
 	c.Assert(cfg.Remotes["origin"].Fetch, DeepEquals, []RefSpec{"+refs/heads/*:refs/remotes/origin/*"})
 	c.Assert(cfg.Remotes["alt"].Name, Equals, "alt")
 	c.Assert(cfg.Remotes["alt"].URLs, DeepEquals, []string{"git@github.com:mcuadros/go-git.git", "git@github.com:src-d/go-git.git"})
 	c.Assert(cfg.Remotes["alt"].Fetch, DeepEquals, []RefSpec{"+refs/heads/*:refs/remotes/origin/*", "+refs/pull/*:refs/remotes/origin/pull/*"})
+	c.Assert(cfg.Remotes["win-local"].Name, Equals, "win-local")
+	c.Assert(cfg.Remotes["win-local"].URLs, DeepEquals, []string{"X:\\Git\\"})
 	c.Assert(cfg.Submodules, HasLen, 1)
 	c.Assert(cfg.Submodules["qux"].Name, Equals, "qux")
 	c.Assert(cfg.Submodules["qux"].URL, Equals, "https://github.com/foo/qux.git")
 	c.Assert(cfg.Submodules["qux"].Branch, Equals, "bar")
-
+	c.Assert(cfg.Branches["master"].Remote, Equals, "origin")
+	c.Assert(cfg.Branches["master"].Merge, Equals, plumbing.ReferenceName("refs/heads/master"))
 }
 
 func (s *ConfigSuite) TestMarshall(c *C) {
@@ -63,8 +73,13 @@ func (s *ConfigSuite) TestMarshall(c *C) {
 	fetch = +refs/pull/*:refs/remotes/origin/pull/*
 [remote "origin"]
 	url = git@github.com:mcuadros/go-git.git
+[remote "win-local"]
+	url = "X:\\Git\\"
 [submodule "qux"]
 	url = https://github.com/foo/qux.git
+[branch "master"]
+	remote = origin
+	merge = refs/heads/master
 `)
 
 	cfg := NewConfig()
@@ -82,9 +97,20 @@ func (s *ConfigSuite) TestMarshall(c *C) {
 		Fetch: []RefSpec{"+refs/heads/*:refs/remotes/origin/*", "+refs/pull/*:refs/remotes/origin/pull/*"},
 	}
 
+	cfg.Remotes["win-local"] = &RemoteConfig{
+		Name: "win-local",
+		URLs: []string{"X:\\Git\\"},
+	}
+
 	cfg.Submodules["qux"] = &Submodule{
 		Name: "qux",
 		URL:  "https://github.com/foo/qux.git",
+	}
+
+	cfg.Branches["master"] = &Branch{
+		Name:   "master",
+		Remote: "origin",
+		Merge:  "refs/heads/master",
 	}
 
 	b, err := cfg.Marshal()
@@ -104,6 +130,8 @@ func (s *ConfigSuite) TestUnmarshallMarshall(c *C) {
 	url = git@github.com:mcuadros/go-git.git
 	fetch = +refs/heads/*:refs/remotes/origin/*
 	mirror = true
+[remote "win-local"]
+	url = "X:\\Git\\"
 [branch "master"]
 	remote = origin
 	merge = refs/heads/master
@@ -118,6 +146,29 @@ func (s *ConfigSuite) TestUnmarshallMarshall(c *C) {
 	c.Assert(string(output), DeepEquals, string(input))
 }
 
+func (s *ConfigSuite) TestValidateConfig(c *C) {
+	config := &Config{
+		Remotes: map[string]*RemoteConfig{
+			"bar": {
+				Name: "bar",
+				URLs: []string{"http://foo/bar"},
+			},
+		},
+		Branches: map[string]*Branch{
+			"bar": {
+				Name: "bar",
+			},
+			"foo": {
+				Name:   "foo",
+				Remote: "origin",
+				Merge:  plumbing.ReferenceName("refs/heads/foo"),
+			},
+		},
+	}
+
+	c.Assert(config.Validate(), IsNil)
+}
+
 func (s *ConfigSuite) TestValidateInvalidRemote(c *C) {
 	config := &Config{
 		Remotes: map[string]*RemoteConfig{
@@ -128,7 +179,7 @@ func (s *ConfigSuite) TestValidateInvalidRemote(c *C) {
 	c.Assert(config.Validate(), Equals, ErrRemoteConfigEmptyURL)
 }
 
-func (s *ConfigSuite) TestValidateInvalidKey(c *C) {
+func (s *ConfigSuite) TestValidateInvalidRemoteKey(c *C) {
 	config := &Config{
 		Remotes: map[string]*RemoteConfig{
 			"bar": {Name: "foo"},
@@ -155,4 +206,47 @@ func (s *ConfigSuite) TestRemoteConfigValidateDefault(c *C) {
 	fetch := config.Fetch
 	c.Assert(fetch, HasLen, 1)
 	c.Assert(fetch[0].String(), Equals, "+refs/heads/*:refs/remotes/foo/*")
+}
+
+func (s *ConfigSuite) TestValidateInvalidBranchKey(c *C) {
+	config := &Config{
+		Branches: map[string]*Branch{
+			"foo": {
+				Name:   "bar",
+				Remote: "origin",
+				Merge:  plumbing.ReferenceName("refs/heads/bar"),
+			},
+		},
+	}
+
+	c.Assert(config.Validate(), Equals, ErrInvalid)
+}
+
+func (s *ConfigSuite) TestValidateInvalidBranch(c *C) {
+	config := &Config{
+		Branches: map[string]*Branch{
+			"bar": {
+				Name:   "bar",
+				Remote: "origin",
+				Merge:  plumbing.ReferenceName("refs/heads/bar"),
+			},
+			"foo": {
+				Name:   "foo",
+				Remote: "origin",
+				Merge:  plumbing.ReferenceName("baz"),
+			},
+		},
+	}
+
+	c.Assert(config.Validate(), Equals, errBranchInvalidMerge)
+}
+
+func (s *ConfigSuite) TestRemoteConfigDefaultValues(c *C) {
+	config := NewConfig()
+
+	c.Assert(config.Remotes, HasLen, 0)
+	c.Assert(config.Branches, HasLen, 0)
+	c.Assert(config.Submodules, HasLen, 0)
+	c.Assert(config.Raw, NotNil)
+	c.Assert(config.Pack.Window, Equals, DefaultPackWindow)
 }

@@ -86,7 +86,7 @@ func (s *DirSuite) TestMkdirAllWithExistingFile(c *C) {
 }
 
 func (s *DirSuite) TestStatDir(c *C) {
-	s.FS.MkdirAll("foo/bar", 0644)
+	s.FS.MkdirAll("foo/bar", 0755)
 
 	fi, err := s.FS.Stat("foo/bar")
 	c.Assert(err, IsNil)
@@ -164,7 +164,7 @@ func (s *DirSuite) TestReadDirNested(c *C) {
 }
 
 func (s *DirSuite) TestReadDirWithMkDirAll(c *C) {
-	err := s.FS.MkdirAll("qux", 0644)
+	err := s.FS.MkdirAll("qux", 0755)
 	c.Assert(err, IsNil)
 
 	files := []string{"qux/baz", "qux/qux"}
@@ -239,7 +239,7 @@ func (s *DirSuite) TestRenameToDir(c *C) {
 }
 
 func (s *DirSuite) TestRenameDir(c *C) {
-	err := s.FS.MkdirAll("foo", 0644)
+	err := s.FS.MkdirAll("foo", 0755)
 	c.Assert(err, IsNil)
 
 	err = util.WriteFile(s.FS, "foo/bar", nil, 0644)

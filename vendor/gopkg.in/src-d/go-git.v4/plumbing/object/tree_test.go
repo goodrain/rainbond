@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/cache"
 	"gopkg.in/src-d/go-git.v4/plumbing/filemode"
 	"gopkg.in/src-d/go-git.v4/plumbing/storer"
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
@@ -97,6 +98,12 @@ func (s *TreeSuite) TestFileFailsWithExistingTrees(c *C) {
 	c.Assert(err, Equals, ErrFileNotFound)
 }
 
+func (s *TreeSuite) TestSize(c *C) {
+	size, err := s.Tree.Size("LICENSE")
+	c.Assert(err, IsNil)
+	c.Assert(size, Equals, int64(1072))
+}
+
 func (s *TreeSuite) TestFiles(c *C) {
 	var count int
 	err := s.Tree.Files().ForEach(func(f *File) error {
@@ -112,6 +119,12 @@ func (s *TreeSuite) TestFindEntry(c *C) {
 	e, err := s.Tree.FindEntry("vendor/foo.go")
 	c.Assert(err, IsNil)
 	c.Assert(e.Name, Equals, "foo.go")
+}
+
+func (s *TreeSuite) TestFindEntryNotFound(c *C) {
+	e, err := s.Tree.FindEntry("not-found")
+	c.Assert(e, IsNil)
+	c.Assert(err, Equals, ErrEntryNotFound)
 }
 
 // Overrides returned plumbing.EncodedObject for given hash.
@@ -335,8 +348,7 @@ func (s *TreeSuite) TestTreeWalkerNextNonRecursive(c *C) {
 
 func (s *TreeSuite) TestTreeWalkerNextSubmodule(c *C) {
 	dotgit := fixtures.ByURL("https://github.com/git-fixtures/submodule.git").One().DotGit()
-	st, err := filesystem.NewStorage(dotgit)
-	c.Assert(err, IsNil)
+	st := filesystem.NewStorage(dotgit, cache.NewObjectLRUDefault())
 
 	hash := plumbing.NewHash("b685400c1f9316f350965a5993d350bc746b0bf4")
 	commit, err := GetCommit(st, hash)

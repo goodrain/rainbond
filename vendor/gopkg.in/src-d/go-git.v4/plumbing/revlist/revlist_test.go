@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/cache"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing/storer"
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
@@ -51,8 +52,7 @@ const (
 
 func (s *RevListSuite) SetUpTest(c *C) {
 	s.Suite.SetUpSuite(c)
-	sto, err := filesystem.NewStorage(fixtures.Basic().One().DotGit())
-	c.Assert(err, IsNil)
+	sto := filesystem.NewStorage(fixtures.Basic().One().DotGit(), cache.NewObjectLRUDefault())
 	s.Storer = sto
 }
 
@@ -67,8 +67,7 @@ func (s *RevListSuite) TestRevListObjects_Submodules(c *C) {
 		"6ecf0ef2c2dffb796033e5a02219af86ec6584e5": true,
 	}
 
-	sto, err := filesystem.NewStorage(fixtures.ByTag("submodule").One().DotGit())
-	c.Assert(err, IsNil)
+	sto := filesystem.NewStorage(fixtures.ByTag("submodule").One().DotGit(), cache.NewObjectLRUDefault())
 
 	ref, err := storer.ResolveReference(sto, plumbing.HEAD)
 	c.Assert(err, IsNil)
@@ -109,10 +108,9 @@ func (s *RevListSuite) TestRevListObjects(c *C) {
 }
 
 func (s *RevListSuite) TestRevListObjectsTagObject(c *C) {
-	sto, err := filesystem.NewStorage(
+	sto := filesystem.NewStorage(
 		fixtures.ByTag("tags").
-			ByURL("https://github.com/git-fixtures/tags.git").One().DotGit())
-	c.Assert(err, IsNil)
+			ByURL("https://github.com/git-fixtures/tags.git").One().DotGit(), cache.NewObjectLRUDefault())
 
 	expected := map[string]bool{
 		"70846e9a10ef7b41064b40f07713d5b8b9a8fc73": true,
@@ -122,6 +120,32 @@ func (s *RevListSuite) TestRevListObjectsTagObject(c *C) {
 	}
 
 	hist, err := Objects(sto, []plumbing.Hash{plumbing.NewHash("ad7897c0fb8e7d9a9ba41fa66072cf06095a6cfc")}, nil)
+	c.Assert(err, IsNil)
+
+	for _, h := range hist {
+		c.Assert(expected[h.String()], Equals, true)
+	}
+
+	c.Assert(len(hist), Equals, len(expected))
+}
+
+func (s *RevListSuite) TestRevListObjectsWithStorageForIgnores(c *C) {
+	sto := filesystem.NewStorage(
+		fixtures.ByTag("merge-conflict").One().DotGit(),
+		cache.NewObjectLRUDefault())
+
+	// The "merge-conflict" repo has one extra commit in it, with a
+	// two files modified in two different subdirs.
+	expected := map[string]bool{
+		"1980fcf55330d9d94c34abee5ab734afecf96aba": true, // commit
+		"73d9cf44e9045254346c73f6646b08f9302c8570": true, // root dir
+		"e8435d512a98586bd2e4fcfcdf04101b0bb1b500": true, // go/
+		"257cc5642cb1a054f08cc83f2d943e56fd3ebe99": true, // haskal.hs
+		"d499a1a0b79b7d87a35155afd0c1cce78b37a91c": true, // example.go
+		"d108adc364fb6f21395d011ae2c8a11d96905b0d": true, // haskal/
+	}
+
+	hist, err := ObjectsWithStorageForIgnores(sto, s.Storer, []plumbing.Hash{plumbing.NewHash("1980fcf55330d9d94c34abee5ab734afecf96aba")}, []plumbing.Hash{plumbing.NewHash("6ecf0ef2c2dffb796033e5a02219af86ec6584e5")})
 	c.Assert(err, IsNil)
 
 	for _, h := range hist {
