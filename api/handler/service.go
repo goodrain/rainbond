@@ -1745,6 +1745,25 @@ func (s *ServiceAction) GetServiceDeployInfo(tenantID, serviceID string) (*pb.De
 	return info, nil
 }
 
+// ListVersionInfo lists version info
+func (s *ServiceAction) ListVersionInfo(serviceID string) (*api_model.BuildListRespVO, error) {
+	versionInfos, err := db.GetManager().VersionInfoDao().GetAllVersionByServiceID(serviceID)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		logrus.Errorf("error getting all version by service id: %v", err)
+		return nil, fmt.Errorf("error getting all version by service id: %v", err)
+	}
+	svc, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	if err != nil {
+		logrus.Errorf("error getting service by uuid: %v", err)
+		return nil, fmt.Errorf("error getting service by uuid: %v", err)
+	}
+	result := &api_model.BuildListRespVO{
+		DeployVersion: svc.DeployVersion,
+		List: versionInfos,
+	}
+	return result, nil
+}
+
 //TransStatus trans service status
 func TransStatus(eStatus string) string {
 	switch eStatus {
