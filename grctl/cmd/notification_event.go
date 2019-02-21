@@ -10,11 +10,11 @@ import (
 	"github.com/urfave/cli"
 )
 
-//NewCmdNode NewCmdNode
+//NewCmdNotificationEvent -
 func NewCmdNotificationEvent() cli.Command {
 	c := cli.Command{
 		Name:  "msg",
-		Usage: "应用异常通知事件。grctl msg",
+		Usage: "manage exception notification events。grctl msg",
 		Subcommands: []cli.Command{
 			{
 				Name:  "get",

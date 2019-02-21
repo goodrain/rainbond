@@ -24,7 +24,6 @@ import (
 	"github.com/Sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/node/kubecache"
-	"github.com/goodrain/rainbond/node/masterserver/task"
 	"github.com/goodrain/rainbond/node/nodem/client"
 
 	"github.com/goodrain/rainbond/node/core/config"
@@ -37,7 +36,6 @@ type MasterServer struct {
 	*store.Client
 	*client.HostNode
 	Cluster          *node.Cluster
-	TaskEngine       *task.TaskEngine
 	ctx              context.Context
 	cancel           context.CancelFunc
 	datacenterConfig *config.DataCenterConfig
@@ -48,10 +46,8 @@ func NewMasterServer(modelnode *client.HostNode, kubecli kubecache.KubeClient) (
 	datacenterConfig := config.GetDataCenterConfig()
 	ctx, cancel := context.WithCancel(context.Background())
 	nodecluster := node.CreateCluster(kubecli, modelnode, datacenterConfig)
-	taskengin := task.CreateTaskEngine(nodecluster, modelnode)
 	ms := &MasterServer{
 		Client:           store.DefalutClient,
-		TaskEngine:       taskengin,
 		HostNode:         modelnode,
 		Cluster:          nodecluster,
 		ctx:              ctx,
@@ -75,9 +71,6 @@ func (m *MasterServer) Start(errchan chan error) error {
 func (m *MasterServer) Stop(i interface{}) {
 	if m.Cluster != nil {
 		m.Cluster.Stop(i)
-	}
-	if m.TaskEngine != nil {
-		m.TaskEngine.Stop()
 	}
 	m.cancel()
 }

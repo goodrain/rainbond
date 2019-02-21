@@ -76,8 +76,6 @@ func NewManager(c option.Conf, node *nodeclient.HostNode, ms *masterserver.Maste
 //Start 启动
 func (m *Manager) Start(errChan chan error) error {
 	logrus.Infof("api server start listening on %s", m.conf.APIAddr)
-	//m.prometheus()
-
 	go func() {
 		if err := http.ListenAndServe(m.conf.APIAddr, m.router); err != nil {
 			logrus.Error("rainbond node api listen error.", err.Error())

@@ -33,7 +33,6 @@ import (
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/core/config"
-	"github.com/goodrain/rainbond/node/core/job"
 )
 
 //ClusterClient ClusterClient
@@ -47,10 +46,6 @@ type ClusterClient interface {
 	GetOptions() *option.Conf
 	GetEndpoints(key string) []string
 	SetEndpoints(key string, value []string)
-	WatchJobs() <-chan *job.Event
-
-	//WatchTasks()
-	//UpdateTask()
 }
 
 //NewClusterClient new cluster client
@@ -144,10 +139,6 @@ func (e *etcdClusterClient) SetEndpoints(key string, value []string) {
 	if err != nil {
 		logrus.Errorf("Failed to put endpoint for %s: %v", key, err)
 	}
-}
-
-func (e *etcdClusterClient) WatchJobs() <-chan *job.Event {
-	return nil
 }
 
 //ErrorNotFound node not found.

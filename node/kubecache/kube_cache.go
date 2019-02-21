@@ -24,6 +24,8 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/client-go/tools/cache"
+
 	"github.com/pquerna/ffjson/ffjson"
 
 	conf "github.com/goodrain/rainbond/cmd/node/option"
@@ -67,6 +69,7 @@ type KubeClient interface {
 	GetEndpoints(namespace string, selector labels.Selector) ([]*v1.Endpoints, error)
 	GetServices(namespace string, selector labels.Selector) ([]*v1.Service, error)
 	GetConfig(namespace string, selector labels.Selector) ([]*v1.ConfigMap, error)
+	AddEventWatch(eventtype string, handler cache.ResourceEventHandler)
 	Stop()
 }
 
@@ -84,15 +87,20 @@ func NewKubeClient(cfg *conf.Conf) (KubeClient, error) {
 	}
 	stop := make(chan struct{})
 	sharedInformers := informers.NewSharedInformerFactory(cli, cfg.MinResyncPeriod)
-	sharedInformers.Core().V1().Services().Informer()
-	sharedInformers.Core().V1().Endpoints().Informer()
+	serviceInformers := sharedInformers.Core().V1().Services().Informer()
+	endpointInformers := sharedInformers.Core().V1().Endpoints().Informer()
+	configmapInformers := sharedInformers.Core().V1().ConfigMaps().Informer()
 	sharedInformers.Core().V1().Nodes().Informer()
 	sharedInformers.Core().V1().Pods().Informer()
-	sharedInformers.Core().V1().ConfigMaps().Informer()
 	sharedInformers.Start(stop)
 	return &kubeClient{
-		kubeclient:      cli,
-		stop:            stop,
+		kubeclient: cli,
+		stop:       stop,
+		watchInformers: map[string]cache.SharedIndexInformer{
+			"service":   serviceInformers,
+			"configmap": configmapInformers,
+			"endpoint":  endpointInformers,
+		},
 		sharedInformers: sharedInformers,
 	}, nil
 }
@@ -100,12 +108,27 @@ func NewKubeClient(cfg *conf.Conf) (KubeClient, error) {
 type kubeClient struct {
 	kubeclient      *kubernetes.Clientset
 	sharedInformers informers.SharedInformerFactory
+	watchInformers  map[string]cache.SharedIndexInformer
 	stop            chan struct{}
 }
 
 func (k *kubeClient) Stop() {
 	if k.stop != nil {
 		close(k.stop)
+	}
+}
+
+//AddEventWatch add event watch handler
+// if eventtype is "" or "all" ,means watch all
+func (k *kubeClient) AddEventWatch(eventtype string, handler cache.ResourceEventHandler) {
+	if eventtype == "all" || eventtype == "" {
+		for _, watch := range k.watchInformers {
+			watch.AddEventHandler(handler)
+		}
+	} else {
+		if watch, ok := k.watchInformers[eventtype]; ok && watch != nil {
+			watch.AddEventHandler(handler)
+		}
 	}
 }
 

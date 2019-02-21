@@ -1,0 +1,178 @@
+// RAINBOND, Application Management Platform
+// Copyright (C) 2014-2017 Goodrain Co., Ltd.
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version. For any non-GPL usage of Rainbond,
+// one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
+// must be obtained first.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+package conver
+
+import (
+	"fmt"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/pquerna/ffjson/ffjson"
+
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	route "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
+	api_model "github.com/goodrain/rainbond/api/model"
+	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"
+	corev1 "k8s.io/api/core/v1"
+)
+
+func getPluginConfigs(configs []*corev1.ConfigMap) (*api_model.ResourceSpec, string, error) {
+	if len(configs) < 1 {
+		return nil, "", fmt.Errorf("no config for mesh")
+	}
+	var rs api_model.ResourceSpec
+	if err := ffjson.Unmarshal([]byte(configs[0].Data["plugin-config"]), &rs); err != nil {
+		logrus.Errorf("unmashal etcd v error, %v", err)
+		return nil, "", err
+	}
+	return &rs, configs[0].Labels["plugin_id"], nil
+}
+
+//OneNodeListerner conver listerner of on envoy node
+func OneNodeListerner(serviceAlias, namespace string, configs []*corev1.ConfigMap, services []*corev1.Service) ([]v2.Listener, error) {
+	resources, _, err := getPluginConfigs(configs)
+	if err != nil {
+		return nil, err
+	}
+	var listener []v2.Listener
+	if resources.BaseServices != nil && len(resources.BaseServices) > 0 {
+		listener = append(listener, upstreamListener(serviceAlias, namespace, resources.BaseServices, services)...)
+	}
+	if resources.BasePorts != nil && len(resources.BasePorts) > 0 {
+		listener = append(listener, downstreamListener(serviceAlias, namespace, resources.BasePorts)...)
+	}
+	return listener, nil
+}
+
+//upstreamListener handle upstream app listener
+// handle kubernetes inner service
+func upstreamListener(serviceAlias, namespace string, dependsServices []*api_model.BaseService, services []*corev1.Service) (ldsL []v2.Listener) {
+	var ListennerConfig = make(map[string]*api_model.BaseService, len(dependsServices))
+	for i, dService := range dependsServices {
+		listennerName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, dService.DependServiceAlias, dService.Port)
+		ListennerConfig[listennerName] = dependsServices[i]
+	}
+	var portMap = make(map[int32]int)
+	var uniqRoute = make(map[string]*route.Route, len(services))
+	var newVHL []route.VirtualHost
+	for _, service := range services {
+		inner, ok := service.Labels["service_type"]
+		if !ok || inner != "inner" {
+			continue
+		}
+		port := service.Spec.Ports[0].Port
+		clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, service.Labels["service_alias"], port)
+		destService := ListennerConfig[clusterName]
+		// Unique by listen port
+		if _, ok := portMap[port]; !ok {
+			listenerName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
+			plds := envoyv2.CreateTCPListener(listenerName, clusterName, "127.0.0.1", uint32(port))
+			ldsL = append(ldsL, plds)
+			portMap[port] = len(ldsL) - 1
+		}
+		portProtocol, ok := service.Labels["port_protocol"]
+		if !ok {
+			portProtocol = destService.Protocol
+		}
+		if portProtocol != "" {
+			//TODO: support more protocol
+			switch portProtocol {
+			case "http", "https":
+				options := envoyv2.GetOptionValues(destService.Options)
+				hashKey := options.RouteBasicHash()
+				if oldroute, ok := uniqRoute[hashKey]; ok {
+					oldrr := oldroute.Action.(*route.Route_Route)
+					oldrrwc := oldrr.Route.ClusterSpecifier.(*route.RouteAction_WeightedClusters)
+					oldrrwc.WeightedClusters.Clusters = append(oldrrwc.WeightedClusters.Clusters, &route.WeightedCluster_ClusterWeight{
+						Name:   clusterName,
+						Weight: envoyv2.ConversionUInt32(options.Weight),
+					})
+				} else {
+					var headerMatchers []*route.HeaderMatcher
+					for _, header := range options.Headers {
+						headerMatchers = append(headerMatchers, &route.HeaderMatcher{
+							Name: header.Name,
+							HeaderMatchSpecifier: &route.HeaderMatcher_PrefixMatch{
+								PrefixMatch: header.Value,
+							},
+						})
+					}
+					r := route.Route{
+						Match: route.RouteMatch{
+							PathSpecifier: &route.RouteMatch_Prefix{
+								Prefix: options.Prefix,
+							},
+							Headers: headerMatchers,
+						},
+						Action: &route.Route_Route{
+							Route: &route.RouteAction{
+								ClusterSpecifier: &route.RouteAction_WeightedClusters{
+									WeightedClusters: &route.WeightedCluster{
+										Clusters: []*route.WeightedCluster_ClusterWeight{
+											&route.WeightedCluster_ClusterWeight{
+												Name:   clusterName,
+												Weight: envoyv2.ConversionUInt32(options.Weight),
+											},
+										},
+									},
+								},
+							},
+						},
+					}
+					pvh := route.VirtualHost{
+						Name:    fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, service.Labels["service_alias"], port),
+						Domains: options.Domains,
+						Routes:  []route.Route{r},
+					}
+					newVHL = append(newVHL, pvh)
+					uniqRoute[hashKey] = &r
+				}
+			default:
+				continue
+			}
+		}
+
+	}
+	// create common http listener
+	if len(newVHL) > 0 {
+		//remove 80 tcp listener is exist
+		if i, ok := portMap[80]; ok {
+			ldsL = append(ldsL[:i], ldsL[i+1:]...)
+		}
+		plds := envoyv2.CreateHTTPListener(fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias), "127.0.0.1", 80, newVHL...)
+		ldsL = append(ldsL, plds)
+	}
+	return
+}
+
+//downstreamListener handle app self port listener
+func downstreamListener(serviceAlias, namespace string, ports []*api_model.BasePort) (ls []v2.Listener) {
+	var portMap = make(map[int32]int, 0)
+	for i := range ports {
+		p := ports[i]
+		port := int32(p.Port)
+		clusterName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
+		listenerName := clusterName
+		if _, ok := portMap[port]; !ok {
+			listener := envoyv2.CreateTCPListener(listenerName, clusterName, "0.0.0.0", uint32(p.ListenPort))
+			ls = append(ls, listener)
+			portMap[port] = 1
+		}
+	}
+	return
+}

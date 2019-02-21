@@ -23,6 +23,8 @@ import (
 	"os"
 	"syscall"
 
+	"github.com/goodrain/rainbond/node/nodem/envoy"
+
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/api"
 	"github.com/goodrain/rainbond/node/api/controller"
@@ -109,6 +111,17 @@ func Run(c *option.Conf) error {
 			return err
 		}
 		defer apiManager.Stop()
+
+		//create service mesh controller
+		grpcserver, err := envoy.CreateDiscoverServerManager(kubecli, *c)
+		if err != nil {
+			return err
+		}
+		if err := grpcserver.Start(errChan); err != nil {
+			return err
+		}
+		defer grpcserver.Stop()
+
 		logrus.Debug("create and start api server moudle success")
 
 		defer controller.Exist(nil)

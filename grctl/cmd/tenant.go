@@ -27,8 +27,10 @@ import (
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/gosuri/uitable"
 	"github.com/urfave/cli"
+
 	//"github.com/goodrain/rainbond/eventlog/conf"
 	"errors"
+
 	config "github.com/goodrain/rainbond/cmd/grctl/option"
 )
 
@@ -159,12 +161,12 @@ func getAllTenant(c *cli.Context) error {
 	return nil
 }
 
-// Create Tenant File
+//CreateTenantFile Create Tenant File
 func CreateTenantFile(tname string) error {
 	filename, err := config.GetTenantNamePath()
 	if err != nil {
 		logrus.Warn("Load config file error.")
-		return errors.New("Load config file error.")
+		return errors.New("Load config file error")
 	}
 	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
 	if err != nil {

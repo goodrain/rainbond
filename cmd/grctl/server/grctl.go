@@ -27,6 +27,7 @@ import (
 	"github.com/urfave/cli"
 )
 
+//App grctl command app
 var App *cli.App
 
 //Run Run
@@ -45,8 +46,8 @@ func Run() error {
 			Usage: "default <USER_HOME>/.kube/config",
 		},
 	}
+	App.Commands = cmd.GetCmds()
 	sort.Sort(cli.FlagsByName(App.Flags))
 	sort.Sort(cli.CommandsByName(App.Commands))
-	App.Commands = cmd.GetCmds()
 	return App.Run(os.Args)
 }

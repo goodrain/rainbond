@@ -32,7 +32,7 @@ import (
 func NewCmdConfigs() cli.Command {
 	c := cli.Command{
 		Name:  "conf",
-		Usage: "集群和服务配置相关工具",
+		Usage: "Cluster and service configuration manage cmd",
 		Subcommands: []cli.Command{
 			cli.Command{
 				Name:  "get",

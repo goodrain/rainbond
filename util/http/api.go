@@ -159,3 +159,9 @@ func Return(r *http.Request, w http.ResponseWriter, code int, reb ResponseBody) 
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, code))
 	render.DefaultResponder(w, r, reb)
 }
+
+//ReturnNoFomart  http return no format result
+func ReturnNoFomart(r *http.Request, w http.ResponseWriter, code int, reb interface{}) {
+	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, code))
+	render.DefaultResponder(w, r, reb)
+}

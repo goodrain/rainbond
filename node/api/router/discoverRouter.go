@@ -19,12 +19,11 @@
 package router
 
 import (
-	"github.com/goodrain/rainbond/node/api/controller"
-
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/node/api/controller"
 )
 
-//DisconverRoutes 发现服务api
+//DisconverRoutes envoy discover api
 func DisconverRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/ping", controller.Ping)
