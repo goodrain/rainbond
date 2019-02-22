@@ -207,7 +207,7 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 	for _, vs := range conf.L7VS {
 		server := &model.Server{
 			Listen:           strings.Join(vs.Listening, " "),
-			ServerName:       vs.ServerName,
+			ServerName:       strings.Replace(vs.ServerName, "tls", "", 1),
 			ForceSSLRedirect: vs.ForceSSLRedirect,
 		}
 		if vs.SSLCert != nil {
