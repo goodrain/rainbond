@@ -517,6 +517,10 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 				if virSrvName == "" {
 					virSrvName = DefVirSrvName
 				}
+				if len(hostSSLMap) != 0 {
+					virSrvName = fmt.Sprintf("tls%s", virSrvName)
+				}
+
 				vs = l7vsMap[virSrvName]
 				if vs == nil {
 					vs = &v1.VirtualService{
