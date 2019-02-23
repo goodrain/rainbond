@@ -26,6 +26,7 @@ type AppAction struct {
 	staticDir string
 }
 
+//GetStaticDir get static dir
 func (a *AppAction) GetStaticDir() string {
 	return a.staticDir
 }
@@ -46,7 +47,7 @@ func CreateAppManager(mqClient client.MQClient) *AppAction {
 func (a *AppAction) Complete(tr *model.ExportAppStruct) error {
 	appName := gjson.Get(tr.Body.GroupMetadata, "group_name").String()
 	if appName == "" {
-		err := errors.New("Failed to get group name form metadata.")
+		err := errors.New("Failed to get group name form metadata")
 		logrus.Error(err)
 		return err
 	}

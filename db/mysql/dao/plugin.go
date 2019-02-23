@@ -350,6 +350,65 @@ func (t *PluginVersionEnvDaoImpl) GetVersionEnvByEnvName(serviceID, pluginID, en
 	return &env, nil
 }
 
+//PluginVersionConfigDaoImpl PluginVersionEnvDaoImpl
+type PluginVersionConfigDaoImpl struct {
+	DB *gorm.DB
+}
+
+//AddModel add or update service plugin config
+func (t *PluginVersionConfigDaoImpl) AddModel(mo model.Interface) error {
+	config := mo.(*model.TenantPluginVersionDiscoverConfig)
+	var oldconfig model.TenantPluginVersionDiscoverConfig
+	if ok := t.DB.Where("service_id=? and plugin_id=?", config.ServiceID, config.PluginID).Find(&oldconfig).RecordNotFound(); ok {
+		if err := t.DB.Create(config).Error; err != nil {
+			return err
+		}
+	} else {
+		config.ID = oldconfig.ID
+		t.UpdateModel(config)
+	}
+	return nil
+}
+
+//UpdateModel update service plugin config
+func (t *PluginVersionConfigDaoImpl) UpdateModel(mo model.Interface) error {
+	env := mo.(*model.TenantPluginVersionDiscoverConfig)
+	if env.ID == 0 || env.ServiceID == "" || env.PluginID == "" {
+		return fmt.Errorf("id can not be empty when update plugin version config")
+	}
+	if err := t.DB.Save(env).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+//DeletePluginConfig delete service plugin config
+func (t *PluginVersionConfigDaoImpl) DeletePluginConfig(serviceID, pluginID string) error {
+	var oldconfig model.TenantPluginVersionDiscoverConfig
+	if err := t.DB.Where("service_id=? and plugin_id=?", serviceID, pluginID).Delete(&oldconfig).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+//DeletePluginConfigByServiceID Batch delete config by service id
+func (t *PluginVersionConfigDaoImpl) DeletePluginConfigByServiceID(serviceID string) error {
+	var oldconfig model.TenantPluginVersionDiscoverConfig
+	if err := t.DB.Where("service_id=?", serviceID).Delete(&oldconfig).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+//GetPluginConfig get service plugin config
+func (t *PluginVersionConfigDaoImpl) GetPluginConfig(serviceID, pluginID string) (*model.TenantPluginVersionDiscoverConfig, error) {
+	var oldconfig model.TenantPluginVersionDiscoverConfig
+	if err := t.DB.Where("service_id=? and plugin_id=?", serviceID, pluginID).Find(&oldconfig).Error; err != nil {
+		return nil, err
+	}
+	return &oldconfig, nil
+}
+
 //TenantServicePluginRelationDaoImpl TenantServicePluginRelationDaoImpl
 type TenantServicePluginRelationDaoImpl struct {
 	DB *gorm.DB

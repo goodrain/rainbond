@@ -63,12 +63,12 @@ type ServiceHandler interface {
 	CreateTenandIDAndName(eid string) (string, string, error)
 	GetPods(serviceID string) ([]*K8sPodInfo, error)
 	TransServieToDelete(serviceID string) error
-	TenantServiceDeletePluginRelation(serviceID, pluginID string) *util.APIHandleError
+	TenantServiceDeletePluginRelation(tenantID, serviceID, pluginID string) *util.APIHandleError
 	GetTenantServicePluginRelation(serviceID string) ([]*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
 	SetTenantServicePluginRelation(tenantID, serviceID string, pss *api_model.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
 	UpdateTenantServicePluginRelation(serviceID string, pss *api_model.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
 	UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError
-	DeleteComplexEnvs(tenantID, serviceAlias, pluginID string) *util.APIHandleError
+	DeletePluginConfig(serviceID, pluginID string) *util.APIHandleError
 	ServiceCheck(*api_model.ServiceCheckStruct) (string, string, *util.APIHandleError)
 	GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError)
 	GetServiceDeployInfo(tenantID, serviceID string) (*pb.DeployInfo, *util.APIHandleError)

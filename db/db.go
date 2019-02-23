@@ -68,6 +68,8 @@ type Manager interface {
 	TenantPluginBuildVersionDaoTransactions(db *gorm.DB) dao.TenantPluginBuildVersionDao
 	TenantPluginVersionENVDao() dao.TenantPluginVersionEnvDao
 	TenantPluginVersionENVDaoTransactions(db *gorm.DB) dao.TenantPluginVersionEnvDao
+	TenantPluginVersionConfigDao() dao.TenantPluginVersionConfigDao
+	TenantPluginVersionConfigDaoTransactions(db *gorm.DB) dao.TenantPluginVersionConfigDao
 	TenantServicePluginRelationDao() dao.TenantServicePluginRelationDao
 	TenantServicePluginRelationDaoTransactions(db *gorm.DB) dao.TenantServicePluginRelationDao
 	TenantServicesStreamPluginPortDao() dao.TenantServicesStreamPluginPortDao
@@ -100,10 +102,10 @@ type Manager interface {
 	CertificateDaoTransactions(db *gorm.DB) dao.CertificateDao
 	RuleExtensionDao() dao.RuleExtensionDao
 	RuleExtensionDaoTransactions(db *gorm.DB) dao.RuleExtensionDao
-	HttpRuleDao() dao.HTTPRuleDao
-	HttpRuleDaoTransactions(db *gorm.DB) dao.HTTPRuleDao
-	TcpRuleDao() dao.TCPRuleDao
-	TcpRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao
+	HTTPRuleDao() dao.HTTPRuleDao
+	HTTPRuleDaoTransactions(db *gorm.DB) dao.HTTPRuleDao
+	TCPRuleDao() dao.TCPRuleDao
+	TCPRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao
 	IPPortDao() dao.IPPortDao
 	IPPortDaoTransactions(db *gorm.DB) dao.IPPortDao
 	IPPoolDao() dao.IPPoolDao
@@ -116,14 +118,13 @@ func CreateManager(config config.Config) (err error) {
 	if config.DBType == "mysql" || config.DBType == "cockroachdb" || config.DBType == "sqlite3" {
 		defaultManager, err = mysql.CreateManager(config)
 		return err
-	} else {
-		//TODO:etcd 插件实现
-		//defaultManager, err = etcd.CreateManager(config)
 	}
+	//TODO:etcd db plugin
+	//defaultManager, err = etcd.CreateManager(config)
 	return fmt.Errorf("Db drivers not supported")
 }
 
-//CloseManager 关闭
+//CloseManager close db manager
 func CloseManager() error {
 	if defaultManager == nil {
 		return errors.New("default db manager not init")
@@ -131,7 +132,7 @@ func CloseManager() error {
 	return defaultManager.CloseManager()
 }
 
-//GetManager 获取管理器
+//GetManager get db manager
 func GetManager() Manager {
 	return defaultManager
 }

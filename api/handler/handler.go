@@ -59,7 +59,6 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 	defaultAppHandler = CreateAppManager(mqClient)
 	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf)
 	defaultNetRulesHandler = CreateNetRulesManager(etcdCli)
-	defaultSourcesHandler = CreateSourcesManager(etcdCli)
 	defaultCloudHandler = CreateCloudManager(conf)
 	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli, etcdCli)
 	//需要使用etcd v2 API
@@ -113,13 +112,6 @@ var defaultNetRulesHandler NetRulesHandler
 //GetRulesManager get manager
 func GetRulesManager() NetRulesHandler {
 	return defaultNetRulesHandler
-}
-
-var defaultSourcesHandler SourcesHandler
-
-//GetSourcesManager get manager
-func GetSourcesManager() SourcesHandler {
-	return defaultSourcesHandler
 }
 
 var defaultCloudHandler CloudHandler

@@ -45,7 +45,6 @@ type V2Manager interface {
 	api.LogInterface
 	api.PluginInterface
 	api.RulesInterface
-	api.SourcesInterface
 	api.AppInterface
 	api.Gatewayer
 }

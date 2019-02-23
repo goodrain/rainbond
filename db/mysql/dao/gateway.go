@@ -20,17 +20,19 @@ package dao
 
 import (
 	"fmt"
+	"reflect"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
-	"reflect"
 )
 
-//TenantServicesDaoImpl -
+//CertificateDaoImpl -
 type CertificateDaoImpl struct {
 	DB *gorm.DB
 }
 
+//AddModel add model
 func (c *CertificateDaoImpl) AddModel(mo model.Interface) error {
 	certificate, ok := mo.(*model.Certificate)
 	if !ok {
@@ -48,17 +50,18 @@ func (c *CertificateDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
+//UpdateModel update Certificate
 func (c *CertificateDaoImpl) UpdateModel(mo model.Interface) error {
 	cert, ok := mo.(*model.Certificate)
 	if !ok {
 		return fmt.Errorf("Failed to convert %s to *model.Certificate", reflect.TypeOf(mo).String())
 	}
-
 	return c.DB.Table(cert.TableName()).
 		Where("uuid = ?", cert.UUID).
 		Update(cert).Error
 }
 
+//AddOrUpdate add or update Certificate
 func (c *CertificateDaoImpl) AddOrUpdate(mo model.Interface) error {
 	cert, ok := mo.(*model.Certificate)
 	if !ok {
@@ -79,12 +82,13 @@ func (c *CertificateDaoImpl) GetCertificateByID(certificateID string) (*model.Ce
 		if err == gorm.ErrRecordNotFound {
 			return &certificate, nil
 		}
-		logrus.Error("error getting certificate by id: %v", err)
+		logrus.Errorf("error getting certificate by id: %s", err.Error())
 		return nil, err
 	}
 	return &certificate, nil
 }
 
+//DeleteCertificateByID delete certificate
 func (c *CertificateDaoImpl) DeleteCertificateByID(certificateID string) error {
 	cert := &model.Certificate{
 		UUID: certificateID,
@@ -92,10 +96,12 @@ func (c *CertificateDaoImpl) DeleteCertificateByID(certificateID string) error {
 	return c.DB.Where("uuid=?", certificateID).Delete(cert).Error
 }
 
+//RuleExtensionDaoImpl rule extension dao
 type RuleExtensionDaoImpl struct {
 	DB *gorm.DB
 }
 
+//AddModel add
 func (c *RuleExtensionDaoImpl) AddModel(mo model.Interface) error {
 	re, ok := mo.(*model.RuleExtension)
 	if !ok {
@@ -104,16 +110,17 @@ func (c *RuleExtensionDaoImpl) AddModel(mo model.Interface) error {
 	var old model.RuleExtension
 	if ok := c.DB.Where("rule_id = ? and value = ?", re.RuleID, re.Value).Find(&old).RecordNotFound(); ok {
 		return c.DB.Create(re).Error
-	} else {
-		return fmt.Errorf("RuleExtension already exists based on RuleID(%s) and Value(%s)",
-			re.RuleID, re.Value)
 	}
+	return fmt.Errorf("RuleExtension already exists based on RuleID(%s) and Value(%s)",
+		re.RuleID, re.Value)
 }
 
+//UpdateModel update model,do not impl
 func (c *RuleExtensionDaoImpl) UpdateModel(model.Interface) error {
 	return nil
 }
 
+//GetRuleExtensionByRuleID get extension by rule
 func (c *RuleExtensionDaoImpl) GetRuleExtensionByRuleID(ruleID string) ([]*model.RuleExtension, error) {
 	var ruleExtension []*model.RuleExtension
 	if err := c.DB.Where("rule_id = ?", ruleID).Find(&ruleExtension).Error; err != nil {
@@ -133,17 +140,19 @@ func (c *RuleExtensionDaoImpl) DeleteRuleExtensionByRuleID(ruleID string) error 
 	return c.DB.Where("rule_id=?", ruleID).Delete(re).Error
 }
 
-type HttpRuleDaoImpl struct {
+//HTTPRuleDaoImpl http rule
+type HTTPRuleDaoImpl struct {
 	DB *gorm.DB
 }
 
-func (h *HttpRuleDaoImpl) AddModel(mo model.Interface) error {
+//AddModel -
+func (h *HTTPRuleDaoImpl) AddModel(mo model.Interface) error {
 	httpRule, ok := mo.(*model.HTTPRule)
 	if !ok {
 		return fmt.Errorf("Can't not convert %s to *model.HTTPRule", reflect.TypeOf(mo).String())
 	}
-	var oldHttpRule model.HTTPRule
-	if ok := h.DB.Where("uuid=?", httpRule.UUID).Find(&oldHttpRule).RecordNotFound(); ok {
+	var oldHTTPRule model.HTTPRule
+	if ok := h.DB.Where("uuid=?", httpRule.UUID).Find(&oldHTTPRule).RecordNotFound(); ok {
 		if err := h.DB.Create(httpRule).Error; err != nil {
 			return err
 		}
@@ -153,7 +162,8 @@ func (h *HttpRuleDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-func (h *HttpRuleDaoImpl) UpdateModel(mo model.Interface) error {
+//UpdateModel -
+func (h *HTTPRuleDaoImpl) UpdateModel(mo model.Interface) error {
 	hr, ok := mo.(*model.HTTPRule)
 	if !ok {
 		return fmt.Errorf("Failed to convert %s to *model.HTTPRule", reflect.TypeOf(mo).String())
@@ -164,8 +174,8 @@ func (h *HttpRuleDaoImpl) UpdateModel(mo model.Interface) error {
 		Update(hr).Error
 }
 
-// GetHttpRuleByServiceIDAndContainerPort gets a HTTPRule based on uuid
-func (h *HttpRuleDaoImpl) GetHttpRuleByID(id string) (*model.HTTPRule, error) {
+// GetHTTPRuleByID gets a HTTPRule based on uuid
+func (h *HTTPRuleDaoImpl) GetHTTPRuleByID(id string) (*model.HTTPRule, error) {
 	httpRule := &model.HTTPRule{}
 	if err := h.DB.Where("uuid = ?", id).Find(httpRule).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -176,8 +186,8 @@ func (h *HttpRuleDaoImpl) GetHttpRuleByID(id string) (*model.HTTPRule, error) {
 	return httpRule, nil
 }
 
-// GetHttpRuleByServiceIDAndContainerPort gets a HTTPRule based on serviceID and containerPort
-func (h *HttpRuleDaoImpl) GetHttpRuleByServiceIDAndContainerPort(serviceID string,
+// GetHTTPRuleByServiceIDAndContainerPort gets a HTTPRule based on serviceID and containerPort
+func (h *HTTPRuleDaoImpl) GetHTTPRuleByServiceIDAndContainerPort(serviceID string,
 	containerPort int) ([]*model.HTTPRule, error) {
 	var httpRule []*model.HTTPRule
 	if err := h.DB.Where("service_id = ? and container_port = ?", serviceID,
@@ -190,10 +200,9 @@ func (h *HttpRuleDaoImpl) GetHttpRuleByServiceIDAndContainerPort(serviceID strin
 	return httpRule, nil
 }
 
-func (h *HttpRuleDaoImpl) DeleteHttpRuleByID(id string) error {
-	httpRule := &model.HTTPRule{
-		UUID: id,
-	}
+//DeleteHTTPRuleByID delete http rule by rule id
+func (h *HTTPRuleDaoImpl) DeleteHTTPRuleByID(id string) error {
+	httpRule := &model.HTTPRule{}
 	if err := h.DB.Where("uuid = ? ", id).Delete(httpRule).Error; err != nil {
 		return err
 	}
@@ -201,8 +210,17 @@ func (h *HttpRuleDaoImpl) DeleteHttpRuleByID(id string) error {
 	return nil
 }
 
+//DeleteHTTPRuleByServiceID delete http rule by service id
+func (h *HTTPRuleDaoImpl) DeleteHTTPRuleByServiceID(serviceID string) error {
+	httpRule := &model.HTTPRule{}
+	if err := h.DB.Where("service_id = ? ", serviceID).Delete(httpRule).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
 // ListByServiceID lists all HTTPRules matching serviceID
-func (h *HttpRuleDaoImpl) ListByServiceID(serviceID string) ([]*model.HTTPRule, error) {
+func (h *HTTPRuleDaoImpl) ListByServiceID(serviceID string) ([]*model.HTTPRule, error) {
 	var rules []*model.HTTPRule
 	if err := h.DB.Where("service_id = ?", serviceID).Find(&rules).Error; err != nil {
 		return nil, err
@@ -210,16 +228,16 @@ func (h *HttpRuleDaoImpl) ListByServiceID(serviceID string) ([]*model.HTTPRule, 
 	return rules, nil
 }
 
-// TcpRuleDaoTmpl is a implementation of TcpRuleDao
-type TcpRuleDaoTmpl struct {
+// TCPRuleDaoTmpl is a implementation of TcpRuleDao
+type TCPRuleDaoTmpl struct {
 	DB *gorm.DB
 }
 
 // AddModel adds model.TCPRule
-func (t *TcpRuleDaoTmpl) AddModel(mo model.Interface) error {
+func (t *TCPRuleDaoTmpl) AddModel(mo model.Interface) error {
 	tcpRule := mo.(*model.TCPRule)
-	var oldTcpRule model.TCPRule
-	if ok := t.DB.Where("uuid = ?", tcpRule.UUID).Find(&oldTcpRule).RecordNotFound(); ok {
+	var oldTCPRule model.TCPRule
+	if ok := t.DB.Where("uuid = ?", tcpRule.UUID).Find(&oldTCPRule).RecordNotFound(); ok {
 		if err := t.DB.Create(tcpRule).Error; err != nil {
 			return err
 		}
@@ -230,7 +248,7 @@ func (t *TcpRuleDaoTmpl) AddModel(mo model.Interface) error {
 }
 
 // UpdateModel updates model.TCPRule
-func (t *TcpRuleDaoTmpl) UpdateModel(mo model.Interface) error {
+func (t *TCPRuleDaoTmpl) UpdateModel(mo model.Interface) error {
 	tr, ok := mo.(*model.TCPRule)
 	if !ok {
 		return fmt.Errorf("Failed to convert %s to *model.TCPRule", reflect.TypeOf(mo).String())
@@ -241,11 +259,11 @@ func (t *TcpRuleDaoTmpl) UpdateModel(mo model.Interface) error {
 		Update(tr).Error
 }
 
-// GetTcpRuleByServiceIDAndContainerPort gets a TCPRule based on serviceID and containerPort
-func (s *TcpRuleDaoTmpl) GetTcpRuleByServiceIDAndContainerPort(serviceID string,
+// GetTCPRuleByServiceIDAndContainerPort gets a TCPRule based on serviceID and containerPort
+func (t *TCPRuleDaoTmpl) GetTCPRuleByServiceIDAndContainerPort(serviceID string,
 	containerPort int) ([]*model.TCPRule, error) {
 	var result []*model.TCPRule
-	if err := s.DB.Where("service_id = ? and container_port = ?", serviceID,
+	if err := t.DB.Where("service_id = ? and container_port = ?", serviceID,
 		containerPort).Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, nil
@@ -255,10 +273,10 @@ func (s *TcpRuleDaoTmpl) GetTcpRuleByServiceIDAndContainerPort(serviceID string,
 	return result, nil
 }
 
-// GetTcpRuleByID gets a TCPRule based on tcpRuleID
-func (s *TcpRuleDaoTmpl) GetTcpRuleByID(id string) (*model.TCPRule, error) {
+// GetTCPRuleByID gets a TCPRule based on tcpRuleID
+func (t *TCPRuleDaoTmpl) GetTCPRuleByID(id string) (*model.TCPRule, error) {
 	result := &model.TCPRule{}
-	if err := s.DB.Where("uuid = ?", id).Find(result).Error; err != nil {
+	if err := t.DB.Where("uuid = ?", id).Find(result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -267,15 +285,21 @@ func (s *TcpRuleDaoTmpl) GetTcpRuleByID(id string) (*model.TCPRule, error) {
 	return result, nil
 }
 
-// DeleteTcpRule deletes model.TCPRule
-func (s *TcpRuleDaoTmpl) DeleteTcpRule(tcpRule *model.TCPRule) error {
-	return s.DB.Where("uuid = ?", tcpRule.UUID).Delete(tcpRule).Error
+// DeleteTCPRule deletes model.TCPRule
+func (t *TCPRuleDaoTmpl) DeleteTCPRule(tcpRule *model.TCPRule) error {
+	return t.DB.Where("uuid = ?", tcpRule.UUID).Delete(tcpRule).Error
+}
+
+// DeleteTCPRuleByServiceID deletes model.TCPRule
+func (t *TCPRuleDaoTmpl) DeleteTCPRuleByServiceID(serviceID string) error {
+	var tcpRule = &model.TCPRule{}
+	return t.DB.Where("service_id = ?", serviceID).Delete(tcpRule).Error
 }
 
 // ListByServiceID lists all TCPRules matching serviceID
-func (h *TcpRuleDaoTmpl) ListByServiceID(serviceID string) ([]*model.TCPRule, error) {
+func (t *TCPRuleDaoTmpl) ListByServiceID(serviceID string) ([]*model.TCPRule, error) {
 	var rules []*model.TCPRule
-	if err := h.DB.Where("service_id = ?", serviceID).Find(&rules).Error; err != nil {
+	if err := t.DB.Where("service_id = ?", serviceID).Find(&rules).Error; err != nil {
 		return nil, err
 	}
 	return rules, nil
@@ -326,7 +350,7 @@ func (i *IPPortImpl) GetIPByPort(port int) ([]*model.IPPort, error) {
 	return result, nil
 }
 
-// GetIPByPort returns an IPPort that matches ip and port
+// GetIPPortByIPAndPort returns an IPPort that matches ip and port
 func (i *IPPortImpl) GetIPPortByIPAndPort(ip string, port int) (*model.IPPort, error) {
 	var result model.IPPort
 	if err := i.DB.Where("ip = ? and port = ?", ip, port).Find(&result).Error; err != nil {

@@ -28,7 +28,8 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
-func APIServer(c *controller.ControllerManager) *chi.Mux {
+//Server api server
+func Server(c *controller.RuleControllerManager) *chi.Mux {
 	r := chi.NewRouter()
 	r.Route("/monitor", func(r chi.Router) {
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {

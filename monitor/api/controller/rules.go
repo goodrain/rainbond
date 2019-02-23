@@ -1,48 +1,48 @@
 package controller
 
 import (
-	httputil "github.com/goodrain/rainbond/util/http"
 	"io/ioutil"
 	"net/http"
 
+	httputil "github.com/goodrain/rainbond/util/http"
+
 	"encoding/json"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 )
 
-type ControllerManager struct {
+//RuleControllerManager controller manager
+type RuleControllerManager struct {
 	Rules   *prometheus.AlertingRulesManager
 	Manager *prometheus.Manager
 }
 
-func NewControllerManager(a *prometheus.AlertingRulesManager, p *prometheus.Manager) *ControllerManager {
-	c := &ControllerManager{
+//NewControllerManager new controller manager
+func NewControllerManager(a *prometheus.AlertingRulesManager, p *prometheus.Manager) *RuleControllerManager {
+	c := &RuleControllerManager{
 		Rules:   a,
 		Manager: p,
 	}
 	return c
 }
 
-func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
-	logrus.Info("add rules")
+//AddRules add rule
+func (c *RuleControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
 	in, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		httputil.ReturnError(r, w, 400, err.Error())
 		return
 	}
-	println(string(in))
 	var RulesConfig prometheus.AlertingNameConfig
-
 	unmarshalErr := json.Unmarshal(in, &RulesConfig)
 	if unmarshalErr != nil {
 		logrus.Info(unmarshalErr)
 		httputil.ReturnError(r, w, 400, err.Error())
 		return
 	}
-
 	c.Rules.LoadAlertingRulesConfig()
-
 	group := c.Rules.RulesConfig.Groups
 	for _, v := range group {
 		if v.Name == RulesConfig.Name {
@@ -55,26 +55,23 @@ func (c *ControllerManager) AddRules(w http.ResponseWriter, r *http.Request) {
 	c.Rules.SaveAlertingRulesConfig()
 	c.Manager.RestartDaemon()
 	httputil.ReturnSuccess(r, w, "Add rule successfully")
-
 }
 
-func (c *ControllerManager) GetRules(w http.ResponseWriter, r *http.Request) {
-	logrus.Infof("get rule")
+//GetRules get rules
+func (c *RuleControllerManager) GetRules(w http.ResponseWriter, r *http.Request) {
 	rulesName := chi.URLParam(r, "rules_name")
 	c.Rules.LoadAlertingRulesConfig()
-
 	for _, v := range c.Rules.RulesConfig.Groups {
 		if v.Name == rulesName {
 			httputil.ReturnSuccess(r, w, v)
 			return
 		}
 	}
-
 	httputil.ReturnError(r, w, 404, "Rule does not exist")
 }
 
-func (c *ControllerManager) DelRules(w http.ResponseWriter, r *http.Request) {
-	logrus.Infof("delete rule")
+//DelRules del rules
+func (c *RuleControllerManager) DelRules(w http.ResponseWriter, r *http.Request) {
 	rulesName := chi.URLParam(r, "rules_name")
 	c.Rules.LoadAlertingRulesConfig()
 	groupsList := c.Rules.RulesConfig.Groups
@@ -91,26 +88,22 @@ func (c *ControllerManager) DelRules(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, "")
 }
 
-func (c *ControllerManager) RegRules(w http.ResponseWriter, r *http.Request) {
+//RegRules reg rules
+func (c *RuleControllerManager) RegRules(w http.ResponseWriter, r *http.Request) {
 	rulesName := chi.URLParam(r, "rules_name")
 	in, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		httputil.ReturnError(r, w, 400, err.Error())
 		return
 	}
-	println(string(in))
-
 	var RulesConfig prometheus.AlertingNameConfig
-
 	unmarshalErr := json.Unmarshal(in, &RulesConfig)
 	if unmarshalErr != nil {
 		logrus.Info(unmarshalErr)
 		httputil.ReturnError(r, w, 400, err.Error())
 		return
 	}
-
 	c.Rules.LoadAlertingRulesConfig()
-
 	group := c.Rules.RulesConfig.Groups
 	for i, v := range group {
 		if v.Name == rulesName {
@@ -124,8 +117,8 @@ func (c *ControllerManager) RegRules(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnError(r, w, 404, "The rule to be updated does not exist")
 }
 
-func (c *ControllerManager) GetAllRules(w http.ResponseWriter, r *http.Request) {
-	logrus.Infof("get all rule")
+//GetAllRules get all rules
+func (c *RuleControllerManager) GetAllRules(w http.ResponseWriter, r *http.Request) {
 	c.Rules.LoadAlertingRulesConfig()
 	val := c.Rules.RulesConfig
 	httputil.ReturnSuccess(r, w, val)

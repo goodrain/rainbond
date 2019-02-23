@@ -148,7 +148,7 @@ func (d *DiscoverAction) DiscoverClusters(
 	pluginID := nn[1]
 	serviceAlias := nn[2]
 	var cds = &envoyv1.CDSCluter{}
-	resources, err := d.ToolsGetRainbondResources(namespace, serviceAlias, pluginID)
+	resources, err := d.GetPluginConfigs(namespace, serviceAlias, pluginID)
 	if err != nil {
 		if strings.Contains(err.Error(), "is not exist") {
 			return cds, nil
@@ -264,7 +264,7 @@ func (d *DiscoverAction) DiscoverListeners(
 	pluginID := nn[1]
 	serviceAlias := nn[2]
 	lds := &envoyv1.LDSListener{}
-	resources, err := d.ToolsGetRainbondResources(namespace, serviceAlias, pluginID)
+	resources, err := d.GetPluginConfigs(namespace, serviceAlias, pluginID)
 	if err != nil {
 		if strings.Contains(err.Error(), "is not exist") {
 			return lds, nil
@@ -404,42 +404,27 @@ func Duplicate(a interface{}) (ret []interface{}) {
 	return ret
 }
 
-//ToolsGetSourcesEnv rds
-//envName maybe is plugin id
-func (d *DiscoverAction) ToolsGetSourcesEnv(
-	namespace, sourceAlias, envName string) ([]byte, *util.APIHandleError) {
-	k := fmt.Sprintf("/resources/define/%s/%s/%s", namespace, sourceAlias, envName)
-	resp, err := d.etcdCli.Get(k)
-	if err != nil {
-		logrus.Errorf("get etcd value error, %v", err)
-		return nil, util.CreateAPIHandleError(500, err)
-	}
-	if resp.Count != 0 {
-		v := resp.Kvs[0].Value
-		return v, nil
-	}
-	return []byte{}, nil
-}
-
-//ToolsGetRainbondResources get plugin configs from etcd
+//GetPluginConfigs get plugin configs
 //if not exist return error
-func (d *DiscoverAction) ToolsGetRainbondResources(namespace, sourceAlias, pluginID string) (*api_model.ResourceSpec, error) {
-	k := fmt.Sprintf("/resources/define/%s/%s/%s", namespace, sourceAlias, pluginID)
-	resp, err := d.etcdCli.Get(k)
+func (d *DiscoverAction) GetPluginConfigs(namespace, sourceAlias, pluginID string) (*api_model.ResourceSpec, error) {
+	labelname := fmt.Sprintf("plugin_id=%s,service_alias=%s", pluginID, sourceAlias)
+	selector, err := labels.Parse(labelname)
 	if err != nil {
-		logrus.Errorf("get etcd value error, %v", err)
 		return nil, err
 	}
+	configs, err := d.kubecli.GetConfig(namespace, selector)
+	if err != nil || len(configs) == 0 {
+		return nil, fmt.Errorf("get plugin config failure %s", func() string {
+			if err != nil {
+				return err.Error()
+			}
+			return "configs is empty"
+		}())
+	}
 	var rs api_model.ResourceSpec
-	if resp.Count != 0 {
-		v := resp.Kvs[0].Value
-		if err := ffjson.Unmarshal(v, &rs); err != nil {
-			logrus.Errorf("unmashal etcd v error, %v", err)
-			return nil, err
-		}
-	} else {
-		logrus.Warningf("resources is not exist, key is %s", k)
-		return nil, fmt.Errorf("resources is not exist")
+	if err := ffjson.Unmarshal([]byte(configs[0].Data["plugin-config"]), &rs); err != nil {
+		logrus.Errorf("unmashal etcd v error, %v", err)
+		return nil, err
 	}
 	return &rs, nil
 }

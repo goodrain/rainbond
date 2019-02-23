@@ -236,7 +236,7 @@ func TestGetHttpRuleByServiceIDAndContainerPort(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := GetManager().HttpRuleDao().GetHttpRuleByServiceIDAndContainerPort(
+	_, err := GetManager().HTTPRuleDao().GetHttpRuleByServiceIDAndContainerPort(
 		"43eaae441859eda35b02075d37d83581", 10001)
 	if err != nil {
 		t.Fatal(err)

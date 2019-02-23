@@ -19,9 +19,9 @@
 package handler
 
 import (
-	"context"
 	"fmt"
-	"strings"
+
+	"github.com/goodrain/rainbond/worker/discover/model"
 
 	"github.com/jinzhu/gorm"
 
@@ -30,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	gclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/pquerna/ffjson/ffjson"
 )
 
@@ -43,24 +44,32 @@ func (s *ServiceAction) GetTenantServicePluginRelation(serviceID string) ([]*dbm
 }
 
 //TenantServiceDeletePluginRelation uninstall plugin for app
-func (s *ServiceAction) TenantServiceDeletePluginRelation(serviceID, pluginID string) *util.APIHandleError {
+func (s *ServiceAction) TenantServiceDeletePluginRelation(tenantID, serviceID, pluginID string) *util.APIHandleError {
 	tx := db.GetManager().Begin()
-	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteRelationByServiceIDAndPluginID(serviceID, pluginID); err != nil {
-		if err != gorm.ErrRecordNotFound {
-			tx.Rollback()
-			return util.CreateAPIHandleErrorFromDBError("delete plugin relation", err)
+	deleteFunclist := []func(serviceID, pluginID string) error{
+		db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteRelationByServiceIDAndPluginID,
+		db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByPluginID,
+		db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).DeletePluginConfig,
+	}
+	for _, del := range deleteFunclist {
+		if err := del(serviceID, pluginID); err != nil {
+			if err != gorm.ErrRecordNotFound {
+				tx.Rollback()
+				return util.CreateAPIHandleErrorFromDBError("delete plugin relation", err)
+			}
 		}
 	}
-	if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByPluginID(serviceID, pluginID); err != nil {
-		if err != gorm.ErrRecordNotFound {
-			tx.Rollback()
-			return util.CreateAPIHandleErrorFromDBError("delete relation env", err)
-		}
+	if err := s.deletePluginConfig(nil, serviceID, pluginID); err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleErrorFromDBError("delete service plugin config failure", err)
 	}
-	if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteAllPluginMappingPortByServiceID(serviceID); err != nil {
-		if err != gorm.ErrRecordNotFound {
-			tx.Rollback()
-			return util.CreateAPIHandleErrorFromDBError("delete upstream plugin mapping port", err)
+	plugin, _ := db.GetManager().TenantPluginDao().GetPluginByID(pluginID, tenantID)
+	if plugin != nil && plugin.PluginModel == dbmodel.UpNetPlugin {
+		if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteAllPluginMappingPortByServiceID(serviceID); err != nil {
+			if err != gorm.ErrRecordNotFound {
+				tx.Rollback()
+				return util.CreateAPIHandleErrorFromDBError("delete upstream plugin mapping port", err)
+			}
 		}
 	}
 	if err := tx.Commit().Error; err != nil {
@@ -124,7 +133,7 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 				p.ListenPort = pluginPort
 			}
 		}
-		if err := s.upComplexEnvs(plugin.TenantID, pss.ServiceAlias, plugin.PluginID, pss.Body.ConfigEnvs.ComplexEnvs); err != nil {
+		if err := s.SavePluginConfig(serviceID, plugin.PluginID, pss.Body.ConfigEnvs.ComplexEnvs); err != nil {
 			tx.Rollback()
 			return nil, util.CreateAPIHandleError(500, fmt.Errorf("set complex error, %v", err))
 		}
@@ -189,22 +198,6 @@ func (s *ServiceAction) normalEnvs(tx *gorm.DB, serviceID, pluginID string, envs
 	return nil
 }
 
-//DeleteComplexEnvs DeleteComplexEnvs
-func (s *ServiceAction) DeleteComplexEnvs(tenantID, serviceAlias, pluginID string) *util.APIHandleError {
-	k := fmt.Sprintf("/resources/define/%s/%s/%s",
-		tenantID,
-		serviceAlias,
-		pluginID)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	_, err := s.EtcdCli.Delete(ctx, k)
-	if err != nil {
-		logrus.Errorf("delete k %s from etcd error, %v", k, err)
-		return util.CreateAPIHandleError(500, fmt.Errorf("delete k %s from etcd error, %v", k, err))
-	}
-	return nil
-}
-
 //UpdateVersionEnv UpdateVersionEnv
 func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError {
 	plugin, err := db.GetManager().TenantPluginDao().GetPluginByID(uve.PluginID, uve.Body.TenantID)
@@ -239,11 +232,7 @@ func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.API
 				p.ListenPort = pluginPort
 			}
 		}
-		if err := s.upComplexEnvs(uve.Body.TenantID, uve.ServiceAlias, uve.PluginID, uve.Body.ConfigEnvs.ComplexEnvs); err != nil {
-			if strings.Contains(err.Error(), "is not exist") {
-				tx.Rollback()
-				return util.CreateAPIHandleError(405, err)
-			}
+		if err := s.SavePluginConfig(uve.ServiceAlias, uve.PluginID, uve.Body.ConfigEnvs.ComplexEnvs); err != nil {
 			tx.Rollback()
 			return util.CreateAPIHandleError(500, fmt.Errorf("update complex error, %v", err))
 		}
@@ -272,22 +261,87 @@ func (s *ServiceAction) upNormalEnvs(tx *gorm.DB, uve *api_model.SetVersionEnv) 
 	return nil
 }
 
-func (s *ServiceAction) upComplexEnvs(tenantID, serviceAlias, pluginID string, config *api_model.ResourceSpec) *util.APIHandleError {
+//SavePluginConfig save plugin dynamic discovery config
+func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *api_model.ResourceSpec) *util.APIHandleError {
 	if config == nil {
 		return nil
 	}
-	k := fmt.Sprintf("/resources/define/%s/%s/%s", tenantID, serviceAlias, pluginID)
 	v, err := ffjson.Marshal(config)
 	if err != nil {
-		logrus.Errorf("mashal etcd value error, %v", err)
+		logrus.Errorf("mashal plugin config value error, %v", err)
 		return util.CreateAPIHandleError(500, err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	_, err = s.EtcdCli.Put(ctx, k, string(v))
+	tx := db.GetManager().Begin()
+	if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).AddModel(&dbmodel.TenantPluginVersionDiscoverConfig{
+		PluginID:  pluginID,
+		ServiceID: serviceID,
+		ConfigStr: string(v),
+	}); err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleErrorFromDBError("save plugin config failure", err)
+	}
+	//push message to worker
+	TaskBody := model.ApplyPluginConfigTaskBody{
+		ServiceID: serviceID,
+		PluginID:  pluginID,
+		EventID:   "system",
+		Action:    "put",
+	}
+	err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+		TaskType: "apply_plugin_config",
+		TaskBody: TaskBody,
+		Topic:    gclient.WorkerTopic,
+	})
 	if err != nil {
-		logrus.Errorf("put k %s into etcd error, %v", k, err)
-		return util.CreateAPIHandleError(500, err)
+		tx.Rollback()
+		logrus.Errorf("equque mq error, %v", err)
+		return util.CreateAPIHandleErrorf(500, "send apply plugin config message failure")
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleErrorFromDBError("save plugin config failure", err)
+	}
+	return nil
+}
+
+//DeletePluginConfig delete service plugin dynamic discovery config
+func (s *ServiceAction) DeletePluginConfig(serviceID, pluginID string) *util.APIHandleError {
+	tx := db.GetManager().Begin()
+	err := s.deletePluginConfig(tx, serviceID, pluginID)
+	if err != nil {
+		tx.Rollback()
+		logrus.Errorf("equque mq error, %v", err)
+		return util.CreateAPIHandleErrorf(500, "send apply plugin config message failure")
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleErrorFromDBError("delete plugin config failure", err)
+	}
+	return nil
+}
+
+//DeletePluginConfig delete service plugin dynamic discovery config
+func (s *ServiceAction) deletePluginConfig(tx *gorm.DB, serviceID, pluginID string) *util.APIHandleError {
+	if tx != nil {
+		if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).DeletePluginConfig(serviceID, pluginID); err != nil {
+			return util.CreateAPIHandleErrorFromDBError("delete plugin config failure", err)
+		}
+	}
+	//push message to worker
+	TaskBody := model.ApplyPluginConfigTaskBody{
+		ServiceID: serviceID,
+		PluginID:  pluginID,
+		EventID:   "system",
+		Action:    "delete",
+	}
+	err := s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+		TaskType: "apply_plugin_config",
+		TaskBody: TaskBody,
+		Topic:    gclient.WorkerTopic,
+	})
+	if err != nil {
+		logrus.Errorf("equque mq error, %v", err)
+		return util.CreateAPIHandleErrorf(500, "send apply plugin config message failure")
 	}
 	return nil
 }

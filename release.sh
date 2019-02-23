@@ -41,6 +41,7 @@ EOF
 build::binary() {
 	echo "---> build binary:$1"
 	local OUTPATH=./_output/$GOOS/${BASE_NAME}-$1
+	local DOCKER_PATH="./hack/contrib/docker/$1"
 	HOME=`pwd`
 	if [ "$1" = "eventlog" ];then
 		docker build -t goodraim.me/event-build:v1 ${DOCKER_PATH}/build

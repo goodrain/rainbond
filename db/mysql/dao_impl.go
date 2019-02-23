@@ -144,7 +144,7 @@ func (m *Manager) TenantServiceVolumeDaoTransactions(db *gorm.DB) dao.TenantServ
 	}
 }
 
-//TenantServiceVolumeDao TenantServiceVolumeDao
+//TenantServiceConfigFileDao TenantServiceConfigFileDao
 func (m *Manager) TenantServiceConfigFileDao() dao.TenantServiceConfigFileDao {
 	return &mysqldao.TenantServiceConfigFileDaoImpl{
 		DB: m.db,
@@ -252,6 +252,20 @@ func (m *Manager) TenantPluginVersionENVDao() dao.TenantPluginVersionEnvDao {
 //TenantPluginVersionENVDaoTransactions TenantPluginVersionENVDaoTransactions
 func (m *Manager) TenantPluginVersionENVDaoTransactions(db *gorm.DB) dao.TenantPluginVersionEnvDao {
 	return &mysqldao.PluginVersionEnvDaoImpl{
+		DB: db,
+	}
+}
+
+//TenantPluginVersionConfigDao TenantPluginVersionENVDao
+func (m *Manager) TenantPluginVersionConfigDao() dao.TenantPluginVersionConfigDao {
+	return &mysqldao.PluginVersionConfigDaoImpl{
+		DB: m.db,
+	}
+}
+
+//TenantPluginVersionConfigDaoTransactions TenantPluginVersionConfigDaoTransactions
+func (m *Manager) TenantPluginVersionConfigDaoTransactions(db *gorm.DB) dao.TenantPluginVersionConfigDao {
+	return &mysqldao.PluginVersionConfigDaoImpl{
 		DB: db,
 	}
 }
@@ -403,66 +417,77 @@ func (m *Manager) ServiceSourceDao() dao.ServiceSourceDao {
 	}
 }
 
+//CertificateDao CertificateDao
 func (m *Manager) CertificateDao() dao.CertificateDao {
 	return &mysqldao.CertificateDaoImpl{
 		DB: m.db,
 	}
 }
 
+//CertificateDaoTransactions CertificateDaoTransactions
 func (m *Manager) CertificateDaoTransactions(db *gorm.DB) dao.CertificateDao {
 	return &mysqldao.CertificateDaoImpl{
 		DB: db,
 	}
 }
 
+//RuleExtensionDao RuleExtensionDao
 func (m *Manager) RuleExtensionDao() dao.RuleExtensionDao {
 	return &mysqldao.RuleExtensionDaoImpl{
 		DB: m.db,
 	}
 }
 
+//RuleExtensionDaoTransactions RuleExtensionDaoTransactions
 func (m *Manager) RuleExtensionDaoTransactions(db *gorm.DB) dao.RuleExtensionDao {
 	return &mysqldao.RuleExtensionDaoImpl{
 		DB: db,
 	}
 }
 
-func (m *Manager) HttpRuleDao() dao.HTTPRuleDao {
-	return &mysqldao.HttpRuleDaoImpl{
+//HTTPRuleDao HTTPRuleDao
+func (m *Manager) HTTPRuleDao() dao.HTTPRuleDao {
+	return &mysqldao.HTTPRuleDaoImpl{
 		DB: m.db,
 	}
 }
 
-func (m *Manager) HttpRuleDaoTransactions(db *gorm.DB) dao.HTTPRuleDao {
-	return &mysqldao.HttpRuleDaoImpl{
+//HTTPRuleDaoTransactions -
+func (m *Manager) HTTPRuleDaoTransactions(db *gorm.DB) dao.HTTPRuleDao {
+	return &mysqldao.HTTPRuleDaoImpl{
 		DB: db,
 	}
 }
 
-func (m *Manager) TcpRuleDao() dao.TCPRuleDao {
-	return &mysqldao.TcpRuleDaoTmpl{
+//TCPRuleDao TCPRuleDao
+func (m *Manager) TCPRuleDao() dao.TCPRuleDao {
+	return &mysqldao.TCPRuleDaoTmpl{
 		DB: m.db,
 	}
 }
 
-func (m *Manager) TcpRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao {
-	return &mysqldao.TcpRuleDaoTmpl{
+//TCPRuleDaoTransactions TCPRuleDaoTransactions
+func (m *Manager) TCPRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao {
+	return &mysqldao.TCPRuleDaoTmpl{
 		DB: db,
 	}
 }
 
+//IPPortDao IPPortDao
 func (m *Manager) IPPortDao() dao.IPPortDao {
 	return &mysqldao.IPPortImpl{
 		DB: m.db,
 	}
 }
 
+//IPPortDaoTransactions IPPortDaoTransactions
 func (m *Manager) IPPortDaoTransactions(db *gorm.DB) dao.IPPortDao {
 	return &mysqldao.IPPortImpl{
 		DB: db,
 	}
 }
 
+//IPPoolDao IPPoolDao
 func (m *Manager) IPPoolDao() dao.IPPoolDao {
 	return &mysqldao.IPPoolImpl{
 		DB: m.db,

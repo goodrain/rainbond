@@ -30,13 +30,14 @@ import (
 	"github.com/goodrain/rainbond/util"
 	typesv1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/jinzhu/gorm"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 //TenantServicePlugin conv service all plugin
 func TenantServicePlugin(as *typesv1.AppService, dbmanager db.Manager) error {
-	initContainers, pluginContainers, err := createPluginsContainer(as, dbmanager)
+	initContainers, pluginContainers, err := conversionServicePlugin(as, dbmanager)
 	if err != nil {
 		return err
 	}
@@ -49,7 +50,7 @@ func TenantServicePlugin(as *typesv1.AppService, dbmanager db.Manager) error {
 	return fmt.Errorf("pod templete is nil before define plugin")
 }
 
-func createPluginsContainer(as *typesv1.AppService, dbmanager db.Manager) ([]v1.Container, []v1.Container, error) {
+func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1.Container, []v1.Container, error) {
 	var containers []v1.Container
 	var initContainers []v1.Container
 	appPlugins, err := dbmanager.TenantServicePluginRelationDao().GetALLRelationByServiceID(as.ServiceID)
@@ -103,6 +104,8 @@ func createPluginsContainer(as *typesv1.AppService, dbmanager db.Manager) ([]v1.
 			netPlugin = true
 		}
 		containers = append(containers, pc)
+		//apply plugin dynamic config
+		ApplyPluginConfig(as, pluginR, dbmanager)
 	}
 	//if need proxy but not install net plugin
 	podTmpl := as.GetPodTemplate()
@@ -128,6 +131,29 @@ func createPluginsContainer(as *typesv1.AppService, dbmanager db.Manager) ([]v1.
 	return initContainers, containers, nil
 }
 
+//ApplyPluginConfig applyPluginConfig
+func ApplyPluginConfig(as *typesv1.AppService, servicePluginRelation *model.TenantServicePluginRelation, dbmanager db.Manager) {
+	config, err := dbmanager.TenantPluginVersionConfigDao().GetPluginConfig(servicePluginRelation.ServiceID, servicePluginRelation.PluginID)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		logrus.Errorf("get service plugin config from db failure %s", err.Error())
+	}
+	if config != nil {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: fmt.Sprintf("config-%s-%s", config.ServiceID, config.PluginID),
+				Labels: as.GetCommonLabels(map[string]string{
+					"plugin_id":     servicePluginRelation.PluginID,
+					"service_alias": as.ServiceAlias,
+				}),
+			},
+			Data: map[string]string{
+				"plugin-config": config.ConfigStr,
+				"plugin-model":  servicePluginRelation.PluginModel,
+			},
+		}
+		as.SetConfigMap(cm)
+	}
+}
 func getPluginModel(pluginID, tenantID string, dbmanager db.Manager) (string, error) {
 	plugin, err := dbmanager.TenantPluginDao().GetPluginByID(pluginID, tenantID)
 	if err != nil {

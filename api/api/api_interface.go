@@ -123,14 +123,6 @@ type RulesInterface interface {
 	UpdateDownStreamRule(w http.ResponseWriter, r *http.Request)
 }
 
-//SourcesInterface SourcesInterface
-type SourcesInterface interface {
-	SetDefineSource(w http.ResponseWriter, r *http.Request)
-	DeleteDefineSource(w http.ResponseWriter, r *http.Request)
-	GetDefineSource(w http.ResponseWriter, r *http.Request)
-	UpdateDefineSource(w http.ResponseWriter, r *http.Request)
-}
-
 //AppInterface app handle interface
 type AppInterface interface {
 	ExportApp(w http.ResponseWriter, r *http.Request)

@@ -20,17 +20,18 @@ package conversion
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/util"
-	"github.com/jinzhu/gorm"
 	"os"
 	"strings"
+
+	"github.com/goodrain/rainbond/util"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/jinzhu/gorm"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -184,7 +185,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 	service *corev1.Service) ([]*extensions.Ingress, *corev1.Secret, error) {
 	var ingresses []*extensions.Ingress
 	var secret *corev1.Secret
-	httpRules, err := a.dbmanager.HttpRuleDao().GetHttpRuleByServiceIDAndContainerPort(port.ServiceID,
+	httpRules, err := a.dbmanager.HTTPRuleDao().GetHTTPRuleByServiceIDAndContainerPort(port.ServiceID,
 		port.ContainerPort)
 	if err != nil {
 		logrus.Infof("Can't get HTTPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
@@ -211,7 +212,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 	}
 
 	// create tcp ingresses
-	tcpRules, err := a.dbmanager.TcpRuleDao().GetTcpRuleByServiceIDAndContainerPort(port.ServiceID,
+	tcpRules, err := a.dbmanager.TCPRuleDao().GetTCPRuleByServiceIDAndContainerPort(port.ServiceID,
 		port.ContainerPort)
 	if err != nil {
 		logrus.Infof("Can't get TCPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)

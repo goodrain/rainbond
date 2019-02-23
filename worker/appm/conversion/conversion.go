@@ -20,20 +20,21 @@ package conversion
 
 import (
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 func init() {
 	//first conv service source
-	RegistConversion(ServiceSource)
+	RegistConversion("ServiceSource", ServiceSource)
 	//step2 conv service base
-	RegistConversion(TenantServiceBase)
+	RegistConversion("TenantServiceBase", TenantServiceBase)
 	//step3 conv service pod base info
-	RegistConversion(TenantServiceVersion)
+	RegistConversion("TenantServiceVersion", TenantServiceVersion)
 	//step4 conv service plugin
-	RegistConversion(TenantServicePlugin)
+	RegistConversion("TenantServicePlugin", TenantServicePlugin)
 	//step5 conv service inner and outer regist
-	RegistConversion(TenantServiceRegist)
+	RegistConversion("TenantServiceRegist", TenantServiceRegist)
 }
 
 //Conversion conversion function
@@ -41,15 +42,18 @@ func init() {
 type Conversion func(*v1.AppService, db.Manager) error
 
 //conversionList conversion function list
-var conversionList []Conversion
+var conversionList map[string]Conversion
 
 //RegistConversion regist conversion function list
-func RegistConversion(fun Conversion) {
-	conversionList = append(conversionList, fun)
+func RegistConversion(name string, fun Conversion) {
+	if conversionList == nil {
+		conversionList = make(map[string]Conversion)
+	}
+	conversionList[name] = fun
 }
 
 //InitAppService init a app service
-func InitAppService(dbmanager db.Manager, serviceID string) (*v1.AppService, error) {
+func InitAppService(dbmanager db.Manager, serviceID string, enableConversionList ...string) (*v1.AppService, error) {
 	appService := &v1.AppService{
 		AppServiceBase: v1.AppServiceBase{
 			ServiceID:    serviceID,
@@ -57,9 +61,11 @@ func InitAppService(dbmanager db.Manager, serviceID string) (*v1.AppService, err
 		},
 		UpgradePatch: make(map[string][]byte, 2),
 	}
-	for _, c := range conversionList {
-		if err := c(appService, dbmanager); err != nil {
-			return nil, err
+	for name, c := range conversionList {
+		if len(enableConversionList) == 0 || util.StringArrayContains(enableConversionList, name) {
+			if err := c(appService, dbmanager); err != nil {
+				return nil, err
+			}
 		}
 	}
 	return appService, nil

@@ -103,12 +103,12 @@ func GetNodeDetails(w http.ResponseWriter, r *http.Request) {
 		pod.Id = serviceID
 
 		lc := v.Spec.Containers[0].Resources.Limits.Cpu().String()
-		cpuL += getCpuInt(lc)
+		cpuL += getCPUInt(lc)
 		lm := v.Spec.Containers[0].Resources.Limits.Memory().String()
 
 		memL += convertMemoryToMBInt(lm, true)
 		rc := v.Spec.Containers[0].Resources.Requests.Cpu().String()
-		cpuR += getCpuInt(rc)
+		cpuR += getCPUInt(rc)
 		rm := v.Spec.Containers[0].Resources.Requests.Memory().String()
 
 		memR += convertMemoryToMBInt(rm, true)
@@ -178,7 +178,7 @@ func convertMemoryToMBInt(mem string, pod bool) (v int) {
 			v, _ = strconv.Atoi(mem)
 
 		}
-		logrus.Infof("input mem is %s,output mem is %s", mem, v)
+		logrus.Infof("input mem is %s,output mem is %d", mem, v)
 	} else {
 		if len(mem) != 1 {
 
@@ -210,18 +210,17 @@ func convertMemoryToMBInt(mem string, pod bool) (v int) {
 	return
 }
 
-func getCpuInt(v string) int {
+func getCPUInt(v string) int {
 	if len(v) != 1 {
 		v = v[0 : len(v)-1]
 		vi, _ := strconv.Atoi(v)
 		return vi
-	} else {
-		v, _ := strconv.Atoi(v)
-		return v
 	}
+	vi, _ := strconv.Atoi(v)
+	return vi
 }
 
-func getFinalRate(cpu bool, value string, capCpu, capMemMB string) (result string) {
+func getFinalRate(cpu bool, value string, capCPU, capMemMB string) (result string) {
 	defer func() { // 必须要先声明defer，否则不能捕获到panic异常
 		if err := recover(); err != nil {
 			logrus.Warnf("get resource rate failed,details :%s", err)
@@ -234,9 +233,9 @@ func getFinalRate(cpu bool, value string, capCpu, capMemMB string) (result strin
 			value = value[0 : len(value)-1]
 		}
 		i, _ := strconv.Atoi(value)
-		capCpuInt, _ := strconv.Atoi(capCpu)
-		capCpuInt *= 1000
-		result = strconv.Itoa(i * 100 / capCpuInt)
+		capCPUInt, _ := strconv.Atoi(capCPU)
+		capCPUInt *= 1000
+		result = strconv.Itoa(i * 100 / capCPUInt)
 	} else {
 		capMemMB = capMemMB[0 : len(capMemMB)-2]
 		capMemMBInt, _ := strconv.Atoi(capMemMB)
@@ -278,7 +277,7 @@ func Resources(w http.ResponseWriter, r *http.Request) {
 		for _, c := range pv.Spec.Containers {
 			rc := c.Resources.Requests.Cpu().String()
 			rm := c.Resources.Requests.Memory().String()
-			cpuR += getCpuInt(rc)
+			cpuR += getCPUInt(rc)
 			memR += convertMemoryToMBInt(rm, true)
 		}
 	}
@@ -371,6 +370,7 @@ func outSuccess(w http.ResponseWriter) {
 	fmt.Fprint(w, s)
 }
 
+//GetServicesHealthy get service healthy
 func GetServicesHealthy(w http.ResponseWriter, r *http.Request) {
 	healthMap, err := nodeService.GetServicesHealthy()
 	if err != nil {
@@ -380,7 +380,7 @@ func GetServicesHealthy(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, healthMap)
 }
 
-//GetNodeResource
+//GetNodeResource -
 func GetNodeResource(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
 	hostNode, apierr := nodeService.GetNode(nodeUID)

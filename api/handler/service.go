@@ -19,7 +19,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -742,6 +741,7 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 	return &res, nil
 }
 
+//GetServicesDisk get service disk
 func GetServicesDisk(ids []string, p proxy.Proxy) map[string]float64 {
 	result := make(map[string]float64)
 	//query disk used in prometheus
@@ -1615,119 +1615,30 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 		tx.Rollback()
 		return err
 	}
-	if err := db.GetManager().TenantServiceDaoTransactions(tx).DeleteServiceByServiceID(serviceID); err != nil {
-		tx.Rollback()
-		return err
+	var deleteServicePropertyFunc = []func(serviceID string) error{
+		db.GetManager().TenantServiceDaoTransactions(tx).DeleteServiceByServiceID,
+		db.GetManager().TenantServiceMountRelationDaoTransactions(tx).DELTenantServiceMountRelationByServiceID,
+		db.GetManager().TenantServiceEnvVarDaoTransactions(tx).DELServiceEnvsByServiceID,
+		db.GetManager().TenantServicesPortDaoTransactions(tx).DELPortsByServiceID,
+		db.GetManager().TenantServiceRelationDaoTransactions(tx).DELRelationsByServiceID,
+		db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).DELServiceLBMappingPortByServiceID,
+		db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteTenantServiceVolumesByServiceID,
+		db.GetManager().ServiceProbeDaoTransactions(tx).DELServiceProbesByServiceID,
+		db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteALLRelationByServiceID,
+		db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteAllPluginMappingPortByServiceID,
+		db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByServiceID,
+		db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).DeletePluginConfigByServiceID,
+		db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteLabelByServiceID,
+		db.GetManager().HTTPRuleDaoTransactions(tx).DeleteHTTPRuleByServiceID,
+		db.GetManager().TCPRuleDaoTransactions(tx).DeleteTCPRuleByServiceID,
 	}
-	//删除domain
-	//删除pause
-	//删除tenant_system_pause
-	//删除tenant_service_relation
-	if err := db.GetManager().TenantServiceMountRelationDaoTransactions(tx).DELTenantServiceMountRelationByServiceID(serviceID); err != nil {
-		if err.Error() != gorm.ErrRecordNotFound.Error() {
-			tx.Rollback()
-			return err
+	for _, del := range deleteServicePropertyFunc {
+		if err := del(serviceID); err != nil {
+			if err.Error() != gorm.ErrRecordNotFound.Error() {
+				tx.Rollback()
+				return err
+			}
 		}
-	}
-	//删除tenant_service_evn_var
-	if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).DELServiceEnvsByServiceID(serviceID); err != nil {
-		if err.Error() != gorm.ErrRecordNotFound.Error() {
-			tx.Rollback()
-			return err
-		}
-	}
-	//删除tenant_services_port
-	if err := db.GetManager().TenantServicesPortDaoTransactions(tx).DELPortsByServiceID(serviceID); err != nil {
-		if err.Error() != gorm.ErrRecordNotFound.Error() {
-			tx.Rollback()
-			return err
-		}
-	}
-	//删除tenant_service_mnt_relation
-	if err := db.GetManager().TenantServiceRelationDaoTransactions(tx).DELRelationsByServiceID(serviceID); err != nil {
-		if err.Error() != gorm.ErrRecordNotFound.Error() {
-			tx.Rollback()
-			return err
-		}
-	}
-	//删除tenant_lb_mapping_port
-	if err := db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).DELServiceLBMappingPortByServiceID(serviceID); err != nil {
-		if err.Error() != gorm.ErrRecordNotFound.Error() {
-			tx.Rollback()
-			return err
-		}
-	}
-	//删除tenant_service_volume
-	if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteTenantServiceVolumesByServiceID(serviceID); err != nil {
-		if err.Error() != gorm.ErrRecordNotFound.Error() {
-			tx.Rollback()
-			return err
-		}
-	}
-	//删除service_probe
-	if err := db.GetManager().ServiceProbeDaoTransactions(tx).DELServiceProbesByServiceID(serviceID); err != nil {
-		if err.Error() != gorm.ErrRecordNotFound.Error() {
-			tx.Rollback()
-			return err
-		}
-	}
-	//TODO: 如果有关联过插件，需要删除该插件相关配置及资源
-	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteALLRelationByServiceID(serviceID); err != nil {
-		if err.Error() != gorm.ErrRecordNotFound.Error() {
-			tx.Rollback()
-			return err
-		}
-	}
-	if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteAllPluginMappingPortByServiceID(serviceID); err != nil {
-		if err.Error() != gorm.ErrRecordNotFound.Error() {
-			tx.Rollback()
-			return err
-		}
-	}
-	if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByServiceID(serviceID); err != nil {
-		if err.Error() != gorm.ErrRecordNotFound.Error() {
-			tx.Rollback()
-			return err
-		}
-	}
-	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteLabelByServiceID(serviceID); err != nil {
-		if err.Error() != gorm.ErrRecordNotFound.Error() {
-			tx.Rollback()
-			return err
-		}
-	}
-	// delete gateway related resources
-	httpRules, err := db.GetManager().HttpRuleDaoTransactions(tx).ListByServiceID(serviceID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	for _, r := range httpRules {
-		if err := db.GetManager().HttpRuleDaoTransactions(tx).DeleteHttpRuleByID(r.UUID); err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-	tcpRules, err := db.GetManager().TcpRuleDaoTransactions(tx).ListByServiceID(serviceID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	for _, r := range tcpRules {
-		if err := db.GetManager().TcpRuleDaoTransactions(tx).DeleteTcpRule(r); err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-	//删除plugin etcd资源
-	prefixK := fmt.Sprintf("/resources/define/%s/%s", service.TenantID, service.ServiceAlias)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	_, err = s.EtcdCli.Delete(ctx, prefixK, clientv3.WithPrefix())
-	if err != nil {
-		logrus.Errorf("delete prefix %s from etcd error, %v", prefixK, err)
-		tx.Rollback()
-		return err
 	}
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()

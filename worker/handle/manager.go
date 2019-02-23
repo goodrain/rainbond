@@ -101,7 +101,11 @@ func (m *Manager) AnalystToExec(task *model.Task) error {
 	case "apply_rule":
 		logrus.Info("start a 'apply_rule' task worker")
 		return m.applyRuleExec(task)
+	case "apply_plugin_config":
+		logrus.Info("start a 'apply_plugin_config' task worker")
+		return m.applyPluginConfig(task)
 	default:
+		logrus.Warning("task can not execute because no type is identified")
 		return nil
 	}
 }
@@ -349,6 +353,31 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	if err != nil {
 		logrus.Errorf("Application apply rule controller failure:%s", err.Error())
 		return fmt.Errorf("Application apply rule controller failure:%s", err.Error())
+	}
+	return nil
+}
+
+//applyPluginConfig apply service plugin config
+func (m *Manager) applyPluginConfig(task *model.Task) error {
+	body, ok := task.Body.(*model.ApplyPluginConfigTaskBody)
+	if !ok {
+		logrus.Errorf("Can't convert %s to *model.ApplyPluginConfigTaskBody", reflect.TypeOf(task.Body))
+		return fmt.Errorf("Can't convert %s to *model.ApplyPluginConfigTaskBody", reflect.TypeOf(task.Body))
+	}
+	oldAppService := m.store.GetAppService(body.ServiceID)
+	if oldAppService == nil || oldAppService.IsClosed() {
+		logrus.Debugf("service is closed,no need handle")
+		return nil
+	}
+	newApp, err := conversion.InitAppService(m.dbmanager, body.ServiceID, "ServiceSource", "TenantServiceBase", "TenantServicePlugin")
+	if err != nil {
+		logrus.Errorf("Application apply plugin config controller failure:%s", err.Error())
+		return err
+	}
+	err = m.controllerManager.StartController(controller.TypeApplyConfigController, *newApp)
+	if err != nil {
+		logrus.Errorf("Application apply plugin config controller failure:%s", err.Error())
+		return fmt.Errorf("Application apply plugin config controller failure:%s", err.Error())
 	}
 	return nil
 }
