@@ -69,8 +69,8 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 		logrus.Errorf("create token identification mannager error, %v", err)
 		return err
 	}
-	// gateway
 	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient)
+	def3rdPartySvcHandler = Create3rdPartySvcHandler(dbmanager)
 	return nil
 }
 
@@ -147,4 +147,11 @@ var defaultGatewayHandler GatewayHandler
 // GetGatewayHandler returns a default GatewayHandler
 func GetGatewayHandler() GatewayHandler {
 	return defaultGatewayHandler
+}
+
+var def3rdPartySvcHandler *ThirdPartyServiceHanlder
+
+// Get3rdPartySvcHandler returns the defalut ThirdParthServiceHanlder
+func Get3rdPartySvcHandler() *ThirdPartyServiceHanlder {
+	return def3rdPartySvcHandler
 }

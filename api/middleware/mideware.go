@@ -42,6 +42,7 @@ type ContextKey string
 //InitTenant 实现中间件
 func InitTenant(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
+		// TODO: print request uri and request body
 		tenantName := chi.URLParam(r, "tenant_name")
 		if tenantName == "" {
 			httputil.ReturnError(r, w, 404, "cant find tenant")
