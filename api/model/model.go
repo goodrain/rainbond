@@ -912,7 +912,7 @@ type ServiceCheckStruct struct {
 		// docker-compose: compose全文
 		// in: body
 		// required: true
-		SourceBody string `json:"source_body" validate:"source_body|required"`
+		SourceBody string `json:"source_body"`
 		TenantID   string
 		Username   string `json:"username"`
 		Password   string `json:"password"`
