@@ -400,10 +400,12 @@ func (t *TenantAction) TransPlugins(tenantID, tenantName, fromTenant string, plu
 	return nil
 }
 
+// GetServicesStatus returns a list of service status matching ids.
 func (t *TenantAction) GetServicesStatus(ids string) map[string]string {
 	return t.statusCli.GetStatuss(ids)
 }
 
+//IsClosedStatus checks if the status is closed status.
 func (t *TenantAction) IsClosedStatus(status string) bool {
 	return t.statusCli.IsClosedStatus(status)
 }

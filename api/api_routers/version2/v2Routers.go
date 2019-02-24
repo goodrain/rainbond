@@ -113,6 +113,9 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Put("/endpoints", controller.GetManager().Endpoints)
 	r.Delete("/endpoints", controller.GetManager().Endpoints)
 
+	r.Put("/3rd-party/probe", controller.GetManager().ThirdPartyProbe)
+	r.Get("/3rd-party/probe", controller.GetManager().ThirdPartyProbe)
+
 	return r
 }
 

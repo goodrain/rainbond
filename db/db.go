@@ -113,6 +113,8 @@ type Manager interface {
 	// third-party service
 	EndpointsDao() dao.EndpointsDao
 	EndpointsDaoTransactions(db *gorm.DB) dao.EndpointsDao
+	ThirdPartyServiceProbeDao() dao.ThirdPartyServiceProbeDao
+	ThirdPartyServiceProbeDaoTransactions(db *gorm.DB) dao.ThirdPartyServiceProbeDao
 }
 
 var defaultManager Manager

@@ -143,4 +143,5 @@ type Gatewayer interface {
 // ThirdPartyServicer is a interface for defining methods for third-party service.
 type ThirdPartyServicer interface {
 	Endpoints(w http.ResponseWriter, r *http.Request)
+	ThirdPartyProbe(w http.ResponseWriter, r *http.Request)
 }

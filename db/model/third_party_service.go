@@ -28,7 +28,25 @@ type Endpoint struct {
 	IsOnline  bool   `gorm:"column:is_online;default:true"`
 }
 
-// TableName returns table name of Certificate
+// TableName returns table name of 3rd_party_svc_probe
 func (Endpoint) TableName() string {
 	return "3rd_party_svc_endpoints"
+}
+
+// ThirdPartyServiceProbe is a persistent object for table 3rd_party_svc_probe.
+// One third-party service can only have one probe.
+type ThirdPartyServiceProbe struct {
+	Model
+	ServiceID    string `gorm:"column:service_id;size:32"`
+	Scheme       string `gorm:"column:scheme;"`
+	Port         int    `gorm:"column:port"`
+	Path         string `gorm:"column:path"`
+	TimeInterval int    `gorm:"column:time_interval"`
+	MaxErrorNum  int    `gorm:"column:max_error_num"`
+	Action       string `gorm:"column:action"`
+}
+
+// TableName returns table name of 3rd_party_svc_probe
+func (ThirdPartyServiceProbe) TableName() string {
+	return "3rd_party_svc_probe"
 }

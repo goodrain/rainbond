@@ -506,3 +506,17 @@ func (m *Manager) EndpointsDaoTransactions(db *gorm.DB) dao.EndpointsDao {
 		DB: db,
 	}
 }
+
+// ThirdPartyServiceProbeDao returns a new ThirdPartyServiceProbeDaoImpl.
+func (m *Manager) ThirdPartyServiceProbeDao() dao.ThirdPartyServiceProbeDao {
+	return &mysqldao.ThirdPartyServiceProbeDaoImpl{
+		DB: m.db,
+	}
+}
+
+// ThirdPartyServiceProbeDaoTransactions returns a new ThirdPartyServiceProbeDaoImpl.
+func (m *Manager) ThirdPartyServiceProbeDaoTransactions(db *gorm.DB) dao.ThirdPartyServiceProbeDao {
+	return &mysqldao.ThirdPartyServiceProbeDaoImpl{
+		DB: db,
+	}
+}

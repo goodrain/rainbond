@@ -20,6 +20,7 @@ package handler
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/model"
@@ -87,4 +88,53 @@ func (t *ThirdPartyServiceHanlder) DelEndpoints(uuids []model.DelEndpiontsReq) e
 	}
 	tx.Commit()
 	return nil
+}
+
+// UpdProbe updates third-party service probe with sid(service_id).
+func (t *ThirdPartyServiceHanlder) UpdProbe(sid string, new *model.ThridPartyServiceProbe) error {
+	tx := db.GetManager().Begin()
+	probe, err := t.dbmanager.ThirdPartyServiceProbeDaoTransactions(tx).GetByServiceID(sid)
+	if err == nil {
+		logrus.Errorf("service_id: %s, error getting probe: %v", sid, err)
+		tx.Rollback()
+		return err
+	}
+	if strings.Replace(new.Scheme, " ", "", -1) != "" {
+		probe.Scheme = new.Scheme
+	}
+	if new.Port > 0 && new.Port <= 65535 {
+		probe.Port = new.Port
+	}
+	if strings.Replace(new.Path, " ", "", -1) != "" {
+		probe.Path = new.Path
+	}
+	if new.TimeInterval > 0 {
+		probe.TimeInterval = new.TimeInterval
+	}
+	if new.MaxErrorNum > 0 {
+		probe.MaxErrorNum = new.MaxErrorNum
+	}
+	if err := t.dbmanager.ThirdPartyServiceProbeDaoTransactions(tx).UpdateModel(probe); err != nil {
+		logrus.Errorf("service_id: %s, error updating probe: %v", sid, err)
+		tx.Rollback()
+		return err
+	}
+	tx.Commit()
+	return nil
+}
+
+// GetProbe returns a third-party service probe matching sid(service_id).
+func (t *ThirdPartyServiceHanlder) GetProbe(sid string) (*model.ThridPartyServiceProbe, error) {
+	probe, err := t.dbmanager.ThirdPartyServiceProbeDao().GetByServiceID(sid)
+	if err != nil {
+		return nil, err
+	}
+	return &model.ThridPartyServiceProbe{
+		Scheme: probe.Scheme,
+		Port: probe.Port,
+		Path: probe.Path,
+		TimeInterval: probe.TimeInterval,
+		MaxErrorNum: probe.MaxErrorNum,
+		Action: probe.Action,
+	}, nil
 }

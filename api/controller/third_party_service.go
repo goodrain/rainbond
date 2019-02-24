@@ -79,3 +79,36 @@ func (t *ThirdPartyServiceController) delEndpoints(w http.ResponseWriter, r *htt
 	}
 	httputil.ReturnSuccess(r, w, "success")
 }
+
+// ThirdPartyProbe PUT->update probe.
+func (t *ThirdPartyServiceController) ThirdPartyProbe(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		t.getProbe(w, r)
+	case "PUT":
+		t.updateProbe(w, r)
+	}
+}
+
+func (t *ThirdPartyServiceController) getProbe(w http.ResponseWriter, r *http.Request) {
+	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	probe, err := handler.Get3rdPartySvcHandler().GetProbe(sid);
+	if err != nil {
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, probe)
+}
+
+func (t *ThirdPartyServiceController) updateProbe(w http.ResponseWriter, r *http.Request) {
+	var data model.ThridPartyServiceProbe
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &data, nil) {
+		return
+	}
+	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	if err := handler.Get3rdPartySvcHandler().UpdProbe(sid, &data); err != nil {
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, "success")
+}

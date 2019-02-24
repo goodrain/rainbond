@@ -35,3 +35,14 @@ type UpdEndpiontsReq struct {
 type DelEndpiontsReq struct {
 	UUID string `json:"uuid" validate:"required|len:32"`
 }
+
+// ThridPartyServiceProbe is the json obejct in the request 
+// to update or fetch the ThridPartyServiceProbe.
+type ThridPartyServiceProbe struct {
+	Scheme       string `json:"scheme;"`
+	Path         string `json:"path"`
+	Port         int    `json:"port"`
+	TimeInterval int    `json:"time_interval"`
+	MaxErrorNum  int    `json:"max_error_num"`
+	Action       string `json:"action"`
+}

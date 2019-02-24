@@ -414,3 +414,10 @@ type EndpointsDao interface {
 	List(sid string) ([]*model.Endpoint, error)
 	DelByUUID(uuid string) error
 }
+
+// ThirdPartyServiceProbeDao is an interface for defining method 
+// for operating table 3rd_party_svc_probe.
+type ThirdPartyServiceProbeDao interface {
+	Dao
+	GetByServiceID(sid string) (*model.ThirdPartyServiceProbe, error)
+}
