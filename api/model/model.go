@@ -19,11 +19,10 @@
 package model
 
 import (
-	"net/url"
-	"time"
-
 	"fmt"
+	"net/url"
 	"strings"
+	"time"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
@@ -323,6 +322,7 @@ type ServiceStruct struct {
 	// in: body
 	// required: false
 	ServiceOrigin string `json:"service_origin" validate:"service_origin"`
+	Kind          string `json:"kind" validate:"in:internal, third_party"`
 
 	ServiceLabel   string                               `json:"service_label"  validate:"service_label"`
 	NodeLabel      string                               `json:"node_label"  validate:"node_label"`
@@ -333,6 +333,18 @@ type ServiceStruct struct {
 	DepVolumesInfo []dbmodel.TenantServiceMountRelation `json:"dep_volumes_info"`
 	EnvsInfo       []dbmodel.TenantServiceEnvVar        `json:"envs_info"`
 	PortsInfo      []dbmodel.TenantServicesPort         `json:"ports_info"`
+
+	// Endpoints holds third-party service endpoints or configuraion to get endpoints.
+	Endpoints struct {
+		Static    []string `json:"static"`
+		Discovery struct {
+			Type     string   `json:"type"`
+			Servers  []string `json:"servers"`
+			Key      string   `json:"key"`
+			Username string   `json:"username"`
+			Password string   `json:"password"`
+		} `json:"discovery"`
+	} `json:"endpoints"`
 }
 
 //TenantServiceVolumeStruct -

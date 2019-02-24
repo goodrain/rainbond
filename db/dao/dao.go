@@ -421,3 +421,9 @@ type ThirdPartyServiceProbeDao interface {
 	Dao
 	GetByServiceID(sid string) (*model.ThirdPartyServiceProbe, error)
 }
+
+// ThirdPartyServiceDiscoveryCfgDao is an interface for defining method 
+// for operating table 3rd_party_svc_discovery_cfg.
+type ThirdPartyServiceDiscoveryCfgDao interface {
+	Dao
+}

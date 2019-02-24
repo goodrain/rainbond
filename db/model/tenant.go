@@ -95,6 +95,8 @@ type TenantServices struct {
 	UpdateTime time.Time `gorm:"column:update_time" json:"update_time"`
 	// 服务创建类型cloud云市服务,assistant云帮服务
 	ServiceOrigin string `gorm:"column:service_origin;default:'assistant'" json:"service_origin"`
+	// kind of service. option: internal, third_party
+	Kind string `gorm:"column:kind;default:'internal'" json:"kind"`
 }
 
 //Image 镜像
@@ -194,6 +196,8 @@ type TenantServicesDelete struct {
 	UpdateTime time.Time `gorm:"column:update_time" json:"update_time"`
 	// 服务创建类型cloud云市服务,assistant云帮服务
 	ServiceOrigin string `gorm:"column:service_origin;default:'assistant'" json:"service_origin"`
+	// kind of service. option: internal, third_party
+	Kind string `gorm:"column:kind;default:'internal'" json:"kind"`
 }
 
 //TableName 表名

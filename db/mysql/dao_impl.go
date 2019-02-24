@@ -520,3 +520,17 @@ func (m *Manager) ThirdPartyServiceProbeDaoTransactions(db *gorm.DB) dao.ThirdPa
 		DB: db,
 	}
 }
+
+// ThirdPartyServiceDiscoveryCfgDao returns a new ThirdPartyServiceDiscoveryCfgDao.
+func (m *Manager) ThirdPartyServiceDiscoveryCfgDao() dao.ThirdPartyServiceDiscoveryCfgDao {
+	return &mysqldao.ThirdPartyServiceDiscoveryCfgDaoImpl{
+		DB: m.db,
+	}
+}
+
+// ThirdPartyServiceDiscoveryCfgDaoTransactions returns a new ThirdPartyServiceDiscoveryCfgDao.
+func (m *Manager) ThirdPartyServiceDiscoveryCfgDaoTransactions(db *gorm.DB) dao.ThirdPartyServiceDiscoveryCfgDao {
+	return &mysqldao.ThirdPartyServiceDiscoveryCfgDaoImpl{
+		DB: db,
+	}
+}

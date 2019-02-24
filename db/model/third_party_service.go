@@ -28,7 +28,7 @@ type Endpoint struct {
 	IsOnline  bool   `gorm:"column:is_online;default:true"`
 }
 
-// TableName returns table name of 3rd_party_svc_probe
+// TableName returns table name of Endpoint.
 func (Endpoint) TableName() string {
 	return "3rd_party_svc_endpoints"
 }
@@ -46,7 +46,25 @@ type ThirdPartyServiceProbe struct {
 	Action       string `gorm:"column:action"`
 }
 
-// TableName returns table name of 3rd_party_svc_probe
+// TableName returns table name of ThirdPartyServiceProbe
 func (ThirdPartyServiceProbe) TableName() string {
 	return "3rd_party_svc_probe"
+}
+
+// ThirdPartyServiceDiscoveryCfg s a persistent object for table
+// 3rd_party_svc_discovery_cfg. 3rd_party_svc_discovery_cfg contains
+// service discovery center configuration for third party service.
+type ThirdPartyServiceDiscoveryCfg struct {
+	Model
+	ServiceID string `gorm:"column:service_id;size:32"`
+	Type      string `gorm:"column:type"`
+	Servers   string `gorm:"column:servers"`
+	Key       string `gorm:"key"`
+	Username  string `gorm:"username"`
+	Password  string `gorm:"password"`
+}
+
+// TableName returns table name of ThirdPartyServiceDiscoveryCfg.
+func (ThirdPartyServiceDiscoveryCfg) TableName() string {
+	return "3rd_party_svc_discovery_cfg"
 }

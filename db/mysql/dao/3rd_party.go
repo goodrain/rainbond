@@ -129,3 +129,31 @@ func (t *ThirdPartyServiceProbeDaoImpl) GetByServiceID(sid string) (*model.Third
 	}
 	return &probe, nil
 }
+
+// ThirdPartyServiceDiscoveryCfgDaoImpl implements ThirdPartyServiceDiscoveryCfgDao
+type ThirdPartyServiceDiscoveryCfgDaoImpl struct {
+	DB *gorm.DB
+}
+ 
+// AddModel add one record for table 3rd_party_svc_discovery_cfg.
+func (t *ThirdPartyServiceDiscoveryCfgDaoImpl) AddModel(mo model.Interface) error {
+	cfg, ok := mo.(*model.ThirdPartyServiceDiscoveryCfg)
+	if !ok {
+		return fmt.Errorf("Type conversion error. From %s to *model.ThirdPartyServiceDiscoveryCfg",
+			reflect.TypeOf(mo))
+	}
+	var old model.ThirdPartyServiceDiscoveryCfg
+	if ok := t.DB.Where("service_id=?", cfg.ServiceID).Find(&old).RecordNotFound(); ok {
+		if err := t.DB.Create(cfg).Error; err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("Probe exists based on servicd_id(%s)", cfg.ServiceID)
+	}
+	return nil
+}
+
+// UpdateModel blabla
+func (t *ThirdPartyServiceDiscoveryCfgDaoImpl) UpdateModel(mo model.Interface) error {
+	return nil
+}

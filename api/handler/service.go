@@ -27,11 +27,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/api/proxy"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
@@ -596,6 +595,50 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		tx.Rollback()
 		return err
 	}
+	// sc.Endpoints can't be nil
+	// sc.Endpoints.Discovery or sc.Endpoints.Static can't be nil
+	if sc.Kind == "third_party" { // TODO: validate request data
+		if c := &sc.Endpoints.Discovery; c != nil {
+			cfg := &dbmodel.ThirdPartyServiceDiscoveryCfg{
+				Type:     c.Type,
+				Servers:  strings.Join(c.Servers, ","),
+				Key:      c.Key,
+				Username: c.Username,
+				Password: c.Password,
+			}
+			if err := db.GetManager().ThirdPartyServiceDiscoveryCfgDaoTransactions(tx).
+				AddModel(cfg); err != nil {
+				logrus.Errorf("error saving discover center configuration: %v", err)
+				tx.Rollback()
+				return err
+			}
+		} else {
+			for _, static := range sc.Endpoints.Static {
+				ep := &dbmodel.Endpoint{
+					ServiceID: sc.ServiceID,
+					UUID:      core_util.NewUUID(),
+					IsOnline:  true,
+				}
+				s := strings.Split(static, ":")
+				ep.IP = s[0]
+				if len(s) == 2 {
+					port, err := strconv.Atoi(s[1])
+					if err != nil {
+						logrus.Warningf("string:%s, error parsing string to int", s[1])
+						continue
+					} else {
+						ep.Port = port
+					}
+				}
+				if err := db.GetManager().EndpointsDaoTransactions(tx).AddModel(ep); err != nil {
+					tx.Rollback()
+					logrus.Errorf("error saving static endpint: %v", err)
+					return err
+				}
+			}
+		}
+	}
+	// TODO: create default probe for third-party service.
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return err
