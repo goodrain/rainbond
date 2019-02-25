@@ -27,7 +27,7 @@ type AddEndpiontsReq struct {
 // UpdEndpiontsReq is one of the Endpoints in the request to update the endpints.
 type UpdEndpiontsReq struct {
 	UUID string `json:"uuid" validate:"required|len:32"`
-	IP string `json:"ip" validate:"required|ip_v4"`
+	IP string `json:"ip" validate:"ip_v4"`
 	IsOnline bool `json:"is_online" validate:"required"`
 }
 

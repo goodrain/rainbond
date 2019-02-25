@@ -68,6 +68,10 @@ func (t *ThirdPartyServiceHanlder) UpdEndpoints(data []*model.UpdEndpiontsReq) e
 			tx.Rollback()
 			return fmt.Errorf("uuid: %s, error getting endpoint: %v", d.UUID, err)
 		}
+		if strings.Replace(d.IP, " ", "", -1) != "" {
+			ep.IP = d.IP
+		}
+		ep.IsOnline = d.IsOnline
 		if err := t.dbmanager.EndpointsDaoTransactions(tx).UpdateModel(ep); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("uuid: %s, error updating endpoint: %v", d.UUID, err)
@@ -130,11 +134,11 @@ func (t *ThirdPartyServiceHanlder) GetProbe(sid string) (*model.ThridPartyServic
 		return nil, err
 	}
 	return &model.ThridPartyServiceProbe{
-		Scheme: probe.Scheme,
-		Port: probe.Port,
-		Path: probe.Path,
+		Scheme:       probe.Scheme,
+		Port:         probe.Port,
+		Path:         probe.Path,
 		TimeInterval: probe.TimeInterval,
-		MaxErrorNum: probe.MaxErrorNum,
-		Action: probe.Action,
+		MaxErrorNum:  probe.MaxErrorNum,
+		Action:       probe.Action,
 	}, nil
 }
