@@ -21,6 +21,8 @@ package controller
 import (
 	"net/http"
 
+	"github.com/goodrain/rainbond/api/util"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -69,4 +71,17 @@ func RoutesDiscover(w http.ResponseWriter, r *http.Request) {
 	routeConfig := chi.URLParam(r, "route_config")
 	logrus.Debugf("route_config is %s, namespace %s, serviceNodes %s", routeConfig, namespace, serviceNodes)
 	w.WriteHeader(200)
+}
+
+//PluginResourcesConfig discover plugin config
+func PluginResourcesConfig(w http.ResponseWriter, r *http.Request) {
+	namespace := chi.URLParam(r, "tenant_id")
+	serviceAlias := chi.URLParam(r, "service_alias")
+	pluginID := chi.URLParam(r, "plugin_id")
+	ss, err := discoverService.GetPluginConfigs(namespace, serviceAlias, pluginID)
+	if err != nil {
+		util.CreateAPIHandleError(500, err).Handle(r, w)
+		return
+	}
+	httputil.ReturnNoFomart(r, w, 200, ss)
 }

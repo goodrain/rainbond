@@ -24,6 +24,7 @@ import (
 )
 
 //DisconverRoutes envoy discover api
+// v1 api will abandoned in 5.2
 func DisconverRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/ping", controller.Ping)
@@ -31,6 +32,7 @@ func DisconverRoutes() chi.Router {
 	r.Mount("/clusters", ClustersRoutes())
 	r.Mount("/registration", RegistrationRoutes())
 	r.Mount("/routes", RoutesRouters())
+	r.Mount("/resources", SourcesRoutes())
 	return r
 }
 
@@ -67,5 +69,13 @@ func RoutesRouters() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/ping", controller.Ping)
 	r.Get("/{route_config}/{tenant_service}/{service_nodes}", controller.RoutesDiscover)
+	return r
+}
+
+//SourcesRoutes SourcesRoutes
+//GET /v1/sources/(string: tenant_id)/(string: service_alias)/(string: plugin_id)
+func SourcesRoutes() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/{tenant_id}/{service_alias}/{plugin_id}", controller.PluginResourcesConfig)
 	return r
 }
