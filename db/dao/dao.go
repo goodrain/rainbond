@@ -97,6 +97,8 @@ type TenantServicesPortDao interface {
 	GetOuterPorts(serviceID string) ([]*model.TenantServicesPort, error)
 	GetInnerPorts(serviceID string) ([]*model.TenantServicesPort, error)
 	GetPort(serviceID string, port int) (*model.TenantServicesPort, error)
+	//GetDepUDPPort get all depend service udp port info
+	GetDepUDPPort(serviceID string) ([]*model.TenantServicesPort, error)
 	DELPortsByServiceID(serviceID string) error
 }
 

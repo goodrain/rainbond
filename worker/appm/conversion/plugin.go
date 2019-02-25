@@ -19,12 +19,14 @@
 package conversion
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
 
+	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
@@ -114,21 +116,52 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 		return nil, nil, err
 	}
 	if as.NeedProxy && !netPlugin {
-		c2 := v1.Container{
-			Name: "adapter-" + as.ServiceID[len(as.ServiceID)-20:],
-			VolumeMounts: []v1.VolumeMount{v1.VolumeMount{
-				MountPath: "/etc/kubernetes",
-				Name:      "kube-config",
-				ReadOnly:  true,
-			}},
-			Env:                    podTmpl.Spec.Containers[0].Env,
-			TerminationMessagePath: "",
-			Image:                  "goodrain.me/adapter",
-			Resources:              createAdapterResources(50, 20),
+		depUDPPort, _ := dbmanager.TenantServicesPortDao().GetDepUDPPort(as.ServiceID)
+		if len(depUDPPort) > 0 {
+			c2 := createUDPDefaultPluginContainer(as.ServiceID, podTmpl.Spec.Containers[0].Env)
+			containers = append(containers, c2)
+		} else {
+			pluginID, err := applyDefaultMeshPluginConfig(as, dbmanager)
+			if err != nil {
+				logrus.Errorf("apply default mesh plugin config failure %s", err.Error())
+			}
+			c2 := createTCPDefaultPluginContainer(as.ServiceID, pluginID, podTmpl.Spec.Containers[0].Env)
+			containers = append(containers, c2)
 		}
-		containers = append(containers, c2)
 	}
 	return initContainers, containers, nil
+}
+
+func createUDPDefaultPluginContainer(serviceID string, envs []v1.EnvVar) v1.Container {
+	return v1.Container{
+		Name: "default-udpmesh-" + serviceID[len(serviceID)-20:],
+		VolumeMounts: []v1.VolumeMount{v1.VolumeMount{
+			MountPath: "/etc/kubernetes",
+			Name:      "kube-config",
+			ReadOnly:  true,
+		}},
+		Env:                    envs,
+		TerminationMessagePath: "",
+		Image:                  "goodrain.me/adapter",
+		Resources:              createAdapterResources(50, 20),
+	}
+}
+
+func getTCPMeshImageName() string {
+	if d := os.Getenv("TCPMESH_DEFAULT_IMAGE_NAME"); d != "" {
+		return d
+	}
+	return "goodrain.me/mesh_plugin"
+}
+
+func createTCPDefaultPluginContainer(serviceID, pluginID string, envs []v1.EnvVar) v1.Container {
+	envs = append(envs, v1.EnvVar{Name: "PLUGIN_ID", Value: pluginID})
+	return v1.Container{
+		Name:      "default-tcpmesh-" + serviceID[len(serviceID)-20:],
+		Env:       envs,
+		Image:     getTCPMeshImageName(),
+		Resources: createAdapterResources(50, 20),
+	}
 }
 
 //ApplyPluginConfig applyPluginConfig
@@ -154,6 +187,60 @@ func ApplyPluginConfig(as *typesv1.AppService, servicePluginRelation *model.Tena
 		as.SetConfigMap(cm)
 	}
 }
+
+//applyDefaultMeshPluginConfig applyDefaultMeshPluginConfig
+func applyDefaultMeshPluginConfig(as *typesv1.AppService, dbmanager db.Manager) (string, error) {
+	var baseServices []*api_model.BaseService
+	deps, err := dbmanager.TenantServiceRelationDao().GetTenantServiceRelations(as.ServiceID)
+	if err != nil {
+		logrus.Errorf("get service depend service info failure %s", err.Error())
+	}
+	for _, dep := range deps {
+		ports, err := dbmanager.TenantServicesPortDao().GetPortsByServiceID(dep.DependServiceID)
+		if err != nil {
+			logrus.Errorf("get service depend service port info failure %s", err.Error())
+		}
+		depService, err := dbmanager.TenantServiceDao().GetServiceByID(dep.ServiceID)
+		if err != nil {
+			logrus.Errorf("get service depend service info failure %s", err.Error())
+		}
+		for _, port := range ports {
+			depService := &api_model.BaseService{
+				ServiceAlias:       as.ServiceAlias,
+				ServiceID:          as.ServiceID,
+				DependServiceAlias: depService.ServiceAlias,
+				DependServiceID:    depService.ServiceID,
+				Port:               port.ContainerPort,
+				Protocol:           "tcp",
+			}
+			baseServices = append(baseServices, depService)
+		}
+	}
+	var res = &api_model.ResourceSpec{
+		BaseServices: baseServices,
+	}
+	resJSON, err := json.Marshal(res)
+	if err != nil {
+		return "", err
+	}
+	pluginID := "tcpmesh" + util.NewUUID()
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("config-%s-%s", as.ServiceID, pluginID),
+			Labels: as.GetCommonLabels(map[string]string{
+				"plugin_id":     pluginID,
+				"service_alias": as.ServiceAlias,
+			}),
+		},
+		Data: map[string]string{
+			"plugin-config": string(resJSON),
+			"plugin-model":  model.DownNetPlugin,
+		},
+	}
+	as.SetConfigMap(cm)
+	return pluginID, nil
+}
+
 func getPluginModel(pluginID, tenantID string, dbmanager db.Manager) (string, error) {
 	plugin, err := dbmanager.TenantPluginDao().GetPluginByID(pluginID, tenantID)
 	if err != nil {
