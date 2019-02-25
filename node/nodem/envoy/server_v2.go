@@ -19,7 +19,17 @@
 package envoy
 
 import (
+	"fmt"
 	"net"
+	"sync"
+	"sync/atomic"
+
+	"k8s.io/apimachinery/pkg/labels"
+
+	"github.com/goodrain/rainbond/node/nodem/envoy/conver"
+
+	api_model "github.com/goodrain/rainbond/api/model"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/Sirupsen/logrus"
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
@@ -34,10 +44,12 @@ import (
 
 //DiscoverServerManager envoy discover server
 type DiscoverServerManager struct {
-	server     server.Server
-	conf       option.Conf
-	grpcServer *grpc.Server
-	cache      cache.SnapshotCache
+	server          server.Server
+	conf            option.Conf
+	grpcServer      *grpc.Server
+	cacheManager    cache.SnapshotCache
+	cacheNodeConfig []*NodeConfig
+	kubecli         kubecache.KubeClient
 }
 
 // Hasher returns node ID as an ID
@@ -49,15 +61,188 @@ func (h Hasher) ID(node *core.Node) string {
 	if node == nil {
 		return "unknown"
 	}
-	return node.Id
+	return node.Cluster
+}
+
+//NodeConfig envoy node config cache struct
+type NodeConfig struct {
+	nodeID                         string
+	namespace                      string
+	serviceAlias                   string
+	version                        int64
+	config                         *corev1.ConfigMap
+	configModel                    *api_model.ResourceSpec
+	dependServices                 sync.Map
+	listeners, clusters, endpoints []cache.Resource
+}
+
+//GetID get envoy node config id
+func (n *NodeConfig) GetID() string {
+	return n.nodeID
+}
+
+//TryUpdate try update resources, if don't care about,direct return false
+//if return true, snapshot need update
+func (n *NodeConfig) TryUpdate(obj interface{}) (needUpdate bool) {
+	if service, ok := obj.(*corev1.Service); ok {
+		if v, ok := service.Labels["creater"]; !ok || v != "Rainbond" {
+			return false
+		}
+		if _, ok := n.dependServices.Load(service.Labels["service_id"]); ok {
+			return true
+		}
+	}
+	if endpoints, ok := obj.(*corev1.Endpoints); ok {
+		if v, ok := endpoints.Labels["creater"]; !ok || v != "Rainbond" {
+			return false
+		}
+		if _, ok := n.dependServices.Load(endpoints.Labels["service_id"]); ok {
+			return true
+		}
+	}
+	if configMap, ok := obj.(*corev1.ConfigMap); ok {
+		if v, ok := configMap.Labels["creater"]; !ok || v != "Rainbond" {
+			return false
+		}
+		if configMap.Name == n.config.Name {
+			n.config = configMap
+			return true
+		}
+	}
+	if secret, ok := obj.(*corev1.Secret); ok {
+		//do not support
+		logrus.Debugf("add secret %s", secret.Name)
+	}
+	return false
+}
+
+//VersionUpdate add version index
+func (n *NodeConfig) VersionUpdate() {
+	newVersion := atomic.AddInt64(&n.version, 1)
+	n.version = newVersion
+}
+
+//GetVersion get version
+func (n *NodeConfig) GetVersion() string {
+	return fmt.Sprintf("version_%d", n.version)
+}
+
+func createNodeID(namespace, pluginID, serviceAlias string) string {
+	return fmt.Sprintf("%s_%s_%s", namespace, pluginID, serviceAlias)
+}
+
+//GetDependService get depend service
+func (d *DiscoverServerManager) GetDependService(namespace, depServiceAlias string) ([]*corev1.Service, []*corev1.Endpoints) {
+	labelname := fmt.Sprintf("name=%sService", depServiceAlias)
+	selector, err := labels.Parse(labelname)
+	if err != nil {
+		logrus.Errorf("parse label name failure %s", err.Error())
+		return nil, nil
+	}
+	services, err := d.kubecli.GetServices(namespace, selector)
+	if err != nil {
+		logrus.Errorf("get depend service failure %s", err.Error())
+		return nil, nil
+	}
+	endpoints, err := d.kubecli.GetEndpoints(namespace, selector)
+	if err != nil {
+		logrus.Errorf("get depend service endpoints failure %s", err.Error())
+		return nil, nil
+	}
+	return services, endpoints
+}
+
+//GetSelfService get self service
+func (d *DiscoverServerManager) GetSelfService(namespace, serviceAlias string) ([]*corev1.Service, []*corev1.Endpoints) {
+	labelname := fmt.Sprintf("name=%sServiceOUT", serviceAlias)
+	selector, err := labels.Parse(labelname)
+	if err != nil {
+		logrus.Errorf("parse label name failure %s", err.Error())
+		return nil, nil
+	}
+	services, err := d.kubecli.GetServices(namespace, selector)
+	if err != nil {
+		logrus.Errorf("get self service failure %s", err.Error())
+		return nil, nil
+	}
+	endpoints, err := d.kubecli.GetEndpoints(namespace, selector)
+	if err != nil {
+		logrus.Errorf("get self service endpoints failure %s", err.Error())
+		return nil, nil
+	}
+	return services, endpoints
+}
+
+//NewNodeConfig new NodeConfig
+func (d *DiscoverServerManager) NewNodeConfig(config *corev1.ConfigMap) (*NodeConfig, error) {
+	servicaAlias := config.Labels["service_alias"]
+	namespace := config.Namespace
+	configs, pluginID, err := conver.GetPluginConfigs(config)
+	if err != nil {
+		return nil, err
+	}
+	nc := &NodeConfig{
+		nodeID:       createNodeID(namespace, pluginID, servicaAlias),
+		serviceAlias: servicaAlias,
+		namespace:    namespace,
+		version:      1,
+		config:       config,
+		configModel:  configs,
+	}
+	return nc, d.UpdateNodeConfig(nc)
+}
+
+//UpdateNodeConfig update node config
+func (d *DiscoverServerManager) UpdateNodeConfig(nc *NodeConfig) error {
+	var dependServices sync.Map
+	var services []*corev1.Service
+	var endpoint []*corev1.Endpoints
+	for _, dep := range nc.configModel.BaseServices {
+		dependServices.Store(dep.DependServiceID, true)
+		upServices, upEndpoints := d.GetDependService(nc.namespace, dep.DependServiceAlias)
+		services = append(services, upServices...)
+		endpoint = append(endpoint, upEndpoints...)
+	}
+	if nc.configModel.BasePorts != nil {
+		downService, downEndpoint := d.GetSelfService(nc.namespace, nc.serviceAlias)
+		services = append(services, downService...)
+		endpoint = append(endpoint, downEndpoint...)
+	}
+	listeners, err := conver.OneNodeListerner(nc.serviceAlias, nc.namespace, nc.config, services)
+	if err != nil {
+		logrus.Errorf("create envoy listeners failure %s", err.Error())
+	} else {
+		nc.listeners = listeners
+	}
+	clusters, err := conver.OneNodeCluster(nc.serviceAlias, nc.namespace, nc.config, services)
+	if err != nil {
+		logrus.Errorf("create envoy clusters failure %s", err.Error())
+	} else {
+		nc.clusters = clusters
+	}
+	clusterLoadAssignment := conver.OneNodeClusterLoadAssignment(nc.serviceAlias, nc.namespace, endpoint, services)
+	if err != nil {
+		logrus.Errorf("create envoy endpoints failure %s", err.Error())
+	} else {
+		nc.endpoints = clusterLoadAssignment
+	}
+	snapshot := cache.NewSnapshot(nc.GetVersion(), nc.endpoints, nc.clusters, nil, nc.listeners)
+	err = d.cacheManager.SetSnapshot(nc.nodeID, snapshot)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("cache envoy node %s config", nc.nodeID)
+	return nil
 }
 
 //CreateDiscoverServerManager create discover server manager
 func CreateDiscoverServerManager(kubecli kubecache.KubeClient, conf option.Conf) (*DiscoverServerManager, error) {
 	configcache := cache.NewSnapshotCache(false, Hasher{}, logrus.WithField("module", "config-cache"))
 	dsm := &DiscoverServerManager{
-		server: server.NewServer(configcache, nil),
-		cache:  configcache,
+		server:       server.NewServer(configcache, nil),
+		cacheManager: configcache,
+		kubecli:      kubecli,
+		conf:         conf,
 	}
 	kubecli.AddEventWatch("all", dsm)
 	return dsm, nil
@@ -74,11 +259,6 @@ func (d *DiscoverServerManager) Start(errch chan error) error {
 	var grpcOptions []grpc.ServerOption
 	grpcOptions = append(grpcOptions, grpc.MaxConcurrentStreams(grpcMaxConcurrentStreams))
 	d.grpcServer = grpc.NewServer(grpcOptions...)
-
-	lis, err := net.Listen("tcp", d.conf.GrpcAPIAddr)
-	if err != nil {
-		return err
-	}
 	// register services
 	discovery.RegisterAggregatedDiscoveryServiceServer(d.grpcServer, d.server)
 	v2.RegisterEndpointDiscoveryServiceServer(d.grpcServer, d.server)
@@ -86,8 +266,12 @@ func (d *DiscoverServerManager) Start(errch chan error) error {
 	v2.RegisterRouteDiscoveryServiceServer(d.grpcServer, d.server)
 	v2.RegisterListenerDiscoveryServiceServer(d.grpcServer, d.server)
 	discovery.RegisterSecretDiscoveryServiceServer(d.grpcServer, d.server)
-	logrus.Info("management server listening")
 	go func() {
+		logrus.Infof("envoy grpc management server listening %s", d.conf.GrpcAPIAddr)
+		lis, err := net.Listen("tcp", d.conf.GrpcAPIAddr)
+		if err != nil {
+			errch <- err
+		}
 		if err = d.grpcServer.Serve(lis); err != nil {
 			errch <- err
 		}
@@ -97,20 +281,74 @@ func (d *DiscoverServerManager) Start(errch chan error) error {
 
 //Stop stop grpc server
 func (d *DiscoverServerManager) Stop() {
-	d.grpcServer.GracefulStop()
+	//d.grpcServer.GracefulStop()
+}
+
+//AddNodeConfig add node config cache
+func (d *DiscoverServerManager) AddNodeConfig(nc *NodeConfig) {
+	for i, existNC := range d.cacheNodeConfig {
+		if existNC.nodeID == nc.nodeID {
+			d.cacheNodeConfig[i] = nc
+			return
+		}
+	}
+	d.cacheNodeConfig = append(d.cacheNodeConfig, nc)
+}
+
+//DeleteNodeConfig delete node config cache
+func (d *DiscoverServerManager) DeleteNodeConfig(nodeID string) {
+	for i, existNC := range d.cacheNodeConfig {
+		if existNC.nodeID == nodeID {
+			d.cacheManager.ClearSnapshot(existNC.nodeID)
+			d.cacheNodeConfig = append(d.cacheNodeConfig[:i], d.cacheNodeConfig[i+1:]...)
+		}
+	}
 }
 
 //OnAdd on add resource
 func (d *DiscoverServerManager) OnAdd(obj interface{}) {
-
+	if configMap, ok := obj.(*corev1.ConfigMap); ok {
+		if _, ok := configMap.Data["plugin-config"]; ok {
+			nc, err := d.NewNodeConfig(configMap)
+			if err != nil {
+				logrus.Errorf("create envoy node config failure %s", err.Error())
+			}
+			if nc != nil {
+				d.AddNodeConfig(nc)
+			}
+		}
+		return
+	}
+	for i, nodeConfig := range d.cacheNodeConfig {
+		if nodeConfig.TryUpdate(obj) {
+			err := d.UpdateNodeConfig(d.cacheNodeConfig[i])
+			if err != nil {
+				logrus.Errorf("update envoy node config failure %s", err.Error())
+			}
+		}
+	}
 }
 
 //OnUpdate on update resource
 func (d *DiscoverServerManager) OnUpdate(oldObj, newObj interface{}) {
-
+	d.OnAdd(newObj)
 }
 
 //OnDelete on delete resource
 func (d *DiscoverServerManager) OnDelete(obj interface{}) {
-
+	if configMap, ok := obj.(*corev1.ConfigMap); ok {
+		if _, ok := configMap.Data["plugin-config"]; ok {
+			nodeID := createNodeID(configMap.Namespace, configMap.Labels["plugin_id"], configMap.Labels["service_alias"])
+			d.DeleteNodeConfig(nodeID)
+		}
+		return
+	}
+	for i, nodeConfig := range d.cacheNodeConfig {
+		if nodeConfig.TryUpdate(obj) {
+			err := d.UpdateNodeConfig(d.cacheNodeConfig[i])
+			if err != nil {
+				logrus.Errorf("update envoy node config failure %s", err.Error())
+			}
+		}
+	}
 }

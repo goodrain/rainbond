@@ -25,10 +25,9 @@ import (
 )
 
 func TestOneNodeListerner(t *testing.T) {
-	cacheNodeID, listeners, err := OneNodeListerner("serviceAlias", "namespace", []*corev1.ConfigMap{}, []*corev1.Service{})
+	listeners, err := OneNodeListerner("serviceAlias", "namespace", &corev1.ConfigMap{}, []*corev1.Service{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(cacheNodeID)
 	t.Log(listeners)
 }

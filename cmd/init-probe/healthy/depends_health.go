@@ -36,7 +36,7 @@ type DependServiceHealthController struct {
 	clusters             envoyv1.Clusters
 	sdsHost              map[string]envoyv1.SDSHost
 	interval             time.Duration
-	envoyDiscoverVersion string //v1 or v2(not impl)
+	envoyDiscoverVersion string //only support v2
 	checkFunc            []func() bool
 }
 

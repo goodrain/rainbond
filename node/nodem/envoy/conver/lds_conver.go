@@ -26,42 +26,56 @@ import (
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	route "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
+	"github.com/envoyproxy/go-control-plane/pkg/cache"
 	api_model "github.com/goodrain/rainbond/api/model"
 	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func getPluginConfigs(configs []*corev1.ConfigMap) (*api_model.ResourceSpec, string, error) {
-	if len(configs) < 1 {
+//GetPluginConfigs get plugin config model
+func GetPluginConfigs(configs *corev1.ConfigMap) (*api_model.ResourceSpec, string, error) {
+	if configs == nil {
 		return nil, "", fmt.Errorf("no config for mesh")
 	}
 	var rs api_model.ResourceSpec
-	if err := ffjson.Unmarshal([]byte(configs[0].Data["plugin-config"]), &rs); err != nil {
+	if err := ffjson.Unmarshal([]byte(configs.Data["plugin-config"]), &rs); err != nil {
 		logrus.Errorf("unmashal etcd v error, %v", err)
 		return nil, "", err
 	}
-	return &rs, configs[0].Labels["plugin_id"], nil
+	return &rs, configs.Labels["plugin_id"], nil
 }
 
 //OneNodeListerner conver listerner of on envoy node
-func OneNodeListerner(serviceAlias, namespace string, configs []*corev1.ConfigMap, services []*corev1.Service) ([]v2.Listener, error) {
-	resources, _, err := getPluginConfigs(configs)
+func OneNodeListerner(serviceAlias, namespace string, configs *corev1.ConfigMap, services []*corev1.Service) ([]cache.Resource, error) {
+	resources, _, err := GetPluginConfigs(configs)
 	if err != nil {
 		return nil, err
 	}
-	var listener []v2.Listener
+	var listener []cache.Resource
 	if resources.BaseServices != nil && len(resources.BaseServices) > 0 {
-		listener = append(listener, upstreamListener(serviceAlias, namespace, resources.BaseServices, services)...)
+		for _, l := range upstreamListener(serviceAlias, namespace, resources.BaseServices, services) {
+			if err := l.Validate(); err != nil {
+				logrus.Errorf("listener validate failure %s", err.Error())
+			} else {
+				listener = append(listener, l)
+			}
+		}
 	}
 	if resources.BasePorts != nil && len(resources.BasePorts) > 0 {
-		listener = append(listener, downstreamListener(serviceAlias, namespace, resources.BasePorts)...)
+		for _, l := range downstreamListener(serviceAlias, namespace, resources.BasePorts) {
+			if err := l.Validate(); err != nil {
+				logrus.Errorf("listener validate failure %s", err.Error())
+			} else {
+				listener = append(listener, l)
+			}
+		}
 	}
 	return listener, nil
 }
 
 //upstreamListener handle upstream app listener
 // handle kubernetes inner service
-func upstreamListener(serviceAlias, namespace string, dependsServices []*api_model.BaseService, services []*corev1.Service) (ldsL []v2.Listener) {
+func upstreamListener(serviceAlias, namespace string, dependsServices []*api_model.BaseService, services []*corev1.Service) (ldsL []*v2.Listener) {
 	var ListennerConfig = make(map[string]*api_model.BaseService, len(dependsServices))
 	for i, dService := range dependsServices {
 		listennerName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, dService.DependServiceAlias, dService.Port)
@@ -76,24 +90,27 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 			continue
 		}
 		port := service.Spec.Ports[0].Port
-		clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, service.Labels["service_alias"], port)
+		clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port)
 		destService := ListennerConfig[clusterName]
 		// Unique by listen port
 		if _, ok := portMap[port]; !ok {
 			listenerName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
 			plds := envoyv2.CreateTCPListener(listenerName, clusterName, "127.0.0.1", uint32(port))
-			ldsL = append(ldsL, plds)
+			ldsL = append(ldsL, &plds)
 			portMap[port] = len(ldsL) - 1
 		}
 		portProtocol, ok := service.Labels["port_protocol"]
-		if !ok {
+		if !ok && destService != nil {
 			portProtocol = destService.Protocol
 		}
 		if portProtocol != "" {
 			//TODO: support more protocol
 			switch portProtocol {
 			case "http", "https":
-				options := envoyv2.GetOptionValues(destService.Options)
+				var options envoyv2.RainbondPluginOptions
+				if destService != nil {
+					options = envoyv2.GetOptionValues(destService.Options)
+				}
 				hashKey := options.RouteBasicHash()
 				if oldroute, ok := uniqRoute[hashKey]; ok {
 					oldrr := oldroute.Action.(*route.Route_Route)
@@ -135,7 +152,7 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 						},
 					}
 					pvh := route.VirtualHost{
-						Name:    fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, service.Labels["service_alias"], port),
+						Name:    fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port),
 						Domains: options.Domains,
 						Routes:  []route.Route{r},
 					}
@@ -155,13 +172,13 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 			ldsL = append(ldsL[:i], ldsL[i+1:]...)
 		}
 		plds := envoyv2.CreateHTTPListener(fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias), "127.0.0.1", 80, newVHL...)
-		ldsL = append(ldsL, plds)
+		ldsL = append(ldsL, &plds)
 	}
 	return
 }
 
 //downstreamListener handle app self port listener
-func downstreamListener(serviceAlias, namespace string, ports []*api_model.BasePort) (ls []v2.Listener) {
+func downstreamListener(serviceAlias, namespace string, ports []*api_model.BasePort) (ls []*v2.Listener) {
 	var portMap = make(map[int32]int, 0)
 	for i := range ports {
 		p := ports[i]
@@ -170,9 +187,22 @@ func downstreamListener(serviceAlias, namespace string, ports []*api_model.BaseP
 		listenerName := clusterName
 		if _, ok := portMap[port]; !ok {
 			listener := envoyv2.CreateTCPListener(listenerName, clusterName, "0.0.0.0", uint32(p.ListenPort))
-			ls = append(ls, listener)
+			ls = append(ls, &listener)
 			portMap[port] = 1
 		}
 	}
 	return
+}
+
+//GetServiceAliasByService get service alias from k8s service
+func GetServiceAliasByService(service *corev1.Service) string {
+	//v5.1 and later
+	if serviceAlias, ok := service.Labels["service_alias"]; ok {
+		return serviceAlias
+	}
+	//version before v5.1
+	if serviceAlias, ok := service.Spec.Selector["name"]; ok {
+		return serviceAlias
+	}
+	return ""
 }

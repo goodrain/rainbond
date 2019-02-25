@@ -18,8 +18,24 @@
 
 package envoy
 
-import "testing"
+import (
+	"testing"
+
+	conf "github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/node/kubecache"
+)
 
 func TestCreateDiscoverServerManager(t *testing.T) {
-	CreateDiscoverServerManager(nil, nil)
+	config := conf.Conf{}
+	kubecli, err := kubecache.NewKubeClient(&config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := CreateDiscoverServerManager(kubecli, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := server.Start(make(chan error)); err != nil {
+		t.Fatal(err)
+	}
 }

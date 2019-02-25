@@ -22,8 +22,11 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/Sirupsen/logrus"
+
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
+	"github.com/envoyproxy/go-control-plane/pkg/cache"
 	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -34,7 +37,7 @@ func init() {
 }
 
 //OneNodeClusterLoadAssignment one envoy node endpoints
-func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*corev1.Endpoints, services []*corev1.Service) (clusterLoadAssignment []v2.ClusterLoadAssignment) {
+func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*corev1.Endpoints, services []*corev1.Service) (clusterLoadAssignment []cache.Resource) {
 	for _, service := range services {
 		destServiceAlias := service.Labels["service_alias"]
 		clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, service.Spec.Ports[0].Port)
@@ -78,10 +81,15 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 			}
 
 		}
-		clusterLoadAssignment = append(clusterLoadAssignment, v2.ClusterLoadAssignment{
+		cla := &v2.ClusterLoadAssignment{
 			ClusterName: clusterName,
 			Endpoints:   lendpoints,
-		})
+		}
+		if err := cla.Validate(); err != nil {
+			logrus.Errorf("endpoints discover validate failure %s", err.Error())
+		} else {
+			clusterLoadAssignment = append(clusterLoadAssignment, cla)
+		}
 	}
 	return clusterLoadAssignment
 }
