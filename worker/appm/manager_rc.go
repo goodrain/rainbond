@@ -649,6 +649,9 @@ func (m *manager) waitRCReplicasReady(n int32, serviceID string, logger event.Lo
 			logger.Error("实例启动超时，置于后台启动，请留意应用状态", map[string]string{"step": "worker-appm", "status": "error"})
 			return ErrTimeOut
 		case event := <-watch.ResultChan():
+			if event.Object == nil {
+				continue
+			}
 			state := event.Object.(*v1.ReplicationController)
 			logger.Info(fmt.Sprintf("实例正在启动，当前启动实例数 %d,就绪实例数 %d, 未启动实例数 %d ", state.Status.Replicas, state.Status.ReadyReplicas, n-state.Status.Replicas), map[string]string{"step": "worker-appm"})
 		case event := <-podWatch.ResultChan():
