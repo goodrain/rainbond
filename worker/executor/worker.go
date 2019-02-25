@@ -19,9 +19,11 @@
 package executor
 
 import (
-	"github.com/goodrain/rainbond/worker/executor/task"
 	"fmt"
 	"runtime/debug"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/worker/executor/task"
 )
 
 //Worker 工作器
@@ -54,6 +56,7 @@ func (w *woker) Start() {
 	}()
 	defer func() {
 		if err := recover(); err != nil {
+			logrus.Errorf("Panicing: %v", err)
 			w.task.RunError(fmt.Errorf("worker recover %v", err))
 			debug.PrintStack()
 		}
