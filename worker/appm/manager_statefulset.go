@@ -280,6 +280,9 @@ func (m *manager) waitStatefulReplicas(n int32, logger event.Logger, stateful *v
 			logger.Error("实例关闭超时，请重试！", map[string]string{"step": "worker-appm", "status": "error"})
 			return ErrTimeOut
 		case event := <-watch.ResultChan():
+			if event.Object == nil {
+				continue
+			}
 			state := event.Object.(*v1beta1.StatefulSet)
 			logger.Info(fmt.Sprintf("实例正在顺序关闭，当前应用实例数 %d", state.Status.Replicas), map[string]string{"step": "worker-appm"})
 		case event := <-podWatch.ResultChan():
@@ -337,6 +340,9 @@ func (m *manager) waitStatefulReplicasReady(n int32, serviceID string, logger ev
 			logger.Error("实例启动超时，置于后台启动，请留意应用状态", map[string]string{"step": "worker-appm", "status": "error"})
 			return ErrTimeOut
 		case event := <-watch.ResultChan():
+			if event.Object == nil{
+				continue
+			}
 			state := event.Object.(*v1beta1.StatefulSet)
 			logger.Info(fmt.Sprintf("实例正在顺序启动，当前启动实例数 %d,未启动实例数 %d ", state.Status.Replicas, n-state.Status.Replicas), map[string]string{"step": "worker-appm"})
 		case event := <-podWatch.ResultChan():
