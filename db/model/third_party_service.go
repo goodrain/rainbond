@@ -30,7 +30,7 @@ type Endpoint struct {
 
 // TableName returns table name of Endpoint.
 func (Endpoint) TableName() string {
-	return "3rd_party_svc_endpoints"
+	return "tenant_service_3rd_party_endpoints"
 }
 
 // ThirdPartyServiceProbe is a persistent object for table 3rd_party_svc_probe.
@@ -48,7 +48,7 @@ type ThirdPartyServiceProbe struct {
 
 // TableName returns table name of ThirdPartyServiceProbe
 func (ThirdPartyServiceProbe) TableName() string {
-	return "3rd_party_svc_probe"
+	return "tenant_service3rd_party_probe"
 }
 
 // ThirdPartyServiceDiscoveryCfg s a persistent object for table
@@ -66,5 +66,5 @@ type ThirdPartyServiceDiscoveryCfg struct {
 
 // TableName returns table name of ThirdPartyServiceDiscoveryCfg.
 func (ThirdPartyServiceDiscoveryCfg) TableName() string {
-	return "3rd_party_svc_discovery_cfg"
+	return "tenant_service_3rd_party_discovery_cfg"
 }

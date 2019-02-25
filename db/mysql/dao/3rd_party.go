@@ -21,6 +21,7 @@ package dao
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/jinzhu/gorm"
 	"github.com/goodrain/rainbond/db/model"
@@ -50,13 +51,14 @@ func (e *EndpointDaoImpl) AddModel(mo model.Interface) error {
 
 // UpdateModel updates one record for table 3rd_party_svc_endpoint
 func (e *EndpointDaoImpl) UpdateModel(mo model.Interface) error {
-	ep, ok := mo.(*model.Certificate)
+	ep, ok := mo.(*model.Endpoint)
 	if !ok {
 		return fmt.Errorf("Type conversion error. From %s to *model.Endpoint", reflect.TypeOf(mo))
 	}
-	return e.DB.Table(ep.TableName()).
-		Where("uuid = ?", ep.UUID).
-		Update(ep).Error
+	if strings.Replace(ep.UUID, " ", "", -1) == "" {
+		return fmt.Errorf("uuid can not be empty.")
+	}
+	return e.DB.Save(ep).Error
 }
 
 // GetByUUID returns endpints matching the given uuid.

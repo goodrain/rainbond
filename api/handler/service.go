@@ -598,28 +598,33 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	// sc.Endpoints can't be nil
 	// sc.Endpoints.Discovery or sc.Endpoints.Static can't be nil
 	if sc.Kind == "third_party" { // TODO: validate request data
-		if c := &sc.Endpoints.Discovery; c != nil {
-			cfg := &dbmodel.ThirdPartyServiceDiscoveryCfg{
-				Type:     c.Type,
-				Servers:  strings.Join(c.Servers, ","),
-				Key:      c.Key,
-				Username: c.Username,
-				Password: c.Password,
+		if c := strings.Replace(sc.Endpoints.Discovery, " ", "", -1); c != "" {
+			var cfg dbmodel.ThirdPartyServiceDiscoveryCfg
+			err := json.Unmarshal([]byte(sc.Endpoints.Discovery), &cfg)
+			if err !=nil {
+				tx.Rollback()
+				return err
 			}
 			if err := db.GetManager().ThirdPartyServiceDiscoveryCfgDaoTransactions(tx).
-				AddModel(cfg); err != nil {
+				AddModel(&cfg); err != nil {
 				logrus.Errorf("error saving discover center configuration: %v", err)
 				tx.Rollback()
 				return err
 			}
 		} else {
-			for _, static := range sc.Endpoints.Static {
+			var obj []string
+			err := json.Unmarshal([]byte(sc.Endpoints.Static), &obj)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+			for _, o := range obj {
 				ep := &dbmodel.Endpoint{
 					ServiceID: sc.ServiceID,
 					UUID:      core_util.NewUUID(),
 					IsOnline:  true,
 				}
-				s := strings.Split(static, ":")
+				s := strings.Split(o, ":")
 				ep.IP = s[0]
 				if len(s) == 2 {
 					port, err := strconv.Atoi(s[1])
@@ -632,7 +637,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 				}
 				if err := db.GetManager().EndpointsDaoTransactions(tx).AddModel(ep); err != nil {
 					tx.Rollback()
-					logrus.Errorf("error saving static endpint: %v", err)
+					logrus.Errorf("error saving o endpoint: %v", err)
 					return err
 				}
 			}

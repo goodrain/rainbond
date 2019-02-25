@@ -20,23 +20,32 @@ package model
 
 // AddEndpiontsReq is one of the Endpoints in the request to add the endpints.
 type AddEndpiontsReq struct {
-	IP string `json:"ip" validate:"required|ip_v4"`
-	IsOnline bool `json:"is_online" validate:"required"`
+	IP       string `json:"ip" validate:"required|ip_v4"`
+	IsOnline bool   `json:"is_online" validate:"required"`
 }
 
 // UpdEndpiontsReq is one of the Endpoints in the request to update the endpints.
 type UpdEndpiontsReq struct {
-	UUID string `json:"uuid" validate:"required|len:32"`
-	IP string `json:"ip" validate:"ip_v4"`
-	IsOnline bool `json:"is_online" validate:"required"`
+	EpID     string `json:"ep_id" validate:"required|len:32"`
+	IP       string `json:"ip" validate:"ip_v4"`
+	IsOnline bool   `json:"is_online" validate:"required"`
 }
 
 // DelEndpiontsReq is one of the Endpoints in the request to update the endpints.
 type DelEndpiontsReq struct {
-	UUID string `json:"uuid" validate:"required|len:32"`
+	EpID string `json:"ep_id" validate:"required|len:32"`
 }
 
-// ThridPartyServiceProbe is the json obejct in the request 
+// EndpointResp is one of the Endpoints list in the response to list, add,
+// update or delete the endpints.
+type EndpointResp struct {
+	EpID     string `json:"ep_id"`
+	IP       string `json:"ip"`
+	Status   string `json:"status"`
+	IsOnline bool   `json:"is_online"`
+}
+
+// ThridPartyServiceProbe is the json obejct in the request
 // to update or fetch the ThridPartyServiceProbe.
 type ThridPartyServiceProbe struct {
 	Scheme       string `json:"scheme;"`

@@ -336,14 +336,8 @@ type ServiceStruct struct {
 
 	// Endpoints holds third-party service endpoints or configuraion to get endpoints.
 	Endpoints struct {
-		Static    []string `json:"static"`
-		Discovery struct {
-			Type     string   `json:"type"`
-			Servers  []string `json:"servers"`
-			Key      string   `json:"key"`
-			Username string   `json:"username"`
-			Password string   `json:"password"`
-		} `json:"discovery"`
+		Static    string `json:"static"`
+		Discovery string `json:"discovery"`
 	} `json:"endpoints"`
 }
 
@@ -915,7 +909,7 @@ type ServiceCheckStruct struct {
 		//检测来源类型
 		// in: body
 		// required: true
-		SourceType string `json:"source_type" validate:"source_type|required|in:docker-run,docker-compose,sourcecode"`
+		SourceType string `json:"source_type" validate:"source_type|required|in:docker-run,docker-compose,sourcecode,third-party-service"`
 
 		CheckOS string `json:"check_os"`
 		// 检测来源定义，

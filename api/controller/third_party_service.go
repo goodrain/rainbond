@@ -40,16 +40,18 @@ func (t *ThirdPartyServiceController) Endpoints(w http.ResponseWriter, r *http.R
 		t.updEndpoints(w, r)
 	case "DELETE":
 		t.delEndpoints(w, r)
+	case "GET":
+		t.listEndpoints(w, r)
 	}
 }
 
 func (t *ThirdPartyServiceController) addEndpoints(w http.ResponseWriter, r *http.Request) {
-	var data []*model.AddEndpiontsReq
+	var data model.AddEndpiontsReq
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &data, nil) {
 		return
 	}
 	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.Get3rdPartySvcHandler().AddEndpoints(sid, data); err != nil {
+	if err := handler.Get3rdPartySvcHandler().AddEndpoints(sid, &data); err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
@@ -57,11 +59,11 @@ func (t *ThirdPartyServiceController) addEndpoints(w http.ResponseWriter, r *htt
 }
 
 func (t *ThirdPartyServiceController) updEndpoints(w http.ResponseWriter, r *http.Request) {
-	var data []*model.UpdEndpiontsReq
+	var data model.UpdEndpiontsReq
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &data, nil) {
 		return
 	}
-	if err := handler.Get3rdPartySvcHandler().UpdEndpoints(data); err != nil {
+	if err := handler.Get3rdPartySvcHandler().UpdEndpoints(&data); err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
@@ -69,15 +71,25 @@ func (t *ThirdPartyServiceController) updEndpoints(w http.ResponseWriter, r *htt
 }
 
 func (t *ThirdPartyServiceController) delEndpoints(w http.ResponseWriter, r *http.Request) {
-	var data []model.DelEndpiontsReq
+	var data model.DelEndpiontsReq
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &data, nil) {
 		return
 	}
-	if err := handler.Get3rdPartySvcHandler().DelEndpoints(data); err != nil {
+	if err := handler.Get3rdPartySvcHandler().DelEndpoints(&data); err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
 	httputil.ReturnSuccess(r, w, "success")
+}
+
+func (t *ThirdPartyServiceController) listEndpoints(w http.ResponseWriter, r *http.Request) {
+	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	res, err := handler.Get3rdPartySvcHandler().ListEndpoints(sid)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, res)
 }
 
 // ThirdPartyProbe PUT->update probe.
@@ -91,24 +103,31 @@ func (t *ThirdPartyServiceController) ThirdPartyProbe(w http.ResponseWriter, r *
 }
 
 func (t *ThirdPartyServiceController) getProbe(w http.ResponseWriter, r *http.Request) {
-	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	probe, err := handler.Get3rdPartySvcHandler().GetProbe(sid);
-	if err != nil {
-		httputil.ReturnError(r, w, 500, err.Error())
-		return
+	//sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	//probe, err := handler.Get3rdPartySvcHandler().GetProbe(sid);
+	//if err != nil {
+	//	httputil.ReturnError(r, w, 500, err.Error())
+	//	return
+	//}
+	probe := model.ThridPartyServiceProbe{
+		Scheme: "TCP",
+		Port: 10254,
+		TimeInterval: 5,
+		MaxErrorNum: 3,
+		Action: "offline",
 	}
 	httputil.ReturnSuccess(r, w, probe)
 }
 
 func (t *ThirdPartyServiceController) updateProbe(w http.ResponseWriter, r *http.Request) {
-	var data model.ThridPartyServiceProbe
-	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &data, nil) {
-		return
-	}
-	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.Get3rdPartySvcHandler().UpdProbe(sid, &data); err != nil {
-		httputil.ReturnError(r, w, 500, err.Error())
-		return
-	}
+	//var data model.ThridPartyServiceProbe
+	//if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &data, nil) {
+	//	return
+	//}
+	//sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	//if err := handler.Get3rdPartySvcHandler().UpdProbe(sid, &data); err != nil {
+	//	httputil.ReturnError(r, w, 500, err.Error())
+	//	return
+	//}
 	httputil.ReturnSuccess(r, w, "success")
 }

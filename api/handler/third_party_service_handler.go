@@ -40,58 +40,62 @@ func Create3rdPartySvcHandler(dbmanager db.Manager) *ThirdPartyServiceHanlder {
 }
 
 // AddEndpoints adds endpints for third-party service.
-func (t *ThirdPartyServiceHanlder) AddEndpoints(sid string, data []*model.AddEndpiontsReq) error {
-	tx := db.GetManager().Begin()
-	for _, d := range data {
+func (t *ThirdPartyServiceHanlder) AddEndpoints(sid string, d *model.AddEndpiontsReq) error {
 		ep := &dbmodel.Endpoint{
 			UUID:      util.NewUUID(),
 			ServiceID: sid,
 			IP:        d.IP,
 			IsOnline:  d.IsOnline,
 		}
-		if err := t.dbmanager.EndpointsDaoTransactions(tx).AddModel(ep); err != nil {
-			tx.Rollback()
+		if err := t.dbmanager.EndpointsDao().AddModel(ep); err != nil {
 			logrus.Errorf("error creating endpoint record: %v", err)
 			return err
 		}
-	}
-	tx.Commit()
 	return nil
 }
 
 // UpdEndpoints updates endpints for third-party service.
-func (t *ThirdPartyServiceHanlder) UpdEndpoints(data []*model.UpdEndpiontsReq) error {
-	tx := db.GetManager().Begin()
-	for _, d := range data {
-		ep, err := t.dbmanager.EndpointsDaoTransactions(tx).GetByUUID(d.UUID)
-		if err != nil {
-			tx.Rollback()
-			return fmt.Errorf("uuid: %s, error getting endpoint: %v", d.UUID, err)
-		}
-		if strings.Replace(d.IP, " ", "", -1) != "" {
-			ep.IP = d.IP
-		}
-		ep.IsOnline = d.IsOnline
-		if err := t.dbmanager.EndpointsDaoTransactions(tx).UpdateModel(ep); err != nil {
-			tx.Rollback()
-			return fmt.Errorf("uuid: %s, error updating endpoint: %v", d.UUID, err)
-		}
+func (t *ThirdPartyServiceHanlder) UpdEndpoints(d *model.UpdEndpiontsReq) error {
+	ep, err := t.dbmanager.EndpointsDao().GetByUUID(d.EpID)
+	if err != nil {
+		return fmt.Errorf("uuid: %s, error getting endpoint: %v", d.EpID, err)
 	}
-	tx.Commit()
+	if strings.Replace(d.IP, " ", "", -1) != "" {
+		ep.IP = d.IP
+	}
+	ep.IsOnline = d.IsOnline
+	if err := t.dbmanager.EndpointsDao().UpdateModel(ep); err != nil {
+		return fmt.Errorf("uuid: %s, error updating endpoint: %v", d.EpID, err)
+	}
 	return nil
 }
 
 // DelEndpoints deletes endpints for third-party service.
-func (t *ThirdPartyServiceHanlder) DelEndpoints(uuids []model.DelEndpiontsReq) error {
-	tx := db.GetManager().Begin()
-	for _, ep := range uuids {
-		if err := t.dbmanager.EndpointsDaoTransactions(tx).DelByUUID(ep.UUID); err != nil {
-			tx.Rollback()
-			return fmt.Errorf("uuid: %s, error deleting endpoint: %v", ep.UUID, err)
-		}
+func (t *ThirdPartyServiceHanlder) DelEndpoints(data *model.DelEndpiontsReq) error {
+	if err := t.dbmanager.EndpointsDao().DelByUUID(data.EpID); err != nil {
+		return fmt.Errorf("uuid: %s, error deleting endpoint: %v", data.EpID, err)
 	}
-	tx.Commit()
 	return nil
+}
+
+// ListEndpoints lists third-party service endpoints.
+func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointResp, error) {
+	eps, err := t.dbmanager.EndpointsDao().List(sid)
+	if err != nil {
+		logrus.Errorf("error listing endpoints: %v", err)
+		return nil, err
+	}
+	var res []*model.EndpointResp
+	for _, ep := range eps {
+		r := &model.EndpointResp{
+			EpID:     ep.UUID,
+			IP:       ep.IP,
+			IsOnline: ep.IsOnline,
+		}
+		r.Status = "Unknown" // TODO: get real status from worker.
+		res = append(res, r)
+	}
+	return res, nil
 }
 
 // UpdProbe updates third-party service probe with sid(service_id).
