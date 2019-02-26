@@ -150,7 +150,7 @@ func (t *ThirdPartyServiceDiscoveryCfgDaoImpl) AddModel(mo model.Interface) erro
 			return err
 		}
 	} else {
-		return fmt.Errorf("Probe exists based on servicd_id(%s)", cfg.ServiceID)
+		return fmt.Errorf("Discovery configuration exists based on servicd_id(%s)", cfg.ServiceID)
 	}
 	return nil
 }

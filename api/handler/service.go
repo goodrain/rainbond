@@ -55,6 +55,14 @@ type ServiceAction struct {
 	conf      option.Config
 }
 
+type dCfg struct {
+	Type     string   `json:"type"`
+	Servers  []string `json:"servers"`
+	Key      string   `json:"key"`
+	Username string   `json:"username"`
+	Password string   `json:"password"`
+}
+
 //CreateManager create Manger
 func CreateManager(conf option.Config, mqClient gclient.MQClient,
 	etcdCli *clientv3.Client, statusCli *client.AppRuntimeSyncClient) *ServiceAction {
@@ -598,22 +606,30 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	// sc.Endpoints can't be nil
 	// sc.Endpoints.Discovery or sc.Endpoints.Static can't be nil
 	if sc.Kind == "third_party" { // TODO: validate request data
-		if c := strings.Replace(sc.Endpoints.Discovery, " ", "", -1); c != "" {
-			var cfg dbmodel.ThirdPartyServiceDiscoveryCfg
-			err := json.Unmarshal([]byte(sc.Endpoints.Discovery), &cfg)
-			if err !=nil {
+		if config := strings.Replace(sc.Endpoints.Discovery, " ", "", -1); config != "" {
+			var cfg dCfg
+			err := json.Unmarshal([]byte(config), &cfg)
+			if err != nil {
 				tx.Rollback()
 				return err
 			}
+			c := &dbmodel.ThirdPartyServiceDiscoveryCfg{
+				ServiceID: sc.ServiceID,
+				Type:      cfg.Type,
+				Servers:   strings.Join(cfg.Servers, ","),
+				Key:       cfg.Key,
+				Username:  cfg.Username,
+				Password:  cfg.Password,
+			}
 			if err := db.GetManager().ThirdPartyServiceDiscoveryCfgDaoTransactions(tx).
-				AddModel(&cfg); err != nil {
+				AddModel(c); err != nil {
 				logrus.Errorf("error saving discover center configuration: %v", err)
 				tx.Rollback()
 				return err
 			}
-		} else {
+		} else if static := strings.Replace(sc.Endpoints.Static, " ", "", -1); static != "" {
 			var obj []string
-			err := json.Unmarshal([]byte(sc.Endpoints.Static), &obj)
+			err := json.Unmarshal([]byte(static), &obj)
 			if err != nil {
 				tx.Rollback()
 				return err

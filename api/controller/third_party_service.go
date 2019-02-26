@@ -89,6 +89,10 @@ func (t *ThirdPartyServiceController) listEndpoints(w http.ResponseWriter, r *ht
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
+	if res == nil || len(res) == 0 {
+		httputil.ReturnSuccess(r, w, []*model.EndpointResp{})
+		return
+	}
 	httputil.ReturnSuccess(r, w, res)
 }
 
@@ -110,11 +114,11 @@ func (t *ThirdPartyServiceController) getProbe(w http.ResponseWriter, r *http.Re
 	//	return
 	//}
 	probe := model.ThridPartyServiceProbe{
-		Scheme: "TCP",
-		Port: 10254,
+		Scheme:       "TCP",
+		Port:         10254,
 		TimeInterval: 5,
-		MaxErrorNum: 3,
-		Action: "offline",
+		MaxErrorNum:  3,
+		Action:       "offline",
 	}
 	httputil.ReturnSuccess(r, w, probe)
 }
