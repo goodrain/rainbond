@@ -25,7 +25,8 @@ type Endpoint struct {
 	ServiceID string `gorm:"column:service_id;size:32;not null"`
 	IP        string `gorm:"column:ip;not null"`
 	Port      int    `gorm:"column:port;size:65535"`
-	IsOnline  bool   `gorm:"column:is_online;default:true"`
+	//use pointer type, zero values won't be saved into database
+	IsOnline *bool `gorm:"column:is_online;default:true"`
 }
 
 // TableName returns table name of Endpoint.

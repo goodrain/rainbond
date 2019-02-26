@@ -40,7 +40,7 @@ func (e *EndpointDaoImpl) AddModel(mo model.Interface) error {
 	}
 	var o model.Endpoint
 	if ok := e.DB.Where("service_id=? and ip=?", ep.ServiceID, ep.IP).Find(&o).RecordNotFound(); ok {
-		if err := e.DB.Create(ep).Error; err != nil {
+		if err := e.DB.Save(ep).Error; err != nil {
 			return err
 		}
 	} else {

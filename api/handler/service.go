@@ -634,11 +634,12 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 				tx.Rollback()
 				return err
 			}
+			trueValue := true
 			for _, o := range obj {
 				ep := &dbmodel.Endpoint{
 					ServiceID: sc.ServiceID,
 					UUID:      core_util.NewUUID(),
-					IsOnline:  true,
+					IsOnline:  &trueValue,
 				}
 				s := strings.Split(o, ":")
 				ep.IP = s[0]

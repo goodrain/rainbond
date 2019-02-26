@@ -38,8 +38,8 @@ func TestEndpointDaoImpl_UpdateModel(t *testing.T) {
 		Image:        "mariadb",
 		ExposedPorts: []string{"3306/tcp"},
 		Env: map[string]string{
-			"MYSQL_ROOT_PASSWORD":              dbname,
-			"MYSQL_DATABASE": rootpw,
+			"MYSQL_ROOT_PASSWORD": rootpw,
+			"MYSQL_DATABASE":      dbname,
 		},
 		Cmd: "--character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci",
 	}
@@ -70,7 +70,7 @@ func TestEndpointDaoImpl_UpdateModel(t *testing.T) {
 			MysqlConnectionInfo: connInfo,
 		}); err != nil {
 			if tryTimes == 0 {
-				t.Errorf("Connect info: %s; error creating db manager: %v", connInfo, err)
+				t.Fatalf("Connect info: %s; error creating db manager: %v", connInfo, err)
 			} else {
 				tryTimes = tryTimes - 1
 				time.Sleep(10 * time.Second)
@@ -80,17 +80,19 @@ func TestEndpointDaoImpl_UpdateModel(t *testing.T) {
 		break
 	}
 
+	trueVal := true
+	falseVal := false
 	ep := &model.Endpoint{
 		UUID:      util.NewUUID(),
 		ServiceID: util.NewUUID(),
 		IP:        "10.10.10.10",
-		IsOnline:  true,
+		IsOnline:  &trueVal,
 	}
 	err = GetManager().EndpointsDao().AddModel(ep)
 	if err != nil {
 		t.Fatalf("error adding endpoint: %v", err)
 	}
-	ep.IsOnline = false
+	ep.IsOnline = &falseVal
 	err = GetManager().EndpointsDao().UpdateModel(ep)
 	if err != nil {
 		t.Fatalf("error updating endpoint: %v", err)
@@ -99,7 +101,78 @@ func TestEndpointDaoImpl_UpdateModel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error getting endpoint: %v", err)
 	}
-	if e.IsOnline != false {
+	if *e.IsOnline != false {
+		t.Errorf("Expected %v for e.IsOnline, but returned %v", false, e.IsOnline)
+	}
+}
+
+func TestEndpointDaoImpl_AddModel(t *testing.T) {
+	dbname := "region"
+	rootpw := "rainbond"
+
+	ctx := context.Background()
+	req := testcontainers.ContainerRequest{
+		Image:        "mariadb",
+		ExposedPorts: []string{"3306/tcp"},
+		Env: map[string]string{
+			"MYSQL_ROOT_PASSWORD": rootpw,
+			"MYSQL_DATABASE":      dbname,
+		},
+		Cmd: "--character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci",
+	}
+	mariadb, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mariadb.Terminate(ctx)
+
+	host, err := mariadb.Host(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := mariadb.MappedPort(ctx, "3306")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	connInfo := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", "root",
+		rootpw, host, port.Int(), dbname)
+	tryTimes := 3
+	for {
+		if err := CreateManager(dbconfig.Config{
+			DBType:              "mysql",
+			MysqlConnectionInfo: connInfo,
+		}); err != nil {
+			if tryTimes == 0 {
+				t.Fatalf("Connect info: %s; error creating db manager: %v", connInfo, err)
+			} else {
+				tryTimes = tryTimes - 1
+				time.Sleep(10 * time.Second)
+				continue
+			}
+		}
+		break
+	}
+
+	falseVal := false
+	ep := &model.Endpoint{
+		UUID:      util.NewUUID(),
+		ServiceID: util.NewUUID(),
+		IP:        "10.10.10.10",
+		IsOnline:  &falseVal,
+	}
+	err = GetManager().EndpointsDao().AddModel(ep)
+	if err != nil {
+		t.Fatalf("error adding endpoint: %v", err)
+	}
+	e, err := GetManager().EndpointsDao().GetByUUID(ep.UUID)
+	if err != nil {
+		t.Fatalf("error getting endpoint: %v", err)
+	}
+	if *e.IsOnline != false {
 		t.Errorf("Expected %v for e.IsOnline, but returned %v", false, e.IsOnline)
 	}
 }

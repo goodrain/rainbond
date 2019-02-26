@@ -41,16 +41,19 @@ func Create3rdPartySvcHandler(dbmanager db.Manager) *ThirdPartyServiceHanlder {
 
 // AddEndpoints adds endpints for third-party service.
 func (t *ThirdPartyServiceHanlder) AddEndpoints(sid string, d *model.AddEndpiontsReq) error {
-		ep := &dbmodel.Endpoint{
-			UUID:      util.NewUUID(),
-			ServiceID: sid,
-			IP:        d.IP,
-			IsOnline:  d.IsOnline,
-		}
-		if err := t.dbmanager.EndpointsDao().AddModel(ep); err != nil {
-			logrus.Errorf("error creating endpoint record: %v", err)
-			return err
-		}
+	ep := &dbmodel.Endpoint{
+		UUID:      util.NewUUID(),
+		ServiceID: sid,
+		IP:        d.IP,
+		IsOnline:  &d.IsOnline,
+	}
+	tx := db.GetManager().Begin()
+	if err := t.dbmanager.EndpointsDaoTransactions(tx).AddModel(ep); err != nil {
+		tx.Rollback()
+		logrus.Errorf("error creating endpoint record: %v", err)
+		return err
+	}
+	tx.Commit()
 	return nil
 }
 
@@ -63,7 +66,7 @@ func (t *ThirdPartyServiceHanlder) UpdEndpoints(d *model.UpdEndpiontsReq) error 
 	if strings.Replace(d.IP, " ", "", -1) != "" {
 		ep.IP = d.IP
 	}
-	ep.IsOnline = d.IsOnline
+	ep.IsOnline = &d.IsOnline
 	if err := t.dbmanager.EndpointsDao().UpdateModel(ep); err != nil {
 		return fmt.Errorf("uuid: %s, error updating endpoint: %v", d.EpID, err)
 	}
@@ -90,7 +93,7 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 		r := &model.EndpointResp{
 			EpID:     ep.UUID,
 			IP:       ep.IP,
-			IsOnline: ep.IsOnline,
+			IsOnline: *ep.IsOnline,
 		}
 		r.Status = "Unknown" // TODO: get real status from worker.
 		res = append(res, r)
