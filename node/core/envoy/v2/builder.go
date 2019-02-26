@@ -116,7 +116,7 @@ func CreateSocketAddress(protocol, address string, port uint32) core.Address {
 					}
 					return core.TCP
 				}(protocol),
-				Address: defaultListenerAddress,
+				Address: address,
 				PortSpecifier: &core.SocketAddress_PortValue{
 					PortValue: port,
 				},

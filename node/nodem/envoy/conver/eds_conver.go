@@ -31,19 +31,19 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func init() {
-
-	_ = v2.ClusterLoadAssignment{}
-}
-
 //OneNodeClusterLoadAssignment one envoy node endpoints
 func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*corev1.Endpoints, services []*corev1.Service) (clusterLoadAssignment []cache.Resource) {
-	for _, service := range services {
-		destServiceAlias := service.Labels["service_alias"]
+	for i := range services {
+		service := services[i]
+		destServiceAlias := GetServiceAliasByService(service)
+		if destServiceAlias == "" {
+			logrus.Errorf("service alias is empty in k8s service %s", service.Name)
+			continue
+		}
 		clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, service.Spec.Ports[0].Port)
-		name := fmt.Sprintf("name=%sService", destServiceAlias)
+		name := fmt.Sprintf("%sService", destServiceAlias)
 		if destServiceAlias == serviceAlias {
-			name = fmt.Sprintf("name=%sServiceOUT", destServiceAlias)
+			name = fmt.Sprintf("%sServiceOUT", destServiceAlias)
 		}
 		selectEndpoint := getEndpointsByLables(endpoints, map[string]string{"name": name})
 		var lendpoints []endpoint.LocalityLbEndpoints
@@ -79,7 +79,6 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 				}
 				lendpoints = append(lendpoints, endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
 			}
-
 		}
 		cla := &v2.ClusterLoadAssignment{
 			ClusterName: clusterName,
@@ -98,7 +97,8 @@ func getEndpointsByLables(endpoints []*corev1.Endpoints, slabels map[string]stri
 	for _, en := range endpoints {
 		existLength := 0
 		for k, v := range slabels {
-			if v2, ok := en.Labels[k]; ok && v == v2 {
+			v2, ok := en.Labels[k]
+			if ok && v == v2 {
 				existLength++
 			}
 		}

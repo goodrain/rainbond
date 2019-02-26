@@ -21,9 +21,9 @@ package healthy
 import (
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 
-	envoyv1 "github.com/goodrain/rainbond/node/core/envoy/v1"
+	"github.com/Sirupsen/logrus"
 )
 
 //DependServiceHealthController Detect the health of the dependent service
@@ -32,9 +32,9 @@ import (
 //------- cds: discover all dependent services
 //------- sds: every service has at least one Ready instance
 type DependServiceHealthController struct {
-	listeners            envoyv1.Listeners
-	clusters             envoyv1.Clusters
-	sdsHost              map[string]envoyv1.SDSHost
+	listeners            []v2.Listener
+	clusters             []v2.Cluster
+	sdsHost              []v2.ClusterLoadAssignment
 	interval             time.Duration
 	envoyDiscoverVersion string //only support v2
 	checkFunc            []func() bool

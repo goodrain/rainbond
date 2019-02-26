@@ -88,11 +88,14 @@ func NewKubeClient(cfg *conf.Conf) (KubeClient, error) {
 	stop := make(chan struct{})
 	sharedInformers := informers.NewFilteredSharedInformerFactory(cli, cfg.MinResyncPeriod, v1.NamespaceAll,
 		func(options *metav1.ListOptions) {
-			options.LabelSelector = "creater=Rainbond"
+			//options.LabelSelector = "creater=Rainbond"
 		})
 	serviceInformers := sharedInformers.Core().V1().Services().Informer()
+	go serviceInformers.Run(stop)
 	endpointInformers := sharedInformers.Core().V1().Endpoints().Informer()
+	go endpointInformers.Run(stop)
 	configmapInformers := sharedInformers.Core().V1().ConfigMaps().Informer()
+	go configmapInformers.Run(stop)
 	sharedInformers.Core().V1().Nodes().Informer()
 	sharedInformers.Core().V1().Pods().Informer()
 	sharedInformers.Start(stop)

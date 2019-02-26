@@ -182,28 +182,28 @@ func (d *DiscoverServerManager) NewNodeConfig(config *corev1.ConfigMap) (*NodeCo
 		return nil, err
 	}
 	nc := &NodeConfig{
-		nodeID:       createNodeID(namespace, pluginID, servicaAlias),
-		serviceAlias: servicaAlias,
-		namespace:    namespace,
-		version:      1,
-		config:       config,
-		configModel:  configs,
+		nodeID:         createNodeID(namespace, pluginID, servicaAlias),
+		serviceAlias:   servicaAlias,
+		namespace:      namespace,
+		version:        1,
+		config:         config,
+		configModel:    configs,
+		dependServices: sync.Map{},
 	}
 	return nc, d.UpdateNodeConfig(nc)
 }
 
 //UpdateNodeConfig update node config
 func (d *DiscoverServerManager) UpdateNodeConfig(nc *NodeConfig) error {
-	var dependServices sync.Map
 	var services []*corev1.Service
 	var endpoint []*corev1.Endpoints
 	for _, dep := range nc.configModel.BaseServices {
-		dependServices.Store(dep.DependServiceID, true)
+		nc.dependServices.Store(dep.DependServiceID, true)
 		upServices, upEndpoints := d.GetDependService(nc.namespace, dep.DependServiceAlias)
 		services = append(services, upServices...)
 		endpoint = append(endpoint, upEndpoints...)
 	}
-	if nc.configModel.BasePorts != nil {
+	if nc.configModel.BasePorts != nil && len(nc.configModel.BasePorts) > 0 {
 		downService, downEndpoint := d.GetSelfService(nc.namespace, nc.serviceAlias)
 		services = append(services, downService...)
 		endpoint = append(endpoint, downEndpoint...)
@@ -226,11 +226,13 @@ func (d *DiscoverServerManager) UpdateNodeConfig(nc *NodeConfig) error {
 	} else {
 		nc.endpoints = clusterLoadAssignment
 	}
+	logrus.Info(clusterLoadAssignment)
 	snapshot := cache.NewSnapshot(nc.GetVersion(), nc.endpoints, nc.clusters, nil, nc.listeners)
 	err = d.cacheManager.SetSnapshot(nc.nodeID, snapshot)
 	if err != nil {
 		return err
 	}
+	nc.VersionUpdate()
 	logrus.Infof("cache envoy node %s config", nc.nodeID)
 	return nil
 }
