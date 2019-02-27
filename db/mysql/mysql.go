@@ -131,7 +131,6 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.IPPool{})
 	m.models = append(m.models, &model.TenantServiceConfigFile{})
 	m.models = append(m.models, &model.Endpoint{})
-	m.models = append(m.models, &model.ThirdPartyServiceProbe{})
 	m.models = append(m.models, &model.ThirdPartyServiceDiscoveryCfg{})
 }
 
