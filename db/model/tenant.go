@@ -399,7 +399,8 @@ type TenantServiceProbe struct {
 	//标志为失败的检测次数
 	FailureThreshold int `gorm:"column:failure_threshold;size:2;default:3" json:"failure_threshold" validate:"failure_threshold"`
 	//标志为成功的检测次数
-	SuccessThreshold int `gorm:"column:success_threshold;size:2;default:1" json:"success_threshold" validate:"success_threshold"`
+	SuccessThreshold int    `gorm:"column:success_threshold;size:2;default:1" json:"success_threshold" validate:"success_threshold"`
+	FailureAction    string `gorm:"column:failure_action;" json:"failure_action" validate:"failure_action"`
 }
 
 //TableName 表名

@@ -90,48 +90,6 @@ func (e *EndpointDaoImpl) DelByUUID(uuid string) error {
 	return nil
 }
 
-// ThirdPartyServiceProbeDaoImpl implements ThirdPartyServiceProbeDao
-type ThirdPartyServiceProbeDaoImpl struct {
-	DB *gorm.DB
-}
- 
-// AddModel add one record for table 3rd_party_svc_probe.
-func (t *ThirdPartyServiceProbeDaoImpl) AddModel(mo model.Interface) error {
-	probe, ok := mo.(*model.ThirdPartyServiceProbe)
-	if !ok {
-		return fmt.Errorf("Type conversion error. From %s to *model.ThirdPartyServiceProbe", reflect.TypeOf(mo))
-	}
-	var old model.ThirdPartyServiceProbe
-	if ok := t.DB.Where("service_id=?", probe.ServiceID).Find(&old).RecordNotFound(); ok {
-		if err := t.DB.Create(probe).Error; err != nil {
-			return err
-		}
-	} else {
-		return fmt.Errorf("Probe exists based on servicd_id(%s)", probe.ServiceID)
-	}
-	return nil
-}
-
-// UpdateModel updates one record for table 3rd_party_svc_probe.
-func (t *ThirdPartyServiceProbeDaoImpl) UpdateModel(mo model.Interface) error {
-	probe, ok := mo.(*model.ThirdPartyServiceProbe)
-	if !ok {
-		return fmt.Errorf("Type conversion error. From %s to *model.ThirdPartyServiceProbe", reflect.TypeOf(mo))
-	}
-	return t.DB.Table(probe.TableName()).
-		Where("service_id = ?", probe.ServiceID).
-		Update(probe).Error
-}
-
-// GetByServiceID returns a *model.ThirdPartyServiceProbe matching sid(service_id).
-func (t *ThirdPartyServiceProbeDaoImpl) GetByServiceID(sid string) (*model.ThirdPartyServiceProbe, error) {
-	var probe model.ThirdPartyServiceProbe
-	if err := t.DB.Where("service_id=?", sid).Find(&probe).Error; err != nil {
-		return nil, err
-	}
-	return &probe, nil
-}
-
 // ThirdPartyServiceDiscoveryCfgDaoImpl implements ThirdPartyServiceDiscoveryCfgDao
 type ThirdPartyServiceDiscoveryCfgDaoImpl struct {
 	DB *gorm.DB
