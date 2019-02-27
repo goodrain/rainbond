@@ -107,9 +107,6 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/tcp-rule", controller.GetManager().TCPRule)
 	r.Delete("/tcp-rule", controller.GetManager().TCPRule)
 	r.Put("/tcp-rule", controller.GetManager().TCPRule)
-	//r.Post("/ip-pool", controller.GetManager().IPPool)
-	//r.Put("/ip-pool", controller.GetManager().IPPool)
-	//r.Delete("/ip-pool", controller.GetManager().IPPool)
 
 	return r
 }
@@ -205,6 +202,12 @@ func (v2 *V2) serviceRouter() chi.Router {
 	//rule
 	r.Mount("/net-rule", v2.rulesRouter())
 	r.Get("/deploy-info", controller.GetServiceDeployInfo)
+
+	// third-party service
+	r.Post("/endpoints", controller.GetManager().Endpoints)
+	r.Put("/endpoints", controller.GetManager().Endpoints)
+	r.Delete("/endpoints", controller.GetManager().Endpoints)
+	r.Get("/endpoints", controller.GetManager().Endpoints)
 
 	return r
 }

@@ -57,6 +57,7 @@ type V2Routes struct {
 	EventLogStruct
 	AppStruct
 	GatewayStruct
+	ThirdPartyServiceController
 }
 
 //Show test
@@ -1611,6 +1612,7 @@ func (t *TenantStruct) AddProbe(w http.ResponseWriter, r *http.Request) {
 	tspD.Scheme = tsp.Scheme
 	tspD.SuccessThreshold = tsp.SuccessThreshold
 	tspD.TimeoutSecond = tsp.TimeoutSecond
+	tspD.FailureAction = tsp.FailureAction
 	//注意端口问题
 	if err := handler.GetServiceManager().ServiceProbe(&tspD, "add"); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("add service probe error, %v", err))

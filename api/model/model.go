@@ -19,11 +19,10 @@
 package model
 
 import (
-	"net/url"
-	"time"
-
 	"fmt"
+	"net/url"
 	"strings"
+	"time"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
@@ -323,6 +322,7 @@ type ServiceStruct struct {
 	// in: body
 	// required: false
 	ServiceOrigin string `json:"service_origin" validate:"service_origin"`
+	Kind          string `json:"kind" validate:"in:internal, third_party"`
 
 	ServiceLabel   string                               `json:"service_label"  validate:"service_label"`
 	NodeLabel      string                               `json:"node_label"  validate:"node_label"`
@@ -333,6 +333,12 @@ type ServiceStruct struct {
 	DepVolumesInfo []dbmodel.TenantServiceMountRelation `json:"dep_volumes_info"`
 	EnvsInfo       []dbmodel.TenantServiceEnvVar        `json:"envs_info"`
 	PortsInfo      []dbmodel.TenantServicesPort         `json:"ports_info"`
+
+	// Endpoints holds third-party service endpoints or configuraion to get endpoints.
+	Endpoints struct {
+		Static    string `json:"static"`
+		Discovery string `json:"discovery"`
+	} `json:"endpoints"`
 }
 
 //TenantServiceVolumeStruct -
@@ -903,7 +909,7 @@ type ServiceCheckStruct struct {
 		//检测来源类型
 		// in: body
 		// required: true
-		SourceType string `json:"source_type" validate:"source_type|required|in:docker-run,docker-compose,sourcecode"`
+		SourceType string `json:"source_type" validate:"source_type|required|in:docker-run,docker-compose,sourcecode,third-party-service"`
 
 		CheckOS string `json:"check_os"`
 		// 检测来源定义，
@@ -912,7 +918,7 @@ type ServiceCheckStruct struct {
 		// docker-compose: compose全文
 		// in: body
 		// required: true
-		SourceBody string `json:"source_body" validate:"source_body|required"`
+		SourceBody string `json:"source_body"`
 		TenantID   string
 		Username   string `json:"username"`
 		Password   string `json:"password"`
@@ -1308,7 +1314,8 @@ type ServiceProbe struct {
 	//标志为失败的检测次数
 	FailureThreshold int `gorm:"column:failure_threshold;size:2;default:3" json:"failure_threshold" validate:"failure_threshold"`
 	//标志为成功的检测次数
-	SuccessThreshold int `gorm:"column:success_threshold;size:2;default:1" json:"success_threshold" validate:"success_threshold"`
+	SuccessThreshold int    `gorm:"column:success_threshold;size:2;default:1" json:"success_threshold" validate:"success_threshold"`
+	FailureAction    string `json:"failure_action" validate:"failure_action"`
 }
 
 //TenantServiceVolume 应用持久化记录

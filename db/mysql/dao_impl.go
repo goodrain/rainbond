@@ -21,7 +21,6 @@ package mysql
 import (
 	"github.com/goodrain/rainbond/db/dao"
 	mysqldao "github.com/goodrain/rainbond/db/mysql/dao"
-
 	"github.com/jinzhu/gorm"
 )
 
@@ -491,5 +490,33 @@ func (m *Manager) IPPortDaoTransactions(db *gorm.DB) dao.IPPortDao {
 func (m *Manager) IPPoolDao() dao.IPPoolDao {
 	return &mysqldao.IPPoolImpl{
 		DB: m.db,
+	}
+}
+
+// EndpointsDao returns a new EndpointDaoImpl with default *gorm.DB.
+func (m *Manager) EndpointsDao() dao.EndpointsDao {
+	return &mysqldao.EndpointDaoImpl{
+		DB: m.db,
+	}
+}
+
+// EndpointsDaoTransactions returns a new EndpointDaoImpl with the givem *gorm.DB.
+func (m *Manager) EndpointsDaoTransactions(db *gorm.DB) dao.EndpointsDao {
+	return &mysqldao.EndpointDaoImpl{
+		DB: db,
+	}
+}
+
+// ThirdPartyServiceDiscoveryCfgDao returns a new ThirdPartyServiceDiscoveryCfgDao.
+func (m *Manager) ThirdPartyServiceDiscoveryCfgDao() dao.ThirdPartyServiceDiscoveryCfgDao {
+	return &mysqldao.ThirdPartyServiceDiscoveryCfgDaoImpl{
+		DB: m.db,
+	}
+}
+
+// ThirdPartyServiceDiscoveryCfgDaoTransactions returns a new ThirdPartyServiceDiscoveryCfgDao.
+func (m *Manager) ThirdPartyServiceDiscoveryCfgDaoTransactions(db *gorm.DB) dao.ThirdPartyServiceDiscoveryCfgDao {
+	return &mysqldao.ThirdPartyServiceDiscoveryCfgDaoImpl{
+		DB: db,
 	}
 }

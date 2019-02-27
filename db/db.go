@@ -109,13 +109,19 @@ type Manager interface {
 	IPPortDao() dao.IPPortDao
 	IPPortDaoTransactions(db *gorm.DB) dao.IPPortDao
 	IPPoolDao() dao.IPPoolDao
+
+	// third-party service
+	EndpointsDao() dao.EndpointsDao
+	EndpointsDaoTransactions(db *gorm.DB) dao.EndpointsDao
+	ThirdPartyServiceDiscoveryCfgDao() dao.ThirdPartyServiceDiscoveryCfgDao
+	ThirdPartyServiceDiscoveryCfgDaoTransactions(db *gorm.DB) dao.ThirdPartyServiceDiscoveryCfgDao
 }
 
 var defaultManager Manager
 
 //CreateManager 创建manager
 func CreateManager(config config.Config) (err error) {
-	if config.DBType == "mysql" || config.DBType == "cockroachdb" || config.DBType == "sqlite3" {
+	if config.DBType == "mysql" || config.DBType == "cockroachdb" || config.DBType == "sqlite3" { // TODO: remove sqlite3
 		defaultManager, err = mysql.CreateManager(config)
 		return err
 	}

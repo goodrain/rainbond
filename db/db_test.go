@@ -228,36 +228,6 @@ func TestCockroachDBDeleteService(t *testing.T) {
 //}
 //}
 
-func TestGetHttpRuleByServiceIDAndContainerPort(t *testing.T) {
-	if err := CreateManager(dbconfig.Config{
-		MysqlConnectionInfo: "admin:admin@tcp(127.0.0.1:3306)/region",
-		DBType:              "mysql",
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	_, err := GetManager().HTTPRuleDao().GetHttpRuleByServiceIDAndContainerPort(
-		"43eaae441859eda35b02075d37d83581", 10001)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestGetTcpRuleByServiceIDAndContainerPort(t *testing.T) {
-	if err := CreateManager(dbconfig.Config{
-		MysqlConnectionInfo: "admin:admin@tcp(127.0.0.1:3306)/region",
-		DBType:              "mysql",
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	_, err := GetManager().TcpRuleDao().GetTcpRuleByServiceIDAndContainerPort(
-		"43eaae441859eda35b02075d37d83581", 10001)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestGetCertificateByID(t *testing.T) {
 	if err := CreateManager(dbconfig.Config{
 		MysqlConnectionInfo: "admin:admin@tcp(127.0.0.1:3306)/region",

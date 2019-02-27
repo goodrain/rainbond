@@ -19,11 +19,12 @@
 package middleware
 
 import (
+	"bytes"
 	"context"
+	"github.com/goodrain/rainbond/api/handler"
+	"io/ioutil"
 	"net/http"
 	"strings"
-
-	"github.com/goodrain/rainbond/api/handler"
 
 	"github.com/jinzhu/gorm"
 
@@ -39,9 +40,28 @@ import (
 //ContextKey ctx key type
 type ContextKey string
 
+var pool []string
+
+func init() {
+	pool = []string{
+		"services_status",
+	}
+}
+
 //InitTenant 实现中间件
 func InitTenant(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
+		if !apiExclude(r) {
+			body, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				logrus.Warningf("error reading request body: %v", err)
+			} else {
+				logrus.Debugf("method: %s; uri: %s; body: %s", r.Method, r.RequestURI, string(body))
+			}
+			// set a new body, which will simulate the same data we read
+			r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+		}
+
 		tenantName := chi.URLParam(r, "tenant_name")
 		if tenantName == "" {
 			httputil.ReturnError(r, w, 404, "cant find tenant")
@@ -169,4 +189,16 @@ func Proxy(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(fn)
+}
+
+func apiExclude(r *http.Request) bool {
+	if r.Method == "GET" {
+		return true
+	}
+	for _, item := range pool {
+		if strings.Contains(r.RequestURI, item) {
+			return true
+		}
+	}
+	return false
 }

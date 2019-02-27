@@ -27,11 +27,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/api/proxy"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
@@ -54,6 +53,14 @@ type ServiceAction struct {
 	EtcdCli   *clientv3.Client
 	statusCli *client.AppRuntimeSyncClient
 	conf      option.Config
+}
+
+type dCfg struct {
+	Type     string   `json:"type"`
+	Servers  []string `json:"servers"`
+	Key      string   `json:"key"`
+	Username string   `json:"username"`
+	Password string   `json:"password"`
 }
 
 //CreateManager create Manger
@@ -596,6 +603,64 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		tx.Rollback()
 		return err
 	}
+	// sc.Endpoints can't be nil
+	// sc.Endpoints.Discovery or sc.Endpoints.Static can't be nil
+	if sc.Kind == "third_party" { // TODO: validate request data
+		if config := strings.Replace(sc.Endpoints.Discovery, " ", "", -1); config != "" {
+			var cfg dCfg
+			err := json.Unmarshal([]byte(config), &cfg)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+			c := &dbmodel.ThirdPartyServiceDiscoveryCfg{
+				ServiceID: sc.ServiceID,
+				Type:      cfg.Type,
+				Servers:   strings.Join(cfg.Servers, ","),
+				Key:       cfg.Key,
+				Username:  cfg.Username,
+				Password:  cfg.Password,
+			}
+			if err := db.GetManager().ThirdPartyServiceDiscoveryCfgDaoTransactions(tx).
+				AddModel(c); err != nil {
+				logrus.Errorf("error saving discover center configuration: %v", err)
+				tx.Rollback()
+				return err
+			}
+		} else if static := strings.Replace(sc.Endpoints.Static, " ", "", -1); static != "" {
+			var obj []string
+			err := json.Unmarshal([]byte(static), &obj)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+			trueValue := true
+			for _, o := range obj {
+				ep := &dbmodel.Endpoint{
+					ServiceID: sc.ServiceID,
+					UUID:      core_util.NewUUID(),
+					IsOnline:  &trueValue,
+				}
+				s := strings.Split(o, ":")
+				ep.IP = s[0]
+				if len(s) == 2 {
+					port, err := strconv.Atoi(s[1])
+					if err != nil {
+						logrus.Warningf("string:%s, error parsing string to int", s[1])
+						continue
+					} else {
+						ep.Port = port
+					}
+				}
+				if err := db.GetManager().EndpointsDaoTransactions(tx).AddModel(ep); err != nil {
+					tx.Rollback()
+					logrus.Errorf("error saving o endpoint: %v", err)
+					return err
+				}
+			}
+		}
+	}
+	// TODO: create default probe for third-party service.
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return err

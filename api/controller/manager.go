@@ -47,6 +47,7 @@ type V2Manager interface {
 	api.RulesInterface
 	api.AppInterface
 	api.Gatewayer
+	api.ThirdPartyServicer
 }
 
 var defaultV2Manager V2Manager
@@ -74,7 +75,7 @@ func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2
 	nodeProxy := proxy.CreateProxy("acp_node", "http", conf.NodeAPI)
 	discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("acp_node", nodeProxy)
 	v2r.AcpNodeStruct.HTTPProxy = nodeProxy
-	logrus.Debugf("create  node api proxy success")
+	logrus.Debugf("create node api proxy success")
 
 	v2r.GatewayStruct.MQClient = mqClient
 	v2r.GatewayStruct.cfg = &conf

@@ -407,3 +407,18 @@ type IPPoolDao interface {
 	Dao
 	GetIPPoolByEID(eid string) (*model.IPPool, error)
 }
+
+// EndpointsDao is an interface for defining method 
+// for operating table 3rd_party_svc_endpoints.
+type EndpointsDao interface {
+	Dao
+	GetByUUID(uuid string) (*model.Endpoint, error)
+	List(sid string) ([]*model.Endpoint, error)
+	DelByUUID(uuid string) error
+}
+
+// ThirdPartyServiceDiscoveryCfgDao is an interface for defining method 
+// for operating table 3rd_party_svc_discovery_cfg.
+type ThirdPartyServiceDiscoveryCfgDao interface {
+	Dao
+}

@@ -59,7 +59,7 @@ func (s *ServiceAction) ServiceCheck(scs *api_model.ServiceCheckStruct) (string,
 		Topic:    topic,
 	})
 	if err != nil {
-		logrus.Errorf("equque service check message to mq error, %v", err)
+		logrus.Errorf("enqueue service check message to mq error, %v", err)
 		return "", "", util.CreateAPIHandleError(500, err)
 	}
 	return checkUUID, scs.Body.EventID, nil
