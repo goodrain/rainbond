@@ -108,11 +108,13 @@ func (t *trustedRegistryClient) CreateRepository(namespace string, rep *Repostor
 	}
 	req, err := t.getRequest("POST", fmt.Sprintf("%s/api/v0/repositories/%s", t.server, namespace), bytes.NewBuffer(data))
 	if err != nil {
-		return err
+		logrus.Errorf("error creating http request: %v", err)
+		return fmt.Errorf("error creating http request: %v", err)
 	}
 	res, err := t.httpCli.Do(req)
 	if err != nil {
-		return err
+		logrus.Errorf("error doing http request: %v", err)
+		return fmt.Errorf("error doing http request: %v", err)
 	}
 	if res.StatusCode == 200 {
 		return nil
