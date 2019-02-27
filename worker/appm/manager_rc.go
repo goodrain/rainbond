@@ -592,6 +592,9 @@ func (m *manager) waitRCReplicas(n int32, logger event.Logger, rc *v1.Replicatio
 			logger.Error("实例关闭超时，请重试！", map[string]string{"step": "worker-appm", "status": "error"})
 			return ErrTimeOut
 		case event := <-watch.ResultChan():
+			if event.Object == nil {
+				continue
+			}
 			state := event.Object.(*v1.ReplicationController)
 			logger.Info(fmt.Sprintf("实例正在关闭，当前应用实例数 %d", state.Status.Replicas), map[string]string{"step": "worker-appm"})
 		case event := <-podWatch.ResultChan():
