@@ -101,7 +101,6 @@ http {
         server 0.0.0.1; # placeholder
 
         balancer_by_lua_block {
-          ngx.log(ngx.INFO, string.format("start balancer"))
           balancer.balance()
         }
     }

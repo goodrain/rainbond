@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/util"
 )
 
 func dockerfileBuilder() (Build, error) {
@@ -86,8 +87,10 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 	}, nil
 }
 
+//GetARGs get args and parse value
 func GetARGs(buildEnvs map[string]string) map[string]*string {
-	args := make(map[string]*string, 5)
+	args := make(map[string]*string)
+	argStr := make(map[string]string)
 	for k, v := range buildEnvs {
 		if strings.Replace(v, " ", "", -1) == "" {
 			continue
@@ -95,7 +98,12 @@ func GetARGs(buildEnvs map[string]string) map[string]*string {
 		if ks := strings.Split(k, "ARG_"); len(ks) > 1 {
 			value := v
 			args[ks[1]] = &value
+			argStr[ks[1]] = value
 		}
+	}
+	for k, arg := range args {
+		value := util.ParseVariable(*arg, argStr)
+		args[k] = &value
 	}
 	return args
 }
