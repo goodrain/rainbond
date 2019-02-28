@@ -103,8 +103,8 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 			ldsL = append(ldsL, plds)
 			portMap[port] = len(ldsL) - 1
 		}
-		portProtocol, ok := service.Labels["port_protocol"]
-		if !ok && destService != nil {
+		portProtocol, _ := service.Labels["port_protocol"]
+		if destService != nil && destService.Protocol != "" {
 			portProtocol = destService.Protocol
 		}
 		if portProtocol != "" {

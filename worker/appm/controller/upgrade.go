@@ -99,6 +99,46 @@ func (s *upgradeController) upgradeConfigMap(newapp v1.AppService) {
 		}
 	}
 }
+
+func (s *upgradeController) upgradeService(newapp v1.AppService) {
+	nowApp := s.manager.store.GetAppService(newapp.ServiceID)
+	nowServices := nowApp.GetServices()
+	newService := newapp.GetServices()
+	var nowServiceMaps = make(map[string]*corev1.Service, len(nowServices))
+	for i, now := range nowServices {
+		nowServiceMaps[now.Name] = nowServices[i]
+	}
+	for _, new := range newService {
+		if nowConfig, ok := nowServiceMaps[new.Name]; ok {
+			new.UID = nowConfig.UID
+			new.Spec.ClusterIP = nowConfig.Spec.ClusterIP
+			new.ResourceVersion = nowConfig.ResourceVersion
+			newc, err := s.manager.client.CoreV1().Services(nowApp.TenantID).Update(new)
+			if err != nil {
+				logrus.Errorf("update service failure %s", err.Error())
+			}
+			nowApp.SetService(newc)
+			nowServiceMaps[new.Name] = nil
+			logrus.Debugf("update service %s for service %s", new.Name, newapp.ServiceID)
+		} else {
+			newc, err := s.manager.client.CoreV1().Services(nowApp.TenantID).Create(new)
+			if err != nil {
+				logrus.Errorf("update service failure %s", err.Error())
+			}
+			nowApp.SetService(newc)
+			logrus.Debugf("create service %s for service %s", new.Name, newapp.ServiceID)
+		}
+	}
+	for name, handle := range nowServiceMaps {
+		if handle != nil {
+			if err := s.manager.client.CoreV1().Services(nowApp.TenantID).Delete(name, &metav1.DeleteOptions{}); err != nil {
+				logrus.Errorf("delete service failure %s", err.Error())
+			}
+			logrus.Debugf("delete service %s for service %s", name, newapp.ServiceID)
+		}
+	}
+}
+
 func (s *upgradeController) upgradeOne(app v1.AppService) error {
 
 	//first: check and create namespace
@@ -136,15 +176,9 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 			}
 		}
 	}
-	if services := app.GetServices(); services != nil {
-		for _, service := range services {
-			_, err := s.manager.client.CoreV1().Services(service.Namespace).Update(service)
-			if err != nil {
-				app.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
-				logrus.Errorf("upgrade service %s failure %s", app.ServiceAlias, err.Error())
-			}
-		}
-	}
+	//upgrade k8s service
+	s.upgradeService(app)
+	//upgrade k8s secrets
 	if secrets := app.GetSecrets(); secrets != nil {
 		for _, secret := range secrets {
 			_, err := s.manager.client.CoreV1().Secrets(secret.Namespace).Update(secret)
