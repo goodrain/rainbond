@@ -19,19 +19,30 @@
 package store
 
 import (
-	appsv1 "k8s.io/client-go/listers/apps/v1"
-	corev1 "k8s.io/client-go/listers/core/v1"
-	"k8s.io/client-go/listers/extensions/v1beta1"
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/worker/appm/conversion"
 )
 
-//Lister kube-api client cache
-type Lister struct {
-	Ingress     v1beta1.IngressLister
-	Service     corev1.ServiceLister
-	Secret      corev1.SecretLister
-	StatefulSet appsv1.StatefulSetLister
-	Deployment  appsv1.DeploymentLister
-	Pod         corev1.PodLister
-	ConfigMap   corev1.ConfigMapLister
-	Endpoints   corev1.EndpointsLister
+func (a *appRuntimeStore) initThirdPartyService() error {
+	logrus.Debugf("begin initializing third-party services.")
+	// TODO: list third party services that have open ports directly.
+	svcs, err := a.dbmanager.TenantServiceDao().ListThirdPartyServices()
+	if err != nil {
+		logrus.Errorf("error listing third-party services: %v", err)
+		return err
+	}
+	for _, svc := range svcs {
+		// ignore service without open port.
+		if !a.dbmanager.TenantServicesPortDao().HasOpenPort(svc.ServiceID) {
+			continue
+		}
+
+		appService, err := conversion.InitCacheAppService(a.dbmanager, svc.ServiceID, "Rainbond")
+		if err != nil {
+			logrus.Errorf("error initializing cache app service: %v", err)
+			return err
+		}
+		a.RegistAppService(appService)
+	}
+	return nil
 }

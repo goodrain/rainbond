@@ -20,6 +20,7 @@ package v1
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"strconv"
 
 	"github.com/goodrain/rainbond/event"
@@ -59,6 +60,7 @@ type AppServiceBase struct {
 	ServiceID        string
 	ServiceAlias     string
 	ServiceType      AppServiceType
+	ServiceKind      string // inter or third_party
 	DeployVersion    string
 	ContainerCPU     int
 	ContainerMemory  int
@@ -80,6 +82,9 @@ type AppService struct {
 	deployment   *v1.Deployment
 	replicasets  []*v1.ReplicaSet
 	services     []*corev1.Service
+	delServices     []*corev1.Service
+	endpoints    []*corev1.Endpoints
+	delEndpoints []*corev1.Endpoints
 	configMaps   []*corev1.ConfigMap
 	ingresses    []*extensions.Ingress
 	delIngs      []*extensions.Ingress // ingresses which need to be deleted
@@ -249,6 +254,11 @@ func (a *AppService) GetServices() []*corev1.Service {
 	return a.services
 }
 
+//GetDelServices returns services that need to be deleted.
+func (a *AppService) GetDelServices() []*corev1.Service {
+	return a.delServices
+}
+
 //DeleteServices delete service
 func (a *AppService) DeleteServices(service *corev1.Service) {
 	for i, c := range a.services {
@@ -257,6 +267,29 @@ func (a *AppService) DeleteServices(service *corev1.Service) {
 			return
 		}
 	}
+}
+
+// SetEndpoints sets *corev1.Endpoints for *AppService.
+func (a *AppService) SetEndpoints(ep *corev1.Endpoints) {
+	if len(a.endpoints) > 0 {
+		for i, e := range a.endpoints {
+			if e.GetName() == ep.GetName() {
+				a.endpoints[i] = ep
+				return
+			}
+		}
+	}
+	a.endpoints = append(a.endpoints, ep)
+}
+
+// GetEndpoints returns endpoints in AppService
+func (a *AppService) GetEndpoints() []*corev1.Endpoints {
+	return a.endpoints
+}
+
+// GetDelEndpoints returns endpoints that need to be deleted in AppService
+func (a *AppService) GetDelEndpoints() []*corev1.Endpoints {
+	return a.delEndpoints
 }
 
 //GetIngress get ingress
@@ -344,7 +377,7 @@ func (a *AppService) SetAllSecrets(secrets []*corev1.Secret) {
 	a.secrets = secrets
 }
 
-//DeleteSecrets set srcrets
+//DeleteSecrets set secrets
 func (a *AppService) DeleteSecrets(d *corev1.Secret) {
 	for i, c := range a.secrets {
 		if c.GetName() == d.GetName() {
@@ -402,8 +435,12 @@ func (a *AppService) GetTenant() *corev1.Namespace {
 	return a.tenant
 }
 
-// SetDelIngsSecrets sets delIngs and delSecrets
-func (a *AppService) SetDelIngsSecrets(old *AppService) {
+// SetDeletedResources sets the resources that need to be deleted
+func (a *AppService) SetDeletedResources(old *AppService) {
+	if old == nil {
+		logrus.Debugf("empty old app service.")
+		return
+	}
 	for _, o := range old.GetIngress() {
 		del := true
 		for _, n := range a.GetIngress() {
@@ -425,7 +462,31 @@ func (a *AppService) SetDelIngsSecrets(old *AppService) {
 			}
 		}
 		if del {
-			a.secrets = append(a.secrets, o)
+			a.delSecrets = append(a.delSecrets, o)
+		}
+	}
+	for _, o := range old.GetEndpoints() {
+		del := true
+		for _, n := range a.GetEndpoints() {
+			if o.Name == n.Name {
+				del = false
+				break
+			}
+		}
+		if del {
+			a.delEndpoints = append(a.delEndpoints, o)
+		}
+	}
+	for _, o := range old.GetServices() {
+		del := true
+		for _, n := range a.GetServices() {
+			if o.Name == n.Name {
+				del = false
+				break
+			}
+		}
+		if del {
+			a.delServices = append(a.delServices, o)
 		}
 	}
 }
@@ -471,4 +532,12 @@ type TenantResource struct {
 	CPULimit      int64  `json:"cpu_limit,omitempty"`
 	MemoryRequest int64  `json:"memory_request,omitempty"`
 	MemoryLimit   int64  `json:"memory_limit,omitempty"`
+}
+
+// K8sResources holds kubernetes resources(svc, sercert, ep, ing).
+type K8sResources struct {
+	Services []*corev1.Service
+	Secrets []*corev1.Secret
+	Endpoints []*corev1.Endpoints
+	Ingresses []*extensions.Ingress
 }

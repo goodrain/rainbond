@@ -19,19 +19,19 @@
 package conversion
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/worker/appm/thirdparty"
 	"os"
 	"strings"
-
-	"github.com/goodrain/rainbond/util"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
-	"github.com/jinzhu/gorm"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
+	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,19 +62,25 @@ func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 		return err
 	}
 
-	svcs, ings, secs, err := builder.Build()
+	k8s, err := builder.Build()
 	if err != nil {
 		logrus.Error("build k8s services error:", err.Error())
 		return err
 	}
-	for _, service := range svcs {
+	if k8s == nil {
+		return nil
+	}
+	for _, service := range k8s.Services {
 		as.SetService(service)
 	}
-	for _, ing := range ings {
+	for _, ing := range k8s.Ingresses {
 		as.SetIngress(ing)
 	}
-	for _, sec := range secs {
+	for _, sec := range k8s.Secrets {
 		as.SetSecret(sec)
+	}
+	for _, ep := range k8s.Endpoints {
+		as.SetEndpoints(ep)
 	}
 
 	return nil
@@ -120,14 +126,14 @@ func AppServiceBuilder(serviceID, replicationType string, dbmanager db.Manager, 
 }
 
 //Build builds service, ingress and secret for each port
-func (a *AppServiceBuild) Build() ([]*corev1.Service, []*extensions.Ingress, []*corev1.Secret, error) {
+func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 	ports, err := a.dbmanager.TenantServicesPortDao().GetPortsByServiceID(a.serviceID)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("find service port from db error %s", err.Error())
+		return nil, fmt.Errorf("find service port from db error %s", err.Error())
 	}
 	crt, err := a.checkUpstreamPluginRelation()
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("get service upstream plugin relation error, %s", err.Error())
+		return nil, fmt.Errorf("get service upstream plugin relation error, %s", err.Error())
 	}
 	pp := make(map[int32]int)
 	if crt {
@@ -136,35 +142,51 @@ func (a *AppServiceBuild) Build() ([]*corev1.Service, []*extensions.Ingress, []*
 			model.UpNetPlugin,
 		)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("find upstream plugin mapping port error, %s", err.Error())
+			return nil, fmt.Errorf("find upstream plugin mapping port error, %s", err.Error())
 		}
 		ports, pp, err = a.CreateUpstreamPluginMappingPort(ports, pluginPorts)
 	}
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("create upstream port error, %s", err.Error())
+		return nil, fmt.Errorf("create upstream port error, %s", err.Error())
 	}
 	var services []*corev1.Service
 	var ingresses []*extensions.Ingress
 	var secrets []*corev1.Secret
+	var endpoints []*corev1.Endpoints
 	if ports != nil && len(ports) > 0 {
 		for i := range ports {
 			port := ports[i]
+			var v1eps []*v1.Endpoint
+			if a.service.Kind == "third_party" && (port.IsOuterService || port.IsInnerService) {
+				v1eps, err = thirdparty.ListEndpoints(a.serviceID, a.dbmanager)
+				if err != nil {
+					return nil, err
+				}
+				b, _ := json.Marshal(v1eps)
+				logrus.Debugf("[]*v1.Endpoint: %s", string(b))
+			}
 			if port.IsInnerService {
 				services = append(services, a.createInnerService(port))
+				if a.service.Kind == "third_party" {
+					// ignore services other than third_party
+					endpoints = append(endpoints, a.createEndpoints(port, v1eps, true)...)
+				}
 			}
 			if port.IsOuterService {
 				service := a.createOuterService(port)
-
+				services = append(services, service)
 				ings, secret, err := a.ApplyRules(port, service)
 				if err != nil {
-					return nil, nil, nil, err
+					return nil, err
 				}
 				ingresses = append(ingresses, ings...)
 				if secret != nil {
 					secrets = append(secrets, secret)
 				}
-
-				services = append(services, service)
+				if a.service.Kind == "third_party" {
+					// ignore services other than third_party
+					endpoints = append(endpoints, a.createEndpoints(port, v1eps, false)...)
+				}
 			}
 		}
 	}
@@ -177,7 +199,12 @@ func (a *AppServiceBuild) Build() ([]*corev1.Service, []*extensions.Ingress, []*
 		services, _ = a.CreateUpstreamPluginMappingService(services, pp)
 	}
 
-	return services, ingresses, secrets, nil
+	return &v1.K8sResources{
+		Services:  services,
+		Secrets:   secrets,
+		Endpoints: endpoints,
+		Ingresses: ingresses,
+	}, nil
 }
 
 // ApplyRules applies http rules and tcp rules
@@ -202,13 +229,6 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 			ingresses = append(ingresses, ing)
 			secret = sec
 		}
-	} else if port.Protocol == "http" { // if there is no http rule, then create a default ingress
-		httpRule := &model.HTTPRule{
-			UUID: fmt.Sprintf("%s%s", util.NewUUID()[0:7], "default"),
-		}
-		// the default ingress will not have error
-		ing, _, _ := a.applyHTTPRule(httpRule, port, service)
-		ingresses = append(ingresses, ing)
 	}
 
 	// create tcp ingresses
@@ -227,25 +247,6 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 			}
 			ingresses = append(ingresses, ing)
 		}
-	} else if port.Protocol != "http" { // if there is no tcp rule, then create a default ingress
-		mappingPort, err := a.dbmanager.TenantServiceLBMappingPortDao().GetTenantServiceLBMappingPort(port.ServiceID, port.ContainerPort)
-		if err != nil {
-			if err == gorm.ErrRecordNotFound {
-				logrus.Warningf("TenantServiceLBMappingPort(ServiceID=%s, ContainerPort=%d) not found, ignore it",
-					port.ServiceID, port.ContainerPort)
-				return ingresses, secret, nil
-			}
-			return nil, nil, err
-		}
-		tcpRule := &model.TCPRule{
-			UUID: fmt.Sprintf("%s%s", util.NewUUID()[0:7], "default"),
-			Port: mappingPort.Port,
-		}
-		ing, err := a.applyTCPRule(tcpRule, service, a.tenant.UUID)
-		if err != nil {
-			return nil, nil, err
-		}
-		ingresses = append(ingresses, ing)
 	}
 
 	return ingresses, secret, nil
@@ -489,7 +490,9 @@ func (a *AppServiceBuild) createInnerService(port *model.TenantServicesPort) *co
 	}
 	spec := corev1.ServiceSpec{
 		Ports:    []corev1.ServicePort{servicePort},
-		Selector: map[string]string{"name": a.service.ServiceAlias},
+	}
+	if a.appService.ServiceKind != "third_party" {
+		spec.Selector =  map[string]string{"name": a.service.ServiceAlias}
 	}
 	service.Spec = spec
 	return &service
@@ -523,11 +526,55 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 	}
 	spec := corev1.ServiceSpec{
 		Ports:    []corev1.ServicePort{servicePort},
-		Selector: map[string]string{"name": a.service.ServiceAlias},
 		Type:     portType,
+	}
+	if a.appService.ServiceKind != "third_party" {
+		spec.Selector =  map[string]string{"name": a.service.ServiceAlias}
 	}
 	service.Spec = spec
 	return &service
+}
+
+func (a *AppServiceBuild) createEndpoints(port *model.TenantServicesPort, v1eps []*v1.Endpoint, isInner bool) []*corev1.Endpoints {
+	var res []*corev1.Endpoints
+	for _, item := range v1eps {
+		ep := corev1.Endpoints{}
+		ep.Namespace = a.tenant.UUID
+		ep.Name = util.NewUUID() // TODO: consider a better name???
+		if isInner {
+			logrus.Debugf("create inner third-party service")
+			ep.Labels = a.appService.GetCommonLabels(map[string]string{
+				"name": a.service.ServiceAlias + "Service",
+			})
+		} else {
+			logrus.Debugf("create outer third-party service")
+			ep.Labels = a.appService.GetCommonLabels(map[string]string{
+				"name": a.service.ServiceAlias + "ServiceOut",
+			})
+		}
+
+		subset := corev1.EndpointSubset{
+			Ports: []corev1.EndpointPort{
+				{
+					Port: func(targetPort int, realPort int) int32 {
+						if realPort == 0 {
+							return int32(targetPort)
+						}
+						return int32(realPort)
+					}(port.ContainerPort, item.Port),
+				},
+			},
+		}
+		for _, ip := range item.IPs {
+			address := corev1.EndpointAddress{
+				IP: ip,
+			}
+			subset.Addresses = append(subset.Addresses, address)
+		}
+		ep.Subsets = []corev1.EndpointSubset{subset}
+		res = append(res, &ep)
+	}
+	return res
 }
 
 func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPort) *corev1.Service {

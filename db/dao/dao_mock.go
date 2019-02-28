@@ -4,10 +4,9 @@
 package dao
 
 import (
-	time "time"
-
-	model "github.com/goodrain/rainbond/db/model"
 	gomock "github.com/rafrombrc/gomock/gomock"
+	model "github.com/goodrain/rainbond/db/model"
+	time "time"
 )
 
 // Mock of Dao interface
@@ -533,6 +532,17 @@ func (_mr *_MockTenantServiceDaoRecorder) UpdateDeployVersion(arg0, arg1 interfa
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateDeployVersion", arg0, arg1)
 }
 
+func (_m *MockTenantServiceDao) ListThirdPartyServices() ([]*model.TenantServices, error) {
+	ret := _m.ctrl.Call(_m, "ListThirdPartyServices")
+	ret0, _ := ret[0].([]*model.TenantServices)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTenantServiceDaoRecorder) ListThirdPartyServices() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "ListThirdPartyServices")
+}
+
 // Mock of TenantServiceDeleteDao interface
 type MockTenantServiceDeleteDao struct {
 	ctrl     *gomock.Controller
@@ -703,6 +713,16 @@ func (_m *MockTenantServicesPortDao) DELPortsByServiceID(serviceID string) error
 
 func (_mr *_MockTenantServicesPortDaoRecorder) DELPortsByServiceID(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "DELPortsByServiceID", arg0)
+}
+
+func (_m *MockTenantServicesPortDao) HasOpenPort(sid string) bool {
+	ret := _m.ctrl.Call(_m, "HasOpenPort", sid)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+func (_mr *_MockTenantServicesPortDaoRecorder) HasOpenPort(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "HasOpenPort", arg0)
 }
 
 // Mock of TenantPluginDao interface
@@ -3440,4 +3460,140 @@ func (_m *MockIPPoolDao) GetIPPoolByEID(eid string) (*model.IPPool, error) {
 
 func (_mr *_MockIPPoolDaoRecorder) GetIPPoolByEID(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetIPPoolByEID", arg0)
+}
+
+// Mock of EndpointsDao interface
+type MockEndpointsDao struct {
+	ctrl     *gomock.Controller
+	recorder *_MockEndpointsDaoRecorder
+}
+
+// Recorder for MockEndpointsDao (not exported)
+type _MockEndpointsDaoRecorder struct {
+	mock *MockEndpointsDao
+}
+
+func NewMockEndpointsDao(ctrl *gomock.Controller) *MockEndpointsDao {
+	mock := &MockEndpointsDao{ctrl: ctrl}
+	mock.recorder = &_MockEndpointsDaoRecorder{mock}
+	return mock
+}
+
+func (_m *MockEndpointsDao) EXPECT() *_MockEndpointsDaoRecorder {
+	return _m.recorder
+}
+
+func (_m *MockEndpointsDao) AddModel(_param0 model.Interface) error {
+	ret := _m.ctrl.Call(_m, "AddModel", _param0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockEndpointsDaoRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "AddModel", arg0)
+}
+
+func (_m *MockEndpointsDao) UpdateModel(_param0 model.Interface) error {
+	ret := _m.ctrl.Call(_m, "UpdateModel", _param0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockEndpointsDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
+}
+
+func (_m *MockEndpointsDao) GetByUUID(uuid string) (*model.Endpoint, error) {
+	ret := _m.ctrl.Call(_m, "GetByUUID", uuid)
+	ret0, _ := ret[0].(*model.Endpoint)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockEndpointsDaoRecorder) GetByUUID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetByUUID", arg0)
+}
+
+func (_m *MockEndpointsDao) DelByUUID(uuid string) error {
+	ret := _m.ctrl.Call(_m, "DelByUUID", uuid)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockEndpointsDaoRecorder) DelByUUID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DelByUUID", arg0)
+}
+
+func (_m *MockEndpointsDao) List(sid string) ([]*model.Endpoint, error) {
+	ret := _m.ctrl.Call(_m, "List", sid)
+	ret0, _ := ret[0].([]*model.Endpoint)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockEndpointsDaoRecorder) List(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "List", arg0)
+}
+
+func (_m *MockEndpointsDao) ListIsOnline(sid string) ([]*model.Endpoint, error) {
+	ret := _m.ctrl.Call(_m, "ListIsOnline", sid)
+	ret0, _ := ret[0].([]*model.Endpoint)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockEndpointsDaoRecorder) ListIsOnline(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "ListIsOnline", arg0)
+}
+
+// Mock of ThirdPartySvcDiscoveryCfgDao interface
+type MockThirdPartySvcDiscoveryCfgDao struct {
+	ctrl     *gomock.Controller
+	recorder *_MockThirdPartySvcDiscoveryCfgDaoRecorder
+}
+
+// Recorder for MockThirdPartySvcDiscoveryCfgDao (not exported)
+type _MockThirdPartySvcDiscoveryCfgDaoRecorder struct {
+	mock *MockThirdPartySvcDiscoveryCfgDao
+}
+
+func NewMockThirdPartySvcDiscoveryCfgDao(ctrl *gomock.Controller) *MockThirdPartySvcDiscoveryCfgDao {
+	mock := &MockThirdPartySvcDiscoveryCfgDao{ctrl: ctrl}
+	mock.recorder = &_MockThirdPartySvcDiscoveryCfgDaoRecorder{mock}
+	return mock
+}
+
+func (_m *MockThirdPartySvcDiscoveryCfgDao) EXPECT() *_MockThirdPartySvcDiscoveryCfgDaoRecorder {
+	return _m.recorder
+}
+
+func (_m *MockThirdPartySvcDiscoveryCfgDao) AddModel(_param0 model.Interface) error {
+	ret := _m.ctrl.Call(_m, "AddModel", _param0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockThirdPartySvcDiscoveryCfgDaoRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "AddModel", arg0)
+}
+
+func (_m *MockThirdPartySvcDiscoveryCfgDao) UpdateModel(_param0 model.Interface) error {
+	ret := _m.ctrl.Call(_m, "UpdateModel", _param0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockThirdPartySvcDiscoveryCfgDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
+}
+
+func (_m *MockThirdPartySvcDiscoveryCfgDao) GetByServiceID(sid string) (*model.ThirdPartySvcDiscoveryCfg, error) {
+	ret := _m.ctrl.Call(_m, "GetByServiceID", sid)
+	ret0, _ := ret[0].(*model.ThirdPartySvcDiscoveryCfg)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockThirdPartySvcDiscoveryCfgDaoRecorder) GetByServiceID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetByServiceID", arg0)
 }

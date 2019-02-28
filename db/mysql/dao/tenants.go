@@ -426,6 +426,15 @@ func (t *TenantServicesDaoImpl) DeleteServiceByServiceID(serviceID string) error
 	return nil
 }
 
+// ListThirdPartyService lists all third party services
+func (t *TenantServicesDaoImpl) ListThirdPartyServices() ([]*model.TenantServices, error) {
+	var res []*model.TenantServices
+	if err := t.DB.Where("kind=?", "third_party").Find(&res).Error; err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
 //TenantServicesDeleteImpl TenantServiceDeleteImpl
 type TenantServicesDeleteImpl struct {
 	DB *gorm.DB
@@ -567,6 +576,19 @@ func (t *TenantServicesPortDaoImpl) DELPortsByServiceID(serviceID string) error 
 		return err
 	}
 	return nil
+}
+
+// HasOpenPort checks if the given service(according to sid) has open port.
+func (t *TenantServicesPortDaoImpl) HasOpenPort(sid string) bool {
+	var port model.TenantServicesPort
+	if err := t.DB.Where("service_id = ? and (is_outer_service=1 or is_inner_service=1)", sid).
+		Find(&port).Error; err != nil {
+		if err != gorm.ErrRecordNotFound {
+			logrus.Warningf("error getting TenantServicesPort: %v", err)
+		}
+		return false
+	}
+	return true
 }
 
 //TenantServiceRelationDaoImpl TenantServiceRelationDaoImpl

@@ -34,6 +34,9 @@ func (a *AppService) IsEmpty() bool {
 
 //IsClosed is closed
 func (a *AppService) IsClosed() bool {
+	if a.ServiceKind == "third_party" && a.endpoints != nil && len(a.endpoints) > 0 {
+		return true
+	}
 	if a.IsEmpty() && a.statefulset == nil && a.deployment == nil {
 		return true
 	}

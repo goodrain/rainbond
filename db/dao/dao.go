@@ -80,6 +80,7 @@ type TenantServiceDao interface {
 	GetPagedTenantService(offset, len int, serviceIDs []string) ([]map[string]interface{}, int, error)
 	GetAllServicesID() ([]*model.TenantServices, error)
 	UpdateDeployVersion(serviceID, deployversion string) error
+	ListThirdPartyServices() ([]*model.TenantServices, error)
 }
 
 //TenantServiceDeleteDao TenantServiceDeleteDao
@@ -98,6 +99,7 @@ type TenantServicesPortDao interface {
 	GetInnerPorts(serviceID string) ([]*model.TenantServicesPort, error)
 	GetPort(serviceID string, port int) (*model.TenantServicesPort, error)
 	DELPortsByServiceID(serviceID string) error
+	HasOpenPort(sid string) bool
 }
 
 //TenantPluginDao TenantPluginDao
@@ -411,12 +413,14 @@ type IPPoolDao interface {
 type EndpointsDao interface {
 	Dao
 	GetByUUID(uuid string) (*model.Endpoint, error)
-	List(sid string) ([]*model.Endpoint, error)
 	DelByUUID(uuid string) error
+	List(sid string) ([]*model.Endpoint, error)
+	ListIsOnline(sid string) ([]*model.Endpoint, error)
 }
 
-// ThirdPartyServiceDiscoveryCfgDao is an interface for defining method 
+// ThirdPartySvcDiscoveryCfgDao is an interface for defining method
 // for operating table 3rd_party_svc_discovery_cfg.
-type ThirdPartyServiceDiscoveryCfgDao interface {
+type ThirdPartySvcDiscoveryCfgDao interface {
 	Dao
+	GetByServiceID(sid string) (*model.ThirdPartySvcDiscoveryCfg, error)
 }

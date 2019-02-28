@@ -16,22 +16,26 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package store
+package discovery
 
 import (
-	appsv1 "k8s.io/client-go/listers/apps/v1"
-	corev1 "k8s.io/client-go/listers/core/v1"
-	"k8s.io/client-go/listers/extensions/v1beta1"
+	"github.com/goodrain/rainbond/db/model"
+	"strings"
 )
 
-//Lister kube-api client cache
-type Lister struct {
-	Ingress     v1beta1.IngressLister
-	Service     corev1.ServiceLister
-	Secret      corev1.SecretLister
-	StatefulSet appsv1.StatefulSetLister
-	Deployment  appsv1.DeploymentLister
-	Pod         corev1.PodLister
-	ConfigMap   corev1.ConfigMapLister
-	Endpoints   corev1.EndpointsLister
+// Discoverier is the interface that wraps the required methods to gather
+// information about third-party service endpoints.
+type Discoverier interface {
+	Connect() error
+	Fetch() ([]*model.Endpoint, error)
+	Close() error
 }
+
+func NewDiscoverier(cfg *model.ThirdPartySvcDiscoveryCfg) Discoverier {
+	switch strings.ToUpper(cfg.Type) {
+	case "ETCD":
+		return NewEtcd(cfg)
+	}
+	return nil
+}
+
