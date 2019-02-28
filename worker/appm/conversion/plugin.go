@@ -164,7 +164,7 @@ func getProbeMeshImageName() string {
 	if d := os.Getenv("PROBE_MESH_IMAGE_NAME"); d != "" {
 		return d
 	}
-	return "goodrain.me/probe_mesh_plugin"
+	return "goodrain.me/rbd-init-probe"
 }
 
 func createTCPDefaultPluginContainer(serviceID, pluginID string, envs []v1.EnvVar) v1.Container {
