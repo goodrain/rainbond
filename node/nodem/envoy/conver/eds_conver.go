@@ -90,6 +90,9 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 			clusterLoadAssignment = append(clusterLoadAssignment, cla)
 		}
 	}
+	if len(clusterLoadAssignment) == 0 {
+		logrus.Warn("create clusterLoadAssignment zero length")
+	}
 	return clusterLoadAssignment
 }
 

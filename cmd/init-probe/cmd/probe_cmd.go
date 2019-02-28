@@ -19,10 +19,27 @@
 package cmd
 
 import (
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/cmd/init-probe/healthy"
 	"github.com/urfave/cli"
 )
 
 //GetCmds get init probe cmds
 func GetCmds() cli.Commands {
-	return nil
+	var commands cli.Commands
+	commands = append(commands, cli.Command{
+		Name:  "probe",
+		Usage: "probe depend service endpoint whether ready",
+		Action: func(ctx *cli.Context) error {
+			logrus.Info("start probe all depend service")
+			controller, err := healthy.NewDependServiceHealthController()
+			if err != nil {
+				logrus.Fatalf("new probe controller failure %s", err.Error())
+				return err
+			}
+			controller.Check()
+			return nil
+		},
+	})
+	return commands
 }

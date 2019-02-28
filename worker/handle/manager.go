@@ -310,11 +310,8 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 		logger.Error(fmt.Sprintf("Application get upgrade info error:%s", err.Error()), controller.GetCallbackLoggerOption())
 		return nil
 	}
-	oldAppService.Logger = logger
-	//current cache data update DeployVersion
-	oldAppService.DeployVersion = newAppService.DeployVersion
 	//if service already deploy,upgrade it:
-	err = m.controllerManager.StartController(controller.TypeUpgradeController, *oldAppService)
+	err = m.controllerManager.StartController(controller.TypeUpgradeController, *newAppService)
 	if err != nil {
 		logrus.Errorf("Application run  upgrade controller failure:%s", err.Error())
 		logger.Info("Application run upgrade controller failure", controller.GetCallbackLoggerOption())

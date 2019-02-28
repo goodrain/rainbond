@@ -24,6 +24,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
+
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+
+	"github.com/envoyproxy/go-control-plane/pkg/cache"
+
 	v1 "github.com/goodrain/rainbond/node/core/envoy/v1"
 
 	"github.com/Sirupsen/logrus"
@@ -101,7 +107,8 @@ type RainbondPluginOptions struct {
 	Headers            v1.Headers
 	Domains            []string
 	Weight             uint32
-	IntervalMS         int64
+	//second
+	Interval           int64
 	ConsecutiveErrors  int
 	BaseEjectionTimeMS int64
 	MaxEjectionPercent int
@@ -115,7 +122,7 @@ func (r RainbondPluginOptions) RouteBasicHash() string {
 	for _, h := range r.Headers {
 		header += h.Name + h.Value
 	}
-	key.Write([]byte(r.Prefix + header))
+	key.Write([]byte(r.Prefix + header + strings.Join(r.Domains, "")))
 	return string(key.Sum(nil))
 }
 
@@ -130,7 +137,7 @@ func GetOptionValues(sr map[string]interface{}) RainbondPluginOptions {
 		MaxActiveRetries:   3,
 		Domains:            []string{"*"},
 		Weight:             100,
-		IntervalMS:         10000,
+		Interval:           10,
 		ConsecutiveErrors:  5,
 		BaseEjectionTimeMS: 30000,
 		MaxEjectionPercent: 10,
@@ -140,19 +147,19 @@ func GetOptionValues(sr map[string]interface{}) RainbondPluginOptions {
 		case KeyPrefix:
 			rpo.Prefix = v.(string)
 		case KeyMaxConnections:
-			if i, err := strconv.Atoi(v.(string)); err == nil {
+			if i, err := strconv.Atoi(v.(string)); err == nil && i != 0 {
 				rpo.MaxConnections = i
 			}
 		case KeyMaxRequests:
-			if i, err := strconv.Atoi(v.(string)); err == nil {
+			if i, err := strconv.Atoi(v.(string)); err == nil && i != 0 {
 				rpo.MaxRequests = i
 			}
 		case KeyMaxPendingRequests:
-			if i, err := strconv.Atoi(v.(string)); err == nil {
+			if i, err := strconv.Atoi(v.(string)); err == nil && i != 0 {
 				rpo.MaxPendingRequests = i
 			}
 		case KeyMaxActiveRetries:
-			if i, err := strconv.Atoi(v.(string)); err == nil {
+			if i, err := strconv.Atoi(v.(string)); err == nil && i != 0 {
 				rpo.MaxActiveRetries = i
 			}
 		case KeyHeaders:
@@ -177,26 +184,105 @@ func GetOptionValues(sr map[string]interface{}) RainbondPluginOptions {
 				rpo.Domains = []string{v.(string)}
 			}
 		case KeyWeight:
-			if i, err := strconv.Atoi(v.(string)); err == nil {
+			if i, err := strconv.Atoi(v.(string)); err == nil && i != 0 {
 				rpo.Weight = uint32(i)
 			}
 		case KeyIntervalMS:
-			if i, err := strconv.Atoi(v.(string)); err == nil {
-				rpo.IntervalMS = int64(i)
+			if i, err := strconv.Atoi(v.(string)); err == nil && i < 0 {
+				rpo.Interval = int64(i)
 			}
 		case KeyConsecutiveErrors:
-			if i, err := strconv.Atoi(v.(string)); err == nil {
+			if i, err := strconv.Atoi(v.(string)); err == nil && i != 0 {
 				rpo.ConsecutiveErrors = i
 			}
 		case KeyBaseEjectionTimeMS:
-			if i, err := strconv.Atoi(v.(string)); err == nil {
+			if i, err := strconv.Atoi(v.(string)); err == nil && i != 0 {
 				rpo.BaseEjectionTimeMS = int64(i)
 			}
 		case KeyMaxEjectionPercent:
-			if i, err := strconv.Atoi(v.(string)); err == nil {
+			if i, err := strconv.Atoi(v.(string)); err == nil && i != 0 {
 				rpo.MaxEjectionPercent = i
 			}
 		}
 	}
 	return rpo
+}
+
+//ParseLocalityLbEndpointsResource parse envoy xds server response ParseLocalityLbEndpointsResource
+func ParseLocalityLbEndpointsResource(resources []types.Any) []v2.ClusterLoadAssignment {
+	var endpoints []v2.ClusterLoadAssignment
+	for _, resource := range resources {
+		switch resource.GetTypeUrl() {
+		case cache.EndpointType:
+			var endpoint v2.ClusterLoadAssignment
+			if err := proto.Unmarshal(resource.GetValue(), &endpoint); err != nil {
+				logrus.Errorf("unmarshal envoy endpoint resource failure %s", err.Error())
+			}
+			endpoints = append(endpoints, endpoint)
+		}
+	}
+	return endpoints
+}
+
+//ParseClustersResource parse envoy xds server response ParseClustersResource
+func ParseClustersResource(resources []types.Any) []v2.Cluster {
+	var clusters []v2.Cluster
+	for _, resource := range resources {
+		switch resource.GetTypeUrl() {
+		case cache.ClusterType:
+			var cluster v2.Cluster
+			if err := proto.Unmarshal(resource.GetValue(), &cluster); err != nil {
+				logrus.Errorf("unmarshal envoy cluster resource failure %s", err.Error())
+			}
+			clusters = append(clusters, cluster)
+		}
+	}
+	return clusters
+}
+
+//ParseListenerResource parse envoy xds server response ListenersResource
+func ParseListenerResource(resources []types.Any) []v2.Listener {
+	var listeners []v2.Listener
+	for _, resource := range resources {
+		switch resource.GetTypeUrl() {
+		case cache.ListenerType:
+			var listener v2.Listener
+			if err := proto.Unmarshal(resource.GetValue(), &listener); err != nil {
+				logrus.Errorf("unmarshal envoy listener resource failure %s", err.Error())
+			}
+			listeners = append(listeners, listener)
+		}
+	}
+	return listeners
+}
+
+//ParseRouteConfigurationsResource parse envoy xds server response RouteConfigurationsResource
+func ParseRouteConfigurationsResource(resources []types.Any) []v2.RouteConfiguration {
+	var routes []v2.RouteConfiguration
+	for _, resource := range resources {
+		switch resource.GetTypeUrl() {
+		case cache.RouteType:
+			var route v2.RouteConfiguration
+			if err := proto.Unmarshal(resource.GetValue(), &route); err != nil {
+				logrus.Errorf("unmarshal envoy route resource failure %s", err.Error())
+			}
+			routes = append(routes, route)
+		}
+	}
+	return routes
+}
+
+//CheckWeightSum check all cluster weight sum
+func CheckWeightSum(clusters []*route.WeightedCluster_ClusterWeight, weight uint32) uint32 {
+	var sum uint32
+	for _, cluster := range clusters {
+		sum += cluster.Weight.GetValue()
+	}
+	if sum >= 100 {
+		return 0
+	}
+	if (sum + weight) > 100 {
+		return 100 - sum
+	}
+	return weight
 }

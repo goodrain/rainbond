@@ -20,7 +20,6 @@ package conver
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
@@ -56,6 +55,9 @@ func OneNodeCluster(serviceAlias, namespace string, configs *corev1.ConfigMap, s
 			}
 		}
 	}
+	if len(clusters) == 0 {
+		logrus.Warn("create clusters zero length")
+	}
 	return clusters, nil
 }
 
@@ -67,8 +69,6 @@ func upstreamClusters(serviceAlias, namespace string, dependsServices []*api_mod
 		clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, dService.DependServiceAlias, dService.Port)
 		clusterConfig[clusterName] = dependsServices[i]
 	}
-	var portMap = make(map[int32]int)
-
 	for _, service := range services {
 		inner, ok := service.Labels["service_type"]
 		destServiceAlias := GetServiceAliasByService(service)
@@ -84,45 +84,13 @@ func upstreamClusters(serviceAlias, namespace string, dependsServices []*api_mod
 			return d
 		}
 		options := getOptions()
-		createCluster := func(name string) *v2.Cluster {
-			return &v2.Cluster{
-				Name:           name,
-				Type:           v2.Cluster_EDS,
-				ConnectTimeout: time.Second * 250,
-				LbPolicy:       v2.Cluster_ROUND_ROBIN,
-				EdsClusterConfig: &v2.Cluster_EdsClusterConfig{
-					EdsConfig: &core.ConfigSource{
-						ConfigSourceSpecifier: &core.ConfigSource_ApiConfigSource{
-							ApiConfigSource: &core.ApiConfigSource{
-								ApiType: core.ApiConfigSource_GRPC,
-								GrpcServices: []*core.GrpcService{
-									&core.GrpcService{
-										TargetSpecifier: &core.GrpcService_EnvoyGrpc_{
-											EnvoyGrpc: &core.GrpcService_EnvoyGrpc{
-												ClusterName: "rainbond_xds_cluster",
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-					ServiceName: fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port),
-				},
-				OutlierDetection: envoyv2.CreatOutlierDetection(options),
-				CircuitBreakers:  envoyv2.CreateCircuitBreaker(options),
-			}
+		outlierDetaction := envoyv2.CreatOutlierDetection(options)
+		circuitBreaker := envoyv2.CreateCircuitBreaker(options)
+		serviceName := fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port)
+		cluster := envoyv2.CreateCluster(clusterName, serviceName, v2.Cluster_EDS, outlierDetaction, circuitBreaker, nil)
+		if cluster != nil {
+			cdsClusters = append(cdsClusters, cluster)
 		}
-		pcds := createCluster(clusterName)
-		cdsClusters = append(cdsClusters, pcds)
-		//create cluster base unique port
-		if count, ok := portMap[port.Port]; ok && count == 1 {
-			cdsClusters = append(cdsClusters, createCluster(fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port)))
-			portMap[port.Port] = 2
-		} else {
-			portMap[port.Port] = 1
-		}
-		continue
 	}
 	return
 }
@@ -133,16 +101,12 @@ func downstreamClusters(serviceAlias, namespace string, ports []*api_model.BaseP
 	for i := range ports {
 		port := ports[i]
 		address := envoyv2.CreateSocketAddress(port.Protocol, "127.0.0.1", uint32(port.Port))
-		pcds := &v2.Cluster{
-			Name:            fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port),
-			Type:            v2.Cluster_STATIC,
-			ConnectTimeout:  time.Second * 250,
-			LbPolicy:        v2.Cluster_ROUND_ROBIN,
-			Hosts:           []*core.Address{&address},
-			CircuitBreakers: envoyv2.CreateCircuitBreaker(envoyv2.GetOptionValues(port.Options)),
+		clusterName := fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port)
+		cluster := envoyv2.CreateCluster(clusterName, "", v2.Cluster_STATIC, nil,
+			envoyv2.CreateCircuitBreaker(envoyv2.GetOptionValues(port.Options)), []*core.Address{&address})
+		if cluster != nil {
+			cdsClusters = append(cdsClusters, cluster)
 		}
-		cdsClusters = append(cdsClusters, pcds)
-		continue
 	}
 	return
 }

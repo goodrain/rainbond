@@ -70,6 +70,9 @@ func OneNodeListerner(serviceAlias, namespace string, configs *corev1.ConfigMap,
 			}
 		}
 	}
+	if len(listener) == 0 {
+		logrus.Warn("create listener zero length")
+	}
 	return listener, nil
 }
 
@@ -92,11 +95,12 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 		port := service.Spec.Ports[0].Port
 		clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port)
 		destService := ListennerConfig[clusterName]
+		statPrefix := fmt.Sprintf("%s_%s", serviceAlias, GetServiceAliasByService(service))
 		// Unique by listen port
 		if _, ok := portMap[port]; !ok {
 			listenerName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
-			plds := envoyv2.CreateTCPListener(listenerName, clusterName, "127.0.0.1", uint32(port))
-			ldsL = append(ldsL, &plds)
+			plds := envoyv2.CreateTCPListener(listenerName, clusterName, "127.0.0.1", statPrefix, uint32(port))
+			ldsL = append(ldsL, plds)
 			portMap[port] = len(ldsL) - 1
 		}
 		portProtocol, ok := service.Labels["port_protocol"]
@@ -115,49 +119,28 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 				if oldroute, ok := uniqRoute[hashKey]; ok {
 					oldrr := oldroute.Action.(*route.Route_Route)
 					oldrrwc := oldrr.Route.ClusterSpecifier.(*route.RouteAction_WeightedClusters)
+					weight := envoyv2.CheckWeightSum(oldrrwc.WeightedClusters.Clusters, options.Weight)
 					oldrrwc.WeightedClusters.Clusters = append(oldrrwc.WeightedClusters.Clusters, &route.WeightedCluster_ClusterWeight{
 						Name:   clusterName,
-						Weight: envoyv2.ConversionUInt32(options.Weight),
+						Weight: envoyv2.ConversionUInt32(weight),
 					})
 				} else {
 					var headerMatchers []*route.HeaderMatcher
 					for _, header := range options.Headers {
-						headerMatchers = append(headerMatchers, &route.HeaderMatcher{
-							Name: header.Name,
-							HeaderMatchSpecifier: &route.HeaderMatcher_PrefixMatch{
-								PrefixMatch: header.Value,
-							},
-						})
+						headerMatcher := envoyv2.CreateHeaderMatcher(header)
+						if headerMatcher != nil {
+							headerMatchers = append(headerMatchers, headerMatcher)
+						}
 					}
-					r := route.Route{
-						Match: route.RouteMatch{
-							PathSpecifier: &route.RouteMatch_Prefix{
-								Prefix: options.Prefix,
-							},
-							Headers: headerMatchers,
-						},
-						Action: &route.Route_Route{
-							Route: &route.RouteAction{
-								ClusterSpecifier: &route.RouteAction_WeightedClusters{
-									WeightedClusters: &route.WeightedCluster{
-										Clusters: []*route.WeightedCluster_ClusterWeight{
-											&route.WeightedCluster_ClusterWeight{
-												Name:   clusterName,
-												Weight: envoyv2.ConversionUInt32(options.Weight),
-											},
-										},
-									},
-								},
-							},
-						},
+					route := envoyv2.CreateRoute(clusterName, options.Prefix, headerMatchers, options.Weight)
+					if route != nil {
+						pvh := envoyv2.CreateRouteVirtualHost(fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias,
+							GetServiceAliasByService(service), port), options.Domains, *route)
+						if pvh != nil {
+							newVHL = append(newVHL, *pvh)
+							uniqRoute[hashKey] = route
+						}
 					}
-					pvh := route.VirtualHost{
-						Name:    fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port),
-						Domains: options.Domains,
-						Routes:  []route.Route{r},
-					}
-					newVHL = append(newVHL, pvh)
-					uniqRoute[hashKey] = &r
 				}
 			default:
 				continue
@@ -171,8 +154,9 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 		if i, ok := portMap[80]; ok {
 			ldsL = append(ldsL[:i], ldsL[i+1:]...)
 		}
-		plds := envoyv2.CreateHTTPListener(fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias), "127.0.0.1", 80, newVHL...)
-		ldsL = append(ldsL, &plds)
+		statsPrefix := fmt.Sprintf("%s_80", serviceAlias)
+		plds := envoyv2.CreateHTTPListener(fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias), "127.0.0.1", statsPrefix, 80, newVHL...)
+		ldsL = append(ldsL, plds)
 	}
 	return
 }
@@ -185,9 +169,10 @@ func downstreamListener(serviceAlias, namespace string, ports []*api_model.BaseP
 		port := int32(p.Port)
 		clusterName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
 		listenerName := clusterName
+		statsPrefix := fmt.Sprintf("%s_%d", serviceAlias, port)
 		if _, ok := portMap[port]; !ok {
-			listener := envoyv2.CreateTCPListener(listenerName, clusterName, "0.0.0.0", uint32(p.ListenPort))
-			ls = append(ls, &listener)
+			listener := envoyv2.CreateTCPListener(listenerName, clusterName, "0.0.0.0", statsPrefix, uint32(p.ListenPort))
+			ls = append(ls, listener)
 			portMap[port] = 1
 		}
 	}

@@ -22,7 +22,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/envoyproxy/go-control-plane/pkg/util"
+	yaml "gopkg.in/yaml.v2"
+
+	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"
 
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 
@@ -31,8 +33,15 @@ import (
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 )
 
+var testClusterID = "5dbea040f5cb437c82e3bf02943fb02e_c5618104b2aa4c508390e4f18f316500_gr439125"
+
+var testXDSHost = "39.96.17.249:6101"
+
+// var testClusterID = "6ab5725e1ca34cfba7762b7ac10c0dee_9d379258e0bc4fc581331780b0541ac6_grc69d9c"
+//var testXDSHost = "127.0.0.1:6101"
+
 func TestClientListener(t *testing.T) {
-	cli, err := grpc.Dial("127.0.0.1:6102", grpc.WithInsecure())
+	cli, err := grpc.Dial(testXDSHost, grpc.WithInsecure())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,18 +50,23 @@ func TestClientListener(t *testing.T) {
 	defer cancel()
 	res, err := listenerDiscover.FetchListeners(ctx, &v2.DiscoveryRequest{
 		Node: &core.Node{
-			Cluster: "6ab5725e1ca34cfba7762b7ac10c0dee_9d379258e0bc4fc581331780b0541ac6_grc69d9c",
-			Id:      "6ab5725e1ca34cfba7762b7ac10c0dee_9d379258e0bc4fc581331780b0541ac6_grc69d9c",
+			Cluster: testClusterID,
+			Id:      testClusterID,
 		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(util.MessageToStruct(res))
+	if len(res.Resources) == 0 {
+		t.Fatal("no listeners")
+	}
+	t.Logf("version %s", res.GetVersionInfo())
+	listeners := envoyv2.ParseListenerResource(res.Resources)
+	printYaml(t, listeners)
 }
 
 func TestClientCluster(t *testing.T) {
-	cli, err := grpc.Dial("127.0.0.1:6101", grpc.WithInsecure())
+	cli, err := grpc.Dial(testXDSHost, grpc.WithInsecure())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,18 +75,28 @@ func TestClientCluster(t *testing.T) {
 	defer cancel()
 	res, err := clusterDiscover.FetchClusters(ctx, &v2.DiscoveryRequest{
 		Node: &core.Node{
-			Cluster: "6ab5725e1ca34cfba7762b7ac10c0dee_9d379258e0bc4fc581331780b0541ac6_grc69d9c",
-			Id:      "6ab5725e1ca34cfba7762b7ac10c0dee_9d379258e0bc4fc581331780b0541ac6_grc69d9c",
+			Cluster: testClusterID,
+			Id:      testClusterID,
 		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(util.MessageToStruct(res))
+	if len(res.Resources) == 0 {
+		t.Fatal("no clusters")
+	}
+	t.Logf("version %s", res.GetVersionInfo())
+	clusters := envoyv2.ParseClustersResource(res.Resources)
+	printYaml(t, clusters)
+}
+
+func printYaml(t *testing.T, data interface{}) {
+	out, _ := yaml.Marshal(data)
+	t.Log(string(out))
 }
 
 func TestClientEndpoint(t *testing.T) {
-	cli, err := grpc.Dial("127.0.0.1:6101", grpc.WithInsecure())
+	cli, err := grpc.Dial(testXDSHost, grpc.WithInsecure())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,12 +105,25 @@ func TestClientEndpoint(t *testing.T) {
 	defer cancel()
 	res, err := endpointDiscover.FetchEndpoints(ctx, &v2.DiscoveryRequest{
 		Node: &core.Node{
-			Cluster: "6ab5725e1ca34cfba7762b7ac10c0dee_9d379258e0bc4fc581331780b0541ac6_grc69d9c",
-			Id:      "6ab5725e1ca34cfba7762b7ac10c0dee_9d379258e0bc4fc581331780b0541ac6_grc69d9c",
+			Cluster: testClusterID,
+			Id:      testClusterID,
 		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(util.MessageToStruct(res))
+	if len(res.Resources) == 0 {
+		t.Fatal("no endpoints")
+	}
+	t.Logf("version %s", res.GetVersionInfo())
+	endpoints := envoyv2.ParseLocalityLbEndpointsResource(res.Resources)
+	printYaml(t, endpoints)
+}
+
+func TestNewDependServiceHealthController(t *testing.T) {
+	controller, err := NewDependServiceHealthController()
+	if err != nil {
+		t.Fatal(err)
+	}
+	controller.Check()
 }

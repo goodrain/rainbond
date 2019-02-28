@@ -232,7 +232,7 @@ func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.API
 				p.ListenPort = pluginPort
 			}
 		}
-		if err := s.SavePluginConfig(uve.ServiceAlias, uve.PluginID, uve.Body.ConfigEnvs.ComplexEnvs); err != nil {
+		if err := s.SavePluginConfig(uve.Body.ServiceID, uve.PluginID, uve.Body.ConfigEnvs.ComplexEnvs); err != nil {
 			tx.Rollback()
 			return util.CreateAPIHandleError(500, fmt.Errorf("update complex error, %v", err))
 		}

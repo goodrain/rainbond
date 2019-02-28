@@ -41,7 +41,7 @@ func (a *AppService) SetUpgradePatch(new *AppService) error {
 			return fmt.Errorf("no upgrade")
 		}
 		logrus.Debugf("stateful patch %s", string(statefulsetPatch))
-		a.UpgradePatch["statefulset"] = statefulsetPatch
+		new.UpgradePatch["statefulset"] = statefulsetPatch
 	}
 	if a.deployment != nil && new.deployment != nil {
 		deploymentPatch, err := getDeploymentModifiedConfiguration(a.deployment, new.deployment)
@@ -51,10 +51,7 @@ func (a *AppService) SetUpgradePatch(new *AppService) error {
 		if len(deploymentPatch) == 0 {
 			return fmt.Errorf("no upgrade")
 		}
-		a.UpgradePatch["deployment"] = deploymentPatch
-	}
-	if new.configMaps != nil && len(new.configMaps) > 0 {
-		a.configMaps = new.configMaps
+		new.UpgradePatch["deployment"] = deploymentPatch
 	}
 	return nil
 }

@@ -19,9 +19,18 @@
 package healthy
 
 import (
+	"context"
+	"fmt"
+	"os"
+	"strconv"
 	"time"
 
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+
+	"google.golang.org/grpc"
+
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -38,15 +47,41 @@ type DependServiceHealthController struct {
 	interval             time.Duration
 	envoyDiscoverVersion string //only support v2
 	checkFunc            []func() bool
+	endpointClient       v2.EndpointDiscoveryServiceClient
+	dependServiceCount   int
+	clusterID            string
 }
 
 //NewDependServiceHealthController create a controller
-func NewDependServiceHealthController(serviceName string) *DependServiceHealthController {
-	var dsc DependServiceHealthController
+func NewDependServiceHealthController() (*DependServiceHealthController, error) {
+	clusterID := os.Getenv("ENVOY_NODE_ID")
+	if clusterID == "" {
+		clusterID = fmt.Sprintf("%s_%s_%s", os.Getenv("TENANT_ID"), os.Getenv("PLUGIN_ID"), os.Getenv("SERVICE_NAME"))
+	}
+	dsc := DependServiceHealthController{
+		interval:  time.Second * 5,
+		clusterID: clusterID,
+	}
 	dsc.checkFunc = append(dsc.checkFunc, dsc.checkListener)
 	dsc.checkFunc = append(dsc.checkFunc, dsc.checkClusters)
-	dsc.checkFunc = append(dsc.checkFunc, dsc.checkSDS)
-	return &dsc
+	dsc.checkFunc = append(dsc.checkFunc, dsc.checkEDS)
+	xDSHost := os.Getenv("XDS_HOST_IP")
+	if xDSHost == "" {
+		xDSHost = "172.30.42.1"
+	}
+	xDSHostPort := os.Getenv("XDS_HOST_PORT")
+	if xDSHostPort == "" {
+		xDSHostPort = "6101"
+	}
+	cli, err := grpc.Dial(fmt.Sprintf("%s:%s", xDSHost, xDSHostPort), grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	if dependCount, err := strconv.Atoi(os.Getenv("DEPEND_SERVICE_COUNT")); err == nil {
+		dsc.dependServiceCount = dependCount
+	}
+	dsc.endpointClient = v2.NewEndpointDiscoveryServiceClient(cli)
+	return &dsc, nil
 }
 
 //Check check all conditions
@@ -64,6 +99,7 @@ func (d *DependServiceHealthController) Check() {
 	for {
 		if check() {
 			logrus.Info("Depend services all check passed,will start service")
+			return
 		}
 		select {
 		case <-ticker.C:
@@ -72,22 +108,34 @@ func (d *DependServiceHealthController) Check() {
 }
 
 func (d *DependServiceHealthController) checkListener() bool {
-	if d.listeners != nil {
-		return true
-	}
-
-	return false
+	return true
 }
 
 func (d *DependServiceHealthController) checkClusters() bool {
-	if d.clusters != nil {
-		return true
-	}
-	return false
+	return true
 }
 
-func (d *DependServiceHealthController) checkSDS() bool {
-	if d.sdsHost != nil && len(d.sdsHost) >= len(d.clusters) {
+func (d *DependServiceHealthController) checkEDS() bool {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	res, err := d.endpointClient.FetchEndpoints(ctx, &v2.DiscoveryRequest{
+		Node: &core.Node{
+			Cluster: d.clusterID,
+			Id:      d.clusterID,
+		},
+	})
+	if err != nil {
+		logrus.Errorf("discover depend services endpoint failure %s", err.Error())
+		return false
+	}
+	endpoints := envoyv2.ParseLocalityLbEndpointsResource(res.Resources)
+	readyLength := 0
+	for _, endpoint := range endpoints {
+		if len(endpoint.Endpoints) > 0 && len(endpoint.Endpoints[0].LbEndpoints) > 0 {
+			readyLength++
+		}
+	}
+	if readyLength >= d.dependServiceCount {
 		return true
 	}
 	return false

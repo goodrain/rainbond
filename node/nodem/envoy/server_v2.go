@@ -19,6 +19,7 @@
 package envoy
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"sync"
@@ -50,6 +51,16 @@ type DiscoverServerManager struct {
 	cacheManager    cache.SnapshotCache
 	cacheNodeConfig []*NodeConfig
 	kubecli         kubecache.KubeClient
+	eventChan       chan *Event
+	pool            *sync.Pool
+	ctx             context.Context
+	cancel          context.CancelFunc
+}
+
+//Event event
+type Event struct {
+	MethodType string
+	Source     interface{}
 }
 
 // Hasher returns node ID as an ID
@@ -226,25 +237,42 @@ func (d *DiscoverServerManager) UpdateNodeConfig(nc *NodeConfig) error {
 	} else {
 		nc.endpoints = clusterLoadAssignment
 	}
-	logrus.Info(clusterLoadAssignment)
+	return d.setSnapshot(nc)
+}
+
+func (d *DiscoverServerManager) setSnapshot(nc *NodeConfig) error {
+	if len(nc.clusters) < 1 || len(nc.listeners) < 1 {
+		logrus.Warn("node config cluster length is zero or listener length is zero,not set snapshot")
+		return nil
+	}
 	snapshot := cache.NewSnapshot(nc.GetVersion(), nc.endpoints, nc.clusters, nil, nc.listeners)
-	err = d.cacheManager.SetSnapshot(nc.nodeID, snapshot)
+	err := d.cacheManager.SetSnapshot(nc.nodeID, snapshot)
 	if err != nil {
 		return err
 	}
+	logrus.Infof("cache envoy node %s config,version: %s", nc.GetID(), nc.GetVersion())
+	//TODO: If the resource has not changed, there is no need to cache the new version
 	nc.VersionUpdate()
-	logrus.Infof("cache envoy node %s config", nc.nodeID)
 	return nil
 }
 
 //CreateDiscoverServerManager create discover server manager
 func CreateDiscoverServerManager(kubecli kubecache.KubeClient, conf option.Conf) (*DiscoverServerManager, error) {
 	configcache := cache.NewSnapshotCache(false, Hasher{}, logrus.WithField("module", "config-cache"))
+	ctx, cancel := context.WithCancel(context.Background())
 	dsm := &DiscoverServerManager{
 		server:       server.NewServer(configcache, nil),
 		cacheManager: configcache,
 		kubecli:      kubecli,
 		conf:         conf,
+		eventChan:    make(chan *Event, 100),
+		pool: &sync.Pool{
+			New: func() interface{} {
+				return &Event{}
+			},
+		},
+		ctx:    ctx,
+		cancel: cancel,
 	}
 	kubecli.AddEventWatch("all", dsm)
 	return dsm, nil
@@ -254,6 +282,10 @@ const grpcMaxConcurrentStreams = 1000000
 
 //Start server start
 func (d *DiscoverServerManager) Start(errch chan error) error {
+
+	// start handle event
+	go d.handleEvent()
+
 	// gRPC golang library sets a very small upper bound for the number gRPC/h2
 	// streams over a single TCP connection. If a proxy multiplexes requests over
 	// a single connection to the management server, then it might lead to
@@ -284,12 +316,14 @@ func (d *DiscoverServerManager) Start(errch chan error) error {
 //Stop stop grpc server
 func (d *DiscoverServerManager) Stop() {
 	//d.grpcServer.GracefulStop()
+	d.cancel()
 }
 
 //AddNodeConfig add node config cache
 func (d *DiscoverServerManager) AddNodeConfig(nc *NodeConfig) {
 	for i, existNC := range d.cacheNodeConfig {
 		if existNC.nodeID == nc.nodeID {
+			nc.version = existNC.version
 			d.cacheNodeConfig[i] = nc
 			return
 		}
@@ -307,10 +341,24 @@ func (d *DiscoverServerManager) DeleteNodeConfig(nodeID string) {
 	}
 }
 
-//OnAdd on add resource
+//OnAdd on add for k8s
 func (d *DiscoverServerManager) OnAdd(obj interface{}) {
+	event := d.pool.Get().(*Event)
+	event.MethodType = "update"
+	event.Source = obj
+	d.eventChan <- event
+}
+func checkIsHandleResource(configMap *corev1.ConfigMap) bool {
+	if value, ok := configMap.Data["plugin-model"]; ok && (value == "net-plugin:down" || value == "net-plugin:up") {
+		return true
+	}
+	return false
+}
+
+//OnAdd on add resource
+func (d *DiscoverServerManager) onAdd(obj interface{}) {
 	if configMap, ok := obj.(*corev1.ConfigMap); ok {
-		if _, ok := configMap.Data["plugin-config"]; ok {
+		if checkIsHandleResource(configMap) {
 			nc, err := d.NewNodeConfig(configMap)
 			if err != nil {
 				logrus.Errorf("create envoy node config failure %s", err.Error())
@@ -331,6 +379,23 @@ func (d *DiscoverServerManager) OnAdd(obj interface{}) {
 	}
 }
 
+func (d *DiscoverServerManager) handleEvent() {
+	for {
+		select {
+		case event := <-d.eventChan:
+			switch event.MethodType {
+			case "update":
+				d.onAdd(event.Source)
+			case "delete":
+				d.onDelete(event.Source)
+			}
+			d.pool.Put(event)
+		case <-d.ctx.Done():
+			return
+		}
+	}
+}
+
 //OnUpdate on update resource
 func (d *DiscoverServerManager) OnUpdate(oldObj, newObj interface{}) {
 	d.OnAdd(newObj)
@@ -338,8 +403,16 @@ func (d *DiscoverServerManager) OnUpdate(oldObj, newObj interface{}) {
 
 //OnDelete on delete resource
 func (d *DiscoverServerManager) OnDelete(obj interface{}) {
+	event := d.pool.Get().(*Event)
+	event.MethodType = "delete"
+	event.Source = obj
+	d.eventChan <- event
+}
+
+//OnDelete on delete resource
+func (d *DiscoverServerManager) onDelete(obj interface{}) {
 	if configMap, ok := obj.(*corev1.ConfigMap); ok {
-		if _, ok := configMap.Data["plugin-config"]; ok {
+		if checkIsHandleResource(configMap) {
 			nodeID := createNodeID(configMap.Namespace, configMap.Labels["plugin_id"], configMap.Labels["service_alias"])
 			d.DeleteNodeConfig(nodeID)
 		}
