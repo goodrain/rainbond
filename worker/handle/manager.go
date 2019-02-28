@@ -21,7 +21,9 @@ package handle
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"reflect"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
@@ -331,13 +333,21 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		logrus.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
 		return fmt.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
 	}
+	svc, err := db.GetManager().TenantServiceDao().GetServiceByID(body.ServiceID)
+	if err != nil {
+		logrus.Errorf("error get TenantServices: %v", err)
+		return fmt.Errorf("error get TenantServices: %v", err)
+	}
 	logger := event.GetManager().GetLogger(body.EventID)
-	oldAppService := m.store.GetAppService(body.ServiceID)
-	if oldAppService == nil || oldAppService.IsClosed() {
-		logrus.Debugf("service is closed,no need handle")
-		logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
-		event.GetManager().ReleaseLogger(logger)
-		return nil
+	var oldAppService *v1.AppService
+	if svc.Kind != "third_party" && !strings.HasPrefix(body.Action, "switch-port") {
+		oldAppService = m.store.GetAppService(body.ServiceID)
+		if oldAppService == nil || oldAppService.IsClosed() {
+			logrus.Debugf("service is closed, no need handle")
+			logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
+			event.GetManager().ReleaseLogger(logger)
+			return nil
+		}
 	}
 	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID)
 	if err != nil {
@@ -347,7 +357,7 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		return fmt.Errorf("Application init create failure")
 	}
 	newAppService.Logger = logger
-	newAppService.SetDelIngsSecrets(oldAppService)
+	newAppService.SetDeletedResources(oldAppService)
 	// update k8s resources
 	err = m.controllerManager.StartController(controller.TypeApplyRuleController, *newAppService)
 	if err != nil {

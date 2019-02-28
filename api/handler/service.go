@@ -613,7 +613,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 				tx.Rollback()
 				return err
 			}
-			c := &dbmodel.ThirdPartyServiceDiscoveryCfg{
+			c := &dbmodel.ThirdPartySvcDiscoveryCfg{
 				ServiceID: sc.ServiceID,
 				Type:      cfg.Type,
 				Servers:   strings.Join(cfg.Servers, ","),
@@ -621,7 +621,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 				Username:  cfg.Username,
 				Password:  cfg.Password,
 			}
-			if err := db.GetManager().ThirdPartyServiceDiscoveryCfgDaoTransactions(tx).
+			if err := db.GetManager().ThirdPartySvcDiscoveryCfgDaoTransactions(tx).
 				AddModel(c); err != nil {
 				logrus.Errorf("error saving discover center configuration: %v", err)
 				tx.Rollback()

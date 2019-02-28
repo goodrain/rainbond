@@ -16,9 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package conversion
+package v1
 
-import "errors"
-
-//ErrServiceNotFound error not found
-var ErrServiceNotFound = errors.New("service not found")
+// Endpoint holds information to create corv1.Endpoints(kubernetes object).
+type Endpoint struct {
+	Port int
+	IPs  []string
+}

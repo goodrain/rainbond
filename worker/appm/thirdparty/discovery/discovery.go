@@ -16,9 +16,26 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package conversion
+package discovery
 
-import "errors"
+import (
+	"github.com/goodrain/rainbond/db/model"
+	"strings"
+)
 
-//ErrServiceNotFound error not found
-var ErrServiceNotFound = errors.New("service not found")
+// Discoverier is the interface that wraps the required methods to gather
+// information about third-party service endpoints.
+type Discoverier interface {
+	Connect() error
+	Fetch() ([]*model.Endpoint, error)
+	Close() error
+}
+
+func NewDiscoverier(cfg *model.ThirdPartySvcDiscoveryCfg) Discoverier {
+	switch strings.ToUpper(cfg.Type) {
+	case "ETCD":
+		return NewEtcd(cfg)
+	}
+	return nil
+}
+

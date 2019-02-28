@@ -82,21 +82,14 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	tenantService, err := dbmanager.TenantServiceDao().GetServiceByID(as.ServiceID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return ErrorNotFoundService
+			return ErrServiceNotFound
 		}
 		return fmt.Errorf("error getting service base info by serviceID(%s) %s", as.ServiceID, err.Error())
 	}
+	as.ServiceKind = tenantService.Kind
 	tenant, err := dbmanager.TenantDao().GetTenantByUUID(tenantService.TenantID)
 	if err != nil {
 		return fmt.Errorf("get tenant info failure %s", err.Error())
-	}
-	serviceType, err := dbmanager.TenantServiceLabelDao().GetTenantServiceTypeLabel(as.ServiceID)
-	if err != nil {
-		return fmt.Errorf("get service type info failure %s", err.Error())
-	}
-	label, err := dbmanager.TenantServiceLabelDao().GetLabelByNodeSelectorKey(as.ServiceID, "windows")
-	if label != nil {
-		as.IsWindowsService = true
 	}
 	as.TenantID = tenantService.TenantID
 	if as.DeployVersion == "" {
@@ -114,6 +107,17 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	if err := initTenant(as, tenant); err != nil {
 		return fmt.Errorf("conversion tenant info failure %s", err.Error())
 	}
+	if tenantService.Kind == "third_party" {
+		return nil
+	}
+	serviceType, err := dbmanager.TenantServiceLabelDao().GetTenantServiceTypeLabel(as.ServiceID)
+	if err != nil {
+		return fmt.Errorf("get service type info failure %s", err.Error())
+	}
+	label, err := dbmanager.TenantServiceLabelDao().GetLabelByNodeSelectorKey(as.ServiceID, "windows")
+	if label != nil {
+		as.IsWindowsService = true
+	}
 	if serviceType == nil || serviceType.LabelValue == util.StatelessServiceType {
 		initBaseDeployment(as, tenantService)
 		return nil
@@ -124,6 +128,7 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	}
 	return fmt.Errorf("do not decision build type for service %s", as.ServiceAlias)
 }
+
 func initTenant(as *v1.AppService, tenant *dbmodel.Tenants) error {
 	if tenant == nil || tenant.UUID == "" {
 		return fmt.Errorf("tenant is invalid")

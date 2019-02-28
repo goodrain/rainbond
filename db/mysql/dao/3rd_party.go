@@ -23,8 +23,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/jinzhu/gorm"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/jinzhu/gorm"
 )
 
 // EndpointDaoImpl implements EndpintDao
@@ -71,9 +71,21 @@ func (e *EndpointDaoImpl) GetByUUID(uuid string) (*model.Endpoint, error) {
 }
 
 // List list all endpints matching the given serivce_id(sid).
-func (e *EndpointDaoImpl) List(sid string) ([]*model.Endpoint, error){
+func (e *EndpointDaoImpl) List(sid string) ([]*model.Endpoint, error) {
 	var eps []*model.Endpoint
 	if err := e.DB.Where("service_id=?", sid).Find(&eps).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return eps, nil
+}
+
+// ListIsOnline lists *model.Endpoint according to sid, and filter out the ones that are not online.
+func (e *EndpointDaoImpl) ListIsOnline(sid string) ([]*model.Endpoint, error) {
+	var eps []*model.Endpoint
+	if err := e.DB.Where("service_id=? and is_online=1", sid).Find(&eps).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -90,19 +102,19 @@ func (e *EndpointDaoImpl) DelByUUID(uuid string) error {
 	return nil
 }
 
-// ThirdPartyServiceDiscoveryCfgDaoImpl implements ThirdPartyServiceDiscoveryCfgDao
-type ThirdPartyServiceDiscoveryCfgDaoImpl struct {
+// ThirdPartySvcDiscoveryCfgDaoImpl implements ThirdPartySvcDiscoveryCfgDao
+type ThirdPartySvcDiscoveryCfgDaoImpl struct {
 	DB *gorm.DB
 }
- 
+
 // AddModel add one record for table 3rd_party_svc_discovery_cfg.
-func (t *ThirdPartyServiceDiscoveryCfgDaoImpl) AddModel(mo model.Interface) error {
-	cfg, ok := mo.(*model.ThirdPartyServiceDiscoveryCfg)
+func (t *ThirdPartySvcDiscoveryCfgDaoImpl) AddModel(mo model.Interface) error {
+	cfg, ok := mo.(*model.ThirdPartySvcDiscoveryCfg)
 	if !ok {
-		return fmt.Errorf("Type conversion error. From %s to *model.ThirdPartyServiceDiscoveryCfg",
+		return fmt.Errorf("Type conversion error. From %s to *model.ThirdPartySvcDiscoveryCfg",
 			reflect.TypeOf(mo))
 	}
-	var old model.ThirdPartyServiceDiscoveryCfg
+	var old model.ThirdPartySvcDiscoveryCfg
 	if ok := t.DB.Where("service_id=?", cfg.ServiceID).Find(&old).RecordNotFound(); ok {
 		if err := t.DB.Create(cfg).Error; err != nil {
 			return err
@@ -114,6 +126,18 @@ func (t *ThirdPartyServiceDiscoveryCfgDaoImpl) AddModel(mo model.Interface) erro
 }
 
 // UpdateModel blabla
-func (t *ThirdPartyServiceDiscoveryCfgDaoImpl) UpdateModel(mo model.Interface) error {
+func (t *ThirdPartySvcDiscoveryCfgDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
+}
+
+// GetByServiceID return third-party service discovery configuration according to service_id.
+func (t *ThirdPartySvcDiscoveryCfgDaoImpl) GetByServiceID(sid string) (*model.ThirdPartySvcDiscoveryCfg, error) {
+	var cfg model.ThirdPartySvcDiscoveryCfg
+	if err := t.DB.Where("service_id=?", sid).Find(&cfg).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &cfg, nil
 }

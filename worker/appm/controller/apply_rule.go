@@ -68,6 +68,10 @@ func (a *applyRuleController) applyOne(app *v1.AppService) error {
 		ensureSecret(secret, a.manager.client)
 	}
 	// update ingress
+	for _, ep := range app.GetEndpoints() {
+		ensureEndpoints(ep, a.manager.client)
+	}
+	// update ingress
 	for _, ing := range app.GetIngress() {
 		ensureIngress(ing, a.manager.client)
 	}
@@ -85,6 +89,22 @@ func (a *applyRuleController) applyOne(app *v1.AppService) error {
 		if err != nil {
 			// don't return error, hope it is ok next time
 			logrus.Warningf("error deleting secret(%v): %v", secret, err)
+		}
+	}
+	// delete delEndpoints
+	for _, ep := range app.GetDelEndpoints() {
+		err := a.manager.client.CoreV1().Endpoints(ep.Namespace).Delete(ep.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			// don't return error, hope it is ok next time
+			logrus.Warningf("error deleting endpoints(%v): %v", ep, err)
+		}
+	}
+	// delete delServices
+	for _, svc := range app.GetDelServices() {
+		err := a.manager.client.CoreV1().Services(svc.Namespace).Delete(svc.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			// don't return error, hope it is ok next time
+			logrus.Warningf("error deleting service(%v): %v", svc, err)
 		}
 	}
 	return nil
@@ -141,5 +161,21 @@ func ensureSecret(secret *corev1.Secret, clientSet kubernetes.Interface) {
 		}
 
 		logrus.Warningf("error updating secret %+v: %v", secret, err)
+	}
+}
+
+func ensureEndpoints(ep *corev1.Endpoints, clientSet kubernetes.Interface) {
+	_, err := clientSet.CoreV1().Endpoints(ep.Namespace).Update(ep)
+
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			_, err := clientSet.CoreV1().Endpoints(ep.Namespace).Create(ep)
+			if err != nil {
+				logrus.Warningf("error creating endpoints %+v: %v", ep, err)
+			}
+			return
+		}
+
+		logrus.Warningf("error updating endpoints %+v: %v", ep, err)
 	}
 }

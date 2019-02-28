@@ -4,9 +4,9 @@
 package db
 
 import (
-	gomock "github.com/rafrombrc/gomock/gomock"
 	gorm "github.com/jinzhu/gorm"
 	dao "github.com/goodrain/rainbond/db/dao"
+	gomock "github.com/rafrombrc/gomock/gomock"
 )
 
 // Mock of Manager interface
@@ -718,4 +718,44 @@ func (_m *MockManager) IPPoolDao() dao.IPPoolDao {
 
 func (_mr *_MockManagerRecorder) IPPoolDao() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "IPPoolDao")
+}
+
+func (_m *MockManager) EndpointsDao() dao.EndpointsDao {
+	ret := _m.ctrl.Call(_m, "EndpointsDao")
+	ret0, _ := ret[0].(dao.EndpointsDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) EndpointsDao() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "EndpointsDao")
+}
+
+func (_m *MockManager) EndpointsDaoTransactions(db *gorm.DB) dao.EndpointsDao {
+	ret := _m.ctrl.Call(_m, "EndpointsDaoTransactions", db)
+	ret0, _ := ret[0].(dao.EndpointsDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) EndpointsDaoTransactions(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "EndpointsDaoTransactions", arg0)
+}
+
+func (_m *MockManager) ThirdPartySvcDiscoveryCfgDao() dao.ThirdPartySvcDiscoveryCfgDao {
+	ret := _m.ctrl.Call(_m, "ThirdPartySvcDiscoveryCfgDao")
+	ret0, _ := ret[0].(dao.ThirdPartySvcDiscoveryCfgDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) ThirdPartySvcDiscoveryCfgDao() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "ThirdPartySvcDiscoveryCfgDao")
+}
+
+func (_m *MockManager) ThirdPartySvcDiscoveryCfgDaoTransactions(db *gorm.DB) dao.ThirdPartySvcDiscoveryCfgDao {
+	ret := _m.ctrl.Call(_m, "ThirdPartySvcDiscoveryCfgDaoTransactions", db)
+	ret0, _ := ret[0].(dao.ThirdPartySvcDiscoveryCfgDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) ThirdPartySvcDiscoveryCfgDaoTransactions(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "ThirdPartySvcDiscoveryCfgDaoTransactions", arg0)
 }

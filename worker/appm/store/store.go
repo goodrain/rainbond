@@ -31,7 +31,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/jinzhu/gorm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -139,12 +139,16 @@ func (a *appRuntimeStore) init() error {
 			return err
 		}
 	}
+	// init third-party service
 	return a.initStorageclass()
 }
 
 func (a *appRuntimeStore) Start() error {
 	if err := a.init(); err != nil {
 		return err
+	}
+	if err := a.initThirdPartyService(); err != nil {
+		return fmt.Errorf("error initiating third-party services: %v", err)
 	}
 	stopch := make(chan struct{})
 	a.informers.Start(stopch)
@@ -173,6 +177,7 @@ func (a *appRuntimeStore) checkReplicasetWhetherDelete(app *v1.AppService, rs *a
 		}
 	}
 }
+
 func (a *appRuntimeStore) OnAdd(obj interface{}) {
 	if deployment, ok := obj.(*appsv1.Deployment); ok {
 		serviceID := deployment.Labels["service_id"]
@@ -180,7 +185,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		createrID := deployment.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
-			if err == conversion.ErrorNotFoundService {
+			if err == conversion.ErrServiceNotFound {
 				a.conf.KubeClient.AppsV1().Deployments(deployment.Namespace).Delete(deployment.Name, &metav1.DeleteOptions{})
 			}
 			if appservice != nil {
@@ -195,7 +200,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		createrID := statefulset.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
-			if err == conversion.ErrorNotFoundService {
+			if err == conversion.ErrServiceNotFound {
 				a.conf.KubeClient.AppsV1().StatefulSets(statefulset.Namespace).Delete(statefulset.Name, &metav1.DeleteOptions{})
 			}
 			if appservice != nil {
@@ -210,7 +215,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		createrID := replicaset.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
-			if err == conversion.ErrorNotFoundService {
+			if err == conversion.ErrServiceNotFound {
 				a.conf.KubeClient.AppsV1().Deployments(replicaset.Namespace).Delete(replicaset.Name, &metav1.DeleteOptions{})
 			}
 			if appservice != nil {
@@ -226,7 +231,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		createrID := pod.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
-			if err == conversion.ErrorNotFoundService {
+			if err == conversion.ErrServiceNotFound {
 				a.conf.KubeClient.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{})
 			}
 			if appservice != nil {
@@ -242,7 +247,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		createrID := secret.Labels["creater_id"]
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
-			if err == conversion.ErrorNotFoundService {
+			if err == conversion.ErrServiceNotFound {
 				a.conf.KubeClient.CoreV1().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
 			}
 			if appservice != nil {
@@ -257,7 +262,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		createrID := service.Labels["creater_id"]
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
-			if err == conversion.ErrorNotFoundService {
+			if err == conversion.ErrServiceNotFound {
 				a.conf.KubeClient.CoreV1().Services(service.Namespace).Delete(service.Name, &metav1.DeleteOptions{})
 			}
 			if appservice != nil {
@@ -272,7 +277,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		createrID := ingress.Labels["creater_id"]
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
-			if err == conversion.ErrorNotFoundService {
+			if err == conversion.ErrServiceNotFound {
 				a.conf.KubeClient.Extensions().Ingresses(ingress.Namespace).Delete(ingress.Name, &metav1.DeleteOptions{})
 			}
 			if appservice != nil {
@@ -287,11 +292,26 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		createrID := configmap.Labels["creater_id"]
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
-			if err == conversion.ErrorNotFoundService {
+			if err == conversion.ErrServiceNotFound {
 				a.conf.KubeClient.CoreV1().ConfigMaps(configmap.Namespace).Delete(configmap.Name, &metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetConfigMap(configmap)
+				return
+			}
+		}
+	}
+	if ep, ok := obj.(*corev1.Endpoints); ok {
+		serviceID := ep.Labels["service_id"]
+		version := ep.Labels["version"]
+		createrID := ep.Labels["creater_id"]
+		if serviceID != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.CoreV1().Endpoints(ep.Namespace).Delete(ep.Name, &metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetEndpoints(ep)
 				return
 			}
 		}
@@ -304,7 +324,7 @@ func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, cr
 	appservice = a.GetAppService(serviceID)
 	if appservice == nil && creater {
 		var err error
-		appservice, err = conversion.InitCacheAppService(a.dbmanager, serviceID, version, createrID)
+		appservice, err = conversion.InitCacheAppService(a.dbmanager, serviceID, createrID)
 		if err != nil {
 			logrus.Errorf("init cache app service failure:%s", err.Error())
 			return nil, err
