@@ -152,3 +152,16 @@ func (a *AppRuntimeSyncClient) GetTenantResource(tenantID string) (*pb.TenantRes
 	defer cancel()
 	return a.AppRuntimeSyncClient.GetTenantResource(ctx, &pb.TenantRequest{TenantId: tenantID})
 }
+
+//GetAllStatus get all status
+func (a *AppRuntimeSyncClient) GetThirdPartyServiceStatus(sid string) map[string]bool {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	resp, err := a.AppRuntimeSyncClient.GetThirdPartyEndpointsStatus(ctx, &pb.ServiceRequest{
+		ServiceId:sid,
+	})
+	if err != nil {
+		return nil
+	}
+	return resp.Status
+}

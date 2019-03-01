@@ -28,8 +28,7 @@ import (
 )
 
 // ThirdPartyServiceController implements ThirdPartyServicer
-type ThirdPartyServiceController struct {
-}
+type ThirdPartyServiceController struct{}
 
 // Endpoints POST->add endpoints, PUT->update endpoints, DELETE->delete endpoints
 func (t *ThirdPartyServiceController) Endpoints(w http.ResponseWriter, r *http.Request) {

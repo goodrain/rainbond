@@ -19,7 +19,10 @@
 package handler
 
 import (
+	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/worker/client"
+	"github.com/goodrain/rainbond/worker/server/pb"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -32,11 +35,15 @@ import (
 // ThirdPartyServiceHanlder handles business logic for all third-party services
 type ThirdPartyServiceHanlder struct {
 	dbmanager db.Manager
+	statusCli *client.AppRuntimeSyncClient
 }
 
 // Create3rdPartySvcHandler creates a new *ThirdPartyServiceHanlder.
-func Create3rdPartySvcHandler(dbmanager db.Manager) *ThirdPartyServiceHanlder {
-	return &ThirdPartyServiceHanlder{dbmanager: dbmanager}
+func Create3rdPartySvcHandler(dbmanager db.Manager, statusCli *client.AppRuntimeSyncClient) *ThirdPartyServiceHanlder {
+	return &ThirdPartyServiceHanlder{
+		dbmanager: dbmanager,
+		statusCli: statusCli,
+	}
 }
 
 // AddEndpoints adds endpints for third-party service.
@@ -83,6 +90,17 @@ func (t *ThirdPartyServiceHanlder) DelEndpoints(data *model.DelEndpiontsReq) err
 
 // ListEndpoints lists third-party service endpoints.
 func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointResp, error) {
+	status, err := t.statusCli.GetThirdPartyEndpointsStatus(context.Background(), &pb.ServiceRequest{
+		ServiceId: sid,
+	})
+	if err != nil {
+		logrus.Warningf("error getting third-party endpoints status: %v", err)
+	}
+	if status != nil {
+		for key,val := range status.Status {
+			logrus.Debugf("third-party service status, Key: %s, Value: %v", key, val)
+		}
+	}
 	eps, err := t.dbmanager.EndpointsDao().List(sid)
 	if err != nil {
 		logrus.Errorf("error listing endpoints: %v", err)
@@ -95,7 +113,19 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 			IP:       ep.IP,
 			IsOnline: *ep.IsOnline,
 		}
-		r.Status = "Unknown" // TODO: get real status from worker.
+		r.Status = func(status map[string]bool, ip string) string {
+			if status == nil {
+				return "unknown"
+			}
+			item, ok := status[ip]
+			if !ok {
+				return "unknown"
+			}
+			if item {
+				return "healthy"
+			}
+			return "unhealthy"
+		}(status.Status, ep.IP)
 		res = append(res, r)
 	}
 	return res, nil
