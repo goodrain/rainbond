@@ -131,20 +131,20 @@ type Lang string
 
 //ServiceInfo 智能获取的应用信息
 type ServiceInfo struct {
-	Ports             []Port              `json:"ports"`
-	Envs              []Env               `json:"envs"`
-	Volumes           []Volume            `json:"volumes"`
-	Image             Image               `json:"image"`
-	Args              []string            `json:"args"`
-	DependServices    []string            `json:"depends,omitempty"`
-	ServiceDeployType string              `json:"deploy_type,omitempty"`
-	Branchs           []string            `json:"branchs,omitempty"`
-	Memory            int                 `json:"memory"`
-	Lang              code.Lang           `json:"language"`
-	Runtime           bool                `json:"runtime"`
-	Dependencies      bool                `json:"dependencies"`
-	Procfile          bool                `json:"procfile"`
-	ImageAlias        string              `json:"image_alias"`
+	Ports             []Port                `json:"ports"`
+	Envs              []Env                 `json:"envs"`
+	Volumes           []Volume              `json:"volumes"`
+	Image             Image                 `json:"image"`
+	Args              []string              `json:"args"`
+	DependServices    []string              `json:"depends,omitempty"`
+	ServiceDeployType string                `json:"deploy_type,omitempty"`
+	Branchs           []string              `json:"branchs,omitempty"`
+	Memory            int                   `json:"memory"`
+	Lang              code.Lang             `json:"language"`
+	Runtime           bool                  `json:"runtime"`
+	Dependencies      bool                  `json:"dependencies"`
+	Procfile          bool                  `json:"procfile"`
+	ImageAlias        string                `json:"image_alias"`
 	Endpoints         []*discovery.Endpoint `json:"endpoints"`
 }
 

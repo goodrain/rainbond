@@ -20,12 +20,12 @@ package discovery
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
-	"encoding/json"
 
-	c "github.com/coreos/etcd/clientv3"
 	"github.com/Sirupsen/logrus"
+	c "github.com/coreos/etcd/clientv3"
 )
 
 // Etcd implements Discoverier

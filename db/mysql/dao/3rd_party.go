@@ -23,8 +23,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/jinzhu/gorm"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/jinzhu/gorm"
 )
 
 // EndpointDaoImpl implements EndpintDao
@@ -71,7 +71,7 @@ func (e *EndpointDaoImpl) GetByUUID(uuid string) (*model.Endpoint, error) {
 }
 
 // List list all endpints matching the given serivce_id(sid).
-func (e *EndpointDaoImpl) List(sid string) ([]*model.Endpoint, error){
+func (e *EndpointDaoImpl) List(sid string) ([]*model.Endpoint, error) {
 	var eps []*model.Endpoint
 	if err := e.DB.Where("service_id=?", sid).Find(&eps).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -94,7 +94,7 @@ func (e *EndpointDaoImpl) DelByUUID(uuid string) error {
 type ThirdPartyServiceDiscoveryCfgDaoImpl struct {
 	DB *gorm.DB
 }
- 
+
 // AddModel add one record for table 3rd_party_svc_discovery_cfg.
 func (t *ThirdPartyServiceDiscoveryCfgDaoImpl) AddModel(mo model.Interface) error {
 	cfg, ok := mo.(*model.ThirdPartyServiceDiscoveryCfg)

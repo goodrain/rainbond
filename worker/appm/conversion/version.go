@@ -362,7 +362,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				}
 				cmap.Data[path.Base(v.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
 				as.SetConfigMap(cmap)
-				vd.SetVolumeCMap(cmap, path.Base(v.VolumePath), v.VolumePath, v.IsReadOnly)
+				vd.SetVolumeCMap(cmap, path.Base(v.VolumePath), v.VolumePath, false)
 				continue // pass codes below
 			}
 			if as.GetStatefulSet() != nil {
@@ -417,7 +417,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				cmap.Data[path.Base(t.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
 				as.SetConfigMap(cmap)
 
-				vd.SetVolumeCMap(cmap, path.Base(t.VolumePath), t.VolumePath, tsv.IsReadOnly)
+				vd.SetVolumeCMap(cmap, path.Base(t.VolumePath), t.VolumePath, false)
 			}
 		}
 	}
@@ -594,6 +594,7 @@ func (v *volumeDefine) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath,
 
 // SetVolumeCMap sets volumes and volumeMounts. The type of volumes is configMap.
 func (v *volumeDefine) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string, isReadOnly bool) {
+	var configFileMode int32 = 0777
 	vm := corev1.VolumeMount{
 		MountPath: p,
 		Name:      cmap.Name,
@@ -601,7 +602,6 @@ func (v *volumeDefine) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string, isRead
 		SubPath:   path.Base(p),
 	}
 	v.volumeMounts = append(v.volumeMounts, vm)
-
 	vo := corev1.Volume{
 		Name: cmap.Name,
 		VolumeSource: corev1.VolumeSource{
@@ -609,10 +609,12 @@ func (v *volumeDefine) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string, isRead
 				LocalObjectReference: corev1.LocalObjectReference{
 					Name: cmap.Name,
 				},
+				DefaultMode: &configFileMode,
 				Items: []corev1.KeyToPath{
-					{
+					corev1.KeyToPath{
 						Key:  k,
 						Path: path.Base(p), // subpath
+						Mode: &configFileMode,
 					},
 				},
 			},

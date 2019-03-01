@@ -408,7 +408,7 @@ type IPPoolDao interface {
 	GetIPPoolByEID(eid string) (*model.IPPool, error)
 }
 
-// EndpointsDao is an interface for defining method 
+// EndpointsDao is an interface for defining method
 // for operating table 3rd_party_svc_endpoints.
 type EndpointsDao interface {
 	Dao
@@ -417,7 +417,7 @@ type EndpointsDao interface {
 	DelByUUID(uuid string) error
 }
 
-// ThirdPartyServiceDiscoveryCfgDao is an interface for defining method 
+// ThirdPartyServiceDiscoveryCfgDao is an interface for defining method
 // for operating table 3rd_party_svc_discovery_cfg.
 type ThirdPartyServiceDiscoveryCfgDao interface {
 	Dao

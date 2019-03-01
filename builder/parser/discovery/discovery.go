@@ -33,7 +33,7 @@ type Discoverier interface {
 func NewDiscoverier(info *Info) Discoverier {
 	switch strings.ToUpper(info.Type) {
 	case "ETCD":
-		return NewEtcd(info)	
+		return NewEtcd(info)
 	}
 	return nil
 }

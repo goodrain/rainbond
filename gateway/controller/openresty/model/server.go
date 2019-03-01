@@ -1,6 +1,6 @@
 package model
 
-import "github.com/goodrain/rainbond/gateway/v1"
+import v1 "github.com/goodrain/rainbond/gateway/v1"
 
 // Server sets configuration for a virtual server...
 type Server struct {
@@ -13,20 +13,15 @@ type Server struct {
 	ServerTokens            bool   // Enables or disables emitting nginx version on error pages and in the “Server” response header field.
 	ClientMaxBodySize       Size   // Sets the maximum allowed size of the client request body
 	ChunkedTransferEncoding bool   // Allows disabling chunked transfer encoding in HTTP/1.1
-
-	ProxyConnectTimeout Time
-	ProxyTimeout        Time
-	ProxyPass           string
-
-	SSLCertificate    string // Specifies a file with the certificate in the PEM format.
-	SSLCertificateKey string // Specifies a file with the secret key in the PEM format.
-
-	ForceSSLRedirect bool
-
-	Return   Return
-	Rewrites []Rewrite
-
-	Locations []*Location
+	ProxyConnectTimeout     Time
+	ProxyTimeout            Time
+	ProxyPass               string
+	SSLCertificate          string // Specifies a file with the certificate in the PEM format.
+	SSLCertificateKey       string // Specifies a file with the secret key in the PEM format.
+	ForceSSLRedirect        bool
+	Return                  Return
+	Rewrites                []Rewrite
+	Locations               []*Location
 }
 
 // FastCGIParam sets a parameter that should be passed to the FastCGI server.
