@@ -1,6 +1,6 @@
 package model
 
-import "github.com/goodrain/rainbond/gateway/v1"
+import v1 "github.com/goodrain/rainbond/gateway/v1"
 
 // Server sets configuration for a virtual server...
 type Server struct {
@@ -63,7 +63,9 @@ type Location struct {
 	ProxySendTimeout    Time   // Sets a timeout for transmitting a request to the proxied server.
 
 	DisableProxyPass bool
-	NameCondition    map[string]*v1.Condition
+	//PathRewrite if true, path will not passed to the upstream
+	PathRewrite   bool
+	NameCondition map[string]*v1.Condition
 }
 
 // ProxySetHeader allows redefining or appending fields to the request header passed to the proxied server.

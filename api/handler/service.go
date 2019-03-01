@@ -426,13 +426,14 @@ func (s *ServiceAction) ServiceUpgrade(ru *model.RollingUpgradeTaskBody) error {
 		return err
 	}
 	if version.FinalStatus != "success" {
-		return fmt.Errorf("deploy version is not build success,do not upgrade")
-	}
-	services.DeployVersion = ru.NewDeployVersion
-	err = db.GetManager().TenantServiceDao().UpdateModel(services)
-	if err != nil {
-		logrus.Errorf("update service deploy version error. %v", err)
-		return fmt.Errorf("horizontal service faliure:%s", err.Error())
+		logrus.Warnf("deploy version %s is not build success,can not change deploy version in this upgrade event", ru.NewDeployVersion)
+	} else {
+		services.DeployVersion = ru.NewDeployVersion
+		err = db.GetManager().TenantServiceDao().UpdateModel(services)
+		if err != nil {
+			logrus.Errorf("update service deploy version error. %v", err)
+			return fmt.Errorf("horizontal service faliure:%s", err.Error())
+		}
 	}
 	err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		TaskBody: ru,
@@ -1759,7 +1760,7 @@ func (s *ServiceAction) ListVersionInfo(serviceID string) (*api_model.BuildListR
 	}
 	result := &api_model.BuildListRespVO{
 		DeployVersion: svc.DeployVersion,
-		List: versionInfos,
+		List:          versionInfos,
 	}
 	return result, nil
 }
