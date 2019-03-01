@@ -27,11 +27,11 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
-	discover "github.com/goodrain/rainbond/discover.v2"
+	"github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/server/pb"
-	grpc "google.golang.org/grpc"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -201,6 +201,27 @@ func (r *RuntimeServer) GetDeployInfo(ctx context.Context, re *pb.ServiceRequest
 		deployinfo.Status = appService.GetServiceStatus()
 	}
 	return &deployinfo, nil
+}
+
+//GetDeployInfo get deploy info
+func (r *RuntimeServer) GetThirdPartyEndpointsStatus(ctx context.Context, re *pb.ServiceRequest) (*pb.ThirdPartyEndpointsStatus, error) {
+	appService := r.store.GetAppService(re.ServiceId)
+	res := pb.ThirdPartyEndpointsStatus{
+		Status: make(map[string]bool, len(appService.GetEndpoints())),
+	}
+	if appService != nil {
+		for _, ep := range appService.GetEndpoints() {
+			for _, subset := range ep.Subsets {
+				for _, address := range subset.Addresses {
+					res.Status[address.IP] = true
+				}
+				for _, address := range subset.NotReadyAddresses {
+					res.Status[address.IP] = false
+				}
+			}
+		}
+	}
+	return &res, nil
 }
 
 //registServer

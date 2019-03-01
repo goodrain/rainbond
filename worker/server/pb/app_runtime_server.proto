@@ -6,9 +6,10 @@ service AppRuntimeSync {
   rpc GetAppPods (ServiceRequest) returns (ServiceAppPodList) {}
   rpc GetDeployInfo (ServiceRequest) returns (DeployInfo) {}
   rpc GetTenantResource (TenantRequest) returns (TenantResource) {}
+  rpc GetThirdPartyEndpointsStatus (ServiceRequest) returns (ThirdPartyEndpointsStatus) {}
 }
 
-message ServiceRequest { 
+message ServiceRequest {
   string service_id = 1;
 }
 message ServicesRequest {
@@ -62,4 +63,8 @@ message TenantResource {
   int64 memory_request = 3;
   int64 memory_limit = 4;
   int64 running_app_num = 5;
+}
+
+message ThirdPartyEndpointsStatus {
+    map<string, bool> status = 1;
 }
