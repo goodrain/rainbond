@@ -158,7 +158,11 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 			port := ports[i]
 			var v1eps []*v1.Endpoint
 			if a.service.Kind == "third_party" && (port.IsOuterService || port.IsInnerService) {
-				v1eps, err = thirdparty.ListEndpoints(a.serviceID, a.dbmanager)
+				eps, err := thirdparty.ListEndpoints(a.serviceID, a.dbmanager)
+				if err != nil {
+					return nil, err
+				}
+				v1eps, err = thirdparty.Conv(eps)
 				if err != nil {
 					return nil, err
 				}
@@ -177,6 +181,7 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 				services = append(services, service)
 				ings, secret, err := a.ApplyRules(port, service)
 				if err != nil {
+					logrus.Debugf("error applying rules: %s", err.Error())
 					return nil, err
 				}
 				ingresses = append(ingresses, ings...)
@@ -185,6 +190,7 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 				}
 				if a.service.Kind == "third_party" {
 					// ignore services other than third_party
+					logrus.Debugf("// ignore services other than third_party")
 					endpoints = append(endpoints, a.createEndpoints(port, v1eps, false)...)
 				}
 			}
@@ -549,7 +555,7 @@ func (a *AppServiceBuild) createEndpoints(port *model.TenantServicesPort, v1eps 
 		} else {
 			logrus.Debugf("create outer third-party service")
 			ep.Labels = a.appService.GetCommonLabels(map[string]string{
-				"name": a.service.ServiceAlias + "ServiceOut",
+				"name": a.service.ServiceAlias + "ServiceOUT",
 			})
 		}
 

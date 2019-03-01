@@ -20,6 +20,7 @@ package store
 
 import (
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/worker/appm"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 )
 
@@ -43,6 +44,11 @@ func (a *appRuntimeStore) initThirdPartyService() error {
 			return err
 		}
 		a.RegistAppService(appService)
+		err = appm.ApplyOne(a.clientset, appService)
+		if err != nil {
+			logrus.Errorf("error applying rule: %v", err)
+			return err
+		}
 	}
 	return nil
 }

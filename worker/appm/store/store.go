@@ -21,6 +21,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/kubernetes"
 	"sync"
 	"time"
 
@@ -62,6 +63,7 @@ type Storer interface {
 //appRuntimeStore app runtime store
 //cache all kubernetes object and appservice
 type appRuntimeStore struct {
+	clientset   *kubernetes.Clientset
 	ctx         context.Context
 	cancel      context.CancelFunc
 	informers   *Informer
@@ -74,9 +76,10 @@ type appRuntimeStore struct {
 }
 
 //NewStore new app runtime store
-func NewStore(dbmanager db.Manager, conf option.Config) Storer {
+func NewStore(clientset *kubernetes.Clientset, dbmanager db.Manager, conf option.Config) Storer {
 	ctx, cancel := context.WithCancel(context.Background())
 	store := &appRuntimeStore{
+		clientset:   clientset,
 		ctx:         ctx,
 		cancel:      cancel,
 		informers:   &Informer{},
@@ -152,7 +155,7 @@ func (a *appRuntimeStore) Start() error {
 		return err
 	}
 	if err := a.initThirdPartyService(); err != nil {
-		return fmt.Errorf("error initiating third-party services: %v", err)
+		logrus.Warningf("error initiating third-party services: %v", err)
 	}
 	stopch := make(chan struct{})
 	a.informers.Start(stopch)

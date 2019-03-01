@@ -20,12 +20,13 @@ package discovery
 
 import (
 	"context"
-	"fmt"
-	"time"
 	"encoding/json"
+	"fmt"
+	"strings"
+	"time"
 
-	c "github.com/coreos/etcd/clientv3"
 	"github.com/Sirupsen/logrus"
+	c "github.com/coreos/etcd/clientv3"
 )
 
 // Etcd implements Discoverier
@@ -52,7 +53,7 @@ func NewEtcd(info *Info) Discoverier {
 func (e *etcd) Connect() error {
 	cli, err := c.New(c.Config{
 		Endpoints:   e.endpoints,
-		DialTimeout: 5,
+		DialTimeout: 5 * time.Second,
 		Username:    e.username,
 		Password:    e.password,
 	})
@@ -73,7 +74,7 @@ func (e *etcd) Fetch() ([]*Endpoint, error) {
 		return nil, fmt.Errorf("can't fetching data from etcd without etcdv3 client")
 	}
 
-	resp, err := e.cli.Get(ctx, e.key)
+	resp, err := e.cli.Get(ctx, e.key, c.WithPrefix())
 	if err != nil {
 		return nil, fmt.Errorf("error fetching endpoints form etcd: %v", err)
 	}
@@ -83,13 +84,12 @@ func (e *etcd) Fetch() ([]*Endpoint, error) {
 
 	var res []*Endpoint
 	for _, kv := range resp.Kvs {
-		var eps []*Endpoint
-		if err := json.Unmarshal([]byte(kv.Value), &eps); err != nil {
+		var ep Endpoint
+		if err := json.Unmarshal(kv.Value, &ep); err != nil {
 			return nil, fmt.Errorf("error parsing the data from etcd: %v", err)
 		}
-		if eps != nil && len(eps) > 0 {
-			res = append(res, eps...)
-		}
+		ep.UUID = strings.Replace(string(kv.Key), e.key+"/", "", -1)
+		res = append(res, &ep)
 	}
 	return res, nil
 }

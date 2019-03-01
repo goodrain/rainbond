@@ -207,7 +207,7 @@ func (r *RuntimeServer) GetDeployInfo(ctx context.Context, re *pb.ServiceRequest
 func (r *RuntimeServer) GetThirdPartyEndpointsStatus(ctx context.Context, re *pb.ServiceRequest) (*pb.ThirdPartyEndpointsStatus, error) {
 	appService := r.store.GetAppService(re.ServiceId)
 	res := pb.ThirdPartyEndpointsStatus{
-		Status: make(map[string]bool, len(appService.GetEndpoints())),
+		Status: map[string]bool{},
 	}
 	if appService != nil {
 		for _, ep := range appService.GetEndpoints() {

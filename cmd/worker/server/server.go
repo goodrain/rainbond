@@ -79,7 +79,7 @@ func Run(s *option.Worker) error {
 	//etcdCli, err := client.New(client.Config{})
 
 	//step 3: create resource store
-	cachestore := store.NewStore(db.GetManager(), s.Config)
+	cachestore := store.NewStore(clientset, db.GetManager(), s.Config)
 	if err := cachestore.Start(); err != nil {
 		logrus.Error("start kube cache store error", err)
 		return err

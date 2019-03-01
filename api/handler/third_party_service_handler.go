@@ -20,16 +20,13 @@ package handler
 
 import (
 	"context"
-	"fmt"
-	"github.com/goodrain/rainbond/worker/client"
-	"github.com/goodrain/rainbond/worker/server/pb"
-	"strings"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
-	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/worker/appm/thirdparty"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/client"
+	"github.com/goodrain/rainbond/worker/server/pb"
 )
 
 // ThirdPartyServiceHanlder handles business logic for all third-party services
@@ -46,46 +43,27 @@ func Create3rdPartySvcHandler(dbmanager db.Manager, statusCli *client.AppRuntime
 	}
 }
 
-// AddEndpoints adds endpints for third-party service.
+// AddEndpoints adds endpoints for third-party service.
 func (t *ThirdPartyServiceHanlder) AddEndpoints(sid string, d *model.AddEndpiontsReq) error {
-	ep := &dbmodel.Endpoint{
-		UUID:      util.NewUUID(),
-		ServiceID: sid,
-		IP:        d.IP,
-		IsOnline:  &d.IsOnline,
-	}
-	tx := db.GetManager().Begin()
-	if err := t.dbmanager.EndpointsDaoTransactions(tx).AddModel(ep); err != nil {
-		tx.Rollback()
-		logrus.Errorf("error creating endpoint record: %v", err)
-		return err
-	}
-	tx.Commit()
-	return nil
+	return thirdparty.AddEndpoints(sid, v1.AddEndpointReq{
+		IP:       d.IP,
+		IsOnline: d.IsOnline,
+	}, t.dbmanager)
 }
 
-// UpdEndpoints updates endpints for third-party service.
-func (t *ThirdPartyServiceHanlder) UpdEndpoints(d *model.UpdEndpiontsReq) error {
-	ep, err := t.dbmanager.EndpointsDao().GetByUUID(d.EpID)
-	if err != nil {
-		return fmt.Errorf("uuid: %s, error getting endpoint: %v", d.EpID, err)
+// UpdEndpoints updates endpoints for third-party service.
+func (t *ThirdPartyServiceHanlder) UpdEndpoints(d *model.UpdEndpiontsReq, sid string) error {
+	req := v1.UpdEndpointReq{
+		EpID:     d.EpID,
+		IP:       d.IP,
+		IsOnline: d.IsOnline,
 	}
-	if strings.Replace(d.IP, " ", "", -1) != "" {
-		ep.IP = d.IP
-	}
-	ep.IsOnline = &d.IsOnline
-	if err := t.dbmanager.EndpointsDao().UpdateModel(ep); err != nil {
-		return fmt.Errorf("uuid: %s, error updating endpoint: %v", d.EpID, err)
-	}
-	return nil
+	return thirdparty.UpdEndpoints(sid, req, t.dbmanager)
 }
 
-// DelEndpoints deletes endpints for third-party service.
-func (t *ThirdPartyServiceHanlder) DelEndpoints(data *model.DelEndpiontsReq) error {
-	if err := t.dbmanager.EndpointsDao().DelByUUID(data.EpID); err != nil {
-		return fmt.Errorf("uuid: %s, error deleting endpoint: %v", data.EpID, err)
-	}
-	return nil
+// DelEndpoints deletes endpoints for third-party service.
+func (t *ThirdPartyServiceHanlder) DelEndpoints(sid string, data *model.DelEndpiontsReq) error {
+	return thirdparty.DelEndpoint(t.dbmanager, sid, data.EpID)
 }
 
 // ListEndpoints lists third-party service endpoints.
@@ -97,11 +75,11 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 		logrus.Warningf("error getting third-party endpoints status: %v", err)
 	}
 	if status != nil {
-		for key,val := range status.Status {
+		for key, val := range status.Status {
 			logrus.Debugf("third-party service status, Key: %s, Value: %v", key, val)
 		}
 	}
-	eps, err := t.dbmanager.EndpointsDao().List(sid)
+	eps, err := thirdparty.ListEndpoints(sid, t.dbmanager)
 	if err != nil {
 		logrus.Errorf("error listing endpoints: %v", err)
 		return nil, err
@@ -113,11 +91,11 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 			IP:       ep.IP,
 			IsOnline: *ep.IsOnline,
 		}
-		r.Status = func(status map[string]bool, ip string) string {
+		r.Status = func(status *pb.ThirdPartyEndpointsStatus, ip string) string {
 			if status == nil {
 				return "unknown"
 			}
-			item, ok := status[ip]
+			item, ok := status.Status[ip]
 			if !ok {
 				return "unknown"
 			}
@@ -125,7 +103,7 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 				return "healthy"
 			}
 			return "unhealthy"
-		}(status.Status, ep.IP)
+		}(status, ep.IP)
 		res = append(res, r)
 	}
 	return res, nil

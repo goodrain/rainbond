@@ -19,7 +19,9 @@
 package discovery
 
 import (
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"strings"
 )
 
@@ -27,8 +29,11 @@ import (
 // information about third-party service endpoints.
 type Discoverier interface {
 	Connect() error
-	Fetch() ([]*model.Endpoint, error)
 	Close() error
+	Add(dbm db.Manager, req v1.AddEndpointReq) error
+	Fetch() ([]*model.Endpoint, error)
+	Update(dbm db.Manager, req v1.UpdEndpointReq) error
+	Delete(id string) error
 }
 
 func NewDiscoverier(cfg *model.ThirdPartySvcDiscoveryCfg) Discoverier {
@@ -38,4 +43,3 @@ func NewDiscoverier(cfg *model.ThirdPartySvcDiscoveryCfg) Discoverier {
 	}
 	return nil
 }
-

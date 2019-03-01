@@ -23,7 +23,10 @@ import (
 	"encoding/json"
 	"fmt"
 	c "github.com/coreos/etcd/clientv3"
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"strings"
 	"time"
 )
@@ -52,7 +55,7 @@ func NewEtcd(cfg *model.ThirdPartySvcDiscoveryCfg) Discoverier {
 func (e *etcd) Connect() error {
 	cli, err := c.New(c.Config{
 		Endpoints:   e.endpoints,
-		DialTimeout: 5,
+		DialTimeout: 5 * time.Second,
 		Username:    e.username,
 		Password:    e.password,
 	})
@@ -72,7 +75,7 @@ func (e *etcd) Fetch() ([]*model.Endpoint, error) {
 		return nil, fmt.Errorf("can't fetching data from etcd without etcdv3 client")
 	}
 
-	resp, err := e.cli.Get(ctx, e.key)
+	resp, err := e.cli.Get(ctx, e.key, c.WithPrefix())
 	if err != nil {
 		return nil, fmt.Errorf("error fetching endpoints form etcd: %v", err)
 	}
@@ -81,18 +84,97 @@ func (e *etcd) Fetch() ([]*model.Endpoint, error) {
 	}
 
 	type ep struct {
-		Endpint  string `json:"endpoint"`
+		IP       string `json:"ip"`
+		Port     int    `json:"port"`
 		IsOnline bool   `json:"is_online"`
 	}
 	var res []*model.Endpoint
 	for _, kv := range resp.Kvs {
-		var eps []*model.Endpoint
-		if err := json.Unmarshal([]byte(kv.Value), &eps); err != nil {
+		var ep ep
+		if err := json.Unmarshal(kv.Value, &ep); err != nil {
 			return nil, fmt.Errorf("error getting data from etcd: %v", err)
 		}
-		res = append(res, eps...)
+		res = append(res, &model.Endpoint{
+			UUID:     strings.Replace(string(kv.Key), e.key+"/", "", -1),
+			IP:       ep.IP,
+			Port:     ep.Port,
+			IsOnline: &ep.IsOnline,
+		})
 	}
 	return res, nil
+}
+
+func (e *etcd) Add(dbm db.Manager, req v1.AddEndpointReq) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if e.cli == nil {
+		return fmt.Errorf("can't fetching data from etcd without etcdv3 client")
+	}
+	type foo struct {
+		IP       string `json:"ip"`
+		Port     int    `json:"port"`
+		IsOnline bool   `json:"is_online"`
+	}
+	f := foo{
+		IP:       req.IP,
+		Port:     req.Port,
+		IsOnline: req.IsOnline,
+	}
+	b, _ := json.Marshal(f)
+	_, err := e.cli.Put(ctx, e.key+"/"+util.NewUUID(), string(b))
+	if err != nil {
+		return fmt.Errorf("error adding endpoints to etcd: %v", err)
+	}
+	return nil
+}
+
+func (e *etcd) Update(dbm db.Manager, req v1.UpdEndpointReq) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if e.cli == nil {
+		return fmt.Errorf("can't fetching data from etcd without etcdv3 client")
+	}
+	resp, err := e.cli.Get(ctx, e.key+"/"+req.EpID)
+	if err != nil {
+		return fmt.Errorf("IP UUID: %s; error getting data from etcd: %v", req.EpID, err)
+	}
+	if resp == nil || resp.Kvs == nil || len(resp.Kvs) == 0 {
+		return fmt.Errorf("IP UUID: %s; empty data from etcd", req.EpID)
+	}
+	type ep struct {
+		IP       string `json:"endpoint"`
+		IsOnline bool   `json:"is_online"`
+	}
+	var foo ep
+	if err := json.Unmarshal(resp.Kvs[0].Value, &foo); err != nil {
+		return fmt.Errorf("error getting data from etcd: %v", err)
+	}
+	foo.IsOnline = req.IsOnline
+	if req.IP != "" {
+		foo.IP = req.IP
+	}
+	b, _ := json.Marshal(foo)
+	_, err = e.cli.Put(ctx, e.key+"/"+req.EpID, string(b))
+	if err != nil {
+		return fmt.Errorf("error fetching endpoints form etcd: %v", err)
+	}
+	return nil
+}
+
+// Fetch fetches data from Etcd.
+func (e *etcd) Delete(id string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if e.cli == nil {
+		return fmt.Errorf("can't deleting data from etcd without etcdv3 client")
+	}
+	_, err := e.cli.Delete(ctx, e.key+"/"+id)
+	if err != nil {
+		return fmt.Errorf("error deleting endpoints form etcd: %v", err)
+	}
+	return nil
 }
 
 // Close shuts down the client's etcd connections.

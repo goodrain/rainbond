@@ -34,7 +34,6 @@ import (
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/annotations"
 	"github.com/goodrain/rainbond/gateway/v1"
-	apiv1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -109,7 +108,8 @@ type Lister struct {
 }
 
 type rbdStore struct {
-	conf *option.Config
+	conf   *option.Config
+	client kubernetes.Interface
 	// informer contains the cache Informers
 	informers *Informer
 	// Lister contains object listers (stores).
@@ -127,6 +127,7 @@ func New(client kubernetes.Interface,
 	updateCh *channels.RingChannel,
 	conf *option.Config) Storer {
 	store := &rbdStore{
+		client:    client,
 		informers: &Informer{},
 		listers:   &Lister{},
 		secretIngressMap: &secretIngressMap{
@@ -368,10 +369,17 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 	for _, item := range s.listers.Endpoint.List() {
 		ep := item.(*corev1.Endpoints)
 
+		labels := ep.GetLabels()
+		name, ok := labels["name"]
+		if !ok {
+			logrus.Warningf("there is no name in the labels of corev1.Endpoints(%s/%s)",
+				ep.Name, ep.Namespace)
+			continue
+		}
+
 		if ep.Subsets != nil || len(ep.Subsets) != 0 {
-			epn := ep.ObjectMeta.Name
 			// l7
-			backends := l7PoolBackendMap[ep.ObjectMeta.Name]
+			backends := l7PoolBackendMap[name]
 			for _, backend := range backends {
 				pool := l7Pools[backend.name]
 				if pool == nil {
@@ -390,7 +398,7 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 						addresses = append(addresses, ss.NotReadyAddresses...)
 					}
 					for _, address := range addresses {
-						if _, ok := l7PoolMap[epn]; ok { // l7
+						if _, ok := l7PoolMap[name]; ok { // l7
 							pool.Nodes = append(pool.Nodes, &v1.Node{
 								Host:   address.IP,
 								Port:   ss.Ports[0].Port,
@@ -401,7 +409,7 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 				}
 			}
 			// l4
-			backends = l4PoolBackendMap[ep.ObjectMeta.Name]
+			backends = l4PoolBackendMap[name]
 			for _, backend := range backends {
 				pool := l4Pools[backend.name]
 				if pool == nil {
@@ -419,7 +427,7 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 						addresses = append(addresses, ss.NotReadyAddresses...)
 					}
 					for _, address := range addresses {
-						if _, ok := l4PoolMap[epn]; ok { // l7
+						if _, ok := l4PoolMap[name]; ok { // l7
 							pool.Nodes = append(pool.Nodes, &v1.Node{
 								Host:   address.IP,
 								Port:   ss.Ports[0].Port,
@@ -461,13 +469,19 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
 		}
 		if anns.L4.L4Enable && anns.L4.L4Port != 0 {
+			svcKey := fmt.Sprintf("%v/%v", ing.Namespace, ing.Spec.Backend.ServiceName)
+			name, err := s.GetServiceNameLabelByKey(svcKey)
+			if err != nil {
+				logrus.Warningf("key: %s; error getting service name label: %v", svcKey, err)
+				continue
+			}
+
 			// region l4
 			host := strings.Replace(anns.L4.L4Host, " ", "", -1)
 			if host == "" {
 				host = s.conf.IP
 			}
 			host = s.conf.IP
-			svcKey := fmt.Sprintf("%v/%v", ing.Namespace, ing.Spec.Backend.ServiceName)
 			protocol := s.GetServiceProtocol(svcKey, ing.Spec.Backend.ServicePort.IntVal)
 			listening := fmt.Sprintf("%s:%v", host, anns.L4.L4Port)
 			if string(protocol) == string(v1.ProtocolUDP) {
@@ -483,11 +497,11 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 				}
 			}
 
-			l4PoolMap[ing.Spec.Backend.ServiceName] = struct{}{}
+			l4PoolMap[name] = struct{}{}
 			l4vsMap[listening] = vs
 			l4vs = append(l4vs, vs)
 			backend := backend{name: backendName, weight: anns.Weight.Weight}
-			l4PoolBackendMap[ing.Spec.Backend.ServiceName] = append(l4PoolBackendMap[ing.Spec.Backend.ServiceName], backend)
+			l4PoolBackendMap[name] = append(l4PoolBackendMap[name], backend)
 			// endregion
 		} else {
 			// region l7
@@ -539,9 +553,16 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 				}
 
 				for _, path := range rule.IngressRuleValue.HTTP.Paths {
+					svckey := fmt.Sprintf("%s/%s", ing.Namespace, path.Backend.ServiceName)
+					name, err := s.GetServiceNameLabelByKey(svckey)
+					if err != nil {
+						logrus.Warningf("key: %s; error getting service name label: %v", svckey, err)
+						continue
+					}
+
 					locKey := fmt.Sprintf("%s_%s", virSrvName, path.Path)
 					location := srvLocMap[locKey]
-					l7PoolMap[path.Backend.ServiceName] = struct{}{}
+					l7PoolMap[name] = struct{}{}
 					// if location do not exists, then creates a new one
 					if location == nil {
 						location = &v1.Location{
@@ -573,7 +594,7 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 					if anns.UpstreamHashBy != "" {
 						backend.hashBy = anns.UpstreamHashBy
 					}
-					l7PoolBackendMap[path.Backend.ServiceName] = append(l7PoolBackendMap[path.Backend.ServiceName], backend)
+					l7PoolBackendMap[name] = append(l7PoolBackendMap[name], backend)
 				}
 			}
 			// endregion
@@ -585,46 +606,57 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 // ingressIsValid checks if the specified ingress is valid
 func (s *rbdStore) ingressIsValid(ing *extensions.Ingress) bool {
 
-	var endpointKey string
+	var svcKey string
 	if ing.Spec.Backend != nil { // stream
-		endpointKey = fmt.Sprintf("%s/%s", ing.Namespace, ing.Spec.Backend.ServiceName)
+		svcKey = fmt.Sprintf("%s/%s", ing.Namespace, ing.Spec.Backend.ServiceName)
 	} else { // http
 	Loop:
 		for _, rule := range ing.Spec.Rules {
 			for _, path := range rule.IngressRuleValue.HTTP.Paths {
-				endpointKey = fmt.Sprintf("%s/%s", ing.Namespace, path.Backend.ServiceName)
-				if endpointKey != "" {
+				svcKey = fmt.Sprintf("%s/%s", ing.Namespace, path.Backend.ServiceName)
+				if svcKey != "" {
 					break Loop
 				}
 			}
 		}
 	}
-	item, exists, err := s.listers.Endpoint.GetByKey(endpointKey)
+	labelname, err := s.GetServiceNameLabelByKey(svcKey)
 	if err != nil {
-		logrus.Errorf("Can not get endpoint by key(%s): %v", endpointKey, err)
+		logrus.Warningf("label: %s; error parsing label: %v", labelname, err)
 		return false
 	}
-	if !exists {
-		logrus.Warningf("Endpoint \"%s\" does not exist.", endpointKey)
+	endpointsList, err := s.client.CoreV1().Endpoints(ing.Namespace).List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("name=%s", labelname),
+	})
+	if err != nil {
+		logrus.Warningf("selector: %s; error list endpoints: %v",
+			fmt.Sprintf("name=%s", labelname), err)
 		return false
 	}
-	endpoint, ok := item.(*apiv1.Endpoints)
-	if !ok {
-		logrus.Errorf("Cant not convert %v to %v", reflect.TypeOf(item), reflect.TypeOf(endpoint))
+	if endpointsList == nil || endpointsList.Items == nil || len(endpointsList.Items) == 0 {
+		logrus.Warningf("selector: %s; can't find any endpoints",
+			fmt.Sprintf("name=%s", labelname))
 		return false
 	}
-	if endpoint.Subsets == nil || len(endpoint.Subsets) == 0 {
-		logrus.Warningf("Endpoints(%s) is empty, ignore it", endpointKey)
-		return false
-	}
-	for _, ep := range endpoint.Subsets {
-		if (ep.Addresses == nil || len(ep.Addresses) == 0) && (ep.NotReadyAddresses == nil || len(ep.NotReadyAddresses) == 0) {
-			logrus.Warningf("Endpoints(%s) is empty, ignore it", endpointKey)
-			return false
+
+	result := false
+RESULT:
+	for _, ep := range endpointsList.Items {
+		if ep.Subsets != nil && len(ep.Subsets) > 0 {
+			//logrus.Warningf("selector: %s; empty endpoints subsets; endpoints: %V",
+			//fmt.Sprintf("name=%s", labelname), ep)
+			for _, e := range ep.Subsets {
+				if !((e.Addresses == nil || len(e.Addresses) == 0) && (e.NotReadyAddresses == nil || len(e.NotReadyAddresses) == 0)) {
+					//logrus.Warningf("selector: %s; empty endpoints addresses; endpoints: %V",
+					//	fmt.Sprintf("name=%s", labelname), ep)
+					result = true
+					break RESULT
+				}
+			}
 		}
 	}
 
-	return true
+	return result
 }
 
 // GetIngress returns the Ingress matching key.
@@ -643,6 +675,20 @@ func (s *rbdStore) ListIngresses() []*extensions.Ingress {
 	}
 
 	return ingresses
+}
+
+// GetServiceNameLabelByKey returns name in the labels of corev1.Service
+// matching key(name/namespace).
+func (s *rbdStore) GetServiceNameLabelByKey(key string) (string, error) {
+	svc, err := s.listers.Service.ByKey(key)
+	if err != nil {
+		return "", err
+	}
+	name, ok := svc.Labels["name"]
+	if !ok {
+		return "", fmt.Errorf("label \"name\" not found")
+	}
+	return name, nil
 }
 
 // GetServiceProtocol returns the Service matching key and port.

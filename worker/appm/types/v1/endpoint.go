@@ -18,8 +18,22 @@
 
 package v1
 
-// Endpoint holds information to create corv1.Endpoints(kubernetes object).
+// IP holds information to create corv1.Endpoints(kubernetes object).
 type Endpoint struct {
 	Port int      `json:"port"`
 	IPs  []string `json:"ips"`
+}
+
+// AddEndpointReq holds information to create endpoint.
+type AddEndpointReq struct {
+	IP       string
+	Port     int
+	IsOnline bool
+}
+
+// UpdEndpointReq holds information to update endpoint.
+type UpdEndpointReq struct {
+	EpID     string
+	IP       string
+	IsOnline bool
 }
