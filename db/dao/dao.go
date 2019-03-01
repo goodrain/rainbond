@@ -148,6 +148,7 @@ type TenantPluginVersionEnvDao interface {
 type TenantPluginVersionConfigDao interface {
 	Dao
 	GetPluginConfig(serviceID, pluginID string) (*model.TenantPluginVersionDiscoverConfig, error)
+	GetPluginConfigs(serviceID string) ([]*model.TenantPluginVersionDiscoverConfig, error)
 	DeletePluginConfig(serviceID, pluginID string) error
 	DeletePluginConfigByServiceID(serviceID string) error
 }

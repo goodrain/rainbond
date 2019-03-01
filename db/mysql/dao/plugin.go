@@ -409,6 +409,15 @@ func (t *PluginVersionConfigDaoImpl) GetPluginConfig(serviceID, pluginID string)
 	return &oldconfig, nil
 }
 
+//GetPluginConfigs get plugin configs
+func (t *PluginVersionConfigDaoImpl) GetPluginConfigs(serviceID string) ([]*model.TenantPluginVersionDiscoverConfig, error) {
+	var oldconfigs []*model.TenantPluginVersionDiscoverConfig
+	if err := t.DB.Where("service_id=?", serviceID).Find(&oldconfigs).Error; err != nil {
+		return nil, err
+	}
+	return oldconfigs, nil
+}
+
 //TenantServicePluginRelationDaoImpl TenantServicePluginRelationDaoImpl
 type TenantServicePluginRelationDaoImpl struct {
 	DB *gorm.DB
