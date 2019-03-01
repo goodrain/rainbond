@@ -32,6 +32,7 @@ func init() {
 	checkFuncList = append(checkFuncList, javaMaven)
 	checkFuncList = append(checkFuncList, php)
 	checkFuncList = append(checkFuncList, python)
+	checkFuncList = append(checkFuncList, nodeJSStatic)
 	checkFuncList = append(checkFuncList, nodejs)
 	checkFuncList = append(checkFuncList, ruby)
 	checkFuncList = append(checkFuncList, static)
@@ -92,6 +93,9 @@ var JavaJar Lang = "Java-jar"
 
 //Nodejs Lang
 var Nodejs Lang = "Node.js"
+
+//NodeJSStatic static Lang
+var NodeJSStatic Lang = "NodeJSStatic"
 
 //Static Lang
 var Static Lang = "static"
@@ -215,6 +219,15 @@ func nodejs(homepath string) Lang {
 	}
 	return NO
 }
+func nodeJSStatic(homepath string) Lang {
+	if ok, _ := util.FileExists(path.Join(homepath, "package.json")); ok {
+		if ok, _ := util.FileExists(path.Join(homepath, "nodestatic.json")); ok {
+			return NodeJSStatic
+		}
+	}
+	return NO
+}
+
 func static(homepath string) Lang {
 	if ok, _ := util.FileExists(path.Join(homepath, "index.html")); ok {
 		return Static
@@ -227,6 +240,7 @@ func static(homepath string) Lang {
 	}
 	return NO
 }
+
 func clojure(homepath string) Lang {
 	if ok, _ := util.FileExists(path.Join(homepath, "project.clj")); ok {
 		return Clojure
