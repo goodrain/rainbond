@@ -20,17 +20,18 @@ package conversion
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/util"
-	"github.com/jinzhu/gorm"
 	"os"
 	"strings"
+
+	"github.com/goodrain/rainbond/util"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/jinzhu/gorm"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -559,5 +560,6 @@ func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPor
 		PublishNotReadyAddresses: true,
 	}
 	service.Spec = spec
+	service.Annotations["service.alpha.kubernetes.io/tolerate-unready-endpoints"] = "true"
 	return &service
 }
