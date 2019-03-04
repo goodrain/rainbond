@@ -374,10 +374,10 @@ func (s *StreamLog) Name() string {
 func GetLogAddress(serviceID string) string {
 	var cluster []string
 	if len(clusterAddress) < 1 {
-		cluster = append(clusterAddress, defaultClusterAddress+"?service_id="+serviceID+"&mode=stream")
+		cluster = append(cluster, defaultClusterAddress+"?service_id="+serviceID+"&mode=stream")
 	} else {
 		for _, a := range clusterAddress {
-			cluster = append(clusterAddress, a+"?service_id="+serviceID+"&mode=stream")
+			cluster = append(cluster, a+"?service_id="+serviceID+"&mode=stream")
 		}
 	}
 	return getLogAddress(cluster)
