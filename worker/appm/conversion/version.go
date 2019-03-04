@@ -31,7 +31,7 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -597,11 +597,11 @@ func (v *volumeDefine) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string, isRead
 	vm := corev1.VolumeMount{
 		MountPath: p,
 		Name:      cmap.Name,
-		ReadOnly:  isReadOnly,
+		ReadOnly:  false,
 		SubPath:   path.Base(p),
 	}
 	v.volumeMounts = append(v.volumeMounts, vm)
-
+	var defaultMode int32 = 0777
 	vo := corev1.Volume{
 		Name: cmap.Name,
 		VolumeSource: corev1.VolumeSource{
@@ -609,6 +609,7 @@ func (v *volumeDefine) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string, isRead
 				LocalObjectReference: corev1.LocalObjectReference{
 					Name: cmap.Name,
 				},
+				DefaultMode: &defaultMode,
 				Items: []corev1.KeyToPath{
 					{
 						Key:  k,
