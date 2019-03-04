@@ -86,7 +86,7 @@ build::image() {
 }
 
 build::all(){
-	local build_items=(api chaos gateway monitor mq webcli worker eventlog)
+	local build_items=(api chaos gateway monitor mq webcli worker eventlog init-probe)
 	for item in ${build_items[@]}
 	do
 		build::image $item $1
@@ -100,7 +100,7 @@ case $1 in
 	;;
 	binary)
 	    if [ "$2" = "all" ];then
-			build_items=(chaos grctl node gateway monitor mq worker eventlog api)
+			build_items=(chaos grctl node gateway monitor mq worker eventlog api init-probe)
 			for item in ${build_items[@]}
 			do
 				build::binary $item $1

@@ -261,7 +261,7 @@ func compactCCC() {
 
 // CompositionExclusions.txt has form:
 // 0958    # ...
-// See http://unicode.org/reports/tr44/ for full explanation
+// See https://unicode.org/reports/tr44/ for full explanation
 func loadCompositionExclusions() {
 	f := gen.OpenUCDFile("CompositionExclusions.txt")
 	defer f.Close()
@@ -795,7 +795,7 @@ func makeTables() {
 	}
 
 	fmt.Fprintf(w, "// Total size of tables: %dKB (%d bytes)\n", (size+512)/1024, size)
-	gen.WriteGoFile("tables.go", "norm", w.Bytes())
+	gen.WriteVersionedGoFile("tables.go", "norm", w.Bytes())
 }
 
 func printChars() {
@@ -857,7 +857,7 @@ func verifyComputed() {
 // DerivedNormalizationProps.txt has form:
 // 00C0..00C5    ; NFD_QC; N # ...
 // 0374          ; NFD_QC; N # ...
-// See http://unicode.org/reports/tr44/ for full explanation
+// See https://unicode.org/reports/tr44/ for full explanation
 func testDerived() {
 	f := gen.OpenUCDFile("DerivedNormalizationProps.txt")
 	defer f.Close()
@@ -972,5 +972,5 @@ func printTestdata() {
 		}
 	}
 	fmt.Fprintln(w, "}")
-	gen.WriteGoFile("data_test.go", "norm", w.Bytes())
+	gen.WriteVersionedGoFile("data_test.go", "norm", w.Bytes())
 }

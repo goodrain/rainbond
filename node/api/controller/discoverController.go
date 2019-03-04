@@ -21,28 +21,22 @@ package controller
 import (
 	"net/http"
 
+	"github.com/goodrain/rainbond/api/util"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
-	"github.com/goodrain/rainbond/api/util"
-	"github.com/pquerna/ffjson/ffjson"
+	httputil "github.com/goodrain/rainbond/util/http"
 )
 
 //ServiceDiscover service discover service
 func ServiceDiscover(w http.ResponseWriter, r *http.Request) {
 	serviceInfo := chi.URLParam(r, "service_name")
-	//eg: serviceInfo := test_gr123456_201711031246
 	sds, err := discoverService.DiscoverService(serviceInfo)
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	sdsJ, errJ := ffjson.Marshal(sds)
-	if errJ != nil {
-		util.CreateAPIHandleError(500, errJ).Handle(r, w)
-		return
-	}
-	w.WriteHeader(200)
-	w.Write([]byte(sdsJ))
+	httputil.ReturnNoFomart(r, w, 200, sds)
 }
 
 //ListenerDiscover ListenerDiscover
@@ -54,13 +48,7 @@ func ListenerDiscover(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-	ldsJ, errJ := ffjson.Marshal(lds)
-	if errJ != nil {
-		util.CreateAPIHandleError(500, errJ).Handle(r, w)
-		return
-	}
-	w.WriteHeader(200)
-	w.Write(ldsJ)
+	httputil.ReturnNoFomart(r, w, 200, lds)
 }
 
 //ClusterDiscover ClusterDiscover
@@ -72,16 +60,11 @@ func ClusterDiscover(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-	cdsJ, errJ := ffjson.Marshal(cds)
-	if errJ != nil {
-		util.CreateAPIHandleError(500, errJ).Handle(r, w)
-		return
-	}
-	w.WriteHeader(200)
-	w.Write(cdsJ)
+	httputil.ReturnNoFomart(r, w, 200, cds)
 }
 
 //RoutesDiscover RoutesDiscover
+//no impl
 func RoutesDiscover(w http.ResponseWriter, r *http.Request) {
 	namespace := chi.URLParam(r, "tenant_id")
 	serviceNodes := chi.URLParam(r, "service_nodes")
@@ -90,7 +73,15 @@ func RoutesDiscover(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 }
 
-//UserDefineResources UserDefineResources
-func UserDefineResources(w http.ResponseWriter, r *http.Request) {
-	return
+//PluginResourcesConfig discover plugin config
+func PluginResourcesConfig(w http.ResponseWriter, r *http.Request) {
+	namespace := chi.URLParam(r, "tenant_id")
+	serviceAlias := chi.URLParam(r, "service_alias")
+	pluginID := chi.URLParam(r, "plugin_id")
+	ss, err := discoverService.GetPluginConfigs(namespace, serviceAlias, pluginID)
+	if err != nil {
+		util.CreateAPIHandleError(500, err).Handle(r, w)
+		return
+	}
+	httputil.ReturnNoFomart(r, w, 200, ss)
 }

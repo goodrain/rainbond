@@ -37,7 +37,6 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/info"
 	"github.com/goodrain/rainbond/node/nodem/monitor"
 	"github.com/goodrain/rainbond/node/nodem/service"
-	"github.com/goodrain/rainbond/node/nodem/taskrun"
 	"github.com/goodrain/rainbond/util"
 )
 
@@ -50,7 +49,6 @@ type NodeManager struct {
 	monitor     monitor.Manager
 	healthy     healthy.Manager
 	controller  controller.Manager
-	taskrun     taskrun.Manager
 	cfg         *option.Conf
 	apim        *api.Manager
 	clm         *logger.ContainerLogManage
@@ -60,10 +58,6 @@ type NodeManager struct {
 func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 	healthyManager := healthy.CreateManager()
 	cluster := client.NewClusterClient(conf)
-	taskrun, err := taskrun.Newmanager(conf)
-	if err != nil {
-		return nil, err
-	}
 	monitor, err := monitor.CreateManager(conf)
 	if err != nil {
 		return nil, err
@@ -79,7 +73,6 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 		cfg:         conf,
 		ctx:         ctx,
 		cancel:      cancel,
-		taskrun:     taskrun,
 		cluster:     cluster,
 		monitor:     monitor,
 		healthy:     healthyManager,
@@ -135,7 +128,6 @@ func (n *NodeManager) Start(errchan chan error) error {
 		logrus.Debug("this node is not compute node ,do not start container log manage")
 	}
 	go n.monitor.Start(errchan)
-	//go n.taskrun.Start(errchan)
 	go n.heartbeat()
 	return nil
 }
@@ -144,9 +136,6 @@ func (n *NodeManager) Start(errchan chan error) error {
 func (n *NodeManager) Stop() {
 	n.cancel()
 	n.cluster.DownNode(n.currentNode)
-	if n.taskrun != nil {
-		n.taskrun.Stop()
-	}
 	if n.controller != nil {
 		n.controller.Stop()
 	}

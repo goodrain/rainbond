@@ -54,13 +54,15 @@ type VirtualService struct {
 	//Timeout A connection should be closed if no additional data has been received for this period of time. A value of 0 (zero) will disable this timeout. Note that the default value may vary depending on the protocol selected.
 	Timeout int `json:"timeout"`
 
-	ServerName       string      `json:"server_name"`
-	PoolName         string      `json:"pool_name"`
-	SSLCert          *SSLCert    `json:"ssl_cert"`
-	Locations        []*Location `json:"locations"`
-	ForceSSLRedirect bool        `json:"force_ssl_redirect"`
+	ServerName       string                 `json:"server_name"`
+	PoolName         string                 `json:"pool_name"`
+	SSLCert          *SSLCert               `json:"ssl_cert"`
+	Locations        []*Location            `json:"locations"`
+	ForceSSLRedirect bool                   `json:"force_ssl_redirect"`
+	ExtensionConfig  map[string]interface{} `json:"extension_config"`
 }
 
+//Equals equals vs
 func (v *VirtualService) Equals(c *VirtualService) bool {
 	if v == c {
 		return true

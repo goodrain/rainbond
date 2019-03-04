@@ -19,18 +19,20 @@
 package cmd
 
 import (
+	"os"
+	"os/exec"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"os"
-	"os/exec"
 )
 
+//NewCmdExec exec cmd
 func NewCmdExec() cli.Command {
 	c := cli.Command{
 		Name:  "exec",
-		Usage: "进入容器方法。grctl exec POD_NAME COMMAND ",
+		Usage: "open pod ttl console。grctl exec POD_NAME COMMAND ",
 		Action: func(c *cli.Context) error {
 			Common(c)
 			return execContainer(c)

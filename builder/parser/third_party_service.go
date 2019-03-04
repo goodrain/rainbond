@@ -33,8 +33,8 @@ type ThirdPartyServiceParse struct {
 
 	endpoints []*discovery.Endpoint
 
-	errors     []ParseError
-	logger     event.Logger
+	errors []ParseError
+	logger event.Logger
 }
 
 // CreateThirdPartyServiceParse creates a new ThirdPartyServiceParse.
@@ -82,7 +82,7 @@ func (t *ThirdPartyServiceParse) Parse() ParseErrorList {
 	return nil
 }
 
-// GetServiceInfo returns infomation of third-party service from
+// GetServiceInfo returns information of third-party service from
 // the receiver *ThirdPartyServiceParse.
 func (t *ThirdPartyServiceParse) GetServiceInfo() []ServiceInfo {
 	serviceInfo := ServiceInfo{

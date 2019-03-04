@@ -589,6 +589,16 @@ func (t *TenantServicesPortDaoImpl) HasOpenPort(sid string) bool {
 		return false
 	}
 	return true
+
+//GetDepUDPPort get all depend service udp port
+func (t *TenantServicesPortDaoImpl) GetDepUDPPort(serviceID string) ([]*model.TenantServicesPort, error) {
+	var portInfos []*model.TenantServicesPort
+	var port model.TenantServicesPort
+	var relation model.TenantServiceRelation
+	if err := t.DB.Raw(fmt.Sprintf("select * from %s where protocol=? and service_id in (select dep_service_id from %s where service_id=?)", port.TableName(), relation.TableName()), "udp", serviceID).Scan(&portInfos).Error; err != nil {
+		return nil, err
+	}
+	return portInfos, nil
 }
 
 //TenantServiceRelationDaoImpl TenantServiceRelationDaoImpl

@@ -59,7 +59,7 @@ func showSuccessMsg(m string) {
 func NewCmdShow() cli.Command {
 	c := cli.Command{
 		Name:  "show",
-		Usage: "显示region安装完成后访问地址",
+		Usage: "Display region api address after installation",
 		Action: func(c *cli.Context) error {
 			Common(c)
 			manageHosts, err := clients.RegionClient.Nodes().GetNodeByRule("manage")
@@ -145,7 +145,7 @@ func getStatusShow(v *client.HostNode) (status string) {
 	return nss.String()
 }
 func handleStatus(serviceTable *termtables.Table, v *client.HostNode) {
-	serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), v.Mode, getStatusShow(v))
+	serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), getStatusShow(v))
 }
 
 func handleConditionResult(serviceTable *termtables.Table, conditions []client.NodeCondition) {
@@ -196,7 +196,7 @@ func handleMessage(status string, message string) string {
 func NewCmdNode() cli.Command {
 	c := cli.Command{
 		Name:  "node",
-		Usage: "节点管理相关操作",
+		Usage: "rainbond node manage cmd",
 		Subcommands: []cli.Command{
 			{
 				Name:  "get",
@@ -262,7 +262,7 @@ func NewCmdNode() cli.Command {
 					list, err := clients.RegionClient.Nodes().List()
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status")
+					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "Status")
 					var rest []*client.HostNode
 					for _, v := range list {
 						if v.Role.HasRule("manage") {
@@ -403,7 +403,7 @@ func NewCmdNode() cli.Command {
 					hostnodes, err := clients.RegionClient.Nodes().GetNodeByRule(rule)
 					handleErr(err)
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status")
+					serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "Status")
 					for _, v := range hostnodes {
 						handleStatus(serviceTable, v)
 					}

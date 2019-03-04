@@ -176,7 +176,7 @@ func (c *Client) KeepAliveOnce(id client.LeaseID) (*client.LeaseKeepAliveRespons
 
 //GetLock GetLock
 func (c *Client) GetLock(key string, id client.LeaseID) (bool, error) {
-	key = conf.Config.Lock + key
+	key = conf.Config.LockPath + key
 	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
 	resp, err := DefalutClient.Txn(ctx).
 		If(client.Compare(client.CreateRevision(key), "=", 0)).
@@ -193,7 +193,7 @@ func (c *Client) GetLock(key string, id client.LeaseID) (bool, error) {
 
 //DelLock DelLock
 func (c *Client) DelLock(key string) error {
-	_, err := c.Delete(conf.Config.Lock + key)
+	_, err := c.Delete(conf.Config.LockPath + key)
 	return err
 }
 

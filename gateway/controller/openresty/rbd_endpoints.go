@@ -2,8 +2,9 @@ package openresty
 
 import (
 	"fmt"
+
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
-	"github.com/goodrain/rainbond/gateway/v1"
+	v1 "github.com/goodrain/rainbond/gateway/v1"
 )
 
 func langGoodrainMe(ip string) *model.Server {

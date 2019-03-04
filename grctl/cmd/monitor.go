@@ -3,17 +3,18 @@ package cmd
 import (
 	"errors"
 	"fmt"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/ghodss/yaml"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/urfave/cli"
 )
 
-//NewCmdNode NewCmdNode
+//NewCmdAlerting new altering rule manage cmd
 func NewCmdAlerting() cli.Command {
 	c := cli.Command{
 		Name:  "alerting",
-		Usage: "监控报警。grctl alerting",
+		Usage: "alerting rule manage",
 		Subcommands: []cli.Command{
 			{
 				Name:  "get",

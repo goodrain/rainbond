@@ -26,14 +26,15 @@ import (
 	//"github.com/goodrain/rainbond/event"
 
 	//"github.com/Sirupsen/logrus"
-	"github.com/urfave/cli"
 	"os"
+
+	"github.com/urfave/cli"
 	//"github.com/goodrain/rainbond/builder/sources"
 	//"github.com/goodrain/rainbond/grctl/clients"
 	//"flag"
 )
 
-//NewCmdInit grctl reset
+//NewCmdReset grctl reset
 func NewCmdReset() cli.Command {
 	c := cli.Command{
 		Name:  "reset",

@@ -21,6 +21,7 @@ package controller
 import (
 	"github.com/Sirupsen/logrus"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -36,18 +37,19 @@ func (a *applyConfigController) Begin() {
 	nowApp := a.manager.store.GetAppService(a.appService.ServiceID)
 	nowConfigMaps := nowApp.GetConfigMaps()
 	newConfigMaps := a.appService.GetConfigMaps()
-	var nowConfigMapUpdate = make(map[string]bool, len(nowConfigMaps))
-	for _, now := range nowConfigMaps {
-		nowConfigMapUpdate[now.Name] = false
+	var nowConfigMapMaps = make(map[string]*corev1.ConfigMap, len(nowConfigMaps))
+	for i, now := range nowConfigMaps {
+		nowConfigMapMaps[now.Name] = nowConfigMaps[i]
 	}
 	for _, new := range newConfigMaps {
-		if _, ok := nowConfigMapUpdate[new.Name]; ok {
+		if nowConfig, ok := nowConfigMapMaps[new.Name]; ok {
+			new.UID = nowConfig.UID
 			newc, err := a.manager.client.CoreV1().ConfigMaps(nowApp.TenantID).Update(new)
 			if err != nil {
 				logrus.Errorf("update config map failure %s", err.Error())
 			}
 			nowApp.SetConfigMap(newc)
-			nowConfigMapUpdate[new.Name] = true
+			nowConfigMapMaps[new.Name] = nil
 			logrus.Debugf("update configmap %s for service %s", new.Name, a.appService.ServiceID)
 		} else {
 			newc, err := a.manager.client.CoreV1().ConfigMaps(nowApp.TenantID).Create(new)
@@ -58,8 +60,8 @@ func (a *applyConfigController) Begin() {
 			logrus.Debugf("create configmap %s for service %s", new.Name, a.appService.ServiceID)
 		}
 	}
-	for name, handle := range nowConfigMapUpdate {
-		if !handle {
+	for name, handle := range nowConfigMapMaps {
+		if handle != nil {
 			if err := a.manager.client.CoreV1().ConfigMaps(nowApp.TenantID).Delete(name, &metav1.DeleteOptions{}); err != nil {
 				logrus.Errorf("delete config map failure %s", err.Error())
 			}

@@ -29,10 +29,7 @@ import (
 )
 
 var datacenterConfig *config.DataCenterConfig
-var taskService *service.TaskService
 var prometheusService *service.PrometheusService
-var taskTempService *service.TaskTempService
-var taskGroupService *service.TaskGroupService
 var appService *service.AppService
 var nodeService *service.NodeService
 var discoverService *service.DiscoverAction
@@ -42,9 +39,6 @@ var kubecli kubecache.KubeClient
 func Init(c *option.Conf, ms *masterserver.MasterServer, kube kubecache.KubeClient) {
 	if ms != nil {
 		prometheusService = service.CreatePrometheusService(c, ms)
-		taskService = service.CreateTaskService(c, ms)
-		taskTempService = service.CreateTaskTempService(c)
-		taskGroupService = service.CreateTaskGroupService(c, ms)
 		datacenterConfig = config.GetDataCenterConfig()
 		nodeService = service.CreateNodeService(c, ms.Cluster, kube)
 	}

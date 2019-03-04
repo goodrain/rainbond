@@ -41,15 +41,18 @@ func init() {
 //Any application attribute implementation is similarly injected
 type Conversion func(*v1.AppService, db.Manager) error
 
+//CacheConversion conversion cache struct
+type CacheConversion struct {
+	Name       string
+	Conversion Conversion
+}
+
 //conversionList conversion function list
-var conversionList map[string]Conversion
+var conversionList []CacheConversion
 
 //RegistConversion regist conversion function list
 func RegistConversion(name string, fun Conversion) {
-	if conversionList == nil {
-		conversionList = make(map[string]Conversion)
-	}
-	conversionList[name] = fun
+	conversionList = append(conversionList, CacheConversion{Name: name, Conversion: fun})
 }
 
 //InitAppService init a app service
@@ -61,9 +64,9 @@ func InitAppService(dbmanager db.Manager, serviceID string, enableConversionList
 		},
 		UpgradePatch: make(map[string][]byte, 2),
 	}
-	for name, c := range conversionList {
-		if len(enableConversionList) == 0 || util.StringArrayContains(enableConversionList, name) {
-			if err := c(appService, dbmanager); err != nil {
+	for _, c := range conversionList {
+		if len(enableConversionList) == 0 || util.StringArrayContains(enableConversionList, c.Name) {
+			if err := c.Conversion(appService, dbmanager); err != nil {
 				return nil, err
 			}
 		}

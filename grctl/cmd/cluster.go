@@ -90,7 +90,7 @@ func getClusterInfo(c *cli.Context) error {
 	fmt.Println(serviceTable2.Render())
 	//show node detail
 	serviceTable := termtables.CreateTable()
-	serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "NodeMode", "Status")
+	serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "Status")
 	list, err := clients.RegionClient.Nodes().List()
 	handleErr(err)
 	var rest []*client.HostNode
@@ -181,9 +181,8 @@ func handleRoleAndStatus(list []map[string]string) bool {
 	}
 	if computeFlag && manageFlag {
 		return true
-	} else {
-		return false
 	}
+	return false
 
 }
 
@@ -191,15 +190,13 @@ func handleNodeReady(list []map[string]string) bool {
 	trueNum := 0
 	for _, v := range list {
 		if v["status"] == "True" {
-			trueNum += 1
+			trueNum++
 		}
 	}
 	if trueNum == len(list) {
 		return true
-	} else {
-		return false
 	}
-
+	return false
 }
 
 func clusterStatus(roleList []map[string]string, ReadyList []map[string]string) (string, string) {

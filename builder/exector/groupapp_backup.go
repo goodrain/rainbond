@@ -100,6 +100,7 @@ type RegionServiceSnapshot struct {
 	ServiceMntRelation []*dbmodel.TenantServiceMountRelation
 	PluginRelation     []*dbmodel.TenantServicePluginRelation
 	ServiceRelation    []*dbmodel.TenantServiceRelation
+	PluginConfigs      []*dbmodel.TenantPluginVersionDiscoverConfig
 	ServiceStatus      string
 	ServiceVolume      []*dbmodel.TenantServiceVolume
 	ServicePort        []*dbmodel.TenantServicesPort

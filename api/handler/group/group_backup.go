@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 
 	"github.com/coreos/etcd/clientv3"
 
@@ -203,6 +203,7 @@ type RegionServiceSnapshot struct {
 	ServiceVolume      []*dbmodel.TenantServiceVolume
 	ServicePort        []*dbmodel.TenantServicesPort
 	Versions           []*dbmodel.VersionInfo
+	PluginConfigs      []*dbmodel.TenantPluginVersionDiscoverConfig
 }
 
 //snapshot
@@ -276,6 +277,11 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string) error {
 			return fmt.Errorf("Get service(%s) build versions error %s", id, err)
 		}
 		data.Versions = versions
+		pluginConfigs, err := db.GetManager().TenantPluginVersionConfigDao().GetPluginConfigs(id)
+		if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+			return fmt.Errorf("Get service(%s) plugin configs error %s", id, err)
+		}
+		data.PluginConfigs = pluginConfigs
 		datas = append(datas, data)
 	}
 	body, err := ffjson.Marshal(datas)

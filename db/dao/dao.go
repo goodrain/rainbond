@@ -98,6 +98,8 @@ type TenantServicesPortDao interface {
 	GetOuterPorts(serviceID string) ([]*model.TenantServicesPort, error)
 	GetInnerPorts(serviceID string) ([]*model.TenantServicesPort, error)
 	GetPort(serviceID string, port int) (*model.TenantServicesPort, error)
+	//GetDepUDPPort get all depend service udp port info
+	GetDepUDPPort(serviceID string) ([]*model.TenantServicesPort, error)
 	DELPortsByServiceID(serviceID string) error
 	HasOpenPort(sid string) bool
 }
@@ -148,6 +150,7 @@ type TenantPluginVersionEnvDao interface {
 type TenantPluginVersionConfigDao interface {
 	Dao
 	GetPluginConfig(serviceID, pluginID string) (*model.TenantPluginVersionDiscoverConfig, error)
+	GetPluginConfigs(serviceID string) ([]*model.TenantPluginVersionDiscoverConfig, error)
 	DeletePluginConfig(serviceID, pluginID string) error
 	DeletePluginConfigByServiceID(serviceID string) error
 }
@@ -408,7 +411,7 @@ type IPPoolDao interface {
 	GetIPPoolByEID(eid string) (*model.IPPool, error)
 }
 
-// EndpointsDao is an interface for defining method 
+// EndpointsDao is an interface for defining method
 // for operating table 3rd_party_svc_endpoints.
 type EndpointsDao interface {
 	Dao

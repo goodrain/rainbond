@@ -474,6 +474,13 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshots []*RegionServiceSnapshot
 				return fmt.Errorf("create app relation when restore backup error. %s", err.Error())
 			}
 		}
+		// for _, a := range app.PluginConfigs {
+		// 	a.ID = 0
+		// 	if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).AddModel(a); err != nil {
+		// 		tx.Rollback()
+		// 		return fmt.Errorf("create app plugin config when restore backup error. %s", err.Error())
+		// 	}
+		// }
 		localPath := os.Getenv("LOCAL_DATA_PATH")
 		sharePath := os.Getenv("SHARE_DATA_PATH")
 		if localPath == "" {
