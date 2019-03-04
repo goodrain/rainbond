@@ -32,6 +32,7 @@ var etcdV2Endpoints = []string{"http://127.0.0.1:4001"}
 var etcdV3Endpoints = []string{"127.0.0.1:2379"}
 var clusterAddress = []string{defaultClusterAddress}
 
+//Dis dis manage
 type Dis struct {
 	discoverAddress string
 }
@@ -79,6 +80,7 @@ type ResponseBody struct {
 	Page int `json:"page,omitempty"`
 }
 
+//Endpoint endpoint
 type Endpoint struct {
 	Name   string `json:"name"`
 	URL    string `json:"url"`
@@ -400,7 +402,7 @@ func getLogAddress(clusterAddress []string) string {
 		if status, ok := host["status"]; ok && status == "success" {
 			return host["host"]
 		}
-		logrus.Warningf("Error get host info from %s. result is not success", address)
+		logrus.Warningf("Error get host info from %s. result is not success. body is:%v", address, host)
 	}
 	logrus.Warning("no cluster is running. return default address")
 	return defaultAddress
