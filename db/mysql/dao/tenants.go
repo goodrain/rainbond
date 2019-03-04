@@ -589,6 +589,7 @@ func (t *TenantServicesPortDaoImpl) HasOpenPort(sid string) bool {
 		return false
 	}
 	return true
+}
 
 //GetDepUDPPort get all depend service udp port
 func (t *TenantServicesPortDaoImpl) GetDepUDPPort(serviceID string) ([]*model.TenantServicesPort, error) {

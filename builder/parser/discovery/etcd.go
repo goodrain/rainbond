@@ -88,7 +88,7 @@ func (e *etcd) Fetch() ([]*Endpoint, error) {
 		if err := json.Unmarshal(kv.Value, &ep); err != nil {
 			return nil, fmt.Errorf("error parsing the data from etcd: %v", err)
 		}
-		ep.UUID = strings.Replace(string(kv.Key), e.key+"/", "", -1)
+		ep.Ep = strings.Replace(string(kv.Key), e.key+"/", "", -1)
 		res = append(res, &ep)
 	}
 	return res, nil
