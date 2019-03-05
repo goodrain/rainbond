@@ -133,7 +133,7 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 			meshPluginID = pluginID
 		}
 	}
-	if as.NeedProxy && !udpDep && strings.ToLower(as.ExtensionSet["no_startup_sequence"]) != "true" {
+	if as.NeedProxy && !udpDep && strings.ToLower(as.ExtensionSet["startup_sequence"]) == "true" {
 		initContainers = append(initContainers, createProbeMeshInitContainer(as.ServiceID, meshPluginID, as.ServiceAlias, mainContainer.Env))
 	}
 	return initContainers, containers, nil
