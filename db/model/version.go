@@ -67,6 +67,6 @@ func (t *VersionInfo) CreateShareImage(hubURL, namespace, appVersion string) (st
 	if namespace != "" {
 		image.Namespace = namespace
 	}
-	image.Name = image.Name + "_" + t.BuildVersion + "_" + appVersion
+	image.Name = image.Name + "_" + appVersion
 	return image.String(), nil
 }

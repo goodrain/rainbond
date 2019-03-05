@@ -390,10 +390,16 @@ func (b *BackupAPPRestore) modify(appSnapshots []*RegionServiceSnapshot) error {
 	//modify relations
 	for _, app := range appSnapshots {
 		for _, a := range app.ServiceMntRelation {
-			a.DependServiceID = b.serviceChange[a.DependServiceID].ServiceID
+			info := b.serviceChange[a.DependServiceID]
+			if info != nil {
+				a.DependServiceID = info.ServiceID
+			}
 		}
 		for _, a := range app.ServiceRelation {
-			a.DependServiceID = b.serviceChange[a.DependServiceID].ServiceID
+			info := b.serviceChange[a.DependServiceID]
+			if info != nil {
+				a.DependServiceID = info.ServiceID
+			}
 		}
 	}
 	return nil
