@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty"
+	"github.com/goodrain/rainbond/worker/healthz"
 	"os"
 	"strings"
 
@@ -32,6 +33,7 @@ import (
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	workerutil "github.com/goodrain/rainbond/worker/util"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -89,12 +91,13 @@ func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 //AppServiceBuild has the ability to build k8s service, ingress and secret
 type AppServiceBuild struct {
 	serviceID, eventID string
-	service            *model.TenantServices
 	tenant             *model.Tenants
+	service            *model.TenantServices
+	appService         *v1.AppService
+	replicationType    string
 	dbmanager          db.Manager
 	logger             event.Logger
-	replicationType    string
-	appService         *v1.AppService
+	healthzManager     healthz.Manager
 }
 
 //AppServiceBuilder returns a AppServiceBuild
@@ -122,6 +125,7 @@ func AppServiceBuilder(serviceID, replicationType string, dbmanager db.Manager, 
 		tenant:          tenant,
 		replicationType: replicationType,
 		appService:      as,
+		healthzManager:  healthz.GetManager(),
 	}, nil
 }
 
@@ -495,10 +499,10 @@ func (a *AppServiceBuild) createInnerService(port *model.TenantServicesPort) *co
 		servicePort.Port = int32(port.ContainerPort)
 	}
 	spec := corev1.ServiceSpec{
-		Ports:    []corev1.ServicePort{servicePort},
+		Ports: []corev1.ServicePort{servicePort},
 	}
 	if a.appService.ServiceKind != "third_party" {
-		spec.Selector =  map[string]string{"name": a.service.ServiceAlias}
+		spec.Selector = map[string]string{"name": a.service.ServiceAlias}
 	}
 	service.Spec = spec
 	return &service
@@ -531,11 +535,11 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 		portType = corev1.ServiceTypeClusterIP
 	}
 	spec := corev1.ServiceSpec{
-		Ports:    []corev1.ServicePort{servicePort},
-		Type:     portType,
+		Ports: []corev1.ServicePort{servicePort},
+		Type:  portType,
 	}
 	if a.appService.ServiceKind != "third_party" {
-		spec.Selector =  map[string]string{"name": a.service.ServiceAlias}
+		spec.Selector = map[string]string{"name": a.service.ServiceAlias}
 	}
 	service.Spec = spec
 	return &service
@@ -575,7 +579,18 @@ func (a *AppServiceBuild) createEndpoints(port *model.TenantServicesPort, v1eps 
 			address := corev1.EndpointAddress{
 				IP: ip,
 			}
-			subset.Addresses = append(subset.Addresses, address)
+			status, err := a.healthzManager.GetCurrentStatus(workerutil.GenServiceName(a.serviceID, ip))
+			if err != nil {
+				logrus.Warningf("ServiceID: %s; IP: %s; Failed to get the current status of the"+
+					" service: err", a.serviceID, ip, err)
+				subset.Addresses = append(subset.NotReadyAddresses, address)
+				continue
+			}
+			if status == "health" {
+				subset.Addresses = append(subset.Addresses, address)
+			} else {
+				subset.NotReadyAddresses = append(subset.NotReadyAddresses, address)
+			}
 		}
 		ep.Subsets = []corev1.EndpointSubset{subset}
 		res = append(res, &ep)

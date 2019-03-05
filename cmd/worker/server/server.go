@@ -19,6 +19,7 @@
 package server
 
 import (
+	"github.com/goodrain/rainbond/worker/healthz"
 	"os"
 	"os/signal"
 	"syscall"
@@ -112,6 +113,13 @@ func Run(s *option.Worker) error {
 		return err
 	}
 	defer exporterManager.Stop()
+
+	healthzManager := healthz.NewManager(nil)
+	if err := healthzManager.Init(); err != nil {
+		return err
+	}
+	healthzManager.Start()
+	defer healthzManager.Stop()
 
 	logrus.Info("worker begin running...")
 
