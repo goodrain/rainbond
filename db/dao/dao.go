@@ -217,8 +217,10 @@ type TenantServiceVolumeDao interface {
 	DeleteByServiceIDAndVolumePath(serviceID string, volumePath string) error
 	GetVolumeByServiceIDAndName(serviceID, name string) (*model.TenantServiceVolume, error)
 	GetAllVolumes() ([]*model.TenantServiceVolume, error)
+	GetVolumeByID(id int) (*model.TenantServiceVolume, error)
 }
 
+//TenantServiceConfigFileDao -
 type TenantServiceConfigFileDao interface {
 	Dao
 	GetByVolumeName(volumeName string) (*model.TenantServiceConfigFile, error)

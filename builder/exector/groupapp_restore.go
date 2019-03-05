@@ -153,14 +153,6 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 	b.saveResult("success", "")
 	return nil
 }
-func (b *BackupAPPRestore) getServiceType(labels []*dbmodel.TenantServiceLable) string {
-	for _, l := range labels {
-		if l.LabelKey == dbmodel.LabelKeyServiceType {
-			return l.LabelValue
-		}
-	}
-	return util.StatelessServiceType
-}
 func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appSnapshots []*RegionServiceSnapshot) error {
 	for _, app := range appSnapshots {
 		//backup app image or code slug file
@@ -197,7 +189,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 					continue
 				}
 				//if app type is statefulset, change pod hostpath
-				if b.getServiceType(app.ServiceLabel) == util.StatefulServiceType {
+				if GetServiceType(app.ServiceLabel) == util.StatefulServiceType {
 					//Next two level directory
 					list, err := util.GetDirList(tmpDir, 2)
 					if err != nil {
@@ -351,6 +343,7 @@ func (b *BackupAPPRestore) modify(appSnapshots []*RegionServiceSnapshot) error {
 		app.ServiceID = newServiceID
 		app.Service.ServiceID = newServiceID
 		app.Service.ServiceAlias = newServiceAlias
+		app.Service.ServiceName = newServiceAlias
 		for _, a := range app.ServiceProbe {
 			a.ServiceID = newServiceID
 		}
@@ -480,14 +473,7 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshots []*RegionServiceSnapshot
 				return fmt.Errorf("create app relation when restore backup error. %s", err.Error())
 			}
 		}
-		localPath := os.Getenv("LOCAL_DATA_PATH")
-		sharePath := os.Getenv("SHARE_DATA_PATH")
-		if localPath == "" {
-			localPath = "/grlocaldata"
-		}
-		if sharePath == "" {
-			sharePath = "/grdata"
-		}
+		localPath, sharePath := GetVolumeDir()
 		for _, a := range app.ServiceVolume {
 			a.ID = 0
 			switch a.VolumeType {

@@ -927,6 +927,15 @@ func (t *TenantServiceVolumeDaoImpl) GetVolumeByServiceIDAndName(serviceID, name
 	return &volume, nil
 }
 
+//GetVolumeByID get volume by id
+func (t *TenantServiceVolumeDaoImpl) GetVolumeByID(id int) (*model.TenantServiceVolume, error) {
+	var volume model.TenantServiceVolume
+	if err := t.DB.Where("ID=?", id).Find(&volume).Error; err != nil {
+		return nil, err
+	}
+	return &volume, nil
+}
+
 //DeleteTenantServiceVolumesByServiceID 删除挂载
 func (t *TenantServiceVolumeDaoImpl) DeleteTenantServiceVolumesByServiceID(serviceID string) error {
 	var volume model.TenantServiceVolume

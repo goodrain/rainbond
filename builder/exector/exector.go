@@ -39,8 +39,11 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-var TaskNum float64 = 0
-var ErrorNum float64 = 0
+//TaskNum task number
+var TaskNum float64
+
+//ErrorNum error run task number
+var ErrorNum float64
 
 //Manager 任务执行管理器
 type Manager interface {
