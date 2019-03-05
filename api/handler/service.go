@@ -1389,19 +1389,16 @@ func (s *ServiceAction) ServiceProbe(tsp *dbmodel.TenantServiceProbe, action str
 
 //RollBack RollBack
 func (s *ServiceAction) RollBack(rs *api_model.RollbackStruct) error {
-	tx := db.GetManager().Begin()
-	service, err := db.GetManager().TenantServiceDaoTransactions(tx).GetServiceByID(rs.ServiceID)
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(rs.ServiceID)
 	if err != nil {
-		tx.Rollback()
 		return err
 	}
+	oldDeployVersion := service.DeployVersion
 	if service.DeployVersion == rs.DeployVersion {
-		tx.Rollback()
 		return fmt.Errorf("current version is %v, don't need rollback", rs.DeployVersion)
 	}
 	service.DeployVersion = rs.DeployVersion
-	if err := db.GetManager().TenantServiceDaoTransactions(tx).UpdateModel(service); err != nil {
-		tx.Rollback()
+	if err := db.GetManager().TenantServiceDao().UpdateModel(service); err != nil {
 		return err
 	}
 	//发送重启消息到MQ
@@ -1412,10 +1409,11 @@ func (s *ServiceAction) RollBack(rs *api_model.RollbackStruct) error {
 		TaskType:  "rolling_upgrade",
 	}
 	if err := GetServiceManager().StartStopService(startStopStruct); err != nil {
-		tx.Rollback()
-		return err
-	}
-	if err := tx.Commit().Error; err != nil {
+		// rollback
+		service.DeployVersion = oldDeployVersion
+		if err := db.GetManager().TenantServiceDao().UpdateModel(service); err != nil {
+			logrus.Warningf("error deploy version rollback: %v", err)
+		}
 		return err
 	}
 	return nil
