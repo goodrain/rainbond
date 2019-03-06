@@ -58,7 +58,9 @@ type Location struct {
 	ProxySendTimeout    Time   // Sets a timeout for transmitting a request to the proxied server.
 
 	DisableProxyPass bool
-	NameCondition    map[string]*v1.Condition
+	//PathRewrite if true, path will not passed to the upstream
+	PathRewrite   bool
+	NameCondition map[string]*v1.Condition
 }
 
 // ProxySetHeader allows redefining or appending fields to the request header passed to the proxied server.

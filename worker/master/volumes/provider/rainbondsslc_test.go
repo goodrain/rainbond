@@ -36,9 +36,17 @@ func TestSelectNode(t *testing.T) {
 		name:    "rainbond.io/provisioner-sslc",
 		kubecli: client,
 	}
-	node, err := pr.selectNode()
+	node, err := pr.selectNode("linux")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(node)
+}
+
+func TestGetVolumeIDByPVCName(t *testing.T) {
+	t.Log(getVolumeIDByPVCName("manual17-gra02c40-0"))
+}
+
+func TestGetPodNameByPVCName(t *testing.T) {
+	t.Log(getPodNameByPVCName("manual17-gra02c40-0"))
 }

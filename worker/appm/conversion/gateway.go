@@ -560,5 +560,6 @@ func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPor
 		PublishNotReadyAddresses: true,
 	}
 	service.Spec = spec
+	service.Annotations = map[string]string{"service.alpha.kubernetes.io/tolerate-unready-endpoints": "true"}
 	return &service
 }

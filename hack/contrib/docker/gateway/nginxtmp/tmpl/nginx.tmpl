@@ -15,7 +15,7 @@ http {
     lua_package_cpath "/run/nginx/lua/vendor/so/?.so;;";
     lua_package_path "/run/nginx/lua/?.lua;;";
     lua_shared_dict configuration_data {{$h.UpstreamsDict.Num}}{{$h.UpstreamsDict.Unit}};
-    
+    underscores_in_headers on;
     init_by_lua_block {
         require("resty.core")
         collectgarbage("collect")

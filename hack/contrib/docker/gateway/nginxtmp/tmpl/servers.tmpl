@@ -72,9 +72,13 @@ server {
         proxy_send_timeout {{$loc.ProxySendTimeout.Num}}{{$loc.ProxySendTimeout.Unit}};
         {{ end }}
         {{ if not $loc.DisableProxyPass }}
-        set $target 'default';
-        {{ buildLuaHeaderRouter $loc }}
-        proxy_pass http://upstream_balancer;
+            set $target 'default';
+            {{ buildLuaHeaderRouter $loc }}
+            {{ if $loc.PathRewrite }}
+              proxy_pass http://upstream_balancer/;
+            {{ else }}
+              proxy_pass http://upstream_balancer;
+            {{ end }}
         {{ end }}
         {{ if $loc.Return.Code }}
         return {{$loc.Return.Code}} {{$loc.Return.Text}} {{$loc.Return.URL}};

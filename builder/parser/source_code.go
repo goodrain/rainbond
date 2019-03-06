@@ -301,8 +301,8 @@ func ReadRbdConfigAndLang(buildInfo *sources.RepostoryBuildInfo) (*code.Rainbond
 }
 
 func getRecommendedMemory(lang code.Lang) int {
-	//java语言推荐1024
-	if lang == code.JavaJar || lang == code.JavaMaven || lang == code.JaveWar {
+	//java recommended 1024
+	if lang == code.JavaJar || lang == code.JavaMaven || lang == code.JaveWar || lang == code.Gradle {
 		return 1024
 	}
 	if lang == code.Python {

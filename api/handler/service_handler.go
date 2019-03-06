@@ -72,4 +72,5 @@ type ServiceHandler interface {
 	ServiceCheck(*api_model.ServiceCheckStruct) (string, string, *util.APIHandleError)
 	GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError)
 	GetServiceDeployInfo(tenantID, serviceID string) (*pb.DeployInfo, *util.APIHandleError)
+	ListVersionInfo(serviceID string) (*api_model.BuildListRespVO, error)
 }

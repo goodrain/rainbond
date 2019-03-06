@@ -600,7 +600,7 @@ func (a *appRuntimeStore) GetNeedBillingStatus(serviceIDs []string) map[string]s
 		a.appServices.Range(func(k, v interface{}) bool {
 			appService, _ := v.(*v1.AppService)
 			status := a.GetAppServiceStatus(appService.ServiceID)
-			if isClosedStatus(status) {
+			if !isClosedStatus(status) {
 				statusMap[appService.ServiceID] = status
 			}
 			return true
@@ -608,7 +608,7 @@ func (a *appRuntimeStore) GetNeedBillingStatus(serviceIDs []string) map[string]s
 	} else {
 		for _, serviceID := range serviceIDs {
 			status := a.GetAppServiceStatus(serviceID)
-			if isClosedStatus(status) {
+			if !isClosedStatus(status) {
 				statusMap[serviceID] = status
 			}
 		}

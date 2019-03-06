@@ -43,6 +43,7 @@ func init() {
 	specification = make(map[Lang]func(buildPath string) Specification)
 	specification[JavaJar] = javaJarCheck
 	specification[JavaMaven] = javaMavenCheck
+	specification[PHP] = phpCheck
 }
 
 //CheckCodeSpecification 检查语言规范
@@ -135,4 +136,14 @@ func common() Specification {
 	return Specification{
 		Conform: true,
 	}
+}
+
+func phpCheck(buildPath string) Specification {
+	if ok, _ := util.FileExists(path.Join(buildPath, "composer.lock")); !ok {
+		return Specification{
+			Conform:   false,
+			Noconform: map[string]string{"识别为PHP语言，工作目录未发现composer.lock文件": "必须生成composer.lock文件"},
+		}
+	}
+	return common()
 }

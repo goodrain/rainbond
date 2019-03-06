@@ -432,13 +432,14 @@ func (s *ServiceAction) ServiceUpgrade(ru *model.RollingUpgradeTaskBody) error {
 		return err
 	}
 	if version.FinalStatus != "success" {
-		return fmt.Errorf("deploy version is not build success,do not upgrade")
-	}
-	services.DeployVersion = ru.NewDeployVersion
-	err = db.GetManager().TenantServiceDao().UpdateModel(services)
-	if err != nil {
-		logrus.Errorf("update service deploy version error. %v", err)
-		return fmt.Errorf("horizontal service faliure:%s", err.Error())
+		logrus.Warnf("deploy version %s is not build success,can not change deploy version in this upgrade event", ru.NewDeployVersion)
+	} else {
+		services.DeployVersion = ru.NewDeployVersion
+		err = db.GetManager().TenantServiceDao().UpdateModel(services)
+		if err != nil {
+			logrus.Errorf("update service deploy version error. %v", err)
+			return fmt.Errorf("horizontal service faliure:%s", err.Error())
+		}
 	}
 	err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		TaskBody: ru,
@@ -1453,19 +1454,16 @@ func (s *ServiceAction) ServiceProbe(tsp *dbmodel.TenantServiceProbe, action str
 
 //RollBack RollBack
 func (s *ServiceAction) RollBack(rs *api_model.RollbackStruct) error {
-	tx := db.GetManager().Begin()
-	service, err := db.GetManager().TenantServiceDaoTransactions(tx).GetServiceByID(rs.ServiceID)
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(rs.ServiceID)
 	if err != nil {
-		tx.Rollback()
 		return err
 	}
+	oldDeployVersion := service.DeployVersion
 	if service.DeployVersion == rs.DeployVersion {
-		tx.Rollback()
 		return fmt.Errorf("current version is %v, don't need rollback", rs.DeployVersion)
 	}
 	service.DeployVersion = rs.DeployVersion
-	if err := db.GetManager().TenantServiceDaoTransactions(tx).UpdateModel(service); err != nil {
-		tx.Rollback()
+	if err := db.GetManager().TenantServiceDao().UpdateModel(service); err != nil {
 		return err
 	}
 	//发送重启消息到MQ
@@ -1476,10 +1474,11 @@ func (s *ServiceAction) RollBack(rs *api_model.RollbackStruct) error {
 		TaskType:  "rolling_upgrade",
 	}
 	if err := GetServiceManager().StartStopService(startStopStruct); err != nil {
-		tx.Rollback()
-		return err
-	}
-	if err := tx.Commit().Error; err != nil {
+		// rollback
+		service.DeployVersion = oldDeployVersion
+		if err := db.GetManager().TenantServiceDao().UpdateModel(service); err != nil {
+			logrus.Warningf("error deploy version rollback: %v", err)
+		}
 		return err
 	}
 	return nil
@@ -1719,6 +1718,25 @@ func (s *ServiceAction) GetServiceDeployInfo(tenantID, serviceID string) (*pb.De
 		return nil, util.CreateAPIHandleError(500, err)
 	}
 	return info, nil
+}
+
+// ListVersionInfo lists version info
+func (s *ServiceAction) ListVersionInfo(serviceID string) (*api_model.BuildListRespVO, error) {
+	versionInfos, err := db.GetManager().VersionInfoDao().GetAllVersionByServiceID(serviceID)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		logrus.Errorf("error getting all version by service id: %v", err)
+		return nil, fmt.Errorf("error getting all version by service id: %v", err)
+	}
+	svc, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	if err != nil {
+		logrus.Errorf("error getting service by uuid: %v", err)
+		return nil, fmt.Errorf("error getting service by uuid: %v", err)
+	}
+	result := &api_model.BuildListRespVO{
+		DeployVersion: svc.DeployVersion,
+		List:          versionInfos,
+	}
+	return result, nil
 }
 
 //TransStatus trans service status

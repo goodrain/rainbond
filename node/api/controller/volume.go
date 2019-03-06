@@ -53,6 +53,11 @@ func CreateLocalVolume(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	volumeHostPath = path.Join(localPath, "tenant", tenantID, "service", serviceID, pvcName)
+	volumePath, volumeok := requestopt["volume_path"]
+	podName, podok := requestopt["pod_name"]
+	if volumeok && podok {
+		volumeHostPath = path.Join(localPath, "tenant", tenantID, "service", serviceID, volumePath, podName)
+	}
 	if err := util.CheckAndCreateDirByMode(volumeHostPath, 0777); err != nil {
 		logrus.Errorf("check and create dir %s error %s", volumeHostPath, err.Error())
 		w.WriteHeader(500)

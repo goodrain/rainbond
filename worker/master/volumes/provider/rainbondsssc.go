@@ -19,14 +19,19 @@
 package provider
 
 import (
+	"fmt"
 	"os"
 	"path"
+	"strconv"
+	"strings"
+
+	"github.com/goodrain/rainbond/db"
 
 	"github.com/Sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -54,13 +59,32 @@ var _ controller.Provisioner = &rainbondssscProvisioner{}
 func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
 	tenantID := options.PVC.Labels["tenant_id"]
 	serviceID := options.PVC.Labels["service_id"]
-	path := path.Join(p.pvDir, "tenant", tenantID, "service", serviceID, options.PVC.Name)
-	if err := util.CheckAndCreateDirByMode(path, 0777); err != nil {
+	// v5.0.4 Previous versions
+	hostpath := path.Join(p.pvDir, "tenant", tenantID, "service", serviceID, options.PVC.Name)
+	// after v5.0.4,change host path
+	// Directory path has nothing to do with volume ID
+	// Directory path bound to volume mount path
+	if util.DirIsEmpty(hostpath) {
+		podName := getPodNameByPVCName(options.PVC.Name)
+		volumeID := getVolumeIDByPVCName(options.PVC.Name)
+		if volumeID != 0 {
+			volume, err := db.GetManager().TenantServiceVolumeDao().GetVolumeByID(volumeID)
+			if err != nil {
+				logrus.Errorf("get volume by id %d failre %s", volumeID, err.Error())
+				return nil, err
+			}
+			hostpath = path.Join(volume.HostPath, podName)
+		} else {
+			return nil, fmt.Errorf("can not parse volume id")
+		}
+	}
+	if err := util.CheckAndCreateDirByMode(hostpath, 0777); err != nil {
 		return nil, err
 	}
 	pv := &v1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: options.PVName,
+			Name:   options.PVName,
+			Labels: options.PVC.Labels,
 		},
 		Spec: v1.PersistentVolumeSpec{
 			PersistentVolumeReclaimPolicy: options.PersistentVolumeReclaimPolicy,
@@ -70,7 +94,7 @@ func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*
 			},
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				HostPath: &v1.HostPathVolumeSource{
-					Path: path,
+					Path: hostpath,
 				},
 			},
 		},
@@ -88,4 +112,24 @@ func (p *rainbondssscProvisioner) Delete(volume *v1.PersistentVolume) error {
 
 func (p *rainbondssscProvisioner) Name() string {
 	return p.name
+}
+
+func getPodNameByPVCName(pvcName string) string {
+	pvcNames := strings.SplitN(pvcName, "-", 2)
+	if len(pvcNames) == 2 {
+		return pvcNames[1]
+	}
+	return pvcName
+}
+
+func getVolumeIDByPVCName(pvcName string) int {
+	pvcNames := strings.SplitN(pvcName, "-", 2)
+	fmt.Println(pvcNames)
+	if len(pvcNames) == 2 {
+		idStr := pvcNames[0][6:]
+		fmt.Println(idStr)
+		id, _ := strconv.Atoi(idStr)
+		return id
+	}
+	return 0
 }

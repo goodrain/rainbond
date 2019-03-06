@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,29 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package exector
+package model
 
-import (
-	"bufio"
-	"fmt"
-	"io"
-	"os/exec"
-	"testing"
-)
-
-func TestExec(t *testing.T) {
-	cmd := exec.Command("ping", "127.0.0.1", "-t", "10")
-	stdout, _ := cmd.StdoutPipe()
-	cmd.Start()
-	reader := bufio.NewReader(stdout)
-	go func() {
-		for {
-			line, err2 := reader.ReadString('\n')
-			if err2 != nil || io.EOF == err2 {
-				break
-			}
-			fmt.Print(line)
-		}
-	}()
-	cmd.Wait()
+// BuildListRespVO is the response value object for build-list api.
+type BuildListRespVO struct {
+	DeployVersion string      `json:"deploy_version"`
+	List          interface{} `json:"list"`
 }

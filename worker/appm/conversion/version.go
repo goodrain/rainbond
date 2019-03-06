@@ -366,7 +366,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 				continue // pass codes below
 			}
 			if as.GetStatefulSet() != nil {
-				vd.SetPV(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumePath, v.IsReadOnly)
+				vd.SetPV(dbmodel.VolumeType(v.VolumeType), fmt.Sprintf("manual%d", v.ID), v.VolumeName, v.VolumePath, v.IsReadOnly)
 			} else {
 				hostPath := v.HostPath
 				if as.IsWindowsService {
@@ -470,7 +470,7 @@ func (v *volumeDefine) GetVolumeMounts() []corev1.VolumeMount {
 	return v.volumeMounts
 }
 
-func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath string, readOnly bool) {
+func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, volumeName, mountPath string, readOnly bool) {
 	switch VolumeType {
 	case dbmodel.ShareFileVolumeType:
 		if statefulset := v.as.GetStatefulSet(); statefulset != nil {
@@ -482,7 +482,8 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 					ObjectMeta: metav1.ObjectMeta{
 						Name: name,
 						Labels: v.as.GetCommonLabels(map[string]string{
-							"tenant_id": v.as.TenantID,
+							"volume_name": volumeName,
+							"volume_path": mountPath,
 						}),
 					},
 					Spec: corev1.PersistentVolumeClaimSpec{
@@ -509,7 +510,6 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 			statefulset.Spec.VolumeClaimTemplates = append(
 				statefulset.Spec.VolumeClaimTemplates,
 				corev1.PersistentVolumeClaim{
-
 					ObjectMeta: metav1.ObjectMeta{
 						Name: name,
 						Annotations: map[string]string{
@@ -521,7 +521,8 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, mountPath stri
 							}(),
 						},
 						Labels: v.as.GetCommonLabels(map[string]string{
-							"tenant_id": v.as.TenantID,
+							"volume_name": volumeName,
+							"volume_path": mountPath,
 						}),
 					},
 					Spec: corev1.PersistentVolumeClaimSpec{
@@ -598,10 +599,11 @@ func (v *volumeDefine) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string, isRead
 	vm := corev1.VolumeMount{
 		MountPath: p,
 		Name:      cmap.Name,
-		ReadOnly:  isReadOnly,
+		ReadOnly:  false,
 		SubPath:   path.Base(p),
 	}
 	v.volumeMounts = append(v.volumeMounts, vm)
+	var defaultMode int32 = 0777
 	vo := corev1.Volume{
 		Name: cmap.Name,
 		VolumeSource: corev1.VolumeSource{
@@ -609,7 +611,7 @@ func (v *volumeDefine) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string, isRead
 				LocalObjectReference: corev1.LocalObjectReference{
 					Name: cmap.Name,
 				},
-				DefaultMode: &configFileMode,
+				DefaultMode: &defaultMode,
 				Items: []corev1.KeyToPath{
 					corev1.KeyToPath{
 						Key:  k,
