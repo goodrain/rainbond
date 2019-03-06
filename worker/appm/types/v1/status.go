@@ -21,6 +21,7 @@ package v1
 import (
 	"crypto/sha256"
 	"fmt"
+	"github.com/goodrain/rainbond/db/model"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -34,7 +35,7 @@ func (a *AppService) IsEmpty() bool {
 
 //IsClosed is closed
 func (a *AppService) IsClosed() bool {
-	if a.ServiceKind == "third_party" && a.endpoints != nil && len(a.endpoints) > 0 {
+	if a.ServiceKind == model.ServiceKindThirdParty && a.endpoints != nil && len(a.endpoints) > 0 {
 		return true
 	}
 	if a.IsEmpty() && a.statefulset == nil && a.deployment == nil {

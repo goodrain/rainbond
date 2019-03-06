@@ -28,6 +28,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
@@ -337,7 +338,7 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
 	oldAppService := m.store.GetAppService(body.ServiceID)
-	if svc.Kind != "third_party" && !strings.HasPrefix(body.Action, "switch-port") {
+	if svc.Kind != dbmodel.ServiceKindThirdParty.String() && !strings.HasPrefix(body.Action, "switch-port") {
 		if oldAppService == nil || oldAppService.IsClosed() {
 			logrus.Debugf("service is closed, no need handle")
 			logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
@@ -346,7 +347,7 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		}
 	}
 	var newAppService *v1.AppService
-	if svc.Kind == "third_party" {
+	if svc.Kind == dbmodel.ServiceKindThirdParty.String() {
 		newAppService, err = conversion.InitAppService(m.dbmanager, body.ServiceID,
 			"ServiceSource", "TenantServiceBase", "TenantServiceRegist")
 	} else {

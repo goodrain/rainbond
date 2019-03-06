@@ -429,7 +429,7 @@ func (t *TenantServicesDaoImpl) DeleteServiceByServiceID(serviceID string) error
 // ListThirdPartyService lists all third party services
 func (t *TenantServicesDaoImpl) ListThirdPartyServices() ([]*model.TenantServices, error) {
 	var res []*model.TenantServices
-	if err := t.DB.Where("kind=?", "third_party").Find(&res).Error; err != nil {
+	if err := t.DB.Where("kind=?", model.ServiceKindThirdParty.String()).Find(&res).Error; err != nil {
 		return nil, err
 	}
 	return res, nil

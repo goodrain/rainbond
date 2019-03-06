@@ -21,6 +21,7 @@ package v1
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/db/model"
 	"strconv"
 
 	"github.com/goodrain/rainbond/event"
@@ -60,7 +61,7 @@ type AppServiceBase struct {
 	ServiceID        string
 	ServiceAlias     string
 	ServiceType      AppServiceType
-	ServiceKind      string // inter or third_party
+	ServiceKind      model.ServiceKind
 	DeployVersion    string
 	ContainerCPU     int
 	ContainerMemory  int

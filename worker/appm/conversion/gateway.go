@@ -33,7 +33,6 @@ import (
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
-	workerutil "github.com/goodrain/rainbond/worker/util"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,7 +65,7 @@ func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 
 	k8s, err := builder.Build()
 	if err != nil {
-		logrus.Error("build k8s services error:", err.Error())
+		logrus.Error("error creating app service: ", err.Error())
 		return err
 	}
 	if k8s == nil {
@@ -161,7 +160,7 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 		for i := range ports {
 			port := ports[i]
 			var v1eps []*v1.Endpoint
-			if a.service.Kind == "third_party" && (port.IsOuterService || port.IsInnerService) {
+			if model.ServiceKind(a.service.Kind) == model.ServiceKindThirdParty && (port.IsOuterService || port.IsInnerService) {
 				eps, err := thirdparty.ListEndpoints(a.serviceID, a.dbmanager)
 				if err != nil {
 					return nil, err
@@ -175,7 +174,7 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 			}
 			if port.IsInnerService {
 				services = append(services, a.createInnerService(port))
-				if a.service.Kind == "third_party" {
+				if a.service.Kind == model.ServiceKindThirdParty.String() {
 					// ignore services other than third_party
 					endpoints = append(endpoints, a.createEndpoints(port, v1eps, true)...)
 				}
@@ -192,9 +191,8 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 				if secret != nil {
 					secrets = append(secrets, secret)
 				}
-				if a.service.Kind == "third_party" {
+				if a.service.Kind == model.ServiceKindThirdParty.String() {
 					// ignore services other than third_party
-					logrus.Debugf("// ignore services other than third_party")
 					endpoints = append(endpoints, a.createEndpoints(port, v1eps, false)...)
 				}
 			}
@@ -501,7 +499,7 @@ func (a *AppServiceBuild) createInnerService(port *model.TenantServicesPort) *co
 	spec := corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{servicePort},
 	}
-	if a.appService.ServiceKind != "third_party" {
+	if a.appService.ServiceKind != model.ServiceKindThirdParty {
 		spec.Selector = map[string]string{"name": a.service.ServiceAlias}
 	}
 	service.Spec = spec
@@ -538,7 +536,7 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 		Ports: []corev1.ServicePort{servicePort},
 		Type:  portType,
 	}
-	if a.appService.ServiceKind != "third_party" {
+	if a.appService.ServiceKind != model.ServiceKindThirdParty {
 		spec.Selector = map[string]string{"name": a.service.ServiceAlias}
 	}
 	service.Spec = spec
@@ -579,18 +577,7 @@ func (a *AppServiceBuild) createEndpoints(port *model.TenantServicesPort, v1eps 
 			address := corev1.EndpointAddress{
 				IP: ip,
 			}
-			status, err := a.healthzManager.GetCurrentStatus(workerutil.GenServiceName(a.serviceID, ip))
-			if err != nil {
-				logrus.Warningf("ServiceID: %s; IP: %s; Failed to get the current status of the"+
-					" service: err", a.serviceID, ip, err)
-				subset.Addresses = append(subset.NotReadyAddresses, address)
-				continue
-			}
-			if status == "health" {
-				subset.Addresses = append(subset.Addresses, address)
-			} else {
-				subset.NotReadyAddresses = append(subset.NotReadyAddresses, address)
-			}
+			subset.Addresses = append(subset.Addresses, address)
 		}
 		ep.Subsets = []corev1.EndpointSubset{subset}
 		res = append(res, &ep)

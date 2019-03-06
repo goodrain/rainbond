@@ -92,7 +92,7 @@ func TestTenantServicesDao_ListThirdPartyServices(t *testing.T) {
 		item1 := &model.TenantServices{
 			TenantID: util.NewUUID(),
 			ServiceID: util.NewUUID(),
-			Kind: "third_party",
+			Kind: model.ServiceKindThirdParty.String(),
 		}
 		if err = GetManager().TenantServiceDao().AddModel(item1); err != nil {
 			t.Fatalf("error create third-party service: %v", err)

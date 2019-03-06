@@ -55,6 +55,19 @@ func (t *Tenants) TableName() string {
 	return "tenants"
 }
 
+// ServiceKind kind of service
+type ServiceKind string
+
+// ServiceKindThirdParty means third-party service
+var ServiceKindThirdParty ServiceKind = "third_party"
+
+// ServiceKindInternal means internal service
+var ServiceKindInternal ServiceKind = "internal"
+
+func (s ServiceKind) String() string {
+	return string(s)
+}
+
 //TenantServices app service base info
 type TenantServices struct {
 	Model

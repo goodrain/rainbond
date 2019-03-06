@@ -20,6 +20,7 @@ package conversion
 
 import (
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
 )
@@ -92,7 +93,7 @@ func InitCacheAppService(dbm db.Manager, serviceID, creatorID string) (*v1.AppSe
 	if err != nil {
 		return nil, err
 	}
-	if svc.Kind == "third_party" {
+	if svc.Kind == model.ServiceKindThirdParty.String() {
 		if err := TenantServiceRegist(appService, dbm); err != nil {
 			return nil, err
 		}

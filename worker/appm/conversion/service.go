@@ -86,7 +86,7 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 		}
 		return fmt.Errorf("error getting service base info by serviceID(%s) %s", as.ServiceID, err.Error())
 	}
-	as.ServiceKind = tenantService.Kind
+	as.ServiceKind = dbmodel.ServiceKind(tenantService.Kind)
 	tenant, err := dbmanager.TenantDao().GetTenantByUUID(tenantService.TenantID)
 	if err != nil {
 		return fmt.Errorf("get tenant info failure %s", err.Error())
@@ -107,7 +107,7 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	if err := initTenant(as, tenant); err != nil {
 		return fmt.Errorf("conversion tenant info failure %s", err.Error())
 	}
-	if tenantService.Kind == "third_party" {
+	if tenantService.Kind == dbmodel.ServiceKindThirdParty.String() {
 		return nil
 	}
 	serviceType, err := dbmanager.TenantServiceLabelDao().GetTenantServiceTypeLabel(as.ServiceID)

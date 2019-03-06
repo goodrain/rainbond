@@ -605,7 +605,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	}
 	// sc.Endpoints can't be nil
 	// sc.Endpoints.Discovery or sc.Endpoints.Static can't be nil
-	if sc.Kind == "third_party" { // TODO: validate request data
+	if sc.Kind == dbmodel.ServiceKindThirdParty.String() { // TODO: validate request data
 		if config := strings.Replace(sc.Endpoints.Discovery, " ", "", -1); config != "" {
 			var cfg dCfg
 			err := json.Unmarshal([]byte(config), &cfg)

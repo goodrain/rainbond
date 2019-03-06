@@ -44,7 +44,7 @@ func TestTenantServiceBase(t *testing.T) {
 		tenantService := &model.TenantServices{
 			TenantID: as.TenantID,
 			ServiceID: as.ServiceID,
-			Kind: "third_party",
+			Kind: model.ServiceKindThirdParty.String(),
 		}
 		tenantServiceDao.EXPECT().GetServiceByID(as.ServiceID).Return(tenantService, nil)
 		dbm.EXPECT().TenantServiceDao().Return(tenantServiceDao)
