@@ -435,19 +435,33 @@ func showServiceDeployInfo(c *cli.Context) error {
 				for _, v := range pod.Spec.Volumes {
 					if v.HostPath != nil {
 						value += v.HostPath.Path
-						for _, vc := range pod.Spec.Containers {
-							m := vc.VolumeMounts
-							for _, v2 := range m {
-								if v2.Name == v.Name {
-									value += ":" + string(v2.MountPath)
+					}
+					if v.PersistentVolumeClaim != nil {
+						claimName := v.PersistentVolumeClaim.ClaimName
+						pvc, _ := clients.K8SClient.Core().PersistentVolumeClaims(tenantID).Get(claimName, metav1.GetOptions{})
+						if pvc != nil {
+							pvn := pvc.Spec.VolumeName
+							pv, _ := clients.K8SClient.Core().PersistentVolumes().Get(pvn, metav1.GetOptions{})
+							if pv != nil {
+								if hostPath := pv.Spec.HostPath; hostPath != nil {
+									value += hostPath.Path
 								}
 							}
 						}
-						value += "\n"
 					}
+				con:
+					for _, vc := range pod.Spec.Containers {
+						m := vc.VolumeMounts
+						for _, v2 := range m {
+							if v2.Name == v.Name {
+								value += ":" + string(v2.MountPath)
+								break con
+							}
+						}
+					}
+					value += "\n"
 				}
 				table.AddRow("PodVolumePath:", value)
-
 			}
 			if pod.Status.StartTime != nil {
 				table.AddRow("PodStratTime:", pod.Status.StartTime.Format(time.RFC3339))
