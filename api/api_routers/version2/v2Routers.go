@@ -173,6 +173,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 
 	//持久化信息API v2.1 支持多种持久化格式
 	r.Post("/volumes", controller.AddVolume)
+	r.Put("/volumes", controller.GetManager().UpdVolume)
 	r.Get("/volumes", controller.GetVolume)
 	r.Delete("/volumes/{volume_name}", controller.DeleteVolume)
 	r.Post("/depvolumes", controller.AddVolumeDependency)

@@ -980,12 +980,13 @@ func (t *TenantServiceConfigFileDaoImpl) AddModel(mo model.Interface) error {
 		return fmt.Errorf("can't convert %s to *model.TenantServiceConfigFile", reflect.TypeOf(mo))
 	}
 	var old model.TenantServiceConfigFile
-	if ok := t.DB.Where("uuid = ?", configFile.UUID).Find(&old).RecordNotFound(); ok {
+	if ok := t.DB.Where("service_id=? and volume_name=?", configFile.ServiceID,
+		configFile.VolumeName).Find(&old).RecordNotFound(); ok {
 		if err := t.DB.Create(configFile).Error; err != nil {
 			return err
 		}
 	} else {
-		return fmt.Errorf("ConfigFile already exists according to uuid(%s)", configFile.UUID)
+		return fmt.Errorf("ServiceID: %s; VolumeName: %s; ConfigFile already exists", configFile.ServiceID, configFile.VolumeName)
 	}
 	return nil
 }
@@ -996,26 +997,25 @@ func (t *TenantServiceConfigFileDaoImpl) UpdateModel(mo model.Interface) error {
 	if !ok {
 		return fmt.Errorf("can't convert %s to *model.TenantServiceConfigFile", reflect.TypeOf(mo))
 	}
-
 	return t.DB.Table(configFile.TableName()).
-		Where("uuid = ?", configFile.UUID).
+		Where("service_id=? and volume_name=?", configFile.ServiceID, configFile.VolumeName).
 		Update(configFile).Error
 }
 
 // GetByVolumeName get config file by volume name
-func (t *TenantServiceConfigFileDaoImpl) GetByVolumeName(volumeName string) (*model.TenantServiceConfigFile, error) {
+func (t *TenantServiceConfigFileDaoImpl) GetByVolumeName(sid string, volumeName string) (*model.TenantServiceConfigFile, error) {
 	var res model.TenantServiceConfigFile
-	if err := t.DB.Where("volume_name = ?", volumeName).Find(&res).Error; err != nil {
+	if err := t.DB.Where("service_id=? and volume_name = ?", sid, volumeName).
+		Find(&res).Error; err != nil {
 		return nil, err
 	}
-
 	return &res, nil
 }
 
-// DelByVolumeID deletes config files according to volume id
-func (t *TenantServiceConfigFileDaoImpl) DelByVolumeID(volumeName string) error {
+// DelByVolumeID deletes config files according to service id and volume id.
+func (t *TenantServiceConfigFileDaoImpl) DelByVolumeID(sid, volumeName string) error {
 	var cfs []model.TenantServiceConfigFile
-	return t.DB.Where("volume_name = ?", volumeName).Delete(&cfs).Error
+	return t.DB.Where("service_id=? and volume_name = ?", sid, volumeName).Delete(&cfs).Error
 }
 
 //TenantServiceLBMappingPortDaoImpl stream服务映射

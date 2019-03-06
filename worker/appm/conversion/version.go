@@ -347,7 +347,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 			// create a configMap which will be mounted as a volume
 			var cmap *corev1.ConfigMap
 			if v.VolumeType == dbmodel.ConfigFileVolumeType.String() {
-				cf, err := dbmanager.TenantServiceConfigFileDao().GetByVolumeName(v.VolumeName)
+				cf, err := dbmanager.TenantServiceConfigFileDao().GetByVolumeName(as.ServiceID, v.VolumeName)
 				if err != nil {
 					logrus.Errorf("error getting config file by volume name(%s): %v", v.VolumeName, err)
 					return nil, fmt.Errorf("error getting config file by volume name(%s): %v", v.VolumeName, err)
@@ -401,7 +401,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 					return nil, fmt.Errorf("error getting TenantServiceVolume according to serviceID(%s) and volumeName(%s): %v",
 						t.DependServiceID, t.VolumeName, err)
 				}
-				cf, err := dbmanager.TenantServiceConfigFileDao().GetByVolumeName(t.VolumeName)
+				cf, err := dbmanager.TenantServiceConfigFileDao().GetByVolumeName(as.ServiceID, t.VolumeName)
 				if err != nil {
 					return nil, fmt.Errorf("error getting TenantServiceConfigFileDao according to volumeName(%s): %v", t.VolumeName, err)
 				}

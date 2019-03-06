@@ -339,11 +339,12 @@ func (t *TenantServiceVolume) TableName() string {
 // TenantServiceConfigFile represents a data in configMap which is one of the types of volumes
 type TenantServiceConfigFile struct {
 	Model
-	UUID        string `gorm:"column:uuid;size:32" json:"uuid"`
+	ServiceID   string `gorm:"column:service_id;size:32" json:"service_id"`
 	VolumeName  string `gorm:"column:volume_name;size:32" json:"volume_name"`
 	FileContent string `gorm:"column:file_content;size:65535" json:"filename"`
 }
 
+// TableName returns table name of TenantServiceConfigFile.
 func (t *TenantServiceConfigFile) TableName() string {
 	return "tenant_service_config_file"
 }
