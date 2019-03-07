@@ -36,6 +36,7 @@ type SSLCert struct {
 	ExpireTime time.Time `json:"expires"`
 }
 
+//Equals -
 func (s *SSLCert) Equals(c *SSLCert) bool {
 	if s == c {
 		return true

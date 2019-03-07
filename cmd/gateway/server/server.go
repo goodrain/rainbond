@@ -21,14 +21,21 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/gateway/metric"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/go-chi/chi"
+
+	"github.com/goodrain/rainbond/util"
+
+	"github.com/goodrain/rainbond/discover"
+
+	"github.com/goodrain/rainbond/gateway/metric"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
@@ -38,28 +45,22 @@ import (
 
 //Run start run
 func Run(s *option.GWServer) error {
+	logrus.Info("start gateway...")
 	errCh := make(chan error)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(prometheus.NewGoCollector())
-	// TODO
-	//reg.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{
-	//	PidFn:        func() (int, error) { return os.Getpid(), nil },
-	//	ReportErrors: true,
-	//}))
-
+	reg.MustRegister(prometheus.NewProcessCollector(os.Getpid(), "gateway"))
 	mc := metric.NewDummyCollector()
 	var err error
 	if s.Config.EnableMetrics {
-		mc, err = metric.NewCollector(reg)
+		mc, err = metric.NewCollector(s.NodeName, reg)
 		if err != nil {
 			logrus.Fatalf("Error creating prometheus collector:  %v", err)
 		}
 	}
 	mc.Start()
-
 	gwc, err := controller.NewGWController(ctx, &s.Config, mc)
 	if err != nil {
 		return err
@@ -68,14 +69,27 @@ func Run(s *option.GWServer) error {
 		return fmt.Errorf("Fail to new GWController")
 	}
 	if err := gwc.Start(errCh); err != nil {
-		return err
+		return fmt.Errorf("Fail to start GWController %s", err.Error())
 	}
 	defer gwc.Close()
 
-	mux := http.NewServeMux()
+	mux := chi.NewMux()
 	registerHealthz(gwc, mux)
 	registerMetrics(reg, mux)
+	if s.Debug {
+		util.ProfilerSetup(mux)
+	}
 	go startHTTPServer(s.ListenPorts.Health, mux)
+
+	keepalive, err := discover.CreateKeepAlive(s.Config.EtcdEndpoint, "gateway", s.Config.NodeName,
+		s.Config.HostIP, s.ListenPorts.Health)
+	if err != nil {
+		return err
+	}
+	if err := keepalive.Start(); err != nil {
+		return err
+	}
+	defer keepalive.Stop()
 
 	logrus.Info("RBD app gateway start success!")
 
@@ -92,7 +106,7 @@ func Run(s *option.GWServer) error {
 	return nil
 }
 
-func registerHealthz(gc *controller.GWController, mux *http.ServeMux) {
+func registerHealthz(gc *controller.GWController, mux *chi.Mux) {
 	// expose health check endpoint (/healthz)
 	healthz.InstallHandler(mux,
 		healthz.PingHealthz,
@@ -100,15 +114,14 @@ func registerHealthz(gc *controller.GWController, mux *http.ServeMux) {
 	)
 }
 
-func registerMetrics(reg *prometheus.Registry, mux *http.ServeMux) {
+func registerMetrics(reg *prometheus.Registry, mux *chi.Mux) {
 	mux.Handle(
 		"/metrics",
 		promhttp.HandlerFor(reg, promhttp.HandlerOpts{}),
 	)
-
 }
 
-func startHTTPServer(port int, mux *http.ServeMux) {
+func startHTTPServer(port int, mux *chi.Mux) {
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%v", port),
 		Handler:           mux,

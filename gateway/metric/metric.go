@@ -19,6 +19,10 @@
 package metric
 
 import (
+	"fmt"
+
+	"k8s.io/apimachinery/pkg/util/sets"
+
 	"github.com/goodrain/rainbond/gateway/metric/collectors"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -27,35 +31,45 @@ import (
 type Collector interface {
 	Start()
 	Stop()
-
+	SetHosts(sets.String)
 	SetServerNum(httpNum, tcpNum int)
 }
 
 type collector struct {
-	registry *prometheus.Registry
-
+	registry          *prometheus.Registry
+	socket            *collectors.SocketCollector
 	gatewayController *collectors.Controller
 }
 
 // NewCollector creates a new metric collector the for ingress controller
-func NewCollector(registry *prometheus.Registry) (Collector, error) {
+func NewCollector(gatewayHost string, registry *prometheus.Registry) (Collector, error) {
 	ic := collectors.NewController()
-
+	socketCollector, err := collectors.NewSocketCollector(gatewayHost, true)
+	if err != nil {
+		return nil, fmt.Errorf("create socket collector failure %s", err.Error())
+	}
 	return Collector(&collector{
 		gatewayController: ic,
-
-		registry: registry,
+		socket:            socketCollector,
+		registry:          registry,
 	}), nil
 }
 
 func (c *collector) Start() {
 	c.registry.MustRegister(c.gatewayController)
+	c.registry.MustRegister(c.socket)
+	go c.socket.Start()
 }
 
 func (c *collector) Stop() {
 	c.registry.Unregister(c.gatewayController)
+	c.registry.Unregister(c.socket)
 }
 
 func (c *collector) SetServerNum(httpNum, tcpNum int) {
 	c.gatewayController.SetServerNum(httpNum, tcpNum)
+}
+
+func (c *collector) SetHosts(hosts sets.String) {
+	c.socket.SetHosts(hosts)
 }

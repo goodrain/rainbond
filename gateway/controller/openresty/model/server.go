@@ -22,6 +22,7 @@ type Server struct {
 	Return                  Return
 	Rewrites                []Rewrite
 	Locations               []*Location
+	OptionValue             map[string]string
 }
 
 // FastCGIParam sets a parameter that should be passed to the FastCGI server.
@@ -56,8 +57,9 @@ type Location struct {
 	ProxyConnectTimeout Time   // Defines a timeout for establishing a connection with a proxied server
 	ProxyReadTimeout    Time   // Defines a timeout for reading a response from the proxied server.
 	ProxySendTimeout    Time   // Sets a timeout for transmitting a request to the proxied server.
-
-	DisableProxyPass bool
+	EnableMetrics       bool   //Enables or disables monitor
+	DisableAccessLog    bool   //disable or enables access log
+	DisableProxyPass    bool
 	//PathRewrite if true, path will not passed to the upstream
 	PathRewrite   bool
 	NameCondition map[string]*v1.Condition

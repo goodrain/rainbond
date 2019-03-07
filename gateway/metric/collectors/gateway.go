@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,32 +16,4 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package main
-
-import (
-	"fmt"
-	"os"
-
-	"github.com/goodrain/rainbond/cmd"
-	"github.com/goodrain/rainbond/cmd/gateway/option"
-	"github.com/goodrain/rainbond/cmd/gateway/server"
-	"github.com/spf13/pflag"
-)
-
-func main() {
-	if len(os.Args) > 1 && os.Args[1] == "version" {
-		cmd.ShowVersion("gateway")
-	}
-	s := option.NewGWServer()
-	s.AddFlags(pflag.CommandLine)
-	pflag.Parse()
-	s.SetLog()
-	if err := s.CheckConfig(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-	if err := server.Run(s); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-}
+package collectors

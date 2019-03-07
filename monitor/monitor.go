@@ -51,6 +51,7 @@ func (d *Monitor) Start() {
 	d.discoverv1.AddProject("prometheus", &callback.Prometheus{Prometheus: d.manager})
 	d.discoverv1.AddProject("event_log_event_http", &callback.EventLog{Prometheus: d.manager})
 	d.discoverv1.AddProject("acp_webcli", &callback.Webcli{Prometheus: d.manager})
+	d.discoverv1.AddProject("gateway", &callback.GatewayNode{Prometheus: d.manager})
 	d.discoverv2.AddProject("builder", &callback.Builder{Prometheus: d.manager})
 	d.discoverv2.AddProject("mq", &callback.Mq{Prometheus: d.manager})
 	d.discoverv2.AddProject("app_sync_runtime_server", &callback.Worker{Prometheus: d.manager})

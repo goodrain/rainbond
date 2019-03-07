@@ -20,6 +20,8 @@ func langGoodrainMe(ip string) *model.Server {
 		},
 		Locations: []*model.Location{
 			{
+				EnableMetrics:       false,
+				DisableAccessLog:    true,
 				Path:                "/",
 				ProxyRedirect:       "off",
 				ProxyConnectTimeout: model.Time{Num: 60, Unit: "s"},
@@ -48,7 +50,9 @@ func mavenGoodrainMe(ip string) *model.Server {
 		ServerName: "maven.goodrain.me",
 		Locations: []*model.Location{
 			{
-				Path: "/",
+				EnableMetrics:    false,
+				DisableAccessLog: true,
+				Path:             "/",
 				Rewrites: []model.Rewrite{
 					{
 						Regex:       "^/(.*)$",
@@ -92,7 +96,9 @@ func goodrainMe(cfgPath string, ip string) *model.Server {
 		ChunkedTransferEncoding: true,
 		Locations: []*model.Location{
 			{
-				Path: "/v2/",
+				EnableMetrics:    false,
+				DisableAccessLog: true,
+				Path:             "/v2/",
 				ProxySetHeaders: []*model.ProxySetHeader{
 					{Field: "Host", Value: "$http_host"},
 					{Field: "X-Real-IP", Value: "$remote_addr"},

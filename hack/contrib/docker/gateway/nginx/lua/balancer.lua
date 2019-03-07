@@ -136,4 +136,17 @@ function _M.balance()
   ngx.log(ngx.INFO, string.format("successfully set current upstream peer %s: %s", peer, err))
 end
 
+function _M.log()
+  local balancer = get_balancer()
+  if not balancer then
+    return
+  end
+
+  if not balancer.after_balance then
+    return
+  end
+
+  balancer:after_balance()
+end
+
 return _M

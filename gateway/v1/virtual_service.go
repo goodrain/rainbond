@@ -52,8 +52,7 @@ type VirtualService struct {
 	//ConnectTimeout The time, in seconds, to wait for data from a new connection. If no data is received within this time, the connection will be closed. A value of 0 (zero) will disable the timeout.
 	ConnectTimeout int `json:"connect_timeout"`
 	//Timeout A connection should be closed if no additional data has been received for this period of time. A value of 0 (zero) will disable this timeout. Note that the default value may vary depending on the protocol selected.
-	Timeout int `json:"timeout"`
-
+	Timeout          int                    `json:"timeout"`
 	ServerName       string                 `json:"server_name"`
 	PoolName         string                 `json:"pool_name"`
 	SSLCert          *SSLCert               `json:"ssl_cert"`
