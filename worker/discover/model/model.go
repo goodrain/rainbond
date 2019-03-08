@@ -181,18 +181,20 @@ type TaskBody interface{}
 
 //StartTaskBody 启动操作任务主体
 type StartTaskBody struct {
-	TenantID      string `json:"tenant_id"`
-	ServiceID     string `json:"service_id"`
-	DeployVersion string `json:"deploy_version"`
-	EventID       string `json:"event_id"`
+	TenantID      string            `json:"tenant_id"`
+	ServiceID     string            `json:"service_id"`
+	DeployVersion string            `json:"deploy_version"`
+	EventID       string            `json:"event_id"`
+	Configs       map[string]string `json:"configs"`
 }
 
 //StopTaskBody 停止操作任务主体
 type StopTaskBody struct {
-	TenantID      string `json:"tenant_id"`
-	ServiceID     string `json:"service_id"`
-	DeployVersion string `json:"deploy_version"`
-	EventID       string `json:"event_id"`
+	TenantID      string            `json:"tenant_id"`
+	ServiceID     string            `json:"service_id"`
+	DeployVersion string            `json:"deploy_version"`
+	EventID       string            `json:"event_id"`
+	Configs       map[string]string `json:"configs"`
 }
 
 //HorizontalScalingTaskBody 水平伸缩操作任务主体
@@ -221,7 +223,8 @@ type RestartTaskBody struct {
 	//重启策略，此策略不保证生效
 	//例如应用如果为有状态服务，此策略如配置为先启动后关闭，此策略不生效
 	//无状态服务默认使用先启动后关闭，保证服务不受影响
-	Strategy []string `json:"strategy"`
+	Strategy []string          `json:"strategy"`
+	Configs  map[string]string `json:"configs"`
 }
 
 //StrategyIsValid 验证策略是否有效
@@ -238,11 +241,12 @@ func StrategyIsValid(strategy []string, serviceDeployType string) bool {
 
 //RollingUpgradeTaskBody 升级操作任务主体
 type RollingUpgradeTaskBody struct {
-	TenantID         string   `json:"tenant_id"`
-	ServiceID        string   `json:"service_id"`
-	NewDeployVersion string   `json:"deploy_version"`
-	EventID          string   `json:"event_id"`
-	Strategy         []string `json:"strategy"`
+	TenantID         string            `json:"tenant_id"`
+	ServiceID        string            `json:"service_id"`
+	NewDeployVersion string            `json:"deploy_version"`
+	EventID          string            `json:"event_id"`
+	Strategy         []string          `json:"strategy"`
+	Configs          map[string]string `json:"configs"`
 }
 
 //RollBackTaskBody 回滚操作任务主体

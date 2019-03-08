@@ -21,8 +21,10 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+//AppStruct -
 type AppStruct struct{}
 
+//ExportApp -
 func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
@@ -53,15 +55,15 @@ func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 
 		httputil.ReturnSuccess(r, w, nil)
 	case "GET":
-		eventId := strings.TrimSpace(chi.URLParam(r, "eventId"))
-		if eventId == "" {
+		eventID := strings.TrimSpace(chi.URLParam(r, "eventId"))
+		if eventID == "" {
 			httputil.ReturnError(r, w, 400, fmt.Sprintf("Arguments eventId is must defined."))
 			return
 		}
 
-		res, err := db.GetManager().AppDao().GetByEventId(eventId)
+		res, err := db.GetManager().AppDao().GetByEventId(eventID)
 		if err != nil {
-			httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
+			httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventID, err))
 			return
 		}
 

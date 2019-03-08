@@ -53,14 +53,13 @@ func (g *GatewayStruct) HTTPRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("add http rule.")
 	var req api_model.AddHTTPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
 	reqJSON, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJSON))
+	logrus.Debugf("add rule Request is : %s", string(reqJSON))
 
 	// verify request
 	values := url.Values{}
@@ -95,14 +94,13 @@ func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("update http rule.")
 	var req api_model.UpdateHTTPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
 	reqJSON, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJSON))
+	logrus.Debugf("update rule Request is : %s", string(reqJSON))
 
 	// verify request
 	values := url.Values{}
@@ -147,14 +145,13 @@ func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *GatewayStruct) deleteHTTPRule(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("delete http rule.")
 	var req api_model.DeleteHTTPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
 	reqJSON, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJSON))
+	logrus.Debugf("delete rule Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
 	serviceID, err := h.DeleteHTTPRule(&req)
@@ -185,14 +182,13 @@ func (g *GatewayStruct) TCPRule(w http.ResponseWriter, r *http.Request) {
 
 // AddTCPRule adds a tcp rule
 func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("add tcp rule.")
 	var req api_model.AddTCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
 	reqJSON, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJSON))
+	logrus.Debugf("add tcp rule Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
 	// verify request
@@ -241,14 +237,13 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("update tcp rule.")
 	var req api_model.UpdateTCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
 	reqJSON, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJSON))
+	logrus.Debugf("update tcp rule Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
 	// verify reqeust
@@ -293,14 +288,13 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("delete TCP rule.")
 	var req api_model.DeleteTCPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
 	reqJSON, _ := json.Marshal(req)
-	logrus.Debugf("Request is : %s", string(reqJSON))
+	logrus.Debugf("delete tcp rule Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
 	sid, err := h.DeleteTCPRule(&req)
@@ -313,21 +307,17 @@ func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
 	if err := handler.GetGatewayHandler().SendTask(sid, "delete-tcp-rule"); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
-
 	httputil.ReturnSuccess(r, w, "success")
 }
 
 // GetAvailablePort returns a available port
 func (g *GatewayStruct) GetAvailablePort(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("get available port.")
 	h := handler.GetGatewayHandler()
-
 	res, err := h.GetAvailablePort()
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"getting available port: %v", err))
 		return
 	}
-
 	httputil.ReturnSuccess(r, w, res)
 }

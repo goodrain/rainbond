@@ -71,6 +71,7 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 	}
 	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient)
 	def3rdPartySvcHandler = Create3rdPartySvcHandler(dbmanager)
+	batchOperationHandler = CreateBatchOperationHandler(mqClient)
 	return nil
 }
 
@@ -154,4 +155,11 @@ var def3rdPartySvcHandler *ThirdPartyServiceHanlder
 // Get3rdPartySvcHandler returns the defalut ThirdParthServiceHanlder
 func Get3rdPartySvcHandler() *ThirdPartyServiceHanlder {
 	return def3rdPartySvcHandler
+}
+
+var batchOperationHandler *BatchOperationHandler
+
+//GetBatchOperationHandler get handler
+func GetBatchOperationHandler() *BatchOperationHandler {
+	return batchOperationHandler
 }

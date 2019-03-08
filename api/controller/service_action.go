@@ -27,6 +27,7 @@ import (
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/worker/discover/model"
+	validator "github.com/thedevsaddam/govalidator"
 
 	"time"
 
@@ -43,7 +44,6 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
-	"github.com/thedevsaddam/govalidator"
 )
 
 //TIMELAYOUT timelayout
