@@ -21,15 +21,13 @@ package healthz
 import (
 	"context"
 	"errors"
-	"fmt"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/prober"
 	"github.com/goodrain/rainbond/prober/types/v1"
-	"github.com/goodrain/rainbond/worker/appm/thirdparty"
-	workerutil "github.com/goodrain/rainbond/worker/util"
 )
 
 var defaultManager Manager
@@ -75,46 +73,46 @@ func CloseManager() error {
 }
 
 func (m *manager) Init() error {
-	svcs, err := m.dbm.TenantServiceDao().ListThirdPartyServices()
-	if err != nil {
-		return err
-	}
-	var services []*v1.Service
-	for _, svc := range svcs {
-		if !m.dbm.TenantServicesPortDao().HasOpenPort(svc.ServiceID) {
-			continue
-		}
-		endpoints, err := thirdparty.ListEndpoints(svc.ServiceID, m.dbm)
-		if err != nil {
-			logrus.Warningf("ServiceID: %s; Ignore; Error listing endpoints: %v", svc.ServiceID, err)
-			continue
-		}
-		if endpoints == nil || len(endpoints) == 0 {
-			logrus.Warningf("ServiceID: %s; Ignore; Empty endpoints", svc.ServiceID)
-			continue
-		}
-		conv, err := thirdparty.Conv(endpoints)
-		if err != nil {
-			if err != nil {
-				logrus.Warningf("ServiceID: %s; Ignore; Error struct conversion: %v", svc.ServiceID, err)
-				continue
-			}
-		}
-		probes, err := m.dbm.ServiceProbeDao().GetServiceProbes(svc.ServiceID)
-		service := createService(probes, err)
-		for _, ep := range conv {
-			if ep.IPs == nil || len(ep.IPs) == 0 {
-				continue
-			}
-			for _, ip := range ep.IPs {
-				service.Name = workerutil.GenServiceName(svc.ServiceID, ip)
-				service.ServiceHealth.Name = workerutil.GenServiceName(svc.ServiceID, ip) // TODO: unused ServiceHealth.Name, consider to delete it.
-				service.ServiceHealth.Address = fmt.Sprintf("%s/%d", ip, ep.Port)
-				services = append(services, service)
-			}
-		}
-	}
-	m.pm.SetServices(&services)
+	// svcs, err := m.dbm.TenantServiceDao().ListThirdPartyServices()
+	// if err != nil {
+	// 	return err
+	// }
+	// var services []*v1.Service
+	// for _, svc := range svcs {
+	// 	if !m.dbm.TenantServicesPortDao().HasOpenPort(svc.ServiceID) {
+	// 		continue
+	// 	}
+	// 	endpoints, err := thirdparty.ListEndpoints(svc.ServiceID, m.dbm)
+	// 	if err != nil {
+	// 		logrus.Warningf("ServiceID: %s; Ignore; Error listing endpoints: %v", svc.ServiceID, err)
+	// 		continue
+	// 	}
+	// 	if endpoints == nil || len(endpoints) == 0 {
+	// 		logrus.Warningf("ServiceID: %s; Ignore; Empty endpoints", svc.ServiceID)
+	// 		continue
+	// 	}
+	// 	conv, err := thirdparty.Conv(endpoints)
+	// 	if err != nil {
+	// 		if err != nil {
+	// 			logrus.Warningf("ServiceID: %s; Ignore; Error struct conversion: %v", svc.ServiceID, err)
+	// 			continue
+	// 		}
+	// 	}
+	// 	probes, err := m.dbm.ServiceProbeDao().GetServiceProbes(svc.ServiceID)
+	// 	service := createService(probes, err)
+	// 	for _, ep := range conv {
+	// 		if ep.IPs == nil || len(ep.IPs) == 0 {
+	// 			continue
+	// 		}
+	// 		for _, ip := range ep.IPs {
+	// 			service.Name = workerutil.GenServiceName(svc.ServiceID, ip)
+	// 			service.ServiceHealth.Name = workerutil.GenServiceName(svc.ServiceID, ip) // TODO: unused ServiceHealth.Name, consider to delete it.
+	// 			service.ServiceHealth.Address = fmt.Sprintf("%s/%d", ip, ep.Port)
+	// 			services = append(services, service)
+	// 		}
+	// 	}
+	// }
+	// m.pm.SetServices(&services)
 	return nil
 }
 

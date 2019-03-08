@@ -16,27 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package v1
+package worker
 
-// Endpoint holds information to create corv1.Endpoints(kubernetes object).
-type Endpoint struct {
-	Port        int      `json:"port"`
-	IPs         []string `json:"ips"`
-	NotReadyIPs []string `json:"not_ready_ips"`
-}
+// MaintainStatus
+type MaintainStatus struct {
 
-// EndpointsInfo holds information to create k8s endpoints.
-type EndpointsInfo struct {
-	Port int      `json:"port"`
-	IPs  []string `json:"ips"`
-}
-
-// RbdEndpoint hold information to create k8s endpoints.
-type RbdEndpoint struct {
-	UUID     string `json:"uuid"`
-	Sid      string `json:"sid"`
-	IP       string `json:"ip"`
-	Port     int    `json:"port"`
-	Status   string `json:"status"`
-	IsOnline bool   `json:"is_online"`
 }

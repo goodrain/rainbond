@@ -21,14 +21,11 @@ package client
 import (
 	"context"
 
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
-
-	"github.com/coreos/etcd/clientv3"
-
-	etcdnaming "github.com/coreos/etcd/clientv3/naming"
-
 	"github.com/Sirupsen/logrus"
-
+	"github.com/coreos/etcd/clientv3"
+	etcdnaming "github.com/coreos/etcd/clientv3/naming"
+	"github.com/goodrain/rainbond/db/model"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"google.golang.org/grpc"
 )
@@ -153,15 +150,51 @@ func (a *AppRuntimeSyncClient) GetTenantResource(tenantID string) (*pb.TenantRes
 	return a.AppRuntimeSyncClient.GetTenantResource(ctx, &pb.TenantRequest{TenantId: tenantID})
 }
 
-//GetAllStatus get all status
-func (a *AppRuntimeSyncClient) GetThirdPartyServiceStatus(sid string) map[string]bool {
+// ListThirdPartyEndpoints -
+func (a *AppRuntimeSyncClient) ListThirdPartyEndpoints(sid string) (*pb.ThirdPartyEndpoints, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	resp, err := a.AppRuntimeSyncClient.GetThirdPartyEndpointsStatus(ctx, &pb.ServiceRequest{
-		ServiceId:sid,
+	resp, err := a.AppRuntimeSyncClient.ListThirdPartyEndpoints(ctx, &pb.ServiceRequest{
+		ServiceId: sid,
 	})
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	return resp.Status
+	return resp, nil
+}
+
+// AddThirdPartyEndpoint -
+func (a *AppRuntimeSyncClient) AddThirdPartyEndpoint(req *model.Endpoint) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, _ = a.AppRuntimeSyncClient.AddThirdPartyEndpoint(ctx, &pb.AddThirdPartyEndpointsReq{
+		Uuid:     req.UUID,
+		Sid:      req.ServiceID,
+		Ip:       req.IP,
+		Port:     int32(req.Port),
+		IsOnline: *req.IsOnline,
+	})
+}
+
+// UpdThirdPartyEndpoint -
+func (a *AppRuntimeSyncClient) UpdThirdPartyEndpoint(req *model.Endpoint) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, _ = a.AppRuntimeSyncClient.UpdThirdPartyEndpoint(ctx, &pb.UpdThirdPartyEndpointsReq{
+		Uuid:     req.UUID,
+		Sid:      req.ServiceID,
+		Ip:       req.IP,
+		Port:     int32(req.Port),
+		IsOnline: *req.IsOnline,
+	})
+}
+
+// DelThirdPartyEndpoint -
+func (a *AppRuntimeSyncClient) DelThirdPartyEndpoint(uuid, sid string) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, _ = a.AppRuntimeSyncClient.DelThirdPartyEndpoint(ctx, &pb.DelThirdPartyEndpointsReq{
+		Uuid: uuid,
+		Sid:  sid,
+	})
 }

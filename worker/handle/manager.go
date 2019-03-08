@@ -21,11 +21,11 @@ package handle
 import (
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"reflect"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -33,6 +33,7 @@ import (
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"github.com/goodrain/rainbond/worker/appm/store"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/discover/model"
 )
 
@@ -43,13 +44,16 @@ type Manager struct {
 	store             store.Storer
 	dbmanager         db.Manager
 	controllerManager *controller.Manager
+
+	startCh *channels.RingChannel
 }
 
 //NewManager now handle
 func NewManager(ctx context.Context,
 	config option.Config,
 	store store.Storer,
-	controllerManager *controller.Manager) *Manager {
+	controllerManager *controller.Manager,
+	startCh *channels.RingChannel) *Manager {
 
 	return &Manager{
 		ctx:               ctx,
@@ -57,6 +61,7 @@ func NewManager(ctx context.Context,
 		dbmanager:         db.GetManager(),
 		store:             store,
 		controllerManager: controllerManager,
+		startCh:           startCh,
 	}
 }
 
@@ -338,7 +343,8 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
 	oldAppService := m.store.GetAppService(body.ServiceID)
-	if svc.Kind != dbmodel.ServiceKindThirdParty.String() && !strings.HasPrefix(body.Action, "switch-port") {
+	logrus.Debugf("body action: %s", body.Action)
+	if svc.Kind != dbmodel.ServiceKindThirdParty.String() && !strings.HasPrefix(body.Action, "port") {
 		if oldAppService == nil || oldAppService.IsClosed() {
 			logrus.Debugf("service is closed, no need handle")
 			logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
@@ -367,6 +373,24 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		logrus.Errorf("Application apply rule controller failure:%s", err.Error())
 		return fmt.Errorf("Application apply rule controller failure:%s", err.Error())
 	}
+
+	if svc.Kind == dbmodel.ServiceKindThirdParty.String() && strings.HasPrefix(body.Action, "port") {
+		if body.Action == "port-open" {
+			m.startCh.In() <- &v1.Event{
+				Type: v1.StartEvent,
+				Sid:  body.ServiceID,
+			}
+		}
+		if body.Action == "port-close" {
+			if !db.GetManager().TenantServicesPortDao().HasOpenPort(body.ServiceID) {
+				m.startCh.In() <- &v1.Event{
+					Type: v1.StopEvent,
+					Sid:  body.ServiceID,
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

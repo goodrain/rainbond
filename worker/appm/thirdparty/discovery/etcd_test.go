@@ -16,27 +16,44 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package v1
+package discovery
 
-// Endpoint holds information to create corv1.Endpoints(kubernetes object).
-type Endpoint struct {
-	Port        int      `json:"port"`
-	IPs         []string `json:"ips"`
-	NotReadyIPs []string `json:"not_ready_ips"`
-}
+import (
+	"fmt"
+	"github.com/eapache/channels"
+	"github.com/goodrain/rainbond/db/model"
+	"testing"
+	"time"
+)
 
-// EndpointsInfo holds information to create k8s endpoints.
-type EndpointsInfo struct {
-	Port int      `json:"port"`
-	IPs  []string `json:"ips"`
-}
+func TestEtcd_Watch(t *testing.T) {
+	cfg := &model.ThirdPartySvcDiscoveryCfg{
+		Type:    model.DiscorveryTypeEtcd.String(),
+		Servers: "http://127.0.0.1:2379",
+		Key:     "/foobar/eps",
+	}
+	updateCh := channels.NewRingChannel(1024)
+	stopCh := make(chan struct{})
+	defer close(stopCh)
 
-// RbdEndpoint hold information to create k8s endpoints.
-type RbdEndpoint struct {
-	UUID     string `json:"uuid"`
-	Sid      string `json:"sid"`
-	IP       string `json:"ip"`
-	Port     int    `json:"port"`
-	Status   string `json:"status"`
-	IsOnline bool   `json:"is_online"`
+	go func() {
+		for {
+			select {
+			case event := <-updateCh.Out():
+				fmt.Printf("%+v", event)
+			case <-stopCh:
+				break
+			}
+		}
+	}()
+
+	etcd := NewEtcd(cfg, updateCh, stopCh)
+	if err := etcd.Connect(); err != nil {
+		t.Fatalf("error connecting etcd: %v", err)
+	}
+	defer etcd.Close()
+
+	etcd.Watch()
+
+	time.Sleep(10 * time.Second)
 }

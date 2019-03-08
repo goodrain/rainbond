@@ -116,7 +116,7 @@ func (m *ManagerService) Online() error {
 	return nil
 }
 
-// SetEndpoints regists endpoints in etcd
+// AddEndpoints regists endpoints in etcd
 func (m *ManagerService) SetEndpoints(hostIP string) {
 	if hostIP == "" {
 		logrus.Warningf("ignore wrong hostIP: %s", hostIP)

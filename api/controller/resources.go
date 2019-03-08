@@ -1392,14 +1392,10 @@ func (t *TenantStruct) deletePortController(w http.ResponseWriter, r *http.Reque
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("Exec PortOuterController...")
 	var data api_model.ServicePortInnerOrOuter
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &(data.Body), nil) {
 		return
 	}
-	req, _ := json.Marshal(data)
-	logrus.Debugf("request uri is: %v", r.RequestURI)
-	logrus.Debugf("request body is: %v", string(req))
 
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
@@ -1437,7 +1433,7 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 		rc["port"] = fmt.Sprintf("%v", vsPort.Port)
 	}
 
-	if err := handler.GetGatewayHandler().SendTask(serviceID, "switch-port"); err != nil {
+	if err := handler.GetGatewayHandler().SendTask(serviceID, "port-" + data.Body.Operation); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 
@@ -1491,7 +1487,7 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	if err := handler.GetGatewayHandler().SendTask(serviceID, "switch-port"); err != nil {
+	if err := handler.GetGatewayHandler().SendTask(serviceID, "port-" + data.Body.Operation); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 

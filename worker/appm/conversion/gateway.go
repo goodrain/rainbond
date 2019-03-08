@@ -19,10 +19,7 @@
 package conversion
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/worker/appm/thirdparty"
-	"github.com/goodrain/rainbond/worker/healthz"
 	"os"
 	"strings"
 
@@ -80,9 +77,6 @@ func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 	for _, sec := range k8s.Secrets {
 		as.SetSecret(sec)
 	}
-	for _, ep := range k8s.Endpoints {
-		as.SetEndpoints(ep)
-	}
 
 	return nil
 }
@@ -96,7 +90,6 @@ type AppServiceBuild struct {
 	replicationType    string
 	dbmanager          db.Manager
 	logger             event.Logger
-	healthzManager     healthz.Manager
 }
 
 //AppServiceBuilder returns a AppServiceBuild
@@ -124,7 +117,6 @@ func AppServiceBuilder(serviceID, replicationType string, dbmanager db.Manager, 
 		tenant:          tenant,
 		replicationType: replicationType,
 		appService:      as,
-		healthzManager:  healthz.GetManager(),
 	}, nil
 }
 
@@ -155,29 +147,11 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 	var services []*corev1.Service
 	var ingresses []*extensions.Ingress
 	var secrets []*corev1.Secret
-	var endpoints []*corev1.Endpoints
 	if ports != nil && len(ports) > 0 {
 		for i := range ports {
 			port := ports[i]
-			var v1eps []*v1.Endpoint
-			if model.ServiceKind(a.service.Kind) == model.ServiceKindThirdParty && (port.IsOuterService || port.IsInnerService) {
-				eps, err := thirdparty.ListEndpoints(a.serviceID, a.dbmanager)
-				if err != nil {
-					return nil, err
-				}
-				v1eps, err = thirdparty.Conv(eps)
-				if err != nil {
-					return nil, err
-				}
-				b, _ := json.Marshal(v1eps)
-				logrus.Debugf("[]*v1.Endpoint: %s", string(b))
-			}
 			if port.IsInnerService {
 				services = append(services, a.createInnerService(port))
-				if a.service.Kind == model.ServiceKindThirdParty.String() {
-					// ignore services other than third_party
-					endpoints = append(endpoints, a.createEndpoints(port, v1eps, true)...)
-				}
 			}
 			if port.IsOuterService {
 				service := a.createOuterService(port)
@@ -190,10 +164,6 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 				ingresses = append(ingresses, ings...)
 				if secret != nil {
 					secrets = append(secrets, secret)
-				}
-				if a.service.Kind == model.ServiceKindThirdParty.String() {
-					// ignore services other than third_party
-					endpoints = append(endpoints, a.createEndpoints(port, v1eps, false)...)
 				}
 			}
 		}
@@ -210,7 +180,6 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 	return &v1.K8sResources{
 		Services:  services,
 		Secrets:   secrets,
-		Endpoints: endpoints,
 		Ingresses: ingresses,
 	}, nil
 }

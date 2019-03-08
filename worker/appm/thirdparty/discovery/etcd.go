@@ -22,32 +22,44 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	c "github.com/coreos/etcd/clientv3"
-	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/util"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"strings"
 	"time"
+
+	"github.com/Sirupsen/logrus"
+	c "github.com/coreos/etcd/clientv3"
+	"github.com/coreos/etcd/mvcc/mvccpb"
+	"github.com/eapache/channels"
+	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 type etcd struct {
-	cli *c.Client
+	cli     *c.Client
+	version int64
 
+	sid       string
 	endpoints []string
 	key       string
 	username  string
 	password  string
+
+	updateCh *channels.RingChannel
+	stopCh   chan struct{}
 }
 
 // NewEtcd creates a new Discorvery which implemeted by etcd.
-func NewEtcd(cfg *model.ThirdPartySvcDiscoveryCfg) Discoverier {
+func NewEtcd(cfg *model.ThirdPartySvcDiscoveryCfg,
+	updateCh *channels.RingChannel,
+	stopCh chan struct{}) Discoverier {
 	// TODO: validate endpoints
 	return &etcd{
+		sid:       cfg.ServiceID,
 		endpoints: strings.Split(cfg.Servers, ","),
 		key:       cfg.Key,
 		username:  cfg.Username,
 		password:  cfg.Password,
+		updateCh:  updateCh,
+		stopCh:    stopCh,
 	}
 }
 
@@ -67,7 +79,7 @@ func (e *etcd) Connect() error {
 }
 
 // Fetch fetches data from Etcd.
-func (e *etcd) Fetch() ([]*model.Endpoint, error) {
+func (e *etcd) Fetch() ([]*v1.RbdEndpoint, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -88,93 +100,24 @@ func (e *etcd) Fetch() ([]*model.Endpoint, error) {
 		Port     int    `json:"port"`
 		IsOnline bool   `json:"is_online"`
 	}
-	var res []*model.Endpoint
+	var res []*v1.RbdEndpoint
 	for _, kv := range resp.Kvs {
 		var ep ep
 		if err := json.Unmarshal(kv.Value, &ep); err != nil {
 			return nil, fmt.Errorf("error getting data from etcd: %v", err)
 		}
-		res = append(res, &model.Endpoint{
+		res = append(res, &v1.RbdEndpoint{
 			UUID:     strings.Replace(string(kv.Key), e.key+"/", "", -1),
 			IP:       ep.IP,
 			Port:     ep.Port,
-			IsOnline: &ep.IsOnline,
+			Status:   "unknown",
+			IsOnline: ep.IsOnline,
 		})
 	}
+	if resp.Header != nil {
+		e.version = resp.Header.GetRevision()
+	}
 	return res, nil
-}
-
-func (e *etcd) Add(dbm db.Manager, req v1.AddEndpointReq) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if e.cli == nil {
-		return fmt.Errorf("can't fetching data from etcd without etcdv3 client")
-	}
-	type foo struct {
-		IP       string `json:"ip"`
-		Port     int    `json:"port"`
-		IsOnline bool   `json:"is_online"`
-	}
-	f := foo{
-		IP:       req.IP,
-		Port:     req.Port,
-		IsOnline: req.IsOnline,
-	}
-	b, _ := json.Marshal(f)
-	_, err := e.cli.Put(ctx, e.key+"/"+util.NewUUID(), string(b))
-	if err != nil {
-		return fmt.Errorf("error adding endpoints to etcd: %v", err)
-	}
-	return nil
-}
-
-func (e *etcd) Update(dbm db.Manager, req v1.UpdEndpointReq) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if e.cli == nil {
-		return fmt.Errorf("can't fetching data from etcd without etcdv3 client")
-	}
-	resp, err := e.cli.Get(ctx, e.key+"/"+req.EpID)
-	if err != nil {
-		return fmt.Errorf("IP UUID: %s; error getting data from etcd: %v", req.EpID, err)
-	}
-	if resp == nil || resp.Kvs == nil || len(resp.Kvs) == 0 {
-		return fmt.Errorf("IP UUID: %s; empty data from etcd", req.EpID)
-	}
-	type ep struct {
-		IP       string `json:"endpoint"`
-		IsOnline bool   `json:"is_online"`
-	}
-	var foo ep
-	if err := json.Unmarshal(resp.Kvs[0].Value, &foo); err != nil {
-		return fmt.Errorf("error getting data from etcd: %v", err)
-	}
-	foo.IsOnline = req.IsOnline
-	if req.IP != "" {
-		foo.IP = req.IP
-	}
-	b, _ := json.Marshal(foo)
-	_, err = e.cli.Put(ctx, e.key+"/"+req.EpID, string(b))
-	if err != nil {
-		return fmt.Errorf("error fetching endpoints form etcd: %v", err)
-	}
-	return nil
-}
-
-// Fetch fetches data from Etcd.
-func (e *etcd) Delete(id string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if e.cli == nil {
-		return fmt.Errorf("can't deleting data from etcd without etcdv3 client")
-	}
-	_, err := e.cli.Delete(ctx, e.key+"/"+id)
-	if err != nil {
-		return fmt.Errorf("error deleting endpoints form etcd: %v", err)
-	}
-	return nil
 }
 
 // Close shuts down the client's etcd connections.
@@ -183,4 +126,68 @@ func (e *etcd) Close() error {
 		return nil
 	}
 	return e.cli.Close()
+}
+
+func (e *etcd) Watch() { // todo: separate stop
+	logrus.Infof("Start watching third-party endpoints. Watch key: %s", e.key)
+	ctx, cancel := context.WithCancel(context.Background())
+	watch := e.cli.Watch(ctx, e.key, c.WithPrefix(), c.WithRev(e.version))
+	for {
+		select {
+		case <-e.stopCh:
+			logrus.Info("oop, oop")
+			cancel()
+			return
+		case watResp := <-watch:
+			logrus.Info("hihi.")
+			if err := watResp.Err(); err != nil {
+				logrus.Errorf("error watching event from etcd: %v", err)
+				continue
+			}
+			logrus.Infof("Received watch response: %+v", watResp)
+			for _, event := range watResp.Events {
+				switch event.Type {
+				case mvccpb.DELETE:
+					obj := &v1.RbdEndpoint{
+						UUID: strings.Replace(string(event.Kv.Key), e.key+"/", "", -1),
+						Sid:  e.sid,
+					}
+					e.updateCh.In() <- Event{
+						Type: DeleteEvent,
+						Obj:  obj,
+					}
+				case mvccpb.PUT:
+					type ep struct {
+						IP       string `json:"ip"`
+						Port     int    `json:"port"`
+						IsOnline bool   `json:"is_online"`
+					}
+					var foo ep
+					logrus.Infof("received data: %s", string(event.Kv.Value))
+					if err := json.Unmarshal(event.Kv.Value, &foo); err != nil {
+						logrus.Warningf("error getting endpoints from etcd: %v", err)
+						continue
+					}
+					obj := &v1.RbdEndpoint{
+						UUID:     strings.Replace(string(event.Kv.Key), e.key+"/", "", -1),
+						Sid:      e.sid,
+						IP:       foo.IP,
+						Port:     foo.Port,
+						IsOnline: foo.IsOnline,
+					}
+					if event.IsCreate() {
+						e.updateCh.In() <- Event{
+							Type: CreateEvent,
+							Obj:  obj,
+						}
+					} else {
+						e.updateCh.In() <- Event{
+							Type: UpdateEvent,
+							Obj:  obj,
+						}
+					}
+				}
+			}
+		}
+	}
 }

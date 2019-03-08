@@ -26,10 +26,13 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/store"
+	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -44,18 +47,23 @@ type RuntimeServer struct {
 	server    *grpc.Server
 	hostIP    string
 	keepalive *discover.KeepAlive
+
+	updateCh *channels.RingChannel
 }
 
 //CreaterRuntimeServer create a runtime grpc server
-func CreaterRuntimeServer(conf option.Config, store store.Storer) *RuntimeServer {
+func CreaterRuntimeServer(conf option.Config,
+	store store.Storer,
+	updateCh *channels.RingChannel) *RuntimeServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	rs := &RuntimeServer{
-		conf:   conf,
-		ctx:    ctx,
-		cancel: cancel,
-		server: grpc.NewServer(),
-		hostIP: conf.HostIP,
-		store:  store,
+		conf:     conf,
+		ctx:      ctx,
+		cancel:   cancel,
+		server:   grpc.NewServer(),
+		hostIP:   conf.HostIP,
+		store:    store,
+		updateCh: updateCh,
 	}
 	pb.RegisterAppRuntimeSyncServer(rs.server, rs)
 	// Register reflection service on gRPC server.
@@ -203,27 +211,6 @@ func (r *RuntimeServer) GetDeployInfo(ctx context.Context, re *pb.ServiceRequest
 	return &deployinfo, nil
 }
 
-//GetDeployInfo get deploy info
-func (r *RuntimeServer) GetThirdPartyEndpointsStatus(ctx context.Context, re *pb.ServiceRequest) (*pb.ThirdPartyEndpointsStatus, error) {
-	appService := r.store.GetAppService(re.ServiceId)
-	res := pb.ThirdPartyEndpointsStatus{
-		Status: map[string]bool{},
-	}
-	if appService != nil {
-		for _, ep := range appService.GetEndpoints() {
-			for _, subset := range ep.Subsets {
-				for _, address := range subset.Addresses {
-					res.Status[address.IP] = true
-				}
-				for _, address := range subset.NotReadyAddresses {
-					res.Status[address.IP] = false
-				}
-			}
-		}
-	}
-	return &res, nil
-}
-
 //registServer
 //regist sync server to etcd
 func (r *RuntimeServer) registServer() error {
@@ -244,4 +231,84 @@ func (r *RuntimeServer) registServer() error {
 		r.keepalive = keepalive
 	}
 	return r.keepalive.Start()
+}
+
+// ListThirdPartyEndpoints returns a collection of third-part endpoints.
+func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.ServiceRequest) (*pb.ThirdPartyEndpoints, error) {
+	as := r.store.GetAppService(re.ServiceId)
+	if as == nil {
+		return nil, nil
+	}
+	var pbeps []*pb.ThirdPartyEndpoint
+	for _, ep := range as.GetRbdEndpionts() {
+		pbep := &pb.ThirdPartyEndpoint{
+			Uuid:     ep.UUID,
+			Sid:      ep.Sid,
+			Ip:       ep.IP,
+			Port:     int32(ep.Port),
+			Status:   ep.Status,
+			IsOnline: ep.IsOnline,
+		}
+		pbeps = append(pbeps, pbep)
+	}
+	return &pb.ThirdPartyEndpoints{
+		Obj: pbeps,
+	}, nil
+}
+
+// AddThirdPartyEndpoint creates a create event.
+func (r *RuntimeServer) AddThirdPartyEndpoint(ctx context.Context, re *pb.AddThirdPartyEndpointsReq) (*pb.Dummy, error) {
+	as := r.store.GetAppService(re.Sid)
+	if as == nil {
+		return nil, nil
+	}
+	rbdep := &v1.RbdEndpoint{
+		UUID:     re.Uuid,
+		Sid:      re.Sid,
+		IP:       re.Ip,
+		Port:     int(re.Port),
+		Status:   "healthy",
+		IsOnline: re.IsOnline,
+	}
+	r.updateCh.In() <- discovery.Event{
+		Type: discovery.CreateEvent,
+		Obj:  rbdep,
+	}
+	return nil, nil
+}
+
+// UpdThirdPartyEndpoint creates a update event.
+func (r *RuntimeServer) UpdThirdPartyEndpoint(ctx context.Context, re *pb.UpdThirdPartyEndpointsReq) (*pb.Dummy, error) {
+	as := r.store.GetAppService(re.Sid)
+	if as == nil {
+		return nil, nil
+	}
+	rbdep := &v1.RbdEndpoint{
+		UUID:     re.Uuid,
+		Sid:      re.Sid,
+		IP:       re.Ip,
+		Port:     int(re.Port),
+		IsOnline: re.IsOnline,
+	}
+	r.updateCh.In() <- discovery.Event{
+		Type: discovery.UpdateEvent,
+		Obj:  rbdep,
+	}
+	return nil, nil
+}
+
+// DelThirdPartyEndpoint creates a delete event.
+func (r *RuntimeServer) DelThirdPartyEndpoint(ctx context.Context, re *pb.DelThirdPartyEndpointsReq) (*pb.Dummy, error) {
+	as := r.store.GetAppService(re.Sid)
+	if as == nil {
+		return nil, nil
+	}
+	r.updateCh.In() <- discovery.Event{
+		Type: discovery.DeleteEvent,
+		Obj: &v1.RbdEndpoint{
+			UUID: re.Uuid,
+			Sid:  re.Sid,
+		},
+	}
+	return nil, nil
 }

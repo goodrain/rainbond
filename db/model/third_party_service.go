@@ -34,6 +34,16 @@ func (Endpoint) TableName() string {
 	return "tenant_service_3rd_party_endpoints"
 }
 
+// DiscorveryType type of service discovery center.
+type DiscorveryType string
+
+// DiscorveryTypeEtcd etcd
+var DiscorveryTypeEtcd DiscorveryType = "etcd"
+
+func (d DiscorveryType) String() string {
+	return string(d)
+}
+
 // ThirdPartySvcDiscoveryCfg s a persistent object for table
 // 3rd_party_svc_discovery_cfg. 3rd_party_svc_discovery_cfg contains
 // service discovery center configuration for third party service.

@@ -19,10 +19,11 @@
 package controller
 
 import (
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/worker/appm"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"sync"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/appm/f"
 )
 
 type applyRuleController struct {
@@ -39,7 +40,7 @@ func (a *applyRuleController) Begin() {
 		go func(service v1.AppService) {
 			wait.Add(1)
 			defer wait.Done()
-			if err := appm.ApplyOne(a.manager.client, &service); err != nil {
+			if err := f.ApplyOne(a.manager.client, &service); err != nil {
 				logrus.Errorf("apply rules for service %s failure: %s", service.ServiceAlias, err.Error())
 			}
 		}(service)

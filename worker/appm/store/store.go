@@ -21,17 +21,16 @@ package store
 import (
 	"context"
 	"fmt"
-	"k8s.io/client-go/kubernetes"
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/labels"
-
 	"github.com/Sirupsen/logrus"
+	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
+	"github.com/goodrain/rainbond/worker/appm/f"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/jinzhu/gorm"
 	appsv1 "k8s.io/api/apps/v1"
@@ -39,7 +38,9 @@ import (
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
 )
 
@@ -71,12 +72,15 @@ type appRuntimeStore struct {
 	appServices sync.Map
 	appCount    int32
 	dbmanager   db.Manager
-	stopch      chan struct{}
 	conf        option.Config
+
+	startCh *channels.RingChannel
+	stopch  chan struct{}
 }
 
 //NewStore new app runtime store
-func NewStore(clientset *kubernetes.Clientset, dbmanager db.Manager, conf option.Config) Storer {
+func NewStore(clientset *kubernetes.Clientset, dbmanager db.Manager, conf option.Config,
+	startCh *channels.RingChannel) Storer {
 	ctx, cancel := context.WithCancel(context.Background())
 	store := &appRuntimeStore{
 		clientset:   clientset,
@@ -87,6 +91,7 @@ func NewStore(clientset *kubernetes.Clientset, dbmanager db.Manager, conf option
 		appServices: sync.Map{},
 		conf:        conf,
 		dbmanager:   dbmanager,
+		startCh:     startCh,
 	}
 	// create informers factory, enable and assign required informers
 	infFactory := informers.NewFilteredSharedInformerFactory(conf.KubeClient, time.Second, corev1.NamespaceAll,
@@ -154,13 +159,49 @@ func (a *appRuntimeStore) Start() error {
 	if err := a.init(); err != nil {
 		return err
 	}
-	if err := a.initThirdPartyService(); err != nil {
-		logrus.Warningf("error initiating third-party services: %v", err)
-	}
+
 	stopch := make(chan struct{})
 	a.informers.Start(stopch)
 	a.stopch = stopch
 	go a.clean()
+
+	for !a.Ready() {}
+	a.initThirdPartyService()
+
+	return nil
+}
+
+func (a *appRuntimeStore) initThirdPartyService() error {
+	logrus.Debugf("begin initializing third-party services.")
+	// TODO: list third party services that have open ports directly.
+	svcs, err := a.dbmanager.TenantServiceDao().ListThirdPartyServices()
+	if err != nil {
+		logrus.Errorf("error listing third-party services: %v", err)
+		return err
+	}
+	for _, svc := range svcs {
+		// ignore service without open port.
+		if !a.dbmanager.TenantServicesPortDao().HasOpenPort(svc.ServiceID) {
+			continue
+		}
+
+		appService, err := conversion.InitCacheAppService(a.dbmanager, svc.ServiceID, "Rainbond")
+		if err != nil {
+			logrus.Errorf("error initializing cache app service: %v", err)
+			return err
+		}
+		a.RegistAppService(appService)
+		err = f.ApplyOne(a.clientset, appService)
+		if err != nil {
+			logrus.Errorf("error applying rule: %v", err)
+			return err
+		}
+
+		a.startCh.In() <- &v1.Event{
+			Type: v1.StartEvent,
+			Sid:  appService.ServiceID,
+		}
+	}
 	return nil
 }
 
@@ -318,7 +359,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 				a.conf.KubeClient.CoreV1().Endpoints(ep.Namespace).Delete(ep.Name, &metav1.DeleteOptions{})
 			}
 			if appservice != nil {
-				appservice.SetEndpoints(ep)
+				appservice.AddEndpoints(ep)
 				return
 			}
 		}

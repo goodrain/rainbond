@@ -19,14 +19,12 @@
 package handler
 
 import (
-	"context"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/worker/appm/thirdparty"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	util "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/client"
-	"github.com/goodrain/rainbond/worker/server/pb"
 )
 
 // ThirdPartyServiceHanlder handles business logic for all third-party services
@@ -45,66 +43,71 @@ func Create3rdPartySvcHandler(dbmanager db.Manager, statusCli *client.AppRuntime
 
 // AddEndpoints adds endpoints for third-party service.
 func (t *ThirdPartyServiceHanlder) AddEndpoints(sid string, d *model.AddEndpiontsReq) error {
-	return thirdparty.AddEndpoints(sid, v1.AddEndpointReq{
-		IP:       d.IP,
-		IsOnline: d.IsOnline,
-	}, t.dbmanager)
+	ep := &dbmodel.Endpoint{
+		UUID:      util.NewUUID(),
+		ServiceID: sid,
+		IP:        d.IP,
+		Port:      0,
+		IsOnline:  &d.IsOnline,
+	}
+	if err := t.dbmanager.EndpointsDao().AddModel(ep); err != nil {
+		return err
+	}
+
+	t.statusCli.AddThirdPartyEndpoint(ep)
+	return nil
 }
 
 // UpdEndpoints updates endpoints for third-party service.
-func (t *ThirdPartyServiceHanlder) UpdEndpoints(d *model.UpdEndpiontsReq, sid string) error {
-	req := v1.UpdEndpointReq{
-		EpID:     d.EpID,
-		IP:       d.IP,
-		IsOnline: d.IsOnline,
+func (t *ThirdPartyServiceHanlder) UpdEndpoints(d *model.UpdEndpiontsReq) error {
+	ep, err := t.dbmanager.EndpointsDao().GetByUUID(d.EpID)
+	if err != nil {
+		logrus.Warningf("EpID: %s; error getting endpoints: %v", d.EpID, err)
+		return err
 	}
-	return thirdparty.UpdEndpoints(sid, req, t.dbmanager)
+	if d.IP != "" {
+		ep.IP = d.IP
+	}
+	ep.IsOnline = &d.IsOnline
+	if err := t.dbmanager.EndpointsDao().UpdateModel(ep); err != nil {
+		return err
+	}
+
+	t.statusCli.UpdThirdPartyEndpoint(ep)
+	
+	return nil
 }
 
 // DelEndpoints deletes endpoints for third-party service.
-func (t *ThirdPartyServiceHanlder) DelEndpoints(sid string, data *model.DelEndpiontsReq) error {
-	return thirdparty.DelEndpoint(t.dbmanager, sid, data.EpID)
+func (t *ThirdPartyServiceHanlder) DelEndpoints(epid, sid string) error {
+	if err := t.dbmanager.EndpointsDao().DelByUUID(epid); err != nil {
+		return err
+	}
+
+	t.statusCli.DelThirdPartyEndpoint(epid, sid)
+
+	return nil
 }
 
 // ListEndpoints lists third-party service endpoints.
 func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointResp, error) {
-	status, err := t.statusCli.GetThirdPartyEndpointsStatus(context.Background(), &pb.ServiceRequest{
-		ServiceId: sid,
-	})
+	thirdPartyEndpoints, err := t.statusCli.ListThirdPartyEndpoints(sid)
 	if err != nil {
-		logrus.Warningf("error getting third-party endpoints status: %v", err)
-	}
-	if status != nil {
-		for key, val := range status.Status {
-			logrus.Debugf("third-party service status, Key: %s, Value: %v", key, val)
-		}
-	}
-	eps, err := thirdparty.ListEndpoints(sid, t.dbmanager)
-	if err != nil {
-		logrus.Errorf("error listing endpoints: %v", err)
+		logrus.Warningf("ServiceID: %s; grpc; error listing third-party endpoints: %v", sid, err)
 		return nil, err
 	}
-	var res []*model.EndpointResp
-	for _, ep := range eps {
-		r := &model.EndpointResp{
-			EpID:     ep.UUID,
-			IP:       ep.IP,
-			IsOnline: *ep.IsOnline,
-		}
-		r.Status = func(status *pb.ThirdPartyEndpointsStatus, ip string) string {
-			if status == nil {
-				return "unknown"
-			}
-			item, ok := status.Status[ip]
-			if !ok {
-				return "unknown"
-			}
-			if item {
-				return "healthy"
-			}
-			return "unhealthy"
-		}(status, ep.IP)
-		res = append(res, r)
+	if thirdPartyEndpoints == nil || thirdPartyEndpoints.Obj == nil {
+		return nil, nil
 	}
+	var res []*model.EndpointResp
+	for _, item := range thirdPartyEndpoints.Obj {
+		res = append(res, &model.EndpointResp{
+			EpID:     item.Uuid,
+			IP:       item.Ip,
+			Status:   item.Status,
+			IsOnline: item.IsOnline,
+		})
+	}
+
 	return res, nil
 }

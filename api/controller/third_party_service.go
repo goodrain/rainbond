@@ -62,8 +62,7 @@ func (t *ThirdPartyServiceController) updEndpoints(w http.ResponseWriter, r *htt
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &data, nil) {
 		return
 	}
-	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.Get3rdPartySvcHandler().UpdEndpoints(&data, sid); err != nil {
+	if err := handler.Get3rdPartySvcHandler().UpdEndpoints(&data); err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
@@ -76,7 +75,7 @@ func (t *ThirdPartyServiceController) delEndpoints(w http.ResponseWriter, r *htt
 		return
 	}
 	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.Get3rdPartySvcHandler().DelEndpoints(sid, &data); err != nil {
+	if err := handler.Get3rdPartySvcHandler().DelEndpoints(data.EpID, sid); err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}

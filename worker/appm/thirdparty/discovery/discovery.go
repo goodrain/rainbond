@@ -19,27 +19,45 @@
 package discovery
 
 import (
-	"github.com/goodrain/rainbond/db"
+	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
-	"strings"
 )
+
+// EventType type of event
+type EventType string
+
+const (
+	// CreateEvent event associated with new objects in a service discovery center
+	CreateEvent EventType = "CREATE"
+	// UpdateEvent event associated with an object update in a service discovery center
+	UpdateEvent EventType = "UPDATE"
+	// DeleteEvent event associated when an object is removed from a service discovery center
+	DeleteEvent EventType = "DELETE"
+)
+
+// Event holds the context of an event.
+type Event struct {
+	Type EventType
+	Obj  interface{}
+}
 
 // Discoverier is the interface that wraps the required methods to gather
 // information about third-party service endpoints.
 type Discoverier interface {
 	Connect() error
 	Close() error
-	Add(dbm db.Manager, req v1.AddEndpointReq) error
-	Fetch() ([]*model.Endpoint, error)
-	Update(dbm db.Manager, req v1.UpdEndpointReq) error
-	Delete(id string) error
+	Fetch() ([]*v1.RbdEndpoint, error)
+	Watch()
 }
 
-func NewDiscoverier(cfg *model.ThirdPartySvcDiscoveryCfg) Discoverier {
-	switch strings.ToUpper(cfg.Type) {
-	case "ETCD":
-		return NewEtcd(cfg)
+// NewDiscoverier creates a new Discoverier.
+func NewDiscoverier(cfg *model.ThirdPartySvcDiscoveryCfg,
+	updateCh *channels.RingChannel,
+	stopCh chan struct{}) Discoverier {
+	switch model.DiscorveryType(cfg.Type) {
+	case model.DiscorveryTypeEtcd:
+		return NewEtcd(cfg, updateCh, stopCh)
 	}
 	return nil
 }
