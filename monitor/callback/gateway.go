@@ -77,9 +77,7 @@ func (e *GatewayNode) toScrape() *prometheus.ScrapeConfig {
 			StaticConfigs: []*prometheus.Group{
 				{
 					Targets: ts,
-					Labels: map[model.LabelName]model.LabelValue{
-						"component": model.LabelValue(e.Name()),
-					},
+					Labels:  map[model.LabelName]model.LabelValue{},
 				},
 			},
 		},

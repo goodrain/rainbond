@@ -157,9 +157,7 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 		gwc.refreshPools(httpPools)
 		return nil
 	}
-
-	gwc.rcfg = currentConfig
-	err := gwc.GWS.PersistConfig(gwc.rcfg)
+	err := gwc.GWS.PersistConfig(currentConfig)
 	if err != nil {
 		// TODO: if nginx is not ready, then stop gateway
 		logrus.Errorf("Fail to persist Nginx config: %v\n", err)
@@ -169,15 +167,14 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 	httpPools = append(httpPools, gwc.rrbdp...)
 	gwc.refreshPools(httpPools)
 	gwc.rhp = httpPools
-	hosts := sets.NewString()
-	for _, server := range l7sv {
-		if !hosts.Has(server.ServerName) {
-			hosts.Insert(server.ServerName)
-		}
-	}
+
+	//set metric
+	remove, hosts := getHosts(gwc.rcfg, currentConfig)
 	gwc.metricCollector.SetHosts(hosts)
+	gwc.metricCollector.RemoveHostMetric(remove)
 	gwc.metricCollector.SetServerNum(len(httpPools), len(tcpPools))
 
+	gwc.rcfg = currentConfig
 	return nil
 }
 
@@ -428,4 +425,26 @@ func convIntoRbdPools(data []string, names ...string) []*v1.Pool {
 	}
 
 	return pools
+}
+
+// getHosts returns a list of the hostsnames and tobe remove hostname
+// that are not associated anymore to the NGINX configuration.
+func getHosts(rucfg, newcfg *v1.Config) (remove []string, current sets.String) {
+	old := sets.NewString()
+	new := sets.NewString()
+	if rucfg != nil {
+		for _, s := range rucfg.L7VS {
+			if !old.Has(s.ServerName) {
+				old.Insert(s.ServerName)
+			}
+		}
+	}
+	if newcfg != nil {
+		for _, s := range newcfg.L7VS {
+			if !new.Has(s.ServerName) {
+				new.Insert(s.ServerName)
+			}
+		}
+	}
+	return old.Difference(new).List(), new
 }

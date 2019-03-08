@@ -33,6 +33,7 @@ type Collector interface {
 	Stop()
 	SetHosts(sets.String)
 	SetServerNum(httpNum, tcpNum int)
+	RemoveHostMetric([]string)
 }
 
 type collector struct {
@@ -72,4 +73,9 @@ func (c *collector) SetServerNum(httpNum, tcpNum int) {
 
 func (c *collector) SetHosts(hosts sets.String) {
 	c.socket.SetHosts(hosts)
+}
+
+//RemoveHostMetric -
+func (c *collector) RemoveHostMetric(hosts []string) {
+	c.socket.RemoveMetrics(hosts, c.registry)
 }

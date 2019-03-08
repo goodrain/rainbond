@@ -22,7 +22,6 @@
 package collectors
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -43,42 +42,32 @@ type upstream struct {
 }
 
 type socketData struct {
+	upstream
 	Host           string  `json:"host"`
 	Status         string  `json:"status"`
 	ResponseLength float64 `json:"responseLength"`
 	Method         string  `json:"method"`
 	RequestLength  float64 `json:"requestLength"`
 	RequestTime    float64 `json:"requestTime"`
-	upstream
-	Namespace string `json:"namespace"`
-	ServiceID string `json:"service_id"`
-	TenantID  string `json:"tenant_id"`
-	Path      string `json:"path"`
+	Namespace      string  `json:"namespace"`
+	ServiceID      string  `json:"service_id"`
+	Path           string  `json:"path"`
 }
 
 // SocketCollector stores prometheus metrics and ingress meta-data
 type SocketCollector struct {
 	prometheus.Collector
-
-	requestTime   *prometheus.HistogramVec
-	requestLength *prometheus.HistogramVec
-
-	responseTime   *prometheus.HistogramVec
-	responseLength *prometheus.HistogramVec
-
+	requestTime     *prometheus.HistogramVec
+	requestLength   *prometheus.HistogramVec
+	responseTime    *prometheus.HistogramVec
+	responseLength  *prometheus.HistogramVec
 	upstreamLatency *prometheus.SummaryVec
-
-	bytesSent *prometheus.HistogramVec
-
-	requests *prometheus.CounterVec
-
-	listener net.Listener
-
-	metricMapping map[string]interface{}
-
-	hosts sets.String
-
-	metricsPerHost bool
+	bytesSent       *prometheus.HistogramVec
+	requests        *prometheus.CounterVec
+	listener        net.Listener
+	metricMapping   map[string]interface{}
+	hosts           sets.String
+	metricsPerHost  bool
 }
 
 var (
@@ -87,8 +76,7 @@ var (
 		"method",
 		"path",
 		"namespace",
-		"tenant_id",
-		"service_id",
+		"service",
 	}
 )
 
@@ -164,7 +152,7 @@ func NewSocketCollector(gatewayHost string, metricsPerHost bool) (*SocketCollect
 				Namespace:   PrometheusNamespace,
 				ConstLabels: constLabels,
 			},
-			[]string{"ingress", "namespace", "status"},
+			[]string{"host", "namespace", "service", "status"},
 		),
 
 		bytesSent: prometheus.NewHistogramVec(
@@ -180,12 +168,12 @@ func NewSocketCollector(gatewayHost string, metricsPerHost bool) (*SocketCollect
 
 		upstreamLatency: prometheus.NewSummaryVec(
 			prometheus.SummaryOpts{
-				Name:        "ingress_upstream_latency_seconds",
+				Name:        "upstream_latency_seconds",
 				Help:        "Upstream service latency per Ingress",
 				Namespace:   PrometheusNamespace,
 				ConstLabels: constLabels,
 			},
-			[]string{"ingress", "namespace", "service"},
+			[]string{"namespace", "service"},
 		),
 	}
 
@@ -198,7 +186,7 @@ func NewSocketCollector(gatewayHost string, metricsPerHost bool) (*SocketCollect
 
 		prometheus.BuildFQName(PrometheusNamespace, "", "bytes_sent"): sc.bytesSent,
 
-		prometheus.BuildFQName(PrometheusNamespace, "", "ingress_upstream_latency_seconds"): sc.upstreamLatency,
+		prometheus.BuildFQName(PrometheusNamespace, "", "upstream_latency_seconds"): sc.upstreamLatency,
 	}
 
 	return sc, nil
@@ -207,6 +195,7 @@ func NewSocketCollector(gatewayHost string, metricsPerHost bool) (*SocketCollect
 // SetHosts sets the hostnames that are being served by the ingress controller
 // This set of hostnames is used to filter the metrics to be exposed
 func (sc *SocketCollector) SetHosts(hosts sets.String) {
+	logrus.Debugf("set hosts %v", hosts.List())
 	sc.hosts = hosts
 }
 
@@ -226,26 +215,24 @@ func (sc *SocketCollector) handleMessage(msg []byte) {
 		}
 		// Note these must match the order in requestTags at the top
 		requestLabels := prometheus.Labels{
-			"status":     stats.Status,
-			"method":     stats.Method,
-			"path":       stats.Path,
-			"namespace":  stats.Namespace,
-			"service_id": stats.ServiceID,
-			"tenant_id":  stats.TenantID,
+			"status":    stats.Status,
+			"method":    stats.Method,
+			"path":      stats.Path,
+			"namespace": stats.Namespace,
+			"service":   stats.ServiceID,
 		}
 		if sc.metricsPerHost {
 			requestLabels["host"] = stats.Host
 		}
 		collectorLabels := prometheus.Labels{
-			"namespace":  stats.Namespace,
-			"service_id": stats.ServiceID,
-			"tenant_id":  stats.TenantID,
-			"status":     stats.Status,
+			"namespace": stats.Namespace,
+			"service":   stats.ServiceID,
+			"status":    stats.Status,
+			"host":      stats.Host,
 		}
 		latencyLabels := prometheus.Labels{
-			"namespace":  stats.Namespace,
-			"service_id": stats.ServiceID,
-			"tenant_id":  stats.TenantID,
+			"namespace": stats.Namespace,
+			"service":   stats.ServiceID,
 		}
 		requestsMetric, err := sc.requests.GetMetricWith(collectorLabels)
 		if err != nil {
@@ -319,24 +306,24 @@ func (sc *SocketCollector) Stop() {
 	sc.listener.Close()
 }
 
-// RemoveMetrics deletes prometheus metrics from prometheus for ingresses and
+// RemoveMetrics deletes prometheus metrics from prometheus for hosts and
 // host that are not available anymore.
 // Ref: https://godoc.org/github.com/prometheus/client_golang/prometheus#CounterVec.Delete
-func (sc *SocketCollector) RemoveMetrics(ingresses []string, registry prometheus.Gatherer) {
+func (sc *SocketCollector) RemoveMetrics(hosts []string, registry prometheus.Gatherer) {
 	mfs, err := registry.Gather()
 	if err != nil {
 		logrus.Errorf("Error gathering metrics: %v", err)
 		return
 	}
-	// 1. remove metrics of removed ingresses
-	logrus.Infof("removing ingresses %v from metrics", ingresses)
+	// 1. remove metrics of removed hosts
+	logrus.Infof("removing host %v from metrics", hosts)
 	for _, mf := range mfs {
 		metricName := mf.GetName()
 		metric, ok := sc.metricMapping[metricName]
 		if !ok {
 			continue
 		}
-		toRemove := sets.NewString(ingresses...)
+		toRemove := sets.NewString(hosts...)
 		for _, m := range mf.GetMetric() {
 			labels := make(map[string]string, len(m.GetLabel()))
 			for _, labelPair := range m.GetLabel() {
@@ -344,31 +331,23 @@ func (sc *SocketCollector) RemoveMetrics(ingresses []string, registry prometheus
 			}
 			// remove labels that are constant
 			deleteConstants(labels)
-			tid, ok := labels["tenant_id"]
-			if !ok {
-				continue
-			}
-			sid, ok := labels["service_id"]
-			if !ok {
-				continue
-			}
-			ingKey := fmt.Sprintf("%v/%v", tid, sid)
+			ingKey, ok := labels["host"]
 			if !toRemove.Has(ingKey) {
 				continue
 			}
-			logrus.Infof("Removing prometheus metric from histogram %v for ingress %v", metricName, ingKey)
+			logrus.Infof("Removing prometheus metric from histogram %v for host %v", metricName, ingKey)
 			h, ok := metric.(*prometheus.HistogramVec)
 			if ok {
 				removed := h.Delete(labels)
 				if !removed {
-					logrus.Infof("metric %v for ingress %v with labels not removed: %v", metricName, ingKey, labels)
+					logrus.Infof("metric %v for host %v with labels not removed: %v", metricName, ingKey, labels)
 				}
 			}
 			s, ok := metric.(*prometheus.SummaryVec)
 			if ok {
 				removed := s.Delete(labels)
 				if !removed {
-					logrus.Infof("metric %v for ingress %v with labels not removed: %v", metricName, ingKey, labels)
+					logrus.Infof("metric %v for host %v with labels not removed: %v", metricName, ingKey, labels)
 				}
 			}
 		}

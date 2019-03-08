@@ -19,10 +19,11 @@
 package controller
 
 import (
-	"github.com/coreos/etcd/clientv3"
-	"github.com/goodrain/rainbond/gateway/v1"
 	"testing"
 	"time"
+
+	"github.com/coreos/etcd/clientv3"
+	v1 "github.com/goodrain/rainbond/gateway/v1"
 )
 
 func TestController_GetDelUpdPools(t *testing.T) {
@@ -40,18 +41,18 @@ func TestController_GetDelUpdPools(t *testing.T) {
 		newFakePoolWithoutNodes("pool-f"),
 	}
 
-	var runningHttpPools []*v1.Pool
-	runningHttpPools = append(runningHttpPools, delPools...)
-	runningHttpPools = append(runningHttpPools, fooPools...)
+	var runnerHTTPPools []*v1.Pool
+	runnerHTTPPools = append(runnerHTTPPools, delPools...)
+	runnerHTTPPools = append(runnerHTTPPools, fooPools...)
 
-	var currentHttpPools []*v1.Pool
-	currentHttpPools = append(currentHttpPools, updPools...)
-	currentHttpPools = append(currentHttpPools, fooPools...)
+	var currentHTTPPools []*v1.Pool
+	currentHTTPPools = append(currentHTTPPools, updPools...)
+	currentHTTPPools = append(currentHTTPPools, fooPools...)
 
 	gwc := &GWController{
-		rhp: runningHttpPools,
+		rhp: runnerHTTPPools,
 	}
-	del, upd := gwc.getDelUpdPools(currentHttpPools)
+	del, upd := gwc.getDelUpdPools(currentHTTPPools)
 	if !poolsIsEqual(delPools, del) {
 		t.Errorf("del should equal delPools.")
 	}
@@ -60,8 +61,8 @@ func TestController_GetDelUpdPools(t *testing.T) {
 	}
 
 	gwc.rhp = fooPools
-	currentHttpPools = fooPools
-	del, upd = gwc.getDelUpdPools(currentHttpPools)
+	currentHTTPPools = fooPools
+	del, upd = gwc.getDelUpdPools(currentHTTPPools)
 	if len(del) != 0 {
 		t.Errorf("Expected del length to be 0, but returned %v", len(del))
 	}
@@ -83,7 +84,7 @@ func TestGWController_WatchRbdEndpoints(t *testing.T) {
 	gwc := GWController{
 		EtcdCli: cli,
 	}
-	go gwc.watchRbdEndpoints()
+	go gwc.watchRbdEndpoints(0)
 }
 
 func poolsIsEqual(old []*v1.Pool, new []*v1.Pool) bool {

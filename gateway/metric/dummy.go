@@ -39,3 +39,6 @@ func (dc DummyCollector) SetServerNum(httpNum, tcpNum int) {}
 
 //SetHosts -
 func (dc DummyCollector) SetHosts(hosts sets.String) {}
+
+//RemoveHostMetric -
+func (dc DummyCollector) RemoveHostMetric([]string) {}
