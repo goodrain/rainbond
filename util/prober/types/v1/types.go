@@ -40,6 +40,7 @@ type Service struct {
 type Health struct {
 	Name         string
 	Model        string
+	Port         int
 	Address      string
 	TimeInterval int
 	MaxErrorsNum int
@@ -47,10 +48,10 @@ type Health struct {
 
 //HealthStatus health status
 type HealthStatus struct {
-	Name           string
-	Status         string
-	ErrorNumber    int
-	ErrorDuration  time.Duration
-	StartErrorTime time.Time
-	Info           string
+	Name           string        `json:"name"`
+	Status         string        `json:"status"`
+	ErrorNumber    int           `json:"error_number"`
+	ErrorDuration  time.Duration `json:"error_duration"`
+	StartErrorTime time.Time     `json:"start_error_time"`
+	Info           string        `json:"info"`
 }

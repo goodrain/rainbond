@@ -237,7 +237,7 @@ func (r *RuntimeServer) registServer() error {
 func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.ServiceRequest) (*pb.ThirdPartyEndpoints, error) {
 	as := r.store.GetAppService(re.ServiceId)
 	if as == nil {
-		return nil, nil
+		return new(pb.ThirdPartyEndpoints), nil
 	}
 	var pbeps []*pb.ThirdPartyEndpoint
 	for _, ep := range as.GetRbdEndpionts() {
@@ -257,10 +257,10 @@ func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.Serv
 }
 
 // AddThirdPartyEndpoint creates a create event.
-func (r *RuntimeServer) AddThirdPartyEndpoint(ctx context.Context, re *pb.AddThirdPartyEndpointsReq) (*pb.Dummy, error) {
+func (r *RuntimeServer) AddThirdPartyEndpoint(ctx context.Context, re *pb.AddThirdPartyEndpointsReq) (*pb.Empty, error) {
 	as := r.store.GetAppService(re.Sid)
 	if as == nil {
-		return nil, nil
+		return new(pb.Empty), nil
 	}
 	rbdep := &v1.RbdEndpoint{
 		UUID:     re.Uuid,
@@ -274,14 +274,14 @@ func (r *RuntimeServer) AddThirdPartyEndpoint(ctx context.Context, re *pb.AddThi
 		Type: discovery.CreateEvent,
 		Obj:  rbdep,
 	}
-	return nil, nil
+	return new(pb.Empty), nil
 }
 
 // UpdThirdPartyEndpoint creates a update event.
-func (r *RuntimeServer) UpdThirdPartyEndpoint(ctx context.Context, re *pb.UpdThirdPartyEndpointsReq) (*pb.Dummy, error) {
+func (r *RuntimeServer) UpdThirdPartyEndpoint(ctx context.Context, re *pb.UpdThirdPartyEndpointsReq) (*pb.Empty, error) {
 	as := r.store.GetAppService(re.Sid)
 	if as == nil {
-		return nil, nil
+		return new(pb.Empty), nil
 	}
 	rbdep := &v1.RbdEndpoint{
 		UUID:     re.Uuid,
@@ -294,14 +294,14 @@ func (r *RuntimeServer) UpdThirdPartyEndpoint(ctx context.Context, re *pb.UpdThi
 		Type: discovery.UpdateEvent,
 		Obj:  rbdep,
 	}
-	return nil, nil
+	return new(pb.Empty), nil
 }
 
 // DelThirdPartyEndpoint creates a delete event.
-func (r *RuntimeServer) DelThirdPartyEndpoint(ctx context.Context, re *pb.DelThirdPartyEndpointsReq) (*pb.Dummy, error) {
+func (r *RuntimeServer) DelThirdPartyEndpoint(ctx context.Context, re *pb.DelThirdPartyEndpointsReq) (*pb.Empty, error) {
 	as := r.store.GetAppService(re.Sid)
 	if as == nil {
-		return nil, nil
+		return new(pb.Empty), nil
 	}
 	r.updateCh.In() <- discovery.Event{
 		Type: discovery.DeleteEvent,
@@ -310,5 +310,5 @@ func (r *RuntimeServer) DelThirdPartyEndpoint(ctx context.Context, re *pb.DelThi
 			Sid:  re.Sid,
 		},
 	}
-	return nil, nil
+	return new(pb.Empty), nil
 }

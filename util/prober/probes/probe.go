@@ -16,11 +16,36 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package healthz
+package probe
 
-import "testing"
+import (
+	"context"
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/util/prober/types/v1"
+)
 
-func TestManager_Start(t *testing.T) {
-	m := NewManager()
-	m.Init()
+//Probe probe
+type Probe interface {
+	Check()
+	Stop()
+}
+
+//CreateProbe create probe
+func CreateProbe(ctx context.Context, statusChan chan *v1.HealthStatus, v *v1.Service) Probe {
+	ctx, cancel := context.WithCancel(ctx)
+	if v.ServiceHealth.Model == "tcp" {
+		logrus.Debug("creat tcp probe...")
+		t := &TcpProbe{
+			Name:         v.ServiceHealth.Name,
+			Address:      v.ServiceHealth.Address,
+			Ctx:          ctx,
+			Cancel:       cancel,
+			ResultsChan:  statusChan,
+			TimeInterval: v.ServiceHealth.TimeInterval,
+			MaxErrorsNum: v.ServiceHealth.MaxErrorsNum,
+		}
+		return t
+	}
+	cancel()
+	return nil
 }

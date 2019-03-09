@@ -205,6 +205,8 @@ func (a *appRuntimeStore) initThirdPartyService() error {
 	return nil
 }
 
+
+
 //Ready if all kube informers is syncd, store is ready
 func (a *appRuntimeStore) Ready() bool {
 	return a.informers.Ready()

@@ -19,10 +19,11 @@
 package appm
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	opt "github.com/goodrain/rainbond/cmd/worker/option"
+	"github.com/goodrain/rainbond/worker/appm/prober"
 	"github.com/goodrain/rainbond/worker/appm/store"
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty"
 	"k8s.io/client-go/kubernetes"
 )
@@ -38,9 +39,9 @@ func NewAPPMController(clientset *kubernetes.Clientset,
 		startCh:  startCh,
 		stopCh:   make(chan struct{}),
 	}
-
-	c.thirdparty = thirdparty.NewThirdPartier(clientset, c.store, c.startCh, c.updateCh, c.stopCh)
-
+	// create prober first, then thirdparty
+	c.prober = prober.NewProber(store, updateCh)
+	c.thirdparty = thirdparty.NewThirdPartier(clientset, c.store, c.prober, c.startCh, c.updateCh, c.stopCh)
 	return c
 }
 
@@ -50,6 +51,7 @@ type Controller struct {
 
 	store      store.Storer
 	thirdparty thirdparty.ThirdPartier
+	prober     prober.Prober
 
 	startCh  *channels.RingChannel
 	updateCh *channels.RingChannel
@@ -60,10 +62,12 @@ type Controller struct {
 func (c *Controller) Start() error {
 	logrus.Debugf("start appm manager...")
 	c.thirdparty.Start()
+	c.prober.Start()
 	return nil
 }
 
 // Stop stops appm controller.
 func (c *Controller) Stop() {
 	close(c.stopCh)
+	c.prober.Stop()
 }

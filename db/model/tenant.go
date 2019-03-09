@@ -417,6 +417,22 @@ type TenantServiceProbe struct {
 	FailureAction    string `gorm:"column:failure_action;" json:"failure_action" validate:"failure_action"`
 }
 
+// FailureActionType  type of failure action.
+type FailureActionType string
+
+func (fat FailureActionType) String() string {
+	return string(fat)
+}
+
+const (
+	// IgnoreFailureAction do nothing when the probe result is a failure
+	IgnoreFailureAction FailureActionType = "ignore"
+	// OfflineFailureAction offline the probe object when the probe result is a failure
+	OfflineFailureAction FailureActionType = "readiness"
+	// RestartFailureAction restart the probe object when the probe result is a failure
+	RestartFailureAction FailureActionType = "liveness"
+)
+
 //TableName 表名
 func (t *TenantServiceProbe) TableName() string {
 	return "tenant_services_probe"

@@ -2,7 +2,9 @@ package probe
 
 import (
 	"context"
-	"github.com/goodrain/rainbond/prober/types/v1"
+	"fmt"
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/util/prober/types/v1"
 	"net"
 	"time"
 )
@@ -24,6 +26,7 @@ func (h *TcpProbe) Stop() {
 	h.Cancel()
 }
 func (h *TcpProbe) TcpCheck() {
+	logrus.Debug("tcp check...")
 	timer := time.NewTimer(time.Second * time.Duration(h.TimeInterval))
 	defer timer.Stop()
 	for {
@@ -47,7 +50,8 @@ func (h *TcpProbe) TcpCheck() {
 func GetTcpHealth(address string) map[string]string {
 	conn, err := net.DialTimeout("tcp", address, 5 * time.Second)
 	if err != nil {
-		return map[string]string{"status": v1.StatDeath, "info": "Tcp connection error"}
+		return map[string]string{"status": v1.StatDeath,
+			"info": fmt.Sprintf("Address: %s; Tcp connection error", address)}
 	}
 	defer conn.Close()
 	return map[string]string{"status": v1.StatHealthy, "info": "service health"}

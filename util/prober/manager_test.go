@@ -19,13 +19,15 @@
 package prober
 
 import (
+	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/prober/types/v1"
+	"github.com/goodrain/rainbond/util/prober/types/v1"
 	"testing"
 )
 
 func TestProbeManager_Start(t *testing.T) {
-	m := CreateManager()
+	ctx, cancel := context.WithCancel(context.Background())
+	m := NewProber(ctx, cancel)
 
 	serviceList := make([]*v1.Service, 0, 10)
 
@@ -39,7 +41,7 @@ func TestProbeManager_Start(t *testing.T) {
 		},
 	}
 	serviceList = append(serviceList, h)
-	m.AddServices(&serviceList)
+	m.SetServices(serviceList)
 	watcher := m.WatchServiceHealthy("etcd")
 	m.EnableWatcher(watcher.GetServiceName(), watcher.GetID())
 
