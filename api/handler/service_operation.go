@@ -96,21 +96,21 @@ func (o *OperationHandler) Build(buildInfo model.BuildInfoRequestStruct) (re Ope
 	re.ServiceID = service.ServiceID
 	re.Status = "failure"
 	switch buildInfo.Kind {
-	case "build_from_image":
+	case model.FromImageBuildKing:
 		if err := o.buildFromImage(buildInfo, service); err != nil {
 			logger.Error("The image build application task failed to send: "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			re.ErrMsg = fmt.Sprintf("build service %s failure", serviceID)
 			return
 		}
 		logger.Info("The mirror build application task successed to send ", map[string]string{"step": "image-service", "status": "starting"})
-	case "build_from_source_code":
+	case model.FromCodeBuildKing:
 		if err := o.buildFromSourceCode(buildInfo, service); err != nil {
 			logger.Error("The source code build application task failed to send "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			re.ErrMsg = fmt.Sprintf("build service %s failure", serviceID)
 			return
 		}
 		logger.Info("The source code build application task successed to send ", map[string]string{"step": "source-service", "status": "starting"})
-	case "build_from_market_image":
+	case model.FromMarketImageBuildKing:
 		if err := o.buildFromImage(buildInfo, service); err != nil {
 			logger.Error("The cloud image build application task failed to send "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			re.ErrMsg = fmt.Sprintf("build service %s failure", serviceID)
@@ -118,7 +118,7 @@ func (o *OperationHandler) Build(buildInfo model.BuildInfoRequestStruct) (re Ope
 		}
 		logger.Info("The cloud image build application task successed to send ", map[string]string{"step": "image-service", "status": "starting"})
 
-	case "build_from_market_slug":
+	case model.FromMarketSlugBuildKing:
 		if err := o.buildFromMarketSlug(buildInfo, service); err != nil {
 			logger.Error("The cloud slug build application task failed to send "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			re.ErrMsg = fmt.Sprintf("build service %s failure", serviceID)

@@ -31,7 +31,7 @@ type BatchOperationHandler struct {
 
 //BatchOperationResult batch operation result
 type BatchOperationResult struct {
-	BatchResult []OperationResult `json:"operation"`
+	BatchResult []OperationResult `json:"batche_result"`
 }
 
 //CreateBatchOperationHandler create batch operation handler

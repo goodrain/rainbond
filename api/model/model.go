@@ -1389,10 +1389,10 @@ type BeatchOperationRequestStruct struct {
 	TenantName string `json:"tenant_name"`
 	Body       struct {
 		Operation    string                         `json:"operation" validate:"operation|required|in:start,stop,build,upgrade"`
-		BuildInfos   []BuildInfoRequestStruct       `json:"build_infos"`
-		StartInfos   []StartOrStopInfoRequestStruct `json:"start_infos"`
-		StopInfos    []StartOrStopInfoRequestStruct `json:"stop_infos"`
-		UpgradeInfos []UpgradeInfoRequestStruct     `json:"upgrade_infos"`
+		BuildInfos   []BuildInfoRequestStruct       `json:"build_infos,omitempty"`
+		StartInfos   []StartOrStopInfoRequestStruct `json:"start_infos,omitempty"`
+		StopInfos    []StartOrStopInfoRequestStruct `json:"stop_infos,omitempty"`
+		UpgradeInfos []UpgradeInfoRequestStruct     `json:"upgrade_infos,omitempty"`
 	}
 }
 
@@ -1439,6 +1439,18 @@ type BuildSlugInfo struct {
 	FTPPassword string `json:"ftp_password"`
 }
 
+//FromImageBuildKing build from image
+var FromImageBuildKing = "build_from_image"
+
+//FromCodeBuildKing build from code
+var FromCodeBuildKing = "build_from_source_code"
+
+//FromMarketImageBuildKing build from market image
+var FromMarketImageBuildKing = "build_from_market_image"
+
+//FromMarketSlugBuildKing build from market slug
+var FromMarketSlugBuildKing = "build_from_market_slug"
+
 //BuildInfoRequestStruct -
 type BuildInfoRequestStruct struct {
 	// 变量
@@ -1460,11 +1472,11 @@ type BuildInfoRequestStruct struct {
 	// required: true
 	DeployVersion string `json:"deploy_version" validate:"deploy_version"`
 	//build form image
-	ImageInfo BuildImageInfo `json:"image_info"`
+	ImageInfo BuildImageInfo `json:"image_info,omitempty"`
 	//build from code
-	CodeInfo BuildCodeInfo `json:"code_info"`
+	CodeInfo BuildCodeInfo `json:"code_info,omitempty"`
 	//用于云市代码包创建
-	SlugInfo BuildSlugInfo `json:"slug_info"`
+	SlugInfo BuildSlugInfo `json:"slug_info,omitempty"`
 	//tenantName
 	TenantName string            `json:"-"`
 	ServiceID  string            `json:"service_id"`

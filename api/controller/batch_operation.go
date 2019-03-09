@@ -23,6 +23,7 @@ import (
 	"net/http"
 
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/api/middleware"
 
 	"github.com/goodrain/rainbond/api/model"
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -36,16 +37,20 @@ func BatchOperation(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
 	var re handler.BatchOperationResult
 	switch build.Body.Operation {
 	case "build":
+		for i := range build.Body.BuildInfos {
+			build.Body.BuildInfos[i].TenantName = tenantName
+		}
 		re = handler.GetBatchOperationHandler().Build(build.Body.BuildInfos)
 	case "start":
 		re = handler.GetBatchOperationHandler().Start(build.Body.StartInfos)
 	case "stop":
 		re = handler.GetBatchOperationHandler().Stop(build.Body.StopInfos)
 	case "upgrade":
-		re = handler.GetBatchOperationHandler().Start(build.Body.StartInfos)
+		re = handler.GetBatchOperationHandler().Upgrade(build.Body.UpgradeInfos)
 	default:
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("operation %s do not support batch", build.Body.Operation))
 		return
