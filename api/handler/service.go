@@ -556,7 +556,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			}
 			if volumn.FileContent != "" {
 				cf := &dbmodel.TenantServiceConfigFile{
-					UUID:        uuid.NewV4().String(),
+					ServiceID: sc.ServiceID,
 					VolumeName:  volumn.VolumeName,
 					FileContent: volumn.FileContent,
 				}
@@ -606,7 +606,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	}
 	// sc.Endpoints can't be nil
 	// sc.Endpoints.Discovery or sc.Endpoints.Static can't be nil
-	if sc.Kind == "third_party" { // TODO: validate request data
+	if sc.Kind == dbmodel.ServiceKindThirdParty.String() { // TODO: validate request data
 		if config := strings.Replace(sc.Endpoints.Discovery, " ", "", -1); config != "" {
 			var cfg dCfg
 			err := json.Unmarshal([]byte(config), &cfg)
@@ -614,7 +614,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 				tx.Rollback()
 				return err
 			}
-			c := &dbmodel.ThirdPartyServiceDiscoveryCfg{
+			c := &dbmodel.ThirdPartySvcDiscoveryCfg{
 				ServiceID: sc.ServiceID,
 				Type:      cfg.Type,
 				Servers:   strings.Join(cfg.Servers, ","),
@@ -622,7 +622,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 				Username:  cfg.Username,
 				Password:  cfg.Password,
 			}
-			if err := db.GetManager().ThirdPartyServiceDiscoveryCfgDaoTransactions(tx).
+			if err := db.GetManager().ThirdPartySvcDiscoveryCfgDaoTransactions(tx).
 				AddModel(c); err != nil {
 				logrus.Errorf("error saving discover center configuration: %v", err)
 				tx.Rollback()
@@ -1336,7 +1336,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 		}
 		if fileContent != "" {
 			cf := &dbmodel.TenantServiceConfigFile{
-				UUID:        uuid.NewV4().String(),
+				ServiceID:   tsv.ServiceID,
 				VolumeName:  tsv.VolumeName,
 				FileContent: fileContent,
 			}
@@ -1365,7 +1365,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
 		}
-		if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).DelByVolumeID(tsv.VolumeName); err != nil {
+		if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).DelByVolumeID(tsv.ServiceID, tsv.VolumeName); err != nil {
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("error deleting config files", err)
 		}
@@ -1375,6 +1375,45 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 			return util.CreateAPIHandleErrorFromDBError("error ending transaction", err)
 		}
 	}
+	return nil
+}
+
+// UpdVolume updates service volume.
+func (s *ServiceAction) UpdVolume(sid string, req *api_model.UpdVolumeReq) error {
+	tx := db.GetManager().Begin()
+	switch req.VolumeType {
+	case "config-file":
+		if req.VolumePath != "" {
+			v, err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).
+				GetVolumeByServiceIDAndName(sid, req.VolumeName)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+			v.VolumePath = req.VolumePath
+			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).UpdateModel(v); err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
+		if req.FileContent != "" {
+			configfile, err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).
+				GetByVolumeName(sid, req.VolumeName)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+			configfile.FileContent = req.FileContent
+			if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).UpdateModel(configfile); err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
+	default:
+		tx.Rollback()
+		return fmt.Errorf("unsupported volume type")
+	}
+	tx.Commit()
 	return nil
 }
 

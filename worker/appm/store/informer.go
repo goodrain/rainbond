@@ -32,6 +32,7 @@ type Informer struct {
 	Pod         cache.SharedIndexInformer
 	ConfigMap   cache.SharedIndexInformer
 	ReplicaSet  cache.SharedIndexInformer
+	Endpoints   cache.SharedIndexInformer
 }
 
 //Start statrt
@@ -44,6 +45,7 @@ func (i *Informer) Start(stop chan struct{}) {
 	go i.Pod.Run(stop)
 	go i.ConfigMap.Run(stop)
 	go i.ReplicaSet.Run(stop)
+	go i.Endpoints.Run(stop)
 }
 
 //Ready if all kube informers is syncd, store is ready

@@ -23,22 +23,21 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/goodrain/rainbond/worker/master"
-
-	"github.com/goodrain/rainbond/worker/server"
-
+	"github.com/Sirupsen/logrus"
+	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/worker/appm"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/discover"
+	"github.com/goodrain/rainbond/worker/master"
 	"github.com/goodrain/rainbond/worker/monitor"
+	"github.com/goodrain/rainbond/worker/server"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/Sirupsen/logrus"
 )
 
 //Run start run
@@ -79,11 +78,19 @@ func Run(s *option.Worker) error {
 	//etcdCli, err := client.New(client.Config{})
 
 	//step 3: create resource store
-	cachestore := store.NewStore(db.GetManager(), s.Config)
+	startCh := channels.NewRingChannel(1024) // TODO: why 1024?
+	updateCh := channels.NewRingChannel(1024)
+	cachestore := store.NewStore(clientset, db.GetManager(), s.Config, startCh)
+	appmController := appm.NewAPPMController(clientset, cachestore, startCh, updateCh)
+	if err := appmController.Start(); err != nil {
+		logrus.Errorf("error starting appm controller: %v", err)
+	}
+	defer appmController.Stop()
 	if err := cachestore.Start(); err != nil {
 		logrus.Error("start kube cache store error", err)
 		return err
 	}
+
 	//step 4: create controller manager
 	controllerManager := controller.NewManager(cachestore, clientset)
 	defer controllerManager.Stop()
@@ -98,13 +105,13 @@ func Run(s *option.Worker) error {
 	}
 	defer masterCon.Stop()
 	//step 6 : create discover module
-	taskManager := discover.NewTaskManager(s.Config, cachestore, controllerManager)
+	taskManager := discover.NewTaskManager(s.Config, cachestore, controllerManager, startCh)
 	if err := taskManager.Start(); err != nil {
 		return err
 	}
 	defer taskManager.Stop()
 	//step 7: start app runtimer server
-	runtimeServer := server.CreaterRuntimeServer(s.Config, cachestore)
+	runtimeServer := server.CreaterRuntimeServer(s.Config, cachestore, updateCh)
 	runtimeServer.Start(errChan)
 	//step 8: create application use resource exporter.
 	exporterManager := monitor.NewManager(s.Config, masterCon)

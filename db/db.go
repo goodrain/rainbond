@@ -113,8 +113,8 @@ type Manager interface {
 	// third-party service
 	EndpointsDao() dao.EndpointsDao
 	EndpointsDaoTransactions(db *gorm.DB) dao.EndpointsDao
-	ThirdPartyServiceDiscoveryCfgDao() dao.ThirdPartyServiceDiscoveryCfgDao
-	ThirdPartyServiceDiscoveryCfgDaoTransactions(db *gorm.DB) dao.ThirdPartyServiceDiscoveryCfgDao
+	ThirdPartySvcDiscoveryCfgDao() dao.ThirdPartySvcDiscoveryCfgDao
+	ThirdPartySvcDiscoveryCfgDaoTransactions(db *gorm.DB) dao.ThirdPartySvcDiscoveryCfgDao
 }
 
 var defaultManager Manager

@@ -22,14 +22,18 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"github.com/goodrain/rainbond/worker/appm/store"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/discover/model"
 )
 
@@ -40,13 +44,16 @@ type Manager struct {
 	store             store.Storer
 	dbmanager         db.Manager
 	controllerManager *controller.Manager
+
+	startCh *channels.RingChannel
 }
 
 //NewManager now handle
 func NewManager(ctx context.Context,
 	config option.Config,
 	store store.Storer,
-	controllerManager *controller.Manager) *Manager {
+	controllerManager *controller.Manager,
+	startCh *channels.RingChannel) *Manager {
 
 	return &Manager{
 		ctx:               ctx,
@@ -54,6 +61,7 @@ func NewManager(ctx context.Context,
 		dbmanager:         db.GetManager(),
 		store:             store,
 		controllerManager: controllerManager,
+		startCh:           startCh,
 	}
 }
 
@@ -334,15 +342,29 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		logrus.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
 		return fmt.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
 	}
+	svc, err := db.GetManager().TenantServiceDao().GetServiceByID(body.ServiceID)
+	if err != nil {
+		logrus.Errorf("error get TenantServices: %v", err)
+		return fmt.Errorf("error get TenantServices: %v", err)
+	}
 	logger := event.GetManager().GetLogger(body.EventID)
 	oldAppService := m.store.GetAppService(body.ServiceID)
-	if oldAppService == nil || oldAppService.IsClosed() {
-		logrus.Debugf("service is closed,no need handle")
-		logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
-		event.GetManager().ReleaseLogger(logger)
-		return nil
+	logrus.Debugf("body action: %s", body.Action)
+	if svc.Kind != dbmodel.ServiceKindThirdParty.String() && !strings.HasPrefix(body.Action, "port") {
+		if oldAppService == nil || oldAppService.IsClosed() {
+			logrus.Debugf("service is closed, no need handle")
+			logger.Info("service is closed,no need handle", controller.GetLastLoggerOption())
+			event.GetManager().ReleaseLogger(logger)
+			return nil
+		}
 	}
-	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID, nil)
+	var newAppService *v1.AppService
+	if svc.Kind == dbmodel.ServiceKindThirdParty.String() {
+		newAppService, err = conversion.InitAppService(m.dbmanager, body.ServiceID, nil,
+			"ServiceSource", "TenantServiceBase", "TenantServiceRegist")
+	} else {
+		newAppService, err = conversion.InitAppService(m.dbmanager, body.ServiceID, nil)
+	}
 	if err != nil {
 		logrus.Errorf("Application init create failure:%s", err.Error())
 		logger.Error("Application init create failure", controller.GetCallbackLoggerOption())
@@ -350,13 +372,34 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		return fmt.Errorf("Application init create failure")
 	}
 	newAppService.Logger = logger
-	newAppService.SetDelIngsSecrets(oldAppService)
+	newAppService.SetDeletedResources(oldAppService)
 	// update k8s resources
 	err = m.controllerManager.StartController(controller.TypeApplyRuleController, *newAppService)
 	if err != nil {
 		logrus.Errorf("Application apply rule controller failure:%s", err.Error())
 		return fmt.Errorf("Application apply rule controller failure:%s", err.Error())
 	}
+
+	if svc.Kind == dbmodel.ServiceKindThirdParty.String() && strings.HasPrefix(body.Action, "port") {
+		if oldAppService == nil {
+			m.store.RegistAppService(newAppService)
+		}
+		if body.Action == "port-open" {
+			m.startCh.In() <- &v1.Event{
+				Type: v1.StartEvent,
+				Sid:  body.ServiceID,
+			}
+		}
+		if body.Action == "port-close" {
+			if !db.GetManager().TenantServicesPortDao().HasOpenPort(body.ServiceID) {
+				m.startCh.In() <- &v1.Event{
+					Type: v1.StopEvent,
+					Sid:  body.ServiceID,
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

@@ -20,5 +20,5 @@ package conversion
 
 import "errors"
 
-//ErrorNotFoundService error not found
-var ErrorNotFoundService = errors.New("service not found")
+//ErrServiceNotFound error not found
+var ErrServiceNotFound = errors.New("service not found")

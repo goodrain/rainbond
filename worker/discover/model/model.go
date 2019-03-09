@@ -279,6 +279,7 @@ type ApplyRuleTaskBody struct {
 	ServiceID     string `json:"service_id"`
 	DeployVersion string `json:"deploy_version"`
 	EventID       string `json:"event_id"`
+	ServiceKind   string `json:"service_kind"`
 	Action        string `json:"action"`
 }
 

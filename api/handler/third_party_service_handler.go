@@ -19,84 +19,95 @@
 package handler
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/util"
+	util "github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/worker/client"
 )
 
 // ThirdPartyServiceHanlder handles business logic for all third-party services
 type ThirdPartyServiceHanlder struct {
 	dbmanager db.Manager
+	statusCli *client.AppRuntimeSyncClient
 }
 
 // Create3rdPartySvcHandler creates a new *ThirdPartyServiceHanlder.
-func Create3rdPartySvcHandler(dbmanager db.Manager) *ThirdPartyServiceHanlder {
-	return &ThirdPartyServiceHanlder{dbmanager: dbmanager}
+func Create3rdPartySvcHandler(dbmanager db.Manager, statusCli *client.AppRuntimeSyncClient) *ThirdPartyServiceHanlder {
+	return &ThirdPartyServiceHanlder{
+		dbmanager: dbmanager,
+		statusCli: statusCli,
+	}
 }
 
-// AddEndpoints adds endpints for third-party service.
+// AddEndpoints adds endpoints for third-party service.
 func (t *ThirdPartyServiceHanlder) AddEndpoints(sid string, d *model.AddEndpiontsReq) error {
 	ep := &dbmodel.Endpoint{
 		UUID:      util.NewUUID(),
 		ServiceID: sid,
 		IP:        d.IP,
+		Port:      0,
 		IsOnline:  &d.IsOnline,
 	}
-	tx := db.GetManager().Begin()
-	if err := t.dbmanager.EndpointsDaoTransactions(tx).AddModel(ep); err != nil {
-		tx.Rollback()
-		logrus.Errorf("error creating endpoint record: %v", err)
+	if err := t.dbmanager.EndpointsDao().AddModel(ep); err != nil {
 		return err
 	}
-	tx.Commit()
+
+	t.statusCli.AddThirdPartyEndpoint(ep)
 	return nil
 }
 
-// UpdEndpoints updates endpints for third-party service.
+// UpdEndpoints updates endpoints for third-party service.
 func (t *ThirdPartyServiceHanlder) UpdEndpoints(d *model.UpdEndpiontsReq) error {
 	ep, err := t.dbmanager.EndpointsDao().GetByUUID(d.EpID)
 	if err != nil {
-		return fmt.Errorf("uuid: %s, error getting endpoint: %v", d.EpID, err)
+		logrus.Warningf("EpID: %s; error getting endpoints: %v", d.EpID, err)
+		return err
 	}
-	if strings.Replace(d.IP, " ", "", -1) != "" {
+	if d.IP != "" {
 		ep.IP = d.IP
 	}
 	ep.IsOnline = &d.IsOnline
 	if err := t.dbmanager.EndpointsDao().UpdateModel(ep); err != nil {
-		return fmt.Errorf("uuid: %s, error updating endpoint: %v", d.EpID, err)
+		return err
 	}
+
+	t.statusCli.UpdThirdPartyEndpoint(ep)
+	
 	return nil
 }
 
-// DelEndpoints deletes endpints for third-party service.
-func (t *ThirdPartyServiceHanlder) DelEndpoints(data *model.DelEndpiontsReq) error {
-	if err := t.dbmanager.EndpointsDao().DelByUUID(data.EpID); err != nil {
-		return fmt.Errorf("uuid: %s, error deleting endpoint: %v", data.EpID, err)
+// DelEndpoints deletes endpoints for third-party service.
+func (t *ThirdPartyServiceHanlder) DelEndpoints(epid, sid string) error {
+	if err := t.dbmanager.EndpointsDao().DelByUUID(epid); err != nil {
+		return err
 	}
+
+	t.statusCli.DelThirdPartyEndpoint(epid, sid)
+
 	return nil
 }
 
 // ListEndpoints lists third-party service endpoints.
 func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointResp, error) {
-	eps, err := t.dbmanager.EndpointsDao().List(sid)
+	thirdPartyEndpoints, err := t.statusCli.ListThirdPartyEndpoints(sid)
 	if err != nil {
-		logrus.Errorf("error listing endpoints: %v", err)
+		logrus.Warningf("ServiceID: %s; grpc; error listing third-party endpoints: %v", sid, err)
 		return nil, err
 	}
-	var res []*model.EndpointResp
-	for _, ep := range eps {
-		r := &model.EndpointResp{
-			EpID:     ep.UUID,
-			IP:       ep.IP,
-			IsOnline: *ep.IsOnline,
-		}
-		r.Status = "Unknown" // TODO: get real status from worker.
-		res = append(res, r)
+	if thirdPartyEndpoints == nil || thirdPartyEndpoints.Obj == nil {
+		return nil, nil
 	}
+	var res []*model.EndpointResp
+	for _, item := range thirdPartyEndpoints.Obj {
+		res = append(res, &model.EndpointResp{
+			EpID:     item.Uuid,
+			IP:       item.Ip,
+			Status:   item.Status,
+			IsOnline: item.IsOnline,
+		})
+	}
+
 	return res, nil
 }

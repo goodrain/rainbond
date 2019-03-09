@@ -174,6 +174,20 @@ func (t *TenantStruct) AddVolume(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+// UpdVolume updates service volume.
+func (t *TenantStruct) UpdVolume(w http.ResponseWriter, r *http.Request) {
+	var req api_model.UpdVolumeReq
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
+		return
+	}
+
+	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	if err := handler.GetServiceManager().UpdVolume(sid, &req); err != nil {
+		httputil.ReturnError(r, w, 500, err.Error())
+	}
+	httputil.ReturnSuccess(r, w, "success")
+}
+
 //DeleteVolume DeleteVolume
 func (t *TenantStruct) DeleteVolume(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/volume v2 deleteVolume

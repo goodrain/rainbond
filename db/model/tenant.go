@@ -55,6 +55,19 @@ func (t *Tenants) TableName() string {
 	return "tenants"
 }
 
+// ServiceKind kind of service
+type ServiceKind string
+
+// ServiceKindThirdParty means third-party service
+var ServiceKindThirdParty ServiceKind = "third_party"
+
+// ServiceKindInternal means internal service
+var ServiceKindInternal ServiceKind = "internal"
+
+func (s ServiceKind) String() string {
+	return string(s)
+}
+
 //TenantServices app service base info
 type TenantServices struct {
 	Model
@@ -339,11 +352,12 @@ func (t *TenantServiceVolume) TableName() string {
 // TenantServiceConfigFile represents a data in configMap which is one of the types of volumes
 type TenantServiceConfigFile struct {
 	Model
-	UUID        string `gorm:"column:uuid;size:32" json:"uuid"`
+	ServiceID   string `gorm:"column:service_id;size:32" json:"service_id"`
 	VolumeName  string `gorm:"column:volume_name;size:32" json:"volume_name"`
 	FileContent string `gorm:"column:file_content;size:65535" json:"filename"`
 }
 
+// TableName returns table name of TenantServiceConfigFile.
 func (t *TenantServiceConfigFile) TableName() string {
 	return "tenant_service_config_file"
 }
@@ -402,6 +416,22 @@ type TenantServiceProbe struct {
 	SuccessThreshold int    `gorm:"column:success_threshold;size:2;default:1" json:"success_threshold" validate:"success_threshold"`
 	FailureAction    string `gorm:"column:failure_action;" json:"failure_action" validate:"failure_action"`
 }
+
+// FailureActionType  type of failure action.
+type FailureActionType string
+
+func (fat FailureActionType) String() string {
+	return string(fat)
+}
+
+const (
+	// IgnoreFailureAction do nothing when the probe result is a failure
+	IgnoreFailureAction FailureActionType = "ignore"
+	// OfflineFailureAction offline the probe object when the probe result is a failure
+	OfflineFailureAction FailureActionType = "readiness"
+	// RestartFailureAction restart the probe object when the probe result is a failure
+	RestartFailureAction FailureActionType = "liveness"
+)
 
 //TableName 表名
 func (t *TenantServiceProbe) TableName() string {

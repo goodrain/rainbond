@@ -28,8 +28,7 @@ import (
 )
 
 // ThirdPartyServiceController implements ThirdPartyServicer
-type ThirdPartyServiceController struct {
-}
+type ThirdPartyServiceController struct{}
 
 // Endpoints POST->add endpoints, PUT->update endpoints, DELETE->delete endpoints
 func (t *ThirdPartyServiceController) Endpoints(w http.ResponseWriter, r *http.Request) {
@@ -75,7 +74,8 @@ func (t *ThirdPartyServiceController) delEndpoints(w http.ResponseWriter, r *htt
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &data, nil) {
 		return
 	}
-	if err := handler.Get3rdPartySvcHandler().DelEndpoints(&data); err != nil {
+	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	if err := handler.Get3rdPartySvcHandler().DelEndpoints(data.EpID, sid); err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}

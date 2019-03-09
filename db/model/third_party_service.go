@@ -23,10 +23,10 @@ type Endpoint struct {
 	Model
 	UUID      string `gorm:"column:uuid;size:32"`
 	ServiceID string `gorm:"column:service_id;size:32;not null"`
-	IP        string `gorm:"column:ip;not null"`
-	Port      int    `gorm:"column:port;size:65535"`
+	IP        string `gorm:"column:ip;not null" json:"ip"`
+	Port      int    `gorm:"column:port;size:65535" json:"port"`
 	//use pointer type, zero values won't be saved into database
-	IsOnline *bool `gorm:"column:is_online;default:true"`
+	IsOnline *bool `gorm:"column:is_online;default:true" json:"is_online"`
 }
 
 // TableName returns table name of Endpoint.
@@ -34,10 +34,20 @@ func (Endpoint) TableName() string {
 	return "tenant_service_3rd_party_endpoints"
 }
 
-// ThirdPartyServiceDiscoveryCfg s a persistent object for table
+// DiscorveryType type of service discovery center.
+type DiscorveryType string
+
+// DiscorveryTypeEtcd etcd
+var DiscorveryTypeEtcd DiscorveryType = "etcd"
+
+func (d DiscorveryType) String() string {
+	return string(d)
+}
+
+// ThirdPartySvcDiscoveryCfg s a persistent object for table
 // 3rd_party_svc_discovery_cfg. 3rd_party_svc_discovery_cfg contains
 // service discovery center configuration for third party service.
-type ThirdPartyServiceDiscoveryCfg struct {
+type ThirdPartySvcDiscoveryCfg struct {
 	Model
 	ServiceID string `gorm:"column:service_id;size:32"`
 	Type      string `gorm:"column:type"`
@@ -47,7 +57,7 @@ type ThirdPartyServiceDiscoveryCfg struct {
 	Password  string `gorm:"password"`
 }
 
-// TableName returns table name of ThirdPartyServiceDiscoveryCfg.
-func (ThirdPartyServiceDiscoveryCfg) TableName() string {
+// TableName returns table name of ThirdPartySvcDiscoveryCfg.
+func (ThirdPartySvcDiscoveryCfg) TableName() string {
 	return "tenant_service_3rd_party_discovery_cfg"
 }

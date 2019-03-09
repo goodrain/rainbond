@@ -426,6 +426,15 @@ func (t *TenantServicesDaoImpl) DeleteServiceByServiceID(serviceID string) error
 	return nil
 }
 
+// ListThirdPartyService lists all third party services
+func (t *TenantServicesDaoImpl) ListThirdPartyServices() ([]*model.TenantServices, error) {
+	var res []*model.TenantServices
+	if err := t.DB.Where("kind=?", model.ServiceKindThirdParty.String()).Find(&res).Error; err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
 //TenantServicesDeleteImpl TenantServiceDeleteImpl
 type TenantServicesDeleteImpl struct {
 	DB *gorm.DB
@@ -560,6 +569,16 @@ func (t *TenantServicesPortDaoImpl) GetPort(serviceID string, port int) (*model.
 	return &oldPort, nil
 }
 
+// GetEnablePort returns opened ports.
+func (t *TenantServicesPortDaoImpl) GetOpenedPorts(serviceID string) ([]*model.TenantServicesPort, error) {
+	var ports []*model.TenantServicesPort
+	if err := t.DB.Where("service_id = ? and (is_inner_service=1 or is_outer_service=1)", serviceID).
+		Find(&ports).Error; err != nil {
+		return nil, err
+	}
+	return ports, nil
+}
+
 //DELPortsByServiceID DELPortsByServiceID
 func (t *TenantServicesPortDaoImpl) DELPortsByServiceID(serviceID string) error {
 	var port model.TenantServicesPort
@@ -567,6 +586,19 @@ func (t *TenantServicesPortDaoImpl) DELPortsByServiceID(serviceID string) error 
 		return err
 	}
 	return nil
+}
+
+// HasOpenPort checks if the given service(according to sid) has open port.
+func (t *TenantServicesPortDaoImpl) HasOpenPort(sid string) bool {
+	var port model.TenantServicesPort
+	if err := t.DB.Where("service_id = ? and (is_outer_service=1 or is_inner_service=1)", sid).
+		Find(&port).Error; err != nil {
+		if err != gorm.ErrRecordNotFound {
+			logrus.Warningf("error getting TenantServicesPort: %v", err)
+		}
+		return false
+	}
+	return true
 }
 
 //GetDepUDPPort get all depend service udp port
@@ -967,12 +999,13 @@ func (t *TenantServiceConfigFileDaoImpl) AddModel(mo model.Interface) error {
 		return fmt.Errorf("can't convert %s to *model.TenantServiceConfigFile", reflect.TypeOf(mo))
 	}
 	var old model.TenantServiceConfigFile
-	if ok := t.DB.Where("uuid = ?", configFile.UUID).Find(&old).RecordNotFound(); ok {
+	if ok := t.DB.Where("service_id=? and volume_name=?", configFile.ServiceID,
+		configFile.VolumeName).Find(&old).RecordNotFound(); ok {
 		if err := t.DB.Create(configFile).Error; err != nil {
 			return err
 		}
 	} else {
-		return fmt.Errorf("ConfigFile already exists according to uuid(%s)", configFile.UUID)
+		return fmt.Errorf("ServiceID: %s; VolumeName: %s; ConfigFile already exists", configFile.ServiceID, configFile.VolumeName)
 	}
 	return nil
 }
@@ -983,26 +1016,25 @@ func (t *TenantServiceConfigFileDaoImpl) UpdateModel(mo model.Interface) error {
 	if !ok {
 		return fmt.Errorf("can't convert %s to *model.TenantServiceConfigFile", reflect.TypeOf(mo))
 	}
-
 	return t.DB.Table(configFile.TableName()).
-		Where("uuid = ?", configFile.UUID).
+		Where("service_id=? and volume_name=?", configFile.ServiceID, configFile.VolumeName).
 		Update(configFile).Error
 }
 
 // GetByVolumeName get config file by volume name
-func (t *TenantServiceConfigFileDaoImpl) GetByVolumeName(volumeName string) (*model.TenantServiceConfigFile, error) {
+func (t *TenantServiceConfigFileDaoImpl) GetByVolumeName(sid string, volumeName string) (*model.TenantServiceConfigFile, error) {
 	var res model.TenantServiceConfigFile
-	if err := t.DB.Where("volume_name = ?", volumeName).Find(&res).Error; err != nil {
+	if err := t.DB.Where("service_id=? and volume_name = ?", sid, volumeName).
+		Find(&res).Error; err != nil {
 		return nil, err
 	}
-
 	return &res, nil
 }
 
-// DelByVolumeID deletes config files according to volume id
-func (t *TenantServiceConfigFileDaoImpl) DelByVolumeID(volumeName string) error {
+// DelByVolumeID deletes config files according to service id and volume id.
+func (t *TenantServiceConfigFileDaoImpl) DelByVolumeID(sid, volumeName string) error {
 	var cfs []model.TenantServiceConfigFile
-	return t.DB.Where("volume_name = ?", volumeName).Delete(&cfs).Error
+	return t.DB.Where("service_id=? and volume_name = ?", sid, volumeName).Delete(&cfs).Error
 }
 
 //TenantServiceLBMappingPortDaoImpl stream服务映射

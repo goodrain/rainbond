@@ -22,11 +22,29 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 )
+
+// EventType type of event
+type EventType string
+
+const (
+	// StartEvent event about to start third-party service
+	StartEvent EventType = "START"
+	// StopEvent event about to stop third-party service
+	StopEvent EventType = "STOP"
+)
+
+// Event holds the context of a start event.
+type Event struct {
+	Type EventType
+	Sid  string // service id
+}
 
 //AppServiceStatus the status of service, calculate in real time from kubernetes
 type AppServiceStatus string
@@ -59,6 +77,7 @@ type AppServiceBase struct {
 	ServiceID        string
 	ServiceAlias     string
 	ServiceType      AppServiceType
+	ServiceKind      model.ServiceKind
 	DeployVersion    string
 	ContainerCPU     int
 	ContainerMemory  int
@@ -80,12 +99,16 @@ type AppService struct {
 	deployment   *v1.Deployment
 	replicasets  []*v1.ReplicaSet
 	services     []*corev1.Service
+	delServices  []*corev1.Service
+	endpoints    []*corev1.Endpoints
+	delEndpoints []*corev1.Endpoints
 	configMaps   []*corev1.ConfigMap
 	ingresses    []*extensions.Ingress
 	delIngs      []*extensions.Ingress // ingresses which need to be deleted
 	secrets      []*corev1.Secret
 	delSecrets   []*corev1.Secret // secrets which need to be deleted
 	pods         []*corev1.Pod
+	rbdEndpoints []*RbdEndpoint
 	status       AppServiceStatus
 	Logger       event.Logger
 	UpgradePatch map[string][]byte
@@ -249,6 +272,11 @@ func (a *AppService) GetServices() []*corev1.Service {
 	return a.services
 }
 
+//GetDelServices returns services that need to be deleted.
+func (a *AppService) GetDelServices() []*corev1.Service {
+	return a.delServices
+}
+
 //DeleteServices delete service
 func (a *AppService) DeleteServices(service *corev1.Service) {
 	for i, c := range a.services {
@@ -257,6 +285,29 @@ func (a *AppService) DeleteServices(service *corev1.Service) {
 			return
 		}
 	}
+}
+
+// AddEndpoints adds k8s endpoints to receiver *AppService.
+func (a *AppService) AddEndpoints(ep *corev1.Endpoints) {
+	if len(a.endpoints) > 0 {
+		for i, e := range a.endpoints {
+			if e.GetName() == ep.GetName() {
+				a.endpoints[i] = ep
+				return
+			}
+		}
+	}
+	a.endpoints = append(a.endpoints, ep)
+}
+
+// GetEndpoints returns endpoints in AppService
+func (a *AppService) GetEndpoints() []*corev1.Endpoints {
+	return a.endpoints
+}
+
+// GetDelEndpoints returns endpoints that need to be deleted in AppService
+func (a *AppService) GetDelEndpoints() []*corev1.Endpoints {
+	return a.delEndpoints
 }
 
 //GetIngress get ingress
@@ -344,7 +395,7 @@ func (a *AppService) SetAllSecrets(secrets []*corev1.Secret) {
 	a.secrets = secrets
 }
 
-//DeleteSecrets set srcrets
+//DeleteSecrets set secrets
 func (a *AppService) DeleteSecrets(d *corev1.Secret) {
 	for i, c := range a.secrets {
 		if c.GetName() == d.GetName() {
@@ -402,8 +453,45 @@ func (a *AppService) GetTenant() *corev1.Namespace {
 	return a.tenant
 }
 
-// SetDelIngsSecrets sets delIngs and delSecrets
-func (a *AppService) SetDelIngsSecrets(old *AppService) {
+// GetRbdEndpionts returns rbdEndpoints.
+func (a *AppService) GetRbdEndpionts() []*RbdEndpoint {
+	return a.rbdEndpoints
+}
+
+// SetRbdEndpionts sets rbd endpoints for AppService.
+func (a *AppService) SetRbdEndpionts(dat []*RbdEndpoint) {
+	a.rbdEndpoints = dat
+}
+
+// AddRbdEndpiont adds rbd endpoint for AppService.
+func (a *AppService) AddRbdEndpiont(dat *RbdEndpoint) {
+	a.rbdEndpoints = append(a.rbdEndpoints, dat)
+}
+
+// UpdRbdEndpionts updates rbd endpoint for AppService.
+func (a *AppService) UpdRbdEndpionts(dat *RbdEndpoint) {
+	for index, item := range a.rbdEndpoints {
+		if item.UUID == dat.UUID {
+			a.rbdEndpoints[index] = dat
+		}
+	}
+}
+
+// DelRbdEndpiont deletes rbd endpoints for AppService.
+func (a *AppService) DelRbdEndpiont(uuid string) {
+	for index, ep := range a.rbdEndpoints {
+		if ep.UUID == uuid {
+			a.rbdEndpoints = append(a.rbdEndpoints[:index], a.rbdEndpoints[index+1:]...)
+		}
+	}
+}
+
+// SetDeletedResources sets the resources that need to be deleted
+func (a *AppService) SetDeletedResources(old *AppService) {
+	if old == nil {
+		logrus.Debugf("empty old app service.")
+		return
+	}
 	for _, o := range old.GetIngress() {
 		del := true
 		for _, n := range a.GetIngress() {
@@ -425,7 +513,19 @@ func (a *AppService) SetDelIngsSecrets(old *AppService) {
 			}
 		}
 		if del {
-			a.secrets = append(a.secrets, o)
+			a.delSecrets = append(a.delSecrets, o)
+		}
+	}
+	for _, o := range old.GetServices() {
+		del := true
+		for _, n := range a.GetServices() {
+			if o.Name == n.Name {
+				del = false
+				break
+			}
+		}
+		if del {
+			a.delServices = append(a.delServices, o)
 		}
 	}
 }
@@ -471,4 +571,11 @@ type TenantResource struct {
 	CPULimit      int64  `json:"cpu_limit,omitempty"`
 	MemoryRequest int64  `json:"memory_request,omitempty"`
 	MemoryLimit   int64  `json:"memory_limit,omitempty"`
+}
+
+// K8sResources holds kubernetes resources(svc, sercert, ep, ing).
+type K8sResources struct {
+	Services  []*corev1.Service
+	Secrets   []*corev1.Secret
+	Ingresses []*extensions.Ingress
 }

@@ -507,16 +507,16 @@ func (m *Manager) EndpointsDaoTransactions(db *gorm.DB) dao.EndpointsDao {
 	}
 }
 
-// ThirdPartyServiceDiscoveryCfgDao returns a new ThirdPartyServiceDiscoveryCfgDao.
-func (m *Manager) ThirdPartyServiceDiscoveryCfgDao() dao.ThirdPartyServiceDiscoveryCfgDao {
-	return &mysqldao.ThirdPartyServiceDiscoveryCfgDaoImpl{
+// ThirdPartySvcDiscoveryCfgDao returns a new ThirdPartySvcDiscoveryCfgDao.
+func (m *Manager) ThirdPartySvcDiscoveryCfgDao() dao.ThirdPartySvcDiscoveryCfgDao {
+	return &mysqldao.ThirdPartySvcDiscoveryCfgDaoImpl{
 		DB: m.db,
 	}
 }
 
-// ThirdPartyServiceDiscoveryCfgDaoTransactions returns a new ThirdPartyServiceDiscoveryCfgDao.
-func (m *Manager) ThirdPartyServiceDiscoveryCfgDaoTransactions(db *gorm.DB) dao.ThirdPartyServiceDiscoveryCfgDao {
-	return &mysqldao.ThirdPartyServiceDiscoveryCfgDaoImpl{
+// ThirdPartySvcDiscoveryCfgDaoTransactions returns a new ThirdPartySvcDiscoveryCfgDao.
+func (m *Manager) ThirdPartySvcDiscoveryCfgDaoTransactions(db *gorm.DB) dao.ThirdPartySvcDiscoveryCfgDao {
+	return &mysqldao.ThirdPartySvcDiscoveryCfgDaoImpl{
 		DB: db,
 	}
 }

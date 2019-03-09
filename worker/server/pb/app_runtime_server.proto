@@ -6,9 +6,15 @@ service AppRuntimeSync {
   rpc GetAppPods (ServiceRequest) returns (ServiceAppPodList) {}
   rpc GetDeployInfo (ServiceRequest) returns (DeployInfo) {}
   rpc GetTenantResource (TenantRequest) returns (TenantResource) {}
+  rpc ListThirdPartyEndpoints (ServiceRequest) returns (ThirdPartyEndpoints) {}
+  rpc AddThirdPartyEndpoint (AddThirdPartyEndpointsReq) returns (Empty) {}
+  rpc UpdThirdPartyEndpoint (UpdThirdPartyEndpointsReq) returns (Empty) {}
+  rpc DelThirdPartyEndpoint (DelThirdPartyEndpointsReq) returns (Empty) {}
 }
 
-message ServiceRequest { 
+message Empty {}
+
+message ServiceRequest {
   string service_id = 1;
 }
 message ServicesRequest {
@@ -62,4 +68,38 @@ message TenantResource {
   int64 memory_request = 3;
   int64 memory_limit = 4;
   int64 running_app_num = 5;
+}
+
+message AddThirdPartyEndpointsReq {
+  string uuid = 1;
+  string sid = 2;
+  string ip = 3;
+  int32 port = 4;
+  bool is_online = 5;
+}
+
+message UpdThirdPartyEndpointsReq {
+  string uuid = 1;
+  string sid = 2;
+  string ip = 3;
+  int32 port = 4;
+  bool is_online = 5;
+}
+
+message DelThirdPartyEndpointsReq {
+  string uuid = 1;
+  string sid = 2;
+}
+
+message ThirdPartyEndpoint {
+  string uuid = 1;
+  string sid = 2;
+  string ip = 3;
+  int32 port = 4;
+  string status = 5;
+  bool is_online = 6;
+}
+
+message ThirdPartyEndpoints {
+  repeated ThirdPartyEndpoint obj = 1;
 }

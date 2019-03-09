@@ -20,24 +20,20 @@ package discover
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
-	"github.com/goodrain/rainbond/worker/appm/store"
-
-	"github.com/goodrain/rainbond/worker/appm/controller"
-
+	"github.com/Sirupsen/logrus"
+	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/mq/client"
+	"github.com/goodrain/rainbond/worker/appm/controller"
+	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/goodrain/rainbond/worker/handle"
-
 	grpc1 "google.golang.org/grpc"
-
-	"fmt"
-
-	"github.com/Sirupsen/logrus"
 )
 
 var healthStatus = make(map[string]string, 1)
@@ -58,9 +54,12 @@ type TaskManager struct {
 }
 
 //NewTaskManager return *TaskManager
-func NewTaskManager(c option.Config, store store.Storer, controllermanager *controller.Manager) *TaskManager {
+func NewTaskManager(c option.Config,
+	store store.Storer,
+	controllermanager *controller.Manager,
+	startCh *channels.RingChannel) *TaskManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	handleManager := handle.NewManager(ctx, c, store, controllermanager)
+	handleManager := handle.NewManager(ctx, c, store, controllermanager, startCh)
 	healthStatus["status"] = "health"
 	healthStatus["info"] = "worker service health"
 	return &TaskManager{

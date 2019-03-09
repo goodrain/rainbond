@@ -19,19 +19,45 @@
 package conversion
 
 import (
-	"fmt"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/dao"
+	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/rafrombrc/gomock/gomock"
 	"testing"
-	"time"
 )
 
-func TestInitAppService(t *testing.T) {
+func TestTenantServiceBase(t *testing.T) {
+	t.Run("third-party service", func(t *testing.T) {
+		as := &v1.AppService{}
+		as.ServiceID = util.NewUUID()
+		as.TenantID = util.NewUUID()
+		as.TenantName = "abcdefg"
 
-}
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 
-func TestTemp(t *testing.T) {
-	createTime, err := time.Parse(time.RFC3339, "2018-10-22T14:14:12Z")
-	if err != nil {
-		t.Errorf("error: %v", err)
-	}
-	fmt.Println(createTime)
+		dbm := db.NewMockManager(ctrl)
+		// TenantServiceDao
+		tenantServiceDao := dao.NewMockTenantServiceDao(ctrl)
+		tenantService := &model.TenantServices{
+			TenantID: as.TenantID,
+			ServiceID: as.ServiceID,
+			Kind: model.ServiceKindThirdParty.String(),
+		}
+		tenantServiceDao.EXPECT().GetServiceByID(as.ServiceID).Return(tenantService, nil)
+		dbm.EXPECT().TenantServiceDao().Return(tenantServiceDao)
+		// TenantDao
+		tenantDao := dao.NewMockTenantDao(ctrl)
+		tenant := &model.Tenants{
+			UUID: as.TenantID,
+			Name: as.TenantName,
+		}
+		tenantDao.EXPECT().GetTenantByUUID(as.TenantID).Return(tenant, nil)
+		dbm.EXPECT().TenantDao().Return(tenantDao)
+		if err := TenantServiceBase(as, dbm); err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+	})
 }
