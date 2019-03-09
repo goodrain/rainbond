@@ -23,12 +23,15 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/pprof"
-
-	"github.com/go-chi/chi"
 )
 
+//ServeMux -
+type ServeMux interface {
+	HandleFunc(pattern string, funC http.HandlerFunc)
+}
+
 //ProfilerSetup pprof route
-func ProfilerSetup(r *chi.Mux) {
+func ProfilerSetup(r ServeMux) {
 	r.HandleFunc("/vars", expVars)
 	r.HandleFunc("/debug/pprof/", pprof.Index)
 	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)

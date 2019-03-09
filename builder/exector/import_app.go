@@ -29,7 +29,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/bitly/go-simplejson"
+	simplejson "github.com/bitly/go-simplejson"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/builder/sources"
@@ -468,7 +468,7 @@ func (i *ImportApp) loadApps() error {
 				}
 			} else {
 				if err := util.CheckAndCreateDir(filepath.Dir(shareSlugPath)); err != nil {
-					logrus.Error("Failed create slug file directory %s error %s ", filepath.Dir(shareSlugPath), err.Error())
+					logrus.Errorf("Failed create slug file directory %s error %s ", filepath.Dir(shareSlugPath), err.Error())
 					return err
 				}
 				err := util.CopyFile(fileName, shareSlugPath)

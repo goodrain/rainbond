@@ -131,21 +131,26 @@ type Lang string
 
 //ServiceInfo 智能获取的应用信息
 type ServiceInfo struct {
-	Ports             []Port                `json:"ports"`
-	Envs              []Env                 `json:"envs"`
-	Volumes           []Volume              `json:"volumes"`
-	Image             Image                 `json:"image"`
-	Args              []string              `json:"args"`
-	DependServices    []string              `json:"depends,omitempty"`
-	ServiceDeployType string                `json:"deploy_type,omitempty"`
-	Branchs           []string              `json:"branchs,omitempty"`
-	Memory            int                   `json:"memory"`
-	Lang              code.Lang             `json:"language"`
-	Runtime           bool                  `json:"runtime"`
-	Dependencies      bool                  `json:"dependencies"`
-	Procfile          bool                  `json:"procfile"`
-	ImageAlias        string                `json:"image_alias"`
-	Endpoints         []*discovery.Endpoint `json:"endpoints"`
+	Ports             []Port    `json:"ports"`
+	Envs              []Env     `json:"envs"`
+	Volumes           []Volume  `json:"volumes"`
+	Image             Image     `json:"image"`
+	Args              []string  `json:"args"`
+	DependServices    []string  `json:"depends,omitempty"`
+	ServiceDeployType string    `json:"deploy_type,omitempty"`
+	Branchs           []string  `json:"branchs,omitempty"`
+	Memory            int       `json:"memory"`
+	Lang              code.Lang `json:"language"`
+	ImageAlias        string    `json:"image_alias"`
+	//For third party services
+	Endpoints []*discovery.Endpoint `json:"endpoints"`
+
+	//deprecated
+	Runtime bool `json:"runtime"`
+	//deprecated
+	Dependencies bool `json:"dependencies"`
+	//deprecated
+	Procfile bool `json:"procfile"`
 }
 
 //GetServiceInfo GetServiceInfo

@@ -53,6 +53,9 @@ server {
 
     {{ range $loc := $srv.Locations }}
     location {{$loc.Path}} {
+        {{ if $loc.DisableAccessLog }}
+        access_log off;
+        {{ end }}
         {{ range $rewrite := $loc.Rewrites }}
         rewrite {{$rewrite.Regex}} {{$rewrite.Replacement}}{{if $rewrite.Flag }} {{$rewrite.Flag}}{{ end }};
         {{ end }}
@@ -72,10 +75,25 @@ server {
         proxy_send_timeout {{$loc.ProxySendTimeout.Num}}{{$loc.ProxySendTimeout.Unit}};
         {{ end }}
         {{ if not $loc.DisableProxyPass }}
-        set $target 'default';
-        {{ buildLuaHeaderRouter $loc }}
-        proxy_pass http://upstream_balancer;
+            set $target 'default';
+            {{ if $srv.OptionValue }}
+                {{range $i, $v := $srv.OptionValue}}
+                    set ${{$i}} '{{$v}}';
+                {{end}}
+            {{ end }}
+            {{ buildLuaHeaderRouter $loc }}
+            {{ if $loc.PathRewrite }}
+              proxy_pass http://upstream_balancer/;
+            {{ else }}
+              proxy_pass http://upstream_balancer;
+            {{ end }}
         {{ end }}
+        log_by_lua_block {
+            balancer.log()
+            {{ if $loc.EnableMetrics }}
+            monitor.call()
+            {{ end }}
+        }
         {{ if $loc.Return.Code }}
         return {{$loc.Return.Code}} {{$loc.Return.Text}} {{$loc.Return.URL}};
         {{ end }}

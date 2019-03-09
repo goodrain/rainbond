@@ -160,7 +160,7 @@ func (t *Template) Write(conf interface{}) ([]byte, error) {
 
 	// squeezes multiple adjacent empty lines to be single
 	// spaced this is to avoid the use of regular expressions
-	cmd := exec.Command("/ingress-controller/clean-nginx-conf.sh")
+	cmd := exec.Command("/run/ingress-controller/clean-nginx-conf.sh")
 	cmd.Stdin = tmplBuf
 	cmd.Stdout = outCmdBuf
 	if err := cmd.Run(); err != nil {

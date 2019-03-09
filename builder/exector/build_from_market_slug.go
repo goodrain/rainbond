@@ -48,6 +48,7 @@ type MarketSlugItem struct {
 	ServiceID     string       `json:"service_id"`
 	Action        string       `json:"action"`
 	TGZPath       string
+	Configs       map[string]string `json:"configs"`
 	SlugInfo      struct {
 		SlugPath    string `json:"slug_path"`
 		FTPHost     string `json:"ftp_host"`

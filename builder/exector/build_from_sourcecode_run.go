@@ -68,6 +68,7 @@ type SourceCodeBuildItem struct {
 	CodeSouceInfo sources.CodeSourceInfo
 	RepoInfo      *sources.RepostoryBuildInfo
 	commit        Commit
+	Configs       map[string]gjson.Result `json:"configs"`
 }
 
 //Commit code Commit
@@ -108,6 +109,7 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 		CodeSouceInfo: csi,
 		Lang:          gjson.GetBytes(in, "lang").String(),
 		Runtime:       gjson.GetBytes(in, "runtime").String(),
+		Configs:       gjson.GetBytes(in, "configs").Map(),
 		BuildEnvs:     be,
 	}
 	scb.CacheDir = fmt.Sprintf("/cache/build/%s/cache/%s", scb.TenantID, scb.ServiceID)

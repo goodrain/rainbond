@@ -132,7 +132,7 @@ func (m *Manager) startExec(task *model.Task) error {
 		event.GetManager().ReleaseLogger(logger)
 		return nil
 	}
-	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID)
+	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID, body.Configs)
 	if err != nil {
 		logrus.Errorf("Application init create failure:%s", err.Error())
 		logger.Error("Application init create failure", controller.GetCallbackLoggerOption())
@@ -167,6 +167,9 @@ func (m *Manager) stopExec(task *model.Task) error {
 		return nil
 	}
 	appService.Logger = logger
+	for k, v := range body.Configs {
+		appService.ExtensionSet[k] = v
+	}
 	err := m.controllerManager.StartController(controller.TypeStopController, *appService)
 	if err != nil {
 		logrus.Errorf("Application run  stop controller failure:%s", err.Error())
@@ -192,6 +195,9 @@ func (m *Manager) restartExec(task *model.Task) error {
 		return nil
 	}
 	appService.Logger = logger
+	for k, v := range body.Configs {
+		appService.ExtensionSet[k] = v
+	}
 	//first stop app
 	err := m.controllerManager.StartController(controller.TypeRestartController, *appService)
 	if err != nil {
@@ -259,7 +265,7 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 	appService.ContainerCPU = service.ContainerCPU
 	appService.ContainerMemory = service.ContainerMemory
 	appService.Logger = logger
-	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID)
+	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID, nil)
 	if err != nil {
 		logrus.Errorf("Application init create failure:%s", err.Error())
 		logger.Error("Application init create failure", controller.GetCallbackLoggerOption())
@@ -286,7 +292,7 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 		return fmt.Errorf("rolling_upgrade body convert to taskbody error")
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
-	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID)
+	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID, body.Configs)
 	if err != nil {
 		logrus.Errorf("Application init create failure:%s", err.Error())
 		logger.Error("Application init create failure", controller.GetCallbackLoggerOption())
@@ -409,7 +415,7 @@ func (m *Manager) applyPluginConfig(task *model.Task) error {
 		logrus.Debugf("service is closed,no need handle")
 		return nil
 	}
-	newApp, err := conversion.InitAppService(m.dbmanager, body.ServiceID, "ServiceSource", "TenantServiceBase", "TenantServicePlugin")
+	newApp, err := conversion.InitAppService(m.dbmanager, body.ServiceID, nil, "ServiceSource", "TenantServiceBase", "TenantServicePlugin")
 	if err != nil {
 		logrus.Errorf("Application apply plugin config controller failure:%s", err.Error())
 		return err

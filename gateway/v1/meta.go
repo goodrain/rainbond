@@ -23,9 +23,11 @@ type Meta struct {
 	Index      int64  `json:"index"`
 	Name       string `json:"name"`
 	Namespace  string `json:"namespace"`
+	ServiceID  string `json:"service_id"`
 	PluginName string `json:"plugin_name"`
 }
 
+//Equals -
 func (m *Meta) Equals(c *Meta) bool {
 	if m == c {
 		return true
@@ -42,6 +44,8 @@ func (m *Meta) Equals(c *Meta) bool {
 	if m.PluginName != c.PluginName {
 		return false
 	}
-
+	if m.ServiceID != c.ServiceID {
+		return false
+	}
 	return true
 }

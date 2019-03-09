@@ -42,11 +42,3 @@ func TestExec(t *testing.T) {
 	}()
 	cmd.Wait()
 }
-
-func TestLog(t *testing.T) {
-	mm := []string{"127.0.0.1", "-t", "100"}
-	err := ShowExec("ping", mm, nil)
-	if err != nil {
-		fmt.Println(err)
-	}
-}

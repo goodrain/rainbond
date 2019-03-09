@@ -20,6 +20,7 @@ package option
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/goodrain/rainbond/util"
@@ -32,6 +33,7 @@ import (
 type GWServer struct {
 	Config
 	LogLevel string
+	Debug    bool
 }
 
 // NewGWServer creates a new option.GWServer
@@ -76,6 +78,8 @@ type Config struct {
 	GrMeIP             string
 	EnableRepoGrMe     bool
 	RepoGrMeIP         string
+	NodeName           string
+	HostIP             string
 }
 
 // ListenPorts describe the ports required to run the gateway controller
@@ -123,6 +127,9 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.GrMeIP, "grme-ip", "0.0.0.0", "ip address bound by goodrain.me")
 	fs.BoolVar(&g.EnableRepoGrMe, "enable-repo-grme", true, "enable load balancing of repo.goodrain.me")
 	fs.StringVar(&g.RepoGrMeIP, "repo-grme-ip", "0.0.0.0", "ip address bound by repo.goodrain.me")
+	fs.StringVar(&g.NodeName, "node-name", "", "this gateway node host name")
+	fs.StringVar(&g.HostIP, "node-ip", "", "this gateway node ip")
+	fs.BoolVar(&g.Debug, "debug", false, "enable pprof debug")
 }
 
 // SetLog sets log
@@ -142,6 +149,17 @@ func (g *GWServer) CheckConfig() error {
 	}
 	if exist, _ := util.FileExists(g.K8SConfPath); !exist {
 		return fmt.Errorf("kube config file %s not exist", g.K8SConfPath)
+	}
+	if g.NodeName == "" {
+		g.NodeName, _ = os.Hostname()
+	}
+	if g.HostIP == "" {
+		ip, err := util.LocalIP()
+		if err != nil {
+			logrus.Errorf("get ip failed,details %s", err.Error())
+			return fmt.Errorf("get host ip failure %s", err.Error())
+		}
+		g.HostIP = ip.String()
 	}
 	return nil
 }

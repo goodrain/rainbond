@@ -57,11 +57,14 @@ func RegistConversion(name string, fun Conversion) {
 }
 
 //InitAppService init a app service
-func InitAppService(dbmanager db.Manager, serviceID string, enableConversionList ...string) (*v1.AppService, error) {
+func InitAppService(dbmanager db.Manager, serviceID string, configs map[string]string, enableConversionList ...string) (*v1.AppService, error) {
+	if configs == nil {
+		configs = make(map[string]string)
+	}
 	appService := &v1.AppService{
 		AppServiceBase: v1.AppServiceBase{
 			ServiceID:    serviceID,
-			ExtensionSet: make(map[string]string),
+			ExtensionSet: configs,
 		},
 		UpgradePatch: make(map[string][]byte, 2),
 	}
