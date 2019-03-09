@@ -35,9 +35,10 @@ type BatchOperationResult struct {
 }
 
 //CreateBatchOperationHandler create batch operation handler
-func CreateBatchOperationHandler(mqCli gclient.MQClient) *BatchOperationHandler {
+func CreateBatchOperationHandler(mqCli gclient.MQClient, operationHandler *OperationHandler) *BatchOperationHandler {
 	return &BatchOperationHandler{
-		mqCli: mqCli,
+		mqCli:            mqCli,
+		operationHandler: operationHandler,
 	}
 }
 
@@ -72,7 +73,7 @@ func (b *BatchOperationHandler) Start(startInfos []model.StartOrStopInfoRequestS
 	var retrys []model.StartOrStopInfoRequestStruct
 	for _, startInfo := range startInfos {
 		startInfo.Configs = setStartupSequenceConfig(startInfo.Configs)
-		startre := b.operationHandler.Satrt(startInfo)
+		startre := b.operationHandler.Start(startInfo)
 		if startre.Status != "success" {
 			retrys = append(retrys, startInfo)
 		} else {
@@ -80,7 +81,7 @@ func (b *BatchOperationHandler) Start(startInfos []model.StartOrStopInfoRequestS
 		}
 	}
 	for _, retry := range retrys {
-		re.BatchResult = append(re.BatchResult, b.operationHandler.Satrt(retry))
+		re.BatchResult = append(re.BatchResult, b.operationHandler.Start(retry))
 	}
 	return
 }
@@ -90,7 +91,7 @@ func (b *BatchOperationHandler) Stop(stopInfos []model.StartOrStopInfoRequestStr
 	var retrys []model.StartOrStopInfoRequestStruct
 	for _, stopInfo := range stopInfos {
 		stopInfo.Configs = setStartupSequenceConfig(stopInfo.Configs)
-		stopre := b.operationHandler.Satrt(stopInfo)
+		stopre := b.operationHandler.Stop(stopInfo)
 		if stopre.Status != "success" {
 			retrys = append(retrys, stopInfo)
 		} else {
@@ -98,7 +99,7 @@ func (b *BatchOperationHandler) Stop(stopInfos []model.StartOrStopInfoRequestStr
 		}
 	}
 	for _, retry := range retrys {
-		re.BatchResult = append(re.BatchResult, b.operationHandler.Satrt(retry))
+		re.BatchResult = append(re.BatchResult, b.operationHandler.Stop(retry))
 	}
 	return
 }

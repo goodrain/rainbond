@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Sirupsen/logrus"
+
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 
@@ -35,6 +37,7 @@ func BatchOperation(w http.ResponseWriter, r *http.Request) {
 	var build model.BeatchOperationRequestStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build.Body, nil)
 	if !ok {
+		logrus.Errorf("start batch operation validate request body failure")
 		return
 	}
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)

@@ -173,8 +173,8 @@ func (o *OperationHandler) Stop(stopInfo model.StartOrStopInfoRequestStruct) (re
 	return
 }
 
-//Satrt service start
-func (o *OperationHandler) Satrt(startInfo model.StartOrStopInfoRequestStruct) (re OperationResult) {
+//Start service start
+func (o *OperationHandler) Start(startInfo model.StartOrStopInfoRequestStruct) (re OperationResult) {
 	re.Operation = "start"
 	re.ServiceID = startInfo.ServiceID
 	re.Status = "failure"

@@ -546,6 +546,7 @@ func (t *TenantStruct) BuildList(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, resp)
 }
 
+//BuildVersionIsExist -
 func (t *TenantStruct) BuildVersionIsExist(w http.ResponseWriter, r *http.Request) {
 	statusMap := make(map[string]bool)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
@@ -564,6 +565,7 @@ func (t *TenantStruct) BuildVersionIsExist(w http.ResponseWriter, r *http.Reques
 
 }
 
+//DeleteBuildVersion -
 func (t *TenantStruct) DeleteBuildVersion(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	buildVersion := chi.URLParam(r, "build_version")
@@ -604,6 +606,7 @@ func (t *TenantStruct) DeleteBuildVersion(w http.ResponseWriter, r *http.Request
 
 }
 
+//BuildVersionInfo -
 func (t *TenantStruct) BuildVersionInfo(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "DELETE":
@@ -833,6 +836,7 @@ type limitMemory struct {
 	LimitMemory int `json:"limit_memory"`
 }
 
+//LimitTenantMemory -
 func (t *TenantStruct) LimitTenantMemory(w http.ResponseWriter, r *http.Request) {
 
 	var lm limitMemory
@@ -861,6 +865,7 @@ func (t *TenantStruct) LimitTenantMemory(w http.ResponseWriter, r *http.Request)
 
 }
 
+//SourcesInfo -
 type SourcesInfo struct {
 	TenantID        string `json:"tenant_id"`
 	AvailableMemory int    `json:"available_memory"`

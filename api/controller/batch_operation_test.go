@@ -71,6 +71,8 @@ func TestBatchOperation(t *testing.T) {
 	build.Body.StartInfos = startInfo
 	build.Body.StopInfos = startInfo
 	build.Body.UpgradeInfos = upgrade
+
+	build.Body.Operation = "stop"
 	out, _ := json.MarshalIndent(build.Body, "", "\t")
 	fmt.Print(string(out))
 
