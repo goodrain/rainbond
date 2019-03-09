@@ -360,10 +360,10 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	}
 	var newAppService *v1.AppService
 	if svc.Kind == dbmodel.ServiceKindThirdParty.String() {
-		newAppService, err = conversion.InitAppService(m.dbmanager, body.ServiceID,
+		newAppService, err = conversion.InitAppService(m.dbmanager, body.ServiceID, nil,
 			"ServiceSource", "TenantServiceBase", "TenantServiceRegist")
 	} else {
-		newAppService, err = conversion.InitAppService(m.dbmanager, body.ServiceID)
+		newAppService, err = conversion.InitAppService(m.dbmanager, body.ServiceID, nil)
 	}
 	if err != nil {
 		logrus.Errorf("Application init create failure:%s", err.Error())
