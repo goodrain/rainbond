@@ -101,6 +101,7 @@ func (o *OrService) Start(errCh chan error) {
 	}
 	if o.ocfg.EnableRbdEndpoints {
 		if err := o.newRbdServers(); err != nil {
+			logrus.Error(err.Error())
 			errCh <- err // TODO: consider if it is right
 		}
 	}
@@ -224,6 +225,7 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 					&model.ProxySetHeader{Field: "X-Real-IP", Value: "$remote_addr"},
 					&model.ProxySetHeader{Field: "X-Forwarded-For", Value: "$proxy_add_x_forwarded_for"},
 				},
+				Proxy: loc.Proxy,
 			}
 			server.Locations = append(server.Locations, location)
 		}

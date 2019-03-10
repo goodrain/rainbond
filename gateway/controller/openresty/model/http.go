@@ -20,11 +20,13 @@ type HTTP struct {
 	UpstreamsDict        Size
 }
 
+// LogFormat -
 type LogFormat struct {
 	Name   string
 	Format string
 }
 
+// AccessLog -
 type AccessLog struct {
 	Name string
 	Path string
