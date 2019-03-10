@@ -539,3 +539,48 @@ func (g *GatewayAction) AddIPPool(req *apimodel.IPPoolStruct) error {
 	}
 	return nil
 }
+
+// AddRuleConfig -
+func (g *GatewayAction) AddRuleConfig(req *apimodel.AddRuleConfigReq) error {
+	c := &model.GwRuleConfig{
+		ConfigID: req.ConfigID,
+		RuleID:   req.RuleID,
+		Key:      req.Key,
+		Value:    req.Value,
+	}
+	if err := g.dbmanager.IPPoolDao().AddModel(c); err != nil {
+		return err
+	}
+	return nil
+}
+
+// UpdRuleConfig -
+func (g *GatewayAction) UpdRuleConfig(req *apimodel.UpdRuleConfigReq) error {
+	cfg, err := g.dbmanager.GwRuleConfigDao().GetByConfigID(req.ConfigID)
+	if err != nil {
+		return err
+	}
+	if req.RuleID != "" {
+		cfg.RuleID = req.ConfigID
+	}
+	if req.Key != "" {
+		cfg.Key = req.Key
+	}
+	if req.Value != "" {
+		cfg.Value = req.Value
+	}
+	if err := g.dbmanager.IPPoolDao().UpdateModel(cfg); err != nil {
+		return err
+	}
+	return nil
+}
+
+// DelRuleConfig -
+func (g *GatewayAction) DelRuleConfig(cid string) error {
+	return g.dbmanager.GwRuleConfigDao().DeleteByConfigID(cid)
+}
+
+// DelRuleConfig -
+func (g *GatewayAction) DelRuleConfigs(rid string) error {
+	return g.dbmanager.GwRuleConfigDao().DeleteByRuleID(rid)
+}

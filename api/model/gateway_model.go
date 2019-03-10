@@ -93,3 +93,24 @@ type IPPoolStruct struct {
 	EID  string `json:"eid" validate:"eid|required"`
 	CIDR string `json:"cidr" validate:"cidr|required"`
 }
+
+// AddRuleConfigReq -
+type AddRuleConfigReq struct {
+	ConfigID string `json:"config_id" validate:"config_id|required"`
+	RuleID   string `json:"rule_id" validate:"rule_id|required"`
+	Key      string `json:"key" validate:"key|required"`
+	Value    string `json:"value" validate:"value|required"`
+}
+
+// UpdRuleConfigReq -
+type UpdRuleConfigReq struct {
+	ConfigID string `json:"config_id" validate:"config_id|required"`
+	RuleID   string `json:"rule_id"`
+	Key      string `json:"key"`
+	Value    string `json:"value"`
+}
+
+// DelRuleConfigReq -
+type DelRuleConfigReq struct {
+	ConfigID string `json:"config_id" validate:"config_id|required"`
+}
