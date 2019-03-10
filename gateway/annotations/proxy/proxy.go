@@ -17,6 +17,7 @@ limitations under the License.
 package proxy
 
 import (
+	"github.com/goodrain/rainbond/gateway/controller/config"
 	extensions "k8s.io/api/extensions/v1beta1"
 
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
@@ -25,38 +26,41 @@ import (
 
 // Config returns the proxy timeout to use in the upstream server/s
 type Config struct {
-	BodySize          string `json:"bodySize"`
-	ConnectTimeout    int    `json:"connectTimeout"`
-	SendTimeout       int    `json:"sendTimeout"`
-	ReadTimeout       int    `json:"readTimeout"`
-	BuffersNumber     int    `json:"buffersNumber"`
-	BufferSize        string `json:"bufferSize"`
-	CookieDomain      string `json:"cookieDomain"`
-	CookiePath        string `json:"cookiePath"`
-	NextUpstream      string `json:"nextUpstream"`
-	NextUpstreamTries int    `json:"nextUpstreamTries"`
-	ProxyRedirectFrom string `json:"proxyRedirectFrom"`
-	ProxyRedirectTo   string `json:"proxyRedirectTo"`
-	RequestBuffering  string `json:"requestBuffering"`
-	ProxyBuffering    string `json:"proxyBuffering"`
+	BodySize          string            `json:"bodySize"`
+	ConnectTimeout    int               `json:"connectTimeout"`
+	SendTimeout       int               `json:"sendTimeout"`
+	ReadTimeout       int               `json:"readTimeout"`
+	BuffersNumber     int               `json:"buffersNumber"`
+	BufferSize        string            `json:"bufferSize"`
+	CookieDomain      string            `json:"cookieDomain"`
+	CookiePath        string            `json:"cookiePath"`
+	NextUpstream      string            `json:"nextUpstream"`
+	NextUpstreamTries int               `json:"nextUpstreamTries"`
+	ProxyRedirectFrom string            `json:"proxyRedirectFrom"`
+	ProxyRedirectTo   string            `json:"proxyRedirectTo"`
+	RequestBuffering  string            `json:"requestBuffering"`
+	ProxyBuffering    string            `json:"proxyBuffering"`
+	SetHeaders        map[string]string `json:"setHeaders"`
 }
 
 func NewProxyConfig() Config {
+	defBackend := config.NewDefault()
 	return Config{
-		BodySize:          "1m",
-		ConnectTimeout:    5,
-		SendTimeout:       60,
-		ReadTimeout:       60,
-		BuffersNumber:     4,
-		BufferSize:        "4k",
-		CookieDomain:      "off",
-		CookiePath:        "off",
-		NextUpstream:      "error timeout",
-		NextUpstreamTries: 3,
-		RequestBuffering:  "on",
-		ProxyRedirectFrom: "off",
-		ProxyRedirectTo:   "off",
-		ProxyBuffering:    "off",
+		BodySize:          defBackend.ProxyBodySize,
+		ConnectTimeout:    defBackend.ProxyConnectTimeout,
+		SendTimeout:       defBackend.ProxySendTimeout,
+		ReadTimeout:       defBackend.ProxyReadTimeout,
+		BuffersNumber:     defBackend.ProxyBuffersNumber,
+		BufferSize:        defBackend.ProxyBufferSize,
+		CookieDomain:      defBackend.ProxyCookieDomain,
+		CookiePath:        defBackend.ProxyCookiePath,
+		NextUpstream:      defBackend.ProxyNextUpstream,
+		NextUpstreamTries: defBackend.ProxyNextUpstreamTries,
+		RequestBuffering:  defBackend.ProxyRequestBuffering,
+		ProxyRedirectFrom: defBackend.ProxyRedirectFrom,
+		ProxyRedirectTo:   defBackend.ProxyRedirectTo,
+		ProxyBuffering:    defBackend.ProxyBuffering,
+		SetHeaders:        defBackend.ProxySetHeaders,
 	}
 }
 
@@ -110,6 +114,7 @@ func (l1 *Config) Equal(l2 *Config) bool {
 	if l1.ProxyBuffering != l2.ProxyBuffering {
 		return false
 	}
+	// TODO: ProxySetHeaders
 
 	return true
 }
@@ -199,6 +204,14 @@ func (a proxy) Parse(ing *extensions.Ingress) (interface{}, error) {
 	config.ProxyBuffering, err = parser.GetStringAnnotation("proxy-buffering", ing)
 	if err != nil {
 		config.ProxyBuffering = defBackend.ProxyBuffering
+	}
+
+	config.SetHeaders = defBackend.ProxySetHeaders
+	setHeaders, err := parser.GetStringAnnotationWithPrefix("set-header", ing)
+	if err != nil {
+		for k, v := range setHeaders {
+			config.SetHeaders[k] = v
+		}
 	}
 
 	return config, nil

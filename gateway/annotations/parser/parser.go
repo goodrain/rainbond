@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"k8s.io/ingress-nginx/ingress/errors"
 	"strconv"
+	"strings"
 
 	extensions "k8s.io/api/extensions/v1beta1"
 )
@@ -107,6 +108,25 @@ func GetIntAnnotation(name string, ing *extensions.Ingress) (int, error) {
 		return 0, err
 	}
 	return ingAnnotations(ing.GetAnnotations()).parseInt(v)
+}
+
+// GetStringAnnotationWithPrefix extracts an string from an Ingress annotation
+// based on the annotation prefix
+func GetStringAnnotationWithPrefix(prefix string, ing *extensions.Ingress) (map[string]string, error) {
+	v := GetAnnotationWithPrefix(prefix)
+	err := checkAnnotation(v, ing)
+	if err != nil {
+		return nil, err
+	}
+	anns := ingAnnotations(ing.GetAnnotations())
+	res := make(map[string]string)
+	for key, val := range anns {
+		k := strings.Replace(key, prefix, "", 1)
+		if k != "" {
+			res[k] = val
+		}
+	}
+	return res, nil
 }
 
 // GetAnnotationWithPrefix returns the prefix of ingress annotations

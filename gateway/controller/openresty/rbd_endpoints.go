@@ -30,11 +30,6 @@ func langGoodrainMe(ip string) *model.Server {
 				EnableMetrics:    false,
 				DisableAccessLog: true,
 				Proxy:            proxy,
-				ProxySetHeaders: []*model.ProxySetHeader{
-					{Field: "Host", Value: "$http_host"},
-					{Field: "X-Real-IP", Value: "$remote_addr"},
-					{Field: "X-Forwarded-For", Value: "$proxy_add_x_forwarded_for"},
-				},
 				NameCondition: map[string]*v1.Condition{
 					"lang": {
 						Type:  v1.DefaultType,
@@ -69,11 +64,6 @@ func mavenGoodrainMe(ip string) *model.Server {
 				},
 				ProxyRedirect: "off",
 				Proxy:         proxy,
-				ProxySetHeaders: []*model.ProxySetHeader{
-					{Field: "Host", Value: "$http_host"},
-					{Field: "X-Real-IP", Value: "$remote_addr"},
-					{Field: "X-Forwarded-For", Value: "$proxy_add_x_forwarded_for"},
-				},
 				NameCondition: map[string]*v1.Condition{
 					"maven": {
 						Type:  v1.DefaultType,
@@ -95,6 +85,7 @@ func mavenGoodrainMe(ip string) *model.Server {
 func goodrainMe(cfgPath string, ip string) *model.Server {
 	proxy := proxy.NewProxyConfig()
 	proxy.ReadTimeout = 900
+	proxy.SetHeaders["X-Forwarded-Proto"] = "https"
 	svr := &model.Server{
 		Listen:                  fmt.Sprintf("%s:%d %s", ip, 443, "ssl"),
 		ServerName:              "goodrain.me",
@@ -107,12 +98,6 @@ func goodrainMe(cfgPath string, ip string) *model.Server {
 				EnableMetrics:    false,
 				DisableAccessLog: true,
 				Path:             "/v2/",
-				ProxySetHeaders: []*model.ProxySetHeader{
-					{Field: "Host", Value: "$http_host"},
-					{Field: "X-Real-IP", Value: "$remote_addr"},
-					{Field: "X-Forwarded-For", Value: "$proxy_add_x_forwarded_for"},
-					{Field: "X-Forwarded-Proto", Value: "https"},
-				},
 				Proxy: proxy,
 				NameCondition: map[string]*v1.Condition{
 					"registry": {

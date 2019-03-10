@@ -146,4 +146,8 @@ type Backend struct {
 	// Enables or disables buffering of responses from the proxied server.
 	// http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_buffering
 	ProxyBuffering string `json:"proxy-buffering"`
+
+	// Allows redefining or appending fields to the request header passed to the proxied server.
+	// http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header
+	ProxySetHeaders map[string]string `json:"proxy-set-headers"`
 }

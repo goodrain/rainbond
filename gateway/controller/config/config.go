@@ -102,6 +102,11 @@ func NewDefault() Configuration {
 			LimitRate:              0,
 			LimitRateAfter:         0,
 			ProxyBuffering:         "off",
+			ProxySetHeaders: map[string]string{
+				"Host":            "$http_host",
+				"X-Real-IP":       "$remote_addr",
+				"X-Forwarded-For": "$proxy_add_x_forwarded_for",
+			},
 		},
 	}
 	return cfg

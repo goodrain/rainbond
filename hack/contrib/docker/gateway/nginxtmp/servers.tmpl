@@ -53,6 +53,9 @@ server {
 
     {{ range $loc := $srv.Locations }}
     location {{$loc.Path}} {
+        {{ range $k, $v := $loc.Proxy.SetHeaders }}
+        proxy_set_header    {{$k}}    {{$v}};
+        {{ end }}
         proxy_connect_timeout                   {{ $loc.Proxy.ConnectTimeout }}s;
         proxy_send_timeout                      {{ $loc.Proxy.SendTimeout }}s;
         proxy_read_timeout                      {{ $loc.Proxy.ReadTimeout }}s;
@@ -76,9 +79,6 @@ server {
         {{ end }}
         {{ range $rewrite := $loc.Rewrites }}
         rewrite {{$rewrite.Regex}} {{$rewrite.Replacement}}{{if $rewrite.Flag }} {{$rewrite.Flag}}{{ end }};
-        {{ end }}
-        {{ range $psh := $loc.ProxySetHeaders }}
-        proxy_set_header {{$psh.Field}} {{$psh.Value}};
         {{ end }}
         {{ if $loc.ProxyRedirect }}
         proxy_redirect {{$loc.ProxyRedirect}};
