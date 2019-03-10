@@ -125,3 +125,17 @@ type IPPool struct {
 func (IPPool) TableName() string {
 	return "gateway_ip_pool"
 }
+
+// GwRuleConfig describes a configuration of gateway rule.
+type GwRuleConfig struct {
+	Model
+	ConfigID string `gorm:"column:config_id;size:32"`
+	RuleID   string `gorm:"column:rule_id;size:32"`
+	Key      string `gorm:"key"`
+	Value    string `gorm:"value"`
+}
+
+// TableName -
+func (GwRuleConfig) TableName() string {
+	return "gateway_rule_config"
+}

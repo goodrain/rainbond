@@ -312,37 +312,45 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 		}
 	}
 	// rule extension
-	if rule.UUID != "default" { // the default http rule has no rule extensions
-		ruleExtensions, err := a.dbmanager.RuleExtensionDao().GetRuleExtensionByRuleID(rule.UUID)
-		if err != nil {
-			return nil, nil, err
-		}
-		for _, extension := range ruleExtensions {
-			switch extension.Key {
-			case string(model.HTTPToHTTPS):
-				if rule.CertificateID == "" {
-					logrus.Warningf("enable force-ssl-redirect, but with no certificate. rule id is: %s", rule.UUID)
-					break
-				}
-				annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
-			case string(model.LBType):
-				if strings.HasPrefix(extension.Value, "upstream-hash-by") {
-					s := strings.Split(extension.Value, ":")
-					if len(s) < 2 {
-						logrus.Warningf("invalid extension value for upstream-hash-by: %s", extension.Value)
-						break
-					}
-					annos[parser.GetAnnotationWithPrefix("upstream-hash-by")] = s[1]
-					break
-				}
-				annos[parser.GetAnnotationWithPrefix("lb-type")] = extension.Value
-
-			default:
-				logrus.Warnf("Unexpected RuleExtension Key: %s", extension.Key)
-			}
-		}
-		ing.SetAnnotations(annos)
+	ruleExtensions, err := a.dbmanager.RuleExtensionDao().GetRuleExtensionByRuleID(rule.UUID)
+	if err != nil {
+		return nil, nil, err
 	}
+	for _, extension := range ruleExtensions {
+		switch extension.Key {
+		case string(model.HTTPToHTTPS):
+			if rule.CertificateID == "" {
+				logrus.Warningf("enable force-ssl-redirect, but with no certificate. rule id is: %s", rule.UUID)
+				break
+			}
+			annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
+		case string(model.LBType):
+			if strings.HasPrefix(extension.Value, "upstream-hash-by") {
+				s := strings.Split(extension.Value, ":")
+				if len(s) < 2 {
+					logrus.Warningf("invalid extension value for upstream-hash-by: %s", extension.Value)
+					break
+				}
+				annos[parser.GetAnnotationWithPrefix("upstream-hash-by")] = s[1]
+				break
+			}
+			annos[parser.GetAnnotationWithPrefix("lb-type")] = extension.Value
+
+		default:
+			logrus.Warnf("Unexpected RuleExtension Key: %s", extension.Key)
+		}
+	}
+
+	configs, err := db.GetManager().GwRuleConfigDao().ListByRuleID(rule.UUID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if configs != nil && len(configs) > 0 {
+		for _, cfg := range configs {
+			annos[parser.GetAnnotationWithPrefix(cfg.Key)] = cfg.Value
+		}
+	}
+	ing.SetAnnotations(annos)
 
 	return ing, sec, nil
 }
