@@ -36,11 +36,15 @@ import (
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/util"
+	workermodel "github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/tidwall/gjson"
 )
 
-var TaskNum float64 = 0
-var ErrorNum float64 = 0
+//TaskNum task number
+var TaskNum float64
+
+//ErrorNum error run task number
+var ErrorNum float64
 
 //Manager 任务执行管理器
 type Manager interface {
@@ -194,7 +198,11 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 					}
 				}
 			} else {
-				err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, i.Logger)
+				var configs = make(map[string]string, len(i.Configs))
+				for k, v := range i.Configs {
+					configs[k] = v.String()
+				}
+				err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, configs, i.Logger)
 				if err != nil {
 					i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
 				}
@@ -240,7 +248,11 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 				logrus.Debugf("update version Info error: %s", err.Error())
 			}
 		} else {
-			err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, i.Logger)
+			var configs = make(map[string]string, len(i.Configs))
+			for k, v := range i.Configs {
+				configs[k] = v.String()
+			}
+			err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, configs, i.Logger)
 			if err != nil {
 				i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
 			}
@@ -283,7 +295,7 @@ func (e *exectorManager) buildFromMarketSlug(task *pb.TaskMessage) {
 					i.Logger.Error("Build app version from market slug failure", map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
-				err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, i.Logger)
+				err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, i.Configs, i.Logger)
 				if err != nil {
 					i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
 				}
@@ -302,17 +314,18 @@ type rollingUpgradeTaskBody struct {
 	Strategy  []string `json:"strategy"`
 }
 
-func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, actionType string, logger event.Logger) error {
+func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, actionType string, configs map[string]string, logger event.Logger) error {
 	switch actionType {
 	case "upgrade":
 		if err := db.GetManager().TenantServiceDao().UpdateDeployVersion(serviceID, newVersion); err != nil {
 			return fmt.Errorf("Update app service deploy version failure.Please try the upgrade again")
 		}
-		body := rollingUpgradeTaskBody{
-			TenantID:  tenantID,
-			ServiceID: serviceID,
-			EventID:   eventID,
-			Strategy:  []string{},
+		body := workermodel.RollingUpgradeTaskBody{
+			TenantID:         tenantID,
+			ServiceID:        serviceID,
+			NewDeployVersion: newVersion,
+			EventID:          eventID,
+			Configs:          configs,
 		}
 		if err := e.mqClient.SendBuilderTopic(mqclient.TaskStruct{
 			Topic:    mqclient.WorkerTopic,

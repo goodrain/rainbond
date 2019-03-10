@@ -32,6 +32,7 @@ type Node struct {
 	FailTimeout string `json:"fail_timeout"`
 }
 
+//Equals -
 func (n *Node) Equals(c *Node) bool { //
 	if n == c {
 		return true

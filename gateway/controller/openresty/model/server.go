@@ -25,6 +25,7 @@ type Server struct {
 	Return                  Return
 	Rewrites                []Rewrite
 	Locations               []*Location
+	OptionValue             map[string]string
 }
 
 // FastCGIParam sets a parameter that should be passed to the FastCGI server.
@@ -57,8 +58,12 @@ type Location struct {
 	ProxySetHeaders []*ProxySetHeader
 	ProxyRedirect   string // Sets the text that should be changed in the “Location” and “Refresh” header fields of a proxied server response
 
+	EnableMetrics    bool //Enables or disables monitor
+	DisableAccessLog bool //disable or enables access log
 	DisableProxyPass bool
-	NameCondition    map[string]*v1.Condition
+	//PathRewrite if true, path will not passed to the upstream
+	PathRewrite   bool
+	NameCondition map[string]*v1.Condition
 
 	// Proxy contains information about timeouts and buffer sizes
 	// to be used in connections against endpoints

@@ -98,6 +98,7 @@ type TenantServicesPortDao interface {
 	GetOuterPorts(serviceID string) ([]*model.TenantServicesPort, error)
 	GetInnerPorts(serviceID string) ([]*model.TenantServicesPort, error)
 	GetPort(serviceID string, port int) (*model.TenantServicesPort, error)
+	GetOpenedPorts(serviceID string) ([]*model.TenantServicesPort, error)
 	//GetDepUDPPort get all depend service udp port info
 	GetDepUDPPort(serviceID string) ([]*model.TenantServicesPort, error)
 	DELPortsByServiceID(serviceID string) error
@@ -230,6 +231,7 @@ type TenantServiceVolumeDao interface {
 	DeleteByServiceIDAndVolumePath(serviceID string, volumePath string) error
 	GetVolumeByServiceIDAndName(serviceID, name string) (*model.TenantServiceVolume, error)
 	GetAllVolumes() ([]*model.TenantServiceVolume, error)
+	GetVolumeByID(id int) (*model.TenantServiceVolume, error)
 }
 
 //TenantServiceConfigFileDao tenant service config file dao interface

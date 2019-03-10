@@ -20,9 +20,10 @@ package openresty
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"net/http"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 )
 
 // Check returns if the nginx healthz endpoint is returning ok (status code 200)
@@ -31,7 +32,7 @@ func (o *OrService) Check() error {
 	timeout := o.ocfg.HealthCheckTimeout
 	statusCode, err := simpleGet(url, timeout)
 	if err != nil {
-		logrus.Errorf("error checking healthz: %v", url, err)
+		logrus.Errorf("error checking %s healthz: %v", url, err)
 		return err
 	}
 	if statusCode != 200 {

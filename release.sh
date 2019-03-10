@@ -5,6 +5,7 @@ set -o errexit
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 GO_VERSION=1.11
+GATEWAY_GO_VERSION=1.11-alpine3.8
 
 VERSION=master
 buildTime=$(date +%F-%H)
@@ -50,6 +51,8 @@ build::binary() {
 		docker run --rm -e GOOS=${GOOS} -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${OUTPATH} ./cmd/builder
 	elif [ "$1" = "monitor" ];then
 		docker run --rm -e GOOS=${GOOS} -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -extldflags '-static' -X github.com/goodrain/rainbond/cmd.version=${release_desc}" -tags 'netgo static_build' -o ${OUTPATH} ./cmd/$1
+	elif [ "$1" = "gateway" ];then
+		docker run --rm -e GOOS=${GOOS} -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GATEWAY_GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${OUTPATH} ./cmd/$1
 	else
 		docker run --rm -e GOOS=${GOOS} -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${OUTPATH} ./cmd/$1
 	fi
@@ -70,6 +73,8 @@ build::image() {
 			docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/builder
 		elif [ "$1" = "monitor" ];then
 			docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -extldflags '-static' -X github.com/goodrain/rainbond/cmd.version=${release_desc}" -tags 'netgo static_build' -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
+		elif [ "$1" = "gateway" ];then
+			docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GATEWAY_GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
 		else
 			docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
 		fi

@@ -112,16 +112,16 @@ func (d *dynamic) Watch() {
 }
 
 // Conv Converts model.Endpoints to v1.Endpoints
-func Conv(eps []*model.Endpoint) ([]*v1.Endpoint, error) {
-	var res []*v1.Endpoint
-	m := make(map[int]*v1.Endpoint)
+func Conv(eps []*model.Endpoint) ([]*v1.RbdEndpoints, error) {
+	var res []*v1.RbdEndpoints
+	m := make(map[int]*v1.RbdEndpoints)
 	for _, ep := range eps {
 		v1ep, ok := m[ep.Port] // the value of port may be 0
 		if ok {
 			v1ep.IPs = append(v1ep.IPs, ep.IP)
 			continue
 		}
-		v1ep = &v1.Endpoint{
+		v1ep = &v1.RbdEndpoints{
 			Port: ep.Port,
 			IPs: []string{
 				ep.IP,

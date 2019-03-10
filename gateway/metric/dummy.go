@@ -18,6 +18,8 @@
 
 package metric
 
+import "k8s.io/apimachinery/pkg/util/sets"
+
 // NewDummyCollector returns a dummy metric collector
 func NewDummyCollector() Collector {
 	return &DummyCollector{}
@@ -32,4 +34,11 @@ func (dc DummyCollector) Start() {}
 // Stop ...
 func (dc DummyCollector) Stop() {}
 
+//SetServerNum -
 func (dc DummyCollector) SetServerNum(httpNum, tcpNum int) {}
+
+//SetHosts -
+func (dc DummyCollector) SetHosts(hosts sets.String) {}
+
+//RemoveHostMetric -
+func (dc DummyCollector) RemoveHostMetric([]string) {}

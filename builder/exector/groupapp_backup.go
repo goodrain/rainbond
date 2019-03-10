@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -39,6 +40,9 @@ import (
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/tidwall/gjson"
 )
+
+//maxBackupVersionSize Maximum number of backup versions per service
+var maxBackupVersionSize = 3
 
 //BackupAPPNew backup group app new version
 type BackupAPPNew struct {
@@ -121,18 +125,21 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 	for _, app := range appSnapshots {
 		//backup app image or code slug file
 		b.Logger.Info(fmt.Sprintf("Start backup Application(%s) runtime", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
-		haveAtLastOneVersion := false
+		var backupVersionSize int
 		for _, version := range app.Versions {
+			if backupVersionSize >= maxBackupVersionSize {
+				break
+			}
 			if version.DeliveredType == "slug" && version.FinalStatus == "success" {
 				if ok, _ := b.checkVersionExist(version); !ok {
 					version.FinalStatus = "lost"
 					continue
 				}
 				if err := b.uploadSlug(app, version); err != nil {
-					logrus.Errorf("upload app slug file error.%s", err.Error())
-					return err
+					logrus.Errorf("upload app %s version %s slug file error.%s", app.Service.ServiceName, version.BuildVersion, err.Error())
+				} else {
+					backupVersionSize++
 				}
-				haveAtLastOneVersion = true
 			}
 			if version.DeliveredType == "image" && version.FinalStatus == "success" {
 				if ok, _ := b.checkVersionExist(version); !ok {
@@ -140,30 +147,42 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 					continue
 				}
 				if err := b.uploadImage(app, version); err != nil {
-					logrus.Errorf("upload app image error.%s", err.Error())
-					return err
+					logrus.Errorf("upload app %s version %s image error.%s", app.Service.ServiceName, version.BuildVersion, err.Error())
+				} else {
+					backupVersionSize++
 				}
-				haveAtLastOneVersion = true
 			}
 		}
-		if !haveAtLastOneVersion {
+		if backupVersionSize == 0 {
 			b.Logger.Error(fmt.Sprintf("Application(%s) Backup build version failure.", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
 			return fmt.Errorf("Application(%s) Backup build version failure", app.Service.ServiceAlias)
 		}
-		b.Logger.Info(fmt.Sprintf("Complete backup application (%s) runtime", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
+		logrus.Infof("backup app %s %d version", app.Service.ServiceName, backupVersionSize)
+		b.Logger.Info(fmt.Sprintf("Complete backup application (%s) runtime %d version", app.Service.ServiceAlias, backupVersionSize), map[string]string{"step": "backup_builder", "status": "success"})
 		b.Logger.Info(fmt.Sprintf("Start backup application(%s) persistent data", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
-		//backup app data
+		//backup app data,The overall data of the direct backup service
+		if len(app.ServiceVolume) > 0 {
+			dstDir := fmt.Sprintf("%s/data_%s/%s.zip", b.SourceDir, "all", "data")
+			_, sharepath := GetVolumeDir()
+			serviceVolumeData := path.Join(sharepath, "tenant", app.Service.TenantID, "service", app.Service.ServiceID)
+			if !util.DirIsEmpty(serviceVolumeData) {
+				if err := util.Zip(serviceVolumeData, dstDir); err != nil {
+					logrus.Errorf("backup service(%s) volume data error.%s", app.ServiceID, err.Error())
+					return err
+				}
+			}
+		}
 		for _, volume := range app.ServiceVolume {
-			if volume.HostPath != "" && !util.DirIsEmpty(volume.HostPath) {
-				dstDir := fmt.Sprintf("%s/data_%s/%s.zip", b.SourceDir, app.ServiceID, strings.Replace(volume.VolumeName, "/", "", -1))
-				if err := util.Zip(volume.HostPath, dstDir); err != nil {
+			dstDir := fmt.Sprintf("%s/data_%s/%s.zip", b.SourceDir, app.ServiceID, strings.Replace(volume.VolumeName, "/", "", -1))
+			hostPath := volume.HostPath
+			if hostPath != "" && !util.DirIsEmpty(hostPath) {
+				if err := util.Zip(hostPath, dstDir); err != nil {
 					logrus.Errorf("backup service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
 					return err
 				}
 			}
 		}
 		b.Logger.Info(fmt.Sprintf("Complete backup application(%s) persistent data", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
-		//TODO:backup relation volume data?
 	}
 	if strings.HasSuffix(b.SourceDir, "/") {
 		b.SourceDir = b.SourceDir[:len(b.SourceDir)-2]
@@ -330,4 +349,27 @@ func (b *BackupAPPNew) updateBackupStatu(status string) error {
 	backupstatus.SourceType = b.SourceType
 	backupstatus.BuckupSize = int(b.BackupSize)
 	return db.GetManager().AppBackupDao().UpdateModel(backupstatus)
+}
+
+//GetVolumeDir get volume path prifix
+func GetVolumeDir() (string, string) {
+	localPath := os.Getenv("LOCAL_DATA_PATH")
+	sharePath := os.Getenv("SHARE_DATA_PATH")
+	if localPath == "" {
+		localPath = "/grlocaldata"
+	}
+	if sharePath == "" {
+		sharePath = "/grdata"
+	}
+	return localPath, sharePath
+}
+
+//GetServiceType get service deploy type
+func GetServiceType(labels []*dbmodel.TenantServiceLable) string {
+	for _, l := range labels {
+		if l.LabelKey == dbmodel.LabelKeyServiceType {
+			return l.LabelValue
+		}
+	}
+	return util.StatelessServiceType
 }

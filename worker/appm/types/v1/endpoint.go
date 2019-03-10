@@ -18,17 +18,11 @@
 
 package v1
 
-// Endpoint holds information to create corv1.Endpoints(kubernetes object).
-type Endpoint struct {
+// RbdEndpoints is a collection of RbdEndpoint.
+type RbdEndpoints struct {
 	Port        int      `json:"port"`
 	IPs         []string `json:"ips"`
 	NotReadyIPs []string `json:"not_ready_ips"`
-}
-
-// EndpointsInfo holds information to create k8s endpoints.
-type EndpointsInfo struct {
-	Port int      `json:"port"`
-	IPs  []string `json:"ips"`
 }
 
 // RbdEndpoint hold information to create k8s endpoints.

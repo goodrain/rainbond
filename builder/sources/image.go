@@ -314,9 +314,12 @@ func CheckTrustedRepositories(image, user, pass string) error {
 		if err.Error() == "resource does not exist" {
 			rep := Repostory{
 				Name:             repName,
-				ShortDescription: fmt.Sprintf("push image for %s", image),
+				ShortDescription: image, // The maximum length is 140
 				LongDescription:  fmt.Sprintf("push image for %s", image),
 				Visibility:       "private",
+			}
+			if len(rep.ShortDescription) > 140 {
+				rep.ShortDescription = rep.ShortDescription[0:140]
 			}
 			err := cli.CreateRepository(namespace, &rep)
 			if err != nil {

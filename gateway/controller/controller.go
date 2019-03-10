@@ -34,7 +34,8 @@ import (
 	"github.com/goodrain/rainbond/gateway/controller/openresty"
 	"github.com/goodrain/rainbond/gateway/metric"
 	"github.com/goodrain/rainbond/gateway/store"
-	"github.com/goodrain/rainbond/gateway/v1"
+	v1 "github.com/goodrain/rainbond/gateway/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/ingress-nginx/task"
 )
@@ -101,7 +102,9 @@ func (gwc *GWController) Start(errCh chan error) error {
 // Close stops Gateway
 func (gwc *GWController) Close() error {
 	gwc.isShuttingDown = true
-	gwc.EtcdCli.Close()
+	if gwc.EtcdCli != nil {
+		gwc.EtcdCli.Close()
+	}
 	gwc.stopLock.Lock()
 	defer gwc.stopLock.Unlock()
 
@@ -147,7 +150,6 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 		L7VS:      l7sv,
 		L4VS:      l4sv,
 	}
-
 	if gwc.rcfg.Equals(currentConfig) {
 		logrus.Info("No need to update running configuration.")
 		// refresh http pools dynamically
@@ -155,23 +157,24 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 		gwc.refreshPools(httpPools)
 		return nil
 	}
-
-	gwc.rcfg = currentConfig
-
-	err := gwc.GWS.PersistConfig(gwc.rcfg)
+	err := gwc.GWS.PersistConfig(currentConfig)
 	if err != nil {
 		// TODO: if nginx is not ready, then stop gateway
 		logrus.Errorf("Fail to persist Nginx config: %v\n", err)
 		return nil
-	} else {
-		// refresh http pools dynamically
-		httpPools = append(httpPools, gwc.rrbdp...)
-		gwc.refreshPools(httpPools)
-		gwc.rhp = httpPools
 	}
+	// refresh http pools dynamically
+	httpPools = append(httpPools, gwc.rrbdp...)
+	gwc.refreshPools(httpPools)
+	gwc.rhp = httpPools
 
+	//set metric
+	remove, hosts := getHosts(gwc.rcfg, currentConfig)
+	gwc.metricCollector.SetHosts(hosts)
+	gwc.metricCollector.RemoveHostMetric(remove)
 	gwc.metricCollector.SetServerNum(len(httpPools), len(tcpPools))
 
+	gwc.rcfg = currentConfig
 	return nil
 }
 
@@ -422,4 +425,26 @@ func convIntoRbdPools(data []string, names ...string) []*v1.Pool {
 	}
 
 	return pools
+}
+
+// getHosts returns a list of the hostsnames and tobe remove hostname
+// that are not associated anymore to the NGINX configuration.
+func getHosts(rucfg, newcfg *v1.Config) (remove []string, current sets.String) {
+	old := sets.NewString()
+	new := sets.NewString()
+	if rucfg != nil {
+		for _, s := range rucfg.L7VS {
+			if !old.Has(s.ServerName) {
+				old.Insert(s.ServerName)
+			}
+		}
+	}
+	if newcfg != nil {
+		for _, s := range newcfg.L7VS {
+			if !new.Has(s.ServerName) {
+				new.Insert(s.ServerName)
+			}
+		}
+	}
+	return old.Difference(new).List(), new
 }

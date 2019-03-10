@@ -32,7 +32,6 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "version" {
 		cmd.ShowVersion("gateway")
 	}
-
 	s := option.NewGWServer()
 	s.AddFlags(pflag.CommandLine)
 	pflag.Parse()

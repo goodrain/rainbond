@@ -16,41 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package prober
+package model
 
-import (
-	"fmt"
-	"github.com/goodrain/rainbond/prober/types/v1"
-	"testing"
-)
-
-func TestProbeManager_Start(t *testing.T) {
-	m := CreateManager()
-
-	serviceList := make([]*v1.Service, 0, 10)
-
-	h := &v1.Service{
-		Name: "etcd",
-		ServiceHealth: &v1.Health{
-			Name:         "etcd",
-			Model:        "tcp",
-			Address:      "192.168.1.107:23790",
-			TimeInterval: 3,
-		},
-	}
-	serviceList = append(serviceList, h)
-	m.AddServices(&serviceList)
-	watcher := m.WatchServiceHealthy("etcd")
-	m.EnableWatcher(watcher.GetServiceName(), watcher.GetID())
-
-	m.Start()
-
-	for {
-		v := <-watcher.Watch()
-		if v != nil {
-			fmt.Println("----", v.Name, v.Status, v.Info, v.ErrorNumber, v.ErrorNumber)
-		} else {
-			t.Log("nil nil nil")
-		}
-	}
+// BuildListRespVO is the response value object for build-list api.
+type BuildListRespVO struct {
+	DeployVersion string      `json:"deploy_version"`
+	List          interface{} `json:"list"`
 }

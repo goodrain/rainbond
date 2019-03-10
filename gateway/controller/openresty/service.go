@@ -101,24 +101,27 @@ func (o *OrService) Start(errCh chan error) {
 	}
 	if o.ocfg.EnableRbdEndpoints {
 		if err := o.newRbdServers(); err != nil {
-			logrus.Error(err.Error())
-			errCh <- err // TODO: consider if it is right
+			showErr := fmt.Errorf("create rainbond default server config failure %s", err.Error())
+			logrus.Error(showErr.Error())
+			errCh <- showErr
 		}
 	}
-	cmd := nginxExecCommand()
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
-		logrus.Errorf("NGINX start error: %v", err)
-		errCh <- err
-		return
-	}
-	o.nginxProgress = cmd.Process
 	go func() {
-		if err := cmd.Wait(); err != nil {
-			errCh <- err
+		for {
+			cmd := nginxExecCommand()
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Start(); err != nil {
+				logrus.Errorf("NGINX start error: %v", err)
+				errCh <- err
+				return
+			}
+			o.nginxProgress = cmd.Process
+			logrus.Infof("nginx is starting")
+			if err := cmd.Wait(); err != nil {
+				errCh <- err
+			}
 		}
-		//errCh <- fmt.Errorf("nginx process is exit")
 	}()
 }
 
@@ -209,8 +212,12 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 	for _, vs := range conf.L7VS {
 		server := &model.Server{
 			Listen:           strings.Join(vs.Listening, " "),
-			ServerName:       vs.ServerName,
+			ServerName:       strings.Replace(vs.ServerName, "tls", "", 1),
 			ForceSSLRedirect: vs.ForceSSLRedirect,
+			OptionValue: map[string]string{
+				"tenant_id":  vs.Namespace,
+				"service_id": vs.ServiceID,
+			},
 		}
 		if vs.SSLCert != nil {
 			server.SSLCertificate = vs.SSLCert.CertificatePem
@@ -218,14 +225,17 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 		}
 		for _, loc := range vs.Locations {
 			location := &model.Location{
-				Path:          loc.Path,
-				NameCondition: loc.NameCondition,
+				DisableAccessLog: true,
+				EnableMetrics:    true,
+				Path:             loc.Path,
+				NameCondition:    loc.NameCondition,
 				ProxySetHeaders: []*model.ProxySetHeader{
 					&model.ProxySetHeader{Field: "Host", Value: "$host"},
 					&model.ProxySetHeader{Field: "X-Real-IP", Value: "$remote_addr"},
 					&model.ProxySetHeader{Field: "X-Forwarded-For", Value: "$proxy_add_x_forwarded_for"},
 				},
 				Proxy: loc.Proxy,
+				PathRewrite: false,
 			}
 			server.Locations = append(server.Locations, location)
 		}
@@ -235,6 +245,10 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 	for _, vs := range conf.L4VS {
 		server := &model.Server{
 			ProxyPass: vs.PoolName,
+			OptionValue: map[string]string{
+				"tenant_id":  vs.Namespace,
+				"service_id": vs.ServiceID,
+			},
 		}
 		server.Listen = strings.Join(vs.Listening, " ")
 		l4srv = append(l4srv, server)
@@ -261,7 +275,7 @@ func (o *OrService) UpdatePools(hpools []*v1.Pool, tpools []*v1.Pool) error {
 		if out, err := nginxExecCommand("-s", "reload").CombinedOutput(); err != nil {
 			return fmt.Errorf("%v\n%v", err, string(out))
 		}
-		logrus.Debug("Nginx reloads successfully.")
+		logrus.Debug("Nginx reloads successfully for tcp pool.")
 	}
 
 	if hpools == nil || len(hpools) == 0 {
@@ -342,7 +356,6 @@ func (o *OrService) newRbdServers() error {
 	if err != nil {
 		return err
 	}
-
 	if o.ocfg.EnableKApiServer {
 		ksrv := kubeApiserver(o.ocfg.KApiServerIP)
 		if err := template.NewServerTemplateWithCfgPath(
@@ -388,12 +401,10 @@ func (o *OrService) newRbdServers() error {
 		resrv := repoGoodrainMe(o.ocfg.RepoGrMeIP)
 		srv = append(srv, resrv)
 	}
-
 	if err := template.NewServerTemplateWithCfgPath(srv, httpCfgPath,
 		"servers.default.http.conf"); err != nil {
 		return err
 	}
-
 	return nil
 }
 

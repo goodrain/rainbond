@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/worker/appm/store"
 
 	"k8s.io/client-go/kubernetes"
@@ -34,7 +35,7 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -109,44 +110,60 @@ func (p *rainbondsslcProvisioner) selectNode(nodeOS string) (*v1.Node, error) {
 func (p *rainbondsslcProvisioner) createPath(options controller.VolumeOptions) (string, error) {
 	tenantID := options.PVC.Labels["tenant_id"]
 	serviceID := options.PVC.Labels["service_id"]
-	reqoptions := map[string]string{"tenant_id": tenantID, "service_id": serviceID, "pvcname": options.PVC.Name}
-	var ip string
-	for _, address := range options.SelectedNode.Status.Addresses {
-		if address.Type == v1.NodeInternalIP {
-			ip = address.Address
-		}
-	}
-	if ip == "" {
-		return "", fmt.Errorf("do not find node ip")
-	}
-	retry := 3
-	var path string
-	for retry > 0 {
-		retry--
-		body := bytes.NewBuffer(nil)
-		if err := json.NewEncoder(body).Encode(reqoptions); err != nil {
-			return "", fmt.Errorf("create volume body failure %s", err.Error())
-		}
-		res, err := http.Post(fmt.Sprintf("http://%s:6100/v2/localvolumes/create", ip), "application/json", body)
+	volumeID := getVolumeIDByPVCName(options.PVC.Name)
+	if volumeID != 0 {
+		volume, err := db.GetManager().TenantServiceVolumeDao().GetVolumeByID(volumeID)
 		if err != nil {
-			logrus.Errorf("do request node api failure %s", err.Error())
+			logrus.Errorf("get volume by id %d failre %s", volumeID, err.Error())
+			return "", err
 		}
-		if res != nil && res.StatusCode == 200 && res.Body != nil {
-			if res, err := httputil.ParseResponseBody(res.Body, "application/json"); err == nil {
-				if info, ok := res.Bean.(map[string]interface{}); ok {
-					path = info["path"].(string)
-					break
-				} else {
-					logrus.Errorf("request create local volume failure: parse body info failure  ")
-				}
-			} else {
-				logrus.Errorf("request create local volume failure: parse body failure %s ", err.Error())
+		reqoptions := map[string]string{
+			"tenant_id":   tenantID,
+			"service_id":  serviceID,
+			"pvcname":     options.PVC.Name,
+			"volume_name": volume.VolumeName,
+			"volume_path": volume.VolumePath,
+			"pod_name":    getPodNameByPVCName(options.PVC.Name),
+		}
+		var ip string
+		for _, address := range options.SelectedNode.Status.Addresses {
+			if address.Type == v1.NodeInternalIP {
+				ip = address.Address
 			}
 		}
-		logrus.Errorf("request create local volume failure code:%d", res.StatusCode)
-		time.Sleep(time.Second * 2)
+		if ip == "" {
+			return "", fmt.Errorf("do not find node ip")
+		}
+		retry := 3
+		var path string
+		for retry > 0 {
+			retry--
+			body := bytes.NewBuffer(nil)
+			if err := json.NewEncoder(body).Encode(reqoptions); err != nil {
+				return "", fmt.Errorf("create volume body failure %s", err.Error())
+			}
+			res, err := http.Post(fmt.Sprintf("http://%s:6100/v2/localvolumes/create", ip), "application/json", body)
+			if err != nil {
+				logrus.Errorf("do request node api failure %s", err.Error())
+			}
+			if res != nil && res.StatusCode == 200 && res.Body != nil {
+				if res, err := httputil.ParseResponseBody(res.Body, "application/json"); err == nil {
+					if info, ok := res.Bean.(map[string]interface{}); ok {
+						path = info["path"].(string)
+						break
+					} else {
+						logrus.Errorf("request create local volume failure: parse body info failure  ")
+					}
+				} else {
+					logrus.Errorf("request create local volume failure: parse body failure %s ", err.Error())
+				}
+			}
+			logrus.Errorf("request create local volume failure code:%d", res.StatusCode)
+			time.Sleep(time.Second * 2)
+		}
+		return path, nil
 	}
-	return path, nil
+	return "", fmt.Errorf("can not parse volume id")
 }
 
 // Provision creates a storage asset and returns a PV object representing it.
@@ -171,7 +188,8 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 	}
 	pv := &v1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: options.PVName,
+			Name:   options.PVName,
+			Labels: options.PVC.Labels,
 		},
 		Spec: v1.PersistentVolumeSpec{
 			PersistentVolumeReclaimPolicy: options.PersistentVolumeReclaimPolicy,

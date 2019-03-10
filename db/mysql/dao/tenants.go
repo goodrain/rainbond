@@ -569,6 +569,16 @@ func (t *TenantServicesPortDaoImpl) GetPort(serviceID string, port int) (*model.
 	return &oldPort, nil
 }
 
+// GetEnablePort returns opened ports.
+func (t *TenantServicesPortDaoImpl) GetOpenedPorts(serviceID string) ([]*model.TenantServicesPort, error) {
+	var ports []*model.TenantServicesPort
+	if err := t.DB.Where("service_id = ? and (is_inner_service=1 or is_outer_service=1)", serviceID).
+		Find(&ports).Error; err != nil {
+		return nil, err
+	}
+	return ports, nil
+}
+
 //DELPortsByServiceID DELPortsByServiceID
 func (t *TenantServicesPortDaoImpl) DELPortsByServiceID(serviceID string) error {
 	var port model.TenantServicesPort
@@ -955,6 +965,15 @@ func (t *TenantServiceVolumeDaoImpl) DeleteByServiceIDAndVolumePath(serviceID st
 func (t *TenantServiceVolumeDaoImpl) GetVolumeByServiceIDAndName(serviceID, name string) (*model.TenantServiceVolume, error) {
 	var volume model.TenantServiceVolume
 	if err := t.DB.Where("service_id=? and volume_name=? ", serviceID, name).Find(&volume).Error; err != nil {
+		return nil, err
+	}
+	return &volume, nil
+}
+
+//GetVolumeByID get volume by id
+func (t *TenantServiceVolumeDaoImpl) GetVolumeByID(id int) (*model.TenantServiceVolume, error) {
+	var volume model.TenantServiceVolume
+	if err := t.DB.Where("ID=?", id).Find(&volume).Error; err != nil {
 		return nil, err
 	}
 	return &volume, nil

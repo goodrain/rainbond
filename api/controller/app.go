@@ -21,8 +21,10 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+//AppStruct -
 type AppStruct struct{}
 
+//ExportApp -
 func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
@@ -53,15 +55,15 @@ func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 
 		httputil.ReturnSuccess(r, w, nil)
 	case "GET":
-		eventId := strings.TrimSpace(chi.URLParam(r, "eventId"))
-		if eventId == "" {
-			httputil.ReturnError(r, w, 400, fmt.Sprintf("Arguments eventId is must defined."))
+		eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
+		if eventID == "" {
+			httputil.ReturnError(r, w, 400, fmt.Sprintf("Arguments eventID is must defined."))
 			return
 		}
 
-		res, err := db.GetManager().AppDao().GetByEventId(eventId)
+		res, err := db.GetManager().AppDao().GetByEventId(eventID)
 		if err != nil {
-			httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
+			httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventID, err))
 			return
 		}
 
@@ -70,6 +72,7 @@ func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//Download -
 func (a *AppStruct) Download(w http.ResponseWriter, r *http.Request) {
 	format := strings.TrimSpace(chi.URLParam(r, "format"))
 	fileName := strings.TrimSpace(chi.URLParam(r, "fileName"))
@@ -84,13 +87,14 @@ func (a *AppStruct) Download(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, tarFile)
 }
 
+//ImportID -
 func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
-	eventId := strings.TrimSpace(chi.URLParam(r, "eventId"))
-	if eventId == "" {
-		httputil.ReturnError(r, w, 400, "Failed to parse eventId.")
+	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
+	if eventID == "" {
+		httputil.ReturnError(r, w, 400, "Failed to parse eventID.")
 		return
 	}
-	dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
+	dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventID)
 
 	switch r.Method {
 	case "POST":
@@ -134,12 +138,12 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 	case "DELETE":
 		err := os.RemoveAll(dirName)
 		if err != nil {
-			httputil.ReturnError(r, w, 501, "Failed to delete directory by id: "+eventId)
+			httputil.ReturnError(r, w, 501, "Failed to delete directory by id: "+eventID)
 			return
 		}
-		res, err := db.GetManager().AppDao().GetByEventId(eventId)
+		res, err := db.GetManager().AppDao().GetByEventId(eventID)
 		if err != nil {
-			httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
+			httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventID, err))
 			return
 		}
 		res.Status = "cleaned"
@@ -150,8 +154,9 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//NewUpload -
 func (a *AppStruct) NewUpload(w http.ResponseWriter, r *http.Request) {
-	eventId := strings.TrimSpace(chi.URLParam(r, "event_id"))
+	eventID := strings.TrimSpace(chi.URLParam(r, "event_id"))
 	switch r.Method {
 	case "OPTIONS":
 		origin := r.Header.Get("Origin")
@@ -162,11 +167,11 @@ func (a *AppStruct) NewUpload(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnSuccess(r, w, nil)
 
 	case "POST":
-		if eventId == "" {
-			httputil.ReturnError(r, w, 500, "Failed to parse eventId.")
+		if eventID == "" {
+			httputil.ReturnError(r, w, 500, "Failed to parse eventID.")
 			return
 		}
-		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
+		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventID)
 
 		st := upload.NewStorage(dirName)
 		st.UploadHandler(w, r)
@@ -174,16 +179,17 @@ func (a *AppStruct) NewUpload(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//Upload -
 func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
-	eventId := strings.TrimSpace(chi.URLParam(r, "event_id"))
+	eventID := strings.TrimSpace(chi.URLParam(r, "event_id"))
 	switch r.Method {
 	case "POST":
-		if eventId == "" {
-			httputil.ReturnError(r, w, 400, "Failed to parse eventId.")
+		if eventID == "" {
+			httputil.ReturnError(r, w, 400, "Failed to parse eventID.")
 			return
 		}
 
-		logrus.Debug("Start receive upload file: ", eventId)
+		logrus.Debug("Start receive upload file: ", eventID)
 		reader, header, err := r.FormFile("appTarFile")
 		if err != nil {
 			logrus.Errorf("Failed to parse upload file: %s", err.Error())
@@ -192,7 +198,7 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 		}
 		defer reader.Close()
 
-		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventId)
+		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventID)
 		os.MkdirAll(dirName, 0755)
 
 		fileName := fmt.Sprintf("%s/%s", dirName, header.Filename)
@@ -228,6 +234,7 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//ImportApp -
 func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
@@ -259,20 +266,20 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 
 		httputil.ReturnSuccess(r, w, nil)
 	case "GET":
-		eventId := strings.TrimSpace(chi.URLParam(r, "eventId"))
-		if eventId == "" {
-			httputil.ReturnError(r, w, 400, fmt.Sprintf("Arguments eventId is must defined."))
+		eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
+		if eventID == "" {
+			httputil.ReturnError(r, w, 400, fmt.Sprintf("Arguments eventID is must defined."))
 			return
 		}
 
-		res, err := db.GetManager().AppDao().GetByEventId(eventId)
+		res, err := db.GetManager().AppDao().GetByEventId(eventID)
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
 				res.Status = "uploading"
 				httputil.ReturnSuccess(r, w, res)
 				return
 			}
-			httputil.ReturnError(r, w, 500, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventID, err))
 			return
 		}
 		if res.Status == "cleaned" {
@@ -295,18 +302,18 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnSuccess(r, w, res)
 
 	case "DELETE":
-		eventId := strings.TrimSpace(chi.URLParam(r, "eventId"))
-		if eventId == "" {
-			httputil.ReturnError(r, w, 400, fmt.Sprintf("Arguments eventId is must defined."))
+		eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
+		if eventID == "" {
+			httputil.ReturnError(r, w, 400, fmt.Sprintf("Arguments eventID is must defined."))
 			return
 		}
-		res, err := db.GetManager().AppDao().GetByEventId(eventId)
+		res, err := db.GetManager().AppDao().GetByEventId(eventID)
 		if err != nil {
-			httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventId, err))
+			httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventID, err))
 			return
 		}
 		if err := db.GetManager().AppDao().DeleteModelByEventId(res.EventID); err != nil {
-			httputil.ReturnError(r, w, 503, fmt.Sprintf("Deleting database records by event ID failed %s: %v", eventId, err))
+			httputil.ReturnError(r, w, 503, fmt.Sprintf("Deleting database records by event ID failed %s: %v", eventID, err))
 			return
 		}
 		if _, err := os.Stat(res.SourceDir); err == nil {

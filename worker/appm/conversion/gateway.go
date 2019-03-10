@@ -512,7 +512,7 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 	return &service
 }
 
-func (a *AppServiceBuild) createEndpoints(port *model.TenantServicesPort, v1eps []*v1.Endpoint, isInner bool) []*corev1.Endpoints {
+func (a *AppServiceBuild) createEndpoints(port *model.TenantServicesPort, v1eps []*v1.RbdEndpoints, isInner bool) []*corev1.Endpoints {
 	var res []*corev1.Endpoints
 	for _, item := range v1eps {
 		ep := corev1.Endpoints{}
@@ -584,5 +584,6 @@ func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPor
 		PublishNotReadyAddresses: true,
 	}
 	service.Spec = spec
+	service.Annotations = map[string]string{"service.alpha.kubernetes.io/tolerate-unready-endpoints": "true"}
 	return &service
 }

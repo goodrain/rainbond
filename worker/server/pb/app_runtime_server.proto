@@ -7,10 +7,12 @@ service AppRuntimeSync {
   rpc GetDeployInfo (ServiceRequest) returns (DeployInfo) {}
   rpc GetTenantResource (TenantRequest) returns (TenantResource) {}
   rpc ListThirdPartyEndpoints (ServiceRequest) returns (ThirdPartyEndpoints) {}
-  rpc AddThirdPartyEndpoint (AddThirdPartyEndpointsReq) returns (Dummy) {}
-  rpc UpdThirdPartyEndpoint (UpdThirdPartyEndpointsReq) returns (Dummy) {}
-  rpc DelThirdPartyEndpoint (DelThirdPartyEndpointsReq) returns (Dummy) {}
+  rpc AddThirdPartyEndpoint (AddThirdPartyEndpointsReq) returns (Empty) {}
+  rpc UpdThirdPartyEndpoint (UpdThirdPartyEndpointsReq) returns (Empty) {}
+  rpc DelThirdPartyEndpoint (DelThirdPartyEndpointsReq) returns (Empty) {}
 }
+
+message Empty {}
 
 message ServiceRequest {
   string service_id = 1;
@@ -87,10 +89,6 @@ message UpdThirdPartyEndpointsReq {
 message DelThirdPartyEndpointsReq {
   string uuid = 1;
   string sid = 2;
-}
-
-message Dummy {
-  string dummy = 1;
 }
 
 message ThirdPartyEndpoint {

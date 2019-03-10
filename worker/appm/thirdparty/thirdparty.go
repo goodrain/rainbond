@@ -21,6 +21,8 @@ package thirdparty
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/worker/appm/f"
+	"github.com/goodrain/rainbond/worker/appm/prober"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
@@ -44,16 +46,19 @@ type ThirdPartier interface {
 // NewThirdPartier creates a new ThirdPartier.
 func NewThirdPartier(clientset *kubernetes.Clientset,
 	store store.Storer,
+	prober prober.Prober,
 	startCh *channels.RingChannel,
 	updateCh *channels.RingChannel,
 	stopCh chan struct{}) ThirdPartier {
 	t := &thirdparty{
-		clientset:    clientset,
-		store:        store,
-		stopChPerSvc: make(map[string]chan struct{}),
-		startCh:      startCh,
-		updateCh:     updateCh,
-		stopCh:       stopCh,
+		clientset: clientset,
+		store:     store,
+		prober:    prober,
+
+		svcStopCh: make(map[string]chan struct{}),
+		startCh:   startCh,
+		updateCh:  updateCh,
+		stopCh:    stopCh,
 	}
 	return t
 }
@@ -61,8 +66,10 @@ func NewThirdPartier(clientset *kubernetes.Clientset,
 type thirdparty struct {
 	clientset kubernetes.Interface
 	store     store.Storer
+	prober    prober.Prober
 
-	stopChPerSvc map[string]chan struct{}
+	// a collection of stop channel for every service.
+	svcStopCh map[string]chan struct{}
 
 	startCh  *channels.RingChannel
 	updateCh *channels.RingChannel
@@ -82,24 +89,29 @@ func (t *thirdparty) Start() {
 				}
 				logrus.Debugf("Received event: %+v", evt)
 				if evt.Type == v1.StartEvent {
-					stopCh := t.stopChPerSvc[evt.Sid]
+					stopCh := t.svcStopCh[evt.Sid]
 					if stopCh != nil {
 						logrus.Debugf("ServiceID: %s; already started.", evt.Sid)
 						continue
 					}
-					t.stopChPerSvc[evt.Sid] = make(chan struct{})
-					go t.runStart(evt.Sid)
+					t.svcStopCh[evt.Sid] = make(chan struct{})
+					signal := make(chan struct{})
+					go t.runStart(evt.Sid, signal)
+					// health test
+					go t.runProbe(evt.Sid, signal)
 				}
 				if evt.Type == v1.StopEvent {
-					stopCh := t.stopChPerSvc[evt.Sid]
+					stopCh := t.svcStopCh[evt.Sid]
 					if stopCh == nil {
 						logrus.Warningf("ServiceID: %s; The third-party service has not started yet, cant't be stoped", evt.Sid)
 						continue
 					}
 					close(stopCh)
-					delete(t.stopChPerSvc, evt.Sid)
+					delete(t.svcStopCh, evt.Sid)
 
+					go t.prober.StopProbe(evt.Sid)
 					go t.runDelete(evt.Sid)
+
 				}
 			case event := <-t.updateCh.Out():
 				devent, ok := event.(discovery.Event)
@@ -109,7 +121,7 @@ func (t *thirdparty) Start() {
 				}
 				go t.runUpdate(devent)
 			case <-t.stopCh:
-				for _, stopCh := range t.stopChPerSvc {
+				for _, stopCh := range t.svcStopCh {
 					close(stopCh)
 				}
 				break
@@ -118,12 +130,12 @@ func (t *thirdparty) Start() {
 	}()
 }
 
-func (t *thirdparty) runStart(sid string) {
+func (t *thirdparty) runStart(sid string, signal chan<- struct{}) {
 	logrus.Debugf("ServiceID: %s; run start...", sid)
 	// TODO: nil pointer
 	as := t.store.GetAppService(sid)
 	// TODO: when an error occurs, consider retrying.
-	i := NewInteracter(sid, t.updateCh, t.stopChPerSvc[sid])
+	i := NewInteracter(sid, t.updateCh, t.svcStopCh[sid])
 	rbdeps, err := i.List()
 	b, _ := json.Marshal(rbdeps)
 	logrus.Debugf("ServiceID: %s; rbd endpoints: %+v", sid, string(b))
@@ -142,7 +154,27 @@ func (t *thirdparty) runStart(sid string) {
 		ensureEndpoints(ep, t.clientset)
 	}
 
+	signal <- struct{}{}
 	i.Watch()
+}
+
+func (t *thirdparty) runProbe(sid string, signal <-chan struct{}) {
+	<-signal
+	logrus.Debugf("ServiceID: %s; run probe...", sid)
+	// TODO: nil pointer
+	as := t.store.GetAppService(sid)
+	if as == nil {
+		// TODO: warning
+		return
+	}
+	rbdEndpoints := as.GetRbdEndpionts()
+	b, _ := json.Marshal(rbdEndpoints)
+	logrus.Debugf("rbd endpoints: %s", string(b))
+	if rbdEndpoints == nil || len(rbdEndpoints) == 0 {
+		// TODO: warning
+		return
+	}
+	t.prober.AddProbe(as.ServiceID, rbdEndpoints)
 }
 
 func (t *thirdparty) createK8sEndpoints(as *v1.AppService) ([]*corev1.Endpoints, error) {
@@ -150,7 +182,7 @@ func (t *thirdparty) createK8sEndpoints(as *v1.AppService) ([]*corev1.Endpoints,
 	if err != nil {
 		return nil, err
 	}
-	epinfos, err := conv(as.GetRbdEndpionts())
+	epinfos, err := f.ConvRbdEndpoint(as.GetRbdEndpionts())
 	if err != nil {
 		return nil, err
 	}
@@ -202,37 +234,6 @@ func (t *thirdparty) createK8sEndpoints(as *v1.AppService) ([]*corev1.Endpoints,
 			res = append(res, &ep)
 		}
 	}
-	return res, nil
-}
-
-func conv(eps []*v1.RbdEndpoint) ([]*v1.Endpoint, error) {
-	var res []*v1.Endpoint
-	m := make(map[int]*v1.Endpoint)
-	for _, ep := range eps {
-		if !ep.IsOnline {
-			continue
-		}
-		v1ep, ok := m[ep.Port] // the value of port may be 0
-		if ok {
-			if ep.Status == "unhealty" {
-				v1ep.NotReadyIPs = append(v1ep.NotReadyIPs, ep.IP)
-			} else {
-				v1ep.IPs = append(v1ep.IPs, ep.IP)
-			}
-			continue
-		}
-		v1ep = &v1.Endpoint{
-			Port: ep.Port,
-		}
-		if ep.Status == "unhealty" {
-			v1ep.NotReadyIPs = append(v1ep.NotReadyIPs, ep.IP)
-		} else {
-			v1ep.IPs = append(v1ep.IPs, ep.IP)
-		}
-		m[ep.Port] = v1ep
-		res = append(res, v1ep)
-	}
-	// TODO: If the port has three different values, one of them cannot be 0
 	return res, nil
 }
 

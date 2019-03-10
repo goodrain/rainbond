@@ -37,6 +37,7 @@ type Pool struct {
 	Nodes             []*Node
 }
 
+//Equals -
 func (p *Pool) Equals(c *Pool) bool {
 	if p == c {
 		return true

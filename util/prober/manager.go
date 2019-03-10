@@ -22,32 +22,35 @@ import (
 	"context"
 	"errors"
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/prober/probes"
-	"github.com/goodrain/rainbond/prober/types/v1"
 	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/util/prober/probes"
+	"github.com/goodrain/rainbond/util/prober/types/v1"
 	"sync"
 	"time"
 )
 
-//Manager Manager
-type Manager interface {
+//Prober Prober
+type Prober interface {
 	GetServiceHealthy(serviceName string) (*v1.HealthStatus, bool)
 	GetCurrentServiceHealthy(serviceName string) (*v1.HealthStatus, error)
 	WatchServiceHealthy(serviceName string) Watcher
 	CloseWatch(serviceName string, id string) error
 	Start()
-	SetServices(*[]*v1.Service)
-	GetServices() *[]*v1.Service
+	AddServices(in []*v1.Service)
+	SetServices([]*v1.Service)
+	GetServices() []*v1.Service
 	GetServiceHealth() map[string]*v1.HealthStatus
-	SetAndUpdateServices(*[]*v1.Service) error
+	SetAndUpdateServices([]*v1.Service) error
+	AddAndUpdateServices([]*v1.Service) error
+	UpdateServicesProbe(services []*v1.Service)
 	Stop() error
 	DisableWatcher(serviceName, watcherID string)
 	EnableWatcher(serviceName, watcherID string)
+	GetProbe(name string) probe.Probe
 }
 
-//CreateManager create manager
-func CreateManager() Manager {
-	ctx, cancel := context.WithCancel(context.Background())
+// NewProber creates a new prober.
+func NewProber(ctx context.Context, cancel context.CancelFunc) Prober {
 	statusChan := make(chan *v1.HealthStatus, 100)
 	status := make(map[string]*v1.HealthStatus)
 	watches := make(map[string]map[string]*watcher)
@@ -58,6 +61,7 @@ func CreateManager() Manager {
 		status:       status,
 		watches:      watches,
 		serviceProbe: make(map[string]probe.Probe),
+		services:     []*v1.Service{},
 	}
 	return m
 }
@@ -71,7 +75,7 @@ type Watcher interface {
 }
 
 type probeManager struct {
-	services     *[]*v1.Service
+	services     []*v1.Service
 	serviceProbe map[string]probe.Probe
 	status       map[string]*v1.HealthStatus
 	ctx          context.Context
@@ -82,7 +86,7 @@ type probeManager struct {
 }
 
 type watcher struct {
-	manager     Manager
+	manager     Prober
 	statusChan  chan *v1.HealthStatus
 	id          string
 	serviceName string
@@ -91,7 +95,7 @@ type watcher struct {
 
 func (p *probeManager) Start() {
 	go p.handleStatus()
-	p.updateServiceProbe()
+	p.updateAllServicesProbe()
 }
 
 func (p *probeManager) Stop() error {
@@ -105,10 +109,10 @@ func (p *probeManager) GetServiceHealthy(serviceName string) (*v1.HealthStatus, 
 }
 
 func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*v1.HealthStatus, error) {
-	if len(*p.services) == 0 {
+	if len(p.services) == 0 {
 		return nil, errors.New("services list is empty")
 	}
-	for _, v := range *p.services {
+	for _, v := range p.services {
 		if v.Name == serviceName {
 			if v.ServiceHealth.Model == "tcp" {
 				statusMap := probe.GetTcpHealth(v.ServiceHealth.Address)
@@ -125,6 +129,7 @@ func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*v1.HealthS
 }
 
 func (p *probeManager) WatchServiceHealthy(serviceName string) Watcher {
+	logrus.Debugf("service name: %s;watch service healthy...", serviceName)
 	healthCh := make(chan *v1.HealthStatus, 10)
 	w := &watcher{
 		manager:     p,
@@ -154,6 +159,7 @@ func (p *probeManager) CloseWatch(serviceName string, id string) error {
 }
 
 func (p *probeManager) handleStatus() {
+	logrus.Debugf("start handling status...")
 	for {
 		select {
 		case status := <-p.statusChan:
@@ -200,26 +206,54 @@ func (p *probeManager) updateServiceStatus(status *v1.HealthStatus) {
 	}
 }
 
-func (p *probeManager) SetServices(in *[]*v1.Service) {
+func (p *probeManager) SetServices(in []*v1.Service) {
 	p.services = in
 }
 
-func (p *probeManager) GetServices() *[]*v1.Service {
+func (p *probeManager) GetServices() []*v1.Service {
 	return p.services
 }
 
-func (p *probeManager) SetAndUpdateServices(inner *[]*v1.Service) error {
+func (p *probeManager) SetAndUpdateServices(inner []*v1.Service) error {
 	p.services = inner
-	p.updateServiceProbe()
+	p.updateAllServicesProbe()
 	return nil
 }
 
-func (p *probeManager) AddAndUpdateServices(inner *[]*v1.Service) error {
-	//for _, svc := range *p.services {
-	//
-	//}
-	p.updateServiceProbe()
+// AddAndUpdateServices adds services, then updates all services.
+func (p *probeManager) AddAndUpdateServices(in []*v1.Service) error {
+	for _, i := range in {
+		exist := false
+		for index, svc := range p.services {
+			if svc.Name == i.Name {
+				(p.services)[index] = i
+				exist = true
+			}
+		}
+		if !exist {
+			p.services = append(p.services, i)
+		}
+	}
+	p.services = append(p.services, in...)
+	p.updateAllServicesProbe()
 	return nil
+}
+
+// AddServices adds services.
+func (p *probeManager) AddServices(in []*v1.Service) {
+	for _, i := range in {
+		exist := false
+		for index, svc := range p.services {
+			if svc.Name == i.Name {
+				(p.services)[index] = i
+				exist = true
+			}
+		}
+		if !exist {
+			p.services = append(p.services, i)
+		}
+	}
+	p.services = append(p.services, in...)
 }
 
 func (p *probeManager) GetServiceHealth() map[string]*v1.HealthStatus {
@@ -268,12 +302,15 @@ func (w *watcher) Close() error {
 	return w.manager.CloseWatch(w.serviceName, w.id)
 }
 
-func (p *probeManager) updateServiceProbe() {
+func (p *probeManager) updateAllServicesProbe() {
+	if p.services == nil || len(p.services) == 0 {
+		return
+	}
 	for _, pro := range p.serviceProbe {
 		pro.Stop()
 	}
-	p.serviceProbe = make(map[string]probe.Probe, len(*p.services))
-	for _, v := range *p.services {
+	p.serviceProbe = make(map[string]probe.Probe, len(p.services))
+	for _, v := range p.services {
 		if v.ServiceHealth == nil {
 			continue
 		}
@@ -286,4 +323,33 @@ func (p *probeManager) updateServiceProbe() {
 			serviceProbe.Check()
 		}
 	}
+}
+
+// UpdateServicesProbe updates and runs services probe.
+func (p *probeManager) UpdateServicesProbe(services []*v1.Service) {
+	logrus.Debugf("update services probe...")
+	for _, v := range services {
+		if v.ServiceHealth == nil {
+			continue
+		}
+		if v.Disable {
+			continue
+		}
+		// stop old probe
+		old := p.serviceProbe[v.Name]
+		if old != nil {
+			old.Stop()
+		}
+		// create new probe
+		serviceProbe := probe.CreateProbe(p.ctx, p.statusChan, v)
+		if serviceProbe != nil {
+			p.serviceProbe[v.Name] = serviceProbe
+			serviceProbe.Check()
+		}
+	}
+}
+
+// GetProbe returns a probe associated with name.
+func (p *probeManager) GetProbe(name string) probe.Probe {
+	return p.serviceProbe[name]
 }

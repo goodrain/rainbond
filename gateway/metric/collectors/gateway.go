@@ -16,41 +16,4 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package v1
-
-import "time"
-
-const (
-	// StatHealthy -
-	StatHealthy string = "healthy"
-	// StatUnhealthy -
-	StatUnhealthy string = "unhealthy"
-	// StaTDeath -
-	StatDeath string = "death"
-)
-
-//Service Service
-type Service struct {
-	Name          string
-	ServiceHealth *Health
-	Disable       bool
-}
-
-//Health ServiceHealth
-type Health struct {
-	Name         string
-	Model        string
-	Address      string
-	TimeInterval int
-	MaxErrorsNum int
-}
-
-//HealthStatus health status
-type HealthStatus struct {
-	Name           string
-	Status         string
-	ErrorNumber    int
-	ErrorDuration  time.Duration
-	StartErrorTime time.Time
-	Info           string
-}
+package collectors

@@ -263,7 +263,17 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		}
 	}
 	d.Dependencies = code.CheckDependencies(buildPath, lang)
-	d.Runtime = code.CheckRuntime(buildPath, lang)
+	runtimeInfo, err := code.CheckRuntime(buildPath, lang)
+	if err != nil && err == code.ErrRuntimeNotSupport {
+		d.errappend(ErrorAndSolve(FatalError, "代码选择的运行时版本不支持", "请参考文档查看平台各语言支持的Runtime版本"))
+		return d.errors
+	}
+	for k, v := range runtimeInfo {
+		d.envs["BUILD_"+k] = &Env{
+			Name:  "BUILD_" + k,
+			Value: v,
+		}
+	}
 	d.memory = getRecommendedMemory(lang)
 	d.Procfile = code.CheckProcfile(buildPath, lang)
 	if rbdfileConfig != nil {
@@ -301,8 +311,8 @@ func ReadRbdConfigAndLang(buildInfo *sources.RepostoryBuildInfo) (*code.Rainbond
 }
 
 func getRecommendedMemory(lang code.Lang) int {
-	//java语言推荐1024
-	if lang == code.JavaJar || lang == code.JavaMaven || lang == code.JaveWar {
+	//java recommended 1024
+	if lang == code.JavaJar || lang == code.JavaMaven || lang == code.JaveWar || lang == code.Gradle {
 		return 1024
 	}
 	if lang == code.Python {

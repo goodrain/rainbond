@@ -28,14 +28,15 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/goodrain/rainbond/gateway/annotations/l4"
+	"github.com/goodrain/rainbond/gateway/util"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/annotations"
-	"github.com/goodrain/rainbond/gateway/annotations/l4"
 	"github.com/goodrain/rainbond/gateway/controller/config"
 	"github.com/goodrain/rainbond/gateway/defaults"
-	"github.com/goodrain/rainbond/gateway/util"
 	"github.com/goodrain/rainbond/gateway/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -470,7 +471,6 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 		if !s.ingressIsValid(ing) {
 			continue
 		}
-
 		ingKey := k8s.MetaNamespaceKey(ing)
 		anns, err := s.GetIngressAnnotations(ingKey)
 		if err != nil {
@@ -503,9 +503,10 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 					Listening: []string{listening},
 					PoolName:  backendName,
 				}
+				vs.Namespace = anns.Namespace
+				vs.ServiceID = anns.Labels["service_id"]
 			}
-
-			l4PoolMap[name] = struct{}{}
+			l4PoolMap[ing.Spec.Backend.ServiceName] = struct{}{}
 			l4vsMap[listening] = vs
 			l4vs = append(l4vs, vs)
 			backend := backend{name: backendName, weight: anns.Weight.Weight}
@@ -539,6 +540,10 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 				if virSrvName == "" {
 					virSrvName = DefVirSrvName
 				}
+				if len(hostSSLMap) != 0 {
+					virSrvName = fmt.Sprintf("tls%s", virSrvName)
+				}
+
 				vs = l7vsMap[virSrvName]
 				if vs == nil {
 					vs = &v1.VirtualService{
@@ -547,6 +552,8 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 						Locations:        []*v1.Location{},
 						ForceSSLRedirect: anns.Rewrite.ForceSSLRedirect,
 					}
+					vs.Namespace = ing.Namespace
+					vs.ServiceID = anns.Labels["service_id"]
 					if len(hostSSLMap) != 0 {
 						vs.Listening = []string{"443", "ssl"}
 						if hostSSLMap[virSrvName] != nil {
@@ -555,7 +562,6 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 							vs.SSLCert = hostSSLMap[DefVirSrvName]
 						}
 					}
-
 					l7vsMap[virSrvName] = vs
 					l7vs = append(l7vs, vs)
 				}

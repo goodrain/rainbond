@@ -21,7 +21,7 @@ package collectors
 import "github.com/prometheus/client_golang/prometheus"
 
 // PrometheusNamespace default metric namespace
-var PrometheusNamespace = "gateway_controller"
+var PrometheusNamespace = "gateway"
 
 // Controller defines base metrics about the rbd-gateway
 type Controller struct {
@@ -35,10 +35,7 @@ type Controller struct {
 // NewController creates a new prometheus collector for the
 // gateway controller operations
 func NewController() *Controller {
-	constLabels := prometheus.Labels{
-		"foo": "bar",
-	}
-
+	constLabels := prometheus.Labels{}
 	cm := &Controller{
 		activeDomain: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{

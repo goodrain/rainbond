@@ -68,7 +68,7 @@ func (s *restartController) restartOne(app v1.AppService) error {
 	startController := startController{
 		manager: s.manager,
 	}
-	newAppService, err := conversion.InitAppService(db.GetManager(), app.ServiceID)
+	newAppService, err := conversion.InitAppService(db.GetManager(), app.ServiceID, app.ExtensionSet)
 	if err != nil {
 		logrus.Errorf("Application model init create failure:%s", err.Error())
 		app.Logger.Error("Application model init create failure", GetCallbackLoggerOption())
