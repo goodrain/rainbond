@@ -67,8 +67,8 @@ func NewCmdInit() cli.Command {
 			},
 			cli.StringFlag{
 				Name:  "rainbond-version",
-				Usage: "Rainbond Install Version. default 5.0",
-				Value: "5.0",
+				Usage: "Rainbond Install Version. default 5.1",
+				Value: "5.1",
 			},
 			cli.StringFlag{
 				Name:  "rainbond-repo",

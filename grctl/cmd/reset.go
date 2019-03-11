@@ -38,7 +38,7 @@ import (
 func NewCmdReset() cli.Command {
 	c := cli.Command{
 		Name:  "reset",
-		Usage: "重置当前节点grctl reset",
+		Usage: "reset the current node",
 		Action: func(c *cli.Context) error {
 			resetCurrentNode(c)
 			return nil
@@ -50,7 +50,7 @@ func NewCmdReset() cli.Command {
 func resetCurrentNode(c *cli.Context) {
 
 	// stop rainbond services
-	fmt.Println("Start stop rainbond services")
+	//fmt.Println("Start stop rainbond services")
 	cmd := exec.Command("grclis", "reset")
 
 	cmd.Stdout = os.Stdout

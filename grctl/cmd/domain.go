@@ -40,7 +40,7 @@ func NewCmdDomain() cli.Command {
 				Usage: "domain",
 			},
 		},
-		Usage: "",
+		Usage: "Default *.grapps.cn domain resolution",
 		Action: func(c *cli.Context) error {
 			ip := c.String("ip")
 			if len(ip) == 0 {
