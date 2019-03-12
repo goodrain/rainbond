@@ -38,7 +38,6 @@ import (
 // Prober is the interface that wraps the required methods to maintain status
 // about upstream servers(Endpoints) associated with a third-party service.
 type Prober interface {
-	Init() error
 	Start()
 	Stop()
 	AddProbe(ep *corev1.Endpoints)
@@ -74,11 +73,6 @@ type tpProbe struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
-}
-
-// Init initiates probes.
-func (t *tpProbe) Init() error {
-	return nil
 }
 
 func createService(probe *model.TenantServiceProbe) *v1.Service {
@@ -162,9 +156,10 @@ func (t *tpProbe) AddProbe(ep *corev1.Endpoints) {
 						if event.StatusChange {
 							logrus.Debugf("is [%s] of service %s.", event.Status, event.Name)
 							obj := &appmv1.RbdEndpoint{
-								IP:     strings.Replace(service.Name, sid+"-", "", 1),
-								Sid:    sid,
-								Status: "healthy",
+								IP:       strings.Replace(service.Name, sid+"-", "", 1),
+								Sid:      sid,
+								Status:   "healthy",
+								IsOnline: true,
 							}
 							t.updateCh.In() <- discovery.Event{
 								Type: discovery.HealthEvent,
@@ -176,8 +171,9 @@ func (t *tpProbe) AddProbe(ep *corev1.Endpoints) {
 							if probeInfo.FailureAction == model.OfflineFailureAction.String() {
 								logrus.Infof("Name: %s; Status: %s; ErrorNumber: %d. Offline.", event.Status, event.Name, event.ErrorNumber)
 								obj := &appmv1.RbdEndpoint{
-									IP:  strings.Replace(service.Name, sid+"-", "", 1),
-									Sid: sid,
+									IP:       strings.Replace(service.Name, sid+"-", "", 1),
+									Sid:      sid,
+									IsOnline: false,
 								}
 								t.updateCh.In() <- discovery.Event{
 									Type: discovery.OfflineEvent,
@@ -208,13 +204,14 @@ func (t *tpProbe) AddProbe(ep *corev1.Endpoints) {
 }
 
 func (t *tpProbe) StopProbe(ep *corev1.Endpoints) {
-	services, _, _ := t.createServices(ep)
-	if services == nil || len(services) == 0 {
-		logrus.Debugf("empty services, stop creating probe")
+	names := t.createServiceNames(ep)
+	if names == nil || len(names) == 0 {
+		logrus.Warningf("empty services, stop stoping probes")
 		return
 	}
-	for _, service := range services {
-		probe := t.utilprober.GetProbe(service.Name)
+	logrus.Debugf("Names: %+v; Stop probes.", names)
+	for _, name := range names {
+		probe := t.utilprober.GetProbe(name)
 		if probe == nil {
 			continue
 		}
@@ -275,4 +272,20 @@ func (t *tpProbe) createServices(ep *corev1.Endpoints) ([]*v1.Service, *model.Te
 		}
 	}
 	return services, probeInfo, sid
+}
+
+func (t *tpProbe) createServiceNames(ep *corev1.Endpoints) []string {
+	sid := ep.GetLabels()["service_id"]
+	if strings.TrimSpace(sid) == "" {
+		logrus.Warningf("Endpoints key: %s; ServiceID not found, stop creating probe",
+			fmt.Sprintf("%s/%s", ep.Namespace, ep.Name))
+		return nil
+	}
+	var names []string
+	for _, subset := range ep.Subsets {
+		for _, address := range subset.Addresses {
+			names = append(names, fmt.Sprintf("%s-%s", sid, address.IP))
+		}
+	}
+	return names
 }

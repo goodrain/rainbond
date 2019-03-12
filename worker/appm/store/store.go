@@ -580,7 +580,11 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, _ := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
-				appservice.DeleteConfigMaps(configmap)
+				if strings.Contains(configmap.Name, "rbd-endpoints") {
+					appservice.DelRbdEndpiontCM()
+				} else {
+					appservice.DeleteConfigMaps(configmap)
+				}
 				if appservice.IsClosed() {
 					a.DeleteAppService(appservice)
 				}

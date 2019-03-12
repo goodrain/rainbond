@@ -84,14 +84,14 @@ func (t *thirdparty) Start() {
 					continue
 				}
 				logrus.Debugf("Received event: %+v", evt)
-				key := func(evt *v1.Event) string {
-					if evt.IsInner {
-						return fmt.Sprintf("%s-%d-inner", evt.Sid, evt.Port)
-					}
-					return fmt.Sprintf("%s-%d-outer", evt.Sid, evt.Port)
-				}(evt)
+				// key := func(evt *v1.Event) string {
+				// 	if evt.IsInner {
+				// 		return fmt.Sprintf("%s-%d-inner", evt.Sid, evt.Port)
+				// 	}
+				// 	return fmt.Sprintf("%s-%d-outer", evt.Sid, evt.Port)
+				// }(evt)
 				if evt.Type == v1.StartEvent { // no need to distinguish between event types
-					stopCh := t.svcStopCh[key]
+					stopCh := t.svcStopCh[evt.Sid]
 					if stopCh != nil {
 						logrus.Debugf("ServiceID: %s; already started.", evt.Sid)
 						continue
@@ -101,11 +101,12 @@ func (t *thirdparty) Start() {
 					go t.runStart(evt.Sid, signal)
 				}
 				if evt.Type == v1.StopEvent {
-					stopCh := t.svcStopCh[key]
+					stopCh := t.svcStopCh[evt.Sid]
 					if stopCh == nil {
 						logrus.Warningf("ServiceID: %s; The third-party service has not started yet, cant't be stoped", evt.Sid)
 						continue
 					}
+					t.runDelete(evt.Sid)
 					close(stopCh)
 					delete(t.svcStopCh, evt.Sid)
 				}
@@ -353,8 +354,18 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 			as.UpdRbdEndpionts(e)
 		}
 		ensureConfigMap(as.GetRbdEndpiontsCM(), t.clientset)
-	case discovery.OfflineEvent:
+	case discovery.OfflineEvent: // TODO: merge HealthEvent
 		logrus.Debugf("Offline event; Sid: %s; IP: %s", ep.Sid, ep.IP)
+		eps := as.GetRbdEndpiontByIP(ep.IP)
+		if eps == nil || len(eps) == 0 {
+			logrus.Warningf("Sid: %s; IP: %s; Empty rbd endpoints", ep.Sid, ep.IP)
+			return
+		}
+		for _, e := range eps {
+			e.IsOnline = ep.IsOnline
+			as.UpdRbdEndpionts(e)
+		}
+		ensureConfigMap(as.GetRbdEndpiontsCM(), t.clientset)
 	}
 }
 
@@ -402,10 +413,17 @@ func (t *thirdparty) runDelete(sid string) {
 		for _, ep := range eps {
 			err := t.clientset.CoreV1().Endpoints(as.TenantID).Delete(ep.Name, &metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
-				logrus.Warningf("error deleting endpoinempty old app servicets: %v", err)
+				logrus.Warningf("error deleting endpoin empty old app servicets: %v", err)
 			}
 			t.store.OnDelete(ep)
 		}
+	}
+	if cm := as.GetRbdEndpiontsCM(); cm != nil {
+		err := t.clientset.CoreV1().ConfigMaps(cm.Namespace).Delete(cm.Name, &metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			logrus.Warningf("error deleting config map: %v", err)
+		}
+		t.store.OnDelete(cm)
 	}
 }
 

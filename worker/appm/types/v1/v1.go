@@ -542,7 +542,8 @@ func (a *AppService) GetRbdEndpiontByIP(ip string) []*RbdEndpoint {
 		dat := data[uuid]
 		err := json.Unmarshal([]byte(dat), &ep)
 		if err != nil {
-			logrus.Warningf("UUID: %s; err unmarshal data: %v", err)
+			logrus.Warningf("UUID: %s; err unmarshal data: %v", uuid, err)
+			continue
 		}
 		res = append(res, &ep)
 	}
@@ -565,6 +566,11 @@ func (a *AppService) UpdRbdEndpionts(dat *RbdEndpoint) {
 	}
 	b, _ := json.Marshal(dat)
 	a.rbdEndpoints.Data[dat.UUID] = string(b)
+}
+
+// DelRbdEndpiontCM deletes rbd endpoints for AppService.
+func (a *AppService) DelRbdEndpiontCM() {
+	a.rbdEndpoints = nil
 }
 
 // DelRbdEndpiont deletes rbd endpoints for AppService.
