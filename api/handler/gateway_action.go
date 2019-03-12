@@ -550,7 +550,7 @@ func (g *GatewayAction) AddRuleConfig(req *apimodel.AddRuleConfigReq) error {
 		Key:      req.Key,
 		Value:    req.Value,
 	}
-	if err := g.dbmanager.IPPoolDao().AddModel(c); err != nil {
+	if err := g.dbmanager.GwRuleConfigDao().AddModel(c); err != nil {
 		return err
 	}
 	return nil
@@ -562,16 +562,13 @@ func (g *GatewayAction) UpdRuleConfig(req *apimodel.UpdRuleConfigReq) error {
 	if err != nil {
 		return err
 	}
-	if req.RuleID != "" {
-		cfg.RuleID = req.ConfigID
-	}
 	if req.Key != "" {
 		cfg.Key = req.Key
 	}
 	if req.Value != "" {
 		cfg.Value = req.Value
 	}
-	if err := g.dbmanager.IPPoolDao().UpdateModel(cfg); err != nil {
+	if err := g.dbmanager.GwRuleConfigDao().UpdateModel(cfg); err != nil {
 		return err
 	}
 	return nil
@@ -582,7 +579,7 @@ func (g *GatewayAction) DelRuleConfig(cid string) error {
 	return g.dbmanager.GwRuleConfigDao().DeleteByConfigID(cid)
 }
 
-// DelRuleConfig -
+// DelRuleConfigs -
 func (g *GatewayAction) DelRuleConfigs(rid string) error {
 	return g.dbmanager.GwRuleConfigDao().DeleteByRuleID(rid)
 }

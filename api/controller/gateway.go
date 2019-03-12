@@ -368,7 +368,7 @@ func (g *GatewayStruct) updRuleConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *GatewayStruct) delRuleConfig(w http.ResponseWriter, r *http.Request) {
-	var req api_model.AddRuleConfigReq
+	var req api_model.DelRuleConfigReq
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return

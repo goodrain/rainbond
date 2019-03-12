@@ -105,7 +105,6 @@ type AddRuleConfigReq struct {
 // UpdRuleConfigReq -
 type UpdRuleConfigReq struct {
 	ConfigID string `json:"config_id" validate:"config_id|required"`
-	RuleID   string `json:"rule_id"`
 	Key      string `json:"key"`
 	Value    string `json:"value"`
 }

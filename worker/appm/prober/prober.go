@@ -243,7 +243,7 @@ func (t *tpProbe) GetProbeInfo(sid string) (*model.TenantServiceProbe, error) {
 			Scheme:           "tcp",
 			PeriodSecond:     5,
 			FailureThreshold: 3,
-			FailureAction:    model.OfflineFailureAction.String(),
+			FailureAction:    model.IgnoreFailureAction.String(),
 		}, nil
 	}
 	return probes[0], nil
