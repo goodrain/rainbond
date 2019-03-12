@@ -49,6 +49,7 @@ type Prober interface {
 	DisableWatcher(serviceName, watcherID string)
 	EnableWatcher(serviceName, watcherID string)
 	GetProbe(name string) probe.Probe
+	StopProbes(names []string)
 }
 
 // NewProber creates a new prober.
@@ -374,4 +375,16 @@ func (p *probeManager) UpdateServicesProbe(services []*v1.Service) {
 // GetProbe returns a probe associated with name.
 func (p *probeManager) GetProbe(name string) probe.Probe {
 	return p.serviceProbe[name]
+}
+
+func (p *probeManager) StopProbes(names []string) {
+	for _, name := range names {
+		probe := p.serviceProbe[name]
+		if probe == nil {
+			logrus.Debugf("Name: %s; Probe not found.", name)
+			continue
+		}
+		probe.Stop()
+		delete(p.serviceProbe, name)
+	}
 }

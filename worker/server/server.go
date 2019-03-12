@@ -267,7 +267,7 @@ func (r *RuntimeServer) AddThirdPartyEndpoint(ctx context.Context, re *pb.AddThi
 		Sid:      re.Sid,
 		IP:       re.Ip,
 		Port:     int(re.Port),
-		Status:   "healthy",
+		Status:   "unknown",
 		IsOnline: re.IsOnline,
 	}
 	r.updateCh.In() <- discovery.Event{

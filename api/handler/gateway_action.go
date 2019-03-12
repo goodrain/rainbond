@@ -542,44 +542,64 @@ func (g *GatewayAction) AddIPPool(req *apimodel.IPPoolStruct) error {
 	return nil
 }
 
-// AddRuleConfig -
-func (g *GatewayAction) AddRuleConfig(req *apimodel.AddRuleConfigReq) error {
-	c := &model.GwRuleConfig{
-		ConfigID: req.ConfigID,
-		RuleID:   req.RuleID,
-		Key:      req.Key,
-		Value:    req.Value,
+// RuleConfig -
+func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
+	var configs []*model.GwRuleConfig
+	// TODO: use reflect to read the field of req, huangrh
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key: "proxy-connect-timeout",
+		Value: strconv.Itoa(req.Body.ProxyConnectTimeout),
+	})
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key: "proxy-send-timeout",
+		Value: strconv.Itoa(req.Body.ProxySendTimeout),
+	})
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key: "proxy-read-timeout",
+		Value: strconv.Itoa(req.Body.ProxyReadTimeout),
+	})
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key: "proxy-buffers-number",
+		Value: strconv.Itoa(req.Body.ProxyBuffersNumber),
+	})
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key: "proxy-buffer-size",
+		Value: req.Body.ProxyBufferSize,
+	})
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key: "proxy-buffering",
+		Value: req.Body.ProxyBuffering,
+	})
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key: "proxy-body-size",
+		Value: strconv.Itoa(req.Body.ProxyBuffersNumber),
+	})
+	for key, value := range req.Body.SetHeaders {
+		configs = append(configs, &model.GwRuleConfig{
+			RuleID: req.RuleID,
+			Key: "set-header-" + key,
+			Value: value,
+		})
 	}
-	if err := g.dbmanager.GwRuleConfigDao().AddModel(c); err != nil {
+
+	tx := db.GetManager().Begin()
+	if err := g.dbmanager.GwRuleConfigDaoTransactions(tx).DeleteByRuleID(req.RuleID); err != nil {
+		tx.Rollback()
 		return err
 	}
+	for _, cfg := range configs {
+		if err := g.dbmanager.GwRuleConfigDaoTransactions(tx).AddModel(cfg); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	tx.Commit()
 	return nil
-}
-
-// UpdRuleConfig -
-func (g *GatewayAction) UpdRuleConfig(req *apimodel.UpdRuleConfigReq) error {
-	cfg, err := g.dbmanager.GwRuleConfigDao().GetByConfigID(req.ConfigID)
-	if err != nil {
-		return err
-	}
-	if req.Key != "" {
-		cfg.Key = req.Key
-	}
-	if req.Value != "" {
-		cfg.Value = req.Value
-	}
-	if err := g.dbmanager.GwRuleConfigDao().UpdateModel(cfg); err != nil {
-		return err
-	}
-	return nil
-}
-
-// DelRuleConfig -
-func (g *GatewayAction) DelRuleConfig(cid string) error {
-	return g.dbmanager.GwRuleConfigDao().DeleteByConfigID(cid)
-}
-
-// DelRuleConfigs -
-func (g *GatewayAction) DelRuleConfigs(rid string) error {
-	return g.dbmanager.GwRuleConfigDao().DeleteByRuleID(rid)
 }

@@ -2,6 +2,7 @@ package model
 
 import (
 	"github.com/goodrain/rainbond/gateway/annotations/proxy"
+	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
 	"github.com/goodrain/rainbond/gateway/v1"
 )
 
@@ -50,9 +51,9 @@ type Return struct {
 
 // Location sets configuration depending on a request URI.
 type Location struct {
-	Path     string
-	Rewrites []Rewrite
-	Return   Return
+	Path    string
+	Rewrite rewrite.Config
+	Return  Return
 	// Sets the protocol and address of a proxied server and an optional URI to which a location should be mapped
 	ProxyPass string
 	// Sets the text that should be changed in the “Location” and “Refresh” header fields of a proxied server response

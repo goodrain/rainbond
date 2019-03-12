@@ -83,6 +83,7 @@ func createService(probe *model.TenantServiceProbe) *v1.Service {
 			Model:        probe.Scheme,
 			TimeInterval: probe.PeriodSecond,
 			MaxErrorsNum: probe.FailureThreshold,
+			
 		},
 	}
 }
@@ -138,7 +139,7 @@ func (t *tpProbe) AddProbe(ep *corev1.Endpoints) {
 	for _, service := range services {
 		if t.utilprober.CheckAndAddService(service) {
 			logrus.Debugf("Service: %+v; Exists", service)
-			return
+			continue
 		}
 		go func(service *v1.Service) {
 			watcher := t.utilprober.WatchServiceHealthy(service.Name)
@@ -153,26 +154,23 @@ func (t *tpProbe) AddProbe(ep *corev1.Endpoints) {
 					}
 					switch event.Status {
 					case v1.StatHealthy:
-						if event.StatusChange {
-							logrus.Debugf("is [%s] of service %s.", event.Status, event.Name)
-							obj := &appmv1.RbdEndpoint{
-								IP:       strings.Replace(service.Name, sid+"-", "", 1),
-								Sid:      sid,
-								Status:   "healthy",
-								IsOnline: true,
-							}
-							t.updateCh.In() <- discovery.Event{
-								Type: discovery.HealthEvent,
-								Obj:  obj,
-							}
+						obj := &appmv1.RbdEndpoint{
+							IP:       strings.Replace(service.Name, sid+"-", "", 1),
+							Sid:      sid,
+							Status:   "healthy",
+							IsOnline: true,
+						}
+						t.updateCh.In() <- discovery.Event{
+							Type: discovery.HealthEvent,
+							Obj:  obj,
 						}
 					case v1.StatDeath, v1.StatUnhealthy:
 						if event.ErrorNumber > service.ServiceHealth.MaxErrorsNum {
-							if probeInfo.FailureAction == model.OfflineFailureAction.String() {
-								logrus.Infof("Name: %s; Status: %s; ErrorNumber: %d. Offline.", event.Status, event.Name, event.ErrorNumber)
+							if probeInfo.Mode == model.OfflineFailureAction.String() {
 								obj := &appmv1.RbdEndpoint{
 									IP:       strings.Replace(service.Name, sid+"-", "", 1),
 									Sid:      sid,
+									Status:   "unknown",
 									IsOnline: false,
 								}
 								t.updateCh.In() <- discovery.Event{
@@ -180,7 +178,6 @@ func (t *tpProbe) AddProbe(ep *corev1.Endpoints) {
 									Obj:  obj,
 								}
 							} else {
-								logrus.Infof("Name: %s; Status: %s; ErrorNumber: %d. Change.", event.Status, event.Name, event.ErrorNumber)
 								obj := &appmv1.RbdEndpoint{
 									IP:     strings.Replace(service.Name, sid+"-", "", 1),
 									Sid:    sid,
@@ -210,13 +207,7 @@ func (t *tpProbe) StopProbe(ep *corev1.Endpoints) {
 		return
 	}
 	logrus.Debugf("Names: %+v; Stop probes.", names)
-	for _, name := range names {
-		probe := t.utilprober.GetProbe(name)
-		if probe == nil {
-			continue
-		}
-		probe.Stop()
-	}
+	t.utilprober.StopProbes(names)
 }
 
 // GetProbeInfo returns probe info associated with sid.
@@ -258,6 +249,9 @@ func (t *tpProbe) createServices(ep *corev1.Endpoints) ([]*v1.Service, *model.Te
 		logrus.Warningf("ServiceID: %s; Unexpected error occurred, ignore the creation of "+
 			"probes: %s", sid, err.Error())
 		return nil, nil, ""
+	}
+	if probeInfo.Mode == "liveness" {
+		probeInfo.Mode = model.IgnoreFailureAction.String()
 	}
 	var services []*v1.Service
 	for _, subset := range ep.Subsets {

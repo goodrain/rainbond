@@ -434,8 +434,5 @@ type ThirdPartySvcDiscoveryCfgDao interface {
 // curd for table gateway_rule_config.
 type GwRuleConfigDao interface {
 	Dao
-	GetByConfigID(rid string) (*model.GwRuleConfig, error)
-	ListByRuleID(rid string) ([]*model.GwRuleConfig, error)
-	DeleteByConfigID(cid string) error
 	DeleteByRuleID(rid string) error
 }

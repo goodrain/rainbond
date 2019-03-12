@@ -1,6 +1,7 @@
 package openresty
 
 import (
+	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
 	"fmt"
 	"github.com/goodrain/rainbond/gateway/annotations/proxy"
 
@@ -55,11 +56,13 @@ func mavenGoodrainMe(ip string) *model.Server {
 				EnableMetrics:    false,
 				DisableAccessLog: true,
 				Path:             "/",
-				Rewrites: []model.Rewrite{
-					{
-						Regex:       "^/(.*)$",
-						Replacement: "/artifactory/libs-release/$1",
-						Flag:        "break",
+				Rewrite: rewrite.Config{
+					Rewrites: []*rewrite.Rewrite {
+						{
+							Regex:       "^/(.*)$",
+							Replacement: "/artifactory/libs-release/$1",
+							Flag:        "break",
+						},
 					},
 				},
 				ProxyRedirect: "off",
@@ -85,6 +88,7 @@ func mavenGoodrainMe(ip string) *model.Server {
 func goodrainMe(cfgPath string, ip string) *model.Server {
 	proxy := proxy.NewProxyConfig()
 	proxy.ReadTimeout = 900
+	proxy.BodySize = "0k"
 	proxy.SetHeaders["X-Forwarded-Proto"] = "https"
 	svr := &model.Server{
 		Listen:                  fmt.Sprintf("%s:%d %s", ip, 443, "ssl"),

@@ -253,9 +253,7 @@ func TestGwRuleConfig(t *testing.T) {
 		t.Fatalf("error creating test db manager: %v", err)
 	}
 	rid := util.NewUUID()
-	cid := util.NewUUID()
 	cfg := &model.GwRuleConfig{
-		ConfigID: cid,
 		RuleID:   rid,
 		Key:      "set-header-Host",
 		Value:    "$http_host",
@@ -263,61 +261,15 @@ func TestGwRuleConfig(t *testing.T) {
 	if err := dbm.GwRuleConfigDao().AddModel(cfg); err != nil {
 		t.Fatalf("error create rule config: %v", err)
 	}
-
-	cfg.Key = "proxy_read_timeout"
-	cfg.Value = "75"
-	if err := dbm.GwRuleConfigDao().UpdateModel(cfg); err != nil {
-		t.Fatalf("error updating rule config: %v", err)
+	cfg2 := &model.GwRuleConfig{
+		RuleID:   rid,
+		Key:      "set-header-foo",
+		Value:    "bar",
 	}
-	config, err := dbm.GwRuleConfigDao().GetByConfigID(cfg.ConfigID)
-	if err != nil {
-		t.Fatalf("error getting rule config: %v", err)
-	}
-	if config.Key != "proxy_read_timeout" {
-		t.Errorf("Expected proxy_read_timeout for key, but returned %s", config.Key)
-	}
-	if config.Value != "75" {
-		t.Errorf("Expected $http_host for key, but returned %s", config.Value)
-	}
-
-	for i := 0; i < 2; i++ {
-		cfg = &model.GwRuleConfig{
-			ConfigID: util.NewUUID(),
-			RuleID:   rid,
-			Key:      "set-header-Host",
-			Value:    "$http_host",
-		}
-		if err := dbm.GwRuleConfigDao().AddModel(cfg); err != nil {
-			t.Fatalf("error create rule config: %v", err)
-		}
-	}
-	cfgs, err := dbm.GwRuleConfigDao().ListByRuleID(rid)
-	if err != nil {
+	if err := dbm.GwRuleConfigDao().AddModel(cfg2); err != nil {
 		t.Fatalf("error create rule config: %v", err)
 	}
-	if cfgs == nil || len(cfgs) != 3 {
-		t.Errorf("Expected 3 for the length of cfgs, but returned %d", len(cfgs))
-	}
-
-	if err := dbm.GwRuleConfigDao().DeleteByConfigID(cid); err != nil {
-		t.Fatalf("error deleting rule config: %v", err)
-	}
-	cfgs, err = dbm.GwRuleConfigDao().ListByRuleID(rid)
-	if err != nil {
-		t.Fatalf("error create rule config: %v", err)
-	}
-	if cfgs == nil || len(cfgs) != 2 {
-		t.Errorf("Expected 2 for the length of cfgs, but returned %d", len(cfgs))
-	}
-
 	if err := dbm.GwRuleConfigDao().DeleteByRuleID(rid); err != nil {
 		t.Fatalf("error deleting rule config: %v", err)
-	}
-	cfgs, err = dbm.GwRuleConfigDao().ListByRuleID(rid)
-	if err != nil {
-		t.Fatalf("error create rule config: %v", err)
-	}
-	if !(cfgs == nil || len(cfgs) == 0) {
-		t.Errorf("Expected 0 for the length of cfgs, but returned %d", len(cfgs))
 	}
 }

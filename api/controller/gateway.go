@@ -329,53 +329,13 @@ func (g *GatewayStruct) GetAvailablePort(w http.ResponseWriter, r *http.Request)
 
 // RuleConfig is used to add, update or delete rule config.
 func (g *GatewayStruct) RuleConfig(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "POST":
-		g.addRuleConfig(w, r)
-	case "PUT":
-		g.updRuleConfig(w, r)
-	case "DELETE":
-		g.delRuleConfig(w, r)
-	}
-}
-
-func (g *GatewayStruct) addRuleConfig(w http.ResponseWriter, r *http.Request) {
-	var req api_model.AddRuleConfigReq
+	var req api_model.RuleConfigReq
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
 	}
-	if err := handler.GetGatewayHandler().AddRuleConfig(&req); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
-			"adding rule config: %v", err))
-		return
-	}
-	httputil.ReturnSuccess(r, w, "success")
-}
-
-func (g *GatewayStruct) updRuleConfig(w http.ResponseWriter, r *http.Request) {
-	var req api_model.UpdRuleConfigReq
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
-	if !ok {
-		return
-	}
-	if err := handler.GetGatewayHandler().UpdRuleConfig(&req); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
-			"updating rule config: %v", err))
-		return
-	}
-	httputil.ReturnSuccess(r, w, "success")
-}
-
-func (g *GatewayStruct) delRuleConfig(w http.ResponseWriter, r *http.Request) {
-	var req api_model.DelRuleConfigReq
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
-	if !ok {
-		return
-	}
-	if err := handler.GetGatewayHandler().DelRuleConfig(req.ConfigID); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
-			"deleting rule config: %v", err))
+	if err := handler.GetGatewayHandler().RuleConfig(&req); err != nil {
+	httputil.ReturnError(r, w, 500, fmt.Sprintf("Rule id: %s; error update rule config: %v", req.RuleID, err))
 		return
 	}
 	httputil.ReturnSuccess(r, w, "success")

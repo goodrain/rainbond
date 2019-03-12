@@ -32,16 +32,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/goodrain/rainbond/util/cert"
-
-	"github.com/goodrain/rainbond/util"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/golang/glog"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/template"
 	"github.com/goodrain/rainbond/gateway/v1"
+	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/util/cert"
 )
 
 // OrService handles the business logic of OpenrestyService
@@ -229,8 +227,9 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 				EnableMetrics:    true,
 				Path:             loc.Path,
 				NameCondition:    loc.NameCondition,
-				Proxy:       loc.Proxy,
-				PathRewrite: false,
+				Proxy:            loc.Proxy,
+				Rewrite:          loc.Rewrite,
+				PathRewrite:      false,
 			}
 			server.Locations = append(server.Locations, location)
 		}

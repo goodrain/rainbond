@@ -323,6 +323,9 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 		for _, ep := range del {
 			deleteEndpoints(ep, t.clientset)
 		}
+		for _, ep := range endpoints {
+			ensureEndpoints(ep, t.clientset)
+		}
 		ensureConfigMap(as.GetRbdEndpiontsCM(), t.clientset)
 	case discovery.DeleteEvent:
 		as.DelRbdEndpiont(ep.UUID)
@@ -343,7 +346,7 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 		}
 		ensureConfigMap(as.GetRbdEndpiontsCM(), t.clientset)
 	case discovery.HealthEvent:
-		logrus.Debugf("Health event; Sid: %s; IP: %s", ep.Sid, ep.IP)
+		logrus.Debugf("Health event; Sid: %s; IP: %s; Status: %s; IsOnline: %v", ep.Sid, ep.IP, ep.Status, ep.IsOnline)
 		eps := as.GetRbdEndpiontByIP(ep.IP)
 		if eps == nil || len(eps) == 0 {
 			logrus.Warningf("Sid: %s; IP: %s; Empty rbd endpoints", ep.Sid, ep.IP)
@@ -351,17 +354,19 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 		}
 		for _, e := range eps {
 			e.Status = ep.Status
+			e.IsOnline = ep.IsOnline
 			as.UpdRbdEndpionts(e)
 		}
 		ensureConfigMap(as.GetRbdEndpiontsCM(), t.clientset)
 	case discovery.OfflineEvent: // TODO: merge HealthEvent
-		logrus.Debugf("Offline event; Sid: %s; IP: %s", ep.Sid, ep.IP)
+		logrus.Debugf("Offline event; Sid: %s; IP: %s; IsOnline: %v", ep.Sid, ep.IP, ep.IsOnline)
 		eps := as.GetRbdEndpiontByIP(ep.IP)
 		if eps == nil || len(eps) == 0 {
 			logrus.Warningf("Sid: %s; IP: %s; Empty rbd endpoints", ep.Sid, ep.IP)
 			return
 		}
 		for _, e := range eps {
+			e.Status = ep.Status
 			e.IsOnline = ep.IsOnline
 			as.UpdRbdEndpionts(e)
 		}

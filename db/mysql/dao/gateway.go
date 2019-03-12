@@ -415,54 +415,23 @@ type GwRuleConfigDaoImpl struct {
 func (t *GwRuleConfigDaoImpl) AddModel(mo model.Interface) error {
 	cfg := mo.(*model.GwRuleConfig)
 	var old model.GwRuleConfig
-	err := t.DB.Where("config_id=?", cfg.ConfigID).Find(&old).Error
+	err := t.DB.Where("`rule_id` = ? and `key` = ?", cfg.RuleID, cfg.Key).Find(&old).Error
 	if err == gorm.ErrRecordNotFound {
 		if err := t.DB.Create(cfg).Error; err != nil {
 			return err
 		}
 	} else {
-		return fmt.Errorf("ConfigID: %s; %v", cfg.ConfigID, err)
+		return fmt.Errorf("RuleID: %s; Key: %s; %v", cfg.RuleID, cfg.Key, err)
 	}
 	return nil
 }
 
 // UpdateModel updates a gateway rule config.
 func (t *GwRuleConfigDaoImpl) UpdateModel(mo model.Interface) error {
-	cfg, ok := mo.(*model.GwRuleConfig)
-	if !ok {
-		return fmt.Errorf("Origin: %s; Target: *model.GwRuleConfig; "+
-			"Type conversion error", reflect.TypeOf(mo).String())
-	}
-	return t.DB.Save(cfg).Error
-}
-
-// DeleteByConfigID deletes a gateway rule config.
-func (t *GwRuleConfigDaoImpl) DeleteByConfigID(cid string) error {
-	return t.DB.Where("config_id=?", cid).Delete(&model.GwRuleConfig{}).Error
+	return nil
 }
 
 // DeleteByRuleID deletes gateway rule configs by rule id.
 func (t *GwRuleConfigDaoImpl) DeleteByRuleID(rid string) error {
 	return t.DB.Where("rule_id=?", rid).Delete(&model.GwRuleConfig{}).Error
-}
-
-// GetByConfigID returns a gateway rule config associated with config id.
-func (t *GwRuleConfigDaoImpl) GetByConfigID(cid string) (*model.GwRuleConfig, error) {
-	var cfg model.GwRuleConfig
-	if err := t.DB.Where("config_id=?", cid).Find(&cfg).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &cfg, nil
-}
-
-// ListByRuleID returns a collection of gateway rule configs associated with rule id.
-func (t *GwRuleConfigDaoImpl) ListByRuleID(rid string) ([]*model.GwRuleConfig, error) {
-	var cfgs []*model.GwRuleConfig
-	if err := t.DB.Where("rule_id=?", rid).Find(&cfgs).Error; err != nil {
-		return nil, err
-	}
-	return cfgs, nil
 }

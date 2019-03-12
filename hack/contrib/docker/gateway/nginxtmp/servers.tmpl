@@ -53,7 +53,7 @@ server {
 
     {{ range $loc := $srv.Locations }}
     location {{$loc.Path}} {
-        { range $rewrite := $loc.Rewrites }}
+        {{ range $rewrite := $loc.Rewrite.Rewrites }}
         rewrite {{$rewrite.Regex}} {{$rewrite.Replacement}}{{if $rewrite.Flag }} {{$rewrite.Flag}}{{ end }};
         {{ end }}
 
@@ -81,9 +81,7 @@ server {
         {{ if $loc.DisableAccessLog }}
         access_log off;
         {{ end }}
-        {{ range $rewrite := $loc.Rewrites }}
-        rewrite {{$rewrite.Regex}} {{$rewrite.Replacement}}{{if $rewrite.Flag }} {{$rewrite.Flag}}{{ end }};
-        {{ end }}
+        
         {{ if $loc.ProxyRedirect }}
         proxy_redirect {{$loc.ProxyRedirect}};
         {{ end }}

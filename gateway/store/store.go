@@ -28,15 +28,14 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/goodrain/rainbond/gateway/annotations/l4"
-	"github.com/goodrain/rainbond/gateway/util"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/annotations"
+	"github.com/goodrain/rainbond/gateway/annotations/l4"
 	"github.com/goodrain/rainbond/gateway/controller/config"
 	"github.com/goodrain/rainbond/gateway/defaults"
+	"github.com/goodrain/rainbond/gateway/util"
 	"github.com/goodrain/rainbond/gateway/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -382,7 +381,7 @@ func (s *k8sStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 		name, ok := labels["name"]
 		if !ok {
 			logrus.Warningf("there is no name in the labels of corev1.Endpoints(%s/%s)",
-				ep.Name, ep.Namespace)
+				ep.Namespace, ep.Name)
 			continue
 		}
 
@@ -452,6 +451,7 @@ func (s *k8sStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 	for _, pool := range l7Pools {
 		httpPools = append(httpPools, pool)
 	}
+
 	for _, pool := range l4Pools {
 		tcpPools = append(tcpPools, pool)
 	}
@@ -506,7 +506,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 				vs.Namespace = anns.Namespace
 				vs.ServiceID = anns.Labels["service_id"]
 			}
-			l4PoolMap[ing.Spec.Backend.ServiceName] = struct{}{}
+			l4PoolMap[name] = struct{}{}
 			l4vsMap[listening] = vs
 			l4vs = append(l4vs, vs)
 			backend := backend{name: backendName, weight: anns.Weight.Weight}
@@ -622,7 +622,6 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 
 // ingressIsValid checks if the specified ingress is valid
 func (s *k8sStore) ingressIsValid(ing *extensions.Ingress) bool {
-
 	var svcKey string
 	if ing.Spec.Backend != nil { // stream
 		svcKey = fmt.Sprintf("%s/%s", ing.Namespace, ing.Spec.Backend.ServiceName)

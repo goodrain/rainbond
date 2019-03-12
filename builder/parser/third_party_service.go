@@ -66,7 +66,7 @@ func (t *ThirdPartyServiceParse) Parse() ParseErrorList {
 	err := d.Connect()
 	if err != nil {
 		t.logger.Error("error connecting discovery center", map[string]string{"step": "parse"})
-		t.errors = append(t.errors, ParseError{FatalError, "error connecting discovery center", "please make sure" +
+		t.errors = append(t.errors, ParseError{FatalError, "error connecting discovery center", "please make sure " +
 			"the configuration is right and the discovery center is working."})
 		return t.errors
 	}

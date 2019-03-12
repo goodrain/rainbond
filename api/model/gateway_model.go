@@ -113,3 +113,34 @@ type UpdRuleConfigReq struct {
 type DelRuleConfigReq struct {
 	ConfigID string `json:"config_id" validate:"config_id|required"`
 }
+
+// AddOrUpdRuleConfigReq -
+type AddOrUpdRuleConfigReq struct {
+	Configs []*AddRuleConfigReq `json:"configs"`
+}
+
+// RuleConfigReq -
+type RuleConfigReq struct {
+	RuleID string `json:"rule_id,omitempty" validate:"rule_id|required"`
+	Body   Body   `json:"body" validate:"body|required"`
+}
+
+// Body is a embeded sturct of RuleConfigReq.
+type Body struct {
+	ProxyConnectTimeout int               `json:"proxy_connect_timeout,omitempty" validate:"proxy_connect_timeout|required"`
+	ProxySendTimeout    int               `json:"proxy_send_timeout,omitempty" validate:"proxy_send_timeout|required"`
+	ProxyReadTimeout    int               `json:"proxy_read_timeout,omitempty" validate:"proxy_read_timeout|required"`
+	ProxyBodySize       string            `json:"proxy_body_size,omitempty" validate:"proxy_body_size|required"`
+	ProxyBuffersNumber  int               `json:"proxy_buffers_number,omitempty" validate:"proxy_buffers_number|required"`
+	ProxyBufferSize     string            `json:"proxy_buffer_size,omitempty" validate:"proxy_buffer_size|required"`
+	ProxyBuffering      string            `json:"proxy_buffering,omitempty" validate:"proxy_buffering|required|in:on,off"`
+	SetHeaders          map[string]string `json:"set_headers,omitempty" `
+	Rewrites            []Rewrite         `json:"rewrite,omitempty"`
+}
+
+// Rewrite is a embeded sturct of Body.
+type Rewrite struct {
+	Regex       string `json:"regex"`
+	Replacement string `json:"replacement"`
+	Flag        string `json:"flag" validate:"flag|in:last,break,redirect,permanent"`
+}
