@@ -21,12 +21,13 @@ package prober
 import (
 	"context"
 	"errors"
+	"sync"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/prober/probes"
 	"github.com/goodrain/rainbond/util/prober/types/v1"
-	"sync"
-	"time"
 )
 
 //Prober Prober
@@ -37,6 +38,7 @@ type Prober interface {
 	CloseWatch(serviceName string, id string) error
 	Start()
 	AddServices(in []*v1.Service)
+	CheckAndAddService(in *v1.Service) bool
 	SetServices([]*v1.Service)
 	GetServices() []*v1.Service
 	GetServiceHealth() map[string]*v1.HealthStatus
@@ -187,6 +189,12 @@ func (p *probeManager) updateServiceStatus(status *v1.HealthStatus) {
 		p.status[status.Name] = status
 		return
 	}
+	if exist.LastStatus != status.Status {
+		status.StatusChange = true
+	} else {
+		status.StatusChange = false
+	}
+	status.LastStatus = status.Status
 	if status.Status != v1.StatHealthy {
 		number := exist.ErrorNumber + 1
 		status.ErrorNumber = number
@@ -254,6 +262,20 @@ func (p *probeManager) AddServices(in []*v1.Service) {
 		}
 	}
 	p.services = append(p.services, in...)
+}
+
+// CheckAndAddService checks if the input service exists, if it does not exist, add it.
+func (p *probeManager) CheckAndAddService(in *v1.Service) bool {
+	exist := false
+	for _, svc := range p.services {
+		if svc.Name == in.Name {
+			exist = true
+		}
+	}
+	if !exist {
+		p.services = append(p.services, in)
+	}
+	return exist
 }
 
 func (p *probeManager) GetServiceHealth() map[string]*v1.HealthStatus {

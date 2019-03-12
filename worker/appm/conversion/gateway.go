@@ -28,7 +28,6 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
-	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -510,48 +509,6 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 	}
 	service.Spec = spec
 	return &service
-}
-
-func (a *AppServiceBuild) createEndpoints(port *model.TenantServicesPort, v1eps []*v1.RbdEndpoints, isInner bool) []*corev1.Endpoints {
-	var res []*corev1.Endpoints
-	for _, item := range v1eps {
-		ep := corev1.Endpoints{}
-		ep.Namespace = a.tenant.UUID
-		ep.Name = util.NewUUID() // TODO: consider a better name???
-		if isInner {
-			logrus.Debugf("create inner third-party service")
-			ep.Labels = a.appService.GetCommonLabels(map[string]string{
-				"name": a.service.ServiceAlias + "Service",
-			})
-		} else {
-			logrus.Debugf("create outer third-party service")
-			ep.Labels = a.appService.GetCommonLabels(map[string]string{
-				"name": a.service.ServiceAlias + "ServiceOUT",
-			})
-		}
-
-		subset := corev1.EndpointSubset{
-			Ports: []corev1.EndpointPort{
-				{
-					Port: func(targetPort int, realPort int) int32 {
-						if realPort == 0 {
-							return int32(targetPort)
-						}
-						return int32(realPort)
-					}(port.ContainerPort, item.Port),
-				},
-			},
-		}
-		for _, ip := range item.IPs {
-			address := corev1.EndpointAddress{
-				IP: ip,
-			}
-			subset.Addresses = append(subset.Addresses, address)
-		}
-		ep.Subsets = []corev1.EndpointSubset{subset}
-		res = append(res, &ep)
-	}
-	return res
 }
 
 func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPort) *corev1.Service {

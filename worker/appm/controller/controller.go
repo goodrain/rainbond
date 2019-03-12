@@ -24,7 +24,7 @@ import (
 	"sync"
 
 	"github.com/goodrain/rainbond/worker/appm/store"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 
 	"github.com/goodrain/rainbond/util"
 
@@ -85,7 +85,7 @@ func NewManager(store store.Storer, client *kubernetes.Clientset) *Manager {
 
 //Stop stop all controller
 func (m *Manager) Stop() error {
-	//TODO
+	m.cancel()
 	return nil
 }
 

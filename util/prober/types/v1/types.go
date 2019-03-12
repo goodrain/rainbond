@@ -54,4 +54,6 @@ type HealthStatus struct {
 	ErrorDuration  time.Duration `json:"error_duration"`
 	StartErrorTime time.Time     `json:"start_error_time"`
 	Info           string        `json:"info"`
+	LastStatus     string        `json:"last_status"`
+	StatusChange   bool          `json:"status_change"`
 }

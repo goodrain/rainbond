@@ -194,6 +194,22 @@ func ConvRbdEndpoint(eps []*v1.RbdEndpoint) ([]*v1.RbdEndpoints, error) {
 		m[ep.Port] = v1ep
 		res = append(res, v1ep)
 	}
-	// TODO: If the port has three different values, one of them cannot be 0
+	if !checkRbdEndpoints(res) {
+		return nil, fmt.Errorf("Invalid endpoints: if the port has three different values, one of them cannot be 0")
+	}
+
 	return res, nil
+}
+
+// If the port has three different values, one of them cannot be 0
+func checkRbdEndpoints(rbdEndpoints []*v1.RbdEndpoints) bool {
+	if len(rbdEndpoints) < 2 {
+		return true
+	}
+	for _, item := range rbdEndpoints {
+		if item.Port == 0 {
+			return false
+		}
+	}
+	return true
 }

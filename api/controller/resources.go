@@ -21,15 +21,6 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/goodrain/rainbond/cmd"
-	validator "github.com/thedevsaddam/govalidator"
-
-	"github.com/goodrain/rainbond/api/middleware"
-	api_model "github.com/goodrain/rainbond/api/model"
-	dbmodel "github.com/goodrain/rainbond/db/model"
-	mqclient "github.com/goodrain/rainbond/mq/client"
-
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -37,17 +28,20 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pquerna/ffjson/ffjson"
-
+	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
-	"github.com/jinzhu/gorm"
-
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/api/middleware"
+	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/cmd"
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	mqclient "github.com/goodrain/rainbond/mq/client"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/client"
-
-	"github.com/Sirupsen/logrus"
+	"github.com/jinzhu/gorm"
+	"github.com/pquerna/ffjson/ffjson"
 	"github.com/renstorm/fuzzysearch/fuzzy"
+	"github.com/thedevsaddam/govalidator"
 )
 
 //V2Routes v2Routes
@@ -1434,7 +1428,12 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 		rc["port"] = fmt.Sprintf("%v", vsPort.Port)
 	}
 
-	if err := handler.GetGatewayHandler().SendTask(serviceID, "port-" + data.Body.Operation); err != nil {
+	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
+		"service_id": serviceID,
+		"action":     "port-" + data.Body.Operation,
+		"port":       containerPort,
+		"is_inner":   false,
+	}); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 
@@ -1488,7 +1487,12 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	if err := handler.GetGatewayHandler().SendTask(serviceID, "port-" + data.Body.Operation); err != nil {
+	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
+		"service_id": serviceID,
+		"action":     "port-" + data.Body.Operation,
+		"port":       containerPort,
+		"is_inner":   true,
+	}); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 

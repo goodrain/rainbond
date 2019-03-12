@@ -80,8 +80,9 @@ func Run(s *option.Worker) error {
 	//step 3: create resource store
 	startCh := channels.NewRingChannel(1024) // TODO: why 1024?
 	updateCh := channels.NewRingChannel(1024)
-	cachestore := store.NewStore(clientset, db.GetManager(), s.Config, startCh)
-	appmController := appm.NewAPPMController(clientset, cachestore, startCh, updateCh)
+	probeCh := channels.NewRingChannel(1024)
+	cachestore := store.NewStore(clientset, db.GetManager(), s.Config, startCh, probeCh)
+	appmController := appm.NewAPPMController(clientset, cachestore, startCh, updateCh, probeCh)
 	if err := appmController.Start(); err != nil {
 		logrus.Errorf("error starting appm controller: %v", err)
 	}

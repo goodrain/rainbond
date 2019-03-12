@@ -19,15 +19,18 @@
 package v1
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
-	v1 "k8s.io/api/apps/v1"
+	"k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // EventType type of event
@@ -42,8 +45,10 @@ const (
 
 // Event holds the context of a start event.
 type Event struct {
-	Type EventType
-	Sid  string // service id
+	Type    EventType
+	Sid     string // service id
+	Port    int
+	IsInner bool
 }
 
 //AppServiceStatus the status of service, calculate in real time from kubernetes
@@ -103,12 +108,12 @@ type AppService struct {
 	endpoints    []*corev1.Endpoints
 	delEndpoints []*corev1.Endpoints
 	configMaps   []*corev1.ConfigMap
+	rbdEndpoints *corev1.ConfigMap
 	ingresses    []*extensions.Ingress
 	delIngs      []*extensions.Ingress // ingresses which need to be deleted
 	secrets      []*corev1.Secret
 	delSecrets   []*corev1.Secret // secrets which need to be deleted
 	pods         []*corev1.Pod
-	rbdEndpoints []*RbdEndpoint
 	status       AppServiceStatus
 	Logger       event.Logger
 	UpgradePatch map[string][]byte
@@ -310,6 +315,16 @@ func (a *AppService) GetDelEndpoints() []*corev1.Endpoints {
 	return a.delEndpoints
 }
 
+//DelEndpoints deletes *corev1.Endpoints
+func (a *AppService) DelEndpoints(ep *corev1.Endpoints) {
+	for i, c := range a.endpoints {
+		if c.GetName() == ep.GetName() {
+			a.endpoints = append(a.endpoints[0:i], a.endpoints[i+1:]...)
+			return
+		}
+	}
+}
+
 //GetIngress get ingress
 func (a *AppService) GetIngress() []*extensions.Ingress {
 	return a.ingresses
@@ -453,37 +468,111 @@ func (a *AppService) GetTenant() *corev1.Namespace {
 	return a.tenant
 }
 
+// GetRbdEndpiontsCM returns rbdEndpoints configmap.
+func (a *AppService) GetRbdEndpiontsCM() *corev1.ConfigMap {
+	return a.rbdEndpoints
+}
+
 // GetRbdEndpionts returns rbdEndpoints.
 func (a *AppService) GetRbdEndpionts() []*RbdEndpoint {
-	return a.rbdEndpoints
+	if a.rbdEndpoints == nil {
+		return nil
+	}
+	var res []*RbdEndpoint
+	for _, v := range a.rbdEndpoints.Data {
+		logrus.Debugf("Value: %s", v)
+		var ep RbdEndpoint
+		if err := json.Unmarshal([]byte(v), &ep); err != nil {
+			continue
+		}
+		res = append(res, &ep)
+	}
+	return res
+}
+
+// SetRbdEndpiontsCM sets rbd endpoints for AppService.
+func (a *AppService) SetRbdEndpiontsCM(cm *corev1.ConfigMap) {
+	a.rbdEndpoints = cm
 }
 
 // SetRbdEndpionts sets rbd endpoints for AppService.
 func (a *AppService) SetRbdEndpionts(dat []*RbdEndpoint) {
-	a.rbdEndpoints = dat
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: a.GetTenant().Name,
+			Name:      a.ServiceID + "-rbd-endpoints",
+		},
+	}
+	cm.SetLabels(a.GetCommonLabels())
+
+	imap := make(map[string][]string)
+	cm.Data = make(map[string]string)
+	for _, ep := range dat {
+		b, _ := json.Marshal(ep)
+		cm.Data[ep.UUID] = string(b)
+		if imap[ep.IP] == nil {
+			imap[ep.IP] = []string{}
+		}
+		imap[ep.IP] = append(imap[ep.IP], ep.UUID)
+	}
+	anns := make(map[string]string)
+	for k, v := range imap {
+		anns[k] = strings.Join(v, ",")
+	}
+	cm.SetAnnotations(anns)
+	a.rbdEndpoints = cm
+}
+
+// GetRbdEndpiontByIP -
+func (a *AppService) GetRbdEndpiontByIP(ip string) []*RbdEndpoint {
+	if a.rbdEndpoints == nil {
+		return nil
+	}
+	anns := a.rbdEndpoints.GetAnnotations()
+	uuids := anns[ip]
+	if uuids == "" {
+		logrus.Warningf("IP: %s; Empty uudis", ip)
+		return nil
+	}
+	sli := strings.Split(uuids, ",")
+	data := a.rbdEndpoints.Data
+	var res []*RbdEndpoint
+	for _, uuid := range sli {
+		var ep RbdEndpoint
+		dat := data[uuid]
+		err := json.Unmarshal([]byte(dat), &ep)
+		if err != nil {
+			logrus.Warningf("UUID: %s; err unmarshal data: %v", err)
+		}
+		res = append(res, &ep)
+	}
+	return res
 }
 
 // AddRbdEndpiont adds rbd endpoint for AppService.
 func (a *AppService) AddRbdEndpiont(dat *RbdEndpoint) {
-	a.rbdEndpoints = append(a.rbdEndpoints, dat)
+	if a.rbdEndpoints == nil {
+		return
+	}
+	b, _ := json.Marshal(dat)
+	a.rbdEndpoints.Data[dat.UUID] = string(b)
 }
 
 // UpdRbdEndpionts updates rbd endpoint for AppService.
 func (a *AppService) UpdRbdEndpionts(dat *RbdEndpoint) {
-	for index, item := range a.rbdEndpoints {
-		if item.UUID == dat.UUID {
-			a.rbdEndpoints[index] = dat
-		}
+	if a.rbdEndpoints == nil {
+		return
 	}
+	b, _ := json.Marshal(dat)
+	a.rbdEndpoints.Data[dat.UUID] = string(b)
 }
 
 // DelRbdEndpiont deletes rbd endpoints for AppService.
 func (a *AppService) DelRbdEndpiont(uuid string) {
-	for index, ep := range a.rbdEndpoints {
-		if ep.UUID == uuid {
-			a.rbdEndpoints = append(a.rbdEndpoints[:index], a.rbdEndpoints[index+1:]...)
-		}
+	if a.rbdEndpoints == nil {
+		return
 	}
+	delete(a.rbdEndpoints.Data, uuid)
 }
 
 // SetDeletedResources sets the resources that need to be deleted
