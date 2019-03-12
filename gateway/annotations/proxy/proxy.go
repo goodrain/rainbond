@@ -207,7 +207,7 @@ func (a proxy) Parse(ing *extensions.Ingress) (interface{}, error) {
 	}
 
 	config.SetHeaders = defBackend.ProxySetHeaders
-	setHeaders, err := parser.GetStringAnnotationWithPrefix("set-header", ing)
+	setHeaders, err := parser.GetStringAnnotationWithPrefix("set-header-", ing)
 	if err != nil {
 		for k, v := range setHeaders {
 			config.SetHeaders[k] = v

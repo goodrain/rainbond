@@ -17,6 +17,9 @@ limitations under the License.
 package rewrite
 
 import (
+	"strings"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -24,6 +27,7 @@ import (
 
 // Config describes the per location redirect config
 type Config struct {
+	Rewrites []*Rewrite
 	// Target URI where the traffic must be redirected
 	Target string `json:"target"`
 	// SSLRedirect indicates if the location section is accessible SSL only
@@ -34,6 +38,13 @@ type Config struct {
 	AppRoot string `json:"appRoot"`
 	// UseRegex indicates whether or not the locations use regex paths
 	UseRegex bool `json:"useRegex"`
+}
+
+// Rewrite matching request URI to replacement.
+type Rewrite struct {
+	Regex       string
+	Replacement string
+	Flag        string
 }
 
 // Equal tests for equality between two Redirect types
@@ -78,6 +89,9 @@ func (a rewrite) Parse(ing *extensions.Ingress) (interface{}, error) {
 	var err error
 	config := &Config{}
 
+	rewrites, err := parser.GetStringAnnotationWithPrefix("rewrite-", ing)
+	config.Rewrites = convert(rewrites)
+
 	config.Target, _ = parser.GetStringAnnotation("rewrite-target", ing)
 	config.SSLRedirect, err = parser.GetBoolAnnotation("ssl-redirect", ing)
 	if err != nil {
@@ -93,4 +107,32 @@ func (a rewrite) Parse(ing *extensions.Ingress) (interface{}, error) {
 	config.UseRegex, _ = parser.GetBoolAnnotation("use-regex", ing)
 
 	return config, nil
+}
+
+func convert(in map[string]string) []*Rewrite {
+	m := make(map[string]*Rewrite)
+	for k, v := range in {
+		sli := strings.Split(k, "-")
+		if len(sli) < 2 {
+			logrus.Warningf("Invalid key: %s", k)
+			continue
+		}
+		rewrite := m[sli[0]]
+		if rewrite == nil {
+			m[k] = &Rewrite{}
+		}
+		switch sli[1] {
+		case "regex":
+			rewrite.Regex = v
+		case "replacement":
+			rewrite.Replacement = v
+		case "flag":
+			rewrite.Flag = v
+		}
+	}
+	var res []*Rewrite
+	for _, rw := range m {
+		res = append(res, rw)
+	}
+	return res
 }

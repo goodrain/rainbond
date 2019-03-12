@@ -53,6 +53,10 @@ server {
 
     {{ range $loc := $srv.Locations }}
     location {{$loc.Path}} {
+        { range $rewrite := $loc.Rewrites }}
+        rewrite {{$rewrite.Regex}} {{$rewrite.Replacement}}{{if $rewrite.Flag }} {{$rewrite.Flag}}{{ end }};
+        {{ end }}
+
         {{ range $k, $v := $loc.Proxy.SetHeaders }}
         proxy_set_header    {{$k}}    {{$v}};
         {{ end }}

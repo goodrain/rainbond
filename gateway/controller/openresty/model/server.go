@@ -54,10 +54,10 @@ type Location struct {
 	Rewrites []Rewrite
 	Return   Return
 	// Sets the protocol and address of a proxied server and an optional URI to which a location should be mapped
-	ProxyPass       string
+	ProxyPass string
 	// Sets the text that should be changed in the “Location” and “Refresh” header fields of a proxied server response
 	// TODO: mv ProxyRedirect to Proxy
-	ProxyRedirect   string
+	ProxyRedirect string
 
 	EnableMetrics    bool //Enables or disables monitor
 	DisableAccessLog bool //disable or enables access log
