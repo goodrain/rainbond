@@ -109,6 +109,8 @@ type Manager interface {
 	IPPortDao() dao.IPPortDao
 	IPPortDaoTransactions(db *gorm.DB) dao.IPPortDao
 	IPPoolDao() dao.IPPoolDao
+	GwRuleConfigDao() dao.GwRuleConfigDao
+	GwRuleConfigDaoTransactions(db *gorm.DB) dao.GwRuleConfigDao
 
 	// third-party service
 	EndpointsDao() dao.EndpointsDao

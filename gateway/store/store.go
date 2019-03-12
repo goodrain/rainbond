@@ -26,6 +26,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/goodrain/rainbond/gateway/annotations/l4"
 	"github.com/goodrain/rainbond/gateway/util"
@@ -34,6 +35,8 @@ import (
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/annotations"
+	"github.com/goodrain/rainbond/gateway/controller/config"
+	"github.com/goodrain/rainbond/gateway/defaults"
 	"github.com/goodrain/rainbond/gateway/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -85,6 +88,9 @@ type Storer interface {
 
 	// Run initiates the synchronization of the controllers
 	Run(stopCh chan struct{})
+
+	// GetDefaultBackend returns the default backend configuration
+	GetDefaultBackend() defaults.Backend
 }
 
 type backend struct {
@@ -108,7 +114,7 @@ type Lister struct {
 	IngressAnnotation IngressAnnotationsLister
 }
 
-type rbdStore struct {
+type k8sStore struct {
 	conf   *option.Config
 	client kubernetes.Interface
 	// informer contains the cache Informers
@@ -121,21 +127,31 @@ type rbdStore struct {
 	// container filesystem
 	sslStore    *SSLCertTracker
 	annotations annotations.Extractor
+
+	// backendConfig contains the running configuration from the configmap
+	// this is required because this rarely changes but is a very expensive
+	// operation to execute in each OnUpdate invocation
+	backendConfig config.Configuration
+
+	// backendConfigMu protects against simultaneous read/write of backendConfig
+	backendConfigMu *sync.RWMutex
 }
 
 // New creates a new Storer
 func New(client kubernetes.Interface,
 	updateCh *channels.RingChannel,
 	conf *option.Config) Storer {
-	store := &rbdStore{
+	store := &k8sStore{
 		client:    client,
 		informers: &Informer{},
 		listers:   &Lister{},
 		secretIngressMap: &secretIngressMap{
 			make(map[string][]string),
 		},
-		sslStore: NewSSLCertTracker(),
-		conf:     conf,
+		sslStore:        NewSSLCertTracker(),
+		conf:            conf,
+		backendConfigMu: &sync.RWMutex{},
+		backendConfig:   config.NewDefault(),
 	}
 
 	store.annotations = annotations.NewAnnotationExtractor(store)
@@ -164,10 +180,6 @@ func New(client kubernetes.Interface,
 			ing := obj.(*extensions.Ingress)
 			logrus.Debugf("Received ingress: %v", ing)
 
-			//if !store.checkIngress(ing) {
-			//	return
-			//}
-
 			// updating annotations information for ingress
 			store.extractAnnotations(ing)
 			// takes an Ingress and updates all Secret objects it references in secretIngressMap.
@@ -194,10 +206,6 @@ func New(client kubernetes.Interface,
 				return
 			}
 			logrus.Debugf("Received ingress: %v", curIng)
-
-			//if !store.checkIngress(curIng) {
-			//	return
-			//}
 
 			store.extractAnnotations(curIng)
 			store.secretIngressMap.update(curIng)
@@ -326,7 +334,7 @@ func New(client kubernetes.Interface,
 }
 
 // checkIngress checks whether the given ing is valid.
-func (s *rbdStore) checkIngress(ing *extensions.Ingress) bool {
+func (s *k8sStore) checkIngress(ing *extensions.Ingress) bool {
 	i, err := l4.NewParser(s).Parse(ing)
 	if err != nil {
 		logrus.Warningf("Uxpected error with ingress: %v", err)
@@ -349,7 +357,7 @@ func (s *rbdStore) checkIngress(ing *extensions.Ingress) bool {
 
 // extractAnnotations parses ingress annotations converting the value of the
 // annotation to a go struct and also information about the referenced secrets
-func (s *rbdStore) extractAnnotations(ing *extensions.Ingress) {
+func (s *k8sStore) extractAnnotations(ing *extensions.Ingress) {
 	key := k8s.MetaNamespaceKey(ing)
 	logrus.Debugf("updating annotations information for ingress %v", key)
 
@@ -362,7 +370,7 @@ func (s *rbdStore) extractAnnotations(ing *extensions.Ingress) {
 }
 
 // ListPool returns the list of Pools
-func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
+func (s *k8sStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 	var httpPools []*v1.Pool
 	var tcpPools []*v1.Pool
 	l7Pools := make(map[string]*v1.Pool)
@@ -451,7 +459,7 @@ func (s *rbdStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 }
 
 // ListVirtualService list l7 virtual service and l4 virtual service
-func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.VirtualService) {
+func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.VirtualService) {
 	l7PoolBackendMap = make(map[string][]backend)
 	l4PoolBackendMap = make(map[string][]backend)
 	l7vsMap := make(map[string]*v1.VirtualService)
@@ -578,6 +586,9 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 						srvLocMap[locKey] = location
 						vs.Locations = append(vs.Locations, location)
 					}
+
+					location.Proxy = anns.Proxy
+
 					// If their ServiceName is the same, then the new one will overwrite the old one.
 					nameCondition := &v1.Condition{}
 					var backendName string
@@ -610,7 +621,7 @@ func (s *rbdStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 }
 
 // ingressIsValid checks if the specified ingress is valid
-func (s *rbdStore) ingressIsValid(ing *extensions.Ingress) bool {
+func (s *k8sStore) ingressIsValid(ing *extensions.Ingress) bool {
 
 	var svcKey string
 	if ing.Spec.Backend != nil { // stream
@@ -666,12 +677,12 @@ RESULT:
 }
 
 // GetIngress returns the Ingress matching key.
-func (s *rbdStore) GetIngress(key string) (*extensions.Ingress, error) {
+func (s *k8sStore) GetIngress(key string) (*extensions.Ingress, error) {
 	return s.listers.Ingress.ByKey(key)
 }
 
 // ListIngresses returns the list of Ingresses
-func (s *rbdStore) ListIngresses() []*extensions.Ingress {
+func (s *k8sStore) ListIngresses() []*extensions.Ingress {
 	// filter ingress rules
 	var ingresses []*extensions.Ingress
 	for _, item := range s.listers.Ingress.List() {
@@ -685,7 +696,7 @@ func (s *rbdStore) ListIngresses() []*extensions.Ingress {
 
 // GetServiceNameLabelByKey returns name in the labels of corev1.Service
 // matching key(name/namespace).
-func (s *rbdStore) GetServiceNameLabelByKey(key string) (string, error) {
+func (s *k8sStore) GetServiceNameLabelByKey(key string) (string, error) {
 	svc, err := s.listers.Service.ByKey(key)
 	if err != nil {
 		return "", err
@@ -698,7 +709,7 @@ func (s *rbdStore) GetServiceNameLabelByKey(key string) (string, error) {
 }
 
 // GetServiceProtocol returns the Service matching key and port.
-func (s *rbdStore) GetServiceProtocol(key string, port int32) corev1.Protocol {
+func (s *k8sStore) GetServiceProtocol(key string, port int32) corev1.Protocol {
 	svcs, err := s.listers.Service.ByKey(key)
 	if err != nil {
 		return corev1.ProtocolTCP
@@ -713,7 +724,7 @@ func (s *rbdStore) GetServiceProtocol(key string, port int32) corev1.Protocol {
 }
 
 // GetIngressAnnotations returns the parsed annotations of an Ingress matching key.
-func (s rbdStore) GetIngressAnnotations(key string) (*annotations.Ingress, error) {
+func (s k8sStore) GetIngressAnnotations(key string) (*annotations.Ingress, error) {
 	ia, err := s.listers.IngressAnnotation.ByKey(key)
 	if err != nil {
 		return &annotations.Ingress{}, err
@@ -723,14 +734,14 @@ func (s rbdStore) GetIngressAnnotations(key string) (*annotations.Ingress, error
 }
 
 // Run initiates the synchronization of the informers.
-func (s *rbdStore) Run(stopCh chan struct{}) {
+func (s *k8sStore) Run(stopCh chan struct{}) {
 	// start informers
 	s.informers.Run(stopCh)
 }
 
 // syncSecrets synchronizes data from all Secrets referenced by the given
 // Ingress with the local store and file system.
-func (s *rbdStore) syncSecrets(ing *extensions.Ingress) {
+func (s *k8sStore) syncSecrets(ing *extensions.Ingress) {
 	key := k8s.MetaNamespaceKey(ing)
 	// 获取所有关联的secret key
 	for _, secrKey := range s.secretIngressMap.getSecretKeys(key) {
@@ -738,7 +749,7 @@ func (s *rbdStore) syncSecrets(ing *extensions.Ingress) {
 	}
 }
 
-func (s *rbdStore) syncSecret(secrKey string) {
+func (s *k8sStore) syncSecret(secrKey string) {
 	sslCert, err := s.getCertificatePem(secrKey)
 	if err != nil {
 		logrus.Errorf("fail to get certificate pem: %v", err)
@@ -758,7 +769,7 @@ func (s *rbdStore) syncSecret(secrKey string) {
 	s.sslStore.Add(secrKey, sslCert)
 }
 
-func (s *rbdStore) getCertificatePem(secrKey string) (*v1.SSLCert, error) {
+func (s *k8sStore) getCertificatePem(secrKey string) (*v1.SSLCert, error) {
 	item, exists, err := s.listers.Secret.GetByKey(secrKey)
 	if err != nil {
 		return nil, err
@@ -789,4 +800,16 @@ func (s *rbdStore) getCertificatePem(secrKey string) (*v1.SSLCert, error) {
 	return &v1.SSLCert{
 		CertificatePem: filename,
 	}, nil
+}
+
+// GetDefaultBackend returns the default backend
+func (s *k8sStore) GetDefaultBackend() defaults.Backend {
+	return s.GetBackendConfiguration().Backend
+}
+
+func (s *k8sStore) GetBackendConfiguration() config.Configuration {
+	s.backendConfigMu.RLock()
+	defer s.backendConfigMu.RUnlock()
+
+	return s.backendConfig
 }

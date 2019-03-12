@@ -520,3 +520,17 @@ func (m *Manager) ThirdPartySvcDiscoveryCfgDaoTransactions(db *gorm.DB) dao.Thir
 		DB: db,
 	}
 }
+
+// GwRuleConfigDao creates a new dao.GwRuleConfigDao.
+func (m *Manager) GwRuleConfigDao() dao.GwRuleConfigDao {
+	return &mysqldao.GwRuleConfigDaoImpl{
+		DB: m.db,
+	}
+}
+
+// GwRuleConfigDaoTransactions creates a new dao.GwRuleConfigDao with special transaction.
+func (m *Manager) GwRuleConfigDaoTransactions(db *gorm.DB) dao.GwRuleConfigDao {
+	return &mysqldao.GwRuleConfigDaoImpl{
+		DB: db,
+	}
+}

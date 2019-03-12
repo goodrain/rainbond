@@ -24,6 +24,7 @@ import (
 	"github.com/goodrain/rainbond/gateway/annotations/header"
 	"github.com/goodrain/rainbond/gateway/annotations/l4"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
+	"github.com/goodrain/rainbond/gateway/annotations/proxy"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
 	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
 	"github.com/goodrain/rainbond/gateway/annotations/upstreamhashby"
@@ -46,6 +47,7 @@ type Ingress struct {
 	Rewrite        rewrite.Config
 	L4             l4.Config
 	UpstreamHashBy string
+	Proxy          proxy.Config
 }
 
 // Extractor defines the annotation parsers to be used in the extraction of annotations
@@ -63,6 +65,7 @@ func NewAnnotationExtractor(cfg resolver.Resolver) Extractor {
 			"Rewrite":        rewrite.NewParser(cfg),
 			"L4":             l4.NewParser(cfg),
 			"UpstreamHashBy": upstreamhashby.NewParser(cfg),
+			"Proxy":                proxy.NewParser(cfg),
 		},
 	}
 }

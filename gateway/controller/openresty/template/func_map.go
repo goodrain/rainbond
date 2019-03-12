@@ -20,11 +20,14 @@ package template
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
+	text_template "text/template"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/golang/glog"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
 	"github.com/goodrain/rainbond/gateway/v1"
-	"strings"
-	text_template "text/template"
 )
 
 var (
@@ -37,6 +40,7 @@ var (
 			return true
 		},
 		"buildLuaHeaderRouter": buildLuaHeaderRouter,
+		"isValidByteSize":      isValidByteSize,
 	}
 )
 
@@ -117,4 +121,32 @@ func buildLuaHeaderRouter(input interface{}) string {
 	out = append(out, "\t\t}")
 
 	return strings.Join(out, "\n\r")
+}
+
+// refer to http://nginx.org/en/docs/syntax.html
+// Nginx differentiates between size and offset
+// offset directives support gigabytes in addition
+var nginxSizeRegex = regexp.MustCompile("^[0-9]+[kKmM]{0,1}$")
+var nginxOffsetRegex = regexp.MustCompile("^[0-9]+[kKmMgG]{0,1}$")
+
+// isValidByteSize validates size units valid in nginx
+// http://nginx.org/en/docs/syntax.html
+func isValidByteSize(input interface{}, isOffset bool) bool {
+	s, ok := input.(string)
+	if !ok {
+		logrus.Errorf("expected an 'string' type but %T was returned", input)
+		return false
+	}
+
+	s = strings.TrimSpace(s)
+	if s == "" {
+		logrus.Info("empty byte size, hence it will not be set")
+		return false
+	}
+
+	if isOffset {
+		return nginxOffsetRegex.MatchString(s)
+	}
+
+	return nginxSizeRegex.MatchString(s)
 }

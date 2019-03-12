@@ -19,7 +19,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -58,8 +57,6 @@ func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	reqJSON, _ := json.Marshal(req)
-	logrus.Debugf("add rule Request is : %s", string(reqJSON))
 
 	// verify request
 	values := url.Values{}
@@ -102,8 +99,6 @@ func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	reqJSON, _ := json.Marshal(req)
-	logrus.Debugf("update rule Request is : %s", string(reqJSON))
 
 	// verify request
 	values := url.Values{}
@@ -156,8 +151,6 @@ func (g *GatewayStruct) deleteHTTPRule(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	reqJSON, _ := json.Marshal(req)
-	logrus.Debugf("delete rule Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
 	serviceID, err := h.DeleteHTTPRule(&req)
@@ -196,8 +189,6 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	reqJSON, _ := json.Marshal(req)
-	logrus.Debugf("add tcp rule Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
 	// verify request
@@ -254,8 +245,6 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	reqJSON, _ := json.Marshal(req)
-	logrus.Debugf("update tcp rule Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
 	// verify reqeust
@@ -308,8 +297,6 @@ func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	reqJSON, _ := json.Marshal(req)
-	logrus.Debugf("delete tcp rule Request is : %s", string(reqJSON))
 
 	h := handler.GetGatewayHandler()
 	sid, err := h.DeleteTCPRule(&req)
@@ -338,4 +325,58 @@ func (g *GatewayStruct) GetAvailablePort(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	httputil.ReturnSuccess(r, w, res)
+}
+
+// RuleConfig is used to add, update or delete rule config.
+func (g *GatewayStruct) RuleConfig(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		g.addRuleConfig(w, r)
+	case "PUT":
+		g.updRuleConfig(w, r)
+	case "DELETE":
+		g.delRuleConfig(w, r)
+	}
+}
+
+func (g *GatewayStruct) addRuleConfig(w http.ResponseWriter, r *http.Request) {
+	var req api_model.AddRuleConfigReq
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	if err := handler.GetGatewayHandler().AddRuleConfig(&req); err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
+			"adding rule config: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, "success")
+}
+
+func (g *GatewayStruct) updRuleConfig(w http.ResponseWriter, r *http.Request) {
+	var req api_model.UpdRuleConfigReq
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	if err := handler.GetGatewayHandler().UpdRuleConfig(&req); err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
+			"updating rule config: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, "success")
+}
+
+func (g *GatewayStruct) delRuleConfig(w http.ResponseWriter, r *http.Request) {
+	var req api_model.AddRuleConfigReq
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	if err := handler.GetGatewayHandler().DelRuleConfig(req.ConfigID); err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
+			"deleting rule config: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, "success")
 }

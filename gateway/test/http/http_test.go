@@ -35,7 +35,7 @@ import (
 )
 
 func TestHttpDefault(t *testing.T) {
-	clientSet, err := controller.NewClientSet("/Users/abe/Documents/admin.kubeconfig")
+	clientSet, err := controller.NewClientSet("/Users/abe/go/src/github.com/goodrain/rainbond/test/admin.kubeconfig")
 	if err != nil {
 		t.Errorf("can't create Kubernetes's client: %v", err)
 	}
@@ -259,7 +259,7 @@ func TestHttpCookie(t *testing.T) {
 }
 
 func TestHttpHeader(t *testing.T) {
-	clientSet, err := controller.NewClientSet("/Users/abe/Documents/admin.kubeconfig")
+	clientSet, err := controller.NewClientSet("/Users/abe/go/src/github.com/goodrain/rainbond/test/admin.kubeconfig")
 	if err != nil {
 		t.Errorf("can't create Kubernetes's client: %v", err)
 	}
