@@ -83,7 +83,7 @@ func NewDefault() Configuration {
 	cfg := Configuration{
 		Backend: defaults.Backend{
 			ProxyBodySize:          bodySize,
-			ProxyConnectTimeout:    5,
+			ProxyConnectTimeout:    75,
 			ProxyReadTimeout:       60,
 			ProxySendTimeout:       60,
 			ProxyBuffersNumber:     4,
