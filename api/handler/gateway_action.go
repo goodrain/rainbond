@@ -476,15 +476,17 @@ func (g *GatewayAction) PortExists(port int) bool {
 }
 
 // SendTask sends apply rules task
-func (g *GatewayAction) SendTask(serviceID string, action string) error {
-	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+func (g *GatewayAction) SendTask(in map[string]interface{}) error {
+	sid := in["service_id"].(string)
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(sid)
 	if err != nil {
-		return fmt.Errorf("Unexpected error occurred while getting Service by ServiceID(%s): %v", serviceID, err)
+		return fmt.Errorf("Unexpected error occurred while getting Service by ServiceID(%s): %v", sid, err)
 	}
 	body := make(map[string]interface{})
-	body["service_id"] = serviceID
 	body["deploy_version"] = service.DeployVersion
-	body["action"] = action
+	for k, v := range in {
+		body[k] = v
+	}
 	err = g.mqclient.SendBuilderTopic(client.TaskStruct{
 		Topic:    client.WorkerTopic,
 		TaskType: "apply_rule",
@@ -537,5 +539,67 @@ func (g *GatewayAction) AddIPPool(req *apimodel.IPPoolStruct) error {
 	if err := g.dbmanager.IPPoolDao().AddModel(ippool); err != nil {
 		return err
 	}
+	return nil
+}
+
+// RuleConfig -
+func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
+	var configs []*model.GwRuleConfig
+	// TODO: use reflect to read the field of req, huangrh
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key: "proxy-connect-timeout",
+		Value: strconv.Itoa(req.Body.ProxyConnectTimeout),
+	})
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key: "proxy-send-timeout",
+		Value: strconv.Itoa(req.Body.ProxySendTimeout),
+	})
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key: "proxy-read-timeout",
+		Value: strconv.Itoa(req.Body.ProxyReadTimeout),
+	})
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key: "proxy-buffers-number",
+		Value: strconv.Itoa(req.Body.ProxyBuffersNumber),
+	})
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key: "proxy-buffer-size",
+		Value: req.Body.ProxyBufferSize,
+	})
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key: "proxy-buffering",
+		Value: req.Body.ProxyBuffering,
+	})
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key: "proxy-body-size",
+		Value: strconv.Itoa(req.Body.ProxyBuffersNumber),
+	})
+	for key, value := range req.Body.SetHeaders {
+		configs = append(configs, &model.GwRuleConfig{
+			RuleID: req.RuleID,
+			Key: "set-header-" + key,
+			Value: value,
+		})
+	}
+
+	tx := db.GetManager().Begin()
+	if err := g.dbmanager.GwRuleConfigDaoTransactions(tx).DeleteByRuleID(req.RuleID); err != nil {
+		tx.Rollback()
+		return err
+	}
+	for _, cfg := range configs {
+		if err := g.dbmanager.GwRuleConfigDaoTransactions(tx).AddModel(cfg); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	tx.Commit()
 	return nil
 }

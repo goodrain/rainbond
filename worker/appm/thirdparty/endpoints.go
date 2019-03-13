@@ -110,26 +110,3 @@ func (d *dynamic) Watch() {
 	defer discoverier.Close()
 	discoverier.Watch()
 }
-
-// Conv Converts model.Endpoints to v1.Endpoints
-func Conv(eps []*model.Endpoint) ([]*v1.RbdEndpoints, error) {
-	var res []*v1.RbdEndpoints
-	m := make(map[int]*v1.RbdEndpoints)
-	for _, ep := range eps {
-		v1ep, ok := m[ep.Port] // the value of port may be 0
-		if ok {
-			v1ep.IPs = append(v1ep.IPs, ep.IP)
-			continue
-		}
-		v1ep = &v1.RbdEndpoints{
-			Port: ep.Port,
-			IPs: []string{
-				ep.IP,
-			},
-		}
-		m[ep.Port] = v1ep
-		res = append(res, v1ep)
-	}
-	// TODO: If the port has three different values, one of them cannot be 0
-	return res, nil
-}

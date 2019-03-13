@@ -388,6 +388,8 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 			m.startCh.In() <- &v1.Event{
 				Type: v1.StartEvent,
 				Sid:  body.ServiceID,
+				Port: body.Port,
+				IsInner: body.IsInner,
 			}
 		}
 		if body.Action == "port-close" {

@@ -32,16 +32,18 @@ import (
 func NewAPPMController(clientset *kubernetes.Clientset,
 	store store.Storer,
 	startCh *channels.RingChannel,
-	updateCh *channels.RingChannel) *Controller {
+	updateCh *channels.RingChannel,
+	probeCh *channels.RingChannel) *Controller {
 	c := &Controller{
 		store:    store,
 		updateCh: updateCh,
 		startCh:  startCh,
+		probeCh:  probeCh,
 		stopCh:   make(chan struct{}),
 	}
 	// create prober first, then thirdparty
-	c.prober = prober.NewProber(store, updateCh)
-	c.thirdparty = thirdparty.NewThirdPartier(clientset, c.store, c.prober, c.startCh, c.updateCh, c.stopCh)
+	c.prober = prober.NewProber(c.store, c.probeCh, c.updateCh)
+	c.thirdparty = thirdparty.NewThirdPartier(clientset, c.store, c.startCh, c.updateCh, c.stopCh)
 	return c
 }
 
@@ -55,6 +57,7 @@ type Controller struct {
 
 	startCh  *channels.RingChannel
 	updateCh *channels.RingChannel
+	probeCh  *channels.RingChannel
 	stopCh   chan struct{}
 }
 

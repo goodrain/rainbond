@@ -28,7 +28,6 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
-	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -312,37 +311,45 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 		}
 	}
 	// rule extension
-	if rule.UUID != "default" { // the default http rule has no rule extensions
-		ruleExtensions, err := a.dbmanager.RuleExtensionDao().GetRuleExtensionByRuleID(rule.UUID)
-		if err != nil {
-			return nil, nil, err
-		}
-		for _, extension := range ruleExtensions {
-			switch extension.Key {
-			case string(model.HTTPToHTTPS):
-				if rule.CertificateID == "" {
-					logrus.Warningf("enable force-ssl-redirect, but with no certificate. rule id is: %s", rule.UUID)
-					break
-				}
-				annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
-			case string(model.LBType):
-				if strings.HasPrefix(extension.Value, "upstream-hash-by") {
-					s := strings.Split(extension.Value, ":")
-					if len(s) < 2 {
-						logrus.Warningf("invalid extension value for upstream-hash-by: %s", extension.Value)
-						break
-					}
-					annos[parser.GetAnnotationWithPrefix("upstream-hash-by")] = s[1]
-					break
-				}
-				annos[parser.GetAnnotationWithPrefix("lb-type")] = extension.Value
-
-			default:
-				logrus.Warnf("Unexpected RuleExtension Key: %s", extension.Key)
-			}
-		}
-		ing.SetAnnotations(annos)
+	ruleExtensions, err := a.dbmanager.RuleExtensionDao().GetRuleExtensionByRuleID(rule.UUID)
+	if err != nil {
+		return nil, nil, err
 	}
+	for _, extension := range ruleExtensions {
+		switch extension.Key {
+		case string(model.HTTPToHTTPS):
+			if rule.CertificateID == "" {
+				logrus.Warningf("enable force-ssl-redirect, but with no certificate. rule id is: %s", rule.UUID)
+				break
+			}
+			annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
+		case string(model.LBType):
+			if strings.HasPrefix(extension.Value, "upstream-hash-by") {
+				s := strings.Split(extension.Value, ":")
+				if len(s) < 2 {
+					logrus.Warningf("invalid extension value for upstream-hash-by: %s", extension.Value)
+					break
+				}
+				annos[parser.GetAnnotationWithPrefix("upstream-hash-by")] = s[1]
+				break
+			}
+			annos[parser.GetAnnotationWithPrefix("lb-type")] = extension.Value
+
+		default:
+			logrus.Warnf("Unexpected RuleExtension Key: %s", extension.Key)
+		}
+	}
+
+	configs, err := db.GetManager().GwRuleConfigDao().ListByRuleID(rule.UUID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if configs != nil && len(configs) > 0 {
+		for _, cfg := range configs {
+			annos[parser.GetAnnotationWithPrefix(cfg.Key)] = cfg.Value
+		}
+	}
+	ing.SetAnnotations(annos)
 
 	return ing, sec, nil
 }
@@ -510,48 +517,6 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 	}
 	service.Spec = spec
 	return &service
-}
-
-func (a *AppServiceBuild) createEndpoints(port *model.TenantServicesPort, v1eps []*v1.RbdEndpoints, isInner bool) []*corev1.Endpoints {
-	var res []*corev1.Endpoints
-	for _, item := range v1eps {
-		ep := corev1.Endpoints{}
-		ep.Namespace = a.tenant.UUID
-		ep.Name = util.NewUUID() // TODO: consider a better name???
-		if isInner {
-			logrus.Debugf("create inner third-party service")
-			ep.Labels = a.appService.GetCommonLabels(map[string]string{
-				"name": a.service.ServiceAlias + "Service",
-			})
-		} else {
-			logrus.Debugf("create outer third-party service")
-			ep.Labels = a.appService.GetCommonLabels(map[string]string{
-				"name": a.service.ServiceAlias + "ServiceOUT",
-			})
-		}
-
-		subset := corev1.EndpointSubset{
-			Ports: []corev1.EndpointPort{
-				{
-					Port: func(targetPort int, realPort int) int32 {
-						if realPort == 0 {
-							return int32(targetPort)
-						}
-						return int32(realPort)
-					}(port.ContainerPort, item.Port),
-				},
-			},
-		}
-		for _, ip := range item.IPs {
-			address := corev1.EndpointAddress{
-				IP: ip,
-			}
-			subset.Addresses = append(subset.Addresses, address)
-		}
-		ep.Subsets = []corev1.EndpointSubset{subset}
-		res = append(res, &ep)
-	}
-	return res
 }
 
 func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPort) *corev1.Service {

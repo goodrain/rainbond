@@ -21,12 +21,11 @@ package thirdparty
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/worker/appm/f"
-	"github.com/goodrain/rainbond/worker/appm/prober"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/worker/appm/f"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -46,14 +45,12 @@ type ThirdPartier interface {
 // NewThirdPartier creates a new ThirdPartier.
 func NewThirdPartier(clientset *kubernetes.Clientset,
 	store store.Storer,
-	prober prober.Prober,
 	startCh *channels.RingChannel,
 	updateCh *channels.RingChannel,
 	stopCh chan struct{}) ThirdPartier {
 	t := &thirdparty{
 		clientset: clientset,
 		store:     store,
-		prober:    prober,
 
 		svcStopCh: make(map[string]chan struct{}),
 		startCh:   startCh,
@@ -66,7 +63,6 @@ func NewThirdPartier(clientset *kubernetes.Clientset,
 type thirdparty struct {
 	clientset kubernetes.Interface
 	store     store.Storer
-	prober    prober.Prober
 
 	// a collection of stop channel for every service.
 	svcStopCh map[string]chan struct{}
@@ -81,14 +77,20 @@ func (t *thirdparty) Start() {
 	go func() {
 		for {
 			select {
-			case event := <-t.startCh.Out(): // TODO: rename
+			case event := <-t.startCh.Out():
 				evt, ok := event.(*v1.Event)
 				if !ok {
 					logrus.Warningf("Unexpected event received %+v", event)
 					continue
 				}
 				logrus.Debugf("Received event: %+v", evt)
-				if evt.Type == v1.StartEvent {
+				// key := func(evt *v1.Event) string {
+				// 	if evt.IsInner {
+				// 		return fmt.Sprintf("%s-%d-inner", evt.Sid, evt.Port)
+				// 	}
+				// 	return fmt.Sprintf("%s-%d-outer", evt.Sid, evt.Port)
+				// }(evt)
+				if evt.Type == v1.StartEvent { // no need to distinguish between event types
 					stopCh := t.svcStopCh[evt.Sid]
 					if stopCh != nil {
 						logrus.Debugf("ServiceID: %s; already started.", evt.Sid)
@@ -97,8 +99,6 @@ func (t *thirdparty) Start() {
 					t.svcStopCh[evt.Sid] = make(chan struct{})
 					signal := make(chan struct{})
 					go t.runStart(evt.Sid, signal)
-					// health test
-					go t.runProbe(evt.Sid, signal)
 				}
 				if evt.Type == v1.StopEvent {
 					stopCh := t.svcStopCh[evt.Sid]
@@ -106,12 +106,9 @@ func (t *thirdparty) Start() {
 						logrus.Warningf("ServiceID: %s; The third-party service has not started yet, cant't be stoped", evt.Sid)
 						continue
 					}
+					t.runDelete(evt.Sid)
 					close(stopCh)
 					delete(t.svcStopCh, evt.Sid)
-
-					go t.prober.StopProbe(evt.Sid)
-					go t.runDelete(evt.Sid)
-
 				}
 			case event := <-t.updateCh.Out():
 				devent, ok := event.(discovery.Event)
@@ -132,7 +129,6 @@ func (t *thirdparty) Start() {
 
 func (t *thirdparty) runStart(sid string, signal chan<- struct{}) {
 	logrus.Debugf("ServiceID: %s; run start...", sid)
-	// TODO: nil pointer
 	as := t.store.GetAppService(sid)
 	// TODO: when an error occurs, consider retrying.
 	i := NewInteracter(sid, t.updateCh, t.svcStopCh[sid])
@@ -143,6 +139,8 @@ func (t *thirdparty) runStart(sid string, signal chan<- struct{}) {
 		logrus.Errorf("ServiceID: %s; error listing endpoints infos: %s", sid, err.Error())
 		return
 	}
+	// TODO: empty rbdeps
+	// add rbd endpoints to configmap
 	as.SetRbdEndpionts(rbdeps)
 
 	eps, err := t.createK8sEndpoints(as)
@@ -150,31 +148,41 @@ func (t *thirdparty) runStart(sid string, signal chan<- struct{}) {
 		logrus.Errorf("ServiceID: %s; error creating k8s endpoints: %s", sid, err.Error())
 		return
 	}
+	logrus.Debugf("k8s eps: %+v", eps)
+	// find out old endpoints, and delete it.
+	old := as.GetEndpoints()
+	del := findDeletedEndpoints(old, eps)
+	for _, ep := range del {
+		deleteEndpoints(ep, t.clientset)
+	}
 	for _, ep := range eps {
 		ensureEndpoints(ep, t.clientset)
 	}
+	ensureConfigMap(as.GetRbdEndpiontsCM(), t.clientset)
 
 	signal <- struct{}{}
 	i.Watch()
 }
 
-func (t *thirdparty) runProbe(sid string, signal <-chan struct{}) {
-	<-signal
-	logrus.Debugf("ServiceID: %s; run probe...", sid)
-	// TODO: nil pointer
-	as := t.store.GetAppService(sid)
-	if as == nil {
-		// TODO: warning
-		return
+func findDeletedEndpoints(old, new []*corev1.Endpoints) []*corev1.Endpoints {
+	if old == nil {
+		logrus.Debugf("empty old endpoints.")
+		return nil
 	}
-	rbdEndpoints := as.GetRbdEndpionts()
-	b, _ := json.Marshal(rbdEndpoints)
-	logrus.Debugf("rbd endpoints: %s", string(b))
-	if rbdEndpoints == nil || len(rbdEndpoints) == 0 {
-		// TODO: warning
-		return
+	var res []*corev1.Endpoints
+	for _, o := range old {
+		del := true
+		for _, n := range new {
+			if o.Name == n.Name {
+				del = false
+				break
+			}
+		}
+		if del {
+			res = append(res, o)
+		}
 	}
-	t.prober.AddProbe(as.ServiceID, rbdEndpoints)
+	return res
 }
 
 func (t *thirdparty) createK8sEndpoints(as *v1.AppService) ([]*corev1.Endpoints, error) {
@@ -186,6 +194,8 @@ func (t *thirdparty) createK8sEndpoints(as *v1.AppService) ([]*corev1.Endpoints,
 	if err != nil {
 		return nil, err
 	}
+	b, _ := json.Marshal(epinfos)
+	logrus.Debugf("ep infos: %s", string(b))
 	var res []*corev1.Endpoints
 	for _, p := range ports {
 		for _, item := range epinfos {
@@ -237,6 +247,13 @@ func (t *thirdparty) createK8sEndpoints(as *v1.AppService) ([]*corev1.Endpoints,
 	return res, nil
 }
 
+func deleteEndpoints(ep *corev1.Endpoints, clientset kubernetes.Interface) {
+	err := clientset.CoreV1().Endpoints(ep.Namespace).Delete(ep.Name, &metav1.DeleteOptions{})
+	if err != nil {
+		logrus.Debugf("Ignore; error deleting endpoints%+v: %v", ep, err)
+	}
+}
+
 func ensureEndpoints(ep *corev1.Endpoints, clientSet kubernetes.Interface) {
 	_, err := clientSet.CoreV1().Endpoints(ep.Namespace).Update(ep)
 
@@ -252,6 +269,22 @@ func ensureEndpoints(ep *corev1.Endpoints, clientSet kubernetes.Interface) {
 	}
 }
 
+func ensureConfigMap(cm *corev1.ConfigMap, clientSet kubernetes.Interface) {
+	logrus.Debugf("ensure cm: %+v", cm)
+	_, err := clientSet.CoreV1().ConfigMaps(cm.Namespace).Update(cm)
+
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			_, err := clientSet.CoreV1().ConfigMaps(cm.Namespace).Create(cm)
+			if err != nil {
+				logrus.Warningf("error creating ConfigMaps %+v: %v", cm, err)
+			}
+			return
+		}
+		logrus.Warningf("error updating ConfigMaps %+v: %v", cm, err)
+	}
+}
+
 func (t *thirdparty) runUpdate(event discovery.Event) {
 	ep := event.Obj.(*v1.RbdEndpoint)
 	as := t.store.GetAppService(ep.Sid)
@@ -264,11 +297,19 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 				ep.Sid, err.Error())
 			return
 		}
-		for _, item := range endpoints {
-			ensureEndpoints(item, t.clientset)
+		// find out old endpoints, and delete it.
+		old := as.GetEndpoints()
+		for _, ep := range endpoints {
+			ensureEndpoints(ep, t.clientset)
 		}
+		del := findDeletedEndpoints(old, endpoints)
+		for _, ep := range del {
+			deleteEndpoints(ep, t.clientset)
+		}
+		ensureConfigMap(as.GetRbdEndpiontsCM(), t.clientset)
 	case discovery.UpdateEvent:
 		// TODO: Compare old and new endpoints
+		// TODO: delete old endpoints
 		as.UpdRbdEndpionts(ep)
 		endpoints, err := t.createK8sEndpoints(as)
 		if err != nil {
@@ -276,9 +317,16 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 				ep.Sid, err.Error())
 			return
 		}
-		for _, item := range endpoints {
-			ensureEndpoints(item, t.clientset)
+		// find out old endpoints, and delete it.
+		old := as.GetEndpoints()
+		del := findDeletedEndpoints(old, endpoints)
+		for _, ep := range del {
+			deleteEndpoints(ep, t.clientset)
 		}
+		for _, ep := range endpoints {
+			ensureEndpoints(ep, t.clientset)
+		}
+		ensureConfigMap(as.GetRbdEndpiontsCM(), t.clientset)
 	case discovery.DeleteEvent:
 		as.DelRbdEndpiont(ep.UUID)
 		endpoints, err := t.createK8sEndpoints(as)
@@ -287,9 +335,42 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 				ep.Sid, err.Error())
 			return
 		}
-		for _, item := range endpoints {
-			ensureEndpoints(item, t.clientset)
+		// find out old endpoints, and delete it.
+		old := as.GetEndpoints()
+		for _, ep := range endpoints {
+			ensureEndpoints(ep, t.clientset)
 		}
+		del := findDeletedEndpoints(old, endpoints)
+		for _, ep := range del {
+			deleteEndpoints(ep, t.clientset)
+		}
+		ensureConfigMap(as.GetRbdEndpiontsCM(), t.clientset)
+	case discovery.HealthEvent:
+		logrus.Debugf("Health event; Sid: %s; IP: %s; Status: %s; IsOnline: %v", ep.Sid, ep.IP, ep.Status, ep.IsOnline)
+		eps := as.GetRbdEndpiontByIP(ep.IP)
+		if eps == nil || len(eps) == 0 {
+			logrus.Warningf("Sid: %s; IP: %s; Empty rbd endpoints", ep.Sid, ep.IP)
+			return
+		}
+		for _, e := range eps {
+			e.Status = ep.Status
+			e.IsOnline = ep.IsOnline
+			as.UpdRbdEndpionts(e)
+		}
+		ensureConfigMap(as.GetRbdEndpiontsCM(), t.clientset)
+	case discovery.OfflineEvent: // TODO: merge HealthEvent
+		logrus.Debugf("Offline event; Sid: %s; IP: %s; IsOnline: %v", ep.Sid, ep.IP, ep.IsOnline)
+		eps := as.GetRbdEndpiontByIP(ep.IP)
+		if eps == nil || len(eps) == 0 {
+			logrus.Warningf("Sid: %s; IP: %s; Empty rbd endpoints", ep.Sid, ep.IP)
+			return
+		}
+		for _, e := range eps {
+			e.Status = ep.Status
+			e.IsOnline = ep.IsOnline
+			as.UpdRbdEndpionts(e)
+		}
+		ensureConfigMap(as.GetRbdEndpiontsCM(), t.clientset)
 	}
 }
 
@@ -337,9 +418,32 @@ func (t *thirdparty) runDelete(sid string) {
 		for _, ep := range eps {
 			err := t.clientset.CoreV1().Endpoints(as.TenantID).Delete(ep.Name, &metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
-				logrus.Warningf("error deleting endpoints: %v", err)
+				logrus.Warningf("error deleting endpoin empty old app servicets: %v", err)
 			}
 			t.store.OnDelete(ep)
 		}
 	}
+	if cm := as.GetRbdEndpiontsCM(); cm != nil {
+		err := t.clientset.CoreV1().ConfigMaps(cm.Namespace).Delete(cm.Name, &metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			logrus.Warningf("error deleting config map: %v", err)
+		}
+		t.store.OnDelete(cm)
+	}
+}
+
+// CreateRbdEpConfigmap creates a configmap to store rbd endpoints.
+func CreateRbdEpConfigmap(as *v1.AppService, eps []*v1.RbdEndpoint) *corev1.ConfigMap {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: as.GetTenant().Name,
+			Name:      as.ServiceID + "-rbd-endpoints",
+		},
+	}
+	cm.Data = make(map[string]string)
+	for _, ep := range eps {
+		b, _ := json.Marshal(ep)
+		cm.Data[ep.UUID] = string(b)
+	}
+	return cm
 }

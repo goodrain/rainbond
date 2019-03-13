@@ -41,7 +41,9 @@ type GatewayHandler interface {
 
 	GetAvailablePort() (int, error)
 	PortExists(port int) bool
-	SendTask(serviceID string, action string) error
+	SendTask(in map[string]interface{}) error
 	TCPAvailable(ip string, port int, ruleID string) bool
 	AddIPPool(req *apimodel.IPPoolStruct) error
+
+	RuleConfig(req *apimodel.RuleConfigReq) error
 }

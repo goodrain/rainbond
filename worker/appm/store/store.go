@@ -21,6 +21,8 @@ package store
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -42,6 +44,7 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
+	"k8s.io/client-go/tools/cache"
 )
 
 //Storer app runtime store interface
@@ -59,6 +62,25 @@ type Storer interface {
 	GetNeedBillingStatus(serviceIDs []string) map[string]string
 	OnDelete(obj interface{})
 	GetPodLister() listcorev1.PodLister
+}
+
+// EventType type of event associated with an informer
+type EventType string
+
+const (
+	// CreateEvent event associated with new objects in an informer
+	CreateEvent EventType = "CREATE"
+	// UpdateEvent event associated with an object update in an informer
+	UpdateEvent EventType = "UPDATE"
+	// DeleteEvent event associated when an object is removed from an informer
+	DeleteEvent EventType = "DELETE"
+)
+
+// Event holds the context of an event.
+type Event struct {
+	Type EventType
+	Obj  interface{}
+	Old  interface{}
 }
 
 //appRuntimeStore app runtime store
@@ -79,8 +101,11 @@ type appRuntimeStore struct {
 }
 
 //NewStore new app runtime store
-func NewStore(clientset *kubernetes.Clientset, dbmanager db.Manager, conf option.Config,
-	startCh *channels.RingChannel) Storer {
+func NewStore(clientset *kubernetes.Clientset,
+	dbmanager db.Manager,
+	conf option.Config,
+	startCh *channels.RingChannel,
+	probeCh *channels.RingChannel) Storer {
 	ctx, cancel := context.WithCancel(context.Background())
 	store := &appRuntimeStore{
 		clientset:   clientset,
@@ -124,6 +149,75 @@ func NewStore(clientset *kubernetes.Clientset, dbmanager db.Manager, conf option
 	store.informers.Endpoints = infFactory.Core().V1().Endpoints().Informer()
 	store.listers.Endpoints = infFactory.Core().V1().Endpoints().Lister()
 
+	// Endpoint Event Handler
+	epEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			ep := obj.(*corev1.Endpoints)
+			serviceID := ep.Labels["service_id"]
+			version := ep.Labels["version"]
+			createrID := ep.Labels["creater_id"]
+			if serviceID != "" && createrID != "" {
+				appservice, err := store.getAppService(serviceID, version, createrID, true)
+				if err == conversion.ErrServiceNotFound {
+					store.conf.KubeClient.CoreV1().Endpoints(ep.Namespace).Delete(ep.Name, &metav1.DeleteOptions{})
+				}
+				if appservice != nil {
+					appservice.AddEndpoints(ep)
+					probeCh.In() <- Event{
+						Type: CreateEvent,
+						Obj:  obj,
+					}
+					return
+				}
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			ep := obj.(*corev1.Endpoints)
+
+			serviceID := ep.Labels["service_id"]
+			version := ep.Labels["version"]
+			createrID := ep.Labels["creater_id"]
+			if serviceID != "" && createrID != "" {
+				appservice, _ := store.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DelEndpoints(ep)
+					if appservice.IsClosed() {
+						store.DeleteAppService(appservice)
+					}
+					probeCh.In() <- Event{
+						Type: DeleteEvent,
+						Obj:  obj,
+					}
+				}
+			}
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			oep := old.(*corev1.Endpoints)
+			cep := cur.(*corev1.Endpoints)
+			if cep.ResourceVersion != oep.ResourceVersion &&
+				!reflect.DeepEqual(cep.Subsets, oep.Subsets) {
+
+				serviceID := cep.Labels["service_id"]
+				version := cep.Labels["version"]
+				createrID := cep.Labels["creater_id"]
+				if serviceID != "" && createrID != "" {
+					appservice, err := store.getAppService(serviceID, version, createrID, true)
+					if err == conversion.ErrServiceNotFound {
+						store.conf.KubeClient.CoreV1().Endpoints(cep.Namespace).Delete(cep.Name, &metav1.DeleteOptions{})
+					}
+					if appservice != nil {
+						appservice.AddEndpoints(cep)
+						probeCh.In() <- Event{
+							Type: UpdateEvent,
+							Obj:  cur,
+							Old:  old,
+						}
+					}
+				}
+			}
+		},
+	}
+
 	store.informers.Deployment.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.StatefulSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Pod.AddEventHandlerWithResyncPeriod(store, time.Second*10)
@@ -132,7 +226,7 @@ func NewStore(clientset *kubernetes.Clientset, dbmanager db.Manager, conf option
 	store.informers.Ingress.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.ConfigMap.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.ReplicaSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.Endpoints.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.Endpoints.AddEventHandlerWithResyncPeriod(epEventHandler, time.Second*10)
 	return store
 }
 
@@ -165,7 +259,8 @@ func (a *appRuntimeStore) Start() error {
 	a.stopch = stopch
 	go a.clean()
 
-	for !a.Ready() {}
+	for !a.Ready() {
+	}
 	a.initThirdPartyService()
 
 	return nil
@@ -198,14 +293,12 @@ func (a *appRuntimeStore) initThirdPartyService() error {
 		}
 
 		a.startCh.In() <- &v1.Event{
-			Type: v1.StartEvent,
+			Type: v1.StartEvent, // TODO: no need to distinguish between event types.
 			Sid:  appService.ServiceID,
 		}
 	}
 	return nil
 }
-
-
 
 //Ready if all kube informers is syncd, store is ready
 func (a *appRuntimeStore) Ready() bool {
@@ -346,22 +439,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 				a.conf.KubeClient.CoreV1().ConfigMaps(configmap.Namespace).Delete(configmap.Name, &metav1.DeleteOptions{})
 			}
 			if appservice != nil {
+				if strings.Contains(configmap.Name, "rbd-endpoints") {
+					appservice.SetRbdEndpiontsCM(configmap)
+				}
 				appservice.SetConfigMap(configmap)
-				return
-			}
-		}
-	}
-	if ep, ok := obj.(*corev1.Endpoints); ok {
-		serviceID := ep.Labels["service_id"]
-		version := ep.Labels["version"]
-		createrID := ep.Labels["creater_id"]
-		if serviceID != "" && createrID != "" {
-			appservice, err := a.getAppService(serviceID, version, createrID, true)
-			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.CoreV1().Endpoints(ep.Namespace).Delete(ep.Name, &metav1.DeleteOptions{})
-			}
-			if appservice != nil {
-				appservice.AddEndpoints(ep)
 				return
 			}
 		}
@@ -499,7 +580,11 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, _ := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
-				appservice.DeleteConfigMaps(configmap)
+				if strings.Contains(configmap.Name, "rbd-endpoints") {
+					appservice.DelRbdEndpiontCM()
+				} else {
+					appservice.DeleteConfigMaps(configmap)
+				}
 				if appservice.IsClosed() {
 					a.DeleteAppService(appservice)
 				}

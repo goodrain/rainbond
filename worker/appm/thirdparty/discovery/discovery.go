@@ -33,7 +33,9 @@ const (
 	// UpdateEvent event associated with an object update in a service discovery center
 	UpdateEvent EventType = "UPDATE"
 	// DeleteEvent event associated when an object is removed from a service discovery center
-	DeleteEvent EventType = "DELETE"
+	DeleteEvent  EventType = "DELETE"
+	HealthEvent  EventType = "HEALTH"
+	OfflineEvent EventType = "OFFLINE"
 )
 
 // Event holds the context of an event.

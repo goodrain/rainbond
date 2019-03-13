@@ -429,3 +429,11 @@ type ThirdPartySvcDiscoveryCfgDao interface {
 	Dao
 	GetByServiceID(sid string) (*model.ThirdPartySvcDiscoveryCfg, error)
 }
+
+// GwRuleConfigDao is the interface that wraps the required methods to execute
+// curd for table gateway_rule_config.
+type GwRuleConfigDao interface {
+	Dao
+	DeleteByRuleID(rid string) error
+	ListByRuleID(rid string) ([]*model.GwRuleConfig, error)
+}

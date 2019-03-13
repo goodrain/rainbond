@@ -21,8 +21,8 @@ package model
 import (
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
-
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/tidwall/gjson"
 )
@@ -130,12 +130,13 @@ func NewTaskBody(taskType string, body []byte) TaskBody {
 		}
 		return b
 	case "apply_rule":
-		b := &ApplyRuleTaskBody{}
+		b := ApplyRuleTaskBody{}
 		err := ffjson.Unmarshal(body, &b)
 		if err != nil {
+			logrus.Debugf("error unmarshal data: %v", err)
 			return nil
 		}
-		return b
+		return &b
 	case "apply_plugin_config":
 		b := &ApplyPluginConfigTaskBody{}
 		err := ffjson.Unmarshal(body, &b)
@@ -281,6 +282,8 @@ type ApplyRuleTaskBody struct {
 	EventID       string `json:"event_id"`
 	ServiceKind   string `json:"service_kind"`
 	Action        string `json:"action"`
+	Port          int    `json:"port"`
+	IsInner       bool   `json:"is_inner"`
 }
 
 // ApplyPluginConfigTaskBody apply plugin dynamic discover config

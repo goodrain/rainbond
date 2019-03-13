@@ -107,6 +107,8 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/tcp-rule", controller.GetManager().TCPRule)
 	r.Delete("/tcp-rule", controller.GetManager().TCPRule)
 	r.Put("/tcp-rule", controller.GetManager().TCPRule)
+	r.Put("/rule-config", controller.GetManager().RuleConfig)
+
 	//batch operation
 	r.Post("/batchoperation", controller.BatchOperation)
 

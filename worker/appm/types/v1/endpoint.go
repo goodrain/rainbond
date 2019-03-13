@@ -34,3 +34,8 @@ type RbdEndpoint struct {
 	Status   string `json:"status"`
 	IsOnline bool   `json:"is_online"`
 }
+
+// Equal tests for equality between two RbdEndpoint types
+func (l1 *RbdEndpoint) Equal(l2 *RbdEndpoint) bool {
+	return false
+}

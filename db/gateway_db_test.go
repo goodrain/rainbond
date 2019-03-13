@@ -246,3 +246,45 @@ func TestHTTPRuleImpl_ListByServiceID(t *testing.T) {
 		t.Errorf("Expected 3 for len(rules), but returned %v", len(rules))
 	}
 }
+
+func TestGwRuleConfig(t *testing.T) {
+	dbm, err := CreateTestManager()
+	if err != nil {
+		t.Fatalf("error creating test db manager: %v", err)
+	}
+	rid := util.NewUUID()
+	cfg := &model.GwRuleConfig{
+		RuleID:   rid,
+		Key:      "set-header-Host",
+		Value:    "$http_host",
+	}
+	if err := dbm.GwRuleConfigDao().AddModel(cfg); err != nil {
+		t.Fatalf("error create rule config: %v", err)
+	}
+	cfg2 := &model.GwRuleConfig{
+		RuleID:   rid,
+		Key:      "set-header-foo",
+		Value:    "bar",
+	}
+	if err := dbm.GwRuleConfigDao().AddModel(cfg2); err != nil {
+		t.Fatalf("error create rule config: %v", err)
+	}
+	list, err := dbm.GwRuleConfigDao().ListByRuleID(rid)
+	if err != nil {
+		t.Fatalf("error listing configs: %v", err)
+	}
+	if list == nil && len(list) != 2 {
+		t.Errorf("Expected 2 for the length fo list, but returned %d", len(list))
+	} 
+
+	if err := dbm.GwRuleConfigDao().DeleteByRuleID(rid); err != nil {
+		t.Fatalf("error deleting rule config: %v", err)
+	}
+	list, err = dbm.GwRuleConfigDao().ListByRuleID(rid)
+	if err != nil {
+		t.Fatalf("error listing configs: %v", err)
+	}
+	if list != nil && len(list) > 0 {
+		t.Errorf("Expected empty for list, but returned %+v", list)
+	} 
+}

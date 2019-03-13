@@ -58,7 +58,7 @@ func (e *etcd) Connect() error {
 		Password:    e.password,
 	})
 	if err != nil {
-		logrus.Errorf("error connecting etcd: %v", err)
+		logrus.Errorf("Endpoints: %s; error connecting etcd: %v", strings.Join(e.endpoints, ","), err)
 		return err
 	}
 	e.cli = cli

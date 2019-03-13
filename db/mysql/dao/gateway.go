@@ -405,3 +405,43 @@ func (i *IPPoolImpl) GetIPPoolByEID(eid string) (*model.IPPool, error) {
 	}
 	return &result, nil
 }
+
+// GwRuleConfigDaoImpl is a implementation of GwRuleConfigDao.
+type GwRuleConfigDaoImpl struct {
+	DB *gorm.DB
+}
+
+// AddModel creates a new gateway rule config.
+func (t *GwRuleConfigDaoImpl) AddModel(mo model.Interface) error {
+	cfg := mo.(*model.GwRuleConfig)
+	var old model.GwRuleConfig
+	err := t.DB.Where("`rule_id` = ? and `key` = ?", cfg.RuleID, cfg.Key).Find(&old).Error
+	if err == gorm.ErrRecordNotFound {
+		if err := t.DB.Create(cfg).Error; err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("RuleID: %s; Key: %s; %v", cfg.RuleID, cfg.Key, err)
+	}
+	return nil
+}
+
+// UpdateModel updates a gateway rule config.
+func (t *GwRuleConfigDaoImpl) UpdateModel(mo model.Interface) error {
+	return nil
+}
+
+// DeleteByRuleID deletes gateway rule configs by rule id.
+func (t *GwRuleConfigDaoImpl) DeleteByRuleID(rid string) error {
+	return t.DB.Where("rule_id=?", rid).Delete(&model.GwRuleConfig{}).Error
+}
+
+// ListByRuleID lists GwRuleConfig by rule id.
+func (t *GwRuleConfigDaoImpl) ListByRuleID(rid string) ([]*model.GwRuleConfig, error) {
+	var res []*model.GwRuleConfig
+	err := t.DB.Where("rule_id = ?", rid).Find(&res).Error
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
