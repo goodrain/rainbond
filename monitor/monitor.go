@@ -138,19 +138,16 @@ func (d *Monitor) discoverCadvisor(c *callback.Cadvisor, done <-chan struct{}) {
 
 			switch event.Type {
 			case watch.Added:
-
 				isSlave := gjson.Get(event.GetValueString(), "labels.rainbond_node_rule_compute").String()
 				if isSlave == "true" {
 					c.Add(&event)
 				}
 			case watch.Modified:
-
 				isSlave := gjson.Get(event.GetValueString(), "labels.rainbond_node_rule_compute").String()
 				if isSlave == "true" {
 					c.Modify(&event)
 				}
 			case watch.Deleted:
-
 				isSlave := gjson.Get(event.GetValueString(), "labels.rainbond_node_rule_compute").String()
 				if isSlave == "true" {
 					c.Delete(&event)

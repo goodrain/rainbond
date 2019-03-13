@@ -20,6 +20,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"strconv"
 
@@ -46,7 +47,18 @@ func NewCmdCluster() cli.Command {
 func getClusterInfo(c *cli.Context) error {
 	//show cluster resource detail
 	clusterInfo, err := clients.RegionClient.Cluster().GetClusterInfo()
-	handleErr(err)
+	if err != nil {
+		if err.Code == 502 {
+			fmt.Println("The current cluster node manager is not working properly.")
+			fmt.Println("You can query the service log for troubleshooting.")
+			fmt.Println("Exec Command: journalctl -fu node")
+			os.Exit(1)
+		}
+		fmt.Println("The current cluster api server is not working properly.")
+		fmt.Println("You can query the service log for troubleshooting.")
+		fmt.Println("Exec Command: journalctl -fu rbd-api")
+		os.Exit(1)
+	}
 	table := uitable.New()
 	table.AddRow("", "Used/Total", "Use of")
 	table.AddRow("CPU", fmt.Sprintf("%2.f/%d", clusterInfo.ReqCPU, clusterInfo.CapCPU),

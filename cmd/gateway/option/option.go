@@ -80,6 +80,7 @@ type Config struct {
 	RepoGrMeIP         string
 	NodeName           string
 	HostIP             string
+	EnableInterface    []string
 }
 
 // ListenPorts describe the ports required to run the gateway controller
@@ -130,6 +131,7 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.NodeName, "node-name", "", "this gateway node host name")
 	fs.StringVar(&g.HostIP, "node-ip", "", "this gateway node ip")
 	fs.BoolVar(&g.Debug, "debug", false, "enable pprof debug")
+	fs.StringArrayVar(&g.EnableInterface, "enable-interface", nil, "The network interface name that support listening and managing by gateway")
 }
 
 // SetLog sets log

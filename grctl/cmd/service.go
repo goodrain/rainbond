@@ -433,8 +433,9 @@ func showServiceDeployInfo(c *cli.Context) error {
 			if pod.Spec.Volumes != nil && len(pod.Spec.Volumes) > 0 {
 				value := ""
 				for _, v := range pod.Spec.Volumes {
+					valueline := ""
 					if v.HostPath != nil {
-						value += v.HostPath.Path
+						valueline += v.HostPath.Path
 					}
 					if v.PersistentVolumeClaim != nil {
 						claimName := v.PersistentVolumeClaim.ClaimName
@@ -444,11 +445,16 @@ func showServiceDeployInfo(c *cli.Context) error {
 							pv, _ := clients.K8SClient.Core().PersistentVolumes().Get(pvn, metav1.GetOptions{})
 							if pv != nil {
 								if hostPath := pv.Spec.HostPath; hostPath != nil {
-									value += hostPath.Path
+									valueline += hostPath.Path
 								}
 							}
 						}
 					}
+					//if not pvc, do not show
+					if valueline == "" {
+						continue
+					}
+					value += valueline
 				con:
 					for _, vc := range pod.Spec.Containers {
 						m := vc.VolumeMounts
