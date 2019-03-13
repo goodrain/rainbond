@@ -435,3 +435,13 @@ func (t *GwRuleConfigDaoImpl) UpdateModel(mo model.Interface) error {
 func (t *GwRuleConfigDaoImpl) DeleteByRuleID(rid string) error {
 	return t.DB.Where("rule_id=?", rid).Delete(&model.GwRuleConfig{}).Error
 }
+
+// ListByRuleID lists GwRuleConfig by rule id.
+func (t *GwRuleConfigDaoImpl) ListByRuleID(rid string) ([]*model.GwRuleConfig, error) {
+	var res []*model.GwRuleConfig
+	err := t.DB.Where("rule_id = ?", rid).Find(&res).Error
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
