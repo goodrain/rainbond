@@ -21,8 +21,9 @@ package v1
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/goodrain/rainbond/db/model"
 	"time"
+
+	"github.com/goodrain/rainbond/db/model"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -77,6 +78,19 @@ var (
 
 //GetServiceStatus get service status
 func (a *AppService) GetServiceStatus() string {
+	if a.ServiceKind == model.ServiceKindThirdParty {
+		var readyEndpointSize int
+		endpoints := a.GetEndpoints()
+		for _, ed := range endpoints {
+			for _, s := range ed.Subsets {
+				readyEndpointSize += len(s.Addresses)
+			}
+		}
+		if readyEndpointSize > 0 {
+			return RUNNING
+		}
+		return ABNORMAL
+	}
 	if a == nil {
 		return CLOSED
 	}
