@@ -164,18 +164,10 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (stri
 	if req.Domain != "" {
 		rule.Domain = req.Domain
 	}
-	if req.Path != "" {
-		rule.Path = req.Path
-	}
-	if req.Header != "" {
-		rule.Header = req.Header
-	}
-	if req.Cookie != "" {
-		rule.Cookie = req.Cookie
-	}
-	if req.Weight > 0 {
-		rule.Weight = req.Weight
-	}
+	rule.Path = req.Path
+	rule.Header = req.Header
+	rule.Cookie = req.Cookie
+	rule.Weight = req.Weight
 	if req.IP != "" {
 		rule.IP = req.IP
 	}
@@ -548,44 +540,44 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 	// TODO: use reflect to read the field of req, huangrh
 	configs = append(configs, &model.GwRuleConfig{
 		RuleID: req.RuleID,
-		Key: "proxy-connect-timeout",
-		Value: strconv.Itoa(req.Body.ProxyConnectTimeout),
+		Key:    "proxy-connect-timeout",
+		Value:  strconv.Itoa(req.Body.ProxyConnectTimeout),
 	})
 	configs = append(configs, &model.GwRuleConfig{
 		RuleID: req.RuleID,
-		Key: "proxy-send-timeout",
-		Value: strconv.Itoa(req.Body.ProxySendTimeout),
+		Key:    "proxy-send-timeout",
+		Value:  strconv.Itoa(req.Body.ProxySendTimeout),
 	})
 	configs = append(configs, &model.GwRuleConfig{
 		RuleID: req.RuleID,
-		Key: "proxy-read-timeout",
-		Value: strconv.Itoa(req.Body.ProxyReadTimeout),
+		Key:    "proxy-read-timeout",
+		Value:  strconv.Itoa(req.Body.ProxyReadTimeout),
 	})
 	configs = append(configs, &model.GwRuleConfig{
 		RuleID: req.RuleID,
-		Key: "proxy-buffers-number",
-		Value: strconv.Itoa(req.Body.ProxyBuffersNumber),
+		Key:    "proxy-buffers-number",
+		Value:  strconv.Itoa(req.Body.ProxyBuffersNumber),
 	})
 	configs = append(configs, &model.GwRuleConfig{
 		RuleID: req.RuleID,
-		Key: "proxy-buffer-size",
-		Value: req.Body.ProxyBufferSize,
+		Key:    "proxy-buffer-size",
+		Value:  req.Body.ProxyBufferSize,
 	})
 	configs = append(configs, &model.GwRuleConfig{
 		RuleID: req.RuleID,
-		Key: "proxy-buffering",
-		Value: req.Body.ProxyBuffering,
+		Key:    "proxy-buffering",
+		Value:  req.Body.ProxyBuffering,
 	})
 	configs = append(configs, &model.GwRuleConfig{
 		RuleID: req.RuleID,
-		Key: "proxy-body-size",
-		Value: strconv.Itoa(req.Body.ProxyBuffersNumber),
+		Key:    "proxy-body-size",
+		Value:  strconv.Itoa(req.Body.ProxyBuffersNumber),
 	})
 	for key, value := range req.Body.SetHeaders {
 		configs = append(configs, &model.GwRuleConfig{
 			RuleID: req.RuleID,
-			Key: "set-header-" + key,
-			Value: value,
+			Key:    "set-header-" + key,
+			Value:  value,
 		})
 	}
 
