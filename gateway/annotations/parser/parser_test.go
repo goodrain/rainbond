@@ -153,3 +153,26 @@ func TestGetIntAnnotation(t *testing.T) {
 		delete(data, test.field)
 	}
 }
+
+func TestGetStringAnnotationWithPrefix(t *testing.T) {
+	ing := buildIngress()
+
+	_, err := GetIntAnnotation("", nil)
+	if err == nil {
+		t.Errorf("expected error but retuned nil")
+	}
+
+	data := map[string]string{
+		"nginx.ingress.kubernetes.io/proxy-body-size": "0k",
+		"nginx.ingress.kubernetes.io/proxy-buffering": "off",
+		"nginx.ingress.kubernetes.io/set-header-foo":  "value1",
+		"nginx.ingress.kubernetes.io/set-header-bar":  "value2",
+	}
+	ing.SetAnnotations(data)
+
+	m, err := GetStringAnnotationWithPrefix("set-header-", ing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(m)
+}

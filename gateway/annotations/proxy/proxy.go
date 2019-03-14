@@ -17,6 +17,8 @@ limitations under the License.
 package proxy
 
 import (
+	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/gateway/controller/config"
 	extensions "k8s.io/api/extensions/v1beta1"
 
@@ -206,12 +208,18 @@ func (a proxy) Parse(ing *extensions.Ingress) (interface{}, error) {
 		config.ProxyBuffering = defBackend.ProxyBuffering
 	}
 
-	config.SetHeaders = defBackend.ProxySetHeaders
+	config.SetHeaders = make(map[string]string)
+	for k, v := range defBackend.ProxySetHeaders {
+		config.SetHeaders[k] = v
+	}
 	setHeaders, err := parser.GetStringAnnotationWithPrefix("set-header-", ing)
+	logrus.Debugf("set headers from anns: %+v", setHeaders)
 	if err != nil {
-		for k, v := range setHeaders {
-			config.SetHeaders[k] = v
-		}
+		logrus.Warningf("Ingress Key: %s; error parsing set-header: %v",
+			fmt.Sprintf("%s/%s", ing.GetNamespace(), ing.GetName()), err)
+	}
+	for k, v := range setHeaders {
+		config.SetHeaders[k] = v
 	}
 
 	return config, nil

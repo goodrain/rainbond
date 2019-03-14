@@ -20,6 +20,7 @@ package controller
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/api/middleware"
 	"net/http"
 	"net/url"
 	"strings"
@@ -339,12 +340,13 @@ func (g *GatewayStruct) RuleConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
-	//	"service_id": sid,
-	//	"action":     "delete-tcp-rule",
-	//}); err != nil {
-	//	logrus.Errorf("send runtime message about gateway failure %s", err.Error())
-	//}
+	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
+		"service_id": sid,
+		"action":     "update-rule-config",
+	}); err != nil {
+		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
+	}
 
 	httputil.ReturnSuccess(r, w, "success")
 }
