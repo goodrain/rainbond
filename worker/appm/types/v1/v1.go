@@ -310,6 +310,16 @@ func (a *AppService) GetEndpoints() []*corev1.Endpoints {
 	return a.endpoints
 }
 
+// GetEndpointsByName returns endpoints in AppService
+func (a *AppService) GetEndpointsByName(name string) *corev1.Endpoints {
+	for _, ep := range a.endpoints {
+		if ep.GetName() == name {
+			return ep
+		}
+	}
+	return nil
+}
+
 // GetDelEndpoints returns endpoints that need to be deleted in AppService
 func (a *AppService) GetDelEndpoints() []*corev1.Endpoints {
 	return a.delEndpoints

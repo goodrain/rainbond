@@ -28,7 +28,7 @@ import (
 
 // Config returns the proxy timeout to use in the upstream server/s
 type Config struct {
-	BodySize          string            `json:"bodySize"`
+	BodySize          int            `json:"bodySize"`
 	ConnectTimeout    int               `json:"connectTimeout"`
 	SendTimeout       int               `json:"sendTimeout"`
 	ReadTimeout       int               `json:"readTimeout"`
@@ -173,7 +173,7 @@ func (a proxy) Parse(ing *extensions.Ingress) (interface{}, error) {
 		config.CookieDomain = defBackend.ProxyCookieDomain
 	}
 
-	config.BodySize, err = parser.GetStringAnnotation("proxy-body-size", ing)
+	config.BodySize, err = parser.GetIntAnnotation("proxy-body-size", ing)
 	if err != nil {
 		config.BodySize = defBackend.ProxyBodySize
 	}
