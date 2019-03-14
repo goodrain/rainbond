@@ -63,8 +63,18 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 				}
 				protocol := string(subset.Ports[0].Protocol)
 				addressList := subset.Addresses
+				var notready bool
 				if len(addressList) == 0 {
+					notready = true
 					addressList = subset.NotReadyAddresses
+				}
+				getHealty := func() *endpoint.Endpoint_HealthCheckConfig {
+					if notready {
+						return nil
+					}
+					return &endpoint.Endpoint_HealthCheckConfig{
+						PortValue: uint32(toport),
+					}
 				}
 				var lbe []endpoint.LbEndpoint
 				for _, address := range addressList {
@@ -72,7 +82,8 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 					lbe = append(lbe, endpoint.LbEndpoint{
 						HostIdentifier: &endpoint.LbEndpoint_Endpoint{
 							Endpoint: &endpoint.Endpoint{
-								Address: &envoyAddress,
+								Address:           &envoyAddress,
+								HealthCheckConfig: getHealty(),
 							},
 						},
 					})
