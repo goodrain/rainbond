@@ -335,6 +335,7 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 			for _, item := range eps {
 				deleteEndpoints(item, t.clientset)
 			}
+			return
 		}
 
 		endpoints, err := t.createK8sEndpoints(as, []*v1.RbdEndpoint{ep})
@@ -426,13 +427,6 @@ func (t *thirdparty) runDelete(sid string) {
 			}
 			t.store.OnDelete(ep)
 		}
-	}
-	if cm := as.GetRbdEndpiontsCM(); cm != nil {
-		err := t.clientset.CoreV1().ConfigMaps(cm.Namespace).Delete(cm.Name, &metav1.DeleteOptions{})
-		if err != nil && !errors.IsNotFound(err) {
-			logrus.Warningf("error deleting config map: %v", err)
-		}
-		t.store.OnDelete(cm)
 	}
 }
 
