@@ -330,21 +330,21 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 		logrus.Debugf("Run update; Event received: Type: %v; Body: %s", event.Type, string(b))
 		// TODO: Compare old and new endpoints
 		// TODO: delete old endpoints
-		eps := ListOldEndpoints(as, ep)
-		for _, item := range eps {
-			deleteEndpoints(item, t.clientset)
+		if !ep.IsOnline {
+			eps := ListOldEndpoints(as, ep)
+			for _, item := range eps {
+				deleteEndpoints(item, t.clientset)
+			}
 		}
 
-		if ep.IsOnline {
-			endpoints, err := t.createK8sEndpoints(as, []*v1.RbdEndpoint{ep})
-			if err != nil {
-				logrus.Warningf("ServiceID: %s; error creating k8s endpoints struct: %s",
-					ep.Sid, err.Error())
-				return
-			}
-			for _, ep := range endpoints {
-				ensureEndpoints(ep, t.clientset)
-			}
+		endpoints, err := t.createK8sEndpoints(as, []*v1.RbdEndpoint{ep})
+		if err != nil {
+			logrus.Warningf("ServiceID: %s; error creating k8s endpoints struct: %s",
+				ep.Sid, err.Error())
+			return
+		}
+		for _, ep := range endpoints {
+			ensureEndpoints(ep, t.clientset)
 		}
 	case discovery.DeleteEvent:
 		b, _ := json.Marshal(ep)
@@ -354,27 +354,26 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 			deleteEndpoints(item, t.clientset)
 		}
 	case discovery.HealthEvent:
-		// TODO: compare old and new
 		subset := createSubset(ep, false)
-
 		eps := ListOldEndpoints(as, ep)
-		for _, item := range eps {
-			item.Subsets = []corev1.EndpointSubset{
-				subset,
+		for _, ep := range eps {
+			if !isHealth(ep) {
+				ep.Subsets = []corev1.EndpointSubset{
+					subset,
+				}
+				ensureEndpoints(ep, t.clientset)
 			}
-			// update
-			ensureEndpoints(item, t.clientset)
 		}
 	case discovery.UnhealthyEvent:
-		// TODO: compare old and new
-		subset := createSubset(ep, true)
+		subset := createSubset(ep, false)
 		eps := ListOldEndpoints(as, ep)
-		for _, item := range eps {
-			item.Subsets = []corev1.EndpointSubset{
-				subset,
+		for _, ep := range eps {
+			if isHealth(ep) {
+				ep.Subsets = []corev1.EndpointSubset{
+					subset,
+				}
+				ensureEndpoints(ep, t.clientset)
 			}
-			// update
-			ensureEndpoints(item, t.clientset)
 		}
 	}
 }
@@ -478,4 +477,14 @@ func createSubset(ep *v1.RbdEndpoint, notReady bool) corev1.EndpointSubset {
 	}
 	subset.Ports = append(subset.Ports, port)
 	return subset
+}
+
+func isHealth(ep *corev1.Endpoints) bool {
+	if ep.Subsets == nil || len(ep.Subsets) == 0 {
+		return false
+	}
+	if ep.Subsets[0].Addresses != nil && len(ep.Subsets[0].Addresses) > 0 {
+		return true
+	}
+	return false
 }
