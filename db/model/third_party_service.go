@@ -21,8 +21,8 @@ package model
 // Endpoint is a persistent object for table 3rd_party_svc_endpoints.
 type Endpoint struct {
 	Model
-	UUID      string `gorm:"column:uuid;size:32"`
-	ServiceID string `gorm:"column:service_id;size:32;not null"`
+	UUID      string `gorm:"column:uuid;size:32" json:"uuid"`
+	ServiceID string `gorm:"column:service_id;size:32;not null" json:"service_id"`
 	IP        string `gorm:"column:ip;not null" json:"ip"`
 	Port      int    `gorm:"column:port;size:65535" json:"port"`
 	//use pointer type, zero values won't be saved into database

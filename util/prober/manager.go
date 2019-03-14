@@ -20,6 +20,7 @@ package prober
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sync"
 	"time"
@@ -118,7 +119,16 @@ func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*v1.HealthS
 	for _, v := range p.services {
 		if v.Name == serviceName {
 			if v.ServiceHealth.Model == "tcp" {
-				statusMap := probe.GetTcpHealth(v.ServiceHealth.Address)
+				statusMap := probe.GetTCPHealth(v.ServiceHealth.Address)
+				result := &v1.HealthStatus{
+					Name:   v.Name,
+					Status: statusMap["status"],
+					Info:   statusMap["info"],
+				}
+				return result, nil
+			}
+			if v.ServiceHealth.Model == "http" {
+				statusMap := probe.GetHTTPHealth(v.ServiceHealth.Address)
 				result := &v1.HealthStatus{
 					Name:   v.Name,
 					Status: statusMap["status"],
@@ -270,10 +280,13 @@ func (p *probeManager) CheckAndAddService(in *v1.Service) bool {
 	exist := false
 	for _, svc := range p.services {
 		if svc.Name == in.Name {
+			logrus.Debugf("svc name: %s; in name: %s;", svc.Name, in.Name)
 			exist = true
 		}
 	}
 	if !exist {
+		b, _ := json.Marshal(in)
+		logrus.Debugf("add service: %s", string(b))
 		p.services = append(p.services, in)
 	}
 	return exist
@@ -386,5 +399,10 @@ func (p *probeManager) StopProbes(names []string) {
 		}
 		probe.Stop()
 		delete(p.serviceProbe, name)
+		for idx, svc := range p.services {
+			if svc.Name == name {
+				p.services = append(p.services[:idx], p.services[idx+1:]...)
+			}
+		}
 	}
 }
