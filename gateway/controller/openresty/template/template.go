@@ -24,6 +24,8 @@ import (
 	"path"
 	text_template "text/template"
 
+	"github.com/goodrain/rainbond/cmd/gateway/option"
+
 	"github.com/Sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
@@ -78,8 +80,14 @@ func NewNginxTemplate(data *model.Nginx, defaultNginxConf string) error {
 	return nil
 }
 
+//ServerContext ServerContext
+type ServerContext struct {
+	Servers []*model.Server
+	Set     option.Config
+}
+
 // NewServerTemplate creates a configuration file for the nginx server module
-func NewServerTemplate(data []*model.Server, filename string) error {
+func NewServerTemplate(data *ServerContext, filename string) error {
 	if e := Persist(tmplPath+"/servers.tmpl", data, CustomConfigPath, filename); e != nil {
 		return e
 	}
@@ -87,7 +95,7 @@ func NewServerTemplate(data []*model.Server, filename string) error {
 }
 
 // NewServerTemplateWithCfgPath creates a configuration file for the nginx server module
-func NewServerTemplateWithCfgPath(data []*model.Server, cfgPath string, filename string) error {
+func NewServerTemplateWithCfgPath(data *ServerContext, cfgPath string, filename string) error {
 	if e := Persist(tmplPath+"/servers.tmpl", data, cfgPath, filename); e != nil {
 		return e
 	}

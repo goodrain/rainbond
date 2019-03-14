@@ -37,7 +37,7 @@ import (
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/template"
-	"github.com/goodrain/rainbond/gateway/v1"
+	v1 "github.com/goodrain/rainbond/gateway/v1"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/cert"
 )
@@ -145,7 +145,10 @@ func (o *OrService) PersistConfig(conf *v1.Config) error {
 	// http
 	if len(l7srv) > 0 {
 		filename := "http/servers.conf"
-		if err := template.NewServerTemplate(l7srv, filename); err != nil {
+		if err := template.NewServerTemplate(&template.ServerContext{
+			Servers: l7srv,
+			Set:     *o.ocfg,
+		}, filename); err != nil {
 			logrus.Errorf("Fail to new nginx Server ocfg file: %v", err)
 			return err
 		}
@@ -154,7 +157,10 @@ func (o *OrService) PersistConfig(conf *v1.Config) error {
 	// stream
 	if len(l4srv) > 0 {
 		filename := "stream/servers.conf"
-		if err := template.NewServerTemplate(l4srv, filename); err != nil {
+		if err := template.NewServerTemplate(&template.ServerContext{
+			Servers: l4srv,
+			Set:     *o.ocfg,
+		}, filename); err != nil {
 			logrus.Errorf("Fail to new nginx Server file: %v", err)
 			return err
 		}
@@ -217,9 +223,13 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 				"service_id": vs.ServiceID,
 			},
 		}
+
 		if vs.SSLCert != nil {
 			server.SSLCertificate = vs.SSLCert.CertificatePem
 			server.SSLCertificateKey = vs.SSLCert.CertificatePem
+			if vs.ForceSSLRedirect {
+
+			}
 		}
 		for _, loc := range vs.Locations {
 			location := &model.Location{
@@ -353,8 +363,9 @@ func (o *OrService) newRbdServers() error {
 	if o.ocfg.EnableKApiServer {
 		ksrv := kubeApiserver(o.ocfg.KApiServerIP)
 		if err := template.NewServerTemplateWithCfgPath(
-			[]*model.Server{
-				ksrv,
+			&template.ServerContext{
+				Servers: []*model.Server{ksrv},
+				Set:     *o.ocfg,
 			}, tcpCfgPath, "server.default.tcp.conf"); err != nil {
 			return err
 		}
@@ -395,7 +406,10 @@ func (o *OrService) newRbdServers() error {
 		resrv := repoGoodrainMe(o.ocfg.RepoGrMeIP)
 		srv = append(srv, resrv)
 	}
-	if err := template.NewServerTemplateWithCfgPath(srv, httpCfgPath,
+	if err := template.NewServerTemplateWithCfgPath(&template.ServerContext{
+		Servers: srv,
+		Set:     *o.ocfg,
+	}, httpCfgPath,
 		"servers.default.http.conf"); err != nil {
 		return err
 	}

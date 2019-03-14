@@ -27,6 +27,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/goodrain/rainbond/gateway/cluster"
+
 	"github.com/go-chi/chi"
 
 	"github.com/goodrain/rainbond/util"
@@ -49,11 +51,15 @@ func Run(s *option.GWServer) error {
 	errCh := make(chan error)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	//create cluster node manage
+	_, err := cluster.CreateNodeManager(s.Config)
+	if err != nil {
+		return fmt.Errorf("create gateway node manage failure %s", err.Error())
+	}
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(prometheus.NewGoCollector())
 	reg.MustRegister(prometheus.NewProcessCollector(os.Getpid(), "gateway"))
 	mc := metric.NewDummyCollector()
-	var err error
 	if s.Config.EnableMetrics {
 		mc, err = metric.NewCollector(s.NodeName, reg)
 		if err != nil {

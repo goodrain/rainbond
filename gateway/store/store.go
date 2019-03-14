@@ -25,6 +25,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -36,7 +37,7 @@ import (
 	"github.com/goodrain/rainbond/gateway/controller/config"
 	"github.com/goodrain/rainbond/gateway/defaults"
 	"github.com/goodrain/rainbond/gateway/util"
-	"github.com/goodrain/rainbond/gateway/v1"
+	v1 "github.com/goodrain/rainbond/gateway/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -547,7 +548,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 				vs = l7vsMap[virSrvName]
 				if vs == nil {
 					vs = &v1.VirtualService{
-						Listening:        []string{"80"},
+						Listening:        []string{strconv.Itoa(s.conf.ListenPorts.HTTP)},
 						ServerName:       virSrvName,
 						Locations:        []*v1.Location{},
 						ForceSSLRedirect: anns.Rewrite.ForceSSLRedirect,
@@ -555,7 +556,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 					vs.Namespace = ing.Namespace
 					vs.ServiceID = anns.Labels["service_id"]
 					if len(hostSSLMap) != 0 {
-						vs.Listening = []string{"443", "ssl"}
+						vs.Listening = []string{strconv.Itoa(s.conf.ListenPorts.HTTPS), "ssl"}
 						if hostSSLMap[virSrvName] != nil {
 							vs.SSLCert = hostSSLMap[virSrvName]
 						} else { // TODO: if there is necessary to provide a default virtual service name
@@ -565,7 +566,6 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 					l7vsMap[virSrvName] = vs
 					l7vs = append(l7vs, vs)
 				}
-
 				for _, path := range rule.IngressRuleValue.HTTP.Paths {
 					svckey := fmt.Sprintf("%s/%s", ing.Namespace, path.Backend.ServiceName)
 					name, err := s.GetServiceNameLabelByKey(svckey)
@@ -573,7 +573,6 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 						logrus.Warningf("key: %s; error getting service name label: %v", svckey, err)
 						continue
 					}
-
 					locKey := fmt.Sprintf("%s_%s", virSrvName, path.Path)
 					location := srvLocMap[locKey]
 					l7PoolMap[name] = struct{}{}
