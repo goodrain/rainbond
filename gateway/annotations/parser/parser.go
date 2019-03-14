@@ -118,10 +118,13 @@ func GetStringAnnotationWithPrefix(prefix string, ing *extensions.Ingress) (map[
 	if err != nil {
 		return nil, err
 	}
-	anns := ingAnnotations(ing.GetAnnotations())
+	anns := ing.GetAnnotations()
 	res := make(map[string]string)
 	for key, val := range anns {
-		k := strings.Replace(key, prefix, "", 1)
+		if !strings.HasPrefix(key, v) {
+			continue
+		}
+		k := strings.Replace(key, v, "", 1)
 		if k != "" {
 			res[k] = val
 		}

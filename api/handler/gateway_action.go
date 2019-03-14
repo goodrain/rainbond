@@ -571,7 +571,7 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 	configs = append(configs, &model.GwRuleConfig{
 		RuleID: req.RuleID,
 		Key:    "proxy-body-size",
-		Value:  strconv.Itoa(req.Body.ProxyBuffersNumber),
+		Value:  req.Body.ProxyBodySize,
 	})
 	for _, item := range req.Body.SetHeaders {
 		configs = append(configs, &model.GwRuleConfig{

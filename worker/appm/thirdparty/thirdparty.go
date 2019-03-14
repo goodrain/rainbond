@@ -150,7 +150,9 @@ func (t *thirdparty) runStart(sid string) {
 		ensureEndpoints(ep, t.clientset)
 	}
 
-	d.Watch()
+	if d != nil {
+		d.Watch()
+	}
 }
 
 // ListRbdEndpoints lists all rbd endpoints, include static and dynamic.

@@ -27,6 +27,8 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/client"
+	"strconv"
+	"strings"
 )
 
 // ThirdPartyServiceHanlder handles business logic for all third-party services
@@ -105,7 +107,7 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 			EpID: item.UUID,
 			IP: func(ip string, port int) string {
 				if port != 0 {
-					return fmt.Sprintf("%s/%d", ip, port)
+					return fmt.Sprintf("%s:%d", ip, port)
 				}
 				return ip
 			}(item.IP, item.Port),
@@ -151,4 +153,19 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 	}
 
 	return res, nil
+}
+
+func splitIP(input string) (string, int) {
+	sli := strings.Split(input, ":")
+	if len(sli) == 2 {
+		return sli[0], func(port string) int {
+			p, err := strconv.Atoi(port)
+			if err != nil {
+				logrus.Warningf("String: %s; error converting string to int", port)
+				return 0
+			}
+			return p
+		}(sli[1])
+	}
+	return input, 0
 }

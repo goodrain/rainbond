@@ -107,7 +107,6 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/tcp-rule", controller.GetManager().TCPRule)
 	r.Delete("/tcp-rule", controller.GetManager().TCPRule)
 	r.Put("/tcp-rule", controller.GetManager().TCPRule)
-	r.Put("/rule-config", controller.GetManager().RuleConfig)
 
 	//batch operation
 	r.Post("/batchoperation", controller.BatchOperation)
@@ -213,6 +212,9 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Put("/endpoints", controller.GetManager().Endpoints)
 	r.Delete("/endpoints", controller.GetManager().Endpoints)
 	r.Get("/endpoints", controller.GetManager().Endpoints)
+
+	// gateway
+	r.Put("/rule-config", controller.GetManager().RuleConfig)
 
 	return r
 }
