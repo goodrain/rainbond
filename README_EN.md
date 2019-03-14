@@ -2,7 +2,7 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/goodrain/rainbond)](https://goreportcard.com/report/github.com/goodrain/rainbond)
 [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
-![Rainbond version](https://img.shields.io/badge/version-v5.0-brightgreen.svg)
+![Rainbond version](https://img.shields.io/badge/version-v5.1-brightgreen.svg)
 [![Build Status](https://travis-ci.org/goodrain/rainbond.svg?branch=master)](https://travis-ci.org/goodrain/rainbond)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
@@ -48,10 +48,9 @@ More features： [Rainbond features description](https://www.rainbond.com/docs/s
 
 ## Quick Start
 
-1.  [install Rainbond cluster](https://www.rainbond.com/docs/stable/getting-started/installation-guide.html)
-2.  [create the first application / service](https://www.rainbond.com/docs/stable/user-manual/create-an-app.html)
-3.  [build ServiceMesh microservice architecture](https://www.rainbond.com/docs/stable/microservice/service-mesh/use-case.html)
-4.  [Migrate existing enterprise applications]()
+1.  [install Rainbond cluster](https://www.rainbond.com/docs/quick-start/rainbond_install/)
+2.  [create the first application / service](https://www.rainbond.com/docs/user-manual/app-creation/service_create/)
+3.  [build ServiceMesh microservice architecture](https://www.rainbond.com/docs/advanced-scenarios/micro/)
 
 ## Community
 
@@ -61,26 +60,26 @@ More features： [Rainbond features description](https://www.rainbond.com/docs/s
 
 ## Roadmap
 
-See [Rainbond Roadmap](http://www.rainbond.com/docs/stable/architecture/roadmap.html)
+See [Rainbond Roadmap](https://www.rainbond.com/docs/quick-start/roadmap/)
 
 ## Architecture
 
-<img src="https://static.goodrain.com/images/docs/5.0/architecture/architecture.svg" href="http://www.rainbond.com/docs/stable/architecture/architecture.html">
+<img src="https://static.goodrain.com/images/docs/5.0/architecture/architecture.svg" href="https://www.rainbond.com/docs/architecture/architecture/">
 
 ## Snapshot
 
-<img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/docs/5.0/readme/connect.gif" href="http://www.rainbond.com/docs/stable">
+<img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/docs/5.0/readme/connect.gif" href="http://www.rainbond.com/docs/">
 
 - Application assembly deployment diagram
 
-<img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/docs/5.0/readme/gateway.gif" href="http://www.rainbond.com/docs/stable">
+<img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/docs/5.0/readme/gateway.gif" href="http://www.rainbond.com/docs/">
 
 - Application gateway management schematic diagram
 
 ## Contribution
 
 You can participate in the Rainbond community's contributions and sharing on platforms, applications, plugins, and more.
-[Participate in Rainbond Project](https://www.rainbond.com/docs/stable/contribute-to-rainbond.html)
+[Participate in Rainbond Project](https://www.rainbond.com/docs/contribution/)
 [Rainbond Contribution](https://t.goodrain.com/c/contribution)
 
 ## Related Projects
@@ -112,9 +111,5 @@ Thanks to the following open source projects
 - [MySQL](https://github.com/mysql/mysql-server)
 - [Weave Scope](https://github.com/weaveworks/scope)
 - [Ant Design](https://github.com/ant-design/ant-design)
-
-## Join us
-
-[Welcome you to join us with your passion for technology](https://www.rainbond.com/docs/recruitment/join.html)
 
 
