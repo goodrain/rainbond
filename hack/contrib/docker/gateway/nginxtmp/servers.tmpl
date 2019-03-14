@@ -82,7 +82,7 @@ server {
         proxy_cookie_path                       {{ $loc.Proxy.CookiePath }};
 
         {{ if isValidByteSize $loc.Proxy.BodySize true }}
-        client_max_body_size        {{ $loc.Proxy.BodySize }};
+        client_max_body_size        {{ $loc.Proxy.BodySize }}m;
         {{ end }}
 
         {{ if $loc.DisableAccessLog }}

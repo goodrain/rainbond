@@ -254,9 +254,7 @@ func (t *TCPRuleDaoTmpl) UpdateModel(mo model.Interface) error {
 		return fmt.Errorf("Failed to convert %s to *model.TCPRule", reflect.TypeOf(mo).String())
 	}
 
-	return t.DB.Table(tr.TableName()).
-		Where("uuid = ?", tr.UUID).
-		Update(tr).Error
+	return t.DB.Save(tr).Error
 }
 
 // GetTCPRuleByServiceIDAndContainerPort gets a TCPRule based on serviceID and containerPort
