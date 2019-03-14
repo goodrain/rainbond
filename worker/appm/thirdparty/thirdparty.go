@@ -226,14 +226,14 @@ func (t *thirdparty) createK8sEndpoints(as *v1.AppService, epinfo []*v1.RbdEndpo
 			ep.Namespace = as.TenantID
 			// one ep - one ip:port
 			if p.IsInnerService {
-				ep.Name = fmt.Sprintf("%s-%s-%s-%d", as.TenantName, as.ServiceAlias, epi.IP, port) // TODO: abstract
+				ep.Name = epi.UUID
 				ep.Labels = as.GetCommonLabels(map[string]string{
 					"name":         as.ServiceAlias + "Service",
 					"service-kind": model.ServiceKindThirdParty.String(),
 				})
 			}
 			if p.IsOuterService {
-				ep.Name = fmt.Sprintf("%s-%s-%s-%d-out", as.TenantName, as.ServiceAlias, epi.IP, port) // TODO: abstract
+				ep.Name = epi.UUID + "out"
 				ep.Labels = as.GetCommonLabels(map[string]string{
 					"name":         as.ServiceAlias + "ServiceOUT",
 					"service-kind": model.ServiceKindThirdParty.String(),
@@ -330,21 +330,21 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 		logrus.Debugf("Run update; Event received: Type: %v; Body: %s", event.Type, string(b))
 		// TODO: Compare old and new endpoints
 		// TODO: delete old endpoints
-		if !ep.IsOnline {
-			eps := ListOldEndpoints(as, ep)
-			for _, item := range eps {
-				deleteEndpoints(item, t.clientset)
+		eps := ListOldEndpoints(as, ep)
+		for _, item := range eps {
+			deleteEndpoints(item, t.clientset)
+		}
+
+		if ep.IsOnline {
+			endpoints, err := t.createK8sEndpoints(as, []*v1.RbdEndpoint{ep})
+			if err != nil {
+				logrus.Warningf("ServiceID: %s; error creating k8s endpoints struct: %s",
+					ep.Sid, err.Error())
+				return
 			}
-			return
-		}
-		endpoints, err := t.createK8sEndpoints(as, []*v1.RbdEndpoint{ep})
-		if err != nil {
-			logrus.Warningf("ServiceID: %s; error creating k8s endpoints struct: %s",
-				ep.Sid, err.Error())
-			return
-		}
-		for _, ep := range endpoints {
-			ensureEndpoints(ep, t.clientset)
+			for _, ep := range endpoints {
+				ensureEndpoints(ep, t.clientset)
+			}
 		}
 	case discovery.DeleteEvent:
 		b, _ := json.Marshal(ep)

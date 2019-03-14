@@ -307,6 +307,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 	if len(req.RuleExtensions) > 0 {
 		// delete old rule extensions
 		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(tcpRule.UUID); err != nil {
+			logrus.Debugf("TCP rule id: %s;error delete rule extension: %v", tcpRule.UUID, err)
 			tx.Rollback()
 			return "", err
 		}
@@ -319,14 +320,12 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 			}
 			if err := g.dbmanager.RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
 				tx.Rollback()
+				logrus.Debugf("TCP rule id: %s;error add rule extension: %v", tcpRule.UUID, err)
 				return "", err
 			}
 		}
 	}
 	// update tcp rule
-	if req.ServiceID != "" {
-		tcpRule.ServiceID = req.ServiceID
-	}
 	if req.ContainerPort != 0 {
 		tcpRule.ContainerPort = req.ContainerPort
 	}
@@ -338,6 +337,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 		port, err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).GetLBMappingPortByServiceIDAndPort(
 			tcpRule.ServiceID, tcpRule.Port)
 		if err != nil {
+			logrus.Debugf("TCP rule id: %s;error getting lb mapping port: %v", tcpRule.UUID, err)
 			tx.Rollback()
 			return "", err
 		}
@@ -345,6 +345,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 		// update port
 		port.Port = req.Port
 		if err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).UpdateModel(port); err != nil {
+			logrus.Debugf("TCP rule id: %s;error update lb mapping port: %v", tcpRule.UUID, err)
 			tx.Rollback()
 			return "", err
 		}
@@ -352,13 +353,18 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 	} else {
 		logrus.Warningf("Expected external port > %d, but got %d", minPort, req.Port)
 	}
+	if req.ServiceID != "" {
+		tcpRule.ServiceID = req.ServiceID
+	}
 	if err := g.dbmanager.TCPRuleDaoTransactions(tx).UpdateModel(tcpRule); err != nil {
+		logrus.Debugf("TCP rule id: %s;error updating tcp rule: %v", tcpRule.UUID, err)
 		tx.Rollback()
 		return "", err
 	}
 	// end transaction
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
+		logrus.Debugf("TCP rule id: %s;error end transaction %v", tcpRule.UUID, err)
 		return "", err
 	}
 	return tcpRule.ServiceID, nil

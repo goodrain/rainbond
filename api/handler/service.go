@@ -556,7 +556,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			}
 			if volumn.FileContent != "" {
 				cf := &dbmodel.TenantServiceConfigFile{
-					ServiceID: sc.ServiceID,
+					ServiceID:   sc.ServiceID,
 					VolumeName:  volumn.VolumeName,
 					FileContent: volumn.FileContent,
 				}
@@ -1708,8 +1708,10 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 		return err
 	}
 	status := s.statusCli.GetStatus(serviceID)
-	if !s.statusCli.IsClosedStatus(status) {
-		return fmt.Errorf("unclosed")
+	if service.Kind != dbmodel.ServiceKindThirdParty.String() {
+		if !s.statusCli.IsClosedStatus(status) {
+			return fmt.Errorf("unclosed")
+		}
 	}
 	tx := db.GetManager().Begin()
 	delService := service.ChangeDelete()
