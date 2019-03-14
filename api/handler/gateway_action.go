@@ -576,8 +576,8 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 	for _, item := range req.Body.SetHeaders {
 		configs = append(configs, &model.GwRuleConfig{
 			RuleID: req.RuleID,
-			Key:    "set-header-" + key,
-			Value:  value,
+			Key:    "set-header-" + item.Key,
+			Value:  item.Value,
 		})
 	}
 
