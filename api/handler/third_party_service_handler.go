@@ -19,11 +19,13 @@
 package handler
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	util "github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/client"
 )
 
@@ -74,7 +76,7 @@ func (t *ThirdPartyServiceHanlder) UpdEndpoints(d *model.UpdEndpiontsReq) error 
 	}
 
 	t.statusCli.UpdThirdPartyEndpoint(ep)
-	
+
 	return nil
 }
 
@@ -91,22 +93,61 @@ func (t *ThirdPartyServiceHanlder) DelEndpoints(epid, sid string) error {
 
 // ListEndpoints lists third-party service endpoints.
 func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointResp, error) {
+	endpoints, err := t.dbmanager.EndpointsDao().List(sid)
+	b, _ := json.Marshal(endpoints)
+	logrus.Debugf("Endpoints from db: %s", string(b))
+	if err != nil {
+		logrus.Warningf("ServiceID: %s; error listing endpoints from db; %v", sid, err)
+	}
+	m := make(map[string]*model.EndpointResp)
+	for _, item := range endpoints {
+		m[item.UUID] = &model.EndpointResp{
+			EpID: item.UUID,
+			IP: func(ip string, port int) string {
+				if port != 0 {
+					return fmt.Sprintf("%s/%d", ip, port)
+				}
+				return ip
+			}(item.IP, item.Port),
+			Status:   "-",
+			IsOnline: false,
+			IsStatic: true,
+		}
+	}
+
 	thirdPartyEndpoints, err := t.statusCli.ListThirdPartyEndpoints(sid)
 	if err != nil {
 		logrus.Warningf("ServiceID: %s; grpc; error listing third-party endpoints: %v", sid, err)
 		return nil, err
 	}
-	if thirdPartyEndpoints == nil || thirdPartyEndpoints.Obj == nil {
-		return nil, nil
+	if thirdPartyEndpoints != nil && thirdPartyEndpoints.Obj != nil {
+		b, _ = json.Marshal(thirdPartyEndpoints)
+		logrus.Debugf("Endpoints from rpc: %s", string(b))
+		for _, item := range thirdPartyEndpoints.Obj {
+			ep := m[item.Uuid]
+			if ep != nil {
+				ep.IsOnline = true
+				ep.Status = item.Status
+				continue
+			}
+			m[item.Uuid] = &model.EndpointResp{
+				EpID: item.Uuid,
+				IP: func(ip string, port int32) string {
+					if port != 0 {
+						return fmt.Sprintf("%s:%d", ip, port)
+					}
+					return ip
+				}(item.Ip, item.Port),
+				Status:   item.Status,
+				IsOnline: true,
+				IsStatic: false,
+			}
+		}
 	}
+
 	var res []*model.EndpointResp
-	for _, item := range thirdPartyEndpoints.Obj {
-		res = append(res, &model.EndpointResp{
-			EpID:     item.Uuid,
-			IP:       item.Ip,
-			Status:   item.Status,
-			IsOnline: item.IsOnline,
-		})
+	for _, item := range m {
+		res = append(res, item)
 	}
 
 	return res, nil

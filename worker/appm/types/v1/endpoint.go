@@ -33,6 +33,7 @@ type RbdEndpoint struct {
 	Port     int    `json:"port"`
 	Status   string `json:"status"`
 	IsOnline bool   `json:"is_online"`
+	Action   string `json:"action"`
 }
 
 // Equal tests for equality between two RbdEndpoint types

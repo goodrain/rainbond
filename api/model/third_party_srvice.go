@@ -43,6 +43,7 @@ type EndpointResp struct {
 	IP       string `json:"ip"`
 	Status   string `json:"status"`
 	IsOnline bool   `json:"is_online"`
+	IsStatic bool   `json:"is_static"`
 }
 
 // ThridPartyServiceProbe is the json obejct in the request

@@ -56,6 +56,13 @@ func NewInteracter(sid string, updateCh *channels.RingChannel, stopCh chan struc
 	}
 }
 
+// NewStaticInteracter creates a new static interacter.
+func NewStaticInteracter(sid string) Interacter {
+	return &static{
+		sid: sid,
+	}
+}
+
 type static struct {
 	sid string
 }
@@ -67,20 +74,40 @@ func (s *static) List() ([]*v1.RbdEndpoint, error) {
 	}
 	var res []*v1.RbdEndpoint
 	for _, ep := range eps {
-		res = append(res, &v1.RbdEndpoint{
-			UUID:     ep.UUID,
-			Sid:      ep.ServiceID,
-			IP:       ep.IP,
-			Port:     ep.Port,
-			Status:   "unknown",
-			IsOnline: *ep.IsOnline,
-		})
+		if *ep.IsOnline {
+			res = append(res, &v1.RbdEndpoint{
+				UUID: ep.UUID,
+				Sid:  ep.ServiceID,
+				IP:   ep.IP,
+				Port: ep.Port,
+			})
+		}
 	}
 	return res, nil
 }
 
 func (s *static) Watch() {
 	// do nothing
+}
+
+// NewStaticInteracter creates a new static interacter.
+func NewDynamicInteracter(sid string, updateCh *channels.RingChannel, stopCh chan struct{}) Interacter {
+	cfg, err := db.GetManager().ThirdPartySvcDiscoveryCfgDao().GetByServiceID(sid)
+	if err != nil {
+		logrus.Warningf("ServiceID: %s;error getting third-party discovery configuration"+
+			": %s", sid, err.Error())
+		return nil
+	}
+	if cfg == nil {
+		return nil
+	}
+	d := &dynamic{
+		cfg:      cfg,
+		updateCh: updateCh,
+		stopCh:   stopCh,
+	}
+	return d
+
 }
 
 type dynamic struct {
@@ -91,9 +118,11 @@ type dynamic struct {
 }
 
 func (d *dynamic) List() ([]*v1.RbdEndpoint, error) {
-	discoverier := discovery.NewDiscoverier(d.cfg, d.updateCh, d.stopCh)
-	err := discoverier.Connect()
+	discoverier, err := discovery.NewDiscoverier(d.cfg, d.updateCh, d.stopCh)
 	if err != nil {
+		return nil, err
+	}
+	if err := discoverier.Connect(); err != nil {
 		return nil, err
 	}
 	defer discoverier.Close()
@@ -101,9 +130,12 @@ func (d *dynamic) List() ([]*v1.RbdEndpoint, error) {
 }
 
 func (d *dynamic) Watch() {
-	discoverier := discovery.NewDiscoverier(d.cfg, d.updateCh, d.stopCh)
-	err := discoverier.Connect()
+	discoverier, err := discovery.NewDiscoverier(d.cfg, d.updateCh, d.stopCh)
 	if err != nil {
+		logrus.Warningf("error creating discoverier: %s", err.Error())
+		return
+	}
+	if err := discoverier.Connect(); err != nil {
 		logrus.Warningf("error connecting service discovery center: %s", err.Error())
 		return
 	}

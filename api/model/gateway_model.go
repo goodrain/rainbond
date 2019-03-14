@@ -134,8 +134,13 @@ type Body struct {
 	ProxyBuffersNumber  int               `json:"proxy_buffers_number,omitempty" validate:"proxy_buffers_number|required"`
 	ProxyBufferSize     string            `json:"proxy_buffer_size,omitempty" validate:"proxy_buffer_size|required"`
 	ProxyBuffering      string            `json:"proxy_buffering,omitempty" validate:"proxy_buffering|required|in:on,off"`
-	SetHeaders          map[string]string `json:"set_headers,omitempty" `
-	Rewrites            []Rewrite         `json:"rewrite,omitempty"`
+	SetHeaders          []*SetHeader `json:"set_headers,omitempty" `
+	Rewrites            []*Rewrite         `json:"rewrite,omitempty"`
+}
+
+type SetHeader struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // Rewrite is a embeded sturct of Body.

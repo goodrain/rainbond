@@ -581,11 +581,11 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 		Key: "proxy-body-size",
 		Value: strconv.Itoa(req.Body.ProxyBuffersNumber),
 	})
-	for key, value := range req.Body.SetHeaders {
+	for _, item := range req.Body.SetHeaders {
 		configs = append(configs, &model.GwRuleConfig{
 			RuleID: req.RuleID,
-			Key: "set-header-" + key,
-			Value: value,
+			Key: "set-header-" + item.Key,
+			Value: item.Value,
 		})
 	}
 

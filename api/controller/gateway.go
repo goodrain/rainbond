@@ -338,5 +338,13 @@ func (g *GatewayStruct) RuleConfig(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnError(r, w, 500, fmt.Sprintf("Rule id: %s; error update rule config: %v", req.RuleID, err))
 		return
 	}
+
+	//if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
+	//	"service_id": sid,
+	//	"action":     "delete-tcp-rule",
+	//}); err != nil {
+	//	logrus.Errorf("send runtime message about gateway failure %s", err.Error())
+	//}
+
 	httputil.ReturnSuccess(r, w, "success")
 }

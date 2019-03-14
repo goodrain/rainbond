@@ -9,7 +9,8 @@ import (
 	"time"
 )
 
-type TcpProbe struct {
+// TCPProbe probes through the tcp protocol
+type TCPProbe struct {
 	Name         string
 	Address      string
 	ResultsChan  chan *v1.HealthStatus
@@ -19,18 +20,23 @@ type TcpProbe struct {
 	MaxErrorsNum int
 }
 
-func (h *TcpProbe) Check() {
-	go h.TcpCheck()
+// Check starts tcp probe.
+func (h *TCPProbe) Check() {
+	go h.TCPCheck()
 }
-func (h *TcpProbe) Stop() {
+
+// Stop stops tcp probe.
+func (h *TCPProbe) Stop() {
 	h.Cancel()
 }
-func (h *TcpProbe) TcpCheck() {
+
+// TCPCheck -
+func (h *TCPProbe) TCPCheck() {
 	logrus.Debug("tcp check...")
 	timer := time.NewTimer(time.Second * time.Duration(h.TimeInterval))
 	defer timer.Stop()
 	for {
-		HealthMap := GetTcpHealth(h.Address)
+		HealthMap := GetTCPHealth(h.Address)
 		result := &v1.HealthStatus{
 			Name:   h.Name,
 			Status: HealthMap["status"],
@@ -46,8 +52,8 @@ func (h *TcpProbe) TcpCheck() {
 	}
 }
 
-//GetTcpHealth get tcp health
-func GetTcpHealth(address string) map[string]string {
+//GetTCPHealth get tcp health
+func GetTCPHealth(address string) map[string]string {
 	conn, err := net.DialTimeout("tcp", address, 5 * time.Second)
 	if err != nil {
 		return map[string]string{"status": v1.StatDeath,

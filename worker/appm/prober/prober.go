@@ -21,6 +21,7 @@ package prober
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -79,11 +80,9 @@ func createService(probe *model.TenantServiceProbe) *v1.Service {
 	return &v1.Service{
 		Disable: false,
 		ServiceHealth: &v1.Health{
-			Port:         probe.Port,
 			Model:        probe.Scheme,
 			TimeInterval: probe.PeriodSecond,
 			MaxErrorsNum: probe.FailureThreshold,
-			
 		},
 	}
 }
@@ -129,85 +128,82 @@ func (t *tpProbe) Stop() {
 }
 
 func (t *tpProbe) AddProbe(ep *corev1.Endpoints) {
-	services, probeInfo, sid := t.createServices(ep)
-	if services == nil || len(services) == 0 {
-		logrus.Debugf("empty services, stop creating probe")
+	service, probeInfo, sid := t.createServices(ep)
+	if service == nil {
+		logrus.Debugf("Empty service, stop creating probe")
 		return
 	}
+	ip := ep.GetLabels()["ip"]
+	port, _ := strconv.Atoi(ep.GetLabels()["port"])
 	// watch
-	logrus.Debugf("Service len: %d; enable watcher...", len(services))
-	for _, service := range services {
-		if t.utilprober.CheckAndAddService(service) {
-			logrus.Debugf("Service: %+v; Exists", service)
-			continue
-		}
-		go func(service *v1.Service) {
-			watcher := t.utilprober.WatchServiceHealthy(service.Name)
-			t.utilprober.EnableWatcher(watcher.GetServiceName(), watcher.GetID())
-			defer watcher.Close()
-			defer t.utilprober.DisableWatcher(watcher.GetServiceName(), watcher.GetID())
-			for {
-				select {
-				case event := <-watcher.Watch():
-					if event == nil {
-						return
+	logrus.Debug("enable watcher...")
+	if t.utilprober.CheckAndAddService(service) {
+		logrus.Debugf("Service: %+v; Exists", service)
+		return
+	}
+	go func(service *v1.Service) {
+		watcher := t.utilprober.WatchServiceHealthy(service.Name)
+		t.utilprober.EnableWatcher(watcher.GetServiceName(), watcher.GetID())
+		defer watcher.Close()
+		defer t.utilprober.DisableWatcher(watcher.GetServiceName(), watcher.GetID())
+		for {
+			select {
+			case event := <-watcher.Watch():
+				if event == nil {
+					return
+				}
+				switch event.Status {
+				case v1.StatHealthy:
+					obj := &appmv1.RbdEndpoint{
+						UUID:   service.Name,
+						IP:     ip,
+						Port:   port,
+						Sid:    sid,
 					}
-					switch event.Status {
-					case v1.StatHealthy:
-						obj := &appmv1.RbdEndpoint{
-							IP:       strings.Replace(service.Name, sid+"-", "", 1),
-							Sid:      sid,
-							Status:   "healthy",
-							IsOnline: true,
-						}
-						t.updateCh.In() <- discovery.Event{
-							Type: discovery.HealthEvent,
-							Obj:  obj,
-						}
-					case v1.StatDeath, v1.StatUnhealthy:
-						if event.ErrorNumber > service.ServiceHealth.MaxErrorsNum {
-							if probeInfo.Mode == model.OfflineFailureAction.String() {
-								obj := &appmv1.RbdEndpoint{
-									IP:       strings.Replace(service.Name, sid+"-", "", 1),
-									Sid:      sid,
-									Status:   "unknown",
-									IsOnline: false,
-								}
-								t.updateCh.In() <- discovery.Event{
-									Type: discovery.OfflineEvent,
-									Obj:  obj,
-								}
-							} else {
-								obj := &appmv1.RbdEndpoint{
-									IP:     strings.Replace(service.Name, sid+"-", "", 1),
-									Sid:    sid,
-									Status: "unhealthy",
-								}
-								t.updateCh.In() <- discovery.Event{
-									Type: discovery.HealthEvent,
-									Obj:  obj,
-								}
+					t.updateCh.In() <- discovery.Event{
+						Type: discovery.HealthEvent,
+						Obj:  obj,
+					}
+				case v1.StatDeath, v1.StatUnhealthy:
+					if event.ErrorNumber > service.ServiceHealth.MaxErrorsNum {
+						if probeInfo.Mode == model.OfflineFailureAction.String() {
+							obj := &appmv1.RbdEndpoint{
+								UUID:   service.Name,
+								IP:     ip,
+								Port:   port,
+								Sid:    sid,
+							}
+							t.updateCh.In() <- discovery.Event{
+								Type: discovery.DeleteEvent,
+								Obj:  obj,
+							}
+						} else {
+							obj := &appmv1.RbdEndpoint{
+								UUID:   service.Name,
+								IP:     ip,
+								Port:   port,
+								Sid:    sid,
+							}
+							t.updateCh.In() <- discovery.Event{
+								Type: discovery.UnhealthyEvent,
+								Obj:  obj,
 							}
 						}
 					}
-				case <-t.ctx.Done():
-					return
 				}
+			case <-t.ctx.Done():
+				return
 			}
-		}(service)
-	}
+		}
+	}(service)
 	// start
-	t.utilprober.UpdateServicesProbe(services)
+	t.utilprober.UpdateServicesProbe([]*v1.Service{service})
 }
 
 func (t *tpProbe) StopProbe(ep *corev1.Endpoints) {
-	names := t.createServiceNames(ep)
-	if names == nil || len(names) == 0 {
-		logrus.Warningf("empty services, stop stoping probes")
-		return
-	}
-	logrus.Debugf("Names: %+v; Stop probes.", names)
-	t.utilprober.StopProbes(names)
+	name := t.createServiceNames(ep)
+	logrus.Debugf("Name: %s; Stop probe.", name)
+	t.utilprober.StopProbes([]string{name})
 }
 
 // GetProbeInfo returns probe info associated with sid.
@@ -215,19 +211,13 @@ func (t *tpProbe) StopProbe(ep *corev1.Endpoints) {
 // If there is no probe in the database, return a default probe
 func (t *tpProbe) GetProbeInfo(sid string) (*model.TenantServiceProbe, error) {
 	probes, err := t.dbm.ServiceProbeDao().GetServiceProbes(sid)
-	if err != nil || probes == nil || len(probes) == 0 {
+	if err != nil || probes == nil || len(probes) == 0 || probes[0].IsUsed == 0 {
+		if err != nil {
+			logrus.Warningf("ServiceID: %s; error getting probes: %v", sid, err)
+		}
 		// no defined probe, use default one
 		logrus.Debugf("no defined probe, use default one")
-		ports, err := t.dbm.TenantServicesPortDao().GetOpenedPorts(sid)
-		if err != nil {
-			return nil, fmt.Errorf("error getting opened ports: %v", err)
-		}
-		if ports == nil || len(ports) == 0 {
-			return nil, fmt.Errorf("Ports not found")
-		}
-		logrus.Debugf("default port: %d", ports[0].ContainerPort)
 		return &model.TenantServiceProbe{
-			Port:             ports[0].ContainerPort,
 			Scheme:           "tcp",
 			PeriodSecond:     5,
 			FailureThreshold: 3,
@@ -237,8 +227,10 @@ func (t *tpProbe) GetProbeInfo(sid string) (*model.TenantServiceProbe, error) {
 	return probes[0], nil
 }
 
-func (t *tpProbe) createServices(ep *corev1.Endpoints) ([]*v1.Service, *model.TenantServiceProbe, string) {
+func (t *tpProbe) createServices(ep *corev1.Endpoints) (*v1.Service, *model.TenantServiceProbe, string) {
 	sid := ep.GetLabels()["service_id"]
+	ip := ep.GetLabels()["ip"]
+	port := ep.GetLabels()["port"]
 	if strings.TrimSpace(sid) == "" {
 		logrus.Warningf("Endpoints key: %s; ServiceID not found, stop creating probe",
 			fmt.Sprintf("%s/%s", ep.Namespace, ep.Name))
@@ -253,33 +245,15 @@ func (t *tpProbe) createServices(ep *corev1.Endpoints) ([]*v1.Service, *model.Te
 	if probeInfo.Mode == "liveness" {
 		probeInfo.Mode = model.IgnoreFailureAction.String()
 	}
-	var services []*v1.Service
-	for _, subset := range ep.Subsets {
-		for _, address := range subset.Addresses {
-			service := createService(probeInfo)
-			service.Name = fmt.Sprintf("%s-%s", sid, address.IP)
-			service.ServiceHealth.Name = fmt.Sprintf("%s-%s", sid, address.IP)
-			service.ServiceHealth.Address = func() string {
-				return fmt.Sprintf("%s:%d", address.IP, service.ServiceHealth.Port)
-			}()
-			services = append(services, service)
-		}
-	}
-	return services, probeInfo, sid
+	service := createService(probeInfo)
+	service.Name = ep.GetLabels()["uuid"]
+	portint, _ := strconv.Atoi(port)
+	service.ServiceHealth.Port = portint
+	service.ServiceHealth.Name = service.Name // TODO: no need?
+	service.ServiceHealth.Address = fmt.Sprintf("%s:%s", ip, port)
+	return service, probeInfo, sid
 }
 
-func (t *tpProbe) createServiceNames(ep *corev1.Endpoints) []string {
-	sid := ep.GetLabels()["service_id"]
-	if strings.TrimSpace(sid) == "" {
-		logrus.Warningf("Endpoints key: %s; ServiceID not found, stop creating probe",
-			fmt.Sprintf("%s/%s", ep.Namespace, ep.Name))
-		return nil
-	}
-	var names []string
-	for _, subset := range ep.Subsets {
-		for _, address := range subset.Addresses {
-			names = append(names, fmt.Sprintf("%s-%s", sid, address.IP))
-		}
-	}
-	return names
+func (t *tpProbe) createServiceNames(ep *corev1.Endpoints) string {
+	return ep.GetLabels()["uuid"]
 }

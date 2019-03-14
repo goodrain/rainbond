@@ -149,6 +149,9 @@ func NewStore(clientset *kubernetes.Clientset,
 	store.informers.Endpoints = infFactory.Core().V1().Endpoints().Informer()
 	store.listers.Endpoints = infFactory.Core().V1().Endpoints().Lister()
 
+	isThirdParty := func(ep *corev1.Endpoints) bool {
+		return ep.Labels["service-kind"] == model.ServiceKindThirdParty.String()
+	}
 	// Endpoint Event Handler
 	epEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -163,9 +166,12 @@ func NewStore(clientset *kubernetes.Clientset,
 				}
 				if appservice != nil {
 					appservice.AddEndpoints(ep)
-					probeCh.In() <- Event{
-						Type: CreateEvent,
-						Obj:  obj,
+					if isThirdParty(ep) {
+						logrus.Debugf("Endpoints Created: %+v", ep)
+						probeCh.In() <- Event{
+							Type: CreateEvent,
+							Obj:  obj,
+						}
 					}
 					return
 				}
@@ -173,7 +179,6 @@ func NewStore(clientset *kubernetes.Clientset,
 		},
 		DeleteFunc: func(obj interface{}) {
 			ep := obj.(*corev1.Endpoints)
-
 			serviceID := ep.Labels["service_id"]
 			version := ep.Labels["version"]
 			createrID := ep.Labels["creater_id"]
@@ -184,9 +189,12 @@ func NewStore(clientset *kubernetes.Clientset,
 					if appservice.IsClosed() {
 						store.DeleteAppService(appservice)
 					}
-					probeCh.In() <- Event{
-						Type: DeleteEvent,
-						Obj:  obj,
+					if isThirdParty(ep) {
+						logrus.Debugf("Endpoints deleted: %+v", ep)
+						probeCh.In() <- Event{
+							Type: DeleteEvent,
+							Obj:  obj,
+						}
 					}
 				}
 			}
@@ -207,10 +215,13 @@ func NewStore(clientset *kubernetes.Clientset,
 					}
 					if appservice != nil {
 						appservice.AddEndpoints(cep)
-						probeCh.In() <- Event{
-							Type: UpdateEvent,
-							Obj:  cur,
-							Old:  old,
+						if isThirdParty(cep) {
+							logrus.Debugf("Endpoints updated: %+v", cep)
+							probeCh.In() <- Event{
+								Type: UpdateEvent,
+								Obj:  cur,
+								Old:  old,
+							}
 						}
 					}
 				}

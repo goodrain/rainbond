@@ -31,19 +31,19 @@ const (
 
 //Service Service
 type Service struct {
-	Name          string
-	ServiceHealth *Health
-	Disable       bool
+	Name          string  `json:"name"`
+	ServiceHealth *Health `json:"health"`
+	Disable       bool    `json:"disable"`
 }
 
 //Health ServiceHealth
 type Health struct {
-	Name         string
-	Model        string
-	Port         int
-	Address      string
-	TimeInterval int
-	MaxErrorsNum int
+	Name         string `json:"name"`
+	Model        string `json:"model"`
+	Port         int    `json:"port"`
+	Address      string `json:"address"`
+	TimeInterval int    `json:"time_interval"`
+	MaxErrorsNum int    `json:"max_errors_num"`
 }
 
 //HealthStatus health status
