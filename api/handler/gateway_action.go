@@ -555,23 +555,8 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 	})
 	configs = append(configs, &model.GwRuleConfig{
 		RuleID: req.RuleID,
-		Key:    "proxy-buffers-number",
-		Value:  strconv.Itoa(req.Body.ProxyBuffersNumber),
-	})
-	configs = append(configs, &model.GwRuleConfig{
-		RuleID: req.RuleID,
-		Key:    "proxy-buffer-size",
-		Value:  req.Body.ProxyBufferSize,
-	})
-	configs = append(configs, &model.GwRuleConfig{
-		RuleID: req.RuleID,
-		Key:    "proxy-buffering",
-		Value:  req.Body.ProxyBuffering,
-	})
-	configs = append(configs, &model.GwRuleConfig{
-		RuleID: req.RuleID,
 		Key:    "proxy-body-size",
-		Value:  req.Body.ProxyBodySize,
+		Value:  strconv.Itoa(req.Body.ProxyBodySize),
 	})
 	for _, item := range req.Body.SetHeaders {
 		configs = append(configs, &model.GwRuleConfig{
