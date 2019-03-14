@@ -62,6 +62,10 @@ func (o *OperationHandler) Build(buildInfo model.BuildInfoRequestStruct) (re Ope
 		re.ErrMsg = fmt.Sprintf("find service %s failure", buildInfo.ServiceID)
 		return
 	}
+	if dbmodel.ServiceKind(service.Kind) == dbmodel.ServiceKindThirdParty {
+		re.ErrMsg = fmt.Sprintf("service %s is thirdpart service", buildInfo.ServiceID)
+		return
+	}
 	eventBody, err := createEvent(buildInfo.EventID, buildInfo.ServiceID, "build", service.TenantID)
 	if err != nil {
 		if err == ErrEventIsRuning {
@@ -143,6 +147,11 @@ func (o *OperationHandler) Stop(stopInfo model.StartOrStopInfoRequestStruct) (re
 	if err != nil {
 		logrus.Errorf("get service by id error, %v", err)
 		re.ErrMsg = fmt.Sprintf("get service %s failure", stopInfo.ServiceID)
+		return
+	}
+	if dbmodel.ServiceKind(service.Kind) == dbmodel.ServiceKindThirdParty {
+		re.ErrMsg = fmt.Sprintf("service %s is thirdpart service", stopInfo.ServiceID)
+		return
 	}
 	event, err := createEvent(stopInfo.EventID, stopInfo.ServiceID, "stop", service.TenantID)
 	if err != nil {
@@ -182,6 +191,11 @@ func (o *OperationHandler) Start(startInfo model.StartOrStopInfoRequestStruct) (
 	if err != nil {
 		logrus.Errorf("get service by id error, %v", err)
 		re.ErrMsg = fmt.Sprintf("get service %s failure", startInfo.ServiceID)
+		return
+	}
+	if dbmodel.ServiceKind(service.Kind) == dbmodel.ServiceKindThirdParty {
+		re.ErrMsg = fmt.Sprintf("service %s is thirdpart service", startInfo.ServiceID)
+		return
 	}
 	eventBody, err := createEvent(startInfo.EventID, startInfo.ServiceID, "start", service.TenantID)
 	if err != nil {
@@ -222,6 +236,10 @@ func (o *OperationHandler) Upgrade(ru model.UpgradeInfoRequestStruct) (re Operat
 	if err != nil {
 		logrus.Errorf("get service by id %s error %s", ru.ServiceID, err.Error())
 		re.ErrMsg = fmt.Sprintf("get service %s failure", ru.ServiceID)
+		return
+	}
+	if dbmodel.ServiceKind(services.Kind) == dbmodel.ServiceKindThirdParty {
+		re.ErrMsg = fmt.Sprintf("service %s is thirdpart service", ru.ServiceID)
 		return
 	}
 	eventBody, err := createEvent(ru.EventID, ru.ServiceID, "upgrade", services.TenantID)
@@ -278,6 +296,10 @@ func (o *OperationHandler) RollBack(rollback model.RollbackInfoRequestStruct) (r
 	if err != nil {
 		logrus.Errorf("find service %s failure %s", rollback.ServiceID, err.Error())
 		re.ErrMsg = fmt.Sprintf("find service %s failure", rollback.ServiceID)
+		return
+	}
+	if dbmodel.ServiceKind(service.Kind) == dbmodel.ServiceKindThirdParty {
+		re.ErrMsg = fmt.Sprintf("service %s is thirdpart service", rollback.ServiceID)
 		return
 	}
 	eventBody, err := createEvent(rollback.EventID, rollback.ServiceID, "upgrade", service.TenantID)

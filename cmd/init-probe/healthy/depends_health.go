@@ -30,6 +30,7 @@ import (
 	"google.golang.org/grpc"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	endpointapi "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
 	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"
 
 	"github.com/Sirupsen/logrus"
@@ -132,7 +133,12 @@ func (d *DependServiceHealthController) checkEDS() bool {
 	readyLength := 0
 	for _, endpoint := range endpoints {
 		if len(endpoint.Endpoints) > 0 && len(endpoint.Endpoints[0].LbEndpoints) > 0 {
-			readyLength++
+			//first LbEndpoints healthy is not nil. so endpoint is not notreadyaddress
+			if host, ok := endpoint.Endpoints[0].LbEndpoints[0].HostIdentifier.(*endpointapi.LbEndpoint_Endpoint); ok {
+				if host.Endpoint != nil && host.Endpoint.HealthCheckConfig != nil {
+					readyLength++
+				}
+			}
 		}
 	}
 	if readyLength >= d.dependServiceCount {
