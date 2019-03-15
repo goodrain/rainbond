@@ -19,18 +19,14 @@
 package v1
 
 import (
-	"encoding/json"
 	"fmt"
-	"strconv"
-	"strings"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strconv"
 )
 
 // EventType type of event
@@ -108,7 +104,6 @@ type AppService struct {
 	endpoints    []*corev1.Endpoints
 	delEndpoints []*corev1.Endpoints
 	configMaps   []*corev1.ConfigMap
-	rbdEndpoints *corev1.ConfigMap
 	ingresses    []*extensions.Ingress
 	delIngs      []*extensions.Ingress // ingresses which need to be deleted
 	secrets      []*corev1.Secret
@@ -478,119 +473,6 @@ func (a *AppService) GetTenant() *corev1.Namespace {
 	return a.tenant
 }
 
-// GetRbdEndpiontsCM returns rbdEndpoints configmap.
-func (a *AppService) GetRbdEndpiontsCM() *corev1.ConfigMap {
-	return a.rbdEndpoints
-}
-
-// GetRbdEndpionts returns rbdEndpoints.
-func (a *AppService) GetRbdEndpionts() []*RbdEndpoint {
-	if a.rbdEndpoints == nil {
-		return nil
-	}
-	var res []*RbdEndpoint
-	for _, v := range a.rbdEndpoints.Data {
-		logrus.Debugf("Value: %s", v)
-		var ep RbdEndpoint
-		if err := json.Unmarshal([]byte(v), &ep); err != nil {
-			continue
-		}
-		res = append(res, &ep)
-	}
-	return res
-}
-
-// SetRbdEndpiontsCM sets rbd endpoints for AppService.
-func (a *AppService) SetRbdEndpiontsCM(cm *corev1.ConfigMap) {
-	a.rbdEndpoints = cm
-}
-
-// SetRbdEndpionts sets rbd endpoints for AppService.
-func (a *AppService) SetRbdEndpionts(dat []*RbdEndpoint) {
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: a.GetTenant().Name,
-			Name:      a.ServiceID + "-rbd-endpoints",
-		},
-	}
-	cm.SetLabels(a.GetCommonLabels())
-
-	imap := make(map[string][]string)
-	cm.Data = make(map[string]string)
-	for _, ep := range dat {
-		b, _ := json.Marshal(ep)
-		cm.Data[ep.UUID] = string(b)
-		if imap[ep.IP] == nil {
-			imap[ep.IP] = []string{}
-		}
-		imap[ep.IP] = append(imap[ep.IP], ep.UUID)
-	}
-	anns := make(map[string]string)
-	for k, v := range imap {
-		anns[k] = strings.Join(v, ",")
-	}
-	cm.SetAnnotations(anns)
-	a.rbdEndpoints = cm
-}
-
-// GetRbdEndpiontByIP -
-func (a *AppService) GetRbdEndpiontByIP(ip string) []*RbdEndpoint {
-	if a.rbdEndpoints == nil {
-		return nil
-	}
-	anns := a.rbdEndpoints.GetAnnotations()
-	uuids := anns[ip]
-	if uuids == "" {
-		logrus.Warningf("IP: %s; Empty uudis", ip)
-		return nil
-	}
-	sli := strings.Split(uuids, ",")
-	data := a.rbdEndpoints.Data
-	var res []*RbdEndpoint
-	for _, uuid := range sli {
-		var ep RbdEndpoint
-		dat := data[uuid]
-		err := json.Unmarshal([]byte(dat), &ep)
-		if err != nil {
-			logrus.Warningf("UUID: %s; err unmarshal data: %v", uuid, err)
-			continue
-		}
-		res = append(res, &ep)
-	}
-	return res
-}
-
-// AddRbdEndpiont adds rbd endpoint for AppService.
-func (a *AppService) AddRbdEndpiont(dat *RbdEndpoint) {
-	if a.rbdEndpoints == nil {
-		return
-	}
-	b, _ := json.Marshal(dat)
-	a.rbdEndpoints.Data[dat.UUID] = string(b)
-}
-
-// UpdRbdEndpionts updates rbd endpoint for AppService.
-func (a *AppService) UpdRbdEndpionts(dat *RbdEndpoint) {
-	if a.rbdEndpoints == nil {
-		return
-	}
-	b, _ := json.Marshal(dat)
-	a.rbdEndpoints.Data[dat.UUID] = string(b)
-}
-
-// DelRbdEndpiontCM deletes rbd endpoints for AppService.
-func (a *AppService) DelRbdEndpiontCM() {
-	a.rbdEndpoints = nil
-}
-
-// DelRbdEndpiont deletes rbd endpoints for AppService.
-func (a *AppService) DelRbdEndpiont(uuid string) {
-	if a.rbdEndpoints == nil {
-		return
-	}
-	delete(a.rbdEndpoints.Data, uuid)
-}
-
 // SetDeletedResources sets the resources that need to be deleted
 func (a *AppService) SetDeletedResources(old *AppService) {
 	if old == nil {
@@ -645,6 +527,7 @@ func (a *AppService) String() string {
 	Pod %d
 	ingresses %s
 	service %s
+	endpoints %+v
 	-----------------------------------------------------
 	`,
 		a.ServiceAlias,
@@ -666,6 +549,7 @@ func (a *AppService) String() string {
 			}
 			return result
 		}(a.services),
+		a.endpoints,
 	)
 }
 
