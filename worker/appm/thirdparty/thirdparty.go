@@ -21,6 +21,7 @@ package thirdparty
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/worker/util"
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
@@ -224,8 +225,8 @@ func (t *thirdparty) createK8sEndpoints(as *v1.AppService, epinfo []*v1.RbdEndpo
 			}(p.ContainerPort, epi.Port)
 			ep := corev1.Endpoints{}
 			ep.Namespace = as.TenantID
-			// one ep - one ip:port
 			if p.IsInnerService {
+				ep.Name = util.CreateEndpointsName(as.TenantName, as.ServiceAlias, epi.UUID)
 				ep.Name = epi.UUID
 				ep.Labels = as.GetCommonLabels(map[string]string{
 					"name":         as.ServiceAlias + "Service",
@@ -233,7 +234,7 @@ func (t *thirdparty) createK8sEndpoints(as *v1.AppService, epinfo []*v1.RbdEndpo
 				})
 			}
 			if p.IsOuterService {
-				ep.Name = epi.UUID + "out"
+				ep.Name = util.CreateEndpointsName(as.TenantName, as.ServiceAlias, epi.UUID) + "out"
 				ep.Labels = as.GetCommonLabels(map[string]string{
 					"name":         as.ServiceAlias + "ServiceOUT",
 					"service-kind": model.ServiceKindThirdParty.String(),
@@ -280,6 +281,7 @@ func deleteEndpoints(ep *corev1.Endpoints, clientset kubernetes.Interface) {
 }
 
 func ensureEndpoints(ep *corev1.Endpoints, clientSet kubernetes.Interface) {
+	logrus.Debugf("ensure endpoints: %+v", ep)
 	_, err := clientSet.CoreV1().Endpoints(ep.Namespace).Update(ep)
 
 	if err != nil {
@@ -366,7 +368,7 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 			}
 		}
 	case discovery.UnhealthyEvent:
-		subset := createSubset(ep, false)
+		subset := createSubset(ep, true)
 		eps := ListOldEndpoints(as, ep)
 		for _, ep := range eps {
 			if isHealth(ep) {
@@ -421,6 +423,7 @@ func (t *thirdparty) runDelete(sid string) {
 	}
 	if eps := as.GetEndpoints(); eps != nil {
 		for _, ep := range eps {
+			logrus.Debugf("Endpoints delete: %+v", ep)
 			err := t.clientset.CoreV1().Endpoints(as.TenantID).Delete(ep.Name, &metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				logrus.Warningf("error deleting endpoin empty old app servicets: %v", err)
@@ -428,22 +431,6 @@ func (t *thirdparty) runDelete(sid string) {
 			t.store.OnDelete(ep)
 		}
 	}
-}
-
-// CreateRbdEpConfigmap creates a configmap to store rbd endpoints.
-func CreateRbdEpConfigmap(as *v1.AppService, eps []*v1.RbdEndpoint) *corev1.ConfigMap {
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: as.GetTenant().Name,
-			Name:      as.ServiceID + "-rbd-endpoints",
-		},
-	}
-	cm.Data = make(map[string]string)
-	for _, ep := range eps {
-		b, _ := json.Marshal(ep)
-		cm.Data[ep.UUID] = string(b)
-	}
-	return cm
 }
 
 func ListOldEndpoints(as *v1.AppService, ep *v1.RbdEndpoint) []*corev1.Endpoints {

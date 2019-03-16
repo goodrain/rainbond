@@ -94,7 +94,6 @@ func (t *tpProbe) Start() {
 		for {
 			select {
 			case event := <-t.probeCh.Out():
-				logrus.Debugf("Probe event received: %+v", event)
 				if event == nil {
 					return
 				}

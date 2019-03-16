@@ -36,17 +36,20 @@ func (a *AppService) IsEmpty() bool {
 
 //IsClosed is closed
 func (a *AppService) IsClosed() bool {
-	if a.ServiceKind == model.ServiceKindThirdParty && a.endpoints != nil && len(a.endpoints) > 0 {
-		return true
-	}
-	if a.IsEmpty() && a.statefulset == nil && a.deployment == nil {
-		return true
-	}
-	if a.IsEmpty() && a.statefulset != nil && a.statefulset.ResourceVersion == "" {
-		return true
-	}
-	if a.IsEmpty() && a.deployment != nil && a.deployment.ResourceVersion == "" {
-		return true
+	if a.ServiceKind == model.ServiceKindThirdParty {
+		if a.endpoints == nil || len(a.endpoints) == 0 {
+			return true
+		}
+	} else {
+		if a.IsEmpty() && a.statefulset == nil && a.deployment == nil {
+			return true
+		}
+		if a.IsEmpty() && a.statefulset != nil && a.statefulset.ResourceVersion == "" {
+			return true
+		}
+		if a.IsEmpty() && a.deployment != nil && a.deployment.ResourceVersion == "" {
+			return true
+		}
 	}
 	return false
 }

@@ -1728,6 +1728,7 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 		db.GetManager().TenantServiceRelationDaoTransactions(tx).DELRelationsByServiceID,
 		db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).DELServiceLBMappingPortByServiceID,
 		db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteTenantServiceVolumesByServiceID,
+		db.GetManager().TenantServiceConfigFileDaoTransactions(tx).DelByServiceID,
 		db.GetManager().ServiceProbeDaoTransactions(tx).DELServiceProbesByServiceID,
 		db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteALLRelationByServiceID,
 		db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteAllPluginMappingPortByServiceID,
@@ -1736,6 +1737,16 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 		db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteLabelByServiceID,
 		db.GetManager().HTTPRuleDaoTransactions(tx).DeleteHTTPRuleByServiceID,
 		db.GetManager().TCPRuleDaoTransactions(tx).DeleteTCPRuleByServiceID,
+		db.GetManager().ThirdPartySvcDiscoveryCfgDaoTransactions(tx).DeleteByServiceID,
+		db.GetManager().EndpointsDaoTransactions(tx).DeleteByServiceID,
+	}
+	if err := GetGatewayHandler().DeleteTCPRuleByServiceIDWithTransaction(serviceID, tx); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if err := GetGatewayHandler().DeleteHTTPRuleByServiceIDWithTransaction(serviceID, tx); err != nil {
+		tx.Rollback()
+		return err
 	}
 	for _, del := range deleteServicePropertyFunc {
 		if err := del(serviceID); err != nil {
