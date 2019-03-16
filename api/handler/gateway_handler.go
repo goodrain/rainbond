@@ -29,6 +29,7 @@ type GatewayHandler interface {
 	AddHTTPRule(req *apimodel.AddHTTPRuleStruct) (string, error)
 	UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (string, error)
 	DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) (string, error)
+	DeleteHTTPRuleByServiceIDWithTransaction(sid string, tx *gorm.DB) error
 
 	AddCertificate(req *apimodel.AddHTTPRuleStruct, tx *gorm.DB) error
 	UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRule *dbmodel.HTTPRule, tx *gorm.DB) error
@@ -36,6 +37,7 @@ type GatewayHandler interface {
 	AddTCPRule(req *apimodel.AddTCPRuleStruct) (string, error)
 	UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort int) (string, error)
 	DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) (string, error)
+	DeleteTCPRuleByServiceIDWithTransaction(sid string, tx *gorm.DB) error
 
 	AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct, tx *gorm.DB) error
 

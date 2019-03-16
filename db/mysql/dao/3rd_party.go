@@ -96,10 +96,15 @@ func (e *EndpointDaoImpl) ListIsOnline(sid string) ([]*model.Endpoint, error) {
 
 // DelByUUID deletes endpoints matching uuid.
 func (e *EndpointDaoImpl) DelByUUID(uuid string) error {
-	if err := e.DB.Where("uuid=?", uuid).Delete(model.Endpoint{}).Error; err != nil {
+	if err := e.DB.Where("uuid=?", uuid).Delete(&model.Endpoint{}).Error; err != nil {
 		return err
 	}
 	return nil
+}
+
+// DeleteByServiceID delete endpoints based on service id.
+func(e *EndpointDaoImpl) DeleteByServiceID(sid string) error {
+	return e.DB.Where("service_id=?", sid).Delete(&model.Endpoint{}).Error
 }
 
 // ThirdPartySvcDiscoveryCfgDaoImpl implements ThirdPartySvcDiscoveryCfgDao
@@ -140,4 +145,9 @@ func (t *ThirdPartySvcDiscoveryCfgDaoImpl) GetByServiceID(sid string) (*model.Th
 		return nil, err
 	}
 	return &cfg, nil
+}
+
+// DeleteByServiceID delete discovery config based on service id.
+func(t *ThirdPartySvcDiscoveryCfgDaoImpl) DeleteByServiceID(sid string) error {
+	return t.DB.Where("service_id=?", sid).Delete(&model.ThirdPartySvcDiscoveryCfg{}).Error
 }

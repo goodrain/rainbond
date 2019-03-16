@@ -239,6 +239,7 @@ type TenantServiceConfigFileDao interface {
 	Dao
 	GetByVolumeName(sid, volumeName string) (*model.TenantServiceConfigFile, error)
 	DelByVolumeID(sid string, volumeName string) error
+	DelByServiceID(sid string) error
 }
 
 //TenantServiceLBMappingPortDao vs lb mapping port dao
@@ -394,7 +395,8 @@ type TCPRuleDao interface {
 	Dao
 	GetTCPRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.TCPRule, error)
 	GetTCPRuleByID(id string) (*model.TCPRule, error)
-	DeleteTCPRule(tcpRule *model.TCPRule) error
+	GetTCPRuleByServiceID(sid string) ([]*model.TCPRule, error)
+	DeleteByID(uuid string) error
 	DeleteTCPRuleByServiceID(serviceID string) error
 	ListByServiceID(serviceID string) ([]*model.TCPRule, error)
 }
@@ -421,6 +423,7 @@ type EndpointsDao interface {
 	DelByUUID(uuid string) error
 	List(sid string) ([]*model.Endpoint, error)
 	ListIsOnline(sid string) ([]*model.Endpoint, error)
+	DeleteByServiceID(sid string) error
 }
 
 // ThirdPartySvcDiscoveryCfgDao is an interface for defining method
@@ -428,6 +431,7 @@ type EndpointsDao interface {
 type ThirdPartySvcDiscoveryCfgDao interface {
 	Dao
 	GetByServiceID(sid string) (*model.ThirdPartySvcDiscoveryCfg, error)
+	DeleteByServiceID(sid string) error
 }
 
 // GwRuleConfigDao is the interface that wraps the required methods to execute

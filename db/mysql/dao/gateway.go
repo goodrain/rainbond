@@ -283,9 +283,21 @@ func (t *TCPRuleDaoTmpl) GetTCPRuleByID(id string) (*model.TCPRule, error) {
 	return result, nil
 }
 
-// DeleteTCPRule deletes model.TCPRule
-func (t *TCPRuleDaoTmpl) DeleteTCPRule(tcpRule *model.TCPRule) error {
-	return t.DB.Where("uuid = ?", tcpRule.UUID).Delete(tcpRule).Error
+// GetTCPRuleByServiceID gets a TCPRules based on service id.
+func (t *TCPRuleDaoTmpl) GetTCPRuleByServiceID(sid string) ([]*model.TCPRule, error) {
+	var result []*model.TCPRule
+	if err := t.DB.Where("service_id = ?", sid).Find(&result).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return result, nil
+}
+
+// DeleteByID deletes model.TCPRule
+func (t *TCPRuleDaoTmpl) DeleteByID(uuid string) error {
+	return t.DB.Where("uuid = ?", uuid).Delete(&model.TCPRule{}).Error
 }
 
 // DeleteTCPRuleByServiceID deletes model.TCPRule
