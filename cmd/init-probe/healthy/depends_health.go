@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -80,6 +81,9 @@ func NewDependServiceHealthController() (*DependServiceHealthController, error) 
 	}
 	if dependCount, err := strconv.Atoi(os.Getenv("DEPEND_SERVICE_COUNT")); err == nil {
 		dsc.dependServiceCount = dependCount
+	} else {
+		depServices := os.Getenv("DEPEND_SERVICE")
+		dsc.dependServiceCount = len(strings.Split(depServices, ","))
 	}
 	dsc.endpointClient = v2.NewEndpointDiscoveryServiceClient(cli)
 	return &dsc, nil
