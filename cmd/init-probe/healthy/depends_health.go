@@ -141,6 +141,7 @@ func (d *DependServiceHealthController) checkEDS() bool {
 			if host, ok := endpoint.Endpoints[0].LbEndpoints[0].HostIdentifier.(*endpointapi.LbEndpoint_Endpoint); ok {
 				if host.Endpoint != nil && host.Endpoint.HealthCheckConfig != nil {
 					readyLength++
+					logrus.Infof("depend service (%s) start complete, need waiting service count %d", endpoint.ClusterName, d.dependServiceCount-readyLength)
 				}
 			}
 		}

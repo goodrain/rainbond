@@ -27,7 +27,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/golang/glog"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
-	"github.com/goodrain/rainbond/gateway/v1"
+	v1 "github.com/goodrain/rainbond/gateway/v1"
 )
 
 var (
@@ -132,6 +132,9 @@ var nginxOffsetRegex = regexp.MustCompile("^[0-9]+[kKmMgG]{0,1}$")
 // isValidByteSize validates size units valid in nginx
 // http://nginx.org/en/docs/syntax.html
 func isValidByteSize(input interface{}, isOffset bool) bool {
+	if _, ok := input.(int); ok {
+		return true
+	}
 	s, ok := input.(string)
 	if !ok {
 		logrus.Errorf("expected an 'string' type but %T was returned", input)
