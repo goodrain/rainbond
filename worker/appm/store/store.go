@@ -198,11 +198,7 @@ func NewStore(clientset *kubernetes.Clientset,
 			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			//oep := old.(*corev1.Endpoints)
 			cep := cur.(*corev1.Endpoints)
-			logrus.Debugf("received update endpoints; name: %s", cep.GetName())
-			//if cep.ResourceVersion != oep.ResourceVersion &&
-			//	!reflect.DeepEqual(cep.Subsets, oep.Subsets) {
 
 			serviceID := cep.Labels["service_id"]
 			version := cep.Labels["version"]
