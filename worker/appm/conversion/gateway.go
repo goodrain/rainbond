@@ -452,10 +452,11 @@ func (a *AppServiceBuild) createInnerService(port *model.TenantServicesPort) *co
 	service.Name = fmt.Sprintf("service-%d-%d", port.ID, port.ContainerPort)
 	service.Namespace = a.service.TenantID
 	service.Labels = a.appService.GetCommonLabels(map[string]string{
-		"service_type":  "inner",
-		"name":          a.service.ServiceAlias + "Service",
-		"port_protocol": port.Protocol,
-		"version":       a.service.DeployVersion,
+		"service_type":   "inner",
+		"name":           a.service.ServiceAlias + "Service",
+		"name_with_port": fmt.Sprintf("%s%dService", a.service.ServiceAlias, port.ContainerPort),
+		"port_protocol":  port.Protocol,
+		"version":        a.service.DeployVersion,
 	})
 	if a.service.Replicas <= 1 {
 		service.Labels["rainbond.com/tolerate-unready-endpoints"] = "true"
@@ -487,13 +488,14 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 	service.Name = fmt.Sprintf("service-%d-%dout", port.ID, port.ContainerPort)
 	service.Namespace = a.service.TenantID
 	service.Labels = a.appService.GetCommonLabels(map[string]string{
-		"service_type":  "outer",
-		"name":          a.service.ServiceAlias + "ServiceOUT",
-		"tenant_name":   a.tenant.Name,
-		"protocol":      port.Protocol,
-		"port_protocol": port.Protocol,
-		"event_id":      a.eventID,
-		"version":       a.service.DeployVersion,
+		"service_type":   "outer",
+		"name":           a.service.ServiceAlias + "ServiceOUT",
+		"name_with_port": fmt.Sprintf("%s%dServiceOUT", a.service.ServiceAlias, port.ContainerPort),
+		"tenant_name":    a.tenant.Name,
+		"protocol":       port.Protocol,
+		"port_protocol":  port.Protocol,
+		"event_id":       a.eventID,
+		"version":        a.service.DeployVersion,
 	})
 	if a.service.Replicas <= 1 {
 		service.Labels["rainbond.com/tolerate-unready-endpoints"] = "true"

@@ -229,15 +229,17 @@ func (t *thirdparty) createK8sEndpoints(as *v1.AppService, epinfo []*v1.RbdEndpo
 				ep.Name = util.CreateEndpointsName(as.TenantName, as.ServiceAlias, epi.UUID)
 				ep.Name = epi.UUID
 				ep.Labels = as.GetCommonLabels(map[string]string{
-					"name":         as.ServiceAlias + "Service",
-					"service-kind": model.ServiceKindThirdParty.String(),
+					"name":           as.ServiceAlias + "Service",
+					"name_with_port": fmt.Sprintf("%s%dService", as.ServiceAlias, p.ContainerPort),
+					"service-kind":   model.ServiceKindThirdParty.String(),
 				})
 			}
 			if p.IsOuterService {
 				ep.Name = util.CreateEndpointsName(as.TenantName, as.ServiceAlias, epi.UUID) + "out"
 				ep.Labels = as.GetCommonLabels(map[string]string{
-					"name":         as.ServiceAlias + "ServiceOUT",
-					"service-kind": model.ServiceKindThirdParty.String(),
+					"name":           as.ServiceAlias + "ServiceOUT",
+					"name_with_port": fmt.Sprintf("%s%dServiceOUT", as.ServiceAlias, p.ContainerPort),
+					"service-kind":   model.ServiceKindThirdParty.String(),
 				})
 			}
 			ep.Labels["uuid"] = epi.UUID

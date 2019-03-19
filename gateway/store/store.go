@@ -379,7 +379,7 @@ func (s *k8sStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 		ep := item.(*corev1.Endpoints)
 
 		labels := ep.GetLabels()
-		name, ok := labels["name"]
+		name, ok := labels["name_with_port"]
 		if !ok {
 			logrus.Warningf("there is no name in the labels of corev1.Endpoints(%s/%s)",
 				ep.Namespace, ep.Name)
@@ -641,7 +641,7 @@ func (s *k8sStore) ingressIsValid(ing *extensions.Ingress) bool {
 		return false
 	}
 	endpointsList, err := s.client.CoreV1().Endpoints(ing.Namespace).List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("name=%s", labelname),
+		LabelSelector: fmt.Sprintf("name_with_port=%s", labelname),
 	})
 	if err != nil {
 		logrus.Warningf("selector: %s; error list endpoints: %v",
@@ -699,7 +699,7 @@ func (s *k8sStore) GetServiceNameLabelByKey(key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	name, ok := svc.Labels["name"]
+	name, ok := svc.Labels["name_with_port"]
 	if !ok {
 		return "", fmt.Errorf("label \"name\" not found")
 	}
