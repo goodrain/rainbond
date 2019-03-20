@@ -274,7 +274,7 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 	}
 	newAppService.Logger = logger
 	appService.SetUpgradePatch(newAppService)
-	err = m.controllerManager.StartController(controller.TypeUpgradeController, *appService)
+	err = m.controllerManager.StartController(controller.TypeUpgradeController, *newAppService)
 	if err != nil {
 		logrus.Errorf("Application run  vertical scaling(upgrade) controller failure:%s", err.Error())
 		logger.Info("Application run vertical scaling(upgrade) controller failure", controller.GetCallbackLoggerOption())
