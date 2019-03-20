@@ -154,19 +154,6 @@ func createUDPDefaultPluginContainer(serviceID string, envs []v1.EnvVar) v1.Cont
 	}
 }
 
-func getTCPMeshImageName() string {
-	if d := os.Getenv("TCPMESH_DEFAULT_IMAGE_NAME"); d != "" {
-		return d
-	}
-	return "goodrain.me/mesh_plugin"
-}
-func getProbeMeshImageName() string {
-	if d := os.Getenv("PROBE_MESH_IMAGE_NAME"); d != "" {
-		return d
-	}
-	return "goodrain.me/rbd-init-probe"
-}
-
 func createTCPDefaultPluginContainer(serviceID, pluginID string, envs []v1.EnvVar) v1.Container {
 	envs = append(envs, v1.EnvVar{Name: "PLUGIN_ID", Value: pluginID})
 	dockerBridgeIP, xdsHostPort := getXDSHostIPAndPort()
@@ -175,7 +162,7 @@ func createTCPDefaultPluginContainer(serviceID, pluginID string, envs []v1.EnvVa
 	return v1.Container{
 		Name:      "default-tcpmesh-" + serviceID[len(serviceID)-20:],
 		Env:       envs,
-		Image:     getTCPMeshImageName(),
+		Image:     typesv1.GetTCPMeshImageName(),
 		Resources: createAdapterResources(128, 500),
 	}
 }
@@ -188,7 +175,7 @@ func createProbeMeshInitContainer(serviceID, pluginID, serviceAlias string, envs
 	return v1.Container{
 		Name:      "probe-mesh-" + serviceID[len(serviceID)-20:],
 		Env:       envs,
-		Image:     getProbeMeshImageName(),
+		Image:     typesv1.GetProbeMeshImageName(),
 		Resources: createAdapterResources(128, 500),
 	}
 }
