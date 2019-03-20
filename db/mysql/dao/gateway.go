@@ -80,7 +80,7 @@ func (c *CertificateDaoImpl) GetCertificateByID(certificateID string) (*model.Ce
 	var certificate model.Certificate
 	if err := c.DB.Where("uuid = ?", certificateID).Find(&certificate).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return &certificate, nil
+			return nil, nil
 		}
 		logrus.Errorf("error getting certificate by id: %s", err.Error())
 		return nil, err
