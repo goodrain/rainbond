@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -80,6 +81,9 @@ func NewDependServiceHealthController() (*DependServiceHealthController, error) 
 	}
 	if dependCount, err := strconv.Atoi(os.Getenv("DEPEND_SERVICE_COUNT")); err == nil {
 		dsc.dependServiceCount = dependCount
+	} else {
+		depServices := os.Getenv("DEPEND_SERVICE")
+		dsc.dependServiceCount = len(strings.Split(depServices, ","))
 	}
 	dsc.endpointClient = v2.NewEndpointDiscoveryServiceClient(cli)
 	return &dsc, nil
@@ -137,6 +141,7 @@ func (d *DependServiceHealthController) checkEDS() bool {
 			if host, ok := endpoint.Endpoints[0].LbEndpoints[0].HostIdentifier.(*endpointapi.LbEndpoint_Endpoint); ok {
 				if host.Endpoint != nil && host.Endpoint.HealthCheckConfig != nil {
 					readyLength++
+					logrus.Infof("depend service (%s) start complete, need waiting service count %d", endpoint.ClusterName, d.dependServiceCount-readyLength)
 				}
 			}
 		}

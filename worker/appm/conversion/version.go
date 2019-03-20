@@ -196,6 +196,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 				Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
 			}
 			envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: Depend})
+			envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliass))})
 			as.NeedProxy = true
 		}
 	}
