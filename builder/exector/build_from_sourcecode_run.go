@@ -254,7 +254,7 @@ func (i *SourceCodeBuildItem) prepare() error {
 	if err := util.CheckAndCreateDir(i.RepoInfo.GetCodeHome()); err != nil {
 		return err
 	}
-	if i.BuildEnvs["NO_CACHE"] == "true" {
+	if _, ok := i.BuildEnvs["NO_CACHE"]; ok {
 		if !util.DirIsEmpty(i.RepoInfo.GetCodeHome()) {
 			os.RemoveAll(i.RepoInfo.GetCodeHome())
 		}
