@@ -20,6 +20,9 @@ type Logger interface {
 	// Infof logs a formatted informational message.
 	Infof(format string, args ...interface{})
 
+	// Debugf logs a formatted informational message.
+	Debugf(format string, args ...interface{})
+
 	// Errorf logs a formatted error message.
 	Errorf(format string, args ...interface{})
 }
