@@ -81,7 +81,7 @@ func upstreamClusters(serviceAlias, namespace string, dependsServices []*api_mod
 			if _, ok := clusterConfig[clusterName]; ok {
 				return envoyv2.GetOptionValues(clusterConfig[clusterName].Options)
 			}
-			return d
+			return envoyv2.GetOptionValues(nil)
 		}
 		options := getOptions()
 		outlierDetaction := envoyv2.CreatOutlierDetection(options)
