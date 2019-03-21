@@ -290,6 +290,9 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 		if err != nil {
 			return nil, nil, fmt.Errorf("Cant not get certificate by id(%s): %v", rule.CertificateID, err)
 		}
+		if cert == nil || strings.TrimSpace(cert.Certificate) == "" || strings.TrimSpace(cert.PrivateKey) == "" {
+			return nil, nil, fmt.Errorf("Rule id: %s; certificate not found", rule.UUID)
+		}
 		// create secret
 		sec = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
