@@ -103,7 +103,7 @@ func (e *EndpointDaoImpl) DelByUUID(uuid string) error {
 }
 
 // DeleteByServiceID delete endpoints based on service id.
-func(e *EndpointDaoImpl) DeleteByServiceID(sid string) error {
+func (e *EndpointDaoImpl) DeleteByServiceID(sid string) error {
 	return e.DB.Where("service_id=?", sid).Delete(&model.Endpoint{}).Error
 }
 
@@ -148,6 +148,6 @@ func (t *ThirdPartySvcDiscoveryCfgDaoImpl) GetByServiceID(sid string) (*model.Th
 }
 
 // DeleteByServiceID delete discovery config based on service id.
-func(t *ThirdPartySvcDiscoveryCfgDaoImpl) DeleteByServiceID(sid string) error {
+func (t *ThirdPartySvcDiscoveryCfgDaoImpl) DeleteByServiceID(sid string) error {
 	return t.DB.Where("service_id=?", sid).Delete(&model.ThirdPartySvcDiscoveryCfg{}).Error
 }

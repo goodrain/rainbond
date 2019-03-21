@@ -4,8 +4,8 @@
 package dao
 
 import (
-	gomock "github.com/rafrombrc/gomock/gomock"
 	model "github.com/goodrain/rainbond/db/model"
+	gomock "github.com/rafrombrc/gomock/gomock"
 	time "time"
 )
 

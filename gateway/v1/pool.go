@@ -34,7 +34,7 @@ type Pool struct {
 	UpstreamHashBy    string            `json:"upstream_hash_by"`
 	LeastConn         bool              `json:"least_conn"`
 	Monitors          []Monitor         `json:"monitors"`
-	Nodes             []*Node `json:"nodes"`
+	Nodes             []*Node           `json:"nodes"`
 }
 
 //Equals -

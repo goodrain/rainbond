@@ -22,8 +22,8 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/appm/f"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 type applyRuleController struct {
