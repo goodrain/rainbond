@@ -245,19 +245,19 @@ func (v2 *V2) prometheusRouter() chi.Router {
 func (v2 *V2) appRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/export", controller.GetManager().ExportApp)
-	r.Get("/export/{eventId}", controller.GetManager().ExportApp)
+	r.Get("/export/{eventID}", controller.GetManager().ExportApp)
 
 	r.Get("/download/{format}/{fileName}", controller.GetManager().Download)
-	r.Post("/upload/{event_id}", controller.GetManager().NewUpload)
-	r.Options("/upload/{event_id}", controller.GetManager().NewUpload)
+	r.Post("/upload/{eventID}", controller.GetManager().NewUpload)
+	r.Options("/upload/{eventID}", controller.GetManager().NewUpload)
 
-	r.Post("/import/ids/{eventId}", controller.GetManager().ImportID)
-	r.Get("/import/ids/{eventId}", controller.GetManager().ImportID)
-	r.Delete("/import/ids/{eventId}", controller.GetManager().ImportID)
+	r.Post("/import/ids/{eventID}", controller.GetManager().ImportID)
+	r.Get("/import/ids/{eventID}", controller.GetManager().ImportID)
+	r.Delete("/import/ids/{eventID}", controller.GetManager().ImportID)
 
 	r.Post("/import", controller.GetManager().ImportApp)
-	r.Get("/import/{eventId}", controller.GetManager().ImportApp)
-	r.Delete("/import/{eventId}", controller.GetManager().ImportApp)
+	r.Get("/import/{eventID}", controller.GetManager().ImportApp)
+	r.Delete("/import/{eventID}", controller.GetManager().ImportApp)
 	return r
 }
 
