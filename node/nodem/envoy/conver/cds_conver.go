@@ -66,8 +66,8 @@ func OneNodeCluster(serviceAlias, namespace string, configs *corev1.ConfigMap, s
 func upstreamClusters(serviceAlias, namespace string, dependsServices []*api_model.BaseService, services []*corev1.Service) (cdsClusters []*v2.Cluster) {
 	var clusterConfig = make(map[string]*api_model.BaseService, len(dependsServices))
 	for i, dService := range dependsServices {
-		clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, dService.DependServiceAlias, dService.Port)
-		clusterConfig[clusterName] = dependsServices[i]
+		depServiceIndex := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, dService.DependServiceAlias, dService.Port)
+		clusterConfig[depServiceIndex] = dependsServices[i]
 	}
 	for _, service := range services {
 		inner, ok := service.Labels["service_type"]
@@ -76,13 +76,14 @@ func upstreamClusters(serviceAlias, namespace string, dependsServices []*api_mod
 		if !ok || inner != "inner" {
 			continue
 		}
-		clusterName := fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, GetServiceAliasByService(service), port.Port)
 		getOptions := func() (d envoyv2.RainbondPluginOptions) {
-			if _, ok := clusterConfig[clusterName]; ok {
-				return envoyv2.GetOptionValues(clusterConfig[clusterName].Options)
+			depServiceIndex := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port.TargetPort.IntVal)
+			if _, ok := clusterConfig[depServiceIndex]; ok {
+				return envoyv2.GetOptionValues(clusterConfig[depServiceIndex].Options)
 			}
 			return envoyv2.GetOptionValues(nil)
 		}
+		clusterName := fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, GetServiceAliasByService(service), port.Port)
 		options := getOptions()
 		outlierDetaction := envoyv2.CreatOutlierDetection(options)
 		circuitBreaker := envoyv2.CreateCircuitBreaker(options)
