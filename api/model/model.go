@@ -1216,7 +1216,7 @@ type AddTenantServiceEnvVar struct {
 	AttrName      string `validate:"env_name|required" json:"env_name"`
 	AttrValue     string `validate:"env_value|required" json:"env_value"`
 	IsChange      bool   `validate:"is_change|bool" json:"is_change"`
-	Scope         string `validate:"scope|in:outer,inner,both" json:"scope"`
+	Scope         string `validate:"scope|in:outer,inner,both,build" json:"scope"`
 }
 
 //DelTenantServiceEnvVar  应用环境变量
@@ -1229,7 +1229,7 @@ type DelTenantServiceEnvVar struct {
 	AttrName      string `validate:"env_name|required" json:"env_name"`
 	AttrValue     string `validate:"env_value" json:"env_value"`
 	IsChange      bool   `validate:"is_change|bool" json:"is_change"`
-	Scope         string `validate:"scope|in:outer,inner,both" json:"scope"`
+	Scope         string `validate:"scope|in:outer,inner,both,build" json:"scope"`
 }
 
 //ServicePorts service ports

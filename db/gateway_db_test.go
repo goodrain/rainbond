@@ -269,7 +269,22 @@ func TestGwRuleConfig(t *testing.T) {
 	if err := dbm.GwRuleConfigDao().AddModel(cfg2); err != nil {
 		t.Fatalf("error create rule config: %v", err)
 	}
+	list, err := dbm.GwRuleConfigDao().ListByRuleID(rid)
+	if err != nil {
+		t.Fatalf("error listing configs: %v", err)
+	}
+	if list == nil && len(list) != 2 {
+		t.Errorf("Expected 2 for the length fo list, but returned %d", len(list))
+	} 
+
 	if err := dbm.GwRuleConfigDao().DeleteByRuleID(rid); err != nil {
 		t.Fatalf("error deleting rule config: %v", err)
 	}
+	list, err = dbm.GwRuleConfigDao().ListByRuleID(rid)
+	if err != nil {
+		t.Fatalf("error listing configs: %v", err)
+	}
+	if list != nil && len(list) > 0 {
+		t.Errorf("Expected empty for list, but returned %+v", list)
+	} 
 }

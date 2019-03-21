@@ -15,7 +15,11 @@ http {
     lua_package_cpath "/run/nginx/lua/vendor/so/?.so;/usr/local/openresty/luajit/lib/?.so;;";
     lua_package_path "/run/nginx/lua/?.lua;;";
     lua_shared_dict configuration_data {{$h.UpstreamsDict.Num}}{{$h.UpstreamsDict.Unit}};
+
     underscores_in_headers on;
+    proxy_headers_hash_max_size 51200;
+    proxy_headers_hash_bucket_size 6400;
+
     init_by_lua_block {
         require("resty.core")
         collectgarbage("collect")

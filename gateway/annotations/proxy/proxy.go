@@ -17,6 +17,8 @@ limitations under the License.
 package proxy
 
 import (
+	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/gateway/controller/config"
 	extensions "k8s.io/api/extensions/v1beta1"
 
@@ -26,7 +28,7 @@ import (
 
 // Config returns the proxy timeout to use in the upstream server/s
 type Config struct {
-	BodySize          string            `json:"bodySize"`
+	BodySize          int            `json:"bodySize"`
 	ConnectTimeout    int               `json:"connectTimeout"`
 	SendTimeout       int               `json:"sendTimeout"`
 	ReadTimeout       int               `json:"readTimeout"`
@@ -171,7 +173,7 @@ func (a proxy) Parse(ing *extensions.Ingress) (interface{}, error) {
 		config.CookieDomain = defBackend.ProxyCookieDomain
 	}
 
-	config.BodySize, err = parser.GetStringAnnotation("proxy-body-size", ing)
+	config.BodySize, err = parser.GetIntAnnotation("proxy-body-size", ing)
 	if err != nil {
 		config.BodySize = defBackend.ProxyBodySize
 	}
@@ -206,12 +208,18 @@ func (a proxy) Parse(ing *extensions.Ingress) (interface{}, error) {
 		config.ProxyBuffering = defBackend.ProxyBuffering
 	}
 
-	config.SetHeaders = defBackend.ProxySetHeaders
+	config.SetHeaders = make(map[string]string)
+	for k, v := range defBackend.ProxySetHeaders {
+		config.SetHeaders[k] = v
+	}
 	setHeaders, err := parser.GetStringAnnotationWithPrefix("set-header-", ing)
+	logrus.Debugf("set headers from anns: %+v", setHeaders)
 	if err != nil {
-		for k, v := range setHeaders {
-			config.SetHeaders[k] = v
-		}
+		logrus.Warningf("Ingress Key: %s; error parsing set-header: %v",
+			fmt.Sprintf("%s/%s", ing.GetNamespace(), ing.GetName()), err)
+	}
+	for k, v := range setHeaders {
+		config.SetHeaders[k] = v
 	}
 
 	return config, nil

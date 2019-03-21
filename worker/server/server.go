@@ -21,7 +21,9 @@ package server
 import (
 	"context"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -240,14 +242,35 @@ func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.Serv
 		return new(pb.ThirdPartyEndpoints), nil
 	}
 	var pbeps []*pb.ThirdPartyEndpoint
-	for _, ep := range as.GetRbdEndpionts() {
+	exists := make(map[string]bool)
+	logrus.Debugf("Status from endpoints: %+v", as.GetEndpoints())
+	for _, ep := range as.GetEndpoints() {
+		if exists[ep.GetLabels()["uuid"]] {
+			continue
+		}
+		exists[ep.GetLabels()["uuid"]] = true
 		pbep := &pb.ThirdPartyEndpoint{
-			Uuid:     ep.UUID,
-			Sid:      ep.Sid,
-			Ip:       ep.IP,
-			Port:     int32(ep.Port),
-			Status:   ep.Status,
-			IsOnline: ep.IsOnline,
+			Uuid: ep.GetLabels()["uuid"],
+			Sid:  ep.GetLabels()["service_id"],
+			Ip:   ep.GetLabels()["ip"],
+			Port: func(item *corev1.Endpoints) int32 {
+				realport, _ := strconv.ParseBool(item.GetLabels()["realport"])
+				if realport {
+					portstr := item.GetLabels()["port"]
+					port, _ := strconv.Atoi(portstr)
+					return int32(port)
+				}
+				return 0
+			}(ep),
+			Status: func(item *corev1.Endpoints) string {
+				if item.Subsets == nil || len(item.Subsets) == 0 {
+					return "unknown"
+				}
+				if item.Subsets[0].Addresses == nil || len(item.Subsets[0].Addresses) == 0 {
+					return "unhealthy"
+				}
+				return "healthy"
+			}(ep),
 		}
 		pbeps = append(pbeps, pbep)
 	}
@@ -263,12 +286,10 @@ func (r *RuntimeServer) AddThirdPartyEndpoint(ctx context.Context, re *pb.AddThi
 		return new(pb.Empty), nil
 	}
 	rbdep := &v1.RbdEndpoint{
-		UUID:     re.Uuid,
-		Sid:      re.Sid,
-		IP:       re.Ip,
-		Port:     int(re.Port),
-		Status:   "unknown",
-		IsOnline: re.IsOnline,
+		UUID: re.Uuid,
+		Sid:  re.Sid,
+		IP:   re.Ip,
+		Port: int(re.Port),
 	}
 	r.updateCh.In() <- discovery.Event{
 		Type: discovery.CreateEvent,

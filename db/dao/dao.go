@@ -435,4 +435,5 @@ type ThirdPartySvcDiscoveryCfgDao interface {
 type GwRuleConfigDao interface {
 	Dao
 	DeleteByRuleID(rid string) error
+	ListByRuleID(rid string) ([]*model.GwRuleConfig, error)
 }

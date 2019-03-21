@@ -1,5 +1,5 @@
 // RAINBOND, Application Management Platform
-// Copyright (C) 2014-2017 Goodrain Co., Ltd.
+// Copyright (C) 2014-2019 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,51 +16,27 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package cmd
+package cluster
 
 import (
-	//"fmt"
-	// "io/ioutil"
-	"os/exec"
+	"testing"
 
-	//"github.com/goodrain/rainbond/event"
-
-	//"github.com/Sirupsen/logrus"
-	"os"
-
-	"github.com/urfave/cli"
-	//"github.com/goodrain/rainbond/builder/sources"
-	//"github.com/goodrain/rainbond/grctl/clients"
-	//"flag"
+	"github.com/goodrain/rainbond/cmd/gateway/option"
 )
 
-//NewCmdReset grctl reset
-func NewCmdReset() cli.Command {
-	c := cli.Command{
-		Name:  "reset",
-		Usage: "reset the current node",
-		Action: func(c *cli.Context) error {
-			resetCurrentNode(c)
-			return nil
+func TestCreateNodeManager(t *testing.T) {
+	nm, err := CreateNodeManager(option.Config{
+		ListenPorts: option.ListenPorts{
+			HTTP: 80,
 		},
-	}
-	return c
-}
-
-func resetCurrentNode(c *cli.Context) {
-
-	// stop rainbond services
-	//fmt.Println("Start stop rainbond services")
-	cmd := exec.Command("grclis", "reset")
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-
-	err := cmd.Run()
+	})
 	if err != nil {
-		println(err.Error())
-		return
+		t.Fatal(err)
 	}
-	return
+	t.Log(nm.localV4Hosts)
+	if ok := nm.checkGatewayPort(); !ok {
+		t.Log("port check is not pass")
+	} else {
+		t.Log("port check is passed")
+	}
 }

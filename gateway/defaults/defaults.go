@@ -33,7 +33,7 @@ type Backend struct {
 
 	// http://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size
 	// Sets the maximum allowed size of the client request body
-	ProxyBodySize string `json:"proxy-body-size"`
+	ProxyBodySize int `json:"proxy-body-size"`
 
 	// Defines a timeout for establishing a connection with a proxied server.
 	// It should be noted that this timeout cannot usually exceed 75 seconds.

@@ -27,7 +27,7 @@ import (
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/worker/discover/model"
-	validator "github.com/thedevsaddam/govalidator"
+	"github.com/thedevsaddam/govalidator"
 
 	"time"
 
@@ -589,7 +589,7 @@ func (t *TenantStruct) DeleteBuildVersion(w http.ResponseWriter, r *http.Request
 
 			}
 		}
-		if val.DeliveredType == "slug" && val.FinalStatus == "failure" {
+		if val.FinalStatus == "failure" {
 			if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(val); err != nil {
 				httputil.ReturnError(r, w, 500, fmt.Sprintf("delete build version erro, %v", err))
 				return

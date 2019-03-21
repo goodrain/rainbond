@@ -25,7 +25,7 @@ import (
 const (
 	// http://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size
 	// Sets the maximum allowed size of the client request body
-	bodySize = "1m"
+	bodySize = 1
 
 	// http://nginx.org/en/docs/ngx_core_module.html#error_log
 	// Configures logging level [debug | info | notice | warn | error | crit | alert | emerg]
@@ -83,7 +83,7 @@ func NewDefault() Configuration {
 	cfg := Configuration{
 		Backend: defaults.Backend{
 			ProxyBodySize:          bodySize,
-			ProxyConnectTimeout:    5,
+			ProxyConnectTimeout:    75,
 			ProxyReadTimeout:       60,
 			ProxySendTimeout:       60,
 			ProxyBuffersNumber:     4,

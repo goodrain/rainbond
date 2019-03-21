@@ -1,10 +1,17 @@
-{{ range $srv := . }}
+{{ $http_port := .Set.ListenPorts.HTTP }}
+{{ range $srv := .Servers }}
 {{ if $srv.ForceSSLRedirect }}
 server {
-    listen    80;
+    listen {{ $http_port }};
     {{ if $srv.ServerName }}server_name    {{$srv.ServerName}};{{end}}
-
-    rewrite ^ https://$http_host$request_uri? permanent;
+    {{ range $loc := $srv.Locations }}
+    location {{$loc.Path}} {
+        rewrite ^ https://$http_host$request_uri? permanent;
+        {{ if $loc.DisableAccessLog }}
+        access_log off;
+        {{ end }}
+    }
+    {{ end }}
 }
 {{ end }}
 server {
@@ -75,7 +82,7 @@ server {
         proxy_cookie_path                       {{ $loc.Proxy.CookiePath }};
 
         {{ if isValidByteSize $loc.Proxy.BodySize true }}
-        client_max_body_size        {{ $loc.Proxy.BodySize }};
+        client_max_body_size        {{ $loc.Proxy.BodySize }}m;
         {{ end }}
 
         {{ if $loc.DisableAccessLog }}

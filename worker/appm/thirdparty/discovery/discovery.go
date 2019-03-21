@@ -19,9 +19,11 @@
 package discovery
 
 import (
+	"fmt"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	"strings"
 )
 
 // EventType type of event
@@ -33,9 +35,9 @@ const (
 	// UpdateEvent event associated with an object update in a service discovery center
 	UpdateEvent EventType = "UPDATE"
 	// DeleteEvent event associated when an object is removed from a service discovery center
-	DeleteEvent  EventType = "DELETE"
-	HealthEvent  EventType = "HEALTH"
-	OfflineEvent EventType = "OFFLINE"
+	DeleteEvent    EventType = "DELETE"
+	UnhealthyEvent EventType = "UNHEALTHY"
+	HealthEvent    EventType = "HEALTH"
 )
 
 // Event holds the context of an event.
@@ -56,10 +58,11 @@ type Discoverier interface {
 // NewDiscoverier creates a new Discoverier.
 func NewDiscoverier(cfg *model.ThirdPartySvcDiscoveryCfg,
 	updateCh *channels.RingChannel,
-	stopCh chan struct{}) Discoverier {
-	switch model.DiscorveryType(cfg.Type) {
-	case model.DiscorveryTypeEtcd:
-		return NewEtcd(cfg, updateCh, stopCh)
+	stopCh chan struct{}) (Discoverier, error) {
+	switch strings.ToLower(cfg.Type) {
+	case strings.ToLower(string(model.DiscorveryTypeEtcd)):
+		return NewEtcd(cfg, updateCh, stopCh), nil
+	default:
+		return nil, fmt.Errorf("Unsupported discovery type: %s", cfg.Type)
 	}
-	return nil
 }

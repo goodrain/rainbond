@@ -96,9 +96,8 @@ func (e *etcd) Fetch() ([]*v1.RbdEndpoint, error) {
 	}
 
 	type ep struct {
-		IP       string `json:"ip"`
-		Port     int    `json:"port"`
-		IsOnline bool   `json:"is_online"`
+		IP   string `json:"ip"`
+		Port int    `json:"port"`
 	}
 	var res []*v1.RbdEndpoint
 	for _, kv := range resp.Kvs {
@@ -110,8 +109,7 @@ func (e *etcd) Fetch() ([]*v1.RbdEndpoint, error) {
 			UUID:     strings.Replace(string(kv.Key), e.key+"/", "", -1),
 			IP:       ep.IP,
 			Port:     ep.Port,
-			Status:   "unknown",
-			IsOnline: ep.IsOnline,
+			IsOnline: true,
 		})
 	}
 	if resp.Header != nil {
@@ -158,9 +156,8 @@ func (e *etcd) Watch() { // todo: separate stop
 					}
 				case mvccpb.PUT:
 					type ep struct {
-						IP       string `json:"ip"`
-						Port     int    `json:"port"`
-						IsOnline bool   `json:"is_online"`
+						IP   string `json:"ip"`
+						Port int    `json:"port"`
 					}
 					var foo ep
 					logrus.Infof("received data: %s", string(event.Kv.Value))
@@ -173,7 +170,7 @@ func (e *etcd) Watch() { // todo: separate stop
 						Sid:      e.sid,
 						IP:       foo.IP,
 						Port:     foo.Port,
-						IsOnline: foo.IsOnline,
+						IsOnline: true,
 					}
 					if event.IsCreate() {
 						e.updateCh.In() <- Event{

@@ -20,6 +20,7 @@ package controller
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/api/middleware"
 	"net/http"
 	"net/url"
 	"strings"
@@ -251,11 +252,6 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 	values := url.Values{}
 	if req.Port != 0 && req.Port <= g.cfg.MinExtPort {
 		values["port"] = []string{fmt.Sprintf("The port field should be greater than %d", g.cfg.MinExtPort)}
-	} else {
-		// check if the port exists
-		if h.PortExists(req.Port) {
-			values["port"] = []string{fmt.Sprintf("The port(%v) already exists", req.Port)}
-		}
 	}
 	if len(req.RuleExtensions) > 0 {
 		for _, re := range req.RuleExtensions {
@@ -335,8 +331,17 @@ func (g *GatewayStruct) RuleConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := handler.GetGatewayHandler().RuleConfig(&req); err != nil {
-	httputil.ReturnError(r, w, 500, fmt.Sprintf("Rule id: %s; error update rule config: %v", req.RuleID, err))
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Rule id: %s; error update rule config: %v", req.RuleID, err))
 		return
 	}
+
+	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
+		"service_id": sid,
+		"action":     "update-rule-config",
+	}); err != nil {
+		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
+	}
+
 	httputil.ReturnSuccess(r, w, "success")
 }

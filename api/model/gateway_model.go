@@ -127,15 +127,17 @@ type RuleConfigReq struct {
 
 // Body is a embeded sturct of RuleConfigReq.
 type Body struct {
-	ProxyConnectTimeout int               `json:"proxy_connect_timeout,omitempty" validate:"proxy_connect_timeout|required"`
-	ProxySendTimeout    int               `json:"proxy_send_timeout,omitempty" validate:"proxy_send_timeout|required"`
-	ProxyReadTimeout    int               `json:"proxy_read_timeout,omitempty" validate:"proxy_read_timeout|required"`
-	ProxyBodySize       string            `json:"proxy_body_size,omitempty" validate:"proxy_body_size|required"`
-	ProxyBuffersNumber  int               `json:"proxy_buffers_number,omitempty" validate:"proxy_buffers_number|required"`
-	ProxyBufferSize     string            `json:"proxy_buffer_size,omitempty" validate:"proxy_buffer_size|required"`
-	ProxyBuffering      string            `json:"proxy_buffering,omitempty" validate:"proxy_buffering|required|in:on,off"`
-	SetHeaders          map[string]string `json:"set_headers,omitempty" `
-	Rewrites            []Rewrite         `json:"rewrite,omitempty"`
+	ProxyConnectTimeout int          `json:"proxy_connect_timeout,omitempty" validate:"proxy_connect_timeout|required"`
+	ProxySendTimeout    int          `json:"proxy_send_timeout,omitempty" validate:"proxy_send_timeout|required"`
+	ProxyReadTimeout    int          `json:"proxy_read_timeout,omitempty" validate:"proxy_read_timeout|required"`
+	ProxyBodySize       int          `json:"proxy_body_size,omitempty" validate:"proxy_body_size|required"`
+	SetHeaders          []*SetHeader `json:"set_headers,omitempty" `
+	Rewrites            []*Rewrite   `json:"rewrite,omitempty"`
+}
+
+type SetHeader struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // Rewrite is a embeded sturct of Body.

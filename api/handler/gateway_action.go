@@ -164,18 +164,10 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (stri
 	if req.Domain != "" {
 		rule.Domain = req.Domain
 	}
-	if req.Path != "" {
-		rule.Path = req.Path
-	}
-	if req.Header != "" {
-		rule.Header = req.Header
-	}
-	if req.Cookie != "" {
-		rule.Cookie = req.Cookie
-	}
-	if req.Weight > 0 {
-		rule.Weight = req.Weight
-	}
+	rule.Path = req.Path
+	rule.Header = req.Header
+	rule.Cookie = req.Cookie
+	rule.Weight = req.Weight
 	if req.IP != "" {
 		rule.IP = req.IP
 	}
@@ -315,6 +307,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 	if len(req.RuleExtensions) > 0 {
 		// delete old rule extensions
 		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(tcpRule.UUID); err != nil {
+			logrus.Debugf("TCP rule id: %s;error delete rule extension: %v", tcpRule.UUID, err)
 			tx.Rollback()
 			return "", err
 		}
@@ -327,14 +320,12 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 			}
 			if err := g.dbmanager.RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
 				tx.Rollback()
+				logrus.Debugf("TCP rule id: %s;error add rule extension: %v", tcpRule.UUID, err)
 				return "", err
 			}
 		}
 	}
 	// update tcp rule
-	if req.ServiceID != "" {
-		tcpRule.ServiceID = req.ServiceID
-	}
 	if req.ContainerPort != 0 {
 		tcpRule.ContainerPort = req.ContainerPort
 	}
@@ -346,6 +337,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 		port, err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).GetLBMappingPortByServiceIDAndPort(
 			tcpRule.ServiceID, tcpRule.Port)
 		if err != nil {
+			logrus.Debugf("TCP rule id: %s;error getting lb mapping port: %v", tcpRule.UUID, err)
 			tx.Rollback()
 			return "", err
 		}
@@ -353,6 +345,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 		// update port
 		port.Port = req.Port
 		if err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).UpdateModel(port); err != nil {
+			logrus.Debugf("TCP rule id: %s;error update lb mapping port: %v", tcpRule.UUID, err)
 			tx.Rollback()
 			return "", err
 		}
@@ -360,13 +353,18 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 	} else {
 		logrus.Warningf("Expected external port > %d, but got %d", minPort, req.Port)
 	}
+	if req.ServiceID != "" {
+		tcpRule.ServiceID = req.ServiceID
+	}
 	if err := g.dbmanager.TCPRuleDaoTransactions(tx).UpdateModel(tcpRule); err != nil {
+		logrus.Debugf("TCP rule id: %s;error updating tcp rule: %v", tcpRule.UUID, err)
 		tx.Rollback()
 		return "", err
 	}
 	// end transaction
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
+		logrus.Debugf("TCP rule id: %s;error end transaction %v", tcpRule.UUID, err)
 		return "", err
 	}
 	return tcpRule.ServiceID, nil
@@ -548,44 +546,34 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 	// TODO: use reflect to read the field of req, huangrh
 	configs = append(configs, &model.GwRuleConfig{
 		RuleID: req.RuleID,
-		Key: "proxy-connect-timeout",
-		Value: strconv.Itoa(req.Body.ProxyConnectTimeout),
+		Key:    "proxy-connect-timeout",
+		Value:  strconv.Itoa(req.Body.ProxyConnectTimeout),
 	})
 	configs = append(configs, &model.GwRuleConfig{
 		RuleID: req.RuleID,
-		Key: "proxy-send-timeout",
-		Value: strconv.Itoa(req.Body.ProxySendTimeout),
+		Key:    "proxy-send-timeout",
+		Value:  strconv.Itoa(req.Body.ProxySendTimeout),
 	})
 	configs = append(configs, &model.GwRuleConfig{
 		RuleID: req.RuleID,
-		Key: "proxy-read-timeout",
-		Value: strconv.Itoa(req.Body.ProxyReadTimeout),
+		Key:    "proxy-read-timeout",
+		Value:  strconv.Itoa(req.Body.ProxyReadTimeout),
 	})
 	configs = append(configs, &model.GwRuleConfig{
 		RuleID: req.RuleID,
-		Key: "proxy-buffers-number",
-		Value: strconv.Itoa(req.Body.ProxyBuffersNumber),
+		Key:    "proxy-body-size",
+		Value:  strconv.Itoa(req.Body.ProxyBodySize),
 	})
-	configs = append(configs, &model.GwRuleConfig{
-		RuleID: req.RuleID,
-		Key: "proxy-buffer-size",
-		Value: req.Body.ProxyBufferSize,
-	})
-	configs = append(configs, &model.GwRuleConfig{
-		RuleID: req.RuleID,
-		Key: "proxy-buffering",
-		Value: req.Body.ProxyBuffering,
-	})
-	configs = append(configs, &model.GwRuleConfig{
-		RuleID: req.RuleID,
-		Key: "proxy-body-size",
-		Value: strconv.Itoa(req.Body.ProxyBuffersNumber),
-	})
-	for key, value := range req.Body.SetHeaders {
+	setheaders := make(map[string]string)
+	for _, item := range req.Body.SetHeaders {
+		// filter same key
+		setheaders["set-header-" + item.Key] = item.Value
+	}
+	for k, v := range setheaders {
 		configs = append(configs, &model.GwRuleConfig{
 			RuleID: req.RuleID,
-			Key: "set-header-" + key,
-			Value: value,
+			Key:    k,
+			Value:  v,
 		})
 	}
 
