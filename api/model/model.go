@@ -830,6 +830,7 @@ type AddNodeLabelStruct struct {
 	}
 }
 
+// LabelsStruct -
 type LabelsStruct struct {
 	Labels []LabelStruct `json:"labels"`
 }
@@ -1557,7 +1558,7 @@ type ImportAppStruct struct {
 
 //ServiceImage -
 type ServiceImage struct {
-	HubUrl      string `json:"hub_url"`
+	HubURL      string `json:"hub_url"`
 	HubUser     string `json:"hub_user"`
 	HubPassword string `json:"hub_password"`
 	NameSpace   string `json:"namespace"`
