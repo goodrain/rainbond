@@ -28,7 +28,7 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -155,14 +155,14 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 			if port.IsOuterService {
 				service := a.createOuterService(port)
 				services = append(services, service)
-				ings, secret, err := a.ApplyRules(port, service)
+				ings, secrs, err := a.ApplyRules(port, service)
 				if err != nil {
 					logrus.Debugf("error applying rules: %s", err.Error())
 					return nil, err
 				}
 				ingresses = append(ingresses, ings...)
-				if secret != nil {
-					secrets = append(secrets, secret)
+				if secrs != nil {
+					secrets = append(secrets, secrs...)
 				}
 			}
 		}
@@ -185,9 +185,9 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 
 // ApplyRules applies http rules and tcp rules
 func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
-	service *corev1.Service) ([]*extensions.Ingress, *corev1.Secret, error) {
+	service *corev1.Service) ([]*extensions.Ingress, []*corev1.Secret, error) {
 	var ingresses []*extensions.Ingress
-	var secret *corev1.Secret
+	var secrets []*corev1.Secret
 	httpRules, err := a.dbmanager.HTTPRuleDao().GetHTTPRuleByServiceIDAndContainerPort(port.ServiceID,
 		port.ContainerPort)
 	if err != nil {
@@ -203,7 +203,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 				continue
 			}
 			ingresses = append(ingresses, ing)
-			secret = sec
+			secrets = append(secrets, sec)
 		}
 	}
 
@@ -225,7 +225,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 		}
 	}
 
-	return ingresses, secret, nil
+	return ingresses, secrets, nil
 }
 
 // applyTCPRule applies stream rule into ingress
@@ -296,7 +296,7 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 		// create secret
 		sec = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      rule.UUID,
+				Name:      rule.UUID, // TODO: one cert, one secret
 				Namespace: a.tenant.UUID,
 				Labels:    a.appService.GetCommonLabels(),
 			},
