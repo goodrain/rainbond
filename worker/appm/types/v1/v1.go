@@ -20,13 +20,15 @@ package v1
 
 import (
 	"fmt"
+	"os"
+	"strconv"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
-	"k8s.io/api/apps/v1"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
-	"strconv"
 )
 
 // EventType type of event
@@ -567,4 +569,20 @@ type K8sResources struct {
 	Services  []*corev1.Service
 	Secrets   []*corev1.Secret
 	Ingresses []*extensions.Ingress
+}
+
+//GetTCPMeshImageName get tcp mesh image name
+func GetTCPMeshImageName() string {
+	if d := os.Getenv("TCPMESH_DEFAULT_IMAGE_NAME"); d != "" {
+		return d
+	}
+	return "goodrain.me/mesh_plugin"
+}
+
+//GetProbeMeshImageName get probe init mesh image name
+func GetProbeMeshImageName() string {
+	if d := os.Getenv("PROBE_MESH_IMAGE_NAME"); d != "" {
+		return d
+	}
+	return "goodrain.me/rbd-init-probe"
 }

@@ -1,5 +1,5 @@
 // RAINBOND, Application Management Platform
-// Copyright (C) 2014-2017 Goodrain Co., Ltd.
+// Copyright (C) 2014-2019 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,37 +19,32 @@
 package controller
 
 import (
-	"sync"
-
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/worker/appm/f"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/kubernetes"
 )
 
-type applyRuleController struct {
-	controllerID string
-	appService   []v1.AppService
-	manager      *Manager
-	stopChan     chan struct{}
-}
-
-// Begin begins applying rule
-func (a *applyRuleController) Begin() {
-	var wait sync.WaitGroup
-	for _, service := range a.appService {
-		go func(service v1.AppService) {
-			wait.Add(1)
-			defer wait.Done()
-			if err := f.ApplyOne(a.manager.client, &service); err != nil {
-				logrus.Errorf("apply rules for service %s failure: %s", service.ServiceAlias, err.Error())
+//CreateKubeService create kube service
+func CreateKubeService(client *kubernetes.Clientset, namespace string, services ...*corev1.Service) error {
+	var retryService []*corev1.Service
+	for i, service := range services {
+		_, err := client.CoreV1().Services(namespace).Create(service)
+		if err != nil {
+			if errors.IsAlreadyExists(err) {
+				continue
 			}
-		}(service)
+			retryService = append(retryService, services[i])
+		}
 	}
-	wait.Wait()
-	a.manager.callback(a.controllerID, nil)
-}
-
-func (a *applyRuleController) Stop() error {
-	close(a.stopChan)
+	//second attempt
+	for _, service := range retryService {
+		_, err := client.CoreV1().Services(namespace).Create(service)
+		if err != nil {
+			if errors.IsAlreadyExists(err) {
+				continue
+			}
+			return err
+		}
+	}
 	return nil
 }

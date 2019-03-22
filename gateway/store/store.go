@@ -21,15 +21,16 @@ package store
 import (
 	"bytes"
 	"fmt"
-	"github.com/goodrain/rainbond/db/model"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/labels"
 	"net"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/goodrain/rainbond/db/model"
+	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
@@ -39,7 +40,7 @@ import (
 	"github.com/goodrain/rainbond/gateway/controller/config"
 	"github.com/goodrain/rainbond/gateway/defaults"
 	"github.com/goodrain/rainbond/gateway/util"
-	"github.com/goodrain/rainbond/gateway/v1"
+	v1 "github.com/goodrain/rainbond/gateway/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -421,7 +422,7 @@ func (s *k8sStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 					continue
 				}
 				if ep.GetLabels()["service_kind"] != model.ServiceKindThirdParty.String() {
-					if ep.Subsets[0].Ports[0].Port != service.Spec.Ports[0].Port {
+					if ep.Subsets[0].Ports[0].Port != service.Spec.Ports[0].TargetPort.IntVal {
 						continue
 					}
 				}
@@ -451,7 +452,7 @@ func (s *k8sStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 										if pluginPort != 0 {
 											return pluginPort
 										}
-										return ss.Ports[0].Port
+										return addressPort
 									}(pluginPort, ss.Ports[0].Port),
 									Weight: backend.weight,
 								})

@@ -1,9 +1,9 @@
 package openresty
 
 import (
-	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
 	"fmt"
 	"github.com/goodrain/rainbond/gateway/annotations/proxy"
+	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
 
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
 	"github.com/goodrain/rainbond/gateway/v1"
@@ -57,7 +57,7 @@ func mavenGoodrainMe(ip string) *model.Server {
 				DisableAccessLog: true,
 				Path:             "/",
 				Rewrite: rewrite.Config{
-					Rewrites: []*rewrite.Rewrite {
+					Rewrites: []*rewrite.Rewrite{
 						{
 							Regex:       "^/(.*)$",
 							Replacement: "/artifactory/libs-release/$1",
@@ -102,7 +102,7 @@ func goodrainMe(cfgPath string, ip string) *model.Server {
 				EnableMetrics:    false,
 				DisableAccessLog: true,
 				Path:             "/v2/",
-				Proxy: proxy,
+				Proxy:            proxy,
 				NameCondition: map[string]*v1.Condition{
 					"registry": {
 						Type:  v1.DefaultType,

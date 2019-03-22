@@ -65,7 +65,7 @@ func NewAnnotationExtractor(cfg resolver.Resolver) Extractor {
 			"Rewrite":        rewrite.NewParser(cfg),
 			"L4":             l4.NewParser(cfg),
 			"UpstreamHashBy": upstreamhashby.NewParser(cfg),
-			"Proxy":                proxy.NewParser(cfg),
+			"Proxy":          proxy.NewParser(cfg),
 		},
 	}
 }
