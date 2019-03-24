@@ -55,8 +55,10 @@ func (s *restartController) Begin() {
 	s.manager.callback(s.controllerID, nil)
 }
 func (s *restartController) restartOne(app v1.AppService) error {
-	stopController := stopController{
+	//Restart the control set timeout interval is 5m
+	stopController := &stopController{
 		manager: s.manager,
+		waiting: time.Minute * 5,
 	}
 	if err := stopController.stopOne(app); err != nil {
 		app.Logger.Error("(Restart)Stop app failure %s,you could waiting stoped and manual start it", GetCallbackLoggerOption())
