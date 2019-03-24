@@ -33,7 +33,7 @@ import (
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"github.com/goodrain/rainbond/worker/appm/store"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/discover/model"
 )
 
@@ -274,7 +274,7 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 	}
 	newAppService.Logger = logger
 	appService.SetUpgradePatch(newAppService)
-	err = m.controllerManager.StartController(controller.TypeUpgradeController, *appService)
+	err = m.controllerManager.StartController(controller.TypeUpgradeController, *newAppService)
 	if err != nil {
 		logrus.Errorf("Application run  vertical scaling(upgrade) controller failure:%s", err.Error())
 		logger.Info("Application run vertical scaling(upgrade) controller failure", controller.GetCallbackLoggerOption())
@@ -386,9 +386,9 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		}
 		if body.Action == "port-open" {
 			m.startCh.In() <- &v1.Event{
-				Type: v1.StartEvent,
-				Sid:  body.ServiceID,
-				Port: body.Port,
+				Type:    v1.StartEvent,
+				Sid:     body.ServiceID,
+				Port:    body.Port,
 				IsInner: body.IsInner,
 			}
 		}

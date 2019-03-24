@@ -156,7 +156,7 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 
 //NewUpload -
 func (a *AppStruct) NewUpload(w http.ResponseWriter, r *http.Request) {
-	eventID := strings.TrimSpace(chi.URLParam(r, "event_id"))
+	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	switch r.Method {
 	case "OPTIONS":
 		origin := r.Header.Get("Origin")
@@ -181,7 +181,7 @@ func (a *AppStruct) NewUpload(w http.ResponseWriter, r *http.Request) {
 
 //Upload -
 func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
-	eventID := strings.TrimSpace(chi.URLParam(r, "event_id"))
+	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	switch r.Method {
 	case "POST":
 		if eventID == "" {

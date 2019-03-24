@@ -108,7 +108,7 @@ func (cache *snapshotCache) SetSnapshot(node string, snapshot Snapshot) error {
 			version := snapshot.GetVersion(watch.Request.TypeUrl)
 			if version != watch.Request.VersionInfo {
 				if cache.log != nil {
-					cache.log.Infof("respond open watch %d%v with new version %q", id, watch.Request.ResourceNames, version)
+					cache.log.Debugf("respond open watch %d%v with new version %q", id, watch.Request.ResourceNames, version)
 				}
 				cache.respond(watch.Request, watch.Response, snapshot.GetResources(watch.Request.TypeUrl), version)
 
@@ -178,7 +178,7 @@ func (cache *snapshotCache) CreateWatch(request Request) (chan Response, func())
 	if !exists || request.VersionInfo == version {
 		watchID := cache.nextWatchID()
 		if cache.log != nil {
-			cache.log.Infof("open watch %d for %s%v from nodeID %q, version %q", watchID,
+			cache.log.Debugf("open watch %d for %s%v from nodeID %q, version %q", watchID,
 				request.TypeUrl, request.ResourceNames, nodeID, request.VersionInfo)
 		}
 		info.mu.Lock()
@@ -219,13 +219,13 @@ func (cache *snapshotCache) respond(request Request, value chan Response, resour
 	if len(request.ResourceNames) != 0 && cache.ads {
 		if err := superset(nameSet(request.ResourceNames), resources); err != nil {
 			if cache.log != nil {
-				cache.log.Infof("ADS mode: not responding to request: %v", err)
+				cache.log.Debugf("ADS mode: not responding to request: %v", err)
 			}
 			return
 		}
 	}
 	if cache.log != nil {
-		cache.log.Infof("respond %s%v version %q with version %q",
+		cache.log.Debugf("respond %s%v version %q with version %q",
 			request.TypeUrl, request.ResourceNames, request.VersionInfo, version)
 	}
 

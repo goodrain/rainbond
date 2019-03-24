@@ -28,7 +28,7 @@ import (
 
 // Config returns the proxy timeout to use in the upstream server/s
 type Config struct {
-	BodySize          int            `json:"bodySize"`
+	BodySize          int               `json:"bodySize"`
 	ConnectTimeout    int               `json:"connectTimeout"`
 	SendTimeout       int               `json:"sendTimeout"`
 	ReadTimeout       int               `json:"readTimeout"`

@@ -88,11 +88,11 @@ func TestTenantServicesDao_ListThirdPartyServices(t *testing.T) {
 		t.Errorf("Expected 0 for the length of third-party services, but returned %d", len(svcs))
 	}
 
-	for i:=0; i < 3; i++ {
+	for i := 0; i < 3; i++ {
 		item1 := &model.TenantServices{
-			TenantID: util.NewUUID(),
+			TenantID:  util.NewUUID(),
 			ServiceID: util.NewUUID(),
-			Kind: model.ServiceKindThirdParty.String(),
+			Kind:      model.ServiceKindThirdParty.String(),
 		}
 		if err = GetManager().TenantServiceDao().AddModel(item1); err != nil {
 			t.Fatalf("error create third-party service: %v", err)
@@ -166,7 +166,7 @@ func TestTenantServicesPortDao_HasOpenPort(t *testing.T) {
 	})
 	t.Run("outer service", func(t *testing.T) {
 		port := &model.TenantServicesPort{
-			ServiceID: util.NewUUID(),
+			ServiceID:      util.NewUUID(),
 			IsOuterService: true,
 		}
 		if err := GetManager().TenantServicesPortDao().AddModel(port); err != nil {
@@ -179,7 +179,7 @@ func TestTenantServicesPortDao_HasOpenPort(t *testing.T) {
 	})
 	t.Run("inner service", func(t *testing.T) {
 		port := &model.TenantServicesPort{
-			ServiceID: util.NewUUID(),
+			ServiceID:      util.NewUUID(),
 			IsInnerService: true,
 		}
 		if err := GetManager().TenantServicesPortDao().AddModel(port); err != nil {
@@ -192,7 +192,7 @@ func TestTenantServicesPortDao_HasOpenPort(t *testing.T) {
 	})
 	t.Run("not inner or outer service", func(t *testing.T) {
 		port := &model.TenantServicesPort{
-			ServiceID: util.NewUUID(),
+			ServiceID:      util.NewUUID(),
 			IsInnerService: false,
 			IsOuterService: false,
 		}

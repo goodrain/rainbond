@@ -53,6 +53,11 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 					continue
 				}
 				toport := int(subset.Ports[0].Port)
+				//if haven multiple port, will get other port endpoint
+				//so must ignore
+				if (len(service.Spec.Ports) == 0 || service.Spec.Ports[0].TargetPort.IntVal != int32(toport)) && en.Labels["service_kind"] != "third_party" {
+					continue
+				}
 				if serviceAlias == destServiceAlias {
 					if originPort, ok := service.Labels["origin_port"]; ok {
 						origin, err := strconv.Atoi(originPort)

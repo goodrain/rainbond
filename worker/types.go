@@ -20,5 +20,4 @@ package worker
 
 // MaintainStatus
 type MaintainStatus struct {
-
 }

@@ -42,9 +42,9 @@ func TestTenantServiceBase(t *testing.T) {
 		// TenantServiceDao
 		tenantServiceDao := dao.NewMockTenantServiceDao(ctrl)
 		tenantService := &model.TenantServices{
-			TenantID: as.TenantID,
+			TenantID:  as.TenantID,
 			ServiceID: as.ServiceID,
-			Kind: model.ServiceKindThirdParty.String(),
+			Kind:      model.ServiceKindThirdParty.String(),
 		}
 		tenantServiceDao.EXPECT().GetServiceByID(as.ServiceID).Return(tenantService, nil)
 		dbm.EXPECT().TenantServiceDao().Return(tenantServiceDao)

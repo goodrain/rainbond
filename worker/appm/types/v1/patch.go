@@ -53,6 +53,8 @@ func (a *AppService) SetUpgradePatch(new *AppService) error {
 		}
 		new.UpgradePatch["deployment"] = deploymentPatch
 	}
+	//update cache app service base info by new app service
+	a.AppServiceBase = new.AppServiceBase
 	return nil
 }
 

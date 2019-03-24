@@ -94,7 +94,6 @@ func (t *tpProbe) Start() {
 		for {
 			select {
 			case event := <-t.probeCh.Out():
-				logrus.Debugf("Probe event received: %+v", event)
 				if event == nil {
 					return
 				}
@@ -155,10 +154,10 @@ func (t *tpProbe) AddProbe(ep *corev1.Endpoints) {
 				switch event.Status {
 				case v1.StatHealthy:
 					obj := &appmv1.RbdEndpoint{
-						UUID:   service.Name,
-						IP:     ip,
-						Port:   port,
-						Sid:    sid,
+						UUID: service.Name,
+						IP:   ip,
+						Port: port,
+						Sid:  sid,
 					}
 					t.updateCh.In() <- discovery.Event{
 						Type: discovery.HealthEvent,
@@ -168,10 +167,10 @@ func (t *tpProbe) AddProbe(ep *corev1.Endpoints) {
 					if event.ErrorNumber > service.ServiceHealth.MaxErrorsNum {
 						if probeInfo.Mode == model.OfflineFailureAction.String() {
 							obj := &appmv1.RbdEndpoint{
-								UUID:   service.Name,
-								IP:     ip,
-								Port:   port,
-								Sid:    sid,
+								UUID: service.Name,
+								IP:   ip,
+								Port: port,
+								Sid:  sid,
 							}
 							t.updateCh.In() <- discovery.Event{
 								Type: discovery.DeleteEvent,
@@ -179,10 +178,10 @@ func (t *tpProbe) AddProbe(ep *corev1.Endpoints) {
 							}
 						} else {
 							obj := &appmv1.RbdEndpoint{
-								UUID:   service.Name,
-								IP:     ip,
-								Port:   port,
-								Sid:    sid,
+								UUID: service.Name,
+								IP:   ip,
+								Port: port,
+								Sid:  sid,
 							}
 							t.updateCh.In() <- discovery.Event{
 								Type: discovery.UnhealthyEvent,

@@ -26,8 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/Sirupsen/logrus"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -122,11 +122,8 @@ func (s *startController) startOne(app v1.AppService) error {
 	}
 	//step 3: create services
 	if services := app.GetServices(); services != nil {
-		for _, service := range services {
-			_, err := s.manager.client.CoreV1().Services(app.TenantID).Create(service)
-			if err != nil && !errors.IsAlreadyExists(err) {
-				return fmt.Errorf("create service failure:%s", err.Error())
-			}
+		if err := CreateKubeService(s.manager.client, app.TenantID, services...); err != nil {
+			return fmt.Errorf("Create service failure %s", err.Error())
 		}
 	}
 	//step 4: create secrets

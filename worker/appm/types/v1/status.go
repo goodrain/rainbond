@@ -36,17 +36,20 @@ func (a *AppService) IsEmpty() bool {
 
 //IsClosed is closed
 func (a *AppService) IsClosed() bool {
-	if a.ServiceKind == model.ServiceKindThirdParty && a.endpoints != nil && len(a.endpoints) > 0 {
-		return true
-	}
-	if a.IsEmpty() && a.statefulset == nil && a.deployment == nil {
-		return true
-	}
-	if a.IsEmpty() && a.statefulset != nil && a.statefulset.ResourceVersion == "" {
-		return true
-	}
-	if a.IsEmpty() && a.deployment != nil && a.deployment.ResourceVersion == "" {
-		return true
+	if a.ServiceKind == model.ServiceKindThirdParty {
+		if a.endpoints == nil || len(a.endpoints) == 0 {
+			return true
+		}
+	} else {
+		if a.IsEmpty() && a.statefulset == nil && a.deployment == nil {
+			return true
+		}
+		if a.IsEmpty() && a.statefulset != nil && a.statefulset.ResourceVersion == "" {
+			return true
+		}
+		if a.IsEmpty() && a.deployment != nil && a.deployment.ResourceVersion == "" {
+			return true
+		}
 	}
 	return false
 }
@@ -74,6 +77,8 @@ var (
 	BUILDEFAILURE = "build_failure"
 	//UNDEPLOY init status
 	UNDEPLOY = "undeploy"
+	//WAITTING wait depend service start
+	WAITTING = "waitting"
 )
 
 //GetServiceStatus get service status
@@ -100,6 +105,9 @@ func (a *AppService) GetServiceStatus() string {
 	if a.statefulset == nil && a.deployment == nil && len(a.pods) > 0 {
 		return STOPPING
 	}
+	// if a.IsWaitting() {
+	// 	return WAITTING
+	// }
 	if (a.statefulset != nil || a.deployment != nil) && len(a.pods) < a.Replicas {
 		return STARTING
 	}
@@ -191,6 +199,45 @@ func (a *AppService) Ready() bool {
 	if a.deployment != nil {
 		if a.deployment.Status.ReadyReplicas >= int32(a.Replicas) {
 			return true
+		}
+	}
+	return false
+}
+
+//IsWaitting service status is waitting
+//init container init-probe is running
+func (a *AppService) IsWaitting() bool {
+	var initcontainer []corev1.Container
+	if a.statefulset != nil {
+		initcontainer = a.statefulset.Spec.Template.Spec.InitContainers
+		if len(initcontainer) == 0 {
+			return false
+		}
+	}
+	if a.deployment != nil {
+		initcontainer = a.deployment.Spec.Template.Spec.InitContainers
+		if len(initcontainer) == 0 {
+			return false
+		}
+	}
+	var haveProbeInitContainer bool
+	for _, init := range initcontainer {
+		if init.Image == GetProbeMeshImageName() {
+			haveProbeInitContainer = true
+			break
+		}
+	}
+	if haveProbeInitContainer {
+		if len(a.pods) == 0 {
+			return true
+		}
+		firstPod := a.pods[0]
+		for _, initconteir := range firstPod.Status.InitContainerStatuses {
+			if initconteir.Image == GetProbeMeshImageName() {
+				if initconteir.State.Terminated == nil || initconteir.State.Terminated.ExitCode != 0 {
+					return true
+				}
+			}
 		}
 	}
 	return false
