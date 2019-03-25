@@ -125,7 +125,7 @@ type RuleConfigReq struct {
 	Body   Body   `json:"body" validate:"body|required"`
 }
 
-// Body is a embedded sturct of RuleConfigReq.
+// Body is a embedded struct of RuleConfigReq.
 type Body struct {
 	ProxyConnectTimeout int          `json:"proxy_connect_timeout,omitempty" validate:"proxy_connect_timeout|required"`
 	ProxySendTimeout    int          `json:"proxy_send_timeout,omitempty" validate:"proxy_send_timeout|required"`
@@ -141,7 +141,7 @@ type SetHeader struct {
 	Value string `json:"value"`
 }
 
-// Rewrite is a embeded sturct of Body.
+// Rewrite is a embedded struct of Body.
 type Rewrite struct {
 	Regex       string `json:"regex"`
 	Replacement string `json:"replacement"`

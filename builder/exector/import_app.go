@@ -190,9 +190,9 @@ func (i *ImportApp) importApp() error {
 				oldImageName := sources.ImageNameWithNamespaceHandle(oldname)
 				var image string
 				if i.ServiceImage.NameSpace == "" {
-					image = fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubUrl, oldImageName.Name, oldImageName.Tag)
+					image = fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubURL, oldImageName.Name, oldImageName.Tag)
 				} else {
-					image = fmt.Sprintf("%s/%s/%s:%s", i.ServiceImage.HubUrl, i.ServiceImage.NameSpace, oldImageName.Name, oldImageName.Tag)
+					image = fmt.Sprintf("%s/%s/%s:%s", i.ServiceImage.HubURL, i.ServiceImage.NameSpace, oldImageName.Name, oldImageName.Tag)
 				}
 				return image
 			}
@@ -331,9 +331,9 @@ func (i *ImportApp) importPlugins() error {
 			oldImageName := sources.ImageNameWithNamespaceHandle(oldname)
 			var image string
 			if i.ServiceImage.NameSpace == "" {
-				image = fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubUrl, oldImageName.Name, oldImageName.Tag)
+				image = fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubURL, oldImageName.Name, oldImageName.Tag)
 			} else {
-				image = fmt.Sprintf("%s/%s/%s:%s", i.ServiceImage.HubUrl, i.ServiceImage.NameSpace, oldImageName.Name, oldImageName.Tag)
+				image = fmt.Sprintf("%s/%s/%s:%s", i.ServiceImage.HubURL, i.ServiceImage.NameSpace, oldImageName.Name, oldImageName.Tag)
 			}
 			return image
 		}
@@ -441,7 +441,7 @@ func (i *ImportApp) loadApps() error {
 			// 上传之前先要根据新的仓库地址修改镜像名
 			image := app.Get("share_image").String()
 			if err := sources.ImageTag(i.DockerClient, fmt.Sprintf("%s/%s:%s", "goodrain.me", oldImageName.Name, oldImageName.Tag), image, i.Logger, 15); err != nil {
-				return fmt.Errorf("change image tag(%s => %s) error %s", fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubUrl, oldImageName.Name, oldImageName.Tag), image, err.Error())
+				return fmt.Errorf("change image tag(%s => %s) error %s", fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubURL, oldImageName.Name, oldImageName.Tag), image, err.Error())
 			}
 			// 开始上传
 			if err := sources.ImagePush(i.DockerClient, image, user, pass, i.Logger, 15); err != nil {
