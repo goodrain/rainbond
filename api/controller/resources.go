@@ -607,13 +607,24 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
-	logrus.Debugf("request uri: %s; body: %s", r.RequestURI, string(body))
 
 	err = ffjson.Unmarshal(body, &ss)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
+
+	values := url.Values{}
+	if ss.Endpoints != nil && strings.TrimSpace(ss.Endpoints.Static) != "" {
+		if strings.Contains(ss.Endpoints.Static, "127.0.0.1") {
+			values["ip"] = []string{"The ip field is can't contains '127.0.0.1'"}
+		}
+	}
+	if len(values) > 0 {
+		httputil.ReturnValidationError(r, w, values)
+		return
+	}
+
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	ss.TenantID = tenantID
 	logrus.Debugf("begin to create service %s", ss.ServiceAlias)

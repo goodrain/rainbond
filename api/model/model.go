@@ -333,12 +333,13 @@ type ServiceStruct struct {
 	DepVolumesInfo []dbmodel.TenantServiceMountRelation `json:"dep_volumes_info"`
 	EnvsInfo       []dbmodel.TenantServiceEnvVar        `json:"envs_info"`
 	PortsInfo      []dbmodel.TenantServicesPort         `json:"ports_info"`
+	Endpoints      *Endpoints                           `json:"endpoints"`
+}
 
-	// Endpoints holds third-party service endpoints or configuraion to get endpoints.
-	Endpoints struct {
-		Static    string `json:"static"`
-		Discovery string `json:"discovery"`
-	} `json:"endpoints"`
+// Endpoints holds third-party service endpoints or configuraion to get endpoints.
+type Endpoints struct {
+	Static    string `json:"static"`
+	Discovery string `json:"discovery"`
 }
 
 //TenantServiceVolumeStruct -
