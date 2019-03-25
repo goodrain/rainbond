@@ -168,10 +168,7 @@ func (h *HTTPRuleDaoImpl) UpdateModel(mo model.Interface) error {
 	if !ok {
 		return fmt.Errorf("Failed to convert %s to *model.HTTPRule", reflect.TypeOf(mo).String())
 	}
-
-	return h.DB.Table(hr.TableName()).
-		Where("uuid = ?", hr.UUID).
-		Update(hr).Error
+	return h.DB.Save(hr).Error
 }
 
 // GetHTTPRuleByID gets a HTTPRule based on uuid
