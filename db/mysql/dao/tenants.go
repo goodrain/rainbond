@@ -1037,6 +1037,11 @@ func (t *TenantServiceConfigFileDaoImpl) DelByVolumeID(sid, volumeName string) e
 	return t.DB.Where("service_id=? and volume_name = ?", sid, volumeName).Delete(&cfs).Error
 }
 
+// DelByServiceID deletes config files according to service id.
+func (t *TenantServiceConfigFileDaoImpl) DelByServiceID(sid string) error {
+	return t.DB.Where("service_id=?", sid).Delete(&model.TenantServiceConfigFile{}).Error
+}
+
 //TenantServiceLBMappingPortDaoImpl stream服务映射
 type TenantServiceLBMappingPortDaoImpl struct {
 	DB *gorm.DB

@@ -243,7 +243,6 @@ func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.Serv
 	}
 	var pbeps []*pb.ThirdPartyEndpoint
 	exists := make(map[string]bool)
-	logrus.Debugf("Status from endpoints: %+v", as.GetEndpoints())
 	for _, ep := range as.GetEndpoints() {
 		if exists[ep.GetLabels()["uuid"]] {
 			continue

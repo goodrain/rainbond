@@ -58,6 +58,10 @@ func WaitReady(store store.Storer, a *v1.AppService, timeout time.Duration, logg
 		case <-cancel:
 			return ErrWaitCancel
 		case <-timer.C:
+			//if service status is waitting, the event is not timeout
+			// if a.IsWaitting() {
+			// 	timer.Reset(timeout)
+			// }
 			return ErrWaitTimeOut
 		case <-ticker.C:
 		}

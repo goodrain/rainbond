@@ -216,6 +216,32 @@ func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) (stri
 	return svcID, nil
 }
 
+// DeleteHTTPRule deletes http rule, including certificate and rule extensions
+func (g *GatewayAction) DeleteHTTPRuleByServiceIDWithTransaction(sid string, tx *gorm.DB) error {
+	// delete http rule
+	rules, err := g.dbmanager.HTTPRuleDaoTransactions(tx).ListByServiceID(sid)
+	if err != nil {
+		return err
+	}
+
+	for _, rule := range rules {
+		if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(rule.CertificateID); err != nil {
+			return err
+		}
+		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(rule.UUID); err != nil {
+			return err
+		}
+		if err := g.dbmanager.GwRuleConfigDaoTransactions(tx).DeleteByRuleID(rule.UUID); err != nil {
+			return err
+		}
+		if err := g.dbmanager.HTTPRuleDaoTransactions(tx).DeleteHTTPRuleByID(rule.UUID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // AddCertificate adds certificate to db if it doesn't exists
 func (g *GatewayAction) AddCertificate(req *apimodel.AddHTTPRuleStruct, tx *gorm.DB) error {
 	cert := &model.Certificate{
@@ -385,7 +411,7 @@ func (g *GatewayAction) DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) (string
 		return "", err
 	}
 	// delete tcp rule
-	if err := db.GetManager().TCPRuleDaoTransactions(tx).DeleteTCPRule(tcpRule); err != nil {
+	if err := db.GetManager().TCPRuleDaoTransactions(tx).DeleteByID(tcpRule.UUID); err != nil {
 		tx.Rollback()
 		return "", err
 	}
@@ -402,6 +428,25 @@ func (g *GatewayAction) DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) (string
 		return "", err
 	}
 	return tcpRule.ServiceID, nil
+}
+
+// DeleteTCPRule deletes a tcp rule
+func (g *GatewayAction) DeleteTCPRuleByServiceIDWithTransaction(sid string, tx *gorm.DB) error {
+	rules, err := db.GetManager().TCPRuleDaoTransactions(tx).GetTCPRuleByServiceID(sid)
+	if err != nil {
+		return err
+	}
+	for _, rule := range rules {
+		// delete rule extensions
+		if err := db.GetManager().RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(rule.UUID); err != nil {
+			return err
+		}
+		// delete tcp rule
+		if err := db.GetManager().TCPRuleDaoTransactions(tx).DeleteByID(rule.UUID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // AddRuleExtensions adds rule extensions to db if any of they doesn't exists
@@ -567,7 +612,7 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 	setheaders := make(map[string]string)
 	for _, item := range req.Body.SetHeaders {
 		// filter same key
-		setheaders["set-header-" + item.Key] = item.Value
+		setheaders["set-header-"+item.Key] = item.Value
 	}
 	for k, v := range setheaders {
 		configs = append(configs, &model.GwRuleConfig{

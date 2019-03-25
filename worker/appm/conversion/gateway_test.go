@@ -143,7 +143,7 @@ func TestApplyTcpRule(t *testing.T) {
 			testCase[parser.GetAnnotationWithPrefix("l4-port")], err)
 	}
 	tcpRule := &model.TCPRule{
-		UUID: "default",
+		UUID:          "default",
 		ServiceID:     serviceID,
 		ContainerPort: port.ContainerPort,
 		IP:            testCase[parser.GetAnnotationWithPrefix("l4-host")],

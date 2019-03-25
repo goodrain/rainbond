@@ -142,6 +142,9 @@ func GetOptionValues(sr map[string]interface{}) RainbondPluginOptions {
 		BaseEjectionTimeMS: 30000,
 		MaxEjectionPercent: 10,
 	}
+	if sr == nil {
+		return rpo
+	}
 	for kind, v := range sr {
 		switch kind {
 		case KeyPrefix:

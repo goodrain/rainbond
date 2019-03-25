@@ -146,7 +146,6 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 				continue
 			}
 		}
-
 	}
 	// create common http listener
 	if len(newVHL) > 0 {

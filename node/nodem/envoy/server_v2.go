@@ -250,7 +250,7 @@ func (d *DiscoverServerManager) setSnapshot(nc *NodeConfig) error {
 	if err != nil {
 		return err
 	}
-	logrus.Infof("cache envoy node %s config,version: %s", nc.GetID(), nc.GetVersion())
+	logrus.Debugf("cache envoy node %s config,version: %s", nc.GetID(), nc.GetVersion())
 	//TODO: If the resource has not changed, there is no need to cache the new version
 	nc.VersionUpdate()
 	return nil

@@ -21,8 +21,6 @@ package store
 import (
 	"context"
 	"fmt"
-	"reflect"
-	"strings"
 	"sync"
 	"time"
 
@@ -156,6 +154,7 @@ func NewStore(clientset *kubernetes.Clientset,
 	epEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			ep := obj.(*corev1.Endpoints)
+			logrus.Debugf("received add endpoints: %+v", ep)
 			serviceID := ep.Labels["service_id"]
 			version := ep.Labels["version"]
 			createrID := ep.Labels["creater_id"]
@@ -167,7 +166,6 @@ func NewStore(clientset *kubernetes.Clientset,
 				if appservice != nil {
 					appservice.AddEndpoints(ep)
 					if isThirdParty(ep) {
-						logrus.Debugf("Endpoints Created: %+v", ep)
 						probeCh.In() <- Event{
 							Type: CreateEvent,
 							Obj:  obj,
@@ -179,6 +177,7 @@ func NewStore(clientset *kubernetes.Clientset,
 		},
 		DeleteFunc: func(obj interface{}) {
 			ep := obj.(*corev1.Endpoints)
+			logrus.Debugf("received delete endpoints: %+v", ep)
 			serviceID := ep.Labels["service_id"]
 			version := ep.Labels["version"]
 			createrID := ep.Labels["creater_id"]
@@ -190,7 +189,6 @@ func NewStore(clientset *kubernetes.Clientset,
 						store.DeleteAppService(appservice)
 					}
 					if isThirdParty(ep) {
-						logrus.Debugf("Endpoints deleted: %+v", ep)
 						probeCh.In() <- Event{
 							Type: DeleteEvent,
 							Obj:  obj,
@@ -200,31 +198,28 @@ func NewStore(clientset *kubernetes.Clientset,
 			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			oep := old.(*corev1.Endpoints)
 			cep := cur.(*corev1.Endpoints)
-			if cep.ResourceVersion != oep.ResourceVersion &&
-				!reflect.DeepEqual(cep.Subsets, oep.Subsets) {
 
-				serviceID := cep.Labels["service_id"]
-				version := cep.Labels["version"]
-				createrID := cep.Labels["creater_id"]
-				if serviceID != "" && createrID != "" {
-					appservice, err := store.getAppService(serviceID, version, createrID, true)
-					if err == conversion.ErrServiceNotFound {
-						store.conf.KubeClient.CoreV1().Endpoints(cep.Namespace).Delete(cep.Name, &metav1.DeleteOptions{})
-					}
-					if appservice != nil {
-						appservice.AddEndpoints(cep)
-						if isThirdParty(cep) {
-							logrus.Debugf("Endpoints updated: %+v", cep)
-							probeCh.In() <- Event{
-								Type: UpdateEvent,
-								Obj:  cur,
-								Old:  old,
-							}
+			serviceID := cep.Labels["service_id"]
+			version := cep.Labels["version"]
+			createrID := cep.Labels["creater_id"]
+			if serviceID != "" && createrID != "" {
+				appservice, err := store.getAppService(serviceID, version, createrID, true)
+				if err == conversion.ErrServiceNotFound {
+					logrus.Debug("ServiceID: error service not found")
+					store.conf.KubeClient.CoreV1().Endpoints(cep.Namespace).Delete(cep.Name, &metav1.DeleteOptions{})
+				}
+				if appservice != nil {
+					appservice.AddEndpoints(cep)
+					if isThirdParty(cep) {
+						probeCh.In() <- Event{
+							Type: UpdateEvent,
+							Obj:  cur,
+							Old:  old,
 						}
 					}
 				}
+				//}
 			}
 		},
 	}
@@ -450,9 +445,6 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 				a.conf.KubeClient.CoreV1().ConfigMaps(configmap.Namespace).Delete(configmap.Name, &metav1.DeleteOptions{})
 			}
 			if appservice != nil {
-				if strings.Contains(configmap.Name, "rbd-endpoints") {
-					appservice.SetRbdEndpiontsCM(configmap)
-				}
 				appservice.SetConfigMap(configmap)
 				return
 			}
@@ -591,11 +583,7 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, _ := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
-				if strings.Contains(configmap.Name, "rbd-endpoints") {
-					appservice.DelRbdEndpiontCM()
-				} else {
-					appservice.DeleteConfigMaps(configmap)
-				}
+				appservice.DeleteConfigMaps(configmap)
 				if appservice.IsClosed() {
 					a.DeleteAppService(appservice)
 				}

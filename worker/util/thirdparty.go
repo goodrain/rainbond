@@ -23,16 +23,13 @@ import (
 	"strings"
 )
 
-// GenServiceName returns the serviceName consisting of service id and ip address.
-func GenServiceName(sid, ip string) string {
-	return sid + "/" + strings.Replace(ip, ".", "", -1)
-}
-
-// GetServiceID separates the service id from the service name
-func GetServiceID(name string) (string, error) {
-	slc := strings.Split(name, "/")
-	if len(slc) != 2 {
-		return "", fmt.Errorf("ServiceName: %s; Invalid serivce name", name)
-	}
-	return slc[0], nil
+// CreateEndpointsName creates name for third-party endpoints
+//the names of Kubernetes resources should be up to maximum length of 253
+// characters and consist of lower case alphanumeric characters, -, and .,
+// but certain resources have more specific restrictions.
+func CreateEndpointsName(tenantName, serviceName, uuid string) string {
+	str := fmt.Sprintf("%s-%s-%s", tenantName, serviceName, uuid)
+	str = strings.ToLower(str)
+	// TODO: - and .
+	return str
 }

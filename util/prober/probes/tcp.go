@@ -54,7 +54,7 @@ func (h *TCPProbe) TCPCheck() {
 
 //GetTCPHealth get tcp health
 func GetTCPHealth(address string) map[string]string {
-	conn, err := net.DialTimeout("tcp", address, 5 * time.Second)
+	conn, err := net.DialTimeout("tcp", address, 5*time.Second)
 	if err != nil {
 		return map[string]string{"status": v1.StatDeath,
 			"info": fmt.Sprintf("Address: %s; Tcp connection error", address)}
