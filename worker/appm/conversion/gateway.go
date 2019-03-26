@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/goodrain/rainbond/util"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/jinzhu/gorm"
 
 	"github.com/Sirupsen/logrus"
@@ -155,13 +155,13 @@ func (a *AppServiceBuild) Build() ([]*corev1.Service, []*extensions.Ingress, []*
 			if port.IsOuterService {
 				service := a.createOuterService(port)
 
-				ings, secret, err := a.ApplyRules(port, service)
+				ings, secrs, err := a.ApplyRules(port, service)
 				if err != nil {
 					return nil, nil, nil, err
 				}
 				ingresses = append(ingresses, ings...)
-				if secret != nil {
-					secrets = append(secrets, secret)
+				if secrs != nil && len(secrs) > 0 {
+					secrets = append(secrets, secrs...)
 				}
 
 				services = append(services, service)
@@ -182,9 +182,9 @@ func (a *AppServiceBuild) Build() ([]*corev1.Service, []*extensions.Ingress, []*
 
 // ApplyRules applies http rules and tcp rules
 func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
-	service *corev1.Service) ([]*extensions.Ingress, *corev1.Secret, error) {
+	service *corev1.Service) ([]*extensions.Ingress, []*corev1.Secret, error) {
 	var ingresses []*extensions.Ingress
-	var secret *corev1.Secret
+	var secrets []*corev1.Secret
 	httpRules, err := a.dbmanager.HttpRuleDao().GetHttpRuleByServiceIDAndContainerPort(port.ServiceID,
 		port.ContainerPort)
 	if err != nil {
@@ -200,7 +200,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 				continue
 			}
 			ingresses = append(ingresses, ing)
-			secret = sec
+			secrets = append(secrets, sec)
 		}
 	} else if port.Protocol == "http" { // if there is no http rule, then create a default ingress
 		httpRule := &model.HTTPRule{
@@ -233,7 +233,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 			if err == gorm.ErrRecordNotFound {
 				logrus.Warningf("TenantServiceLBMappingPort(ServiceID=%s, ContainerPort=%d) not found, ignore it",
 					port.ServiceID, port.ContainerPort)
-				return ingresses, secret, nil
+				return ingresses, secrets, nil
 			}
 			return nil, nil, err
 		}
@@ -248,7 +248,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 		ingresses = append(ingresses, ing)
 	}
 
-	return ingresses, secret, nil
+	return ingresses, secrets, nil
 }
 
 // applyTCPRule applies stream rule into ingress
