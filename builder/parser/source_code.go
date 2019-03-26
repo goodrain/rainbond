@@ -25,19 +25,16 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-
-	"github.com/pquerna/ffjson/ffjson"
-
+	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser/code"
+	"github.com/goodrain/rainbond/builder/parser/code/multimodule"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/pquerna/ffjson/ffjson"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport"
-
-	//"github.com/docker/docker/client"
-	"github.com/docker/docker/client"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport" //"github.com/docker/docker/client"
 )
 
 //SourceCodeParse docker run 命令解析或直接镜像名解析
@@ -57,6 +54,8 @@ type SourceCodeParse struct {
 	Runtime      bool `json:"runtime"`
 	Dependencies bool `json:"dependencies"`
 	Procfile     bool `json:"procfile"`
+	isMulti      bool
+	modules      []*multimodule.Module
 }
 
 //CreateSourceCodeParse create parser
@@ -276,6 +275,23 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	}
 	d.memory = getRecommendedMemory(lang)
 	d.Procfile = code.CheckProcfile(buildPath, lang)
+
+	// multi-module
+	multi := multimodule.NewMultiModuler(lang.String())
+	if multi != nil {
+		logrus.Infof("Lang: %s; start listing multi modules", lang.String())
+		modules, err := multi.ListModules(buildInfo.GetCodeHome())
+		if err != nil {
+			d.logger.Error("解析多模块项目失败", map[string]string{"step": "parse"})
+			d.errappend(ErrorAndSolve(FatalError, "error listing modules", "check source code for multi-modules"))
+			return d.errors
+		}
+		if modules != nil && len(modules) > 1 {
+			d.isMulti = true
+			d.modules = modules
+		}
+	}
+
 	if rbdfileConfig != nil {
 		//handle profile env
 		for k, v := range rbdfileConfig.Envs {
@@ -401,6 +417,8 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 		Branchs:      d.GetBranchs(),
 		Memory:       d.memory,
 		Lang:         d.GetLang(),
+		IsMulti:      d.isMulti,
+		Modules:      d.modules,
 		Dependencies: d.Dependencies,
 		Procfile:     d.Procfile,
 		Runtime:      d.Runtime,

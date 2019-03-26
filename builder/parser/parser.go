@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/goodrain/rainbond/builder/parser/code"
+	"github.com/goodrain/rainbond/builder/parser/code/multimodule"
 	"github.com/goodrain/rainbond/builder/parser/discovery"
 )
 
@@ -151,6 +152,9 @@ type ServiceInfo struct {
 	Dependencies bool `json:"dependencies"`
 	//deprecated
 	Procfile bool `json:"procfile"`
+
+	IsMulti bool                  `json:"is_multi"` // is multi module
+	Modules []*multimodule.Module `json:"modules,omitempty"`
 }
 
 //GetServiceInfo GetServiceInfo
