@@ -552,8 +552,10 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 		}
 
 		// 处理环境变量
-		for k, v := range app.Get("service_env_map_list").Map() {
-			envs[k] = v.String()
+		for _, item := range app.Get("service_env_map_list").Array() {
+			key := item.Get("attr_name").String()
+			value := item.Get("attr_value").String()
+			envs[key] = value
 		}
 
 		for _, item := range app.Get("service_connect_info_map_list").Array() {
