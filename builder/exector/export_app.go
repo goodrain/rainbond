@@ -498,6 +498,7 @@ type Service struct {
 	Volumes       []string          `yaml:"volumes,omitempty"`
 	Command       string            `yaml:"command,omitempty"`
 	Environment   map[string]string `yaml:"environment,omitempty"`
+	DependsOn     []string          `yaml:"depends_on,omitempty"`
 	Loggin        struct {
 		Driver  string `yaml:"driver,omitempty"`
 		Options struct {
@@ -564,12 +565,17 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 			envs[key] = value
 		}
 
+		var depServices []string
 		// 如果该app依赖了另了个app-b，则把app-b中所有公开环境变量注入到该app
 		for _, item := range app.Get("dep_service_map_list").Array() {
 			serviceKey := item.Get("dep_service_key").String()
 			depEnvs := i.getPublicEnvByKey(serviceKey, &apps)
 			for k, v := range depEnvs {
 				envs[k] = v
+			}
+
+			if svc := i.getDependedService(serviceKey, &apps); svc != "" {
+				depServices = append(depServices, svc)
 			}
 		}
 
@@ -585,6 +591,9 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 		service.Loggin.Driver = "json-file"
 		service.Loggin.Options.MaxSize = "5m"
 		service.Loggin.Options.MaxFile = "2"
+		if depServices != nil && len(depServices) > 0 {
+			service.DependsOn = depServices
+		}
 
 		y.Services[appName] = service
 	}
@@ -609,7 +618,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 func (i *ExportApp) getPublicEnvByKey(serviceKey string, apps *[]gjson.Result) map[string]string {
 	envs := make(map[string]string, 5)
 	for _, app := range *apps {
-		appKey := app.Get("service_key").String()
+		appKey := app.Get("service_share_uuid").String()
 		if appKey == serviceKey {
 			for _, item := range app.Get("service_connect_info_map_list").Array() {
 				key := item.Get("attr_name").String()
@@ -621,6 +630,15 @@ func (i *ExportApp) getPublicEnvByKey(serviceKey string, apps *[]gjson.Result) m
 	}
 
 	return envs
+}
+
+func (i *ExportApp) getDependedService(key string, apps *[]gjson.Result) string {
+	for _, app := range *apps {
+		if key == app.Get("service_share_uuid").String() {
+			return app.Get("service_cname").String()
+		}
+	}
+	return ""
 }
 
 func (i *ExportApp) buildStartScript() error {
