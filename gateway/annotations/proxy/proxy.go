@@ -116,7 +116,15 @@ func (l1 *Config) Equal(l2 *Config) bool {
 	if l1.ProxyBuffering != l2.ProxyBuffering {
 		return false
 	}
-	// TODO: ProxySetHeaders
+
+	if len(l1.SetHeaders) != len(l2.SetHeaders) {
+		return false
+	}
+	for k, v := range l1.SetHeaders {
+		if l2.SetHeaders[k] != v {
+			return false
+		}
+	}
 
 	return true
 }
