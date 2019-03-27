@@ -161,6 +161,7 @@ func NewStore(clientset *kubernetes.Clientset,
 			if serviceID != "" && createrID != "" {
 				appservice, err := store.getAppService(serviceID, version, createrID, true)
 				if err == conversion.ErrServiceNotFound {
+					logrus.Debugf("ServiceID: %s; Action: AddFunc; service not found", serviceID)
 					store.conf.KubeClient.CoreV1().Endpoints(ep.Namespace).Delete(ep.Name, &metav1.DeleteOptions{})
 				}
 				if appservice != nil {
@@ -186,6 +187,7 @@ func NewStore(clientset *kubernetes.Clientset,
 				if appservice != nil {
 					appservice.DelEndpoints(ep)
 					if appservice.IsClosed() {
+						logrus.Debugf("ServiceID: %s; Action: DeleteFunc;service is closed", serviceID)
 						store.DeleteAppService(appservice)
 					}
 					if isThirdParty(ep) {
@@ -206,7 +208,7 @@ func NewStore(clientset *kubernetes.Clientset,
 			if serviceID != "" && createrID != "" {
 				appservice, err := store.getAppService(serviceID, version, createrID, true)
 				if err == conversion.ErrServiceNotFound {
-					logrus.Debug("ServiceID: error service not found")
+					logrus.Debugf("ServiceID: %s; Action: UpdateFunc; service not found", serviceID)
 					store.conf.KubeClient.CoreV1().Endpoints(cep.Namespace).Delete(cep.Name, &metav1.DeleteOptions{})
 				}
 				if appservice != nil {
@@ -219,7 +221,6 @@ func NewStore(clientset *kubernetes.Clientset,
 						}
 					}
 				}
-				//}
 			}
 		},
 	}

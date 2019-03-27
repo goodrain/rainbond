@@ -129,7 +129,6 @@ func (t *thirdparty) runStart(sid string) {
 	rbdeps, d := t.ListRbdEndpoints(sid)
 	b, _ := json.Marshal(rbdeps)
 	logrus.Debugf("ServiceID: %s; rbd endpoints: %+v", sid, string(b))
-	// TODO: empty rbdeps
 	if rbdeps == nil || len(rbdeps) == 0 {
 		logrus.Warningf("ServiceID: %s;Empty rbd endpoints, stop starting third-party service.", sid)
 		return
@@ -277,6 +276,7 @@ func deleteEndpoints(ep *corev1.Endpoints, clientset kubernetes.Interface) {
 	if err != nil {
 		logrus.Debugf("Ignore; error deleting endpoints%+v: %v", ep, err)
 	}
+	logrus.Debugf("Delete endpoints: %+v", ep)
 }
 
 func ensureEndpoints(ep *corev1.Endpoints, clientSet kubernetes.Interface) {
@@ -313,9 +313,9 @@ func ensureConfigMap(cm *corev1.ConfigMap, clientSet kubernetes.Interface) {
 func (t *thirdparty) runUpdate(event discovery.Event) {
 	ep := event.Obj.(*v1.RbdEndpoint)
 	as := t.store.GetAppService(ep.Sid)
+	b, _ := json.Marshal(ep)
 	switch event.Type {
 	case discovery.CreateEvent:
-		b, _ := json.Marshal(ep)
 		logrus.Debugf("Run update; Event received: Type: %v; Body: %s", event.Type, string(b))
 		endpoints, err := t.createK8sEndpoints(as, []*v1.RbdEndpoint{ep})
 		if err != nil {
@@ -327,7 +327,6 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 			ensureEndpoints(ep, t.clientset)
 		}
 	case discovery.UpdateEvent:
-		b, _ := json.Marshal(ep)
 		logrus.Debugf("Run update; Event received: Type: %v; Body: %s", event.Type, string(b))
 		// TODO: Compare old and new endpoints
 		// TODO: delete old endpoints
@@ -349,7 +348,6 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 			ensureEndpoints(ep, t.clientset)
 		}
 	case discovery.DeleteEvent:
-		b, _ := json.Marshal(ep)
 		logrus.Debugf("Run update; Event received: Type: %v; Body: %s", event.Type, string(b))
 		eps := ListOldEndpoints(as, ep)
 		for _, item := range eps {
@@ -363,6 +361,7 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 				ep.Subsets = []corev1.EndpointSubset{
 					subset,
 				}
+				logrus.Debugf("Run update; Event received: Type: %v; Body: %s", event.Type, string(b))
 				ensureEndpoints(ep, t.clientset)
 			}
 		}
@@ -374,6 +373,7 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 				ep.Subsets = []corev1.EndpointSubset{
 					subset,
 				}
+				logrus.Debugf("Run update; Event received: Type: %v; Body: %s", event.Type, string(b))
 				ensureEndpoints(ep, t.clientset)
 			}
 		}
@@ -425,7 +425,7 @@ func (t *thirdparty) runDelete(sid string) {
 			logrus.Debugf("Endpoints delete: %+v", ep)
 			err := t.clientset.CoreV1().Endpoints(as.TenantID).Delete(ep.Name, &metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
-				logrus.Warningf("error deleting endpoin empty old app servicets: %v", err)
+				logrus.Warningf("error deleting endpoint empty old app servicets: %v", err)
 			}
 			t.store.OnDelete(ep)
 		}
