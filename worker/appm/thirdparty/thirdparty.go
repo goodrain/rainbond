@@ -114,7 +114,7 @@ func (t *thirdparty) Start() {
 				go t.runUpdate(devent)
 			case <-t.stopCh:
 				for _, stopCh := range t.svcStopCh {
-					close(stopCh)
+					close(stopCh) // TODO: close of closed channel
 				}
 				break
 			}
@@ -227,7 +227,6 @@ func (t *thirdparty) createK8sEndpoints(as *v1.AppService, epinfo []*v1.RbdEndpo
 			ep.Namespace = as.TenantID
 			if p.IsInnerService {
 				ep.Name = util.CreateEndpointsName(as.TenantName, as.ServiceAlias, epi.UUID)
-				ep.Name = epi.UUID
 				ep.Labels = as.GetCommonLabels(map[string]string{
 					"name":         as.ServiceAlias + "Service",
 					"service-kind": model.ServiceKindThirdParty.String(),
