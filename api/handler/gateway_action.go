@@ -611,6 +611,9 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 	})
 	setheaders := make(map[string]string)
 	for _, item := range req.Body.SetHeaders {
+		if strings.TrimSpace(item.Key) == "" || strings.TrimSpace(item.Value) == "" {
+			continue
+		}
 		// filter same key
 		setheaders["set-header-"+item.Key] = item.Value
 	}
