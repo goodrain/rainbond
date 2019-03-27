@@ -19,16 +19,14 @@
 package exector
 
 import (
-	"time"
-
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
-
-	"regexp"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
@@ -526,6 +524,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 
 	for _, app := range apps {
 		image := app.Get("image").String()
+		shareImage := app.Get("share_image").String()
 		appName := app.Get("service_cname").String()
 		appName = unicode2zh(appName)
 		volumes := make([]string, 0, 3)
@@ -543,8 +542,9 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 			volumes = append(volumes, fmt.Sprintf("%s:%s", volumeName, volumePath))
 		}
 
+		lang := app.Get("language").String()
 		// 如果该组件是源码方式部署，则挂载slug文件到runner容器内
-		if checkIsRunner(image) {
+		if lang != "dockerfile" && checkIsRunner(image) {
 			shareSlugPath := app.Get("share_slug_path").String()
 			tarFileName := buildToLinuxFileName(shareSlugPath)
 			volume := fmt.Sprintf("__GROUP_DIR__/%s/%s:/tmp/slug/slug.tgz", appName, tarFileName)
@@ -580,7 +580,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 		}
 
 		service := &Service{
-			Image:         image,
+			Image:         shareImage,
 			ContainerName: appName,
 			Restart:       "always",
 			NetworkMode:   "host",
