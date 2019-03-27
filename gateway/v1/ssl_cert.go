@@ -55,9 +55,6 @@ func (s *SSLCert) Equals(c *SSLCert) bool {
 			return false
 		}
 	}
-	if !s.Certificate.Equal(c.Certificate) {
-		return false
-	}
 	if s.CertificateStr != c.CertificateStr {
 		return false
 	}
