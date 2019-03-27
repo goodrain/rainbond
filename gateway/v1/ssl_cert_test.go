@@ -30,6 +30,14 @@ func TestSSLCert_Equals(t *testing.T) {
 	if !s.Equals(c) {
 		t.Errorf("s should equal c.")
 	}
+	s.Certificate = nil
+	if s.Equals(c) {
+		t.Errorf("s should not equal c.")
+	}
+	c.Certificate = nil
+	if !s.Equals(c) {
+		t.Errorf("s should equal c.")
+	}
 }
 
 func newFakeSSLCert() *SSLCert {
