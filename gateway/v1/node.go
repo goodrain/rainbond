@@ -46,6 +46,9 @@ func (n *Node) Equals(c *Node) bool { //
 	if n.Host != c.Host {
 		return false
 	}
+	if n.Port != c.Port {
+		return false
+	}
 	if n.Protocol != c.Protocol {
 		return false
 	}
@@ -59,6 +62,12 @@ func (n *Node) Equals(c *Node) bool { //
 		return false
 	}
 	if n.Weight != c.Weight {
+		return false
+	}
+	if n.MaxFails != c.MaxFails {
+		return false
+	}
+	if n.FailTimeout != c.FailTimeout {
 		return false
 	}
 	return true

@@ -35,6 +35,7 @@ type stopController struct {
 	controllerID string
 	appService   []v1.AppService
 	manager      *Manager
+	waiting      time.Duration
 }
 
 func (s *stopController) Begin() {
@@ -142,6 +143,9 @@ func (s *stopController) WaitingReady(app v1.AppService) error {
 	var timeout = time.Second * 40
 	if storeAppService != nil && storeAppService.Replicas > 0 {
 		timeout = time.Duration(storeAppService.Replicas) * timeout
+	}
+	if s.waiting != 0 {
+		timeout = s.waiting
 	}
 	if err := WaitStop(s.manager.store, storeAppService, timeout, app.Logger, s.stopChan); err != nil {
 		return err
