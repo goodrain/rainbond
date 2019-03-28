@@ -26,8 +26,10 @@ import (
 func TestExportApp_parseApps(t *testing.T) {
 	e := &ExportApp{
 		SourceDir: "./",
-		Logger: event.GetTestLogger(),
+		Logger:    event.GetTestLogger(),
 	}
 	err := e.buildDockerComposeYaml()
-	t.Error(err)
+	if err != nil {
+		t.Error(err)
+	}
 }

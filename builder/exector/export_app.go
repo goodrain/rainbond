@@ -545,6 +545,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 		lang := app.Get("language").String()
 		// 如果该组件是源码方式部署，则挂载slug文件到runner容器内
 		if lang != "dockerfile" && checkIsRunner(image) {
+			shareImage = image
 			shareSlugPath := app.Get("share_slug_path").String()
 			tarFileName := buildToLinuxFileName(shareSlugPath)
 			volume := fmt.Sprintf("__GROUP_DIR__/%s/%s:/tmp/slug/slug.tgz", appName, tarFileName)
