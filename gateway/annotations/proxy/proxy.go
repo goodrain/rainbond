@@ -227,6 +227,9 @@ func (a proxy) Parse(ing *extensions.Ingress) (interface{}, error) {
 			fmt.Sprintf("%s/%s", ing.GetNamespace(), ing.GetName()), err)
 	}
 	for k, v := range setHeaders {
+		if v == "empty" {
+			v = ""
+		}
 		config.SetHeaders[k] = v
 	}
 
