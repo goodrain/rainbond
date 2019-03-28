@@ -50,7 +50,8 @@ func (t *ServiceProbeDaoImpl) UpdateModel(mo model.Interface) error {
 	probe := mo.(*model.TenantServiceProbe)
 	if probe.ID == 0 {
 		var oldProbe model.TenantServiceProbe
-		if err := t.DB.Where("service_id = ? and mode = ? and probe_id=?", probe.ServiceID, probe.Mode, probe.ProbeID).Find(&oldProbe).Error; err != nil {
+		if err := t.DB.Where("service_id = ? and probe_id=?", probe.ServiceID,
+			probe.ProbeID).Find(&oldProbe).Error; err != nil {
 			return err
 		}
 		if oldProbe.ID == 0 {
