@@ -76,16 +76,6 @@ func ApplyOne(clientset *kubernetes.Clientset, app *v1.AppService) error {
 			logrus.Warningf("error deleting secret(%v): %v", secret, err)
 		}
 	}
-	// delete delEndpoints
-	for _, ep := range app.GetDelEndpoints() {
-		err := clientset.CoreV1().Endpoints(ep.Namespace).Delete(ep.Name, &metav1.DeleteOptions{})
-		if err != nil {
-			// don't return error, hope it is ok next time
-			logrus.Warningf("error deleting endpoints(%v): %v", ep, err)
-			continue
-		}
-		logrus.Debugf("successfully deleted endpoints(%v)", ep)
-	}
 	// delete delServices
 	for _, svc := range app.GetDelServices() {
 		err := clientset.CoreV1().Services(svc.Namespace).Delete(svc.Name, &metav1.DeleteOptions{})

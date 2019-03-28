@@ -142,7 +142,12 @@ type Gatewayer interface {
 	RuleConfig(w http.ResponseWriter, r *http.Request)
 }
 
-// ThirdPartyServicer is a interface for defining methods for third-party service.
+// ThirdPartyServicer is an interface for defining methods for third-party service.
 type ThirdPartyServicer interface {
 	Endpoints(w http.ResponseWriter, r *http.Request)
+}
+
+// Labeler is an interface for defining methods to get information of labels.
+type Labeler interface {
+	Labels(w http.ResponseWriter, r *http.Request)
 }

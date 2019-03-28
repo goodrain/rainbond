@@ -48,6 +48,7 @@ type V2Manager interface {
 	api.AppInterface
 	api.Gatewayer
 	api.ThirdPartyServicer
+	api.Labeler
 }
 
 var defaultV2Manager V2Manager
@@ -79,5 +80,7 @@ func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2
 
 	v2r.GatewayStruct.MQClient = mqClient
 	v2r.GatewayStruct.cfg = &conf
+
+	v2r.LabelController.optconfig = &conf
 	return &v2r, nil
 }
