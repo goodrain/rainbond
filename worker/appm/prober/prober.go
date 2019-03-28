@@ -42,6 +42,7 @@ type Prober interface {
 	Start()
 	Stop()
 	AddProbe(ep *corev1.Endpoints)
+	UpdateProbe(ep *corev1.Endpoints)
 	StopProbe(ep *corev1.Endpoints)
 }
 
@@ -100,17 +101,12 @@ func (t *tpProbe) Start() {
 				evt := event.(store.Event)
 				switch evt.Type {
 				case store.CreateEvent:
-					logrus.Debug("create probe")
 					ep := evt.Obj.(*corev1.Endpoints)
 					t.AddProbe(ep)
 				case store.UpdateEvent:
-					logrus.Debug("update probe")
-					old := evt.Old.(*corev1.Endpoints)
-					ep := evt.Obj.(*corev1.Endpoints)
-					t.StopProbe(old)
-					t.AddProbe(ep)
+					new := evt.Obj.(*corev1.Endpoints)
+					t.UpdateProbe(new)
 				case store.DeleteEvent:
-					logrus.Debug("delete probe")
 					ep := evt.Obj.(*corev1.Endpoints)
 					t.StopProbe(ep)
 				}
@@ -135,7 +131,6 @@ func (t *tpProbe) AddProbe(ep *corev1.Endpoints) {
 	ip := ep.GetLabels()["ip"]
 	port, _ := strconv.Atoi(ep.GetLabels()["port"])
 	// watch
-	logrus.Debug("enable watcher...")
 	if t.utilprober.CheckAndAddService(service) {
 		logrus.Debugf("Service: %+v; Exists", service)
 		return
@@ -191,11 +186,22 @@ func (t *tpProbe) AddProbe(ep *corev1.Endpoints) {
 					}
 				}
 			case <-t.ctx.Done():
+				// TODO: should stop for one service, not all services.
 				return
 			}
 		}
 	}(service)
 	// start
+	t.utilprober.UpdateServicesProbe([]*v1.Service{service})
+}
+
+func (t *tpProbe) UpdateProbe(ep *corev1.Endpoints) {
+	service, _, _ := t.createServices(ep)
+	if service == nil {
+		logrus.Debugf("Empty service, stop updating probe")
+		return
+	}
+
 	t.utilprober.UpdateServicesProbe([]*v1.Service{service})
 }
 
@@ -215,7 +221,6 @@ func (t *tpProbe) GetProbeInfo(sid string) (*model.TenantServiceProbe, error) {
 			logrus.Warningf("ServiceID: %s; error getting probes: %v", sid, err)
 		}
 		// no defined probe, use default one
-		logrus.Debugf("no defined probe, use default one")
 		return &model.TenantServiceProbe{
 			Scheme:           "tcp",
 			PeriodSecond:     5,

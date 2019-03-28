@@ -280,7 +280,6 @@ func (p *probeManager) CheckAndAddService(in *v1.Service) bool {
 	exist := false
 	for _, svc := range p.services {
 		if svc.Name == in.Name {
-			logrus.Debugf("svc name: %s; in name: %s;", svc.Name, in.Name)
 			exist = true
 		}
 	}
@@ -290,6 +289,20 @@ func (p *probeManager) CheckAndAddService(in *v1.Service) bool {
 		p.services = append(p.services, in)
 	}
 	return exist
+}
+
+func (p *probeManager) isNeedUpdate(new *v1.Service) bool {
+	var old *v1.Service
+	for _, svc := range p.services {
+		if svc.Name == new.Name {
+			old = svc
+		}
+	}
+	if old == nil {
+		// not found old one
+		return false
+	}
+	return new.Equal(old)
 }
 
 func (p *probeManager) GetServiceHealth() map[string]*v1.HealthStatus {
@@ -363,7 +376,6 @@ func (p *probeManager) updateAllServicesProbe() {
 
 // UpdateServicesProbe updates and runs services probe.
 func (p *probeManager) UpdateServicesProbe(services []*v1.Service) {
-	logrus.Debugf("update services probe...")
 	for _, v := range services {
 		if v.ServiceHealth == nil {
 			continue
@@ -371,6 +383,10 @@ func (p *probeManager) UpdateServicesProbe(services []*v1.Service) {
 		if v.Disable {
 			continue
 		}
+		if !p.isNeedUpdate(v) {
+			continue
+		}
+		logrus.Debugf("Probe: %s; update probe.", v.Name)
 		// stop old probe
 		old := p.serviceProbe[v.Name]
 		if old != nil {

@@ -36,6 +36,23 @@ type Service struct {
 	Disable       bool    `json:"disable"`
 }
 
+// Equal check if the left service(l) is equal to the right service(r)
+func (l *Service) Equal(r *Service) bool {
+	if l == r {
+		return true
+	}
+	if l.Name != r.Name {
+		return false
+	}
+	if l.Disable != r.Disable {
+		return false
+	}
+	if l.ServiceHealth != r.ServiceHealth {
+		return false
+	}
+	return true
+}
+
 //Health ServiceHealth
 type Health struct {
 	Name         string `json:"name"`
@@ -44,6 +61,32 @@ type Health struct {
 	Address      string `json:"address"`
 	TimeInterval int    `json:"time_interval"`
 	MaxErrorsNum int    `json:"max_errors_num"`
+}
+
+// Equal check if the left health(l) is equal to the right health(r)
+func (l *Health) Equal(r *Health) bool {
+	if l == r {
+		return true
+	}
+	if l.Name != r.Name {
+		return false
+	}
+	if l.Model != r.Model {
+		return false
+	}
+	if l.Port != r.Port {
+		return false
+	}
+	if l.Address != r.Address {
+		return false
+	}
+	if l.TimeInterval != r.TimeInterval {
+		return false
+	}
+	if l.MaxErrorsNum != r.MaxErrorsNum {
+		return false
+	}
+	return true
 }
 
 //HealthStatus health status
