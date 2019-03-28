@@ -162,7 +162,6 @@ func NewStore(clientset *kubernetes.Clientset,
 				appservice, err := store.getAppService(serviceID, version, createrID, true)
 				if err == conversion.ErrServiceNotFound {
 					logrus.Debugf("ServiceID: %s; Action: AddFunc; service not found", serviceID)
-					store.conf.KubeClient.CoreV1().Endpoints(ep.Namespace).Delete(ep.Name, &metav1.DeleteOptions{})
 				}
 				if appservice != nil {
 					appservice.AddEndpoints(ep)
@@ -209,7 +208,6 @@ func NewStore(clientset *kubernetes.Clientset,
 				appservice, err := store.getAppService(serviceID, version, createrID, true)
 				if err == conversion.ErrServiceNotFound {
 					logrus.Debugf("ServiceID: %s; Action: UpdateFunc; service not found", serviceID)
-					store.conf.KubeClient.CoreV1().Endpoints(cep.Namespace).Delete(cep.Name, &metav1.DeleteOptions{})
 				}
 				if appservice != nil {
 					appservice.AddEndpoints(cep)

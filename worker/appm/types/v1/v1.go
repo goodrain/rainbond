@@ -104,7 +104,6 @@ type AppService struct {
 	services     []*corev1.Service
 	delServices  []*corev1.Service
 	endpoints    []*corev1.Endpoints
-	delEndpoints []*corev1.Endpoints
 	configMaps   []*corev1.ConfigMap
 	ingresses    []*extensions.Ingress
 	delIngs      []*extensions.Ingress // ingresses which need to be deleted
@@ -315,11 +314,6 @@ func (a *AppService) GetEndpointsByName(name string) *corev1.Endpoints {
 		}
 	}
 	return nil
-}
-
-// GetDelEndpoints returns endpoints that need to be deleted in AppService
-func (a *AppService) GetDelEndpoints() []*corev1.Endpoints {
-	return a.delEndpoints
 }
 
 //DelEndpoints deletes *corev1.Endpoints
