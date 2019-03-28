@@ -54,7 +54,12 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) (string, er
 		ServiceID:     req.ServiceID,
 		ContainerPort: req.ContainerPort,
 		Domain:        req.Domain,
-		Path:          req.Path,
+		Path: func() string {
+			if !strings.HasPrefix(req.Path, "/") {
+				return "/" + req.Path
+			}
+			return req.Path
+		}(),
 		Header:        req.Header,
 		Cookie:        req.Cookie,
 		Weight:        req.Weight,
@@ -164,7 +169,12 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (stri
 	if req.Domain != "" {
 		rule.Domain = req.Domain
 	}
-	rule.Path = req.Path
+	rule.Path = func() string {
+		if !strings.HasPrefix(req.Path, "/") {
+			return "/" + req.Path
+		}
+		return req.Path
+	}()
 	rule.Header = req.Header
 	rule.Cookie = req.Cookie
 	rule.Weight = req.Weight
@@ -611,6 +621,12 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 	})
 	setheaders := make(map[string]string)
 	for _, item := range req.Body.SetHeaders {
+		if strings.TrimSpace(item.Key) == ""{
+			continue
+		}
+		if strings.TrimSpace(item.Value) == "" {
+			item.Value = "empty"
+		}
 		// filter same key
 		setheaders["set-header-"+item.Key] = item.Value
 	}
