@@ -149,7 +149,7 @@ func createUDPDefaultPluginContainer(serviceID string, envs []v1.EnvVar) v1.Cont
 		}},
 		Env:                    envs,
 		TerminationMessagePath: "",
-		Image:                  "goodrain.me/adapter",
+		Image:                   builder.REGISTRYDOMAIN +"/adapter",
 		Resources:              createAdapterResources(128, 500),
 	}
 }
