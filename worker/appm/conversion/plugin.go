@@ -239,7 +239,7 @@ func applyDefaultMeshPluginConfig(as *typesv1.AppService, dbmanager db.Manager) 
 	if err != nil {
 		return "", err
 	}
-	pluginID := "tcpmesh" + util.NewUUID()
+	pluginID := "tcpmesh" + as.ServiceID
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("config-%s-%s", as.ServiceID, pluginID),
