@@ -24,6 +24,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/goodrain/rainbond/builder"
+
 	"github.com/Sirupsen/logrus"
 
 	api_model "github.com/goodrain/rainbond/api/model"
@@ -149,7 +151,7 @@ func createUDPDefaultPluginContainer(serviceID string, envs []v1.EnvVar) v1.Cont
 		}},
 		Env:                    envs,
 		TerminationMessagePath: "",
-		Image:                   builder.REGISTRYDOMAIN +"/adapter",
+		Image:                  builder.REGISTRYDOMAIN + "/adapter",
 		Resources:              createAdapterResources(128, 500),
 	}
 }
