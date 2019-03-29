@@ -19,16 +19,14 @@
 package exector
 
 import (
-	"time"
-
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
-
-	"regexp"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
@@ -498,6 +496,7 @@ type Service struct {
 	Volumes       []string          `yaml:"volumes,omitempty"`
 	Command       string            `yaml:"command,omitempty"`
 	Environment   map[string]string `yaml:"environment,omitempty"`
+	DependsOn     []string          `yaml:"depends_on,omitempty"`
 	Loggin        struct {
 		Driver  string `yaml:"driver,omitempty"`
 		Options struct {
@@ -525,6 +524,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 
 	for _, app := range apps {
 		image := app.Get("image").String()
+		shareImage := app.Get("share_image").String()
 		appName := app.Get("service_cname").String()
 		appName = unicode2zh(appName)
 		volumes := make([]string, 0, 3)
@@ -542,8 +542,10 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 			volumes = append(volumes, fmt.Sprintf("%s:%s", volumeName, volumePath))
 		}
 
+		lang := app.Get("language").String()
 		// 如果该组件是源码方式部署，则挂载slug文件到runner容器内
-		if checkIsRunner(image) {
+		if lang != "dockerfile" && checkIsRunner(image) {
+			shareImage = image
 			shareSlugPath := app.Get("share_slug_path").String()
 			tarFileName := buildToLinuxFileName(shareSlugPath)
 			volume := fmt.Sprintf("__GROUP_DIR__/%s/%s:/tmp/slug/slug.tgz", appName, tarFileName)
@@ -552,8 +554,10 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 		}
 
 		// 处理环境变量
-		for k, v := range app.Get("service_env_map_list").Map() {
-			envs[k] = v.String()
+		for _, item := range app.Get("service_env_map_list").Array() {
+			key := item.Get("attr_name").String()
+			value := item.Get("attr_value").String()
+			envs[key] = value
 		}
 
 		for _, item := range app.Get("service_connect_info_map_list").Array() {
@@ -562,6 +566,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 			envs[key] = value
 		}
 
+		var depServices []string
 		// 如果该app依赖了另了个app-b，则把app-b中所有公开环境变量注入到该app
 		for _, item := range app.Get("dep_service_map_list").Array() {
 			serviceKey := item.Get("dep_service_key").String()
@@ -569,10 +574,14 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 			for k, v := range depEnvs {
 				envs[k] = v
 			}
+
+			if svc := i.getDependedService(serviceKey, &apps); svc != "" {
+				depServices = append(depServices, svc)
+			}
 		}
 
 		service := &Service{
-			Image:         image,
+			Image:         shareImage,
 			ContainerName: appName,
 			Restart:       "always",
 			NetworkMode:   "host",
@@ -583,6 +592,9 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 		service.Loggin.Driver = "json-file"
 		service.Loggin.Options.MaxSize = "5m"
 		service.Loggin.Options.MaxFile = "2"
+		if depServices != nil && len(depServices) > 0 {
+			service.DependsOn = depServices
+		}
 
 		y.Services[appName] = service
 	}
@@ -607,7 +619,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 func (i *ExportApp) getPublicEnvByKey(serviceKey string, apps *[]gjson.Result) map[string]string {
 	envs := make(map[string]string, 5)
 	for _, app := range *apps {
-		appKey := app.Get("service_key").String()
+		appKey := app.Get("service_share_uuid").String()
 		if appKey == serviceKey {
 			for _, item := range app.Get("service_connect_info_map_list").Array() {
 				key := item.Get("attr_name").String()
@@ -619,6 +631,15 @@ func (i *ExportApp) getPublicEnvByKey(serviceKey string, apps *[]gjson.Result) m
 	}
 
 	return envs
+}
+
+func (i *ExportApp) getDependedService(key string, apps *[]gjson.Result) string {
+	for _, app := range *apps {
+		if key == app.Get("service_share_uuid").String() {
+			return app.Get("service_cname").String()
+		}
+	}
+	return ""
 }
 
 func (i *ExportApp) buildStartScript() error {
