@@ -21,9 +21,7 @@ package server
 import (
 	"context"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
 	"net"
-	"strconv"
 	"strings"
 	"time"
 
@@ -38,6 +36,7 @@ import (
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	corev1 "k8s.io/api/core/v1"
 )
 
 //RuntimeServer app runtime grpc server
@@ -242,36 +241,49 @@ func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.Serv
 		return new(pb.ThirdPartyEndpoints), nil
 	}
 	var pbeps []*pb.ThirdPartyEndpoint
+	// The same IP may correspond to two endpoints, which are internal and external endpoints.
+	// So it is need to filter the same IP.
 	exists := make(map[string]bool)
 	for _, ep := range as.GetEndpoints() {
-		if exists[ep.GetLabels()["uuid"]] {
+		if ep.Subsets == nil || len(ep.Subsets) == 0 {
+			logrus.Debugf("Key: %s; empty subsets", fmt.Sprintf("%s/%s", ep.Namespace, ep.Name))
 			continue
 		}
-		exists[ep.GetLabels()["uuid"]] = true
-		pbep := &pb.ThirdPartyEndpoint{
-			Uuid: ep.GetLabels()["uuid"],
-			Sid:  ep.GetLabels()["service_id"],
-			Ip:   ep.GetLabels()["ip"],
-			Port: func(item *corev1.Endpoints) int32 {
-				realport, _ := strconv.ParseBool(item.GetLabels()["realport"])
-				if realport {
-					portstr := item.GetLabels()["port"]
-					port, _ := strconv.Atoi(portstr)
-					return int32(port)
+		for idx, subset := range ep.Subsets {
+			if exists[subset.Ports[0].Name] {
+				continue
+			}
+			ip := func(subset corev1.EndpointSubset) string {
+				if subset.Addresses != nil && len(subset.Addresses) > 0 {
+					return subset.Addresses[0].IP
 				}
-				return 0
-			}(ep),
-			Status: func(item *corev1.Endpoints) string {
-				if item.Subsets == nil || len(item.Subsets) == 0 {
+				if subset.NotReadyAddresses != nil && len(subset.NotReadyAddresses) > 0 {
+					return subset.NotReadyAddresses[0].IP
+				}
+				return ""
+			}(subset)
+			if strings.TrimSpace(ip) == "" {
+				logrus.Debugf("Key: %s; Index: %d; IP not found", fmt.Sprintf("%s/%s", ep.Namespace, ep.Name), idx)
+				continue
+			}
+			exists[subset.Ports[0].Name] = true
+			pbep := &pb.ThirdPartyEndpoint{
+				Uuid: subset.Ports[0].Name,
+				Sid:  ep.GetLabels()["service_id"],
+				Ip:   ip,
+				Port: subset.Ports[0].Port,
+				Status: func(item *corev1.Endpoints) string {
+					if subset.Addresses != nil && len(subset.Addresses) > 0 {
+						return "healthy"
+					}
+					if subset.NotReadyAddresses != nil && len(subset.NotReadyAddresses) > 0 {
+						return "unhealthy"
+					}
 					return "unknown"
-				}
-				if item.Subsets[0].Addresses == nil || len(item.Subsets[0].Addresses) == 0 {
-					return "unhealthy"
-				}
-				return "healthy"
-			}(ep),
+				}(ep),
+			}
+			pbeps = append(pbeps, pbep)
 		}
-		pbeps = append(pbeps, pbep)
 	}
 	return &pb.ThirdPartyEndpoints{
 		Obj: pbeps,
@@ -310,9 +322,16 @@ func (r *RuntimeServer) UpdThirdPartyEndpoint(ctx context.Context, re *pb.UpdThi
 		Port:     int(re.Port),
 		IsOnline: re.IsOnline,
 	}
-	r.updateCh.In() <- discovery.Event{
-		Type: discovery.UpdateEvent,
-		Obj:  rbdep,
+	if re.IsOnline == false {
+		r.updateCh.In() <- discovery.Event{
+			Type: discovery.DeleteEvent,
+			Obj:  rbdep,
+		}
+	} else {
+		r.updateCh.In() <- discovery.Event{
+			Type: discovery.UpdateEvent,
+			Obj:  rbdep,
+		}
 	}
 	return new(pb.Empty), nil
 }
