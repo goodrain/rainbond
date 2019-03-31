@@ -29,7 +29,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	uitlprober "github.com/goodrain/rainbond/util/prober"
-	"github.com/goodrain/rainbond/util/prober/types/v1"
+	v1 "github.com/goodrain/rainbond/util/prober/types/v1"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
 	appmv1 "github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -216,7 +216,7 @@ func (t *tpProbe) StopProbe(ep *corev1.Endpoints) {
 // If there is no probe in the database, return a default probe
 func (t *tpProbe) GetProbeInfo(sid string) (*model.TenantServiceProbe, error) {
 	probes, err := t.dbm.ServiceProbeDao().GetServiceProbes(sid)
-	if err != nil || probes == nil || len(probes) == 0 || probes[0].IsUsed == 0 {
+	if err != nil || probes == nil || len(probes) == 0 || *(probes[0].IsUsed) == 0 {
 		if err != nil {
 			logrus.Warningf("ServiceID: %s; error getting probes: %v", sid, err)
 		}
