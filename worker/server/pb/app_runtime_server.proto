@@ -56,10 +56,11 @@ message DeployInfo {
   string deployment = 3;
   map<string, string> pods = 4;
   map<string, string> services = 5;
-  map<string, string> secrets = 6;
-  map<string, string> ingresses = 7;
-  map<string, string> replicatset = 8;
-  string status = 9;
+  map<string, string> endpoints = 6;
+  map<string, string> secrets = 7;
+  map<string, string> ingresses = 8;
+  map<string, string> replicatset = 9;
+  string status = 10;
 }
 
 message TenantResource {
