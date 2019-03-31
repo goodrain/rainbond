@@ -25,12 +25,13 @@ const (
 	StatHealthy string = "healthy"
 	// StatUnhealthy -
 	StatUnhealthy string = "unhealthy"
-	// StaTDeath -
+	// StatDeath -
 	StatDeath string = "death"
 )
 
-//Service Service
+// Service Service
 type Service struct {
+	Sid           string  `json:"service_id"`
 	Name          string  `json:"name"`
 	ServiceHealth *Health `json:"health"`
 	Disable       bool    `json:"disable"`
@@ -41,13 +42,16 @@ func (l *Service) Equal(r *Service) bool {
 	if l == r {
 		return true
 	}
+	if l.Sid != r.Sid {
+		return false
+	}
 	if l.Name != r.Name {
 		return false
 	}
 	if l.Disable != r.Disable {
 		return false
 	}
-	if l.ServiceHealth != r.ServiceHealth {
+	if !l.ServiceHealth.Equal(r.ServiceHealth) {
 		return false
 	}
 	return true
@@ -57,6 +61,7 @@ func (l *Service) Equal(r *Service) bool {
 type Health struct {
 	Name         string `json:"name"`
 	Model        string `json:"model"`
+	IP           string `json:"ip"`
 	Port         int    `json:"port"`
 	Address      string `json:"address"`
 	TimeInterval int    `json:"time_interval"`
@@ -72,6 +77,9 @@ func (l *Health) Equal(r *Health) bool {
 		return false
 	}
 	if l.Model != r.Model {
+		return false
+	}
+	if l.IP != r.IP {
 		return false
 	}
 	if l.Port != r.Port {
