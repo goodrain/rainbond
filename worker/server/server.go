@@ -38,7 +38,6 @@ import (
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	corev1 "k8s.io/api/core/v1"
 )
 
 //RuntimeServer app runtime grpc server
