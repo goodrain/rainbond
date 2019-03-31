@@ -23,6 +23,8 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/goodrain/rainbond/builder"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
@@ -570,7 +572,7 @@ func GetTCPMeshImageName() string {
 	if d := os.Getenv("TCPMESH_DEFAULT_IMAGE_NAME"); d != "" {
 		return d
 	}
-	return "goodrain.me/mesh_plugin"
+	return builder.REGISTRYDOMAIN + "/mesh_plugin"
 }
 
 //GetProbeMeshImageName get probe init mesh image name
@@ -578,5 +580,5 @@ func GetProbeMeshImageName() string {
 	if d := os.Getenv("PROBE_MESH_IMAGE_NAME"); d != "" {
 		return d
 	}
-	return "goodrain.me/rbd-init-probe"
+	return builder.REGISTRYDOMAIN + "/rbd-init-probe"
 }

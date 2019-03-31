@@ -53,7 +53,7 @@ func ApplyOne(clientset *kubernetes.Clientset, app *v1.AppService) error {
 	}
 	// update endpoints
 	for _, ep := range app.GetEndpoints() {
-		ensureEndpoints(ep, clientset)
+		EnsureEndpoints(ep, clientset)
 	}
 	// update ingress
 	for _, ing := range app.GetIngress() {
@@ -140,9 +140,9 @@ func ensureSecret(secret *corev1.Secret, clientSet kubernetes.Interface) {
 	}
 }
 
-func ensureEndpoints(ep *corev1.Endpoints, clientSet kubernetes.Interface) {
+// EnsureEndpoints creates or updates endpoints.
+func EnsureEndpoints(ep *corev1.Endpoints, clientSet kubernetes.Interface) {
 	_, err := clientSet.CoreV1().Endpoints(ep.Namespace).Update(ep)
-
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			_, err := clientSet.CoreV1().Endpoints(ep.Namespace).Create(ep)
@@ -258,4 +258,63 @@ func UpgradeSecrets(clientset *kubernetes.Clientset,
 		}
 	}
 	return nil
+}
+
+// UpgradeEndpoints is used to update *corev1.Endpoints.
+func UpgradeEndpoints(clientset *kubernetes.Clientset,
+	as *v1.AppService, old, new []*corev1.Endpoints,
+	handleErr func(msg string, err error) error) error {
+	var oldMap = make(map[string]*corev1.Endpoints, len(old))
+	for i, item := range old {
+		oldMap[item.Name] = old[i]
+	}
+	for _, n := range new {
+		if o, ok := oldMap[n.Name]; ok {
+			ep, err := clientset.CoreV1().Endpoints(n.Namespace).Update(n)
+			if err != nil {
+				if e := handleErr(fmt.Sprintf("error updating endpoints: %+v: err: %v",
+					ep, err), err); e != nil {
+					return e
+				}
+				continue
+			}
+			as.AddEndpoints(ep)
+			delete(oldMap, o.Name)
+			logrus.Debugf("ServiceID: %s; successfully update endpoints: %s", as.ServiceID, ep.Name)
+		} else {
+			_, err := clientset.CoreV1().Endpoints(n.Namespace).Create(n)
+			if err != nil {
+				if err := handleErr(fmt.Sprintf("error creating endpoints: %+v: err: %v",
+					n, err), err); err != nil {
+					return err
+				}
+				continue
+			}
+			as.AddEndpoints(n)
+			logrus.Debugf("ServiceID: %s; successfully create endpoints: %s", as.ServiceID, n.Name)
+		}
+	}
+	for _, sec := range oldMap {
+		if sec != nil {
+			if err := clientset.CoreV1().Endpoints(sec.Namespace).Delete(sec.Name, &metav1.DeleteOptions{}); err != nil {
+				if err := handleErr(fmt.Sprintf("error deleting endpoints: %+v: err: %v",
+					sec, err), err); err != nil {
+					return err
+				}
+				continue
+			}
+			logrus.Debugf("ServiceID: %s; successfully delete endpoints: %s", as.ServiceID, sec.Name)
+		}
+	}
+	return nil
+}
+
+// UpdateEndpoints uses clientset to update the given Endpoints.
+func UpdateEndpoints(ep *corev1.Endpoints, clientSet *kubernetes.Clientset) {
+	_, err := clientSet.CoreV1().Endpoints(ep.Namespace).Update(ep)
+	if err != nil {
+		logrus.Warningf("error updating endpoints: %+v; err: %v", ep, err)
+		return
+	}
+	logrus.Debugf("Key: %s/%s; Successfully update endpoints", ep.GetNamespace(), ep.GetName())
 }

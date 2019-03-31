@@ -8,6 +8,11 @@ GO_VERSION=1.11
 GATEWAY_GO_VERSION=1.11-alpine3.8
 
 VERSION=5.1.1
+if [ -z "$TRAVIS_TAG" ]; then
+	VERSION=$TRAVIS_BRANCH-dev
+else
+	VERSION=$TRAVIS_TAG
+fi
 buildTime=$(date +%F-%H)
 git_commit=$(git log -n 1 --pretty --format=%h)
 
