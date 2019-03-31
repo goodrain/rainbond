@@ -21,6 +21,8 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/db/model"
+	corev1 "k8s.io/api/core/v1"
 	"net"
 	"strings"
 	"time"
@@ -36,7 +38,6 @@ import (
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	corev1 "k8s.io/api/core/v1"
 )
 
 //RuntimeServer app runtime grpc server
@@ -178,6 +179,14 @@ func (r *RuntimeServer) GetDeployInfo(ctx context.Context, re *pb.ServiceRequest
 				service[s.Name] = s.Name
 			}
 			deployinfo.Services = service
+		}
+		if endpoints := appService.GetEndpoints(); endpoints != nil &&
+			appService.AppServiceBase.ServiceKind == model.ServiceKindThirdParty {
+			eps := make(map[string]string, len(endpoints))
+			for _, s := range endpoints {
+				eps[s.Name] = s.Name
+			}
+			deployinfo.Endpoints = eps
 		}
 		if secrets := appService.GetSecrets(); secrets != nil {
 			secretsinfo := make(map[string]string, len(secrets))
