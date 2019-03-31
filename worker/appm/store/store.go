@@ -20,6 +20,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -78,7 +79,14 @@ const (
 type Event struct {
 	Type EventType
 	Obj  interface{}
-	Old  interface{}
+}
+
+// ProbeInfo holds the context of a probe.
+type ProbeInfo struct {
+	Sid  string `json:"sid"`
+	UUID string `json:"uuid"`
+	IP   string `json:"ip"`
+	Port int32  `json:"port"`
 }
 
 //appRuntimeStore app runtime store
@@ -154,7 +162,6 @@ func NewStore(clientset *kubernetes.Clientset,
 	epEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			ep := obj.(*corev1.Endpoints)
-			logrus.Debugf("received add endpoints: %+v", ep)
 			serviceID := ep.Labels["service_id"]
 			version := ep.Labels["version"]
 			createrID := ep.Labels["creater_id"]
@@ -165,10 +172,12 @@ func NewStore(clientset *kubernetes.Clientset,
 				}
 				if appservice != nil {
 					appservice.AddEndpoints(ep)
-					if isThirdParty(ep) {
+					if isThirdParty(ep) && ep.Subsets != nil && len(ep.Subsets) > 0 {
+						logrus.Debugf("received add endpoints: %+v", ep)
+						probeInfos := listProbeInfos(ep, serviceID)
 						probeCh.In() <- Event{
 							Type: CreateEvent,
-							Obj:  obj,
+							Obj:  probeInfos,
 						}
 					}
 					return
@@ -177,7 +186,6 @@ func NewStore(clientset *kubernetes.Clientset,
 		},
 		DeleteFunc: func(obj interface{}) {
 			ep := obj.(*corev1.Endpoints)
-			logrus.Debugf("received delete endpoints: %+v", ep)
 			serviceID := ep.Labels["service_id"]
 			version := ep.Labels["version"]
 			createrID := ep.Labels["creater_id"]
@@ -190,9 +198,14 @@ func NewStore(clientset *kubernetes.Clientset,
 						store.DeleteAppService(appservice)
 					}
 					if isThirdParty(ep) {
+						logrus.Debugf("received delete endpoints: %+v", ep)
+						var uuids []string
+						for _, item := range ep.Subsets {
+							uuids = append(uuids, item.Ports[0].Name)
+						}
 						probeCh.In() <- Event{
 							Type: DeleteEvent,
-							Obj:  obj,
+							Obj:  uuids,
 						}
 					}
 				}
@@ -212,10 +225,10 @@ func NewStore(clientset *kubernetes.Clientset,
 				if appservice != nil {
 					appservice.AddEndpoints(cep)
 					if isThirdParty(cep) {
+						curInfos := listProbeInfos(cep, serviceID)
 						probeCh.In() <- Event{
 							Type: UpdateEvent,
-							Obj:  cur,
-							Old:  old,
+							Obj:  curInfos,
 						}
 					}
 				}
@@ -233,6 +246,67 @@ func NewStore(clientset *kubernetes.Clientset,
 	store.informers.ReplicaSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Endpoints.AddEventHandlerWithResyncPeriod(epEventHandler, time.Second*10)
 	return store
+}
+
+func listProbeInfos(ep *corev1.Endpoints, sid string) []*ProbeInfo {
+	var probeInfos []*ProbeInfo
+	for _, subset := range ep.Subsets {
+		uuid := subset.Ports[0].Name
+		port := subset.Ports[0].Port
+		for _, address := range subset.NotReadyAddresses {
+			info := &ProbeInfo{
+				Sid:  sid,
+				UUID: uuid,
+				IP:   address.IP,
+				Port: port,
+			}
+			probeInfos = append(probeInfos, info)
+		}
+		for _, address := range subset.Addresses {
+			info := &ProbeInfo{
+				Sid:  sid,
+				UUID: uuid,
+				IP:   address.IP,
+				Port: port,
+			}
+			probeInfos = append(probeInfos, info)
+		}
+	}
+	return probeInfos
+}
+
+func upgradeProbe(ch chan<- interface{}, old, cur []*ProbeInfo) {
+	ob, _ := json.Marshal(old)
+	cb, _ := json.Marshal(cur)
+	logrus.Debugf("Old probe infos: %s", string(ob))
+	logrus.Debugf("Current probe infos: %s", string(cb))
+	oldMap := make(map[string]*ProbeInfo, len(old))
+	for i := 0; i < len(old); i++ {
+		oldMap[old[i].UUID] = old[i]
+	}
+	for _, c := range cur {
+		if info := oldMap[c.UUID]; info != nil {
+			delete(oldMap, c.UUID)
+			logrus.Debugf("UUID: %s; update probe", c.UUID)
+			ch <- Event{
+				Type: UpdateEvent,
+				Obj:  c,
+			}
+		} else {
+			logrus.Debugf("UUID: %s; create probe", c.UUID)
+			ch <- Event{
+				Type: CreateEvent,
+				Obj:  []*ProbeInfo{c},
+			}
+		}
+	}
+	for _, info := range oldMap {
+		logrus.Debugf("UUID: %s; delete probe", info.UUID)
+		ch <- Event{
+			Type: DeleteEvent,
+			Obj:  info,
+		}
+	}
 }
 
 func (a *appRuntimeStore) init() error {

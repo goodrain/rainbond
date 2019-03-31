@@ -615,7 +615,8 @@ func (ctrl *ProvisionController) processNextClaimWorkItem() bool {
 
 		if err := ctrl.syncClaimHandler(key); err != nil {
 			if ctrl.claimQueue.NumRequeues(obj) < ctrl.failedProvisionThreshold {
-				logrus.Warningf("Retrying syncing claim %q because failures %v < threshold %v", key, ctrl.claimQueue.NumRequeues(obj), ctrl.failedProvisionThreshold)
+				logrus.Warningf("Retrying syncing claim %q because failures %v < threshold %v",
+					key, ctrl.claimQueue.NumRequeues(obj), ctrl.failedProvisionThreshold)
 				ctrl.claimQueue.AddRateLimited(obj)
 			} else {
 				logrus.Errorf("Giving up syncing claim %q because failures %v >= threshold %v", key, ctrl.claimQueue.NumRequeues(obj), ctrl.failedProvisionThreshold)
