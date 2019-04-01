@@ -20,7 +20,6 @@ package probe
 
 import (
 	"context"
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util/prober/types/v1"
 )
 
@@ -34,7 +33,6 @@ type Probe interface {
 func CreateProbe(ctx context.Context, statusChan chan *v1.HealthStatus, v *v1.Service) Probe {
 	ctx, cancel := context.WithCancel(ctx)
 	if v.ServiceHealth.Model == "tcp" {
-		logrus.Debug("creat tcp probe...")
 		t := &TCPProbe{
 			Name:         v.ServiceHealth.Name,
 			Address:      v.ServiceHealth.Address,
@@ -47,7 +45,6 @@ func CreateProbe(ctx context.Context, statusChan chan *v1.HealthStatus, v *v1.Se
 		return t
 	}
 	if v.ServiceHealth.Model == "http" {
-		logrus.Debug("creat http probe...")
 		t := &HTTPProbe{
 			Name:         v.ServiceHealth.Name,
 			Address:      v.ServiceHealth.Address,

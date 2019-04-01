@@ -32,6 +32,7 @@ import (
 	simplejson "github.com/bitly/go-simplejson"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
@@ -388,7 +389,7 @@ func (i *ImportApp) importPlugins() error {
 			// 上传之前先要根据新的仓库地址修改镜像名
 			image := i.oldPluginPath[plugin.Get("service_key").String()]
 			imageName := sources.ImageNameWithNamespaceHandle(image)
-			saveImageName := fmt.Sprintf("%s/%s:%s", "goodrain.me", imageName.Name, imageName.Tag)
+			saveImageName := fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, imageName.Name, imageName.Tag)
 			newImageName := plugin.Get("share_image").String()
 			if err := sources.ImageTag(i.DockerClient, saveImageName, newImageName, i.Logger, 2); err != nil {
 				return fmt.Errorf("change plugin image tag(%s => %s) error %s", saveImageName, newImageName, err.Error())
@@ -440,7 +441,7 @@ func (i *ImportApp) loadApps() error {
 			pass := app.Get("service_image.hub_password").String()
 			// 上传之前先要根据新的仓库地址修改镜像名
 			image := app.Get("share_image").String()
-			if err := sources.ImageTag(i.DockerClient, fmt.Sprintf("%s/%s:%s", "goodrain.me", oldImageName.Name, oldImageName.Tag), image, i.Logger, 15); err != nil {
+			if err := sources.ImageTag(i.DockerClient, fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, oldImageName.Name, oldImageName.Tag), image, i.Logger, 15); err != nil {
 				return fmt.Errorf("change image tag(%s => %s) error %s", fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubUrl, oldImageName.Name, oldImageName.Tag), image, err.Error())
 			}
 			// 开始上传

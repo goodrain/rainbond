@@ -392,6 +392,36 @@ func showServiceDeployInfo(c *cli.Context) error {
 	}
 	fmt.Println("------------Service------------")
 	fmt.Println(serviceTable.Render())
+	//show endpoints
+	if deployInfo.Endpoints != nil && len(deployInfo.Endpoints) > 0 {
+		epTable := termtables.CreateTable()
+		epTable.AddHeaders("Name", "IP", "Port", "Protocol")
+		for epname := range deployInfo.Endpoints {
+			if clients.K8SClient != nil {
+				ep, _ := clients.K8SClient.CoreV1().Endpoints(tenantID).Get(epname, metav1.GetOptions{})
+				if ep != nil {
+					for i := range ep.Subsets {
+						ss := &ep.Subsets[i]
+						for j := range ss.Ports {
+							port := &ss.Ports[j]
+							for k := range ss.Addresses {
+								address := &ss.Addresses[k]
+								epTable.AddRow(ep.Name, address.IP, port.Port, port.Protocol)
+							}
+							for k := range ss.NotReadyAddresses {
+								address := &ss.NotReadyAddresses[k]
+								epTable.AddRow(ep.Name, address.IP, port.Port, port.Protocol)
+							}
+						}
+					}
+				}
+			} else {
+				epTable.AddRow(epname, "-", "-", "-")
+			}
+		}
+		fmt.Println("------------endpoints------------")
+		fmt.Println(epTable.Render())
+	}
 	//show ingress
 	ingressTable := termtables.CreateTable()
 	ingressTable.AddHeaders("Name", "Host")

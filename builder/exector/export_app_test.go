@@ -16,44 +16,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package v1
+package exector
 
 import (
-	"crypto/x509"
+	"github.com/goodrain/rainbond/event"
 	"testing"
-	"time"
 )
 
-func TestSSLCert_Equals(t *testing.T) {
-	s := newFakeSSLCert()
-	c := newFakeSSLCert()
-	if !s.Equals(c) {
-		t.Errorf("s should equal c.")
+func TestExportApp_parseApps(t *testing.T) {
+	e := &ExportApp{
+		SourceDir: "./",
+		Logger:    event.GetTestLogger(),
 	}
-	s.Certificate = nil
-	if s.Equals(c) {
-		t.Errorf("s should not equal c.")
-	}
-	c.Certificate = nil
-	if !s.Equals(c) {
-		t.Errorf("s should equal c.")
-	}
-}
-
-func newFakeSSLCert() *SSLCert {
-	meta := newFakeMeta()
-	certificate := &x509.Certificate{}
-	certificate.Raw = []byte("foobar")
-	return &SSLCert{
-		Meta:           &meta,
-		CertificateStr: "dummy certificate str",
-		Certificate:    certificate,
-		PrivateKey:     "dummy private key",
-		CertificatePem: "/expert/servers/nginx/certificate/dummy-secret.pem",
-		CN: []string{
-			"CN-1",
-			"CN-2",
-		},
-		ExpireTime: time.Time{},
+	err := e.buildDockerComposeYaml()
+	if err != nil {
+		t.Error(err)
 	}
 }
