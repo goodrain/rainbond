@@ -114,9 +114,9 @@ func (t *thirdparty) Start() {
 				go t.runUpdate(devent)
 			case <-t.stopCh:
 				for _, stopCh := range t.svcStopCh {
-					close(stopCh) // TODO: close of closed channel
+					close(stopCh)
 				}
-				break
+				return
 			}
 		}
 	}()
