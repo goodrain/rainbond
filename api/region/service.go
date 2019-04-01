@@ -21,7 +21,6 @@ package region
 import (
 	"bytes"
 	"fmt"
-
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"

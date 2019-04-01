@@ -37,7 +37,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 var re = regexp.MustCompile(`\s`)
@@ -268,7 +268,7 @@ func (i *ExportApp) exportImage(serviceDir string, app gjson.Result) error {
 	}
 	//change save app image name
 	imageName := sources.ImageNameWithNamespaceHandle(image)
-	saveImageName := fmt.Sprintf("%s/%s:%s", "goodrain.me", imageName.Name, imageName.Tag)
+	saveImageName := fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, imageName.Name, imageName.Tag)
 	if err := sources.ImageTag(i.DockerClient, image, saveImageName, i.Logger, 2); err != nil {
 		return err
 	}
@@ -349,7 +349,7 @@ func (i *ExportApp) savePlugins() error {
 		}
 		//change save app image name
 		imageName := sources.ImageNameWithNamespaceHandle(image)
-		saveImageName := fmt.Sprintf("%s/%s:%s", "goodrain.me", imageName.Name, imageName.Tag)
+		saveImageName := fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, imageName.Name, imageName.Tag)
 		if err := sources.ImageTag(i.DockerClient, image, saveImageName, i.Logger, 2); err != nil {
 			return err
 		}

@@ -19,7 +19,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/model"
@@ -27,8 +26,6 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/client"
-	"strconv"
-	"strings"
 )
 
 // ThirdPartyServiceHanlder handles business logic for all third-party services
@@ -96,8 +93,6 @@ func (t *ThirdPartyServiceHanlder) DelEndpoints(epid, sid string) error {
 // ListEndpoints lists third-party service endpoints.
 func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointResp, error) {
 	endpoints, err := t.dbmanager.EndpointsDao().List(sid)
-	b, _ := json.Marshal(endpoints)
-	logrus.Debugf("Endpoints from db: %s", string(b))
 	if err != nil {
 		logrus.Warningf("ServiceID: %s; error listing endpoints from db; %v", sid, err)
 	}
@@ -105,9 +100,9 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 	for _, item := range endpoints {
 		m[item.UUID] = &model.EndpointResp{
 			EpID: item.UUID,
-			IP: func(ip string, port int) string {
-				if port != 0 {
-					return fmt.Sprintf("%s:%d", ip, port)
+			IP: func(ip string, p int) string {
+				if p != 0 {
+					return fmt.Sprintf("%s:%d", ip, p)
 				}
 				return ip
 			}(item.IP, item.Port),
@@ -123,8 +118,6 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 		return nil, err
 	}
 	if thirdPartyEndpoints != nil && thirdPartyEndpoints.Obj != nil {
-		b, _ = json.Marshal(thirdPartyEndpoints)
-		logrus.Debugf("Endpoints from rpc: %s", string(b))
 		for _, item := range thirdPartyEndpoints.Obj {
 			ep := m[item.Uuid]
 			if ep != nil {
@@ -133,13 +126,8 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 				continue
 			}
 			m[item.Uuid] = &model.EndpointResp{
-				EpID: item.Uuid,
-				IP: func(ip string, port int32) string {
-					if port != 0 {
-						return fmt.Sprintf("%s:%d", ip, port)
-					}
-					return ip
-				}(item.Ip, item.Port),
+				EpID:     item.Uuid,
+				IP:       item.Ip,
 				Status:   item.Status,
 				IsOnline: true,
 				IsStatic: false,
@@ -153,19 +141,4 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 	}
 
 	return res, nil
-}
-
-func splitIP(input string) (string, int) {
-	sli := strings.Split(input, ":")
-	if len(sli) == 2 {
-		return sli[0], func(port string) int {
-			p, err := strconv.Atoi(port)
-			if err != nil {
-				logrus.Warningf("String: %s; error converting string to int", port)
-				return 0
-			}
-			return p
-		}(sli[1])
-	}
-	return input, 0
 }
