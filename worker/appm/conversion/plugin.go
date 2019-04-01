@@ -24,6 +24,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/goodrain/rainbond/builder"
+
 	"github.com/Sirupsen/logrus"
 
 	api_model "github.com/goodrain/rainbond/api/model"
@@ -149,7 +151,7 @@ func createUDPDefaultPluginContainer(serviceID string, envs []v1.EnvVar) v1.Cont
 		}},
 		Env:                    envs,
 		TerminationMessagePath: "",
-		Image:                  "goodrain.me/adapter",
+		Image:                  builder.REGISTRYDOMAIN + "/adapter",
 		Resources:              createAdapterResources(128, 500),
 	}
 }
@@ -239,7 +241,7 @@ func applyDefaultMeshPluginConfig(as *typesv1.AppService, dbmanager db.Manager) 
 	if err != nil {
 		return "", err
 	}
-	pluginID := "tcpmesh" + util.NewUUID()
+	pluginID := "tcpmesh" + as.ServiceID
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("config-%s-%s", as.ServiceID, pluginID),

@@ -18,41 +18,20 @@
 
 package v1
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestNode_Equals(t *testing.T) {
-	n := &Node{
-		Meta: Meta{
-			Index:      888,
-			Name:       "foo-node",
-			Namespace:  "ns",
-			PluginName: "Nginx",
-		},
-		Host:     "www.goodrain.com",
-		Port:     80,
-		Protocol: "Http",
-		State:    "ok",
-		PoolName: "foo-poolName",
-		Ready:    true,
-		Weight:   5,
-	}
-	c := &Node{
-		Meta: Meta{
-			Index:      888,
-			Name:       "foo-node",
-			Namespace:  "ns",
-			PluginName: "Nginx",
-		},
-		Host:     "www.goodrain.com",
-		Port:     80,
-		Protocol: "Http",
-		State:    "ok",
-		PoolName: "foo-poolName",
-		Ready:    true,
-		Weight:   5,
-	}
+	n := newFakeNode()
+	c := newFakeNode()
 	if !n.Equals(c) {
 		t.Errorf("n should equal c")
+	}
+	f := newFakeNode()
+	f.MaxFails = 5
+	if n.Equals(f) {
+		t.Errorf("n should not equal c")
 	}
 }
 
@@ -71,5 +50,7 @@ func newFakeNode() *Node {
 		PoolName: "foo-poolName",
 		Ready:    true,
 		Weight:   5,
+		MaxFails: 3,
+		FailTimeout: "5",
 	}
 }

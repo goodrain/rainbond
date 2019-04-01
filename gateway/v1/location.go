@@ -75,6 +75,10 @@ func (l *Location) Equals(c *Location) bool {
 		}
 	}
 
+	if !l.Proxy.Equal(&c.Proxy) {
+		return false
+	}
+
 	return true
 }
 

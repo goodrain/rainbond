@@ -21,15 +21,13 @@ package prober
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	uitlprober "github.com/goodrain/rainbond/util/prober"
-	"github.com/goodrain/rainbond/util/prober/types/v1"
+	v1 "github.com/goodrain/rainbond/util/prober/types/v1"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
 	appmv1 "github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -41,8 +39,8 @@ import (
 type Prober interface {
 	Start()
 	Stop()
-	AddProbe(ep *corev1.Endpoints)
-	StopProbe(ep *corev1.Endpoints)
+	UpdateProbes(info []*store.ProbeInfo)
+	StopProbe(uuids []string)
 }
 
 // NewProber creates a new third-party service prober.
@@ -100,19 +98,14 @@ func (t *tpProbe) Start() {
 				evt := event.(store.Event)
 				switch evt.Type {
 				case store.CreateEvent:
-					logrus.Debug("create probe")
-					ep := evt.Obj.(*corev1.Endpoints)
-					t.AddProbe(ep)
+					infos := evt.Obj.([]*store.ProbeInfo)
+					t.UpdateProbes(infos)
 				case store.UpdateEvent:
-					logrus.Debug("update probe")
-					old := evt.Old.(*corev1.Endpoints)
-					ep := evt.Obj.(*corev1.Endpoints)
-					t.StopProbe(old)
-					t.AddProbe(ep)
+					infos := evt.Obj.([]*store.ProbeInfo)
+					t.UpdateProbes(infos)
 				case store.DeleteEvent:
-					logrus.Debug("delete probe")
-					ep := evt.Obj.(*corev1.Endpoints)
-					t.StopProbe(ep)
+					uuids := evt.Obj.([]string)
+					t.StopProbe(uuids)
 				}
 			case <-t.ctx.Done():
 				return
@@ -126,83 +119,83 @@ func (t *tpProbe) Stop() {
 	t.cancel()
 }
 
-func (t *tpProbe) AddProbe(ep *corev1.Endpoints) {
-	service, probeInfo, sid := t.createServices(ep)
-	if service == nil {
-		logrus.Debugf("Empty service, stop creating probe")
-		return
-	}
-	ip := ep.GetLabels()["ip"]
-	port, _ := strconv.Atoi(ep.GetLabels()["port"])
-	// watch
-	logrus.Debug("enable watcher...")
-	if t.utilprober.CheckAndAddService(service) {
-		logrus.Debugf("Service: %+v; Exists", service)
-		return
-	}
-	go func(service *v1.Service) {
-		watcher := t.utilprober.WatchServiceHealthy(service.Name)
-		t.utilprober.EnableWatcher(watcher.GetServiceName(), watcher.GetID())
-		defer watcher.Close()
-		defer t.utilprober.DisableWatcher(watcher.GetServiceName(), watcher.GetID())
-		for {
-			select {
-			case event := <-watcher.Watch():
-				if event == nil {
-					return
-				}
-				switch event.Status {
-				case v1.StatHealthy:
-					obj := &appmv1.RbdEndpoint{
-						UUID: service.Name,
-						IP:   ip,
-						Port: port,
-						Sid:  sid,
+func (t *tpProbe) UpdateProbes(infos []*store.ProbeInfo) {
+	var services []*v1.Service
+	for _, info := range infos {
+		service, probeInfo := t.createServices(info)
+		if service == nil {
+			logrus.Debugf("Empty service, stop creating probe")
+			continue
+		}
+		services = append(services, service)
+		// watch
+		if t.utilprober.CheckIfExist(service) {
+			continue
+		}
+		go func(service *v1.Service, info *store.ProbeInfo) {
+			watcher := t.utilprober.WatchServiceHealthy(service.Name)
+			t.utilprober.EnableWatcher(watcher.GetServiceName(), watcher.GetID())
+			defer watcher.Close()
+			defer t.utilprober.DisableWatcher(watcher.GetServiceName(), watcher.GetID())
+			for {
+				select {
+				case event := <-watcher.Watch():
+					if event == nil {
+						return
 					}
-					t.updateCh.In() <- discovery.Event{
-						Type: discovery.HealthEvent,
-						Obj:  obj,
-					}
-				case v1.StatDeath, v1.StatUnhealthy:
-					if event.ErrorNumber > service.ServiceHealth.MaxErrorsNum {
-						if probeInfo.Mode == model.OfflineFailureAction.String() {
-							obj := &appmv1.RbdEndpoint{
-								UUID: service.Name,
-								IP:   ip,
-								Port: port,
-								Sid:  sid,
-							}
-							t.updateCh.In() <- discovery.Event{
-								Type: discovery.DeleteEvent,
-								Obj:  obj,
-							}
-						} else {
-							obj := &appmv1.RbdEndpoint{
-								UUID: service.Name,
-								IP:   ip,
-								Port: port,
-								Sid:  sid,
-							}
-							t.updateCh.In() <- discovery.Event{
-								Type: discovery.UnhealthyEvent,
-								Obj:  obj,
+					switch event.Status {
+					case v1.StatHealthy:
+						obj := &appmv1.RbdEndpoint{
+							UUID: info.UUID,
+							IP:   info.IP,
+							Port: int(info.Port),
+							Sid:  info.Sid,
+						}
+						t.updateCh.In() <- discovery.Event{
+							Type: discovery.HealthEvent,
+							Obj:  obj,
+						}
+					case v1.StatDeath, v1.StatUnhealthy:
+						if event.ErrorNumber > service.ServiceHealth.MaxErrorsNum {
+							if probeInfo.Mode == model.OfflineFailureAction.String() {
+								obj := &appmv1.RbdEndpoint{
+									UUID: info.UUID,
+									IP:   info.IP,
+									Port: int(info.Port),
+									Sid:  info.Sid,
+								}
+								t.updateCh.In() <- discovery.Event{
+									Type: discovery.DeleteEvent,
+									Obj:  obj,
+								}
+							} else {
+								obj := &appmv1.RbdEndpoint{
+									UUID: info.UUID,
+									IP:   info.IP,
+									Port: int(info.Port),
+									Sid:  info.Sid,
+								}
+								t.updateCh.In() <- discovery.Event{
+									Type: discovery.UnhealthyEvent,
+									Obj:  obj,
+								}
 							}
 						}
 					}
+				case <-t.ctx.Done():
+					// TODO: should stop for one service, not all services.
+					return
 				}
-			case <-t.ctx.Done():
-				return
 			}
-		}
-	}(service)
-	// start
-	t.utilprober.UpdateServicesProbe([]*v1.Service{service})
+		}(service, info)
+	}
+	t.utilprober.UpdateServicesProbe(services)
 }
 
-func (t *tpProbe) StopProbe(ep *corev1.Endpoints) {
-	name := t.createServiceNames(ep)
-	logrus.Debugf("Name: %s; Stop probe.", name)
-	t.utilprober.StopProbes([]string{name})
+func (t *tpProbe) StopProbe(uuids []string) {
+	for _, name := range uuids {
+		t.utilprober.StopProbes([]string{name})
+	}
 }
 
 // GetProbeInfo returns probe info associated with sid.
@@ -210,12 +203,11 @@ func (t *tpProbe) StopProbe(ep *corev1.Endpoints) {
 // If there is no probe in the database, return a default probe
 func (t *tpProbe) GetProbeInfo(sid string) (*model.TenantServiceProbe, error) {
 	probes, err := t.dbm.ServiceProbeDao().GetServiceProbes(sid)
-	if err != nil || probes == nil || len(probes) == 0 || probes[0].IsUsed == 0 {
+	if err != nil || probes == nil || len(probes) == 0 || *(probes[0].IsUsed) == 0 {
 		if err != nil {
 			logrus.Warningf("ServiceID: %s; error getting probes: %v", sid, err)
 		}
 		// no defined probe, use default one
-		logrus.Debugf("no defined probe, use default one")
 		return &model.TenantServiceProbe{
 			Scheme:           "tcp",
 			PeriodSecond:     5,
@@ -226,31 +218,23 @@ func (t *tpProbe) GetProbeInfo(sid string) (*model.TenantServiceProbe, error) {
 	return probes[0], nil
 }
 
-func (t *tpProbe) createServices(ep *corev1.Endpoints) (*v1.Service, *model.TenantServiceProbe, string) {
-	sid := ep.GetLabels()["service_id"]
-	ip := ep.GetLabels()["ip"]
-	port := ep.GetLabels()["port"]
-	if strings.TrimSpace(sid) == "" {
-		logrus.Warningf("Endpoints key: %s; ServiceID not found, stop creating probe",
-			fmt.Sprintf("%s/%s", ep.Namespace, ep.Name))
-		return nil, nil, ""
-	}
-	probeInfo, err := t.GetProbeInfo(sid)
+func (t *tpProbe) createServices(probeInfo *store.ProbeInfo) (*v1.Service, *model.TenantServiceProbe) {
+	tsp, err := t.GetProbeInfo(probeInfo.Sid)
 	if err != nil {
 		logrus.Warningf("ServiceID: %s; Unexpected error occurred, ignore the creation of "+
-			"probes: %s", sid, err.Error())
-		return nil, nil, ""
+			"probes: %s", probeInfo.Sid, err.Error())
+		return nil, nil
 	}
-	if probeInfo.Mode == "liveness" {
-		probeInfo.Mode = model.IgnoreFailureAction.String()
+	if tsp.Mode == "liveness" {
+		tsp.Mode = model.IgnoreFailureAction.String()
 	}
-	service := createService(probeInfo)
-	service.Name = ep.GetLabels()["uuid"]
-	portint, _ := strconv.Atoi(port)
-	service.ServiceHealth.Port = portint
-	service.ServiceHealth.Name = service.Name // TODO: no need?
-	service.ServiceHealth.Address = fmt.Sprintf("%s:%s", ip, port)
-	return service, probeInfo, sid
+	service := createService(tsp)
+	service.Sid = probeInfo.Sid
+	service.Name = probeInfo.UUID
+	service.ServiceHealth.Port = int(probeInfo.Port)
+	service.ServiceHealth.Name = service.Name
+	service.ServiceHealth.Address = fmt.Sprintf("%s:%d", probeInfo.IP, probeInfo.Port)
+	return service, tsp
 }
 
 func (t *tpProbe) createServiceNames(ep *corev1.Endpoints) string {

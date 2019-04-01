@@ -174,6 +174,17 @@ func (v *VirtualService) Equals(c *VirtualService) bool {
 	if !v.SSLCert.Equals(c.SSLCert) {
 		return false
 	}
+	if v.ForceSSLRedirect != c.ForceSSLRedirect {
+		return false
+	}
+	if len(v.ExtensionConfig) != len(c.ExtensionConfig) {
+		return false
+	}
+	for key, ve := range v.ExtensionConfig {
+		if c.ExtensionConfig[key] != ve {
+			return false
+		}
+	}
 
 	return true
 }

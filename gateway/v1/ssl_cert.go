@@ -47,16 +47,13 @@ func (s *SSLCert) Equals(c *SSLCert) bool {
 	if !s.Meta.Equals(c.Meta) {
 		return false
 	}
-	if s.CertificatePem != c.CertificatePem {
+	if (s.Certificate == nil) != (c.Certificate == nil) {
 		return false
 	}
 	if s.Certificate != nil && c.Certificate != nil {
 		if !s.Certificate.Equal(c.Certificate) {
 			return false
 		}
-	}
-	if !(s.Certificate == nil && c.Certificate == nil) {
-		return false
 	}
 	if s.CertificateStr != c.CertificateStr {
 		return false

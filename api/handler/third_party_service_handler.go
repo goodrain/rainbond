@@ -100,9 +100,9 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 	for _, item := range endpoints {
 		m[item.UUID] = &model.EndpointResp{
 			EpID: item.UUID,
-			IP: func(ip string, port int) string {
-				if port != 0 {
-					return fmt.Sprintf("%s:%d", ip, port)
+			IP: func(ip string, p int) string {
+				if p != 0 {
+					return fmt.Sprintf("%s:%d", ip, p)
 				}
 				return ip
 			}(item.IP, item.Port),
@@ -126,13 +126,8 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 				continue
 			}
 			m[item.Uuid] = &model.EndpointResp{
-				EpID: item.Uuid,
-				IP: func(ip string, port int32) string {
-					if port != 0 {
-						return fmt.Sprintf("%s:%d", ip, port)
-					}
-					return ip
-				}(item.Ip, item.Port),
+				EpID:     item.Uuid,
+				IP:       item.Ip,
 				Status:   item.Status,
 				IsOnline: true,
 				IsStatic: false,

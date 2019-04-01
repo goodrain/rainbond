@@ -20,15 +20,16 @@ package controller
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/worker/appm/f"
 	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	types "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type upgradeController struct {
@@ -140,7 +141,6 @@ func (s *upgradeController) upgradeService(newapp v1.AppService) {
 }
 
 func (s *upgradeController) upgradeOne(app v1.AppService) error {
-
 	//first: check and create namespace
 	_, err := s.manager.client.CoreV1().Namespaces().Get(app.TenantID, metav1.GetOptions{})
 	if err != nil {
@@ -167,27 +167,16 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 		}
 	}
 
-	if ingresses := app.GetIngress(); ingresses != nil {
-		for _, ingress := range ingresses {
-			_, err := s.manager.client.Extensions().Ingresses(ingress.Namespace).Update(ingress)
-			if err != nil {
-				app.Logger.Error(fmt.Sprintf("upgrade ingress %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
-				logrus.Errorf("upgrade ingress %s failure %s", app.ServiceAlias, err.Error())
-			}
-		}
-	}
-	//upgrade k8s service
+	oldApp := s.manager.store.GetAppService(app.ServiceID)
 	s.upgradeService(app)
-	//upgrade k8s secrets
-	if secrets := app.GetSecrets(); secrets != nil {
-		for _, secret := range secrets {
-			_, err := s.manager.client.CoreV1().Secrets(secret.Namespace).Update(secret)
-			if err != nil {
-				app.Logger.Error(fmt.Sprintf("upgrade secret %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
-				logrus.Errorf("upgrade secret %s failure %s", app.ServiceAlias, err.Error())
-			}
-		}
+	handleErr := func(msg string, err error) error {
+		// ignore ingress and secret error
+		logrus.Warning(msg)
+		return nil
 	}
+	_ = f.UpgradeSecrets(s.manager.client, &app, oldApp.GetSecrets(), app.GetSecrets(), handleErr)
+	_ = f.UpgradeIngress(s.manager.client, &app, oldApp.GetIngress(), app.GetIngress(), handleErr)
+
 	return s.WaitingReady(app)
 }
 
