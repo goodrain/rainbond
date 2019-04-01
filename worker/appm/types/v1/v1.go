@@ -23,6 +23,8 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/goodrain/rainbond/builder"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
@@ -104,7 +106,6 @@ type AppService struct {
 	services     []*corev1.Service
 	delServices  []*corev1.Service
 	endpoints    []*corev1.Endpoints
-	delEndpoints []*corev1.Endpoints
 	configMaps   []*corev1.ConfigMap
 	ingresses    []*extensions.Ingress
 	delIngs      []*extensions.Ingress // ingresses which need to be deleted
@@ -315,11 +316,6 @@ func (a *AppService) GetEndpointsByName(name string) *corev1.Endpoints {
 		}
 	}
 	return nil
-}
-
-// GetDelEndpoints returns endpoints that need to be deleted in AppService
-func (a *AppService) GetDelEndpoints() []*corev1.Endpoints {
-	return a.delEndpoints
 }
 
 //DelEndpoints deletes *corev1.Endpoints
@@ -576,7 +572,7 @@ func GetTCPMeshImageName() string {
 	if d := os.Getenv("TCPMESH_DEFAULT_IMAGE_NAME"); d != "" {
 		return d
 	}
-	return "goodrain.me/mesh_plugin"
+	return builder.REGISTRYDOMAIN + "/mesh_plugin"
 }
 
 //GetProbeMeshImageName get probe init mesh image name
@@ -584,5 +580,5 @@ func GetProbeMeshImageName() string {
 	if d := os.Getenv("PROBE_MESH_IMAGE_NAME"); d != "" {
 		return d
 	}
-	return "goodrain.me/rbd-init-probe"
+	return builder.REGISTRYDOMAIN + "/rbd-init-probe"
 }

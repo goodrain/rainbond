@@ -16,44 +16,27 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package v1
+package controller
 
 import (
-	"crypto/x509"
-	"testing"
-	"time"
+	"github.com/goodrain/rainbond/cmd/api/option"
+	httputil "github.com/goodrain/rainbond/util/http"
+	"net/http"
 )
 
-func TestSSLCert_Equals(t *testing.T) {
-	s := newFakeSSLCert()
-	c := newFakeSSLCert()
-	if !s.Equals(c) {
-		t.Errorf("s should equal c.")
-	}
-	s.Certificate = nil
-	if s.Equals(c) {
-		t.Errorf("s should not equal c.")
-	}
-	c.Certificate = nil
-	if !s.Equals(c) {
-		t.Errorf("s should equal c.")
+// LabelController implements Labeler.
+type LabelController struct {
+	optconfig *option.Config
+}
+
+// Labels - get -> list labels
+func (l *LabelController) Labels(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		l.listLabels(w, r)
 	}
 }
 
-func newFakeSSLCert() *SSLCert {
-	meta := newFakeMeta()
-	certificate := &x509.Certificate{}
-	certificate.Raw = []byte("foobar")
-	return &SSLCert{
-		Meta:           &meta,
-		CertificateStr: "dummy certificate str",
-		Certificate:    certificate,
-		PrivateKey:     "dummy private key",
-		CertificatePem: "/expert/servers/nginx/certificate/dummy-secret.pem",
-		CN: []string{
-			"CN-1",
-			"CN-2",
-		},
-		ExpireTime: time.Time{},
-	}
+func (l *LabelController) listLabels(w http.ResponseWriter, r *http.Request) {
+	httputil.ReturnSuccess(r, w, l.optconfig.EnableFeature)
 }

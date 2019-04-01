@@ -32,7 +32,7 @@ func (h *TCPProbe) Stop() {
 
 // TCPCheck -
 func (h *TCPProbe) TCPCheck() {
-	logrus.Debug("tcp check...")
+	logrus.Debugf("TCP check; Name: %s; Address: %s", h.Name, h.Address)
 	timer := time.NewTimer(time.Second * time.Duration(h.TimeInterval))
 	defer timer.Stop()
 	for {
