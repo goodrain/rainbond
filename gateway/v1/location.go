@@ -45,7 +45,8 @@ type Location struct {
 	// Proxy contains information about timeouts and buffer sizes
 	// to be used in connections against endpoints
 	// +optional
-	Proxy proxy.Config `json:"proxy,omitempty"`
+	Proxy            proxy.Config `json:"proxy,omitempty"`
+	DisableProxyPass bool
 }
 
 // Condition is the condition that the traffic can reach the specified backend
