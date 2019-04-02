@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package multimodule
+package multi
 
 import (
 	"encoding/xml"
@@ -26,6 +26,8 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/builder/parser/types"
+	"github.com/goodrain/rainbond/util"
 )
 
 // Build represents build in pom.xml
@@ -51,7 +53,7 @@ type maven struct {
 }
 
 // NewMaven creates a new MultiModuler
-func NewMaven() MultiModuler {
+func NewMaven() ServiceInterface {
 	return &maven{}
 }
 
@@ -68,6 +70,7 @@ type pom struct {
 
 // module represents a maven module
 type module struct {
+	ID              string
 	Name            string
 	MavenCustomOpts string
 	Packaging       string
@@ -75,24 +78,35 @@ type module struct {
 }
 
 // ListModules lists all maven modules from pom.xml
-func (m *maven) ListModules(path string) ([]*Module, error) {
+func (m *maven) ListModules(path string) ([]*types.Service, error) {
 	modules, err := listModules(path, strings.TrimRight(path, "/")+"/")
 	if err != nil {
 		return nil, err
 	}
-	var res []*Module
+	var res []*types.Service
 	for _, item := range modules {
-		envs := make(map[string]string, 2)
-		envs["BUILD_MAVEN_CUSTOM_OPTS"] = item.MavenCustomOpts
-		envs["PROCFILE"] = item.Procfile
-		mo := &Module{
+		envs := []*types.Env{
+			{
+				Name:  "BUILD_MAVEN_CUSTOM_OPTS",
+				Value: item.MavenCustomOpts,
+			},
+			{
+				Name:  "BUILD_PROCFILE",
+				Value: item.Procfile,
+			},
+		}
+		mo := &types.Service{
+			ID:   item.ID,
 			Name: item.Name,
 			Cname: func(name string) string {
 				cnames := strings.Split(name, "/")
 				return cnames[len(cnames)-1]
 			}(item.Name),
 			Packaging: item.Packaging,
-			Envs:      envs,
+			Envs:      make(map[string]*types.Env),
+		}
+		for _, env := range envs {
+			mo.Envs[env.Name] = &types.Env{Name: env.Name, Value: env.Value}
 		}
 		res = append(res, mo)
 	}
@@ -101,7 +115,7 @@ func (m *maven) ListModules(path string) ([]*Module, error) {
 
 func listModules(prefix, topPref string) ([]*module, error) {
 	pomPath := path.Join(prefix, "pom.xml")
-	pom, err := ParsePom(pomPath)
+	pom, err := parsePom(pomPath)
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +127,7 @@ func listModules(prefix, topPref string) ([]*module, error) {
 		// full module name. eg: foobar/rbd-worker
 		name := strings.Replace(prefix, topPref, "", 1)
 		mo := &module{
+			ID:   util.NewUUID(),
 			Name: name,
 			Packaging: func() string {
 				if pom.Packaging == "war" {
@@ -120,7 +135,7 @@ func listModules(prefix, topPref string) ([]*module, error) {
 				}
 				return "jar"
 			}(),
-			MavenCustomOpts: fmt.Sprintf("mvn clean install -pl %s -am", name),
+			MavenCustomOpts: fmt.Sprintf("clean install -pl %s -am", name),
 			Procfile: func() string {
 				if pom.Packaging == "war" {
 					return fmt.Sprintf("web: java $JAVA_OPTS -jar ./webapp-runner.jar "+
@@ -147,8 +162,8 @@ func listModules(prefix, topPref string) ([]*module, error) {
 	return modules, nil
 }
 
-// ParsePom parses the pom.xml file into a pom struct
-func ParsePom(pomPath string) (*pom, error) {
+// parsePom parses the pom.xml file into a pom struct
+func parsePom(pomPath string) (*pom, error) {
 	bytes, err := ioutil.ReadFile(pomPath)
 	if err != nil {
 		return nil, err
@@ -168,12 +183,7 @@ func (p *pom) hasSubmodules() bool {
 // TODO: read maven source code, learn how does maven get the final name
 func (p *pom) getExecuteFilename() string {
 	// default finalName
-	name := p.ArtifactID + "-" + func() string {
-		if p.Version == "" {
-			return "*"
-		}
-		return p.Version
-	}()
+	name := p.ArtifactID
 	if p.Build != nil {
 		// the finalName in the plugin has a higher priority than in the build.
 		if p.Build.FinalName != "" {

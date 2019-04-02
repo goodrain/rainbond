@@ -1,16 +1,13 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
-
 	"io"
-	"os"
-	"strings"
-
 	"io/ioutil"
+	"net/http"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"

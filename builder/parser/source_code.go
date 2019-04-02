@@ -28,10 +28,12 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser/code"
-	"github.com/goodrain/rainbond/builder/parser/code/multimodule"
+	"github.com/goodrain/rainbond/builder/parser/code/multisvc"
+	"github.com/goodrain/rainbond/builder/parser/types"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport" //"github.com/docker/docker/client"
@@ -39,9 +41,9 @@ import (
 
 //SourceCodeParse docker run 命令解析或直接镜像名解析
 type SourceCodeParse struct {
-	ports        map[int]*Port
-	volumes      map[string]*Volume
-	envs         map[string]*Env
+	ports        map[int]*types.Port
+	volumes      map[string]*types.Volume
+	envs         map[string]*types.Env
 	source       string
 	memory       int
 	image        Image
@@ -55,16 +57,16 @@ type SourceCodeParse struct {
 	Dependencies bool `json:"dependencies"`
 	Procfile     bool `json:"procfile"`
 	isMulti      bool
-	modules      []*multimodule.Module
+	services     []*types.Service
 }
 
 //CreateSourceCodeParse create parser
 func CreateSourceCodeParse(source string, logger event.Logger) Parser {
 	return &SourceCodeParse{
 		source:  source,
-		ports:   make(map[int]*Port),
-		volumes: make(map[string]*Volume),
-		envs:    make(map[string]*Env),
+		ports:   make(map[int]*types.Port),
+		volumes: make(map[string]*types.Volume),
+		envs:    make(map[string]*types.Env),
 		logger:  logger,
 		image:   parseImageName(builder.RUNNERIMAGENAME),
 		args:    []string{"start", "web"},
@@ -268,7 +270,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		return d.errors
 	}
 	for k, v := range runtimeInfo {
-		d.envs["BUILD_"+k] = &Env{
+		d.envs["BUILD_"+k] = &types.Env{
 			Name:  "BUILD_" + k,
 			Value: v,
 		}
@@ -276,30 +278,79 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	d.memory = getRecommendedMemory(lang)
 	d.Procfile = code.CheckProcfile(buildPath, lang)
 
-	// multi-module
-	multi := multimodule.NewMultiModuler(lang.String())
-	if multi != nil {
+	// multi services
+	m := multi.NewMultiServiceI(lang.String())
+	if m != nil {
 		logrus.Infof("Lang: %s; start listing multi modules", lang.String())
-		modules, err := multi.ListModules(buildInfo.GetCodeHome())
+		services, err := m.ListModules(buildInfo.GetCodeHome())
 		if err != nil {
 			d.logger.Error("解析多模块项目失败", map[string]string{"step": "parse"})
 			d.errappend(ErrorAndSolve(FatalError, "error listing modules", "check source code for multi-modules"))
 			return d.errors
 		}
-		if modules != nil && len(modules) > 1 {
+		if services != nil && len(services) > 1 {
 			d.isMulti = true
-			d.modules = modules
+			d.services = services
+		}
+
+		if rbdfileConfig != nil && rbdfileConfig.Services != nil && len(rbdfileConfig.Services) > 0 {
+			mm := make(map[string]*types.Service)
+			for i := range services {
+				mm[services[i].Name] = services[i]
+			}
+			for _, svc := range rbdfileConfig.Services {
+				if item := mm[svc.Name]; item != nil {
+					for k, v := range svc.Envs {
+						if item.Envs == nil {
+							item.Envs = make(map[string]*types.Env, len(rbdfileConfig.Envs))
+						}
+						item.Envs[k] = &types.Env{Name: k, Value: v}
+					}
+					for i := range svc.Ports {
+						if item.Ports == nil {
+							item.Ports = make(map[int]*types.Port, len(rbdfileConfig.Ports))
+						}
+						item.Ports[i] = &types.Port{
+							ContainerPort: svc.Ports[i].Port, Protocol: svc.Ports[i].Protocol,
+						}
+					}
+					for k, v := range rbdfileConfig.Envs {
+						if item.Envs == nil {
+							item.Envs = make(map[string]*types.Env, len(rbdfileConfig.Envs))
+						}
+						if item.Envs[k] == nil {
+							item.Envs[k] = &types.Env{Name: k, Value: v}
+						}
+					}
+					for _, port := range rbdfileConfig.Ports {
+						if item.Ports == nil {
+							item.Ports = make(map[int]*types.Port, len(rbdfileConfig.Ports))
+						}
+						if item.Ports[port.Port] == nil {
+							item.Ports[port.Port] = &types.Port{
+								ContainerPort: port.Port,
+								Protocol:      port.Protocol,
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if rbdfileConfig != nil {
+			rbdfileConfig.Envs = nil
+			rbdfileConfig.Ports = nil
 		}
 	}
 
 	if rbdfileConfig != nil {
 		//handle profile env
 		for k, v := range rbdfileConfig.Envs {
-			d.envs[k] = &Env{Name: k, Value: v}
+			d.envs[k] = &types.Env{Name: k, Value: v}
 		}
 		//handle profile port
 		for _, port := range rbdfileConfig.Ports {
-			d.ports[port.Port] = &Port{ContainerPort: port.Port, Protocol: port.Protocol}
+			d.ports[port.Port] = &types.Port{ContainerPort: port.Port, Protocol: port.Protocol}
 		}
 		if rbdfileConfig.Cmd != "" {
 			d.args = strings.Split(rbdfileConfig.Cmd, " ")
@@ -353,7 +404,7 @@ func (d *SourceCodeParse) GetBranchs() []string {
 }
 
 //GetPorts 获取端口列表
-func (d *SourceCodeParse) GetPorts() (ports []Port) {
+func (d *SourceCodeParse) GetPorts() (ports []types.Port) {
 	for _, cv := range d.ports {
 		ports = append(ports, *cv)
 	}
@@ -361,7 +412,7 @@ func (d *SourceCodeParse) GetPorts() (ports []Port) {
 }
 
 //GetVolumes 获取存储列表
-func (d *SourceCodeParse) GetVolumes() (volumes []Volume) {
+func (d *SourceCodeParse) GetVolumes() (volumes []types.Volume) {
 	for _, cv := range d.volumes {
 		volumes = append(volumes, *cv)
 	}
@@ -374,7 +425,7 @@ func (d *SourceCodeParse) GetValid() bool {
 }
 
 //GetEnvs 环境变量
-func (d *SourceCodeParse) GetEnvs() (envs []Env) {
+func (d *SourceCodeParse) GetEnvs() (envs []types.Env) {
 	for _, cv := range d.envs {
 		envs = append(envs, *cv)
 	}
@@ -409,21 +460,40 @@ func (d *SourceCodeParse) GetRuntime() bool {
 //GetServiceInfo 获取service info
 func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 	serviceInfo := ServiceInfo{
-		Ports:        d.GetPorts(),
-		Envs:         d.GetEnvs(),
 		Volumes:      d.GetVolumes(),
 		Image:        d.GetImage(),
 		Args:         d.GetArgs(),
 		Branchs:      d.GetBranchs(),
 		Memory:       d.memory,
 		Lang:         d.GetLang(),
-		IsMulti:      d.isMulti,
-		Modules:      d.modules,
 		Dependencies: d.Dependencies,
 		Procfile:     d.Procfile,
 		Runtime:      d.Runtime,
 	}
-	return []ServiceInfo{serviceInfo}
+	var res []ServiceInfo
+	if d.isMulti && d.services != nil && len(d.services) > 0 {
+		for idx := range d.services {
+			svc := d.services[idx]
+			info := serviceInfo
+			info.ID = util.NewUUID()
+			info.Name = svc.Name
+			info.Cname = svc.Cname
+			info.Packaging = svc.Packaging
+			for i := range svc.Envs {
+				info.Envs = append(info.Envs, *svc.Envs[i])
+			}
+			for i := range svc.Ports {
+				info.Ports = append(info.Ports, *svc.Ports[i])
+			}
+			res = append(res, info)
+		}
+	} else {
+		serviceInfo.Envs = d.GetEnvs()
+		serviceInfo.Ports = d.GetPorts()
+		res = []ServiceInfo{serviceInfo}
+	}
+
+	return res
 }
 
 func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
@@ -440,14 +510,14 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 			for i := 0; i < length; i++ {
 				if kv := strings.Split(cm.Value[i], "="); len(kv) > 1 {
 					key := "BUILD_ARG_" + kv[0]
-					d.envs[key] = &Env{Name: key, Value: kv[1]}
+					d.envs[key] = &types.Env{Name: key, Value: kv[1]}
 				} else {
 					if i+1 >= length {
 						logrus.Error("Parse ARG format error at ", cm.Value[i])
 						continue
 					}
 					key := "BUILD_ARG_" + cm.Value[i]
-					d.envs[key] = &Env{Name: key, Value: cm.Value[i+1]}
+					d.envs[key] = &types.Env{Name: key, Value: cm.Value[i+1]}
 					i++
 				}
 			}
@@ -455,13 +525,13 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 			length := len(cm.Value)
 			for i := 0; i < len(cm.Value); i++ {
 				if kv := strings.Split(cm.Value[i], "="); len(kv) > 1 {
-					d.envs[kv[0]] = &Env{Name: kv[0], Value: kv[1]}
+					d.envs[kv[0]] = &types.Env{Name: kv[0], Value: kv[1]}
 				} else {
 					if i+1 >= length {
 						logrus.Error("Parse ENV format error at ", cm.Value[1])
 						continue
 					}
-					d.envs[cm.Value[i]] = &Env{Name: cm.Value[i], Value: cm.Value[i+1]}
+					d.envs[cm.Value[i]] = &types.Env{Name: cm.Value[i], Value: cm.Value[i+1]}
 					i++
 				}
 			}
@@ -469,12 +539,12 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 			for _, v := range cm.Value {
 				port, _ := strconv.Atoi(v)
 				if port != 0 {
-					d.ports[port] = &Port{ContainerPort: port, Protocol: GetPortProtocol(port)}
+					d.ports[port] = &types.Port{ContainerPort: port, Protocol: GetPortProtocol(port)}
 				}
 			}
 		case "volume":
 			for _, v := range cm.Value {
-				d.volumes[v] = &Volume{VolumePath: v, VolumeType: model.ShareFileVolumeType.String()}
+				d.volumes[v] = &types.Volume{VolumePath: v, VolumeType: model.ShareFileVolumeType.String()}
 			}
 		}
 	}

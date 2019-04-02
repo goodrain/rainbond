@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package multimodule
+package multi
 
 import (
 	"os"
@@ -25,7 +25,7 @@ import (
 
 func TestMaven_ParsePom(t *testing.T) {
 	pomPath := "./pom.xml"
-	pom, err := ParsePom(pomPath)
+	pom, err := parsePom(pomPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestMaven_ParsePom(t *testing.T) {
 func TestMaven_ListModules(t *testing.T) {
 	//testcases := []string{"rbd-api", "rbd-monitor", "foobar/rbd-worker"}
 
-	path := os.Getenv("GOPATH") + "/src/github.com/goodrain/rainbond/builder/parser/code/multimodule/"
+	path := os.Getenv("GOPATH") + "/src/github.com/goodrain/rainbond/builder/parser/code/multisvc/"
 	m := maven{}
 	res, err := m.ListModules(path)
 	if err != nil {

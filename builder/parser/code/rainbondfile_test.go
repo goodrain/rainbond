@@ -16,27 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package multimodule
+package code
 
-// MultiModuler is the interface that wraps the required methods to gather information
-// about multi-module project.
-type MultiModuler interface {
-	ListModules(path string) ([]*Module, error)
-}
+import (
+	"testing"
+)
 
-// Module represents a module in a multi-module project.
-type Module struct {
-	Name      string            `json:"name"`  // module name
-	Cname     string            `json:"cname"` // service cname
-	Packaging string            `json:"packaging"`
-	Envs      map[string]string `json:"envs"`
-}
-
-// NewMultiModuler creates a new MultiModuler.
-func NewMultiModuler(lang string) MultiModuler {
-	switch lang {
-	case "Java-maven":
-		return NewMaven()
+func TestReadRainbondFile(t *testing.T) {
+	rbdfile, err := ReadRainbondFile("./")
+	if err != nil {
+		t.Fatal(err)
 	}
-	return nil
+	t.Log(rbdfile)
 }

@@ -23,13 +23,12 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-
+	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder/parser/compose"
+	"github.com/goodrain/rainbond/builder/parser/types"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
-
-	"github.com/docker/docker/client"
 )
 
 //DockerComposeParse docker compose 文件解析
@@ -41,9 +40,9 @@ type DockerComposeParse struct {
 	source       string
 }
 type serviceInfoFromDC struct {
-	ports      map[int]*Port
-	volumes    map[string]*Volume
-	envs       map[string]*Env
+	ports      map[int]*types.Port
+	volumes    map[string]*types.Volume
+	envs       map[string]*types.Env
 	source     string
 	memory     int
 	image      Image
@@ -53,7 +52,7 @@ type serviceInfoFromDC struct {
 }
 
 //GetPorts 获取端口列表
-func (d *serviceInfoFromDC) GetPorts() (ports []Port) {
+func (d *serviceInfoFromDC) GetPorts() (ports []types.Port) {
 	for _, cv := range d.ports {
 		ports = append(ports, *cv)
 	}
@@ -61,7 +60,7 @@ func (d *serviceInfoFromDC) GetPorts() (ports []Port) {
 }
 
 //GetVolumes 获取存储列表
-func (d *serviceInfoFromDC) GetVolumes() (volumes []Volume) {
+func (d *serviceInfoFromDC) GetVolumes() (volumes []types.Volume) {
 	for _, cv := range d.volumes {
 		volumes = append(volumes, *cv)
 	}
@@ -69,7 +68,7 @@ func (d *serviceInfoFromDC) GetVolumes() (volumes []Volume) {
 }
 
 //GetEnvs 环境变量
-func (d *serviceInfoFromDC) GetEnvs() (envs []Env) {
+func (d *serviceInfoFromDC) GetEnvs() (envs []types.Env) {
 	for _, cv := range d.envs {
 		envs = append(envs, *cv)
 	}
@@ -102,27 +101,27 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 	}
 	for kev, sc := range co.ServiceConfigs {
 		logrus.Debugf("service config is %v, container name is %s", sc, sc.ContainerName)
-		ports := make(map[int]*Port)
+		ports := make(map[int]*types.Port)
 		for _, p := range sc.Port {
 			pro := string(p.Protocol)
 			if pro != "udp" {
 				pro = GetPortProtocol(int(p.ContainerPort))
 			}
-			ports[int(p.ContainerPort)] = &Port{
+			ports[int(p.ContainerPort)] = &types.Port{
 				ContainerPort: int(p.ContainerPort),
 				Protocol:      pro,
 			}
 		}
-		volumes := make(map[string]*Volume)
+		volumes := make(map[string]*types.Volume)
 		for _, v := range sc.Volumes {
-			volumes[v.MountPath] = &Volume{
+			volumes[v.MountPath] = &types.Volume{
 				VolumePath: v.MountPath,
 				VolumeType: model.ShareFileVolumeType.String(),
 			}
 		}
-		envs := make(map[string]*Env)
+		envs := make(map[string]*types.Env)
 		for _, e := range sc.Environment {
-			envs[e.Name] = &Env{
+			envs[e.Name] = &types.Env{
 				Name:  e.Name,
 				Value: e.Value,
 			}
@@ -168,13 +167,13 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 				envinfo := strings.Split(env, "=")
 				if len(envinfo) == 2 {
 					if _, ok := service.envs[envinfo[0]]; !ok {
-						service.envs[envinfo[0]] = &Env{Name: envinfo[0], Value: envinfo[1]}
+						service.envs[envinfo[0]] = &types.Env{Name: envinfo[0], Value: envinfo[1]}
 					}
 				}
 			}
 			for k := range imageInspect.ContainerConfig.Volumes {
 				if _, ok := service.volumes[k]; !ok {
-					service.volumes[k] = &Volume{VolumePath: k, VolumeType: model.ShareFileVolumeType.String()}
+					service.volumes[k] = &types.Volume{VolumePath: k, VolumeType: model.ShareFileVolumeType.String()}
 				}
 			}
 			for k := range imageInspect.ContainerConfig.ExposedPorts {
@@ -186,7 +185,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 				if _, ok := service.ports[port]; ok {
 					service.ports[port].Protocol = proto
 				} else {
-					service.ports[port] = &Port{Protocol: proto, ContainerPort: port}
+					service.ports[port] = &types.Port{Protocol: proto, ContainerPort: port}
 				}
 			}
 		}

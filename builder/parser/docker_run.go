@@ -20,28 +20,23 @@ package parser
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
-
-	"github.com/goodrain/rainbond/util"
-
+	"github.com/docker/distribution/reference" //"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
+	"github.com/goodrain/rainbond/builder/parser/types"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
-
-	"github.com/docker/distribution/reference"
-	//"github.com/docker/docker/api/types"
-
-	//"github.com/docker/docker/client"
-	"github.com/docker/docker/client"
+	"github.com/goodrain/rainbond/util"
+	"strconv"
+	"strings" //"github.com/docker/docker/client"
 )
 
 //DockerRunOrImageParse docker run 命令解析或直接镜像名解析
 type DockerRunOrImageParse struct {
 	user, pass   string
-	ports        map[int]*Port
-	volumes      map[string]*Volume
-	envs         map[string]*Env
+	ports        map[int]*types.Port
+	volumes      map[string]*types.Volume
+	envs         map[string]*types.Env
 	source       string
 	memory       int
 	image        Image
@@ -62,9 +57,9 @@ func CreateDockerRunOrImageParse(user, pass, source string, dockerclient *client
 		pass:         pass,
 		source:       source,
 		dockerclient: dockerclient,
-		ports:        make(map[int]*Port),
-		volumes:      make(map[string]*Volume),
-		envs:         make(map[string]*Env),
+		ports:        make(map[int]*types.Port),
+		volumes:      make(map[string]*types.Volume),
+		envs:         make(map[string]*types.Env),
 		logger:       logger,
 	}
 }
@@ -111,13 +106,13 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 			envinfo := strings.Split(env, "=")
 			if len(envinfo) == 2 {
 				if _, ok := d.envs[envinfo[0]]; !ok {
-					d.envs[envinfo[0]] = &Env{Name: envinfo[0], Value: envinfo[1]}
+					d.envs[envinfo[0]] = &types.Env{Name: envinfo[0], Value: envinfo[1]}
 				}
 			}
 		}
 		for k := range imageInspect.ContainerConfig.Volumes {
 			if _, ok := d.volumes[k]; !ok {
-				d.volumes[k] = &Volume{VolumePath: k, VolumeType: model.ShareFileVolumeType.String()}
+				d.volumes[k] = &types.Volume{VolumePath: k, VolumeType: model.ShareFileVolumeType.String()}
 			}
 		}
 		for k := range imageInspect.ContainerConfig.ExposedPorts {
@@ -129,7 +124,7 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 			if _, ok := d.ports[port]; ok {
 				d.ports[port].Protocol = proto
 			} else {
-				d.ports[port] = &Port{Protocol: proto, ContainerPort: port}
+				d.ports[port] = &types.Port{Protocol: proto, ContainerPort: port}
 			}
 		}
 	}
@@ -153,20 +148,20 @@ func (d *DockerRunOrImageParse) dockerun(source []string) {
 				case "e", "env":
 					info := strings.Split(s, "=")
 					if len(info) == 2 {
-						d.envs[info[0]] = &Env{Name: info[0], Value: info[1]}
+						d.envs[info[0]] = &types.Env{Name: info[0], Value: info[1]}
 					}
 				case "p", "public":
 					info := strings.Split(s, ":")
 					if len(info) == 2 {
 						port, _ := strconv.Atoi(info[0])
 						if port != 0 {
-							d.ports[port] = &Port{ContainerPort: port, Protocol: GetPortProtocol(port)}
+							d.ports[port] = &types.Port{ContainerPort: port, Protocol: GetPortProtocol(port)}
 						}
 					}
 				case "v", "volume":
 					info := strings.Split(s, ":")
 					if len(info) >= 2 {
-						d.volumes[info[1]] = &Volume{VolumePath: info[1], VolumeType: model.ShareFileVolumeType.String()}
+						d.volumes[info[1]] = &types.Volume{VolumePath: info[1], VolumeType: model.ShareFileVolumeType.String()}
 					}
 				case "memory", "m":
 					d.memory = readmemory(s)
@@ -178,20 +173,20 @@ func (d *DockerRunOrImageParse) dockerun(source []string) {
 			case "e", "env":
 				info := strings.Split(s, "=")
 				if len(info) == 2 {
-					d.envs[info[0]] = &Env{Name: info[0], Value: info[1]}
+					d.envs[info[0]] = &types.Env{Name: info[0], Value: info[1]}
 				}
 			case "p", "public":
 				info := strings.Split(s, ":")
 				if len(info) == 2 {
 					port, _ := strconv.Atoi(info[1])
 					if port != 0 {
-						d.ports[port] = &Port{ContainerPort: port, Protocol: GetPortProtocol(port)}
+						d.ports[port] = &types.Port{ContainerPort: port, Protocol: GetPortProtocol(port)}
 					}
 				}
 			case "v", "volume":
 				info := strings.Split(s, ":")
 				if len(info) >= 2 {
-					d.volumes[info[1]] = &Volume{VolumePath: info[1], VolumeType: model.ShareFileVolumeType.String()}
+					d.volumes[info[1]] = &types.Volume{VolumePath: info[1], VolumeType: model.ShareFileVolumeType.String()}
 				}
 			case "memory", "m":
 				d.memory = readmemory(s)
@@ -219,7 +214,7 @@ func (d *DockerRunOrImageParse) GetBranchs() []string {
 }
 
 //GetPorts 获取端口列表
-func (d *DockerRunOrImageParse) GetPorts() (ports []Port) {
+func (d *DockerRunOrImageParse) GetPorts() (ports []types.Port) {
 	for _, cv := range d.ports {
 		ports = append(ports, *cv)
 	}
@@ -227,7 +222,7 @@ func (d *DockerRunOrImageParse) GetPorts() (ports []Port) {
 }
 
 //GetVolumes 获取存储列表
-func (d *DockerRunOrImageParse) GetVolumes() (volumes []Volume) {
+func (d *DockerRunOrImageParse) GetVolumes() (volumes []types.Volume) {
 	for _, cv := range d.volumes {
 		volumes = append(volumes, *cv)
 	}
@@ -240,7 +235,7 @@ func (d *DockerRunOrImageParse) GetValid() bool {
 }
 
 //GetEnvs 环境变量
-func (d *DockerRunOrImageParse) GetEnvs() (envs []Env) {
+func (d *DockerRunOrImageParse) GetEnvs() (envs []types.Env) {
 	for _, cv := range d.envs {
 		envs = append(envs, *cv)
 	}
