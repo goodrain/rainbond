@@ -90,7 +90,7 @@ func (s *static) Watch() {
 	// do nothing
 }
 
-// NewStaticInteracter creates a new static interacter.
+// NewDynamicInteracter creates a new static interacter.
 func NewDynamicInteracter(sid string, updateCh *channels.RingChannel, stopCh chan struct{}) Interacter {
 	cfg, err := db.GetManager().ThirdPartySvcDiscoveryCfgDao().GetByServiceID(sid)
 	if err != nil {
