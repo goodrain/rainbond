@@ -275,7 +275,14 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		}
 	}
 	d.memory = getRecommendedMemory(lang)
-	d.Procfile = code.CheckProcfile(buildPath, lang)
+	var ProcfileLine string
+	d.Procfile, ProcfileLine = code.CheckProcfile(buildPath, lang)
+	if ProcfileLine != "" {
+		d.envs["BUILD_PROCFILE"] = &Env{
+			Name:  "BUILD_PROCFILE",
+			Value: ProcfileLine,
+		}
+	}
 	if rbdfileConfig != nil {
 		//handle profile env
 		for k, v := range rbdfileConfig.Envs {

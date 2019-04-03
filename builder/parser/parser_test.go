@@ -27,3 +27,9 @@ func TestParseImageName(t *testing.T) {
 	image := parseImageName("192.168.0.1:9090/asdasd/asdasd:asdad")
 	fmt.Println(image.Name, image.Tag)
 }
+
+func TestReadmemory(t *testing.T) {
+	t.Log(readmemory("10G"))
+	t.Log(readmemory("300m"))
+	t.Log(readmemory("300M"))
+}

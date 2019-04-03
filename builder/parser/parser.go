@@ -20,8 +20,9 @@ package parser
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/parser/discovery"
@@ -197,21 +198,15 @@ func GetPortProtocol(port int) string {
 //10k 128
 //10b 128
 func readmemory(s string) int {
-	if strings.HasSuffix(s, "m") {
-		s, err := strconv.Atoi(s[0 : len(s)-1])
-		if err != nil {
-			return 128
-		}
-		return s
+	q, err := resource.ParseQuantity(strings.ToUpper(s))
+	if err != nil {
+		return 512
 	}
-	if strings.HasSuffix(s, "g") {
-		s, err := strconv.Atoi(s[0 : len(s)-1])
-		if err != nil {
-			return 128
-		}
-		return s * 1024
+	re, _ := q.AsInt64()
+	if re != 0 {
+		return int(re) / (1000 * 1000)
 	}
-	return 128
+	return 512
 }
 
 func parseImageName(s string) Image {
