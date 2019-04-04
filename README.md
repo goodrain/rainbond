@@ -55,8 +55,8 @@ DevOps开发流水线、微服务架构、服务治理及各类技术工具“�
 
 [Rainbond 项目官网](https://www.rainbond.com)
 
-<center><img src="https://t.goodrain.com/uploads/default/original/2X/6/6591ae9e78a9c7d65bfb260f741ac3985662cc51.jpg"/></center>
-<center>添加微信，申请加入微信群，了解Rainbond更多资讯</center>
+<center> <img width="200px" src="https://t.goodrain.com/uploads/default/original/2X/6/6591ae9e78a9c7d65bfb260f741ac3985662cc51.jpg"/></center>
+<center> 添加微信，申请加入微信群，了解Rainbond更多资讯 </center>
 
 ## 开发路线计划
 
