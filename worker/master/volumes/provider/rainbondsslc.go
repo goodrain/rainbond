@@ -35,7 +35,7 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -66,11 +66,13 @@ func (p *rainbondsslcProvisioner) selectNode(nodeOS string) (*v1.Node, error) {
 	var maxavailable int64
 	var selectnode *v1.Node
 	for _, node := range allnode.Items {
+		nodeReady := false
 		if node.Labels[client.LabelOS] != nodeOS {
 			continue
 		}
 		for _, condition := range node.Status.Conditions {
 			if condition.Type == v1.NodeReady {
+				nodeReady = true
 				if condition.Status == v1.ConditionTrue {
 					ip := ""
 					for _, address := range node.Status.Addresses {
@@ -103,6 +105,9 @@ func (p *rainbondsslcProvisioner) selectNode(nodeOS string) (*v1.Node, error) {
 					}
 				}
 			}
+		}
+		if !nodeReady {
+			logrus.Warningf("Node: %s; not ready", node.Name)
 		}
 	}
 	return selectnode, nil
@@ -172,7 +177,11 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 	if options.SelectedNode == nil {
 		var err error
 		options.SelectedNode, err = p.selectNode(options.PVC.Annotations[client.LabelOS])
-		if err != nil || options.SelectedNode == nil {
+		if err != nil {
+			return nil, fmt.Errorf("Node OS: %s; error selecting node: %v",
+				options.PVC.Annotations[client.LabelOS], err)
+		}
+		if options.SelectedNode == nil {
 			return nil, fmt.Errorf("do not select an appropriate node for local volume")
 		}
 		if _, ok := options.SelectedNode.Labels["rainbond_node_ip"]; !ok {
