@@ -41,7 +41,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/renstorm/fuzzysearch/fuzzy"
-	"github.com/thedevsaddam/govalidator"
+	validator "github.com/thedevsaddam/govalidator"
 )
 
 //V2Routes v2Routes
@@ -601,15 +601,12 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	logrus.Debugf("trans create service service")
 	var ss api_model.ServiceStruct
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
-	logrus.Debugf("request uri: %s; body: %s", r.RequestURI, string(body))
-
 	err = ffjson.Unmarshal(body, &ss)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
@@ -1605,7 +1602,7 @@ func (t *TenantStruct) AddProbe(w http.ResponseWriter, r *http.Request) {
 	tspD.FailureThreshold = tsp.FailureThreshold
 	tspD.HTTPHeader = tsp.HTTPHeader
 	tspD.InitialDelaySecond = tsp.InitialDelaySecond
-	tspD.IsUsed = tsp.IsUsed
+	tspD.IsUsed = &tsp.IsUsed
 	tspD.Mode = tsp.Mode
 	tspD.Path = tsp.Path
 	tspD.PeriodSecond = tsp.PeriodSecond
@@ -1655,7 +1652,7 @@ func (t *TenantStruct) UpdateProbe(w http.ResponseWriter, r *http.Request) {
 	tspD.FailureThreshold = tsp.FailureThreshold
 	tspD.HTTPHeader = tsp.HTTPHeader
 	tspD.InitialDelaySecond = tsp.InitialDelaySecond
-	tspD.IsUsed = tsp.IsUsed
+	tspD.IsUsed = &tsp.IsUsed
 	tspD.Mode = tsp.Mode
 	tspD.Path = tsp.Path
 	tspD.PeriodSecond = tsp.PeriodSecond

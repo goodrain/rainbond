@@ -48,7 +48,7 @@ var REGISTRYUSER = ""
 var REGISTRYPASS = ""
 
 //RUNNERIMAGENAME runner image name
-var RUNNERIMAGENAME = "goodrain.me/runner"
+var RUNNERIMAGENAME = REGISTRYDOMAIN + "/runner"
 
 //BUILDERIMAGENAME builder image name
-var BUILDERIMAGENAME = "goodrain.me/builder"
+var BUILDERIMAGENAME = REGISTRYDOMAIN + "/builder"

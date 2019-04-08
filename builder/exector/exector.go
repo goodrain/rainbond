@@ -136,11 +136,11 @@ func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 }
 
 func (e *exectorManager) exec(task *pb.TaskMessage) error {
-	creater, ok := workerCreaterList[task.TaskType]
+	creator, ok := workerCreaterList[task.TaskType]
 	if !ok {
 		return fmt.Errorf("`%s` tasktype can't support", task.TaskType)
 	}
-	worker, err := creater(task.TaskBody, e)
+	worker, err := creator(task.TaskBody, e)
 	if err != nil {
 		logrus.Errorf("create worker for builder error.%s", err)
 		return err

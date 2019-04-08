@@ -20,7 +20,6 @@ package prober
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"sync"
 	"time"
@@ -39,12 +38,13 @@ type Prober interface {
 	CloseWatch(serviceName string, id string) error
 	Start()
 	AddServices(in []*v1.Service)
-	CheckAndAddService(in *v1.Service) bool
+	CheckIfExist(in *v1.Service) bool
 	SetServices([]*v1.Service)
 	GetServices() []*v1.Service
 	GetServiceHealth() map[string]*v1.HealthStatus
 	SetAndUpdateServices([]*v1.Service) error
 	AddAndUpdateServices([]*v1.Service) error
+	UpdateServiceProbe(service *v1.Service)
 	UpdateServicesProbe(services []*v1.Service)
 	Stop() error
 	DisableWatcher(serviceName, watcherID string)
@@ -276,17 +276,12 @@ func (p *probeManager) AddServices(in []*v1.Service) {
 }
 
 // CheckAndAddService checks if the input service exists, if it does not exist, add it.
-func (p *probeManager) CheckAndAddService(in *v1.Service) bool {
+func (p *probeManager) CheckIfExist(in *v1.Service) bool {
 	exist := false
 	for _, svc := range p.services {
 		if svc.Name == in.Name {
 			exist = true
 		}
-	}
-	if !exist {
-		b, _ := json.Marshal(in)
-		logrus.Debugf("add service: %s", string(b))
-		p.services = append(p.services, in)
 	}
 	return exist
 }
@@ -300,9 +295,9 @@ func (p *probeManager) isNeedUpdate(new *v1.Service) bool {
 	}
 	if old == nil {
 		// not found old one
-		return false
+		return true
 	}
-	return new.Equal(old)
+	return !new.Equal(old)
 }
 
 func (p *probeManager) GetServiceHealth() map[string]*v1.HealthStatus {
@@ -374,16 +369,35 @@ func (p *probeManager) updateAllServicesProbe() {
 	}
 }
 
+// UpdateServiceProbe updates and runs one service probe.
+func (p *probeManager) UpdateServiceProbe(service *v1.Service) {
+	if service.ServiceHealth == nil || service.Disable || !p.isNeedUpdate(service) {
+		return
+	}
+	logrus.Debugf("Probe: %s; update probe.", service.Name)
+	// stop old probe
+	old := p.serviceProbe[service.Name]
+	if old != nil {
+		old.Stop()
+	}
+	// create new probe
+	serviceProbe := probe.CreateProbe(p.ctx, p.statusChan, service)
+	if serviceProbe != nil {
+		p.serviceProbe[service.Name] = serviceProbe
+		serviceProbe.Check()
+	}
+}
+
 // UpdateServicesProbe updates and runs services probe.
 func (p *probeManager) UpdateServicesProbe(services []*v1.Service) {
+	if services == nil || len(services) == 0 {
+		logrus.Debug("Empty services")
+		return
+	}
+	oldSvcs := p.ListServicesBySid(services[0].Sid)
 	for _, v := range services {
-		if v.ServiceHealth == nil {
-			continue
-		}
-		if v.Disable {
-			continue
-		}
-		if !p.isNeedUpdate(v) {
+		delete(oldSvcs, v.Name)
+		if v.ServiceHealth == nil || v.Disable || !p.isNeedUpdate(v) {
 			continue
 		}
 		logrus.Debugf("Probe: %s; update probe.", v.Name)
@@ -392,6 +406,9 @@ func (p *probeManager) UpdateServicesProbe(services []*v1.Service) {
 		if old != nil {
 			old.Stop()
 		}
+		if !p.CheckIfExist(v) {
+			p.services = append(p.services, v)
+		}
 		// create new probe
 		serviceProbe := probe.CreateProbe(p.ctx, p.statusChan, v)
 		if serviceProbe != nil {
@@ -399,6 +416,20 @@ func (p *probeManager) UpdateServicesProbe(services []*v1.Service) {
 			serviceProbe.Check()
 		}
 	}
+	for _, svc := range oldSvcs {
+		p.StopProbes([]string{svc.Name})
+	}
+}
+
+// ListServicesBySid lists services corresponding to sid.
+func (p *probeManager) ListServicesBySid(sid string) map[string]*v1.Service {
+	res := make(map[string]*v1.Service)
+	for _, svc := range p.services {
+		if svc.Sid == sid {
+			res[svc.Name] = svc
+		}
+	}
+	return res
 }
 
 // GetProbe returns a probe associated with name.
@@ -413,6 +444,7 @@ func (p *probeManager) StopProbes(names []string) {
 			logrus.Debugf("Name: %s; Probe not found.", name)
 			continue
 		}
+		logrus.Debugf("Name: %s; Probe stopped", name)
 		probe.Stop()
 		delete(p.serviceProbe, name)
 		for idx, svc := range p.services {
