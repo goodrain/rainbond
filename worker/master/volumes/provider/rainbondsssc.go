@@ -70,7 +70,7 @@ func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*
 		if volumeID != 0 {
 			volume, err := db.GetManager().TenantServiceVolumeDao().GetVolumeByID(volumeID)
 			if err != nil {
-				logrus.Errorf("get volume by id %d failre %s", volumeID, err.Error())
+				logrus.Errorf("get volume by id %d failure %s", volumeID, err.Error())
 				return nil, err
 			}
 			hostpath = path.Join(volume.HostPath, podName)
