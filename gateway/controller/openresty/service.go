@@ -215,9 +215,9 @@ func (o *OrService) persistUpstreams(pools []*v1.Pool, tmpl string, path string,
 func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server) {
 	for _, vs := range conf.L7VS {
 		server := &model.Server{
-			Listen:           strings.Join(vs.Listening, " "),
-			ServerName:       strings.Replace(vs.ServerName, "tls", "", 1),
-			ForceSSLRedirect: vs.ForceSSLRedirect,
+			Listen:     strings.Join(vs.Listening, " "),
+			ServerName: strings.Replace(vs.ServerName, "tls", "", 1),
+			// ForceSSLRedirect: vs.ForceSSLRedirect,
 			OptionValue: map[string]string{
 				"tenant_id":  vs.Namespace,
 				"service_id": vs.ServiceID,
@@ -227,9 +227,6 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 		if vs.SSLCert != nil {
 			server.SSLCertificate = vs.SSLCert.CertificatePem
 			server.SSLCertificateKey = vs.SSLCert.CertificatePem
-			if vs.ForceSSLRedirect {
-
-			}
 		}
 		for _, loc := range vs.Locations {
 			location := &model.Location{
@@ -240,6 +237,7 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 				Proxy:            loc.Proxy,
 				Rewrite:          loc.Rewrite,
 				PathRewrite:      false,
+				DisableProxyPass: loc.DisableProxyPass,
 			}
 			server.Locations = append(server.Locations, location)
 		}
