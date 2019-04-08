@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/db/dao"
 	"net/http"
 	"time"
 
@@ -82,11 +83,14 @@ func (p *rainbondsslcProvisioner) selectNode(nodeOS string) (*v1.Node, error) {
 						}
 					}
 					if ip == "" {
+						logrus.Warningf("Node: %s; node internal address not found", node.Name)
 						break
 					}
 					//only contains rainbond pod
 					//pods, err := p.store.GetPodLister().Pods(v1.NamespaceAll).List(labels.NewSelector())
-					pods, err := p.kubecli.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{})
+					pods, err := p.kubecli.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{
+						FieldSelector: "spec.nodeName=" + node.Name,
+					})
 					if err != nil {
 						logrus.Errorf("list pods list from node ip error %s", err.Error())
 						break
@@ -100,8 +104,12 @@ func (p *rainbondsslcProvisioner) selectNode(nodeOS string) (*v1.Node, error) {
 					}
 					available := node.Status.Allocatable.Memory().Value() - nodeUsedMemory
 					if available >= maxavailable {
+						logrus.Infof("select node: %s", node.Name)
 						maxavailable = available
 						selectnode = &node
+					} else {
+						logrus.Infof("Node: %s; node available memory(%d) is less than max available "+
+							"memory(%d)", node.Name, available, maxavailable)
 					}
 				}
 			}
@@ -119,7 +127,7 @@ func (p *rainbondsslcProvisioner) createPath(options controller.VolumeOptions) (
 	if volumeID != 0 {
 		volume, err := db.GetManager().TenantServiceVolumeDao().GetVolumeByID(volumeID)
 		if err != nil {
-			logrus.Errorf("get volume by id %d failre %s", volumeID, err.Error())
+			logrus.Warningf("get volume by id %d failure %s", volumeID, err.Error())
 			return "", err
 		}
 		reqoptions := map[string]string{
@@ -190,6 +198,9 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 	}
 	path, err := p.createPath(options)
 	if err != nil {
+		if err == dao.VolumeNotFound {
+			return nil, err
+		}
 		return nil, fmt.Errorf("create local volume from node %s failure %s", options.SelectedNode.Name, err.Error())
 	}
 	if path == "" {
