@@ -55,6 +55,7 @@ type ServiceInfoFromDC struct {
 	args       []string
 	depends    []string
 	imageAlias string
+	deployType string
 }
 
 //GetPorts 获取端口列表
@@ -147,7 +148,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 			volumes:    volumes,
 			envs:       envs,
 			memory:     int(sc.MemLimit / 1024 / 1024),
-			image:      parseImageName(sc.Image),
+			image:      ParseImageName(sc.Image),
 			args:       sc.Args,
 			depends:    sc.Links,
 			imageAlias: sc.ContainerName,
@@ -155,6 +156,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 		if sc.DependsON != nil {
 			service.depends = sc.DependsON
 		}
+		service.deployType = DetermineDeployType(service.image)
 		d.services[kev] = &service
 	}
 	for serviceName, service := range d.services {
@@ -189,13 +191,14 @@ func (d *DockerComposeParse) GetServiceInfo() []ServiceInfo {
 	var sis []ServiceInfo
 	for _, service := range d.services {
 		si := ServiceInfo{
-			Ports:          service.GetPorts(),
-			Envs:           service.GetEnvs(),
-			Volumes:        service.GetVolumes(),
-			Image:          service.image,
-			Args:           service.args,
-			DependServices: service.depends,
-			ImageAlias:     service.imageAlias,
+			Ports:             service.GetPorts(),
+			Envs:              service.GetEnvs(),
+			Volumes:           service.GetVolumes(),
+			Image:             service.image,
+			Args:              service.args,
+			DependServices:    service.depends,
+			ImageAlias:        service.imageAlias,
+			ServiceDeployType: service.deployType,
 		}
 		if service.memory != 0 {
 			si.Memory = service.memory

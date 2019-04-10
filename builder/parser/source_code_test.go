@@ -34,7 +34,7 @@ func TestParseDockerfileInfo(t *testing.T) {
 		volumes: make(map[string]*Volume),
 		envs:    make(map[string]*Env),
 		logger:  nil,
-		image:   parseImageName(builder.RUNNERIMAGENAME),
+		image:   ParseImageName(builder.RUNNERIMAGENAME),
 		args:    []string{"start", "web"},
 	}
 	parse.parseDockerfileInfo("./Dockerfile")

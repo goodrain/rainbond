@@ -25,7 +25,8 @@ import (
 	"github.com/docker/distribution/reference"
 )
 
-func getAPITagFromNamedRef(ref reference.Named) string {
+//GetTagFromNamedRef get image tag by name
+func GetTagFromNamedRef(ref reference.Named) string {
 	if digested, ok := ref.(reference.Digested); ok {
 		return digested.Digest().String()
 	}
@@ -63,7 +64,7 @@ func ImageExist(imageName, user, password string) (bool, error) {
 	if err := reg.Ping(); err != nil {
 		return false, err
 	}
-	tag := getAPITagFromNamedRef(name)
+	tag := GetTagFromNamedRef(name)
 	_, err = reg.ManifestV2(reference.Path(name), tag)
 	if err != nil {
 		return false, err

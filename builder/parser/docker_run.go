@@ -43,6 +43,7 @@ type DockerRunOrImageParse struct {
 	volumes      map[string]*Volume
 	envs         map[string]*Env
 	source       string
+	deployType   string
 	memory       int
 	image        Image
 	args         []string
@@ -94,7 +95,7 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称(%s)不合法", d.image.String()), SolveAdvice("modify_image", "请确认输入镜像名是否正确")))
 			return d.errors
 		}
-		d.image = parseImageName(d.source)
+		d.image = ParseImageName(d.source)
 	}
 	//获取镜像，验证是否存在
 	imageInspect, err := sources.ImagePull(d.dockerclient, d.image.String(), d.user, d.pass, d.logger, 10)
@@ -133,6 +134,7 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 			}
 		}
 	}
+	d.deployType = DetermineDeployType(d.image)
 	return d.errors
 }
 
@@ -196,7 +198,7 @@ func (d *DockerRunOrImageParse) dockerun(source []string) {
 			case "memory", "m":
 				d.memory = readmemory(s)
 			case "", "d", "i", "t", "it", "P":
-				d.image = parseImageName(s)
+				d.image = ParseImageName(s)
 				if len(source) > i+1 {
 					d.args = source[i+1:]
 				}
@@ -265,13 +267,14 @@ func (d *DockerRunOrImageParse) GetMemory() int {
 //GetServiceInfo 获取service info
 func (d *DockerRunOrImageParse) GetServiceInfo() []ServiceInfo {
 	serviceInfo := ServiceInfo{
-		Ports:   d.GetPorts(),
-		Envs:    d.GetEnvs(),
-		Volumes: d.GetVolumes(),
-		Image:   d.GetImage(),
-		Args:    d.GetArgs(),
-		Branchs: d.GetBranchs(),
-		Memory:  d.memory,
+		Ports:             d.GetPorts(),
+		Envs:              d.GetEnvs(),
+		Volumes:           d.GetVolumes(),
+		Image:             d.GetImage(),
+		Args:              d.GetArgs(),
+		Branchs:           d.GetBranchs(),
+		Memory:            d.memory,
+		ServiceDeployType: d.deployType,
 	}
 	if serviceInfo.Memory == 0 {
 		serviceInfo.Memory = 256
