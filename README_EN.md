@@ -6,7 +6,7 @@
 [![Build Status](https://travis-ci.org/goodrain/rainbond.svg?branch=master)](https://travis-ci.org/goodrain/rainbond)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
-[项目官网](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/stable/) • [在线体验](https://console.goodrain.com) • [README in English](https://github.com/goodrain/rainbond/blob/master/README_EN.md)
+[项目官网](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/) • [README in English](https://github.com/goodrain/rainbond/blob/master/README_EN.md)
 
 ## **Rainbond** ENTERPRISE APPLICATION CLOUD OS
 
@@ -44,7 +44,7 @@ Transparently interfaces and manages a variety of computing resources, naturally
 | Serverless PaaS            | With the application-centric design philosophy, users do not need to understand the server-related concepts, and is simple and flexible. Quickly build industry-specific PaaS through docking industry applications. |
 | Application Gateway                   | Applying access control policies based on protocols such as HTTP, HTTPs, TCP, and UDP, it is easy to operate grayscale publishing and A/B testing. |
 
-More features： [Rainbond features description](https://www.rainbond.com/docs/stable/architecture/edition.html)
+More features： [Rainbond features description](https://www.rainbond.com/docs/quick-start/edition/)
 
 ## Quick Start
 
