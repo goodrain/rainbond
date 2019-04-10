@@ -50,7 +50,7 @@ func (s *mqServer) Enqueue(ctx context.Context, in *pb.EnqueueRequest) (*pb.Task
 	if err != nil {
 		return nil, err
 	}
-	logrus.Debugf("task (%v) enqueue.", in.Message.String())
+	logrus.Debugf("task (%v) enqueue.", in.Message.TaskType)
 	return &pb.TaskReply{
 		Status: "success",
 	}, nil
@@ -77,7 +77,7 @@ func (s *mqServer) Dequeue(ctx context.Context, in *pb.DequeueRequest) (*pb.Task
 	if err != nil {
 		return nil, err
 	}
-	logrus.Infof("task (%s) dnqueue by (%s).", task.GetTaskType(), in.ClientHost)
+	logrus.Debugf("task (%s) dnqueue by (%s).", task.GetTaskType(), in.ClientHost)
 	return &task, nil
 }
 

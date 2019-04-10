@@ -22,8 +22,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/goodrain/rainbond/event"
+
 	"github.com/Sirupsen/logrus"
-	//"github.com/docker/docker/client"
 	"github.com/docker/docker/client"
 	"github.com/ghodss/yaml"
 )
@@ -188,98 +189,53 @@ services:
 `
 
 var dockercompose3 = `
-version: "3"
+version: '3'
 services:
 
   redis:
-    image: redis:alpine
-    ports:
-      - "6379"
-    networks:
-      - frontend
-    deploy:
-      replicas: 2
-      update_config:
-        parallelism: 2
-        delay: 10s
-      restart_policy:
-        condition: on-failure
+    image: redis
+    restart: always
 
-  db:
-    image: postgres:9.4
+  mongo:
+    image: mongo
+    restart: always
+    ports:
+      - "27017:27017"
     volumes:
-      - db-data:/var/lib/postgresql/data
-    networks:
-      - backend
-    deploy:
-      placement:
-        constraints: [node.role == manager]
+      - ~/.container/data/mongo/db:/data/db
+      - ~/.container/data/mongo/configdb:/data/configdb
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=$MONGO_INITDB_ROOT_USERNAME
+      - MONGO_INITDB_ROOT_PASSWORD=$MONGO_INITDB_ROOT_PASSWORD
 
-  vote:
-    image: dockersamples/examplevotingapp_vote:before
-    ports:
-      - 5000:80
-    networks:
-      - frontend
+  treasure-island:
     depends_on:
+      - mongo
       - redis
-    deploy:
-      replicas: 2
-      update_config:
-        parallelism: 2
-      restart_policy:
-        condition: on-failure
-
-  result:
-    image: dockersamples/examplevotingapp_result:before
+    image: di94sh/treasure-island
+    restart: always
     ports:
-      - 5001:80
-    networks:
-      - backend
+      - "4000:4000"
+    links:
+      - "mongo"
+      - "redis"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=$MONGO_INITDB_ROOT_USERNAME
+      - MONGO_INITDB_ROOT_PASSWORD=$MONGO_INITDB_ROOT_PASSWORD
+
+  celery:
     depends_on:
-      - db
-    deploy:
-      replicas: 1
-      update_config:
-        parallelism: 2
-        delay: 10s
-      restart_policy:
-        condition: on-failure
-
-  worker:
-    image: dockersamples/examplevotingapp_worker
-    networks:
-      - frontend
-      - backend
-    deploy:
-      mode: replicated
-      replicas: 1
-      labels: [APP=VOTING]
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 3
-        window: 120s
-      placement:
-        constraints: [node.role == manager]
-
-  visualizer:
-    image: dockersamples/visualizer:stable
-    ports:
-      - "8080:8080"
-    stop_grace_period: 1m30s
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock"
-    deploy:
-      placement:
-        constraints: [node.role == manager]
-
-networks:
-  frontend:
-  backend:
-
-volumes:
-  db-data:
+      - mongo
+      - redis
+    image: di94sh/treasure-island
+    restart: always
+    links:
+      - "mongo"
+      - "redis"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=$MONGO_INITDB_ROOT_USERNAME
+      - MONGO_INITDB_ROOT_PASSWORD=$MONGO_INITDB_ROOT_PASSWORD
+    command: celery -B -A  app.tasks worker
 `
 
 var dockercompose20 = `
@@ -318,7 +274,20 @@ func TestDockerComposeParse(t *testing.T) {
 		fmt.Printf("yaml error, %v", err.Error())
 	}
 	fmt.Printf("yaml is %s", string(y))
-	p := CreateDockerComposeParse(string(y), dockerclient, nil)
+	p := CreateDockerComposeParse(string(y), dockerclient, "", "", nil)
+	if err := p.Parse(); err != nil {
+		logrus.Errorf(err.Error())
+		return
+	}
+	fmt.Printf("ServiceInfo:%+v \n", p.GetServiceInfo())
+}
+
+func TestDockerCompose30Parse(t *testing.T) {
+	dockerclient, err := client.NewEnvClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := CreateDockerComposeParse(dockercompose3, dockerclient, "", "", event.GetTestLogger())
 	if err := p.Parse(); err != nil {
 		logrus.Errorf(err.Error())
 		return

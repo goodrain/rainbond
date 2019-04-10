@@ -104,14 +104,13 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 	case "docker-run":
 		pr = parser.CreateDockerRunOrImageParse(input.Username, input.Password, input.SourceBody, e.DockerClient, logger)
 	case "docker-compose":
-		logrus.Debugf("source body is \n%v", input.SourceBody)
 		y, err := yaml.JSONToYAML([]byte(input.SourceBody))
 		if err != nil {
 			logrus.Errorf("json bytes format is error, %s", input.SourceBody)
-			logger.Error("dockercompose文件格式不正确。", map[string]string{"step": "callback", "status": "failure"})
+			logger.Error("The dockercompose file is not in the correct format", map[string]string{"step": "callback", "status": "failure"})
 			return
 		}
-		pr = parser.CreateDockerComposeParse(string(y), e.DockerClient, logger)
+		pr = parser.CreateDockerComposeParse(string(y), e.DockerClient, input.Username, input.Password, logger)
 	case "sourcecode":
 		pr = parser.CreateSourceCodeParse(input.SourceBody, logger)
 	case "third-party-service":
