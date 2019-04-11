@@ -125,7 +125,7 @@ type Image struct {
 
 //String -
 func (i Image) String() string {
-	return i.Name
+	return i.name.String()
 }
 
 //GetTag get tag
@@ -276,6 +276,6 @@ func ParseImageName(s string) (i Image) {
 	}
 	i.name = name
 	i.Tag = sources.GetTagFromNamedRef(name)
-	i.Name = name.String()
+	i.Name = s[:len(s)-(len(i.Tag)+1)]
 	return
 }
