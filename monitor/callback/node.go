@@ -51,8 +51,10 @@ func (e *Node) UpdateEndpoints(endpoints ...*config.Endpoint) {
 
 	e.sortedEndpoints = newArr
 
-	scrape := e.toScrape()
-	e.Prometheus.UpdateScrape(scrape)
+	scrapes := e.toScrape()
+	for _, scrape := range scrapes {
+		e.Prometheus.UpdateScrape(scrape)
+	}
 }
 
 func (e *Node) Error(err error) {
@@ -64,13 +66,13 @@ func (e *Node) Name() string {
 	return "rbd_node"
 }
 
-func (e *Node) toScrape() *prometheus.ScrapeConfig {
+func (e *Node) toScrape() []*prometheus.ScrapeConfig {
 	ts := make([]string, 0, len(e.sortedEndpoints))
 	for _, end := range e.sortedEndpoints {
 		ts = append(ts, end)
 	}
 
-	return &prometheus.ScrapeConfig{
+	return []*prometheus.ScrapeConfig{&prometheus.ScrapeConfig{
 		JobName:        e.Name(),
 		ScrapeInterval: model.Duration(30 * time.Second),
 		ScrapeTimeout:  model.Duration(30 * time.Second),
@@ -81,6 +83,21 @@ func (e *Node) toScrape() *prometheus.ScrapeConfig {
 					Targets: ts,
 					Labels: map[model.LabelName]model.LabelValue{
 						"component": model.LabelValue(e.Name()),
+					},
+				},
+			},
+		},
+	},
+		&prometheus.ScrapeConfig{
+			JobName:        "rbd_cluster",
+			ScrapeInterval: model.Duration(30 * time.Second),
+			ScrapeTimeout:  model.Duration(30 * time.Second),
+			MetricsPath:    "/cluster/metrics",
+			ServiceDiscoveryConfig: prometheus.ServiceDiscoveryConfig{
+				StaticConfigs: []*prometheus.Group{
+					{
+						Targets: ts,
+						Labels:  map[model.LabelName]model.LabelValue{},
 					},
 				},
 			},
