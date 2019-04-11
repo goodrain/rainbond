@@ -141,6 +141,11 @@ func NewCmdInit() cli.Command {
 				Value: "",
 			},
 			cli.StringFlag{
+				Name:  "exdb-type",
+				Usage: "external database type(mysql,postgresql)",
+				Value: "",
+			},
+			cli.StringFlag{
 				Name:  "exdb-host",
 				Usage: "external database host",
 				Value: "",
@@ -158,6 +163,31 @@ func NewCmdInit() cli.Command {
 			cli.StringFlag{
 				Name:  "exdb-passwd",
 				Usage: "external database password",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "excsdb-host",
+				Usage: "external console database host",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "excsdb-port",
+				Usage: "external console database port",
+				Value: "3306",
+			},
+			cli.StringFlag{
+				Name:  "excsdb-user",
+				Usage: "external console database user",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "excsdb-passwd",
+				Usage: "external console database password",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "enable-excsdb-only",
+				Usage: "Additional support for the console to configure the database separately",
 				Value: "",
 			},
 			cli.BoolFlag{
@@ -281,7 +311,12 @@ func getConfig(c *cli.Context) map[string]string {
 	configs["EXDB_HOST"] = c.String("exdb-host")
 	configs["EXDB_PORT"] = c.String("exdb-port")
 	configs["EXDB_USER"] = c.String("exdb-user")
-
+	configs["EXCSDB_ONLY_ENABLE"] = c.String("enable-excsdb-only")
+	configs["EXCSDB_PASSWD"] = c.String("excsdb-passwd")
+	configs["EXCSDB_HOST"] = c.String("excsdb-host")
+	configs["EXCSDB_PORT"] = c.String("excsdb-port")
+	configs["EXCSDB_USER"] = c.String("excsdb-user")
+	configs["EXDB_TYPE"] = c.String("exdb-type")
 	return configs
 }
 func initCluster(c *cli.Context) {
