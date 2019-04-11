@@ -161,13 +161,15 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 	}
 	for serviceName, service := range d.services {
 		//验证depends是否完整
+		existDepends := []string{}
 		for i, depend := range service.depends {
 			if strings.Contains(depend, ":") {
 				service.depends[i] = strings.Split(depend, ":")[0]
 			}
 			if _, ok := d.services[service.depends[i]]; !ok {
-				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("服务%s依赖项定义错误", serviceName), SolveAdvice("modify_compose", fmt.Sprintf("请确认ComposeFile中%s服务的依赖服务是否正确", serviceName))))
-				return d.errors
+				d.errappend(ErrorAndSolve(NegligibleError, fmt.Sprintf("服务%s依赖项定义错误", serviceName), SolveAdvice("modify_compose", fmt.Sprintf("请确认%s服务的依赖服务是否正确", serviceName))))
+			} else {
+				existDepends = append(existDepends, service.depends[i])
 			}
 		}
 		//do not pull image, but check image exist
@@ -176,7 +178,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 			logrus.Errorf("check image exist failure %s", err.Error())
 		}
 		if !exist {
-			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("服务%s镜像%s不存在", serviceName, service.image.String()), SolveAdvice("modify_compose", fmt.Sprintf("请确认ComposeFile中%s服务的依赖服务是否正确", serviceName))))
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("服务%s镜像%s检测失败", serviceName, service.image.String()), SolveAdvice("modify_compose", fmt.Sprintf("请确认%s服务镜像名称是否正确或镜像仓库访问是否正常", serviceName))))
 		}
 	}
 	return d.errors
