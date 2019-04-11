@@ -364,7 +364,6 @@ func (n *Cluster) checkNodeInstall(node *client.HostNode) {
 	if index > -1 {
 		jsonOutPut = result[index:]
 	}
-	fmt.Println("Init node Result:" + jsonOutPut)
 	output, err := model.ParseTaskOutPut(jsonOutPut)
 	if err != nil {
 		errorCondition("节点初始化输出数据错误", err)

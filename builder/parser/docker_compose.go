@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/goodrain/rainbond/builder/sources"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder/parser/compose"
@@ -33,22 +35,27 @@ import (
 
 //DockerComposeParse docker compose 文件解析
 type DockerComposeParse struct {
-	services     map[string]*serviceInfoFromDC
+	services     map[string]*ServiceInfoFromDC
 	errors       []ParseError
 	dockerclient *client.Client
 	logger       event.Logger
 	source       string
+	user         string
+	password     string
 }
-type serviceInfoFromDC struct {
-	ports      map[int]*types.Port
-	volumes    map[string]*types.Volume
-	envs       map[string]*types.Env
+
+//ServiceInfoFromDC service info from dockercompose
+type ServiceInfoFromDC struct {
+	ports      map[int]*Port
+	volumes    map[string]*Volume
+	envs       map[string]*Env
 	source     string
 	memory     int
 	image      Image
 	args       []string
 	depends    []string
 	imageAlias string
+	deployType string
 }
 
 //GetPorts 获取端口列表
@@ -76,12 +83,14 @@ func (d *serviceInfoFromDC) GetEnvs() (envs []types.Env) {
 }
 
 //CreateDockerComposeParse create parser
-func CreateDockerComposeParse(source string, dockerclient *client.Client, logger event.Logger) Parser {
+func CreateDockerComposeParse(source string, dockerclient *client.Client, user, pass string, logger event.Logger) Parser {
 	return &DockerComposeParse{
 		source:       source,
 		dockerclient: dockerclient,
 		logger:       logger,
-		services:     make(map[string]*serviceInfoFromDC),
+		services:     make(map[string]*ServiceInfoFromDC),
+		user:         user,
+		password:     pass,
 	}
 }
 
@@ -95,13 +104,13 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 	co, err := comp.LoadBytes([][]byte{[]byte(d.source)})
 	if err != nil {
 		logrus.Warning("parse compose file error,", err.Error())
-		d.logger.Error(fmt.Sprintf("解析ComposeFile失败 %s", err.Error()), map[string]string{"step": "compose-parse"})
 		d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("ComposeFile解析错误"), SolveAdvice("modify_compose", "请确认ComposeFile输入是否语法正确")))
 		return d.errors
 	}
 	for kev, sc := range co.ServiceConfigs {
 		logrus.Debugf("service config is %v, container name is %s", sc, sc.ContainerName)
 		ports := make(map[int]*types.Port)
+
 		for _, p := range sc.Port {
 			pro := string(p.Protocol)
 			if pro != "udp" {
@@ -114,9 +123,19 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 		}
 		volumes := make(map[string]*types.Volume)
 		for _, v := range sc.Volumes {
-			volumes[v.MountPath] = &types.Volume{
-				VolumePath: v.MountPath,
-				VolumeType: model.ShareFileVolumeType.String(),
+			if strings.Contains(v.MountPath, ":") {
+				infos := strings.Split(v.MountPath, ":")
+				if len(infos) > 1 {
+					volumes[v.MountPath] = &types.Volume{
+						VolumePath: infos[1],
+						VolumeType: model.ShareFileVolumeType.String(),
+					}
+				}
+			} else {
+				volumes[v.MountPath] = &types.Volume{
+					VolumePath: v.MountPath,
+					VolumeType: model.ShareFileVolumeType.String(),
+				}
 			}
 		}
 		envs := make(map[string]*types.Env)
@@ -126,12 +145,12 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 				Value: e.Value,
 			}
 		}
-		service := serviceInfoFromDC{
+		service := ServiceInfoFromDC{
 			ports:      ports,
 			volumes:    volumes,
 			envs:       envs,
 			memory:     int(sc.MemLimit / 1024 / 1024),
-			image:      parseImageName(sc.Image),
+			image:      ParseImageName(sc.Image),
 			args:       sc.Args,
 			depends:    sc.Links,
 			imageAlias: sc.ContainerName,
@@ -139,6 +158,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 		if sc.DependsON != nil {
 			service.depends = sc.DependsON
 		}
+		service.deployType = DetermineDeployType(service.image)
 		d.services[kev] = &service
 	}
 	for serviceName, service := range d.services {
@@ -152,15 +172,10 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 				return d.errors
 			}
 		}
-		//获取镜像，验证是否存在
-		imageInspect, err := sources.ImagePull(d.dockerclient, service.image.String(), "", "", d.logger, 10)
+		//do not pull image, but check image exist
+		exist, err := sources.ImageExist(service.image.String(), d.user, d.password)
 		if err != nil {
-			if strings.Contains(err.Error(), "No such image") {
-				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)不存在", service.image.String()), SolveAdvice("modify_compose", "请确认ComposeFile输入镜像名是否正确")))
-			} else {
-				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)获取失败", service.image.String()), SolveAdvice("modify_compose", "请确认ComposeFile输入镜像可以正常获取")))
-			}
-			return d.errors
+			logrus.Errorf("check image exist failure %s", err.Error())
 		}
 		if imageInspect != nil && imageInspect.ContainerConfig != nil {
 			for _, env := range imageInspect.ContainerConfig.Env {
@@ -188,6 +203,8 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 					service.ports[port] = &types.Port{Protocol: proto, ContainerPort: port}
 				}
 			}
+		if !exist {
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("服务%s镜像%s不存在", serviceName, service.image.String()), SolveAdvice("modify_compose", fmt.Sprintf("请确认ComposeFile中%s服务的依赖服务是否正确", serviceName))))
 		}
 	}
 	return d.errors
@@ -202,18 +219,19 @@ func (d *DockerComposeParse) GetServiceInfo() []ServiceInfo {
 	var sis []ServiceInfo
 	for _, service := range d.services {
 		si := ServiceInfo{
-			Ports:          service.GetPorts(),
-			Envs:           service.GetEnvs(),
-			Volumes:        service.GetVolumes(),
-			Image:          service.image,
-			Args:           service.args,
-			DependServices: service.depends,
-			ImageAlias:     service.imageAlias,
+			Ports:             service.GetPorts(),
+			Envs:              service.GetEnvs(),
+			Volumes:           service.GetVolumes(),
+			Image:             service.image,
+			Args:              service.args,
+			DependServices:    service.depends,
+			ImageAlias:        service.imageAlias,
+			ServiceDeployType: service.deployType,
 		}
 		if service.memory != 0 {
 			si.Memory = service.memory
 		} else {
-			si.Memory = 128
+			si.Memory = 512
 		}
 		sis = append(sis, si)
 	}

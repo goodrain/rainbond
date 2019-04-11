@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/db/dao"
 	"net/http"
 	"time"
 
@@ -35,7 +36,7 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -66,11 +67,13 @@ func (p *rainbondsslcProvisioner) selectNode(nodeOS string) (*v1.Node, error) {
 	var maxavailable int64
 	var selectnode *v1.Node
 	for _, node := range allnode.Items {
+		nodeReady := false
 		if node.Labels[client.LabelOS] != nodeOS {
 			continue
 		}
 		for _, condition := range node.Status.Conditions {
 			if condition.Type == v1.NodeReady {
+				nodeReady = true
 				if condition.Status == v1.ConditionTrue {
 					ip := ""
 					for _, address := range node.Status.Addresses {
@@ -80,11 +83,14 @@ func (p *rainbondsslcProvisioner) selectNode(nodeOS string) (*v1.Node, error) {
 						}
 					}
 					if ip == "" {
+						logrus.Warningf("Node: %s; node internal address not found", node.Name)
 						break
 					}
 					//only contains rainbond pod
 					//pods, err := p.store.GetPodLister().Pods(v1.NamespaceAll).List(labels.NewSelector())
-					pods, err := p.kubecli.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{})
+					pods, err := p.kubecli.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{
+						FieldSelector: "spec.nodeName=" + node.Name,
+					})
 					if err != nil {
 						logrus.Errorf("list pods list from node ip error %s", err.Error())
 						break
@@ -98,11 +104,18 @@ func (p *rainbondsslcProvisioner) selectNode(nodeOS string) (*v1.Node, error) {
 					}
 					available := node.Status.Allocatable.Memory().Value() - nodeUsedMemory
 					if available >= maxavailable {
+						logrus.Infof("select node: %s", node.Name)
 						maxavailable = available
 						selectnode = &node
+					} else {
+						logrus.Infof("Node: %s; node available memory(%d) is less than max available "+
+							"memory(%d)", node.Name, available, maxavailable)
 					}
 				}
 			}
+		}
+		if !nodeReady {
+			logrus.Warningf("Node: %s; not ready", node.Name)
 		}
 	}
 	return selectnode, nil
@@ -114,7 +127,7 @@ func (p *rainbondsslcProvisioner) createPath(options controller.VolumeOptions) (
 	if volumeID != 0 {
 		volume, err := db.GetManager().TenantServiceVolumeDao().GetVolumeByID(volumeID)
 		if err != nil {
-			logrus.Errorf("get volume by id %d failre %s", volumeID, err.Error())
+			logrus.Warningf("get volume by id %d failure %s", volumeID, err.Error())
 			return "", err
 		}
 		reqoptions := map[string]string{
@@ -172,7 +185,11 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 	if options.SelectedNode == nil {
 		var err error
 		options.SelectedNode, err = p.selectNode(options.PVC.Annotations[client.LabelOS])
-		if err != nil || options.SelectedNode == nil {
+		if err != nil {
+			return nil, fmt.Errorf("Node OS: %s; error selecting node: %v",
+				options.PVC.Annotations[client.LabelOS], err)
+		}
+		if options.SelectedNode == nil {
 			return nil, fmt.Errorf("do not select an appropriate node for local volume")
 		}
 		if _, ok := options.SelectedNode.Labels["rainbond_node_ip"]; !ok {
@@ -181,6 +198,9 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 	}
 	path, err := p.createPath(options)
 	if err != nil {
+		if err == dao.VolumeNotFound {
+			return nil, err
+		}
 		return nil, fmt.Errorf("create local volume from node %s failure %s", options.SelectedNode.Name, err.Error())
 	}
 	if path == "" {

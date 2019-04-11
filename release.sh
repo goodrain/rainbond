@@ -7,9 +7,12 @@ BASE_NAME=rainbond
 GO_VERSION=1.11
 GATEWAY_GO_VERSION=1.11-alpine3.8
 
-VERSION=5.1.1
 if [ -z "$TRAVIS_TAG" ]; then
-	VERSION=$TRAVIS_BRANCH-dev
+    if [ -z "$TRAVIS_BRANCH" ]; then
+	   VERSION=v5.1-dev
+	else
+	   VERSION=$TRAVIS_BRANCH-dev	
+	fi	
 else
 	VERSION=$TRAVIS_TAG
 fi

@@ -24,6 +24,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/goodrain/rainbond/util"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
@@ -53,9 +55,11 @@ type SourceCodeParse struct {
 	dockerclient *client.Client
 	logger       event.Logger
 	Lang         code.Lang
+  
 	Runtime      bool `json:"runtime"`
 	Dependencies bool `json:"dependencies"`
 	Procfile     bool `json:"procfile"`
+  
 	isMulti      bool
 	services     []*types.Service
 }
@@ -68,7 +72,7 @@ func CreateSourceCodeParse(source string, logger event.Logger) Parser {
 		volumes: make(map[string]*types.Volume),
 		envs:    make(map[string]*types.Env),
 		logger:  logger,
-		image:   parseImageName(builder.RUNNERIMAGENAME),
+		image:   ParseImageName(builder.RUNNERIMAGENAME),
 		args:    []string{"start", "web"},
 	}
 }
@@ -263,7 +267,6 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			return d.errors
 		}
 	}
-	d.Dependencies = code.CheckDependencies(buildPath, lang)
 	runtimeInfo, err := code.CheckRuntime(buildPath, lang)
 	if err != nil && err == code.ErrRuntimeNotSupport {
 		d.errappend(ErrorAndSolve(FatalError, "代码选择的运行时版本不支持", "请参考文档查看平台各语言支持的Runtime版本"))
@@ -452,23 +455,21 @@ func (d *SourceCodeParse) GetLang() code.Lang {
 	return d.Lang
 }
 
-//GetRuntime GetRuntime
-func (d *SourceCodeParse) GetRuntime() bool {
-	return d.Runtime
-}
-
 //GetServiceInfo 获取service info
 func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 	serviceInfo := ServiceInfo{
-		Volumes:      d.GetVolumes(),
-		Image:        d.GetImage(),
-		Args:         d.GetArgs(),
-		Branchs:      d.GetBranchs(),
-		Memory:       d.memory,
-		Lang:         d.GetLang(),
-		Dependencies: d.Dependencies,
-		Procfile:     d.Procfile,
-		Runtime:      d.Runtime,
+		Dependencies:      d.Dependencies,
+		Procfile:          d.Procfile,
+		Runtime:           d.Runtime,
+		Ports:             d.GetPorts(),
+		Envs:              d.GetEnvs(),
+		Volumes:           d.GetVolumes(),
+		Image:             d.GetImage(),
+		Args:              d.GetArgs(),
+		Branchs:           d.GetBranchs(),
+		Memory:            d.memory,
+		Lang:              d.GetLang(),
+		ServiceDeployType: util.StatelessServiceType,
 	}
 	var res []ServiceInfo
 	if d.isMulti && d.services != nil && len(d.services) > 0 {
