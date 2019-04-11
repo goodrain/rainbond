@@ -24,8 +24,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/goodrain/rainbond/util"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
@@ -55,13 +53,13 @@ type SourceCodeParse struct {
 	dockerclient *client.Client
 	logger       event.Logger
 	Lang         code.Lang
-  
+
 	Runtime      bool `json:"runtime"`
 	Dependencies bool `json:"dependencies"`
 	Procfile     bool `json:"procfile"`
-  
-	isMulti      bool
-	services     []*types.Service
+
+	isMulti  bool
+	services []*types.Service
 }
 
 //CreateSourceCodeParse create parser

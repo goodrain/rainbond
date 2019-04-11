@@ -22,8 +22,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/goodrain/rainbond/builder/sources"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder/parser/compose"
@@ -46,9 +44,9 @@ type DockerComposeParse struct {
 
 //ServiceInfoFromDC service info from dockercompose
 type ServiceInfoFromDC struct {
-	ports      map[int]*Port
-	volumes    map[string]*Volume
-	envs       map[string]*Env
+	ports      map[int]* types.Port
+	volumes    map[string]*types.Volume
+	envs       map[string]*types.Env
 	source     string
 	memory     int
 	image      Image
@@ -59,7 +57,7 @@ type ServiceInfoFromDC struct {
 }
 
 //GetPorts 获取端口列表
-func (d *serviceInfoFromDC) GetPorts() (ports []types.Port) {
+func (d *ServiceInfoFromDC) GetPorts() (ports []types.Port) {
 	for _, cv := range d.ports {
 		ports = append(ports, *cv)
 	}
@@ -67,7 +65,7 @@ func (d *serviceInfoFromDC) GetPorts() (ports []types.Port) {
 }
 
 //GetVolumes 获取存储列表
-func (d *serviceInfoFromDC) GetVolumes() (volumes []types.Volume) {
+func (d *ServiceInfoFromDC) GetVolumes() (volumes []types.Volume) {
 	for _, cv := range d.volumes {
 		volumes = append(volumes, *cv)
 	}
@@ -75,7 +73,7 @@ func (d *serviceInfoFromDC) GetVolumes() (volumes []types.Volume) {
 }
 
 //GetEnvs 环境变量
-func (d *serviceInfoFromDC) GetEnvs() (envs []types.Env) {
+func (d *ServiceInfoFromDC) GetEnvs() (envs []types.Env) {
 	for _, cv := range d.envs {
 		envs = append(envs, *cv)
 	}
@@ -177,34 +175,8 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 		if err != nil {
 			logrus.Errorf("check image exist failure %s", err.Error())
 		}
-		if imageInspect != nil && imageInspect.ContainerConfig != nil {
-			for _, env := range imageInspect.ContainerConfig.Env {
-				envinfo := strings.Split(env, "=")
-				if len(envinfo) == 2 {
-					if _, ok := service.envs[envinfo[0]]; !ok {
-						service.envs[envinfo[0]] = &types.Env{Name: envinfo[0], Value: envinfo[1]}
-					}
-				}
-			}
-			for k := range imageInspect.ContainerConfig.Volumes {
-				if _, ok := service.volumes[k]; !ok {
-					service.volumes[k] = &types.Volume{VolumePath: k, VolumeType: model.ShareFileVolumeType.String()}
-				}
-			}
-			for k := range imageInspect.ContainerConfig.ExposedPorts {
-				proto := k.Proto()
-				port := k.Int()
-				if proto != "udp" {
-					proto = GetPortProtocol(port)
-				}
-				if _, ok := service.ports[port]; ok {
-					service.ports[port].Protocol = proto
-				} else {
-					service.ports[port] = &types.Port{Protocol: proto, ContainerPort: port}
-				}
-			}
 		if !exist {
-			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("服务%s镜像%s不存在", serviceName, service.image.String()), SolveAdvice("modify_compose", fmt.Sprintf("请确认ComposeFile中%s服务的依赖服务是否正确", serviceName))))
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("服务%s镜像%s检测失败", serviceName, service.image.String()), SolveAdvice("modify_compose", fmt.Sprintf("请确认%s服务镜像名称是否正确或镜像仓库访问是否正常", serviceName))))
 		}
 	}
 	return d.errors
