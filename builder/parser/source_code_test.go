@@ -24,15 +24,16 @@ import (
 	"testing"
 
 	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/parser/types"
 	"github.com/goodrain/rainbond/builder/sources"
 )
 
 func TestParseDockerfileInfo(t *testing.T) {
 	parse := &SourceCodeParse{
 		source:  "source",
-		ports:   make(map[int]*Port),
-		volumes: make(map[string]*Volume),
-		envs:    make(map[string]*Env),
+		ports:   make(map[int]*types.Port),
+		volumes: make(map[string]*types.Volume),
+		envs:    make(map[string]*types.Env),
 		logger:  nil,
 		image:   ParseImageName(builder.RUNNERIMAGENAME),
 		args:    []string{"start", "web"},

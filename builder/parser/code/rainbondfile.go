@@ -24,7 +24,6 @@ import (
 	"path"
 
 	"github.com/Sirupsen/logrus"
-
 	"github.com/goodrain/rainbond/util"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -36,6 +35,14 @@ type RainbondFileConfig struct {
 	Ports     []Port            `yaml:"ports"`
 	Envs      map[string]string `yaml:"envs"`
 	Cmd       string            `yaml:"cmd"`
+	Services  []*Service        `yaml:"services"`
+}
+
+// Service contains
+type Service struct {
+	Name  string            `yaml:"name"`
+	Ports []Port            `yaml:"ports"`
+	Envs  map[string]string `yaml:"envs"`
 }
 
 //Port Port

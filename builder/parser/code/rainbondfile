@@ -1,0 +1,26 @@
+language: Java-maven
+envs:
+  ENV_KEYA: ENV_VALUEA
+  ENV_KEYB: ENV_VALUEB
+ports:
+  - port: 7777
+    protocol: http
+services:
+  - name: pig-eureka
+    ports:
+    - port: 9090
+      protocol: http
+    - port: 6000
+      protocol: tcp
+    envs:
+      ENV_KEY1: ENV_VALUE1
+      ENV_KEY2: ENV_VALUE2
+  - name: pig-common/pig-common-security
+    ports:
+    - port: 8080
+      protocol: http
+    - port: 5000
+      protocol: tcp
+    envs:
+      ENV_KEY3: ENV_VALUE3
+      ENV_KEY4: ENV_VALUE4

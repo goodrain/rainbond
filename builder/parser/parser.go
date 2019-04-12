@@ -32,25 +32,8 @@ import (
 
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/parser/discovery"
+	"github.com/goodrain/rainbond/builder/parser/types"
 )
-
-//Port 端口
-type Port struct {
-	ContainerPort int    `json:"container_port"`
-	Protocol      string `json:"protocol"`
-}
-
-//Volume 存储地址
-type Volume struct {
-	VolumePath string `json:"volume_path"`
-	VolumeType string `json:"volume_type"`
-}
-
-//Env env desc
-type Env struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}
 
 //ParseError 错误信息
 type ParseError struct {
@@ -167,19 +150,31 @@ type Lang string
 
 //ServiceInfo 智能获取的应用信息
 type ServiceInfo struct {
-	Ports             []Port    `json:"ports"`
-	Envs              []Env     `json:"envs"`
-	Volumes           []Volume  `json:"volumes"`
-	Image             Image     `json:"image"`
-	Args              []string  `json:"args"`
-	DependServices    []string  `json:"depends,omitempty"`
-	ServiceDeployType string    `json:"deploy_type,omitempty"`
-	Branchs           []string  `json:"branchs,omitempty"`
-	Memory            int       `json:"memory"`
-	Lang              code.Lang `json:"language"`
-	ImageAlias        string    `json:"image_alias"`
+	ID                string         `json:"id,omitempty"`
+	Ports             []types.Port   `json:"ports,omitempty"`
+	Envs              []types.Env    `json:"envs,omitempty"`
+	Volumes           []types.Volume `json:"volumes,omitempty"`
+	Image             Image          `json:"image,omitempty"`
+	Args              []string       `json:"args,omitempty"`
+	DependServices    []string       `json:"depends,omitempty"`
+	ServiceDeployType string         `json:"deploy_type,omitempty"`
+	Branchs           []string       `json:"branchs,omitempty"`
+	Memory            int            `json:"memory,omitempty"`
+	Lang              code.Lang      `json:"language,omitempty"`
+	ImageAlias        string         `json:"image_alias,omitempty"`
 	//For third party services
-	Endpoints []*discovery.Endpoint `json:"endpoints"`
+	Endpoints []*discovery.Endpoint `json:"endpoints,omitempty"`
+
+	//deprecated
+	Runtime bool `json:"runtime,omitempty"`
+	//deprecated
+	Dependencies bool `json:"dependencies,omitempty"`
+	//deprecated
+	Procfile bool `json:"procfile,omitempty"`
+
+	Name      string `json:"name,omitempty"`  // module name
+	Cname     string `json:"cname,omitempty"` // service cname
+	Packaging string `json:"packaging,omitempty"`
 }
 
 //GetServiceInfo GetServiceInfo

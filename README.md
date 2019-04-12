@@ -2,11 +2,11 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/goodrain/rainbond)](https://goreportcard.com/report/github.com/goodrain/rainbond)
 [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
-![Rainbond version](https://img.shields.io/badge/version-v5.0-brightgreen.svg)
+![Rainbond version](https://img.shields.io/badge/version-v5.1-brightgreen.svg)
 [![Build Status](https://travis-ci.org/goodrain/rainbond.svg?branch=master)](https://travis-ci.org/goodrain/rainbond)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
-[项目官网](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/stable/) • [在线体验](https://console.goodrain.com) • [README in English](https://github.com/goodrain/rainbond/blob/master/README_EN.md)
+[项目官网](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/) • [在线体验](https://console.goodrain.com) • [README in English](https://github.com/goodrain/rainbond/blob/master/README_EN.md)
 
 **Rainbond** 企业应用云操作系统
 
@@ -19,15 +19,15 @@ Rainbond（云帮）是企业应用的操作系统。 Rainbond支撑企业应用
 
 * 企业应用开发
 
-开发环境、微服务架构、服务治理及各类技术工具“开箱即用”，不改变开发习惯，让企业专注核心业务，提升10倍效率。
+DevOps开发流水线、微服务架构、服务治理及各类技术工具“开箱即用”，不改变开发习惯，让企业专注核心业务，提升10倍效率。
 
 * 企业应用交付
 
-支持持续交付、企业应用市场交付、SaaS化、企业应用销售、二次开发等交付流程，客户统一管理，兼顾标准化交付和个性化交付
+支持持续交付、企业应用市场交付、SaaS化、企业应用销售、二次开发等交付流程，客户统一管理，兼顾标准化交付和个性化交付。
 
 * 企业应用运维
 
-透明对接管理多种计算资源，天然实现多云和混合云，企业应用自动化运维，提高2倍资源利用率。
+建设私有云平台，透明对接管理多种计算资源，天然实现多云和混合云，企业应用自动化运维，提高2倍资源利用率。业务、资源多维度集成监控系统开箱即用。
 
 ## 主要功能特性
 
@@ -40,13 +40,14 @@ Rainbond（云帮）是企业应用的操作系统。 Rainbond支撑企业应用
 | 自动化运维                 | 应用自动化运维。节点自动安装、扩容、监控、容错。平台支持高可用、多数据中心管理、多租户管理。 |
 | Serverless PaaS            | 以应用为核心，使用过程不需要了解服务器相关概念，简单灵活。通过对接行业应用，快速构建行业专有PaaS。 |
 | 应用网关                   | 基于HTTP、HTTPs、TCP、UDP等协议应用访问控制策略，轻松操作应用灰度发布、A/B测试。 |
+| 异构服务统一管理            | 支持集群内外不同架构服务统一管理和通信治理                                    |
 
-更多功能特性详见： [Rainbond功能特性说明](https://www.rainbond.com/docs/stable/architecture/edition.html)
+更多功能特性详见： [Rainbond功能特性说明](https://www.rainbond.com/docs/quick-start/edition/)
 ## 快速开始
 
-1.  [安装 Rainbond 集群](https://www.rainbond.com/docs/stable/getting-started/installation-guide.html)
-2.  [创建第一个应用（服务）](https://www.rainbond.com/docs/stable/user-manual/create-an-app.html)
-3.  [搭建 ServiceMesh 微服务架构](https://www.rainbond.com/docs/stable/microservice/service-mesh/use-case.html)
+1.  [安装 Rainbond 集群](https://www.rainbond.com/docs/quick-start/rainbond_install/)
+2.  [创建第一个应用（服务）](https://www.rainbond.com/docs/user-manual/app-creation/)
+3.  [搭建 ServiceMesh 微服务架构](https://www.rainbond.com/docs/advanced-scenarios/micro/)
 
 ## 社区
 
@@ -56,26 +57,26 @@ Rainbond（云帮）是企业应用的操作系统。 Rainbond支撑企业应用
 
 ## 开发路线计划
 
-点击查看 Rainbond 版本开发计划 [Roadmap](http://www.rainbond.com/docs/stable/architecture/roadmap.html)
+点击查看 Rainbond 版本开发计划 [Roadmap](https://www.rainbond.com/docs/quick-start/roadmap/)
 
 ## 架构
 
-<img src="https://static.goodrain.com/images/docs/5.0/architecture/architecture.svg" href="http://www.rainbond.com/docs/stable/architecture/architecture.html">
+<img src="https://static.goodrain.com/images/docs/5.0/architecture/architecture.svg" href="https://www.rainbond.com/docs/architecture/architecture/">
 
 ## 产品图示
 
-<img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/docs/5.0/readme/connect.gif" href="http://www.rainbond.com/docs/stable">
+<img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/docs/5.0/readme/connect.gif" href="http://www.rainbond.com/docs">
 
 - 应用组装部署示意图
 
-<img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/docs/5.0/readme/gateway.gif" href="http://www.rainbond.com/docs/stable">
+<img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/docs/5.0/readme/gateway.gif" href="http://www.rainbond.com/docs">
 
 - 应用网关管理示意图
 
 ## 参与贡献
 
 你可以参与Rainbond社区关于平台、应用、插件等领域的贡献和分享。
-[参与Rainbond项目](https://www.rainbond.com/docs/stable/contribute-to-rainbond.html)
+[参与Rainbond项目](https://www.rainbond.com/docs/contribution/)
 [Rainbond 贡献者社区](https://t.goodrain.com/c/contribution)
 
 ## 相关项目
@@ -108,7 +109,3 @@ Rainbond 遵循 LGPL-3.0 license 协议发布，详情查看[LICENSE](https://gi
 - [MySQL](https://github.com/mysql/mysql-server)
 - [Weave Scope](https://github.com/weaveworks/scope)
 - [Ant Design](https://github.com/ant-design/ant-design)
-
-## 加入我们 
-
-[非常欢迎热爱技术的你加入我们](https://www.rainbond.com/docs/recruitment/join.html)
