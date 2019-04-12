@@ -28,7 +28,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser/code"
-	"github.com/goodrain/rainbond/builder/parser/code/multisvc"
+	multi "github.com/goodrain/rainbond/builder/parser/code/multisvc"
 	"github.com/goodrain/rainbond/builder/parser/types"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db/model"
@@ -456,9 +456,6 @@ func (d *SourceCodeParse) GetLang() code.Lang {
 //GetServiceInfo 获取service info
 func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 	serviceInfo := ServiceInfo{
-		Dependencies:      d.Dependencies,
-		Procfile:          d.Procfile,
-		Runtime:           d.Runtime,
 		Ports:             d.GetPorts(),
 		Envs:              d.GetEnvs(),
 		Volumes:           d.GetVolumes(),

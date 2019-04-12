@@ -165,13 +165,6 @@ type ServiceInfo struct {
 	//For third party services
 	Endpoints []*discovery.Endpoint `json:"endpoints,omitempty"`
 
-	//deprecated
-	Runtime bool `json:"runtime,omitempty"`
-	//deprecated
-	Dependencies bool `json:"dependencies,omitempty"`
-	//deprecated
-	Procfile bool `json:"procfile,omitempty"`
-
 	Name      string `json:"name,omitempty"`  // module name
 	Cname     string `json:"cname,omitempty"` // service cname
 	Packaging string `json:"packaging,omitempty"`
@@ -271,6 +264,10 @@ func ParseImageName(s string) (i Image) {
 	}
 	i.name = name
 	i.Tag = sources.GetTagFromNamedRef(name)
-	i.Name = s[:len(s)-(len(i.Tag)+1)]
+	if strings.Contains(s, ":") {
+		i.Name = s[:len(s)-(len(i.Tag)+1)]
+	} else {
+		i.Name = s
+	}
 	return
 }

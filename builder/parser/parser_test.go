@@ -36,7 +36,7 @@ func TestParseImageName(t *testing.T) {
 	t.Logf("repostory %s", image2.GetRepostory())
 	t.Logf("name %s", image2.GetSimpleName())
 	t.Logf("tag %s", image2.GetTag())
-	image3 := ParseImageName("barnett/name:tag")
+	image3 := ParseImageName("mongo")
 	t.Logf("string %s", image3.String())
 	t.Logf("domain %s", image3.GetDomain())
 	t.Logf("repostory %s", image3.GetRepostory())

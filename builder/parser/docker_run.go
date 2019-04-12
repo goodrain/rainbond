@@ -272,7 +272,7 @@ func (d *DockerRunOrImageParse) GetServiceInfo() []ServiceInfo {
 		ServiceDeployType: d.deployType,
 	}
 	if serviceInfo.Memory == 0 {
-		serviceInfo.Memory = 256
+		serviceInfo.Memory = 512
 	}
 	return []ServiceInfo{serviceInfo}
 }

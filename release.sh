@@ -9,7 +9,7 @@ GATEWAY_GO_VERSION=1.11-alpine3.8
 
 if [ -z "$TRAVIS_TAG" ]; then
     if [ -z "$TRAVIS_BRANCH" ]; then
-	   VERSION=v5.1-dev
+	   VERSION=V5.1-dev
 	else
 	   VERSION=$TRAVIS_BRANCH-dev	
 	fi	

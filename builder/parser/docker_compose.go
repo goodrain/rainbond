@@ -44,7 +44,7 @@ type DockerComposeParse struct {
 
 //ServiceInfoFromDC service info from dockercompose
 type ServiceInfoFromDC struct {
-	ports      map[int]* types.Port
+	ports      map[int]*types.Port
 	volumes    map[string]*types.Volume
 	envs       map[string]*types.Env
 	source     string
@@ -54,6 +54,7 @@ type ServiceInfoFromDC struct {
 	depends    []string
 	imageAlias string
 	deployType string
+	name       string
 }
 
 //GetPorts 获取端口列表
@@ -152,6 +153,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 			args:       sc.Args,
 			depends:    sc.Links,
 			imageAlias: sc.ContainerName,
+			name:       kev,
 		}
 		if sc.DependsON != nil {
 			service.depends = sc.DependsON
@@ -172,7 +174,9 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 				existDepends = append(existDepends, service.depends[i])
 			}
 		}
+		service.depends = existDepends
 		//do not pull image, but check image exist
+		d.logger.Debug(fmt.Sprintf("start check service %s ", service.name), map[string]string{"step": "service_check", "status": "running"})
 		exist, err := sources.ImageExist(service.image.String(), d.user, d.password)
 		if err != nil {
 			logrus.Errorf("check image exist failure %s", err.Error())
@@ -201,6 +205,8 @@ func (d *DockerComposeParse) GetServiceInfo() []ServiceInfo {
 			DependServices:    service.depends,
 			ImageAlias:        service.imageAlias,
 			ServiceDeployType: service.deployType,
+			Name:              service.name,
+			Cname:             service.name,
 		}
 		if service.memory != 0 {
 			si.Memory = service.memory
