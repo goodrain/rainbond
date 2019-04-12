@@ -106,6 +106,11 @@ func NewCmdInit() cli.Command {
 				Value: "",
 			},
 			cli.StringFlag{
+				Name:  "enable-ntp",
+				Usage: "enable ntp config",
+				Value: "",
+			},
+			cli.StringFlag{
 				Name:  "storage",
 				Usage: "Storage type, default:NFS",
 				Value: "nfs",
@@ -129,6 +134,61 @@ func NewCmdInit() cli.Command {
 				Name:  "config-file,f",
 				Usage: "Global Config Path, default",
 				Value: "/opt/rainbond/rainbond-ansible/scripts/installer/global.sh",
+			},
+			cli.StringFlag{
+				Name:  "enable-exdb",
+				Usage: "default disable external database",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "exdb-type",
+				Usage: "external database type(mysql,postgresql)",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "exdb-host",
+				Usage: "external database host",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "exdb-port",
+				Usage: "external database port",
+				Value: "3306",
+			},
+			cli.StringFlag{
+				Name:  "exdb-user",
+				Usage: "external database user",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "exdb-passwd",
+				Usage: "external database password",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "excsdb-host",
+				Usage: "external console database host",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "excsdb-port",
+				Usage: "external console database port",
+				Value: "3306",
+			},
+			cli.StringFlag{
+				Name:  "excsdb-user",
+				Usage: "external console database user",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "excsdb-passwd",
+				Usage: "external console database password",
+				Value: "",
+			},
+			cli.StringFlag{
+				Name:  "enable-excsdb-only",
+				Usage: "Additional support for the console to configure the database separately",
+				Value: "",
 			},
 			cli.BoolFlag{
 				Name:   "test",
@@ -245,6 +305,18 @@ func getConfig(c *cli.Context) map[string]string {
 	configs["STORAGE_ARGS"] = c.String("storage-args")
 	configs["ENABLE_CHECK"] = c.String("enable-check")
 	configs["PULL_ONLINE_IMAGES"] = c.String("enable-online-images")
+	configs["ENABLE_NTP"] = c.String("enable-ntp")
+	configs["ENABLE_EXDB"] = c.String("enable-exdb")
+	configs["EXDB_PASSWD"] = c.String("exdb-passwd")
+	configs["EXDB_HOST"] = c.String("exdb-host")
+	configs["EXDB_PORT"] = c.String("exdb-port")
+	configs["EXDB_USER"] = c.String("exdb-user")
+	configs["EXCSDB_ONLY_ENABLE"] = c.String("enable-excsdb-only")
+	configs["EXCSDB_PASSWD"] = c.String("excsdb-passwd")
+	configs["EXCSDB_HOST"] = c.String("excsdb-host")
+	configs["EXCSDB_PORT"] = c.String("excsdb-port")
+	configs["EXCSDB_USER"] = c.String("excsdb-user")
+	configs["EXDB_TYPE"] = c.String("exdb-type")
 	return configs
 }
 func initCluster(c *cli.Context) {
