@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"github.com/Sirupsen/logrus"
 	"net/http"
+	"strings"
 
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
@@ -51,6 +52,14 @@ func (t *ThirdPartyServiceController) addEndpoints(w http.ResponseWriter, r *htt
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &data, nil) {
 		return
 	}
+	values := make(map[string][]string)
+	if strings.Contains(data.IP, "127.0.0.1") {
+		values["ip"] = []string{"The ip field is can't contains '127.0.0.1'"}
+	}
+	if len(values) != 0 {
+		httputil.ReturnValidationError(r, w, values)
+		return
+	}
 	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	if err := handler.Get3rdPartySvcHandler().AddEndpoints(sid, &data); err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
@@ -62,6 +71,14 @@ func (t *ThirdPartyServiceController) addEndpoints(w http.ResponseWriter, r *htt
 func (t *ThirdPartyServiceController) updEndpoints(w http.ResponseWriter, r *http.Request) {
 	var data model.UpdEndpiontsReq
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &data, nil) {
+		return
+	}
+	values := make(map[string][]string)
+	if strings.Contains(data.IP, "127.0.0.1") {
+		values["ip"] = []string{"The ip field is can't contains '127.0.0.1'"}
+	}
+	if len(values) != 0 {
+		httputil.ReturnValidationError(r, w, values)
 		return
 	}
 	if err := handler.Get3rdPartySvcHandler().UpdEndpoints(&data); err != nil {

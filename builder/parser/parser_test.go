@@ -19,11 +19,32 @@
 package parser
 
 import (
-	"fmt"
 	"testing"
 )
 
 func TestParseImageName(t *testing.T) {
-	image := parseImageName("192.168.0.1:9090/asdasd/asdasd:asdad")
-	fmt.Println(image.Name, image.Tag)
+	image := ParseImageName("192.168.0.1:9090/asdasd/asdasd:asdad")
+	t.Logf("string %s", image.String())
+	t.Logf("domain %s", image.GetDomain())
+	t.Logf("repostory %s", image.GetRepostory())
+	t.Logf("sname %s", image.GetSimpleName())
+	t.Logf("name %s", image.Name)
+	t.Logf("tag %s", image.GetTag())
+	image2 := ParseImageName("192.168.0.1/asdasd/name")
+	t.Logf("string %s", image2.String())
+	t.Logf("domain %s", image2.GetDomain())
+	t.Logf("repostory %s", image2.GetRepostory())
+	t.Logf("name %s", image2.GetSimpleName())
+	t.Logf("tag %s", image2.GetTag())
+	image3 := ParseImageName("mongo")
+	t.Logf("string %s", image3.String())
+	t.Logf("domain %s", image3.GetDomain())
+	t.Logf("repostory %s", image3.GetRepostory())
+	t.Logf("name %s", image3.GetSimpleName())
+	t.Logf("tag %s", image3.GetTag())
+}
+func TestDetermineDeployType(t *testing.T) {
+	t.Log(DetermineDeployType(ParseImageName("barnett/zookeeper:3.2")))
+	t.Log(DetermineDeployType(ParseImageName("elcolio/etcd:2.0.10")))
+	t.Log(DetermineDeployType(ParseImageName("phpmyadmin")))
 }

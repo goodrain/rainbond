@@ -23,27 +23,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
+
+	"github.com/goodrain/rainbond/builder/sources"
+
+	"github.com/docker/distribution/reference"
+	"github.com/goodrain/rainbond/util"
+
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/parser/discovery"
+	"github.com/goodrain/rainbond/builder/parser/types"
 )
-
-//Port 端口
-type Port struct {
-	ContainerPort int    `json:"container_port"`
-	Protocol      string `json:"protocol"`
-}
-
-//Volume 存储地址
-type Volume struct {
-	VolumePath string `json:"volume_path"`
-	VolumeType string `json:"volume_type"`
-}
-
-//Env env desc
-type Env struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}
 
 //ParseError 错误信息
 type ParseError struct {
@@ -111,12 +101,50 @@ func (ps ParseErrorList) IsFatalError() bool {
 
 //Image 镜像
 type Image struct {
+	name reference.Named
 	Name string `json:"name"`
 	Tag  string `json:"tag"`
 }
 
+//String -
 func (i Image) String() string {
-	return fmt.Sprintf("%s:%s", i.Name, i.Tag)
+	return i.name.String()
+}
+
+//GetTag get tag
+func (i Image) GetTag() string {
+	return i.Tag
+}
+
+//GetRepostory get repostory
+func (i Image) GetRepostory() string {
+	return reference.Path(i.name)
+}
+
+//GetDomain get image registry domain
+func (i Image) GetDomain() string {
+	domain := reference.Domain(i.name)
+	if domain == "docker.io" {
+		domain = "registry-1.docker.io"
+	}
+	return domain
+}
+
+//IsOfficial is official image
+func (i Image) IsOfficial() bool {
+	domain := reference.Domain(i.name)
+	if domain == "docker.io" {
+		return true
+	}
+	return false
+}
+
+//GetSimpleName get image name without tag and organizations
+func (i Image) GetSimpleName() string {
+	if strings.Contains(i.GetRepostory(), "/") {
+		return strings.Split(i.GetRepostory(), "/")[1]
+	}
+	return i.GetRepostory()
 }
 
 //Parser 解析器
@@ -131,26 +159,24 @@ type Lang string
 
 //ServiceInfo 智能获取的应用信息
 type ServiceInfo struct {
-	Ports             []Port    `json:"ports"`
-	Envs              []Env     `json:"envs"`
-	Volumes           []Volume  `json:"volumes"`
-	Image             Image     `json:"image"`
-	Args              []string  `json:"args"`
-	DependServices    []string  `json:"depends,omitempty"`
-	ServiceDeployType string    `json:"deploy_type,omitempty"`
-	Branchs           []string  `json:"branchs,omitempty"`
-	Memory            int       `json:"memory"`
-	Lang              code.Lang `json:"language"`
-	ImageAlias        string    `json:"image_alias"`
+	ID                string         `json:"id,omitempty"`
+	Ports             []types.Port   `json:"ports,omitempty"`
+	Envs              []types.Env    `json:"envs,omitempty"`
+	Volumes           []types.Volume `json:"volumes,omitempty"`
+	Image             Image          `json:"image,omitempty"`
+	Args              []string       `json:"args,omitempty"`
+	DependServices    []string       `json:"depends,omitempty"`
+	ServiceDeployType string         `json:"deploy_type,omitempty"`
+	Branchs           []string       `json:"branchs,omitempty"`
+	Memory            int            `json:"memory,omitempty"`
+	Lang              code.Lang      `json:"language,omitempty"`
+	ImageAlias        string         `json:"image_alias,omitempty"`
 	//For third party services
-	Endpoints []*discovery.Endpoint `json:"endpoints"`
+	Endpoints []*discovery.Endpoint `json:"endpoints,omitempty"`
 
-	//deprecated
-	Runtime bool `json:"runtime"`
-	//deprecated
-	Dependencies bool `json:"dependencies"`
-	//deprecated
-	Procfile bool `json:"procfile"`
+	Name      string `json:"name,omitempty"`  // module name
+	Cname     string `json:"cname,omitempty"` // service cname
+	Packaging string `json:"packaging,omitempty"`
 }
 
 //GetServiceInfo GetServiceInfo
@@ -191,6 +217,25 @@ func GetPortProtocol(port int) string {
 	return "http"
 }
 
+var dbImageKey = []string{
+	"mysql", "mariadb", "mongo", "redis", "tidb",
+	"zookeeper", "kafka", "mysqldb", "mongodb",
+	"memcached", "cockroachdb", "cockroach", "etcd",
+	"postgres", "postgresql", "elasticsearch", "consul",
+	"percona", "mysql-server", "mysql-cluster",
+}
+
+//DetermineDeployType Determine the deployment type
+// if image like db image,return stateful type
+func DetermineDeployType(imageName Image) string {
+	for _, key := range dbImageKey {
+		if strings.ToLower(imageName.GetSimpleName()) == key {
+			return util.StatefulServiceType
+		}
+	}
+	return util.StatelessServiceType
+}
+
 //readmemory
 //10m 10
 //10g 10*1024
@@ -214,16 +259,24 @@ func readmemory(s string) int {
 	return 128
 }
 
-func parseImageName(s string) Image {
-	index := strings.LastIndex(s, ":")
-	if index > -1 {
-		return Image{
-			Name: s[0:index],
-			Tag:  s[index+1:],
-		}
+//ParseImageName parse image name
+func ParseImageName(s string) (i Image) {
+	ref, err := reference.ParseAnyReference(s)
+	if err != nil {
+		logrus.Errorf("parse image failure %s", err.Error())
+		return i
 	}
-	return Image{
-		Name: s,
-		Tag:  "latest",
+	name, err := reference.ParseNamed(ref.String())
+	if err != nil {
+		logrus.Errorf("parse image failure %s", err.Error())
+		return i
 	}
+	i.name = name
+	i.Tag = sources.GetTagFromNamedRef(name)
+	if strings.Contains(s, ":") {
+		i.Name = s[:len(s)-(len(i.Tag)+1)]
+	} else {
+		i.Name = s
+	}
+	return
 }

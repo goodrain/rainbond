@@ -20,6 +20,7 @@ package store
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/eventlog/util"
@@ -323,13 +324,17 @@ func (s *storeManager) deleteFile(filename string) error {
 	if err != nil {
 		return err
 	}
-	if now.After(theTime.Add(7 * time.Hour * 24)) {
+	saveDay, _ := strconv.Atoi(os.Getenv("DOCKER_LOG_SAVE_DAY"))
+	if saveDay == 0 {
+		saveDay = 7
+	}
+	if now.After(theTime.Add(time.Duration(saveDay) * time.Hour * 24)) {
 		if err := os.Remove(filename); err != nil {
 			if !strings.Contains(err.Error(), "No such file or directory") {
 				return err
 			}
 		}
-		logrus.Debug("clean service log %s", filename)
+		logrus.Debugf("clean service log %s", filename)
 	}
 	return nil
 }

@@ -47,7 +47,10 @@ type manager struct {
 
 func createNodeExporterRestry() (*prometheus.Registry, error) {
 	registry := prometheus.NewRegistry()
-	filters := []string{"cpu", "diskstats", "filesystem", "ipvs", "loadavg", "meminfo", "netdev", "netstat", "uname", "mountstats", "nfs"}
+	filters := []string{"cpu", "diskstats", "filesystem",
+		"ipvs", "loadavg", "meminfo", "netdev",
+		"netclass", "netdev", "netstat",
+		"uname", "mountstats", "nfs"}
 	nc, err := collector.NewNodeCollector(filters...)
 	if err != nil {
 		return nil, err

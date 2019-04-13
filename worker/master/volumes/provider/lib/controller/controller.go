@@ -18,6 +18,7 @@ package controller
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/db/dao"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -965,6 +966,10 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 
 	volume, err = ctrl.provisioners[provisioner].Provision(options)
 	if err != nil {
+		if err == dao.VolumeNotFound {
+			logrus.Warningf("PVC: %s; volume not found.", claim.Name)
+			return nil
+		}
 		if ierr, ok := err.(*IgnoredError); ok {
 			// Provision ignored, do nothing and hope another provisioner will provision it.
 			logrus.Info(logOperation(operation, "volume provision ignored: %v", ierr))

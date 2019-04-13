@@ -23,37 +23,42 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-
+	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder/parser/compose"
+	"github.com/goodrain/rainbond/builder/parser/types"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
-
-	"github.com/docker/docker/client"
 )
 
 //DockerComposeParse docker compose 文件解析
 type DockerComposeParse struct {
-	services     map[string]*serviceInfoFromDC
+	services     map[string]*ServiceInfoFromDC
 	errors       []ParseError
 	dockerclient *client.Client
 	logger       event.Logger
 	source       string
+	user         string
+	password     string
 }
-type serviceInfoFromDC struct {
-	ports      map[int]*Port
-	volumes    map[string]*Volume
-	envs       map[string]*Env
+
+//ServiceInfoFromDC service info from dockercompose
+type ServiceInfoFromDC struct {
+	ports      map[int]*types.Port
+	volumes    map[string]*types.Volume
+	envs       map[string]*types.Env
 	source     string
 	memory     int
 	image      Image
 	args       []string
 	depends    []string
 	imageAlias string
+	deployType string
+	name       string
 }
 
 //GetPorts 获取端口列表
-func (d *serviceInfoFromDC) GetPorts() (ports []Port) {
+func (d *ServiceInfoFromDC) GetPorts() (ports []types.Port) {
 	for _, cv := range d.ports {
 		ports = append(ports, *cv)
 	}
@@ -61,7 +66,7 @@ func (d *serviceInfoFromDC) GetPorts() (ports []Port) {
 }
 
 //GetVolumes 获取存储列表
-func (d *serviceInfoFromDC) GetVolumes() (volumes []Volume) {
+func (d *ServiceInfoFromDC) GetVolumes() (volumes []types.Volume) {
 	for _, cv := range d.volumes {
 		volumes = append(volumes, *cv)
 	}
@@ -69,7 +74,7 @@ func (d *serviceInfoFromDC) GetVolumes() (volumes []Volume) {
 }
 
 //GetEnvs 环境变量
-func (d *serviceInfoFromDC) GetEnvs() (envs []Env) {
+func (d *ServiceInfoFromDC) GetEnvs() (envs []types.Env) {
 	for _, cv := range d.envs {
 		envs = append(envs, *cv)
 	}
@@ -77,12 +82,14 @@ func (d *serviceInfoFromDC) GetEnvs() (envs []Env) {
 }
 
 //CreateDockerComposeParse create parser
-func CreateDockerComposeParse(source string, dockerclient *client.Client, logger event.Logger) Parser {
+func CreateDockerComposeParse(source string, dockerclient *client.Client, user, pass string, logger event.Logger) Parser {
 	return &DockerComposeParse{
 		source:       source,
 		dockerclient: dockerclient,
 		logger:       logger,
-		services:     make(map[string]*serviceInfoFromDC),
+		services:     make(map[string]*ServiceInfoFromDC),
+		user:         user,
+		password:     pass,
 	}
 }
 
@@ -96,99 +103,86 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 	co, err := comp.LoadBytes([][]byte{[]byte(d.source)})
 	if err != nil {
 		logrus.Warning("parse compose file error,", err.Error())
-		d.logger.Error(fmt.Sprintf("解析ComposeFile失败 %s", err.Error()), map[string]string{"step": "compose-parse"})
 		d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("ComposeFile解析错误"), SolveAdvice("modify_compose", "请确认ComposeFile输入是否语法正确")))
 		return d.errors
 	}
 	for kev, sc := range co.ServiceConfigs {
 		logrus.Debugf("service config is %v, container name is %s", sc, sc.ContainerName)
-		ports := make(map[int]*Port)
+		ports := make(map[int]*types.Port)
+
 		for _, p := range sc.Port {
 			pro := string(p.Protocol)
 			if pro != "udp" {
 				pro = GetPortProtocol(int(p.ContainerPort))
 			}
-			ports[int(p.ContainerPort)] = &Port{
+			ports[int(p.ContainerPort)] = &types.Port{
 				ContainerPort: int(p.ContainerPort),
 				Protocol:      pro,
 			}
 		}
-		volumes := make(map[string]*Volume)
+		volumes := make(map[string]*types.Volume)
 		for _, v := range sc.Volumes {
-			volumes[v.MountPath] = &Volume{
-				VolumePath: v.MountPath,
-				VolumeType: model.ShareFileVolumeType.String(),
+			if strings.Contains(v.MountPath, ":") {
+				infos := strings.Split(v.MountPath, ":")
+				if len(infos) > 1 {
+					volumes[v.MountPath] = &types.Volume{
+						VolumePath: infos[1],
+						VolumeType: model.ShareFileVolumeType.String(),
+					}
+				}
+			} else {
+				volumes[v.MountPath] = &types.Volume{
+					VolumePath: v.MountPath,
+					VolumeType: model.ShareFileVolumeType.String(),
+				}
 			}
 		}
-		envs := make(map[string]*Env)
+		envs := make(map[string]*types.Env)
 		for _, e := range sc.Environment {
-			envs[e.Name] = &Env{
+			envs[e.Name] = &types.Env{
 				Name:  e.Name,
 				Value: e.Value,
 			}
 		}
-		service := serviceInfoFromDC{
+		service := ServiceInfoFromDC{
 			ports:      ports,
 			volumes:    volumes,
 			envs:       envs,
 			memory:     int(sc.MemLimit / 1024 / 1024),
-			image:      parseImageName(sc.Image),
+			image:      ParseImageName(sc.Image),
 			args:       sc.Args,
 			depends:    sc.Links,
 			imageAlias: sc.ContainerName,
+			name:       kev,
 		}
 		if sc.DependsON != nil {
 			service.depends = sc.DependsON
 		}
+		service.deployType = DetermineDeployType(service.image)
 		d.services[kev] = &service
 	}
 	for serviceName, service := range d.services {
 		//验证depends是否完整
+		existDepends := []string{}
 		for i, depend := range service.depends {
 			if strings.Contains(depend, ":") {
 				service.depends[i] = strings.Split(depend, ":")[0]
 			}
 			if _, ok := d.services[service.depends[i]]; !ok {
-				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("服务%s依赖项定义错误", serviceName), SolveAdvice("modify_compose", fmt.Sprintf("请确认ComposeFile中%s服务的依赖服务是否正确", serviceName))))
-				return d.errors
-			}
-		}
-		//获取镜像，验证是否存在
-		imageInspect, err := sources.ImagePull(d.dockerclient, service.image.String(), "", "", d.logger, 10)
-		if err != nil {
-			if strings.Contains(err.Error(), "No such image") {
-				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)不存在", service.image.String()), SolveAdvice("modify_compose", "请确认ComposeFile输入镜像名是否正确")))
+				d.errappend(ErrorAndSolve(NegligibleError, fmt.Sprintf("服务%s依赖项定义错误", serviceName), SolveAdvice("modify_compose", fmt.Sprintf("请确认%s服务的依赖服务是否正确", serviceName))))
 			} else {
-				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)获取失败", service.image.String()), SolveAdvice("modify_compose", "请确认ComposeFile输入镜像可以正常获取")))
+				existDepends = append(existDepends, service.depends[i])
 			}
-			return d.errors
 		}
-		if imageInspect != nil && imageInspect.ContainerConfig != nil {
-			for _, env := range imageInspect.ContainerConfig.Env {
-				envinfo := strings.Split(env, "=")
-				if len(envinfo) == 2 {
-					if _, ok := service.envs[envinfo[0]]; !ok {
-						service.envs[envinfo[0]] = &Env{Name: envinfo[0], Value: envinfo[1]}
-					}
-				}
-			}
-			for k := range imageInspect.ContainerConfig.Volumes {
-				if _, ok := service.volumes[k]; !ok {
-					service.volumes[k] = &Volume{VolumePath: k, VolumeType: model.ShareFileVolumeType.String()}
-				}
-			}
-			for k := range imageInspect.ContainerConfig.ExposedPorts {
-				proto := k.Proto()
-				port := k.Int()
-				if proto != "udp" {
-					proto = GetPortProtocol(port)
-				}
-				if _, ok := service.ports[port]; ok {
-					service.ports[port].Protocol = proto
-				} else {
-					service.ports[port] = &Port{Protocol: proto, ContainerPort: port}
-				}
-			}
+		service.depends = existDepends
+		//do not pull image, but check image exist
+		d.logger.Debug(fmt.Sprintf("start check service %s ", service.name), map[string]string{"step": "service_check", "status": "running"})
+		exist, err := sources.ImageExist(service.image.String(), d.user, d.password)
+		if err != nil {
+			logrus.Errorf("check image exist failure %s", err.Error())
+		}
+		if !exist {
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("服务%s镜像%s检测失败", serviceName, service.image.String()), SolveAdvice("modify_compose", fmt.Sprintf("请确认%s服务镜像名称是否正确或镜像仓库访问是否正常", serviceName))))
 		}
 	}
 	return d.errors
@@ -203,18 +197,21 @@ func (d *DockerComposeParse) GetServiceInfo() []ServiceInfo {
 	var sis []ServiceInfo
 	for _, service := range d.services {
 		si := ServiceInfo{
-			Ports:          service.GetPorts(),
-			Envs:           service.GetEnvs(),
-			Volumes:        service.GetVolumes(),
-			Image:          service.image,
-			Args:           service.args,
-			DependServices: service.depends,
-			ImageAlias:     service.imageAlias,
+			Ports:             service.GetPorts(),
+			Envs:              service.GetEnvs(),
+			Volumes:           service.GetVolumes(),
+			Image:             service.image,
+			Args:              service.args,
+			DependServices:    service.depends,
+			ImageAlias:        service.imageAlias,
+			ServiceDeployType: service.deployType,
+			Name:              service.name,
+			Cname:             service.name,
 		}
 		if service.memory != 0 {
 			si.Memory = service.memory
 		} else {
-			si.Memory = 128
+			si.Memory = 512
 		}
 		sis = append(sis, si)
 	}

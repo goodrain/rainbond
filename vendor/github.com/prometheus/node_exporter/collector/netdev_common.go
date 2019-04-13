@@ -22,11 +22,10 @@ import (
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
-	netdevIgnoredDevices = kingpin.Flag("collector.netdev.ignored-devices", "Regexp of net devices to ignore for netdev collector.").Default("^$").String()
+	netdevIgnoredDevices = "^$"
 )
 
 type netDevCollector struct {
@@ -41,7 +40,7 @@ func init() {
 
 // NewNetDevCollector returns a new Collector exposing network device stats.
 func NewNetDevCollector() (Collector, error) {
-	pattern := regexp.MustCompile(*netdevIgnoredDevices)
+	pattern := regexp.MustCompile(netdevIgnoredDevices)
 	return &netDevCollector{
 		subsystem:             "network",
 		ignoredDevicesPattern: pattern,
