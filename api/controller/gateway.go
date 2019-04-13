@@ -31,6 +31,7 @@ import (
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/mq/client"
 	httputil "github.com/goodrain/rainbond/util/http"
+	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 )
 
 // GatewayStruct -
@@ -52,6 +53,19 @@ func (g *GatewayStruct) HTTPRule(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func validateDomain(domain string) []string {
+	if strings.TrimSpace(domain) == "" {
+		return nil
+	}
+	var errs []string
+	if strings.Contains(domain, "*") {
+		errs = k8svalidation.IsWildcardDNS1123Subdomain(domain)
+	} else {
+		errs = k8svalidation.IsDNS1123Subdomain(domain)
+	}
+	return errs
+}
+
 func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 	var req api_model.AddHTTPRuleStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
@@ -71,6 +85,11 @@ func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 		if req.PrivateKey == "" {
 			values["private_key"] = []string{"The private_key field is required"}
 		}
+	}
+	errs := validateDomain(req.Domain)
+	if errs != nil && len(errs) > 0 {
+		logrus.Debugf("Invalid domain: %s", strings.Join(errs, ";"))
+		values["domain"] = []string{"The domain field is invalid"}
 	}
 	if len(values) != 0 {
 		httputil.ReturnValidationError(r, w, values)
@@ -122,6 +141,11 @@ func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
+	}
+	errs := validateDomain(req.Domain)
+	if errs != nil && len(errs) > 0 {
+		logrus.Debugf("Invalid domain: %s", strings.Join(errs, ";"))
+		values["domain"] = []string{"The domain field is invalid"}
 	}
 	if len(values) != 0 {
 		httputil.ReturnValidationError(r, w, values)
