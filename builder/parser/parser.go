@@ -130,6 +130,15 @@ func (i Image) GetDomain() string {
 	return domain
 }
 
+//IsOfficial is official image
+func (i Image) IsOfficial() bool {
+	domain := reference.Domain(i.name)
+	if domain == "docker.io" {
+		return true
+	}
+	return false
+}
+
 //GetSimpleName get image name without tag and organizations
 func (i Image) GetSimpleName() string {
 	if strings.Contains(i.GetRepostory(), "/") {

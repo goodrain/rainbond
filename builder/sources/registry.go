@@ -53,21 +53,26 @@ func ImageExist(imageName, user, password string) (bool, error) {
 	if domain == "docker.io" {
 		domain = "registry-1.docker.io"
 	}
-	reg, err := registry.New(domain, user, password)
-	if err != nil {
-		reg, err = registry.NewInsecure(domain, user, password)
+	retry := 2
+	var rerr error
+	for retry > 0 {
+		retry--
+		reg, err := registry.New(domain, user, password)
 		if err != nil {
-			logrus.Errorf("new registry client failure %s", err.Error())
-			return false, err
+			reg, err = registry.NewInsecure(domain, user, password)
+			if err != nil {
+				logrus.Errorf("new registry client failure %s", err.Error())
+				rerr = err
+				continue
+			}
 		}
+		tag := GetTagFromNamedRef(name)
+		_, err = reg.ManifestV2(reference.Path(name), tag)
+		if err != nil {
+			rerr = err
+			continue
+		}
+		return true, nil
 	}
-	if err := reg.Ping(); err != nil {
-		return false, err
-	}
-	tag := GetTagFromNamedRef(name)
-	_, err = reg.ManifestV2(reference.Path(name), tag)
-	if err != nil {
-		return false, err
-	}
-	return true, nil
+	return false, rerr
 }

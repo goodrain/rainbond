@@ -98,7 +98,11 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 		if strings.Contains(err.Error(), "No such image") {
 			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)不存在", d.image.String()), SolveAdvice("modify_image", "请确认输入镜像名是否正确")))
 		} else {
-			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)获取失败", d.image.String()), SolveAdvice("modify_image", "请确认输入镜像可以正常获取")))
+			if d.image.IsOfficial() {
+				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)获取失败,国内访问Docker官方仓库经常不稳定", d.image.String()), SolveAdvice("modify_image", "请确认输入镜像可以正常获取")))
+			} else {
+				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)获取失败", d.image.String()), SolveAdvice("modify_image", "请确认输入镜像可以正常获取")))
+			}
 		}
 		return d.errors
 	}
