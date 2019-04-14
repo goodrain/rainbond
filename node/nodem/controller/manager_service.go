@@ -102,42 +102,26 @@ func (m *ManagerService) Stop() error {
 //Online start all service of on the node
 func (m *ManagerService) Online() error {
 	logrus.Info("Doing node online by node controller manager")
-	// registry local services endpoint into cluster manager
-	hostIP := m.cluster.GetOptions().HostIP
-	m.SetEndpoints(hostIP)
-
 	if ok := m.ctr.CheckBeforeStart(); !ok {
 		return nil
 	}
-
 	go m.StartServices()
 	m.SyncServiceStatusController()
-
+	// registry local services endpoint into cluster manager
+	for _, s := range *m.services {
+		m.UpOneServiceEndpoint(s)
+	}
 	return nil
 }
 
-// AddEndpoints regists endpoints in etcd
+// SetEndpoints regists endpoints in etcd
 func (m *ManagerService) SetEndpoints(hostIP string) {
 	if hostIP == "" {
 		logrus.Warningf("ignore wrong hostIP: %s", hostIP)
 		return
 	}
-
 	for _, s := range *m.services {
-		if s.OnlyHealthCheck || s.Disable {
-			continue
-		}
-		logrus.Debug("Parse endpoints for service: ", s.Name)
-		for _, end := range s.Endpoints {
-			if strings.Replace(end.Port, " ", "", -1) == "" {
-				logrus.Warningf("ignore wrong endpoint: %v", end)
-				continue
-			}
-			key := end.Name + "/" + hostIP
-			logrus.Debug("Discovery endpoints: ", key)
-			endpoint := toEndpoint(end, hostIP)
-			m.cluster.SetEndpoints(key, []string{endpoint})
-		}
+		m.UpOneServiceEndpoint(s)
 	}
 }
 
@@ -161,27 +145,48 @@ func (m *ManagerService) StartServices() {
 //Offline stop all service of on the node
 func (m *ManagerService) Offline() error {
 	logrus.Info("Doing node offline by node controller manager")
-	// Anti-registry local services endpoint from cluster manager
-	HostIP := m.cluster.GetOptions().HostIP
 	services, _ := m.GetAllService()
 	for _, s := range *services {
-		for _, end := range s.Endpoints {
-			logrus.Debug("Anti-registry endpoint: ", end.Name)
-			endpoint := toEndpoint(end, HostIP)
-			oldEndpoints := m.cluster.GetEndpoints(end.Name)
-			if exist := isExistEndpoint(oldEndpoints, endpoint); exist {
-				m.cluster.SetEndpoints(end.Name, rmEndpointFrom(oldEndpoints, endpoint))
-			}
-		}
+		m.DownOneServiceEndpoint(s)
 	}
-
 	m.StopSyncService()
-
 	if err := m.ctr.StopList(*m.services); err != nil {
 		return err
 	}
-
 	return nil
+}
+
+//DownOneServiceEndpoint down service endpoint
+func (m *ManagerService) DownOneServiceEndpoint(s *service.Service) {
+	HostIP := m.cluster.GetOptions().HostIP
+	for _, end := range s.Endpoints {
+		logrus.Debug("Anti-registry endpoint: ", end.Name)
+		endpoint := toEndpoint(end, HostIP)
+		oldEndpoints := m.cluster.GetEndpoints(end.Name)
+		if exist := isExistEndpoint(oldEndpoints, endpoint); exist {
+			m.cluster.SetEndpoints(end.Name, rmEndpointFrom(oldEndpoints, endpoint))
+		}
+	}
+	logrus.Infof("node %s down service %s endpoints", HostIP, s.Name)
+}
+
+//UpOneServiceEndpoint up service endpoint
+func (m *ManagerService) UpOneServiceEndpoint(s *service.Service) {
+	if s.OnlyHealthCheck || s.Disable {
+		return
+	}
+	hostIP := m.cluster.GetOptions().HostIP
+	for _, end := range s.Endpoints {
+		if strings.Replace(end.Port, " ", "", -1) == "" {
+			logrus.Warningf("ignore wrong endpoint: %v", end)
+			continue
+		}
+		key := end.Name + "/" + hostIP
+		logrus.Debug("Discovery endpoints: ", key)
+		endpoint := toEndpoint(end, hostIP)
+		m.cluster.SetEndpoints(key, []string{endpoint})
+	}
+	logrus.Infof("node %s up service %s endpoints", hostIP, s.Name)
 }
 
 //SyncServiceStatusController synchronize all service status to as we expect
@@ -211,6 +216,7 @@ func (m *ManagerService) SyncServiceStatusController() {
 					logrus.Errorf("not found service %s", event.Name)
 					return
 				}
+				m.DownOneServiceEndpoint(service)
 				if service.OnlyHealthCheck {
 					logrus.Warningf("service %s is only check health.so do not auto restart it", event.Name)
 					return
@@ -232,6 +238,14 @@ func (m *ManagerService) SyncServiceStatusController() {
 				// start check healthy status of the service
 				m.healthyManager.EnableWatcher(event.Name, w.GetID())
 			},
+			healthHandle: func(event *service.HealthStatus, w healthy.Watcher) {
+				service := m.GetService(event.Name)
+				if service == nil {
+					logrus.Errorf("not found service %s", event.Name)
+					return
+				}
+				m.UpOneServiceEndpoint(service)
+			},
 		}
 		m.autoStatusController[s.Name] = serviceStatusController
 		go serviceStatusController.Run()
@@ -244,6 +258,7 @@ type statusController struct {
 	cancel         context.CancelFunc
 	service        *service.Service
 	unhealthHandle func(event *service.HealthStatus, w healthy.Watcher)
+	healthHandle   func(event *service.HealthStatus, w healthy.Watcher)
 	healthyManager healthy.Manager
 }
 
@@ -256,6 +271,9 @@ func (s *statusController) Run() {
 		case event := <-s.watcher.Watch():
 			switch event.Status {
 			case service.Stat_healthy:
+				if s.healthHandle != nil {
+					s.healthHandle(event, s.watcher)
+				}
 				logrus.Debugf("is [%s] of service %s.", event.Status, event.Name)
 			case service.Stat_unhealthy:
 				if s.service.ServiceHealth != nil {
