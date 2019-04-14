@@ -79,7 +79,7 @@ type module struct {
 
 // ListModules lists all maven modules from pom.xml
 func (m *maven) ListModules(path string) ([]*types.Service, error) {
-	modules, err := listModules(path, strings.TrimRight(path, "/")+"/")
+	modules, err := listModules(path, strings.TrimRight(path, "/")+"/", "")
 	if err != nil {
 		return nil, err
 	}
@@ -113,17 +113,21 @@ func (m *maven) ListModules(path string) ([]*types.Service, error) {
 	return res, nil
 }
 
-func listModules(prefix, topPref string) ([]*module, error) {
+func listModules(prefix, topPref, finalName string) ([]*module, error) {
 	pomPath := path.Join(prefix, "pom.xml")
 	pom, err := parsePom(pomPath)
 	if err != nil {
 		return nil, err
 	}
 
+	if pom.Build != nil && pom.Build.FinalName != "" {
+		finalName = pom.Build.FinalName
+	}
+
 	var modules []*module // module names
 	// recursive end condition
 	if pom.isValidModule() {
-		filename := pom.getExecuteFilename()
+		filename := pom.getExecuteFilename(finalName)
 		// full module name. eg: foobar/rbd-worker
 		name := strings.Replace(prefix, topPref, "", 1)
 		mo := &module{
@@ -138,7 +142,7 @@ func listModules(prefix, topPref string) ([]*module, error) {
 			MavenCustomOpts: fmt.Sprintf("clean install -pl %s -am", name),
 			Procfile: func() string {
 				if pom.Packaging == "war" {
-					return fmt.Sprintf("web: java $JAVA_OPTS -jar ./webapp-runner.jar "+
+					return fmt.Sprintf("web: java $JAVA_OPTS -jar /opt/webapp-runner.jar "+
 						"--port $PORT %s/target/%s", name, filename)
 				}
 				return fmt.Sprintf("web: java $JAVA_OPTS -jar %s/target/%s", name, filename)
@@ -149,7 +153,7 @@ func listModules(prefix, topPref string) ([]*module, error) {
 
 	for _, name := range pom.Modules {
 		// submodule names
-		submodules, err := listModules(path.Join(prefix, name), topPref)
+		submodules, err := listModules(path.Join(prefix, name), topPref, finalName)
 		if err != nil {
 			logrus.Warningf("Prefix: %s; error getting module names: %v",
 				path.Join(prefix, name), err)
@@ -181,26 +185,31 @@ func (p *pom) hasSubmodules() bool {
 }
 
 // TODO: read maven source code, learn how does maven get the final name
-func (p *pom) getExecuteFilename() string {
+func (p *pom) getExecuteFilename(finalName string) string {
 	// default finalName
-	name := p.ArtifactID
+	name := p.ArtifactID + "-*"
 	if p.Build != nil {
 		// the finalName in the plugin has a higher priority than in the build.
 		if p.Build.FinalName != "" {
-			name = p.Build.FinalName
+			finalName = p.Build.FinalName
 		}
 		if p.Build.Plugins != nil && p.Build.Plugins.Plugin != nil && len(p.Build.Plugins.Plugin) > 0 {
 			for _, plugin := range p.Build.Plugins.Plugin {
 				if plugin.ArtifactID == "spring-boot-maven-plugin" && plugin.GroupID == "org.springframework.boot" &&
 					plugin.FinalName != "" {
-					name = plugin.FinalName
+						finalName = plugin.FinalName
 					break
 				}
 			}
 		}
-		if name == "${project.name}" {
+	}
+	if finalName == "${project.name}" {
+		name = p.ArtifactID
+		if p.Name != "" {
 			name = p.Name
 		}
+	} else if finalName != "" {
+		name = finalName
 	}
 	suffix := func() string {
 		if p.Packaging == "" {

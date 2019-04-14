@@ -12,4 +12,8 @@
         <module>rbd-monitor</module>
         <module>foobar</module>
     </modules>
+
+    <build>
+		<finalName>${project.name}</finalName>
+    </build>
 </project>
