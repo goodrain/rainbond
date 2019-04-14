@@ -48,13 +48,13 @@ func TestMaven_ParsePom(t *testing.T) {
 }
 
 func TestMaven_ListModules(t *testing.T) {
-	//testcases := []string{"rbd-api", "rbd-monitor", "foobar/rbd-worker"}
-
 	path := os.Getenv("GOPATH") + "/src/github.com/goodrain/rainbond/builder/parser/code/multisvc/"
 	m := maven{}
 	res, err := m.ListModules(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(res)
+	if len(res) != 3 {
+		t.Errorf("Expected 3 for the length of mudules, but returned %d", len(res))
+	}
 }

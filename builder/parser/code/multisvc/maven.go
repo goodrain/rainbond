@@ -183,7 +183,7 @@ func (p *pom) hasSubmodules() bool {
 // TODO: read maven source code, learn how does maven get the final name
 func (p *pom) getExecuteFilename() string {
 	// default finalName
-	name := p.ArtifactID
+	name := p.ArtifactID + "-*"
 	if p.Build != nil {
 		// the finalName in the plugin has a higher priority than in the build.
 		if p.Build.FinalName != "" {
