@@ -175,9 +175,19 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 			}
 		}
 		service.depends = existDepends
+		var hubUser = d.user
+		var hubPass = d.password
+		for _, env := range service.GetEnvs() {
+			if env.Name == "HUB_USER" {
+				hubUser = env.Value
+			}
+			if env.Name == "HUB_PASSWORD" {
+				hubPass = env.Value
+			}
+		}
 		//do not pull image, but check image exist
 		d.logger.Debug(fmt.Sprintf("start check service %s ", service.name), map[string]string{"step": "service_check", "status": "running"})
-		exist, err := sources.ImageExist(service.image.String(), d.user, d.password)
+		exist, err := sources.ImageExist(service.image.String(), hubUser, hubPass)
 		if err != nil {
 			logrus.Errorf("check image exist failure %s", err.Error())
 		}
