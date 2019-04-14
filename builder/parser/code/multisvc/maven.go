@@ -208,6 +208,10 @@ func (p *pom) getExecuteFilename(finalName string) string {
 		if p.Name != "" {
 			name = p.Name
 		}
+	} else if finalName == "${project.artifactId}" {
+		name = p.ArtifactID
+	} else if strings.HasPrefix(finalName, "") && strings.HasSuffix(finalName, "}") {
+		name = "*"
 	} else if finalName != "" {
 		name = finalName
 	}
