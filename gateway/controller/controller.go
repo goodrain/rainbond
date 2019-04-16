@@ -154,6 +154,7 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 		logrus.Info("No need to update running configuration.")
 		// refresh http pools dynamically
 		httpPools = append(httpPools, gwc.rrbdp...)
+		gwc.rhp = httpPools
 		gwc.refreshPools(httpPools)
 		return nil
 	}
