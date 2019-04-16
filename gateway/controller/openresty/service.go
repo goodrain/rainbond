@@ -261,6 +261,9 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 
 // UpdatePools updates http upstreams dynamically.
 func (o *OrService) UpdatePools(hpools []*v1.Pool, tpools []*v1.Pool) error {
+	var lock sync.Mutex
+	lock.Lock()
+	defer lock.Unlock()
 	if len(tpools) > 0 {
 		err := o.persistUpstreams(tpools, "upstreams-tcp.tmpl", "/run/nginx/rainbond/stream",
 			"upstream.default.tcp.conf")
