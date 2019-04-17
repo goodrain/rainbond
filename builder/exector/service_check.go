@@ -23,8 +23,9 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/ghodss/yaml"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
@@ -104,14 +105,17 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 	case "docker-run":
 		pr = parser.CreateDockerRunOrImageParse(input.Username, input.Password, input.SourceBody, e.DockerClient, logger)
 	case "docker-compose":
-		logrus.Debugf("source body is \n%v", input.SourceBody)
-		y, err := yaml.JSONToYAML([]byte(input.SourceBody))
-		if err != nil {
-			logrus.Errorf("json bytes format is error, %s", input.SourceBody)
-			logger.Error("dockercompose文件格式不正确。", map[string]string{"step": "callback", "status": "failure"})
-			return
+		var yamlbody = input.SourceBody
+		if input.SourceBody[0] == '{' {
+			yamlbyte, err := yaml.JSONToYAML([]byte(input.SourceBody))
+			if err != nil {
+				logrus.Errorf("json bytes format is error, %s", input.SourceBody)
+				logger.Error("The dockercompose file is not in the correct format", map[string]string{"step": "callback", "status": "failure"})
+				return
+			}
+			yamlbody = string(yamlbyte)
 		}
-		pr = parser.CreateDockerComposeParse(string(y), e.DockerClient, logger)
+		pr = parser.CreateDockerComposeParse(yamlbody, e.DockerClient, input.Username, input.Password, logger)
 	case "sourcecode":
 		pr = parser.CreateSourceCodeParse(input.SourceBody, logger)
 	case "third-party-service":

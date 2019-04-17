@@ -96,12 +96,9 @@ func (t *TaskManager) Do() {
 				time.Sleep(time.Second * 2)
 				continue
 			}
-			logrus.Debugf("Receive a task: %s", data.String())
 			err = t.exec.AddTask(data)
 			if err != nil {
 				logrus.Error("add task error:", err.Error())
-				//TODO:
-				//速率控制
 			}
 		}
 	}

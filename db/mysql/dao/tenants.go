@@ -20,6 +20,7 @@ package dao
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/db/dao"
 	"os"
 	"reflect"
 	"strconv"
@@ -974,6 +975,9 @@ func (t *TenantServiceVolumeDaoImpl) GetVolumeByServiceIDAndName(serviceID, name
 func (t *TenantServiceVolumeDaoImpl) GetVolumeByID(id int) (*model.TenantServiceVolume, error) {
 	var volume model.TenantServiceVolume
 	if err := t.DB.Where("ID=?", id).Find(&volume).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, dao.VolumeNotFound
+		}
 		return nil, err
 	}
 	return &volume, nil

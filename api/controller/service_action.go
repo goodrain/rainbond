@@ -19,31 +19,26 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
-
-	"github.com/goodrain/rainbond/api/middleware"
-	api_model "github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/worker/discover/model"
-	"github.com/thedevsaddam/govalidator"
-
-	"time"
-
-	"os"
-
 	"io/ioutil"
+	"net/http"
+	"os"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/api/middleware"
+	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/event"
 	tutil "github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/thedevsaddam/govalidator"
 )
 
 //TIMELAYOUT timelayout
@@ -491,8 +486,6 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	b, _ := json.Marshal(build)
-	logrus.Debugf("request uri: %s; body: %s", r.RequestURI, string(b))
 	if len(build.Body.DeployVersion) == 0 {
 		httputil.ReturnError(r, w, 400, "deploy version can not be empty.")
 		return

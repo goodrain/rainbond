@@ -34,7 +34,7 @@ import (
 	"github.com/goodrain/rainbond/gateway/controller/openresty"
 	"github.com/goodrain/rainbond/gateway/metric"
 	"github.com/goodrain/rainbond/gateway/store"
-	v1 "github.com/goodrain/rainbond/gateway/v1"
+	"github.com/goodrain/rainbond/gateway/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/ingress-nginx/task"
@@ -154,6 +154,7 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 		logrus.Info("No need to update running configuration.")
 		// refresh http pools dynamically
 		httpPools = append(httpPools, gwc.rrbdp...)
+		gwc.rhp = httpPools
 		gwc.refreshPools(httpPools)
 		return nil
 	}
@@ -258,8 +259,11 @@ func (gwc *GWController) initRbdEndpoints(errCh chan<- error) {
 // updateRbdPools updates rainbond pools
 func (gwc *GWController) updateRbdPools(edps map[string][]string) {
 	h, t := gwc.getRbdPools(edps)
-	//merge app pool
-	h = append(h, gwc.rhp...)
+
+	if h != nil {
+		//merge app pool
+		h = append(h, gwc.rhp...)
+	}
 	if err := gwc.GWS.UpdatePools(h, t); err != nil {
 		logrus.Errorf("update rainbond pools failure %s", err.Error())
 	}
@@ -313,9 +317,31 @@ func (gwc *GWController) getRbdPools(edps map[string][]string) ([]*v1.Pool, []*v
 		}
 	}
 
-	gwc.rrbdp = hpools
+	if !rrbdpEqual(hpools, gwc.rrbdp) {
+		gwc.rrbdp = hpools
+		return hpools, tpools
+	}
 
-	return hpools, tpools
+	return nil, tpools
+}
+
+func rrbdpEqual(a []*v1.Pool, b []*v1.Pool) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for _, ap := range a {
+		flag := false
+		for _, bp := range b {
+			if ap.Equals(bp) {
+				flag = true
+				break
+			}
+		}
+		if !flag {
+			return false
+		}
+	}
+	return true
 }
 
 // listRbdEndpoints lists rainbond endpoints form etcd

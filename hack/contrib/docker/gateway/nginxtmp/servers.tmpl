@@ -1,19 +1,5 @@
 {{ $http_port := .Set.ListenPorts.HTTP }}
 {{ range $srv := .Servers }}
-{{ if $srv.ForceSSLRedirect }}
-server {
-    listen {{ $http_port }};
-    {{ if $srv.ServerName }}server_name    {{$srv.ServerName}};{{end}}
-    {{ range $loc := $srv.Locations }}
-    location {{$loc.Path}} {
-        rewrite ^ https://$http_host$request_uri? permanent;
-        {{ if $loc.DisableAccessLog }}
-        access_log off;
-        {{ end }}
-    }
-    {{ end }}
-}
-{{ end }}
 server {
     {{ if $srv.Listen }}listen    {{$srv.Listen}};{{ end }}
     {{ if $srv.Root }}root    {{$srv.Root}};{{ end }}
