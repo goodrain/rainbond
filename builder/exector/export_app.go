@@ -451,7 +451,8 @@ func (i *ExportApp) exportRunnerImage() error {
 	for _, app := range apps {
 		image = app.Get("image").String()
 		tarFileName = buildToLinuxFileName(image)
-		if checkIsRunner(image) {
+		lang := app.Get("language").String()
+		if lang != "dockerfile" && checkIsRunner(image) {
 			logrus.Debug("Discovered runner image at service: ", app.Get("service_cname"))
 			isExist = true
 			break
