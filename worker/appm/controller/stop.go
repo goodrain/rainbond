@@ -118,9 +118,12 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		s.manager.store.OnDelete(deployment)
 	}
 	//step 6: delete all pod
+	var gracePeriodSeconds int64
 	if pods := app.GetPods(); pods != nil {
 		for _, pod := range pods {
-			err := s.manager.client.CoreV1().Pods(app.TenantID).Delete(pod.Name, &metav1.DeleteOptions{})
+			err := s.manager.client.CoreV1().Pods(app.TenantID).Delete(pod.Name, &metav1.DeleteOptions{
+				GracePeriodSeconds: &gracePeriodSeconds,
+			})
 			if err != nil && !errors.IsNotFound(err) {
 				return fmt.Errorf("delete pod failure:%s", err.Error())
 			}
