@@ -267,8 +267,7 @@ func (i *ExportApp) exportImage(serviceDir string, app gjson.Result) error {
 		return err
 	}
 	//change save app image name
-	imageName := sources.ImageNameWithNamespaceHandle(image)
-	saveImageName := fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, imageName.Name, imageName.Tag)
+	saveImageName := sources.GenSaveImageName(image)
 	if err := sources.ImageTag(i.DockerClient, image, saveImageName, i.Logger, 2); err != nil {
 		return err
 	}
@@ -452,7 +451,8 @@ func (i *ExportApp) exportRunnerImage() error {
 	for _, app := range apps {
 		image = app.Get("image").String()
 		tarFileName = buildToLinuxFileName(image)
-		if checkIsRunner(image) {
+		lang := app.Get("language").String()
+		if lang != "dockerfile" && checkIsRunner(image) {
 			logrus.Debug("Discovered runner image at service: ", app.Get("service_cname"))
 			isExist = true
 			break
@@ -581,7 +581,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 		}
 
 		service := &Service{
-			Image:         shareImage,
+			Image:         sources.GenSaveImageName(shareImage),
 			ContainerName: appName,
 			Restart:       "always",
 			NetworkMode:   "host",
