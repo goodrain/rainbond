@@ -21,6 +21,7 @@ package dao
 import (
 	"fmt"
 
+	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 )
@@ -432,7 +433,7 @@ func (t *TenantServicePluginRelationDaoImpl) AddModel(mo model.Interface) error 
 			return err
 		}
 	} else {
-		return fmt.Errorf("relation between %s and %s is exist", relation.ServiceID, relation.PluginID)
+		return errors.ErrRecordAlreadyExist
 	}
 	return nil
 }

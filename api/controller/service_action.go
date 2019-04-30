@@ -21,29 +21,25 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-
-	"github.com/goodrain/rainbond/api/middleware"
-	api_model "github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/worker/discover/model"
-	"github.com/thedevsaddam/govalidator"
-
-	"time"
-
-	"os"
-
 	"io/ioutil"
+	"net/http"
+	"os"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/api/middleware"
+	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/event"
 	tutil "github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
+	validator "github.com/thedevsaddam/govalidator"
 )
 
 //TIMELAYOUT timelayout

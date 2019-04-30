@@ -49,6 +49,7 @@ type V2Manager interface {
 	api.Gatewayer
 	api.ThirdPartyServicer
 	api.Labeler
+	api.AppRestoreInterface
 }
 
 var defaultV2Manager V2Manager

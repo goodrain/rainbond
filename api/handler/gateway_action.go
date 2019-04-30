@@ -226,7 +226,7 @@ func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) (stri
 	return svcID, nil
 }
 
-// DeleteHTTPRule deletes http rule, including certificate and rule extensions
+// DeleteHTTPRuleByServiceIDWithTransaction deletes http rule, including certificate and rule extensions
 func (g *GatewayAction) DeleteHTTPRuleByServiceIDWithTransaction(sid string, tx *gorm.DB) error {
 	// delete http rule
 	rules, err := g.dbmanager.HTTPRuleDaoTransactions(tx).ListByServiceID(sid)
@@ -440,7 +440,7 @@ func (g *GatewayAction) DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) (string
 	return tcpRule.ServiceID, nil
 }
 
-// DeleteTCPRule deletes a tcp rule
+// DeleteTCPRuleByServiceIDWithTransaction deletes a tcp rule
 func (g *GatewayAction) DeleteTCPRuleByServiceIDWithTransaction(sid string, tx *gorm.DB) error {
 	rules, err := db.GetManager().TCPRuleDaoTransactions(tx).GetTCPRuleByServiceID(sid)
 	if err != nil {

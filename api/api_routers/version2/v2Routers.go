@@ -216,6 +216,15 @@ func (v2 *V2) serviceRouter() chi.Router {
 	// gateway
 	r.Put("/rule-config", controller.GetManager().RuleConfig)
 
+	// app restore
+	r.Post("/app-restore/envs", controller.GetManager().RestoreEnvs)
+	r.Post("/app-restore/ports", controller.GetManager().RestorePorts)
+	r.Post("/app-restore/volumes", controller.GetManager().RestoreVolumes)
+	r.Post("/app-restore/probe", controller.GetManager().RestoreProbe)
+	r.Post("/app-restore/deps", controller.GetManager().RestoreDeps)
+	r.Post("/app-restore/depvols", controller.GetManager().RestoreDepVols)
+	r.Post("/app-restore/plugins", controller.GetManager().RestorePlugins)
+
 	return r
 }
 
