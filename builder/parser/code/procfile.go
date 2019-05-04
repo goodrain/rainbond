@@ -19,15 +19,17 @@
 package code
 
 import (
+	"io/ioutil"
 	"path"
 
 	"github.com/goodrain/rainbond/util"
 )
 
 //CheckProcfile check runtime with lang
-func CheckProcfile(buildPath string, lang Lang) bool {
+func CheckProcfile(buildPath string, lang Lang) (bool, string) {
 	if ok, _ := util.FileExists(path.Join(buildPath, "Procfile")); ok {
-		return true
+		body, _ := ioutil.ReadFile(path.Join(buildPath, "Procfile"))
+		return true, string(body)
 	}
-	return false
+	return false, ""
 }

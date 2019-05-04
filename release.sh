@@ -4,12 +4,20 @@ set -o errexit
 # define package name
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
+IMAGE_BASE_NAME=rainbond
+if [ $BUILD_IMAGE_BASE_NAME ]; 
+then 
+IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME}
+fi
 GO_VERSION=1.11
 GATEWAY_GO_VERSION=1.11-alpine3.8
 
-VERSION=5.1.1
 if [ -z "$TRAVIS_TAG" ]; then
-	VERSION=$TRAVIS_BRANCH-dev
+    if [ -z "$TRAVIS_BRANCH" ]; then
+	   VERSION=V5.1-dev
+	else
+	   VERSION=$TRAVIS_BRANCH-dev	
+	fi	
 else
 	VERSION=$TRAVIS_TAG
 fi
@@ -24,24 +32,40 @@ build::node() {
     [ ! -d "$distdir" ] && mkdir -p $distdir/bin || rm -rf $distdir/bin/*
 	echo "---> Build Binary For RBD"
 	echo "rbd plugins version:$release_desc"
-	echo "build node"
-    docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/node ./cmd/node
-	echo "build grctl"
-	docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/grctl ./cmd/grctl
-	echo "build certutil"
-	docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/grcert ./cmd/certutil
-	pushd $distdir
-	tar zcf pkg.tgz `find . -maxdepth 1|sed 1d`
+	case $1 in
+		node)
+			echo "build node"
+			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/node ./cmd/node
+		;;
+		grctl)	
+			echo "build grctl"
+			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/grctl ./cmd/grctl
+		;;
+		certutil)
+			echo "build certutil"
+			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/grcert ./cmd/certutil
+		;;
+		*)
+			echo "build node"
+			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/node ./cmd/node
+			echo "build grctl"
+			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/grctl ./cmd/grctl
+			echo "build certutil"
+			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/grcert ./cmd/certutil
+			pushd $distdir
+			tar zcf pkg.tgz `find . -maxdepth 1|sed 1d`
 
-	cat >Dockerfile <<EOF
+			cat >Dockerfile <<EOF
 FROM alpine:3.6
 COPY pkg.tgz /
 EOF
-	docker build -t ${BASE_NAME}/cni:rbd_$VERSION .
-	if [ "$1" = "push" ];then
-		docker push ${BASE_NAME}/cni:rbd_$VERSION 
-	fi
-	popd
+			docker build -t ${BASE_NAME}/cni:rbd_$VERSION .
+			if [ "$1" = "push" ];then
+				docker push ${BASE_NAME}/cni:rbd_$VERSION 
+			fi
+			popd
+		;;
+		esac
 }
 
 build::binary() {
@@ -85,10 +109,10 @@ build::image() {
 		fi
 		echo "---> build image:$1"
 		sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
-		docker build -t ${BASE_NAME}/rbd-$1:${VERSION} -f Dockerfile.release .
+		docker build -t ${IMAGE_BASE_NAME}/rbd-$1:${VERSION} -f Dockerfile.release .
 		if [ "$2" = "push" ];then
 		    docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-			docker push ${BASE_NAME}/rbd-$1:${VERSION}
+			docker push ${IMAGE_BASE_NAME}/rbd-$1:${VERSION}
 		fi	
 		rm -f ./Dockerfile.release
 		rm -f ./${BASE_NAME}-$1

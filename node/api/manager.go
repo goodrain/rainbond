@@ -23,6 +23,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/masterserver"
@@ -70,6 +73,8 @@ func NewManager(c option.Conf, node *nodeclient.HostNode, ms *masterserver.Maste
 		node:   node,
 		ms:     ms,
 	}
+	// set node cluster monitor route
+	m.router.Get("/cluster/metrics", m.HandleClusterScrape)
 	return m
 }
 
@@ -124,4 +129,21 @@ func (m *Manager) Stop() error {
 //GetRouter GetRouter
 func (m *Manager) GetRouter() *chi.Mux {
 	return m.router
+}
+
+//HandleClusterScrape prometheus handle
+func (m *Manager) HandleClusterScrape(w http.ResponseWriter, r *http.Request) {
+	gatherers := prometheus.Gatherers{
+		prometheus.DefaultGatherer,
+	}
+	if m.ms != nil {
+		gatherers = append(gatherers, m.ms.GetRegistry())
+	}
+	// Delegate http serving to Prometheus client library, which will call collector.Collect.
+	h := promhttp.HandlerFor(gatherers,
+		promhttp.HandlerOpts{
+			ErrorLog:      logrus.StandardLogger(),
+			ErrorHandling: promhttp.ContinueOnError,
+		})
+	h.ServeHTTP(w, r)
 }

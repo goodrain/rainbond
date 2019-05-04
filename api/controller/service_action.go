@@ -19,7 +19,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -487,8 +486,6 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	b, _ := json.Marshal(build)
-	logrus.Debugf("request uri: %s; body: %s", r.RequestURI, string(b))
 	if len(build.Body.DeployVersion) == 0 {
 		httputil.ReturnError(r, w, 400, "deploy version can not be empty.")
 		return

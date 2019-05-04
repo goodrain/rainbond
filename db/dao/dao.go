@@ -19,9 +19,14 @@
 package dao
 
 import (
-	"time"
-
+	"errors"
 	"github.com/goodrain/rainbond/db/model"
+	"time"
+)
+
+var (
+	// VolumeNotFound volume not found error, happens when haven't find any matched data
+	VolumeNotFound = errors.New("Volume not found.")
 )
 
 //Dao 数据持久化层接口

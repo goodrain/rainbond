@@ -34,6 +34,7 @@ import (
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/annotations"
 	"github.com/goodrain/rainbond/gateway/annotations/l4"
+	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
 	"github.com/goodrain/rainbond/gateway/controller/config"
 	"github.com/goodrain/rainbond/gateway/defaults"
 	"github.com/goodrain/rainbond/gateway/util"
@@ -537,10 +538,9 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 				vs = l7vsMap[virSrvName]
 				if vs == nil {
 					vs = &v1.VirtualService{
-						Listening:        []string{strconv.Itoa(s.conf.ListenPorts.HTTP)},
-						ServerName:       virSrvName,
-						Locations:        []*v1.Location{},
-						ForceSSLRedirect: anns.Rewrite.ForceSSLRedirect,
+						Listening:  []string{strconv.Itoa(s.conf.ListenPorts.HTTP)},
+						ServerName: virSrvName,
+						Locations:  []*v1.Location{},
 					}
 					vs.Namespace = ing.Namespace
 					vs.ServiceID = anns.Labels["service_id"]
@@ -595,6 +595,66 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 						backend.hashBy = anns.UpstreamHashBy
 					}
 					l7PoolBackendMap[path.Backend.ServiceName] = append(l7PoolBackendMap[path.Backend.ServiceName], backend)
+				}
+			}
+			// endregion
+		}
+	}
+
+	for _, item := range s.listers.Ingress.List() {
+		ing := item.(*extensions.Ingress)
+		if !s.ingressIsValid(ing) {
+			continue
+		}
+
+		ingKey := k8s.MetaNamespaceKey(ing)
+		anns, err := s.GetIngressAnnotations(ingKey)
+		if err != nil {
+			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
+		}
+
+		if !anns.Rewrite.ForceSSLRedirect {
+			continue
+		}
+
+		if !anns.L4.L4Enable || anns.L4.L4Port == 0 {
+			for _, rule := range ing.Spec.Rules {
+				var vs *v1.VirtualService
+				virSrvName := strings.TrimSpace(rule.Host)
+				vs = l7vsMap[virSrvName]
+				if vs == nil {
+					vs = &v1.VirtualService{
+						Listening:  []string{strconv.Itoa(s.conf.ListenPorts.HTTP)},
+						ServerName: virSrvName,
+						Locations:  []*v1.Location{},
+					}
+					l7vsMap[virSrvName] = vs
+					l7vs = append(l7vs, vs)
+				}
+
+				for _, path := range rule.IngressRuleValue.HTTP.Paths {
+					locKey := fmt.Sprintf("%s_%s", virSrvName, path.Path)
+					location := srvLocMap[locKey]
+					if location != nil {
+						// If location != nil, the http policy for path is already set.
+						// In this case, ForceSSLRedirect should be ignored.
+						continue
+					}
+					location = &v1.Location{
+						Path:             path.Path,
+						DisableProxyPass: true,
+						Rewrite: rewrite.Config{
+							Rewrites: []*rewrite.Rewrite{
+								{
+									Regex:       "^",
+									Replacement: "https://$http_host$request_uri?",
+									Flag:        "permanent",
+								},
+							},
+						},
+					}
+					location.Proxy = anns.Proxy
+					vs.Locations = append(vs.Locations, location)
 				}
 			}
 			// endregion

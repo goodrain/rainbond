@@ -402,9 +402,9 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 					return nil, fmt.Errorf("error getting TenantServiceVolume according to serviceID(%s) and volumeName(%s): %v",
 						t.DependServiceID, t.VolumeName, err)
 				}
-				cf, err := dbmanager.TenantServiceConfigFileDao().GetByVolumeName(as.ServiceID, t.VolumeName)
+				cf, err := dbmanager.TenantServiceConfigFileDao().GetByVolumeName(t.DependServiceID, t.VolumeName)
 				if err != nil {
-					return nil, fmt.Errorf("error getting TenantServiceConfigFileDao according to volumeName(%s): %v", t.VolumeName, err)
+					return nil, fmt.Errorf("error getting TenantServiceConfigFile according to volumeName(%s): %v", t.VolumeName, err)
 				}
 
 				cmap := &corev1.ConfigMap{

@@ -23,17 +23,15 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-
-	"github.com/kubernetes/kompose/pkg/kobject"
-	"k8s.io/kubernetes/pkg/api"
-
 	"time"
 
 	"github.com/docker/cli/cli/compose/types"
 	"github.com/docker/libcompose/config"
 	"github.com/docker/libcompose/project"
 	"github.com/docker/libcompose/yaml"
+	"github.com/kubernetes/kompose/pkg/kobject"
 	"github.com/pkg/errors"
+	"k8s.io/kubernetes/pkg/api"
 )
 
 func durationPtr(value time.Duration) *time.Duration {
