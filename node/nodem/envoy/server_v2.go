@@ -305,6 +305,7 @@ func (d *DiscoverServerManager) Start(errch chan error) error {
 		lis, err := net.Listen("tcp", d.conf.GrpcAPIAddr)
 		if err != nil {
 			errch <- err
+			return
 		}
 		if err = d.grpcServer.Serve(lis); err != nil {
 			errch <- err
