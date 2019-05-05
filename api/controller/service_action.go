@@ -38,7 +38,7 @@ import (
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
-	"github.com/thedevsaddam/govalidator"
+	validator "github.com/thedevsaddam/govalidator"
 )
 
 //TIMELAYOUT timelayout

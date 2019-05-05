@@ -28,6 +28,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/db/errors"
 	"github.com/jinzhu/gorm"
 )
 
@@ -494,7 +495,7 @@ func (t *TenantServicesPortDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("service port %d in service %s is exist", port.ContainerPort, port.ServiceID)
+		return errors.ErrRecordAlreadyExist
 	}
 	return nil
 }
@@ -613,6 +614,11 @@ func (t *TenantServicesPortDaoImpl) GetDepUDPPort(serviceID string) ([]*model.Te
 	return portInfos, nil
 }
 
+// DelByServiceID deletes TenantServicesPort matching sid(service_id).
+func (t *TenantServicesPortDaoImpl) DelByServiceID(sid string) error {
+	return t.DB.Where("service_id=?", sid).Delete(&model.TenantServicesPort{}).Error
+}
+
 //TenantServiceRelationDaoImpl TenantServiceRelationDaoImpl
 type TenantServiceRelationDaoImpl struct {
 	DB *gorm.DB
@@ -627,7 +633,7 @@ func (t *TenantServiceRelationDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("service  %s depend service %s relation is exist", relation.ServiceID, relation.DependServiceID)
+		return errors.ErrRecordAlreadyExist
 	}
 	return nil
 }
@@ -702,6 +708,7 @@ func (t *TenantServiceRelationDaoImpl) DELRelationsByServiceID(serviceID string)
 	if err := t.DB.Where("service_id=?", serviceID).Delete(relation).Error; err != nil {
 		return err
 	}
+	logrus.Debugf("service id: %s; delete service relation successfully", serviceID)
 	return nil
 }
 
@@ -728,7 +735,7 @@ func (t *TenantServiceEnvVarDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("already exist")
+		return errors.ErrRecordAlreadyExist
 	}
 	return nil
 }
@@ -806,6 +813,15 @@ func (t *TenantServiceEnvVarDaoImpl) DELServiceEnvsByServiceID(serviceID string)
 	return nil
 }
 
+// DelByServiceIDAndScope deletes TenantServiceEnvVar based on sid(service_id) and scope.
+func (t *TenantServiceEnvVarDaoImpl) DelByServiceIDAndScope(sid, scope string) error {
+	var env model.TenantServiceEnvVar
+	if err := t.DB.Where("service_id=? and scope=?", sid, scope).Delete(&env).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
 //TenantServiceMountRelationDaoImpl 依赖存储
 type TenantServiceMountRelationDaoImpl struct {
 	DB *gorm.DB
@@ -820,7 +836,7 @@ func (t *TenantServiceMountRelationDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("service  %s depend service %s mount relation is exist", relation.ServiceID, relation.DependServiceID)
+		return errors.ErrRecordAlreadyExist
 	}
 	return nil
 }
@@ -992,11 +1008,17 @@ func (t *TenantServiceVolumeDaoImpl) DeleteTenantServiceVolumesByServiceID(servi
 	return nil
 }
 
+// DelShareableBySID deletes shareable volumes based on sid(service_id)
+func (t *TenantServiceVolumeDaoImpl) DelShareableBySID(sid string) error {
+	return t.DB.Where("service_id=? and volume_type not in ('share-file', 'config-file')", sid).Error
+}
+
 //TenantServiceConfigFileDaoImpl is a implementation of TenantServiceConfigFileDao
 type TenantServiceConfigFileDaoImpl struct {
 	DB *gorm.DB
 }
 
+// AddModel creates a new TenantServiceConfigFile
 func (t *TenantServiceConfigFileDaoImpl) AddModel(mo model.Interface) error {
 	configFile, ok := mo.(*model.TenantServiceConfigFile)
 	if !ok {

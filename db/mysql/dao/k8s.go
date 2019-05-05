@@ -75,6 +75,11 @@ func (t *ServiceProbeDaoImpl) DeleteModel(serviceID string, args ...interface{})
 	return nil
 }
 
+// DelByServiceID deletes TenantServiceProbe based on sid(service_id)
+func (t *ServiceProbeDaoImpl) DelByServiceID(sid string) error {
+	return t.DB.Where("service_id=?", sid).Delete(&model.TenantServiceProbe{}).Error
+}
+
 //GetServiceProbes 获取应用探针
 func (t *ServiceProbeDaoImpl) GetServiceProbes(serviceID string) ([]*model.TenantServiceProbe, error) {
 	var probes []*model.TenantServiceProbe

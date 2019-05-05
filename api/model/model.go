@@ -831,6 +831,7 @@ type AddNodeLabelStruct struct {
 	}
 }
 
+// LabelsStruct blabla
 type LabelsStruct struct {
 	Labels []LabelStruct `json:"labels"`
 }

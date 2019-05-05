@@ -151,3 +151,15 @@ type ThirdPartyServicer interface {
 type Labeler interface {
 	Labels(w http.ResponseWriter, r *http.Request)
 }
+
+// AppRestoreInterface defines api methods to restore app.
+// app means market service.
+type AppRestoreInterface interface {
+	RestoreEnvs(w http.ResponseWriter, r *http.Request)
+	RestorePorts(w http.ResponseWriter, r *http.Request)
+	RestoreVolumes(w http.ResponseWriter, r *http.Request)
+	RestoreProbe(w http.ResponseWriter, r *http.Request)
+	RestoreDeps(w http.ResponseWriter, r *http.Request)
+	RestoreDepVols(w http.ResponseWriter, r *http.Request)
+	RestorePlugins(w http.ResponseWriter, r *http.Request)
+}

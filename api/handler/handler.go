@@ -21,16 +21,13 @@ package handler
 import (
 	"time"
 
-	"github.com/goodrain/rainbond/db"
-
-	"github.com/goodrain/rainbond/api/handler/group"
-
-	"github.com/goodrain/rainbond/api/handler/share"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	api_db "github.com/goodrain/rainbond/api/db"
+	"github.com/goodrain/rainbond/api/handler/group"
+	"github.com/goodrain/rainbond/api/handler/share"
 	"github.com/goodrain/rainbond/cmd/api/option"
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/worker/client"
 )
 
@@ -73,6 +70,7 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 	def3rdPartySvcHandler = Create3rdPartySvcHandler(dbmanager, statusCli)
 	operationHandler = CreateOperationHandler(mqClient)
 	batchOperationHandler = CreateBatchOperationHandler(mqClient, operationHandler)
+	defaultAppRestoreHandler = NewAppRestoreHandler()
 
 	return nil
 }
@@ -171,4 +169,11 @@ var operationHandler *OperationHandler
 //GetOperationHandler get handler
 func GetOperationHandler() *OperationHandler {
 	return operationHandler
+}
+
+var defaultAppRestoreHandler AppRestoreHandler
+
+// GetAppRestoreHandler returns a default AppRestoreHandler
+func GetAppRestoreHandler() AppRestoreHandler {
+	return defaultAppRestoreHandler
 }

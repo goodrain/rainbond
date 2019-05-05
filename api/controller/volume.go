@@ -261,8 +261,6 @@ func AddVolumeDependency(w http.ResponseWriter, r *http.Request) {
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsr.Body, nil); !ok {
 		return
 	}
-	bytes, _ := json.Marshal(tsr)
-	logrus.Debugf("request uri: %s; request body: %v", r.RequestURI, string(bytes))
 
 	vd := &dbmodel.TenantServiceMountRelation{
 		TenantID:        tenantID,

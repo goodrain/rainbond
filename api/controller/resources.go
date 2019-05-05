@@ -53,6 +53,7 @@ type V2Routes struct {
 	GatewayStruct
 	ThirdPartyServiceController
 	LabelController
+	AppRestoreController
 }
 
 //Show test

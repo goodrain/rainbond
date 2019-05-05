@@ -108,6 +108,7 @@ type TenantServicesPortDao interface {
 	GetDepUDPPort(serviceID string) ([]*model.TenantServicesPort, error)
 	DELPortsByServiceID(serviceID string) error
 	HasOpenPort(sid string) bool
+	DelByServiceID(sid string) error
 }
 
 //TenantPluginDao TenantPluginDao
@@ -216,6 +217,7 @@ type TenantServiceEnvVarDao interface {
 	GetServiceEnvs(serviceID string, scopes []string) ([]*model.TenantServiceEnvVar, error)
 	GetEnv(serviceID, envName string) (*model.TenantServiceEnvVar, error)
 	DELServiceEnvsByServiceID(serviceID string) error
+	DelByServiceIDAndScope(sid, scope string) error
 }
 
 //TenantServiceMountRelationDao TenantServiceMountRelationDao
@@ -237,6 +239,7 @@ type TenantServiceVolumeDao interface {
 	GetVolumeByServiceIDAndName(serviceID, name string) (*model.TenantServiceVolume, error)
 	GetAllVolumes() ([]*model.TenantServiceVolume, error)
 	GetVolumeByID(id int) (*model.TenantServiceVolume, error)
+	DelShareableBySID(sid string) error
 }
 
 //TenantServiceConfigFileDao tenant service config file dao interface
@@ -290,6 +293,7 @@ type ServiceProbeDao interface {
 	GetServiceProbes(serviceID string) ([]*model.TenantServiceProbe, error)
 	GetServiceUsedProbe(serviceID, mode string) (*model.TenantServiceProbe, error)
 	DELServiceProbesByServiceID(serviceID string) error
+	DelByServiceID(sid string) error
 }
 
 //CodeCheckResultDao CodeCheckResultDao
