@@ -20,6 +20,7 @@ package controller
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/db/errors"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -38,7 +39,7 @@ import (
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
-	validator "github.com/thedevsaddam/govalidator"
+	"github.com/thedevsaddam/govalidator"
 )
 
 //TIMELAYOUT timelayout
@@ -512,6 +513,11 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	}
 	err = db.GetManager().VersionInfoDao().AddModel(&version)
 	if err != nil {
+		if err == errors.ErrRecordAlreadyExist {
+			httputil.ReturnError(r, w, 400,
+				fmt.Sprintf("service id: %s; build version: %s; version already exists", serviceID, build.Body.DeployVersion))
+			return
+		}
 		logrus.Infof("error add version %v ,details %s", version, err.Error())
 		httputil.ReturnError(r, w, 500, "create service version error.")
 		return
