@@ -19,9 +19,8 @@
 package dao
 
 import (
+	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
-
-	"fmt"
 
 	"time"
 
@@ -58,7 +57,7 @@ func (c *VersionInfoDaoImpl) AddModel(mo model.Interface) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("service %s build version %s is exist", result.ServiceID, result.BuildVersion)
+	return errors.ErrRecordAlreadyExist
 }
 
 //UpdateModel UpdateModel
