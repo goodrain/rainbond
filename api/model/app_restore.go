@@ -23,7 +23,7 @@ type RestorePortsReq struct {
 	Ports []*RestorePort `validate:"ports|required" json:"ports"`
 }
 
-// RestorePort holds infomations of port.
+// RestorePort holds information of port.
 type RestorePort struct {
 	ContainerPort  int    `gorm:"column:container_port" validate:"container_port|required|numeric_between:1,65535" json:"container_port"`
 	MappingPort    int    `gorm:"column:mapping_port" validate:"mapping_port|required|numeric_between:1,65535" json:"mapping_port"`
@@ -68,7 +68,7 @@ type RestoreDepVolsReq struct {
 	DepVols []*RestoreDepVol `validate:"dep_vols|required" json:"dep_vols"`
 }
 
-// RestoreDepVol holds infomations of service dependenct volume.
+// RestoreDepVol holds information of service dependent volume.
 type RestoreDepVol struct {
 	DepServiceID string `json:"dep_service_id"  validate:"dep_service_id|required"`
 	VolumePath   string `json:"volume_path" validate:"volume_path|required|regex:^/"`

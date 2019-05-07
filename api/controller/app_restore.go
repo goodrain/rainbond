@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
@@ -19,7 +21,8 @@ type AppRestoreController struct {
 // variables first, then create the ones in the request body.
 func (a *AppRestoreController) RestoreEnvs(w http.ResponseWriter, r *http.Request) {
 	var req model.RestoreEnvsReq
-	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
 		return
 	}
 
@@ -84,14 +87,27 @@ func (a *AppRestoreController) RestoreVolumes(w http.ResponseWriter, r *http.Req
 // RestoreProbe restores service probe. delete the existing probe first,
 // then create the one in the request body.
 func (a *AppRestoreController) RestoreProbe(w http.ResponseWriter, r *http.Request) {
-	var req model.ServiceProbe
-	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
-		return
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		format := "error reading request body: %v"
+		httputil.ReturnError(r, w, 500, fmt.Sprintf(format, err))
+	}
+	// set a new body, which will simulate the same data we read
+	r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+
+	var probeReq *model.ServiceProbe
+	if string(body) != "" {
+		var req model.ServiceProbe
+		if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
+			return
+		}
+		probeReq = &req
+	} else {
+		probeReq = nil
 	}
 
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	err := handler.GetAppRestoreHandler().RestoreProbe(serviceID, &req)
-	if err != nil {
+	if err := handler.GetAppRestoreHandler().RestoreProbe(serviceID, probeReq); err != nil {
 		format := "Service ID: %s; failed to restore volumes: %v"
 		logrus.Errorf(format, serviceID, err)
 		httputil.ReturnError(r, w, 500, fmt.Sprintf(format, serviceID, err))

@@ -16,7 +16,7 @@ import (
 type AppRestoreAction struct {
 }
 
-// RestoreEnvs restores enviroment variables.
+// RestoreEnvs restores environment variables.
 func (a *AppRestoreAction) RestoreEnvs(tenantID, serviceID string, req *apimodel.RestoreEnvsReq) error {
 	// delete existing env
 	tx := db.GetManager().Begin()
@@ -27,15 +27,16 @@ func (a *AppRestoreAction) RestoreEnvs(tenantID, serviceID string, req *apimodel
 
 	// batch create inner envs
 	for _, item := range req.Envs {
-		var env *model.TenantServiceEnvVar
-		env.AttrName = item.AttrName
-		env.AttrValue = item.AttrValue
-		env.TenantID = tenantID
-		env.ServiceID = serviceID
-		env.ContainerPort = item.ContainerPort
-		env.IsChange = item.IsChange
-		env.Name = item.Name
-		env.Scope = item.Scope
+		env := &model.TenantServiceEnvVar{
+			TenantID:      tenantID,
+			ServiceID:     serviceID,
+			Name:          item.Name,
+			AttrName:      item.AttrName,
+			AttrValue:     item.AttrValue,
+			ContainerPort: item.ContainerPort,
+			IsChange:      item.IsChange,
+			Scope:         item.Scope,
+		}
 		if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).AddModel(env); err != nil {
 			if err == errors.ErrRecordAlreadyExist {
 				// ignore record already exist
@@ -61,7 +62,7 @@ func (a *AppRestoreAction) RestorePorts(tenantID, serviceID string, req *apimode
 
 	// batch create inner ports
 	for _, item := range req.Ports {
-		var port *model.TenantServicesPort
+		port := &model.TenantServicesPort{}
 		port.TenantID = tenantID
 		port.ServiceID = serviceID
 		port.MappingPort = item.MappingPort
@@ -139,24 +140,26 @@ func (a *AppRestoreAction) RestoreProbe(serviceID string, req *apimodel.ServiceP
 		return err
 	}
 
-	var probe *model.TenantServiceProbe
-	probe.ServiceID = serviceID
-	probe.Cmd = req.Cmd
-	probe.FailureThreshold = req.FailureThreshold
-	probe.HTTPHeader = req.HTTPHeader
-	probe.InitialDelaySecond = req.InitialDelaySecond
-	probe.IsUsed = &req.IsUsed
-	probe.Mode = req.Mode
-	probe.Path = req.Path
-	probe.PeriodSecond = req.PeriodSecond
-	probe.Port = req.Port
-	probe.ProbeID = req.ProbeID
-	probe.Scheme = req.Scheme
-	probe.SuccessThreshold = req.SuccessThreshold
-	probe.TimeoutSecond = req.TimeoutSecond
-	if err := db.GetManager().ServiceProbeDaoTransactions(tx).AddModel(probe); err != nil {
-		tx.Rollback()
-		return err
+	if req != nil {
+		probe := &model.TenantServiceProbe{}
+		probe.ServiceID = serviceID
+		probe.Cmd = req.Cmd
+		probe.FailureThreshold = req.FailureThreshold
+		probe.HTTPHeader = req.HTTPHeader
+		probe.InitialDelaySecond = req.InitialDelaySecond
+		probe.IsUsed = &req.IsUsed
+		probe.Mode = req.Mode
+		probe.Path = req.Path
+		probe.PeriodSecond = req.PeriodSecond
+		probe.Port = req.Port
+		probe.ProbeID = req.ProbeID
+		probe.Scheme = req.Scheme
+		probe.SuccessThreshold = req.SuccessThreshold
+		probe.TimeoutSecond = req.TimeoutSecond
+		if err := db.GetManager().ServiceProbeDaoTransactions(tx).AddModel(probe); err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
 
 	return tx.Commit().Error
