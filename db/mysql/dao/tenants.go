@@ -27,8 +27,8 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/db/errors"
+	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 )
 
@@ -1010,7 +1010,8 @@ func (t *TenantServiceVolumeDaoImpl) DeleteTenantServiceVolumesByServiceID(servi
 
 // DelShareableBySID deletes shareable volumes based on sid(service_id)
 func (t *TenantServiceVolumeDaoImpl) DelShareableBySID(sid string) error {
-	return t.DB.Where("service_id=? and volume_type not in ('share-file', 'config-file')", sid).Error
+	query := "service_id=? and volume_type in ('share-file', 'config-file')"
+	return t.DB.Where(query, sid).Delete(&model.TenantServiceVolume{}).Error
 }
 
 //TenantServiceConfigFileDaoImpl is a implementation of TenantServiceConfigFileDao
