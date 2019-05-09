@@ -126,7 +126,7 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 		initBaseStatefulSet(as, tenantService)
 		return nil
 	}
-	return fmt.Errorf("Kind: %s;do not decision build type for service %s",
+	return fmt.Errorf("Kind: %s; do not decision build type for service %s",
 		tenantService.Kind, as.ServiceAlias)
 }
 
