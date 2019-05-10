@@ -5,8 +5,8 @@ package dao
 
 import (
 	model "github.com/goodrain/rainbond/db/model"
-	gomock "github.com/rafrombrc/gomock/gomock"
 	time "time"
+	gomock "github.com/rafrombrc/gomock/gomock"
 )
 
 // Mock of Dao interface
@@ -705,6 +705,28 @@ func (_mr *_MockTenantServicesPortDaoRecorder) GetPort(arg0, arg1 interface{}) *
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetPort", arg0, arg1)
 }
 
+func (_m *MockTenantServicesPortDao) GetOpenedPorts(serviceID string) ([]*model.TenantServicesPort, error) {
+	ret := _m.ctrl.Call(_m, "GetOpenedPorts", serviceID)
+	ret0, _ := ret[0].([]*model.TenantServicesPort)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTenantServicesPortDaoRecorder) GetOpenedPorts(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetOpenedPorts", arg0)
+}
+
+func (_m *MockTenantServicesPortDao) GetDepUDPPort(serviceID string) ([]*model.TenantServicesPort, error) {
+	ret := _m.ctrl.Call(_m, "GetDepUDPPort", serviceID)
+	ret0, _ := ret[0].([]*model.TenantServicesPort)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTenantServicesPortDaoRecorder) GetDepUDPPort(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetDepUDPPort", arg0)
+}
+
 func (_m *MockTenantServicesPortDao) DELPortsByServiceID(serviceID string) error {
 	ret := _m.ctrl.Call(_m, "DELPortsByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
@@ -1161,6 +1183,17 @@ func (_m *MockTenantPluginVersionConfigDao) GetPluginConfig(serviceID string, pl
 
 func (_mr *_MockTenantPluginVersionConfigDaoRecorder) GetPluginConfig(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetPluginConfig", arg0, arg1)
+}
+
+func (_m *MockTenantPluginVersionConfigDao) GetPluginConfigs(serviceID string) ([]*model.TenantPluginVersionDiscoverConfig, error) {
+	ret := _m.ctrl.Call(_m, "GetPluginConfigs", serviceID)
+	ret0, _ := ret[0].([]*model.TenantPluginVersionDiscoverConfig)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTenantPluginVersionConfigDaoRecorder) GetPluginConfigs(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetPluginConfigs", arg0)
 }
 
 func (_m *MockTenantPluginVersionConfigDao) DeletePluginConfig(serviceID string, pluginID string) error {
@@ -1790,6 +1823,17 @@ func (_mr *_MockTenantServiceVolumeDaoRecorder) GetAllVolumes() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetAllVolumes")
 }
 
+func (_m *MockTenantServiceVolumeDao) GetVolumeByID(id int) (*model.TenantServiceVolume, error) {
+	ret := _m.ctrl.Call(_m, "GetVolumeByID", id)
+	ret0, _ := ret[0].(*model.TenantServiceVolume)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTenantServiceVolumeDaoRecorder) GetVolumeByID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetVolumeByID", arg0)
+}
+
 // Mock of TenantServiceConfigFileDao interface
 type MockTenantServiceConfigFileDao struct {
 	ctrl     *gomock.Controller
@@ -1831,25 +1875,35 @@ func (_mr *_MockTenantServiceConfigFileDaoRecorder) UpdateModel(arg0 interface{}
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
 }
 
-func (_m *MockTenantServiceConfigFileDao) GetByVolumeName(volumeName string) (*model.TenantServiceConfigFile, error) {
-	ret := _m.ctrl.Call(_m, "GetByVolumeName", volumeName)
+func (_m *MockTenantServiceConfigFileDao) GetByVolumeName(sid string, volumeName string) (*model.TenantServiceConfigFile, error) {
+	ret := _m.ctrl.Call(_m, "GetByVolumeName", sid, volumeName)
 	ret0, _ := ret[0].(*model.TenantServiceConfigFile)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockTenantServiceConfigFileDaoRecorder) GetByVolumeName(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetByVolumeName", arg0)
+func (_mr *_MockTenantServiceConfigFileDaoRecorder) GetByVolumeName(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetByVolumeName", arg0, arg1)
 }
 
-func (_m *MockTenantServiceConfigFileDao) DelByVolumeID(volumeName string) error {
-	ret := _m.ctrl.Call(_m, "DelByVolumeID", volumeName)
+func (_m *MockTenantServiceConfigFileDao) DelByVolumeID(sid string, volumeName string) error {
+	ret := _m.ctrl.Call(_m, "DelByVolumeID", sid, volumeName)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockTenantServiceConfigFileDaoRecorder) DelByVolumeID(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DelByVolumeID", arg0)
+func (_mr *_MockTenantServiceConfigFileDaoRecorder) DelByVolumeID(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DelByVolumeID", arg0, arg1)
+}
+
+func (_m *MockTenantServiceConfigFileDao) DelByServiceID(sid string) error {
+	ret := _m.ctrl.Call(_m, "DelByServiceID", sid)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockTenantServiceConfigFileDaoRecorder) DelByServiceID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DelByServiceID", arg0)
 }
 
 // Mock of TenantServiceLBMappingPortDao interface
@@ -3306,14 +3360,25 @@ func (_mr *_MockTCPRuleDaoRecorder) GetTCPRuleByID(arg0 interface{}) *gomock.Cal
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTCPRuleByID", arg0)
 }
 
-func (_m *MockTCPRuleDao) DeleteTCPRule(tcpRule *model.TCPRule) error {
-	ret := _m.ctrl.Call(_m, "DeleteTCPRule", tcpRule)
+func (_m *MockTCPRuleDao) GetTCPRuleByServiceID(sid string) ([]*model.TCPRule, error) {
+	ret := _m.ctrl.Call(_m, "GetTCPRuleByServiceID", sid)
+	ret0, _ := ret[0].([]*model.TCPRule)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTCPRuleDaoRecorder) GetTCPRuleByServiceID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTCPRuleByServiceID", arg0)
+}
+
+func (_m *MockTCPRuleDao) DeleteByID(uuid string) error {
+	ret := _m.ctrl.Call(_m, "DeleteByID", uuid)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockTCPRuleDaoRecorder) DeleteTCPRule(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteTCPRule", arg0)
+func (_mr *_MockTCPRuleDaoRecorder) DeleteByID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteByID", arg0)
 }
 
 func (_m *MockTCPRuleDao) DeleteTCPRuleByServiceID(serviceID string) error {
@@ -3546,6 +3611,16 @@ func (_mr *_MockEndpointsDaoRecorder) ListIsOnline(arg0 interface{}) *gomock.Cal
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "ListIsOnline", arg0)
 }
 
+func (_m *MockEndpointsDao) DeleteByServiceID(sid string) error {
+	ret := _m.ctrl.Call(_m, "DeleteByServiceID", sid)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockEndpointsDaoRecorder) DeleteByServiceID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteByServiceID", arg0)
+}
+
 // Mock of ThirdPartySvcDiscoveryCfgDao interface
 type MockThirdPartySvcDiscoveryCfgDao struct {
 	ctrl     *gomock.Controller
@@ -3596,4 +3671,76 @@ func (_m *MockThirdPartySvcDiscoveryCfgDao) GetByServiceID(sid string) (*model.T
 
 func (_mr *_MockThirdPartySvcDiscoveryCfgDaoRecorder) GetByServiceID(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetByServiceID", arg0)
+}
+
+func (_m *MockThirdPartySvcDiscoveryCfgDao) DeleteByServiceID(sid string) error {
+	ret := _m.ctrl.Call(_m, "DeleteByServiceID", sid)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockThirdPartySvcDiscoveryCfgDaoRecorder) DeleteByServiceID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteByServiceID", arg0)
+}
+
+// Mock of GwRuleConfigDao interface
+type MockGwRuleConfigDao struct {
+	ctrl     *gomock.Controller
+	recorder *_MockGwRuleConfigDaoRecorder
+}
+
+// Recorder for MockGwRuleConfigDao (not exported)
+type _MockGwRuleConfigDaoRecorder struct {
+	mock *MockGwRuleConfigDao
+}
+
+func NewMockGwRuleConfigDao(ctrl *gomock.Controller) *MockGwRuleConfigDao {
+	mock := &MockGwRuleConfigDao{ctrl: ctrl}
+	mock.recorder = &_MockGwRuleConfigDaoRecorder{mock}
+	return mock
+}
+
+func (_m *MockGwRuleConfigDao) EXPECT() *_MockGwRuleConfigDaoRecorder {
+	return _m.recorder
+}
+
+func (_m *MockGwRuleConfigDao) AddModel(_param0 model.Interface) error {
+	ret := _m.ctrl.Call(_m, "AddModel", _param0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockGwRuleConfigDaoRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "AddModel", arg0)
+}
+
+func (_m *MockGwRuleConfigDao) UpdateModel(_param0 model.Interface) error {
+	ret := _m.ctrl.Call(_m, "UpdateModel", _param0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockGwRuleConfigDaoRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
+}
+
+func (_m *MockGwRuleConfigDao) DeleteByRuleID(rid string) error {
+	ret := _m.ctrl.Call(_m, "DeleteByRuleID", rid)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockGwRuleConfigDaoRecorder) DeleteByRuleID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DeleteByRuleID", arg0)
+}
+
+func (_m *MockGwRuleConfigDao) ListByRuleID(rid string) ([]*model.GwRuleConfig, error) {
+	ret := _m.ctrl.Call(_m, "ListByRuleID", rid)
+	ret0, _ := ret[0].([]*model.GwRuleConfig)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockGwRuleConfigDaoRecorder) ListByRuleID(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "ListByRuleID", arg0)
 }

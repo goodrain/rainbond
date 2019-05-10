@@ -39,9 +39,8 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/jinzhu/gorm"
-	"github.com/pquerna/ffjson/ffjson"
 	"github.com/renstorm/fuzzysearch/fuzzy"
-	validator "github.com/thedevsaddam/govalidator"
+	"github.com/thedevsaddam/govalidator"
 )
 
 //V2Routes v2Routes
@@ -581,35 +580,8 @@ func (t *TenantStruct) ServicesInfo(w http.ResponseWriter, r *http.Request) {
 
 //CreateService create Service
 func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/services v2 createService
-	//
-	// 创建应用
-	//
-	// create service
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
 	var ss api_model.ServiceStruct
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		httputil.ReturnError(r, w, 500, err.Error())
-		return
-	}
-	err = ffjson.Unmarshal(body, &ss)
-	if err != nil {
-		httputil.ReturnError(r, w, 500, err.Error())
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &ss, nil) {
 		return
 	}
 

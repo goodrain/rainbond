@@ -74,6 +74,9 @@ func deepFields(iface interface{}, tagIdentifier, tagSeparator string, UniqueKey
 		default:
 			tags := strings.Split(rfv.Tag.Get(tagIdentifier), tagSeparator)
 			fieldName := tags[0]
+			if fieldName == "" {
+				continue
+			}
 			value := fmt.Sprintf("%v", v)
 			rules := tags[1:]
 			if UniqueKey {
