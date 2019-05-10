@@ -501,7 +501,8 @@ func (k *kubeClient) GetNodes() ([]*v1.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		for _, node := range list.Items {
+		for idx := range list.Items {
+			node := list.Items[idx]
 			nodes = append(nodes, &node)
 		}
 	}

@@ -69,6 +69,10 @@ message TenantResource {
   int64 memory_request = 3;
   int64 memory_limit = 4;
   int64 running_app_num = 5;
+  int64 unscd_cpu_req = 6;
+  int64 unscd_cpu_limit = 7;
+  int64 unscd_memory_req = 8;
+  int64 unscd_memory_limit = 9;
 }
 
 message AddThirdPartyEndpointsReq {
